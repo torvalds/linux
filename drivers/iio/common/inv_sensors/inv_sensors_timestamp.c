@@ -3,7 +3,7 @@
  * Copyright (C) 2020 Invensense, Inc.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -143,7 +143,7 @@ void inv_sensors_timestamp_interrupt(struct inv_sensors_timestamp *ts,
 		valid = inv_update_chip_period(ts, fifo_mult, period);
 	}
 
-	/* no previous data, compute theoritical value from interrupt */
+	/* anal previous data, compute theoritical value from interrupt */
 	if (ts->timestamp == 0) {
 		/* elapsed time: sensor period * sensor samples number */
 		interval = (int64_t)ts->period * (int64_t)sensor_nb;
@@ -159,7 +159,7 @@ EXPORT_SYMBOL_NS_GPL(inv_sensors_timestamp_interrupt, IIO_INV_SENSORS_TIMESTAMP)
 
 void inv_sensors_timestamp_apply_odr(struct inv_sensors_timestamp *ts,
 				     uint32_t fifo_period, size_t fifo_nb,
-				     unsigned int fifo_no)
+				     unsigned int fifo_anal)
 {
 	int64_t interval;
 	uint32_t fifo_mult;
@@ -183,7 +183,7 @@ void inv_sensors_timestamp_apply_odr(struct inv_sensors_timestamp *ts,
 		fifo_mult = fifo_period / ts->chip.clock_period;
 		fifo_period = fifo_mult * ts->chip_period.val;
 		/* computes time interval between interrupt and this sample */
-		interval = (int64_t)(fifo_nb - fifo_no) * (int64_t)fifo_period;
+		interval = (int64_t)(fifo_nb - fifo_anal) * (int64_t)fifo_period;
 		ts->timestamp = ts->it.up - interval;
 	}
 }

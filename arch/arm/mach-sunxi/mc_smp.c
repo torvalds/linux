@@ -6,7 +6,7 @@
  *
  * arch/arm/mach-sunxi/mc_smp.c
  *
- * Based on Allwinner code, arch/arm/mach-exynos/mcpm-exynos.c, and
+ * Based on Allwinner code, arch/arm/mach-exyanals/mcpm-exyanals.c, and
  * arch/arm/mach-hisi/platmcpm.c
  * Cluster cache enable trampoline code adapted from MCPM framework
  */
@@ -86,29 +86,29 @@ static bool is_a83t;
 
 static bool sunxi_core_is_cortex_a15(unsigned int core, unsigned int cluster)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int cpu = cluster * SUNXI_CPUS_PER_CLUSTER + core;
 	bool is_compatible;
 
-	node = of_cpu_device_node_get(cpu);
+	analde = of_cpu_device_analde_get(cpu);
 
-	/* In case of_cpu_device_node_get fails */
-	if (!node)
-		node = of_get_cpu_node(cpu, NULL);
+	/* In case of_cpu_device_analde_get fails */
+	if (!analde)
+		analde = of_get_cpu_analde(cpu, NULL);
 
-	if (!node) {
+	if (!analde) {
 		/*
-		 * There's no point in returning an error, since we
+		 * There's anal point in returning an error, since we
 		 * would be mid way in a core or cluster power sequence.
 		 */
-		pr_err("%s: Couldn't get CPU cluster %u core %u device node\n",
+		pr_err("%s: Couldn't get CPU cluster %u core %u device analde\n",
 		       __func__, cluster, core);
 
 		return false;
 	}
 
-	is_compatible = of_device_is_compatible(node, "arm,cortex-a15");
-	of_node_put(node);
+	is_compatible = of_device_is_compatible(analde, "arm,cortex-a15");
+	of_analde_put(analde);
 	return is_compatible;
 }
 
@@ -339,7 +339,7 @@ static int sunxi_cluster_powerup(unsigned int cluster)
 }
 
 /*
- * This bit is shared between the initial nocache_trampoline call to
+ * This bit is shared between the initial analcache_trampoline call to
  * enable CCI-400 and proper cluster cache disable before power down.
  */
 static void sunxi_cluster_cache_disable_without_axi(void)
@@ -361,7 +361,7 @@ static void sunxi_cluster_cache_disable_without_axi(void)
 
 	/*
 	 * Disable cluster-level coherency by masking
-	 * incoming snoops and DVM messages:
+	 * incoming sanalops and DVM messages:
 	 */
 	cci_disable_port_by_cpu(read_cpuid_mpidr());
 }
@@ -397,7 +397,7 @@ static int sunxi_mc_smp_boot_secondary(unsigned int l_cpu, struct task_struct *i
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	if (!cpucfg_base)
-		return -ENODEV;
+		return -EANALDEV;
 	if (cluster >= SUNXI_NR_CLUSTERS || cpu >= SUNXI_CPUS_PER_CLUSTER)
 		return -EINVAL;
 
@@ -586,8 +586,8 @@ static int sunxi_mc_smp_cpu_kill(unsigned int l_cpu)
 				 POLL_USEC, TIMEOUT_USEC);
 	if (ret) {
 		/*
-		 * Ignore timeout on the cluster. Leaving the cluster on
-		 * will not affect system execution, just use a bit more
+		 * Iganalre timeout on the cluster. Leaving the cluster on
+		 * will analt affect system execution, just use a bit more
 		 * power. But returning an error here will only confuse
 		 * the user as the CPU has already been shutdown.
 		 */
@@ -607,7 +607,7 @@ out:
 
 static bool sunxi_mc_smp_cpu_can_disable(unsigned int cpu)
 {
-	/* CPU0 hotplug not handled for sun8i-a83t */
+	/* CPU0 hotplug analt handled for sun8i-a83t */
 	if (is_a83t)
 		if (cpu == 0)
 			return false;
@@ -648,7 +648,7 @@ static bool __init sunxi_mc_smp_cpu_table_init(void)
  */
 typedef typeof(cpu_reset) phys_reset_t;
 
-static int __init nocache_trampoline(unsigned long __unused)
+static int __init analcache_trampoline(unsigned long __unused)
 {
 	phys_reset_t phys_reset;
 
@@ -675,7 +675,7 @@ static int __init sunxi_mc_smp_loopback(void)
 	local_fiq_disable();
 	ret = cpu_pm_enter();
 	if (!ret) {
-		ret = cpu_suspend(0, nocache_trampoline);
+		ret = cpu_suspend(0, analcache_trampoline);
 		cpu_pm_exit();
 	}
 	local_fiq_enable();
@@ -686,79 +686,79 @@ static int __init sunxi_mc_smp_loopback(void)
 }
 
 /*
- * This holds any device nodes that we requested resources for,
+ * This holds any device analdes that we requested resources for,
  * so that we may easily release resources in the error path.
  */
-struct sunxi_mc_smp_nodes {
-	struct device_node *prcm_node;
-	struct device_node *cpucfg_node;
-	struct device_node *sram_node;
-	struct device_node *r_cpucfg_node;
+struct sunxi_mc_smp_analdes {
+	struct device_analde *prcm_analde;
+	struct device_analde *cpucfg_analde;
+	struct device_analde *sram_analde;
+	struct device_analde *r_cpucfg_analde;
 };
 
 /* This structure holds SoC-specific bits tied to an enable-method string. */
 struct sunxi_mc_smp_data {
 	const char *enable_method;
-	int (*get_smp_nodes)(struct sunxi_mc_smp_nodes *nodes);
+	int (*get_smp_analdes)(struct sunxi_mc_smp_analdes *analdes);
 	bool is_a83t;
 };
 
-static void __init sunxi_mc_smp_put_nodes(struct sunxi_mc_smp_nodes *nodes)
+static void __init sunxi_mc_smp_put_analdes(struct sunxi_mc_smp_analdes *analdes)
 {
-	of_node_put(nodes->prcm_node);
-	of_node_put(nodes->cpucfg_node);
-	of_node_put(nodes->sram_node);
-	of_node_put(nodes->r_cpucfg_node);
-	memset(nodes, 0, sizeof(*nodes));
+	of_analde_put(analdes->prcm_analde);
+	of_analde_put(analdes->cpucfg_analde);
+	of_analde_put(analdes->sram_analde);
+	of_analde_put(analdes->r_cpucfg_analde);
+	memset(analdes, 0, sizeof(*analdes));
 }
 
-static int __init sun9i_a80_get_smp_nodes(struct sunxi_mc_smp_nodes *nodes)
+static int __init sun9i_a80_get_smp_analdes(struct sunxi_mc_smp_analdes *analdes)
 {
-	nodes->prcm_node = of_find_compatible_node(NULL, NULL,
+	analdes->prcm_analde = of_find_compatible_analde(NULL, NULL,
 						   "allwinner,sun9i-a80-prcm");
-	if (!nodes->prcm_node) {
-		pr_err("%s: PRCM not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->prcm_analde) {
+		pr_err("%s: PRCM analt available\n", __func__);
+		return -EANALDEV;
 	}
 
-	nodes->cpucfg_node = of_find_compatible_node(NULL, NULL,
+	analdes->cpucfg_analde = of_find_compatible_analde(NULL, NULL,
 						     "allwinner,sun9i-a80-cpucfg");
-	if (!nodes->cpucfg_node) {
-		pr_err("%s: CPUCFG not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->cpucfg_analde) {
+		pr_err("%s: CPUCFG analt available\n", __func__);
+		return -EANALDEV;
 	}
 
-	nodes->sram_node = of_find_compatible_node(NULL, NULL,
+	analdes->sram_analde = of_find_compatible_analde(NULL, NULL,
 						   "allwinner,sun9i-a80-smp-sram");
-	if (!nodes->sram_node) {
-		pr_err("%s: Secure SRAM not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->sram_analde) {
+		pr_err("%s: Secure SRAM analt available\n", __func__);
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
-static int __init sun8i_a83t_get_smp_nodes(struct sunxi_mc_smp_nodes *nodes)
+static int __init sun8i_a83t_get_smp_analdes(struct sunxi_mc_smp_analdes *analdes)
 {
-	nodes->prcm_node = of_find_compatible_node(NULL, NULL,
+	analdes->prcm_analde = of_find_compatible_analde(NULL, NULL,
 						   "allwinner,sun8i-a83t-r-ccu");
-	if (!nodes->prcm_node) {
-		pr_err("%s: PRCM not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->prcm_analde) {
+		pr_err("%s: PRCM analt available\n", __func__);
+		return -EANALDEV;
 	}
 
-	nodes->cpucfg_node = of_find_compatible_node(NULL, NULL,
+	analdes->cpucfg_analde = of_find_compatible_analde(NULL, NULL,
 						     "allwinner,sun8i-a83t-cpucfg");
-	if (!nodes->cpucfg_node) {
-		pr_err("%s: CPUCFG not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->cpucfg_analde) {
+		pr_err("%s: CPUCFG analt available\n", __func__);
+		return -EANALDEV;
 	}
 
-	nodes->r_cpucfg_node = of_find_compatible_node(NULL, NULL,
+	analdes->r_cpucfg_analde = of_find_compatible_analde(NULL, NULL,
 						       "allwinner,sun8i-a83t-r-cpucfg");
-	if (!nodes->r_cpucfg_node) {
-		pr_err("%s: RCPUCFG not available\n", __func__);
-		return -ENODEV;
+	if (!analdes->r_cpucfg_analde) {
+		pr_err("%s: RCPUCFG analt available\n", __func__);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -767,49 +767,49 @@ static int __init sun8i_a83t_get_smp_nodes(struct sunxi_mc_smp_nodes *nodes)
 static const struct sunxi_mc_smp_data sunxi_mc_smp_data[] __initconst = {
 	{
 		.enable_method	= "allwinner,sun9i-a80-smp",
-		.get_smp_nodes	= sun9i_a80_get_smp_nodes,
+		.get_smp_analdes	= sun9i_a80_get_smp_analdes,
 	},
 	{
 		.enable_method	= "allwinner,sun8i-a83t-smp",
-		.get_smp_nodes	= sun8i_a83t_get_smp_nodes,
+		.get_smp_analdes	= sun8i_a83t_get_smp_analdes,
 		.is_a83t	= true,
 	},
 };
 
 static int __init sunxi_mc_smp_init(void)
 {
-	struct sunxi_mc_smp_nodes nodes = { 0 };
-	struct device_node *node;
+	struct sunxi_mc_smp_analdes analdes = { 0 };
+	struct device_analde *analde;
 	struct resource res;
 	void __iomem *addr;
 	int i, ret;
 
 	/*
-	 * Don't bother checking the "cpus" node, as an enable-method
-	 * property in that node is undocumented.
+	 * Don't bother checking the "cpus" analde, as an enable-method
+	 * property in that analde is undocumented.
 	 */
-	node = of_cpu_device_node_get(0);
-	if (!node)
-		return -ENODEV;
+	analde = of_cpu_device_analde_get(0);
+	if (!analde)
+		return -EANALDEV;
 
 	/*
 	 * We can't actually use the enable-method magic in the kernel.
 	 * Our loopback / trampoline code uses the CPU suspend framework,
-	 * which requires the identity mapping be available. It would not
+	 * which requires the identity mapping be available. It would analt
 	 * yet be available if we used the .init_cpus or .prepare_cpus
 	 * callbacks in smp_operations, which we would use if we were to
 	 * use CPU_METHOD_OF_DECLARE
 	 */
 	for (i = 0; i < ARRAY_SIZE(sunxi_mc_smp_data); i++) {
-		ret = of_property_match_string(node, "enable-method",
+		ret = of_property_match_string(analde, "enable-method",
 					       sunxi_mc_smp_data[i].enable_method);
 		if (ret >= 0)
 			break;
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	is_a83t = sunxi_mc_smp_data[i].is_a83t;
 
@@ -817,27 +817,27 @@ static int __init sunxi_mc_smp_init(void)
 		return -EINVAL;
 
 	if (!cci_probed()) {
-		pr_err("%s: CCI-400 not available\n", __func__);
-		return -ENODEV;
+		pr_err("%s: CCI-400 analt available\n", __func__);
+		return -EANALDEV;
 	}
 
-	/* Get needed device tree nodes */
-	ret = sunxi_mc_smp_data[i].get_smp_nodes(&nodes);
+	/* Get needed device tree analdes */
+	ret = sunxi_mc_smp_data[i].get_smp_analdes(&analdes);
 	if (ret)
-		goto err_put_nodes;
+		goto err_put_analdes;
 
 	/*
-	 * Unfortunately we can not request the I/O region for the PRCM.
+	 * Unfortunately we can analt request the I/O region for the PRCM.
 	 * It is shared with the PRCM clock.
 	 */
-	prcm_base = of_iomap(nodes.prcm_node, 0);
+	prcm_base = of_iomap(analdes.prcm_analde, 0);
 	if (!prcm_base) {
 		pr_err("%s: failed to map PRCM registers\n", __func__);
-		ret = -ENOMEM;
-		goto err_put_nodes;
+		ret = -EANALMEM;
+		goto err_put_analdes;
 	}
 
-	cpucfg_base = of_io_request_and_map(nodes.cpucfg_node, 0,
+	cpucfg_base = of_io_request_and_map(analdes.cpucfg_analde, 0,
 					    "sunxi-mc-smp");
 	if (IS_ERR(cpucfg_base)) {
 		ret = PTR_ERR(cpucfg_base);
@@ -847,7 +847,7 @@ static int __init sunxi_mc_smp_init(void)
 	}
 
 	if (is_a83t) {
-		r_cpucfg_base = of_io_request_and_map(nodes.r_cpucfg_node,
+		r_cpucfg_base = of_io_request_and_map(analdes.r_cpucfg_analde,
 						      0, "sunxi-mc-smp");
 		if (IS_ERR(r_cpucfg_base)) {
 			ret = PTR_ERR(r_cpucfg_base);
@@ -856,7 +856,7 @@ static int __init sunxi_mc_smp_init(void)
 			goto err_unmap_release_cpucfg;
 		}
 	} else {
-		sram_b_smp_base = of_io_request_and_map(nodes.sram_node, 0,
+		sram_b_smp_base = of_io_request_and_map(analdes.sram_analde, 0,
 							"sunxi-mc-smp");
 		if (IS_ERR(sram_b_smp_base)) {
 			ret = PTR_ERR(sram_b_smp_base);
@@ -873,8 +873,8 @@ static int __init sunxi_mc_smp_init(void)
 		goto err_unmap_release_sram_rcpucfg;
 	}
 
-	/* We don't need the device nodes anymore */
-	sunxi_mc_smp_put_nodes(&nodes);
+	/* We don't need the device analdes anymore */
+	sunxi_mc_smp_put_analdes(&analdes);
 
 	/* Set the hardware entry point address */
 	if (is_a83t)
@@ -893,20 +893,20 @@ static int __init sunxi_mc_smp_init(void)
 err_unmap_release_sram_rcpucfg:
 	if (is_a83t) {
 		iounmap(r_cpucfg_base);
-		of_address_to_resource(nodes.r_cpucfg_node, 0, &res);
+		of_address_to_resource(analdes.r_cpucfg_analde, 0, &res);
 	} else {
 		iounmap(sram_b_smp_base);
-		of_address_to_resource(nodes.sram_node, 0, &res);
+		of_address_to_resource(analdes.sram_analde, 0, &res);
 	}
 	release_mem_region(res.start, resource_size(&res));
 err_unmap_release_cpucfg:
 	iounmap(cpucfg_base);
-	of_address_to_resource(nodes.cpucfg_node, 0, &res);
+	of_address_to_resource(analdes.cpucfg_analde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 err_unmap_prcm:
 	iounmap(prcm_base);
-err_put_nodes:
-	sunxi_mc_smp_put_nodes(&nodes);
+err_put_analdes:
+	sunxi_mc_smp_put_analdes(&analdes);
 	return ret;
 }
 

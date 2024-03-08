@@ -209,7 +209,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init nios2_timer_get_base_and_freq(struct device_node *np,
+static int __init nios2_timer_get_base_and_freq(struct device_analde *np,
 				void __iomem **base, u32 *freq)
 {
 	*base = of_iomap(np, 0);
@@ -240,7 +240,7 @@ static struct nios2_clockevent_dev nios2_ce = {
 	},
 };
 
-static __init int nios2_clockevent_init(struct device_node *timer)
+static __init int nios2_clockevent_init(struct device_analde *timer)
 {
 	void __iomem *iobase;
 	u32 freq;
@@ -278,7 +278,7 @@ static __init int nios2_clockevent_init(struct device_node *timer)
 	return 0;
 }
 
-static __init int nios2_clocksource_init(struct device_node *timer)
+static __init int nios2_clocksource_init(struct device_analde *timer)
 {
 	unsigned int ctrl;
 	void __iomem *iobase;
@@ -314,7 +314,7 @@ static __init int nios2_clocksource_init(struct device_node *timer)
  * more instances, the second one gets used as clocksource and all
  * others are unused.
 */
-static int __init nios2_time_init(struct device_node *timer)
+static int __init nios2_time_init(struct device_analde *timer)
 {
 	static int num_called;
 	int ret;
@@ -344,10 +344,10 @@ void read_persistent_clock64(struct timespec64 *ts)
 
 void __init time_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int count = 0;
 
-	for_each_compatible_node(np, NULL,  ALTR_TIMER_COMPATIBLE)
+	for_each_compatible_analde(np, NULL,  ALTR_TIMER_COMPATIBLE)
 		count++;
 
 	if (count < 2)

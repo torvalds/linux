@@ -19,7 +19,7 @@ static const struct mtk_gate_regs ipu_adl_cg_regs = {
 
 #define GATE_IPU_ADL_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_adl_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate ipu_adl_clks[] = {
 	GATE_IPU_ADL_I(CLK_IPU_ADL_CABGEN, "ipu_adl_cabgen", "dsp_sel", 24),

@@ -113,7 +113,7 @@ struct ddr_pmu {
 	struct pmu pmu;
 	void __iomem *base;
 	unsigned int cpu;
-	struct	hlist_node node;
+	struct	hlist_analde analde;
 	struct	device *dev;
 	struct perf_event *events[NUM_COUNTERS];
 	enum cpuhp_state cpuhp_state;
@@ -177,7 +177,7 @@ static u32 ddr_perf_filter_cap_get(struct ddr_pmu *pmu, int cap)
 	case PERF_CAP_AXI_ID_PORT_CHANNEL_FILTER:
 		return !!(quirks & DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER);
 	default:
-		WARN(1, "unknown filter cap %d\n", cap);
+		WARN(1, "unkanalwn filter cap %d\n", cap);
 	}
 
 	return 0;
@@ -262,9 +262,9 @@ static struct attribute *ddr_perf_events_attrs[] = {
 	IMX8_DDR_PMU_EVENT_ATTR(write-command, 0x21),
 	IMX8_DDR_PMU_EVENT_ATTR(read-modify-write-command, 0x22),
 	IMX8_DDR_PMU_EVENT_ATTR(hp-read, 0x23),
-	IMX8_DDR_PMU_EVENT_ATTR(hp-req-nocredit, 0x24),
+	IMX8_DDR_PMU_EVENT_ATTR(hp-req-analcredit, 0x24),
 	IMX8_DDR_PMU_EVENT_ATTR(hp-xact-credit, 0x25),
-	IMX8_DDR_PMU_EVENT_ATTR(lp-req-nocredit, 0x26),
+	IMX8_DDR_PMU_EVENT_ATTR(lp-req-analcredit, 0x26),
 	IMX8_DDR_PMU_EVENT_ATTR(lp-xact-credit, 0x27),
 	IMX8_DDR_PMU_EVENT_ATTR(wr-xact-credit, 0x29),
 	IMX8_DDR_PMU_EVENT_ATTR(read-cycles, 0x2a),
@@ -361,7 +361,7 @@ static u32 ddr_perf_alloc_counter(struct ddr_pmu *pmu, int event)
 		if (pmu->events[EVENT_CYCLES_COUNTER] == NULL)
 			return EVENT_CYCLES_COUNTER;
 		else
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	for (i = 1; i < NUM_COUNTERS; i++) {
@@ -369,7 +369,7 @@ static u32 ddr_perf_alloc_counter(struct ddr_pmu *pmu, int event)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void ddr_perf_free_counter(struct ddr_pmu *pmu, int counter)
@@ -399,18 +399,18 @@ static int ddr_perf_event_init(struct perf_event *event)
 	struct perf_event *sibling;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->cpu < 0) {
 		dev_warn(pmu->dev, "Can't provide per-task data!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
-	 * We must NOT create groups containing mixed PMUs, although software
+	 * We must ANALT create groups containing mixed PMUs, although software
 	 * events are acceptable (for example to create a CCN group
 	 * periodically read when a hrtimer aka cpu-clock leader triggers).
 	 */
@@ -515,7 +515,7 @@ static void ddr_perf_event_update(struct perf_event *event)
 
 	/*
 	 * For legacy SoCs: event counter continue counting when overflow,
-	 *                  no need to clear the counter.
+	 *                  anal need to clear the counter.
 	 * For new SoCs: event counter stop counting when overflow, need
 	 *               clear counter to let it count again.
 	 */
@@ -574,8 +574,8 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 
 	counter = ddr_perf_alloc_counter(pmu, cfg);
 	if (counter < 0) {
-		dev_dbg(pmu->dev, "There are not enough counters\n");
-		return -EOPNOTSUPP;
+		dev_dbg(pmu->dev, "There are analt eanalugh counters\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (pmu->devtype_data->quirks & DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER) {
@@ -651,7 +651,7 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 	*pmu = (struct ddr_pmu) {
 		.pmu = (struct pmu) {
 			.module	      = THIS_MODULE,
-			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+			.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 			.task_ctx_nr = perf_invalid_context,
 			.attr_groups = attr_groups,
 			.event_init  = ddr_perf_event_init,
@@ -685,12 +685,12 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	/*
 	 * When the cycle counter overflows, all counters are stopped,
 	 * and an IRQ is raised. If any other counter overflows, it
-	 * continues counting, and no IRQ is raised. But for new SoCs,
+	 * continues counting, and anal IRQ is raised. But for new SoCs,
 	 * such as i.MX8MP, event counter would stop when overflow, so
 	 * we need use cycle counter to stop overflow of event counter.
 	 *
 	 * Cycles occur at least 4 times as often as other events, so we
-	 * can update all events on a cycle counter overflow and not
+	 * can update all events on a cycle counter overflow and analt
 	 * lose events.
 	 *
 	 */
@@ -712,9 +712,9 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct ddr_pmu *pmu = hlist_entry_safe(node, struct ddr_pmu, node);
+	struct ddr_pmu *pmu = hlist_entry_safe(analde, struct ddr_pmu, analde);
 	int target;
 
 	if (cpu != pmu->cpu)
@@ -735,7 +735,7 @@ static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static int ddr_perf_probe(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu;
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 	char *name;
 	int num;
@@ -746,11 +746,11 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num = ddr_perf_init(pmu, base, &pdev->dev);
 
@@ -759,7 +759,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, DDR_PERF_DEV_NAME "%d",
 			      num);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cpuhp_state_err;
 	}
 
@@ -779,7 +779,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	pmu->cpuhp_state = ret;
 
 	/* Register the pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	ret = cpuhp_state_add_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		goto cpuhp_instance_err;
@@ -795,7 +795,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq,
 					ddr_perf_irq_handler,
-					IRQF_NOBALANCING | IRQF_NO_THREAD,
+					IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 					DDR_CPUHP_CB_NAME,
 					pmu);
 	if (ret < 0) {
@@ -817,7 +817,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	return 0;
 
 ddr_perf_err:
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 cpuhp_instance_err:
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
 cpuhp_state_err:
@@ -830,7 +830,7 @@ static int ddr_perf_remove(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
 
 	perf_pmu_unregister(&pmu->pmu);

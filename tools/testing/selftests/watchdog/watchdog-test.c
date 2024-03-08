@@ -2,7 +2,7 @@
 /*
 * Watchdog Driver Test Program
 * - Tests all ioctls
-* - Tests Magic Close - CONFIG_WATCHDOG_NOWAYOUT
+* - Tests Magic Close - CONFIG_WATCHDOG_ANALWAYOUT
 * - Could be tested against softdog driver on systems that
 *   don't have watchdog hardware.
 * - TODO:
@@ -11,7 +11,7 @@
 * Reference: Documentation/watchdog/watchdog-api.rst
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,20 +29,20 @@ int fd;
 const char v = 'V';
 static const char sopts[] = "bdehp:st:Tn:NLf:i";
 static const struct option lopts[] = {
-	{"bootstatus",          no_argument, NULL, 'b'},
-	{"disable",             no_argument, NULL, 'd'},
-	{"enable",              no_argument, NULL, 'e'},
-	{"help",                no_argument, NULL, 'h'},
+	{"bootstatus",          anal_argument, NULL, 'b'},
+	{"disable",             anal_argument, NULL, 'd'},
+	{"enable",              anal_argument, NULL, 'e'},
+	{"help",                anal_argument, NULL, 'h'},
 	{"pingrate",      required_argument, NULL, 'p'},
-	{"status",              no_argument, NULL, 's'},
+	{"status",              anal_argument, NULL, 's'},
 	{"timeout",       required_argument, NULL, 't'},
-	{"gettimeout",          no_argument, NULL, 'T'},
+	{"gettimeout",          anal_argument, NULL, 'T'},
 	{"pretimeout",    required_argument, NULL, 'n'},
-	{"getpretimeout",       no_argument, NULL, 'N'},
-	{"gettimeleft",		no_argument, NULL, 'L'},
+	{"getpretimeout",       anal_argument, NULL, 'N'},
+	{"gettimeleft",		anal_argument, NULL, 'L'},
 	{"file",          required_argument, NULL, 'f'},
-	{"info",		no_argument, NULL, 'i'},
-	{NULL,                  no_argument, NULL, 0x0}
+	{"info",		anal_argument, NULL, 'i'},
+	{NULL,                  anal_argument, NULL, 0x0}
 };
 
 /*
@@ -71,7 +71,7 @@ static void term(int sig)
 
 	close(fd);
 	if (ret < 0)
-		printf("\nStopping watchdog ticks failed (%d)...\n", errno);
+		printf("\nStopping watchdog ticks failed (%d)...\n", erranal);
 	else
 		printf("\nStopping watchdog ticks...\n");
 	exit(0);
@@ -112,7 +112,7 @@ static const struct wdiof_status wdiof_status[WDIOF_NUM_STATUS] = {
 	{WDIOF_SETTIMEOUT,  "Set timeout (in seconds)"},
 	{WDIOF_MAGICCLOSE,  "Supports magic close char"},
 	{WDIOF_PRETIMEOUT,  "Pretimeout (in seconds), get/set"},
-	{WDIOF_ALARMONLY,  "Watchdog triggers a management or other external alarm not a reboot"},
+	{WDIOF_ALARMONLY,  "Watchdog triggers a management or other external alarm analt a reboot"},
 	{WDIOF_KEEPALIVEPING,  "Keep alive ping reply"},
 	{WDIOS_DISABLECARD,  "Turn off the watchdog timer"},
 	{WDIOS_ENABLECARD,  "Turn on the watchdog timer"},
@@ -123,8 +123,8 @@ static void print_status(int flags)
 {
 	int wdiof = 0;
 
-	if (flags == WDIOS_UNKNOWN) {
-		printf("Unknown status error from WDIOC_GETSTATUS\n");
+	if (flags == WDIOS_UNKANALWN) {
+		printf("Unkanalwn status error from WDIOC_GETSTATUS\n");
 		return;
 	}
 
@@ -151,8 +151,8 @@ static void print_boot_status(int flags)
 {
 	int wdiof = 0;
 
-	if (flags == WDIOF_UNKNOWN) {
-		printf("Unknown flag error from WDIOC_GETBOOTSTATUS\n");
+	if (flags == WDIOF_UNKANALWN) {
+		printf("Unkanalwn flag error from WDIOC_GETBOOTSTATUS\n");
 		return;
 	}
 
@@ -189,13 +189,13 @@ int main(int argc, char *argv[])
 	fd = open(file, O_WRONLY);
 
 	if (fd == -1) {
-		if (errno == ENOENT)
-			printf("Watchdog device (%s) not found.\n", file);
-		else if (errno == EACCES)
+		if (erranal == EANALENT)
+			printf("Watchdog device (%s) analt found.\n", file);
+		else if (erranal == EACCES)
 			printf("Run watchdog as root.\n");
 		else
 			printf("Watchdog device open failed %s\n",
-				strerror(errno));
+				strerror(erranal));
 		exit(-1);
 	}
 
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 	 */
 	ret = ioctl(fd, WDIOC_GETSUPPORT, &info);
 	if (ret) {
-		printf("WDIOC_GETSUPPORT error '%s'\n", strerror(errno));
+		printf("WDIOC_GETSUPPORT error '%s'\n", strerror(erranal));
 		close(fd);
 		exit(ret);
 	}
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				print_boot_status(flags);
 			else
-				printf("WDIOC_GETBOOTSTATUS error '%s'\n", strerror(errno));
+				printf("WDIOC_GETBOOTSTATUS error '%s'\n", strerror(erranal));
 			break;
 		case 'd':
 			flags = WDIOS_DISABLECARD;
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("Watchdog card disabled.\n");
 			else {
-				printf("WDIOS_DISABLECARD error '%s'\n", strerror(errno));
+				printf("WDIOS_DISABLECARD error '%s'\n", strerror(erranal));
 				oneshot = 1;
 			}
 			break;
@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("Watchdog card enabled.\n");
 			else {
-				printf("WDIOS_ENABLECARD error '%s'\n", strerror(errno));
+				printf("WDIOS_ENABLECARD error '%s'\n", strerror(erranal));
 				oneshot = 1;
 			}
 			break;
@@ -255,10 +255,10 @@ int main(int argc, char *argv[])
 			if (!ret)
 				print_status(flags);
 			else
-				printf("WDIOC_GETSTATUS error '%s'\n", strerror(errno));
+				printf("WDIOC_GETSTATUS error '%s'\n", strerror(erranal));
 			ret = ioctl(fd, WDIOC_GETTEMP, &temperature);
 			if (ret)
-				printf("WDIOC_GETTEMP: '%s'\n", strerror(errno));
+				printf("WDIOC_GETTEMP: '%s'\n", strerror(erranal));
 			else
 				printf("Temperature %d\n", temperature);
 
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("Watchdog timeout set to %u seconds.\n", flags);
 			else {
-				printf("WDIOC_SETTIMEOUT error '%s'\n", strerror(errno));
+				printf("WDIOC_SETTIMEOUT error '%s'\n", strerror(erranal));
 				oneshot = 1;
 			}
 			break;
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("WDIOC_GETTIMEOUT returns %u seconds.\n", flags);
 			else
-				printf("WDIOC_GETTIMEOUT error '%s'\n", strerror(errno));
+				printf("WDIOC_GETTIMEOUT error '%s'\n", strerror(erranal));
 			break;
 		case 'n':
 			flags = strtoul(optarg, NULL, 0);
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("Watchdog pretimeout set to %u seconds.\n", flags);
 			else {
-				printf("WDIOC_SETPRETIMEOUT error '%s'\n", strerror(errno));
+				printf("WDIOC_SETPRETIMEOUT error '%s'\n", strerror(erranal));
 				oneshot = 1;
 			}
 			break;
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("WDIOC_GETPRETIMEOUT returns %u seconds.\n", flags);
 			else
-				printf("WDIOC_GETPRETIMEOUT error '%s'\n", strerror(errno));
+				printf("WDIOC_GETPRETIMEOUT error '%s'\n", strerror(erranal));
 			break;
 		case 'L':
 			oneshot = 1;
@@ -305,7 +305,7 @@ int main(int argc, char *argv[])
 			if (!ret)
 				printf("WDIOC_GETTIMELEFT returns %u seconds.\n", flags);
 			else
-				printf("WDIOC_GETTIMELEFT error '%s'\n", strerror(errno));
+				printf("WDIOC_GETTIMELEFT error '%s'\n", strerror(erranal));
 			break;
 		case 'f':
 			/* Handled above */
@@ -347,7 +347,7 @@ end:
 	 */
 	ret = write(fd, &v, 1);
 	if (ret < 0)
-		printf("Stopping watchdog ticks failed (%d)...\n", errno);
+		printf("Stopping watchdog ticks failed (%d)...\n", erranal);
 	close(fd);
 	return 0;
 }

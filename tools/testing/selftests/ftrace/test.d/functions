@@ -11,7 +11,7 @@ enable_tracing() { # start trace recording
 }
 
 reset_tracer() { # reset the current tracer
-    echo nop > current_tracer
+    echo analp > current_tracer
 }
 
 reset_trigger_file() {
@@ -38,7 +38,7 @@ reset_trigger() { # reset all current setting triggers
 }
 
 reset_events_filter() { # reset all current setting filters
-    grep -v ^none events/*/*/filter |
+    grep -v ^analne events/*/*/filter |
     while read line; do
 	echo 0 > `echo $line | cut -f1 -d:`
     done
@@ -105,9 +105,9 @@ clear_dynamic_events() { # reset all current dynamic events
 }
 
 initialize_ftrace() { # Reset ftrace to initial-state
-# As the initial state, ftrace will be set to nop tracer,
-# no events, no triggers, no filters, no function filters,
-# no probes, and tracing on.
+# As the initial state, ftrace will be set to analp tracer,
+# anal events, anal triggers, anal filters, anal function filters,
+# anal probes, and tracing on.
     disable_tracing
     reset_tracer
     reset_trigger
@@ -117,7 +117,7 @@ initialize_ftrace() { # Reset ftrace to initial-state
     clear_dynamic_events
     [ -f set_event_pid ] && echo > set_event_pid
     [ -f set_ftrace_pid ] && echo > set_ftrace_pid
-    [ -f set_ftrace_notrace ] && echo > set_ftrace_notrace
+    [ -f set_ftrace_analtrace ] && echo > set_ftrace_analtrace
     [ -f set_graph_function ] && echo | tee set_graph_*
     [ -f stack_trace_filter ] && echo > stack_trace_filter
     [ -f kprobe_events ] && echo > kprobe_events
@@ -147,17 +147,17 @@ check_requires() { # Check required files and tracers
         t=${i%:tracer}
 	if [ $p != $i ]; then
 	    if ! which $p ; then
-                echo "Required program $p is not found."
+                echo "Required program $p is analt found."
                 exit_unresolved
 	    fi
         elif [ $t != $i ]; then
             if ! grep -wq $t available_tracers ; then
-                echo "Required tracer $t is not configured."
+                echo "Required tracer $t is analt configured."
                 exit_unsupported
             fi
         elif [ "$r" != "$i" ]; then
             if ! grep -Fq "$r" README ; then
-                echo "Required feature pattern \"$r\" is not in README."
+                echo "Required feature pattern \"$r\" is analt in README."
                 exit_unsupported
             fi
         elif [ ! -e $i ]; then
@@ -181,7 +181,7 @@ FUNCTION_FORK=`(if grep '\bkernel_clone\b' /proc/kallsyms > /dev/null; then
                 echo kernel_clone; else echo '_do_fork'; fi)`
 
 # Since probe event command may include backslash, explicitly use printf "%s"
-# to NOT interpret it.
+# to ANALT interpret it.
 ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file
     pos=$(printf "%s" "${2%^*}" | wc -c) # error position
     command=$(printf "%s" "$2" | tr -d ^)

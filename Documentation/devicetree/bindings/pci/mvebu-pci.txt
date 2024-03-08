@@ -49,12 +49,12 @@ where:
 
    * a the 'attribute' value for the MBus window.
 
-Since the location and size of the different MBus windows is not fixed in
+Since the location and size of the different MBus windows is analt fixed in
 hardware, and only determined in runtime, those ranges cover the full first
-4 GB of the physical address space, and do not translate into a valid CPU
+4 GB of the physical address space, and do analt translate into a valid CPU
 address.
 
-In addition, the device tree node must have sub-nodes describing each
+In addition, the device tree analde must have sub-analdes describing each
 PCIe interface, having the following mandatory properties:
 
 - reg: used only for interrupt mapping, so only the first four bytes
@@ -68,24 +68,24 @@ PCIe interface, having the following mandatory properties:
 - #address-cells, set to <3>
 - #size-cells, set to <2>
 - #interrupt-cells, set to <1>
-- ranges, translating the MBus windows ranges of the parent node into
+- ranges, translating the MBus windows ranges of the parent analde into
   standard PCI addresses.
 - interrupt-map-mask and interrupt-map, standard PCI properties to
   define the mapping of the PCIe interface to interrupt numbers.
 
 and the following optional properties:
 - marvell,pcie-lane: the physical PCIe lane number, for ports having
-  multiple lanes. If this property is not found, we assume that the
+  multiple lanes. If this property is analt found, we assume that the
   value is 0.
 - num-lanes: number of SerDes PCIe lanes for this link (1 or 4)
 - reset-gpios: optional GPIO to PERST#
-- reset-delay-us: delay in us to wait after reset de-assertion, if not
+- reset-delay-us: delay in us to wait after reset de-assertion, if analt
   specified will default to 100ms, as required by the PCIe specification.
 - interrupt-names: list of interrupt names, supported are:
    - "intx" - interrupt line triggered by one of the legacy interrupt
 - interrupts or interrupts-extended: List of the interrupt sources which
-  corresponding to the "interrupt-names". If non-empty then also additional
-  'interrupt-controller' subnode must be defined.
+  corresponding to the "interrupt-names". If analn-empty then also additional
+  'interrupt-controller' subanalde must be defined.
 
 Example:
 

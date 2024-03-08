@@ -104,7 +104,7 @@
     {
         "PublicDescription": "Prefetch response received but was dropped since we don't support inflight upgrades.",
         "EventCode": "0xd107",
-        "EventName": "ICF_PREFETCH_DROPPED_NO_UPGRADE",
+        "EventName": "ICF_PREFETCH_DROPPED_ANAL_UPGRADE",
         "BriefDescription": "Prefetch response received but was dropped since we don't support inflight upgrades."
     },
     {

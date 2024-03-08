@@ -47,8 +47,8 @@ static int wm1250_ev1_set_bias_level(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dapm_widget wm1250_ev1_dapm_widgets[] = {
-SND_SOC_DAPM_ADC("ADC", "wm1250-ev1 Capture", SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_DAC("DAC", "wm1250-ev1 Playback", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_ADC("ADC", "wm1250-ev1 Capture", SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_DAC("DAC", "wm1250-ev1 Playback", SND_SOC_ANALPM, 0, 0),
 
 SND_SOC_DAPM_INPUT("WM1250 Input"),
 SND_SOC_DAPM_OUTPUT("WM1250 Output"),
@@ -135,7 +135,7 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 
 	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
 	if (!wm1250)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm1250->clk_ena = devm_gpiod_get(&i2c->dev, "clk-ena", GPIOD_OUT_LOW);
 	if (IS_ERR(wm1250->clk_ena))
@@ -183,8 +183,8 @@ static int wm1250_ev1_probe(struct i2c_client *i2c)
 	rev = board & 0x3;
 
 	if (id != 1) {
-		dev_err(&i2c->dev, "Unknown board ID %d\n", id);
-		return -ENODEV;
+		dev_err(&i2c->dev, "Unkanalwn board ID %d\n", id);
+		return -EANALDEV;
 	}
 
 	dev_info(&i2c->dev, "revision %d\n", rev + 1);

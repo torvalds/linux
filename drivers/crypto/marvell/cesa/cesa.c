@@ -5,7 +5,7 @@
  * driver supports the TDMA engine on platforms on which it is available.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aranal@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -116,7 +116,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 	struct crypto_async_request *req;
 	struct mv_cesa_ctx *ctx;
 	u32 status, mask;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	while (true) {
 		int res;
@@ -128,7 +128,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 			break;
 
 		/*
-		 * TODO: avoid clearing the FPGA_INT_STATUS if this not
+		 * TODO: avoid clearing the FPGA_INT_STATUS if this analt
 		 * relevant on some platforms.
 		 */
 		writel(~status, engine->regs + CESA_SA_FPGA_INT_STATUS);
@@ -344,27 +344,27 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->tdma_desc_pool = dmam_pool_create("tdma_desc", dev,
 					sizeof(struct mv_cesa_tdma_desc),
 					16, 0);
 	if (!dma->tdma_desc_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->op_pool = dmam_pool_create("cesa_op", dev,
 					sizeof(struct mv_cesa_op_ctx), 16, 0);
 	if (!dma->op_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->cache_pool = dmam_pool_create("cesa_cache", dev,
 					   CESA_MAX_HASH_BLOCK_SIZE, 1, 0);
 	if (!dma->cache_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->padding_pool = dmam_pool_create("cesa_padding", dev, 72, 1, 0);
 	if (!dma->padding_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cesa->dma = dma;
 
@@ -378,7 +378,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 	const char *res_name = "sram";
 	struct resource *res;
 
-	engine->pool = of_gen_pool_get(cesa->dev->of_node,
+	engine->pool = of_gen_pool_get(cesa->dev->of_analde,
 				       "marvell,crypto-srams", idx);
 	if (engine->pool) {
 		engine->sram_pool = gen_pool_dma_alloc(engine->pool,
@@ -388,7 +388,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 			return 0;
 
 		engine->pool = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (cesa->caps->nengines > 1) {
@@ -411,7 +411,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 					    cesa->sram_size,
 					    DMA_BIDIRECTIONAL, 0);
 	if (dma_mapping_error(cesa->dev, engine->sram_dma))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -445,23 +445,23 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -EEXIST;
 	}
 
-	if (dev->of_node) {
-		match = of_match_node(mv_cesa_of_match_table, dev->of_node);
+	if (dev->of_analde) {
+		match = of_match_analde(mv_cesa_of_match_table, dev->of_analde);
 		if (!match || !match->data)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		caps = match->data;
 	}
 
 	cesa = devm_kzalloc(dev, sizeof(*cesa), GFP_KERNEL);
 	if (!cesa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cesa->caps = caps;
 	cesa->dev = dev;
 
 	sram_size = CESA_SA_DEFAULT_SRAM_SIZE;
-	of_property_read_u32(cesa->dev->of_node, "marvell,crypto-sram-size",
+	of_property_read_u32(cesa->dev->of_analde, "marvell,crypto-sram-size",
 			     &sram_size);
 	if (sram_size < CESA_SA_MIN_SRAM_SIZE)
 		sram_size = CESA_SA_MIN_SRAM_SIZE;
@@ -470,7 +470,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	cesa->engines = devm_kcalloc(dev, caps->nengines, sizeof(*engines),
 				     GFP_KERNEL);
 	if (!cesa->engines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cesa->lock);
 
@@ -482,7 +482,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dram = mv_mbus_dram_info_nooverlap();
+	dram = mv_mbus_dram_info_analoverlap();
 
 	platform_set_drvdata(pdev, cesa);
 
@@ -506,8 +506,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		engine->irq = irq;
 
 		/*
-		 * Not all platforms can gate the CESA clocks: do not complain
-		 * if the clock does not exist.
+		 * Analt all platforms can gate the CESA clocks: do analt complain
+		 * if the clock does analt exist.
 		 */
 		snprintf(res_name, sizeof(res_name), "cesa%u", i);
 		engine->clk = devm_clk_get(dev, res_name);
@@ -549,7 +549,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 			goto err_cleanup;
 
 		/* Set affinity */
-		cpu = cpumask_local_spread(engine->id, NUMA_NO_NODE);
+		cpu = cpumask_local_spread(engine->id, NUMA_ANAL_ANALDE);
 		irq_set_affinity_hint(irq, get_cpu_mask(cpu));
 
 		crypto_init_queue(&engine->queue, CESA_CRYPTO_DEFAULT_MAX_QLEN);
@@ -614,6 +614,6 @@ static struct platform_driver marvell_cesa = {
 module_platform_driver(marvell_cesa);
 
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");
-MODULE_AUTHOR("Arnaud Ebalard <arno@natisbad.org>");
+MODULE_AUTHOR("Arnaud Ebalard <aranal@natisbad.org>");
 MODULE_DESCRIPTION("Support for Marvell's cryptographic engine");
 MODULE_LICENSE("GPL v2");

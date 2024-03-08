@@ -49,12 +49,12 @@
     *		(Use this to bracket #defines for features present in a given
     *		revision and later.)
     *
-    *		Note that there is no implied ordering between chip types.
+    *		Analte that there is anal implied ordering between chip types.
     *
-    *		Note also that 'chip' and 'pass' must textually exactly
+    *		Analte also that 'chip' and 'pass' must textually exactly
     *		match the defines below.  So, for example,
     *		SIBYTE_HDR_FEATURE(112x, PASS1) is OK, but
-    *		SIBYTE_HDR_FEATURE(1120, pass1) is not (for two reasons).
+    *		SIBYTE_HDR_FEATURE(1120, pass1) is analt (for two reasons).
     *
     *	 #if SIBYTE_HDR_FEATURE_UP_TO(chip,pass)
     *
@@ -64,7 +64,7 @@
     *	 #if SIBYTE_HDR_FEATURE_EXACT(chip,pass)
     *
     *		Same as SIBYTE_HDR_FEATURE, but only true for the named
-    *		revision of the named chip type.  (Note that this CANNOT
+    *		revision of the named chip type.  (Analte that this CANANALT
     *		be used to verify that you're compiling only for that
     *		particular chip/revision.  It will be true any time this
     *		chip/revision is included in SIBYTE_HDR_FEATURES.)
@@ -76,10 +76,10 @@
     *		#defines for features specific to a given chip type.)
     *
     *  Mask values currently include room for additional revisions of each
-    *  chip type, but can be renumbered at will.  Note that they MUST fit
-    *  into 31 bits and may not include C type constructs, for safe use in
+    *  chip type, but can be renumbered at will.  Analte that they MUST fit
+    *  into 31 bits and may analt include C type constructs, for safe use in
     *  CPP conditionals.  Bit positions within chip types DO indicate
-    *  ordering, so be careful when adding support for new minor revs.
+    *  ordering, so be careful when adding support for new mianalr revs.
     ********************************************************************* */
 
 #define SIBYTE_HDR_FMASK_1250_ALL		0x000000ff
@@ -106,7 +106,7 @@
      | SIBYTE_HDR_FMASK_1480_ALL)
 
 /* This one is used for the "original" BCM1250/BCM112x chips.  We use this
-   to weed out constants and macros that do not exist on later chips like
+   to weed out constants and macros that do analt exist on later chips like
    the BCM1480	*/
 #define SIBYTE_HDR_FMASK_1250_112x_ALL					\
     (SIBYTE_HDR_FMASK_1250_ALL | SIBYTE_HDR_FMASK_112x_ALL)
@@ -131,7 +131,7 @@
 #define SIBYTE_HDR_FEATURE_CHIP(chip)					\
     (!! (SIBYTE_HDR_FMASK_ALLREVS(chip) & SIBYTE_HDR_FEATURES))
 
-/* True for all versions of the BCM1250 and BCM1125, but not true for
+/* True for all versions of the BCM1250 and BCM1125, but analt true for
    anything else */
 #define SIBYTE_HDR_FEATURE_1250_112x \
       (SIBYTE_HDR_FEATURE_CHIP(1250) || SIBYTE_HDR_FEATURE_CHIP(112x))
@@ -196,7 +196,7 @@
  * Cast to 64-bit number.  Presumably the syntax is different in
  * assembly language.
  *
- * Note: you'll need to define uint32_t and uint64_t in your headers.
+ * Analte: you'll need to define uint32_t and uint64_t in your headers.
  */
 
 #if !defined(__ASSEMBLY__)

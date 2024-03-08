@@ -301,11 +301,11 @@ static void ad714x_slider_cal_abs_pos(struct ad714x_chip *ad714x, int idx)
 }
 
 /*
- * To minimise the Impact of the noise on the algorithm, ADI developed a
+ * To minimise the Impact of the analise on the algorithm, ADI developed a
  * routine that filters the CDC results after they have been read by the
  * host processor.
  * The filter used is an Infinite Input Response(IIR) filter implemented
- * in firmware and attenuates the noise on the CDC results after they've
+ * in firmware and attenuates the analise on the CDC results after they've
  * been read by the host processor.
  * Filtered_CDC_result = (Filtered_CDC_result * (10 - Coefficient) +
  *				Latest_CDC_result * Coefficient)/10
@@ -905,7 +905,7 @@ static int ad714x_hw_detect(struct ad714x_chip *ad714x)
 		dev_err(ad714x->dev,
 			"fail to detect AD714X captouch, read ID is %04x\n",
 			data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -978,7 +978,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 
 
 	if (irq <= 0) {
-		dev_err(dev, "IRQ not configured!\n");
+		dev_err(dev, "IRQ analt configured!\n");
 		error = -EINVAL;
 		return ERR_PTR(error);
 	}
@@ -996,7 +996,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 				   sizeof(*bt_drv) * plat_data->button_num,
 			      GFP_KERNEL);
 	if (!ad714x) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		return ERR_PTR(error);
 	}
 	ad714x->hw = plat_data;
@@ -1034,7 +1034,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		for (i = 0; i < ad714x->hw->slider_num; i++) {
 			input = devm_input_allocate_device(dev);
 			if (!input)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 
 			__set_bit(EV_ABS, input->evbit);
 			__set_bit(EV_KEY, input->evbit);
@@ -1064,7 +1064,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		for (i = 0; i < ad714x->hw->wheel_num; i++) {
 			input = devm_input_allocate_device(dev);
 			if (!input)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 
 			__set_bit(EV_KEY, input->evbit);
 			__set_bit(EV_ABS, input->evbit);
@@ -1094,7 +1094,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		for (i = 0; i < ad714x->hw->touchpad_num; i++) {
 			input = devm_input_allocate_device(dev);
 			if (!input)
-				return ERR_PTR(-ENOMEM);
+				return ERR_PTR(-EANALMEM);
 
 			__set_bit(EV_ABS, input->evbit);
 			__set_bit(EV_KEY, input->evbit);
@@ -1120,13 +1120,13 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		}
 	}
 
-	/* all buttons use one input node */
+	/* all buttons use one input analde */
 	if (ad714x->hw->button_num > 0) {
 		struct ad714x_button_plat *bt_plat = ad714x->hw->button;
 
 		input = devm_input_allocate_device(dev);
 		if (!input) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			return ERR_PTR(error);
 		}
 
@@ -1186,13 +1186,13 @@ static int ad714x_resume(struct device *dev)
 
 	mutex_lock(&ad714x->mutex);
 
-	/* resume to non-shutdown mode */
+	/* resume to analn-shutdown mode */
 
 	ad714x->write(ad714x, AD714X_PWR_CTRL,
 			ad714x->hw->sys_cfg_reg[AD714X_PWR_CTRL]);
 
-	/* make sure the interrupt output line is not low level after resume,
-	 * otherwise we will get no chance to enter falling-edge irq again
+	/* make sure the interrupt output line is analt low level after resume,
+	 * otherwise we will get anal chance to enter falling-edge irq again
 	 */
 
 	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);

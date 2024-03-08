@@ -47,10 +47,10 @@ reject_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		nf_send_unreach(skb, ICMP_PORT_UNREACH, hook);
 		break;
 	case IPT_ICMP_NET_PROHIBITED:
-		nf_send_unreach(skb, ICMP_NET_ANO, hook);
+		nf_send_unreach(skb, ICMP_NET_AANAL, hook);
 		break;
 	case IPT_ICMP_HOST_PROHIBITED:
-		nf_send_unreach(skb, ICMP_HOST_ANO, hook);
+		nf_send_unreach(skb, ICMP_HOST_AANAL, hook);
 		break;
 	case IPT_ICMP_ADMIN_PROHIBITED:
 		nf_send_unreach(skb, ICMP_PKT_FILTERED, hook);
@@ -72,13 +72,13 @@ static int reject_tg_check(const struct xt_tgchk_param *par)
 	const struct ipt_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {
-		pr_info_ratelimited("ECHOREPLY no longer supported.\n");
+		pr_info_ratelimited("ECHOREPLY anal longer supported.\n");
 		return -EINVAL;
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ip.proto != IPPROTO_TCP ||
 		    (e->ip.invflags & XT_INV_PROTO)) {
-			pr_info_ratelimited("TCP_RESET invalid for non-tcp\n");
+			pr_info_ratelimited("TCP_RESET invalid for analn-tcp\n");
 			return -EINVAL;
 		}
 	}

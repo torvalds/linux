@@ -24,8 +24,8 @@ struct gss_ctx {
 	unsigned int		slack, align;
 };
 
-#define GSS_C_NO_BUFFER		((struct xdr_netobj) 0)
-#define GSS_C_NO_CONTEXT	((struct gss_ctx *) 0)
+#define GSS_C_ANAL_BUFFER		((struct xdr_netobj) 0)
+#define GSS_C_ANAL_CONTEXT	((struct gss_ctx *) 0)
 #define GSS_C_QOP_DEFAULT	(0)
 
 /*XXX  arbitrary length - is this set somewhere? */
@@ -42,7 +42,7 @@ struct rpcsec_gss_info {
 	u32			service;
 };
 
-/* gss-api prototypes; note that these are somewhat simplified versions of
+/* gss-api prototypes; analte that these are somewhat simplified versions of
  * the prototypes specified in RFC 2744. */
 int gss_import_sec_context(
 		const void*		input_token,

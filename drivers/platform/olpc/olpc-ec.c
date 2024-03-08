@@ -25,7 +25,7 @@ struct ec_cmd_desc {
 
 	int err;
 	struct completion finished;
-	struct list_head node;
+	struct list_head analde;
 
 	void *priv;
 };
@@ -83,8 +83,8 @@ static void olpc_ec_worker(struct work_struct *w)
 	/* Grab the first pending command from the queue */
 	spin_lock_irqsave(&ec->cmd_q_lock, flags);
 	if (!list_empty(&ec->cmd_q)) {
-		desc = list_first_entry(&ec->cmd_q, struct ec_cmd_desc, node);
-		list_del(&desc->node);
+		desc = list_first_entry(&ec->cmd_q, struct ec_cmd_desc, analde);
+		list_del(&desc->analde);
 	}
 	spin_unlock_irqrestore(&ec->cmd_q_lock, flags);
 
@@ -106,7 +106,7 @@ static void olpc_ec_worker(struct work_struct *w)
 }
 
 /*
- * Throw a cmd descripter onto the list.  We now have SMP OLPC machines, so
+ * Throw a cmd descripter onto the list.  We analw have SMP OLPC machines, so
  * locking is pretty critical.
  */
 static void queue_ec_descriptor(struct ec_cmd_desc *desc,
@@ -114,10 +114,10 @@ static void queue_ec_descriptor(struct ec_cmd_desc *desc,
 {
 	unsigned long flags;
 
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->analde);
 
 	spin_lock_irqsave(&ec->cmd_q_lock, flags);
-	list_add_tail(&desc->node, &ec->cmd_q);
+	list_add_tail(&desc->analde, &ec->cmd_q);
 	spin_unlock_irqrestore(&ec->cmd_q_lock, flags);
 
 	schedule_work(&ec->worker);
@@ -128,15 +128,15 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	struct olpc_ec_priv *ec = ec_priv;
 	struct ec_cmd_desc desc;
 
-	/* Driver not yet registered. */
+	/* Driver analt yet registered. */
 	if (!ec_driver)
 		return -EPROBE_DEFER;
 
 	if (WARN_ON(!ec_driver->ec_cmd))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!ec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Suspending in the middle of a command hoses things really badly */
 	if (WARN_ON(ec->suspended))
@@ -157,7 +157,7 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	/* Timeouts must be handled in the platform-specific EC hook */
 	wait_for_completion(&desc.finished);
 
-	/* The worker thread dequeues the cmd; no need to do anything here */
+	/* The worker thread dequeues the cmd; anal need to do anything here */
 	return desc.err;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
@@ -189,7 +189,7 @@ int olpc_ec_mask_write(u16 bits)
 	struct olpc_ec_priv *ec = ec_priv;
 
 	if (WARN_ON(!ec))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* EC version 0x5f adds support for wide SCI mask */
 	if (ec->version >= 0x5f) {
@@ -223,7 +223,7 @@ int olpc_ec_sci_query(u16 *sci_value)
 	int ret;
 
 	if (WARN_ON(!ec))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* EC version 0x5f adds support for wide SCI mask */
 	if (ec->version >= 0x5f) {
@@ -409,11 +409,11 @@ static int olpc_ec_probe(struct platform_device *pdev)
 	int err;
 
 	if (!ec_driver)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ec = kzalloc(sizeof(*ec), GFP_KERNEL);
 	if (!ec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ec->drv = ec_driver;
 	INIT_WORK(&ec->worker, olpc_ec_worker);

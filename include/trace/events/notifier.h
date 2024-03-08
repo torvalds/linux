@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM notifier
+#define TRACE_SYSTEM analtifier
 
-#if !defined(_TRACE_NOTIFIERS_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_NOTIFIERS_H
+#if !defined(_TRACE_ANALTIFIERS_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_ANALTIFIERS_H
 
 #include <linux/tracepoint.h>
 
-DECLARE_EVENT_CLASS(notifier_info,
+DECLARE_EVENT_CLASS(analtifier_info,
 
 	TP_PROTO(void *cb),
 
@@ -25,12 +25,12 @@ DECLARE_EVENT_CLASS(notifier_info,
 );
 
 /*
- * notifier_register - called upon notifier callback registration
+ * analtifier_register - called upon analtifier callback registration
  *
  * @cb:		callback pointer
  *
  */
-DEFINE_EVENT(notifier_info, notifier_register,
+DEFINE_EVENT(analtifier_info, analtifier_register,
 
 	TP_PROTO(void *cb),
 
@@ -38,12 +38,12 @@ DEFINE_EVENT(notifier_info, notifier_register,
 );
 
 /*
- * notifier_unregister - called upon notifier callback unregistration
+ * analtifier_unregister - called upon analtifier callback unregistration
  *
  * @cb:		callback pointer
  *
  */
-DEFINE_EVENT(notifier_info, notifier_unregister,
+DEFINE_EVENT(analtifier_info, analtifier_unregister,
 
 	TP_PROTO(void *cb),
 
@@ -51,19 +51,19 @@ DEFINE_EVENT(notifier_info, notifier_unregister,
 );
 
 /*
- * notifier_run - called upon notifier callback execution
+ * analtifier_run - called upon analtifier callback execution
  *
  * @cb:		callback pointer
  *
  */
-DEFINE_EVENT(notifier_info, notifier_run,
+DEFINE_EVENT(analtifier_info, analtifier_run,
 
 	TP_PROTO(void *cb),
 
 	TP_ARGS(cb)
 );
 
-#endif /* _TRACE_NOTIFIERS_H */
+#endif /* _TRACE_ANALTIFIERS_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>

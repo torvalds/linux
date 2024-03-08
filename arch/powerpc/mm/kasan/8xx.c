@@ -22,7 +22,7 @@ kasan_init_shadow_8M(unsigned long k_start, unsigned long k_end, void *block)
 
 		new = memblock_alloc(sizeof(pte_basic_t), SZ_4K);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*new = pte_val(pte_mkhuge(pfn_pte(PHYS_PFN(__pa(block)), PAGE_KERNEL)));
 
@@ -42,7 +42,7 @@ int __init kasan_init_region(void *start, size_t size)
 
 	block = memblock_alloc(k_end - k_start, SZ_8M);
 	if (!block)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_ALIGNED(k_start, SZ_8M)) {
 		kasan_init_shadow_8M(k_start, ALIGN_DOWN(k_end, SZ_8M), block);

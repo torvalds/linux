@@ -18,7 +18,7 @@ expose a minimal attack surface.
 
 Landlock is designed to be usable by unprivileged processes while following the
 system security policy enforced by other access control mechanisms (e.g. DAC,
-LSM).  Indeed, a Landlock rule shall not interfere with other access-controls
+LSM).  Indeed, a Landlock rule shall analt interfere with other access-controls
 enforced on the system, only add more restrictions.
 
 Any user can enforce Landlock rulesets on their processes.  They are merged and
@@ -35,9 +35,9 @@ Guiding principles for safe access controls
   of syscall filtering (i.e. syscall arguments), which is the purpose of
   seccomp-bpf.
 * To avoid multiple kinds of side-channel attacks (e.g. leak of security
-  policies, CPU-based attacks), Landlock rules shall not be able to
+  policies, CPU-based attacks), Landlock rules shall analt be able to
   programmatically communicate with user space.
-* Kernel access check shall not slow down access request from unsandboxed
+* Kernel access check shall analt slow down access request from unsandboxed
   processes.
 * Computation related to Landlock operations (e.g. enforcing a ruleset) shall
   only impact the processes requesting them.
@@ -49,16 +49,16 @@ Guiding principles for safe access controls
 Design choices
 ==============
 
-Inode access rights
+Ianalde access rights
 -------------------
 
-All access rights are tied to an inode and what can be accessed through it.
-Reading the content of a directory does not imply to be allowed to read the
-content of a listed inode.  Indeed, a file name is local to its parent
-directory, and an inode can be referenced by multiple file names thanks to
+All access rights are tied to an ianalde and what can be accessed through it.
+Reading the content of a directory does analt imply to be allowed to read the
+content of a listed ianalde.  Indeed, a file name is local to its parent
+directory, and an ianalde can be referenced by multiple file names thanks to
 (hard) links.  Being able to unlink a file only has a direct impact on the
-directory, not the unlinked inode.  This is the reason why
-``LANDLOCK_ACCESS_FS_REMOVE_FILE`` or ``LANDLOCK_ACCESS_FS_REFER`` are not
+directory, analt the unlinked ianalde.  This is the reason why
+``LANDLOCK_ACCESS_FS_REMOVE_FILE`` or ``LANDLOCK_ACCESS_FS_REFER`` are analt
 allowed to be tied to files but only to directories.
 
 File descriptor access rights
@@ -80,7 +80,7 @@ operations have the same semantic and should then have the same result:
 Similarly to file access modes (e.g. ``O_RDWR``), Landlock access rights
 attached to file descriptors are retained even if they are passed between
 processes (e.g. through a Unix domain socket).  Such access rights will then be
-enforced even if the receiving process is not sandboxed by Landlock.  Indeed,
+enforced even if the receiving process is analt sandboxed by Landlock.  Indeed,
 this is required to keep a consistent access control over the whole system, and
 this avoids unattended bypasses through file descriptor passing (i.e. confused
 deputy attack).

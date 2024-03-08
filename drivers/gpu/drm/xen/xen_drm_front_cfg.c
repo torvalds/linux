@@ -27,12 +27,12 @@ static int cfg_connector(struct xen_drm_front_info *front_info,
 	connector_path = devm_kasprintf(&front_info->xb_dev->dev,
 					GFP_KERNEL, "%s/%d", path, index);
 	if (!connector_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (xenbus_scanf(XBT_NIL, connector_path, XENDISPL_FIELD_RESOLUTION,
 			 "%d" XENDISPL_RESOLUTION_SEPARATOR "%d",
 			 &connector->width, &connector->height) < 0) {
-		/* either no entry configured or wrong resolution set */
+		/* either anal entry configured or wrong resolution set */
 		connector->width = 0;
 		connector->height = 0;
 		return -EINVAL;
@@ -51,7 +51,7 @@ int xen_drm_front_cfg_card(struct xen_drm_front_info *front_info,
 	struct xenbus_device *xb_dev = front_info->xb_dev;
 	int ret, i;
 
-	if (xenbus_read_unsigned(front_info->xb_dev->nodename,
+	if (xenbus_read_unsigned(front_info->xb_dev->analdename,
 				 XENDISPL_FIELD_BE_ALLOC, 0)) {
 		DRM_INFO("Backend can provide display buffers\n");
 		cfg->be_alloc = true;
@@ -60,16 +60,16 @@ int xen_drm_front_cfg_card(struct xen_drm_front_info *front_info,
 	cfg->num_connectors = 0;
 	for (i = 0; i < ARRAY_SIZE(cfg->connectors); i++) {
 		ret = cfg_connector(front_info, &cfg->connectors[i],
-				    xb_dev->nodename, i);
+				    xb_dev->analdename, i);
 		if (ret < 0)
 			break;
 		cfg->num_connectors++;
 	}
 
 	if (!cfg->num_connectors) {
-		DRM_ERROR("No connector(s) configured at %s\n",
-			  xb_dev->nodename);
-		return -ENODEV;
+		DRM_ERROR("Anal connector(s) configured at %s\n",
+			  xb_dev->analdename);
+		return -EANALDEV;
 	}
 
 	return 0;

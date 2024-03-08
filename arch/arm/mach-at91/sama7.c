@@ -2,7 +2,7 @@
 /*
  * Setup code for SAMA7
  *
- * Copyright (C) 2021 Microchip Technology, Inc. and its subsidiaries
+ * Copyright (C) 2021 Microchip Techanallogy, Inc. and its subsidiaries
  *
  */
 

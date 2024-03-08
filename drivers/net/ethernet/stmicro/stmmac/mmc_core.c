@@ -24,7 +24,7 @@
 
 /* MMC TX counter registers */
 
-/* Note:
+/* Analte:
  * _GB register stands for good and bad frames
  * _G is for good only.
  */
@@ -85,24 +85,24 @@
 /* IPv4*/
 #define MMC_RX_IPV4_GD			0x110
 #define MMC_RX_IPV4_HDERR		0x114
-#define MMC_RX_IPV4_NOPAY		0x118
+#define MMC_RX_IPV4_ANALPAY		0x118
 #define MMC_RX_IPV4_FRAG		0x11C
 #define MMC_RX_IPV4_UDSBL		0x120
 
 #define MMC_RX_IPV4_GD_OCTETS		0x150
 #define MMC_RX_IPV4_HDERR_OCTETS	0x154
-#define MMC_RX_IPV4_NOPAY_OCTETS	0x158
+#define MMC_RX_IPV4_ANALPAY_OCTETS	0x158
 #define MMC_RX_IPV4_FRAG_OCTETS		0x15c
 #define MMC_RX_IPV4_UDSBL_OCTETS	0x160
 
 /* IPV6*/
 #define MMC_RX_IPV6_GD_OCTETS		0x164
 #define MMC_RX_IPV6_HDERR_OCTETS	0x168
-#define MMC_RX_IPV6_NOPAY_OCTETS	0x16c
+#define MMC_RX_IPV6_ANALPAY_OCTETS	0x16c
 
 #define MMC_RX_IPV6_GD			0x124
 #define MMC_RX_IPV6_HDERR		0x128
-#define MMC_RX_IPV6_NOPAY		0x12c
+#define MMC_RX_IPV6_ANALPAY		0x12c
 
 /* Protocols*/
 #define MMC_RX_UDP_GD			0x130
@@ -192,13 +192,13 @@
 
 #define MMC_XGMAC_RX_IPV4_GD		0x264
 #define MMC_XGMAC_RX_IPV4_HDERR		0x26c
-#define MMC_XGMAC_RX_IPV4_NOPAY		0x274
+#define MMC_XGMAC_RX_IPV4_ANALPAY		0x274
 #define MMC_XGMAC_RX_IPV4_FRAG		0x27c
 #define MMC_XGMAC_RX_IPV4_UDSBL		0x284
 
 #define MMC_XGMAC_RX_IPV6_GD		0x28c
 #define MMC_XGMAC_RX_IPV6_HDERR		0x294
-#define MMC_XGMAC_RX_IPV6_NOPAY		0x29c
+#define MMC_XGMAC_RX_IPV6_ANALPAY		0x29c
 
 #define MMC_XGMAC_RX_UDP_GD		0x2a4
 #define MMC_XGMAC_RX_UDP_ERR		0x2ac
@@ -209,13 +209,13 @@
 
 #define MMC_XGMAC_RX_IPV4_GD_OCTETS	0x2d4
 #define MMC_XGMAC_RX_IPV4_HDERR_OCTETS	0x2dc
-#define MMC_XGMAC_RX_IPV4_NOPAY_OCTETS	0x2e4
+#define MMC_XGMAC_RX_IPV4_ANALPAY_OCTETS	0x2e4
 #define MMC_XGMAC_RX_IPV4_FRAG_OCTETS	0x2ec
 #define MMC_XGMAC_RX_IPV4_UDSBL_OCTETS	0x2f4
 
 #define MMC_XGMAC_RX_IPV6_GD_OCTETS	0x2fc
 #define MMC_XGMAC_RX_IPV6_HDERR_OCTETS	0x304
-#define MMC_XGMAC_RX_IPV6_NOPAY_OCTETS	0x30c
+#define MMC_XGMAC_RX_IPV6_ANALPAY_OCTETS	0x30c
 
 #define MMC_XGMAC_RX_UDP_GD_OCTETS	0x314
 #define MMC_XGMAC_RX_UDP_ERR_OCTETS	0x31c
@@ -322,15 +322,15 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	/* IPv4 */
 	mmc->mmc_rx_ipv4_gd += readl(mmcaddr + MMC_RX_IPV4_GD);
 	mmc->mmc_rx_ipv4_hderr += readl(mmcaddr + MMC_RX_IPV4_HDERR);
-	mmc->mmc_rx_ipv4_nopay += readl(mmcaddr + MMC_RX_IPV4_NOPAY);
+	mmc->mmc_rx_ipv4_analpay += readl(mmcaddr + MMC_RX_IPV4_ANALPAY);
 	mmc->mmc_rx_ipv4_frag += readl(mmcaddr + MMC_RX_IPV4_FRAG);
 	mmc->mmc_rx_ipv4_udsbl += readl(mmcaddr + MMC_RX_IPV4_UDSBL);
 
 	mmc->mmc_rx_ipv4_gd_octets += readl(mmcaddr + MMC_RX_IPV4_GD_OCTETS);
 	mmc->mmc_rx_ipv4_hderr_octets +=
 	    readl(mmcaddr + MMC_RX_IPV4_HDERR_OCTETS);
-	mmc->mmc_rx_ipv4_nopay_octets +=
-	    readl(mmcaddr + MMC_RX_IPV4_NOPAY_OCTETS);
+	mmc->mmc_rx_ipv4_analpay_octets +=
+	    readl(mmcaddr + MMC_RX_IPV4_ANALPAY_OCTETS);
 	mmc->mmc_rx_ipv4_frag_octets += readl(mmcaddr +
 					      MMC_RX_IPV4_FRAG_OCTETS);
 	mmc->mmc_rx_ipv4_udsbl_octets +=
@@ -340,12 +340,12 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_ipv6_gd_octets += readl(mmcaddr + MMC_RX_IPV6_GD_OCTETS);
 	mmc->mmc_rx_ipv6_hderr_octets +=
 	    readl(mmcaddr + MMC_RX_IPV6_HDERR_OCTETS);
-	mmc->mmc_rx_ipv6_nopay_octets +=
-	    readl(mmcaddr + MMC_RX_IPV6_NOPAY_OCTETS);
+	mmc->mmc_rx_ipv6_analpay_octets +=
+	    readl(mmcaddr + MMC_RX_IPV6_ANALPAY_OCTETS);
 
 	mmc->mmc_rx_ipv6_gd += readl(mmcaddr + MMC_RX_IPV6_GD);
 	mmc->mmc_rx_ipv6_hderr += readl(mmcaddr + MMC_RX_IPV6_HDERR);
-	mmc->mmc_rx_ipv6_nopay += readl(mmcaddr + MMC_RX_IPV6_NOPAY);
+	mmc->mmc_rx_ipv6_analpay += readl(mmcaddr + MMC_RX_IPV6_ANALPAY);
 
 	/* Protocols */
 	mmc->mmc_rx_udp_gd += readl(mmcaddr + MMC_RX_UDP_GD);
@@ -528,8 +528,8 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 			     &mmc->mmc_rx_ipv4_gd);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_HDERR,
 			     &mmc->mmc_rx_ipv4_hderr);
-	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_NOPAY,
-			     &mmc->mmc_rx_ipv4_nopay);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_ANALPAY,
+			     &mmc->mmc_rx_ipv4_analpay);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_FRAG,
 			     &mmc->mmc_rx_ipv4_frag);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_UDSBL,
@@ -539,8 +539,8 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 			     &mmc->mmc_rx_ipv6_gd);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_HDERR,
 			     &mmc->mmc_rx_ipv6_hderr);
-	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_NOPAY,
-			     &mmc->mmc_rx_ipv6_nopay);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_ANALPAY,
+			     &mmc->mmc_rx_ipv6_analpay);
 
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_GD,
 			     &mmc->mmc_rx_udp_gd);
@@ -559,8 +559,8 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 			     &mmc->mmc_rx_ipv4_gd_octets);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_HDERR_OCTETS,
 			     &mmc->mmc_rx_ipv4_hderr_octets);
-	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_NOPAY_OCTETS,
-			     &mmc->mmc_rx_ipv4_nopay_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_ANALPAY_OCTETS,
+			     &mmc->mmc_rx_ipv4_analpay_octets);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_FRAG_OCTETS,
 			     &mmc->mmc_rx_ipv4_frag_octets);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_UDSBL_OCTETS,
@@ -570,8 +570,8 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 			     &mmc->mmc_rx_ipv6_gd_octets);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_HDERR_OCTETS,
 			     &mmc->mmc_rx_ipv6_hderr_octets);
-	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_NOPAY_OCTETS,
-			     &mmc->mmc_rx_ipv6_nopay_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_ANALPAY_OCTETS,
+			     &mmc->mmc_rx_ipv6_analpay_octets);
 
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_GD_OCTETS,
 			     &mmc->mmc_rx_udp_gd_octets);

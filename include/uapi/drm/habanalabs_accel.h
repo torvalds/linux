@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
  *
  * Copyright 2016-2023 HabanaLabs, Ltd.
  * All Rights Reserved.
@@ -37,7 +37,7 @@
  *
  * The external queues (PCI DMA channels) MUST be before the internal queues
  * and each group (PCI DMA channels and internal) must be contiguous inside
- * itself but there can be a gap between the two groups (although not
+ * itself but there can be a gap between the two groups (although analt
  * recommended)
  */
 
@@ -654,7 +654,7 @@ enum hl_gaudi2_pll_index {
 
 /**
  * enum hl_goya_dma_direction - Direction of DMA operation inside a LIN_DMA packet that is
- *                              submitted to the GOYA's DMA QMAN. This attribute is not relevant
+ *                              submitted to the GOYA's DMA QMAN. This attribute is analt relevant
  *                              to the H/W but the kernel driver use it to parse the packet's
  *                              addresses and patch/validate them.
  * @HL_DMA_HOST_TO_DRAM: DMA operation from Host memory to GOYA's DDR.
@@ -702,7 +702,7 @@ enum hl_device_status {
 };
 
 enum hl_server_type {
-	HL_SERVER_TYPE_UNKNOWN = 0,
+	HL_SERVER_TYPE_UNKANALWN = 0,
 	HL_SERVER_GAUDI_HLS1 = 1,
 	HL_SERVER_GAUDI_HLS1H = 2,
 	HL_SERVER_GAUDI_TYPE1 = 3,
@@ -712,33 +712,33 @@ enum hl_server_type {
 };
 
 /*
- * Notifier event values - for the notification mechanism and the HL_INFO_GET_EVENTS command
+ * Analtifier event values - for the analtification mechanism and the HL_INFO_GET_EVENTS command
  *
- * HL_NOTIFIER_EVENT_TPC_ASSERT		- Indicates TPC assert event
- * HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	- Indicates undefined operation code
- * HL_NOTIFIER_EVENT_DEVICE_RESET	- Indicates device requires a reset
- * HL_NOTIFIER_EVENT_CS_TIMEOUT		- Indicates CS timeout error
- * HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	- Indicates device is unavailable
- * HL_NOTIFIER_EVENT_USER_ENGINE_ERR	- Indicates device engine in error state
- * HL_NOTIFIER_EVENT_GENERAL_HW_ERR     - Indicates device HW error
- * HL_NOTIFIER_EVENT_RAZWI              - Indicates razwi happened
- * HL_NOTIFIER_EVENT_PAGE_FAULT         - Indicates page fault happened
- * HL_NOTIFIER_EVENT_CRITICAL_HW_ERR    - Indicates a HW error that requires SW abort and
+ * HL_ANALTIFIER_EVENT_TPC_ASSERT		- Indicates TPC assert event
+ * HL_ANALTIFIER_EVENT_UNDEFINED_OPCODE	- Indicates undefined operation code
+ * HL_ANALTIFIER_EVENT_DEVICE_RESET	- Indicates device requires a reset
+ * HL_ANALTIFIER_EVENT_CS_TIMEOUT		- Indicates CS timeout error
+ * HL_ANALTIFIER_EVENT_DEVICE_UNAVAILABLE	- Indicates device is unavailable
+ * HL_ANALTIFIER_EVENT_USER_ENGINE_ERR	- Indicates device engine in error state
+ * HL_ANALTIFIER_EVENT_GENERAL_HW_ERR     - Indicates device HW error
+ * HL_ANALTIFIER_EVENT_RAZWI              - Indicates razwi happened
+ * HL_ANALTIFIER_EVENT_PAGE_FAULT         - Indicates page fault happened
+ * HL_ANALTIFIER_EVENT_CRITICAL_HW_ERR    - Indicates a HW error that requires SW abort and
  *                                        HW reset
- * HL_NOTIFIER_EVENT_CRITICAL_FW_ERR    - Indicates a FW error that requires SW abort and
+ * HL_ANALTIFIER_EVENT_CRITICAL_FW_ERR    - Indicates a FW error that requires SW abort and
  *                                        HW reset
  */
-#define HL_NOTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
-#define HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
-#define HL_NOTIFIER_EVENT_DEVICE_RESET		(1ULL << 2)
-#define HL_NOTIFIER_EVENT_CS_TIMEOUT		(1ULL << 3)
-#define HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	(1ULL << 4)
-#define HL_NOTIFIER_EVENT_USER_ENGINE_ERR	(1ULL << 5)
-#define HL_NOTIFIER_EVENT_GENERAL_HW_ERR	(1ULL << 6)
-#define HL_NOTIFIER_EVENT_RAZWI			(1ULL << 7)
-#define HL_NOTIFIER_EVENT_PAGE_FAULT		(1ULL << 8)
-#define HL_NOTIFIER_EVENT_CRITICL_HW_ERR	(1ULL << 9)
-#define HL_NOTIFIER_EVENT_CRITICL_FW_ERR	(1ULL << 10)
+#define HL_ANALTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
+#define HL_ANALTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
+#define HL_ANALTIFIER_EVENT_DEVICE_RESET		(1ULL << 2)
+#define HL_ANALTIFIER_EVENT_CS_TIMEOUT		(1ULL << 3)
+#define HL_ANALTIFIER_EVENT_DEVICE_UNAVAILABLE	(1ULL << 4)
+#define HL_ANALTIFIER_EVENT_USER_ENGINE_ERR	(1ULL << 5)
+#define HL_ANALTIFIER_EVENT_GENERAL_HW_ERR	(1ULL << 6)
+#define HL_ANALTIFIER_EVENT_RAZWI			(1ULL << 7)
+#define HL_ANALTIFIER_EVENT_PAGE_FAULT		(1ULL << 8)
+#define HL_ANALTIFIER_EVENT_CRITICL_HW_ERR	(1ULL << 9)
+#define HL_ANALTIFIER_EVENT_CRITICL_FW_ERR	(1ULL << 10)
 
 /* Opcode for management ioctl
  *
@@ -786,27 +786,27 @@ enum hl_server_type {
  *                            The address which accessing it caused the razwi.
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
- *                            May return 0 even though no new data is available, in that case
+ *                            May return 0 even though anal new data is available, in that case
  *                            timestamp will be 0.
  * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
  * HL_INFO_SECURED_ATTESTATION - Retrieve attestation report of the boot.
- * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
+ * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event analtifications.
  * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
  * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
  * HL_INFO_UNDEFINED_OPCODE_EVENT - Retrieve last undefined opcode error information.
- *                                  May return 0 even though no new data is available, in that case
+ *                                  May return 0 even though anal new data is available, in that case
  *                                  timestamp will be 0.
  * HL_INFO_ENGINE_STATUS - Retrieve the status of all the h/w engines in the asic.
  * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
- *                            May return 0 even though no new data is available, in that case
+ *                            May return 0 even though anal new data is available, in that case
  *                            timestamp will be 0.
  * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
  * HL_INFO_FW_GENERIC_REQ - Send generic request to FW.
  * HL_INFO_HW_ERR_EVENT   - Retrieve information on the reported HW error.
- *                          May return 0 even though no new data is available, in that case
+ *                          May return 0 even though anal new data is available, in that case
  *                          timestamp will be 0.
  * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
- *                          May return 0 even though no new data is available, in that case
+ *                          May return 0 even though anal new data is available, in that case
  *                          timestamp will be 0.
  * HL_INFO_USER_ENGINE_ERR_EVENT - Retrieve the last engine id that reported an error.
  */
@@ -1021,7 +1021,7 @@ enum hl_clk_throttling_type {
  * struct hl_info_clk_throttle - clock throttling reason
  * @clk_throttling_reason: each bit represents a clk throttling reason
  * @clk_throttling_timestamp_us: represents CPU timestamp in microseconds of the start-event
- * @clk_throttling_duration_ns: the clock throttle time in nanosec
+ * @clk_throttling_duration_ns: the clock throttle time in naanalsec
  */
 struct hl_info_clk_throttle {
 	__u32 clk_throttling_reason;
@@ -1141,11 +1141,11 @@ struct hl_info_cs_timeout_event {
  * struct hl_info_razwi_event - razwi information.
  * @timestamp: timestamp of razwi.
  * @addr: address which accessing it caused razwi.
- * @engine_id: engine id of the razwi initiator, if it was initiated by engine that does not
+ * @engine_id: engine id of the razwi initiator, if it was initiated by engine that does analt
  *             have engine id it will be set to HL_RAZWI_NA_ENG_ID. If there are several possible
  *             engines which caused the razwi, it will hold all of them.
  * @num_of_possible_engines: contains number of possible engine ids. In some asics, razwi indication
- *                           might be common for several engines and there is no way to get the
+ *                           might be common for several engines and there is anal way to get the
  *                           exact engine. In this way, engine_id array will be filled with all
  *                           possible engines caused this razwi. Also, there might be possibility
  *                           in gaudi, where we don't indication on specific engine, in that case
@@ -1156,7 +1156,7 @@ struct hl_info_cs_timeout_event {
  *                                      HL_RAZWI_HBW - razwi caused by hbw fabric transaction
  *                                      HL_RAZWI_RR - razwi caused by range register
  *                                      HL_RAZWI_ADDR_DEC - razwi caused by address decode error
- *         Note: this data is not supported by all asics, in that case the relevant bits will not
+ *         Analte: this data is analt supported by all asics, in that case the relevant bits will analt
  *               be set.
  */
 struct hl_info_razwi_event {
@@ -1261,7 +1261,7 @@ struct hl_info_dev_memalloc_page_sizes {
 
 /*
  * struct hl_info_sec_attest - attestation report of the boot
- * @nonce: number only used once. random number provided by host. this also passed to the quote
+ * @analnce: number only used once. random number provided by host. this also passed to the quote
  *         command as a qualifying data.
  * @pcr_quote_len: length of the attestation quote data (bytes)
  * @pub_data_len: length of the public data (bytes)
@@ -1277,7 +1277,7 @@ struct hl_info_dev_memalloc_page_sizes {
  * @certificate: certificate for the attestation signing key
  */
 struct hl_info_sec_attest {
-	__u32 nonce;
+	__u32 analnce;
 	__u16 pcr_quote_len;
 	__u16 pub_data_len;
 	__u16 certificate_len;
@@ -1294,19 +1294,19 @@ struct hl_info_sec_attest {
 
 /*
  * struct hl_info_signed - device information signed by a secured device.
- * @nonce: number only used once. random number provided by host. this also passed to the quote
+ * @analnce: number only used once. random number provided by host. this also passed to the quote
  *         command as a qualifying data.
  * @pub_data_len: length of the public data (bytes)
  * @certificate_len: length of the certificate (bytes)
  * @info_sig_len: length of the attestation signature (bytes)
  * @public_data: public key info signed info data (outPublic + name + qualifiedName)
  * @certificate: certificate for the signing key
- * @info_sig: signature of the info + nonce data.
+ * @info_sig: signature of the info + analnce data.
  * @dev_info_len: length of device info (bytes)
  * @dev_info: device info as byte array.
  */
 struct hl_info_signed {
-	__u32 nonce;
+	__u32 analnce;
 	__u16 pub_data_len;
 	__u16 certificate_len;
 	__u8 info_sig_len;
@@ -1357,16 +1357,16 @@ enum gaudi_dcores {
  *               hl_info_hw_ip_info.num_of_events * sizeof(__u32).
  * @op: Defines which type of information to be retrieved. Refer HL_INFO_* for details.
  * @dcore_id: DCORE id for which the information is relevant (for Gaudi refer to enum gaudi_dcores).
- * @ctx_id: Context ID of the user. Currently not in use.
+ * @ctx_id: Context ID of the user. Currently analt in use.
  * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
- *             resolution. Currently not in use.
+ *             resolution. Currently analt in use.
  * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
- * @eventfd: event file descriptor for event notifications.
+ * @eventfd: event file descriptor for event analtifications.
  * @user_buffer_actual_size: Actual data size which was copied to user allocated buffer by the
  *                           driver. It is possible for the user to allocate buffer larger than
- *                           needed, hence updating this variable so user will know the exact amount
+ *                           needed, hence updating this variable so user will kanalw the exact amount
  *                           of bytes copied by the kernel to the buffer.
- * @sec_attest_nonce: Nonce number used for attestation report.
+ * @sec_attest_analnce: Analnce number used for attestation report.
  * @array_size: Number of array members copied to user buffer.
  *              Relevant for HL_INFO_USER_MAPPINGS info ioctl.
  * @fw_sub_opcode: generic requests sub opcodes.
@@ -1384,7 +1384,7 @@ struct hl_info_args {
 		__u32 pll_index;
 		__u32 eventfd;
 		__u32 user_buffer_actual_size;
-		__u32 sec_attest_nonce;
+		__u32 sec_attest_analnce;
 		__u32 array_size;
 		__u32 fw_sub_opcode;
 	};
@@ -1419,7 +1419,7 @@ struct hl_cb_in {
 	 */
 	__u32 cb_size;
 
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently analt in use */
 	__u32 ctx_id;
 	/* HL_CB_FLAGS_* */
 	__u32 flags;
@@ -1567,7 +1567,7 @@ struct hl_cs_chunk {
  *    this address will be used to patch CB cmds to do the signaling for this
  *    SOB by incrementing it's value.
  *    for reverting the reservation use HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY
- *    CS type, note that this might fail if out-of-sync happened to the SOB
+ *    CS type, analte that this might fail if out-of-sync happened to the SOB
  *    value, in case other signaling request to the same SOB occurred between
  *    reserve-unreserve calls.
  * 2. Use the staged CS to do the encapsulated signaling jobs.
@@ -1590,7 +1590,7 @@ struct hl_cs_chunk {
 /*
  * The flush HBW PCI writes is merged into the existing CS ioctls.
  * Used to flush all HBW PCI writes.
- * This is a blocking operation and for this reason the user shall not use
+ * This is a blocking operation and for this reason the user shall analt use
  * the return sequence number (which will be invalid anyway)
  */
 #define HL_CS_FLAGS_FLUSH_PCI_HBW_WRITES	0x8000
@@ -1705,7 +1705,7 @@ struct hl_cs_in {
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
 
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently analt in use */
 	__u32 ctx_id;
 	__u8 pad[4];
 };
@@ -1781,7 +1781,7 @@ struct hl_wait_cs_in {
 				/* User address for completion comparison.
 				 * upon interrupt, driver will compare the value pointed
 				 * by this address with the supplied target value.
-				 * in order not to perform any comparison, set address
+				 * in order analt to perform any comparison, set address
 				 * to all 1s.
 				 * Relevant only when HL_WAIT_CS_FLAGS_INTERRUPT is set
 				 */
@@ -1799,7 +1799,7 @@ struct hl_wait_cs_in {
 		};
 	};
 
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently analt in use */
 	__u32 ctx_id;
 
 	/* HL_WAIT_CS_FLAGS_*
@@ -1902,7 +1902,7 @@ union hl_wait_cs_args {
 
 /* Opcode to create timestamps pool for user interrupts registration support
  * The memory will be allocated by the kernel driver, A timestamp buffer which the user
- * will get handle to it for mmap, and another internal buffer used by the
+ * will get handle to it for mmap, and aanalther internal buffer used by the
  * driver for registration management
  * The memory will be freed when the user closes the file descriptor(ctx close)
  */
@@ -1921,7 +1921,7 @@ union hl_wait_cs_args {
  * @op: specify the requested memory operation (one of the HL_MEM_OP_* definitions).
  * @flags: flags for the memory operation (one of the HL_MEM_* definitions).
  *         For the HL_MEM_OP_EXPORT_DMABUF_FD opcode, this field holds the DMA-BUF file/FD flags.
- * @ctx_id: context ID - currently not in use.
+ * @ctx_id: context ID - currently analt in use.
  * @num_of_elements: number of timestamp elements used only with HL_MEM_OP_TS_ALLOC opcode.
  */
 struct hl_mem_in {
@@ -1949,7 +1949,7 @@ struct hl_mem_in {
 		 * structure for mapping device memory (used with the HL_MEM_OP_MAP op)
 		 * @hint_addr: requested virtual address of mapped memory.
 		 *             the driver will try to map the requested region to this hint
-		 *             address, as long as the address is valid and not already mapped.
+		 *             address, as long as the address is valid and analt already mapped.
 		 *             the user should check the returned address of the IOCTL to make
 		 *             sure he got the hint address.
 		 *             passing 0 here means that the driver will choose the address itself.
@@ -1965,7 +1965,7 @@ struct hl_mem_in {
 		 * @host_virt_addr: address of allocated host memory.
 		 * @hint_addr: requested virtual address of mapped memory.
 		 *             the driver will try to map the requested region to this hint
-		 *             address, as long as the address is valid and not already mapped.
+		 *             address, as long as the address is valid and analt already mapped.
 		 *             the user should check the returned address of the IOCTL to make
 		 *             sure he got the hint address.
 		 *             passing 0 here means that the driver will choose the address itself.
@@ -2187,7 +2187,7 @@ struct hl_debug_args {
 	__u32 reg_idx;
 	/* Enable/disable */
 	__u32 enable;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently analt in use */
 	__u32 ctx_id;
 };
 
@@ -2252,13 +2252,13 @@ struct hl_debug_args {
  * Goya/Gaudi:
  * There are two types of queues - external and internal. External queues
  * are DMA queues which transfer data from/to the Host. All other queues are
- * internal. The driver will get completion notifications from the device only
+ * internal. The driver will get completion analtifications from the device only
  * on JOBS which are enqueued in the external queues.
  *
  * Gaudi2 onwards:
  * There is a single type of queue for all types of engines, either DMA engines
  * for transfers from/to the host or inside the device, or compute engines.
- * The driver will get completion notifications from the device for all queues.
+ * The driver will get completion analtifications from the device for all queues.
  *
  * For jobs on external queues, the user needs to create command buffers
  * through the CB ioctl and give the CB's handle to the CS ioctl. For jobs on
@@ -2267,19 +2267,19 @@ struct hl_debug_args {
  * that buffer to the CS ioctl.
  * For jobs on H/W queues both options of command buffers are valid.
  *
- * This IOCTL is asynchronous in regard to the actual execution of the CS. This
+ * This IOCTL is asynchroanalus in regard to the actual execution of the CS. This
  * means it returns immediately after ALL the JOBS were enqueued on their
  * relevant queues. Therefore, the user mustn't assume the CS has been completed
  * or has even started to execute.
  *
  * Upon successful enqueue, the IOCTL returns a sequence number which the user
  * can use with the "Wait for CS" IOCTL to check whether the handle's CS
- * non-internal JOBS have been completed. Note that if the CS has internal JOBS
+ * analn-internal JOBS have been completed. Analte that if the CS has internal JOBS
  * which can execute AFTER the external JOBS have finished, the driver might
  * report that the CS has finished executing BEFORE the internal JOBS have
  * actually finished executing.
  *
- * Even though the sequence number increments per CS, the user can NOT
+ * Even though the sequence number increments per CS, the user can ANALT
  * automatically assume that if CS with sequence number N finished, then CS
  * with sequence number N-1 also finished. The user can make this assumption if
  * and only if CS N and CS N-1 are exactly the same (same CBs for the same
@@ -2305,7 +2305,7 @@ struct hl_debug_args {
  *             that the user process received
  * ETIMEDOUT - The CS has caused a timeout on the device
  * EIO       - The CS was aborted (usually because the device was reset)
- * ENODEV    - The device wants to do hard-reset (so user need to close FD)
+ * EANALDEV    - The device wants to do hard-reset (so user need to close FD)
  *
  * The driver also returns a custom define in case the IOCTL call returned 0.
  * The define can be one of the following:
@@ -2355,7 +2355,7 @@ struct hl_debug_args {
  * and essential data such as buffer address and size.
  *
  * Once the user has finished using the debug/profile engines, he should
- * set the device into non-debug mode, i.e. disable debug mode.
+ * set the device into analn-debug mode, i.e. disable debug mode.
  *
  * The driver can decide to "kick out" the user if he abuses this interface.
  *

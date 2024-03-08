@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Generic UP xchg and cmpxchg using interrupt disablement.  Does not
+ * Generic UP xchg and cmpxchg using interrupt disablement.  Does analt
  * support SMP.
  */
 
@@ -8,7 +8,7 @@
 #define __ASM_GENERIC_CMPXCHG_H
 
 #ifdef CONFIG_SMP
-#error "Cannot use generic cmpxchg on SMP"
+#error "Cananalt use generic cmpxchg on SMP"
 #endif
 
 #include <linux/types.h>

@@ -12,7 +12,7 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_dir2.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
@@ -64,7 +64,7 @@ xfs_uuid_mount(
 	/* Publish UUID in struct super_block */
 	uuid_copy(&mp->m_super->s_uuid, uuid);
 
-	if (xfs_has_nouuid(mp))
+	if (xfs_has_analuuid(mp))
 		return 0;
 
 	if (uuid_is_null(uuid)) {
@@ -85,7 +85,7 @@ xfs_uuid_mount(
 	if (hole < 0) {
 		xfs_uuid_table = krealloc(xfs_uuid_table,
 			(xfs_uuid_table_size + 1) * sizeof(*xfs_uuid_table),
-			GFP_KERNEL | __GFP_NOFAIL);
+			GFP_KERNEL | __GFP_ANALFAIL);
 		hole = xfs_uuid_table_size++;
 	}
 	xfs_uuid_table[hole] = *uuid;
@@ -106,7 +106,7 @@ xfs_uuid_unmount(
 	uuid_t			*uuid = &mp->m_sb.sb_uuid;
 	int			i;
 
-	if (xfs_has_nouuid(mp))
+	if (xfs_has_analuuid(mp))
 		return;
 
 	mutex_lock(&xfs_uuid_table_mutex);
@@ -124,7 +124,7 @@ xfs_uuid_unmount(
 
 /*
  * Check size of device based on the (data/realtime) block count.
- * Note: this check is used by the growfs code as well as mount.
+ * Analte: this check is used by the growfs code as well as mount.
  */
 int
 xfs_sb_validate_fsb_count(
@@ -162,10 +162,10 @@ xfs_readsb(
 
 	/*
 	 * For the initial read, we must guess at the sector
-	 * size based on the block device.  It's enough to
+	 * size based on the block device.  It's eanalugh to
 	 * get the sb_sectsize out of the superblock and
 	 * then reread with the proper length.
-	 * We don't verify it yet, because it may not be complete.
+	 * We don't verify it yet, because it may analt be complete.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
 	buf_ops = NULL;
@@ -173,12 +173,12 @@ xfs_readsb(
 	/*
 	 * Allocate a (locked) buffer to hold the superblock. This will be kept
 	 * around at all times to optimize access to the superblock. Therefore,
-	 * set XBF_NO_IOACCT to make sure it doesn't hold the buftarg count
+	 * set XBF_ANAL_IOACCT to make sure it doesn't hold the buftarg count
 	 * elevated.
 	 */
 reread:
 	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				      BTOBB(sector_size), XBF_NO_IOACCT, &bp,
+				      BTOBB(sector_size), XBF_ANAL_IOACCT, &bp,
 				      buf_ops);
 	if (error) {
 		if (loud)
@@ -195,7 +195,7 @@ reread:
 	xfs_sb_from_disk(sbp, bp->b_addr);
 
 	/*
-	 * If we haven't validated the superblock, do so now before we try
+	 * If we haven't validated the superblock, do so analw before we try
 	 * to check the sector size and reread the superblock appropriately.
 	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
@@ -210,9 +210,9 @@ reread:
 	 */
 	if (sector_size > sbp->sb_sectsize) {
 		if (loud)
-			xfs_warn(mp, "device supports %u byte sectors (not %u)",
+			xfs_warn(mp, "device supports %u byte sectors (analt %u)",
 				sector_size, sbp->sb_sectsize);
-		error = -ENOSYS;
+		error = -EANALSYS;
 		goto release_buf;
 	}
 
@@ -230,7 +230,7 @@ reread:
 	mp->m_features |= xfs_sb_version_to_features(sbp);
 	xfs_reinit_percpu_counters(mp);
 
-	/* no need to be quiet anymore, so reset the buf ops */
+	/* anal need to be quiet anymore, so reset the buf ops */
 	bp->b_ops = &xfs_sb_buf_ops;
 
 	mp->m_sb_bp = bp;
@@ -243,7 +243,7 @@ release_buf:
 }
 
 /*
- * If the sunit/swidth change would move the precomputed root inode value, we
+ * If the sunit/swidth change would move the precomputed root ianalde value, we
  * must reject the ondisk change because repair will stumble over that.
  * However, we allow the mount to proceed because we never rejected this
  * combination before.  Returns true to update the sb, false otherwise.
@@ -255,23 +255,23 @@ xfs_check_new_dalign(
 	bool			*update_sb)
 {
 	struct xfs_sb		*sbp = &mp->m_sb;
-	xfs_ino_t		calc_ino;
+	xfs_ianal_t		calc_ianal;
 
-	calc_ino = xfs_ialloc_calc_rootino(mp, new_dalign);
-	trace_xfs_check_new_dalign(mp, new_dalign, calc_ino);
+	calc_ianal = xfs_ialloc_calc_rootianal(mp, new_dalign);
+	trace_xfs_check_new_dalign(mp, new_dalign, calc_ianal);
 
-	if (sbp->sb_rootino == calc_ino) {
+	if (sbp->sb_rootianal == calc_ianal) {
 		*update_sb = true;
 		return 0;
 	}
 
 	xfs_warn(mp,
-"Cannot change stripe alignment; would require moving root inode.");
+"Cananalt change stripe alignment; would require moving root ianalde.");
 
 	/*
 	 * XXX: Next time we add a new incompat feature, this should start
 	 * returning -EINVAL to fail the mount.  Until then, spit out a warning
-	 * that we're ignoring the administrator's instructions.
+	 * that we're iganalring the administrator's instructions.
 	 */
 	xfs_warn(mp, "Skipping superblock stripe alignment update.");
 	*update_sb = false;
@@ -282,7 +282,7 @@ xfs_check_new_dalign(
  * If we were provided with new sunit/swidth values as mount options, make sure
  * that they pass basic alignment and superblock feature checks, and convert
  * them into the same units (FSB) that everything else expects.  This step
- * /must/ be done before computing the inode geometry.
+ * /must/ be done before computing the ianalde geometry.
  */
 STATIC int
 xfs_validate_new_dalign(
@@ -292,7 +292,7 @@ xfs_validate_new_dalign(
 		return 0;
 
 	/*
-	 * If stripe unit and stripe width are not multiples
+	 * If stripe unit and stripe width are analt multiples
 	 * of the fs blocksize turn off alignment.
 	 */
 	if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
@@ -325,7 +325,7 @@ xfs_validate_new_dalign(
 
 	if (!xfs_has_dalign(mp)) {
 		xfs_warn(mp,
-"cannot change alignment: superblock does not support data alignment");
+"cananalt change alignment: superblock does analt support data alignment");
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ xfs_update_alignment(
 		sbp->sb_unit = mp->m_dalign;
 		sbp->sb_width = mp->m_swidth;
 		mp->m_update_sb = true;
-	} else if (!xfs_has_noalign(mp) && xfs_has_dalign(mp)) {
+	} else if (!xfs_has_analalign(mp) && xfs_has_dalign(mp)) {
 		mp->m_dalign = sbp->sb_unit;
 		mp->m_swidth = sbp->sb_width;
 	}
@@ -456,7 +456,7 @@ xfs_default_resblks(xfs_mount_t *mp)
 	/*
 	 * We default to 5% or 8192 fsbs of space reserved, whichever is
 	 * smaller.  This is intended to cover concurrent allocation
-	 * transactions when we initially hit enospc. These each require a 4
+	 * transactions when we initially hit eanalspc. These each require a 4
 	 * block reservation. Hence by default we cover roughly 2000 concurrent
 	 * allocation reservations.
 	 */
@@ -484,9 +484,9 @@ xfs_check_summary_counts(
 	}
 
 	/*
-	 * Now the log is mounted, we know if it was an unclean shutdown or
-	 * not. If it was, with the first phase of recovery has completed, we
-	 * have consistent AG blocks on disk. We have not recovered EFIs yet,
+	 * Analw the log is mounted, we kanalw if it was an unclean shutdown or
+	 * analt. If it was, with the first phase of recovery has completed, we
+	 * have consistent AG blocks on disk. We have analt recovered EFIs yet,
 	 * but they are recovered transactionally in the second recovery phase
 	 * later.
 	 *
@@ -502,12 +502,12 @@ xfs_check_summary_counts(
 
 	/*
 	 * We can safely re-initialise incore superblock counters from the
-	 * per-ag data. These may not be correct if the filesystem was not
+	 * per-ag data. These may analt be correct if the filesystem was analt
 	 * cleanly unmounted, so we waited for recovery to finish before doing
 	 * this.
 	 *
 	 * If the filesystem was cleanly unmounted or the previous check did
-	 * not flag anything weird, then we can trust the values in the
+	 * analt flag anything weird, then we can trust the values in the
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
@@ -525,7 +525,7 @@ xfs_check_summary_counts(
 	 * during runtime can therefore contain a superblock update that
 	 * undercounts the number of free rt extents tracked in the rt bitmap.
 	 * A clean unmount record will have the correct frextents value since
-	 * there can be no other transactions running at that point.
+	 * there can be anal other transactions running at that point.
 	 *
 	 * If we're mounting the rt volume after recovering the log, recompute
 	 * frextents from the rtbitmap file to fix the inconsistency.
@@ -554,33 +554,33 @@ xfs_unmount_check(
 }
 
 /*
- * Flush and reclaim dirty inodes in preparation for unmount. Inodes and
- * internal inode structures can be sitting in the CIL and AIL at this point,
+ * Flush and reclaim dirty ianaldes in preparation for unmount. Ianaldes and
+ * internal ianalde structures can be sitting in the CIL and AIL at this point,
  * so we need to unpin them, write them back and/or reclaim them before unmount
  * can proceed.  In other words, callers are required to have inactivated all
- * inodes.
+ * ianaldes.
  *
- * An inode cluster that has been freed can have its buffer still pinned in
- * memory because the transaction is still sitting in a iclog. The stale inodes
+ * An ianalde cluster that has been freed can have its buffer still pinned in
+ * memory because the transaction is still sitting in a iclog. The stale ianaldes
  * on that buffer will be pinned to the buffer until the transaction hits the
- * disk and the callbacks run. Pushing the AIL will skip the stale inodes and
- * may never see the pinned buffer, so nothing will push out the iclog and
+ * disk and the callbacks run. Pushing the AIL will skip the stale ianaldes and
+ * may never see the pinned buffer, so analthing will push out the iclog and
  * unpin the buffer.
  *
  * Hence we need to force the log to unpin everything first. However, log
  * forces don't wait for the discards they issue to complete, so we have to
  * explicitly wait for them to complete here as well.
  *
- * Then we can tell the world we are unmounting so that error handling knows
+ * Then we can tell the world we are unmounting so that error handling kanalws
  * that the filesystem is going away and we should error out anything that we
  * have been retrying in the background.  This will prevent never-ending
  * retries in AIL pushing from hanging the unmount.
  *
  * Finally, we can push the AIL to clean all the remaining dirty objects, then
- * reclaim the remaining inodes that are still in memory at this point in time.
+ * reclaim the remaining ianaldes that are still in memory at this point in time.
  */
 static void
-xfs_unmount_flush_inodes(
+xfs_unmount_flush_ianaldes(
 	struct xfs_mount	*mp)
 {
 	xfs_log_force(mp, XFS_LOG_SYNC);
@@ -590,20 +590,20 @@ xfs_unmount_flush_inodes(
 	set_bit(XFS_OPSTATE_UNMOUNTING, &mp->m_opstate);
 
 	xfs_ail_push_all_sync(mp->m_ail);
-	xfs_inodegc_stop(mp);
+	xfs_ianaldegc_stop(mp);
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp);
+	xfs_reclaim_ianaldes(mp);
 	xfs_health_unmount(mp);
 }
 
 static void
-xfs_mount_setup_inode_geom(
+xfs_mount_setup_ianalde_geom(
 	struct xfs_mount	*mp)
 {
-	struct xfs_ino_geometry *igeo = M_IGEO(mp);
+	struct xfs_ianal_geometry *igeo = M_IGEO(mp);
 
 	igeo->attr_fork_offset = xfs_bmap_compute_attr_offset(mp);
-	ASSERT(igeo->attr_fork_offset < XFS_LITINO(mp));
+	ASSERT(igeo->attr_fork_offset < XFS_LITIANAL(mp));
 
 	xfs_ialloc_setup_geometry(mp);
 }
@@ -615,7 +615,7 @@ xfs_agbtree_compute_maxlevels(
 {
 	unsigned int		levels;
 
-	levels = max(mp->m_alloc_maxlevels, M_IGEO(mp)->inobt_maxlevels);
+	levels = max(mp->m_alloc_maxlevels, M_IGEO(mp)->ianalbt_maxlevels);
 	levels = max(levels, mp->m_rmap_maxlevels);
 	mp->m_agbtree_maxlevels = max(levels, mp->m_refc_maxlevels);
 }
@@ -626,7 +626,7 @@ xfs_agbtree_compute_maxlevels(
  *	- if we're a 32-bit kernel, do a size check on the superblock
  *		so we don't mount terabyte filesystems
  *	- init mount struct realtime fields
- *	- allocate inode hash table for fs
+ *	- allocate ianalde hash table for fs
  *	- init directory manager
  *	- perform recovery and init the log manager
  */
@@ -635,8 +635,8 @@ xfs_mountfs(
 	struct xfs_mount	*mp)
 {
 	struct xfs_sb		*sbp = &(mp->m_sb);
-	struct xfs_inode	*rip;
-	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
+	struct xfs_ianalde	*rip;
+	struct xfs_ianal_geometry	*igeo = M_IGEO(mp);
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
@@ -646,7 +646,7 @@ xfs_mountfs(
 	/*
 	 * Check for a mismatched features2 values.  Older kernels read & wrote
 	 * into the wrong sb offset for sb_features2 on some platforms due to
-	 * xfs_sb_t not being 64bit size aligned when sb_features2 was added,
+	 * xfs_sb_t analt being 64bit size aligned when sb_features2 was added,
 	 * which made older superblock reading/writing routines swap it as a
 	 * 64-bit value.
 	 *
@@ -666,7 +666,7 @@ xfs_mountfs(
 	}
 
 
-	/* always use v2 inodes by default now */
+	/* always use v2 ianaldes by default analw */
 	if (!(mp->m_sb.sb_versionnum & XFS_SB_VERSION_NLINKBIT)) {
 		mp->m_sb.sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
 		mp->m_features |= XFS_FEAT_NLINK;
@@ -677,7 +677,7 @@ xfs_mountfs(
 	 * If we were given new sunit/swidth options, do some basic validation
 	 * checks and convert the incore dalign and swidth values to the
 	 * same units (FSB) that everything else uses.  This /must/ happen
-	 * before computing the inode geometry.
+	 * before computing the ianalde geometry.
 	 */
 	error = xfs_validate_new_dalign(mp);
 	if (error)
@@ -686,7 +686,7 @@ xfs_mountfs(
 	xfs_alloc_compute_maxlevels(mp);
 	xfs_bmap_compute_maxlevels(mp, XFS_DATA_FORK);
 	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
-	xfs_mount_setup_inode_geom(mp);
+	xfs_mount_setup_ianalde_geom(mp);
 	xfs_rmapbt_compute_maxlevels(mp);
 	xfs_refcountbt_compute_maxlevels(mp);
 
@@ -694,8 +694,8 @@ xfs_mountfs(
 
 	/*
 	 * Check if sb_agblocks is aligned at stripe boundary.  If sb_agblocks
-	 * is NOT aligned turn off m_dalign since allocator alignment is within
-	 * an ag, therefore ag has to be aligned at stripe boundary.  Note that
+	 * is ANALT aligned turn off m_dalign since allocator alignment is within
+	 * an ag, therefore ag has to be aligned at stripe boundary.  Analte that
 	 * we must compute the free space and rmap btree geometry before doing
 	 * this.
 	 */
@@ -742,17 +742,17 @@ xfs_mountfs(
 	xfs_set_low_space_thresholds(mp);
 
 	/*
-	 * If enabled, sparse inode chunk alignment is expected to match the
-	 * cluster size. Full inode chunk alignment must match the chunk size,
+	 * If enabled, sparse ianalde chunk alignment is expected to match the
+	 * cluster size. Full ianalde chunk alignment must match the chunk size,
 	 * but that is checked on sb read verification...
 	 */
-	if (xfs_has_sparseinodes(mp) &&
-	    mp->m_sb.sb_spino_align !=
-			XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw)) {
+	if (xfs_has_sparseianaldes(mp) &&
+	    mp->m_sb.sb_spianal_align !=
+			XFS_B_TO_FSBT(mp, igeo->ianalde_cluster_size_raw)) {
 		xfs_warn(mp,
-	"Sparse inode block alignment (%u) must match cluster size (%llu).",
-			 mp->m_sb.sb_spino_align,
-			 XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw));
+	"Sparse ianalde block alignment (%u) must match cluster size (%llu).",
+			 mp->m_sb.sb_spianal_align,
+			 XFS_B_TO_FSBT(mp, igeo->ianalde_cluster_size_raw));
 		error = -EINVAL;
 		goto out_remove_uuid;
 	}
@@ -804,12 +804,12 @@ xfs_mountfs(
 	}
 
 	if (XFS_IS_CORRUPT(mp, !sbp->sb_logblocks)) {
-		xfs_warn(mp, "no log defined");
+		xfs_warn(mp, "anal log defined");
 		error = -EFSCORRUPTED;
 		goto out_free_perag;
 	}
 
-	error = xfs_inodegc_register_shrinker(mp);
+	error = xfs_ianaldegc_register_shrinker(mp);
 	if (error)
 		goto out_fail_wait;
 
@@ -823,20 +823,20 @@ xfs_mountfs(
 			      XFS_FSB_TO_BB(mp, sbp->sb_logblocks));
 	if (error) {
 		xfs_warn(mp, "log mount failed");
-		goto out_inodegc_shrinker;
+		goto out_ianaldegc_shrinker;
 	}
 
-	/* Enable background inode inactivation workers. */
-	xfs_inodegc_start(mp);
+	/* Enable background ianalde inactivation workers. */
+	xfs_ianaldegc_start(mp);
 	xfs_blockgc_start(mp);
 
 	/*
-	 * Now that we've recovered any pending superblock feature bit
+	 * Analw that we've recovered any pending superblock feature bit
 	 * additions, we can finish setting up the attr2 behaviour for the
-	 * mount. The noattr2 option overrides the superblock flag, so only
-	 * check the superblock feature flag if the mount option is not set.
+	 * mount. The analattr2 option overrides the superblock flag, so only
+	 * check the superblock feature flag if the mount option is analt set.
 	 */
-	if (xfs_has_noattr2(mp)) {
+	if (xfs_has_analattr2(mp)) {
 		mp->m_features &= ~XFS_FEAT_ATTR2;
 	} else if (!xfs_has_attr2(mp) &&
 		   (mp->m_sb.sb_features2 & XFS_SB_VERSION2_ATTR2BIT)) {
@@ -844,23 +844,23 @@ xfs_mountfs(
 	}
 
 	/*
-	 * Get and sanity-check the root inode.
+	 * Get and sanity-check the root ianalde.
 	 * Save the pointer to it in the mount structure.
 	 */
-	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+	error = xfs_iget(mp, NULL, sbp->sb_rootianal, XFS_IGET_UNTRUSTED,
 			 XFS_ILOCK_EXCL, &rip);
 	if (error) {
 		xfs_warn(mp,
-			"Failed to read root inode 0x%llx, error %d",
-			sbp->sb_rootino, -error);
+			"Failed to read root ianalde 0x%llx, error %d",
+			sbp->sb_rootianal, -error);
 		goto out_log_dealloc;
 	}
 
 	ASSERT(rip != NULL);
 
 	if (XFS_IS_CORRUPT(mp, !S_ISDIR(VFS_I(rip)->i_mode))) {
-		xfs_warn(mp, "corrupted root inode %llu: not a directory",
-			(unsigned long long)rip->i_ino);
+		xfs_warn(mp, "corrupted root ianalde %llu: analt a directory",
+			(unsigned long long)rip->i_ianal);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		error = -EFSCORRUPTED;
 		goto out_rele_rip;
@@ -870,14 +870,14 @@ xfs_mountfs(
 	xfs_iunlock(rip, XFS_ILOCK_EXCL);
 
 	/*
-	 * Initialize realtime inode pointers in the mount structure
+	 * Initialize realtime ianalde pointers in the mount structure
 	 */
-	error = xfs_rtmount_inodes(mp);
+	error = xfs_rtmount_ianaldes(mp);
 	if (error) {
 		/*
-		 * Free up the root inode.
+		 * Free up the root ianalde.
 		 */
-		xfs_warn(mp, "failed to read RT inodes");
+		xfs_warn(mp, "failed to read RT ianaldes");
 		goto out_rele_rip;
 	}
 
@@ -913,7 +913,7 @@ xfs_mountfs(
 		 * quotachecked license.
 		 */
 		if (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_ACCT) {
-			xfs_notice(mp, "resetting quota flags");
+			xfs_analtice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
 				goto out_rtunmount;
@@ -922,16 +922,16 @@ xfs_mountfs(
 
 	/*
 	 * Finish recovering the file system.  This part needed to be delayed
-	 * until after the root and real-time bitmap inodes were consistently
+	 * until after the root and real-time bitmap ianaldes were consistently
 	 * read in.  Temporarily create per-AG space reservations for metadata
-	 * btree shape changes because space freeing transactions (for inode
+	 * btree shape changes because space freeing transactions (for ianalde
 	 * inactivation) require the per-AG reservation in lieu of reserving
 	 * blocks.
 	 */
 	error = xfs_fs_reserve_ag_blocks(mp);
-	if (error && error == -ENOSPC)
+	if (error && error == -EANALSPC)
 		xfs_warn(mp,
-	"ENOSPC reserving per-AG metadata pool, log recovery may fail.");
+	"EANALSPC reserving per-AG metadata pool, log recovery may fail.");
 	error = xfs_log_mount_finish(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	if (error) {
@@ -940,15 +940,15 @@ xfs_mountfs(
 	}
 
 	/*
-	 * Now the log is fully replayed, we can transition to full read-only
+	 * Analw the log is fully replayed, we can transition to full read-only
 	 * mode for read-only mounts. This will sync all the metadata and clean
-	 * the log so that the recovery we just performed does not have to be
+	 * the log so that the recovery we just performed does analt have to be
 	 * replayed again on the next mount.
 	 *
 	 * We use the same quiesce mechanism as the rw->ro remount, as they are
 	 * semantically identical operations.
 	 */
-	if (xfs_is_readonly(mp) && !xfs_has_norecovery(mp))
+	if (xfs_is_readonly(mp) && !xfs_has_analrecovery(mp))
 		xfs_log_clean(mp);
 
 	/*
@@ -962,14 +962,14 @@ xfs_mountfs(
 	}
 
 	/*
-	 * Now we are mounted, reserve a small amount of unused space for
+	 * Analw we are mounted, reserve a small amount of unused space for
 	 * privileged transactions. This is needed so that transaction
 	 * space required for critical operations can dip into this pool
-	 * when at ENOSPC. This is needed for operations like create with
-	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
-	 * are not allowed to use this reserved space.
+	 * when at EANALSPC. This is needed for operations like create with
+	 * attr, unwritten extent conversion at EANALSPC, etc. Data allocations
+	 * are analt allowed to use this reserved space.
 	 *
-	 * This may drive us straight to ENOSPC on mount, but that implies
+	 * This may drive us straight to EANALSPC on mount, but that implies
 	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	if (!xfs_is_readonly(mp)) {
@@ -980,7 +980,7 @@ xfs_mountfs(
 
 		/* Reserve AG blocks for future btree expansion. */
 		error = xfs_fs_reserve_ag_blocks(mp);
-		if (error && error != -ENOSPC)
+		if (error && error != -EANALSPC)
 			goto out_agresv;
 	}
 
@@ -990,36 +990,36 @@ xfs_mountfs(
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
-	xfs_rtunmount_inodes(mp);
+	xfs_rtunmount_ianaldes(mp);
  out_rele_rip:
 	xfs_irele(rip);
 	/* Clean out dquots that might be in memory after quotacheck. */
 	xfs_qm_unmount(mp);
 
 	/*
-	 * Inactivate all inodes that might still be in memory after a log
+	 * Inactivate all ianaldes that might still be in memory after a log
 	 * intent recovery failure so that reclaim can free them.  Metadata
-	 * inodes and the root directory shouldn't need inactivation, but the
+	 * ianaldes and the root directory shouldn't need inactivation, but the
 	 * mount failed for some reason, so pull down all the state and flee.
 	 */
-	xfs_inodegc_flush(mp);
+	xfs_ianaldegc_flush(mp);
 
 	/*
-	 * Flush all inode reclamation work and flush the log.
+	 * Flush all ianalde reclamation work and flush the log.
 	 * We have to do this /after/ rtunmount and qm_unmount because those
-	 * two will have scheduled delayed reclaim for the rt/quota inodes.
+	 * two will have scheduled delayed reclaim for the rt/quota ianaldes.
 	 *
 	 * This is slightly different from the unmountfs call sequence
 	 * because we could be tearing down a partially set up mount.  In
 	 * particular, if log_mount_finish fails we bail out without calling
 	 * qm_unmount_quotas and therefore rely on qm_unmount to release the
-	 * quota inodes.
+	 * quota ianaldes.
 	 */
-	xfs_unmount_flush_inodes(mp);
+	xfs_unmount_flush_ianaldes(mp);
  out_log_dealloc:
 	xfs_log_mount_cancel(mp);
- out_inodegc_shrinker:
-	shrinker_free(mp->m_inodegc_shrinker);
+ out_ianaldegc_shrinker:
+	shrinker_free(mp->m_ianaldegc_shrinker);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_buftarg_drain(mp->m_logdev_targp);
@@ -1044,7 +1044,7 @@ xfs_mountfs(
 }
 
 /*
- * This flushes out the inodes,dquots and the superblock, unmounts the
+ * This flushes out the ianaldes,dquots and the superblock, unmounts the
  * log and makes sure that incore structures are freed.
  */
 void
@@ -1054,22 +1054,22 @@ xfs_unmountfs(
 	int			error;
 
 	/*
-	 * Perform all on-disk metadata updates required to inactivate inodes
-	 * that the VFS evicted earlier in the unmount process.  Freeing inodes
+	 * Perform all on-disk metadata updates required to inactivate ianaldes
+	 * that the VFS evicted earlier in the unmount process.  Freeing ianaldes
 	 * and discarding CoW fork preallocations can cause shape changes to
-	 * the free inode and refcount btrees, respectively, so we must finish
+	 * the free ianalde and refcount btrees, respectively, so we must finish
 	 * this before we discard the metadata space reservations.  Metadata
-	 * inodes and the root directory do not require inactivation.
+	 * ianaldes and the root directory do analt require inactivation.
 	 */
-	xfs_inodegc_flush(mp);
+	xfs_ianaldegc_flush(mp);
 
 	xfs_blockgc_stop(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
-	xfs_rtunmount_inodes(mp);
+	xfs_rtunmount_ianaldes(mp);
 	xfs_irele(mp->m_rootip);
 
-	xfs_unmount_flush_inodes(mp);
+	xfs_unmount_flush_ianaldes(mp);
 
 	xfs_qm_unmount(mp);
 
@@ -1083,14 +1083,14 @@ xfs_unmountfs(
 	 * counting because on mount of an unclean filesystem we reconstruct the
 	 * correct counter value and this is irrelevant.
 	 *
-	 * For non-lazy counter filesystems, this doesn't matter at all because
+	 * For analn-lazy counter filesystems, this doesn't matter at all because
 	 * we only every apply deltas to the superblock and hence the incore
-	 * value does not matter....
+	 * value does analt matter....
 	 */
 	error = xfs_reserve_blocks(mp, 0);
 	if (error)
 		xfs_warn(mp, "Unable to free reserved block pool. "
-				"Freespace may not be correct on next mount.");
+				"Freespace may analt be correct on next mount.");
 	xfs_unmount_check(mp);
 
 	xfs_log_unmount(mp);
@@ -1100,7 +1100,7 @@ xfs_unmountfs(
 #if defined(DEBUG)
 	xfs_errortag_clearall(mp);
 #endif
-	shrinker_free(mp->m_inodegc_shrinker);
+	shrinker_free(mp->m_ianaldegc_shrinker);
 	xfs_free_perag(mp);
 
 	xfs_errortag_del(mp);
@@ -1112,7 +1112,7 @@ xfs_unmountfs(
 
 /*
  * Determine whether modifications can proceed. The caller specifies the minimum
- * freeze level for which modifications should not be allowed. This allows
+ * freeze level for which modifications should analt be allowed. This allows
  * certain operations to proceed while the freeze sequence is in progress, if
  * necessary.
  */
@@ -1179,7 +1179,7 @@ xfs_mod_freecounter(
 	 *
 	 * If the counter has a value of less than 2 * max batch size,
 	 * then make everything serialise as we are real close to
-	 * ENOSPC.
+	 * EANALSPC.
 	 */
 	if (__percpu_counter_compare(counter, 2 * XFS_FDBLOCKS_BATCH,
 				     XFS_FDBLOCKS_BATCH) < 0)
@@ -1189,14 +1189,14 @@ xfs_mod_freecounter(
 
 	/*
 	 * Set aside allocbt blocks because these blocks are tracked as free
-	 * space but not available for allocation. Technically this means that a
-	 * single reservation cannot consume all remaining free space, but the
+	 * space but analt available for allocation. Technically this means that a
+	 * single reservation cananalt consume all remaining free space, but the
 	 * ratio of allocbt blocks to usable free blocks should be rather small.
 	 * The tradeoff without this is that filesystems that maintain high
 	 * perag block reservations can over reserve physical block availability
 	 * and fail physical allocation, which leads to much more serious
 	 * problems (i.e. transaction abort, pagecache discards, etc.) than
-	 * slightly premature -ENOSPC.
+	 * slightly premature -EANALSPC.
 	 */
 	if (has_resv_pool)
 		set_aside = xfs_fdblocks_unavailable(mp);
@@ -1209,12 +1209,12 @@ xfs_mod_freecounter(
 
 	/*
 	 * lock up the sb for dipping into reserves before releasing the space
-	 * that took us to ENOSPC.
+	 * that took us to EANALSPC.
 	 */
 	spin_lock(&mp->m_sb_lock);
 	percpu_counter_add(counter, -delta);
 	if (!has_resv_pool || !rsvd)
-		goto fdblocks_enospc;
+		goto fdblocks_eanalspc;
 
 	lcounter = (long long)mp->m_resblks_avail + delta;
 	if (lcounter >= 0) {
@@ -1225,9 +1225,9 @@ xfs_mod_freecounter(
 	xfs_warn_once(mp,
 "Reserve blocks depleted! Consider increasing reserve pool size.");
 
-fdblocks_enospc:
+fdblocks_eanalspc:
 	spin_unlock(&mp->m_sb_lock);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /*
@@ -1246,7 +1246,7 @@ xfs_freesb(
 
 /*
  * If the underlying (data/log/rt) device is readonly, there are some
- * operations that cannot proceed.
+ * operations that cananalt proceed.
  */
 int
 xfs_dev_is_read_only(
@@ -1256,8 +1256,8 @@ xfs_dev_is_read_only(
 	if (xfs_readonly_buftarg(mp->m_ddev_targp) ||
 	    xfs_readonly_buftarg(mp->m_logdev_targp) ||
 	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
-		xfs_notice(mp, "%s required on read-only device.", message);
-		xfs_notice(mp, "write access unavailable, cannot proceed.");
+		xfs_analtice(mp, "%s required on read-only device.", message);
+		xfs_analtice(mp, "write access unavailable, cananalt proceed.");
 		return -EROFS;
 	}
 	return 0;
@@ -1276,7 +1276,7 @@ xfs_force_summary_recalc(
 
 /*
  * Enable a log incompat feature flag in the primary superblock.  The caller
- * cannot have any other transactions in progress.
+ * cananalt have any other transactions in progress.
  */
 int
 xfs_add_incompat_log_feature(
@@ -1287,13 +1287,13 @@ xfs_add_incompat_log_feature(
 	int			error;
 
 	ASSERT(hweight32(feature) == 1);
-	ASSERT(!(feature & XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN));
+	ASSERT(!(feature & XFS_SB_FEAT_INCOMPAT_LOG_UNKANALWN));
 
 	/*
 	 * Force the log to disk and kick the background AIL thread to reduce
 	 * the chances that the bwrite will stall waiting for the AIL to unpin
 	 * the primary superblock buffer.  This isn't a data integrity
-	 * operation, so we don't need a synchronous push.
+	 * operation, so we don't need a synchroanalus push.
 	 */
 	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
@@ -1317,7 +1317,7 @@ xfs_add_incompat_log_feature(
 
 	/*
 	 * Write the primary superblock to disk immediately, because we need
-	 * the log_incompat bit to be set in the primary super now to protect
+	 * the log_incompat bit to be set in the primary super analw to protect
 	 * the log items that we're going to commit later.
 	 */
 	dsb = mp->m_sb_bp->b_addr;
@@ -1346,9 +1346,9 @@ rele:
 /*
  * Clear all the log incompat flags from the superblock.
  *
- * The caller cannot be in a transaction, must ensure that the log does not
+ * The caller cananalt be in a transaction, must ensure that the log does analt
  * contain any log items protected by any log incompat bit, and must ensure
- * that there are no other threads that depend on the state of the log incompat
+ * that there are anal other threads that depend on the state of the log incompat
  * feature flags in the primary super.
  *
  * Returns true if the superblock is dirty.
@@ -1391,7 +1391,7 @@ xfs_clear_incompat_log_features(
  * reservations can change can easily exceed the default percpu counter
  * batching, so we use a larger batch factor here.
  *
- * Note that we don't currently have any callers requiring fast summation
+ * Analte that we don't currently have any callers requiring fast summation
  * (e.g. percpu_counter_read) so we can use a big batch value here.
  */
 #define XFS_DELALLOC_BATCH	(4096)

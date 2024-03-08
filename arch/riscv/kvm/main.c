@@ -6,7 +6,7 @@
  *     Anup Patel <anup.patel@wdc.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kvm_host.h>
@@ -71,18 +71,18 @@ static int __init riscv_kvm_init(void)
 	const char *str;
 
 	if (!riscv_isa_extension_available(NULL, h)) {
-		kvm_info("hypervisor extension not available\n");
-		return -ENODEV;
+		kvm_info("hypervisor extension analt available\n");
+		return -EANALDEV;
 	}
 
 	if (sbi_spec_is_0_1()) {
 		kvm_info("require SBI v0.2 or higher\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!sbi_probe_extension(SBI_EXT_RFENCE)) {
 		kvm_info("require SBI RFENCE extension\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	kvm_riscv_gstage_mode_detect();
@@ -90,7 +90,7 @@ static int __init riscv_kvm_init(void)
 	kvm_riscv_gstage_vmid_detect();
 
 	rc = kvm_riscv_aia_init();
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -EANALDEV)
 		return rc;
 
 	kvm_info("hypervisor extension available\n");
@@ -109,7 +109,7 @@ static int __init riscv_kvm_init(void)
 		str = "Sv57x4";
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	kvm_info("using %s G-stage page table format\n", str);
 

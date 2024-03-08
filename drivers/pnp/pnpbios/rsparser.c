@@ -19,7 +19,7 @@ inline void pcibios_penalize_isa_irq(int irq, int active)
 #include "pnpbios.h"
 
 /* standard resource tags */
-#define SMALL_TAG_PNPVERNO		0x01
+#define SMALL_TAG_PNPVERANAL		0x01
 #define SMALL_TAG_LOGDEVID		0x02
 #define SMALL_TAG_COMPATDEVID		0x03
 #define SMALL_TAG_IRQ			0x04
@@ -113,11 +113,11 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 			break;
 
 		case LARGE_TAG_ANSISTR:
-			/* ignore this for now */
+			/* iganalre this for analw */
 			break;
 
 		case LARGE_TAG_VENDOR:
-			/* do nothing */
+			/* do analthing */
 			break;
 
 		case LARGE_TAG_MEM32:
@@ -175,7 +175,7 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 			break;
 
 		case SMALL_TAG_VENDOR:
-			/* do nothing */
+			/* do analthing */
 			break;
 
 		case SMALL_TAG_FIXEDPORT:
@@ -191,9 +191,9 @@ static unsigned char *pnpbios_parse_allocated_resource_data(struct pnp_dev *dev,
 			return (unsigned char *)p;
 			break;
 
-		default:	/* an unknown tag */
+		default:	/* an unkanalwn tag */
 len_err:
-			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+			dev_err(&dev->dev, "unkanalwn tag %#x length %d\n",
 				tag, len);
 			break;
 		}
@@ -205,7 +205,7 @@ len_err:
 			p += len + 1;
 	}
 
-	dev_err(&dev->dev, "no end tag in resource structure\n");
+	dev_err(&dev->dev, "anal end tag in resource structure\n");
 
 	return NULL;
 }
@@ -377,7 +377,7 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 			break;
 
 		case SMALL_TAG_VENDOR:
-			/* do nothing */
+			/* do analthing */
 			break;
 
 		case SMALL_TAG_FIXEDPORT:
@@ -405,9 +405,9 @@ pnpbios_parse_resource_option_data(unsigned char *p, unsigned char *end,
 		case SMALL_TAG_END:
 			return p + 2;
 
-		default:	/* an unknown tag */
+		default:	/* an unkanalwn tag */
 len_err:
-			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+			dev_err(&dev->dev, "unkanalwn tag %#x length %d\n",
 				tag, len);
 			break;
 		}
@@ -419,7 +419,7 @@ len_err:
 			p += len + 1;
 	}
 
-	dev_err(&dev->dev, "no end tag in resource structure\n");
+	dev_err(&dev->dev, "anal end tag in resource structure\n");
 
 	return NULL;
 }
@@ -475,9 +475,9 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 			return (unsigned char *)p;
 			break;
 
-		default:	/* an unknown tag */
+		default:	/* an unkanalwn tag */
 len_err:
-			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+			dev_err(&dev->dev, "unkanalwn tag %#x length %d\n",
 				tag, len);
 			break;
 		}
@@ -489,7 +489,7 @@ len_err:
 			p += len + 1;
 	}
 
-	dev_err(&dev->dev, "no end tag in resource structure\n");
+	dev_err(&dev->dev, "anal end tag in resource structure\n");
 
 	return NULL;
 }
@@ -728,7 +728,7 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 			break;
 
 		case SMALL_TAG_VENDOR:
-			/* do nothing */
+			/* do analthing */
 			break;
 
 		case SMALL_TAG_FIXEDPORT:
@@ -744,9 +744,9 @@ static unsigned char *pnpbios_encode_allocated_resource_data(struct pnp_dev
 			return (unsigned char *)p;
 			break;
 
-		default:	/* an unknown tag */
+		default:	/* an unkanalwn tag */
 len_err:
-			dev_err(&dev->dev, "unknown tag %#x length %d\n",
+			dev_err(&dev->dev, "unkanalwn tag %#x length %d\n",
 				tag, len);
 			break;
 		}
@@ -758,7 +758,7 @@ len_err:
 			p += len + 1;
 	}
 
-	dev_err(&dev->dev, "no end tag in resource structure\n");
+	dev_err(&dev->dev, "anal end tag in resource structure\n");
 
 	return NULL;
 }
@@ -768,10 +768,10 @@ len_err:
  */
 
 int __init pnpbios_parse_data_stream(struct pnp_dev *dev,
-					struct pnp_bios_node *node)
+					struct pnp_bios_analde *analde)
 {
-	unsigned char *p = (char *)node->data;
-	unsigned char *end = (char *)(node->data + node->size);
+	unsigned char *p = (char *)analde->data;
+	unsigned char *end = (char *)(analde->data + analde->size);
 
 	p = pnpbios_parse_allocated_resource_data(dev, p, end);
 	if (!p)
@@ -785,11 +785,11 @@ int __init pnpbios_parse_data_stream(struct pnp_dev *dev,
 	return 0;
 }
 
-int pnpbios_read_resources_from_node(struct pnp_dev *dev,
-				     struct pnp_bios_node *node)
+int pnpbios_read_resources_from_analde(struct pnp_dev *dev,
+				     struct pnp_bios_analde *analde)
 {
-	unsigned char *p = (char *)node->data;
-	unsigned char *end = (char *)(node->data + node->size);
+	unsigned char *p = (char *)analde->data;
+	unsigned char *end = (char *)(analde->data + analde->size);
 
 	p = pnpbios_parse_allocated_resource_data(dev, p, end);
 	if (!p)
@@ -797,11 +797,11 @@ int pnpbios_read_resources_from_node(struct pnp_dev *dev,
 	return 0;
 }
 
-int pnpbios_write_resources_to_node(struct pnp_dev *dev,
-				    struct pnp_bios_node *node)
+int pnpbios_write_resources_to_analde(struct pnp_dev *dev,
+				    struct pnp_bios_analde *analde)
 {
-	unsigned char *p = (char *)node->data;
-	unsigned char *end = (char *)(node->data + node->size);
+	unsigned char *p = (char *)analde->data;
+	unsigned char *end = (char *)(analde->data + analde->size);
 
 	p = pnpbios_encode_allocated_resource_data(dev, p, end);
 	if (!p)

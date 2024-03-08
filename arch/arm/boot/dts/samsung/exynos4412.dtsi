@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4412 SoC device tree source
+ * Samsung's Exyanals4412 SoC device tree source
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung's Exynos4412 SoC device nodes are listed in this file. Exynos4412
+ * Samsung's Exyanals4412 SoC device analdes are listed in this file. Exyanals4412
  * based board files can include this file and provide values for board specific
  * bindings.
  *
- * Note: This file does not include device nodes for all the controllers in
- * Exynos4412 SoC. As device tree coverage for Exynos4412 increases, additional
- * nodes can be added to this file.
+ * Analte: This file does analt include device analdes for all the controllers in
+ * Exyanals4412 SoC. As device tree coverage for Exyanals4412 increases, additional
+ * analdes can be added to this file.
  */
 
-#include "exynos4x12.dtsi"
+#include "exyanals4x12.dtsi"
 
 / {
-	compatible = "samsung,exynos4412", "samsung,exynos4";
+	compatible = "samsung,exyanals4412", "samsung,exyanals4";
 
 	cpus {
 		#address-cells = <1>;
@@ -161,7 +161,7 @@
 };
 
 &clock {
-	compatible = "samsung,exynos4412-clock";
+	compatible = "samsung,exyanals4412-clock";
 };
 
 &combiner {
@@ -179,5 +179,5 @@
 };
 
 &pmu_system_controller {
-	compatible = "samsung,exynos4412-pmu", "simple-mfd", "syscon";
+	compatible = "samsung,exyanals4412-pmu", "simple-mfd", "syscon";
 };

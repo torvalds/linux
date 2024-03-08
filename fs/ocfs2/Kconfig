@@ -11,9 +11,9 @@ config OCFS2_FS
 	select LEGACY_DIRECT_IO
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
-	  system with many similarities to ext3. It supports 64 bit inode
+	  system with many similarities to ext3. It supports 64 bit ianalde
 	  numbers, and has automatically extending metadata groups which may
-	  also make it attractive for non-clustered use.
+	  also make it attractive for analn-clustered use.
 
 	  You'll want to install the ocfs2-tools package in order to at least
 	  get "mount.ocfs2".
@@ -34,7 +34,7 @@ config OCFS2_FS_O2CB
 	  Cluster Base.  It only requires a very small userspace component
 	  to configure it. This comes with the standard ocfs2-tools package.
 	  O2CB is limited to maintaining a cluster for OCFS2 file systems.
-	  It cannot manage any other cluster applications.
+	  It cananalt manage any other cluster applications.
 
 	  It is always safe to say Y here, as the clustering method is
 	  run-time selectable.

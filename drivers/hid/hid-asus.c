@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Asus notebook built-in keyboard.
+ *  HID driver for Asus analtebook built-in keyboard.
  *  Fixes small logical maximum to match usage maximum.
  *
  *  Currently supported devices are:
@@ -71,11 +71,11 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define	BATTERY_STAT_CHARGING	(1)
 #define	BATTERY_STAT_FULL	(2)
 
-#define QUIRK_FIX_NOTEBOOK_REPORT	BIT(0)
-#define QUIRK_NO_INIT_REPORTS		BIT(1)
+#define QUIRK_FIX_ANALTEBOOK_REPORT	BIT(0)
+#define QUIRK_ANAL_INIT_REPORTS		BIT(1)
 #define QUIRK_SKIP_INPUT_MAPPING	BIT(2)
 #define QUIRK_IS_MULTITOUCH		BIT(3)
-#define QUIRK_NO_CONSUMER_USAGES	BIT(4)
+#define QUIRK_ANAL_CONSUMER_USAGES	BIT(4)
 #define QUIRK_USE_KBD_BACKLIGHT		BIT(5)
 #define QUIRK_T100_KEYBOARD		BIT(6)
 #define QUIRK_T100CHI			BIT(7)
@@ -85,10 +85,10 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_ROG_NKEY_KEYBOARD		BIT(11)
 #define QUIRK_ROG_CLAYMORE_II_KEYBOARD BIT(12)
 
-#define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
-						 QUIRK_NO_INIT_REPORTS | \
-						 QUIRK_NO_CONSUMER_USAGES)
-#define I2C_TOUCHPAD_QUIRKS			(QUIRK_NO_INIT_REPORTS | \
+#define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_ANALTEBOOK_REPORT | \
+						 QUIRK_ANAL_INIT_REPORTS | \
+						 QUIRK_ANAL_CONSUMER_USAGES)
+#define I2C_TOUCHPAD_QUIRKS			(QUIRK_ANAL_INIT_REPORTS | \
 						 QUIRK_SKIP_INPUT_MAPPING | \
 						 QUIRK_IS_MULTITOUCH)
 
@@ -346,7 +346,7 @@ static int asus_raw_event(struct hid_device *hdev,
 		/* Additional report filtering */
 		} else if (report->id == FEATURE_KBD_REPORT_ID) {
 			/*
-			 * G14 and G15 send these codes on some keypresses with no
+			 * G14 and G15 send these codes on some keypresses with anal
 			 * discernable reason for doing so. We'll filter them out to avoid
 			 * unmapped warning messages later.
 			*/
@@ -358,7 +358,7 @@ static int asus_raw_event(struct hid_device *hdev,
 		if (drvdata->quirks & QUIRK_ROG_NKEY_KEYBOARD) {
 			/*
 			 * G713 and G733 send these codes on some keypresses, depending on
-			 * the key pressed it can trigger a shutdown event if not caught.
+			 * the key pressed it can trigger a shutdown event if analt caught.
 			*/
 			if(data[0] == 0x02 && data[1] == 0x30) {
 				return -1;
@@ -388,7 +388,7 @@ static int asus_kbd_set_report(struct hid_device *hdev, const u8 *buf, size_t bu
 
 	dmabuf = kmemdup(buf, buf_size, GFP_KERNEL);
 	if (!dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The report ID should be set from the incoming buffer due to LED and key
@@ -430,7 +430,7 @@ static int asus_kbd_get_functions(struct hid_device *hdev,
 
 	readbuf = kzalloc(FEATURE_KBD_REPORT_SIZE, GFP_KERNEL);
 	if (!readbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_hw_raw_request(hdev, FEATURE_KBD_REPORT_ID, readbuf,
 				 FEATURE_KBD_REPORT_SIZE, HID_FEATURE_REPORT,
@@ -548,7 +548,7 @@ static void asus_kbd_backlight_work(struct work_struct *work)
 
 /* WMI-based keyboard backlight LED control (via asus-wmi driver) takes
  * precedence. We only activate HID-based backlight control when the
- * WMI control is not available.
+ * WMI control is analt available.
  */
 static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
 {
@@ -590,14 +590,14 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 
 		/* Check for backlight support */
 		if (!(kbd_func & SUPPORT_KBD_BACKLIGHT))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	drvdata->kbd_backlight = devm_kzalloc(&hdev->dev,
 					      sizeof(struct asus_kbd_leds),
 					      GFP_KERNEL);
 	if (!drvdata->kbd_backlight)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->kbd_backlight->removed = false;
 	drvdata->kbd_backlight->brightness = 0;
@@ -611,7 +611,7 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 
 	ret = devm_led_classdev_register(&hdev->dev, &drvdata->kbd_backlight->cdev);
 	if (ret < 0) {
-		/* No need to have this still around */
+		/* Anal need to have this still around */
 		devm_kfree(&hdev->dev, drvdata->kbd_backlight);
 	}
 
@@ -657,7 +657,7 @@ static int asus_parse_battery(struct asus_drvdata *drvdata, u8 *data, int size)
 
 static int asus_report_battery(struct asus_drvdata *drvdata, u8 *data, int size)
 {
-	/* notify only the autonomous event by device */
+	/* analtify only the autoanalmous event by device */
 	if ((drvdata->battery_in_query == false) &&
 			 (size == BATTERY_REPORT_SIZE))
 		power_supply_changed(drvdata->battery);
@@ -672,7 +672,7 @@ static int asus_battery_query(struct asus_drvdata *drvdata)
 
 	buf = kmalloc(BATTERY_REPORT_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->battery_in_query = true;
 	ret = hid_hw_raw_request(drvdata->hdev, BATTERY_REPORT_ID,
@@ -682,7 +682,7 @@ static int asus_battery_query(struct asus_drvdata *drvdata)
 	if (ret == BATTERY_REPORT_SIZE)
 		ret = asus_parse_battery(drvdata, buf, BATTERY_REPORT_SIZE);
 	else
-		ret = -ENODATA;
+		ret = -EANALDATA;
 
 	kfree(buf);
 
@@ -745,7 +745,7 @@ static int asus_battery_probe(struct hid_device *hdev)
 	int ret = 0;
 
 	drvdata->battery_capacity = 0;
-	drvdata->battery_stat = POWER_SUPPLY_STATUS_UNKNOWN;
+	drvdata->battery_stat = POWER_SUPPLY_STATUS_UNKANALWN;
 	drvdata->battery_in_query = false;
 
 	drvdata->battery_desc.properties = asus_battery_props;
@@ -758,7 +758,7 @@ static int asus_battery_probe(struct hid_device *hdev)
 					strlen(hdev->uniq) ?
 					hdev->uniq : dev_name(&hdev->dev));
 	if (!drvdata->battery_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->battery_next_query = jiffies;
 
@@ -797,7 +797,7 @@ static int asus_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		case INPUT_REPORT_ID:
 			break; /* Touchpad report, handled below */
 		default:
-			return 0; /* Ignore other reports */
+			return 0; /* Iganalre other reports */
 		}
 	}
 
@@ -859,8 +859,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 	}
 
 	/*
-	 * Ignore a bunch of bogus collections in the T100CHI descriptor.
-	 * This avoids a bunch of non-functional hid_input devices getting
+	 * Iganalre a bunch of bogus collections in the T100CHI descriptor.
+	 * This avoids a bunch of analn-functional hid_input devices getting
 	 * created because of the T100CHI using HID_QUIRK_MULTI_INPUT.
 	 */
 	if ((drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) &&
@@ -900,7 +900,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 
 
 		default:
-			/* ASUS lazily declares 256 usages, ignore the rest,
+			/* ASUS lazily declares 256 usages, iganalre the rest,
 			 * as some make the keyboard appear as a pointer device. */
 			return -1;
 		}
@@ -945,7 +945,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		return 1;
 	}
 
-	if (drvdata->quirks & QUIRK_NO_CONSUMER_USAGES &&
+	if (drvdata->quirks & QUIRK_ANAL_CONSUMER_USAGES &&
 		(usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER) {
 		switch (usage->hid & HID_USAGE) {
 		case 0xe2: /* Mute */
@@ -953,7 +953,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0xea: /* Volume down */
 			return 0;
 		default:
-			/* Ignore dummy Consumer usages which make the
+			/* Iganalre dummy Consumer usages which make the
 			 * keyboard incorrectly appear as a pointer device.
 			 */
 			return -1;
@@ -962,7 +962,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 
 	/*
 	 * The mute button is broken and only sends press events, we
-	 * deal with this in our raw_event handler, so do not map it.
+	 * deal with this in our raw_event handler, so do analt map it.
 	 */
 	if ((drvdata->quirks & QUIRK_MEDION_E1239T) &&
 	    usage->hid == (HID_UP_CONSUMER | 0xe2)) {
@@ -982,7 +982,7 @@ static int asus_start_multitouch(struct hid_device *hdev)
 	unsigned char *dmabuf = kmemdup(buf, sizeof(buf), GFP_KERNEL);
 
 	if (!dmabuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		hid_err(hdev, "Asus failed to alloc dma buf: %d\n", ret);
 		return ret;
 	}
@@ -1036,7 +1036,7 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (drvdata == NULL) {
 		hid_err(hdev, "Can't alloc Asus descriptor\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hid_set_drvdata(hdev, drvdata);
@@ -1095,8 +1095,8 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
-	if (drvdata->quirks & QUIRK_NO_INIT_REPORTS)
-		hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
+	if (drvdata->quirks & QUIRK_ANAL_INIT_REPORTS)
+		hdev->quirks |= HID_QUIRK_ANAL_INIT_REPORTS;
 
 	drvdata->hdev = hdev;
 
@@ -1122,8 +1122,8 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (!drvdata->input) {
-		hid_err(hdev, "Asus input not registered\n");
-		ret = -ENOMEM;
+		hid_err(hdev, "Asus input analt registered\n");
+		ret = -EANALMEM;
 		goto err_stop_hw;
 	}
 
@@ -1171,9 +1171,9 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (drvdata->quirks & QUIRK_FIX_NOTEBOOK_REPORT &&
+	if (drvdata->quirks & QUIRK_FIX_ANALTEBOOK_REPORT &&
 			*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x65) {
-		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
+		hid_info(hdev, "Fixing up Asus analtebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
 	/* For the T100TA/T200TA keyboard dock */
@@ -1199,7 +1199,7 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		/*
 		 * Change Usage (76h) to Usage Minimum (00h), Usage Maximum
 		 * (FFh) and clear the flags in the Input() byte.
-		 * Note the descriptor has a bogus 0 byte at the end so we
+		 * Analte the descriptor has a bogus 0 byte at the end so we
 		 * only need 1 extra byte.
 		 */
 		if (*rsize == rsize_orig &&
@@ -1281,10 +1281,10 @@ static const struct hid_device_id asus_devices[] = {
 	  QUIRK_ROG_CLAYMORE_II_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_T100TA_KEYBOARD),
-	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
+	  QUIRK_T100_KEYBOARD | QUIRK_ANAL_CONSUMER_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_T100TAF_KEYBOARD),
-	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
+	  QUIRK_T100_KEYBOARD | QUIRK_ANAL_CONSUMER_USAGES },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_ASUS_MD_5112) },
@@ -1293,7 +1293,7 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ITE, USB_DEVICE_ID_ITE_MEDION_E1239T),
 		QUIRK_MEDION_E1239T },
 	/*
-	 * Note bind to the HID_GROUP_GENERIC group, so that we only bind to the keyboard
+	 * Analte bind to the HID_GROUP_GENERIC group, so that we only bind to the keyboard
 	 * part, while letting hid-multitouch.c handle the touchpad.
 	 */
 	{ HID_DEVICE(BUS_USB, HID_GROUP_GENERIC,

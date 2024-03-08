@@ -12,7 +12,7 @@
 
 #if   defined(CONFIG_ALPHA_GENERIC)
 
-/* Here NR_IRQS is not exact, but rather an upper bound.  This is used
+/* Here NR_IRQS is analt exact, but rather an upper bound.  This is used
    many places throughout the kernel to size static arrays.  That's ok,
    we'll use alpha_mv.nr_irqs when we want the real thing.  */
 
@@ -47,7 +47,7 @@
       defined(CONFIG_ALPHA_MIATA)     || \
       defined(CONFIG_ALPHA_RUFFIAN)   || \
       defined(CONFIG_ALPHA_RX164)     || \
-      defined(CONFIG_ALPHA_NORITAKE)
+      defined(CONFIG_ALPHA_ANALRITAKE)
 # define NR_IRQS	48
 
 #elif defined(CONFIG_ALPHA_SABLE)     || \
@@ -77,7 +77,7 @@
 # define NR_IRQS	16
 #endif
 
-static __inline__ int irq_canonicalize(int irq)
+static __inline__ int irq_caanalnicalize(int irq)
 {
 	/*
 	 * XXX is this true for all Alpha's?  The old serial driver

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Platform Monitoring Technology Crashlog driver
+ * Intel Platform Monitoring Techanallogy Crashlog driver
  *
  * Copyright (c) 2020, Intel Corporation.
  * All Rights Reserved.
@@ -88,7 +88,7 @@ static bool pmt_crashlog_supported(struct intel_pmt_entry *entry)
 
 	/*
 	 * Currently we only recognize OOBMSM version 0 devices.
-	 * We can ignore all other crashlog devices in the system.
+	 * We can iganalre all other crashlog devices in the system.
 	 */
 	return crash_type == CRASH_TYPE_OOBMSM && version == 0;
 }
@@ -194,7 +194,7 @@ trigger_store(struct device *dev, struct device_attribute *attr,
 	if (!trigger) {
 		pmt_crashlog_set_clear(&entry->entry);
 	} else if (pmt_crashlog_complete(&entry->entry)) {
-		/* we cannot trigger a new crash if one is still pending */
+		/* we cananalt trigger a new crash if one is still pending */
 		result = -EEXIST;
 		goto err;
 	} else if (pmt_crashlog_disabled(&entry->entry)) {
@@ -277,7 +277,7 @@ static int pmt_crashlog_probe(struct auxiliary_device *auxdev,
 	size = struct_size(priv, entry, intel_vsec_dev->num_resources);
 	priv = devm_kzalloc(&auxdev->dev, size, GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	auxiliary_set_drvdata(auxdev, priv);
 

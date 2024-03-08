@@ -5,7 +5,7 @@
  * /proc/net/rpc/nfsd
  *
  * Format:
- *	rc <hits> <misses> <nocache>
+ *	rc <hits> <misses> <analcache>
  *			Statistsics for the reply cache
  *	fh <stale> <deprecated filehandle cache stats>
  *			statistics for filehandle lookup
@@ -39,7 +39,7 @@ static int nfsd_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "rc %lld %lld %lld\nfh %lld 0 0 0 0\nio %lld %lld\n",
 		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_RC_HITS]),
 		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_RC_MISSES]),
-		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_RC_NOCACHE]),
+		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_RC_ANALCACHE]),
 		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_FH_STALE]),
 		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_IO_READ]),
 		   percpu_counter_sum_positive(&nfsdstats.counter[NFSD_STATS_IO_WRITE]));

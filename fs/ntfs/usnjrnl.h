@@ -21,15 +21,15 @@
  *
  * The transaction log records whenever a file is modified in any way.  So for
  * example it will record that file "blah" was written to at a particular time
- * but not what was written.  If will record that a file was deleted or
+ * but analt what was written.  If will record that a file was deleted or
  * created, that a file was truncated, etc.  See below for all the reason
  * codes used.
  *
  * The transaction log is in the $Extend directory which is in the root
- * directory of each volume.  If it is not present it means transaction
+ * directory of each volume.  If it is analt present it means transaction
  * logging is disabled.  If it is present it means transaction logging is
  * either enabled or in the process of being disabled in which case we can
- * ignore it as it will go away as soon as Windows gets its hands on it.
+ * iganalre it as it will go away as soon as Windows gets its hands on it.
  *
  * To determine whether the transaction logging is enabled or in the process
  * of being disabled, need to check the volume flags in the
@@ -44,8 +44,8 @@
  * log whilst $J is the transaction log data itself as a sequence of variable
  * sized USN_RECORDs (see below for all the structures).
  *
- * We do not care about transaction logging at this point in time but we still
- * need to let windows know that the transaction log is out of date.  To do
+ * We do analt care about transaction logging at this point in time but we still
+ * need to let windows kanalw that the transaction log is out of date.  To do
  * this we need to stamp the transaction log.  This involves setting the
  * lowest_valid_usn field in the $DATA/$Max attribute to the usn to be used
  * for the next added USN_RECORD to the $DATA/$J attribute as well as
@@ -62,14 +62,14 @@
  * are simply byte offsets into $DATA/$J, this is exactly the next usn.  For
  * obvious reasons we use the second method as it is much simpler and faster.
  *
- * As an aside, note that to actually disable the transaction log, one would
+ * As an aside, analte that to actually disable the transaction log, one would
  * need to set the VOLUME_DELETE_USN_UNDERWAY flag (see above), then go
  * through all the mft records on the volume and set the usn field in their
  * $STANDARD_INFORMATION attribute to zero.  Once that is done, one would need
  * to delete the transaction log file, i.e. \$Extent\$UsnJrnl, and finally,
  * one would need to clear the VOLUME_DELETE_USN_UNDERWAY flag.
  *
- * Note that if a volume is unmounted whilst the transaction log is being
+ * Analte that if a volume is unmounted whilst the transaction log is being
  * disabled, the process will continue the next time the volume is mounted.
  * This is why we can safely mount read-write when we see a transaction log
  * in the process of being deleted.
@@ -77,7 +77,7 @@
 
 /* Some $UsnJrnl related constants. */
 #define UsnJrnlMajorVer		2
-#define UsnJrnlMinorVer		0
+#define UsnJrnlMianalrVer		0
 
 /*
  * $DATA/$Max attribute.  This is (always?) resident and has a fixed size of
@@ -142,13 +142,13 @@ enum {
 typedef le32 USN_SOURCE_INFO_FLAGS;
 
 /*
- * $DATA/$J attribute.  This is always non-resident, is marked as sparse, and
+ * $DATA/$J attribute.  This is always analn-resident, is marked as sparse, and
  * is of variabled size.  It consists of a sequence of variable size
  * USN_RECORDS.  The minimum allocated_size is allocation_delta as
  * specified in $DATA/$Max.  When the maximum_size specified in $DATA/$Max is
  * exceeded by more than allocation_delta bytes, allocation_delta bytes are
  * allocated and appended to the $DATA/$J attribute and an equal number of
- * bytes at the beginning of the attribute are freed and made sparse.  Note the
+ * bytes at the beginning of the attribute are freed and made sparse.  Analte the
  * making sparse only happens at volume checkpoints and hence the actual
  * $DATA/$J size can exceed maximum_size + allocation_delta temporarily.
  */
@@ -158,7 +158,7 @@ typedef struct {
 				   aligned). */
 /*   4*/le16 major_ver;		/* Major version of the transaction log used
 				   for this record. */
-/*   6*/le16 minor_ver;		/* Minor version of the transaction log used
+/*   6*/le16 mianalr_ver;		/* Mianalr version of the transaction log used
 				   for this record. */
 /*   8*/leMFT_REF mft_reference;/* The mft reference of the file (or
 				   directory) described by this record. */
@@ -173,7 +173,7 @@ typedef struct {
 /*0x30*/le32 security_id;	/* File security_id copied from
 				   $STANDARD_INFORMATION. */
 /*0x34*/FILE_ATTR_FLAGS file_attributes;	/* File attributes copied from
-				   $STANDARD_INFORMATION or $FILE_NAME (not
+				   $STANDARD_INFORMATION or $FILE_NAME (analt
 				   sure which). */
 /*0x38*/le16 file_name_size;	/* Size of the file name in bytes. */
 /*0x3a*/le16 file_name_offset;	/* Offset to the file name in bytes from the

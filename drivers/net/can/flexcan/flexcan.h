@@ -21,32 +21,32 @@
  * Below is some version info we got:
  *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR rece-   FD Mode     MB
  *                                Filter? connected?  Passive detection  ption in MB Supported?
- * MCF5441X FlexCAN2  ?               no       yes        no       no        no           no     16
- *    MX25  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64
- *    MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no           no     64
- *    MX35  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64
- *    MX53  FlexCAN2  03.00.00.00    yes        no        no       no        no           no     64
- *    MX6s  FlexCAN3  10.00.12.00    yes       yes        no       no       yes           no     64
- *    MX8QM FlexCAN3  03.00.23.00    yes       yes        no       no       yes          yes     64
- *    MX8MP FlexCAN3  03.00.17.01    yes       yes        no      yes       yes          yes     64
- *    VF610 FlexCAN3  ?               no       yes        no      yes       yes?          no     64
- *  LS1021A FlexCAN2  03.00.04.00     no       yes        no       no       yes           no     64
- *  LX2160A FlexCAN3  03.00.23.00     no       yes        no      yes       yes          yes     64
+ * MCF5441X FlexCAN2  ?               anal       anal        anal       anal        anal           anal     16
+ *    MX25  FlexCAN2  03.00.00.00     anal        anal        anal       anal        anal           anal     64
+ *    MX28  FlexCAN2  03.00.04.00    anal       anal        anal       anal        anal           anal     64
+ *    MX35  FlexCAN2  03.00.00.00     anal        anal        anal       anal        anal           anal     64
+ *    MX53  FlexCAN2  03.00.00.00    anal        anal        anal       anal        anal           anal     64
+ *    MX6s  FlexCAN3  10.00.12.00    anal       anal        anal       anal       anal           anal     64
+ *    MX8QM FlexCAN3  03.00.23.00    anal       anal        anal       anal       anal          anal     64
+ *    MX8MP FlexCAN3  03.00.17.01    anal       anal        anal      anal       anal          anal     64
+ *    VF610 FlexCAN3  ?               anal       anal        anal      anal       anal?          anal     64
+ *  LS1021A FlexCAN2  03.00.04.00     anal       anal        anal       anal       anal           anal     64
+ *  LX2160A FlexCAN3  03.00.23.00     anal       anal        anal      anal       anal          anal     64
  *
- * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
+ * Some SOCs do analt have the RX_WARN & TX_WARN interrupt line connected.
  */
 
-/* [TR]WRN_INT not connected */
+/* [TR]WRN_INT analt connected */
 #define FLEXCAN_QUIRK_BROKEN_WERR_STATE BIT(1)
  /* Disable RX FIFO Global mask */
 #define FLEXCAN_QUIRK_DISABLE_RXFG BIT(2)
 /* Enable EACEN and RRS bit in ctrl2 */
 #define FLEXCAN_QUIRK_ENABLE_EACEN_RRS  BIT(3)
-/* Disable non-correctable errors interrupt and freeze mode */
+/* Disable analn-correctable errors interrupt and freeze mode */
 #define FLEXCAN_QUIRK_DISABLE_MECR BIT(4)
-/* Use mailboxes (not FIFO) for RX path */
+/* Use mailboxes (analt FIFO) for RX path */
 #define FLEXCAN_QUIRK_USE_RX_MAILBOX BIT(5)
-/* No interrupt for error passive */
+/* Anal interrupt for error passive */
 #define FLEXCAN_QUIRK_BROKEN_PERR_STATE BIT(6)
 /* default to BE register access */
 #define FLEXCAN_QUIRK_DEFAULT_BIG_ENDIAN BIT(7)

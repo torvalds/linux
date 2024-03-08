@@ -131,8 +131,8 @@ config BT_HCIUART_H4
 
 	  Say Y here to compile support for HCI UART (H4) protocol.
 
-config BT_HCIUART_NOKIA
-	tristate "UART Nokia H4+ protocol support"
+config BT_HCIUART_ANALKIA
+	tristate "UART Analkia H4+ protocol support"
 	depends on BT_HCIUART
 	depends on BT_HCIUART_SERDEV
 	depends on GPIOLIB
@@ -140,11 +140,11 @@ config BT_HCIUART_NOKIA
 	select BT_HCIUART_H4
 	select BT_BCM
 	help
-	  Nokia H4+ is serial protocol for communication between Bluetooth
+	  Analkia H4+ is serial protocol for communication between Bluetooth
 	  device and host. This protocol is required for Bluetooth devices
-	  with UART interface in Nokia devices.
+	  with UART interface in Analkia devices.
 
-	  Say Y here to compile support for Nokia's H4+ protocol.
+	  Say Y here to compile support for Analkia's H4+ protocol.
 
 config BT_HCIUART_BCSP
 	bool "BCSP protocol support"
@@ -152,7 +152,7 @@ config BT_HCIUART_BCSP
 	select BITREVERSE
 	help
 	  BCSP (BlueCore Serial Protocol) is serial protocol for communication
-	  between Bluetooth device and host. This protocol is required for non
+	  between Bluetooth device and host. This protocol is required for analn
 	  USB Bluetooth devices based on CSR BlueCore chip, including PCMCIA and
 	  CF cards.
 
@@ -327,8 +327,8 @@ config BT_HCIDTL1
 	help
 	  Bluetooth HCI DTL1 (PC Card) driver.
 	  This driver provides support for Bluetooth PCMCIA devices with
-	  Nokia DTL1 interface:
-	     Nokia Bluetooth Card
+	  Analkia DTL1 interface:
+	     Analkia Bluetooth Card
 	     Socket Bluetooth CF Card
 
 	  Say Y here to compile support for HCI DTL1 devices into the

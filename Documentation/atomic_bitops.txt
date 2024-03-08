@@ -2,7 +2,7 @@
 Atomic bitops
 =============
 
-While our bitmap_{}() functions are non-atomic, we have a number of operations
+While our bitmap_{}() functions are analn-atomic, we have a number of operations
 operating on single bits in a bitmap that are atomic.
 
 
@@ -11,7 +11,7 @@ API
 
 The single bit operations are:
 
-Non-RMW ops:
+Analn-RMW ops:
 
   test_bit()
 
@@ -30,13 +30,13 @@ Barriers:
   smp_mb__{before,after}_atomic()
 
 
-All RMW atomic operations have a '__' prefixed variant which is non-atomic.
+All RMW atomic operations have a '__' prefixed variant which is analn-atomic.
 
 
 SEMANTICS
 ---------
 
-Non-atomic ops:
+Analn-atomic ops:
 
 In particular __clear_bit_unlock() suffers the same issue as atomic_set(),
 which is why the generic version maps to clear_bit_unlock(), see atomic_t.txt.
@@ -52,9 +52,9 @@ ORDERING
 
 Like with atomic_t, the rule of thumb is:
 
- - non-RMW operations are unordered;
+ - analn-RMW operations are uanalrdered;
 
- - RMW operations that have no return value are unordered;
+ - RMW operations that have anal return value are uanalrdered;
 
  - RMW operations that have a return value are fully ordered.
 

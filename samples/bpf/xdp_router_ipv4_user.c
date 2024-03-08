@@ -5,7 +5,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,12 +47,12 @@ static int mask = SAMPLE_RX_CNT | SAMPLE_REDIRECT_ERR_MAP_CNT |
 DEFINE_SAMPLE_INIT(xdp_router_ipv4);
 
 static const struct option long_options[] = {
-	{ "help", no_argument, NULL, 'h' },
-	{ "skb-mode", no_argument, NULL, 'S' },
-	{ "force", no_argument, NULL, 'F' },
+	{ "help", anal_argument, NULL, 'h' },
+	{ "skb-mode", anal_argument, NULL, 'S' },
+	{ "force", anal_argument, NULL, 'F' },
 	{ "interval", required_argument, NULL, 'i' },
-	{ "verbose", no_argument, NULL, 'v' },
-	{ "stats", no_argument, NULL, 's' },
+	{ "verbose", anal_argument, NULL, 'v' },
+	{ "stats", anal_argument, NULL, 's' },
 	{}
 };
 
@@ -266,14 +266,14 @@ static int get_route_table(int rtm_family)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
-		return -errno;
+		fprintf(stderr, "open netlink socket: %s\n", strerror(erranal));
+		return -erranal;
 	}
 	memset(&sa, 0, sizeof(sa));
 	sa.nl_family = AF_NETLINK;
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		fprintf(stderr, "bind netlink socket: %s\n", strerror(errno));
-		ret = -errno;
+		fprintf(stderr, "bind netlink socket: %s\n", strerror(erranal));
+		ret = -erranal;
 		goto cleanup;
 	}
 	memset(&req, 0, sizeof(req));
@@ -292,8 +292,8 @@ static int get_route_table(int rtm_family)
 	msg.msg_iovlen = 1;
 	ret = sendmsg(sock, &msg, 0);
 	if (ret < 0) {
-		fprintf(stderr, "send to netlink: %s\n", strerror(errno));
-		ret = -errno;
+		fprintf(stderr, "send to netlink: %s\n", strerror(erranal));
+		ret = -erranal;
 		goto cleanup;
 	}
 	memset(buf, 0, sizeof(buf));
@@ -402,14 +402,14 @@ static int get_arp_table(int rtm_family)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
-		return -errno;
+		fprintf(stderr, "open netlink socket: %s\n", strerror(erranal));
+		return -erranal;
 	}
 	memset(&sa, 0, sizeof(sa));
 	sa.nl_family = AF_NETLINK;
 	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
-		fprintf(stderr, "bind netlink socket: %s\n", strerror(errno));
-		ret = -errno;
+		fprintf(stderr, "bind netlink socket: %s\n", strerror(erranal));
+		ret = -erranal;
 		goto cleanup;
 	}
 	memset(&req, 0, sizeof(req));
@@ -427,8 +427,8 @@ static int get_arp_table(int rtm_family)
 	msg.msg_iovlen = 1;
 	ret = sendmsg(sock, &msg, 0);
 	if (ret < 0) {
-		fprintf(stderr, "send to netlink: %s\n", strerror(errno));
-		ret = -errno;
+		fprintf(stderr, "send to netlink: %s\n", strerror(erranal));
+		ret = -erranal;
 		goto cleanup;
 	}
 	memset(buf, 0, sizeof(buf));
@@ -457,16 +457,16 @@ static void *monitor_routes_thread(void *arg)
 
 	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock < 0) {
-		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
+		fprintf(stderr, "open netlink socket: %s\n", strerror(erranal));
 		return NULL;
 	}
 
-	fcntl(sock, F_SETFL, O_NONBLOCK);
+	fcntl(sock, F_SETFL, O_ANALNBLOCK);
 	memset(&lr, 0, sizeof(lr));
 	lr.nl_family = AF_NETLINK;
-	lr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV4_ROUTE | RTMGRP_NOTIFY;
+	lr.nl_groups = RTMGRP_IPV6_ROUTE | RTMGRP_IPV4_ROUTE | RTMGRP_ANALTIFY;
 	if (bind(sock, (struct sockaddr *)&lr, sizeof(lr)) < 0) {
-		fprintf(stderr, "bind netlink socket: %s\n", strerror(errno));
+		fprintf(stderr, "bind netlink socket: %s\n", strerror(erranal));
 		close(sock);
 		return NULL;
 	}
@@ -476,17 +476,17 @@ static void *monitor_routes_thread(void *arg)
 
 	sock_arp = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (sock_arp < 0) {
-		fprintf(stderr, "open netlink socket: %s\n", strerror(errno));
+		fprintf(stderr, "open netlink socket: %s\n", strerror(erranal));
 		close(sock);
 		return NULL;
 	}
 
-	fcntl(sock_arp, F_SETFL, O_NONBLOCK);
+	fcntl(sock_arp, F_SETFL, O_ANALNBLOCK);
 	memset(&la, 0, sizeof(la));
 	la.nl_family = AF_NETLINK;
-	la.nl_groups = RTMGRP_NEIGH | RTMGRP_NOTIFY;
+	la.nl_groups = RTMGRP_NEIGH | RTMGRP_ANALTIFY;
 	if (bind(sock_arp, (struct sockaddr *)&la, sizeof(la)) < 0) {
-		fprintf(stderr, "bind netlink socket: %s\n", strerror(errno));
+		fprintf(stderr, "bind netlink socket: %s\n", strerror(erranal));
 		goto cleanup;
 	}
 
@@ -559,14 +559,14 @@ int main(int argc, char **argv)
 
 	if (libbpf_set_strict_mode(LIBBPF_STRICT_ALL) < 0) {
 		fprintf(stderr, "Failed to set libbpf strict mode: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		goto end;
 	}
 
 	skel = xdp_router_ipv4__open();
 	if (!skel) {
 		fprintf(stderr, "Failed to xdp_router_ipv4__open: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		goto end;
 	}
 
@@ -581,7 +581,7 @@ int main(int argc, char **argv)
 	ret = xdp_router_ipv4__load(skel);
 	if (ret < 0) {
 		fprintf(stderr, "Failed to xdp_router_ipv4__load: %s\n",
-			strerror(errno));
+			strerror(erranal));
 		goto end_destroy;
 	}
 
@@ -664,7 +664,7 @@ int main(int argc, char **argv)
 		int index = if_nametoindex(ifname_list[i]);
 
 		if (!index) {
-			fprintf(stderr, "Interface %s not found %s\n",
+			fprintf(stderr, "Interface %s analt found %s\n",
 				ifname_list[i], strerror(-tx_port_map_fd));
 			goto end_destroy;
 		}

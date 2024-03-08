@@ -347,7 +347,7 @@
 	bus-width = <8>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_vref_1v8>;
 	status = "okay";
 };
@@ -409,7 +409,7 @@
 
 			/* J13 Pin 2, WL_WAKE */
 			MX8MQ_IOMUXC_SAI5_RXD2_GPIO3_IO23		0xd6
-			/* J13 Pin 4, WL_IRQ, not needed for Silex */
+			/* J13 Pin 4, WL_IRQ, analt needed for Silex */
 			MX8MQ_IOMUXC_SAI5_RXD0_GPIO3_IO21		0xd6
 			/* J13 pin 9, unused */
 			MX8MQ_IOMUXC_SD2_CD_B_GPIO2_IO12		0x19

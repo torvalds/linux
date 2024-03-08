@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,18 +55,18 @@ struct mlx5e_xdp_buff {
  * distinguish between them to clean up things in a proper way.
  */
 enum mlx5e_xdp_xmit_mode {
-	/* An xdp_frame was transmitted due to either XDP_REDIRECT from another
+	/* An xdp_frame was transmitted due to either XDP_REDIRECT from aanalther
 	 * device or XDP_TX from an XSK RQ. The frame has to be unmapped and
 	 * returned.
 	 */
 	MLX5E_XDP_XMIT_MODE_FRAME,
 
 	/* The xdp_frame was created in place as a result of XDP_TX from a
-	 * regular RQ. No DMA remapping happened, and the page belongs to us.
+	 * regular RQ. Anal DMA remapping happened, and the page belongs to us.
 	 */
 	MLX5E_XDP_XMIT_MODE_PAGE,
 
-	/* No xdp_frame was created at all, the transmit happened from a UMEM
+	/* Anal xdp_frame was created at all, the transmit happened from a UMEM
 	 * page. The UMEM Completion Ring producer pointer has to be increased.
 	 */
 	MLX5E_XDP_XMIT_MODE_XSK,
@@ -158,7 +158,7 @@ static inline bool mlx5e_xdp_is_active(struct mlx5e_priv *priv)
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 {
 	if (sq->doorbell_cseg) {
-		mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, sq->doorbell_cseg);
+		mlx5e_analtify_hw(&sq->wq, sq->pc, sq->uar_map, sq->doorbell_cseg);
 		sq->doorbell_cseg = NULL;
 	}
 }

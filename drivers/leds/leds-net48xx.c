@@ -52,7 +52,7 @@ static int __init net48xx_led_init(void)
 
 	/* small hack, but scx200_gpio doesn't set .dev if the probe fails */
 	if (!scx200_gpio_ops.dev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

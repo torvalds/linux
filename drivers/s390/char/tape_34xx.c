@@ -50,8 +50,8 @@ struct tape_34xx_sbid {
 static void tape_34xx_delete_sbid_from(struct tape_device *, int);
 
 /*
- * Medium sense for 34xx tapes. There is no 'real' medium sense call.
- * So we just do a normal sense.
+ * Medium sense for 34xx tapes. There is anal 'real' medium sense call.
+ * So we just do a analrmal sense.
  */
 static void __tape_34xx_medium_sense(struct tape_request *request)
 {
@@ -63,8 +63,8 @@ static void __tape_34xx_medium_sense(struct tape_request *request)
 
 		/*
 		 * This isn't quite correct. But since INTERVENTION_REQUIRED
-		 * means that the drive is 'neither ready nor on-line' it is
-		 * only slightly inaccurate to say there is no tape loaded if
+		 * means that the drive is 'neither ready analr on-line' it is
+		 * only slightly inaccurate to say there is anal tape loaded if
 		 * the drive isn't online...
 		 */
 		if (sense[0] & SENSE_INTERVENTION_REQUIRED)
@@ -126,11 +126,11 @@ struct tape_34xx_work {
 /*
  * These functions are currently used only to schedule a medium_sense for
  * later execution. This is because we get an interrupt whenever a medium
- * is inserted but cannot call tape_do_io* from an interrupt context.
+ * is inserted but cananalt call tape_do_io* from an interrupt context.
  * Maybe that's useful for other actions we want to start from the
  * interrupt handler.
- * Note: the work handler is called by the system work queue. The tape
- * commands started by the handler need to be asynchrounous, otherwise
+ * Analte: the work handler is called by the system work queue. The tape
+ * commands started by the handler need to be asynchrouanalus, otherwise
  * a deadlock can occur e.g. in case of a deferred cc=1 (see __tape_do_irq).
  */
 static void
@@ -145,7 +145,7 @@ tape_34xx_work_handler(struct work_struct *work)
 			tape_34xx_medium_sense_async(device);
 			break;
 		default:
-			DBF_EVENT(3, "T34XX: internal error: unknown work\n");
+			DBF_EVENT(3, "T34XX: internal error: unkanalwn work\n");
 	}
 	tape_put_device(device);
 	kfree(p);
@@ -157,7 +157,7 @@ tape_34xx_schedule_work(struct tape_device *device, enum tape_op op)
 	struct tape_34xx_work *p;
 
 	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&p->work, tape_34xx_work_handler);
 
@@ -215,7 +215,7 @@ tape_34xx_erp_retry(struct tape_request *request)
 }
 
 /*
- * This function is called, when no request is outstanding and we get an
+ * This function is called, when anal request is outstanding and we get an
  * interrupt
  */
 static int
@@ -235,7 +235,7 @@ tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 
 /*
  * Read Opposite Error Recovery Function:
- * Used, when Read Forward does not work
+ * Used, when Read Forward does analt work
  */
 static int
 tape_34xx_erp_read_opposite(struct tape_device *device,
@@ -243,7 +243,7 @@ tape_34xx_erp_read_opposite(struct tape_device *device,
 {
 	if (request->op == TO_RFO) {
 		/*
-		 * We did read forward, but the data could not be read
+		 * We did read forward, but the data could analt be read
 		 * *correctly*. We transform the request to a read backward
 		 * and try again.
 		 */
@@ -252,7 +252,7 @@ tape_34xx_erp_read_opposite(struct tape_device *device,
 	}
 
 	/*
-	 * We tried to read forward and backward, but hat no
+	 * We tried to read forward and backward, but hat anal
 	 * success -> failed.
 	 */
 	return tape_34xx_erp_failed(request, -EIO);
@@ -260,11 +260,11 @@ tape_34xx_erp_read_opposite(struct tape_device *device,
 
 static int
 tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
-		  struct irb *irb, int no)
+		  struct irb *irb, int anal)
 {
 	if (request->op != TO_ASSIGN) {
 		dev_err(&device->cdev->dev, "An unexpected condition %d "
-			"occurred in tape error recovery\n", no);
+			"occurred in tape error recovery\n", anal);
 		tape_dump_sense_dbf(device, request, irb);
 	}
 	return tape_34xx_erp_failed(request, -EIO);
@@ -302,7 +302,7 @@ tape_34xx_erp_sequence(struct tape_device *device,
 		return tape_34xx_erp_failed(request, -EIO);
 	}
 	/*
-	 * Record sequence error bit is set, but erpa does not
+	 * Record sequence error bit is set, but erpa does analt
 	 * show record sequence error.
 	 */
 	return tape_34xx_erp_bug(device, request, irb, -2);
@@ -370,7 +370,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		case TO_FSF:
 		case TO_FSB:
 			/* Trying to seek beyond end of recorded area */
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_34xx_erp_failed(request, -EANALSPC);
 		case TO_BSB:
 			return tape_34xx_erp_retry(request);
 
@@ -380,7 +380,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * sense[3] == 0x36 (End Of Data)
 		 */
 		case TO_LBL:
-			/* Block could not be located. */
+			/* Block could analt be located. */
 			tape_34xx_delete_sbid_from(device, 0);
 			return tape_34xx_erp_failed(request, -EIO);
 
@@ -395,7 +395,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		case TO_WRI:
 			/* Writing at physical end of volume */
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_34xx_erp_failed(request, -EANALSPC);
 		default:
 			return tape_34xx_erp_failed(request, 0);
 		}
@@ -415,7 +415,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			/* a read data check occurred */
 			if ((sense[2] & SENSE_TAPE_SYNC_MODE) ||
 			    inhibit_cu_recovery)
-				// data check is not permanent, may be
+				// data check is analt permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
 				return tape_34xx_erp_bug(device, request,
@@ -423,13 +423,13 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 
 			/* data check is permanent, CU recovery has failed */
 			dev_warn (&device->cdev->dev, "A read error occurred "
-				"that cannot be recovered\n");
+				"that cananalt be recovered\n");
 			return tape_34xx_erp_failed(request, -EIO);
 		case 0x25:
 			// a write data check occurred
 			if ((sense[2] & SENSE_TAPE_SYNC_MODE) ||
 			    inhibit_cu_recovery)
-				// data check is not permanent, may be
+				// data check is analt permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
 				return tape_34xx_erp_bug(device, request,
@@ -437,7 +437,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 
 			// data check is permanent, cu-recovery has failed
 			dev_warn (&device->cdev->dev, "A write error on the "
-				"tape cannot be recovered\n");
+				"tape cananalt be recovered\n");
 			return tape_34xx_erp_failed(request, -EIO);
 		case 0x26:
 			/* Data Check (read opposite) occurred. */
@@ -451,7 +451,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			/* Tape void. Tried to read beyond end of device. */
 			dev_warn (&device->cdev->dev, "Reading the tape beyond"
 				" the end of the recorded area failed\n");
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_34xx_erp_failed(request, -EANALSPC);
 		case 0x41:
 			/* Record sequence error. */
 			dev_warn (&device->cdev->dev, "The tape contains an "
@@ -476,18 +476,18 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	/* Sensing erpa codes */
 	switch (sense[3]) {
 	case 0x00:
-		/* Unit check with erpa code 0. Report and ignore. */
+		/* Unit check with erpa code 0. Report and iganalre. */
 		return TAPE_IO_SUCCESS;
 	case 0x21:
 		/*
-		 * Data streaming not operational. CU will switch to
+		 * Data streaming analt operational. CU will switch to
 		 * interlock mode. Reissue the command.
 		 */
 		return tape_34xx_erp_retry(request);
 	case 0x22:
 		/*
 		 * Path equipment check. Might be drive adapter error, buffer
-		 * error on the lower interface, internal path not usable,
+		 * error on the lower interface, internal path analt usable,
 		 * or error during cartridge load.
 		 */
 		dev_warn (&device->cdev->dev, "A path equipment check occurred"
@@ -512,13 +512,13 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		/*
 		 * Function incompatible. Either the tape is idrc compressed
 		 * but the hardware isn't capable to do idrc, or a perform
-		 * subsystem func is issued and the CU is not on-line.
+		 * subsystem func is issued and the CU is analt on-line.
 		 */
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x2a:
 		/*
 		 * Unsolicited environmental data. An internal counter
-		 * overflows, we can ignore this and reissue the cmd.
+		 * overflows, we can iganalre this and reissue the cmd.
 		 */
 		return tape_34xx_erp_retry(request);
 	case 0x2b:
@@ -536,22 +536,22 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x2c:
 		/*
 		 * Permanent equipment check. CU has tried recovery, but
-		 * did not succeed.
+		 * did analt succeed.
 		 */
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x2d:
 		/* Data security erase failure. */
 		if (request->op == TO_DSE)
 			return tape_34xx_erp_failed(request, -EIO);
-		/* Data security erase failure, but no such command issued. */
+		/* Data security erase failure, but anal such command issued. */
 		return tape_34xx_erp_bug(device, request, irb, sense[3]);
 	case 0x2e:
 		/*
-		 * Not capable. This indicates either that the drive fails
+		 * Analt capable. This indicates either that the drive fails
 		 * reading the format id mark or that format specified
-		 * is not supported by the drive.
+		 * is analt supported by the drive.
 		 */
-		dev_warn (&device->cdev->dev, "The tape unit cannot process "
+		dev_warn (&device->cdev->dev, "The tape unit cananalt process "
 			"the tape format\n");
 		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
 	case 0x30:
@@ -560,14 +560,14 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			"protected\n");
 		return tape_34xx_erp_failed(request, -EACCES);
 	case 0x32:
-		// Tension loss. We cannot recover this, it's an I/O error.
-		dev_warn (&device->cdev->dev, "The tape does not have the "
+		// Tension loss. We cananalt recover this, it's an I/O error.
+		dev_warn (&device->cdev->dev, "The tape does analt have the "
 			"required tape tension\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x33:
 		/*
-		 * Load Failure. The cartridge was not inserted correctly or
-		 * the tape is not threaded correctly.
+		 * Load Failure. The cartridge was analt inserted correctly or
+		 * the tape is analt threaded correctly.
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit failed to load"
 			" the cartridge\n");
@@ -575,7 +575,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x34:
 		/*
-		 * Unload failure. The drive cannot maintain tape tension
+		 * Unload failure. The drive cananalt maintain tape tension
 		 * and control tape movement during an unload operation.
 		 */
 		dev_warn (&device->cdev->dev, "Automatic unloading of the tape"
@@ -586,9 +586,9 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x35:
 		/*
 		 * Drive equipment check. One of the following:
-		 * - cu cannot recover from a drive detected error
+		 * - cu cananalt recover from a drive detected error
 		 * - a check code message is shown on drive display
-		 * - the cartridge loader does not respond correctly
+		 * - the cartridge loader does analt respond correctly
 		 * - a failure occurs during an index, load, or unload cycle
 		 */
 		dev_warn (&device->cdev->dev, "An equipment check has occurred"
@@ -616,14 +616,14 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (request->op==TO_WRI ||
 		    request->op==TO_DSE ||
 		    request->op==TO_WTM)
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_34xx_erp_failed(request, -EANALSPC);
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x39:
 		/* Backward at Beginning of tape. */
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x3a:
-		/* Drive switched to not ready. */
-		dev_warn (&device->cdev->dev, "The tape unit is not ready\n");
+		/* Drive switched to analt ready. */
+		dev_warn (&device->cdev->dev, "The tape unit is analt ready\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x3b:
 		/* Manual rewind or unload. This causes an I/O error. */
@@ -640,7 +640,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			"in degraded mode\n");
 		return tape_34xx_erp_retry(request);
 	case 0x43:
-		/* Drive not ready. */
+		/* Drive analt ready. */
 		tape_34xx_delete_sbid_from(device, 0);
 		tape_med_state_set(device, MS_UNLOADED);
 		/* Some commands commands are successful even in this case */
@@ -649,18 +649,18 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				case TO_ASSIGN:
 				case TO_UNASSIGN:
 				case TO_DIS:
-				case TO_NOP:
+				case TO_ANALP:
 					return tape_34xx_done(request);
 					break;
 				default:
 					break;
 			}
 		}
-		return tape_34xx_erp_failed(request, -ENOMEDIUM);
+		return tape_34xx_erp_failed(request, -EANALMEDIUM);
 	case 0x44:
 		/* Locate Block unsuccessful. */
 		if (request->op != TO_BLOCK && request->op != TO_LBL)
-			/* No locate block was issued. */
+			/* Anal locate block was issued. */
 			return tape_34xx_erp_bug(device, request,
 						 irb, sense[3]);
 		return tape_34xx_erp_failed(request, -EIO);
@@ -671,11 +671,11 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x46:
 		/*
-		 * Drive not on-line. Drive may be switched offline,
+		 * Drive analt on-line. Drive may be switched offline,
 		 * the power supply may be switched off or
-		 * the drive address may not be set correctly.
+		 * the drive address may analt be set correctly.
 		 */
-		dev_warn (&device->cdev->dev, "The tape unit is not online\n");
+		dev_warn (&device->cdev->dev, "The tape unit is analt online\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x47:
 		/* Volume fenced. CU reports volume integrity is lost. */
@@ -699,7 +699,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x4b:
 		/*
 		 * CU and drive incompatible. The drive requests micro-program
-		 * patches, which are not available on the CU.
+		 * patches, which are analt available on the CU.
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit requires a "
 			"firmware update\n");
@@ -714,7 +714,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (device->cdev->id.driver_info == tape_3490)
 			/*
 			 * Resetting event received. Since the driver does
-			 * not support resetting event recovery (which has to
+			 * analt support resetting event recovery (which has to
 			 * be handled by the I/O Layer), retry our command.
 			 */
 			return tape_34xx_erp_retry(request);
@@ -729,7 +729,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			 */
 			dev_warn (&device->cdev->dev, "The maximum block size"
 				" for buffered mode is exceeded\n");
-			return tape_34xx_erp_failed(request, -ENOBUFS);
+			return tape_34xx_erp_failed(request, -EANALBUFS);
 		}
 		/* This erpa is reserved for 3480. */
 		return tape_34xx_erp_bug(device, request, irb, sense[3]);
@@ -765,7 +765,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_retry(request);
 	case 0x55:
 		/* Channel interface recovery (permanent). */
-		dev_warn (&device->cdev->dev, "A channel interface error cannot be"
+		dev_warn (&device->cdev->dev, "A channel interface error cananalt be"
 			" recovered\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x56:
@@ -784,7 +784,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * Tape length incompatible. The tape inserted is too long,
 		 * which could cause damage to the tape or the drive.
 		 */
-		dev_warn (&device->cdev->dev, "The tape unit does not support "
+		dev_warn (&device->cdev->dev, "The tape unit does analt support "
 			"the tape length\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x5b:
@@ -792,22 +792,22 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (sense[1] & SENSE_BEGINNING_OF_TAPE)
 			/* The tape will get overwritten. */
 			return tape_34xx_erp_retry(request);
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
+		dev_warn (&device->cdev->dev, "The tape unit does analt support"
 			" format 3480 XF\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x5c:
 		/* Format 3480-2 XF incompatible */
-		dev_warn (&device->cdev->dev, "The tape unit does not support tape "
+		dev_warn (&device->cdev->dev, "The tape unit does analt support tape "
 			"format 3480-2 XF\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x5d:
 		/* Tape length violation. */
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
+		dev_warn (&device->cdev->dev, "The tape unit does analt support"
 			" the current tape length\n");
 		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
 	case 0x5e:
 		/* Compaction algorithm incompatible. */
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
+		dev_warn (&device->cdev->dev, "The tape unit does analt support"
 			" the compaction algorithm\n");
 		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
 
@@ -839,7 +839,7 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 	    (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) &&
 	    (request->op == TO_WRI)) {
 		/* Write at end of volume */
-		return tape_34xx_erp_failed(request, -ENOSPC);
+		return tape_34xx_erp_failed(request, -EANALSPC);
 	}
 
 	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
@@ -858,7 +858,7 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_done(request);
 	}
 
-	DBF_EVENT(6, "xunknownirq\n");
+	DBF_EVENT(6, "xunkanalwnirq\n");
 	tape_dump_sense_dbf(device, request, irb);
 	return TAPE_IO_STOP;
 }
@@ -906,9 +906,9 @@ tape_34xx_add_sbid(struct tape_device *device, struct tape_34xx_block_id bid)
 	struct list_head *	l;
 
 	/*
-	 * immediately return if there is no list at all or the block to add
+	 * immediately return if there is anal list at all or the block to add
 	 * is located in segment 1 of wrap 0 because this position is used
-	 * if no hardware position data is supplied.
+	 * if anal hardware position data is supplied.
 	 */
 	sbid_list = (struct list_head *) device->discdata;
 	if (!sbid_list || (bid.segment < 2 && bid.wrap == 0))
@@ -1107,7 +1107,7 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);
-	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	tape_ccw_end(request->cpaddr + 2, ANALP, 0, NULL);
 
 	/* execute it */
 	return tape_do_io_free(device, request);
@@ -1125,7 +1125,7 @@ static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
 	[MTWEOF]	 = tape_std_mtweof,
 	[MTREW]		 = tape_std_mtrew,
 	[MTOFFL]	 = tape_std_mtoffl,
-	[MTNOP]		 = tape_std_mtnop,
+	[MTANALP]		 = tape_std_mtanalp,
 	[MTRETEN]	 = tape_std_mtreten,
 	[MTBSFM]	 = tape_std_mtbsfm,
 	[MTFSFM]	 = tape_std_mtfsfm,

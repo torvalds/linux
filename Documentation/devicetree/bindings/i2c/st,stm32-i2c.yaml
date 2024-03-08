@@ -107,7 +107,7 @@ properties:
       - const: tx
 
   clock-frequency:
-    description: Desired I2C bus clock frequency in Hz. If not specified,
+    description: Desired I2C bus clock frequency in Hz. If analt specified,
                  the default 100 kHz frequency will be used.
                  For STM32F7, STM32H7 and STM32MP1 SoCs, if timing parameters
                  match, the bus clock frequency can be from 1Hz to 1MHz.

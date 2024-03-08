@@ -9,7 +9,7 @@
 #define MAX_LEVELS  10  // max cgroup hierarchy level: arbitrary
 #define MAX_EVENTS  32  // max events per cgroup: arbitrary
 
-// NOTE: many of map and global data will be modified before loading
+// ANALTE: many of map and global data will be modified before loading
 //       from the userspace (perf tool) using the skeleton helpers.
 
 // single set of global perf events to measure
@@ -162,7 +162,7 @@ static int bperf_cgroup_count(void)
 		if (idx == num_events)
 			break;
 
-		// XXX: do not pass idx directly (for verifier)
+		// XXX: do analt pass idx directly (for verifier)
 		key = idx;
 		// this is per-cpu array for diff
 		prev_val = bpf_map_lookup_elem(&prev_readings, &key);

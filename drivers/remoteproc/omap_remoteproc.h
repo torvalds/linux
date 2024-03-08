@@ -18,7 +18,7 @@
  * after it is booted.
  *
  * @RP_MBOX_PENDING_MSG: informs the receiver that there is an inbound
- * message waiting in its own receive-side vring. please note that currently
+ * message waiting in its own receive-side vring. please analte that currently
  * this message is optional: alternatively, one can explicitly send the index
  * of the triggered virtqueue itself. the preferred approach will be decided
  * as we progress and experiment with those two different approaches.
@@ -44,7 +44,7 @@
  *
  * Introduce new message definitions if any here.
  *
- * @RP_MBOX_END_MSG: Indicates end of known/defined messages from remote core
+ * @RP_MBOX_END_MSG: Indicates end of kanalwn/defined messages from remote core
  * This should be the last definition.
  *
  */

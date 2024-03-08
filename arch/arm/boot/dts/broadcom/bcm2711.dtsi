@@ -45,7 +45,7 @@
 		dma-ranges = <0xc0000000  0x0 0x00000000  0x40000000>;
 
 		/*
-		 * This node is the provider for the enable-method for
+		 * This analde is the provider for the enable-method for
 		 * bringing up secondary cores.
 		 */
 		local_intc: interrupt-controller@40000000 {
@@ -452,7 +452,7 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) |
 					  IRQ_TYPE_LEVEL_LOW)>;
 		/* This only applies to the ARMv7 stub */
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 	};
 
 	cpus: cpus {
@@ -612,7 +612,7 @@
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			/* DWC2 and this IP block share the same USB PHY,
 			 * enabling both at the same time results in lockups.
-			 * So keep this node disabled and let the bootloader
+			 * So keep this analde disabled and let the bootloader
 			 * decide which interface should be enabled.
 			 */
 			status = "disabled";
@@ -1117,7 +1117,7 @@
 &cma {
 	/*
 	 * arm64 reserves the CMA by default somewhere in ZONE_DMA32,
-	 * that's not good enough for the BCM2711 as some devices can
+	 * that's analt good eanalugh for the BCM2711 as some devices can
 	 * only address the lower 1G of memory (ZONE_DMA).
 	 */
 	alloc-ranges = <0x0 0x00000000 0x40000000>;

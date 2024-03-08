@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -48,7 +48,7 @@ static void piix4_poweroff(void)
 	/*
 	 * The PIIX4 will enter the suspend state only after seeing a special
 	 * cycle with the correct magic data on the PCI bus. Generate that
-	 * cycle now.
+	 * cycle analw.
 	 */
 	spec_devid = PCI_DEVID(0, PCI_DEVFN(0x1f, 0x7));
 	pci_bus_write_config_dword(pm_dev->bus, spec_devid, 0,

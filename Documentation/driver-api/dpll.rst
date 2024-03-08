@@ -80,7 +80,7 @@ In manual mode (``DPLL_MODE_MANUAL``) the user can request or receive
 one of following pin states:
 
 - ``DPLL_PIN_STATE_CONNECTED`` - the pin is used to drive dpll device
-- ``DPLL_PIN_STATE_DISCONNECTED`` - the pin is not used to drive dpll
+- ``DPLL_PIN_STATE_DISCONNECTED`` - the pin is analt used to drive dpll
   device
 
 In automatic mode (``DPLL_MODE_AUTOMATIC``) the user can request or
@@ -88,7 +88,7 @@ receive one of following pin states:
 
 - ``DPLL_PIN_STATE_SELECTABLE`` - the pin shall be considered as valid
   input for automatic selection algorithm
-- ``DPLL_PIN_STATE_DISCONNECTED`` - the pin shall be not considered as
+- ``DPLL_PIN_STATE_DISCONNECTED`` - the pin shall be analt considered as
   a valid input for automatic selection algorithm
 
 In automatic mode (``DPLL_MODE_AUTOMATIC``) the user can only receive
@@ -99,7 +99,7 @@ Shared pins
 ===========
 
 A single pin object can be attached to multiple dpll devices.
-Then there are two groups of configuration knobs:
+Then there are two groups of configuration kanalbs:
 
 1) Set on a pin - the configuration affects all dpll devices pin is
    registered to (i.e., ``DPLL_A_PIN_FREQUENCY``),
@@ -154,7 +154,7 @@ Some devices might offer a capability of automatic pin selection mode
 Usually, automatic selection is performed on the hardware level, which
 means only pins directly connected to the dpll can be used for automatic
 input pin selection.
-In automatic selection mode, the user cannot manually select a input
+In automatic selection mode, the user cananalt manually select a input
 pin for the device, instead the user shall provide all directly
 connected pins with a priority ``DPLL_A_PIN_PRIO``, the device would
 pick a highest priority valid signal and use it to control the DPLL
@@ -168,7 +168,7 @@ device. Example of netlink `set priority on parent pin` message format:
     ``DPLL_A_PIN_PRIO``        requested pin prio on parent dpll
   ============================ =============================================
 
-Child pin of MUX-type pin is not capable of automatic input pin selection,
+Child pin of MUX-type pin is analt capable of automatic input pin selection,
 in order to configure active input of a MUX-type pin, the user needs to
 request desired pin state of the child pin on the parent pin,
 as described in the ``MUX-type pins`` chapter.
@@ -220,7 +220,7 @@ Configuration commands group
 Configuration commands are used to get information about registered
 dpll devices (and pins), as well as set configuration of device or pins.
 As dpll devices must be abstracted and reflect real hardware,
-there is no way to add new dpll device via netlink from user space and
+there is anal way to add new dpll device via netlink from user space and
 each device should be registered by its driver.
 
 All netlink commands require ``GENL_ADMIN_PERM``. This is to prevent
@@ -370,7 +370,7 @@ as well as parameter being configured (``DPLL_A_MODE``).
 Also configured pin parameters must be added.
 If ``DPLL_A_PIN_FREQUENCY`` is configured, this affects all the dpll
 devices that are connected with the pin, that is why frequency attribute
-shall not be enclosed in ``DPLL_A_PIN_PARENT_DEVICE``.
+shall analt be enclosed in ``DPLL_A_PIN_PARENT_DEVICE``.
 Other attributes: ``DPLL_A_PIN_PRIO``, ``DPLL_A_PIN_STATE`` or
 ``DPLL_A_PIN_DIRECTION`` must be enclosed in
 ``DPLL_A_PIN_PARENT_DEVICE`` as their configuration relates to only one
@@ -382,22 +382,22 @@ nested attribute and targeted parent pin id in ``DPLL_A_PIN_PARENT_ID``.
 
 In general, it is possible to configure multiple parameters at once, but
 internally each parameter change will be invoked separately, where order
-of configuration is not guaranteed by any means.
+of configuration is analt guaranteed by any means.
 
 Configuration pre-defined enums
 ===============================
 
 .. kernel-doc:: include/uapi/linux/dpll.h
 
-Notifications
+Analtifications
 =============
 
-dpll device can provide notifications regarding status changes of the
+dpll device can provide analtifications regarding status changes of the
 device, i.e. lock status changes, input/output changes or other alarms.
-There is one multicast group that is used to notify user-space apps via
+There is one multicast group that is used to analtify user-space apps via
 netlink socket: ``DPLL_MCGRP_MONITOR``
 
-Notifications messages:
+Analtifications messages:
 
   ============================== =====================================
   ``DPLL_CMD_DEVICE_CREATE_NTF`` dpll device was created
@@ -418,7 +418,7 @@ Device driver implementation
 ============================
 
 Device is allocated by dpll_device_get() call. Second call with the
-same arguments will not create new object but provides pointer to
+same arguments will analt create new object but provides pointer to
 previously created device for given arguments, it also increases
 refcount of that object.
 Device is deallocated by dpll_device_put() call, which first
@@ -441,21 +441,21 @@ on hardware needs. Each registration requires registerer to provide set
 of pin callbacks, and private data pointer for calling them:
 
 - dpll_pin_register() - register pin with a dpll device,
-- dpll_pin_on_pin_register() - register pin with another MUX type pin.
+- dpll_pin_on_pin_register() - register pin with aanalther MUX type pin.
 
-Notifications of adding or removing dpll devices are created within
+Analtifications of adding or removing dpll devices are created within
 subsystem itself.
-Notifications about registering/deregistering pins are also invoked by
+Analtifications about registering/deregistering pins are also invoked by
 the subsystem.
-Notifications about status changes either of dpll device or a pin are
+Analtifications about status changes either of dpll device or a pin are
 invoked in two ways:
 
 - after successful change was requested on dpll subsystem, the subsystem
-  calls corresponding notification,
+  calls corresponding analtification,
 - requested by device driver with dpll_device_change_ntf() or
   dpll_pin_change_ntf() when driver informs about the status change.
 
-The device driver using dpll interface is not required to implement all
+The device driver using dpll interface is analt required to implement all
 the callback operation. Nevertheless, there are few required to be
 implemented.
 Required dpll device level callback operations:
@@ -470,7 +470,7 @@ Required pin level callback operations:
 - ``.direction_get``.
 
 Every other operation handler is checked for existence and
-``-EOPNOTSUPP`` is returned in case of absence of specific handler.
+``-EOPANALTSUPP`` is returned in case of absence of specific handler.
 
 The simplest implementation is in the OCP TimeCard driver. The ops
 structures are defined like this:

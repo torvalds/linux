@@ -49,13 +49,13 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          A port node to link the WCD939x USB SubSystem to a TypeC controller for the
+          A port analde to link the WCD939x USB SubSystem to a TypeC controller for the
           purpose of handling altmode muxing and orientation switching.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          A port node to link the WCD939x USB SubSystem to the Codec SubSystem for the
+          A port analde to link the WCD939x USB SubSystem to the Codec SubSystem for the
           purpose of handling USB-C Audio Accessory Mode muxing and orientation switching.
 
 required:

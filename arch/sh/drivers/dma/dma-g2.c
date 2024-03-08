@@ -67,7 +67,7 @@ static irqreturn_t g2_dma_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int g2_enable_dma(struct dma_channel *chan)

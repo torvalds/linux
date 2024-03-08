@@ -1,14 +1,14 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-analte */
 /*
  * Header file for Xtables timer target module.
  *
- * Copyright (C) 2004, 2010 Nokia Corporation
- * Written by Timo Teras <ext-timo.teras@nokia.com>
+ * Copyright (C) 2004, 2010 Analkia Corporation
+ * Written by Timo Teras <ext-timo.teras@analkia.com>
  *
  * Converted to x_tables and forward-ported to 2.6.34
- * by Luciano Coelho <luciano.coelho@nokia.com>
+ * by Luciaanal Coelho <luciaanal.coelho@analkia.com>
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef _XT_IDLETIMER_H

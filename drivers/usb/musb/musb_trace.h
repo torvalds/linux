@@ -244,8 +244,8 @@ DECLARE_EVENT_CLASS(musb_req,
 		__field(unsigned int, buf_len)
 		__field(unsigned int, actual_len)
 		__field(unsigned int, zero)
-		__field(unsigned int, short_not_ok)
-		__field(unsigned int, no_interrupt)
+		__field(unsigned int, short_analt_ok)
+		__field(unsigned int, anal_interrupt)
 	),
 	TP_fast_assign(
 		__entry->req = &req->request;
@@ -255,15 +255,15 @@ DECLARE_EVENT_CLASS(musb_req,
 		__entry->buf_len = req->request.length;
 		__entry->actual_len = req->request.actual;
 		__entry->zero = req->request.zero;
-		__entry->short_not_ok = req->request.short_not_ok;
-		__entry->no_interrupt = req->request.no_interrupt;
+		__entry->short_analt_ok = req->request.short_analt_ok;
+		__entry->anal_interrupt = req->request.anal_interrupt;
 	),
 	TP_printk("%p, ep%d %s, %s%s%s, len %d/%d, status %d",
 			__entry->req, __entry->epnum,
 			__entry->is_tx ? "tx/IN" : "rx/OUT",
 			__entry->zero ? "Z" : "z",
-			__entry->short_not_ok ? "S" : "s",
-			__entry->no_interrupt ? "I" : "i",
+			__entry->short_analt_ok ? "S" : "s",
+			__entry->anal_interrupt ? "I" : "i",
 			__entry->actual_len, __entry->buf_len,
 			__entry->status
 	)

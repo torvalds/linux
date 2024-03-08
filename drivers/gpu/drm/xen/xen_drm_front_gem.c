@@ -47,7 +47,7 @@ static int gem_alloc_pages_array(struct xen_gem_object *xen_obj,
 	xen_obj->num_pages = DIV_ROUND_UP(buf_size, PAGE_SIZE);
 	xen_obj->pages = kvmalloc_array(xen_obj->num_pages,
 					sizeof(struct page *), GFP_KERNEL);
-	return !xen_obj->pages ? -ENOMEM : 0;
+	return !xen_obj->pages ? -EANALMEM : 0;
 }
 
 static void gem_free_pages_array(struct xen_gem_object *xen_obj)
@@ -76,7 +76,7 @@ static int xen_drm_front_gem_object_mmap(struct drm_gem_object *gem_obj,
 	 * According to Xen on ARM ABI (xen/include/public/arch-arm.h):
 	 * all memory which is shared with other entities in the system
 	 * (including the hypervisor and other guests) must reside in memory
-	 * which is mapped as Normal Inner Write-Back Outer Write-Back
+	 * which is mapped as Analrmal Inner Write-Back Outer Write-Back
 	 * Inner-Shareable.
 	 */
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
@@ -84,9 +84,9 @@ static int xen_drm_front_gem_object_mmap(struct drm_gem_object *gem_obj,
 	/*
 	 * vm_operations_struct.fault handler will be called if CPU access
 	 * to VM is here. For GPUs this isn't the case, because CPU  doesn't
-	 * touch the memory. Insert pages now, so both CPU and GPU are happy.
+	 * touch the memory. Insert pages analw, so both CPU and GPU are happy.
 	 *
-	 * FIXME: as we insert all the pages now then no .fault handler must
+	 * FIXME: as we insert all the pages analw then anal .fault handler must
 	 * be called, so don't provide one
 	 */
 	ret = vm_map_pages(vma, xen_obj->pages, xen_obj->num_pages);
@@ -118,7 +118,7 @@ static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 
 	xen_obj = kzalloc(sizeof(*xen_obj), GFP_KERNEL);
 	if (!xen_obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	xen_obj->base.funcs = &xen_drm_front_gem_object_funcs;
 
@@ -158,7 +158,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		ret = xen_alloc_unpopulated_pages(xen_obj->num_pages,
 					          xen_obj->pages);
 		if (ret < 0) {
-			DRM_ERROR("Cannot allocate %zu ballooned pages: %d\n",
+			DRM_ERROR("Cananalt allocate %zu ballooned pages: %d\n",
 				  xen_obj->num_pages, ret);
 			gem_free_pages_array(xen_obj);
 			goto fail;
@@ -168,7 +168,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		return xen_obj;
 	}
 	/*
-	 * need to allocate backing pages now, so we can share those
+	 * need to allocate backing pages analw, so we can share those
 	 * with the backend
 	 */
 	xen_obj->num_pages = DIV_ROUND_UP(size, PAGE_SIZE);
@@ -233,7 +233,7 @@ struct sg_table *xen_drm_front_gem_get_sg_table(struct drm_gem_object *gem_obj)
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
 
 	if (!xen_obj->pages)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	return drm_prime_pages_to_sg(gem_obj->dev,
 				     xen_obj->pages, xen_obj->num_pages);
@@ -285,13 +285,13 @@ int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj,
 	void *vaddr;
 
 	if (!xen_obj->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Please see comment in gem_mmap_obj on mapping and attributes. */
 	vaddr = vmap(xen_obj->pages, xen_obj->num_pages,
 		     VM_MAP, PAGE_KERNEL);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;

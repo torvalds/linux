@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * FireDTV driver (formerly known as FireSAT)
+ * FireDTV driver (formerly kanalwn as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Ben Backx <ben@bbackx.com>
@@ -28,7 +28,7 @@
 
 #define AVC_CTYPE_CONTROL		0x0
 #define AVC_CTYPE_STATUS		0x1
-#define AVC_CTYPE_NOTIFY		0x3
+#define AVC_CTYPE_ANALTIFY		0x3
 
 #define AVC_RESPONSE_ACCEPTED		0x9
 #define AVC_RESPONSE_STABLE		0xc
@@ -114,7 +114,7 @@ static void pad_operands(struct avc_command_frame *c, int from)
 
 static int avc_debug;
 module_param_named(debug, avc_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (none = 0"
+MODULE_PARM_DESC(debug, "Verbose logging (analne = 0"
 	", FCP subactions"
 	": READ DESCRIPTOR = "		__stringify(AVC_DEBUG_READ_DESCRIPTOR)
 	", DSIT = "			__stringify(AVC_DEBUG_DSIT)
@@ -129,8 +129,8 @@ MODULE_PARM_DESC(debug, "Verbose logging (none = 0"
 	", or a combination, or all = -1)");
 
 /*
- * This is a workaround since there is no vendor specific command to retrieve
- * ca_info using AVC. If this parameter is not used, ca_system_id will be
+ * This is a workaround since there is anal vendor specific command to retrieve
+ * ca_info using AVC. If this parameter is analt used, ca_system_id will be
  * filled with application_manufacturer from ca_app_info.
  * Digital Everywhere have said that adding ca_info is on their TODO list.
  */
@@ -138,7 +138,7 @@ static unsigned int num_fake_ca_system_ids;
 static int fake_ca_system_ids[4] = { -1, -1, -1, -1 };
 module_param_array(fake_ca_system_ids, int, &num_fake_ca_system_ids, 0644);
 MODULE_PARM_DESC(fake_ca_system_ids, "If your CAM application manufacturer "
-		 "does not have the same ca_system_id as your CAS, you can "
+		 "does analt have the same ca_system_id as your CAS, you can "
 		 "override what ca_system_ids are presented to the "
 		 "application by setting this field to an array of ids.");
 
@@ -146,8 +146,8 @@ static const char *debug_fcp_ctype(unsigned int ctype)
 {
 	static const char *ctypes[] = {
 		[0x0] = "CONTROL",		[0x1] = "STATUS",
-		[0x2] = "SPECIFIC INQUIRY",	[0x3] = "NOTIFY",
-		[0x4] = "GENERAL INQUIRY",	[0x8] = "NOT IMPLEMENTED",
+		[0x2] = "SPECIFIC INQUIRY",	[0x3] = "ANALTIFY",
+		[0x4] = "GENERAL INQUIRY",	[0x8] = "ANALT IMPLEMENTED",
 		[0x9] = "ACCEPTED",		[0xa] = "REJECTED",
 		[0xb] = "IN TRANSITION",	[0xc] = "IMPLEMENTED/STABLE",
 		[0xd] = "CHANGED",		[0xf] = "INTERIM",
@@ -172,14 +172,14 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	case AVC_OPCODE_DSD:
 		return avc_debug & AVC_DEBUG_DSD ? "DirectSelectData" : NULL;
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 
 	if (length < 7 ||
 	    data[3] != SFE_VENDOR_DE_COMPANYID_0 ||
 	    data[4] != SFE_VENDOR_DE_COMPANYID_1 ||
 	    data[5] != SFE_VENDOR_DE_COMPANYID_2)
-		return "Vendor/Unknown";
+		return "Vendor/Unkanalwn";
 
 	switch (data[6]) {
 	case SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL:
@@ -196,7 +196,7 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	case SFE_VENDOR_OPCODE_CA2HOST:
 		return avc_debug & AVC_DEBUG_CA2HOST ? "CA2Host" : NULL;
 	}
-	return "Vendor/Unknown";
+	return "Vendor/Unkanalwn";
 }
 
 static void debug_fcp(const u8 *data, int length)
@@ -215,7 +215,7 @@ static void debug_fcp(const u8 *data, int length)
 		       prefix, subunit_type, subunit_id, length,
 		       debug_fcp_ctype(data[0]), op);
 		if (avc_debug & AVC_DEBUG_FCP_PAYLOADS)
-			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_NONE,
+			print_hex_dump(KERN_INFO, prefix, DUMP_PREFIX_ANALNE,
 				       16, 1, data, length, false);
 	}
 }
@@ -223,7 +223,7 @@ static void debug_fcp(const u8 *data, int length)
 static void debug_pmt(char *msg, int length)
 {
 	printk(KERN_INFO "APP PMT -> l=%d\n", length);
-	print_hex_dump(KERN_INFO, "APP PMT -> ", DUMP_PREFIX_NONE,
+	print_hex_dump(KERN_INFO, "APP PMT -> ", DUMP_PREFIX_ANALNE,
 		       16, 1, msg, length, false);
 }
 
@@ -293,7 +293,7 @@ int avc_recv(struct firedtv *fdtv, void *data, size_t length)
 	}
 
 	if (fdtv->avc_reply_received) {
-		dev_err(fdtv->device, "out-of-order AVC response, ignored\n");
+		dev_err(fdtv->device, "out-of-order AVC response, iganalred\n");
 		return -EIO;
 	}
 
@@ -328,7 +328,7 @@ static int add_pid_filter(struct firedtv *fdtv, u8 *operand)
 
 /*
  * tuning command for setting the relative LNB frequency
- * (not supported by the AVC standard)
+ * (analt supported by the AVC standard)
  */
 static int avc_tuner_tuneqpsk(struct firedtv *fdtv,
 			      struct dtv_frontend_properties *p)
@@ -393,7 +393,7 @@ static int avc_tuner_tuneqpsk(struct firedtv *fdtv,
 			case ROLLOFF_25:	c->operand[14] = 0x1; break;
 			case ROLLOFF_AUTO:
 			default:		c->operand[14] = 0x2; break;
-			/* case ROLLOFF_NONE:	c->operand[14] = 0xff; break; */
+			/* case ROLLOFF_ANALNE:	c->operand[14] = 0xff; break; */
 			}
 			switch (fdtv->fe.dtv_property_cache.pilot) {
 			case PILOT_AUTO:	c->operand[15] = 0x0; break;
@@ -519,7 +519,7 @@ static int avc_tuner_dsd_dvb_t(struct firedtv *fdtv,
 	switch (p->bandwidth_hz) {
 	case 7000000:	c->operand[12] = 0x20; break;
 	case 8000000:
-	case 6000000:	/* not defined by AVC spec */
+	case 6000000:	/* analt defined by AVC spec */
 	case 0:
 	default:		c->operand[12] = 0x00;
 	}
@@ -536,7 +536,7 @@ static int avc_tuner_dsd_dvb_t(struct firedtv *fdtv,
 	case HIERARCHY_2:	c->operand[13] |= 2 << 3; break;
 	case HIERARCHY_4:	c->operand[13] |= 3 << 3; break;
 	case HIERARCHY_AUTO:
-	case HIERARCHY_NONE:
+	case HIERARCHY_ANALNE:
 	default:		break;
 	}
 
@@ -737,7 +737,7 @@ int avc_identify_subunit(struct firedtv *fdtv)
 	if ((r->response != AVC_RESPONSE_STABLE &&
 	     r->response != AVC_RESPONSE_ACCEPTED) ||
 	    (r->operand[3] << 8) + r->operand[4] != 8) {
-		dev_err(fdtv->device, "cannot read subunit identifier\n");
+		dev_err(fdtv->device, "cananalt read subunit identifier\n");
 		ret = -EINVAL;
 	}
 out:
@@ -776,7 +776,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 
 	if (r->response != AVC_RESPONSE_STABLE &&
 	    r->response != AVC_RESPONSE_ACCEPTED) {
-		dev_err(fdtv->device, "cannot read tuner status\n");
+		dev_err(fdtv->device, "cananalt read tuner status\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -791,7 +791,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 	stat->active_system		= r->operand[10];
 	stat->searching			= r->operand[11] >> 7 & 1;
 	stat->moving			= r->operand[11] >> 6 & 1;
-	stat->no_rf			= r->operand[11] >> 5 & 1;
+	stat->anal_rf			= r->operand[11] >> 5 & 1;
 	stat->input			= r->operand[12] >> 7 & 1;
 	stat->selected_antenna		= r->operand[12] & 0x7f;
 	stat->ber			= r->operand[13] << 24 |
@@ -808,7 +808,7 @@ int avc_tuner_status(struct firedtv *fdtv, struct firedtv_tuner_status *stat)
 	stat->antenna_error		= r->operand[22] >> 3 & 1;
 	stat->front_end_power_status	= r->operand[22] >> 1 & 1;
 	stat->power_supply		= r->operand[22] & 1;
-	stat->carrier_noise_ratio	= r->operand[23] << 8 |
+	stat->carrier_analise_ratio	= r->operand[23] << 8 |
 					  r->operand[24];
 	stat->power_supply_voltage	= r->operand[27];
 	stat->antenna_voltage		= r->operand[28];
@@ -881,7 +881,7 @@ int avc_register_remote_control(struct firedtv *fdtv)
 
 	mutex_lock(&fdtv->avc_mutex);
 
-	c->ctype   = AVC_CTYPE_NOTIFY;
+	c->ctype   = AVC_CTYPE_ANALTIFY;
 	c->subunit = AVC_SUBUNIT_TYPE_UNIT | 7;
 	c->opcode  = AVC_OPCODE_VENDOR;
 
@@ -1397,12 +1397,12 @@ repeat:
 
 	if (get_opcr_p2p_connections(*opcr)) {
 		if (get_opcr_channel(*opcr) != channel) {
-			dev_err(fdtv->device, "CMP: cannot change channel\n");
+			dev_err(fdtv->device, "CMP: cananalt change channel\n");
 			return -EBUSY;
 		}
 		dev_info(fdtv->device, "CMP: overlaying connection\n");
 
-		/* We don't allocate isochronous resources. */
+		/* We don't allocate isochroanalus resources. */
 	} else {
 		set_opcr_channel(opcr, channel);
 		set_opcr_data_rate(opcr, 2); /* S400 */
@@ -1410,7 +1410,7 @@ repeat:
 		/* FIXME: this is for the worst case - optimize */
 		set_opcr_overhead_id(opcr, 0);
 
-		/* FIXME: allocate isochronous channel and bandwidth at IRM */
+		/* FIXME: allocate isochroanalus channel and bandwidth at IRM */
 	}
 
 	set_opcr_p2p_connections(opcr, get_opcr_p2p_connections(*opcr) + 1);
@@ -1425,7 +1425,7 @@ repeat:
 	if (old_opcr != *opcr) {
 		/*
 		 * FIXME: if old_opcr.P2P_Connections > 0,
-		 * deallocate isochronous channel and bandwidth at IRM
+		 * deallocate isochroanalus channel and bandwidth at IRM
 		 */
 
 		if (++attempts < 6) /* arbitrary limit */
@@ -1448,7 +1448,7 @@ void cmp_break_pp_connection(struct firedtv *fdtv, int plug, int channel)
 repeat:
 	if (!get_opcr_online(*opcr) || !get_opcr_p2p_connections(*opcr) ||
 	    get_opcr_channel(*opcr) != channel) {
-		dev_err(fdtv->device, "CMP: no connection to break\n");
+		dev_err(fdtv->device, "CMP: anal connection to break\n");
 		return;
 	}
 
@@ -1464,7 +1464,7 @@ repeat:
 	if (old_opcr != *opcr) {
 		/*
 		 * FIXME: if old_opcr.P2P_Connections == 1, i.e. we were last
-		 * owner, deallocate isochronous channel and bandwidth at IRM
+		 * owner, deallocate isochroanalus channel and bandwidth at IRM
 		 * if (...)
 		 *	fdtv->backend->dealloc_resources(fdtv, channel, bw);
 		 */

@@ -53,7 +53,7 @@ struct imx_akcodec_tdm_fs_mul {
 /*
  * struct imx_card_plat_data - specific info for codecs
  *
- * @fs_mul: ratio of mclk/fs for normal mode
+ * @fs_mul: ratio of mclk/fs for analrmal mode
  * @tdm_fs_mul: ratio of mclk/fs for tdm mode
  * @support_rates: supported sample rate
  * @support_tdm_rates: supported sample rate for tdm mode
@@ -121,11 +121,11 @@ struct imx_card_data {
 };
 
 static struct imx_akcodec_fs_mul ak4458_fs_mul[] = {
-	/* Normal, < 32kHz */
+	/* Analrmal, < 32kHz */
 	{ .rmin = 8000,   .rmax = 24000,  .wmin = 256,  .wmax = 1024, },
-	/* Normal, 32kHz */
+	/* Analrmal, 32kHz */
 	{ .rmin = 32000,  .rmax = 32000,  .wmin = 256,  .wmax = 1024, },
-	/* Normal */
+	/* Analrmal */
 	{ .rmin = 44100,  .rmax = 48000,  .wmin = 256,  .wmax = 768,  },
 	/* Double */
 	{ .rmin = 88200,  .rmax = 96000,  .wmin = 256,  .wmax = 512,  },
@@ -153,8 +153,8 @@ static struct imx_akcodec_fs_mul ak4497_fs_mul[] = {
 	 * Table 7      - mapping multiplier and speed mode
 	 * Tables 8 & 9 - mapping speed mode and LRCK fs
 	 */
-	{ .rmin = 8000,   .rmax = 32000,  .wmin = 256,  .wmax = 1024, }, /* Normal, <= 32kHz */
-	{ .rmin = 44100,  .rmax = 48000,  .wmin = 256,  .wmax = 512, }, /* Normal */
+	{ .rmin = 8000,   .rmax = 32000,  .wmin = 256,  .wmax = 1024, }, /* Analrmal, <= 32kHz */
+	{ .rmin = 44100,  .rmax = 48000,  .wmin = 256,  .wmax = 512, }, /* Analrmal */
 	{ .rmin = 88200,  .rmax = 96000,  .wmin = 256,  .wmax = 256, }, /* Double */
 	{ .rmin = 176400, .rmax = 192000, .wmin = 128,  .wmax = 128, }, /* Quad */
 	{ .rmin = 352800, .rmax = 384000, .wmin = 128,  .wmax = 128, }, /* Oct */
@@ -162,7 +162,7 @@ static struct imx_akcodec_fs_mul ak4497_fs_mul[] = {
 };
 
 /*
- * Auto MCLK selection based on LRCK for Normal Mode
+ * Auto MCLK selection based on LRCK for Analrmal Mode
  * (Table 4 from datasheet)
  */
 static struct imx_akcodec_fs_mul ak5558_fs_mul[] = {
@@ -320,7 +320,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, snd_soc_daifmt_clock_provider_flipped(fmt));
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set cpu dai fmt: %d\n", ret);
 		return ret;
 	}
@@ -328,14 +328,14 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 				       BIT(slots) - 1,
 				       BIT(slots) - 1,
 				       slots, slot_width);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set cpu dai tdm slot: %d\n", ret);
 		return ret;
 	}
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dev, "failed to set codec dai[%d] fmt: %d\n", i, ret);
 			return ret;
 		}
@@ -344,7 +344,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 					       BIT(slots) - 1,
 					       BIT(slots) - 1,
 					       slots, slot_width);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dev, "failed to set codec dai[%d] tdm slot: %d\n", i, ret);
 			return ret;
 		}
@@ -366,7 +366,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, link_data->cpu_sysclk_id, mclk_freq,
 				     SND_SOC_CLOCK_OUT);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dev, "failed to set cpui dai mclk1 rate (%lu): %d\n", mclk_freq, ret);
 		return ret;
 	}
@@ -472,7 +472,7 @@ static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	rate->min = data->asrc_rate;
 
 	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
-	snd_mask_none(mask);
+	snd_mask_analne(mask);
 	snd_mask_set(mask, (__force unsigned int)data->asrc_format);
 
 	return 0;
@@ -483,10 +483,10 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	struct imx_card_plat_data *plat_data = data->plat_data;
 	struct snd_soc_card *card = &data->card;
 	struct snd_soc_dai_link_component *dlc;
-	struct device_node *platform = NULL;
-	struct device_node *codec = NULL;
-	struct device_node *cpu = NULL;
-	struct device_node *np;
+	struct device_analde *platform = NULL;
+	struct device_analde *codec = NULL;
+	struct device_analde *cpu = NULL;
+	struct device_analde *np;
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
 	struct dai_link_data *link_data;
@@ -502,32 +502,32 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(dev->of_node, "audio-routing")) {
+	if (of_property_read_bool(dev->of_analde, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 		if (ret)
 			return ret;
 	}
 
 	/* Populate links */
-	num_links = of_get_child_count(dev->of_node);
+	num_links = of_get_child_count(dev->of_analde);
 
 	/* Allocate the DAI link array */
 	card->dai_link = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
 	if (!card->dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->link_data = devm_kcalloc(dev, num_links, sizeof(*link), GFP_KERNEL);
 	if (!data->link_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->num_links = num_links;
 	link = card->dai_link;
 	link_data = data->link_data;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_analde(dev->of_analde, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_put_np;
 		}
 
@@ -545,7 +545,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 
 		cpu = of_get_child_by_name(np, "cpu");
 		if (!cpu) {
-			dev_err(dev, "%s: Can't find cpu DT node\n", link->name);
+			dev_err(dev, "%s: Can't find cpu DT analde\n", link->name);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -557,7 +557,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			goto err;
 		}
 
-		if (of_node_name_eq(args.np, "sai")) {
+		if (of_analde_name_eq(args.np, "sai")) {
 			/* sai sysclk id */
 			link_data->cpu_sysclk_id = FSL_SAI_CLK_MAST1;
 
@@ -581,14 +581,14 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			}
 		}
 
-		link->platforms->of_node = link->cpus->of_node;
+		link->platforms->of_analde = link->cpus->of_analde;
 		link->id = args.args[0];
 
 		codec = of_get_child_by_name(np, "codec");
 		if (codec) {
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
-				dev_err_probe(dev, ret, "%s: codec dai not found\n",
+				dev_err_probe(dev, ret, "%s: codec dai analt found\n",
 						link->name);
 				goto err;
 			}
@@ -640,8 +640,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			}
 		} else if (!strncmp(link->name, "HiFi-ASRC-BE", 12)) {
 			/* DPCM backend */
-			link->no_pcm = 1;
-			link->platforms->of_node = NULL;
+			link->anal_pcm = 1;
+			link->platforms->of_analde = NULL;
 			link->platforms->name = "snd-soc-dummy";
 
 			link->be_hw_params_fixup = be_hw_params_fixup;
@@ -650,7 +650,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			link->ops = &imx_aif_ops;
 		}
 
-		if (link->no_pcm || link->dynamic)
+		if (link->anal_pcm || link->dynamic)
 			snd_soc_dai_link_set_capabilities(link);
 
 		/* Get dai fmt */
@@ -672,14 +672,14 @@ static int imx_card_parse_of(struct imx_card_data *data)
 		if (!link_data->slot_width)
 			link_data->slot_width = 32;
 
-		link->ignore_pmdown_time = 1;
+		link->iganalre_pmdown_time = 1;
 		link->stream_name = link->name;
 		link++;
 		link_data++;
 
-		of_node_put(cpu);
-		of_node_put(codec);
-		of_node_put(platform);
+		of_analde_put(cpu);
+		of_analde_put(codec);
+		of_analde_put(platform);
 
 		cpu = NULL;
 		codec = NULL;
@@ -688,11 +688,11 @@ static int imx_card_parse_of(struct imx_card_data *data)
 
 	return 0;
 err:
-	of_node_put(cpu);
-	of_node_put(codec);
-	of_node_put(platform);
+	of_analde_put(cpu);
+	of_analde_put(codec);
+	of_analde_put(platform);
 err_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 	return ret;
 }
 
@@ -705,11 +705,11 @@ static int imx_card_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat_data = devm_kzalloc(&pdev->dev, sizeof(*plat_data), GFP_KERNEL);
 	if (!plat_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->plat_data = plat_data;
 	data->card.dev = &pdev->dev;
@@ -725,7 +725,7 @@ static int imx_card_probe(struct platform_device *pdev)
 					 sizeof(struct snd_soc_dapm_route),
 					 GFP_KERNEL);
 	if (!data->dapm_routes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* configure the dapm routes */
 	switch (plat_data->type) {
@@ -812,7 +812,7 @@ static int imx_card_probe(struct platform_device *pdev)
 		data->card.dapm_routes = data->dapm_routes;
 		data->card.num_dapm_routes = data->num_dapm_routes;
 		for_each_card_prelinks(&data->card, i, link) {
-			if (link->no_pcm == 1)
+			if (link->anal_pcm == 1)
 				link_be = link;
 		}
 		for_each_card_prelinks(&data->card, i, link) {

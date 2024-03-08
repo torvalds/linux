@@ -206,8 +206,8 @@
 
 /* DMA Control 0 Register */
 #define LCD_SPU_DMA_CTRL0			0x0190
-#define     CFG_NOBLENDING(nb)			((nb) << 31)
-#define     CFG_NOBLENDING_MASK			0x80000000
+#define     CFG_ANALBLENDING(nb)			((nb) << 31)
+#define     CFG_ANALBLENDING_MASK			0x80000000
 #define     CFG_GAMMA_ENA(gn)			((gn) << 30)
 #define     CFG_GAMMA_ENA_MASK			0x40000000
 #define     CFG_CBSH_ENA(cn)			((cn) << 29)

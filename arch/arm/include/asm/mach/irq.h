@@ -12,7 +12,7 @@
 struct seq_file;
 
 /*
- * This is internal.  Do not use it.
+ * This is internal.  Do analt use it.
  */
 extern void init_FIQ(int);
 extern int show_fiq_list(struct seq_file *, int);

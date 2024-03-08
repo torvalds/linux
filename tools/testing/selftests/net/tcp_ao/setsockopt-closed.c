@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Author: Dmitry Safonov <dima@arista.com> */
+/* Author: Dmitry Safoanalv <dima@arista.com> */
 #include <inttypes.h>
 #include "../../../../include/linux/kernel.h"
 #include "aolib.h"
@@ -42,7 +42,7 @@ do {										\
 	if (info->set_counters) {
 		__cmp_ao(pkt_good);
 		__cmp_ao(pkt_bad);
-		__cmp_ao(pkt_key_not_found);
+		__cmp_ao(pkt_key_analt_found);
 		__cmp_ao(pkt_ao_required);
 		__cmp_ao(pkt_dropped_icmp);
 	}
@@ -64,13 +64,13 @@ static void __setsockopt_checked(int sk, int optname, bool get,
 	if (!tst2)
 		tst2 = "";
 
-	errno = 0;
+	erranal = 0;
 	if (get)
 		ret = getsockopt(sk, IPPROTO_TCP, optname, optval, len);
 	else
 		ret = setsockopt(sk, IPPROTO_TCP, optname, optval, *len);
 	if (ret == -1) {
-		if (errno == err)
+		if (erranal == err)
 			test_ok("%s%s", tst ?: "", tst2 ?: "");
 		else
 			test_fail("%s%s: %setsockopt() failed",
@@ -173,7 +173,7 @@ static int prepare_defs(int cmd, void *optval)
 		break;
 		}
 	default:
-		test_error("unknown cmd");
+		test_error("unkanalwn cmd");
 	}
 
 	return sk;
@@ -297,12 +297,12 @@ static void test_einval_add_key(void)
 
 	sk = prepare_defs(TCP_AO_ADD_KEY, &ao);
 	ao.prefix = 0;
-	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, EINVAL, "no prefix, addr");
+	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, EINVAL, "anal prefix, addr");
 
 	sk = prepare_defs(TCP_AO_ADD_KEY, &ao);
 	ao.prefix = 0;
 	memcpy(&ao.addr, &SOCKADDR_ANY, sizeof(SOCKADDR_ANY));
-	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, 0, "no prefix, any addr");
+	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, 0, "anal prefix, any addr");
 
 	sk = prepare_defs(TCP_AO_ADD_KEY, &ao);
 	ao.prefix = 32;
@@ -358,7 +358,7 @@ static void test_einval_add_key(void)
 	sk = prepare_defs(TCP_AO_ADD_KEY, &ao);
 	ao.keyflags |= TCP_AO_KEYF_IFINDEX;
 	ao.ifindex = 42;
-	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, EINVAL, "non-existent VRF");
+	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, EINVAL, "analn-existent VRF");
 	/*
 	 * tcp_md5_do_lookup{,_any_l3index}() are checked in unsigned-md5
 	 * see client_vrf_tests().
@@ -373,7 +373,7 @@ static void test_einval_add_key(void)
 
 	sk = prepare_defs(TCP_AO_ADD_KEY, &ao);
 	strcpy(ao.alg_name, "imaginary hash algo");
-	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, ENOENT, "bad algo");
+	setsockopt_checked(sk, TCP_AO_ADD_KEY, &ao, EANALENT, "bad algo");
 }
 
 static void test_einval_del_key(void)
@@ -423,20 +423,20 @@ static void test_einval_del_key(void)
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.keyflags |= TCP_AO_KEYF_IFINDEX;
 	del.ifindex = 42;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "non-existent VRF");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "analn-existent VRF");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_current = 1;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set non-existing current key");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set analn-existing current key");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_rnext = 1;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set non-existing rnext key");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set analn-existing rnext key");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_current = 1;
 	del.set_rnext = 1;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set non-existing current+rnext key");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set analn-existing current+rnext key");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	if (test_add_key(sk, DEFAULT_TEST_PASSWORD, this_ip_dest, DEFAULT_TEST_PREFIX, 0, 0))
@@ -460,35 +460,35 @@ static void test_einval_del_key(void)
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_current = 1;
 	del.current_key = 100;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set as current key to be removed");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set as current key to be removed");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_rnext = 1;
 	del.rnext = 100;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set as rnext key to be removed");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set as rnext key to be removed");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.set_current = 1;
 	del.current_key = 100;
 	del.set_rnext = 1;
 	del.rnext = 100;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "set as current+rnext key to be removed");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "set as current+rnext key to be removed");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.del_async = 1;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EINVAL, "async on non-listen");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EINVAL, "async on analn-listen");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.sndid = 101;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "non-existing sndid");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "analn-existing sndid");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	del.rcvid = 101;
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "non-existing rcvid");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "analn-existing rcvid");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	tcp_addr_to_sockaddr_in(&del.addr, &this_ip_addr, 0);
-	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, ENOENT, "incorrect addr");
+	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, EANALENT, "incorrect addr");
 
 	sk = prepare_defs(TCP_AO_DEL_KEY, &del);
 	setsockopt_checked(sk, TCP_AO_DEL_KEY, &del, 0, "correct key delete");
@@ -546,16 +546,16 @@ static void test_einval_ao_info(void)
 
 	sk = prepare_defs(TCP_AO_INFO, &info);
 	info.set_current = 1;
-	setsockopt_checked(sk, TCP_AO_INFO, &info, ENOENT, "set non-existing current key");
+	setsockopt_checked(sk, TCP_AO_INFO, &info, EANALENT, "set analn-existing current key");
 
 	sk = prepare_defs(TCP_AO_INFO, &info);
 	info.set_rnext = 1;
-	setsockopt_checked(sk, TCP_AO_INFO, &info, ENOENT, "set non-existing rnext key");
+	setsockopt_checked(sk, TCP_AO_INFO, &info, EANALENT, "set analn-existing rnext key");
 
 	sk = prepare_defs(TCP_AO_INFO, &info);
 	info.set_current = 1;
 	info.set_rnext = 1;
-	setsockopt_checked(sk, TCP_AO_INFO, &info, ENOENT, "set non-existing current+rnext key");
+	setsockopt_checked(sk, TCP_AO_INFO, &info, EANALENT, "set analn-existing current+rnext key");
 
 	sk = prepare_defs(TCP_AO_INFO, &info);
 	info.set_current = 1;
@@ -578,13 +578,13 @@ static void test_einval_ao_info(void)
 	info.set_counters = 1;
 	info.pkt_good = 321;
 	info.pkt_bad = 888;
-	info.pkt_key_not_found = 654;
+	info.pkt_key_analt_found = 654;
 	info.pkt_ao_required = 987654;
 	info.pkt_dropped_icmp = 10000;
 	setsockopt_checked(sk, TCP_AO_INFO, &info, 0, "set counters");
 
 	sk = prepare_defs(TCP_AO_INFO, &info);
-	setsockopt_checked(sk, TCP_AO_INFO, &info, 0, "no-op");
+	setsockopt_checked(sk, TCP_AO_INFO, &info, 0, "anal-op");
 }
 
 static void getsockopt_checked(int sk, struct tcp_ao_getsockopt *optval,
@@ -604,7 +604,7 @@ static void test_einval_get_keys(void)
 	sk = socket(test_family, SOCK_STREAM, IPPROTO_TCP);
 	if (sk < 0)
 		test_error("socket()");
-	getsockopt_checked(sk, &out, ENOENT, "no ao_info");
+	getsockopt_checked(sk, &out, EANALENT, "anal ao_info");
 
 	sk = prepare_defs(TCP_AO_GET_KEYS, &out);
 	getsockopt_checked(sk, &out, 0, "proper tcp_ao_get_mkts()");
@@ -634,13 +634,13 @@ static void test_einval_get_keys(void)
 	out.get_all = 0;
 	out.prefix = 0;
 	tcp_addr_to_sockaddr_in(&out.addr, &this_ip_dest, 0);
-	getsockopt_checked(sk, &out, EINVAL, "no prefix, addr");
+	getsockopt_checked(sk, &out, EINVAL, "anal prefix, addr");
 
 	sk = prepare_defs(TCP_AO_GET_KEYS, &out);
 	out.get_all = 0;
 	out.prefix = 0;
 	memcpy(&out.addr, &SOCKADDR_ANY, sizeof(SOCKADDR_ANY));
-	getsockopt_checked(sk, &out, 0, "no prefix, any addr");
+	getsockopt_checked(sk, &out, 0, "anal prefix, any addr");
 
 	sk = prepare_defs(TCP_AO_GET_KEYS, &out);
 	out.get_all = 0;

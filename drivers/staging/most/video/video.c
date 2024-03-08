@@ -2,7 +2,7 @@
 /*
  * video.c - V4L2 component for Mostcore
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -81,7 +81,7 @@ static int comp_vdev_open(struct file *filp)
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!atomic_inc_and_test(&mdev->access_ref)) {
 		v4l2_err(&mdev->v4l2_dev, "too many clients\n");
@@ -159,10 +159,10 @@ static ssize_t comp_vdev_read(struct file *filp, char __user *buf,
 		return -ESPIPE;
 
 	if (!mdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* wait for the first buffer */
-	if (!(filp->f_flags & O_NONBLOCK)) {
+	if (!(filp->f_flags & O_ANALNBLOCK)) {
 		if (wait_event_interruptible(mdev->wait_data, data_ready(mdev)))
 			return -ERESTARTSYS;
 	}
@@ -204,11 +204,11 @@ static __poll_t comp_vdev_poll(struct file *filp, poll_table *wait)
 	struct most_video_dev *mdev = fh->mdev;
 	__poll_t mask = 0;
 
-	/* only wait if no data is available */
+	/* only wait if anal data is available */
 	if (!data_ready(mdev))
 		poll_wait(filp, &mdev->wait_data, wait);
 	if (data_ready(mdev))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }
@@ -221,7 +221,7 @@ static void comp_set_format_struct(struct v4l2_format *f)
 	f->fmt.pix.bytesperline = 0;
 	f->fmt.pix.sizeimage = 188 * 2;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.priv = 0;
 }
 
@@ -291,9 +291,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	return comp_set_format(mdev, VIDIOC_S_FMT, f);
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *analrm)
 {
-	*norm = V4L2_STD_UNKNOWN;
+	*analrm = V4L2_STD_UNKANALWN;
 	return 0;
 }
 
@@ -310,7 +310,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	input->type |= V4L2_INPUT_TYPE_CAMERA;
 	input->audioset = 0;
 
-	input->std = mdev->vdev->tvnorms;
+	input->std = mdev->vdev->tvanalrms;
 
 	return 0;
 }
@@ -359,7 +359,7 @@ static const struct video_device comp_videodev_template = {
 	.fops = &comp_fops,
 	.release = video_device_release,
 	.ioctl_ops = &video_ioctl_ops,
-	.tvnorms = V4L2_STD_UNKNOWN,
+	.tvanalrms = V4L2_STD_UNKANALWN,
 	.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE,
 };
 
@@ -411,7 +411,7 @@ static int comp_register_videodev(struct most_video_dev *mdev)
 	/* allocate and fill v4l2 video struct */
 	mdev->vdev = video_device_alloc();
 	if (!mdev->vdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Fill the video capture device struct */
 	*mdev->vdev = comp_videodev_template;
@@ -471,7 +471,7 @@ static int comp_probe_channel(struct most_interface *iface, int channel_idx,
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&mdev->lock);
 	atomic_set(&mdev->access_ref, -1);
@@ -511,8 +511,8 @@ static int comp_disconnect_channel(struct most_interface *iface,
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);
 
 	if (!mdev) {
-		pr_err("no such channel is linked\n");
-		return -ENOENT;
+		pr_err("anal such channel is linked\n");
+		return -EANALENT;
 	}
 
 	spin_lock_irq(&list_lock);

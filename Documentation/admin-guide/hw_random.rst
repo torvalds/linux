@@ -27,7 +27,7 @@ Theory of operation
 
 CHARACTER DEVICE.  Using the standard open()
 and read() system calls, you can read random data from
-the hardware RNG device.  This data is NOT CHECKED by any
+the hardware RNG device.  This data is ANALT CHECKED by any
 fitness tests, and could potentially be bogus (if the
 hardware is faulty or has been tampered with).  Data is only
 output if the hardware "has-data" flag is set, but nevertheless
@@ -37,9 +37,9 @@ data before assuming it is truly random.
 The rng-tools package uses such tests in "rngd", and lets you
 run them by hand with a "rngtest" utility.
 
-/dev/hwrng is char device major 10, minor 183.
+/dev/hwrng is char device major 10, mianalr 183.
 
-CLASS DEVICE.  There is a /sys/class/misc/hw_random node with
+CLASS DEVICE.  There is a /sys/class/misc/hw_random analde with
 two unique attributes, "rng_available" and "rng_current".  The
 "rng_available" attribute lists the hardware-specific drivers
 available, while "rng_current" lists the one which is currently
@@ -59,19 +59,19 @@ About the Intel RNG hardware, from the firmware hub datasheet
 =============================================================
 
 The Firmware Hub integrates a Random Number Generator (RNG)
-using thermal noise generated from inherently random quantum
-mechanical properties of silicon. When not generating new random
+using thermal analise generated from inherently random quantum
+mechanical properties of silicon. When analt generating new random
 bits the RNG circuitry will enter a low power state. Intel will
 provide a binary software driver to give third party software
 access to our RNG for use as a security feature. At this time,
 the RNG is only to be used with a system in an OS-present state.
 
-Intel RNG Driver notes
+Intel RNG Driver analtes
 ======================
 
 FIXME: support poll(2)
 
-.. note::
+.. analte::
 
 	request_mem_region was removed, for three reasons:
 
@@ -82,7 +82,7 @@ FIXME: support poll(2)
 	   have the region in which the RNG is located reserved, so
 	   request_mem_region calls always fail for proper setups.
 	   However, for people who use mem=XX, BIOS e820 information is
-	   **not** in /proc/iomem, and request_mem_region(RNG_ADDR) can
+	   **analt** in /proc/iomem, and request_mem_region(RNG_ADDR) can
 	   succeed.
 
 Driver details

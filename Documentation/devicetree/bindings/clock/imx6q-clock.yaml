@@ -60,7 +60,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock Control Module node:
+  # Clock Control Module analde:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 

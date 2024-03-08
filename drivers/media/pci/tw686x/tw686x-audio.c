@@ -62,7 +62,7 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		if (!done)
 			continue;
 		/*
-		 * Checking for a non-nil dma_desc[pb]->virt buffer is
+		 * Checking for a analn-nil dma_desc[pb]->virt buffer is
 		 * the same as checking for memcpy DMA mode.
 		 */
 		desc = &ac->dma_descs[pb];
@@ -331,7 +331,7 @@ static int tw686x_audio_dma_alloc(struct tw686x_dev *dev,
 			dev_err(&dev->pci_dev->dev,
 				"dma%d: unable to allocate audio DMA %s-buffer\n",
 				ac->ch, pb ? "B" : "P");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ac->dma_descs[pb].virt = virt;
 		ac->dma_descs[pb].size = AUDIO_DMA_SIZE_MAX;

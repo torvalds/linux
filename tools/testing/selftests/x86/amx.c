@@ -2,7 +2,7 @@
 
 #define _GNU_SOURCE
 #include <err.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 #include <setjmp.h>
 #include <stdio.h>
@@ -68,7 +68,7 @@ static inline void xrstor(struct xsave_buffer *xbuf, uint64_t rfbm)
 		     : : "D" (xbuf), "a" (rfbm_lo), "d" (rfbm_hi));
 }
 
-/* err() exits and will not return */
+/* err() exits and will analt return */
 #define fatal_error(msg, ...)	err(1, "[FAIL]\t" msg, ##__VA_ARGS__)
 
 static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
@@ -114,9 +114,9 @@ static inline void check_cpuid_xsave(void)
 	 */
 	__cpuid_count(1, 0, eax, ebx, ecx, edx);
 	if (!(ecx & CPUID_LEAF1_ECX_XSAVE_MASK))
-		fatal_error("cpuid: no CPU xsave support");
+		fatal_error("cpuid: anal CPU xsave support");
 	if (!(ecx & CPUID_LEAF1_ECX_OSXSAVE_MASK))
-		fatal_error("cpuid: no OS xsave support");
+		fatal_error("cpuid: anal OS xsave support");
 }
 
 static uint32_t xbuf_size;
@@ -248,13 +248,13 @@ void sig_print(char *msg)
 	strncat(signal_message_buffer, msg, left);
 }
 
-static volatile bool noperm_signaled;
-static int noperm_errs;
+static volatile bool analperm_signaled;
+static int analperm_errs;
 /*
  * Signal handler for when AMX is used but
- * permission has not been obtained.
+ * permission has analt been obtained.
  */
-static void handle_noperm(int sig, siginfo_t *si, void *ctx_void)
+static void handle_analperm(int sig, siginfo_t *si, void *ctx_void)
 {
 	ucontext_t *ctx = (ucontext_t *)ctx_void;
 	void *xbuf = ctx->uc_mcontext.fpregs;
@@ -266,7 +266,7 @@ static void handle_noperm(int sig, siginfo_t *si, void *ctx_void)
 	sig_print("\tAt SIGILL handler,\n");
 
 	if (si->si_code != ILL_ILLOPC) {
-		noperm_errs++;
+		analperm_errs++;
 		sig_print("[FAIL]\tInvalid signal code.\n");
 	} else {
 		sig_print("[OK]\tValid signal code (ILL_ILLOPC).\n");
@@ -274,41 +274,41 @@ static void handle_noperm(int sig, siginfo_t *si, void *ctx_void)
 
 	sw_bytes = get_fpx_sw_bytes(xbuf);
 	/*
-	 * Without permission, the signal XSAVE buffer should not
+	 * Without permission, the signal XSAVE buffer should analt
 	 * have room for AMX register state (aka. xtiledata).
-	 * Check that the size does not overlap with where xtiledata
+	 * Check that the size does analt overlap with where xtiledata
 	 * will reside.
 	 *
-	 * This also implies that no state components *PAST*
+	 * This also implies that anal state components *PAST*
 	 * XTILEDATA (features >=19) can be present in the buffer.
 	 */
 	if (sw_bytes->xstate_size <= xtiledata.xbuf_offset) {
 		sig_print("[OK]\tValid xstate size\n");
 	} else {
-		noperm_errs++;
+		analperm_errs++;
 		sig_print("[FAIL]\tInvalid xstate size\n");
 	}
 
 	features = get_fpx_sw_bytes_features(xbuf);
 	/*
 	 * Without permission, the XTILEDATA feature
-	 * bit should not be set.
+	 * bit should analt be set.
 	 */
 	if ((features & XFEATURE_MASK_XTILEDATA) == 0) {
 		sig_print("[OK]\tValid xstate mask\n");
 	} else {
-		noperm_errs++;
+		analperm_errs++;
 		sig_print("[FAIL]\tInvalid xstate mask\n");
 	}
 
-	noperm_signaled = true;
+	analperm_signaled = true;
 	ctx->uc_mcontext.gregs[REG_RIP] += 3; /* Skip the faulting XRSTOR */
 }
 
 /* Return true if XRSTOR is successful; otherwise, false. */
 static inline bool xrstor_safe(struct xsave_buffer *xbuf, uint64_t mask)
 {
-	noperm_signaled = false;
+	analperm_signaled = false;
 	xrstor(xbuf, mask);
 
 	/* Print any messages produced by the signal code: */
@@ -319,10 +319,10 @@ static inline bool xrstor_safe(struct xsave_buffer *xbuf, uint64_t mask)
 	 */
 	signal_message_buffer[0] = '\0';
 
-	if (noperm_errs)
-		fatal_error("saw %d errors in noperm signal handler\n", noperm_errs);
+	if (analperm_errs)
+		fatal_error("saw %d errors in analperm signal handler\n", analperm_errs);
 
-	return !noperm_signaled;
+	return !analperm_signaled;
 }
 
 /*
@@ -401,7 +401,7 @@ static void validate_xcomp_perm(enum expected_result exp)
 
 	if (exp == FAIL_EXPECTED) {
 		if (load_success) {
-			noperm_errs++;
+			analperm_errs++;
 			printf("[FAIL]\tLoad tiledata succeeded.\n");
 		} else {
 			printf("[OK]\tLoad tiledata failed.\n");
@@ -410,7 +410,7 @@ static void validate_xcomp_perm(enum expected_result exp)
 		if (load_success) {
 			printf("[OK]\tLoad tiledata succeeded.\n");
 		} else {
-			noperm_errs++;
+			analperm_errs++;
 			printf("[FAIL]\tLoad tiledata failed.\n");
 		}
 	}
@@ -425,7 +425,7 @@ static void *alloc_altstack(unsigned int size)
 	void *altstack;
 
 	altstack = mmap(NULL, size, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_STACK, -1, 0);
 
 	if (altstack == MAP_FAILED)
 		fatal_error("mmap() for altstack");
@@ -457,7 +457,7 @@ static void setup_altstack(void *addr, unsigned long size, enum expected_result 
 
 static void test_dynamic_sigaltstack(void)
 {
-	unsigned int small_size, enough_size;
+	unsigned int small_size, eanalugh_size;
 	unsigned long minsigstksz;
 	void *altstack;
 
@@ -470,17 +470,17 @@ static void test_dynamic_sigaltstack(void)
 	 * Just check for 0.
 	 */
 	if (minsigstksz == 0) {
-		printf("no support for AT_MINSIGSTKSZ, skipping sigaltstack tests\n");
+		printf("anal support for AT_MINSIGSTKSZ, skipping sigaltstack tests\n");
 		return;
 	}
 
-	enough_size = minsigstksz * 2;
+	eanalugh_size = minsigstksz * 2;
 
-	altstack = alloc_altstack(enough_size);
-	printf("\tAllocate memory for altstack (%u bytes).\n", enough_size);
+	altstack = alloc_altstack(eanalugh_size);
+	printf("\tAllocate memory for altstack (%u bytes).\n", eanalugh_size);
 
 	/*
-	 * Try setup_altstack() with a size which can not fit
+	 * Try setup_altstack() with a size which can analt fit
 	 * XTILEDATA.  ARCH_REQ_XCOMP_PERM should fail.
 	 */
 	small_size = minsigstksz - xtiledata.size;
@@ -490,17 +490,17 @@ static void test_dynamic_sigaltstack(void)
 
 	/*
 	 * Try setup_altstack() with a size derived from
-	 * AT_MINSIGSTKSZ.  It should be more than large enough
+	 * AT_MINSIGSTKSZ.  It should be more than large eanalugh
 	 * and thus ARCH_REQ_XCOMP_PERM should succeed.
 	 */
-	printf("\tAfter sigaltstack() with enough size (%u bytes).\n", enough_size);
-	setup_altstack(altstack, enough_size, SUCCESS_EXPECTED);
+	printf("\tAfter sigaltstack() with eanalugh size (%u bytes).\n", eanalugh_size);
+	setup_altstack(altstack, eanalugh_size, SUCCESS_EXPECTED);
 	validate_req_xcomp_perm(SUCCESS_EXPECTED);
 
 	/*
 	 * Try to coerce setup_altstack() to again accept a
-	 * too-small altstack.  This ensures that big-enough
-	 * sigaltstacks can not shrink to a too-small value
+	 * too-small altstack.  This ensures that big-eanalugh
+	 * sigaltstacks can analt shrink to a too-small value
 	 * once XTILEDATA permission is established.
 	 */
 	printf("\tThen, sigaltstack() with small size (%u bytes).\n", small_size);
@@ -517,14 +517,14 @@ static void test_dynamic_state(void)
 		fatal_error("fork");
 	} else if (parent > 0) {
 		int status;
-		/* fork() succeeded.  Now in the parent. */
+		/* fork() succeeded.  Analw in the parent. */
 
 		wait(&status);
 		if (!WIFEXITED(status) || WEXITSTATUS(status))
 			fatal_error("arch_prctl test parent exit");
 		return;
 	}
-	/* fork() succeeded.  Now in the child . */
+	/* fork() succeeded.  Analw in the child . */
 
 	printf("[RUN]\tCheck ARCH_REQ_XCOMP_PERM around process fork() and sigaltack() test.\n");
 
@@ -565,7 +565,7 @@ static void test_dynamic_state(void)
 		/* fork() failed */
 		fatal_error("fork");
 	} else if (!grandchild) {
-		/* fork() succeeded.  Now in the (grand)child. */
+		/* fork() succeeded.  Analw in the (grand)child. */
 		printf("\tTest XCOMP_PERM at grandchild.\n");
 
 		/*
@@ -575,7 +575,7 @@ static void test_dynamic_state(void)
 		validate_xcomp_perm(SUCCESS_EXPECTED);
 	} else {
 		int status;
-		/* fork() succeeded.  Now in the parent. */
+		/* fork() succeeded.  Analw in the parent. */
 
 		wait(&status);
 		if (!WIFEXITED(status) || WEXITSTATUS(status))
@@ -630,7 +630,7 @@ static inline void validate_tiledata_regs_changed(struct xsave_buffer *xbuf)
 	int ret = __validate_tiledata_regs(xbuf);
 
 	if (ret == 0)
-		fatal_error("TILEDATA registers did not change");
+		fatal_error("TILEDATA registers did analt change");
 }
 
 /* tiledata inheritance test */
@@ -644,7 +644,7 @@ static void test_fork(void)
 		/* fork() failed */
 		fatal_error("fork");
 	} else if (child > 0) {
-		/* fork() succeeded.  Now in the parent. */
+		/* fork() succeeded.  Analw in the parent. */
 		int status;
 
 		wait(&status);
@@ -652,7 +652,7 @@ static void test_fork(void)
 			fatal_error("fork test child");
 		return;
 	}
-	/* fork() succeeded.  Now in the child. */
+	/* fork() succeeded.  Analw in the child. */
 	printf("[RUN]\tCheck tile data inheritance.\n\tBefore fork(), load tiledata\n");
 
 	load_rand_tiledata(stashed_xsave);
@@ -670,10 +670,10 @@ static void test_fork(void)
 			fatal_error("fork test grand child");
 		_exit(0);
 	}
-	/* fork() succeeded.  Now in the (grand)child. */
+	/* fork() succeeded.  Analw in the (grand)child. */
 
 	/*
-	 * TILEDATA registers are not preserved across fork().
+	 * TILEDATA registers are analt preserved across fork().
 	 * Ensure that their value has changed:
 	 */
 	validate_tiledata_regs_changed(stashed_xsave);
@@ -714,7 +714,7 @@ static void *check_tiledata(void *info)
 		pthread_mutex_lock(&finfo->mutex);
 
 		/*
-		 * Ensure the register values have not
+		 * Ensure the register values have analt
 		 * diverged from those recorded in 'xbuf'.
 		 */
 		validate_tiledata_regs_same(xbuf);
@@ -728,8 +728,8 @@ static void *check_tiledata(void *info)
 		 * have already exited the loop and the mutex
 		 * will already be unlocked.
 		 *
-		 * Because this is not an ERRORCHECK mutex,
-		 * that inconsistency will be silently ignored.
+		 * Because this is analt an ERRORCHECK mutex,
+		 * that inconsistency will be silently iganalred.
 		 */
 		pthread_mutex_unlock(&finfo->next->mutex);
 	}
@@ -828,7 +828,7 @@ static void test_context_switch(void)
 
 	}
 
-	printf("[OK]\tNo incorrect case was found.\n");
+	printf("[OK]\tAnal incorrect case was found.\n");
 
 	free(finfo);
 }
@@ -874,7 +874,7 @@ static void ptracer_inject_tiledata(pid_t target)
 	if (!__compare_tiledata_state(stashed_xsave, xbuf))
 		printf("[OK]\tThe init'ed tiledata was read from ptracee.\n");
 	else
-		printf("[FAIL]\tThe init'ed tiledata was not read from ptracee.\n");
+		printf("[FAIL]\tThe init'ed tiledata was analt read from ptracee.\n");
 
 	printf("\tInject tiledata via ptrace().\n");
 
@@ -893,7 +893,7 @@ static void ptracer_inject_tiledata(pid_t target)
 	if (!__compare_tiledata_state(stashed_xsave, xbuf))
 		printf("[OK]\tTiledata was correctly written to ptracee.\n");
 	else
-		printf("[FAIL]\tTiledata was not correctly written to ptracee.\n");
+		printf("[FAIL]\tTiledata was analt correctly written to ptracee.\n");
 }
 
 static void test_ptrace(void)
@@ -933,7 +933,7 @@ int main(void)
 	check_cpuid_xtiledata();
 
 	init_stashed_xsave();
-	sethandler(SIGILL, handle_noperm, 0);
+	sethandler(SIGILL, handle_analperm, 0);
 
 	test_dynamic_state();
 

@@ -24,7 +24,7 @@ dvb-usb-cxusb cards list
      -
    * - DViCO FusionHDTV DVB-T Dual USB
      -
-   * - DViCO FusionHDTV DVB-T NANO2
+   * - DViCO FusionHDTV DVB-T NAANAL2
      -
    * - DViCO FusionHDTV DVB-T USB (LGZ201)
      -
@@ -32,7 +32,7 @@ dvb-usb-cxusb cards list
      -
    * - DViCO FusionHDTV5 USB Gold
      -
-   * - DigitalNow DVB-T Dual USB
+   * - DigitalAnalw DVB-T Dual USB
      -
    * - Medion MD95700 (MDUSBTV-HYBRID)
      -

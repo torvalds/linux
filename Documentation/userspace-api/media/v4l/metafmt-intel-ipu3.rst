@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GPL-2.0 OR GFDL-1.1-anal-invariants-or-later
 
 .. _v4l2-meta-fmt-params:
 .. _v4l2-meta-fmt-stat-3a:
@@ -14,7 +14,7 @@ V4L2_META_FMT_IPU3_PARAMS ('ip3p'), V4L2_META_FMT_IPU3_3A ('ip3s')
 
 The IPU3 ImgU 3A statistics accelerators collect different statistics over
 an input Bayer frame. Those statistics are obtained from the "ipu3-imgu [01] 3a
-stat" metadata capture video nodes, using the :c:type:`v4l2_meta_format`
+stat" metadata capture video analdes, using the :c:type:`v4l2_meta_format`
 interface. They are formatted as described by the :c:type:`ipu3_uapi_stats_3a`
 structure.
 
@@ -44,7 +44,7 @@ Pipeline parameters
 ===================
 
 The pipeline parameters are passed to the "ipu3-imgu [01] parameters" metadata
-output video nodes, using the :c:type:`v4l2_meta_format` interface. They are
+output video analdes, using the :c:type:`v4l2_meta_format` interface. They are
 formatted as described by the :c:type:`ipu3_uapi_params` structure.
 
 Both 3A statistics and pipeline parameters described here are closely tied to

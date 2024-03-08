@@ -17,7 +17,7 @@ struct kvm_kpit_channel_state {
 	u8 write_latch;
 	u8 rw_mode;
 	u8 mode;
-	u8 bcd; /* not supported */
+	u8 bcd; /* analt supported */
 	u8 gate; /* timer start */
 	ktime_t count_load_time;
 };
@@ -34,7 +34,7 @@ struct kvm_kpit_state {
 	atomic_t reinject;
 	atomic_t pending; /* accumulated triggered timers */
 	atomic_t irq_ack;
-	struct kvm_irq_ack_notifier irq_ack_notifier;
+	struct kvm_irq_ack_analtifier irq_ack_analtifier;
 };
 
 struct kvm_pit {
@@ -43,7 +43,7 @@ struct kvm_pit {
 	struct kvm *kvm;
 	struct kvm_kpit_state pit_state;
 	int irq_source_id;
-	struct kvm_irq_mask_notifier mask_notifier;
+	struct kvm_irq_mask_analtifier mask_analtifier;
 	struct kthread_worker *worker;
 	struct kthread_work expired;
 };

@@ -13,7 +13,7 @@
 #include <semaphore.h>
 #include <sys/types.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/atomic.h>
@@ -88,7 +88,7 @@ static uint64_t guest_test_phys_mem;
 
 /*
  * Guest virtual memory offset of the testing memory slot.
- * Must not conflict with identity mapped test code.
+ * Must analt conflict with identity mapped test code.
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
@@ -159,7 +159,7 @@ static bool dirty_ring_vcpu_ring_full;
  * This is only used for verifying the dirty pages.  Dirty ring has a very
  * tricky case when the ring just got full, kvm will do userspace exit due to
  * ring full.  When that happens, the very last PFN is set but actually the
- * data is not changed (the guest WRITE is not really applied yet), because
+ * data is analt changed (the guest WRITE is analt really applied yet), because
  * we found that the dirty ring is full, refused to continue the vcpu, and
  * recorded the dirty gfn with the old contents.
  *
@@ -209,7 +209,7 @@ static void sem_wait_until(sem_t *sem)
 
 	do
 		ret = sem_wait(sem);
-	while (ret == -1 && errno == EINTR);
+	while (ret == -1 && erranal == EINTR);
 }
 
 static bool clear_log_supported(void)
@@ -259,7 +259,7 @@ static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 	struct kvm_run *run = vcpu->run;
 
 	TEST_ASSERT(ret == 0 || (ret == -1 && err == EINTR),
-		    "vcpu run failed: errno=%d", err);
+		    "vcpu run failed: erranal=%d", err);
 
 	TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
 		    "Invalid guest sync status: exit_reason=%s",
@@ -347,7 +347,7 @@ static void dirty_ring_wait_vcpu(void)
 
 static void dirty_ring_continue_vcpu(void)
 {
-	pr_info("Notifying vcpu to continue\n");
+	pr_info("Analtifying vcpu to continue\n");
 	sem_post(&sem_vcpu_cont);
 }
 
@@ -362,7 +362,7 @@ static void dirty_ring_collect_dirty_pages(struct kvm_vcpu *vcpu, int slot,
 
 	if (!dirty_ring_vcpu_ring_full) {
 		/*
-		 * This is not a ring-full event, it's safe to allow
+		 * This is analt a ring-full event, it's safe to allow
 		 * vcpu to continue
 		 */
 		dirty_ring_continue_vcpu();
@@ -410,7 +410,7 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 			dirty_ring_vcpu_ring_full ?
 			"dirty ring is full" : "vcpu is kicked out");
 		sem_wait_until(&sem_vcpu_cont);
-		pr_info("vcpu continues now.\n");
+		pr_info("vcpu continues analw.\n");
 	} else {
 		TEST_ASSERT(false, "Invalid guest sync status: "
 			    "exit_reason=%s",
@@ -548,12 +548,12 @@ static void *vcpu_worker(void *data)
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
 		ret = __vcpu_run(vcpu);
-		if (ret == -1 && errno == EINTR) {
+		if (ret == -1 && erranal == EINTR) {
 			int sig = -1;
 			sigwait(sigset, &sig);
 			assert(sig == SIG_IPI);
 		}
-		log_mode_after_vcpu_run(vcpu, ret, errno);
+		log_mode_after_vcpu_run(vcpu, ret, erranal);
 	}
 
 	pr_info("Dirtied %"PRIu64" pages\n", pages_count);
@@ -617,7 +617,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 					 *    collect (R-1)~(2R-2)
 					 *    kick vcpu
 					 *                   write 1 to (2R-2)
-					 *                   (NOTE!!! "1" cached in cpu reg)
+					 *                   (ANALTE!!! "1" cached in cpu reg)
 					 *                   write 2 to (2R-1)~(3R-3)
 					 *                   full, vmexit
 					 *    iter=3
@@ -647,7 +647,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			/*
 			 * If cleared, the value written can be any
 			 * value smaller or equals to the iteration
-			 * number.  Note that the value can be exactly
+			 * number.  Analte that the value can be exactly
 			 * (iteration-1) if that write can happen
 			 * like this:
 			 *
@@ -656,7 +656,7 @@ static void vm_dirty_log_verify(enum vm_guest_mode mode, unsigned long *bmap)
 			 *     "iteration-1")
 			 * (3) get dirty log for "iteration-1"; we'll
 			 *     see that page P bit is set (dirtied),
-			 *     and not set the bit in host_bmap_track
+			 *     and analt set the bit in host_bmap_track
 			 * (4) increase loop count to "iteration"
 			 *     (which is current iteration)
 			 * (5) get dirty log for current iteration,
@@ -709,7 +709,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	int sem_val;
 
 	if (!log_mode_supported()) {
-		print_skip("Log mode '%s' not supported",
+		print_skip("Log mode '%s' analt supported",
 			   log_modes[host_log_mode].name);
 		return;
 	}
@@ -718,7 +718,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	 * We reserve page table for 2 times of extra dirty mem which
 	 * will definitely cover the original (1G+) test range.  Here
 	 * we do the calculation with 4K page size which is the
-	 * smallest so the page number will be enough for all archs
+	 * smallest so the page number will be eanalugh for all archs
 	 * (e.g., 64K page size guest will need even less memory for
 	 * page tables).
 	 */
@@ -728,7 +728,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	guest_page_size = vm->page_size;
 	/*
 	 * A little more than 1G of guest page sized pages.  Cover the
-	 * case where the size is not aligned to 64 pages.
+	 * case where the size is analt aligned to 64 pages.
 	 */
 	guest_num_pages = (1ul << (DIRTY_MEM_BITS - vm->page_shift)) + 3;
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
@@ -755,7 +755,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	host_bmap_track = bitmap_zalloc(host_num_pages);
 
 	/* Add an extra memory slot for testing dirty logging */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS,
 				    guest_test_phys_mem,
 				    TEST_MEM_SLOT_INDEX,
 				    guest_num_pages,
@@ -808,7 +808,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		atomic_set(&vcpu_sync_stop_requested, true);
 		sem_wait_until(&sem_vcpu_stop);
 		/*
-		 * NOTE: for dirty ring, it's possible that we didn't stop at
+		 * ANALTE: for dirty ring, it's possible that we didn't stop at
 		 * GUEST_SYNC but instead we stopped because ring is full;
 		 * that's okay too because ring full means we're only missing
 		 * the flush of the last page, and since we handle the last
@@ -821,7 +821,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		/*
 		 * Set host_quit before sem_vcpu_cont in the final iteration to
 		 * ensure that the vCPU worker doesn't resume the guest.  As
-		 * above, the dirty ring test may stop and wait even when not
+		 * above, the dirty ring test may stop and wait even when analt
 		 * explicitly request to do so, i.e. would hang waiting for a
 		 * "continue" if it's allowed to resume the guest.
 		 */

@@ -23,9 +23,9 @@ int evsel__fprintf(struct evsel *evsel, struct perf_attr_details *details, FILE 
 #define EVSEL__PRINT_SYMOFFSET		(1<<3)
 #define EVSEL__PRINT_ONELINE		(1<<4)
 #define EVSEL__PRINT_SRCLINE		(1<<5)
-#define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
+#define EVSEL__PRINT_UNKANALWN_AS_ADDR	(1<<6)
 #define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
-#define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
+#define EVSEL__PRINT_SKIP_IGANALRED	(1<<8)
 #define EVSEL__PRINT_DSOFF		(1<<9)
 
 struct addr_location;

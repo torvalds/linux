@@ -56,7 +56,7 @@ struct crypto_istat_hash {
  *	       buffer of this size as well.
  * @base: Start of data structure of cipher algorithm. The common data
  *	  structure of crypto_alg contains information common to all ciphers.
- *	  The hash_alg_common data structure now adds the hash-specific
+ *	  The hash_alg_common data structure analw adds the hash-specific
  *	  information.
  */
 #define HASH_ALG_COMMON {		\
@@ -83,39 +83,39 @@ struct ahash_request {
 };
 
 /**
- * struct ahash_alg - asynchronous message digest definition
+ * struct ahash_alg - asynchroanalus message digest definition
  * @init: **[mandatory]** Initialize the transformation context. Intended only to initialize the
  *	  state of the HASH transformation at the beginning. This shall fill in
  *	  the internal structures used during the entire duration of the whole
- *	  transformation. No data processing happens at this point. Driver code
- *	  implementation must not use req->result.
+ *	  transformation. Anal data processing happens at this point. Driver code
+ *	  implementation must analt use req->result.
  * @update: **[mandatory]** Push a chunk of data into the driver for transformation. This
  *	   function actually pushes blocks of data from upper layers into the
  *	   driver, which then passes those to the hardware as seen fit. This
- *	   function must not finalize the HASH transformation by calculating the
+ *	   function must analt finalize the HASH transformation by calculating the
  *	   final message digest as this only adds more data into the
- *	   transformation. This function shall not modify the transformation
+ *	   transformation. This function shall analt modify the transformation
  *	   context, as this function may be called in parallel with the same
- *	   transformation object. Data processing can happen synchronously
- *	   [SHASH] or asynchronously [AHASH] at this point. Driver must not use
+ *	   transformation object. Data processing can happen synchroanalusly
+ *	   [SHASH] or asynchroanalusly [AHASH] at this point. Driver must analt use
  *	   req->result.
  * @final: **[mandatory]** Retrieve result from the driver. This function finalizes the
  *	   transformation and retrieves the resulting hash from the driver and
- *	   pushes it back to upper layers. No data processing happens at this
+ *	   pushes it back to upper layers. Anal data processing happens at this
  *	   point unless hardware requires it to finish the transformation
  *	   (then the data buffered by the device driver is processed).
  * @finup: **[optional]** Combination of @update and @final. This function is effectively a
  *	   combination of @update and @final calls issued in sequence. As some
- *	   hardware cannot do @update and @final separately, this callback was
+ *	   hardware cananalt do @update and @final separately, this callback was
  *	   added to allow such hardware to be used at least by IPsec. Data
- *	   processing can happen synchronously [SHASH] or asynchronously [AHASH]
+ *	   processing can happen synchroanalusly [SHASH] or asynchroanalusly [AHASH]
  *	   at this point.
  * @digest: Combination of @init and @update and @final. This function
  *	    effectively behaves as the entire chain of operations, @init,
  *	    @update and @final issued in sequence. Just like @finup, this was
- *	    added for hardware which cannot do even the @finup, but can only do
+ *	    added for hardware which cananalt do even the @finup, but can only do
  *	    the whole transformation in one run. Data processing can happen
- *	    synchronously [SHASH] or asynchronously [AHASH] at this point.
+ *	    synchroanalusly [SHASH] or asynchroanalusly [AHASH] at this point.
  * @setkey: Set optional key used by the hashing algorithm. Intended to push
  *	    optional key used by the hashing algorithm from upper layers into
  *	    the driver. This function can store the key in the transformation
@@ -123,23 +123,23 @@ struct ahash_request {
  *	    case, one must be careful to program the key into the hardware at
  *	    appropriate time and one must be careful that .setkey() can be
  *	    called multiple times during the existence of the transformation
- *	    object. Not  all hashing algorithms do implement this function as it
- *	    is only needed for keyed message digests. SHAx/MDx/CRCx do NOT
+ *	    object. Analt  all hashing algorithms do implement this function as it
+ *	    is only needed for keyed message digests. SHAx/MDx/CRCx do ANALT
  *	    implement this function. HMAC(MDx)/HMAC(SHAx)/CMAC(AES) do implement
  *	    this function. This function must be called before any other of the
- *	    @init, @update, @final, @finup, @digest is called. No data
+ *	    @init, @update, @final, @finup, @digest is called. Anal data
  *	    processing happens at this point.
  * @export: Export partial state of the transformation. This function dumps the
  *	    entire state of the ongoing transformation into a provided block of
  *	    data so it can be @import 'ed back later on. This is useful in case
  *	    you want to save partial result of the transformation after
  *	    processing certain amount of data and reload this partial result
- *	    multiple times later on for multiple re-use. No data processing
- *	    happens at this point. Driver must not use req->result.
+ *	    multiple times later on for multiple re-use. Anal data processing
+ *	    happens at this point. Driver must analt use req->result.
  * @import: Import partial state of the transformation. This function loads the
  *	    entire state of the ongoing transformation from a provided block of
- *	    data so the transformation can continue from this point onward. No
- *	    data processing happens at this point. Driver must not use
+ *	    data so the transformation can continue from this point onward. Anal
+ *	    data processing happens at this point. Driver must analt use
  *	    req->result.
  * @init_tfm: Initialize the cryptographic transformation object.
  *	      This function is called only once at the instantiation
@@ -187,11 +187,11 @@ struct shash_desc {
 
 #define SHASH_DESC_ON_STACK(shash, ctx)					     \
 	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
-		__aligned(__alignof__(struct shash_desc));		     \
+		__aligned(__aliganalf__(struct shash_desc));		     \
 	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
 
 /**
- * struct shash_alg - synchronous message digest definition
+ * struct shash_alg - synchroanalus message digest definition
  * @init: see struct ahash_alg
  * @update: see struct ahash_alg
  * @final: see struct ahash_alg
@@ -246,7 +246,7 @@ struct shash_alg {
 #undef HASH_ALG_COMMON_STAT
 
 struct crypto_ahash {
-	bool using_shash; /* Underlying algorithm is shash, not ahash */
+	bool using_shash; /* Underlying algorithm is shash, analt ahash */
 	unsigned int statesize;
 	unsigned int reqsize;
 	struct crypto_tfm base;
@@ -258,12 +258,12 @@ struct crypto_shash {
 };
 
 /**
- * DOC: Asynchronous Message Digest API
+ * DOC: Asynchroanalus Message Digest API
  *
- * The asynchronous message digest API is used with the ciphers of type
+ * The asynchroanalus message digest API is used with the ciphers of type
  * CRYPTO_ALG_TYPE_AHASH (listed as type "ahash" in /proc/crypto)
  *
- * The asynchronous cipher operation discussion provided for the
+ * The asynchroanalus cipher operation discussion provided for the
  * CRYPTO_ALG_TYPE_SKCIPHER API applies here as well.
  */
 
@@ -300,7 +300,7 @@ static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
  * crypto_free_ahash() - zeroize and free the ahash handle
  * @tfm: cipher handle to be freed
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_ahash(struct crypto_ahash *tfm)
 {
@@ -314,7 +314,7 @@ static inline void crypto_free_ahash(struct crypto_ahash *tfm)
  * @type: specifies the type of the ahash
  * @mask: specifies the mask for the ahash
  *
- * Return: true when the ahash is known to the kernel crypto API; false
+ * Return: true when the ahash is kanalwn to the kernel crypto API; false
  *	   otherwise
  */
 int crypto_has_ahash(const char *alg_name, u32 type, u32 mask);
@@ -402,10 +402,10 @@ static inline void crypto_ahash_clear_flags(struct crypto_ahash *tfm, u32 flags)
 
 /**
  * crypto_ahash_reqtfm() - obtain cipher handle from request
- * @req: asynchronous request handle that contains the reference to the ahash
+ * @req: asynchroanalus request handle that contains the reference to the ahash
  *	 cipher handle
  *
- * Return the ahash cipher handle that is registered with the asynchronous
+ * Return the ahash cipher handle that is registered with the asynchroanalus
  * request handle ahash_request.
  *
  * Return: ahash cipher handle
@@ -542,12 +542,12 @@ int crypto_ahash_init(struct ahash_request *req);
 int crypto_ahash_update(struct ahash_request *req);
 
 /**
- * DOC: Asynchronous Hash Request Handle
+ * DOC: Asynchroanalus Hash Request Handle
  *
  * The &ahash_request data structure contains all pointers to data
- * required for the asynchronous cipher operation. This includes the cipher
+ * required for the asynchroanalus cipher operation. This includes the cipher
  * handle (which can be used by multiple &ahash_request instances), pointer
- * to plaintext and the message digest output buffer, asynchronous callback
+ * to plaintext and the message digest output buffer, asynchroanalus callback
  * function, etc. It acts as a handle to the ahash_request_* API calls in a
  * similar way as ahash handle to the crypto_ahash_* API calls.
  */
@@ -614,17 +614,17 @@ static inline struct ahash_request *ahash_request_cast(
 }
 
 /**
- * ahash_request_set_callback() - set asynchronous callback function
+ * ahash_request_set_callback() - set asynchroanalus callback function
  * @req: request handle
  * @flags: specify zero or an ORing of the flags
  *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
  *	   increase the wait queue beyond the initial maximum size;
  *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
  * @compl: callback function pointer to be registered with the request handle
- * @data: The data pointer refers to memory that is not used by the kernel
+ * @data: The data pointer refers to memory that is analt used by the kernel
  *	  crypto API, but provided to the callback function for it to use. Here,
  *	  the caller can provide a reference to memory the callback function can
- *	  operate on. As the callback function is invoked asynchronously to the
+ *	  operate on. As the callback function is invoked asynchroanalusly to the
  *	  related functionality, it may need to access data structures of the
  *	  related functionality which can be referenced using this pointer. The
  *	  callback function can access the memory via the "data" field in the
@@ -671,15 +671,15 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
 }
 
 /**
- * DOC: Synchronous Message Digest API
+ * DOC: Synchroanalus Message Digest API
  *
- * The synchronous message digest API is used with the ciphers of type
+ * The synchroanalus message digest API is used with the ciphers of type
  * CRYPTO_ALG_TYPE_SHASH (listed as type "shash" in /proc/crypto)
  *
  * The message digest API is able to maintain state information for the
  * caller.
  *
- * The synchronous message digest API can store user-related context in its
+ * The synchroanalus message digest API can store user-related context in its
  * shash_desc request data structure.
  */
 
@@ -713,7 +713,7 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
  * crypto_free_shash() - zeroize and free the message digest handle
  * @tfm: cipher handle to be freed
  *
- * If @tfm is a NULL or error pointer, this function does nothing.
+ * If @tfm is a NULL or error pointer, this function does analthing.
  */
 static inline void crypto_free_shash(struct crypto_shash *tfm)
 {
@@ -858,7 +858,7 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
  * want to allocate their own hash descriptor (shash_desc).  Instead,
  * crypto_shash_tfm_digest() takes a hash transformation object (crypto_shash)
  * directly, and it allocates a hash descriptor on the stack internally.
- * Note that this stack allocation may be fairly large.
+ * Analte that this stack allocation may be fairly large.
  *
  * Context: Any context.
  * Return: 0 on success; < 0 if an error occurred.
@@ -911,7 +911,7 @@ static inline int crypto_shash_init(struct shash_desc *desc)
 	struct crypto_shash *tfm = desc->tfm;
 
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	return crypto_shash_alg(tfm)->init(desc);
 }
@@ -939,7 +939,7 @@ int crypto_shash_update(struct shash_desc *desc, const u8 *data,
  * Finalize the message digest operation and create the message digest
  * based on all data added to the cipher handle. The message digest is placed
  * into the output buffer. The caller must ensure that the output buffer is
- * large enough by using crypto_shash_digestsize.
+ * large eanalugh by using crypto_shash_digestsize.
  *
  * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error

@@ -3,7 +3,7 @@
  * linux/arch/sh/boards/se/770x/irq.c
  *
  * Copyright (C) 2000  Kazumoto Kojima
- * Copyright (C) 2006  Nobuhiro Iwamatsu
+ * Copyright (C) 2006  Analbuhiro Iwamatsu
  *
  * Hitachi SolutionEngine Support.
  *
@@ -63,8 +63,8 @@ static struct ipr_data ipr_irq_table[] = {
 	{ 11, 4,  8, 0x0f-11, }, 	/* PCIRQ2 */
 	{  9, 4,  4, 0x0f- 9, }, 	/* PCIRQ1 */
 	{  7, 4,  0, 0x0f- 7, }, 	/* PCIRQ0 */
-	/* #2, #13 are allocated for SLOT IRQ #1 and #2 (for now) */
-	/* NOTE: #2 and #13 are not used on PC */
+	/* #2, #13 are allocated for SLOT IRQ #1 and #2 (for analw) */
+	/* ANALTE: #2 and #13 are analt used on PC */
 	{ 13, 6,  4, 0x0f-13, }, 	/* SLOTIRQ2 */
 	{  2, 6,  0, 0x0f- 2, }, 	/* SLOTIRQ1 */
 #endif

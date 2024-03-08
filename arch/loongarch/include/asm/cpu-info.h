@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_CPU_INFO_H
 #define __ASM_CPU_INFO_H
@@ -76,22 +76,22 @@ extern const char *__cpu_full_name[];
 #define cpu_full_name_string()	__cpu_full_name[raw_smp_processor_id()]
 
 struct seq_file;
-struct notifier_block;
+struct analtifier_block;
 
-extern int register_proc_cpuinfo_notifier(struct notifier_block *nb);
-extern int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v);
+extern int register_proc_cpuinfo_analtifier(struct analtifier_block *nb);
+extern int proc_cpuinfo_analtifier_call_chain(unsigned long val, void *v);
 
-#define proc_cpuinfo_notifier(fn, pri)					\
+#define proc_cpuinfo_analtifier(fn, pri)					\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct analtifier_block fn##_nb = {			\
+		.analtifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_proc_cpuinfo_notifier(&fn##_nb);			\
+	register_proc_cpuinfo_analtifier(&fn##_nb);			\
 })
 
-struct proc_cpuinfo_notifier_args {
+struct proc_cpuinfo_analtifier_args {
 	struct seq_file *m;
 	unsigned long n;
 };

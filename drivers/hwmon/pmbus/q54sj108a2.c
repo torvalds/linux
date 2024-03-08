@@ -261,7 +261,7 @@ static ssize_t q54sj108a2_debugfs_write(struct file *file, const char __user *bu
 }
 
 static const struct file_operations q54sj108a2_fops = {
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 	.read = q54sj108a2_debugfs_read,
 	.write = q54sj108a2_debugfs_write,
 	.open = simple_open,
@@ -288,9 +288,9 @@ static int q54sj108a2_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA |
 				     I2C_FUNC_SMBUS_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		chip_id = (enum chips)(unsigned long)of_device_get_match_data(dev);
 	else
 		chip_id = i2c_match_id(q54sj108a2_id, client)->driver_data;
@@ -303,7 +303,7 @@ static int q54sj108a2_probe(struct i2c_client *client)
 	if (ret != 6 || strncmp(buf, "DELTA", 5)) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer ID '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -317,7 +317,7 @@ static int q54sj108a2_probe(struct i2c_client *client)
 	if (ret != 14 || strncmp(buf, "Q54SJ108A2", 10)) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Model '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_REVISION, buf);
@@ -328,7 +328,7 @@ static int q54sj108a2_probe(struct i2c_client *client)
 	if (ret != 4 || buf[0] != 'S') {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Revision '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = pmbus_do_probe(client, &q54sj108a2_info[chip_id]);

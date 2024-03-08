@@ -44,7 +44,7 @@ properties:
   port:
     $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node to link the SBU mux to a TypeC controller for the purpose of
+      A port analde to link the SBU mux to a TypeC controller for the purpose of
       handling altmode muxing and orientation switching.
 
 required:

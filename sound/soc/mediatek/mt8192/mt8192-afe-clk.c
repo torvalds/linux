@@ -619,13 +619,13 @@ void mt8192_mck_disable(struct mtk_base_afe *afe, int mck_id)
 int mt8192_init_clock(struct mtk_base_afe *afe)
 {
 	struct mt8192_afe_private *afe_priv = afe->platform_priv;
-	struct device_node *of_node = afe->dev->of_node;
+	struct device_analde *of_analde = afe->dev->of_analde;
 	int i = 0;
 
 	afe_priv->clk = devm_kcalloc(afe->dev, CLK_NUM, sizeof(*afe_priv->clk),
 				     GFP_KERNEL);
 	if (!afe_priv->clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < CLK_NUM; i++) {
 		afe_priv->clk[i] = devm_clk_get(afe->dev, aud_clks[i]);
@@ -637,26 +637,26 @@ int mt8192_init_clock(struct mtk_base_afe *afe)
 		}
 	}
 
-	afe_priv->apmixedsys = syscon_regmap_lookup_by_phandle(of_node,
+	afe_priv->apmixedsys = syscon_regmap_lookup_by_phandle(of_analde,
 							       "mediatek,apmixedsys");
 	if (IS_ERR(afe_priv->apmixedsys)) {
-		dev_err(afe->dev, "%s() Cannot find apmixedsys controller: %ld\n",
+		dev_err(afe->dev, "%s() Cananalt find apmixedsys controller: %ld\n",
 			__func__, PTR_ERR(afe_priv->apmixedsys));
 		return PTR_ERR(afe_priv->apmixedsys);
 	}
 
-	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(of_node,
+	afe_priv->topckgen = syscon_regmap_lookup_by_phandle(of_analde,
 							     "mediatek,topckgen");
 	if (IS_ERR(afe_priv->topckgen)) {
-		dev_err(afe->dev, "%s() Cannot find topckgen controller: %ld\n",
+		dev_err(afe->dev, "%s() Cananalt find topckgen controller: %ld\n",
 			__func__, PTR_ERR(afe_priv->topckgen));
 		return PTR_ERR(afe_priv->topckgen);
 	}
 
-	afe_priv->infracfg = syscon_regmap_lookup_by_phandle(of_node,
+	afe_priv->infracfg = syscon_regmap_lookup_by_phandle(of_analde,
 							     "mediatek,infracfg");
 	if (IS_ERR(afe_priv->infracfg)) {
-		dev_err(afe->dev, "%s() Cannot find infracfg: %ld\n",
+		dev_err(afe->dev, "%s() Cananalt find infracfg: %ld\n",
 			__func__, PTR_ERR(afe_priv->infracfg));
 		return PTR_ERR(afe_priv->infracfg);
 	}

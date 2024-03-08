@@ -92,19 +92,19 @@ static int da9052_led_probe(struct platform_device *pdev)
 	struct da9052 *da9052;
 	struct led_platform_data *pled;
 	struct da9052_led *led = NULL;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	int i;
 
 	da9052 = dev_get_drvdata(pdev->dev.parent);
 	pdata = dev_get_platdata(da9052->dev);
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "No platform data\n");
+		dev_err(&pdev->dev, "Anal platform data\n");
 		goto err;
 	}
 
 	pled = pdata->pled;
 	if (pled == NULL) {
-		dev_err(&pdev->dev, "No platform data for LED\n");
+		dev_err(&pdev->dev, "Anal platform data for LED\n");
 		goto err;
 	}
 
@@ -112,7 +112,7 @@ static int da9052_led_probe(struct platform_device *pdev)
 			   pled->num_leds, sizeof(struct da9052_led),
 			   GFP_KERNEL);
 	if (!led) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto err;
 	}
 

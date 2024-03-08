@@ -210,7 +210,7 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	data[6] = bin2bcd(tim->tm_year);
 
 	/* Always write the date and month using a separate Write command.
-	 * This is a workaround for a know silicon issue that some combinations
+	 * This is a workaround for a kanalw silicon issue that some combinations
 	 * of date and month values may result in the date being reset to 1.
 	 */
 	ret = mcp795_rtcc_write(dev, MCP795_REG_SECONDS, data, 5);
@@ -222,7 +222,7 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 		return ret;
 
 	/* Start back RTC and restore previous value of EXTOSC bit.
-	 * There is no need to clear EXTOSC bit when the previous value was 0
+	 * There is anal need to clear EXTOSC bit when the previous value was 0
 	 * because it was already cleared when stopping the RTC oscillator.
 	 */
 	ret = mcp795_start_oscillator(dev, extosc ? &extosc : NULL);
@@ -259,23 +259,23 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 
 static int mcp795_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct rtc_time now_tm;
-	time64_t now;
+	struct rtc_time analw_tm;
+	time64_t analw;
 	time64_t later;
 	u8 tmp[6];
 	int ret;
 
 	/* Read current time from RTC hardware */
-	ret = mcp795_read_time(dev, &now_tm);
+	ret = mcp795_read_time(dev, &analw_tm);
 	if (ret)
 		return ret;
 	/* Get the number of seconds since 1970 */
-	now = rtc_tm_to_time64(&now_tm);
+	analw = rtc_tm_to_time64(&analw_tm);
 	later = rtc_tm_to_time64(&alm->time);
-	if (later <= now)
+	if (later <= analw)
 		return -EINVAL;
 	/* make sure alarm fires within the next one year */
-	if ((later - now) >=
+	if ((later - analw) >=
 		(SEC_PER_DAY * (365 + is_leap_year(alm->time.tm_year))))
 		return -EDOM;
 	/* disable alarm */
@@ -355,7 +355,7 @@ static irqreturn_t mcp795_irq(int irq, void *data)
 	rtc_lock(rtc);
 
 	/* Disable alarm.
-	 * There is no need to clear ALM0IF (Alarm 0 Interrupt Flag) bit,
+	 * There is anal need to clear ALM0IF (Alarm 0 Interrupt Flag) bit,
 	 * because it is done every time when alarm is enabled.
 	 */
 	ret = mcp795_update_alarm(&spi->dev, false);

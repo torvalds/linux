@@ -217,7 +217,7 @@ static void dump_prot(struct pg_state *st)
 				sprintf(s, pte_bits[i].set, val >> 8);
 #ifdef CONFIG_64BIT
 			else if (pte_bits[i].mask == _PAGE_MTMASK_SVPBMT) {
-				if (val == _PAGE_NOCACHE_SVPBMT)
+				if (val == _PAGE_ANALCACHE_SVPBMT)
 					sprintf(s, pte_bits[i].set, "NC");
 				else if (val == _PAGE_IO_SVPBMT)
 					sprintf(s, pte_bits[i].set, "IO");
@@ -261,7 +261,7 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 			   pg_level[st->level].name);
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void analte_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -276,7 +276,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct ptdump_state *pt_st, unsigned long addr,
+static void analte_page(struct ptdump_state *pt_st, unsigned long addr,
 		      int level, u64 val)
 {
 	struct pg_state *st = container_of(pt_st, struct pg_state, ptdump);
@@ -296,7 +296,7 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr,
 	} else if (prot != st->current_prot ||
 		   level != st->level || addr >= st->marker[1].start_address) {
 		if (st->current_prot) {
-			note_prot_wx(st, addr);
+			analte_prot_wx(st, addr);
 			dump_addr(st, addr);
 			dump_prot(st);
 			pt_dump_seq_puts(st->seq, "\n");
@@ -325,7 +325,7 @@ static void ptdump_walk(struct seq_file *s, struct ptd_mm_info *pinfo)
 		.marker = pinfo->markers,
 		.level = -1,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]) {
 				{pinfo->base_addr, pinfo->end},
 				{0, 0}
@@ -347,7 +347,7 @@ void ptdump_check_wx(void)
 		.level = -1,
 		.check_wx = true,
 		.ptdump = {
-			.note_page = note_page,
+			.analte_page = analte_page,
 			.range = (struct ptdump_range[]) {
 				{KERN_VIRT_START, ULONG_MAX},
 				{0, 0}
@@ -361,7 +361,7 @@ void ptdump_check_wx(void)
 		pr_warn("Checked W+X mappings: failed, %lu W+X pages found\n",
 			st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, anal W+X pages found\n");
 }
 
 static int ptdump_show(struct seq_file *m, void *v)

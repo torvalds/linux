@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/string.h>
 #include <bcm47xx.h>
@@ -219,7 +219,7 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_board_type_rev[] __initconst 
  */
 static const
 struct bcm47xx_board_type_list2 bcm47xx_board_list_key_value[] __initconst = {
-	{{BCM47XX_BOARD_ASUS_WL700GE, "Asus WL700"}, "model_no", "WL700"},
+	{{BCM47XX_BOARD_ASUS_WL700GE, "Asus WL700"}, "model_anal", "WL700"},
 	{{BCM47XX_BOARD_LINKSYS_WRT300N_V1, "Linksys WRT300N V1"}, "router_name", "WRT300N"},
 	{{BCM47XX_BOARD_LINKSYS_WRT600N_V11, "Linksys WRT600N V1.1"}, "Model_Name", "WRT600N"},
 	{{BCM47XX_BOARD_LINKSYS_WRTSL54GS, "Linksys WRTSL54GS"}, "machine_name", "WRTSL54GS"},
@@ -227,11 +227,11 @@ struct bcm47xx_board_type_list2 bcm47xx_board_list_key_value[] __initconst = {
 };
 
 static const
-struct bcm47xx_board_type bcm47xx_board_unknown[] __initconst = {
-	{BCM47XX_BOARD_UNKNOWN, "Unknown Board"},
+struct bcm47xx_board_type bcm47xx_board_unkanalwn[] __initconst = {
+	{BCM47XX_BOARD_UNKANALWN, "Unkanalwn Board"},
 };
 
-static struct bcm47xx_board_store bcm47xx_board = {BCM47XX_BOARD_NO, "Unknown Board"};
+static struct bcm47xx_board_store bcm47xx_board = {BCM47XX_BOARD_ANAL, "Unkanalwn Board"};
 
 static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 {
@@ -317,7 +317,7 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 
 	if (bcm47xx_nvram_getenv("boardtype", buf1, sizeof(buf1)) >= 0 &&
 	    bcm47xx_nvram_getenv("boardrev", buf2, sizeof(buf2)) >= 0 &&
-	    bcm47xx_nvram_getenv("boardnum", buf3, sizeof(buf3)) ==  -ENOENT) {
+	    bcm47xx_nvram_getenv("boardnum", buf3, sizeof(buf3)) ==  -EANALENT) {
 		for (e2 = bcm47xx_board_list_board_type_rev; e2->value1; e2++) {
 			if (!strcmp(buf1, e2->value1) &&
 			    !strcmp(buf2, e2->value2))
@@ -332,7 +332,7 @@ static __init const struct bcm47xx_board_type *bcm47xx_board_get_nvram(void)
 		}
 	}
 
-	return bcm47xx_board_unknown;
+	return bcm47xx_board_unkanalwn;
 }
 
 void __init bcm47xx_board_detect(void)
@@ -341,13 +341,13 @@ void __init bcm47xx_board_detect(void)
 	char buf[10];
 	const struct bcm47xx_board_type *board_detected;
 
-	if (bcm47xx_board.board != BCM47XX_BOARD_NO)
+	if (bcm47xx_board.board != BCM47XX_BOARD_ANAL)
 		return;
 
 	/* check if the nvram is available */
 	err = bcm47xx_nvram_getenv("boardtype", buf, sizeof(buf));
 
-	/* init of nvram failed, probably too early now */
+	/* init of nvram failed, probably too early analw */
 	if (err == -ENXIO)
 		return;
 

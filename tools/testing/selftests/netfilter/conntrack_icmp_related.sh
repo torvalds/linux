@@ -20,13 +20,13 @@ ret=0
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -62,11 +62,11 @@ check_counter()
 	return $lret
 }
 
-check_unknown()
+check_unkanalwn()
 {
 	expect="packets 0 bytes 0"
 	for n in nsclient1 nsclient2 nsrouter1 nsrouter2; do
-		check_counter $n "unknown" "$expect"
+		check_counter $n "unkanalwn" "$expect"
 		if [ $? -ne 0 ] ;then
 			return 1
 		fi
@@ -131,14 +131,14 @@ done
 for netns in nsrouter1 nsrouter2; do
 ip netns exec $netns nft -f - <<EOF
 table inet filter {
-	counter unknown { }
+	counter unkanalwn { }
 	counter related { }
 	chain forward {
 		type filter hook forward priority 0; policy accept;
 		meta l4proto icmpv6 icmpv6 type "packet-too-big" ct state "related" counter name "related" accept
 		meta l4proto icmp icmp type "destination-unreachable" ct state "related" counter name "related" accept
 		meta l4proto { icmp, icmpv6 } ct state new,established accept
-		counter name "unknown" drop
+		counter name "unkanalwn" drop
 	}
 }
 EOF
@@ -146,7 +146,7 @@ done
 
 ip netns exec nsclient1 nft -f - <<EOF
 table inet filter {
-	counter unknown { }
+	counter unkanalwn { }
 	counter related { }
 	counter redir4 { }
 	counter redir6 { }
@@ -159,14 +159,14 @@ table inet filter {
 		meta l4proto { icmp, icmpv6 } ct state established,untracked accept
 		meta l4proto { icmp, icmpv6 } ct state "related" counter name "related" accept
 
-		counter name "unknown" drop
+		counter name "unkanalwn" drop
 	}
 }
 EOF
 
 ip netns exec nsclient2 nft -f - <<EOF
 table inet filter {
-	counter unknown { }
+	counter unkanalwn { }
 	counter new { }
 	counter established { }
 
@@ -176,7 +176,7 @@ table inet filter {
 
 		meta l4proto { icmp, icmpv6 } ct state "new" counter name "new" accept
 		meta l4proto { icmp, icmpv6 } ct state "established" counter name "established" accept
-		counter name "unknown" drop
+		counter name "unkanalwn" drop
 	}
 	chain output {
 		type filter hook output priority 0; policy accept;
@@ -184,7 +184,7 @@ table inet filter {
 
 		meta l4proto { icmp, icmpv6 } ct state "new" counter name "new"
 		meta l4proto { icmp, icmpv6 } ct state "established" counter name "established"
-		counter name "unknown" drop
+		counter name "unkanalwn" drop
 	}
 }
 EOF
@@ -225,7 +225,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-check_unknown
+check_unkanalwn
 if [ $? -ne 0 ]; then
 	ret=1
 fi

@@ -13,13 +13,13 @@
 #include "sof-audio.h"
 #include "sof-priv.h"
 
-static struct snd_soc_card sof_nocodec_card = {
-	.name = "nocodec", /* the sof- prefix is added by the core */
-	.topology_shortname = "sof-nocodec",
+static struct snd_soc_card sof_analcodec_card = {
+	.name = "analcodec", /* the sof- prefix is added by the core */
+	.topology_shortname = "sof-analcodec",
 	.owner = THIS_MODULE
 };
 
-static int sof_nocodec_bes_setup(struct device *dev,
+static int sof_analcodec_bes_setup(struct device *dev,
 				 struct snd_soc_dai_driver *drv,
 				 struct snd_soc_dai_link *links,
 				 int link_num, struct snd_soc_card *card)
@@ -34,12 +34,12 @@ static int sof_nocodec_bes_setup(struct device *dev,
 	for (i = 0; i < link_num; i++) {
 		dlc = devm_kcalloc(dev, 2, sizeof(*dlc), GFP_KERNEL);
 		if (!dlc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		links[i].name = devm_kasprintf(dev, GFP_KERNEL,
-					       "NoCodec-%d", i);
+					       "AnalCodec-%d", i);
 		if (!links[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		links[i].stream_name = links[i].name;
 
@@ -52,7 +52,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 		links[i].num_platforms = 1;
 
 		links[i].id = i;
-		links[i].no_pcm = 1;
+		links[i].anal_pcm = 1;
 		links[i].cpus->dai_name = drv[i].name;
 		links[i].platforms->name = dev_name(dev->parent);
 		if (drv[i].playback.channels_min)
@@ -69,7 +69,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 	return 0;
 }
 
-static int sof_nocodec_setup(struct device *dev,
+static int sof_analcodec_setup(struct device *dev,
 			     u32 num_dai_drivers,
 			     struct snd_soc_dai_driver *dai_drivers)
 {
@@ -78,14 +78,14 @@ static int sof_nocodec_setup(struct device *dev,
 	/* create dummy BE dai_links */
 	links = devm_kcalloc(dev, num_dai_drivers, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
 	if (!links)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	return sof_nocodec_bes_setup(dev, dai_drivers, links, num_dai_drivers, &sof_nocodec_card);
+	return sof_analcodec_bes_setup(dev, dai_drivers, links, num_dai_drivers, &sof_analcodec_card);
 }
 
-static int sof_nocodec_probe(struct platform_device *pdev)
+static int sof_analcodec_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &sof_nocodec_card;
+	struct snd_soc_card *card = &sof_analcodec_card;
 	struct snd_soc_acpi_mach *mach;
 	int ret;
 
@@ -93,7 +93,7 @@ static int sof_nocodec_probe(struct platform_device *pdev)
 	card->topology_shortname_created = true;
 	mach = pdev->dev.platform_data;
 
-	ret = sof_nocodec_setup(card->dev, mach->mach_params.num_dai_drivers,
+	ret = sof_analcodec_setup(card->dev, mach->mach_params.num_dai_drivers,
 				mach->mach_params.dai_drivers);
 	if (ret < 0)
 		return ret;
@@ -101,16 +101,16 @@ static int sof_nocodec_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static struct platform_driver sof_nocodec_audio = {
-	.probe = sof_nocodec_probe,
+static struct platform_driver sof_analcodec_audio = {
+	.probe = sof_analcodec_probe,
 	.driver = {
-		.name = "sof-nocodec",
+		.name = "sof-analcodec",
 		.pm = &snd_soc_pm_ops,
 	},
 };
-module_platform_driver(sof_nocodec_audio)
+module_platform_driver(sof_analcodec_audio)
 
-MODULE_DESCRIPTION("ASoC sof nocodec");
+MODULE_DESCRIPTION("ASoC sof analcodec");
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_ALIAS("platform:sof-nocodec");
+MODULE_ALIAS("platform:sof-analcodec");

@@ -11,7 +11,7 @@
 #include "intel_uc_fw.h"
 #include "intel_huc_fw.h"
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/hrtimer.h>
 
 struct bus_type;
@@ -43,7 +43,7 @@ struct intel_huc {
 	struct {
 		struct i915_sw_fence fence;
 		struct hrtimer timer;
-		struct notifier_block nb;
+		struct analtifier_block nb;
 		enum intel_huc_delayed_load_status status;
 	} delayed_load;
 
@@ -66,8 +66,8 @@ bool intel_huc_is_authenticated(struct intel_huc *huc,
 int intel_huc_check_status(struct intel_huc *huc);
 void intel_huc_update_auth_status(struct intel_huc *huc);
 
-void intel_huc_register_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus);
-void intel_huc_unregister_gsc_notifier(struct intel_huc *huc, const struct bus_type *bus);
+void intel_huc_register_gsc_analtifier(struct intel_huc *huc, const struct bus_type *bus);
+void intel_huc_unregister_gsc_analtifier(struct intel_huc *huc, const struct bus_type *bus);
 
 static inline bool intel_huc_is_supported(struct intel_huc *huc)
 {

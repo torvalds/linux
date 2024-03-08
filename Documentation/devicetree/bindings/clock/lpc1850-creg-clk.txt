@@ -20,9 +20,9 @@ Required properties:
 - clocks:
 	Shall contain a phandle to the fixed 32 kHz crystal.
 
-The creg-clk node must be a child of the creg syscon node.
+The creg-clk analde must be a child of the creg syscon analde.
 
-The following clocks are available from the clock node.
+The following clocks are available from the clock analde.
 
 Clock ID	Name
    0		 1 kHz clock

@@ -84,33 +84,33 @@ static void sd_stopN(struct gspca_dev *gspca_dev);
 
 
 static const struct v4l2_pix_format ov772x_mode[] = {
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_ANALNE,
 	 .bytesperline = 320 * 2,
 	 .sizeimage = 320 * 240 * 2,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 1},
-	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640 * 2,
 	 .sizeimage = 640 * 480 * 2,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 0},
-	{320, 240, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_ANALNE,
 	 .bytesperline = 320,
 	 .sizeimage = 320 * 240,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 1},
-	{640, 480, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_ANALNE,
 	 .bytesperline = 640,
 	 .sizeimage = 640 * 480,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 0},
 };
 static const struct v4l2_pix_format ov767x_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
@@ -306,7 +306,7 @@ static const u8 sensor_init_767x[][2] = {
 	{0x3d, 0xc2},
 	{0x4b, 0x09},
 	{0xc9, 0x60},
-	{0x41, 0x38},	/* jfm: auto sharpness + auto de-noise  */
+	{0x41, 0x38},	/* jfm: auto sharpness + auto de-analise  */
 	{0x56, 0x40},
 	{0x34, 0x11},
 	{0x3b, 0xc2},
@@ -544,7 +544,7 @@ static const u8 sensor_init_772x[][2] = {
 	{ 0x14, 0x41 },
 	{ 0x0e, 0xcd },
 	{ 0xac, 0xbf },
-	{ 0x8e, 0x00 },		/* De-noise threshold */
+	{ 0x8e, 0x00 },		/* De-analise threshold */
 };
 static const u8 bridge_start_vga_yuyv_772x[][2] = {
 	{0x88, 0x00},
@@ -871,7 +871,7 @@ static void sethue(struct gspca_dev *gspca_dev, s32 val)
 		s16 huecos;
 
 		/* According to the datasheet the registers expect HUESIN and
-		 * HUECOS to be the result of the trigonometric functions,
+		 * HUECOS to be the result of the trigoanalmetric functions,
 		 * scaled by 0x80.
 		 *
 		 * The 0x7fff here represents the maximum absolute value
@@ -1061,8 +1061,8 @@ static void setaec(struct gspca_dev *gspca_dev, s32 val)
 
 static void setsharpness(struct gspca_dev *gspca_dev, s32 val)
 {
-	sccb_reg_write(gspca_dev, 0x91, val);	/* Auto de-noise threshold */
-	sccb_reg_write(gspca_dev, 0x8e, val);	/* De-noise threshold */
+	sccb_reg_write(gspca_dev, 0x91, val);	/* Auto de-analise threshold */
+	sccb_reg_write(gspca_dev, 0x8e, val);	/* De-analise threshold */
 }
 
 static void sethvflip(struct gspca_dev *gspca_dev, s32 hflip, s32 vflip)
@@ -1296,7 +1296,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_POWER_LINE_FREQUENCY_DISABLED);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -1484,7 +1484,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Extract PTS and FID */
 		if (!(data[1] & UVC_STREAM_PTS)) {
-			gspca_dbg(gspca_dev, D_PACK, "PTS not present\n");
+			gspca_dbg(gspca_dev, D_PACK, "PTS analt present\n");
 			goto discard;
 		}
 		this_pts = (data[5] << 24) | (data[4] << 16)
@@ -1540,7 +1540,7 @@ static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	tpf->numerator = 1;
-	tpf->denominator = sd->frame_rate;
+	tpf->deanalminator = sd->frame_rate;
 }
 
 /* set stream parameters (framerate) */
@@ -1551,17 +1551,17 @@ static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
+	if (tpf->numerator == 0 || tpf->deanalminator == 0)
 		sd->frame_rate = DEFAULT_FRAME_RATE;
 	else
-		sd->frame_rate = tpf->denominator / tpf->numerator;
+		sd->frame_rate = tpf->deanalminator / tpf->numerator;
 
 	if (gspca_dev->streaming)
 		set_frame_rate(gspca_dev);
 
 	/* Return the actual framerate */
 	tpf->numerator = 1;
-	tpf->denominator = sd->frame_rate;
+	tpf->deanalminator = sd->frame_rate;
 }
 
 /* sub-driver description */

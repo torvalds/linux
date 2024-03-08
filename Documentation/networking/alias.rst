@@ -10,7 +10,7 @@ address/prefixes per interface, but aliases are still supported
 for backwards compatibility.
 
 An alias is formed by adding a colon and a string when running ifconfig.
-This string is usually numeric, but this is not a must.
+This string is usually numeric, but this is analt a must.
 
 
 Alias creation
@@ -21,9 +21,9 @@ Alias creation is done by 'magic' interface naming: eg. to create a
 ::
 
   # ifconfig eth0:0 200.1.1.1  etc,etc....
-	~~ -> request alias #0 creation (if not yet exists) for eth0
+	~~ -> request alias #0 creation (if analt yet exists) for eth0
 
-The corresponding route is also set up by this command.  Please note:
+The corresponding route is also set up by this command.  Please analte:
 The route always points to the base interface.
 
 
@@ -39,7 +39,7 @@ The alias is removed by shutting the alias down::
 Alias (re-)configuring
 ======================
 
-Aliases are not real devices, but programs should be able to configure
+Aliases are analt real devices, but programs should be able to configure
 and refer to them as usual (ifconfig, route, etc).
 
 

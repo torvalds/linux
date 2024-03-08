@@ -56,7 +56,7 @@ static int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
 
 	msg = ieee802154_nl_create(0, IEEE802154_START_CONF);
 	if (!msg)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name) ||
 	    nla_put_u32(msg, IEEE802154_ATTR_DEV_INDEX, dev->ifindex) ||
@@ -68,7 +68,7 @@ static int ieee802154_nl_start_confirm(struct net_device *dev, u8 status)
 
 nla_put_failure:
 	nlmsg_free(msg);
-	return -ENOBUFS;
+	return -EANALBUFS;
 }
 
 static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
@@ -175,7 +175,7 @@ int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	struct ieee802154_addr addr;
 	u8 page;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_CHANNEL] ||
 	    !info->attrs[IEEE802154_ATTR_COORD_PAN_ID] ||
@@ -186,7 +186,7 @@ int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!ieee802154_mlme_ops(dev)->assoc_req)
 		goto out;
 
@@ -221,7 +221,7 @@ int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if (!info->attrs[IEEE802154_ATTR_STATUS] ||
 	    !info->attrs[IEEE802154_ATTR_DEST_HW_ADDR] ||
@@ -230,7 +230,7 @@ int ieee802154_associate_resp(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!ieee802154_mlme_ops(dev)->assoc_resp)
 		goto out;
 
@@ -254,7 +254,7 @@ int ieee802154_disassociate_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
 	struct ieee802154_addr addr;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 
 	if ((!info->attrs[IEEE802154_ATTR_DEST_HW_ADDR] &&
 	    !info->attrs[IEEE802154_ATTR_DEST_SHORT_ADDR]) ||
@@ -263,7 +263,7 @@ int ieee802154_disassociate_req(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!ieee802154_mlme_ops(dev)->disassoc_req)
 		goto out;
 
@@ -315,13 +315,13 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (netif_running(dev))
 		goto out;
 
 	if (!ieee802154_mlme_ops(dev)->start_req) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -344,7 +344,7 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 		page = 0;
 
 	if (addr.short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST)) {
-		ieee802154_nl_start_confirm(dev, IEEE802154_NO_SHORT_ADDRESS);
+		ieee802154_nl_start_confirm(dev, IEEE802154_ANAL_SHORT_ADDRESS);
 		dev_put(dev);
 		return -EINVAL;
 	}
@@ -367,7 +367,7 @@ out:
 int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net_device *dev;
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	u8 type;
 	u32 channels;
 	u8 duration;
@@ -380,7 +380,7 @@ int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!ieee802154_mlme_ops(dev)->scan_req)
 		goto out;
 
@@ -408,13 +408,13 @@ int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info)
 	 */
 	struct sk_buff *msg;
 	struct net_device *dev = NULL;
-	int rc = -ENOBUFS;
+	int rc = -EANALBUFS;
 
 	pr_debug("%s\n", __func__);
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -473,12 +473,12 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = ieee802154_mlme_ops(dev);
 
 	if (!ops->get_mac_params || !ops->set_mac_params) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -644,7 +644,7 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 {
 	struct sk_buff *msg;
 	struct net_device *dev = NULL;
-	int rc = -ENOBUFS;
+	int rc = -EANALBUFS;
 	struct ieee802154_mlme_ops *ops;
 	void *hdr;
 	struct ieee802154_llsec_params params;
@@ -653,11 +653,11 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = ieee802154_mlme_ops(dev);
 	if (!ops->llsec) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out_dev;
 	}
 
@@ -681,7 +681,7 @@ int ieee802154_llsec_getparams(struct sk_buff *skb, struct genl_info *info)
 	    nla_put_u32(msg, IEEE802154_ATTR_LLSEC_FRAME_COUNTER,
 			be32_to_cpu(params.frame_counter)) ||
 	    ieee802154_llsec_fill_key_id(msg, &params.out_key)) {
-		rc = -ENOBUFS;
+		rc = -EANALBUFS;
 		goto out_free;
 	}
 
@@ -707,7 +707,7 @@ int ieee802154_llsec_setparams(struct sk_buff *skb, struct genl_info *info)
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!info->attrs[IEEE802154_ATTR_LLSEC_ENABLED] &&
 	    !info->attrs[IEEE802154_ATTR_LLSEC_KEY_MODE] &&
@@ -716,7 +716,7 @@ int ieee802154_llsec_setparams(struct sk_buff *skb, struct genl_info *info)
 
 	ops = ieee802154_mlme_ops(dev);
 	if (!ops->llsec) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -819,10 +819,10 @@ ieee802154_nl_llsec_change(struct sk_buff *skb, struct genl_info *info,
 
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!ieee802154_mlme_ops(dev)->llsec)
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	else
 		rc = fn(dev, info);
 

@@ -152,7 +152,7 @@ static int tas571x_reg_write_multiword(struct i2c_client *client,
 
 	buf = kzalloc(send_size, GFP_KERNEL | GFP_DMA);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	buf[0] = reg;
 
 	for (i = 0, p = buf + 1; i < len; i++, p += sizeof(uint32_t))
@@ -185,7 +185,7 @@ static int tas571x_reg_read_multiword(struct i2c_client *client,
 
 	recv_buf = kzalloc(recv_size, GFP_KERNEL | GFP_DMA);
 	if (!recv_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	send_buf = reg;
 
@@ -218,7 +218,7 @@ err_ret:
 /*
  * Integer array controls for setting biquad, mixer, DRC coefficients.
  * According to the datasheet each coefficient is effectively 26bits,
- * i.e. stored as 32bits, where bits [31:26] are ignored.
+ * i.e. stored as 32bits, where bits [31:26] are iganalred.
  * TI's TAS57xx Graphical Development Environment tool however produces
  * coefficients with more than 26 bits. For this reason we allow values
  * in the full 32-bits reange.
@@ -355,7 +355,7 @@ static const struct snd_soc_dai_ops tas571x_dai_ops = {
 	.set_fmt	= tas571x_set_dai_fmt,
 	.hw_params	= tas571x_hw_params,
 	.mute_stream	= tas571x_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 
@@ -402,13 +402,13 @@ static const struct regmap_range tas571x_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table tas571x_write_regs = {
-	.no_ranges =	tas571x_readonly_regs_range,
-	.n_no_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
+	.anal_ranges =	tas571x_readonly_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
 };
 
 static const struct regmap_access_table tas571x_volatile_regs = {
-	.yes_ranges =	tas571x_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
+	.anal_ranges =	tas571x_volatile_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
 
 };
 
@@ -451,8 +451,8 @@ static const struct regmap_range tas5707_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table tas5707_volatile_regs = {
-	.yes_ranges =	tas5707_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(tas5707_volatile_regs_range),
+	.anal_ranges =	tas5707_volatile_regs_range,
+	.n_anal_ranges =	ARRAY_SIZE(tas5707_volatile_regs_range),
 
 };
 
@@ -560,7 +560,7 @@ static const char *const tas5717_supply_names[] = {
 static const DECLARE_TLV_DB_SCALE(tas5717_volume_tlv, -10375, 25, 0);
 
 static const struct snd_kcontrol_new tas5717_controls[] = {
-	/* MVOL LSB is ignored - see comments in tas571x_i2c_probe() */
+	/* MVOL LSB is iganalred - see comments in tas571x_i2c_probe() */
 	SOC_SINGLE_TLV("Master Volume",
 		       TAS571X_MVOL_REG, 1, 0x1ff, 1,
 		       tas5717_volume_tlv),
@@ -584,7 +584,7 @@ static const struct snd_kcontrol_new tas5717_controls[] = {
 
 	/*
 	 * The biquads are named according to the register names.
-	 * Please note that TI's TAS57xx Graphical Development Environment
+	 * Please analte that TI's TAS57xx Graphical Development Environment
 	 * tool names them different.
 	 */
 	BIQUAD_COEFS("CH1 - Biquad 0", TAS5717_CH1_BQ0_REG),
@@ -786,8 +786,8 @@ static const struct tas571x_chip tas5721_chip = {
 };
 
 static const struct snd_soc_dapm_widget tas571x_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("DACL", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DACR", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACL", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACR", NULL, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("OUT_A"),
 	SND_SOC_DAPM_OUTPUT("OUT_B"),
@@ -837,13 +837,13 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	i2c_set_clientdata(client, priv);
 
 	priv->chip = i2c_get_match_data(client);
 
 	priv->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(priv->mclk) && PTR_ERR(priv->mclk) != -ENOENT) {
+	if (IS_ERR(priv->mclk) && PTR_ERR(priv->mclk) != -EANALENT) {
 		dev_err(dev, "Failed to request mclk: %ld\n",
 			PTR_ERR(priv->mclk));
 		return PTR_ERR(priv->mclk);
@@ -908,7 +908,7 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 
 	if (priv->chip->vol_reg_size == 2) {
 		/*
-		 * The master volume defaults to 0x3ff (mute), but we ignore
+		 * The master volume defaults to 0x3ff (mute), but we iganalre
 		 * (zero) the LSB because the hardware step size is 0.125 dB
 		 * and TLV_DB_SCALE_ITEM has a resolution of 0.01 dB.
 		 */

@@ -365,7 +365,7 @@ int br_mrp_parse(struct net_bridge *br, struct net_bridge_port *p,
 	if (p)
 		br = p->br;
 
-	if (br->stp_enabled != BR_NO_STP) {
+	if (br->stp_enabled != BR_ANAL_STP) {
 		NL_SET_ERR_MSG_MOD(extack, "MRP can't be enabled if STP is already enabled");
 		return -EINVAL;
 	}
@@ -449,14 +449,14 @@ int br_mrp_fill_info(struct sk_buff *skb, struct net_bridge *br)
 	struct nlattr *tb, *mrp_tb;
 	struct br_mrp *mrp;
 
-	mrp_tb = nla_nest_start_noflag(skb, IFLA_BRIDGE_MRP);
+	mrp_tb = nla_nest_start_analflag(skb, IFLA_BRIDGE_MRP);
 	if (!mrp_tb)
 		return -EMSGSIZE;
 
 	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list) {
 		struct net_bridge_port *p;
 
-		tb = nla_nest_start_noflag(skb, IFLA_BRIDGE_MRP_INFO);
+		tb = nla_nest_start_analflag(skb, IFLA_BRIDGE_MRP_INFO);
 		if (!tb)
 			goto nla_info_failure;
 
@@ -542,7 +542,7 @@ int br_mrp_ring_port_open(struct net_device *dev, u8 loc)
 	else
 		p->flags &= ~BR_MRP_LOST_CONT;
 
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 
 out:
 	return err;
@@ -564,7 +564,7 @@ int br_mrp_in_port_open(struct net_device *dev, u8 loc)
 	else
 		p->flags &= ~BR_MRP_LOST_IN_CONT;
 
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 
 out:
 	return err;

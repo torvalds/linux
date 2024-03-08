@@ -2,7 +2,7 @@
 //
 // aw88395_lib.h  -- ACF bin parsing and check library file for aw88395
 //
-// Copyright (c) 2022-2023 AWINIC Technology CO., LTD
+// Copyright (c) 2022-2023 AWINIC Techanallogy CO., LTD
 //
 // Author: Bruce zhao <zhaolei@awinic.com>
 //

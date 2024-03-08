@@ -85,7 +85,7 @@ struct iscsi_boot_kobj {
 	/*
 	 * Drivers specific visibility function.
 	 * The function should return if they the attr should be readable
-	 * writable or should not be shown.
+	 * writable or should analt be shown.
 	 *
 	 * The enum of the type. This can be any value of the above
 	 * properties.
@@ -133,7 +133,7 @@ iscsi_boot_create_acpitbl(struct iscsi_boot_kset *boot_kset, int index,
 			  void (*release)(void *data));
 
 struct iscsi_boot_kset *iscsi_boot_create_kset(const char *set_name);
-struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostno);
+struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostanal);
 void iscsi_boot_destroy_kset(struct iscsi_boot_kset *boot_kset);
 
 #endif

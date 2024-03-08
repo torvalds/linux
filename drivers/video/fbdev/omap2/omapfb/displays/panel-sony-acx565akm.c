@@ -2,11 +2,11 @@
 /*
  * Sony ACX565AKM LCD Panel driver
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  *
- * Original Driver Author: Imre Deak <imre.deak@nokia.com>
- * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
- * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
+ * Original Driver Author: Imre Deak <imre.deak@analkia.com>
+ * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@analkia.com>
+ * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -219,7 +219,7 @@ static int panel_enabled(struct panel_drv_data *ddata)
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&ddata->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",
-		enabled ? "" : "not ", disp_status);
+		enabled ? "" : "analt ", disp_status);
 	return enabled;
 }
 
@@ -251,9 +251,9 @@ static int panel_detect(struct panel_drv_data *ddata)
 		ddata->name = "ls041y3";
 		break;
 	default:
-		ddata->name = "unknown";
+		ddata->name = "unkanalwn";
 		dev_err(&ddata->spi->dev, "invalid display ID\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ddata->revision = ddata->display_id[1];
@@ -349,7 +349,7 @@ static int acx565akm_bl_update_status(struct backlight_device *dev)
 	if (ddata->has_bc)
 		acx565akm_set_brightness(ddata, level);
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -361,7 +361,7 @@ static int acx565akm_bl_get_intensity(struct backlight_device *dev)
 	dev_dbg(&dev->dev, "%s\n", __func__);
 
 	if (!ddata->has_bc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev->props.fb_blank == FB_BLANK_UNBLANK &&
 			dev->props.power == FB_BLANK_UNBLANK) {
@@ -406,7 +406,7 @@ static const struct backlight_ops acx565akm_bl_ops = {
 /*--------------------Auto Brightness control via Sysfs---------------------*/
 
 static const char * const cabc_modes[] = {
-	"off",		/* always used when CABC is not supported */
+	"off",		/* always used when CABC is analt supported */
 	"ui",
 	"still-image",
 	"moving-image",
@@ -425,7 +425,7 @@ static ssize_t show_cabc_mode(struct device *dev,
 		mode = 0;
 	else
 		mode = get_cabc_mode(ddata);
-	mode_str = "unknown";
+	mode_str = "unkanalwn";
 	if (mode >= 0 && mode < ARRAY_SIZE(cabc_modes))
 		mode_str = cabc_modes[mode];
 	len = snprintf(buf, PAGE_SIZE, "%s\n", mode_str);
@@ -546,7 +546,7 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 	msleep(50);
 
 	/*
-	 * Note that we appear to activate the reset line here. However
+	 * Analte that we appear to activate the reset line here. However
 	 * existing DTSes specified incorrect polarity for it (active high),
 	 * so in fact this deasserts the reset line.
 	 */
@@ -618,7 +618,7 @@ static int acx565akm_enable(struct omap_dss_device *dssdev)
 	dev_dbg(dssdev->dev, "%s\n", __func__);
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -704,14 +704,14 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
+	if (!spi->dev.of_analde)
+		return -EANALDEV;
 
 	spi->mode = SPI_MODE_3;
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&spi->dev, ddata);
 
@@ -719,7 +719,7 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	mutex_init(&ddata->mutex);
 
-	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&spi->dev, "failed to find video source\n");
@@ -857,6 +857,6 @@ static struct spi_driver acx565akm_driver = {
 
 module_spi_driver(acx565akm_driver);
 
-MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Analkia Corporation");
 MODULE_DESCRIPTION("acx565akm LCD Driver");
 MODULE_LICENSE("GPL");

@@ -11,10 +11,10 @@
  *
  * permission is granted to use, copy, create derivative works and
  * redistribute this software and such derivative works for any purpose,
- * so long as the name of the university of michigan is not used in
+ * so long as the name of the university of michigan is analt used in
  * any advertising or publicity pertaining to the use or distribution
  * of this software without specific, written prior authorization.  if
- * the above copyright notice or any other identification of the
+ * the above copyright analtice or any other identification of the
  * university of michigan is included in any copy of any portion of
  * this software, then the disclaimer below must also be included.
  *
@@ -23,7 +23,7 @@
  * warranty by the university of michigan of any kind, either express
  * or implied, including without limitation the implied warranties of
  * merchantability and fitness for a particular purpose.  the regents
- * of the university of michigan shall not be liable for any damages,
+ * of the university of michigan shall analt be liable for any damages,
  * including special, indirect, incidental, or consequential damages,
  * with respect to any claim arising out or in connection with the use
  * of the software, even if it has been or is hereafter advised of the
@@ -51,7 +51,7 @@ struct pnfs_block_dev;
 
 /*
  * Random upper cap for the uuid length to avoid unbounded allocation.
- * Not actually limited by the protocol.
+ * Analt actually limited by the protocol.
  */
 #define PNFS_BLOCK_UUID_LEN	128
 
@@ -99,7 +99,7 @@ struct pnfs_block_dev_map {
 };
 
 struct pnfs_block_dev {
-	struct nfs4_deviceid_node	node;
+	struct nfs4_deviceid_analde	analde;
 
 	u64				start;
 	u64				len;
@@ -121,10 +121,10 @@ struct pnfs_block_dev {
 /* sector_t fields are all in 512-byte sectors */
 struct pnfs_block_extent {
 	union {
-		struct rb_node	be_node;
+		struct rb_analde	be_analde;
 		struct list_head be_list;
 	};
-	struct nfs4_deviceid_node *be_device;
+	struct nfs4_deviceid_analde *be_device;
 	sector_t	be_f_offset;	/* the starting offset in the file */
 	sector_t	be_length;	/* the size of the extent */
 	sector_t	be_v_offset;	/* the starting offset in the volume */
@@ -172,9 +172,9 @@ struct bl_msg_hdr {
 #define BL_DEVICE_REQUEST_ERR          0x2 /* User level process fails */
 
 /* dev.c */
-struct nfs4_deviceid_node *bl_alloc_deviceid_node(struct nfs_server *server,
+struct nfs4_deviceid_analde *bl_alloc_deviceid_analde(struct nfs_server *server,
 		struct pnfs_device *pdev, gfp_t gfp_mask);
-void bl_free_deviceid_node(struct nfs4_deviceid_node *d);
+void bl_free_deviceid_analde(struct nfs4_deviceid_analde *d);
 
 /* extent_tree.c */
 int ext_tree_insert(struct pnfs_block_layout *bl,

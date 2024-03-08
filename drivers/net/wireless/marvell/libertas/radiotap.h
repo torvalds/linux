@@ -25,7 +25,7 @@ struct tx_radiotap_hdr {
 #define IEEE80211_FC_TOFROMDS_MASK   0x0300
 #define IEEE80211_FC_TODS_MASK       0x0100
 #define IEEE80211_FC_FROMDS_MASK     0x0200
-#define IEEE80211_FC_NODS            0x0000
+#define IEEE80211_FC_ANALDS            0x0000
 #define IEEE80211_FC_TODS            0x0100
 #define IEEE80211_FC_FROMDS          0x0200
 #define IEEE80211_FC_DSTODS          0x0300

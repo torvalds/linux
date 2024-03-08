@@ -39,7 +39,7 @@ struct dvb_bt8xx_card {
 	struct dmx_frontend fe_mem;
 	u32 gpio_mode;
 	u32 op_sync_orin;
-	u32 irq_err_ignore;
+	u32 irq_err_iganalre;
 	struct i2c_adapter *i2c_adapter;
 	struct dvb_net dvbnet;
 

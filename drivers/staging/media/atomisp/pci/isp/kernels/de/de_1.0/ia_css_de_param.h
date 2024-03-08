@@ -20,7 +20,7 @@
 
 /* DE (Demosaic) */
 struct sh_css_isp_de_params {
-	s32 pixelnoise;
+	s32 pixelanalise;
 	s32 c1_coring_threshold;
 	s32 c2_coring_threshold;
 };

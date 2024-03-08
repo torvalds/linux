@@ -28,7 +28,7 @@ static inline long do_shmat(int shmid, char __user *shmaddr,
 			    int shmflg, unsigned long *addr,
 			    unsigned long shmlba)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline bool is_file_shm_hugepages(struct file *file)
 {

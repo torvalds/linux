@@ -12,13 +12,13 @@ static int __regset_get(struct task_struct *target,
 	int res;
 
 	if (!regset->regset_get)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (size > regset->n * regset->size)
 		size = regset->n * regset->size;
 	if (!p) {
 		to_free = p = kzalloc(size, GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	res = regset->regset_get(target, regset,
 			   (struct membuf){.p = p, .left = size});
@@ -53,18 +53,18 @@ EXPORT_SYMBOL(regset_get_alloc);
  * copy_regset_to_user - fetch a thread's user_regset data into user memory
  * @target:	thread to be examined
  * @view:	&struct user_regset_view describing user thread machine state
- * @setno:	index in @view->regsets
+ * @setanal:	index in @view->regsets
  * @offset:	offset into the regset data, in bytes
  * @size:	amount of data to copy, in bytes
  * @data:	user-mode pointer to copy into
  */
 int copy_regset_to_user(struct task_struct *target,
 			const struct user_regset_view *view,
-			unsigned int setno,
+			unsigned int setanal,
 			unsigned int offset, unsigned int size,
 			void __user *data)
 {
-	const struct user_regset *regset = &view->regsets[setno];
+	const struct user_regset *regset = &view->regsets[setanal];
 	void *buf;
 	int ret;
 

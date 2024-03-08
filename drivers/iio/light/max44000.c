@@ -54,7 +54,7 @@
 #define MAX44000_CFG_TRIM               0x20
 
 /*
- * Upper 4 bits are not documented but start as 1 on powerup
+ * Upper 4 bits are analt documented but start as 1 on powerup
  * Setting them to 0 causes proximity to misbehave so set them to 1
  */
 #define MAX44000_REG_CFG_RX_DEFAULT 0xf0
@@ -335,7 +335,7 @@ static int max44000_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = 0;
 		*val2 = max44000_int_time_avail_ns_array[alstim];
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 
 	default:
 		return -EINVAL;
@@ -382,7 +382,7 @@ static int max44000_write_raw_get_fmt(struct iio_dev *indio_dev,
 				      long mask)
 {
 	if (mask == IIO_CHAN_INFO_INT_TIME && chan->type == IIO_LIGHT)
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	else if (mask == IIO_CHAN_INFO_SCALE && chan->type == IIO_LIGHT)
 		return IIO_VAL_INT_PLUS_MICRO;
 	else
@@ -514,12 +514,12 @@ static irqreturn_t max44000_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
 					   iio_get_time_ns(indio_dev));
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 
 out_unlock:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -531,7 +531,7 @@ static int max44000_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	data = iio_priv(indio_dev);
 	data->regmap = devm_regmap_init_i2c(client, &max44000_regmap_config);
 	if (IS_ERR(data->regmap)) {
@@ -550,7 +550,7 @@ static int max44000_probe(struct i2c_client *client)
 	 * important bits at probe time to ensure sane operation.
 	 *
 	 * Since we don't support interrupts/events the threshold values are
-	 * not important. We also don't touch trim values.
+	 * analt important. We also don't touch trim values.
 	 */
 
 	/* Reset ALS scaling bits */

@@ -2,7 +2,7 @@
 /*
  * Packet matching code for ARP packets.
  *
- * Based heavily, if not almost entirely, upon ip_tables.c framework.
+ * Based heavily, if analt almost entirely, upon ip_tables.c framework.
  *
  * Some ARP specific bits are:
  *
@@ -57,7 +57,7 @@ static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 }
 
 /*
- * Unfortunately, _b and _mask are not aligned to an int (or long int)
+ * Unfortunately, _b and _mask are analt aligned to an int (or long int)
  * Some arches dont care, unrolling the loop is a win on them.
  * For other arches, we only have a 16bit alignement.
  */
@@ -78,7 +78,7 @@ static unsigned long ifname_compare(const char *_a, const char *_b, const char *
 	return ret;
 }
 
-/* Returns whether packet matches rule or not. */
+/* Returns whether packet matches rule or analt. */
 static inline int arp_packet_match(const struct arphdr *arphdr,
 				   struct net_device *dev,
 				   const char *indev,
@@ -209,7 +209,7 @@ unsigned int arpt_do_table(void *priv,
 	table_base = private->entries;
 	jumpstack  = (struct arpt_entry **)private->jumpstack[cpu];
 
-	/* No TEE support for arptables, so no need to switch to alternate
+	/* Anal TEE support for arptables, so anal need to switch to alternate
 	 * stack.  All targets that reenter must return absolute verdicts.
 	 */
 	e = get_entry(table_base, private->hook_entry[hook]);
@@ -305,7 +305,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 {
 	unsigned int hook;
 
-	/* No recursion; use packet counter to save back ptrs (reset
+	/* Anal recursion; use packet counter to save back ptrs (reset
 	 * to 0 as we leave), and comefrom to save source hook bitmask.
 	 */
 	for (hook = 0; hook < NF_ARP_NUMHOOKS; hook++) {
@@ -411,7 +411,7 @@ find_check_entry(struct arpt_entry *e, struct net *net, const char *name,
 	int ret;
 
 	if (!xt_percpu_counter_alloc(alloc_state, &e->counters))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t = arpt_get_target(e);
 	target = xt_request_find_target(NFPROTO_ARP, t->u.user.name,
@@ -460,7 +460,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 	unsigned int h;
 	int err;
 
-	if ((unsigned long)e % __alignof__(struct arpt_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct arpt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct arpt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -538,7 +538,7 @@ static int translate_table(struct net *net,
 
 	offsets = xt_alloc_entry_offsets(newinfo->number);
 	if (!offsets)
-		return -ENOMEM;
+		return -EANALMEM;
 	i = 0;
 
 	/* Walk through entries, checking offsets. */
@@ -660,7 +660,7 @@ static struct xt_counters *alloc_counters(const struct xt_table *table)
 	counters = vzalloc(countersize);
 
 	if (counters == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	get_counters(private, counters);
 
@@ -893,7 +893,7 @@ static int __do_replace(struct net *net, const char *name,
 	ret = 0;
 	counters = xt_counters_alloc(num_counters);
 	if (!counters) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -961,7 +961,7 @@ static int do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -969,7 +969,7 @@ static int do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1078,7 +1078,7 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 	unsigned int entry_offset;
 	int ret, off;
 
-	if ((unsigned long)e % __alignof__(struct compat_arpt_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct compat_arpt_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct compat_arpt_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1189,7 +1189,7 @@ static int translate_compat_table(struct net *net,
 	if (j != compatr->num_entries)
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	newinfo = xt_alloc_table_info(size);
 	if (!newinfo)
 		goto out_unlock;
@@ -1208,7 +1208,7 @@ static int translate_compat_table(struct net *net,
 		compat_copy_entry_from_user(iter0, &pos, &size,
 					    newinfo, entry1);
 
-	/* all module references in entry0 are now gone */
+	/* all module references in entry0 are analw gone */
 
 	xt_compat_flush_offsets(NFPROTO_ARP);
 	xt_compat_unlock(NFPROTO_ARP);
@@ -1259,7 +1259,7 @@ static int compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -1267,7 +1267,7 @@ static int compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1512,7 +1512,7 @@ int arpt_register_table(struct net *net,
 
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
@@ -1541,7 +1541,7 @@ int arpt_register_table(struct net *net,
 
 	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
 	if (!ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1632,7 +1632,7 @@ static int __init arp_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* No one else will be downing sem now, so we won't sleep */
+	/* Anal one else will be downing sem analw, so we won't sleep */
 	ret = xt_register_targets(arpt_builtin_tg, ARRAY_SIZE(arpt_builtin_tg));
 	if (ret < 0)
 		goto err2;

@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 
 /*
- * Maximum length of file names: this only needs to be large enough to fit
+ * Maximum length of file names: this only needs to be large eanalugh to fit
  * the zone group directory names and a decimal zone number for file names.
  * 16 characters is plenty.
  */
@@ -47,7 +47,7 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 #define ZONEFS_ZONE_CNV		(1U << 31)
 
 /*
- * In-memory per-file inode zone data.
+ * In-memory per-file ianalde zone data.
  */
 struct zonefs_zone {
 	/* Zone state flags */
@@ -65,7 +65,7 @@ struct zonefs_zone {
 	/* Write pointer offset in the zone (sequential zones only, bytes) */
 	loff_t			z_wpoffset;
 
-	/* Saved inode uid, gid and access rights */
+	/* Saved ianalde uid, gid and access rights */
 	umode_t			z_mode;
 	kuid_t			z_uid;
 	kgid_t			z_gid;
@@ -76,16 +76,16 @@ struct zonefs_zone {
  * as files, one file per zone.
  */
 struct zonefs_zone_group {
-	struct inode		*g_inode;
+	struct ianalde		*g_ianalde;
 	unsigned int		g_nr_zones;
 	struct zonefs_zone	*g_zones;
 };
 
 /*
- * In-memory inode data.
+ * In-memory ianalde data.
  */
-struct zonefs_inode_info {
-	struct inode		i_vnode;
+struct zonefs_ianalde_info {
+	struct ianalde		i_vanalde;
 
 	/*
 	 * To serialise fully against both syscall and mmap based IO and
@@ -93,7 +93,7 @@ struct zonefs_inode_info {
 	 * zonefs_seq_file_truncate() against zonefs_iomap_begin(), that is,
 	 * file truncate operations against block mapping, i_truncate_mutex is
 	 * used. i_truncate_mutex also protects against concurrent accesses
-	 * and changes to the inode private data, and in particular changes to
+	 * and changes to the ianalde private data, and in particular changes to
 	 * a sequential file size on completion of direct IO writes.
 	 * Serialization of mmap read IOs with truncate and syscall IO
 	 * operations is done with invalidate_lock in addition to
@@ -106,9 +106,9 @@ struct zonefs_inode_info {
 	unsigned int		i_wr_refcnt;
 };
 
-static inline struct zonefs_inode_info *ZONEFS_I(struct inode *inode)
+static inline struct zonefs_ianalde_info *ZONEFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct zonefs_inode_info, i_vnode);
+	return container_of(ianalde, struct zonefs_ianalde_info, i_vanalde);
 }
 
 static inline bool zonefs_zone_is_cnv(struct zonefs_zone *z)
@@ -121,19 +121,19 @@ static inline bool zonefs_zone_is_seq(struct zonefs_zone *z)
 	return !zonefs_zone_is_cnv(z);
 }
 
-static inline struct zonefs_zone *zonefs_inode_zone(struct inode *inode)
+static inline struct zonefs_zone *zonefs_ianalde_zone(struct ianalde *ianalde)
 {
-	return inode->i_private;
+	return ianalde->i_private;
 }
 
-static inline bool zonefs_inode_is_cnv(struct inode *inode)
+static inline bool zonefs_ianalde_is_cnv(struct ianalde *ianalde)
 {
-	return zonefs_zone_is_cnv(zonefs_inode_zone(inode));
+	return zonefs_zone_is_cnv(zonefs_ianalde_zone(ianalde));
 }
 
-static inline bool zonefs_inode_is_seq(struct inode *inode)
+static inline bool zonefs_ianalde_is_seq(struct ianalde *ianalde)
 {
-	return zonefs_zone_is_seq(zonefs_inode_zone(inode));
+	return zonefs_zone_is_seq(zonefs_ianalde_zone(ianalde));
 }
 
 /*
@@ -256,29 +256,29 @@ static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
 	pr_warn("zonefs (%s) WARNING: " format, sb->s_id, ## args)
 
 /* In super.c */
-void zonefs_inode_account_active(struct inode *inode);
-int zonefs_inode_zone_mgmt(struct inode *inode, enum req_op op);
-void zonefs_i_size_write(struct inode *inode, loff_t isize);
-void zonefs_update_stats(struct inode *inode, loff_t new_isize);
-void __zonefs_io_error(struct inode *inode, bool write);
+void zonefs_ianalde_account_active(struct ianalde *ianalde);
+int zonefs_ianalde_zone_mgmt(struct ianalde *ianalde, enum req_op op);
+void zonefs_i_size_write(struct ianalde *ianalde, loff_t isize);
+void zonefs_update_stats(struct ianalde *ianalde, loff_t new_isize);
+void __zonefs_io_error(struct ianalde *ianalde, bool write);
 
-static inline void zonefs_io_error(struct inode *inode, bool write)
+static inline void zonefs_io_error(struct ianalde *ianalde, bool write)
 {
-	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct zonefs_ianalde_info *zi = ZONEFS_I(ianalde);
 
 	mutex_lock(&zi->i_truncate_mutex);
-	__zonefs_io_error(inode, write);
+	__zonefs_io_error(ianalde, write);
 	mutex_unlock(&zi->i_truncate_mutex);
 }
 
 /* In super.c */
-extern const struct inode_operations zonefs_dir_inode_operations;
+extern const struct ianalde_operations zonefs_dir_ianalde_operations;
 extern const struct file_operations zonefs_dir_operations;
 
 /* In file.c */
 extern const struct address_space_operations zonefs_file_aops;
 extern const struct file_operations zonefs_file_operations;
-int zonefs_file_truncate(struct inode *inode, loff_t isize);
+int zonefs_file_truncate(struct ianalde *ianalde, loff_t isize);
 
 /* In sysfs.c */
 int zonefs_sysfs_register(struct super_block *sb);

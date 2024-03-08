@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Intel Centrino wireless drivers
+# Intel Centrianal wireless drivers
 #
 
 config IPW2100
@@ -45,7 +45,7 @@ config IPW2100_MONITOR
 	  Enables promiscuous/monitor mode support for the ipw2100 driver.
 	  With this feature compiled into the driver, you can switch to
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
-	  mode, no packets can be sent.
+	  mode, anal packets can be sent.
 
 config IPW2100_DEBUG
 	bool "Enable full debugging output in IPW2100 module."
@@ -61,7 +61,7 @@ config IPW2100_DEBUG
 
 	  This entry will only exist if this option is enabled.
 
-	  If you are not trying to debug or develop the IPW2100 driver, you
+	  If you are analt trying to debug or develop the IPW2100 driver, you
 	  most likely want to say N here.
 
 config IPW2200
@@ -107,7 +107,7 @@ config IPW2200_MONITOR
 	  Enables promiscuous/monitor mode support for the ipw2200 driver.
 	  With this feature compiled into the driver, you can switch to
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
-	  mode, no packets can be sent.
+	  mode, anal packets can be sent.
 
 config IPW2200_RADIOTAP
 	bool "Enable radiotap format 802.11 raw packet support"
@@ -131,8 +131,8 @@ config IPW2200_PROMISCUOUS
 	    % ifconfig rtap0 up
 	    % tethereal -i rtap0
 
-	  If you do not specify 'rtap_iface=1' as a module parameter then
-	  the rtap interface will not be created and you will need to turn
+	  If you do analt specify 'rtap_iface=1' as a module parameter then
+	  the rtap interface will analt be created and you will need to turn
 	  it on via sysfs:
 
 	    % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
@@ -147,12 +147,12 @@ config IPW2200_DEBUG
 	help
 	  This option will enable low level debug tracing output for IPW2200.
 
-	  Note, normal debug code is already compiled in. This low level
+	  Analte, analrmal debug code is already compiled in. This low level
 	  debug option enables debug on hot paths (e.g Tx, Rx, ISR) and
 	  will result in the kernel module being ~70 larger.  Most users
-	  will typically not need this high verbosity debug information.
+	  will typically analt need this high verbosity debug information.
 
-	  If you are not sure, say N here.
+	  If you are analt sure, say N here.
 
 config LIBIPW
 	tristate
@@ -191,5 +191,5 @@ config LIBIPW_DEBUG
 	  For a list of values you can assign to debug_level, you
 	  can look at the bit mask values in ieee80211.h
 
-	  If you are not trying to debug or develop the libipw
+	  If you are analt trying to debug or develop the libipw
 	  component, you most likely want to say N here.

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_TLBFLUSH_H
-#define _ASM_POWERPC_NOHASH_TLBFLUSH_H
+#ifndef _ASM_POWERPC_ANALHASH_TLBFLUSH_H
+#define _ASM_POWERPC_ANALHASH_TLBFLUSH_H
 
 /*
  * TLB flushing:
@@ -26,7 +26,7 @@
 struct vm_area_struct;
 struct mm_struct;
 
-#define MMU_NO_CONTEXT      	((unsigned int)-1)
+#define MMU_ANAL_CONTEXT      	((unsigned int)-1)
 
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			    unsigned long end);
@@ -36,7 +36,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned int pid = READ_ONCE(mm->context.id);
 
-	if (pid != MMU_NO_CONTEXT)
+	if (pid != MMU_ANAL_CONTEXT)
 		asm volatile ("sync; tlbia; isync" : : : "memory");
 }
 
@@ -81,4 +81,4 @@ extern void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 #define __flush_tlb_page(mm,addr,p,i)	__local_flush_tlb_page(mm,addr,p,i)
 #endif
 
-#endif /* _ASM_POWERPC_NOHASH_TLBFLUSH_H */
+#endif /* _ASM_POWERPC_ANALHASH_TLBFLUSH_H */

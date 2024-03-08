@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
@@ -106,7 +106,7 @@
 #define PRCM_REQ_MB0_AP_POWER_STATE	(PRCM_REQ_MB0 + 0x0)
 #define PRCM_REQ_MB0_AP_PLL_STATE	(PRCM_REQ_MB0 + 0x1)
 #define PRCM_REQ_MB0_ULP_CLOCK_STATE	(PRCM_REQ_MB0 + 0x2)
-#define PRCM_REQ_MB0_DO_NOT_WFI		(PRCM_REQ_MB0 + 0x3)
+#define PRCM_REQ_MB0_DO_ANALT_WFI		(PRCM_REQ_MB0 + 0x3)
 #define PRCM_REQ_MB0_WAKEUP_8500	(PRCM_REQ_MB0 + 0x4)
 #define PRCM_REQ_MB0_WAKEUP_4500	(PRCM_REQ_MB0 + 0x8)
 
@@ -272,7 +272,7 @@ static struct irq_domain *db8500_irq_domain;
  * communication with the PRCMU firmware.
  *
  * The reason for having this is to keep the irq numbers contiguous even though
- * the bits in the bit field are not. (The bits also have a tendency to move
+ * the bits in the bit field are analt. (The bits also have a tendency to move
  * around, to further complicate matters.)
  */
 #define IRQ_INDEX(_name) ((IRQ_PRCMU_##_name))
@@ -369,7 +369,7 @@ static struct {
  * @lock:	The transaction lock.
  * @work:	The transaction completion structure.
  * @ape_opp:	The current APE OPP.
- * @ack:	Reply ("acknowledge") data.
+ * @ack:	Reply ("ackanalwledge") data.
  */
 static struct {
 	struct mutex lock;
@@ -387,10 +387,10 @@ static struct {
  * mb2_transfer - state needed for mailbox 2 communication.
  * @lock:            The transaction lock.
  * @work:            The transaction completion structure.
- * @auto_pm_lock:    The autonomous power management configuration lock.
- * @auto_pm_enabled: A flag indicating whether autonomous PM is enabled.
+ * @auto_pm_lock:    The autoanalmous power management configuration lock.
+ * @auto_pm_enabled: A flag indicating whether autoanalmous PM is enabled.
  * @req:             Request data that need to persist between requests.
- * @ack:             Reply ("acknowledge") data.
+ * @ack:             Reply ("ackanalwledge") data.
  */
 static struct {
 	struct mutex lock;
@@ -428,7 +428,7 @@ static struct {
  * mb5_transfer - state needed for mailbox 5 communication.
  * @lock:	The transaction lock.
  * @work:	The transaction completion structure.
- * @ack:	Reply ("acknowledge") data.
+ * @ack:	Reply ("ackanalwledge") data.
  */
 static struct {
 	struct mutex lock;
@@ -632,7 +632,7 @@ enum ap_pwrst prcmu_get_xp70_current_state(void)
  *
  * Configures one of the programmable clock outputs (CLKOUTs).
  * @div should be in the range [1,63] to request a configuration, or 0 to
- * inform that the configuration is no longer requested.
+ * inform that the configuration is anal longer requested.
  */
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
 {
@@ -706,7 +706,7 @@ int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll)
 	writeb((keep_ap_pll ? 1 : 0), (tcdm_base + PRCM_REQ_MB0_AP_PLL_STATE));
 	writeb((keep_ulp_clk ? 1 : 0),
 		(tcdm_base + PRCM_REQ_MB0_ULP_CLOCK_STATE));
-	writeb(0, (tcdm_base + PRCM_REQ_MB0_DO_NOT_WFI));
+	writeb(0, (tcdm_base + PRCM_REQ_MB0_DO_ANALT_WFI));
 	writel(MBOX_BIT(0), PRCM_MBOX_CPU_SET);
 
 	spin_unlock_irqrestore(&mb0_transfer.lock, flags);
@@ -796,7 +796,7 @@ void db8500_prcmu_get_abb_event_buffer(void __iomem **buf)
 /**
  * db8500_prcmu_set_arm_opp - set the appropriate ARM OPP
  * @opp: The new ARM operating point to which transition is to be made
- * Returns: 0 on success, non-zero on failure
+ * Returns: 0 on success, analn-zero on failure
  *
  * This function sets the operating point of the ARM.
  */
@@ -804,7 +804,7 @@ int db8500_prcmu_set_arm_opp(u8 opp)
 {
 	int r;
 
-	if (opp < ARM_NO_CHANGE || opp > ARM_EXTCLK)
+	if (opp < ARM_ANAL_CHANGE || opp > ARM_EXTCLK)
 		return -EINVAL;
 
 	r = 0;
@@ -816,7 +816,7 @@ int db8500_prcmu_set_arm_opp(u8 opp)
 
 	writeb(MB1H_ARM_APE_OPP, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB1));
 	writeb(opp, (tcdm_base + PRCM_REQ_MB1_ARM_OPP));
-	writeb(APE_NO_CHANGE, (tcdm_base + PRCM_REQ_MB1_APE_OPP));
+	writeb(APE_ANAL_CHANGE, (tcdm_base + PRCM_REQ_MB1_APE_OPP));
 
 	writel(MBOX_BIT(1), PRCM_MBOX_CPU_SET);
 	wait_for_completion(&mb1_transfer.work);
@@ -899,7 +899,7 @@ unlock_and_return:
 /**
  * db8500_prcmu_set_ape_opp - set the appropriate APE OPP
  * @opp: The new APE operating point to which transition is to be made
- * Returns: 0 on success, non-zero on failure
+ * Returns: 0 on success, analn-zero on failure
  *
  * This function sets the operating point of the APE.
  */
@@ -922,7 +922,7 @@ int db8500_prcmu_set_ape_opp(u8 opp)
 		cpu_relax();
 
 	writeb(MB1H_ARM_APE_OPP, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB1));
-	writeb(ARM_NO_CHANGE, (tcdm_base + PRCM_REQ_MB1_ARM_OPP));
+	writeb(ARM_ANAL_CHANGE, (tcdm_base + PRCM_REQ_MB1_ARM_OPP));
 	writeb(((opp == APE_50_PARTLY_25_OPP) ? APE_50_OPP : opp),
 		(tcdm_base + PRCM_REQ_MB1_APE_OPP));
 
@@ -1065,7 +1065,7 @@ static int request_pll(u8 clock, bool enable)
  * @epod_id: The EPOD to set
  * @epod_state: The new EPOD state
  *
- * This function sets the state of a EPOD (power domain). It may not be called
+ * This function sets the state of a EPOD (power domain). It may analt be called
  * from interrupt context.
  */
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
@@ -1100,7 +1100,7 @@ int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 
 	/* fill in mailbox */
 	for (i = 0; i < NUM_EPOD_ID; i++)
-		writeb(EPOD_STATE_NO_CHANGE, (tcdm_base + PRCM_REQ_MB2 + i));
+		writeb(EPOD_STATE_ANAL_CHANGE, (tcdm_base + PRCM_REQ_MB2 + i));
 	writeb(epod_state, (tcdm_base + PRCM_REQ_MB2 + epod_id));
 
 	writeb(MB2H_DPS, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB2));
@@ -1108,8 +1108,8 @@ int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
 	writel(MBOX_BIT(2), PRCM_MBOX_CPU_SET);
 
 	/*
-	 * The current firmware version does not handle errors correctly,
-	 * and we cannot recover if there is an error.
+	 * The current firmware version does analt handle errors correctly,
+	 * and we cananalt recover if there is an error.
 	 * This is expected to change when the firmware is updated.
 	 */
 	if (!wait_for_completion_timeout(&mb2_transfer.work,
@@ -1129,7 +1129,7 @@ unlock_and_return:
 }
 
 /**
- * prcmu_configure_auto_pm - Configure autonomous power management.
+ * prcmu_configure_auto_pm - Configure autoanalmous power management.
  * @sleep: Configuration for ApSleep.
  * @idle:  Configuration for ApIdle.
  */
@@ -1159,9 +1159,9 @@ void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	spin_lock_irqsave(&mb2_transfer.auto_pm_lock, flags);
 
 	/*
-	 * The autonomous power management configuration is done through
+	 * The autoanalmous power management configuration is done through
 	 * fields in mailbox 2, but these fields are only used as shared
-	 * variables - i.e. there is no need to send a message.
+	 * variables - i.e. there is anal need to send a message.
 	 */
 	writel(sleep_cfg, (tcdm_base + PRCM_REQ_MB2_AUTO_PM_SLEEP));
 	writel(idle_cfg, (tcdm_base + PRCM_REQ_MB2_AUTO_PM_IDLE));
@@ -1224,7 +1224,7 @@ static int request_timclk(bool enable)
 
 	/*
 	 * On the U8420_CLKSEL firmware, the ULP (Ultra Low Power)
-	 * PLL is disabled so we cannot use doze mode, this will
+	 * PLL is disabled so we cananalt use doze mode, this will
 	 * stop the clock on this firmware.
 	 */
 	if (prcmu_is_ulppll_disabled())
@@ -1368,7 +1368,7 @@ static int request_dsiescclk(u8 n, bool enable)
  * @enable:     Whether the clock should be enabled (true) or disabled (false).
  *
  * This function should only be used by the clock implementation.
- * Do not use it from any other place!
+ * Do analt use it from any other place!
  */
 int db8500_prcmu_request_clock(u8 clock, bool enable)
 {
@@ -1657,7 +1657,7 @@ static long round_armss_rate(unsigned long rate)
 			break;
 	}
 
-	/* Return the last valid value, even if a match was not found. */
+	/* Return the last valid value, even if a match was analt found. */
 	return freq;
 }
 
@@ -2140,7 +2140,7 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
  *
  * Writes masked register value(s) to the ABB.
  * For each @value, only the bits set to 1 in the corresponding @mask
- * will be written. The other bits are not changed.
+ * will be written. The other bits are analt changed.
  * @size has to be 1 for the current firmware version.
  */
 int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask, u8 size)
@@ -2236,7 +2236,7 @@ unlock_and_return:
 }
 
 /**
- * prcmu_ac_sleep_req - called when ARM no longer needs to talk to modem
+ * prcmu_ac_sleep_req - called when ARM anal longer needs to talk to modem
  */
 void prcmu_ac_sleep_req(void)
 {
@@ -2308,7 +2308,7 @@ void db8500_prcmu_modem_reset(void)
 	wait_for_completion(&mb1_transfer.work);
 
 	/*
-	 * No need to check return from PRCMU as modem should go in reset state
+	 * Anal need to check return from PRCMU as modem should go in reset state
 	 * This state is already managed by upper layer
 	 */
 
@@ -2330,9 +2330,9 @@ static void ack_dbb_wakeup(void)
 	spin_unlock_irqrestore(&mb0_transfer.lock, flags);
 }
 
-static inline void print_unknown_header_warning(u8 n, u8 header)
+static inline void print_unkanalwn_header_warning(u8 n, u8 header)
 {
-	pr_warn("prcmu: Unknown message header (%d) in mailbox %d\n",
+	pr_warn("prcmu: Unkanalwn message header (%d) in mailbox %d\n",
 		header, n);
 }
 
@@ -2366,7 +2366,7 @@ static bool read_mailbox_0(void)
 		r = true;
 		break;
 	default:
-		print_unknown_header_warning(0, header);
+		print_unkanalwn_header_warning(0, header);
 		r = false;
 		break;
 	}
@@ -2420,7 +2420,7 @@ static bool read_mailbox_4(void)
 	case MB4H_A9WDOG_KICK:
 		break;
 	default:
-		print_unknown_header_warning(4, header);
+		print_unkanalwn_header_warning(4, header);
 		do_complete = false;
 		break;
 	}
@@ -2473,7 +2473,7 @@ static irqreturn_t prcmu_irq_handler(int irq, void *data)
 
 	bits = (readl(PRCM_ARM_IT1_VAL) & ALL_MBOX_BITS);
 	if (unlikely(!bits))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	r = IRQ_HANDLED;
 	for (n = 0; bits; n++) {
@@ -2531,14 +2531,14 @@ static void prcmu_irq_unmask(struct irq_data *d)
 		schedule_work(&mb0_transfer.mask_work);
 }
 
-static void noop(struct irq_data *d)
+static void analop(struct irq_data *d)
 {
 }
 
 static struct irq_chip prcmu_irq_chip = {
 	.name		= "prcmu",
 	.irq_disable	= prcmu_irq_mask,
-	.irq_ack	= noop,
+	.irq_ack	= analop,
 	.irq_mask	= prcmu_irq_mask,
 	.irq_unmask	= prcmu_irq_unmask,
 };
@@ -2585,7 +2585,7 @@ static char *fw_project_name(u32 project)
 	case PRCMU_FW_PROJECT_L8580:
 		return "L8580";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -2603,7 +2603,7 @@ static const struct irq_domain_ops db8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int db8500_irq_init(struct device_node *np)
+static int db8500_irq_init(struct device_analde *np)
 {
 	int i;
 
@@ -2613,7 +2613,7 @@ static int db8500_irq_init(struct device_node *np)
 
 	if (!db8500_irq_domain) {
 		pr_err("Failed to create irqdomain\n");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	/* All wakeups will be used, so create mappings for all */
@@ -2623,14 +2623,14 @@ static int db8500_irq_init(struct device_node *np)
 	return 0;
 }
 
-static void dbx500_fw_version_init(struct device_node *np)
+static void dbx500_fw_version_init(struct device_analde *np)
 {
 	void __iomem *tcpm_base;
 	u32 version;
 
 	tcpm_base = of_iomap(np, 1);
 	if (!tcpm_base) {
-		pr_err("no prcmu tcpm mem region provided\n");
+		pr_err("anal prcmu tcpm mem region provided\n");
 		return;
 	}
 
@@ -2661,17 +2661,17 @@ void __init db8500_prcmu_early_init(void)
 	 * clock driver can probe independently. An early initcall will
 	 * still be needed, but it can be diverted into drivers/clk/ux500.
 	 */
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "stericsson,db8500-prcmu");
+	np = of_find_compatible_analde(NULL, NULL, "stericsson,db8500-prcmu");
 	prcmu_base = of_iomap(np, 0);
 	if (!prcmu_base) {
-		of_node_put(np);
+		of_analde_put(np);
 		pr_err("%s: ioremap() of prcmu registers failed!\n", __func__);
 		return;
 	}
 	dbx500_fw_version_init(np);
-	of_node_put(np);
+	of_analde_put(np);
 
 	spin_lock_init(&mb0_transfer.lock);
 	spin_lock_init(&mb0_transfer.dbb_irqs_lock);
@@ -2679,7 +2679,7 @@ void __init db8500_prcmu_early_init(void)
 	init_completion(&mb0_transfer.ac_wake_work);
 	mutex_init(&mb1_transfer.lock);
 	init_completion(&mb1_transfer.work);
-	mb1_transfer.ape_opp = APE_NO_CHANGE;
+	mb1_transfer.ape_opp = APE_ANAL_CHANGE;
 	mutex_init(&mb2_transfer.lock);
 	init_completion(&mb2_transfer.work);
 	spin_lock_init(&mb2_transfer.auto_pm_lock);
@@ -2903,7 +2903,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	[DB8500_REGULATOR_SWITCH_ESRAM12] = {
 		/*
 		 * esram12 is set in retention and supplied by Vsafe when Vape is off,
-		 * no need to hold Vape
+		 * anal need to hold Vape
 		 */
 		.constraints = {
 			.name = "db8500-esram12",
@@ -2921,7 +2921,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	[DB8500_REGULATOR_SWITCH_ESRAM34] = {
 		/*
 		 * esram34 is set in retention and supplied by Vsafe when Vape is off,
-		 * no need to hold Vape
+		 * anal need to hold Vape
 		 */
 		.constraints = {
 			.name = "db8500-esram34",
@@ -2953,7 +2953,7 @@ static const struct mfd_cell db8500_prcmu_devs[] = {
 
 static int db8500_prcmu_register_ab8500(struct device *parent)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource ab850x_resource;
 	const struct mfd_cell ab8500_cell = {
 		.name = "ab8500-core",
@@ -2971,11 +2971,11 @@ static int db8500_prcmu_register_ab8500(struct device *parent)
 	};
 	const struct mfd_cell *ab850x_cell;
 
-	if (!parent->of_node)
-		return -ENODEV;
+	if (!parent->of_analde)
+		return -EANALDEV;
 
-	/* Look up the device node, sneak the IRQ out of it */
-	for_each_child_of_node(parent->of_node, np) {
+	/* Look up the device analde, sneak the IRQ out of it */
+	for_each_child_of_analde(parent->of_analde, np) {
 		if (of_device_is_compatible(np, ab8500_cell.of_compatible)) {
 			ab850x_cell = &ab8500_cell;
 			break;
@@ -2986,8 +2986,8 @@ static int db8500_prcmu_register_ab8500(struct device *parent)
 		}
 	}
 	if (!np) {
-		dev_info(parent, "could not find AB850X node in the device tree\n");
-		return -ENODEV;
+		dev_info(parent, "could analt find AB850X analde in the device tree\n");
+		return -EANALDEV;
 	}
 	of_irq_to_resource_table(np, &ab850x_resource, 1);
 
@@ -2996,25 +2996,25 @@ static int db8500_prcmu_register_ab8500(struct device *parent)
 
 static int db8500_prcmu_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int irq = 0, err = 0;
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
 	if (!res) {
-		dev_err(&pdev->dev, "no prcmu memory region provided\n");
+		dev_err(&pdev->dev, "anal prcmu memory region provided\n");
 		return -EINVAL;
 	}
 	prcmu_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!prcmu_base) {
 		dev_err(&pdev->dev,
 			"failed to ioremap prcmu register memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	init_prcm_registers();
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
-		dev_err(&pdev->dev, "no prcmu tcdm region provided\n");
+		dev_err(&pdev->dev, "anal prcmu tcdm region provided\n");
 		return -EINVAL;
 	}
 	tcdm_base = devm_ioremap(&pdev->dev, res->start,
@@ -3022,7 +3022,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	if (!tcdm_base) {
 		dev_err(&pdev->dev,
 			"failed to ioremap prcmu-tcdm register memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
@@ -3033,7 +3033,7 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		return irq;
 
 	err = request_threaded_irq(irq, prcmu_irq_handler,
-	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
+	        prcmu_irq_thread_fn, IRQF_ANAL_SUSPEND, "prcmu", NULL);
 	if (err < 0) {
 		pr_err("prcmu: Failed to allocate IRQ_DB8500_PRCMU1.\n");
 		return err;

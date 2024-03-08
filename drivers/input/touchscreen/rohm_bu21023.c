@@ -137,7 +137,7 @@
 #define PROGRAM_LOAD_HOST		0x02
 #define PROGRAM_LOAD_EEPROM		0x03
 #define CENSOR_4PORT			0x04
-#define CENSOR_8PORT			0x00	/* Not supported by BU21023 */
+#define CENSOR_8PORT			0x00	/* Analt supported by BU21023 */
 #define CALIBRATION_TYPE_DEFAULT	0x08
 #define CALIBRATION_TYPE_SPECIAL	0x00
 #define INT_ACTIVE_HIGH			0x10
@@ -147,7 +147,7 @@
 #define COMMON_SETUP1_DEFAULT		0x4e
 
 #define COMMON_SETUP2		0x31
-#define MAF_NONE		0x00
+#define MAF_ANALNE		0x00
 #define MAF_1SAMPLE		0x01
 #define MAF_3SAMPLES		0x02
 #define MAF_5SAMPLES		0x03
@@ -273,9 +273,9 @@ struct rohm_ts_data {
  * @buf: Where to store read data from ROHM BU21023/24
  * @len: How many bytes to read
  *
- * Returns negative errno, else zero on success.
+ * Returns negative erranal, else zero on success.
  *
- * Note
+ * Analte
  * In BU21023/24 burst read, stop condition is needed after "address write".
  * Therefore, transmission is performed in 2 steps.
  */
@@ -594,7 +594,7 @@ static irqreturn_t rohm_ts_soft_irq(int irq, void *dev_id)
 
 	default:
 		dev_dbg(dev,
-			"Three or more touches are not supported\n");
+			"Three or more touches are analt supported\n");
 		return IRQ_HANDLED;
 	}
 
@@ -985,9 +985,9 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	}
 
 	/*
-	 * Manual calibration results are not changed in same environment.
+	 * Manual calibration results are analt changed in same environment.
 	 * If the force calibration is performed,
-	 * the controller will not require calibration request interrupt
+	 * the controller will analt require calibration request interrupt
 	 * when the typical values are set to the calibration registers.
 	 */
 	error = i2c_smbus_write_byte_data(client, CALIBRATION_REG1,
@@ -1100,13 +1100,13 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "IRQ is not assigned\n");
+		dev_err(dev, "IRQ is analt assigned\n");
 		return -EINVAL;
 	}
 
 	if (!client->adapter->algo->master_xfer) {
-		dev_err(dev, "I2C level transfers not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "I2C level transfers analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Turn off CPU just in case */
@@ -1116,7 +1116,7 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(dev, sizeof(struct rohm_ts_data), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->client = client;
 	ts->setup2 = MAF_1SAMPLE;
@@ -1124,7 +1124,7 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = BU21023_NAME;
 	input->id.bustype = BUS_I2C;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <errno.h>
+#include <erranal.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -27,11 +27,11 @@ bool dexcr_exists(void)
 		goto out;
 
 	/*
-	 * If the SPR is not recognised by the hardware it triggers
-	 * a hypervisor emulation interrupt. If the kernel does not
+	 * If the SPR is analt recognised by the hardware it triggers
+	 * a hypervisor emulation interrupt. If the kernel does analt
 	 * recognise/try to emulate it, we receive a SIGILL signal.
 	 *
-	 * If we do not receive a signal, assume we have the SPR or the
+	 * If we do analt receive a signal, assume we have the SPR or the
 	 * kernel is trying to emulate it correctly.
 	 */
 	exists = false;
@@ -85,7 +85,7 @@ void await_child_success(pid_t pid)
 
 	FAIL_IF_EXIT_MSG(pid == -1, "fork failed");
 	FAIL_IF_EXIT_MSG(waitpid(pid, &wstatus, 0) == -1, "wait failed");
-	FAIL_IF_EXIT_MSG(!WIFEXITED(wstatus), "child did not exit cleanly");
+	FAIL_IF_EXIT_MSG(!WIFEXITED(wstatus), "child did analt exit cleanly");
 	FAIL_IF_EXIT_MSG(WEXITSTATUS(wstatus) != 0, "child exit error");
 }
 
@@ -108,7 +108,7 @@ void hashst(unsigned long lr, void *sp)
 
 /*
  * Perform a hashchk instruction. A hash is computed as per hashst(),
- * however the result is not stored to memory. Instead the existing
+ * however the result is analt stored to memory. Instead the existing
  * value is read and compared against the computed hash.
  *
  * If they match, execution continues.

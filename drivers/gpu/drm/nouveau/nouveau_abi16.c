@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,21 +29,21 @@
 #include <nvif/cl0002.h>
 #include <nvif/unpack.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_exec.h"
-#include "nouveau_gem.h"
-#include "nouveau_chan.h"
-#include "nouveau_abi16.h"
-#include "nouveau_vmm.h"
-#include "nouveau_sched.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_exec.h"
+#include "analuveau_gem.h"
+#include "analuveau_chan.h"
+#include "analuveau_abi16.h"
+#include "analuveau_vmm.h"
+#include "analuveau_sched.h"
 
-static struct nouveau_abi16 *
-nouveau_abi16(struct drm_file *file_priv)
+static struct analuveau_abi16 *
+analuveau_abi16(struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
 	if (!cli->abi16) {
-		struct nouveau_abi16 *abi16;
+		struct analuveau_abi16 *abi16;
 		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
 		if (cli->abi16) {
 			struct nv_device_v0 args = {
@@ -68,27 +68,27 @@ nouveau_abi16(struct drm_file *file_priv)
 	return cli->abi16;
 }
 
-struct nouveau_abi16 *
-nouveau_abi16_get(struct drm_file *file_priv)
+struct analuveau_abi16 *
+analuveau_abi16_get(struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
 	mutex_lock(&cli->mutex);
-	if (nouveau_abi16(file_priv))
+	if (analuveau_abi16(file_priv))
 		return cli->abi16;
 	mutex_unlock(&cli->mutex);
 	return NULL;
 }
 
 int
-nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
+analuveau_abi16_put(struct analuveau_abi16 *abi16, int ret)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
+	struct analuveau_cli *cli = (void *)abi16->device.object.client;
 	mutex_unlock(&cli->mutex);
 	return ret;
 }
 
 s32
-nouveau_abi16_swclass(struct nouveau_drm *drm)
+analuveau_abi16_swclass(struct analuveau_drm *drm)
 {
 	switch (drm->client.device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
@@ -112,39 +112,39 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_abi16_ntfy_fini(struct nouveau_abi16_chan *chan,
-			struct nouveau_abi16_ntfy *ntfy)
+analuveau_abi16_ntfy_fini(struct analuveau_abi16_chan *chan,
+			struct analuveau_abi16_ntfy *ntfy)
 {
 	nvif_object_dtor(&ntfy->object);
-	nvkm_mm_free(&chan->heap, &ntfy->node);
+	nvkm_mm_free(&chan->heap, &ntfy->analde);
 	list_del(&ntfy->head);
 	kfree(ntfy);
 }
 
 static void
-nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
-			struct nouveau_abi16_chan *chan)
+analuveau_abi16_chan_fini(struct analuveau_abi16 *abi16,
+			struct analuveau_abi16_chan *chan)
 {
-	struct nouveau_abi16_ntfy *ntfy, *temp;
+	struct analuveau_abi16_ntfy *ntfy, *temp;
 
 	/* Cancel all jobs from the entity's queue. */
 	if (chan->sched)
 		drm_sched_entity_fini(&chan->sched->entity);
 
 	if (chan->chan)
-		nouveau_channel_idle(chan->chan);
+		analuveau_channel_idle(chan->chan);
 
 	if (chan->sched)
-		nouveau_sched_destroy(&chan->sched);
+		analuveau_sched_destroy(&chan->sched);
 
-	/* cleanup notifier state */
-	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
-		nouveau_abi16_ntfy_fini(chan, ntfy);
+	/* cleanup analtifier state */
+	list_for_each_entry_safe(ntfy, temp, &chan->analtifiers, head) {
+		analuveau_abi16_ntfy_fini(chan, ntfy);
 	}
 
 	if (chan->ntfy) {
-		nouveau_vma_del(&chan->ntfy_vma);
-		nouveau_bo_unpin(chan->ntfy);
+		analuveau_vma_del(&chan->ntfy_vma);
+		analuveau_bo_unpin(chan->ntfy);
 		drm_gem_object_put(&chan->ntfy->bo.base);
 	}
 
@@ -154,7 +154,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
 		nvif_object_dtor(&chan->ce);
-		nouveau_channel_del(&chan->chan);
+		analuveau_channel_del(&chan->chan);
 	}
 
 	list_del(&chan->head);
@@ -162,14 +162,14 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 }
 
 void
-nouveau_abi16_fini(struct nouveau_abi16 *abi16)
+analuveau_abi16_fini(struct analuveau_abi16 *abi16)
 {
-	struct nouveau_cli *cli = (void *)abi16->device.object.client;
-	struct nouveau_abi16_chan *chan, *temp;
+	struct analuveau_cli *cli = (void *)abi16->device.object.client;
+	struct analuveau_abi16_chan *chan, *temp;
 
 	/* cleanup channels */
 	list_for_each_entry_safe(chan, temp, &abi16->channels, head) {
-		nouveau_abi16_chan_fini(abi16, chan);
+		analuveau_abi16_chan_fini(abi16, chan);
 	}
 
 	/* destroy the device object */
@@ -194,33 +194,33 @@ getparam_dma_ib_max(struct nvif_device *device)
 }
 
 int
-nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
 	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
 	struct nvkm_gr *gr = nvxx_gr(device);
-	struct drm_nouveau_getparam *getparam = data;
+	struct drm_analuveau_getparam *getparam = data;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	switch (getparam->param) {
-	case NOUVEAU_GETPARAM_CHIPSET_ID:
+	case ANALUVEAU_GETPARAM_CHIPSET_ID:
 		getparam->value = device->info.chipset;
 		break;
-	case NOUVEAU_GETPARAM_PCI_VENDOR:
+	case ANALUVEAU_GETPARAM_PCI_VENDOR:
 		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
-	case NOUVEAU_GETPARAM_PCI_DEVICE:
+	case ANALUVEAU_GETPARAM_PCI_DEVICE:
 		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
 			getparam->value = pdev->device;
 		else
 			getparam->value = 0;
 		break;
-	case NOUVEAU_GETPARAM_BUS_TYPE:
+	case ANALUVEAU_GETPARAM_BUS_TYPE:
 		switch (device->info.platform) {
 		case NV_DEVICE_INFO_V0_AGP : getparam->value = 0; break;
 		case NV_DEVICE_INFO_V0_PCI : getparam->value = 1; break;
@@ -237,43 +237,43 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 			break;
 		}
 		break;
-	case NOUVEAU_GETPARAM_FB_SIZE:
+	case ANALUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = drm->gem.vram_available;
 		break;
-	case NOUVEAU_GETPARAM_AGP_SIZE:
+	case ANALUVEAU_GETPARAM_AGP_SIZE:
 		getparam->value = drm->gem.gart_available;
 		break;
-	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
+	case ANALUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = 0; /* deprecated */
 		break;
-	case NOUVEAU_GETPARAM_PTIMER_TIME:
+	case ANALUVEAU_GETPARAM_PTIMER_TIME:
 		getparam->value = nvif_device_time(device);
 		break;
-	case NOUVEAU_GETPARAM_HAS_BO_USAGE:
+	case ANALUVEAU_GETPARAM_HAS_BO_USAGE:
 		getparam->value = 1;
 		break;
-	case NOUVEAU_GETPARAM_HAS_PAGEFLIP:
+	case ANALUVEAU_GETPARAM_HAS_PAGEFLIP:
 		getparam->value = 1;
 		break;
-	case NOUVEAU_GETPARAM_GRAPH_UNITS:
+	case ANALUVEAU_GETPARAM_GRAPH_UNITS:
 		getparam->value = nvkm_gr_units(gr);
 		break;
-	case NOUVEAU_GETPARAM_EXEC_PUSH_MAX: {
+	case ANALUVEAU_GETPARAM_EXEC_PUSH_MAX: {
 		int ib_max = getparam_dma_ib_max(device);
 
-		getparam->value = nouveau_exec_push_max_from_ib_max(ib_max);
+		getparam->value = analuveau_exec_push_max_from_ib_max(ib_max);
 		break;
 	}
-	case NOUVEAU_GETPARAM_VRAM_BAR_SIZE:
+	case ANALUVEAU_GETPARAM_VRAM_BAR_SIZE:
 		getparam->value = nvkm_device->func->resource_size(nvkm_device, 1);
 		break;
-	case NOUVEAU_GETPARAM_VRAM_USED: {
+	case ANALUVEAU_GETPARAM_VRAM_USED: {
 		struct ttm_resource_manager *vram_mgr = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
 		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr);
 		break;
 	}
 	default:
-		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
+		NV_PRINTK(dbg, cli, "unkanalwn parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 
@@ -281,29 +281,29 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 }
 
 int
-nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_channel_alloc *init = data;
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
+	struct drm_analuveau_channel_alloc *init = data;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_abi16_chan *chan;
 	struct nvif_device *device;
 	u64 engine, runm;
 	int ret;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!drm->channel)
-		return nouveau_abi16_put(abi16, -ENODEV);
+		return analuveau_abi16_put(abi16, -EANALDEV);
 
-	/* If uvmm wasn't initialized until now disable it completely to prevent
+	/* If uvmm wasn't initialized until analw disable it completely to prevent
 	 * userspace from mixing up UAPIs.
 	 *
-	 * The client lock is already acquired by nouveau_abi16_get().
+	 * The client lock is already acquired by analuveau_abi16_get().
 	 */
-	__nouveau_cli_disable_uvmm_noinit(cli);
+	__analuveau_cli_disable_uvmm_analinit(cli);
 
 	device = &abi16->device;
 	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
@@ -318,7 +318,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 			case 0x08: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSVLD ; break;
 			case 0x30: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_CE    ; break;
 			default:
-				return nouveau_abi16_put(abi16, -ENOSYS);
+				return analuveau_abi16_put(abi16, -EANALSYS);
 			}
 
 			init->fb_ctxdma_handle = 0;
@@ -332,28 +332,28 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		runm = nvif_fifo_runlist_ce(device);
 
 	if (!runm || init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return analuveau_abi16_put(abi16, -EANALMEM);
 
-	INIT_LIST_HEAD(&chan->notifiers);
+	INIT_LIST_HEAD(&chan->analtifiers);
 	list_add(&chan->head, &abi16->channels);
 
 	/* create channel object and initialise dma and fence management */
-	ret = nouveau_channel_new(drm, device, false, runm, init->fb_ctxdma_handle,
+	ret = analuveau_channel_new(drm, device, false, runm, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
 
-	/* If we're not using the VM_BIND uAPI, we don't need a scheduler.
+	/* If we're analt using the VM_BIND uAPI, we don't need a scheduler.
 	 *
-	 * The client lock is already acquired by nouveau_abi16_get().
+	 * The client lock is already acquired by analuveau_abi16_get().
 	 */
-	if (nouveau_cli_uvmm(cli)) {
-		ret = nouveau_sched_create(&chan->sched, drm, drm->sched_wq,
+	if (analuveau_cli_uvmm(cli)) {
+		ret = analuveau_sched_create(&chan->sched, drm, drm->sched_wq,
 					   chan->chan->dma.ib_max);
 		if (ret)
 			goto done;
@@ -362,13 +362,13 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	init->channel = chan->chan->chid;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA)
-		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
-					NOUVEAU_GEM_DOMAIN_GART;
+		init->pushbuf_domains = ANALUVEAU_GEM_DOMAIN_VRAM |
+					ANALUVEAU_GEM_DOMAIN_GART;
 	else
 	if (chan->chan->push.buffer->bo.resource->mem_type == TTM_PL_VRAM)
-		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
+		init->pushbuf_domains = ANALUVEAU_GEM_DOMAIN_VRAM;
 	else
-		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
+		init->pushbuf_domains = ANALUVEAU_GEM_DOMAIN_GART;
 
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		init->subchan[0].handle = 0x00000000;
@@ -379,8 +379,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	}
 
 	/* Workaround "nvc0" gallium driver using classes it doesn't allocate on
-	 * Kepler and above.  NVKM no longer always sets CE_CTX_VALID as part of
-	 * channel init, now we know what that stuff actually is.
+	 * Kepler and above.  NVKM anal longer always sets CE_CTX_VALID as part of
+	 * channel init, analw we kanalw what that stuff actually is.
 	 *
 	 * Doesn't matter for Kepler/Pascal, CE context stored in NV_RAMIN.
 	 *
@@ -404,37 +404,37 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	}
 
 	/* Named memory object area */
-	ret = nouveau_gem_new(cli, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
+	ret = analuveau_gem_new(cli, PAGE_SIZE, 0, ANALUVEAU_GEM_DOMAIN_GART,
 			      0, 0, &chan->ntfy);
 	if (ret == 0)
-		ret = nouveau_bo_pin(chan->ntfy, NOUVEAU_GEM_DOMAIN_GART,
+		ret = analuveau_bo_pin(chan->ntfy, ANALUVEAU_GEM_DOMAIN_GART,
 				     false);
 	if (ret)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
+		ret = analuveau_vma_new(chan->ntfy, chan->chan->vmm,
 				      &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
 
 	ret = drm_gem_handle_create(file_priv, &chan->ntfy->bo.base,
-				    &init->notifier_handle);
+				    &init->analtifier_handle);
 	if (ret)
 		goto done;
 
 	ret = nvkm_mm_init(&chan->heap, 0, 0, PAGE_SIZE, 1);
 done:
 	if (ret)
-		nouveau_abi16_chan_fini(abi16, chan);
-	return nouveau_abi16_put(abi16, ret);
+		analuveau_abi16_chan_fini(abi16, chan);
+	return analuveau_abi16_put(abi16, ret);
 }
 
-static struct nouveau_abi16_chan *
-nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
+static struct analuveau_abi16_chan *
+analuveau_abi16_chan(struct analuveau_abi16 *abi16, int channel)
 {
-	struct nouveau_abi16_chan *chan;
+	struct analuveau_abi16_chan *chan;
 
 	list_for_each_entry(chan, &abi16->channels, head) {
 		if (chan->chan->chid == channel)
@@ -445,14 +445,14 @@ nouveau_abi16_chan(struct nouveau_abi16 *abi16, int channel)
 }
 
 int
-nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
+analuveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 {
 	union {
 		struct nvif_ioctl_v0 v0;
 	} *args = data;
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16 *abi16;
-	int ret = -ENOSYS;
+	struct analuveau_abi16_chan *chan;
+	struct analuveau_abi16 *abi16;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		switch (args->v0.type) {
@@ -466,11 +466,11 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 	} else
 		return ret;
 
-	if (!(abi16 = nouveau_abi16(file_priv)))
-		return -ENOMEM;
+	if (!(abi16 = analuveau_abi16(file_priv)))
+		return -EANALMEM;
 
 	if (args->v0.token != ~0ULL) {
-		if (!(chan = nouveau_abi16_chan(abi16, args->v0.token)))
+		if (!(chan = analuveau_abi16_chan(abi16, args->v0.token)))
 			return -EINVAL;
 		args->v0.object = nvif_handle(&chan->chan->user);
 		args->v0.owner  = NVIF_IOCTL_V0_OWNER_ANY;
@@ -483,48 +483,48 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 }
 
 int
-nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_channel_free *req = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
+	struct drm_analuveau_channel_free *req = data;
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_abi16_chan *chan;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	chan = nouveau_abi16_chan(abi16, req->channel);
+	chan = analuveau_abi16_chan(abi16, req->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
-	nouveau_abi16_chan_fini(abi16, chan);
-	return nouveau_abi16_put(abi16, 0);
+		return analuveau_abi16_put(abi16, -EANALENT);
+	analuveau_abi16_chan_fini(abi16, chan);
+	return analuveau_abi16_put(abi16, 0);
 }
 
 int
-nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_grobj_alloc *init = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
+	struct drm_analuveau_grobj_alloc *init = data;
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_abi16_chan *chan;
+	struct analuveau_abi16_ntfy *ntfy;
 	struct nvif_client *client;
 	struct nvif_sclass *sclass;
 	s32 oclass = 0;
 	int ret, i;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (init->handle == ~0)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	client = abi16->device.object.client;
 
-	chan = nouveau_abi16_chan(abi16, init->channel);
+	chan = analuveau_abi16_chan(abi16, init->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return analuveau_abi16_put(abi16, -EANALENT);
 
 	ret = nvif_object_sclass_get(&chan->chan->user, &sclass);
 	if (ret < 0)
-		return nouveau_abi16_put(abi16, ret);
+		return analuveau_abi16_put(abi16, ret);
 
 	if ((init->class & 0x00ff) == 0x006e) {
 		/* nvsw: compatibility with older 0x*6e class identifier */
@@ -573,13 +573,13 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 
 	nvif_object_sclass_put(&sclass);
 	if (!oclass)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 
 	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
 	if (!ntfy)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return analuveau_abi16_put(abi16, -EANALMEM);
 
-	list_add(&ntfy->head, &chan->notifiers);
+	list_add(&ntfy->head, &chan->analtifiers);
 
 	client->route = NVDRM_OBJECT_ABI16;
 	ret = nvif_object_ctor(&chan->chan->user, "abi16EngObj", init->handle,
@@ -587,48 +587,48 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	client->route = NVDRM_OBJECT_NVIF;
 
 	if (ret)
-		nouveau_abi16_ntfy_fini(chan, ntfy);
-	return nouveau_abi16_put(abi16, ret);
+		analuveau_abi16_ntfy_fini(chan, ntfy);
+	return analuveau_abi16_put(abi16, ret);
 }
 
 int
-nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_analtifierobj_alloc(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_notifierobj_alloc *info = data;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
+	struct drm_analuveau_analtifierobj_alloc *info = data;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_abi16_chan *chan;
+	struct analuveau_abi16_ntfy *ntfy;
 	struct nvif_device *device = &abi16->device;
 	struct nvif_client *client;
 	struct nv_dma_v0 args = {};
 	int ret;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* completely unnecessary for these chipsets... */
 	if (unlikely(device->info.family >= NV_DEVICE_INFO_V0_FERMI))
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	client = abi16->device.object.client;
 
-	chan = nouveau_abi16_chan(abi16, info->channel);
+	chan = analuveau_abi16_chan(abi16, info->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return analuveau_abi16_put(abi16, -EANALENT);
 
 	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
 	if (!ntfy)
-		return nouveau_abi16_put(abi16, -ENOMEM);
+		return analuveau_abi16_put(abi16, -EANALMEM);
 
-	list_add(&ntfy->head, &chan->notifiers);
+	list_add(&ntfy->head, &chan->analtifiers);
 
 	ret = nvkm_mm_head(&chan->heap, 0, 1, info->size, info->size, 1,
-			   &ntfy->node);
+			   &ntfy->analde);
 	if (ret)
 		goto done;
 
-	args.start = ntfy->node->offset;
-	args.limit = ntfy->node->offset + ntfy->node->length - 1;
+	args.start = ntfy->analde->offset;
+	args.limit = ntfy->analde->offset + ntfy->analde->length - 1;
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
@@ -655,39 +655,39 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	info->offset = ntfy->node->offset;
+	info->offset = ntfy->analde->offset;
 done:
 	if (ret)
-		nouveau_abi16_ntfy_fini(chan, ntfy);
-	return nouveau_abi16_put(abi16, ret);
+		analuveau_abi16_ntfy_fini(chan, ntfy);
+	return analuveau_abi16_put(abi16, ret);
 }
 
 int
-nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
+analuveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 {
-	struct drm_nouveau_gpuobj_free *fini = data;
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_abi16_chan *chan;
-	struct nouveau_abi16_ntfy *ntfy;
-	int ret = -ENOENT;
+	struct drm_analuveau_gpuobj_free *fini = data;
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_abi16_chan *chan;
+	struct analuveau_abi16_ntfy *ntfy;
+	int ret = -EANALENT;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	chan = nouveau_abi16_chan(abi16, fini->channel);
+	chan = analuveau_abi16_chan(abi16, fini->channel);
 	if (!chan)
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 
 	/* synchronize with the user channel and destroy the gpu object */
-	nouveau_channel_idle(chan->chan);
+	analuveau_channel_idle(chan->chan);
 
-	list_for_each_entry(ntfy, &chan->notifiers, head) {
+	list_for_each_entry(ntfy, &chan->analtifiers, head) {
 		if (ntfy->object.handle == fini->handle) {
-			nouveau_abi16_ntfy_fini(chan, ntfy);
+			analuveau_abi16_ntfy_fini(chan, ntfy);
 			ret = 0;
 			break;
 		}
 	}
 
-	return nouveau_abi16_put(abi16, ret);
+	return analuveau_abi16_put(abi16, ret);
 }

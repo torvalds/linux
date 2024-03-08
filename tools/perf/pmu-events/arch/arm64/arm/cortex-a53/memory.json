@@ -7,6 +7,6 @@
   {
     "EventCode": "0xC1",
     "EventName": "EXT_MEM_REQ_NC",
-    "BriefDescription": "Non-cacheable external memory request"
+    "BriefDescription": "Analn-cacheable external memory request"
   }
 ]

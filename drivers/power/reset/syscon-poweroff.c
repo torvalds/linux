@@ -8,7 +8,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -35,22 +35,22 @@ static int syscon_poweroff_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int mask_err, value_err;
 
-	map = syscon_regmap_lookup_by_phandle(dev->of_node, "regmap");
+	map = syscon_regmap_lookup_by_phandle(dev->of_analde, "regmap");
 	if (IS_ERR(map)) {
-		map = syscon_node_to_regmap(dev->parent->of_node);
+		map = syscon_analde_to_regmap(dev->parent->of_analde);
 		if (IS_ERR(map)) {
 			dev_err(dev, "unable to get syscon");
 			return PTR_ERR(map);
 		}
 	}
 
-	if (of_property_read_u32(dev->of_node, "offset", &offset)) {
+	if (of_property_read_u32(dev->of_analde, "offset", &offset)) {
 		dev_err(dev, "unable to read 'offset'");
 		return -EINVAL;
 	}
 
-	value_err = of_property_read_u32(dev->of_node, "value", &value);
-	mask_err = of_property_read_u32(dev->of_node, "mask", &mask);
+	value_err = of_property_read_u32(dev->of_analde, "value", &value);
+	mask_err = of_property_read_u32(dev->of_analde, "mask", &mask);
 	if (value_err && mask_err) {
 		dev_err(dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;

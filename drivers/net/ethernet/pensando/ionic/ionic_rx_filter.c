@@ -26,7 +26,7 @@ void ionic_rx_filter_replay(struct ionic_lif *lif)
 	struct ionic_admin_ctx ctx;
 	struct ionic_rx_filter *f;
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	unsigned int key;
 	unsigned int i;
 	int err;
@@ -108,7 +108,7 @@ void ionic_rx_filters_deinit(struct ionic_lif *lif)
 {
 	struct ionic_rx_filter *f;
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	unsigned int i;
 
 	spin_lock_bh(&lif->rx_filters.lock);
@@ -158,7 +158,7 @@ int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
 	} else {
 		f = devm_kzalloc(dev, sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	f->flow_id = flow_id;
@@ -168,8 +168,8 @@ int ionic_rx_filter_save(struct ionic_lif *lif, u32 flow_id, u16 rxq_index,
 	memcpy(&f->cmd, ac, sizeof(f->cmd));
 	netdev_dbg(lif->netdev, "rx_filter add filter_id %d\n", f->filter_id);
 
-	INIT_HLIST_NODE(&f->by_hash);
-	INIT_HLIST_NODE(&f->by_id);
+	INIT_HLIST_ANALDE(&f->by_hash);
+	INIT_HLIST_ANALDE(&f->by_id);
 
 	key = hash_32(key, IONIC_RX_FILTER_HASH_BITS);
 	head = &lif->rx_filters.by_hash[key];
@@ -291,7 +291,7 @@ int ionic_lif_list_addr(struct ionic_lif *lif, const u8 *addr, bool mode)
 			f->state = IONIC_FILTER_STATE_OLD;
 	} else if (mode == DEL_ADDR && !f) {
 		spin_unlock_bh(&lif->rx_filters.lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	spin_unlock_bh(&lif->rx_filters.lock);
@@ -335,29 +335,29 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 	if (err)
 		return err;
 
-	/* Don't bother with the write to FW if we know there's no room,
+	/* Don't bother with the write to FW if we kanalw there's anal room,
 	 * we can try again on the next sync attempt.
 	 * Since the FW doesn't have a way to tell us the vlan limit,
-	 * we start max_vlans at 0 until we hit the ENOSPC error.
+	 * we start max_vlans at 0 until we hit the EANALSPC error.
 	 */
 	switch (le16_to_cpu(ctx.cmd.rx_filter_add.match)) {
 	case IONIC_RX_FILTER_MATCH_VLAN:
 		netdev_dbg(lif->netdev, "%s: rx_filter add VLAN %d\n",
 			   __func__, ctx.cmd.rx_filter_add.vlan.vlan);
 		if (lif->max_vlans && lif->nvlans >= lif->max_vlans)
-			err = -ENOSPC;
+			err = -EANALSPC;
 		break;
 	case IONIC_RX_FILTER_MATCH_MAC:
 		netdev_dbg(lif->netdev, "%s: rx_filter add ADDR %pM\n",
 			   __func__, ctx.cmd.rx_filter_add.mac.addr);
 		nfilters = le32_to_cpu(lif->identity->eth.max_ucast_filters);
 		if ((lif->nucast + lif->nmcast) >= nfilters)
-			err = -ENOSPC;
+			err = -EANALSPC;
 		break;
 	}
 
-	if (err != -ENOSPC)
-		err = ionic_adminq_post_wait_nomsg(lif, &ctx);
+	if (err != -EANALSPC)
+		err = ionic_adminq_post_wait_analmsg(lif, &ctx);
 
 	spin_lock_bh(&lif->rx_filters.lock);
 
@@ -367,17 +367,17 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 		if (f && f->state == IONIC_FILTER_STATE_SYNCED) {
 			f->state = IONIC_FILTER_STATE_NEW;
 
-			/* If -ENOSPC we won't waste time trying to sync again
+			/* If -EANALSPC we won't waste time trying to sync again
 			 * until there is a delete that might make room
 			 */
-			if (err != -ENOSPC)
+			if (err != -EANALSPC)
 				set_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
 		}
 
 		spin_unlock_bh(&lif->rx_filters.lock);
 
 		/* store the max_vlans limit that we found */
-		if (err == -ENOSPC &&
+		if (err == -EANALSPC &&
 		    le16_to_cpu(ctx.cmd.rx_filter_add.match) == IONIC_RX_FILTER_MATCH_VLAN)
 			lif->max_vlans = lif->nvlans;
 
@@ -386,7 +386,7 @@ static int ionic_lif_filter_add(struct ionic_lif *lif,
 		 * sync attempt.
 		 */
 		switch (err) {
-		case -ENOSPC:
+		case -EANALSPC:
 		case -ENXIO:
 		case -ETIMEDOUT:
 		case -EAGAIN:
@@ -482,7 +482,7 @@ static int ionic_lif_filter_del(struct ionic_lif *lif,
 	f = ionic_rx_filter_find(lif, ac);
 	if (!f) {
 		spin_unlock_bh(&lif->rx_filters.lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	switch (le16_to_cpu(ac->match)) {
@@ -508,10 +508,10 @@ static int ionic_lif_filter_del(struct ionic_lif *lif,
 	spin_unlock_bh(&lif->rx_filters.lock);
 
 	if (state != IONIC_FILTER_STATE_NEW) {
-		err = ionic_adminq_post_wait_nomsg(lif, &ctx);
+		err = ionic_adminq_post_wait_analmsg(lif, &ctx);
 
 		switch (err) {
-			/* ignore these errors */
+			/* iganalre these errors */
 		case -EEXIST:
 		case -ENXIO:
 		case -ETIMEDOUT:
@@ -563,7 +563,7 @@ void ionic_rx_filter_sync(struct ionic_lif *lif)
 	struct sync_item *sync_item;
 	struct ionic_rx_filter *f;
 	struct hlist_head *head;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	struct sync_item *spos;
 	unsigned int i;
 
@@ -573,7 +573,7 @@ void ionic_rx_filter_sync(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state);
 
 	/* Copy the filters to be added and deleted
-	 * into a separate local list that needs no locking.
+	 * into a separate local list that needs anal locking.
 	 */
 	spin_lock_bh(&lif->rx_filters.lock);
 	for (i = 0; i < IONIC_RX_FILTER_HLISTS; i++) {

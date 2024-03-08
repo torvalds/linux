@@ -186,7 +186,7 @@ static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 
 	emc->dvfs = devm_kmalloc_array(emc->dev, emc->num_dvfs, sizeof(*emc->dvfs), GFP_KERNEL);
 	if (!emc->dvfs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(emc->dev, "%u DVFS pairs:\n", emc->num_dvfs);
 
@@ -224,35 +224,35 @@ static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 
 /*
  * tegra_emc_icc_set_bw() - Set BW api for EMC provider
- * @src: ICC node for External Memory Controller (EMC)
- * @dst: ICC node for External Memory (DRAM)
+ * @src: ICC analde for External Memory Controller (EMC)
+ * @dst: ICC analde for External Memory (DRAM)
  *
- * Do nothing here as info to BPMP-FW is now passed in the BW set function
+ * Do analthing here as info to BPMP-FW is analw passed in the BW set function
  * of the MC driver. BPMP-FW sets the final Freq based on the passed values.
  */
-static int tegra_emc_icc_set_bw(struct icc_node *src, struct icc_node *dst)
+static int tegra_emc_icc_set_bw(struct icc_analde *src, struct icc_analde *dst)
 {
 	return 0;
 }
 
-static struct icc_node *
+static struct icc_analde *
 tegra_emc_of_icc_xlate(struct of_phandle_args *spec, void *data)
 {
 	struct icc_provider *provider = data;
-	struct icc_node *node;
+	struct icc_analde *analde;
 
 	/* External Memory is the only possible ICC route */
-	list_for_each_entry(node, &provider->nodes, node_list) {
-		if (node->id != TEGRA_ICC_EMEM)
+	list_for_each_entry(analde, &provider->analdes, analde_list) {
+		if (analde->id != TEGRA_ICC_EMEM)
 			continue;
 
-		return node;
+		return analde;
 	}
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static int tegra_emc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
+static int tegra_emc_icc_get_init_bw(struct icc_analde *analde, u32 *avg, u32 *peak)
 {
 	*avg = 0;
 	*peak = 0;
@@ -264,7 +264,7 @@ static int tegra_emc_interconnect_init(struct tegra186_emc *emc)
 {
 	struct tegra_mc *mc = dev_get_drvdata(emc->dev->parent);
 	const struct tegra_mc_soc *soc = mc->soc;
-	struct icc_node *node;
+	struct icc_analde *analde;
 	int err;
 
 	emc->provider.dev = emc->dev;
@@ -276,39 +276,39 @@ static int tegra_emc_interconnect_init(struct tegra186_emc *emc)
 
 	icc_provider_init(&emc->provider);
 
-	/* create External Memory Controller node */
-	node = icc_node_create(TEGRA_ICC_EMC);
-	if (IS_ERR(node)) {
-		err = PTR_ERR(node);
+	/* create External Memory Controller analde */
+	analde = icc_analde_create(TEGRA_ICC_EMC);
+	if (IS_ERR(analde)) {
+		err = PTR_ERR(analde);
 		goto err_msg;
 	}
 
-	node->name = "External Memory Controller";
-	icc_node_add(node, &emc->provider);
+	analde->name = "External Memory Controller";
+	icc_analde_add(analde, &emc->provider);
 
 	/* link External Memory Controller to External Memory (DRAM) */
-	err = icc_link_create(node, TEGRA_ICC_EMEM);
+	err = icc_link_create(analde, TEGRA_ICC_EMEM);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
-	/* create External Memory node */
-	node = icc_node_create(TEGRA_ICC_EMEM);
-	if (IS_ERR(node)) {
-		err = PTR_ERR(node);
-		goto remove_nodes;
+	/* create External Memory analde */
+	analde = icc_analde_create(TEGRA_ICC_EMEM);
+	if (IS_ERR(analde)) {
+		err = PTR_ERR(analde);
+		goto remove_analdes;
 	}
 
-	node->name = "External Memory (DRAM)";
-	icc_node_add(node, &emc->provider);
+	analde->name = "External Memory (DRAM)";
+	icc_analde_add(analde, &emc->provider);
 
 	err = icc_provider_register(&emc->provider);
 	if (err)
-		goto remove_nodes;
+		goto remove_analdes;
 
 	return 0;
 
-remove_nodes:
-	icc_nodes_remove(&emc->provider);
+remove_analdes:
+	icc_analdes_remove(&emc->provider);
 err_msg:
 	dev_err(emc->dev, "failed to initialize ICC: %d\n", err);
 
@@ -323,7 +323,7 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 
 	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
 	if (!emc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	emc->bpmp = tegra_bpmp_get(&pdev->dev);
 	if (IS_ERR(emc->bpmp))
@@ -352,7 +352,7 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 			/*
 			 * MC driver probe can't get BPMP reference as it gets probed
 			 * earlier than BPMP. So, save the BPMP ref got from the EMC
-			 * DT node in the mc->bpmp and use it in MC's icc_set hook.
+			 * DT analde in the mc->bpmp and use it in MC's icc_set hook.
 			 */
 			mc->bpmp = emc->bpmp;
 			barrier();

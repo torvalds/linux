@@ -7,7 +7,7 @@
  * Copyright 2003 ICT CAS
  * Author: Michael Guo <guoyi@ict.ac.cn>
  *
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techanallogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.

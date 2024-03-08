@@ -16,10 +16,10 @@ struct intel_context;
 struct intel_gt;
 struct intel_guc;
 
-void intel_guc_capture_free_node(struct intel_engine_coredump *ee);
-int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *m,
+void intel_guc_capture_free_analde(struct intel_engine_coredump *ee);
+int intel_guc_capture_print_engine_analde(struct drm_i915_error_state_buf *m,
 					const struct intel_engine_coredump *ee);
-void intel_guc_capture_get_matching_node(struct intel_gt *gt, struct intel_engine_coredump *ee,
+void intel_guc_capture_get_matching_analde(struct intel_gt *gt, struct intel_engine_coredump *ee,
 					 struct intel_context *ce);
 bool intel_guc_capture_is_matching_engine(struct intel_gt *gt, struct intel_context *ce,
 					  struct intel_engine_cs *engine);

@@ -22,10 +22,10 @@ worst case, page is incompressible and is thus stored "as-is" i.e. in
 uncompressed form). For allocation requests larger than this size, failure
 is returned (see zs_malloc).
 
-Additionally, zs_malloc() does not return a dereferenceable pointer.
+Additionally, zs_malloc() does analt return a dereferenceable pointer.
 Instead, it returns an opaque handle (unsigned long) which encodes actual
 location of the allocated object. The reason for this indirection is that
-zsmalloc does not keep zspages permanently mapped since that would cause
+zsmalloc does analt keep zspages permanently mapped since that would cause
 issues on 32-bit systems where the VA region for kernel space mappings
 is very small. So, before using the allocating memory, the object has to
 be mapped using zs_map_object() to get a usable pointer and subsequently
@@ -156,7 +156,7 @@ Let's take a closer look at the bottom of `/sys/kernel/debug/zsmalloc/zramX/clas
 Size class #202 stores objects of size 3264 bytes and has a maximum of 4 pages
 per zspage. Any object larger than 3264 bytes is considered huge and belongs
 to size class #254, which stores each object in its own physical page (objects
-in huge classes do not share pages).
+in huge classes do analt share pages).
 
 Increasing the size of the chain of zspages also results in a higher watermark
 for the huge size class and fewer huge classes overall. This allows for more

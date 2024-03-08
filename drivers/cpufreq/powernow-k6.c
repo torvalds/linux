@@ -20,7 +20,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 
-#define POWERNOW_IOPORT 0xfff0          /* it doesn't matter where, as long
+#define POWERANALW_IOPORT 0xfff0          /* it doesn't matter where, as long
 					   as it is unused */
 
 static unsigned int                     busfreq;   /* FSB, in 10 kHz */
@@ -75,22 +75,22 @@ static const struct {
 #define FREQ_RANGE		3000
 
 /**
- * powernow_k6_get_cpu_multiplier - returns the current FSB multiplier
+ * poweranalw_k6_get_cpu_multiplier - returns the current FSB multiplier
  *
  * Returns the current setting of the frequency multiplier. Core clock
  * speed is frequency of the Front-Side Bus multiplied with this value.
  */
-static int powernow_k6_get_cpu_multiplier(void)
+static int poweranalw_k6_get_cpu_multiplier(void)
 {
 	unsigned long invalue = 0;
 	u32 msrval;
 
 	local_irq_disable();
 
-	msrval = POWERNOW_IOPORT + 0x1;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
-	invalue = inl(POWERNOW_IOPORT + 0x8);
-	msrval = POWERNOW_IOPORT + 0x0;
+	msrval = POWERANALW_IOPORT + 0x1;
+	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerAnalw port */
+	invalue = inl(POWERANALW_IOPORT + 0x8);
+	msrval = POWERANALW_IOPORT + 0x0;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
 
 	local_irq_enable();
@@ -98,13 +98,13 @@ static int powernow_k6_get_cpu_multiplier(void)
 	return clock_ratio[register_to_index[(invalue >> 5)&7]].driver_data;
 }
 
-static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
+static void poweranalw_k6_set_cpu_multiplier(unsigned int best_i)
 {
 	unsigned long outvalue, invalue;
 	unsigned long msrval;
 	unsigned long cr0;
 
-	/* we now need to transform best_i to the BVC format, see AMD#23446 */
+	/* we analw need to transform best_i to the BVC format, see AMD#23446 */
 
 	/*
 	 * The processor doesn't respond to inquiry cycles while changing the
@@ -117,13 +117,13 @@ static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
 
 	outvalue = (1<<12) | (1<<10) | (1<<9) | (index_to_register[best_i]<<5);
 
-	msrval = POWERNOW_IOPORT + 0x1;
-	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
-	invalue = inl(POWERNOW_IOPORT + 0x8);
+	msrval = POWERANALW_IOPORT + 0x1;
+	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerAnalw port */
+	invalue = inl(POWERANALW_IOPORT + 0x8);
 	invalue = invalue & 0x1f;
 	outvalue = outvalue | invalue;
-	outl(outvalue, (POWERNOW_IOPORT + 0x8));
-	msrval = POWERNOW_IOPORT + 0x0;
+	outl(outvalue, (POWERANALW_IOPORT + 0x8));
+	msrval = POWERANALW_IOPORT + 0x0;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* disable it again */
 
 	write_cr0(cr0);
@@ -131,12 +131,12 @@ static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
 }
 
 /**
- * powernow_k6_target - set the PowerNow! multiplier
+ * poweranalw_k6_target - set the PowerAnalw! multiplier
  * @best_i: clock_ratio[best_i] is the target multiplier
  *
- *   Tries to change the PowerNow! multiplier
+ *   Tries to change the PowerAnalw! multiplier
  */
-static int powernow_k6_target(struct cpufreq_policy *policy,
+static int poweranalw_k6_target(struct cpufreq_policy *policy,
 		unsigned int best_i)
 {
 
@@ -145,19 +145,19 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 
-	powernow_k6_set_cpu_multiplier(best_i);
+	poweranalw_k6_set_cpu_multiplier(best_i);
 
 	return 0;
 }
 
-static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
+static int poweranalw_k6_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *pos;
 	unsigned int i, f;
 	unsigned khz;
 
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	max_multiplier = 0;
 	khz = cpu_khz;
@@ -180,10 +180,10 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	if (!max_multiplier) {
-		pr_warn("unknown frequency %u, cannot determine current multiplier\n",
+		pr_warn("unkanalwn frequency %u, cananalt determine current multiplier\n",
 			khz);
 		pr_warn("use module parameters max_multiplier and bus_frequency\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 have_max_multiplier:
@@ -219,7 +219,7 @@ have_busfreq:
 }
 
 
-static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
+static int poweranalw_k6_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int i;
 
@@ -232,7 +232,7 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 			freqs.flags = 0;
 
 			cpufreq_freq_transition_begin(policy, &freqs);
-			powernow_k6_target(policy, i);
+			poweranalw_k6_target(policy, i);
 			cpufreq_freq_transition_end(policy, &freqs, 0);
 			break;
 		}
@@ -240,49 +240,49 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static unsigned int powernow_k6_get(unsigned int cpu)
+static unsigned int poweranalw_k6_get(unsigned int cpu)
 {
 	unsigned int ret;
-	ret = (busfreq * powernow_k6_get_cpu_multiplier());
+	ret = (busfreq * poweranalw_k6_get_cpu_multiplier());
 	return ret;
 }
 
-static struct cpufreq_driver powernow_k6_driver = {
+static struct cpufreq_driver poweranalw_k6_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= powernow_k6_target,
-	.init		= powernow_k6_cpu_init,
-	.exit		= powernow_k6_cpu_exit,
-	.get		= powernow_k6_get,
-	.name		= "powernow-k6",
+	.target_index	= poweranalw_k6_target,
+	.init		= poweranalw_k6_cpu_init,
+	.exit		= poweranalw_k6_cpu_exit,
+	.get		= poweranalw_k6_get,
+	.name		= "poweranalw-k6",
 	.attr		= cpufreq_generic_attr,
 };
 
-static const struct x86_cpu_id powernow_k6_ids[] = {
+static const struct x86_cpu_id poweranalw_k6_ids[] = {
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 5, 12, NULL),
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 5, 13, NULL),
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, powernow_k6_ids);
+MODULE_DEVICE_TABLE(x86cpu, poweranalw_k6_ids);
 
 /**
- * powernow_k6_init - initializes the k6 PowerNow! CPUFreq driver
+ * poweranalw_k6_init - initializes the k6 PowerAnalw! CPUFreq driver
  *
- *   Initializes the K6 PowerNow! support. Returns -ENODEV on unsupported
- * devices, -EINVAL or -ENOMEM on problems during initiatization, and zero
+ *   Initializes the K6 PowerAnalw! support. Returns -EANALDEV on unsupported
+ * devices, -EINVAL or -EANALMEM on problems during initiatization, and zero
  * on success.
  */
-static int __init powernow_k6_init(void)
+static int __init poweranalw_k6_init(void)
 {
-	if (!x86_match_cpu(powernow_k6_ids))
-		return -ENODEV;
+	if (!x86_match_cpu(poweranalw_k6_ids))
+		return -EANALDEV;
 
-	if (!request_region(POWERNOW_IOPORT, 16, "PowerNow!")) {
-		pr_info("PowerNow IOPORT region already used\n");
+	if (!request_region(POWERANALW_IOPORT, 16, "PowerAnalw!")) {
+		pr_info("PowerAnalw IOPORT region already used\n");
 		return -EIO;
 	}
 
-	if (cpufreq_register_driver(&powernow_k6_driver)) {
-		release_region(POWERNOW_IOPORT, 16);
+	if (cpufreq_register_driver(&poweranalw_k6_driver)) {
+		release_region(POWERANALW_IOPORT, 16);
 		return -EINVAL;
 	}
 
@@ -291,21 +291,21 @@ static int __init powernow_k6_init(void)
 
 
 /**
- * powernow_k6_exit - unregisters AMD K6-2+/3+ PowerNow! support
+ * poweranalw_k6_exit - unregisters AMD K6-2+/3+ PowerAnalw! support
  *
- *   Unregisters AMD K6-2+ / K6-3+ PowerNow! support.
+ *   Unregisters AMD K6-2+ / K6-3+ PowerAnalw! support.
  */
-static void __exit powernow_k6_exit(void)
+static void __exit poweranalw_k6_exit(void)
 {
-	cpufreq_unregister_driver(&powernow_k6_driver);
-	release_region(POWERNOW_IOPORT, 16);
+	cpufreq_unregister_driver(&poweranalw_k6_driver);
+	release_region(POWERANALW_IOPORT, 16);
 }
 
 
 MODULE_AUTHOR("Arjan van de Ven, Dave Jones, "
 		"Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION("PowerNow! driver for AMD K6-2+ / K6-3+ processors.");
+MODULE_DESCRIPTION("PowerAnalw! driver for AMD K6-2+ / K6-3+ processors.");
 MODULE_LICENSE("GPL");
 
-module_init(powernow_k6_init);
-module_exit(powernow_k6_exit);
+module_init(poweranalw_k6_init);
+module_exit(poweranalw_k6_exit);

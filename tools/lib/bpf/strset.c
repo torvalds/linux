@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include "hashmap.h"
 #include "libbpf_internal.h"
@@ -40,10 +40,10 @@ struct strset *strset__new(size_t max_data_sz, const char *init_data, size_t ini
 {
 	struct strset *set = calloc(1, sizeof(*set));
 	struct hashmap *hash;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!set)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	hash = hashmap__new(strset_hash_fn, strset_equal_fn, set);
 	if (IS_ERR(hash))
@@ -110,7 +110,7 @@ static void *strset_add_str_mem(struct strset *set, size_t add_sz)
 /* Find string offset that corresponds to a given string *s*.
  * Returns:
  *   - >0 offset into string data, if string is found;
- *   - -ENOENT, if string is not in the string data;
+ *   - -EANALENT, if string is analt in the string data;
  *   - <0, on any other error.
  */
 int strset__find_str(struct strset *set, const char *s)
@@ -122,7 +122,7 @@ int strset__find_str(struct strset *set, const char *s)
 	len = strlen(s) + 1;
 	p = strset_add_str_mem(set, len);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_off = set->strs_data_len;
 	memcpy(p, s, len);
@@ -130,7 +130,7 @@ int strset__find_str(struct strset *set, const char *s)
 	if (hashmap__find(set->strs_hash, new_off, &old_off))
 		return old_off;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* Add a string s to the string data. If the string already exists, return its
@@ -149,19 +149,19 @@ int strset__add_str(struct strset *set, const char *s)
 	 * look up some string from the "outside", we need to first append it
 	 * at the end, so that it can be addressed with an offset. Luckily,
 	 * until set->strs_data_len is incremented, that string is just a piece
-	 * of garbage for the rest of the code, so no harm, no foul. On the
+	 * of garbage for the rest of the code, so anal harm, anal foul. On the
 	 * other hand, if the string is unique, it's already appended and
 	 * ready to be used, only a simple set->strs_data_len increment away.
 	 */
 	len = strlen(s) + 1;
 	p = strset_add_str_mem(set, len);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_off = set->strs_data_len;
 	memcpy(p, s, len);
 
-	/* Now attempt to add the string, but only if the string with the same
+	/* Analw attempt to add the string, but only if the string with the same
 	 * contents doesn't exist already (HASHMAP_ADD strategy). If such
 	 * string exists, we'll get its offset in old_off (that's old_key).
 	 */

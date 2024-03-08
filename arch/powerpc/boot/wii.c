@@ -106,12 +106,12 @@ static void platform_fixups(void)
 
 	mem = finddevice("/memory");
 	if (!mem)
-		fatal("Can't find memory node\n");
+		fatal("Can't find memory analde\n");
 
 	/* two ranges of (address, size) words */
 	len = getprop(mem, "reg", reg, sizeof(reg));
 	if (len != sizeof(reg)) {
-		/* nothing to do */
+		/* analthing to do */
 		goto out;
 	}
 

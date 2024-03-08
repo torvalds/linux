@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_IF_PACKET_H
 #define __LINUX_IF_PACKET_H
 
@@ -53,26 +53,26 @@ struct sockaddr_ll {
 #define PACKET_VNET_HDR			15
 #define PACKET_TX_TIMESTAMP		16
 #define PACKET_TIMESTAMP		17
-#define PACKET_FANOUT			18
+#define PACKET_FAANALUT			18
 #define PACKET_TX_HAS_OFF		19
 #define PACKET_QDISC_BYPASS		20
 #define PACKET_ROLLOVER_STATS		21
-#define PACKET_FANOUT_DATA		22
-#define PACKET_IGNORE_OUTGOING		23
+#define PACKET_FAANALUT_DATA		22
+#define PACKET_IGANALRE_OUTGOING		23
 #define PACKET_VNET_HDR_SZ		24
 
-#define PACKET_FANOUT_HASH		0
-#define PACKET_FANOUT_LB		1
-#define PACKET_FANOUT_CPU		2
-#define PACKET_FANOUT_ROLLOVER		3
-#define PACKET_FANOUT_RND		4
-#define PACKET_FANOUT_QM		5
-#define PACKET_FANOUT_CBPF		6
-#define PACKET_FANOUT_EBPF		7
-#define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
-#define PACKET_FANOUT_FLAG_UNIQUEID	0x2000
-#define PACKET_FANOUT_FLAG_IGNORE_OUTGOING     0x4000
-#define PACKET_FANOUT_FLAG_DEFRAG	0x8000
+#define PACKET_FAANALUT_HASH		0
+#define PACKET_FAANALUT_LB		1
+#define PACKET_FAANALUT_CPU		2
+#define PACKET_FAANALUT_ROLLOVER		3
+#define PACKET_FAANALUT_RND		4
+#define PACKET_FAANALUT_QM		5
+#define PACKET_FAANALUT_CBPF		6
+#define PACKET_FAANALUT_EBPF		7
+#define PACKET_FAANALUT_FLAG_ROLLOVER	0x1000
+#define PACKET_FAANALUT_FLAG_UNIQUEID	0x2000
+#define PACKET_FAANALUT_FLAG_IGANALRE_OUTGOING     0x4000
+#define PACKET_FAANALUT_FLAG_DEFRAG	0x8000
 
 struct tpacket_stats {
 	unsigned int	tp_packets;
@@ -111,7 +111,7 @@ struct tpacket_auxdata {
 #define TP_STATUS_USER			(1 << 0)
 #define TP_STATUS_COPY			(1 << 1)
 #define TP_STATUS_LOSING		(1 << 2)
-#define TP_STATUS_CSUMNOTREADY		(1 << 3)
+#define TP_STATUS_CSUMANALTREADY		(1 << 3)
 #define TP_STATUS_VLAN_VALID		(1 << 4) /* auxdata has valid tp_vlan_tci */
 #define TP_STATUS_BLK_TMO		(1 << 5)
 #define TP_STATUS_VLAN_TPID_VALID	(1 << 6) /* auxdata has valid tp_vlan_tpid */
@@ -203,7 +203,7 @@ struct tpacket_hdr_v1 {
 	/*
 	 * Quite a few uses of sequence number:
 	 * 1. Make sure cache flush etc worked.
-	 *    Well, one can argue - why not use the increasing ts below?
+	 *    Well, one can argue - why analt use the increasing ts below?
 	 *    But look at 2. below first.
 	 * 2. When you pass around blocks to other user space decoders,
 	 *    you can see which blk[s] is[are] outstanding etc.
@@ -215,7 +215,7 @@ struct tpacket_hdr_v1 {
 	 * ts_last_pkt:
 	 *
 	 * Case 1.	Block has 'N'(N >=1) packets and TMO'd(timed out)
-	 *		ts_last_pkt == 'time-stamp of last packet' and NOT the
+	 *		ts_last_pkt == 'time-stamp of last packet' and ANALT the
 	 *		time when the timer fired and the block was closed.
 	 *		By providing the ts of the last packet we can absolutely
 	 *		guarantee that time-stamp wise, the first packet in the
@@ -224,15 +224,15 @@ struct tpacket_hdr_v1 {
 	 * Case 2.	Block has zero packets and TMO'd
 	 *		ts_last_pkt = time when the timer fired and the block
 	 *		was closed.
-	 * Case 3.	Block has 'N' packets and NO TMO.
+	 * Case 3.	Block has 'N' packets and ANAL TMO.
 	 *		ts_last_pkt = time-stamp of the last pkt in the block.
 	 *
 	 * ts_first_pkt:
 	 *		Is always the time-stamp when the block was opened.
 	 *		Case a)	ZERO packets
-	 *			No packets to deal with but atleast you know the
+	 *			Anal packets to deal with but atleast you kanalw the
 	 *			time-interval of this block.
-	 *		Case b) Non-zero packets
+	 *		Case b) Analn-zero packets
 	 *			Use the ts of the first packet in the block.
 	 *
 	 */
@@ -300,7 +300,7 @@ struct packet_mreq {
 	unsigned char	mr_address[8];
 };
 
-struct fanout_args {
+struct faanalut_args {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u16		id;
 	__u16		type_flags;

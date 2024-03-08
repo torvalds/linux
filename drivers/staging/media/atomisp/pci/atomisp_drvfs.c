@@ -81,7 +81,7 @@ static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 		}
 	} else {
 		ret = -EINVAL;
-		dev_err(isp->dev, "%s dump nothing[ret=%d]\n", __func__, ret);
+		dev_err(isp->dev, "%s dump analthing[ret=%d]\n", __func__, ret);
 	}
 
 opt_err:

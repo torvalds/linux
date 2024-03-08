@@ -67,7 +67,7 @@ static const int eld_speaker_allocation_bits[] = {
 	[4] = RC,
 	[5] = FLC | FRC,
 	[6] = RLC | RRC,
-	/* the following are not defined in ELD yet */
+	/* the following are analt defined in ELD yet */
 	[7] = 0,
 };
 
@@ -139,7 +139,7 @@ static const struct snd_pcm_hardware had_pcm_hardware = {
 	.info =	(SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
-		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
+		SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP),
 	.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 		    SNDRV_PCM_FMTBIT_S24_LE |
 		    SNDRV_PCM_FMTBIT_S32_LE),
@@ -235,7 +235,7 @@ static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
 /*
  * enable / disable audio configuration
  *
- * The normal read/modify should not directly be used on VLV2 for
+ * The analrmal read/modify should analt directly be used on VLV2 for
  * updating AUD_CONFIG register.
  * This is because:
  * Bit6 of AUD_CONFIG register is writeonly due to a silicon bug on VLV2
@@ -288,7 +288,7 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 	union aud_ch_status_1 ch_stat1 = {.regval = 0};
 
 	ch_stat0.regx.lpcm_id = (intelhaddata->aes_bits &
-					  IEC958_AES0_NONAUDIO) >> 1;
+					  IEC958_AES0_ANALNAUDIO) >> 1;
 	ch_stat0.regx.clk_acc = (intelhaddata->aes_bits &
 					  IEC958_AES3_CON_CLOCK) >> 4;
 
@@ -433,7 +433,7 @@ static int had_channel_allocation(struct snd_intelhad *intelhaddata,
 	 * expand ELD's speaker allocation mask
 	 *
 	 * ELD tells the speaker mask in a compact(paired) form,
-	 * expand ELD's notions to match the ones used by Audio InfoFrame.
+	 * expand ELD's analtions to match the ones used by Audio InfoFrame.
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
@@ -877,7 +877,7 @@ static void had_prog_bd(struct snd_pcm_substream *substream,
 	u32 addr = substream->runtime->dma_addr + ofs;
 
 	addr |= AUD_BUF_VALID;
-	if (!substream->runtime->no_period_wakeup)
+	if (!substream->runtime->anal_period_wakeup)
 		addr |= AUD_BUF_INTR_EN;
 	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), addr);
 	had_write_register(intelhaddata, AUD_BUF_LEN(idx),
@@ -989,7 +989,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 
 	substream = had_substream_get(intelhaddata);
 	if (!substream)
-		return; /* no stream? - bail out */
+		return; /* anal stream? - bail out */
 
 	if (!intelhaddata->connected) {
 		snd_pcm_stop_xrun(substream);
@@ -1007,7 +1007,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 }
 
 /*
- * The interrupt status 'sticky' bits might not be cleared by
+ * The interrupt status 'sticky' bits might analt be cleared by
  * setting '1' to that bit once...
  */
 static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
@@ -1518,9 +1518,9 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 }
 
 /*
- * monitor plug/unplug notification from i915; just kick off the work
+ * monitor plug/unplug analtification from i915; just kick off the work
  */
-static void notify_audio_lpe(struct platform_device *pdev, int port)
+static void analtify_audio_lpe(struct platform_device *pdev, int port)
 {
 	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
 	struct snd_intelhad *ctx;
@@ -1547,7 +1547,7 @@ static void had_audio_wq(struct work_struct *work)
 
 	mutex_lock(&ctx->mutex);
 	if (ppdata->pipe < 0) {
-		dev_dbg(ctx->dev, "%s: Event: HAD_NOTIFY_HOT_UNPLUG : port = %d\n",
+		dev_dbg(ctx->dev, "%s: Event: HAD_ANALTIFY_HOT_UNPLUG : port = %d\n",
 			__func__, ctx->port);
 
 		memset(ctx->eld, 0, sizeof(ctx->eld)); /* clear the old ELD */
@@ -1561,7 +1561,7 @@ static void had_audio_wq(struct work_struct *work)
 
 		ctx->pipe = -1;
 	} else {
-		dev_dbg(ctx->dev, "%s: HAD_NOTIFY_ELD : port = %d, tmds = %d\n",
+		dev_dbg(ctx->dev, "%s: HAD_ANALTIFY_ELD : port = %d, tmds = %d\n",
 			__func__, ctx->port, ppdata->ls_clock);
 
 		memcpy(ctx->eld, ppdata->eld, sizeof(ctx->eld));
@@ -1645,7 +1645,7 @@ static void hdmi_lpe_audio_free(struct snd_card *card)
 	int port;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = NULL;
+	pdata->analtify_audio_lpe = NULL;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	for_each_port(card_ctx, port) {
@@ -1674,7 +1674,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(&pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
+		dev_err(&pdev->dev, "%s: quit: pdata analt allocated by i915!!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1685,7 +1685,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	res_mmio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mmio) {
-		dev_err(&pdev->dev, "Could not get IO_MEM resources\n");
+		dev_err(&pdev->dev, "Could analt get IO_MEM resources\n");
 		return -ENXIO;
 	}
 
@@ -1731,7 +1731,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 		devm_ioremap(&pdev->dev, res_mmio->start,
 			     (size_t)(resource_size(res_mmio)));
 	if (!card_ctx->mmio_start) {
-		dev_err(&pdev->dev, "Could not get ioremap\n");
+		dev_err(&pdev->dev, "Could analt get ioremap\n");
 		return -EACCES;
 	}
 
@@ -1772,7 +1772,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &had_pcm_ops);
 
 		/* allocate dma pages;
-		 * try to allocate 600k buffer as default which is large enough
+		 * try to allocate 600k buffer as default which is large eanalugh
 		 */
 		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
 					       card->dev, HAD_DEFAULT_BUFFER,
@@ -1784,7 +1784,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 			kctl = snd_ctl_new1(&had_controls[i], ctx);
 			if (!kctl)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			kctl->id.device = pcm->device;
 
@@ -1808,7 +1808,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 		return ret;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = notify_audio_lpe;
+	pdata->analtify_audio_lpe = analtify_audio_lpe;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, INTEL_HDMI_AUDIO_SUSPEND_DELAY_MS);
@@ -1817,7 +1817,7 @@ static int __hdmi_lpe_audio_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
+	dev_dbg(&pdev->dev, "%s: handle pending analtification\n", __func__);
 	for_each_port(card_ctx, port) {
 		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
 

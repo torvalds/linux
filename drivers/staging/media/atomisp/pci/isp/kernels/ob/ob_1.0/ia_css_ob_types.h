@@ -25,7 +25,7 @@
 /* Optical black mode.
  */
 enum ia_css_ob_mode {
-	IA_CSS_OB_MODE_NONE,	/** OB has no effect. */
+	IA_CSS_OB_MODE_ANALNE,	/** OB has anal effect. */
 	IA_CSS_OB_MODE_FIXED,	/** Fixed OB */
 	IA_CSS_OB_MODE_RASTER	/** Raster OB */
 };
@@ -37,7 +37,7 @@ enum ia_css_ob_mode {
  *  ISP2: OB1 is used.
  */
 struct ia_css_ob_config {
-	enum ia_css_ob_mode mode; /** Mode (None / Fixed / Raster).
+	enum ia_css_ob_mode mode; /** Mode (Analne / Fixed / Raster).
 					enum, [0,2],
 					default 1, ineffective 0 */
 	ia_css_u0_16 level_gr;    /** Black level for GR pixels

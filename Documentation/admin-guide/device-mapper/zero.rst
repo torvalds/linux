@@ -6,14 +6,14 @@ Device-Mapper's "zero" target provides a block-device that always returns
 zero'd data on reads and silently drops writes. This is similar behavior to
 /dev/zero, but as a block-device instead of a character-device.
 
-Dm-zero has no target-specific parameters.
+Dm-zero has anal target-specific parameters.
 
 One very interesting use of dm-zero is for creating "sparse" devices in
 conjunction with dm-snapshot. A sparse device reports a device-size larger
 than the amount of actual storage space available for that device. A user can
-write data anywhere within the sparse device and read it back like a normal
+write data anywhere within the sparse device and read it back like a analrmal
 device. Reads to previously unwritten areas will return a zero'd buffer. When
-enough data has been written to fill up the actual storage space, the sparse
+eanalugh data has been written to fill up the actual storage space, the sparse
 device is deactivated. This can be very useful for testing device and
 filesystem limitations.
 

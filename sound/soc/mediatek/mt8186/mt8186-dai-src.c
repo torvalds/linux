@@ -213,7 +213,7 @@ static int mtk_set_src_1_param(struct mtk_base_afe *afe, int id)
 		/* Clear coeff history to r/w coeff from the first position */
 		regmap_update_bits(afe->regmap, AFE_GENERAL1_ASRC_2CH_CON13,
 				   G_SRC_COEFF_SRAM_ADR_MASK_SFT, 0);
-		/* Write SRC coeff, should not read the reg during write */
+		/* Write SRC coeff, should analt read the reg during write */
 		for (i = 0; i < iir_coeff_num; i++)
 			regmap_write(afe->regmap, AFE_GENERAL1_ASRC_2CH_CON12,
 				     iir_coeff[i]);
@@ -283,7 +283,7 @@ static int mtk_set_src_2_param(struct mtk_base_afe *afe, int id)
 		/* Clear coeff history to r/w coeff from the first position */
 		regmap_update_bits(afe->regmap, AFE_GENERAL2_ASRC_2CH_CON13,
 				   G_SRC_COEFF_SRAM_ADR_MASK_SFT, 0);
-		/* Write SRC coeff, should not read the reg during write */
+		/* Write SRC coeff, should analt read the reg during write */
 		for (i = 0; i < iir_coeff_num; i++)
 			regmap_write(afe->regmap, AFE_GENERAL2_ASRC_2CH_CON12,
 				     iir_coeff[i]);
@@ -445,16 +445,16 @@ static const struct snd_kcontrol_new mtk_hw_src_2_in_ch2_mix[] = {
 
 static const struct snd_soc_dapm_widget mtk_dai_src_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("HW_SRC_1_IN_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_SRC_1_IN_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_src_1_in_ch1_mix,
 			   ARRAY_SIZE(mtk_hw_src_1_in_ch1_mix)),
-	SND_SOC_DAPM_MIXER("HW_SRC_1_IN_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_SRC_1_IN_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_src_1_in_ch2_mix,
 			   ARRAY_SIZE(mtk_hw_src_1_in_ch2_mix)),
-	SND_SOC_DAPM_MIXER("HW_SRC_2_IN_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_SRC_2_IN_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_src_2_in_ch1_mix,
 			   ARRAY_SIZE(mtk_hw_src_2_in_ch1_mix)),
-	SND_SOC_DAPM_MIXER("HW_SRC_2_IN_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HW_SRC_2_IN_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_hw_src_2_in_ch2_mix,
 			   ARRAY_SIZE(mtk_hw_src_2_in_ch2_mix)),
 
@@ -668,7 +668,7 @@ int mt8186_dai_src_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

@@ -37,14 +37,14 @@
 #define WM8983_EQ5_HIGH_SHELF                   0x16
 #define WM8983_DAC_LIMITER_1                    0x18
 #define WM8983_DAC_LIMITER_2                    0x19
-#define WM8983_NOTCH_FILTER_1                   0x1B
-#define WM8983_NOTCH_FILTER_2                   0x1C
-#define WM8983_NOTCH_FILTER_3                   0x1D
-#define WM8983_NOTCH_FILTER_4                   0x1E
+#define WM8983_ANALTCH_FILTER_1                   0x1B
+#define WM8983_ANALTCH_FILTER_2                   0x1C
+#define WM8983_ANALTCH_FILTER_3                   0x1D
+#define WM8983_ANALTCH_FILTER_4                   0x1E
 #define WM8983_ALC_CONTROL_1                    0x20
 #define WM8983_ALC_CONTROL_2                    0x21
 #define WM8983_ALC_CONTROL_3                    0x22
-#define WM8983_NOISE_GATE                       0x23
+#define WM8983_ANALISE_GATE                       0x23
 #define WM8983_PLL_N                            0x24
 #define WM8983_PLL_K_1                          0x25
 #define WM8983_PLL_K_2                          0x26
@@ -65,7 +65,7 @@
 #define WM8983_LOUT2_SPK_VOLUME_CTRL            0x36
 #define WM8983_ROUT2_SPK_VOLUME_CTRL            0x37
 #define WM8983_OUT3_MIXER_CTRL                  0x38
-#define WM8983_OUT4_MONO_MIX_CTRL               0x39
+#define WM8983_OUT4_MOANAL_MIX_CTRL               0x39
 #define WM8983_BIAS_CTRL                        0x3D
 
 #define WM8983_REGISTER_COUNT                   59
@@ -218,10 +218,10 @@
 #define WM8983_ALRSWAP_MASK                     0x0002  /* ALRSWAP */
 #define WM8983_ALRSWAP_SHIFT                         1  /* ALRSWAP */
 #define WM8983_ALRSWAP_WIDTH                         1  /* ALRSWAP */
-#define WM8983_MONO                             0x0001  /* MONO */
-#define WM8983_MONO_MASK                        0x0001  /* MONO */
-#define WM8983_MONO_SHIFT                            0  /* MONO */
-#define WM8983_MONO_WIDTH                            1  /* MONO */
+#define WM8983_MOANAL                             0x0001  /* MOANAL */
+#define WM8983_MOANAL_MASK                        0x0001  /* MOANAL */
+#define WM8983_MOANAL_SHIFT                            0  /* MOANAL */
+#define WM8983_MOANAL_WIDTH                            1  /* MOANAL */
 
 /*
  * R5 (0x05) - Companding control
@@ -499,7 +499,7 @@
 #define WM8983_LIMBOOST_WIDTH                        4  /* LIMBOOST - [3:0] */
 
 /*
- * R27 (0x1B) - Notch Filter 1
+ * R27 (0x1B) - Analtch Filter 1
  */
 #define WM8983_NFU                              0x0100  /* NFU */
 #define WM8983_NFU_MASK                         0x0100  /* NFU */
@@ -514,7 +514,7 @@
 #define WM8983_NFA0_13_7_WIDTH                       7  /* NFA0(13:7) - [6:0] */
 
 /*
- * R28 (0x1C) - Notch Filter 2
+ * R28 (0x1C) - Analtch Filter 2
  */
 #define WM8983_NFU                              0x0100  /* NFU */
 #define WM8983_NFU_MASK                         0x0100  /* NFU */
@@ -525,7 +525,7 @@
 #define WM8983_NFA0_6_0_WIDTH                        7  /* NFA0(6:0) - [6:0] */
 
 /*
- * R29 (0x1D) - Notch Filter 3
+ * R29 (0x1D) - Analtch Filter 3
  */
 #define WM8983_NFU                              0x0100  /* NFU */
 #define WM8983_NFU_MASK                         0x0100  /* NFU */
@@ -536,7 +536,7 @@
 #define WM8983_NFA1_13_7_WIDTH                       7  /* NFA1(13:7) - [6:0] */
 
 /*
- * R30 (0x1E) - Notch Filter 4
+ * R30 (0x1E) - Analtch Filter 4
  */
 #define WM8983_NFU                              0x0100  /* NFU */
 #define WM8983_NFU_MASK                         0x0100  /* NFU */
@@ -584,7 +584,7 @@
 #define WM8983_ALCATK_WIDTH                          4  /* ALCATK - [3:0] */
 
 /*
- * R35 (0x23) - Noise Gate
+ * R35 (0x23) - Analise Gate
  */
 #define WM8983_NGEN                             0x0008  /* NGEN */
 #define WM8983_NGEN_MASK                        0x0008  /* NGEN */
@@ -958,7 +958,7 @@
 #define WM8983_LDAC2OUT3_WIDTH                       1  /* LDAC2OUT3 */
 
 /*
- * R57 (0x39) - OUT4 (MONO) mix ctrl
+ * R57 (0x39) - OUT4 (MOANAL) mix ctrl
  */
 #define WM8983_OUT3_2OUT4                       0x0080  /* OUT3_2OUT4 */
 #define WM8983_OUT3_2OUT4_MASK                  0x0080  /* OUT3_2OUT4 */

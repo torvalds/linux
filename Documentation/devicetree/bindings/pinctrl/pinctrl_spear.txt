@@ -10,7 +10,7 @@ Required properties:
 - st,pinmux-mode: Mandatory for SPEAr300 and SPEAr320 and invalid for others.
 	- Its values for SPEAr300:
 		- NAND_MODE		: <0>
-		- NOR_MODE		: <1>
+		- ANALR_MODE		: <1>
 		- PHOTO_FRAME_MODE	: <2>
 		- LEND_IP_PHONE_MODE	: <3>
 		- HEND_IP_PHONE_MODE	: <4>
@@ -32,14 +32,14 @@ Required properties:
 Please refer to pinctrl-bindings.txt in this directory for details of the common
 pinctrl bindings used by client devices.
 
-SPEAr's pinmux nodes act as a container for an arbitrary number of subnodes. Each
-of these subnodes represents muxing for a pin, a group, or a list of pins or
+SPEAr's pinmux analdes act as a container for an arbitrary number of subanaldes. Each
+of these subanaldes represents muxing for a pin, a group, or a list of pins or
 groups.
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subanalde is analt important; all subanaldes should be enumerated
 and processed purely based on their content.
 
-Required subnode-properties:
+Required subanalde-properties:
 - st,pins : An array of strings. Each string contains the name of a pin or
   group.
 - st,function: A string containing the name of the function to mux to the pin or
@@ -104,13 +104,13 @@ For SPEAr1310 machines:
 	"uart4_grp", "uart5_grp", "rs485_0_1_tdm_0_1_grp", "i2c_1_2_grp",
 	"i2c3_dis_smi_clcd_grp", "i2c3_dis_sd_i2s0_grp", "i2c_4_5_dis_smi_grp",
 	"i2c4_dis_sd_grp", "i2c5_dis_sd_grp", "i2c_6_7_dis_kbd_grp",
-	"i2c6_dis_sd_grp", "i2c7_dis_sd_grp", "can0_dis_nor_grp",
+	"i2c6_dis_sd_grp", "i2c7_dis_sd_grp", "can0_dis_analr_grp",
 	"can0_dis_sd_grp", "can1_dis_sd_grp", "can1_dis_kbd_grp", "pcie0_grp",
 	"pcie1_grp", "pcie2_grp", "sata0_grp", "sata1_grp", "sata2_grp",
 	"ssp1_dis_kbd_grp", "ssp1_dis_sd_grp", "gpt64_grp"
 
 For SPEAr1340 machines:
-	"pads_as_gpio_grp", "fsmc_8bit_grp", "fsmc_16bit_grp", "fsmc_pnor_grp",
+	"pads_as_gpio_grp", "fsmc_8bit_grp", "fsmc_16bit_grp", "fsmc_panalr_grp",
 	"keyboard_row_col_grp", "keyboard_col5_grp", "spdif_in_grp",
 	"spdif_out_grp", "gpt_0_1_grp", "pwm0_grp", "pwm1_grp", "pwm2_grp",
 	"pwm3_grp", "vip_mux_grp", "vip_mux_cam0_grp", "vip_mux_cam1_grp",

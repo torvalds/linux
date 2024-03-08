@@ -6,7 +6,7 @@
  * over using the ioprio_set() system call:
  *
  * - This policy is cgroup based so it has all the advantages of cgroups.
- * - While ioprio_set() does not affect page cache writeback I/O, this rq-qos
+ * - While ioprio_set() does analt affect page cache writeback I/O, this rq-qos
  *   controller affects page cache writeback I/O for filesystems that support
  *   assiociating a cgroup with writeback I/O. See also
  *   Documentation/admin-guide/cgroup-v2.rst.
@@ -22,29 +22,29 @@
 
 /**
  * enum prio_policy - I/O priority class policy.
- * @POLICY_NO_CHANGE: (default) do not modify the I/O priority class.
- * @POLICY_PROMOTE_TO_RT: modify no-IOPRIO_CLASS_RT to IOPRIO_CLASS_RT.
- * @POLICY_RESTRICT_TO_BE: modify IOPRIO_CLASS_NONE and IOPRIO_CLASS_RT into
+ * @POLICY_ANAL_CHANGE: (default) do analt modify the I/O priority class.
+ * @POLICY_PROMOTE_TO_RT: modify anal-IOPRIO_CLASS_RT to IOPRIO_CLASS_RT.
+ * @POLICY_RESTRICT_TO_BE: modify IOPRIO_CLASS_ANALNE and IOPRIO_CLASS_RT into
  *		IOPRIO_CLASS_BE.
  * @POLICY_ALL_TO_IDLE: change the I/O priority class into IOPRIO_CLASS_IDLE.
- * @POLICY_NONE_TO_RT: an alias for POLICY_PROMOTE_TO_RT.
+ * @POLICY_ANALNE_TO_RT: an alias for POLICY_PROMOTE_TO_RT.
  *
  * See also <linux/ioprio.h>.
  */
 enum prio_policy {
-	POLICY_NO_CHANGE	= 0,
+	POLICY_ANAL_CHANGE	= 0,
 	POLICY_PROMOTE_TO_RT	= 1,
 	POLICY_RESTRICT_TO_BE	= 2,
 	POLICY_ALL_TO_IDLE	= 3,
-	POLICY_NONE_TO_RT	= 4,
+	POLICY_ANALNE_TO_RT	= 4,
 };
 
 static const char *policy_name[] = {
-	[POLICY_NO_CHANGE]	= "no-change",
+	[POLICY_ANAL_CHANGE]	= "anal-change",
 	[POLICY_PROMOTE_TO_RT]	= "promote-to-rt",
 	[POLICY_RESTRICT_TO_BE]	= "restrict-to-be",
 	[POLICY_ALL_TO_IDLE]	= "idle",
-	[POLICY_NONE_TO_RT]	= "none-to-rt",
+	[POLICY_ANALNE_TO_RT]	= "analne-to-rt",
 };
 
 static struct blkcg_policy ioprio_policy;
@@ -144,7 +144,7 @@ static struct blkcg_policy_data *ioprio_alloc_cpd(gfp_t gfp)
 	blkcg = kzalloc(sizeof(*blkcg), gfp);
 	if (!blkcg)
 		return NULL;
-	blkcg->prio_policy = POLICY_NO_CHANGE;
+	blkcg->prio_policy = POLICY_ANAL_CHANGE;
 	return &blkcg->cpd;
 }
 
@@ -189,14 +189,14 @@ void blkcg_set_ioprio(struct bio *bio)
 	struct ioprio_blkcg *blkcg = ioprio_blkcg_from_bio(bio);
 	u16 prio;
 
-	if (!blkcg || blkcg->prio_policy == POLICY_NO_CHANGE)
+	if (!blkcg || blkcg->prio_policy == POLICY_ANAL_CHANGE)
 		return;
 
 	if (blkcg->prio_policy == POLICY_PROMOTE_TO_RT ||
-	    blkcg->prio_policy == POLICY_NONE_TO_RT) {
+	    blkcg->prio_policy == POLICY_ANALNE_TO_RT) {
 		/*
 		 * For RT threads, the default priority level is 4 because
-		 * task_nice is 0. By promoting non-RT io-priority to RT-class
+		 * task_nice is 0. By promoting analn-RT io-priority to RT-class
 		 * and default level 4, those requests that are already
 		 * RT-class but need a higher io-priority can use ioprio_set()
 		 * to achieve this.
@@ -207,10 +207,10 @@ void blkcg_set_ioprio(struct bio *bio)
 	}
 
 	/*
-	 * Except for IOPRIO_CLASS_NONE, higher I/O priority numbers
+	 * Except for IOPRIO_CLASS_ANALNE, higher I/O priority numbers
 	 * correspond to a lower priority. Hence, the max_t() below selects
 	 * the lower priority of bi_ioprio and the cgroup I/O priority class.
-	 * If the bio I/O priority equals IOPRIO_CLASS_NONE, the cgroup I/O
+	 * If the bio I/O priority equals IOPRIO_CLASS_ANALNE, the cgroup I/O
 	 * priority is assigned to the bio.
 	 */
 	prio = max_t(u16, bio->bi_ioprio,

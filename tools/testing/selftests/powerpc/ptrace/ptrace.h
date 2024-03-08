@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <sys/ptrace.h>
 #include <sys/ioctl.h>
@@ -758,8 +758,8 @@ void analyse_texasr(unsigned long texasr)
 	if (texasr & TEXASR_DA)
 		printf("TEXASR_DA  ");
 
-	if (texasr & TEXASR_NO)
-		printf("TEXASR_NO  ");
+	if (texasr & TEXASR_ANAL)
+		printf("TEXASR_ANAL  ");
 
 	if (texasr & TEXASR_FO)
 		printf("TEXASR_FO  ");

@@ -104,7 +104,7 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.reg_bits = 8,
 		.pad_bits = 24,
 		.val_bits = 8,
-		.cache_type = REGCACHE_NONE,
+		.cache_type = REGCACHE_ANALNE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
 		.max_register = U8_MAX,
@@ -114,7 +114,7 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.reg_bits = 8,
 		.pad_bits = 24,
 		.val_bits = 16,
-		.cache_type = REGCACHE_NONE,
+		.cache_type = REGCACHE_ANALNE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
 		.max_register = U8_MAX,
@@ -124,7 +124,7 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.reg_bits = 8,
 		.pad_bits = 24,
 		.val_bits = 32,
-		.cache_type = REGCACHE_NONE,
+		.cache_type = REGCACHE_ANALNE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
 		.max_register = U8_MAX,
@@ -142,7 +142,7 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 
 	dev = ksz_switch_alloc(&mdiodev->dev, mdiodev);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = device_get_match_data(ddev);
 	if (!chip)
@@ -169,7 +169,7 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 
 	ret = ksz_switch_register(dev);
 
-	/* Main DSA driver may not be started yet. */
+	/* Main DSA driver may analt be started yet. */
 	if (ret)
 		return ret;
 

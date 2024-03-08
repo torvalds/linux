@@ -54,7 +54,7 @@
 #define IP4_ADDR_VETH02 "172.16.2.100"
 #define IP4_ADDR_VETH20 "172.16.2.200"
 
-#define NON_VRF_PORT 5000
+#define ANALN_VRF_PORT 5000
 #define IN_VRF_PORT 5001
 
 #define TIMEOUT_MS 3000
@@ -134,9 +134,9 @@ static int attach_progs(char *ifname, int tc_prog_fd, int xdp_prog_fd)
 
 static void cleanup(void)
 {
-	SYS_NOFAIL("test -f /var/run/netns/" NS0 " && ip netns delete "
+	SYS_ANALFAIL("test -f /var/run/netns/" NS0 " && ip netns delete "
 		   NS0);
-	SYS_NOFAIL("test -f /var/run/netns/" NS1 " && ip netns delete "
+	SYS_ANALFAIL("test -f /var/run/netns/" NS1 " && ip netns delete "
 		   NS1);
 }
 
@@ -236,7 +236,7 @@ close:
 static void _test_vrf_socket_lookup(struct vrf_socket_lookup *skel, int sotype,
 				    bool test_xdp, bool tcp_skc)
 {
-	int in_vrf_server = -1, non_vrf_server = -1;
+	int in_vrf_server = -1, analn_vrf_server = -1;
 	struct nstoken *nstoken = NULL;
 
 	nstoken = open_netns(NS0);
@@ -244,8 +244,8 @@ static void _test_vrf_socket_lookup(struct vrf_socket_lookup *skel, int sotype,
 		goto done;
 
 	/* Open sockets in and outside VRF */
-	non_vrf_server = make_server(sotype, "0.0.0.0", NON_VRF_PORT, NULL);
-	if (!ASSERT_GE(non_vrf_server, 0, "make_server__outside_vrf_fd"))
+	analn_vrf_server = make_server(sotype, "0.0.0.0", ANALN_VRF_PORT, NULL);
+	if (!ASSERT_GE(analn_vrf_server, 0, "make_server__outside_vrf_fd"))
 		goto done;
 
 	in_vrf_server = make_server(sotype, "0.0.0.0", IN_VRF_PORT, "veth02");
@@ -258,13 +258,13 @@ static void _test_vrf_socket_lookup(struct vrf_socket_lookup *skel, int sotype,
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS1))
 		goto done;
 
-	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH02, NON_VRF_PORT,
+	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH02, ANALN_VRF_PORT,
 				   test_xdp, tcp_skc, 0), "in_to_out"))
 		goto done;
 	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH02, IN_VRF_PORT,
 				   test_xdp, tcp_skc, 1), "in_to_in"))
 		goto done;
-	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH01, NON_VRF_PORT,
+	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH01, ANALN_VRF_PORT,
 				   test_xdp, tcp_skc, 1), "out_to_out"))
 		goto done;
 	if (!ASSERT_OK(test_lookup(skel, sotype, IP4_ADDR_VETH01, IN_VRF_PORT,
@@ -272,8 +272,8 @@ static void _test_vrf_socket_lookup(struct vrf_socket_lookup *skel, int sotype,
 		goto done;
 
 done:
-	if (non_vrf_server >= 0)
-		close(non_vrf_server);
+	if (analn_vrf_server >= 0)
+		close(analn_vrf_server);
 	if (in_vrf_server >= 0)
 		close(in_vrf_server);
 	if (nstoken)

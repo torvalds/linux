@@ -14,15 +14,15 @@ description: |
   as well as derived clocks for the bus and the peripherals. It also
   can gate SoC device clocks.
 
-  Each clock is assigned an identifier and client nodes use this identifier
+  Each clock is assigned an identifier and client analdes use this identifier
   to specify the clock which they consume.
 
   All these identifiers could be found in:
   [1]: <include/dt-bindings/clock/mt7621-clk.h>.
 
-  The clocks are provided inside a system controller node.
+  The clocks are provided inside a system controller analde.
 
-  This node is also a reset provider for all the peripherals.
+  This analde is also a reset provider for all the peripherals.
 
   Reset related bits are defined in:
   [2]: <include/dt-bindings/reset/mt7621-reset.h>.

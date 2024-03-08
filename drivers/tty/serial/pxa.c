@@ -6,12 +6,12 @@
  *  Created:	Feb 20, 2003
  *  Copyright:	(C) 2003 Monta Vista Software, Inc.
  *
- * Note 1: This driver is made separate from the already too overloaded
+ * Analte 1: This driver is made separate from the already too overloaded
  * 8250.c because it needs some kirks of its own and that'll make it
  * easier to add DMA support.
  *
- * Note 2: I'm too sick of device allocation policies for serial ports.
- * If someone else wants to request an "official" allocation of major/minor
+ * Analte 2: I'm too sick of device allocation policies for serial ports.
+ * If someone else wants to request an "official" allocation of major/mianalr
  * for this driver please be my guest.  And don't forget that new hardware
  * to come from Intel might have more than 3 or 4 of those UARTs.  Let's
  * hope for a better port registration and dynamic device allocation scheme
@@ -105,7 +105,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 		serial_out(up, UART_IER, up->ier);
 
 		ch = serial_in(up, UART_RX);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
@@ -119,11 +119,11 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by iganalre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(&up->port))
-					goto ignore_char;
+					goto iganalre_char;
 			} else if (*status & UART_LSR_PE)
 				up->port.icount.parity++;
 			else if (*status & UART_LSR_FE)
@@ -132,7 +132,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 				up->port.icount.overrun++;
 
 			/*
-			 * Mask off conditions which should be ignored.
+			 * Mask off conditions which should be iganalred.
 			 */
 			*status &= up->port.read_status_mask;
 
@@ -152,11 +152,11 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 		}
 
 		if (uart_handle_sysrq_char(&up->port, ch))
-			goto ignore_char;
+			goto iganalre_char;
 
 		uart_insert_char(&up->port, *status, UART_LSR_OE, ch, flag);
 
-	ignore_char:
+	iganalre_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
 	tty_flip_buffer_push(&up->port.state->port);
@@ -166,7 +166,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 	 * Specification Update (May 2005)
 	 *
 	 * Step 6:
-	 * No more data in FIFO: Re-enable RTO interrupt via IER[RTOIE]
+	 * Anal more data in FIFO: Re-enable RTO interrupt via IER[RTOIE]
 	 */
 	up->ier |= UART_IER_RTOIE;
 	serial_out(up, UART_IER, up->ier);
@@ -223,8 +223,8 @@ static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 	unsigned int iir, lsr;
 
 	iir = serial_in(up, UART_IIR);
-	if (iir & UART_IIR_NO_INT)
-		return IRQ_NONE;
+	if (iir & UART_IIR_ANAL_INT)
+		return IRQ_ANALNE;
 	uart_port_lock(&up->port);
 	lsr = serial_in(up, UART_LSR);
 	if (lsr & UART_LSR_DR)
@@ -342,7 +342,7 @@ static int serial_pxa_startup(struct uart_port *port)
 	(void) serial_in(up, UART_MSR);
 
 	/*
-	 * Now, initialize the UART
+	 * Analw, initialize the UART
 	 */
 	serial_out(up, UART_LCR, UART_LCR_WLEN8);
 
@@ -352,7 +352,7 @@ static int serial_pxa_startup(struct uart_port *port)
 	uart_port_unlock_irqrestore(&up->port, flags);
 
 	/*
-	 * Finally, enable interrupts.  Note: Modem status interrupts
+	 * Finally, enable interrupts.  Analte: Modem status interrupts
 	 * are set via set_termios(), which will be occurring imminently
 	 * anyway, so we don't enable them here.
 	 */
@@ -431,7 +431,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're analw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(&up->port, &flags);
@@ -454,26 +454,26 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->port.read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to iganalre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->port.ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		up->port.iganalre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		up->port.ignore_status_mask |= UART_LSR_BI;
+		up->port.iganalre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're iganalring parity and break indicators,
+		 * iganalre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->port.ignore_status_mask |= UART_LSR_OE;
+			up->port.iganalre_status_mask |= UART_LSR_OE;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * iganalre all characters if CREAD is analt set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= UART_LSR_DR;
+		up->port.iganalre_status_mask |= UART_LSR_DR;
 
 	/*
 	 * CTS flow control flag and modem status interrupts
@@ -494,7 +494,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/*
 	 * work around Errata #75 according to Intel(R) PXA27x Processor Family
-	 * Specification Update (Nov 2005)
+	 * Specification Update (Analv 2005)
 	 */
 	dll = serial_in(up, UART_DLL);
 	WARN_ON(dll != (quot & 0xff));
@@ -590,7 +590,7 @@ static void serial_pxa_console_putchar(struct uart_port *port, unsigned char ch)
 }
 
 /*
- * Print a string to the serial port trying not to disturb
+ * Print a string to the serial port trying analt to disturb
  * any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -693,7 +693,7 @@ serial_pxa_console_setup(struct console *co, char *options)
 		co->index = 0;
 	up = serial_pxa_ports[co->index];
 	if (!up)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -745,7 +745,7 @@ static struct uart_driver serial_pxa_reg = {
 	.driver_name	= "PXA serial",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.mianalr		= 64,
 	.nr		= 4,
 	.cons		= PXA_CONSOLE,
 };
@@ -786,7 +786,7 @@ static const struct of_device_id serial_pxa_dt_ids[] = {
 static int serial_pxa_probe_dt(struct platform_device *pdev,
 			       struct uart_pxa_port *sport)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int ret;
 
 	if (!np)
@@ -794,7 +794,7 @@ static int serial_pxa_probe_dt(struct platform_device *pdev,
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erranal %d\n", ret);
 		return ret;
 	}
 	sport->port.line = ret;
@@ -810,7 +810,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 
 	mmres = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!mmres)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0)
@@ -818,7 +818,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 
 	sport = kzalloc(sizeof(struct uart_pxa_port), GFP_KERNEL);
 	if (!sport)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sport->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(sport->clk)) {
@@ -857,7 +857,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 
 	sport->port.membase = ioremap(mmres->start, resource_size(mmres));
 	if (!sport->port.membase) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk;
 	}
 

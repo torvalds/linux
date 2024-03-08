@@ -36,7 +36,7 @@ def create_csv(name, D, src_iter):
     dR = csv.DictWriter(F_csv, fieldnames, delimiter=';', quotechar='"')
     dR.writeheader()
 
-    # now change the json back into the csv dictionaries
+    # analw change the json back into the csv dictionaries
     rows = [
       dict(chain(
         ((CSVCollection.source_column_name,value_to_name[src]),),

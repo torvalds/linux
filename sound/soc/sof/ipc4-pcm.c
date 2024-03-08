@@ -40,7 +40,7 @@ static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state
 	msg.data_size = ipc_size;
 	msg.data_ptr = trigger_list;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, ipc_size);
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &msg, ipc_size);
 }
 
 int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 state)
@@ -58,7 +58,7 @@ int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 s
 
 	msg.primary = primary;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &msg, 0);
 }
 EXPORT_SYMBOL(sof_ipc4_set_pipeline_state);
 
@@ -111,7 +111,7 @@ sof_ipc4_add_pipeline_to_trigger_list(struct snd_sof_dev *sdev, int state,
 							  false);
 		break;
 	case SOF_IPC4_PIPE_RESET:
-		/* RESET if the pipeline is neither running nor paused */
+		/* RESET if the pipeline is neither running analr paused */
 		if (!spipe->started_count && !spipe->paused_count)
 			sof_ipc4_add_pipeline_by_priority(trigger_list, pipe_widget, pipe_priority,
 							  true);
@@ -215,18 +215,18 @@ sof_ipc4_update_pipeline_state(struct snd_sof_dev *sdev, int state, int cmd,
  *	  +---------------------------------+
  *			STOP/SUSPEND
  *
- * Note that during system suspend, the suspend trigger is followed by a hw_free in
+ * Analte that during system suspend, the suspend trigger is followed by a hw_free in
  * sof_pcm_trigger(). So, the final state during suspend would be RESET.
  * Also, since the SOF driver doesn't support full resume, streams would be restarted with the
  * prepare ioctl before the START trigger.
  */
 
 /*
- * Chained DMA is a special case where there is no processing on
+ * Chained DMA is a special case where there is anal processing on
  * DSP. The samples are just moved over by host side DMA to a single
  * buffer on DSP and directly from there to link DMA. However, the
- * model on SOF driver has two notional pipelines, one at host DAI,
- * and another at link DAI. They both shall have the use_chain_dma
+ * model on SOF driver has two analtional pipelines, one at host DAI,
+ * and aanalther at link DAI. They both shall have the use_chain_dma
  * attribute.
  */
 
@@ -300,7 +300,7 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 	if (enable)
 		msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_ENABLE_MASK;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	return sof_ipc_tx_message_anal_reply(sdev->ipc, &msg, 0);
 }
 
 static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
@@ -327,7 +327,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 
 	pipeline_list = &spcm->stream[substream->stream].pipeline_list;
 
-	/* nothing to trigger if the list is empty */
+	/* analthing to trigger if the list is empty */
 	if (!pipeline_list->pipelines || !pipeline_list->count)
 		return 0;
 
@@ -346,12 +346,12 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	trigger_list = kzalloc(struct_size(trigger_list, pipeline_instance_ids,
 					   pipeline_list->count), GFP_KERNEL);
 	if (!trigger_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pipe_priority = kzalloc(pipeline_list->count, GFP_KERNEL);
 	if (!pipe_priority) {
 		kfree(trigger_list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&ipc4_data->pipeline_state_mutex);
@@ -384,7 +384,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 		goto free;
 	}
 
-	/* no need to pause before reset or before pause release */
+	/* anal need to pause before reset or before pause release */
 	if (state == SOF_IPC4_PIPE_RESET || cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
 		goto skip_pause_transition;
 
@@ -415,9 +415,9 @@ skip_pause_transition:
 		dev_err(sdev->dev, "failed to set final state %d for all pipelines\n", state);
 		/*
 		 * workaround: if the firmware is crashed while setting the
-		 * pipelines to reset state we must ignore the error code and
+		 * pipelines to reset state we must iganalre the error code and
 		 * reset it to 0.
-		 * Since the firmware is crashed we will not send IPC messages
+		 * Since the firmware is crashed we will analt send IPC messages
 		 * and we are going to see errors printed, but the state of the
 		 * widgets will be correct for the next boot.
 		 */
@@ -471,7 +471,7 @@ static int sof_ipc4_pcm_trigger(struct snd_soc_component *component,
 static int sof_ipc4_pcm_hw_free(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream)
 {
-	/* command is not relevant with RESET, so just pass 0 */
+	/* command is analt relevant with RESET, so just pass 0 */
 	return sof_ipc4_trigger_pipelines(component, substream, SOF_IPC4_PIPE_RESET, 0);
 }
 
@@ -524,7 +524,7 @@ static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
 	int i;
 
 	/*
-	 * Copier does not change sampling rate, so we
+	 * Copier does analt change sampling rate, so we
 	 * need to only consider the input pin information.
 	 */
 	for (i = 0; i < num_input_formats; i++) {
@@ -575,14 +575,14 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	int dir, ret;
 
 	if (!dai) {
-		dev_err(component->dev, "%s: No DAI found with name %s\n", __func__,
+		dev_err(component->dev, "%s: Anal DAI found with name %s\n", __func__,
 			rtd->dai_link->name);
 		return -EINVAL;
 	}
 
 	ipc4_copier = dai->private;
 	if (!ipc4_copier) {
-		dev_err(component->dev, "%s: No private data found for DAI %s\n",
+		dev_err(component->dev, "%s: Anal private data found for DAI %s\n",
 			__func__, rtd->dai_link->name);
 		return -EINVAL;
 	}
@@ -597,7 +597,7 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 			struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 			struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
-			/* Chain DMA does not use copiers, so no fixup needed */
+			/* Chain DMA does analt use copiers, so anal fixup needed */
 			if (pipeline->use_chain_dma)
 				return 0;
 
@@ -624,7 +624,7 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 
 	if (single_fmt) {
-		snd_mask_none(fmt);
+		snd_mask_analne(fmt);
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(ipc4_fmt->fmt_cfg);
 		dev_dbg(component->dev, "Set %s to %d bit format\n", dai->name, valid_bits);
 	}
@@ -694,7 +694,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 						   sizeof(struct snd_sof_widget *), GFP_KERNEL);
 		if (!pipeline_list->pipelines) {
 			sof_ipc4_pcm_free(sdev, spcm);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		if (!support_info)
@@ -703,7 +703,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		stream_info = kzalloc(sizeof(*stream_info), GFP_KERNEL);
 		if (!stream_info) {
 			sof_ipc4_pcm_free(sdev, spcm);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		spcm->stream[stream].private = stream_info;
@@ -739,7 +739,7 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 
 	/* both host and dai copier must be valid for time_info */
 	if (!host_copier || !dai_copier) {
-		dev_err(sdev->dev, "host or dai copier are not found\n");
+		dev_err(sdev->dev, "host or dai copier are analt found\n");
 		return;
 	}
 
@@ -752,7 +752,7 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	/* find llp slot used by current dai */
 	for (i = 0; i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS; i++) {
 		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
-		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+		if (llp_slot.analde_id == dai_copier->data.gtw_cfg.analde_id)
 			break;
 
 		info->llp_offset += sizeof(llp_slot);
@@ -761,12 +761,12 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	if (i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS)
 		return;
 
-	/* if no llp gpdma slot is used, check aggregated sdw slot */
+	/* if anal llp gpdma slot is used, check aggregated sdw slot */
 	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_sndw_reading_slots) +
 					sdev->fw_info_box.offset;
 	for (i = 0; i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS; i++) {
 		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
-		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
+		if (llp_slot.analde_id == dai_copier->data.gtw_cfg.analde_id)
 			break;
 
 		info->llp_offset += sizeof(llp_slot);
@@ -779,7 +779,7 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
 					sdev->fw_info_box.offset;
 	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
-	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id)
+	if (llp_slot.analde_id != dai_copier->data.gtw_cfg.analde_id)
 		info->llp_offset = 0;
 }
 
@@ -798,7 +798,7 @@ static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
 		return -EINVAL;
 
 	time_info = spcm->stream[substream->stream].private;
-	/* delay calculation is not supported by current fw_reg ABI */
+	/* delay calculation is analt supported by current fw_reg ABI */
 	if (!time_info)
 		return 0;
 
@@ -820,17 +820,17 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 	struct sof_ipc4_pipeline_registers ppl_reg;
 	u64 stream_start_position;
 	u32 dai_sample_size;
-	u32 ch, node_index;
+	u32 ch, analde_index;
 	u32 offset;
 
 	if (!host_copier || !dai_copier)
 		return -EINVAL;
 
-	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID)
+	if (host_copier->data.gtw_cfg.analde_id == SOF_IPC4_INVALID_ANALDE_ID)
 		return -EINVAL;
 
-	node_index = SOF_IPC4_NODE_INDEX(host_copier->data.gtw_cfg.node_id);
-	offset = offsetof(struct sof_ipc4_fw_registers, pipeline_regs) + node_index * sizeof(ppl_reg);
+	analde_index = SOF_IPC4_ANALDE_INDEX(host_copier->data.gtw_cfg.analde_id);
+	offset = offsetof(struct sof_ipc4_fw_registers, pipeline_regs) + analde_index * sizeof(ppl_reg);
 	sof_mailbox_read(sdev, sdev->fw_info_box.offset + offset, &ppl_reg, sizeof(ppl_reg));
 	if (ppl_reg.stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION)
 		return -EINVAL;
@@ -871,7 +871,7 @@ static snd_pcm_sframes_t sof_ipc4_pcm_delay(struct snd_soc_component *component,
 	/*
 	 * stream_start_offset is updated to memory window by FW based on
 	 * pipeline statistics and it may be invalid if host query happens before
-	 * the statistics is complete. And it will not change after the first initiailization.
+	 * the statistics is complete. And it will analt change after the first initiailization.
 	 */
 	if (time_info->stream_start_offset == SOF_IPC4_INVALID_STREAM_POSITION) {
 		ret = sof_ipc4_get_stream_start_offset(sdev, substream, stream, time_info);
@@ -892,7 +892,7 @@ static snd_pcm_sframes_t sof_ipc4_pcm_delay(struct snd_soc_component *component,
 		tmp_ptr = ((u64)llp.reading.llp_u << 32) | llp.reading.llp_l;
 	}
 
-	/* In two cases dai dma position is not accurate
+	/* In two cases dai dma position is analt accurate
 	 * (1) dai pipeline is started before host pipeline
 	 * (2) multiple streams mixed into one. Each stream has the same dai dma position
 	 *

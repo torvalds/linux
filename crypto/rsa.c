@@ -48,7 +48,7 @@ static int _rsa_enc(const struct rsa_mpi_key *key, MPI c, MPI m)
 static int _rsa_dec_crt(const struct rsa_mpi_key *key, MPI m_or_m1_or_h, MPI c)
 {
 	MPI m2, m12_or_qh;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* (1) Validate 0 <= c < n */
 	if (mpi_cmp_ui(c, 0) < 0 || mpi_cmp(c, key->n) >= 0)
@@ -99,14 +99,14 @@ static int rsa_enc(struct akcipher_request *req)
 	int sign;
 
 	if (!c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (unlikely(!pkey->n || !pkey->e)) {
 		ret = -EINVAL;
 		goto err_free_c;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	m = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!m)
 		goto err_free_c;
@@ -138,14 +138,14 @@ static int rsa_dec(struct akcipher_request *req)
 	int sign;
 
 	if (!m)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (unlikely(!pkey->n || !pkey->d)) {
 		ret = -EINVAL;
 		goto err_free_m;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	c = mpi_read_raw_from_sgl(req->src, req->src_len);
 	if (!c)
 		goto err_free_m;
@@ -221,7 +221,7 @@ static int rsa_check_exponent_fips(MPI e)
 
 	e_max = mpi_alloc(0);
 	if (!e_max)
-		return -ENOMEM;
+		return -EANALMEM;
 	mpi_set_bit(e_max, 256);
 
 	if (mpi_cmp(e, e_max) >= 0) {
@@ -269,7 +269,7 @@ static int rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 
 err:
 	rsa_free_mpi_key(mpi_key);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
@@ -332,7 +332,7 @@ static int rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 
 err:
 	rsa_free_mpi_key(mpi_key);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static unsigned int rsa_max_size(struct crypto_akcipher *tfm)

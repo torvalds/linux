@@ -28,7 +28,7 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	struct hsr_priv *hsr;
 	__be16 protocol;
 
-	/* Packets from dev_loopback_xmit() do not have L2 header, bail out */
+	/* Packets from dev_loopback_xmit() do analt have L2 header, bail out */
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
 
@@ -49,8 +49,8 @@ static rx_handler_result_t hsr_handle_frame(struct sk_buff **pskb)
 	}
 
 	/* For HSR, only tagged frames are expected (unless the device offloads
-	 * HSR tag removal), but for PRP there could be non tagged frames as
-	 * well from Single attached nodes (SANs).
+	 * HSR tag removal), but for PRP there could be analn tagged frames as
+	 * well from Single attached analdes (SANs).
 	 */
 	protocol = eth_hdr(skb)->h_proto;
 
@@ -83,17 +83,17 @@ bool hsr_port_exists(const struct net_device *dev)
 static int hsr_check_dev_ok(struct net_device *dev,
 			    struct netlink_ext_ack *extack)
 {
-	/* Don't allow HSR on non-ethernet like devices */
+	/* Don't allow HSR on analn-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) || dev->type != ARPHRD_ETHER ||
 	    dev->addr_len != ETH_ALEN) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot use loopback or non-ethernet device as HSR slave.");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt use loopback or analn-ethernet device as HSR slave.");
 		return -EINVAL;
 	}
 
 	/* Don't allow enslaving hsr devices */
 	if (is_hsr_master(dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Cannot create trees of HSR devices.");
+				   "Cananalt create trees of HSR devices.");
 		return -EINVAL;
 	}
 
@@ -104,17 +104,17 @@ static int hsr_check_dev_ok(struct net_device *dev,
 	}
 
 	if (is_vlan_dev(dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "HSR on top of VLAN is not yet supported in this driver.");
+		NL_SET_ERR_MSG_MOD(extack, "HSR on top of VLAN is analt yet supported in this driver.");
 		return -EINVAL;
 	}
 
 	if (dev->priv_flags & IFF_DONT_BRIDGE) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "This device does not support bridging.");
-		return -EOPNOTSUPP;
+				   "This device does analt support bridging.");
+		return -EOPANALTSUPP;
 	}
 
-	/* HSR over bonded devices has not been tested, but I'm not sure it
+	/* HSR over bonded devices has analt been tested, but I'm analt sure it
 	 * won't work...
 	 */
 
@@ -181,7 +181,7 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	port->hsr = hsr;
 	port->dev = dev;

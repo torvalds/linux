@@ -7,7 +7,7 @@
 #define __LINUX_IOMMUFD_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 
 struct device;
@@ -69,11 +69,11 @@ int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
 		      void *data, size_t len, unsigned int flags);
 int iommufd_vfio_compat_ioas_get_id(struct iommufd_ctx *ictx, u32 *out_ioas_id);
 int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx);
-int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx);
+int iommufd_vfio_compat_set_anal_iommu(struct iommufd_ctx *ictx);
 #else /* !CONFIG_IOMMUFD */
 static inline struct iommufd_ctx *iommufd_ctx_from_file(struct file *file)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void iommufd_ctx_put(struct iommufd_ctx *ictx)
@@ -86,7 +86,7 @@ static inline int iommufd_access_pin_pages(struct iommufd_access *access,
 					   struct page **out_pages,
 					   unsigned int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void iommufd_access_unpin_pages(struct iommufd_access *access,
@@ -98,17 +98,17 @@ static inline void iommufd_access_unpin_pages(struct iommufd_access *access,
 static inline int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
 		      void *data, size_t len, unsigned int flags)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
+static inline int iommufd_vfio_compat_set_anal_iommu(struct iommufd_ctx *ictx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_IOMMUFD */
 #endif

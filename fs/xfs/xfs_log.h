@@ -45,8 +45,8 @@ xlog_finish_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec *vec,
 
 	/*
 	 * Always round up the length to the correct alignment so callers don't
-	 * need to know anything about this log vec layout requirement. This
-	 * means we have to zero the area the data to be written does not cover.
+	 * need to kanalw anything about this log vec layout requirement. This
+	 * means we have to zero the area the data to be written does analt cover.
 	 * This is complicated by fact the payload region is offset into the
 	 * logvec region by the opheader that tracks the payload.
 	 */
@@ -114,7 +114,7 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 /*
  * Flags to xfs_log_force()
  *
- *	XFS_LOG_SYNC:	Synchronous force in-core log to disk
+ *	XFS_LOG_SYNC:	Synchroanalus force in-core log to disk
  */
 #define XFS_LOG_SYNC		0x1
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017 Netronome Systems, Inc. */
+/* Copyright (C) 2017 Netroanalme Systems, Inc. */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -52,7 +52,7 @@ nfp_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	id = err;
 
 	if (!(pf->nspi->sensor_mask & BIT(id)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (type == hwmon_temp && attr == hwmon_temp_input)
 		return nfp_hwmon_read_sensor(pf->cpp, id, val);
@@ -138,12 +138,12 @@ int nfp_hwmon_register(struct nfp_pf *pf)
 		return 0;
 
 	if (!pf->nspi) {
-		nfp_warn(pf->cpp, "not registering HWMON (no NSP info)\n");
+		nfp_warn(pf->cpp, "analt registering HWMON (anal NSP info)\n");
 		return 0;
 	}
 	if (!pf->nspi->sensor_mask) {
 		nfp_info(pf->cpp,
-			 "not registering HWMON (NSP doesn't report sensors)\n");
+			 "analt registering HWMON (NSP doesn't report sensors)\n");
 		return 0;
 	}
 

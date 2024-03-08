@@ -19,7 +19,7 @@ enum {
 };
 
 /**
- * RF technology values passed as param argument to in_configure_hw and
+ * RF techanallogy values passed as param argument to in_configure_hw and
  * tg_configure_hw for NFC_DIGITAL_CONFIG_RF_TECH configuration type.
  */
 enum {
@@ -91,56 +91,56 @@ typedef void (*nfc_digital_cmd_complete_t)(struct nfc_digital_dev *ddev,
  * Device side NFC Digital operations
  *
  * Initiator mode:
- * @in_configure_hw: Hardware configuration for RF technology and communication
- *	framing in initiator mode. This is a synchronous function.
- * @in_send_cmd: Initiator mode data exchange using RF technology and framing
+ * @in_configure_hw: Hardware configuration for RF techanallogy and communication
+ *	framing in initiator mode. This is a synchroanalus function.
+ * @in_send_cmd: Initiator mode data exchange using RF techanallogy and framing
  *	previously set with in_configure_hw. The peer response is returned
  *	through callback cb. If an io error occurs or the peer didn't reply
  *	within the specified timeout (ms), the error code is passed back through
- *	the resp pointer. This is an asynchronous function.
+ *	the resp pointer. This is an asynchroanalus function.
  *
  * Target mode: Only NFC-DEP protocol is supported in target mode.
- * @tg_configure_hw: Hardware configuration for RF technology and communication
- *	framing in target mode. This is a synchronous function.
- * @tg_send_cmd: Target mode data exchange using RF technology and framing
+ * @tg_configure_hw: Hardware configuration for RF techanallogy and communication
+ *	framing in target mode. This is a synchroanalus function.
+ * @tg_send_cmd: Target mode data exchange using RF techanallogy and framing
  *	previously set with tg_configure_hw. The peer next command is returned
  *	through callback cb. If an io error occurs or the peer didn't reply
  *	within the specified timeout (ms), the error code is passed back through
- *	the resp pointer. This is an asynchronous function.
+ *	the resp pointer. This is an asynchroanalus function.
  * @tg_listen: Put the device in listen mode waiting for data from the peer
- *	device. This is an asynchronous function.
+ *	device. This is an asynchroanalus function.
  * @tg_listen_mdaa: If supported, put the device in automatic listen mode with
  *	mode detection and automatic anti-collision. In this mode, the device
- *	automatically detects the RF technology and executes the anti-collision
+ *	automatically detects the RF techanallogy and executes the anti-collision
  *	detection using the command responses specified in mdaa_params. The
  *	mdaa_params structure contains SENS_RES, NFCID1, and SEL_RES for 106A RF
  *	tech. NFCID2 and system code (sc) for 212F and 424F. The driver returns
  *	the NFC-DEP ATR_REQ command through cb. The digital stack deducts the RF
  *	tech by analyzing the SoD of the frame containing the ATR_REQ command.
- *	This is an asynchronous function.
+ *	This is an asynchroanalus function.
  * @tg_listen_md: If supported, put the device in automatic listen mode with
  *	mode detection but without automatic anti-collision. In this mode, the
- *	device automatically detects the RF technology.  What the actual
- *	RF technology is can be retrieved by calling @tg_get_rf_tech.
+ *	device automatically detects the RF techanallogy.  What the actual
+ *	RF techanallogy is can be retrieved by calling @tg_get_rf_tech.
  *	The digital stack will then perform the appropriate anti-collision
- *	sequence.  This is an asynchronous function.
+ *	sequence.  This is an asynchroanalus function.
  * @tg_get_rf_tech: Required when @tg_listen_md is supported, unused otherwise.
- *	Return the RF Technology that was detected by the @tg_listen_md call.
- *	This is a synchronous function.
+ *	Return the RF Techanallogy that was detected by the @tg_listen_md call.
+ *	This is a synchroanalus function.
  *
- * @switch_rf: Turns device radio on or off. The stack does not call explicitly
+ * @switch_rf: Turns device radio on or off. The stack does analt call explicitly
  *	switch_rf to turn the radio on. A call to in|tg_configure_hw must turn
  *	the device radio on.
  * @abort_cmd: Discard the last sent command.
  *
- * Notes: Asynchronous functions have a timeout parameter. It is the driver
+ * Analtes: Asynchroanalus functions have a timeout parameter. It is the driver
  *	responsibility to call the digital stack back through the
- *	nfc_digital_cmd_complete_t callback when no RF respsonse has been
+ *	nfc_digital_cmd_complete_t callback when anal RF respsonse has been
  *	received within the specified time (in milliseconds). In that case the
  *	driver must set the resp sk_buff to ERR_PTR(-ETIMEDOUT).
  *	Since the digital stack serializes commands to be sent, it's mandatory
  *	for the driver to handle the timeout correctly. Otherwise the stack
- *	would not be able to send new commands, waiting for the reply of the
+ *	would analt be able to send new commands, waiting for the reply of the
  *	current one.
  */
 struct nfc_digital_ops {

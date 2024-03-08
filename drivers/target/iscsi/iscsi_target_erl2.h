@@ -19,7 +19,7 @@ extern int iscsit_remove_active_connection_recovery_entry(
 extern int iscsit_remove_cmd_from_connection_recovery(struct iscsit_cmd *,
 			struct iscsit_session *);
 extern void iscsit_discard_cr_cmds_by_expstatsn(struct iscsi_conn_recovery *, u32);
-extern int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsit_conn *);
+extern int iscsit_discard_unackanalwledged_ooo_cmdsns_for_conn(struct iscsit_conn *);
 extern int iscsit_prepare_cmds_for_reallegiance(struct iscsit_conn *);
 extern int iscsit_connection_recovery_transport_reset(struct iscsit_conn *);
 

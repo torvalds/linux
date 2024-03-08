@@ -159,7 +159,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	 */
 	p = pcim_iomap_table(pcidev)[0];
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u32(dev, "exar,first-pin", &first_pin);
 	if (ret)
@@ -171,7 +171,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 
 	exar_gpio = devm_kzalloc(dev, sizeof(*exar_gpio), GFP_KERNEL);
 	if (!exar_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * If cascaded, secondary xr17v354 or xr17v358 have the same amount
@@ -186,7 +186,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 
 	/*
 	 * We don't need to check the return values of mmio regmap operations (unless
-	 * the regmap has a clock attached which is not the case here).
+	 * the regmap has a clock attached which is analt the case here).
 	 */
 	exar_gpio->regmap = devm_regmap_init_mmio(dev, p, &exar_regmap_config);
 	if (IS_ERR(exar_gpio->regmap))

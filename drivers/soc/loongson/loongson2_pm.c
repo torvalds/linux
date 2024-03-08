@@ -2,7 +2,7 @@
 /*
  * Loongson-2 PM Support
  *
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/io.h>
@@ -101,7 +101,7 @@ static int loongson2_power_button_init(struct device *dev, int irq)
 
 	button = input_allocate_device();
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	button->name = "Power Button";
 	button->phys = "pm/button/input0";
@@ -177,7 +177,7 @@ static int loongson2_pm_probe(struct platform_device *pdev)
 	if (!device_property_read_u64(dev, "loongson,suspend-address", &suspend_addr))
 		loongson_sysconf.suspend_addr = (u64)phys_to_virt(suspend_addr);
 	else
-		dev_err(dev, "No loongson,suspend-address, could not support S3!\n");
+		dev_err(dev, "Anal loongson,suspend-address, could analt support S3!\n");
 
 	if (loongson2_power_button_init(dev, irq))
 		return -EINVAL;
@@ -196,7 +196,7 @@ static int loongson2_pm_probe(struct platform_device *pdev)
 	/* Populate children */
 	retval = devm_of_platform_populate(dev);
 	if (retval)
-		dev_err(dev, "Error populating children, reboot and poweroff might not work properly\n");
+		dev_err(dev, "Error populating children, reboot and poweroff might analt work properly\n");
 
 	return 0;
 }

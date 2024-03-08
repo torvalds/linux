@@ -18,7 +18,7 @@
 #include <linux/acpi_pmtmr.h>
 #include <linux/clocksource.h>
 #include <linux/timex.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -45,7 +45,7 @@ u32 acpi_pm_read_verified(void)
 	/*
 	 * It has been reported that because of various broken
 	 * chipsets (ICH4, PIIX4 and PIIX4E) where the ACPI PM clock
-	 * source is not latched, you must read it multiple
+	 * source is analt latched, you must read it multiple
 	 * times to ensure a safe value is read:
 	 */
 	do {
@@ -124,7 +124,7 @@ static void acpi_pm_check_graylist(struct pci_dev *dev)
 		return;
 
 	pr_warn("* The chipset may have PM-Timer Bug. Due to workarounds for a bug,\n"
-		"* this clock source is slow. If you are sure your timer does not have\n"
+		"* this clock source is slow. If you are sure your timer does analt have\n"
 		"* this bug, please use \"acpi_pm_good\" to disable the workaround\n");
 
 	acpi_pm_need_workaround();
@@ -157,7 +157,7 @@ static int verify_pmtmr_rate(void)
 	/* Check that the PMTMR delta is within 5% of what we expect */
 	if (delta < (PMTMR_EXPECTED_RATE * 19) / 20 ||
 	    delta > (PMTMR_EXPECTED_RATE * 21) / 20) {
-		pr_info("PM-Timer running at invalid rate: %lu%% of normal - aborting.\n",
+		pr_info("PM-Timer running at invalid rate: %lu%% of analrmal - aborting.\n",
 			100UL * delta / PMTMR_EXPECTED_RATE);
 		return -1;
 	}
@@ -168,8 +168,8 @@ static int verify_pmtmr_rate(void)
 #define verify_pmtmr_rate() (0)
 #endif
 
-/* Number of monotonicity checks to perform during initialization */
-#define ACPI_PM_MONOTONICITY_CHECKS 10
+/* Number of moanaltonicity checks to perform during initialization */
+#define ACPI_PM_MOANALTONICITY_CHECKS 10
 /* Number of reads we try to get two different values */
 #define ACPI_PM_READ_CHECKS 10000
 
@@ -179,10 +179,10 @@ static int __init init_acpi_pm_clocksource(void)
 	unsigned int i, j = 0;
 
 	if (!pmtmr_ioport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* "verify" this timing source: */
-	for (j = 0; j < ACPI_PM_MONOTONICITY_CHECKS; j++) {
+	for (j = 0; j < ACPI_PM_MOANALTONICITY_CHECKS; j++) {
 		udelay(100 * j);
 		value1 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
@@ -202,13 +202,13 @@ static int __init init_acpi_pm_clocksource(void)
 			pr_info("PM-Timer failed consistency check  (%#llx) - aborting.\n",
 				value1);
 			pmtmr_ioport = 0;
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
 	if (verify_pmtmr_rate() != 0){
 		pmtmr_ioport = 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (tsc_clocksource_watchdog_disabled())
@@ -222,8 +222,8 @@ static int __init init_acpi_pm_clocksource(void)
 fs_initcall(init_acpi_pm_clocksource);
 
 /*
- * Allow an override of the IOPort. Stupid BIOSes do not tell us about
- * the PMTimer, but we might know where it is.
+ * Allow an override of the IOPort. Stupid BIOSes do analt tell us about
+ * the PMTimer, but we might kanalw where it is.
  */
 static int __init parse_pmtmr(char *arg)
 {

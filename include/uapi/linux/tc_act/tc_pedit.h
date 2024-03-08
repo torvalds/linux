@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_TC_PED_H
 #define __LINUX_TC_PED_H
 
@@ -27,7 +27,7 @@ enum {
 #define TCA_PEDIT_KEY_EX_MAX (__TCA_PEDIT_KEY_EX_MAX - 1)
 
  /* TCA_PEDIT_KEY_EX_HDR_TYPE_NETWROK is a special case for legacy users. It
-  * means no specific header type - offset is relative to the network layer
+  * means anal specific header type - offset is relative to the network layer
   */
 enum pedit_header_type {
 	TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK = 0,

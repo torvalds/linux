@@ -84,17 +84,17 @@ SM_RZRM:
 	leal	SMALRZRM,%a0	|rmode is rz or rm, load SMRZRM in a0
 	cmpib	#0x2,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 2, it is inexact
-	bra	no_finx		|if 3, it is exact
+	bra	anal_finx		|if 3, it is exact
 SM_RN:
 	leal	SMALRN,%a0	|rmode is rn, load SMRN in a0
 	cmpib	#0x2,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 2, it is inexact
-	bra	no_finx		|if 3, it is exact
+	bra	anal_finx		|if 3, it is exact
 SM_RP:
 	leal	SMALRP,%a0	|rmode is rp, load SMRP in a0
 	cmpib	#0x2,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 2, it is inexact
-	bra	no_finx		|if 3, it is exact
+	bra	anal_finx		|if 3, it is exact
 BG_TBL:
 	subil	#0x30,%d0		|make offset in 0 - f range
 	tstb	%d1		|check for rmode
@@ -106,25 +106,25 @@ BG_RZRM:
 	cmpib	#0x1,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 1, it is inexact
 	cmpib	#0x7,%d0		|second check
-	ble	no_finx		|if 0 - 7, it is exact
+	ble	anal_finx		|if 0 - 7, it is exact
 	bra	set_finx	|if 8 - f, it is inexact
 BG_RN:
 	leal	BIGRN,%a0	|rmode is rn, load BGRN in a0
 	cmpib	#0x1,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 1, it is inexact
 	cmpib	#0x7,%d0		|second check
-	ble	no_finx		|if 0 - 7, it is exact
+	ble	anal_finx		|if 0 - 7, it is exact
 	bra	set_finx	|if 8 - f, it is inexact
 BG_RP:
 	leal	BIGRP,%a0	|rmode is rp, load SMRP in a0
 	cmpib	#0x1,%d0		|check if result is inex
 	ble	set_finx	|if 0 - 1, it is inexact
 	cmpib	#0x7,%d0		|second check
-	ble	no_finx		|if 0 - 7, it is exact
+	ble	anal_finx		|if 0 - 7, it is exact
 |	bra	set_finx	;if 8 - f, it is inexact
 set_finx:
 	orl	#inx2a_mask,USER_FPSR(%a6) |set inex2/ainex
-no_finx:
+anal_finx:
 	mulul	#12,%d0			|use offset to point into tables
 	movel	%d1,L_SCR1(%a6)		|load mode for round call
 	bfextu	USER_FPCR(%a6){#24:#2},%d1	|get precision
@@ -132,13 +132,13 @@ no_finx:
 |
 | Precision is extended
 |
-	bnes	not_ext			|if extended, do not call round
+	bnes	analt_ext			|if extended, do analt call round
 	fmovemx (%a0,%d0),%fp0-%fp0		|return result in fp0
 	rts
 |
 | Precision is single or double
 |
-not_ext:
+analt_ext:
 	swap	%d1			|rnd prec in upper word of d1
 	addl	L_SCR1(%a6),%d1		|merge rmode in low word of d1
 	movel	(%a0,%d0),FP_SCR1(%a6)	|load first word to temp storage

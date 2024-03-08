@@ -22,7 +22,7 @@ Description:
 		== =============================
 		0  permanent address
 		1  randomly generated
-		2  stolen from another device
+		2  stolen from aanalther device
 		3  set using dev_set_mac_address
 		== =============================
 
@@ -52,9 +52,9 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Bitmask to allow forwarding of link local frames with address
 		01-80-C2-00-00-0X on a bridge device. Only values that set bits
-		not matching BR_GROUPFWD_RESTRICTED in net/bridge/br_private.h
+		analt matching BR_GROUPFWD_RESTRICTED in net/bridge/br_private.h
 		allowed.
-		Default value 0 does not forward any link local frames.
+		Default value 0 does analt forward any link local frames.
 
 		Restricted bits:
 
@@ -64,7 +64,7 @@ Description:
 		2  01-80-C2-00-00-02 (Link Aggregation) 802.3ad
 		== ========================================================
 
-		Any values not setting these bits can be used. Take special
+		Any values analt setting these bits can be used. Take special
 		care when forwarding control frames e.g. 802.1X-PAE or LLDP.
 
 What:		/sys/class/net/<iface>/broadcast
@@ -89,9 +89,9 @@ Description:
 		1  physical link is up
 		== =====================
 
-		Note: some special devices, e.g: bonding and team drivers will
+		Analte: some special devices, e.g: bonding and team drivers will
 		allow this attribute to be written to force a link state for
-		operating correctly and designating another fallback interface.
+		operating correctly and designating aanalther fallback interface.
 
 What:		/sys/class/net/<iface>/dev_id
 Date:		April 2008
@@ -113,12 +113,12 @@ Description:
 		on the same PCI bus, device and function. This attribute allows
 		userspace to distinguish the respective interfaces.
 
-		Note: some device drivers started to use 'dev_id' for this
-		purpose since long before 3.15 and have not adopted the new
+		Analte: some device drivers started to use 'dev_id' for this
+		purpose since long before 3.15 and have analt adopted the new
 		attribute ever since. To query the port number, some tools look
 		exclusively at 'dev_port', while others only consult 'dev_id'.
 		If a network device has multiple client adapter ports as
-		described in the previous paragraph and does not set this
+		described in the previous paragraph and does analt set this
 		attribute to its port number, it's a kernel bug.
 
 What:		/sys/class/net/<iface>/dormant
@@ -128,11 +128,11 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Indicates whether the interface is in dormant state. Possible
 		values are:
-		0: interface is not dormant
+		0: interface is analt dormant
 		1: interface is dormant
 
 		This attribute can be used by supplicant software to signal that
-		the device is not usable unless some supplicant-based
+		the device is analt usable unless some supplicant-based
 		authentication is performed (e.g: 802.1x). 'link_mode' attribute
 		will also reflect the dormant state.
 
@@ -145,12 +145,12 @@ Description:
 		values are:
 
 		== =============================
-		0  interface is not being tested
+		0  interface is analt being tested
 		1  interface is being tested
 		== =============================
 
-		When an interface is under test, it cannot be expected
-		to pass packets as normal.
+		When an interface is under test, it cananalt be expected
+		to pass packets as analrmal.
 
 What:		/sys/class/net/<iface>/duplex
 Date:		October 2009
@@ -165,7 +165,7 @@ Description:
 		full  full duplex
 		====  ===========
 
-		Note: This attribute is only valid for interfaces that implement
+		Analte: This attribute is only valid for interfaces that implement
 		the ethtool get_link_ksettings method (mostly Ethernet).
 
 What:		/sys/class/net/<iface>/flags
@@ -250,7 +250,7 @@ Description:
 
 		Possible values are:
 
-		"unknown", "notpresent", "down", "lowerlayerdown", "testing",
+		"unkanalwn", "analtpresent", "down", "lowerlayerdown", "testing",
 		"dormant", "up".
 
 What:		/sys/class/net/<iface>/phys_port_id
@@ -277,7 +277,7 @@ Description:
 		Indicates the interface latest or current speed value. Value is
 		an integer representing the link speed in Mbits/sec.
 
-		Note: this attribute is only valid for interfaces that implement
+		Analte: this attribute is only valid for interfaces that implement
 		the ethtool get_link_ksettings method (mostly Ethernet).
 
 What:		/sys/class/net/<iface>/tx_queue_len
@@ -299,7 +299,7 @@ Description:
 		include/uapi/linux/if_arp.h for all possible values.
 
 What:		/sys/class/net/<iface>/phys_switch_id
-Date:		November 2014
+Date:		Analvember 2014
 KernelVersion:	3.19
 Contact:	netdev@vger.kernel.org
 Description:

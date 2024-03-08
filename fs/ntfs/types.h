@@ -49,7 +49,7 @@ typedef sle64 leUSN;
 
 typedef enum {
 	CASE_SENSITIVE = 0,
-	IGNORE_CASE = 1,
-} IGNORE_CASE_BOOL;
+	IGANALRE_CASE = 1,
+} IGANALRE_CASE_BOOL;
 
 #endif /* _LINUX_NTFS_TYPES_H */

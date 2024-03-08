@@ -8,8 +8,8 @@
 
 /*
  * EFI Quirks
- * Several EFI systems do not correctly advertise their boot framebuffers.
- * Hence, we use this static table of known broken machines and fix up the
+ * Several EFI systems do analt correctly advertise their boot framebuffers.
+ * Hence, we use this static table of kanalwn broken machines and fix up the
  * information so framebuffer drivers can load correctly.
  */
 
@@ -27,7 +27,7 @@
 #include <video/vga.h>
 
 enum {
-	OVERRIDE_NONE = 0x0,
+	OVERRIDE_ANALNE = 0x0,
 	OVERRIDE_BASE = 0x1,
 	OVERRIDE_STRIDE = 0x2,
 	OVERRIDE_HEIGHT = 0x4,
@@ -35,43 +35,43 @@ enum {
 };
 
 struct efifb_dmi_info efifb_dmi_list[] = {
-	[M_I17] = { "i17", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050, OVERRIDE_NONE }, /* guess */
-	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050, OVERRIDE_NONE },
-	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE }, /* guess */
-	[M_I24_8_1] = { "imac8", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
-	[M_I24_10_1] = { "imac10", 0xc0010000, 2048 * 4, 1920, 1080, OVERRIDE_NONE },
-	[M_I27_11_1] = { "imac11", 0xc0010000, 2560 * 4, 2560, 1440, OVERRIDE_NONE },
-	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768, OVERRIDE_NONE },
-	[M_MINI_3_1] = { "mini31", 0x40010000, 1024 * 4, 1024, 768, OVERRIDE_NONE },
-	[M_MINI_4_1] = { "mini41", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
-	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
-	[M_MB_5_1] = { "macbook51", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
-	[M_MB_6_1] = { "macbook61", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
-	[M_MB_7_1] = { "macbook71", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
-	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
+	[M_I17] = { "i17", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050, OVERRIDE_ANALNE }, /* guess */
+	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050, OVERRIDE_ANALNE },
+	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE }, /* guess */
+	[M_I24_8_1] = { "imac8", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE },
+	[M_I24_10_1] = { "imac10", 0xc0010000, 2048 * 4, 1920, 1080, OVERRIDE_ANALNE },
+	[M_I27_11_1] = { "imac11", 0xc0010000, 2560 * 4, 2560, 1440, OVERRIDE_ANALNE },
+	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768, OVERRIDE_ANALNE },
+	[M_MINI_3_1] = { "mini31", 0x40010000, 1024 * 4, 1024, 768, OVERRIDE_ANALNE },
+	[M_MINI_4_1] = { "mini41", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE },
+	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
+	[M_MB_5_1] = { "macbook51", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
+	[M_MB_6_1] = { "macbook61", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
+	[M_MB_7_1] = { "macbook71", 0x80010000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
+	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
 	/* 11" Macbook Air 3,1 passes the wrong stride */
 	[M_MBA_3] = { "mba3", 0, 2048 * 4, 0, 0, OVERRIDE_STRIDE },
-	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_MBP_2] = { "mbp2", 0, 0, 0, 0, OVERRIDE_NONE }, /* placeholder */
-	[M_MBP_2_2] = { "mbp22", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
-	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_MBP_5_2] = { "mbp52", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
-	[M_MBP_5_3] = { "mbp53", 0xd0010000, 2048 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_MBP_6_1] = { "mbp61", 0x90030000, 2048 * 4, 1920, 1200, OVERRIDE_NONE },
-	[M_MBP_6_2] = { "mbp62", 0x90030000, 2048 * 4, 1680, 1050, OVERRIDE_NONE },
-	[M_MBP_7_1] = { "mbp71", 0xc0010000, 2048 * 4, 1280, 800, OVERRIDE_NONE },
-	[M_MBP_8_2] = { "mbp82", 0x90010000, 1472 * 4, 1440, 900, OVERRIDE_NONE },
-	[M_UNKNOWN] = { NULL, 0, 0, 0, 0, OVERRIDE_NONE }
+	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_MBP_2] = { "mbp2", 0, 0, 0, 0, OVERRIDE_ANALNE }, /* placeholder */
+	[M_MBP_2_2] = { "mbp22", 0x80010000, 1472 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE },
+	[M_MBP_5_1] = { "mbp51", 0xc0010000, 2048 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_MBP_5_2] = { "mbp52", 0xc0010000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE },
+	[M_MBP_5_3] = { "mbp53", 0xd0010000, 2048 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_MBP_6_1] = { "mbp61", 0x90030000, 2048 * 4, 1920, 1200, OVERRIDE_ANALNE },
+	[M_MBP_6_2] = { "mbp62", 0x90030000, 2048 * 4, 1680, 1050, OVERRIDE_ANALNE },
+	[M_MBP_7_1] = { "mbp71", 0xc0010000, 2048 * 4, 1280, 800, OVERRIDE_ANALNE },
+	[M_MBP_8_2] = { "mbp82", 0x90010000, 1472 * 4, 1440, 900, OVERRIDE_ANALNE },
+	[M_UNKANALWN] = { NULL, 0, 0, 0, 0, OVERRIDE_ANALNE }
 };
 
 void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 {
 	int i;
 
-	for (i = 0; i < M_UNKNOWN; i++) {
+	for (i = 0; i < M_UNKANALWN; i++) {
 		if (efifb_dmi_list[i].base != 0 &&
 		    !strcmp(opt, efifb_dmi_list[i].optname)) {
 			si->lfb_base = efifb_dmi_list[i].base;
@@ -238,46 +238,46 @@ static const struct dmi_system_id efifb_dmi_system_table[] __initconst = {
 static const struct dmi_system_id efifb_dmi_swap_width_height[] __initconst = {
 	{
 		/*
-		 * Lenovo MIIX310-10ICR, only some batches have the troublesome
+		 * Leanalvo MIIX310-10ICR, only some batches have the troublesome
 		 * 800x1280 portrait screen. Luckily the portrait version has
 		 * its own BIOS version, so we match on that.
 		 */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "MIIX 310-10ICR"),
 			DMI_EXACT_MATCH(DMI_BIOS_VERSION, "1HCN44WW"),
 		},
 	},
 	{
-		/* Lenovo MIIX 320-10ICR with 800x1280 portrait screen */
+		/* Leanalvo MIIX 320-10ICR with 800x1280 portrait screen */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"Lenovo MIIX 320-10ICR"),
+					"Leanalvo MIIX 320-10ICR"),
 		},
 	},
 	{
-		/* Lenovo D330 with 800x1280 or 1200x1920 portrait screen */
+		/* Leanalvo D330 with 800x1280 or 1200x1920 portrait screen */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
-					"Lenovo ideapad D330-10IGM"),
+					"Leanalvo ideapad D330-10IGM"),
 		},
 	},
 	{
-		/* Lenovo IdeaPad Duet 3 10IGL5 with 1200x1920 portrait screen */
+		/* Leanalvo IdeaPad Duet 3 10IGL5 with 1200x1920 portrait screen */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION,
 					"IdeaPad Duet 3 10IGL5"),
 		},
 	},
 	{
-		/* Lenovo Yoga Book X91F / X91L */
+		/* Leanalvo Yoga Book X91F / X91L */
 		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			/* Non exact match to match F + L versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+			/* Analn exact match to match F + L versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leanalvo YB1-X91"),
 		},
 	},
 	{},
@@ -294,11 +294,11 @@ static bool efifb_overlaps_pci_range(const struct of_pci_range *range)
 	       fb_base < (range->cpu_addr + range->size);
 }
 
-static struct device_node *find_pci_overlap_node(void)
+static struct device_analde *find_pci_overlap_analde(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_node_by_type(np, "pci") {
+	for_each_analde_by_type(np, "pci") {
 		struct of_pci_range_parser parser;
 		struct of_pci_range range;
 		int err;
@@ -323,31 +323,31 @@ static struct device_node *find_pci_overlap_node(void)
  * resource reservation conflict on the memory window that the efifb
  * framebuffer steals from the PCIe host bridge.
  */
-static int efifb_add_links(struct fwnode_handle *fwnode)
+static int efifb_add_links(struct fwanalde_handle *fwanalde)
 {
-	struct device_node *sup_np;
+	struct device_analde *sup_np;
 
-	sup_np = find_pci_overlap_node();
+	sup_np = find_pci_overlap_analde();
 
 	/*
-	 * If there's no PCI graphics controller backing the efifb, we are
+	 * If there's anal PCI graphics controller backing the efifb, we are
 	 * done here.
 	 */
 	if (!sup_np)
 		return 0;
 
-	fwnode_link_add(fwnode, of_fwnode_handle(sup_np));
-	of_node_put(sup_np);
+	fwanalde_link_add(fwanalde, of_fwanalde_handle(sup_np));
+	of_analde_put(sup_np);
 
 	return 0;
 }
 
-static const struct fwnode_operations efifb_fwnode_ops = {
+static const struct fwanalde_operations efifb_fwanalde_ops = {
 	.add_links = efifb_add_links,
 };
 
 #ifdef CONFIG_EFI
-static struct fwnode_handle efifb_fwnode;
+static struct fwanalde_handle efifb_fwanalde;
 
 __init void sysfb_apply_efi_quirks(void)
 {
@@ -365,11 +365,11 @@ __init void sysfb_apply_efi_quirks(void)
 	}
 }
 
-__init void sysfb_set_efifb_fwnode(struct platform_device *pd)
+__init void sysfb_set_efifb_fwanalde(struct platform_device *pd)
 {
 	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI && IS_ENABLED(CONFIG_PCI)) {
-		fwnode_init(&efifb_fwnode, &efifb_fwnode_ops);
-		pd->dev.fwnode = &efifb_fwnode;
+		fwanalde_init(&efifb_fwanalde, &efifb_fwanalde_ops);
+		pd->dev.fwanalde = &efifb_fwanalde;
 	}
 }
 #endif

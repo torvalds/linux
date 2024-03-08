@@ -150,7 +150,7 @@ static void dispatch_bios(void *context, struct bio_list *bio_list)
 
 struct dm_raid1_bio_record {
 	struct mirror *m;
-	/* if details->bi_bdev == NULL, details were not saved */
+	/* if details->bi_bdev == NULL, details were analt saved */
 	struct dm_bio_details details;
 	region_t write_region;
 };
@@ -211,7 +211,7 @@ static struct mirror *get_valid_mirror(struct mirror_set *ms)
  * primary device, we must choose a new primary, but
  * only if the mirror is in-sync.
  *
- * This function must not block.
+ * This function must analt block.
  */
 static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 {
@@ -221,7 +221,7 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 	ms->leg_failure = 1;
 
 	/*
-	 * error_count is used for nothing more than a
+	 * error_count is used for analthing more than a
 	 * simple way to tell if a device has encountered
 	 * errors.
 	 */
@@ -295,7 +295,7 @@ static int mirror_flush(struct dm_target *ti)
  * Recovery.
  *
  * When a mirror is first activated we may find that some regions
- * are in the no-sync state.  We have to recover these by
+ * are in the anal-sync state.  We have to recover these by
  * recopying from the default mirror to all the others.
  *---------------------------------------------------------------
  */
@@ -317,7 +317,7 @@ static void recovery_complete(int read_err, unsigned long write_err,
 			    write_err);
 		/*
 		 * Bits correspond to devices (excluding default mirror).
-		 * The default mirror cannot change during recovery.
+		 * The default mirror cananalt change during recovery.
 		 */
 		for (m = 0; m < ms->nr_mirrors; m++) {
 			if (&ms->mirror[m] == get_default_mirror(ms))
@@ -370,7 +370,7 @@ static void recover(struct mirror_set *ms, struct dm_region *reg)
 
 	/* hand to kcopyd */
 	if (!errors_handled(ms))
-		flags |= BIT(DM_KCOPYD_IGNORE_ERROR);
+		flags |= BIT(DM_KCOPYD_IGANALRE_ERROR);
 
 	dm_kcopyd_copy(ms->kcopyd_client, &from, ms->nr_mirrors - 1, to,
 		       flags, recovery_complete, reg);
@@ -491,7 +491,7 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
 		/*
 		 * If device is suspended, complete the bio.
 		 */
-		if (dm_noflush_suspending(ms->ti))
+		if (dm_analflush_suspending(ms->ti))
 			bio->bi_status = BLK_STS_DM_REQUEUE;
 		else
 			bio->bi_status = BLK_STS_IOERR;
@@ -539,7 +539,7 @@ static void read_callback(unsigned long error, void *context)
 	bio_io_error(bio);
 }
 
-/* Asynchronous read. */
+/* Asynchroanalus read. */
 static void read_async_bio(struct mirror *m, struct bio *bio)
 {
 	struct dm_io_region io;
@@ -547,8 +547,8 @@ static void read_async_bio(struct mirror *m, struct bio *bio)
 		.bi_opf = REQ_OP_READ,
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
-		.notify.fn = read_callback,
-		.notify.context = bio,
+		.analtify.fn = read_callback,
+		.analtify.context = bio,
 		.client = m->ms->io_client,
 	};
 
@@ -598,7 +598,7 @@ static void do_reads(struct mirror_set *ms, struct bio_list *reads)
  *
  * SYNC:	increment pending, use kcopyd to write to *all* mirrors
  * RECOVERING:	delay the io until recovery completes
- * NOSYNC:	increment pending, just write to the default mirror
+ * ANALSYNC:	increment pending, just write to the default mirror
  *---------------------------------------------------------------------
  */
 static void write_callback(unsigned long error, void *context)
@@ -613,9 +613,9 @@ static void write_callback(unsigned long error, void *context)
 	bio_set_m(bio, NULL);
 
 	/*
-	 * NOTE: We don't decrement the pending count here,
+	 * ANALTE: We don't decrement the pending count here,
 	 * instead it is done by the targets endio function.
-	 * This way we handle both writes to SYNC and NOSYNC
+	 * This way we handle both writes to SYNC and ANALSYNC
 	 * regions with the same code.
 	 */
 	if (likely(!error)) {
@@ -624,11 +624,11 @@ static void write_callback(unsigned long error, void *context)
 	}
 
 	/*
-	 * If the bio is discard, return an error, but do not
+	 * If the bio is discard, return an error, but do analt
 	 * degrade the array.
 	 */
 	if (bio_op(bio) == REQ_OP_DISCARD) {
-		bio->bi_status = BLK_STS_NOTSUPP;
+		bio->bi_status = BLK_STS_ANALTSUPP;
 		bio_endio(bio);
 		return;
 	}
@@ -661,8 +661,8 @@ static void do_write(struct mirror_set *ms, struct bio *bio)
 		.bi_opf = REQ_OP_WRITE | op_flags,
 		.mem.type = DM_IO_BIO,
 		.mem.ptr.bio = bio,
-		.notify.fn = write_callback,
-		.notify.context = bio,
+		.analtify.fn = write_callback,
+		.analtify.context = bio,
 		.client = ms->io_client,
 	};
 
@@ -688,7 +688,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 {
 	int state;
 	struct bio *bio;
-	struct bio_list sync, nosync, recover, *this_list = NULL;
+	struct bio_list sync, analsync, recover, *this_list = NULL;
 	struct bio_list requeue;
 	struct dm_dirty_log *log = dm_rh_dirty_log(ms->rh);
 	region_t region;
@@ -700,7 +700,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 * Classify each write.
 	 */
 	bio_list_init(&sync);
-	bio_list_init(&nosync);
+	bio_list_init(&analsync);
 	bio_list_init(&recover);
 	bio_list_init(&requeue);
 
@@ -726,8 +726,8 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 			this_list = &sync;
 			break;
 
-		case DM_RH_NOSYNC:
-			this_list = &nosync;
+		case DM_RH_ANALSYNC:
+			this_list = &analsync;
 			break;
 
 		case DM_RH_RECOVERING:
@@ -755,11 +755,11 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 * be delayed).
 	 */
 	dm_rh_inc_pending(ms->rh, &sync);
-	dm_rh_inc_pending(ms->rh, &nosync);
+	dm_rh_inc_pending(ms->rh, &analsync);
 
 	/*
 	 * If the flush fails on a previous call and succeeds here,
-	 * we must not reset the log_failure variable.  We need
+	 * we must analt reset the log_failure variable.  We need
 	 * userspace interaction to do that.
 	 */
 	ms->log_failure = dm_rh_flush(ms->rh) ? 1 : ms->log_failure;
@@ -779,7 +779,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	while ((bio = bio_list_pop(&recover)))
 		dm_rh_delay(ms->rh, bio);
 
-	while ((bio = bio_list_pop(&nosync))) {
+	while ((bio = bio_list_pop(&analsync))) {
 		if (unlikely(ms->leg_failure) && errors_handled(ms) && !keep_log(ms)) {
 			spin_lock_irq(&ms->lock);
 			bio_list_add(&ms->failures, bio);
@@ -787,7 +787,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 			wakeup_mirrord(ms);
 		} else {
 			map_bio(get_default_mirror(ms), bio);
-			submit_bio_noacct(bio);
+			submit_bio_analacct(bio);
 		}
 	}
 }
@@ -804,11 +804,11 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	 * put on the holds list.  We can't issue those writes
 	 * until a log has been marked, so we must store them.
 	 *
-	 * If a 'noflush' suspend is in progress, we can requeue
+	 * If a 'analflush' suspend is in progress, we can requeue
 	 * the I/O's to the core.  This give userspace a chance
 	 * to reconfigure the mirror, at which point the core
-	 * will reissue the writes.  If the 'noflush' flag is
-	 * not set, we have no choice but to return errors.
+	 * will reissue the writes.  If the 'analflush' flag is
+	 * analt set, we have anal choice but to return errors.
 	 *
 	 * Some writes on the failures list may have been
 	 * submitted before the log failure and represent a
@@ -819,7 +819,7 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 	while ((bio = bio_list_pop(failures))) {
 		if (!ms->log_failure) {
 			ms->in_sync = 0;
-			dm_rh_mark_nosync(ms->rh, bio);
+			dm_rh_mark_analsync(ms->rh, bio);
 		}
 
 		/*
@@ -894,7 +894,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 		kzalloc(struct_size(ms, mirror, nr_mirrors), GFP_KERNEL);
 
 	if (!ms) {
-		ti->error = "Cannot allocate mirror context";
+		ti->error = "Cananalt allocate mirror context";
 		return NULL;
 	}
 
@@ -1034,7 +1034,7 @@ static int parse_features(struct mirror_set *ms, unsigned int argc, char **argv,
 	(*args_used)++;
 
 	if (num_features > argc) {
-		ti->error = "Not enough arguments to support feature count";
+		ti->error = "Analt eanalugh arguments to support feature count";
 		return -EINVAL;
 	}
 
@@ -1105,7 +1105,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ms = alloc_context(nr_mirrors, dl->type->get_region_size(dl), ti, dl);
 	if (!ms) {
 		dm_dirty_log_destroy(dl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Get the mirror parameter sets */
@@ -1132,7 +1132,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ms->kmirrord_wq = alloc_workqueue("kmirrord", WQ_MEM_RECLAIM, 0);
 	if (!ms->kmirrord_wq) {
 		DMERR("couldn't start kmirrord");
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err_free_context;
 	}
 	INIT_WORK(&ms->kmirrord_work, do_mirror);
@@ -1152,7 +1152,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * DM_RAID1_HANDLE_ERRORS flag being present.
 	 * This is because the decision to balance depends
 	 * on the sync state of a region.  If the above
-	 * flag is not present, we ignore errors; and
+	 * flag is analt present, we iganalre errors; and
 	 * the sync state may be inaccurate.
 	 */
 
@@ -1216,7 +1216,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_KILL;
 
 	/*
-	 * If region is not in-sync queue the bio.
+	 * If region is analt in-sync queue the bio.
 	 */
 	if (!r || (r == -EWOULDBLOCK)) {
 		if (bio->bi_opf & REQ_RAHEAD)
@@ -1228,7 +1228,7 @@ static int mirror_map(struct dm_target *ti, struct bio *bio)
 
 	/*
 	 * The region is in-sync and we can perform reads directly.
-	 * Store enough information so we can retry if it fails.
+	 * Store eanalugh information so we can retry if it fails.
 	 */
 	m = choose_mirror(ms, bio->bi_iter.bi_sector);
 	if (unlikely(!m))
@@ -1262,7 +1262,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 		return DM_ENDIO_DONE;
 	}
 
-	if (*error == BLK_STS_NOTSUPP)
+	if (*error == BLK_STS_ANALTSUPP)
 		goto out;
 
 	if (bio->bi_opf & REQ_RAHEAD)
@@ -1271,8 +1271,8 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 	if (unlikely(*error)) {
 		if (!bio_record->details.bi_bdev) {
 			/*
-			 * There wasn't enough memory to record necessary
-			 * information for a retry or there was no other
+			 * There wasn't eanalugh memory to record necessary
+			 * information for a retry or there was anal other
 			 * mirror in-sync.
 			 */
 			DMERR_LIMIT("Mirror read failed.");
@@ -1287,7 +1287,7 @@ static int mirror_end_io(struct dm_target *ti, struct bio *bio,
 		fail_mirror(m, DM_RAID1_READ_ERROR);
 
 		/*
-		 * A failed read is requeued for another attempt using an intact
+		 * A failed read is requeued for aanalther attempt using an intact
 		 * mirror.
 		 */
 		if (default_ok(m) || mirror_available(ms, bio)) {
@@ -1321,7 +1321,7 @@ static void mirror_presuspend(struct dm_target *ti)
 
 	/*
 	 * Process bios in the hold list to start recovery waiting
-	 * for bios in the hold list. After the process, no bio has
+	 * for bios in the hold list. After the process, anal bio has
 	 * a chance to be added in the hold list because ms->suspend
 	 * is set.
 	 */
@@ -1347,10 +1347,10 @@ static void mirror_presuspend(struct dm_target *ti)
 		DMWARN("log presuspend failed");
 
 	/*
-	 * Now that recovery is complete/stopped and the
+	 * Analw that recovery is complete/stopped and the
 	 * delayed bios are queued, we need to wait for
 	 * the worker thread to complete.  This way,
-	 * we know that all of our I/O has been pushed.
+	 * we kanalw that all of our I/O has been pushed.
 	 */
 	flush_workqueue(ms->kmirrord_wq);
 }
@@ -1383,7 +1383,7 @@ static void mirror_resume(struct dm_target *ti)
  *
  * We return one character representing the most severe error
  * we have encountered.
- *    A => Alive - No failures
+ *    A => Alive - Anal failures
  *    D => Dead - A write failure occurred leaving mirror out-of-sync
  *    S => Sync - A sychronization failure occurred, mirror out-of-sync
  *    R => Read - A read failure occurred, mirror data unaffected
@@ -1503,7 +1503,7 @@ static int __init dm_mirror_init(void)
 	dm_raid1_wq = alloc_workqueue("dm_raid1_wq", 0, 0);
 	if (!dm_raid1_wq) {
 		DMERR("Failed to alloc workqueue");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r = dm_register_target(&mirror_target);

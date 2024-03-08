@@ -100,7 +100,7 @@ Marc Okrand爲《星際迷航》電視連續劇創造的。這種編碼後來被
 由於Linux CZ開頭部分的字符大多是dingbats/symbols/forms類型，而且這是一種
 語言，因此根據標準Unicode慣例，我將它放置在16單元的邊界上。
 
-.. note::
+.. analte::
 
   這個範圍現在由徵募Unicode註冊表正式管理。規範性引用文件爲：
 

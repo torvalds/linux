@@ -29,7 +29,7 @@ static DEFINE_MUTEX(fsverity_hash_alg_init_mutex);
 
 /**
  * fsverity_get_hash_alg() - validate and prepare a hash algorithm
- * @inode: optional inode for logging purposes
+ * @ianalde: optional ianalde for logging purposes
  * @num: the hash algorithm number
  *
  * Get the struct fsverity_hash_alg for the given hash algorithm number, and
@@ -39,7 +39,7 @@ static DEFINE_MUTEX(fsverity_hash_alg_init_mutex);
  *
  * Return: pointer to the hash alg on success, else an ERR_PTR()
  */
-const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct ianalde *ianalde,
 						      unsigned int num)
 {
 	struct fsverity_hash_alg *alg;
@@ -48,7 +48,7 @@ const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 
 	if (num >= ARRAY_SIZE(fsverity_hash_algs) ||
 	    !fsverity_hash_algs[num].name) {
-		fsverity_warn(inode, "Unknown hash algorithm number: %u", num);
+		fsverity_warn(ianalde, "Unkanalwn hash algorithm number: %u", num);
 		return ERR_PTR(-EINVAL);
 	}
 	alg = &fsverity_hash_algs[num];
@@ -64,14 +64,14 @@ const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 
 	tfm = crypto_alloc_shash(alg->name, 0, 0);
 	if (IS_ERR(tfm)) {
-		if (PTR_ERR(tfm) == -ENOENT) {
-			fsverity_warn(inode,
+		if (PTR_ERR(tfm) == -EANALENT) {
+			fsverity_warn(ianalde,
 				      "Missing crypto API support for hash algorithm \"%s\"",
 				      alg->name);
-			alg = ERR_PTR(-ENOPKG);
+			alg = ERR_PTR(-EANALPKG);
 			goto out_unlock;
 		}
-		fsverity_err(inode,
+		fsverity_err(ianalde,
 			     "Error allocating hash algorithm \"%s\": %ld",
 			     alg->name, PTR_ERR(tfm));
 		alg = ERR_CAST(tfm);
@@ -124,7 +124,7 @@ const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 
 	hashstate = kmalloc(crypto_shash_statesize(alg->tfm), GFP_KERNEL);
 	if (!hashstate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Zero-pad the salt to the next multiple of the input size of the hash
@@ -136,7 +136,7 @@ const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 	padded_salt_size = round_up(salt_size, alg->block_size);
 	padded_salt = kzalloc(padded_salt_size, GFP_KERNEL);
 	if (!padded_salt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 	memcpy(padded_salt, salt, salt_size);
@@ -164,17 +164,17 @@ err_free:
 /**
  * fsverity_hash_block() - hash a single data or hash block
  * @params: the Merkle tree's parameters
- * @inode: inode for which the hashing is being done
+ * @ianalde: ianalde for which the hashing is being done
  * @data: virtual address of a buffer containing the block to hash
  * @out: output digest, size 'params->digest_size' bytes
  *
  * Hash a single data or hash block.  The hash is salted if a salt is specified
  * in the Merkle tree parameters.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fsverity_hash_block(const struct merkle_tree_params *params,
-			const struct inode *inode, const void *data, u8 *out)
+			const struct ianalde *ianalde, const void *data, u8 *out)
 {
 	SHASH_DESC_ON_STACK(desc, params->hash_alg->tfm);
 	int err;
@@ -184,7 +184,7 @@ int fsverity_hash_block(const struct merkle_tree_params *params,
 	if (params->hashstate) {
 		err = crypto_shash_import(desc, params->hashstate);
 		if (err) {
-			fsverity_err(inode,
+			fsverity_err(ianalde,
 				     "Error %d importing hash state", err);
 			return err;
 		}
@@ -193,7 +193,7 @@ int fsverity_hash_block(const struct merkle_tree_params *params,
 		err = crypto_shash_digest(desc, data, params->block_size, out);
 	}
 	if (err)
-		fsverity_err(inode, "Error %d computing block hash", err);
+		fsverity_err(ianalde, "Error %d computing block hash", err);
 	return err;
 }
 
@@ -204,7 +204,7 @@ int fsverity_hash_block(const struct merkle_tree_params *params,
  * @size: size of data to hash, in bytes
  * @out: output digest, size 'alg->digest_size' bytes
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out)

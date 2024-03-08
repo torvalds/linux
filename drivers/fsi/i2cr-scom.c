@@ -89,11 +89,11 @@ static int i2cr_scom_probe(struct device *dev)
 	int ret;
 
 	if (!is_fsi_master_i2cr(fsi_dev->slave->master))
-		return -ENODEV;
+		return -EANALDEV;
 
 	scom = devm_kzalloc(dev, sizeof(*scom), GFP_KERNEL);
 	if (!scom)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scom->i2cr = to_fsi_master_i2cr(fsi_dev->slave->master);
 	dev_set_drvdata(dev, scom);
@@ -102,7 +102,7 @@ static int i2cr_scom_probe(struct device *dev)
 	scom->dev.parent = dev;
 	device_initialize(&scom->dev);
 
-	ret = fsi_get_new_minor(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
+	ret = fsi_get_new_mianalr(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
 	if (ret)
 		return ret;
 
@@ -110,7 +110,7 @@ static int i2cr_scom_probe(struct device *dev)
 	cdev_init(&scom->cdev, &i2cr_scom_fops);
 	ret = cdev_device_add(&scom->cdev, &scom->dev);
 	if (ret)
-		fsi_free_minor(scom->dev.devt);
+		fsi_free_mianalr(scom->dev.devt);
 
 	return ret;
 }
@@ -120,7 +120,7 @@ static int i2cr_scom_remove(struct device *dev)
 	struct i2cr_scom *scom = dev_get_drvdata(dev);
 
 	cdev_device_del(&scom->cdev, &scom->dev);
-	fsi_free_minor(scom->dev.devt);
+	fsi_free_mianalr(scom->dev.devt);
 
 	return 0;
 }

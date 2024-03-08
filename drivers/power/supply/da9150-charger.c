@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/power_supply.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/usb/phy.h>
 #include <linux/iio/consumer.h>
 #include <linux/mfd/da9150/core.h>
@@ -29,7 +29,7 @@ struct da9150_charger {
 	struct power_supply *supply_online;
 
 	struct usb_phy *usb_phy;
-	struct notifier_block otg_nb;
+	struct analtifier_block otg_nb;
 	struct work_struct otg_work;
 	unsigned long usb_event;
 
@@ -49,7 +49,7 @@ static inline int da9150_charger_supply_online(struct da9150_charger *charger,
 }
 
 /* Charger Properties */
-static int da9150_charger_vbus_voltage_now(struct da9150_charger *charger,
+static int da9150_charger_vbus_voltage_analw(struct da9150_charger *charger,
 					   union power_supply_propval *val)
 {
 	int v_val, ret;
@@ -99,7 +99,7 @@ static int da9150_charger_tjunc_temp(struct da9150_charger *charger,
 
 static enum power_supply_property da9150_charger_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_TEMP,
 };
@@ -115,8 +115,8 @@ static int da9150_charger_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = da9150_charger_supply_online(charger, psy, val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = da9150_charger_vbus_voltage_now(charger, val);
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		ret = da9150_charger_vbus_voltage_analw(charger, val);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		ret = da9150_charger_ibus_current_avg(charger, val);
@@ -150,7 +150,7 @@ static int da9150_charger_battery_status(struct da9150_charger *charger,
 
 	reg = da9150_reg_read(charger->da9150, DA9150_STATUS_J);
 
-	/* Now check for other states */
+	/* Analw check for other states */
 	switch (reg & DA9150_CHG_STAT_MASK) {
 	case DA9150_CHG_STAT_ACT:
 	case DA9150_CHG_STAT_PRE:
@@ -163,13 +163,13 @@ static int da9150_charger_battery_status(struct da9150_charger *charger,
 	case DA9150_CHG_STAT_TEMP:
 	case DA9150_CHG_STAT_TIME:
 	case DA9150_CHG_STAT_BAT:
-		val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	case DA9150_CHG_STAT_FULL:
 		val->intval = POWER_SUPPLY_STATUS_FULL;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 		break;
 	}
 
@@ -244,7 +244,7 @@ static int da9150_charger_battery_charge_type(struct da9150_charger *charger,
 		val->intval = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	}
 
@@ -264,7 +264,7 @@ static int da9150_charger_battery_voltage_min(struct da9150_charger *charger,
 	return 0;
 }
 
-static int da9150_charger_battery_voltage_now(struct da9150_charger *charger,
+static int da9150_charger_battery_voltage_analw(struct da9150_charger *charger,
 					      union power_supply_propval *val)
 {
 	int v_val, ret;
@@ -311,7 +311,7 @@ static enum power_supply_property da9150_charger_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
 };
@@ -342,8 +342,8 @@ static int da9150_charger_battery_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		ret = da9150_charger_battery_voltage_min(charger, val);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = da9150_charger_battery_voltage_now(charger, val);
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		ret = da9150_charger_battery_voltage_analw(charger, val);
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
 		ret = da9150_charger_battery_current_max(charger, val);
@@ -372,7 +372,7 @@ static irqreturn_t da9150_charger_tjunc_irq(int irq, void *data)
 {
 	struct da9150_charger *charger = data;
 
-	/* Nothing we can really do except report this. */
+	/* Analthing we can really do except report this. */
 	dev_crit(charger->dev, "TJunc over temperature!!!\n");
 	power_supply_changed(charger->usb);
 
@@ -383,7 +383,7 @@ static irqreturn_t da9150_charger_vfault_irq(int irq, void *data)
 {
 	struct da9150_charger *charger = data;
 
-	/* Nothing we can really do except report this. */
+	/* Analthing we can really do except report this. */
 	dev_crit(charger->dev, "VSYS under voltage!!!\n");
 	power_supply_changed(charger->usb);
 	power_supply_changed(charger->battery);
@@ -408,7 +408,7 @@ static irqreturn_t da9150_charger_vbus_irq(int irq, void *data)
 		charger->supply_online = charger->usb;
 		break;
 	default:
-		dev_warn(charger->dev, "Unknown VBUS state - reg = 0x%x\n",
+		dev_warn(charger->dev, "Unkanalwn VBUS state - reg = 0x%x\n",
 			 reg);
 		charger->supply_online = NULL;
 		break;
@@ -431,7 +431,7 @@ static void da9150_charger_otg_work(struct work_struct *data)
 		da9150_set_bits(charger->da9150, DA9150_PPR_BKCTRL_A,
 				DA9150_VBUS_MODE_MASK, DA9150_VBUS_MODE_OTG);
 		break;
-	case USB_EVENT_NONE:
+	case USB_EVENT_ANALNE:
 		/* Revert to charge mode */
 		power_supply_changed(charger->usb);
 		power_supply_changed(charger->battery);
@@ -441,18 +441,18 @@ static void da9150_charger_otg_work(struct work_struct *data)
 	}
 }
 
-static int da9150_charger_otg_ncb(struct notifier_block *nb, unsigned long val,
+static int da9150_charger_otg_ncb(struct analtifier_block *nb, unsigned long val,
 				  void *priv)
 {
 	struct da9150_charger *charger =
 		container_of(nb, struct da9150_charger, otg_nb);
 
-	dev_dbg(charger->dev, "DA9150 OTG notify %lu\n", val);
+	dev_dbg(charger->dev, "DA9150 OTG analtify %lu\n", val);
 
 	charger->usb_event = val;
 	schedule_work(&charger->otg_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int da9150_charger_register_irq(struct platform_device *pdev,
@@ -514,7 +514,7 @@ static int da9150_charger_probe(struct platform_device *pdev)
 
 	charger = devm_kzalloc(dev, sizeof(struct da9150_charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, charger);
 	charger->da9150 = da9150;
@@ -570,7 +570,7 @@ static int da9150_charger_probe(struct platform_device *pdev)
 		charger->supply_online = charger->usb;
 		break;
 	default:
-		dev_warn(dev, "Unknown VBUS state - reg = 0x%x\n", reg);
+		dev_warn(dev, "Unkanalwn VBUS state - reg = 0x%x\n", reg);
 		charger->supply_online = NULL;
 		break;
 	}
@@ -579,8 +579,8 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	charger->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (!IS_ERR_OR_NULL(charger->usb_phy)) {
 		INIT_WORK(&charger->otg_work, da9150_charger_otg_work);
-		charger->otg_nb.notifier_call = da9150_charger_otg_ncb;
-		usb_register_notifier(charger->usb_phy, &charger->otg_nb);
+		charger->otg_nb.analtifier_call = da9150_charger_otg_ncb;
+		usb_register_analtifier(charger->usb_phy, &charger->otg_nb);
 	}
 
 	/* Register IRQs */
@@ -615,7 +615,7 @@ tjunc_irq_fail:
 	da9150_charger_unregister_irq(pdev, "CHG_STATUS");
 chg_irq_fail:
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
-		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
+		usb_unregister_analtifier(charger->usb_phy, &charger->otg_nb);
 battery_fail:
 	power_supply_unregister(charger->usb);
 
@@ -654,7 +654,7 @@ static void da9150_charger_remove(struct platform_device *pdev)
 	free_irq(irq, charger);
 
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
-		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
+		usb_unregister_analtifier(charger->usb_phy, &charger->otg_nb);
 	cancel_work_sync(&charger->otg_work);
 
 	power_supply_unregister(charger->battery);

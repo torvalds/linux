@@ -5,7 +5,7 @@
 #define _ICE_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -98,7 +98,7 @@
 #define ICE_RDMA_NUM_AEQ_MSIX	4
 #define ICE_MIN_RDMA_MSIX	2
 #define ICE_ESWITCH_MSIX	1
-#define ICE_NO_VSI		0xffff
+#define ICE_ANAL_VSI		0xffff
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
 #define ICE_MAX_SCATTER_TXQS	16
@@ -131,7 +131,7 @@
 #define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
 #define ICE_TX_FDIRDESC(R, i) (&(((struct ice_fltr_desc *)((R)->desc))[i]))
 
-/* Minimum BW limit is 500 Kbps for any scheduler node */
+/* Minimum BW limit is 500 Kbps for any scheduler analde */
 #define ICE_MIN_BW_LIMIT		500
 /* User can specify BW in either Kbit/Mbit/Gbit and OS converts it in bytes.
  * use it to convert user specified BW limit into Kbps
@@ -141,7 +141,7 @@
 /* Default recipes have priority 4 and below, hence priority values between 5..7
  * can be used as filter priority for advanced switch filter (advanced switch
  * filters need new recipe to be created for specified extraction sequence
- * because default recipe extraction sequence does not represent custom
+ * because default recipe extraction sequence does analt represent custom
  * extraction)
  */
 #define ICE_SWITCH_FLTR_PRIO_QUEUE	7
@@ -167,7 +167,7 @@
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
-/* Macros for each allocated Tx/Rx ring whether used or not in a VSI */
+/* Macros for each allocated Tx/Rx ring whether used or analt in a VSI */
 #define ice_for_each_alloc_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
 
@@ -279,15 +279,15 @@ enum ice_pf_state {
 	ICE_EMPR_RECV,		/* set by OICR handler */
 	ICE_SUSPENDED,		/* set on module remove path */
 	ICE_RESET_FAILED,		/* set by reset/rebuild */
-	/* When checking for the PF to be in a nominal operating state, the
+	/* When checking for the PF to be in a analminal operating state, the
 	 * bits that are grouped at the beginning of the list need to be
-	 * checked. Bits occurring before ICE_STATE_NOMINAL_CHECK_BITS will
-	 * be checked. If you need to add a bit into consideration for nominal
+	 * checked. Bits occurring before ICE_STATE_ANALMINAL_CHECK_BITS will
+	 * be checked. If you need to add a bit into consideration for analminal
 	 * operating state, it must be added before
-	 * ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
+	 * ICE_STATE_ANALMINAL_CHECK_BITS. Do analt move this entry's position
 	 * without appropriate consideration.
 	 */
-	ICE_STATE_NOMINAL_CHECK_BITS,
+	ICE_STATE_ANALMINAL_CHECK_BITS,
 	ICE_ADMINQ_EVENT_PENDING,
 	ICE_MAILBOXQ_EVENT_PENDING,
 	ICE_SIDEBANDQ_EVENT_PENDING,
@@ -447,11 +447,11 @@ struct ice_vsi {
 
 	struct ice_channel *ch;
 
-	/* setup back reference, to which aggregator node this VSI
+	/* setup back reference, to which aggregator analde this VSI
 	 * corresponds to
 	 */
-	struct ice_agg_node *agg_node;
-} ____cacheline_internodealigned_in_smp;
+	struct ice_agg_analde *agg_analde;
+} ____cacheline_interanaldealigned_in_smp;
 
 /* struct that defines an interrupt vector */
 struct ice_q_vector {
@@ -473,7 +473,7 @@ struct ice_q_vector {
 	struct ice_ring_container tx;
 
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_analtify affinity_analtify;
 
 	struct ice_channel *ch;
 
@@ -481,7 +481,7 @@ struct ice_q_vector {
 
 	u16 total_events;	/* net_dim(): number of interrupts processed */
 	struct msi_map irq;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 enum ice_pf_flags {
 	ICE_FLAG_FLTR_SYNC,
@@ -499,7 +499,7 @@ enum ice_pf_flags {
 	ICE_FLAG_CLS_FLOWER,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
-	ICE_FLAG_NO_MEDIA,
+	ICE_FLAG_ANAL_MEDIA,
 	ICE_FLAG_FW_LLDP_AGENT,
 	ICE_FLAG_MOD_POWER_UNSUPPORTED,
 	ICE_FLAG_PHY_FW_LOAD_FAILED,
@@ -536,9 +536,9 @@ struct ice_eswitch {
 	} qs;
 };
 
-struct ice_agg_node {
+struct ice_agg_analde {
 	u32 agg_id;
-#define ICE_MAX_VSIS_IN_AGG_NODE	64
+#define ICE_MAX_VSIS_IN_AGG_ANALDE	64
 	u32 num_vsis;
 	u8 valid;
 };
@@ -653,13 +653,13 @@ struct ice_pf {
 	struct ice_eswitch eswitch;
 	struct ice_esw_br_port *br_port;
 
-#define ICE_INVALID_AGG_NODE_ID		0
-#define ICE_PF_AGG_NODE_ID_START	1
-#define ICE_MAX_PF_AGG_NODES		32
-	struct ice_agg_node pf_agg_node[ICE_MAX_PF_AGG_NODES];
-#define ICE_VF_AGG_NODE_ID_START	65
-#define ICE_MAX_VF_AGG_NODES		32
-	struct ice_agg_node vf_agg_node[ICE_MAX_VF_AGG_NODES];
+#define ICE_INVALID_AGG_ANALDE_ID		0
+#define ICE_PF_AGG_ANALDE_ID_START	1
+#define ICE_MAX_PF_AGG_ANALDES		32
+	struct ice_agg_analde pf_agg_analde[ICE_MAX_PF_AGG_ANALDES];
+#define ICE_VF_AGG_ANALDE_ID_START	65
+#define ICE_MAX_VF_AGG_ANALDES		32
+	struct ice_agg_analde vf_agg_analde[ICE_MAX_VF_AGG_ANALDES];
 	struct ice_dplls dplls;
 	struct device *hwmon_dev;
 };
@@ -698,7 +698,7 @@ static inline bool ice_vector_ch_enabled(struct ice_q_vector *qv)
  */
 static inline bool ice_ptp_pf_handles_tx_interrupt(struct ice_pf *pf)
 {
-	return pf->ptp.tx_interrupt_mode != ICE_PTP_TX_INTERRUPT_NONE;
+	return pf->ptp.tx_interrupt_mode != ICE_PTP_TX_INTERRUPT_ANALNE;
 }
 
 /**
@@ -713,7 +713,7 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 {
 	u32 vector = (vsi && q_vector) ? q_vector->reg_idx :
 				((struct ice_pf *)hw->back)->oicr_irq.index;
-	int itr = ICE_ITR_NONE;
+	int itr = ICE_ITR_ANALNE;
 	u32 val;
 
 	/* clear the PBA here, as this function is meant to clean out all
@@ -829,8 +829,8 @@ static inline struct ice_vsi *ice_get_netdev_priv_vsi(struct ice_netdev_priv *np
  */
 static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 {
-	/* if pf->ctrl_vsi_idx is ICE_NO_VSI, control VSI was not set up */
-	if (!pf->vsi || pf->ctrl_vsi_idx == ICE_NO_VSI)
+	/* if pf->ctrl_vsi_idx is ICE_ANAL_VSI, control VSI was analt set up */
+	if (!pf->vsi || pf->ctrl_vsi_idx == ICE_ANAL_VSI)
 		return NULL;
 
 	return pf->vsi[pf->ctrl_vsi_idx];
@@ -959,14 +959,14 @@ void ice_fdir_replay_fltrs(struct ice_pf *pf);
 int ice_fdir_create_dflt_rules(struct ice_pf *pf);
 
 enum ice_aq_task_state {
-	ICE_AQ_TASK_NOT_PREPARED,
+	ICE_AQ_TASK_ANALT_PREPARED,
 	ICE_AQ_TASK_WAITING,
 	ICE_AQ_TASK_COMPLETE,
 	ICE_AQ_TASK_CANCELED,
 };
 
 struct ice_aq_task {
-	struct hlist_node entry;
+	struct hlist_analde entry;
 	struct ice_rq_event_info event;
 	enum ice_aq_task_state state;
 	u16 opcode;

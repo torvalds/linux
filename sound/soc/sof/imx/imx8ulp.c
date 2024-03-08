@@ -150,7 +150,7 @@ static int imx8ulp_reset(struct snd_sof_dev *sdev)
 	regmap_update_bits(priv->regmap, SYSCTRL0, RESET_BIT, RESET_BIT);
 	usleep_range(1, 2);
 
-	/* Stall HIFI4 DSP Execution: 1 stall, 0 not stall */
+	/* Stall HIFI4 DSP Execution: 1 stall, 0 analt stall */
 	regmap_update_bits(priv->regmap, SYSCTRL0, EXECUTE_BIT, EXECUTE_BIT);
 	usleep_range(1, 2);
 
@@ -163,8 +163,8 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
 		container_of(sdev->dev, struct platform_device, dev);
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *res_node;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *res_analde;
 	struct resource *mmio;
 	struct imx8ulp_priv *priv;
 	struct resource res;
@@ -173,11 +173,11 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clks = devm_kzalloc(&pdev->dev, sizeof(*priv->clks), GFP_KERNEL);
 	if (!priv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->num_cores = 1;
 	sdev->pdata->hw_pdata = priv;
@@ -190,14 +190,14 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 		return PTR_ERR(priv->regmap);
 
 	priv->ipc_dev = platform_device_register_data(sdev->dev, "imx-dsp",
-						      PLATFORM_DEVID_NONE,
+						      PLATFORM_DEVID_ANALNE,
 						      pdev, sizeof(*pdev));
 	if (IS_ERR(priv->ipc_dev))
 		return PTR_ERR(priv->ipc_dev);
 
 	priv->dsp_ipc = dev_get_drvdata(&priv->ipc_dev->dev);
 	if (!priv->dsp_ipc) {
-		/* DSP IPC driver not probed yet, try later */
+		/* DSP IPC driver analt probed yet, try later */
 		ret = -EPROBE_DEFER;
 		dev_err(sdev->dev, "Failed to get drvdata\n");
 		goto exit_pdev_unregister;
@@ -221,20 +221,20 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_IRAM]) {
 		dev_err(sdev->dev, "failed to ioremap base 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit_pdev_unregister;
 	}
 	sdev->mmio_bar = SOF_FW_BLK_TYPE_IRAM;
 
-	res_node = of_parse_phandle(np, "memory-reserved", 0);
-	if (!res_node) {
-		dev_err(&pdev->dev, "failed to get memory region node\n");
-		ret = -ENODEV;
+	res_analde = of_parse_phandle(np, "memory-reserved", 0);
+	if (!res_analde) {
+		dev_err(&pdev->dev, "failed to get memory region analde\n");
+		ret = -EANALDEV;
 		goto exit_pdev_unregister;
 	}
 
-	ret = of_address_to_resource(res_node, 0, &res);
-	of_node_put(res_node);
+	ret = of_address_to_resource(res_analde, 0, &res);
+	of_analde_put(res_analde);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get reserved region address\n");
 		goto exit_pdev_unregister;
@@ -245,7 +245,7 @@ static int imx8ulp_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_SRAM]) {
 		dev_err(sdev->dev, "failed to ioremap mem 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_pdev_unregister;
 	}
 	sdev->mailbox_bar = SOF_FW_BLK_TYPE_SRAM;
@@ -464,7 +464,7 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+			SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 
 	/* PM */
 	.runtime_suspend	= imx8ulp_dsp_runtime_suspend,
@@ -488,7 +488,7 @@ static struct sof_dev_desc sof_of_imx8ulp_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-imx8ulp.ri",
 	},
-	.nocodec_tplg_filename = "sof-imx8ulp-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-imx8ulp-analcodec.tplg",
 	.ops = &sof_imx8ulp_ops,
 };
 

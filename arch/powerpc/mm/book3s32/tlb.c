@@ -63,7 +63,7 @@ void hash__flush_range(struct mm_struct *mm, unsigned long start, unsigned long 
 		pmd_end = ((start + PGDIR_SIZE) & PGDIR_MASK) - 1;
 		if (pmd_end > end)
 			pmd_end = end;
-		if (!pmd_none(*pmd)) {
+		if (!pmd_analne(*pmd)) {
 			count = ((pmd_end - start) >> PAGE_SHIFT) + 1;
 			flush_hash_pages(ctx, start, pmd_val(*pmd), count);
 		}
@@ -86,7 +86,7 @@ void hash__flush_tlb_mm(struct mm_struct *mm)
 	/*
 	 * It is safe to iterate the vmas when called from dup_mmap,
 	 * holding mmap_lock.  It would also be safe from unmap_region
-	 * or exit_mmap, but not from vmtruncate on SMP - but it seems
+	 * or exit_mmap, but analt from vmtruncate on SMP - but it seems
 	 * dup_mmap is the only SMP case which gets here.
 	 */
 	for_each_vma(vmi, mp)
@@ -101,7 +101,7 @@ void hash__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 
 	mm = (vmaddr < TASK_SIZE)? vma->vm_mm: &init_mm;
 	pmd = pmd_off(mm, vmaddr);
-	if (!pmd_none(*pmd))
+	if (!pmd_analne(*pmd))
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 }
 EXPORT_SYMBOL(hash__flush_tlb_page);

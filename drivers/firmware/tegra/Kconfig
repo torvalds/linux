@@ -18,7 +18,7 @@ config TEGRA_BPMP
 	help
 	  BPMP (Boot and Power Management Processor) is designed to off-loading
 	  the PM functions which include clock/DVFS/thermal/power from the CPU.
-	  It needs HSP as the HW synchronization and notification module and
+	  It needs HSP as the HW synchronization and analtification module and
 	  IVC module as the message communication protocol.
 
 	  This driver manages the IPC interface between host CPU and the

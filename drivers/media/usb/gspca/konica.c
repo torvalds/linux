@@ -40,7 +40,7 @@ struct sd {
 };
 
 
-/* .priv is what goes to register 8 for this mode, known working values:
+/* .priv is what goes to register 8 for this mode, kanalwn working values:
    0x00 -> 176x144, cropped
    0x01 -> 176x144, cropped
    0x02 -> 176x144, cropped
@@ -50,22 +50,22 @@ struct sd {
    0x06 -> 320x240
    0x07 -> 160x120, cropped
    0x08 -> 160x120, cropped
-   0x09 -> 160x120, binned (note has 136 lines)
-   0x0a -> 160x120, binned (note has 136 lines)
+   0x09 -> 160x120, binned (analte has 136 lines)
+   0x0a -> 160x120, binned (analte has 136 lines)
    0x0b -> 160x120, cropped
 */
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 136 * 3 / 2 + 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0x0a},
-	{176, 144, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2 + 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0x04},
-	{320, 240, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_KONICA420, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2 + 960,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -138,7 +138,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
-	gspca_dev->cam.no_urb_create = 1;
+	gspca_dev->cam.anal_urb_create = 1;
 
 	return 0;
 }
@@ -150,7 +150,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	/*
 	 * The konica needs a freaking large time to "boot" (approx 6.5 sec.),
-	 * and does not want to be bothered while doing so :|
+	 * and does analt want to be bothered while doing so :|
 	 * Register 0x10 counts from 1 - 3, with 3 being "ready"
 	 */
 	msleep(6000);
@@ -181,7 +181,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	if (alt->desc.bNumEndpoints < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 
@@ -195,7 +195,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create 4 URBs - 2 on endpoint 0x83 and 2 on 0x082 */
 #if MAX_NURBS < 4
-#error "Not enough URBs in the gspca table"
+#error "Analt eanalugh URBs in the gspca table"
 #endif
 #define SD_NPKT 32
 	for (n = 0; n < 4; n++) {
@@ -204,7 +204,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			le16_to_cpu(alt->endpoint[i].desc.wMaxPacketSize);
 		urb = usb_alloc_urb(SD_NPKT, GFP_KERNEL);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						packet_size * SD_NPKT,
@@ -212,7 +212,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 						&urb->transfer_dma);
 		if (urb->transfer_buffer == NULL) {
 			pr_err("usb_buffer_alloc failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		urb->dev = gspca_dev->dev;
@@ -221,7 +221,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
 					n & 1 ? 0x81 : 0x82);
 		urb->transfer_flags = URB_ISO_ASAP
-					| URB_NO_TRANSFER_DMA_MAP;
+					| URB_ANAL_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->complete = sd_isoc_irq;
 		urb->number_of_packets = SD_NPKT;
@@ -293,7 +293,7 @@ static void sd_isoc_irq(struct urb *urb)
 	}
 
 	if (data_urb->number_of_packets != status_urb->number_of_packets) {
-		gspca_err(gspca_dev, "no packets does not match, data: %d, status: %d\n",
+		gspca_err(gspca_dev, "anal packets does analt match, data: %d, status: %d\n",
 			  data_urb->number_of_packets,
 			  status_urb->number_of_packets);
 		goto resubmit;
@@ -328,7 +328,7 @@ static void sd_isoc_irq(struct urb *urb)
 		 * bit 0 0: keep packet
 		 *	 1: drop packet (padding data)
 		 *
-		 * bit 4 0 button not clicked
+		 * bit 4 0 button analt clicked
 		 *       1 button clicked
 		 * button is used to `take a picture' (in software)
 		 */
@@ -429,7 +429,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SHARPNESS, 0, 9, 1, 4);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

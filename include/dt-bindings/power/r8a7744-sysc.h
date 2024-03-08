@@ -10,7 +10,7 @@
  * representing the power areas in the various Interrupt Registers
  * (e.g. SYSCISR, Interrupt Status Register)
  *
- * Note that RZ/G1N is identical to RZ/G2M w.r.t. power domains.
+ * Analte that RZ/G1N is identical to RZ/G2M w.r.t. power domains.
  */
 
 #define R8A7744_PD_CA15_CPU0		 0

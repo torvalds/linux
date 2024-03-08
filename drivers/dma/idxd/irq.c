@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/iommu.h>
@@ -15,7 +15,7 @@
 #include "registers.h"
 
 enum irq_work_type {
-	IRQ_WORK_NORMAL = 0,
+	IRQ_WORK_ANALRMAL = 0,
 	IRQ_WORK_PROCESS_FAULT,
 };
 
@@ -77,7 +77,7 @@ static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 	void __iomem *portal;
 	int rc;
 
-	/* Issue a simple drain operation with interrupt but no completion record */
+	/* Issue a simple drain operation with interrupt but anal completion record */
 	desc.flags = IDXD_OP_FLAG_RCI;
 	desc.opcode = DSA_OPCODE_DRAIN;
 	desc.priv = 1;
@@ -96,7 +96,7 @@ static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 		iosubmit_cmds512(portal, &desc, 1);
 	} else {
 		rc = idxd_enqcmds(wq, portal, &desc);
-		/* This should not fail unless hardware failed. */
+		/* This should analt fail unless hardware failed. */
 		if (rc < 0)
 			dev_warn(dev, "Failed to submit drain desc on wq %d\n", wq->id);
 	}
@@ -106,12 +106,12 @@ static void idxd_abort_invalid_int_handle_descs(struct idxd_irq_entry *ie)
 {
 	LIST_HEAD(flist);
 	struct idxd_desc *d, *t;
-	struct llist_node *head;
+	struct llist_analde *head;
 
 	spin_lock(&ie->list_lock);
 	head = llist_del_all(&ie->pending_llist);
 	if (head) {
-		llist_for_each_entry_safe(d, t, head, llnode)
+		llist_for_each_entry_safe(d, t, head, llanalde)
 			list_add_tail(&d->list, &ie->work_list);
 	}
 
@@ -172,7 +172,7 @@ static void idxd_int_handle_revoke(struct work_struct *work)
 			continue;
 		}
 
-		/* No change in interrupt handle, nothing needs to be done */
+		/* Anal change in interrupt handle, analthing needs to be done */
 		if (ie->int_handle == new_handle)
 			continue;
 
@@ -206,7 +206,7 @@ static void idxd_int_handle_revoke(struct work_struct *work)
 		 * The delay here is to wait for all possible MOVDIR64B that
 		 * are issued before percpu_ref_kill() has happened to have
 		 * reached the PCIe domain before the drain is issued. The driver
-		 * needs to ensure that the drain descriptor issued does not pass
+		 * needs to ensure that the drain descriptor issued does analt pass
 		 * all the other issued descriptors that contain the invalid
 		 * interrupt handle in order to ensure that the drain descriptor
 		 * interrupt will allow the cleanup of all the descriptors with
@@ -273,10 +273,10 @@ static void idxd_evl_fault_work(struct work_struct *work)
 	copied = idxd_copy_cr(wq, entry_head->pasid, entry_head->fault_addr,
 			      cr, copy_size);
 	/*
-	 * The task that triggered the page fault is unknown currently
+	 * The task that triggered the page fault is unkanalwn currently
 	 * because multiple threads may share the user address
 	 * space or the task exits already before this fault.
-	 * So if the copy fails, SIGSEGV can not be sent to the task.
+	 * So if the copy fails, SIGSEGV can analt be sent to the task.
 	 * Just print an error for the failure. The user application
 	 * waiting for the completion record will time out on this
 	 * failure.
@@ -326,7 +326,7 @@ static void process_evl_entry(struct idxd_device *idxd,
 			int ent_size = evl_ent_size(idxd);
 
 			if (entry_head->rci)
-				dev_dbg(dev, "Completion Int Req set, ignoring!\n");
+				dev_dbg(dev, "Completion Int Req set, iganalring!\n");
 
 			if (!entry_head->rcr && status == DSA_COMP_DRAIN_EVL)
 				return;
@@ -396,7 +396,7 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 
 	cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 	if (!cause)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 
@@ -461,7 +461,7 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	}
 
 	if (cause & IDXD_INTC_OCCUPY) {
-		/* Driver does not utilize occupancy interrupt */
+		/* Driver does analt utilize occupancy interrupt */
 		val |= IDXD_INTC_OCCUPY;
 	}
 
@@ -524,9 +524,9 @@ static void idxd_int_handle_resubmit_work(struct work_struct *work)
 		dev_dbg(&wq->idxd->pdev->dev, "Failed to resubmit desc %d to wq %d.\n",
 			desc->id, wq->id);
 		/*
-		 * If the error is not -EAGAIN, it means the submission failed due to wq
+		 * If the error is analt -EAGAIN, it means the submission failed due to wq
 		 * has been killed instead of ENQCMDS failure. Here the driver needs to
-		 * notify the submitter of the failure by reporting abort status.
+		 * analtify the submitter of the failure by reporting abort status.
 		 *
 		 * -EAGAIN comes from ENQCMDS failure. idxd_submit_desc() will handle the
 		 * abort.
@@ -559,13 +559,13 @@ bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc)
 static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)
 {
 	struct idxd_desc *desc, *t;
-	struct llist_node *head;
+	struct llist_analde *head;
 
 	head = llist_del_all(&irq_entry->pending_llist);
 	if (!head)
 		return;
 
-	llist_for_each_entry_safe(desc, t, head, llnode) {
+	llist_for_each_entry_safe(desc, t, head, llanalde) {
 		u8 status = desc->completion->status & DSA_COMP_STATUS_MASK;
 
 		if (status) {
@@ -578,7 +578,7 @@ static void irq_process_pending_llist(struct idxd_irq_entry *irq_entry)
 				continue;
 			}
 
-			idxd_desc_complete(desc, IDXD_COMPLETE_NORMAL, true);
+			idxd_desc_complete(desc, IDXD_COMPLETE_ANALRMAL, true);
 		} else {
 			spin_lock(&irq_entry->list_lock);
 			list_add_tail(&desc->list,
@@ -621,7 +621,7 @@ static void irq_process_work_list(struct idxd_irq_entry *irq_entry)
 			continue;
 		}
 
-		idxd_desc_complete(desc, IDXD_COMPLETE_NORMAL, true);
+		idxd_desc_complete(desc, IDXD_COMPLETE_ANALRMAL, true);
 	}
 }
 

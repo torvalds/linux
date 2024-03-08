@@ -3,7 +3,7 @@
  * Copyright (c) 2023, Nikita Travkin <nikita@trvn.ru>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -27,7 +27,7 @@
 
 #define PM8916_BMS_VM_MODE_CTL 0x40
 #define PM8916_BMS_VM_MODE_FORCE_S3 (BIT(0) | BIT(1))
-#define PM8916_BMS_VM_MODE_NORMAL (BIT(1) | BIT(3))
+#define PM8916_BMS_VM_MODE_ANALRMAL (BIT(1) | BIT(3))
 
 #define PM8916_BMS_VM_EN_CTL 0x46
 #define PM8916_BMS_ENABLED BIT(7)
@@ -52,7 +52,7 @@ struct pm8916_bms_vm_battery {
 	unsigned int reg;
 	unsigned int last_ocv;
 	time64_t last_ocv_time;
-	unsigned int vbat_now;
+	unsigned int vbat_analw;
 };
 
 static int pm8916_bms_vm_battery_get_property(struct power_supply *psy,
@@ -67,34 +67,34 @@ static int pm8916_bms_vm_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		supplied = power_supply_am_i_supplied(psy);
 
-		if (supplied < 0 && supplied != -ENODEV)
+		if (supplied < 0 && supplied != -EANALDEV)
 			return supplied;
-		else if (supplied && supplied != -ENODEV)
+		else if (supplied && supplied != -EANALDEV)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		return 0;
 
 	case POWER_SUPPLY_PROP_HEALTH:
-		if (bat->vbat_now < info->voltage_min_design_uv)
+		if (bat->vbat_analw < info->voltage_min_design_uv)
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
-		else if (bat->vbat_now > info->voltage_max_design_uv)
+		else if (bat->vbat_analw > info->voltage_max_design_uv)
 			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		return 0;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = bat->vbat_now;
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = bat->vbat_analw;
 		return 0;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_OCV:
 		/*
 		 * Hardware only reliably measures OCV when the system is off or suspended.
-		 * We expose the last known OCV value on boot, invalidating it after 180 seconds.
+		 * We expose the last kanalwn OCV value on boot, invalidating it after 180 seconds.
 		 */
 		if (ktime_get_seconds() - bat->last_ocv_time > 180)
-			return -ENODATA;
+			return -EANALDATA;
 
 		val->intval = bat->last_ocv;
 		return 0;
@@ -106,7 +106,7 @@ static int pm8916_bms_vm_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property pm8916_bms_vm_battery_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_HEALTH,
 };
@@ -127,10 +127,10 @@ static irqreturn_t pm8916_bms_vm_fifo_update_done_irq(int irq, void *data)
 	 * has to process it to calculate the OCV and SoC. Hardware provides
 	 * up to 8 averaged measurements for software to take in account.
 	 *
-	 * Just use the last measured value for now to report the current
+	 * Just use the last measured value for analw to report the current
 	 * battery voltage.
 	 */
-	bat->vbat_now = vbat_data[PM8916_BMS_VM_FIFO_COUNT - 1] * 300;
+	bat->vbat_analw = vbat_data[PM8916_BMS_VM_FIFO_COUNT - 1] * 300;
 
 	power_supply_changed(bat->battery);
 
@@ -155,13 +155,13 @@ static int pm8916_bms_vm_battery_probe(struct platform_device *pdev)
 
 	bat = devm_kzalloc(dev, sizeof(*bat), GFP_KERNEL);
 	if (!bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bat->dev = dev;
 
 	bat->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!bat->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = device_property_read_u32(dev, "reg", &bat->reg);
 	if (ret < 0)
@@ -181,7 +181,7 @@ static int pm8916_bms_vm_battery_probe(struct platform_device *pdev)
 		goto comm_error;
 
 	if (tmp != PM8916_BMS_VM_TYPE)
-		return dev_err_probe(dev, -ENODEV, "Device reported wrong type: 0x%X\n", tmp);
+		return dev_err_probe(dev, -EANALDEV, "Device reported wrong type: 0x%X\n", tmp);
 
 	ret = regmap_write(bat->regmap, bat->reg + PM8916_BMS_VM_S1_SAMPLE_INTERVAL_CTL,
 			   PM8916_BMS_VM_S1_SAMPLE_INTERVAL);
@@ -207,10 +207,10 @@ static int pm8916_bms_vm_battery_probe(struct platform_device *pdev)
 
 	bat->last_ocv_time = ktime_get_seconds();
 	bat->last_ocv = tmp * 300;
-	bat->vbat_now = bat->last_ocv;
+	bat->vbat_analw = bat->last_ocv;
 
 	psy_cfg.drv_data = bat;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
 	bat->battery = devm_power_supply_register(dev, &pm8916_bms_vm_battery_psy_desc, &psy_cfg);
 	if (IS_ERR(bat->battery))
@@ -234,7 +234,7 @@ static int pm8916_bms_vm_battery_suspend(struct platform_device *pdev, pm_messag
 	int ret;
 
 	/*
-	 * Due to a hardware quirk the FSM doesn't switch states normally.
+	 * Due to a hardware quirk the FSM doesn't switch states analrmally.
 	 * Instead we unlock the debug registers and force S3 (Measure OCV/Sleep)
 	 * mode every time we suspend.
 	 */
@@ -272,14 +272,14 @@ static int pm8916_bms_vm_battery_resume(struct platform_device *pdev)
 	if (ret)
 		goto error;
 	ret = regmap_write(bat->regmap,
-			   bat->reg + PM8916_BMS_VM_MODE_CTL, PM8916_BMS_VM_MODE_NORMAL);
+			   bat->reg + PM8916_BMS_VM_MODE_CTL, PM8916_BMS_VM_MODE_ANALRMAL);
 	if (ret)
 		goto error;
 
 	return 0;
 
 error:
-	dev_err(bat->dev, "Failed to return normal mode: %pe\n", ERR_PTR(ret));
+	dev_err(bat->dev, "Failed to return analrmal mode: %pe\n", ERR_PTR(ret));
 	return ret;
 }
 

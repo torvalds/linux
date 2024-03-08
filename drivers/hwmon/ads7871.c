@@ -175,15 +175,15 @@ static int ads7871_probe(struct spi_device *spi)
 
 	dev_dbg(dev, "REG_OSC_CONTROL write:%x, read:%x\n", val, ret);
 	/*
-	 * because there is no other error checking on an SPI bus
+	 * because there is anal other error checking on an SPI bus
 	 * we need to make sure we really have a chip
 	 */
 	if (val != ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(dev, sizeof(struct ads7871_data), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->spi = spi;
 

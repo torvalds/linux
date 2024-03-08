@@ -29,7 +29,7 @@ extern void bpf_key_put(struct bpf_key *key) __ksym;
 extern struct bpf_key *bpf_lookup_system_key(__u64 id) __ksym;
 extern struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
 
-/* BTF FUNC records are not generated for kfuncs referenced
+/* BTF FUNC records are analt generated for kfuncs referenced
  * from inline assembly. These records are necessary for
  * libbpf to link the program. The function below is a hack
  * to ensure that BTF FUNC records are generated.
@@ -561,7 +561,7 @@ __naked void call_free_reference_in_subprog(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void call_free_reference_in_subprog__1(void)
 {
 	asm volatile ("					\
@@ -595,7 +595,7 @@ __naked void reference_in_subprog_and_outside(void)
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void reference_in_subprog_and_outside__1(void)
 {
 	asm volatile ("					\
@@ -624,7 +624,7 @@ __naked void alloc_leak_reference_in_subprog(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void alloc_leak_reference_in_subprog__1(void)
 {
 	asm volatile ("					\
@@ -658,7 +658,7 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void alloc_in_subprog_release_outside__1(void)
 {
 	asm volatile ("					\
@@ -685,7 +685,7 @@ __naked void ptr_leak_into_caller_stack(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void ptr_leak_into_caller_stack__1(void)
 {
 	asm volatile ("					\
@@ -703,7 +703,7 @@ void ptr_leak_into_caller_stack__1(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void ptr_leak_into_caller_stack__2(void)
 {
 	asm volatile ("					\
@@ -730,7 +730,7 @@ __naked void ptr_spill_into_caller_stack(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void ptr_spill_into_caller_stack__1(void)
 {
 	asm volatile ("					\
@@ -745,7 +745,7 @@ void ptr_spill_into_caller_stack__1(void)
 	r4 = *(u64*)(r5 + 0);				\
 	*(u64*)(r4 + 0) = r0;				\
 	if r0 == 0 goto l0_%=;				\
-	/* now the sk_ptr is verified, free the reference */\
+	/* analw the sk_ptr is verified, free the reference */\
 	r1 = *(u64*)(r4 + 0);				\
 	call %[bpf_sk_release];				\
 l0_%=:	exit;						\
@@ -754,7 +754,7 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void ptr_spill_into_caller_stack__2(void)
 {
 	asm volatile ("					\
@@ -791,7 +791,7 @@ l0_%=:	r0 = *(u8*)skb[0];				\
 
 SEC("tc")
 __description("reference tracking: forbid LD_ABS while holding reference")
-__failure __msg("BPF_LD_[ABS|IND] cannot be mixed with socket references")
+__failure __msg("BPF_LD_[ABS|IND] cananalt be mixed with socket references")
 __naked void ld_abs_while_holding_reference(void)
 {
 	asm volatile ("					\
@@ -836,7 +836,7 @@ l0_%=:	r7 = 1;						\
 
 SEC("tc")
 __description("reference tracking: forbid LD_IND while holding reference")
-__failure __msg("BPF_LD_[ABS|IND] cannot be mixed with socket references")
+__failure __msg("BPF_LD_[ABS|IND] cananalt be mixed with socket references")
 __naked void ld_ind_while_holding_reference(void)
 {
 	asm volatile ("					\
@@ -1035,7 +1035,7 @@ l0_%=:	exit;						\
 
 SEC("tc")
 __description("reference tracking: write to member")
-__failure __msg("cannot write into sock")
+__failure __msg("cananalt write into sock")
 __naked void reference_tracking_write_to_member(void)
 {
 	asm volatile (
@@ -1317,7 +1317,7 @@ l1_%=:	r1 = r0;					\
 	: __clobber_all);
 }
 
-/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is not checked */
+/* !bpf_sk_fullsock(sk) is checked but !bpf_tcp_sock(sk) is analt checked */
 SEC("tc")
 __description("reference tracking: tp->snd_cwnd after bpf_sk_fullsock(sk) and bpf_tcp_sock(sk)")
 __failure __msg("invalid mem access")

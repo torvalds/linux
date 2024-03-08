@@ -39,7 +39,7 @@ struct ipw2100_tx_packet;
 struct ipw2100_rx_packet;
 
 #define IPW_DL_UNINIT    0x80000000
-#define IPW_DL_NONE      0x00000000
+#define IPW_DL_ANALNE      0x00000000
 #define IPW_DL_ALL       0x7FFFFFFF
 
 /*
@@ -63,7 +63,7 @@ struct ipw2100_rx_packet;
  *
  * you simply need to add your entry to the ipw2100_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw2100 then you do not have
+ * If you do analt see debug_level in /proc/net/ipw2100 then you do analt have
  * CONFIG_IPW2100_DEBUG defined in your kernel configuration
  *
  */
@@ -75,7 +75,7 @@ struct ipw2100_rx_packet;
 #define IPW_DL_HC            (1<<5)
 #define IPW_DL_STATE         (1<<6)
 
-#define IPW_DL_NOTIF         (1<<10)
+#define IPW_DL_ANALTIF         (1<<10)
 #define IPW_DL_SCAN          (1<<11)
 #define IPW_DL_ASSOC         (1<<12)
 #define IPW_DL_DROP          (1<<13)
@@ -99,7 +99,7 @@ struct ipw2100_rx_packet;
 #define IPW_DEBUG_INFO(f...)    IPW_DEBUG(IPW_DL_INFO, ## f)
 #define IPW_DEBUG_WX(f...)     IPW_DEBUG(IPW_DL_WX, ## f)
 #define IPW_DEBUG_SCAN(f...)   IPW_DEBUG(IPW_DL_SCAN, ## f)
-#define IPW_DEBUG_NOTIF(f...) IPW_DEBUG(IPW_DL_NOTIF, ## f)
+#define IPW_DEBUG_ANALTIF(f...) IPW_DEBUG(IPW_DL_ANALTIF, ## f)
 #define IPW_DEBUG_TRACE(f...)  IPW_DEBUG(IPW_DL_TRACE, ## f)
 #define IPW_DEBUG_RX(f...)     IPW_DEBUG(IPW_DL_RX, ## f)
 #define IPW_DEBUG_TX(f...)     IPW_DEBUG(IPW_DL_TX, ## f)
@@ -157,7 +157,7 @@ struct ipw2100_bd {
 #define IPW_BD_ALIGNMENT(L)    (L*sizeof(struct ipw2100_bd))
 
 #define IPW_BD_STATUS_TX_FRAME_802_3             0x00
-#define IPW_BD_STATUS_TX_FRAME_NOT_LAST_FRAGMENT 0x01
+#define IPW_BD_STATUS_TX_FRAME_ANALT_LAST_FRAGMENT 0x01
 #define IPW_BD_STATUS_TX_FRAME_COMMAND		 0x02
 #define IPW_BD_STATUS_TX_FRAME_802_11	         0x04
 #define IPW_BD_STATUS_TX_INTERRUPT_ENABLE	 0x08
@@ -197,7 +197,7 @@ struct ipw2100_bd_queue {
 #define STATUS_CHANGE_VAL	1
 #define P80211_DATA_VAL 	2
 #define P8023_DATA_VAL		3
-#define HOST_NOTIFICATION_VAL	4
+#define HOST_ANALTIFICATION_VAL	4
 
 #define IPW2100_RSSI_TO_DBM (-98)
 
@@ -277,8 +277,8 @@ struct ipw2100_data_header {
 	u32 host_command_reg1;
 	u8 encrypted;		// BOOLEAN in win! TRUE if frame is enc by driver
 	u8 needs_encryption;	// BOOLEAN in win! TRUE if frma need to be enc in NIC
-	u8 wep_index;		// 0 no key, 1-4 key index, 0xff immediate key
-	u8 key_size;		// 0 no imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
+	u8 wep_index;		// 0 anal key, 1-4 key index, 0xff immediate key
+	u8 key_size;		// 0 anal imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
 	u8 key[16];
 	u8 reserved[10];	// f/w reserved
 	u8 src_addr[ETH_ALEN];
@@ -353,12 +353,12 @@ struct ipw2100_ordinals {
 	u32 table2_size;
 };
 
-/* Host Notification header */
-struct ipw2100_notification {
-	u32 hnhdr_subtype;	/* type of host notification */
+/* Host Analtification header */
+struct ipw2100_analtification {
+	u32 hnhdr_subtype;	/* type of host analtification */
 	u32 hnhdr_size;		/* size in bytes of data
 				   or number of entries, if table.
-				   Does NOT include header */
+				   Does ANALT include header */
 } __packed;
 
 #define MAX_KEY_SIZE	16
@@ -367,7 +367,7 @@ struct ipw2100_notification {
 #define IPW2100_WEP_ENABLE     (1<<1)
 #define IPW2100_WEP_DROP_CLEAR (1<<2)
 
-#define IPW_NONE_CIPHER   (1<<0)
+#define IPW_ANALNE_CIPHER   (1<<0)
 #define IPW_WEP40_CIPHER  (1<<1)
 #define IPW_TKIP_CIPHER   (1<<2)
 #define IPW_CCMP_CIPHER   (1<<4)
@@ -414,11 +414,11 @@ enum {
 
 #define STATUS_POWERED          (1<<0)
 #define STATUS_CMD_ACTIVE       (1<<1)	/**< host command in progress */
-#define STATUS_RUNNING          (1<<2)	/* Card initialized, but not enabled */
+#define STATUS_RUNNING          (1<<2)	/* Card initialized, but analt enabled */
 #define STATUS_ENABLED          (1<<3)	/* Card enabled -- can scan,Tx,Rx */
 #define STATUS_STOPPING         (1<<4)	/* Card is in shutdown phase */
 #define STATUS_INITIALIZED      (1<<5)	/* Card is ready for external calls */
-#define STATUS_ASSOCIATING      (1<<9)	/* Associated, but no BSSID yet */
+#define STATUS_ASSOCIATING      (1<<9)	/* Associated, but anal BSSID yet */
 #define STATUS_ASSOCIATED       (1<<10)	/* Associated and BSSID valid */
 #define STATUS_INT_ENABLED      (1<<11)
 #define STATUS_RF_KILL_HW       (1<<12)
@@ -462,7 +462,7 @@ enum {
 #endif
 
 #define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
-#define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
+#define CAP_PRIVACY_ON          (1<<1)	/* Off = Anal privacy */
 
 struct ipw2100_priv {
 	void __iomem *ioaddr;
@@ -648,7 +648,7 @@ struct ipw2100_priv {
 #define IPW_CFG_BSS_MASK		0x08000
 #define IPW_CFG_IBSS_MASK		0x10000
 
-#define IPW_SCAN_NOASSOCIATE (1<<0)
+#define IPW_SCAN_ANALASSOCIATE (1<<0)
 #define IPW_SCAN_MIXED_CELL (1<<1)
 /* RESERVED (1<<2) */
 #define IPW_SCAN_PASSIVE (1<<3)
@@ -787,7 +787,7 @@ struct ipw2100_rx {
 		unsigned char payload[IPW_RX_NIC_BUFFER_LENGTH];
 		struct libipw_hdr_4addr header;
 		u32 status;
-		struct ipw2100_notification notification;
+		struct ipw2100_analtification analtification;
 		struct ipw2100_cmd_header command;
 	} rx_data;
 } __packed;
@@ -820,7 +820,7 @@ struct ipw2100_rx {
 #define IPW_TX_POWER_MIN_DBM         (-12)
 #define IPW_TX_POWER_MAX_DBM         16
 
-#define FW_SCAN_DONOT_ASSOCIATE     0x0001	// Dont Attempt to Associate after Scan
+#define FW_SCAN_DOANALT_ASSOCIATE     0x0001	// Dont Attempt to Associate after Scan
 #define FW_SCAN_PASSIVE             0x0008	// Force PASSSIVE Scan
 
 #define REG_MIN_CHANNEL             0
@@ -834,9 +834,9 @@ struct ipw2100_rx {
 #define DIVERSITY_ANTENNA_B         2	// Use antenna B
 
 #define HOST_COMMAND_WAIT 0
-#define HOST_COMMAND_NO_WAIT 1
+#define HOST_COMMAND_ANAL_WAIT 1
 
-#define LOCK_NONE 0
+#define LOCK_ANALNE 0
 #define LOCK_DRIVER 1
 #define LOCK_FW 2
 
@@ -868,7 +868,7 @@ struct ipw2100_rx {
 #define BSS_ID_LENGTH               6
 
 // Fixed size data: Ordinal Table 1
-typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
+typedef enum _ORDINAL_TABLE_1 {	// NS - means Analt Supported by FW
 // Transmit statistics
 	IPW_ORD_STAT_TX_HOST_REQUESTS = 1,	// # of requested Host Tx's (MSDU)
 	IPW_ORD_STAT_TX_HOST_COMPLETE,	// # of successful Host Tx's (MSDU)
@@ -880,10 +880,10 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_TX_DIR_DATA11,	// # of successful Directed Tx's (MSDU) @ 11MB
 	IPW_ORD_STAT_TX_DIR_DATA22,	// # of successful Directed Tx's (MSDU) @ 22MB
 
-	IPW_ORD_STAT_TX_NODIR_DATA1 = 13,	// # of successful Non_Directed Tx's (MSDU) @ 1MB
-	IPW_ORD_STAT_TX_NODIR_DATA2,	// # of successful Non_Directed Tx's (MSDU) @ 2MB
-	IPW_ORD_STAT_TX_NODIR_DATA5_5,	// # of successful Non_Directed Tx's (MSDU) @ 5.5MB
-	IPW_ORD_STAT_TX_NODIR_DATA11,	// # of successful Non_Directed Tx's (MSDU) @ 11MB
+	IPW_ORD_STAT_TX_ANALDIR_DATA1 = 13,	// # of successful Analn_Directed Tx's (MSDU) @ 1MB
+	IPW_ORD_STAT_TX_ANALDIR_DATA2,	// # of successful Analn_Directed Tx's (MSDU) @ 2MB
+	IPW_ORD_STAT_TX_ANALDIR_DATA5_5,	// # of successful Analn_Directed Tx's (MSDU) @ 5.5MB
+	IPW_ORD_STAT_TX_ANALDIR_DATA11,	// # of successful Analn_Directed Tx's (MSDU) @ 11MB
 
 	IPW_ORD_STAT_NULL_DATA = 21,	// # of successful NULL data Tx's
 	IPW_ORD_STAT_TX_RTS,	// # of successful Tx RTS
@@ -927,11 +927,11 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_RX_DIR_DATA11,	// # of directed packets at 11MB
 	IPW_ORD_STAT_RX_DIR_DATA22,	// # of directed packets at 22MB
 
-	IPW_ORD_STAT_RX_NODIR_DATA = 71,	// # of nondirected packets
-	IPW_ORD_STAT_RX_NODIR_DATA1,	// # of nondirected packets at 1MB
-	IPW_ORD_STAT_RX_NODIR_DATA2,	// # of nondirected packets at 2MB
-	IPW_ORD_STAT_RX_NODIR_DATA5_5,	// # of nondirected packets at 5.5MB
-	IPW_ORD_STAT_RX_NODIR_DATA11,	// # of nondirected packets at 11MB
+	IPW_ORD_STAT_RX_ANALDIR_DATA = 71,	// # of analndirected packets
+	IPW_ORD_STAT_RX_ANALDIR_DATA1,	// # of analndirected packets at 1MB
+	IPW_ORD_STAT_RX_ANALDIR_DATA2,	// # of analndirected packets at 2MB
+	IPW_ORD_STAT_RX_ANALDIR_DATA5_5,	// # of analndirected packets at 5.5MB
+	IPW_ORD_STAT_RX_ANALDIR_DATA11,	// # of analndirected packets at 11MB
 
 	IPW_ORD_STAT_RX_NULL_DATA = 80,	// # of null data rx's
 	IPW_ORD_STAT_RX_POLL,	//NS // # of poll rx
@@ -970,11 +970,11 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_PERS_DB_ADDR,	// # address of fw permanent  db
 	IPW_ORD_STAT_RX_INVALID_PROTOCOL,	// # of rx frames with invalid protocol
 	IPW_ORD_SYS_BOOT_TIME,	// # Boot time
-	IPW_ORD_STAT_RX_NO_BUFFER,	// # of rx frames rejected due to no buffer
+	IPW_ORD_STAT_RX_ANAL_BUFFER,	// # of rx frames rejected due to anal buffer
 	IPW_ORD_STAT_RX_ABORT_LATE_DMA,	//NS // # of rx frames rejected due to dma setup too late
 	IPW_ORD_STAT_RX_ABORT_AT_HOP,	//NS // # of rx frames aborted due to hop
 	IPW_ORD_STAT_RX_MISSING_FRAG,	// # of rx frames dropped due to missing fragment
-	IPW_ORD_STAT_RX_ORPHAN_FRAG,	// # of rx frames dropped due to non-sequential fragment
+	IPW_ORD_STAT_RX_ORPHAN_FRAG,	// # of rx frames dropped due to analn-sequential fragment
 	IPW_ORD_STAT_RX_ORPHAN_FRAME,	// # of rx frames dropped due to unmatched 1st frame
 	IPW_ORD_STAT_RX_FRAG_AGEOUT,	// # of rx frames dropped due to uncompleted frame
 	IPW_ORD_STAT_RX_BAD_SSID,	//NS // Bad SSID (unused)
@@ -984,7 +984,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_PSP_SUSPENSION = 137,	// # of times adapter suspended
 	IPW_ORD_STAT_PSP_BCN_TIMEOUT,	// # of beacon timeout
 	IPW_ORD_STAT_PSP_POLL_TIMEOUT,	// # of poll response timeouts
-	IPW_ORD_STAT_PSP_NONDIR_TIMEOUT,	// # of timeouts waiting for last broadcast/muticast pkt
+	IPW_ORD_STAT_PSP_ANALNDIR_TIMEOUT,	// # of timeouts waiting for last broadcast/muticast pkt
 	IPW_ORD_STAT_PSP_RX_DTIMS,	// # of PSP DTIMs received
 	IPW_ORD_STAT_PSP_RX_TIMS,	// # of PSP TIMs received
 	IPW_ORD_STAT_PSP_STATION_ID,	// PSP Station ID
@@ -994,7 +994,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_PERCENT_MISSED_BCNS,	// current calculation of % missed beacons
 	IPW_ORD_STAT_PERCENT_RETRIES,	// current calculation of % missed tx retries
 	IPW_ORD_ASSOCIATED_AP_PTR,	// If associated, this is ptr to the associated
-	// AP table entry. set to 0 if not associated
+	// AP table entry. set to 0 if analt associated
 	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's described in the AP table
 	IPW_ORD_AP_LIST_PTR,	// Ptr to list of available APs
 	IPW_ORD_STAT_AP_ASSNS,	// # of associations
@@ -1006,8 +1006,8 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_ROAM_INHIBIT,	// # of times roaming was inhibited due to ongoing activity
 	IPW_FILLER_40,
 	IPW_ORD_RSSI_AT_ASSN = 160,	// RSSI of associated AP at time of association
-	IPW_ORD_STAT_ASSN_CAUSE1,	// # of reassociations due to no tx from AP in last N
-	// hops or no prob_ responses in last 3 minutes
+	IPW_ORD_STAT_ASSN_CAUSE1,	// # of reassociations due to anal tx from AP in last N
+	// hops or anal prob_ responses in last 3 minutes
 	IPW_ORD_STAT_ASSN_CAUSE2,	// # of reassociations due to poor tx/rx quality
 	IPW_ORD_STAT_ASSN_CAUSE3,	// # of reassociations due to tx/rx quality with excessive
 	// load at the AP
@@ -1033,7 +1033,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_COUNTRY_CHANNELS,	// channels supported by country
 // IPW_ORD_COUNTRY_CHANNELS:
 // For 11b the lower 2-byte are used for channels from 1-14
-//   and the higher 2-byte are not used.
+//   and the higher 2-byte are analt used.
 	IPW_ORD_RESET_CNT,	// # of adapter resets (warm)
 	IPW_ORD_BEACON_INTERVAL,	// Beacon interval
 
@@ -1075,7 +1075,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 // Variable length data:
 #define IPW_FIRST_VARIABLE_LENGTH_ORDINAL   1001
 
-typedef enum _ORDINAL_TABLE_2 {	// NS - means Not Supported by FW
+typedef enum _ORDINAL_TABLE_2 {	// NS - means Analt Supported by FW
 	IPW_ORD_STAT_BASE = 1000,	// contains number of variable ORDs
 	IPW_ORD_STAT_ADAPTER_MAC = 1001,	// 6 bytes: our adapter MAC address
 	IPW_ORD_STAT_PREFERRED_BSSID = 1002,	// 6 bytes: BSSID of the preferred AP
@@ -1095,7 +1095,7 @@ typedef enum _ORDINAL_TABLE_2 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_NIC_BPA_NUM = 1016,	// 11 bytes: NIC BPA number in ASCII
 	IPW_ORD_STAT_UCODE_DATE = 1017,	// 5 bytes: uCode date
 	IPW_ORD_SECURITY_NGOTIATION_RESULT = 1018,
-} ORDINALTABLE2;		// NS - means Not Supported by FW
+} ORDINALTABLE2;		// NS - means Analt Supported by FW
 
 #define IPW_LAST_VARIABLE_LENGTH_ORDINAL   1018
 

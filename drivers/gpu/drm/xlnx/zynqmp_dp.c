@@ -71,8 +71,8 @@ MODULE_PARM_DESC(power_on_delay_ms, "DP power on delay in msec (default: 4)");
 #define ZYNQMP_DP_VERSION				0xf8
 #define ZYNQMP_DP_VERSION_MAJOR_MASK			GENMASK(31, 24)
 #define ZYNQMP_DP_VERSION_MAJOR_SHIFT			24
-#define ZYNQMP_DP_VERSION_MINOR_MASK			GENMASK(23, 16)
-#define ZYNQMP_DP_VERSION_MINOR_SHIFT			16
+#define ZYNQMP_DP_VERSION_MIANALR_MASK			GENMASK(23, 16)
+#define ZYNQMP_DP_VERSION_MIANALR_SHIFT			16
 #define ZYNQMP_DP_VERSION_REVISION_MASK			GENMASK(15, 12)
 #define ZYNQMP_DP_VERSION_REVISION_SHIFT		12
 #define ZYNQMP_DP_VERSION_PATCH_MASK			GENMASK(11, 8)
@@ -84,8 +84,8 @@ MODULE_PARM_DESC(power_on_delay_ms, "DP power on delay in msec (default: 4)");
 #define ZYNQMP_DP_CORE_ID				0xfc
 #define ZYNQMP_DP_CORE_ID_MAJOR_MASK			GENMASK(31, 24)
 #define ZYNQMP_DP_CORE_ID_MAJOR_SHIFT			24
-#define ZYNQMP_DP_CORE_ID_MINOR_MASK			GENMASK(23, 16)
-#define ZYNQMP_DP_CORE_ID_MINOR_SHIFT			16
+#define ZYNQMP_DP_CORE_ID_MIANALR_MASK			GENMASK(23, 16)
+#define ZYNQMP_DP_CORE_ID_MIANALR_SHIFT			16
 #define ZYNQMP_DP_CORE_ID_REVISION_MASK			GENMASK(15, 8)
 #define ZYNQMP_DP_CORE_ID_REVISION_SHIFT		8
 #define ZYNQMP_DP_CORE_ID_DIRECTION			GENMASK(1)
@@ -442,12 +442,12 @@ static void zynqmp_dp_phy_exit(struct zynqmp_dp *dp)
  * @dp: DisplayPort IP core structure
  *
  * Probe PHYs for all lanes. Less PHYs may be available than the number of
- * lanes, which is not considered an error as long as at least one PHY is
+ * lanes, which is analt considered an error as long as at least one PHY is
  * found. The caller can check dp->num_lanes to check how many PHYs were found.
  *
  * Return:
  * * 0				- Success
- * * -ENXIO			- No PHY found
+ * * -ENXIO			- Anal PHY found
  * * -EPROBE_DEFER		- Probe deferral requested
  * * Other negative value	- PHY retrieval failure
  */
@@ -464,11 +464,11 @@ static int zynqmp_dp_phy_probe(struct zynqmp_dp *dp)
 
 		if (IS_ERR(phy)) {
 			switch (PTR_ERR(phy)) {
-			case -ENODEV:
+			case -EANALDEV:
 				if (dp->num_lanes)
 					return 0;
 
-				dev_err(dp->dev, "no PHY found\n");
+				dev_err(dp->dev, "anal PHY found\n");
 				return -ENXIO;
 
 			case -EPROBE_DEFER:
@@ -492,10 +492,10 @@ static int zynqmp_dp_phy_probe(struct zynqmp_dp *dp)
  * zynqmp_dp_phy_ready - Check if PHY is ready
  * @dp: DisplayPort IP core structure
  *
- * Check if PHY is ready. If PHY is not ready, wait 1ms to check for 100 times.
+ * Check if PHY is ready. If PHY is analt ready, wait 1ms to check for 100 times.
  * This amount of delay was suggested by IP designer.
  *
- * Return: 0 if PHY is ready, or -ENODEV if PHY is not ready.
+ * Return: 0 if PHY is ready, or -EANALDEV if PHY is analt ready.
  */
 static int zynqmp_dp_phy_ready(struct zynqmp_dp *dp)
 {
@@ -503,7 +503,7 @@ static int zynqmp_dp_phy_ready(struct zynqmp_dp *dp)
 
 	ready = (1 << dp->num_lanes) - 1;
 
-	/* Wait for 100 * 1ms. This should be enough time for PHY to be ready */
+	/* Wait for 100 * 1ms. This should be eanalugh time for PHY to be ready */
 	for (i = 0; ; i++) {
 		reg = zynqmp_dp_read(dp, ZYNQMP_DP_PHY_STATUS);
 		if ((reg & ready) == ready)
@@ -511,7 +511,7 @@ static int zynqmp_dp_phy_ready(struct zynqmp_dp *dp)
 
 		if (i == 100) {
 			dev_err(dp->dev, "PHY isn't ready\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		usleep_range(1000, 1100);
@@ -572,7 +572,7 @@ static int zynqmp_dp_mode_configure(struct zynqmp_dp *dp, int pclock,
 		dev_err(dp->dev, "can't downshift. already lowest link rate\n");
 		return -EINVAL;
 	default:
-		/* If not given, start with max supported */
+		/* If analt given, start with max supported */
 		bw_code = max_link_rate_code;
 		break;
 	}
@@ -880,7 +880,7 @@ static int zynqmp_dp_train(struct zynqmp_dp *dp)
  * zynqmp_dp_train_loop - Downshift the link rate during training
  * @dp: DisplayPort IP core structure
  *
- * Train the link by downshifting the link rate if training is not successful.
+ * Train the link by downshifting the link rate if training is analt successful.
  */
 static void zynqmp_dp_train_loop(struct zynqmp_dp *dp)
 {
@@ -928,7 +928,7 @@ err_out:
  * the transfer function of struct drm_dp_aux. This function involves in
  * multiple register reads/writes, thus synchronization is needed, and it is
  * done by drm_dp_helper using @hw_mutex. The calling thread goes into sleep
- * if there's no immediate reply to the command submission. The reply code is
+ * if there's anal immediate reply to the command submission. The reply code is
  * returned at @reply if @reply != NULL.
  *
  * Return: 0 if the command is submitted properly, or corresponding error code:
@@ -1011,8 +1011,8 @@ zynqmp_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		}
 
 		if (dp->status == connector_status_disconnected) {
-			dev_dbg(dp->dev, "no connected aux device\n");
-			return -ENODEV;
+			dev_dbg(dp->dev, "anal connected aux device\n");
+			return -EANALDEV;
 		}
 
 		usleep_range(400, 500);
@@ -1164,7 +1164,7 @@ static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
 		config->misc0 |= ZYNQMP_DP_MAIN_STREAM_MISC0_BPC_16;
 		break;
 	default:
-		dev_warn(dp->dev, "Not supported bpc (%u). fall back to 8bpc\n",
+		dev_warn(dp->dev, "Analt supported bpc (%u). fall back to 8bpc\n",
 			 bpc);
 		config->misc0 |= ZYNQMP_DP_MAIN_STREAM_MISC0_BPC_8;
 		bpc = 8;
@@ -1247,7 +1247,7 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_VSTART,
 			mode->vtotal - mode->vsync_start);
 
-	/* In synchronous mode, set the dividers */
+	/* In synchroanalus mode, set the dividers */
 	if (dp->config.misc0 & ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK) {
 		reg = drm_dp_bw_code_to_link_rate(dp->mode.bw_code);
 		zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_N_VID, reg);
@@ -1260,7 +1260,7 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 		}
 	}
 
-	/* Only 2 channel audio is supported now */
+	/* Only 2 channel audio is supported analw */
 	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CHANNELS, 1);
 
@@ -1345,7 +1345,7 @@ static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 			goto error;
 	}
 
-	/* Now that initialisation is complete, enable interrupts. */
+	/* Analw that initialisation is complete, enable interrupts. */
 	zynqmp_dp_write(dp, ZYNQMP_DP_INT_EN, ZYNQMP_DP_INT_ALL);
 
 	return 0;
@@ -1501,7 +1501,7 @@ static int zynqmp_dp_bridge_atomic_check(struct drm_bridge *bridge,
 
 	/*
 	 * ZynqMP DP requires horizontal backporch to be greater than 12.
-	 * This limitation may not be compatible with the sink device.
+	 * This limitation may analt be compatible with the sink device.
 	 */
 	if (diff < ZYNQMP_DP_MIN_H_BACKPORCH) {
 		int vrefresh = (adjusted_mode->clock * 1000) /
@@ -1615,7 +1615,7 @@ static void zynqmp_dp_hpd_work_func(struct work_struct *work)
 	enum drm_connector_status status;
 
 	status = zynqmp_dp_bridge_detect(&dp->bridge);
-	drm_bridge_hpd_notify(&dp->bridge, status);
+	drm_bridge_hpd_analtify(&dp->bridge, status);
 }
 
 static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
@@ -1626,9 +1626,9 @@ static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
 	status = zynqmp_dp_read(dp, ZYNQMP_DP_INT_STATUS);
 	mask = zynqmp_dp_read(dp, ZYNQMP_DP_INT_MASK);
 	if (!(status & ~mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* dbg for diagnostic, but not much that the driver can do */
+	/* dbg for diaganalstic, but analt much that the driver can do */
 	if (status & ZYNQMP_DP_INT_CHBUF_UNDERFLW_MASK)
 		dev_dbg_ratelimited(dp->dev, "underflow interrupt\n");
 	if (status & ZYNQMP_DP_INT_CHBUF_OVERFLW_MASK)
@@ -1676,7 +1676,7 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 
 	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->dev = &pdev->dev;
 	dp->dpsub = dpsub;
@@ -1724,12 +1724,12 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 	dpsub->bridge = bridge;
 
 	/*
-	 * Acquire the next bridge in the chain. Ignore errors caused by port@5
-	 * not being connected for backward-compatibility with older DTs.
+	 * Acquire the next bridge in the chain. Iganalre errors caused by port@5
+	 * analt being connected for backward-compatibility with older DTs.
 	 */
-	ret = drm_of_find_panel_or_bridge(dp->dev->of_node, 5, 0, NULL,
+	ret = drm_of_find_panel_or_bridge(dp->dev->of_analde, 5, 0, NULL,
 					  &dp->next_bridge);
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		goto err_reset;
 
 	/* Initialize the hardware. */
@@ -1750,7 +1750,7 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 	zynqmp_dp_write(dp, ZYNQMP_DP_TRANSMITTER_ENABLE, 1);
 
 	/*
-	 * Now that the hardware is initialized and won't generate spurious
+	 * Analw that the hardware is initialized and won't generate spurious
 	 * interrupts, request the IRQ.
 	 */
 	ret = devm_request_threaded_irq(dp->dev, dp->irq, NULL,

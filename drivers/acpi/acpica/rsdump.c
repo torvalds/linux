@@ -54,7 +54,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table);
  *
  * PARAMETERS:  resource_list       - Pointer to a resource descriptor list
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dispatches the structure to the correct dump routine.
  *
@@ -92,7 +92,7 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 			return;
 		}
 
-		/* Sanity check the length. It must not be zero, or we loop forever */
+		/* Sanity check the length. It must analt be zero, or we loop forever */
 
 		if (!resource_list->length) {
 			acpi_os_printf
@@ -128,7 +128,7 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
  *
  * PARAMETERS:  route_table     - Pointer to the routing table to dump.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Print IRQ routing table
  *
@@ -168,7 +168,7 @@ void acpi_rs_dump_irq_list(u8 *route_table)
  * PARAMETERS:  resource            - Buffer containing the resource
  *              table               - Table entry to decode the resource
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump a resource descriptor based on a dump table entry.
  *
@@ -269,7 +269,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_SHORTLIST:
 			/*
 			 * Short byte list (single line output) for DMA and IRQ resources
-			 * Note: The list length is obtained from the previous table entry
+			 * Analte: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
 				acpi_rs_out_title(name);
@@ -281,7 +281,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_SHORTLISTX:
 			/*
 			 * Short byte list (single line output) for GPIO vendor data
-			 * Note: The list length is obtained from the previous table entry
+			 * Analte: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
 				acpi_rs_out_title(name);
@@ -295,7 +295,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_LONGLIST:
 			/*
 			 * Long byte list for Vendor resource data
-			 * Note: The list length is obtained from the previous table entry
+			 * Analte: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
 				acpi_rs_dump_byte_list(ACPI_GET16
@@ -307,7 +307,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_DWORDLIST:
 			/*
 			 * Dword list for Extended Interrupt resources
-			 * Note: The list length is obtained from the previous table entry
+			 * Analte: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
 				acpi_rs_dump_dword_list(*previous_target,
@@ -319,7 +319,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_WORDLIST:
 			/*
 			 * Word list for GPIO Pin Table
-			 * Note: The list length is obtained from the previous table entry
+			 * Analte: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
 				acpi_rs_dump_word_list(*previous_target,
@@ -385,7 +385,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
  *
  * PARAMETERS:  resource_source     - Pointer to a Resource Source struct
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Common routine for dumping the optional resource_source and the
  *              corresponding resource_source_index.
@@ -405,7 +405,7 @@ acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
 
 	acpi_rs_out_string("Resource Source",
 			   resource_source->string_ptr ?
-			   resource_source->string_ptr : "[Not Specified]");
+			   resource_source->string_ptr : "[Analt Specified]");
 }
 
 /*******************************************************************************
@@ -415,7 +415,7 @@ acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source)
  * PARAMETERS:  title              - Title of the dumped resource field
  *              resource_label     - Pointer to a Resource Label struct
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Common routine for dumping the resource_label
  *
@@ -429,7 +429,7 @@ acpi_rs_dump_resource_label(char *title,
 
 	acpi_rs_out_string(title,
 			   resource_label->string_ptr ?
-			   resource_label->string_ptr : "[Not Specified]");
+			   resource_label->string_ptr : "[Analt Specified]");
 }
 
 /*******************************************************************************
@@ -438,7 +438,7 @@ acpi_rs_dump_resource_label(char *title,
  *
  * PARAMETERS:  resource        - Pointer to an internal resource descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Dump the fields that are common to all Address resource
  *              descriptors
@@ -486,7 +486,7 @@ static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
  * PARAMETERS:  title       - Name of the resource field
  *              value       - Value of the resource field
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Miscellaneous helper functions to consistently format the
  *              output of the resource dump routines
@@ -539,7 +539,7 @@ static void acpi_rs_out_title(const char *title)
  * PARAMETERS:  length      - Number of elements in the list
  *              data        - Start of the list
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Miscellaneous functions to dump lists of raw data
  *

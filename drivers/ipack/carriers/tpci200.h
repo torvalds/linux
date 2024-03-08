@@ -97,7 +97,7 @@ struct tpci200_regs {
 
 #define TPCI200_SLOT_INT_MASK         0x00FF
 
-/* PCI Configuration registers. The PCI bridge is a PLX Technology PCI9030. */
+/* PCI Configuration registers. The PCI bridge is a PLX Techanallogy PCI9030. */
 #define LAS1_DESC		      0x2C
 #define LAS2_DESC		      0x30
 

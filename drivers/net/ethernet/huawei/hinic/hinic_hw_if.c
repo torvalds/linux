@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -268,12 +268,12 @@ static void set_ppf(struct hinic_hwif *hwif)
  * @st: PCIE TLP steering tag
  * @at: PCIE TLP AT field
  * @ph: PCIE TLP Processing Hint field
- * @no_snooping: PCIE TLP No snooping
+ * @anal_sanaloping: PCIE TLP Anal sanaloping
  * @tph_en: PCIE TLP Processing Hint Enable
  **/
 static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
 			 u8 st, u8 at, u8 ph,
-			 enum hinic_pcie_nosnoop no_snooping,
+			 enum hinic_pcie_analsanalop anal_sanaloping,
 			 enum hinic_pcie_tph tph_en)
 {
 	u32 addr, val, dma_attr_entry;
@@ -285,13 +285,13 @@ static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
 	val = HINIC_DMA_ATTR_CLEAR(val, ST)             &
 	      HINIC_DMA_ATTR_CLEAR(val, AT)             &
 	      HINIC_DMA_ATTR_CLEAR(val, PH)             &
-	      HINIC_DMA_ATTR_CLEAR(val, NO_SNOOPING)    &
+	      HINIC_DMA_ATTR_CLEAR(val, ANAL_SANALOPING)    &
 	      HINIC_DMA_ATTR_CLEAR(val, TPH_EN);
 
 	dma_attr_entry = HINIC_DMA_ATTR_SET(st, ST)                     |
 			 HINIC_DMA_ATTR_SET(at, AT)                     |
 			 HINIC_DMA_ATTR_SET(ph, PH)                     |
-			 HINIC_DMA_ATTR_SET(no_snooping, NO_SNOOPING)   |
+			 HINIC_DMA_ATTR_SET(anal_sanaloping, ANAL_SANALOPING)   |
 			 HINIC_DMA_ATTR_SET(tph_en, TPH_EN);
 
 	val |= dma_attr_entry;
@@ -306,7 +306,7 @@ static void dma_attr_init(struct hinic_hwif *hwif)
 {
 	set_dma_attr(hwif, PCIE_ATTR_ENTRY, HINIC_PCIE_ST_DISABLE,
 		     HINIC_PCIE_AT_DISABLE, HINIC_PCIE_PH_DISABLE,
-		     HINIC_PCIE_SNOOP, HINIC_PCIE_TPH_DISABLE);
+		     HINIC_PCIE_SANALOP, HINIC_PCIE_TPH_DISABLE);
 }
 
 u16 hinic_glb_pf_vf_offset(struct hinic_hwif *hwif)
@@ -373,19 +373,19 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 	hwif->cfg_regs_bar = pci_ioremap_bar(pdev, HINIC_PCI_CFG_REGS_BAR);
 	if (!hwif->cfg_regs_bar) {
 		dev_err(&pdev->dev, "Failed to map configuration regs\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hwif->intr_regs_base = pci_ioremap_bar(pdev, HINIC_PCI_INTR_REGS_BAR);
 	if (!hwif->intr_regs_base) {
 		dev_err(&pdev->dev, "Failed to map configuration regs\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_map_intr_bar;
 	}
 
 	err = wait_hwif_ready(hwif);
 	if (err) {
-		dev_err(&pdev->dev, "HW interface is not ready\n");
+		dev_err(&pdev->dev, "HW interface is analt ready\n");
 		__print_selftest_reg(hwif);
 		goto err_hwif_ready;
 	}
@@ -395,7 +395,7 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 	if (HINIC_IS_PF(hwif))
 		set_ppf(hwif);
 
-	/* No transactionss before DMA is initialized */
+	/* Anal transactionss before DMA is initialized */
 	dma_attr_init(hwif);
 	return 0;
 

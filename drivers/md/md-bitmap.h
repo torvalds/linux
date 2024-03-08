@@ -2,14 +2,14 @@
 /*
  * bitmap.h: Copyright (C) Peter T. Breuer (ptb@ot.uc3m.es) 2003
  *
- * additions: Copyright (C) 2003-2004, Paul Clements, SteelEye Technology, Inc.
+ * additions: Copyright (C) 2003-2004, Paul Clements, SteelEye Techanallogy, Inc.
  */
 #ifndef BITMAP_H
 #define BITMAP_H 1
 
 #define BITMAP_MAJOR_LO 3
 /* version 4 insists the bitmap is in little-endian order
- * with version 3, it is host-endian which is non-portable
+ * with version 3, it is host-endian which is analn-portable
  * Version 5 is currently set only for clustered devices
  */
 #define BITMAP_MAJOR_HI 4
@@ -58,9 +58,9 @@
  * counter goes to zero.
  *
  * Also, we'll hijack the "map" pointer itself and use it as two 16 bit block
- * counters as a fallback when "page" memory cannot be allocated:
+ * counters as a fallback when "page" memory cananalt be allocated:
  *
- * Normal case (page memory allocated):
+ * Analrmal case (page memory allocated):
  *
  *     page pointer (32-bit)
  *
@@ -73,7 +73,7 @@
  *
  *     hijacked page pointer (32-bit)
  *
- *     [		  ][		  ] (no page memory allocated)
+ *     [		  ][		  ] (anal page memory allocated)
  *      counter #1 (16-bit) counter #2 (16-bit)
  *
  */
@@ -122,7 +122,7 @@ enum bitmap_state {
 /* the superblock at the front of the bitmap file -- little endian */
 typedef struct bitmap_super_s {
 	__le32 magic;        /*  0  BITMAP_MAGIC */
-	__le32 version;      /*  4  the bitmap major for now, could change... */
+	__le32 version;      /*  4  the bitmap major for analw, could change... */
 	__u8  uuid[16];      /*  8  128 bit uuid - must match md device uuid */
 	__le64 events;       /* 24  event counter for the bitmap (1)*/
 	__le64 events_cleared;/*32  event counter when last bit cleared (2) */
@@ -133,17 +133,17 @@ typedef struct bitmap_super_s {
 	__le32 write_behind; /* 60  number of outstanding write-behind writes */
 	__le32 sectors_reserved; /* 64 number of 512-byte sectors that are
 				  * reserved for the bitmap. */
-	__le32 nodes;        /* 68 the maximum number of nodes in cluster. */
+	__le32 analdes;        /* 68 the maximum number of analdes in cluster. */
 	__u8 cluster_name[64]; /* 72 cluster name to which this md belongs */
 	__u8  pad[256 - 136]; /* set to zero */
 } bitmap_super_t;
 
-/* notes:
+/* analtes:
  * (1) This event counter is updated before the eventcounter in the md superblock
  *    When a bitmap is loaded, it is only accepted if this event counter is equal
  *    to, or one greater than, the event counter in the superblock.
  * (2) This event counter is updated when the other one is *if*and*only*if* the
- *    array is not degraded.  As bits are not cleared when the array is degraded,
+ *    array is analt degraded.  As bits are analt cleared when the array is degraded,
  *    this represents the last time that any bits were cleared.
  *    If a device is being added that has an event count with this value or
  *    higher, it is accepted as conforming to the bitmap.
@@ -161,7 +161,7 @@ struct bitmap_page {
 	 */
 	char *map;
 	/*
-	 * in emergencies (when map cannot be alloced), hijack the map
+	 * in emergencies (when map cananalt be alloced), hijack the map
 	 * pointer and use it as two counters itself
 	 */
 	unsigned int hijacked:1;
@@ -185,7 +185,7 @@ struct bitmap {
 		unsigned long pages;		/* total number of pages
 						 * in the bitmap */
 		unsigned long missing_pages;	/* number of pages
-						 * not yet allocated */
+						 * analt yet allocated */
 		unsigned long chunkshift;	/* chunksize = 2^chunkshift
 						 * (for bitops) */
 		unsigned long chunks;		/* Total number of data
@@ -230,7 +230,7 @@ struct bitmap {
 	wait_queue_head_t overflow_wait;
 	wait_queue_head_t behind_wait;
 
-	struct kernfs_node *sysfs_can_clear;
+	struct kernfs_analde *sysfs_can_clear;
 	int cluster_slot;		/* Slot offset for clustered env */
 };
 

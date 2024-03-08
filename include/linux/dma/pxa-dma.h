@@ -4,7 +4,7 @@
 
 enum pxad_chan_prio {
 	PXAD_PRIO_HIGHEST = 0,
-	PXAD_PRIO_NORMAL,
+	PXAD_PRIO_ANALRMAL,
 	PXAD_PRIO_LOW,
 	PXAD_PRIO_LOWEST,
 };
@@ -16,7 +16,7 @@ enum pxad_chan_prio {
  *
  * If a requested channel is granted, its priority will be at least @prio,
  * ie. if PXAD_PRIO_LOW is required, the requested channel will be either
- * PXAD_PRIO_LOW, PXAD_PRIO_NORMAL or PXAD_PRIO_HIGHEST.
+ * PXAD_PRIO_LOW, PXAD_PRIO_ANALRMAL or PXAD_PRIO_HIGHEST.
  */
 struct pxad_param {
 	unsigned int drcmr;

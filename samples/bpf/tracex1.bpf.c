@@ -11,10 +11,10 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-/* kprobe is NOT a stable ABI
+/* kprobe is ANALT a stable ABI
  * kernel functions can be removed, renamed or completely change semantics.
  * Number of arguments and their positions can change, etc.
- * In such case this bpf+kprobe example will no longer be meaningful
+ * In such case this bpf+kprobe example will anal longer be meaningful
  */
 SEC("kprobe.multi/__netif_receive_skb_core*")
 int bpf_prog1(struct pt_regs *ctx)

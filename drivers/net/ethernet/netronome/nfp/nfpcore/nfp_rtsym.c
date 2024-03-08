@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_rtsym.c
  * Interface for accessing run-time symbol table
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Espen Skoglund <espen.skoglund@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Espen Skoglund <espen.skoglund@netroanalme.com>
+ *          Francois H. Theron <francois.theron@netroanalme.com>
  */
 
 #include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 
 #include "nfp.h"
 #include "nfp_cpp.h"
@@ -208,11 +208,11 @@ nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name)
 u64 nfp_rtsym_size(const struct nfp_rtsym *sym)
 {
 	switch (sym->type) {
-	case NFP_RTSYM_TYPE_NONE:
-		pr_err("rtsym '%s': type NONE\n", sym->name);
+	case NFP_RTSYM_TYPE_ANALNE:
+		pr_err("rtsym '%s': type ANALNE\n", sym->name);
 		return 0;
 	default:
-		pr_warn("rtsym '%s': unknown type: %d\n", sym->name, sym->type);
+		pr_warn("rtsym '%s': unkanalwn type: %d\n", sym->name, sym->type);
 		fallthrough;
 	case NFP_RTSYM_TYPE_OBJECT:
 	case NFP_RTSYM_TYPE_FUNCTION:
@@ -227,7 +227,7 @@ nfp_rtsym_to_dest(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
 		  u8 action, u8 token, u64 off, u32 *cpp_id, u64 *addr)
 {
 	if (sym->type != NFP_RTSYM_TYPE_OBJECT) {
-		nfp_err(cpp, "rtsym '%s': direct access to non-object rtsym\n",
+		nfp_err(cpp, "rtsym '%s': direct access to analn-object rtsym\n",
 			sym->name);
 		return -EINVAL;
 	}
@@ -450,7 +450,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto exit;
 	}
 
@@ -464,7 +464,7 @@ u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		break;
 	default:
 		nfp_err(rtbl->cpp,
-			"rtsym '%s': unsupported or non-scalar size: %lld\n",
+			"rtsym '%s': unsupported or analn-scalar size: %lld\n",
 			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
@@ -499,7 +499,7 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
-		return -ENOENT;
+		return -EANALENT;
 
 	switch (nfp_rtsym_size(sym)) {
 	case 4:
@@ -510,7 +510,7 @@ int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
 		break;
 	default:
 		nfp_err(rtbl->cpp,
-			"rtsym '%s': unsupported or non-scalar size: %lld\n",
+			"rtsym '%s': unsupported or analn-scalar size: %lld\n",
 			name, nfp_rtsym_size(sym));
 		err = -EINVAL;
 		break;
@@ -531,7 +531,7 @@ nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
 
 	sym = nfp_rtsym_lookup(rtbl, name);
 	if (!sym)
-		return (u8 __iomem *)ERR_PTR(-ENOENT);
+		return (u8 __iomem *)ERR_PTR(-EANALENT);
 
 	err = nfp_rtsym_to_dest(rtbl->cpp, sym, NFP_CPP_ACTION_RW, 0, 0,
 				&cpp_id, &addr);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Copyright (C) 2013 Richard Weinberger <richard@nod.at>
+ * Copyright (C) 2013 Richard Weinberger <richard@anald.at>
  * Copyright (C) 2014 Google Inc., Author: Daniel Walter <dwalter@google.com>
  */
 
@@ -27,7 +27,7 @@ void dump_trace(struct task_struct *tsk,
 
 	frame = (struct stack_frame *)bp;
 	while (((long) sp & (THREAD_SIZE-1)) != 0) {
-		addr = READ_ONCE_NOCHECK(*sp);
+		addr = READ_ONCE_ANALCHECK(*sp);
 		if (__kernel_text_address(addr)) {
 			reliable = 0;
 			if ((unsigned long) sp == bp + sizeof(long)) {

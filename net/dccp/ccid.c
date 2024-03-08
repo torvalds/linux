@@ -50,7 +50,7 @@ int ccid_get_builtin_ccids(u8 **ccid_array, u8 *array_len)
 {
 	*ccid_array = kmalloc(ARRAY_SIZE(ccids), gfp_any());
 	if (*ccid_array == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	for (*array_len = 0; *array_len < ARRAY_SIZE(ccids); *array_len += 1)
 		(*ccid_array)[*array_len] = ccids[*array_len]->ccid_id;
@@ -64,7 +64,7 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	int err = 0;
 
 	if (ccid_get_builtin_ccids(&ccid_array, &array_len))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	if (put_user(array_len, optlen))
 		err = -EFAULT;
@@ -97,7 +97,7 @@ static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 
 static int __init ccid_activate(struct ccid_operations *ccid_ops)
 {
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
 	ccid_ops->ccid_hc_rx_slab =
 			ccid_kmem_cache_create(ccid_ops->ccid_hc_rx_obj_size,

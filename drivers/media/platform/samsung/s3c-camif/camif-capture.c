@@ -13,7 +13,7 @@
 #include <linux/bug.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -114,7 +114,7 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 
 	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
-	if (err == -ENOIOCTLCMD)
+	if (err == -EANALIOCTLCMD)
 		err = 0;
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
@@ -629,7 +629,7 @@ static const struct v4l2_file_operations s3c_camif_fops = {
 };
 
 /*
- * Video node IOCTLs
+ * Video analde IOCTLs
  */
 
 static int s3c_camif_vidioc_querycap(struct file *file, void *priv,
@@ -699,7 +699,7 @@ static int s3c_camif_vidioc_g_fmt(struct file *file, void *priv,
 	pix->pixelformat = fmt->fourcc;
 	pix->width = frame->f_width;
 	pix->height = frame->f_height;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 	pix->colorspace = V4L2_COLORSPACE_JPEG;
 
 	return 0;
@@ -748,7 +748,7 @@ static int __camif_video_try_format(struct camif_vp *vp,
 	pix->sizeimage = (pix->width * pix->height * fmt->depth) / 8;
 	pix->pixelformat = fmt->fourcc;
 	pix->colorspace = V4L2_COLORSPACE_JPEG;
-	pix->field = V4L2_FIELD_NONE;
+	pix->field = V4L2_FIELD_ANALNE;
 
 	pr_debug("%ux%u, wmin: %d, hmin: %d, sc_hrmax: %d, sc_vrmax: %d\n",
 		 pix->width, pix->height, wmin, hmin, sc_hrmax, sc_vrmax);
@@ -819,7 +819,7 @@ static int camif_pipeline_validate(struct camif_dev *camif)
 
 	src_fmt.pad = pad->index;
 	ret = v4l2_subdev_call(camif->sensor.sd, pad, get_fmt, NULL, &src_fmt);
-	if (ret < 0 && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -EANALIOCTLCMD)
 		return -EPIPE;
 
 	if (src_fmt.format.width != camif->mbus_fmt.width ||
@@ -907,7 +907,7 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 	if (rb->count && rb->count < CAMIF_REQ_BUFS_MIN) {
 		rb->count = 0;
 		vb2_reqbufs(&vp->vb_queue, rb);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	vp->reqbufs_count = rb->count;
@@ -947,7 +947,7 @@ static int s3c_camif_dqbuf(struct file *file, void *priv,
 	if (vp->owner && vp->owner != priv)
 		return -EBUSY;
 
-	return vb2_dqbuf(&vp->vb_queue, buf, file->f_flags & O_NONBLOCK);
+	return vb2_dqbuf(&vp->vb_queue, buf, file->f_flags & O_ANALNBLOCK);
 }
 
 static int s3c_camif_create_bufs(struct file *file, void *priv,
@@ -1064,7 +1064,7 @@ static const struct v4l2_ioctl_ops s3c_camif_ioctl_ops = {
 };
 
 /*
- * Video node controls
+ * Video analde controls
  */
 static int s3c_camif_video_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1092,12 +1092,12 @@ static int s3c_camif_video_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-/* Codec and preview video node control ops */
+/* Codec and preview video analde control ops */
 static const struct v4l2_ctrl_ops s3c_camif_video_ctrl_ops = {
 	.s_ctrl = s3c_camif_video_s_ctrl,
 };
 
-int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
+int s3c_camif_register_video_analde(struct camif_dev *camif, int idx)
 {
 	struct camif_vp *vp = &camif->vp[idx];
 	struct vb2_queue *q = &vp->vb_queue;
@@ -1112,7 +1112,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	vfd->fops = &s3c_camif_fops;
 	vfd->ioctl_ops = &s3c_camif_ioctl_ops;
 	vfd->v4l2_dev = &camif->v4l2_dev;
-	vfd->minor = -1;
+	vfd->mianalr = -1;
 	vfd->release = video_device_release_empty;
 	vfd->lock = &camif->lock;
 	vp->reqbufs_count = 0;
@@ -1127,7 +1127,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct camif_buffer);
 	q->drv_priv = vp;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &vp->camif->lock;
 	q->dev = camif->v4l2_dev.dev;
 
@@ -1164,7 +1164,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_ctrlh_free;
 
 	v4l2_info(&camif->v4l2_dev, "registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_analde_name(vfd));
 	return 0;
 
 err_ctrlh_free:
@@ -1174,7 +1174,7 @@ err_me_cleanup:
 	return ret;
 }
 
-void s3c_camif_unregister_video_node(struct camif_dev *camif, int idx)
+void s3c_camif_unregister_video_analde(struct camif_dev *camif, int idx)
 {
 	struct video_device *vfd = &camif->vp[idx].vdev;
 
@@ -1238,7 +1238,7 @@ static int s3c_camif_subdev_get_fmt(struct v4l2_subdev *sd,
 	}
 
 	mutex_unlock(&camif->lock);
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	return 0;
 }
@@ -1288,12 +1288,12 @@ static int s3c_camif_subdev_set_fmt(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %ux%u\n",
 		 fmt->pad, mf->code, mf->width, mf->height);
 
-	mf->field = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_ANALNE;
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 	mutex_lock(&camif->lock);
 
 	/*
-	 * No pixel format change at the camera input is allowed
+	 * Anal pixel format change at the camera input is allowed
 	 * while streaming.
 	 */
 	if (vb2_is_busy(&camif->vp[VP_CODEC].vb_queue) ||
@@ -1410,7 +1410,7 @@ static void __camif_try_crop(struct camif_dev *camif, struct v4l2_rect *r)
 	/*
 	 * Make sure we either downscale or upscale both the pixel
 	 * width and height. Just return current crop rectangle if
-	 * this scaler constraint is not met.
+	 * this scaler constraint is analt met.
 	 */
 	if (camif->variant->ip_revision == S3C244X_CAMIF_IP_REV &&
 	    camif_is_streaming(camif)) {
@@ -1544,7 +1544,7 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 	int ret;
 
 	v4l2_subdev_init(sd, &s3c_camif_subdev_ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	strscpy(sd->name, "S3C-CAMIF", sizeof(sd->name));
 
 	camif->pads[CAMIF_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
@@ -1566,7 +1566,7 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 		camif->ctrl_colorfx = v4l2_ctrl_new_std_menu(handler,
 				&s3c_camif_subdev_ctrl_ops,
 				V4L2_CID_COLORFX, V4L2_COLORFX_SET_CBCR,
-				~0x981f, V4L2_COLORFX_NONE);
+				~0x981f, V4L2_COLORFX_ANALNE);
 
 		camif->ctrl_colorfx_cbcr = v4l2_ctrl_new_std(handler,
 				&s3c_camif_subdev_ctrl_ops,
@@ -1593,7 +1593,7 @@ void s3c_camif_unregister_subdev(struct camif_dev *camif)
 {
 	struct v4l2_subdev *sd = &camif->subdev;
 
-	/* Return if not registered */
+	/* Return if analt registered */
 	if (v4l2_get_subdevdata(sd) == NULL)
 		return;
 

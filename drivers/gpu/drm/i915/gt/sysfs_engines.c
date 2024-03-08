@@ -79,7 +79,7 @@ static ssize_t repr_trim(char *buf, ssize_t len)
 
 static ssize_t
 __caps_show(struct intel_engine_cs *engine,
-	    unsigned long caps, char *buf, bool show_unknown)
+	    unsigned long caps, char *buf, bool show_unkanalwn)
 {
 	const char * const *repr;
 	int count, n;
@@ -104,9 +104,9 @@ __caps_show(struct intel_engine_cs *engine,
 	GEM_BUG_ON(count > BITS_PER_LONG);
 
 	len = 0;
-	for_each_set_bit(n, &caps, show_unknown ? BITS_PER_LONG : count) {
+	for_each_set_bit(n, &caps, show_unkanalwn ? BITS_PER_LONG : count) {
 		if (n >= count || !repr[n]) {
-			if (GEM_WARN_ON(show_unknown))
+			if (GEM_WARN_ON(show_unkanalwn))
 				len += sysfs_emit_at(buf, len, "[%x] ", n);
 		} else {
 			len += sysfs_emit_at(buf, len, "%s ", repr[n]);
@@ -135,7 +135,7 @@ all_caps_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 }
 
 static const struct kobj_attribute all_caps_attr =
-__ATTR(known_capabilities, 0444, all_caps_show, NULL);
+__ATTR(kanalwn_capabilities, 0444, all_caps_show, NULL);
 
 static ssize_t
 max_spin_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -261,9 +261,9 @@ stop_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	/*
 	 * When we allow ourselves to sleep before a GPU reset after disabling
-	 * submission, even for a few milliseconds, gives an innocent context
+	 * submission, even for a few milliseconds, gives an inanalcent context
 	 * the opportunity to clear the GPU before the reset occurs. However,
-	 * how long to sleep depends on the typical non-preemptible duration
+	 * how long to sleep depends on the typical analn-preemptible duration
 	 * (a similar problem to determining the ideal preempt-reset timeout
 	 * or even the heartbeat interval).
 	 */
@@ -371,10 +371,10 @@ heartbeat_store(struct kobject *kobj, struct kobj_attribute *attr,
 	 * We monitor the health of the system via periodic heartbeat pulses.
 	 * The pulses also provide the opportunity to perform garbage
 	 * collection.  However, we interpret an incomplete pulse (a missed
-	 * heartbeat) as an indication that the system is no longer responsive,
+	 * heartbeat) as an indication that the system is anal longer responsive,
 	 * i.e. hung, and perform an engine or full GPU reset. Given that the
 	 * preemption granularity can be very coarse on a system, the optimal
-	 * value for any workload is unknowable!
+	 * value for any workload is unkanalwable!
 	 */
 
 	err = kstrtoull(buf, 0, &delay);

@@ -154,7 +154,7 @@ static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 
 	twl->usb3v3 = regulator_get(twl->dev, "usb");
 	if (IS_ERR(twl->usb3v3))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Program the USB_VBUS_CTRL_SET and set VBUS_ACT_COMP bit */
 	twl6030_writeb(twl, TWL_MODULE_USB, 0x4, USB_VBUS_CTRL_SET);
@@ -185,10 +185,10 @@ static ssize_t vbus_show(struct device *dev,
 	       ret = sysfs_emit(buf, "id\n");
 	       break;
 	case MUSB_VBUS_OFF:
-	       ret = sysfs_emit(buf, "none\n");
+	       ret = sysfs_emit(buf, "analne\n");
 	       break;
 	default:
-	       ret = sysfs_emit(buf, "UNKNOWN\n");
+	       ret = sysfs_emit(buf, "UNKANALWN\n");
 	}
 	spin_unlock_irqrestore(&twl->lock, flags);
 
@@ -205,7 +205,7 @@ ATTRIBUTE_GROUPS(twl6030);
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum musb_vbus_id_status status = MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKANALWN;
 	u8 vbus_state, hw_state;
 	int ret;
 
@@ -224,14 +224,14 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			twl->linkstat = status;
 			ret = musb_mailbox(status);
 			if (ret)
-				twl->linkstat = MUSB_UNKNOWN;
+				twl->linkstat = MUSB_UNKANALWN;
 		} else {
-			if (twl->linkstat != MUSB_UNKNOWN) {
+			if (twl->linkstat != MUSB_UNKANALWN) {
 				status = MUSB_VBUS_OFF;
 				twl->linkstat = status;
 				ret = musb_mailbox(status);
 				if (ret)
-					twl->linkstat = MUSB_UNKNOWN;
+					twl->linkstat = MUSB_UNKANALWN;
 				if (twl->asleep) {
 					regulator_disable(twl->usb3v3);
 					twl->asleep = 0;
@@ -239,7 +239,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			}
 		}
 	}
-	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+	sysfs_analtify(&twl->dev->kobj, NULL, "vbus");
 
 	return IRQ_HANDLED;
 }
@@ -247,7 +247,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum musb_vbus_id_status status = MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKANALWN;
 	u8 hw_state;
 	int ret;
 
@@ -265,7 +265,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl->linkstat = status;
 		ret = musb_mailbox(status);
 		if (ret)
-			twl->linkstat = MUSB_UNKNOWN;
+			twl->linkstat = MUSB_UNKANALWN;
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_SET);
@@ -331,22 +331,22 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	u32 ret;
 	struct twl6030_usb	*twl;
 	int			status, err;
-	struct device_node	*np = pdev->dev.of_node;
+	struct device_analde	*np = pdev->dev.of_analde;
 	struct device		*dev = &pdev->dev;
 
 	if (!np) {
-		dev_err(dev, "no DT info\n");
+		dev_err(dev, "anal DT info\n");
 		return -EINVAL;
 	}
 
 	twl = devm_kzalloc(dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	twl->dev		= &pdev->dev;
 	twl->irq1		= platform_get_irq(pdev, 0);
 	twl->irq2		= platform_get_irq(pdev, 1);
-	twl->linkstat		= MUSB_UNKNOWN;
+	twl->linkstat		= MUSB_UNKANALWN;
 
 	if (twl->irq1 < 0)
 		return twl->irq1;
@@ -357,8 +357,8 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	twl->comparator.start_srp	= twl6030_start_srp;
 
 	ret = omap_usb2_set_comparator(&twl->comparator);
-	if (ret == -ENODEV) {
-		dev_info(&pdev->dev, "phy not ready, deferring probe");
+	if (ret == -EANALDEV) {
+		dev_info(&pdev->dev, "phy analt ready, deferring probe");
 		return -EPROBE_DEFER;
 	}
 

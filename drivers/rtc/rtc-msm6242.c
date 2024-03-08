@@ -194,15 +194,15 @@ static int __init msm6242_rtc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!priv->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	rtc = devm_rtc_device_register(&pdev->dev, "rtc-msm6242",

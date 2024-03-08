@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  * Author: Chi-Fang Li <cfli0@nuvoton.com>
  */
 
@@ -19,7 +19,7 @@
 
 struct ma35d1_reset_data {
 	struct reset_controller_dev rcdev;
-	struct notifier_block restart_handler;
+	struct analtifier_block restart_handler;
 	void __iomem *base;
 	/* protect registers against concurrent read-modify-write */
 	spinlock_t lock;
@@ -125,7 +125,7 @@ static const struct {
 	[MA35D1_RESET_SSPCC] =   {0x2C, 31}
 };
 
-static int ma35d1_restart_handler(struct notifier_block *this, unsigned long mode, void *cmd)
+static int ma35d1_restart_handler(struct analtifier_block *this, unsigned long mode, void *cmd)
 {
 	struct ma35d1_reset_data *data =
 				 container_of(this, struct ma35d1_reset_data, restart_handler);
@@ -196,14 +196,14 @@ static int ma35d1_reset_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "Device tree node not found\n");
+	if (!pdev->dev.of_analde) {
+		dev_err(&pdev->dev, "Device tree analde analt found\n");
 		return -EINVAL;
 	}
 
 	reset_data = devm_kzalloc(dev, sizeof(*reset_data), GFP_KERNEL);
 	if (!reset_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reset_data->base))
@@ -212,8 +212,8 @@ static int ma35d1_reset_probe(struct platform_device *pdev)
 	reset_data->rcdev.owner = THIS_MODULE;
 	reset_data->rcdev.nr_resets = MA35D1_RESET_COUNT;
 	reset_data->rcdev.ops = &ma35d1_reset_ops;
-	reset_data->rcdev.of_node = dev->of_node;
-	reset_data->restart_handler.notifier_call = ma35d1_restart_handler;
+	reset_data->rcdev.of_analde = dev->of_analde;
+	reset_data->restart_handler.analtifier_call = ma35d1_restart_handler;
 	reset_data->restart_handler.priority = 192;
 	spin_lock_init(&reset_data->lock);
 

@@ -29,7 +29,7 @@
  *
  * 	The following HW dependent events are required :
  *		RM_RING_OP
- *		RM_RING_NON_OP
+ *		RM_RING_ANALN_OP
  *		RM_MY_BEACON
  *		RM_OTHER_BEACON
  *		RM_MY_CLAIM
@@ -54,10 +54,10 @@
 #define ACTIONS(x)	(x|AFLAG)
 
 #define RM0_ISOLATED	0
-#define RM1_NON_OP	1		/* not operational */
+#define RM1_ANALN_OP	1		/* analt operational */
 #define RM2_RING_OP	2		/* ring operational */
 #define RM3_DETECT	3		/* detect dupl addresses */
-#define RM4_NON_OP_DUP	4		/* dupl. addr detected */
+#define RM4_ANALN_OP_DUP	4		/* dupl. addr detected */
 #define RM5_RING_OP_DUP	5		/* ring oper. with dupl. addr */
 #define RM6_DIRECTED	6		/* sending directed beacons */
 #define RM7_TRACE	7		/* trace initiated */
@@ -66,8 +66,8 @@
  * symbolic state names
  */
 static const char * const rmt_states[] = {
-	"RM0_ISOLATED","RM1_NON_OP","RM2_RING_OP","RM3_DETECT",
-	"RM4_NON_OP_DUP","RM5_RING_OP_DUP","RM6_DIRECTED",
+	"RM0_ISOLATED","RM1_ANALN_OP","RM2_RING_OP","RM3_DETECT",
+	"RM4_ANALN_OP_DUP","RM5_RING_OP_DUP","RM6_DIRECTED",
 	"RM7_TRACE"
 } ;
 
@@ -75,11 +75,11 @@ static const char * const rmt_states[] = {
  * symbolic event names
  */
 static const char * const rmt_events[] = {
-	"NONE","RM_RING_OP","RM_RING_NON_OP","RM_MY_BEACON",
+	"ANALNE","RM_RING_OP","RM_RING_ANALN_OP","RM_MY_BEACON",
 	"RM_OTHER_BEACON","RM_MY_CLAIM","RM_TRT_EXP","RM_VALID_CLAIM",
 	"RM_JOIN","RM_LOOP","RM_DUP_ADDR","RM_ENABLE_FLAG",
-	"RM_TIMEOUT_NON_OP","RM_TIMEOUT_T_STUCK",
-	"RM_TIMEOUT_ANNOUNCE","RM_TIMEOUT_T_DIRECT",
+	"RM_TIMEOUT_ANALN_OP","RM_TIMEOUT_T_STUCK",
+	"RM_TIMEOUT_ANANALUNCE","RM_TIMEOUT_T_DIRECT",
 	"RM_TIMEOUT_D_MAX","RM_TIMEOUT_POLL","RM_TX_STATE_CHANGE"
 } ;
 
@@ -115,14 +115,14 @@ extern void restart_trt_for_dbcn() ;
 void rmt_init(struct s_smc *smc)
 {
 	smc->mib.m[MAC0].fddiMACRMTState = ACTIONS(RM0_ISOLATED) ;
-	smc->r.dup_addr_test = DA_NONE ;
+	smc->r.dup_addr_test = DA_ANALNE ;
 	smc->r.da_flag = 0 ;
 	smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
 	smc->r.sm_ma_avail = FALSE ;
 	smc->r.loop_avail = 0 ;
 	smc->r.bn_flag = 0 ;
 	smc->r.jm_flag = 0 ;
-	smc->r.no_flag = TRUE ;
+	smc->r.anal_flag = TRUE ;
 }
 
 /*
@@ -161,7 +161,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 	if (!smc->r.rm_join && !smc->r.rm_loop &&
 		smc->mib.m[MAC0].fddiMACRMTState != ACTIONS(RM0_ISOLATED) &&
 		smc->mib.m[MAC0].fddiMACRMTState != RM0_ISOLATED) {
-		RS_SET(smc,RS_NORINGOP) ;
+		RS_SET(smc,RS_ANALRINGOP) ;
 		rmt_indication(smc,0) ;
 		GO_STATE(RM0_ISOLATED) ;
 		return ;
@@ -180,7 +180,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
 		smc->r.loop_avail = FALSE ;
 		smc->r.sm_ma_avail = FALSE ;
-		smc->r.no_flag = TRUE ;
+		smc->r.anal_flag = TRUE ;
 		DB_RMTN(1, "RMT : ISOLATED");
 		ACTIONS_DONE() ;
 		break ;
@@ -191,25 +191,25 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * According to the standard the MAC must be reset
 			 * here. The FORMAC will be initialized and Claim
 			 * and Beacon Frames will be uploaded to the MAC.
-			 * So any change of Treq will take effect NOW.
+			 * So any change of Treq will take effect ANALW.
 			 */
 			sm_ma_control(smc,MA_RESET) ;
-			GO_STATE(RM1_NON_OP) ;
+			GO_STATE(RM1_ANALN_OP) ;
 			break ;
 		}
 		break ;
-	case ACTIONS(RM1_NON_OP) :
-		start_rmt_timer0(smc,smc->s.rmt_t_non_op,RM_TIMEOUT_NON_OP) ;
+	case ACTIONS(RM1_ANALN_OP) :
+		start_rmt_timer0(smc,smc->s.rmt_t_analn_op,RM_TIMEOUT_ANALN_OP) ;
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
 		sm_ma_control(smc,MA_BEACON) ;
 		DB_RMTN(1, "RMT : RING DOWN");
-		RS_SET(smc,RS_NORINGOP) ;
+		RS_SET(smc,RS_ANALRINGOP) ;
 		smc->r.sm_ma_avail = FALSE ;
 		rmt_indication(smc,0) ;
 		ACTIONS_DONE() ;
 		break ;
-	case RM1_NON_OP :
+	case RM1_ANALN_OP :
 		/*RM12*/
 		if (cmd == RM_RING_OP) {
 			RS_SET(smc,RS_RINGOPCHANGE) ;
@@ -217,9 +217,9 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			break ;
 		}
 		/*RM13*/
-		else if (cmd == RM_TIMEOUT_NON_OP) {
+		else if (cmd == RM_TIMEOUT_ANALN_OP) {
 			smc->r.bn_flag = FALSE ;
-			smc->r.no_flag = TRUE ;
+			smc->r.anal_flag = TRUE ;
 			GO_STATE(RM3_DETECT) ;
 			break ;
 		}
@@ -228,7 +228,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		stop_rmt_timer0(smc) ;
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
-		smc->r.no_flag = FALSE ;
+		smc->r.anal_flag = FALSE ;
 		if (smc->r.rm_loop)
 			smc->r.loop_avail = TRUE ;
 		if (smc->r.rm_join) {
@@ -239,7 +239,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 				smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE;
 		}
 		DB_RMTN(1, "RMT : RING UP");
-		RS_CLEAR(smc,RS_NORINGOP) ;
+		RS_CLEAR(smc,RS_ANALRINGOP) ;
 		RS_SET(smc,RS_RINGOPCHANGE) ;
 		rmt_indication(smc,1) ;
 		smt_stat_counter(smc,0) ;
@@ -247,11 +247,11 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		break ;
 	case RM2_RING_OP :
 		/*RM21*/
-		if (cmd == RM_RING_NON_OP) {
+		if (cmd == RM_RING_ANALN_OP) {
 			smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
 			smc->r.loop_avail = FALSE ;
 			RS_SET(smc,RS_RINGOPCHANGE) ;
-			GO_STATE(RM1_NON_OP) ;
+			GO_STATE(RM1_ANALN_OP) ;
 			break ;
 		}
 		/*RM22a*/
@@ -329,8 +329,8 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 					RM_TIMEOUT_T_STUCK) ;
 			}
 			/*
-			 * We do NOT need to clear smc->r.bn_flag in case of
-			 * not being in state T4 or T5, because the flag
+			 * We do ANALT need to clear smc->r.bn_flag in case of
+			 * analt being in state T4 or T5, because the flag
 			 * must be cleared in order to get in this condition.
 			 */
 
@@ -340,19 +340,19 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		/*RM34a*/
 		else if (cmd == RM_MY_CLAIM && smc->r.timer0_exp) {
 			rmt_new_dup_actions(smc) ;
-			GO_STATE(RM4_NON_OP_DUP) ;
+			GO_STATE(RM4_ANALN_OP_DUP) ;
 			break ;
 		}
 		/*RM34b*/
 		else if (cmd == RM_MY_BEACON && smc->r.timer0_exp) {
 			rmt_new_dup_actions(smc) ;
-			GO_STATE(RM4_NON_OP_DUP) ;
+			GO_STATE(RM4_ANALN_OP_DUP) ;
 			break ;
 		}
 		/*RM34c*/
 		else if (cmd == RM_VALID_CLAIM) {
 			rmt_new_dup_actions(smc) ;
-			GO_STATE(RM4_NON_OP_DUP) ;
+			GO_STATE(RM4_ANALN_OP_DUP) ;
 			break ;
 		}
 		/*RM36*/
@@ -362,15 +362,15 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			break ;
 		}
 		break ;
-	case ACTIONS(RM4_NON_OP_DUP) :
-		start_rmt_timer0(smc,smc->s.rmt_t_announce,RM_TIMEOUT_ANNOUNCE);
+	case ACTIONS(RM4_ANALN_OP_DUP) :
+		start_rmt_timer0(smc,smc->s.rmt_t_ananalunce,RM_TIMEOUT_ANANALUNCE);
 		start_rmt_timer1(smc,smc->s.rmt_t_stuck,RM_TIMEOUT_T_STUCK) ;
 		start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL) ;
 		sm_mac_check_beacon_claim(smc) ;
-		DB_RMTN(1, "RMT : RM4_NON_OP_DUP");
+		DB_RMTN(1, "RMT : RM4_ANALN_OP_DUP");
 		ACTIONS_DONE() ;
 		break ;
-	case RM4_NON_OP_DUP :
+	case RM4_ANALN_OP_DUP :
 		if (cmd == RM_TIMEOUT_POLL) {
 			start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL);
 			sm_mac_check_beacon_claim(smc) ;
@@ -378,7 +378,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		}
 		/*RM41*/
 		if (!smc->r.da_flag) {
-			GO_STATE(RM1_NON_OP) ;
+			GO_STATE(RM1_ANALN_OP) ;
 			break ;
 		}
 		/*RM44a*/
@@ -395,7 +395,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * trace !
 			 */
 			if ((tx =  sm_mac_get_tx_state(smc)) == 4 || tx == 5) {
-			DB_RMTN(2, "RMT : NOPDUP && TRT_EXPIRED && T4/T5");
+			DB_RMTN(2, "RMT : ANALPDUP && TRT_EXPIRED && T4/T5");
 				smc->r.bn_flag = TRUE ;
 				/*
 				 * If one of the upstream stations beaconed
@@ -407,8 +407,8 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 					RM_TIMEOUT_T_STUCK) ;
 			}
 			/*
-			 * We do NOT need to clear smc->r.bn_flag in case of
-			 * not being in state T4 or T5, because the flag
+			 * We do ANALT need to clear smc->r.bn_flag in case of
+			 * analt being in state T4 or T5, because the flag
 			 * must be cleared in order to get in this condition.
 			 */
 
@@ -416,12 +416,12 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 				tx, smc->r.bn_flag);
 		}
 		/*RM44c*/
-		else if (cmd == RM_TIMEOUT_ANNOUNCE && !smc->r.bn_flag) {
+		else if (cmd == RM_TIMEOUT_ANANALUNCE && !smc->r.bn_flag) {
 			rmt_dup_actions(smc) ;
 		}
 		/*RM45*/
 		else if (cmd == RM_RING_OP) {
-			smc->r.no_flag = FALSE ;
+			smc->r.anal_flag = FALSE ;
 			GO_STATE(RM5_RING_OP_DUP) ;
 			break ;
 		}
@@ -447,10 +447,10 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			break ;
 		}
 		/*RM54*/
-		else if (cmd == RM_RING_NON_OP) {
+		else if (cmd == RM_RING_ANALN_OP) {
 			smc->r.jm_flag = FALSE ;
 			smc->r.bn_flag = FALSE ;
-			GO_STATE(RM4_NON_OP_DUP) ;
+			GO_STATE(RM4_ANALN_OP_DUP) ;
 			break ;
 		}
 		break ;
@@ -488,7 +488,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		else if ((cmd == RM_MY_BEACON || cmd == RM_OTHER_BEACON) &&
 			smc->r.da_flag) {
 			smc->r.bn_flag = FALSE ;
-			GO_STATE(RM4_NON_OP_DUP) ;
+			GO_STATE(RM4_ANALN_OP_DUP) ;
 			break ;
 		}
 		/*RM67*/
@@ -555,7 +555,7 @@ static void rmt_new_dup_actions(struct s_smc *smc)
 	 * we have three options : change address, jam or leave
 	 * we leave the ring as default 
 	 * Optionally it's possible to reinsert after leaving the Ring
-	 * but this will not conform with SMT Spec.
+	 * but this will analt conform with SMT Spec.
 	 */
 	if (smc->s.rmt_dup_mac_behavior) {
 		SMT_ERR_LOG(smc,SMT_E0138, SMT_E0138_MSG) ;
@@ -575,7 +575,7 @@ static void rmt_leave_actions(struct s_smc *smc)
 {
 	queue_event(smc,EVENT_ECM,EC_DISCONNECT) ;
 	/*
-	 * Note: Do NOT try again later. (with please reconnect)
+	 * Analte: Do ANALT try again later. (with please reconnect)
 	 * The station must be left from the ring!
 	 */
 }

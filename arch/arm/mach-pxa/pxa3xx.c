@@ -95,7 +95,7 @@ static void pxa3xx_cpu_standby(unsigned int pwrmode)
 }
 
 /*
- * NOTE:  currently, the OBM (OEM Boot Module) binary comes along with
+ * ANALTE:  currently, the OBM (OEM Boot Module) binary comes along with
  * PXA3xx development kits assumes that the resuming process continues
  * with the address stored within the first 4 bytes of SDRAM. The PSPR
  * register is used privately by BootROM and OBM, and _must_ be set to
@@ -153,10 +153,10 @@ static void pxa3xx_cpu_pm_suspend(void)
 static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 {
 	/*
-	 * Don't sleep if no wakeup sources are defined
+	 * Don't sleep if anal wakeup sources are defined
 	 */
 	if (wakeup_src == 0) {
-		printk(KERN_ERR "Not suspending: no wakeup sources\n");
+		printk(KERN_ERR "Analt suspending: anal wakeup sources\n");
 		return;
 	}
 
@@ -191,7 +191,7 @@ static void __init pxa3xx_init_pm(void)
 
 	/*
 	 * Since we copy wakeup code into the SRAM, we need to ensure
-	 * that it is preserved over the low power modes.  Note: bit 8
+	 * that it is preserved over the low power modes.  Analte: bit 8
 	 * is undocumented in the developer manual, but must be set.
 	 */
 	AD1R |= ADXR_L2 | ADXR_R0;
@@ -346,7 +346,7 @@ static void __init pxa_init_ext_wakeup_irq(int (*fn)(struct irq_data *,
 	for (irq = IRQ_WAKEUP0; irq <= IRQ_WAKEUP1; irq++) {
 		irq_set_chip_and_handler(irq, &pxa_ext_wakeup_chip,
 					 handle_edge_irq);
-		irq_clear_status_flags(irq, IRQ_NOREQUEST);
+		irq_clear_status_flags(irq, IRQ_ANALREQUEST);
 	}
 
 	pxa_ext_wakeup_chip.irq_set_wake = fn;
@@ -364,7 +364,7 @@ static void __init __pxa3xx_init_irq(void)
 }
 
 static int __init __init
-pxa3xx_dt_init_irq(struct device_node *node, struct device_node *parent)
+pxa3xx_dt_init_irq(struct device_analde *analde, struct device_analde *parent)
 {
 	__pxa3xx_init_irq();
 	pxa_dt_irq_init(pxa3xx_set_wake);
@@ -406,7 +406,7 @@ static int __init pxa3xx_init(void)
 		/*
 		 * clear RDH bit every time after reset
 		 *
-		 * Note: the last 3 bits DxS are write-1-to-clear so carefully
+		 * Analte: the last 3 bits DxS are write-1-to-clear so carefully
 		 * preserve them here in case they will be referenced later
 		 */
 		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);

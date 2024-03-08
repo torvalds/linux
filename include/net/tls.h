@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -55,7 +55,7 @@ struct tls_rec;
 #define TLS_MAX_PAYLOAD_SIZE		((size_t)1 << 14)
 
 #define TLS_HEADER_SIZE			5
-#define TLS_NONCE_OFFSET		TLS_HEADER_SIZE
+#define TLS_ANALNCE_OFFSET		TLS_HEADER_SIZE
 
 #define TLS_CRYPTO_INFO_READY(info)	((info)->cipher_type)
 
@@ -69,7 +69,7 @@ struct tls_rec;
 
 /* For CCM mode, the full 16-bytes of IV is made of '4' fields of given sizes.
  *
- * IV[16] = b0[1] || implicit nonce[4] || explicit nonce[8] || length[3]
+ * IV[16] = b0[1] || implicit analnce[4] || explicit analnce[8] || length[3]
  *
  * The field 'length' is encoded in field 'b0' as '(length width - 1)'.
  * Hence b0 contains (3 - 1) = 2.
@@ -160,8 +160,8 @@ struct tls_offload_context_tx {
 	struct work_struct destruct_work;
 	struct tls_context *ctx;
 	/* The TLS layer reserves room for driver specific state
-	 * Currently the belief is that there is not enough
-	 * driver specific state to justify another layer of indirection
+	 * Currently the belief is that there is analt eanalugh
+	 * driver specific state to justify aanalther layer of indirection
 	 */
 	u8 driver_state[TLS_DRIVER_STATE_SIZE_TX] __aligned(8);
 };
@@ -173,13 +173,13 @@ enum tls_context_flags {
 	 */
 	TLS_RX_DEV_DEGRADED = 0,
 	/* Unlike RX where resync is driven entirely by the core in TX only
-	 * the driver knows when things went out of sync, so we need the flag
+	 * the driver kanalws when things went out of sync, so we need the flag
 	 * to be atomic.
 	 */
 	TLS_TX_SYNC_SCHED = 1,
 	/* tls_dev_del was called for the RX side, device state was released,
 	 * but tls_ctx->netdev might still be kept, because TX-side driver
-	 * resources might not be released yet. Used to prevent the second
+	 * resources might analt be released yet. Used to prevent the second
 	 * tls_dev_del call in tls_device_down if it happens simultaneously.
 	 */
 	TLS_RX_DEV_CLOSED = 2,
@@ -221,7 +221,7 @@ struct tls_context {
 	u8 tx_conf:3;
 	u8 rx_conf:3;
 	u8 zerocopy_sendfile:1;
-	u8 rx_no_pad:1;
+	u8 rx_anal_pad:1;
 
 	int (*push_pending_record)(struct sock *sk, int flags);
 	void (*sk_write_space)(struct sock *sk);
@@ -303,7 +303,7 @@ struct tls_offload_context_rx {
 	/* this member is set regardless of resync_type, to avoid branches */
 	u8 resync_nh_reset:1;
 	/* CORE_NEXT_HINT-only member, but use the hole here */
-	u8 resync_nh_do_now:1;
+	u8 resync_nh_do_analw:1;
 	union {
 		/* TLS_OFFLOAD_SYNC_TYPE_DRIVER_REQ */
 		struct {
@@ -320,8 +320,8 @@ struct tls_offload_context_rx {
 		};
 	};
 	/* The TLS layer reserves room for driver specific state
-	 * Currently the belief is that there is not enough
-	 * driver specific state to justify another layer of indirection
+	 * Currently the belief is that there is analt eanalugh
+	 * driver specific state to justify aanalther layer of indirection
 	 */
 	u8 driver_state[TLS_DRIVER_STATE_SIZE_RX] __aligned(8);
 };

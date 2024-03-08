@@ -42,6 +42,6 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 #else /* CONFIG_SMP */
 DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 {
-	printk(KERN_WARNING "Received doorbell on non-smp system\n");
+	printk(KERN_WARNING "Received doorbell on analn-smp system\n");
 }
 #endif /* CONFIG_SMP */

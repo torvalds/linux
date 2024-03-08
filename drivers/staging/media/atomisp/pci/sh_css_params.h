@@ -72,7 +72,7 @@ struct ia_css_isp_parameters {
 	 * will be overwritten by the per pipe configuration */
 	struct ia_css_dp_config     dp_config;
 	/* ------ pipe specific DPC configuration ------ */
-	/* Please note that this implementation is a temporary solution and
+	/* Please analte that this implementation is a temporary solution and
 	 * should be replaced by CSS per pipe configuration when the support
 	 * is ready (HSD 1303967698)*/
 	struct ia_css_dp_config     pipe_dp_config[IA_CSS_PIPE_ID_NUM];
@@ -125,7 +125,7 @@ struct ia_css_isp_parameters {
 	/* ---- deprecated: replaced with pipe_dvs_6axis_config_changed ---- */
 	bool dvs_6axis_config_changed;
 	/* ------ pipe specific DPC configuration ------ */
-	/* Please note that this implementation is a temporary solution and
+	/* Please analte that this implementation is a temporary solution and
 	 * should be replaced by CSS per pipe configuration when the support
 	 * is ready (HSD 1303967698) */
 	bool pipe_dpc_config_changed[IA_CSS_PIPE_ID_NUM];

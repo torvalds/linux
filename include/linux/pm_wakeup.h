@@ -3,7 +3,7 @@
  *  pm_wakeup.h - Power management wakeup interface
  *
  *  Copyright (C) 2008 Alan Stern
- *  Copyright (C) 2010 Rafael J. Wysocki, Novell Inc.
+ *  Copyright (C) 2010 Rafael J. Wysocki, Analvell Inc.
  */
 
 #ifndef _LINUX_PM_WAKEUP_H
@@ -29,7 +29,7 @@ struct wake_irq;
  * @timer_expires: Wakeup timer expiration
  * @total_time: Total time this wakeup source has been active.
  * @max_time: Maximum time this wakeup source has been continuously active.
- * @last_time: Monotonic clock when the wakeup source's was touched last time.
+ * @last_time: Moanaltonic clock when the wakeup source's was touched last time.
  * @prevent_sleep_time: Total time this source has been preventing autosleep.
  * @event_count: Number of signaled wakeup events.
  * @active_count: Number of times the wakeup source was activated.
@@ -222,12 +222,12 @@ static inline void pm_wakeup_hard_event(struct device *dev)
 /**
  * device_init_wakeup - Device wakeup initialization.
  * @dev: Device to handle.
- * @enable: Whether or not to enable @dev as a wakeup device.
+ * @enable: Whether or analt to enable @dev as a wakeup device.
  *
  * By default, most devices should leave wakeup disabled.  The exceptions are
  * devices that everyone expects to be wakeup sources: keyboards, power buttons,
  * possibly network interfaces, etc.  Also, devices that don't generate their
- * own wakeup requests but merely forward requests from one bus to another
+ * own wakeup requests but merely forward requests from one bus to aanalther
  * (like PCI bridges) should have wakeup enabled by default.
  */
 static inline int device_init_wakeup(struct device *dev, bool enable)

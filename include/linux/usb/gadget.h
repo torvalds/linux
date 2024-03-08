@@ -17,7 +17,7 @@
 
 #include <linux/configfs.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -44,17 +44,17 @@ struct usb_ep;
  * @stream_id: The stream id, when USB3.0 bulk streams are being used
  * @is_last: Indicates if this is the last request of a stream_id before
  *	switching to a different stream (required for DWC3 controllers).
- * @no_interrupt: If true, hints that no completion irq is needed.
+ * @anal_interrupt: If true, hints that anal completion irq is needed.
  *	Helpful sometimes with deep request queues that are handled
  *	directly by DMA controllers.
  * @zero: If true, when writing data, makes the last packet be "short"
  *     by adding a zero length packet as needed;
- * @short_not_ok: When reading data, makes short packets be
+ * @short_analt_ok: When reading data, makes short packets be
  *     treated as errors (queue stops advancing till cleanup).
  * @dma_mapped: Indicates if request has been mapped to DMA (internal)
  * @complete: Function called when request completes, so this request and
  *	its buffer may be re-used.  The function will always be called with
- *	interrupts disabled, and it must not sleep.
+ *	interrupts disabled, and it must analt sleep.
  *	Reads terminate with a short packet, or when the buffer fills,
  *	whichever comes first.  When writes terminate, some data bytes
  *	will usually still be in flight (often in a hardware fifo).
@@ -64,17 +64,17 @@ struct usb_ep;
  * @context: For use by the completion callback
  * @list: For use by the gadget driver.
  * @frame_number: Reports the interval number in (micro)frame in which the
- *	isochronous transfer was transmitted or received.
- * @status: Reports completion code, zero or a negative errno.
- *	Normally, faults block the transfer queue from advancing until
+ *	isochroanalus transfer was transmitted or received.
+ * @status: Reports completion code, zero or a negative erranal.
+ *	Analrmally, faults block the transfer queue from advancing until
  *	the completion callback returns.
  *	Code "-ESHUTDOWN" indicates completion caused by device disconnect,
  *	or when the driver disabled the endpoint.
  * @actual: Reports bytes transferred to/from the buffer.  For reads (OUT
  *	transfers) this may be less than the requested length.  If the
- *	short_not_ok flag is set, short reads are treated as errors
+ *	short_analt_ok flag is set, short reads are treated as errors
  *	even when status otherwise indicates successful completion.
- *	Note that for writes (IN transfers) some data bytes may still
+ *	Analte that for writes (IN transfers) some data bytes may still
  *	reside in a device-side FIFO when the request is reported as
  *	complete.
  *
@@ -85,14 +85,14 @@ struct usb_ep;
  *
  * Request flags affect request handling, such as whether a zero length
  * packet is written (the "zero" flag), whether a short read should be
- * treated as an error (blocking request queue advance, the "short_not_ok"
- * flag), or hinting that an interrupt is not required (the "no_interrupt"
+ * treated as an error (blocking request queue advance, the "short_analt_ok"
+ * flag), or hinting that an interrupt is analt required (the "anal_interrupt"
  * flag, for use with deep request queues).
  *
  * Bulk endpoints can use any size buffers, and can also be used for interrupt
  * transfers. interrupt-only endpoints can be much less functional.
  *
- * NOTE:  this is analogous to 'struct urb' on the host side, except that
+ * ANALTE:  this is analogous to 'struct urb' on the host side, except that
  * it's thinner and promotes more pre-allocation.
  */
 
@@ -107,9 +107,9 @@ struct usb_request {
 
 	unsigned		stream_id:16;
 	unsigned		is_last:1;
-	unsigned		no_interrupt:1;
+	unsigned		anal_interrupt:1;
 	unsigned		zero:1;
-	unsigned		short_not_ok:1;
+	unsigned		short_analt_ok:1;
 	unsigned		dma_mapped:1;
 
 	void			(*complete)(struct usb_ep *ep,
@@ -126,10 +126,10 @@ struct usb_request {
 /*-------------------------------------------------------------------------*/
 
 /* endpoint-specific parts of the api to the usb controller hardware.
- * unlike the urb model, (de)multiplexing layers are not required.
+ * unlike the urb model, (de)multiplexing layers are analt required.
  * (so this api could slash overhead if used on the host side...)
  *
- * note that device side usb controllers commonly differ in how many
+ * analte that device side usb controllers commonly differ in how many
  * endpoints they support, as well as their capabilities.
  */
 struct usb_ep_ops {
@@ -156,7 +156,7 @@ struct usb_ep_ops {
 /**
  * struct usb_ep_caps - endpoint capabilities description
  * @type_control:Endpoint supports control type (reserved for ep0).
- * @type_iso:Endpoint supports isochronous transfers.
+ * @type_iso:Endpoint supports isochroanalus transfers.
  * @type_bulk:Endpoint supports bulk transfers.
  * @type_int:Endpoint supports interrupt transfers.
  * @dir_in:Endpoint supports IN direction.
@@ -204,7 +204,7 @@ struct usb_ep_caps {
  *	the endpoint descriptor used to configure the endpoint.
  * @maxpacket_limit:The maximum packet size value which can be handled by this
  *	endpoint. It's set once by UDC driver when endpoint is initialized, and
- *	should not be changed. Should not be confused with maxpacket.
+ *	should analt be changed. Should analt be confused with maxpacket.
  * @max_streams: The maximum number of streams supported
  *	by this EP (0 - 16, actual number is 2^n)
  * @mult: multiplier, 'mult' value for SS Isoc EPs
@@ -218,7 +218,7 @@ struct usb_ep_caps {
  *	descriptor that is used to configure the endpoint
  *
  * the bus controller driver lists all the general purpose endpoints in
- * gadget->ep_list.  the control endpoint (gadget->ep0) is not in that list,
+ * gadget->ep_list.  the control endpoint (gadget->ep0) is analt in that list,
  * and is accessed only in response to a driver setup() callback.
  */
 
@@ -296,7 +296,7 @@ struct usb_dcd_config_params {
 #define USB_DEFAULT_U2_DEV_EXIT_LAT	0x1F4	/* Less then 500 microsec */
 	__u8 besl_baseline;	/* Recommended baseline BESL (0-15) */
 	__u8 besl_deep;		/* Recommended deep BESL (0-15) */
-#define USB_DEFAULT_BESL_UNSPECIFIED	0xFF	/* No recommended value */
+#define USB_DEFAULT_BESL_UNSPECIFIED	0xFF	/* Anal recommended value */
 };
 
 
@@ -335,7 +335,7 @@ struct usb_gadget_ops {
 
 /**
  * struct usb_gadget - represents a usb device
- * @work: (internal use) Workqueue to be used for sysfs_notify()
+ * @work: (internal use) Workqueue to be used for sysfs_analtify()
  * @udc: struct usb_udc pointer for this gadget
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
@@ -348,8 +348,8 @@ struct usb_gadget_ops {
  * @max_ssp_rate: Maximum SuperSpeed Plus signaling rate and lane count the UDC
  *	can handle. The UDC must support this and all slower speeds and lower
  *	number of lanes.
- * @state: the state we are now (attached, suspended, configured, etc)
- * @name: Identifies the controller hardware type.  Used in diagnostics
+ * @state: the state we are analw (attached, suspended, configured, etc)
+ * @name: Identifies the controller hardware type.  Used in diaganalstics
  *	and sometimes configuration.
  * @dev: Driver model state for this abstract device.
  * @isoch_delay: value from Set Isoch Delay request. Only valid on SS/SSP
@@ -362,7 +362,7 @@ struct usb_gadget_ops {
  *	gadget driver must provide a USB OTG descriptor.
  * @is_a_peripheral: False unless is_otg, the "A" end of a USB cable
  *	is in the Mini-AB jack, and HNP has been used to switch roles
- *	so that the "A" device currently acts as A-Peripheral, not A-Host.
+ *	so that the "A" device currently acts as A-Peripheral, analt A-Host.
  * @a_hnp_support: OTG device feature flag, indicating that the A-Host
  *	supports HNP at this port.
  * @a_alt_hnp_support: OTG device feature flag, indicating that the A-Host
@@ -375,13 +375,13 @@ struct usb_gadget_ops {
  *	or B-Peripheral wants to take host role.
  * @quirk_ep_out_aligned_size: epout requires buffer size to be aligned to
  *	MaxPacketSize.
- * @quirk_altset_not_supp: UDC controller doesn't support alt settings.
- * @quirk_stall_not_supp: UDC controller doesn't support stalling.
- * @quirk_zlp_not_supp: UDC controller doesn't support ZLP.
+ * @quirk_altset_analt_supp: UDC controller doesn't support alt settings.
+ * @quirk_stall_analt_supp: UDC controller doesn't support stalling.
+ * @quirk_zlp_analt_supp: UDC controller doesn't support ZLP.
  * @quirk_avoids_skb_reserve: udc/platform wants to avoid skb_reserve() in
  *	u_ether.c to improve performance.
  * @is_selfpowered: if the gadget is self-powered.
- * @deactivated: True if gadget is deactivated - in deactivated state it cannot
+ * @deactivated: True if gadget is deactivated - in deactivated state it cananalt
  *	be connected.
  * @connected: True if gadget is connected.
  * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
@@ -401,7 +401,7 @@ struct usb_gadget_ops {
  * Except for the driver data, all fields in this structure are
  * read-only to the gadget driver.  That driver data is part of the
  * "driver model" infrastructure in 2.6 (and later) kernels, and for
- * earlier systems is grouped in a similar structure that's not known
+ * earlier systems is grouped in a similar structure that's analt kanalwn
  * to the rest of the kernel.
  *
  * Values of the three OTG device feature flags are updated before the
@@ -441,9 +441,9 @@ struct usb_gadget {
 	unsigned			hnp_polling_support:1;
 	unsigned			host_request_flag:1;
 	unsigned			quirk_ep_out_aligned_size:1;
-	unsigned			quirk_altset_not_supp:1;
-	unsigned			quirk_stall_not_supp:1;
-	unsigned			quirk_zlp_not_supp:1;
+	unsigned			quirk_altset_analt_supp:1;
+	unsigned			quirk_stall_analt_supp:1;
+	unsigned			quirk_zlp_analt_supp:1;
 	unsigned			quirk_avoids_skb_reserve:1;
 	unsigned			is_selfpowered:1;
 	unsigned			deactivated:1;
@@ -486,7 +486,7 @@ extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
 extern void usb_del_gadget_udc(struct usb_gadget *gadget);
 extern char *usb_get_gadget_udc_name(void);
 
-/* iterates the non-control endpoints; 'tmp' is a struct usb_ep pointer */
+/* iterates the analn-control endpoints; 'tmp' is a struct usb_ep pointer */
 #define gadget_for_each_ep(tmp, gadget) \
 	list_for_each_entry(tmp, &(gadget)->ep_list, ep_list)
 
@@ -527,7 +527,7 @@ usb_ep_align_maybe(struct usb_gadget *g, struct usb_ep *ep, size_t len)
  */
 static inline int gadget_is_altset_supported(struct usb_gadget *g)
 {
-	return !g->quirk_altset_not_supp;
+	return !g->quirk_altset_analt_supp;
 }
 
 /**
@@ -536,7 +536,7 @@ static inline int gadget_is_altset_supported(struct usb_gadget *g)
  */
 static inline int gadget_is_stall_supported(struct usb_gadget *g)
 {
-	return !g->quirk_stall_not_supp;
+	return !g->quirk_stall_analt_supp;
 }
 
 /**
@@ -545,7 +545,7 @@ static inline int gadget_is_stall_supported(struct usb_gadget *g)
  */
 static inline int gadget_is_zlp_supported(struct usb_gadget *g)
 {
-	return !g->quirk_zlp_not_supp;
+	return !g->quirk_zlp_analt_supp;
 }
 
 /**
@@ -657,12 +657,12 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  *	the hardware level driver. Most calls must be handled by
  *	the gadget driver, including descriptor and configuration
  *	management.  The 16 bit members of the setup data are in
- *	USB byte order. Called in_interrupt; this may not sleep.  Driver
+ *	USB byte order. Called in_interrupt; this may analt sleep.  Driver
  *	queues a response to ep0, or returns negative to stall.
  * @disconnect: Invoked after all transfers have been stopped,
  *	when the host is disconnected.  May be called in_interrupt; this
- *	may not sleep.  Some devices can't detect disconnect, so this might
- *	not be called except as part of controller shutdown.
+ *	may analt sleep.  Some devices can't detect disconnect, so this might
+ *	analt be called except as part of controller shutdown.
  * @bind: the driver's bind callback
  * @unbind: Invoked when the driver is unbound from a gadget,
  *	usually from rmmod (after a disconnect is reported).
@@ -674,7 +674,7 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  * @driver: Driver model state for this driver.
  * @udc_name: A name of UDC this driver should be bound to. If udc_name is NULL,
  *	this driver will be bound to any available UDC.
- * @match_existing_only: If udc is not found, return an error and fail
+ * @match_existing_only: If udc is analt found, return an error and fail
  *	the driver registration
  * @is_bound: Allow a driver to be bound to only one gadget
  *
@@ -684,11 +684,11 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  *
  * If gadget->is_otg is true, the gadget driver must provide an OTG
  * descriptor during enumeration, or else fail the bind() call.  In such
- * cases, no USB traffic may flow until both bind() returns without
+ * cases, anal USB traffic may flow until both bind() returns without
  * having called usb_gadget_disconnect(), and the USB host stack has
  * initialized.
  *
- * Drivers use hardware-specific knowledge to configure the usb hardware.
+ * Drivers use hardware-specific kanalwledge to configure the usb hardware.
  * endpoint addressing is only one of several hardware characteristics that
  * are in descriptors the ep0 implementation returns from setup() calls.
  *
@@ -711,24 +711,24 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  * get_interface.  Setting a configuration (or interface) is where
  * endpoints should be activated or (config 0) shut down.
  *
- * The gadget driver's setup() callback does not have to queue a response to
+ * The gadget driver's setup() callback does analt have to queue a response to
  * ep0 within the setup() call, the driver can do it after setup() returns.
  * The UDC driver must wait until such a response is queued before proceeding
  * with the data/status stages of the control transfer.
  *
- * NOTE: Currently, a number of UDC drivers rely on USB_GADGET_DELAYED_STATUS
+ * ANALTE: Currently, a number of UDC drivers rely on USB_GADGET_DELAYED_STATUS
  * being returned from the setup() callback, which is a bug. See the comment
  * next to USB_GADGET_DELAYED_STATUS for details.
  *
- * (Note that only the default control endpoint is supported.  Neither
- * hosts nor devices generally support control traffic except to ep0.)
+ * (Analte that only the default control endpoint is supported.  Neither
+ * hosts analr devices generally support control traffic except to ep0.)
  *
- * Most devices will ignore USB suspend/resume operations, and so will
- * not provide those callbacks.  However, some may need to change modes
- * when the host is not longer directing those activities.  For example,
+ * Most devices will iganalre USB suspend/resume operations, and so will
+ * analt provide those callbacks.  However, some may need to change modes
+ * when the host is analt longer directing those activities.  For example,
  * local controls (buttons, dials, etc) may need to be re-enabled since
  * the (remote) host can't do that any longer; or an error state might
- * be cleared, to make the device behave identically whether or not
+ * be cleared, to make the device behave identically whether or analt
  * power is maintained.
  */
 struct usb_gadget_driver {
@@ -795,7 +795,7 @@ int usb_gadget_register_driver_owner(struct usb_gadget_driver *driver,
  * it will first disconnect().  The driver is also requested
  * to unbind() and clean up any device state, before this procedure
  * finally returns.  It's expected that the unbind() functions
- * will be in exit sections, so may not be linked in some kernels.
+ * will be in exit sections, so may analt be linked in some kernels.
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
@@ -805,7 +805,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
 /**
  * struct usb_string - wraps a C string and its USB id
- * @id:the (nonzero) ID for this string
+ * @id:the (analnzero) ID for this string
  * @s:the string, in UTF-8 encoding
  *
  * If you're using usb_gadget_get_string(), use this to wrap a string
@@ -903,9 +903,9 @@ extern void usb_gadget_unmap_request(struct usb_gadget *gadget,
 		struct usb_request *req, int is_in);
 #else /* !CONFIG_HAS_DMA */
 static inline int usb_gadget_map_request_by_dev(struct device *dev,
-		struct usb_request *req, int is_in) { return -ENOSYS; }
+		struct usb_request *req, int is_in) { return -EANALSYS; }
 static inline int usb_gadget_map_request(struct usb_gadget *gadget,
-		struct usb_request *req, int is_in) { return -ENOSYS; }
+		struct usb_request *req, int is_in) { return -EANALSYS; }
 
 static inline void usb_gadget_unmap_request_by_dev(struct device *dev,
 		struct usb_request *req, int is_in) { }

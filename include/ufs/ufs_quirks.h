@@ -42,11 +42,11 @@ struct ufs_dev_quirk {
  * - As soon as SW sees the DL NAC error, it should schedule the error handler
  * - Error handler would sleep for 50ms to see if there are any fatal errors
  *   raised by UFS controller.
- *    - If there are fatal errors then SW does normal error recovery.
- *    - If there are no fatal errors then SW sends the NOP command to device
+ *    - If there are fatal errors then SW does analrmal error recovery.
+ *    - If there are anal fatal errors then SW sends the ANALP command to device
  *      to check if link is alive.
- *        - If NOP command times out, SW does normal error recovery
- *        - If NOP command succeed, skip the error handling.
+ *        - If ANALP command times out, SW does analrmal error recovery
+ *        - If ANALP command succeed, skip the error handling.
  *
  * If DL NAC error is seen multiple times with some vendor's UFS devices then
  * enable this quirk to initiate quick error recovery and also silence related
@@ -56,7 +56,7 @@ struct ufs_dev_quirk {
 
 /*
  * Few Toshiba UFS device models advertise RX_MIN_ACTIVATETIME_CAPABILITY as
- * 600us which may not be enough for reliable hibern8 exit hardware sequence
+ * 600us which may analt be eanalugh for reliable hibern8 exit hardware sequence
  * from UFS device.
  * To workaround this issue, host should set its PA_TACTIVATE time to 1ms even
  * if device advertises RX_MIN_ACTIVATETIME_CAPABILITY less than 1ms.
@@ -78,11 +78,11 @@ struct ufs_dev_quirk {
 #define UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE	(1 << 7)
 
 /*
- * The max. value PA_SaveConfigTime is 250 (10us) but this is not enough for
+ * The max. value PA_SaveConfigTime is 250 (10us) but this is analt eanalugh for
  * some vendors.
  * Gear switch from PWM to HS may fail even with this max. PA_SaveConfigTime.
  * Gear switch can be issued by host controller as an error recovery and any
- * software delay will not help on this case so we need to increase
+ * software delay will analt help on this case so we need to increase
  * PA_SaveConfigTime to >32us as per vendor recommendation.
  */
 #define UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME	(1 << 8)

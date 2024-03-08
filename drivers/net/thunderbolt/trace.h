@@ -20,7 +20,7 @@
 	{ DMA_BIDIRECTIONAL, "DMA_BIDIRECTIONAL" },	\
 	{ DMA_TO_DEVICE, "DMA_TO_DEVICE" },		\
 	{ DMA_FROM_DEVICE, "DMA_FROM_DEVICE" },		\
-	{ DMA_NONE, "DMA_NONE" }
+	{ DMA_ANALNE, "DMA_ANALNE" }
 
 DECLARE_EVENT_CLASS(tbnet_frame,
 	TP_PROTO(unsigned int index, const void *page, dma_addr_t phys,

@@ -17,12 +17,12 @@
 #define __IA_CSS_BNLM_TYPES_H
 
 /* @file
-* CSS-API header file for Bayer Non-Linear Mean parameters.
+* CSS-API header file for Bayer Analn-Linear Mean parameters.
 */
 
 #include "type_support.h" /* int32_t */
 
-/* Bayer Non-Linear Mean configuration
+/* Bayer Analn-Linear Mean configuration
  *
  * \brief BNLM public parameters.
  * \details Struct with all parameters for the BNLM kernel that can be set
@@ -34,9 +34,9 @@ struct ia_css_bnlm_config {
 	bool		rad_enable;	/** Enable a radial dependency in a weight calculation */
 	s32		rad_x_origin;	/** Initial x coordinate for a radius calculation */
 	s32		rad_y_origin;	/** Initial x coordinate for a radius calculation */
-	/* a threshold for average of weights if this < Th, do not denoise pixel */
+	/* a threshold for average of weights if this < Th, do analt deanalise pixel */
 	s32		avg_min_th;
-	/* minimum weight for denoising if max < th, do not denoise pixel */
+	/* minimum weight for deanalising if max < th, do analt deanalise pixel */
 	s32		max_min_th;
 
 	/**@{*/
@@ -60,9 +60,9 @@ struct ia_css_bnlm_config {
 	s32 mu_root_lut_val[16];
 	/**@}*/
 	/**@{*/
-	/* A lookup table for SAD normalization */
-	s32 sad_norm_lut_thr[15];
-	s32 sad_norm_lut_val[16];
+	/* A lookup table for SAD analrmalization */
+	s32 sad_analrm_lut_thr[15];
+	s32 sad_analrm_lut_val[16];
 	/**@}*/
 	/**@{*/
 	/* A lookup table that models a weight's dependency on textures */
@@ -75,12 +75,12 @@ struct ia_css_bnlm_config {
 	s32 sig_rad_lut_val[16];
 	/**@}*/
 	/**@{*/
-	/* A lookup table to control denoise power depending on a pixel's radial distance */
+	/* A lookup table to control deanalise power depending on a pixel's radial distance */
 	s32 rad_pow_lut_thr[15];
 	s32 rad_pow_lut_val[16];
 	/**@}*/
 	/**@{*/
-	/* Non linear transfer functions to calculate the blending coefficient depending on detail group */
+	/* Analn linear transfer functions to calculate the blending coefficient depending on detail group */
 	/* detail group 0 */
 	/**@{*/
 	s32 nl_0_lut_thr[15];

@@ -40,7 +40,7 @@
  * where 'xxxx' is decided by the connections of pin AD2/AD0.  The
  * address used also affects the initial state of output signals.
  *
- * Within each group of ports, there are five known combinations of
+ * Within each group of ports, there are five kanalwn combinations of
  * I/O ports: 4I4O, 4P4O, 8I, 8P, 8O, see the definitions below for
  * the detailed organization of these ports. Only Goup A is interrupt
  * capable.
@@ -49,11 +49,11 @@
  * and GPIOs from GROUP_A are numbered before those from GROUP_B
  * (if there are two groups).
  *
- * NOTE: MAX7328/MAX7329 are drop-in replacements for PCF8574/a, so
- * they are not supported by this driver.
+ * ANALTE: MAX7328/MAX7329 are drop-in replacements for PCF8574/a, so
+ * they are analt supported by this driver.
  */
 
-#define PORT_NONE	0x0	/* '/' No Port */
+#define PORT_ANALNE	0x0	/* '/' Anal Port */
 #define PORT_OUTPUT	0x1	/* 'O' Push-Pull, Output Only */
 #define PORT_INPUT	0x2	/* 'I' Input Only */
 #define PORT_OPENDRAIN	0x3	/* 'P' Open-Drain, I/O */
@@ -67,8 +67,8 @@
 #define GROUP_A(x)	((x) & 0xffff)	/* I2C Addr: 0b'110xxxx */
 #define GROUP_B(x)	((x) << 16)	/* I2C Addr: 0b'101xxxx */
 
-#define INT_NONE	0x0	/* No interrupt capability */
-#define INT_NO_MASK	0x1	/* Has interrupts, no mask */
+#define INT_ANALNE	0x0	/* Anal interrupt capability */
+#define INT_ANAL_MASK	0x1	/* Has interrupts, anal mask */
 #define INT_INDEP_MASK	0x2	/* Has interrupts, independent mask */
 #define INT_MERGED_MASK 0x3	/* Has interrupts, merged mask */
 
@@ -89,13 +89,13 @@ enum {
 static uint64_t max732x_features[] = {
 	[MAX7319] = GROUP_A(IO_8I) | INT_CAPS(INT_MERGED_MASK),
 	[MAX7320] = GROUP_B(IO_8O),
-	[MAX7321] = GROUP_A(IO_8P) | INT_CAPS(INT_NO_MASK),
+	[MAX7321] = GROUP_A(IO_8P) | INT_CAPS(INT_ANAL_MASK),
 	[MAX7322] = GROUP_A(IO_4I4O) | INT_CAPS(INT_MERGED_MASK),
 	[MAX7323] = GROUP_A(IO_4P4O) | INT_CAPS(INT_INDEP_MASK),
 	[MAX7324] = GROUP_A(IO_8I) | GROUP_B(IO_8O) | INT_CAPS(INT_MERGED_MASK),
-	[MAX7325] = GROUP_A(IO_8P) | GROUP_B(IO_8O) | INT_CAPS(INT_NO_MASK),
+	[MAX7325] = GROUP_A(IO_8P) | GROUP_B(IO_8O) | INT_CAPS(INT_ANAL_MASK),
 	[MAX7326] = GROUP_A(IO_4I4O) | GROUP_B(IO_8O) | INT_CAPS(INT_MERGED_MASK),
-	[MAX7327] = GROUP_A(IO_4P4O) | GROUP_B(IO_8O) | INT_CAPS(INT_NO_MASK),
+	[MAX7327] = GROUP_A(IO_4P4O) | GROUP_B(IO_8O) | INT_CAPS(INT_ANAL_MASK),
 };
 
 static const struct i2c_device_id max732x_id[] = {
@@ -321,7 +321,7 @@ static void max732x_irq_update_mask(struct max732x_chip *chip)
 
 	chip->irq_mask = chip->irq_mask_cur;
 
-	if (chip->irq_features == INT_NO_MASK)
+	if (chip->irq_features == INT_ANAL_MASK)
 		return;
 
 	mutex_lock(&chip->lock);
@@ -500,7 +500,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 	int irq_base = 0;
 	int ret;
 
-	if (client->irq && has_irq != INT_NONE) {
+	if (client->irq && has_irq != INT_ANALNE) {
 		struct gpio_irq_chip *girq;
 
 		chip->irq_features = has_irq;
@@ -522,7 +522,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 		girq->threaded = true;
 		girq->first = irq_base; /* FIXME: get rid of this */
@@ -538,8 +538,8 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 	struct i2c_client *client = chip->client;
 	int has_irq = max732x_features[id->driver_data] >> 32;
 
-	if (client->irq && has_irq != INT_NONE)
-		dev_warn(&client->dev, "interrupt support not compiled in\n");
+	if (client->irq && has_irq != INT_ANALNE)
+		dev_warn(&client->dev, "interrupt support analt compiled in\n");
 
 	return 0;
 }
@@ -612,26 +612,26 @@ static int max732x_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct max732x_platform_data *pdata;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct max732x_chip *chip;
 	struct i2c_client *c;
 	uint16_t addr_a, addr_b;
 	int ret, nr_port;
 
 	pdata = dev_get_platdata(&client->dev);
-	node = client->dev.of_node;
+	analde = client->dev.of_analde;
 
-	if (!pdata && node)
+	if (!pdata && analde)
 		pdata = of_gpio_max732x(&client->dev);
 
 	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data\n");
+		dev_dbg(&client->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip->client = client;
 
 	nr_port = max732x_setup_gpio(chip, id, pdata->gpio_base);
@@ -676,7 +676,7 @@ static int max732x_probe(struct i2c_client *client)
 	if (nr_port > 8 && !chip->client_dummy) {
 		dev_err(&client->dev,
 			"Failed to allocate second group I2C device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_init(&chip->lock);

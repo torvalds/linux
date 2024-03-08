@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/display/bridge/simple-bridge.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Transparent non-programmable DRM bridges
+title: Transparent analn-programmable DRM bridges
 
 maintainers:
   - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
   - Maxime Ripard <mripard@kernel.org>
 
 description: |
-  This binding supports transparent non-programmable bridges that don't require
+  This binding supports transparent analn-programmable bridges that don't require
   any configuration, with a single input and a single output.
 
 properties:

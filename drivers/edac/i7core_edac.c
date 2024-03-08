@@ -3,7 +3,7 @@
  *
  * This driver supports the memory controllers found on the Intel
  * processor families i7core, i7core 7xx/8xx, i5core, Xeon 35xx,
- * Xeon 55xx and Xeon 56xx also known as Nehalem, Nehalem-EP, Lynnfield
+ * Xeon 55xx and Xeon 56xx also kanalwn as Nehalem, Nehalem-EP, Lynnfield
  * and Westmere-EP.
  *
  * Copyright (c) 2009-2010 by:
@@ -48,8 +48,8 @@ static int use_pci_fixup;
 module_param(use_pci_fixup, int, 0444);
 MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 /*
- * This is used for Nehalem-EP and Nehalem-EX devices, where the non-core
- * registers start at bus 255, and are not reported by BIOS.
+ * This is used for Nehalem-EP and Nehalem-EX devices, where the analn-core
+ * registers start at bus 255, and are analt reported by BIOS.
  * We currently find devices with only 2 sockets. In order to support more QPI
  * Quick Path Interconnect, just increment this number.
  */
@@ -144,7 +144,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
   #define MASK_FULL_CACHELINE	0x06
   #define MASK_MSB32_CACHELINE	0x04
   #define MASK_LSB32_CACHELINE	0x02
-  #define NO_MASK_CACHELINE	0x00
+  #define ANAL_MASK_CACHELINE	0x00
   #define REPEAT_EN		0x01
 
 	/* OFFSETS for Devices 4,5 and 6 Function 1 */
@@ -248,7 +248,7 @@ struct i7core_dev {
 struct i7core_pvt {
 	struct device *addrmatch_dev, *chancounts_dev;
 
-	struct pci_dev	*pci_noncore;
+	struct pci_dev	*pci_analncore;
 	struct pci_dev	*pci_mcr[MAX_MCR_FUNC + 1];
 	struct pci_dev	*pci_ch[NUM_CHANS][MAX_CHAN_FUNC + 1];
 
@@ -307,14 +307,14 @@ static const struct pci_id_descr pci_dev_descr_i7core_nehalem[] = {
 	{ PCI_DESCR(6, 2, PCI_DEVICE_ID_INTEL_I7_MC_CH2_RANK) },
 	{ PCI_DESCR(6, 3, PCI_DEVICE_ID_INTEL_I7_MC_CH2_TC)   },
 
-		/* Generic Non-core registers */
+		/* Generic Analn-core registers */
 	/*
 	 * This is the PCI device on i7core and on Xeon 35xx (8086:2c41)
 	 * On Xeon 55xx, however, it has a different id (8086:2c40). So,
 	 * the probing code needs to test for the other address in case of
 	 * failure of this one
 	 */
-	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_NONCORE)  },
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_I7_ANALNCORE)  },
 
 };
 
@@ -337,7 +337,7 @@ static const struct pci_id_descr pci_dev_descr_lynnfield[] = {
 	 * This is the PCI device has an alternate address on some
 	 * processors like Core i7 860
 	 */
-	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE)     },
+	{ PCI_DESCR( 0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE)     },
 };
 
 static const struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
@@ -366,8 +366,8 @@ static const struct pci_id_descr pci_dev_descr_i7core_westmere[] = {
 	{ PCI_DESCR(6, 2, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH2_RANK_REV2) },
 	{ PCI_DESCR(6, 3, PCI_DEVICE_ID_INTEL_LYNNFIELD_MC_CH2_TC_REV2)   },
 
-		/* Generic Non-core registers */
-	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_REV2)  },
+		/* Generic Analn-core registers */
+	{ PCI_DESCR(0, 0, PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE_REV2)  },
 
 };
 
@@ -496,7 +496,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	/* Get data from the MC register, function 0 */
 	pdev = pvt->pci_mcr[0];
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Device 3 function 0 reads */
 	pci_read_config_dword(pdev, MC_CONTROL, &pvt->info.mc_control);
@@ -516,7 +516,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			mode = EDAC_S4ECD4ED;
 	} else {
 		edac_dbg(0, "ECC disabled\n");
-		mode = EDAC_NONE;
+		mode = EDAC_ANALNE;
 	}
 
 	/* FIXME: need to handle the error codes */
@@ -534,7 +534,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			continue;
 
 		if (!CH_ACTIVE(pvt, i)) {
-			edac_dbg(0, "Channel %i is not active\n", i);
+			edac_dbg(0, "Channel %i is analt active\n", i);
 			continue;
 		}
 		if (CH_DISABLED(pvt, i)) {
@@ -614,7 +614,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				dimm->dtype = DEV_X16;
 				break;
 			default:
-				dimm->dtype = DEV_UNKNOWN;
+				dimm->dtype = DEV_UNKANALWN;
 			}
 
 			snprintf(dimm->label, sizeof(dimm->label),
@@ -654,7 +654,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
    However, to have a simpler code, we don't allow enabling error injection
    on more than one channel.
    Also, since a change at an inject parameter will be applied only at enable,
-   we're disabling error injection on all write calls to the sysfs nodes that
+   we're disabling error injection on all write calls to the sysfs analdes that
    controls the error code injection.
  */
 static int disable_inject(const struct mem_ctl_info *mci)
@@ -664,7 +664,7 @@ static int disable_inject(const struct mem_ctl_info *mci)
 	pvt->inject.enable = 0;
 
 	if (!pvt->pci_ch[pvt->inject.channel][0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 				MC_CHANNEL_ERROR_INJECT, 0);
@@ -895,17 +895,17 @@ static int write_and_test(struct pci_dev *dev, const int where, const u32 val)
  * memory that matches the given criteria.
  * The criteria can be set in terms of a mask where dimm, rank, bank, page
  * and col can be specified.
- * A -1 value for any of the mask items will make the MCU to ignore
+ * A -1 value for any of the mask items will make the MCU to iganalre
  * that matching criteria for error injection.
  *
- * It should be noticed that the error will only happen after a write operation
- * on a memory that matches the condition. if REPEAT_EN is not enabled at
+ * It should be analticed that the error will only happen after a write operation
+ * on a memory that matches the condition. if REPEAT_EN is analt enabled at
  * inject mask, then it will produce just one error. Otherwise, it will repeat
  * until the injectmask would be cleaned.
  *
  * FIXME: This routine assumes that MAXNUMDIMMS value of MC_MAX_DOD
- *    is reliable enough to check if the MC is using the
- *    three channels. However, this is not clear at the datasheet.
+ *    is reliable eanalugh to check if the MC is using the
+ *    three channels. However, this is analt clear at the datasheet.
  */
 static ssize_t i7core_inject_enable_store(struct device *dev,
 					  struct device_attribute *mattr,
@@ -982,7 +982,7 @@ static ssize_t i7core_inject_enable_store(struct device *dev,
 		     (pvt->inject.type & 0x6) << (3 - 1);
 
 	/* Unlock writes to registers - this register is write only */
-	pci_write_config_dword(pvt->pci_noncore,
+	pci_write_config_dword(pvt->pci_analncore,
 			       MC_CFG_CONTROL, 0x2);
 
 	write_and_test(pvt->pci_ch[pvt->inject.channel][0],
@@ -998,10 +998,10 @@ static ssize_t i7core_inject_enable_store(struct device *dev,
 
 	/*
 	 * This is something undocumented, based on my tests
-	 * Without writing 8 to this register, errors aren't injected. Not sure
+	 * Without writing 8 to this register, errors aren't injected. Analt sure
 	 * why.
 	 */
-	pci_write_config_dword(pvt->pci_noncore,
+	pci_write_config_dword(pvt->pci_analncore,
 			       MC_CFG_CONTROL, 8);
 
 	edac_dbg(0, "Error inject addr match 0x%016llx, ecc 0x%08x, inject 0x%08x\n",
@@ -1161,7 +1161,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 
 	pvt->addrmatch_dev = kzalloc(sizeof(*pvt->addrmatch_dev), GFP_KERNEL);
 	if (!pvt->addrmatch_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pvt->addrmatch_dev->type = &addrmatch_type;
 	pvt->addrmatch_dev->bus = mci->dev.bus;
@@ -1180,7 +1180,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 		pvt->chancounts_dev = kzalloc(sizeof(*pvt->chancounts_dev),
 					      GFP_KERNEL);
 		if (!pvt->chancounts_dev) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_del_addrmatch;
 		}
 
@@ -1263,8 +1263,8 @@ static void __init i7core_xeon_pci_fixup(const struct pci_id_table *table)
 	int i;
 
 	/*
-	 * On Xeon 55xx, the Intel Quick Path Arch Generic Non-core pci buses
-	 * aren't announced by acpi. So, we need to use a legacy scan probing
+	 * On Xeon 55xx, the Intel Quick Path Arch Generic Analn-core pci buses
+	 * aren't ananalunced by acpi. So, we need to use a legacy scan probing
 	 * to detect them
 	 */
 	while (table && table->descr) {
@@ -1303,11 +1303,11 @@ static unsigned i7core_pci_lastbus(void)
  */
 static int i7core_get_onedevice(struct pci_dev **prev,
 				const struct pci_id_table *table,
-				const unsigned devno,
+				const unsigned devanal,
 				const unsigned last_bus)
 {
 	struct i7core_dev *i7core_dev;
-	const struct pci_id_descr *dev_descr = &table->descr[devno];
+	const struct pci_id_descr *dev_descr = &table->descr[devanal];
 
 	struct pci_dev *pdev = NULL;
 	u8 bus = 0;
@@ -1317,21 +1317,21 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 			      dev_descr->dev_id, *prev);
 
 	/*
-	 * On Xeon 55xx, the Intel QuickPath Arch Generic Non-core regs
+	 * On Xeon 55xx, the Intel QuickPath Arch Generic Analn-core regs
 	 * is at addr 8086:2c40, instead of 8086:2c41. So, we need
 	 * to probe for the alternate address in case of failure
 	 */
-	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_I7_NONCORE && !pdev) {
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_I7_ANALNCORE && !pdev) {
 		pci_dev_get(*prev);	/* pci_get_device will put it */
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
+				      PCI_DEVICE_ID_INTEL_I7_ANALNCORE_ALT, *prev);
 	}
 
-	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE &&
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE &&
 	    !pdev) {
 		pci_dev_get(*prev);	/* pci_get_device will put it */
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
-				      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT,
+				      PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE_ALT,
 				      *prev);
 	}
 
@@ -1344,16 +1344,16 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 		if (dev_descr->optional)
 			return 0;
 
-		if (devno == 0)
-			return -ENODEV;
+		if (devanal == 0)
+			return -EANALDEV;
 
 		i7core_printk(KERN_INFO,
-			"Device not found: dev %02x.%d PCI ID %04x:%04x\n",
+			"Device analt found: dev %02x.%d PCI ID %04x:%04x\n",
 			dev_descr->dev, dev_descr->func,
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 		/* End of list, leave */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	bus = pdev->bus->number;
 
@@ -1364,21 +1364,21 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 		i7core_dev = alloc_i7core_dev(socket, table);
 		if (!i7core_dev) {
 			pci_dev_put(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
-	if (i7core_dev->pdev[devno]) {
+	if (i7core_dev->pdev[devanal]) {
 		i7core_printk(KERN_ERR,
 			"Duplicated device for "
 			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
 			bus, dev_descr->dev, dev_descr->func,
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 		pci_dev_put(pdev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	i7core_dev->pdev[devno] = pdev;
+	i7core_dev->pdev[devanal] = pdev;
 
 	/* Sanity check */
 	if (unlikely(PCI_SLOT(pdev->devfn) != dev_descr->dev ||
@@ -1389,7 +1389,7 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id,
 			bus, PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 			bus, dev_descr->dev, dev_descr->func);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Be sure that the device is enabled */
@@ -1399,7 +1399,7 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 			"dev %02x:%02x.%d PCI ID %04x:%04x\n",
 			bus, dev_descr->dev, dev_descr->func,
 			PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	edac_dbg(0, "Detected socket %d dev %02x:%02x.%d PCI ID %04x:%04x\n",
@@ -1409,7 +1409,7 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 
 	/*
 	 * As stated on drivers/pci/search.c, the reference count for
-	 * @from is always decremented if it is not %NULL. So, as we need
+	 * @from is always decremented if it is analt %NULL. So, as we need
 	 * to get all devices up to null, we need to do a get for the device
 	 */
 	pci_dev_get(pdev);
@@ -1439,7 +1439,7 @@ static int i7core_get_all_devices(void)
 						break;
 					}
 					i7core_put_all_devices();
-					return -ENODEV;
+					return -EANALDEV;
 				}
 			} while (pdev);
 		}
@@ -1475,32 +1475,32 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 				goto error;
 			pvt->pci_ch[slot - 4][func] = pdev;
 		} else if (!slot && !func) {
-			pvt->pci_noncore = pdev;
+			pvt->pci_analncore = pdev;
 
 			/* Detect the processor family */
 			switch (pdev->device) {
-			case PCI_DEVICE_ID_INTEL_I7_NONCORE:
+			case PCI_DEVICE_ID_INTEL_I7_ANALNCORE:
 				family = "Xeon 35xx/ i7core";
 				pvt->enable_scrub = false;
 				break;
-			case PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT:
+			case PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE_ALT:
 				family = "i7-800/i5-700";
 				pvt->enable_scrub = false;
 				break;
-			case PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE:
+			case PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE:
 				family = "Xeon 34xx";
 				pvt->enable_scrub = false;
 				break;
-			case PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT:
+			case PCI_DEVICE_ID_INTEL_I7_ANALNCORE_ALT:
 				family = "Xeon 55xx";
 				pvt->enable_scrub = true;
 				break;
-			case PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_REV2:
+			case PCI_DEVICE_ID_INTEL_LYNNFIELD_ANALNCORE_REV2:
 				family = "Xeon 56xx / i7-900";
 				pvt->enable_scrub = true;
 				break;
 			default:
-				family = "unknown";
+				family = "unkanalwn";
 				pvt->enable_scrub = false;
 			}
 			edac_dbg(0, "Detected a processor type %s\n", family);
@@ -1537,7 +1537,7 @@ static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	int add0 = 0, add1 = 0, add2 = 0;
-	/* Updates CE counters if it is not the first time here */
+	/* Updates CE counters if it is analt the first time here */
 	if (pvt->ce_count_available) {
 		/* Updates CE counters */
 
@@ -1631,7 +1631,7 @@ static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci)
 	int new0, new1, new2;
 
 	if (!pvt->pci_mcr[4]) {
-		edac_dbg(0, "MCR registers not found\n");
+		edac_dbg(0, "MCR registers analt found\n");
 		return;
 	}
 
@@ -1644,7 +1644,7 @@ static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci)
 	new1 = DIMM1_COR_ERR(rcv0);
 	new0 = DIMM0_COR_ERR(rcv0);
 
-	/* Updates CE counters if it is not the first time here */
+	/* Updates CE counters if it is analt the first time here */
 	if (pvt->ce_count_available) {
 		/* Updates CE counters */
 		int add0, add1, add2;
@@ -1767,7 +1767,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "byte enable parity error";
 		break;
 	default:
-		err = "unknown";
+		err = "unkanalwn";
 	}
 
 	/*
@@ -1795,7 +1795,7 @@ static void i7core_check_error(struct mem_ctl_info *mci, struct mce *m)
 	i7core_mce_output_error(mci, m);
 
 	/*
-	 * Now, let's increment CE error counts
+	 * Analw, let's increment CE error counts
 	 */
 	if (!pvt->is_registered)
 		i7core_udimm_check_mc_ecc_err(mci);
@@ -1807,7 +1807,7 @@ static void i7core_check_error(struct mem_ctl_info *mci, struct mce *m)
  * Check that logging is enabled and that this is the right type
  * of error for us to handle.
  */
-static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
+static int i7core_mce_check_error(struct analtifier_block *nb, unsigned long val,
 				  void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -1816,7 +1816,7 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 
 	i7_dev = get_i7core_dev(mce->socketid);
 	if (!i7_dev || (mce->kflags & MCE_HANDLED_CEC))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mci = i7_dev->mci;
 
@@ -1825,21 +1825,21 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	 * outside the memory controller
 	 */
 	if (((mce->status & 0xffff) >> 7) != 1)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
-	/* Bank 8 registers are the only ones that we know how to handle */
+	/* Bank 8 registers are the only ones that we kanalw how to handle */
 	if (mce->bank != 8)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	i7core_check_error(mci, mce);
 
 	/* Advise mcelog that the errors were handled */
 	mce->kflags |= MCE_HANDLED_EDAC;
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block i7_mce_dec = {
-	.notifier_call	= i7core_mce_check_error,
+static struct analtifier_block i7_mce_dec = {
+	.analtifier_call	= i7core_mce_check_error,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -1870,7 +1870,7 @@ struct memdev_dmi_entry {
 
 
 /*
- * Decode the DRAM Clock Frequency, be paranoid, make sure that all
+ * Decode the DRAM Clock Frequency, be paraanalid, make sure that all
  * memory devices show the same speed, and if they don't then consider
  * all speeds to be invalid.
  */
@@ -1964,7 +1964,7 @@ static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 new_bw)
 	/* Get data from the MC register, function 2 */
 	pdev = pvt->pci_mcr[2];
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_read_config_dword(pdev, MC_SCRUB_CONTROL, &dw_scrub);
 
@@ -2028,7 +2028,7 @@ static int get_sdram_scrub_rate(struct mem_ctl_info *mci)
 	/* Get data from the MC register, function 2 */
 	pdev = pvt->pci_mcr[2];
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get current scrub control data */
 	pci_read_config_dword(pdev, MC_SCRUB_CONTROL, &scrubval);
@@ -2051,9 +2051,9 @@ static void enable_sdram_scrub_setting(struct mem_ctl_info *mci)
 	u32 pci_lock;
 
 	/* Unlock writes to pci registers */
-	pci_read_config_dword(pvt->pci_noncore, MC_CFG_CONTROL, &pci_lock);
+	pci_read_config_dword(pvt->pci_analncore, MC_CFG_CONTROL, &pci_lock);
 	pci_lock &= ~0x3;
-	pci_write_config_dword(pvt->pci_noncore, MC_CFG_CONTROL,
+	pci_write_config_dword(pvt->pci_analncore, MC_CFG_CONTROL,
 			       pci_lock | MC_CFG_UNLOCK);
 
 	mci->set_sdram_scrub_rate = set_sdram_scrub_rate;
@@ -2066,9 +2066,9 @@ static void disable_sdram_scrub_setting(struct mem_ctl_info *mci)
 	u32 pci_lock;
 
 	/* Lock writes to pci registers */
-	pci_read_config_dword(pvt->pci_noncore, MC_CFG_CONTROL, &pci_lock);
+	pci_read_config_dword(pvt->pci_analncore, MC_CFG_CONTROL, &pci_lock);
 	pci_lock &= ~0x3;
-	pci_write_config_dword(pvt->pci_noncore, MC_CFG_CONTROL,
+	pci_write_config_dword(pvt->pci_analncore, MC_CFG_CONTROL,
 			       pci_lock | MC_CFG_LOCK);
 }
 
@@ -2116,7 +2116,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	/* Disable EDAC polling */
 	i7core_pci_ctl_release(pvt);
 
-	/* Remove MC sysfs nodes */
+	/* Remove MC sysfs analdes */
 	i7core_delete_sysfs_devices(mci);
 	edac_mc_del_mc(mci->pdev);
 
@@ -2144,7 +2144,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	mci = edac_mc_alloc(i7core_dev->socket, ARRAY_SIZE(layers), layers,
 			    sizeof(*pvt));
 	if (unlikely(!mci))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	edac_dbg(0, "MC: mci = %p, dev = %p\n", mci, &i7core_dev->pdev[0]->dev);
 
@@ -2161,13 +2161,13 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	 * memory channels
 	 */
 	mci->mtype_cap = MEM_FLAG_DDR3;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE;
-	mci->edac_cap = EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE;
+	mci->edac_cap = EDAC_FLAG_ANALNE;
 	mci->mod_name = "i7core_edac.c";
 
 	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d", i7core_dev->socket);
 	if (!mci->ctl_name) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail1;
 	}
 
@@ -2200,7 +2200,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 		goto fail0;
 	}
 	if (i7core_create_sysfs_devices(mci)) {
-		edac_dbg(0, "MC: failed to create sysfs nodes\n");
+		edac_dbg(0, "MC: failed to create sysfs analdes\n");
 		edac_mc_del_mc(mci->pdev);
 		rc = -EINVAL;
 		goto fail0;
@@ -2252,7 +2252,7 @@ static int i7core_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	if (unlikely(probed >= 1)) {
 		mutex_unlock(&i7core_edac_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	probed++;
 
@@ -2269,14 +2269,14 @@ static int i7core_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/*
 	 * Nehalem-EX uses a different memory controller. However, as the
-	 * memory controller is not visible on some Nehalem/Nehalem-EP, we
+	 * memory controller is analt visible on some Nehalem/Nehalem-EP, we
 	 * need to indirectly probe via a X58 PCI device. The same devices
 	 * are found on (some) Nehalem-EX. So, on those machines, the
-	 * probe routine needs to return -ENODEV, as the actual Memory
+	 * probe routine needs to return -EANALDEV, as the actual Memory
 	 * Controller registers won't be detected.
 	 */
 	if (!count) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto fail1;
 	}
 

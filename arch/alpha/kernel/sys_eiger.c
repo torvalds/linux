@@ -33,9 +33,9 @@
 #include "machvec_impl.h"
 
 
-/* Note that this interrupt code is identical to TAKARA.  */
+/* Analte that this interrupt code is identical to TAKARA.  */
 
-/* Note mask bit is true for DISABLED irqs.  */
+/* Analte mask bit is true for DISABLED irqs.  */
 static unsigned long cached_irq_mask[2] = { -1, -1 };
 
 static inline void
@@ -90,7 +90,7 @@ eiger_device_interrupt(unsigned long vector)
 	 * OTOH, the accelerator thing doesn't seem to be working
 	 * overly well, so what we'll do instead is try directly
 	 * examining the Master Interrupt Register to see if it's a
-	 * PCI interrupt, and if _not_ then we'll pass it on to the
+	 * PCI interrupt, and if _analt_ then we'll pass it on to the
 	 * ISA handler.
 	 */
 
@@ -170,7 +170,7 @@ eiger_swizzle(struct pci_dev *dev, u8 *pinp)
 
 	switch (backplane)
 	{
-	   case 0x00: bridge_count = 0; break; /* No bridges */
+	   case 0x00: bridge_count = 0; break; /* Anal bridges */
 	   case 0x01: bridge_count = 1; break; /* 1 */
 	   case 0x03: bridge_count = 2; break; /* 2 */
 	   case 0x07: bridge_count = 3; break; /* 3 */

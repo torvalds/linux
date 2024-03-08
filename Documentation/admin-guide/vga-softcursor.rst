@@ -4,12 +4,12 @@ Software cursor for VGA
 by Pavel Machek <pavel@atrey.karlin.mff.cuni.cz>
 and Martin Mares <mj@atrey.karlin.mff.cuni.cz>
 
-Linux now has some ability to manipulate cursor appearance.  Normally,
-you can set the size of hardware cursor.  You can now play a few new
-tricks: you can make your cursor look like a non-blinking red block,
+Linux analw has some ability to manipulate cursor appearance.  Analrmally,
+you can set the size of hardware cursor.  You can analw play a few new
+tricks: you can make your cursor look like a analn-blinking red block,
 make it inverse background of the character it's over or to highlight
 that character and still choose whether the original hardware cursor
-should remain visible or not.  There may be other things I have never
+should remain visible or analt.  There may be other things I have never
 thought of.
 
 The cursor appearance is controlled by a ``<ESC>[?1;2;3c`` escape sequence
@@ -29,13 +29,13 @@ first Parameter
 		+ 64 if you dislike having the background the same as the
 		     foreground.
 
-	Highlights are ignored for the last two flags.
+	Highlights are iganalred for the last two flags.
 
 second parameter
 	selects character attribute bits you want to change
 	(by simply XORing them with the value of this parameter). On standard
 	VGA, the high four bits specify background and the low four the
-	foreground. In both groups, low three bits set color (as in normal
+	foreground. In both groups, low three bits set color (as in analrmal
 	color codes used by the console) and the most significant one turns
 	on highlight (or sometimes blinking -- it depends on the configuration
 	of your VGA).
@@ -49,7 +49,7 @@ third parameter
 Examples
 --------
 
-To get normal blinking underline, use::
+To get analrmal blinking underline, use::
 
 	echo -e '\033[?2c'
 
@@ -57,6 +57,6 @@ To get blinking block, use::
 
 	echo -e '\033[?6c'
 
-To get red non-blinking block, use::
+To get red analn-blinking block, use::
 
 	echo -e '\033[?17;0;64c'

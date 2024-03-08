@@ -32,7 +32,7 @@
 		current->comm, task_pid_nr(current), sb->s_id,		\
 	       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #else
-#define mb_debug(sb, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define mb_debug(sb, fmt, ...)	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */
@@ -102,7 +102,7 @@ struct ext4_free_data {
 	struct list_head		efd_list;
 
 	/* this links the free block information from group_info */
-	struct rb_node			efd_node;
+	struct rb_analde			efd_analde;
 
 	/* group which free block extent belongs */
 	ext4_group_t			efd_group;
@@ -117,9 +117,9 @@ struct ext4_free_data {
 
 struct ext4_prealloc_space {
 	union {
-		struct rb_node	inode_node;		/* for inode PA rbtree */
+		struct rb_analde	ianalde_analde;		/* for ianalde PA rbtree */
 		struct list_head	lg_list;	/* for lg PAs */
-	} pa_node;
+	} pa_analde;
 	struct list_head	pa_group_list;
 	union {
 		struct list_head pa_tmp_list;
@@ -132,16 +132,16 @@ struct ext4_prealloc_space {
 	ext4_lblk_t		pa_lstart;	/* log. block */
 	ext4_grpblk_t		pa_len;		/* len of preallocated chunk */
 	ext4_grpblk_t		pa_free;	/* how many blocks are free */
-	unsigned short		pa_type;	/* pa type. inode or group */
+	unsigned short		pa_type;	/* pa type. ianalde or group */
 	union {
-		rwlock_t		*inode_lock;	/* locks the rbtree holding this PA */
+		rwlock_t		*ianalde_lock;	/* locks the rbtree holding this PA */
 		spinlock_t		*lg_lock;	/* locks the lg list holding this PA */
-	} pa_node_lock;
-	struct inode		*pa_inode;	/* used to get the inode during group discard */
+	} pa_analde_lock;
+	struct ianalde		*pa_ianalde;	/* used to get the ianalde during group discard */
 };
 
 enum {
-	MB_INODE_PA = 0,
+	MB_IANALDE_PA = 0,
 	MB_GROUP_PA = 1
 };
 
@@ -171,13 +171,13 @@ struct ext4_locality_group {
 };
 
 struct ext4_allocation_context {
-	struct inode *ac_inode;
+	struct ianalde *ac_ianalde;
 	struct super_block *ac_sb;
 
 	/* original request */
 	struct ext4_free_extent ac_o_ex;
 
-	/* goal request (normalized ac_o_ex) */
+	/* goal request (analrmalized ac_o_ex) */
 	struct ext4_free_extent ac_g_ex;
 
 	/* the best found extent */
@@ -228,7 +228,7 @@ struct ext4_buddy {
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	return ext4_group_first_block_no(sb, fex->fe_group) +
+	return ext4_group_first_block_anal(sb, fex->fe_group) +
 		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
 
@@ -248,7 +248,7 @@ static inline loff_t pa_logical_end(struct ext4_sb_info *sbi,
 
 typedef int (*ext4_mballoc_query_range_fn)(
 	struct super_block		*sb,
-	ext4_group_t			agno,
+	ext4_group_t			aganal,
 	ext4_grpblk_t			start,
 	ext4_grpblk_t			len,
 	void				*priv);
@@ -256,7 +256,7 @@ typedef int (*ext4_mballoc_query_range_fn)(
 int
 ext4_mballoc_query_range(
 	struct super_block		*sb,
-	ext4_group_t			agno,
+	ext4_group_t			aganal,
 	ext4_grpblk_t			start,
 	ext4_grpblk_t			end,
 	ext4_mballoc_query_range_fn	formatter,

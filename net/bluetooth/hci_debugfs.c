@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -630,12 +630,12 @@ void hci_debugfs_create_bredr(struct hci_dev *hdev)
 	debugfs_create_file("voice_setting", 0444, hdev->debugfs, hdev,
 			    &voice_setting_fops);
 
-	/* If the controller does not support BR/EDR Secure Connections
-	 * feature, then the BR/EDR SMP channel shall not be present.
+	/* If the controller does analt support BR/EDR Secure Connections
+	 * feature, then the BR/EDR SMP channel shall analt be present.
 	 *
 	 * To test this with Bluetooth 4.0 controllers, create a debugfs
 	 * switch that allows forcing BR/EDR SMP support and accepting
-	 * cross-transport pairing on non-AES encrypted connections.
+	 * cross-transport pairing on analn-AES encrypted connections.
 	 */
 	if (!lmp_sc_capable(hdev))
 		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
@@ -1131,20 +1131,20 @@ DEFINE_DEBUGFS_ATTRIBUTE(auth_payload_timeout_fops,
 			  auth_payload_timeout_get,
 			  auth_payload_timeout_set, "%llu\n");
 
-static ssize_t force_no_mitm_read(struct file *file,
+static ssize_t force_anal_mitm_read(struct file *file,
 				  char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = hci_dev_test_flag(hdev, HCI_FORCE_NO_MITM) ? 'Y' : 'N';
+	buf[0] = hci_dev_test_flag(hdev, HCI_FORCE_ANAL_MITM) ? 'Y' : 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
 }
 
-static ssize_t force_no_mitm_write(struct file *file,
+static ssize_t force_anal_mitm_write(struct file *file,
 				   const char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -1160,18 +1160,18 @@ static ssize_t force_no_mitm_write(struct file *file,
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_NO_MITM))
+	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_ANAL_MITM))
 		return -EALREADY;
 
-	hci_dev_change_flag(hdev, HCI_FORCE_NO_MITM);
+	hci_dev_change_flag(hdev, HCI_FORCE_ANAL_MITM);
 
 	return count;
 }
 
-static const struct file_operations force_no_mitm_fops = {
+static const struct file_operations force_anal_mitm_fops = {
 	.open		= simple_open,
-	.read		= force_no_mitm_read,
-	.write		= force_no_mitm_write,
+	.read		= force_anal_mitm_read,
+	.write		= force_anal_mitm_write,
 	.llseek		= default_llseek,
 };
 
@@ -1234,8 +1234,8 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 			    &max_key_size_fops);
 	debugfs_create_file("auth_payload_timeout", 0644, hdev->debugfs, hdev,
 			    &auth_payload_timeout_fops);
-	debugfs_create_file("force_no_mitm", 0644, hdev->debugfs, hdev,
-			    &force_no_mitm_fops);
+	debugfs_create_file("force_anal_mitm", 0644, hdev->debugfs, hdev,
+			    &force_anal_mitm_fops);
 
 	debugfs_create_file("quirk_strict_duplicate_filter", 0644,
 			    hdev->debugfs, hdev,
@@ -1336,12 +1336,12 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 	if (err)
 		return err;
 
-	/* When the diagnostic flags are not persistent and the transport
-	 * is not active or in user channel operation, then there is no need
+	/* When the diaganalstic flags are analt persistent and the transport
+	 * is analt active or in user channel operation, then there is anal need
 	 * for the vendor callback. Instead just store the desired value and
 	 * the setting will be programmed when the controller gets powered on.
 	 */
-	if (test_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks) &&
+	if (test_bit(HCI_QUIRK_ANALN_PERSISTENT_DIAG, &hdev->quirks) &&
 	    (!test_bit(HCI_RUNNING, &hdev->flags) ||
 	     hci_dev_test_flag(hdev, HCI_USER_CHANNEL)))
 		goto done;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -39,7 +39,7 @@
 			HINIC_MBOX_INT_##field##_SHIFT)
 
 enum hinic_mbox_tx_status {
-	TX_NOT_DONE = 1,
+	TX_ANALT_DONE = 1,
 };
 
 #define HINIC_MBOX_CTRL_TRIGGER_AEQE_SHIFT			0
@@ -60,7 +60,7 @@ enum hinic_mbox_tx_status {
 #define HINIC_MBOX_HEADER_MSG_LEN_SHIFT				0
 #define HINIC_MBOX_HEADER_MODULE_SHIFT				11
 #define HINIC_MBOX_HEADER_SEG_LEN_SHIFT				16
-#define HINIC_MBOX_HEADER_NO_ACK_SHIFT				22
+#define HINIC_MBOX_HEADER_ANAL_ACK_SHIFT				22
 #define HINIC_MBOX_HEADER_SEQID_SHIFT				24
 #define HINIC_MBOX_HEADER_LAST_SHIFT				30
 
@@ -77,7 +77,7 @@ enum hinic_mbox_tx_status {
 #define HINIC_MBOX_HEADER_MSG_LEN_MASK				0x7FF
 #define HINIC_MBOX_HEADER_MODULE_MASK				0x1F
 #define HINIC_MBOX_HEADER_SEG_LEN_MASK				0x3F
-#define HINIC_MBOX_HEADER_NO_ACK_MASK				0x1
+#define HINIC_MBOX_HEADER_ANAL_ACK_MASK				0x1
 #define HINIC_MBOX_HEADER_SEQID_MASK				0x3F
 #define HINIC_MBOX_HEADER_LAST_MASK				0x1
 #define HINIC_MBOX_HEADER_DIRECTION_MASK			0x1
@@ -117,10 +117,10 @@ enum hinic_mbox_tx_status {
 #define MBOX_WB_STATUS_MASK			0xFF
 #define MBOX_WB_ERROR_CODE_MASK			0xFF00
 #define MBOX_WB_STATUS_FINISHED_SUCCESS		0xFF
-#define MBOX_WB_STATUS_NOT_FINISHED		0x00
+#define MBOX_WB_STATUS_ANALT_FINISHED		0x00
 
 #define MBOX_STATUS_FINISHED(wb)	\
-	(((wb) & MBOX_WB_STATUS_MASK) != MBOX_WB_STATUS_NOT_FINISHED)
+	(((wb) & MBOX_WB_STATUS_MASK) != MBOX_WB_STATUS_ANALT_FINISHED)
 #define MBOX_STATUS_SUCCESS(wb)		\
 	(((wb) & MBOX_WB_STATUS_MASK) == MBOX_WB_STATUS_FINISHED_SUCCESS)
 #define MBOX_STATUS_ERRCODE(wb)		\
@@ -129,12 +129,12 @@ enum hinic_mbox_tx_status {
 #define SEQ_ID_START_VAL			0
 #define SEQ_ID_MAX_VAL				42
 
-#define NO_DMA_ATTRIBUTE_VAL			0
+#define ANAL_DMA_ATTRIBUTE_VAL			0
 
 #define HINIC_MBOX_RSP_AEQN			2
 #define HINIC_MBOX_RECV_AEQN			0
 
-#define MBOX_MSG_NO_DATA_LEN			1
+#define MBOX_MSG_ANAL_DATA_LEN			1
 
 #define MBOX_BODY_FROM_HDR(header)	((u8 *)(header) + MBOX_HEADER_SZ)
 #define MBOX_AREA(hwif)			\
@@ -166,7 +166,7 @@ enum mbox_send_mod {
 };
 
 enum mbox_seg_type {
-	NOT_LAST_SEG,
+	ANALT_LAST_SEG,
 	LAST_SEG,
 };
 
@@ -179,7 +179,7 @@ enum mbox_write_back_type {
 };
 
 enum mbox_aeq_trig_type {
-	NOT_TRIGGER,
+	ANALT_TRIGGER,
 	TRIGGER,
 };
 
@@ -199,7 +199,7 @@ static bool check_func_id(struct hinic_hwdev *hwdev, u16 src_func_idx,
 
 	if (src_func_idx != func_idx) {
 		dev_warn(&hwdev->hwif->pdev->dev,
-			 "Receive mailbox function id: 0x%x not equal to msg function id: 0x%x\n",
+			 "Receive mailbox function id: 0x%x analt equal to msg function id: 0x%x\n",
 			 src_func_idx, func_idx);
 		return false;
 	}
@@ -320,7 +320,7 @@ static int recv_vf_mbox_handler(struct hinic_mbox_func_to_func *func_to_func,
 		cb(func_to_func->hwdev, recv_mbox->cmd, recv_mbox->mbox,
 		   recv_mbox->mbox_len, buf_out, out_size);
 	} else {
-		dev_err(&func_to_func->hwif->pdev->dev, "VF mbox cb is not registered\n");
+		dev_err(&func_to_func->hwif->pdev->dev, "VF mbox cb is analt registered\n");
 		ret = -EINVAL;
 	}
 
@@ -358,7 +358,7 @@ recv_pf_from_vf_mbox_handler(struct hinic_mbox_func_to_func *func_to_func,
 			 recv_mbox->mbox, recv_mbox->mbox_len,
 			 buf_out, out_size);
 	} else {
-		dev_err(&func_to_func->hwif->pdev->dev, "PF mbox mod(0x%x) cb is not registered\n",
+		dev_err(&func_to_func->hwif->pdev->dev, "PF mbox mod(0x%x) cb is analt registered\n",
 			recv_mbox->mod);
 		ret = -EINVAL;
 	}
@@ -456,7 +456,7 @@ static void recv_mbox_handler(struct hinic_mbox_func_to_func *func_to_func,
 	recv_mbox->cmd = HINIC_MBOX_HEADER_GET(mbox_header, CMD);
 	recv_mbox->mod = HINIC_MBOX_HEADER_GET(mbox_header, MODULE);
 	recv_mbox->mbox_len = HINIC_MBOX_HEADER_GET(mbox_header, MSG_LEN);
-	recv_mbox->ack_type = HINIC_MBOX_HEADER_GET(mbox_header, NO_ACK);
+	recv_mbox->ack_type = HINIC_MBOX_HEADER_GET(mbox_header, ANAL_ACK);
 	recv_mbox->msg_info.msg_id = HINIC_MBOX_HEADER_GET(mbox_header, MSG_ID);
 	recv_mbox->msg_info.status = HINIC_MBOX_HEADER_GET(mbox_header, STATUS);
 	recv_mbox->seq_id = SEQ_ID_MAX_VAL;
@@ -706,7 +706,7 @@ static void write_mbox_msg_attr(struct hinic_mbox_func_to_func *func_to_func,
 	mbox_int = HINIC_MBOX_INT_SET(dst_func, DST_FUNC) |
 		   HINIC_MBOX_INT_SET(dst_aeqn, DST_AEQN) |
 		   HINIC_MBOX_INT_SET(rsp_aeq, SRC_RESP_AEQN) |
-		   HINIC_MBOX_INT_SET(NO_DMA_ATTRIBUTE_VAL, STAT_DMA) |
+		   HINIC_MBOX_INT_SET(ANAL_DMA_ATTRIBUTE_VAL, STAT_DMA) |
 		   HINIC_MBOX_INT_SET(ALIGN(MBOX_SEG_LEN + MBOX_HEADER_SZ +
 				      MBOX_INFO_SZ, MBOX_SEG_LEN_ALIGN) >> 2,
 				      TX_SIZE) |
@@ -717,10 +717,10 @@ static void write_mbox_msg_attr(struct hinic_mbox_func_to_func *func_to_func,
 			     HINIC_FUNC_CSR_MAILBOX_INT_OFFSET_OFF, mbox_int);
 
 	wmb(); /* writing the mbox int attributes */
-	mbox_ctrl = HINIC_MBOX_CTRL_SET(TX_NOT_DONE, TX_STATUS);
+	mbox_ctrl = HINIC_MBOX_CTRL_SET(TX_ANALT_DONE, TX_STATUS);
 
 	if (poll)
-		mbox_ctrl |= HINIC_MBOX_CTRL_SET(NOT_TRIGGER, TRIGGER_AEQE);
+		mbox_ctrl |= HINIC_MBOX_CTRL_SET(ANALT_TRIGGER, TRIGGER_AEQE);
 	else
 		mbox_ctrl |= HINIC_MBOX_CTRL_SET(TRIGGER, TRIGGER_AEQE);
 
@@ -856,9 +856,9 @@ static int send_mbox_to_func(struct hinic_mbox_func_to_func *func_to_func,
 	header = HINIC_MBOX_HEADER_SET(msg_len, MSG_LEN) |
 		 HINIC_MBOX_HEADER_SET(mod, MODULE) |
 		 HINIC_MBOX_HEADER_SET(seg_len, SEG_LEN) |
-		 HINIC_MBOX_HEADER_SET(ack_type, NO_ACK) |
+		 HINIC_MBOX_HEADER_SET(ack_type, ANAL_ACK) |
 		 HINIC_MBOX_HEADER_SET(SEQ_ID_START_VAL, SEQID) |
-		 HINIC_MBOX_HEADER_SET(NOT_LAST_SEG, LAST) |
+		 HINIC_MBOX_HEADER_SET(ANALT_LAST_SEG, LAST) |
 		 HINIC_MBOX_HEADER_SET(direction, DIRECTION) |
 		 HINIC_MBOX_HEADER_SET(cmd, CMD) |
 		 /* The vf's offset to it's associated pf */
@@ -915,9 +915,9 @@ response_for_recv_func_mbox(struct hinic_mbox_func_to_func *func_to_func,
 		else if (err)
 			msg_info.status = HINIC_MBOX_PF_SEND_ERR;
 
-		/* if no data needs to response, set out_size to 1 */
+		/* if anal data needs to response, set out_size to 1 */
 		if (!out_size || err)
-			out_size = MBOX_MSG_NO_DATA_LEN;
+			out_size = MBOX_MSG_ANAL_DATA_LEN;
 
 		send_mbox_to_func(func_to_func, recv_mbox->mod, recv_mbox->cmd,
 				  recv_mbox->buf_out, out_size, src_func_idx,
@@ -1126,11 +1126,11 @@ static int init_mbox_info(struct hinic_recv_mbox *mbox_info)
 
 	mbox_info->mbox = kzalloc(MBOX_MAX_BUF_SZ, GFP_KERNEL);
 	if (!mbox_info->mbox)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mbox_info->buf_out = kzalloc(MBOX_MAX_BUF_SZ, GFP_KERNEL);
 	if (!mbox_info->buf_out) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc_buf_out;
 	}
 
@@ -1200,7 +1200,7 @@ static int alloc_mbox_wb_status(struct hinic_mbox_func_to_func *func_to_func)
 						 &send_mbox->wb_paddr,
 						 GFP_KERNEL);
 	if (!send_mbox->wb_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	send_mbox->wb_status = send_mbox->wb_vaddr;
 
@@ -1404,7 +1404,7 @@ int hinic_func_to_func_init(struct hinic_hwdev *hwdev)
 	pfhwdev =  container_of(hwdev, struct hinic_pfhwdev, hwdev);
 	func_to_func = kzalloc(sizeof(*func_to_func), GFP_KERNEL);
 	if (!func_to_func)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwdev->func_to_func = func_to_func;
 	func_to_func->hwdev = hwdev;
@@ -1415,7 +1415,7 @@ int hinic_func_to_func_init(struct hinic_hwdev *hwdev)
 	func_to_func->workq = create_singlethread_workqueue(HINIC_MBOX_WQ_NAME);
 	if (!func_to_func->workq) {
 		dev_err(&hwdev->hwif->pdev->dev, "Failed to initialize MBOX workqueue\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_create_mbox_workq;
 	}
 

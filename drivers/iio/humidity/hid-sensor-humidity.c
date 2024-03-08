@@ -201,7 +201,7 @@ static int hid_humidity_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*humid_st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	humid_st = iio_priv(indio_dev);
 	humid_st->common_attributes.hsdev = hsdev;
@@ -218,7 +218,7 @@ static int hid_humidity_probe(struct platform_device *pdev)
 	humid_chans = devm_kmemdup(&indio_dev->dev, humidity_channels,
 					sizeof(humidity_channels), GFP_KERNEL);
 	if (!humid_chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = humidity_parse_report(pdev, hsdev, humid_chans,
 				HID_USAGE_SENSOR_HUMIDITY, humid_st);

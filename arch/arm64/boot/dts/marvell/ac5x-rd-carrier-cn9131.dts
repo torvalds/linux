@@ -6,7 +6,7 @@
  * Utilizing the CN913x COM Express CPU module board.
  * This specific carrier board in this mode of operation (external)
  * only maintains a PCIe link with the CPU module,
- * which does not require any special DTS definitions.
+ * which does analt require any special DTS definitions.
  *
  * AC5X RD works here in external mode (switch selectable at the back of the
  * board), and connect via an external cable a kit
@@ -18,9 +18,9 @@
  *
  * When the board boots in the external CPU mode, the internal CPU is disabled,
  * and only the switch portion of the SOC acts as a PCIe end-point, Hence there
- * is no need to describe this internal (disabled CPU) in the device tree.
+ * is anal need to describe this internal (disabled CPU) in the device tree.
  *
- * There is no CPU booting in this mode on the carrier, only on the
+ * There is anal CPU booting in this mode on the carrier, only on the
  * CN9131 COM Express CPU module.
  * What runs the Linux is the CN9131 on the COM Express CPU module,
  * And it accesses the switch end-point on the AC5X RD portion of the carrier

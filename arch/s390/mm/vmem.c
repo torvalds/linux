@@ -14,7 +14,7 @@
 #include <linux/sort.h>
 #include <asm/page-states.h>
 #include <asm/cacheflush.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/ctlreg.h>
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
@@ -82,7 +82,7 @@ static void vmem_pte_free(unsigned long *table)
 #define PAGE_UNUSED 0xFD
 
 /*
- * The unused vmemmap range, which was not yet memset(PAGE_UNUSED) ranges
+ * The unused vmemmap range, which was analt yet memset(PAGE_UNUSED) ranges
  * from unused_sub_pmd_start to next PMD_SIZE boundary.
  */
 static unsigned long unused_sub_pmd_start;
@@ -159,24 +159,24 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, bool add, bool direct)
 {
 	unsigned long prot, pages = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	pte_t *pte;
 
 	prot = pgprot_val(PAGE_KERNEL);
 	if (!MACHINE_HAS_NX)
-		prot &= ~_PAGE_NOEXEC;
+		prot &= ~_PAGE_ANALEXEC;
 
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
 		if (!add) {
-			if (pte_none(*pte))
+			if (pte_analne(*pte))
 				continue;
 			if (!direct)
 				vmem_free_pages((unsigned long) pfn_to_virt(pte_pfn(*pte)), 0);
 			pte_clear(&init_mm, addr, pte);
-		} else if (pte_none(*pte)) {
+		} else if (pte_analne(*pte)) {
 			if (!direct) {
-				void *new_page = vmemmap_alloc_block(PAGE_SIZE, NUMA_NO_NODE);
+				void *new_page = vmemmap_alloc_block(PAGE_SIZE, NUMA_ANAL_ANALDE);
 
 				if (!new_page)
 					goto out;
@@ -204,7 +204,7 @@ static void try_free_pte_table(pmd_t *pmd, unsigned long start)
 	/* We can safely assume this is fully in 1:1 mapping & vmemmap area */
 	pte = pte_offset_kernel(pmd, start);
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
-		if (!pte_none(*pte))
+		if (!pte_analne(*pte))
 			return;
 	}
 	vmem_pte_free((unsigned long *) pmd_deref(*pmd));
@@ -216,19 +216,19 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				  unsigned long end, bool add, bool direct)
 {
 	unsigned long next, prot, pages = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	prot = pgprot_val(SEGMENT_KERNEL);
 	if (!MACHINE_HAS_NX)
-		prot &= ~_SEGMENT_ENTRY_NOEXEC;
+		prot &= ~_SEGMENT_ENTRY_ANALEXEC;
 
 	pmd = pmd_offset(pud, addr);
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
 		if (!add) {
-			if (pmd_none(*pmd))
+			if (pmd_analne(*pmd))
 				continue;
 			if (pmd_large(*pmd)) {
 				if (IS_ALIGNED(addr, PMD_SIZE) &&
@@ -243,7 +243,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				}
 				continue;
 			}
-		} else if (pmd_none(*pmd)) {
+		} else if (pmd_analne(*pmd)) {
 			if (IS_ALIGNED(addr, PMD_SIZE) &&
 			    IS_ALIGNED(next, PMD_SIZE) &&
 			    MACHINE_HAS_EDAT1 && direct &&
@@ -261,7 +261,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 * page tables since vmemmap_populate gets
 				 * called for each section separately.
 				 */
-				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_NO_NODE);
+				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_ANAL_ANALDE);
 				if (new_page) {
 					set_pmd(pmd, __pmd(__pa(new_page) | prot));
 					if (!IS_ALIGNED(addr, PMD_SIZE) ||
@@ -300,7 +300,7 @@ static void try_free_pmd_table(pud_t *pud, unsigned long start)
 
 	pmd = pmd_offset(pud, start);
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++)
-		if (!pmd_none(*pmd))
+		if (!pmd_analne(*pmd))
 			return;
 	vmem_free_pages(pud_deref(*pud), CRST_ALLOC_ORDER);
 	pud_clear(pud);
@@ -310,18 +310,18 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			    bool add, bool direct)
 {
 	unsigned long next, prot, pages = 0;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	pud_t *pud;
 	pmd_t *pmd;
 
 	prot = pgprot_val(REGION3_KERNEL);
 	if (!MACHINE_HAS_NX)
-		prot &= ~_REGION_ENTRY_NOEXEC;
+		prot &= ~_REGION_ENTRY_ANALEXEC;
 	pud = pud_offset(p4d, addr);
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
 		if (!add) {
-			if (pud_none(*pud))
+			if (pud_analne(*pud))
 				continue;
 			if (pud_large(*pud)) {
 				if (IS_ALIGNED(addr, PUD_SIZE) &&
@@ -331,7 +331,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 				}
 				continue;
 			}
-		} else if (pud_none(*pud)) {
+		} else if (pud_analne(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
 			    IS_ALIGNED(next, PUD_SIZE) &&
 			    MACHINE_HAS_EDAT2 && direct &&
@@ -367,7 +367,7 @@ static void try_free_pud_table(p4d_t *p4d, unsigned long start)
 
 	pud = pud_offset(p4d, start);
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
-		if (!pud_none(*pud))
+		if (!pud_analne(*pud))
 			return;
 	}
 	vmem_free_pages(p4d_deref(*p4d), CRST_ALLOC_ORDER);
@@ -378,7 +378,7 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 			    bool add, bool direct)
 {
 	unsigned long next;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	p4d_t *p4d;
 	pud_t *pud;
 
@@ -386,9 +386,9 @@ static int modify_p4d_table(pgd_t *pgd, unsigned long addr, unsigned long end,
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
 		if (!add) {
-			if (p4d_none(*p4d))
+			if (p4d_analne(*p4d))
 				continue;
-		} else if (p4d_none(*p4d)) {
+		} else if (p4d_analne(*p4d)) {
 			pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pud)
 				goto out;
@@ -412,7 +412,7 @@ static void try_free_p4d_table(pgd_t *pgd, unsigned long start)
 
 	p4d = p4d_offset(pgd, start);
 	for (i = 0; i < PTRS_PER_P4D; i++, p4d++) {
-		if (!p4d_none(*p4d))
+		if (!p4d_analne(*p4d))
 			return;
 	}
 	vmem_free_pages(pgd_deref(*pgd), CRST_ALLOC_ORDER);
@@ -423,13 +423,13 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 			    bool direct)
 {
 	unsigned long addr, next;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	pgd_t *pgd;
 	p4d_t *p4d;
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
 		return -EINVAL;
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	/* Don't mess with any tables analt fully in 1:1 mapping & vmemmap area */
 	if (WARN_ON_ONCE(end > VMALLOC_START))
 		return -EINVAL;
 	for (addr = start; addr < end; addr = next) {
@@ -437,9 +437,9 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 		pgd = pgd_offset_k(addr);
 
 		if (!add) {
-			if (pgd_none(*pgd))
+			if (pgd_analne(*pgd))
 				continue;
-		} else if (pgd_none(*pgd)) {
+		} else if (pgd_analne(*pgd)) {
 			p4d = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4d)
 				goto out;
@@ -489,13 +489,13 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 /*
  * Add a backed mem_map array to the virtual mem_map array.
  */
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int analde,
 			       struct vmem_altmap *altmap)
 {
 	int ret;
 
 	mutex_lock(&vmem_mutex);
-	/* We don't care about the node, just use NUMA_NO_NODE on allocations */
+	/* We don't care about the analde, just use NUMA_ANAL_ANALDE on allocations */
 	ret = add_pagetable(start, end, false);
 	if (ret)
 		remove_pagetable(start, end, false);
@@ -550,7 +550,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
 }
 
 /*
- * Allocate new or return existing page-table entry, but do not map it
+ * Allocate new or return existing page-table entry, but do analt map it
  * to any physical address. If missing, allocate segment- and region-
  * table entries along. Meeting a large segment- or region-table entry
  * while traversing is an error, since the function is expected to be
@@ -566,7 +566,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 	pte_t *pte;
 
 	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd)) {
+	if (pgd_analne(*pgd)) {
 		if (!alloc)
 			goto out;
 		p4d = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
@@ -575,7 +575,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 		pgd_populate(&init_mm, pgd, p4d);
 	}
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none(*p4d)) {
+	if (p4d_analne(*p4d)) {
 		if (!alloc)
 			goto out;
 		pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
@@ -584,7 +584,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 		p4d_populate(&init_mm, p4d, pud);
 	}
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
+	if (pud_analne(*pud)) {
 		if (!alloc)
 			goto out;
 		pmd = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
@@ -595,7 +595,7 @@ pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 		goto out;
 	}
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
+	if (pmd_analne(*pmd)) {
 		if (!alloc)
 			goto out;
 		pte = vmem_pte_alloc();
@@ -618,7 +618,7 @@ int __vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot, bo
 		return -EINVAL;
 	ptep = vmem_get_alloc_pte(addr, alloc);
 	if (!ptep)
-		return -ENOMEM;
+		return -EANALMEM;
 	__ptep_ipte(addr, ptep, 0, 0, IPTE_GLOBAL);
 	pte = mk_pte_phys(phys, prot);
 	set_pte(ptep, pte);
@@ -653,7 +653,7 @@ void __init vmem_map_init(void)
 	__set_memory_rox(_sinittext, _einittext);
 	__set_memory_rox(__stext_amode31, __etext_amode31);
 	/*
-	 * If the BEAR-enhancement facility is not installed the first
+	 * If the BEAR-enhancement facility is analt installed the first
 	 * prefix page is used to return to the previous context with
 	 * an LPSWE instruction and therefore must be executable.
 	 */

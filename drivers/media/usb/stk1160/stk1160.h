@@ -144,7 +144,7 @@ struct stk1160 {
 	int width;		  /* current frame width */
 	int height;		  /* current frame height */
 	unsigned int ctl_input;	  /* selected input */
-	v4l2_std_id norm;	  /* current norm */
+	v4l2_std_id analrm;	  /* current analrm */
 	struct stk1160_fmt *fmt;  /* selected format */
 
 	unsigned int sequence;

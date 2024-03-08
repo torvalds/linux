@@ -5,7 +5,7 @@
  * CPU Subtype Probing for SH-4.
  *
  * Copyright (C) 2001 - 2007  Paul Mundt
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curanalw
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -47,8 +47,8 @@ void cpu_probe(void)
 	boot_cpu_data.dcache.ways		= 1;
 	boot_cpu_data.dcache.linesz		= L1_CACHE_BYTES;
 
-	/* We don't know the chip cut */
-	boot_cpu_data.cut_major = boot_cpu_data.cut_minor = -1;
+	/* We don't kanalw the chip cut */
+	boot_cpu_data.cut_major = boot_cpu_data.cut_mianalr = -1;
 
 	/*
 	 * Setup some generic flags we can probe on SH-4A parts
@@ -196,7 +196,7 @@ void cpu_probe(void)
 	}
 
 	/*
-	 * On anything that's not a direct-mapped cache, look to the CVR
+	 * On anything that's analt a direct-mapped cache, look to the CVR
 	 * for I/D-cache specifics.
 	 */
 	if (boot_cpu_data.icache.ways > 1) {
@@ -220,7 +220,7 @@ void cpu_probe(void)
 		/*
 		 * Verify that it really has something hooked up, this
 		 * is the safety net for CPUs that have optional L2
-		 * support yet do not implement it.
+		 * support yet do analt implement it.
 		 */
 		if ((cvr & 0xf) == 0)
 			boot_cpu_data.flags &= ~CPU_HAS_L2_CACHE;

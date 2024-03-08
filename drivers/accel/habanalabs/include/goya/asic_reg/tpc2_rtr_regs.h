@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC2_RTR_REGS_H_
@@ -317,6 +317,6 @@
 
 #define mmTPC2_RTR_SCRAMB_EN                                         0xE80600
 
-#define mmTPC2_RTR_NON_LIN_SCRAMB                                    0xE80604
+#define mmTPC2_RTR_ANALN_LIN_SCRAMB                                    0xE80604
 
 #endif /* ASIC_REG_TPC2_RTR_REGS_H_ */

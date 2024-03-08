@@ -24,7 +24,7 @@
 #define CW_Underflow	Const_(0x0010)	/* underflow mask */
 #define CW_Overflow	Const_(0x0008)	/* overflow mask */
 #define CW_ZeroDiv	Const_(0x0004)	/* divide by zero mask */
-#define CW_Denormal	Const_(0x0002)	/* denormalized operand mask */
+#define CW_Deanalrmal	Const_(0x0002)	/* deanalrmalized operand mask */
 #define CW_Invalid	Const_(0x0001)	/* invalid operation mask */
 
 #define CW_Exceptions  	_Const_(0x003f)	/* all masks */

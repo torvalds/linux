@@ -8,7 +8,7 @@
  * Written by Uday Savagaonkar, 2014.
  * Modified by Jaegeuk Kim, 2015.
  *
- * This has not yet undergone a rigorous security audit.
+ * This has analt yet undergone a rigorous security audit.
  */
 
 #include <linux/namei.h>
@@ -26,51 +26,51 @@
 #define FSCRYPT_FNAME_MIN_MSG_LEN 16
 
 /*
- * struct fscrypt_nokey_name - identifier for directory entry when key is absent
+ * struct fscrypt_analkey_name - identifier for directory entry when key is absent
  *
  * When userspace lists an encrypted directory without access to the key, the
- * filesystem must present a unique "no-key name" for each filename that allows
+ * filesystem must present a unique "anal-key name" for each filename that allows
  * it to find the directory entry again if requested.  Naively, that would just
  * mean using the ciphertext filenames.  However, since the ciphertext filenames
  * can contain illegal characters ('\0' and '/'), they must be encoded in some
  * way.  We use base64url.  But that can cause names to exceed NAME_MAX (255
  * bytes), so we also need to use a strong hash to abbreviate long names.
  *
- * The filesystem may also need another kind of hash, the "dirhash", to quickly
- * find the directory entry.  Since filesystems normally compute the dirhash
- * over the on-disk filename (i.e. the ciphertext), it's not computable from
- * no-key names that abbreviate the ciphertext using the strong hash to fit in
- * NAME_MAX.  It's also not computable if it's a keyed hash taken over the
+ * The filesystem may also need aanalther kind of hash, the "dirhash", to quickly
+ * find the directory entry.  Since filesystems analrmally compute the dirhash
+ * over the on-disk filename (i.e. the ciphertext), it's analt computable from
+ * anal-key names that abbreviate the ciphertext using the strong hash to fit in
+ * NAME_MAX.  It's also analt computable if it's a keyed hash taken over the
  * plaintext (but it may still be available in the on-disk directory entry);
  * casefolded directories use this type of dirhash.  At least in these cases,
- * each no-key name must include the name's dirhash too.
+ * each anal-key name must include the name's dirhash too.
  *
  * To meet all these requirements, we base64url-encode the following
  * variable-length structure.  It contains the dirhash, or 0's if the filesystem
  * didn't provide one; up to 149 bytes of the ciphertext name; and for
  * ciphertexts longer than 149 bytes, also the SHA-256 of the remaining bytes.
  *
- * This ensures that each no-key name contains everything needed to find the
+ * This ensures that each anal-key name contains everything needed to find the
  * directory entry again, contains only legal characters, doesn't exceed
  * NAME_MAX, is unambiguous unless there's a SHA-256 collision, and that we only
  * take the performance hit of SHA-256 on very long filenames (which are rare).
  */
-struct fscrypt_nokey_name {
+struct fscrypt_analkey_name {
 	u32 dirhash[2];
 	u8 bytes[149];
 	u8 sha256[SHA256_DIGEST_SIZE];
 }; /* 189 bytes => 252 bytes base64url-encoded, which is <= NAME_MAX (255) */
 
 /*
- * Decoded size of max-size no-key name, i.e. a name that was abbreviated using
+ * Decoded size of max-size anal-key name, i.e. a name that was abbreviated using
  * the strong hash and thus includes the 'sha256' field.  This isn't simply
- * sizeof(struct fscrypt_nokey_name), as the padding at the end isn't included.
+ * sizeof(struct fscrypt_analkey_name), as the padding at the end isn't included.
  */
-#define FSCRYPT_NOKEY_NAME_MAX	offsetofend(struct fscrypt_nokey_name, sha256)
+#define FSCRYPT_ANALKEY_NAME_MAX	offsetofend(struct fscrypt_analkey_name, sha256)
 
-/* Encoded size of max-size no-key name */
-#define FSCRYPT_NOKEY_NAME_MAX_ENCODED \
-		FSCRYPT_BASE64URL_CHARS(FSCRYPT_NOKEY_NAME_MAX)
+/* Encoded size of max-size anal-key name */
+#define FSCRYPT_ANALKEY_NAME_MAX_ENCODED \
+		FSCRYPT_BASE64URL_CHARS(FSCRYPT_ANALKEY_NAME_MAX)
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 {
@@ -85,7 +85,7 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 
 /**
  * fscrypt_fname_encrypt() - encrypt a filename
- * @inode: inode of the parent directory (for regular filenames)
+ * @ianalde: ianalde of the parent directory (for regular filenames)
  *	   or of the symlink (for symlink targets). Key must already be
  *	   set up.
  * @iname: the filename to encrypt
@@ -93,14 +93,14 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
  * @olen: size of the encrypted filename.  It must be at least @iname->len.
  *	  Any extra space is filled with NUL padding before encryption.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
-int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
+int fscrypt_fname_encrypt(const struct ianalde *ianalde, const struct qstr *iname,
 			  u8 *out, unsigned int olen)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	struct scatterlist sg;
@@ -111,7 +111,7 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	 * pad it with the needed number of NUL bytes.
 	 */
 	if (WARN_ON_ONCE(olen < iname->len))
-		return -ENOBUFS;
+		return -EANALBUFS;
 	memcpy(out, iname->name, iname->len);
 	memset(out + iname->len, 0, olen - iname->len);
 
@@ -119,9 +119,9 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	fscrypt_generate_iv(&iv, 0, ci);
 
 	/* Set up the encryption request */
-	req = skcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_ANALFS);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			crypto_req_done, &wait);
@@ -132,7 +132,7 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode, "Filename encryption failed: %d", res);
+		fscrypt_err(ianalde, "Filename encryption failed: %d", res);
 		return res;
 	}
 
@@ -142,30 +142,30 @@ EXPORT_SYMBOL_GPL(fscrypt_fname_encrypt);
 
 /**
  * fname_decrypt() - decrypt a filename
- * @inode: inode of the parent directory (for regular filenames)
+ * @ianalde: ianalde of the parent directory (for regular filenames)
  *	   or of the symlink (for symlink targets)
  * @iname: the encrypted filename to decrypt
  * @oname: (output) the decrypted filename.  The caller must have allocated
- *	   enough space for this, e.g. using fscrypt_fname_alloc_buffer().
+ *	   eanalugh space for this, e.g. using fscrypt_fname_alloc_buffer().
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
-static int fname_decrypt(const struct inode *inode,
+static int fname_decrypt(const struct ianalde *ianalde,
 			 const struct fscrypt_str *iname,
 			 struct fscrypt_str *oname)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	union fscrypt_iv iv;
 	int res;
 
 	/* Allocate request */
-	req = skcipher_request_alloc(tfm, GFP_NOFS);
+	req = skcipher_request_alloc(tfm, GFP_ANALFS);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 	skcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		crypto_req_done, &wait);
@@ -180,7 +180,7 @@ static int fname_decrypt(const struct inode *inode,
 	res = crypto_wait_req(crypto_skcipher_decrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode, "Filename decryption failed: %d", res);
+		fscrypt_err(ianalde, "Filename decryption failed: %d", res);
 		return res;
 	}
 
@@ -189,7 +189,7 @@ static int fname_decrypt(const struct inode *inode,
 }
 
 static const char base64url_table[65] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	"ABCDEFGHIJKLMANALPQRSTUVWXYZabcdefghijklmanalpqrstuvwxyz0123456789-_";
 
 #define FSCRYPT_BASE64URL_CHARS(nbytes)	DIV_ROUND_UP((nbytes) * 4, 3)
 
@@ -197,11 +197,11 @@ static const char base64url_table[65] =
  * fscrypt_base64url_encode() - base64url-encode some binary data
  * @src: the binary data to encode
  * @srclen: the length of @src in bytes
- * @dst: (output) the base64url-encoded string.  Not NUL-terminated.
+ * @dst: (output) the base64url-encoded string.  Analt NUL-terminated.
  *
  * Encodes data using base64url encoding, i.e. the "Base 64 Encoding with URL
  * and Filename Safe Alphabet" specified by RFC 4648.  '='-padding isn't used,
- * as it's unneeded and not required by the RFC.  base64url is used instead of
+ * as it's unneeded and analt required by the RFC.  base64url is used instead of
  * base64 to avoid the '/' character, which isn't allowed in filenames.
  *
  * Return: the length of the resulting base64url-encoded string in bytes.
@@ -235,7 +235,7 @@ static int fscrypt_base64url_encode(const u8 *src, int srclen, char *dst)
  *
  * Decodes a string using base64url encoding, i.e. the "Base 64 Encoding with
  * URL and Filename Safe Alphabet" specified by RFC 4648.  '='-padding isn't
- * accepted, nor are non-encoding characters such as whitespace.
+ * accepted, analr are analn-encoding characters such as whitespace.
  *
  * This implementation hasn't been optimized for performance.
  *
@@ -284,7 +284,7 @@ bool __fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
 
 /**
  * fscrypt_fname_encrypted_size() - calculate length of encrypted filename
- * @inode:		parent inode of dentry name being encrypted. Key must
+ * @ianalde:		parent ianalde of dentry name being encrypted. Key must
  *			already be set up.
  * @orig_len:		length of the original filename
  * @max_len:		maximum length to return
@@ -296,10 +296,10 @@ bool __fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
  * Return: false if the orig_len is greater than max_len. Otherwise, true and
  *	   fill out encrypted_len_ret with the length (up to max_len).
  */
-bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
+bool fscrypt_fname_encrypted_size(const struct ianalde *ianalde, u32 orig_len,
 				  u32 max_len, u32 *encrypted_len_ret)
 {
-	return __fscrypt_fname_encrypted_size(&inode->i_crypt_info->ci_policy,
+	return __fscrypt_fname_encrypted_size(&ianalde->i_crypt_info->ci_policy,
 					      orig_len, max_len,
 					      encrypted_len_ret);
 }
@@ -311,20 +311,20 @@ EXPORT_SYMBOL_GPL(fscrypt_fname_encrypted_size);
  *		       used to present
  * @crypto_str: (output) buffer to allocate
  *
- * Allocate a buffer that is large enough to hold any decrypted or encoded
+ * Allocate a buffer that is large eanalugh to hold any decrypted or encoded
  * filename (null-terminated), for the given maximum encrypted filename length.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
 int fscrypt_fname_alloc_buffer(u32 max_encrypted_len,
 			       struct fscrypt_str *crypto_str)
 {
-	u32 max_presented_len = max_t(u32, FSCRYPT_NOKEY_NAME_MAX_ENCODED,
+	u32 max_presented_len = max_t(u32, FSCRYPT_ANALKEY_NAME_MAX_ENCODED,
 				      max_encrypted_len);
 
-	crypto_str->name = kmalloc(max_presented_len + 1, GFP_NOFS);
+	crypto_str->name = kmalloc(max_presented_len + 1, GFP_ANALFS);
 	if (!crypto_str->name)
-		return -ENOMEM;
+		return -EANALMEM;
 	crypto_str->len = max_presented_len;
 	return 0;
 }
@@ -348,32 +348,32 @@ EXPORT_SYMBOL(fscrypt_fname_free_buffer);
 /**
  * fscrypt_fname_disk_to_usr() - convert an encrypted filename to
  *				 user-presentable form
- * @inode: inode of the parent directory (for regular filenames)
+ * @ianalde: ianalde of the parent directory (for regular filenames)
  *	   or of the symlink (for symlink targets)
  * @hash: first part of the name's dirhash, if applicable.  This only needs to
  *	  be provided if the filename is located in an indexed directory whose
- *	  encryption key may be unavailable.  Not needed for symlink targets.
- * @minor_hash: second part of the name's dirhash, if applicable
+ *	  encryption key may be unavailable.  Analt needed for symlink targets.
+ * @mianalr_hash: second part of the name's dirhash, if applicable
  * @iname: encrypted filename to convert.  May also be "." or "..", which
  *	   aren't actually encrypted.
  * @oname: output buffer for the user-presentable filename.  The caller must
- *	   have allocated enough space for this, e.g. using
+ *	   have allocated eanalugh space for this, e.g. using
  *	   fscrypt_fname_alloc_buffer().
  *
  * If the key is available, we'll decrypt the disk name.  Otherwise, we'll
- * encode it for presentation in fscrypt_nokey_name format.
- * See struct fscrypt_nokey_name for details.
+ * encode it for presentation in fscrypt_analkey_name format.
+ * See struct fscrypt_analkey_name for details.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
-int fscrypt_fname_disk_to_usr(const struct inode *inode,
-			      u32 hash, u32 minor_hash,
+int fscrypt_fname_disk_to_usr(const struct ianalde *ianalde,
+			      u32 hash, u32 mianalr_hash,
 			      const struct fscrypt_str *iname,
 			      struct fscrypt_str *oname)
 {
 	const struct qstr qname = FSTR_TO_QSTR(iname);
-	struct fscrypt_nokey_name nokey_name;
-	u32 size; /* size of the unencoded no-key name */
+	struct fscrypt_analkey_name analkey_name;
+	u32 size; /* size of the unencoded anal-key name */
 
 	if (fscrypt_is_dot_dotdot(&qname)) {
 		oname->name[0] = '.';
@@ -385,34 +385,34 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 	if (iname->len < FSCRYPT_FNAME_MIN_MSG_LEN)
 		return -EUCLEAN;
 
-	if (fscrypt_has_encryption_key(inode))
-		return fname_decrypt(inode, iname, oname);
+	if (fscrypt_has_encryption_key(ianalde))
+		return fname_decrypt(ianalde, iname, oname);
 
 	/*
-	 * Sanity check that struct fscrypt_nokey_name doesn't have padding
+	 * Sanity check that struct fscrypt_analkey_name doesn't have padding
 	 * between fields and that its encoded size never exceeds NAME_MAX.
 	 */
-	BUILD_BUG_ON(offsetofend(struct fscrypt_nokey_name, dirhash) !=
-		     offsetof(struct fscrypt_nokey_name, bytes));
-	BUILD_BUG_ON(offsetofend(struct fscrypt_nokey_name, bytes) !=
-		     offsetof(struct fscrypt_nokey_name, sha256));
-	BUILD_BUG_ON(FSCRYPT_NOKEY_NAME_MAX_ENCODED > NAME_MAX);
+	BUILD_BUG_ON(offsetofend(struct fscrypt_analkey_name, dirhash) !=
+		     offsetof(struct fscrypt_analkey_name, bytes));
+	BUILD_BUG_ON(offsetofend(struct fscrypt_analkey_name, bytes) !=
+		     offsetof(struct fscrypt_analkey_name, sha256));
+	BUILD_BUG_ON(FSCRYPT_ANALKEY_NAME_MAX_ENCODED > NAME_MAX);
 
-	nokey_name.dirhash[0] = hash;
-	nokey_name.dirhash[1] = minor_hash;
+	analkey_name.dirhash[0] = hash;
+	analkey_name.dirhash[1] = mianalr_hash;
 
-	if (iname->len <= sizeof(nokey_name.bytes)) {
-		memcpy(nokey_name.bytes, iname->name, iname->len);
-		size = offsetof(struct fscrypt_nokey_name, bytes[iname->len]);
+	if (iname->len <= sizeof(analkey_name.bytes)) {
+		memcpy(analkey_name.bytes, iname->name, iname->len);
+		size = offsetof(struct fscrypt_analkey_name, bytes[iname->len]);
 	} else {
-		memcpy(nokey_name.bytes, iname->name, sizeof(nokey_name.bytes));
+		memcpy(analkey_name.bytes, iname->name, sizeof(analkey_name.bytes));
 		/* Compute strong hash of remaining part of name. */
-		sha256(&iname->name[sizeof(nokey_name.bytes)],
-		       iname->len - sizeof(nokey_name.bytes),
-		       nokey_name.sha256);
-		size = FSCRYPT_NOKEY_NAME_MAX;
+		sha256(&iname->name[sizeof(analkey_name.bytes)],
+		       iname->len - sizeof(analkey_name.bytes),
+		       analkey_name.sha256);
+		size = FSCRYPT_ANALKEY_NAME_MAX;
 	}
-	oname->len = fscrypt_base64url_encode((const u8 *)&nokey_name, size,
+	oname->len = fscrypt_base64url_encode((const u8 *)&analkey_name, size,
 					      oname->name);
 	return 0;
 }
@@ -423,7 +423,7 @@ EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
  * @dir: the directory that will be searched
  * @iname: the user-provided filename being searched for
  * @lookup: 1 if we're allowed to proceed without the key because it's
- *	->lookup() or we're finding the dir_entry for deletion; 0 if we cannot
+ *	->lookup() or we're finding the dir_entry for deletion; 0 if we cananalt
  *	proceed without the key because we're going to create the dir_entry.
  * @fname: the filename information to be filled in
  *
@@ -433,18 +433,18 @@ EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
  * directory's encryption key, then @iname is the plaintext, so we encrypt it to
  * get the disk_name.
  *
- * Else, for keyless @lookup operations, @iname should be a no-key name, so we
- * decode it to get the struct fscrypt_nokey_name.  Non-@lookup operations will
- * be impossible in this case, so we fail them with ENOKEY.
+ * Else, for keyless @lookup operations, @iname should be a anal-key name, so we
+ * decode it to get the struct fscrypt_analkey_name.  Analn-@lookup operations will
+ * be impossible in this case, so we fail them with EANALKEY.
  *
  * If successful, fscrypt_free_filename() must be called later to clean up.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erranal on failure
  */
-int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
+int fscrypt_setup_filename(struct ianalde *dir, const struct qstr *iname,
 			      int lookup, struct fscrypt_name *fname)
 {
-	struct fscrypt_nokey_name *nokey_name;
+	struct fscrypt_analkey_name *analkey_name;
 	int ret;
 
 	memset(fname, 0, sizeof(struct fscrypt_name));
@@ -464,9 +464,9 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 						  &fname->crypto_buf.len))
 			return -ENAMETOOLONG;
 		fname->crypto_buf.name = kmalloc(fname->crypto_buf.len,
-						 GFP_NOFS);
+						 GFP_ANALFS);
 		if (!fname->crypto_buf.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = fscrypt_fname_encrypt(dir, iname, fname->crypto_buf.name,
 					    fname->crypto_buf.len);
@@ -477,39 +477,39 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		return 0;
 	}
 	if (!lookup)
-		return -ENOKEY;
-	fname->is_nokey_name = true;
+		return -EANALKEY;
+	fname->is_analkey_name = true;
 
 	/*
 	 * We don't have the key and we are doing a lookup; decode the
 	 * user-supplied name
 	 */
 
-	if (iname->len > FSCRYPT_NOKEY_NAME_MAX_ENCODED)
-		return -ENOENT;
+	if (iname->len > FSCRYPT_ANALKEY_NAME_MAX_ENCODED)
+		return -EANALENT;
 
-	fname->crypto_buf.name = kmalloc(FSCRYPT_NOKEY_NAME_MAX, GFP_KERNEL);
+	fname->crypto_buf.name = kmalloc(FSCRYPT_ANALKEY_NAME_MAX, GFP_KERNEL);
 	if (fname->crypto_buf.name == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = fscrypt_base64url_decode(iname->name, iname->len,
 				       fname->crypto_buf.name);
-	if (ret < (int)offsetof(struct fscrypt_nokey_name, bytes[1]) ||
-	    (ret > offsetof(struct fscrypt_nokey_name, sha256) &&
-	     ret != FSCRYPT_NOKEY_NAME_MAX)) {
-		ret = -ENOENT;
+	if (ret < (int)offsetof(struct fscrypt_analkey_name, bytes[1]) ||
+	    (ret > offsetof(struct fscrypt_analkey_name, sha256) &&
+	     ret != FSCRYPT_ANALKEY_NAME_MAX)) {
+		ret = -EANALENT;
 		goto errout;
 	}
 	fname->crypto_buf.len = ret;
 
-	nokey_name = (void *)fname->crypto_buf.name;
-	fname->hash = nokey_name->dirhash[0];
-	fname->minor_hash = nokey_name->dirhash[1];
-	if (ret != FSCRYPT_NOKEY_NAME_MAX) {
+	analkey_name = (void *)fname->crypto_buf.name;
+	fname->hash = analkey_name->dirhash[0];
+	fname->mianalr_hash = analkey_name->dirhash[1];
+	if (ret != FSCRYPT_ANALKEY_NAME_MAX) {
 		/* The full ciphertext filename is available. */
-		fname->disk_name.name = nokey_name->bytes;
+		fname->disk_name.name = analkey_name->bytes;
 		fname->disk_name.len =
-			ret - offsetof(struct fscrypt_nokey_name, bytes);
+			ret - offsetof(struct fscrypt_analkey_name, bytes);
 	}
 	return 0;
 
@@ -525,18 +525,18 @@ EXPORT_SYMBOL(fscrypt_setup_filename);
  * @de_name: the name from the directory entry
  * @de_name_len: the length of @de_name in bytes
  *
- * Normally @fname->disk_name will be set, and in that case we simply compare
+ * Analrmally @fname->disk_name will be set, and in that case we simply compare
  * that to the name stored in the directory entry.  The only exception is that
  * if we don't have the key for an encrypted directory and the name we're
  * looking for is very long, then we won't have the full disk_name and instead
- * we'll need to match against a fscrypt_nokey_name that includes a strong hash.
+ * we'll need to match against a fscrypt_analkey_name that includes a strong hash.
  *
  * Return: %true if the name matches, otherwise %false.
  */
 bool fscrypt_match_name(const struct fscrypt_name *fname,
 			const u8 *de_name, u32 de_name_len)
 {
-	const struct fscrypt_nokey_name *nokey_name =
+	const struct fscrypt_analkey_name *analkey_name =
 		(const void *)fname->crypto_buf.name;
 	u8 digest[SHA256_DIGEST_SIZE];
 
@@ -545,13 +545,13 @@ bool fscrypt_match_name(const struct fscrypt_name *fname,
 			return false;
 		return !memcmp(de_name, fname->disk_name.name, de_name_len);
 	}
-	if (de_name_len <= sizeof(nokey_name->bytes))
+	if (de_name_len <= sizeof(analkey_name->bytes))
 		return false;
-	if (memcmp(de_name, nokey_name->bytes, sizeof(nokey_name->bytes)))
+	if (memcmp(de_name, analkey_name->bytes, sizeof(analkey_name->bytes)))
 		return false;
-	sha256(&de_name[sizeof(nokey_name->bytes)],
-	       de_name_len - sizeof(nokey_name->bytes), digest);
-	return !memcmp(digest, nokey_name->sha256, sizeof(digest));
+	sha256(&de_name[sizeof(analkey_name->bytes)],
+	       de_name_len - sizeof(analkey_name->bytes), digest);
+	return !memcmp(digest, analkey_name->sha256, sizeof(digest));
 }
 EXPORT_SYMBOL_GPL(fscrypt_match_name);
 
@@ -566,9 +566,9 @@ EXPORT_SYMBOL_GPL(fscrypt_match_name);
  *
  * Return: the SipHash of @name using the hash key of @dir
  */
-u64 fscrypt_fname_siphash(const struct inode *dir, const struct qstr *name)
+u64 fscrypt_fname_siphash(const struct ianalde *dir, const struct qstr *name)
 {
-	const struct fscrypt_inode_info *ci = dir->i_crypt_info;
+	const struct fscrypt_ianalde_info *ci = dir->i_crypt_info;
 
 	WARN_ON_ONCE(!ci->ci_dirhash_key_initialized);
 
@@ -588,16 +588,16 @@ int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/*
 	 * Plaintext names are always valid, since fscrypt doesn't support
-	 * reverting to no-key names without evicting the directory's inode
+	 * reverting to anal-key names without evicting the directory's ianalde
 	 * -- which implies eviction of the dentries in the directory.
 	 */
-	if (!(dentry->d_flags & DCACHE_NOKEY_NAME))
+	if (!(dentry->d_flags & DCACHE_ANALKEY_NAME))
 		return 1;
 
 	/*
-	 * No-key name; valid if the directory's key is still unavailable.
+	 * Anal-key name; valid if the directory's key is still unavailable.
 	 *
-	 * Although fscrypt forbids rename() on no-key names, we still must use
+	 * Although fscrypt forbids rename() on anal-key names, we still must use
 	 * dget_parent() here rather than use ->d_parent directly.  That's
 	 * because a corrupted fs image may contain directory hard links, which
 	 * the VFS handles by moving the directory's dentry tree in the dcache
@@ -614,8 +614,8 @@ int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 	 * Pass allow_unsupported=true, so that files with an unsupported
 	 * encryption policy can be deleted.
 	 */
-	err = fscrypt_get_encryption_info(d_inode(dir), true);
-	valid = !fscrypt_has_encryption_key(d_inode(dir));
+	err = fscrypt_get_encryption_info(d_ianalde(dir), true);
+	valid = !fscrypt_has_encryption_key(d_ianalde(dir));
 	dput(dir);
 
 	if (err < 0)

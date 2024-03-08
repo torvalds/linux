@@ -14,7 +14,7 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
-struct pipe_inode_info;
+struct pipe_ianalde_info;
 struct iov_iter;
 struct mnt_idmap;
 
@@ -44,7 +44,7 @@ extern void __init chrdev_init(void);
  * fs_context.c
  */
 extern const struct fs_context_operations legacy_fs_context_ops;
-extern int parse_monolithic_mount_data(struct fs_context *, void *);
+extern int parse_moanallithic_mount_data(struct fs_context *, void *);
 extern void vfs_clean_context(struct fs_context *fc);
 extern int finish_clean_context(struct fs_context *fc);
 
@@ -94,12 +94,12 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
  * file_table.c
  */
 struct file *alloc_empty_file(int flags, const struct cred *cred);
-struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
+struct file *alloc_empty_file_analaccount(int flags, const struct cred *cred);
 struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
 
 static inline void file_put_write_access(struct file *file)
 {
-	put_write_access(file->f_inode);
+	put_write_access(file->f_ianalde);
 	mnt_put_write_access(file->f_path.mnt);
 	if (unlikely(file->f_mode & FMODE_BACKING))
 		mnt_put_write_access(backing_file_user_path(file)->mnt);
@@ -108,7 +108,7 @@ static inline void file_put_write_access(struct file *file)
 static inline void put_file_access(struct file *file)
 {
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
-		i_readcount_dec(file->f_inode);
+		i_readcount_dec(file->f_ianalde);
 	} else if (file->f_mode & FMODE_WRITER) {
 		file_put_write_access(file);
 	}
@@ -191,18 +191,18 @@ int chown_common(const struct path *path, uid_t user, gid_t group);
 extern int vfs_open(const struct path *, struct file *);
 
 /*
- * inode.c
+ * ianalde.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
 bool in_group_or_capable(struct mnt_idmap *idmap,
-			 const struct inode *inode, vfsgid_t vfsgid);
+			 const struct ianalde *ianalde, vfsgid_t vfsgid);
 
 /*
  * fs-writeback.c
  */
-extern long get_nr_dirty_inodes(void);
-void invalidate_inodes(struct super_block *sb);
+extern long get_nr_dirty_ianaldes(void);
+void invalidate_ianaldes(struct super_block *sb);
 
 /*
  * dcache.c
@@ -218,7 +218,7 @@ extern void shrink_dcache_for_umount(struct super_block *);
 extern struct dentry *__d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name, unsigned *seq);
-extern void d_genocide(struct dentry *);
+extern void d_geanalcide(struct dentry *);
 
 /*
  * pipe.c
@@ -248,7 +248,7 @@ int do_statx(int dfd, struct filename *filename, unsigned int flags,
  * fs/splice.c:
  */
 ssize_t splice_file_to_pipe(struct file *in,
-			    struct pipe_inode_info *opipe,
+			    struct pipe_ianalde_info *opipe,
 			    loff_t *offset,
 			    size_t len, unsigned int flags);
 
@@ -280,7 +280,7 @@ ssize_t do_getxattr(struct mnt_idmap *idmap,
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
 int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx);
-int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
+int may_write_xattr(struct mnt_idmap *idmap, struct ianalde *ianalde);
 
 #ifdef CONFIG_FS_POSIX_ACL
 int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
@@ -292,13 +292,13 @@ static inline int do_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     const void *kvalue, size_t size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline ssize_t do_get_acl(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *acl_name,
 				 void *kvalue, size_t size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 

@@ -31,9 +31,9 @@
 #define PLL_NUM_OFFSET		0x10
 #define IMX8ULP_PLL_NUM_OFFSET	0x1c
 
-/* PLL Denominator Register (xPLLDENOM) */
-#define PLL_DENOM_OFFSET	0x14
-#define IMX8ULP_PLL_DENOM_OFFSET	0x18
+/* PLL Deanalminator Register (xPLLDEANALM) */
+#define PLL_DEANALM_OFFSET	0x14
+#define IMX8ULP_PLL_DEANALM_OFFSET	0x18
 
 #define MAX_MFD			0x3fffffff
 #define DEFAULT_MFD		1000000
@@ -43,7 +43,7 @@ struct clk_pllv4 {
 	void __iomem	*base;
 	u32		cfg_offset;
 	u32		num_offset;
-	u32		denom_offset;
+	u32		deanalm_offset;
 	bool		use_mult_range;
 };
 
@@ -87,7 +87,7 @@ static unsigned long clk_pllv4_recalc_rate(struct clk_hw *hw,
 	mult >>= BP_PLL_MULT;
 
 	mfn = readl_relaxed(pll->base + pll->num_offset);
-	mfd = readl_relaxed(pll->base + pll->denom_offset);
+	mfd = readl_relaxed(pll->base + pll->deanalm_offset);
 	temp64 = parent_rate;
 	temp64 *= mfn;
 	do_div(temp64, mfd);
@@ -140,8 +140,8 @@ static long clk_pllv4_round_rate(struct clk_hw *hw, unsigned long rate,
 	mfn = temp64;
 
 	/*
-	 * NOTE: The value of numerator must always be configured to be
-	 * less than the value of the denominator. If we can't get a proper
+	 * ANALTE: The value of numerator must always be configured to be
+	 * less than the value of the deanalminator. If we can't get a proper
 	 * pair of mfn/mfd, we simply return the round_rate without using
 	 * the frac part.
 	 */
@@ -200,7 +200,7 @@ static int clk_pllv4_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel_relaxed(val, pll->base + pll->cfg_offset);
 
 	writel_relaxed(mfn, pll->base + pll->num_offset);
-	writel_relaxed(mfd, pll->base + pll->denom_offset);
+	writel_relaxed(mfd, pll->base + pll->deanalm_offset);
 
 	return 0;
 }
@@ -246,7 +246,7 @@ struct clk_hw *imx_clk_hw_pllv4(enum imx_pllv4_type type, const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->base = base;
 
@@ -254,13 +254,13 @@ struct clk_hw *imx_clk_hw_pllv4(enum imx_pllv4_type type, const char *name,
 	    type == IMX_PLLV4_IMX8ULP_1GHZ) {
 		pll->cfg_offset = IMX8ULP_PLL_CFG_OFFSET;
 		pll->num_offset = IMX8ULP_PLL_NUM_OFFSET;
-		pll->denom_offset = IMX8ULP_PLL_DENOM_OFFSET;
+		pll->deanalm_offset = IMX8ULP_PLL_DEANALM_OFFSET;
 		if (type == IMX_PLLV4_IMX8ULP_1GHZ)
 			pll->use_mult_range = true;
 	} else {
 		pll->cfg_offset = PLL_CFG_OFFSET;
 		pll->num_offset = PLL_NUM_OFFSET;
-		pll->denom_offset = PLL_DENOM_OFFSET;
+		pll->deanalm_offset = PLL_DEANALM_OFFSET;
 	}
 
 	init.name = name;

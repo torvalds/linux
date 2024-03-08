@@ -13,7 +13,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if analt, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
@@ -268,10 +268,10 @@ static int bq24735_charger_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			break;
 		case 0:
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 			break;
 		}
 		break;
@@ -301,7 +301,7 @@ static int bq24735_charger_set_property(struct power_supply *psy,
 				return ret;
 			break;
 		case POWER_SUPPLY_STATUS_DISCHARGING:
-		case POWER_SUPPLY_STATUS_NOT_CHARGING:
+		case POWER_SUPPLY_STATUS_ANALT_CHARGING:
 			mutex_lock(&charger->lock);
 			charger->charging = false;
 			ret = bq24735_disable_charging(charger);
@@ -324,7 +324,7 @@ static int bq24735_charger_set_property(struct power_supply *psy,
 static struct bq24735_platform *bq24735_parse_dt_data(struct i2c_client *client)
 {
 	struct bq24735_platform *pdata;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	u32 val;
 	int ret;
 
@@ -362,17 +362,17 @@ static int bq24735_charger_probe(struct i2c_client *client)
 
 	charger = devm_kzalloc(&client->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&charger->lock);
 	charger->charging = true;
 	charger->pdata = client->dev.platform_data;
 
-	if (IS_ENABLED(CONFIG_OF) && !charger->pdata && client->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && !charger->pdata && client->dev.of_analde)
 		charger->pdata = bq24735_parse_dt_data(client);
 
 	if (!charger->pdata) {
-		dev_err(&client->dev, "no platform data provided\n");
+		dev_err(&client->dev, "anal platform data provided\n");
 		return -EINVAL;
 	}
 
@@ -383,7 +383,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 				      dev_name(&client->dev));
 		if (!name) {
 			dev_err(&client->dev, "Failed to alloc device name\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -402,7 +402,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 
 	psy_cfg.supplied_to = charger->pdata->supplied_to;
 	psy_cfg.num_supplicants = charger->pdata->num_supplicants;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_analde = client->dev.of_analde;
 	psy_cfg.drv_data = charger;
 
 	i2c_set_clientdata(client, charger);
@@ -425,7 +425,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 		} else if (ret != 0x0040) {
 			dev_err(&client->dev,
 				"manufacturer id mismatch. 0x0040 != 0x%04x\n", ret);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = bq24735_read_word(client, BQ24735_DEVICE_ID);
@@ -435,7 +435,7 @@ static int bq24735_charger_probe(struct i2c_client *client)
 		} else if (ret != 0x000B) {
 			dev_err(&client->dev,
 				"device id mismatch. 0x000b != 0x%04x\n", ret);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		ret = bq24735_enable_charging(charger);

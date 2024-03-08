@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2020 Mellanox Technologies. */
+/* Copyright (c) 2020 Mellaanalx Techanallogies. */
 
 #ifndef __ML5_FS_TTC_H__
 #define __ML5_FS_TTC_H__
@@ -43,9 +43,9 @@ struct ttc_params {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_flow_table_attr ft_attr;
 	struct mlx5_flow_destination dests[MLX5_NUM_TT];
-	DECLARE_BITMAP(ignore_dests, MLX5_NUM_TT);
+	DECLARE_BITMAP(iganalre_dests, MLX5_NUM_TT);
 	bool   inner_ttc;
-	DECLARE_BITMAP(ignore_tunnel_dests, MLX5_NUM_TUNNEL_TT);
+	DECLARE_BITMAP(iganalre_tunnel_dests, MLX5_NUM_TUNNEL_TT);
 	struct mlx5_flow_destination tunnel_dests[MLX5_NUM_TUNNEL_TT];
 };
 

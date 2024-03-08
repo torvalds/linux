@@ -56,7 +56,7 @@
 #include <linux/ip.h>
 #include <linux/if_ether.h>
 
-#define SPEC_DEV_ID_NONE BIT(0)
+#define SPEC_DEV_ID_ANALNE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
 #define SPEC_DEV_ID_ENABLE_PS BIT(2)
 #define SPEC_DEV_ID_RF_CONFIG_1T1R BIT(3)
@@ -115,10 +115,10 @@ struct registry_priv {
 	u8 rx_stbc;
 	u8 ampdu_amsdu;/* A-MPDU Supports A-MSDU is permitted */
 	/*  Short GI support Bit Map */
-	/*  BIT0 - 20MHz, 1: support, 0: non-support */
-	/*  BIT1 - 40MHz, 1: support, 0: non-support */
-	/*  BIT2 - 80MHz, 1: support, 0: non-support */
-	/*  BIT3 - 160MHz, 1: support, 0: non-support */
+	/*  BIT0 - 20MHz, 1: support, 0: analn-support */
+	/*  BIT1 - 40MHz, 1: support, 0: analn-support */
+	/*  BIT2 - 80MHz, 1: support, 0: analn-support */
+	/*  BIT3 - 160MHz, 1: support, 0: analn-support */
 	u8 short_gi;
 	/*  BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx */
 	u8 ldpc_cap;
@@ -155,7 +155,7 @@ struct registry_priv {
 
 	u8 ifname[16];
 
-	u8 notch_filter;
+	u8 analtch_filter;
 
 	/* define for tx power adjust */
 	u8 RegEnableTxPowerLimit;
@@ -329,7 +329,7 @@ enum {
 };
 
 enum {
-	DRIVER_NORMAL = 0,
+	DRIVER_ANALRMAL = 0,
 	DRIVER_DISAPPEAR = 1,
 	DRIVER_REPLACE_DONGLE = 2,
 };
@@ -350,7 +350,7 @@ struct adapter {
 	struct	recv_priv recvpriv;
 	struct	sta_priv stapriv;
 	struct	security_priv securitypriv;
-	spinlock_t   security_key_mutex; /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	spinlock_t   security_key_mutex; /*  add for CONFIG_IEEE80211W, analne 11w also can use */
 	struct	registry_priv registrypriv;
 	struct	eeprom_priv eeprompriv;
 
@@ -416,7 +416,7 @@ struct adapter {
 	u8 bRxRSSIDisplay;
 	/* 	Added by Albert 2012/10/26 */
 	/* 	The driver will show up the desired channel number when this flag is 1. */
-	u8 bNotifyChannelChange;
+	u8 bAnaltifyChannelChange;
 
 	/* pbuddystruct adapter is used only in two interface case, (iface_nums =2 in struct dvobj_priv) */
 	/* PRIMARY ADAPTER's buddy is SECONDARY_ADAPTER */
@@ -470,16 +470,16 @@ static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 
 #define RTW_IS_FUNC_DISABLED(padapter, func_bit) (atomic_read(&adapter_to_dvobj(padapter)->disable_func) & (func_bit))
 
-#define RTW_CANNOT_IO(padapter) \
+#define RTW_CANANALT_IO(padapter) \
 			((padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_IO_BIT))
 
-#define RTW_CANNOT_RX(padapter) \
+#define RTW_CANANALT_RX(padapter) \
 			((padapter)->bDriverStopped || \
 			 (padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_RX_BIT))
 
-#define RTW_CANNOT_TX(padapter) \
+#define RTW_CANANALT_TX(padapter) \
 			((padapter)->bDriverStopped || \
 			 (padapter)->bSurpriseRemoved || \
 			 RTW_IS_FUNC_DISABLED((padapter), DF_TX_BIT))

@@ -30,10 +30,10 @@
 #define PAGE_SIZE		4096
 #define MB			(1<<20)
 
-static inline void __page_o_noops(void)
+static inline void __page_o_analops(void)
 {
 	/* 8-bytes of instruction * 512 bytes = 1 page */
-	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
+	asm(".rept 512 ; analpl 0x7eeeeeee(%eax) ; .endr");
 }
 
 static inline u64 __read_pkey_reg(void)
@@ -76,11 +76,11 @@ static inline int cpu_has_pkeys(void)
 	__cpuid_count(0x7, 0x0, eax, ebx, ecx, edx);
 
 	if (!(ecx & X86_FEATURE_PKU)) {
-		dprintf2("cpu does not have PKU\n");
+		dprintf2("cpu does analt have PKU\n");
 		return 0;
 	}
 	if (!(ecx & X86_FEATURE_OSPKE)) {
-		dprintf2("cpu does not have OSPKE\n");
+		dprintf2("cpu does analt have OSPKE\n");
 		return 0;
 	}
 	return 1;
@@ -130,7 +130,7 @@ int pkey_reg_xstate_offset(void)
 	}
 
 	if (xstate_size == 0) {
-		printf("could not find size/offset of PKEY in xsave state\n");
+		printf("could analt find size/offset of PKEY in xsave state\n");
 		return 0;
 	}
 
@@ -153,7 +153,7 @@ void expect_fault_on_read_execonly_key(void *p1, int pkey)
 
 void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
 {
-	return PTR_ERR_ENOTSUP;
+	return PTR_ERR_EANALTSUP;
 }
 
 #endif /* _PKEYS_X86_H */

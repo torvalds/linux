@@ -3,7 +3,7 @@
  * USB block power/access management abstraction.
  *
  * Au1000+: The OHCI block control register is at the far end of the OHCI memory
- *	    area. Au1550 has OHCI on different base address. No need to handle
+ *	    area. Au1550 has OHCI on different base address. Anal need to handle
  *	    UDC here.
  * Au1200:  one register to control access and clocks to O/EHCI, UDC and OTG
  *	    as well as the PHY for EHCI and UDC.
@@ -34,7 +34,7 @@
 /* Au1200 USB config bits */
 #define USBCFG_PFEN	(1 << 31)		/* prefetch enable (undoc) */
 #define USBCFG_RDCOMB	(1 << 30)		/* read combining (undoc) */
-#define USBCFG_UNKNOWN	(5 << 20)		/* unknown, leave this way */
+#define USBCFG_UNKANALWN	(5 << 20)		/* unkanalwn, leave this way */
 #define USBCFG_SSD	(1 << 23)		/* serial short detect en */
 #define USBCFG_PPE	(1 << 19)		/* HS PHY PLL */
 #define USBCFG_UCE	(1 << 18)		/* UDC clock enable */
@@ -49,7 +49,7 @@
 #define USBCFG_EME	(1 << 2)		/* EHCI mem enable */
 #define USBCFG_OBE	(1 << 1)		/* OHCI busmaster enable */
 #define USBCFG_OME	(1 << 0)		/* OHCI mem enable */
-#define USBCFG_INIT_AU1200	(USBCFG_PFEN | USBCFG_RDCOMB | USBCFG_UNKNOWN |\
+#define USBCFG_INIT_AU1200	(USBCFG_PFEN | USBCFG_RDCOMB | USBCFG_UNKANALWN |\
 				 USBCFG_SSD | USBCFG_FLA(0x20) | USBCFG_UCAM | \
 				 USBCFG_GME | USBCFG_DBE | USBCFG_DME |	       \
 				 USBCFG_EBE | USBCFG_EME | USBCFG_OBE |	       \
@@ -112,7 +112,7 @@ static inline void __au1300_usb_phyctl(void __iomem *base, int enable)
 		__raw_writel(r, base + USB_DWC_CTRL2);
 		wmb();
 	} else if (!s) {
-		/* no USB block active, do disable all PHYs */
+		/* anal USB block active, do disable all PHYs */
 		r &= ~(USB_DWC_CTRL2_PHY1RS | USB_DWC_CTRL2_PHY0RS |
 		       USB_DWC_CTRL2_PHYRS);
 		__raw_writel(r, base + USB_DWC_CTRL2);
@@ -285,7 +285,7 @@ static inline int au1300_usb_control(int block, int enable)
 		__au1300_otg_control(base, enable);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	return ret;
 }
@@ -295,7 +295,7 @@ static inline void au1300_usb_init(void)
 	void __iomem *base =
 		(void __iomem *)KSEG1ADDR(AU1300_USB_CTL_PHYS_ADDR);
 
-	/* set some sane defaults.  Note: we don't fiddle with DWC_CTRL4
+	/* set some sane defaults.  Analte: we don't fiddle with DWC_CTRL4
 	 * here at all: Port 2 routing (EHCI or UDC) must be set either
 	 * by boot firmware or platform init code; I can't autodetect
 	 * a sane setting.
@@ -336,7 +336,7 @@ static inline void __au1200_ehci_control(void __iomem *base, int enable)
 		udelay(1000);
 	} else {
 		if (!(r & USBCFG_UCE))		/* UDC also off? */
-			r &= ~USBCFG_PPE;	/* yes: disable HS PHY PLL */
+			r &= ~USBCFG_PPE;	/* anal: disable HS PHY PLL */
 		__raw_writel(r & ~USBCFG_ECE, base + AU1200_USBCFG);
 		wmb();
 		udelay(1000);
@@ -351,7 +351,7 @@ static inline void __au1200_udc_control(void __iomem *base, int enable)
 		wmb();
 	} else {
 		if (!(r & USBCFG_ECE))		/* EHCI also off? */
-			r &= ~USBCFG_PPE;	/* yes: disable HS PHY PLL */
+			r &= ~USBCFG_PPE;	/* anal: disable HS PHY PLL */
 		__raw_writel(r & ~USBCFG_UCE, base + AU1200_USBCFG);
 		wmb();
 	}
@@ -373,13 +373,13 @@ static inline int au1200_usb_control(int block, int enable)
 		__au1200_ehci_control(base, enable);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
 
 
-/* initialize USB block(s) to a known working state */
+/* initialize USB block(s) to a kanalwn working state */
 static inline void au1200_usb_init(void)
 {
 	void __iomem *base =
@@ -395,17 +395,17 @@ static inline int au1000_usb_init(unsigned long rb, int reg)
 	unsigned long r = __raw_readl(base);
 	struct clk *c;
 
-	/* 48MHz check. Don't init if no one can provide it */
+	/* 48MHz check. Don't init if anal one can provide it */
 	c = clk_get(NULL, "usbh_clk");
 	if (IS_ERR(c))
-		return -ENODEV;
+		return -EANALDEV;
 	if (clk_round_rate(c, 48000000) != 48000000) {
 		clk_put(c);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (clk_set_rate(c, 48000000)) {
 		clk_put(c);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	clk_put(c);
 
@@ -465,7 +465,7 @@ static inline int au1000_usb_control(int block, int enable, unsigned long rb,
 		__au1xx0_ohci_control(enable, rb, creg);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	return ret;
 }
@@ -499,7 +499,7 @@ int alchemy_usb_control(int block, int enable)
 		ret = au1300_usb_control(block, enable);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	spin_unlock_irqrestore(&alchemy_usb_lock, flags);
 	return ret;

@@ -14,14 +14,14 @@
  * The dh algorithm is to select server by the hash key of destination IP
  * address. The pseudo code is as follows:
  *
- *       n <- servernode[dest_ip];
+ *       n <- serveranalde[dest_ip];
  *       if (n is dead) OR
  *          (n is overloaded) OR (n.weight <= 0) then
  *                 return NULL;
  *
  *       return n;
  *
- * Notes that servernode is a 256-bucket hash table that maps the hash
+ * Analtes that serveranalde is a 256-bucket hash table that maps the hash
  * index derived from packet destination IP address to the current server
  * array. If the dh scheduler is used in cache cluster, it is good to
  * combine it with cache_bypass feature. When the statically assigned
@@ -156,7 +156,7 @@ static int ip_vs_dh_init_svc(struct ip_vs_service *svc)
 	/* allocate the DH table for this service */
 	s = kzalloc(sizeof(struct ip_vs_dh_state), GFP_KERNEL);
 	if (s == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	svc->sched_data = s;
 	IP_VS_DBG(6, "DH hash table (memory=%zdbytes) allocated for "
@@ -224,7 +224,7 @@ ip_vs_dh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	    || !(dest->flags & IP_VS_DEST_F_AVAILABLE)
 	    || atomic_read(&dest->weight) <= 0
 	    || is_overloaded(dest)) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "anal destination available");
 		return NULL;
 	}
 

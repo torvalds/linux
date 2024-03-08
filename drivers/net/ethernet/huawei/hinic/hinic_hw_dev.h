@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_HW_DEV_H
@@ -493,7 +493,7 @@ union hinic_fault_hw_mgmt {
 	u32 val[4];
 	/* valid only type == FAULT_TYPE_CHIP */
 	struct {
-		u8 node_id;
+		u8 analde_id;
 		u8 err_level;
 		u16 err_type;
 		u32 err_csr_addr;

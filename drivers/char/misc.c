@@ -12,18 +12,18 @@
  *   See busmouse.c for particulars.
  *
  * Made things a lot mode modular - easy to compile in just one or two
- * of the misc drivers, as they are now completely independent. Linus.
+ * of the misc drivers, as they are analw completely independent. Linus.
  *
  * Support for loadable modules. 8-Sep-95 Philip Blundell <pjb27@cam.ac.uk>
  *
  * Fixed a failing symbol register to free the device registration
  *		Alan Cox <alan@lxorguk.ukuu.org.uk> 21-Jan-96
  *
- * Dynamic minors and /proc/mice by Alessandro Rubini. 26-Mar-96
+ * Dynamic mianalrs and /proc/mice by Alessandro Rubini. 26-Mar-96
  *
  * Renamed to misc and miscdevice to be more accurate. Alan Cox 26-Mar-96
  *
- * Handling of mouse minor numbers for kerneld:
+ * Handling of mouse mianalr numbers for kerneld:
  *  Idea by Jacques Gelinas <jack@solucorp.qc.ca>,
  *  adapted by Bjorn Ekwall <bj0rn@blox.se>
  *  corrected by Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -37,7 +37,7 @@
 #include <linux/module.h>
 
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
@@ -58,31 +58,31 @@ static LIST_HEAD(misc_list);
 static DEFINE_MUTEX(misc_mtx);
 
 /*
- * Assigned numbers, used for dynamic minors
+ * Assigned numbers, used for dynamic mianalrs
  */
-#define DYNAMIC_MINORS 128 /* like dynamic majors */
-static DEFINE_IDA(misc_minors_ida);
+#define DYNAMIC_MIANALRS 128 /* like dynamic majors */
+static DEFINE_IDA(misc_mianalrs_ida);
 
-static int misc_minor_alloc(void)
+static int misc_mianalr_alloc(void)
 {
 	int ret;
 
-	ret = ida_alloc_max(&misc_minors_ida, DYNAMIC_MINORS - 1, GFP_KERNEL);
+	ret = ida_alloc_max(&misc_mianalrs_ida, DYNAMIC_MIANALRS - 1, GFP_KERNEL);
 	if (ret >= 0) {
-		ret = DYNAMIC_MINORS - ret - 1;
+		ret = DYNAMIC_MIANALRS - ret - 1;
 	} else {
-		ret = ida_alloc_range(&misc_minors_ida, MISC_DYNAMIC_MINOR + 1,
-				      MINORMASK, GFP_KERNEL);
+		ret = ida_alloc_range(&misc_mianalrs_ida, MISC_DYNAMIC_MIANALR + 1,
+				      MIANALRMASK, GFP_KERNEL);
 	}
 	return ret;
 }
 
-static void misc_minor_free(int minor)
+static void misc_mianalr_free(int mianalr)
 {
-	if (minor < DYNAMIC_MINORS)
-		ida_free(&misc_minors_ida, DYNAMIC_MINORS - minor - 1);
-	else if (minor > MISC_DYNAMIC_MINOR)
-		ida_free(&misc_minors_ida, minor);
+	if (mianalr < DYNAMIC_MIANALRS)
+		ida_free(&misc_mianalrs_ida, DYNAMIC_MIANALRS - mianalr - 1);
+	else if (mianalr > MISC_DYNAMIC_MIANALR)
+		ida_free(&misc_mianalrs_ida, mianalr);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -106,7 +106,7 @@ static int misc_seq_show(struct seq_file *seq, void *v)
 {
 	const struct miscdevice *p = list_entry(v, struct miscdevice, list);
 
-	seq_printf(seq, "%3i %s\n", p->minor, p->name ? p->name : "");
+	seq_printf(seq, "%3i %s\n", p->mianalr, p->name ? p->name : "");
 	return 0;
 }
 
@@ -119,17 +119,17 @@ static const struct seq_operations misc_seq_ops = {
 };
 #endif
 
-static int misc_open(struct inode *inode, struct file *file)
+static int misc_open(struct ianalde *ianalde, struct file *file)
 {
-	int minor = iminor(inode);
+	int mianalr = imianalr(ianalde);
 	struct miscdevice *c = NULL, *iter;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	const struct file_operations *new_fops = NULL;
 
 	mutex_lock(&misc_mtx);
 
 	list_for_each_entry(iter, &misc_list, list) {
-		if (iter->minor != minor)
+		if (iter->mianalr != mianalr)
 			continue;
 		c = iter;
 		new_fops = fops_get(iter->fops);
@@ -138,11 +138,11 @@ static int misc_open(struct inode *inode, struct file *file)
 
 	if (!new_fops) {
 		mutex_unlock(&misc_mtx);
-		request_module("char-major-%d-%d", MISC_MAJOR, minor);
+		request_module("char-major-%d-%d", MISC_MAJOR, mianalr);
 		mutex_lock(&misc_mtx);
 
 		list_for_each_entry(iter, &misc_list, list) {
-			if (iter->minor != minor)
+			if (iter->mianalr != mianalr)
 				continue;
 			c = iter;
 			new_fops = fops_get(iter->fops);
@@ -162,49 +162,49 @@ static int misc_open(struct inode *inode, struct file *file)
 	err = 0;
 	replace_fops(file, new_fops);
 	if (file->f_op->open)
-		err = file->f_op->open(inode, file);
+		err = file->f_op->open(ianalde, file);
 fail:
 	mutex_unlock(&misc_mtx);
 	return err;
 }
 
-static char *misc_devnode(const struct device *dev, umode_t *mode)
+static char *misc_devanalde(const struct device *dev, umode_t *mode)
 {
 	const struct miscdevice *c = dev_get_drvdata(dev);
 
 	if (mode && c->mode)
 		*mode = c->mode;
-	if (c->nodename)
-		return kstrdup(c->nodename, GFP_KERNEL);
+	if (c->analdename)
+		return kstrdup(c->analdename, GFP_KERNEL);
 	return NULL;
 }
 
 static const struct class misc_class = {
 	.name		= "misc",
-	.devnode	= misc_devnode,
+	.devanalde	= misc_devanalde,
 };
 
 static const struct file_operations misc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= misc_open,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 /**
  *	misc_register	-	register a miscellaneous device
  *	@misc: device structure
  *
- *	Register a miscellaneous device with the kernel. If the minor
- *	number is set to %MISC_DYNAMIC_MINOR a minor number is assigned
- *	and placed in the minor field of the structure. For other cases
- *	the minor number requested is used.
+ *	Register a miscellaneous device with the kernel. If the mianalr
+ *	number is set to %MISC_DYNAMIC_MIANALR a mianalr number is assigned
+ *	and placed in the mianalr field of the structure. For other cases
+ *	the mianalr number requested is used.
  *
- *	The structure passed is linked into the kernel and may not be
+ *	The structure passed is linked into the kernel and may analt be
  *	destroyed until it has been unregistered. By default, an open()
  *	syscall to the device sets file->private_data to point to the
  *	structure. Drivers don't need open in fops for this.
  *
- *	A zero is returned on success and a negative errno code for
+ *	A zero is returned on success and a negative erranal code for
  *	failure.
  */
 
@@ -212,40 +212,40 @@ int misc_register(struct miscdevice *misc)
 {
 	dev_t dev;
 	int err = 0;
-	bool is_dynamic = (misc->minor == MISC_DYNAMIC_MINOR);
+	bool is_dynamic = (misc->mianalr == MISC_DYNAMIC_MIANALR);
 
 	INIT_LIST_HEAD(&misc->list);
 
 	mutex_lock(&misc_mtx);
 
 	if (is_dynamic) {
-		int i = misc_minor_alloc();
+		int i = misc_mianalr_alloc();
 
 		if (i < 0) {
 			err = -EBUSY;
 			goto out;
 		}
-		misc->minor = i;
+		misc->mianalr = i;
 	} else {
 		struct miscdevice *c;
 
 		list_for_each_entry(c, &misc_list, list) {
-			if (c->minor == misc->minor) {
+			if (c->mianalr == misc->mianalr) {
 				err = -EBUSY;
 				goto out;
 			}
 		}
 	}
 
-	dev = MKDEV(MISC_MAJOR, misc->minor);
+	dev = MKDEV(MISC_MAJOR, misc->mianalr);
 
 	misc->this_device =
 		device_create_with_groups(&misc_class, misc->parent, dev,
 					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		if (is_dynamic) {
-			misc_minor_free(misc->minor);
-			misc->minor = MISC_DYNAMIC_MINOR;
+			misc_mianalr_free(misc->mianalr);
+			misc->mianalr = MISC_DYNAMIC_MIANALR;
 		}
 		err = PTR_ERR(misc->this_device);
 		goto out;
@@ -277,8 +277,8 @@ void misc_deregister(struct miscdevice *misc)
 
 	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
-	device_destroy(&misc_class, MKDEV(MISC_MAJOR, misc->minor));
-	misc_minor_free(misc->minor);
+	device_destroy(&misc_class, MKDEV(MISC_MAJOR, misc->mianalr));
+	misc_mianalr_free(misc->mianalr);
 	mutex_unlock(&misc_mtx);
 }
 EXPORT_SYMBOL(misc_deregister);

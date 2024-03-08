@@ -6,7 +6,7 @@
  */
 
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/suspend.h>
@@ -27,7 +27,7 @@ ENTRY(kfr2r09_sdram_enter_start)
 	ED 0xFD000040, 0x00000001 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 analp
 
 ENTRY(kfr2r09_sdram_enter_end)
 
@@ -48,7 +48,7 @@ ENTRY(kfr2r09_sdram_leave_start)
 	ED 0xFD000040, 0x00010000 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 analp
 
 resume_rstandby:
 
@@ -72,6 +72,6 @@ resume_rstandby:
 	ED 0xFD000040, 0x00010000 /* DBRFPDN0 */
 
 	rts
-	 nop
+	 analp
 
 ENTRY(kfr2r09_sdram_leave_end)

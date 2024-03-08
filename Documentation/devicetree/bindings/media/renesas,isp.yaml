@@ -44,7 +44,7 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input port node, multiple endpoints describing the connected R-Car
+          Input port analde, multiple endpoints describing the connected R-Car
           CSI-2 receivers.
 
       port@1:

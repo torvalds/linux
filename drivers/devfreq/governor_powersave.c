@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/devfreq/governor_powersave.c
+ *  linux/drivers/devfreq/goveranalr_powersave.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -8,7 +8,7 @@
 
 #include <linux/devfreq.h>
 #include <linux/module.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 static int devfreq_powersave_func(struct devfreq *df,
 				  unsigned long *freq)
@@ -35,7 +35,7 @@ static int devfreq_powersave_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_powersave = {
+static struct devfreq_goveranalr devfreq_powersave = {
 	.name = DEVFREQ_GOV_POWERSAVE,
 	.get_target_freq = devfreq_powersave_func,
 	.event_handler = devfreq_powersave_handler,
@@ -43,7 +43,7 @@ static struct devfreq_governor devfreq_powersave = {
 
 static int __init devfreq_powersave_init(void)
 {
-	return devfreq_add_governor(&devfreq_powersave);
+	return devfreq_add_goveranalr(&devfreq_powersave);
 }
 subsys_initcall(devfreq_powersave_init);
 
@@ -51,9 +51,9 @@ static void __exit devfreq_powersave_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_powersave);
+	ret = devfreq_remove_goveranalr(&devfreq_powersave);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveranalr %d\n", __func__, ret);
 
 	return;
 }

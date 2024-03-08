@@ -32,7 +32,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 
@@ -57,13 +57,13 @@
 #include <linux/u64_stats_sync.h>
 
 /* blackhole_netdev - a device used for dsts that are marked expired!
- * This is global device (instead of per-net-ns) since it's not needed
+ * This is global device (instead of per-net-ns) since it's analt needed
  * to be per-ns and gets initialized at boot time.
  */
 struct net_device *blackhole_netdev;
 EXPORT_SYMBOL(blackhole_netdev);
 
-/* The higher levels take care of making this non-reentrant (it's
+/* The higher levels take care of making this analn-reentrant (it's
  * called with bh's disabled).
  */
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
@@ -73,7 +73,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	/* do not fool net_timestamp_check() with various clock bases */
+	/* do analt fool net_timestamp_check() with various clock bases */
 	skb_clear_tstamp(skb);
 
 	skb_orphan(skb);
@@ -143,7 +143,7 @@ static int loopback_dev_init(struct net_device *dev)
 {
 	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
 	if (!dev->lstats)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -173,7 +173,7 @@ static void gen_lo_setup(struct net_device *dev,
 	dev->addr_len		= ETH_ALEN;	/* 6	*/
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
-	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
+	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE | IFF_ANAL_QUEUE;
 	netif_keep_dst(dev);
 	dev->hw_features	= NETIF_F_GSO_SOFTWARE;
 	dev->features		= NETIF_F_SG | NETIF_F_FRAGLIST
@@ -210,7 +210,7 @@ static __net_init int loopback_net_init(struct net *net)
 	struct net_device *dev;
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	dev = alloc_netdev(0, "lo", NET_NAME_PREDICTABLE, loopback_setup);
 	if (!dev)
 		goto out;
@@ -251,7 +251,7 @@ static const struct net_device_ops blackhole_netdev_ops = {
 };
 
 /* This is a dst-dummy device used specifically for invalidated
- * DSTs and unlike loopback, this is not per-ns.
+ * DSTs and unlike loopback, this is analt per-ns.
  */
 static void blackhole_netdev_setup(struct net_device *dev)
 {
@@ -261,10 +261,10 @@ static void blackhole_netdev_setup(struct net_device *dev)
 /* Setup and register the blackhole_netdev. */
 static int __init blackhole_netdev_init(void)
 {
-	blackhole_netdev = alloc_netdev(0, "blackhole_dev", NET_NAME_UNKNOWN,
+	blackhole_netdev = alloc_netdev(0, "blackhole_dev", NET_NAME_UNKANALWN,
 					blackhole_netdev_setup);
 	if (!blackhole_netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtnl_lock();
 	dev_init_scheduler(blackhole_netdev);

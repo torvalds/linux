@@ -42,7 +42,7 @@
 #define TQMX86_REG_BOARD_ID_E40C2	15
 #define TQMX86_REG_BOARD_REV	0x01
 #define TQMX86_REG_IO_EXT_INT	0x06
-#define TQMX86_REG_IO_EXT_INT_NONE		0
+#define TQMX86_REG_IO_EXT_INT_ANALNE		0
 #define TQMX86_REG_IO_EXT_INT_7			1
 #define TQMX86_REG_IO_EXT_INT_9			2
 #define TQMX86_REG_IO_EXT_INT_12		3
@@ -101,13 +101,13 @@ static const struct mfd_cell tqmx86_devs[] = {
 		.name = "tqmx86-wdt",
 		.resources = tqmx_watchdog_resources,
 		.num_resources = ARRAY_SIZE(tqmx_watchdog_resources),
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 	{
 		.name = "tqmx86-gpio",
 		.resources = tqmx_gpio_resources,
 		.num_resources = ARRAY_SIZE(tqmx_gpio_resources),
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 };
 
@@ -143,7 +143,7 @@ static const char *tqmx86_board_id_to_name(u8 board_id, u8 sauc)
 	case TQMX86_REG_BOARD_ID_E40C2:
 		return "TQMxE40C2";
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -168,7 +168,7 @@ static int tqmx86_board_id_to_clk_rate(struct device *dev, u8 board_id)
 	case TQMX86_REG_BOARD_ID_E38C:
 		return 33000;
 	default:
-		dev_warn(dev, "unknown board %d, assuming 24MHz LPC clock\n",
+		dev_warn(dev, "unkanalwn board %d, assuming 24MHz LPC clock\n",
 			 board_id);
 		return 24000;
 	}
@@ -185,7 +185,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 
 	switch (gpio_irq) {
 	case 0:
-		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_NONE;
+		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_ANALNE;
 		break;
 	case 7:
 		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_7;
@@ -203,7 +203,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 
 	io_base = devm_ioport_map(dev, TQMX86_IOBASE, TQMX86_IOSIZE);
 	if (!io_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	board_id = ioread8(io_base + TQMX86_REG_BOARD_ID);
 	sauc = ioread8(io_base + TQMX86_REG_SAUC);
@@ -227,7 +227,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 		iowrite8(io_ext_int_val, io_base + TQMX86_REG_IO_EXT_INT);
 		readback = ioread8(io_base + TQMX86_REG_IO_EXT_INT);
 		if (readback != io_ext_int_val) {
-			dev_warn(dev, "GPIO interrupts not supported.\n");
+			dev_warn(dev, "GPIO interrupts analt supported.\n");
 			return -EINVAL;
 		}
 
@@ -240,7 +240,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 	ocores_platform_data.clock_khz = tqmx86_board_id_to_clk_rate(dev, board_id);
 
 	if (i2c_det == TQMX86_REG_I2C_DETECT_SOFT) {
-		err = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+		err = devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 					   tqmx86_i2c_soft_dev,
 					   ARRAY_SIZE(tqmx86_i2c_soft_dev),
 					   NULL, 0, NULL);
@@ -248,7 +248,7 @@ static int tqmx86_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				    tqmx86_devs,
 				    ARRAY_SIZE(tqmx86_devs),
 				    NULL, 0, NULL);
@@ -261,7 +261,7 @@ static int tqmx86_create_platform_device(const struct dmi_system_id *id)
 
 	pdev = platform_device_alloc("tqmx86", -1);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = platform_device_add(pdev);
 	if (err)
@@ -301,7 +301,7 @@ static struct platform_driver tqmx86_driver = {
 static int __init tqmx86_init(void)
 {
 	if (!dmi_check_system(tqmx86_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&tqmx86_driver);
 }

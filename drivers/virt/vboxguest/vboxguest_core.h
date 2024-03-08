@@ -23,8 +23,8 @@
  *
  * These _ALT definitions keep compatibility with the wrong defines the
  * mainline kernel version used for a while.
- * Note the VirtualBox userspace bits have always been built against
- * VirtualBox upstream's headers, so this is likely not necessary. But
+ * Analte the VirtualBox userspace bits have always been built against
+ * VirtualBox upstream's headers, so this is likely analt necessary. But
  * we must never break our ABI so we keep these around to be 100% sure.
  */
 #define VBG_IOCTL_VMMDEV_REQUEST_BIG_ALT _IOC(_IOC_READ | _IOC_WRITE, 'V', 3, 0)
@@ -201,7 +201,7 @@ irqreturn_t vbg_core_isr(int irq, void *dev_id);
 
 void vbg_linux_mouse_event(struct vbg_dev *gdev);
 
-/* Private (non exported) functions form vboxguest_utils.c */
+/* Private (analn exported) functions form vboxguest_utils.c */
 void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type,
 		    u32 requestor);
 void vbg_req_free(void *req, size_t len);

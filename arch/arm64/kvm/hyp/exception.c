@@ -74,7 +74,7 @@ static void __vcpu_write_spsr_und(struct kvm_vcpu *vcpu, u64 val)
 /*
  * This performs the exception entry at a given EL (@target_mode), stashing PC
  * and PSTATE into ELR and SPSR respectively, and compute the new PC/PSTATE.
- * The EL passed to this function *must* be a non-secure, privileged mode with
+ * The EL passed to this function *must* be a analn-secure, privileged mode with
  * bit 0 being set (PSTATE.SP == 1).
  *
  * When an exception is taken, most PSTATE fields are left unchanged in the
@@ -140,7 +140,7 @@ static void enter_exception64(struct kvm_vcpu *vcpu, unsigned long target_mode,
 	// See ARM DDI 0487E.a, page D5-2579.
 
 	// PSTATE.PAN is unchanged unless SCTLR_ELx.SPAN == 0b0
-	// SCTLR_ELx.SPAN is RES1 when ARMv8.1-PAN is not implemented
+	// SCTLR_ELx.SPAN is RES1 when ARMv8.1-PAN is analt implemented
 	// See ARM DDI 0487E.a, page D5-2578.
 	new |= (old & PSR_PAN_BIT);
 	if (!(sctlr & SCTLR_EL1_SPAN))
@@ -176,7 +176,7 @@ static void enter_exception64(struct kvm_vcpu *vcpu, unsigned long target_mode,
  * handler. However, some are explicitly overridden (e.g. M[4:0]).
  *
  * The SPSR/SPSR_ELx layouts differ, and the below is intended to work with
- * either format. Note: SPSR.J bit doesn't exist in SPSR_ELx, but this bit was
+ * either format. Analte: SPSR.J bit doesn't exist in SPSR_ELx, but this bit was
  * obsoleted by the ARMv7 virtualization extensions and is RES0.
  *
  * For the SPSR layout seen from AArch32, see:
@@ -215,13 +215,13 @@ static unsigned long get_except32_cpsr(struct kvm_vcpu *vcpu, u32 mode)
 		new |= PSR_AA32_SSBS_BIT;
 
 	// CPSR.PAN is unchanged unless SCTLR.SPAN == 0b0
-	// SCTLR.SPAN is RES1 when ARMv8.1-PAN is not implemented
+	// SCTLR.SPAN is RES1 when ARMv8.1-PAN is analt implemented
 	// See ARM DDI 0487E.a, page G8-6246
 	new |= (old & PSR_AA32_PAN_BIT);
 	if (!(sctlr & BIT(23)))
 		new |= PSR_AA32_PAN_BIT;
 
-	// SS does not exist in AArch32, so ignore
+	// SS does analt exist in AArch32, so iganalre
 
 	// CPSR.IL is set to zero upon any exception
 	// See ARM DDI 0487E.a, page G1-5527
@@ -351,7 +351,7 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			/*
 			 * Only EL1_SYNC and EL2_{SYNC,IRQ} makes
 			 * sense so far. Everything else gets silently
-			 * ignored.
+			 * iganalred.
 			 */
 			break;
 		}

@@ -13,12 +13,12 @@
  * - Optional address of handler that takes pt_regs * argument and runs in
  *   interrupt context.
  *
- * No registers are modified, so it is entirely up to the continuation code
+ * Anal registers are modified, so it is entirely up to the continuation code
  * to figure out what to do.
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do analt intrude
  * on our cache or tlb entries.
  */
 

@@ -3,7 +3,7 @@
  * ARM Generic Interrupt Controller (GIC) support
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/bits.h>
 #include <linux/sizes.h>
 

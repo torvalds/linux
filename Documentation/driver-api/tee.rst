@@ -18,7 +18,7 @@ match():
   bus.
 
 uevent():
-  notifies user-space (udev) whenever a new device is registered on
+  analtifies user-space (udev) whenever a new device is registered on
   TEE bus for auto-loading of modularized client drivers.
 
 TEE bus device enumeration is specific to underlying TEE implementation, so it

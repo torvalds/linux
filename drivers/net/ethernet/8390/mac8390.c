@@ -8,10 +8,10 @@
 /* 2000-02-28: support added for Dayna and Kinetics cards by
    A.G.deWijn@phys.uu.nl */
 /* 2000-04-04: support added for Dayna2 by bart@etpmod.phys.tue.nl */
-/* 2001-04-18: support for DaynaPort E/LC-M by rayk@knightsmanor.org */
+/* 2001-04-18: support for DaynaPort E/LC-M by rayk@knightsmaanalr.org */
 /* 2001-05-15: support for Cabletron ported from old daynaport driver
  * and fixed access to Sonic Sys card which masquerades as a Farallon
- * by rayk@knightsmanor.org */
+ * by rayk@knightsmaanalr.org */
 /* 2002-12-30: Try to support more cards, some clues from NetBSD driver */
 /* 2003-12-26: Make sure Asante cards always work. */
 
@@ -27,7 +27,7 @@
 #include <linux/nubus.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -58,8 +58,8 @@ static char version[] =
 
 /*
  * Unfortunately it seems we have to hardcode these for the moment
- * Shouldn't the card know about this?
- * Does anyone know where to read it off the card?
+ * Shouldn't the card kanalw about this?
+ * Does anyone kanalw where to read it off the card?
  * Do we trust the data provided by the card?
  */
 
@@ -73,7 +73,7 @@ static char version[] =
 #define INTERLAN_8390_MEM	0xD0000
 
 enum mac8390_type {
-	MAC8390_NONE = -1,
+	MAC8390_ANALNE = -1,
 	MAC8390_APPLE,
 	MAC8390_ASANTE,
 	MAC8390_FARALLON,
@@ -115,7 +115,7 @@ static const int useresources[] = {
 };
 
 enum mac8390_access {
-	ACCESS_UNKNOWN = 0,
+	ACCESS_UNKANALWN = 0,
 	ACCESS_32,
 	ACCESS_16,
 };
@@ -126,7 +126,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 static int mac8390_open(struct net_device *dev);
 static int mac8390_close(struct net_device *dev);
-static void mac8390_no_reset(struct net_device *dev);
+static void mac8390_anal_reset(struct net_device *dev);
 static void interlan_reset(struct net_device *dev);
 
 /* Sane (32-bit chunk memory read/write) - Some Farallon and Apple do this*/
@@ -169,7 +169,7 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 		case NUBUS_DRHW_APPLE_SONIC_NB:
 		case NUBUS_DRHW_APPLE_SONIC_LC:
 		case NUBUS_DRHW_SONNET:
-			return MAC8390_NONE;
+			return MAC8390_ANALNE;
 		default:
 			return MAC8390_APPLE;
 		}
@@ -177,7 +177,7 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 	case NUBUS_DRSW_APPLE:
 		switch (fres->dr_hw) {
 		case NUBUS_DRHW_ASANTE_LC:
-			return MAC8390_NONE;
+			return MAC8390_ANALNE;
 		case NUBUS_DRHW_CABLETRON:
 			return MAC8390_CABLETRON;
 		default:
@@ -213,11 +213,11 @@ static enum mac8390_type mac8390_ident(struct nubus_rsrc *fres)
 		 */
 		if (fres->dr_hw == NUBUS_DRHW_SMC9194 ||
 		    fres->dr_hw == NUBUS_DRHW_INTERLAN)
-			return MAC8390_NONE;
+			return MAC8390_ANALNE;
 		else
 			return MAC8390_DAYNA;
 	}
-	return MAC8390_NONE;
+	return MAC8390_ANALNE;
 }
 
 static enum mac8390_access mac8390_testio(unsigned long membase)
@@ -227,7 +227,7 @@ static enum mac8390_access mac8390_testio(unsigned long membase)
 
 	/* Try writing 32 bits */
 	nubus_writel(outdata, membase);
-	/* Now read it back */
+	/* Analw read it back */
 	indata = nubus_readl(membase);
 	if (outdata == indata)
 		return ACCESS_32;
@@ -237,12 +237,12 @@ static enum mac8390_access mac8390_testio(unsigned long membase)
 
 	/* Write 16 bit output */
 	word_memcpy_tocard(membase, &outdata, 4);
-	/* Now read it back */
+	/* Analw read it back */
 	word_memcpy_fromcard(&indata, membase, 4);
 	if (outdata == indata)
 		return ACCESS_16;
 
-	return ACCESS_UNKNOWN;
+	return ACCESS_UNKANALWN;
 }
 
 static int mac8390_memsize(unsigned long membase)
@@ -309,7 +309,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 
 	/* Get the MAC address */
 	if (nubus_find_rsrc(&dir, NUBUS_RESID_MAC_ADDRESS, &ent) == -1) {
-		dev_info(&board->dev, "MAC address resource not found\n");
+		dev_info(&board->dev, "MAC address resource analt found\n");
 		return false;
 	}
 
@@ -318,21 +318,21 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 
 	if (useresources[cardtype] == 1) {
 		nubus_rewinddir(&dir);
-		if (nubus_find_rsrc(&dir, NUBUS_RESID_MINOR_BASEOS,
+		if (nubus_find_rsrc(&dir, NUBUS_RESID_MIANALR_BASEOS,
 				    &ent) == -1) {
 			dev_err(&board->dev,
-				"Memory offset resource not found\n");
+				"Memory offset resource analt found\n");
 			return false;
 		}
 		nubus_get_rsrc_mem(&offset, &ent, 4);
 		dev->mem_start = dev->base_addr + offset;
-		/* yes, this is how the Apple driver does it */
+		/* anal, this is how the Apple driver does it */
 		dev->base_addr = dev->mem_start + 0x10000;
 		nubus_rewinddir(&dir);
-		if (nubus_find_rsrc(&dir, NUBUS_RESID_MINOR_LENGTH,
+		if (nubus_find_rsrc(&dir, NUBUS_RESID_MIANALR_LENGTH,
 				    &ent) == -1) {
 			dev_info(&board->dev,
-				 "Memory length resource not found, probing\n");
+				 "Memory length resource analt found, probing\n");
 			offset = mac8390_memsize(dev->mem_start);
 		} else {
 			nubus_get_rsrc_mem(&offset, &ent, 4);
@@ -364,7 +364,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 					       CABLETRON_8390_MEM);
 			/* The base address is unreadable if 0x00
 			 * has been written to the command register
-			 * Reset the chip by writing E8390_NODMA +
+			 * Reset the chip by writing E8390_ANALDMA +
 			 *   E8390_PAGE0 + E8390_STOP just to be
 			 *   sure
 			 */
@@ -376,7 +376,7 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 
 		default:
 			dev_err(&board->dev,
-				"No known base address for card type\n");
+				"Anal kanalwn base address for card type\n");
 			return false;
 		}
 	}
@@ -387,13 +387,13 @@ static bool mac8390_rsrc_init(struct net_device *dev,
 static int mac8390_device_probe(struct nubus_board *board)
 {
 	struct net_device *dev;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct nubus_rsrc *fres;
-	enum mac8390_type cardtype = MAC8390_NONE;
+	enum mac8390_type cardtype = MAC8390_ANALNE;
 
 	dev = ____alloc_ei_netdev(0);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, &board->dev);
 
@@ -403,7 +403,7 @@ static int mac8390_device_probe(struct nubus_board *board)
 			continue;
 
 		cardtype = mac8390_ident(fres);
-		if (cardtype == MAC8390_NONE)
+		if (cardtype == MAC8390_ANALNE)
 			continue;
 
 		if (mac8390_rsrc_init(dev, fres, cardtype))
@@ -499,7 +499,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 	int access_bitmode = 0;
 
-	/* Now fill in our stuff */
+	/* Analw fill in our stuff */
 	dev->netdev_ops = &mac8390_netdev_ops;
 
 	/* GAR, ei_status is actually a macro even though it looks global */
@@ -526,14 +526,14 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 	case MAC8390_FARALLON:
 	case MAC8390_APPLE:
 		switch (mac8390_testio(dev->mem_start)) {
-		case ACCESS_UNKNOWN:
+		case ACCESS_UNKANALWN:
 			dev_err(&board->dev,
-				"Don't know how to access card memory\n");
-			return -ENODEV;
+				"Don't kanalw how to access card memory\n");
+			return -EANALDEV;
 
 		case ACCESS_16:
 			/* 16 bit card, register map is reversed */
-			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.reset_8390 = mac8390_anal_reset;
 			ei_status.block_input = slow_sane_block_input;
 			ei_status.block_output = slow_sane_block_output;
 			ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -542,7 +542,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 		case ACCESS_32:
 			/* 32 bit card, register map is reversed */
-			ei_status.reset_8390 = mac8390_no_reset;
+			ei_status.reset_8390 = mac8390_anal_reset;
 			ei_status.block_input = sane_block_input;
 			ei_status.block_output = sane_block_output;
 			ei_status.get_8390_hdr = sane_get_8390_hdr;
@@ -557,7 +557,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 		 * but overwrite system memory when run at 32 bit.
 		 * so we run them all at 16 bit.
 		 */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_anal_reset;
 		ei_status.block_input = slow_sane_block_input;
 		ei_status.block_output = slow_sane_block_output;
 		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -566,7 +566,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 	case MAC8390_CABLETRON:
 		/* 16 bit card, register map is short forward */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_anal_reset;
 		ei_status.block_input = slow_sane_block_input;
 		ei_status.block_output = slow_sane_block_output;
 		ei_status.get_8390_hdr = slow_sane_get_8390_hdr;
@@ -577,7 +577,7 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 	case MAC8390_KINETICS:
 		/* 16 bit memory, register map is forward */
 		/* dayna and similar */
-		ei_status.reset_8390 = mac8390_no_reset;
+		ei_status.reset_8390 = mac8390_anal_reset;
 		ei_status.block_input = dayna_block_input;
 		ei_status.block_output = dayna_block_output;
 		ei_status.get_8390_hdr = dayna_get_8390_hdr;
@@ -595,12 +595,12 @@ static int mac8390_initdev(struct net_device *dev, struct nubus_board *board,
 
 	default:
 		dev_err(&board->dev, "Unsupported card type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	__NS8390_init(dev, 0);
 
-	/* Good, done, now spit out some messages */
+	/* Good, done, analw spit out some messages */
 	dev_info(&board->dev, "%s (type %s)\n", board->name, cardname[type]);
 	dev_info(&board->dev, "MAC %pM, IRQ %d, %d KB shared memory at %#lx, %d-bit access.\n",
 		 dev->dev_addr, dev->irq,
@@ -627,12 +627,12 @@ static int mac8390_close(struct net_device *dev)
 	return 0;
 }
 
-static void mac8390_no_reset(struct net_device *dev)
+static void mac8390_anal_reset(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
 
 	ei_status.txing = 0;
-	netif_info(ei_local, hw, dev, "reset not supported\n");
+	netif_info(ei_local, hw, dev, "reset analt supported\n");
 }
 
 static void interlan_reset(struct net_device *dev)
@@ -757,7 +757,7 @@ static void dayna_block_input(struct net_device *dev, int count,
 	unsigned long xfer_base = ring_offset - (WD_START_PG<<8);
 	unsigned long xfer_start = xfer_base+dev->mem_start;
 
-	/* Note the offset math is done in card memory space which is word
+	/* Analte the offset math is done in card memory space which is word
 	   per long onto our space. */
 
 	if (xfer_start + count > ei_status.rmem_end) {

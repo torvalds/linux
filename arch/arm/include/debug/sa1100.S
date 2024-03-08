@@ -12,7 +12,7 @@
 #define UTSR1		0x20
 #define UTCR3_TXE	0x00000002	/* Transmit Enable                 */
 #define UTSR1_TBY	0x00000001	/* Transmitter BusY (read)         */
-#define UTSR1_TNF	0x00000004	/* Transmit FIFO Not Full (read)   */
+#define UTSR1_TNF	0x00000004	/* Transmit FIFO Analt Full (read)   */
 
 		.macro	addruart, rp, rv, tmp
 		mrc	p15, 0, \rp, c1, c0

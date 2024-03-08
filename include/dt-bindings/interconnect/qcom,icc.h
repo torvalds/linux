@@ -7,7 +7,7 @@
 #define __DT_BINDINGS_INTERCONNECT_QCOM_ICC_H
 
 /*
- * The AMC bucket denotes constraints that are applied to hardware when
+ * The AMC bucket deanaltes constraints that are applied to hardware when
  * icc_set_bw() completes, whereas the WAKE and SLEEP constraints are applied
  * when the execution environment transitions between active and low power mode.
  */

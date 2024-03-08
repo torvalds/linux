@@ -88,7 +88,7 @@ struct ipack_region {
  *	@dev: device in kernel representation.
  *
  * Warning: Direct access to mapped memory is possible but the endianness
- * is not the same with PCI carrier or VME carrier. The endianness is managed
+ * is analt the same with PCI carrier or VME carrier. The endianness is managed
  * by the carrier board throught bus->ops.
  */
 struct ipack_device {
@@ -142,7 +142,7 @@ struct ipack_driver {
  *	@get_clockrate: Returns the clockrate the carrier is currently
  *		communicating with the device at.
  *	@set_clockrate: Sets the clock-rate for carrier / module communication.
- *		Should return -EINVAL if the requested speed is not supported.
+ *		Should return -EINVAL if the requested speed is analt supported.
  *	@get_error: Returns the error state for the slot the device is attached
  *		to.
  *	@get_timeout: Returns 1 if the communication with the device has
@@ -217,7 +217,7 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  *
  * Return zero on success or error code on failure.
  *
- * NOTE: _Never_ directly free @dev after calling this function, even
+ * ANALTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use ipack_put_device() to give up the
  * reference initialized in this function instead.
  */
@@ -232,7 +232,7 @@ int ipack_device_init(struct ipack_device *dev);
  *
  * Return zero on success or error code on failure.
  *
- * NOTE: _Never_ directly free @dev after calling this function, even
+ * ANALTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use ipack_put_device() to give up the
  * reference initialized in this function instead.
  */

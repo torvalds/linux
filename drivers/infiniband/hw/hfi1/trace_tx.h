@@ -905,7 +905,7 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__field(uint, used)
 		__field(uint, flow)
 		__field(int, stops)
-		__field(int, no_desc)
+		__field(int, anal_desc)
 		__field(u8, idx)
 		__field(u8, stopped)
 	),
@@ -921,12 +921,12 @@ DECLARE_EVENT_CLASS(/* AIP  */
 			txq->tx_ring.complete_txreqs;
 		__entry->flow = txq->flow.as_int;
 		__entry->stops = atomic_read(&txq->tx_ring.stops);
-		__entry->no_desc = atomic_read(&txq->tx_ring.no_desc);
+		__entry->anal_desc = atomic_read(&txq->tx_ring.anal_desc);
 		__entry->stopped =
 		 __netif_subqueue_stopped(txq->priv->netdev, txq->q_idx);
 	),
 	TP_printk(/* print  */
-		"[%s] txq %llx idx %u sde %llx:%u cpu %d head %lx tail %lx flow %x used %u stops %d no_desc %d stopped %u",
+		"[%s] txq %llx idx %u sde %llx:%u cpu %d head %lx tail %lx flow %x used %u stops %d anal_desc %d stopped %u",
 		__get_str(dev),
 		(unsigned long long)__entry->txq,
 		__entry->idx,
@@ -938,7 +938,7 @@ DECLARE_EVENT_CLASS(/* AIP  */
 		__entry->flow,
 		__entry->used,
 		__entry->stops,
-		__entry->no_desc,
+		__entry->anal_desc,
 		__entry->stopped
 	)
 );

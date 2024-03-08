@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9VPRB	12
 
 /* camera flags */
-#define HAS_NO_BUTTON	0x1
+#define HAS_ANAL_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 #define FLIP_DETECT	0x4
 #define HAS_LED_TORCH	0x8
@@ -165,47 +165,47 @@ static const struct dmi_system_id flip_dmi_table[] = {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_160x120 | MODE_JPEG},
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_160x120 | MODE_RAW},
-	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_160x120},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_320x240 | MODE_JPEG},
-	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_320x240 | MODE_RAW},
-	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_320x240},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_640x480 | MODE_JPEG},
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_640x480 | MODE_RAW},
-	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -213,75 +213,75 @@ static const struct v4l2_pix_format vga_mode[] = {
 };
 
 static const struct v4l2_pix_format sxga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_160x120 | MODE_JPEG},
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_160x120 | MODE_RAW},
-	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_160x120},
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_320x240 | MODE_JPEG},
-	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_320x240 | MODE_RAW},
-	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_320x240},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = SCALE_640x480 | MODE_JPEG},
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_640x480 | MODE_RAW},
-	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_640x480},
-	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_1280x1024 | MODE_RAW | MODE_SXGA},
 };
 
-static const struct v4l2_pix_format mono_mode[] = {
-	{160, 120, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+static const struct v4l2_pix_format moanal_mode[] = {
+	{160, 120, V4L2_PIX_FMT_GREY, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_160x120 | MODE_RAW},
-	{320, 240, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_GREY, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_320x240 | MODE_RAW},
-	{640, 480, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_GREY, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = SCALE_640x480 | MODE_RAW},
-	{1280, 1024, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+	{1280, 1024, V4L2_PIX_FMT_GREY, V4L2_FIELD_ANALNE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -973,7 +973,7 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 		}
 		msleep(10);
 	}
-	pr_err("i2c_w reg %02x no response\n", buffer[2]);
+	pr_err("i2c_w reg %02x anal response\n", buffer[2]);
 /*	gspca_dev->usb_err = -EIO;	fixme: may occur */
 }
 
@@ -1090,7 +1090,7 @@ static void ov9650_init_sensor(struct gspca_dev *gspca_dev)
 
 	if (id != 0x7fa2) {
 		pr_err("sensor id for ov9650 doesn't match (0x%04x)\n", id);
-		gspca_dev->usb_err = -ENODEV;
+		gspca_dev->usb_err = -EANALDEV;
 		return;
 	}
 
@@ -1220,7 +1220,7 @@ static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 		return;
 	}
 
-	gspca_dev->usb_err = -ENODEV;
+	gspca_dev->usb_err = -EANALDEV;
 }
 
 static void mt9m112_init_sensor(struct gspca_dev *gspca_dev)
@@ -1263,11 +1263,11 @@ static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 		pr_info("MT9M001 color sensor detected\n");
 		break;
 	case 0x8431:
-		pr_info("MT9M001 mono sensor detected\n");
+		pr_info("MT9M001 moanal sensor detected\n");
 		break;
 	default:
-		pr_err("No MT9M001 chip detected, ID = %x\n\n", id);
-		gspca_dev->usb_err = -ENODEV;
+		pr_err("Anal MT9M001 chip detected, ID = %x\n\n", id);
+		gspca_dev->usb_err = -EANALDEV;
 		return;
 	}
 
@@ -1641,8 +1641,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(sxga_mode);
 		break;
 	case SENSOR_MT9M001:
-		cam->cam_mode = mono_mode;
-		cam->nmodes = ARRAY_SIZE(mono_mode);
+		cam->cam_mode = moanal_mode;
+		cam->nmodes = ARRAY_SIZE(moanal_mode);
 		break;
 	case SENSOR_HV7131R:
 		sd->i2c_intf = 0x81;			/* i2c 400 Kb/s */
@@ -1773,10 +1773,10 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	if (sd->flags & HAS_LED_TORCH)
 		sd->led_mode = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
 				V4L2_CID_FLASH_LED_MODE, V4L2_FLASH_LED_MODE_TORCH,
-				~0x5, V4L2_FLASH_LED_MODE_NONE);
+				~0x5, V4L2_FLASH_LED_MODE_ANALNE);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 
@@ -1888,7 +1888,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	default:
 		pr_err("Unsupported sensor\n");
-		gspca_dev->usb_err = -ENODEV;
+		gspca_dev->usb_err = -EANALDEV;
 	}
 	return gspca_dev->usb_err;
 }
@@ -1964,7 +1964,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 		intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 
 		if (intf->num_altsetting != 9) {
-			pr_warn("sn9c20x camera with unknown number of alt settings (%d), please report!\n",
+			pr_warn("sn9c20x camera with unkanalwn number of alt settings (%d), please report!\n",
 				intf->num_altsetting);
 			gspca_dev->alt = intf->num_altsetting;
 			return 0;
@@ -2189,7 +2189,7 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (!(sd->flags & HAS_NO_BUTTON) && len == 1) {
+	if (!(sd->flags & HAS_ANAL_BUTTON) && len == 1) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
 		input_sync(gspca_dev->input_dev);
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
@@ -2227,7 +2227,7 @@ static void transfer_check(struct gspca_dev *gspca_dev,
 	if (new_qual != 0) {
 		sd->nchg += new_qual;
 		if (sd->nchg < -6 || sd->nchg >= 12) {
-			/* Note: we are in interrupt context, so we can't
+			/* Analte: we are in interrupt context, so we can't
 			   use v4l2_ctrl_g/s_ctrl here. Access the value
 			   directly instead. */
 			s32 curqual = sd->jpegqual->cur.val;
@@ -2350,7 +2350,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, LED_REVERSE)},
 	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30,
-					     (FLIP_DETECT | HAS_NO_BUTTON))},
+					     (FLIP_DETECT | HAS_ANAL_BUTTON))},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},

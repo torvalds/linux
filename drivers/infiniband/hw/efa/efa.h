@@ -104,7 +104,7 @@ struct efa_cq {
 	struct rdma_user_mmap_entry *db_mmap_entry;
 	size_t size;
 	u16 cq_idx;
-	/* NULL when no interrupts requested */
+	/* NULL when anal interrupts requested */
 	struct efa_eq *eq;
 };
 

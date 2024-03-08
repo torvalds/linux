@@ -27,10 +27,10 @@ int __execute_only_pkey(struct mm_struct *mm)
 	}
 
 	/*
-	 * We do not want to go through the relatively costly
-	 * dance to set PKRU if we do not need to.  Check it
+	 * We do analt want to go through the relatively costly
+	 * dance to set PKRU if we do analt need to.  Check it
 	 * first and assume that if the execute-only pkey is
-	 * write-disabled that we do not have to set it
+	 * write-disabled that we do analt have to set it
 	 * ourselves.
 	 */
 	if (!need_to_set_mm_pkey &&
@@ -85,7 +85,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
 	/*
 	 * The mapping is execute-only.  Go try to get the
 	 * execute-only protection key.  If we fail to do that,
-	 * fall through as if we do not have execute-only
+	 * fall through as if we do analt have execute-only
 	 * support in this mm.
 	 */
 	if (prot == PROT_EXEC) {
@@ -94,16 +94,16 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
 			return pkey;
 	} else if (vma_is_pkey_exec_only(vma)) {
 		/*
-		 * Protections are *not* PROT_EXEC, but the mapping
+		 * Protections are *analt* PROT_EXEC, but the mapping
 		 * is using the exec-only pkey.  This mapping was
-		 * PROT_EXEC and will no longer be.  Move back to
+		 * PROT_EXEC and will anal longer be.  Move back to
 		 * the default pkey.
 		 */
 		return ARCH_DEFAULT_PKEY;
 	}
 
 	/*
-	 * This is a vanilla, non-pkey mprotect (or we failed to
+	 * This is a vanilla, analn-pkey mprotect (or we failed to
 	 * setup execute-only), inherit the pkey from the VMA we
 	 * are working on.
 	 */
@@ -115,7 +115,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
 /*
  * Make the default PKRU value (at execve() time) as restrictive
  * as possible.  This ensures that any threads clone()'d early
- * in the process's lifetime will not accidentally get access
+ * in the process's lifetime will analt accidentally get access
  * to data which is pkey-protected later on.
  */
 u32 init_pkru_value = PKRU_AD_MASK( 1) | PKRU_AD_MASK( 2) |
@@ -148,7 +148,7 @@ static ssize_t init_pkru_write_file(struct file *file,
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
-	/* Make the buffer a valid string that we can not overrun */
+	/* Make the buffer a valid string that we can analt overrun */
 	buf[len] = '\0';
 	if (kstrtouint(buf, 0, &new_init_pkru))
 		return -EINVAL;
@@ -173,7 +173,7 @@ static const struct file_operations fops_init_pkru = {
 
 static int __init create_init_pkru_value(void)
 {
-	/* Do not expose the file if pkeys are not supported. */
+	/* Do analt expose the file if pkeys are analt supported. */
 	if (!cpu_feature_enabled(X86_FEATURE_OSPKE))
 		return 0;
 

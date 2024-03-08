@@ -127,7 +127,7 @@ int dscr_default_random_test(void)
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
 
 	FAIL_IF(pthread_rwlockattr_setkind_np(&rwlock_attr,
-					      PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP));
+					      PTHREAD_RWLOCK_PREFER_WRITER_ANALNRECURSIVE_NP));
 	FAIL_IF(pthread_rwlock_init(&rw_lock, &rwlock_attr));
 	FAIL_IF(pthread_barrier_init(&barrier, NULL, THREADS));
 

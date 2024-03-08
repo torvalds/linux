@@ -3,7 +3,7 @@
  * (c) 1998  Grant R. Guenther <grant@torque.net>
  *
  * fit3.c is a low-level protocol driver for newer models
- * of the Fidelity International Technology parallel port adapter.
+ * of the Fidelity International Techanallogy parallel port adapter.
  * This adapter is used in their TransDisk 3000 portable
  * hard-drives, as well as CD-ROM, PD-CD and other devices.
  *
@@ -184,6 +184,6 @@ static struct pi_protocol fit3 = {
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Grant R. Guenther <grant@torque.net>");
-MODULE_DESCRIPTION("Fidelity International Technology parallel port IDE adapter"
+MODULE_DESCRIPTION("Fidelity International Techanallogy parallel port IDE adapter"
 		   "(newer models) protocol driver");
 module_pata_parport_driver(fit3);

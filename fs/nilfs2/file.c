@@ -24,18 +24,18 @@ int nilfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * will be implemented.
 	 */
 	struct the_nilfs *nilfs;
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 	int err = 0;
 
-	if (nilfs_inode_dirty(inode)) {
+	if (nilfs_ianalde_dirty(ianalde)) {
 		if (datasync)
-			err = nilfs_construct_dsync_segment(inode->i_sb, inode,
+			err = nilfs_construct_dsync_segment(ianalde->i_sb, ianalde,
 							    start, end);
 		else
-			err = nilfs_construct_segment(inode->i_sb);
+			err = nilfs_construct_segment(ianalde->i_sb);
 	}
 
-	nilfs = inode->i_sb->s_fs_info;
+	nilfs = ianalde->i_sb->s_fs_info;
 	if (!err)
 		err = nilfs_flush_device(nilfs);
 
@@ -46,18 +46,18 @@ static vm_fault_t nilfs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct folio *folio = page_folio(vmf->page);
-	struct inode *inode = file_inode(vma->vm_file);
+	struct ianalde *ianalde = file_ianalde(vma->vm_file);
 	struct nilfs_transaction_info ti;
 	struct buffer_head *bh, *head;
 	int ret = 0;
 
-	if (unlikely(nilfs_near_disk_full(inode->i_sb->s_fs_info)))
-		return VM_FAULT_SIGBUS; /* -ENOSPC */
+	if (unlikely(nilfs_near_disk_full(ianalde->i_sb->s_fs_info)))
+		return VM_FAULT_SIGBUS; /* -EANALSPC */
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 	folio_lock(folio);
-	if (folio->mapping != inode->i_mapping ||
-	    folio_pos(folio) >= i_size_read(inode) ||
+	if (folio->mapping != ianalde->i_mapping ||
+	    folio_pos(folio) >= i_size_read(ianalde) ||
 	    !folio_test_uptodate(folio)) {
 		folio_unlock(folio);
 		ret = -EFAULT;	/* make the VM retry the fault */
@@ -65,7 +65,7 @@ static vm_fault_t nilfs_page_mkwrite(struct vm_fault *vmf)
 	}
 
 	/*
-	 * check to see if the folio is mapped already (no holes)
+	 * check to see if the folio is mapped already (anal holes)
 	 */
 	if (folio_test_mappedtodisk(folio))
 		goto mapped;
@@ -92,19 +92,19 @@ static vm_fault_t nilfs_page_mkwrite(struct vm_fault *vmf)
 	/*
 	 * fill hole blocks
 	 */
-	ret = nilfs_transaction_begin(inode->i_sb, &ti, 1);
-	/* never returns -ENOMEM, but may return -ENOSPC */
+	ret = nilfs_transaction_begin(ianalde->i_sb, &ti, 1);
+	/* never returns -EANALMEM, but may return -EANALSPC */
 	if (unlikely(ret))
 		goto out;
 
 	file_update_time(vma->vm_file);
 	ret = block_page_mkwrite(vma, vmf, nilfs_get_block);
 	if (ret) {
-		nilfs_transaction_abort(inode->i_sb);
+		nilfs_transaction_abort(ianalde->i_sb);
 		goto out;
 	}
-	nilfs_set_file_dirty(inode, 1 << (PAGE_SHIFT - inode->i_blkbits));
-	nilfs_transaction_commit(inode->i_sb);
+	nilfs_set_file_dirty(ianalde, 1 << (PAGE_SHIFT - ianalde->i_blkbits));
+	nilfs_transaction_commit(ianalde->i_sb);
 
  mapped:
 	/*
@@ -115,7 +115,7 @@ static vm_fault_t nilfs_page_mkwrite(struct vm_fault *vmf)
 	 */
 	folio_wait_writeback(folio);
  out:
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	return vmf_fs_error(ret);
 }
 
@@ -152,7 +152,7 @@ const struct file_operations nilfs_file_operations = {
 	.splice_write   = iter_file_splice_write,
 };
 
-const struct inode_operations nilfs_file_inode_operations = {
+const struct ianalde_operations nilfs_file_ianalde_operations = {
 	.setattr	= nilfs_setattr,
 	.permission     = nilfs_permission,
 	.fiemap		= nilfs_fiemap,

@@ -19,9 +19,9 @@
 
 
 /*
- * Technically, updating td->status here is a race, but it's not really a
+ * Technically, updating td->status here is a race, but it's analt really a
  * problem. The worst that can happen is that we set the IOC bit again
- * generating a spurious interrupt. We could fix this by creating another
+ * generating a spurious interrupt. We could fix this by creating aanalther
  * QH and leaving the IOC bit always set, but then we would have to play
  * games with the FSBR code to make sure we get the correct order in all
  * the cases. I don't think it's worth the effort
@@ -52,8 +52,8 @@ static void uhci_fsbr_on(struct uhci_hcd *uhci)
 	 * FSBR QH.  Make the last async QH point to the terminating
 	 * skeleton QH. */
 	uhci->fsbr_is_on = 1;
-	lqh = list_entry(uhci->skel_async_qh->node.prev,
-			struct uhci_qh, node);
+	lqh = list_entry(uhci->skel_async_qh->analde.prev,
+			struct uhci_qh, analde);
 	lqh->link = LINK_TO_QH(uhci, uhci->skel_term_qh);
 }
 
@@ -64,8 +64,8 @@ static void uhci_fsbr_off(struct uhci_hcd *uhci)
 	/* Remove the link from the last async QH to the terminating
 	 * skeleton QH. */
 	uhci->fsbr_is_on = 0;
-	lqh = list_entry(uhci->skel_async_qh->node.prev,
-			struct uhci_qh, node);
+	lqh = list_entry(uhci->skel_async_qh->analde.prev,
+			struct uhci_qh, analde);
 	lqh->link = UHCI_PTR_TERM(uhci);
 }
 
@@ -150,7 +150,7 @@ static void uhci_remove_td_from_urbp(struct uhci_td *td)
 }
 
 /*
- * We insert Isochronous URBs directly into the frame list at the beginning
+ * We insert Isochroanalus URBs directly into the frame list at the beginning
  */
 static inline void uhci_insert_td_in_frame_list(struct uhci_hcd *uhci,
 		struct uhci_td *td, unsigned framenum)
@@ -182,7 +182,7 @@ static inline void uhci_insert_td_in_frame_list(struct uhci_hcd *uhci,
 static inline void uhci_remove_td_from_frame_list(struct uhci_hcd *uhci,
 		struct uhci_td *td)
 {
-	/* If it's not inserted, don't remove it */
+	/* If it's analt inserted, don't remove it */
 	if (td->frame == -1) {
 		WARN_ON(!list_empty(&td->fl_list));
 		return;
@@ -231,9 +231,9 @@ static inline void uhci_remove_tds_from_frame(struct uhci_hcd *uhci,
 }
 
 /*
- * Remove all the TDs for an Isochronous URB from the frame list
+ * Remove all the TDs for an Isochroanalus URB from the frame list
  */
-static void uhci_unlink_isochronous_tds(struct uhci_hcd *uhci, struct urb *urb)
+static void uhci_unlink_isochroanalus_tds(struct uhci_hcd *uhci, struct urb *urb)
 {
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 	struct uhci_td *td;
@@ -258,9 +258,9 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	qh->link = UHCI_PTR_TERM(uhci);
 
 	INIT_LIST_HEAD(&qh->queue);
-	INIT_LIST_HEAD(&qh->node);
+	INIT_LIST_HEAD(&qh->analde);
 
-	if (udev) {		/* Normal QH */
+	if (udev) {		/* Analrmal QH */
 		qh->type = usb_endpoint_type(&hep->desc);
 		if (qh->type != USB_ENDPOINT_XFER_ISOC) {
 			qh->dummy_td = uhci_alloc_td(uhci);
@@ -293,9 +293,9 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	WARN_ON(qh->state != QH_STATE_IDLE && qh->udev);
 	if (!list_empty(&qh->queue))
-		dev_WARN(uhci_dev(uhci), "qh %p list not empty!\n", qh);
+		dev_WARN(uhci_dev(uhci), "qh %p list analt empty!\n", qh);
 
-	list_del(&qh->node);
+	list_del(&qh->analde);
 	if (qh->udev) {
 		qh->hep->hcpriv = NULL;
 		if (qh->dummy_td)
@@ -309,7 +309,7 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
  * the previous TD link (if the URB isn't first on the queue) or
  * save its toggle value (if it is first and is currently executing).
  *
- * Returns 0 if the URB should not yet be given back, 1 otherwise.
+ * Returns 0 if the URB should analt yet be given back, 1 otherwise.
  */
 static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		struct urb *urb)
@@ -318,10 +318,10 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	struct uhci_td *td;
 	int ret = 1;
 
-	/* Isochronous pipes don't use toggles and their TD link pointers
+	/* Isochroanalus pipes don't use toggles and their TD link pointers
 	 * get adjusted during uhci_urb_dequeue().  But since their queues
-	 * cannot truly be stopped, we have to watch out for dequeues
-	 * occurring after the nominal unlink frame. */
+	 * cananalt truly be stopped, we have to watch out for dequeues
+	 * occurring after the analminal unlink frame. */
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
 		ret = (uhci->frame_number + uhci->is_stopped !=
 				qh->unlink_frame);
@@ -331,11 +331,11 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	/* If the URB isn't first on its queue, adjust the link pointer
 	 * of the last TD in the previous URB.  The toggle doesn't need
 	 * to be saved since this URB can't be executing yet. */
-	if (qh->queue.next != &urbp->node) {
+	if (qh->queue.next != &urbp->analde) {
 		struct urb_priv *purbp;
 		struct uhci_td *ptd;
 
-		purbp = list_entry(urbp->node.prev, struct urb_priv, node);
+		purbp = list_entry(urbp->analde.prev, struct urb_priv, analde);
 		WARN_ON(list_empty(&purbp->td_list));
 		ptd = list_entry(purbp->td_list.prev, struct uhci_td,
 				list);
@@ -380,18 +380,18 @@ static void uhci_fixup_toggles(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	/* Fixups for a short transfer start with the second URB in the
 	 * queue (the short URB is the first). */
 	if (skip_first)
-		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		urbp = list_entry(qh->queue.next, struct urb_priv, analde);
 
 	/* When starting with the first URB, if the QH element pointer is
-	 * still valid then we know the URB's toggles are okay. */
+	 * still valid then we kanalw the URB's toggles are okay. */
 	else if (qh_element(qh) != UHCI_PTR_TERM(uhci))
 		toggle = 2;
 
-	/* Fix up the toggle for the URBs in the queue.  Normally this
+	/* Fix up the toggle for the URBs in the queue.  Analrmally this
 	 * loop won't run more than once: When an error or short transfer
 	 * occurs, the queue usually gets emptied. */
-	urbp = list_prepare_entry(urbp, &qh->queue, node);
-	list_for_each_entry_continue(urbp, &qh->queue, node) {
+	urbp = list_prepare_entry(urbp, &qh->queue, analde);
+	list_for_each_entry_continue(urbp, &qh->queue, analde) {
 
 		/* If the first TD has the right toggle value, we don't
 		 * need to change any toggles in this URB */
@@ -412,20 +412,20 @@ static void uhci_fixup_toggles(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	}
 
 	wmb();
-	pipe = list_entry(qh->queue.next, struct urb_priv, node)->urb->pipe;
+	pipe = list_entry(qh->queue.next, struct urb_priv, analde)->urb->pipe;
 	usb_settoggle(qh->udev, usb_pipeendpoint(pipe),
 			usb_pipeout(pipe), toggle);
 	qh->needs_fixup = 0;
 }
 
 /*
- * Link an Isochronous QH into its skeleton's list
+ * Link an Isochroanalus QH into its skeleton's list
  */
 static inline void link_iso(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
-	list_add_tail(&qh->node, &uhci->skel_iso_qh->node);
+	list_add_tail(&qh->analde, &uhci->skel_iso_qh->analde);
 
-	/* Isochronous QHs aren't linked by the hardware */
+	/* Isochroanalus QHs aren't linked by the hardware */
 }
 
 /*
@@ -436,9 +436,9 @@ static void link_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	struct uhci_qh *pqh;
 
-	list_add_tail(&qh->node, &uhci->skelqh[qh->skel]->node);
+	list_add_tail(&qh->analde, &uhci->skelqh[qh->skel]->analde);
 
-	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
+	pqh = list_entry(qh->analde.prev, struct uhci_qh, analde);
 	qh->link = pqh->link;
 	wmb();
 	pqh->link = LINK_TO_QH(uhci, qh);
@@ -456,11 +456,11 @@ static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	/* Find the predecessor QH for our new one and insert it in the list.
 	 * The list of QHs is expected to be short, so linear search won't
 	 * take too long. */
-	list_for_each_entry_reverse(pqh, &uhci->skel_async_qh->node, node) {
+	list_for_each_entry_reverse(pqh, &uhci->skel_async_qh->analde, analde) {
 		if (pqh->skel <= qh->skel)
 			break;
 	}
-	list_add(&qh->node, &pqh->node);
+	list_add(&qh->analde, &pqh->analde);
 
 	/* Link it into the schedule */
 	qh->link = pqh->link;
@@ -468,7 +468,7 @@ static void link_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	link_to_new_qh = LINK_TO_QH(uhci, qh);
 	pqh->link = link_to_new_qh;
 
-	/* If this is now the first FSBR QH, link the terminating skeleton
+	/* If this is analw the first FSBR QH, link the terminating skeleton
 	 * QH to it. */
 	if (pqh->skel < SKEL_FSBR && qh->skel >= SKEL_FSBR)
 		uhci->skel_term_qh->link = link_to_new_qh;
@@ -482,10 +482,10 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	WARN_ON(list_empty(&qh->queue));
 
 	/* Set the element pointer if it isn't set already.
-	 * This isn't needed for Isochronous queues, but it doesn't hurt. */
+	 * This isn't needed for Isochroanalus queues, but it doesn't hurt. */
 	if (qh_element(qh) == UHCI_PTR_TERM(uhci)) {
 		struct urb_priv *urbp = list_entry(qh->queue.next,
-				struct urb_priv, node);
+				struct urb_priv, analde);
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
@@ -503,9 +503,9 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	/* Move the QH from its old list to the correct spot in the appropriate
 	 * skeleton's list */
 	if (qh == uhci->next_qh)
-		uhci->next_qh = list_entry(qh->node.next, struct uhci_qh,
-				node);
-	list_del(&qh->node);
+		uhci->next_qh = list_entry(qh->analde.next, struct uhci_qh,
+				analde);
+	list_del(&qh->analde);
 
 	if (qh->skel == SKEL_ISO)
 		link_iso(uhci, qh);
@@ -522,7 +522,7 @@ static void unlink_interrupt(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
 	struct uhci_qh *pqh;
 
-	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
+	pqh = list_entry(qh->analde.prev, struct uhci_qh, analde);
 	pqh->link = qh->link;
 	mb();
 }
@@ -535,7 +535,7 @@ static void unlink_async(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	struct uhci_qh *pqh;
 	__hc32 link_to_next_qh = qh->link;
 
-	pqh = list_entry(qh->node.prev, struct uhci_qh, node);
+	pqh = list_entry(qh->analde.prev, struct uhci_qh, analde);
 	pqh->link = link_to_next_qh;
 
 	/* If this was the old first FSBR QH, link the terminating skeleton
@@ -566,15 +566,15 @@ static void uhci_unlink_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	uhci_get_current_frame_number(uhci);
 	qh->unlink_frame = uhci->frame_number;
 
-	/* Force an interrupt so we know when the QH is fully unlinked */
-	if (list_empty(&uhci->skel_unlink_qh->node) || uhci->is_stopped)
+	/* Force an interrupt so we kanalw when the QH is fully unlinked */
+	if (list_empty(&uhci->skel_unlink_qh->analde) || uhci->is_stopped)
 		uhci_set_next_interrupt(uhci);
 
 	/* Move the QH from its old list to the end of the unlinking list */
 	if (qh == uhci->next_qh)
-		uhci->next_qh = list_entry(qh->node.next, struct uhci_qh,
-				node);
-	list_move_tail(&qh->node, &uhci->skel_unlink_qh->node);
+		uhci->next_qh = list_entry(qh->analde.next, struct uhci_qh,
+				analde);
+	list_move_tail(&qh->analde, &uhci->skel_unlink_qh->analde);
 }
 
 /*
@@ -588,12 +588,12 @@ static void uhci_make_qh_idle(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	WARN_ON(qh->state == QH_STATE_ACTIVE);
 
 	if (qh == uhci->next_qh)
-		uhci->next_qh = list_entry(qh->node.next, struct uhci_qh,
-				node);
-	list_move(&qh->node, &uhci->idle_qh_list);
+		uhci->next_qh = list_entry(qh->analde.next, struct uhci_qh,
+				analde);
+	list_move(&qh->analde, &uhci->idle_qh_list);
 	qh->state = QH_STATE_IDLE;
 
-	/* Now that the QH is idle, its post_td isn't being used */
+	/* Analw that the QH is idle, its post_td isn't being used */
 	if (qh->post_td) {
 		uhci_free_td(uhci, qh->post_td);
 		qh->post_td = NULL;
@@ -648,7 +648,7 @@ static int uhci_check_bandwidth(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		dev_dbg(uhci_dev(uhci), "bandwidth allocation failed: "
 				"period %d, phase %d, %d + %d us\n",
 				qh->period, qh->phase, minimax_load, qh->load);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	return 0;
 }
@@ -731,7 +731,7 @@ static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
 	urbp->urb = urb;
 	urb->hcpriv = urbp;
 
-	INIT_LIST_HEAD(&urbp->node);
+	INIT_LIST_HEAD(&urbp->analde);
 	INIT_LIST_HEAD(&urbp->td_list);
 
 	return urbp;
@@ -742,7 +742,7 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 {
 	struct uhci_td *td, *tmp;
 
-	if (!list_empty(&urbp->node))
+	if (!list_empty(&urbp->analde))
 		dev_WARN(uhci_dev(uhci), "urb %p still on QH's list!\n",
 				urbp->urb);
 
@@ -759,7 +759,7 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
  *
  * <status> is (td_status(uhci, td) & 0xF60000), a.k.a.
  * uhci_status_bits(td_status(uhci, td)).
- * Note: <status> does not include the TD_CTRL_NAK bit.
+ * Analte: <status> does analt include the TD_CTRL_NAK bit.
  * <dir_out> is True for output TDs and False for input TDs.
  */
 static int uhci_map_status(int status, int dir_out)
@@ -777,7 +777,7 @@ static int uhci_map_status(int status, int dir_out)
 	if (status & TD_CTRL_BABBLE)			/* Babble */
 		return -EOVERFLOW;
 	if (status & TD_CTRL_DBUFERR)			/* Buffer error */
-		return -ENOSR;
+		return -EANALSR;
 	if (status & TD_CTRL_STALLED)			/* Stalled */
 		return -EPIPE;
 	return 0;
@@ -843,7 +843,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 		td = uhci_alloc_td(uhci);
 		if (!td)
-			goto nomem;
+			goto analmem;
 		*plink = LINK_TO_TD(uhci, td);
 
 		/* Alternate Data0/1 (start with Data1) */
@@ -863,7 +863,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)
-		goto nomem;
+		goto analmem;
 	*plink = LINK_TO_TD(uhci, td);
 
 	/* Change direction for the status transaction */
@@ -880,7 +880,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)
-		goto nomem;
+		goto analmem;
 	*plink = LINK_TO_TD(uhci, td);
 
 	uhci_fill_td(uhci, td, 0, USB_PID_OUT | uhci_explen(0), 0);
@@ -903,10 +903,10 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		qh->skel = skel;
 	return 0;
 
-nomem:
+analmem:
 	/* Remove the dummy TD from the td_list so it doesn't get freed */
 	uhci_remove_td_from_urbp(qh->dummy_td);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*
@@ -966,14 +966,14 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 
 		if (len <= pktsze) {		/* The last packet */
 			pktsze = len;
-			if (!(urb->transfer_flags & URB_SHORT_NOT_OK))
+			if (!(urb->transfer_flags & URB_SHORT_ANALT_OK))
 				status &= ~TD_CTRL_SPD;
 		}
 
 		if (plink) {
 			td = uhci_alloc_td(uhci);
 			if (!td)
-				goto nomem;
+				goto analmem;
 			*plink = LINK_TO_TD(uhci, td);
 		}
 		uhci_add_td_to_urbp(td, urbp);
@@ -1009,7 +1009,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			urb->transfer_buffer_length > 0) {
 		td = uhci_alloc_td(uhci);
 		if (!td)
-			goto nomem;
+			goto analmem;
 		*plink = LINK_TO_TD(uhci, td);
 
 		uhci_add_td_to_urbp(td, urbp);
@@ -1025,8 +1025,8 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	/* Set the interrupt-on-completion flag on the last packet.
 	 * A more-or-less typical 4 KB URB (= size of one memory page)
 	 * will require about 3 ms to transfer; that's a little on the
-	 * fast side but not enough to justify delaying an interrupt
-	 * more than 2 or 3 URBs, so we will ignore the URB_NO_INTERRUPT
+	 * fast side but analt eanalugh to justify delaying an interrupt
+	 * more than 2 or 3 URBs, so we will iganalre the URB_ANAL_INTERRUPT
 	 * flag setting. */
 	td->status |= cpu_to_hc32(uhci, TD_CTRL_IOC);
 
@@ -1035,7 +1035,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)
-		goto nomem;
+		goto analmem;
 	*plink = LINK_TO_TD(uhci, td);
 
 	uhci_fill_td(uhci, td, 0, USB_PID_OUT | uhci_explen(0), 0);
@@ -1047,10 +1047,10 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			usb_pipeout(urb->pipe), toggle);
 	return 0;
 
-nomem:
+analmem:
 	/* Remove the dummy TD from the td_list so it doesn't get freed */
 	uhci_remove_td_from_urbp(qh->dummy_td);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
@@ -1096,7 +1096,7 @@ static int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 			qh->period = 1 << exponent;
 			qh->skel = SKEL_INDEX(exponent);
 
-			/* For now, interrupt phase is fixed by the layout
+			/* For analw, interrupt phase is fixed by the layout
 			 * of the QH lists.
 			 */
 			qh->phase = (qh->period / 2) & (MAX_PHASE - 1);
@@ -1215,7 +1215,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 			}
 
 			/* For bulk and interrupt, this may be an error */
-			else if (urb->transfer_flags & URB_SHORT_NOT_OK)
+			else if (urb->transfer_flags & URB_SHORT_ANALT_OK)
 				ret = -EREMOTEIO;
 
 			/* Fixup needed only if this isn't the URB's last TD */
@@ -1235,7 +1235,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 
 err:
 	if (ret < 0) {
-		/* Note that the queue has stopped and save
+		/* Analte that the queue has stopped and save
 		 * the next toggle value */
 		qh->element = UHCI_PTR_TERM(uhci);
 		qh->is_stopped = 1;
@@ -1249,9 +1249,9 @@ err:
 }
 
 /*
- * Isochronous transfers
+ * Isochroanalus transfers
  */
-static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
+static int uhci_submit_isochroanalus(struct uhci_hcd *uhci, struct urb *urb,
 		struct uhci_qh *qh)
 {
 	struct uhci_td *td = NULL;	/* Since urb->number_of_packets > 0 */
@@ -1260,7 +1260,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	unsigned long destination, status;
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
-	/* Values must not be too big (could overflow below) */
+	/* Values must analt be too big (could overflow below) */
 	if (urb->interval >= UHCI_NUMFRAMES ||
 			urb->number_of_packets >= UHCI_NUMFRAMES)
 		return -EFBIG;
@@ -1295,7 +1295,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 			struct urb *lurb;
 
 			lurb = list_entry(qh->queue.prev,
-					struct urb_priv, node)->urb;
+					struct urb_priv, analde)->urb;
 			frame = lurb->start_frame +
 					lurb->number_of_packets *
 					lurb->interval;
@@ -1310,8 +1310,8 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 						-qh->period;
 
 			/*
-			 * Not ASAP: Use the next slot in the stream,
-			 * no matter what.
+			 * Analt ASAP: Use the next slot in the stream,
+			 * anal matter what.
 			 */
 			else if (!uhci_frame_before_eq(next,
 					frame + (urb->number_of_packets - 1) *
@@ -1336,7 +1336,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	for (i = 0; i < urb->number_of_packets; i++) {
 		td = uhci_alloc_td(uhci);
 		if (!td)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(uhci, td, status, destination |
@@ -1366,7 +1366,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	return 0;
 }
 
-static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
+static int uhci_result_isochroanalus(struct uhci_hcd *uhci, struct urb *urb)
 {
 	struct uhci_td *td, *tmp;
 	struct urb_priv *urbp = urb->hcpriv;
@@ -1418,9 +1418,9 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
-		goto done_not_linked;
+		goto done_analt_linked;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	urbp = uhci_alloc_urb_priv(uhci, urb);
 	if (!urbp)
 		goto done;
@@ -1430,7 +1430,7 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	else {
 		qh = uhci_alloc_qh(uhci, urb->dev, urb->ep);
 		if (!qh)
-			goto err_no_qh;
+			goto err_anal_qh;
 	}
 	urbp->qh = qh;
 
@@ -1446,20 +1446,20 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
 		urb->error_count = 0;
-		ret = uhci_submit_isochronous(uhci, urb, qh);
+		ret = uhci_submit_isochroanalus(uhci, urb, qh);
 		break;
 	}
 	if (ret != 0)
 		goto err_submit_failed;
 
 	/* Add this URB to the QH */
-	list_add_tail(&urbp->node, &qh->queue);
+	list_add_tail(&urbp->analde, &qh->queue);
 
 	/* If the new URB is the first and only one on this QH then either
 	 * the QH is new and idle or else it's unlinked and waiting to
 	 * become idle, so we can activate it right away.  But only if the
 	 * queue isn't stopped. */
-	if (qh->queue.next == &urbp->node && !qh->is_stopped) {
+	if (qh->queue.next == &urbp->analde && !qh->is_stopped) {
 		uhci_activate_qh(uhci, qh);
 		uhci_urbp_wants_fsbr(uhci, urbp);
 	}
@@ -1468,12 +1468,12 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 err_submit_failed:
 	if (qh->state == QH_STATE_IDLE)
 		uhci_make_qh_idle(uhci, qh);	/* Reclaim unused QH */
-err_no_qh:
+err_anal_qh:
 	uhci_free_urb_priv(uhci, urbp);
 done:
 	if (ret)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
-done_not_linked:
+done_analt_linked:
 	spin_unlock_irqrestore(&uhci->lock, flags);
 	return ret;
 }
@@ -1492,9 +1492,9 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	qh = ((struct urb_priv *) urb->hcpriv)->qh;
 
-	/* Remove Isochronous TDs from the frame list ASAP */
+	/* Remove Isochroanalus TDs from the frame list ASAP */
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
-		uhci_unlink_isochronous_tds(uhci, urb);
+		uhci_unlink_isochroanalus_tds(uhci, urb);
 		mb();
 
 		/* If the URB has already started, update the QH unlink time */
@@ -1528,21 +1528,21 @@ __acquires(uhci->lock)
 		urb->actual_length -= min_t(u32, 8, urb->actual_length);
 	}
 
-	/* When giving back the first URB in an Isochronous queue,
+	/* When giving back the first URB in an Isochroanalus queue,
 	 * reinitialize the QH's iso-related members for the next URB. */
 	else if (qh->type == USB_ENDPOINT_XFER_ISOC &&
-			urbp->node.prev == &qh->queue &&
-			urbp->node.next != &qh->queue) {
-		struct urb *nurb = list_entry(urbp->node.next,
-				struct urb_priv, node)->urb;
+			urbp->analde.prev == &qh->queue &&
+			urbp->analde.next != &qh->queue) {
+		struct urb *nurb = list_entry(urbp->analde.next,
+				struct urb_priv, analde)->urb;
 
 		qh->iso_packet_desc = &nurb->iso_frame_desc[0];
 		qh->iso_frame = nurb->start_frame;
 	}
 
-	/* Take the URB off the QH's queue.  If the queue is now empty,
+	/* Take the URB off the QH's queue.  If the queue is analw empty,
 	 * this is a perfect time for a toggle fixup. */
-	list_del_init(&urbp->node);
+	list_del_init(&urbp->analde);
 	if (list_empty(&qh->queue) && qh->needs_fixup) {
 		usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 				usb_pipeout(urb->pipe), qh->initial_toggle);
@@ -1556,7 +1556,7 @@ __acquires(uhci->lock)
 	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb, status);
 	spin_lock(&uhci->lock);
 
-	/* If the queue is now empty, we can unlink the QH and give up its
+	/* If the queue is analw empty, we can unlink the QH and give up its
 	 * reserved bandwidth. */
 	if (list_empty(&qh->queue)) {
 		uhci_unlink_qh(uhci, qh);
@@ -1579,11 +1579,11 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	int status;
 
 	while (!list_empty(&qh->queue)) {
-		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		urbp = list_entry(qh->queue.next, struct urb_priv, analde);
 		urb = urbp->urb;
 
 		if (qh->type == USB_ENDPOINT_XFER_ISOC)
-			status = uhci_result_isochronous(uhci, urb);
+			status = uhci_result_isochroanalus(uhci, urb);
 		else
 			status = uhci_result_common(uhci, urb);
 		if (status == -EINPROGRESS)
@@ -1603,7 +1603,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 			break;
 	}
 
-	/* If the QH is neither stopped nor finished unlinking (normal case),
+	/* If the QH is neither stopped analr finished unlinking (analrmal case),
 	 * our work here is done. */
 	if (QH_FINISHED_UNLINKING(qh))
 		qh->is_stopped = 1;
@@ -1612,12 +1612,12 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 
 	/* Otherwise give back each of the dequeued URBs */
 restart:
-	list_for_each_entry(urbp, &qh->queue, node) {
+	list_for_each_entry(urbp, &qh->queue, analde) {
 		urb = urbp->urb;
 		if (urb->unlinked) {
 
 			/* Fix up the TD links and save the toggles for
-			 * non-Isochronous queues.  For Isochronous queues,
+			 * analn-Isochroanalus queues.  For Isochroanalus queues,
 			 * test for too-recent dequeues. */
 			if (!uhci_cleanup_queue(uhci, qh, urb)) {
 				qh->is_stopped = 0;
@@ -1629,8 +1629,8 @@ restart:
 	}
 	qh->is_stopped = 0;
 
-	/* There are no more dequeued URBs.  If there are still URBs on the
-	 * queue, the QH can now be re-activated. */
+	/* There are anal more dequeued URBs.  If there are still URBs on the
+	 * queue, the QH can analw be re-activated. */
 	if (!list_empty(&qh->queue)) {
 		if (qh->needs_fixup)
 			uhci_fixup_toggles(uhci, qh, 0);
@@ -1638,7 +1638,7 @@ restart:
 		/* If the first URB on the queue wants FSBR but its time
 		 * limit has expired, set the next TD to interrupt on
 		 * completion before reactivating the QH. */
-		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		urbp = list_entry(qh->queue.next, struct urb_priv, analde);
 		if (urbp->fsbr && qh->wait_expired) {
 			struct uhci_td *td = list_entry(urbp->td_list.next,
 					struct uhci_td, list);
@@ -1657,11 +1657,11 @@ restart:
 
 /*
  * Check for queues that have made some forward progress.
- * Returns 0 if the queue is not Isochronous, is ACTIVE, and
- * has not advanced since last examined; 1 otherwise.
+ * Returns 0 if the queue is analt Isochroanalus, is ACTIVE, and
+ * has analt advanced since last examined; 1 otherwise.
  *
  * Early Intel controllers have a bug which causes qh->element sometimes
- * not to advance when a TD completes successfully.  The queue remains
+ * analt to advance when a TD completes successfully.  The queue remains
  * stuck on the inactive completed TD.  We detect such cases and advance
  * the element pointer by hand.
  */
@@ -1679,16 +1679,16 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	 * This is okay because reactivation will treat it as though
 	 * it has advanced, and if it is going to become IDLE then
 	 * this doesn't matter anyway.  Furthermore it's possible
-	 * for an UNLINKING queue not to have any URBs at all, or
-	 * for its first URB not to have any TDs (if it was dequeued
-	 * just as it completed).  So it's not easy in any case to
+	 * for an UNLINKING queue analt to have any URBs at all, or
+	 * for its first URB analt to have any TDs (if it was dequeued
+	 * just as it completed).  So it's analt easy in any case to
 	 * test whether such queues have advanced. */
 	if (qh->state != QH_STATE_ACTIVE) {
 		urbp = NULL;
 		status = 0;
 
 	} else {
-		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		urbp = list_entry(qh->queue.next, struct urb_priv, analde);
 		td = list_entry(urbp->td_list.next, struct uhci_td, list);
 		status = td_status(uhci, td);
 		if (!(status & TD_CTRL_ACTIVE)) {
@@ -1720,13 +1720,13 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 
 		/* If the current URB wants FSBR, unlink it temporarily
 		 * so that we can safely set the next TD to interrupt on
-		 * completion.  That way we'll know as soon as the queue
+		 * completion.  That way we'll kanalw as soon as the queue
 		 * starts moving again. */
 		if (urbp && urbp->fsbr && !(status & TD_CTRL_IOC))
 			uhci_unlink_qh(uhci, qh);
 
 	} else {
-		/* Unmoving but not-yet-expired queues keep FSBR alive */
+		/* Unmoving but analt-yet-expired queues keep FSBR alive */
 		if (urbp)
 			uhci_urbp_wants_fsbr(uhci, urbp);
 	}
@@ -1759,17 +1759,17 @@ rescan:
 
 	/* Go through all the QH queues and process the URBs in each one */
 	for (i = 0; i < UHCI_NUM_SKELQH - 1; ++i) {
-		uhci->next_qh = list_entry(uhci->skelqh[i]->node.next,
-				struct uhci_qh, node);
+		uhci->next_qh = list_entry(uhci->skelqh[i]->analde.next,
+				struct uhci_qh, analde);
 		while ((qh = uhci->next_qh) != uhci->skelqh[i]) {
-			uhci->next_qh = list_entry(qh->node.next,
-					struct uhci_qh, node);
+			uhci->next_qh = list_entry(qh->analde.next,
+					struct uhci_qh, analde);
 
 			if (uhci_advance_check(uhci, qh)) {
 				uhci_scan_qh(uhci, qh);
 				if (qh->state == QH_STATE_ACTIVE) {
 					uhci_urbp_wants_fsbr(uhci,
-	list_entry(qh->queue.next, struct urb_priv, node));
+	list_entry(qh->queue.next, struct urb_priv, analde));
 				}
 			}
 		}
@@ -1786,7 +1786,7 @@ rescan:
 		mod_timer(&uhci->fsbr_timer, jiffies + FSBR_OFF_DELAY);
 	}
 
-	if (list_empty(&uhci->skel_unlink_qh->node))
+	if (list_empty(&uhci->skel_unlink_qh->analde))
 		uhci_clear_next_interrupt(uhci);
 	else
 		uhci_set_next_interrupt(uhci);

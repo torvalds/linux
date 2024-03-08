@@ -10,7 +10,7 @@
  * Supports following chips:
  *
  * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
- * w83791d	10	5	5	3	0x71	0x5ca3	yes	no
+ * w83791d	10	5	5	3	0x71	0x5ca3	anal	anal
  *
  * The w83791d chip appears to be part way between the 83781d and the
  * 83792d. Thus, this file is derived from both the w83792d.c and
@@ -36,7 +36,7 @@
 #define NUMBER_OF_PWM		5
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -342,7 +342,7 @@ static struct i2c_driver w83791d_driver = {
 	.remove		= w83791d_remove,
 	.id_table	= w83791d_id,
 	.detect		= w83791d_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 /* following are the sysfs callback functions */
@@ -483,7 +483,7 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Note: The bitmask for the beep enable/disable is different than
+ * Analte: The bitmask for the beep enable/disable is different than
  * the bitmask for the alarm.
  */
 static struct sensor_device_attribute sda_in_beep[] = {
@@ -559,7 +559,7 @@ static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan divisor.  This follows the principle of
  * least surprise; the user doesn't expect the fan minimum to change just
  * because the divisor changed.
@@ -1008,7 +1008,7 @@ static struct sensor_device_attribute_2 sda_temp_max_hyst[] = {
 };
 
 /*
- * Note: The bitmask for the beep enable/disable is different than
+ * Analte: The bitmask for the beep enable/disable is different than
  * the bitmask for the alarm.
  */
 static struct sensor_device_attribute sda_temp_beep[] = {
@@ -1154,8 +1154,8 @@ static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
 	int err;
 
 	/*
-	 * No lock needed as vrm is internal to the driver
-	 * (not read from a chip register) and so is not
+	 * Anal lock needed as vrm is internal to the driver
+	 * (analt read from a chip register) and so is analt
 	 * updated in w83791d_update_device()
 	 */
 
@@ -1236,7 +1236,7 @@ static const struct attribute_group w83791d_group = {
 
 /*
  * Separate group of attributes for fan/pwm 4-5. Their pins can also be
- * in use for GPIO in which case their sysfs-interface should not be made
+ * in use for GPIO in which case their sysfs-interface should analt be made
  * available
  */
 static struct attribute *w83791d_attributes_fanpwm45[] = {
@@ -1267,7 +1267,7 @@ static int w83791d_detect_subclients(struct i2c_client *client)
 					"invalid subclient "
 					"address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 		w83791d_write(client, W83791D_REG_I2C_SUBADDR,
@@ -1280,7 +1280,7 @@ static int w83791d_detect_subclients(struct i2c_client *client)
 	if (!(val & 0x88) && (val & 0x7) == ((val >> 4) & 0x7)) {
 		dev_err(&client->dev,
 			"duplicate addresses 0x%x, use force_subclient\n", 0x48 + (val & 0x7));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!(val & 0x08))
@@ -1293,7 +1293,7 @@ static int w83791d_detect_subclients(struct i2c_client *client)
 }
 
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int w83791d_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -1302,10 +1302,10 @@ static int w83791d_detect(struct i2c_client *client,
 	unsigned short address = client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (w83791d_read(client, W83791D_REG_CONFIG) & 0x80)
-		return -ENODEV;
+		return -EANALDEV;
 
 	val1 = w83791d_read(client, W83791D_REG_BANK);
 	val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
@@ -1313,7 +1313,7 @@ static int w83791d_detect(struct i2c_client *client,
 	if (!(val1 & 0x07)) {
 		if ((!(val1 & 0x80) && val2 != 0xa3) ||
 		    ((val1 & 0x80) && val2 != 0x5c)) {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	/*
@@ -1321,7 +1321,7 @@ static int w83791d_detect(struct i2c_client *client,
 	 * should match
 	 */
 	if (w83791d_read(client, W83791D_REG_I2C_ADDR) != address)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We want bank 0 and Vendor ID high byte */
 	val1 = w83791d_read(client, W83791D_REG_BANK) & 0x78;
@@ -1331,7 +1331,7 @@ static int w83791d_detect(struct i2c_client *client,
 	val1 = w83791d_read(client, W83791D_REG_WCHIPID);
 	val2 = w83791d_read(client, W83791D_REG_CHIPMAN);
 	if (val1 != 0x71 || val2 != 0x5c)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "w83791d", I2C_NAME_SIZE);
 
@@ -1355,7 +1355,7 @@ static int w83791d_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct w83791d_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -1388,7 +1388,7 @@ static int w83791d_probe(struct i2c_client *client)
 			goto error4;
 	}
 
-	/* Everything is ready, now register the working device */
+	/* Everything is ready, analw register the working device */
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
@@ -1425,13 +1425,13 @@ static void w83791d_init_client(struct i2c_client *client)
 	 * but init simply forces certain registers to have "sane"
 	 * values. The hope is that the BIOS has done the right
 	 * thing (which is why the default is reset=0, init=0),
-	 * but if not, reset is the hard hammer and init
+	 * but if analt, reset is the hard hammer and init
 	 * is the soft mallet both of which are trying to whack
 	 * things into place...
-	 * NOTE: The data sheet makes a distinction between
+	 * ANALTE: The data sheet makes a distinction between
 	 * "power on defaults" and "reset by MR". As far as I can tell,
 	 * the hard reset puts everything into a power-on state so I'm
-	 * not sure what "reset by MR" means or how it can happen.
+	 * analt sure what "reset by MR" means or how it can happen.
 	 */
 	if (reset || init) {
 		/* keep some BIOS settings when we... */
@@ -1442,10 +1442,10 @@ static void w83791d_init_client(struct i2c_client *client)
 			w83791d_write(client, W83791D_REG_CONFIG, 0x80);
 		}
 
-		/* ... disable power-on abnormal beep */
+		/* ... disable power-on abanalrmal beep */
 		w83791d_write(client, W83791D_REG_BEEP_CONFIG, old_beep | 0x80);
 
-		/* disable the global beep (not done by hard reset) */
+		/* disable the global beep (analt done by hard reset) */
 		tmp = w83791d_read(client, W83791D_REG_BEEP_CTRL[1]);
 		w83791d_write(client, W83791D_REG_BEEP_CTRL[1], tmp & 0xef);
 

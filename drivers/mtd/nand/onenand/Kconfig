@@ -50,7 +50,7 @@ config MTD_ONENAND_OTP
 
 	  The OTP block can be read, programmed and locked using the same
 	  operations as any other NAND Flash Array memory block.
-	  OTP block cannot be erased.
+	  OTP block cananalt be erased.
 
 	  OTP block is fully-guaranteed to be a valid block.
 
@@ -64,7 +64,7 @@ config MTD_ONENAND_2X_PROGRAM
 	  while Plane2 has only odd blocks such as block1, block3, block5.
 	  So MTD regards it as 4KiB page size and 256KiB block size
 
-	  Now the following chips support it. (KFXXX16Q2M)
+	  Analw the following chips support it. (KFXXX16Q2M)
 	    Demux: KFG2G16Q2M, KFH4G16Q2M, KFW8G16Q2M,
 	    Mux:   KFM2G16Q2M, KFN4G16Q2M,
 

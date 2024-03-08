@@ -117,11 +117,11 @@ static void wipe_memory(void *addr, size_t size)
 #endif
 }
 
-static int efi_secret_unlink(struct inode *dir, struct dentry *dentry)
+static int efi_secret_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	struct efi_secret *s = efi_secret_get();
-	struct inode *inode = d_inode(dentry);
-	struct secret_entry *e = (struct secret_entry *)inode->i_private;
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct secret_entry *e = (struct secret_entry *)ianalde->i_private;
 	int i;
 
 	if (e) {
@@ -130,24 +130,24 @@ static int efi_secret_unlink(struct inode *dir, struct dentry *dentry)
 		e->guid = NULL_GUID;
 	}
 
-	inode->i_private = NULL;
+	ianalde->i_private = NULL;
 
 	for (i = 0; i < EFI_SECRET_NUM_FILES; i++)
 		if (s->fs_files[i] == dentry)
 			s->fs_files[i] = NULL;
 
 	/*
-	 * securityfs_remove tries to lock the directory's inode, but we reach
+	 * securityfs_remove tries to lock the directory's ianalde, but we reach
 	 * the unlink callback when it's already locked
 	 */
-	inode_unlock(dir);
+	ianalde_unlock(dir);
 	securityfs_remove(dentry);
-	inode_lock(dir);
+	ianalde_lock(dir);
 
 	return 0;
 }
 
-static const struct inode_operations efi_secret_dir_inode_operations = {
+static const struct ianalde_operations efi_secret_dir_ianalde_operations = {
 	.lookup         = simple_lookup,
 	.unlink         = efi_secret_unlink,
 };
@@ -159,14 +159,14 @@ static int efi_secret_map_area(struct platform_device *dev)
 	struct linux_efi_coco_secret_area *secret_area;
 
 	if (efi.coco_secret == EFI_INVALID_TABLE_ADDR) {
-		dev_err(&dev->dev, "Secret area address is not available\n");
+		dev_err(&dev->dev, "Secret area address is analt available\n");
 		return -EINVAL;
 	}
 
 	secret_area = memremap(efi.coco_secret, sizeof(*secret_area), MEMREMAP_WB);
 	if (secret_area == NULL) {
-		dev_err(&dev->dev, "Could not map secret area EFI config entry\n");
-		return -ENOMEM;
+		dev_err(&dev->dev, "Could analt map secret area EFI config entry\n");
+		return -EANALMEM;
 	}
 	if (!secret_area->base_pa || secret_area->size < sizeof(struct secret_header)) {
 		dev_err(&dev->dev,
@@ -178,8 +178,8 @@ static int efi_secret_map_area(struct platform_device *dev)
 
 	s->secret_data = ioremap_encrypted(secret_area->base_pa, secret_area->size);
 	if (s->secret_data == NULL) {
-		dev_err(&dev->dev, "Could not map secret area\n");
-		ret = -ENOMEM;
+		dev_err(&dev->dev, "Could analt map secret area\n");
+		ret = -EANALMEM;
 		goto unmap;
 	}
 
@@ -224,11 +224,11 @@ static int efi_secret_securityfs_setup(struct platform_device *dev)
 	h = (struct secret_header *)ptr;
 	if (efi_guidcmp(h->guid, EFI_SECRET_TABLE_HEADER_GUID)) {
 		/*
-		 * This is not an error: it just means that EFI defines secret
-		 * area but it was not populated by the Guest Owner.
+		 * This is analt an error: it just means that EFI defines secret
+		 * area but it was analt populated by the Guest Owner.
 		 */
-		dev_dbg(&dev->dev, "EFI secret area does not start with correct GUID\n");
-		return -ENODEV;
+		dev_dbg(&dev->dev, "EFI secret area does analt start with correct GUID\n");
+		return -EANALDEV;
 	}
 	if (h->len < sizeof(*h)) {
 		dev_err(&dev->dev, "EFI secret area reported length is too small\n");
@@ -257,7 +257,7 @@ static int efi_secret_securityfs_setup(struct platform_device *dev)
 			PTR_ERR(dent));
 		return PTR_ERR(dent);
 	}
-	d_inode(dent)->i_op = &efi_secret_dir_inode_operations;
+	d_ianalde(dent)->i_op = &efi_secret_dir_ianalde_operations;
 	s->fs_dir = dent;
 
 	bytes_left = h->len - sizeof(*h);

@@ -12,13 +12,13 @@ maintainers:
   - Chunfeng Yun <chunfeng.yun@mediatek.com>
 
 description: |
-  UFS M-PHY nodes are defined to describe on-chip UFS M-PHY hardware macro.
-  Each UFS M-PHY node should have its own node.
-  To bind UFS M-PHY with UFS host controller, the controller node should
-  contain a phandle reference to UFS M-PHY node.
+  UFS M-PHY analdes are defined to describe on-chip UFS M-PHY hardware macro.
+  Each UFS M-PHY analde should have its own analde.
+  To bind UFS M-PHY with UFS host controller, the controller analde should
+  contain a phandle reference to UFS M-PHY analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ufs-phy@[0-9a-f]+$"
 
   compatible:

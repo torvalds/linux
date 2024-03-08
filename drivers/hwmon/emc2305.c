@@ -2,7 +2,7 @@
 /*
  * Hardware monitoring driver for EMC2305 fan controller
  *
- * Copyright (C) 2022 Nvidia Technologies Ltd.
+ * Copyright (C) 2022 Nvidia Techanallogies Ltd.
  */
 
 #include <linux/err.h>
@@ -13,7 +13,7 @@
 #include <linux/thermal.h>
 
 static const unsigned short
-emc2305_normal_i2c[] = { 0x27, 0x2c, 0x2d, 0x2e, 0x2f, 0x4c, 0x4d, I2C_CLIENT_END };
+emc2305_analrmal_i2c[] = { 0x27, 0x2c, 0x2d, 0x2e, 0x2f, 0x4c, 0x4d, I2C_CLIENT_END };
 
 #define EMC2305_REG_DRIVE_FAIL_STATUS	0x27
 #define EMC2305_REG_VENDOR		0xfe
@@ -77,7 +77,7 @@ MODULE_DEVICE_TABLE(i2c, emc2305_ids);
  * attribute.
  * From other side, fan speed is to be updated in hardware through 'pwm' only in case the
  * requested fan speed is above last speed set by 'thermal' subsystem, otherwise requested fan
- * speed will be just stored with no PWM update.
+ * speed will be just stored with anal PWM update.
  */
 struct emc2305_cdev_data {
 	struct thermal_cooling_device *cdev;
@@ -134,7 +134,7 @@ static int emc2305_get_cdev_idx(struct thermal_cooling_device *cdev)
 	/*
 	 * Returns index of cooling device 0..4 in case of separate PWM setting.
 	 * Zero index is used in case of one common PWM setting.
-	 * If the mode is not set as pwm_separate, all PWMs are to be bound
+	 * If the mode is analt set as pwm_separate, all PWMs are to be bound
 	 * to the common thermal zone and should work at the same speed
 	 * to perform cooling for the same thermal junction.
 	 * Otherwise, return specific channel that will be used in bound
@@ -360,7 +360,7 @@ emc2305_is_visible(const void *data, enum hwmon_sensor_types type, u32 attr, int
 {
 	int max_channel = emc2305_get_max_channel(data);
 
-	/* Don't show channels which are not physically connected. */
+	/* Don't show channels which are analt physically connected. */
 	if (channel >= max_channel)
 		return 0;
 	switch (type) {
@@ -409,7 +409,7 @@ emc2305_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int ch
 					EMC2305_PWM_DUTY2STATE(val, data->max_state,
 							       EMC2305_FAN_MAX);
 				/*
-				 * Update PWM only in case requested state is not less than the
+				 * Update PWM only in case requested state is analt less than the
 				 * last thermal state.
 				 */
 				if (data->cdev_data[cdev_idx].last_hwmon_state >=
@@ -427,7 +427,7 @@ emc2305_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int ch
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 };
 
 static int
@@ -470,7 +470,7 @@ emc2305_read(struct device *dev, enum hwmon_sensor_types type, u32 attr, int cha
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 };
 
 static const struct hwmon_ops emc2305_ops = {
@@ -524,7 +524,7 @@ static int emc2305_identify(struct device *dev)
 		data->pwm_num = 1;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -541,15 +541,15 @@ static int emc2305_probe(struct i2c_client *client)
 	int i;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vendor = i2c_smbus_read_byte_data(client, EMC2305_REG_VENDOR);
 	if (vendor != EMC2305_VENDOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
@@ -564,7 +564,7 @@ static int emc2305_probe(struct i2c_client *client)
 			return -EINVAL;
 		data->max_state = pdata->max_state;
 		/*
-		 * Validate a number of active PWM channels. Note that
+		 * Validate a number of active PWM channels. Analte that
 		 * configured number can be less than the actual maximum
 		 * supported by the device.
 		 */
@@ -618,7 +618,7 @@ static struct i2c_driver emc2305_driver = {
 	.probe = emc2305_probe,
 	.remove	  = emc2305_remove,
 	.id_table = emc2305_ids,
-	.address_list = emc2305_normal_i2c,
+	.address_list = emc2305_analrmal_i2c,
 };
 
 module_i2c_driver(emc2305_driver);

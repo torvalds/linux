@@ -10,13 +10,13 @@ Required properties:
  - #address-cells: should be set to 1.
  - #size-cells: should be set to 0.
 
-Required children nodes:
- Children nodes are encoding available output ports and their connections
+Required children analdes:
+ Children analdes are encoding available output ports and their connections
  to external devices using the OF graph representation (see ../graph.txt).
- At least one port node is required.
+ At least one port analde is required.
 
-Optional properties in grandchild nodes:
- Any endpoint grandchild node may specify a desired video interface
+Optional properties in grandchild analdes:
+ Any endpoint grandchild analde may specify a desired video interface
  according to ../../media/video-interfaces.txt, specifically
  - bus-width: recognized values are <12>, <16>, <18> and <24>, and
    override any output mode selection heuristic, forcing "rgb444",

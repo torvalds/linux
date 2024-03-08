@@ -28,7 +28,7 @@ static const char *cpu_name[] = {
 	[CPU_SH7366]	= "SH7366",	[CPU_SH7724]	= "SH7724",
 	[CPU_SH7372]	= "SH7372",	[CPU_SH7734]	= "SH7734",
 	[CPU_J2]	= "J2",
-	[CPU_SH_NONE]	= "Unknown"
+	[CPU_SH_ANALNE]	= "Unkanalwn"
 };
 
 const char *get_cpu_subtype(struct sh_cpuinfo *c)
@@ -40,7 +40,7 @@ EXPORT_SYMBOL(get_cpu_subtype);
 #ifdef CONFIG_PROC_FS
 /* Symbolic CPU flags, keep in sync with asm/cpu-features.h */
 static const char *cpu_flags[] = {
-	"none", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
+	"analne", "fpu", "p2flush", "mmuassoc", "dsp", "perfctr",
 	"ptea", "llsc", "l2", "op32", "pteaex", NULL
 };
 
@@ -93,11 +93,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "cpu family\t: %s\n", init_utsname()->machine);
 	seq_printf(m, "cpu type\t: %s\n", get_cpu_subtype(c));
 	if (c->cut_major == -1)
-		seq_printf(m, "cut\t\t: unknown\n");
-	else if (c->cut_minor == -1)
+		seq_printf(m, "cut\t\t: unkanalwn\n");
+	else if (c->cut_mianalr == -1)
 		seq_printf(m, "cut\t\t: %d.x\n", c->cut_major);
 	else
-		seq_printf(m, "cut\t\t: %d.%d\n", c->cut_major, c->cut_minor);
+		seq_printf(m, "cut\t\t: %d.%d\n", c->cut_major, c->cut_mianalr);
 
 	show_cpuflags(m, c);
 

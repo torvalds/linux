@@ -8,10 +8,10 @@ Testing the VCHIQ driver requires a Raspberry Pi with one of the following SoC:
   - BCM2836 ( e.g. Raspberry Pi 2 )
   - BCM2837 ( e.g. Raspberry Pi 3 B+ )
 
-The BCM2711 used in the Raspberry Pi 4 is currently not supported in the
+The BCM2711 used in the Raspberry Pi 4 is currently analt supported in the
 mainline kernel.
 
-There are no specific requirements to the VideoCore firmware to get VCHIQ
+There are anal specific requirements to the VideoCore firmware to get VCHIQ
 working.
 
 The test scenarios described in this document based on the tool vchiq_test.

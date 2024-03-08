@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Digital temperature sensor with integrated Non-volatile memory
+ * Digital temperature sensor with integrated Analn-volatile memory
  * Copyright (c) 2021 Puranjay Mohan <puranjay12@gmail.com>
  *
  * Driver for the Texas Instruments TMP117 Temperature Sensor
  * (7-bit I2C slave address (0x48 - 0x4B), changeable via ADD pins)
  *
- * Note: This driver assumes that the sensor has been calibrated beforehand.
+ * Analte: This driver assumes that the sensor has been calibrated beforehand.
  */
 
 #include <linux/err.h>
@@ -150,7 +150,7 @@ static int tmp117_probe(struct i2c_client *client)
 	int dev_id;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev_id = i2c_smbus_read_word_swapped(client, TMP117_REG_DEVICE_ID);
 	if (dev_id < 0)
@@ -165,18 +165,18 @@ static int tmp117_probe(struct i2c_client *client)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "Unknown device id (0x%x), use fallback compatible\n",
+			 "Unkanalwn device id (0x%x), use fallback compatible\n",
 			 dev_id);
 		match_data = i2c_get_match_data(client);
 	}
 
 	if (!match_data)
-		return dev_err_probe(&client->dev, -ENODEV,
+		return dev_err_probe(&client->dev, -EANALDEV,
 				     "Failed to identify unsupported device\n");
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

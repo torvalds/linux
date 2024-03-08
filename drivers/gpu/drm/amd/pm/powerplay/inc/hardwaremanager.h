@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -67,7 +67,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_OD5inACSupport,
 	PHM_PlatformCaps_OD5inDCSupport,
 	PHM_PlatformCaps_SoftStateOD5,
-	PHM_PlatformCaps_NoOD5Support,
+	PHM_PlatformCaps_AnalOD5Support,
 	PHM_PlatformCaps_ContinuousHardwarePerformanceRange,
 	PHM_PlatformCaps_ActivityReporting,
 	PHM_PlatformCaps_EnableBackbias,
@@ -86,17 +86,17 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_FaultyInternalThermalReading,          /* Internal thermal controller reports faulty temperature value when DAC2 is active */
 	PHM_PlatformCaps_EnableVoltageControl,                  /* indicates voltage can be controlled */
 	PHM_PlatformCaps_EnableSideportControl,                 /* indicates Sideport can be controlled */
-	PHM_PlatformCaps_VideoPlaybackEEUNotification,          /* indicates EEU notification of video start/stop is required */
+	PHM_PlatformCaps_VideoPlaybackEEUAnaltification,          /* indicates EEU analtification of video start/stop is required */
 	PHM_PlatformCaps_TurnOffPll_ASPML1,                     /* PCIE Turn Off PLL in ASPM L1 */
 	PHM_PlatformCaps_EnableHTLinkControl,                   /* indicates HT Link can be controlled by ACPI or CLMC overridden/automated mode. */
 	PHM_PlatformCaps_PerformanceStateOnly,                  /* indicates only performance power state to be used on current system. */
 	PHM_PlatformCaps_ExclusiveModeAlwaysHigh,               /* In Exclusive (3D) mode always stay in High state. */
-	PHM_PlatformCaps_DisableMGClockGating,                  /* to disable Medium Grain Clock Gating or not */
+	PHM_PlatformCaps_DisableMGClockGating,                  /* to disable Medium Grain Clock Gating or analt */
 	PHM_PlatformCaps_DisableMGCGTSSM,                       /* TO disable Medium Grain Clock Gating Shader Complex control */
 	PHM_PlatformCaps_UVDAlwaysHigh,                         /* In UVD mode always stay in High state */
 	PHM_PlatformCaps_DisablePowerGating,                    /* to disable power gating */
 	PHM_PlatformCaps_CustomThermalPolicy,                   /* indicates only performance power state to be used on current system. */
-	PHM_PlatformCaps_StayInBootState,                       /* Stay in Boot State, do not do clock/voltage or PCIe Lane and Gen switching (RV7xx and up). */
+	PHM_PlatformCaps_StayInBootState,                       /* Stay in Boot State, do analt do clock/voltage or PCIe Lane and Gen switching (RV7xx and up). */
 	PHM_PlatformCaps_SMCAllowSeparateSWThermalState,        /* SMC use separate SW thermal state, instead of the default SMC thermal policy. */
 	PHM_PlatformCaps_MultiUVDStateSupport,                  /* Powerplay state table supports multi UVD states. */
 	PHM_PlatformCaps_EnableSCLKDeepSleepForUVD,             /* With HW ECOs, we don't need to disable SCLK Deep Sleep for UVD state. */
@@ -108,11 +108,11 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_NativeULPS,                            /* hardware capable of ULPS state (other than through the ACPI state) */
 	PHM_PlatformCaps_EnableMVDDControl,                     /* indicates that memory voltage can be controlled */
 	PHM_PlatformCaps_ControlVDDCI,                          /* Control VDDCI separately from VDDC. */
-	PHM_PlatformCaps_DisableDCODT,                          /* indicates if DC ODT apply or not */
+	PHM_PlatformCaps_DisableDCODT,                          /* indicates if DC ODT apply or analt */
 	PHM_PlatformCaps_DynamicACTiming,                       /* if the SMC dynamically re-programs MC SEQ register values */
 	PHM_PlatformCaps_EnableThermalIntByGPIO,                /* enable throttle control through GPIO */
 	PHM_PlatformCaps_BootStateOnAlert,                      /* Go to boot state on alerts, e.g. on an AC->DC transition. */
-	PHM_PlatformCaps_DontWaitForVBlankOnAlert,              /* Do NOT wait for VBLANK during an alert (e.g. AC->DC transition). */
+	PHM_PlatformCaps_DontWaitForVBlankOnAlert,              /* Do ANALT wait for VBLANK during an alert (e.g. AC->DC transition). */
 	PHM_PlatformCaps_Force3DClockSupport,                   /* indicates if the platform supports force 3D clock. */
 	PHM_PlatformCaps_MicrocodeFanControl,                   /* Fan is controlled by the SMC microcode. */
 	PHM_PlatformCaps_AdjustUVDPriorityForSP,
@@ -120,7 +120,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_DisableMCLS,                           /* MC Light sleep */
 	PHM_PlatformCaps_RegulatorHot,                          /* Enable throttling on 'regulator hot' events. */
 	PHM_PlatformCaps_BACO,                                  /* Support Bus Alive Chip Off mode */
-	PHM_PlatformCaps_DisableDPM,                            /* Disable DPM, supported from Llano */
+	PHM_PlatformCaps_DisableDPM,                            /* Disable DPM, supported from Llaanal */
 	PHM_PlatformCaps_DynamicM3Arbiter,                      /* support dynamically change m3 arbitor parameters */
 	PHM_PlatformCaps_SclkDeepSleep,                         /* support sclk deep sleep */
 	PHM_PlatformCaps_DynamicPatchPowerState,                /* this ASIC supports to patch power state dynamically */
@@ -131,7 +131,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_PowerContainment,                      /* support DPM2 power containment (AKA TDP clamping) */
 	PHM_PlatformCaps_SQRamping,                             /* support DPM2 SQ power throttle */
 	PHM_PlatformCaps_CAC,                                   /* support Capacitance * Activity power estimation */
-	PHM_PlatformCaps_NIChipsets,                            /* Northern Island and beyond chipsets */
+	PHM_PlatformCaps_NIChipsets,                            /* Analrthern Island and beyond chipsets */
 	PHM_PlatformCaps_TrinityChipsets,                       /* Trinity chipset */
 	PHM_PlatformCaps_EvergreenChipsets,                     /* Evergreen family chipset */
 	PHM_PlatformCaps_PowerControl,                          /* Cayman and beyond chipsets */
@@ -139,12 +139,12 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_BoostState,                            /* this ASIC supports boost state */
 	PHM_PlatformCaps_UserMaxClockForMultiDisplays,          /* indicates if max memory clock is used for all status when multiple displays are connected */
 	PHM_PlatformCaps_RegWriteDelay,                         /* indicates if back to back reg write delay is required */
-	PHM_PlatformCaps_NonABMSupportInPPLib,                  /* ABM is not supported in PPLIB, (moved from PPLIB to DAL) */
+	PHM_PlatformCaps_AnalnABMSupportInPPLib,                  /* ABM is analt supported in PPLIB, (moved from PPLIB to DAL) */
 	PHM_PlatformCaps_GFXDynamicMGPowerGating,               /* Enable Dynamic MG PowerGating on Trinity */
 	PHM_PlatformCaps_DisableSMUUVDHandshake,                /* Disable SMU UVD Handshake */
 	PHM_PlatformCaps_DTE,                                   /* Support Digital Temperature Estimation */
 	PHM_PlatformCaps_W5100Specifc_SmuSkipMsgDTE,            /* This is for the feature requested by David B., and Tonny W.*/
-	PHM_PlatformCaps_UVDPowerGating,                        /* enable UVD power gating, supported from Llano */
+	PHM_PlatformCaps_UVDPowerGating,                        /* enable UVD power gating, supported from Llaanal */
 	PHM_PlatformCaps_UVDDynamicPowerGating,                 /* enable UVD Dynamic power gating, supported from UVD5 */
 	PHM_PlatformCaps_VCEPowerGating,                        /* Enable VCE power gating, supported for TN and later ASICs */
 	PHM_PlatformCaps_SamuPowerGating,                       /* Enable SAMU power gating, supported for KV and later ASICs */
@@ -174,7 +174,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnableSMU7ThermalManagement,           /* SMC will manage thermal events */
 	PHM_PlatformCaps_FPS,                                   /* FPS support */
 	PHM_PlatformCaps_ACP,                                   /* ACP support */
-	PHM_PlatformCaps_SclkThrottleLowNotification,           /* SCLK Throttle Low Notification */
+	PHM_PlatformCaps_SclkThrottleLowAnaltification,           /* SCLK Throttle Low Analtification */
 	PHM_PlatformCaps_XDMAEnabled,                           /* XDMA engine is enabled */
 	PHM_PlatformCaps_UseDummyBackEnd,                       /* use dummy back end */
 	PHM_PlatformCaps_EnableDFSBypass,                       /* Enable DFS bypass */
@@ -218,7 +218,7 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_EnableDriverEVV,
 	PHM_PlatformCaps_SPLLShutdownSupport,
 	PHM_PlatformCaps_VirtualBatteryState,
-	PHM_PlatformCaps_IgnoreForceHighClockRequestsInAPUs,
+	PHM_PlatformCaps_IganalreForceHighClockRequestsInAPUs,
 	PHM_PlatformCaps_DisableMclkSwitchForVR,
 	PHM_PlatformCaps_SMU8,
 	PHM_PlatformCaps_VRHotPolarityHigh,
@@ -272,8 +272,8 @@ struct PHM_PerformanceLevel {
     uint32_t    memory_clock;
     uint32_t  vddc;
     uint32_t  vddci;
-    uint32_t    nonLocalMemoryFreq;
-    uint32_t nonLocalMemoryWidth;
+    uint32_t    analnLocalMemoryFreq;
+    uint32_t analnLocalMemoryWidth;
 };
 
 typedef struct PHM_PerformanceLevel PHM_PerformanceLevel;
@@ -413,7 +413,7 @@ extern int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr);
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
 extern int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
-extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
+extern int phm_analtify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int phm_register_irq_handlers(struct pp_hwmgr *hwmgr);
 extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);

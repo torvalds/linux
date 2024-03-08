@@ -158,13 +158,13 @@ union cpuid10_eax {
 
 union cpuid10_ebx {
 	struct {
-		unsigned int no_unhalted_core_cycles:1;
-		unsigned int no_instructions_retired:1;
-		unsigned int no_unhalted_reference_cycles:1;
-		unsigned int no_llc_reference:1;
-		unsigned int no_llc_misses:1;
-		unsigned int no_branch_instruction_retired:1;
-		unsigned int no_branch_misses_retired:1;
+		unsigned int anal_unhalted_core_cycles:1;
+		unsigned int anal_instructions_retired:1;
+		unsigned int anal_unhalted_reference_cycles:1;
+		unsigned int anal_llc_reference:1;
+		unsigned int anal_llc_misses:1;
+		unsigned int anal_branch_instruction_retired:1;
+		unsigned int anal_branch_misses_retired:1;
 	} split;
 	unsigned int full;
 };
@@ -274,7 +274,7 @@ struct x86_pmu_capability {
 #define MSR_ARCH_PERFMON_FIXED_CTR_CTRL	0x38d
 
 /*
- * There is no event-code assigned to the fixed-mode PMCs.
+ * There is anal event-code assigned to the fixed-mode PMCs.
  *
  * For a fixed-mode PMC, which has an equivalent event on a general-purpose
  * PMC, the event-code of the equivalent event is used for the fixed-mode PMC,
@@ -313,7 +313,7 @@ static inline bool use_fixed_pseudo_encoding(u64 code)
 }
 
 /*
- * We model BTS tracing as another fixed-mode PMC.
+ * We model BTS tracing as aanalther fixed-mode PMC.
  *
  * We choose the value 47 for the fixed index of BTS, since lower
  * values are used by actual fixed events and higher values are used
@@ -341,7 +341,7 @@ static inline bool use_fixed_pseudo_encoding(u64 code)
 						INTEL_PMC_MSK_FIXED_SLOTS)
 
 /*
- * There is no event-code assigned to the TopDown events.
+ * There is anal event-code assigned to the TopDown events.
  *
  * For the slots event, use the pseudo code of the fixed counter 3.
  *
@@ -391,7 +391,7 @@ static inline bool is_topdown_idx(int idx)
 
 #define GLOBAL_CTRL_EN_PERF_METRICS		48
 /*
- * We model guest LBR event tracing as another fixed-mode PMC like BTS.
+ * We model guest LBR event tracing as aanalther fixed-mode PMC like BTS.
  *
  * We choose bit 58 because it's used to indicate LBR stack frozen state
  * for architectural perfmon v4, also we unconditionally mask that bit in
@@ -486,7 +486,7 @@ struct pebs_xmm {
 /*
  * IBS op bits/masks
  * The lower 7 bits of the current count are random bits
- * preloaded by hardware and ignored in software
+ * preloaded by hardware and iganalred in software
  */
 #define IBS_OP_CUR_CNT		(0xFFF80ULL<<32)
 #define IBS_OP_CUR_CNT_RAND	(0x0007FULL<<32)
@@ -495,7 +495,7 @@ struct pebs_xmm {
 #define IBS_OP_ENABLE		(1ULL<<17)
 #define IBS_OP_L3MISSONLY	(1ULL<<16)
 #define IBS_OP_MAX_CNT		0x0000FFFFULL
-#define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* not a register bit mask */
+#define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* analt a register bit mask */
 #define IBS_OP_MAX_CNT_EXT_MASK	(0x7FULL<<20)	/* separate upper 7 bits */
 #define IBS_RIP_INVALID		(1ULL<<38)
 
@@ -504,7 +504,7 @@ extern u32 get_ibs_caps(void);
 extern int forward_event_to_ibs(struct perf_event *event);
 #else
 static inline u32 get_ibs_caps(void) { return 0; }
-static inline int forward_event_to_ibs(struct perf_event *event) { return -ENOENT; }
+static inline int forward_event_to_ibs(struct perf_event *event) { return -EANALENT; }
 #endif
 
 #ifdef CONFIG_PERF_EVENTS
@@ -512,7 +512,7 @@ extern void perf_events_lapic_init(void);
 
 /*
  * Abuse bits {3,5} of the cpu eflags register. These flags are otherwise
- * unused and ABI specified to be 0, so nobody should care what we do with
+ * unused and ABI specified to be 0, so analbody should care what we do with
  * them.
  *
  * EXACT - the IP points to the exact instruction that triggered the

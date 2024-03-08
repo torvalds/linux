@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005-2017 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -117,15 +117,15 @@ struct uverbs_api {
 
 	unsigned int num_write;
 	unsigned int num_write_ex;
-	struct uverbs_api_write_method notsupp_method;
+	struct uverbs_api_write_method analtsupp_method;
 	const struct uverbs_api_write_method **write_methods;
 	const struct uverbs_api_write_method **write_ex_methods;
 };
 
 /*
  * Get an uverbs_api_object that corresponds to the given object_id.
- * Note:
- * -ENOMSG means that any object is allowed to match during lookup.
+ * Analte:
+ * -EANALMSG means that any object is allowed to match during lookup.
  */
 static inline const struct uverbs_api_object *
 uapi_get_object(struct uverbs_api *uapi, u16 object_id)
@@ -133,11 +133,11 @@ uapi_get_object(struct uverbs_api *uapi, u16 object_id)
 	const struct uverbs_api_object *res;
 
 	if (object_id == UVERBS_IDR_ANY_OBJECT)
-		return ERR_PTR(-ENOMSG);
+		return ERR_PTR(-EANALMSG);
 
 	res = radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
 	if (!res)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return res;
 }
@@ -175,12 +175,12 @@ uapi_get_method(const struct uverbs_api *uapi, u32 command)
 
 	if (command & IB_USER_VERBS_CMD_FLAG_EXTENDED) {
 		if (cmd_idx >= uapi->num_write_ex)
-			return ERR_PTR(-EOPNOTSUPP);
+			return ERR_PTR(-EOPANALTSUPP);
 		return uapi->write_ex_methods[cmd_idx];
 	}
 
 	if (cmd_idx >= uapi->num_write)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	return uapi->write_methods[cmd_idx];
 }
 

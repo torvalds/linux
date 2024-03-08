@@ -525,7 +525,7 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		len = 4;
 		shift = 8 * (sizeof(ulong) - len);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Fault address should be aligned to length of MMIO */
@@ -640,7 +640,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		len = 4;
 		data32 = GET_RS2C(insn, &vcpu->arch.guest_context);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Fault address should be aligned to length of MMIO */
@@ -669,7 +669,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		*((u64 *)run->mmio.data) = data64;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Update MMIO details in kvm_run struct */
@@ -743,7 +743,7 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			(ulong)data64 << shift >> shift);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 done:

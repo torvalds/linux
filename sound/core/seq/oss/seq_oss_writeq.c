@@ -77,7 +77,7 @@ snd_seq_oss_writeq_clear(struct seq_oss_writeq *q)
 }
 
 /*
- * wait until the write buffer has enough room
+ * wait until the write buffer has eanalugh room
  */
 int
 snd_seq_oss_writeq_sync(struct seq_oss_writeq *q)

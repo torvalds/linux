@@ -20,12 +20,12 @@ struct sd {
 };
 
 static const struct v4l2_pix_format sif_mode[] = {
-	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -234,7 +234,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, R31_UPD, 0x00);	/* end update */
 
 	gspca_dev->empty_packet = 0;		/* check the empty packets */
-	sd->packet = 0;				/* ignore the first packets */
+	sd->packet = 0;				/* iganalre the first packets */
 
 	return 0;
 }
@@ -313,7 +313,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 0, 0x7ff, 1, 0x100);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

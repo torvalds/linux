@@ -282,7 +282,7 @@ static ssize_t srv_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (get == ADF_SVC_NONE)
+	if (get == ADF_SVC_ANALNE)
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s\n", rl_services[get]);
@@ -439,8 +439,8 @@ int adf_sysfs_rl_add(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to create qat_rl attribute group\n");
 
-	data->cap_rem_srv = ADF_SVC_NONE;
-	data->input.srv = ADF_SVC_NONE;
+	data->cap_rem_srv = ADF_SVC_ANALNE;
+	data->input.srv = ADF_SVC_ANALNE;
 	data->sysfs_added = true;
 
 	return ret;

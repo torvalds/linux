@@ -37,7 +37,7 @@ static const struct ccf_info ccf2_info = {
 };
 
 /*
- * This register is present but not documented, with different values for
+ * This register is present but analt documented, with different values for
  * IP_ID, on other chips with fsl,corenet2-cf such as t4240 and b4860.
  */
 #define CCF_BRR			0xbf8
@@ -164,7 +164,7 @@ static irqreturn_t ccf_irq(int irq, void *dev_id)
 
 out:
 	iowrite32be(errdet, &ccf->err_regs->errdet);
-	return errdet ? IRQ_HANDLED : IRQ_NONE;
+	return errdet ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static int ccf_probe(struct platform_device *pdev)
@@ -175,7 +175,7 @@ static int ccf_probe(struct platform_device *pdev)
 
 	ccf = devm_kzalloc(&pdev->dev, sizeof(*ccf), GFP_KERNEL);
 	if (!ccf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ccf->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ccf->regs))
@@ -235,7 +235,7 @@ static void ccf_remove(struct platform_device *pdev)
 	case CCF2:
 		/*
 		 * We clear errdis on ccf1 because that's the only way to
-		 * disable interrupts, but on ccf2 there's no need to disable
+		 * disable interrupts, but on ccf2 there's anal need to disable
 		 * detection.
 		 */
 		iowrite32be(0, &ccf->err_regs->errinten);

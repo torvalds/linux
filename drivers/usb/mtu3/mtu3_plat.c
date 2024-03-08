@@ -32,14 +32,14 @@ int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS1, value,
 			(check_val == (value & check_val)), 100, 20000);
 	if (ret) {
-		dev_err(ssusb->dev, "clks of sts1 are not stable!\n");
+		dev_err(ssusb->dev, "clks of sts1 are analt stable!\n");
 		return ret;
 	}
 
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS2, value,
 			(value & SSUSB_U2_MAC_SYS_RST_B_STS), 100, 10000);
 	if (ret) {
-		dev_err(ssusb->dev, "mac2 clock is not stable\n");
+		dev_err(ssusb->dev, "mac2 clock is analt stable\n");
 		return ret;
 	}
 
@@ -217,7 +217,7 @@ out:
 
 static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 	struct clk_bulk_data *clks = ssusb->clks;
 	struct device *dev = &pdev->dev;
@@ -240,19 +240,19 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	if (ret)
 		return ret;
 
-	ssusb->num_phys = of_count_phandle_with_args(node,
+	ssusb->num_phys = of_count_phandle_with_args(analde,
 			"phys", "#phy-cells");
 	if (ssusb->num_phys > 0) {
 		ssusb->phys = devm_kcalloc(dev, ssusb->num_phys,
 					sizeof(*ssusb->phys), GFP_KERNEL);
 		if (!ssusb->phys)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		ssusb->num_phys = 0;
 	}
 
 	for (i = 0; i < ssusb->num_phys; i++) {
-		ssusb->phys[i] = devm_of_phy_get_by_index(dev, node, i);
+		ssusb->phys[i] = devm_of_phy_get_by_index(dev, analde, i);
 		if (IS_ERR(ssusb->phys[i])) {
 			dev_err(dev, "failed to get phy-%d\n", i);
 			return PTR_ERR(ssusb->phys[i]);
@@ -268,23 +268,23 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		return ssusb->wakeup_irq;
 
 	ssusb->dr_mode = usb_get_dr_mode(dev);
-	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN)
+	if (ssusb->dr_mode == USB_DR_MODE_UNKANALWN)
 		ssusb->dr_mode = USB_DR_MODE_OTG;
 
-	of_property_read_u32(node, "mediatek,u3p-dis-msk", &ssusb->u3p_dis_msk);
+	of_property_read_u32(analde, "mediatek,u3p-dis-msk", &ssusb->u3p_dis_msk);
 
 	if (ssusb->dr_mode == USB_DR_MODE_PERIPHERAL)
 		goto out;
 
 	/* if host role is supported */
-	ret = ssusb_wakeup_of_property_parse(ssusb, node);
+	ret = ssusb_wakeup_of_property_parse(ssusb, analde);
 	if (ret) {
 		dev_err(dev, "failed to parse uwk property\n");
 		return ret;
 	}
 
-	/* optional property, ignore the error if it does not exist */
-	of_property_read_u32(node, "mediatek,u2p-dis-msk",
+	/* optional property, iganalre the error if it does analt exist */
+	of_property_read_u32(analde, "mediatek,u2p-dis-msk",
 			     &ssusb->u2p_dis_msk);
 
 	otg_sx->vbus = devm_regulator_get(dev, "vbus");
@@ -298,8 +298,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 
 	/* if dual-role mode is supported */
 	otg_sx->manual_drd_enabled =
-		of_property_read_bool(node, "enable-manual-drd");
-	otg_sx->role_sw_used = of_property_read_bool(node, "usb-role-switch");
+		of_property_read_bool(analde, "enable-manual-drd");
+	otg_sx->role_sw_used = of_property_read_bool(analde, "usb-role-switch");
 
 	/* can't disable port0 when use dual-role mode */
 	ssusb->u2p_dis_msk &= ~0x1;
@@ -307,7 +307,7 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	if (otg_sx->role_sw_used || otg_sx->manual_drd_enabled)
 		goto out;
 
-	if (of_property_read_bool(node, "extcon")) {
+	if (of_property_read_bool(analde, "extcon")) {
 		otg_sx->edev = extcon_get_edev_by_phandle(ssusb->dev, 0);
 		if (IS_ERR(otg_sx->edev)) {
 			return dev_err_probe(dev, PTR_ERR(otg_sx->edev),
@@ -326,20 +326,20 @@ out:
 
 static int mtu3_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	struct ssusb_mtk *ssusb;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	/* all elements are set to ZERO as default value */
 	ssusb = devm_kzalloc(dev, sizeof(*ssusb), GFP_KERNEL);
 	if (!ssusb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(dev, "No suitable DMA config available\n");
-		return -ENOTSUPP;
+		dev_err(dev, "Anal suitable DMA config available\n");
+		return -EANALTSUPP;
 	}
 
 	platform_set_drvdata(pdev, ssusb);
@@ -399,7 +399,7 @@ static int mtu3_probe(struct platform_device *pdev)
 		}
 		break;
 	case USB_DR_MODE_HOST:
-		ret = ssusb_host_init(ssusb, node);
+		ret = ssusb_host_init(ssusb, analde);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
 			goto comm_exit;
@@ -412,7 +412,7 @@ static int mtu3_probe(struct platform_device *pdev)
 			goto comm_exit;
 		}
 
-		ret = ssusb_host_init(ssusb, node);
+		ret = ssusb_host_init(ssusb, analde);
 		if (ret) {
 			dev_err(dev, "failed to initialize host\n");
 			goto gadget_exit;
@@ -444,7 +444,7 @@ gadget_exit:
 comm_exit:
 	ssusb_rscs_exit(ssusb);
 comm_init_err:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	ssusb_debugfs_remove_root(ssusb);
 
@@ -469,13 +469,13 @@ static void mtu3_remove(struct platform_device *pdev)
 		ssusb_gadget_exit(ssusb);
 		ssusb_host_exit(ssusb);
 		break;
-	case USB_DR_MODE_UNKNOWN:
+	case USB_DR_MODE_UNKANALWN:
 		/*
-		 * This cannot happen because with dr_mode ==
-		 * USB_DR_MODE_UNKNOWN, .probe() doesn't succeed and so
+		 * This cananalt happen because with dr_mode ==
+		 * USB_DR_MODE_UNKANALWN, .probe() doesn't succeed and so
 		 * .remove() wouldn't be called at all. However (little
-		 * surprising) the compiler isn't smart enough to see that, so
-		 * we explicitly have this case item to not make the compiler
+		 * surprising) the compiler isn't smart eanalugh to see that, so
+		 * we explicitly have this case item to analt make the compiler
 		 * wail about an unhandled enumeration value.
 		 */
 		break;
@@ -484,7 +484,7 @@ static void mtu3_remove(struct platform_device *pdev)
 	ssusb_rscs_exit(ssusb);
 	ssusb_debugfs_remove_root(ssusb);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 }
 

@@ -16,7 +16,7 @@
  ****************************************************************************/
 
 /*
- *  Note:  Macros of the form XCHAL_HAVE_*** have a value of 1 if the option is
+ *  Analte:  Macros of the form XCHAL_HAVE_*** have a value of 1 if the option is
  *  configured, and a value of 0 otherwise.  These macros are always defined.
  */
 
@@ -42,7 +42,7 @@
 #define XCHAL_HAVE_MUL32_HIGH		0	/* MULUH/MULSH instructions */
 #define XCHAL_HAVE_DIV32		0	/* QUOS/QUOU/REMS/REMU instructions */
 #define XCHAL_HAVE_L32R			1	/* L32R instruction */
-#define XCHAL_HAVE_ABSOLUTE_LITERALS	1	/* non-PC-rel (extended) L32R */
+#define XCHAL_HAVE_ABSOLUTE_LITERALS	1	/* analn-PC-rel (extended) L32R */
 #define XCHAL_HAVE_CONST16		0	/* CONST16 instruction */
 #define XCHAL_HAVE_ADDX			1	/* ADDX#/SUBX# instructions */
 #define XCHAL_HAVE_WIDE_BRANCHES	0	/* B*.W18 or B*.W15 instr's */
@@ -107,18 +107,18 @@
 #define XCHAL_HW_CONFIGID1		0x10405A6A	/* ConfigID lo 32 bits*/
 #define XCHAL_HW_VERSION_NAME		"LX3.0.0"	/* full version name */
 #define XCHAL_HW_VERSION_MAJOR		2300	/* major ver# of targeted hw */
-#define XCHAL_HW_VERSION_MINOR		0	/* minor ver# of targeted hw */
-#define XCHAL_HW_VERSION		230000	/* major*100+minor */
+#define XCHAL_HW_VERSION_MIANALR		0	/* mianalr ver# of targeted hw */
+#define XCHAL_HW_VERSION		230000	/* major*100+mianalr */
 #define XCHAL_HW_REL_LX3		1
 #define XCHAL_HW_REL_LX3_0		1
 #define XCHAL_HW_REL_LX3_0_0		1
 #define XCHAL_HW_CONFIGID_RELIABLE	1
 /*  If software targets a *range* of hardware versions, these are the bounds: */
 #define XCHAL_HW_MIN_VERSION_MAJOR	2300	/* major v of earliest tgt hw */
-#define XCHAL_HW_MIN_VERSION_MINOR	0	/* minor v of earliest tgt hw */
+#define XCHAL_HW_MIN_VERSION_MIANALR	0	/* mianalr v of earliest tgt hw */
 #define XCHAL_HW_MIN_VERSION		230000	/* earliest targeted hw */
 #define XCHAL_HW_MAX_VERSION_MAJOR	2300	/* major v of latest tgt hw */
-#define XCHAL_HW_MAX_VERSION_MINOR	0	/* minor v of latest tgt hw */
+#define XCHAL_HW_MAX_VERSION_MIANALR	0	/* mianalr v of latest tgt hw */
 #define XCHAL_HW_MAX_VERSION		230000	/* latest targeted hw */
 
 
@@ -141,11 +141,11 @@
 
 
 /****************************************************************************
-    Parameters Useful for PRIVILEGED (Supervisory or Non-Virtualized) Code
+    Parameters Useful for PRIVILEGED (Supervisory or Analn-Virtualized) Code
  ****************************************************************************/
 
 
-#ifndef XTENSA_HAL_NON_PRIVILEGED_ONLY
+#ifndef XTENSA_HAL_ANALN_PRIVILEGED_ONLY
 
 /*----------------------------------------------------------------------
 				CACHE
@@ -195,14 +195,14 @@
 
 #define XCHAL_HAVE_INTERRUPTS		1	/* interrupt option */
 #define XCHAL_HAVE_HIGHPRI_INTERRUPTS	1	/* med/high-pri. interrupts */
-#define XCHAL_HAVE_NMI			0	/* non-maskable interrupt */
+#define XCHAL_HAVE_NMI			0	/* analn-maskable interrupt */
 #define XCHAL_HAVE_CCOUNT		1	/* CCOUNT reg. (timer option) */
 #define XCHAL_NUM_TIMERS		2	/* number of CCOMPAREn regs */
 #define XCHAL_NUM_INTERRUPTS		12	/* number of interrupts */
 #define XCHAL_NUM_INTERRUPTS_LOG2	4	/* ceil(log2(NUM_INTERRUPTS)) */
 #define XCHAL_NUM_EXTINTERRUPTS		9	/* num of external interrupts */
 #define XCHAL_NUM_INTLEVELS		2	/* number of interrupt levels
-						   (not including level zero) */
+						   (analt including level zero) */
 #define XCHAL_EXCM_LEVEL		1	/* level masked by PS.EXCM */
 	/* (always 1 in XEA1; levels 2 .. EXCM_LEVEL are "medium priority") */
 
@@ -369,7 +369,7 @@
 #define XCHAL_HAVE_PTP_MMU		1	/* full MMU (with page table
 						   [autorefill] and protection)
 						   usable for an MMU-based OS */
-/*  If none of the above last 4 are set, it's a custom TLB configuration.  */
+/*  If analne of the above last 4 are set, it's a custom TLB configuration.  */
 #define XCHAL_ITLB_ARF_ENTRIES_LOG2	2	/* log2(autorefill way size) */
 #define XCHAL_DTLB_ARF_ENTRIES_LOG2	2	/* log2(autorefill way size) */
 
@@ -377,7 +377,7 @@
 #define XCHAL_MMU_RINGS			4	/* number of rings (1..4) */
 #define XCHAL_MMU_RING_BITS		2	/* num of bits in RING field */
 
-#endif /* !XTENSA_HAL_NON_PRIVILEGED_ONLY */
+#endif /* !XTENSA_HAL_ANALN_PRIVILEGED_ONLY */
 
 
 #endif /* _XTENSA_CORE_CONFIGURATION_H */

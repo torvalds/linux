@@ -30,7 +30,7 @@ static int range_alloc(struct list_head *head, u32 size, int max_id,
 
 	new = kmalloc(sizeof(struct id_range), GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = head;
 	last_end = -1;
@@ -46,7 +46,7 @@ static int range_alloc(struct list_head *head, u32 size, int max_id,
 
 	if (new->end > max_id) {
 		kfree(new);
-		rc = -ENOSPC;
+		rc = -EANALSPC;
 	} else {
 		list_add(&new->list, pos);
 		rc = new->start;
@@ -83,7 +83,7 @@ int ocxl_pasid_afu_alloc(struct ocxl_fn *fn, u32 size)
 	int max_pasid;
 
 	if (fn->config.max_pasid_log < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 	max_pasid = 1 << fn->config.max_pasid_log;
 	return range_alloc(&fn->pasid_list, size, max_pasid, "afu pasid");
 }

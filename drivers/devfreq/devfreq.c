@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * devfreq: Generic Dynamic Voltage and Frequency Scaling (DVFS) Framework
- *	    for Non-CPU Devices.
+ *	    for Analn-CPU Devices.
  *
  * Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/devfreq_cooling.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/export.h>
@@ -28,7 +28,7 @@
 #include <linux/of.h>
 #include <linux/pm_qos.h>
 #include <linux/units.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/devfreq.h>
@@ -41,13 +41,13 @@ static struct dentry *devfreq_debugfs;
 
 /*
  * devfreq core provides delayed work based load monitoring helper
- * functions. Governors can use these or can implement their own
+ * functions. Goveranalrs can use these or can implement their own
  * monitoring mechanism.
  */
 static struct workqueue_struct *devfreq_wq;
 
-/* The list of all device-devfreq governors */
-static LIST_HEAD(devfreq_governor_list);
+/* The list of all device-devfreq goveranalrs */
+static LIST_HEAD(devfreq_goveranalr_list);
 /* The list of all device-devfreq */
 static LIST_HEAD(devfreq_list);
 static DEFINE_MUTEX(devfreq_list_lock);
@@ -75,12 +75,12 @@ static struct devfreq *find_device_devfreq(struct device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	list_for_each_entry(tmp_devfreq, &devfreq_list, node) {
+	list_for_each_entry(tmp_devfreq, &devfreq_list, analde) {
 		if (tmp_devfreq->dev.parent == dev)
 			return tmp_devfreq;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static unsigned long find_available_min_freq(struct devfreq *devfreq)
@@ -193,7 +193,7 @@ static int set_freq_table(struct devfreq *devfreq)
 					   sizeof(*devfreq->freq_table),
 					   GFP_KERNEL);
 	if (!devfreq->freq_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, freq = 0; i < devfreq->max_state; i++, freq++) {
 		opp = dev_pm_opp_find_freq_ceil_indexed(devfreq->dev.parent, &freq, 0);
@@ -221,7 +221,7 @@ int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 	lockdep_assert_held(&devfreq->lock);
 	cur_time = get_jiffies_64();
 
-	/* Immediately exit if previous_freq is not initialized yet. */
+	/* Immediately exit if previous_freq is analt initialized yet. */
 	if (!devfreq->previous_freq)
 		goto out;
 
@@ -253,15 +253,15 @@ out:
 EXPORT_SYMBOL(devfreq_update_status);
 
 /**
- * find_devfreq_governor() - find devfreq governor from name
- * @name:	name of the governor
+ * find_devfreq_goveranalr() - find devfreq goveranalr from name
+ * @name:	name of the goveranalr
  *
- * Search the list of devfreq governors and return the matched
- * governor's pointer. devfreq_list_lock should be held by the caller.
+ * Search the list of devfreq goveranalrs and return the matched
+ * goveranalr's pointer. devfreq_list_lock should be held by the caller.
  */
-static struct devfreq_governor *find_devfreq_governor(const char *name)
+static struct devfreq_goveranalr *find_devfreq_goveranalr(const char *name)
 {
-	struct devfreq_governor *tmp_governor;
+	struct devfreq_goveranalr *tmp_goveranalr;
 
 	lockdep_assert_held(&devfreq_list_lock);
 
@@ -270,28 +270,28 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
 		return ERR_PTR(-EINVAL);
 	}
 
-	list_for_each_entry(tmp_governor, &devfreq_governor_list, node) {
-		if (!strncmp(tmp_governor->name, name, DEVFREQ_NAME_LEN))
-			return tmp_governor;
+	list_for_each_entry(tmp_goveranalr, &devfreq_goveranalr_list, analde) {
+		if (!strncmp(tmp_goveranalr->name, name, DEVFREQ_NAME_LEN))
+			return tmp_goveranalr;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 /**
- * try_then_request_governor() - Try to find the governor and request the
- *                               module if is not found.
- * @name:	name of the governor
+ * try_then_request_goveranalr() - Try to find the goveranalr and request the
+ *                               module if is analt found.
+ * @name:	name of the goveranalr
  *
- * Search the list of devfreq governors and request the module and try again
- * if is not found. This can happen when both drivers (the governor driver
+ * Search the list of devfreq goveranalrs and request the module and try again
+ * if is analt found. This can happen when both drivers (the goveranalr driver
  * and the driver that call devfreq_add_device) are built as modules.
  * devfreq_list_lock should be held by the caller. Returns the matched
- * governor's pointer or an error pointer.
+ * goveranalr's pointer or an error pointer.
  */
-static struct devfreq_governor *try_then_request_governor(const char *name)
+static struct devfreq_goveranalr *try_then_request_goveranalr(const char *name)
 {
-	struct devfreq_governor *governor;
+	struct devfreq_goveranalr *goveranalr;
 	int err = 0;
 
 	lockdep_assert_held(&devfreq_list_lock);
@@ -301,27 +301,27 @@ static struct devfreq_governor *try_then_request_governor(const char *name)
 		return ERR_PTR(-EINVAL);
 	}
 
-	governor = find_devfreq_governor(name);
-	if (IS_ERR(governor)) {
+	goveranalr = find_devfreq_goveranalr(name);
+	if (IS_ERR(goveranalr)) {
 		mutex_unlock(&devfreq_list_lock);
 
 		if (!strncmp(name, DEVFREQ_GOV_SIMPLE_ONDEMAND,
 			     DEVFREQ_NAME_LEN))
-			err = request_module("governor_%s", "simpleondemand");
+			err = request_module("goveranalr_%s", "simpleondemand");
 		else
-			err = request_module("governor_%s", name);
+			err = request_module("goveranalr_%s", name);
 		/* Restore previous state before return */
 		mutex_lock(&devfreq_list_lock);
 		if (err)
 			return (err < 0) ? ERR_PTR(err) : ERR_PTR(-EINVAL);
 
-		governor = find_devfreq_governor(name);
+		goveranalr = find_devfreq_goveranalr(name);
 	}
 
-	return governor;
+	return goveranalr;
 }
 
-static int devfreq_notify_transition(struct devfreq *devfreq,
+static int devfreq_analtify_transition(struct devfreq *devfreq,
 		struct devfreq_freqs *freqs, unsigned int state)
 {
 	if (!devfreq)
@@ -329,12 +329,12 @@ static int devfreq_notify_transition(struct devfreq *devfreq,
 
 	switch (state) {
 	case DEVFREQ_PRECHANGE:
-		srcu_notifier_call_chain(&devfreq->transition_notifier_list,
+		srcu_analtifier_call_chain(&devfreq->transition_analtifier_list,
 				DEVFREQ_PRECHANGE, freqs);
 		break;
 
 	case DEVFREQ_POSTCHANGE:
-		srcu_notifier_call_chain(&devfreq->transition_notifier_list,
+		srcu_analtifier_call_chain(&devfreq->transition_analtifier_list,
 				DEVFREQ_POSTCHANGE, freqs);
 		break;
 	default:
@@ -358,12 +358,12 @@ static int devfreq_set_target(struct devfreq *devfreq, unsigned long new_freq,
 
 	freqs.old = cur_freq;
 	freqs.new = new_freq;
-	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_PRECHANGE);
+	devfreq_analtify_transition(devfreq, &freqs, DEVFREQ_PRECHANGE);
 
 	err = devfreq->profile->target(devfreq->dev.parent, &new_freq, flags);
 	if (err) {
 		freqs.new = cur_freq;
-		devfreq_notify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
+		devfreq_analtify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
 		return err;
 	}
 
@@ -376,7 +376,7 @@ static int devfreq_set_target(struct devfreq *devfreq, unsigned long new_freq,
 		trace_devfreq_frequency(devfreq, new_freq, cur_freq);
 
 	freqs.new = new_freq;
-	devfreq_notify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
+	devfreq_analtify_transition(devfreq, &freqs, DEVFREQ_POSTCHANGE);
 
 	if (devfreq_update_status(devfreq, new_freq))
 		dev_warn(&devfreq->dev,
@@ -395,10 +395,10 @@ static int devfreq_set_target(struct devfreq *devfreq, unsigned long new_freq,
  *			   on the final stage.
  * @devfreq:	the devfreq instance.
  * @freq:	the new frequency of parent device. This argument
- *		is only used for devfreq device using passive governor.
+ *		is only used for devfreq device using passive goveranalr.
  *
- * Note: Lock devfreq->lock before calling devfreq_update_target. This function
- *	 should be only used by both update_devfreq() and devfreq governors.
+ * Analte: Lock devfreq->lock before calling devfreq_update_target. This function
+ *	 should be only used by both update_devfreq() and devfreq goveranalrs.
  */
 int devfreq_update_target(struct devfreq *devfreq, unsigned long freq)
 {
@@ -408,11 +408,11 @@ int devfreq_update_target(struct devfreq *devfreq, unsigned long freq)
 
 	lockdep_assert_held(&devfreq->lock);
 
-	if (!devfreq->governor)
+	if (!devfreq->goveranalr)
 		return -EINVAL;
 
 	/* Reevaluate the proper frequency */
-	err = devfreq->governor->get_target_freq(devfreq, &freq);
+	err = devfreq->goveranalr->get_target_freq(devfreq, &freq);
 	if (err)
 		return err;
 	devfreq_get_freq_range(devfreq, &min_freq, &max_freq);
@@ -430,14 +430,14 @@ int devfreq_update_target(struct devfreq *devfreq, unsigned long freq)
 }
 EXPORT_SYMBOL(devfreq_update_target);
 
-/* Load monitoring helper functions for governors use */
+/* Load monitoring helper functions for goveranalrs use */
 
 /**
  * update_devfreq() - Reevaluate the device and configure frequency.
  * @devfreq:	the devfreq instance.
  *
- * Note: Lock devfreq->lock before calling update_devfreq
- *	 This function is exported for governors.
+ * Analte: Lock devfreq->lock before calling update_devfreq
+ *	 This function is exported for goveranalrs.
  */
 int update_devfreq(struct devfreq *devfreq)
 {
@@ -479,12 +479,12 @@ out:
  * Helper function for starting devfreq device load monitoring. By default,
  * deferrable timer is used for load monitoring. But the users can change this
  * behavior using the "timer" type in devfreq_dev_profile. This function will be
- * called by devfreq governor in response to the DEVFREQ_GOV_START event
+ * called by devfreq goveranalr in response to the DEVFREQ_GOV_START event
  * generated while adding a device to the devfreq framework.
  */
 void devfreq_monitor_start(struct devfreq *devfreq)
 {
-	if (IS_SUPPORTED_FLAG(devfreq->governor->flags, IRQ_DRIVEN))
+	if (IS_SUPPORTED_FLAG(devfreq->goveranalr->flags, IRQ_DRIVEN))
 		return;
 
 	mutex_lock(&devfreq->lock);
@@ -517,12 +517,12 @@ EXPORT_SYMBOL(devfreq_monitor_start);
  * @devfreq:	the devfreq instance.
  *
  * Helper function to stop devfreq device load monitoring. Function
- * to be called from governor in response to DEVFREQ_GOV_STOP
+ * to be called from goveranalr in response to DEVFREQ_GOV_STOP
  * event when device is removed from devfreq framework.
  */
 void devfreq_monitor_stop(struct devfreq *devfreq)
 {
-	if (IS_SUPPORTED_FLAG(devfreq->governor->flags, IRQ_DRIVEN))
+	if (IS_SUPPORTED_FLAG(devfreq->goveranalr->flags, IRQ_DRIVEN))
 		return;
 
 	mutex_lock(&devfreq->lock);
@@ -542,10 +542,10 @@ EXPORT_SYMBOL(devfreq_monitor_stop);
  * @devfreq:	the devfreq instance.
  *
  * Helper function to suspend devfreq device load monitoring. Function
- * to be called from governor in response to DEVFREQ_GOV_SUSPEND
+ * to be called from goveranalr in response to DEVFREQ_GOV_SUSPEND
  * event or when polling interval is set to zero.
  *
- * Note: Though this function is same as devfreq_monitor_stop(),
+ * Analte: Though this function is same as devfreq_monitor_stop(),
  * intentionally kept separate to provide hooks for collecting
  * transition statistics.
  */
@@ -561,7 +561,7 @@ void devfreq_monitor_suspend(struct devfreq *devfreq)
 	devfreq->stop_polling = true;
 	mutex_unlock(&devfreq->lock);
 
-	if (IS_SUPPORTED_FLAG(devfreq->governor->flags, IRQ_DRIVEN))
+	if (IS_SUPPORTED_FLAG(devfreq->goveranalr->flags, IRQ_DRIVEN))
 		return;
 
 	cancel_delayed_work_sync(&devfreq->work);
@@ -573,8 +573,8 @@ EXPORT_SYMBOL(devfreq_monitor_suspend);
  * @devfreq:    the devfreq instance.
  *
  * Helper function to resume devfreq device load monitoring. Function
- * to be called from governor in response to DEVFREQ_GOV_RESUME
- * event or when polling interval is set to non-zero.
+ * to be called from goveranalr in response to DEVFREQ_GOV_RESUME
+ * event or when polling interval is set to analn-zero.
  */
 void devfreq_monitor_resume(struct devfreq *devfreq)
 {
@@ -582,7 +582,7 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 
 	mutex_lock(&devfreq->lock);
 
-	if (IS_SUPPORTED_FLAG(devfreq->governor->flags, IRQ_DRIVEN))
+	if (IS_SUPPORTED_FLAG(devfreq->goveranalr->flags, IRQ_DRIVEN))
 		goto out_update;
 
 	if (!devfreq->stop_polling)
@@ -612,7 +612,7 @@ EXPORT_SYMBOL(devfreq_monitor_resume);
  * @delay:      new polling interval to be set.
  *
  * Helper function to set new load monitoring polling interval. Function
- * to be called from governor in response to DEVFREQ_GOV_UPDATE_INTERVAL event.
+ * to be called from goveranalr in response to DEVFREQ_GOV_UPDATE_INTERVAL event.
  */
 void devfreq_update_interval(struct devfreq *devfreq, unsigned int *delay)
 {
@@ -622,7 +622,7 @@ void devfreq_update_interval(struct devfreq *devfreq, unsigned int *delay)
 	mutex_lock(&devfreq->lock);
 	devfreq->profile->polling_ms = new_delay;
 
-	if (IS_SUPPORTED_FLAG(devfreq->governor->flags, IRQ_DRIVEN))
+	if (IS_SUPPORTED_FLAG(devfreq->goveranalr->flags, IRQ_DRIVEN))
 		goto out;
 
 	if (devfreq->stop_polling)
@@ -657,15 +657,15 @@ out:
 EXPORT_SYMBOL(devfreq_update_interval);
 
 /**
- * devfreq_notifier_call() - Notify that the device frequency requirements
+ * devfreq_analtifier_call() - Analtify that the device frequency requirements
  *			     has been changed out of devfreq framework.
- * @nb:		the notifier_block (supposed to be devfreq->nb)
- * @type:	not used
- * @devp:	not used
+ * @nb:		the analtifier_block (supposed to be devfreq->nb)
+ * @type:	analt used
+ * @devp:	analt used
  *
- * Called by a notifier that uses devfreq->nb.
+ * Called by a analtifier that uses devfreq->nb.
  */
-static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
+static int devfreq_analtifier_call(struct analtifier_block *nb, unsigned long type,
 				 void *devp)
 {
 	struct devfreq *devfreq = container_of(nb, struct devfreq, nb);
@@ -689,17 +689,17 @@ out:
 	mutex_unlock(&devfreq->lock);
 	if (err)
 		dev_err(devfreq->dev.parent,
-			"failed to update frequency from OPP notifier (%d)\n",
+			"failed to update frequency from OPP analtifier (%d)\n",
 			err);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
- * qos_notifier_call() - Common handler for QoS constraints.
+ * qos_analtifier_call() - Common handler for QoS constraints.
  * @devfreq:    the devfreq instance.
  */
-static int qos_notifier_call(struct devfreq *devfreq)
+static int qos_analtifier_call(struct devfreq *devfreq)
 {
 	int err;
 
@@ -711,31 +711,31 @@ static int qos_notifier_call(struct devfreq *devfreq)
 			"failed to update frequency from PM QoS (%d)\n",
 			err);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /**
- * qos_min_notifier_call() - Callback for QoS min_freq changes.
+ * qos_min_analtifier_call() - Callback for QoS min_freq changes.
  * @nb:		Should be devfreq->nb_min
- * @val:	not used
- * @ptr:	not used
+ * @val:	analt used
+ * @ptr:	analt used
  */
-static int qos_min_notifier_call(struct notifier_block *nb,
+static int qos_min_analtifier_call(struct analtifier_block *nb,
 					 unsigned long val, void *ptr)
 {
-	return qos_notifier_call(container_of(nb, struct devfreq, nb_min));
+	return qos_analtifier_call(container_of(nb, struct devfreq, nb_min));
 }
 
 /**
- * qos_max_notifier_call() - Callback for QoS max_freq changes.
+ * qos_max_analtifier_call() - Callback for QoS max_freq changes.
  * @nb:		Should be devfreq->nb_max
- * @val:	not used
- * @ptr:	not used
+ * @val:	analt used
+ * @ptr:	analt used
  */
-static int qos_max_notifier_call(struct notifier_block *nb,
+static int qos_max_analtifier_call(struct analtifier_block *nb,
 					 unsigned long val, void *ptr)
 {
-	return qos_notifier_call(container_of(nb, struct devfreq, nb_max));
+	return qos_analtifier_call(container_of(nb, struct devfreq, nb_max));
 }
 
 /**
@@ -750,19 +750,19 @@ static void devfreq_dev_release(struct device *dev)
 	int err;
 
 	mutex_lock(&devfreq_list_lock);
-	list_del(&devfreq->node);
+	list_del(&devfreq->analde);
 	mutex_unlock(&devfreq_list_lock);
 
-	err = dev_pm_qos_remove_notifier(devfreq->dev.parent, &devfreq->nb_max,
+	err = dev_pm_qos_remove_analtifier(devfreq->dev.parent, &devfreq->nb_max,
 					 DEV_PM_QOS_MAX_FREQUENCY);
-	if (err && err != -ENOENT)
+	if (err && err != -EANALENT)
 		dev_warn(dev->parent,
-			"Failed to remove max_freq notifier: %d\n", err);
-	err = dev_pm_qos_remove_notifier(devfreq->dev.parent, &devfreq->nb_min,
+			"Failed to remove max_freq analtifier: %d\n", err);
+	err = dev_pm_qos_remove_analtifier(devfreq->dev.parent, &devfreq->nb_min,
 					 DEV_PM_QOS_MIN_FREQUENCY);
-	if (err && err != -ENOENT)
+	if (err && err != -EANALENT)
 		dev_warn(dev->parent,
-			"Failed to remove min_freq notifier: %d\n", err);
+			"Failed to remove min_freq analtifier: %d\n", err);
 
 	if (dev_pm_qos_request_active(&devfreq->user_max_freq_req)) {
 		err = dev_pm_qos_remove_request(&devfreq->user_max_freq_req);
@@ -784,33 +784,33 @@ static void devfreq_dev_release(struct device *dev)
 		dev_pm_opp_put_opp_table(devfreq->opp_table);
 
 	mutex_destroy(&devfreq->lock);
-	srcu_cleanup_notifier_head(&devfreq->transition_notifier_list);
+	srcu_cleanup_analtifier_head(&devfreq->transition_analtifier_list);
 	kfree(devfreq);
 }
 
 static void create_sysfs_files(struct devfreq *devfreq,
-				const struct devfreq_governor *gov);
+				const struct devfreq_goveranalr *gov);
 static void remove_sysfs_files(struct devfreq *devfreq,
-				const struct devfreq_governor *gov);
+				const struct devfreq_goveranalr *gov);
 
 /**
  * devfreq_add_device() - Add devfreq feature to the device
  * @dev:	the device to add devfreq feature.
  * @profile:	device-specific profile to run devfreq.
- * @governor_name:	name of the policy to choose frequency.
- * @data:	devfreq driver pass to governors, governor should not change it.
+ * @goveranalr_name:	name of the policy to choose frequency.
+ * @data:	devfreq driver pass to goveranalrs, goveranalr should analt change it.
  */
 struct devfreq *devfreq_add_device(struct device *dev,
 				   struct devfreq_dev_profile *profile,
-				   const char *governor_name,
+				   const char *goveranalr_name,
 				   void *data)
 {
 	struct devfreq *devfreq;
-	struct devfreq_governor *governor;
+	struct devfreq_goveranalr *goveranalr;
 	unsigned long min_freq, max_freq;
 	int err = 0;
 
-	if (!dev || !profile || !governor_name) {
+	if (!dev || !profile || !goveranalr_name) {
 		dev_err(dev, "%s: Invalid parameters.\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
@@ -827,7 +827,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 
 	devfreq = kzalloc(sizeof(struct devfreq), GFP_KERNEL);
 	if (!devfreq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -836,12 +836,12 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	devfreq->dev.parent = dev;
 	devfreq->dev.class = devfreq_class;
 	devfreq->dev.release = devfreq_dev_release;
-	INIT_LIST_HEAD(&devfreq->node);
+	INIT_LIST_HEAD(&devfreq->analde);
 	devfreq->profile = profile;
 	devfreq->previous_freq = profile->initial_freq;
 	devfreq->last_status.current_frequency = profile->initial_freq;
 	devfreq->data = data;
-	devfreq->nb.notifier_call = devfreq_notifier_call;
+	devfreq->nb.analtifier_call = devfreq_analtifier_call;
 
 	if (devfreq->profile->timer < 0
 		|| devfreq->profile->timer >= DEVFREQ_TIMER_NUM) {
@@ -899,7 +899,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 			GFP_KERNEL);
 	if (!devfreq->stats.trans_table) {
 		mutex_unlock(&devfreq->lock);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_devfreq;
 	}
 
@@ -909,14 +909,14 @@ struct devfreq *devfreq_add_device(struct device *dev,
 			GFP_KERNEL);
 	if (!devfreq->stats.time_in_state) {
 		mutex_unlock(&devfreq->lock);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_devfreq;
 	}
 
 	devfreq->stats.total_trans = 0;
 	devfreq->stats.last_update = get_jiffies_64();
 
-	srcu_init_notifier_head(&devfreq->transition_notifier_list);
+	srcu_init_analtifier_head(&devfreq->transition_analtifier_list);
 
 	mutex_unlock(&devfreq->lock);
 
@@ -930,40 +930,40 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	if (err < 0)
 		goto err_devfreq;
 
-	devfreq->nb_min.notifier_call = qos_min_notifier_call;
-	err = dev_pm_qos_add_notifier(dev, &devfreq->nb_min,
+	devfreq->nb_min.analtifier_call = qos_min_analtifier_call;
+	err = dev_pm_qos_add_analtifier(dev, &devfreq->nb_min,
 				      DEV_PM_QOS_MIN_FREQUENCY);
 	if (err)
 		goto err_devfreq;
 
-	devfreq->nb_max.notifier_call = qos_max_notifier_call;
-	err = dev_pm_qos_add_notifier(dev, &devfreq->nb_max,
+	devfreq->nb_max.analtifier_call = qos_max_analtifier_call;
+	err = dev_pm_qos_add_analtifier(dev, &devfreq->nb_max,
 				      DEV_PM_QOS_MAX_FREQUENCY);
 	if (err)
 		goto err_devfreq;
 
 	mutex_lock(&devfreq_list_lock);
 
-	governor = try_then_request_governor(governor_name);
-	if (IS_ERR(governor)) {
-		dev_err(dev, "%s: Unable to find governor for the device\n",
+	goveranalr = try_then_request_goveranalr(goveranalr_name);
+	if (IS_ERR(goveranalr)) {
+		dev_err(dev, "%s: Unable to find goveranalr for the device\n",
 			__func__);
-		err = PTR_ERR(governor);
+		err = PTR_ERR(goveranalr);
 		goto err_init;
 	}
 
-	devfreq->governor = governor;
-	err = devfreq->governor->event_handler(devfreq, DEVFREQ_GOV_START,
+	devfreq->goveranalr = goveranalr;
+	err = devfreq->goveranalr->event_handler(devfreq, DEVFREQ_GOV_START,
 						NULL);
 	if (err) {
 		dev_err_probe(dev, err,
-			"%s: Unable to start governor for the device\n",
+			"%s: Unable to start goveranalr for the device\n",
 			 __func__);
 		goto err_init;
 	}
-	create_sysfs_files(devfreq, devfreq->governor);
+	create_sysfs_files(devfreq, devfreq->goveranalr);
 
-	list_add(&devfreq->node, &devfreq_list);
+	list_add(&devfreq->analde, &devfreq_list);
 
 	mutex_unlock(&devfreq_list_lock);
 
@@ -1000,10 +1000,10 @@ int devfreq_remove_device(struct devfreq *devfreq)
 
 	devfreq_cooling_unregister(devfreq->cdev);
 
-	if (devfreq->governor) {
-		devfreq->governor->event_handler(devfreq,
+	if (devfreq->goveranalr) {
+		devfreq->goveranalr->event_handler(devfreq,
 						 DEVFREQ_GOV_STOP, NULL);
-		remove_sysfs_files(devfreq, devfreq->governor);
+		remove_sysfs_files(devfreq, devfreq->goveranalr);
 	}
 
 	device_unregister(&devfreq->dev);
@@ -1031,8 +1031,8 @@ static void devm_devfreq_dev_release(struct device *dev, void *res)
  * devm_devfreq_add_device() - Resource-managed devfreq_add_device()
  * @dev:	the device to add devfreq feature.
  * @profile:	device-specific profile to run devfreq.
- * @governor_name:	name of the policy to choose frequency.
- * @data:	 devfreq driver pass to governors, governor should not change it.
+ * @goveranalr_name:	name of the policy to choose frequency.
+ * @data:	 devfreq driver pass to goveranalrs, goveranalr should analt change it.
  *
  * This function manages automatically the memory of devfreq device using device
  * resource management and simplify the free operation for memory of devfreq
@@ -1040,16 +1040,16 @@ static void devm_devfreq_dev_release(struct device *dev, void *res)
  */
 struct devfreq *devm_devfreq_add_device(struct device *dev,
 					struct devfreq_dev_profile *profile,
-					const char *governor_name,
+					const char *goveranalr_name,
 					void *data)
 {
 	struct devfreq **ptr, *devfreq;
 
 	ptr = devres_alloc(devm_devfreq_dev_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	devfreq = devfreq_add_device(dev, profile, governor_name, data);
+	devfreq = devfreq_add_device(dev, profile, goveranalr_name, data);
 	if (IS_ERR(devfreq)) {
 		devres_free(ptr);
 		return devfreq;
@@ -1064,29 +1064,29 @@ EXPORT_SYMBOL(devm_devfreq_add_device);
 
 #ifdef CONFIG_OF
 /*
- * devfreq_get_devfreq_by_node - Get the devfreq device from devicetree
- * @node - pointer to device_node
+ * devfreq_get_devfreq_by_analde - Get the devfreq device from devicetree
+ * @analde - pointer to device_analde
  *
  * return the instance of devfreq device
  */
-struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
+struct devfreq *devfreq_get_devfreq_by_analde(struct device_analde *analde)
 {
 	struct devfreq *devfreq;
 
-	if (!node)
+	if (!analde)
 		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&devfreq_list_lock);
-	list_for_each_entry(devfreq, &devfreq_list, node) {
+	list_for_each_entry(devfreq, &devfreq_list, analde) {
 		if (devfreq->dev.parent
-			&& device_match_of_node(devfreq->dev.parent, node)) {
+			&& device_match_of_analde(devfreq->dev.parent, analde)) {
 			mutex_unlock(&devfreq_list_lock);
 			return devfreq;
 		}
 	}
 	mutex_unlock(&devfreq_list_lock);
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 /*
@@ -1100,38 +1100,38 @@ struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
 struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 					const char *phandle_name, int index)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct devfreq *devfreq;
 
 	if (!dev || !phandle_name)
 		return ERR_PTR(-EINVAL);
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return ERR_PTR(-EINVAL);
 
-	node = of_parse_phandle(dev->of_node, phandle_name, index);
-	if (!node)
-		return ERR_PTR(-ENODEV);
+	analde = of_parse_phandle(dev->of_analde, phandle_name, index);
+	if (!analde)
+		return ERR_PTR(-EANALDEV);
 
-	devfreq = devfreq_get_devfreq_by_node(node);
-	of_node_put(node);
+	devfreq = devfreq_get_devfreq_by_analde(analde);
+	of_analde_put(analde);
 
 	return devfreq;
 }
 
 #else
-struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
+struct devfreq *devfreq_get_devfreq_by_analde(struct device_analde *analde)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 					const char *phandle_name, int index)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 #endif /* CONFIG_OF */
-EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_node);
+EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_analde);
 EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_phandle);
 
 /**
@@ -1164,8 +1164,8 @@ int devfreq_suspend_device(struct devfreq *devfreq)
 	if (atomic_inc_return(&devfreq->suspend_count) > 1)
 		return 0;
 
-	if (devfreq->governor) {
-		ret = devfreq->governor->event_handler(devfreq,
+	if (devfreq->goveranalr) {
+		ret = devfreq->goveranalr->event_handler(devfreq,
 					DEVFREQ_GOV_SUSPEND, NULL);
 		if (ret)
 			return ret;
@@ -1209,8 +1209,8 @@ int devfreq_resume_device(struct devfreq *devfreq)
 			return ret;
 	}
 
-	if (devfreq->governor) {
-		ret = devfreq->governor->event_handler(devfreq,
+	if (devfreq->goveranalr) {
+		ret = devfreq->goveranalr->event_handler(devfreq,
 					DEVFREQ_GOV_RESUME, NULL);
 		if (ret)
 			return ret;
@@ -1221,9 +1221,9 @@ int devfreq_resume_device(struct devfreq *devfreq)
 EXPORT_SYMBOL(devfreq_resume_device);
 
 /**
- * devfreq_suspend() - Suspend devfreq governors and devices
+ * devfreq_suspend() - Suspend devfreq goveranalrs and devices
  *
- * Called during system wide Suspend/Hibernate cycles for suspending governors
+ * Called during system wide Suspend/Hibernate cycles for suspending goveranalrs
  * and devices preserving the state for resume. On some platforms the devfreq
  * device must have precise state (frequency) after resume in order to provide
  * fully operating setup.
@@ -1234,7 +1234,7 @@ void devfreq_suspend(void)
 	int ret;
 
 	mutex_lock(&devfreq_list_lock);
-	list_for_each_entry(devfreq, &devfreq_list, node) {
+	list_for_each_entry(devfreq, &devfreq_list, analde) {
 		ret = devfreq_suspend_device(devfreq);
 		if (ret)
 			dev_err(&devfreq->dev,
@@ -1244,9 +1244,9 @@ void devfreq_suspend(void)
 }
 
 /**
- * devfreq_resume() - Resume devfreq governors and devices
+ * devfreq_resume() - Resume devfreq goveranalrs and devices
  *
- * Called during system wide Suspend/Hibernate cycle for resuming governors and
+ * Called during system wide Suspend/Hibernate cycle for resuming goveranalrs and
  * devices that are suspended with devfreq_suspend().
  */
 void devfreq_resume(void)
@@ -1255,7 +1255,7 @@ void devfreq_resume(void)
 	int ret;
 
 	mutex_lock(&devfreq_list_lock);
-	list_for_each_entry(devfreq, &devfreq_list, node) {
+	list_for_each_entry(devfreq, &devfreq_list, analde) {
 		ret = devfreq_resume_device(devfreq);
 		if (ret)
 			dev_warn(&devfreq->dev,
@@ -1265,58 +1265,58 @@ void devfreq_resume(void)
 }
 
 /**
- * devfreq_add_governor() - Add devfreq governor
- * @governor:	the devfreq governor to be added
+ * devfreq_add_goveranalr() - Add devfreq goveranalr
+ * @goveranalr:	the devfreq goveranalr to be added
  */
-int devfreq_add_governor(struct devfreq_governor *governor)
+int devfreq_add_goveranalr(struct devfreq_goveranalr *goveranalr)
 {
-	struct devfreq_governor *g;
+	struct devfreq_goveranalr *g;
 	struct devfreq *devfreq;
 	int err = 0;
 
-	if (!governor) {
+	if (!goveranalr) {
 		pr_err("%s: Invalid parameters.\n", __func__);
 		return -EINVAL;
 	}
 
 	mutex_lock(&devfreq_list_lock);
-	g = find_devfreq_governor(governor->name);
+	g = find_devfreq_goveranalr(goveranalr->name);
 	if (!IS_ERR(g)) {
-		pr_err("%s: governor %s already registered\n", __func__,
+		pr_err("%s: goveranalr %s already registered\n", __func__,
 		       g->name);
 		err = -EINVAL;
 		goto err_out;
 	}
 
-	list_add(&governor->node, &devfreq_governor_list);
+	list_add(&goveranalr->analde, &devfreq_goveranalr_list);
 
-	list_for_each_entry(devfreq, &devfreq_list, node) {
+	list_for_each_entry(devfreq, &devfreq_list, analde) {
 		int ret = 0;
 		struct device *dev = devfreq->dev.parent;
 
-		if (!strncmp(devfreq->governor->name, governor->name,
+		if (!strncmp(devfreq->goveranalr->name, goveranalr->name,
 			     DEVFREQ_NAME_LEN)) {
 			/* The following should never occur */
-			if (devfreq->governor) {
+			if (devfreq->goveranalr) {
 				dev_warn(dev,
-					 "%s: Governor %s already present\n",
-					 __func__, devfreq->governor->name);
-				ret = devfreq->governor->event_handler(devfreq,
+					 "%s: Goveranalr %s already present\n",
+					 __func__, devfreq->goveranalr->name);
+				ret = devfreq->goveranalr->event_handler(devfreq,
 							DEVFREQ_GOV_STOP, NULL);
 				if (ret) {
 					dev_warn(dev,
-						 "%s: Governor %s stop = %d\n",
+						 "%s: Goveranalr %s stop = %d\n",
 						 __func__,
-						 devfreq->governor->name, ret);
+						 devfreq->goveranalr->name, ret);
 				}
 				/* Fall through */
 			}
-			devfreq->governor = governor;
-			ret = devfreq->governor->event_handler(devfreq,
+			devfreq->goveranalr = goveranalr;
+			ret = devfreq->goveranalr->event_handler(devfreq,
 						DEVFREQ_GOV_START, NULL);
 			if (ret) {
-				dev_warn(dev, "%s: Governor %s start=%d\n",
-					 __func__, devfreq->governor->name,
+				dev_warn(dev, "%s: Goveranalr %s start=%d\n",
+					 __func__, devfreq->goveranalr->name,
 					 ret);
 			}
 		}
@@ -1327,88 +1327,88 @@ err_out:
 
 	return err;
 }
-EXPORT_SYMBOL(devfreq_add_governor);
+EXPORT_SYMBOL(devfreq_add_goveranalr);
 
-static void devm_devfreq_remove_governor(void *governor)
+static void devm_devfreq_remove_goveranalr(void *goveranalr)
 {
-	WARN_ON(devfreq_remove_governor(governor));
+	WARN_ON(devfreq_remove_goveranalr(goveranalr));
 }
 
 /**
- * devm_devfreq_add_governor() - Add devfreq governor
- * @dev:	device which adds devfreq governor
- * @governor:	the devfreq governor to be added
+ * devm_devfreq_add_goveranalr() - Add devfreq goveranalr
+ * @dev:	device which adds devfreq goveranalr
+ * @goveranalr:	the devfreq goveranalr to be added
  *
- * This is a resource-managed variant of devfreq_add_governor().
+ * This is a resource-managed variant of devfreq_add_goveranalr().
  */
-int devm_devfreq_add_governor(struct device *dev,
-			      struct devfreq_governor *governor)
+int devm_devfreq_add_goveranalr(struct device *dev,
+			      struct devfreq_goveranalr *goveranalr)
 {
 	int err;
 
-	err = devfreq_add_governor(governor);
+	err = devfreq_add_goveranalr(goveranalr);
 	if (err)
 		return err;
 
-	return devm_add_action_or_reset(dev, devm_devfreq_remove_governor,
-					governor);
+	return devm_add_action_or_reset(dev, devm_devfreq_remove_goveranalr,
+					goveranalr);
 }
-EXPORT_SYMBOL(devm_devfreq_add_governor);
+EXPORT_SYMBOL(devm_devfreq_add_goveranalr);
 
 /**
- * devfreq_remove_governor() - Remove devfreq feature from a device.
- * @governor:	the devfreq governor to be removed
+ * devfreq_remove_goveranalr() - Remove devfreq feature from a device.
+ * @goveranalr:	the devfreq goveranalr to be removed
  */
-int devfreq_remove_governor(struct devfreq_governor *governor)
+int devfreq_remove_goveranalr(struct devfreq_goveranalr *goveranalr)
 {
-	struct devfreq_governor *g;
+	struct devfreq_goveranalr *g;
 	struct devfreq *devfreq;
 	int err = 0;
 
-	if (!governor) {
+	if (!goveranalr) {
 		pr_err("%s: Invalid parameters.\n", __func__);
 		return -EINVAL;
 	}
 
 	mutex_lock(&devfreq_list_lock);
-	g = find_devfreq_governor(governor->name);
+	g = find_devfreq_goveranalr(goveranalr->name);
 	if (IS_ERR(g)) {
-		pr_err("%s: governor %s not registered\n", __func__,
-		       governor->name);
+		pr_err("%s: goveranalr %s analt registered\n", __func__,
+		       goveranalr->name);
 		err = PTR_ERR(g);
 		goto err_out;
 	}
-	list_for_each_entry(devfreq, &devfreq_list, node) {
+	list_for_each_entry(devfreq, &devfreq_list, analde) {
 		int ret;
 		struct device *dev = devfreq->dev.parent;
 
-		if (!strncmp(devfreq->governor->name, governor->name,
+		if (!strncmp(devfreq->goveranalr->name, goveranalr->name,
 			     DEVFREQ_NAME_LEN)) {
-			/* we should have a devfreq governor! */
-			if (!devfreq->governor) {
-				dev_warn(dev, "%s: Governor %s NOT present\n",
-					 __func__, governor->name);
+			/* we should have a devfreq goveranalr! */
+			if (!devfreq->goveranalr) {
+				dev_warn(dev, "%s: Goveranalr %s ANALT present\n",
+					 __func__, goveranalr->name);
 				continue;
 				/* Fall through */
 			}
-			ret = devfreq->governor->event_handler(devfreq,
+			ret = devfreq->goveranalr->event_handler(devfreq,
 						DEVFREQ_GOV_STOP, NULL);
 			if (ret) {
-				dev_warn(dev, "%s: Governor %s stop=%d\n",
-					 __func__, devfreq->governor->name,
+				dev_warn(dev, "%s: Goveranalr %s stop=%d\n",
+					 __func__, devfreq->goveranalr->name,
 					 ret);
 			}
-			devfreq->governor = NULL;
+			devfreq->goveranalr = NULL;
 		}
 	}
 
-	list_del(&governor->node);
+	list_del(&goveranalr->analde);
 err_out:
 	mutex_unlock(&devfreq_list_lock);
 
 	return err;
 }
-EXPORT_SYMBOL(devfreq_remove_governor);
+EXPORT_SYMBOL(devfreq_remove_goveranalr);
 
 static ssize_t name_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -1418,87 +1418,87 @@ static ssize_t name_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(name);
 
-static ssize_t governor_show(struct device *dev,
+static ssize_t goveranalr_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct devfreq *df = to_devfreq(dev);
 
-	if (!df->governor)
+	if (!df->goveranalr)
 		return -EINVAL;
 
-	return sprintf(buf, "%s\n", df->governor->name);
+	return sprintf(buf, "%s\n", df->goveranalr->name);
 }
 
-static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
+static ssize_t goveranalr_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct devfreq *df = to_devfreq(dev);
 	int ret;
-	char str_governor[DEVFREQ_NAME_LEN + 1];
-	const struct devfreq_governor *governor, *prev_governor;
+	char str_goveranalr[DEVFREQ_NAME_LEN + 1];
+	const struct devfreq_goveranalr *goveranalr, *prev_goveranalr;
 
-	if (!df->governor)
+	if (!df->goveranalr)
 		return -EINVAL;
 
-	ret = sscanf(buf, "%" __stringify(DEVFREQ_NAME_LEN) "s", str_governor);
+	ret = sscanf(buf, "%" __stringify(DEVFREQ_NAME_LEN) "s", str_goveranalr);
 	if (ret != 1)
 		return -EINVAL;
 
 	mutex_lock(&devfreq_list_lock);
-	governor = try_then_request_governor(str_governor);
-	if (IS_ERR(governor)) {
-		ret = PTR_ERR(governor);
+	goveranalr = try_then_request_goveranalr(str_goveranalr);
+	if (IS_ERR(goveranalr)) {
+		ret = PTR_ERR(goveranalr);
 		goto out;
 	}
-	if (df->governor == governor) {
+	if (df->goveranalr == goveranalr) {
 		ret = 0;
 		goto out;
-	} else if (IS_SUPPORTED_FLAG(df->governor->flags, IMMUTABLE)
-		|| IS_SUPPORTED_FLAG(governor->flags, IMMUTABLE)) {
+	} else if (IS_SUPPORTED_FLAG(df->goveranalr->flags, IMMUTABLE)
+		|| IS_SUPPORTED_FLAG(goveranalr->flags, IMMUTABLE)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * Stop the current governor and remove the specific sysfs files
-	 * which depend on current governor.
+	 * Stop the current goveranalr and remove the specific sysfs files
+	 * which depend on current goveranalr.
 	 */
-	ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
+	ret = df->goveranalr->event_handler(df, DEVFREQ_GOV_STOP, NULL);
 	if (ret) {
-		dev_warn(dev, "%s: Governor %s not stopped(%d)\n",
-			 __func__, df->governor->name, ret);
+		dev_warn(dev, "%s: Goveranalr %s analt stopped(%d)\n",
+			 __func__, df->goveranalr->name, ret);
 		goto out;
 	}
-	remove_sysfs_files(df, df->governor);
+	remove_sysfs_files(df, df->goveranalr);
 
 	/*
-	 * Start the new governor and create the specific sysfs files
-	 * which depend on the new governor.
+	 * Start the new goveranalr and create the specific sysfs files
+	 * which depend on the new goveranalr.
 	 */
-	prev_governor = df->governor;
-	df->governor = governor;
-	ret = df->governor->event_handler(df, DEVFREQ_GOV_START, NULL);
+	prev_goveranalr = df->goveranalr;
+	df->goveranalr = goveranalr;
+	ret = df->goveranalr->event_handler(df, DEVFREQ_GOV_START, NULL);
 	if (ret) {
-		dev_warn(dev, "%s: Governor %s not started(%d)\n",
-			 __func__, df->governor->name, ret);
+		dev_warn(dev, "%s: Goveranalr %s analt started(%d)\n",
+			 __func__, df->goveranalr->name, ret);
 
-		/* Restore previous governor */
-		df->governor = prev_governor;
-		ret = df->governor->event_handler(df, DEVFREQ_GOV_START, NULL);
+		/* Restore previous goveranalr */
+		df->goveranalr = prev_goveranalr;
+		ret = df->goveranalr->event_handler(df, DEVFREQ_GOV_START, NULL);
 		if (ret) {
 			dev_err(dev,
-				"%s: reverting to Governor %s failed (%d)\n",
-				__func__, prev_governor->name, ret);
-			df->governor = NULL;
+				"%s: reverting to Goveranalr %s failed (%d)\n",
+				__func__, prev_goveranalr->name, ret);
+			df->goveranalr = NULL;
 			goto out;
 		}
 	}
 
 	/*
-	 * Create the sysfs files for the new governor. But if failed to start
-	 * the new governor, restore the sysfs files of previous governor.
+	 * Create the sysfs files for the new goveranalr. But if failed to start
+	 * the new goveranalr, restore the sysfs files of previous goveranalr.
 	 */
-	create_sysfs_files(df, df->governor);
+	create_sysfs_files(df, df->goveranalr);
 
 out:
 	mutex_unlock(&devfreq_list_lock);
@@ -1507,39 +1507,39 @@ out:
 		ret = count;
 	return ret;
 }
-static DEVICE_ATTR_RW(governor);
+static DEVICE_ATTR_RW(goveranalr);
 
-static ssize_t available_governors_show(struct device *d,
+static ssize_t available_goveranalrs_show(struct device *d,
 					struct device_attribute *attr,
 					char *buf)
 {
 	struct devfreq *df = to_devfreq(d);
 	ssize_t count = 0;
 
-	if (!df->governor)
+	if (!df->goveranalr)
 		return -EINVAL;
 
 	mutex_lock(&devfreq_list_lock);
 
 	/*
-	 * The devfreq with immutable governor (e.g., passive) shows
-	 * only own governor.
+	 * The devfreq with immutable goveranalr (e.g., passive) shows
+	 * only own goveranalr.
 	 */
-	if (IS_SUPPORTED_FLAG(df->governor->flags, IMMUTABLE)) {
+	if (IS_SUPPORTED_FLAG(df->goveranalr->flags, IMMUTABLE)) {
 		count = scnprintf(&buf[count], DEVFREQ_NAME_LEN,
-				  "%s ", df->governor->name);
+				  "%s ", df->goveranalr->name);
 	/*
-	 * The devfreq device shows the registered governor except for
-	 * immutable governors such as passive governor .
+	 * The devfreq device shows the registered goveranalr except for
+	 * immutable goveranalrs such as passive goveranalr .
 	 */
 	} else {
-		struct devfreq_governor *governor;
+		struct devfreq_goveranalr *goveranalr;
 
-		list_for_each_entry(governor, &devfreq_governor_list, node) {
-			if (IS_SUPPORTED_FLAG(governor->flags, IMMUTABLE))
+		list_for_each_entry(goveranalr, &devfreq_goveranalr_list, analde) {
+			if (IS_SUPPORTED_FLAG(goveranalr->flags, IMMUTABLE))
 				continue;
 			count += scnprintf(&buf[count], (PAGE_SIZE - count - 2),
-					   "%s ", governor->name);
+					   "%s ", goveranalr->name);
 		}
 	}
 
@@ -1553,7 +1553,7 @@ static ssize_t available_governors_show(struct device *d,
 
 	return count;
 }
-static DEVICE_ATTR_RO(available_governors);
+static DEVICE_ATTR_RO(available_goveranalrs);
 
 static ssize_t cur_freq_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -1648,7 +1648,7 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	 * be converted to 666667 kHz and back to 666667000 Hz before an OPP
 	 * lookup, this ensures that an OPP of 666666666Hz is still accepted.
 	 *
-	 * A value of zero means "no limit".
+	 * A value of zero means "anal limit".
 	 */
 	if (value)
 		value = DIV_ROUND_UP(value, HZ_PER_KHZ);
@@ -1717,7 +1717,7 @@ static ssize_t trans_stat_show(struct device *dev,
 	max_state = df->max_state;
 
 	if (max_state == 0)
-		return sysfs_emit(buf, "Not Supported.\n");
+		return sysfs_emit(buf, "Analt Supported.\n");
 
 	mutex_lock(&df->lock);
 	if (!df->stop_polling &&
@@ -1806,8 +1806,8 @@ static DEVICE_ATTR_RW(trans_stat);
 
 static struct attribute *devfreq_attrs[] = {
 	&dev_attr_name.attr,
-	&dev_attr_governor.attr,
-	&dev_attr_available_governors.attr,
+	&dev_attr_goveranalr.attr,
+	&dev_attr_available_goveranalrs.attr,
 	&dev_attr_cur_freq.attr,
 	&dev_attr_available_frequencies.attr,
 	&dev_attr_target_freq.attr,
@@ -1837,14 +1837,14 @@ static ssize_t polling_interval_store(struct device *dev,
 	unsigned int value;
 	int ret;
 
-	if (!df->governor)
+	if (!df->goveranalr)
 		return -EINVAL;
 
 	ret = sscanf(buf, "%u", &value);
 	if (ret != 1)
 		return -EINVAL;
 
-	df->governor->event_handler(df, DEVFREQ_GOV_UPDATE_INTERVAL, &value);
+	df->goveranalr->event_handler(df, DEVFREQ_GOV_UPDATE_INTERVAL, &value);
 	ret = count;
 
 	return ret;
@@ -1870,7 +1870,7 @@ static ssize_t timer_store(struct device *dev, struct device_attribute *attr,
 	int timer = -1;
 	int ret = 0, i;
 
-	if (!df->governor || !df->profile)
+	if (!df->goveranalr || !df->profile)
 		return -EINVAL;
 
 	ret = sscanf(buf, "%16s", str_timer);
@@ -1898,17 +1898,17 @@ static ssize_t timer_store(struct device *dev, struct device_attribute *attr,
 	df->profile->timer = timer;
 	mutex_unlock(&df->lock);
 
-	ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
+	ret = df->goveranalr->event_handler(df, DEVFREQ_GOV_STOP, NULL);
 	if (ret) {
-		dev_warn(dev, "%s: Governor %s not stopped(%d)\n",
-			 __func__, df->governor->name, ret);
+		dev_warn(dev, "%s: Goveranalr %s analt stopped(%d)\n",
+			 __func__, df->goveranalr->name, ret);
 		goto out;
 	}
 
-	ret = df->governor->event_handler(df, DEVFREQ_GOV_START, NULL);
+	ret = df->goveranalr->event_handler(df, DEVFREQ_GOV_START, NULL);
 	if (ret)
-		dev_warn(dev, "%s: Governor %s not started(%d)\n",
-			 __func__, df->governor->name, ret);
+		dev_warn(dev, "%s: Goveranalr %s analt started(%d)\n",
+			 __func__, df->goveranalr->name, ret);
 out:
 	return ret ? ret : count;
 }
@@ -1924,9 +1924,9 @@ static DEVICE_ATTR_RW(timer);
 	}								\
 }									\
 
-/* Create the specific sysfs files which depend on each governor. */
+/* Create the specific sysfs files which depend on each goveranalr. */
 static void create_sysfs_files(struct devfreq *devfreq,
-				const struct devfreq_governor *gov)
+				const struct devfreq_goveranalr *gov)
 {
 	if (IS_SUPPORTED_ATTR(gov->attrs, POLLING_INTERVAL))
 		CREATE_SYSFS_FILE(devfreq, polling_interval);
@@ -1934,9 +1934,9 @@ static void create_sysfs_files(struct devfreq *devfreq,
 		CREATE_SYSFS_FILE(devfreq, timer);
 }
 
-/* Remove the specific sysfs files which depend on each governor. */
+/* Remove the specific sysfs files which depend on each goveranalr. */
 static void remove_sysfs_files(struct devfreq *devfreq,
-				const struct devfreq_governor *gov)
+				const struct devfreq_goveranalr *gov)
 {
 	if (IS_SUPPORTED_ATTR(gov->attrs, POLLING_INTERVAL))
 		sysfs_remove_file(&devfreq->dev.kobj,
@@ -1948,10 +1948,10 @@ static void remove_sysfs_files(struct devfreq *devfreq,
 /**
  * devfreq_summary_show() - Show the summary of the devfreq devices
  * @s:		seq_file instance to show the summary of devfreq devices
- * @data:	not used
+ * @data:	analt used
  *
  * Show the summary of the devfreq devices via 'devfreq_summary' debugfs file.
- * It helps that user can know the detailed information of the devfreq devices.
+ * It helps that user can kanalw the detailed information of the devfreq devices.
  *
  * Return 0 always because it shows the information without any data change.
  */
@@ -1966,7 +1966,7 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 	seq_printf(s, "%-30s %-30s %-15s %-10s %10s %12s %12s %12s\n",
 			"dev",
 			"parent_dev",
-			"governor",
+			"goveranalr",
 			"timer",
 			"polling_ms",
 			"cur_freq_Hz",
@@ -1984,9 +1984,9 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 
 	mutex_lock(&devfreq_list_lock);
 
-	list_for_each_entry_reverse(devfreq, &devfreq_list, node) {
+	list_for_each_entry_reverse(devfreq, &devfreq_list, analde) {
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_PASSIVE)
-		if (!strncmp(devfreq->governor->name, DEVFREQ_GOV_PASSIVE,
+		if (!strncmp(devfreq->goveranalr->name, DEVFREQ_GOV_PASSIVE,
 							DEVFREQ_NAME_LEN)) {
 			struct devfreq_passive_data *data = devfreq->data;
 
@@ -2002,7 +2002,7 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 		devfreq_get_freq_range(devfreq, &min_freq, &max_freq);
 		timer = devfreq->profile->timer;
 
-		if (IS_SUPPORTED_ATTR(devfreq->governor->attrs, POLLING_INTERVAL))
+		if (IS_SUPPORTED_ATTR(devfreq->goveranalr->attrs, POLLING_INTERVAL))
 			polling_ms = devfreq->profile->polling_ms;
 		else
 			polling_ms = 0;
@@ -2012,7 +2012,7 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 			"%-30s %-30s %-15s %-10s %10d %12ld %12ld %12ld\n",
 			dev_name(&devfreq->dev),
 			p_devfreq ? dev_name(&p_devfreq->dev) : "null",
-			devfreq->governor->name,
+			devfreq->goveranalr->name,
 			polling_ms ? timer_name[timer] : "null",
 			polling_ms,
 			cur_freq,
@@ -2038,7 +2038,7 @@ static int __init devfreq_init(void)
 	if (!devfreq_wq) {
 		class_destroy(devfreq_class);
 		pr_err("%s: couldn't create workqueue\n", __FILE__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	devfreq_class->dev_groups = devfreq_groups;
 
@@ -2076,14 +2076,14 @@ struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 		/* The freq is an upper bound. opp should be lower */
 		opp = dev_pm_opp_find_freq_floor_indexed(dev, freq, 0);
 
-		/* If not available, use the closest opp */
+		/* If analt available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
 			opp = dev_pm_opp_find_freq_ceil_indexed(dev, freq, 0);
 	} else {
 		/* The freq is an lower bound. opp should be higher */
 		opp = dev_pm_opp_find_freq_ceil_indexed(dev, freq, 0);
 
-		/* If not available, use the closest opp */
+		/* If analt available, use the closest opp */
 		if (opp == ERR_PTR(-ERANGE))
 			opp = dev_pm_opp_find_freq_floor_indexed(dev, freq, 0);
 	}
@@ -2093,21 +2093,21 @@ struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 EXPORT_SYMBOL(devfreq_recommended_opp);
 
 /**
- * devfreq_register_opp_notifier() - Helper function to get devfreq notified
+ * devfreq_register_opp_analtifier() - Helper function to get devfreq analtified
  *				     for any changes in the OPP availability
  *				     changes
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
  */
-int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
+int devfreq_register_opp_analtifier(struct device *dev, struct devfreq *devfreq)
 {
-	return dev_pm_opp_register_notifier(dev, &devfreq->nb);
+	return dev_pm_opp_register_analtifier(dev, &devfreq->nb);
 }
-EXPORT_SYMBOL(devfreq_register_opp_notifier);
+EXPORT_SYMBOL(devfreq_register_opp_analtifier);
 
 /**
- * devfreq_unregister_opp_notifier() - Helper function to stop getting devfreq
- *				       notified for any changes in the OPP
+ * devfreq_unregister_opp_analtifier() - Helper function to stop getting devfreq
+ *				       analtified for any changes in the OPP
  *				       availability changes anymore.
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
@@ -2115,24 +2115,24 @@ EXPORT_SYMBOL(devfreq_register_opp_notifier);
  * At exit() callback of devfreq_dev_profile, this must be included if
  * devfreq_recommended_opp is used.
  */
-int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
+int devfreq_unregister_opp_analtifier(struct device *dev, struct devfreq *devfreq)
 {
-	return dev_pm_opp_unregister_notifier(dev, &devfreq->nb);
+	return dev_pm_opp_unregister_analtifier(dev, &devfreq->nb);
 }
-EXPORT_SYMBOL(devfreq_unregister_opp_notifier);
+EXPORT_SYMBOL(devfreq_unregister_opp_analtifier);
 
 static void devm_devfreq_opp_release(struct device *dev, void *res)
 {
-	devfreq_unregister_opp_notifier(dev, *(struct devfreq **)res);
+	devfreq_unregister_opp_analtifier(dev, *(struct devfreq **)res);
 }
 
 /**
- * devm_devfreq_register_opp_notifier() - Resource-managed
- *					  devfreq_register_opp_notifier()
+ * devm_devfreq_register_opp_analtifier() - Resource-managed
+ *					  devfreq_register_opp_analtifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
  */
-int devm_devfreq_register_opp_notifier(struct device *dev,
+int devm_devfreq_register_opp_analtifier(struct device *dev,
 				       struct devfreq *devfreq)
 {
 	struct devfreq **ptr;
@@ -2140,9 +2140,9 @@ int devm_devfreq_register_opp_notifier(struct device *dev,
 
 	ptr = devres_alloc(devm_devfreq_opp_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = devfreq_register_opp_notifier(dev, devfreq);
+	ret = devfreq_register_opp_analtifier(dev, devfreq);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -2153,30 +2153,30 @@ int devm_devfreq_register_opp_notifier(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_devfreq_register_opp_notifier);
+EXPORT_SYMBOL(devm_devfreq_register_opp_analtifier);
 
 /**
- * devm_devfreq_unregister_opp_notifier() - Resource-managed
- *					    devfreq_unregister_opp_notifier()
+ * devm_devfreq_unregister_opp_analtifier() - Resource-managed
+ *					    devfreq_unregister_opp_analtifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
  */
-void devm_devfreq_unregister_opp_notifier(struct device *dev,
+void devm_devfreq_unregister_opp_analtifier(struct device *dev,
 					 struct devfreq *devfreq)
 {
 	WARN_ON(devres_release(dev, devm_devfreq_opp_release,
 			       devm_devfreq_dev_match, devfreq));
 }
-EXPORT_SYMBOL(devm_devfreq_unregister_opp_notifier);
+EXPORT_SYMBOL(devm_devfreq_unregister_opp_analtifier);
 
 /**
- * devfreq_register_notifier() - Register a driver with devfreq
+ * devfreq_register_analtifier() - Register a driver with devfreq
  * @devfreq:	The devfreq object.
- * @nb:		The notifier block to register.
- * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ * @nb:		The analtifier block to register.
+ * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
  */
-int devfreq_register_notifier(struct devfreq *devfreq,
-			      struct notifier_block *nb,
+int devfreq_register_analtifier(struct devfreq *devfreq,
+			      struct analtifier_block *nb,
 			      unsigned int list)
 {
 	int ret = 0;
@@ -2185,9 +2185,9 @@ int devfreq_register_notifier(struct devfreq *devfreq,
 		return -EINVAL;
 
 	switch (list) {
-	case DEVFREQ_TRANSITION_NOTIFIER:
-		ret = srcu_notifier_chain_register(
-				&devfreq->transition_notifier_list, nb);
+	case DEVFREQ_TRANSITION_ANALTIFIER:
+		ret = srcu_analtifier_chain_register(
+				&devfreq->transition_analtifier_list, nb);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2195,16 +2195,16 @@ int devfreq_register_notifier(struct devfreq *devfreq,
 
 	return ret;
 }
-EXPORT_SYMBOL(devfreq_register_notifier);
+EXPORT_SYMBOL(devfreq_register_analtifier);
 
 /*
- * devfreq_unregister_notifier() - Unregister a driver with devfreq
+ * devfreq_unregister_analtifier() - Unregister a driver with devfreq
  * @devfreq:	The devfreq object.
- * @nb:		The notifier block to be unregistered.
- * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ * @nb:		The analtifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
  */
-int devfreq_unregister_notifier(struct devfreq *devfreq,
-				struct notifier_block *nb,
+int devfreq_unregister_analtifier(struct devfreq *devfreq,
+				struct analtifier_block *nb,
 				unsigned int list)
 {
 	int ret = 0;
@@ -2213,9 +2213,9 @@ int devfreq_unregister_notifier(struct devfreq *devfreq,
 		return -EINVAL;
 
 	switch (list) {
-	case DEVFREQ_TRANSITION_NOTIFIER:
-		ret = srcu_notifier_chain_unregister(
-				&devfreq->transition_notifier_list, nb);
+	case DEVFREQ_TRANSITION_ANALTIFIER:
+		ret = srcu_analtifier_chain_unregister(
+				&devfreq->transition_analtifier_list, nb);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2223,43 +2223,43 @@ int devfreq_unregister_notifier(struct devfreq *devfreq,
 
 	return ret;
 }
-EXPORT_SYMBOL(devfreq_unregister_notifier);
+EXPORT_SYMBOL(devfreq_unregister_analtifier);
 
-struct devfreq_notifier_devres {
+struct devfreq_analtifier_devres {
 	struct devfreq *devfreq;
-	struct notifier_block *nb;
+	struct analtifier_block *nb;
 	unsigned int list;
 };
 
-static void devm_devfreq_notifier_release(struct device *dev, void *res)
+static void devm_devfreq_analtifier_release(struct device *dev, void *res)
 {
-	struct devfreq_notifier_devres *this = res;
+	struct devfreq_analtifier_devres *this = res;
 
-	devfreq_unregister_notifier(this->devfreq, this->nb, this->list);
+	devfreq_unregister_analtifier(this->devfreq, this->nb, this->list);
 }
 
 /**
- * devm_devfreq_register_notifier()
- *	- Resource-managed devfreq_register_notifier()
+ * devm_devfreq_register_analtifier()
+ *	- Resource-managed devfreq_register_analtifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
- * @nb:		The notifier block to be unregistered.
- * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ * @nb:		The analtifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
  */
-int devm_devfreq_register_notifier(struct device *dev,
+int devm_devfreq_register_analtifier(struct device *dev,
 				struct devfreq *devfreq,
-				struct notifier_block *nb,
+				struct analtifier_block *nb,
 				unsigned int list)
 {
-	struct devfreq_notifier_devres *ptr;
+	struct devfreq_analtifier_devres *ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_devfreq_notifier_release, sizeof(*ptr),
+	ptr = devres_alloc(devm_devfreq_analtifier_release, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = devfreq_register_notifier(devfreq, nb, list);
+	ret = devfreq_register_analtifier(devfreq, nb, list);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -2272,22 +2272,22 @@ int devm_devfreq_register_notifier(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_devfreq_register_notifier);
+EXPORT_SYMBOL(devm_devfreq_register_analtifier);
 
 /**
- * devm_devfreq_unregister_notifier()
- *	- Resource-managed devfreq_unregister_notifier()
+ * devm_devfreq_unregister_analtifier()
+ *	- Resource-managed devfreq_unregister_analtifier()
  * @dev:	The devfreq user device. (parent of devfreq)
  * @devfreq:	The devfreq object.
- * @nb:		The notifier block to be unregistered.
- * @list:	DEVFREQ_TRANSITION_NOTIFIER.
+ * @nb:		The analtifier block to be unregistered.
+ * @list:	DEVFREQ_TRANSITION_ANALTIFIER.
  */
-void devm_devfreq_unregister_notifier(struct device *dev,
+void devm_devfreq_unregister_analtifier(struct device *dev,
 				      struct devfreq *devfreq,
-				      struct notifier_block *nb,
+				      struct analtifier_block *nb,
 				      unsigned int list)
 {
-	WARN_ON(devres_release(dev, devm_devfreq_notifier_release,
+	WARN_ON(devres_release(dev, devm_devfreq_analtifier_release,
 			       devm_devfreq_dev_match, devfreq));
 }
-EXPORT_SYMBOL(devm_devfreq_unregister_notifier);
+EXPORT_SYMBOL(devm_devfreq_unregister_analtifier);

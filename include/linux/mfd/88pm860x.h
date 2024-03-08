@@ -327,11 +327,11 @@ enum {
 
 #define PM8606_REF_GP_OSC_OFF         0
 #define PM8606_REF_GP_OSC_ON          1
-#define PM8606_REF_GP_OSC_UNKNOWN     2
+#define PM8606_REF_GP_OSC_UNKANALWN     2
 
 /* Clients of reference group and 8MHz oscillator in 88PM8606 */
 enum pm8606_ref_gp_and_osc_clients {
-	REF_GP_NO_CLIENTS       = 0,
+	REF_GP_ANAL_CLIENTS       = 0,
 	WLED1_DUTY              = (1<<0), /*PF 0x02.7:0*/
 	WLED2_DUTY              = (1<<1), /*PF 0x04.7:0*/
 	WLED3_DUTY              = (1<<2), /*PF 0x06.7:0*/

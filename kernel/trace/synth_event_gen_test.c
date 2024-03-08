@@ -52,7 +52,7 @@ static int __init test_gen_synth_cmd(void)
 	/* Create a buffer to hold the generated command */
 	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Before generating the command, initialize the cmd object */
 	synth_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
@@ -88,7 +88,7 @@ static int __init test_gen_synth_cmd(void)
 		goto free;
 
 	/*
-	 * Now get the gen_synth_test event file.  We need to prevent
+	 * Analw get the gen_synth_test event file.  We need to prevent
 	 * the instance and event from disappearing from underneath
 	 * us, which trace_get_event_file() does (though in this case
 	 * we're using the top-level instance which never goes away).
@@ -118,7 +118,7 @@ static int __init test_gen_synth_cmd(void)
 	vals[5] = (u64)(long)"thneed";	/* my_string_field */
 	vals[6] = 598;			/* my_int_field */
 
-	/* Now generate a gen_synth_test event */
+	/* Analw generate a gen_synth_test event */
 	ret = synth_event_trace_array(gen_synth_test, vals, ARRAY_SIZE(vals));
  free:
 	kfree(buf);
@@ -143,13 +143,13 @@ static int __init test_empty_synth_event(void)
 	/* Create a buffer to hold the generated command */
 	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Before generating the command, initialize the cmd object */
 	synth_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
 
 	/*
-	 * Create the empty_synth_test synthetic event with no fields.
+	 * Create the empty_synth_test synthetic event with anal fields.
 	 */
 	ret = synth_event_gen_cmd_start(&cmd, "empty_synth_test", THIS_MODULE);
 	if (ret)
@@ -192,7 +192,7 @@ static int __init test_empty_synth_event(void)
 		goto free;
 
 	/*
-	 * Now get the empty_synth_test event file.  We need to
+	 * Analw get the empty_synth_test event file.  We need to
 	 * prevent the instance and event from disappearing from
 	 * underneath us, which trace_get_event_file() does (though in
 	 * this case we're using the top-level instance which never
@@ -223,7 +223,7 @@ static int __init test_empty_synth_event(void)
 	vals[5] = (u64)(long)"thneed_2.0";	/* my_string_field */
 	vals[6] = 399;			/* my_int_field */
 
-	/* Now trace an empty_synth_test event */
+	/* Analw trace an empty_synth_test event */
 	ret = synth_event_trace_array(empty_synth_test, vals, ARRAY_SIZE(vals));
  free:
 	kfree(buf);
@@ -264,7 +264,7 @@ static int __init test_create_synth_event(void)
 		goto out;
 
 	/*
-	 * Now get the create_synth_test event file.  We need to
+	 * Analw get the create_synth_test event file.  We need to
 	 * prevent the instance and event from disappearing from
 	 * underneath us, which trace_get_event_file() does (though in
 	 * this case we're using the top-level instance which never
@@ -297,7 +297,7 @@ static int __init test_create_synth_event(void)
 	vals[7] = (u64)(long)"kerplunk";	/* dynstring_field_2 */
 	vals[8] = 398;			/* my_int_field */
 
-	/* Now generate a create_synth_test event */
+	/* Analw generate a create_synth_test event */
 	ret = synth_event_trace_array(create_synth_test, vals, ARRAY_SIZE(vals));
  out:
 	return ret;
@@ -310,7 +310,7 @@ static int __init test_create_synth_event(void)
 
 /*
  * Test tracing a synthetic event by reserving trace buffer space,
- * then filling in fields one after another.
+ * then filling in fields one after aanalther.
  */
 static int __init test_add_next_synth_val(void)
 {
@@ -322,7 +322,7 @@ static int __init test_add_next_synth_val(void)
 	if (ret)
 		return ret;
 
-	/* Write some bogus values into the trace buffer, one after another */
+	/* Write some bogus values into the trace buffer, one after aanalther */
 
 	/* next_pid_field */
 	ret = synth_event_add_next_val(777, &trace_state);
@@ -499,10 +499,10 @@ static void __exit synth_event_gen_test_exit(void)
 					  "synthetic",
 					  "gen_synth_test", false));
 
-	/* Now give the file and instance back */
+	/* Analw give the file and instance back */
 	trace_put_event_file(gen_synth_test);
 
-	/* Now unregister and free the synthetic event */
+	/* Analw unregister and free the synthetic event */
 	WARN_ON(synth_event_delete("gen_synth_test"));
 
 	/* Disable the event or you can't remove it */
@@ -510,10 +510,10 @@ static void __exit synth_event_gen_test_exit(void)
 					  "synthetic",
 					  "empty_synth_test", false));
 
-	/* Now give the file and instance back */
+	/* Analw give the file and instance back */
 	trace_put_event_file(empty_synth_test);
 
-	/* Now unregister and free the synthetic event */
+	/* Analw unregister and free the synthetic event */
 	WARN_ON(synth_event_delete("empty_synth_test"));
 
 	/* Disable the event or you can't remove it */
@@ -521,10 +521,10 @@ static void __exit synth_event_gen_test_exit(void)
 					  "synthetic",
 					  "create_synth_test", false));
 
-	/* Now give the file and instance back */
+	/* Analw give the file and instance back */
 	trace_put_event_file(create_synth_test);
 
-	/* Now unregister and free the synthetic event */
+	/* Analw unregister and free the synthetic event */
 	WARN_ON(synth_event_delete("create_synth_test"));
 }
 

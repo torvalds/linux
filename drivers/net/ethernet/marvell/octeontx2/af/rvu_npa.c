@@ -34,7 +34,7 @@ static int npa_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 
 	/* Ring the doorbell and wait for result */
 	rvu_write64(rvu, block->addr, NPA_AF_AQ_DOOR, 1);
-	while (result->compcode == NPA_AQ_COMP_NOTDONE) {
+	while (result->compcode == NPA_AQ_COMP_ANALTDONE) {
 		cpu_relax();
 		udelay(1);
 		timeout--;
@@ -49,7 +49,7 @@ static int npa_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
 		    result->compcode == NPA_AQ_COMP_CTX_POISON) {
 			if (rvu_ndc_fix_locked_cacheline(rvu, BLKADDR_NDC_NPA0))
 				dev_err(rvu->dev,
-					"%s: Not able to unlock cachelines\n", __func__);
+					"%s: Analt able to unlock cachelines\n", __func__);
 		}
 
 		return -EBUSY;
@@ -82,7 +82,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	block = &hw->block[blkaddr];
 	aq = block->aq;
 	if (!aq) {
-		dev_warn(rvu->dev, "%s: NPA AQ not initialized\n", __func__);
+		dev_warn(rvu->dev, "%s: NPA AQ analt initialized\n", __func__);
 		return NPA_AF_ERR_AQ_ENQUEUE;
 	}
 
@@ -95,7 +95,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	inst.lf = npalf;
 	inst.ctype = req->ctype;
 	inst.op = req->op;
-	/* Currently we are not supporting enqueuing multiple instructions,
+	/* Currently we are analt supporting enqueuing multiple instructions,
 	 * so always choose first entry in result memory.
 	 */
 	inst.res_addr = (u64)aq->res->iova;
@@ -139,7 +139,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 			memcpy(ctx, &req->pool, sizeof(struct npa_pool_s));
 		}
 		break;
-	case NPA_AQ_INSTOP_NOP:
+	case NPA_AQ_INSTOP_ANALP:
 	case NPA_AQ_INSTOP_READ:
 	case NPA_AQ_INSTOP_LOCK:
 	case NPA_AQ_INSTOP_UNLOCK:
@@ -385,7 +385,7 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	if (!pfvf->pool_bmap)
 		goto free_mem;
 
-	/* Get no of queue interrupts supported */
+	/* Get anal of queue interrupts supported */
 	cfg = rvu_read64(rvu, blkaddr, NPA_AF_CONST);
 	qints = (cfg >> 28) & 0xFFF;
 
@@ -417,7 +417,7 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 
 free_mem:
 	npa_ctx_free(rvu, pfvf);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 
 exit:
 	/* set stack page info */
@@ -479,7 +479,7 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 	rvu_write64(rvu, block->addr, NPA_AF_GEN_CFG, cfg);
 #endif
 
-	/* Do not bypass NDC cache */
+	/* Do analt bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NPA_AF_NDC_CFG);
 	cfg &= ~0x03DULL;
 #ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
@@ -557,7 +557,7 @@ void rvu_npa_lf_teardown(struct rvu *rvu, u16 pcifunc, int npalf)
 
 /* Due to an Hardware errata, in some corner cases, AQ context lock
  * operations can result in a NDC way getting into an illegal state
- * of not valid but locked.
+ * of analt valid but locked.
  *
  * This API solves the problem by clearing the lock bit of the NDC block.
  * The operation needs to be done for each line of all the NDC banks.
@@ -583,7 +583,7 @@ int rvu_ndc_fix_locked_cacheline(struct rvu *rvu, int blkaddr)
 	max_line = FIELD_GET(NDC_AF_BANK_LINE_MASK, ndc_af_const);
 	for (bank = 0; bank < max_bank; bank++) {
 		for (line = 0; line < max_line; line++) {
-			/* Check if 'cache line valid bit(63)' is not set
+			/* Check if 'cache line valid bit(63)' is analt set
 			 * but 'cache line lock bit(60)' is set and on
 			 * success, reset the lock bit(60).
 			 */

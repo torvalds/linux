@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
@@ -153,22 +153,22 @@ static void xerror(const char *fmt, ...)
 static const char *getxinfo_strerr(int err)
 {
 	if (err == EAI_SYSTEM)
-		return strerror(errno);
+		return strerror(erranal);
 
 	return gai_strerror(err);
 }
 
-static void xgetaddrinfo(const char *node, const char *service,
+static void xgetaddrinfo(const char *analde, const char *service,
 			 const struct addrinfo *hints,
 			 struct addrinfo **res)
 {
-	int err = getaddrinfo(node, service, hints, res);
+	int err = getaddrinfo(analde, service, hints, res);
 
 	if (err) {
 		const char *errstr = getxinfo_strerr(err);
 
 		fprintf(stderr, "Fatal: getaddrinfo(%s:%s): %s\n",
-			node ? node : "", service ? service : "", errstr);
+			analde ? analde : "", service ? service : "", errstr);
 		exit(1);
 	}
 }
@@ -211,7 +211,7 @@ static int sock_listen_mptcp(const char * const listenaddr,
 	freeaddrinfo(addr);
 
 	if (sock < 0)
-		xerror("could not create listen socket");
+		xerror("could analt create listen socket");
 
 	if (listen(sock, 20))
 		die_perror("listen");
@@ -244,7 +244,7 @@ static int sock_connect_mptcp(const char * const remoteaddr,
 	}
 
 	if (sock < 0)
-		xerror("could not create connect socket");
+		xerror("could analt create connect socket");
 
 	freeaddrinfo(addr);
 	return sock;
@@ -309,13 +309,13 @@ static void do_getsockopt_bogus_sf_data(int fd, int optname)
 	olen = sizeof(good_data);
 	bd.d.size_kernel = 1;
 	ret = getsockopt(fd, SOL_MPTCP, optname, &bd, &olen);
-	assert(ret < 0); /* size_kernel not 0 */
+	assert(ret < 0); /* size_kernel analt 0 */
 
 	bd.d = good_data;
 	olen = sizeof(good_data);
 	bd.d.num_subflows = 1;
 	ret = getsockopt(fd, SOL_MPTCP, optname, &bd, &olen);
-	assert(ret < 0); /* num_subflows not 0 */
+	assert(ret < 0); /* num_subflows analt 0 */
 
 	/* forward compat check: larger struct mptcp_subflow_data on 'old' kernel */
 	bd.d = good_data;
@@ -339,7 +339,7 @@ static void do_getsockopt_bogus_sf_data(int fd, int optname)
 	ret = getsockopt(fd, SOL_MPTCP, optname, &bd, &_olen);
 	assert(ret == 0);
 
-	/* no truncation, kernel should have filled 1 byte of optname payload in buf[1]: */
+	/* anal truncation, kernel should have filled 1 byte of optname payload in buf[1]: */
 	assert(olen == _olen);
 
 	assert(bd.d.size_subflow_data == sizeof(good_data) + 1);
@@ -513,7 +513,7 @@ static void do_getsockopt_mptcp_full_info(struct so_state *s, int fd)
 
 	ret = getsockopt(fd, SOL_MPTCP, MPTCP_FULL_INFO, &mfi, &olen);
 	if (ret < 0) {
-		if (errno == EOPNOTSUPP) {
+		if (erranal == EOPANALTSUPP) {
 			perror("MPTCP_FULL_INFO test skipped");
 			return;
 		}
@@ -701,7 +701,7 @@ static int server(int pipefd)
 		fd = sock_listen_mptcp("::1", "15432");
 		break;
 	default:
-		xerror("Unknown pf %d\n", pf);
+		xerror("Unkanalwn pf %d\n", pf);
 		break;
 	}
 
@@ -748,8 +748,8 @@ static void test_ip_tos_sockopt(int fd)
 
 	s = -1;
 	r = getsockopt(fd, SOL_IP, IP_TOS, &tos_out, &s);
-	if (r != -1 && errno != EINVAL)
-		die_perror("getsockopt IP_TOS did not indicate -EINVAL");
+	if (r != -1 && erranal != EINVAL)
+		die_perror("getsockopt IP_TOS did analt indicate -EINVAL");
 	if (s != -1)
 		xerror("expect socklen_t == -1");
 }
@@ -768,7 +768,7 @@ static int client(int pipefd)
 		fd = sock_connect_mptcp("::1", "15432", IPPROTO_MPTCP);
 		break;
 	default:
-		xerror("Unknown pf %d\n", pf);
+		xerror("Unkanalwn pf %d\n", pf);
 	}
 
 	test_ip_tos_sockopt(fd);

@@ -19,7 +19,7 @@
 /* Allocate the requested number of contiguous LSB slots
  * from the LSB bitmap. Look in the private range for this
  * queue first; failing that, check the public area.
- * If no space is available, wait around.
+ * If anal space is available, wait around.
  * Return: first slot number
  */
 static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
@@ -38,7 +38,7 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 		}
 	}
 
-	/* No joy; try to get an entry from the shared blocks */
+	/* Anal joy; try to get an entry from the shared blocks */
 	ccp = cmd_q->ccp;
 	for (;;) {
 		mutex_lock(&ccp->sb_mutex);
@@ -524,7 +524,7 @@ static int ccp5_perform_passthru(struct ccp_op *op)
 		CCP5_CMD_SRC_HI(&desc) = ccp_addr_hi(&op->src.u.dma);
 		CCP5_CMD_SRC_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-		if (op->u.passthru.bit_mod != CCP_PASSTHRU_BITWISE_NOOP)
+		if (op->u.passthru.bit_mod != CCP_PASSTHRU_BITWISE_ANALOP)
 			CCP5_CMD_LSB_ID(&desc) = op->sb_key;
 	} else {
 		u32 key_addr = op->src.u.sb * CCP_SB_BYTES;
@@ -590,7 +590,7 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 	int queues = 0;
 	int j;
 
-	/* Build a bit mask to know which LSBs this queue has access to.
+	/* Build a bit mask to kanalw which LSBs this queue has access to.
 	 * Don't bother with segment 0 as it has special privileges.
 	 */
 	for (j = 1; j < MAX_LSB_CNT; j++) {
@@ -610,7 +610,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					unsigned long *lsb_pub)
 {
 	DECLARE_BITMAP(qlsb, MAX_LSB_CNT);
-	int bitno;
+	int bitanal;
 	int qlsb_wgt;
 	int i;
 
@@ -621,8 +621,8 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 	 * For each bit in qlsb, see if the corresponding bit in the
 	 * aggregation mask is set; if so, we have a match.
 	 *     If we have a match, clear the bit in the aggregation to
-	 *     mark it as no longer available.
-	 *     If there is no match, clear the bit in qlsb and keep looking.
+	 *     mark it as anal longer available.
+	 *     If there is anal match, clear the bit in qlsb and keep looking.
 	 */
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		struct ccp_cmd_queue *cmd_q = &ccp->cmd_q[i];
@@ -632,23 +632,23 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 		if (qlsb_wgt == lsb_cnt) {
 			bitmap_copy(qlsb, cmd_q->lsbmask, MAX_LSB_CNT);
 
-			bitno = find_first_bit(qlsb, MAX_LSB_CNT);
-			while (bitno < MAX_LSB_CNT) {
-				if (test_bit(bitno, lsb_pub)) {
+			bitanal = find_first_bit(qlsb, MAX_LSB_CNT);
+			while (bitanal < MAX_LSB_CNT) {
+				if (test_bit(bitanal, lsb_pub)) {
 					/* We found an available LSB
 					 * that this queue can access
 					 */
-					cmd_q->lsb = bitno;
-					bitmap_clear(lsb_pub, bitno, 1);
+					cmd_q->lsb = bitanal;
+					bitmap_clear(lsb_pub, bitanal, 1);
 					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
-						 i, bitno);
+						 i, bitanal);
 					break;
 				}
-				bitmap_clear(qlsb, bitno, 1);
-				bitno = find_first_bit(qlsb, MAX_LSB_CNT);
+				bitmap_clear(qlsb, bitanal, 1);
+				bitanal = find_first_bit(qlsb, MAX_LSB_CNT);
 			}
-			if (bitno >= MAX_LSB_CNT)
+			if (bitanal >= MAX_LSB_CNT)
 				return -EINVAL;
 			n_lsbs--;
 		}
@@ -667,7 +667,7 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	DECLARE_BITMAP(lsb_pub, MAX_LSB_CNT);
 	DECLARE_BITMAP(qlsb, MAX_LSB_CNT);
 	int n_lsbs = 0;
-	int bitno;
+	int bitanal;
 	int i, lsb_cnt;
 	int rc = 0;
 
@@ -682,7 +682,7 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	n_lsbs = bitmap_weight(lsb_pub, MAX_LSB_CNT);
 
 	if (n_lsbs >= ccp->cmd_q_count) {
-		/* We have enough LSBS to give every queue a private LSB.
+		/* We have eanalugh LSBS to give every queue a private LSB.
 		 * Brute force search to start with the queues that are more
 		 * constrained in LSB choice. When an LSB is privately
 		 * assigned, it is removed from the public mask.
@@ -700,18 +700,18 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	}
 
 	rc = 0;
-	/* What's left of the LSBs, according to the public mask, now become
+	/* What's left of the LSBs, according to the public mask, analw become
 	 * shared. Any zero bits in the lsb_pub mask represent an LSB region
 	 * that can't be used as a shared resource, so mark the LSB slots for
 	 * them as "in use".
 	 */
 	bitmap_copy(qlsb, lsb_pub, MAX_LSB_CNT);
 
-	bitno = find_first_zero_bit(qlsb, MAX_LSB_CNT);
-	while (bitno < MAX_LSB_CNT) {
-		bitmap_set(ccp->lsbmap, bitno * LSB_SIZE, LSB_SIZE);
-		bitmap_set(qlsb, bitno, 1);
-		bitno = find_first_zero_bit(qlsb, MAX_LSB_CNT);
+	bitanal = find_first_zero_bit(qlsb, MAX_LSB_CNT);
+	while (bitanal < MAX_LSB_CNT) {
+		bitmap_set(ccp->lsbmap, bitanal * LSB_SIZE, LSB_SIZE);
+		bitmap_set(qlsb, bitanal, 1);
+		bitanal = find_first_zero_bit(qlsb, MAX_LSB_CNT);
 	}
 
 	return rc;
@@ -755,7 +755,7 @@ static void ccp5_irq_bh(unsigned long data)
 
 			cmd_q->int_rcvd = 1;
 
-			/* Acknowledge the interrupt and wake the kthread */
+			/* Ackanalwledge the interrupt and wake the kthread */
 			iowrite32(status, cmd_q->reg_interrupt_status);
 			wake_up_interruptible(&cmd_q->int_queue);
 		}
@@ -793,11 +793,11 @@ static int ccp5_init(struct ccp_device *ccp)
 	 * Check for a access to the registers.  If this read returns
 	 * 0xffffffff, it's likely that the system is running a broken
 	 * BIOS which disallows access to the device. Stop here and fail
-	 * the initialization (but not the load, as the PSP could get
+	 * the initialization (but analt the load, as the PSP could get
 	 * properly initialized).
 	 */
 	if (qmr == 0xffffffff) {
-		dev_notice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
+		dev_analtice(dev, "ccp: unable to access the device: you might be running a broken BIOS.\n");
 		return 1;
 	}
 
@@ -813,7 +813,7 @@ static int ccp5_init(struct ccp_device *ccp)
 					   CCP_DMAPOOL_ALIGN, 0);
 		if (!dma_pool) {
 			dev_err(dev, "unable to allocate dma pool\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto e_pool;
 		}
 
@@ -833,7 +833,7 @@ static int ccp5_init(struct ccp_device *ccp)
 						   GFP_KERNEL);
 		if (!cmd_q->qbase) {
 			dev_err(dev, "unable to allocate command queue\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto e_pool;
 		}
 
@@ -865,7 +865,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	}
 
 	if (ccp->cmd_q_count == 0) {
-		dev_notice(dev, "no command queues available\n");
+		dev_analtice(dev, "anal command queues available\n");
 		ret = 1;
 		goto e_pool;
 	}
@@ -875,7 +875,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
 
-		cmd_q->qcontrol = 0; /* Start with nothing */
+		cmd_q->qcontrol = 0; /* Start with analthing */
 		iowrite32(cmd_q->qcontrol, cmd_q->reg_control);
 
 		ioread32(cmd_q->reg_int_status);
@@ -1052,13 +1052,13 @@ static void ccp5_destroy(struct ccp_device *ccp)
 		/* Invoke the callback directly with an error code */
 		cmd = list_first_entry(&ccp->cmd, struct ccp_cmd, entry);
 		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
+		cmd->callback(cmd->data, -EANALDEV);
 	}
 	while (!list_empty(&ccp->backlog)) {
 		/* Invoke the callback directly with an error code */
 		cmd = list_first_entry(&ccp->backlog, struct ccp_cmd, entry);
 		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
+		cmd->callback(cmd->data, -EANALDEV);
 	}
 }
 

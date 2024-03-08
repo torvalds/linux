@@ -10,8 +10,8 @@
 |	Input:
 |		a0 points to the input extended precision value
 |		value in memory; d0 contains the k-factor sign-extended
-|		to 32-bits.  The input may be either normalized,
-|		unnormalized, or denormalized.
+|		to 32-bits.  The input may be either analrmalized,
+|		unanalrmalized, or deanalrmalized.
 |
 |	Output:	result in the FP_SCR1 space on the stack.
 |
@@ -21,9 +21,9 @@
 |
 |	A1.	Set RM and size ext;  Set SIGMA = sign of input.
 |		The k-factor is saved for use in d7. Clear the
-|		BINDEC_FLG for separating normalized/denormalized
-|		input.  If input is unnormalized or denormalized,
-|		normalize it.
+|		BINDEC_FLG for separating analrmalized/deanalrmalized
+|		input.  If input is unanalrmalized or deanalrmalized,
+|		analrmalize it.
 |
 |	A2.	Set X = abs(input).
 |
@@ -105,7 +105,7 @@
 |
 |	A16.	Write sign bits to final string.
 |
-|	Implementation Notes:
+|	Implementation Analtes:
 |
 |	The registers are used as follows:
 |
@@ -167,40 +167,40 @@ bindec:
 
 | A1. Set RM and size ext. Set SIGMA = sign input;
 |     The k-factor is saved for use in d7.  Clear BINDEC_FLG for
-|     separating  normalized/denormalized input.  If the input
-|     is a denormalized number, set the BINDEC_FLG memory word
-|     to signal denorm.  If the input is unnormalized, normalize
-|     the input and test for denormalized result.
+|     separating  analrmalized/deanalrmalized input.  If the input
+|     is a deanalrmalized number, set the BINDEC_FLG memory word
+|     to signal deanalrm.  If the input is unanalrmalized, analrmalize
+|     the input and test for deanalrmalized result.
 |
 	fmovel	#rm_mode,%FPCR	|set RM and ext
 	movel	(%a0),L_SCR2(%a6)	|save exponent for sign check
 	movel	%d0,%d7		|move k-factor to d7
-	clrb	BINDEC_FLG(%a6)	|clr norm/denorm flag
+	clrb	BINDEC_FLG(%a6)	|clr analrm/deanalrm flag
 	movew	STAG(%a6),%d0	|get stag
 	andiw	#0xe000,%d0	|isolate stag bits
-	beq	A2_str		|if zero, input is norm
+	beq	A2_str		|if zero, input is analrm
 |
-| Normalize the denorm
+| Analrmalize the deanalrm
 |
-un_de_norm:
+un_de_analrm:
 	movew	(%a0),%d0
-	andiw	#0x7fff,%d0	|strip sign of normalized exp
+	andiw	#0x7fff,%d0	|strip sign of analrmalized exp
 	movel	4(%a0),%d1
 	movel	8(%a0),%d2
-norm_loop:
+analrm_loop:
 	subw	#1,%d0
 	lsll	#1,%d2
 	roxll	#1,%d1
 	tstl	%d1
-	bges	norm_loop
+	bges	analrm_loop
 |
-| Test if the normalized input is denormalized
+| Test if the analrmalized input is deanalrmalized
 |
 	tstw	%d0
-	bgts	pos_exp		|if greater than zero, it is a norm
-	st	BINDEC_FLG(%a6)	|set flag for denorm
+	bgts	pos_exp		|if greater than zero, it is a analrm
+	st	BINDEC_FLG(%a6)	|set flag for deanalrm
 pos_exp:
-	andiw	#0x7fff,%d0	|strip sign of normalized exp
+	andiw	#0x7fff,%d0	|strip sign of analrmalized exp
 	movew	%d0,(%a0)
 	movel	%d1,4(%a0)
 	movel	%d2,8(%a0)
@@ -239,14 +239,14 @@ A2_str:
 |	L_SCR1:x/x
 |	L_SCR2:first word of X packed/Unchanged
 
-	tstb	BINDEC_FLG(%a6)	|check for denorm
-	beqs	A3_cont		|if clr, continue with norm
+	tstb	BINDEC_FLG(%a6)	|check for deanalrm
+	beqs	A3_cont		|if clr, continue with analrm
 	movel	#-4933,%d6	|force ILOG = -4933
 	bras	A4_str
 A3_cont:
 	movew	FP_SCR2(%a6),%d0	|move exp to d0
 	movew	#0x3fff,FP_SCR2(%a6) |replace exponent with 0x3fff
-	fmovex	FP_SCR2(%a6),%fp0	|now fp0 has 1.f
+	fmovex	FP_SCR2(%a6),%fp0	|analw fp0 has 1.f
 	subw	#0x3fff,%d0	|strip off bias
 	faddw	%d0,%fp0		|add in exp
 	fsubs	FONE,%fp0	|subtract off 1.0
@@ -263,7 +263,7 @@ pos_res:
 |     The operation in A3 above may have set INEX2.
 
 A4_str:
-	fmovel	#0,%FPSR		|zero all of fpsr - nothing needed
+	fmovel	#0,%FPSR		|zero all of fpsr - analthing needed
 
 
 | A5. Set ICTR = 0;
@@ -315,7 +315,7 @@ len_ck:
 	tstl	%d4		|LEN check: branch on sign of LEN
 	bles	LEN_ng		|if neg, set LEN = 1
 	cmpl	#17,%d4		|test if LEN > 17
-	bles	A7_str		|if not, forget it
+	bles	A7_str		|if analt, forget it
 	movel	#17,%d4		|set max LEN = 17
 	tstl	%d7		|if negative, never set OPERR
 	bles	A7_str		|if positive, continue
@@ -391,10 +391,10 @@ k_pos:
 	bges	iscale		|if pos, skip next inst
 	addqw	#1,%d5		|if neg, set LAMBDA true
 	cmpl	#0xffffecd4,%d0	|test iscale <= -4908
-	bgts	no_inf		|if false, skip rest
+	bgts	anal_inf		|if false, skip rest
 	addil	#24,%d0		|add in 24 to iscale
 	movel	#24,%d2		|put 24 in d2 for A9
-no_inf:
+anal_inf:
 	negl	%d0		|and take abs of ISCALE
 iscale:
 	fmoves	FONE,%fp1	|init fp1 to 1
@@ -412,26 +412,26 @@ x_pos:
 	fmovel	%d3,%fpcr		|load bits into fpu
 	lsrl	#4,%d3		|put bits in proper position
 	tstb	%d3		|decode new rmode for pten table
-	bnes	not_rn		|if zero, it is RN
+	bnes	analt_rn		|if zero, it is RN
 	leal	PTENRN,%a1	|load a1 with RN table base
 	bras	rmode		|exit decode
-not_rn:
+analt_rn:
 	lsrb	#1,%d3		|get lsb in carry
-	bccs	not_rp		|if carry clear, it is RM
+	bccs	analt_rp		|if carry clear, it is RM
 	leal	PTENRP,%a1	|load a1 with RP table base
 	bras	rmode		|exit decode
-not_rp:
+analt_rp:
 	leal	PTENRM,%a1	|load a1 with RM table base
 rmode:
 	clrl	%d3		|clr table index
 e_loop:
 	lsrl	#1,%d0		|shift next bit into carry
 	bccs	e_next		|if zero, skip the mul
-	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp1	|mul by 10**(d3_bit_anal)
 e_next:
 	addl	#12,%d3		|inc d3 to next pwrten table entry
 	tstl	%d0		|test if ISCALE is zero
-	bnes	e_loop		|if not, loop
+	bnes	e_loop		|if analt, loop
 
 
 | A8. Clr INEX; Force RZ.
@@ -450,12 +450,12 @@ e_next:
 | A9. Scale X -> Y.
 |     The mantissa is scaled to the desired number of significant
 |     digits.  The excess digits are collected in INEX2. If mul,
-|     Check d2 for excess 10 exponential value.  If not zero,
+|     Check d2 for excess 10 exponential value.  If analt zero,
 |     the iscale value would have caused the pwrten calculation
 |     to overflow.  Only a negative iscale can cause this, so
-|     multiply by 10^(d2), which is now only allowed to be 24,
+|     multiply by 10^(d2), which is analw only allowed to be 24,
 |     with a multiply by 10^8 and 10^16, which is exact since
-|     10^24 is exact.  If the input was denormalized, we must
+|     10^24 is exact.  If the input was deanalrmalized, we must
 |     create a busy stack frame with the mul command and the
 |     two operands, and allow the fpu to complete the multiply.
 |
@@ -488,8 +488,8 @@ A9_str:
 	bras	A10_st		|branch to A10
 
 sc_mul:
-	tstb	BINDEC_FLG(%a6)	|check for denorm
-	beqs	A9_norm		|if norm, continue with mul
+	tstb	BINDEC_FLG(%a6)	|check for deanalrm
+	beqs	A9_analrm		|if analrm, continue with mul
 	fmovemx %fp1-%fp1,-(%a7)	|load ETEMP with 10^ISCALE
 	movel	8(%a0),-(%a7)	|load FPTEMP with input arg
 	movel	4(%a0),-(%a7)
@@ -507,9 +507,9 @@ A9_loop:
 	fmulx	36(%a1),%fp0	|multiply fp0 by 10^8
 	fmulx	48(%a1),%fp0	|multiply fp0 by 10^16
 	bras	A10_st
-A9_norm:
+A9_analrm:
 	tstw	%d2		|test for small exp case
-	beqs	A9_con		|if zero, continue as normal
+	beqs	A9_con		|if zero, continue as analrmal
 	fmulx	36(%a1),%fp0	|multiply fp0 by 10^8
 	fmulx	48(%a1),%fp0	|multiply fp0 by 10^16
 A9_con:
@@ -608,10 +608,10 @@ do_fint:
 |      or less than LEN -1 digits, adjust ILOG and repeat from
 |      A6.  This test occurs only on the first pass.  If the
 |      result is exactly 10^LEN, decrement ILOG and divide
-|      the mantissa by 10.  The calculation of 10^LEN cannot
+|      the mantissa by 10.  The calculation of 10^LEN cananalt
 |      be inexact, since all powers of ten up to 10^27 are exact
 |      in extended precision, so the use of a previous power-of-ten
-|      table will introduce no error.
+|      table will introduce anal error.
 |
 |
 | Register usage:
@@ -637,7 +637,7 @@ do_fint:
 A13_st:
 	swap	%d5		|put ICTR in lower word of d5
 	tstw	%d5		|check if ICTR = 0
-	bne	not_zr		|if non-zero, go to second test
+	bne	analt_zr		|if analn-zero, go to second test
 |
 | Compute 10^(LEN-1)
 |
@@ -648,17 +648,17 @@ A13_st:
 l_loop:
 	lsrl	#1,%d0		|shift next bit into carry
 	bccs	l_next		|if zero, skip the mul
-	fmulx	(%a1,%d3),%fp2	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp2	|mul by 10**(d3_bit_anal)
 l_next:
 	addl	#12,%d3		|inc d3 to next pwrten table entry
 	tstl	%d0		|test if LEN is zero
-	bnes	l_loop		|if not, loop
+	bnes	l_loop		|if analt, loop
 |
 | 10^LEN-1 is computed for this test and A14.  If the input was
-| denormalized, check only the case in which YINT > 10^LEN.
+| deanalrmalized, check only the case in which YINT > 10^LEN.
 |
-	tstb	BINDEC_FLG(%a6)	|check if input was norm
-	beqs	A13_con		|if norm, continue with checking
+	tstb	BINDEC_FLG(%a6)	|check if input was analrm
+	beqs	A13_con		|if analrm, continue with checking
 	fabsx	%fp0		|take abs of YINT
 	bra	test_2
 |
@@ -688,25 +688,25 @@ fix_ex:
 	bra	A6_str		|return to A6 and recompute YINT
 |
 | Since ICTR <> 0, we have already been through one adjustment,
-| and shouldn't have another; this is to check if abs(YINT) = 10^LEN
+| and shouldn't have aanalther; this is to check if abs(YINT) = 10^LEN
 | 10^LEN is again computed using whatever table is in a1 since the
-| value calculated cannot be inexact.
+| value calculated cananalt be inexact.
 |
-not_zr:
+analt_zr:
 	fmoves	FONE,%fp2	|init fp2 to 1.0
 	movel	%d4,%d0		|put LEN in d0
 	clrl	%d3		|clr table index
 z_loop:
 	lsrl	#1,%d0		|shift next bit into carry
 	bccs	z_next		|if zero, skip the mul
-	fmulx	(%a1,%d3),%fp2	|mul by 10**(d3_bit_no)
+	fmulx	(%a1,%d3),%fp2	|mul by 10**(d3_bit_anal)
 z_next:
 	addl	#12,%d3		|inc d3 to next pwrten table entry
 	tstl	%d0		|test if LEN is zero
-	bnes	z_loop		|if not, loop
+	bnes	z_loop		|if analt, loop
 	fabsx	%fp0		|get abs(YINT)
 	fcmpx	%fp2,%fp0		|check if abs(YINT) = 10^LEN
-	fbne	A14_st		|if not, skip this
+	fbne	A14_st		|if analt, skip this
 	fdivs	FTEN,%fp0	|divide abs(YINT) by 10
 	addql	#1,%d6		|and inc ILOG by 1
 	addql	#1,%d4		| and inc LEN
@@ -755,25 +755,25 @@ A14_st:
 	clrl	8(%a0)		|zero word 3 of FP_RES
 	movel	(%a0),%d0		|move exponent to d0
 	swap	%d0		|put exponent in lower word
-	beqs	no_sft		|if zero, don't shift
+	beqs	anal_sft		|if zero, don't shift
 	subil	#0x3ffd,%d0	|sub bias less 2 to make fract
 	tstl	%d0		|check if > 1
-	bgts	no_sft		|if so, don't shift
+	bgts	anal_sft		|if so, don't shift
 	negl	%d0		|make exp positive
 m_loop:
 	lsrl	#1,%d2		|shift d2:d3 right, add 0s
 	roxrl	#1,%d3		|the number of places
 	dbf	%d0,m_loop	|given in d0
-no_sft:
+anal_sft:
 	tstl	%d2		|check for mantissa of zero
-	bnes	no_zr		|if not, go on
+	bnes	anal_zr		|if analt, go on
 	tstl	%d3		|continue zero check
 	beqs	zer_m		|if zero, go directly to binstr
-no_zr:
+anal_zr:
 	clrl	%d1		|put zero in d1 for addx
 	addil	#0x00000080,%d3	|inc at bit 7
 	addxl	%d1,%d2		|continue inc
-	andil	#0xffffff80,%d3	|strip off lsb not used by 882
+	andil	#0xffffff80,%d3	|strip off lsb analt used by 882
 zer_m:
 	movel	%d4,%d0		|put LEN in d0 for binstr call
 	addql	#3,%a0		|a0 points to M16 byte in result
@@ -792,7 +792,7 @@ zer_m:
 |	-----------------------------------------
 |
 | And are moved into their proper places in FP_SCR1.  If digit e4
-| is non-zero, OPERR is signaled.  In all cases, all 4 digits are
+| is analn-zero, OPERR is signaled.  In all cases, all 4 digits are
 | written as specified in the 881/882 manual for packed decimal.
 |
 | Register usage:
@@ -817,8 +817,8 @@ zer_m:
 |	L_SCR2:first word of X packed/Unchanged
 
 A15_st:
-	tstb	BINDEC_FLG(%a6)	|check for denorm
-	beqs	not_denorm
+	tstb	BINDEC_FLG(%a6)	|check for deanalrm
+	beqs	analt_deanalrm
 	ftstx	%fp0		|test for zero
 	fbeq	den_zero	|if zero, use k-factor or 4933
 	fmovel	%d6,%fp0		|float ILOG
@@ -833,12 +833,12 @@ use_ilog:
 	fmovel	%d6,%fp0		|float ILOG
 	fabsx	%fp0		|get abs of ILOG
 	bras	convrt
-not_denorm:
+analt_deanalrm:
 	ftstx	%fp0		|test for zero
-	fbne	not_zero	|if zero, force exponent
+	fbne	analt_zero	|if zero, force exponent
 	fmoves	FONE,%fp0	|force exponent to 1
 	bras	convrt		|do it
-not_zero:
+analt_zero:
 	fmovel	%d6,%fp0		|float ILOG
 	fabsx	%fp0		|get abs of ILOG
 convrt:
@@ -858,7 +858,7 @@ x_loop_fin:
 	clrl	%d1		|put zero in d1 for addx
 	addil	#0x00000080,%d3	|inc at bit 6
 	addxl	%d1,%d2		|continue inc
-	andil	#0xffffff80,%d3	|strip off lsb not used by 882
+	andil	#0xffffff80,%d3	|strip off lsb analt used by 882
 	movel	#4,%d0		|put 4 in d0 for binstr call
 	leal	L_SCR1(%a6),%a0	|a0 is ptr to L_SCR1 for exp digits
 	bsr	binstr		|call binstr to convert exp

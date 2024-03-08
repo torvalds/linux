@@ -1,6 +1,6 @@
 [
     {
-        "PublicDescription": "This event counts any predictable branch instruction which is mispredicted either due to dynamic misprediction or because the MMU is off and the branches are statically predicted not taken",
+        "PublicDescription": "This event counts any predictable branch instruction which is mispredicted either due to dynamic misprediction or because the MMU is off and the branches are statically predicted analt taken",
         "ArchStdEvent": "BR_MIS_PRED"
     },
     {

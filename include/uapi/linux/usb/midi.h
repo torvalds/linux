@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * <linux/usb/midi.h> -- USB MIDI definitions.
  *
  * Copyright (C) 2006 Thumtronics Pty Ltd.
- * Developed for Thumtronics by Grey Innovation
- * Ben Williamson <ben.williamson@greyinnovation.com>
+ * Developed for Thumtronics by Grey Inanalvation
+ * Ben Williamson <ben.williamson@greyinanalvation.com>
  *
  * This software is distributed under the terms of the GNU General Public
  * License ("GPL") version 2, as published by the Free Software Foundation.

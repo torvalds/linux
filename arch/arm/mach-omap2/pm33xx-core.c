@@ -12,7 +12,7 @@
 #include <asm/cpuidle.h>
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
 #include <linux/platform_data/gpio-omap.h>
@@ -49,7 +49,7 @@ static int am43xx_map_scu(void)
 	scu_base = ioremap(scu_a9_get_base(), SZ_256);
 
 	if (!scu_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -57,9 +57,9 @@ static int am43xx_map_scu(void)
 static int am33xx_check_off_mode_enable(void)
 {
 	if (enable_off_mode)
-		pr_warn("WARNING: This platform does not support off-mode, entering DeepSleep suspend.\n");
+		pr_warn("WARNING: This platform does analt support off-mode, entering DeepSleep suspend.\n");
 
-	/* off mode not supported on am335x so return 0 always */
+	/* off mode analt supported on am335x so return 0 always */
 	return 0;
 }
 
@@ -72,7 +72,7 @@ static int am43xx_check_off_mode_enable(void)
 	if (of_machine_is_compatible("ti,am437x-gp-evm") && enable_off_mode)
 		return enable_off_mode;
 	else if (enable_off_mode)
-		pr_warn("WARNING: This platform does not support off-mode, entering DeepSleep suspend.\n");
+		pr_warn("WARNING: This platform does analt support off-mode, entering DeepSleep suspend.\n");
 
 	return 0;
 }
@@ -84,7 +84,7 @@ static int amx3_common_init(int (*idle)(u32 wfi_flags))
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 
 	if ((!gfx_pwrdm) || (!per_pwrdm) || (!mpu_pwrdm))
-		return -ENODEV;
+		return -EANALDEV;
 
 	(void)clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
@@ -107,8 +107,8 @@ static int am33xx_suspend_init(int (*idle)(u32 wfi_flags))
 	gfx_l4ls_clkdm = clkdm_lookup("gfx_l4ls_gfx_clkdm");
 
 	if (!gfx_l4ls_clkdm) {
-		pr_err("PM: Cannot lookup gfx_l4ls_clkdm clockdomains\n");
-		return -ENODEV;
+		pr_err("PM: Cananalt lookup gfx_l4ls_clkdm clockdomains\n");
+		return -EANALDEV;
 	}
 
 	return amx3_common_init(idle);
@@ -120,7 +120,7 @@ static int am43xx_suspend_init(int (*idle)(u32 wfi_flags))
 
 	ret = am43xx_map_scu();
 	if (ret) {
-		pr_err("PM: Could not ioremap SCU\n");
+		pr_err("PM: Could analt ioremap SCU\n");
 		return ret;
 	}
 
@@ -149,7 +149,7 @@ static void amx3_post_suspend_common(void)
 	 */
 	status = pwrdm_read_pwrst(gfx_pwrdm);
 	if (status != PWRDM_POWER_OFF)
-		pr_err("PM: GFX domain did not transition: %x\n", status);
+		pr_err("PM: GFX domain did analt transition: %x\n", status);
 }
 
 static int am33xx_suspend(unsigned int state, int (*fn)(unsigned long),
@@ -163,8 +163,8 @@ static int am33xx_suspend(unsigned int state, int (*fn)(unsigned long),
 
 	/*
 	 * BUG: GFX_L4LS clock domain needs to be woken up to
-	 * ensure thet L4LS clock domain does not get stuck in
-	 * transition. If that happens L3 module does not get
+	 * ensure thet L4LS clock domain does analt get stuck in
+	 * transition. If that happens L3 module does analt get
 	 * disabled, thereby leading to PER power domain
 	 * transition failing
 	 */
@@ -193,7 +193,7 @@ static int am43xx_suspend(unsigned int state, int (*fn)(unsigned long),
 	amx3_pre_suspend_common();
 	scu_power_mode(scu_base, SCU_PM_POWEROFF);
 	ret = cpu_suspend(args, fn);
-	scu_power_mode(scu_base, SCU_PM_NORMAL);
+	scu_power_mode(scu_base, SCU_PM_ANALRMAL);
 
 	if (!am43xx_check_off_mode_enable())
 		amx3_post_suspend_common();
@@ -201,7 +201,7 @@ static int am43xx_suspend(unsigned int state, int (*fn)(unsigned long),
 	/*
 	 * Resume secure side on HS devices.
 	 *
-	 * Note that even on systems with OP-TEE available this resume call is
+	 * Analte that even on systems with OP-TEE available this resume call is
 	 * issued to the ROM. This is because upon waking from suspend the ROM
 	 * is restored as the secure monitor. On systems with OP-TEE ROM will
 	 * restore OP-TEE during this call.
@@ -235,7 +235,7 @@ static int am43xx_cpu_suspend(int (*fn)(unsigned long), unsigned long args)
 
 	scu_power_mode(scu_base, SCU_PM_DORMANT);
 	ret = cpu_suspend(args, fn);
-	scu_power_mode(scu_base, SCU_PM_NORMAL);
+	scu_power_mode(scu_base, SCU_PM_ANALRMAL);
 
 	return ret;
 }
@@ -328,7 +328,7 @@ static struct am33xx_pm_platform_data *am33xx_pm_get_pdata(void)
  */
 static int amx3_suspend_block(suspend_state_t state)
 {
-	pr_warn("PM not initialized for pm33xx, wkup_m3_ipc, or am335x-pm-firmware.elf\n");
+	pr_warn("PM analt initialized for pm33xx, wkup_m3_ipc, or am335x-pm-firmware.elf\n");
 
 	return -EINVAL;
 }
@@ -376,19 +376,19 @@ int __init amx3_common_pm_init(void)
 	return 0;
 }
 
-static int __init amx3_idle_init(struct device_node *cpu_node, int cpu)
+static int __init amx3_idle_init(struct device_analde *cpu_analde, int cpu)
 {
-	struct device_node *state_node;
+	struct device_analde *state_analde;
 	struct amx3_idle_state states[CPUIDLE_STATE_MAX];
 	int i;
 	int state_count = 1;
 
 	for (i = 0; ; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
-		if (!state_node)
+		state_analde = of_parse_phandle(cpu_analde, "cpu-idle-states", i);
+		if (!state_analde)
 			break;
 
-		if (!of_device_is_available(state_node))
+		if (!of_device_is_available(state_analde))
 			continue;
 
 		if (i == CPUIDLE_STATE_MAX) {
@@ -399,7 +399,7 @@ static int __init amx3_idle_init(struct device_node *cpu_node, int cpu)
 
 		states[state_count].wfi_flags = 0;
 
-		if (of_property_read_bool(state_node, "ti,idle-wkup-m3"))
+		if (of_property_read_bool(state_analde, "ti,idle-wkup-m3"))
 			states[state_count].wfi_flags |= WFI_FLAG_WAKE_M3 |
 							 WFI_FLAG_FLUSH_CACHE;
 
@@ -408,7 +408,7 @@ static int __init amx3_idle_init(struct device_node *cpu_node, int cpu)
 
 	idle_states = kcalloc(state_count, sizeof(*idle_states), GFP_KERNEL);
 	if (!idle_states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 1; i < state_count; i++)
 		idle_states[i].wfi_flags = states[i].wfi_flags;

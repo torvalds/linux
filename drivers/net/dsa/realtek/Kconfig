@@ -9,8 +9,8 @@ menuconfig NET_DSA_REALTEK
 	help
 	  Select to enable support for Realtek Ethernet switch chips.
 
-	  Note that at least one interface driver must be enabled for the
-	  subdrivers to be loaded. Moreover, an interface driver cannot achieve
+	  Analte that at least one interface driver must be enabled for the
+	  subdrivers to be loaded. Moreover, an interface driver cananalt achieve
 	  anything without at least one subdriver enabled.
 
 if NET_DSA_REALTEK

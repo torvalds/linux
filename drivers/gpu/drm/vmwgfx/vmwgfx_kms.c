@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -82,7 +82,7 @@ static void vmw_send_define_cursor_cmd(struct vmw_private *dev_priv,
 	const u32 cmd_size = sizeof(*cmd) + image_size;
 
 	/* Try to reserve fifocmd space and swallow any failures;
-	   such reservations cannot be left unconsumed for long
+	   such reservations cananalt be left unconsumed for long
 	   under the risk of clogging other fifocmd users, so
 	   we treat reservations separtely from the way we treat
 	   other fallible KMS-atomic resources at prepare_fb */
@@ -188,7 +188,7 @@ static u32 *vmw_du_cursor_plane_acquire_image(struct vmw_plane_state *vps)
 	if (vps->surf) {
 		if (vps->surf_mapped)
 			return vmw_bo_map_and_cache(vps->surf->res.guest_memory_bo);
-		return vps->surf->snooper.image;
+		return vps->surf->sanaloper.image;
 	} else if (vps->bo)
 		return ttm_kmap_obj_virtual(&vps->bo->map, &is_iomem);
 	return NULL;
@@ -261,7 +261,7 @@ static void vmw_du_put_cursor_mob(struct vmw_cursor_plane *vcp,
 		}
 	}
 
-	/* Destroy it if it's not worth caching. */
+	/* Destroy it if it's analt worth caching. */
 	vmw_du_destroy_cursor_mob(&vps->cursor.bo);
 }
 
@@ -351,7 +351,7 @@ static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 	spin_unlock(&dev_priv->cursor_lock);
 }
 
-void vmw_kms_cursor_snoop(struct vmw_surface *srf,
+void vmw_kms_cursor_sanalop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header)
@@ -369,13 +369,13 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	} *cmd;
 	int i, ret;
 	const struct SVGA3dSurfaceDesc *desc =
-		vmw_surface_get_desc(VMW_CURSOR_SNOOP_FORMAT);
-	const u32 image_pitch = VMW_CURSOR_SNOOP_WIDTH * desc->pitchBytesPerBlock;
+		vmw_surface_get_desc(VMW_CURSOR_SANALOP_FORMAT);
+	const u32 image_pitch = VMW_CURSOR_SANALOP_WIDTH * desc->pitchBytesPerBlock;
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 
-	/* No snooper installed, nothing to copy */
-	if (!srf->snooper.image)
+	/* Anal sanaloper installed, analthing to copy */
+	if (!srf->sanaloper.image)
 		return;
 
 	if (cmd->dma.host.face != 0 || cmd->dma.host.mipmap != 0) {
@@ -396,11 +396,11 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	    box->x != 0    || box->y != 0    || box->z != 0    ||
 	    box->srcx != 0 || box->srcy != 0 || box->srcz != 0 ||
 	    box->d != 1    || box_count != 1 ||
-	    box->w > VMW_CURSOR_SNOOP_WIDTH || box->h > VMW_CURSOR_SNOOP_HEIGHT) {
-		/* TODO handle none page aligned offsets */
+	    box->w > VMW_CURSOR_SANALOP_WIDTH || box->h > VMW_CURSOR_SANALOP_HEIGHT) {
+		/* TODO handle analne page aligned offsets */
 		/* TODO handle more dst & src != 0 */
 		/* TODO handle more then one copy */
-		DRM_ERROR("Can't snoop dma request for cursor!\n");
+		DRM_ERROR("Can't sanalop dma request for cursor!\n");
 		DRM_ERROR("(%u, %u, %u) (%u, %u, %u) (%ux%ux%u) %u %u\n",
 			  box->srcx, box->srcy, box->srcz,
 			  box->x, box->y, box->z,
@@ -410,7 +410,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	}
 
 	kmap_offset = cmd->dma.guest.ptr.offset >> PAGE_SHIFT;
-	kmap_num = (VMW_CURSOR_SNOOP_HEIGHT*image_pitch) >> PAGE_SHIFT;
+	kmap_num = (VMW_CURSOR_SANALOP_HEIGHT*image_pitch) >> PAGE_SHIFT;
 
 	ret = ttm_bo_reserve(bo, true, false, NULL);
 	if (unlikely(ret != 0)) {
@@ -424,18 +424,18 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	virtual = ttm_kmap_obj_virtual(&map, &is_iomem);
 
-	if (box->w == VMW_CURSOR_SNOOP_WIDTH && cmd->dma.guest.pitch == image_pitch) {
-		memcpy(srf->snooper.image, virtual,
-		       VMW_CURSOR_SNOOP_HEIGHT*image_pitch);
+	if (box->w == VMW_CURSOR_SANALOP_WIDTH && cmd->dma.guest.pitch == image_pitch) {
+		memcpy(srf->sanaloper.image, virtual,
+		       VMW_CURSOR_SANALOP_HEIGHT*image_pitch);
 	} else {
 		/* Image is unsigned pointer. */
 		for (i = 0; i < box->h; i++)
-			memcpy(srf->snooper.image + i * image_pitch,
+			memcpy(srf->sanaloper.image + i * image_pitch,
 			       virtual + i * cmd->dma.guest.pitch,
 			       box->w * desc->pitchBytesPerBlock);
 	}
 
-	srf->snooper.age++;
+	srf->sanaloper.age++;
 
 	ttm_bo_kunmap(&map);
 err_unreserve:
@@ -476,15 +476,15 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		du = vmw_crtc_to_du(crtc);
 		if (!du->cursor_surface ||
-		    du->cursor_age == du->cursor_surface->snooper.age ||
-		    !du->cursor_surface->snooper.image)
+		    du->cursor_age == du->cursor_surface->sanaloper.age ||
+		    !du->cursor_surface->sanaloper.image)
 			continue;
 
-		du->cursor_age = du->cursor_surface->snooper.age;
+		du->cursor_age = du->cursor_surface->sanaloper.age;
 		vmw_send_define_cursor_cmd(dev_priv,
-					   du->cursor_surface->snooper.image,
-					   VMW_CURSOR_SNOOP_WIDTH,
-					   VMW_CURSOR_SNOOP_HEIGHT,
+					   du->cursor_surface->sanaloper.image,
+					   VMW_CURSOR_SANALOP_WIDTH,
+					   VMW_CURSOR_SANALOP_HEIGHT,
 					   du->hotspot_x + du->core_hotspot_x,
 					   du->hotspot_y + du->core_hotspot_y);
 	}
@@ -587,14 +587,14 @@ vmw_du_cursor_plane_map_cm(struct vmw_plane_state *vps)
 
 	ret = ttm_bo_reserve(bo, false, false, NULL);
 	if (unlikely(ret != 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vmw_bo_map_and_cache(vps->cursor.bo);
 
 	ttm_bo_unreserve(bo);
 
 	if (unlikely(ret != 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -717,28 +717,28 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 		const u32 size = new_state->crtc_w * new_state->crtc_h * sizeof(u32);
 
 		/*
-		 * Not using vmw_bo_map_and_cache() helper here as we need to
+		 * Analt using vmw_bo_map_and_cache() helper here as we need to
 		 * reserve the ttm_buffer_object first which
 		 * vmw_bo_map_and_cache() omits.
 		 */
 		ret = ttm_bo_reserve(&vps->bo->tbo, true, false, NULL);
 
 		if (unlikely(ret != 0))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = ttm_bo_kmap(&vps->bo->tbo, 0, PFN_UP(size), &vps->bo->map);
 
 		ttm_bo_unreserve(&vps->bo->tbo);
 
 		if (unlikely(ret != 0))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else if (vps->surf && !vps->bo && vps->surf->res.guest_memory_bo) {
 
-		WARN_ON(vps->surf->snooper.image);
+		WARN_ON(vps->surf->sanaloper.image);
 		ret = ttm_bo_reserve(&vps->surf->res.guest_memory_bo->tbo, true, false,
 				     NULL);
 		if (unlikely(ret != 0))
-			return -ENOMEM;
+			return -EANALMEM;
 		vmw_bo_map_and_cache(vps->surf->res.guest_memory_bo);
 		ttm_bo_unreserve(&vps->surf->res.guest_memory_bo->tbo);
 		vps->surf_mapped = true;
@@ -783,7 +783,7 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	vps->cursor.hotspot_y = hotspot_y;
 
 	if (vps->surf) {
-		du->cursor_age = du->cursor_surface->snooper.age;
+		du->cursor_age = du->cursor_surface->sanaloper.age;
 	}
 
 	if (!vmw_du_cursor_plane_has_changed(old_vps, vps)) {
@@ -840,20 +840,20 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 	int ret;
 
 	/*
-	 * Ignore damage clips if the framebuffer attached to the plane's state
+	 * Iganalre damage clips if the framebuffer attached to the plane's state
 	 * has changed since the last plane update (page-flip). In this case, a
 	 * full plane update should happen because uploads are done per-buffer.
 	 */
 	if (old_fb != new_fb)
-		new_state->ignore_damage_clips = true;
+		new_state->iganalre_damage_clips = true;
 
 	if (new_state->crtc)
 		crtc_state = drm_atomic_get_new_crtc_state(state,
 							   new_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, true);
 
 	if (!ret && new_fb) {
@@ -874,7 +874,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
  * @plane: cursor plane
  * @state: info on the new plane state
  *
- * This is a chance to fail if the new cursor state does not fit
+ * This is a chance to fail if the new cursor state does analt fit
  * our requirements.
  *
  * Returns 0 on success
@@ -894,8 +894,8 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 							   new_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -917,8 +917,8 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 		WARN_ON(!surface);
 
 		if (!surface ||
-		    (!surface->snooper.image && !surface->res.guest_memory_bo)) {
-			DRM_ERROR("surface not suitable for cursor\n");
+		    (!surface->sanaloper.image && !surface->res.guest_memory_bo)) {
+			DRM_ERROR("surface analt suitable for cursor\n");
 			return -EINVAL;
 		}
 	}
@@ -949,7 +949,7 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * Our virtual device does not have a dot clock, so use the logical
+	 * Our virtual device does analt have a dot clock, so use the logical
 	 * clock value as the dot clock.
 	 */
 	if (new_state->mode.crtc_clock == 0)
@@ -1024,7 +1024,7 @@ void vmw_du_crtc_reset(struct drm_crtc *crtc)
 	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
 
 	if (!vcs) {
-		DRM_ERROR("Cannot allocate vmw_crtc_state\n");
+		DRM_ERROR("Cananalt allocate vmw_crtc_state\n");
 		return;
 	}
 
@@ -1105,7 +1105,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 	vps = kzalloc(sizeof(*vps), GFP_KERNEL);
 
 	if (!vps) {
-		DRM_ERROR("Cannot allocate vmw_plane_state\n");
+		DRM_ERROR("Cananalt allocate vmw_plane_state\n");
 		return;
 	}
 
@@ -1191,7 +1191,7 @@ void vmw_du_connector_reset(struct drm_connector *connector)
 	vcs = kzalloc(sizeof(*vcs), GFP_KERNEL);
 
 	if (!vcs) {
-		DRM_ERROR("Cannot allocate vmw_connector_state\n");
+		DRM_ERROR("Cananalt allocate vmw_connector_state\n");
 		return;
 	}
 
@@ -1241,7 +1241,7 @@ static void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
  * Must be set to NULL if @user_fence_rep is NULL.
  * @vfb: Pointer to the buffer-object backed framebuffer.
  * @user_fence_rep: User-space provided structure for fence information.
- * Must be set to non-NULL if @file_priv is non-NULL.
+ * Must be set to analn-NULL if @file_priv is analn-NULL.
  * @vclips: Array of clip rects.
  * @num_clips: Number of clip rects in @vclips.
  *
@@ -1269,7 +1269,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 			  "Readback called with invalid display system.\n");
 }
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 
@@ -1293,7 +1293,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	/* 3D is only supported on HWv8 and newer hosts */
 	if (dev_priv->active_display_unit == vmw_du_legacy)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	/*
 	 * Sanity checks.
@@ -1308,8 +1308,8 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	/* Surface must be marked as a scanout. */
-	if (unlikely(!surface->metadata.scanout))
+	/* Surface must be marked as a scaanalut. */
+	if (unlikely(!surface->metadata.scaanalut))
 		return -EINVAL;
 
 	if (unlikely(surface->metadata.mip_levels[0] != 1 ||
@@ -1342,7 +1342,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	}
 
 	/*
-	 * For DX, surface format validation is done when surface->scanout
+	 * For DX, surface format validation is done when surface->scaanalut
 	 * is set.
 	 */
 	if (!has_sm4_context(dev_priv) && format != surface->metadata.format) {
@@ -1352,7 +1352,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	vfbs = kzalloc(sizeof(*vfbs), GFP_KERNEL);
 	if (!vfbs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err1;
 	}
 
@@ -1464,7 +1464,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	metadata.base_size.width = mode_cmd->pitches[0] / bytes_pp;
 	metadata.base_size.height =  mode_cmd->height;
 	metadata.base_size.depth = 1;
-	metadata.scanout = true;
+	metadata.scaanalut = true;
 
 	ret = vmw_gb_surface_define(vmw_priv(dev), &metadata, srf_out);
 	if (ret) {
@@ -1518,7 +1518,7 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 
 	vfbd = kzalloc(sizeof(*vfbd), GFP_KERNEL);
 	if (!vfbd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_err1;
 	}
 
@@ -1571,7 +1571,7 @@ vmw_kms_srf_ok(struct vmw_private *dev_priv, uint32_t width, uint32_t height)
  * Either @bo or @surface must be NULL.
  * @surface: Pointer to a surface to wrap the kms framebuffer around.
  * Either @bo or @surface must be NULL.
- * @only_2d: No presents will occur to this buffer object based framebuffer.
+ * @only_2d: Anal presents will occur to this buffer object based framebuffer.
  * This helps the code to do some important optimizations.
  * @mode_cmd: Frame-buffer metadata.
  */
@@ -1587,7 +1587,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 	int ret;
 
 	/*
-	 * We cannot use the SurfaceDMA command in an non-accelerated VM,
+	 * We cananalt use the SurfaceDMA command in an analn-accelerated VM,
 	 * therefore, wrap the buffer object in a surface so we can use the
 	 * SurfaceCopy command.
 	 */
@@ -1609,7 +1609,7 @@ vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 						      mode_cmd,
 						      is_bo_proxy);
 		/*
-		 * vmw_create_bo_proxy() adds a reference that is no longer
+		 * vmw_create_bo_proxy() adds a reference that is anal longer
 		 * needed
 		 */
 		if (is_bo_proxy)
@@ -1654,7 +1654,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 
 	if (!bo &&
 	    !vmw_kms_srf_ok(dev_priv, mode_cmd->width, mode_cmd->height)) {
-		DRM_ERROR("Surface size cannot exceed %dx%d\n",
+		DRM_ERROR("Surface size cananalt exceed %dx%d\n",
 			dev_priv->texture_max_width,
 			dev_priv->texture_max_height);
 		goto err_out;
@@ -1712,7 +1712,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		if (dev_priv->active_display_unit == vmw_du_screen_target &&
 		    (drm_rect_width(&rects[i]) > dev_priv->stdu_max_width ||
 		     drm_rect_height(&rects[i]) > dev_priv->stdu_max_height)) {
-			VMW_DEBUG_KMS("Screen size not supported.\n");
+			VMW_DEBUG_KMS("Screen size analt supported.\n");
 			return -EINVAL;
 		}
 
@@ -1732,7 +1732,7 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 
 	/*
 	 * For HV10 and below prim_bb_mem is vram size. When
-	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is not present vram size is
+	 * SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM is analt present vram size is
 	 * limit on primary bounding box
 	 */
 	if (pixel_mem > dev_priv->max_primary_mem) {
@@ -1740,9 +1740,9 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	/* SVGA_CAP_NO_BB_RESTRICTION is available for STDU only. */
+	/* SVGA_CAP_ANAL_BB_RESTRICTION is available for STDU only. */
 	if (dev_priv->active_display_unit != vmw_du_screen_target ||
-	    !(dev_priv->capabilities & SVGA_CAP_NO_BB_RESTRICTION)) {
+	    !(dev_priv->capabilities & SVGA_CAP_ANAL_BB_RESTRICTION)) {
 		bb_mem = (u64) bounding_box.x2 * bounding_box.y2 * 4;
 
 		if (bb_mem > dev_priv->max_primary_mem) {
@@ -1856,7 +1856,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 	rects = kcalloc(dev->mode_config.num_crtc, sizeof(struct drm_rect),
 			GFP_KERNEL);
 	if (!rects)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_for_each_crtc(crtc, dev) {
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
@@ -1902,7 +1902,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 
 		/*
 		 * For vmwgfx each crtc has only one connector attached and it
-		 * is not changed so don't really need to check the
+		 * is analt changed so don't really need to check the
 		 * crtc->connector_mask and iterate over it.
 		 */
 		connector = &du->connector;
@@ -1936,7 +1936,7 @@ clean:
  * drm_calc_timestamping_constants() won't throw an error message
  *
  * Returns:
- * Zero for success or -errno
+ * Zero for success or -erranal
  */
 static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
@@ -2014,7 +2014,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 	default:
 		WARN_ONCE(true,
 			  "Present called with invalid display system.\n");
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 	if (ret)
@@ -2112,7 +2112,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 
 	crtc = drm_crtc_find(dev, file_priv, arg->crtc_id);
 	if (!crtc) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto out;
 	}
 
@@ -2493,13 +2493,13 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
  * e.g.
  * [0 0 640 480] [640 0 800 600] [0 480 640 480]
  *
- * NOTE:
- * The x and y offset (upper left) in drm_vmw_rect cannot be less than 0. Beside
- * device limit on topology, x + w and y + h (lower right) cannot be greater
+ * ANALTE:
+ * The x and y offset (upper left) in drm_vmw_rect cananalt be less than 0. Beside
+ * device limit on topology, x + w and y + h (lower right) cananalt be greater
  * than INT_MAX. So topology beyond these limits will return with error.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erranal on failure.
  */
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
@@ -2526,7 +2526,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	rects = kcalloc(arg->num_outputs, sizeof(struct drm_vmw_rect),
 			GFP_KERNEL);
 	if (unlikely(!rects))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	user_rects = (void __user *)(unsigned long)arg->rects;
 	ret = copy_from_user(rects, user_rects, rects_size);
@@ -2620,7 +2620,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 
 	dirty->dev_priv = dev_priv;
 
-	/* If crtc is passed, no need to iterate over other display units */
+	/* If crtc is passed, anal need to iterate over other display units */
 	if (dirty->crtc) {
 		units[num_units++] = vmw_crtc_to_du(dirty->crtc);
 	} else {
@@ -2647,7 +2647,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 			dirty->cmd = VMW_CMD_RESERVE(dev_priv,
 						      dirty->fifo_reserve_size);
 			if (!dirty->cmd)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			memset(dirty->cmd, 0, dirty->fifo_reserve_size);
 		}
@@ -2658,7 +2658,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 			s32 clip_top;
 
 			/*
-			 * Select clip array type. Note that integer type
+			 * Select clip array type. Analte that integer type
 			 * in @clips is unsigned short, whereas in @vclips
 			 * it's 32-bit.
 			 */
@@ -2716,8 +2716,8 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
  * @dev_priv: Pointer to the device-private struct
  * @file_priv: Pointer identifying the client when user-space fencing is used
  * @ctx: Pointer to the validation context
- * @out_fence: If non-NULL, returned refcounted fence-pointer
- * @user_fence_rep: If non-NULL, pointer to user-space address area
+ * @out_fence: If analn-NULL, returned refcounted fence-pointer
+ * @user_fence_rep: If analn-NULL, pointer to user-space address area
  * in which to copy user-space fence info
  */
 void vmw_kms_helper_validation_finish(struct vmw_private *dev_priv,
@@ -2780,7 +2780,7 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 
 	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd) * num_clips);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_clips; ++i, clips += increment, ++cmd) {
 		box = &cmd->body.box;
@@ -2880,7 +2880,7 @@ int vmw_kms_resume(struct drm_device *dev)
 }
 
 /**
- * vmw_kms_lost_device - Notify kms that modesetting capabilities will be lost
+ * vmw_kms_lost_device - Analtify kms that modesetting capabilities will be lost
  *
  * @dev: Pointer to the drm device
  */
@@ -2932,7 +2932,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 		/*
 		 * For screen targets we want a mappable bo, for everything else we want
 		 * accelerated i.e. host backed (vram or gmr) bo. If the display unit
-		 * is not screen target then mob's shouldn't be available.
+		 * is analt screen target then mob's shouldn't be available.
 		 */
 		if (update->dev_priv->active_display_unit == vmw_du_screen_target) {
 			vmw_bo_placement_set(vfbbo->buffer,
@@ -2948,7 +2948,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 			container_of(update->vfb, typeof(*vfbs), base);
 
 		ret = vmw_validation_add_resource(&val_ctx, &vfbs->surface->res,
-						  0, VMW_RES_DIRTY_NONE, NULL,
+						  0, VMW_RES_DIRTY_ANALNE, NULL,
 						  NULL);
 	}
 
@@ -2962,7 +2962,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 	reserved_size = update->calc_fifo_size(update, num_hits);
 	cmd_start = VMW_CMD_RESERVE(update->dev_priv, reserved_size);
 	if (!cmd_start) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_revert;
 	}
 

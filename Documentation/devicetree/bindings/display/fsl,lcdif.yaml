@@ -106,7 +106,7 @@ allOf:
       required:
         - clock-names
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

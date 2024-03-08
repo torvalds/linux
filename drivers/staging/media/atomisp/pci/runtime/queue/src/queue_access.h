@@ -16,32 +16,32 @@
 #ifndef __QUEUE_ACCESS_H
 #define __QUEUE_ACCESS_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <type_support.h>
 #include <ia_css_queue_comm.h>
 #include <ia_css_circbuf.h>
 
-#define QUEUE_IGNORE_START_FLAG	0x0001
-#define QUEUE_IGNORE_END_FLAG	0x0002
-#define QUEUE_IGNORE_SIZE_FLAG	0x0004
-#define QUEUE_IGNORE_STEP_FLAG	0x0008
-#define QUEUE_IGNORE_DESC_FLAGS_MAX 0x000f
+#define QUEUE_IGANALRE_START_FLAG	0x0001
+#define QUEUE_IGANALRE_END_FLAG	0x0002
+#define QUEUE_IGANALRE_SIZE_FLAG	0x0004
+#define QUEUE_IGANALRE_STEP_FLAG	0x0008
+#define QUEUE_IGANALRE_DESC_FLAGS_MAX 0x000f
 
-#define QUEUE_IGNORE_SIZE_START_STEP_FLAGS \
-	(QUEUE_IGNORE_SIZE_FLAG | \
-	QUEUE_IGNORE_START_FLAG | \
-	QUEUE_IGNORE_STEP_FLAG)
+#define QUEUE_IGANALRE_SIZE_START_STEP_FLAGS \
+	(QUEUE_IGANALRE_SIZE_FLAG | \
+	QUEUE_IGANALRE_START_FLAG | \
+	QUEUE_IGANALRE_STEP_FLAG)
 
-#define QUEUE_IGNORE_SIZE_END_STEP_FLAGS \
-	(QUEUE_IGNORE_SIZE_FLAG | \
-	QUEUE_IGNORE_END_FLAG   | \
-	QUEUE_IGNORE_STEP_FLAG)
+#define QUEUE_IGANALRE_SIZE_END_STEP_FLAGS \
+	(QUEUE_IGANALRE_SIZE_FLAG | \
+	QUEUE_IGANALRE_END_FLAG   | \
+	QUEUE_IGANALRE_STEP_FLAG)
 
-#define QUEUE_IGNORE_START_END_STEP_FLAGS \
-	(QUEUE_IGNORE_START_FLAG | \
-	QUEUE_IGNORE_END_FLAG	  | \
-	QUEUE_IGNORE_STEP_FLAG)
+#define QUEUE_IGANALRE_START_END_STEP_FLAGS \
+	(QUEUE_IGANALRE_START_FLAG | \
+	QUEUE_IGANALRE_END_FLAG	  | \
+	QUEUE_IGANALRE_STEP_FLAG)
 
 #define QUEUE_CB_DESC_INIT(cb_desc)	\
 	do {				\
@@ -67,12 +67,12 @@ struct ia_css_queue {
 int ia_css_queue_load(
     struct ia_css_queue *rdesc,
     ia_css_circbuf_desc_t *cb_desc,
-    uint32_t ignore_desc_flags);
+    uint32_t iganalre_desc_flags);
 
 int ia_css_queue_store(
     struct ia_css_queue *rdesc,
     ia_css_circbuf_desc_t *cb_desc,
-    uint32_t ignore_desc_flags);
+    uint32_t iganalre_desc_flags);
 
 int ia_css_queue_item_load(
     struct ia_css_queue *rdesc,

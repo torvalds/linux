@@ -117,7 +117,7 @@ static int mt6397_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, mt6397);
 	irq_set_chip_and_handler(irq, &mt6397_irq_chip, handle_level_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -126,11 +126,11 @@ static const struct irq_domain_ops mt6397_irq_domain_ops = {
 	.map = mt6397_irq_domain_map,
 };
 
-static int mt6397_irq_pm_notifier(struct notifier_block *notifier,
+static int mt6397_irq_pm_analtifier(struct analtifier_block *analtifier,
 				  unsigned long pm_event, void *unused)
 {
 	struct mt6397_chip *chip =
-		container_of(notifier, struct mt6397_chip, pm_nb);
+		container_of(analtifier, struct mt6397_chip, pm_nb);
 
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
@@ -153,7 +153,7 @@ static int mt6397_irq_pm_notifier(struct notifier_block *notifier,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 int mt6397_irq_init(struct mt6397_chip *chip)
@@ -185,21 +185,21 @@ int mt6397_irq_init(struct mt6397_chip *chip)
 
 	default:
 		dev_err(chip->dev, "unsupported chip: 0x%x\n", chip->chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Mask all interrupt sources */
 	regmap_write(chip->regmap, chip->int_con[0], 0x0);
 	regmap_write(chip->regmap, chip->int_con[1], 0x0);
 
-	chip->pm_nb.notifier_call = mt6397_irq_pm_notifier;
-	chip->irq_domain = irq_domain_add_linear(chip->dev->of_node,
+	chip->pm_nb.analtifier_call = mt6397_irq_pm_analtifier;
+	chip->irq_domain = irq_domain_add_linear(chip->dev->of_analde,
 						 MT6397_IRQ_NR,
 						 &mt6397_irq_domain_ops,
 						 chip);
 	if (!chip->irq_domain) {
-		dev_err(chip->dev, "could not create irq domain\n");
-		return -ENOMEM;
+		dev_err(chip->dev, "could analt create irq domain\n");
+		return -EANALMEM;
 	}
 
 	ret = devm_request_threaded_irq(chip->dev, chip->irq, NULL,
@@ -211,6 +211,6 @@ int mt6397_irq_init(struct mt6397_chip *chip)
 		return ret;
 	}
 
-	register_pm_notifier(&chip->pm_nb);
+	register_pm_analtifier(&chip->pm_nb);
 	return 0;
 }

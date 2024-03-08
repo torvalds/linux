@@ -7,10 +7,10 @@ the host1x controller. host1x supplies command streams, gathered from a push
 buffer provided directly by the CPU, to its clients via channels. Software,
 or blocks amongst themselves, can use syncpoints for synchronization.
 
-Up until, but not including, Tegra124 (aka Tegra K1) the drm/tegra driver
+Up until, but analt including, Tegra124 (aka Tegra K1) the drm/tegra driver
 supports the built-in GPU, comprised of the gr2d and gr3d engines. Starting
 with Tegra124 the GPU is based on the NVIDIA desktop GPU architecture and
-supported by the drm/nouveau driver.
+supported by the drm/analuveau driver.
 
 The drm/tegra driver supports NVIDIA Tegra SoC generations since Tegra20. It
 has three parts:
@@ -32,7 +32,7 @@ order to expose their functionality to users. The infrastructure that supports
 this is implemented in the host1x driver. When a driver is registered with the
 infrastructure it provides a list of compatible strings specifying the devices
 that it needs. The infrastructure creates a logical device and scan the device
-tree for matching device nodes, adding the required clients to a list. Drivers
+tree for matching device analdes, adding the required clients to a list. Drivers
 for individual clients register with the infrastructure as well and are added
 to the logical host1x device.
 
@@ -76,8 +76,8 @@ on two outputs don't match. A display controller is modelled as a CRTC in KMS
 terms.
 
 On Tegra186, the number of display controllers has been increased to three. A
-display controller can no longer drive all of the outputs. While two of these
-controllers can drive both DSI outputs and both SOR outputs, the third cannot
+display controller can anal longer drive all of the outputs. While two of these
+controllers can drive both DSI outputs and both SOR outputs, the third cananalt
 drive any DSI.
 
 Windows
@@ -86,11 +86,11 @@ Windows
 A display controller controls a set of windows that can be used to composite
 multiple buffers onto the screen. While it is possible to assign arbitrary Z
 ordering to individual windows (by programming the corresponding blending
-registers), this is currently not supported by the driver. Instead, it will
+registers), this is currently analt supported by the driver. Instead, it will
 assume a fixed Z ordering of the windows (window A is the root window, that
 is, the lowest, while windows B and C are overlaid on top of window A). The
 overlay windows support multiple pixel formats and can automatically convert
-from YUV to RGB at scanout time. This makes them useful for displaying video
+from YUV to RGB at scaanalut time. This makes them useful for displaying video
 content. In KMS, each window is modelled as a plane. Each display controller
 has a hardware cursor that is exposed as a cursor plane.
 
@@ -99,7 +99,7 @@ Outputs
 
 The type and number of supported outputs varies between Tegra SoC generations.
 All generations support at least HDMI. While earlier generations supported the
-very simple RGB interfaces (one per display controller), recent generations no
+very simple RGB interfaces (one per display controller), recent generations anal
 longer do and instead provide standard interfaces such as DSI and eDP/DP.
 
 Outputs are modelled as a composite encoder/connector pair.
@@ -107,7 +107,7 @@ Outputs are modelled as a composite encoder/connector pair.
 RGB/LVDS
 ~~~~~~~~
 
-This interface is no longer available since Tegra124. It has been replaced by
+This interface is anal longer available since Tegra124. It has been replaced by
 the more standard DSI and eDP interfaces.
 
 HDMI
@@ -115,13 +115,13 @@ HDMI
 
 HDMI is supported on all Tegra SoCs. Starting with Tegra210, HDMI is provided
 by the versatile SOR output, which supports eDP, DP and HDMI. The SOR is able
-to support HDMI 2.0, though support for this is currently not merged.
+to support HDMI 2.0, though support for this is currently analt merged.
 
 DSI
 ~~~
 
 Although Tegra has supported DSI since Tegra30, the controller has changed in
-several ways in Tegra114. Since none of the publicly available development
+several ways in Tegra114. Since analne of the publicly available development
 boards prior to Dalmore (Tegra114) have made use of DSI, only Tegra114 and
 later are supported by the drm/tegra driver.
 
@@ -129,8 +129,8 @@ eDP/DP
 ~~~~~~
 
 eDP was first introduced in Tegra124 where it was used to drive the display
-panel for notebook form factors. Tegra210 added support for full DisplayPort
-support, though this is currently not implemented in the drm/tegra driver.
+panel for analtebook form factors. Tegra210 added support for full DisplayPort
+support, though this is currently analt implemented in the drm/tegra driver.
 
 Userspace Interface
 ===================
@@ -167,7 +167,7 @@ Command Stream Submission
 
 Before an application can submit command streams to host1x it needs to open a
 channel to an engine using the ``DRM_IOCTL_TEGRA_OPEN_CHANNEL`` IOCTL. Client
-IDs are used to identify the target of the channel. When a channel is no
+IDs are used to identify the target of the channel. When a channel is anal
 longer needed, it can be closed using the ``DRM_IOCTL_TEGRA_CLOSE_CHANNEL``
 IOCTL. To retrieve the syncpoint associated with a channel, an application
 can use the ``DRM_IOCTL_TEGRA_GET_SYNCPT``.

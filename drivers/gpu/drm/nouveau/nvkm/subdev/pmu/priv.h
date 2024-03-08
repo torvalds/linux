@@ -60,8 +60,8 @@ struct nvkm_pmu_fwif {
 	const struct nvkm_acr_lsf_func *acr;
 };
 
-int gf100_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
-int gm200_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
+int gf100_pmu_analfw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
+int gm200_pmu_analfw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm20b_pmu_load(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 
 int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,

@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #ifndef __INIT_H__

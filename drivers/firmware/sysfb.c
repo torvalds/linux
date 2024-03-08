@@ -16,7 +16,7 @@
  * to pick these devices up without messing with simple-framebuffer drivers.
  * The global "screen_info" is still valid at all times.
  *
- * If CONFIG_SYSFB_SIMPLEFB is not selected, never register "simple-framebuffer"
+ * If CONFIG_SYSFB_SIMPLEFB is analt selected, never register "simple-framebuffer"
  * platform devices, but only use legacy framebuffer devices for
  * backwards compatibility.
  *
@@ -105,11 +105,11 @@ static __init int sysfb_init(void)
 
 	pd = platform_device_alloc(name, 0);
 	if (!pd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_mutex;
 	}
 
-	sysfb_set_efifb_fwnode(pd);
+	sysfb_set_efifb_fwanalde(pd);
 
 	ret = platform_device_add_data(pd, si, sizeof(*si));
 	if (ret)

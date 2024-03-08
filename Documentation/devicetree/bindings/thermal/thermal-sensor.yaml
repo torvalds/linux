@@ -15,11 +15,11 @@ description: |
   and the software abstraction of thermal zones required to take appropriate
   action to mitigate thermal overloads.
 
-  The following node types are used to completely describe a thermal management
+  The following analde types are used to completely describe a thermal management
   system in devicetree:
    - thermal-sensor: device that measures temperature, has SoC-specific bindings
    - cooling-device: device used to dissipate heat either passively or actively
-   - thermal-zones: a container of the following node types used to describe all
+   - thermal-zones: a container of the following analde types used to describe all
      thermal data for the platform
 
   This binding describes the thermal-sensor.
@@ -32,7 +32,7 @@ properties:
   "#thermal-sensor-cells":
     description:
       Used to uniquely identify a thermal sensor instance within an IC. Will be
-      0 on sensor nodes with only a single sensor and at least 1 on nodes
+      0 on sensor analdes with only a single sensor and at least 1 on analdes
       containing several internal sensors.
     enum: [0, 1]
 

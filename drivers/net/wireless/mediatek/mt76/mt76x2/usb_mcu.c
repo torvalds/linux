@@ -65,7 +65,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 	if (rom_protect &&
 	    !mt76_poll_msec(dev, MT_MCU_SEMAPHORE_03, 1, 1, 600)) {
 		dev_err(dev->mt76.dev,
-			"could not get hardware semaphore for ROM PATCH\n");
+			"could analt get hardware semaphore for ROM PATCH\n");
 		return -ETIMEDOUT;
 	}
 

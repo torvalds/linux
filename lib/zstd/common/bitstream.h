@@ -16,7 +16,7 @@
 
 /*
 *  This API consists of small unitary functions, which must be inlined for best performance.
-*  Since link-time-optimization is not available for all compilers,
+*  Since link-time-optimization is analt available for all compilers,
 *  these functions are defined into a .h to be included.
 */
 
@@ -72,7 +72,7 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC);
 *
 *  Last operation is to close the bitStream.
 *  The function returns the final size of CStream in bytes.
-*  If data couldn't fit into `dstBuffer`, it will return a 0 ( == not storable)
+*  If data couldn't fit into `dstBuffer`, it will return a 0 ( == analt storable)
 */
 
 
@@ -117,7 +117,7 @@ MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC, size_t value, unsigned nbBi
 /* faster, but works only if value is "clean", meaning all high bits above nbBits are 0 */
 
 MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC);
-/* unsafe version; does not check buffer overflow */
+/* unsafe version; does analt check buffer overflow */
 
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits);
 /* faster, but works only if nbBits >= 1 */
@@ -180,7 +180,7 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
 
 /*! BIT_addBits() :
  *  can add up to 31 bits into `bitC`.
- *  Note : does not check for register overflow ! */
+ *  Analte : does analt check for register overflow ! */
 MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
                             size_t value, unsigned nbBits)
 {
@@ -204,8 +204,8 @@ MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC,
 }
 
 /*! BIT_flushBitsFast() :
- *  assumption : bitContainer has not overflowed
- *  unsafe version; does not check buffer overflow */
+ *  assumption : bitContainer has analt overflowed
+ *  unsafe version; does analt check buffer overflow */
 MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
@@ -218,9 +218,9 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 }
 
 /*! BIT_flushBits() :
- *  assumption : bitContainer has not overflowed
+ *  assumption : bitContainer has analt overflowed
  *  safe version; check for buffer overflow, and prevents it.
- *  note : does not signal buffer overflow.
+ *  analte : does analt signal buffer overflow.
  *  overflow will be revealed later on using BIT_closeCStream() */
 MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 {
@@ -236,7 +236,7 @@ MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 
 /*! BIT_closeCStream() :
  *  @return : size of CStream, in bytes,
- *            or 0 if it could not fit into dstBuffer */
+ *            or 0 if it could analt fit into dstBuffer */
 MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC)
 {
     BIT_addBitsFast(bitC, 1, 1);   /* endMark */
@@ -262,12 +262,12 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
     bitD->start = (const char*)srcBuffer;
     bitD->limitPtr = bitD->start + sizeof(bitD->bitContainer);
 
-    if (srcSize >=  sizeof(bitD->bitContainer)) {  /* normal case */
+    if (srcSize >=  sizeof(bitD->bitContainer)) {  /* analrmal case */
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(bitD->bitContainer);
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
           bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;  /* ensures bitsConsumed is always set */
-          if (lastByte == 0) return ERROR(GENERIC); /* endMark not present */ }
+          if (lastByte == 0) return ERROR(GENERIC); /* endMark analt present */ }
     } else {
         bitD->ptr   = bitD->start;
         bitD->bitContainer = *(const BYTE*)(bitD->start);
@@ -295,7 +295,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         }
         {   BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
             bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
-            if (lastByte == 0) return ERROR(corruption_detected);  /* endMark not present */
+            if (lastByte == 0) return ERROR(corruption_detected);  /* endMark analt present */
         }
         bitD->bitsConsumed += (U32)(sizeof(bitD->bitContainer) - srcSize)*8;
     }
@@ -314,8 +314,8 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
     /* if start > regMask, bitstream is corrupted, and result is undefined */
     assert(nbBits < BIT_MASK_SIZE);
     /* x86 transform & ((1 << nbBits) - 1) to bzhi instruction, it is better
-     * than accessing memory. When bmi2 instruction is not present, we consider
-     * such cpus old (pre-Haswell, 2013) and their performance is not of that
+     * than accessing memory. When bmi2 instruction is analt present, we consider
+     * such cpus old (pre-Haswell, 2013) and their performance is analt of that
      * importance.
      */
 #if defined(__x86_64__) || defined(_M_X86)
@@ -333,7 +333,7 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 co
 
 /*! BIT_lookBits() :
  *  Provides next n bits from local register.
- *  local register is not modified.
+ *  local register is analt modified.
  *  On 32-bits, maxNbBits==24.
  *  On 64-bits, maxNbBits==56.
  * @return : value extracted */
@@ -367,7 +367,7 @@ MEM_STATIC FORCE_INLINE_ATTR void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
 
 /*! BIT_readBits() :
  *  Read (consume) next n bits from local register and update.
- *  Pay attention to not read more than nbBits contained into local register.
+ *  Pay attention to analt read more than nbBits contained into local register.
  * @return : extracted value. */
 MEM_STATIC FORCE_INLINE_ATTR size_t BIT_readBits(BIT_DStream_t* bitD, unsigned nbBits)
 {
@@ -405,7 +405,7 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStreamFast(BIT_DStream_t* bitD)
 
 /*! BIT_reloadDStream() :
  *  Refill `bitD` from buffer previously set in BIT_initDStream() .
- *  This function is safe, it guarantees it will not read beyond src buffer.
+ *  This function is safe, it guarantees it will analt read beyond src buffer.
  * @return : status of `BIT_DStream_t` internal register.
  *           when status == BIT_DStream_unfinished, internal register is filled with at least 25 or 57 bits */
 MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)

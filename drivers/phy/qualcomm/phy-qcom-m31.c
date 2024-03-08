@@ -31,7 +31,7 @@
  #define POR_EN				BIT(1)
 
 #define USB_PHY_HS_PHY_CTRL_COMMON0	0x54
- #define COMMONONN			BIT(7)
+ #define COMMOANALNN			BIT(7)
  #define FSEL				BIT(4)
  #define RETENABLEN			BIT(3)
  #define FREQ_24MHZ			(BIT(6) | BIT(4))
@@ -98,7 +98,7 @@ static const struct m31_phy_regs m31_ipq5018_regs[] = {
 	},
 	{
 		.off = USB_PHY_HS_PHY_CTRL_COMMON0,
-		.val = COMMONONN | FSEL | RETENABLEN
+		.val = COMMOANALNN | FSEL | RETENABLEN
 	},
 	{
 		.off = USB_PHY_REFCLK_CTRL,
@@ -144,7 +144,7 @@ static struct m31_phy_regs m31_ipq5332_regs[] = {
 	},
 	{
 		USB_PHY_HS_PHY_CTRL_COMMON0,
-		COMMONONN | FREQ_24MHZ | RETENABLEN,
+		COMMOANALNN | FREQ_24MHZ | RETENABLEN,
 		0
 	},
 	{
@@ -272,7 +272,7 @@ static int m31usb_phy_probe(struct platform_device *pdev)
 
 	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
 	if (!qphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qphy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qphy->base))

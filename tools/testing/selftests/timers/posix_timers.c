@@ -146,7 +146,7 @@ static int check_timer_create(int which)
 	} else if (which == CLOCK_PROCESS_CPUTIME_ID) {
 		type = "process";
 	} else {
-		ksft_print_msg("Unknown timer_create() type %d\n", which);
+		ksft_print_msg("Unkanalwn timer_create() type %d\n", which);
 		return -1;
 	}
 
@@ -201,7 +201,7 @@ static void distribution_handler(int nr)
 
 /*
  * Test that all running threads _eventually_ receive CLOCK_PROCESS_CPUTIME_ID
- * timer signals. This primarily tests that the kernel does not favour any one.
+ * timer signals. This primarily tests that the kernel does analt favour any one.
  */
 static int check_timer_distribution(void)
 {
@@ -234,7 +234,7 @@ static int check_timer_distribution(void)
 				     NULL);
 		if (err) {
 			ksft_print_msg("Can't create thread: %s (%d)\n",
-				       strerror(errno), errno);
+				       strerror(erranal), erranal);
 			return -1;
 		}
 	}
@@ -246,7 +246,7 @@ static int check_timer_distribution(void)
 		err = pthread_join(threads[i], NULL);
 		if (err) {
 			ksft_print_msg("Can't join thread: %s (%d)\n",
-				       strerror(errno), errno);
+				       strerror(erranal), erranal);
 			return -1;
 		}
 	}
@@ -284,7 +284,7 @@ int main(int argc, char **argv)
 	 * It's unfortunately hard to reliably test a timer expiration
 	 * on parallel multithread cputime. We could arm it to expire
 	 * on DELAY * nr_threads, with nr_threads busy looping, then wait
-	 * the normal DELAY since the time is elapsing nr_threads faster.
+	 * the analrmal DELAY since the time is elapsing nr_threads faster.
 	 * But for that we need to ensure we have real physical free CPUs
 	 * to ensure true parallelism. So test only one thread until we
 	 * find a better solution.

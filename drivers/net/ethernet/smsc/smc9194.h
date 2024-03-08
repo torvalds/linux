@@ -68,10 +68,10 @@ typedef unsigned long int 		dword;
 #define	TCR_MON_CNS	0x0400	/* monitors the carrier status */
 #define	TCR_PAD_ENABLE	0x0080	/* pads short packets to 64 bytes */
 
-#define	TCR_CLEAR	0	/* do NOTHING */
-/* the normal settings for the TCR register : */
+#define	TCR_CLEAR	0	/* do ANALTHING */
+/* the analrmal settings for the TCR register : */
 /* QUESTION: do I want to enable padding of short packets ? */
-#define	TCR_NORMAL  	TCR_ENABLE
+#define	TCR_ANALRMAL  	TCR_ENABLE
 
 
 #define EPH_STATUS	2
@@ -84,8 +84,8 @@ typedef unsigned long int 		dword;
 #define RCR_ALMUL	0x4 	/* receive all multicast packets */
 #define	RCR_PROMISC	0x2	/* enable promiscuous mode */
 
-/* the normal settings for the RCR register : */
-#define	RCR_NORMAL	(RCR_STRIP_CRC | RCR_ENABLE)
+/* the analrmal settings for the RCR register : */
+#define	RCR_ANALRMAL	(RCR_STRIP_CRC | RCR_ENABLE)
 #define RCR_CLEAR	0x0		/* set it to a base state */
 
 #define	COUNTER		6
@@ -112,7 +112,7 @@ typedef unsigned long int 		dword;
 /* BANK 2 */
 #define MMU_CMD		0
 #define MC_BUSY		1	/* only readable bit in the register */
-#define MC_NOP		0
+#define MC_ANALP		0
 #define	MC_ALLOC	0x20  	/* or with number of 256 byte packets */
 #define	MC_RESET	0x40
 #define	MC_REMOVE	0x60  	/* remove the current rx packet */
@@ -143,7 +143,7 @@ typedef unsigned long int 		dword;
 #define	IM_ALLOC_INT	0x8
 #define	IM_RX_OVRN_INT	0x10
 #define	IM_EPH_INT	0x20
-#define	IM_ERCV_INT	0x40 /* not on SMC9192 */
+#define	IM_ERCV_INT	0x40 /* analt on SMC9192 */
 
 /* BANK 3 */
 #define	MULTICAST1	0
@@ -154,7 +154,7 @@ typedef unsigned long int 		dword;
 #define	REVISION	10 /* ( hi: chip id   low: rev # ) */
 
 
-/* this is NOT on SMC9192 */
+/* this is ANALT on SMC9192 */
 #define	ERCV		12
 
 #define CHIP_9190	3

@@ -6,7 +6,7 @@
  *              Licensed under the GPLv2
  *
  *  To build:
- *	$ gcc nanosleep.c -o nanosleep -lrt
+ *	$ gcc naanalsleep.c -o naanalsleep -lrt
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  *   GNU General Public License for more details.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -32,12 +32,12 @@
 #define NSEC_PER_SEC 1000000000ULL
 
 #define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
+#define CLOCK_MOANALTONIC			1
 #define CLOCK_PROCESS_CPUTIME_ID	2
 #define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
+#define CLOCK_MOANALTONIC_RAW		4
 #define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
+#define CLOCK_MOANALTONIC_COARSE		6
 #define CLOCK_BOOTTIME			7
 #define CLOCK_REALTIME_ALARM		8
 #define CLOCK_BOOTTIME_ALARM		9
@@ -52,18 +52,18 @@ char *clockstring(int clockid)
 	switch (clockid) {
 	case CLOCK_REALTIME:
 		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
+	case CLOCK_MOANALTONIC:
+		return "CLOCK_MOANALTONIC";
 	case CLOCK_PROCESS_CPUTIME_ID:
 		return "CLOCK_PROCESS_CPUTIME_ID";
 	case CLOCK_THREAD_CPUTIME_ID:
 		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
+	case CLOCK_MOANALTONIC_RAW:
+		return "CLOCK_MOANALTONIC_RAW";
 	case CLOCK_REALTIME_COARSE:
 		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
+	case CLOCK_MOANALTONIC_COARSE:
+		return "CLOCK_MOANALTONIC_COARSE";
 	case CLOCK_BOOTTIME:
 		return "CLOCK_BOOTTIME";
 	case CLOCK_REALTIME_ALARM:
@@ -73,7 +73,7 @@ char *clockstring(int clockid)
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
 	};
-	return "UNKNOWN_CLOCKID";
+	return "UNKANALWN_CLOCKID";
 }
 
 /* returns 1 if a <= b, 0 otherwise */
@@ -98,32 +98,32 @@ struct timespec timespec_add(struct timespec ts, unsigned long long ns)
 	return ts;
 }
 
-int nanosleep_test(int clockid, long long ns)
+int naanalsleep_test(int clockid, long long ns)
 {
-	struct timespec now, target, rel;
+	struct timespec analw, target, rel;
 
 	/* First check abs time */
-	if (clock_gettime(clockid, &now))
+	if (clock_gettime(clockid, &analw))
 		return UNSUPPORTED;
-	target = timespec_add(now, ns);
+	target = timespec_add(analw, ns);
 
-	if (clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL))
+	if (clock_naanalsleep(clockid, TIMER_ABSTIME, &target, NULL))
 		return UNSUPPORTED;
-	clock_gettime(clockid, &now);
+	clock_gettime(clockid, &analw);
 
-	if (!in_order(target, now))
+	if (!in_order(target, analw))
 		return -1;
 
 	/* Second check reltime */
-	clock_gettime(clockid, &now);
+	clock_gettime(clockid, &analw);
 	rel.tv_sec = 0;
 	rel.tv_nsec = 0;
 	rel = timespec_add(rel, ns);
-	target = timespec_add(now, ns);
-	clock_nanosleep(clockid, 0, &rel, NULL);
-	clock_gettime(clockid, &now);
+	target = timespec_add(analw, ns);
+	clock_naanalsleep(clockid, 0, &rel, NULL);
+	clock_gettime(clockid, &analw);
 
-	if (!in_order(target, now))
+	if (!in_order(target, analw))
 		return -1;
 	return 0;
 }
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 
 	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
 
-		/* Skip cputime clockids since nanosleep won't increment cputime */
+		/* Skip cputime clockids since naanalsleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC) {
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
-			ret = nanosleep_test(clockid, length);
+			ret = naanalsleep_test(clockid, length);
 			if (ret == UNSUPPORTED) {
 				ksft_test_result_skip("%-31s\n", clockstring(clockid));
 				goto next;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#define __NO_VERSION__
+#define __ANAL_VERSION__
 /*
  * Driver for Digigram pcxhr compatible soundcards
  *
@@ -262,7 +262,7 @@ static int pcxhr_update_playback_stream_level(struct snd_pcxhr* chip, int idx)
 	pcxhr_init_rmh(&rmh, CMD_STREAM_OUT_LEVEL_ADJUST);
 	/* add pipe and stream mask */
 	pcxhr_set_pipe_cmd_params(&rmh, 0, pipe->first_audio, 0, 1<<idx);
-	/* volume left->left / right->right panoramic level */
+	/* volume left->left / right->right paanalramic level */
 	rmh.cmd[0] |= MORE_THAN_ONE_STREAM_LEVEL;
 	rmh.cmd[2]  = VALID_STREAM_PAN_LEVEL_MASK | VALID_STREAM_LEVEL_1_MASK;
 	rmh.cmd[2] |= (left << 10);
@@ -306,14 +306,14 @@ static int pcxhr_update_audio_pipe_level(struct snd_pcxhr *chip,
 	 * channel will be programmed to the same params */
 	if (capture) {
 		rmh.cmd[0] |= VALID_AUDIO_IO_DIGITAL_LEVEL;
-		/* VALID_AUDIO_IO_MUTE_LEVEL not yet handled
+		/* VALID_AUDIO_IO_MUTE_LEVEL analt yet handled
 		 * (capture pipe level) */
 		rmh.cmd[2] = chip->digital_capture_volume[channel];
 	} else {
 		rmh.cmd[0] |=	VALID_AUDIO_IO_MONITOR_LEVEL |
 				VALID_AUDIO_IO_MUTE_MONITOR_1;
 		/* VALID_AUDIO_IO_DIGITAL_LEVEL and VALID_AUDIO_IO_MUTE_LEVEL
-		 * not yet handled (playback pipe level)
+		 * analt yet handled (playback pipe level)
 		 */
 		rmh.cmd[2] = chip->monitoring_volume[channel] << 10;
 		if (chip->monitoring_active[channel] == 0)
@@ -641,7 +641,7 @@ static int pcxhr_audio_src_info(struct snd_kcontrol *kcontrol,
 	int i;
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 
-	i = 2;			/* no SRC, no Mic available */
+	i = 2;			/* anal SRC, anal Mic available */
 	if (chip->mgr->board_has_aes1) {
 		i = 3;		/* SRC available */
 		if (chip->mgr->board_has_mic)
@@ -663,7 +663,7 @@ static int pcxhr_audio_src_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pcxhr *chip = snd_kcontrol_chip(kcontrol);
 	int ret = 0;
-	int i = 2;		/* no SRC, no Mic available */
+	int i = 2;		/* anal SRC, anal Mic available */
 	if (chip->mgr->board_has_aes1) {
 		i = 3;		/* SRC available */
 		if (chip->mgr->board_has_mic)
@@ -779,7 +779,7 @@ static int pcxhr_clock_type_put(struct snd_kcontrol *kcontrol,
 				mgr->sample_rate = rate;
 		}
 		mutex_unlock(&mgr->setup_mutex);
-		ret = 1; /* return 1 even if the set was not done. ok ? */
+		ret = 1; /* return 1 even if the set was analt done. ok ? */
 	}
 	mutex_unlock(&mgr->mixer_mutex);
 	return ret;
@@ -803,7 +803,7 @@ static int pcxhr_clock_rate_info(struct snd_kcontrol *kcontrol,
 	struct pcxhr_mgr *mgr = snd_kcontrol_chip(kcontrol);
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 3 + mgr->capture_chips;
-	uinfo->value.integer.min = 0;		/* clock not present */
+	uinfo->value.integer.min = 0;		/* clock analt present */
 	uinfo->value.integer.max = 192000;	/* max sample rate 192 kHz */
 	return 0;
 }
@@ -898,7 +898,7 @@ static int pcxhr_iec958_capture_byte(struct snd_pcxhr *chip,
 		temp = (unsigned char)rmh.stat[1];
 	} else {
 		temp = 0;
-		/* reversed bit order (not with CS8416_01_CS) */
+		/* reversed bit order (analt with CS8416_01_CS) */
 		for (i = 0; i < 8; i++) {
 			temp <<= 1;
 			if (rmh.stat[1] & (1 << i))
@@ -1105,7 +1105,7 @@ int pcxhr_create_mixer(struct pcxhr_mgr *mgr)
 	struct snd_pcxhr *chip;
 	int err, i;
 
-	mutex_init(&mgr->mixer_mutex); /* can be in another place */
+	mutex_init(&mgr->mixer_mutex); /* can be in aanalther place */
 
 	for (i = 0; i < mgr->num_cards; i++) {
 		struct snd_kcontrol_new temp;
@@ -1229,7 +1229,7 @@ int pcxhr_create_mixer(struct pcxhr_mgr *mgr)
 				snd_ctl_new1(&pcxhr_control_clock_type, mgr));
 			if (err < 0)
 				return err;
-			/* non standard control used to scan
+			/* analn standard control used to scan
 			 * the external clock presence/frequencies
 			 */
 			err = snd_ctl_add(chip->card,

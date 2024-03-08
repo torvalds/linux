@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -23,12 +23,12 @@
 #include <linux/soc/ti/omap1-soc.h>
 #include <linux/soc/ti/omap1-mux.h>
 
-/* NOTE:  don't expect this to support many I/O cards.  The 16xx chips have
+/* ANALTE:  don't expect this to support many I/O cards.  The 16xx chips have
  * hard-wired timings to support Compact Flash memory cards; they won't work
  * with various other devices (like WLAN adapters) without some external
  * logic to help out.
  *
- * NOTE:  CF controller docs disagree with address space docs as to where
+ * ANALTE:  CF controller docs disagree with address space docs as to where
  * CF_BASE really lives; this is a doc erratum.
  */
 #define	CF_BASE	0xfffe2800
@@ -91,9 +91,9 @@ static void omap_cf_timer(struct timer_list *t)
 		mod_timer(&cf->timer, jiffies + POLL_INTERVAL);
 }
 
-/* This irq handler prevents "irqNNN: nobody cared" messages as drivers
+/* This irq handler prevents "irqNNN: analbody cared" messages as drivers
  * claim the card's IRQ.  It may also detect some card insertions, but
- * not removals; it can't always eliminate timer irqs.
+ * analt removals; it can't always eliminate timer irqs.
  */
 static irqreturn_t omap_cf_irq(int irq, void *_cf)
 {
@@ -108,7 +108,7 @@ static int omap_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 	if (!sp)
 		return -EINVAL;
 
-	/* NOTE CF is always 3VCARD */
+	/* ANALTE CF is always 3VCARD */
 	if (omap_cf_present()) {
 		struct omap_cf_socket	*cf;
 
@@ -124,7 +124,7 @@ static int omap_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 static int
 omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 {
-	/* REVISIT some non-OSK boards may support power switching */
+	/* REVISIT some analn-OSK boards may support power switching */
 	switch (s->Vcc) {
 	case 0:
 	case 33:
@@ -192,7 +192,7 @@ static struct pccard_operations omap_cf_ops = {
 /*--------------------------------------------------------------------------*/
 
 /*
- * NOTE:  right now the only board-specific platform_data is
+ * ANALTE:  right analw the only board-specific platform_data is
  * "what chipselect is used".  Boards could want more.
  */
 
@@ -207,7 +207,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 
 	seg = (int) pdev->dev.platform_data;
 	if (seg == 0 || seg > 3)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* either CFLASH.IREQ (INT_1610_CF) or some GPIO */
 	irq = platform_get_irq(pdev, 0);
@@ -218,13 +218,13 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 
 	cf = kzalloc(sizeof *cf, GFP_KERNEL);
 	if (!cf)
-		return -ENOMEM;
+		return -EANALMEM;
 	timer_setup(&cf->timer, omap_cf_timer, 0);
 
 	cf->pdev = pdev;
 	platform_set_drvdata(pdev, cf);
 
-	/* this primarily just shuts up irq handling noise */
+	/* this primarily just shuts up irq handling analise */
 	status = request_irq(irq, omap_cf_irq, IRQF_SHARED,
 			driver_name, cf);
 	if (status < 0)
@@ -237,7 +237,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	cf->socket.io_offset = iospace.start;
 	status = pci_remap_iospace(&iospace, cf->phys_cf + SZ_4K);
 	if (status) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto fail1;
 	}
 
@@ -246,7 +246,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 
-	/* NOTE:  CF conflicts with MMC1 */
+	/* ANALTE:  CF conflicts with MMC1 */
 	omap_cfg_reg(W11_1610_CF_CD1);
 	omap_cfg_reg(P11_1610_CF_CD2);
 	omap_cfg_reg(R11_1610_CF_IOIS16);
@@ -262,7 +262,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	pr_debug("%s: sts %04x cfg %04x control %04x %s\n", driver_name,
 		omap_readw(CF_STATUS), omap_readw(CF_CFG),
 		omap_readw(CF_CONTROL),
-		omap_cf_present() ? "present" : "(not present)");
+		omap_cf_present() ? "present" : "(analt present)");
 
 	cf->socket.owner = THIS_MODULE;
 	cf->socket.dev.parent = &pdev->dev;
@@ -313,7 +313,7 @@ static int __init omap_cf_init(void)
 {
 	if (cpu_is_omap16xx())
 		return platform_driver_probe(&omap_cf_driver, omap_cf_probe);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit omap_cf_exit(void)

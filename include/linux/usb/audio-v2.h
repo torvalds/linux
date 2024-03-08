@@ -23,11 +23,11 @@
  *
  *   bmaControls() is a (ch+1)-element array of 4-byte bitmaps,
  *   each containing a set of bit pairs. If a Control is present,
- *   it must be Host readable. If a certain Control is not
+ *   it must be Host readable. If a certain Control is analt
  *   present then the bit pair must be set to 0b00.
  *   If a Control is present but read-only, the bit pair must be
  *   set to 0b01. If a Control is also Host programmable, the bit
- *   pair must be set to 0b11. The value 0b10 is not allowed.
+ *   pair must be set to 0b11. The value 0b10 is analt allowed.
  *
  */
 
@@ -196,7 +196,7 @@ struct uac2_as_header_descriptor {
 
 #define UAC2_FORMAT_TYPE_I_RAW_DATA	(1 << 31)
 
-/* 4.10.1.2 Class-Specific AS Isochronous Audio Data Endpoint Descriptor */
+/* 4.10.1.2 Class-Specific AS Isochroanalus Audio Data Endpoint Descriptor */
 
 struct uac2_iso_endpoint_descriptor {
 	__u8  bLength;			/* in bytes: 8 */
@@ -308,7 +308,7 @@ struct uac2_interrupt_data_msg {
 /* A.17.3 Clock Multiplier Control Selectors */
 #define UAC2_CM_UNDEFINED		0x00
 #define UAC2_CM_NUMERATOR		0x01
-#define UAC2_CM_DENOMINTATOR		0x02
+#define UAC2_CM_DEANALMINTATOR		0x02
 
 /* A.17.4 Terminal Control Selectors */
 #define UAC2_TE_UNDEFINED		0x00

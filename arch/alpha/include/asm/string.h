@@ -6,7 +6,7 @@
 
 /*
  * GCC of any recent vintage doesn't do stupid things with bcopy.
- * EGCS 1.1 knows all about expanding memcpy inline, others don't.
+ * EGCS 1.1 kanalws all about expanding memcpy inline, others don't.
  *
  * Similarly for a memset with data = 0.
  */
@@ -27,7 +27,7 @@ extern void * ___memset(void *, int, size_t);
 extern void * __memset(void *, int, size_t);
 extern void * memset(void *, int, size_t);
 
-/* For gcc 3.x, we cannot have the inline function named "memset" because
+/* For gcc 3.x, we cananalt have the inline function named "memset" because
    the __builtin_memset will attempt to resolve to the inline as well,
    leading to a "sorry" about unimplemented recursive inlining.  */
 extern inline void *__memset(void *s, int c, size_t n)

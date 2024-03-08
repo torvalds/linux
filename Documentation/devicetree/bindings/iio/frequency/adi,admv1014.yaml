@@ -53,11 +53,11 @@ properties:
 
   vcc-lna-3p3-supply:
     description:
-      Low Noise Amplifier 3.3V supply voltage regulator.
+      Low Analise Amplifier 3.3V supply voltage regulator.
 
   vcc-lna-1p5-supply:
     description:
-      Low Noise Amplifier 1.5V supply voltage regulator.
+      Low Analise Amplifier 1.5V supply voltage regulator.
 
   vcc-bg-supply:
     description:

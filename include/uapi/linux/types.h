@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_TYPES_H
 #define _UAPI_LINUX_TYPES_H
 
@@ -50,7 +50,7 @@ typedef __u32 __bitwise __wsum;
  * architectures) and to 8-byte boundaries on 64-bit architectures.  The new
  * aligned_64 type enforces 8-byte alignment so that structs containing
  * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
- * No conversions are necessary between 32-bit user-space and a 64-bit kernel.
+ * Anal conversions are necessary between 32-bit user-space and a 64-bit kernel.
  */
 #define __aligned_u64 __u64 __attribute__((aligned(8)))
 #define __aligned_be64 __be64 __attribute__((aligned(8)))

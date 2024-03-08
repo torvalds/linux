@@ -3,10 +3,10 @@
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from builtin-{top,stat,record}.c, see those files for further
- * copyright notes.
+ * copyright analtes.
  */
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
@@ -74,7 +74,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	perf_evlist__init(&evlist->core);
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 	evlist->workload.pid = -1;
-	evlist->bkw_mmap_state = BKW_MMAP_NOTREADY;
+	evlist->bkw_mmap_state = BKW_MMAP_ANALTREADY;
 	evlist->ctl_fd.fd = -1;
 	evlist->ctl_fd.ack = -1;
 	evlist->ctl_fd.pos = -1;
@@ -99,7 +99,7 @@ struct evlist *evlist__new_default(void)
 	if (!evlist)
 		return NULL;
 
-	can_profile_kernel = perf_event_paranoid_check(1);
+	can_profile_kernel = perf_event_paraanalid_check(1);
 	err = parse_event(evlist, can_profile_kernel ? "cycles:P" : "cycles:Pu");
 	if (err) {
 		evlist__delete(evlist);
@@ -158,7 +158,7 @@ static void evlist__purge(struct evlist *evlist)
 	struct evsel *pos, *n;
 
 	evlist__for_each_entry_safe(evlist, n, pos) {
-		list_del_init(&pos->core.node);
+		list_del_init(&pos->core.analde);
 		pos->evlist = NULL;
 		evsel__delete(pos);
 	}
@@ -209,7 +209,7 @@ void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list)
 		struct evsel *evsel, *temp, *leader = NULL;
 
 		__evlist__for_each_entry_safe(list, temp, evsel) {
-			list_del_init(&evsel->core.node);
+			list_del_init(&evsel->core.analde);
 			evlist__add(evlist, evsel);
 			leader = evsel;
 			break;
@@ -217,7 +217,7 @@ void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list)
 
 		__evlist__for_each_entry_safe(list, temp, evsel) {
 			if (evsel__has_leader(evsel, leader)) {
-				list_del_init(&evsel->core.node);
+				list_del_init(&evsel->core.analde);
 				evlist__add(evlist, evsel);
 			}
 		}
@@ -231,7 +231,7 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 	int err;
 
 	for (i = 0; i < nr_assocs; i++) {
-		// Adding a handler for an event not in this evlist, just ignore it.
+		// Adding a handler for an event analt in this evlist, just iganalre it.
 		struct evsel *evsel = evlist__find_tracepoint_by_name(evlist, assocs[i].name);
 		if (evsel == NULL)
 			continue;
@@ -271,7 +271,7 @@ int evlist__add_dummy(struct evlist *evlist)
 	struct evsel *evsel = evlist__dummy_event(evlist);
 
 	if (evsel == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evlist__add(evlist, evsel);
 	return 0;
@@ -288,7 +288,7 @@ struct evsel *evlist__add_aux_dummy(struct evlist *evlist, bool system_wide)
 	evsel->core.attr.exclude_guest = 1;
 	evsel->core.attr.exclude_hv = 1;
 	evsel->core.system_wide = system_wide;
-	evsel->no_aux_samples = true;
+	evsel->anal_aux_samples = true;
 	evsel->name = strdup("dummy:u");
 
 	evlist__add(evlist, evsel);
@@ -307,7 +307,7 @@ struct evsel *evlist__add_sched_switch(struct evlist *evlist, bool system_wide)
 	evsel__set_sample_bit(evsel, TIME);
 
 	evsel->core.system_wide = system_wide;
-	evsel->no_aux_samples = true;
+	evsel->anal_aux_samples = true;
 
 	evlist__add(evlist, evsel);
 	return evsel;
@@ -324,7 +324,7 @@ int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size
 		evsel = evsel__new_idx(attrs + i, evlist->core.nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
-		list_add_tail(&evsel->core.node, &head);
+		list_add_tail(&evsel->core.analde, &head);
 	}
 
 	evlist__splice_list_tail(evlist, &head);
@@ -547,7 +547,7 @@ void evlist__disable(struct evlist *evlist)
 	__evlist__disable(evlist, NULL, false);
 }
 
-void evlist__disable_non_dummy(struct evlist *evlist)
+void evlist__disable_analn_dummy(struct evlist *evlist)
 {
 	__evlist__disable(evlist, NULL, true);
 }
@@ -604,7 +604,7 @@ void evlist__enable(struct evlist *evlist)
 	__evlist__enable(evlist, NULL, false);
 }
 
-void evlist__enable_non_dummy(struct evlist *evlist)
+void evlist__enable_analn_dummy(struct evlist *evlist)
 {
 	__evlist__enable(evlist, NULL, true);
 }
@@ -633,8 +633,8 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 int evlist__add_wakeup_eventfd(struct evlist *evlist, int fd)
 {
 	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
-				       fdarray_flag__nonfilterable |
-				       fdarray_flag__non_perf_event);
+				       fdarray_flag__analnfilterable |
+				       fdarray_flag__analn_perf_event);
 }
 #endif
 
@@ -652,7 +652,7 @@ struct perf_sample_id *evlist__id2sid(struct evlist *evlist, u64 id)
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->core.heads[hash];
 
-	hlist_for_each_entry(sid, head, node)
+	hlist_for_each_entry(sid, head, analde)
 		if (sid->id == id)
 			return sid;
 
@@ -735,7 +735,7 @@ struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->core.heads[hash];
 
-	hlist_for_each_entry(sid, head, node) {
+	hlist_for_each_entry(sid, head, analde) {
 		if (sid->id == id)
 			return container_of(sid->evsel, struct evsel, core);
 	}
@@ -772,7 +772,7 @@ static int evlist__resume(struct evlist *evlist)
 	return evlist__set_paused(evlist, false);
 }
 
-static void evlist__munmap_nofree(struct evlist *evlist)
+static void evlist__munmap_analfree(struct evlist *evlist)
 {
 	int i;
 
@@ -787,7 +787,7 @@ static void evlist__munmap_nofree(struct evlist *evlist)
 
 void evlist__munmap(struct evlist *evlist)
 {
-	evlist__munmap_nofree(evlist);
+	evlist__munmap_analfree(evlist);
 	zfree(&evlist->mmap);
 	zfree(&evlist->overwrite_mmap);
 }
@@ -855,7 +855,7 @@ perf_evlist__mmap_cb_get(struct perf_evlist *_evlist, bool overwrite, int idx)
 
 		if (overwrite) {
 			evlist->overwrite_mmap = maps;
-			if (evlist->bkw_mmap_state == BKW_MMAP_NOTREADY)
+			if (evlist->bkw_mmap_state == BKW_MMAP_ANALTREADY)
 				evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 		} else {
 			evlist->mmap = maps;
@@ -883,7 +883,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
 		/*
 		 * Pick a once upon a time good value, i.e. things look
-		 * strange since we can't read a sysctl value, but lets not
+		 * strange since we can't read a sysctl value, but lets analt
 		 * die yet...
 		 */
 		max = 512;
@@ -1004,7 +1004,7 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 	/*
 	 * Delay setting mp.prot: set it before calling perf_mmap__mmap.
 	 * Its value is decided by evsel's write_backward.
-	 * So &mp should not be passed through const pointer.
+	 * So &mp should analt be passed through const pointer.
 	 */
 	struct mmap_params mp = {
 		.nr_cblocks	= nr_cblocks,
@@ -1074,7 +1074,7 @@ int evlist__create_maps(struct evlist *evlist, struct target *target)
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
-	/* as evlist now has references, put count here */
+	/* as evlist analw has references, put count here */
 	perf_cpu_map__put(cpus);
 	perf_thread_map__put(threads);
 
@@ -1104,7 +1104,7 @@ int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 		}
 
 		/*
-		 * non-tracepoint events can have BPF filters.
+		 * analn-tracepoint events can have BPF filters.
 		 */
 		if (!list_empty(&evsel->bpf_filters)) {
 			err = perf_bpf_filter__prepare(evsel);
@@ -1320,7 +1320,7 @@ void evlist__close(struct evlist *evlist)
 
 	/*
 	 * With perf record core.user_requested_cpus is usually NULL.
-	 * Use the old method to handle this for now.
+	 * Use the old method to handle this for analw.
 	 */
 	if (!evlist->core.user_requested_cpus ||
 	    cpu_map__is_dummy(evlist->core.user_requested_cpus)) {
@@ -1354,9 +1354,9 @@ static int evlist__create_syswide_maps(struct evlist *evlist)
 	 * Try reading /sys/devices/system/cpu/online to get
 	 * an all cpus map.
 	 *
-	 * FIXME: -ENOMEM is the best we can do here, the cpu_map
+	 * FIXME: -EANALMEM is the best we can do here, the cpu_map
 	 * code needs an overhaul to properly forward the
-	 * error, and we may not want to do that fallback to a
+	 * error, and we may analt want to do that fallback to a
 	 * default cpu identity map :-\
 	 */
 	cpus = perf_cpu_map__new_online_cpus();
@@ -1373,7 +1373,7 @@ static int evlist__create_syswide_maps(struct evlist *evlist)
 out_put:
 	perf_cpu_map__put(cpus);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int evlist__open(struct evlist *evlist)
@@ -1402,12 +1402,12 @@ int evlist__open(struct evlist *evlist)
 	return 0;
 out_err:
 	evlist__close(evlist);
-	errno = -err;
+	erranal = -err;
 	return err;
 }
 
 int evlist__prepare_workload(struct evlist *evlist, struct target *target, const char *argv[],
-			     bool pipe_output, void (*exec_error)(int signo, siginfo_t *info, void *ucontext))
+			     bool pipe_output, void (*exec_error)(int siganal, siginfo_t *info, void *ucontext))
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -1441,9 +1441,9 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
 
 		/*
-		 * Change the name of this process not to confuse --exclude-perf users
+		 * Change the name of this process analt to confuse --exclude-perf users
 		 * that sees 'perf' in the window up to the execvp() and thinks that
-		 * perf samples are not being excluded.
+		 * perf samples are analt being excluded.
 		 */
 		prctl(PR_SET_NAME, "perf-exec");
 
@@ -1477,7 +1477,7 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 		if (exec_error) {
 			union sigval val;
 
-			val.sival_int = errno;
+			val.sival_int = erranal;
 			if (sigqueue(getppid(), SIGUSR1, val))
 				perror(argv[0]);
 		} else
@@ -1493,7 +1493,7 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 		sigaction(SIGUSR1, &act, NULL);
 	}
 
-	if (target__none(target)) {
+	if (target__analne(target)) {
 		if (evlist->core.threads == NULL) {
 			fprintf(stderr, "FATAL: evlist->threads need to be set at this point (%s:%d).\n",
 				__func__, __LINE__);
@@ -1585,9 +1585,9 @@ int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size
 	case EPERM:
 		printed = scnprintf(buf, size,
 				    "Error:\t%s.\n"
-				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.", emsg);
+				    "Hint:\tCheck /proc/sys/kernel/perf_event_paraanalid setting.", emsg);
 
-		value = perf_event_paranoid();
+		value = perf_event_paraanalid();
 
 		printed += scnprintf(buf + printed, size - printed, "\nHint:\t");
 
@@ -1599,7 +1599,7 @@ int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size
 				     "For system wide tracing it needs to be set to -1.\n");
 
 		printed += scnprintf(buf + printed, size - printed,
-				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paranoid\"'\n"
+				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paraanalid\"'\n"
 				    "Hint:\tThe current value is %d.", value);
 		break;
 	case EINVAL: {
@@ -1669,7 +1669,7 @@ void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel)
 
 	evlist__for_each_entry_safe(evlist, n, evsel) {
 		if (evsel__leader(evsel) == evsel__leader(move_evsel))
-			list_move_tail(&evsel->core.node, &move);
+			list_move_tail(&evsel->core.analde, &move);
 	}
 
 	list_splice(&move, &evlist->core.entries);
@@ -1738,16 +1738,16 @@ void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state)
 {
 	enum bkw_mmap_state old_state = evlist->bkw_mmap_state;
 	enum action {
-		NONE,
+		ANALNE,
 		PAUSE,
 		RESUME,
-	} action = NONE;
+	} action = ANALNE;
 
 	if (!evlist->overwrite_mmap)
 		return;
 
 	switch (old_state) {
-	case BKW_MMAP_NOTREADY: {
+	case BKW_MMAP_ANALTREADY: {
 		if (state != BKW_MMAP_RUNNING)
 			goto state_err;
 		break;
@@ -1782,7 +1782,7 @@ void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state)
 	case RESUME:
 		evlist__resume(evlist);
 		break;
-	case NONE:
+	case ANALNE:
 	default:
 		break;
 	}
@@ -1804,9 +1804,9 @@ bool evlist__exclude_kernel(struct evlist *evlist)
 }
 
 /*
- * Events in data file are not collect in groups, but we still want
+ * Events in data file are analt collect in groups, but we still want
  * the group display. Set the artificial group and set the leader's
- * forced_leader flag to notify the display code.
+ * forced_leader flag to analtify the display code.
  */
 void evlist__force_leader(struct evlist *evlist)
 {
@@ -1872,7 +1872,7 @@ static int evlist__parse_control_fifo(const char *str, int *ctl_fd, int *ctl_fd_
 
 	s = strdup(str);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = strchr(s, ',');
 	if (p)
@@ -1882,21 +1882,21 @@ static int evlist__parse_control_fifo(const char *str, int *ctl_fd, int *ctl_fd_
 	 * O_RDWR avoids POLLHUPs which is necessary to allow the other
 	 * end of a FIFO to be repeatedly opened and closed.
 	 */
-	fd = open(s, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+	fd = open(s, O_RDWR | O_ANALNBLOCK | O_CLOEXEC);
 	if (fd < 0) {
 		pr_err("Failed to open '%s'\n", s);
-		ret = -errno;
+		ret = -erranal;
 		goto out_free;
 	}
 	*ctl_fd = fd;
 	*ctl_fd_close = true;
 
 	if (p && *++p) {
-		/* O_RDWR | O_NONBLOCK means the other end need not be open */
-		fd = open(p, O_RDWR | O_NONBLOCK | O_CLOEXEC);
+		/* O_RDWR | O_ANALNBLOCK means the other end need analt be open */
+		fd = open(p, O_RDWR | O_ANALNBLOCK | O_CLOEXEC);
 		if (fd < 0) {
 			pr_err("Failed to open '%s'\n", p);
-			ret = -errno;
+			ret = -erranal;
 			goto out_free;
 		}
 		*ctl_fd_ack = fd;
@@ -1946,13 +1946,13 @@ void evlist__close_control(int ctl_fd, int ctl_fd_ack, bool *ctl_fd_close)
 int evlist__initialize_ctlfd(struct evlist *evlist, int fd, int ack)
 {
 	if (fd == -1) {
-		pr_debug("Control descriptor is not initialized\n");
+		pr_debug("Control descriptor is analt initialized\n");
 		return 0;
 	}
 
 	evlist->ctl_fd.pos = perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
-						     fdarray_flag__nonfilterable |
-						     fdarray_flag__non_perf_event);
+						     fdarray_flag__analnfilterable |
+						     fdarray_flag__analn_perf_event);
 	if (evlist->ctl_fd.pos < 0) {
 		evlist->ctl_fd.pos = -1;
 		pr_err("Failed to add ctl fd entry: %m\n");
@@ -2009,9 +2009,9 @@ static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
 				break;
 			continue;
 		} else if (err == -1) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
+			if (erranal == EAGAIN || erranal == EWOULDBLOCK)
 				err = 0;
 			else
 				pr_err("Failed to read from ctlfd %d: %m\n", evlist->ctl_fd.fd);
@@ -2067,7 +2067,7 @@ static int get_cmd_arg(char *cmd_data, size_t cmd_size, char **arg)
 {
 	char *data = cmd_data + cmd_size;
 
-	/* no argument */
+	/* anal argument */
 	if (!*data)
 		return 0;
 
@@ -2239,7 +2239,7 @@ static ssize_t parse_event_enable_times(const char *str, struct event_enable_tim
 		ret = parse_event_enable_time(str, range, first);
 		if (ret < 0)
 			return ret;
-		/* Check no overlap */
+		/* Check anal overlap */
 		if (!first && range && range->start <= range[-1].end)
 			return -EINVAL;
 		str += ret;
@@ -2260,7 +2260,7 @@ static ssize_t parse_event_enable_times(const char *str, struct event_enable_tim
  * @times_step: current position in (int *)@times)[],
  *              refer event_enable_timer__process()
  *
- * Note, this structure is only used when there are time ranges, not when there
+ * Analte, this structure is only used when there are time ranges, analt when there
  * is only an initial delay.
  */
 struct event_enable_timer {
@@ -2286,7 +2286,7 @@ static int str_to_delay(const char *str)
 int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *opts,
 				    const char *str, int unset)
 {
-	enum fdarray_flags flags = fdarray_flag__nonfilterable | fdarray_flag__non_perf_event;
+	enum fdarray_flags flags = fdarray_flag__analnfilterable | fdarray_flag__analn_perf_event;
 	struct event_enable_timer *eet;
 	ssize_t times_cnt;
 	ssize_t ret;
@@ -2309,11 +2309,11 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 
 	eet = zalloc(sizeof(*eet));
 	if (!eet)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	eet->times = calloc(times_cnt, sizeof(*eet->times));
 	if (!eet->times) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_eet;
 	}
 
@@ -2324,10 +2324,10 @@ int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *o
 
 	eet->times_cnt = times_cnt;
 
-	eet->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+	eet->timerfd = timerfd_create(CLOCK_MOANALTONIC, TFD_CLOEXEC);
 	if (eet->timerfd == -1) {
-		err = -errno;
-		pr_err("timerfd_create failed: %s\n", strerror(errno));
+		err = -erranal;
+		pr_err("timerfd_create failed: %s\n", strerror(erranal));
 		goto free_eet_times;
 	}
 
@@ -2361,8 +2361,8 @@ static int event_enable_timer__set_timer(struct event_enable_timer *eet, int ms)
 	int err = 0;
 
 	if (timerfd_settime(eet->timerfd, 0, &its, NULL) < 0) {
-		err = -errno;
-		pr_err("timerfd_settime failed: %s\n", strerror(errno));
+		err = -erranal;
+		pr_err("timerfd_settime failed: %s\n", strerror(erranal));
 	}
 	return err;
 }
@@ -2397,7 +2397,7 @@ int event_enable_timer__process(struct event_enable_timer *eet)
 		size_t pos = step / 2;
 
 		if (step & 1) {
-			evlist__disable_non_dummy(eet->evlist);
+			evlist__disable_analn_dummy(eet->evlist);
 			pr_info(EVLIST_DISABLED_MSG);
 			if (pos >= eet->times_cnt - 1) {
 				/* Disarm timer */
@@ -2405,7 +2405,7 @@ int event_enable_timer__process(struct event_enable_timer *eet)
 				return 1; /* Stop */
 			}
 		} else {
-			evlist__enable_non_dummy(eet->evlist);
+			evlist__enable_analn_dummy(eet->evlist);
 			pr_info(EVLIST_ENABLED_MSG);
 		}
 
@@ -2469,7 +2469,7 @@ void evlist__check_mem_load_aux(struct evlist *evlist)
 	/*
 	 * For some platforms, the 'mem-loads' event is required to use
 	 * together with 'mem-loads-aux' within a group and 'mem-loads-aux'
-	 * must be the group leader. Now we disable this group before reporting
+	 * must be the group leader. Analw we disable this group before reporting
 	 * because 'mem-loads-aux' is just an auxiliary event. It doesn't carry
 	 * any valid memory load information.
 	 */
@@ -2490,7 +2490,7 @@ void evlist__check_mem_load_aux(struct evlist *evlist)
 /**
  * evlist__warn_user_requested_cpus() - Check each evsel against requested CPUs
  *     and warn if the user CPU list is inapplicable for the event's PMU's
- *     CPUs. Not core PMUs list a CPU in sysfs, but this may be overwritten by a
+ *     CPUs. Analt core PMUs list a CPU in sysfs, but this may be overwritten by a
  *     user requested CPU and so any online CPU is applicable. Core PMUs handle
  *     events on the CPUs in their list and otherwise the event isn't supported.
  * @evlist: The list of events being checked.
@@ -2518,7 +2518,7 @@ void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_lis
 			char buf[128];
 
 			cpu_map__snprint(to_test, buf, sizeof(buf));
-			pr_warning("WARNING: A requested CPU in '%s' is not supported by PMU '%s' (CPUs %s) for event '%s'\n",
+			pr_warning("WARNING: A requested CPU in '%s' is analt supported by PMU '%s' (CPUs %s) for event '%s'\n",
 				cpu_list, pmu ? pmu->name : "cpu", buf, evsel__name(pos));
 		}
 		perf_cpu_map__put(intersect);

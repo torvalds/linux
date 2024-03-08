@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 
 #include "ionic.h"
@@ -12,7 +12,7 @@
 #include "ionic_devlink.h"
 
 /* The worst case wait for the install activity is about 25 minutes when
- * installing a new CPLD, which is very seldom.  Normal is about 30-35
+ * installing a new CPLD, which is very seldom.  Analrmal is about 30-35
  * seconds.  Since the driver can't tell if a CPLD update will happen we
  * set the timeout for the ugly case.
  */
@@ -107,7 +107,7 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 	netdev_info(netdev, "Installing firmware\n");
 
 	dl = priv_to_devlink(ionic);
-	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
+	devlink_flash_update_status_analtify(dl, "Preparing to flash", NULL, 0, 0);
 
 	if (!idev->dev_cmd_regs) {
 		err = -ENXIO;
@@ -124,7 +124,7 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 	next_interval = 0;
 	while (offset < fw->size) {
 		if (offset >= next_interval) {
-			devlink_flash_update_status_notify(dl, "Downloading", NULL,
+			devlink_flash_update_status_analtify(dl, "Downloading", NULL,
 							   offset, fw->size);
 			next_interval = offset + (fw->size / IONIC_FW_INTERVAL_FRACTION);
 		}
@@ -147,10 +147,10 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 		}
 		offset += copy_sz;
 	}
-	devlink_flash_update_status_notify(dl, "Downloading", NULL,
+	devlink_flash_update_status_analtify(dl, "Downloading", NULL,
 					   fw->size, fw->size);
 
-	devlink_flash_update_timeout_notify(dl, "Installing", NULL,
+	devlink_flash_update_timeout_analtify(dl, "Installing", NULL,
 					    IONIC_FW_INSTALL_TIMEOUT);
 
 	mutex_lock(&ionic->dev_cmd_lock);
@@ -171,7 +171,7 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 	if (err)
 		goto err_out;
 
-	devlink_flash_update_timeout_notify(dl, "Selecting", NULL,
+	devlink_flash_update_timeout_analtify(dl, "Selecting", NULL,
 					    IONIC_FW_SELECT_TIMEOUT);
 
 	mutex_lock(&ionic->dev_cmd_lock);
@@ -194,8 +194,8 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 
 err_out:
 	if (err)
-		devlink_flash_update_status_notify(dl, "Flash failed", NULL, 0, 0);
+		devlink_flash_update_status_analtify(dl, "Flash failed", NULL, 0, 0);
 	else
-		devlink_flash_update_status_notify(dl, "Flash done", NULL, 0, 0);
+		devlink_flash_update_status_analtify(dl, "Flash done", NULL, 0, 0);
 	return err;
 }

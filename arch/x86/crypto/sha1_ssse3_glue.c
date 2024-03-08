@@ -314,7 +314,7 @@ static inline void unregister_sha1_ni(void) { }
 static int __init sha1_ssse3_mod_init(void)
 {
 	if (!x86_match_cpu(module_cpu_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (register_sha1_ssse3())
 		goto fail;
@@ -339,7 +339,7 @@ static int __init sha1_ssse3_mod_init(void)
 
 	return 0;
 fail:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit sha1_ssse3_mod_fini(void)

@@ -76,7 +76,7 @@ static int macb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* set up platform device info */
 	memset(&plat_info, 0, sizeof(plat_info));
 	plat_info.parent = &pdev->dev;
-	plat_info.fwnode = pdev->dev.fwnode;
+	plat_info.fwanalde = pdev->dev.fwanalde;
 	plat_info.name = PLAT_DRIVER_NAME;
 	plat_info.id = pdev->devfn;
 	plat_info.res = res;

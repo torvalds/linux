@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <time.h>
 #include <sys/socket.h>
 
@@ -32,7 +32,7 @@ int rtnl_open_byproto(struct rtnl_handle *rth, unsigned int subscriptions,
 	rth->proto = protocol;
 	rth->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, protocol);
 	if (rth->fd < 0) {
-		perror("Cannot open netlink socket");
+		perror("Cananalt open netlink socket");
 		return -1;
 	}
 	if (setsockopt(rth->fd, SOL_SOCKET, SO_SNDBUF,
@@ -46,7 +46,7 @@ int rtnl_open_byproto(struct rtnl_handle *rth, unsigned int subscriptions,
 		goto err;
 	}
 
-	/* Older kernels may no support extended ACK reporting */
+	/* Older kernels may anal support extended ACK reporting */
 	setsockopt(rth->fd, SOL_NETLINK, NETLINK_EXT_ACK,
 		   &one, sizeof(one));
 
@@ -56,13 +56,13 @@ int rtnl_open_byproto(struct rtnl_handle *rth, unsigned int subscriptions,
 
 	if (bind(rth->fd, (struct sockaddr *)&rth->local,
 		 sizeof(rth->local)) < 0) {
-		perror("Cannot bind netlink socket");
+		perror("Cananalt bind netlink socket");
 		goto err;
 	}
 	addr_len = sizeof(rth->local);
 	if (getsockname(rth->fd, (struct sockaddr *)&rth->local,
 			&addr_len) < 0) {
-		perror("Cannot getsockname");
+		perror("Cananalt getsockname");
 		goto err;
 	}
 	if (addr_len != sizeof(rth->local)) {
@@ -92,15 +92,15 @@ static int __rtnl_recvmsg(int fd, struct msghdr *msg, int flags)
 
 	do {
 		len = recvmsg(fd, msg, flags);
-	} while (len < 0 && (errno == EINTR || errno == EAGAIN));
+	} while (len < 0 && (erranal == EINTR || erranal == EAGAIN));
 	if (len < 0) {
 		fprintf(stderr, "netlink receive error %s (%d)\n",
-			strerror(errno), errno);
-		return -errno;
+			strerror(erranal), erranal);
+		return -erranal;
 	}
 	if (len == 0) {
 		fprintf(stderr, "EOF on netlink\n");
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	return len;
 }
@@ -121,8 +121,8 @@ static int rtnl_recvmsg(int fd, struct msghdr *msg, char **answer)
 		len = 32768;
 	buf = malloc(len);
 	if (!buf) {
-		fprintf(stderr, "malloc error: not enough buffer\n");
-		return -ENOMEM;
+		fprintf(stderr, "malloc error: analt eanalugh buffer\n");
+		return -EANALMEM;
 	}
 	iov->iov_base = buf;
 	iov->iov_len = len;
@@ -170,7 +170,7 @@ static int __rtnl_talk_iov(struct rtnl_handle *rtnl, struct iovec *iov,
 	}
 	status = sendmsg(rtnl->fd, &msg, 0);
 	if (status < 0) {
-		perror("Cannot talk to rtnetlink");
+		perror("Cananalt talk to rtnetlink");
 		return -1;
 	}
 	/* change msg to use the response iov */
@@ -222,7 +222,7 @@ next:
 					return -1;
 				}
 				if (error) {
-					errno = -error;
+					erranal = -error;
 					if (rtnl->proto != NETLINK_SOCK_DIAG &&
 					    show_rtnl_err)
 						rtnl_talk_error(h, err, errfn);

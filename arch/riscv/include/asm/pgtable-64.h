@@ -115,14 +115,14 @@ enum napot_cont_order {
 /*
  * [62:61] Svpbmt Memory Type definitions:
  *
- *  00 - PMA    Normal Cacheable, No change to implied PMA memory type
- *  01 - NC     Non-cacheable, idempotent, weakly-ordered Main Memory
- *  10 - IO     Non-cacheable, non-idempotent, strongly-ordered I/O memory
+ *  00 - PMA    Analrmal Cacheable, Anal change to implied PMA memory type
+ *  01 - NC     Analn-cacheable, idempotent, weakly-ordered Main Memory
+ *  10 - IO     Analn-cacheable, analn-idempotent, strongly-ordered I/O memory
  *  11 - Rsvd   Reserved for future standard use
  */
-#define _PAGE_NOCACHE_SVPBMT	(1UL << 61)
+#define _PAGE_ANALCACHE_SVPBMT	(1UL << 61)
 #define _PAGE_IO_SVPBMT		(1UL << 62)
-#define _PAGE_MTMASK_SVPBMT	(_PAGE_NOCACHE_SVPBMT | _PAGE_IO_SVPBMT)
+#define _PAGE_MTMASK_SVPBMT	(_PAGE_ANALCACHE_SVPBMT | _PAGE_IO_SVPBMT)
 
 /*
  * [63:59] T-Head Memory Type definitions:
@@ -131,12 +131,12 @@ enum napot_cont_order {
  * bit[61] B - Bufferable
  * bit[60] SH - Shareable
  * bit[59] Sec - Trustable
- * 00110 - NC   Weakly-ordered, Non-cacheable, Bufferable, Shareable, Non-trustable
- * 01110 - PMA  Weakly-ordered, Cacheable, Bufferable, Shareable, Non-trustable
- * 10010 - IO   Strongly-ordered, Non-cacheable, Non-bufferable, Shareable, Non-trustable
+ * 00110 - NC   Weakly-ordered, Analn-cacheable, Bufferable, Shareable, Analn-trustable
+ * 01110 - PMA  Weakly-ordered, Cacheable, Bufferable, Shareable, Analn-trustable
+ * 10010 - IO   Strongly-ordered, Analn-cacheable, Analn-bufferable, Shareable, Analn-trustable
  */
 #define _PAGE_PMA_THEAD		((1UL << 62) | (1UL << 61) | (1UL << 60))
-#define _PAGE_NOCACHE_THEAD	((1UL << 61) | (1UL << 60))
+#define _PAGE_ANALCACHE_THEAD	((1UL << 61) | (1UL << 60))
 #define _PAGE_IO_THEAD		((1UL << 63) | (1UL << 60))
 #define _PAGE_MTMASK_THEAD	(_PAGE_PMA_THEAD | _PAGE_IO_THEAD | (1UL << 59))
 
@@ -148,11 +148,11 @@ static inline u64 riscv_page_mtmask(void)
 	return val;
 }
 
-static inline u64 riscv_page_nocache(void)
+static inline u64 riscv_page_analcache(void)
 {
 	u64 val;
 
-	ALT_SVPBMT(val, _PAGE_NOCACHE);
+	ALT_SVPBMT(val, _PAGE_ANALCACHE);
 	return val;
 }
 
@@ -164,7 +164,7 @@ static inline u64 riscv_page_io(void)
 	return val;
 }
 
-#define _PAGE_NOCACHE		riscv_page_nocache()
+#define _PAGE_ANALCACHE		riscv_page_analcache()
 #define _PAGE_IO		riscv_page_io()
 #define _PAGE_MTMASK		riscv_page_mtmask()
 
@@ -179,7 +179,7 @@ static inline int pud_present(pud_t pud)
 	return (pud_val(pud) & _PAGE_PRESENT);
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return (pud_val(pud) == 0);
 }
@@ -283,7 +283,7 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 		set_pud((pud_t *)p4dp, (pud_t){ p4d_val(p4d) });
 }
 
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_analne(p4d_t p4d)
 {
 	if (pgtable_l4_enabled)
 		return (p4d_val(p4d) == 0);
@@ -350,7 +350,7 @@ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
 		set_p4d((p4d_t *)pgdp, (p4d_t){ pgd_val(pgd) });
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_analne(pgd_t pgd)
 {
 	if (pgtable_l5_enabled)
 		return (pgd_val(pgd) == 0);

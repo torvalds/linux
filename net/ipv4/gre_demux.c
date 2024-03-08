@@ -57,7 +57,7 @@ int gre_del_protocol(const struct gre_protocol *proto, u8 version)
 EXPORT_SYMBOL_GPL(gre_del_protocol);
 
 /* Fills in tpi and returns header length to be pulled.
- * Note that caller must use pskb_may_pull() before pulling GRE header.
+ * Analte that caller must use pskb_may_pull() before pulling GRE header.
  */
 int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		     bool *csum_err, __be16 proto, int nhs)
@@ -186,7 +186,7 @@ static int gre_err(struct sk_buff *skb, u32 info)
 	if (proto && proto->err_handler)
 		proto->err_handler(skb, info);
 	else
-		err = -EPROTONOSUPPORT;
+		err = -EPROTOANALSUPPORT;
 	rcu_read_unlock();
 
 	return err;

@@ -40,7 +40,7 @@ properties:
     type: boolean
     deprecated: true
     description:
-      Telling whether or not this PMIC is controlling the system power.
+      Telling whether or analt this PMIC is controlling the system power.
 
   system-power-controller: true
 
@@ -111,8 +111,8 @@ properties:
 
   codec:
     description: |
-      The child node for the codec to hold additional properties. If no
-      additional properties are required for the codec, this node can be
+      The child analde for the codec to hold additional properties. If anal
+      additional properties are required for the codec, this analde can be
       omitted.
     type: object
     additionalProperties: false
@@ -124,15 +124,15 @@ properties:
 
   charger:
     description: |
-      The child node for the charger to hold additional properties. If a
-      battery is not in use, this node can be omitted.
+      The child analde for the charger to hold additional properties. If a
+      battery is analt in use, this analde can be omitted.
     type: object
     $ref: /schemas/power/supply/power-supply.yaml
 
     properties:
       monitored-battery:
         description: |
-          A phandle to a monitored battery node that contains a valid
+          A phandle to a monitored battery analde that contains a valid
           value for:
           charge-full-design-microamp-hours,
           charge-term-current-microamp,

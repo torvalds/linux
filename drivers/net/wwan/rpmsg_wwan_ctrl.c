@@ -22,7 +22,7 @@ static int rpmsg_wwan_ctrl_callback(struct rpmsg_device *rpdev,
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, buf, len);
 	wwan_port_rx(rpwwan->wwan_port, skb);
@@ -118,11 +118,11 @@ static int rpmsg_wwan_ctrl_probe(struct rpmsg_device *rpdev)
 
 	parent = rpmsg_wwan_find_parent(&rpdev->dev);
 	if (!parent)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rpwwan = devm_kzalloc(&rpdev->dev, sizeof(*rpwwan), GFP_KERNEL);
 	if (!rpwwan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rpwwan->rpdev = rpdev;
 	dev_set_drvdata(&rpdev->dev, rpwwan);

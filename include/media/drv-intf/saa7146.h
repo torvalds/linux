@@ -174,7 +174,7 @@ int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt
 void *saa7146_vmalloc_build_pgtable(struct pci_dev *pci, long length, struct saa7146_pgtable *pt);
 void saa7146_vfree_destroy_pgtable(struct pci_dev *pci, void *mem, struct saa7146_pgtable *pt);
 void saa7146_setgpio(struct saa7146_dev *dev, int port, u32 data);
-int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
+int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int analbusyloop);
 
 /* some memory sizes */
 #define SAA7146_I2C_MEM		( 1*PAGE_SIZE)
@@ -198,10 +198,10 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
 #define SAA7146_GPIO_OUTHI 0x50
 
 /* debi defines */
-#define DEBINOSWAP 0x000e0000
+#define DEBIANALSWAP 0x000e0000
 
 /* define for the register programming sequencer (rps) */
-#define CMD_NOP		0x00000000  /* No operation */
+#define CMD_ANALP		0x00000000  /* Anal operation */
 #define CMD_CLR_EVENT	0x00000000  /* Clear event */
 #define CMD_SET_EVENT	0x10000000  /* Set signal event */
 #define CMD_PAUSE	0x20000000  /* Pause */
@@ -279,7 +279,7 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
 #define MASK_PR   0xfffffffe	/* Mask value for protection register */
 #define MASK_ER   0xffffffff    /* Mask value for the entire register */
 
-#define MASK_NONE 0x00000000    /* No mask */
+#define MASK_ANALNE 0x00000000    /* Anal mask */
 
 /* register aliases */
 #define BASE_ODD1         0x00  /* Video DMA 1 registers  */
@@ -442,7 +442,7 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop);
 #define	SAA7146_I2C_START	(0x3)
 #define	SAA7146_I2C_CONT	(0x2)
 #define	SAA7146_I2C_STOP	(0x1)
-#define	SAA7146_I2C_NOP		(0x0)
+#define	SAA7146_I2C_ANALP		(0x0)
 
 #define SAA7146_I2C_BUS_BIT_RATE_6400	(0x500)
 #define SAA7146_I2C_BUS_BIT_RATE_3200	(0x100)

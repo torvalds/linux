@@ -2,8 +2,8 @@
 /*
  * linux/drivers/video/omap2/dss/sdi.c
  *
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  */
 
 #define DSS_SUBSYS_NAME "SDI"
@@ -75,7 +75,7 @@ static int sdi_calc_clock_div(unsigned long pclk,
 
 	/*
 	 * DSS fclk gives us very few possibilities, so finding a good pixel
-	 * clock may not be possible. We try multiple times to find the clock,
+	 * clock may analt be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
 	 * +/- 1MHz.
 	 */
@@ -126,8 +126,8 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (out->manager == NULL) {
-		DSSERR("failed to enable display: no output/manager\n");
-		return -ENODEV;
+		DSSERR("failed to enable display: anal output/manager\n");
+		return -EANALDEV;
 	}
 
 	r = regulator_enable(sdi.vdds_sdi_reg);
@@ -151,7 +151,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
 
 	if (pck != t->pixelclock) {
-		DSSWARN("Could not find exact pixel clock. Requested %d Hz, got %lu Hz\n",
+		DSSWARN("Could analt find exact pixel clock. Requested %d Hz, got %lu Hz\n",
 			t->pixelclock, pck);
 
 		t->pixelclock = pck;
@@ -168,14 +168,14 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	/*
 	 * LCLK and PCLK divisors are located in shadow registers, and we
-	 * normally write them to DISPC registers when enabling the output.
+	 * analrmally write them to DISPC registers when enabling the output.
 	 * However, SDI uses pck-free as source clock for its PLL, and pck-free
 	 * is affected by the divisors. And as we need the PLL before enabling
 	 * the output, we need to write the divisors early.
 	 *
-	 * It seems just writing to the DISPC register is enough, and we don't
+	 * It seems just writing to the DISPC register is eanalugh, and we don't
 	 * need to care about the shadow register mechanism for pck-free. The
-	 * exact reason for this is unknown.
+	 * exact reason for this is unkanalwn.
 	 */
 	dispc_mgr_set_clock_div(out->manager->id, &sdi.mgr_config.clock_info);
 
@@ -278,7 +278,7 @@ static int sdi_connect(struct omap_dss_device *dssdev,
 
 	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
 	if (!mgr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = dss_mgr_connect(mgr, dssdev);
 	if (r)
@@ -399,9 +399,9 @@ void sdi_uninit_platform_driver(void)
 	platform_driver_unregister(&omap_sdi_driver);
 }
 
-int sdi_init_port(struct platform_device *pdev, struct device_node *port)
+int sdi_init_port(struct platform_device *pdev, struct device_analde *port)
 {
-	struct device_node *ep;
+	struct device_analde *ep;
 	u32 datapairs;
 	int r;
 
@@ -417,7 +417,7 @@ int sdi_init_port(struct platform_device *pdev, struct device_node *port)
 
 	sdi.datapairs = datapairs;
 
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	sdi.pdev = pdev;
 
@@ -428,12 +428,12 @@ int sdi_init_port(struct platform_device *pdev, struct device_node *port)
 	return 0;
 
 err_datapairs:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return r;
 }
 
-void sdi_uninit_port(struct device_node *port)
+void sdi_uninit_port(struct device_analde *port)
 {
 	if (!sdi.port_initialized)
 		return;

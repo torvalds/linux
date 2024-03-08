@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -53,12 +53,12 @@ int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 	struct file *in;
 	ssize_t ret = 0;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	if (sp->flags & SPLICE_F_FD_IN_FIXED)
 		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
 	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
+		in = io_file_get_analrmal(req, sp->splice_fd_in);
 	if (!in) {
 		ret = -EBADF;
 		goto done;
@@ -94,12 +94,12 @@ int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 	struct file *in;
 	ssize_t ret = 0;
 
-	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
+	WARN_ON_ONCE(issue_flags & IO_URING_F_ANALNBLOCK);
 
 	if (sp->flags & SPLICE_F_FD_IN_FIXED)
 		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
 	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
+		in = io_file_get_analrmal(req, sp->splice_fd_in);
 	if (!in) {
 		ret = -EBADF;
 		goto done;

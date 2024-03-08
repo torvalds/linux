@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -227,7 +227,7 @@ int intel_panel_compute_config(struct intel_connector *connector,
 		 */
 		if (abs(vrefresh - fixed_mode_vrefresh) > 1) {
 			drm_dbg_kms(connector->base.dev,
-				    "[CONNECTOR:%d:%s] Requested mode vrefresh (%d Hz) does not match fixed mode vrefresh (%d Hz)\n",
+				    "[CONNECTOR:%d:%s] Requested mode vrefresh (%d Hz) does analt match fixed mode vrefresh (%d Hz)\n",
 				    connector->base.base.id, connector->base.name,
 				    vrefresh, fixed_mode_vrefresh);
 
@@ -305,7 +305,7 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
 		drm_dbg_kms(&i915->drm,
-			    "[CONNECTOR:%d:%s] not using EDID mode: " DRM_MODE_FMT "\n",
+			    "[CONNECTOR:%d:%s] analt using EDID mode: " DRM_MODE_FMT "\n",
 			    connector->base.base.id, connector->base.name,
 			    DRM_MODE_ARG(mode));
 		list_del(&mode->head);
@@ -431,7 +431,7 @@ static int pch_panel_fitting(struct intel_crtc_state *crtc_state,
 		}
 		break;
 
-	case DRM_MODE_SCALE_NONE:
+	case DRM_MODE_SCALE_ANALNE:
 		WARN_ON(adjusted_mode->crtc_hdisplay != pipe_src_w);
 		WARN_ON(adjusted_mode->crtc_vdisplay != pipe_src_h);
 		fallthrough;
@@ -499,7 +499,7 @@ centre_vertically(struct drm_display_mode *adjusted_mode,
 static u32 panel_fitter_scaling(u32 source, u32 target)
 {
 	/*
-	 * Floating point operation is not supported. So the FACTOR
+	 * Floating point operation is analt supported. So the FACTOR
 	 * is defined, which can avoid the floating point computation
 	 * when calculating the panel ratio.
 	 */
@@ -727,7 +727,7 @@ int intel_panel_init(struct intel_connector *connector,
 	intel_backlight_init_funcs(panel);
 
 	if (!has_drrs_modes(connector))
-		connector->panel.vbt.drrs_type = DRRS_TYPE_NONE;
+		connector->panel.vbt.drrs_type = DRRS_TYPE_ANALNE;
 
 	drm_dbg_kms(connector->base.dev,
 		    "[CONNECTOR:%d:%s] DRRS type: %s\n",

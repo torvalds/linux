@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Microchip switch driver common header
  *
- * Copyright (C) 2017-2019 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Techanallogy Inc.
  */
 
 #ifndef __KSZ_COMMON_H
@@ -243,7 +243,7 @@ enum ksz_masks {
 	STATIC_MAC_TABLE_FWD_PORTS,
 	DYNAMIC_MAC_TABLE_ENTRIES_H,
 	DYNAMIC_MAC_TABLE_MAC_EMPTY,
-	DYNAMIC_MAC_TABLE_NOT_READY,
+	DYNAMIC_MAC_TABLE_ANALT_READY,
 	DYNAMIC_MAC_TABLE_ENTRIES,
 	DYNAMIC_MAC_TABLE_FID,
 	DYNAMIC_MAC_TABLE_SRC_PORT,
@@ -280,7 +280,7 @@ enum ksz_xmii_ctrl1 {
 	P_GMII_SEL,
 	P_MII_SEL,
 	P_GMII_1GBIT,
-	P_GMII_NOT_1GBIT,
+	P_GMII_ANALT_1GBIT,
 };
 
 struct alu_struct {
@@ -690,7 +690,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 
 #define KSZ8795_HUGE_PACKET_SIZE	2000
 #define KSZ8863_HUGE_PACKET_SIZE	1916
-#define KSZ8863_NORMAL_PACKET_SIZE	1536
+#define KSZ8863_ANALRMAL_PACKET_SIZE	1536
 #define KSZ8_LEGAL_PACKET_SIZE		1518
 #define KSZ9477_MAX_FRAME_SIZE		9000
 
@@ -715,7 +715,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define SW_LO_SPEED_DRIVE_STRENGTH_S	0
 
 #define KSZ9477_REG_PORT_OUT_RATE_0	0x0420
-#define KSZ9477_OUT_RATE_NO_LIMIT	0
+#define KSZ9477_OUT_RATE_ANAL_LIMIT	0
 
 #define KSZ9477_PORT_MRI_TC_MAP__4	0x0808
 
@@ -745,7 +745,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define KSZ_SPI_OP_RD		3
 #define KSZ_SPI_OP_WR		2
 
-#define swabnot_used(x)		0
+#define swabanalt_used(x)		0
 
 #define KSZ_SPI_OP_FLAG_MASK(opcode, swp, regbits, regpad)		\
 	swab##swp((opcode) << ((regbits) + (regpad)))
@@ -758,7 +758,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 		.reg_bits = (regbits) + (regalign),			\
 		.pad_bits = (regpad),					\
 		.max_register = BIT(regbits) - 1,			\
-		.cache_type = REGCACHE_NONE,				\
+		.cache_type = REGCACHE_ANALNE,				\
 		.read_flag_mask =					\
 			KSZ_SPI_OP_FLAG_MASK(KSZ_SPI_OP_RD, swp,	\
 					     regbits, regpad),		\

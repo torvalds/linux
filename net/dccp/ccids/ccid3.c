@@ -38,8 +38,8 @@ static bool ccid3_debug;
 static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 {
 	static const char *const ccid3_state_names[] = {
-	[TFRC_SSTATE_NO_SENT]  = "NO_SENT",
-	[TFRC_SSTATE_NO_FBACK] = "NO_FBACK",
+	[TFRC_SSTATE_ANAL_SENT]  = "ANAL_SENT",
+	[TFRC_SSTATE_ANAL_FBACK] = "ANAL_FBACK",
 	[TFRC_SSTATE_FBACK]    = "FBACK",
 	};
 
@@ -65,7 +65,7 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
  *
  *	X_init  =  min(4 * s, max(2 * s, 4380 bytes)) / RTT
  *
- * Note that RFC 3390 uses MSS, RFC 4342 refers to RFC 3390, and rfc3448bis
+ * Analte that RFC 3390 uses MSS, RFC 4342 refers to RFC 3390, and rfc3448bis
  * (rev-02) clarifies the use of RFC 3390 with regard to the above formula.
  * For consistency with other parts of the code, X_init is scaled by 2^6.
  */
@@ -92,9 +92,9 @@ static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hc)
 		       hc->tx_s, (unsigned int)(hc->tx_x >> 6));
 }
 
-static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
+static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t analw)
 {
-	u32 delta = ktime_us_delta(now, hc->tx_t_last_win_count);
+	u32 delta = ktime_us_delta(analw, hc->tx_t_last_win_count);
 
 	return delta / hc->tx_rtt;
 }
@@ -106,7 +106,7 @@ static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
  *
  * This function tracks draft rfc3448bis, check there for latest details.
  *
- * Note: X and X_recv are both stored in units of 64 * bytes/second, to support
+ * Analte: X and X_recv are both stored in units of 64 * bytes/second, to support
  *       fine-grained resolution of sending rates. This requires scaling by 2^6
  *       throughout the code. Only X_calc is unscaled (in bytes/second).
  *
@@ -116,15 +116,15 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	__u64 min_rate = 2 * hc->tx_x_recv;
 	const __u64 old_x = hc->tx_x;
-	ktime_t now = stamp ? *stamp : ktime_get_real();
+	ktime_t analw = stamp ? *stamp : ktime_get_real();
 
 	/*
-	 * Handle IDLE periods: do not reduce below RFC3390 initial sending rate
+	 * Handle IDLE periods: do analt reduce below RFC3390 initial sending rate
 	 * when idling [RFC 4342, 5.1]. Definition of idling is from rfc3448bis:
-	 * a sender is idle if it has not sent anything over a 2-RTT-period.
+	 * a sender is idle if it has analt sent anything over a 2-RTT-period.
 	 * For consistency with X and X_recv, min_rate is also scaled by 2^6.
 	 */
-	if (ccid3_hc_tx_idle_rtt(hc, now) >= 2) {
+	if (ccid3_hc_tx_idle_rtt(hc, analw) >= 2) {
 		min_rate = rfc3390_initial_rate(sk);
 		min_rate = max(min_rate, 2 * hc->tx_x_recv);
 	}
@@ -134,16 +134,16 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 		hc->tx_x = min(((__u64)hc->tx_x_calc) << 6, min_rate);
 		hc->tx_x = max(hc->tx_x, (((__u64)hc->tx_s) << 6) / TFRC_T_MBI);
 
-	} else if (ktime_us_delta(now, hc->tx_t_ld) - (s64)hc->tx_rtt >= 0) {
+	} else if (ktime_us_delta(analw, hc->tx_t_ld) - (s64)hc->tx_rtt >= 0) {
 
 		hc->tx_x = min(2 * hc->tx_x, min_rate);
 		hc->tx_x = max(hc->tx_x,
 			       scaled_div(((__u64)hc->tx_s) << 6, hc->tx_rtt));
-		hc->tx_t_ld = now;
+		hc->tx_t_ld = analw;
 	}
 
 	if (hc->tx_x != old_x) {
-		ccid3_pr_debug("X_prev=%u, X_now=%u, X_calc=%u, "
+		ccid3_pr_debug("X_prev=%u, X_analw=%u, X_calc=%u, "
 			       "X_recv=%u\n", (unsigned int)(old_x >> 6),
 			       (unsigned int)(hc->tx_x >> 6), hc->tx_x_calc,
 			       (unsigned int)(hc->tx_x_recv >> 6));
@@ -174,21 +174,21 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hc, int len)
  *	As elsewhere, RTT > 0 is assumed by using dccp_sample_rtt().
  */
 static inline void ccid3_hc_tx_update_win_count(struct ccid3_hc_tx_sock *hc,
-						ktime_t now)
+						ktime_t analw)
 {
-	u32 delta = ktime_us_delta(now, hc->tx_t_last_win_count),
+	u32 delta = ktime_us_delta(analw, hc->tx_t_last_win_count),
 	    quarter_rtts = (4 * delta) / hc->tx_rtt;
 
 	if (quarter_rtts > 0) {
-		hc->tx_t_last_win_count = now;
+		hc->tx_t_last_win_count = analw;
 		hc->tx_last_win_count  += min(quarter_rtts, 5U);
 		hc->tx_last_win_count  &= 0xF;		/* mod 16 */
 	}
 }
 
-static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
+static void ccid3_hc_tx_anal_feedback_timer(struct timer_list *t)
 {
-	struct ccid3_hc_tx_sock *hc = from_timer(hc, t, tx_no_feedback_timer);
+	struct ccid3_hc_tx_sock *hc = from_timer(hc, t, tx_anal_feedback_timer);
 	struct sock *sk = hc->sk;
 	unsigned long t_nfb = USEC_PER_SEC / 5;
 
@@ -202,17 +202,17 @@ static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 	ccid3_pr_debug("%s(%p, state=%s) - entry\n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hc->tx_state));
 
-	/* Ignore and do not restart after leaving the established state */
+	/* Iganalre and do analt restart after leaving the established state */
 	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN))
 		goto out;
 
-	/* Reset feedback state to "no feedback received" */
+	/* Reset feedback state to "anal feedback received" */
 	if (hc->tx_state == TFRC_SSTATE_FBACK)
-		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
+		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_ANAL_FBACK);
 
 	/*
 	 * Determine new allowed sending rate X as per draft rfc3448bis-00, 4.4
-	 * RTO is 0 if and only if no feedback has been received yet.
+	 * RTO is 0 if and only if anal feedback has been received yet.
 	 */
 	if (hc->tx_t_rto == 0 || hc->tx_p == 0) {
 
@@ -229,7 +229,7 @@ static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 		 *  Else
 		 *    X_recv = X_calc / 4;
 		 *
-		 *  Note that X_recv is scaled by 2^6 while X_calc is not
+		 *  Analte that X_recv is scaled by 2^6 while X_calc is analt
 		 */
 		if (hc->tx_x_calc > (hc->tx_x_recv >> 5))
 			hc->tx_x_recv =
@@ -245,16 +245,16 @@ static void ccid3_hc_tx_no_feedback_timer(struct timer_list *t)
 			(unsigned long long)hc->tx_x);
 
 	/*
-	 * Set new timeout for the nofeedback timer.
+	 * Set new timeout for the analfeedback timer.
 	 * See comments in packet_recv() regarding the value of t_RTO.
 	 */
-	if (unlikely(hc->tx_t_rto == 0))	/* no feedback received yet */
+	if (unlikely(hc->tx_t_rto == 0))	/* anal feedback received yet */
 		t_nfb = TFRC_INITIAL_TIMEOUT;
 	else
 		t_nfb = max(hc->tx_t_rto, 2 * hc->tx_t_ipi);
 
 restart_timer:
-	sk_reset_timer(sk, &hc->tx_no_feedback_timer,
+	sk_reset_timer(sk, &hc->tx_anal_feedback_timer,
 			   jiffies + usecs_to_jiffies(t_nfb));
 out:
 	bh_unlock_sock(sk);
@@ -273,25 +273,25 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
-	ktime_t now = ktime_get_real();
+	ktime_t analw = ktime_get_real();
 	s64 delay;
 
 	/*
 	 * This function is called only for Data and DataAck packets. Sending
 	 * zero-sized Data(Ack)s is theoretically possible, but for congestion
-	 * control this case is pathological - ignore it.
+	 * control this case is pathological - iganalre it.
 	 */
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
 
-	if (hc->tx_state == TFRC_SSTATE_NO_SENT) {
-		sk_reset_timer(sk, &hc->tx_no_feedback_timer, (jiffies +
+	if (hc->tx_state == TFRC_SSTATE_ANAL_SENT) {
+		sk_reset_timer(sk, &hc->tx_anal_feedback_timer, (jiffies +
 			       usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
 		hc->tx_last_win_count	= 0;
-		hc->tx_t_last_win_count = now;
+		hc->tx_t_last_win_count = analw;
 
 		/* Set t_0 for initial packet */
-		hc->tx_t_nom = now;
+		hc->tx_t_analm = analw;
 
 		hc->tx_s = skb->len;
 
@@ -304,10 +304,10 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hc->tx_rtt  = dp->dccps_syn_rtt;
 			hc->tx_x    = rfc3390_initial_rate(sk);
-			hc->tx_t_ld = now;
+			hc->tx_t_ld = analw;
 		} else {
 			/*
-			 * Sender does not have RTT sample:
+			 * Sender does analt have RTT sample:
 			 * - set fallback RTT (RFC 4340, 3.4) since a RTT value
 			 *   is needed in several parts (e.g.  window counter);
 			 * - set sending rate X_pps = 1pps as per RFC 3448, 4.2.
@@ -318,31 +318,31 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		}
 		ccid3_update_send_interval(hc);
 
-		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
+		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_ANAL_FBACK);
 
 	} else {
-		delay = ktime_us_delta(hc->tx_t_nom, now);
+		delay = ktime_us_delta(hc->tx_t_analm, analw);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
 		 *	Scheduling of packet transmissions (RFC 5348, 8.3)
 		 *
-		 * if (t_now > t_nom - delta)
-		 *       // send the packet now
+		 * if (t_analw > t_analm - delta)
+		 *       // send the packet analw
 		 * else
-		 *       // send the packet in (t_nom - t_now) milliseconds.
+		 *       // send the packet in (t_analm - t_analw) milliseconds.
 		 */
 		if (delay >= TFRC_T_DELTA)
 			return (u32)delay / USEC_PER_MSEC;
 
-		ccid3_hc_tx_update_win_count(hc, now);
+		ccid3_hc_tx_update_win_count(hc, analw);
 	}
 
-	/* prepare to send now (add options etc.) */
+	/* prepare to send analw (add options etc.) */
 	dp->dccps_hc_tx_insert_options = 1;
 	DCCP_SKB_CB(skb)->dccpd_ccval  = hc->tx_last_win_count;
 
-	/* set the nominal send time for the next following packet */
-	hc->tx_t_nom = ktime_add_us(hc->tx_t_nom, hc->tx_t_ipi);
+	/* set the analminal send time for the next following packet */
+	hc->tx_t_analm = ktime_add_us(hc->tx_t_analm, hc->tx_t_ipi);
 	return CCID_PACKET_SEND_AT_ONCE;
 }
 
@@ -360,7 +360,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 	struct tfrc_tx_hist_entry *acked;
-	ktime_t now;
+	ktime_t analw;
 	unsigned long t_nfb;
 	u32 r_sample;
 
@@ -369,28 +369,28 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	      DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_DATAACK))
 		return;
 	/*
-	 * Locate the acknowledged packet in the TX history.
+	 * Locate the ackanalwledged packet in the TX history.
 	 *
-	 * Returning "entry not found" here can for instance happen when
-	 *  - the host has not sent out anything (e.g. a passive server),
+	 * Returning "entry analt found" here can for instance happen when
+	 *  - the host has analt sent out anything (e.g. a passive server),
 	 *  - the Ack is outdated (packet with higher Ack number was received),
-	 *  - it is a bogus Ack (for a packet not sent on this connection).
+	 *  - it is a bogus Ack (for a packet analt sent on this connection).
 	 */
 	acked = tfrc_tx_hist_find_entry(hc->tx_hist, dccp_hdr_ack_seq(skb));
 	if (acked == NULL)
 		return;
-	/* For the sake of RTT sampling, ignore/remove all older entries */
+	/* For the sake of RTT sampling, iganalre/remove all older entries */
 	tfrc_tx_hist_purge(&acked->next);
 
 	/* Update the moving average for the RTT estimate (RFC 3448, 4.3) */
-	now	  = ktime_get_real();
-	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(now, acked->stamp));
+	analw	  = ktime_get_real();
+	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(analw, acked->stamp));
 	hc->tx_rtt = tfrc_ewma(hc->tx_rtt, r_sample, 9);
 
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
 	 */
-	if (hc->tx_state == TFRC_SSTATE_NO_FBACK) {
+	if (hc->tx_state == TFRC_SSTATE_ANAL_FBACK) {
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
 
 		if (hc->tx_t_rto == 0) {
@@ -398,14 +398,14 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 * Initial feedback packet: Larger Initial Windows (4.2)
 			 */
 			hc->tx_x    = rfc3390_initial_rate(sk);
-			hc->tx_t_ld = now;
+			hc->tx_t_ld = analw;
 
 			ccid3_update_send_interval(hc);
 
 			goto done_computing_x;
 		} else if (hc->tx_p == 0) {
 			/*
-			 * First feedback after nofeedback timer expiry (4.3)
+			 * First feedback after analfeedback timer expiry (4.3)
 			 */
 			goto done_computing_x;
 		}
@@ -414,7 +414,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
 	if (hc->tx_p > 0)
 		hc->tx_x_calc = tfrc_calc_x(hc->tx_s, hc->tx_rtt, hc->tx_p);
-	ccid3_hc_tx_update_x(sk, &now);
+	ccid3_hc_tx_update_x(sk, &analw);
 
 done_computing_x:
 	ccid3_pr_debug("%s(%p), RTT=%uus (sample=%uus), s=%u, "
@@ -424,33 +424,33 @@ done_computing_x:
 			       (unsigned int)(hc->tx_x_recv >> 6),
 			       (unsigned int)(hc->tx_x >> 6));
 
-	/* unschedule no feedback timer */
-	sk_stop_timer(sk, &hc->tx_no_feedback_timer);
+	/* unschedule anal feedback timer */
+	sk_stop_timer(sk, &hc->tx_anal_feedback_timer);
 
 	/*
-	 * As we have calculated new ipi, delta, t_nom it is possible
-	 * that we now can send a packet, so wake up dccp_wait_for_ccid
+	 * As we have calculated new ipi, delta, t_analm it is possible
+	 * that we analw can send a packet, so wake up dccp_wait_for_ccid
 	 */
 	sk->sk_write_space(sk);
 
 	/*
-	 * Update timeout interval for the nofeedback timer. In order to control
+	 * Update timeout interval for the analfeedback timer. In order to control
 	 * rate halving on networks with very low RTTs (<= 1 ms), use per-route
 	 * tunable RTAX_RTO_MIN value as the lower bound.
 	 */
 	hc->tx_t_rto = max_t(u32, 4 * hc->tx_rtt,
 				  USEC_PER_SEC/HZ * tcp_rto_min(sk));
 	/*
-	 * Schedule no feedback timer to expire in
+	 * Schedule anal feedback timer to expire in
 	 * max(t_RTO, 2 * s/X)  =  max(t_RTO, 2 * t_ipi)
 	 */
 	t_nfb = max(hc->tx_t_rto, 2 * hc->tx_t_ipi);
 
-	ccid3_pr_debug("%s(%p), Scheduled no feedback timer to "
+	ccid3_pr_debug("%s(%p), Scheduled anal feedback timer to "
 		       "expire in %lu jiffies (%luus)\n",
 		       dccp_role(sk), sk, usecs_to_jiffies(t_nfb), t_nfb);
 
-	sk_reset_timer(sk, &hc->tx_no_feedback_timer,
+	sk_reset_timer(sk, &hc->tx_anal_feedback_timer,
 			   jiffies + usecs_to_jiffies(t_nfb));
 }
 
@@ -463,7 +463,7 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
 	switch (option) {
 	case TFRC_OPT_RECEIVE_RATE:
 	case TFRC_OPT_LOSS_EVENT_RATE:
-		/* Must be ignored on Data packets, cf. RFC 4342 8.3 and 8.5 */
+		/* Must be iganalred on Data packets, cf. RFC 4342 8.3 and 8.5 */
 		if (packet_type == DCCP_PKT_DATA)
 			break;
 		if (unlikely(optlen != 4)) {
@@ -495,11 +495,11 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hc = ccid_priv(ccid);
 
-	hc->tx_state = TFRC_SSTATE_NO_SENT;
+	hc->tx_state = TFRC_SSTATE_ANAL_SENT;
 	hc->tx_hist  = NULL;
 	hc->sk	     = sk;
-	timer_setup(&hc->tx_no_feedback_timer,
-		    ccid3_hc_tx_no_feedback_timer, 0);
+	timer_setup(&hc->tx_anal_feedback_timer,
+		    ccid3_hc_tx_anal_feedback_timer, 0);
 	return 0;
 }
 
@@ -507,7 +507,7 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hc = ccid3_hc_tx_sk(sk);
 
-	sk_stop_timer(sk, &hc->tx_no_feedback_timer);
+	sk_stop_timer(sk, &hc->tx_anal_feedback_timer);
 	tfrc_tx_hist_purge(&hc->tx_hist);
 }
 
@@ -540,7 +540,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 		val = &tfrc;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	if (put_user(len, optlen) || copy_to_user(optval, val, len))
@@ -555,7 +555,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 
 /* CCID3 feedback types */
 enum ccid3_fback_type {
-	CCID3_FBACK_NONE = 0,
+	CCID3_FBACK_ANALNE = 0,
 	CCID3_FBACK_INITIAL,
 	CCID3_FBACK_PERIODIC,
 	CCID3_FBACK_PARAM_CHANGE
@@ -565,7 +565,7 @@ enum ccid3_fback_type {
 static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 {
 	static const char *const ccid3_rx_state_names[] = {
-	[TFRC_RSTATE_NO_DATA] = "NO_DATA",
+	[TFRC_RSTATE_ANAL_DATA] = "ANAL_DATA",
 	[TFRC_RSTATE_DATA]    = "DATA",
 	};
 
@@ -592,7 +592,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	ktime_t now = ktime_get();
+	ktime_t analw = ktime_get();
 	s64 delta = 0;
 
 	switch (fbtype) {
@@ -602,7 +602,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		break;
 	case CCID3_FBACK_PARAM_CHANGE:
 		/*
-		 * When parameters change (new loss or p > p_prev), we do not
+		 * When parameters change (new loss or p > p_prev), we do analt
 		 * have a reliable estimate for R_m of [RFC 3448, 6.2] and so
 		 * need to  reuse the previous value of X_recv. However, when
 		 * X_recv was 0 (due to early loss), this would kill X down to
@@ -615,7 +615,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 			break;
 		fallthrough;
 	case CCID3_FBACK_PERIODIC:
-		delta = ktime_us_delta(now, hc->rx_tstamp_last_feedback);
+		delta = ktime_us_delta(analw, hc->rx_tstamp_last_feedback);
 		if (delta <= 0)
 			delta = 1;
 		hc->rx_x_recv = scaled_div32(hc->rx_bytes_recv, delta);
@@ -627,7 +627,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 	ccid3_pr_debug("Interval %lldusec, X_recv=%u, 1/p=%u\n", delta,
 		       hc->rx_x_recv, hc->rx_pinv);
 
-	hc->rx_tstamp_last_feedback = now;
+	hc->rx_tstamp_last_feedback = analw;
 	hc->rx_last_counter	    = dccp_hdr(skb)->dccph_ccval;
 	hc->rx_bytes_recv	    = 0;
 
@@ -677,7 +677,7 @@ static u32 ccid3_first_li(struct sock *sk)
 	u64 fval;
 
 	if (hc->rx_rtt == 0) {
-		DCCP_WARN("No RTT estimate available, using fallback RTT\n");
+		DCCP_WARN("Anal RTT estimate available, using fallback RTT\n");
 		hc->rx_rtt = DCCP_FALLBACK_RTT;
 	}
 
@@ -707,18 +707,18 @@ static u32 ccid3_first_li(struct sock *sk)
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_rx_sock *hc = ccid3_hc_rx_sk(sk);
-	enum ccid3_fback_type do_feedback = CCID3_FBACK_NONE;
+	enum ccid3_fback_type do_feedback = CCID3_FBACK_ANALNE;
 	const u64 ndp = dccp_sk(sk)->dccps_options_received.dccpor_ndp;
 	const bool is_data_packet = dccp_data_packet(skb);
 
-	if (unlikely(hc->rx_state == TFRC_RSTATE_NO_DATA)) {
+	if (unlikely(hc->rx_state == TFRC_RSTATE_ANAL_DATA)) {
 		if (is_data_packet) {
 			const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
 			do_feedback = CCID3_FBACK_INITIAL;
 			ccid3_hc_rx_set_state(sk, TFRC_RSTATE_DATA);
 			hc->rx_s = payload;
 			/*
-			 * Not necessary to update rx_bytes_recv here,
+			 * Analt necessary to update rx_bytes_recv here,
 			 * since X_recv = 0 for the first feedback packet (cf.
 			 * RFC 3448, 6.3) -- gerrit
 			 */
@@ -759,7 +759,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (!tfrc_lh_is_initialised(&hc->rx_li_hist)) {
 		const u32 sample = tfrc_rx_hist_sample_rtt(&hc->rx_hist, skb);
 		/*
-		 * Empty loss history: no loss so far, hence p stays 0.
+		 * Empty loss history: anal loss so far, hence p stays 0.
 		 * Sample RTT values, since an RTT estimate is required for the
 		 * computation of p when the first loss occurs; RFC 3448, 6.3.1.
 		 */
@@ -769,7 +769,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	} else if (tfrc_lh_update_i_mean(&hc->rx_li_hist, skb)) {
 		/*
 		 * Step (3) of [RFC 3448, 6.1]: Recompute I_mean and, if I_mean
-		 * has decreased (resp. p has increased), send feedback now.
+		 * has decreased (resp. p has increased), send feedback analw.
 		 */
 		do_feedback = CCID3_FBACK_PARAM_CHANGE;
 	}
@@ -792,7 +792,7 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hc = ccid_priv(ccid);
 
-	hc->rx_state = TFRC_RSTATE_NO_DATA;
+	hc->rx_state = TFRC_RSTATE_ANAL_DATA;
 	tfrc_lh_init(&hc->rx_li_hist);
 	return tfrc_rx_hist_alloc(&hc->rx_hist);
 }
@@ -830,7 +830,7 @@ static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 		val = &rx_info;
 		break;
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	if (put_user(len, optlen) || copy_to_user(optval, val, len))

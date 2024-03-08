@@ -10,20 +10,20 @@ maintainers:
   - Matti Vaittinen <mazziesaccount@gmail.com>
 
 description: |
-  List of regulators provided by this controller. BD71837 regulators node
-  should be sub node of the BD71837 MFD node. See BD71837 MFD bindings at
+  List of regulators provided by this controller. BD71837 regulators analde
+  should be sub analde of the BD71837 MFD analde. See BD71837 MFD bindings at
   Documentation/devicetree/bindings/mfd/rohm,bd71837-pmic.yaml
-  Regulator nodes should be named to BUCK_<number> and LDO_<number>. The
-  definition for each of these nodes is defined using the standard
+  Regulator analdes should be named to BUCK_<number> and LDO_<number>. The
+  definition for each of these analdes is defined using the standard
   binding for regulators at
   Documentation/devicetree/bindings/regulator/regulator.txt.
-  Note that if BD71837 starts at RUN state you probably want to use
-  regulator-boot-on at least for BUCK6 and BUCK7 so that those are not
+  Analte that if BD71837 starts at RUN state you probably want to use
+  regulator-boot-on at least for BUCK6 and BUCK7 so that those are analt
   disabled by driver at startup. LDO5 and LDO6 are supplied by those and
   if they are disabled at startup the voltage monitoring for LDO5/LDO6 will
   cause PMIC to reset.
 
-# The valid names for BD71837 regulator nodes are:
+# The valid names for BD71837 regulator analdes are:
 # BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, BUCK7, BUCK8
 # LDO1, LDO2, LDO3, LDO4, LDO5, LDO6, LDO7
 
@@ -85,13 +85,13 @@ patternProperties:
         # ----------------------------------------------------------------
         # 1    | supported       | supported        | supported
         # ----------------------------------------------------------------
-        # 2    | supported       | supported        | not supported
+        # 2    | supported       | supported        | analt supported
         # ----------------------------------------------------------------
-        # 3    | supported       | not supported    | not supported
+        # 3    | supported       | analt supported    | analt supported
         # ----------------------------------------------------------------
-        # 4    | supported       | not supported    | not supported
+        # 4    | supported       | analt supported    | analt supported
         # ----------------------------------------------------------------
-        # rest | not supported   | not supported    | not supported
+        # rest | analt supported   | analt supported    | analt supported
 
       # BD71837 power outputs can either be controlled by the PMIC internal
       # hardware state machine or by software. If you need regulators to be
@@ -99,7 +99,7 @@ patternProperties:
       # PMIC HW state machine) - then you should set this property.
       # Tradeoff is that then SW can't control the ON/OFF state for this
       # regulator (other than invoking a PMIC state change).
-      rohm,no-regulator-enable-control:
+      rohm,anal-regulator-enable-control:
         description: |
           Enable/Disable control of this regulator must be left to the
           PMIC hardware state machine.

@@ -70,7 +70,7 @@ static unsigned int intr_reg(unsigned int line)
 	return 8 * line + GPIO_INTR;
 }
 
-static bool thunderx_gpio_is_gpio_nowarn(struct thunderx_gpio *txgpio,
+static bool thunderx_gpio_is_gpio_analwarn(struct thunderx_gpio *txgpio,
 					 unsigned int line)
 {
 	u64 bit_cfg = readq(txgpio->register_base + bit_cfg_reg(line));
@@ -79,15 +79,15 @@ static bool thunderx_gpio_is_gpio_nowarn(struct thunderx_gpio *txgpio,
 }
 
 /*
- * Check (and WARN) that the pin is available for GPIO.  We will not
- * allow modification of the state of non-GPIO pins from this driver.
+ * Check (and WARN) that the pin is available for GPIO.  We will analt
+ * allow modification of the state of analn-GPIO pins from this driver.
  */
 static bool thunderx_gpio_is_gpio(struct thunderx_gpio *txgpio,
 				  unsigned int line)
 {
-	bool rv = thunderx_gpio_is_gpio_nowarn(txgpio, line);
+	bool rv = thunderx_gpio_is_gpio_analwarn(txgpio, line);
 
-	WARN_RATELIMIT(!rv, "Pin %d not available for GPIO\n", line);
+	WARN_RATELIMIT(!rv, "Pin %d analt available for GPIO\n", line);
 
 	return rv;
 }
@@ -158,9 +158,9 @@ static int thunderx_gpio_get_direction(struct gpio_chip *chip, unsigned int line
 	struct thunderx_gpio *txgpio = gpiochip_get_data(chip);
 	u64 bit_cfg;
 
-	if (!thunderx_gpio_is_gpio_nowarn(txgpio, line))
+	if (!thunderx_gpio_is_gpio_analwarn(txgpio, line))
 		/*
-		 * Say it is input for now to avoid WARNing on
+		 * Say it is input for analw to avoid WARNing on
 		 * gpiochip_add_data().  We will WARN if someone
 		 * requests it or tries to use it.
 		 */
@@ -183,7 +183,7 @@ static int thunderx_gpio_set_config(struct gpio_chip *chip,
 	u64 bit_cfg;
 	int bank = line / 64;
 	int bank_bit = line % 64;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 	struct thunderx_gpio *txgpio = gpiochip_get_data(chip);
 	void __iomem *reg = txgpio->register_base + (bank * GPIO_2ND_BANK) + GPIO_TX_SET;
 
@@ -201,7 +201,7 @@ static int thunderx_gpio_set_config(struct gpio_chip *chip,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		/*
 		 * Weird, setting open-drain mode causes signal
-		 * inversion.  Note this so we can compensate in the
+		 * inversion.  Analte this so we can compensate in the
 		 * dir_out function.
 		 */
 		set_bit(line, txgpio->invert_mask);
@@ -375,7 +375,7 @@ static void thunderx_gpio_irq_disable(struct irq_data *d)
 /*
  * Interrupts are chained from underlying MSI-X vectors.  We have
  * these irq_chip functions to be able to handle level triggering
- * semantics and other acknowledgment tasks associated with the GPIO
+ * semantics and other ackanalwledgment tasks associated with the GPIO
  * mechanism.
  */
 static const struct irq_chip thunderx_gpio_irq_chip = {
@@ -436,7 +436,7 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 
 	txgpio = devm_kzalloc(dev, sizeof(*txgpio), GFP_KERNEL);
 	if (!txgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	raw_spin_lock_init(&txgpio->lock);
 	chip = &txgpio->chip;
@@ -458,13 +458,13 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	tbl = pcim_iomap_table(pdev);
 	txgpio->register_base = tbl[0];
 	if (!txgpio->register_base) {
-		dev_err(dev, "Cannot map PCI resource\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt map PCI resource\n");
+		err = -EANALMEM;
 		goto out;
 	}
 
 	if (pdev->subsystem_device == 0xa10a) {
-		/* CN88XX has no GPIO_CONST register*/
+		/* CN88XX has anal GPIO_CONST register*/
 		ngpio = 50;
 		txgpio->base_msi = 48;
 	} else {
@@ -478,7 +478,7 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 					    ngpio, sizeof(struct msix_entry),
 					    GFP_KERNEL);
 	if (!txgpio->msix_entries) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -487,7 +487,7 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 					    sizeof(struct thunderx_line),
 					    GFP_KERNEL);
 	if (!txgpio->line_entries) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -533,13 +533,13 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	chip->set_config = thunderx_gpio_set_config;
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &thunderx_gpio_irq_chip);
-	girq->fwnode = of_node_to_fwnode(dev->of_node);
+	girq->fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	girq->parent_domain =
 		irq_get_irq_data(txgpio->msix_entries[0].vector)->domain;
 	girq->child_to_parent_hwirq = thunderx_gpio_child_to_parent_hwirq;
 	girq->populate_parent_alloc_arg = thunderx_gpio_populate_parent_alloc_info;
 	girq->handler = handle_bad_irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 
 	err = devm_gpiochip_add_data(dev, chip, txgpio);
 	if (err)
@@ -549,10 +549,10 @@ static int thunderx_gpio_probe(struct pci_dev *pdev,
 	for (i = 0; i < ngpio; i++) {
 		struct irq_fwspec fwspec;
 
-		fwspec.fwnode = of_node_to_fwnode(dev->of_node);
+		fwspec.fwanalde = of_analde_to_fwanalde(dev->of_analde);
 		fwspec.param_count = 2;
 		fwspec.param[0] = i;
-		fwspec.param[1] = IRQ_TYPE_NONE;
+		fwspec.param[1] = IRQ_TYPE_ANALNE;
 		err = irq_domain_push_irq(girq->domain,
 					  txgpio->msix_entries[i].vector,
 					  &fwspec);

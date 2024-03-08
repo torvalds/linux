@@ -20,7 +20,7 @@
 #include <ia_css_binary.h>
 
 #if 0
-/* Cannot be included, since sh_css_internal.h is too generic
+/* Cananalt be included, since sh_css_internal.h is too generic
  * e.g. for FW generation.
 */
 #include "sh_css_internal.h"	/* sh_css_sp_pipeline */

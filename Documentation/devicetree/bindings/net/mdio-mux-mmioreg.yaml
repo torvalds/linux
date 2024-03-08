@@ -12,7 +12,7 @@ maintainers:
 description: |+
   This is a special case of a MDIO bus multiplexer.  A memory-mapped device,
   like an FPGA, is used to control which child bus is connected.  The mdio-mux
-  node must be a child of the memory-mapped device.  The driver currently only
+  analde must be a child of the memory-mapped device.  The driver currently only
   supports devices with 8, 16 or 32-bit registers.
 
 allOf:
@@ -34,7 +34,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Contains an eight-bit mask that specifies which bits in the
       register control the actual bus multiplexer.  The 'reg' property of each
-      child mdio-mux node must be constrained by this mask.
+      child mdio-mux analde must be constrained by this mask.
 
 required:
   - compatible

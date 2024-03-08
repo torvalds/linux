@@ -27,7 +27,7 @@
  * This file declares the constants and types used in the interface
  * between a wlan driver and the user mode utilities.
  *
- * Note:
+ * Analte:
  *  - Constant values are always in HOST byte order.  To assign
  *    values to multi-byte fields they _must_ be converted to
  *    ieee byte order.  To retrieve multi-byte values from incoming

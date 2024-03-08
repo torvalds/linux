@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-or-later WITH Linux-syscall-analte */
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
@@ -56,10 +56,10 @@ union ccb_result {
 #define	DAX_SUBMIT_ERR_THR_INIT		4
 #define	DAX_SUBMIT_ERR_ARG_INVAL	5
 #define	DAX_SUBMIT_ERR_CCB_INVAL	6
-#define	DAX_SUBMIT_ERR_NO_CA_AVAIL	7
+#define	DAX_SUBMIT_ERR_ANAL_CA_AVAIL	7
 #define	DAX_SUBMIT_ERR_CCB_ARR_MMU_MISS	8
-#define	DAX_SUBMIT_ERR_NOMAP		9
-#define	DAX_SUBMIT_ERR_NOACCESS		10
+#define	DAX_SUBMIT_ERR_ANALMAP		9
+#define	DAX_SUBMIT_ERR_ANALACCESS		10
 #define	DAX_SUBMIT_ERR_TOOMANY		11
 #define	DAX_SUBMIT_ERR_UNAVAIL		12
 #define	DAX_SUBMIT_ERR_INTERNAL		13
@@ -68,12 +68,12 @@ union ccb_result {
 #define	DAX_CCB_COMPLETED	0
 #define	DAX_CCB_ENQUEUED	1
 #define	DAX_CCB_INPROGRESS	2
-#define	DAX_CCB_NOTFOUND	3
+#define	DAX_CCB_ANALTFOUND	3
 
 /* CCB_KILL actions - must match HV_CCB_KILL_* definitions */
 #define	DAX_KILL_COMPLETED	0
 #define	DAX_KILL_DEQUEUED	1
 #define	DAX_KILL_KILLED		2
-#define	DAX_KILL_NOTFOUND	3
+#define	DAX_KILL_ANALTFOUND	3
 
 #endif /* _ORADAX_H */

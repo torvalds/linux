@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- * Driver is originally developed by Pavel Sokolov <psokolov@synopsys.com>
+ * Driver is originally developed by Pavel Sokolov <psokolov@syanalpsys.com>
  */
 
 #include <linux/err.h>
@@ -26,7 +26,7 @@
 #define PS2_STAT_RX_BUF_OVER            (1 << 1)
 #define PS2_STAT_RX_INT_EN              (1 << 2)
 #define PS2_STAT_RX_VAL                 (1 << 3)
-#define PS2_STAT_TX_ISNOT_FUL           (1 << 4)
+#define PS2_STAT_TX_ISANALT_FUL           (1 << 4)
 #define PS2_STAT_TX_INT_EN              (1 << 5)
 
 struct arc_ps2_port {
@@ -94,7 +94,7 @@ static int arc_ps2_write(struct serio *io, unsigned char val)
 		status = ioread32(port->status_addr);
 		cpu_relax();
 
-		if (status & PS2_STAT_TX_ISNOT_FUL) {
+		if (status & PS2_STAT_TX_ISANALT_FUL) {
 			iowrite32(val & 0xff, port->data_addr);
 			return 0;
 		}
@@ -157,7 +157,7 @@ static int arc_ps2_create_port(struct platform_device *pdev,
 
 	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!io)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io->id.type = SERIO_8042;
 	io->write = arc_ps2_write;
@@ -193,7 +193,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!arc_ps2) {
 		dev_err(&pdev->dev, "out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	arc_ps2->addr = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
@@ -205,7 +205,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 
 	id = ioread32(arc_ps2->addr);
 	if (id != ARC_ARC_PS2_ID) {
-		dev_err(&pdev->dev, "device id does not match\n");
+		dev_err(&pdev->dev, "device id does analt match\n");
 		return -ENXIO;
 	}
 
@@ -214,7 +214,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	error = devm_request_irq(&pdev->dev, irq, arc_ps2_interrupt,
 				 0, "arc_ps2", arc_ps2);
 	if (error) {
-		dev_err(&pdev->dev, "Could not allocate IRQ\n");
+		dev_err(&pdev->dev, "Could analt allocate IRQ\n");
 		return error;
 	}
 
@@ -266,5 +266,5 @@ static struct platform_driver arc_ps2_driver = {
 module_platform_driver(arc_ps2_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Pavel Sokolov <psokolov@synopsys.com>");
+MODULE_AUTHOR("Pavel Sokolov <psokolov@syanalpsys.com>");
 MODULE_DESCRIPTION("ARC PS/2 Driver");

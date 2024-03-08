@@ -44,7 +44,7 @@ static unsigned hmcdrv_ftp_refcnt; /* start/shutdown reference counter */
 
 /**
  * hmcdrv_ftp_cmd_getid() - determine FTP command ID from a command string
- * @cmd: FTP command string (NOT zero-terminated)
+ * @cmd: FTP command string (ANALT zero-terminated)
  * @len: length of FTP command string in @cmd
  */
 static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
@@ -57,9 +57,9 @@ static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
 
 	/* Description of all HMC drive FTP commands
 	 *
-	 * Notes:
+	 * Analtes:
 	 * 1. Array size should be a prime number.
-	 * 2. Do not change the order of commands in table (because the
+	 * 2. Do analt change the order of commands in table (because the
 	 *    index is determined by CRC % ARRAY_SIZE).
 	 * 3. Original command 'nlist' was renamed, else the CRC would
 	 *    collide with 'append' (see point 2).
@@ -86,7 +86,7 @@ static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
 	u16 crc = 0xffffU;
 
 	if (len == 0)
-		return HMCDRV_FTP_NOOP; /* error indiactor */
+		return HMCDRV_FTP_ANALOP; /* error indiactor */
 
 	crc = crc16(crc, cmd, len);
 	pdesc = ftpcmds + (crc % ARRAY_SIZE(ftpcmds));
@@ -94,7 +94,7 @@ static enum hmcdrv_ftp_cmdid hmcdrv_ftp_cmd_getid(const char *cmd, int len)
 		 cmd, crc, (crc % ARRAY_SIZE(ftpcmds)));
 
 	if (!pdesc->str || strncmp(pdesc->str, cmd, len))
-		return HMCDRV_FTP_NOOP;
+		return HMCDRV_FTP_ANALOP;
 
 	pr_debug("FTP command '%s' found, with ID %d\n",
 		 pdesc->str, pdesc->cmd);
@@ -114,7 +114,7 @@ static int hmcdrv_ftp_parse(char *cmd, struct hmcdrv_ftp_cmdspec *ftp)
 	char *start;
 	int argc = 0;
 
-	ftp->id = HMCDRV_FTP_NOOP;
+	ftp->id = HMCDRV_FTP_ANALOP;
 	ftp->fname = NULL;
 
 	while (*cmd != '\0') {
@@ -146,7 +146,7 @@ static int hmcdrv_ftp_parse(char *cmd, struct hmcdrv_ftp_cmdspec *ftp)
 		++argc;
 	} /* while */
 
-	if (!ftp->fname || (ftp->id == HMCDRV_FTP_NOOP))
+	if (!ftp->fname || (ftp->id == HMCDRV_FTP_ANALOP))
 		return -EINVAL;
 
 	return 0;
@@ -187,7 +187,7 @@ int hmcdrv_ftp_probe(void)
 	int rc;
 
 	struct hmcdrv_ftp_cmdspec ftp = {
-		.id = HMCDRV_FTP_NOOP,
+		.id = HMCDRV_FTP_ANALOP,
 		.ofs = 0,
 		.fname = "",
 		.len = PAGE_SIZE
@@ -196,7 +196,7 @@ int hmcdrv_ftp_probe(void)
 	ftp.buf = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 
 	if (!ftp.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = hmcdrv_ftp_startup();
 
@@ -207,7 +207,7 @@ int hmcdrv_ftp_probe(void)
 	hmcdrv_ftp_shutdown();
 
 	switch (rc) {
-	case -ENOENT: /* no such file/media or currently busy, */
+	case -EANALENT: /* anal such file/media or currently busy, */
 	case -EBUSY:  /* but service seems to be available */
 		rc = 0;
 		break;
@@ -230,7 +230,7 @@ EXPORT_SYMBOL(hmcdrv_ftp_probe);
  * @buf: user-space buffer for read/written directory/file
  * @len: size of @buf (read/dir) or number of bytes to write
  *
- * This function must not be called before hmcdrv_ftp_startup() was called.
+ * This function must analt be called before hmcdrv_ftp_startup() was called.
  *
  * Return: number of bytes read/written or a negative error code
  */
@@ -249,7 +249,7 @@ ssize_t hmcdrv_ftp_cmd(char __kernel *cmd, loff_t offset,
 	ftp.buf = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, order);
 
 	if (!ftp.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (ftp.id) {
 	case HMCDRV_FTP_DIR:
@@ -275,7 +275,7 @@ ssize_t hmcdrv_ftp_cmd(char __kernel *cmd, loff_t offset,
 		break;
 
 	default:
-		retlen = -EOPNOTSUPP;
+		retlen = -EOPANALTSUPP;
 		break;
 	}
 
@@ -313,7 +313,7 @@ int hmcdrv_ftp_startup(void)
 		else if (MACHINE_IS_LPAR || MACHINE_IS_KVM)
 			hmcdrv_ftp_funcs = &hmcdrv_ftp_lpar;
 		else
-			rc = -EOPNOTSUPP;
+			rc = -EOPANALTSUPP;
 
 		if (hmcdrv_ftp_funcs)
 			rc = hmcdrv_ftp_funcs->startup();

@@ -28,7 +28,7 @@ properties:
 
   fsl,imx7d-pcie-phy:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: A phandle to an fsl,imx7d-pcie-phy node. Additional
+    description: A phandle to an fsl,imx7d-pcie-phy analde. Additional
       required properties for imx7d-pcie, imx7d-pcie-ep, imx8mq-pcie,
       and imx8mq-pcie-ep.
 
@@ -85,7 +85,7 @@ properties:
 
   fsl,max-link-speed:
     description: Specify PCI Gen for link capability (optional required).
-      Note that the IMX6 LVDS clock outputs do not meet gen2 jitter
+      Analte that the IMX6 LVDS clock outputs do analt meet gen2 jitter
       requirements and thus for gen2 capability a gen2 compliant clock
       generator should be used and configured.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -153,7 +153,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               enum:
                 - fsl,imx6sx-pcie
@@ -215,7 +215,7 @@ allOf:
         power-domain-names: false
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:
@@ -255,7 +255,7 @@ allOf:
           items:
             - const: pciephy
             - const: apps
-            - const: turnoff
+            - const: turanalff
     else:
       properties:
         resets:
@@ -263,7 +263,7 @@ allOf:
         reset-names:
           items:
             - const: apps
-            - const: turnoff
+            - const: turanalff
 
 additionalProperties: true
 

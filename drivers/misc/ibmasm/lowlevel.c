@@ -48,7 +48,7 @@ irqreturn_t ibmasm_interrupt_handler(int irq, void * dev_id)
 	char tsbuf[32];
 
 	if (!sp_interrupt_pending(base_address))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	dbg("respond to interrupt at %s\n", get_timestamp(tsbuf));
 

@@ -218,7 +218,7 @@ struct hv_enlightened_vmcs {
 	u64 padding64_6;
 } __packed;
 
-#define HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE                     0
+#define HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE                     0
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_IO_BITMAP                BIT(0)
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP               BIT(1)
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_CONTROL_GRP2             BIT(2)
@@ -680,7 +680,7 @@ static inline int evmcs_vmwrite(uint64_t encoding, uint64_t value)
 	switch (encoding) {
 	case GUEST_RIP:
 		current_evmcs->guest_rip = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case GUEST_RSP:
 		current_evmcs->guest_rsp = value;
@@ -896,15 +896,15 @@ static inline int evmcs_vmwrite(uint64_t encoding, uint64_t value)
 		break;
 	case GUEST_PHYSICAL_ADDRESS:
 		current_evmcs->guest_physical_address = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case EXIT_QUALIFICATION:
 		current_evmcs->exit_qualification = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case GUEST_LINEAR_ADDRESS:
 		current_evmcs->guest_linear_address = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VM_EXIT_MSR_STORE_ADDR:
 		current_evmcs->vm_exit_msr_store_addr = value;
@@ -936,7 +936,7 @@ static inline int evmcs_vmwrite(uint64_t encoding, uint64_t value)
 		break;
 	case TPR_THRESHOLD:
 		current_evmcs->tpr_threshold = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case GUEST_INTERRUPTIBILITY_INFO:
 		current_evmcs->guest_interruptibility_info = value;
@@ -1064,35 +1064,35 @@ static inline int evmcs_vmwrite(uint64_t encoding, uint64_t value)
 		break;
 	case VM_INSTRUCTION_ERROR:
 		current_evmcs->vm_instruction_error = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VM_EXIT_REASON:
 		current_evmcs->vm_exit_reason = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VM_EXIT_INTR_INFO:
 		current_evmcs->vm_exit_intr_info = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VM_EXIT_INTR_ERROR_CODE:
 		current_evmcs->vm_exit_intr_error_code = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case IDT_VECTORING_INFO_FIELD:
 		current_evmcs->idt_vectoring_info_field = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case IDT_VECTORING_ERROR_CODE:
 		current_evmcs->idt_vectoring_error_code = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VM_EXIT_INSTRUCTION_LEN:
 		current_evmcs->vm_exit_instruction_len = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case VMX_INSTRUCTION_INFO:
 		current_evmcs->vmx_instruction_info = value;
-		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE;
+		current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_ANALNE;
 		break;
 	case PAGE_FAULT_ERROR_CODE_MASK:
 		current_evmcs->page_fault_error_code_mask = value;
@@ -1238,7 +1238,7 @@ static inline int evmcs_vmlaunch(void)
 }
 
 /*
- * No guest state (e.g. GPRs) is established by this vmresume.
+ * Anal guest state (e.g. GPRs) is established by this vmresume.
  */
 static inline int evmcs_vmresume(void)
 {

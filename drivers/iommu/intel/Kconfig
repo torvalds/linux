@@ -39,17 +39,17 @@ config INTEL_IOMMU_DEBUGFS
 	help
 	  !!!WARNING!!!
 
-	  DO NOT ENABLE THIS OPTION UNLESS YOU REALLY KNOW WHAT YOU ARE DOING!!!
+	  DO ANALT ENABLE THIS OPTION UNLESS YOU REALLY KANALW WHAT YOU ARE DOING!!!
 
 	  Expose Intel IOMMU internals in Debugfs.
 
-	  This option is -NOT- intended for production environments, and should
+	  This option is -ANALT- intended for production environments, and should
 	  only be enabled for debugging Intel IOMMU.
 
 config INTEL_IOMMU_SVM
 	bool "Support for Shared Virtual Memory with Intel IOMMU"
 	depends on X86_64
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	select IOMMU_SVA
 	help
 	  Shared Virtual Memory (SVM) provides a facility for devices
@@ -61,7 +61,7 @@ config INTEL_IOMMU_DEFAULT_ON
 	default y
 	help
 	  Selecting this option will enable a DMAR device at boot time if
-	  one is found. If this option is not selected, DMAR support can
+	  one is found. If this option is analt selected, DMAR support can
 	  be enabled by passing intel_iommu=on to the kernel.
 
 config INTEL_IOMMU_BROKEN_GFX_WA
@@ -79,7 +79,7 @@ config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
 	depends on X86
 	help
-	  Floppy disk drivers are known to bypass DMA API calls
+	  Floppy disk drivers are kanalwn to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
 	  16MiB to make floppy (an ISA device) work.
@@ -92,8 +92,8 @@ config INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
 	  hardware presents the capability. The scalable mode is defined in
 	  VT-d 3.0. The scalable mode capability could be checked by reading
 	  /sys/devices/virtual/iommu/dmar*/intel-iommu/ecap. If this option
-	  is not selected, scalable mode support could also be enabled by
-	  passing intel_iommu=sm_on to the kernel. If not sure, please use
+	  is analt selected, scalable mode support could also be enabled by
+	  passing intel_iommu=sm_on to the kernel. If analt sure, please use
 	  the default value.
 
 config INTEL_IOMMU_PERF_EVENTS

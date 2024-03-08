@@ -36,11 +36,11 @@ static int nd_region_probe(struct device *dev)
 		return rc;
 
 	if (devm_init_badblocks(dev, &nd_region->bb))
-		return -ENODEV;
+		return -EANALDEV;
 	nd_region->bb_state =
 		sysfs_get_dirent(nd_region->dev.kobj.sd, "badblocks");
 	if (!nd_region->bb_state)
-		dev_warn(dev, "'badblocks' notification disabled\n");
+		dev_warn(dev, "'badblocks' analtification disabled\n");
 	nvdimm_badblocks_populate(nd_region, &nd_region->bb, &range);
 
 	rc = nd_region_register_namespaces(nd_region, &err);
@@ -52,7 +52,7 @@ static int nd_region_probe(struct device *dev)
 	ndrd->ns_count = rc + err;
 
 	if (rc && err && rc == err)
-		return -ENODEV;
+		return -EANALDEV;
 
 	nd_region->btt_seed = nd_btt_create(nd_region);
 	nd_region->pfn_seed = nd_pfn_create(nd_region);
@@ -61,7 +61,7 @@ static int nd_region_probe(struct device *dev)
 		return 0;
 
 	/*
-	 * Given multiple namespaces per region, we do not want to
+	 * Given multiple namespaces per region, we do analt want to
 	 * disable all the successfully registered peer namespaces upon
 	 * a single registration failure.  If userspace is missing a
 	 * namespace that it expects it can disable/re-enable the region
@@ -96,15 +96,15 @@ static void nd_region_remove(struct device *dev)
 	nvdimm_bus_unlock(dev);
 
 	/*
-	 * Note, this assumes device_lock() context to not race
-	 * nd_region_notify()
+	 * Analte, this assumes device_lock() context to analt race
+	 * nd_region_analtify()
 	 */
 	sysfs_put(nd_region->bb_state);
 	nd_region->bb_state = NULL;
 
 	/*
 	 * Try to flush caches here since a disabled region may be subject to
-	 * secure erase while disabled, and previous dirty data should not be
+	 * secure erase while disabled, and previous dirty data should analt be
 	 * written back to a new instance of the region. This only matters on
 	 * bare metal where security commands are available, so silent failure
 	 * here is ok.
@@ -113,13 +113,13 @@ static void nd_region_remove(struct device *dev)
 		cpu_cache_invalidate_memregion(IORES_DESC_PERSISTENT_MEMORY);
 }
 
-static int child_notify(struct device *dev, void *data)
+static int child_analtify(struct device *dev, void *data)
 {
-	nd_device_notify(dev, *(enum nvdimm_event *) data);
+	nd_device_analtify(dev, *(enum nvdimm_event *) data);
 	return 0;
 }
 
-static void nd_region_notify(struct device *dev, enum nvdimm_event event)
+static void nd_region_analtify(struct device *dev, enum nvdimm_event event)
 {
 	if (event == NVDIMM_REVALIDATE_POISON) {
 		struct nd_region *nd_region = to_nd_region(dev);
@@ -134,16 +134,16 @@ static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 			nvdimm_badblocks_populate(nd_region,
 					&nd_region->bb, &range);
 			if (nd_region->bb_state)
-				sysfs_notify_dirent(nd_region->bb_state);
+				sysfs_analtify_dirent(nd_region->bb_state);
 		}
 	}
-	device_for_each_child(dev, &event, child_notify);
+	device_for_each_child(dev, &event, child_analtify);
 }
 
 static struct nd_device_driver nd_region_driver = {
 	.probe = nd_region_probe,
 	.remove = nd_region_remove,
-	.notify = nd_region_notify,
+	.analtify = nd_region_analtify,
 	.drv = {
 		.name = "nd_region",
 	},

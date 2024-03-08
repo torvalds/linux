@@ -3,36 +3,36 @@
 #define ASM_CELL_PIC_H
 #ifdef __KERNEL__
 /*
- * Mapping of IIC pending bits into per-node interrupt numbers.
+ * Mapping of IIC pending bits into per-analde interrupt numbers.
  *
  * Interrupt numbers are in the range 0...0x1ff where the top bit
- * (0x100) represent the source node. Only 2 nodes are supported with
+ * (0x100) represent the source analde. Only 2 analdes are supported with
  * the current code though it's trivial to extend that if necessary using
  * higher level bits
  *
  * The bottom 8 bits are split into 2 type bits and 6 data bits that
  * depend on the type:
  *
- * 00 (0x00 | data) : normal interrupt. data is (class << 4) | source
+ * 00 (0x00 | data) : analrmal interrupt. data is (class << 4) | source
  * 01 (0x40 | data) : IO exception. data is the exception number as
  *                    defined by bit numbers in IIC_SR
  * 10 (0x80 | data) : IPI. data is the IPI number (obtained from the priority)
- *                    and node is always 0 (IPIs are per-cpu, their source is
- *                    not relevant)
+ *                    and analde is always 0 (IPIs are per-cpu, their source is
+ *                    analt relevant)
  * 11 (0xc0 | data) : reserved
  *
  * In addition, interrupt number 0x80000000 is defined as always invalid
- * (that is the node field is expected to never extend to move than 23 bits)
+ * (that is the analde field is expected to never extend to move than 23 bits)
  *
  */
 
 enum {
 	IIC_IRQ_INVALID		= 0x80000000u,
-	IIC_IRQ_NODE_MASK	= 0x100,
-	IIC_IRQ_NODE_SHIFT	= 8,
+	IIC_IRQ_ANALDE_MASK	= 0x100,
+	IIC_IRQ_ANALDE_SHIFT	= 8,
 	IIC_IRQ_MAX		= 0x1ff,
 	IIC_IRQ_TYPE_MASK	= 0xc0,
-	IIC_IRQ_TYPE_NORMAL	= 0x00,
+	IIC_IRQ_TYPE_ANALRMAL	= 0x00,
 	IIC_IRQ_TYPE_IOEXC	= 0x40,
 	IIC_IRQ_TYPE_IPI	= 0x80,
 	IIC_IRQ_CLASS_SHIFT	= 4,
@@ -60,9 +60,9 @@ enum {
 
 	/* Base numbers for the external interrupts */
 	IIC_IRQ_EXT_IOIF0	=
-		IIC_IRQ_TYPE_NORMAL | IIC_IRQ_CLASS_2 | IIC_UNIT_IOC_0,
+		IIC_IRQ_TYPE_ANALRMAL | IIC_IRQ_CLASS_2 | IIC_UNIT_IOC_0,
 	IIC_IRQ_EXT_IOIF1	=
-		IIC_IRQ_TYPE_NORMAL | IIC_IRQ_CLASS_2 | IIC_UNIT_IOC_1,
+		IIC_IRQ_TYPE_ANALRMAL | IIC_IRQ_CLASS_2 | IIC_UNIT_IOC_1,
 
 	/* Base numbers for the IIC_ISR interrupts */
 	IIC_IRQ_IOEX_TMI	= IIC_IRQ_TYPE_IOEXC | IIC_IRQ_CLASS_1 | 63,

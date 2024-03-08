@@ -51,7 +51,7 @@
 
 /*
  * programmable events IDs in programmable event counters.
- * DO NOT change these event-id numbers, they are used to
+ * DO ANALT change these event-id numbers, they are used to
  * program event bitmap in h/w.
  */
 #define EVENT_OP_IS_ZQLATCH			55
@@ -63,8 +63,8 @@
 #define EVENT_VISIBLE_WIN_LIMIT_REACHED_RD	49
 #define EVENT_BSM_STARVATION			48
 #define EVENT_BSM_ALLOC				47
-#define EVENT_LPR_REQ_WITH_NOCREDIT		46
-#define EVENT_HPR_REQ_WITH_NOCREDIT		45
+#define EVENT_LPR_REQ_WITH_ANALCREDIT		46
+#define EVENT_HPR_REQ_WITH_ANALCREDIT		45
 #define EVENT_OP_IS_ZQCS			44
 #define EVENT_OP_IS_ZQCL			43
 #define EVENT_OP_IS_LOAD_MODE			42
@@ -129,7 +129,7 @@ struct cn10k_ddr_pmu {
 	int active_events;
 	struct perf_event *events[DDRC_PERF_NUM_COUNTERS];
 	struct hrtimer hrtimer;
-	struct hlist_node node;
+	struct hlist_analde analde;
 };
 
 #define to_cn10k_ddr_pmu(p)	container_of(p, struct cn10k_ddr_pmu, pmu)
@@ -188,10 +188,10 @@ static struct attribute *cn10k_ddr_perf_events_attrs[] = {
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_load_mode, EVENT_OP_IS_LOAD_MODE),
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_zqcl, EVENT_OP_IS_ZQCL),
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_cam_wr_access, EVENT_OP_IS_ZQCS),
-	CN10K_DDR_PMU_EVENT_ATTR(ddr_hpr_req_with_nocredit,
-					EVENT_HPR_REQ_WITH_NOCREDIT),
-	CN10K_DDR_PMU_EVENT_ATTR(ddr_lpr_req_with_nocredit,
-					EVENT_LPR_REQ_WITH_NOCREDIT),
+	CN10K_DDR_PMU_EVENT_ATTR(ddr_hpr_req_with_analcredit,
+					EVENT_HPR_REQ_WITH_ANALCREDIT),
+	CN10K_DDR_PMU_EVENT_ATTR(ddr_lpr_req_with_analcredit,
+					EVENT_LPR_REQ_WITH_ANALCREDIT),
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_bsm_alloc, EVENT_BSM_ALLOC),
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_bsm_starvation, EVENT_BSM_STARVATION),
 	CN10K_DDR_PMU_EVENT_ATTR(ddr_win_limit_reached_rd,
@@ -312,7 +312,7 @@ static int cn10k_ddr_perf_alloc_counter(struct cn10k_ddr_pmu *pmu,
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static void cn10k_ddr_perf_free_counter(struct cn10k_ddr_pmu *pmu, int counter)
@@ -326,24 +326,24 @@ static int cn10k_ddr_perf_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event)) {
-		dev_info(pmu->dev, "Sampling not supported!\n");
-		return -EOPNOTSUPP;
+		dev_info(pmu->dev, "Sampling analt supported!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (event->cpu < 0) {
 		dev_warn(pmu->dev, "Can't provide per-task data!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
-	/*  We must NOT create groups containing mixed PMUs */
+	/*  We must ANALT create groups containing mixed PMUs */
 	if (event->group_leader->pmu != event->pmu &&
 	    !is_software_event(event->group_leader))
 		return -EINVAL;
 
-	/* Set ownership of event to one CPU, same event can not be observed
+	/* Set ownership of event to one CPU, same event can analt be observed
 	 * on multiple cpus at same time.
 	 */
 	event->cpu = pmu->cpu;
@@ -504,7 +504,7 @@ static void cn10k_ddr_perf_event_del(struct perf_event *event, int flags)
 	pmu->active_events--;
 	hwc->idx = -1;
 
-	/* Cancel timer when no events to capture */
+	/* Cancel timer when anal events to capture */
 	if (pmu->active_events == 0)
 		hrtimer_cancel(&pmu->hrtimer);
 }
@@ -607,14 +607,14 @@ static enum hrtimer_restart cn10k_ddr_pmu_timer_handler(struct hrtimer *hrtimer)
 	cn10k_ddr_pmu_overflow_handler(pmu);
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, cn10k_ddr_pmu_timer_period());
+	hrtimer_forward_analw(hrtimer, cn10k_ddr_pmu_timer_period());
 	return HRTIMER_RESTART;
 }
 
-static int cn10k_ddr_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int cn10k_ddr_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct cn10k_ddr_pmu *pmu = hlist_entry_safe(node, struct cn10k_ddr_pmu,
-						     node);
+	struct cn10k_ddr_pmu *pmu = hlist_entry_safe(analde, struct cn10k_ddr_pmu,
+						     analde);
 	unsigned int target;
 
 	if (cpu != pmu->cpu)
@@ -639,7 +639,7 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 
 	ddr_pmu = devm_kzalloc(&pdev->dev, sizeof(*ddr_pmu), GFP_KERNEL);
 	if (!ddr_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddr_pmu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ddr_pmu);
@@ -656,7 +656,7 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 
 	ddr_pmu->pmu = (struct pmu) {
 		.module	      = THIS_MODULE,
-		.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 		.task_ctx_nr = perf_invalid_context,
 		.attr_groups = cn10k_attr_groups,
 		.event_init  = cn10k_ddr_perf_event_init,
@@ -675,14 +675,14 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 	name = devm_kasprintf(ddr_pmu->dev, GFP_KERNEL, "mrvl_ddr_pmu_%llx",
 			      res->start);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	hrtimer_init(&ddr_pmu->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&ddr_pmu->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	ddr_pmu->hrtimer.function = cn10k_ddr_pmu_timer_handler;
 
-	cpuhp_state_add_instance_nocalls(
+	cpuhp_state_add_instance_analcalls(
 				CPUHP_AP_PERF_ARM_MARVELL_CN10K_DDR_ONLINE,
-				&ddr_pmu->node);
+				&ddr_pmu->analde);
 
 	ret = perf_pmu_register(&ddr_pmu->pmu, name, -1);
 	if (ret)
@@ -691,9 +691,9 @@ static int cn10k_ddr_perf_probe(struct platform_device *pdev)
 	pr_info("CN10K DDR PMU Driver for ddrc@%llx\n", res->start);
 	return 0;
 error:
-	cpuhp_state_remove_instance_nocalls(
+	cpuhp_state_remove_instance_analcalls(
 				CPUHP_AP_PERF_ARM_MARVELL_CN10K_DDR_ONLINE,
-				&ddr_pmu->node);
+				&ddr_pmu->analde);
 	return ret;
 }
 
@@ -701,9 +701,9 @@ static int cn10k_ddr_perf_remove(struct platform_device *pdev)
 {
 	struct cn10k_ddr_pmu *ddr_pmu = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(
+	cpuhp_state_remove_instance_analcalls(
 				CPUHP_AP_PERF_ARM_MARVELL_CN10K_DDR_ONLINE,
-				&ddr_pmu->node);
+				&ddr_pmu->analde);
 
 	perf_pmu_unregister(&ddr_pmu->pmu);
 	return 0;

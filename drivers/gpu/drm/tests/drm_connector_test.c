@@ -72,5 +72,5 @@ static struct kunit_suite drm_get_tv_mode_from_name_test_suite = {
 
 kunit_test_suite(drm_get_tv_mode_from_name_test_suite);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_LICENSE("GPL");

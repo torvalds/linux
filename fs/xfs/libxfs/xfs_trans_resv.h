@@ -15,7 +15,7 @@ struct xfs_trans_res {
 	uint	tr_logres;	/* log space unit in bytes per log ticket */
 	int	tr_logcount;	/* number of log operations per log ticket */
 	int	tr_logflags;	/* log flags, currently only used for indicating
-				 * a reservation request is permanent or not */
+				 * a reservation request is permanent or analt */
 };
 
 struct xfs_trans_resv {
@@ -28,10 +28,10 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_create;	/* create trans */
 	struct xfs_trans_res	tr_create_tmpfile; /* create O_TMPFILE trans */
 	struct xfs_trans_res	tr_mkdir;	/* mkdir trans */
-	struct xfs_trans_res	tr_ifree;	/* inode free trans */
-	struct xfs_trans_res	tr_ichange;	/* inode update trans */
+	struct xfs_trans_res	tr_ifree;	/* ianalde free trans */
+	struct xfs_trans_res	tr_ichange;	/* ianalde update trans */
 	struct xfs_trans_res	tr_growdata;	/* fs data section grow trans */
-	struct xfs_trans_res	tr_addafork;	/* add inode attr fork trans */
+	struct xfs_trans_res	tr_addafork;	/* add ianalde attr fork trans */
 	struct xfs_trans_res	tr_writeid;	/* write setuid/setgid file */
 	struct xfs_trans_res	tr_attrinval;	/* attr fork buffer
 						 * invalidation */
@@ -90,7 +90,7 @@ struct xfs_trans_resv {
 /*
  * Original log operation counts were overestimated in the early days of
  * reflink.  These are retained here purely for minimum log size calculations
- * and must not be used for runtime reservations.
+ * and must analt be used for runtime reservations.
  */
 #define	XFS_ITRUNCATE_LOG_COUNT_REFLINK	8
 #define	XFS_WRITE_LOG_COUNT_REFLINK	8

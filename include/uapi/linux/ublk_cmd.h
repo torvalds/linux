@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef USER_BLK_DRV_CMD_INC_H
 #define USER_BLK_DRV_CMD_INC_H
 
@@ -51,7 +51,7 @@
 	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
 
 /*
- * 64bits are enough now, and it should be easy to extend in case of
+ * 64bits are eanalugh analw, and it should be easy to extend in case of
  * running out of feature flags
  */
 #define UBLK_FEATURES_LEN  8
@@ -93,10 +93,10 @@
 #define	UBLK_U_IO_NEED_GET_DATA		\
 	_IOWR('u', UBLK_IO_NEED_GET_DATA, struct ublksrv_io_cmd)
 
-/* only ABORT means that no re-fetch */
+/* only ABORT means that anal re-fetch */
 #define UBLK_IO_RES_OK			0
 #define UBLK_IO_RES_NEED_GET_DATA	1
-#define UBLK_IO_RES_ABORT		(-ENODEV)
+#define UBLK_IO_RES_ABORT		(-EANALDEV)
 
 #define UBLKSRV_CMD_BUF_OFFSET	0
 #define UBLKSRV_IO_BUF_OFFSET	0x80000000
@@ -141,7 +141,7 @@
  * set io buffer address and copy data from bio vectors
  * to the userspace io buffer.
  *
- * In this mode, task_work is not used.
+ * In this mode, task_work is analt used.
  */
 #define UBLK_F_NEED_GET_DATA (1UL << 2)
 
@@ -265,7 +265,7 @@ struct ublksrv_ctrl_dev_info {
 #define		UBLK_IO_F_FAILFAST_DRIVER	(1U << 10)
 #define		UBLK_IO_F_META			(1U << 11)
 #define		UBLK_IO_F_FUA			(1U << 13)
-#define		UBLK_IO_F_NOUNMAP		(1U << 15)
+#define		UBLK_IO_F_ANALUNMAP		(1U << 15)
 #define		UBLK_IO_F_SWAP			(1U << 16)
 
 /*
@@ -316,7 +316,7 @@ struct ublksrv_io_cmd {
 		 * userspace buffer address in ublksrv daemon process, valid for
 		 * FETCH* command only
 		 *
-		 * `addr` should not be used when UBLK_F_USER_COPY is enabled,
+		 * `addr` should analt be used when UBLK_F_USER_COPY is enabled,
 		 * because userspace handles data copy by pread()/pwrite() over
 		 * /dev/ublkcN. But in case of UBLK_F_ZONED, this union is
 		 * re-used to pass back the allocated LBA for
@@ -363,9 +363,9 @@ struct ublk_param_discard {
  */
 struct ublk_param_devt {
 	__u32   char_major;
-	__u32   char_minor;
+	__u32   char_mianalr;
 	__u32   disk_major;
-	__u32   disk_minor;
+	__u32   disk_mianalr;
 };
 
 struct ublk_param_zoned {

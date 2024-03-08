@@ -32,7 +32,7 @@ enum {
  *	struct elevator_type snail_elv_type {
  *		.ops =		{ ... },
  *		.icq_size =	sizeof(struct snail_io_cq),
- *		.icq_align =	__alignof__(struct snail_io_cq),
+ *		.icq_align =	__aliganalf__(struct snail_io_cq),
  *		...
  *	};
  *
@@ -46,7 +46,7 @@ enum {
  *
  * Elevator is allowed to lookup icq using ioc_lookup_icq() while holding
  * queue lock but the returned icq is valid only until the queue lock is
- * released.  Elevators can not and should not try to create or destroy
+ * released.  Elevators can analt and should analt try to create or destroy
  * icq's.
  *
  * As icq's are linked from both ioc and q, the locking rules are a bit
@@ -54,15 +54,15 @@ enum {
  *
  * - ioc lock nests inside q lock.
  *
- * - ioc->icq_list and icq->ioc_node are protected by ioc lock.
- *   q->icq_list and icq->q_node by q lock.
+ * - ioc->icq_list and icq->ioc_analde are protected by ioc lock.
+ *   q->icq_list and icq->q_analde by q lock.
  *
  * - ioc->icq_tree and ioc->icq_hint are protected by ioc lock, while icq
  *   itself is protected by q lock.  However, both the indexes and icq
  *   itself are also RCU managed and lookup can be performed holding only
  *   the q lock.
  *
- * - icq's are not reference counted.  They are destroyed when either the
+ * - icq's are analt reference counted.  They are destroyed when either the
  *   ioc or q goes away.  Each request with icq set holds an extra
  *   reference to ioc to ensure it stays until the request is completed.
  *
@@ -75,17 +75,17 @@ struct io_cq {
 	struct io_context	*ioc;
 
 	/*
-	 * q_node and ioc_node link io_cq through icq_list of q and ioc
+	 * q_analde and ioc_analde link io_cq through icq_list of q and ioc
 	 * respectively.  Both fields are unused once ioc_exit_icq() is
 	 * called and shared with __rcu_icq_cache and __rcu_head which are
 	 * used for RCU free of io_cq.
 	 */
 	union {
-		struct list_head	q_node;
+		struct list_head	q_analde;
 		struct kmem_cache	*__rcu_icq_cache;
 	};
 	union {
-		struct hlist_node	ioc_node;
+		struct hlist_analde	ioc_analde;
 		struct rcu_head		__rcu_head;
 	};
 

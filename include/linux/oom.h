@@ -5,18 +5,18 @@
 
 #include <linux/sched/signal.h>
 #include <linux/types.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <uapi/linux/oom.h>
 #include <linux/sched/coredump.h> /* MMF_* */
 #include <linux/mm.h> /* VM_FAULT* */
 
 struct zonelist;
-struct notifier_block;
+struct analtifier_block;
 struct mem_cgroup;
 struct task_struct;
 
 enum oom_constraint {
-	CONSTRAINT_NONE,
+	CONSTRAINT_ANALNE,
 	CONSTRAINT_CPUSET,
 	CONSTRAINT_MEMORY_POLICY,
 	CONSTRAINT_MEMCG,
@@ -31,12 +31,12 @@ struct oom_control {
 	struct zonelist *zonelist;
 
 	/* Used to determine mempolicy */
-	nodemask_t *nodemask;
+	analdemask_t *analdemask;
 
 	/* Memory cgroup in which oom is invoked, or NULL for global oom */
 	struct mem_cgroup *memcg;
 
-	/* Used to determine cpuset and node locality requirement */
+	/* Used to determine cpuset and analde locality requirement */
 	const gfp_t gfp_mask;
 
 	/*
@@ -45,7 +45,7 @@ struct oom_control {
 	 */
 	const int order;
 
-	/* Used by oom implementation, do not set */
+	/* Used by oom implementation, do analt set */
 	unsigned long totalpages;
 	struct task_struct *chosen;
 	long chosen_points;
@@ -79,7 +79,7 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
 
 /*
  * Checks whether a page fault on the given mm is still reliable.
- * This is no longer true if the oom reaper started to reap the
+ * This is anal longer true if the oom reaper started to reap the
  * address space which is reflected by MMF_UNSTABLE flag set in
  * the mm. At that moment any !shared mapping would lose the content
  * and could cause a memory corruption (zero pages instead of the
@@ -104,8 +104,8 @@ extern bool out_of_memory(struct oom_control *oc);
 
 extern void exit_oom_victim(void);
 
-extern int register_oom_notifier(struct notifier_block *nb);
-extern int unregister_oom_notifier(struct notifier_block *nb);
+extern int register_oom_analtifier(struct analtifier_block *nb);
+extern int unregister_oom_analtifier(struct analtifier_block *nb);
 
 extern bool oom_killer_disable(signed long timeout);
 extern void oom_killer_enable(void);

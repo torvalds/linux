@@ -18,7 +18,7 @@ struct nlm_host;
 struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
-struct nfs4_minor_version_ops;
+struct nfs4_mianalr_version_ops;
 struct nfs41_server_scope;
 struct nfs41_impl_id;
 
@@ -36,16 +36,16 @@ struct nfs_client {
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
 #define NFS_CS_RENEWD		3		/* - renewd started */
-#define NFS_CS_STOP_RENEW	4		/* no more state to renew */
+#define NFS_CS_STOP_RENEW	4		/* anal more state to renew */
 #define NFS_CS_CHECK_LEASE_TIME	5		/* need to check lease time */
 	unsigned long		cl_flags;	/* behavior switches */
-#define NFS_CS_NORESVPORT	0		/* - use ephemeral src port */
+#define NFS_CS_ANALRESVPORT	0		/* - use ephemeral src port */
 #define NFS_CS_DISCRTRY		1		/* - disconnect on RPC retry */
 #define NFS_CS_MIGRATION	2		/* - transparent state migr */
 #define NFS_CS_INFINITE_SLOTS	3		/* - don't limit TCP slots */
-#define NFS_CS_NO_RETRANS_TIMEOUT	4	/* - Disable retransmit timeouts */
+#define NFS_CS_ANAL_RETRANS_TIMEOUT	4	/* - Disable retransmit timeouts */
 #define NFS_CS_TSM_POSSIBLE	5		/* - Maybe state migration */
-#define NFS_CS_NOPING		6		/* - don't ping on connect */
+#define NFS_CS_ANALPING		6		/* - don't ping on connect */
 #define NFS_CS_DS		7		/* - Server is a DS */
 #define NFS_CS_REUSEPORT	8		/* - reuse src port on reconnect */
 #define NFS_CS_PNFS		9		/* - Server used for pnfs */
@@ -61,7 +61,7 @@ struct nfs_client {
 	int			cl_proto;	/* Network transport protocol */
 	struct nfs_subversion *	cl_nfs_mod;	/* pointer to nfs version module */
 
-	u32			cl_minorversion;/* NFSv4 minorversion */
+	u32			cl_mianalrversion;/* NFSv4 mianalrversion */
 	unsigned int		cl_nconnect;	/* Number of connections */
 	unsigned int		cl_max_connect; /* max number of xprts allowed */
 	const char *		cl_principal;	/* used for machine cred */
@@ -88,7 +88,7 @@ struct nfs_client {
 	const char *		cl_owner_id;
 
 	u32			cl_cb_ident;	/* v4.0 callback identifier */
-	const struct nfs4_minor_version_ops *cl_mvops;
+	const struct nfs4_mianalr_version_ops *cl_mvops;
 	unsigned long		cl_mig_gen;
 
 	/* NFSv4.0 transport blocking */
@@ -108,7 +108,7 @@ struct nfs_client {
 #define NFS_SP4_MACH_CRED_MINIMAL  1	/* Minimal sp4_mach_cred - state ops
 					 * must use machine cred */
 #define NFS_SP4_MACH_CRED_CLEANUP  2	/* CLOSE and LOCKU */
-#define NFS_SP4_MACH_CRED_SECINFO  3	/* SECINFO and SECINFO_NO_NAME */
+#define NFS_SP4_MACH_CRED_SECINFO  3	/* SECINFO and SECINFO_ANAL_NAME */
 #define NFS_SP4_MACH_CRED_STATEID  4	/* TEST_STATEID and FREE_STATEID */
 #define NFS_SP4_MACH_CRED_WRITE    5	/* WRITE */
 #define NFS_SP4_MACH_CRED_COMMIT   6	/* COMMIT */
@@ -145,9 +145,9 @@ struct nfs_server {
 	unsigned int		flags;		/* various flags */
 
 /* The following are for internal use only. Also see uapi/linux/nfs_mount.h */
-#define NFS_MOUNT_LOOKUP_CACHE_NONEG	0x10000
-#define NFS_MOUNT_LOOKUP_CACHE_NONE	0x20000
-#define NFS_MOUNT_NORESVPORT		0x40000
+#define NFS_MOUNT_LOOKUP_CACHE_ANALNEG	0x10000
+#define NFS_MOUNT_LOOKUP_CACHE_ANALNE	0x20000
+#define NFS_MOUNT_ANALRESVPORT		0x40000
 #define NFS_MOUNT_LEGACY_INTERFACE	0x80000
 #define NFS_MOUNT_LOCAL_FLOCK		0x100000
 #define NFS_MOUNT_LOCAL_FCNTL		0x200000
@@ -233,7 +233,7 @@ struct nfs_server {
 	/* the following fields are protected by nfs_client->cl_lock */
 	struct rb_root		state_owners;
 #endif
-	struct ida		openowner_id;
+	struct ida		opeanalwner_id;
 	struct ida		lockowner_id;
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
@@ -279,7 +279,7 @@ struct nfs_server {
 #define NFS_CAP_CASE_INSENSITIVE	(1U << 6)
 #define NFS_CAP_CASE_PRESERVING	(1U << 7)
 #define NFS_CAP_POSIX_LOCK	(1U << 14)
-#define NFS_CAP_UIDGID_NOMAP	(1U << 15)
+#define NFS_CAP_UIDGID_ANALMAP	(1U << 15)
 #define NFS_CAP_STATEID_NFSV41	(1U << 16)
 #define NFS_CAP_ATOMIC_OPEN_V1	(1U << 17)
 #define NFS_CAP_SECURITY_LABEL	(1U << 18)
@@ -291,7 +291,7 @@ struct nfs_server {
 #define NFS_CAP_COPY		(1U << 24)
 #define NFS_CAP_OFFLOAD_CANCEL	(1U << 25)
 #define NFS_CAP_LAYOUTERROR	(1U << 26)
-#define NFS_CAP_COPY_NOTIFY	(1U << 27)
+#define NFS_CAP_COPY_ANALTIFY	(1U << 27)
 #define NFS_CAP_XATTR		(1U << 28)
 #define NFS_CAP_READ_PLUS	(1U << 29)
 #define NFS_CAP_FS_LOCATIONS	(1U << 30)

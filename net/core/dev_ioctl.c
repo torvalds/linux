@@ -32,7 +32,7 @@ static int dev_ifname(struct net *net, struct ifreq *ifr)
 
 /*
  *	Perform a SIOCGIFCONF call. This structure will change
- *	size eventually, and there is nothing I can do about it.
+ *	size eventually, and there is analthing I can do about it.
  *	Thus we will need a 'compatibility mode'.
  */
 int dev_ifconf(struct net *net, struct ifconf __user *uifc)
@@ -114,7 +114,7 @@ static int dev_setifmap(struct net_device *dev, struct ifreq *ifr)
 	struct compat_ifmap *cifmap = (struct compat_ifmap *)&ifr->ifr_map;
 
 	if (!dev->netdev_ops->ndo_set_config)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (in_compat_syscall()) {
 		struct ifmap ifmap = {
@@ -141,7 +141,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 	struct net_device *dev = dev_get_by_name_rcu(net, ifr->ifr_name);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case SIOCGIFFLAGS:	/* Get interface flags */
@@ -177,7 +177,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 		 * is never reached
 		 */
 		WARN_ON(1);
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 
 	}
@@ -205,12 +205,12 @@ static int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
 		tx_type_valid = 1;
 		break;
 	case __HWTSTAMP_TX_CNT:
-		/* not a real value */
+		/* analt a real value */
 		break;
 	}
 
 	switch (rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -229,7 +229,7 @@ static int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
 		rx_filter_valid = 1;
 		break;
 	case __HWTSTAMP_FILTER_CNT:
-		/* not a real value */
+		/* analt a real value */
 		break;
 	}
 
@@ -245,10 +245,10 @@ static int dev_eth_ioctl(struct net_device *dev,
 	const struct net_device_ops *ops = dev->netdev_ops;
 
 	if (!ops->ndo_eth_ioctl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ops->ndo_eth_ioctl(dev, ifr, cmd);
 }
@@ -263,9 +263,9 @@ static int dev_eth_ioctl(struct net_device *dev,
  * should take precedence in front of hardware timestamping provided by the
  * netdev.
  *
- * Note: phy_mii_ioctl() only handles SIOCSHWTSTAMP (not SIOCGHWTSTAMP), and
+ * Analte: phy_mii_ioctl() only handles SIOCSHWTSTAMP (analt SIOCGHWTSTAMP), and
  * there only exists a phydev->mii_ts->hwtstamp() method. So this will return
- * -EOPNOTSUPP for phylib for now, which is still more accurate than letting
+ * -EOPANALTSUPP for phylib for analw, which is still more accurate than letting
  * the netdev handle the GET request.
  */
 static int dev_get_hwtstamp_phylib(struct net_device *dev,
@@ -288,7 +288,7 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 		return dev_eth_ioctl(dev, ifr, SIOCGHWTSTAMP); /* legacy */
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	kernel_cfg.ifr = ifr;
 	err = dev_get_hwtstamp_phylib(dev, &kernel_cfg);
@@ -319,7 +319,7 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
  * should take precedence in front of hardware timestamping provided by the
  * netdev. If the netdev driver needs to perform specific actions even for PHY
  * timestamping to work properly (a switch port must trap the timestamped
- * frames and not forward them), it must set IFF_SEE_ALL_HWTSTAMP_REQUESTS in
+ * frames and analt forward them), it must set IFF_SEE_ALL_HWTSTAMP_REQUESTS in
  * dev->priv_flags.
  */
 int dev_set_hwtstamp_phylib(struct net_device *dev,
@@ -394,7 +394,7 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 		return dev_eth_ioctl(dev, ifr, SIOCSHWTSTAMP); /* legacy */
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = dev_set_hwtstamp_phylib(dev, &kernel_cfg, &extack);
 	if (err)
@@ -438,7 +438,7 @@ int generic_hwtstamp_get_lower(struct net_device *dev,
 	const struct net_device_ops *ops = dev->netdev_ops;
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ops->ndo_hwtstamp_get)
 		return dev_get_hwtstamp_phylib(dev, kernel_cfg);
@@ -455,7 +455,7 @@ int generic_hwtstamp_set_lower(struct net_device *dev,
 	const struct net_device_ops *ops = dev->netdev_ops;
 
 	if (!netif_device_present(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ops->ndo_hwtstamp_set)
 		return dev_set_hwtstamp_phylib(dev, kernel_cfg, extack);
@@ -474,10 +474,10 @@ static int dev_siocbond(struct net_device *dev,
 		if (netif_device_present(dev))
 			return ops->ndo_siocbond(dev, ifr, cmd);
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dev_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
@@ -489,10 +489,10 @@ static int dev_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		if (netif_device_present(dev))
 			return ops->ndo_siocdevprivate(dev, ifr, data, cmd);
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dev_siocwandev(struct net_device *dev, struct if_settings *ifs)
@@ -503,10 +503,10 @@ static int dev_siocwandev(struct net_device *dev, struct if_settings *ifs)
 		if (netif_device_present(dev))
 			return ops->ndo_siocwandev(dev, ifs);
 		else
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -521,7 +521,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 	netdevice_tracker dev_tracker;
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ops = dev->netdev_ops;
 
@@ -531,7 +531,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 
 	case SIOCSIFMETRIC:	/* Set the metric on the interface
 				   (currently unused) */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	case SIOCSIFMTU:	/* Set the MTU of a device */
 		return dev_set_mtu(dev, ifr->ifr_mtu);
@@ -547,7 +547,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
 		       min(sizeof(ifr->ifr_hwaddr.sa_data_min),
 			   (size_t)dev->addr_len));
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_analtifiers(NETDEV_CHANGEADDR, dev);
 		return 0;
 
 	case SIOCSIFMAP:
@@ -558,7 +558,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		    ifr->ifr_hwaddr.sa_family != AF_UNSPEC)
 			return -EINVAL;
 		if (!netif_device_present(dev))
-			return -ENODEV;
+			return -EANALDEV;
 		return dev_mc_add_global(dev, ifr->ifr_hwaddr.sa_data);
 
 	case SIOCDELMULTI:
@@ -566,7 +566,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		    ifr->ifr_hwaddr.sa_family != AF_UNSPEC)
 			return -EINVAL;
 		if (!netif_device_present(dev))
-			return -ENODEV;
+			return -EANALDEV;
 		return dev_mc_del_global(dev, ifr->ifr_hwaddr.sa_data);
 
 	case SIOCSIFTXQLEN:
@@ -584,9 +584,9 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 	case SIOCBRADDIF:
 	case SIOCBRDELIF:
 		if (!netif_device_present(dev))
-			return -ENODEV;
+			return -EANALDEV;
 		if (!netif_is_bridge_master(dev))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		netdev_hold(dev, &dev_tracker, GFP_KERNEL);
 		rtnl_unlock();
 		err = br_ioctl_call(net, netdev_priv(dev), cmd, ifr, NULL);
@@ -616,7 +616,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 	case SIOCBONDCHANGEACTIVE:
 		return dev_siocbond(dev, ifr, cmd);
 
-	/* Unknown ioctl */
+	/* Unkanalwn ioctl */
 	default:
 		err = -EINVAL;
 	}
@@ -628,24 +628,24 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
  *	@net: the applicable net namespace
  *	@name: name of interface
  *
- *	If a network interface is not present and the process has suitable
- *	privileges this function loads the module. If module loading is not
- *	available in this kernel then it becomes a nop.
+ *	If a network interface is analt present and the process has suitable
+ *	privileges this function loads the module. If module loading is analt
+ *	available in this kernel then it becomes a analp.
  */
 
 void dev_load(struct net *net, const char *name)
 {
 	struct net_device *dev;
-	int no_module;
+	int anal_module;
 
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(net, name);
 	rcu_read_unlock();
 
-	no_module = !dev;
-	if (no_module && capable(CAP_NET_ADMIN))
-		no_module = request_module("netdev-%s", name);
-	if (no_module && capable(CAP_SYS_MODULE))
+	anal_module = !dev;
+	if (anal_module && capable(CAP_NET_ADMIN))
+		anal_module = request_module("netdev-%s", name);
+	if (anal_module && capable(CAP_SYS_MODULE))
 		request_module("%s", name);
 }
 EXPORT_SYMBOL(dev_load);
@@ -661,12 +661,12 @@ EXPORT_SYMBOL(dev_load);
  *	@cmd: command to issue
  *	@ifr: pointer to a struct ifreq in user space
  *	@data: data exchanged with userspace
- *	@need_copyout: whether or not copy_to_user() should be called
+ *	@need_copyout: whether or analt copy_to_user() should be called
  *
- *	Issue ioctl functions to devices. This is normally called by the
+ *	Issue ioctl functions to devices. This is analrmally called by the
  *	user space syscall interfaces but can sometimes be useful for
  *	other purposes. The return value is the return from the syscall if
- *	positive or a negative errno code on error.
+ *	positive or a negative erranal code on error.
  */
 
 int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
@@ -700,7 +700,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 	/*
 	 *	These ioctl calls:
 	 *	- can be done by all.
-	 *	- atomic and do not require locking.
+	 *	- atomic and do analt require locking.
 	 *	- return a value
 	 */
 	case SIOCGIFFLAGS:
@@ -748,7 +748,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 	 *	These ioctl calls:
 	 *	- require superuser power.
 	 *	- require strict serialization.
-	 *	- do not return a value
+	 *	- do analt return a value
 	 */
 	case SIOCSIFMAP:
 	case SIOCSIFTXQLEN:
@@ -759,7 +759,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 	 *	These ioctl calls:
 	 *	- require local superuser power.
 	 *	- require strict serialization.
-	 *	- do not return a value
+	 *	- do analt return a value
 	 */
 	case SIOCSIFFLAGS:
 	case SIOCSIFMETRIC:
@@ -792,15 +792,15 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 
 	case SIOCGIFMEM:
 		/* Get the per device memory space. We can add this but
-		 * currently do not support it */
+		 * currently do analt support it */
 	case SIOCSIFMEM:
 		/* Set the per device memory buffer space.
-		 * Not applicable in our case */
+		 * Analt applicable in our case */
 	case SIOCSIFLINK:
-		return -ENOTTY;
+		return -EANALTTY;
 
 	/*
-	 *	Unknown or private ioctl.
+	 *	Unkanalwn or private ioctl.
 	 */
 	default:
 		if (cmd == SIOCWANDEV ||
@@ -813,6 +813,6 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 			rtnl_unlock();
 			return ret;
 		}
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }

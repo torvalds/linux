@@ -20,7 +20,7 @@
 
 /* Command values */
 #define AICA_CMD_KICK 0x80000000
-#define AICA_CMD_NONE 0
+#define AICA_CMD_ANALNE 0
 #define AICA_CMD_START 1
 #define AICA_CMD_STOP 2
 #define AICA_CMD_VOL 3

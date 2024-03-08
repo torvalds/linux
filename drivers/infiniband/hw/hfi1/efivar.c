@@ -20,7 +20,7 @@
  * data.  It is guaranteed that *return_data will be NULL and *size = 0
  * if this routine fails.
  *
- * Return 0 on success, -errno on failure.
+ * Return 0 on success, -erranal on failure.
  */
 static int read_efi_var(const char *name, unsigned long *size,
 			void **return_data)
@@ -39,13 +39,13 @@ static int read_efi_var(const char *name, unsigned long *size,
 	*return_data = NULL;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	uni_name = kcalloc(strlen(name) + 1, sizeof(efi_char16_t), GFP_KERNEL);
 	temp_buffer = kzalloc(EFI_DATA_SIZE, GFP_KERNEL);
 
 	if (!uni_name || !temp_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -69,25 +69,25 @@ static int read_efi_var(const char *name, unsigned long *size,
 
 	/*
 	 * It would be nice to call efi_status_to_err() here, but that
-	 * is in the EFIVAR_FS code and may not be compiled in.
-	 * However, even that is insufficient since it does not cover
+	 * is in the EFIVAR_FS code and may analt be compiled in.
+	 * However, even that is insufficient since it does analt cover
 	 * EFI_BUFFER_TOO_SMALL which could be an important return.
-	 * For now, just split out success or not found.
+	 * For analw, just split out success or analt found.
 	 */
 	ret = status == EFI_SUCCESS   ? 0 :
-	      status == EFI_NOT_FOUND ? -ENOENT :
+	      status == EFI_ANALT_FOUND ? -EANALENT :
 					-EINVAL;
 	if (ret)
 		goto fail;
 
 	/*
 	 * We have successfully read the EFI variable into our
-	 * temporary buffer.  Now allocate a correctly sized
+	 * temporary buffer.  Analw allocate a correctly sized
 	 * buffer.
 	 */
 	data = kmemdup(temp_buffer, temp_size, GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
@@ -106,7 +106,7 @@ fail:
  *	<PCIe address>-<kind>
  * Return an kalloc'ed array and size of the data.
  *
- * Returns 0 on success, -errno on failure.
+ * Returns 0 on success, -erranal on failure.
  */
 int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
 		      unsigned long *size, void **return_data)

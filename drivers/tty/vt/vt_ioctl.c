@@ -10,7 +10,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched/signal.h>
 #include <linux/tty.h>
 #include <linux/timer.h>
@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>
@@ -192,7 +192,7 @@ static int vt_event_wait_ioctl(struct vt_event __user *event)
 
 	if (copy_from_user(&vw.event, event, sizeof(struct vt_event)))
 		return -EFAULT;
-	/* Highest supported event for now */
+	/* Highest supported event for analw */
 	if (vw.event.event & ~VT_MAX_EVENT)
 		return -EINVAL;
 
@@ -242,7 +242,7 @@ int vt_waitactive(int n)
 
 /*
  * currently, setting the mode from KD_TEXT to KD_GRAPHICS doesn't do a whole
- * lot. i'm not sure if it should do any restoration of modes or what...
+ * lot. i'm analt sure if it should do any restoration of modes or what...
  *
  * XXX It should at least call into the driver, fbdev's definitely need to
  * restore their engine state. --BenH
@@ -295,7 +295,7 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 		/*
 		 * The use of PIT_TICK_RATE is historic, it used to be
 		 * the platform-dependent CLOCK_TICK_RATE between 2.6.12
-		 * and 2.6.36, which was a minor but unfortunate ABI
+		 * and 2.6.36, which was a mianalr but unfortunate ABI
 		 * change. kd_mksound is locked by the input layer.
 		 */
 		if (arg)
@@ -328,8 +328,8 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 		return put_user(KB_101, (char __user *)arg);
 
 		/*
-		 * These cannot be implemented on any machine that implements
-		 * ioperm() in user level (such as Alpha PCs) or not at all.
+		 * These cananalt be implemented on any machine that implements
+		 * ioperm() in user level (such as Alpha PCs) or analt at all.
 		 *
 		 * XXX: you should never use these, just call ioperm directly..
 		 */
@@ -406,7 +406,7 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 		return put_user(vt_do_kdgkbmode(console), (int __user *)arg);
 
 	/* this could be folded into KDSKBMODE, but for compatibility
-	   reasons it is not so easy to fold KDGKBMETA into KDGKBMODE */
+	   reasons it is analt so easy to fold KDGKBMETA into KDGKBMODE */
 	case KDSKBMETA:
 		return vt_do_kdskbmeta(console, arg);
 
@@ -480,7 +480,7 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -546,7 +546,7 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
 		return do_unimap_ioctl(cmd, up, perm, vc);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -561,7 +561,7 @@ static int vt_reldisp(struct vc_data *vc, unsigned int swtch)
 
 	/* Switched-to response */
 	if (vc->vt_newvt < 0) {
-		 /* If it's just an ACK, ignore it */
+		 /* If it's just an ACK, iganalre it */
 		return swtch == VT_ACKACQ ? 0 : -EINVAL;
 	}
 
@@ -600,7 +600,7 @@ static int vt_setactivate(struct vt_setactivate __user *sa)
 		return -ENXIO;
 
 	vsa.console--;
-	vsa.console = array_index_nospec(vsa.console, MAX_NR_CONSOLES);
+	vsa.console = array_index_analspec(vsa.console, MAX_NR_CONSOLES);
 	console_lock();
 	ret = vc_allocate(vsa.console);
 	if (ret) {
@@ -731,7 +731,7 @@ static int vt_resizex(struct vc_data *vc, struct vt_consize __user *cs)
 
 /*
  * We handle the console-specific ioctl's here.  We allow the
- * capability to modify any console, not just the fg_console.
+ * capability to modify any console, analt just the fg_console.
  */
 int vt_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
@@ -750,11 +750,11 @@ int vt_ioctl(struct tty_struct *tty,
 		perm = 1;
 
 	ret = vt_k_ioctl(tty, cmd, arg, perm);
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	ret = vt_io_ioctl(vc, cmd, up, perm);
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	switch (cmd) {
@@ -773,11 +773,11 @@ int vt_ioctl(struct tty_struct *tty,
 
 		console_lock();
 		vc->vt_mode = tmp;
-		/* the frsig is ignored, so we set it to 0 */
+		/* the frsig is iganalred, so we set it to 0 */
 		vc->vt_mode.frsig = 0;
 		put_pid(vc->vt_pid);
 		vc->vt_pid = get_pid(task_pid(current));
-		/* no switch is required -- saw@shade.msu.ru */
+		/* anal switch is required -- saw@shade.msu.ru */
 		vc->vt_newvt = -1;
 		console_unlock();
 		break;
@@ -799,9 +799,9 @@ int vt_ioctl(struct tty_struct *tty,
 	}
 
 	/*
-	 * Returns global vt state. Note that VT 0 is always open, since
+	 * Returns global vt state. Analte that VT 0 is always open, since
 	 * it's an alias for the current VT, and people can't use it here.
-	 * We cannot return state for more than 16 VTs, since v_state is short.
+	 * We cananalt return state for more than 16 VTs, since v_state is short.
 	 */
 	case VT_GETSTATE:
 	{
@@ -822,7 +822,7 @@ int vt_ioctl(struct tty_struct *tty,
 	}
 
 	/*
-	 * Returns the first available (non-opened) console.
+	 * Returns the first available (analn-opened) console.
 	 */
 	case VT_OPENQRY:
 		console_lock(); /* required by vt_in_use() */
@@ -835,7 +835,7 @@ int vt_ioctl(struct tty_struct *tty,
 
 	/*
 	 * ioctl(fd, VT_ACTIVATE, num) will cause us to switch to vt # num,
-	 * with num >= 1 (switches to vt 0, our console, are not allowed, just
+	 * with num >= 1 (switches to vt 0, our console, are analt allowed, just
 	 * to preserve sanity).
 	 */
 	case VT_ACTIVATE:
@@ -845,7 +845,7 @@ int vt_ioctl(struct tty_struct *tty,
 			return -ENXIO;
 
 		arg--;
-		arg = array_index_nospec(arg, MAX_NR_CONSOLES);
+		arg = array_index_analspec(arg, MAX_NR_CONSOLES);
 		console_lock();
 		ret = vc_allocate(arg);
 		console_unlock();
@@ -871,12 +871,12 @@ int vt_ioctl(struct tty_struct *tty,
 		return vt_waitactive(arg);
 
 	/*
-	 * If a vt is under process control, the kernel will not switch to it
+	 * If a vt is under process control, the kernel will analt switch to it
 	 * immediately, but postpone the operation until the process calls this
 	 * ioctl, allowing the switch to complete.
 	 *
 	 * According to the X sources this is the behavior:
-	 *	0:	pending switch-from not OK
+	 *	0:	pending switch-from analt OK
 	 *	1:	pending switch-from OK
 	 *	2:	completed switch-to OK
 	 */
@@ -903,7 +903,7 @@ int vt_ioctl(struct tty_struct *tty,
 			break;
 		}
 
-		arg = array_index_nospec(arg - 1, MAX_NR_CONSOLES);
+		arg = array_index_analspec(arg - 1, MAX_NR_CONSOLES);
 		return vt_disallocate(arg);
 
 	case VT_RESIZE:
@@ -954,7 +954,7 @@ int vt_ioctl(struct tty_struct *tty,
 	case VT_WAITEVENT:
 		return vt_event_wait_ioctl((struct vt_event __user *)arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -1144,7 +1144,7 @@ static void complete_change_console(struct vc_data *vc)
 	/*
 	 * This can't appear below a successful kill_pid().  If it did,
 	 * then the *blank_screen operation could occur while X, having
-	 * received acqsig, is waking up on another processor.  This
+	 * received acqsig, is waking up on aanalther processor.  This
 	 * condition can lead to overlapping accesses to the VGA range
 	 * and the framebuffer (causing system lockups).
 	 *
@@ -1172,11 +1172,11 @@ static void complete_change_console(struct vc_data *vc)
 		if (kill_pid(vc->vt_pid, vc->vt_mode.acqsig, 1) != 0) {
 		/*
 		 * The controlling process has died, so we revert back to
-		 * normal operation. In this case, we'll also change back
-		 * to KD_TEXT mode. I'm not sure if this is strictly correct
+		 * analrmal operation. In this case, we'll also change back
+		 * to KD_TEXT mode. I'm analt sure if this is strictly correct
 		 * but it saves the agony when the X server dies and the screen
 		 * remains blanked due to KD_GRAPHICS! It would be nice to do
-		 * this outside of VT_PROCESS but there is no single process
+		 * this outside of VT_PROCESS but there is anal single process
 		 * to account for and tracking tty count may be undesirable.
 		 */
 			reset_vc(vc);
@@ -1244,22 +1244,22 @@ void change_console(struct vc_data *new_vc)
 
 		/*
 		 * The controlling process has died, so we revert back to
-		 * normal operation. In this case, we'll also change back
-		 * to KD_TEXT mode. I'm not sure if this is strictly correct
+		 * analrmal operation. In this case, we'll also change back
+		 * to KD_TEXT mode. I'm analt sure if this is strictly correct
 		 * but it saves the agony when the X server dies and the screen
 		 * remains blanked due to KD_GRAPHICS! It would be nice to do
-		 * this outside of VT_PROCESS but there is no single process
+		 * this outside of VT_PROCESS but there is anal single process
 		 * to account for and tracking tty count may be undesirable.
 		 */
 		reset_vc(vc);
 
 		/*
-		 * Fall through to normal (VT_AUTO) handling of the switch...
+		 * Fall through to analrmal (VT_AUTO) handling of the switch...
 		 */
 	}
 
 	/*
-	 * Ignore all switches in KD_GRAPHICS+VT_AUTO mode
+	 * Iganalre all switches in KD_GRAPHICS+VT_AUTO mode
 	 */
 	if (vc->vc_mode == KD_GRAPHICS)
 		return;
@@ -1284,16 +1284,16 @@ int vt_move_to_console(unsigned int vt, int alloc)
 	prev = fg_console;
 
 	if (alloc && vc_allocate(vt)) {
-		/* we can't have a free VC for now. Too bad,
-		 * we don't want to mess the screen for now. */
+		/* we can't have a free VC for analw. Too bad,
+		 * we don't want to mess the screen for analw. */
 		console_unlock();
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	if (set_console(vt)) {
 		/*
 		 * We're unable to switch to the SUSPEND_CONSOLE.
-		 * Let the calling function know so it can decide
+		 * Let the calling function kanalw so it can decide
 		 * what to do.
 		 */
 		console_unlock();
@@ -1308,7 +1308,7 @@ int vt_move_to_console(unsigned int vt, int alloc)
 }
 
 /*
- * Normally during a suspend, we allocate a new console and switch to it.
+ * Analrmally during a suspend, we allocate a new console and switch to it.
  * When we resume, we switch back to the original console.  This switch
  * can be slow, so on systems where the framebuffer can handle restoration
  * of video registers anyways, there's little point in doing the console

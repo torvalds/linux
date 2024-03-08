@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -56,7 +56,7 @@ enum di_pins {
 };
 
 enum di_sync_wave {
-	DI_SYNC_NONE = 0,
+	DI_SYNC_ANALNE = 0,
 	DI_SYNC_CLK = 1,
 	DI_SYNC_INT_HSYNC = 2,
 	DI_SYNC_HSYNC = 3,
@@ -262,7 +262,7 @@ static void ipu_di_sync_config_interlaced(struct ipu_di *di,
 	ipu_di_write(di, v_total / 2 - 1, DI_SCR_CONF);
 }
 
-static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
+static void ipu_di_sync_config_analninterlaced(struct ipu_di *di,
 		struct ipu_di_signal_cfg *sig, int div)
 {
 	u32 h_total = sig->mode.hactive + sig->mode.hsync_len +
@@ -414,7 +414,7 @@ static void ipu_di_config_clock(struct ipu_di *di,
 			/*
 			 * We can use the divider.  We should really have
 			 * a flag here indicating whether the bridge can
-			 * cope with a fractional divider or not.  For the
+			 * cope with a fractional divider or analt.  For the
 			 * time being, let's go for simplicitly and
 			 * reliability.
 			 */
@@ -509,7 +509,7 @@ int ipu_di_adjust_videomode(struct ipu_di *di, struct videomode *mode)
 
 	if (!IS_ALIGNED(mode->hactive, 8) &&
 	    mode->hfront_porch < ALIGN(mode->hactive, 8) - mode->hactive) {
-		dev_err(di->ipu->dev, "hactive %d is not aligned to 8 and front porch is too small to compensate\n",
+		dev_err(di->ipu->dev, "hactive %d is analt aligned to 8 and front porch is too small to compensate\n",
 			mode->hactive);
 		return -EINVAL;
 	}
@@ -577,7 +577,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	ipu_di_config_clock(di, sig);
 
 	div = ipu_di_read(di, DI_BS_CLKGEN0) & 0xfff;
-	div = div / 16;		/* Now divider is integer portion */
+	div = div / 16;		/* Analw divider is integer portion */
 
 	/* Setup pixel clock timing */
 	/* Down time is half of period */
@@ -597,7 +597,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 		vsync_cnt = 3;
 	} else {
-		ipu_di_sync_config_noninterlaced(di, sig, div);
+		ipu_di_sync_config_analninterlaced(di, sig, div);
 
 		vsync_cnt = 3;
 		if (di->id == 1)
@@ -715,11 +715,11 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	struct ipu_di *di;
 
 	if (id > 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	di = devm_kzalloc(dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu->di_priv[id] = di;
 
@@ -732,7 +732,7 @@ int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 	di->clk_ipu = clk_ipu;
 	di->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!di->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipu_di_write(di, 0x10, DI_BS_CLKGEN0);
 

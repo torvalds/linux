@@ -6,7 +6,7 @@
 #define _ENA_REGS_H_
 
 enum ena_regs_reset_reason_types {
-	ENA_REGS_RESET_NORMAL                       = 0,
+	ENA_REGS_RESET_ANALRMAL                       = 0,
 	ENA_REGS_RESET_KEEP_ALIVE_TO                = 1,
 	ENA_REGS_RESET_ADMIN_TO                     = 2,
 	ENA_REGS_RESET_MISS_TX_CMPL                 = 3,
@@ -52,14 +52,14 @@ enum ena_regs_reset_reason_types {
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_OFF                   0x68
 
 /* version register */
-#define ENA_REGS_VERSION_MINOR_VERSION_MASK                 0xff
+#define ENA_REGS_VERSION_MIANALR_VERSION_MASK                 0xff
 #define ENA_REGS_VERSION_MAJOR_VERSION_SHIFT                8
 #define ENA_REGS_VERSION_MAJOR_VERSION_MASK                 0xff00
 
 /* controller_version register */
-#define ENA_REGS_CONTROLLER_VERSION_SUBMINOR_VERSION_MASK   0xff
-#define ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_SHIFT     8
-#define ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK      0xff00
+#define ENA_REGS_CONTROLLER_VERSION_SUBMIANALR_VERSION_MASK   0xff
+#define ENA_REGS_CONTROLLER_VERSION_MIANALR_VERSION_SHIFT     8
+#define ENA_REGS_CONTROLLER_VERSION_MIANALR_VERSION_MASK      0xff00
 #define ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT     16
 #define ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK      0xff0000
 #define ENA_REGS_CONTROLLER_VERSION_IMPL_ID_SHIFT           24

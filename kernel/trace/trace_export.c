@@ -32,7 +32,7 @@ static int ftrace_event_register(struct trace_event_call *call,
 #define FTRACE_ENTRY_REG(name, struct_name, id, tstruct, print, regfn) \
 	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print))
 
-/* not needed for this file */
+/* analt needed for this file */
 #undef __field_struct
 #define __field_struct(type, item)
 
@@ -88,7 +88,7 @@ static void __always_unused ____ftrace_check_##name(void)		\
 #undef __field_ext
 #define __field_ext(_type, _item, _filter_type) {			\
 	.type = #_type, .name = #_item,					\
-	.size = sizeof(_type), .align = __alignof__(_type),		\
+	.size = sizeof(_type), .align = __aliganalf__(_type),		\
 	is_signed_type(_type), .filter_type = _filter_type },
 
 
@@ -113,7 +113,7 @@ static void __always_unused ____ftrace_check_##name(void)		\
 #undef __array
 #define __array(_type, _item, _len) {					\
 	.type = #_type"["__stringify(_len)"]", .name = #_item,		\
-	.size = sizeof(_type[_len]), .align = __alignof__(_type),	\
+	.size = sizeof(_type[_len]), .align = __aliganalf__(_type),	\
 	is_signed_type(_type), .filter_type = FILTER_OTHER,			\
 	.len = _len },
 
@@ -126,7 +126,7 @@ static void __always_unused ____ftrace_check_##name(void)		\
 #undef __dynamic_array
 #define __dynamic_array(_type, _item) {					\
 	.type = #_type "[]", .name = #_item,				\
-	.size = 0, .align = __alignof__(_type),				\
+	.size = 0, .align = __aliganalf__(_type),				\
 	is_signed_type(_type), .filter_type = FILTER_OTHER },
 
 #undef FTRACE_ENTRY
@@ -183,7 +183,7 @@ struct trace_event_call __used event_##call = {				\
 	},								\
 	.event.type		= etype,				\
 	.print_fmt		= print,				\
-	.flags			= TRACE_EVENT_FL_IGNORE_ENABLE,		\
+	.flags			= TRACE_EVENT_FL_IGANALRE_ENABLE,		\
 };									\
 static struct trace_event_call __used						\
 __section("_ftrace_events") *__event_##call = &event_##call;

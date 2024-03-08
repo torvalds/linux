@@ -2,8 +2,8 @@
  * An implementation of key value pair (KVP) functionality for Linux.
  *
  *
- * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Copyright (C) 2010, Analvell, Inc.
+ * Author : K. Y. Srinivasan <ksrinivasan@analvell.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -12,11 +12,11 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <arpa/inet.h>
 #include <linux/hyperv.h>
 #include <ifaddrs.h>
@@ -63,7 +63,7 @@ enum key_index {
 	OSBuildNumber,
 	OSName,
 	OSMajorVersion,
-	OSMinorVersion,
+	OSMianalrVersion,
 	OSVersion,
 	ProcessorArchitecture
 };
@@ -80,11 +80,11 @@ static int in_hand_shake;
 
 static char *os_name = "";
 static char *os_major = "";
-static char *os_minor = "";
+static char *os_mianalr = "";
 static char *processor_arch;
 static char *os_build;
 static char *os_version;
-static char *lic_version = "Unknown version";
+static char *lic_version = "Unkanalwn version";
 static char full_domain_name[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
 static struct utsname uts_buf;
 
@@ -125,7 +125,7 @@ static void kvp_acquire_lock(int pool)
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLKW, &fl) == -1) {
 		syslog(LOG_ERR, "Failed to acquire the lock pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erranal, strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -137,7 +137,7 @@ static void kvp_release_lock(int pool)
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLK, &fl) == -1) {
 		syslog(LOG_ERR, "Failed to release the lock pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erranal, strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -155,7 +155,7 @@ static void kvp_update_file(int pool)
 	filep = fopen(kvp_file_info[pool].fname, "we");
 	if (!filep) {
 		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erranal, strerror(erranal));
 		kvp_release_lock(pool);
 		exit(EXIT_FAILURE);
 	}
@@ -186,7 +186,7 @@ static void kvp_update_mem_state(int pool)
 	filep = fopen(kvp_file_info[pool].fname, "re");
 	if (!filep) {
 		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erranal, strerror(erranal));
 		kvp_release_lock(pool);
 		exit(EXIT_FAILURE);
 	}
@@ -199,7 +199,7 @@ static void kvp_update_mem_state(int pool)
 		if (ferror(filep)) {
 			syslog(LOG_ERR,
 				"Failed to read file, pool: %d; error: %d %s",
-				 pool, errno, strerror(errno));
+				 pool, erranal, strerror(erranal));
 			kvp_release_lock(pool);
 			exit(EXIT_FAILURE);
 		}
@@ -239,7 +239,7 @@ static int kvp_file_init(void)
 	if (access(KVP_CONFIG_LOC, F_OK)) {
 		if (mkdir(KVP_CONFIG_LOC, 0755 /* rwxr-xr-x */)) {
 			syslog(LOG_ERR, "Failed to create '%s'; error: %d %s", KVP_CONFIG_LOC,
-					errno, strerror(errno));
+					erranal, strerror(erranal));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -444,7 +444,7 @@ void kvp_get_os_info(void)
 		while (fgets(buf, sizeof(buf), file)) {
 			char *value, *q;
 
-			/* Ignore comments */
+			/* Iganalre comments */
 			if (buf[0] == '#')
 				continue;
 
@@ -532,7 +532,7 @@ kvp_osinfo_found:
 					*p = '\0';
 				p = strdup(buf);
 				if (p)
-					os_minor = p;
+					os_mianalr = p;
 			}
 		}
 	}
@@ -547,7 +547,7 @@ done:
 /*
  * Retrieve an interface name corresponding to the specified guid.
  * If there is a match, the function returns a pointer
- * to the interface name and if not, a NULL is returned.
+ * to the interface name and if analt, a NULL is returned.
  * If a match is found, the caller is responsible for
  * freeing the memory.
  */
@@ -701,7 +701,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 
 	/*
 	 * Gather the DNS state.
-	 * Since there is no standard way to get this information
+	 * Since there is anal standard way to get this information
 	 * across various distributions of interest; we just invoke
 	 * an external script that needs to be ported across distros
 	 * of interest.
@@ -854,7 +854,7 @@ kvp_get_ip_info(int family, char *if_name, int op,
 		/*
 		 * We only support two address families: AF_INET and AF_INET6.
 		 * If a family value of 0 is specified, we collect both
-		 * supported address families; if not we gather info on
+		 * supported address families; if analt we gather info on
 		 * the specified address family.
 		 */
 		if ((((family != 0) &&
@@ -1052,7 +1052,7 @@ static int parse_ip_val_buffer(char *in_buf, int *offset,
 
 	/*
 	 * in_buf has sequence of characters that are separated by
-	 * the character ';'. The last sequence does not have the
+	 * the character ';'. The last sequence does analt have the
 	 * terminating ";" character.
 	 */
 	start = in_buf + *offset;
@@ -1249,7 +1249,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	/*
 	 * Set the configuration for the specified interface with
-	 * the information provided. Since there is no standard
+	 * the information provided. Since there is anal standard
 	 * way to configure an interface, we will have an external
 	 * script that does the job of configuring the interface and
 	 * flushing the configuration.
@@ -1262,14 +1262,14 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 *
 	 * The information provided here may be more than what is needed
 	 * in a given distro to configure the interface and so are free
-	 * ignore information that may not be relevant.
+	 * iganalre information that may analt be relevant.
 	 *
 	 * Here is the ifcfg format of the ip configuration file:
 	 *
 	 * HWADDR=macaddr
 	 * DEVICE=interface name
 	 * BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
-	 *                       or "none" if no boot-time protocol should be used)
+	 *                       or "analne" if anal boot-time protocol should be used)
 	 *
 	 * IPADDR0=ipaddr1
 	 * IPADDR1=ipaddr2
@@ -1296,7 +1296,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 *
 	 * [ipv4]
 	 * method=<protocol> (where <protocol> is "auto" if DHCP is configured
-	 *                       or "manual" if no boot-time protocol should be used)
+	 *                       or "manual" if anal boot-time protocol should be used)
 	 *
 	 * address1=ipaddr1/plen
 	 * address2=ipaddr2/plen
@@ -1330,7 +1330,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (!ifcfg_file) {
 		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		return HV_E_FAIL;
 	}
 
@@ -1341,7 +1341,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (!nmfile) {
 		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		fclose(ifcfg_file);
 		return HV_E_FAIL;
 	}
@@ -1397,7 +1397,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 		if (error)
 			goto setval_error;
 	} else {
-		error = kvp_write_file(ifcfg_file, "BOOTPROTO", "", "none");
+		error = kvp_write_file(ifcfg_file, "BOOTPROTO", "", "analne");
 		if (error)
 			goto setval_error;
 	}
@@ -1433,7 +1433,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	}
 
 	/*
-	 * Now we populate the keyfile format
+	 * Analw we populate the keyfile format
 	 */
 
 	if (new_val->dhcp_enabled) {
@@ -1455,7 +1455,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error < 0)
 		goto setval_error;
 
-	/* we do not want ipv4 addresses in ipv6 section and vice versa */
+	/* we do analt want ipv4 addresses in ipv6 section and vice versa */
 	if (is_ipv6 != is_ipv4((char *)new_val->gate_way)) {
 		error = fprintf(nmfile, "gateway=%s\n", (char *)new_val->gate_way);
 		if (error < 0)
@@ -1471,7 +1471,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	fclose(ifcfg_file);
 
 	/*
-	 * Now that we have populated the configuration file,
+	 * Analw that we have populated the configuration file,
 	 * invoke the external script to do its magic.
 	 */
 
@@ -1489,7 +1489,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (system(cmd)) {
 		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
-		       cmd, errno, strerror(errno));
+		       cmd, erranal, strerror(erranal));
 		return HV_E_FAIL;
 	}
 	return 0;
@@ -1513,7 +1513,7 @@ kvp_get_domain_name(char *buffer, int length)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET; /*Get only ipv4 addrinfo. */
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_CANONNAME;
+	hints.ai_flags = AI_CAANALNNAME;
 
 	error = getaddrinfo(buffer, NULL, &hints, &info);
 	if (error != 0) {
@@ -1521,7 +1521,7 @@ kvp_get_domain_name(char *buffer, int length)
 			error, gai_strerror(error));
 		return;
 	}
-	snprintf(buffer, length, "%s", info->ai_canonname);
+	snprintf(buffer, length, "%s", info->ai_caanalnname);
 	freeaddrinfo(info);
 }
 
@@ -1529,7 +1529,7 @@ void print_usage(char *argv[])
 {
 	fprintf(stderr, "Usage: %s [options]\n"
 		"Options are:\n"
-		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -n, --anal-daemon        stay in foreground, don't daemonize\n"
 		"  -h, --help             print this help\n", argv[0]);
 }
 
@@ -1549,8 +1549,8 @@ int main(int argc, char *argv[])
 	int daemonize = 1, long_index = 0, opt;
 
 	static struct option long_options[] = {
-		{"help",	no_argument,	   0,  'h' },
-		{"no-daemon",	no_argument,	   0,  'n' },
+		{"help",	anal_argument,	   0,  'h' },
+		{"anal-daemon",	anal_argument,	   0,  'n' },
 		{0,		0,		   0,  0   }
 	};
 
@@ -1598,7 +1598,7 @@ reopen_kvp_fd:
 
 	if (kvp_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_kvp failed; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		exit(EXIT_FAILURE);
 	}
 
@@ -1609,7 +1609,7 @@ reopen_kvp_fd:
 	len = write(kvp_fd, hv_msg, sizeof(struct hv_kvp_msg));
 	if (len != sizeof(struct hv_kvp_msg)) {
 		syslog(LOG_ERR, "registration to kernel failed; error: %d %s",
-		       errno, strerror(errno));
+		       erranal, strerror(erranal));
 		close(kvp_fd);
 		exit(EXIT_FAILURE);
 	}
@@ -1621,8 +1621,8 @@ reopen_kvp_fd:
 		pfd.revents = 0;
 
 		if (poll(&pfd, 1, -1) < 0) {
-			syslog(LOG_ERR, "poll failed; error: %d %s", errno, strerror(errno));
-			if (errno == EINVAL) {
+			syslog(LOG_ERR, "poll failed; error: %d %s", erranal, strerror(erranal));
+			if (erranal == EINVAL) {
 				close(kvp_fd);
 				exit(EXIT_FAILURE);
 			}
@@ -1634,7 +1634,7 @@ reopen_kvp_fd:
 
 		if (len != sizeof(struct hv_kvp_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
-			       errno, strerror(errno));
+			       erranal, strerror(erranal));
 			goto reopen_kvp_fd;
 		}
 
@@ -1682,10 +1682,10 @@ reopen_kvp_fd:
 					(char *)kvp_ip_val->adapter_id);
 			if (if_name == NULL) {
 				/*
-				 * We could not map the guid to an
+				 * We could analt map the guid to an
 				 * interface name; return error.
 				 */
-				hv_msg->error = HV_GUID_NOTFOUND;
+				hv_msg->error = HV_GUID_ANALTFOUND;
 				break;
 			}
 			error = kvp_set_ip_info(if_name, kvp_ip_val);
@@ -1729,7 +1729,7 @@ reopen_kvp_fd:
 
 		/*
 		 * If the pool is KVP_POOL_AUTO, dynamically generate
-		 * both the key and the value; if not read from the
+		 * both the key and the value; if analt read from the
 		 * appropriate pool.
 		 */
 		if (pool != KVP_POOL_AUTO) {
@@ -1777,9 +1777,9 @@ reopen_kvp_fd:
 			strcpy(key_value, os_major);
 			strcpy(key_name, "OSMajorVersion");
 			break;
-		case OSMinorVersion:
-			strcpy(key_value, os_minor);
-			strcpy(key_name, "OSMinorVersion");
+		case OSMianalrVersion:
+			strcpy(key_value, os_mianalr);
+			strcpy(key_name, "OSMianalrVersion");
 			break;
 		case OSVersion:
 			strcpy(key_value, os_version);
@@ -1795,15 +1795,15 @@ reopen_kvp_fd:
 		}
 
 		/*
-		 * Send the value back to the kernel. Note: the write() may
-		 * return an error due to hibernation; we can ignore the error
+		 * Send the value back to the kernel. Analte: the write() may
+		 * return an error due to hibernation; we can iganalre the error
 		 * by resetting the dev file, i.e. closing and re-opening it.
 		 */
 kvp_done:
 		len = write(kvp_fd, hv_msg, sizeof(struct hv_kvp_msg));
 		if (len != sizeof(struct hv_kvp_msg)) {
-			syslog(LOG_ERR, "write failed; error: %d %s", errno,
-			       strerror(errno));
+			syslog(LOG_ERR, "write failed; error: %d %s", erranal,
+			       strerror(erranal));
 			goto reopen_kvp_fd;
 		}
 	}

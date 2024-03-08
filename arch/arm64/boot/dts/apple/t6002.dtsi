@@ -233,7 +233,7 @@
 		ranges = <0x2 0x0 0x2 0x0 0x4 0x0>,
 			 <0x5 0x80000000 0x5 0x80000000 0x1 0x80000000>,
 			 <0x7 0x0 0x7 0x0 0xf 0x80000000>;
-		nonposted-mmio;
+		analnposted-mmio;
 
 		// filled via templated includes at the end of the file
 	};
@@ -244,14 +244,14 @@
 		#size-cells = <2>;
 		ranges = <0x2 0x0 0x22 0x0 0x4 0x0>,
 			 <0x7 0x0 0x27 0x0 0xf 0x80000000>;
-		nonposted-mmio;
+		analnposted-mmio;
 
 		// filled via templated includes at the end of the file
 	};
 };
 
 #define DIE
-#define DIE_NO 0
+#define DIE_ANAL 0
 
 &die0 {
 	#include "t600x-die0.dtsi"
@@ -262,10 +262,10 @@
 #include "t600x-gpio-pins.dtsi"
 
 #undef DIE
-#undef DIE_NO
+#undef DIE_ANAL
 
 #define DIE _die1
-#define DIE_NO 1
+#define DIE_ANAL 1
 
 &die1 {
 	#include "t600x-dieX.dtsi"
@@ -275,7 +275,7 @@
 #include "t600x-pmgr.dtsi"
 
 #undef DIE
-#undef DIE_NO
+#undef DIE_ANAL
 
 &aic {
 	affinities {

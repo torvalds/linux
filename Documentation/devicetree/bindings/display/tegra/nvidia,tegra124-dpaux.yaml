@@ -20,7 +20,7 @@ description: |
   AUX channel.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^dpaux@[0-9a-f]+$"
 
   compatible:
@@ -63,9 +63,9 @@ properties:
     maxItems: 1
 
   i2c-bus:
-    description: Subnode where I2C slave devices are listed. This
-      subnode must be always present. If there are no I2C slave
-      devices, an empty node should be added. See ../../i2c/i2c.yaml
+    description: Subanalde where I2C slave devices are listed. This
+      subanalde must be always present. If there are anal I2C slave
+      devices, an empty analde should be added. See ../../i2c/i2c.yaml
       for more information.
     type: object
 
@@ -80,9 +80,9 @@ patternProperties:
   "^pinmux-[a-z0-9]+$":
     description:
       Since only three configurations are possible, only three child
-      nodes are needed to describe the pin mux'ing options for the
+      analdes are needed to describe the pin mux'ing options for the
       DPAUX pads. Furthermore, given that the pad functions are only
-      applicable to a single set of pads, the child nodes only need
+      applicable to a single set of pads, the child analdes only need
       to describe the pad group the functions are being applied to
       rather than the individual pads.
     type: object

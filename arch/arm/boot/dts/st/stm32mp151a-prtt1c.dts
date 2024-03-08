@@ -157,10 +157,10 @@
 	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_a>;
 	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_a>;
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_a>;
-	non-removable;
-	no-sd;
-	no-sdio;
-	no-1-8-v;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
+	anal-1-8-v;
 	st,neg-edge;
 	bus-width = <8>;
 	vmmc-supply = <&reg_3v3>;
@@ -221,8 +221,8 @@
 	pinctrl-0 = <&sdmmc3_b4_pins_b>;
 	pinctrl-1 = <&sdmmc3_b4_od_pins_b>;
 	pinctrl-2 = <&sdmmc3_b4_sleep_pins_b>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	st,neg-edge;
 	bus-width = <4>;
 	vmmc-supply = <&reg_3v3>;

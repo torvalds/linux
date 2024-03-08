@@ -119,12 +119,12 @@ static void __init zfcp_init_device_setup(char *devstr)
 
 err_out:
 	kfree(str_saved);
-	pr_err("%s is not a valid SCSI device\n", devstr);
+	pr_err("%s is analt a valid SCSI device\n", devstr);
 }
 
 static int __init zfcp_module_init(void)
 {
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	if (zfcp_experimental_dix)
 		pr_warn("DIX is enabled. It is experimental and might cause problems\n");
@@ -148,7 +148,7 @@ static int __init zfcp_module_init(void)
 
 	retval = ccw_driver_register(&zfcp_ccw_driver);
 	if (retval) {
-		pr_err("The zfcp device driver could not register with "
+		pr_err("The zfcp device driver could analt register with "
 		       "the common I/O layer\n");
 		goto out_ccw_register;
 	}
@@ -209,44 +209,44 @@ static int zfcp_allocate_low_mem_buffers(struct zfcp_adapter *adapter)
 	adapter->pool.erp_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.erp_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.gid_pn_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.gid_pn_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.scsi_req =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.scsi_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.scsi_abort =
 		mempool_create_kmalloc_pool(1, sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.scsi_abort)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.status_read_req =
 		mempool_create_kmalloc_pool(FSF_STATUS_READS_RECOM,
 					    sizeof(struct zfcp_fsf_req));
 	if (!adapter->pool.status_read_req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.qtcb_pool =
 		mempool_create_slab_pool(4, zfcp_fsf_qtcb_cache);
 	if (!adapter->pool.qtcb_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUILD_BUG_ON(sizeof(struct fsf_status_read_buffer) > PAGE_SIZE);
 	adapter->pool.sr_data =
 		mempool_create_page_pool(FSF_STATUS_READS_RECOM, 0);
 	if (!adapter->pool.sr_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adapter->pool.gid_pn =
 		mempool_create_slab_pool(1, zfcp_fc_req_cache);
 	if (!adapter->pool.gid_pn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -268,7 +268,7 @@ static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
  *
  * Return:
  * * 0 on success meaning at least one status read is pending
- * * 1 if posting failed and not a single status read buffer is pending,
+ * * 1 if posting failed and analt a single status read buffer is pending,
  *     also triggers adapter reopen recovery
  */
 int zfcp_status_read_refill(struct zfcp_adapter *adapter)
@@ -320,7 +320,7 @@ static int zfcp_setup_adapter_work_queue(struct zfcp_adapter *adapter)
 
 	if (adapter->work_queue)
 		return 0;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void zfcp_destroy_adapter_work_queue(struct zfcp_adapter *adapter)
@@ -345,12 +345,12 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 
 	if (!get_device(&ccw_device->dev))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	adapter = kzalloc(sizeof(struct zfcp_adapter), GFP_KERNEL);
 	if (!adapter) {
 		put_device(&ccw_device->dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	kref_init(&adapter->ref);
@@ -440,7 +440,7 @@ failed:
 	zfcp_qdio_destroy(adapter->qdio);
 
 	zfcp_ccw_adapter_put(adapter); /* final put to release */
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 void zfcp_adapter_unregister(struct zfcp_adapter *adapter)
@@ -503,14 +503,14 @@ static void zfcp_port_release(struct device *dev)
  * Returns: pointer to enqueued port on success, ERR_PTR on error
  *
  * All port internal structures are set up and the sysfs entry is generated.
- * d_id is used to enqueue ports with a well known address like the Directory
+ * d_id is used to enqueue ports with a well kanalwn address like the Directory
  * Service for nameserver lookup.
  */
 struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 				     u32 status, u32 d_id)
 {
 	struct zfcp_port *port;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	kref_get(&adapter->ref);
 
@@ -536,7 +536,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	port->adapter = adapter;
 	port->d_id = d_id;
 	port->wwpn = wwpn;
-	port->rport_task = RPORT_NONE;
+	port->rport_task = RPORT_ANALNE;
 	port->dev.parent = &adapter->ccw_device->dev;
 	port->dev.groups = zfcp_port_attr_groups;
 	port->dev.release = zfcp_port_release;

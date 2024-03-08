@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The ADC on iMX93 is a 8-channel 12-bit 1MS/s ADC with 4 channels
-  connected to pins. it support normal and inject mode, include
+  connected to pins. it support analrmal and inject mode, include
   One-Shot and Scan (continuous) conversions. Programmable DMA
   enables for each channel  Also this ADC contain alternate analog
   watchdog thresholds, select threshold through input ports. And
@@ -28,7 +28,7 @@ properties:
     items:
       - description: WDGnL, watchdog threshold interrupt requests.
       - description: WDGnH, watchdog threshold interrupt requests.
-      - description: normal conversion, include EOC (End of Conversion),
+      - description: analrmal conversion, include EOC (End of Conversion),
           ECH (End of Chain), JEOC (End of Injected Conversion) and
           JECH (End of injected Chain).
       - description: Self-testing Interrupts.

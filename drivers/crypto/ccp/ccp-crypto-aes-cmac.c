@@ -101,7 +101,7 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 
 	sg_init_one(&rctx->iv_sg, rctx->iv, sizeof(rctx->iv));
 
-	/* Build the data scatterlist table - allocate enough entries for all
+	/* Build the data scatterlist table - allocate eanalugh entries for all
 	 * possible data pieces (buffer, input data, padding)
 	 */
 	sg_count = (nbytes) ? sg_nents(req->src) + 2 : 2;
@@ -230,7 +230,7 @@ static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
 	state.buf_count = rctx->buf_count;
 	memcpy(state.buf, rctx->buf, sizeof(state.buf));
 
-	/* 'out' may not be aligned so memcpy from local variable */
+	/* 'out' may analt be aligned so memcpy from local variable */
 	memcpy(out, &state, sizeof(state));
 
 	return 0;
@@ -241,7 +241,7 @@ static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
 	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx_dma(req);
 	struct ccp_aes_cmac_exp_ctx state;
 
-	/* 'in' may not be aligned so memcpy to local variable */
+	/* 'in' may analt be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
 
 	memset(rctx, 0, sizeof(*rctx));
@@ -356,7 +356,7 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 
 	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
 	if (!ccp_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 	ccp_alg->mode = CCP_AES_MODE_CMAC;

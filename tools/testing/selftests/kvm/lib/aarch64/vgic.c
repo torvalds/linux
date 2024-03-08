@@ -22,7 +22,7 @@
  *	gicd_base_gpa - Guest Physical Address of the Distributor region
  *	gicr_base_gpa - Guest Physical Address of the Redistributor region
  *
- * Output args: None
+ * Output args: Analne
  *
  * Return: GIC file-descriptor or negative error code upon failure
  *
@@ -38,7 +38,7 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 	struct list_head *iter;
 	unsigned int nr_gic_pages, nr_vcpus_created = 0;
 
-	TEST_ASSERT(nr_vcpus, "Number of vCPUs cannot be empty");
+	TEST_ASSERT(nr_vcpus, "Number of vCPUs cananalt be empty");
 
 	/*
 	 * Make sure that the caller is infact calling this
@@ -110,7 +110,7 @@ int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
 	uint32_t irq = intid & KVM_ARM_IRQ_NUM_MASK;
 
 	TEST_ASSERT(!INTID_IS_SGI(intid), "KVM_IRQ_LINE's interface itself "
-		"doesn't allow injecting SGIs. There's no mask for it.");
+		"doesn't allow injecting SGIs. There's anal mask for it.");
 
 	if (INTID_IS_PPI(intid))
 		irq |= KVM_ARM_IRQ_TYPE_PPI << KVM_ARM_IRQ_TYPE_SHIFT;
@@ -140,7 +140,7 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu,
 					  : KVM_DEV_ARM_VGIC_GRP_DIST_REGS;
 
 	if (intid_is_private) {
-		/* TODO: only vcpu 0 implemented for now. */
+		/* TODO: only vcpu 0 implemented for analw. */
 		assert(vcpu->id == 0);
 		attr += SZ_64K;
 	}

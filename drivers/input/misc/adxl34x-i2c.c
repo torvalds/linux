@@ -82,7 +82,7 @@ static int adxl34x_i2c_probe(struct i2c_client *client)
 	error = i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA);
 	if (!error) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data analt Supported\n");
 		return -EIO;
 	}
 
@@ -115,12 +115,12 @@ MODULE_DEVICE_TABLE(i2c, adxl34x_id);
 static const struct of_device_id adxl34x_of_id[] = {
 	/*
 	 * The ADXL346 is backward-compatible with the ADXL345. Differences are
-	 * handled by runtime detection of the device model, there's thus no
+	 * handled by runtime detection of the device model, there's thus anal
 	 * need for listing the "adi,adxl346" compatible value explicitly.
 	 */
 	{ .compatible = "adi,adxl345", },
 	/*
-	 * Deprecated, DT nodes should use one or more of the device-specific
+	 * Deprecated, DT analdes should use one or more of the device-specific
 	 * compatible values "adi,adxl345" and "adi,adxl346".
 	 */
 	{ .compatible = "adi,adxl34x", },

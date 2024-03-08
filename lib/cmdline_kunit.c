@@ -51,7 +51,7 @@ static void cmdline_do_one_test(struct kunit *test, const char *in, int rc, int 
 	KUNIT_EXPECT_PTR_EQ_MSG(test, out, in + offset, fmt, in);
 }
 
-static void cmdline_test_noint(struct kunit *test)
+static void cmdline_test_analint(struct kunit *test)
 {
 	unsigned int i = 0;
 
@@ -96,7 +96,7 @@ static void cmdline_test_tail_int(struct kunit *test)
 
 		sprintf(in, "%s%u", str, get_random_u8());
 		/*
-		 * Only first and leading '-' not followed by integer
+		 * Only first and leading '-' analt followed by integer
 		 * will advance the pointer.
 		 */
 		offset = rc ? strlen(in) : !!(*str == '-');
@@ -140,7 +140,7 @@ static void cmdline_test_range(struct kunit *test)
 }
 
 static struct kunit_case cmdline_test_cases[] = {
-	KUNIT_CASE(cmdline_test_noint),
+	KUNIT_CASE(cmdline_test_analint),
 	KUNIT_CASE(cmdline_test_lead_int),
 	KUNIT_CASE(cmdline_test_tail_int),
 	KUNIT_CASE(cmdline_test_range),

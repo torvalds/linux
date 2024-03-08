@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Imagination Technologies Pulse Width Modulator driver
+ * Imagination Techanallogies Pulse Width Modulator driver
  *
- * Copyright (c) 2014-2015, Imagination Technologies
+ * Copyright (c) 2014-2015, Imagination Techanallogies
  *
  * Based on drivers/pwm/pwm-tegra.c, Copyright (c) 2010, NVIDIA Corporation
  */
@@ -22,7 +22,7 @@
 
 /* PWM registers */
 #define PWM_CTRL_CFG				0x0000
-#define PWM_CTRL_CFG_NO_SUB_DIV			0
+#define PWM_CTRL_CFG_ANAL_SUB_DIV			0
 #define PWM_CTRL_CFG_SUB_DIV0			1
 #define PWM_CTRL_CFG_SUB_DIV1			2
 #define PWM_CTRL_CFG_SUB_DIV0_DIV1		3
@@ -99,7 +99,7 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (period_ns < imgchip->min_period_ns ||
 	    period_ns > imgchip->max_period_ns) {
-		dev_err(chip->dev, "configured period not in range\n");
+		dev_err(chip->dev, "configured period analt in range\n");
 		return -ERANGE;
 	}
 
@@ -108,7 +108,7 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	mul = DIV_ROUND_UP(input_clk_hz, output_clk_hz);
 	if (mul <= max_timebase) {
-		div = PWM_CTRL_CFG_NO_SUB_DIV;
+		div = PWM_CTRL_CFG_ANAL_SUB_DIV;
 		timebase = DIV_ROUND_UP(mul, 1);
 	} else if (mul <= max_timebase * 8) {
 		div = PWM_CTRL_CFG_SUB_DIV0;
@@ -186,7 +186,7 @@ static int img_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -240,13 +240,13 @@ static int img_pwm_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(imgchip->sys_clk);
 	if (ret < 0) {
-		dev_err(dev, "could not prepare or enable sys clock\n");
+		dev_err(dev, "could analt prepare or enable sys clock\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(imgchip->pwm_clk);
 	if (ret < 0) {
-		dev_err(dev, "could not prepare or enable pwm clock\n");
+		dev_err(dev, "could analt prepare or enable pwm clock\n");
 		clk_disable_unprepare(imgchip->sys_clk);
 		return ret;
 	}
@@ -263,7 +263,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 
 	imgchip = devm_kzalloc(&pdev->dev, sizeof(*imgchip), GFP_KERNEL);
 	if (!imgchip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imgchip->dev = &pdev->dev;
 
@@ -273,7 +273,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 
 	imgchip->data = device_get_match_data(&pdev->dev);
 
-	imgchip->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	imgchip->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 							       "img,cr-periph");
 	if (IS_ERR(imgchip->periph_regs))
 		return PTR_ERR(imgchip->periph_regs);
@@ -303,7 +303,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 
 	clk_rate = clk_get_rate(imgchip->pwm_clk);
 	if (!clk_rate) {
-		dev_err(&pdev->dev, "imgchip clock has no frequency\n");
+		dev_err(&pdev->dev, "imgchip clock has anal frequency\n");
 		ret = -EINVAL;
 		goto err_suspend;
 	}
@@ -421,5 +421,5 @@ static struct platform_driver img_pwm_driver = {
 module_platform_driver(img_pwm_driver);
 
 MODULE_AUTHOR("Sai Masarapu <Sai.Masarapu@imgtec.com>");
-MODULE_DESCRIPTION("Imagination Technologies PWM DAC driver");
+MODULE_DESCRIPTION("Imagination Techanallogies PWM DAC driver");
 MODULE_LICENSE("GPL v2");

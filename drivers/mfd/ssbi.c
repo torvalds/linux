@@ -5,7 +5,7 @@
  * Original authors: Code Aurora Forum
  *
  * Author: Dima Zavin <dima@android.com>
- *  - Largely rewritten from original to not be an i2c driver.
+ *  - Largely rewritten from original to analt be an i2c driver.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -261,13 +261,13 @@ EXPORT_SYMBOL_GPL(ssbi_write);
 
 static int ssbi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ssbi *ssbi;
 	const char *type;
 
 	ssbi = devm_kzalloc(&pdev->dev, sizeof(*ssbi), GFP_KERNEL);
 	if (!ssbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ssbi->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(ssbi->base))
@@ -288,7 +288,7 @@ static int ssbi_probe(struct platform_device *pdev)
 	else if (strcmp(type, "pmic-arbiter") == 0)
 		ssbi->controller_type = MSM_SBI_CTRL_PMIC_ARBITER;
 	else {
-		dev_err(&pdev->dev, "Unknown qcom,controller-type\n");
+		dev_err(&pdev->dev, "Unkanalwn qcom,controller-type\n");
 		return -EINVAL;
 	}
 

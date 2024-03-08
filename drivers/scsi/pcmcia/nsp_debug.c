@@ -11,24 +11,24 @@
 /*
  * Show the command data of a command
  */
-static const char unknown[] = "UNKNOWN";
+static const char unkanalwn[] = "UNKANALWN";
 
 static const char * group_0_commands[] = {
-/* 00-03 */ "Test Unit Ready", "Rezero Unit", unknown, "Request Sense",
-/* 04-07 */ "Format Unit", "Read Block Limits", unknown, "Reassign Blocks",
-/* 08-0d */ "Read (6)", unknown, "Write (6)", "Seek (6)", unknown, unknown,
-/* 0e-12 */ unknown, "Read Reverse", "Write Filemarks", "Space", "Inquiry",  
-/* 13-16 */ unknown, "Recover Buffered Data", "Mode Select", "Reserve",
+/* 00-03 */ "Test Unit Ready", "Rezero Unit", unkanalwn, "Request Sense",
+/* 04-07 */ "Format Unit", "Read Block Limits", unkanalwn, "Reassign Blocks",
+/* 08-0d */ "Read (6)", unkanalwn, "Write (6)", "Seek (6)", unkanalwn, unkanalwn,
+/* 0e-12 */ unkanalwn, "Read Reverse", "Write Filemarks", "Space", "Inquiry",  
+/* 13-16 */ unkanalwn, "Recover Buffered Data", "Mode Select", "Reserve",
 /* 17-1b */ "Release", "Copy", "Erase", "Mode Sense", "Start/Stop Unit",
-/* 1c-1d */ "Receive Diagnostic", "Send Diagnostic", 
-/* 1e-1f */ "Prevent/Allow Medium Removal", unknown,
+/* 1c-1d */ "Receive Diaganalstic", "Send Diaganalstic", 
+/* 1e-1f */ "Prevent/Allow Medium Removal", unkanalwn,
 };
 
 
 static const char *group_1_commands[] = {
-/* 20-22 */  unknown, unknown, unknown,
-/* 23-28 */ unknown, unknown, "Read Capacity", unknown, unknown, "Read (10)",
-/* 29-2d */ unknown, "Write (10)", "Seek (10)", unknown, unknown,
+/* 20-22 */  unkanalwn, unkanalwn, unkanalwn,
+/* 23-28 */ unkanalwn, unkanalwn, "Read Capacity", unkanalwn, unkanalwn, "Read (10)",
+/* 29-2d */ unkanalwn, "Write (10)", "Seek (10)", unkanalwn, unkanalwn,
 /* 2e-31 */ "Write Verify","Verify", "Search High", "Search Equal",
 /* 32-34 */ "Search Low", "Set Limits", "Prefetch or Read Position", 
 /* 35-37 */ "Synchronize Cache","Lock/Unlock Cache", "Read Defect Data",
@@ -39,23 +39,23 @@ static const char *group_1_commands[] = {
 
 static const char *group_2_commands[] = {
 /* 40-41 */ "Change Definition", "Write Same", 
-/* 42-48 */ "Read Sub-Ch(cd)", "Read TOC", "Read Header(cd)", "Play Audio(cd)", unknown, "Play Audio MSF(cd)", "Play Audio Track/Index(cd)", 
-/* 49-4f */ "Play Track Relative(10)(cd)", unknown, "Pause/Resume(cd)", "Log Select", "Log Sense", unknown, unknown,
-/* 50-55 */ unknown, unknown, unknown, unknown, unknown, "Mode Select (10)",
-/* 56-5b */ unknown, unknown, unknown, unknown, "Mode Sense (10)", unknown,
-/* 5c-5f */ unknown, unknown, unknown,
+/* 42-48 */ "Read Sub-Ch(cd)", "Read TOC", "Read Header(cd)", "Play Audio(cd)", unkanalwn, "Play Audio MSF(cd)", "Play Audio Track/Index(cd)", 
+/* 49-4f */ "Play Track Relative(10)(cd)", unkanalwn, "Pause/Resume(cd)", "Log Select", "Log Sense", unkanalwn, unkanalwn,
+/* 50-55 */ unkanalwn, unkanalwn, unkanalwn, unkanalwn, unkanalwn, "Mode Select (10)",
+/* 56-5b */ unkanalwn, unkanalwn, unkanalwn, unkanalwn, "Mode Sense (10)", unkanalwn,
+/* 5c-5f */ unkanalwn, unkanalwn, unkanalwn,
 };
 
 #define group(opcode) (((opcode) >> 5) & 7)
 
 #define RESERVED_GROUP  0
 #define VENDOR_GROUP    1
-#define NOTEXT_GROUP    2
+#define ANALTEXT_GROUP    2
 
 static const char **commands[] = {
     group_0_commands, group_1_commands, group_2_commands, 
     (const char **) RESERVED_GROUP, (const char **) RESERVED_GROUP, 
-    (const char **) NOTEXT_GROUP, (const char **) VENDOR_GROUP, 
+    (const char **) ANALTEXT_GROUP, (const char **) VENDOR_GROUP, 
     (const char **) VENDOR_GROUP
 };
 
@@ -70,17 +70,17 @@ static void print_opcodek(unsigned char opcode)
 	case RESERVED_GROUP:
 		printk("%s[%02x] ", reserved, opcode); 
 		break;
-	case NOTEXT_GROUP:
-		printk("%s(notext)[%02x] ", unknown, opcode); 
+	case ANALTEXT_GROUP:
+		printk("%s(analtext)[%02x] ", unkanalwn, opcode); 
 		break;
 	case VENDOR_GROUP:
 		printk("%s[%02x] ", vendor, opcode); 
 		break;
 	default:
-		if (table[opcode & 0x1f] != unknown)
+		if (table[opcode & 0x1f] != unkanalwn)
 			printk("%s[%02x] ", table[opcode & 0x1f], opcode);
 		else
-			printk("%s[%02x] ", unknown, opcode);
+			printk("%s[%02x] ", unkanalwn, opcode);
 		break;
 	}
 }
@@ -162,7 +162,7 @@ static void show_phase(struct scsi_cmnd *SCpnt)
 	};
 
 	if ( i < PH_UNDETERMINED || i > PH_RESELECT ) {
-		printk(KERN_DEBUG "scsi phase: unknown(%d)\n", i);
+		printk(KERN_DEBUG "scsi phase: unkanalwn(%d)\n", i);
 		return;
 	}
 

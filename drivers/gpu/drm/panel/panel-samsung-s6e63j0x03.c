@@ -225,7 +225,7 @@ static int s6e63j0x03_disable(struct drm_panel *panel)
 	if (ret < 0)
 		return ret;
 
-	ctx->bl_dev->props.power = FB_BLANK_NORMAL;
+	ctx->bl_dev->props.power = FB_BLANK_ANALRMAL;
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret < 0)
@@ -332,7 +332,7 @@ static int s6e63j0x03_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		goto err;
 
-	ctx->bl_dev->props.power = FB_BLANK_NORMAL;
+	ctx->bl_dev->props.power = FB_BLANK_ANALRMAL;
 
 	return 0;
 
@@ -408,7 +408,7 @@ static int s6e63j0x03_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
 			drm_mode_vrefresh(&default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -438,7 +438,7 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(struct s6e63j0x03), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -446,8 +446,8 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 1;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_NO_HFP |
-		MIPI_DSI_MODE_VIDEO_NO_HBP | MIPI_DSI_MODE_VIDEO_NO_HSA;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_ANAL_HFP |
+		MIPI_DSI_MODE_VIDEO_ANAL_HBP | MIPI_DSI_MODE_VIDEO_ANAL_HSA;
 
 	ctx->supplies[0].supply = "vdd3";
 	ctx->supplies[1].supply = "vci";
@@ -459,7 +459,7 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
-				     "cannot get reset-gpio\n");
+				     "cananalt get reset-gpio\n");
 
 	drm_panel_init(&ctx->panel, dev, &s6e63j0x03_funcs,
 		       DRM_MODE_CONNECTOR_DSI);

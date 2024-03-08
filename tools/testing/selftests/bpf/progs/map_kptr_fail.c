@@ -22,7 +22,7 @@ struct array_map {
 
 SEC("?tc")
 __failure __msg("kptr access size must be BPF_DW")
-int size_not_bpf_dw(struct __sk_buff *ctx)
+int size_analt_bpf_dw(struct __sk_buff *ctx)
 {
 	struct map_value *v;
 	int key = 0;
@@ -36,8 +36,8 @@ int size_not_bpf_dw(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("kptr access cannot have variable offset")
-int non_const_var_off(struct __sk_buff *ctx)
+__failure __msg("kptr access cananalt have variable offset")
+int analn_const_var_off(struct __sk_buff *ctx)
 {
 	struct map_value *v;
 	int key = 0, id;
@@ -56,7 +56,7 @@ int non_const_var_off(struct __sk_buff *ctx)
 
 SEC("?tc")
 __failure __msg("R1 doesn't have constant offset. kptr has to be")
-int non_const_var_off_kptr_xchg(struct __sk_buff *ctx)
+int analn_const_var_off_kptr_xchg(struct __sk_buff *ctx)
 {
 	struct map_value *v;
 	int key = 0, id;
@@ -310,7 +310,7 @@ int reject_member_of_ref_xchg(struct __sk_buff *ctx)
 }
 
 SEC("?syscall")
-__failure __msg("kptr cannot be accessed indirectly by helper")
+__failure __msg("kptr cananalt be accessed indirectly by helper")
 int reject_indirect_helper_access(struct __sk_buff *ctx)
 {
 	struct map_value *v;
@@ -324,14 +324,14 @@ int reject_indirect_helper_access(struct __sk_buff *ctx)
 	return 0;
 }
 
-__noinline
+__analinline
 int write_func(int *p)
 {
 	return p ? *p = 42 : 0;
 }
 
 SEC("?tc")
-__failure __msg("kptr cannot be accessed indirectly by helper")
+__failure __msg("kptr cananalt be accessed indirectly by helper")
 int reject_indirect_global_func_access(struct __sk_buff *ctx)
 {
 	struct map_value *v;

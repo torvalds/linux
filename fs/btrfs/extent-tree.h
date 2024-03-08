@@ -51,7 +51,7 @@ struct find_free_extent_ctl {
 	/*
 	 * Set to true if we're retrying the allocation on this block group
 	 * after waiting for caching progress, this is so that we retry only
-	 * once before moving on to another block group.
+	 * once before moving on to aanalther block group.
 	 */
 	bool retry_uncached;
 
@@ -61,7 +61,7 @@ struct find_free_extent_ctl {
 	/* Max contiguous hole found */
 	u64 max_extent_size;
 
-	/* Total free space from free space cache, not always contiguous */
+	/* Total free space from free space cache, analt always contiguous */
 	u64 total_free_space;
 
 	/* Found result */
@@ -73,7 +73,7 @@ struct find_free_extent_ctl {
 	/* Allocation policy */
 	enum btrfs_extent_allocation_policy policy;
 
-	/* Whether or not the allocator is currently following a hint */
+	/* Whether or analt the allocator is currently following a hint */
 	bool hinted;
 
 	/* Size class of block groups to prefer in early loops */
@@ -151,7 +151,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref,
 				     int for_reloc);
 int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
-			struct extent_buffer *node,
+			struct extent_buffer *analde,
 			struct extent_buffer *parent);
 
 #endif

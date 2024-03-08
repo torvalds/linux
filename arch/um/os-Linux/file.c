@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <linux/falloc.h>
@@ -26,7 +26,7 @@ static void copy_stat(struct uml_stat *dst, const struct stat64 *src)
 {
 	*dst = ((struct uml_stat) {
 		.ust_dev     = src->st_dev,     /* device */
-		.ust_ino     = src->st_ino,     /* inode */
+		.ust_ianal     = src->st_ianal,     /* ianalde */
 		.ust_mode    = src->st_mode,    /* protection */
 		.ust_nlink   = src->st_nlink,   /* number of hard links */
 		.ust_uid     = src->st_uid,     /* user ID of owner */
@@ -47,7 +47,7 @@ int os_stat_fd(const int fd, struct uml_stat *ubuf)
 
 	CATCH_EINTR(err = fstat64(fd, &sbuf));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	if (ubuf != NULL)
 		copy_stat(ubuf, &sbuf);
@@ -61,7 +61,7 @@ int os_stat_file(const char *file_name, struct uml_stat *ubuf)
 
 	CATCH_EINTR(err = stat64(file_name, &sbuf));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	if (ubuf != NULL)
 		copy_stat(ubuf, &sbuf);
@@ -79,7 +79,7 @@ int os_access(const char *file, int mode)
 
 	err = access(file, amode);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -91,16 +91,16 @@ int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg)
 
 	err = ioctl(fd, cmd, arg);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return err;
 }
 
-/* FIXME: ensure namebuf in os_get_if_name is big enough */
+/* FIXME: ensure namebuf in os_get_if_name is big eanalugh */
 int os_get_ifname(int fd, char* namebuf)
 {
 	if (ioctl(fd, SIOCGIFNAME, namebuf) < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -111,11 +111,11 @@ int os_set_slip(int fd)
 
 	disc = N_SLIP;
 	if (ioctl(fd, TIOCSETD, &disc) < 0)
-		return -errno;
+		return -erranal;
 
 	sencap = 0;
 	if (ioctl(fd, SIOCSIFENCAP, &sencap) < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -126,7 +126,7 @@ int os_mode_fd(int fd, int mode)
 
 	CATCH_EINTR(err = fchmod(fd, mode));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -162,14 +162,14 @@ int os_file_mode(const char *file, struct openflags *mode_out)
 	*mode_out = OPENFLAGS();
 
 	err = access(file, W_OK);
-	if (err && (errno != EACCES))
-		return -errno;
+	if (err && (erranal != EACCES))
+		return -erranal;
 	else if (!err)
 		*mode_out = of_write(*mode_out);
 
 	err = access(file, R_OK);
-	if (err && (errno != EACCES))
-		return -errno;
+	if (err && (erranal != EACCES))
+		return -erranal;
 	else if (!err)
 		*mode_out = of_read(*mode_out);
 
@@ -201,10 +201,10 @@ int os_open_file(const char *file, struct openflags flags, int mode)
 
 	fd = open64(file, f, mode);
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 
 	if (flags.cl && fcntl(fd, F_SETFD, 1)) {
-		err = -errno;
+		err = -erranal;
 		close(fd);
 		return err;
 	}
@@ -222,13 +222,13 @@ int os_connect_socket(const char *name)
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0) {
-		err = -errno;
+		err = -erranal;
 		goto out;
 	}
 
 	err = connect(fd, (struct sockaddr *) &sock, sizeof(sock));
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		goto out_close;
 	}
 
@@ -247,7 +247,7 @@ void os_close_file(int fd)
 int os_fsync_file(int fd)
 {
 	if (fsync(fd) < 0)
-	    return -errno;
+	    return -erranal;
 	return 0;
 }
 
@@ -257,7 +257,7 @@ int os_seek_file(int fd, unsigned long long offset)
 
 	actual = lseek64(fd, offset, SEEK_SET);
 	if (actual != offset)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -266,7 +266,7 @@ int os_read_file(int fd, void *buf, int len)
 	int n = read(fd, buf, len);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -275,7 +275,7 @@ int os_pread_file(int fd, void *buf, int len, unsigned long long offset)
 	int n = pread(fd, buf, len, offset);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -284,7 +284,7 @@ int os_write_file(int fd, const void *buf, int len)
 	int n = write(fd, (void *) buf, len);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -293,7 +293,7 @@ int os_sync_file(int fd)
 	int n = fdatasync(fd);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -302,7 +302,7 @@ int os_pwrite_file(int fd, const void *buf, int len, unsigned long long offset)
 	int n = pwrite(fd, (void *) buf, len, offset);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -325,15 +325,15 @@ int os_file_size(const char *file, unsigned long long *size_out)
 
 		fd = open(file, O_RDONLY, 0);
 		if (fd < 0) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "Couldn't open \"%s\", "
-			       "errno = %d\n", file, errno);
+			       "erranal = %d\n", file, erranal);
 			return err;
 		}
 		if (ioctl(fd, BLKGETSIZE, &blocks) < 0) {
-			err = -errno;
+			err = -erranal;
 			printk(UM_KERN_ERR "Couldn't get the block size of "
-			       "\"%s\", errno = %d\n", file, errno);
+			       "\"%s\", erranal = %d\n", file, erranal);
 			close(fd);
 			return err;
 		}
@@ -368,7 +368,7 @@ int os_set_exec_close(int fd)
 	CATCH_EINTR(err = fcntl(fd, F_SETFD, FD_CLOEXEC));
 
 	if (err < 0)
-		return -errno;
+		return -erranal;
 	return err;
 }
 
@@ -378,7 +378,7 @@ int os_pipe(int *fds, int stream, int close_on_exec)
 
 	err = socketpair(AF_UNIX, type, 0, fds);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	if (!close_on_exec)
 		return 0;
@@ -407,21 +407,21 @@ int os_set_fd_async(int fd)
 
 	flags = fcntl(fd, F_GETFL);
 	if (flags < 0)
-		return -errno;
+		return -erranal;
 
-	flags |= O_ASYNC | O_NONBLOCK;
+	flags |= O_ASYNC | O_ANALNBLOCK;
 	if (fcntl(fd, F_SETFL, flags) < 0) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "os_set_fd_async : failed to set O_ASYNC "
-		       "and O_NONBLOCK on fd # %d, errno = %d\n", fd, errno);
+		       "and O_ANALNBLOCK on fd # %d, erranal = %d\n", fd, erranal);
 		return err;
 	}
 
 	if ((fcntl(fd, F_SETSIG, SIGIO) < 0) ||
 	    (fcntl(fd, F_SETOWN, os_getpid()) < 0)) {
-		err = -errno;
+		err = -erranal;
 		printk(UM_KERN_ERR "os_set_fd_async : Failed to fcntl F_SETOWN "
-		       "(or F_SETSIG) fd %d, errno = %d\n", fd, errno);
+		       "(or F_SETSIG) fd %d, erranal = %d\n", fd, erranal);
 		return err;
 	}
 
@@ -434,11 +434,11 @@ int os_clear_fd_async(int fd)
 
 	flags = fcntl(fd, F_GETFL);
 	if (flags < 0)
-		return -errno;
+		return -erranal;
 
-	flags &= ~(O_ASYNC | O_NONBLOCK);
+	flags &= ~(O_ASYNC | O_ANALNBLOCK);
 	if (fcntl(fd, F_SETFL, flags) < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -448,15 +448,15 @@ int os_set_fd_block(int fd, int blocking)
 
 	flags = fcntl(fd, F_GETFL);
 	if (flags < 0)
-		return -errno;
+		return -erranal;
 
 	if (blocking)
-		flags &= ~O_NONBLOCK;
+		flags &= ~O_ANALNBLOCK;
 	else
-		flags |= O_NONBLOCK;
+		flags |= O_ANALNBLOCK;
 
 	if (fcntl(fd, F_SETFL, flags) < 0)
-		return -errno;
+		return -erranal;
 
 	return 0;
 }
@@ -467,7 +467,7 @@ int os_accept_connection(int fd)
 
 	new = accept(fd, NULL, 0);
 	if (new < 0)
-		return -errno;
+		return -erranal;
 	return new;
 }
 
@@ -498,7 +498,7 @@ int os_shutdown_socket(int fd, int r, int w)
 
 	err = shutdown(fd, what);
 	if (err < 0)
-		return -errno;
+		return -erranal;
 	return 0;
 }
 
@@ -522,14 +522,14 @@ int os_rcv_fd(int fd, int *helper_pid_out)
 
 	n = recvmsg(fd, &msg, 0);
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	else if (n != iov.iov_len)
 		*helper_pid_out = -1;
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg == NULL) {
 		printk(UM_KERN_ERR "rcv_fd didn't receive anything, "
-		       "error = %d\n", errno);
+		       "error = %d\n", erranal);
 		return -1;
 	}
 	if ((cmsg->cmsg_level != SOL_SOCKET) ||
@@ -549,7 +549,7 @@ int os_create_unix_socket(const char *file, int len, int close_on_exec)
 
 	sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (sock < 0)
-		return -errno;
+		return -erranal;
 
 	if (close_on_exec) {
 		err = os_set_exec_close(sock);
@@ -564,7 +564,7 @@ int os_create_unix_socket(const char *file, int len, int close_on_exec)
 
 	err = bind(sock, (struct sockaddr *) &addr, sizeof(addr));
 	if (err < 0)
-		return -errno;
+		return -erranal;
 
 	return sock;
 }
@@ -587,10 +587,10 @@ int os_lock_file(int fd, int excl)
 	if (!err)
 		goto out;
 
-	save = -errno;
+	save = -erranal;
 	err = fcntl(fd, F_GETLK, &lock);
 	if (err) {
-		err = -errno;
+		err = -erranal;
 		goto out;
 	}
 
@@ -606,14 +606,14 @@ unsigned os_major(unsigned long long dev)
 	return major(dev);
 }
 
-unsigned os_minor(unsigned long long dev)
+unsigned os_mianalr(unsigned long long dev)
 {
-	return minor(dev);
+	return mianalr(dev);
 }
 
-unsigned long long os_makedev(unsigned major, unsigned minor)
+unsigned long long os_makedev(unsigned major, unsigned mianalr)
 {
-	return makedev(major, minor);
+	return makedev(major, mianalr);
 }
 
 int os_falloc_punch(int fd, unsigned long long offset, int len)
@@ -621,7 +621,7 @@ int os_falloc_punch(int fd, unsigned long long offset, int len)
 	int n = fallocate(fd, FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE, offset, len);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -630,7 +630,7 @@ int os_falloc_zeroes(int fd, unsigned long long offset, int len)
 	int n = fallocate(fd, FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE, offset, len);
 
 	if (n < 0)
-		return -errno;
+		return -erranal;
 	return n;
 }
 
@@ -639,7 +639,7 @@ int os_eventfd(unsigned int initval, int flags)
 	int fd = eventfd(initval, flags);
 
 	if (fd < 0)
-		return -errno;
+		return -erranal;
 	return fd;
 }
 
@@ -674,7 +674,7 @@ int os_sendmsg_fds(int fd, const void *buf, unsigned int len, const int *fds,
 	err = sendmsg(fd, &msg, 0);
 
 	if (err < 0)
-		return -errno;
+		return -erranal;
 	return err;
 }
 
@@ -695,7 +695,7 @@ int os_poll(unsigned int n, const int *fds)
 
 	ret = poll(pollfds, n, -1);
 	if (ret < 0)
-		return -errno;
+		return -erranal;
 
 	/* Return the index of the available FD */
 	for (i = 0; i < n; i++) {

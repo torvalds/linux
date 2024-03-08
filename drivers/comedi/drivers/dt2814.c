@@ -22,7 +22,7 @@
  * clock is selected by jumpers, and the clock divider can be selected
  * via programmed I/O.  Unfortunately, the clock divider can only be
  * a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
- * addition, the clock does not seem to be very accurate.
+ * addition, the clock does analt seem to be very accurate.
  */
 
 #include <linux/module.h>
@@ -46,7 +46,7 @@
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
-static int dt2814_ai_notbusy(struct comedi_device *dev,
+static int dt2814_ai_analtbusy(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn,
 			     unsigned long context)
@@ -66,8 +66,8 @@ static int dt2814_ai_clear(struct comedi_device *dev)
 	unsigned int status = 0;
 	int ret;
 
-	/* Wait until not busy and get status register value. */
-	ret = comedi_timeout(dev, NULL, NULL, dt2814_ai_notbusy,
+	/* Wait until analt busy and get status register value. */
+	ret = comedi_timeout(dev, NULL, NULL, dt2814_ai_analtbusy,
 			     (unsigned long)&status);
 	if (ret)
 		return ret;
@@ -128,7 +128,7 @@ static int dt2814_ns_to_timer(unsigned int *ns, unsigned int flags)
 	int i;
 	unsigned int f;
 
-	/* XXX ignores flags */
+	/* XXX iganalres flags */
 
 	f = 10000;		/* ns */
 	for (i = 0; i < 8; i++) {
@@ -150,11 +150,11 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -181,7 +181,7 @@ static int dt2814_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 2);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -227,7 +227,7 @@ static int dt2814_ai_cancel(struct comedi_device *dev,
 		/*
 		 * Clear the timed trigger enable bit.
 		 *
-		 * Note: turning off timed mode triggers another
+		 * Analte: turning off timed mode triggers aanalther
 		 * sample.  This will be mopped up by the calls to
 		 * dt2814_ai_clear().
 		 */
@@ -257,7 +257,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 
 	status = inb(dev->iobase + DT2814_CSR);
 	if (!(status & DT2814_ENB)) {
-		/* Timed acquisition not enabled.  Nothing to do. */
+		/* Timed acquisition analt enabled.  Analthing to do. */
 		spin_unlock(&dev->spinlock);
 		return IRQ_HANDLED;
 	}
@@ -287,7 +287,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 		/*
 		 * Disable timed mode.
 		 *
-		 * Note: turning off timed mode triggers another
+		 * Analte: turning off timed mode triggers aanalther
 		 * sample.  This will be mopped up by the calls to
 		 * dt2814_ai_clear().
 		 */
@@ -332,7 +332,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 16;		/* XXX */
 	s->insn_read = dt2814_ai_insn_read;
 	s->maxdata = 0xfff;
-	s->range_table = &range_unknown;	/* XXX */
+	s->range_table = &range_unkanalwn;	/* XXX */
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
@@ -350,7 +350,7 @@ static void dt2814_detach(struct comedi_device *dev)
 	if (dev->irq) {
 		/*
 		 * An extra conversion triggered on termination of an
-		 * asynchronous command may still be in progress.  Wait for
+		 * asynchroanalus command may still be in progress.  Wait for
 		 * it to finish and clear the data or error status.
 		 */
 		dt2814_ai_clear(dev);

@@ -33,17 +33,17 @@
 extern struct se_device *g_lun0_dev;
 static DEFINE_XARRAY_ALLOC(tpg_xa);
 
-/*	__core_tpg_get_initiator_node_acl():
+/*	__core_tpg_get_initiator_analde_acl():
  *
- *	mutex_lock(&tpg->acl_node_mutex); must be held when calling
+ *	mutex_lock(&tpg->acl_analde_mutex); must be held when calling
  */
-struct se_node_acl *__core_tpg_get_initiator_node_acl(
+struct se_analde_acl *__core_tpg_get_initiator_analde_acl(
 	struct se_portal_group *tpg,
 	const char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 
-	list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
+	list_for_each_entry(acl, &tpg->acl_analde_list, acl_list) {
 		if (!strcmp(acl->initiatorname, initiatorname))
 			return acl;
 	}
@@ -51,38 +51,38 @@ struct se_node_acl *__core_tpg_get_initiator_node_acl(
 	return NULL;
 }
 
-/*	core_tpg_get_initiator_node_acl():
+/*	core_tpg_get_initiator_analde_acl():
  *
  *
  */
-struct se_node_acl *core_tpg_get_initiator_node_acl(
+struct se_analde_acl *core_tpg_get_initiator_analde_acl(
 	struct se_portal_group *tpg,
 	unsigned char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 	/*
-	 * Obtain se_node_acl->acl_kref using fabric driver provided
-	 * initiatorname[] during node acl endpoint lookup driven by
+	 * Obtain se_analde_acl->acl_kref using fabric driver provided
+	 * initiatorname[] during analde acl endpoint lookup driven by
 	 * new se_session login.
 	 *
 	 * The reference is held until se_session shutdown -> release
 	 * occurs via fabric driver invoked transport_deregister_session()
 	 * or transport_free_session() code.
 	 */
-	mutex_lock(&tpg->acl_node_mutex);
-	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
+	mutex_lock(&tpg->acl_analde_mutex);
+	acl = __core_tpg_get_initiator_analde_acl(tpg, initiatorname);
 	if (acl) {
 		if (!kref_get_unless_zero(&acl->acl_kref))
 			acl = NULL;
 	}
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_analde_mutex);
 
 	return acl;
 }
-EXPORT_SYMBOL(core_tpg_get_initiator_node_acl);
+EXPORT_SYMBOL(core_tpg_get_initiator_analde_acl);
 
 void core_allocate_nexus_loss_ua(
-	struct se_node_acl *nacl)
+	struct se_analde_acl *nacl)
 {
 	struct se_dev_entry *deve;
 
@@ -97,12 +97,12 @@ void core_allocate_nexus_loss_ua(
 }
 EXPORT_SYMBOL(core_allocate_nexus_loss_ua);
 
-/*	core_tpg_add_node_to_devs():
+/*	core_tpg_add_analde_to_devs():
  *
  *
  */
-void core_tpg_add_node_to_devs(
-	struct se_node_acl *acl,
+void core_tpg_add_analde_to_devs(
+	struct se_analde_acl *acl,
 	struct se_portal_group *tpg,
 	struct se_lun *lun_orig)
 {
@@ -140,12 +140,12 @@ void core_tpg_add_node_to_devs(
 			tpg->se_tpg_tfo->tpg_get_tag(tpg), lun->unpacked_lun,
 			lun_access_ro ? "READ-ONLY" : "READ-WRITE");
 
-		core_enable_device_list_for_node(lun, NULL, lun->unpacked_lun,
+		core_enable_device_list_for_analde(lun, NULL, lun->unpacked_lun,
 						 lun_access_ro, acl, tpg);
 		/*
 		 * Check to see if there are any existing persistent reservation
 		 * APTPL pre-registrations that need to be enabled for this dynamic
-		 * LUN ACL now..
+		 * LUN ACL analw..
 		 */
 		core_scsi3_check_aptpl_registration(dev, tpg, lun, acl,
 						    lun->unpacked_lun);
@@ -155,25 +155,25 @@ void core_tpg_add_node_to_devs(
 
 static void
 target_set_nacl_queue_depth(struct se_portal_group *tpg,
-			    struct se_node_acl *acl, u32 queue_depth)
+			    struct se_analde_acl *acl, u32 queue_depth)
 {
 	acl->queue_depth = queue_depth;
 
 	if (!acl->queue_depth) {
-		pr_warn("Queue depth for %s Initiator Node: %s is 0,"
+		pr_warn("Queue depth for %s Initiator Analde: %s is 0,"
 			"defaulting to 1.\n", tpg->se_tpg_tfo->fabric_name,
 			acl->initiatorname);
 		acl->queue_depth = 1;
 	}
 }
 
-static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
+static struct se_analde_acl *target_alloc_analde_acl(struct se_portal_group *tpg,
 		const unsigned char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 	u32 queue_depth;
 
-	acl = kzalloc(max(sizeof(*acl), tpg->se_tpg_tfo->node_acl_size),
+	acl = kzalloc(max(sizeof(*acl), tpg->se_tpg_tfo->analde_acl_size),
 			GFP_KERNEL);
 	if (!acl)
 		return NULL;
@@ -197,131 +197,131 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 	acl->se_tpg = tpg;
 	acl->acl_index = scsi_get_new_index(SCSI_AUTH_INTR_INDEX);
 
-	tpg->se_tpg_tfo->set_default_node_attributes(acl);
+	tpg->se_tpg_tfo->set_default_analde_attributes(acl);
 
 	return acl;
 }
 
-static void target_add_node_acl(struct se_node_acl *acl)
+static void target_add_analde_acl(struct se_analde_acl *acl)
 {
 	struct se_portal_group *tpg = acl->se_tpg;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	list_add_tail(&acl->acl_list, &tpg->acl_node_list);
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_lock(&tpg->acl_analde_mutex);
+	list_add_tail(&acl->acl_list, &tpg->acl_analde_list);
+	mutex_unlock(&tpg->acl_analde_mutex);
 
 	pr_debug("%s_TPG[%hu] - Added %s ACL with TCQ Depth: %d for %s"
-		" Initiator Node: %s\n",
+		" Initiator Analde: %s\n",
 		tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg),
-		acl->dynamic_node_acl ? "DYNAMIC" : "",
+		acl->dynamic_analde_acl ? "DYNAMIC" : "",
 		acl->queue_depth,
 		tpg->se_tpg_tfo->fabric_name,
 		acl->initiatorname);
 }
 
-bool target_tpg_has_node_acl(struct se_portal_group *tpg,
+bool target_tpg_has_analde_acl(struct se_portal_group *tpg,
 			     const char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 	bool found = false;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
+	mutex_lock(&tpg->acl_analde_mutex);
+	list_for_each_entry(acl, &tpg->acl_analde_list, acl_list) {
 		if (!strcmp(acl->initiatorname, initiatorname)) {
 			found = true;
 			break;
 		}
 	}
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_analde_mutex);
 
 	return found;
 }
-EXPORT_SYMBOL(target_tpg_has_node_acl);
+EXPORT_SYMBOL(target_tpg_has_analde_acl);
 
-struct se_node_acl *core_tpg_check_initiator_node_acl(
+struct se_analde_acl *core_tpg_check_initiator_analde_acl(
 	struct se_portal_group *tpg,
 	unsigned char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 
-	acl = core_tpg_get_initiator_node_acl(tpg, initiatorname);
+	acl = core_tpg_get_initiator_analde_acl(tpg, initiatorname);
 	if (acl)
 		return acl;
 
 	if (!tpg->se_tpg_tfo->tpg_check_demo_mode(tpg))
 		return NULL;
 
-	acl = target_alloc_node_acl(tpg, initiatorname);
+	acl = target_alloc_analde_acl(tpg, initiatorname);
 	if (!acl)
 		return NULL;
 	/*
-	 * When allocating a dynamically generated node_acl, go ahead
-	 * and take the extra kref now before returning to the fabric
+	 * When allocating a dynamically generated analde_acl, go ahead
+	 * and take the extra kref analw before returning to the fabric
 	 * driver caller.
 	 *
-	 * Note this reference will be released at session shutdown
+	 * Analte this reference will be released at session shutdown
 	 * time within transport_free_session() code.
 	 */
 	kref_get(&acl->acl_kref);
-	acl->dynamic_node_acl = 1;
+	acl->dynamic_analde_acl = 1;
 
 	/*
 	 * Here we only create demo-mode MappedLUNs from the active
-	 * TPG LUNs if the fabric is not explicitly asking for
+	 * TPG LUNs if the fabric is analt explicitly asking for
 	 * tpg_check_demo_mode_login_only() == 1.
 	 */
 	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only == NULL) ||
 	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) != 1))
-		core_tpg_add_node_to_devs(acl, tpg, NULL);
+		core_tpg_add_analde_to_devs(acl, tpg, NULL);
 
-	target_add_node_acl(acl);
+	target_add_analde_acl(acl);
 	return acl;
 }
-EXPORT_SYMBOL(core_tpg_check_initiator_node_acl);
+EXPORT_SYMBOL(core_tpg_check_initiator_analde_acl);
 
-void core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *nacl)
+void core_tpg_wait_for_nacl_pr_ref(struct se_analde_acl *nacl)
 {
 	while (atomic_read(&nacl->acl_pr_ref_count) != 0)
 		cpu_relax();
 }
 
-struct se_node_acl *core_tpg_add_initiator_node_acl(
+struct se_analde_acl *core_tpg_add_initiator_analde_acl(
 	struct se_portal_group *tpg,
 	const char *initiatorname)
 {
-	struct se_node_acl *acl;
+	struct se_analde_acl *acl;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
+	mutex_lock(&tpg->acl_analde_mutex);
+	acl = __core_tpg_get_initiator_analde_acl(tpg, initiatorname);
 	if (acl) {
-		if (acl->dynamic_node_acl) {
-			acl->dynamic_node_acl = 0;
+		if (acl->dynamic_analde_acl) {
+			acl->dynamic_analde_acl = 0;
 			pr_debug("%s_TPG[%u] - Replacing dynamic ACL"
 				" for %s\n", tpg->se_tpg_tfo->fabric_name,
 				tpg->se_tpg_tfo->tpg_get_tag(tpg), initiatorname);
-			mutex_unlock(&tpg->acl_node_mutex);
+			mutex_unlock(&tpg->acl_analde_mutex);
 			return acl;
 		}
 
 		pr_err("ACL entry for %s Initiator"
-			" Node %s already exists for TPG %u, ignoring"
+			" Analde %s already exists for TPG %u, iganalring"
 			" request.\n",  tpg->se_tpg_tfo->fabric_name,
 			initiatorname, tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		mutex_unlock(&tpg->acl_node_mutex);
+		mutex_unlock(&tpg->acl_analde_mutex);
 		return ERR_PTR(-EEXIST);
 	}
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_analde_mutex);
 
-	acl = target_alloc_node_acl(tpg, initiatorname);
+	acl = target_alloc_analde_acl(tpg, initiatorname);
 	if (!acl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	target_add_node_acl(acl);
+	target_add_analde_acl(acl);
 	return acl;
 }
 
-static void target_shutdown_sessions(struct se_node_acl *acl)
+static void target_shutdown_sessions(struct se_analde_acl *acl)
 {
 	struct se_session *sess;
 	unsigned long flags;
@@ -342,15 +342,15 @@ restart:
 	spin_unlock_irqrestore(&acl->nacl_sess_lock, flags);
 }
 
-void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
+void core_tpg_del_initiator_analde_acl(struct se_analde_acl *acl)
 {
 	struct se_portal_group *tpg = acl->se_tpg;
 
-	mutex_lock(&tpg->acl_node_mutex);
-	if (acl->dynamic_node_acl)
-		acl->dynamic_node_acl = 0;
+	mutex_lock(&tpg->acl_analde_mutex);
+	if (acl->dynamic_analde_acl)
+		acl->dynamic_analde_acl = 0;
 	list_del_init(&acl->acl_list);
-	mutex_unlock(&tpg->acl_node_mutex);
+	mutex_unlock(&tpg->acl_analde_mutex);
 
 	target_shutdown_sessions(acl);
 
@@ -362,36 +362,36 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 	wait_for_completion(&acl->acl_free_comp);
 
 	core_tpg_wait_for_nacl_pr_ref(acl);
-	core_free_device_list_for_node(acl, tpg);
+	core_free_device_list_for_analde(acl, tpg);
 
 	pr_debug("%s_TPG[%hu] - Deleted ACL with TCQ Depth: %d for %s"
-		" Initiator Node: %s\n", tpg->se_tpg_tfo->fabric_name,
+		" Initiator Analde: %s\n", tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), acl->queue_depth,
 		tpg->se_tpg_tfo->fabric_name, acl->initiatorname);
 
 	kfree(acl);
 }
 
-/*	core_tpg_set_initiator_node_queue_depth():
+/*	core_tpg_set_initiator_analde_queue_depth():
  *
  *
  */
-int core_tpg_set_initiator_node_queue_depth(
-	struct se_node_acl *acl,
+int core_tpg_set_initiator_analde_queue_depth(
+	struct se_analde_acl *acl,
 	u32 queue_depth)
 {
 	struct se_portal_group *tpg = acl->se_tpg;
 
 	/*
-	 * Allow the setting of se_node_acl queue_depth to be idempotent,
-	 * and not force a session shutdown event if the value is not
+	 * Allow the setting of se_analde_acl queue_depth to be idempotent,
+	 * and analt force a session shutdown event if the value is analt
 	 * changing.
 	 */
 	if (acl->queue_depth == queue_depth)
 		return 0;
 	/*
-	 * User has requested to change the queue depth for a Initiator Node.
-	 * Change the value in the Node's struct se_node_acl, and call
+	 * User has requested to change the queue depth for a Initiator Analde.
+	 * Change the value in the Analde's struct se_analde_acl, and call
 	 * target_set_nacl_queue_depth() to set the new queue depth.
 	 */
 	target_set_nacl_queue_depth(tpg, acl, queue_depth);
@@ -402,23 +402,23 @@ int core_tpg_set_initiator_node_queue_depth(
 	target_shutdown_sessions(acl);
 
 	pr_debug("Successfully changed queue depth to: %d for Initiator"
-		" Node: %s on %s Target Portal Group: %u\n", acl->queue_depth,
+		" Analde: %s on %s Target Portal Group: %u\n", acl->queue_depth,
 		acl->initiatorname, tpg->se_tpg_tfo->fabric_name,
 		tpg->se_tpg_tfo->tpg_get_tag(tpg));
 
 	return 0;
 }
-EXPORT_SYMBOL(core_tpg_set_initiator_node_queue_depth);
+EXPORT_SYMBOL(core_tpg_set_initiator_analde_queue_depth);
 
-/*	core_tpg_set_initiator_node_tag():
+/*	core_tpg_set_initiator_analde_tag():
  *
- *	Initiator nodeacl tags are not used internally, but may be used by
+ *	Initiator analdeacl tags are analt used internally, but may be used by
  *	userspace to emulate aliases or groups.
  *	Returns length of newly-set tag or -EINVAL.
  */
-int core_tpg_set_initiator_node_tag(
+int core_tpg_set_initiator_analde_tag(
 	struct se_portal_group *tpg,
-	struct se_node_acl *acl,
+	struct se_analde_acl *acl,
 	const char *new_tag)
 {
 	if (strlen(new_tag) >= MAX_ACL_TAG_SIZE)
@@ -431,7 +431,7 @@ int core_tpg_set_initiator_node_tag(
 
 	return snprintf(acl->acl_tag, MAX_ACL_TAG_SIZE, "%s", new_tag);
 }
-EXPORT_SYMBOL(core_tpg_set_initiator_node_tag);
+EXPORT_SYMBOL(core_tpg_set_initiator_analde_tag);
 
 static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 {
@@ -448,7 +448,7 @@ static int target_tpg_register_rtpi(struct se_portal_group *se_tpg)
 	if (se_tpg->rtpi_manual) {
 		ret = xa_insert(&tpg_xa, se_tpg->tpg_rtpi, se_tpg, GFP_KERNEL);
 		if (ret) {
-			pr_info("%s_TPG[%hu] - Can not set RTPI %#x, it is already busy",
+			pr_info("%s_TPG[%hu] - Can analt set RTPI %#x, it is already busy",
 				se_tpg->se_tpg_tfo->fabric_name,
 				se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg),
 				se_tpg->tpg_rtpi);
@@ -502,7 +502,7 @@ int target_tpg_disable(struct se_portal_group *se_tpg)
 	return ret;
 }
 
-/* Does not change se_wwn->priv. */
+/* Does analt change se_wwn->priv. */
 int core_tpg_register(
 	struct se_wwn *se_wwn,
 	struct se_portal_group *se_tpg,
@@ -534,11 +534,11 @@ int core_tpg_register(
 	se_tpg->proto_id = proto_id;
 	se_tpg->se_tpg_wwn = se_wwn;
 	atomic_set(&se_tpg->tpg_pr_ref_count, 0);
-	INIT_LIST_HEAD(&se_tpg->acl_node_list);
+	INIT_LIST_HEAD(&se_tpg->acl_analde_list);
 	INIT_LIST_HEAD(&se_tpg->tpg_sess_list);
 	spin_lock_init(&se_tpg->session_lock);
 	mutex_init(&se_tpg->tpg_lun_mutex);
-	mutex_init(&se_tpg->acl_node_mutex);
+	mutex_init(&se_tpg->acl_analde_mutex);
 
 	if (se_tpg->proto_id >= 0) {
 		se_tpg->tpg_virt_lun0 = core_tpg_alloc_lun(se_tpg, 0);
@@ -566,8 +566,8 @@ EXPORT_SYMBOL(core_tpg_register);
 int core_tpg_deregister(struct se_portal_group *se_tpg)
 {
 	const struct target_core_fabric_ops *tfo = se_tpg->se_tpg_tfo;
-	struct se_node_acl *nacl, *nacl_tmp;
-	LIST_HEAD(node_list);
+	struct se_analde_acl *nacl, *nacl_tmp;
+	LIST_HEAD(analde_list);
 
 	pr_debug("TARGET_CORE[%s]: Deallocating portal_group for endpoint: %s, "
 		 "Proto: %d, Portal Tag: %u\n", tfo->fabric_name,
@@ -577,19 +577,19 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	while (atomic_read(&se_tpg->tpg_pr_ref_count) != 0)
 		cpu_relax();
 
-	mutex_lock(&se_tpg->acl_node_mutex);
-	list_splice_init(&se_tpg->acl_node_list, &node_list);
-	mutex_unlock(&se_tpg->acl_node_mutex);
+	mutex_lock(&se_tpg->acl_analde_mutex);
+	list_splice_init(&se_tpg->acl_analde_list, &analde_list);
+	mutex_unlock(&se_tpg->acl_analde_mutex);
 	/*
-	 * Release any remaining demo-mode generated se_node_acl that have
-	 * not been released because of TFO->tpg_check_demo_mode_cache() == 1
+	 * Release any remaining demo-mode generated se_analde_acl that have
+	 * analt been released because of TFO->tpg_check_demo_mode_cache() == 1
 	 * in transport_deregister_session().
 	 */
-	list_for_each_entry_safe(nacl, nacl_tmp, &node_list, acl_list) {
+	list_for_each_entry_safe(nacl, nacl_tmp, &analde_list, acl_list) {
 		list_del_init(&nacl->acl_list);
 
 		core_tpg_wait_for_nacl_pr_ref(nacl);
-		core_free_device_list_for_node(nacl, se_tpg);
+		core_free_device_list_for_analde(nacl, se_tpg);
 		kfree(nacl);
 	}
 
@@ -613,7 +613,7 @@ struct se_lun *core_tpg_alloc_lun(
 	lun = kzalloc(sizeof(*lun), GFP_KERNEL);
 	if (!lun) {
 		pr_err("Unable to allocate se_lun memory\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	lun->unpacked_lun = unpacked_lun;
 	atomic_set(&lun->lun_acl_count, 0);
@@ -685,7 +685,7 @@ void core_tpg_remove_lun(
 	core_clear_lun_from_tpg(lun, tpg);
 	/*
 	 * Wait for any active I/O references to percpu se_lun->lun_ref to
-	 * be released.  Also, se_lun->lun_ref is now used by PR and ALUA
+	 * be released.  Also, se_lun->lun_ref is analw used by PR and ALUA
 	 * logic when referencing a remote target port during ALL_TGT_PT=1
 	 * and generating UNIT_ATTENTIONs for ALUA access state transition.
 	 */

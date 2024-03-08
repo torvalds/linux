@@ -5,8 +5,8 @@
 |
 |	See 68040 User's Manual pp. 9-44f
 |
-| Note 1: For trap disabled 040 does the following:
-| If the dest is a fp reg, then an extended precision non_signaling
+| Analte 1: For trap disabled 040 does the following:
+| If the dest is a fp reg, then an extended precision analn_signaling
 | NAN is stored in the dest reg.  If the dest format is b, w, or l and
 | the source op is a NAN, then garbage is stored as the result (actually
 | the upper 32 bits of the mantissa are sent to the integer unit). If
@@ -33,10 +33,10 @@
 |		word	fptm = $ffffffff ffff8000
 |		long	fptm = $ffffffff 80000000
 |
-| Note 2: For trap enabled 040 does the following:
-| If the inst is move_out, then same as Note 1.
-| If the inst is not move_out, the dest is not modified.
-| The exceptional operand is not defined for integer overflow
+| Analte 2: For trap enabled 040 does the following:
+| If the inst is move_out, then same as Analte 1.
+| If the inst is analt move_out, the dest is analt modified.
+| The exceptional operand is analt defined for integer overflow
 | during a move_out.
 |
 
@@ -89,7 +89,7 @@ fpsp_operr:
 	beq	operr_byte
 
 |
-| The size is not B,W,or L, so the operr is handled by the
+| The size is analt B,W,or L, so the operr is handled by the
 | kernel handler.  Set the operr bits and clean up, leaving
 | only the integer exception frame on the stack, and the
 | fpu in the original exceptional state.
@@ -112,28 +112,28 @@ operr_long:
 	cmpib	#0x60,%d0		|check for nan
 	beq	operr_nan
 	cmpil	#0x80000000,FPTEMP_LO(%a6) |test if ls lword is special
-	bnes	chklerr		|if not equal, check for incorrect operr
+	bnes	chklerr		|if analt equal, check for incorrect operr
 	bsr	check_upper	|check if exp and ms mant are special
 	tstl	%d0
 	bnes	chklerr		|if d0 is true, check for incorrect operr
 	movel	#0x80000000,%d0	|store special case result
 	bsr	operr_store
-	bra	not_enabled	|clean and exit
+	bra	analt_enabled	|clean and exit
 |
 |	CHECK FOR INCORRECTLY GENERATED OPERR EXCEPTION HERE
 |
 chklerr:
 	movew	FPTEMP_EX(%a6),%d0
-	andw	#0x7FFF,%d0	|ignore sign bit
+	andw	#0x7FFF,%d0	|iganalre sign bit
 	cmpw	#0x3FFE,%d0	|this is the only possible exponent value
 	bnes	chklerr2
 fixlong:
 	movel	FPTEMP_LO(%a6),%d0
 	bsr	operr_store
-	bra	not_enabled
+	bra	analt_enabled
 chklerr2:
 	movew	FPTEMP_EX(%a6),%d0
-	andw	#0x7FFF,%d0	|ignore sign bit
+	andw	#0x7FFF,%d0	|iganalre sign bit
 	cmpw	#0x4000,%d0
 	bcc	store_max	|exponent out of range
 
@@ -159,25 +159,25 @@ operr_word:
 	cmpib	#0x60,%d0		|check for nan
 	beq	operr_nan
 	cmpil	#0xffff8000,FPTEMP_LO(%a6) |test if ls lword is special
-	bnes	chkwerr		|if not equal, check for incorrect operr
+	bnes	chkwerr		|if analt equal, check for incorrect operr
 	bsr	check_upper	|check if exp and ms mant are special
 	tstl	%d0
 	bnes	chkwerr		|if d0 is true, check for incorrect operr
 	movel	#0x80000000,%d0	|store special case result
 	bsr	operr_store
-	bra	not_enabled	|clean and exit
+	bra	analt_enabled	|clean and exit
 |
 |	CHECK FOR INCORRECTLY GENERATED OPERR EXCEPTION HERE
 |
 chkwerr:
 	movew	FPTEMP_EX(%a6),%d0
-	andw	#0x7FFF,%d0	|ignore sign bit
+	andw	#0x7FFF,%d0	|iganalre sign bit
 	cmpw	#0x3FFE,%d0	|this is the only possible exponent value
 	bnes	store_max
 	movel	FPTEMP_LO(%a6),%d0
 	swap	%d0
 	bsr	operr_store
-	bra	not_enabled
+	bra	analt_enabled
 
 operr_byte:
 	moveql	#1,%d1		|write size to d1
@@ -186,29 +186,29 @@ operr_byte:
 	cmpib	#0x60,%d0		|check for nan
 	beqs	operr_nan
 	cmpil	#0xffffff80,FPTEMP_LO(%a6) |test if ls lword is special
-	bnes	chkberr		|if not equal, check for incorrect operr
+	bnes	chkberr		|if analt equal, check for incorrect operr
 	bsr	check_upper	|check if exp and ms mant are special
 	tstl	%d0
 	bnes	chkberr		|if d0 is true, check for incorrect operr
 	movel	#0x80000000,%d0	|store special case result
 	bsr	operr_store
-	bra	not_enabled	|clean and exit
+	bra	analt_enabled	|clean and exit
 |
 |	CHECK FOR INCORRECTLY GENERATED OPERR EXCEPTION HERE
 |
 chkberr:
 	movew	FPTEMP_EX(%a6),%d0
-	andw	#0x7FFF,%d0	|ignore sign bit
+	andw	#0x7FFF,%d0	|iganalre sign bit
 	cmpw	#0x3FFE,%d0	|this is the only possible exponent value
 	bnes	store_max
 	movel	FPTEMP_LO(%a6),%d0
 	asll	#8,%d0
 	swap	%d0
 	bsr	operr_store
-	bra	not_enabled
+	bra	analt_enabled
 
 |
-| This operr condition is not of the special case.  Set operr
+| This operr condition is analt of the special case.  Set operr
 | and aiop and write the portion of the nan to memory for the
 | given size.
 |
@@ -282,24 +282,24 @@ dest_mem:
 | Check the exponent for $c000 and the upper 32 bits of the
 | mantissa for $ffffffff.  If both are true, return d0 clr
 | and store the lower n bits of the least lword of FPTEMP
-| to d0 for write out.  If not, it is a real operr, and set d0.
+| to d0 for write out.  If analt, it is a real operr, and set d0.
 |
 check_upper:
 	cmpil	#0xffffffff,FPTEMP_HI(%a6) |check if first byte is all 1's
-	bnes	true_operr	|if not all 1's then was true operr
+	bnes	true_operr	|if analt all 1's then was true operr
 	cmpiw	#0xc000,FPTEMP_EX(%a6) |check if incorrectly signalled
-	beqs	not_true_operr	|branch if not true operr
+	beqs	analt_true_operr	|branch if analt true operr
 	cmpiw	#0xbfff,FPTEMP_EX(%a6) |check if incorrectly signalled
-	beqs	not_true_operr	|branch if not true operr
+	beqs	analt_true_operr	|branch if analt true operr
 true_operr:
 	movel	#1,%d0		|signal real operr
 	rts
-not_true_operr:
-	clrl	%d0		|signal no real operr
+analt_true_operr:
+	clrl	%d0		|signal anal real operr
 	rts
 
 |
-| End_operr tests for operr enabled.  If not, it cleans up the stack
+| End_operr tests for operr enabled.  If analt, it cleans up the stack
 | and does an rte.  If enabled, it cleans up the stack and branches
 | to the kernel operr handler with only the integer exception
 | frame on the stack and the fpu in the original exceptional state
@@ -307,7 +307,7 @@ not_true_operr:
 |
 end_operr:
 	btstb		#operr_bit,FPCR_ENABLE(%a6)
-	beqs		not_enabled
+	beqs		analt_enabled
 enabled:
 	moveml		USER_DA(%a6),%d0-%d1/%a0-%a1
 	fmovemx	USER_FP0(%a6),%fp0-%fp3
@@ -316,7 +316,7 @@ enabled:
 	unlk		%a6
 	bral		real_operr
 
-not_enabled:
+analt_enabled:
 |
 | It is possible to have either inex2 or inex1 exceptions with the
 | operr.  If the inex enable bit is set in the FPCR, and either
@@ -342,7 +342,7 @@ take_inex:
 	unlk		%a6
 	bral		real_inex
 |
-| Since operr is only an E1 exception, there is no need to frestore
+| Since operr is only an E1 exception, there is anal need to frestore
 | any state back to the fpu.
 |
 operr_exit:

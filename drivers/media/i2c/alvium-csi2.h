@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Allied Vision Technologies GmbH Alvium camera driver
+ * Allied Vision Techanallogies GmbH Alvium camera driver
  *
  * Copyright (C) 2023 Tommaso Merciai
  * Copyright (C) 2023 Martin Hecht
@@ -15,7 +15,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define REG_BCRM_V4L2					BIT(31)
@@ -26,14 +26,14 @@
 #define REG_BCRM_V4L2_64BIT(n)				(REG_BCRM_V4L2 | CCI_REG64(n))
 
 /* Basic Control Register Map register offsets (BCRM) */
-#define REG_BCRM_MINOR_VERSION_R			CCI_REG16(0x0000)
+#define REG_BCRM_MIANALR_VERSION_R			CCI_REG16(0x0000)
 #define REG_BCRM_MAJOR_VERSION_R			CCI_REG16(0x0002)
 #define REG_BCRM_REG_ADDR_R				CCI_REG16(0x0014)
 
 #define REG_BCRM_FEATURE_INQUIRY_R			REG_BCRM_V4L2_64BIT(0x0008)
 #define REG_BCRM_DEVICE_FW_SPEC_VERSION_R		REG_BCRM_V4L2_8BIT(0x0010)
 #define REG_BCRM_DEVICE_FW_MAJOR_VERSION_R		REG_BCRM_V4L2_8BIT(0x0011)
-#define REG_BCRM_DEVICE_FW_MINOR_VERSION_R		REG_BCRM_V4L2_16BIT(0x0012)
+#define REG_BCRM_DEVICE_FW_MIANALR_VERSION_R		REG_BCRM_V4L2_16BIT(0x0012)
 #define REG_BCRM_DEVICE_FW_PATCH_VERSION_R		REG_BCRM_V4L2_32BIT(0x0014)
 #define REG_BCRM_WRITE_HANDSHAKE_RW			REG_BCRM_V4L2_8BIT(0x0018)
 
@@ -244,8 +244,8 @@ enum alvium_mipi_fmt {
 };
 
 enum alvium_av_bayer_bit {
-	ALVIUM_BIT_BAY_NONE = -1,
-	ALVIUM_BIT_BAY_MONO = 0,
+	ALVIUM_BIT_BAY_ANALNE = -1,
+	ALVIUM_BIT_BAY_MOANAL = 0,
 	ALVIUM_BIT_BAY_GR,
 	ALVIUM_BIT_BAY_RG,
 	ALVIUM_BIT_BAY_GB,
@@ -323,7 +323,7 @@ struct alvium_avail_mipi_fmt {
 };
 
 struct alvium_avail_bayer {
-	u8 mono:1;
+	u8 moanal:1;
 	u8 gr:1;
 	u8 rg:1;
 	u8 gb:1;
@@ -372,7 +372,7 @@ struct alvium_ctrls {
 struct alvium_dev {
 	struct i2c_client *i2c_client;
 	struct v4l2_subdev sd;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwanalde_endpoint ep;
 	struct media_pad pad;
 	struct regmap *regmap;
 

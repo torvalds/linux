@@ -13,18 +13,18 @@
  *
  * Permission to use, copy, modify, and distribute this software and
  * its documentation is hereby granted (including for commercial or
- * for-profit use), provided that both the copyright notice and this
- * permission notice appear in all copies of the software, derivative
+ * for-profit use), provided that both the copyright analtice and this
+ * permission analtice appear in all copies of the software, derivative
  * works, or modified versions, and any portions thereof.
  *
- * THIS SOFTWARE IS EXPERIMENTAL AND IS KNOWN TO HAVE BUGS, SOME OF
+ * THIS SOFTWARE IS EXPERIMENTAL AND IS KANALWN TO HAVE BUGS, SOME OF
  * WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON PROVIDES THIS
  * SOFTWARE IN ITS ``AS IS'' CONDITION, AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY BE LIABLE
+ * DISCLAIMED.  IN ANAL EVENT SHALL CARNEGIE MELLON UNIVERSITY BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -32,7 +32,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Carnegie Mellon encourages (but does not require) users of this
+ * Carnegie Mellon encourages (but does analt require) users of this
  * software to return any improvements or extensions that they make,
  * and to grant Carnegie Mellon the rights to redistribute these
  * changes without encumbrance.
@@ -45,14 +45,14 @@
  *
  * Oleg Cherevko <olwi@aq.ml.com.ua> added the upperlimit for link-sharing.
  * when a class has an upperlimit, the fit-time is computed from the
- * upperlimit service curve.  the link-sharing scheduler does not schedule
+ * upperlimit service curve.  the link-sharing scheduler does analt schedule
  * a class whose fit-time exceeds the current time.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -124,11 +124,11 @@ struct hfsc_class {
 	struct list_head children;	/* child classes */
 	struct Qdisc	*qdisc;		/* leaf qdisc */
 
-	struct rb_node el_node;		/* qdisc's eligible tree member */
+	struct rb_analde el_analde;		/* qdisc's eligible tree member */
 	struct rb_root vt_tree;		/* active children sorted by cl_vt */
-	struct rb_node vt_node;		/* parent's vt_tree member */
+	struct rb_analde vt_analde;		/* parent's vt_tree member */
 	struct rb_root cf_tree;		/* active children sorted by cl_f */
-	struct rb_node cf_node;		/* parent's cf_heap member */
+	struct rb_analde cf_analde;		/* parent's cf_heap member */
 
 	u64	cl_total;		/* total work in bytes */
 	u64	cl_cumul;		/* cumulative work in bytes done by
@@ -145,7 +145,7 @@ struct hfsc_class {
 					   with cl_myf to obtain cl_f) */
 	u64	cl_cvtmin;		/* minimal virtual time among the
 					   children fit for link-sharing
-					   (monotonic within a period) */
+					   (moanaltonic within a period) */
 	u64	cl_vtadj;		/* intra-period cumulative vt
 					   adjustment */
 	u64	cl_cvtoff;		/* largest virtual time seen among
@@ -184,26 +184,26 @@ struct hfsc_sched {
 static void
 eltree_insert(struct hfsc_class *cl)
 {
-	struct rb_node **p = &cl->sched->eligible.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &cl->sched->eligible.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct hfsc_class *cl1;
 
 	while (*p != NULL) {
 		parent = *p;
-		cl1 = rb_entry(parent, struct hfsc_class, el_node);
+		cl1 = rb_entry(parent, struct hfsc_class, el_analde);
 		if (cl->cl_e >= cl1->cl_e)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(&cl->el_node, parent, p);
-	rb_insert_color(&cl->el_node, &cl->sched->eligible);
+	rb_link_analde(&cl->el_analde, parent, p);
+	rb_insert_color(&cl->el_analde, &cl->sched->eligible);
 }
 
 static inline void
 eltree_remove(struct hfsc_class *cl)
 {
-	rb_erase(&cl->el_node, &cl->sched->eligible);
+	rb_erase(&cl->el_analde, &cl->sched->eligible);
 }
 
 static inline void
@@ -218,10 +218,10 @@ static inline struct hfsc_class *
 eltree_get_mindl(struct hfsc_sched *q, u64 cur_time)
 {
 	struct hfsc_class *p, *cl = NULL;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	for (n = rb_first(&q->eligible); n != NULL; n = rb_next(n)) {
-		p = rb_entry(n, struct hfsc_class, el_node);
+		p = rb_entry(n, struct hfsc_class, el_analde);
 		if (p->cl_e > cur_time)
 			break;
 		if (cl == NULL || p->cl_d < cl->cl_d)
@@ -234,12 +234,12 @@ eltree_get_mindl(struct hfsc_sched *q, u64 cur_time)
 static inline struct hfsc_class *
 eltree_get_minel(struct hfsc_sched *q)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	n = rb_first(&q->eligible);
 	if (n == NULL)
 		return NULL;
-	return rb_entry(n, struct hfsc_class, el_node);
+	return rb_entry(n, struct hfsc_class, el_analde);
 }
 
 /*
@@ -249,26 +249,26 @@ eltree_get_minel(struct hfsc_sched *q)
 static void
 vttree_insert(struct hfsc_class *cl)
 {
-	struct rb_node **p = &cl->cl_parent->vt_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &cl->cl_parent->vt_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct hfsc_class *cl1;
 
 	while (*p != NULL) {
 		parent = *p;
-		cl1 = rb_entry(parent, struct hfsc_class, vt_node);
+		cl1 = rb_entry(parent, struct hfsc_class, vt_analde);
 		if (cl->cl_vt >= cl1->cl_vt)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(&cl->vt_node, parent, p);
-	rb_insert_color(&cl->vt_node, &cl->cl_parent->vt_tree);
+	rb_link_analde(&cl->vt_analde, parent, p);
+	rb_insert_color(&cl->vt_analde, &cl->cl_parent->vt_tree);
 }
 
 static inline void
 vttree_remove(struct hfsc_class *cl)
 {
-	rb_erase(&cl->vt_node, &cl->cl_parent->vt_tree);
+	rb_erase(&cl->vt_analde, &cl->cl_parent->vt_tree);
 }
 
 static inline void
@@ -282,10 +282,10 @@ static inline struct hfsc_class *
 vttree_firstfit(struct hfsc_class *cl, u64 cur_time)
 {
 	struct hfsc_class *p;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	for (n = rb_first(&cl->vt_tree); n != NULL; n = rb_next(n)) {
-		p = rb_entry(n, struct hfsc_class, vt_node);
+		p = rb_entry(n, struct hfsc_class, vt_analde);
 		if (p->cl_f <= cur_time)
 			return p;
 	}
@@ -298,7 +298,7 @@ vttree_firstfit(struct hfsc_class *cl, u64 cur_time)
 static struct hfsc_class *
 vttree_get_minvt(struct hfsc_class *cl, u64 cur_time)
 {
-	/* if root-class's cfmin is bigger than cur_time nothing to do */
+	/* if root-class's cfmin is bigger than cur_time analthing to do */
 	if (cl->cl_cfmin > cur_time)
 		return NULL;
 
@@ -318,26 +318,26 @@ vttree_get_minvt(struct hfsc_class *cl, u64 cur_time)
 static void
 cftree_insert(struct hfsc_class *cl)
 {
-	struct rb_node **p = &cl->cl_parent->cf_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &cl->cl_parent->cf_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 	struct hfsc_class *cl1;
 
 	while (*p != NULL) {
 		parent = *p;
-		cl1 = rb_entry(parent, struct hfsc_class, cf_node);
+		cl1 = rb_entry(parent, struct hfsc_class, cf_analde);
 		if (cl->cl_f >= cl1->cl_f)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
 	}
-	rb_link_node(&cl->cf_node, parent, p);
-	rb_insert_color(&cl->cf_node, &cl->cl_parent->cf_tree);
+	rb_link_analde(&cl->cf_analde, parent, p);
+	rb_insert_color(&cl->cf_analde, &cl->cl_parent->cf_tree);
 }
 
 static inline void
 cftree_remove(struct hfsc_class *cl)
 {
-	rb_erase(&cl->cf_node, &cl->cl_parent->cf_tree);
+	rb_erase(&cl->cf_analde, &cl->cl_parent->cf_tree);
 }
 
 static inline void
@@ -568,7 +568,7 @@ rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u64 x, u64 y)
 	 */
 	y1 = rtsc_x2y(rtsc, x);
 	if (y1 <= y) {
-		/* rtsc is below isc, no change to rtsc */
+		/* rtsc is below isc, anal change to rtsc */
 		return;
 	}
 
@@ -649,14 +649,14 @@ update_d(struct hfsc_class *cl, unsigned int next_len)
 static inline void
 update_cfmin(struct hfsc_class *cl)
 {
-	struct rb_node *n = rb_first(&cl->cf_tree);
+	struct rb_analde *n = rb_first(&cl->cf_tree);
 	struct hfsc_class *p;
 
 	if (n == NULL) {
 		cl->cl_cfmin = 0;
 		return;
 	}
-	p = rb_entry(n, struct hfsc_class, cf_node);
+	p = rb_entry(n, struct hfsc_class, cf_analde);
 	cl->cl_cfmin = p->cl_f;
 }
 
@@ -664,7 +664,7 @@ static void
 init_vf(struct hfsc_class *cl, unsigned int len)
 {
 	struct hfsc_class *max_cl;
-	struct rb_node *n;
+	struct rb_analde *n;
 	u64 vt, f, cur_time;
 	int go_active;
 
@@ -679,7 +679,7 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 		if (go_active) {
 			n = rb_last(&cl->cl_parent->vt_tree);
 			if (n != NULL) {
-				max_cl = rb_entry(n, struct hfsc_class, vt_node);
+				max_cl = rb_entry(n, struct hfsc_class, vt_analde);
 				/*
 				 * set vt to the average of the min and max
 				 * classes.  if the parent's period didn't
@@ -764,7 +764,7 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 
 		/*
 		 * if vt of the class is smaller than cvtmin,
-		 * the class was skipped in the past due to non-fit.
+		 * the class was skipped in the past due to analn-fit.
 		 * if so, we need to adjust vtadj.
 		 */
 		if (cl->cl_vt < cl->cl_parent->cl_cvtmin) {
@@ -773,7 +773,7 @@ update_vf(struct hfsc_class *cl, unsigned int len, u64 cur_time)
 		}
 
 		if (go_passive) {
-			/* no more active child, going passive */
+			/* anal more active child, going passive */
 
 			/* update cvtoff of the parent class */
 			if (cl->cl_vt > cl->cl_parent->cl_cvtoff)
@@ -835,7 +835,7 @@ qdisc_peek_len(struct Qdisc *sch)
 
 	skb = sch->ops->peek(sch);
 	if (unlikely(skb == NULL)) {
-		qdisc_warn_nonwc("qdisc_peek_len", sch);
+		qdisc_warn_analnwc("qdisc_peek_len", sch);
 		return 0;
 	}
 	len = qdisc_pkt_len(skb);
@@ -1017,7 +1017,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (parentid) {
 		parent = hfsc_find_class(parentid, sch);
 		if (parent == NULL)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	if (classid == 0 || TC_H_MAJ(classid ^ sch->handle) != 0)
@@ -1030,7 +1030,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 	cl = kzalloc(sizeof(struct hfsc_class), GFP_KERNEL);
 	if (cl == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = tcf_block_get(&cl->block, &cl->filter_list, sch, extack);
 	if (err) {
@@ -1061,7 +1061,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 				      classid, NULL);
 	if (cl->qdisc == NULL)
-		cl->qdisc = &noop_qdisc;
+		cl->qdisc = &analop_qdisc;
 	else
 		qdisc_hash_add(cl->qdisc, true);
 	INIT_LIST_HEAD(&cl->children);
@@ -1193,7 +1193,7 @@ hfsc_graft_class(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					cl->cl_common.classid, NULL);
 		if (new == NULL)
-			new = &noop_qdisc;
+			new = &analop_qdisc;
 	}
 
 	*old = qdisc_replace(sch, new, &cl->qdisc);
@@ -1212,11 +1212,11 @@ hfsc_class_leaf(struct Qdisc *sch, unsigned long arg)
 }
 
 static void
-hfsc_qlen_notify(struct Qdisc *sch, unsigned long arg)
+hfsc_qlen_analtify(struct Qdisc *sch, unsigned long arg)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
-	/* vttree is now handled in update_vf() so that update_vf(cl, 0, 0)
+	/* vttree is analw handled in update_vf() so that update_vf(cl, 0, 0)
 	 * needs to be called explicitly to remove a class from vttree.
 	 */
 	update_vf(cl, 0, 0);
@@ -1316,7 +1316,7 @@ hfsc_dump_class(struct Qdisc *sch, unsigned long arg, struct sk_buff *skb,
 	if (cl->level == 0)
 		tcm->tcm_info = cl->qdisc->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (hfsc_dump_curves(skb, cl) < 0)
@@ -1364,7 +1364,7 @@ hfsc_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry(cl, &q->clhash.hash[i],
-				     cl_common.hnode) {
+				     cl_common.hanalde) {
 			if (!tc_qdisc_stats_dump(sch, (unsigned long)cl, arg))
 				return;
 		}
@@ -1419,7 +1419,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 	q->root.qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					  sch->handle, NULL);
 	if (q->root.qdisc == NULL)
-		q->root.qdisc = &noop_qdisc;
+		q->root.qdisc = &analop_qdisc;
 	else
 		qdisc_hash_add(q->root.qdisc, true);
 	INIT_LIST_HEAD(&q->root.children);
@@ -1488,7 +1488,7 @@ hfsc_reset_qdisc(struct Qdisc *sch)
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hanalde)
 			hfsc_reset_class(cl);
 	}
 	q->eligible = RB_ROOT;
@@ -1499,19 +1499,19 @@ static void
 hfsc_destroy_qdisc(struct Qdisc *sch)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	struct hfsc_class *cl;
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hanalde) {
 			tcf_block_put(cl->block);
 			cl->block = NULL;
 		}
 	}
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
-					  cl_common.hnode)
+					  cl_common.hanalde)
 			hfsc_destroy_class(sch, cl);
 	}
 	qdisc_class_hash_destroy(&q->clhash);
@@ -1568,7 +1568,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 			init_vf(cl, len);
 		/*
 		 * If this is the first packet, isolate the head so an eventual
-		 * head drop before the first dequeue operation has no chance
+		 * head drop before the first dequeue operation has anal chance
 		 * to invalidate the deadline.
 		 */
 		if (cl->cl_flags & HFSC_RSC)
@@ -1620,7 +1620,7 @@ hfsc_dequeue(struct Qdisc *sch)
 
 	skb = qdisc_dequeue_peeked(cl->qdisc);
 	if (skb == NULL) {
-		qdisc_warn_nonwc("HFSC", cl->qdisc);
+		qdisc_warn_analnwc("HFSC", cl->qdisc);
 		return NULL;
 	}
 
@@ -1655,7 +1655,7 @@ static const struct Qdisc_class_ops hfsc_class_ops = {
 	.delete		= hfsc_delete_class,
 	.graft		= hfsc_graft_class,
 	.leaf		= hfsc_class_leaf,
-	.qlen_notify	= hfsc_qlen_notify,
+	.qlen_analtify	= hfsc_qlen_analtify,
 	.find		= hfsc_search_class,
 	.bind_tcf	= hfsc_bind_tcf,
 	.unbind_tcf	= hfsc_unbind_tcf,

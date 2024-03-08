@@ -66,7 +66,7 @@ int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&chip->lock);
 	chip->card = card;
 	chip->read = read;
@@ -119,7 +119,7 @@ static void ak4113_init_regs(struct ak4113 *chip)
 	udelay(200);
 	for (reg = 1; reg < AK4113_WRITABLE_REGS; reg++)
 		reg_write(chip, reg, chip->regmap[reg]);
-	/* release powerdown, everything is initialized now */
+	/* release powerdown, everything is initialized analw */
 	reg_write(chip, AK4113_REG_PWRDN, old | AK4113_RST | AK4113_PWN);
 }
 
@@ -193,7 +193,7 @@ static int snd_ak4113_in_error_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define snd_ak4113_in_bit_info		snd_ctl_boolean_mono_info
+#define snd_ak4113_in_bit_info		snd_ctl_boolean_moanal_info
 
 static int snd_ak4113_in_bit_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -436,7 +436,7 @@ static const struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
-	.name =		"IEC958 Non-PCM Bitstream",
+	.name =		"IEC958 Analn-PCM Bitstream",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ |
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_in_bit_info,
@@ -494,7 +494,7 @@ int snd_ak4113_build(struct ak4113 *ak4113,
 	for (idx = 0; idx < AK4113_CONTROLS; idx++) {
 		kctl = snd_ctl_new1(&snd_ak4113_iec958_controls[idx], ak4113);
 		if (kctl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		kctl->id.device = cap_substream->pcm->device;
 		kctl->id.subdevice = cap_substream->number;
 		err = snd_ctl_add(ak4113->card, kctl);
@@ -528,7 +528,7 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 	unsigned char c0, c1;
 
 	rcs1 = reg_read(ak4113, AK4113_REG_RCS1);
-	if (flags & AK4113_CHECK_NO_STAT)
+	if (flags & AK4113_CHECK_ANAL_STAT)
 		goto __rate;
 	rcs0 = reg_read(ak4113, AK4113_REG_RCS0);
 	rcs2 = reg_read(ak4113, AK4113_REG_RCS2);
@@ -555,38 +555,38 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 	spin_unlock_irqrestore(&ak4113->lock, _flags);
 
 	if (rcs0 & AK4113_PAR)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[0]->id);
 	if (rcs0 & AK4113_V)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[1]->id);
 	if (rcs2 & AK4113_CCRC)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[2]->id);
 	if (rcs2 & AK4113_QCRC)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[3]->id);
 
 	/* rate change */
 	if (c1 & 0xf0)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[4]->id);
 
 	if ((c1 & AK4113_PEM) | (c0 & AK4113_CINT))
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[6]->id);
 	if (c0 & AK4113_QINT)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[8]->id);
 
 	if (c0 & AK4113_AUDION)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[9]->id);
 	if (c1 & AK4113_NPCM)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[10]->id);
 	if (c1 & AK4113_DTSCD)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_analtify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[11]->id);
 
 	if (ak4113->change_callback && (c0 | c1) != 0)
@@ -595,7 +595,7 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 __rate:
 	/* compare rate */
 	res = external_rate(rcs1);
-	if (!(flags & AK4113_CHECK_NO_RATE) && runtime &&
+	if (!(flags & AK4113_CHECK_ANAL_RATE) && runtime &&
 			(runtime->rate != res)) {
 		snd_pcm_stream_lock_irqsave(ak4113->substream, _flags);
 		if (snd_pcm_running(ak4113->substream)) {

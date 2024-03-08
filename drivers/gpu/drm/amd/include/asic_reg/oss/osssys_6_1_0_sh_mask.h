@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -177,7 +177,7 @@
 #define IH_RB_CNTL__WPTR_OVERFLOW_ENABLE__SHIFT                                                               0x10
 #define IH_RB_CNTL__ENABLE_INTR__SHIFT                                                                        0x11
 #define IH_RB_CNTL__MC_SWAP__SHIFT                                                                            0x12
-#define IH_RB_CNTL__MC_SNOOP__SHIFT                                                                           0x14
+#define IH_RB_CNTL__MC_SANALOP__SHIFT                                                                           0x14
 #define IH_RB_CNTL__RPTR_REARM__SHIFT                                                                         0x15
 #define IH_RB_CNTL__MC_RO__SHIFT                                                                              0x16
 #define IH_RB_CNTL__MC_VMID__SHIFT                                                                            0x18
@@ -193,7 +193,7 @@
 #define IH_RB_CNTL__WPTR_OVERFLOW_ENABLE_MASK                                                                 0x00010000L
 #define IH_RB_CNTL__ENABLE_INTR_MASK                                                                          0x00020000L
 #define IH_RB_CNTL__MC_SWAP_MASK                                                                              0x000C0000L
-#define IH_RB_CNTL__MC_SNOOP_MASK                                                                             0x00100000L
+#define IH_RB_CNTL__MC_SANALOP_MASK                                                                             0x00100000L
 #define IH_RB_CNTL__RPTR_REARM_MASK                                                                           0x00200000L
 #define IH_RB_CNTL__MC_RO_MASK                                                                                0x00400000L
 #define IH_RB_CNTL__MC_VMID_MASK                                                                              0x0F000000L
@@ -205,11 +205,11 @@
 //IH_RB_WPTR
 #define IH_RB_WPTR__RB_OVERFLOW__SHIFT                                                                        0x0
 #define IH_RB_WPTR__OFFSET__SHIFT                                                                             0x2
-#define IH_RB_WPTR__RB_LEFT_NONE__SHIFT                                                                       0x12
+#define IH_RB_WPTR__RB_LEFT_ANALNE__SHIFT                                                                       0x12
 #define IH_RB_WPTR__RB_MAY_OVERFLOW__SHIFT                                                                    0x13
 #define IH_RB_WPTR__RB_OVERFLOW_MASK                                                                          0x00000001L
 #define IH_RB_WPTR__OFFSET_MASK                                                                               0x0003FFFCL
-#define IH_RB_WPTR__RB_LEFT_NONE_MASK                                                                         0x00040000L
+#define IH_RB_WPTR__RB_LEFT_ANALNE_MASK                                                                         0x00040000L
 #define IH_RB_WPTR__RB_MAY_OVERFLOW_MASK                                                                      0x00080000L
 //IH_RB_BASE
 #define IH_RB_BASE__ADDR__SHIFT                                                                               0x0
@@ -242,7 +242,7 @@
 #define IH_RB_CNTL_RING1__RB_USED_INT_THRESHOLD__SHIFT                                                        0xc
 #define IH_RB_CNTL_RING1__WPTR_OVERFLOW_ENABLE__SHIFT                                                         0x10
 #define IH_RB_CNTL_RING1__MC_SWAP__SHIFT                                                                      0x12
-#define IH_RB_CNTL_RING1__MC_SNOOP__SHIFT                                                                     0x14
+#define IH_RB_CNTL_RING1__MC_SANALOP__SHIFT                                                                     0x14
 #define IH_RB_CNTL_RING1__MC_RO__SHIFT                                                                        0x16
 #define IH_RB_CNTL_RING1__MC_VMID__SHIFT                                                                      0x18
 #define IH_RB_CNTL_RING1__MC_SPACE__SHIFT                                                                     0x1c
@@ -255,7 +255,7 @@
 #define IH_RB_CNTL_RING1__RB_USED_INT_THRESHOLD_MASK                                                          0x0000F000L
 #define IH_RB_CNTL_RING1__WPTR_OVERFLOW_ENABLE_MASK                                                           0x00010000L
 #define IH_RB_CNTL_RING1__MC_SWAP_MASK                                                                        0x000C0000L
-#define IH_RB_CNTL_RING1__MC_SNOOP_MASK                                                                       0x00100000L
+#define IH_RB_CNTL_RING1__MC_SANALOP_MASK                                                                       0x00100000L
 #define IH_RB_CNTL_RING1__MC_RO_MASK                                                                          0x00400000L
 #define IH_RB_CNTL_RING1__MC_VMID_MASK                                                                        0x0F000000L
 #define IH_RB_CNTL_RING1__MC_SPACE_MASK                                                                       0x70000000L
@@ -266,11 +266,11 @@
 //IH_RB_WPTR_RING1
 #define IH_RB_WPTR_RING1__RB_OVERFLOW__SHIFT                                                                  0x0
 #define IH_RB_WPTR_RING1__OFFSET__SHIFT                                                                       0x2
-#define IH_RB_WPTR_RING1__RB_LEFT_NONE__SHIFT                                                                 0x12
+#define IH_RB_WPTR_RING1__RB_LEFT_ANALNE__SHIFT                                                                 0x12
 #define IH_RB_WPTR_RING1__RB_MAY_OVERFLOW__SHIFT                                                              0x13
 #define IH_RB_WPTR_RING1__RB_OVERFLOW_MASK                                                                    0x00000001L
 #define IH_RB_WPTR_RING1__OFFSET_MASK                                                                         0x0003FFFCL
-#define IH_RB_WPTR_RING1__RB_LEFT_NONE_MASK                                                                   0x00040000L
+#define IH_RB_WPTR_RING1__RB_LEFT_ANALNE_MASK                                                                   0x00040000L
 #define IH_RB_WPTR_RING1__RB_MAY_OVERFLOW_MASK                                                                0x00080000L
 //IH_RB_BASE_RING1
 #define IH_RB_BASE_RING1__ADDR__SHIFT                                                                         0x0

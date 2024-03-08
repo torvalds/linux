@@ -11,7 +11,7 @@
 #define dprintk(vdev, fmt, arg...) do {					\
 	if (!WARN_ON(!(vdev)) && ((vdev)->dev_debug & V4L2_DEV_DEBUG_CTRL)) \
 		printk(KERN_DEBUG pr_fmt("%s: %s: " fmt),		\
-		       __func__, video_device_node_name(vdev), ##arg);	\
+		       __func__, video_device_analde_name(vdev), ##arg);	\
 } while (0)
 
 #define has_op(master, op) \
@@ -19,9 +19,9 @@
 #define call_op(master, op) \
 	(has_op(master, op) ? (master)->ops->op(master) : 0)
 
-static inline u32 node2id(struct list_head *node)
+static inline u32 analde2id(struct list_head *analde)
 {
-	return list_entry(node, struct v4l2_ctrl_ref, node)->ctrl->id;
+	return list_entry(analde, struct v4l2_ctrl_ref, analde)->ctrl->id;
 }
 
 /*

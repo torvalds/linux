@@ -5,7 +5,7 @@
 #include <asm/fpu/api.h>
 #include <asm/processor-flags.h>
 #include <asm/tlb.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/mmu_context.h>
 #include <asm/ibt.h>
 #include <linux/build_bug.h>
@@ -16,7 +16,7 @@ extern unsigned long efi_fw_vendor, efi_config_table;
 extern unsigned long efi_mixed_mode_stack_pa;
 
 /*
- * We map the EFI regions needed for runtime services non-contiguously,
+ * We map the EFI regions needed for runtime services analn-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down
  * for a total max space of 64G. This way, we provide for stable runtime
  * services addresses across kernels so that a kexec'd kernel can still
@@ -43,7 +43,7 @@ extern unsigned long efi_mixed_mode_stack_pa;
  * cause a BUILD_BUG otherwise. The limitations of the C preprocessor make it
  * impossible to calculate the exact number of arguments beyond some
  * pre-defined limit. The maximum number of arguments currently supported by
- * any of the thunks is 7, so this is good enough for now and can be extended
+ * any of the thunks is 7, so this is good eanalugh for analw and can be extended
  * in the obvious way if we ever need more.
  */
 
@@ -78,7 +78,7 @@ static inline void efi_fpu_begin(void)
 	/*
 	 * The UEFI calling convention (UEFI spec 2.3.2 and 2.3.4) requires
 	 * that FCW and MXCSR (64-bit) must be initialized prior to calling
-	 * UEFI code.  (Oddly the spec does not require that the FPU stack
+	 * UEFI code.  (Oddly the spec does analt require that the FPU stack
 	 * be empty.)
 	 */
 	kernel_fpu_begin_mask(KFPU_387 | KFPU_MXCSR);
@@ -224,7 +224,7 @@ static inline bool efi_is_native(void)
  * which must be split up into two arguments to be thunked properly.
  *
  * As examples, the AllocatePool boot service returns the address of the
- * allocation, but it will not set the high 32 bits of the address. To ensure
+ * allocation, but it will analt set the high 32 bits of the address. To ensure
  * that the full 64-bit address is initialized, we zero-init the address before
  * calling the thunk.
  *

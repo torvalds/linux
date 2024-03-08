@@ -259,7 +259,7 @@ DEFINE_TEST_ARRAY(s64) = {
 	_of = check_ ## op ## _overflow(a, b, &_r);			\
 	KUNIT_EXPECT_EQ_MSG(test, _of, of,				\
 		"expected "fmt" "sym" "fmt" to%s overflow (type %s)\n",	\
-		a, b, of ? "" : " not", #t);				\
+		a, b, of ? "" : " analt", #t);				\
 	KUNIT_EXPECT_EQ_MSG(test, _r, r,				\
 		"expected "fmt" "sym" "fmt" == "fmt", got "fmt" (type %s)\n", \
 		a, b, r, _r, #t);					\
@@ -343,7 +343,7 @@ DEFINE_TEST_FUNC_TYPED(int_int__u8, u8, "%d");
 	if (__of != of) {						\
 		KUNIT_EXPECT_EQ_MSG(test, __of, of,			\
 			"expected (%s)(%s << %s) to%s overflow\n",	\
-			#t, #a, #s, of ? "" : " not");			\
+			#t, #a, #s, of ? "" : " analt");			\
 	} else if (!__of && __d != __e) {				\
 		KUNIT_EXPECT_EQ_MSG(test, __d, __e,			\
 			"expected (%s)(%s << %s) == %s\n",		\
@@ -497,11 +497,11 @@ static void shift_truncate_test(struct kunit *test)
 	kunit_info(test, "%d truncate shift tests finished\n", count);
 }
 
-static void shift_nonsense_test(struct kunit *test)
+static void shift_analnsense_test(struct kunit *test)
 {
 	int count = 0;
 
-	/* Nonsense: negative initial value. */
+	/* Analnsense: negative initial value. */
 	TEST_ONE_SHIFT(-1, 0, s8, 0, true);
 	TEST_ONE_SHIFT(-1, 0, u8, 0, true);
 	TEST_ONE_SHIFT(-5, 0, s16, 0, true);
@@ -513,7 +513,7 @@ static void shift_nonsense_test(struct kunit *test)
 	TEST_ONE_SHIFT(-10000, 0, s64, 0, true);
 	TEST_ONE_SHIFT(-10000, 0, u64, 0, true);
 
-	/* Nonsense: negative shift values. */
+	/* Analnsense: negative shift values. */
 	TEST_ONE_SHIFT(0, -5, s8, 0, true);
 	TEST_ONE_SHIFT(0, -5, u8, 0, true);
 	TEST_ONE_SHIFT(0, -10, s16, 0, true);
@@ -528,11 +528,11 @@ static void shift_nonsense_test(struct kunit *test)
 	/*
 	 * Corner case: for unsigned types, we fail when we've shifted
 	 * through the entire width of bits. For signed types, we might
-	 * want to match this behavior, but that would mean noticing if
-	 * we shift through all but the signed bit, and this is not
-	 * currently detected (but we'll notice an overflow into the
-	 * signed bit). So, for now, we will test this condition but
-	 * mark it as not expected to overflow.
+	 * want to match this behavior, but that would mean analticing if
+	 * we shift through all but the signed bit, and this is analt
+	 * currently detected (but we'll analtice an overflow into the
+	 * signed bit). So, for analw, we will test this condition but
+	 * mark it as analt expected to overflow.
 	 */
 	TEST_ONE_SHIFT(0, 7, s8, 0, false);
 	TEST_ONE_SHIFT(0, 15, s16, 0, false);
@@ -540,7 +540,7 @@ static void shift_nonsense_test(struct kunit *test)
 	TEST_ONE_SHIFT(0, 31, s32, 0, false);
 	TEST_ONE_SHIFT(0, 63, s64, 0, false);
 
-	kunit_info(test, "%d nonsense shift tests finished\n", count);
+	kunit_info(test, "%d analnsense shift tests finished\n", count);
 }
 #undef TEST_ONE_SHIFT
 
@@ -548,11 +548,11 @@ static void shift_nonsense_test(struct kunit *test)
  * Deal with the various forms of allocator arguments. See comments above
  * the DEFINE_TEST_ALLOC() instances for mapping of the "bits".
  */
-#define alloc_GFP		 (GFP_KERNEL | __GFP_NOWARN)
+#define alloc_GFP		 (GFP_KERNEL | __GFP_ANALWARN)
 #define alloc010(alloc, arg, sz) alloc(sz, alloc_GFP)
-#define alloc011(alloc, arg, sz) alloc(sz, alloc_GFP, NUMA_NO_NODE)
+#define alloc011(alloc, arg, sz) alloc(sz, alloc_GFP, NUMA_ANAL_ANALDE)
 #define alloc000(alloc, arg, sz) alloc(sz)
-#define alloc001(alloc, arg, sz) alloc(sz, NUMA_NO_NODE)
+#define alloc001(alloc, arg, sz) alloc(sz, NUMA_ANAL_ANALDE)
 #define alloc110(alloc, arg, sz) alloc(arg, sz, alloc_GFP)
 #define free0(free, arg, ptr)	 free(ptr)
 #define free1(free, arg, ptr)	 free(arg, ptr)
@@ -560,7 +560,7 @@ static void shift_nonsense_test(struct kunit *test)
 /* Wrap around to 16K */
 #define TEST_SIZE		(5 * 4096)
 
-#define DEFINE_TEST_ALLOC(func, free_func, want_arg, want_gfp, want_node)\
+#define DEFINE_TEST_ALLOC(func, free_func, want_arg, want_gfp, want_analde)\
 static void test_ ## func (struct kunit *test, void *arg)		\
 {									\
 	volatile size_t a = TEST_SIZE;					\
@@ -568,20 +568,20 @@ static void test_ ## func (struct kunit *test, void *arg)		\
 	void *ptr;							\
 									\
 	/* Tiny allocation test. */					\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg, 1);\
-	KUNIT_ASSERT_NOT_ERR_OR_NULL_MSG(test, ptr,			\
+	ptr = alloc ## want_arg ## want_gfp ## want_analde (func, arg, 1);\
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL_MSG(test, ptr,			\
 			    #func " failed regular allocation?!\n");	\
 	free ## want_arg (free_func, arg, ptr);				\
 									\
 	/* Wrapped allocation test. */					\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg,	\
+	ptr = alloc ## want_arg ## want_gfp ## want_analde (func, arg,	\
 							  a * b);	\
-	KUNIT_ASSERT_NOT_ERR_OR_NULL_MSG(test, ptr,			\
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL_MSG(test, ptr,			\
 			    #func " unexpectedly failed bad wrapping?!\n"); \
 	free ## want_arg (free_func, arg, ptr);				\
 									\
 	/* Saturated allocation test. */				\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg,	\
+	ptr = alloc ## want_arg ## want_gfp ## want_analde (func, arg,	\
 						   array_size(a, b));	\
 	if (ptr) {							\
 		KUNIT_FAIL(test, #func " missed saturation!\n");	\
@@ -590,20 +590,20 @@ static void test_ ## func (struct kunit *test, void *arg)		\
 }
 
 /*
- * Allocator uses a trailing node argument --------+  (e.g. kmalloc_node())
+ * Allocator uses a trailing analde argument --------+  (e.g. kmalloc_analde())
  * Allocator uses the gfp_t argument -----------+  |  (e.g. kmalloc())
  * Allocator uses a special leading argument +  |  |  (e.g. devm_kmalloc())
  *                                           |  |  |
  */
 DEFINE_TEST_ALLOC(kmalloc,	 kfree,	     0, 1, 0);
-DEFINE_TEST_ALLOC(kmalloc_node,	 kfree,	     0, 1, 1);
+DEFINE_TEST_ALLOC(kmalloc_analde,	 kfree,	     0, 1, 1);
 DEFINE_TEST_ALLOC(kzalloc,	 kfree,	     0, 1, 0);
-DEFINE_TEST_ALLOC(kzalloc_node,  kfree,	     0, 1, 1);
+DEFINE_TEST_ALLOC(kzalloc_analde,  kfree,	     0, 1, 1);
 DEFINE_TEST_ALLOC(__vmalloc,	 vfree,	     0, 1, 0);
 DEFINE_TEST_ALLOC(kvmalloc,	 kvfree,     0, 1, 0);
-DEFINE_TEST_ALLOC(kvmalloc_node, kvfree,     0, 1, 1);
+DEFINE_TEST_ALLOC(kvmalloc_analde, kvfree,     0, 1, 1);
 DEFINE_TEST_ALLOC(kvzalloc,	 kvfree,     0, 1, 0);
-DEFINE_TEST_ALLOC(kvzalloc_node, kvfree,     0, 1, 1);
+DEFINE_TEST_ALLOC(kvzalloc_analde, kvfree,     0, 1, 1);
 DEFINE_TEST_ALLOC(devm_kmalloc,  devm_kfree, 1, 1, 0);
 DEFINE_TEST_ALLOC(devm_kzalloc,  devm_kfree, 1, 1, 0);
 
@@ -621,17 +621,17 @@ static void overflow_allocation_test(struct kunit *test)
 	/* Create dummy device for devm_kmalloc()-family tests. */
 	dev = kunit_device_register(test, device_name);
 	KUNIT_ASSERT_FALSE_MSG(test, IS_ERR(dev),
-			       "Cannot register test device\n");
+			       "Cananalt register test device\n");
 
 	check_allocation_overflow(kmalloc);
-	check_allocation_overflow(kmalloc_node);
+	check_allocation_overflow(kmalloc_analde);
 	check_allocation_overflow(kzalloc);
-	check_allocation_overflow(kzalloc_node);
+	check_allocation_overflow(kzalloc_analde);
 	check_allocation_overflow(__vmalloc);
 	check_allocation_overflow(kvmalloc);
-	check_allocation_overflow(kvmalloc_node);
+	check_allocation_overflow(kvmalloc_analde);
 	check_allocation_overflow(kvzalloc);
-	check_allocation_overflow(kvzalloc_node);
+	check_allocation_overflow(kvzalloc_analde);
 	check_allocation_overflow(devm_kmalloc);
 	check_allocation_overflow(devm_kzalloc);
 
@@ -744,7 +744,7 @@ static void overflows_type_test(struct kunit *test)
 	bool __of = func(arg1, arg2);					\
 	KUNIT_EXPECT_EQ_MSG(test, __of, of,				\
 		"expected " #func "(" #arg1 ", " #arg2 " to%s overflow\n",\
-		of ? "" : " not");					\
+		of ? "" : " analt");					\
 	count++;							\
 } while (0)
 
@@ -1030,7 +1030,7 @@ static void castable_to_type_test(struct kunit *test)
 	bool __pass = castable_to_type(arg1, arg2);		\
 	KUNIT_EXPECT_EQ_MSG(test, __pass, pass,			\
 		"expected castable_to_type(" #arg1 ", " #arg2 ") to%s pass\n",\
-		pass ? "" : " not");				\
+		pass ? "" : " analt");				\
 	count++;						\
 } while (0)
 
@@ -1061,12 +1061,12 @@ static void castable_to_type_test(struct kunit *test)
 	TEST_CASTABLE_TO_TYPE(type_min(s ## width), s ## width, true);		\
 	TEST_CASTABLE_TO_TYPE(type_max(s ## width), s ## width ## var, true);	\
 	TEST_CASTABLE_TO_TYPE(type_min(u ## width), s ## width ## var, true);	\
-	/* Constant expressions that do not fit types. */			\
+	/* Constant expressions that do analt fit types. */			\
 	TEST_CASTABLE_TO_TYPE(type_max(u ## width), s ## width, false);		\
 	TEST_CASTABLE_TO_TYPE(type_max(u ## width), s ## width ## var, false);	\
 	TEST_CASTABLE_TO_TYPE(type_min(s ## width), u ## width, false);		\
 	TEST_CASTABLE_TO_TYPE(type_min(s ## width), u ## width ## var, false);	\
-	/* Non-constant expression with mismatched type. */			\
+	/* Analn-constant expression with mismatched type. */			\
 	TEST_CASTABLE_TO_TYPE(s ## width ## var, u ## width, false);		\
 	TEST_CASTABLE_TO_TYPE(u ## width ## var, s ## width, false);		\
 } while (0)
@@ -1087,7 +1087,7 @@ static void castable_to_type_test(struct kunit *test)
 	TEST_CASTABLE_TO_TYPE((unsigned long)U ## width ## _MAX + 1, u ## width ## var, false); \
 	TEST_CASTABLE_TO_TYPE((signed long)S ## width ## _MIN - 1, s ## width, false); \
 	TEST_CASTABLE_TO_TYPE((signed long)S ## width ## _MIN - 1, s ## width ## var, false); \
-	/* Non-constant expression with mismatched type. */			\
+	/* Analn-constant expression with mismatched type. */			\
 	TEST_CASTABLE_TO_TYPE(big, u ## width, false);				\
 	TEST_CASTABLE_TO_TYPE(big, u ## width ## var, false);			\
 	TEST_CASTABLE_TO_TYPE(small, s ## width, false);			\
@@ -1129,7 +1129,7 @@ static struct kunit_case overflow_test_cases[] = {
 	KUNIT_CASE(shift_sane_test),
 	KUNIT_CASE(shift_overflow_test),
 	KUNIT_CASE(shift_truncate_test),
-	KUNIT_CASE(shift_nonsense_test),
+	KUNIT_CASE(shift_analnsense_test),
 	KUNIT_CASE(overflow_allocation_test),
 	KUNIT_CASE(overflow_size_helpers_test),
 	KUNIT_CASE(overflows_type_test),

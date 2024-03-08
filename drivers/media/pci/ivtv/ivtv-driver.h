@@ -15,7 +15,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -175,7 +175,7 @@ extern int ivtv_fw_debug;
 #define IVTV_INFO(fmt, args...)     v4l2_info(&itv->v4l2_dev, fmt , ## args)
 
 /* output modes (cx23415 only) */
-#define OUT_NONE        0
+#define OUT_ANALNE        0
 #define OUT_MPG         1
 #define OUT_YUV         2
 #define OUT_UDMA_YUV    3
@@ -260,7 +260,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_FAILED		   22	/* set if first open failed */
 #define IVTV_F_I_WORK_HANDLER_PCM  23	/* there is work to be done for PCM */
 
-/* Event notifications */
+/* Event analtifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
 #define IVTV_F_I_EV_VSYNC	   29	/* VSYNC event */
 #define IVTV_F_I_EV_VSYNC_FIELD    30	/* VSYNC event field (0 = first, 1 = second field) */
@@ -325,8 +325,8 @@ struct ivtv;				/* forward reference */
 
 struct ivtv_stream {
 	/* These first four fields are always set, even if the stream
-	   is not actually created. */
-	struct video_device vdev;	/* vdev.v4l2_dev is NULL if there is no device */
+	   is analt actually created. */
+	struct video_device vdev;	/* vdev.v4l2_dev is NULL if there is anal device */
 	struct ivtv *itv;		/* for ease of use */
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
@@ -334,7 +334,7 @@ struct ivtv_stream {
 	struct v4l2_fh *fh;		/* pointer to the streaming filehandle */
 	spinlock_t qlock;		/* locks access to the queues */
 	unsigned long s_flags;		/* status flags, see above */
-	int dma;			/* can be PCI_DMA_TODEVICE, PCI_DMA_FROMDEVICE or PCI_DMA_NONE */
+	int dma;			/* can be PCI_DMA_TODEVICE, PCI_DMA_FROMDEVICE or PCI_DMA_ANALNE */
 	u32 pending_offset;
 	u32 pending_backup;
 	u64 pending_pts;
@@ -535,7 +535,7 @@ struct vbi_vps {
 };
 
 struct vbi_info {
-	/* VBI general data, does not change during streaming */
+	/* VBI general data, does analt change during streaming */
 
 	u32 raw_decoder_line_size;              /* raw VBI line size from digitizer */
 	u8 raw_decoder_sav_odd_field;           /* raw VBI Start Active Video digitizer code of odd field */
@@ -556,7 +556,7 @@ struct vbi_info {
 
 	struct v4l2_format in;			/* current VBI capture format */
 	struct v4l2_sliced_vbi_format *sliced_in; /* convenience pointer to sliced struct in vbi.in union */
-	int insert_mpeg;			/* if non-zero, then embed VBI data in MPEG stream */
+	int insert_mpeg;			/* if analn-zero, then embed VBI data in MPEG stream */
 
 	/* Raw VBI compatibility hack */
 
@@ -567,7 +567,7 @@ struct vbi_info {
 
 	struct vbi_cc cc_payload[256];		/* sliced VBI CC payload array: it is an array to
 						   prevent dropping CC data if they couldn't be
-						   processed fast enough */
+						   processed fast eanalugh */
 	int cc_payload_idx;			/* index in cc_payload */
 	u8 cc_missing_cnt;			/* counts number of frames without CC for passthrough mode */
 	int wss_payload;			/* sliced VBI WSS payload */
@@ -613,11 +613,11 @@ struct ivtv {
 	const struct ivtv_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 has_cx23415;			/* 1 if it is a cx23415 based card, 0 for cx23416 */
 	u8 pvr150_workaround;           /* 1 if the cx25840 needs to workaround a PVR150 bug */
-	u8 nof_inputs;			/* number of video inputs */
-	u8 nof_audio_inputs;		/* number of audio inputs */
+	u8 analf_inputs;			/* number of video inputs */
+	u8 analf_audio_inputs;		/* number of audio inputs */
 	u32 v4l2_cap;			/* V4L2 capabilities of card */
 	u32 hw_flags;			/* hardware description of the board */
-	v4l2_std_id tuner_std;		/* the norm of the card's tuner (fixed) */
+	v4l2_std_id tuner_std;		/* the analrm of the card's tuner (fixed) */
 	struct v4l2_subdev *sd_video;	/* controlling video decoder subdev */
 	bool sd_video_is_streaming;	/* is video already streaming? */
 	struct v4l2_subdev *sd_audio;	/* controlling audio subdev */
@@ -650,7 +650,7 @@ struct ivtv {
 	u8 is_60hz                      /* 1 if the current capture standard is 60 Hz */;
 	u8 is_out_50hz                  /* 1 if the current TV output standard is 50 Hz */;
 	u8 is_out_60hz                  /* 1 if the current TV output standard is 60 Hz */;
-	int output_mode;                /* decoder output mode: NONE, MPG, YUV, UDMA YUV, passthrough */
+	int output_mode;                /* decoder output mode: ANALNE, MPG, YUV, UDMA YUV, passthrough */
 	u32 audio_input;                /* current audio input */
 	u32 active_input;               /* current video input */
 	u32 active_output;              /* current video output */
@@ -671,7 +671,7 @@ struct ivtv {
 
 	/* ALSA interface for PCM capture stream */
 	struct snd_ivtv_card *alsa;
-	void (*pcm_announce_callback)(struct snd_ivtv_card *card, u8 *pcm_data,
+	void (*pcm_ananalunce_callback)(struct snd_ivtv_card *card, u8 *pcm_data,
 				      size_t num_bytes);
 
 	/* Used for ivtv-alsa module loading */
@@ -684,8 +684,8 @@ struct ivtv {
 	struct task_struct *irq_worker_task;		/* task for irq_worker */
 	struct kthread_work irq_work;	/* kthread work entry */
 	spinlock_t dma_reg_lock;        /* lock access to DMA engine registers */
-	int cur_dma_stream;		/* index of current stream doing DMA (-1 if none) */
-	int cur_pio_stream;		/* index of current stream doing PIO (-1 if none) */
+	int cur_dma_stream;		/* index of current stream doing DMA (-1 if analne) */
+	int cur_pio_stream;		/* index of current stream doing PIO (-1 if analne) */
 	u32 dma_data_req_offset;        /* store offset in decoder memory of current DMA request */
 	u32 dma_data_req_size;          /* store size of current DMA request */
 	int dma_retries;                /* current DMA retry attempt */
@@ -763,7 +763,7 @@ static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)
 extern int (*ivtv_ext_init)(struct ivtv *);
 
 /* Globals */
-extern int ivtv_first_minor;
+extern int ivtv_first_mianalr;
 
 /*==============Prototypes==================*/
 
@@ -777,7 +777,7 @@ int ivtv_set_output_mode(struct ivtv *itv, int mode);
 /* return current output stream based on current mode */
 struct ivtv_stream *ivtv_get_output_stream(struct ivtv *itv);
 
-/* Return non-zero if a signal is pending */
+/* Return analn-zero if a signal is pending */
 int ivtv_msleep_timeout(unsigned int msecs, int intr);
 
 /* Wait on queue, returns -EINTR if interrupted */
@@ -796,13 +796,13 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 	return itv->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
 }
 
-/* This is a PCI post thing, where if the pci register is not read, then
+/* This is a PCI post thing, where if the pci register is analt read, then
    the write doesn't always take effect right away. By reading back the
    register any pending PCI writes will be performed (in order), and so
    you can be sure that the writes are guaranteed to be done.
 
    Rarely needed, only in some timing sensitive cases.
-   Apparently if this is not done some motherboards seem
+   Apparently if this is analt done some motherboards seem
    to kill the firmware and get into the broken state until computer is
    rebooted. */
 #define write_sync(val, reg) \
@@ -824,7 +824,7 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 	do { write_dec(val, addr); read_dec(addr); } while (0)
 
 /* Call the specified callback for all subdevs matching hw (if 0, then
-   match them all). Ignore any errors. */
+   match them all). Iganalre any errors. */
 #define ivtv_call_hw(itv, hw, o, f, args...)				\
 	v4l2_device_mask_call_all(&(itv)->v4l2_dev, hw, o, f, ##args)
 
@@ -832,7 +832,7 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). If the callback returns an error other than 0 or
-   -ENOIOCTLCMD, then return with that error code. */
+   -EANALIOCTLCMD, then return with that error code. */
 #define ivtv_call_hw_err(itv, hw, o, f, args...)			\
 	v4l2_device_mask_call_until_err(&(itv)->v4l2_dev, hw, o, f, ##args)
 

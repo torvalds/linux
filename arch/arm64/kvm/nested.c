@@ -45,7 +45,7 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		break;
 
 	case SYS_ID_AA64PFR0_EL1:
-		/* No AMU, MPAM, S-EL2, RAS or SVE */
+		/* Anal AMU, MPAM, S-EL2, RAS or SVE */
 		val &= ~(GENMASK_ULL(55, 52)	|
 			 NV_FTR(PFR0, AMU)	|
 			 NV_FTR(PFR0, MPAM)	|
@@ -149,7 +149,7 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		break;
 
 	default:
-		/* Unknown register, just wipe it clean */
+		/* Unkanalwn register, just wipe it clean */
 		val = 0;
 		break;
 	}

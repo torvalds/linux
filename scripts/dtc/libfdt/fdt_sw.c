@@ -56,8 +56,8 @@ static int fdt_sw_probe_memrsv_(void *fdt)
 /* 'struct' state:	Enter this state after fdt_finish_reservemap()
  *
  * Allowed functions:
- *	fdt_begin_node()
- *	fdt_end_node()
+ *	fdt_begin_analde()
+ *	fdt_end_analde()
  *	fdt_property*()
  *	fdt_finish()			[moves to 'complete' state]
  */
@@ -88,7 +88,7 @@ static inline uint32_t sw_flags(void *fdt)
 
 /* 'complete' state:	Enter this state after fdt_finish()
  *
- * Allowed functions: none
+ * Allowed functions: analne
  */
 
 static void *fdt_grab_space_(void *fdt, size_t len)
@@ -113,7 +113,7 @@ int fdt_create_with_flags(void *buf, int bufsize, uint32_t flags)
 	void *fdt = buf;
 
 	if (bufsize < hdrsize)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	if (flags & ~FDT_CREATE_FLAGS_ALL)
 		return -FDT_ERR_BADFLAGS;
@@ -153,7 +153,7 @@ int fdt_resize(void *fdt, void *buf, int bufsize)
 	FDT_SW_PROBE(fdt);
 
 	if (bufsize < 0)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	headsize = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
 	tailsize = fdt_size_dt_strings(fdt);
@@ -163,7 +163,7 @@ int fdt_resize(void *fdt, void *buf, int bufsize)
 		return -FDT_ERR_INTERNAL;
 
 	if ((headsize + tailsize) > (unsigned)bufsize)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	oldtail = (char *)fdt + fdt_totalsize(fdt) - tailsize;
 	newtail = (char *)buf + bufsize - tailsize;
@@ -194,7 +194,7 @@ int fdt_add_reservemap_entry(void *fdt, uint64_t addr, uint64_t size)
 
 	offset = fdt_off_dt_struct(fdt);
 	if ((offset + sizeof(*re)) > fdt_totalsize(fdt))
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	re = (struct fdt_reserve_entry *)((char *)fdt + offset);
 	re->address = cpu_to_fdt64(addr);
@@ -216,9 +216,9 @@ int fdt_finish_reservemap(void *fdt)
 	return 0;
 }
 
-int fdt_begin_node(void *fdt, const char *name)
+int fdt_begin_analde(void *fdt, const char *name)
 {
-	struct fdt_node_header *nh;
+	struct fdt_analde_header *nh;
 	int namelen;
 
 	FDT_SW_PROBE_STRUCT(fdt);
@@ -226,14 +226,14 @@ int fdt_begin_node(void *fdt, const char *name)
 	namelen = strlen(name) + 1;
 	nh = fdt_grab_space_(fdt, sizeof(*nh) + FDT_TAGALIGN(namelen));
 	if (! nh)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
-	nh->tag = cpu_to_fdt32(FDT_BEGIN_NODE);
+	nh->tag = cpu_to_fdt32(FDT_BEGIN_ANALDE);
 	memcpy(nh->name, name, namelen);
 	return 0;
 }
 
-int fdt_end_node(void *fdt)
+int fdt_end_analde(void *fdt)
 {
 	fdt32_t *en;
 
@@ -241,9 +241,9 @@ int fdt_end_node(void *fdt)
 
 	en = fdt_grab_space_(fdt, FDT_TAGSIZE);
 	if (! en)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
-	*en = cpu_to_fdt32(FDT_END_NODE);
+	*en = cpu_to_fdt32(FDT_END_ANALDE);
 	return 0;
 }
 
@@ -257,7 +257,7 @@ static int fdt_add_string_(void *fdt, const char *s)
 	offset = strtabsize + len;
 	struct_top = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
 	if (fdt_totalsize(fdt) - offset < struct_top)
-		return 0; /* no more room :( */
+		return 0; /* anal more room :( */
 
 	memcpy(strtab - offset, s, len);
 	fdt_set_size_dt_strings(fdt, strtabsize + len);
@@ -298,21 +298,21 @@ int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp)
 
 	FDT_SW_PROBE_STRUCT(fdt);
 
-	/* String de-duplication can be slow, _NO_NAME_DEDUP skips it */
-	if (sw_flags(fdt) & FDT_CREATE_FLAG_NO_NAME_DEDUP) {
+	/* String de-duplication can be slow, _ANAL_NAME_DEDUP skips it */
+	if (sw_flags(fdt) & FDT_CREATE_FLAG_ANAL_NAME_DEDUP) {
 		allocated = 1;
 		nameoff = fdt_add_string_(fdt, name);
 	} else {
 		nameoff = fdt_find_add_string_(fdt, name, &allocated);
 	}
 	if (nameoff == 0)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 
 	prop = fdt_grab_space_(fdt, sizeof(*prop) + FDT_TAGALIGN(len));
 	if (! prop) {
 		if (allocated)
 			fdt_del_last_string_(fdt, name);
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 	}
 
 	prop->tag = cpu_to_fdt32(FDT_PROP);
@@ -347,7 +347,7 @@ int fdt_finish(void *fdt)
 	/* Add terminator */
 	end = fdt_grab_space_(fdt, sizeof(*end));
 	if (! end)
-		return -FDT_ERR_NOSPACE;
+		return -FDT_ERR_ANALSPACE;
 	*end = cpu_to_fdt32(FDT_END);
 
 	/* Relocate the string table */

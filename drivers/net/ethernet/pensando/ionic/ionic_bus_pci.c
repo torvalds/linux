@@ -65,9 +65,9 @@ static int ionic_map_bars(struct ionic *ionic)
 			bars[j].vaddr = pci_iomap(pdev, i, bars[j].len);
 			if (!bars[j].vaddr) {
 				dev_err(dev,
-					"Cannot memory-map BAR %d, aborting\n",
+					"Cananalt memory-map BAR %d, aborting\n",
 					i);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		}
 
@@ -152,7 +152,7 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 
 	ionic->vfs = kcalloc(num_vfs, sizeof(struct ionic_vf), GFP_KERNEL);
 	if (!ionic->vfs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -162,13 +162,13 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 					     sizeof(v->stats), DMA_FROM_DEVICE);
 		if (dma_mapping_error(ionic->dev, v->stats_pa)) {
 			v->stats_pa = 0;
-			err = -ENODEV;
+			err = -EANALDEV;
 			goto out;
 		}
 
 		ionic->num_vfs++;
 
-		/* ignore failures from older FW, we just won't get stats */
+		/* iganalre failures from older FW, we just won't get stats */
 		vfc.stats_pa = cpu_to_le64(v->stats_pa);
 		ionic_set_vf_config(ionic, i, &vfc);
 	}
@@ -193,13 +193,13 @@ static int ionic_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	if (num_vfs > 0) {
 		ret = pci_enable_sriov(pdev, num_vfs);
 		if (ret) {
-			dev_err(dev, "Cannot enable SRIOV: %d\n", ret);
+			dev_err(dev, "Cananalt enable SRIOV: %d\n", ret);
 			goto out;
 		}
 
 		ret = ionic_vf_alloc(ionic, num_vfs);
 		if (ret) {
-			dev_err(dev, "Cannot alloc VFs: %d\n", ret);
+			dev_err(dev, "Cananalt alloc VFs: %d\n", ret);
 			pci_disable_sriov(pdev);
 			goto out;
 		}
@@ -241,13 +241,13 @@ static int ionic_setup_one(struct ionic *ionic)
 	/* Setup PCI device */
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(dev, "Cannot enable PCI device: %d, aborting\n", err);
+		dev_err(dev, "Cananalt enable PCI device: %d, aborting\n", err);
 		goto err_out_debugfs_del_dev;
 	}
 
 	err = pci_request_regions(pdev, IONIC_DRV_NAME);
 	if (err) {
-		dev_err(dev, "Cannot request PCI regions: %d, aborting\n", err);
+		dev_err(dev, "Cananalt request PCI regions: %d, aborting\n", err);
 		goto err_out_clear_pci;
 	}
 	pcie_print_link_status(pdev);
@@ -259,34 +259,34 @@ static int ionic_setup_one(struct ionic *ionic)
 	/* Configure the device */
 	err = ionic_setup(ionic);
 	if (err) {
-		dev_err(dev, "Cannot setup device: %d, aborting\n", err);
+		dev_err(dev, "Cananalt setup device: %d, aborting\n", err);
 		goto err_out_clear_pci;
 	}
 	pci_set_master(pdev);
 
 	err = ionic_identify(ionic);
 	if (err) {
-		dev_err(dev, "Cannot identify device: %d, aborting\n", err);
+		dev_err(dev, "Cananalt identify device: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 	ionic_debugfs_add_ident(ionic);
 
 	err = ionic_init(ionic);
 	if (err) {
-		dev_err(dev, "Cannot init device: %d, aborting\n", err);
+		dev_err(dev, "Cananalt init device: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 
 	/* Configure the port */
 	err = ionic_port_identify(ionic);
 	if (err) {
-		dev_err(dev, "Cannot identify port: %d, aborting\n", err);
+		dev_err(dev, "Cananalt identify port: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 
 	err = ionic_port_init(ionic);
 	if (err) {
-		dev_err(dev, "Cannot init port: %d, aborting\n", err);
+		dev_err(dev, "Cananalt init port: %d, aborting\n", err);
 		goto err_out_teardown;
 	}
 
@@ -311,7 +311,7 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ionic = ionic_devlink_alloc(dev);
 	if (!ionic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ionic->pdev = pdev;
 	ionic->dev = dev;
@@ -333,19 +333,19 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Allocate and init the LIF */
 	err = ionic_lif_size(ionic);
 	if (err) {
-		dev_err(dev, "Cannot size LIF: %d, aborting\n", err);
+		dev_err(dev, "Cananalt size LIF: %d, aborting\n", err);
 		goto err_out_pci;
 	}
 
 	err = ionic_lif_alloc(ionic);
 	if (err) {
-		dev_err(dev, "Cannot allocate LIF: %d, aborting\n", err);
+		dev_err(dev, "Cananalt allocate LIF: %d, aborting\n", err);
 		goto err_out_free_irqs;
 	}
 
 	err = ionic_lif_init(ionic->lif);
 	if (err) {
-		dev_err(dev, "Cannot init LIF: %d, aborting\n", err);
+		dev_err(dev, "Cananalt init LIF: %d, aborting\n", err);
 		goto err_out_free_lifs;
 	}
 
@@ -355,18 +355,18 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_info(dev, "%d VFs found already enabled\n", num_vfs);
 		err = ionic_vf_alloc(ionic, num_vfs);
 		if (err)
-			dev_err(dev, "Cannot enable existing VFs: %d\n", err);
+			dev_err(dev, "Cananalt enable existing VFs: %d\n", err);
 	}
 
 	err = ionic_devlink_register(ionic);
 	if (err) {
-		dev_err(dev, "Cannot register devlink: %d\n", err);
+		dev_err(dev, "Cananalt register devlink: %d\n", err);
 		goto err_out_deinit_lifs;
 	}
 
 	err = ionic_lif_register(ionic->lif);
 	if (err) {
-		dev_err(dev, "Cannot register LIF: %d, aborting\n", err);
+		dev_err(dev, "Cananalt register LIF: %d, aborting\n", err);
 		goto err_out_deregister_devlink;
 	}
 
@@ -402,7 +402,7 @@ static void ionic_remove(struct pci_dev *pdev)
 	timer_shutdown_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
-		/* prevent adminq cmds if already known as down */
+		/* prevent adminq cmds if already kanalwn as down */
 		if (test_and_clear_bit(IONIC_LIF_F_FW_RESET, ionic->lif->state))
 			set_bit(IONIC_LIF_F_FW_STOPPING, ionic->lif->state);
 
@@ -480,7 +480,7 @@ static pci_ers_result_t ionic_pci_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
 
-	return PCI_ERS_RESULT_NONE;
+	return PCI_ERS_RESULT_ANALNE;
 }
 
 static void ionic_pci_error_resume(struct pci_dev *pdev)

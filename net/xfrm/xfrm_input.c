@@ -22,7 +22,7 @@
 #include <net/ip6_tunnel.h>
 #include <net/dst_metadata.h>
 
-#include "xfrm_inout.h"
+#include "xfrm_ianalut.h"
 
 struct xfrm_trans_tasklet {
 	struct work_struct work;
@@ -56,7 +56,7 @@ int xfrm_input_register_afinfo(const struct xfrm_input_afinfo *afinfo)
 	int err = 0;
 
 	if (WARN_ON(afinfo->family > AF_INET6))
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	spin_lock_bh(&xfrm_input_afinfo_lock);
 	if (unlikely(xfrm_input_afinfo[afinfo->is_ipip][afinfo->family]))
@@ -108,7 +108,7 @@ static int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family, u8 protocol,
 
 	afinfo = xfrm_input_get_afinfo(family, is_ipip);
 	if (!afinfo)
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 
 	ret = afinfo->callback(skb, protocol, err);
 	rcu_read_unlock();
@@ -148,12 +148,12 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 	case IPPROTO_AH:
 		hlen = sizeof(struct ip_auth_hdr);
 		offset = offsetof(struct ip_auth_hdr, spi);
-		offset_seq = offsetof(struct ip_auth_hdr, seq_no);
+		offset_seq = offsetof(struct ip_auth_hdr, seq_anal);
 		break;
 	case IPPROTO_ESP:
 		hlen = sizeof(struct ip_esp_hdr);
 		offset = offsetof(struct ip_esp_hdr, spi);
-		offset_seq = offsetof(struct ip_esp_hdr, seq_no);
+		offset_seq = offsetof(struct ip_esp_hdr, seq_anal);
 		break;
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
@@ -245,7 +245,7 @@ static int xfrm4_remove_tunnel_encap(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
 		ipv4_copy_dscp(XFRM_MODE_SKB_CB(skb)->tos, ipip_hdr(skb));
-	if (!(x->props.flags & XFRM_STATE_NOECN))
+	if (!(x->props.flags & XFRM_STATE_ANALECN))
 		ipip_ecn_decapsulate(skb);
 
 	skb_reset_network_header(skb);
@@ -282,7 +282,7 @@ static int xfrm6_remove_tunnel_encap(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
 		ipv6_copy_dscp(XFRM_MODE_SKB_CB(skb)->tos, ipipv6_hdr(skb));
-	if (!(x->props.flags & XFRM_STATE_NOECN))
+	if (!(x->props.flags & XFRM_STATE_ANALECN))
 		ipip6_ecn_decapsulate(skb);
 
 	skb_reset_network_header(skb);
@@ -358,7 +358,7 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 	}
 
 	WARN_ON_ONCE(1);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
@@ -372,7 +372,7 @@ static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		return -EAFNOSUPPORT;
+		return -EAFANALSUPPORT;
 	}
 
 	return xfrm_inner_mode_encap_remove(x, skb);
@@ -416,7 +416,7 @@ static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 #else
 	WARN_ON_ONCE(1);
-	return -EAFNOSUPPORT;
+	return -EAFANALSUPPORT;
 #endif
 }
 
@@ -441,7 +441,7 @@ static int xfrm_inner_mode_input(struct xfrm_state *x,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
@@ -565,8 +565,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		x = xfrm_state_lookup(net, mark, daddr, spi, nexthdr, family);
 		if (x == NULL) {
 			secpath_reset(skb);
-			XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOSTATES);
-			xfrm_audit_state_notfound(skb, family, spi, seq);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMINANALSTATES);
+			xfrm_audit_state_analtfound(skb, family, spi, seq);
 			goto drop;
 		}
 
@@ -704,7 +704,7 @@ resume:
 		if (xo)
 			xfrm_gro = xo->flags & XFRM_GRO;
 
-		err = -EAFNOSUPPORT;
+		err = -EAFANALSUPPORT;
 		rcu_read_lock();
 		afinfo = xfrm_state_afinfo_get_rcu(x->props.family);
 		if (likely(afinfo))
@@ -765,7 +765,7 @@ int xfrm_trans_queue_net(struct net *net, struct sk_buff *skb,
 	trans = this_cpu_ptr(&xfrm_trans_tasklet);
 
 	if (skb_queue_len(&trans->queue) >= READ_ONCE(netdev_max_backlog))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	BUILD_BUG_ON(sizeof(struct xfrm_trans_cb) > sizeof(skb->cb));
 

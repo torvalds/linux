@@ -123,7 +123,7 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 		dm_odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 
 		/*
-		 * (1)Hardware does not provide RSSI for CCK/
+		 * (1)Hardware does analt provide RSSI for CCK/
 		 * (2)PWDB, Average PWDB calculated by
 		 *    hardware (for rate adaptive)
 		 */
@@ -177,7 +177,7 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 		 */
 
 		for (i = RF_PATH_A; i < RF_PATH_MAX; i++) {
-			/*  2008/01/30 MH we will judge RF RX path now. */
+			/*  2008/01/30 MH we will judge RF RX path analw. */
 			if (dm_odm->RFPathRxEnable & BIT(i))
 				rf_rx_num++;
 			/* else */
@@ -214,12 +214,12 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 		 *
 		 * Only spatial stream 1 makes sense
 		 *
-		 * Do not use shift operation like "rx_evmX >>= 1"
+		 * Do analt use shift operation like "rx_evmX >>= 1"
 		 * because the compiler of free build environment
 		 * fill most significant bit to "zero" when doing
 		 * shifting operation which may change a negative
 		 * value to positive one, then the dbm value (which
-		 * is supposed to be negative) is not correct
+		 * is supposed to be negative) is analt correct
 		 * anymore.
 		 */
 		evm = odm_evm_db_to_percentage(phy_sta_rpt->stream_rxevm[0]); /* dbm */

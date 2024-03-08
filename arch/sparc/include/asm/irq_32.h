@@ -15,10 +15,10 @@
 
 #include <linux/interrupt.h>
 
-#define irq_canonicalize(irq)	(irq)
+#define irq_caanalnicalize(irq)	(irq)
 
 void __init sun4d_init_sbi_irq(void);
 
-#define NO_IRQ		0xffffffff
+#define ANAL_IRQ		0xffffffff
 
 #endif

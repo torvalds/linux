@@ -44,10 +44,10 @@ $(warning,AB = $(AB))
 greeting = $(1), my name is $(2).
 $(warning,$(greeting,Hello,John))
 
-# The number of arguments is not checked for user-defined functions.
+# The number of arguments is analt checked for user-defined functions.
 # If some arguments are optional, it is useful to pass fewer parameters.
 # $(2) will be blank in this case.
 $(warning,$(greeting,Hello))
 
-# Unreferenced parameters are just ignored.
-$(warning,$(greeting,Hello,John,ignored,ignored))
+# Unreferenced parameters are just iganalred.
+$(warning,$(greeting,Hello,John,iganalred,iganalred))

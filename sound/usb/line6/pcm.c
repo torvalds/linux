@@ -141,7 +141,7 @@ get_stream(struct snd_line6_pcm *line6pcm, int direction)
 		&line6pcm->out : &line6pcm->in;
 }
 
-/* allocate a buffer if not opened yet;
+/* allocate a buffer if analt opened yet;
  * call this in line6pcm.state_mutex
  */
 static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
@@ -159,7 +159,7 @@ static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
 					    LINE6_ISO_PACKETS, pkt_size),
 				GFP_KERNEL);
 		if (!pstr->buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	return 0;
 }
@@ -532,7 +532,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 
 	line6pcm = kzalloc(sizeof(*line6pcm), GFP_KERNEL);
 	if (!line6pcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&line6pcm->state_mutex);
 	line6pcm->pcm = pcm;
@@ -558,7 +558,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 			usb_sndisocpipe(line6->usbdev, ep_write));
 	if (!line6pcm->max_packet_size_in || !line6pcm->max_packet_size_out) {
 		dev_err(line6pcm->line6->ifcdev,
-			"cannot get proper max packet size\n");
+			"cananalt get proper max packet size\n");
 		return -EINVAL;
 	}
 

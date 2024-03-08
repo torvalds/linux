@@ -24,14 +24,14 @@
 	.text
 	
 #include <asm/assembly.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <linux/linkage.h>
 
 	/*
 	 * unsigned long lclear_user(void *to, unsigned long n)
 	 *
 	 * Returns 0 for success.
-	 * otherwise, returns number of bytes not transferred.
+	 * otherwise, returns number of bytes analt transferred.
 	 */
 
 ENTRY_CFI(lclear_user)
@@ -59,7 +59,7 @@ ENDPROC_CFI(lclear_user)
  * - sr2 already contains space of destination region
  *
  * Returns:
- * - number of bytes that could not be copied.
+ * - number of bytes that could analt be copied.
  *   On success, this will be zero.
  *
  * This code is based on a C-implementation of a copy routine written by
@@ -73,7 +73,7 @@ ENDPROC_CFI(lclear_user)
  *
  * Testing with various alignments and buffer sizes shows that this code is
  * often >10x faster than a simple byte-at-a-time copy, even for strangely
- * aligned operands. It is interesting to note that the glibc version of memcpy
+ * aligned operands. It is interesting to analte that the glibc version of memcpy
  * (written in C) is actually quite fast already. This routine is able to beat
  * it by 30-40% for aligned copies because of the loop unrolling, but in some
  * cases the glibc version is still slightly faster. This lends more
@@ -81,7 +81,7 @@ ENDPROC_CFI(lclear_user)
  *
  * Possible optimizations:
  * - add cache prefetching
- * - try not to use the post-increment address modifiers; they may create
+ * - try analt to use the post-increment address modifiers; they may create
  *   additional interlocks. Assumption is that those were only efficient on old
  *   machines (pre PA8000 processors)
  */
@@ -231,7 +231,7 @@ ENTRY_CFI(pa_memcpy)
 	sub	end,dst,ret0
 
 
-	/* src and dst are not aligned the same way. */
+	/* src and dst are analt aligned the same way. */
 	/* need to go the hard way */
 .Lunaligned_copy:
 	/* align until dst is 32bit-word-aligned */
@@ -253,11 +253,11 @@ ENTRY_CFI(pa_memcpy)
 	copy	dst,save_dst
 	copy	len,save_len
 
-	/* len now needs give number of words to copy */
+	/* len analw needs give number of words to copy */
 	SHRREG	len,2,len
 
 	/*
-	 * Copy from a not-aligned src to an aligned dst using shifts.
+	 * Copy from a analt-aligned src to an aligned dst using shifts.
 	 * Handles 4 words per loop.
 	 */
 
@@ -275,7 +275,7 @@ ENTRY_CFI(pa_memcpy)
 	b,n .Lcase1
 .Lcase0:
 	cmpb,COND(=) %r0,len,.Lcda_finish
-	nop
+	analp
 
 1:	ldw,ma 4(srcspc,src), a3
 	ASM_EXCEPTIONTABLE_ENTRY(1b,.Lcda_rdfault)
@@ -315,7 +315,7 @@ ENTRY_CFI(pa_memcpy)
 	ASM_EXCEPTIONTABLE_ENTRY(1b,.Lcopy_done)
 	ldo -4(len),len
 	cmpb,COND(<>) %r0,len,.Ldo4
-	nop
+	analp
 .Ldo0:
 	shrpw a2, a3, %sar, t0
 1:	stw,ma t0, 4(dstspc,dst)

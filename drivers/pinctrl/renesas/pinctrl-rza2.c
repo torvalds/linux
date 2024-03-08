@@ -79,7 +79,7 @@ static void rza2_set_pin_function(void __iomem *pfc_base, u8 port, u8 pin,
 	u16 reg16;
 	u8 reg8;
 
-	/* Set pin to 'Non-use (Hi-z input protection)'  */
+	/* Set pin to 'Analn-use (Hi-z input protection)'  */
 	reg16 = readw(pfc_base + RZA2_PDR(port));
 	mask16 = RZA2_PDR_MASK << (pin * 2);
 	reg16 &= ~mask16;
@@ -144,8 +144,8 @@ static int rza2_chip_get_direction(struct gpio_chip *chip, unsigned int offset)
 		return GPIO_LINE_DIRECTION_IN;
 
 	/*
-	 * This GPIO controller has a default Hi-Z state that is not input or
-	 * output, so force the pin to input now.
+	 * This GPIO controller has a default Hi-Z state that is analt input or
+	 * output, so force the pin to input analw.
 	 */
 	rza2_pin_to_gpio(priv->base, offset, 1);
 
@@ -219,7 +219,7 @@ static const char * const rza2_gpio_names[] = {
 	"PF_0", "PF_1", "PF_2", "PF_3", "PF_4", "PF_5", "PF_6", "PF_7",
 	"PG_0", "PG_1", "PG_2", "PG_3", "PG_4", "PG_5", "PG_6", "PG_7",
 	"PH_0", "PH_1", "PH_2", "PH_3", "PH_4", "PH_5", "PH_6", "PH_7",
-	/* port I does not exist */
+	/* port I does analt exist */
 	"PJ_0", "PJ_1", "PJ_2", "PJ_3", "PJ_4", "PJ_5", "PJ_6", "PJ_7",
 	"PK_0", "PK_1", "PK_2", "PK_3", "PK_4", "PK_5", "PK_6", "PK_7",
 	"PL_0", "PL_1", "PL_2", "PL_3", "PL_4", "PL_5", "PL_6", "PL_7",
@@ -238,7 +238,7 @@ static struct gpio_chip chip = {
 
 static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_analde *np = priv->dev->of_analde;
 	struct of_phandle_args of_args;
 	int ret;
 
@@ -256,7 +256,7 @@ static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 	if ((of_args.args[0] != 0) ||
 	    (of_args.args[1] != 0) ||
 	    (of_args.args[2] != priv->npins)) {
-		dev_err(priv->dev, "gpio-ranges does not match selected SOC\n");
+		dev_err(priv->dev, "gpio-ranges does analt match selected SOC\n");
 		return -EINVAL;
 	}
 	priv->gpio_range.id = 0;
@@ -286,7 +286,7 @@ static int rza2_pinctrl_register(struct rza2_pinctrl_priv *priv)
 
 	pins = devm_kcalloc(priv->dev, priv->npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pins = pins;
 	priv->desc.pins = pins;
@@ -320,12 +320,12 @@ static int rza2_pinctrl_register(struct rza2_pinctrl_priv *priv)
 }
 
 /*
- * For each DT node, create a single pin mapping. That pin mapping will only
+ * For each DT analde, create a single pin mapping. That pin mapping will only
  * contain a single group of pins, and that group of pins will only have a
  * single function that can be selected.
  */
-static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int rza2_dt_analde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_analde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
@@ -339,7 +339,7 @@ static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
 	of_pins = of_find_property(np, "pinmux", NULL);
 	if (!of_pins) {
 		dev_info(priv->dev, "Missing pinmux property\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 	npins = of_pins->length / sizeof(u32);
 
@@ -348,7 +348,7 @@ static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
 				GFP_KERNEL);
 	pin_fn = devm_kzalloc(priv->dev, sizeof(*pin_fn), GFP_KERNEL);
 	if (!pins || !psel_val || !pin_fn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Collect pin locations and mux settings from DT properties */
 	for (i = 0; i < npins; ++i) {
@@ -388,7 +388,7 @@ static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	*map = kzalloc(sizeof(**map), GFP_KERNEL);
 	if (!*map) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto remove_function;
 	}
 
@@ -410,7 +410,7 @@ remove_group:
 unlock:
 	mutex_unlock(&priv->mutex);
 
-	dev_err(priv->dev, "Unable to parse DT node %s\n", np->name);
+	dev_err(priv->dev, "Unable to parse DT analde %s\n", np->name);
 
 	return ret;
 }
@@ -425,7 +425,7 @@ static const struct pinctrl_ops rza2_pinctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= rza2_dt_node_to_map,
+	.dt_analde_to_map		= rza2_dt_analde_to_map,
 	.dt_free_map		= rza2_dt_free_map,
 };
 
@@ -477,7 +477,7 @@ static int rza2_pinctrl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 

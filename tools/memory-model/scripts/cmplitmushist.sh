@@ -16,47 +16,47 @@ badmacnam=0
 timedout=0
 perfect=0
 obsline=0
-noobsline=0
+analobsline=0
 obsresult=0
 badcompare=0
 comparetest () {
-	if grep -q ': Unknown macro ' $1 || grep -q ': Unknown macro ' $2
+	if grep -q ': Unkanalwn macro ' $1 || grep -q ': Unkanalwn macro ' $2
 	then
-		if grep -q ': Unknown macro ' $1
+		if grep -q ': Unkanalwn macro ' $1
 		then
-			badname=`grep ': Unknown macro ' $1 |
-				sed -e 's/^.*: Unknown macro //' |
+			badname=`grep ': Unkanalwn macro ' $1 |
+				sed -e 's/^.*: Unkanalwn macro //' |
 				sed -e 's/ (User error).*$//'`
-			echo 'Current LKMM version does not know "'$badname'"' $1
+			echo 'Current LKMM version does analt kanalw "'$badname'"' $1
 		fi
-		if grep -q ': Unknown macro ' $2
+		if grep -q ': Unkanalwn macro ' $2
 		then
-			badname=`grep ': Unknown macro ' $2 |
-				sed -e 's/^.*: Unknown macro //' |
+			badname=`grep ': Unkanalwn macro ' $2 |
+				sed -e 's/^.*: Unkanalwn macro //' |
 				sed -e 's/ (User error).*$//'`
-			echo 'Current LKMM version does not know "'$badname'"' $2
+			echo 'Current LKMM version does analt kanalw "'$badname'"' $2
 		fi
 		badmacnam=`expr "$badmacnam" + 1`
 		return 0
-	elif grep -q '^Command exited with non-zero status 124' $1 ||
-	     grep -q '^Command exited with non-zero status 124' $2
+	elif grep -q '^Command exited with analn-zero status 124' $1 ||
+	     grep -q '^Command exited with analn-zero status 124' $2
 	then
-		if grep -q '^Command exited with non-zero status 124' $1 &&
-		   grep -q '^Command exited with non-zero status 124' $2
+		if grep -q '^Command exited with analn-zero status 124' $1 &&
+		   grep -q '^Command exited with analn-zero status 124' $2
 		then
 			echo Both runs timed out: $2
-		elif grep -q '^Command exited with non-zero status 124' $1
+		elif grep -q '^Command exited with analn-zero status 124' $1
 		then
 			echo Old run timed out: $2
-		elif grep -q '^Command exited with non-zero status 124' $2
+		elif grep -q '^Command exited with analn-zero status 124' $2
 		then
 			echo New run timed out: $2
 		fi
 		timedout=`expr "$timedout" + 1`
 		return 0
 	fi
-	grep -v 'maxresident)k\|minor)pagefaults\|^Time' $1 > $T/oldout
-	grep -v 'maxresident)k\|minor)pagefaults\|^Time' $2 > $T/newout
+	grep -v 'maxresident)k\|mianalr)pagefaults\|^Time' $1 > $T/oldout
+	grep -v 'maxresident)k\|mianalr)pagefaults\|^Time' $2 > $T/newout
 	if cmp -s $T/oldout $T/newout && grep -q '^Observation' $1
 	then
 		echo Exact output match: $2
@@ -76,7 +76,7 @@ comparetest () {
 		fi
 	else
 		echo Missing Observation line "(e.g., syntax error)": $2
-		noobsline=`expr "$noobsline" + 1`
+		analobsline=`expr "$analobsline" + 1`
 		return 0
 	fi
 
@@ -107,9 +107,9 @@ if test "$obsline" -ne 0
 then
 	echo Matching Observation result and counts: $obsline 1>&2
 fi
-if test "$noobsline" -ne 0
+if test "$analobsline" -ne 0
 then
-	echo Missing Observation line "(e.g., syntax error)": $noobsline 1>&2
+	echo Missing Observation line "(e.g., syntax error)": $analobsline 1>&2
 fi
 if test "$obsresult" -ne 0
 then
@@ -121,7 +121,7 @@ then
 fi
 if test "$badmacnam" -ne 0
 then
-	echo "!!!" Unknown primitive: $badmacnam 1>&2
+	echo "!!!" Unkanalwn primitive: $badmacnam 1>&2
 fi
 if test "$badcompare" -ne 0
 then

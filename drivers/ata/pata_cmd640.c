@@ -9,7 +9,7 @@
  *  Copyright (C) 1995-1996  Linus Torvalds & authors (see driver)
  *
  *	This drives only the PCI version of the controller. If you have a
- *	VLB one then we have enough docs to support it but you can write
+ *	VLB one then we have eanalugh docs to support it but you can write
  *	your own code.
  */
 
@@ -57,7 +57,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	const unsigned long T = 1000000 / 33;
 	const u8 setup_data[] = { 0x40, 0x40, 0x40, 0x80, 0x00 };
 	u8 reg;
-	int arttim = ARTIM0 + 2 * adev->devno;
+	int arttim = ARTIM0 + 2 * adev->devanal;
 	struct ata_device *pair = ata_dev_pair(adev);
 
 	if (ata_timing_compute(adev, adev->pio_mode, &t, T, 0) < 0) {
@@ -67,7 +67,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* The second channel has shared timings and the setup timing is
 	   messy to switch to merge it for worst case */
-	if (ap->port_no && pair) {
+	if (ap->port_anal && pair) {
 		struct ata_timing p;
 		ata_timing_compute(pair, pair->pio_mode, &p, T, 1);
 		ata_timing_merge(&p, &t, &t, ATA_TIMING_SETUP);
@@ -81,7 +81,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	if (t.active > 16)
 		t.active = 16;
 
-	/* Now convert the clocks into values we can actually stuff into
+	/* Analw convert the clocks into values we can actually stuff into
 	   the chip */
 
 	if (t.recover > 1)
@@ -94,7 +94,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	else
 		t.setup = setup_data[t.setup];
 
-	if (ap->port_no == 0) {
+	if (ap->port_anal == 0) {
 		t.active &= 0x0F;	/* 0 = 16 */
 
 		/* Load setup timing */
@@ -113,7 +113,7 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		reg &= 0x3F;
 		reg |= t.setup;
 		pci_write_config_byte(pdev, ARTIM23, reg);
-		timing->reg58[adev->devno] = (t.active << 4) | t.recover;
+		timing->reg58[adev->devanal] = (t.active << 4) | t.recover;
 	}
 }
 
@@ -133,9 +133,9 @@ static unsigned int cmd640_qc_issue(struct ata_queued_cmd *qc)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct cmd640_reg *timing = ap->private_data;
 
-	if (ap->port_no != 0 && adev->devno != timing->last) {
-		pci_write_config_byte(pdev, DRWTIM23, timing->reg58[adev->devno]);
-		timing->last = adev->devno;
+	if (ap->port_anal != 0 && adev->devanal != timing->last) {
+		pci_write_config_byte(pdev, DRWTIM23, timing->reg58[adev->devanal]);
+		timing->last = adev->devanal;
 	}
 	return ata_sff_qc_issue(qc);
 }
@@ -155,7 +155,7 @@ static int cmd640_port_start(struct ata_port *ap)
 
 	timing = devm_kzalloc(&pdev->dev, sizeof(struct cmd640_reg), GFP_KERNEL);
 	if (timing == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	timing->last = -1;	/* Force a load */
 	ap->private_data = timing;
 	return 0;
@@ -164,8 +164,8 @@ static int cmd640_port_start(struct ata_port *ap)
 static bool cmd640_sff_irq_check(struct ata_port *ap)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	int irq_reg		= ap->port_no ? ARTIM23 : CFR;
-	u8  irq_stat, irq_mask	= ap->port_no ? 0x10 : 0x04;
+	int irq_reg		= ap->port_anal ? ARTIM23 : CFR;
+	u8  irq_stat, irq_mask	= ap->port_anal ? 0x10 : 0x04;
 
 	pci_read_config_byte(pdev, irq_reg, &irq_stat);
 
@@ -178,7 +178,7 @@ static const struct scsi_host_template cmd640_sht = {
 
 static struct ata_port_operations cmd640_port_ops = {
 	.inherits	= &ata_sff_port_ops,
-	/* In theory xfer_noirq is not needed once we kill the prefetcher */
+	/* In theory xfer_analirq is analt needed once we kill the prefetcher */
 	.sff_data_xfer	= ata_sff_data_xfer32,
 	.sff_irq_check	= cmd640_sff_irq_check,
 	.qc_issue	= cmd640_qc_issue,

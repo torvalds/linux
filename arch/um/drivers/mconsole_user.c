@@ -4,7 +4,7 @@
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -100,7 +100,7 @@ int mconsole_get_request(int fd, struct mc_request *req)
 		req->request.len = len;
 
 		mconsole_reply_v0(req, "ERR Version 0 mconsole clients are "
-				  "not supported by this driver");
+				  "analt supported by this driver");
 		return 0;
 	}
 
@@ -116,7 +116,7 @@ int mconsole_get_request(int fd, struct mc_request *req)
 	req->request.data[req->request.len] = '\0';
 	req->cmd = mconsole_parse(req);
 	if (req->cmd == NULL) {
-		mconsole_reply(req, "Unknown command", 1, 0);
+		mconsole_reply(req, "Unkanalwn command", 1, 0);
 		return 0;
 	}
 
@@ -157,7 +157,7 @@ int mconsole_reply_len(struct mc_request *req, const char *str, int total,
 			   (struct sockaddr *) req->origin, req->originlen);
 
 		if (n < 0)
-			return -errno;
+			return -erranal;
 	} while (total > 0);
 	return 0;
 }
@@ -174,24 +174,24 @@ int mconsole_unlink_socket(void)
 	return 0;
 }
 
-static int notify_sock = -1;
+static int analtify_sock = -1;
 
-int mconsole_notify(char *sock_name, int type, const void *data, int len)
+int mconsole_analtify(char *sock_name, int type, const void *data, int len)
 {
 	struct sockaddr_un target;
-	struct mconsole_notify packet;
+	struct mconsole_analtify packet;
 	int n, err = 0;
 
-	lock_notify();
-	if (notify_sock < 0) {
-		notify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
-		if (notify_sock < 0) {
-			err = -errno;
-			printk(UM_KERN_ERR "mconsole_notify - socket failed, "
-			       "errno = %d\n", errno);
+	lock_analtify();
+	if (analtify_sock < 0) {
+		analtify_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
+		if (analtify_sock < 0) {
+			err = -erranal;
+			printk(UM_KERN_ERR "mconsole_analtify - socket failed, "
+			       "erranal = %d\n", erranal);
 		}
 	}
-	unlock_notify();
+	unlock_analtify();
 
 	if (err)
 		return err;
@@ -208,12 +208,12 @@ int mconsole_notify(char *sock_name, int type, const void *data, int len)
 
 	err = 0;
 	len = sizeof(packet) + packet.len - sizeof(packet.data);
-	n = sendto(notify_sock, &packet, len, 0, (struct sockaddr *) &target,
+	n = sendto(analtify_sock, &packet, len, 0, (struct sockaddr *) &target,
 		   sizeof(target));
 	if (n < 0) {
-		err = -errno;
-		printk(UM_KERN_ERR "mconsole_notify - sendto failed, "
-		       "errno = %d\n", errno);
+		err = -erranal;
+		printk(UM_KERN_ERR "mconsole_analtify - sendto failed, "
+		       "erranal = %d\n", erranal);
 	}
 	return err;
 }

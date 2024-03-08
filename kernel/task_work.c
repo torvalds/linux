@@ -9,17 +9,17 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * task_work_add - ask the @task to execute @work->func()
  * @task: the task which should run the callback
  * @work: the callback to run
- * @notify: how to notify the targeted task
+ * @analtify: how to analtify the targeted task
  *
- * Queue @work for task_work_run() below and notify the @task if @notify
- * is @TWA_RESUME, @TWA_SIGNAL, or @TWA_SIGNAL_NO_IPI.
+ * Queue @work for task_work_run() below and analtify the @task if @analtify
+ * is @TWA_RESUME, @TWA_SIGNAL, or @TWA_SIGNAL_ANAL_IPI.
  *
  * @TWA_SIGNAL works like signals, in that the it will interrupt the targeted
  * task and run the task_work, regardless of whether the task is currently
  * running in the kernel or userspace.
- * @TWA_SIGNAL_NO_IPI works like @TWA_SIGNAL, except it doesn't send a
+ * @TWA_SIGNAL_ANAL_IPI works like @TWA_SIGNAL, except it doesn't send a
  * reschedule IPI to force the targeted task to reschedule and run task_work.
- * This can be advantageous if there's no strict requirement that the
+ * This can be advantageous if there's anal strict requirement that the
  * task_work be run as soon as possible, just whenever the task enters the
  * kernel anyway.
  * @TWA_RESUME work is run only when the task exits the kernel and returns to
@@ -30,17 +30,17 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * the aforementioned transitions, or exits.
  *
  * If the targeted task is exiting, then an error is returned and the work item
- * is not queued. It's up to the caller to arrange for an alternative mechanism
+ * is analt queued. It's up to the caller to arrange for an alternative mechanism
  * in that case.
  *
- * Note: there is no ordering guarantee on works queued here. The task_work
+ * Analte: there is anal ordering guarantee on works queued here. The task_work
  * list is LIFO.
  *
  * RETURNS:
  * 0 if succeeds or -ESRCH.
  */
 int task_work_add(struct task_struct *task, struct callback_head *work,
-		  enum task_work_notify_mode notify)
+		  enum task_work_analtify_mode analtify)
 {
 	struct callback_head *head;
 
@@ -54,17 +54,17 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 		work->next = head;
 	} while (!try_cmpxchg(&task->task_works, &head, work));
 
-	switch (notify) {
-	case TWA_NONE:
+	switch (analtify) {
+	case TWA_ANALNE:
 		break;
 	case TWA_RESUME:
-		set_notify_resume(task);
+		set_analtify_resume(task);
 		break;
 	case TWA_SIGNAL:
-		set_notify_signal(task);
+		set_analtify_signal(task);
 		break;
-	case TWA_SIGNAL_NO_IPI:
-		__set_notify_signal(task);
+	case TWA_SIGNAL_ANAL_IPI:
+		__set_analtify_signal(task);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -81,7 +81,7 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
  * @data: data to be passed in to match function
  *
  * RETURNS:
- * The found work or NULL if not found.
+ * The found work or NULL if analt found.
  */
 struct callback_head *
 task_work_cancel_match(struct task_struct *task,
@@ -128,7 +128,7 @@ static bool task_work_func_match(struct callback_head *cb, void *data)
  * it from queue.
  *
  * RETURNS:
- * The found work or NULL if not found.
+ * The found work or NULL if analt found.
  */
 struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
@@ -141,7 +141,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
  *
  * Flush the pending works. Should be used by the core kernel code.
  * Called before the task returns to the user-mode or stops, or when
- * it exits. In the latter case task_work_add() can no longer add the
+ * it exits. In the latter case task_work_add() can anal longer add the
  * new work after task_work_run() returns.
  */
 void task_work_run(void)
@@ -151,7 +151,7 @@ void task_work_run(void)
 
 	for (;;) {
 		/*
-		 * work->func() can do task_work_add(), do not set
+		 * work->func() can do task_work_add(), do analt set
 		 * work_exited unless the list is empty.
 		 */
 		work = READ_ONCE(task->task_works);
@@ -168,9 +168,9 @@ void task_work_run(void)
 		if (!work)
 			break;
 		/*
-		 * Synchronize with task_work_cancel(). It can not remove
+		 * Synchronize with task_work_cancel(). It can analt remove
 		 * the first entry == work, cmpxchg(task_works) must fail.
-		 * But it can remove another entry from the ->next list.
+		 * But it can remove aanalther entry from the ->next list.
 		 */
 		raw_spin_lock_irq(&task->pi_lock);
 		raw_spin_unlock_irq(&task->pi_lock);

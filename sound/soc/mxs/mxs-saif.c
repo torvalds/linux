@@ -27,7 +27,7 @@
 static struct mxs_saif *mxs_saif[2];
 
 /*
- * SAIF is a little different with other normal SOC DAIs on clock using.
+ * SAIF is a little different with other analrmal SOC DAIs on clock using.
  *
  * For MXS, two SAIF modules are instantiated on-chip.
  * Each SAIF has a set of clock pins and can be operating in master
@@ -37,8 +37,8 @@ static struct mxs_saif *mxs_saif[2];
  * This also means that both SAIFs must operate at the same sample rate.
  *
  * We abstract this as each saif has a master, the master could be
- * itself or other saifs. In the generic saif driver, saif does not need
- * to know the different clkmux. Saif only needs to know who is its master
+ * itself or other saifs. In the generic saif driver, saif does analt need
+ * to kanalw the different clkmux. Saif only needs to kanalw who is its master
  * and operating its master to generate the proper clock rate for it.
  * The master id is provided in mach-specific layer according to different
  * clkmux setting.
@@ -63,7 +63,7 @@ static int mxs_saif_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
  * Since SAIF may work on EXTMASTER mode, IOW, it's working BITCLK&LRCLK
  * is provided by other SAIF, we provide a interface here to get its master
  * from its master_id.
- * Note that the master could be itself.
+ * Analte that the master could be itself.
  */
 static inline struct mxs_saif *mxs_saif_get_master(struct mxs_saif * saif)
 {
@@ -93,7 +93,7 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	/* Checking if can playback and capture simutaneously */
 	if (master_saif->ongoing && rate != master_saif->cur_rate) {
 		dev_err(saif->dev,
-			"can not change clock, master saif%d(rate %d) is ongoing\n",
+			"can analt change clock, master saif%d(rate %d) is ongoing\n",
 			master_saif->id, master_saif->cur_rate);
 		return -EINVAL;
 	}
@@ -110,7 +110,7 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 *  For 256x, 128x, 64x, and 32x sub-rates, set saif clk as 512*fs.
 	 *  For 192x, 96x, and 48x sub-rates, set saif clk as 384*fs.
 	 *
-	 * If MCLK is not used, we just set saif clk to 512*fs.
+	 * If MCLK is analt used, we just set saif clk to 512*fs.
 	 */
 	ret = clk_prepare_enable(master_saif->clk);
 	if (ret)
@@ -255,7 +255,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 
 	master_saif = mxs_saif_get_master(saif);
 	if (saif != master_saif) {
-		dev_err(saif->dev, "can not get mclk from a non-master saif\n");
+		dev_err(saif->dev, "can analt get mclk from a analn-master saif\n");
 		return -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	}
 
 	/*
-	 * Note: We simply just support master mode since SAIF TX can only
+	 * Analte: We simply just support master mode since SAIF TX can only
 	 * work as master.
 	 * Here the master is relative to codec side.
 	 * Saif internally could be slave when working on EXTMASTER mode.
@@ -383,7 +383,7 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 	saif->fifo_underrun = 0;
 	saif->fifo_overrun = 0;
 
-	/* Clear Reset for normal operations */
+	/* Clear Reset for analrmal operations */
 	__raw_writel(BM_SAIF_CTRL_SFTRST,
 		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
@@ -437,8 +437,8 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * Set saif clk based on sample rate.
-	 * If mclk is used, we also set mclk, if not, saif->mclk is
-	 * default 0, means not used.
+	 * If mclk is used, we also set mclk, if analt, saif->mclk is
+	 * default 0, means analt used.
 	 */
 	ret = mxs_saif_set_clk(saif, saif->mclk, params_rate(params));
 	if (ret) {
@@ -451,7 +451,7 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		* Set an initial clock rate for the saif internal logic to work
 		* properly. This is important when working in EXTMASTER mode
 		* that uses the other saif's BITCLK&LRCLK but it still needs a
-		* basic clock which should be fast enough for the internal
+		* basic clock which should be fast eanalugh for the internal
 		* logic.
 		*/
 		ret = clk_enable(saif->clk);
@@ -541,7 +541,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 		}
 
 		/*
-		 * If the saif's master is not itself, we also need to enable
+		 * If the saif's master is analt itself, we also need to enable
 		 * itself clk for its internal basic logic to work.
 		 */
 		if (saif != master_saif) {
@@ -566,7 +566,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * the transfer.
 			 * For 24-bit format the 32-bit FIFO register stores
 			 * only one channel, so we need to write twice.
-			 * This is also safe for the other non 24-bit formats.
+			 * This is also safe for the other analn 24-bit formats.
 			 */
 			__raw_writel(0, saif->base + SAIF_DATA);
 			__raw_writel(0, saif->base + SAIF_DATA);
@@ -576,7 +576,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * the receive.
 			 * For 24-bit format the 32-bit FIFO register stores
 			 * only one channel, so we need to read twice.
-			 * This is also safe for the other non 24-bit formats.
+			 * This is also safe for the other analn 24-bit formats.
 			 */
 			__raw_readl(saif->base + SAIF_DATA);
 			__raw_readl(saif->base + SAIF_DATA);
@@ -674,7 +674,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	stat = __raw_readl(saif->base + SAIF_STAT);
 	if (!(stat & (BM_SAIF_STAT_FIFO_UNDERFLOW_IRQ |
 			BM_SAIF_STAT_FIFO_OVERFLOW_IRQ)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (stat & BM_SAIF_STAT_FIFO_UNDERFLOW_IRQ) {
 		dev_dbg(saif->dev, "underrun!!! %d\n", ++saif->fifo_underrun);
@@ -698,7 +698,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 static int mxs_saif_mclk_init(struct platform_device *pdev)
 {
 	struct mxs_saif *saif = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk *clk;
 	int ret;
 
@@ -724,14 +724,14 @@ static int mxs_saif_mclk_init(struct platform_device *pdev)
 
 static int mxs_saif_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct mxs_saif *saif;
 	int irq, ret;
-	struct device_node *master;
+	struct device_analde *master;
 
 	saif = devm_kzalloc(&pdev->dev, sizeof(*saif), GFP_KERNEL);
 	if (!saif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_alias_get_id(np, "saif");
 	if (ret < 0)
@@ -745,7 +745,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If there is no "fsl,saif-master" phandle, it's a saif
+	 * If there is anal "fsl,saif-master" phandle, it's a saif
 	 * master.  Otherwise, it's a slave and its phandle points
 	 * to the master.
 	 */
@@ -754,7 +754,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		saif->master_id = saif->id;
 	} else {
 		ret = of_alias_get_id(master, "saif");
-		of_node_put(master);
+		of_analde_put(master);
 		if (ret < 0)
 			return ret;
 		else
@@ -771,7 +771,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	saif->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(saif->clk)) {
 		ret = PTR_ERR(saif->clk);
-		dev_err(&pdev->dev, "Cannot get the clock: %d\n",
+		dev_err(&pdev->dev, "Cananalt get the clock: %d\n",
 			ret);
 		return ret;
 	}

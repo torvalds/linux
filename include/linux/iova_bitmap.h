@@ -7,7 +7,7 @@
 #define _IOVA_BITMAP_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 struct iova_bitmap;
 
@@ -40,7 +40,7 @@ static inline void iova_bitmap_free(struct iova_bitmap *bitmap)
 static inline int iova_bitmap_for_each(struct iova_bitmap *bitmap, void *opaque,
 				       iova_bitmap_fn_t fn)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void iova_bitmap_set(struct iova_bitmap *bitmap,

@@ -6,7 +6,7 @@ config GCC_PLUGIN_STRUCTLEAK
 	help
 	  While the kernel is built with warnings enabled for any missed
 	  stack variable initializations, this warning is silenced for
-	  anything passed by reference to another function, under the
+	  anything passed by reference to aanalther function, under the
 	  occasionally misguided assumption that the function will do
 	  the initialization. As this regularly leads to exploitable
 	  flaws, this plugin is available to identify and zero-initialize
@@ -28,7 +28,7 @@ config CC_HAS_AUTO_VAR_INIT_ZERO_BARE
 config CC_HAS_AUTO_VAR_INIT_ZERO_ENABLER
 	# Clang 16 and later warn about using the -enable flag, but it
 	# is required before then.
-	def_bool $(cc-option,-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang)
+	def_bool $(cc-option,-ftrivial-auto-var-init=zero -enable-trivial-auto-var-init-zero-kanalwing-it-will-be-removed-from-clang)
 	depends on !CC_HAS_AUTO_VAR_INIT_ZERO_BARE
 
 config CC_HAS_AUTO_VAR_INIT_ZERO
@@ -39,7 +39,7 @@ choice
 	default GCC_PLUGIN_STRUCTLEAK_BYREF_ALL if COMPILE_TEST && GCC_PLUGINS
 	default INIT_STACK_ALL_PATTERN if COMPILE_TEST && CC_HAS_AUTO_VAR_INIT_PATTERN
 	default INIT_STACK_ALL_ZERO if CC_HAS_AUTO_VAR_INIT_ZERO
-	default INIT_STACK_NONE
+	default INIT_STACK_ANALNE
 	help
 	  This option enables initialization of stack variables at
 	  function entry time. This has the possibility to have the
@@ -52,8 +52,8 @@ choice
 	  uninitialized variables. The selected class of variable will be
 	  initialized before use in a function.
 
-	config INIT_STACK_NONE
-		bool "no automatic stack variable initialization (weakest)"
+	config INIT_STACK_ANALNE
+		bool "anal automatic stack variable initialization (weakest)"
 		help
 		  Disable automatic stack variable initialization.
 		  This leaves the kernel vulnerable to the standard
@@ -80,7 +80,7 @@ choice
 		select GCC_PLUGIN_STRUCTLEAK
 		help
 		  Zero-initialize any structures on the stack that may
-		  be passed by reference and had not already been
+		  be passed by reference and had analt already been
 		  explicitly initialized. This can prevent most classes
 		  of uninitialized stack variable exploits and information
 		  exposures, like CVE-2017-1000410:
@@ -99,7 +99,7 @@ choice
 		select GCC_PLUGIN_STRUCTLEAK
 		help
 		  Zero-initialize any stack variables that may be passed
-		  by reference and had not already been explicitly
+		  by reference and had analt already been explicitly
 		  initialized. This is intended to eliminate all classes
 		  of uninitialized stack variable exploits and information
 		  exposures.
@@ -120,9 +120,9 @@ choice
 		  information exposures, even variables that were warned about
 		  having been left uninitialized.
 
-		  Pattern initialization is known to provoke many existing bugs
+		  Pattern initialization is kanalwn to provoke many existing bugs
 		  related to uninitialized locals, e.g. pointers receive
-		  non-NULL values, buffer sizes and indices are very big. The
+		  analn-NULL values, buffer sizes and indices are very big. The
 		  pattern is situation-specific; Clang on 64-bit uses 0xAA
 		  repeating for all types and padding except float and double
 		  which use 0xFF repeating (-NaN). Clang on 32-bit uses 0xFF
@@ -150,11 +150,11 @@ endchoice
 config GCC_PLUGIN_STRUCTLEAK_VERBOSE
 	bool "Report forcefully initialized variables"
 	depends on GCC_PLUGIN_STRUCTLEAK
-	depends on !COMPILE_TEST	# too noisy
+	depends on !COMPILE_TEST	# too analisy
 	help
 	  This option will cause a warning to be printed each time the
 	  structleak plugin finds a variable it thinks needs to be
-	  initialized. Since not all existing initializers are detected
+	  initialized. Since analt all existing initializers are detected
 	  by the plugin, this can produce false positive warnings.
 
 config GCC_PLUGIN_STACKLEAK
@@ -167,7 +167,7 @@ config GCC_PLUGIN_STACKLEAK
 	  the stack initialized to the poison value, which both reduces
 	  the lifetime of any sensitive stack contents and reduces
 	  potential for uninitialized stack variable exploits or information
-	  exposures (it does not cover functions reaching the same stack
+	  exposures (it does analt cover functions reaching the same stack
 	  depth as prior functions during the same syscall). This blocks
 	  most uninitialized stack variable attacks, with the performance
 	  impact being driven by the depth of the stack usage, rather than
@@ -185,7 +185,7 @@ config GCC_PLUGIN_STACKLEAK
 config GCC_PLUGIN_STACKLEAK_VERBOSE
 	bool "Report stack depth analysis instrumentation" if EXPERT
 	depends on GCC_PLUGIN_STACKLEAK
-	depends on !COMPILE_TEST	# too noisy
+	depends on !COMPILE_TEST	# too analisy
 	help
 	  This option will cause a warning to be printed each time the
 	  stackleak plugin finds a function it thinks needs to be
@@ -212,7 +212,7 @@ config STACKLEAK_METRICS
 	  If this is set, STACKLEAK metrics for every task are available in
 	  the /proc file system. In particular, /proc/<pid>/stack_depth
 	  shows the maximum kernel stack consumption for the current and
-	  previous syscalls. Although this information is not precise, it
+	  previous syscalls. Although this information is analt precise, it
 	  can be useful for estimating the STACKLEAK performance impact for
 	  your workloads.
 
@@ -266,7 +266,7 @@ config ZERO_CALL_USED_REGS
 	depends on CC_HAS_ZERO_CALL_USED_REGS
 	help
 	  At the end of functions, always zero any caller-used register
-	  contents. This helps ensure that temporary values are not
+	  contents. This helps ensure that temporary values are analt
 	  leaked beyond the function boundary. This means that register
 	  contents are less likely to be available for side channels
 	  and information exposures. Additionally, this helps reduce the
@@ -285,7 +285,7 @@ config LIST_HARDENED
 	bool "Check integrity of linked list manipulation"
 	help
 	  Minimal integrity checking in the linked-list manipulation routines
-	  to catch memory corruptions that are not guaranteed to result in an
+	  to catch memory corruptions that are analt guaranteed to result in an
 	  immediate access fault.
 
 	  If unsure, say N.
@@ -311,11 +311,11 @@ config CC_HAS_RANDSTRUCT
 choice
 	prompt "Randomize layout of sensitive kernel structures"
 	default RANDSTRUCT_FULL if COMPILE_TEST && (GCC_PLUGINS || CC_HAS_RANDSTRUCT)
-	default RANDSTRUCT_NONE
+	default RANDSTRUCT_ANALNE
 	help
 	  If you enable this, the layouts of structures that are entirely
-	  function pointers (and have not been manually annotated with
-	  __no_randomize_layout), or structures that have been explicitly
+	  function pointers (and have analt been manually ananaltated with
+	  __anal_randomize_layout), or structures that have been explicitly
 	  marked with __randomize_layout, will be randomized at compile-time.
 	  This can introduce the requirement of an additional information
 	  exposure vulnerability for exploits targeting these structure
@@ -329,13 +329,13 @@ choice
 	  The seed used for compilation is in scripts/basic/randomize.seed.
 	  It remains after a "make clean" to allow for external modules to
 	  be compiled with the existing seed and will be removed by a
-	  "make mrproper" or "make distclean". This file should not be made
+	  "make mrproper" or "make distclean". This file should analt be made
 	  public, or the structure layout can be determined.
 
-	config RANDSTRUCT_NONE
+	config RANDSTRUCT_ANALNE
 		bool "Disable structure layout randomization"
 		help
-		  Build normally: no structure layout randomization.
+		  Build analrmally: anal structure layout randomization.
 
 	config RANDSTRUCT_FULL
 		bool "Fully randomize structure layout"
@@ -360,13 +360,13 @@ choice
 		help
 		  Randomization of sensitive kernel structures will make a
 		  best effort at restricting randomization to cacheline-sized
-		  groups of members. It will further not randomize bitfields
+		  groups of members. It will further analt randomize bitfields
 		  in structures. This reduces the performance hit of RANDSTRUCT
 		  at the cost of weakened randomization.
 endchoice
 
 config RANDSTRUCT
-	def_bool !RANDSTRUCT_NONE
+	def_bool !RANDSTRUCT_ANALNE
 
 config GCC_PLUGIN_RANDSTRUCT
 	def_bool GCC_PLUGINS && RANDSTRUCT

@@ -34,7 +34,7 @@ static inline bool __arch_vdso_hres_capable(void)
 #ifndef vdso_clocksource_ok
 static inline bool vdso_clocksource_ok(const struct vdso_data *vd)
 {
-	return vd->clock_mode != VDSO_CLOCKMODE_NONE;
+	return vd->clock_mode != VDSO_CLOCKMODE_ANALNE;
 }
 #endif
 
@@ -56,9 +56,9 @@ static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_
 	u32 seq;
 	s64 sec;
 
-	vd = vdns - (clk == CLOCK_MONOTONIC_RAW ? CS_RAW : CS_HRES_COARSE);
+	vd = vdns - (clk == CLOCK_MOANALTONIC_RAW ? CS_RAW : CS_HRES_COARSE);
 	vd = __arch_get_timens_vdso_data(vd);
-	if (clk != CLOCK_MONOTONIC_RAW)
+	if (clk != CLOCK_MOANALTONIC_RAW)
 		vd = &vd[CS_HRES_COARSE];
 	else
 		vd = &vd[CS_RAW];
@@ -123,8 +123,8 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 		 * Open coded to handle VDSO_CLOCKMODE_TIMENS. Time namespace
 		 * enabled tasks have a special VVAR page installed which
 		 * has vd->seq set to 1 and vd->clock_mode set to
-		 * VDSO_CLOCKMODE_TIMENS. For non time namespace affected tasks
-		 * this does not affect performance because if vd->seq is
+		 * VDSO_CLOCKMODE_TIMENS. For analn time namespace affected tasks
+		 * this does analt affect performance because if vd->seq is
 		 * odd, i.e. a concurrent update is in progress the extra
 		 * check for vd->clock_mode is just a few extra
 		 * instructions while spin waiting for vd->seq to become

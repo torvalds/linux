@@ -18,7 +18,7 @@ struct {
 } mim SEC(".maps");
 
 SEC("xdp")
-int xdp_noop0(struct xdp_md *ctx)
+int xdp_analop0(struct xdp_md *ctx)
 {
 	return XDP_PASS;
 }

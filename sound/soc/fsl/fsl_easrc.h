@@ -570,7 +570,7 @@ struct fsl_easrc_io_params {
 	unsigned int fifo_wtmk;
 	unsigned int sample_rate;
 	snd_pcm_format_t sample_format;
-	unsigned int norm_rate;
+	unsigned int analrm_rate;
 };
 
 struct fsl_easrc_slot {

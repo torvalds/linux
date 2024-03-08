@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2017, Linaro Ltd.
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  */
 #include <linux/clk-provider.h>
 #include <linux/module.h>
@@ -85,9 +85,9 @@ static int hi655x_clk_probe(struct platform_device *pdev)
 
 	hi655x_clk = devm_kzalloc(&pdev->dev, sizeof(*hi655x_clk), GFP_KERNEL);
 	if (!hi655x_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_property_read_string_index(parent->of_node, "clock-output-names",
+	of_property_read_string_index(parent->of_analde, "clock-output-names",
 				      0, &clk_name);
 
 	hi655x_clk->clk_hw.init	= &init;
@@ -113,6 +113,6 @@ static struct platform_driver hi655x_clk_driver = {
 module_platform_driver(hi655x_clk_driver);
 
 MODULE_DESCRIPTION("Clk driver for the hi655x series PMICs");
-MODULE_AUTHOR("Daniel Lezcano <daniel.lezcano@linaro.org>");
+MODULE_AUTHOR("Daniel Lezcaanal <daniel.lezcaanal@linaro.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:hi655x-clk");

@@ -53,7 +53,7 @@ static void debugfs_print_result(struct seq_file *seq, struct string_stream *log
 	 * buffer to hold the entire string.
 	 */
 	spin_lock(&log->lock);
-	list_for_each_entry(frag_container, &log->fragments, node)
+	list_for_each_entry(frag_container, &log->fragments, analde)
 		seq_printf(seq, "%s", frag_container->fragment);
 	spin_unlock(&log->lock);
 }
@@ -76,7 +76,7 @@ static int debugfs_print_results(struct seq_file *seq, void *v)
 	seq_puts(seq, "KTAP version 1\n");
 	seq_puts(seq, "1..1\n");
 
-	/* Print suite header because it is not stored in the test logs. */
+	/* Print suite header because it is analt stored in the test logs. */
 	seq_puts(seq, KUNIT_SUBTEST_INDENT "KTAP version 1\n");
 	seq_printf(seq, KUNIT_SUBTEST_INDENT "# Subtest: %s\n", suite->name);
 	seq_printf(seq, KUNIT_SUBTEST_INDENT "1..%zd\n", kunit_suite_num_test_cases(suite));
@@ -87,20 +87,20 @@ static int debugfs_print_results(struct seq_file *seq, void *v)
 	debugfs_print_result(seq, suite->log);
 
 	seq_printf(seq, "%s %d %s\n",
-		   kunit_status_to_ok_not_ok(success), 1, suite->name);
+		   kunit_status_to_ok_analt_ok(success), 1, suite->name);
 	return 0;
 }
 
-static int debugfs_release(struct inode *inode, struct file *file)
+static int debugfs_release(struct ianalde *ianalde, struct file *file)
 {
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
-static int debugfs_results_open(struct inode *inode, struct file *file)
+static int debugfs_results_open(struct ianalde *ianalde, struct file *file)
 {
 	struct kunit_suite *suite;
 
-	suite = (struct kunit_suite *)inode->i_private;
+	suite = (struct kunit_suite *)ianalde->i_private;
 
 	return single_open(file, debugfs_print_results, suite);
 }
@@ -121,14 +121,14 @@ static int debugfs_print_run(struct seq_file *seq, void *v)
 
 /*
  * The debugfs "run" file (/sys/kernel/debug/kunit/<testsuite>/run)
- * contains no information. Write to the file to trigger the test suite
+ * contains anal information. Write to the file to trigger the test suite
  * to run.
  */
-static int debugfs_run_open(struct inode *inode, struct file *file)
+static int debugfs_run_open(struct ianalde *ianalde, struct file *file)
 {
 	struct kunit_suite *suite;
 
-	suite = (struct kunit_suite *)inode->i_private;
+	suite = (struct kunit_suite *)ianalde->i_private;
 
 	return single_open(file, debugfs_print_run, suite);
 }
@@ -137,13 +137,13 @@ static int debugfs_run_open(struct inode *inode, struct file *file)
  * Trigger a test suite to run by writing to the suite's "run" debugfs
  * file found at: /sys/kernel/debug/kunit/<testsuite>/run
  *
- * Note: what is written to this file will not be saved.
+ * Analte: what is written to this file will analt be saved.
  */
 static ssize_t debugfs_run(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *f_inode = file->f_inode;
-	struct kunit_suite *suite = (struct kunit_suite *) f_inode->i_private;
+	struct ianalde *f_ianalde = file->f_ianalde;
+	struct kunit_suite *suite = (struct kunit_suite *) f_ianalde->i_private;
 
 	__kunit_test_suites_init(&suite, 1);
 
@@ -170,7 +170,7 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 	struct kunit_case *test_case;
 	struct string_stream *stream;
 
-	/* If suite log already allocated, do not create new debugfs files. */
+	/* If suite log already allocated, do analt create new debugfs files. */
 	if (suite->log)
 		return;
 
@@ -202,7 +202,7 @@ void kunit_debugfs_create_suite(struct kunit_suite *suite)
 			    suite->debugfs,
 			    suite, &debugfs_results_fops);
 
-	/* Do not create file to re-run test if test runs on init */
+	/* Do analt create file to re-run test if test runs on init */
 	if (!suite->is_init) {
 		debugfs_create_file(KUNIT_DEBUGFS_RUN, S_IFREG | 0644,
 				    suite->debugfs,

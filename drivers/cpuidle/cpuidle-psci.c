@@ -174,7 +174,7 @@ static void psci_idle_init_cpuhp(void)
 
 	register_syscore_ops(&psci_idle_syscore_ops);
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_CPU_PM_STARTING,
+	err = cpuhp_setup_state_analcalls(CPUHP_AP_CPU_PM_STARTING,
 					"cpuidle/psci:online",
 					psci_idle_cpuhp_up,
 					psci_idle_cpuhp_down);
@@ -196,7 +196,7 @@ static const struct of_device_id psci_idle_state_match[] = {
 	{ },
 };
 
-int psci_dt_parse_state_node(struct device_node *np, u32 *state)
+int psci_dt_parse_state_analde(struct device_analde *np, u32 *state)
 {
 	int err = of_property_read_u32(np, "arm,psci-suspend-param", state);
 
@@ -242,27 +242,27 @@ static int psci_dt_cpu_init_topology(struct cpuidle_driver *drv,
 }
 
 static int psci_dt_cpu_init_idle(struct device *dev, struct cpuidle_driver *drv,
-				 struct device_node *cpu_node,
+				 struct device_analde *cpu_analde,
 				 unsigned int state_count, int cpu)
 {
 	int i, ret = 0;
 	u32 *psci_states;
-	struct device_node *state_node;
+	struct device_analde *state_analde;
 	struct psci_cpuidle_data *data = per_cpu_ptr(&psci_cpuidle_data, cpu);
 
 	state_count++; /* Add WFI state too */
 	psci_states = devm_kcalloc(dev, state_count, sizeof(*psci_states),
 				   GFP_KERNEL);
 	if (!psci_states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 1; i < state_count; i++) {
-		state_node = of_get_cpu_state_node(cpu_node, i - 1);
-		if (!state_node)
+		state_analde = of_get_cpu_state_analde(cpu_analde, i - 1);
+		if (!state_analde)
 			break;
 
-		ret = psci_dt_parse_state_node(state_node, &psci_states[i]);
-		of_node_put(state_node);
+		ret = psci_dt_parse_state_analde(state_analde, &psci_states[i]);
+		of_analde_put(state_analde);
 
 		if (ret)
 			return ret;
@@ -271,7 +271,7 @@ static int psci_dt_cpu_init_idle(struct device *dev, struct cpuidle_driver *drv,
 	}
 
 	if (i != state_count)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Initialize optional data, used for the hierarchical topology. */
 	ret = psci_dt_cpu_init_topology(drv, data, state_count, cpu);
@@ -286,23 +286,23 @@ static int psci_dt_cpu_init_idle(struct device *dev, struct cpuidle_driver *drv,
 static int psci_cpu_init_idle(struct device *dev, struct cpuidle_driver *drv,
 			      unsigned int cpu, unsigned int state_count)
 {
-	struct device_node *cpu_node;
+	struct device_analde *cpu_analde;
 	int ret;
 
 	/*
-	 * If the PSCI cpu_suspend function hook has not been initialized
-	 * idle states must not be enabled, so bail out
+	 * If the PSCI cpu_suspend function hook has analt been initialized
+	 * idle states must analt be enabled, so bail out
 	 */
 	if (!psci_ops.cpu_suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_cpu_device_analde_get(cpu);
+	if (!cpu_analde)
+		return -EANALDEV;
 
-	ret = psci_dt_cpu_init_idle(dev, drv, cpu_node, state_count, cpu);
+	ret = psci_dt_cpu_init_idle(dev, drv, cpu_analde, state_count, cpu);
 
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 
 	return ret;
 }
@@ -318,29 +318,29 @@ static void psci_cpu_deinit_idle(int cpu)
 static int psci_idle_init_cpu(struct device *dev, int cpu)
 {
 	struct cpuidle_driver *drv;
-	struct device_node *cpu_node;
+	struct device_analde *cpu_analde;
 	const char *enable_method;
 	int ret = 0;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
-		return -ENODEV;
+	cpu_analde = of_cpu_device_analde_get(cpu);
+	if (!cpu_analde)
+		return -EANALDEV;
 
 	/*
 	 * Check whether the enable-method for the cpu is PSCI, fail
-	 * if it is not.
+	 * if it is analt.
 	 */
-	enable_method = of_get_property(cpu_node, "enable-method", NULL);
+	enable_method = of_get_property(cpu_analde, "enable-method", NULL);
 	if (!enable_method || (strcmp(enable_method, "psci")))
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
-	of_node_put(cpu_node);
+	of_analde_put(cpu_analde);
 	if (ret)
 		return ret;
 
 	drv = devm_kzalloc(dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv->name = "psci_idle";
 	drv->owner = THIS_MODULE;
@@ -358,15 +358,15 @@ static int psci_idle_init_cpu(struct device *dev, int cpu)
 	strcpy(drv->states[0].desc, "ARM WFI");
 
 	/*
-	 * If no DT idle states are detected (ret == 0) let the driver
-	 * initialization fail accordingly since there is no reason to
+	 * If anal DT idle states are detected (ret == 0) let the driver
+	 * initialization fail accordingly since there is anal reason to
 	 * initialize the idle driver if only wfi is supported, the
 	 * default archictectural back-end already executes wfi
 	 * on idle entry.
 	 */
 	ret = dt_init_idle_driver(drv, psci_idle_state_match, 1);
 	if (ret <= 0)
-		return ret ? : -ENODEV;
+		return ret ? : -EANALDEV;
 
 	/*
 	 * Initialize PSCI idle states.

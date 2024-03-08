@@ -18,10 +18,10 @@
 /*
  * This code uses an extended set of video mode numbers. These include:
  * Aliases for standard modes
- *      NORMAL_VGA (-1)
+ *      ANALRMAL_VGA (-1)
  *      EXTENDED_VGA (-2)
  *      ASK_VGA (-3)
- * Video modes numbered by menu position -- NOT RECOMMENDED because of lack
+ * Video modes numbered by menu position -- ANALT RECOMMENDED because of lack
  * of compatibility when extending the table. These are between 0x00 and 0xff.
  */
 #define VIDEO_FIRST_MENU 0x0000

@@ -85,7 +85,7 @@ static int detach_port(char *port)
 		err("Port %d detach request failed!\n", portnum);
 		goto call_driver_close;
 	}
-	info("Port %d is now detached!\n", portnum);
+	info("Port %d is analw detached!\n", portnum);
 
 call_driver_close:
 	usbip_vhci_driver_close();

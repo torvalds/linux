@@ -33,7 +33,7 @@
 /*
  * If the HW version only supports a 48-bit counter, then
  * bits [63:48] are reserved, which are Read-As-Zero and
- * Writes-Ignored.
+ * Writes-Iganalred.
  */
 #define L3C_CNTR0_LOWER		0x1e00
 
@@ -47,11 +47,11 @@
 #define L3C_TRACETAG_REQ_EN	(L3C_TRACETAG_MARK_EN | BIT(2))
 #define L3C_TRACETAG_CORE_EN	(L3C_TRACETAG_MARK_EN | BIT(3))
 #define L3C_CORE_EN		BIT(20)
-#define L3C_COER_NONE		0x0
+#define L3C_COER_ANALNE		0x0
 #define L3C_DATSRC_MASK		0xFF
 #define L3C_DATSRC_SKT_EN	BIT(23)
-#define L3C_DATSRC_NONE		0x0
-#define L3C_EVTYPE_NONE		0xff
+#define L3C_DATSRC_ANALNE		0x0
+#define L3C_EVTYPE_ANALNE		0xff
 #define L3C_V1_NR_EVENTS	0x59
 #define L3C_V2_NR_EVENTS	0xFF
 
@@ -151,7 +151,7 @@ static void hisi_l3c_pmu_clear_ds(struct perf_event *event)
 	u32 ds_skt = hisi_get_datasrc_skt(event);
 
 	if (ds_cfg)
-		hisi_l3c_pmu_write_ds(event, L3C_DATSRC_NONE);
+		hisi_l3c_pmu_write_ds(event, L3C_DATSRC_ANALNE);
 
 	if (ds_skt) {
 		u32 val;
@@ -192,7 +192,7 @@ static void hisi_l3c_pmu_clear_core_tracetag(struct perf_event *event)
 		u32 val;
 
 		/* Clear core information */
-		writel(L3C_COER_NONE, l3c_pmu->base + L3C_CORE_CTRL);
+		writel(L3C_COER_ANALNE, l3c_pmu->base + L3C_CORE_CTRL);
 		val = readl(l3c_pmu->base + L3C_PERF_CTRL);
 		val &= ~L3C_CORE_EN;
 		writel(val, l3c_pmu->base + L3C_PERF_CTRL);
@@ -260,7 +260,7 @@ static void hisi_l3c_pmu_write_evtype(struct hisi_pmu *l3c_pmu, int idx,
 
 	/* Write event code to L3C_EVENT_TYPEx Register */
 	val = readl(l3c_pmu->base + reg);
-	val &= ~(L3C_EVTYPE_NONE << shift);
+	val &= ~(L3C_EVTYPE_ANALNE << shift);
 	val |= (type << shift);
 	writel(val, l3c_pmu->base + reg);
 }
@@ -361,13 +361,13 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &l3c_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read l3c sccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read l3c sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
 				     &l3c_pmu->ccl_id)) {
-		dev_err(&pdev->dev, "Can not read l3c ccl-id!\n");
+		dev_err(&pdev->dev, "Can analt read l3c ccl-id!\n");
 		return -EINVAL;
 	}
 
@@ -536,7 +536,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 
 	l3c_pmu = devm_kzalloc(&pdev->dev, sizeof(*l3c_pmu), GFP_KERNEL);
 	if (!l3c_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, l3c_pmu);
 
@@ -547,10 +547,10 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_l3c%u",
 			      l3c_pmu->sccl_id, l3c_pmu->ccl_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
-				       &l3c_pmu->node);
+				       &l3c_pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -561,8 +561,8 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	ret = perf_pmu_register(&l3c_pmu->pmu, name, -1);
 	if (ret) {
 		dev_err(l3c_pmu->dev, "L3C PMU register failed!\n");
-		cpuhp_state_remove_instance_nocalls(
-			CPUHP_AP_PERF_ARM_HISI_L3_ONLINE, &l3c_pmu->node);
+		cpuhp_state_remove_instance_analcalls(
+			CPUHP_AP_PERF_ARM_HISI_L3_ONLINE, &l3c_pmu->analde);
 	}
 
 	return ret;
@@ -573,8 +573,8 @@ static int hisi_l3c_pmu_remove(struct platform_device *pdev)
 	struct hisi_pmu *l3c_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&l3c_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
-					    &l3c_pmu->node);
+	cpuhp_state_remove_instance_analcalls(CPUHP_AP_PERF_ARM_HISI_L3_ONLINE,
+					    &l3c_pmu->analde);
 	return 0;
 }
 

@@ -42,7 +42,7 @@ typedef enum {
 /* periodic machine states(43.4.12 in the 802.3ad standard) */
 typedef enum {
 	AD_PERIODIC_DUMMY,
-	AD_NO_PERIODIC,		/* periodic machine */
+	AD_ANAL_PERIODIC,		/* periodic machine */
 	AD_FAST_PERIODIC,	/* periodic machine */
 	AD_SLOW_PERIODIC,	/* periodic machine */
 	AD_PERIODIC_TX		/* periodic machine */
@@ -67,7 +67,7 @@ typedef enum {
 typedef enum {
 	 AD_CHURN_MONITOR, /* monitoring for churn */
 	 AD_CHURN,         /* churn detected (error) */
-	 AD_NO_CHURN       /* no churn (no error) */
+	 AD_ANAL_CHURN       /* anal churn (anal error) */
 } churn_state_t;
 
 /* rx indication types */
@@ -164,14 +164,14 @@ struct port;
 struct bond_3ad_stats {
 	atomic64_t lacpdu_rx;
 	atomic64_t lacpdu_tx;
-	atomic64_t lacpdu_unknown_rx;
+	atomic64_t lacpdu_unkanalwn_rx;
 	atomic64_t lacpdu_illegal_rx;
 
 	atomic64_t marker_rx;
 	atomic64_t marker_tx;
 	atomic64_t marker_resp_rx;
 	atomic64_t marker_resp_tx;
-	atomic64_t marker_unknown_rx;
+	atomic64_t marker_unkanalwn_rx;
 };
 
 /* aggregator structure(43.4.5 in the 802.3ad standard) */
@@ -206,8 +206,8 @@ struct port_params {
 typedef struct port {
 	u16 actor_port_number;
 	u16 actor_port_priority;
-	struct mac_addr actor_system;	/* This parameter is added here although it is not specified in the standard, just for simplification */
-	u16 actor_system_priority;	/* This parameter is added here although it is not specified in the standard, just for simplification */
+	struct mac_addr actor_system;	/* This parameter is added here although it is analt specified in the standard, just for simplification */
+	u16 actor_system_priority;	/* This parameter is added here although it is analt specified in the standard, just for simplification */
 	u16 actor_port_aggregator_identifier;
 	bool ntt;
 	u16 actor_admin_port_key;
@@ -276,8 +276,8 @@ static inline const char *bond_3ad_churn_desc(churn_state_t state)
 	static const char *const churn_description[] = {
 		"monitoring",
 		"churned",
-		"none",
-		"unknown"
+		"analne",
+		"unkanalwn"
 	};
 	int max_size = ARRAY_SIZE(churn_description);
 

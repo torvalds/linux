@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
@@ -53,7 +53,7 @@ struct appldata_os_data {
 	u64 timestamp;
 	u32 sync_count_1;	/* after VM collected the record data, */
 	u32 sync_count_2;	/* sync_count_1 and sync_count_2 should be the
-				   same. If not, the record has been updated on
+				   same. If analt, the record has been updated on
 				   the Linux side while VM was collecting the
 				   (possibly corrupt) data */
 
@@ -168,13 +168,13 @@ static int __init appldata_os_init(void)
 	if (max_size > APPLDATA_MAX_REC_SIZE) {
 		pr_err("Maximum OS record size %i exceeds the maximum "
 		       "record size %i\n", max_size, APPLDATA_MAX_REC_SIZE);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	appldata_os_data = kzalloc(max_size, GFP_KERNEL | GFP_DMA);
 	if (appldata_os_data == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 

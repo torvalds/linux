@@ -16,122 +16,122 @@
 
 /*
  * Verify that an AG block number pointer neither points outside the AG
- * nor points at static metadata.
+ * analr points at static metadata.
  */
 static inline bool
-xfs_verify_agno_agbno(
+xfs_verify_aganal_agbanal(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		agbno)
+	xfs_agnumber_t		aganal,
+	xfs_agblock_t		agbanal)
 {
 	xfs_agblock_t		eoag;
 
-	eoag = xfs_ag_block_count(mp, agno);
-	if (agbno >= eoag)
+	eoag = xfs_ag_block_count(mp, aganal);
+	if (agbanal >= eoag)
 		return false;
-	if (agbno <= XFS_AGFL_BLOCK(mp))
+	if (agbanal <= XFS_AGFL_BLOCK(mp))
 		return false;
 	return true;
 }
 
 /*
  * Verify that an FS block number pointer neither points outside the
- * filesystem nor points at static AG metadata.
+ * filesystem analr points at static AG metadata.
  */
 inline bool
-xfs_verify_fsbno(
+xfs_verify_fsbanal(
 	struct xfs_mount	*mp,
-	xfs_fsblock_t		fsbno)
+	xfs_fsblock_t		fsbanal)
 {
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, fsbno);
+	xfs_agnumber_t		aganal = XFS_FSB_TO_AGANAL(mp, fsbanal);
 
-	if (agno >= mp->m_sb.sb_agcount)
+	if (aganal >= mp->m_sb.sb_agcount)
 		return false;
-	return xfs_verify_agno_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
+	return xfs_verify_aganal_agbanal(mp, aganal, XFS_FSB_TO_AGBANAL(mp, fsbanal));
 }
 
 /*
  * Verify that a data device extent is fully contained inside the filesystem,
- * does not cross an AG boundary, and does not point at static metadata.
+ * does analt cross an AG boundary, and does analt point at static metadata.
  */
 bool
 xfs_verify_fsbext(
 	struct xfs_mount	*mp,
-	xfs_fsblock_t		fsbno,
+	xfs_fsblock_t		fsbanal,
 	xfs_fsblock_t		len)
 {
-	if (fsbno + len <= fsbno)
+	if (fsbanal + len <= fsbanal)
 		return false;
 
-	if (!xfs_verify_fsbno(mp, fsbno))
+	if (!xfs_verify_fsbanal(mp, fsbanal))
 		return false;
 
-	if (!xfs_verify_fsbno(mp, fsbno + len - 1))
+	if (!xfs_verify_fsbanal(mp, fsbanal + len - 1))
 		return false;
 
-	return  XFS_FSB_TO_AGNO(mp, fsbno) ==
-		XFS_FSB_TO_AGNO(mp, fsbno + len - 1);
+	return  XFS_FSB_TO_AGANAL(mp, fsbanal) ==
+		XFS_FSB_TO_AGANAL(mp, fsbanal + len - 1);
 }
 
 /*
- * Verify that an AG inode number pointer neither points outside the AG
- * nor points at static metadata.
+ * Verify that an AG ianalde number pointer neither points outside the AG
+ * analr points at static metadata.
  */
 static inline bool
-xfs_verify_agno_agino(
+xfs_verify_aganal_agianal(
 	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		agino)
+	xfs_agnumber_t		aganal,
+	xfs_agianal_t		agianal)
 {
-	xfs_agino_t		first;
-	xfs_agino_t		last;
+	xfs_agianal_t		first;
+	xfs_agianal_t		last;
 
-	xfs_agino_range(mp, agno, &first, &last);
-	return agino >= first && agino <= last;
+	xfs_agianal_range(mp, aganal, &first, &last);
+	return agianal >= first && agianal <= last;
 }
 
 /*
- * Verify that an FS inode number pointer neither points outside the
- * filesystem nor points at static AG metadata.
+ * Verify that an FS ianalde number pointer neither points outside the
+ * filesystem analr points at static AG metadata.
  */
 inline bool
-xfs_verify_ino(
+xfs_verify_ianal(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, ino);
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
+	xfs_agnumber_t		aganal = XFS_IANAL_TO_AGANAL(mp, ianal);
+	xfs_agianal_t		agianal = XFS_IANAL_TO_AGIANAL(mp, ianal);
 
-	if (agno >= mp->m_sb.sb_agcount)
+	if (aganal >= mp->m_sb.sb_agcount)
 		return false;
-	if (XFS_AGINO_TO_INO(mp, agno, agino) != ino)
+	if (XFS_AGIANAL_TO_IANAL(mp, aganal, agianal) != ianal)
 		return false;
-	return xfs_verify_agno_agino(mp, agno, agino);
+	return xfs_verify_aganal_agianal(mp, aganal, agianal);
 }
 
-/* Is this an internal inode number? */
+/* Is this an internal ianalde number? */
 inline bool
 xfs_internal_inum(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
-	return ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
+	return ianal == mp->m_sb.sb_rbmianal || ianal == mp->m_sb.sb_rsumianal ||
 		(xfs_has_quota(mp) &&
-		 xfs_is_quota_inode(&mp->m_sb, ino));
+		 xfs_is_quota_ianalde(&mp->m_sb, ianal));
 }
 
 /*
- * Verify that a directory entry's inode number doesn't point at an internal
- * inode, empty space, or static AG metadata.
+ * Verify that a directory entry's ianalde number doesn't point at an internal
+ * ianalde, empty space, or static AG metadata.
  */
 bool
-xfs_verify_dir_ino(
+xfs_verify_dir_ianal(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
+	xfs_ianal_t		ianal)
 {
-	if (xfs_internal_inum(mp, ino))
+	if (xfs_internal_inum(mp, ianal))
 		return false;
-	return xfs_verify_ino(mp, ino);
+	return xfs_verify_ianal(mp, ianal);
 }
 
 /*
@@ -139,27 +139,27 @@ xfs_verify_dir_ino(
  * end of the realtime device.
  */
 inline bool
-xfs_verify_rtbno(
+xfs_verify_rtbanal(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
+	xfs_rtblock_t		rtbanal)
 {
-	return rtbno < mp->m_sb.sb_rblocks;
+	return rtbanal < mp->m_sb.sb_rblocks;
 }
 
 /* Verify that a realtime device extent is fully contained inside the volume. */
 bool
 xfs_verify_rtbext(
 	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno,
+	xfs_rtblock_t		rtbanal,
 	xfs_filblks_t		len)
 {
-	if (rtbno + len <= rtbno)
+	if (rtbanal + len <= rtbanal)
 		return false;
 
-	if (!xfs_verify_rtbno(mp, rtbno))
+	if (!xfs_verify_rtbanal(mp, rtbanal))
 		return false;
 
-	return xfs_verify_rtbno(mp, rtbno + len - 1);
+	return xfs_verify_rtbanal(mp, rtbanal + len - 1);
 }
 
 /* Calculate the range of valid icount values. */
@@ -169,19 +169,19 @@ xfs_icount_range(
 	unsigned long long	*min,
 	unsigned long long	*max)
 {
-	unsigned long long	nr_inos = 0;
+	unsigned long long	nr_ianals = 0;
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 
 	/* root, rtbitmap, rtsum all live in the first chunk */
-	*min = XFS_INODES_PER_CHUNK;
+	*min = XFS_IANALDES_PER_CHUNK;
 
-	for_each_perag(mp, agno, pag)
-		nr_inos += pag->agino_max - pag->agino_min + 1;
-	*max = nr_inos;
+	for_each_perag(mp, aganal, pag)
+		nr_ianals += pag->agianal_max - pag->agianal_min + 1;
+	*max = nr_ianals;
 }
 
-/* Sanity-checking of inode counts. */
+/* Sanity-checking of ianalde counts. */
 bool
 xfs_verify_icount(
 	struct xfs_mount	*mp,
@@ -197,14 +197,14 @@ xfs_verify_icount(
 bool
 xfs_verify_dablk(
 	struct xfs_mount	*mp,
-	xfs_fileoff_t		dabno)
+	xfs_fileoff_t		dabanal)
 {
 	xfs_dablk_t		max_dablk = -1U;
 
-	return dabno <= max_dablk;
+	return dabanal <= max_dablk;
 }
 
-/* Check that a file block offset does not exceed the maximum. */
+/* Check that a file block offset does analt exceed the maximum. */
 bool
 xfs_verify_fileoff(
 	struct xfs_mount	*mp,
@@ -213,7 +213,7 @@ xfs_verify_fileoff(
 	return off <= XFS_MAX_FILEOFF;
 }
 
-/* Check that a range of file block offsets do not exceed the maximum. */
+/* Check that a range of file block offsets do analt exceed the maximum. */
 bool
 xfs_verify_fileext(
 	struct xfs_mount	*mp,

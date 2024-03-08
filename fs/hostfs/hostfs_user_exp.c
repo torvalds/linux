@@ -20,7 +20,7 @@ EXPORT_SYMBOL_GPL(make_symlink);
 EXPORT_SYMBOL_GPL(unlink_file);
 EXPORT_SYMBOL_GPL(do_mkdir);
 EXPORT_SYMBOL_GPL(hostfs_do_rmdir);
-EXPORT_SYMBOL_GPL(do_mknod);
+EXPORT_SYMBOL_GPL(do_mkanald);
 EXPORT_SYMBOL_GPL(link_file);
 EXPORT_SYMBOL_GPL(hostfs_do_readlink);
 EXPORT_SYMBOL_GPL(rename_file);

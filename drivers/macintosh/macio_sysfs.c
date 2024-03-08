@@ -14,7 +14,7 @@ compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 	int length = 0;
 
 	of = &to_macio_device (dev)->ofdev;
-	compat = of_get_property(of->dev.of_node, "compatible", &cplen);
+	compat = of_get_property(of->dev.of_analde, "compatible", &cplen);
 	if (!compat) {
 		*buf = '\0';
 		return 0;
@@ -44,7 +44,7 @@ static ssize_t devspec_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%pOF\n", ofdev->dev.of_node);
+	return sprintf(buf, "%pOF\n", ofdev->dev.of_analde);
 }
 static DEVICE_ATTR_RO(modalias);
 static DEVICE_ATTR_RO(devspec);
@@ -52,14 +52,14 @@ static DEVICE_ATTR_RO(devspec);
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%pOFn\n", dev->of_node);
+	return sprintf(buf, "%pOFn\n", dev->of_analde);
 }
 static DEVICE_ATTR_RO(name);
 
 static ssize_t type_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", of_node_get_device_type(dev->of_node));
+	return sprintf(buf, "%s\n", of_analde_get_device_type(dev->of_analde));
 }
 static DEVICE_ATTR_RO(type);
 

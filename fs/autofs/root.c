@@ -10,20 +10,20 @@
 
 #include "autofs_i.h"
 
-static int autofs_dir_permission(struct mnt_idmap *, struct inode *, int);
-static int autofs_dir_symlink(struct mnt_idmap *, struct inode *,
+static int autofs_dir_permission(struct mnt_idmap *, struct ianalde *, int);
+static int autofs_dir_symlink(struct mnt_idmap *, struct ianalde *,
 			      struct dentry *, const char *);
-static int autofs_dir_unlink(struct inode *, struct dentry *);
-static int autofs_dir_rmdir(struct inode *, struct dentry *);
-static int autofs_dir_mkdir(struct mnt_idmap *, struct inode *,
+static int autofs_dir_unlink(struct ianalde *, struct dentry *);
+static int autofs_dir_rmdir(struct ianalde *, struct dentry *);
+static int autofs_dir_mkdir(struct mnt_idmap *, struct ianalde *,
 			    struct dentry *, umode_t);
 static long autofs_root_ioctl(struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
 static long autofs_root_compat_ioctl(struct file *,
 				     unsigned int, unsigned long);
 #endif
-static int autofs_dir_open(struct inode *inode, struct file *file);
-static struct dentry *autofs_lookup(struct inode *,
+static int autofs_dir_open(struct ianalde *ianalde, struct file *file);
+static struct dentry *autofs_lookup(struct ianalde *,
 				    struct dentry *, unsigned int);
 static struct vfsmount *autofs_d_automount(struct path *);
 static int autofs_d_manage(const struct path *, bool);
@@ -49,7 +49,7 @@ const struct file_operations autofs_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 };
 
-const struct inode_operations autofs_dir_inode_operations = {
+const struct ianalde_operations autofs_dir_ianalde_operations = {
 	.lookup		= autofs_lookup,
 	.permission	= autofs_dir_permission,
 	.unlink		= autofs_dir_unlink,
@@ -67,19 +67,19 @@ const struct dentry_operations autofs_dentry_operations = {
 static void autofs_del_active(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino;
+	struct autofs_info *ianal;
 
-	ino = autofs_dentry_ino(dentry);
+	ianal = autofs_dentry_ianal(dentry);
 	spin_lock(&sbi->lookup_lock);
-	list_del_init(&ino->active);
+	list_del_init(&ianal->active);
 	spin_unlock(&sbi->lookup_lock);
 }
 
-static int autofs_dir_open(struct inode *inode, struct file *file)
+static int autofs_dir_open(struct ianalde *ianalde, struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 
 	pr_debug("file=%p dentry=%p %pd\n", file, dentry, dentry);
 
@@ -96,36 +96,36 @@ static int autofs_dir_open(struct inode *inode, struct file *file)
 	 * it.
 	 */
 	spin_lock(&sbi->lookup_lock);
-	if (!path_is_mountpoint(&file->f_path) && autofs_empty(ino)) {
+	if (!path_is_mountpoint(&file->f_path) && autofs_empty(ianal)) {
 		spin_unlock(&sbi->lookup_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	spin_unlock(&sbi->lookup_lock);
 
 out:
-	return dcache_dir_open(inode, file);
+	return dcache_dir_open(ianalde, file);
 }
 
 static void autofs_dentry_release(struct dentry *de)
 {
-	struct autofs_info *ino = autofs_dentry_ino(de);
+	struct autofs_info *ianal = autofs_dentry_ianal(de);
 	struct autofs_sb_info *sbi = autofs_sbi(de->d_sb);
 
 	pr_debug("releasing %p\n", de);
 
-	if (!ino)
+	if (!ianal)
 		return;
 
 	if (sbi) {
 		spin_lock(&sbi->lookup_lock);
-		if (!list_empty(&ino->active))
-			list_del(&ino->active);
-		if (!list_empty(&ino->expiring))
-			list_del(&ino->expiring);
+		if (!list_empty(&ianal->active))
+			list_del(&ianal->active);
+		if (!list_empty(&ianal->expiring))
+			list_del(&ianal->expiring);
 		spin_unlock(&sbi->lookup_lock);
 	}
 
-	autofs_free_ino(ino);
+	autofs_free_ianal(ianal);
 }
 
 static struct dentry *autofs_lookup_active(struct dentry *dentry)
@@ -143,12 +143,12 @@ static struct dentry *autofs_lookup_active(struct dentry *dentry)
 		return NULL;
 	spin_lock(&sbi->lookup_lock);
 	list_for_each(p, head) {
-		struct autofs_info *ino;
+		struct autofs_info *ianal;
 		struct dentry *active;
 		const struct qstr *qstr;
 
-		ino = list_entry(p, struct autofs_info, active);
-		active = ino->dentry;
+		ianal = list_entry(p, struct autofs_info, active);
+		active = ianal->dentry;
 
 		spin_lock(&active->d_lock);
 
@@ -198,7 +198,7 @@ static struct dentry *autofs_lookup_expiring(struct dentry *dentry,
 		return NULL;
 	spin_lock(&sbi->lookup_lock);
 	list_for_each(p, head) {
-		struct autofs_info *ino;
+		struct autofs_info *ianal;
 		struct dentry *expiring;
 		const struct qstr *qstr;
 
@@ -207,8 +207,8 @@ static struct dentry *autofs_lookup_expiring(struct dentry *dentry,
 			return ERR_PTR(-ECHILD);
 		}
 
-		ino = list_entry(p, struct autofs_info, expiring);
-		expiring = ino->dentry;
+		ianal = list_entry(p, struct autofs_info, expiring);
+		expiring = ianal->dentry;
 
 		spin_lock(&expiring->d_lock);
 
@@ -245,20 +245,20 @@ next:
 static int autofs_mount_wait(const struct path *path, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(path->dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(path->dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(path->dentry);
 	int status = 0;
 
-	if (ino->flags & AUTOFS_INF_PENDING) {
+	if (ianal->flags & AUTOFS_INF_PENDING) {
 		if (rcu_walk)
 			return -ECHILD;
 		pr_debug("waiting for mount name=%pd\n", path->dentry);
 		status = autofs_wait(sbi, path, NFY_MOUNT);
 		pr_debug("mount wait done status=%d\n", status);
-		ino->last_used = jiffies;
+		ianal->last_used = jiffies;
 		return status;
 	}
 	if (!(sbi->flags & AUTOFS_SBI_STRICTEXPIRE))
-		ino->last_used = jiffies;
+		ianal->last_used = jiffies;
 	return status;
 }
 
@@ -275,7 +275,7 @@ static int do_expire_wait(const struct path *path, bool rcu_walk)
 	else {
 		const struct path this = { .mnt = path->mnt, .dentry = expiring };
 		/*
-		 * If we are racing with expire the request might not
+		 * If we are racing with expire the request might analt
 		 * be quite complete, but the directory has been removed
 		 * so it must have been successful, just wait for it.
 		 */
@@ -295,15 +295,15 @@ static struct dentry *autofs_mountpoint_changed(struct path *path)
 	 * and a new one created.
 	 *
 	 * This is unusual and I can't remember the case for which it
-	 * was originally added now. But an example of how this can
+	 * was originally added analw. But an example of how this can
 	 * happen is an autofs indirect mount that has the "browse"
 	 * option set and also has the "symlink" option in the autofs
 	 * map entry. In this case the daemon will remove the browse
 	 * directory and create a symlink as the mount leaving the
 	 * struct path stale.
 	 *
-	 * Another not so obvious case is when a mount in an autofs
-	 * indirect mount that uses the "nobrowse" option is being
+	 * Aanalther analt so obvious case is when a mount in an autofs
+	 * indirect mount that uses the "analbrowse" option is being
 	 * expired at the same time as a path walk. If the mount has
 	 * been umounted but the mount point directory seen before
 	 * becoming unhashed (during a lockless path walk) when a stat
@@ -314,14 +314,14 @@ static struct dentry *autofs_mountpoint_changed(struct path *path)
 	 */
 	if (autofs_type_indirect(sbi->type) && d_unhashed(dentry)) {
 		struct dentry *parent = dentry->d_parent;
-		struct autofs_info *ino;
+		struct autofs_info *ianal;
 		struct dentry *new;
 
 		new = d_lookup(parent, &dentry->d_name);
 		if (!new)
 			return NULL;
-		ino = autofs_dentry_ino(new);
-		ino->last_used = jiffies;
+		ianal = autofs_dentry_ianal(new);
+		ianal->last_used = jiffies;
 		dput(path->dentry);
 		path->dentry = new;
 	}
@@ -332,7 +332,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 	int status;
 
 	pr_debug("dentry=%p %pd\n", dentry, dentry);
@@ -355,7 +355,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 
 	/* Callback to the daemon to perform the mount or wait */
 	spin_lock(&sbi->fs_lock);
-	if (ino->flags & AUTOFS_INF_PENDING) {
+	if (ianal->flags & AUTOFS_INF_PENDING) {
 		spin_unlock(&sbi->fs_lock);
 		status = autofs_mount_wait(path, 0);
 		if (status)
@@ -365,7 +365,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 
 	/*
 	 * If the dentry is a symlink it's equivalent to a directory
-	 * having path_is_mountpoint() true, so there's no need to call
+	 * having path_is_mountpoint() true, so there's anal need to call
 	 * back to the daemon.
 	 */
 	if (d_really_is_positive(dentry) && d_is_symlink(dentry)) {
@@ -382,7 +382,7 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 		 * the mount never trigger mounts themselves (they have an
 		 * autofs trigger mount mounted on them). But v4 pseudo direct
 		 * mounts do need the leaves to trigger mounts. In this case
-		 * we have no choice but to use the autofs_empty() check and
+		 * we have anal choice but to use the autofs_empty() check and
 		 * require user space behave.
 		 */
 		if (sbi->version > 4) {
@@ -391,16 +391,16 @@ static struct vfsmount *autofs_d_automount(struct path *path)
 				goto done;
 			}
 		} else {
-			if (!autofs_empty(ino)) {
+			if (!autofs_empty(ianal)) {
 				spin_unlock(&sbi->fs_lock);
 				goto done;
 			}
 		}
-		ino->flags |= AUTOFS_INF_PENDING;
+		ianal->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
 		status = autofs_mount_wait(path, 0);
 		spin_lock(&sbi->fs_lock);
-		ino->flags &= ~AUTOFS_INF_PENDING;
+		ianal->flags &= ~AUTOFS_INF_PENDING;
 		if (status) {
 			spin_unlock(&sbi->fs_lock);
 			return ERR_PTR(status);
@@ -411,7 +411,7 @@ done:
 	/* Mount succeeded, check if we ended up with a new dentry */
 	dentry = autofs_mountpoint_changed(path);
 	if (!dentry)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return NULL;
 }
@@ -420,7 +420,7 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 {
 	struct dentry *dentry = path->dentry;
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
 	int status;
 
 	pr_debug("dentry=%p %pd\n", dentry, dentry);
@@ -446,21 +446,21 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 
 	if (rcu_walk) {
 		/* We don't need fs_lock in rcu_walk mode,
-		 * just testing 'AUTOFS_INF_WANT_EXPIRE' is enough.
+		 * just testing 'AUTOFS_INF_WANT_EXPIRE' is eanalugh.
 		 *
 		 * We only return -EISDIR when certain this isn't
 		 * a mount-trap.
 		 */
-		struct inode *inode;
+		struct ianalde *ianalde;
 
-		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
+		if (ianal->flags & AUTOFS_INF_WANT_EXPIRE)
 			return 0;
 		if (path_is_mountpoint(path))
 			return 0;
-		inode = d_inode_rcu(dentry);
-		if (inode && S_ISLNK(inode->i_mode))
+		ianalde = d_ianalde_rcu(dentry);
+		if (ianalde && S_ISLNK(ianalde->i_mode))
 			return -EISDIR;
-		if (!autofs_empty(ino))
+		if (!autofs_empty(ianal))
 			return -EISDIR;
 		return 0;
 	}
@@ -470,17 +470,17 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 	 * If the dentry has been selected for expire while we slept
 	 * on the lock then it might go away. We'll deal with that in
 	 * ->d_automount() and wait on a new mount if the expire
-	 * succeeds or return here if it doesn't (since there's no
+	 * succeeds or return here if it doesn't (since there's anal
 	 * mount to follow with a rootless multi-mount).
 	 */
-	if (!(ino->flags & AUTOFS_INF_EXPIRING)) {
+	if (!(ianal->flags & AUTOFS_INF_EXPIRING)) {
 		/*
 		 * Any needed mounting has been completed and the path
 		 * updated so check if this is a rootless multi-mount so
 		 * we can avoid needless calls ->d_automount() and avoid
 		 * an incorrect ELOOP error return.
 		 */
-		if ((!path_is_mountpoint(path) && !autofs_empty(ino)) ||
+		if ((!path_is_mountpoint(path) && !autofs_empty(ianal)) ||
 		    (d_really_is_positive(dentry) && d_is_symlink(dentry)))
 			status = -EISDIR;
 	}
@@ -490,11 +490,11 @@ static int autofs_d_manage(const struct path *path, bool rcu_walk)
 }
 
 /* Lookups in the root directory */
-static struct dentry *autofs_lookup(struct inode *dir,
+static struct dentry *autofs_lookup(struct ianalde *dir,
 				    struct dentry *dentry, unsigned int flags)
 {
 	struct autofs_sb_info *sbi;
-	struct autofs_info *ino;
+	struct autofs_info *ianal;
 	struct dentry *active;
 
 	pr_debug("name = %pd\n", dentry);
@@ -515,17 +515,17 @@ static struct dentry *autofs_lookup(struct inode *dir,
 		return active;
 	else {
 		/*
-		 * A dentry that is not within the root can never trigger a
+		 * A dentry that is analt within the root can never trigger a
 		 * mount operation, unless the directory already exists, so we
 		 * can return fail immediately.  The daemon however does need
 		 * to create directories within the file system.
 		 */
 		if (!autofs_oz_mode(sbi) && !IS_ROOT(dentry->d_parent))
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 
-		ino = autofs_new_ino(sbi);
-		if (!ino)
-			return ERR_PTR(-ENOMEM);
+		ianal = autofs_new_ianal(sbi);
+		if (!ianal)
+			return ERR_PTR(-EANALMEM);
 
 		spin_lock(&sbi->lookup_lock);
 		spin_lock(&dentry->d_lock);
@@ -533,10 +533,10 @@ static struct dentry *autofs_lookup(struct inode *dir,
 		if (IS_ROOT(dentry->d_parent) &&
 		    autofs_type_indirect(sbi->type))
 			__managed_dentry_set_managed(dentry);
-		dentry->d_fsdata = ino;
-		ino->dentry = dentry;
+		dentry->d_fsdata = ianal;
+		ianal->dentry = dentry;
 
-		list_add(&ino->active, &sbi->active_list);
+		list_add(&ianal->active, &sbi->active_list);
 		spin_unlock(&sbi->lookup_lock);
 		spin_unlock(&dentry->d_lock);
 	}
@@ -544,10 +544,10 @@ static struct dentry *autofs_lookup(struct inode *dir,
 }
 
 static int autofs_dir_permission(struct mnt_idmap *idmap,
-				 struct inode *inode, int mask)
+				 struct ianalde *ianalde, int mask)
 {
 	if (mask & MAY_WRITE) {
-		struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
+		struct autofs_sb_info *sbi = autofs_sbi(ianalde->i_sb);
 
 		if (!autofs_oz_mode(sbi))
 			return -EACCES;
@@ -560,56 +560,56 @@ static int autofs_dir_permission(struct mnt_idmap *idmap,
 			return -EACCES;
 	}
 
-	return generic_permission(idmap, inode, mask);
+	return generic_permission(idmap, ianalde, mask);
 }
 
 static int autofs_dir_symlink(struct mnt_idmap *idmap,
-			      struct inode *dir, struct dentry *dentry,
+			      struct ianalde *dir, struct dentry *dentry,
 			      const char *symname)
 {
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
-	struct autofs_info *p_ino;
-	struct inode *inode;
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
+	struct autofs_info *p_ianal;
+	struct ianalde *ianalde;
 	size_t size = strlen(symname);
 	char *cp;
 
 	pr_debug("%s <- %pd\n", symname, dentry);
 
-	BUG_ON(!ino);
+	BUG_ON(!ianal);
 
-	autofs_clean_ino(ino);
+	autofs_clean_ianal(ianal);
 
 	autofs_del_active(dentry);
 
 	cp = kmalloc(size + 1, GFP_KERNEL);
 	if (!cp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(cp, symname);
 
-	inode = autofs_get_inode(dir->i_sb, S_IFLNK | 0555);
-	if (!inode) {
+	ianalde = autofs_get_ianalde(dir->i_sb, S_IFLNK | 0555);
+	if (!ianalde) {
 		kfree(cp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
-	inode->i_private = cp;
-	inode->i_size = size;
-	d_add(dentry, inode);
+	ianalde->i_private = cp;
+	ianalde->i_size = size;
+	d_add(dentry, ianalde);
 
 	dget(dentry);
-	p_ino = autofs_dentry_ino(dentry->d_parent);
-	p_ino->count++;
+	p_ianal = autofs_dentry_ianal(dentry->d_parent);
+	p_ianal->count++;
 
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 
 	return 0;
 }
 
 /*
- * NOTE!
+ * ANALTE!
  *
- * Normal filesystems would do a "d_delete()" to tell the VFS dcache
- * that the file no longer exists. However, doing that means that the
+ * Analrmal filesystems would do a "d_delete()" to tell the VFS dcache
+ * that the file anal longer exists. However, doing that means that the
  * VFS layer can turn the dentry into a negative dentry.  We don't want
  * this, because the unlink is probably the result of an expire.
  * We simply d_drop it and add it to a expiring list in the super block,
@@ -620,20 +620,20 @@ static int autofs_dir_symlink(struct mnt_idmap *idmap,
  *
  * Also see autofs_dir_rmdir()..
  */
-static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
+static int autofs_dir_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
-	struct autofs_info *p_ino;
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
+	struct autofs_info *p_ianal;
 
-	p_ino = autofs_dentry_ino(dentry->d_parent);
-	p_ino->count--;
-	dput(ino->dentry);
+	p_ianal = autofs_dentry_ianal(dentry->d_parent);
+	p_ianal->count--;
+	dput(ianal->dentry);
 
-	d_inode(dentry)->i_size = 0;
-	clear_nlink(d_inode(dentry));
+	d_ianalde(dentry)->i_size = 0;
+	clear_nlink(d_ianalde(dentry));
 
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs_add_expiring(dentry);
@@ -648,10 +648,10 @@ static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
  * that relies on directories at the leaves of a directory tree under
  * an indirect mount to trigger mounts. To allow for this we need to
  * set the DMANAGED_AUTOMOUNT and DMANAGED_TRANSIT flags on the leaves
- * of the directory tree. There is no need to clear the automount flag
+ * of the directory tree. There is anal need to clear the automount flag
  * following a mount or restore it after an expire because these mounts
  * are always covered. However, it is necessary to ensure that these
- * flags are clear on non-empty directories to avoid unnecessary calls
+ * flags are clear on analn-empty directories to avoid unnecessary calls
  * during path walks.
  */
 static void autofs_set_leaf_automount_flags(struct dentry *dentry)
@@ -685,20 +685,20 @@ static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 	/* only consider parents below dentrys in the root */
 	if (IS_ROOT(parent->d_parent))
 		return;
-	if (autofs_dentry_ino(parent)->count == 2)
+	if (autofs_dentry_ianal(parent)->count == 2)
 		managed_dentry_set_managed(parent);
 }
 
-static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
+static int autofs_dir_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
-	struct autofs_info *p_ino;
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
+	struct autofs_info *p_ianal;
 
 	pr_debug("dentry %p, removing %pd\n", dentry, dentry);
 
-	if (ino->count != 1)
-		return -ENOTEMPTY;
+	if (ianal->count != 1)
+		return -EANALTEMPTY;
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs_add_expiring(dentry);
@@ -708,11 +708,11 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sbi->version < 5)
 		autofs_clear_leaf_automount_flags(dentry);
 
-	p_ino = autofs_dentry_ino(dentry->d_parent);
-	p_ino->count--;
-	dput(ino->dentry);
-	d_inode(dentry)->i_size = 0;
-	clear_nlink(d_inode(dentry));
+	p_ianal = autofs_dentry_ianal(dentry->d_parent);
+	p_ianal->count--;
+	dput(ianal->dentry);
+	d_ianalde(dentry)->i_size = 0;
+	clear_nlink(d_ianalde(dentry));
 
 	if (dir->i_nlink)
 		drop_nlink(dir);
@@ -721,35 +721,35 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int autofs_dir_mkdir(struct mnt_idmap *idmap,
-			    struct inode *dir, struct dentry *dentry,
+			    struct ianalde *dir, struct dentry *dentry,
 			    umode_t mode)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
-	struct autofs_info *p_ino;
-	struct inode *inode;
+	struct autofs_info *ianal = autofs_dentry_ianal(dentry);
+	struct autofs_info *p_ianal;
+	struct ianalde *ianalde;
 
 	pr_debug("dentry %p, creating %pd\n", dentry, dentry);
 
-	BUG_ON(!ino);
+	BUG_ON(!ianal);
 
-	autofs_clean_ino(ino);
+	autofs_clean_ianal(ianal);
 
 	autofs_del_active(dentry);
 
-	inode = autofs_get_inode(dir->i_sb, S_IFDIR | mode);
-	if (!inode)
-		return -ENOMEM;
-	d_add(dentry, inode);
+	ianalde = autofs_get_ianalde(dir->i_sb, S_IFDIR | mode);
+	if (!ianalde)
+		return -EANALMEM;
+	d_add(dentry, ianalde);
 
 	if (sbi->version < 5)
 		autofs_set_leaf_automount_flags(dentry);
 
 	dget(dentry);
-	p_ino = autofs_dentry_ino(dentry->d_parent);
-	p_ino->count++;
+	p_ianal = autofs_dentry_ianal(dentry->d_parent);
+	p_ianal->count++;
 	inc_nlink(dir);
-	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
 
 	return 0;
 }
@@ -837,8 +837,8 @@ static inline int autofs_ask_umount(struct vfsmount *mnt, int __user *p)
 }
 
 /* Identify autofs_dentries - this is so we can tell if there's
- * an extra dentry refcount or not.  We only hold a refcount on the
- * dentry if its non-negative (ie, d_inode != NULL)
+ * an extra dentry refcount or analt.  We only hold a refcount on the
+ * dentry if its analn-negative (ie, d_ianalde != NULL)
  */
 int is_autofs_dentry(struct dentry *dentry)
 {
@@ -851,10 +851,10 @@ int is_autofs_dentry(struct dentry *dentry)
  * ioctl()'s on the root directory is the chief method for the daemon to
  * generate kernel reactions
  */
-static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
+static int autofs_root_ioctl_unlocked(struct ianalde *ianalde, struct file *filp,
 				       unsigned int cmd, unsigned long arg)
 {
-	struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
+	struct autofs_sb_info *sbi = autofs_sbi(ianalde->i_sb);
 	void __user *p = (void __user *)arg;
 
 	pr_debug("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u\n",
@@ -862,7 +862,7 @@ static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 
 	if (_IOC_TYPE(cmd) != _IOC_TYPE(AUTOFS_IOC_FIRST) ||
 	     _IOC_NR(cmd) - _IOC_NR(AUTOFS_IOC_FIRST) >= AUTOFS_IOC_COUNT)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (!autofs_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -870,8 +870,8 @@ static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 	switch (cmd) {
 	case AUTOFS_IOC_READY:	/* Wait queue: go ahead and retry */
 		return autofs_wait_release(sbi, (autofs_wqt_t) arg, 0);
-	case AUTOFS_IOC_FAIL:	/* Wait queue: fail with ENOENT */
-		return autofs_wait_release(sbi, (autofs_wqt_t) arg, -ENOENT);
+	case AUTOFS_IOC_FAIL:	/* Wait queue: fail with EANALENT */
+		return autofs_wait_release(sbi, (autofs_wqt_t) arg, -EANALENT);
 	case AUTOFS_IOC_CATATONIC: /* Enter catatonic mode (daemon shutdown) */
 		autofs_catatonic_mode(sbi);
 		return 0;
@@ -891,10 +891,10 @@ static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 
 	/* return a single thing to expire */
 	case AUTOFS_IOC_EXPIRE:
-		return autofs_expire_run(inode->i_sb, filp->f_path.mnt, sbi, p);
+		return autofs_expire_run(ianalde->i_sb, filp->f_path.mnt, sbi, p);
 	/* same as above, but can send multiple expires through pipe */
 	case AUTOFS_IOC_EXPIRE_MULTI:
-		return autofs_expire_multi(inode->i_sb,
+		return autofs_expire_multi(ianalde->i_sb,
 					   filp->f_path.mnt, sbi, p);
 
 	default:
@@ -905,22 +905,22 @@ static int autofs_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 static long autofs_root_ioctl(struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 
-	return autofs_root_ioctl_unlocked(inode, filp, cmd, arg);
+	return autofs_root_ioctl_unlocked(ianalde, filp, cmd, arg);
 }
 
 #ifdef CONFIG_COMPAT
 static long autofs_root_compat_ioctl(struct file *filp,
 				      unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	int ret;
 
 	if (cmd == AUTOFS_IOC_READY || cmd == AUTOFS_IOC_FAIL)
-		ret = autofs_root_ioctl_unlocked(inode, filp, cmd, arg);
+		ret = autofs_root_ioctl_unlocked(ianalde, filp, cmd, arg);
 	else
-		ret = autofs_root_ioctl_unlocked(inode, filp, cmd,
+		ret = autofs_root_ioctl_unlocked(ianalde, filp, cmd,
 					      (unsigned long) compat_ptr(arg));
 
 	return ret;

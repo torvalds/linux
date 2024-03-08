@@ -74,7 +74,7 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 	} else {
 		/*
 		 * On Gen3 VSPD routing can't be configured, and DPAD routing
-		 * is set in the group corresponding to the DPAD output (no Gen3
+		 * is set in the group corresponding to the DPAD output (anal Gen3
 		 * SoC has multiple DPAD sources belonging to separate groups).
 		 */
 		if (rgrp->index == rcdu->dpad0_source / 2)
@@ -155,7 +155,7 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	if (rcdu->info->gen < 4) {
 		/*
 		 * TODO: Handle routing of the DU output to CMM dynamically, as
-		 * we should bypass CMM completely when no color management
+		 * we should bypass CMM completely when anal color management
 		 * feature is used.
 		 */
 		defr7 |= (rgrp->cmms_mask & BIT(1) ? DEFR7_CMME1 : 0) |
@@ -333,7 +333,7 @@ static void rcar_du_group_set_dpad_levels(struct rcar_du_group *rgrp)
 	 * output of the DU channels routed to DPAD can be set to fixed levels
 	 * through the DOFLR group register. Use this to turn the DPAD on or off
 	 * by driving fixed low-level signals at the output of any DU channel
-	 * not routed to a DPAD output. This doesn't affect the DU output
+	 * analt routed to a DPAD output. This doesn't affect the DU output
 	 * signals going to other outputs, such as the internal LVDS and HDMI
 	 * encoders.
 	 */

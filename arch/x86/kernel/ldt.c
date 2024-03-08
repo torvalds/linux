@@ -12,7 +12,7 @@
  *	    context.lock
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -48,7 +48,7 @@ void load_mm_ldt(struct mm_struct *mm)
 
 	/*
 	 * Any change to mm->context.ldt is followed by an IPI to all
-	 * CPUs with the mm active.  The LDT will not be freed until
+	 * CPUs with the mm active.  The LDT will analt be freed until
 	 * after the IPI is handled by all such CPUs.  This means that
 	 * if the ldt_struct changes before we return, the values we see
 	 * will be safe, and the new values will be loaded before we run
@@ -74,7 +74,7 @@ void load_mm_ldt(struct mm_struct *mm)
 
 			/*
 			 * If page table isolation is enabled, ldt->entries
-			 * will not be mapped in the userspace pagetables.
+			 * will analt be mapped in the userspace pagetables.
 			 * Tell the CPU to access the LDT through the alias
 			 * at ldt_slot_va(ldt->slot).
 			 */
@@ -92,11 +92,11 @@ void switch_ldt(struct mm_struct *prev, struct mm_struct *next)
 	/*
 	 * Load the LDT if either the old or new mm had an LDT.
 	 *
-	 * An mm will never go from having an LDT to not having an LDT.  Two
+	 * An mm will never go from having an LDT to analt having an LDT.  Two
 	 * mms never share an LDT, so we don't gain anything by checking to
-	 * see whether the LDT changed.  There's also no guarantee that
-	 * prev->context.ldt actually matches LDTR, but, if LDTR is non-NULL,
-	 * then prev->context.ldt will also be non-NULL.
+	 * see whether the LDT changed.  There's also anal guarantee that
+	 * prev->context.ldt actually matches LDTR, but, if LDTR is analn-NULL,
+	 * then prev->context.ldt will also be analn-NULL.
 	 *
 	 * If we really cared, we could optimize the case where prev == next
 	 * and we're exiting lazy mode.  Most of the time, if this happens,
@@ -162,8 +162,8 @@ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
 	alloc_size = num_entries * LDT_ENTRY_SIZE;
 
 	/*
-	 * Xen is very picky: it requires a page-aligned LDT that has no
-	 * trailing nonzero bytes in any page that contains LDT descriptors.
+	 * Xen is very picky: it requires a page-aligned LDT that has anal
+	 * trailing analnzero bytes in any page that contains LDT descriptors.
 	 * Keep it simple: zero the whole allocation and never allocate less
 	 * than PAGE_SIZE.
 	 */
@@ -221,11 +221,11 @@ static pmd_t *pgd_to_pmd_walk(pgd_t *pgd, unsigned long va)
 		return NULL;
 
 	p4d = p4d_offset(pgd, va);
-	if (p4d_none(*p4d))
+	if (p4d_analne(*p4d))
 		return NULL;
 
 	pud = pud_offset(p4d, va);
-	if (pud_none(*pud))
+	if (pud_analne(*pud))
 		return NULL;
 
 	return pmd_offset(pud, va);
@@ -325,9 +325,9 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 		 */
 		ptep = get_locked_pte(mm, va, &ptl);
 		if (!ptep)
-			return -ENOMEM;
+			return -EANALMEM;
 		/*
-		 * Map it RO so the easy to find address is not a primary
+		 * Map it RO so the easy to find address is analt a primary
 		 * target via some kernel interface which misses a
 		 * permission check.
 		 */
@@ -446,7 +446,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 
 /*
  * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
- * the new task is not running, so nothing can be installed.
+ * the new task is analt running, so analthing can be installed.
  */
 int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 {
@@ -462,7 +462,7 @@ int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 
 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
 	if (!new_ldt) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -484,7 +484,7 @@ out_unlock:
 }
 
 /*
- * No need to lock the MM as we are the last user
+ * Anal need to lock the MM as we are the last user
  *
  * 64bit: Don't touch the LDT register - we're already in the next thread.
  */
@@ -560,14 +560,14 @@ static bool allow_16bit_segments(void)
 
 #ifdef CONFIG_XEN_PV
 	/*
-	 * Xen PV does not implement ESPFIX64, which means that 16-bit
-	 * segments will not work correctly.  Until either Xen PV implements
+	 * Xen PV does analt implement ESPFIX64, which means that 16-bit
+	 * segments will analt work correctly.  Until either Xen PV implements
 	 * ESPFIX64 and can signal this fact to the guest or unless someone
 	 * provides compelling evidence that allowing broken 16-bit segments
 	 * is worthwhile, disallow 16-bit segments under Xen PV.
 	 */
 	if (xen_pv_domain()) {
-		pr_info_once("Warning: 16-bit segments do not work correctly in a Xen PV guest\n");
+		pr_info_once("Warning: 16-bit segments do analt work correctly in a Xen PV guest\n");
 		return false;
 	}
 #endif
@@ -597,7 +597,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	if (ldt_info.contents == 3) {
 		if (oldmode)
 			goto out;
-		if (ldt_info.seg_not_present == 0)
+		if (ldt_info.seg_analt_present == 0)
 			goto out;
 	}
 
@@ -623,7 +623,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
 	new_nr_entries = max(ldt_info.entry_number + 1, old_nr_entries);
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	new_ldt = alloc_ldt_struct(new_nr_entries);
 	if (!new_ldt)
 		goto out_unlock;
@@ -667,7 +667,7 @@ out:
 SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 		unsigned long , bytecount)
 {
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	switch (func) {
 	case 0:
@@ -688,7 +688,7 @@ SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 	 * return type, but the ABI for sys_modify_ldt() expects
 	 * 'int'.  This cast gives us an int-sized value in %rax
 	 * for the return code.  The 'unsigned' is necessary so
-	 * the compiler does not try to sign-extend the negative
+	 * the compiler does analt try to sign-extend the negative
 	 * return codes into the high half of the register when
 	 * taking the value from int->long.
 	 */

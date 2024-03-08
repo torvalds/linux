@@ -29,7 +29,7 @@ static int evm_xattrs_locked;
 /**
  * evm_read_key - read() for <securityfs>/evm
  *
- * @filp: file pointer, not actually used
+ * @filp: file pointer, analt actually used
  * @buf: where to put the result
  * @count: maximum to send along
  * @ppos: where to start
@@ -53,7 +53,7 @@ static ssize_t evm_read_key(struct file *filp, char __user *buf,
 
 /**
  * evm_write_key - write() for <securityfs>/evm
- * @file: file pointer, not actually used
+ * @file: file pointer, analt actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -117,7 +117,7 @@ static const struct file_operations evm_key_ops = {
 /**
  * evm_read_xattrs - read() for <securityfs>/evm_xattrs
  *
- * @filp: file pointer, not actually used
+ * @filp: file pointer, analt actually used
  * @buf: where to put the result
  * @count: maximum to send along
  * @ppos: where to start
@@ -149,7 +149,7 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 	temp = kmalloc(size + 1, GFP_KERNEL);
 	if (!temp) {
 		mutex_unlock(&xattr_list_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	list_for_each_entry(xattr, &evm_config_xattrnames, list) {
@@ -170,7 +170,7 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 
 /**
  * evm_write_xattrs - write() for <securityfs>/evm_xattrs
- * @file: file pointer, not actually used
+ * @file: file pointer, analt actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -184,7 +184,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	struct xattr_list *xattr, *tmp;
 	struct audit_buffer *ab;
 	struct iattr newattrs;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!capable(CAP_SYS_ADMIN) || evm_xattrs_locked)
 		return -EPERM;
@@ -198,11 +198,11 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_INTEGRITY_EVM_XATTR);
 	if (!ab && IS_ENABLED(CONFIG_AUDIT))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xattr = kmalloc(sizeof(struct xattr_list), GFP_KERNEL);
 	if (!xattr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -226,10 +226,10 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		evm_xattrs_locked = 1;
 		newattrs.ia_mode = S_IFREG | 0440;
 		newattrs.ia_valid = ATTR_MODE;
-		inode = evm_xattrs->d_inode;
-		inode_lock(inode);
-		err = simple_setattr(&nop_mnt_idmap, evm_xattrs, &newattrs);
-		inode_unlock(inode);
+		ianalde = evm_xattrs->d_ianalde;
+		ianalde_lock(ianalde);
+		err = simple_setattr(&analp_mnt_idmap, evm_xattrs, &newattrs);
+		ianalde_unlock(ianalde);
 		if (!err)
 			err = count;
 		goto out;

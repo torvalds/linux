@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for caching inode integrity data (iint)
+# Makefile for caching ianalde integrity data (iint)
 #
 
 obj-$(CONFIG_INTEGRITY) += integrity.o

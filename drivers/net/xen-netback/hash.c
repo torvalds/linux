@@ -14,12 +14,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -152,12 +152,12 @@ void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb)
 {
 	struct flow_keys flow;
 	u32 hash = 0;
-	enum pkt_hash_types type = PKT_HASH_TYPE_NONE;
+	enum pkt_hash_types type = PKT_HASH_TYPE_ANALNE;
 	u32 flags = vif->hash.flags;
 	bool has_tcp_hdr;
 
 	/* Quick rejection test: If the network protocol doesn't
-	 * correspond to any enabled hash type then there's no point
+	 * correspond to any enabled hash type then there's anal point
 	 * in parsing the packet header.
 	 */
 	switch (skb->protocol) {
@@ -237,7 +237,7 @@ void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb)
 	}
 
 done:
-	if (type == PKT_HASH_TYPE_NONE)
+	if (type == PKT_HASH_TYPE_ANALNE)
 		skb_clear_hash(skb);
 	else
 		__skb_set_sw_hash(skb, hash, type == PKT_HASH_TYPE_L4);
@@ -246,7 +246,7 @@ done:
 u32 xenvif_set_hash_alg(struct xenvif *vif, u32 alg)
 {
 	switch (alg) {
-	case XEN_NETIF_CTRL_HASH_ALGORITHM_NONE:
+	case XEN_NETIF_CTRL_HASH_ALGORITHM_ANALNE:
 	case XEN_NETIF_CTRL_HASH_ALGORITHM_TOEPLITZ:
 		break;
 
@@ -261,8 +261,8 @@ u32 xenvif_set_hash_alg(struct xenvif *vif, u32 alg)
 
 u32 xenvif_get_hash_flags(struct xenvif *vif, u32 *flags)
 {
-	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
-		return XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED;
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_ANALNE)
+		return XEN_NETIF_CTRL_STATUS_ANALT_SUPPORTED;
 
 	*flags = XEN_NETIF_CTRL_HASH_TYPE_IPV4 |
 		 XEN_NETIF_CTRL_HASH_TYPE_IPV4_TCP |
@@ -280,7 +280,7 @@ u32 xenvif_set_hash_flags(struct xenvif *vif, u32 flags)
 		      XEN_NETIF_CTRL_HASH_TYPE_IPV6_TCP))
 		return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
-	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_ANALNE)
 		return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
 	vif->hash.flags = flags;
@@ -391,8 +391,8 @@ void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
 		seq_puts(m, "Hash Algorithm: TOEPLITZ\n");
 		break;
 
-	case XEN_NETIF_CTRL_HASH_ALGORITHM_NONE:
-		seq_puts(m, "Hash Algorithm: NONE\n");
+	case XEN_NETIF_CTRL_HASH_ALGORITHM_ANALNE:
+		seq_puts(m, "Hash Algorithm: ANALNE\n");
 		fallthrough;
 	default:
 		return;

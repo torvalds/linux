@@ -27,7 +27,7 @@ process_entry:
 	PTR_ADDIU	s0, s0, SZREG
 
 	/*
-	 * In case of a kdump/crash kernel, the indirection page is not
+	 * In case of a kdump/crash kernel, the indirection page is analt
 	 * populated as the kernel is directly copied to a reserved location
 	 */
 	beqz		s2, done
@@ -70,7 +70,7 @@ copy_word:
 done:
 #ifdef CONFIG_SMP
 	/* kexec_flag reset is signal to other CPUs what kernel
-	   was moved to its location. Note - we need relocated address
+	   was moved to its location. Analte - we need relocated address
 	   of kexec_flag.  */
 
 	bal		1f
@@ -87,7 +87,7 @@ done:
 	 * Unfortunately, this code is cpu-specific.
 	 */
 	.set push
-	.set noreorder
+	.set analreorder
 	syncw
 	syncw
 	synci		0($0)
@@ -111,8 +111,8 @@ LEAF(kexec_smp_wait)
 	PTR_L		a3, s_arg3
 	PTR_L		s1, kexec_start_address
 
-	/* Non-relocated address works for args and kexec_start_address ( old
-	 * kernel is not overwritten). But we need relocated address of
+	/* Analn-relocated address works for args and kexec_start_address ( old
+	 * kernel is analt overwritten). But we need relocated address of
 	 * kexec_flag.
 	 */
 

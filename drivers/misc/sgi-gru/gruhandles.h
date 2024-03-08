@@ -139,16 +139,16 @@ static inline unsigned long get_cb_number(void *cb)
 					GRU_HANDLE_STRIDE;
 }
 
-/* byte offset to a specific GRU chiplet. (p=pnode, c=chiplet (0 or 1)*/
-static inline unsigned long gru_chiplet_paddr(unsigned long paddr, int pnode,
+/* byte offset to a specific GRU chiplet. (p=panalde, c=chiplet (0 or 1)*/
+static inline unsigned long gru_chiplet_paddr(unsigned long paddr, int panalde,
 							int chiplet)
 {
-	return paddr + GRU_SIZE * (2 * pnode  + chiplet);
+	return paddr + GRU_SIZE * (2 * panalde  + chiplet);
 }
 
-static inline void *gru_chiplet_vaddr(void *vaddr, int pnode, int chiplet)
+static inline void *gru_chiplet_vaddr(void *vaddr, int panalde, int chiplet)
 {
-	return vaddr + GRU_SIZE * (2 * pnode  + chiplet);
+	return vaddr + GRU_SIZE * (2 * panalde  + chiplet);
 }
 
 static inline struct gru_control_block_extended *gru_tfh_to_cbe(
@@ -221,7 +221,7 @@ enum gru_tgh_cmd {
 };
 
 enum gru_tgh_opc {
-	TGHOP_TLBNOP,
+	TGHOP_TLBANALP,
 	TGHOP_TLBINV
 };
 
@@ -297,7 +297,7 @@ struct gru_tlb_fault_handle {
 };
 
 enum gru_tfh_opc {
-	TFHOP_NOOP,
+	TFHOP_ANALOP,
 	TFHOP_RESTART,
 	TFHOP_WRITE_ONLY,
 	TFHOP_WRITE_RESTART,
@@ -323,7 +323,7 @@ enum tfh_state {
 
 /* TFH cause bits */
 enum tfh_cause {
-	TFHCAUSE_NONE,
+	TFHCAUSE_ANALNE,
 	TFHCAUSE_TLB_MISS,
 	TFHCAUSE_TLB_MOD,
 	TFHCAUSE_HW_ERROR_RR,
@@ -340,7 +340,7 @@ enum tfh_cause {
 #define GAA_MMIO			0x1
 #define GAA_REGISTER			0x3
 
-/* GRU paddr shift for pfn. (NOTE: shift is NOT by actual pagesize) */
+/* GRU paddr shift for pfn. (ANALTE: shift is ANALT by actual pagesize) */
 #define GRU_PADDR_SHIFT			12
 
 /*
@@ -406,7 +406,7 @@ enum gru_cch_cause {
 	CCHCAUSE_INVALID_DEALLOCATION_REQUEST = 5,
 	CCHCAUSE_INVALID_INTERRUPT_REQUEST = 6,
 	CCHCAUSE_CCH_BUSY = 7,
-	CCHCAUSE_NO_CBRS_TO_ALLOCATE = 8,
+	CCHCAUSE_ANAL_CBRS_TO_ALLOCATE = 8,
 	CCHCAUSE_BAD_TFM_CONFIG = 9,
 	CCHCAUSE_CBR_RESOURCES_OVERSUBSCRIPED = 10,
 	CCHCAUSE_DSR_RESOURCES_OVERSUBSCRIPED = 11,

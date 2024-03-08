@@ -41,12 +41,12 @@ Changelog::
 					<mailto:mec@shout.net>
 					22 Sep 1997
 
-  Now it should be up to date with Linux 2.1.112. Because
+  Analw it should be up to date with Linux 2.1.112. Because
   we are in feature freeze time it is very unlikely that
   something will change before 2.2.x. The entries are
   sorted by number field.
 
-					Krzysztof G. Baranowski
+					Krzysztof G. Baraanalwski
 					<mailto: kgb@knm.org.pl>
 					29 Jul 1998
 
@@ -56,7 +56,7 @@ Changelog::
 
 					Petr Baudis
 					<pasky@ucw.cz>
-					03 Nov 2002
+					03 Analv 2002
 
   Updated the magic table to Linux 2.5.74.
 

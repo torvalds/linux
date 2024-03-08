@@ -80,7 +80,7 @@ static int mma7455_drdy(struct mma7455_data *mma7455)
 		msleep(20);
 	}
 
-	dev_warn(dev, "data not ready\n");
+	dev_warn(dev, "data analt ready\n");
 
 	return -EIO;
 }
@@ -106,7 +106,7 @@ static irqreturn_t mma7455_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -256,12 +256,12 @@ int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 
 	if (reg != MMA7455_WHOAMI_ID) {
 		dev_err(dev, "device id mismatch\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*mma7455));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, indio_dev);
 	mma7455 = iio_priv(indio_dev);

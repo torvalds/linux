@@ -24,7 +24,7 @@
 
 #include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/lock.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
 

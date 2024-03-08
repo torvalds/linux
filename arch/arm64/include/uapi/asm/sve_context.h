@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* Copyright (C) 2017-2018 ARM Limited */
 
 /*
  * For use by other UAPI headers only.
- * Do not make direct use of header or its definitions.
+ * Do analt make direct use of header or its definitions.
  */
 
 #ifndef _UAPI__ASM_SVE_CONTEXT_H

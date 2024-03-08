@@ -2,9 +2,9 @@
 /*
  * OMAP2 McSPI controller driver
  *
- * Copyright (C) 2005, 2006 Nokia Corporation
- * Author:	Samuel Ortiz <samuel.ortiz@nokia.com> and
- *		Juha Yrjola <juha.yrjola@nokia.com>
+ * Copyright (C) 2005, 2006 Analkia Corporation
+ * Author:	Samuel Ortiz <samuel.ortiz@analkia.com> and
+ *		Juha Yrjola <juha.yrjola@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -138,7 +138,7 @@ struct omap2_mcspi_cs {
 	unsigned long		phys;
 	int			word_len;
 	u16			mode;
-	struct list_head	node;
+	struct list_head	analde;
 	/* Context save and restore shadow register */
 	u32			chconf0, chctrl0;
 };
@@ -454,7 +454,7 @@ omap2_mcspi_rx_dma(struct spi_device *spi, struct spi_transfer *xfer,
 	/*
 	 *  In the "End-of-Transfer Procedure" section for DMA RX in OMAP35x TRM
 	 *  it mentions reducing DMA transfer length by one element in host
-	 *  normal mode.
+	 *  analrmal mode.
 	 */
 	if (mcspi->fifo_depth == 0)
 		transfer_reduction = es;
@@ -624,7 +624,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	reinit_completion(&mcspi_dma->dma_rx_completion);
 	reinit_completion(&mcspi->txdone);
 	if (tx) {
-		/* Enable EOW IRQ to know end of tx in target mode */
+		/* Enable EOW IRQ to kanalw end of tx in target mode */
 		if (spi_controller_is_target(spi->controller))
 			mcspi_write_reg(spi->controller,
 					OMAP2_MCSPI_IRQENABLE,
@@ -893,7 +893,7 @@ static u32 omap2_mcspi_calc_divisor(u32 speed_hz, u32 ref_clk_hz)
 	return 15;
 }
 
-/* called only when no transfer is active to this device */
+/* called only when anal transfer is active to this device */
 static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 		struct spi_transfer *t)
 {
@@ -948,7 +948,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 
 	/* set chipselect polarity; manage with FORCE */
 	if (!(spi->mode & SPI_CS_HIGH))
-		l |= OMAP2_MCSPI_CHCONF_EPOL;	/* active-low; normal */
+		l |= OMAP2_MCSPI_CHCONF_EPOL;	/* active-low; analrmal */
 	else
 		l &= ~OMAP2_MCSPI_CHCONF_EPOL;
 
@@ -982,13 +982,13 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	dev_dbg(&spi->dev, "setup: speed %d, sample %s edge, clk %s\n",
 			speed_hz,
 			(spi->mode & SPI_CPHA) ? "trailing" : "leading",
-			(spi->mode & SPI_CPOL) ? "inverted" : "normal");
+			(spi->mode & SPI_CPOL) ? "inverted" : "analrmal");
 
 	return 0;
 }
 
 /*
- * Note that we currently allow DMA only if we get a channel
+ * Analte that we currently allow DMA only if we get a channel
  * for both rx and tx. Otherwise we'll do PIO for both rx and tx.
  */
 static int omap2_mcspi_request_dma(struct omap2_mcspi *mcspi,
@@ -1001,7 +1001,7 @@ static int omap2_mcspi_request_dma(struct omap2_mcspi *mcspi,
 	if (IS_ERR(mcspi_dma->dma_rx)) {
 		ret = PTR_ERR(mcspi_dma->dma_rx);
 		mcspi_dma->dma_rx = NULL;
-		goto no_dma;
+		goto anal_dma;
 	}
 
 	mcspi_dma->dma_tx = dma_request_chan(mcspi->dev,
@@ -1016,7 +1016,7 @@ static int omap2_mcspi_request_dma(struct omap2_mcspi *mcspi,
 	init_completion(&mcspi_dma->dma_rx_completion);
 	init_completion(&mcspi_dma->dma_tx_completion);
 
-no_dma:
+anal_dma:
 	return ret;
 }
 
@@ -1047,7 +1047,7 @@ static void omap2_mcspi_cleanup(struct spi_device *spi)
 	if (spi->controller_state) {
 		/* Unlink controller state from context save list */
 		cs = spi->controller_state;
-		list_del(&cs->node);
+		list_del(&cs->analde);
 
 		kfree(cs);
 	}
@@ -1064,7 +1064,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	if (!cs) {
 		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
-			return -ENOMEM;
+			return -EANALMEM;
 		cs->base = mcspi->base + spi_get_chipselect(spi, 0) * 0x14;
 		cs->phys = mcspi->phys + spi_get_chipselect(spi, 0) * 0x14;
 		cs->mode = 0;
@@ -1072,7 +1072,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		cs->chctrl0 = 0;
 		spi->controller_state = cs;
 		/* Link this to context save list */
-		list_add_tail(&cs->node, &ctx->cs);
+		list_add_tail(&cs->analde, &ctx->cs);
 		initial_setup = true;
 	}
 
@@ -1101,7 +1101,7 @@ static irqreturn_t omap2_mcspi_irq_handler(int irq, void *data)
 
 	irqstat	= mcspi_read_reg(mcspi->ctlr, OMAP2_MCSPI_IRQSTATUS);
 	if (!irqstat)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Disable IRQ and wakeup target xfer task */
 	mcspi_write_reg(mcspi->ctlr, OMAP2_MCSPI_IRQENABLE, 0);
@@ -1152,7 +1152,7 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 	/*
 	 * The target driver could have changed spi->mode in which case
 	 * it will be different from cs->mode (the current hardware setup).
-	 * If so, set par_override (even though its not a parity issue) so
+	 * If so, set par_override (even though its analt a parity issue) so
 	 * omap2_mcspi_setup_transfer will be called to configure the hardware
 	 * with the correct mode on the first iteration of the loop below.
 	 */
@@ -1271,7 +1271,7 @@ static int omap2_mcspi_prepare_message(struct spi_controller *ctlr,
 	 * Scan all channels and disable them except the current one.
 	 * A FORCE can remain from a last transfer having cs_change enabled
 	 */
-	list_for_each_entry(cs, &ctx->cs, node) {
+	list_for_each_entry(cs, &ctx->cs, analde) {
 		if (msg->spi->controller_state == cs)
 			continue;
 
@@ -1370,7 +1370,7 @@ static int omap_mcspi_runtime_resume(struct device *dev)
 	mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, ctx->modulctrl);
 	mcspi_write_reg(ctlr, OMAP2_MCSPI_WAKEUPENABLE, ctx->wakeupenable);
 
-	list_for_each_entry(cs, &ctx->cs, node) {
+	list_for_each_entry(cs, &ctx->cs, analde) {
 		/*
 		 * We need to toggle CS state for OMAP take this
 		 * change in account.
@@ -1429,15 +1429,15 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	struct resource		*r;
 	int			status = 0, i;
 	u32			regs_offset = 0;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_analde	*analde = pdev->dev.of_analde;
 	const struct of_device_id *match;
 
-	if (of_property_read_bool(node, "spi-slave"))
+	if (of_property_read_bool(analde, "spi-slave"))
 		ctlr = spi_alloc_target(&pdev->dev, sizeof(*mcspi));
 	else
 		ctlr = spi_alloc_host(&pdev->dev, sizeof(*mcspi));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* the spi->mode bits understood by this driver: */
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
@@ -1450,7 +1450,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	ctlr->set_cs = omap2_mcspi_set_cs;
 	ctlr->cleanup = omap2_mcspi_cleanup;
 	ctlr->target_abort = omap2_mcspi_target_abort;
-	ctlr->dev.of_node = node;
+	ctlr->dev.of_analde = analde;
 	ctlr->use_gpio_descriptors = true;
 
 	platform_set_drvdata(pdev, ctlr);
@@ -1463,9 +1463,9 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		u32 num_cs = 1; /* default number of chipselect */
 		pdata = match->data;
 
-		of_property_read_u32(node, "ti,spi-num-cs", &num_cs);
+		of_property_read_u32(analde, "ti,spi-num-cs", &num_cs);
 		ctlr->num_chipselect = num_cs;
-		if (of_property_read_bool(node, "ti,pindir-d0-out-d1-in"))
+		if (of_property_read_bool(analde, "ti,pindir-d0-out-d1-in"))
 			mcspi->pin_dir = MCSPI_PINDIR_D0_OUT_D1_IN;
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
@@ -1494,7 +1494,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 					   sizeof(struct omap2_mcspi_dma),
 					   GFP_KERNEL);
 	if (mcspi->dma_channels == NULL) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto free_ctlr;
 	}
 
@@ -1516,7 +1516,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 				  omap2_mcspi_irq_handler, 0, pdev->name,
 				  mcspi);
 	if (status) {
-		dev_err(&pdev->dev, "Cannot request IRQ");
+		dev_err(&pdev->dev, "Cananalt request IRQ");
 		goto free_ctlr;
 	}
 

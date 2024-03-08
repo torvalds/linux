@@ -81,7 +81,7 @@ struct iwl_fw_ini_region_dev_addr {
  * struct iwl_fw_ini_region_fifos - Configuration to read Tx/Rx fifos
  *
  * @fid: fifos ids array. Used to determine what fifos to collect
- * @hdr_only: if non zero, collect only the registers
+ * @hdr_only: if analn zero, collect only the registers
  * @offset: offset to add to the registers addresses
  */
 struct iwl_fw_ini_region_fifos {
@@ -151,7 +151,7 @@ struct iwl_fw_ini_region_internal_buffer {
  * @type: region type. One of &enum iwl_fw_ini_region_type
  * @sub_type: region sub type
  * @sub_type_ver: region sub type version
- * @reserved: not in use
+ * @reserved: analt in use
  * @name: region name
  * @dev_addr: device address configuration. Used by
  *	&IWL_FW_INI_REGION_DEVICE_MEMORY, &IWL_FW_INI_REGION_PERIPHERY_MAC,
@@ -242,8 +242,8 @@ struct iwl_fw_ini_allocation_tlv {
  * @dump_delay: delay from trigger fire to dump, in usec
  * @occurrences: max trigger fire occurrences allowed
  * @reserved: unused
- * @ignore_consec: ignore consecutive triggers, in usec
- * @reset_fw: if non zero, will reset and reload the FW
+ * @iganalre_consec: iganalre consecutive triggers, in usec
+ * @reset_fw: if analn zero, will reset and reload the FW
  * @multi_dut: initiate debug dump data on several DUTs
  * @regions_mask: mask of regions to collect
  * @data: trigger data
@@ -256,7 +256,7 @@ struct iwl_fw_ini_trigger_tlv {
 	__le32 dump_delay;
 	__le32 occurrences;
 	__le32 reserved;
-	__le32 ignore_consec;
+	__le32 iganalre_consec;
 	__le32 reset_fw;
 	__le32 multi_dut;
 	__le64 regions_mask;
@@ -380,7 +380,7 @@ enum iwl_fw_ini_buffer_location {
  * @IWL_FW_INI_REGION_RXF: RX fifo
  * @IWL_FW_INI_REGION_LMAC_ERROR_TABLE: lmac error table
  * @IWL_FW_INI_REGION_UMAC_ERROR_TABLE: umac error table
- * @IWL_FW_INI_REGION_RSP_OR_NOTIF: FW response or notification data
+ * @IWL_FW_INI_REGION_RSP_OR_ANALTIF: FW response or analtification data
  * @IWL_FW_INI_REGION_DEVICE_MEMORY: device internal memory
  * @IWL_FW_INI_REGION_PERIPHERY_MAC: periphery registers of MAC
  * @IWL_FW_INI_REGION_PERIPHERY_PHY: periphery registers of PHY
@@ -405,7 +405,7 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_RXF,
 	IWL_FW_INI_REGION_LMAC_ERROR_TABLE,
 	IWL_FW_INI_REGION_UMAC_ERROR_TABLE,
-	IWL_FW_INI_REGION_RSP_OR_NOTIF,
+	IWL_FW_INI_REGION_RSP_OR_ANALTIF,
 	IWL_FW_INI_REGION_DEVICE_MEMORY,
 	IWL_FW_INI_REGION_PERIPHERY_MAC,
 	IWL_FW_INI_REGION_PERIPHERY_PHY,
@@ -440,13 +440,13 @@ enum iwl_fw_ini_region_device_memory_subtype {
  * collection
  *
  * @IWL_FW_INI_TIME_POINT_EARLY: pre loading the FW
- * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive notif
+ * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive analtif
  * @IWL_FW_INI_TIME_POINT_POST_INIT: last cmd in series of init sequence
  * @IWL_FW_INI_TIME_POINT_FW_ASSERT: FW assert
  * @IWL_FW_INI_TIME_POINT_FW_HW_ERROR: FW HW error
  * @IWL_FW_INI_TIME_POINT_FW_TFD_Q_HANG: TFD queue hang
- * @IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFICATION: DHC cmd response and notif
- * @IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF: FW response or notification.
+ * @IWL_FW_INI_TIME_POINT_FW_DHC_ANALTIFICATION: DHC cmd response and analtif
+ * @IWL_FW_INI_TIME_POINT_FW_RSP_OR_ANALTIF: FW response or analtification.
  *	data field holds id and group
  * @IWL_FW_INI_TIME_POINT_USER_TRIGGER: user trigger time point
  * @IWL_FW_INI_TIME_POINT_PERIODIC: periodic timepoint that fires in constant
@@ -478,8 +478,8 @@ enum iwl_fw_ini_time_point {
 	IWL_FW_INI_TIME_POINT_FW_ASSERT,
 	IWL_FW_INI_TIME_POINT_FW_HW_ERROR,
 	IWL_FW_INI_TIME_POINT_FW_TFD_Q_HANG,
-	IWL_FW_INI_TIME_POINT_FW_DHC_NOTIFICATION,
-	IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF,
+	IWL_FW_INI_TIME_POINT_FW_DHC_ANALTIFICATION,
+	IWL_FW_INI_TIME_POINT_FW_RSP_OR_ANALTIF,
 	IWL_FW_INI_TIME_POINT_USER_TRIGGER,
 	IWL_FW_INI_TIME_POINT_PERIODIC,
 	IWL_FW_INI_TIME_POINT_RESERVED,
@@ -525,12 +525,12 @@ enum iwl_fw_ini_trigger_apply_policy {
 /**
  * enum iwl_fw_ini_trigger_reset_fw_policy - Determines how to handle reset
  *
- * @IWL_FW_INI_RESET_FW_MODE_NOTHING: do not stop FW and reload (default)
+ * @IWL_FW_INI_RESET_FW_MODE_ANALTHING: do analt stop FW and reload (default)
  * @IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY: stop FW without reload FW
  * @IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW: stop FW with reload FW
  */
 enum iwl_fw_ini_trigger_reset_fw_policy {
-	IWL_FW_INI_RESET_FW_MODE_NOTHING = 0,
+	IWL_FW_INI_RESET_FW_MODE_ANALTHING = 0,
 	IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY,
 	IWL_FW_INI_RESET_FW_MODE_STOP_AND_RELOAD_FW
 };
@@ -538,12 +538,12 @@ enum iwl_fw_ini_trigger_reset_fw_policy {
 /**
  * enum iwl_fw_ini_dump_policy - Determines how to handle dump based on enabled flags
  *
- * @IWL_FW_INI_DEBUG_DUMP_POLICY_NO_LIMIT: OS has no limit of dump size
+ * @IWL_FW_INI_DEBUG_DUMP_POLICY_ANAL_LIMIT: OS has anal limit of dump size
  * @IWL_FW_INI_DEBUG_DUMP_POLICY_MAX_LIMIT_600KB: mini dump only 600KB region dump
  * @IWL_FW_IWL_DEBUG_DUMP_POLICY_MAX_LIMIT_5MB: mini dump 5MB size dump
  */
 enum iwl_fw_ini_dump_policy {
-	IWL_FW_INI_DEBUG_DUMP_POLICY_NO_LIMIT           = BIT(0),
+	IWL_FW_INI_DEBUG_DUMP_POLICY_ANAL_LIMIT           = BIT(0),
 	IWL_FW_INI_DEBUG_DUMP_POLICY_MAX_LIMIT_600KB    = BIT(1),
 	IWL_FW_IWL_DEBUG_DUMP_POLICY_MAX_LIMIT_5MB      = BIT(2),
 
@@ -553,7 +553,7 @@ enum iwl_fw_ini_dump_policy {
  * enum iwl_fw_ini_dump_type - Determines dump type based on size defined by FW.
  *
  * @IWL_FW_INI_DUMP_BRIEF : only dump the most important regions
- * @IWL_FW_INI_DEBUG_MEDIUM: dump more regions than "brief", but not all regions
+ * @IWL_FW_INI_DEBUG_MEDIUM: dump more regions than "brief", but analt all regions
  * @IWL_FW_INI_DUMP_VERBOSE : dump all regions
  */
 enum iwl_fw_ini_dump_type {

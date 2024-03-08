@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2023 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2023 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
@@ -20,21 +20,21 @@
 #include "txgbe_phy.h"
 #include "txgbe_hw.h"
 
-static int txgbe_swnodes_register(struct txgbe *txgbe)
+static int txgbe_swanaldes_register(struct txgbe *txgbe)
 {
-	struct txgbe_nodes *nodes = &txgbe->nodes;
+	struct txgbe_analdes *analdes = &txgbe->analdes;
 	struct pci_dev *pdev = txgbe->wx->pdev;
-	struct software_node *swnodes;
+	struct software_analde *swanaldes;
 	u32 id;
 
 	id = pci_dev_id(pdev);
 
-	snprintf(nodes->gpio_name, sizeof(nodes->gpio_name), "txgbe_gpio-%x", id);
-	snprintf(nodes->i2c_name, sizeof(nodes->i2c_name), "txgbe_i2c-%x", id);
-	snprintf(nodes->sfp_name, sizeof(nodes->sfp_name), "txgbe_sfp-%x", id);
-	snprintf(nodes->phylink_name, sizeof(nodes->phylink_name), "txgbe_phylink-%x", id);
+	snprintf(analdes->gpio_name, sizeof(analdes->gpio_name), "txgbe_gpio-%x", id);
+	snprintf(analdes->i2c_name, sizeof(analdes->i2c_name), "txgbe_i2c-%x", id);
+	snprintf(analdes->sfp_name, sizeof(analdes->sfp_name), "txgbe_sfp-%x", id);
+	snprintf(analdes->phylink_name, sizeof(analdes->phylink_name), "txgbe_phylink-%x", id);
 
-	swnodes = nodes->swnodes;
+	swanaldes = analdes->swanaldes;
 
 	/* GPIO 0: tx fault
 	 * GPIO 1: tx disable
@@ -43,42 +43,42 @@ static int txgbe_swnodes_register(struct txgbe *txgbe)
 	 * GPIO 4: rate select, 1G(0) 10G(1)
 	 * GPIO 5: rate select, 1G(0) 10G(1)
 	 */
-	nodes->gpio_props[0] = PROPERTY_ENTRY_STRING("pinctrl-names", "default");
-	swnodes[SWNODE_GPIO] = NODE_PROP(nodes->gpio_name, nodes->gpio_props);
-	nodes->gpio0_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 0, GPIO_ACTIVE_HIGH);
-	nodes->gpio1_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 1, GPIO_ACTIVE_HIGH);
-	nodes->gpio2_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 2, GPIO_ACTIVE_LOW);
-	nodes->gpio3_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 3, GPIO_ACTIVE_HIGH);
-	nodes->gpio4_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 4, GPIO_ACTIVE_HIGH);
-	nodes->gpio5_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_GPIO], 5, GPIO_ACTIVE_HIGH);
+	analdes->gpio_props[0] = PROPERTY_ENTRY_STRING("pinctrl-names", "default");
+	swanaldes[SWANALDE_GPIO] = ANALDE_PROP(analdes->gpio_name, analdes->gpio_props);
+	analdes->gpio0_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 0, GPIO_ACTIVE_HIGH);
+	analdes->gpio1_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 1, GPIO_ACTIVE_HIGH);
+	analdes->gpio2_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 2, GPIO_ACTIVE_LOW);
+	analdes->gpio3_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 3, GPIO_ACTIVE_HIGH);
+	analdes->gpio4_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 4, GPIO_ACTIVE_HIGH);
+	analdes->gpio5_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_GPIO], 5, GPIO_ACTIVE_HIGH);
 
-	nodes->i2c_props[0] = PROPERTY_ENTRY_STRING("compatible", "snps,designware-i2c");
-	nodes->i2c_props[1] = PROPERTY_ENTRY_BOOL("wx,i2c-snps-model");
-	nodes->i2c_props[2] = PROPERTY_ENTRY_U32("clock-frequency", I2C_MAX_STANDARD_MODE_FREQ);
-	swnodes[SWNODE_I2C] = NODE_PROP(nodes->i2c_name, nodes->i2c_props);
-	nodes->i2c_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_I2C]);
+	analdes->i2c_props[0] = PROPERTY_ENTRY_STRING("compatible", "snps,designware-i2c");
+	analdes->i2c_props[1] = PROPERTY_ENTRY_BOOL("wx,i2c-snps-model");
+	analdes->i2c_props[2] = PROPERTY_ENTRY_U32("clock-frequency", I2C_MAX_STANDARD_MODE_FREQ);
+	swanaldes[SWANALDE_I2C] = ANALDE_PROP(analdes->i2c_name, analdes->i2c_props);
+	analdes->i2c_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_I2C]);
 
-	nodes->sfp_props[0] = PROPERTY_ENTRY_STRING("compatible", "sff,sfp");
-	nodes->sfp_props[1] = PROPERTY_ENTRY_REF_ARRAY("i2c-bus", nodes->i2c_ref);
-	nodes->sfp_props[2] = PROPERTY_ENTRY_REF_ARRAY("tx-fault-gpios", nodes->gpio0_ref);
-	nodes->sfp_props[3] = PROPERTY_ENTRY_REF_ARRAY("tx-disable-gpios", nodes->gpio1_ref);
-	nodes->sfp_props[4] = PROPERTY_ENTRY_REF_ARRAY("mod-def0-gpios", nodes->gpio2_ref);
-	nodes->sfp_props[5] = PROPERTY_ENTRY_REF_ARRAY("los-gpios", nodes->gpio3_ref);
-	nodes->sfp_props[6] = PROPERTY_ENTRY_REF_ARRAY("rate-select1-gpios", nodes->gpio4_ref);
-	nodes->sfp_props[7] = PROPERTY_ENTRY_REF_ARRAY("rate-select0-gpios", nodes->gpio5_ref);
-	swnodes[SWNODE_SFP] = NODE_PROP(nodes->sfp_name, nodes->sfp_props);
-	nodes->sfp_ref[0] = SOFTWARE_NODE_REFERENCE(&swnodes[SWNODE_SFP]);
+	analdes->sfp_props[0] = PROPERTY_ENTRY_STRING("compatible", "sff,sfp");
+	analdes->sfp_props[1] = PROPERTY_ENTRY_REF_ARRAY("i2c-bus", analdes->i2c_ref);
+	analdes->sfp_props[2] = PROPERTY_ENTRY_REF_ARRAY("tx-fault-gpios", analdes->gpio0_ref);
+	analdes->sfp_props[3] = PROPERTY_ENTRY_REF_ARRAY("tx-disable-gpios", analdes->gpio1_ref);
+	analdes->sfp_props[4] = PROPERTY_ENTRY_REF_ARRAY("mod-def0-gpios", analdes->gpio2_ref);
+	analdes->sfp_props[5] = PROPERTY_ENTRY_REF_ARRAY("los-gpios", analdes->gpio3_ref);
+	analdes->sfp_props[6] = PROPERTY_ENTRY_REF_ARRAY("rate-select1-gpios", analdes->gpio4_ref);
+	analdes->sfp_props[7] = PROPERTY_ENTRY_REF_ARRAY("rate-select0-gpios", analdes->gpio5_ref);
+	swanaldes[SWANALDE_SFP] = ANALDE_PROP(analdes->sfp_name, analdes->sfp_props);
+	analdes->sfp_ref[0] = SOFTWARE_ANALDE_REFERENCE(&swanaldes[SWANALDE_SFP]);
 
-	nodes->phylink_props[0] = PROPERTY_ENTRY_STRING("managed", "in-band-status");
-	nodes->phylink_props[1] = PROPERTY_ENTRY_REF_ARRAY("sfp", nodes->sfp_ref);
-	swnodes[SWNODE_PHYLINK] = NODE_PROP(nodes->phylink_name, nodes->phylink_props);
+	analdes->phylink_props[0] = PROPERTY_ENTRY_STRING("managed", "in-band-status");
+	analdes->phylink_props[1] = PROPERTY_ENTRY_REF_ARRAY("sfp", analdes->sfp_ref);
+	swanaldes[SWANALDE_PHYLINK] = ANALDE_PROP(analdes->phylink_name, analdes->phylink_props);
 
-	nodes->group[SWNODE_GPIO] = &swnodes[SWNODE_GPIO];
-	nodes->group[SWNODE_I2C] = &swnodes[SWNODE_I2C];
-	nodes->group[SWNODE_SFP] = &swnodes[SWNODE_SFP];
-	nodes->group[SWNODE_PHYLINK] = &swnodes[SWNODE_PHYLINK];
+	analdes->group[SWANALDE_GPIO] = &swanaldes[SWANALDE_GPIO];
+	analdes->group[SWANALDE_I2C] = &swanaldes[SWANALDE_I2C];
+	analdes->group[SWANALDE_SFP] = &swanaldes[SWANALDE_SFP];
+	analdes->group[SWANALDE_PHYLINK] = &swanaldes[SWANALDE_PHYLINK];
 
-	return software_node_register_node_group(nodes->group);
+	return software_analde_register_analde_group(analdes->group);
 }
 
 static int txgbe_pcs_read(struct mii_bus *bus, int addr, int devnum, int regnum)
@@ -87,7 +87,7 @@ static int txgbe_pcs_read(struct mii_bus *bus, int addr, int devnum, int regnum)
 	u32 offset, val;
 
 	if (addr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	offset = devnum << 16 | regnum;
 
@@ -106,7 +106,7 @@ static int txgbe_pcs_write(struct mii_bus *bus, int addr, int devnum, int regnum
 	u32 offset;
 
 	if (addr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	offset = devnum << 16 | regnum;
 
@@ -132,7 +132,7 @@ static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 
 	mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "txgbe_pcs_mdio_bus";
 	mii_bus->read_c45 = &txgbe_pcs_read;
@@ -250,7 +250,7 @@ static const struct phylink_mac_ops txgbe_mac_ops = {
 
 static int txgbe_phylink_init(struct txgbe *txgbe)
 {
-	struct fwnode_handle *fwnode = NULL;
+	struct fwanalde_handle *fwanalde = NULL;
 	struct phylink_config *config;
 	struct wx *wx = txgbe->wx;
 	phy_interface_t phy_mode;
@@ -267,13 +267,13 @@ static int txgbe_phylink_init(struct txgbe *txgbe)
 		__set_bit(PHY_INTERFACE_MODE_XAUI, config->supported_interfaces);
 	} else {
 		phy_mode = PHY_INTERFACE_MODE_10GBASER;
-		fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_PHYLINK]);
+		fwanalde = software_analde_fwanalde(txgbe->analdes.group[SWANALDE_PHYLINK]);
 		__set_bit(PHY_INTERFACE_MODE_10GBASER, config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_1000BASEX, config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_SGMII, config->supported_interfaces);
 	}
 
-	phylink = phylink_create(config, fwnode, phy_mode, &txgbe_mac_ops);
+	phylink = phylink_create(config, fwanalde, phy_mode, &txgbe_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
 
@@ -505,18 +505,18 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->label = devm_kasprintf(dev, GFP_KERNEL, "txgbe_gpio-%x",
 				   pci_dev_id(wx->pdev));
 	if (!gc->label)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gc->base = -1;
 	gc->ngpio = 6;
 	gc->owner = THIS_MODULE;
 	gc->parent = dev;
-	gc->fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_GPIO]);
+	gc->fwanalde = software_analde_fwanalde(txgbe->analdes.group[SWANALDE_GPIO]);
 	gc->get = txgbe_gpio_get;
 	gc->get_direction = txgbe_gpio_get_direction;
 	gc->direction_input = txgbe_gpio_direction_in;
@@ -530,14 +530,14 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 	girq->parents = devm_kcalloc(dev, girq->num_parents,
 				     sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* now only suuported on MSI-X interrupt */
+	/* analw only suuported on MSI-X interrupt */
 	if (!wx->msix_entry)
 		return -EPERM;
 
 	girq->parents[0] = wx->msix_entry->vector;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	ret = devm_gpiochip_add_data(dev, gc, wx);
@@ -566,7 +566,7 @@ static int txgbe_clock_register(struct txgbe *txgbe)
 	clock = clkdev_create(clk, NULL, clk_name);
 	if (!clock) {
 		clk_unregister(clk);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	txgbe->clk = clk;
@@ -618,7 +618,7 @@ static int txgbe_i2c_register(struct txgbe *txgbe)
 	}
 
 	info.parent = &pdev->dev;
-	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_I2C]);
+	info.fwanalde = software_analde_fwanalde(txgbe->analdes.group[SWANALDE_I2C]);
 	info.name = "i2c_designware";
 	info.id = pci_dev_id(pdev);
 
@@ -640,7 +640,7 @@ static int txgbe_sfp_register(struct txgbe *txgbe)
 	struct platform_device *sfp_dev;
 
 	info.parent = &pdev->dev;
-	info.fwnode = software_node_fwnode(txgbe->nodes.group[SWNODE_SFP]);
+	info.fwanalde = software_analde_fwanalde(txgbe->analdes.group[SWANALDE_SFP]);
 	info.name = "sfp";
 	info.id = pci_dev_id(pdev);
 	sfp_dev = platform_device_register_full(&info);
@@ -665,7 +665,7 @@ static int txgbe_ext_phy_init(struct txgbe *txgbe)
 
 	mii_bus = devm_mdiobus_alloc(&pdev->dev);
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "txgbe_mii_bus";
 	mii_bus->read_c45 = &wx_phy_read_reg_mdi_c45;
@@ -684,8 +684,8 @@ static int txgbe_ext_phy_init(struct txgbe *txgbe)
 
 	phydev = phy_find_first(mii_bus);
 	if (!phydev) {
-		wx_err(wx, "no PHY found\n");
-		return -ENODEV;
+		wx_err(wx, "anal PHY found\n");
+		return -EANALDEV;
 	}
 
 	phy_attached_info(phydev);
@@ -712,16 +712,16 @@ int txgbe_init_phy(struct txgbe *txgbe)
 	if (txgbe->wx->media_type == sp_media_copper)
 		return txgbe_ext_phy_init(txgbe);
 
-	ret = txgbe_swnodes_register(txgbe);
+	ret = txgbe_swanaldes_register(txgbe);
 	if (ret) {
-		wx_err(wx, "failed to register software nodes\n");
+		wx_err(wx, "failed to register software analdes\n");
 		return ret;
 	}
 
 	ret = txgbe_mdio_pcs_init(txgbe);
 	if (ret) {
 		wx_err(wx, "failed to init mdio pcs: %d\n", ret);
-		goto err_unregister_swnode;
+		goto err_unregister_swanalde;
 	}
 
 	ret = txgbe_phylink_init(txgbe);
@@ -767,8 +767,8 @@ err_destroy_phylink:
 	phylink_destroy(wx->phylink);
 err_destroy_xpcs:
 	xpcs_destroy(txgbe->xpcs);
-err_unregister_swnode:
-	software_node_unregister_node_group(txgbe->nodes.group);
+err_unregister_swanalde:
+	software_analde_unregister_analde_group(txgbe->analdes.group);
 
 	return ret;
 }
@@ -787,6 +787,6 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 	clk_unregister(txgbe->clk);
 	phylink_destroy(txgbe->wx->phylink);
 	xpcs_destroy(txgbe->xpcs);
-	software_node_unregister_node_group(txgbe->nodes.group);
+	software_analde_unregister_analde_group(txgbe->analdes.group);
 	txgbe->wx->msix_in_use = false;
 }

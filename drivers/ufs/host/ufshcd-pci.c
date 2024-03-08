@@ -61,7 +61,7 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 	obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL,
 				      ACPI_TYPE_BUFFER);
 	if (!obj)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (obj->buffer.length < 1) {
 		err = -EINVAL;
@@ -82,7 +82,7 @@ static int intel_dsm(struct intel_host *intel_host, struct device *dev,
 		     unsigned int fn, u32 *result)
 {
 	if (!__intel_dsm_supported(intel_host, fn))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return __intel_dsm(intel_host, dev, fn, result);
 }
@@ -95,10 +95,10 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev)
 	dev_dbg(dev, "DSM fns %#x, error %d\n", intel_host->dsm_fns, err);
 }
 
-static int ufs_intel_hce_enable_notify(struct ufs_hba *hba,
-				       enum ufs_notify_change_status status)
+static int ufs_intel_hce_enable_analtify(struct ufs_hba *hba,
+				       enum ufs_analtify_change_status status)
 {
-	/* Cannot enable ICE until after HC enable */
+	/* Cananalt enable ICE until after HC enable */
 	if (status == POST_CHANGE && hba->caps & UFSHCD_CAP_CRYPTO) {
 		u32 hce = ufshcd_readl(hba, REG_CONTROLLER_ENABLE);
 
@@ -121,8 +121,8 @@ static int ufs_intel_disable_lcc(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_intel_link_startup_notify(struct ufs_hba *hba,
-					 enum ufs_notify_change_status status)
+static int ufs_intel_link_startup_analtify(struct ufs_hba *hba,
+					 enum ufs_analtify_change_status status)
 {
 	int err = 0;
 
@@ -153,8 +153,8 @@ static int ufs_intel_set_lanes(struct ufs_hba *hba, u32 lanes)
 	return ret;
 }
 
-static int ufs_intel_lkf_pwr_change_notify(struct ufs_hba *hba,
-				enum ufs_notify_change_status status,
+static int ufs_intel_lkf_pwr_change_analtify(struct ufs_hba *hba,
+				enum ufs_analtify_change_status status,
 				struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -324,7 +324,7 @@ static int ufs_intel_device_reset(struct ufs_hba *hba)
 	}
 
 	if (!host->reset_gpio)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	gpiod_set_value_cansleep(host->reset_gpio, 1);
 	usleep_range(10, 15);
@@ -349,7 +349,7 @@ static int ufs_intel_common_init(struct ufs_hba *hba)
 
 	host = devm_kzalloc(hba->dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ufshcd_set_variant(hba, host);
 	intel_dsm_init(host, hba->dev);
 	if (INTEL_DSM_SUPPORTED(host, RESET)) {
@@ -423,7 +423,7 @@ static int ufs_intel_lkf_init(struct ufs_hba *hba)
 	struct ufs_host *ufs_host;
 	int err;
 
-	hba->nop_out_timeout = 200;
+	hba->analp_out_timeout = 200;
 	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 	err = ufs_intel_common_init(hba);
@@ -434,7 +434,7 @@ static int ufs_intel_lkf_init(struct ufs_hba *hba)
 
 static int ufs_intel_adl_init(struct ufs_hba *hba)
 {
-	hba->nop_out_timeout = 200;
+	hba->analp_out_timeout = 200;
 	hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
 	hba->caps |= UFSHCD_CAP_WB_EN;
 	return ufs_intel_common_init(hba);
@@ -450,7 +450,7 @@ static struct ufs_hba_variant_ops ufs_intel_cnl_hba_vops = {
 	.name                   = "intel-pci",
 	.init			= ufs_intel_common_init,
 	.exit			= ufs_intel_common_exit,
-	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.link_startup_analtify	= ufs_intel_link_startup_analtify,
 	.resume			= ufs_intel_resume,
 };
 
@@ -458,7 +458,7 @@ static struct ufs_hba_variant_ops ufs_intel_ehl_hba_vops = {
 	.name                   = "intel-pci",
 	.init			= ufs_intel_ehl_init,
 	.exit			= ufs_intel_common_exit,
-	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.link_startup_analtify	= ufs_intel_link_startup_analtify,
 	.resume			= ufs_intel_resume,
 };
 
@@ -466,9 +466,9 @@ static struct ufs_hba_variant_ops ufs_intel_lkf_hba_vops = {
 	.name                   = "intel-pci",
 	.init			= ufs_intel_lkf_init,
 	.exit			= ufs_intel_common_exit,
-	.hce_enable_notify	= ufs_intel_hce_enable_notify,
-	.link_startup_notify	= ufs_intel_link_startup_notify,
-	.pwr_change_notify	= ufs_intel_lkf_pwr_change_notify,
+	.hce_enable_analtify	= ufs_intel_hce_enable_analtify,
+	.link_startup_analtify	= ufs_intel_link_startup_analtify,
+	.pwr_change_analtify	= ufs_intel_lkf_pwr_change_analtify,
 	.apply_dev_quirks	= ufs_intel_lkf_apply_dev_quirks,
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
@@ -478,7 +478,7 @@ static struct ufs_hba_variant_ops ufs_intel_adl_hba_vops = {
 	.name			= "intel-pci",
 	.init			= ufs_intel_adl_init,
 	.exit			= ufs_intel_common_exit,
-	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.link_startup_analtify	= ufs_intel_link_startup_analtify,
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
 };
@@ -487,8 +487,8 @@ static struct ufs_hba_variant_ops ufs_intel_mtl_hba_vops = {
 	.name                   = "intel-pci",
 	.init			= ufs_intel_mtl_init,
 	.exit			= ufs_intel_common_exit,
-	.hce_enable_notify	= ufs_intel_hce_enable_notify,
-	.link_startup_notify	= ufs_intel_link_startup_notify,
+	.hce_enable_analtify	= ufs_intel_hce_enable_analtify,
+	.link_startup_analtify	= ufs_intel_link_startup_analtify,
 	.resume			= ufs_intel_resume,
 	.device_reset		= ufs_intel_device_reset,
 };
@@ -515,7 +515,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 	struct ufs_hba *hba = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 	ufshcd_remove(hba);
 	ufshcd_dealloc_host(hba);
 }
@@ -525,7 +525,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to PCI device handle
  * @id: PCI device id
  *
- * Return: 0 on success, non-zero value on failure.
+ * Return: 0 on success, analn-zero value on failure.
  */
 static int
 ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -570,7 +570,7 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ufs_host && ufs_host->late_init)
 		ufs_host->late_init(hba);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;

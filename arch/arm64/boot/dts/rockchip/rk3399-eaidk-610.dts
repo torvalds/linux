@@ -648,15 +648,15 @@
 
 	bt {
 		bt_enable_h: bt-enable-h {
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -674,23 +674,23 @@
 
 	leds {
 		work_led_pin: work-led-pin {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		user_led_pin: user-led-pin {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		heartbeat_led_pin: heartbeat-led-pin {
-			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		wlan_active_led_pin: wlan-led-pin {
-			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_active_led_pin: bt-led-pin {
-			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 
@@ -712,13 +712,13 @@
 
 	rt5651 {
 		rt5651_hpcon: rt5640-hpcon {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -730,17 +730,17 @@
 
 	usb2 {
 		vcc5v0_host3_en: vcc5v0-host3-en {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_host1_en: vcc5v0-host1-en {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	wifi {
 		wifi_host_wake_l: wifi-host-wake-l {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -764,7 +764,7 @@
 	cap-sd-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;
@@ -795,7 +795,7 @@
 
 &sdhci {
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

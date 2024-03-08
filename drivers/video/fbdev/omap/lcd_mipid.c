@@ -2,8 +2,8 @@
 /*
  * LCD driver for MIPI DBI-C / DCS compatible LCDs
  *
- * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2006 Analkia Corporation
+ * Author: Imre Deak <imre.deak@analkia.com>
  */
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -204,7 +204,7 @@ static int mipid_set_bklight_level(struct lcd_panel *panel, unsigned int level)
 	struct mipid_platform_data *pd = md->spi->dev.platform_data;
 
 	if (pd->get_bklight_max == NULL || pd->set_bklight_level == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (level > pd->get_bklight_max(pd))
 		return -EINVAL;
 	if (!md->enabled) {
@@ -222,7 +222,7 @@ static unsigned int mipid_get_bklight_level(struct lcd_panel *panel)
 	struct mipid_platform_data *pd = md->spi->dev.platform_data;
 
 	if (pd->get_bklight_level == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	return pd->get_bklight_level(pd);
 }
 
@@ -232,7 +232,7 @@ static unsigned int mipid_get_bklight_max(struct lcd_panel *panel)
 	struct mipid_platform_data *pd = md->spi->dev.platform_data;
 
 	if (pd->get_bklight_max == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pd->get_bklight_max(pd);
 }
@@ -325,7 +325,7 @@ static void ls041y3_esd_check_mode1(struct mipid_device *md)
 	mipid_read(md, MIPID_CMD_RDDSDR, &state2, 1);
 	dev_dbg(&md->spi->dev, "ESD mode 1 state1 %02x state2 %02x\n",
 		state1, state2);
-	/* Each sleep out command will trigger a self diagnostic and flip
+	/* Each sleep out command will trigger a self diaganalstic and flip
 	* Bit6 if the test passes.
 	*/
 	if (!((state1 ^ state2) & (1 << 6)))
@@ -454,7 +454,7 @@ static int panel_enabled(struct mipid_device *md)
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&md->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",
-		enabled ? "" : "not ", disp_status);
+		enabled ? "" : "analt ", disp_status);
 	return enabled;
 }
 
@@ -518,7 +518,7 @@ static int mipid_detect(struct mipid_device *md)
 	pdata = md->spi->dev.platform_data;
 	if (pdata == NULL) {
 		dev_err(&md->spi->dev, "missing platform data\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	mipid_read(md, MIPID_CMD_READ_DISP_ID, display_id, 3);
@@ -534,9 +534,9 @@ static int mipid_detect(struct mipid_device *md)
 		md->esd_check = ls041y3_esd_check;
 		break;
 	default:
-		md->panel.name = "unknown";
+		md->panel.name = "unkanalwn";
 		dev_err(&md->spi->dev, "invalid display ID\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	md->revision = display_id[1];
@@ -555,14 +555,14 @@ static int mipid_spi_probe(struct spi_device *spi)
 	md = kzalloc(sizeof(*md), GFP_KERNEL);
 	if (md == NULL) {
 		dev_err(&spi->dev, "out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* This will de-assert RESET if active */
 	md->reset = gpiod_get(&spi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(md->reset))
 		return dev_err_probe(&spi->dev, PTR_ERR(md->reset),
-				     "no reset GPIO line\n");
+				     "anal reset GPIO line\n");
 
 	spi->mode = SPI_MODE_0;
 	md->spi = spi;

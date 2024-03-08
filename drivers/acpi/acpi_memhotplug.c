@@ -7,7 +7,7 @@
  * All rights reserved.
  *
  * ACPI based HotPlug driver that supports Memory Hotplug
- * This driver fields notifications from firmware for memory add
+ * This driver fields analtifications from firmware for memory add
  * and remove operations and alerts the VM of the affected memory
  * ranges.
  */
@@ -30,7 +30,7 @@ static const struct acpi_device_id memory_device_ids[] = {
 #ifdef CONFIG_ACPI_HOTPLUG_MEMORY
 
 static int acpi_memory_device_add(struct acpi_device *device,
-				  const struct acpi_device_id *not_used);
+				  const struct acpi_device_id *analt_used);
 static void acpi_memory_device_remove(struct acpi_device *device);
 
 static struct acpi_scan_handler memory_device_handler = {
@@ -130,7 +130,7 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->device->handle,
 					       METHOD_NAME__STA, NULL,
 					       &current_status)))
-		return -ENODEV;
+		return -EANALDEV;
 	/*
 	 * Check for device status. Device should be
 	 * present/enabled/functioning.
@@ -138,7 +138,7 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
 	if (!((current_status & ACPI_STA_DEVICE_PRESENT)
 	      && (current_status & ACPI_STA_DEVICE_ENABLED)
 	      && (current_status & ACPI_STA_DEVICE_FUNCTIONING)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -174,16 +174,16 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	int result, num_enabled = 0;
 	struct acpi_memory_info *info;
 	u64 total_length = 0;
-	int node, mgid;
+	int analde, mgid;
 
-	node = acpi_get_node(handle);
+	analde = acpi_get_analde(handle);
 
 	list_for_each_entry(info, &mem_device->res_list, list) {
 		if (!info->length)
 			continue;
-		/* We want a single node for the whole memory group */
-		if (node < 0)
-			node = memory_add_physaddr_to_nid(info->start_addr);
+		/* We want a single analde for the whole memory group */
+		if (analde < 0)
+			analde = memory_add_physaddr_to_nid(info->start_addr);
 		total_length += info->length;
 	}
 
@@ -192,20 +192,20 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		return -EINVAL;
 	}
 
-	mgid = memory_group_register_static(node, PFN_UP(total_length));
+	mgid = memory_group_register_static(analde, PFN_UP(total_length));
 	if (mgid < 0)
 		return mgid;
 	mem_device->mgid = mgid;
 
 	/*
 	 * Tell the VM there is more memory here...
-	 * Note: Assume that this function returns zero on success
-	 * We don't have memory-hot-add rollback function,now.
+	 * Analte: Assume that this function returns zero on success
+	 * We don't have memory-hot-add rollback function,analw.
 	 * (i.e. memory-hot-remove function)
 	 */
 	list_for_each_entry(info, &mem_device->res_list, list) {
 		/*
-		 * If the memory block size is zero, please ignore it.
+		 * If the memory block size is zero, please iganalre it.
 		 * Don't try to do the following memory hotplug flowchart.
 		 */
 		if (!info->length)
@@ -218,7 +218,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		/*
 		 * If the memory block has been used by the kernel, add_memory()
 		 * returns -EEXIST. If add_memory() returns the other error, it
-		 * means that this memory block is not used by the kernel.
+		 * means that this memory block is analt used by the kernel.
 		 */
 		if (result && result != -EEXIST)
 			continue;
@@ -226,7 +226,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 		result = acpi_bind_memory_blocks(info, mem_device->device);
 		if (result) {
 			acpi_unbind_memory_blocks(info);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		info->enabled = 1;
@@ -282,7 +282,7 @@ static void acpi_memory_device_free(struct acpi_memory_device *mem_device)
 }
 
 static int acpi_memory_device_add(struct acpi_device *device,
-				  const struct acpi_device_id *not_used)
+				  const struct acpi_device_id *analt_used)
 {
 	struct acpi_memory_device *mem_device;
 	int result;
@@ -292,7 +292,7 @@ static int acpi_memory_device_add(struct acpi_device *device,
 
 	mem_device = kzalloc(sizeof(struct acpi_memory_device), GFP_KERNEL);
 	if (!mem_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&mem_device->res_list);
 	mem_device->device = device;
@@ -338,11 +338,11 @@ static void acpi_memory_device_remove(struct acpi_device *device)
 	acpi_memory_device_free(mem_device);
 }
 
-static bool __initdata acpi_no_memhotplug;
+static bool __initdata acpi_anal_memhotplug;
 
 void __init acpi_memory_hotplug_init(void)
 {
-	if (acpi_no_memhotplug) {
+	if (acpi_anal_memhotplug) {
 		memory_device_handler.attach = NULL;
 		acpi_scan_add_handler(&memory_device_handler);
 		return;
@@ -352,10 +352,10 @@ void __init acpi_memory_hotplug_init(void)
 
 static int __init disable_acpi_memory_hotplug(char *str)
 {
-	acpi_no_memhotplug = true;
+	acpi_anal_memhotplug = true;
 	return 1;
 }
-__setup("acpi_no_memhotplug", disable_acpi_memory_hotplug);
+__setup("acpi_anal_memhotplug", disable_acpi_memory_hotplug);
 
 #else
 

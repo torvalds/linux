@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2011 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -73,7 +73,7 @@ struct mlx4_congestion_control_mb_prio_802_1_qau_params {
 struct mlx4_congestion_control_mb_prio_802_1_qau_statistics {
 	__be64 rppp_rp_centiseconds;
 	__be32 reserved1;
-	__be32 ignored_cnm;
+	__be32 iganalred_cnm;
 	__be32 rppp_created_rps;
 	__be32 estimated_total_rate;
 	__be32 max_active_rate_limiter_index;
@@ -250,7 +250,7 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 	return 0;
 }
 
-/* On success returns a non-zero 802.1p user priority bitmap
+/* On success returns a analn-zero 802.1p user priority bitmap
  * otherwise returns 0 as the invalid user priority bitmap to
  * indicate an error.
  */
@@ -324,9 +324,9 @@ static int mlx4_en_ets_validate(struct mlx4_en_priv *priv, struct ieee_ets *ets)
 			total_ets_bw += ets->tc_tx_bw[i];
 			break;
 		default:
-			en_err(priv, "TC[%d]: Not supported TSA: %d\n",
+			en_err(priv, "TC[%d]: Analt supported TSA: %d\n",
 					i, ets->tc_tsa[i]);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -549,11 +549,11 @@ static int mlx4_en_dcbnl_ieee_getqcn(struct net_device *dev,
 	int i, err;
 
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QCN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mailbox_out = mlx4_alloc_cmd_mailbox(priv->mdev->dev);
 	if (IS_ERR(mailbox_out))
-		return -ENOMEM;
+		return -EANALMEM;
 	hw_qcn =
 	(struct mlx4_congestion_control_mb_prio_802_1_qau_params *)
 	mailbox_out->buf;
@@ -614,11 +614,11 @@ static int mlx4_en_dcbnl_ieee_setqcn(struct net_device *dev,
 #define MODIFY_ENABLE_LOW_MASK 0xffc00000
 
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QCN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mailbox_in = mlx4_alloc_cmd_mailbox(priv->mdev->dev);
 	if (IS_ERR(mailbox_in))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mailbox_in_dma = mailbox_in->dma;
 	hw_qcn =
@@ -675,11 +675,11 @@ static int mlx4_en_dcbnl_ieee_getqcnstats(struct net_device *dev,
 	int i, err;
 
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QCN))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mailbox_out = mlx4_alloc_cmd_mailbox(priv->mdev->dev);
 	if (IS_ERR(mailbox_out))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw_qcn_stats =
 	(struct mlx4_congestion_control_mb_prio_802_1_qau_statistics *)

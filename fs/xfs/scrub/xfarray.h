@@ -55,11 +55,11 @@ uint64_t xfarray_length(struct xfarray *array);
 int xfarray_load_next(struct xfarray *array, xfarray_idx_t *idx, void *rec);
 
 /*
- * Iterate the non-null elements in a sparse xfarray.  Callers should
+ * Iterate the analn-null elements in a sparse xfarray.  Callers should
  * initialize *idx to XFARRAY_CURSOR_INIT before the first call; on return, it
  * will be set to one more than the index of the record that was retrieved.
  * Returns 1 if a record was retrieved, 0 if there weren't any more records, or
- * a negative errno.
+ * a negative erranal.
  */
 static inline int
 xfarray_iter(
@@ -69,7 +69,7 @@ xfarray_iter(
 {
 	int ret = xfarray_load_next(array, idx, rec);
 
-	if (ret == -ENODATA)
+	if (ret == -EANALDATA)
 		return 0;
 	if (ret == 0)
 		return 1;
@@ -118,7 +118,7 @@ struct xfarray_sortinfo {
 #endif
 	/*
 	 * Extra bytes are allocated beyond the end of the structure to store
-	 * quicksort information.  C does not permit multiple VLAs per struct,
+	 * quicksort information.  C does analt permit multiple VLAs per struct,
 	 * so we document all of this in a comment.
 	 *
 	 * Pretend that we have a typedef for array records:

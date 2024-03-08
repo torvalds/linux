@@ -62,7 +62,7 @@ static int mpl3115_request(struct mpl3115_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data analt ready\n");
 		return -EIO;
 	}
 
@@ -152,9 +152,9 @@ static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 	struct mpl3115_data *data = iio_priv(indio_dev);
 	/*
 	 * 32-bit channel + 16-bit channel + padding + ts
-	 * Note that it is possible for only one of the first 2
+	 * Analte that it is possible for only one of the first 2
 	 * channels to be enabled. If that happens, the first element
-	 * of the buffer may be either 16 or 32-bits.  As such we cannot
+	 * of the buffer may be either 16 or 32-bits.  As such we cananalt
 	 * use a simple structure definition to express this data layout.
 	 */
 	u8 buffer[16] __aligned(8);
@@ -192,7 +192,7 @@ static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -241,11 +241,11 @@ static int mpl3115_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	if (ret != MPL3115_DEVICE_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

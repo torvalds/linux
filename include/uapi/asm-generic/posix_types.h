@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __ASM_GENERIC_POSIX_TYPES_H
 #define __ASM_GENERIC_POSIX_TYPES_H
 
@@ -16,8 +16,8 @@ typedef long		__kernel_long_t;
 typedef unsigned long	__kernel_ulong_t;
 #endif
 
-#ifndef __kernel_ino_t
-typedef __kernel_ulong_t __kernel_ino_t;
+#ifndef __kernel_ianal_t
+typedef __kernel_ulong_t __kernel_ianal_t;
 #endif
 
 #ifndef __kernel_mode_t

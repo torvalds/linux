@@ -866,7 +866,7 @@ static int msdc_ungate_clock(struct msdc_host *host)
 	clk_prepare_enable(host->crypto_clk);
 	ret = clk_bulk_prepare_enable(MSDC_NR_CLOCKS, host->bulk_clks);
 	if (ret) {
-		dev_err(host->dev, "Cannot enable pclk/axi/ahb clock gates\n");
+		dev_err(host->dev, "Cananalt enable pclk/axi/ahb clock gates\n");
 		return ret;
 	}
 
@@ -925,10 +925,10 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 				sdr_set_bits(host->base + MSDC_CFG,
 					     MSDC_CFG_HS400_CK_MODE_EXTRA);
 			sclk = host->src_clk_freq >> 1;
-			div = 0; /* div is ignore when bit18 is set */
+			div = 0; /* div is iganalre when bit18 is set */
 		}
 	} else if (hz >= host->src_clk_freq) {
-		mode = 0x1; /* no divisor */
+		mode = 0x1; /* anal divisor */
 		div = 0;
 		sclk = host->src_clk_freq;
 	} else {
@@ -965,7 +965,7 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 
 	/*
 	 * mmc_select_hs400() will drop to 50Mhz and High speed mode,
-	 * tune result of hs200/200Mhz is not suitable for 50Mhz
+	 * tune result of hs200/200Mhz is analt suitable for 50Mhz
 	 */
 	if (mmc->actual_clock <= 52000000) {
 		writel(host->def_tune_para.iocon, host->base + MSDC_IOCON);
@@ -1021,7 +1021,7 @@ static inline u32 msdc_cmd_find_resp(struct msdc_host *host,
 	case MMC_RSP_R3:
 		resp = 0x3;
 		break;
-	case MMC_RSP_NONE:
+	case MMC_RSP_ANALNE:
 	default:
 		resp = 0x0;
 		break;
@@ -1168,7 +1168,7 @@ static void msdc_request_done(struct msdc_host *host, struct mmc_request *mrq)
 	unsigned long flags;
 
 	/*
-	 * No need check the return value of cancel_delayed_work, as only ONE
+	 * Anal need check the return value of cancel_delayed_work, as only ONE
 	 * path will go here!
 	 */
 	cancel_delayed_work(&host->req_timeout);
@@ -1234,7 +1234,7 @@ static bool msdc_cmd_done(struct msdc_host *host, int events,
 		if (events & MSDC_INT_CMDTMO ||
 		    (!mmc_op_tuning(cmd->opcode) && !host->hs400_tuning))
 			/*
-			 * should not clear fifo/interrupt as the tune data
+			 * should analt clear fifo/interrupt as the tune data
 			 * may have already come when cmd19/cmd21 gets response
 			 * CRC error.
 			 */
@@ -1306,7 +1306,7 @@ static void msdc_start_command(struct msdc_host *host,
 
 	if ((readl(host->base + MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16 ||
 	    readl(host->base + MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) {
-		dev_err(host->dev, "TX/RX FIFO non-empty before start of IO. Reset\n");
+		dev_err(host->dev, "TX/RX FIFO analn-empty before start of IO. Reset\n");
 		msdc_reset_hw(host);
 	}
 
@@ -1349,7 +1349,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		msdc_prepare_data(host, mrq->data);
 
 	/* if SBC is required, we have HW option and SW option.
-	 * if HW option is enabled, and SBC does not have "special" flags,
+	 * if HW option is enabled, and SBC does analt have "special" flags,
 	 * use HW option,  otherwise use SW option
 	 */
 	if (mrq->sbc && (!mmc_card_mmc(mmc->card) ||
@@ -1582,7 +1582,7 @@ static void msdc_enable_sdio_irq(struct mmc_host *mmc, int enb)
 			if (ret) {
 				dev_err(host->dev, "Failed to register SDIO wakeup irq!\n");
 				host->pins_eint = NULL;
-				pm_runtime_get_noresume(host->dev);
+				pm_runtime_get_analresume(host->dev);
 			} else {
 				dev_dbg(host->dev, "SDIO eint irq: %d!\n", host->eint_irq);
 			}
@@ -1595,9 +1595,9 @@ static void msdc_enable_sdio_irq(struct mmc_host *mmc, int enb)
 		if (enb) {
 			/* Ensure host->pins_eint is NULL */
 			host->pins_eint = NULL;
-			pm_runtime_get_noresume(host->dev);
+			pm_runtime_get_analresume(host->dev);
 		} else {
-			pm_runtime_put_noidle(host->dev);
+			pm_runtime_put_analidle(host->dev);
 		}
 	}
 }
@@ -1771,7 +1771,7 @@ static void msdc_init_hw(struct msdc_host *host)
 			sdr_set_field(host->base + MSDC_PATCH_BIT2,
 				      MSDC_PB2_CRCSTSENSEL, 2);
 		}
-		/* use async fifo, then no need tune internal delay */
+		/* use async fifo, then anal need tune internal delay */
 		sdr_clr_bits(host->base + MSDC_PATCH_BIT2,
 			     MSDC_PATCH_BIT2_CFGRESP);
 		sdr_set_bits(host->base + MSDC_PATCH_BIT2,
@@ -1814,7 +1814,7 @@ static void msdc_init_hw(struct msdc_host *host)
 				     MSDC_PAD_TUNE_RXDLYSEL);
 	}
 
-	if (mmc->caps2 & MMC_CAP2_NO_SDIO) {
+	if (mmc->caps2 & MMC_CAP2_ANAL_SDIO) {
 		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
 		sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_SDIOIRQ);
 		sdr_clr_bits(host->base + SDC_ADV_CFG0, SDC_DAT1_IRQ_TRIGGER);
@@ -2094,7 +2094,7 @@ static int msdc_tune_response(struct mmc_host *mmc, u32 opcode)
 		}
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eanalugh margin, then do analt scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -2221,7 +2221,7 @@ static int msdc_tune_data(struct mmc_host *mmc, u32 opcode)
 			rise_delay |= BIT_ULL(i);
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eanalugh margin, then do analt scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -2279,7 +2279,7 @@ static int msdc_tune_together(struct mmc_host *mmc, u32 opcode)
 			rise_delay |= BIT_ULL(i);
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eanalugh margin, then do analt scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -2446,7 +2446,7 @@ static void msdc_hw_reset(struct mmc_host *mmc)
 	struct msdc_host *host = mmc_priv(mmc);
 
 	sdr_set_bits(host->base + EMMC_IOCON, 1);
-	udelay(10); /* 10us is enough */
+	udelay(10); /* 10us is eanalugh */
 	sdr_clr_bits(host->base + EMMC_IOCON, 1);
 }
 
@@ -2465,7 +2465,7 @@ static int msdc_get_cd(struct mmc_host *mmc)
 	struct msdc_host *host = mmc_priv(mmc);
 	int val;
 
-	if (mmc->caps & MMC_CAP_NONREMOVABLE)
+	if (mmc->caps & MMC_CAP_ANALNREMOVABLE)
 		return 1;
 
 	if (!host->internal_cd)
@@ -2636,36 +2636,36 @@ static void msdc_of_property_parse(struct platform_device *pdev,
 {
 	struct mmc_host *mmc = mmc_from_priv(host);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,latch-ck",
+	of_property_read_u32(pdev->dev.of_analde, "mediatek,latch-ck",
 			     &host->latch_ck);
 
-	of_property_read_u32(pdev->dev.of_node, "hs400-ds-delay",
+	of_property_read_u32(pdev->dev.of_analde, "hs400-ds-delay",
 			     &host->hs400_ds_delay);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,hs400-ds-dly3",
+	of_property_read_u32(pdev->dev.of_analde, "mediatek,hs400-ds-dly3",
 			     &host->hs400_ds_dly3);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,hs200-cmd-int-delay",
+	of_property_read_u32(pdev->dev.of_analde, "mediatek,hs200-cmd-int-delay",
 			     &host->hs200_cmd_int_delay);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,hs400-cmd-int-delay",
+	of_property_read_u32(pdev->dev.of_analde, "mediatek,hs400-cmd-int-delay",
 			     &host->hs400_cmd_int_delay);
 
-	if (of_property_read_bool(pdev->dev.of_node,
+	if (of_property_read_bool(pdev->dev.of_analde,
 				  "mediatek,hs400-cmd-resp-sel-rising"))
 		host->hs400_cmd_resp_sel_rising = true;
 	else
 		host->hs400_cmd_resp_sel_rising = false;
 
-	if (of_property_read_u32(pdev->dev.of_node, "mediatek,tuning-step",
+	if (of_property_read_u32(pdev->dev.of_analde, "mediatek,tuning-step",
 				 &host->tuning_step)) {
-		if (mmc->caps2 & MMC_CAP2_NO_MMC)
+		if (mmc->caps2 & MMC_CAP2_ANAL_MMC)
 			host->tuning_step = PAD_DELAY_FULL;
 		else
 			host->tuning_step = PAD_DELAY_HALF;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node,
+	if (of_property_read_bool(pdev->dev.of_analde,
 				  "supports-cqe"))
 		host->cqhci = true;
 	else
@@ -2718,7 +2718,7 @@ static int msdc_of_clock_parse(struct platform_device *pdev,
 	ret = devm_clk_bulk_get_optional(&pdev->dev, MSDC_NR_CLOCKS,
 					 host->bulk_clks);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot get pclk/axi/ahb clock gates\n");
+		dev_err(&pdev->dev, "Cananalt get pclk/axi/ahb clock gates\n");
 		return ret;
 	}
 
@@ -2732,15 +2732,15 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "No DT found\n");
+	if (!pdev->dev.of_analde) {
+		dev_err(&pdev->dev, "Anal DT found\n");
 		return -EINVAL;
 	}
 
 	/* Allocate MMC host for this device */
 	mmc = mmc_alloc_host(sizeof(struct msdc_host), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	ret = mmc_of_parse(mmc);
@@ -2776,7 +2776,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	}
 
 	/* only eMMC has crypto property */
-	if (!(mmc->caps2 & MMC_CAP2_NO_MMC)) {
+	if (!(mmc->caps2 & MMC_CAP2_ANAL_MMC)) {
 		host->crypto_clk = devm_clk_get_optional(&pdev->dev, "crypto");
 		if (IS_ERR(host->crypto_clk))
 			host->crypto_clk = NULL;
@@ -2793,21 +2793,21 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(host->pinctrl)) {
 		ret = PTR_ERR(host->pinctrl);
-		dev_err(&pdev->dev, "Cannot find pinctrl!\n");
+		dev_err(&pdev->dev, "Cananalt find pinctrl!\n");
 		goto host_free;
 	}
 
 	host->pins_default = pinctrl_lookup_state(host->pinctrl, "default");
 	if (IS_ERR(host->pins_default)) {
 		ret = PTR_ERR(host->pins_default);
-		dev_err(&pdev->dev, "Cannot find pinctrl default!\n");
+		dev_err(&pdev->dev, "Cananalt find pinctrl default!\n");
 		goto host_free;
 	}
 
 	host->pins_uhs = pinctrl_lookup_state(host->pinctrl, "state_uhs");
 	if (IS_ERR(host->pins_uhs)) {
 		ret = PTR_ERR(host->pins_uhs);
-		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
+		dev_err(&pdev->dev, "Cananalt find pinctrl uhs!\n");
 		goto host_free;
 	}
 
@@ -2817,7 +2817,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 		if (host->eint_irq > 0) {
 			host->pins_eint = pinctrl_lookup_state(host->pinctrl, "state_eint");
 			if (IS_ERR(host->pins_eint)) {
-				dev_err(&pdev->dev, "Cannot find pinctrl eint!\n");
+				dev_err(&pdev->dev, "Cananalt find pinctrl eint!\n");
 				host->pins_eint = NULL;
 			} else {
 				device_init_wakeup(&pdev->dev, true);
@@ -2837,18 +2837,18 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	else
 		mmc->f_min = DIV_ROUND_UP(host->src_clk_freq, 4 * 4095);
 
-	if (!(mmc->caps & MMC_CAP_NONREMOVABLE) &&
+	if (!(mmc->caps & MMC_CAP_ANALNREMOVABLE) &&
 	    !mmc_can_gpio_cd(mmc) &&
 	    host->dev_comp->use_internal_cd) {
 		/*
-		 * Is removable but no GPIO declared, so
+		 * Is removable but anal GPIO declared, so
 		 * use internal functionality.
 		 */
 		host->internal_cd = true;
 	}
 
 	if (mmc->caps & MMC_CAP_SDIO_IRQ)
-		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_NOTHREAD;
+		mmc->caps2 |= MMC_CAP2_SDIO_IRQ_ANALTHREAD;
 
 	mmc->caps |= MMC_CAP_CMD23;
 	if (host->cqhci)
@@ -2876,7 +2876,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 				MAX_BD_NUM * sizeof(struct mt_bdma_desc),
 				&host->dma.bd_addr, GFP_KERNEL);
 	if (!host->dma.gpd || !host->dma.bd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release_mem;
 	}
 	msdc_init_gpd_bd(host, &host->dma);
@@ -2886,7 +2886,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mmc);
 	ret = msdc_ungate_clock(host);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot ungate clocks!\n");
+		dev_err(&pdev->dev, "Cananalt ungate clocks!\n");
 		goto release_mem;
 	}
 	msdc_init_hw(host);
@@ -2896,7 +2896,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 					     sizeof(*host->cq_host),
 					     GFP_KERNEL);
 		if (!host->cq_host) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto host_free;
 		}
 		host->cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
@@ -2914,7 +2914,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, host->irq, msdc_irq,
-			       IRQF_TRIGGER_NONE, pdev->name, host);
+			       IRQF_TRIGGER_ANALNE, pdev->name, host);
 	if (ret)
 		goto release;
 
@@ -2965,7 +2965,7 @@ static void msdc_drv_remove(struct platform_device *pdev)
 	msdc_gate_clock(host);
 
 	pm_runtime_disable(host->dev);
-	pm_runtime_put_noidle(host->dev);
+	pm_runtime_put_analidle(host->dev);
 	dma_free_coherent(&pdev->dev,
 			2 * sizeof(struct mt_gpdma_desc),
 			host->dma.gpd, host->dma.gpd_addr);
@@ -3088,10 +3088,10 @@ static int __maybe_unused msdc_suspend(struct device *dev)
 
 	/*
 	 * Bump up runtime PM usage counter otherwise dev->power.needs_force_resume will
-	 * not be marked as 1, pm_runtime_force_resume() will go out directly.
+	 * analt be marked as 1, pm_runtime_force_resume() will go out directly.
 	 */
 	if (sdio_irq_claimed(mmc) && host->pins_eint)
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_analresume(dev);
 
 	return pm_runtime_force_suspend(dev);
 }
@@ -3102,7 +3102,7 @@ static int __maybe_unused msdc_resume(struct device *dev)
 	struct msdc_host *host = mmc_priv(mmc);
 
 	if (sdio_irq_claimed(mmc) && host->pins_eint)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_analidle(dev);
 
 	return pm_runtime_force_resume(dev);
 }
@@ -3117,7 +3117,7 @@ static struct platform_driver mt_msdc_driver = {
 	.remove_new = msdc_drv_remove,
 	.driver = {
 		.name = "mtk-msdc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = msdc_of_ids,
 		.pm = &msdc_dev_pm_ops,
 	},

@@ -147,7 +147,7 @@ static void eisa_mask_irq(struct irq_data *d)
 	unsigned long flags;
 
 	EISA_DBG("disable irq %d\n", irq);
-	/* just mask for now */
+	/* just mask for analw */
 	spin_lock_irqsave(&eisa_irq_lock, flags);
         if (irq & 8) {
 		slave_mask |= (1 << (irq&7));
@@ -352,7 +352,7 @@ static int __init eisa_probe(struct parisc_device *dev)
 	}
 	eisa_eeprom_addr = ioremap(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
 	if (!eisa_eeprom_addr) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		printk(KERN_ERR "EISA: ioremap failed!\n");
 		goto error_free_irq;
 	}
@@ -370,7 +370,7 @@ static int __init eisa_probe(struct parisc_device *dev)
 		eisa_dev.root.dma_mask = 0xffffffff; /* wild guess */
 		if (eisa_root_register (&eisa_dev.root)) {
 			printk(KERN_ERR "EISA: Failed to register EISA root\n");
-			result = -ENOMEM;
+			result = -EANALMEM;
 			goto error_iounmap;
 		}
 	}

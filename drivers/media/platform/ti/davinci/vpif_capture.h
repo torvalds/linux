@@ -16,7 +16,7 @@
 #define VPIF_CAPTURE_VERSION		"0.0.2"
 
 #define VPIF_VALID_FIELD(field)		(((V4L2_FIELD_ANY == field) || \
-	(V4L2_FIELD_NONE == field)) || \
+	(V4L2_FIELD_ANALNE == field)) || \
 	(((V4L2_FIELD_INTERLACED == field) || \
 	(V4L2_FIELD_SEQ_TB == field)) || \
 	(V4L2_FIELD_SEQ_BT == field)))
@@ -100,7 +100,7 @@ struct vpif_device {
 	struct v4l2_device v4l2_dev;
 	struct channel_obj *dev[VPIF_CAPTURE_NUM_CHANNELS];
 	struct v4l2_subdev **sd;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct vpif_capture_config *config;
 };
 

@@ -37,7 +37,7 @@ tmon: $(OBJS) Makefile tmon.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS)  -o $(TARGET) $(TMON_LIBS)
 
 valgrind: tmon
-	 sudo valgrind -v --track-origins=yes --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes ./$(TARGET)  1> /dev/null
+	 sudo valgrind -v --track-origins=anal --tool=memcheck --leak-check=anal --show-reachable=anal --num-callers=20 --track-fds=anal ./$(TARGET)  1> /dev/null
 
 install:
 	- $(INSTALL_PROGRAM) -D "$(TARGET)" "$(INSTALL_ROOT)/$(BINDIR)/$(TARGET)"

@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -288,8 +288,8 @@ static int32_t scsiback_result(int32_t result)
 	case DID_OK:
 		host_status = XEN_VSCSIIF_RSLT_HOST_OK;
 		break;
-	case DID_NO_CONNECT:
-		host_status = XEN_VSCSIIF_RSLT_HOST_NO_CONNECT;
+	case DID_ANAL_CONNECT:
+		host_status = XEN_VSCSIIF_RSLT_HOST_ANAL_CONNECT;
 		break;
 	case DID_BUS_BUSY:
 		host_status = XEN_VSCSIIF_RSLT_HOST_BUS_BUSY;
@@ -349,7 +349,7 @@ static void scsiback_send_response(struct vscsibk_info *info,
 			uint16_t rqid)
 {
 	struct vscsiif_response *ring_res;
-	int notify;
+	int analtify;
 	struct scsi_sense_hdr sshdr;
 	unsigned long flags;
 	unsigned len;
@@ -363,7 +363,7 @@ static void scsiback_send_response(struct vscsibk_info *info,
 	ring_res->rqid   = rqid;
 
 	if (sense_buffer != NULL &&
-	    scsi_normalize_sense(sense_buffer, VSCSIIF_SENSE_BUFFERSIZE,
+	    scsi_analrmalize_sense(sense_buffer, VSCSIIF_SENSE_BUFFERSIZE,
 				 &sshdr)) {
 		len = min_t(unsigned, 8 + sense_buffer[7],
 			    VSCSIIF_SENSE_BUFFERSIZE);
@@ -375,11 +375,11 @@ static void scsiback_send_response(struct vscsibk_info *info,
 
 	ring_res->residual_len = resid;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&info->ring, notify);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&info->ring, analtify);
 	spin_unlock_irqrestore(&info->ring_lock, flags);
 
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	if (analtify)
+		analtify_remote_via_irq(info->irq);
 }
 
 static void scsiback_do_resp_with_sense(char *sense_buffer, int32_t result,
@@ -447,10 +447,10 @@ static int scsiback_gnttab_data_map_batch(struct gnttab_map_grant_ref *map,
 	err = gnttab_map_refs(map, NULL, pg, cnt);
 	for (i = 0; i < cnt; i++) {
 		if (unlikely(map[i].status != GNTST_okay)) {
-			pr_err("invalid buffer -- could not remap it\n");
+			pr_err("invalid buffer -- could analt remap it\n");
 			map[i].handle = SCSIBACK_INVALID_HANDLE;
 			if (!err)
-				err = -ENOMEM;
+				err = -EANALMEM;
 		} else {
 			get_page(pg[i]);
 		}
@@ -470,8 +470,8 @@ static int scsiback_gnttab_data_map_list(struct vscsibk_pend *pending_req,
 	for (i = 0; i < cnt; i++) {
 		if (gnttab_page_cache_get(&info->free_pages, pg + mapcount)) {
 			gnttab_page_cache_put(&info->free_pages, pg, mapcount);
-			pr_err("no grant page\n");
-			return -ENOMEM;
+			pr_err("anal grant page\n");
+			return -EANALMEM;
 		}
 		gnttab_set_map_op(&map[mapcount], vaddr_page(pg[mapcount]),
 				  flags, seg[i].gref, info->domid);
@@ -546,7 +546,7 @@ static int scsiback_gnttab_data_map(struct vscsiif_request *ring_req,
 	pending_req->sgl = kmalloc_array(nr_segments,
 					sizeof(struct scatterlist), GFP_KERNEL);
 	if (!pending_req->sgl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_table(pending_req->sgl, nr_segments);
 	pending_req->n_sg = nr_segments;
@@ -681,7 +681,7 @@ static struct vscsibk_pend *scsiback_get_pend_req(struct vscsiif_back_ring *ring
 	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0) {
 		pr_err("Unable to obtain tag for vscsiif_request\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	req = &((struct vscsibk_pend *)se_sess->sess_cmd_map)[tag];
@@ -707,7 +707,7 @@ static struct vscsibk_pend *prepare_pending_reqs(struct vscsibk_info *info,
 	if ((ring_req->sc_data_direction != DMA_BIDIRECTIONAL) &&
 		(ring_req->sc_data_direction != DMA_TO_DEVICE) &&
 		(ring_req->sc_data_direction != DMA_FROM_DEVICE) &&
-		(ring_req->sc_data_direction != DMA_NONE)) {
+		(ring_req->sc_data_direction != DMA_ANALNE)) {
 		pr_debug("invalid parameter data_dir = %d\n",
 			ring_req->sc_data_direction);
 		return ERR_PTR(-EINVAL);
@@ -726,13 +726,13 @@ static struct vscsibk_pend *prepare_pending_reqs(struct vscsibk_info *info,
 	if (!v2p) {
 		pr_debug("the v2p of (chn:%d, tgt:%d, lun:%d) doesn't exist.\n",
 			 vir.chn, vir.tgt, vir.lun);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	pending_req = scsiback_get_pend_req(ring, v2p);
 	if (IS_ERR(pending_req)) {
 		kref_put(&v2p->kref, scsiback_free_translation_entry);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	pending_req->rqid = ring_req->rqid;
 	pending_req->info = info;
@@ -777,8 +777,8 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info,
 		pending_req = prepare_pending_reqs(info, ring, &ring_req);
 		if (IS_ERR(pending_req)) {
 			switch (PTR_ERR(pending_req)) {
-			case -ENODEV:
-				result = DID_NO_CONNECT;
+			case -EANALDEV:
+				result = DID_ANAL_CONNECT;
 				break;
 			default:
 				result = DID_ERROR;
@@ -940,7 +940,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	lunp++;
 	err = kstrtoull(lunp, 10, &unpacked_lun);
 	if (err < 0) {
-		pr_err("lun number not valid: %s\n", lunp);
+		pr_err("lun number analt valid: %s\n", lunp);
 		return err;
 	}
 
@@ -971,12 +971,12 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 
 	if (!tpg) {
 		pr_err("%s:%llu %s\n", phy, unpacked_lun, error);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	new = kmalloc(sizeof(struct v2p_entry), GFP_KERNEL);
 	if (new == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free;
 	}
 
@@ -984,7 +984,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 
 	/* Check double assignment to identical virtual ID */
 	if (scsiback_chk_translation_entry(info, v)) {
-		pr_warn("Virtual ID is already used. Assignment was not performed.\n");
+		pr_warn("Virtual ID is already used. Assignment was analt performed.\n");
 		err = -EEXIST;
 		goto out;
 	}
@@ -1028,7 +1028,7 @@ static int scsiback_del_translation_entry(struct vscsibk_info *info,
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
 
 	if (!entry)
-		return -ENOENT;
+		return -EANALENT;
 
 	kref_put(&entry->kref, scsiback_free_translation_entry);
 	return 0;
@@ -1049,13 +1049,13 @@ static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
 			return;
 	}
 	if (!scsiback_add_translation_entry(info, phy, vir)) {
-		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		if (xenbus_printf(XBT_NIL, info->dev->analdename, state,
 				  "%d", XenbusStateInitialised)) {
 			pr_err("xenbus_printf error %s\n", state);
 			scsiback_del_translation_entry(info, vir);
 		}
 	} else if (!try) {
-		err = xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, info->dev->analdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1067,7 +1067,7 @@ static void scsiback_do_del_lun(struct vscsibk_info *info, const char *state,
 				struct ids_tuple *vir)
 {
 	if (!scsiback_del_translation_entry(info, vir)) {
-		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		if (xenbus_printf(XBT_NIL, info->dev->analdename, state,
 				  "%d", XenbusStateClosed))
 			pr_err("xenbus_printf error %s\n", state);
 	}
@@ -1090,15 +1090,15 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 
 	/* read status */
 	snprintf(state, sizeof(state), "vscsi-devs/%s/state", ent);
-	err = xenbus_scanf(XBT_NIL, dev->nodename, state, "%u", &device_state);
+	err = xenbus_scanf(XBT_NIL, dev->analdename, state, "%u", &device_state);
 	if (XENBUS_EXIST_ERR(err))
 		return;
 
 	/* physical SCSI device */
 	snprintf(str, sizeof(str), "vscsi-devs/%s/p-dev", ent);
-	val = xenbus_read(XBT_NIL, dev->nodename, str, NULL);
+	val = xenbus_read(XBT_NIL, dev->analdename, str, NULL);
 	if (IS_ERR(val)) {
-		err = xenbus_printf(XBT_NIL, dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, dev->analdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1110,10 +1110,10 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 
 	/* virtual SCSI device */
 	snprintf(str, sizeof(str), "vscsi-devs/%s/v-dev", ent);
-	err = xenbus_scanf(XBT_NIL, dev->nodename, str, "%u:%u:%u:%u",
+	err = xenbus_scanf(XBT_NIL, dev->analdename, str, "%u:%u:%u:%u",
 			   &vir.hst, &vir.chn, &vir.tgt, &vir.lun);
 	if (XENBUS_EXIST_ERR(err)) {
-		err = xenbus_printf(XBT_NIL, dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, dev->analdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1141,11 +1141,11 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 	case VSCSIBACK_OP_UPDATEDEV_STATE:
 		if (device_state == XenbusStateInitialised) {
 			/* modify vscsi-devs/dev-x/state */
-			if (xenbus_printf(XBT_NIL, dev->nodename, state,
+			if (xenbus_printf(XBT_NIL, dev->analdename, state,
 					  "%d", XenbusStateConnected)) {
 				pr_err("xenbus_printf error %s\n", str);
 				scsiback_del_translation_entry(info, &vir);
-				xenbus_printf(XBT_NIL, dev->nodename, state,
+				xenbus_printf(XBT_NIL, dev->analdename, state,
 					      "%d", XenbusStateClosed);
 			}
 		}
@@ -1162,7 +1162,7 @@ static void scsiback_do_lun_hotplug(struct vscsibk_info *info, int op)
 	char **dir;
 	unsigned int ndir = 0;
 
-	dir = xenbus_directory(XBT_NIL, info->dev->nodename, "vscsi-devs",
+	dir = xenbus_directory(XBT_NIL, info->dev->analdename, "vscsi-devs",
 			       &ndir);
 	if (IS_ERR(dir))
 		return;
@@ -1210,8 +1210,8 @@ static void scsiback_frontend_changed(struct xenbus_device *dev,
 		xenbus_switch_state(dev, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
-		fallthrough;	/* if not online */
-	case XenbusStateUnknown:
+		fallthrough;	/* if analt online */
+	case XenbusStateUnkanalwn:
 		device_unregister(&dev->dev);
 		break;
 
@@ -1275,8 +1275,8 @@ static int scsiback_probe(struct xenbus_device *dev,
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
 	if (!info) {
-		xenbus_dev_fatal(dev, -ENOMEM, "allocating backend structure");
-		return -ENOMEM;
+		xenbus_dev_fatal(dev, -EANALMEM, "allocating backend structure");
+		return -EANALMEM;
 	}
 	info->dev = dev;
 	dev_set_drvdata(&dev->dev, info);
@@ -1291,7 +1291,7 @@ static int scsiback_probe(struct xenbus_device *dev,
 	spin_lock_init(&info->v2p_lock);
 	gnttab_page_cache_init(&info->free_pages);
 
-	err = xenbus_printf(XBT_NIL, dev->nodename, "feature-sg-grant", "%u",
+	err = xenbus_printf(XBT_NIL, dev->analdename, "feature-sg-grant", "%u",
 			    SG_ALL);
 	if (err)
 		xenbus_dev_error(dev, err, "writing feature-sg-grant");
@@ -1322,7 +1322,7 @@ static char *scsiback_dump_proto_id(struct scsiback_tport *tport)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static char *scsiback_get_fabric_wwn(struct se_portal_group *se_tpg)
@@ -1353,7 +1353,7 @@ scsiback_make_tport(struct target_fabric_configfs *tf,
 
 	tport = kzalloc(sizeof(struct scsiback_tport), GFP_KERNEL);
 	if (!tport)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	tport->tport_wwpn = wwpn;
 	/*
@@ -1533,18 +1533,18 @@ static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 
 	tv_nexus = kzalloc(sizeof(struct scsiback_nexus), GFP_KERNEL);
 	if (!tv_nexus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
 	tv_nexus->tvn_se_sess = target_setup_session(&tpg->se_tpg,
 						     VSCSI_DEFAULT_SESSION_TAGS,
 						     sizeof(struct vscsibk_pend),
-						     TARGET_PROT_NORMAL, name,
+						     TARGET_PROT_ANALRMAL, name,
 						     tv_nexus, scsiback_alloc_sess_cb);
 	if (IS_ERR(tv_nexus->tvn_se_sess)) {
 		kfree(tv_nexus);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -1562,13 +1562,13 @@ static int scsiback_drop_nexus(struct scsiback_tpg *tpg)
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	se_sess = tv_nexus->tvn_se_sess;
 	if (!se_sess) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (tpg->tv_tpg_port_count != 0) {
@@ -1587,7 +1587,7 @@ static int scsiback_drop_nexus(struct scsiback_tpg *tpg)
 
 	pr_debug("Removing I_T Nexus to emulated %s Initiator Port: %s\n",
 		scsiback_dump_proto_id(tpg->tport),
-		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+		tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 
 	/*
 	 * Release the SCSI I_T Nexus to the emulated xen-pvscsi Target Port
@@ -1612,10 +1612,10 @@ static ssize_t scsiback_tpg_nexus_show(struct config_item *item, char *page)
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
 		mutex_unlock(&tpg->tv_tpg_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_analde_acl->initiatorname);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	return ret;
@@ -1652,7 +1652,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_SAS) {
-			pr_err("Passed SAS Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed SAS Initiator Port %s does analt match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1662,7 +1662,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_FCP) {
-			pr_err("Passed FCP Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed FCP Initiator Port %s does analt match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1672,7 +1672,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_ISCSI) {
-			pr_err("Passed iSCSI Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed iSCSI Initiator Port %s does analt match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1760,7 +1760,7 @@ scsiback_make_tpg(struct se_wwn *wwn, const char *name)
 
 	tpg = kzalloc(sizeof(struct scsiback_tpg), GFP_KERNEL);
 	if (!tpg)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&tpg->tv_tpg_mutex);
 	INIT_LIST_HEAD(&tpg->tv_tpg_list);
@@ -1854,7 +1854,7 @@ static int __init scsiback_init(void)
 	int ret;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug("xen-pvscsi: fabric module %s on %s/%s on "UTS_RELEASE"\n",
 		 VSCSI_VERSION, utsname()->sysname, utsname()->machine);

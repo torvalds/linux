@@ -27,19 +27,19 @@ static void __iomem *ddrc_base;
  * @comp:	DT compatible string
  * Return: Pointer to the mapped memory or NULL.
  *
- * Remap the memory region for a compatible DT node.
+ * Remap the memory region for a compatible DT analde.
  */
 static void __iomem *zynq_pm_ioremap(const char *comp)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, comp);
+	np = of_find_compatible_analde(NULL, NULL, comp);
 	if (np) {
 		base = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 	} else {
-		pr_warn("%s: no compatible node found for '%s'\n", __func__,
+		pr_warn("%s: anal compatible analde found for '%s'\n", __func__,
 				comp);
 	}
 

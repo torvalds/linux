@@ -3,7 +3,7 @@
  * IIO driver for the MiraMEMS DA311 3-axis accelerometer
  *
  * Copyright (c) 2016 Hans de Goede <hdegoede@redhat.com>
- * Copyright (c) 2011-2013 MiraMEMS Sensing Technology Co., Ltd.
+ * Copyright (c) 2011-2013 MiraMEMS Sensing Techanallogy Co., Ltd.
  */
 
 #include <linux/module.h>
@@ -15,7 +15,7 @@
 #define DA311_CHIP_ID			0x13
 
 /*
- * Note register addressed go from 0 - 0x3f and then wrap.
+ * Analte register addressed go from 0 - 0x3f and then wrap.
  * For some reason there are 2 banks with 0 - 0x3f addresses,
  * rather then a single 0-0x7f bank.
  */
@@ -202,7 +202,7 @@ static int da311_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = da311_nscale;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -225,11 +225,11 @@ static int da311_probe(struct i2c_client *client)
 
 	ret = i2c_smbus_read_byte_data(client, DA311_REG_CHIP_ID);
 	if (ret != DA311_CHIP_ID)
-		return (ret < 0) ? ret : -ENODEV;
+		return (ret < 0) ? ret : -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

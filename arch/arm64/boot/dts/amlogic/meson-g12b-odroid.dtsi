@@ -277,7 +277,7 @@
 	cooling-maps {
 		map {
 			trip = <&cpu_active>;
-			cooling-device = <&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			cooling-device = <&fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };
@@ -294,7 +294,7 @@
 	cooling-maps {
 		map {
 			trip = <&ddr_active>;
-			cooling-device = <&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			cooling-device = <&fan THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };

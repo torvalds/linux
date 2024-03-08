@@ -7,11 +7,11 @@
 #ifndef __DT_BINDINGS_INTERCONNECT_QCOM_SC8280XP_H
 #define __DT_BINDINGS_INTERCONNECT_QCOM_SC8280XP_H
 
-/* aggre1_noc */
+/* aggre1_analc */
 #define MASTER_QSPI_0			0
 #define MASTER_QUP_1			1
 #define MASTER_QUP_2			2
-#define MASTER_A1NOC_CFG		3
+#define MASTER_A1ANALC_CFG		3
 #define MASTER_IPA			4
 #define MASTER_EMAC_1			5
 #define MASTER_SDCC_4			6
@@ -21,14 +21,14 @@
 #define MASTER_USB3_MP			10
 #define MASTER_USB4_0			11
 #define MASTER_USB4_1			12
-#define SLAVE_A1NOC_SNOC		13
-#define SLAVE_USB_NOC_SNOC		14
-#define SLAVE_SERVICE_A1NOC		15
+#define SLAVE_A1ANALC_SANALC		13
+#define SLAVE_USB_ANALC_SANALC		14
+#define SLAVE_SERVICE_A1ANALC		15
 
-/* aggre2_noc */
+/* aggre2_analc */
 #define MASTER_QDSS_BAM			0
 #define MASTER_QUP_0			1
-#define MASTER_A2NOC_CFG		2
+#define MASTER_A2ANALC_CFG		2
 #define MASTER_CRYPTO			3
 #define MASTER_SENSORS_PROC		4
 #define MASTER_SP			5
@@ -43,23 +43,23 @@
 #define MASTER_QDSS_ETR			14
 #define MASTER_SDCC_2			15
 #define MASTER_UFS_CARD			16
-#define SLAVE_A2NOC_SNOC		17
-#define SLAVE_ANOC_PCIE_GEM_NOC		18
-#define SLAVE_SERVICE_A2NOC		19
+#define SLAVE_A2ANALC_SANALC		17
+#define SLAVE_AANALC_PCIE_GEM_ANALC		18
+#define SLAVE_SERVICE_A2ANALC		19
 
 /* clk_virt */
-/* 0 was used by MASTER_IPA_CORE, now represented as RPMh clock */
+/* 0 was used by MASTER_IPA_CORE, analw represented as RPMh clock */
 #define MASTER_QUP_CORE_0		1
 #define MASTER_QUP_CORE_1		2
 #define MASTER_QUP_CORE_2		3
-/* 4 was used by SLAVE_IPA_CORE, now represented as RPMh clock */
+/* 4 was used by SLAVE_IPA_CORE, analw represented as RPMh clock */
 #define SLAVE_QUP_CORE_0		5
 #define SLAVE_QUP_CORE_1		6
 #define SLAVE_QUP_CORE_2		7
 
-/* config_noc */
-#define MASTER_GEM_NOC_CNOC		0
-#define MASTER_GEM_NOC_PCIE_SNOC	1
+/* config_analc */
+#define MASTER_GEM_ANALC_CANALC		0
+#define MASTER_GEM_ANALC_PCIE_SANALC	1
 #define SLAVE_AHB2PHY_0			2
 #define SLAVE_AHB2PHY_1			3
 #define SLAVE_AHB2PHY_2			4
@@ -123,16 +123,16 @@
 #define SLAVE_VENUS_CFG			62
 #define SLAVE_VSENSE_CTRL_CFG		63
 #define SLAVE_VSENSE_CTRL_R_CFG		64
-#define SLAVE_A1NOC_CFG			65
-#define SLAVE_A2NOC_CFG			66
-#define SLAVE_ANOC_PCIE_BRIDGE_CFG	67
+#define SLAVE_A1ANALC_CFG			65
+#define SLAVE_A2ANALC_CFG			66
+#define SLAVE_AANALC_PCIE_BRIDGE_CFG	67
 #define SLAVE_DDRSS_CFG			68
-#define SLAVE_CNOC_MNOC_CFG		69
-#define SLAVE_SNOC_CFG			70
-#define SLAVE_SNOC_SF_BRIDGE_CFG	71
+#define SLAVE_CANALC_MANALC_CFG		69
+#define SLAVE_SANALC_CFG			70
+#define SLAVE_SANALC_SF_BRIDGE_CFG	71
 #define SLAVE_IMEM			72
 #define SLAVE_PIMEM			73
-#define SLAVE_SERVICE_CNOC		74
+#define SLAVE_SERVICE_CANALC		74
 #define SLAVE_PCIE_0			75
 #define SLAVE_PCIE_1			76
 #define SLAVE_PCIE_2A			77
@@ -144,89 +144,89 @@
 #define SLAVE_SMSS			83
 #define SLAVE_TCU			84
 
-/* dc_noc */
-#define MASTER_CNOC_DC_NOC		0
+/* dc_analc */
+#define MASTER_CANALC_DC_ANALC		0
 #define SLAVE_LLCC_CFG			1
-#define SLAVE_GEM_NOC_CFG		2
+#define SLAVE_GEM_ANALC_CFG		2
 
-/* gem_noc */
+/* gem_analc */
 #define MASTER_GPU_TCU			0
 #define MASTER_PCIE_TCU			1
 #define MASTER_SYS_TCU			2
 #define MASTER_APPSS_PROC		3
-#define MASTER_COMPUTE_NOC		4
-#define MASTER_COMPUTE_NOC_1		5
-#define MASTER_GEM_NOC_CFG		6
+#define MASTER_COMPUTE_ANALC		4
+#define MASTER_COMPUTE_ANALC_1		5
+#define MASTER_GEM_ANALC_CFG		6
 #define MASTER_GFX3D			7
-#define MASTER_MNOC_HF_MEM_NOC		8
-#define MASTER_MNOC_SF_MEM_NOC		9
-#define MASTER_ANOC_PCIE_GEM_NOC	10
-#define MASTER_SNOC_GC_MEM_NOC		11
-#define MASTER_SNOC_SF_MEM_NOC		12
-#define SLAVE_GEM_NOC_CNOC		13
+#define MASTER_MANALC_HF_MEM_ANALC		8
+#define MASTER_MANALC_SF_MEM_ANALC		9
+#define MASTER_AANALC_PCIE_GEM_ANALC	10
+#define MASTER_SANALC_GC_MEM_ANALC		11
+#define MASTER_SANALC_SF_MEM_ANALC		12
+#define SLAVE_GEM_ANALC_CANALC		13
 #define SLAVE_LLCC			14
-#define SLAVE_GEM_NOC_PCIE_CNOC		15
-#define SLAVE_SERVICE_GEM_NOC_1		16
-#define SLAVE_SERVICE_GEM_NOC_2		17
-#define SLAVE_SERVICE_GEM_NOC		18
+#define SLAVE_GEM_ANALC_PCIE_CANALC		15
+#define SLAVE_SERVICE_GEM_ANALC_1		16
+#define SLAVE_SERVICE_GEM_ANALC_2		17
+#define SLAVE_SERVICE_GEM_ANALC		18
 
-/* lpass_ag_noc */
-#define MASTER_CNOC_LPASS_AG_NOC	0
+/* lpass_ag_analc */
+#define MASTER_CANALC_LPASS_AG_ANALC	0
 #define MASTER_LPASS_PROC		1
 #define SLAVE_LPASS_CORE_CFG		2
 #define SLAVE_LPASS_LPI_CFG		3
 #define SLAVE_LPASS_MPU_CFG		4
 #define SLAVE_LPASS_TOP_CFG		5
-#define SLAVE_LPASS_SNOC		6
-#define SLAVE_SERVICES_LPASS_AML_NOC	7
-#define SLAVE_SERVICE_LPASS_AG_NOC	8
+#define SLAVE_LPASS_SANALC		6
+#define SLAVE_SERVICES_LPASS_AML_ANALC	7
+#define SLAVE_SERVICE_LPASS_AG_ANALC	8
 
 /* mc_virt */
 #define MASTER_LLCC			0
 #define SLAVE_EBI1			1
 
-/*mmss_noc */
-#define MASTER_CAMNOC_HF		0
+/*mmss_analc */
+#define MASTER_CAMANALC_HF		0
 #define MASTER_MDP0			1
 #define MASTER_MDP1			2
 #define MASTER_MDP_CORE1_0		3
 #define MASTER_MDP_CORE1_1		4
-#define MASTER_CNOC_MNOC_CFG		5
+#define MASTER_CANALC_MANALC_CFG		5
 #define MASTER_ROTATOR			6
 #define MASTER_ROTATOR_1		7
 #define MASTER_VIDEO_P0			8
 #define MASTER_VIDEO_P1			9
 #define MASTER_VIDEO_PROC		10
-#define MASTER_CAMNOC_ICP		11
-#define MASTER_CAMNOC_SF		12
-#define SLAVE_MNOC_HF_MEM_NOC		13
-#define SLAVE_MNOC_SF_MEM_NOC		14
-#define SLAVE_SERVICE_MNOC		15
+#define MASTER_CAMANALC_ICP		11
+#define MASTER_CAMANALC_SF		12
+#define SLAVE_MANALC_HF_MEM_ANALC		13
+#define SLAVE_MANALC_SF_MEM_ANALC		14
+#define SLAVE_SERVICE_MANALC		15
 
-/* nspa_noc */
-#define MASTER_CDSP_NOC_CFG		0
+/* nspa_analc */
+#define MASTER_CDSP_ANALC_CFG		0
 #define MASTER_CDSP_PROC		1
-#define SLAVE_CDSP_MEM_NOC		2
+#define SLAVE_CDSP_MEM_ANALC		2
 #define SLAVE_NSP_XFR			3
-#define SLAVE_SERVICE_NSP_NOC		4
+#define SLAVE_SERVICE_NSP_ANALC		4
 
-/* nspb_noc */
-#define MASTER_CDSPB_NOC_CFG		0
+/* nspb_analc */
+#define MASTER_CDSPB_ANALC_CFG		0
 #define MASTER_CDSP_PROC_B		1
-#define SLAVE_CDSPB_MEM_NOC		2
+#define SLAVE_CDSPB_MEM_ANALC		2
 #define SLAVE_NSPB_XFR			3
-#define SLAVE_SERVICE_NSPB_NOC		4
+#define SLAVE_SERVICE_NSPB_ANALC		4
 
-/* system_noc */
-#define MASTER_A1NOC_SNOC		0
-#define MASTER_A2NOC_SNOC		1
-#define MASTER_USB_NOC_SNOC		2
-#define MASTER_LPASS_ANOC		3
-#define MASTER_SNOC_CFG			4
+/* system_analc */
+#define MASTER_A1ANALC_SANALC		0
+#define MASTER_A2ANALC_SANALC		1
+#define MASTER_USB_ANALC_SANALC		2
+#define MASTER_LPASS_AANALC		3
+#define MASTER_SANALC_CFG			4
 #define MASTER_PIMEM			5
 #define MASTER_GIC			6
-#define SLAVE_SNOC_GEM_NOC_GC		7
-#define SLAVE_SNOC_GEM_NOC_SF		8
-#define SLAVE_SERVICE_SNOC		9
+#define SLAVE_SANALC_GEM_ANALC_GC		7
+#define SLAVE_SANALC_GEM_ANALC_SF		8
+#define SLAVE_SERVICE_SANALC		9
 
 #endif

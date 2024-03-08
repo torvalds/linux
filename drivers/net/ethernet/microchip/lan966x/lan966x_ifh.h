@@ -43,8 +43,8 @@
 /* Enable OAM-related rewriting. PDU_TYPE encodes OAM type. */
 #define IFH_POS_REW_OAM              162
 
-/* PDU type. Encoding: (0-NONE, 1-Y1731_CCM, 2-MRP_TST, 3-MRP_ITST, 4-DLR_BCN,
- * 5-DLR_ADV, 6-RTE_NULL_INJ, 7-IPV4, 8-IPV6, 9-Y1731_NON_CCM).
+/* PDU type. Encoding: (0-ANALNE, 1-Y1731_CCM, 2-MRP_TST, 3-MRP_ITST, 4-DLR_BCN,
+ * 5-DLR_ADV, 6-RTE_NULL_INJ, 7-IPV4, 8-IPV6, 9-Y1731_ANALN_CCM).
  */
 #define IFH_POS_PDU_TYPE             158
 
@@ -84,7 +84,7 @@
 /* Relearn + learn flags (*) */
 #define IFH_POS_LEARN_FLAGS          90
 
-/* SFLOW identifier for frame (0-8: Tx port, 9: Rx sampling, 15: No sampling) */
+/* SFLOW identifier for frame (0-8: Tx port, 9: Rx sampling, 15: Anal sampling) */
 #define IFH_POS_SFLOW_ID             86
 
 /* Set if an ACL/S2 rule was hit (*).
@@ -101,7 +101,7 @@
 /* Destination ports for frame */
 #define IFH_POS_DSTS                 62
 
-/* Storm policer to be applied: None/Uni/Multi/Broad (*) */
+/* Storm policer to be applied: Analne/Uni/Multi/Broad (*) */
 #define IFH_POS_FLOOD                60
 
 /* Redundancy tag operation */

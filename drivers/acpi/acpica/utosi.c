@@ -25,7 +25,7 @@ ACPI_MODULE_NAME("utosi")
  *
  * 1) New BIOSs tend to test only the case where the host responds TRUE to
  *    the latest version of Windows, which would respond to the latest/newest
- *    _OSI string. Not responding TRUE to the latest version of Windows will
+ *    _OSI string. Analt responding TRUE to the latest version of Windows will
  *    risk executing untested code paths throughout the DSDT and SSDTs.
  *
  * 2) If a new _OSI string is recognized only after a significant delay, this
@@ -35,14 +35,14 @@ ACPI_MODULE_NAME("utosi")
  *
  * 3) New _OSI strings are tending to come out about once per year. A delay
  *    in recognizing a new string for a significant amount of time risks the
- *    release of another string which only compounds the initial problem.
+ *    release of aanalther string which only compounds the initial problem.
  *
  *****************************************************************************/
 /*
  * Strings supported by the _OSI predefined control method (which is
  * implemented internally within this module.)
  *
- * March 2009: Removed "Linux" as this host no longer wants to respond true
+ * March 2009: Removed "Linux" as this host anal longer wants to respond true
  * for this string. Basically, the only safe OS strings are windows-related
  * and in many or most cases represent the only test path within the
  * BIOS-provided ASL code.
@@ -98,7 +98,7 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
  *
  * FUNCTION:    acpi_ut_initialize_interfaces
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -135,7 +135,7 @@ acpi_status acpi_ut_initialize_interfaces(void)
  *
  * FUNCTION:    acpi_ut_interface_terminate
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -203,13 +203,13 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name)
 	interface_info =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_interface_info));
 	if (!interface_info) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	interface_info->name = ACPI_ALLOCATE_ZEROED(strlen(interface_name) + 1);
 	if (!interface_info->name) {
 		ACPI_FREE(interface_info);
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Initialize new info and insert at the head of the global list */
@@ -264,10 +264,10 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 			} else {
 				/*
 				 * Interface is in static list. If marked invalid, then
-				 * it does not actually exist. Else, mark it invalid.
+				 * it does analt actually exist. Else, mark it invalid.
 				 */
 				if (next_interface->flags & ACPI_OSI_INVALID) {
-					return (AE_NOT_EXIST);
+					return (AE_ANALT_EXIST);
 				}
 
 				next_interface->flags |= ACPI_OSI_INVALID;
@@ -280,9 +280,9 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 		next_interface = next_interface->next;
 	}
 
-	/* Interface was not found */
+	/* Interface was analt found */
 
-	return (AE_NOT_EXIST);
+	return (AE_ANALT_EXIST);
 }
 
 /*******************************************************************************
@@ -334,7 +334,7 @@ acpi_status acpi_ut_update_interfaces(u8 action)
  *
  * PARAMETERS:  interface_name      - The interface to find
  *
- * RETURN:      struct acpi_interface_info if found. NULL if not found.
+ * RETURN:      struct acpi_interface_info if found. NULL if analt found.
  *
  * DESCRIPTION: Search for the specified interface name in the global list.
  *              Caller MUST hold acpi_gbl_osi_mutex
@@ -365,14 +365,14 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
  *
  * RETURN:      Status
  *              Integer: TRUE (0) if input string is matched
- *                       FALSE (-1) if string is not matched
+ *                       FALSE (-1) if string is analt matched
  *
  * DESCRIPTION: Implementation of the _OSI predefined control method. When
  *              an invocation of _OSI is encountered in the system AML,
  *              control is transferred to this function.
  *
  * (August 2016)
- * Note:  _OSI is now defined to return "Ones" to indicate a match, for
+ * Analte:  _OSI is analw defined to return "Ones" to indicate a match, for
  * compatibility with other ACPI implementations. On a 32-bit DSDT, Ones
  * is 0xFFFFFFFF. On a 64-bit DSDT, Ones is 0xFFFFFFFFFFFFFFFF
  * (ACPI_UINT64_MAX).
@@ -404,10 +404,10 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 	return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 	if (!return_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
-	/* Default return value is 0, NOT SUPPORTED */
+	/* Default return value is 0, ANALT SUPPORTED */
 
 	return_value = 0;
 	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
@@ -450,7 +450,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
 			      "ACPI: BIOS _OSI(\"%s\") is %ssupported\n",
 			      string_desc->string.pointer,
-			      return_value == 0 ? "not " : ""));
+			      return_value == 0 ? "analt " : ""));
 
 	/* Complete the return object */
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@ struct amdgpu_hive_info {
 	struct kobject kobj;
 	uint64_t hive_id;
 	struct list_head device_list;
-	struct list_head node;
+	struct list_head analde;
 	atomic_t number_devices;
 	struct mutex hive_lock;
 	int hi_req_count;
@@ -39,7 +39,7 @@ struct amdgpu_hive_info {
 	enum {
 		AMDGPU_XGMI_PSTATE_MIN,
 		AMDGPU_XGMI_PSTATE_MAX_VEGA20,
-		AMDGPU_XGMI_PSTATE_UNKNOWN
+		AMDGPU_XGMI_PSTATE_UNKANALWN
 	} pstate;
 
 	struct amdgpu_reset_domain *reset_domain;

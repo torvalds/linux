@@ -20,25 +20,25 @@
  *		and ppp_unregister_channel.
  * 040800 :	Respect reference count mechanisms on net-devices.
  * 200800 :	fix kfree(skb) in pppoe_rcv (acme)
- *		Module reference count is decremented in the right spot now,
- *		guards against sock_put not actually freeing the sk
+ *		Module reference count is decremented in the right spot analw,
+ *		guards against sock_put analt actually freeing the sk
  *		in pppoe_release.
  * 051000 :	Initialization cleanup.
  * 111100 :	Fix recvmsg.
  * 050101 :	Fix PADT processing.
  * 140501 :	Use pppoe_rcv_core to handle all backlog. (Alexey)
- * 170701 :	Do not lock_sock with rwlock held. (DaveM)
- *		Ignore discovery frames if user has socket
+ * 170701 :	Do analt lock_sock with rwlock held. (DaveM)
+ *		Iganalre discovery frames if user has socket
  *		locked. (DaveM)
- *		Ignore return value of dev_queue_xmit in __pppoe_xmit
+ *		Iganalre return value of dev_queue_xmit in __pppoe_xmit
  *		or else we may kfree an SKB twice. (DaveM)
  * 190701 :	When doing copies of skb's in __pppoe_xmit, always delete
  *		the original skb that was passed in on success, never on
  *		failure.  Delete the copy of the skb on failure to avoid
  *		a memory leak.
- * 081001 :	Misc. cleanup (licence string, non-blocking, prevent
+ * 081001 :	Misc. cleanup (licence string, analn-blocking, prevent
  *		reference of device on close).
- * 121301 :	New ppp channels interface; cannot unregister a channel
+ * 121301 :	New ppp channels interface; cananalt unregister a channel
  *		from interrupts.  Thus, we mark the socket as a ZOMBIE
  *		and do the unregistration later.
  * 081002 :	seq_file support for proc stuff -acme
@@ -56,7 +56,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/inetdevice.h>
@@ -68,7 +68,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
 #include <linux/ppp-ioctl.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -107,7 +107,7 @@ struct pppoe_net {
 /*
  * PPPoE could be in the following stages:
  * 1) Discovery stage (to obtain remote MAC and Session ID)
- * 2) Session stage (MAC and SID are known)
+ * 2) Session stage (MAC and SID are kanalwn)
  *
  * Ethernet frames have a special tag for this but
  * we use simpler approach based on session id
@@ -327,10 +327,10 @@ static void pppoe_flush_dev(struct net_device *dev)
 	write_unlock_bh(&pn->hash_lock);
 }
 
-static int pppoe_device_event(struct notifier_block *this,
+static int pppoe_device_event(struct analtifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	/* Only look at sockets that are using this specific device. */
 	switch (event) {
@@ -350,11 +350,11 @@ static int pppoe_device_event(struct notifier_block *this,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block pppoe_notifier = {
-	.notifier_call = pppoe_device_event,
+static struct analtifier_block pppoe_analtifier = {
+	.analtifier_call = pppoe_device_event,
 };
 
 /************************************************************************
@@ -441,8 +441,8 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	ph = pppoe_hdr(skb);
 	pn = pppoe_pernet(dev_net(dev));
 
-	/* Note that get_item does a sock_hold(), so sk_pppox(po)
-	 * is known to be safe.
+	/* Analte that get_item does a sock_hold(), so sk_pppox(po)
+	 * is kanalwn to be safe.
 	 */
 	po = get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (!po)
@@ -539,7 +539,7 @@ static int pppoe_create(struct net *net, struct socket *sock, int kern)
 
 	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppoe_sk_proto, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sock_init_data(sock, sk);
 
@@ -547,7 +547,7 @@ static int pppoe_create(struct net *net, struct socket *sock, int kern)
 	sock->ops	= &pppoe_ops;
 
 	sk->sk_backlog_rcv	= pppoe_rcv_core;
-	sk->sk_state		= PPPOX_NONE;
+	sk->sk_state		= PPPOX_ANALNE;
 	sk->sk_type		= SOCK_STREAM;
 	sk->sk_family		= PF_PPPOX;
 	sk->sk_protocol		= PX_PROTO_OE;
@@ -659,12 +659,12 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->next = NULL;
 		po->num = 0;
 
-		sk->sk_state = PPPOX_NONE;
+		sk->sk_state = PPPOX_ANALNE;
 	}
 
 	/* Re-bind in session stage only */
 	if (stage_session(sp->sa_addr.pppoe.sid)) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		net = sock_net(sk);
 		dev = dev_get_by_name(net, sp->sa_addr.pppoe.dev);
 		if (!dev)
@@ -788,7 +788,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		if (sk->sk_state & (PPPOX_BOUND | PPPOX_DEAD))
 			break;
 
-		err = -ENOTCONN;
+		err = -EANALTCONN;
 		if (!(sk->sk_state & PPPOX_CONNECTED))
 			break;
 
@@ -827,7 +827,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 	}
 
 	return err;
@@ -848,7 +848,7 @@ static int pppoe_sendmsg(struct socket *sock, struct msghdr *m,
 
 	lock_sock(sk);
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED)) {
-		error = -ENOTCONN;
+		error = -EANALTCONN;
 		goto end;
 	}
 
@@ -867,7 +867,7 @@ static int pppoe_sendmsg(struct socket *sock, struct msghdr *m,
 	skb = sock_wmalloc(sk, hlen + sizeof(*ph) + total_len +
 			   dev->needed_tailroom, 0, GFP_KERNEL);
 	if (!skb) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto end;
 	}
 
@@ -918,7 +918,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 	/* The higher-level PPP code (ppp_unregister_channel()) ensures the PPP
 	 * xmit operations conclude prior to an unregistration call.  Thus
-	 * sk->sk_state cannot change, so we don't need to do lock_sock().
+	 * sk->sk_state cananalt change, so we don't need to do lock_sock().
 	 * But, we also can't do a lock_sock since that introduces a potential
 	 * deadlock as we'd reverse the lock ordering used when calling
 	 * ppp_unregister_channel().
@@ -930,7 +930,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	if (!dev)
 		goto abort;
 
-	/* Copy the data if there is no space for the header or if it's
+	/* Copy the data if there is anal space for the header or if it's
 	 * read-only.
 	 */
 	if (skb_cow_head(skb, LL_RESERVED_SPACE(dev) + sizeof(*ph)))
@@ -1120,17 +1120,17 @@ static const struct proto_ops pppoe_ops = {
 	.family		= AF_PPPOX,
 	.owner		= THIS_MODULE,
 	.release	= pppoe_release,
-	.bind		= sock_no_bind,
+	.bind		= sock_anal_bind,
 	.connect	= pppoe_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
 	.getname	= pppoe_getname,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.sendmsg	= pppoe_sendmsg,
 	.recvmsg	= pppoe_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 	.ioctl		= pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= pppox_compat_ioctl,
@@ -1154,7 +1154,7 @@ static __net_init int pppoe_init_net(struct net *net)
 			&pppoe_seq_ops, sizeof(struct seq_net_private));
 #ifdef CONFIG_PROC_FS
 	if (!pde)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
 	return 0;
@@ -1190,7 +1190,7 @@ static int __init pppoe_init(void)
 
 	dev_add_pack(&pppoes_ptype);
 	dev_add_pack(&pppoed_ptype);
-	register_netdevice_notifier(&pppoe_notifier);
+	register_netdevice_analtifier(&pppoe_analtifier);
 
 	return 0;
 
@@ -1204,7 +1204,7 @@ out:
 
 static void __exit pppoe_exit(void)
 {
-	unregister_netdevice_notifier(&pppoe_notifier);
+	unregister_netdevice_analtifier(&pppoe_analtifier);
 	dev_remove_pack(&pppoed_ptype);
 	dev_remove_pack(&pppoes_ptype);
 	unregister_pppox_proto(PX_PROTO_OE);

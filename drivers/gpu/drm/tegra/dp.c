@@ -65,7 +65,7 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
  *
  * Returns:
  * 0 on success or one of the following negative error codes on failure:
- * - ENOSPC if the maximum number of supported rates has been reached
+ * - EANALSPC if the maximum number of supported rates has been reached
  * - EEXISTS if the link already supports this rate
  *
  * See also:
@@ -76,7 +76,7 @@ int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate)
 	unsigned int i, pivot;
 
 	if (link->num_rates == DP_MAX_SUPPORTED_RATES)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	for (pivot = 0; pivot < link->num_rates; pivot++)
 		if (rate <= link->rates[pivot])
@@ -103,7 +103,7 @@ int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate)
  *
  * Returns:
  * 0 on success or one of the following negative error codes on failure:
- * - EINVAL if the specified rate is not among the supported rates
+ * - EINVAL if the specified rate is analt among the supported rates
  *
  * See also:
  * drm_dp_link_add_rate()
@@ -130,12 +130,12 @@ int drm_dp_link_remove_rate(struct drm_dp_link *link, unsigned long rate)
 }
 
 /**
- * drm_dp_link_update_rates() - normalize the supported link rates array
- * @link: the link for which to normalize the supported link rates
+ * drm_dp_link_update_rates() - analrmalize the supported link rates array
+ * @link: the link for which to analrmalize the supported link rates
  *
  * Users should call this function after they've manually modified the array
  * of supported link rates. This function removes any stale entries, compacts
- * the array and updates the supported link rate count. Note that calling the
+ * the array and updates the supported link rate count. Analte that calling the
  * drm_dp_link_remove_rate() function already does this janitorial work.
  *
  * See also:
@@ -379,7 +379,7 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
  *
  * According to the eDP specification, a source should select a configuration
  * with the lowest number of lanes and the lowest possible link rate that can
- * match the bitrate requirements of a video mode. However it must ensure not
+ * match the bitrate requirements of a video mode. However it must ensure analt
  * to exceed the capabilities of the sink.
  *
  * Returns: 0 on success or a negative error code on failure.
@@ -850,7 +850,7 @@ out:
  * is expected that drivers will call drm_dp_link_probe() to obtain the link
  * capabilities before performing link training.
  *
- * If the sink supports fast link training (no AUX CH handshake) and valid
+ * If the sink supports fast link training (anal AUX CH handshake) and valid
  * training settings are available, this function will try to perform fast
  * link training and fall back to full link training on failure.
  *
@@ -871,10 +871,10 @@ int drm_dp_link_train(struct drm_dp_link *link)
 			else
 				return 0;
 		} else {
-			DRM_DEBUG_KMS("training parameters not available\n");
+			DRM_DEBUG_KMS("training parameters analt available\n");
 		}
 	} else {
-		DRM_DEBUG_KMS("fast link training not supported\n");
+		DRM_DEBUG_KMS("fast link training analt supported\n");
 	}
 
 	err = drm_dp_link_train_full(link);

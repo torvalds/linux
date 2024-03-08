@@ -9,10 +9,10 @@
 #ifndef __DT_BINDINGS_SAMSUNG_BOOT_MODE_H
 #define __DT_BINDINGS_SAMSUNG_BOOT_MODE_H
 
-/* Boot mode definitions for Exynos Auto v9 SoC */
+/* Boot mode definitions for Exyanals Auto v9 SoC */
 
-#define EXYNOSAUTOV9_BOOT_FASTBOOT	0xfa
-#define EXYNOSAUTOV9_BOOT_BOOTLOADER	0xfc
-#define EXYNOSAUTOV9_BOOT_RECOVERY	0xff
+#define EXYANALSAUTOV9_BOOT_FASTBOOT	0xfa
+#define EXYANALSAUTOV9_BOOT_BOOTLOADER	0xfc
+#define EXYANALSAUTOV9_BOOT_RECOVERY	0xff
 
 #endif /* __DT_BINDINGS_SAMSUNG_BOOT_MODE_H */

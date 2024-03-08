@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_X86_PROCESSOR_FLAGS_H
 #define _UAPI_ASM_X86_PROCESSOR_FLAGS_H
 /* Various flags defined: can be included from assembler. */
@@ -64,7 +64,7 @@
 #define X86_CR0_WP		_BITUL(X86_CR0_WP_BIT)
 #define X86_CR0_AM_BIT		18 /* Alignment Mask */
 #define X86_CR0_AM		_BITUL(X86_CR0_AM_BIT)
-#define X86_CR0_NW_BIT		29 /* Not Write-through */
+#define X86_CR0_NW_BIT		29 /* Analt Write-through */
 #define X86_CR0_NW		_BITUL(X86_CR0_NW_BIT)
 #define X86_CR0_CD_BIT		30 /* Cache Disable */
 #define X86_CR0_CD		_BITUL(X86_CR0_CD_BIT)
@@ -86,8 +86,8 @@
 #define X86_CR3_LAM_U57		_BITULL(X86_CR3_LAM_U57_BIT)
 #define X86_CR3_LAM_U48_BIT	62 /* Activate LAM for userspace, 62:48 bits masked */
 #define X86_CR3_LAM_U48		_BITULL(X86_CR3_LAM_U48_BIT)
-#define X86_CR3_PCID_NOFLUSH_BIT 63 /* Preserve old PCID */
-#define X86_CR3_PCID_NOFLUSH    _BITULL(X86_CR3_PCID_NOFLUSH_BIT)
+#define X86_CR3_PCID_ANALFLUSH_BIT 63 /* Preserve old PCID */
+#define X86_CR3_PCID_ANALFLUSH    _BITULL(X86_CR3_PCID_ANALFLUSH_BIT)
 
 /*
  * Intel CPU features in CR4
@@ -134,7 +134,7 @@
 #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
 #define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
 #define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
-#define X86_CR4_CET_BIT		23 /* enable Control-flow Enforcement Technology */
+#define X86_CR4_CET_BIT		23 /* enable Control-flow Enforcement Techanallogy */
 #define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
 #define X86_CR4_LAM_SUP_BIT	28 /* LAM for supervisor pointers */
 #define X86_CR4_LAM_SUP		_BITUL(X86_CR4_LAM_SUP_BIT)

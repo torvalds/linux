@@ -25,7 +25,7 @@ struct fsl_emb_pmu {
 
 	/*
 	 * The number of contiguous counters starting at zero that
-	 * can hold restricted events, or zero if there are no
+	 * can hold restricted events, or zero if there are anal
 	 * restricted events.
 	 *
 	 * This isn't a very flexible method of expressing constraints,

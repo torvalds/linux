@@ -50,11 +50,11 @@ static void kdf_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	derivedkey.data = kunit_kzalloc(test, param->expected_result->len,
 					GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, derivedkey.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, derivedkey.data);
 	derivedkey.len = param->expected_result->len;
 
 	/* Act */
@@ -84,27 +84,27 @@ static void checksum_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	Kc.len = gk5e->Kc_length;
 	Kc.data = kunit_kzalloc(test, Kc.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, Kc.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, Kc.data);
 	err = gk5e->derive_key(gk5e, param->base_key, &Kc,
 			       param->usage, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	tfm = crypto_alloc_ahash(gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, tfm);
 	err = crypto_ahash_setkey(tfm, Kc.data, Kc.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	buf.head[0].iov_base = kunit_kzalloc(test, buf.head[0].iov_len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf.head[0].iov_base);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf.head[0].iov_base);
 	memcpy(buf.head[0].iov_base, param->plaintext->data, buf.head[0].iov_len);
 
 	checksum.len = gk5e->cksumlength;
 	checksum.data = kunit_kzalloc(test, checksum.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, checksum.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, checksum.data);
 
 	/* Act */
 	err = gss_krb5_checksum(tfm, NULL, 0, &buf, 0, &checksum);
@@ -254,7 +254,7 @@ static const struct gss_krb5_test_param rfc3961_nfold_test_params[] = {
 		.expected_result	= &nfold_test4_expected_result,
 	},
 	{
-		.desc			= "192-fold(\"MASSACHVSETTS INSTITVTE OF TECHNOLOGY\")",
+		.desc			= "192-fold(\"MASSACHVSETTS INSTITVTE OF TECHANALLOGY\")",
 		.nfold			= 192,
 		.plaintext		= &nfold_test5_plaintext,
 		.expected_result	= &nfold_test5_expected_result,
@@ -307,7 +307,7 @@ static void rfc3961_nfold_case(struct kunit *test)
 
 	/* Arrange */
 	result = kunit_kzalloc(test, 4096, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, result);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, result);
 
 	/* Act */
 	krb5_nfold(param->plaintext->len * 8, param->plaintext->data,
@@ -521,7 +521,7 @@ KUNIT_ARRAY_PARAM(rfc3962_encrypt, rfc3962_encrypt_test_params,
 
 /*
  * This tests the implementation of the encryption part of the mechanism.
- * It does not apply a confounder or test the result of HMAC over the
+ * It does analt apply a confounder or test the result of HMAC over the
  * plaintext.
  */
 static void rfc3962_encrypt_case(struct kunit *test)
@@ -536,23 +536,23 @@ static void rfc3962_encrypt_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cbc_tfm);
 	err = crypto_sync_skcipher_setkey(cbc_tfm, param->Ke->data, param->Ke->len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cts_tfm = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cts_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cts_tfm);
 	err = crypto_sync_skcipher_setkey(cts_tfm, param->Ke->data, param->Ke->len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	iv = kunit_kzalloc(test, crypto_sync_skcipher_ivsize(cts_tfm), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, iv);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, iv);
 
 	text = kunit_kzalloc(test, param->plaintext->len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, text);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, text);
 
 	memcpy(text, param->plaintext->data, param->plaintext->len);
 	memset(&buf, 0, sizeof(buf));
@@ -730,7 +730,7 @@ DEFINE_HEX_XDR_NETOBJ(rfc6803_checksum_test1_expected_result,
 );
 
 DEFINE_STR_XDR_NETOBJ(rfc6803_checksum_test2_plaintext,
-		      "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		      "ABCDEFGHIJKLMANALPQRSTUVWXYZ");
 DEFINE_HEX_XDR_NETOBJ(rfc6803_checksum_test2_basekey,
 		      0x50, 0x27, 0xbc, 0x23, 0x1d, 0x0f, 0x3a, 0x9d,
 		      0x23, 0x33, 0x3f, 0x1c, 0xa6, 0xfd, 0xbe, 0x7c
@@ -1132,32 +1132,32 @@ static void rfc6803_encrypt_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	memset(usage_data, 0, sizeof(usage_data));
 	usage.data[3] = param->constant;
 
 	Ke.len = gk5e->Ke_length;
 	Ke.data = kunit_kzalloc(test, Ke.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, Ke.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, Ke.data);
 	usage.data[4] = KEY_USAGE_SEED_ENCRYPTION;
 	err = gk5e->derive_key(gk5e, param->base_key, &Ke, &usage, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cbc_tfm);
 	err = crypto_sync_skcipher_setkey(cbc_tfm, Ke.data, Ke.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cts_tfm = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cts_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cts_tfm);
 	err = crypto_sync_skcipher_setkey(cts_tfm, Ke.data, Ke.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	blocksize = crypto_sync_skcipher_blocksize(cts_tfm);
 
 	len = param->confounder->len + param->plaintext->len + blocksize;
 	text = kunit_kzalloc(test, len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, text);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, text);
 	memcpy(text, param->confounder->data, param->confounder->len);
 	memcpy(text + param->confounder->len, param->plaintext->data,
 	       param->plaintext->len);
@@ -1169,17 +1169,17 @@ static void rfc6803_encrypt_case(struct kunit *test)
 
 	checksum.len = gk5e->cksumlength;
 	checksum.data = kunit_kzalloc(test, checksum.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, checksum.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, checksum.data);
 
 	Ki.len = gk5e->Ki_length;
 	Ki.data = kunit_kzalloc(test, Ki.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, Ki.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, Ki.data);
 	usage.data[4] = KEY_USAGE_SEED_INTEGRITY;
 	err = gk5e->derive_key(gk5e, param->base_key, &Ki,
 			       &usage, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
 	ahash_tfm = crypto_alloc_ahash(gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ahash_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ahash_tfm);
 	err = crypto_ahash_setkey(ahash_tfm, Ki.data, Ki.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
@@ -1626,31 +1626,31 @@ static void rfc8009_encrypt_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	*(__be32 *)usage.data = cpu_to_be32(2);
 
 	Ke.len = gk5e->Ke_length;
 	Ke.data = kunit_kzalloc(test, Ke.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, Ke.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, Ke.data);
 	usage.data[4] = KEY_USAGE_SEED_ENCRYPTION;
 	err = gk5e->derive_key(gk5e, param->base_key, &Ke,
 			       &usage, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cbc_tfm);
 	err = crypto_sync_skcipher_setkey(cbc_tfm, Ke.data, Ke.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cts_tfm = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cts_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cts_tfm);
 	err = crypto_sync_skcipher_setkey(cts_tfm, Ke.data, Ke.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	len = param->confounder->len + param->plaintext->len;
 	text = kunit_kzalloc(test, len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, text);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, text);
 	memcpy(text, param->confounder->data, param->confounder->len);
 	memcpy(text + param->confounder->len, param->plaintext->data,
 	       param->plaintext->len);
@@ -1662,18 +1662,18 @@ static void rfc8009_encrypt_case(struct kunit *test)
 
 	checksum.len = gk5e->cksumlength;
 	checksum.data = kunit_kzalloc(test, checksum.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, checksum.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, checksum.data);
 
 	Ki.len = gk5e->Ki_length;
 	Ki.data = kunit_kzalloc(test, Ki.len, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, Ki.data);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, Ki.data);
 	usage.data[4] = KEY_USAGE_SEED_INTEGRITY;
 	err = gk5e->derive_key(gk5e, param->base_key, &Ki,
 			       &usage, GFP_KERNEL);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	ahash_tfm = crypto_alloc_ahash(gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ahash_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ahash_tfm);
 	err = crypto_ahash_setkey(ahash_tfm, Ki.data, Ki.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
@@ -1778,7 +1778,7 @@ KUNIT_ARRAY_PARAM(encrypt_selftest, encrypt_selftest_params,
 
 /*
  * Encrypt and decrypt plaintext, and ensure the input plaintext
- * matches the output plaintext. A confounder is not added in this
+ * matches the output plaintext. A confounder is analt added in this
  * case.
  */
 static void encrypt_selftest_case(struct kunit *test)
@@ -1793,22 +1793,22 @@ static void encrypt_selftest_case(struct kunit *test)
 	/* Arrange */
 	gk5e = gss_krb5_lookup_enctype(param->enctype);
 	if (!gk5e)
-		kunit_skip(test, "Encryption type is not available");
+		kunit_skip(test, "Encryption type is analt available");
 
 	cbc_tfm = crypto_alloc_sync_skcipher(gk5e->aux_cipher, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cbc_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cbc_tfm);
 	err = crypto_sync_skcipher_setkey(cbc_tfm, param->Ke->data, param->Ke->len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	cts_tfm = crypto_alloc_sync_skcipher(gk5e->encrypt_name, 0, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cts_tfm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, cts_tfm);
 	err = crypto_sync_skcipher_setkey(cts_tfm, param->Ke->data, param->Ke->len);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	text = kunit_kzalloc(test, roundup(param->plaintext->len,
 					   crypto_sync_skcipher_blocksize(cbc_tfm)),
 			     GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, text);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, text);
 
 	memcpy(text, param->plaintext->data, param->plaintext->len);
 	memset(&buf, 0, sizeof(buf));

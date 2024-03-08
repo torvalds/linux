@@ -285,7 +285,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int err;
 
 	if (!(grip = kzalloc(sizeof(struct grip), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	grip->gameport = gameport;
 
@@ -315,7 +315,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 	}
 
 	if (!grip->mode[0] && !grip->mode[1]) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail2;
 	}
 
@@ -328,7 +328,7 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 		grip->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail3;
 		}
 

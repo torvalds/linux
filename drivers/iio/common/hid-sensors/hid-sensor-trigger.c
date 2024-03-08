@@ -118,7 +118,7 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 		report_val = hid_sensor_get_usage_index(st->hsdev,
 			st->report_state.report_id,
 			st->report_state.index,
-			HID_USAGE_SENSOR_PROP_REPORTING_STATE_NO_EVENTS_ENUM);
+			HID_USAGE_SENSOR_PROP_REPORTING_STATE_ANAL_EVENTS_ENUM);
 	}
 
 	if (state_val >= 0) {
@@ -253,7 +253,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 				 "%s-dev%d", name, iio_device_id(indio_dev));
 	if (trig == NULL) {
 		dev_err(&indio_dev->dev, "Trigger Allocate Failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_triggered_buffer_cleanup;
 	}
 
@@ -276,7 +276,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 
 	INIT_WORK(&attrb->work, hid_sensor_set_power_work);
 
-	pm_suspend_ignore_children(&attrb->pdev->dev, true);
+	pm_suspend_iganalre_children(&attrb->pdev->dev, true);
 	/* Default to 3 seconds, but can be changed from sysfs */
 	pm_runtime_set_autosuspend_delay(&attrb->pdev->dev,
 					 3000);

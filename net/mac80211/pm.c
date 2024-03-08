@@ -72,7 +72,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	del_timer_sync(&local->sta_cleanup);
 
 	 /*
-	 * Note that this particular timer doesn't need to be
+	 * Analte that this particular timer doesn't need to be
 	 * restarted at resume.
 	 */
 	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);

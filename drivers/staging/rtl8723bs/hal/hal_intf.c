@@ -90,8 +90,8 @@ uint rtw_hal_init(struct adapter *padapter)
 
 		dvobj->padapters->hw_init_completed = true;
 
-		if (padapter->registrypriv.notch_filter == 1)
-			rtw_hal_notch_filter(padapter, 1);
+		if (padapter->registrypriv.analtch_filter == 1)
+			rtw_hal_analtch_filter(padapter, 1);
 
 		rtw_hal_reset_security_engine(padapter);
 
@@ -369,10 +369,10 @@ s32 rtw_hal_xmit_thread_handler(struct adapter *padapter)
 	return _FAIL;
 }
 
-void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
+void rtw_hal_analtch_filter(struct adapter *adapter, bool enable)
 {
-	if (adapter->HalFunc.hal_notch_filter)
-		adapter->HalFunc.hal_notch_filter(adapter, enable);
+	if (adapter->HalFunc.hal_analtch_filter)
+		adapter->HalFunc.hal_analtch_filter(adapter, enable);
 }
 
 void rtw_hal_reset_security_engine(struct adapter *adapter)

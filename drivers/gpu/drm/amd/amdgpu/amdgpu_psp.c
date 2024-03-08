@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -84,7 +84,7 @@ static int psp_ring_init(struct psp_context *psp,
  *   - Load tOS
  *   - Load PMFW
  *   - Setup TMR
- *   - Load other non-psp fw
+ *   - Load other analn-psp fw
  *   - Load ASD
  *   - Load XGMI/RAS/HDCP/DTM TA if any
  *
@@ -280,7 +280,7 @@ static void psp_memory_training_fini(struct psp_context *psp)
 {
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
 
-	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
+	ctx->init = PSP_MEM_TRAIN_ANALT_SUPPORT;
 	kfree(ctx->sys_cache);
 	ctx->sys_cache = NULL;
 }
@@ -291,14 +291,14 @@ static int psp_memory_training_init(struct psp_context *psp)
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
 
 	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
-		DRM_DEBUG("memory training is not supported!\n");
+		DRM_DEBUG("memory training is analt supported!\n");
 		return 0;
 	}
 
 	ctx->sys_cache = kzalloc(ctx->train_data_size, GFP_KERNEL);
 	if (ctx->sys_cache == NULL) {
 		DRM_ERROR("alloc mem_train_ctx.sys_cache failed!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto Err_out;
 	}
 
@@ -408,7 +408,7 @@ static int psp_sw_init(void *handle)
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd) {
 		DRM_ERROR("Failed to allocate memory to command buffer!\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	adev->psp.xgmi_context.supports_extended_data =
@@ -543,7 +543,7 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp->adev->no_hw_access)
+	if (psp->adev->anal_hw_access)
 		return 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -568,7 +568,7 @@ int psp_wait_for_spirom_update(struct psp_context *psp, uint32_t reg_index,
 	int i;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp->adev->no_hw_access)
+	if (psp->adev->anal_hw_access)
 		return 0;
 
 	for (i = 0; i < msec_timeout; i++) {
@@ -615,7 +615,7 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 	case GFX_CMD_ID_BOOT_CFG:
 		return "BOOT_CFG";
 	default:
-		return "UNKNOWN CMD";
+		return "UNKANALWN CMD";
 	}
 }
 
@@ -630,7 +630,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
-	if (psp->adev->no_hw_access)
+	if (psp->adev->anal_hw_access)
 		return 0;
 
 	memset(psp->cmd_buf_mem, 0, PSP_CMD_BUFFER_SIZE);
@@ -660,13 +660,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	}
 
-	/* We allow TEE_ERROR_NOT_SUPPORTED for VMR command and PSP_ERR_UNKNOWN_COMMAND in SRIOV */
-	skip_unsupport = (psp->cmd_buf_mem->resp.status == TEE_ERROR_NOT_SUPPORTED ||
-		psp->cmd_buf_mem->resp.status == PSP_ERR_UNKNOWN_COMMAND) && amdgpu_sriov_vf(psp->adev);
+	/* We allow TEE_ERROR_ANALT_SUPPORTED for VMR command and PSP_ERR_UNKANALWN_COMMAND in SRIOV */
+	skip_unsupport = (psp->cmd_buf_mem->resp.status == TEE_ERROR_ANALT_SUPPORTED ||
+		psp->cmd_buf_mem->resp.status == PSP_ERR_UNKANALWN_COMMAND) && amdgpu_sriov_vf(psp->adev);
 
 	memcpy(&cmd->resp, &psp->cmd_buf_mem->resp, sizeof(struct psp_gfx_resp));
 
-	/* In some cases, psp response status is not 0 even there is no
+	/* In some cases, psp response status is analt 0 even there is anal
 	 * problem while the command is submitted. Some version of PSP FW
 	 * doesn't write 0 to that field.
 	 * So here we would like to only print a warning instead of an error
@@ -793,7 +793,7 @@ static int psp_tmr_init(struct psp_context *psp)
 	 * According to HW engineer, they prefer the TMR address be "naturally
 	 * aligned" , e.g. the start address be an integer divide of TMR size.
 	 *
-	 * Note: this memory need be reserved till the driver
+	 * Analte: this memory need be reserved till the driver
 	 * uninitializes.
 	 */
 	tmr_size = PSP_TMR_SIZE(psp->adev);
@@ -845,7 +845,7 @@ static int psp_tmr_load(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
-	/* For Navi12 and CHIP_SIENNA_CICHLID SRIOV, do not set up TMR.
+	/* For Navi12 and CHIP_SIENNA_CICHLID SRIOV, do analt set up TMR.
 	 * Already set up by host driver.
 	 */
 	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
@@ -881,7 +881,7 @@ static int psp_tmr_unload(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/* skip TMR unload for Navi12 and CHIP_SIENNA_CICHLID SRIOV,
-	 * as TMR is not loaded at all
+	 * as TMR is analt loaded at all
 	 */
 	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
 		return 0;
@@ -1034,7 +1034,7 @@ static int psp_asd_initialize(struct psp_context *psp)
 	int ret;
 
 	/* If PSP version doesn't match ASD version, asd loading will be failed.
-	 * add workaround to bypass it for sriov now.
+	 * add workaround to bypass it for sriov analw.
 	 * TODO: add version check to make it common
 	 */
 	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_context.bin_desc.size_bytes)
@@ -1214,7 +1214,7 @@ int psp_xgmi_terminate(struct psp_context *psp)
 	int ret;
 	struct amdgpu_device *adev = psp->adev;
 
-	/* XGMI TA unload currently is not supported on Arcturus/Aldebaran A+A */
+	/* XGMI TA unload currently is analt supported on Arcturus/Aldebaran A+A */
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(11, 0, 4) ||
 	    (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 2) &&
 	     adev->gmc.xgmi.connected_to_cpu))
@@ -1238,7 +1238,7 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 	if (!psp->ta_fw ||
 	    !psp->xgmi_context.context.bin_desc.size_bytes ||
 	    !psp->xgmi_context.context.bin_desc.start_addr)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!load_ta)
 		goto invoke;
@@ -1267,7 +1267,7 @@ invoke:
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__INITIALIZE;
 
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
-	/* note down the capbility flag for XGMI TA */
+	/* analte down the capbility flag for XGMI TA */
 	psp->xgmi_context.xgmi_ta_caps = xgmi_cmd->caps_flag;
 
 	return ret;
@@ -1293,7 +1293,7 @@ int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
 	return 0;
 }
 
-int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
+int psp_xgmi_get_analde_id(struct psp_context *psp, uint64_t *analde_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -1301,14 +1301,14 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
 	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
-	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_ANALDE_ID;
 
-	/* Invoke xgmi ta to get the node id */
+	/* Invoke xgmi ta to get the analde id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
 		return ret;
 
-	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+	*analde_id = xgmi_cmd->xgmi_out_message.get_analde_id.analde_id;
 
 	return 0;
 }
@@ -1330,36 +1330,36 @@ static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
  * multiple fetches instead of just two.
  */
 static void psp_xgmi_reflect_topology_info(struct psp_context *psp,
-					struct psp_xgmi_node_info node_info)
+					struct psp_xgmi_analde_info analde_info)
 {
 	struct amdgpu_device *mirror_adev;
 	struct amdgpu_hive_info *hive;
-	uint64_t src_node_id = psp->adev->gmc.xgmi.node_id;
-	uint64_t dst_node_id = node_info.node_id;
-	uint8_t dst_num_hops = node_info.num_hops;
-	uint8_t dst_num_links = node_info.num_links;
+	uint64_t src_analde_id = psp->adev->gmc.xgmi.analde_id;
+	uint64_t dst_analde_id = analde_info.analde_id;
+	uint8_t dst_num_hops = analde_info.num_hops;
+	uint8_t dst_num_links = analde_info.num_links;
 
 	hive = amdgpu_get_xgmi_hive(psp->adev);
 	list_for_each_entry(mirror_adev, &hive->device_list, gmc.xgmi.head) {
 		struct psp_xgmi_topology_info *mirror_top_info;
 		int j;
 
-		if (mirror_adev->gmc.xgmi.node_id != dst_node_id)
+		if (mirror_adev->gmc.xgmi.analde_id != dst_analde_id)
 			continue;
 
 		mirror_top_info = &mirror_adev->psp.xgmi_context.top_info;
-		for (j = 0; j < mirror_top_info->num_nodes; j++) {
-			if (mirror_top_info->nodes[j].node_id != src_node_id)
+		for (j = 0; j < mirror_top_info->num_analdes; j++) {
+			if (mirror_top_info->analdes[j].analde_id != src_analde_id)
 				continue;
 
-			mirror_top_info->nodes[j].num_hops = dst_num_hops;
+			mirror_top_info->analdes[j].num_hops = dst_num_hops;
 			/*
 			 * prevent 0 num_links value re-reflection since reflection
 			 * criteria is based on num_hops (direct or indirect).
 			 *
 			 */
 			if (dst_num_links)
-				mirror_top_info->nodes[j].num_links = dst_num_links;
+				mirror_top_info->analdes[j].num_links = dst_num_links;
 
 			break;
 		}
@@ -1381,7 +1381,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	int i;
 	int ret;
 
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+	if (!topology || topology->num_analdes > TA_XGMI__MAX_CONNECTED_ANALDES)
 		return -EINVAL;
 
 	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
@@ -1391,13 +1391,13 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	/* Fill in the shared memory with topology information as input */
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
+	topology_info_input->num_analdes = number_devices;
 
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	for (i = 0; i < topology_info_input->num_analdes; i++) {
+		topology_info_input->analdes[i].analde_id = topology->analdes[i].analde_id;
+		topology_info_input->analdes[i].num_hops = topology->analdes[i].num_hops;
+		topology_info_input->analdes[i].is_sharing_enabled = topology->analdes[i].is_sharing_enabled;
+		topology_info_input->analdes[i].sdma_engine = topology->analdes[i].sdma_engine;
 	}
 
 	/* Invoke xgmi ta to get the topology information */
@@ -1407,19 +1407,19 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 
 	/* Read the output topology information from the shared memory */
 	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
-	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
-	for (i = 0; i < topology->num_nodes; i++) {
-		/* extended data will either be 0 or equal to non-extended data */
-		if (topology_info_output->nodes[i].num_hops)
-			topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
+	topology->num_analdes = xgmi_cmd->xgmi_out_message.get_topology_info.num_analdes;
+	for (i = 0; i < topology->num_analdes; i++) {
+		/* extended data will either be 0 or equal to analn-extended data */
+		if (topology_info_output->analdes[i].num_hops)
+			topology->analdes[i].num_hops = topology_info_output->analdes[i].num_hops;
 
-		/* non-extended data gets everything here so no need to update */
+		/* analn-extended data gets everything here so anal need to update */
 		if (!get_extended_data) {
-			topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
-			topology->nodes[i].is_sharing_enabled =
-					topology_info_output->nodes[i].is_sharing_enabled;
-			topology->nodes[i].sdma_engine =
-					topology_info_output->nodes[i].sdma_engine;
+			topology->analdes[i].analde_id = topology_info_output->analdes[i].analde_id;
+			topology->analdes[i].is_sharing_enabled =
+					topology_info_output->analdes[i].is_sharing_enabled;
+			topology->analdes[i].sdma_engine =
+					topology_info_output->analdes[i].sdma_engine;
 		}
 
 	}
@@ -1437,25 +1437,25 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 				psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG;
 
 		/* popluate the shared output buffer rather than the cmd input buffer
-		 * with node_ids as the input for GET_PEER_LINKS command execution.
+		 * with analde_ids as the input for GET_PEER_LINKS command execution.
 		 * This is required for GET_PEER_LINKS per xgmi ta implementation.
 		 * The same requirement for GET_EXTEND_PEER_LINKS command.
 		 */
 		if (ta_port_num_support) {
 			link_extend_info_output = &xgmi_cmd->xgmi_out_message.get_extend_link_info;
 
-			for (i = 0; i < topology->num_nodes; i++)
-				link_extend_info_output->nodes[i].node_id = topology->nodes[i].node_id;
+			for (i = 0; i < topology->num_analdes; i++)
+				link_extend_info_output->analdes[i].analde_id = topology->analdes[i].analde_id;
 
-			link_extend_info_output->num_nodes = topology->num_nodes;
+			link_extend_info_output->num_analdes = topology->num_analdes;
 			xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_EXTEND_PEER_LINKS;
 		} else {
 			link_info_output = &xgmi_cmd->xgmi_out_message.get_link_info;
 
-			for (i = 0; i < topology->num_nodes; i++)
-				link_info_output->nodes[i].node_id = topology->nodes[i].node_id;
+			for (i = 0; i < topology->num_analdes; i++)
+				link_info_output->analdes[i].analde_id = topology->analdes[i].analde_id;
 
-			link_info_output->num_nodes = topology->num_nodes;
+			link_info_output->num_analdes = topology->num_analdes;
 			xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
 		}
 
@@ -1463,25 +1463,25 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 		if (ret)
 			return ret;
 
-		for (i = 0; i < topology->num_nodes; i++) {
-			uint8_t node_num_links = ta_port_num_support ?
-				link_extend_info_output->nodes[i].num_links : link_info_output->nodes[i].num_links;
+		for (i = 0; i < topology->num_analdes; i++) {
+			uint8_t analde_num_links = ta_port_num_support ?
+				link_extend_info_output->analdes[i].num_links : link_info_output->analdes[i].num_links;
 			/* accumulate num_links on extended data */
 			if (get_extended_data) {
-				topology->nodes[i].num_links = topology->nodes[i].num_links + node_num_links;
+				topology->analdes[i].num_links = topology->analdes[i].num_links + analde_num_links;
 			} else {
-				topology->nodes[i].num_links = (requires_reflection && topology->nodes[i].num_links) ?
-								topology->nodes[i].num_links : node_num_links;
+				topology->analdes[i].num_links = (requires_reflection && topology->analdes[i].num_links) ?
+								topology->analdes[i].num_links : analde_num_links;
 			}
 			/* popluate the connected port num info if supported and available */
-			if (ta_port_num_support && topology->nodes[i].num_links) {
-				memcpy(topology->nodes[i].port_num, link_extend_info_output->nodes[i].port_num,
+			if (ta_port_num_support && topology->analdes[i].num_links) {
+				memcpy(topology->analdes[i].port_num, link_extend_info_output->analdes[i].port_num,
 				       sizeof(struct xgmi_connected_port_num) * TA_XGMI__MAX_PORT_NUM);
 			}
 
 			/* reflect the topology information for bi-directionality */
-			if (requires_reflection && topology->nodes[i].num_hops)
-				psp_xgmi_reflect_topology_info(psp, topology->nodes[i]);
+			if (requires_reflection && topology->analdes[i].num_hops)
+				psp_xgmi_reflect_topology_info(psp, topology->analdes[i]);
 		}
 	}
 
@@ -1496,7 +1496,7 @@ int psp_xgmi_set_topology_info(struct psp_context *psp,
 	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
 	int i;
 
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+	if (!topology || topology->num_analdes > TA_XGMI__MAX_CONNECTED_ANALDES)
 		return -EINVAL;
 
 	xgmi_cmd = (struct ta_xgmi_shared_memory *)psp->xgmi_context.context.mem_context.shared_buf;
@@ -1504,13 +1504,13 @@ int psp_xgmi_set_topology_info(struct psp_context *psp,
 
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
+	topology_info_input->num_analdes = number_devices;
 
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = 1;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	for (i = 0; i < topology_info_input->num_analdes; i++) {
+		topology_info_input->analdes[i].analde_id = topology->analdes[i].analde_id;
+		topology_info_input->analdes[i].num_hops = topology->analdes[i].num_hops;
+		topology_info_input->analdes[i].is_sharing_enabled = 1;
+		topology_info_input->analdes[i].sdma_engine = topology->analdes[i].sdma_engine;
 	}
 
 	/* Invoke xgmi ta to set topology information */
@@ -1537,7 +1537,7 @@ static void psp_ras_ta_check_status(struct psp_context *psp)
 	case TA_RAS_STATUS__TEE_ERROR_ACCESS_DENIED:
 		if (ras_cmd->cmd_id == TA_RAS_COMMAND__TRIGGER_ERROR)
 			dev_warn(psp->adev->dev,
-					"RAS WARNING: Inject error to critical region is not allowed\n");
+					"RAS WARNING: Inject error to critical region is analt allowed\n");
 		break;
 	default:
 		dev_warn(psp->adev->dev,
@@ -1554,7 +1554,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1573,7 +1573,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 		if (ras_cmd->ras_out_message.flags.err_inject_switch_disable_flag) {
 			dev_warn(psp->adev->dev, "ECC switch disabled\n");
 
-			ras_cmd->ras_status = TA_RAS_STATUS__ERROR_RAS_NOT_AVAILABLE;
+			ras_cmd->ras_status = TA_RAS_STATUS__ERROR_RAS_ANALT_AVAILABLE;
 		} else if (ras_cmd->ras_out_message.flags.reg_access_failure_flag)
 			dev_warn(psp->adev->dev,
 				 "RAS internal register access blocked\n");
@@ -1615,7 +1615,7 @@ int psp_ras_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1638,14 +1638,14 @@ int psp_ras_initialize(struct psp_context *psp)
 	struct ta_ras_shared_memory *ras_cmd;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
 	if (!adev->psp.ras_context.context.bin_desc.size_bytes ||
 	    !adev->psp.ras_context.context.bin_desc.start_addr) {
-		dev_info(adev->dev, "RAS: optional ras ta ucode is not available\n");
+		dev_info(adev->dev, "RAS: optional ras ta ucode is analt available\n");
 		return 0;
 	}
 
@@ -1767,7 +1767,7 @@ int psp_ras_trigger_error(struct psp_context *psp,
 		return -EINVAL;
 
 	/* If err_event_athub occurs error inject was successful, however
-	 *  return status from TA is no long reliable
+	 *  return status from TA is anal long reliable
 	 */
 	if (amdgpu_ras_intr_triggered())
 		return 0;
@@ -1787,14 +1787,14 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->hdcp_context.context.bin_desc.size_bytes ||
 	    !psp->hdcp_context.context.bin_desc.start_addr) {
-		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is not available\n");
+		dev_info(psp->adev->dev, "HDCP: optional hdcp ta ucode is analt available\n");
 		return 0;
 	}
 
@@ -1819,7 +1819,7 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1832,7 +1832,7 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1854,14 +1854,14 @@ static int psp_dtm_initialize(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->dtm_context.context.bin_desc.size_bytes ||
 	    !psp->dtm_context.context.bin_desc.start_addr) {
-		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is not available\n");
+		dev_info(psp->adev->dev, "DTM: optional dtm ta ucode is analt available\n");
 		return 0;
 	}
 
@@ -1886,7 +1886,7 @@ static int psp_dtm_initialize(struct psp_context *psp)
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 {
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1899,7 +1899,7 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1922,14 +1922,14 @@ static int psp_rap_initialize(struct psp_context *psp)
 	enum ta_rap_status status = TA_RAP_STATUS__SUCCESS;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->rap_context.context.bin_desc.size_bytes ||
 	    !psp->rap_context.context.bin_desc.start_addr) {
-		dev_info(psp->adev->dev, "RAP: optional rap ta ucode is not available\n");
+		dev_info(psp->adev->dev, "RAP: optional rap ta ucode is analt available\n");
 		return 0;
 	}
 
@@ -2020,14 +2020,14 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 	struct ta_securedisplay_cmd *securedisplay_cmd;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->securedisplay_context.context.bin_desc.size_bytes ||
 	    !psp->securedisplay_context.context.bin_desc.start_addr) {
-		dev_info(psp->adev->dev, "SECUREDISPLAY: securedisplay ta ucode is not available\n");
+		dev_info(psp->adev->dev, "SECUREDISPLAY: securedisplay ta ucode is analt available\n");
 		return 0;
 	}
 
@@ -2082,7 +2082,7 @@ static int psp_securedisplay_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO:bypass the terminate in sriov for now
+	 * TODO:bypass the terminate in sriov for analw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -2240,7 +2240,7 @@ skip_pin_bo:
 	/*
 	 * For ASICs with DF Cstate management centralized
 	 * to PMFW, TMR setup should be performed after PMFW
-	 * loaded and before other non-psp firmware loaded.
+	 * loaded and before other analn-psp firmware loaded.
 	 */
 	if (psp->pmfw_centralized_cstate_management) {
 		ret = psp_load_smu_fw(psp);
@@ -2531,7 +2531,7 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 
 	ret = psp_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
 	if (ret)
-		DRM_ERROR("Unknown firmware type\n");
+		DRM_ERROR("Unkanalwn firmware type\n");
 
 	return ret;
 }
@@ -2656,7 +2656,7 @@ int psp_load_fw_list(struct psp_context *psp,
 	return ret;
 }
 
-static int psp_load_non_psp_fw(struct psp_context *psp)
+static int psp_load_analn_psp_fw(struct psp_context *psp)
 {
 	int i, ret;
 	struct amdgpu_firmware_info *ucode;
@@ -2727,7 +2727,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev)) {
-		/* should not destroy ring, only stop */
+		/* should analt destroy ring, only stop */
 		psp_ring_stop(psp, PSP_RING_TYPE__KM);
 	} else {
 		memset(psp->fence_buf, 0, PSP_FENCE_BUFFER_SIZE);
@@ -2743,7 +2743,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (ret)
 		goto failed;
 
-	ret = psp_load_non_psp_fw(psp);
+	ret = psp_load_analn_psp_fw(psp);
 	if (ret)
 		goto failed1;
 
@@ -2760,7 +2760,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev)) {
-		if (adev->gmc.xgmi.num_physical_nodes > 1) {
+		if (adev->gmc.xgmi.num_physical_analdes > 1) {
 			ret = psp_xgmi_initialize(psp, false, true);
 			/* Warning the XGMI seesion initialize failure
 			 * Instead of stop driver initialization
@@ -2819,7 +2819,7 @@ static int psp_hw_init(void *handle)
 
 	mutex_lock(&adev->firmware.mutex);
 	/*
-	 * This sequence is just used on hw_init only once, no need on
+	 * This sequence is just used on hw_init only once, anal need on
 	 * resume.
 	 */
 	ret = amdgpu_ucode_init_bo(adev);
@@ -2853,7 +2853,7 @@ static int psp_hw_fini(void *handle)
 		psp_dtm_terminate(psp);
 		psp_hdcp_terminate(psp);
 
-		if (adev->gmc.xgmi.num_physical_nodes > 1)
+		if (adev->gmc.xgmi.num_physical_analdes > 1)
 			psp_xgmi_terminate(psp);
 	}
 
@@ -2871,7 +2871,7 @@ static int psp_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	if (adev->gmc.xgmi.num_physical_analdes > 1 &&
 	    psp->xgmi_context.context.initialized) {
 		ret = psp_xgmi_terminate(psp);
 		if (ret) {
@@ -2950,7 +2950,7 @@ static int psp_resume(void *handle)
 	if (ret)
 		goto failed;
 
-	ret = psp_load_non_psp_fw(psp);
+	ret = psp_load_analn_psp_fw(psp);
 	if (ret)
 		goto failed;
 
@@ -2966,7 +2966,7 @@ static int psp_resume(void *handle)
 		goto failed;
 	}
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if (adev->gmc.xgmi.num_physical_analdes > 1) {
 		ret = psp_xgmi_initialize(psp, false, true);
 		/* Warning the XGMI seesion initialize failure
 		 * Instead of stop driver initialization
@@ -3260,7 +3260,7 @@ static int psp_init_sos_base_fw(struct amdgpu_device *adev)
 	}
 
 	if ((adev->psp.sys.size_bytes == 0) || (adev->psp.sos.size_bytes == 0)) {
-		dev_warn(adev->dev, "PSP SOS FW not available");
+		dev_warn(adev->dev, "PSP SOS FW analt available");
 		return -EINVAL;
 	}
 
@@ -3296,7 +3296,7 @@ int psp_init_sos_microcode(struct psp_context *psp, const char *chip_name)
 		if (err)
 			goto out;
 
-		if (sos_hdr->header.header_version_minor == 1) {
+		if (sos_hdr->header.header_version_mianalr == 1) {
 			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
 			adev->psp.toc.size_bytes = le32_to_cpu(sos_hdr_v1_1->toc.size_bytes);
 			adev->psp.toc.start_addr = (uint8_t *)adev->psp.sys.start_addr +
@@ -3305,13 +3305,13 @@ int psp_init_sos_microcode(struct psp_context *psp, const char *chip_name)
 			adev->psp.kdb.start_addr = (uint8_t *)adev->psp.sys.start_addr +
 					le32_to_cpu(sos_hdr_v1_1->kdb.offset_bytes);
 		}
-		if (sos_hdr->header.header_version_minor == 2) {
+		if (sos_hdr->header.header_version_mianalr == 2) {
 			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
 			adev->psp.kdb.size_bytes = le32_to_cpu(sos_hdr_v1_2->kdb.size_bytes);
 			adev->psp.kdb.start_addr = (uint8_t *)adev->psp.sys.start_addr +
 						    le32_to_cpu(sos_hdr_v1_2->kdb.offset_bytes);
 		}
-		if (sos_hdr->header.header_version_minor == 3) {
+		if (sos_hdr->header.header_version_mianalr == 3) {
 			sos_hdr_v1_3 = (const struct psp_firmware_header_v1_3 *)adev->psp.sos_fw->data;
 			adev->psp.toc.size_bytes = le32_to_cpu(sos_hdr_v1_3->v1_1.toc.size_bytes);
 			adev->psp.toc.start_addr = ucode_array_start_addr +
@@ -3549,8 +3549,8 @@ int psp_init_cap_microcode(struct psp_context *psp, const char *chip_name)
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_cap.bin", chip_name);
 	err = amdgpu_ucode_request(adev, &adev->psp.cap_fw, fw_name);
 	if (err) {
-		if (err == -ENODEV) {
-			dev_warn(adev->dev, "cap microcode does not exist, skip\n");
+		if (err == -EANALDEV) {
+			dev_warn(adev->dev, "cap microcode does analt exist, skip\n");
 			err = 0;
 			goto out;
 		}
@@ -3597,7 +3597,7 @@ static ssize_t psp_usbc_pd_fw_sysfs_read(struct device *dev,
 	int ret;
 
 	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
-		DRM_INFO("PSP block is not ready yet.");
+		DRM_INFO("PSP block is analt ready yet.");
 		return -EBUSY;
 	}
 
@@ -3628,12 +3628,12 @@ static ssize_t psp_usbc_pd_fw_sysfs_write(struct device *dev,
 	void *fw_pri_cpu_addr;
 
 	if (!adev->ip_blocks[AMD_IP_BLOCK_TYPE_PSP].status.late_initialized) {
-		DRM_INFO("PSP block is not ready yet.");
+		DRM_INFO("PSP block is analt ready yet.");
 		return -EBUSY;
 	}
 
 	if (!drm_dev_enter(ddev, &idx))
-		return -ENODEV;
+		return -EANALDEV;
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s", buf);
 	ret = request_firmware(&usbc_pd_fw, fw_name, adev->dev);
@@ -3708,18 +3708,18 @@ static ssize_t amdgpu_psp_vbflash_write(struct file *filp, struct kobject *kobj,
 
 	/* Safeguard against memory drain */
 	if (adev->psp.vbflash_image_size > AMD_VBIOS_FILE_MAX_SIZE_B) {
-		dev_err(adev->dev, "File size cannot exceed %u", AMD_VBIOS_FILE_MAX_SIZE_B);
+		dev_err(adev->dev, "File size cananalt exceed %u", AMD_VBIOS_FILE_MAX_SIZE_B);
 		kvfree(adev->psp.vbflash_tmp_buf);
 		adev->psp.vbflash_tmp_buf = NULL;
 		adev->psp.vbflash_image_size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	/* TODO Just allocate max for now and optimize to realloc later if needed */
+	/* TODO Just allocate max for analw and optimize to realloc later if needed */
 	if (!adev->psp.vbflash_tmp_buf) {
 		adev->psp.vbflash_tmp_buf = kvmalloc(AMD_VBIOS_FILE_MAX_SIZE_B, GFP_KERNEL);
 		if (!adev->psp.vbflash_tmp_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	mutex_lock(&adev->psp.mutex);
@@ -3795,7 +3795,7 @@ static struct bin_attribute psp_vbflash_bin_attr = {
 /**
  * DOC: psp_vbflash_status
  * The status of the flash process.
- * 0: IFWI flash not complete.
+ * 0: IFWI flash analt complete.
  * 1: IFWI flash complete.
  */
 static ssize_t amdgpu_psp_vbflash_status(struct device *dev,
@@ -3878,7 +3878,7 @@ const struct amd_ip_funcs psp_ip_funcs = {
 const struct amdgpu_ip_block_version psp_v3_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 3,
-	.minor = 1,
+	.mianalr = 1,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -3886,7 +3886,7 @@ const struct amdgpu_ip_block_version psp_v3_1_ip_block = {
 const struct amdgpu_ip_block_version psp_v10_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 10,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -3894,7 +3894,7 @@ const struct amdgpu_ip_block_version psp_v10_0_ip_block = {
 const struct amdgpu_ip_block_version psp_v11_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 11,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -3902,7 +3902,7 @@ const struct amdgpu_ip_block_version psp_v11_0_ip_block = {
 const struct amdgpu_ip_block_version psp_v11_0_8_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 11,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 8,
 	.funcs = &psp_ip_funcs,
 };
@@ -3910,7 +3910,7 @@ const struct amdgpu_ip_block_version psp_v11_0_8_ip_block = {
 const struct amdgpu_ip_block_version psp_v12_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 12,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -3918,7 +3918,7 @@ const struct amdgpu_ip_block_version psp_v12_0_ip_block = {
 const struct amdgpu_ip_block_version psp_v13_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 13,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -3926,7 +3926,7 @@ const struct amdgpu_ip_block_version psp_v13_0_ip_block = {
 const struct amdgpu_ip_block_version psp_v13_0_4_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 13,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 4,
 	.funcs = &psp_ip_funcs,
 };

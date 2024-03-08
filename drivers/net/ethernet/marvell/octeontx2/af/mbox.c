@@ -86,7 +86,7 @@ static int otx2_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 		mbox->rx_size  = MBOX_UP_TX_SIZE;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (direction) {
@@ -111,7 +111,7 @@ static int otx2_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 		mbox->tr_shift = 0;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mbox->reg_base = reg_base;
@@ -120,7 +120,7 @@ static int otx2_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 	mbox->dev = kcalloc(ndevs, sizeof(struct otx2_mbox_dev), GFP_KERNEL);
 	if (!mbox->dev) {
 		otx2_mbox_destroy(mbox);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mbox->ndevs = ndevs;
 
@@ -327,7 +327,7 @@ struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
 
 error:
 	spin_unlock(&mdev->mbox_lock);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 EXPORT_SYMBOL(otx2_mbox_get_rsp);
 
@@ -336,7 +336,7 @@ int otx2_mbox_check_rsp_msgs(struct otx2_mbox *mbox, int devid)
 	unsigned long ireq = mbox->tx_start + msgs_offset;
 	unsigned long irsp = mbox->rx_start + msgs_offset;
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	u16 msgs;
 
 	spin_lock(&mdev->mbox_lock);
@@ -378,7 +378,7 @@ otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid, u16 pcifunc, u16 id)
 	rsp = (struct msg_rsp *)
 	       otx2_mbox_alloc_msg(mbox, devid, sizeof(*rsp));
 	if (!rsp)
-		return -ENOMEM;
+		return -EANALMEM;
 	rsp->hdr.id = id;
 	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
 	rsp->hdr.rc = MBOX_MSG_INVALID;
@@ -387,7 +387,7 @@ otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid, u16 pcifunc, u16 id)
 }
 EXPORT_SYMBOL(otx2_reply_invalid_msg);
 
-bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid)
+bool otx2_mbox_analnempty(struct otx2_mbox *mbox, int devid)
 {
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	bool ret;
@@ -398,7 +398,7 @@ bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid)
 
 	return ret;
 }
-EXPORT_SYMBOL(otx2_mbox_nonempty);
+EXPORT_SYMBOL(otx2_mbox_analnempty);
 
 const char *otx2_mbox_id2name(u16 id)
 {

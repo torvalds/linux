@@ -10,16 +10,16 @@ maintainers:
   - Christian Eggers <ceggers@arri.de>
 
 properties:
-  $nodename:
+  $analdename:
     anyOf:
       - pattern: "^eeprom@[0-9a-f]{1,2}$"
       - pattern: "^fram@[0-9a-f]{1,2}$"
 
-  # There are multiple known vendors who manufacture EEPROM chips compatible
+  # There are multiple kanalwn vendors who manufacture EEPROM chips compatible
   # with Atmel's AT25. The compatible string requires two items where the
   # 'vendor' and 'model' parts of the first are the actual chip and the second
   # item is fixed to "atmel,at25". Some existing bindings only have the
-  # "atmel,at25" part and should be fixed by somebody who knows vendor and
+  # "atmel,at25" part and should be fixed by somebody who kanalws vendor and
   # product.
   compatible:
     oneOf:
@@ -109,7 +109,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: cypress,fm25
     then:

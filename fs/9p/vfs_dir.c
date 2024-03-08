@@ -7,7 +7,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -98,7 +98,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 
 	rdir = v9fs_alloc_rdir_buf(file, buflen);
 	if (!rdir)
-		return -ENOMEM;
+		return -EANALMEM;
 	kvec.iov_base = rdir->buf;
 	kvec.iov_len = buflen;
 
@@ -127,7 +127,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 			}
 
 			over = !dir_emit(ctx, st.name, strlen(st.name),
-					 v9fs_qid2ino(&st.qid), dt_type(&st));
+					 v9fs_qid2ianal(&st.qid), dt_type(&st));
 			p9stat_free(&st);
 			if (over)
 				return 0;
@@ -159,7 +159,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 	rdir = v9fs_alloc_rdir_buf(file, buflen);
 	if (!rdir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (1) {
 		if (rdir->tail == rdir->head) {
@@ -184,7 +184,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 			if (!dir_emit(ctx, curdirent.d_name,
 				      strlen(curdirent.d_name),
-				      v9fs_qid2ino(&curdirent.qid),
+				      v9fs_qid2ianal(&curdirent.qid),
 				      curdirent.d_type))
 				return 0;
 
@@ -197,41 +197,41 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 /**
  * v9fs_dir_release - close a directory or a file
- * @inode: inode of the directory or file
+ * @ianalde: ianalde of the directory or file
  * @filp: file pointer to a directory or file
  *
  */
 
-int v9fs_dir_release(struct inode *inode, struct file *filp)
+int v9fs_dir_release(struct ianalde *ianalde, struct file *filp)
 {
-	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct v9fs_ianalde *v9ianalde = V9FS_I(ianalde);
 	struct p9_fid *fid;
 	__le32 version;
 	loff_t i_size;
 	int retval = 0, put_err;
 
 	fid = filp->private_data;
-	p9_debug(P9_DEBUG_VFS, "inode: %p filp: %p fid: %d\n",
-		 inode, filp, fid ? fid->fid : -1);
+	p9_debug(P9_DEBUG_VFS, "ianalde: %p filp: %p fid: %d\n",
+		 ianalde, filp, fid ? fid->fid : -1);
 
 	if (fid) {
-		if ((S_ISREG(inode->i_mode)) && (filp->f_mode & FMODE_WRITE))
-			retval = filemap_fdatawrite(inode->i_mapping);
+		if ((S_ISREG(ianalde->i_mode)) && (filp->f_mode & FMODE_WRITE))
+			retval = filemap_fdatawrite(ianalde->i_mapping);
 
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		hlist_del(&fid->ilist);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		put_err = p9_fid_put(fid);
 		retval = retval < 0 ? retval : put_err;
 	}
 
 	if ((filp->f_mode & FMODE_WRITE)) {
-		version = cpu_to_le32(v9inode->qid.version);
-		i_size = i_size_read(inode);
-		fscache_unuse_cookie(v9fs_inode_cookie(v9inode),
+		version = cpu_to_le32(v9ianalde->qid.version);
+		i_size = i_size_read(ianalde);
+		fscache_unuse_cookie(v9fs_ianalde_cookie(v9ianalde),
 				     &version, &i_size);
 	} else {
-		fscache_unuse_cookie(v9fs_inode_cookie(v9inode), NULL, NULL);
+		fscache_unuse_cookie(v9fs_ianalde_cookie(v9ianalde), NULL, NULL);
 	}
 	return retval;
 }

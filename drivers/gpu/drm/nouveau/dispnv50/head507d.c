@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -153,7 +153,7 @@ head507d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
 		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
 		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, COMPOSITION, ALPHA_BLEND) |
-		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, SUB_OWNER, NONE),
+		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, SUB_OWNER, ANALNE),
 
 				HEAD_SET_OFFSET_CURSOR(i), asyh->curs.offset >> 8);
 	return 0;
@@ -320,7 +320,7 @@ head507d_olut_load(struct drm_color_lut *in, int size, void __iomem *mem)
 	}
 
 	/* INTERPOLATE modes require a "next" entry to interpolate with,
-	 * so we replicate the last entry to deal with this for now.
+	 * so we replicate the last entry to deal with this for analw.
 	 */
 	writew(readw(mem - 8), mem + 0);
 	writew(readw(mem - 6), mem + 2);
@@ -357,7 +357,7 @@ head507d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 		  NVVAL(NV507D, HEAD_SET_PIXEL_CLOCK, FREQUENCY, m->clock) |
 		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, MODE, CLK_CUSTOM) |
 		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, ADJ1000DIV1001, FALSE) |
-		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, NOT_DRIVER, FALSE),
+		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, ANALT_DRIVER, FALSE),
 
 				HEAD_SET_CONTROL(i),
 		  NVVAL(NV507D, HEAD_SET_CONTROL, STRUCTURE, m->interlace));

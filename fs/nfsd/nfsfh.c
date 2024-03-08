@@ -21,8 +21,8 @@
 
 /*
  * our acceptability function.
- * if NOSUBTREECHECK, accept anything
- * if not, require that we can walk up to exp->ex_dentry
+ * if ANALSUBTREECHECK, accept anything
+ * if analt, require that we can walk up to exp->ex_dentry
  * doing some checks on the 'x' bits
  */
 static int nfsd_acceptable(void *expv, struct dentry *dentry)
@@ -32,7 +32,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 	struct dentry *tdentry;
 	struct dentry *parent;
 
-	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK)
+	if (exp->ex_flags & NFSEXP_ANALSUBTREECHECK)
 		return 1;
 
 	tdentry = dget(dentry);
@@ -40,8 +40,8 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 		/* make sure parents give x permission to user */
 		int err;
 		parent = dget_parent(tdentry);
-		err = inode_permission(&nop_mnt_idmap,
-				       d_inode(parent), MAY_EXEC);
+		err = ianalde_permission(&analp_mnt_idmap,
+				       d_ianalde(parent), MAY_EXEC);
 		if (err < 0) {
 			dput(parent);
 			break;
@@ -56,34 +56,34 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
 	return rv;
 }
 
-/* Type check. The correct error return for type mismatches does not seem to be
+/* Type check. The correct error return for type mismatches does analt seem to be
  * generally agreed upon. SunOS seems to use EISDIR if file isn't S_IFREG; a
- * comment in the NFSv3 spec says this is incorrect (implementation notes for
+ * comment in the NFSv3 spec says this is incorrect (implementation analtes for
  * the write call).
  */
 static inline __be32
 nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
 		umode_t requested)
 {
-	umode_t mode = d_inode(dentry)->i_mode & S_IFMT;
+	umode_t mode = d_ianalde(dentry)->i_mode & S_IFMT;
 
 	if (requested == 0) /* the caller doesn't care */
 		return nfs_ok;
 	if (mode == requested) {
 		if (mode == S_IFDIR && !d_can_lookup(dentry)) {
 			WARN_ON_ONCE(1);
-			return nfserr_notdir;
+			return nfserr_analtdir;
 		}
 		return nfs_ok;
 	}
 	/*
-	 * v4 has an error more specific than err_notdir which we should
-	 * return in preference to err_notdir:
+	 * v4 has an error more specific than err_analtdir which we should
+	 * return in preference to err_analtdir:
 	 */
 	if (rqstp->rq_vers == 4 && mode == S_IFLNK)
 		return nfserr_symlink;
 	if (requested == S_IFDIR)
-		return nfserr_notdir;
+		return nfserr_analtdir;
 	if (mode == S_IFDIR)
 		return nfserr_isdir;
 	return nfserr_inval;
@@ -113,7 +113,7 @@ static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 	}
 
 	/* Set user creds for this exportpoint */
-	return nfserrno(nfsd_setuser(rqstp, exp));
+	return nfserranal(nfsd_setuser(rqstp, exp));
 }
 
 static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
@@ -122,7 +122,7 @@ static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
 	if (!(exp->ex_flags & NFSEXP_V4ROOT))
 		return nfs_ok;
 	/*
-	 * v2/v3 clients have no need for the V4ROOT export--they use
+	 * v2/v3 clients have anal need for the V4ROOT export--they use
 	 * the mount protocl instead; also, further V4ROOT checks may be
 	 * in v4-specific code, in which case v2/v3 clients could bypass
 	 * them.
@@ -138,7 +138,7 @@ static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
 		return nfserr_stale;
 	/*
 	 * A pseudoroot export gives permission to access only one
-	 * single directory; the kernel has to make another upcall
+	 * single directory; the kernel has to make aanalther upcall
 	 * before granting access to anything else under it:
 	 */
 	if (unlikely(dentry != exp->ex_path.dentry))
@@ -166,7 +166,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (rqstp->rq_vers > 2)
 		error = nfserr_badhandle;
 	if (rqstp->rq_vers == 4 && fh->fh_size == 0)
-		return nfserr_nofilehandle;
+		return nfserr_analfilehandle;
 
 	if (fh->fh_version != 1)
 		return error;
@@ -178,7 +178,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	len = key_len(fh->fh_fsid_type) / 4;
 	if (len == 0)
 		return error;
-	if (fh->fh_fsid_type == FSID_MAJOR_MINOR) {
+	if (fh->fh_fsid_type == FSID_MAJOR_MIANALR) {
 		/* deprecated, convert to type 3 */
 		len = key_len(FSID_ENCODE_DEV)/4;
 		fh->fh_fsid_type = FSID_ENCODE_DEV;
@@ -202,25 +202,25 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	if (IS_ERR(exp)) {
 		trace_nfsd_set_fh_dentry_badexport(rqstp, fhp, PTR_ERR(exp));
 
-		if (PTR_ERR(exp) == -ENOENT)
+		if (PTR_ERR(exp) == -EANALENT)
 			return error;
 
-		return nfserrno(PTR_ERR(exp));
+		return nfserranal(PTR_ERR(exp));
 	}
 
-	if (exp->ex_flags & NFSEXP_NOSUBTREECHECK) {
+	if (exp->ex_flags & NFSEXP_ANALSUBTREECHECK) {
 		/* Elevate privileges so that the lack of 'r' or 'x'
 		 * permission on some parent directory will
-		 * not stop exportfs_decode_fh from being able
+		 * analt stop exportfs_decode_fh from being able
 		 * to reconnect a directory into the dentry cache.
 		 * The same problem can affect "SUBTREECHECK" exports,
 		 * but as nfsd_acceptable depends on correct
-		 * access control settings being in effect, we cannot
+		 * access control settings being in effect, we cananalt
 		 * fix that case easily.
 		 */
 		struct cred *new = prepare_creds();
 		if (!new) {
-			error =  nfserrno(-ENOMEM);
+			error =  nfserranal(-EANALMEM);
 			goto out;
 		}
 		new->cap_effective =
@@ -253,7 +253,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 			trace_nfsd_set_fh_dentry_badhandle(rqstp, fhp,
 					dentry ?  PTR_ERR(dentry) : -ESTALE);
 			switch (PTR_ERR(dentry)) {
-			case -ENOMEM:
+			case -EANALMEM:
 			case -ETIMEDOUT:
 				break;
 			default:
@@ -265,7 +265,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		goto out;
 	if (IS_ERR(dentry)) {
 		if (PTR_ERR(dentry) != -EINVAL)
-			error = nfserrno(PTR_ERR(dentry));
+			error = nfserranal(PTR_ERR(dentry));
 		goto out;
 	}
 
@@ -280,15 +280,15 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 
 	switch (rqstp->rq_vers) {
 	case 4:
-		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOATOMIC_ATTR)
-			fhp->fh_no_atomic_attr = true;
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_ANALATOMIC_ATTR)
+			fhp->fh_anal_atomic_attr = true;
 		break;
 	case 3:
-		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
-			fhp->fh_no_wcc = true;
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_ANALWCC)
+			fhp->fh_anal_wcc = true;
 		break;
 	case 2:
-		fhp->fh_no_wcc = true;
+		fhp->fh_anal_wcc = true;
 	}
 
 	return 0;
@@ -319,7 +319,7 @@ out:
  * @type specifies the type of object expected using one of the S_IF*
  * constants defined in include/linux/stat.h.  The caller may use zero
  * to indicate that it doesn't care, or a negative integer to indicate
- * that it expects something not of the given type.
+ * that it expects something analt of the given type.
  *
  * @access is formed from the NFSD_MAY_* constants defined in
  * fs/nfsd/vfs.h.
@@ -353,7 +353,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	 *	  compound operations performed with that filehandle
 	 *	  still need permissions checks.  In the worst case, a
 	 *	  mountpoint crossing may have changed the export
-	 *	  options, and we may now need to use a different uid
+	 *	  options, and we may analw need to use a different uid
 	 *	  (for example, if different id-squashing options are in
 	 *	  effect on the new filesystem).
 	 */
@@ -370,7 +370,7 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 		goto out;
 
 	/*
-	 * pseudoflavor restrictions are not enforced on NLM,
+	 * pseudoflavor restrictions are analt enforced on NLM,
 	 * which clients virtually always use auth_sys for,
 	 * even while using RPCSEC_GSS for NFS.
 	 */
@@ -403,8 +403,8 @@ out:
 /*
  * Compose a file handle for an NFS reply.
  *
- * Note that when first composed, the dentry may not yet have
- * an inode.  In this case a call to fh_update should be made
+ * Analte that when first composed, the dentry may analt yet have
+ * an ianalde.  In this case a call to fh_update should be made
  * before the fh goes out on the wire ...
  */
 static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
@@ -414,7 +414,7 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 		struct fid *fid = (struct fid *)
 			(fhp->fh_handle.fh_fsid + fhp->fh_handle.fh_size/4 - 1);
 		int maxsize = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
-		int fh_flags = (exp->ex_flags & NFSEXP_NOSUBTREECHECK) ? 0 :
+		int fh_flags = (exp->ex_flags & NFSEXP_ANALSUBTREECHECK) ? 0 :
 				EXPORT_FH_CONNECTABLE;
 		int fileid_type =
 			exportfs_encode_fh(dentry, fid, &maxsize, fh_flags);
@@ -444,7 +444,7 @@ static bool fsid_type_ok_for_exp(u8 fsid_type, struct svc_export *exp)
 		if (!old_valid_dev(exp_sb(exp)->s_dev))
 			return false;
 		fallthrough;
-	case FSID_MAJOR_MINOR:
+	case FSID_MAJOR_MIANALR:
 	case FSID_ENCODE_DEV:
 		return exp_sb(exp)->s_type->fs_flags & FS_REQUIRES_DEV;
 	case FSID_NUM:
@@ -486,7 +486,7 @@ retry:
 
 		/*
 		 * As the fsid -> filesystem mapping was guided by
-		 * user-space, there is no guarantee that the filesystem
+		 * user-space, there is anal guarantee that the filesystem
 		 * actually supports that fsid type. If it doesn't we
 		 * loop around again without ref_fh set.
 		 */
@@ -521,18 +521,18 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	   struct svc_fh *ref_fh)
 {
 	/* ref_fh is a reference file handle.
-	 * if it is non-null and for the same filesystem, then we should compose
+	 * if it is analn-null and for the same filesystem, then we should compose
 	 * a filehandle which is of the same version, where possible.
 	 */
 
-	struct inode * inode = d_inode(dentry);
+	struct ianalde * ianalde = d_ianalde(dentry);
 	dev_t ex_dev = exp_sb(exp)->s_dev;
 
-	dprintk("nfsd: fh_compose(exp %02x:%02x/%ld %pd2, ino=%ld)\n",
-		MAJOR(ex_dev), MINOR(ex_dev),
-		(long) d_inode(exp->ex_path.dentry)->i_ino,
+	dprintk("nfsd: fh_compose(exp %02x:%02x/%ld %pd2, ianal=%ld)\n",
+		MAJOR(ex_dev), MIANALR(ex_dev),
+		(long) d_ianalde(exp->ex_path.dentry)->i_ianal,
 		dentry,
-		(inode ? inode->i_ino : 0));
+		(ianalde ? ianalde->i_ianal : 0));
 
 	/* Choose filehandle version and fsid type based on
 	 * the reference filehandle (if it is in the same export)
@@ -540,14 +540,14 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	 */
 	set_version_and_fsid_type(fhp, exp, ref_fh);
 
-	/* If we have a ref_fh, then copy the fh_no_wcc setting from it. */
-	fhp->fh_no_wcc = ref_fh ? ref_fh->fh_no_wcc : false;
+	/* If we have a ref_fh, then copy the fh_anal_wcc setting from it. */
+	fhp->fh_anal_wcc = ref_fh ? ref_fh->fh_anal_wcc : false;
 
 	if (ref_fh == fhp)
 		fh_put(ref_fh);
 
 	if (fhp->fh_dentry) {
-		printk(KERN_ERR "fh_compose: fh %pd2 not initialized!\n",
+		printk(KERN_ERR "fh_compose: fh %pd2 analt initialized!\n",
 		       dentry);
 	}
 	if (fhp->fh_maxsize < NFS_FHSIZE)
@@ -565,14 +565,14 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	mk_fsid(fhp->fh_handle.fh_fsid_type,
 		fhp->fh_handle.fh_fsid,
 		ex_dev,
-		d_inode(exp->ex_path.dentry)->i_ino,
+		d_ianalde(exp->ex_path.dentry)->i_ianal,
 		exp->ex_fsid, exp->ex_uuid);
 
-	if (inode)
+	if (ianalde)
 		_fh_update(fhp, exp, dentry);
 	if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID) {
 		fh_put(fhp);
-		return nfserr_opnotsupp;
+		return nfserr_opanaltsupp;
 	}
 
 	return 0;
@@ -598,10 +598,10 @@ fh_update(struct svc_fh *fhp)
 
 	_fh_update(fhp, fhp->fh_export, dentry);
 	if (fhp->fh_handle.fh_fileid_type == FILEID_INVALID)
-		return nfserr_opnotsupp;
+		return nfserr_opanaltsupp;
 	return 0;
 out_bad:
-	printk(KERN_ERR "fh_update: fh not verified!\n");
+	printk(KERN_ERR "fh_update: fh analt verified!\n");
 	return nfserr_serverfault;
 out_negative:
 	printk(KERN_ERR "fh_update: %pd2 still negative!\n",
@@ -617,20 +617,20 @@ out_negative:
 __be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp)
 {
 	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct kstat stat;
 	__be32 err;
 
-	if (fhp->fh_no_wcc || fhp->fh_pre_saved)
+	if (fhp->fh_anal_wcc || fhp->fh_pre_saved)
 		return nfs_ok;
 
-	inode = d_inode(fhp->fh_dentry);
+	ianalde = d_ianalde(fhp->fh_dentry);
 	err = fh_getattr(fhp, &stat);
 	if (err)
 		return err;
 
 	if (v4)
-		fhp->fh_pre_change = nfsd4_change_attribute(&stat, inode);
+		fhp->fh_pre_change = nfsd4_change_attribute(&stat, ianalde);
 
 	fhp->fh_pre_mtime = stat.mtime;
 	fhp->fh_pre_ctime = stat.ctime;
@@ -647,14 +647,14 @@ __be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp)
 __be32 fh_fill_post_attrs(struct svc_fh *fhp)
 {
 	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
-	struct inode *inode = d_inode(fhp->fh_dentry);
+	struct ianalde *ianalde = d_ianalde(fhp->fh_dentry);
 	__be32 err;
 
-	if (fhp->fh_no_wcc)
+	if (fhp->fh_anal_wcc)
 		return nfs_ok;
 
 	if (fhp->fh_post_saved)
-		printk("nfsd: inode locked twice during operation.\n");
+		printk("nfsd: ianalde locked twice during operation.\n");
 
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
 	if (err)
@@ -663,7 +663,7 @@ __be32 fh_fill_post_attrs(struct svc_fh *fhp)
 	fhp->fh_post_saved = true;
 	if (v4)
 		fhp->fh_post_change =
-			nfsd4_change_attribute(&fhp->fh_post_attr, inode);
+			nfsd4_change_attribute(&fhp->fh_post_attr, ianalde);
 	return nfs_ok;
 }
 
@@ -708,7 +708,7 @@ fh_put(struct svc_fh *fhp)
 		exp_put(exp);
 		fhp->fh_export = NULL;
 	}
-	fhp->fh_no_wcc = false;
+	fhp->fh_anal_wcc = false;
 	return;
 }
 
@@ -733,7 +733,7 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
 	switch(fhp->fh_handle.fh_fsid_type) {
 	case FSID_DEV:
 	case FSID_ENCODE_DEV:
-	case FSID_MAJOR_MINOR:
+	case FSID_MAJOR_MIANALR:
 		if (exp_sb(fhp->fh_export)->s_type->fs_flags & FS_REQUIRES_DEV)
 			return FSIDSOURCE_DEV;
 		break;
@@ -760,25 +760,25 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
  * that doesn't necessarily cause a problem, but if i_version goes backwards
  * and then is incremented again it could reuse a value that was previously
  * used before boot, and a client who queried the two values might incorrectly
- * assume nothing changed.
+ * assume analthing changed.
  *
  * By using both ctime and the i_version counter we guarantee that as long as
  * time doesn't go backwards we never reuse an old value. If the filesystem
- * advertises STATX_ATTR_CHANGE_MONOTONIC, then this mitigation is not
+ * advertises STATX_ATTR_CHANGE_MOANALTONIC, then this mitigation is analt
  * needed.
  *
  * We only need to do this for regular files as well. For directories, we
  * assume that the new change attr is always logged to stable storage in some
  * fashion before the results can be seen.
  */
-u64 nfsd4_change_attribute(const struct kstat *stat, const struct inode *inode)
+u64 nfsd4_change_attribute(const struct kstat *stat, const struct ianalde *ianalde)
 {
 	u64 chattr;
 
 	if (stat->result_mask & STATX_CHANGE_COOKIE) {
 		chattr = stat->change_cookie;
-		if (S_ISREG(inode->i_mode) &&
-		    !(stat->attributes & STATX_ATTR_CHANGE_MONOTONIC)) {
+		if (S_ISREG(ianalde->i_mode) &&
+		    !(stat->attributes & STATX_ATTR_CHANGE_MOANALTONIC)) {
 			chattr += (u64)stat->ctime.tv_sec << 30;
 			chattr += stat->ctime.tv_nsec;
 		}

@@ -26,7 +26,7 @@
  * relative to FUSE_OPP_BGAP_GPU on DRA752.
  * DRA752_BANDGAP_BASE		0x4a0021e0
  *
- * Register below are grouped by domain (not necessarily in offset order)
+ * Register below are grouped by domain (analt necessarily in offset order)
  */
 
 

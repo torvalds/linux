@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -28,7 +28,7 @@
 
 #define NFP_QMSTAT_SYM_NAME	"_abi_nfdqm%u_stats%s"
 #define NFP_QMSTAT_STRIDE	32
-#define NFP_QMSTAT_NON_STO	0
+#define NFP_QMSTAT_ANALN_STO	0
 #define NFP_QMSTAT_STO		8
 #define NFP_QMSTAT_DROP		16
 #define NFP_QMSTAT_ECN		24
@@ -138,14 +138,14 @@ int nfp_abm_ctrl_set_q_act(struct nfp_abm_link *alink, unsigned int band,
 	return __nfp_abm_ctrl_set_q_act(alink->abm, qid, act);
 }
 
-u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int queue)
+u64 nfp_abm_ctrl_stat_analn_sto(struct nfp_abm_link *alink, unsigned int queue)
 {
 	unsigned int band;
 	u64 val, sum = 0;
 
 	for (band = 0; band < alink->abm->num_bands; band++) {
 		if (nfp_abm_ctrl_stat(alink, alink->abm->qm_stats,
-				      NFP_QMSTAT_STRIDE, NFP_QMSTAT_NON_STO,
+				      NFP_QMSTAT_STRIDE, NFP_QMSTAT_ANALN_STO,
 				      band, queue, true, &val))
 			return 0;
 		sum += val;
@@ -330,8 +330,8 @@ nfp_abm_ctrl_find_rtsym(struct nfp_pf *pf, const char *name, unsigned int size)
 
 	sym = nfp_rtsym_lookup(pf->rtbl, name);
 	if (!sym) {
-		nfp_err(pf->cpp, "Symbol '%s' not found\n", name);
-		return ERR_PTR(-ENOENT);
+		nfp_err(pf->cpp, "Symbol '%s' analt found\n", name);
+		return ERR_PTR(-EANALENT);
 	}
 	if (nfp_rtsym_size(sym) != size) {
 		nfp_err(pf->cpp,

@@ -100,7 +100,7 @@ static int eqbr_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 
 	memset(&it, 0, sizeof(it));
 
-	if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_NONE)
+	if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_ANALNE)
 		return 0;
 
 	switch (type) {
@@ -181,9 +181,9 @@ static int gpiochip_setup(struct device *dev, struct eqbr_gpio_ctrl *gctrl)
 
 	gc = &gctrl->chip;
 	gc->label = gctrl->name;
-	gc->fwnode = gctrl->fwnode;
+	gc->fwanalde = gctrl->fwanalde;
 
-	if (!fwnode_property_read_bool(gctrl->fwnode, "interrupt-controller")) {
+	if (!fwanalde_property_read_bool(gctrl->fwanalde, "interrupt-controller")) {
 		dev_dbg(dev, "gc %s: doesn't act as interrupt controller!\n",
 			gctrl->name);
 		return 0;
@@ -195,9 +195,9 @@ static int gpiochip_setup(struct device *dev, struct eqbr_gpio_ctrl *gctrl)
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = gctrl->virq;
 
@@ -208,17 +208,17 @@ static int gpiolib_reg(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
 	struct eqbr_gpio_ctrl *gctrl;
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int i, ret;
 
 	for (i = 0; i < drvdata->nr_gpio_ctrls; i++) {
 		gctrl = drvdata->gpio_ctrls + i;
-		np = to_of_node(gctrl->fwnode);
+		np = to_of_analde(gctrl->fwanalde);
 
 		gctrl->name = devm_kasprintf(dev, GFP_KERNEL, "gpiochip%d", i);
 		if (!gctrl->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (of_address_to_resource(np, 0, &res)) {
 			dev_err(dev, "Failed to get GPIO register address\n");
@@ -280,7 +280,7 @@ static const struct pinctrl_ops eqbr_pctl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -295,16 +295,16 @@ static int eqbr_set_pin_mux(struct eqbr_pinctrl_drv_data *pctl,
 	bank = find_pinbank_via_pin(pctl, pin);
 	if (!bank) {
 		dev_err(pctl->dev, "Couldn't find pin bank for pin %u\n", pin);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	mem = bank->membase;
 	offset = pin - bank->pin_base;
 
 	if (!(bank->aval_pinmap & BIT(offset))) {
 		dev_err(pctl->dev,
-			"PIN: %u is not valid, pinbase: %u, bitmap: %u\n",
+			"PIN: %u is analt valid, pinbase: %u, bitmap: %u\n",
 			pin, bank->pin_base, bank->aval_pinmap);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	raw_spin_lock_irqsave(&pctl->lock, flags);
@@ -392,16 +392,16 @@ static int eqbr_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	bank = find_pinbank_via_pin(pctl, pin);
 	if (!bank) {
 		dev_err(pctl->dev, "Couldn't find pin bank for pin %u\n", pin);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	mem = bank->membase;
 	offset = pin - bank->pin_base;
 
 	if (!(bank->aval_pinmap & BIT(offset))) {
 		dev_err(pctl->dev,
-			"PIN: %u is not valid, pinbase: %u, bitmap: %u\n",
+			"PIN: %u is analt valid, pinbase: %u, bitmap: %u\n",
 			pin, bank->pin_base, bank->aval_pinmap);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	raw_spin_lock_irqsave(&pctl->lock, flags);
@@ -427,13 +427,13 @@ static int eqbr_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			dev_err(pctl->dev, "Failed to find gpio via bank pinbase: %u, pin: %u\n",
 				bank->pin_base, pin);
 			raw_spin_unlock_irqrestore(&pctl->lock, flags);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		val = !!(readl(gctrl->membase + GPIO_DIR) & BIT(offset));
 		break;
 	default:
 		raw_spin_unlock_irqrestore(&pctl->lock, flags);
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 	raw_spin_unlock_irqrestore(&pctl->lock, flags);
 	*config = pinconf_to_config_packed(param, val);
@@ -463,7 +463,7 @@ static int eqbr_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (!bank) {
 			dev_err(pctl->dev,
 				"Couldn't find pin bank for pin %u\n", pin);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		mem = bank->membase;
 		offset = pin - bank->pin_base;
@@ -495,13 +495,13 @@ static int eqbr_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (!gctrl) {
 				dev_err(pctl->dev, "Failed to find gpio via bank pinbase: %u, pin: %u\n",
 					bank->pin_base, pin);
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			gc = &gctrl->chip;
 			gc->direction_output(gc, offset, 0);
 			continue;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		raw_spin_lock_irqsave(&pctl->lock, flags);
@@ -527,10 +527,10 @@ static int eqbr_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 	for (i = 0; i < npins; i++) {
 		if (eqbr_pinconf_get(pctldev, pins[i], config))
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (i && old != *config)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		old = *config;
 	}
@@ -587,22 +587,22 @@ static bool is_func_exist(struct eqbr_pmx_func *funcs, const char *name,
 static int funcs_utils(struct device *dev, struct eqbr_pmx_func *funcs,
 		       unsigned int *nr_funcs, funcs_util_ops op)
 {
-	struct device_node *node = dev->of_node;
-	struct device_node *np;
+	struct device_analde *analde = dev->of_analde;
+	struct device_analde *np;
 	struct property *prop;
 	const char *fn_name;
 	unsigned int fid;
 	int i, j;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		prop = of_find_property(np, "groups", NULL);
 		if (!prop)
 			continue;
 
 		if (of_property_read_string(np, "function", &fn_name)) {
-			/* some groups may not have function, it's OK */
-			dev_dbg(dev, "Group %s: not function binded!\n",
+			/* some groups may analt have function, it's OK */
+			dev_dbg(dev, "Group %s: analt function binded!\n",
 				(char *)prop->value);
 			continue;
 		}
@@ -633,7 +633,7 @@ static int funcs_utils(struct device *dev, struct eqbr_pmx_func *funcs,
 			break;
 
 		default:
-			of_node_put(np);
+			of_analde_put(np);
 			return -EINVAL;
 		}
 		i++;
@@ -655,7 +655,7 @@ static int eqbr_build_functions(struct eqbr_pinctrl_drv_data *drvdata)
 
 	funcs = devm_kcalloc(dev, nr_funcs, sizeof(*funcs), GFP_KERNEL);
 	if (!funcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = funcs_utils(dev, funcs, &nr_funcs, OP_ADD_FUNCS);
 	if (ret)
@@ -672,7 +672,7 @@ static int eqbr_build_functions(struct eqbr_pinctrl_drv_data *drvdata)
 					       sizeof(*(funcs[i].groups)),
 					       GFP_KERNEL);
 		if (!funcs[i].groups)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = funcs_utils(dev, funcs, &nr_funcs, OP_ADD_FUNC_GRPS);
@@ -681,7 +681,7 @@ static int eqbr_build_functions(struct eqbr_pinctrl_drv_data *drvdata)
 
 	for (i = 0; i < nr_funcs; i++) {
 
-		/* Ignore the same function with multiple groups */
+		/* Iganalre the same function with multiple groups */
 		if (funcs[i].name == NULL)
 			continue;
 
@@ -703,57 +703,57 @@ static int eqbr_build_functions(struct eqbr_pinctrl_drv_data *drvdata)
 static int eqbr_build_groups(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	unsigned int *pins, *pinmux, pin_id, pinmux_id;
 	struct pingroup group, *grp = &group;
-	struct device_node *np;
+	struct device_analde *np;
 	struct property *prop;
 	int j, err;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		prop = of_find_property(np, "groups", NULL);
 		if (!prop)
 			continue;
 
 		err = of_property_count_u32_elems(np, "pins");
 		if (err < 0) {
-			dev_err(dev, "No pins in the group: %s\n", prop->name);
-			of_node_put(np);
+			dev_err(dev, "Anal pins in the group: %s\n", prop->name);
+			of_analde_put(np);
 			return err;
 		}
 		grp->npins = err;
 		grp->name = prop->value;
 		pins = devm_kcalloc(dev, grp->npins, sizeof(*pins), GFP_KERNEL);
 		if (!pins) {
-			of_node_put(np);
-			return -ENOMEM;
+			of_analde_put(np);
+			return -EANALMEM;
 		}
 		grp->pins = pins;
 
 		pinmux = devm_kcalloc(dev, grp->npins, sizeof(*pinmux), GFP_KERNEL);
 		if (!pinmux) {
-			of_node_put(np);
-			return -ENOMEM;
+			of_analde_put(np);
+			return -EANALMEM;
 		}
 
 		for (j = 0; j < grp->npins; j++) {
 			if (of_property_read_u32_index(np, "pins", j, &pin_id)) {
 				dev_err(dev, "Group %s: Read intel pins id failed\n",
 					grp->name);
-				of_node_put(np);
+				of_analde_put(np);
 				return -EINVAL;
 			}
 			if (pin_id >= drvdata->pctl_desc.npins) {
 				dev_err(dev, "Group %s: Invalid pin ID, idx: %d, pin %u\n",
 					grp->name, j, pin_id);
-				of_node_put(np);
+				of_analde_put(np);
 				return -EINVAL;
 			}
 			pins[j] = pin_id;
 			if (of_property_read_u32_index(np, "pinmux", j, &pinmux_id)) {
 				dev_err(dev, "Group %s: Read intel pinmux id failed\n",
 					grp->name);
-				of_node_put(np);
+				of_analde_put(np);
 				return -EINVAL;
 			}
 			pinmux[j] = pinmux_id;
@@ -764,7 +764,7 @@ static int eqbr_build_groups(struct eqbr_pinctrl_drv_data *drvdata)
 						pinmux);
 		if (err < 0) {
 			dev_err(dev, "Failed to register group %s\n", grp->name);
-			of_node_put(np);
+			of_analde_put(np);
 			return err;
 		}
 		memset(&group, 0, sizeof(group));
@@ -797,10 +797,10 @@ static int pinctrl_reg(struct eqbr_pinctrl_drv_data *drvdata)
 
 	pdesc = devm_kcalloc(dev, nr_pins, sizeof(*pdesc), GFP_KERNEL);
 	if (!pdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 	pin_names = devm_kcalloc(dev, nr_pins, PIN_NAME_LEN, GFP_KERNEL);
 	if (!pin_names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nr_pins; i++) {
 		sprintf(pin_names, PIN_NAME_FMT, i);
@@ -832,7 +832,7 @@ static int pinctrl_reg(struct eqbr_pinctrl_drv_data *drvdata)
 	return pinctrl_enable(drvdata->pctl_dev);
 }
 
-static int pinbank_init(struct device_node *np,
+static int pinbank_init(struct device_analde *np,
 			struct eqbr_pinctrl_drv_data *drvdata,
 			struct eqbr_pin_bank *bank, unsigned int id)
 {
@@ -844,7 +844,7 @@ static int pinbank_init(struct device_node *np,
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &spec);
 	if (ret) {
-		dev_err(dev, "gpio-range not available!\n");
+		dev_err(dev, "gpio-range analt available!\n");
 		return ret;
 	}
 
@@ -864,43 +864,43 @@ static int pinbank_init(struct device_node *np,
 static int pinbank_probe(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
-	struct device_node *np_gpio;
+	struct device_analde *np_gpio;
 	struct eqbr_gpio_ctrl *gctrls;
 	struct eqbr_pin_bank *banks;
 	int i, nr_gpio;
 
 	/* Count gpio bank number */
 	nr_gpio = 0;
-	for_each_node_by_name(np_gpio, "gpio") {
+	for_each_analde_by_name(np_gpio, "gpio") {
 		if (of_device_is_available(np_gpio))
 			nr_gpio++;
 	}
 
 	if (!nr_gpio) {
-		dev_err(dev, "NO pin bank available!\n");
-		return -ENODEV;
+		dev_err(dev, "ANAL pin bank available!\n");
+		return -EANALDEV;
 	}
 
 	/* Count pin bank number and gpio controller number */
 	banks = devm_kcalloc(dev, nr_gpio, sizeof(*banks), GFP_KERNEL);
 	if (!banks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gctrls = devm_kcalloc(dev, nr_gpio, sizeof(*gctrls), GFP_KERNEL);
 	if (!gctrls)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "found %d gpio controller!\n", nr_gpio);
 
 	/* Initialize Pin bank */
 	i = 0;
-	for_each_node_by_name(np_gpio, "gpio") {
+	for_each_analde_by_name(np_gpio, "gpio") {
 		if (!of_device_is_available(np_gpio))
 			continue;
 
 		pinbank_init(np_gpio, drvdata, banks + i, i);
 
-		gctrls[i].fwnode = of_fwnode_handle(np_gpio);
+		gctrls[i].fwanalde = of_fwanalde_handle(np_gpio);
 		gctrls[i].bank = banks + i;
 		i++;
 	}
@@ -921,7 +921,7 @@ static int eqbr_pinctrl_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->dev = dev;
 

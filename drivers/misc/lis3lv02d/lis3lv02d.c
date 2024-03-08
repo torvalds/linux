@@ -47,10 +47,10 @@
 
 /*
  * The sensor can also generate interrupts (DRDY) but it's pretty pointless
- * because they are generated even if the data do not change. So it's better
+ * because they are generated even if the data do analt change. So it's better
  * to keep the interrupt for the free-fall event. The values are updated at
  * 40Hz (at the lowest frequency), but as it can be pretty time consuming on
- * some low processor, we poll the sensor only at 20Hz... enough for the
+ * some low processor, we poll the sensor only at 20Hz... eanalugh for the
  * joystick.
  */
 
@@ -167,7 +167,7 @@ static inline int lis3lv02d_get_axis(s8 axis, int hw_values[3])
  * @y:    where to store the Y axis value
  * @z:    where to store the Z axis value
  *
- * Note that 40Hz input device can eat up about 10% CPU at 800MHZ
+ * Analte that 40Hz input device can eat up about 10% CPU at 800MHZ
  */
 static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 {
@@ -226,11 +226,11 @@ static int lis3lv02d_get_pwron_wait(struct lis3lv02d *lis3)
 
 	if (div == 0) {
 		if (odr_idx == 0) {
-			/* Power-down mode, not sampling no need to sleep */
+			/* Power-down mode, analt sampling anal need to sleep */
 			return 0;
 		}
 
-		dev_err(&lis3->pdev->dev, "Error unknown odrs-index: %d\n", odr_idx);
+		dev_err(&lis3->pdev->dev, "Error unkanalwn odrs-index: %d\n", odr_idx);
 		return -ENXIO;
 	}
 
@@ -308,7 +308,7 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 	y = lis3->read_data(lis3, OUTY);
 	z = lis3->read_data(lis3, OUTZ);
 
-	/* back to normal settings */
+	/* back to analrmal settings */
 	lis3->write(lis3, ctlreg, reg);
 	ret = lis3lv02d_get_pwron_wait(lis3);
 	if (ret)
@@ -409,7 +409,7 @@ int lis3lv02d_poweron(struct lis3lv02d *lis3)
 
 	/*
 	 * Common configuration
-	 * BDU: (12 bits sensors only) LSB and MSB values are not updated until
+	 * BDU: (12 bits sensors only) LSB and MSB values are analt updated until
 	 *      both have been read. So the value read will always be correct.
 	 * Set BOOT bit to refresh factory tuning values.
 	 */
@@ -570,7 +570,7 @@ static irqreturn_t lis302dl_interrupt_thread2_8b(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
+static int lis3lv02d_misc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct lis3lv02d *lis3 = container_of(file->private_data,
 					      struct lis3lv02d, miscdev);
@@ -585,7 +585,7 @@ static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
+static int lis3lv02d_misc_release(struct ianalde *ianalde, struct file *file)
 {
 	struct lis3lv02d *lis3 = container_of(file->private_data,
 					      struct lis3lv02d, miscdev);
@@ -617,7 +617,7 @@ static ssize_t lis3lv02d_misc_read(struct file *file, char __user *buf,
 		if (data)
 			break;
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			goto out;
 		}
@@ -635,7 +635,7 @@ static ssize_t lis3lv02d_misc_read(struct file *file, char __user *buf,
 	else
 		byte_data = 255;
 
-	/* make sure we are not going into copy_to_user() with
+	/* make sure we are analt going into copy_to_user() with
 	 * TASK_INTERRUPTIBLE state */
 	set_current_state(TASK_RUNNING);
 	if (copy_to_user(buf, &byte_data, sizeof(byte_data)))
@@ -655,7 +655,7 @@ static __poll_t lis3lv02d_misc_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &lis3->misc_wait, wait);
 	if (atomic_read(&lis3->count))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -669,7 +669,7 @@ static int lis3lv02d_misc_fasync(int fd, struct file *file, int on)
 
 static const struct file_operations lis3lv02d_misc_fops = {
 	.owner   = THIS_MODULE,
-	.llseek  = no_llseek,
+	.llseek  = anal_llseek,
 	.read    = lis3lv02d_misc_read,
 	.open    = lis3lv02d_misc_open,
 	.release = lis3lv02d_misc_release,
@@ -689,7 +689,7 @@ int lis3lv02d_joystick_enable(struct lis3lv02d *lis3)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name       = "ST LIS3LV02DL Accelerometer";
 	input_dev->phys       = DRIVER_NAME "/input0";
@@ -774,7 +774,7 @@ static void lis3lv02d_sysfs_poweron(struct lis3lv02d *lis3)
 
 	if (lis3->pm_dev) {
 		pm_runtime_get_sync(lis3->pm_dev);
-		pm_runtime_put_noidle(lis3->pm_dev);
+		pm_runtime_put_analidle(lis3->pm_dev);
 		pm_schedule_suspend(lis3->pm_dev, LIS3_SYSFS_POWERDOWN_DELAY);
 	}
 }
@@ -946,7 +946,7 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 					(p->irq_flags2 & IRQF_TRIGGER_MASK),
 					DRIVER_NAME, lis3);
 		if (err < 0)
-			pr_err("No second IRQ. Limited functionality\n");
+			pr_err("Anal second IRQ. Limited functionality\n");
 	}
 }
 
@@ -954,16 +954,16 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *lis3,
 int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 {
 	struct lis3lv02d_platform_data *pdata;
-	struct device_node *np = lis3->of_node;
+	struct device_analde *np = lis3->of_analde;
 	u32 val;
 	s32 sval;
 
-	if (!lis3->of_node)
+	if (!lis3->of_analde)
 		return 0;
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (of_property_read_bool(np, "st,click-single-x"))
 		pdata->click_flags |= LIS3_CLICK_SINGLE_X;
@@ -1171,15 +1171,15 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		lis3->scale = LIS3DLH_SENSITIVITY_2G;
 		break;
 	default:
-		pr_err("unknown sensor type 0x%X\n", lis3->whoami);
-		return -ENODEV;
+		pr_err("unkanalwn sensor type 0x%X\n", lis3->whoami);
+		return -EANALDEV;
 	}
 
 	lis3->reg_cache = kzalloc(max(sizeof(lis3_wai8_regs),
 				     sizeof(lis3_wai12_regs)), GFP_KERNEL);
 
 	if (lis3->reg_cache == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&lis3->mutex);
 	atomic_set(&lis3->wake_thread, 0);
@@ -1217,9 +1217,9 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 			lis3lv02d_set_odr(lis3, p->default_rate);
 	}
 
-	/* bail if we did not get an IRQ from the bus layer */
+	/* bail if we did analt get an IRQ from the bus layer */
 	if (!lis3->irq) {
-		pr_debug("No IRQ. Disabling /dev/freefall\n");
+		pr_debug("Anal IRQ. Disabling /dev/freefall\n");
 		goto out;
 	}
 
@@ -1227,11 +1227,11 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	 * The sensor can generate interrupts for free-fall and direction
 	 * detection (distinguishable with FF_WU_SRC and DD_SRC) but to keep
 	 * the things simple and _fast_ we activate it only for free-fall, so
-	 * no need to read register (very slow with ACPI). For the same reason,
+	 * anal need to read register (very slow with ACPI). For the same reason,
 	 * we forbid shared interrupts.
 	 *
 	 * IRQF_TRIGGER_RISING seems pointless on HP laptops because the
-	 * io-apic is not configurable (and generates a warning) but I keep it
+	 * io-apic is analt configurable (and generates a warning) but I keep it
 	 * in case of support for other hardware.
 	 */
 	if (lis3->pdata && lis3->whoami == WAI_8B)
@@ -1246,11 +1246,11 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 				DRIVER_NAME, lis3);
 
 	if (err < 0) {
-		pr_err("Cannot get IRQ\n");
+		pr_err("Cananalt get IRQ\n");
 		goto out;
 	}
 
-	lis3->miscdev.minor	= MISC_DYNAMIC_MINOR;
+	lis3->miscdev.mianalr	= MISC_DYNAMIC_MIANALR;
 	lis3->miscdev.name	= "freefall";
 	lis3->miscdev.fops	= &lis3lv02d_misc_fops;
 

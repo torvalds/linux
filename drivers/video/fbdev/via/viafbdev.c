@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -80,7 +80,7 @@ static void viafb_fill_var_color_info(struct fb_var_screeninfo *var, u8 depth)
 	var->transp.offset = 0;
 	var->transp.length = 0;
 	var->transp.msb_right = 0;
-	var->nonstd = 0;
+	var->analnstd = 0;
 	switch (depth) {
 	case 8:
 		var->bits_per_pixel = 8;
@@ -191,16 +191,16 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 
 	DEBUG_MSG(KERN_INFO "viafb_check_var!\n");
 	/* Sanity check */
-	/* HW neither support interlacte nor double-scaned mode */
+	/* HW neither support interlacte analr double-scaned mode */
 	if (var->vmode & FB_VMODE_INTERLACED || var->vmode & FB_VMODE_DOUBLE)
 		return -EINVAL;
 
-	/* the refresh rate is not important here, as we only want to know
+	/* the refresh rate is analt important here, as we only want to kanalw
 	 * whether the resolution exists
 	 */
 	if (!viafb_get_best_mode(var->xres, var->yres, 60)) {
 		DEBUG_MSG(KERN_INFO
-			  "viafb: Mode %dx%dx%d not supported!!\n",
+			  "viafb: Mode %dx%dx%d analt supported!!\n",
 			  var->xres, var->yres, var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -293,25 +293,25 @@ static int viafb_set_par(struct fb_info *info)
 }
 
 /* Set one color register */
-static int viafb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int viafb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 unsigned blue, unsigned transp, struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
 	u32 r, g, b;
 
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
-		if (regno > 255)
+		if (reganal > 255)
 			return -EINVAL;
 
 		if (!viafb_dual_fb || viapar->iga_path == IGA1)
-			viafb_set_primary_color_register(regno, red >> 8,
+			viafb_set_primary_color_register(reganal, red >> 8,
 				green >> 8, blue >> 8);
 
 		if (!viafb_dual_fb || viapar->iga_path == IGA2)
-			viafb_set_secondary_color_register(regno, red >> 8,
+			viafb_set_secondary_color_register(reganal, red >> 8,
 				green >> 8, blue >> 8);
 	} else {
-		if (regno > 15)
+		if (reganal > 15)
 			return -EINVAL;
 
 		r = (red >> (16 - info->var.red.length))
@@ -320,7 +320,7 @@ unsigned blue, unsigned transp, struct fb_info *info)
 			<< info->var.blue.offset;
 		g = (green >> (16 - info->var.green.length))
 			<< info->var.green.offset;
-		((u32 *) info->pseudo_palette)[regno] = r | g | b;
+		((u32 *) info->pseudo_palette)[reganal] = r | g | b;
 	}
 
 	return 0;
@@ -530,7 +530,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		u.driver_version.iMajorNum = VERSION_MAJOR;
 		u.driver_version.iKernelNum = VERSION_KERNEL;
 		u.driver_version.iOSNum = VERSION_OS;
-		u.driver_version.iMinorNum = VERSION_MINOR;
+		u.driver_version.iMianalrNum = VERSION_MIANALR;
 
 		if (copy_to_user(argp, &u.driver_version,
 			sizeof(u.driver_version)))
@@ -585,7 +585,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		viafb_gamma_table = kmalloc_array(256, sizeof(u32),
 						  GFP_KERNEL);
 		if (!viafb_gamma_table)
-			return -ENOMEM;
+			return -EANALMEM;
 		viafb_get_gamma_table(viafb_gamma_table);
 		if (copy_to_user(argp, viafb_gamma_table,
 			256 * sizeof(u32))) {
@@ -734,7 +734,7 @@ static void viafb_imageblit(struct fb_info *info,
 	}
 
 	if (image->depth == 1) {
-		op = VIA_BITBLT_MONO;
+		op = VIA_BITBLT_MOANAL;
 		if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 			fg_color =
 				((u32 *)info->pseudo_palette)[image->fg_color];
@@ -764,12 +764,12 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	int i, j = 0, cur_size = 64;
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED || info != viafbinfo)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* LCD ouput does not support hw cursors (at least on VN896) */
+	/* LCD ouput does analt support hw cursors (at least on VN896) */
 	if ((chip_name == UNICHROME_CLE266 && viapar->iga_path == IGA2) ||
 		viafb_LCD_ON)
-		return -ENODEV;
+		return -EANALDEV;
 
 	viafb_show_hw_cursor(info, HW_Cursor_OFF);
 
@@ -845,7 +845,7 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 			cursor->image.height;
 
 		if (!cr_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (cur_size == 32) {
 			for (i = 0; i < (CURSOR_SIZE / 4); i++) {
@@ -993,7 +993,7 @@ static int __init parse_active_dev(void)
 	/* 1. Modify the active status of devices. */
 	/* 2. Keep the order of devices, so we can set corresponding
 	   IGA path to devices in SAMM case. */
-	/*    Note: The previous of active_dev is primary device,
+	/*    Analte: The previous of active_dev is primary device,
 	   and the following is secondary device. */
 	if (!viafb_active_dev) {
 		if (machine_is_olpc()) { /* LCD only */
@@ -1072,7 +1072,7 @@ static int parse_port(char *opt_str, int *output_interface)
 	else if (!strncmp(opt_str, "DFP_LOW", 7))
 		*output_interface = INTERFACE_DFP_LOW;
 	else
-		*output_interface = INTERFACE_NONE;
+		*output_interface = INTERFACE_ANALNE;
 	return 0;
 }
 
@@ -1082,7 +1082,7 @@ static void parse_lcd_port(void)
 		output_interface);
 	/*Initialize to avoid unexpected behavior */
 	viaparinfo->chip_info->lvds_chip_info2.output_interface =
-	INTERFACE_NONE;
+	INTERFACE_ANALNE;
 
 	DEBUG_MSG(KERN_INFO "parse_lcd_port: viafb_lcd_port:%s,interface:%d\n",
 		  viafb_lcd_port, viaparinfo->chip_info->lvds_chip_info.
@@ -1121,7 +1121,7 @@ static int viafb_dvp0_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_dvp0_proc_open(struct inode *inode, struct file *file)
+static int viafb_dvp0_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_dvp0_proc_show, NULL);
 }
@@ -1191,7 +1191,7 @@ static int viafb_dvp1_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_dvp1_proc_open(struct inode *inode, struct file *file)
+static int viafb_dvp1_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_dvp1_proc_show, NULL);
 }
@@ -1253,7 +1253,7 @@ static int viafb_dfph_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_dfph_proc_open(struct inode *inode, struct file *file)
+static int viafb_dfph_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_dfph_proc_show, NULL);
 }
@@ -1287,7 +1287,7 @@ static int viafb_dfpl_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_dfpl_proc_open(struct inode *inode, struct file *file)
+static int viafb_dfpl_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_dfpl_proc_show, NULL);
 }
@@ -1345,7 +1345,7 @@ static int viafb_vt1636_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_vt1636_proc_open(struct inode *inode, struct file *file)
+static int viafb_vt1636_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_vt1636_proc_show, NULL);
 }
@@ -1492,7 +1492,7 @@ static int viafb_iga1_odev_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_iga1_odev_proc_open(struct inode *inode, struct file *file)
+static int viafb_iga1_odev_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_iga1_odev_proc_show, NULL);
 }
@@ -1531,7 +1531,7 @@ static int viafb_iga2_odev_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int viafb_iga2_odev_proc_open(struct inode *inode, struct file *file)
+static int viafb_iga2_odev_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, viafb_iga2_odev_proc_show, NULL);
 }
@@ -1736,7 +1736,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 		ALIGN(sizeof(struct viafb_shared), BITS_PER_LONG/8),
 		&vdev->pdev->dev);
 	if (!viafbinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	viaparinfo = (struct viafb_par *)viafbinfo->par;
 	viaparinfo->shared = viafbinfo->par + viafb_par_length;
@@ -1757,7 +1757,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 	viafb_init_chip_info(vdev->chip_type);
 	/*
 	 * The framebuffer will have been successfully mapped by
-	 * the core (or we'd not be here), but we still need to
+	 * the core (or we'd analt be here), but we still need to
 	 * set up our own accounting.
 	 */
 	viaparinfo->fbmem = vdev->fbmem_start;
@@ -1768,7 +1768,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 
 	viafbinfo->fix.mmio_start = vdev->engine_start;
 	viafbinfo->fix.mmio_len = vdev->engine_len;
-	viafbinfo->node = 0;
+	viafbinfo->analde = 0;
 	viafbinfo->fbops = &viafb_ops;
 	viafbinfo->flags = FBINFO_HWACCEL_YPAN;
 
@@ -1811,7 +1811,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 		viafbinfo1 = framebuffer_alloc(viafb_par_length,
 				&vdev->pdev->dev);
 		if (!viafbinfo1) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_fb_release;
 		}
 		viaparinfo1 = viafbinfo1->par;
@@ -1855,7 +1855,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 	viafb_update_fix(viafbinfo);
 	viaparinfo->depth = fb_get_color_depth(&viafbinfo->var,
 		&viafbinfo->fix);
-	default_var.activate = FB_ACTIVATE_NOW;
+	default_var.activate = FB_ACTIVATE_ANALW;
 	rc = fb_alloc_cmap(&viafbinfo->cmap, 256, 0);
 	if (rc)
 		goto out_fb1_release;
@@ -1878,7 +1878,7 @@ int via_fb_pci_probe(struct viafb_dev *vdev)
 			goto out_fb_unreg;
 	}
 	DEBUG_MSG(KERN_INFO "fb%d: %s frame buffer device %dx%d-%dbpp\n",
-		  viafbinfo->node, viafbinfo->fix.id, default_var.xres,
+		  viafbinfo->analde, viafbinfo->fix.id, default_var.xres,
 		  default_var.yres, default_var.bits_per_pixel);
 
 	viafb_init_proc(viaparinfo->shared);
@@ -1928,7 +1928,7 @@ static int __init viafb_setup(void)
 	DEBUG_MSG(KERN_INFO "viafb_setup!\n");
 
 	if (fb_get_options("viafb", &options))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!options || !*options)
 		return 0;
@@ -1940,11 +1940,11 @@ static int __init viafb_setup(void)
 		if (!strncmp(this_opt, "viafb_mode1=", 12)) {
 			viafb_mode1 = kstrdup(this_opt + 12, GFP_KERNEL);
 			if (!viafb_mode1)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (!strncmp(this_opt, "viafb_mode=", 11)) {
 			viafb_mode = kstrdup(this_opt + 11, GFP_KERNEL);
 			if (!viafb_mode)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (!strncmp(this_opt, "viafb_bpp1=", 11)) {
 			if (kstrtouint(this_opt + 11, 0, &viafb_bpp1) < 0)
 				return -EINVAL;
@@ -1974,7 +1974,7 @@ static int __init viafb_setup(void)
 		} else if (!strncmp(this_opt, "viafb_active_dev=", 17)) {
 			viafb_active_dev = kstrdup(this_opt + 17, GFP_KERNEL);
 			if (!viafb_active_dev)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (!strncmp(this_opt,
 			"viafb_display_hardware_layout=", 30)) {
 			if (kstrtoint(this_opt + 30, 0,
@@ -2002,11 +2002,11 @@ static int __init viafb_setup(void)
 		} else if (!strncmp(this_opt, "viafb_lcd_port=", 15)) {
 			viafb_lcd_port = kstrdup(this_opt + 15, GFP_KERNEL);
 			if (!viafb_lcd_port)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (!strncmp(this_opt, "viafb_dvi_port=", 15)) {
 			viafb_dvi_port = kstrdup(this_opt + 15, GFP_KERNEL);
 			if (!viafb_dvi_port)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	return 0;
@@ -2014,7 +2014,7 @@ static int __init viafb_setup(void)
 #endif
 
 /*
- * These are called out of via-core for now.
+ * These are called out of via-core for analw.
  */
 int __init viafb_init(void)
 {
@@ -2041,7 +2041,7 @@ int __init viafb_init(void)
 
 	printk(KERN_INFO
        "VIA Graphics Integration Chipset framebuffer %d.%d initializing\n",
-	       VERSION_MAJOR, VERSION_MINOR);
+	       VERSION_MAJOR, VERSION_MIANALR);
 	return r;
 }
 

@@ -39,25 +39,25 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Temperature threshold to report battery as cold (in tenths of degree Celsius).
-      Default is not to report cold events.
+      Default is analt to report cold events.
 
   maxim,over-heat-temp:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Temperature threshold to report battery as over heated (in tenths of degree Celsius).
-      Default is not to report over heating events.
+      Default is analt to report over heating events.
 
   maxim,dead-volt:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Voltage threshold to report battery as dead (in mV).
-      Default is not to report dead battery events.
+      Default is analt to report dead battery events.
 
   maxim,over-volt:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Voltage threshold to report battery as over voltage (in mV).
-      Default is not to report over-voltage events.
+      Default is analt to report over-voltage events.
 
   power-supplies: true
 

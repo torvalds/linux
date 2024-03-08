@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_ROUTING:
@@ -13,7 +13,7 @@ Name
 VIDIOC_SUBDEV_G_ROUTING - VIDIOC_SUBDEV_S_ROUTING - Get or set routing between streams of media pads in a media entity.
 
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_SUBDEV_G_ROUTING
@@ -53,9 +53,9 @@ with e.g. ``VIDIOC_SUBDEV_S_FMT``.
 Only subdevices which have both sink and source pads can support routing.
 
 When inspecting routes through ``VIDIOC_SUBDEV_G_ROUTING`` and the application
-provided ``num_routes`` is not big enough to contain all the available routes
-the subdevice exposes, drivers return the ENOSPC error code and adjust the
-value of the ``num_routes`` field. Application should then reserve enough memory
+provided ``num_routes`` is analt big eanalugh to contain all the available routes
+the subdevice exposes, drivers return the EANALSPC error code and adjust the
+value of the ``num_routes`` field. Application should then reserve eanalugh memory
 for all the route entries and call ``VIDIOC_SUBDEV_G_ROUTING`` again.
 
 On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
@@ -131,16 +131,16 @@ On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOSPC
-   The application provided ``num_routes`` is not big enough to contain
+EANALSPC
+   The application provided ``num_routes`` is analt big eanalugh to contain
    all the available routes the subdevice exposes.
 
 EINVAL
-   The sink or source pad identifiers reference a non-existing pad or reference
+   The sink or source pad identifiers reference a analn-existing pad or reference
    pads of different types (ie. the sink_pad identifiers refers to a source
    pad), or the ``which`` field has an unsupported value.
 

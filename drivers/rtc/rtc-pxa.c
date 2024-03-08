@@ -282,9 +282,9 @@ static int pxa_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	seq_printf(seq, "trim/divider\t: 0x%08x\n", rtc_readl(pxa_rtc, RTTR));
 	seq_printf(seq, "update_IRQ\t: %s\n",
-		   (rtc_readl(pxa_rtc, RTSR) & RTSR_HZE) ? "yes" : "no");
+		   (rtc_readl(pxa_rtc, RTSR) & RTSR_HZE) ? "anal" : "anal");
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		   (rtc_readl(pxa_rtc, RTSR) & RTSR_PIALE) ? "yes" : "no");
+		   (rtc_readl(pxa_rtc, RTSR) & RTSR_PIALE) ? "anal" : "anal");
 	seq_printf(seq, "periodic_freq\t: %u\n", rtc_readl(pxa_rtc, PIAR));
 
 	return 0;
@@ -308,7 +308,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 
 	pxa_rtc = devm_kzalloc(dev, sizeof(*pxa_rtc), GFP_KERNEL);
 	if (!pxa_rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 	sa1100_rtc = &pxa_rtc->sa1100_rtc;
 
 	spin_lock_init(&pxa_rtc->lock);
@@ -316,7 +316,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 
 	pxa_rtc->ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pxa_rtc->ress) {
-		dev_err(dev, "No I/O memory resource defined\n");
+		dev_err(dev, "Anal I/O memory resource defined\n");
 		return -ENXIO;
 	}
 
@@ -335,7 +335,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 				resource_size(pxa_rtc->ress));
 	if (!pxa_rtc->base) {
 		dev_err(dev, "Unable to map pxa RTC I/O memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pxa_rtc_open(dev);
@@ -404,7 +404,7 @@ static SIMPLE_DEV_PM_OPS(pxa_rtc_pm_ops, pxa_rtc_suspend, pxa_rtc_resume);
 
 /*
  * pxa_rtc_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * module_platform_driver_probe() this is ok because they cananalt get unbound at
  * runtime. So mark the driver struct with __refdata to prevent modpost
  * triggering a section mismatch warning.
  */

@@ -85,7 +85,7 @@
 /*
  * struct cpcap_adc_ato - timing settings for cpcap adc
  *
- * Unfortunately no cpcap documentation available, please document when
+ * Unfortunately anal cpcap documentation available, please document when
  * using these.
  */
 struct cpcap_adc_ato {
@@ -130,7 +130,7 @@ enum cpcap_adc_channel {
 	CPCAP_ADC_BATTP,	/* Battery voltage */
 	CPCAP_ADC_VBUS,		/* USB VBUS voltage */
 	CPCAP_ADC_AD3,		/* Die temperature when charging */
-	CPCAP_ADC_BPLUS_AD4,	/* Another battery or system voltage */
+	CPCAP_ADC_BPLUS_AD4,	/* Aanalther battery or system voltage */
 	CPCAP_ADC_CHG_ISENSE,	/* Calibrated charge current */
 	CPCAP_ADC_BATTI,	/* Calibrated system current */
 	CPCAP_ADC_USB_ID,	/* USB OTG ID, unused on droid 4? */
@@ -139,7 +139,7 @@ enum cpcap_adc_channel {
 	CPCAP_ADC_AD8,		/* Seems unused */
 	CPCAP_ADC_AD9,		/* Seems unused */
 	CPCAP_ADC_LICELL,	/* Maybe system voltage? Always 3V */
-	CPCAP_ADC_HV_BATTP,	/* Another battery detection? */
+	CPCAP_ADC_HV_BATTP,	/* Aanalther battery detection? */
 	CPCAP_ADC_TSX1_AD12,	/* Seems unused, for touchscreen? */
 	CPCAP_ADC_TSX2_AD13,	/* Seems unused, for touchscreen? */
 	CPCAP_ADC_TSY1_AD14,	/* Seems unused, for touchscreen? */
@@ -155,7 +155,7 @@ enum cpcap_adc_channel {
 /*
  * enum cpcap_adc_timing - cpcap adc timing options
  *
- * CPCAP_ADC_TIMING_IMM seems to be immediate with no timings.
+ * CPCAP_ADC_TIMING_IMM seems to be immediate with anal timings.
  * Please document when using.
  */
 enum cpcap_adc_timing {
@@ -216,7 +216,7 @@ struct cpcap_adc_request {
 	int result;
 };
 
-/* Phasing table for channels. Note that channels 16 & 17 use BATTP and BATTI */
+/* Phasing table for channels. Analte that channels 16 & 17 use BATTP and BATTI */
 static const struct cpcap_adc_phasing_tbl bank_phasing[] = {
 	/* Bank0 */
 	[CPCAP_ADC_AD0] =          {0, 0x80, 0x80,    0, 1023},
@@ -389,7 +389,7 @@ static irqreturn_t cpcap_adc_irq_thread(int irq, void *data)
 				   CPCAP_BIT_ADTRIG_DIS,
 				   CPCAP_BIT_ADTRIG_DIS);
 	if (error)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ddata->done = true;
 	wake_up_interruptible(&ddata->wq_data_avail);
@@ -759,7 +759,7 @@ static void cpcap_adc_convert(struct cpcap_adc_request *req)
 		break;
 	}
 
-	/* No conversion for raw channels */
+	/* Anal conversion for raw channels */
 	if (conv_tbl[index].conv_type == IIO_CHAN_INFO_RAW)
 		return;
 
@@ -782,7 +782,7 @@ static void cpcap_adc_convert(struct cpcap_adc_request *req)
 
 /*
  * REVISIT: Check if timed sampling can use multiple channels at the
- * same time. If not, replace channel_mask with just channel.
+ * same time. If analt, replace channel_mask with just channel.
  */
 static int cpcap_adc_read_bank_scaled(struct cpcap_adc *ddata,
 				      struct cpcap_adc_request *req)
@@ -964,12 +964,12 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed to allocate iio device\n");
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ddata = iio_priv(indio_dev);
 	ddata->ato = device_get_match_data(&pdev->dev);
 	if (!ddata->ato)
-		return -ENODEV;
+		return -EANALDEV;
 	ddata->dev = &pdev->dev;
 
 	mutex_init(&ddata->lock);
@@ -983,7 +983,7 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 
 	ddata->reg = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!ddata->reg)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = cpcap_get_vendor(ddata->dev, ddata->reg, &ddata->vendor);
 	if (error)
@@ -993,14 +993,14 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 
 	ddata->irq = platform_get_irq_byname(pdev, "adcdone");
 	if (ddata->irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = devm_request_threaded_irq(&pdev->dev, ddata->irq, NULL,
 					  cpcap_adc_irq_thread,
-					  IRQF_TRIGGER_NONE | IRQF_ONESHOT,
+					  IRQF_TRIGGER_ANALNE | IRQF_ONESHOT,
 					  "cpcap-adc", indio_dev);
 	if (error) {
-		dev_err(&pdev->dev, "could not get irq: %i\n",
+		dev_err(&pdev->dev, "could analt get irq: %i\n",
 			error);
 
 		return error;

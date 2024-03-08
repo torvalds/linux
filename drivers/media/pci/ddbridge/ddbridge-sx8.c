@@ -17,7 +17,7 @@ static const u32 MAX_DEMOD_LDPC_BITRATE = (1550000000 / 6);
 
 #define SX8_TUNER_NUM 4
 #define SX8_DEMOD_NUM 8
-#define SX8_DEMOD_NONE 0xff
+#define SX8_DEMOD_ANALNE 0xff
 
 struct sx8_base {
 	struct mci_base      mci_base;
@@ -77,7 +77,7 @@ static int get_snr(struct dvb_frontend *fe)
 	p->cnr.len = 1;
 	p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 	p->cnr.stat[0].svalue =
-		(s64)state->signal_info.dvbs2_signal_info.signal_to_noise
+		(s64)state->signal_info.dvbs2_signal_info.signal_to_analise
 		     * 10;
 	return 0;
 }
@@ -144,7 +144,7 @@ static int stop(struct dvb_frontend *fe)
 	u32 input = state->mci.tuner;
 
 	memset(&cmd, 0, sizeof(cmd));
-	if (state->mci.demod != SX8_DEMOD_NONE) {
+	if (state->mci.demod != SX8_DEMOD_ANALNE) {
 		cmd.command = MCI_CMD_STOP;
 		cmd.demod = state->mci.demod;
 		ddb_mci_cmd(&state->mci, &cmd, NULL);
@@ -153,7 +153,7 @@ static int stop(struct dvb_frontend *fe)
 			cmd.demod = state->mci.demod;
 			cmd.output = 0;
 			ddb_mci_cmd(&state->mci, &cmd, NULL);
-			ddb_mci_config(&state->mci, SX8_TSCONFIG_MODE_NORMAL);
+			ddb_mci_config(&state->mci, SX8_TSCONFIG_MODE_ANALRMAL);
 		}
 	}
 	mutex_lock(&mci_base->tuner_lock);
@@ -162,7 +162,7 @@ static int stop(struct dvb_frontend *fe)
 		mci_set_tuner(fe, input, 0);
 	if (state->mci.demod < SX8_DEMOD_NUM) {
 		sx8_base->demod_in_use[state->mci.demod] = 0;
-		state->mci.demod = SX8_DEMOD_NONE;
+		state->mci.demod = SX8_DEMOD_ANALNE;
 	}
 	sx8_base->used_ldpc_bitrate[state->mci.nr] = 0;
 	sx8_base->iq_mode = 0;
@@ -220,7 +220,7 @@ static int start(struct dvb_frontend *fe, u32 flags, u32 modmask, u32 ts_config)
 		}
 		if (used_ldpc_bitrate >= MAX_LDPC_BITRATE ||
 		    ((ts_config & SX8_TSCONFIG_MODE_MASK) >
-		     SX8_TSCONFIG_MODE_NORMAL && used_demods > 0)) {
+		     SX8_TSCONFIG_MODE_ANALRMAL && used_demods > 0)) {
 			stat = -EBUSY;
 			goto unlock;
 		}
@@ -272,7 +272,7 @@ unlock:
 		ddb_mci_cmd(&state->mci, &cmd, NULL);
 		ddb_mci_config(&state->mci, ts_config);
 	}
-	if (p->stream_id != NO_STREAM_ID_FILTER && p->stream_id != 0x80000000)
+	if (p->stream_id != ANAL_STREAM_ID_FILTER && p->stream_id != 0x80000000)
 		flags |= 0x80;
 	dev_dbg(mci_base->dev, "MCI-%d: tuner=%d demod=%d\n",
 		state->mci.nr, state->mci.tuner, state->mci.demod);
@@ -285,7 +285,7 @@ unlock:
 	cmd.dvbs2_search.scrambling_sequence_index =
 		p->scrambling_sequence_index | 0x80000000;
 	cmd.dvbs2_search.input_stream_id =
-		(p->stream_id != NO_STREAM_ID_FILTER) ? p->stream_id : 0;
+		(p->stream_id != ANAL_STREAM_ID_FILTER) ? p->stream_id : 0;
 	cmd.tuner = state->mci.tuner;
 	cmd.demod = state->mci.demod;
 	cmd.output = state->mci.nr;
@@ -351,13 +351,13 @@ static int set_parameters(struct dvb_frontend *fe)
 	int stat = 0;
 	struct sx8 *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	u32 ts_config = SX8_TSCONFIG_MODE_NORMAL, iq_mode = 0, isi;
+	u32 ts_config = SX8_TSCONFIG_MODE_ANALRMAL, iq_mode = 0, isi;
 
 	if (state->started)
 		stop(fe);
 
 	isi = p->stream_id;
-	if (isi != NO_STREAM_ID_FILTER)
+	if (isi != ANAL_STREAM_ID_FILTER)
 		iq_mode = (isi & 0x30000000) >> 28;
 
 	if (iq_mode)
@@ -463,7 +463,7 @@ static int init(struct mci *mci)
 {
 	struct sx8 *state = (struct sx8 *)mci;
 
-	state->mci.demod = SX8_DEMOD_NONE;
+	state->mci.demod = SX8_DEMOD_ANALNE;
 	return 0;
 }
 

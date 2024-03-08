@@ -38,7 +38,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	if (!enable_firewall)
 		num_unpins += num_cmdbufs;
 
-	/* Check that we're not going to overflow */
+	/* Check that we're analt going to overflow */
 	total = sizeof(struct host1x_job) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
@@ -91,7 +91,7 @@ static void job_free(struct kref *ref)
 	if (job->fence) {
 		/*
 		 * remove_callback is atomic w.r.t. fence signaling, so
-		 * after the call returns, we know that the callback is not
+		 * after the call returns, we kanalw that the callback is analt
 		 * in execution, and the fence can be safely freed.
 		 */
 		dma_fence_remove_callback(job->fence, &job->fence_cb);
@@ -188,7 +188,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		}
 
 		/*
-		 * host1x clients are generally not able to do scatter-gather themselves, so fail
+		 * host1x clients are generally analt able to do scatter-gather themselves, so fail
 		 * if the buffer is discontiguous and we fail to map its SG table to a single
 		 * contiguous chunk of I/O virtual memory.
 		 */
@@ -203,7 +203,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	}
 
 	/*
-	 * We will copy gathers BO content later, so there is no need to
+	 * We will copy gathers BO content later, so there is anal need to
 	 * hold and pin them.
 	 */
 	if (job->enable_firewall)
@@ -244,7 +244,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			alloc = alloc_iova(&host->iova, gather_size >> shift,
 					   host->iova_end >> shift, true);
 			if (!alloc) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto put;
 			}
 
@@ -304,8 +304,8 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 			cmdbuf_addr = host1x_bo_mmap(cmdbuf);
 
 			if (unlikely(!cmdbuf_addr)) {
-				pr_err("Could not map cmdbuf for relocation\n");
-				return -ENOMEM;
+				pr_err("Could analt map cmdbuf for relocation\n");
+				return -EANALMEM;
 			}
 		}
 
@@ -432,7 +432,7 @@ static int check_incr(struct host1x_firewall *fw)
 	return 0;
 }
 
-static int check_nonincr(struct host1x_firewall *fw)
+static int check_analnincr(struct host1x_firewall *fw)
 {
 	u32 count = fw->count;
 	int ret;
@@ -496,7 +496,7 @@ static int validate(struct host1x_firewall *fw, struct host1x_job_gather *g)
 		case 2:
 			fw->reg = word >> 16 & 0xfff;
 			fw->count = word & 0xffff;
-			err = check_nonincr(fw);
+			err = check_analnincr(fw);
 			if (err)
 				goto out;
 			break;
@@ -547,11 +547,11 @@ static inline int copy_gathers(struct device *host, struct host1x_job *job,
 	}
 
 	/*
-	 * Try a non-blocking allocation from a higher priority pools first,
+	 * Try a analn-blocking allocation from a higher priority pools first,
 	 * as awaiting for the allocation here is a major performance hit.
 	 */
 	job->gather_copy_mapped = dma_alloc_wc(host, size, &job->gather_copy,
-					       GFP_NOWAIT);
+					       GFP_ANALWAIT);
 
 	/* the higher priority allocation failed, try the generic-blocking */
 	if (!job->gather_copy_mapped)
@@ -559,7 +559,7 @@ static inline int copy_gathers(struct device *host, struct host1x_job *job,
 						       &job->gather_copy,
 						       GFP_KERNEL);
 	if (!job->gather_copy_mapped)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	job->gather_copy_size = size;
 
@@ -588,7 +588,7 @@ static inline int copy_gathers(struct device *host, struct host1x_job *job,
 		offset += g->words * sizeof(u32);
 	}
 
-	/* No relocs should remain at this point */
+	/* Anal relocs should remain at this point */
 	if (fw.num_relocs)
 		return -EINVAL;
 

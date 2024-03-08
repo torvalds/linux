@@ -65,7 +65,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 
 	rv_i2s_data = dev_id;
 	if (!rv_i2s_data)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	play_flag = 0;
 	cap_flag = 0;
@@ -101,7 +101,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *dev_id)
 	if (play_flag | cap_flag)
 		return IRQ_HANDLED;
 	else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 static void config_acp3x_dma(struct i2s_stream_instance *rtd, int direction)
@@ -374,25 +374,25 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	int status;
 
 	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "platform_data not retrieved\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "platform_data analt retrieved\n");
+		return -EANALDEV;
 	}
 	irqflags = *((unsigned int *)(pdev->dev.platform_data));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
 	if (!adata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));
 	if (!adata->acp3x_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = platform_get_irq(pdev, 0);
 	if (status < 0)
@@ -405,13 +405,13 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 						 NULL, 0);
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp i2s component\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	status = devm_request_irq(&pdev->dev, adata->i2s_irq, i2s_irq_handler,
 				  irqflags, "ACP3x_I2S_IRQ", adata);
 	if (status) {
 		dev_err(&pdev->dev, "ACP3x I2S IRQ request failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);

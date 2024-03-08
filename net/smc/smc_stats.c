@@ -32,7 +32,7 @@ int smc_stats_init(struct net *net)
 err_stats:
 	kfree(net->smc.fback_rsn);
 err_fback:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void smc_stats_exit(struct net *net)
@@ -335,7 +335,7 @@ static int smc_nl_get_fback_details(struct sk_buff *skb,
 	else
 		trgt_arr = &net->smc.fback_rsn->clnt[0];
 	if (!trgt_arr[pos].fback_code)
-		return -ENODATA;
+		return -EANALDATA;
 	nlh = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &smc_gen_nl_family, NLM_F_MULTI,
 			  SMC_NETLINK_GET_FBACK_STATS);
@@ -393,17 +393,17 @@ int smc_nl_get_fback_stats(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 		if (!skip_serv) {
 			rc_srv = smc_nl_get_fback_details(skb, cb, k, is_srv);
-			if (rc_srv && rc_srv != -ENODATA)
+			if (rc_srv && rc_srv != -EANALDATA)
 				break;
 		} else {
 			skip_serv = 0;
 		}
 		rc_clnt = smc_nl_get_fback_details(skb, cb, k, !is_srv);
-		if (rc_clnt && rc_clnt != -ENODATA) {
+		if (rc_clnt && rc_clnt != -EANALDATA) {
 			skip_serv = 1;
 			break;
 		}
-		if (rc_clnt == -ENODATA && rc_srv == -ENODATA)
+		if (rc_clnt == -EANALDATA && rc_srv == -EANALDATA)
 			break;
 	}
 	mutex_unlock(&net->smc.mutex_fback_rsn);

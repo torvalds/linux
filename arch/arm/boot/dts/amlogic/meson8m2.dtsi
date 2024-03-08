@@ -16,7 +16,7 @@
 
 &dmcbus {
 	/* the offset of the canvas registers has changed compared to Meson8 */
-	/delete-node/ video-lut@20;
+	/delete-analde/ video-lut@20;
 
 	canvas: video-lut@48 {
 		compatible = "amlogic,meson8m2-canvas", "amlogic,canvas";

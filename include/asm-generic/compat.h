@@ -31,7 +31,7 @@ typedef u32 compat_size_t;
 typedef s32 compat_ssize_t;
 typedef s32 compat_clock_t;
 typedef s32 compat_pid_t;
-typedef u32 compat_ino_t;
+typedef u32 compat_ianal_t;
 typedef s32 compat_off_t;
 typedef s64 compat_loff_t;
 typedef s32 compat_daddr_t;

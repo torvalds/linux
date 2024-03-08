@@ -138,27 +138,27 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 }
 
 static int mscc_ocelot_init_ports(struct platform_device *pdev,
-				  struct device_node *ports)
+				  struct device_analde *ports)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 	u32 devlink_ports_registered = 0;
-	struct device_node *portnp;
+	struct device_analde *portnp;
 	int port, err;
 	u32 reg;
 
 	ocelot->ports = devm_kcalloc(ocelot->dev, ocelot->num_phys_ports,
 				     sizeof(struct ocelot_port *), GFP_KERNEL);
 	if (!ocelot->ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ocelot->devlink_ports = devm_kcalloc(ocelot->dev,
 					     ocelot->num_phys_ports,
 					     sizeof(*ocelot->devlink_ports),
 					     GFP_KERNEL);
 	if (!ocelot->devlink_ports)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_available_child_of_node(ports, portnp) {
+	for_each_available_child_of_analde(ports, portnp) {
 		struct regmap *target;
 		struct resource *res;
 		char res_name[8];
@@ -181,14 +181,14 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		target = ocelot_regmap_init(ocelot, res);
 		if (IS_ERR(target)) {
 			err = PTR_ERR(target);
-			of_node_put(portnp);
+			of_analde_put(portnp);
 			goto out_teardown;
 		}
 
 		err = ocelot_port_devlink_init(ocelot, port,
 					       DEVLINK_PORT_FLAVOUR_PHYSICAL);
 		if (err) {
-			of_node_put(portnp);
+			of_analde_put(portnp);
 			goto out_teardown;
 		}
 
@@ -229,9 +229,9 @@ out_teardown:
 
 static int mscc_ocelot_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int err, irq_xtr, irq_ptp_rdy;
-	struct device_node *ports;
+	struct device_analde *ports;
 	struct devlink *devlink;
 	struct ocelot *ocelot;
 	struct regmap *hsio;
@@ -255,12 +255,12 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	};
 
 	if (!np && !pdev->dev.platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	devlink =
 		devlink_alloc(&ocelot_devlink_ops, sizeof(*ocelot), &pdev->dev);
 	if (!devlink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ocelot = devlink_priv(devlink);
 	ocelot->devlink = priv_to_devlink(ocelot);
@@ -330,8 +330,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 
 	ports = of_get_child_by_name(np, "ethernet-ports");
 	if (!ports) {
-		dev_err(ocelot->dev, "no ethernet-ports child node found\n");
-		err = -ENODEV;
+		dev_err(ocelot->dev, "anal ethernet-ports child analde found\n");
+		err = -EANALDEV;
 		goto out_free_devlink;
 	}
 
@@ -369,11 +369,11 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		}
 	}
 
-	register_netdevice_notifier(&ocelot_netdevice_nb);
-	register_switchdev_notifier(&ocelot_switchdev_nb);
-	register_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
+	register_netdevice_analtifier(&ocelot_netdevice_nb);
+	register_switchdev_analtifier(&ocelot_switchdev_nb);
+	register_switchdev_blocking_analtifier(&ocelot_switchdev_blocking_nb);
 
-	of_node_put(ports);
+	of_analde_put(ports);
 	devlink_register(devlink);
 
 	dev_info(&pdev->dev, "Ocelot switch probed\n");
@@ -386,7 +386,7 @@ out_ocelot_release_ports:
 out_ocelot_devlink_unregister:
 	ocelot_deinit(ocelot);
 out_put_ports:
-	of_node_put(ports);
+	of_analde_put(ports);
 out_free_devlink:
 	devlink_free(devlink);
 	return err;
@@ -404,9 +404,9 @@ static void mscc_ocelot_remove(struct platform_device *pdev)
 	mscc_ocelot_release_ports(ocelot);
 	mscc_ocelot_teardown_devlink_ports(ocelot);
 	ocelot_deinit(ocelot);
-	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
-	unregister_switchdev_notifier(&ocelot_switchdev_nb);
-	unregister_netdevice_notifier(&ocelot_netdevice_nb);
+	unregister_switchdev_blocking_analtifier(&ocelot_switchdev_blocking_nb);
+	unregister_switchdev_analtifier(&ocelot_switchdev_nb);
+	unregister_netdevice_analtifier(&ocelot_netdevice_nb);
 	devlink_free(ocelot->devlink);
 }
 

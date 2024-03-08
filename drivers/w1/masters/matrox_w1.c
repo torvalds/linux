@@ -57,7 +57,7 @@ struct matrox_device {
  *
  * Using tristate pins, since i can't find any open-drain pin in whole motherboard.
  * Unfortunately we can't connect to Intel's 82801xx IO controller
- * since we don't know motherboard schema, which has pretty unused(may be not) GPIO.
+ * since we don't kanalw motherboard schema, which has pretty unused(may be analt) GPIO.
  *
  * I've heard that PIIX also has open drain pin.
  *
@@ -118,12 +118,12 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 	int err;
 
 	if (pdev->vendor != PCI_VENDOR_ID_MATROX || pdev->device != PCI_DEVICE_ID_MATROX_G400)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = kzalloc(sizeof(struct matrox_device) +
 		       sizeof(struct w1_bus_master), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->bus_master = (struct w1_bus_master *)(dev + 1);
 

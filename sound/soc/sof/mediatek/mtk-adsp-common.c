@@ -54,7 +54,7 @@ static void mtk_adsp_get_registers(struct snd_sof_dev *sdev,
  * mtk_adsp_dump() - This function is called when a panic message is
  * received from the firmware.
  * @sdev: SOF device
- * @flags: parameter not used but required by ops prototype
+ * @flags: parameter analt used but required by ops prototype
  */
 void mtk_adsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {

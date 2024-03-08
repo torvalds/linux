@@ -2,7 +2,7 @@
 /*
  * kgdb support for ARC
  *
- * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ARC_KGDB_H__

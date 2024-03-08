@@ -14,12 +14,12 @@ seg6_enabled - BOOL
 	Relevant packets are those with SRH present and DA = local.
 
 	* 0 - disabled (default)
-	* not 0 - enabled
+	* analt 0 - enabled
 
 seg6_require_hmac - INTEGER
 	Define HMAC policy for ingress SR-enabled packets on this interface.
 
-	* -1 - Ignore HMAC field
+	* -1 - Iganalre HMAC field
 	* 0 - Accept SR packets without HMAC, validate SR packets with HMAC
 	* 1 - Drop SR packets without HMAC, validate SR packets with HMAC
 

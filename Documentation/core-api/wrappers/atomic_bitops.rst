@@ -8,11 +8,11 @@ Atomic bitops
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. include:: ../../atomic_bitops.txt
    :literal:
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

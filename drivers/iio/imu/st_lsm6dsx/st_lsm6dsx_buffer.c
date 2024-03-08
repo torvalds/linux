@@ -656,7 +656,7 @@ int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 	int err;
 
 	if (!hw->settings->fifo_ops.read_fifo)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	mutex_lock(&hw->fifo_lock);
 
@@ -750,7 +750,7 @@ static int st_lsm6dsx_buffer_preenable(struct iio_dev *iio_dev)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 
 	if (!hw->settings->fifo_ops.update_fifo)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return hw->settings->fifo_ops.update_fifo(sensor, true);
 }
@@ -761,7 +761,7 @@ static int st_lsm6dsx_buffer_postdisable(struct iio_dev *iio_dev)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 
 	if (!hw->settings->fifo_ops.update_fifo)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return hw->settings->fifo_ops.update_fifo(sensor, false);
 }

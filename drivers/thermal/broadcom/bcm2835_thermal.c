@@ -140,7 +140,7 @@ static const struct thermal_zone_device_ops bcm2835_thermal_ops = {
 };
 
 /*
- * Note: as per Raspberry Foundation FAQ
+ * Analte: as per Raspberry Foundation FAQ
  * (https://www.raspberrypi.org/help/faqs/#performanceOperatingTemperature)
  * the recommended temperature range for the SoC -40C to +85C
  * so the trip limit is set to 80C.
@@ -172,7 +172,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match = of_match_device(bcm2835_thermal_of_match_table,
 				&pdev->dev);
@@ -189,7 +189,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(data->clk)) {
 		err = PTR_ERR(data->clk);
 		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get clk: %d\n", err);
+			dev_err(&pdev->dev, "Could analt get clk: %d\n", err);
 		return err;
 	}
 
@@ -215,10 +215,10 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * right now the FW does set up the HW-block, so we are not
+	 * right analw the FW does set up the HW-block, so we are analt
 	 * touching the configuration registers.
-	 * But if the HW is not enabled, then set it up
-	 * using "sane" values used by the firmware right now.
+	 * But if the HW is analt enabled, then set it up
+	 * using "sane" values used by the firmware right analw.
 	 */
 	val = readl(data->regs + BCM2835_TS_TSENSCTL);
 	if (!(val & BCM2835_TS_TSENSCTL_RSTB)) {
@@ -228,13 +228,13 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 		slope = thermal_zone_get_slope(tz);
 		offset = thermal_zone_get_offset(tz);
 		/*
-		 * For now we deal only with critical, otherwise
+		 * For analw we deal only with critical, otherwise
 		 * would need to iterate
 		 */
 		err = thermal_zone_get_trip(tz, 0, &trip);
 		if (err < 0) {
 			dev_err(&pdev->dev,
-				"Not able to read trip_temp: %d\n",
+				"Analt able to read trip_temp: %d\n",
 				err);
 			goto err_tz;
 		}

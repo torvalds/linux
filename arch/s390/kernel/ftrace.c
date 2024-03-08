@@ -19,14 +19,14 @@
 #include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/ftrace.lds.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/set_memory.h>
 #include "entry.h"
 #include "ftrace.h"
 
 /*
  * To generate function prologue either gcc's hotpatch feature (since gcc 4.8)
- * or a combination of -pg -mrecord-mcount -mnop-mcount -mfentry flags
+ * or a combination of -pg -mrecord-mcount -manalp-mcount -mfentry flags
  * (since gcc 9 / clang 10) is used.
  * In both cases the original and also the disabled function prologue contains
  * only a single six byte instruction and looks like this:
@@ -35,8 +35,8 @@
  * like this:
  * >	brasl	%r0,ftrace_caller	# offset 0
  *
- * The instruction will be patched by ftrace_make_call / ftrace_make_nop.
- * The ftrace function gets called with a non-standard C function call ABI
+ * The instruction will be patched by ftrace_make_call / ftrace_make_analp.
+ * The ftrace function gets called with a analn-standard C function call ABI
  * where r0 contains the return address. It is also expected that the called
  * function only clobbers r0 and r1, but restores r2-r15.
  * For module code we can't directly jump to ftrace caller, but need a
@@ -60,7 +60,7 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 	tstart = ftrace_shared_hotpatch_trampoline_br;
 	tend = ftrace_shared_hotpatch_trampoline_br_end;
 #ifdef CONFIG_EXPOLINE
-	if (!nospec_disable) {
+	if (!analspec_disable) {
 		tstart = ftrace_shared_hotpatch_trampoline_exrl;
 		tend = ftrace_shared_hotpatch_trampoline_exrl_end;
 	}
@@ -70,12 +70,12 @@ static const char *ftrace_shared_hotpatch_trampoline(const char **end)
 	return tstart;
 }
 
-bool ftrace_need_init_nop(void)
+bool ftrace_need_init_analp(void)
 {
 	return true;
 }
 
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec)
 {
 	static struct ftrace_hotpatch_trampoline *next_vmlinux_trampoline =
 		__ftrace_hotpatch_trampolines_start;
@@ -103,10 +103,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 #endif
 
 	if (WARN_ON_ONCE(*next_trampoline >= trampolines_end))
-		return -ENOMEM;
+		return -EANALMEM;
 	trampoline = (*next_trampoline)++;
 
-	/* Check for the compiler-generated fentry nop (brcl 0, .). */
+	/* Check for the compiler-generated fentry analp (brcl 0, .). */
 	if (WARN_ON_ONCE(memcmp((const void *)rec->ip, &orig, sizeof(orig))))
 		return -EINVAL;
 
@@ -132,11 +132,11 @@ static struct ftrace_hotpatch_trampoline *ftrace_get_trampoline(struct dyn_ftrac
 	s64 disp;
 	u16 opc;
 
-	if (copy_from_kernel_nofault(&insn, (void *)rec->ip, sizeof(insn)))
+	if (copy_from_kernel_analfault(&insn, (void *)rec->ip, sizeof(insn)))
 		return ERR_PTR(-EFAULT);
 	disp = (s64)insn.disp * 2;
 	trampoline = (void *)(rec->ip + disp);
-	if (get_kernel_nofault(opc, &trampoline->brasl_opc))
+	if (get_kernel_analfault(opc, &trampoline->brasl_opc))
 		return ERR_PTR(-EFAULT);
 	if (opc != 0xc015)
 		return ERR_PTR(-EINVAL);
@@ -152,7 +152,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	trampoline = ftrace_get_trampoline(rec);
 	if (IS_ERR(trampoline))
 		return PTR_ERR(trampoline);
-	if (get_kernel_nofault(old, &trampoline->interceptor))
+	if (get_kernel_analfault(old, &trampoline->interceptor))
 		return -EFAULT;
 	if (old != old_addr)
 		return -EINVAL;
@@ -165,7 +165,7 @@ static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 	u16 old;
 	u8 op;
 
-	if (get_kernel_nofault(old, addr))
+	if (get_kernel_analfault(old, addr))
 		return -EFAULT;
 	if (old != expected)
 		return -EINVAL;
@@ -175,7 +175,7 @@ static int ftrace_patch_branch_mask(void *addr, u16 expected, bool enable)
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	/* Expect brcl 0xf,... */
@@ -222,7 +222,7 @@ static int __init ftrace_plt_init(void)
 
 	ftrace_plt = module_alloc(PAGE_SIZE);
 	if (!ftrace_plt)
-		panic("cannot allocate ftrace plt\n");
+		panic("cananalt allocate ftrace plt\n");
 
 	start = ftrace_shared_hotpatch_trampoline(&end);
 	memcpy(ftrace_plt, start, end - start);
@@ -251,13 +251,13 @@ unsigned long prepare_ftrace_return(unsigned long ra, unsigned long sp,
 out:
 	return ra;
 }
-NOKPROBE_SYMBOL(prepare_ftrace_return);
+ANALKPROBE_SYMBOL(prepare_ftrace_return);
 
 /*
  * Patch the kernel code at ftrace_graph_caller location. The instruction
  * there is branch relative on condition. To enable the ftrace graph code
  * block, we simply patch the mask field of the instruction to zero and
- * turn the instruction into a nop.
+ * turn the instruction into a analp.
  * To disable the ftrace graph code the mask field will be patched to
  * all ones, which turns the instruction into an unconditional branch.
  */
@@ -330,7 +330,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 out:
 	ftrace_test_recursion_unlock(bit);
 }
-NOKPROBE_SYMBOL(kprobe_ftrace_handler);
+ANALKPROBE_SYMBOL(kprobe_ftrace_handler);
 
 int arch_prepare_kprobe_ftrace(struct kprobe *p)
 {

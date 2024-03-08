@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -268,7 +268,7 @@ static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
  * rsi_set_default_parameters() - This function sets default parameters.
  * @common: Pointer to the driver private structure.
  *
- * Return: none
+ * Return: analne
  */
 static void rsi_set_default_parameters(struct rsi_common *common)
 {
@@ -277,11 +277,11 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 	common->channel = 1;
 	memset(&common->rate_config, 0, sizeof(common->rate_config));
-	common->fsm_state = FSM_CARD_NOT_READY;
+	common->fsm_state = FSM_CARD_ANALT_READY;
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
 	common->driver_mode = 1; /* End to end mode */
-	common->lp_ps_handshake_mode = 0; /* Default no handShake mode*/
+	common->lp_ps_handshake_mode = 0; /* Default anal handShake mode*/
 	common->ulp_ps_handshake_mode = 2; /* Default PKT handShake mode*/
 	common->rf_power_val = 0; /* Default 1.9V */
 	common->wlan_rf_power_mode = 0;
@@ -315,7 +315,7 @@ void init_bgscan_params(struct rsi_common *common)
  *			       backoff procedure.
  * @common: Pointer to the driver private structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 static void rsi_set_contention_vals(struct rsi_common *common)
 {
@@ -348,10 +348,10 @@ static int rsi_send_internal_mgmt_frame(struct rsi_common *common,
 
 	if (skb == NULL) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to allocate skb\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	desc = (struct rsi_cmd_desc *)skb->data;
-	desc->desc_dword0.len_qno |= cpu_to_le16(DESC_IMMEDIATE_WAKEUP);
+	desc->desc_dword0.len_qanal |= cpu_to_le16(DESC_IMMEDIATE_WAKEUP);
 	skb->priority = MGMT_SOFT_Q;
 	tx_params = (struct skb_info *)&IEEE80211_SKB_CB(skb)->driver_data;
 	tx_params->flags |= INTERNAL_MGMT_PKT;
@@ -389,7 +389,7 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
@@ -464,7 +464,7 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 		radio_caps->gcpd_per_rate[inx++] =
 			cpu_to_le16(common->rate_pwr[ii]  & 0x00FF);
 
-	rsi_set_len_qno(&radio_caps->desc_dword0.len_qno,
+	rsi_set_len_qanal(&radio_caps->desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
 	skb_put(skb, frame_len);
@@ -491,7 +491,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 	struct sk_buff *skb;
 
 	if (!adapter->sc_nvifs)
-		return -ENOLINK;
+		return -EANALLINK;
 
 	msg_len -= pad_bytes;
 	if (msg_len <= 0) {
@@ -503,7 +503,7 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 
 	skb = dev_alloc_skb(msg_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb,
 		     (u8 *)(msg + FRAME_DESC_SZ + pad_bytes),
@@ -519,11 +519,11 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 }
 
 /**
- * rsi_hal_send_sta_notify_frame() - This function sends the station notify
+ * rsi_hal_send_sta_analtify_frame() - This function sends the station analtify
  *				     frame to firmware.
  * @common: Pointer to the driver private structure.
  * @opmode: Operating mode of device.
- * @notify_event: Notification about station connection.
+ * @analtify_event: Analtification about station connection.
  * @bssid: bssid.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STA).
@@ -532,57 +532,57 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  *
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
-int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
-				  u8 notify_event, const unsigned char *bssid,
+int rsi_hal_send_sta_analtify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 analtify_event, const unsigned char *bssid,
 				  u8 qos_enable, u16 aid, u16 sta_id,
 				  struct ieee80211_vif *vif)
 {
 	struct sk_buff *skb = NULL;
-	struct rsi_peer_notify *peer_notify;
+	struct rsi_peer_analtify *peer_analtify;
 	u16 vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	int status;
-	u16 frame_len = sizeof(struct rsi_peer_notify);
+	u16 frame_len = sizeof(struct rsi_peer_analtify);
 
-	rsi_dbg(MGMT_TX_ZONE, "%s: Sending sta notify frame\n", __func__);
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending sta analtify frame\n", __func__);
 
 	skb = dev_alloc_skb(frame_len);
 
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
-	peer_notify = (struct rsi_peer_notify *)skb->data;
+	peer_analtify = (struct rsi_peer_analtify *)skb->data;
 
 	if (opmode == RSI_OPMODE_STA)
-		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
+		peer_analtify->command = cpu_to_le16(PEER_TYPE_AP << 1);
 	else if (opmode == RSI_OPMODE_AP)
-		peer_notify->command = cpu_to_le16(PEER_TYPE_STA << 1);
+		peer_analtify->command = cpu_to_le16(PEER_TYPE_STA << 1);
 
-	switch (notify_event) {
+	switch (analtify_event) {
 	case STA_CONNECTED:
-		peer_notify->command |= cpu_to_le16(RSI_ADD_PEER);
+		peer_analtify->command |= cpu_to_le16(RSI_ADD_PEER);
 		break;
 	case STA_DISCONNECTED:
-		peer_notify->command |= cpu_to_le16(RSI_DELETE_PEER);
+		peer_analtify->command |= cpu_to_le16(RSI_DELETE_PEER);
 		break;
 	default:
 		break;
 	}
 
-	peer_notify->command |= cpu_to_le16((aid & 0xfff) << 4);
-	ether_addr_copy(peer_notify->mac_addr, bssid);
-	peer_notify->mpdu_density = cpu_to_le16(RSI_MPDU_DENSITY);
-	peer_notify->sta_flags = cpu_to_le32((qos_enable) ? 1 : 0);
+	peer_analtify->command |= cpu_to_le16((aid & 0xfff) << 4);
+	ether_addr_copy(peer_analtify->mac_addr, bssid);
+	peer_analtify->mpdu_density = cpu_to_le16(RSI_MPDU_DENSITY);
+	peer_analtify->sta_flags = cpu_to_le32((qos_enable) ? 1 : 0);
 
-	rsi_set_len_qno(&peer_notify->desc.desc_dword0.len_qno,
+	rsi_set_len_qanal(&peer_analtify->desc.desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
-	peer_notify->desc.desc_dword0.frame_type = PEER_NOTIFY;
-	peer_notify->desc.desc_dword3.qid_tid = sta_id;
-	peer_notify->desc.desc_dword3.sta_id = vap_id;
+	peer_analtify->desc.desc_dword0.frame_type = PEER_ANALTIFY;
+	peer_analtify->desc.desc_dword3.qid_tid = sta_id;
+	peer_analtify->desc.desc_dword3.sta_id = vap_id;
 
 	skb_put(skb, frame_len);
 
@@ -603,7 +603,7 @@ int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
  * @tid: traffic identifier.
  * @ssn: ssn.
  * @buf_size: buffer size.
- * @event: notification about station connection.
+ * @event: analtification about station connection.
  * @sta_id: station id.
  *
  * Return: 0 on success, corresponding negative error code on failure.
@@ -624,7 +624,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
@@ -632,7 +632,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending AMPDU indication frame\n", __func__);
 
-	rsi_set_len_qno(&aggr_params->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qanal(&aggr_params->desc_dword0.len_qanal, 0, RSI_WIFI_MGMT_Q);
 	aggr_params->desc_dword0.frame_type = AMPDU_IND;
 
 	aggr_params->aggr_params = tid & RSI_AGGR_PARAMS_TID_MASK;
@@ -673,13 +673,13 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
 	bb_rf_prog = (struct rsi_bb_rf_prog *)skb->data;
 
-	rsi_set_len_qno(&bb_rf_prog->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qanal(&bb_rf_prog->desc_dword0.len_qanal, 0, RSI_WIFI_MGMT_Q);
 	bb_rf_prog->desc_dword0.frame_type = BBP_PROG_IN_TA;
 	bb_rf_prog->endpoint = common->endpoint;
 	bb_rf_prog->rf_power_mode = common->wlan_rf_power_mode;
@@ -727,13 +727,13 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
 	vap_caps = (struct rsi_vap_caps *)skb->data;
 
-	rsi_set_len_qno(&vap_caps->desc_dword0.len_qno,
+	rsi_set_len_qanal(&vap_caps->desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	vap_caps->desc_dword0.frame_type = VAP_CAPABILITIES;
 	vap_caps->status = vap_status;
@@ -810,7 +810,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
@@ -835,7 +835,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 	key_descriptor |= RSI_PROTECT_DATA_FRAMES;
 	key_descriptor |= (key_id << RSI_KEY_ID_OFFSET);
 
-	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
+	rsi_set_len_qanal(&set_key->desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	set_key->desc_dword0.frame_type = SET_KEY_REQ;
 	set_key->key_desc = cpu_to_le16(key_descriptor);
@@ -876,7 +876,7 @@ static int rsi_send_common_dev_params(struct rsi_common *common)
 	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to allocate skb\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
@@ -884,7 +884,7 @@ static int rsi_send_common_dev_params(struct rsi_common *common)
 	dev_cfgs = (struct rsi_config_vals *)skb->data;
 	memset(dev_cfgs, 0, (sizeof(struct rsi_config_vals)));
 
-	rsi_set_len_qno(&dev_cfgs->len_qno, (frame_len - FRAME_DESC_SZ),
+	rsi_set_len_qanal(&dev_cfgs->len_qanal, (frame_len - FRAME_DESC_SZ),
 			RSI_COEX_Q);
 	dev_cfgs->pkt_type = COMMON_DEV_CONFIG;
 
@@ -922,7 +922,7 @@ static int rsi_load_bootup_params(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, sizeof(struct rsi_boot_params));
@@ -976,7 +976,7 @@ static int rsi_load_9116_bootup_params(struct rsi_common *common)
 
 	skb = dev_alloc_skb(sizeof(struct rsi_boot_params_9116));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, sizeof(struct rsi_boot_params));
 	boot_params = (struct rsi_boot_params_9116 *)skb->data;
 
@@ -1003,7 +1003,7 @@ static int rsi_load_9116_bootup_params(struct rsi_common *common)
 				UMAC_CLK_40MHZ);
 		}
 	}
-	rsi_set_len_qno(&boot_params->desc_dword0.len_qno,
+	rsi_set_len_qanal(&boot_params->desc_dword0.len_qanal,
 			sizeof(struct bootup_params_9116), RSI_WIFI_MGMT_Q);
 	boot_params->desc_dword0.frame_type = BOOTUP_PARAMS_REQUEST;
 	skb_put(skb, sizeof(struct rsi_boot_params_9116));
@@ -1029,7 +1029,7 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
@@ -1070,7 +1070,7 @@ int rsi_band_check(struct rsi_common *common,
 		common->band = curchan->band;
 	}
 
-	if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) ||
+	if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_ANALHT) ||
 	    (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20))
 		common->channel_width = BW_20MHZ;
 	else
@@ -1134,20 +1134,20 @@ int rsi_set_channel(struct rsi_common *common,
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
 	chan_cfg = (struct rsi_chan_config *)skb->data;
 
-	rsi_set_len_qno(&chan_cfg->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qanal(&chan_cfg->desc_dword0.len_qanal, 0, RSI_WIFI_MGMT_Q);
 	chan_cfg->desc_dword0.frame_type = SCAN_REQUEST;
 	chan_cfg->channel_number = channel->hw_value;
 	chan_cfg->antenna_gain_offset_2g = channel->max_antenna_gain;
 	chan_cfg->antenna_gain_offset_5g = channel->max_antenna_gain;
 	chan_cfg->region_rftype = (RSI_RF_TYPE & 0xf) << 4;
 
-	if ((channel->flags & IEEE80211_CHAN_NO_IR) ||
+	if ((channel->flags & IEEE80211_CHAN_ANAL_IR) ||
 	    (channel->flags & IEEE80211_CHAN_RADAR)) {
 		chan_cfg->antenna_gain_offset_2g |= RSI_CHAN_RADAR;
 	} else {
@@ -1187,7 +1187,7 @@ int rsi_send_radio_params_update(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
@@ -1215,11 +1215,11 @@ int rsi_send_vap_dynamic_update(struct rsi_common *common)
 
 	skb = dev_alloc_skb(sizeof(struct rsi_dynamic_s));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(skb->data, 0, sizeof(struct rsi_dynamic_s));
 	dynamic_frame = (struct rsi_dynamic_s *)skb->data;
-	rsi_set_len_qno(&dynamic_frame->desc_dword0.len_qno,
+	rsi_set_len_qanal(&dynamic_frame->desc_dword0.len_qanal,
 			sizeof(dynamic_frame->frame_body), RSI_WIFI_MGMT_Q);
 
 	dynamic_frame->desc_dword0.frame_type = VAP_DYNAMIC_UPDATE;
@@ -1325,7 +1325,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, frame_len);
@@ -1334,7 +1334,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
 		dev_kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	auto_rate = (struct rsi_auto_rate *)skb->data;
@@ -1441,7 +1441,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
 	num_supported_rates *= 2;
 
-	rsi_set_len_qno(&auto_rate->desc.desc_dword0.len_qno,
+	rsi_set_len_qanal(&auto_rate->desc.desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
 	skb_put(skb, frame_len);
@@ -1452,7 +1452,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 
 /**
  * rsi_inform_bss_status() - This function informs about bss status with the
- *			     help of sta notify params by sending an internal
+ *			     help of sta analtify params by sending an internal
  *			     management frame to firmware.
  * @common: Pointer to the driver private structure.
  * @opmode: Operating mode of device.
@@ -1465,7 +1465,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
  * @assoc_cap: capabilities.
  * @vif: Pointer to the ieee80211_vif structure.
  *
- * Return: None.
+ * Return: Analne.
  */
 void rsi_inform_bss_status(struct rsi_common *common,
 			   enum opmode opmode,
@@ -1481,7 +1481,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 	if (status) {
 		if (opmode == RSI_OPMODE_STA)
 			common->hw_data_qs_blocked = true;
-		rsi_hal_send_sta_notify_frame(common,
+		rsi_hal_send_sta_analtify_frame(common,
 					      opmode,
 					      STA_CONNECTED,
 					      addr,
@@ -1499,7 +1499,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			common->hw_data_qs_blocked = true;
 
 		if (!(common->wow_flags & RSI_WOW_ENABLED))
-			rsi_hal_send_sta_notify_frame(common, opmode,
+			rsi_hal_send_sta_analtify_frame(common, opmode,
 						      STA_DISCONNECTED, addr,
 						      qos_enable, aid, sta_id,
 						      vif);
@@ -1527,14 +1527,14 @@ static int rsi_eeprom_read(struct rsi_common *common)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_eeprom_read_frame *)skb->data;
 
 	/* FrameType */
-	rsi_set_len_qno(&mgmt_frame->len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qanal(&mgmt_frame->len_qanal, 0, RSI_WIFI_MGMT_Q);
 	mgmt_frame->pkt_type = EEPROM_READ;
 
 	/* Number of bytes to read */
@@ -1571,13 +1571,13 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_block_unblock_data *)skb->data;
 
-	rsi_set_len_qno(&mgmt_frame->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qanal(&mgmt_frame->desc_dword0.len_qanal, 0, RSI_WIFI_MGMT_Q);
 	mgmt_frame->desc_dword0.frame_type = BLOCK_HW_QUEUE;
 	mgmt_frame->host_quiet_info = QUIET_INFO_VALID;
 
@@ -1615,7 +1615,7 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
@@ -1641,13 +1641,13 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 
 	skb = dev_alloc_skb(frame_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, frame_len);
 
 	ps = (struct rsi_request_ps *)skb->data;
 	ps_info = &adapter->ps_info;
 
-	rsi_set_len_qno(&ps->desc.desc_dword0.len_qno,
+	rsi_set_len_qanal(&ps->desc.desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	ps->desc.desc_dword0.frame_type = WAKEUP_SLEEP_REQUEST;
 	if (enable) {
@@ -1655,7 +1655,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 		ps->desc.desc_dword3.token = cpu_to_le16(RSI_SLEEP_REQUEST);
 	} else {
 		ps->ps_sleep.enable = RSI_PS_DISABLE;
-		ps->desc.desc_dword0.len_qno |= cpu_to_le16(RSI_PS_DISABLE_IND);
+		ps->desc.desc_dword0.len_qanal |= cpu_to_le16(RSI_PS_DISABLE_IND);
 		ps->desc.desc_dword3.token = cpu_to_le16(RSI_WAKEUP_REQUEST);
 	}
 
@@ -1696,7 +1696,7 @@ static int rsi_send_w9116_features(struct rsi_common *common)
 
 	skb = dev_alloc_skb(frame_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, frame_len);
 
 	w9116_features = (struct rsi_wlan_9116_features *)skb->data;
@@ -1718,7 +1718,7 @@ static int rsi_send_w9116_features(struct rsi_common *common)
 	w9116_features->feature_enable |=
 		cpu_to_le32((common->w9116_features.ps_options & ~0x3) << 2);
 
-	rsi_set_len_qno(&w9116_features->desc.desc_dword0.len_qno,
+	rsi_set_len_qanal(&w9116_features->desc.desc_dword0.len_qanal,
 			frame_len - FRAME_DESC_SZ, RSI_WIFI_MGMT_Q);
 	w9116_features->desc.desc_dword0.frame_type = FEATURES_ENABLE;
 	skb_put(skb, frame_len);
@@ -1744,7 +1744,7 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
@@ -1753,7 +1753,7 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	ant_sel_frame->desc_dword0.frame_type = ANT_SEL_FRAME;
 	ant_sel_frame->sub_frame_type = ANTENNA_SEL_TYPE;
 	ant_sel_frame->ant_value = cpu_to_le16(antenna & ANTENNA_MASK_VALUE);
-	rsi_set_len_qno(&ant_sel_frame->desc_dword0.len_qno,
+	rsi_set_len_qanal(&ant_sel_frame->desc_dword0.len_qanal,
 			0, RSI_WIFI_MGMT_Q);
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -1767,7 +1767,7 @@ static int rsi_send_beacon(struct rsi_common *common)
 
 	skb = dev_alloc_skb(MAX_MGMT_PKT_SIZE);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(skb->data, 0, MAX_MGMT_PKT_SIZE);
 
@@ -1799,11 +1799,11 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 	length = sizeof(*cmd_frame);
 	skb = dev_alloc_skb(length);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, length);
 	cmd_frame = (struct rsi_wowlan_req *)skb->data;
 
-	rsi_set_len_qno(&cmd_frame->desc.desc_dword0.len_qno,
+	rsi_set_len_qanal(&cmd_frame->desc.desc_dword0.len_qanal,
 			(length - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	cmd_frame->desc.desc_dword0.frame_type = WOWLAN_CONFIG_PARAMS;
@@ -1834,11 +1834,11 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 
 	skb = dev_alloc_skb(frame_len);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, frame_len);
 
 	bgscan = (struct rsi_bgscan_config *)skb->data;
-	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+	rsi_set_len_qanal(&bgscan->desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	bgscan->desc_dword0.frame_type = BG_SCAN_PARAMS;
 	bgscan->bgscan_threshold = cpu_to_le16(params->bgscan_threshold);
@@ -1880,7 +1880,7 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 		"%s: Sending bgscan probe req frame\n", __func__);
 
 	if (common->priv->sc_nvifs <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (scan_req->n_ssids) {
 		ssid = scan_req->ssids[0].ssid;
@@ -1889,7 +1889,7 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 
 	skb = dev_alloc_skb(frame_len + MAX_BGSCAN_PROBE_REQ_LEN);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(skb->data, 0, frame_len + MAX_BGSCAN_PROBE_REQ_LEN);
 
 	bgscan = (struct rsi_bgscan_probe *)skb->data;
@@ -1908,14 +1908,14 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 					      ssid_len, scan_req->ie_len);
 	if (!probereq_skb) {
 		dev_kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memcpy(&skb->data[frame_len], probereq_skb->data, probereq_skb->len);
 
 	bgscan->probe_req_length = cpu_to_le16(probereq_skb->len);
 
-	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+	rsi_set_len_qanal(&bgscan->desc_dword0.len_qanal,
 			(frame_len - FRAME_DESC_SZ + probereq_skb->len),
 			RSI_WIFI_MGMT_Q);
 
@@ -1961,7 +1961,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 					 WLAN_HOST_MODE_LEN);
 				adapter->eeprom.offset = WLAN_MAC_EEPROM_ADDR;
 				if (rsi_eeprom_read(common)) {
-					common->fsm_state = FSM_CARD_NOT_READY;
+					common->fsm_state = FSM_CARD_ANALT_READY;
 					goto out;
 				}
 				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
@@ -1985,7 +1985,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 		if (msg[16] != MAGIC_WORD) {
 			rsi_dbg(FSM_ZONE,
 				"%s: [EEPROM_READ] Invalid token\n", __func__);
-			common->fsm_state = FSM_CARD_NOT_READY;
+			common->fsm_state = FSM_CARD_ANALT_READY;
 			goto out;
 		}
 		if (common->fsm_state == FSM_EEPROM_READ_MAC_ADDR) {
@@ -1999,7 +1999,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				rsi_dbg(ERR_ZONE,
 					"%s: Failed reading RF band\n",
 					__func__);
-				common->fsm_state = FSM_CARD_NOT_READY;
+				common->fsm_state = FSM_CARD_ANALT_READY;
 				goto out;
 			}
 			common->fsm_state = FSM_EEPROM_READ_RF_TYPE;
@@ -2128,7 +2128,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 	int status;
 
 	switch (common->fsm_state) {
-	case FSM_CARD_NOT_READY:
+	case FSM_CARD_ANALT_READY:
 		rsi_dbg(INIT_ZONE, "Card ready indication from Common HAL\n");
 		rsi_set_default_parameters(common);
 		if (rsi_send_common_dev_params(common) < 0)
@@ -2143,7 +2143,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 				rsi_dbg(FSM_ZONE,
 					"%s: [EEPROM_READ] Invalid token\n",
 					__func__);
-				common->fsm_state = FSM_CARD_NOT_READY;
+				common->fsm_state = FSM_CARD_ANALT_READY;
 				return -EINVAL;
 			}
 			memcpy(common->mac_addr, &msg[20], ETH_ALEN);
@@ -2159,7 +2159,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 		else
 			status = rsi_load_bootup_params(common);
 		if (status < 0) {
-			common->fsm_state = FSM_CARD_NOT_READY;
+			common->fsm_state = FSM_CARD_ANALT_READY;
 			return status;
 		}
 		common->fsm_state = FSM_BOOT_PARAMS_SENT;

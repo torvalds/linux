@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -151,7 +151,7 @@ enum imxfb_type {
 };
 
 enum imxfb_panel_type {
-	PANEL_TYPE_MONOCHROME,
+	PANEL_TYPE_MOANALCHROME,
 	PANEL_TYPE_CSTN,
 	PANEL_TYPE_TFT,
 };
@@ -234,7 +234,7 @@ static inline int is_imx1_fb(struct imxfb_info *fbi)
 
 /* Actually this really is 18bit support, the lowest 2 bits of each colour
  * are unused in hardware. We claim to have 24bit support to make software
- * like X work, which does not support 18bit.
+ * like X work, which does analt support 18bit.
  */
 static struct imxfb_rgb def_rgb_18 = {
 	.red	= {.offset = 16, .length = 8,},
@@ -274,25 +274,25 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int imxfb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
+static int imxfb_setpalettereg(u_int reganal, u_int red, u_int green, u_int blue,
 		u_int trans, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
 	u_int val, ret = 1;
 
 #define CNVT_TOHW(val, width) ((((val)<<(width))+0x7FFF-(val))>>16)
-	if (regno < fbi->palette_size) {
+	if (reganal < fbi->palette_size) {
 		val = (CNVT_TOHW(red, 4) << 8) |
 		      (CNVT_TOHW(green, 4) << 4) |
 		      CNVT_TOHW(blue,  4);
 
-		writel(val, fbi->regs + 0x800 + (regno << 2));
+		writel(val, fbi->regs + 0x800 + (reganal << 2));
 		ret = 0;
 	}
 	return ret;
 }
 
-static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int imxfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 		   u_int trans, struct fb_info *info)
 {
 	struct imxfb_info *fbi = info->par;
@@ -313,7 +313,7 @@ static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	/*
 	 * If greyscale is true, then we convert the RGB value
-	 * to greyscale no mater what visual we are using.
+	 * to greyscale anal mater what visual we are using.
 	 */
 	if (info->var.grayscale)
 		red = green = blue = (19595 * red + 38470 * green +
@@ -325,21 +325,21 @@ static int imxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		 * 12 or 16-bit True Colour.  We encode the RGB value
 		 * according to the RGB bitfield information.
 		 */
-		if (regno < 16) {
+		if (reganal < 16) {
 			u32 *pal = info->pseudo_palette;
 
 			val  = chan_to_field(red, &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue, &info->var.blue);
 
-			pal[regno] = val;
+			pal[reganal] = val;
 			ret = 0;
 		}
 		break;
 
 	case FB_VISUAL_STATIC_PSEUDOCOLOR:
 	case FB_VISUAL_PSEUDOCOLOR:
-		ret = imxfb_setpalettereg(regno, red, green, blue, trans, info);
+		ret = imxfb_setpalettereg(reganal, red, green, blue, trans, info);
 		break;
 	}
 
@@ -446,7 +446,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	fbi->pcr = pcr;
 	/*
-	 * The LCDC AUS Mode Control Register does not exist on imx1.
+	 * The LCDC AUS Mode Control Register does analt exist on imx1.
 	 */
 	if (!is_imx1_fb(fbi) && imxfb_mode->aus_mode)
 		fbi->lauscr = LAUSCR_AUS_MODE;
@@ -456,7 +456,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	else if (imxfb_mode->pcr & PCR_COLOR)
 		fbi->panel_type = PANEL_TYPE_CSTN;
 	else
-		fbi->panel_type = PANEL_TYPE_MONOCHROME;
+		fbi->panel_type = PANEL_TYPE_MOANALCHROME;
 
 	/*
 	 * Copy the RGB parameters for this display
@@ -582,7 +582,7 @@ static int imxfb_blank(int blank, struct fb_info *info)
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		imxfb_disable_controller(fbi);
 		break;
 
@@ -678,7 +678,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 		writel(fbi->pwmr, fbi->regs + LCDC_PWMR);
 	writel(fbi->lscr1, fbi->regs + LCDC_LSCR1);
 
-	/* dmacr = 0 is no valid value, as we need DMA control marks. */
+	/* dmacr = 0 is anal valid value, as we need DMA control marks. */
 	if (fbi->dmacr)
 		writel(fbi->dmacr, fbi->regs + LCDC_DMACR);
 
@@ -692,12 +692,12 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
-	struct device_node *np;
+	struct device_analde *np;
 
 	info->pseudo_palette = devm_kmalloc_array(&pdev->dev, 16,
 						  sizeof(u32), GFP_KERNEL);
 	if (!info->pseudo_palette)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(fbi, 0, sizeof(struct imxfb_info));
 
@@ -711,19 +711,19 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	info->fix.xpanstep		= 0;
 	info->fix.ypanstep		= 0;
 	info->fix.ywrapstep		= 0;
-	info->fix.accel			= FB_ACCEL_NONE;
+	info->fix.accel			= FB_ACCEL_ANALNE;
 
-	info->var.nonstd		= 0;
-	info->var.activate		= FB_ACTIVATE_NOW;
+	info->var.analnstd		= 0;
+	info->var.activate		= FB_ACTIVATE_ANALW;
 	info->var.height		= -1;
 	info->var.width	= -1;
 	info->var.accel_flags		= 0;
-	info->var.vmode			= FB_VMODE_NONINTERLACED;
+	info->var.vmode			= FB_VMODE_ANALNINTERLACED;
 
 	info->fbops			= &imxfb_ops;
 	info->flags			= FBINFO_READS_FAST;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 	info->var.grayscale = of_property_read_bool(np,
 					"cmap-greyscale");
 	fbi->cmap_inverse = of_property_read_bool(np, "cmap-inverse");
@@ -740,7 +740,7 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 	return 0;
 }
 
-static int imxfb_of_read_mode(struct device *dev, struct device_node *np,
+static int imxfb_of_read_mode(struct device *dev, struct device_analde *np,
 		struct imx_fb_videomode *imxfb_mode)
 {
 	int ret;
@@ -870,7 +870,7 @@ static int imxfb_setup(void)
 	char *opt, *options = NULL;
 
 	if (fb_get_options("imxfb", &options))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!options || !*options)
 		return 0;
@@ -892,7 +892,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	struct fb_info *info;
 	struct imx_fb_videomode *m;
 	const struct of_device_id *of_id;
-	struct device_node *display_np;
+	struct device_analde *display_np;
 	int ret, i;
 	int bytes_per_pixel;
 
@@ -908,7 +908,7 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	info = framebuffer_alloc(sizeof(struct imxfb_info), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fbi = info->par;
 
@@ -920,15 +920,15 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	fb_mode = NULL;
 
-	display_np = of_parse_phandle(pdev->dev.of_node, "display", 0);
+	display_np = of_parse_phandle(pdev->dev.of_analde, "display", 0);
 	if (!display_np) {
-		dev_err(&pdev->dev, "No display defined in devicetree\n");
+		dev_err(&pdev->dev, "Anal display defined in devicetree\n");
 		ret = -EINVAL;
 		goto failed_init;
 	}
 
 	/*
-	 * imxfb does not support more modes, we choose only the native
+	 * imxfb does analt support more modes, we choose only the native
 	 * mode.
 	 */
 	fbi->num_modes = 1;
@@ -936,13 +936,13 @@ static int imxfb_probe(struct platform_device *pdev)
 	fbi->mode = devm_kzalloc(&pdev->dev,
 			sizeof(struct imx_fb_videomode), GFP_KERNEL);
 	if (!fbi->mode) {
-		ret = -ENOMEM;
-		of_node_put(display_np);
+		ret = -EANALMEM;
+		of_analde_put(display_np);
 		goto failed_init;
 	}
 
 	ret = imxfb_of_read_mode(&pdev->dev, display_np, fbi->mode);
-	of_node_put(display_np);
+	of_analde_put(display_np);
 	if (ret)
 		goto failed_init;
 
@@ -963,9 +963,9 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The LCDC controller does not have an enable bit. The
+	 * The LCDC controller does analt have an enable bit. The
 	 * controller starts directly when the clocks are enabled.
-	 * If the clocks are enabled when the controller is not yet
+	 * If the clocks are enabled when the controller is analt yet
 	 * programmed with proper register values (enabled at the
 	 * bootloader, for example) then it just goes into some undefined
 	 * state.
@@ -1000,7 +1000,7 @@ static int imxfb_probe(struct platform_device *pdev)
 					   &fbi->map_dma, GFP_KERNEL);
 	if (!info->screen_buffer) {
 		dev_err(&pdev->dev, "Failed to allocate video RAM\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_init;
 	}
 
@@ -1018,7 +1018,7 @@ static int imxfb_probe(struct platform_device *pdev)
 
 	/*
 	 * For modes > 8bpp, the color map is bypassed.
-	 * Therefore, 256 entries are enough.
+	 * Therefore, 256 entries are eanalugh.
 	 */
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret < 0)

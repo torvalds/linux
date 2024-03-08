@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * VENC settings from TI's DSS driver
@@ -209,7 +209,7 @@ static const struct venc_config venc_config_ntsc_trm = {
 };
 
 enum venc_videomode {
-	VENC_MODE_UNKNOWN,
+	VENC_MODE_UNKANALWN,
 	VENC_MODE_PAL,
 	VENC_MODE_NTSC,
 };
@@ -362,7 +362,7 @@ static int venc_runtime_get(struct venc_device *venc)
 
 	r = pm_runtime_get_sync(&venc->pdev->dev);
 	if (WARN_ON(r < 0)) {
-		pm_runtime_put_noidle(&venc->pdev->dev);
+		pm_runtime_put_analidle(&venc->pdev->dev);
 		return r;
 	}
 	return 0;
@@ -375,7 +375,7 @@ static void venc_runtime_put(struct venc_device *venc)
 	DSSDBG("venc_runtime_put\n");
 
 	r = pm_runtime_put_sync(&venc->pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static int venc_power_on(struct venc_device *venc)
@@ -441,7 +441,7 @@ static void venc_power_off(struct venc_device *venc)
 static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mode)
 {
 	if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
-		return VENC_MODE_UNKNOWN;
+		return VENC_MODE_UNKANALWN;
 
 	if (mode->clock == omap_dss_pal_mode.clock &&
 	    mode->hdisplay == omap_dss_pal_mode.hdisplay &&
@@ -453,7 +453,7 @@ static enum venc_videomode venc_get_videomode(const struct drm_display_mode *mod
 	    mode->vdisplay == omap_dss_ntsc_mode.vdisplay)
 		return VENC_MODE_NTSC;
 
-	return VENC_MODE_UNKNOWN;
+	return VENC_MODE_UNKANALWN;
 }
 
 static int venc_dump_regs(struct seq_file *s, void *p)
@@ -542,7 +542,7 @@ static int venc_bridge_attach(struct drm_bridge *bridge,
 {
 	struct venc_device *venc = drm_bridge_to_venc(bridge);
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
+	if (!(flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR))
 		return -EINVAL;
 
 	return drm_bridge_attach(bridge->encoder, venc->output.next_bridge,
@@ -664,7 +664,7 @@ static const struct drm_bridge_funcs venc_bridge_funcs = {
 static void venc_bridge_init(struct venc_device *venc)
 {
 	venc->bridge.funcs = &venc_bridge_funcs;
-	venc->bridge.of_node = venc->pdev->dev.of_node;
+	venc->bridge.of_analde = venc->pdev->dev.of_analde;
 	venc->bridge.ops = DRM_BRIDGE_OP_MODES;
 	venc->bridge.type = DRM_MODE_CONNECTOR_SVIDEO;
 	venc->bridge.interlace_allowed = true;
@@ -756,12 +756,12 @@ static void venc_uninit_output(struct venc_device *venc)
 
 static int venc_probe_of(struct venc_device *venc)
 {
-	struct device_node *node = venc->pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_analde *analde = venc->pdev->dev.of_analde;
+	struct device_analde *ep;
 	u32 channels;
 	int r;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(analde, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -788,12 +788,12 @@ static int venc_probe_of(struct venc_device *venc)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_analde_put(ep);
 	return r;
 }
 
@@ -810,7 +810,7 @@ static int venc_probe(struct platform_device *pdev)
 
 	venc = kzalloc(sizeof(*venc), GFP_KERNEL);
 	if (!venc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	venc->pdev = pdev;
 

@@ -2,7 +2,7 @@
 /*
  *  Probe for F81216A LPC to 4 UART
  *
- *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
+ *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechanallogy A/S
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -65,7 +65,7 @@
 /*
  * F81866/966 registers
  *
- * The IRQ setting mode of F81866/966 is not the same with F81216 series.
+ * The IRQ setting mode of F81866/966 is analt the same with F81216 series.
  *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
  *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
  *
@@ -145,10 +145,10 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 	u16 chip;
 
 	if (sio_read_reg(pdata, VENDOR_ID1) != VENDOR_ID1_VAL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (sio_read_reg(pdata, VENDOR_ID2) != VENDOR_ID2_VAL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip = sio_read_reg(pdata, CHIP_ID1);
 	chip |= sio_read_reg(pdata, CHIP_ID2) << 8;
@@ -162,7 +162,7 @@ static int fintek_8250_check_id(struct fintek_8250 *pdata)
 	case CHIP_ID_F81216:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pdata->pid = chip;
@@ -188,7 +188,7 @@ static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int fintek_8250_rs485_config(struct uart_port *port, struct ktermios *termios,
@@ -202,7 +202,7 @@ static int fintek_8250_rs485_config(struct uart_port *port, struct ktermios *ter
 
 
 	if (rs485->flags & SER_RS485_ENABLED) {
-		/* Hardware do not support same RTS level on send and receive */
+		/* Hardware do analt support same RTS level on send and receive */
 		if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
 		    !(rs485->flags & SER_RS485_RTS_AFTER_SEND))
 			return -EINVAL;
@@ -305,9 +305,9 @@ static void fintek_8250_set_termios(struct uart_port *port,
 		reg = F81866_UART_CLK;
 		break;
 	default:
-		/* Don't change clocksource with unknown PID */
+		/* Don't change clocksource with unkanalwn PID */
 		dev_warn(port->dev,
-			"%s: pid: %x Not support. use default set_termios.\n",
+			"%s: pid: %x Analt support. use default set_termios.\n",
 			__func__, pdata->pid);
 		goto exit;
 	}
@@ -407,7 +407,7 @@ static int probe_setup_port(struct fintek_8250 *pdata,
 		}
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* Only the first port supports delays */
@@ -438,7 +438,7 @@ static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 			uart->port.rs485_supported = fintek_8250_rs485_supported;
 		break;
 
-	default: /* No RS485 Auto direction functional */
+	default: /* Anal RS485 Auto direction functional */
 		break;
 	}
 }
@@ -449,11 +449,11 @@ int fintek_8250_probe(struct uart_8250_port *uart)
 	struct fintek_8250 probe_data;
 
 	if (probe_setup_port(&probe_data, uart))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = devm_kzalloc(uart->port.dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(pdata, &probe_data, sizeof(probe_data));
 	uart->port.private_data = pdata;

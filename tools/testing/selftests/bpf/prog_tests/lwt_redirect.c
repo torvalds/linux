@@ -2,8 +2,8 @@
 
 /*
  * Test suite of lwt_xmit BPF programs that redirect packets
- *   The file tests focus not only if these programs work as expected normally,
- *   but also if they can handle abnormal situations gracefully.
+ *   The file tests focus analt only if these programs work as expected analrmally,
+ *   but also if they can handle abanalrmal situations gracefully.
  *
  * WARNING
  * -------
@@ -20,7 +20,7 @@
  *  Here <obj> is statically defined to test_lwt_redirect.bpf.o, and each section
  *  of this object holds a program entry to test. The BPF object is built from
  *  progs/test_lwt_redirect.c. We didn't use generated BPF skeleton since the
- *  attachment for lwt programs are not supported by libbpf yet.
+ *  attachment for lwt programs are analt supported by libbpf yet.
  *
  *  For testing, ping commands are run in the test netns:
  *
@@ -36,11 +36,11 @@
  *  Case 1, ping packets should be received by packet socket on target device
  *  when redirected to ingress, and by tun/tap fd when redirected to egress.
  *
- *  Case 2,3 are considered successful as long as they do not crash the kernel
+ *  Case 2,3 are considered successful as long as they do analt crash the kernel
  *  as a regression.
  *
  *  Case 1,2 use tap device to test redirect to device that requires MAC
- *  header, and tun device to test the case with no MAC header added.
+ *  header, and tun device to test the case with anal MAC header added.
  */
 #include <sys/socket.h>
 #include <net/if.h>
@@ -50,7 +50,7 @@
 #include <linux/icmp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -59,8 +59,8 @@
 #include "network_helpers.h"
 
 #define BPF_OBJECT            "test_lwt_redirect.bpf.o"
-#define INGRESS_SEC(need_mac) ((need_mac) ? "redir_ingress" : "redir_ingress_nomac")
-#define EGRESS_SEC(need_mac)  ((need_mac) ? "redir_egress" : "redir_egress_nomac")
+#define INGRESS_SEC(need_mac) ((need_mac) ? "redir_ingress" : "redir_ingress_analmac")
+#define EGRESS_SEC(need_mac)  ((need_mac) ? "redir_egress" : "redir_egress_analmac")
 #define LOCAL_SRC             "10.0.0.1"
 #define CIDR_TO_INGRESS       "10.0.0.0/24"
 #define CIDR_TO_EGRESS        "20.0.0.0/24"
@@ -68,7 +68,7 @@
 /* ping to redirect toward given dev, with last byte of dest IP being the target
  * device index.
  *
- * Note: ping command inside BPF-CI is busybox version, so it does not have certain
+ * Analte: ping command inside BPF-CI is busybox version, so it does analt have certain
  * function, such like -m option to set packet mark.
  */
 static void ping_dev(const char *dev, bool is_ingress)
@@ -85,14 +85,14 @@ static void ping_dev(const char *dev, bool is_ingress)
 		snprintf(ip, sizeof(ip), "20.0.0.%d", link_index);
 
 	/* We won't get a reply. Don't fail here */
-	SYS_NOFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
+	SYS_ANALFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
 		   ip, ICMP_PAYLOAD_SIZE);
 }
 
 static int new_packet_sock(const char *ifname)
 {
 	int err = 0;
-	int ignore_outgoing = 1;
+	int iganalre_outgoing = 1;
 	int ifindex = -1;
 	int s = -1;
 
@@ -122,15 +122,15 @@ static int new_packet_sock(const char *ifname)
 	 * the case where a regression that actually redirects the packet to
 	 * the egress.
 	 */
-	err = setsockopt(s, SOL_PACKET, PACKET_IGNORE_OUTGOING,
-			 &ignore_outgoing, sizeof(ignore_outgoing));
-	if (!ASSERT_OK(err, "setsockopt(PACKET_IGNORE_OUTGOING)")) {
+	err = setsockopt(s, SOL_PACKET, PACKET_IGANALRE_OUTGOING,
+			 &iganalre_outgoing, sizeof(iganalre_outgoing));
+	if (!ASSERT_OK(err, "setsockopt(PACKET_IGANALRE_OUTGOING)")) {
 		close(s);
 		return -1;
 	}
 
-	err = fcntl(s, F_SETFL, O_NONBLOCK);
-	if (!ASSERT_OK(err, "fcntl(O_NONBLOCK)")) {
+	err = fcntl(s, F_SETFL, O_ANALNBLOCK);
+	if (!ASSERT_OK(err, "fcntl(O_ANALNBLOCK)")) {
 		close(s);
 		return -1;
 	}
@@ -151,7 +151,7 @@ static int expect_icmp(char *buf, ssize_t len)
 	return -1;
 }
 
-static int expect_icmp_nomac(char *buf, ssize_t len)
+static int expect_icmp_analmac(char *buf, ssize_t len)
 {
 	return __expect_icmp_ipv4(buf, len);
 }
@@ -166,7 +166,7 @@ static void send_and_capture_test_packets(const char *test_name, int tap_fd,
 	};
 	int ret = -1;
 
-	filter_t filter = need_mac ? expect_icmp : expect_icmp_nomac;
+	filter_t filter = need_mac ? expect_icmp : expect_icmp_analmac;
 
 	ping_dev(target_dev, false);
 
@@ -223,7 +223,7 @@ fail:
 	return -1;
 }
 
-static void test_lwt_redirect_normal(void)
+static void test_lwt_redirect_analrmal(void)
 {
 	const char *target_dev = "tap0";
 	int tap_fd = -1;
@@ -237,7 +237,7 @@ static void test_lwt_redirect_normal(void)
 	close(tap_fd);
 }
 
-static void test_lwt_redirect_normal_nomac(void)
+static void test_lwt_redirect_analrmal_analmac(void)
 {
 	const char *target_dev = "tun0";
 	int tap_fd = -1;
@@ -252,7 +252,7 @@ static void test_lwt_redirect_normal_nomac(void)
 }
 
 /* This test aims to prevent regression of future. As long as the kernel does
- * not panic, it is considered as success.
+ * analt panic, it is considered as success.
  */
 static void __test_lwt_redirect_dev_down(bool need_mac)
 {
@@ -276,13 +276,13 @@ static void test_lwt_redirect_dev_down(void)
 	__test_lwt_redirect_dev_down(true);
 }
 
-static void test_lwt_redirect_dev_down_nomac(void)
+static void test_lwt_redirect_dev_down_analmac(void)
 {
 	__test_lwt_redirect_dev_down(false);
 }
 
 /* This test aims to prevent regression of future. As long as the kernel does
- * not panic, it is considered as success.
+ * analt panic, it is considered as success.
  */
 static void test_lwt_redirect_dev_carrier_down(void)
 {
@@ -307,10 +307,10 @@ out:
 static void *test_lwt_redirect_run(void *arg)
 {
 	netns_delete();
-	RUN_TEST(lwt_redirect_normal);
-	RUN_TEST(lwt_redirect_normal_nomac);
+	RUN_TEST(lwt_redirect_analrmal);
+	RUN_TEST(lwt_redirect_analrmal_analmac);
 	RUN_TEST(lwt_redirect_dev_down);
-	RUN_TEST(lwt_redirect_dev_down_nomac);
+	RUN_TEST(lwt_redirect_dev_down_analmac);
 	RUN_TEST(lwt_redirect_dev_carrier_down);
 	return NULL;
 }
@@ -321,7 +321,7 @@ void test_lwt_redirect(void)
 	int err;
 
 	/* Run the tests in their own thread to isolate the namespace changes
-	 * so they do not affect the environment of other tests.
+	 * so they do analt affect the environment of other tests.
 	 * (specifically needed because of unshare(CLONE_NEWNS) in open_netns())
 	 */
 	err = pthread_create(&test_thread, NULL, &test_lwt_redirect_run, NULL);

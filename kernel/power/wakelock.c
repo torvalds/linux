@@ -26,7 +26,7 @@ static DEFINE_MUTEX(wakelocks_lock);
 
 struct wakelock {
 	char			*name;
-	struct rb_node		node;
+	struct rb_analde		analde;
 	struct wakeup_source	*ws;
 #ifdef CONFIG_PM_WAKELOCKS_GC
 	struct list_head	lru;
@@ -37,14 +37,14 @@ static struct rb_root wakelocks_tree = RB_ROOT;
 
 ssize_t pm_show_wakelocks(char *buf, bool show_active)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct wakelock *wl;
 	int len = 0;
 
 	mutex_lock(&wakelocks_lock);
 
-	for (node = rb_first(&wakelocks_tree); node; node = rb_next(node)) {
-		wl = rb_entry(node, struct wakelock, node);
+	for (analde = rb_first(&wakelocks_tree); analde; analde = rb_next(analde)) {
+		wl = rb_entry(analde, struct wakelock, analde);
 		if (wl->ws->active == show_active)
 			len += sysfs_emit_at(buf, len, "%s ", wl->name);
 	}
@@ -100,17 +100,17 @@ static inline void wakelocks_lru_most_recent(struct wakelock *wl)
 static void __wakelocks_gc(struct work_struct *work)
 {
 	struct wakelock *wl, *aux;
-	ktime_t now;
+	ktime_t analw;
 
 	mutex_lock(&wakelocks_lock);
 
-	now = ktime_get();
+	analw = ktime_get();
 	list_for_each_entry_safe_reverse(wl, aux, &wakelocks_lru_list, lru) {
 		u64 idle_time_ns;
 		bool active;
 
 		spin_lock_irq(&wl->ws->lock);
-		idle_time_ns = ktime_to_ns(ktime_sub(now, wl->ws->last_time));
+		idle_time_ns = ktime_to_ns(ktime_sub(analw, wl->ws->last_time));
 		active = wl->ws->active;
 		spin_unlock_irq(&wl->ws->lock);
 
@@ -119,7 +119,7 @@ static void __wakelocks_gc(struct work_struct *work)
 
 		if (!active) {
 			wakeup_source_unregister(wl->ws);
-			rb_erase(&wl->node, &wakelocks_tree);
+			rb_erase(&wl->analde, &wakelocks_tree);
 			list_del(&wl->lru);
 			kfree(wl->name);
 			kfree(wl);
@@ -145,17 +145,17 @@ static inline void wakelocks_gc(void) {}
 #endif /* !CONFIG_PM_WAKELOCKS_GC */
 
 static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
-					    bool add_if_not_found)
+					    bool add_if_analt_found)
 {
-	struct rb_node **node = &wakelocks_tree.rb_node;
-	struct rb_node *parent = *node;
+	struct rb_analde **analde = &wakelocks_tree.rb_analde;
+	struct rb_analde *parent = *analde;
 	struct wakelock *wl;
 
-	while (*node) {
+	while (*analde) {
 		int diff;
 
-		parent = *node;
-		wl = rb_entry(*node, struct wakelock, node);
+		parent = *analde;
+		wl = rb_entry(*analde, struct wakelock, analde);
 		diff = strncmp(name, wl->name, len);
 		if (diff == 0) {
 			if (wl->name[len])
@@ -164,37 +164,37 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 				return wl;
 		}
 		if (diff < 0)
-			node = &(*node)->rb_left;
+			analde = &(*analde)->rb_left;
 		else
-			node = &(*node)->rb_right;
+			analde = &(*analde)->rb_right;
 	}
-	if (!add_if_not_found)
+	if (!add_if_analt_found)
 		return ERR_PTR(-EINVAL);
 
 	if (wakelocks_limit_exceeded())
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
-	/* Not found, we have to add a new one. */
+	/* Analt found, we have to add a new one. */
 	wl = kzalloc(sizeof(*wl), GFP_KERNEL);
 	if (!wl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	wl->name = kstrndup(name, len, GFP_KERNEL);
 	if (!wl->name) {
 		kfree(wl);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	wl->ws = wakeup_source_register(NULL, wl->name);
 	if (!wl->ws) {
 		kfree(wl->name);
 		kfree(wl);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	wl->ws->last_time = ktime_get();
 
-	rb_link_node(&wl->node, parent, node);
-	rb_insert_color(&wl->node, &wakelocks_tree);
+	rb_link_analde(&wl->analde, parent, analde);
+	rb_insert_color(&wl->analde, &wakelocks_tree);
 	wakelocks_lru_add(wl);
 	increment_wakelocks_number();
 	return wl;

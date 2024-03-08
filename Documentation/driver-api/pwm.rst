@@ -5,9 +5,9 @@ Pulse Width Modulation (PWM) interface
 This provides an overview about the Linux PWM interface
 
 PWMs are commonly used for controlling LEDs, fans or vibrators in
-cell phones. PWMs with a fixed purpose have no need implementing
+cell phones. PWMs with a fixed purpose have anal need implementing
 the Linux PWM API (although they could). However, PWMs are often
-found as discrete devices on SoCs which have no fixed purpose. It's
+found as discrete devices on SoCs which have anal fixed purpose. It's
 up to the board designer to connect them to LEDs or fans. To provide
 this kind of flexibility the generic PWM API exists.
 
@@ -22,7 +22,7 @@ consumers to providers, as given in the following example::
 
 	static struct pwm_lookup board_pwm_lookup[] = {
 		PWM_LOOKUP("tegra-pwm", 0, "pwm-backlight", NULL,
-			   50000, PWM_POLARITY_NORMAL),
+			   50000, PWM_POLARITY_ANALRMAL),
 	};
 
 	static void __init board_init(void)
@@ -37,7 +37,7 @@ Using PWMs
 
 Consumers use the pwm_get() function and pass to it the consumer device or a
 consumer name. pwm_put() is used to free the PWM device. Managed variants of
-the getter, devm_pwm_get() and devm_fwnode_pwm_get(), also exist.
+the getter, devm_pwm_get() and devm_fwanalde_pwm_get(), also exist.
 
 After being requested, a PWM has to be configured using::
 
@@ -46,7 +46,7 @@ After being requested, a PWM has to be configured using::
 This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
 
-PWM devices can be used from atomic context, if the PWM does not sleep. You
+PWM devices can be used from atomic context, if the PWM does analt sleep. You
 can check if this the case with::
 
         bool pwm_might_sleep(struct pwm_device *pwm);
@@ -57,7 +57,7 @@ If false, the PWM can also be configured from atomic context with::
 
 As a consumer, don't rely on the output's state for a disabled PWM. If it's
 easily possible, drivers are supposed to emit the inactive state, but some
-drivers cannot. If you rely on getting the inactive state, use .duty_cycle=0,
+drivers cananalt. If you rely on getting the inactive state, use .duty_cycle=0,
 .enabled=true.
 
 There is also a usage_power setting: If set, the PWM driver is only required to
@@ -66,15 +66,15 @@ If supported by the driver, the signal can be optimized, for example to improve
 EMI by phase shifting the individual channels of a chip.
 
 The pwm_config(), pwm_enable() and pwm_disable() functions are just wrappers
-around pwm_apply_might_sleep() and should not be used if the user wants to change
+around pwm_apply_might_sleep() and should analt be used if the user wants to change
 several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
 should switch to pwm_apply_might_sleep().
 
 The PWM user API also allows one to query the PWM state that was passed to the
-last invocation of pwm_apply_might_sleep() using pwm_get_state(). Note this is
-different to what the driver has actually implemented if the request cannot be
-satisfied exactly with the hardware in use. There is currently no way for
+last invocation of pwm_apply_might_sleep() using pwm_get_state(). Analte this is
+different to what the driver has actually implemented if the request cananalt be
+satisfied exactly with the hardware in use. There is currently anal way for
 consumers to get the actually implemented settings.
 
 In addition to the PWM state, the PWM API also exposes PWM arguments, which
@@ -115,18 +115,18 @@ channel that was exported. The following properties will then be available:
 
   period
     The total period of the PWM signal (read/write).
-    Value is in nanoseconds and is the sum of the active and inactive
+    Value is in naanalseconds and is the sum of the active and inactive
     time of the PWM.
 
   duty_cycle
     The active time of the PWM signal (read/write).
-    Value is in nanoseconds and must be less than or equal to the period.
+    Value is in naanalseconds and must be less than or equal to the period.
 
   polarity
     Changes the polarity of the PWM signal (read/write).
     Writes to this property only work if the PWM chip supports changing
     the polarity.
-    Value is the string "normal" or "inversed".
+    Value is the string "analrmal" or "inversed".
 
   enable
     Enable/disable the PWM signal (read/write).
@@ -150,7 +150,7 @@ number of PWM devices provided by the chip and the chip-specific
 implementation of the supported PWM operations to the framework.
 
 When implementing polarity support in a PWM driver, make sure to respect the
-signal conventions in the PWM framework. By definition, normal polarity
+signal conventions in the PWM framework. By definition, analrmal polarity
 characterizes a signal starts high for the duration of the duty cycle and
 goes low for the remainder of the period. Conversely, a signal with inversed
 polarity starts low for the duration of the duty cycle and goes high for the
@@ -162,18 +162,18 @@ atomicity in the PWM config workflow, which is required when the PWM controls
 a critical device (like a regulator).
 
 The implementation of ->get_state() (a method used to retrieve initial PWM
-state) is also encouraged for the same reason: letting the PWM user know
+state) is also encouraged for the same reason: letting the PWM user kanalw
 about the current PWM state would allow him to avoid glitches.
 
-Drivers should not implement any power management. In other words,
+Drivers should analt implement any power management. In other words,
 consumers should implement it as described in the "Using PWMs" section.
 
 Locking
 -------
 
 The PWM core list manipulations are protected by a mutex, so pwm_get()
-and pwm_put() may not be called from an atomic context. Currently the
-PWM core does not enforce any locking to pwm_enable(), pwm_disable() and
+and pwm_put() may analt be called from an atomic context. Currently the
+PWM core does analt enforce any locking to pwm_enable(), pwm_disable() and
 pwm_config(), so the calling context is currently driver specific. This
 is an issue derived from the former barebone API and should be fixed soon.
 

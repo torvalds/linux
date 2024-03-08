@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  */
 
 /dts-v1/;
 
-#include "msm8998-sony-xperia-yoshino.dtsi"
+#include "msm8998-sony-xperia-yoshianal.dtsi"
 
 / {
 	model = "Sony Xperia XZ1";
@@ -26,13 +26,13 @@
 };
 
 &vreg_l18a_2p85 {
-	/* Note: Round-down from 2850000 to be a multiple of PLDO step-size 8000 */
+	/* Analte: Round-down from 2850000 to be a multiple of PLDO step-size 8000 */
 	regulator-min-microvolt = <2848000>;
 	regulator-max-microvolt = <2848000>;
 };
 
 &vreg_l22a_2p85 {
-	/* Note: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
+	/* Analte: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
 	regulator-min-microvolt = <2696000>;
 	regulator-max-microvolt = <2696000>;
 };

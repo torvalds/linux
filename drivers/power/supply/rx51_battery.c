@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Nokia RX-51 battery driver
+ * Analkia RX-51 battery driver
  *
  * Copyright (C) 2012  Pali Rohár <pali@kernel.org>
  */
@@ -43,7 +43,7 @@ static int rx51_battery_read_voltage(struct rx51_device_info *di)
 	int voltage = rx51_battery_read_adc(di->channel_vbat);
 
 	if (voltage < 0) {
-		dev_err(di->dev, "Could not read ADC: %d\n", voltage);
+		dev_err(di->dev, "Could analt read ADC: %d\n", voltage);
 		return voltage;
 	}
 
@@ -97,7 +97,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 	int raw = rx51_battery_read_adc(di->channel_temp);
 
 	if (raw < 0)
-		dev_err(di->dev, "Could not read ADC: %d\n", raw);
+		dev_err(di->dev, "Could analt read ADC: %d\n", raw);
 
 	/* Zero and negative values are undefined */
 	if (raw <= 0)
@@ -134,7 +134,7 @@ static int rx51_battery_read_capacity(struct rx51_device_info *di)
 	int capacity = rx51_battery_read_adc(di->channel_bsi);
 
 	if (capacity < 0) {
-		dev_err(di->dev, "Could not read ADC: %d\n", capacity);
+		dev_err(di->dev, "Could analt read ADC: %d\n", capacity);
 		return capacity;
 	}
 
@@ -151,8 +151,8 @@ static int rx51_battery_get_property(struct power_supply *psy,
 	struct rx51_device_info *di = power_supply_get_drvdata(psy);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		val->intval = 4200000;
@@ -160,7 +160,7 @@ static int rx51_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = rx51_battery_read_voltage(di) ? 1 : 0;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = rx51_battery_read_voltage(di);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
@@ -180,10 +180,10 @@ static int rx51_battery_get_property(struct power_supply *psy,
 }
 
 static enum power_supply_property rx51_battery_props[] = {
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 };
@@ -196,7 +196,7 @@ static int rx51_battery_probe(struct platform_device *pdev)
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, di);
 
@@ -259,7 +259,7 @@ static void rx51_battery_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id n900_battery_of_match[] = {
-	{.compatible = "nokia,n900-battery", },
+	{.compatible = "analkia,n900-battery", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, n900_battery_of_match);
@@ -277,5 +277,5 @@ module_platform_driver(rx51_battery_driver);
 
 MODULE_ALIAS("platform:rx51-battery");
 MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
-MODULE_DESCRIPTION("Nokia RX-51 battery driver");
+MODULE_DESCRIPTION("Analkia RX-51 battery driver");
 MODULE_LICENSE("GPL");

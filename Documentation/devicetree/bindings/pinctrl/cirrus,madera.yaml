@@ -12,14 +12,14 @@ maintainers:
 description: |
   The Cirrus Logic Madera codecs provide a number of GPIO functions for
   interfacing to external hardware and to provide logic outputs to other devices.
-  Certain groups of GPIO pins also have an alternate function, normally as an
+  Certain groups of GPIO pins also have an alternate function, analrmally as an
   audio interface.
 
   The set of available GPIOs, functions and alternate function groups differs
   between CODECs so refer to the datasheet for the CODEC for further information
   on what is supported on that device.
 
-  The properties for this driver exist within the parent MFD driver node.
+  The properties for this driver exist within the parent MFD driver analde.
 
   See also the core bindings for the parent MFD driver:
 
@@ -32,16 +32,16 @@ description: |
 properties:
   pin-settings:
     description:
-      One subnode is required to contain the default settings. It
-      contains an arbitrary number of configuration subnodes, one for
+      One subanalde is required to contain the default settings. It
+      contains an arbitrary number of configuration subanaldes, one for
       each group or pin configuration you want to apply as a default.
     type: object
     patternProperties:
       '-pins$':
         type: object
         allOf:
-          - $ref: pincfg-node.yaml#
-          - $ref: pinmux-node.yaml#
+          - $ref: pincfg-analde.yaml#
+          - $ref: pinmux-analde.yaml#
         properties:
           groups:
             description:

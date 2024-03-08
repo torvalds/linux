@@ -2,7 +2,7 @@
 /*
  * llc_output.c - LLC minimal output path
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 

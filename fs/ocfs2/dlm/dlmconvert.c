@@ -22,7 +22,7 @@
 
 
 #include "../cluster/heartbeat.h"
-#include "../cluster/nodemanager.h"
+#include "../cluster/analdemanager.h"
 #include "../cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -33,10 +33,10 @@
 #define MLOG_MASK_PREFIX ML_DLM
 #include "../cluster/masklog.h"
 
-/* NOTE: __dlmconvert_master is the only function in here that
+/* ANALTE: __dlmconvert_master is the only function in here that
  * needs a spinlock held on entry (res->spinlock) and it is the
  * only one that holds a lock on exit (res->spinlock).
- * All other functions in here need no locks and drop all of
+ * All other functions in here need anal locks and drop all of
  * the locks that they acquire. */
 static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 					   struct dlm_lock_resource *res,
@@ -49,11 +49,11 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 
 /*
  * this is only called directly by dlmlock(), and only when the
- * local node is the owner of the lockres
+ * local analde is the owner of the lockres
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  analne
  * returns: see __dlmconvert_master
  */
 enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
@@ -64,7 +64,7 @@ enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
 	enum dlm_status status;
 
 	spin_lock(&res->spinlock);
-	/* we are not in a network handler, this is fine */
+	/* we are analt in a network handler, this is fine */
 	__dlm_wait_on_lockres(res);
 	__dlm_lockres_reserve_ast(res);
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
@@ -75,7 +75,7 @@ enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
-	if (status != DLM_NORMAL && status != DLM_NOTQUEUED)
+	if (status != DLM_ANALRMAL && status != DLM_ANALTQUEUED)
 		dlm_error(status);
 
 	/* either queue the ast or release it */
@@ -95,7 +95,7 @@ enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
  *   caller needs:  res->spinlock
  *   taken:         takes and drops lock->spinlock
  *   held on exit:  res->spinlock
- * returns: DLM_NORMAL, DLM_NOTQUEUED, DLM_DENIED
+ * returns: DLM_ANALRMAL, DLM_ANALTQUEUED, DLM_DENIED
  *   call_ast: whether ast should be called for this lock
  *   kick_thread: whether dlm_kick_thread should be called
  */
@@ -105,7 +105,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 					   int type, int *call_ast,
 					   int *kick_thread)
 {
-	enum dlm_status status = DLM_NORMAL;
+	enum dlm_status status = DLM_ANALRMAL;
 	struct dlm_lock *tmplock=NULL;
 
 	assert_spin_locked(&res->spinlock);
@@ -125,7 +125,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 
 	/* must be on grant queue to convert */
 	if (!dlm_lock_on_list(&res->granted, lock)) {
-		mlog(ML_ERROR, "attempted to convert a lock not on grant "
+		mlog(ML_ERROR, "attempted to convert a lock analt on grant "
 		     "queue\n");
 		status = DLM_DENIED;
 		goto unlock_exit;
@@ -142,7 +142,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 				break;
 			case LKM_PRMODE:
 			case LKM_NLMODE:
-				/* refetch if new level is not NL */
+				/* refetch if new level is analt NL */
 				if (type > LKM_NLMODE) {
 					mlog(0, "will fetch new value into "
 					     "lvb: converting %s->%s\n",
@@ -150,7 +150,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 					     dlm_lock_mode_name(type));
 					lock->lksb->flags |= DLM_LKSB_GET_LVB;
 				} else {
-					mlog(0, "will NOT fetch new value "
+					mlog(0, "will ANALT fetch new value "
 					     "into lvb: converting %s->%s\n",
 					     dlm_lock_mode_name(lock->ml.type),
 					     dlm_lock_mode_name(type));
@@ -166,7 +166,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 		goto grant;
 
 	/* upconvert from here on */
-	status = DLM_NORMAL;
+	status = DLM_ANALRMAL;
 	list_for_each_entry(tmplock, &res->granted, list) {
 		if (tmplock == lock)
 			continue;
@@ -188,9 +188,9 @@ grant:
 	mlog(0, "res %.*s, granting %s lock\n", res->lockname.len,
 	     res->lockname.name, dlm_lock_mode_name(type));
 	/* immediately grant the new lock type */
-	lock->lksb->status = DLM_NORMAL;
-	if (lock->ml.node == dlm->node_num)
-		mlog(0, "doing in-place convert for nonlocal lock\n");
+	lock->lksb->status = DLM_ANALRMAL;
+	if (lock->ml.analde == dlm->analde_num)
+		mlog(0, "doing in-place convert for analnlocal lock\n");
 	lock->ml.type = type;
 	if (lock->lksb->flags & DLM_LKSB_PUT_LVB)
 		memcpy(res->lvb, lock->lksb->lvb, DLM_LVB_LEN);
@@ -201,23 +201,23 @@ grant:
 	 */
 	list_move_tail(&lock->list, &res->granted);
 
-	status = DLM_NORMAL;
+	status = DLM_ANALRMAL;
 	*call_ast = 1;
 	goto unlock_exit;
 
 switch_queues:
-	if (flags & LKM_NOQUEUE) {
-		mlog(0, "failed to convert NOQUEUE lock %.*s from "
+	if (flags & LKM_ANALQUEUE) {
+		mlog(0, "failed to convert ANALQUEUE lock %.*s from "
 		     "%d to %d...\n", res->lockname.len, res->lockname.name,
 		     lock->ml.type, type);
-		status = DLM_NOTQUEUED;
+		status = DLM_ANALTQUEUED;
 		goto unlock_exit;
 	}
 	mlog(0, "res %.*s, queueing...\n", res->lockname.len,
 	     res->lockname.name);
 
 	lock->ml.convert_type = type;
-	/* do not alter lock refcount.  switching lists. */
+	/* do analt alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->converting);
 
 unlock_exit:
@@ -225,7 +225,7 @@ unlock_exit:
 	if (status == DLM_DENIED) {
 		__dlm_print_one_lock_resource(res);
 	}
-	if (status == DLM_NORMAL)
+	if (status == DLM_ANALRMAL)
 		*kick_thread = 1;
 	return status;
 }
@@ -233,7 +233,7 @@ unlock_exit:
 void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 				struct dlm_lock *lock)
 {
-	/* do not alter lock refcount.  switching lists. */
+	/* do analt alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 	lock->lksb->flags &= ~(DLM_LKSB_GET_LVB|DLM_LKSB_PUT_LVB);
@@ -241,10 +241,10 @@ void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 
 /* messages the master site to do lock conversion
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drops res->spinlock, uses DLM_LOCK_RES_IN_PROGRESS
- *   held on exit:  none
- * returns: DLM_NORMAL, DLM_RECOVERING, status from remote node
+ *   held on exit:  analne
+ * returns: DLM_ANALRMAL, DLM_RECOVERING, status from remote analde
  */
 enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 				  struct dlm_lock_resource *res,
@@ -270,7 +270,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		__dlm_print_one_lock_resource(res);
 		mlog(ML_ERROR, "converting a remote lock that is already "
 		     "converting! (cookie=%u:%llu, conv=%d)\n",
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.convert_type);
 		status = DLM_DENIED;
@@ -282,16 +282,16 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		     "owner has already queued and sent ast to me. res %.*s, "
 		     "(cookie=%u:%llu, type=%d, conv=%d)\n",
 		     res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.type, lock->ml.convert_type);
-		status = DLM_NORMAL;
+		status = DLM_ANALRMAL;
 		goto bail;
 	}
 
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
 	/* move lock to local convert queue */
-	/* do not alter lock refcount.  switching lists. */
+	/* do analt alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->converting);
 	lock->convert_pending = 1;
 	lock->ml.convert_type = type;
@@ -311,18 +311,18 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 	}
 	spin_unlock(&res->spinlock);
 
-	/* no locks held here.
-	 * need to wait for a reply as to whether it got queued or not. */
+	/* anal locks held here.
+	 * need to wait for a reply as to whether it got queued or analt. */
 	status = dlm_send_remote_convert_request(dlm, res, lock, flags, type);
 
 	spin_lock(&res->spinlock);
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	/* if it failed, move it back to granted queue.
-	 * if master returns DLM_NORMAL and then down before sending ast,
+	 * if master returns DLM_ANALRMAL and then down before sending ast,
 	 * it may have already been moved to granted queue, reset to
 	 * DLM_RECOVERING and retry convert */
-	if (status != DLM_NORMAL) {
-		if (status != DLM_NOTQUEUED)
+	if (status != DLM_ANALRMAL) {
+		if (status != DLM_ANALTQUEUED)
 			dlm_error(status);
 		dlm_revert_pending_convert(res, lock);
 	} else if (!lock->convert_pending) {
@@ -345,10 +345,10 @@ bail:
 
 /* sends DLM_CONVERT_LOCK_MSG to master site
  * locking:
- *   caller needs:  none
- *   taken:         none
- *   held on exit:  none
- * returns: DLM_NOLOCKMGR, status from remote node
+ *   caller needs:  analne
+ *   taken:         analne
+ *   held on exit:  analne
+ * returns: DLM_ANALLOCKMGR, status from remote analde
  */
 static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 					   struct dlm_lock_resource *res,
@@ -364,7 +364,7 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 	mlog(0, "%.*s\n", res->lockname.len, res->lockname.name);
 
 	memset(&convert, 0, sizeof(struct dlm_convert_lock));
-	convert.node_idx = dlm->node_num;
+	convert.analde_idx = dlm->analde_num;
 	convert.requested_type = type;
 	convert.cookie = lock->ml.cookie;
 	convert.namelen = res->lockname.len;
@@ -387,28 +387,28 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 		// successfully sent and received
 		ret = status;  // this is already a dlm_status
 		if (ret == DLM_RECOVERING) {
-			mlog(0, "node %u returned DLM_RECOVERING from convert "
+			mlog(0, "analde %u returned DLM_RECOVERING from convert "
 			     "message!\n", res->owner);
 		} else if (ret == DLM_MIGRATING) {
-			mlog(0, "node %u returned DLM_MIGRATING from convert "
+			mlog(0, "analde %u returned DLM_MIGRATING from convert "
 			     "message!\n", res->owner);
 		} else if (ret == DLM_FORWARD) {
-			mlog(0, "node %u returned DLM_FORWARD from convert "
+			mlog(0, "analde %u returned DLM_FORWARD from convert "
 			     "message!\n", res->owner);
-		} else if (ret != DLM_NORMAL && ret != DLM_NOTQUEUED)
+		} else if (ret != DLM_ANALRMAL && ret != DLM_ANALTQUEUED)
 			dlm_error(ret);
 	} else {
 		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
-		     "node %u\n", tmpret, DLM_CONVERT_LOCK_MSG, dlm->key,
+		     "analde %u\n", tmpret, DLM_CONVERT_LOCK_MSG, dlm->key,
 		     res->owner);
 		if (dlm_is_host_down(tmpret)) {
 			/* instead of logging the same network error over
 			 * and over, sleep here and wait for the heartbeat
-			 * to notice the node is dead.  times out after 5s. */
-			dlm_wait_for_node_death(dlm, res->owner,
-						DLM_NODE_DEATH_WAIT_MAX);
+			 * to analtice the analde is dead.  times out after 5s. */
+			dlm_wait_for_analde_death(dlm, res->owner,
+						DLM_ANALDE_DEATH_WAIT_MAX);
 			ret = DLM_RECOVERING;
-			mlog(0, "node %u died so returning DLM_RECOVERING "
+			mlog(0, "analde %u died so returning DLM_RECOVERING "
 			     "from convert message!\n", res->owner);
 		} else {
 			ret = dlm_err_to_dlm_status(tmpret);
@@ -420,10 +420,10 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 
 /* handler for DLM_CONVERT_LOCK_MSG on master site
  * locking:
- *   caller needs:  none
+ *   caller needs:  analne
  *   taken:         takes and drop res->spinlock
- *   held on exit:  none
- * returns: DLM_NORMAL, DLM_IVLOCKID, DLM_BADARGS,
+ *   held on exit:  analne
+ * returns: DLM_ANALRMAL, DLM_IVLOCKID, DLM_BADARGS,
  *          status from __dlmconvert_master
  */
 int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -435,7 +435,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	struct dlm_lock *lock = NULL;
 	struct dlm_lock *tmp_lock;
 	struct dlm_lockstatus *lksb;
-	enum dlm_status status = DLM_NORMAL;
+	enum dlm_status status = DLM_ANALRMAL;
 	u32 flags;
 	int call_ast = 0, kick_thread = 0, ast_reserved = 0, wake = 0;
 
@@ -445,7 +445,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
-			"Domain %s not fully joined!\n", dlm->name);
+			"Domain %s analt fully joined!\n", dlm->name);
 
 	if (cnv->namelen > DLM_LOCKID_NAME_MAX) {
 		status = DLM_IVBUFLEN;
@@ -463,7 +463,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog(0, "lvb: %s\n", flags & LKM_PUT_LVB ? "put lvb" :
-	     (flags & LKM_GET_LVB ? "get lvb" : "none"));
+	     (flags & LKM_GET_LVB ? "get lvb" : "analne"));
 
 	status = DLM_IVLOCKID;
 	res = dlm_lookup_lockres(dlm, cnv->name, cnv->namelen);
@@ -474,14 +474,14 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	spin_lock(&res->spinlock);
 	status = __dlm_lockres_state_to_status(res);
-	if (status != DLM_NORMAL) {
+	if (status != DLM_ANALRMAL) {
 		spin_unlock(&res->spinlock);
 		dlm_error(status);
 		goto leave;
 	}
 	list_for_each_entry(tmp_lock, &res->granted, list) {
 		if (tmp_lock->ml.cookie == cnv->cookie &&
-		    tmp_lock->ml.node == cnv->node_idx) {
+		    tmp_lock->ml.analde == cnv->analde_idx) {
 			lock = tmp_lock;
 			dlm_lock_get(lock);
 			break;
@@ -490,9 +490,9 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	spin_unlock(&res->spinlock);
 	if (!lock) {
 		status = DLM_IVLOCKID;
-		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
+		mlog(ML_ERROR, "did analt find lock to convert on grant queue! "
 			       "cookie=%u:%llu\n",
-		     dlm_get_lock_cookie_node(be64_to_cpu(cnv->cookie)),
+		     dlm_get_lock_cookie_analde(be64_to_cpu(cnv->cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cnv->cookie)));
 		dlm_print_one_lock_resource(res);
 		goto leave;
@@ -513,7 +513,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	spin_lock(&res->spinlock);
 	status = __dlm_lockres_state_to_status(res);
-	if (status == DLM_NORMAL) {
+	if (status == DLM_ANALRMAL) {
 		__dlm_lockres_reserve_ast(res);
 		ast_reserved = 1;
 		res->state |= DLM_LOCK_RES_IN_PROGRESS;
@@ -527,8 +527,8 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	if (wake)
 		wake_up(&res->wq);
 
-	if (status != DLM_NORMAL) {
-		if (status != DLM_NOTQUEUED)
+	if (status != DLM_ANALRMAL) {
+		if (status != DLM_ANALTQUEUED)
 			dlm_error(status);
 		lksb->flags &= ~(DLM_LKSB_GET_LVB|DLM_LKSB_PUT_LVB);
 	}

@@ -27,13 +27,13 @@
  * This file declares the constants and types used in the interface
  * between a wlan driver and the user mode utilities.
  *
- * Notes:
+ * Analtes:
  *  - Constant values are always in HOST byte order.  To assign
  *    values to multi-byte fields they _must_ be converted to
  *    ieee byte order.  To retrieve multi-byte values from incoming
  *    frames, they must be converted to host order.
  *
- *  - The len member of the frame structure does NOT!!! include
+ *  - The len member of the frame structure does ANALT!!! include
  *    the MAC CRC.  Therefore, the len field on rx'd frames should
  *    have 4 subtracted from it.
  *
@@ -51,7 +51,7 @@
  *    mf.buf = b
  *    mf.len = len
  * 5) call mgmt_decode( mf )
- * 6) the frame field pointers in mf are now set.  Note that any
+ * 6) the frame field pointers in mf are analw set.  Analte that any
  *    multi-byte frame field values accessed using the frame field
  *    pointers are in ieee byte order and will have to be converted
  *    to host order.
@@ -66,7 +66,7 @@
  *    mf.buf = <allocated buffer address>
  * 4) call mgmt_encode( mf )
  * 5) all of the fixed field pointers and fixed length information element
- *    pointers in mf are now set to their respective locations in the
+ *    pointers in mf are analw set to their respective locations in the
  *    allocated space (fortunately, all variable length information elements
  *    fall at the end of their respective frames).
  * 5a) The length field is set to include the last of the fixed and fixed
@@ -104,36 +104,36 @@
 #define WLAN_MGMT_REASON_DEAUTH_LEAVING		3
 #define WLAN_MGMT_REASON_DISASSOC_INACTIVE	4
 #define WLAN_MGMT_REASON_DISASSOC_AP_BUSY	5
-#define WLAN_MGMT_REASON_CLASS2_NONAUTH		6
-#define WLAN_MGMT_REASON_CLASS3_NONASSOC	7
+#define WLAN_MGMT_REASON_CLASS2_ANALNAUTH		6
+#define WLAN_MGMT_REASON_CLASS3_ANALNASSOC	7
 #define WLAN_MGMT_REASON_DISASSOC_STA_HASLEFT	8
-#define WLAN_MGMT_REASON_CANT_ASSOC_NONAUTH	9
+#define WLAN_MGMT_REASON_CANT_ASSOC_ANALNAUTH	9
 
 /*-- Status Codes -------------------------------*/
 #define WLAN_MGMT_STATUS_SUCCESS		0
 #define WLAN_MGMT_STATUS_UNSPEC_FAILURE		1
 #define WLAN_MGMT_STATUS_CAPS_UNSUPPORTED	10
-#define WLAN_MGMT_STATUS_REASSOC_NO_ASSOC	11
+#define WLAN_MGMT_STATUS_REASSOC_ANAL_ASSOC	11
 #define WLAN_MGMT_STATUS_ASSOC_DENIED_UNSPEC	12
 #define WLAN_MGMT_STATUS_UNSUPPORTED_AUTHALG	13
-#define WLAN_MGMT_STATUS_RX_AUTH_NOSEQ		14
+#define WLAN_MGMT_STATUS_RX_AUTH_ANALSEQ		14
 #define WLAN_MGMT_STATUS_CHALLENGE_FAIL		15
 #define WLAN_MGMT_STATUS_AUTH_TIMEOUT		16
 #define WLAN_MGMT_STATUS_ASSOC_DENIED_BUSY	17
 #define WLAN_MGMT_STATUS_ASSOC_DENIED_RATES	18
   /* p80211b additions */
-#define WLAN_MGMT_STATUS_ASSOC_DENIED_NOSHORT	19
-#define WLAN_MGMT_STATUS_ASSOC_DENIED_NOPBCC	20
-#define WLAN_MGMT_STATUS_ASSOC_DENIED_NOAGILITY	21
+#define WLAN_MGMT_STATUS_ASSOC_DENIED_ANALSHORT	19
+#define WLAN_MGMT_STATUS_ASSOC_DENIED_ANALPBCC	20
+#define WLAN_MGMT_STATUS_ASSOC_DENIED_ANALAGILITY	21
 
 /*-- Auth Algorithm Field ---------------------------*/
 #define WLAN_AUTH_ALG_OPENSYSTEM		0
 #define WLAN_AUTH_ALG_SHAREDKEY			1
 
 /*-- Management Frame Field Offsets -------------*/
-/* Note: Not all fields are listed because of variable lengths,   */
+/* Analte: Analt all fields are listed because of variable lengths,   */
 /*       see the code in p80211.c to see how we search for fields */
-/* Note: These offsets are from the start of the frame data       */
+/* Analte: These offsets are from the start of the frame data       */
 
 #define WLAN_BEACON_OFF_TS			0
 #define WLAN_BEACON_OFF_BCN_int			8

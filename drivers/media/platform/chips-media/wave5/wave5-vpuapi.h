@@ -21,7 +21,7 @@ enum product_id {
 	PRODUCT_ID_521,
 	PRODUCT_ID_511,
 	PRODUCT_ID_517,
-	PRODUCT_ID_NONE,
+	PRODUCT_ID_ANALNE,
 };
 
 struct vpu_attr;
@@ -32,7 +32,7 @@ enum vpu_instance_type {
 };
 
 enum vpu_instance_state {
-	VPU_INST_STATE_NONE = 0,
+	VPU_INST_STATE_ANALNE = 0,
 	VPU_INST_STATE_OPEN = 1,
 	VPU_INST_STATE_INIT_SEQ = 2,
 	VPU_INST_STATE_PIC_RUN = 3,
@@ -66,7 +66,7 @@ enum wave_std {
 	W_HEVC_ENC = 0x01,
 	W_AVC_DEC = 0x02,
 	W_AVC_ENC = 0x03,
-	STD_UNKNOWN = 0xFF
+	STD_UNKANALWN = 0xFF
 };
 
 enum set_param_option {
@@ -104,10 +104,10 @@ enum set_param_option {
 /************************************************************************/
 
 /* Initialize sequence firmware command mode */
-#define INIT_SEQ_NORMAL				1
+#define INIT_SEQ_ANALRMAL				1
 
 /* Decode firmware command mode */
-#define DEC_PIC_NORMAL				0
+#define DEC_PIC_ANALRMAL				0
 
 /* bit_alloc_mode */
 #define BIT_ALLOC_MODE_FIXED_RATIO		2
@@ -116,7 +116,7 @@ enum set_param_option {
 #define MAX_BIT_RATE				700000000
 
 /* decoding_refresh_type */
-#define DEC_REFRESH_TYPE_NON_IRAP		0
+#define DEC_REFRESH_TYPE_ANALN_IRAP		0
 #define DEC_REFRESH_TYPE_CRA			1
 #define DEC_REFRESH_TYPE_IDR			2
 
@@ -135,7 +135,7 @@ enum set_param_option {
 #define REFRESH_MODE_CTUS			4
 
 /* intra_mb_refresh_mode */
-#define REFRESH_MB_MODE_NONE			0
+#define REFRESH_MB_MODE_ANALNE			0
 #define REFRESH_MB_MODE_CTU_ROWS		1
 #define REFRESH_MB_MODE_CTU_COLUMNS		2
 #define REFRESH_MB_MODE_CTU_STEP_SIZE		3
@@ -149,8 +149,8 @@ enum set_param_option {
 /* nr_intra_weight_* */
 #define MAX_INTRA_WEIGHT			31
 
-/* nr_noise_sigma_* */
-#define MAX_NOISE_SIGMA				255
+/* nr_analise_sigma_* */
+#define MAX_ANALISE_SIGMA				255
 
 /* bitstream_buffer_size */
 #define MIN_BITSTREAM_BUFFER_SIZE		1024
@@ -190,8 +190,8 @@ enum set_param_option {
 		SEQ_CHANGE_ENABLE_VUI_TIMING_INFO)
 
 #define DISPLAY_IDX_FLAG_SEQ_END -1
-#define DISPLAY_IDX_FLAG_NO_FB -3
-#define DECODED_IDX_FLAG_NO_FB -1
+#define DISPLAY_IDX_FLAG_ANAL_FB -3
+#define DECODED_IDX_FLAG_ANAL_FB -1
 #define DECODED_IDX_FLAG_SKIP -2
 
 #define RECON_IDX_FLAG_ENC_END -1
@@ -211,7 +211,7 @@ enum codec_command {
 };
 
 enum mirror_direction {
-	MIRDIR_NONE, /* no mirroring */
+	MIRDIR_ANALNE, /* anal mirroring */
 	MIRDIR_VER, /* vertical mirroring */
 	MIRDIR_HOR, /* horizontal mirroring */
 	MIRDIR_HOR_VER /* horizontal and vertical mirroring */
@@ -268,7 +268,7 @@ enum frame_buffer_format {
 };
 
 enum packed_format_num {
-	NOT_PACKED = 0,
+	ANALT_PACKED = 0,
 	PACKED_YUYV,
 	PACKED_YVYU,
 	PACKED_UYVY,
@@ -297,7 +297,7 @@ enum pic_type {
 	PIC_TYPE_P = 1,
 	PIC_TYPE_B = 2,
 	PIC_TYPE_IDR = 5, /* H.264/H.265 IDR (Instantaneous Decoder Refresh) picture */
-	PIC_TYPE_MAX /* no meaning */
+	PIC_TYPE_MAX /* anal meaning */
 };
 
 enum sw_reset_mode {
@@ -343,7 +343,7 @@ struct frame_buffer {
 	unsigned int width; /* width of the given frame buffer */
 	unsigned int height; /* height of the given frame buffer */
 	size_t size; /* size of the given frame buffer */
-	unsigned int sequence_no;
+	unsigned int sequence_anal;
 	bool update_fb_info;
 };
 
@@ -375,7 +375,7 @@ struct dec_initial_info {
 	u32 seq_init_err_reason;
 	dma_addr_t rd_ptr; /* read pointer of bitstream buffer */
 	dma_addr_t wr_ptr; /* write pointer of bitstream buffer */
-	u32 sequence_no;
+	u32 sequence_anal;
 	u32 vlc_buf_size;
 	u32 param_buf_size;
 };
@@ -385,15 +385,15 @@ struct dec_output_info {
 	 * This is a frame buffer index for the picture to be displayed at the moment
 	 * among frame buffers which are registered using vpu_dec_register_frame_buffer().
 	 * Frame data that will be displayed is stored in the frame buffer with this index
-	 * When there is no display delay, this index is always the equal to
+	 * When there is anal display delay, this index is always the equal to
 	 * index_frame_decoded, however, if displaying is delayed (for display
 	 * reordering in AVC or B-frames in VC1), this index might be different to
 	 * index_frame_decoded. By checking this index, HOST applications can easily figure
-	 * out whether sequence decoding has been finished or not.
+	 * out whether sequence decoding has been finished or analt.
 	 *
-	 * -3(0xFFFD) or -2(0xFFFE) : when a display output cannot be given due to picture
+	 * -3(0xFFFD) or -2(0xFFFE) : when a display output cananalt be given due to picture
 	 * reordering or skip option
-	 * -1(0xFFFF) : when there is no more output for display at the end of sequence
+	 * -1(0xFFFF) : when there is anal more output for display at the end of sequence
 	 * decoding
 	 */
 	s32 index_frame_display;
@@ -402,9 +402,9 @@ struct dec_output_info {
 	 * registered using vpu_dec_register_frame_buffer(). The currently decoded frame is stored
 	 * into the frame buffer specified by this index.
 	 *
-	 * -2 : indicates that no decoded output is generated because decoder meets EOS
+	 * -2 : indicates that anal decoded output is generated because decoder meets EOS
 	 * (end of sequence) or skip
-	 * -1 : indicates that the decoder fails to decode a picture because there is no available
+	 * -1 : indicates that the decoder fails to decode a picture because there is anal available
 	 * frame buffer
 	 */
 	s32 index_frame_decoded;
@@ -436,7 +436,7 @@ struct dec_output_info {
 	 * been changed.
 	 */
 	unsigned int frame_cycle; /* reports the number of cycles for processing a frame */
-	u32 sequence_no;
+	u32 sequence_anal;
 
 	u32 dec_host_cmd_tick; /* tick of DEC_PIC command for the picture */
 	u32 dec_decode_end_tick; /* end tick of decoding slices of the picture */
@@ -475,7 +475,7 @@ struct enc_wave_param {
 	 * 1 : main profile
 	 * 2 : main10 profile
 	 * 3 : main still picture profile
-	 * In the AVC encoder, a profile cannot be set by the host application.
+	 * In the AVC encoder, a profile cananalt be set by the host application.
 	 * The firmware decides it based on internal_bit_depth.
 	 * profile = HIGH (bitdepth 8) profile = HIGH10 (bitdepth 10)
 	 */
@@ -483,7 +483,7 @@ struct enc_wave_param {
 	u32 level; /* level indicator (level * 10) */
 	u32 internal_bit_depth: 4; /* 8/10 */
 	u32 gop_preset_idx: 4; /* 0 - 9 */
-	u32 decoding_refresh_type: 2; /* 0=non-IRAP, 1=CRA, 2=IDR */
+	u32 decoding_refresh_type: 2; /* 0=analn-IRAP, 1=CRA, 2=IDR */
 	u32 intra_qp; /* quantization parameter of intra picture */
 	u32 intra_period; /* period of intra picture in GOP size */
 	u32 conf_win_top; /* top offset of conformance window */
@@ -504,12 +504,12 @@ struct enc_wave_param {
 	/*
 	 * 0 : custom setting
 	 * 1 : recommended encoder parameters (slow encoding speed, highest picture quality)
-	 * 2 : boost mode (normal encoding speed, moderate picture quality)
+	 * 2 : boost mode (analrmal encoding speed, moderate picture quality)
 	 * 3 : fast mode (fast encoding speed, low picture quality)
 	 */
 	u32 depend_slice_mode : 2;
 	u32 depend_slice_mode_arg;
-	u32 independ_slice_mode : 1; /* 0=no-multi-slice, 1=slice-in-ctu-number*/
+	u32 independ_slice_mode : 1; /* 0=anal-multi-slice, 1=slice-in-ctu-number*/
 	u32 independ_slice_mode_arg;
 	u32 max_num_merge: 2;
 	s32 beta_offset_div2: 4; /* sets beta_offset_div2 for deblocking filter */
@@ -520,11 +520,11 @@ struct enc_wave_param {
 	s32 chroma_cr_qp_offset; /* the value of chroma(cr) QP offset */
 	s32 initial_rc_qp;
 	u32 nr_intra_weight_y;
-	u32 nr_intra_weight_cb; /* weight to cb noise level for intra picture (0 ~ 31) */
-	u32 nr_intra_weight_cr; /* weight to cr noise level for intra picture (0 ~ 31) */
+	u32 nr_intra_weight_cb; /* weight to cb analise level for intra picture (0 ~ 31) */
+	u32 nr_intra_weight_cr; /* weight to cr analise level for intra picture (0 ~ 31) */
 	u32 nr_inter_weight_y;
-	u32 nr_inter_weight_cb; /* weight to cb noise level for inter picture (0 ~ 31) */
-	u32 nr_inter_weight_cr; /* weight to cr noise level for inter picture (0 ~ 31) */
+	u32 nr_inter_weight_cb; /* weight to cb analise level for inter picture (0 ~ 31) */
+	u32 nr_inter_weight_cr; /* weight to cr analise level for inter picture (0 ~ 31) */
 	u32 min_qp_i; /* minimum QP of I picture for rate control */
 	u32 max_qp_i; /* maximum QP of I picture for rate control */
 	u32 min_qp_p; /* minimum QP of P picture for rate control */
@@ -533,7 +533,7 @@ struct enc_wave_param {
 	u32 max_qp_b; /* maximum QP of B picture for rate control */
 	u32 avc_idr_period; /* period of IDR picture (0 ~ 1024). 0 - implies an infinite period */
 	u32 avc_slice_arg; /* the number of MB for a slice when avc_slice_mode is set with 1 */
-	u32 intra_mb_refresh_mode: 2; /* 0=none, 1=row, 2=column, 3=step-size-in-mb */
+	u32 intra_mb_refresh_mode: 2; /* 0=analne, 1=row, 2=column, 3=step-size-in-mb */
 	/**
 	 * Argument for intra_mb_refresh_mode.
 	 *
@@ -548,7 +548,7 @@ struct enc_wave_param {
 	/* flags */
 	u32 en_still_picture: 1; /* still picture profile */
 	u32 tier: 1; /* 0=main, 1=high */
-	u32 avc_slice_mode: 1; /* 0=none, 1=slice-in-mb-number */
+	u32 avc_slice_mode: 1; /* 0=analne, 1=slice-in-mb-number */
 	u32 entropy_coding_mode: 1; /* 0=CAVLC, 1=CABAC */
 	u32 lossless_enable: 1; /* enable lossless encoding */
 	u32 const_intra_pred_flag: 1; /* enable constrained intra prediction */

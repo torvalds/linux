@@ -14,26 +14,26 @@
 struct device;
 
 struct attribute_container {
-	struct list_head	node;
+	struct list_head	analde;
 	struct klist		containers;
 	struct class		*class;
 	const struct attribute_group *grp;
 	struct device_attribute **attrs;
 	int (*match)(struct attribute_container *, struct device *);
-#define	ATTRIBUTE_CONTAINER_NO_CLASSDEVS	0x01
+#define	ATTRIBUTE_CONTAINER_ANAL_CLASSDEVS	0x01
 	unsigned long		flags;
 };
 
 static inline int
-attribute_container_no_classdevs(struct attribute_container *atc)
+attribute_container_anal_classdevs(struct attribute_container *atc)
 {
-	return atc->flags & ATTRIBUTE_CONTAINER_NO_CLASSDEVS;
+	return atc->flags & ATTRIBUTE_CONTAINER_ANAL_CLASSDEVS;
 }
 
 static inline void
-attribute_container_set_no_classdevs(struct attribute_container *atc)
+attribute_container_set_anal_classdevs(struct attribute_container *atc)
 {
-	atc->flags |= ATTRIBUTE_CONTAINER_NO_CLASSDEVS;
+	atc->flags |= ATTRIBUTE_CONTAINER_ANAL_CLASSDEVS;
 }
 
 int attribute_container_register(struct attribute_container *cont);

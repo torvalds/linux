@@ -86,9 +86,9 @@ static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu = &vcpu->arch.guest_mmu;
 
 	/*
-	 * The NPT format depends on L1's CR4 and EFER, which is in vmcb01.  Note,
-	 * when called via KVM_SET_NESTED_STATE, that state may _not_ match current
-	 * vCPU state.  CR0.WP is explicitly ignored, while CR0.PG is required.
+	 * The NPT format depends on L1's CR4 and EFER, which is in vmcb01.  Analte,
+	 * when called via KVM_SET_NESTED_STATE, that state may _analt_ match current
+	 * vCPU state.  CR0.WP is explicitly iganalred, while CR0.PG is required.
 	 */
 	kvm_init_shadow_npt_mmu(vcpu, X86_CR0_PG, svm->vmcb01.ptr->save.cr4,
 				svm->vmcb01.ptr->save.efer,
@@ -140,7 +140,7 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	if (g->int_ctl & V_INTR_MASKING_MASK) {
 		/*
 		 * If L2 is active and V_INTR_MASKING is enabled in vmcb12,
-		 * disable intercept of CR8 writes as L2's CR8 does not affect
+		 * disable intercept of CR8 writes as L2's CR8 does analt affect
 		 * any interrupt KVM may want to inject.
 		 *
 		 * Similarly, disable intercept of virtual interrupts (used to
@@ -163,13 +163,13 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	for (i = 0; i < MAX_INTERCEPT; i++)
 		c->intercepts[i] |= g->intercepts[i];
 
-	/* If SMI is not intercepted, ignore guest SMI intercept as well  */
+	/* If SMI is analt intercepted, iganalre guest SMI intercept as well  */
 	if (!intercept_smi)
 		vmcb_clr_intercept(c, INTERCEPT_SMI);
 
 	if (nested_vmcb_needs_vls_intercept(svm)) {
 		/*
-		 * If the virtual VMLOAD/VMSAVE is not enabled for the L2,
+		 * If the virtual VMLOAD/VMSAVE is analt enabled for the L2,
 		 * we must intercept these instructions to correctly
 		 * emulate them in case L1 doesn't intercept them.
 		 */
@@ -195,7 +195,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	 * - Nested hypervisor (L1) is attempting to launch the same L2 as
 	 *   before.
 	 * - Nested hypervisor (L1) is using Hyper-V emulation interface and
-	 * tells KVM (L0) there were no changes in MSR bitmap for L2.
+	 * tells KVM (L0) there were anal changes in MSR bitmap for L2.
 	 */
 #ifdef CONFIG_KVM_HYPERV
 	if (!svm->nested.force_msr_bitmap_recalc) {
@@ -243,7 +243,7 @@ set_msrpm_base_pa:
 }
 
 /*
- * Bits 11:0 of bitmap address are ignored by hardware
+ * Bits 11:0 of bitmap address are iganalred by hardware
  */
 static bool nested_svm_check_bitmap_pa(struct kvm_vcpu *vcpu, u64 pa, u32 size)
 {
@@ -296,7 +296,7 @@ static bool __nested_vmcb_check_save(struct kvm_vcpu *vcpu,
 
 	/*
 	 * These checks are also performed by KVM_SET_SREGS,
-	 * except that EFER.LMA is not checked by SVM against
+	 * except that EFER.LMA is analt checked by SVM against
 	 * CR0.PG && EFER.LME.
 	 */
 	if ((save->efer & EFER_LME) && (save->cr0 & X86_CR0_PG)) {
@@ -306,7 +306,7 @@ static bool __nested_vmcb_check_save(struct kvm_vcpu *vcpu,
 			return false;
 	}
 
-	/* Note, SVM doesn't have any additional restrictions on CR4. */
+	/* Analte, SVM doesn't have any additional restrictions on CR4. */
 	if (CC(!__kvm_is_valid_cr4(vcpu, save->cr4)))
 		return false;
 
@@ -424,7 +424,7 @@ void nested_sync_control_from_vmcb02(struct vcpu_svm *svm)
 	 * virtual interrupts in order to request an interrupt window, as KVM
 	 * has usurped vmcb02's int_ctl.  If an interrupt window opens before
 	 * the next VM-Exit, svm_clear_vintr() will restore vmcb12's int_ctl.
-	 * If no window opens, V_IRQ will be correctly preserved in vmcb12's
+	 * If anal window opens, V_IRQ will be correctly preserved in vmcb12's
 	 * int_ctl (because it was never recognized while L2 was running).
 	 */
 	if (svm_is_intercept(svm, INTERCEPT_VINTR) &&
@@ -488,7 +488,7 @@ static void nested_svm_transition_tlb_flush(struct kvm_vcpu *vcpu)
 	 * things to fix before this can be conditional:
 	 *
 	 *  - Flush TLBs for both L1 and L2 remote TLB flush
-	 *  - Honor L1's request to flush an ASID on nested VMRUN
+	 *  - Hoanalr L1's request to flush an ASID on nested VMRUN
 	 *  - Sync nested NPT MMU on VMRUN that flushes L2's ASID[*]
 	 *  - Don't crush a pending TLB flush in vmcb02 on nested VMRUN
 	 *  - Flush L1's ASID on KVM_REQ_TLB_FLUSH_GUEST
@@ -578,7 +578,7 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	kvm_rsp_write(vcpu, vmcb12->save.rsp);
 	kvm_rip_write(vcpu, vmcb12->save.rip);
 
-	/* In case we don't even reach vcpu_run, the fields are not updated */
+	/* In case we don't even reach vcpu_run, the fields are analt updated */
 	vmcb02->save.rax = vmcb12->save.rax;
 	vmcb02->save.rsp = vmcb12->save.rsp;
 	vmcb02->save.rip = vmcb12->save.rip;
@@ -593,7 +593,7 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	if (unlikely(guest_can_use(vcpu, X86_FEATURE_LBRV) &&
 		     (svm->nested.ctl.virt_ext & LBR_CTL_ENABLE_MASK))) {
 		/*
-		 * Reserved bits of DEBUGCTL are ignored.  Be consistent with
+		 * Reserved bits of DEBUGCTL are iganalred.  Be consistent with
 		 * svm_set_msr's definition of reserved bits.
 		 */
 		svm_copy_lbrs(vmcb02, vmcb12);
@@ -672,7 +672,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 	/* Done at vmrun: asid.  */
 
 	/* Also overwritten later if necessary.  */
-	vmcb02->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
+	vmcb02->control.tlb_ctl = TLB_CONTROL_DO_ANALTHING;
 
 	/* nested_cr3.  */
 	if (nested_npt_enabled(svm))
@@ -702,7 +702,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 	 * next_rip is consumed on VMRUN as the return address pushed on the
 	 * stack for injected soft exceptions/interrupts.  If nrips is exposed
 	 * to L1, take it verbatim from vmcb12.  If nrips is supported in
-	 * hardware but not exposed to L1, stuff the actual L2 RIP to emulate
+	 * hardware but analt exposed to L1, stuff the actual L2 RIP to emulate
 	 * what a nrips=0 CPU would do (L1 is responsible for advancing RIP
 	 * prior to injecting the event).
 	 */
@@ -889,7 +889,7 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * Since vmcb01 is not in use, we can use it to store some of the L1
+	 * Since vmcb01 is analt in use, we can use it to store some of the L1
 	 * state.
 	 */
 	vmcb01->save.efer   = vcpu->arch.efer;
@@ -1054,9 +1054,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	 * vmcb01 because it is copied from/to the virtual APIC's TPR register
 	 * on each VM entry/exit.
 	 *
-	 * V_GIF: If nested vGIF is not used, KVM uses vmcb02's V_GIF for L1's
+	 * V_GIF: If nested vGIF is analt used, KVM uses vmcb02's V_GIF for L1's
 	 * V_GIF.  However, GIF is architecturally clear on each VM exit, thus
-	 * there is no need to copy V_GIF from vmcb02 to vmcb01.
+	 * there is anal need to copy V_GIF from vmcb02 to vmcb01.
 	 */
 	if (!nested_exit_on_intr(svm))
 		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
@@ -1086,7 +1086,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	/*
 	 * On vmexit the  GIF is set to false and
-	 * no event can be injected in L1.
+	 * anal event can be injected in L1.
 	 */
 	svm_set_gif(svm, false);
 	vmcb01->control.exit_int_info = 0;
@@ -1147,7 +1147,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	/*
 	 * If we are here following the completion of a VMRUN that
 	 * is being single-stepped, queue the pending #DB intercept
-	 * right now so that it an be accounted for before we execute
+	 * right analw so that it an be accounted for before we execute
 	 * L1's next instruction.
 	 */
 	if (unlikely(vmcb01->save.rflags & X86_EFLAGS_TF))
@@ -1183,7 +1183,7 @@ int svm_allocate_nested(struct vcpu_svm *svm)
 
 	vmcb02_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!vmcb02_page)
-		return -ENOMEM;
+		return -EANALMEM;
 	svm->nested.vmcb02.ptr = page_address(vmcb02_page);
 	svm->nested.vmcb02.pa = __sme_set(page_to_pfn(vmcb02_page) << PAGE_SHIFT);
 
@@ -1197,7 +1197,7 @@ int svm_allocate_nested(struct vcpu_svm *svm)
 
 err_free_vmcb02:
 	__free_page(vmcb02_page);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void svm_free_nested(struct vcpu_svm *svm)
@@ -1216,7 +1216,7 @@ void svm_free_nested(struct vcpu_svm *svm)
 
 	/*
 	 * When last_vmcb12_gpa matches the current vmcb12 gpa,
-	 * some vmcb12 fields are not loaded if they are marked clean
+	 * some vmcb12 fields are analt loaded if they are marked clean
 	 * in the vmcb12, since in this case they are up to date already.
 	 *
 	 * When the vmcb02 is freed, this optimization becomes invalid.
@@ -1323,7 +1323,7 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
 		/*
 		 * Host-intercepted exceptions have been checked already in
-		 * nested_svm_exit_special.  There is nothing to do here,
+		 * nested_svm_exit_special.  There is analthing to do here,
 		 * the vmexit is injected by svm_check_nested_events.
 		 */
 		vmexit = NESTED_EXIT_DONE;
@@ -1429,7 +1429,7 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 	 */
 	bool block_nested_exceptions = svm->nested.nested_run_pending;
 	/*
-	 * New events (not exceptions) are only recognized at instruction
+	 * New events (analt exceptions) are only recognized at instruction
 	 * boundaries.  If an event needs reinjection, then KVM is handling a
 	 * VM-Exit that occurred _during_ instruction execution; new events are
 	 * blocked until the instruction completes.
@@ -1511,7 +1511,7 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 			return NESTED_EXIT_HOST;
 		else if (exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR &&
 			 svm->vcpu.arch.apf.host_apf_flags)
-			/* Trap async PF even if not shadowing */
+			/* Trap async PF even if analt shadowing */
 			return NESTED_EXIT_HOST;
 		break;
 	}
@@ -1572,7 +1572,7 @@ static void nested_copy_vmcb_cache_to_control(struct vmcb_control_area *dst,
 	dst->virt_ext              = from->virt_ext;
 	dst->pause_filter_count   = from->pause_filter_count;
 	dst->pause_filter_thresh  = from->pause_filter_thresh;
-	/* 'clean' and 'hv_enlightenments' are not changed by KVM */
+	/* 'clean' and 'hv_enlightenments' are analt changed by KVM */
 }
 
 static int svm_get_nested_state(struct kvm_vcpu *vcpu,
@@ -1626,7 +1626,7 @@ static int svm_get_nested_state(struct kvm_vcpu *vcpu,
 
 	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (!ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nested_copy_vmcb_cache_to_control(ctl, &svm->nested.ctl);
 	r = copy_to_user(&user_vmcb->control, ctl,
@@ -1672,12 +1672,12 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	 * EFER.SVME, but EFER.SVME still has to be 1 for VMRUN to succeed.
 	 */
 	if (!(vcpu->arch.efer & EFER_SVME)) {
-		/* GIF=1 and no guest mode are required if SVME=0.  */
+		/* GIF=1 and anal guest mode are required if SVME=0.  */
 		if (kvm_state->flags != KVM_STATE_NESTED_GIF_SET)
 			return -EINVAL;
 	}
 
-	/* SMM temporarily disables SVM, so we cannot be in guest mode.  */
+	/* SMM temporarily disables SVM, so we cananalt be in guest mode.  */
 	if (is_smm(vcpu) && (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
 		return -EINVAL;
 
@@ -1692,7 +1692,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->size < sizeof(*kvm_state) + KVM_STATE_NESTED_SVM_VMCB_SIZE)
 		return -EINVAL;
 
-	ret  = -ENOMEM;
+	ret  = -EANALMEM;
 	ctl  = kzalloc(sizeof(*ctl),  GFP_KERNEL_ACCOUNT);
 	save = kzalloc(sizeof(*save), GFP_KERNEL_ACCOUNT);
 	if (!ctl || !save)
@@ -1757,7 +1757,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	/*
 	 * While the nested guest CR3 is already checked and set by
 	 * KVM_SET_SREGS, it was set when nested state was yet loaded,
-	 * thus MMU might not be initialized correctly.
+	 * thus MMU might analt be initialized correctly.
 	 * Set it again to fix this.
 	 */
 

@@ -16,7 +16,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <inttypes.h>
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
 
 	cgrp_path = argv[optind];
 	if (!cgrp_path) {
-		fprintf(stderr, "cgroup path not given\n");
+		fprintf(stderr, "cgroup path analt given\n");
 		return EXIT_FAILURE;
 	}
 
@@ -260,14 +260,14 @@ int main(int argc, char **argv)
 
 	cg_fd = open(cgrp_path, O_DIRECTORY | O_RDONLY);
 	if (cg_fd < 0) {
-		printf("Failed to open cgroup path: '%s'\n", strerror(errno));
+		printf("Failed to open cgroup path: '%s'\n", strerror(erranal));
 		return EXIT_FAILURE;
 	}
 
 	if (do_attach) {
 		prog_fd = prog_load(idx, mark, prio);
 		if (prog_fd < 0) {
-			printf("Failed to load prog: '%s'\n", strerror(errno));
+			printf("Failed to load prog: '%s'\n", strerror(erranal));
 			printf("Output from kernel verifier:\n%s\n-------\n",
 			       bpf_log_buf);
 			return EXIT_FAILURE;
@@ -277,14 +277,14 @@ int main(int argc, char **argv)
 				      BPF_CGROUP_INET_SOCK_CREATE, 0);
 		if (ret < 0) {
 			printf("Failed to attach prog to cgroup: '%s'\n",
-			       strerror(errno));
+			       strerror(erranal));
 			return EXIT_FAILURE;
 		}
 	} else {
 		ret = bpf_prog_detach(cg_fd, BPF_CGROUP_INET_SOCK_CREATE);
 		if (ret < 0) {
 			printf("Failed to detach prog from cgroup: '%s'\n",
-			       strerror(errno));
+			       strerror(erranal));
 			return EXIT_FAILURE;
 		}
 	}

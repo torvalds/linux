@@ -289,7 +289,7 @@
 	pxa-mmc,detect-delay-ms = <200>;
 	vmmc-supply = <&reg_vcc_sdio>;
 	mmc-pwrseq = <&mmc0_pwrseq>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 };
 

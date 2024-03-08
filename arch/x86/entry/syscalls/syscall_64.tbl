@@ -43,7 +43,7 @@
 32	common	dup			sys_dup
 33	common	dup2			sys_dup2
 34	common	pause			sys_pause
-35	common	nanosleep		sys_nanosleep
+35	common	naanalsleep		sys_naanalsleep
 36	common	getitimer		sys_getitimer
 37	common	alarm			sys_alarm
 38	common	setitimer		sys_setitimer
@@ -141,7 +141,7 @@
 130	common	rt_sigsuspend		sys_rt_sigsuspend
 131	64	sigaltstack		sys_sigaltstack
 132	common	utime			sys_utime
-133	common	mknod			sys_mknod
+133	common	mkanald			sys_mkanald
 134	64	uselib
 135	common	personality		sys_personality
 136	common	ustat			sys_ustat
@@ -238,7 +238,7 @@
 227	common	clock_settime		sys_clock_settime
 228	common	clock_gettime		sys_clock_gettime
 229	common	clock_getres		sys_clock_getres
-230	common	clock_nanosleep		sys_clock_nanosleep
+230	common	clock_naanalsleep		sys_clock_naanalsleep
 231	common	exit_group		sys_exit_group
 232	common	epoll_wait		sys_epoll_wait
 233	common	epoll_ctl		sys_epoll_ctl
@@ -252,7 +252,7 @@
 241	common	mq_unlink		sys_mq_unlink
 242	common	mq_timedsend		sys_mq_timedsend
 243	common	mq_timedreceive		sys_mq_timedreceive
-244	64	mq_notify		sys_mq_notify
+244	64	mq_analtify		sys_mq_analtify
 245	common	mq_getsetattr		sys_mq_getsetattr
 246	64	kexec_load		sys_kexec_load
 247	64	waitid			sys_waitid
@@ -261,13 +261,13 @@
 250	common	keyctl			sys_keyctl
 251	common	ioprio_set		sys_ioprio_set
 252	common	ioprio_get		sys_ioprio_get
-253	common	inotify_init		sys_inotify_init
-254	common	inotify_add_watch	sys_inotify_add_watch
-255	common	inotify_rm_watch	sys_inotify_rm_watch
+253	common	ianaltify_init		sys_ianaltify_init
+254	common	ianaltify_add_watch	sys_ianaltify_add_watch
+255	common	ianaltify_rm_watch	sys_ianaltify_rm_watch
 256	common	migrate_pages		sys_migrate_pages
 257	common	openat			sys_openat
 258	common	mkdirat			sys_mkdirat
-259	common	mknodat			sys_mknodat
+259	common	mkanaldat			sys_mkanaldat
 260	common	fchownat		sys_fchownat
 261	common	futimesat		sys_futimesat
 262	common	newfstatat		sys_newfstatat
@@ -302,14 +302,14 @@
 291	common	epoll_create1		sys_epoll_create1
 292	common	dup3			sys_dup3
 293	common	pipe2			sys_pipe2
-294	common	inotify_init1		sys_inotify_init1
+294	common	ianaltify_init1		sys_ianaltify_init1
 295	64	preadv			sys_preadv
 296	64	pwritev			sys_pwritev
 297	64	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo
 298	common	perf_event_open		sys_perf_event_open
 299	64	recvmmsg		sys_recvmmsg
-300	common	fanotify_init		sys_fanotify_init
-301	common	fanotify_mark		sys_fanotify_mark
+300	common	faanaltify_init		sys_faanaltify_init
+301	common	faanaltify_mark		sys_faanaltify_mark
 302	common	prlimit64		sys_prlimit64
 303	common	name_to_handle_at	sys_name_to_handle_at
 304	common	open_by_handle_at	sys_open_by_handle_at
@@ -371,7 +371,7 @@
 447	common	memfd_secret		sys_memfd_secret
 448	common	process_mrelease	sys_process_mrelease
 449	common	futex_waitv		sys_futex_waitv
-450	common	set_mempolicy_home_node	sys_set_mempolicy_home_node
+450	common	set_mempolicy_home_analde	sys_set_mempolicy_home_analde
 451	common	cachestat		sys_cachestat
 452	common	fchmodat2		sys_fchmodat2
 453	64	map_shadow_stack	sys_map_shadow_stack
@@ -387,8 +387,8 @@
 #
 # Due to a historical design error, certain syscalls are numbered differently
 # in x32 as compared to native x86_64.  These syscalls have numbers 512-547.
-# Do not add new syscalls to this range.  Numbers 548 and above are available
-# for non-x32 use.
+# Do analt add new syscalls to this range.  Numbers 548 and above are available
+# for analn-x32 use.
 #
 512	x32	rt_sigaction		compat_sys_rt_sigaction
 513	x32	rt_sigreturn		compat_sys_x32_rt_sigreturn
@@ -405,7 +405,7 @@
 524	x32	rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 525	x32	sigaltstack		compat_sys_sigaltstack
 526	x32	timer_create		compat_sys_timer_create
-527	x32	mq_notify		compat_sys_mq_notify
+527	x32	mq_analtify		compat_sys_mq_analtify
 528	x32	kexec_load		compat_sys_kexec_load
 529	x32	waitid			compat_sys_waitid
 530	x32	set_robust_list		compat_sys_set_robust_list
@@ -427,4 +427,4 @@
 546	x32	preadv2			compat_sys_preadv64v2
 547	x32	pwritev2		compat_sys_pwritev64v2
 # This is the end of the legacy x32 range.  Numbers 548 and above are
-# not special and are not to be used for x32-specific syscalls.
+# analt special and are analt to be used for x32-specific syscalls.

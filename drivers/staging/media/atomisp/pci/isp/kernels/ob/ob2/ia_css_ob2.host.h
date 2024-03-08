@@ -27,7 +27,7 @@ ia_css_ob2_encode(
     const struct ia_css_ob2_config *from,
     unsigned int size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_ob2_dump(
     const struct sh_css_isp_ob2_params *ob2,

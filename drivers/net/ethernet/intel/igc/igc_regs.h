@@ -140,7 +140,7 @@
 #define IGC_COLC	0x04028  /* Collision Count - R/clr */
 #define IGC_RERC	0x0402C  /* Receive Error Count - R/clr */
 #define IGC_DC		0x04030  /* Defer Count - R/clr */
-#define IGC_TNCRS	0x04034  /* Tx-No CRS - R/clr */
+#define IGC_TNCRS	0x04034  /* Tx-Anal CRS - R/clr */
 #define IGC_HTDPMC	0x0403C  /* Host Transmit Discarded by MAC - R/clr */
 #define IGC_RLEC	0x04040  /* Receive Length Error Count - R/clr */
 #define IGC_XONRXC	0x04048  /* XON Rx Count - R/clr */
@@ -162,7 +162,7 @@
 #define IGC_GORCH	0x0408C  /* Good Octets Rx Count High - R/clr */
 #define IGC_GOTCL	0x04090  /* Good Octets Tx Count Low - R/clr */
 #define IGC_GOTCH	0x04094  /* Good Octets Tx Count High - R/clr */
-#define IGC_RNBC	0x040A0  /* Rx No Buffers Count - R/clr */
+#define IGC_RNBC	0x040A0  /* Rx Anal Buffers Count - R/clr */
 #define IGC_RUC		0x040A4  /* Rx Undersize Count - R/clr */
 #define IGC_RFC		0x040A8  /* Rx Fragment Count - R/clr */
 #define IGC_ROC		0x040AC  /* Rx Oversize Count - R/clr */

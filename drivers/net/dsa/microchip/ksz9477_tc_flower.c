@@ -58,14 +58,14 @@ static int ksz9477_flower_parse_key_l2(struct ksz_device *dev, int port,
 
 		if (!is_zero_ether_addr(ematch.key->src)) {
 			if (!is_broadcast_ether_addr(ematch.mask->src))
-				goto not_full_mask_err;
+				goto analt_full_mask_err;
 
 			src_mac = ematch.key->src;
 		}
 
 		if (!is_zero_ether_addr(ematch.key->dst)) {
 			if (!is_broadcast_ether_addr(ematch.mask->dst))
-				goto not_full_mask_err;
+				goto analt_full_mask_err;
 
 			dst_mac = ematch.key->dst;
 		}
@@ -75,10 +75,10 @@ static int ksz9477_flower_parse_key_l2(struct ksz_device *dev, int port,
 	/* ACL supports only one MAC per entry */
 	required_entries = src_mac && dst_mac ? 2 : 1;
 
-	/* Check if there are enough available entries */
+	/* Check if there are eanalugh available entries */
 	if (acles->entries_count + required_entries > KSZ9477_ACL_MAX_ENTRIES) {
 		NL_SET_ERR_MSG_MOD(extack, "ACL entry limit reached");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ksz9477_acl_match_process_l2(dev, port, ethtype, src_mac, dst_mac,
@@ -86,9 +86,9 @@ static int ksz9477_flower_parse_key_l2(struct ksz_device *dev, int port,
 
 	return 0;
 
-not_full_mask_err:
+analt_full_mask_err:
 	NL_SET_ERR_MSG_MOD(extack, "MAC address mask must be a full mask");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -121,7 +121,7 @@ static int ksz9477_flower_parse_key(struct ksz_device *dev, int port,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC) ||
@@ -165,8 +165,8 @@ static int ksz9477_flower_parse_action(struct ksz_device *dev, int port,
 	int i;
 
 	if (TC_H_MIN(cls->classid)) {
-		NL_SET_ERR_MSG_MOD(extack, "hw_tc is not supported. Use: action skbedit prio");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "hw_tc is analt supported. Use: action skbedit prio");
+		return -EOPANALTSUPP;
 	}
 
 	flow_action_for_each(i, act, &rule->action) {
@@ -174,14 +174,14 @@ static int ksz9477_flower_parse_action(struct ksz_device *dev, int port,
 		case FLOW_ACTION_PRIORITY:
 			if (act->priority > KSZ9477_MAX_TC) {
 				NL_SET_ERR_MSG_MOD(extack, "Priority value is too high");
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			prio_force = true;
 			prio_val = act->priority;
 			break;
 		default:
-			NL_SET_ERR_MSG_MOD(extack, "action not supported");
-			return -EOPNOTSUPP;
+			NL_SET_ERR_MSG_MOD(extack, "action analt supported");
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -204,7 +204,7 @@ static int ksz9477_flower_parse_action(struct ksz_device *dev, int port,
  *
  * This function adds a flow classification rule for a specified port on a
  * ksz_device. It checks if the ACL offloading is supported and parses the flow
- * keys and actions. If the ACL is not supported, it returns an error. If there
+ * keys and actions. If the ACL is analt supported, it returns an error. If there
  * are unprocessed entries, it parses the action for the rule.
  *
  * Returns: 0 on success or a negative error code on failure.
@@ -222,8 +222,8 @@ int ksz9477_cls_flower_add(struct dsa_switch *ds, int port,
 	acl = dev->ports[port].acl_priv;
 
 	if (!acl) {
-		NL_SET_ERR_MSG_MOD(extack, "ACL offloading is not supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG_MOD(extack, "ACL offloading is analt supported");
+		return -EOPANALTSUPP;
 	}
 
 	/* A complex rule set can take multiple entries. Use first entry
@@ -257,7 +257,7 @@ int ksz9477_cls_flower_add(struct dsa_switch *ds, int port,
  * @ingress: A flag indicating if the rule is applied on the ingress path.
  *
  * This function removes a flow classification rule for a specified port on a
- * ksz_device. It checks if the ACL is initialized, and if not, returns an
+ * ksz_device. It checks if the ACL is initialized, and if analt, returns an
  * error. If the ACL is initialized, it removes entries with the specified
  * cookie and rewrites the ACL list.
  *
@@ -273,7 +273,7 @@ int ksz9477_cls_flower_del(struct dsa_switch *ds, int port,
 	acl = dev->ports[port].acl_priv;
 
 	if (!acl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ksz9477_acl_remove_entries(dev, port, &acl->acles, cookie);
 

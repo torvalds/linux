@@ -9,12 +9,12 @@
 
 #include <linux/types.h>
 
-struct device_node;
+struct device_analde;
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
-int of_clk_set_defaults(struct device_node *node, bool clk_supplier);
+int of_clk_set_defaults(struct device_analde *analde, bool clk_supplier);
 #else
-static inline int of_clk_set_defaults(struct device_node *node,
+static inline int of_clk_set_defaults(struct device_analde *analde,
 				      bool clk_supplier)
 {
 	return 0;

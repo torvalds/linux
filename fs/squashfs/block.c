@@ -40,7 +40,7 @@ static int copy_bio_to_actor(struct bio *bio,
 	int copied_bytes = 0;
 	int actor_offset = 0;
 
-	squashfs_actor_nobuff(actor);
+	squashfs_actor_analbuff(actor);
 	actor_addr = squashfs_first_page(actor);
 
 	if (WARN_ON_ONCE(!bio_next_segment(bio, &iter_all)))
@@ -113,7 +113,7 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 
 		if (!bio || idx != end_idx) {
 			struct bio *new = bio_alloc_clone(bdev, fullbio,
-							  GFP_NOIO, &fs_bio_set);
+							  GFP_ANALIO, &fs_bio_set);
 
 			if (bio) {
 				bio_trim(bio, start_idx * PAGE_SECTORS,
@@ -143,7 +143,7 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	if (head_to_cache) {
 		int ret = add_to_page_cache_lru(head_to_cache, cache_mapping,
 						read_start >> PAGE_SHIFT,
-						GFP_NOIO);
+						GFP_ANALIO);
 
 		if (!ret) {
 			SetPageUptodate(head_to_cache);
@@ -155,7 +155,7 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	if (tail_to_cache) {
 		int ret = add_to_page_cache_lru(tail_to_cache, cache_mapping,
 						(read_end >> PAGE_SHIFT) - 1,
-						GFP_NOIO);
+						GFP_ANALIO);
 
 		if (!ret) {
 			SetPageUptodate(tail_to_cache);
@@ -201,9 +201,9 @@ static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 	int error, i;
 	struct bio *bio;
 
-	bio = bio_kmalloc(page_count, GFP_NOIO);
+	bio = bio_kmalloc(page_count, GFP_ANALIO);
 	if (!bio)
-		return -ENOMEM;
+		return -EANALMEM;
 	bio_init(bio, sb->s_bdev, bio->bi_inline_vecs, page_count, REQ_OP_READ);
 	bio->bi_iter.bi_sector = block * (msblk->devblksize >> SECTOR_SHIFT);
 
@@ -215,10 +215,10 @@ static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 
 		page = squashfs_get_cache_page(cache_mapping, index);
 		if (!page)
-			page = alloc_page(GFP_NOIO);
+			page = alloc_page(GFP_ANALIO);
 
 		if (!page) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto out_free_bio;
 		}
 
@@ -252,7 +252,7 @@ out_free_bio:
 }
 
 /*
- * Read and decompress a metadata block or datablock.  Length is non-zero
+ * Read and decompress a metadata block or datablock.  Length is analn-zero
  * if a datablock is being read (the size is stored elsewhere in the
  * filesystem), otherwise the length is obtained from the first two bytes of
  * the metadata block.  A bit in the length field indicates if the block

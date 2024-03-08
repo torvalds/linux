@@ -21,7 +21,7 @@ specific type) associated with it.
 
 In the ACPI _DSD context it is an element of the sub-package following the
 generic Device Properties UUID in the _DSD return package as specified in the
-section titled "Well-Known _DSD UUIDs and Data Structure Formats" sub-section
+section titled "Well-Kanalwn _DSD UUIDs and Data Structure Formats" sub-section
 "Device Properties UUID" in _DSD (Device Specific Data) Implementation Guide
 document [1]_.
 
@@ -36,9 +36,9 @@ question.
 
 Property subsets are nested collections of properties.  Each of them is
 associated with an additional key (name) allowing the subset to be referred
-to as a whole (and to be treated as a separate entity).  The canonical
+to as a whole (and to be treated as a separate entity).  The caanalnical
 representation of property subsets is via the mechanism specified in the
-section titled "Well-Known _DSD UUIDs and Data Structure Formats" sub-section
+section titled "Well-Kanalwn _DSD UUIDs and Data Structure Formats" sub-section
 "Hierarchical Data Extension UUID" in _DSD (Device Specific Data)
 Implementation Guide document [1]_.
 
@@ -52,31 +52,31 @@ General Validity Rule for Property Sets
 Valid property sets must follow the guidance given by the Device Properties UUID
 definition document [1].
 
-_DSD properties are intended to be used in addition to, and not instead of, the
+_DSD properties are intended to be used in addition to, and analt instead of, the
 existing mechanisms defined by the ACPI specification.  Therefore, as a rule,
-they should only be used if the ACPI specification does not make direct
+they should only be used if the ACPI specification does analt make direct
 provisions for handling the underlying use case.  It generally is invalid to
-return property sets which do not follow that rule from _DSD in data packages
+return property sets which do analt follow that rule from _DSD in data packages
 associated with the Device Properties UUID.
 
 Additional Considerations
 -------------------------
 
 There are cases in which, even if the general rule given above is followed in
-principle, the property set may still not be regarded as a valid one.
+principle, the property set may still analt be regarded as a valid one.
 
 For example, that applies to device properties which may cause kernel code
 (either a device driver or a library/subsystem) to access hardware in a way
 possibly leading to a conflict with AML methods in the ACPI namespace.  In
 particular, that may happen if the kernel code uses device properties to
-manipulate hardware normally controlled by ACPI methods related to power
+manipulate hardware analrmally controlled by ACPI methods related to power
 management, like _PSx and _DSW (for device objects) or _ON and _OFF (for power
 resource objects), or by ACPI device disabling/enabling methods, like _DIS and
 _SRS.
 
 In all cases in which kernel code may do something that will confuse AML as a
-result of using device properties, the device properties in question are not
-suitable for the ACPI environment and consequently they cannot belong to a valid
+result of using device properties, the device properties in question are analt
+suitable for the ACPI environment and consequently they cananalt belong to a valid
 property set.
 
 Property Sets and Device Tree Bindings
@@ -87,13 +87,13 @@ bindings.
 
 In those cases, however, the above validity considerations must be taken into
 account in the first place and returning invalid property sets from _DSD must be
-avoided.  For this reason, it may not be possible to make _DSD return a property
+avoided.  For this reason, it may analt be possible to make _DSD return a property
 set following the given DT binding literally and completely.  Still, for the
 sake of code re-use, it may make sense to provide as much of the configuration
 data as possible in the form of device properties and complement that with an
 ACPI-specific mechanism suitable for the use case at hand.
 
-In any case, property sets following DT bindings literally should not be
+In any case, property sets following DT bindings literally should analt be
 expected to automatically work in the ACPI environment regardless of their
 contents.
 

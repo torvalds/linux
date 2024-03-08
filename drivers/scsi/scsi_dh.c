@@ -62,7 +62,7 @@ static const struct scsi_dh_blist scsi_dh_blist[] = {
 	{"NETAPP", "INF-01-00",		"rdac", },
 	{"LSI", "INF-01-00",		"rdac", },
 	{"ENGENIO", "INF-01-00",	"rdac", },
-	{"LENOVO", "DE_Series",		"rdac", },
+	{"LEANALVO", "DE_Series",		"rdac", },
 	{"FUJITSU", "ETERNUS_AHB",	"rdac", },
 	{NULL, NULL,			NULL },
 };
@@ -132,21 +132,21 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
 	error = scsi_dh->attach(sdev);
 	if (error != SCSI_DH_OK) {
 		switch (error) {
-		case SCSI_DH_NOMEM:
-			ret = -ENOMEM;
+		case SCSI_DH_ANALMEM:
+			ret = -EANALMEM;
 			break;
 		case SCSI_DH_RES_TEMP_UNAVAIL:
 			ret = -EAGAIN;
 			break;
 		case SCSI_DH_DEV_UNSUPP:
-		case SCSI_DH_NOSYS:
-			ret = -ENODEV;
+		case SCSI_DH_ANALSYS:
+			ret = -EANALDEV;
 			break;
 		default:
 			ret = -EINVAL;
 			break;
 		}
-		if (ret != -ENODEV)
+		if (ret != -EANALDEV)
 			sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
 				    scsi_dh->name, error);
 		module_put(scsi_dh->module);
@@ -163,7 +163,7 @@ static int scsi_dh_handler_attach(struct scsi_device *sdev,
 static void scsi_dh_handler_detach(struct scsi_device *sdev)
 {
 	sdev->handler->detach(sdev);
-	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", sdev->handler->name);
+	sdev_printk(KERN_ANALTICE, sdev, "%s: Detached\n", sdev->handler->name);
 	module_put(sdev->handler->module);
 }
 
@@ -176,7 +176,7 @@ void scsi_dh_add_device(struct scsi_device *sdev)
 	if (drv)
 		devinfo = __scsi_dh_lookup(drv);
 	/*
-	 * device_handler is optional, so ignore errors
+	 * device_handler is optional, so iganalre errors
 	 * from scsi_dh_handler_attach()
 	 */
 	if (devinfo)
@@ -219,12 +219,12 @@ EXPORT_SYMBOL_GPL(scsi_register_device_handler);
  *      module.
  * @scsi_dh - device handler to be unregistered.
  *
- * Returns 0 on success, -ENODEV if handler not registered.
+ * Returns 0 on success, -EANALDEV if handler analt registered.
  */
 int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 {
 	if (!__scsi_dh_lookup(scsi_dh->name))
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&list_lock);
 	list_del(&scsi_dh->list);
@@ -244,14 +244,14 @@ EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
  * @fn   - Function to be called upon completion of the activation.
  *         Function fn is called with data (below) and the error code.
  *         Function fn may be called from the same calling context. So,
- *         do not hold the lock in the caller which may be needed in fn.
+ *         do analt hold the lock in the caller which may be needed in fn.
  * @data - data passed to the function fn upon completion.
  *
  */
 int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 {
 	struct scsi_device *sdev;
-	int err = SCSI_DH_NOSYS;
+	int err = SCSI_DH_ANALSYS;
 
 	sdev = scsi_device_from_queue(q);
 	if (!sdev) {
@@ -262,7 +262,7 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 
 	if (!sdev->handler)
 		goto out_fn;
-	err = SCSI_DH_NOTCONN;
+	err = SCSI_DH_ANALTCONN;
 	if (sdev->sdev_state == SDEV_CANCEL ||
 	    sdev->sdev_state == SDEV_DEL)
 		goto out_fn;
@@ -291,14 +291,14 @@ EXPORT_SYMBOL_GPL(scsi_dh_activate);
  * @q - Request queue that is associated with the scsi_device for
  *      which the parameters to be set.
  * @params - parameters in the following format
- *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      "anal_of_params\0param1\0param2\0param3\0...\0"
  *      for example, string for 2 parameters with value 10 and 21
  *      is specified as "2\010\021\0".
  */
 int scsi_dh_set_params(struct request_queue *q, const char *params)
 {
 	struct scsi_device *sdev;
-	int err = -SCSI_DH_NOSYS;
+	int err = -SCSI_DH_ANALSYS;
 
 	sdev = scsi_device_from_queue(q);
 	if (!sdev)
@@ -325,7 +325,7 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 
 	sdev = scsi_device_from_queue(q);
 	if (!sdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	scsi_dh = scsi_dh_lookup(name);
 	if (!scsi_dh) {
@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(scsi_dh_attach);
  *      that may have a device handler attached
  * @gfp - the GFP mask used in the kmalloc() call when allocating memory
  *
- * Returns name of attached handler, NULL if no handler is attached.
+ * Returns name of attached handler, NULL if anal handler is attached.
  * Caller must take care to free the returned string.
  */
 const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)

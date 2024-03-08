@@ -2,7 +2,7 @@
 /*
  * IIO driver for MCP356X/MCP356XR and MCP346X/MCP346XR series ADC chip family
  *
- * Copyright (C) 2022-2023 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2022-2023 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Marius Cristea <marius.cristea@microchip.com>
  *
@@ -11,7 +11,7 @@
  * Datasheet for MCP3561R, MCP3562R, MCP3564R can be found here:
  * https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3561_2_4R-Data-Sheet-DS200006391C.pdf
  * Datasheet for MCP3461, MCP3462, MCP3464 can be found here:
- * https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4-Two-Four-Eight-Channel-153.6-ksps-Low-Noise-16-Bit-Delta-Sigma-ADC-Data-Sheet-20006180D.pdf
+ * https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4-Two-Four-Eight-Channel-153.6-ksps-Low-Analise-16-Bit-Delta-Sigma-ADC-Data-Sheet-20006180D.pdf
  * Datasheet for MCP3461R, MCP3462R, MCP3464R can be found here:
  * https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP3461-2-4R-Family-Data-Sheet-DS20006404C.pdf
  */
@@ -34,7 +34,7 @@
 #define MCP3564_CONFIG0_CS_SEL_MASK		GENMASK(3, 2)
 /* Internal clock is selected and AMCLK is present on the analog master clock output pin */
 #define MCP3564_CONFIG0_USE_INT_CLK_OUTPUT_EN	0x03
-/* Internal clock is selected and no clock output is present on the CLK pin */
+/* Internal clock is selected and anal clock output is present on the CLK pin */
 #define MCP3564_CONFIG0_USE_INT_CLK		0x02
 /* External digital clock */
 #define MCP3564_CONFIG0_USE_EXT_CLK		0x01
@@ -75,13 +75,13 @@
 /*
  * ADC Output Data Format 32-bit (24-bit left justified data):
  *                24-bit ADC data + 0x00 (8-bit).
- *        It does not allow overrange (ADC code locked to 0xFFFFFF or 0x800000).
+ *        It does analt allow overrange (ADC code locked to 0xFFFFFF or 0x800000).
  */
 #define MCP3464_CONFIG3_DATA_FMT_32B_LEFT_JUSTIFIED	1
 /*
  * ADC Output Data Format 24-bit (default ADC coding):
  *                24-bit ADC data.
- *        It does not allow overrange (ADC code locked to 0xFFFFFF or 0x800000).
+ *        It does analt allow overrange (ADC code locked to 0xFFFFFF or 0x800000).
  */
 #define MCP3464_CONFIG3_DATA_FMT_24B			0
 #define MCP3464_CONFIG3_DATA_FORMAT_MASK	GENMASK(5, 4)
@@ -165,7 +165,7 @@
 #define MCP3564_DATA_READY_TIMEOUT_MS	2000
 
 #define MCP3564_MAX_PGA				8
-#define MCP3564_MAX_BURNOUT_IDX			4
+#define MCP3564_MAX_BURANALUT_IDX			4
 #define MCP3564_MAX_CHANNELS			66
 
 enum mcp3564_ids {
@@ -184,7 +184,7 @@ enum mcp3564_ids {
 };
 
 enum mcp3564_delay_time {
-	MCP3564_NO_DELAY,
+	MCP3564_ANAL_DELAY,
 	MCP3564_DELAY_8_DMCLK,
 	MCP3564_DELAY_16_DMCLK,
 	MCP3564_DELAY_32_DMCLK,
@@ -208,7 +208,7 @@ enum mcp3564_adc_bias_current {
 	MCP3564_BOOST_CURRENT_x2_00
 };
 
-enum mcp3564_burnout {
+enum mcp3564_buranalut {
 	MCP3564_CONFIG0_CS_SEL_0_0_uA,
 	MCP3564_CONFIG0_CS_SEL_0_9_uA,
 	MCP3564_CONFIG0_CS_SEL_3_7_uA,
@@ -226,7 +226,7 @@ enum mcp3564_channel_names {
 	MCP3564_CH7,
 	MCP3564_AGND,
 	MCP3564_AVDD,
-	MCP3564_RESERVED, /* do not use */
+	MCP3564_RESERVED, /* do analt use */
 	MCP3564_REFIN_POZ,
 	MCP3564_REFIN_NEG,
 	MCP3564_TEMP_DIODE_P,
@@ -275,7 +275,7 @@ static const unsigned int mcp3564_oversampling_avail[] = {
 /*
  * Current Source/Sink Selection Bits for Sensor Bias (source on VIN+/sink on VIN-)
  */
-static const int mcp3564_burnout_avail[][2] = {
+static const int mcp3564_buranalut_avail[][2] = {
 	[MCP3564_CONFIG0_CS_SEL_0_0_uA] = { 0, 0 },
 	[MCP3564_CONFIG0_CS_SEL_0_9_uA] = { 0, 900 },
 	[MCP3564_CONFIG0_CS_SEL_3_7_uA] = { 0, 3700 },
@@ -328,7 +328,7 @@ static const int mcp3564_hwgain_frac[] = {
 };
 
 static const char *mcp3564_channel_labels[2] = {
-	"burnout_current", "temperature",
+	"buranalut_current", "temperature",
 };
 
 /**
@@ -360,7 +360,7 @@ struct mcp3564_chip_info {
  * @calib_bias:		calibration bias value
  * @calib_scale:	calibration scale value
  * @current_boost_mode:	the index inside current boost list of the ADC
- * @burnout_mode:	the index inside current bias list of the ADC
+ * @buranalut_mode:	the index inside current bias list of the ADC
  * @auto_zeroing_mux:	set if ADC auto-zeroing algorithm is enabled
  * @auto_zeroing_ref:	set if ADC auto-Zeroing Reference Buffer Setting is enabled
  * @have_vref:		does the ADC have an internal voltage reference?
@@ -379,7 +379,7 @@ struct mcp3564_state {
 	int				calib_bias;
 	int				calib_scale;
 	unsigned int			current_boost_mode;
-	enum mcp3564_burnout		burnout_mode;
+	enum mcp3564_buranalut		buranalut_mode;
 	bool				auto_zeroing_mux;
 	bool				auto_zeroing_ref;
 	bool				have_vref;
@@ -646,7 +646,7 @@ static const struct iio_chan_spec mcp3564_temp_channel_template = {
 			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
 };
 
-static const struct iio_chan_spec mcp3564_burnout_channel_template = {
+static const struct iio_chan_spec mcp3564_buranalut_channel_template = {
 	.type = IIO_CURRENT,
 	.output = true,
 	.channel = 0,
@@ -656,13 +656,13 @@ static const struct iio_chan_spec mcp3564_burnout_channel_template = {
 
 /*
  * Number of channels could be calculated:
- * num_channels = single_ended_input + differential_input + temperature + burnout
+ * num_channels = single_ended_input + differential_input + temperature + buranalut
  * Eg. for MCP3561 (only 2 channels available: CH0 and CH1)
  * single_ended_input = (CH0 - GND), (CH1 -  GND) = 2
  * differential_input = (CH0 - CH1), (CH0 -  CH0) = 2
  * num_channels = 2 + 2 + 2
  * Generic formula is:
- * num_channels = P^R(Number_of_single_ended_channels, 2) + 2 (temperature + burnout channels)
+ * num_channels = P^R(Number_of_single_ended_channels, 2) + 2 (temperature + buranalut channels)
  * P^R(Number_of_single_ended_channels, 2) is Permutations with Replacement of
  *     Number_of_single_ended_channels taken by 2
  */
@@ -760,7 +760,7 @@ static int mcp3564_read_single_value(struct iio_dev *indio_dev,
 		return ret;
 
 	/*
-	 * Check if the conversion is ready. If not, wait a little bit, and
+	 * Check if the conversion is ready. If analt, wait a little bit, and
 	 * in case of timeout exit with an error.
 	 */
 	ret = read_poll_timeout(mcp3564_read_8bits, ret_read,
@@ -794,8 +794,8 @@ static int mcp3564_read_avail(struct iio_dev *indio_dev,
 		if (!channel->output)
 			return -EINVAL;
 
-		*vals = mcp3564_burnout_avail[0];
-		*length = ARRAY_SIZE(mcp3564_burnout_avail) * 2;
+		*vals = mcp3564_buranalut_avail[0];
+		*length = ARRAY_SIZE(mcp3564_buranalut_avail) * 2;
 		*type = IIO_VAL_INT_PLUS_MICRO;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
@@ -806,7 +806,7 @@ static int mcp3564_read_avail(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (int *)adc->scale_tbls;
 		*length = ARRAY_SIZE(adc->scale_tbls) * 2;
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		*vals = mcp3564_calib_bias;
@@ -832,8 +832,8 @@ static int mcp3564_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		if (channel->output) {
 			mutex_lock(&adc->lock);
-			*val = mcp3564_burnout_avail[adc->burnout_mode][0];
-			*val2 = mcp3564_burnout_avail[adc->burnout_mode][1];
+			*val = mcp3564_buranalut_avail[adc->buranalut_mode][0];
+			*val2 = mcp3564_buranalut_avail[adc->buranalut_mode][1];
 			mutex_unlock(&adc->lock);
 			return IIO_VAL_INT_PLUS_MICRO;
 		}
@@ -847,7 +847,7 @@ static int mcp3564_read_raw(struct iio_dev *indio_dev,
 		*val = adc->scale_tbls[adc->hwgain][0];
 		*val2 = adc->scale_tbls[adc->hwgain][1];
 		mutex_unlock(&adc->lock);
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = mcp3564_oversampling_avail[adc->oversampling];
 		return IIO_VAL_INT;
@@ -874,7 +874,7 @@ static int mcp3564_write_raw_get_fmt(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	default:
 		return -EINVAL;
 	}
@@ -887,7 +887,7 @@ static int mcp3564_write_raw(struct iio_dev *indio_dev,
 	struct mcp3564_state *adc = iio_priv(indio_dev);
 	int tmp;
 	unsigned int hwgain;
-	enum mcp3564_burnout burnout;
+	enum mcp3564_buranalut buranalut;
 	int ret = 0;
 
 	switch (mask) {
@@ -895,26 +895,26 @@ static int mcp3564_write_raw(struct iio_dev *indio_dev,
 		if (!channel->output)
 			return -EINVAL;
 
-		for (burnout = 0; burnout < MCP3564_MAX_BURNOUT_IDX; burnout++)
-			if (val == mcp3564_burnout_avail[burnout][0] &&
-			    val2 == mcp3564_burnout_avail[burnout][1])
+		for (buranalut = 0; buranalut < MCP3564_MAX_BURANALUT_IDX; buranalut++)
+			if (val == mcp3564_buranalut_avail[buranalut][0] &&
+			    val2 == mcp3564_buranalut_avail[buranalut][1])
 				break;
 
-		if (burnout == MCP3564_MAX_BURNOUT_IDX)
+		if (buranalut == MCP3564_MAX_BURANALUT_IDX)
 			return -EINVAL;
 
-		if (burnout == adc->burnout_mode)
+		if (buranalut == adc->buranalut_mode)
 			return ret;
 
 		mutex_lock(&adc->lock);
 		ret = mcp3564_update_8bits(adc, MCP3564_CONFIG0_REG,
 					   MCP3564_CONFIG0_CS_SEL_MASK,
-					   FIELD_PREP(MCP3564_CONFIG0_CS_SEL_MASK, burnout));
+					   FIELD_PREP(MCP3564_CONFIG0_CS_SEL_MASK, buranalut));
 
 		if (ret)
-			dev_err(&indio_dev->dev, "Failed to configure burnout current\n");
+			dev_err(&indio_dev->dev, "Failed to configure buranalut current\n");
 		else
-			adc->burnout_mode = burnout;
+			adc->buranalut_mode = buranalut;
 		mutex_unlock(&adc->lock);
 		return ret;
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -998,23 +998,23 @@ static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)
 	struct mcp3564_state *adc = iio_priv(indio_dev);
 	struct device *dev = &adc->spi->dev;
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct iio_chan_spec chanspec = mcp3564_channel_template;
 	struct iio_chan_spec temp_chanspec = mcp3564_temp_channel_template;
-	struct iio_chan_spec burnout_chanspec = mcp3564_burnout_channel_template;
+	struct iio_chan_spec buranalut_chanspec = mcp3564_buranalut_channel_template;
 	int chan_idx = 0;
 	unsigned int num_ch;
 	u32 inputs[2];
-	const char *node_name;
+	const char *analde_name;
 	const char *label;
 	int ret;
 
-	num_ch = device_get_child_node_count(dev);
+	num_ch = device_get_child_analde_count(dev);
 	if (num_ch == 0)
-		return dev_err_probe(&indio_dev->dev, -ENODEV,
-				     "FW has no channels defined\n");
+		return dev_err_probe(&indio_dev->dev, -EANALDEV,
+				     "FW has anal channels defined\n");
 
-	/* Reserve space for burnout and temperature channel */
+	/* Reserve space for buranalut and temperature channel */
 	num_ch += 2;
 
 	if (num_ch > adc->chip_info->num_channels)
@@ -1023,35 +1023,35 @@ static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)
 
 	channels = devm_kcalloc(dev, num_ch, sizeof(*channels), GFP_KERNEL);
 	if (!channels)
-		return dev_err_probe(dev, -ENOMEM, "Can't allocate memory\n");
+		return dev_err_probe(dev, -EANALMEM, "Can't allocate memory\n");
 
-	device_for_each_child_node(dev, child) {
-		node_name = fwnode_get_name(child);
+	device_for_each_child_analde(dev, child) {
+		analde_name = fwanalde_get_name(child);
 
-		if (fwnode_property_present(child, "diff-channels")) {
-			ret = fwnode_property_read_u32_array(child,
+		if (fwanalde_property_present(child, "diff-channels")) {
+			ret = fwanalde_property_read_u32_array(child,
 							     "diff-channels",
 							     inputs,
 							     ARRAY_SIZE(inputs));
 			chanspec.differential = 1;
 		} else {
-			ret = fwnode_property_read_u32(child, "reg", &inputs[0]);
+			ret = fwanalde_property_read_u32(child, "reg", &inputs[0]);
 
 			chanspec.differential = 0;
 			inputs[1] = MCP3564_AGND;
 		}
 		if (ret) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ret;
 		}
 
 		if (inputs[0] > MCP3564_INTERNAL_VCM ||
 		    inputs[1] > MCP3564_INTERNAL_VCM) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return dev_err_probe(&indio_dev->dev, -EINVAL,
 					     "Channel index > %d, for %s\n",
 					     MCP3564_INTERNAL_VCM + 1,
-					     node_name);
+					     analde_name);
 		}
 
 		chanspec.address = (inputs[0] << 4) | inputs[1];
@@ -1059,8 +1059,8 @@ static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)
 		chanspec.channel2 = inputs[1];
 		chanspec.scan_index = chan_idx;
 
-		if (fwnode_property_present(child, "label")) {
-			fwnode_property_read_string(child, "label", &label);
+		if (fwanalde_property_present(child, "label")) {
+			fwanalde_property_read_string(child, "label", &label);
 			adc->labels[chan_idx] = label;
 		}
 
@@ -1068,9 +1068,9 @@ static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)
 		chan_idx++;
 	}
 
-	/* Add burnout current channel */
-	burnout_chanspec.scan_index = chan_idx;
-	channels[chan_idx] = burnout_chanspec;
+	/* Add buranalut current channel */
+	buranalut_chanspec.scan_index = chan_idx;
+	channels[chan_idx] = buranalut_chanspec;
 	adc->labels[chan_idx] = mcp3564_channel_labels[0];
 	chanspec.scan_index = chan_idx;
 	chan_idx++;
@@ -1102,8 +1102,8 @@ static void mcp3564_fill_scale_tbls(struct mcp3564_state *adc)
 
 	for (i = 0; i < MCP3564_MAX_PGA; i++) {
 		ref = adc->vref_mv;
-		tmp1 = ((u64)ref * NANO) >> pow;
-		div_u64_rem(tmp1, NANO, &tmp0);
+		tmp1 = ((u64)ref * NAANAL) >> pow;
+		div_u64_rem(tmp1, NAANAL, &tmp0);
 
 		tmp1 = tmp1 * mcp3564_hwgain_frac[(2 * i) + 1];
 		tmp0 = (int)div_u64(tmp1, mcp3564_hwgain_frac[2 * i]);
@@ -1126,7 +1126,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 
 	/*
 	 * The address is set on a per-device basis by fuses in the factory,
-	 * configured on request. If not requested, the fuses are set for 0x1.
+	 * configured on request. If analt requested, the fuses are set for 0x1.
 	 * The device address is part of the device markings to avoid
 	 * potential confusion. This address is coded on two bits, so four possible
 	 * addresses are available when multiple devices are present on the same
@@ -1156,7 +1156,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 		adc->have_vref = true;
 		break;
 	default:
-		dev_info(dev, "Unknown chip found: %d\n", tmp_reg);
+		dev_info(dev, "Unkanalwn chip found: %d\n", tmp_reg);
 		err = true;
 	}
 
@@ -1203,7 +1203,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 				ids = mcp3564;
 			break;
 		default:
-			dev_info(dev, "Unknown chip found: %d\n", tmp_u16);
+			dev_info(dev, "Unkanalwn chip found: %d\n", tmp_u16);
 			err = true;
 		}
 	}
@@ -1228,14 +1228,14 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 
 	adc->vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(adc->vref)) {
-		if (PTR_ERR(adc->vref) != -ENODEV)
+		if (PTR_ERR(adc->vref) != -EANALDEV)
 			return dev_err_probe(dev, PTR_ERR(adc->vref),
 					     "failed to get regulator\n");
 
 		/* Check if chip has internal vref */
 		if (!adc->have_vref)
 			return dev_err_probe(dev, PTR_ERR(adc->vref),
-					     "Unknown Vref\n");
+					     "Unkanalwn Vref\n");
 		adc->vref = NULL;
 		dev_dbg(dev, "%s: Using internal Vref\n", __func__);
 	} else {
@@ -1286,7 +1286,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 	 * After Full reset wait some time to be able to fully reset the part and place
 	 * it back in a default configuration.
 	 * From datasheet: POR (Power On Reset Time) is ~1us
-	 * 1ms should be enough.
+	 * 1ms should be eanalugh.
 	 */
 	mdelay(1);
 
@@ -1306,7 +1306,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 		return ret;
 
 	ret = mcp3564_write_24bits(adc, MCP3564_SCAN_REG,
-				   MCP3564_SCAN_DELAY_TIME_SET(MCP3564_NO_DELAY) |
+				   MCP3564_SCAN_DELAY_TIME_SET(MCP3564_ANAL_DELAY) |
 				   MCP3564_SCAN_CH_SEL_SET(MCP3564_SCAN_DEFAULT_VALUE));
 	if (ret)
 		return ret;
@@ -1365,7 +1365,7 @@ static int mcp3564_config(struct iio_dev *indio_dev)
 
 	ret = mcp3564_write_8bits(adc, MCP3564_CONFIG0_REG, tmp_reg);
 
-	adc->burnout_mode = MCP3564_CONFIG0_CS_SEL_0_0_uA;
+	adc->buranalut_mode = MCP3564_CONFIG0_CS_SEL_0_0_uA;
 
 	return ret;
 }
@@ -1423,7 +1423,7 @@ static int mcp3564_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;

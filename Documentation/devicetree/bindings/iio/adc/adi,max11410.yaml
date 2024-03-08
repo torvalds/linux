@@ -41,7 +41,7 @@ properties:
     const: 0
 
   avdd-supply:
-    description: Optional avdd supply. Used as reference when no explicit reference supplied.
+    description: Optional avdd supply. Used as reference when anal explicit reference supplied.
 
   vref0p-supply:
     description: vref0p supply can be used as reference for conversion.

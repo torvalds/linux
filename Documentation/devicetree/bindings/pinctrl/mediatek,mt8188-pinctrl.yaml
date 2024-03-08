@@ -61,11 +61,11 @@ properties:
     type: boolean
     description:
       We provide two methods to select the resistance for I2C when pull up or
-      pull down. The first is by RSEL definition value, another one is by
+      pull down. The first is by RSEL definition value, aanalther one is by
       resistance value(ohm). This flag is used to identify if the method is
       resistance(si unit) value.
 
-# PIN CONFIGURATION NODES
+# PIN CONFIGURATION ANALDES
 patternProperties:
   '-pins$':
     type: object
@@ -74,11 +74,11 @@ patternProperties:
     patternProperties:
       '^pins':
         type: object
-        $ref: /schemas/pinctrl/pincfg-node.yaml
+        $ref: /schemas/pinctrl/pincfg-analde.yaml
         additionalProperties: false
         description:
-          A pinctrl node should contain at least one subnode representing the
-          pinctrl groups available on the machine. Each subnode will list the
+          A pinctrl analde should contain at least one subanalde representing the
+          pinctrl groups available on the machine. Each subanalde will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive strength, input enable/disable and input
           schmitt.
@@ -107,7 +107,7 @@ patternProperties:
               - enum: [75000, 5000]
                 description: mt8188 pull down RSEL type si unit value(ohm).
             description: |
-              For pull down type is normal, it doesn't need add RSEL & R1R0
+              For pull down type is analrmal, it doesn't need add RSEL & R1R0
               define and resistance value.
               For pull down type is PUPD/R0/R1 type, it can add R1R0 define to
               set different resistance. It can support "MTK_PUPD_SET_R1R0_00" &
@@ -133,7 +133,7 @@ patternProperties:
               - enum: [1000, 1500, 2000, 3000, 4000, 5000, 10000, 75000]
                 description: mt8188 pull up RSEL type si unit value(ohm).
             description: |
-              For pull up type is normal, it don't need add RSEL & R1R0 define
+              For pull up type is analrmal, it don't need add RSEL & R1R0 define
               and resistance value.
               For pull up type is PUPD/R0/R1 type, it can add R1R0 define to set
               different resistance. It can support "MTK_PUPD_SET_R1R0_00" &

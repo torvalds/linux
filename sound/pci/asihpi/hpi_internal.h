@@ -26,7 +26,7 @@ HPI internal definitions
 /** Allocate and map an area of locked memory for bus master DMA operations.
 
 On success, *pLockedMemeHandle is a valid handle, and 0 is returned
-On error *pLockedMemHandle marked invalid, non-zero returned.
+On error *pLockedMemHandle marked invalid, analn-zero returned.
 
 If this function succeeds, then HpiOs_LockedMem_GetVirtAddr() and
 HpiOs_LockedMem_GetPyhsAddr() will always succed on the returned handle.
@@ -107,7 +107,7 @@ enum HPI_VOLUME_FLAGS {
 	HPI_VOLUME_FLAG_HAS_MUTE = (1 << 1),
 	/** Set if volume control can do autofading */
 	HPI_VOLUME_FLAG_HAS_AUTOFADE = (1 << 2)
-		/* Note Flags >= (1<<8) are for DSP internal use only */
+		/* Analte Flags >= (1<<8) are for DSP internal use only */
 };
 
 /******************************************* CONTROL ATTRIBUTES ****/
@@ -124,7 +124,7 @@ enum HPI_VOLUME_FLAGS {
 
 /** Enable event generation for a control.
 0=disable, 1=enable
-\note generic to all controls that can generate events
+\analte generic to all controls that can generate events
 */
 
 /** Unique identifiers for every control attribute
@@ -280,7 +280,7 @@ enum HPI_CONTROL_ATTRIBUTES {
     sent using HMI on CS18102 */
 /** ID supplied by Cirrus for ASI packets. */
 #define HPI_ETHERNET_PACKET_ID                  0x85
-/** Simple packet - no special routing required */
+/** Simple packet - anal special routing required */
 #define HPI_ETHERNET_PACKET_V1                  0x01
 /** This packet must make its way to the host across the HPI interface */
 #define HPI_ETHERNET_PACKET_HOSTED_VIA_HMI      0x20
@@ -304,7 +304,7 @@ enum HPI_BUFFER_CMDS {
 	HPI_BUFFER_CMD_INTERNAL_ALLOC = 1,
 	/** send physical memory address to adapter */
 	HPI_BUFFER_CMD_INTERNAL_GRANTADAPTER = 2,
-	/** notify adapter to stop using physical buffer */
+	/** analtify adapter to stop using physical buffer */
 	HPI_BUFFER_CMD_INTERNAL_REVOKEADAPTER = 3,
 	/** free physical buffer */
 	HPI_BUFFER_CMD_INTERNAL_FREE = 4
@@ -334,8 +334,8 @@ enum HPI_BUFFER_CMDS {
 #define HPI_USB_LINUX_TAG               0x4C495341	/* "ASIL"       */
 
 /** Invalid Adapter index
-Used in HPI messages that are not addressed to a specific adapter
-Used in DLL to indicate device not present
+Used in HPI messages that are analt addressed to a specific adapter
+Used in DLL to indicate device analt present
 */
 #define HPI_ADAPTER_INDEX_INVALID 0xFFFF
 
@@ -353,7 +353,7 @@ enum HPI_MESSAGE_TYPES {
 	HPI_TYPE_DATA = 3,
 	HPI_TYPE_SSX2BYPASS_MESSAGE = 4,
 	HPI_TYPE_COMMAND = 5,
-	HPI_TYPE_NOTIFICATION = 6
+	HPI_TYPE_ANALTIFICATION = 6
 };
 
 enum HPI_OBJECT_TYPES {
@@ -362,7 +362,7 @@ enum HPI_OBJECT_TYPES {
 	HPI_OBJ_OSTREAM = 3,
 	HPI_OBJ_ISTREAM = 4,
 	HPI_OBJ_MIXER = 5,
-	HPI_OBJ_NODE = 6,
+	HPI_OBJ_ANALDE = 6,
 	HPI_OBJ_CONTROL = 7,
 	HPI_OBJ_NVMEMORY = 8,
 	HPI_OBJ_GPIO = 9,
@@ -431,7 +431,7 @@ enum HPI_FUNCTION_IDS {
 	HPI_OSTREAM_QUERY_FORMAT = HPI_FUNC_ID(OSTREAM, 8),
 	HPI_OSTREAM_DATA = HPI_FUNC_ID(OSTREAM, 9),
 	HPI_OSTREAM_SET_VELOCITY = HPI_FUNC_ID(OSTREAM, 10),
-	HPI_OSTREAM_SET_PUNCHINOUT = HPI_FUNC_ID(OSTREAM, 11),
+	HPI_OSTREAM_SET_PUNCHIANALUT = HPI_FUNC_ID(OSTREAM, 11),
 	HPI_OSTREAM_SINEGEN = HPI_FUNC_ID(OSTREAM, 12),
 	HPI_OSTREAM_ANC_RESET = HPI_FUNC_ID(OSTREAM, 13),
 	HPI_OSTREAM_ANC_GET_INFO = HPI_FUNC_ID(OSTREAM, 14),
@@ -470,12 +470,12 @@ enum HPI_FUNCTION_IDS {
 	HPI_ISTREAM_WAIT = HPI_FUNC_ID(ISTREAM, 20),
 #define HPI_ISTREAM_FUNCTION_COUNT 20
 
-/* NOTE:
-   GET_NODE_INFO, SET_CONNECTION, GET_CONNECTIONS are not currently used */
+/* ANALTE:
+   GET_ANALDE_INFO, SET_CONNECTION, GET_CONNECTIONS are analt currently used */
 	HPI_MIXER_OPEN = HPI_FUNC_ID(MIXER, 1),
 	HPI_MIXER_CLOSE = HPI_FUNC_ID(MIXER, 2),
 	HPI_MIXER_GET_INFO = HPI_FUNC_ID(MIXER, 3),
-	HPI_MIXER_GET_NODE_INFO = HPI_FUNC_ID(MIXER, 4),
+	HPI_MIXER_GET_ANALDE_INFO = HPI_FUNC_ID(MIXER, 4),
 	HPI_MIXER_GET_CONTROL = HPI_FUNC_ID(MIXER, 5),
 	HPI_MIXER_SET_CONNECTION = HPI_FUNC_ID(MIXER, 6),
 	HPI_MIXER_GET_CONNECTIONS = HPI_FUNC_ID(MIXER, 7),
@@ -561,11 +561,11 @@ struct hpi_resource {
 };
 
 /** Format info used inside struct hpi_message
-    Not the same as public API struct hpi_format */
+    Analt the same as public API struct hpi_format */
 struct hpi_msg_format {
 	u32 sample_rate; /**< 11025, 32000, 44100 etc. */
 	u32 bit_rate; /**< for MPEG */
-	u32 attributes;	/**< stereo/joint_stereo/mono */
+	u32 attributes;	/**< stereo/joint_stereo/moanal */
 	u16 channels; /**< 1,2..., (or ancillary mode or idle bit */
 	u16 format; /**< HPI_FORMAT_PCM16, _MPEG etc. see \ref HPI_FORMATS. */
 };
@@ -625,7 +625,7 @@ struct hpi_streamid {
 	u16 stream_index; /**< outstream or instream index. */
 };
 
-struct hpi_punchinout {
+struct hpi_punchianalut {
 	u32 punch_in_sample;
 	u32 punch_out_sample;
 };
@@ -709,7 +709,7 @@ union hpi_adapterx_res {
 		u16 parameter2;
 	} property_get;
 	struct {
-		u32 yes;
+		u32 anal;
 	} irq_query;
 };
 
@@ -718,7 +718,7 @@ struct hpi_stream_msg {
 		struct hpi_msg_data data;
 		struct hpi_data_legacy32 data32;
 		u16 velocity;
-		struct hpi_punchinout pio;
+		struct hpi_punchianalut pio;
 		u32 time_scale;
 		struct hpi_buffer buffer;
 		struct hpi_streamid stream;
@@ -772,18 +772,18 @@ struct hpi_mixer_msg {
 	u16 control_index;
 	u16 control_type;	/* = HPI_CONTROL_METER _VOLUME etc */
 	u16 padding1;		/* Maintain alignment of subsequent fields */
-	u16 node_type1;		/* = HPI_SOURCENODE_LINEIN etc */
-	u16 node_index1;	/* = 0..N */
-	u16 node_type2;
-	u16 node_index2;
+	u16 analde_type1;		/* = HPI_SOURCEANALDE_LINEIN etc */
+	u16 analde_index1;	/* = 0..N */
+	u16 analde_type2;
+	u16 analde_index2;
 	u16 padding2;		/* round to 4 bytes */
 };
 
 struct hpi_mixer_res {
-	u16 src_node_type;	/* = HPI_SOURCENODE_LINEIN etc */
-	u16 src_node_index;	/* = 0..N */
-	u16 dst_node_type;
-	u16 dst_node_index;
+	u16 src_analde_type;	/* = HPI_SOURCEANALDE_LINEIN etc */
+	u16 src_analde_index;	/* = 0..N */
+	u16 dst_analde_type;
+	u16 dst_analde_index;
 	/* Also controlType for MixerGetControlByIndex */
 	u16 control_index;
 	/* may indicate which DSP the control is located on */
@@ -1024,13 +1024,13 @@ struct hpi_message {
 };
 
 #define HPI_MESSAGE_SIZE_BY_OBJECT { \
-	sizeof(struct hpi_message_header) ,   /* Default, no object type 0 */ \
+	sizeof(struct hpi_message_header) ,   /* Default, anal object type 0 */ \
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_subsys_msg),\
 	sizeof(struct hpi_message_header) + sizeof(union hpi_adapterx_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_stream_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_stream_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_mixer_msg),\
-	sizeof(struct hpi_message_header) ,   /* no node message */ \
+	sizeof(struct hpi_message_header) ,   /* anal analde message */ \
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_control_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_nvmemory_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_gpio_msg),\
@@ -1042,7 +1042,7 @@ struct hpi_message {
 }
 
 /*
-Note that the wSpecificError error field should be inspected and potentially
+Analte that the wSpecificError error field should be inspected and potentially
 reported whenever HPI_ERROR_DSP_COMMUNICATION or HPI_ERROR_DSP_BOOTLOAD is
 returned in wError.
 */
@@ -1085,13 +1085,13 @@ struct hpi_response {
 };
 
 #define HPI_RESPONSE_SIZE_BY_OBJECT { \
-	sizeof(struct hpi_response_header) ,/* Default, no object type 0 */ \
+	sizeof(struct hpi_response_header) ,/* Default, anal object type 0 */ \
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_subsys_res),\
 	sizeof(struct hpi_response_header) + sizeof(union  hpi_adapterx_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_stream_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_stream_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_mixer_res),\
-	sizeof(struct hpi_response_header) , /* no node response */ \
+	sizeof(struct hpi_response_header) , /* anal analde response */ \
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_control_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_nvmemory_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_gpio_res),\
@@ -1232,10 +1232,10 @@ compile_time_assert((sizeof(union hpi_response_buffer_v1) <=
 struct hpi_control_defn {
 	u8 type;
 	u8 channels;
-	u8 src_node_type;
-	u8 src_node_index;
-	u8 dest_node_type;
-	u8 dest_node_index;
+	u8 src_analde_type;
+	u8 src_analde_index;
+	u8 dest_analde_type;
+	u8 dest_analde_index;
 };
 
 /*////////////////////////////////////////////////////////////////////////// */
@@ -1280,8 +1280,8 @@ struct hpi_control_cache_channelmode {
 
 struct hpi_control_cache_mux {
 	struct hpi_control_cache_info i;
-	u16 source_node_type;
-	u16 source_node_index;
+	u16 source_analde_type;
+	u16 source_analde_index;
 	char temp_padding[4];
 };
 
@@ -1363,7 +1363,7 @@ struct hpi_control_cache_pad {
 	u32 pTY;
 	u32 pI;
 	u32 traffic_supported;
-	u32 traffic_anouncement;
+	u32 traffic_aanaluncement;
 };
 
 /* 2^N sized FIFO buffer (internal to HPI<->DSP interaction) */

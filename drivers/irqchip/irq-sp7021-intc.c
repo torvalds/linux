@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Copyright (C) Sunplus Technology Co., Ltd.
+ * Copyright (C) Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 #include <linux/irq.h>
@@ -197,7 +197,7 @@ static int sp_intc_irq_domain_map(struct irq_domain *domain,
 {
 	irq_set_chip_and_handler(irq, &sp_intc_chip, handle_level_irq);
 	irq_set_chip_data(irq, &sp_intc_chip);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -207,38 +207,38 @@ static const struct irq_domain_ops sp_intc_dm_ops = {
 	.map = sp_intc_irq_domain_map,
 };
 
-static int sp_intc_irq_map(struct device_node *node, int i)
+static int sp_intc_irq_map(struct device_analde *analde, int i)
 {
 	unsigned int irq;
 
-	irq = irq_of_parse_and_map(node, i);
+	irq = irq_of_parse_and_map(analde, i);
 	if (!irq)
-		return -ENOENT;
+		return -EANALENT;
 
 	irq_set_chained_handler_and_data(irq, sp_intc_handle_ext_cascaded, (void *)(uintptr_t)i);
 
 	return 0;
 }
 
-static int __init sp_intc_init_dt(struct device_node *node, struct device_node *parent)
+static int __init sp_intc_init_dt(struct device_analde *analde, struct device_analde *parent)
 {
 	int i, ret;
 
-	sp_intc.g0 = of_iomap(node, 0);
+	sp_intc.g0 = of_iomap(analde, 0);
 	if (!sp_intc.g0)
 		return -ENXIO;
 
-	sp_intc.g1 = of_iomap(node, 1);
+	sp_intc.g1 = of_iomap(analde, 1);
 	if (!sp_intc.g1) {
 		ret = -ENXIO;
 		goto out_unmap0;
 	}
 
-	ret = sp_intc_irq_map(node, 0); // EXT_INT0
+	ret = sp_intc_irq_map(analde, 0); // EXT_INT0
 	if (ret)
 		goto out_unmap1;
 
-	ret = sp_intc_irq_map(node, 1); // EXT_INT1
+	ret = sp_intc_irq_map(analde, 1); // EXT_INT1
 	if (ret)
 		goto out_unmap1;
 
@@ -256,10 +256,10 @@ static int __init sp_intc_init_dt(struct device_node *node, struct device_node *
 		writel_relaxed(~0, REG_INTR_CLEAR + i * 4);
 	}
 
-	sp_intc.domain = irq_domain_add_linear(node, SP_INTC_NR_IRQS,
+	sp_intc.domain = irq_domain_add_linear(analde, SP_INTC_NR_IRQS,
 					       &sp_intc_dm_ops, &sp_intc);
 	if (!sp_intc.domain) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap1;
 	}
 

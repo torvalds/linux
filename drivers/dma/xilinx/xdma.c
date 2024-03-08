@@ -223,7 +223,7 @@ static int xdma_channel_init(struct xdma_chan *chan)
 	int ret;
 
 	ret = regmap_write(xdev->rmap, chan->base + XDMA_CHAN_CONTROL_W1C,
-			   CHAN_CTRL_NON_INCR_ADDR);
+			   CHAN_CTRL_ANALN_INCR_ADDR);
 	if (ret)
 		return ret;
 
@@ -273,7 +273,7 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num, bool cyclic)
 	void *addr;
 	int i, j;
 
-	sw_desc = kzalloc(sizeof(*sw_desc), GFP_NOWAIT);
+	sw_desc = kzalloc(sizeof(*sw_desc), GFP_ANALWAIT);
 	if (!sw_desc)
 		return NULL;
 
@@ -283,7 +283,7 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num, bool cyclic)
 	sw_desc->error = false;
 	dblk_num = DIV_ROUND_UP(desc_num, XDMA_DESC_ADJACENT);
 	sw_desc->desc_blocks = kcalloc(dblk_num, sizeof(*sw_desc->desc_blocks),
-				       GFP_NOWAIT);
+				       GFP_ANALWAIT);
 	if (!sw_desc->desc_blocks)
 		goto failed;
 
@@ -294,7 +294,7 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num, bool cyclic)
 
 	sw_desc->dblk_num = dblk_num;
 	for (i = 0; i < sw_desc->dblk_num; i++) {
-		addr = dma_pool_alloc(chan->desc_pool, GFP_NOWAIT, &dma_addr);
+		addr = dma_pool_alloc(chan->desc_pool, GFP_ANALWAIT, &dma_addr);
 		if (!addr)
 			goto failed;
 
@@ -330,7 +330,7 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
 	int ret;
 
 	/*
-	 * check if there is not any submitted descriptor or channel is busy.
+	 * check if there is analt any submitted descriptor or channel is busy.
 	 * vchan lock should be held where this function is called.
 	 */
 	if (!vd || xchan->busy)
@@ -446,14 +446,14 @@ static int xdma_alloc_channels(struct xdma_device *xdev,
 	}
 
 	if (!*chan_num) {
-		xdma_err(xdev, "does not probe any channel");
+		xdma_err(xdev, "does analt probe any channel");
 		return -EINVAL;
 	}
 
 	*chans = devm_kcalloc(&xdev->pdev->dev, *chan_num, sizeof(**chans),
 			      GFP_KERNEL);
 	if (!*chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, j = 0; i < pdata->max_dma_channels; i++) {
 		ret = regmap_read(xdev->rmap, base + i * XDMA_CHAN_STRIDE,
@@ -523,7 +523,7 @@ static int xdma_terminate_all(struct dma_chan *chan)
 	xdma_chan->busy = false;
 	vd = vchan_next_desc(&xdma_chan->vchan);
 	if (vd) {
-		list_del(&vd->node);
+		list_del(&vd->analde);
 		dma_cookie_complete(&vd->tx);
 		vchan_terminate_vdesc(vd);
 	}
@@ -668,7 +668,7 @@ xdma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t address,
 	unsigned int i;
 
 	/*
-	 * Simplify the whole logic by preventing an abnormally high number of
+	 * Simplify the whole logic by preventing an abanalrmally high number of
 	 * periods and periods size.
 	 */
 	if (period_size > XDMA_DESC_BLEN_MAX) {
@@ -819,7 +819,7 @@ static int xdma_alloc_chan_resources(struct dma_chan *chan)
 					       XDMA_DESC_BLOCK_ALIGN, XDMA_DESC_BLOCK_BOUNDARY);
 	if (!xdma_chan->desc_pool) {
 		xdma_err(xdev, "unable to allocate descriptor pool");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -918,7 +918,7 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 
 		/* last desc of the last frame  */
 		repeat_tx = vd->tx.flags & DMA_PREP_REPEAT;
-		next_vd = list_first_entry_or_null(&vd->node, struct virt_dma_desc, node);
+		next_vd = list_first_entry_or_null(&vd->analde, struct virt_dma_desc, analde);
 		if (next_vd)
 			repeat_tx = repeat_tx && !(next_vd->tx.flags & DMA_PREP_LOAD_EOT);
 		if (repeat_tx) {
@@ -926,7 +926,7 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 			desc->completed_desc_num = 0;
 			vchan_cyclic_callback(vd);
 		} else {
-			list_del(&vd->node);
+			list_del(&vd->analde);
 			vchan_cookie_complete(vd);
 		}
 		/* start (or continue) the tx of a first desc on the vc.desc_issued list, if any */
@@ -937,7 +937,7 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 
 		/* if all data blocks are transferred, remove and complete the request */
 		if (desc->completed_desc_num == desc->desc_num) {
-			list_del(&vd->node);
+			list_del(&vd->analde);
 			vchan_cookie_complete(vd);
 			goto out;
 		}
@@ -1022,9 +1022,9 @@ static int xdma_irq_init(struct xdma_device *xdev)
 	u32 user_irq_start;
 	int i, j, ret;
 
-	/* return failure if there are not enough IRQs */
+	/* return failure if there are analt eanalugh IRQs */
 	if (xdev->irq_num < XDMA_CHAN_NUM(xdev)) {
-		xdma_err(xdev, "not enough irq");
+		xdma_err(xdev, "analt eanalugh irq");
 		return -EINVAL;
 	}
 
@@ -1191,7 +1191,7 @@ static int xdma_probe(struct platform_device *pdev)
 	struct xdma_device *xdev;
 	void __iomem *reg_base;
 	struct resource *res;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	if (pdata->max_dma_channels > XDMA_MAX_CHANNELS) {
 		dev_err(&pdev->dev, "invalid max dma channels %d",
@@ -1201,7 +1201,7 @@ static int xdma_probe(struct platform_device *pdev)
 
 	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
 	if (!xdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, xdev);
 	xdev->pdev = pdev;

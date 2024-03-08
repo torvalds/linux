@@ -20,7 +20,7 @@ enum nic_send_ld_type_e {
 };
 
 enum ether_type_algorithm {
-	ETYPE_ALG_NONE = 0x0,
+	ETYPE_ALG_ANALNE = 0x0,
 	ETYPE_ALG_SKIP = 0x1,
 	ETYPE_ALG_ENDPARSE = 0x2,
 	ETYPE_ALG_VLAN = 0x3,
@@ -28,7 +28,7 @@ enum ether_type_algorithm {
 };
 
 enum layer3_type {
-	L3TYPE_NONE = 0x00,
+	L3TYPE_ANALNE = 0x00,
 	L3TYPE_GRH = 0x01,
 	L3TYPE_IPV4 = 0x04,
 	L3TYPE_IPV4_OPTIONS = 0x05,
@@ -39,7 +39,7 @@ enum layer3_type {
 };
 
 enum layer4_type {
-	L4TYPE_NONE = 0x00,
+	L4TYPE_ANALNE = 0x00,
 	L4TYPE_IPSEC_ESP = 0x01,
 	L4TYPE_IPFRAG = 0x02,
 	L4TYPE_IPCOMP = 0x03,
@@ -53,14 +53,14 @@ enum layer4_type {
 
 /* CPI and RSSI configuration */
 enum cpi_algorithm_type {
-	CPI_ALG_NONE = 0x0,
+	CPI_ALG_ANALNE = 0x0,
 	CPI_ALG_VLAN = 0x1,
 	CPI_ALG_VLAN16 = 0x2,
 	CPI_ALG_DIFF = 0x3,
 };
 
 enum rss_algorithm_type {
-	RSS_ALG_NONE = 0x00,
+	RSS_ALG_ANALNE = 0x00,
 	RSS_ALG_PORT = 0x01,
 	RSS_ALG_IP = 0x02,
 	RSS_ALG_TCP_IP = 0x03,
@@ -135,7 +135,7 @@ enum cqe_rx_err_level {
 
 /* Packet protocol level error type enumeration */
 enum cqe_rx_err_opcode {
-	CQE_RX_ERR_RE_NONE = 0x0,
+	CQE_RX_ERR_RE_ANALNE = 0x0,
 	CQE_RX_ERR_RE_PARTIAL = 0x1,
 	CQE_RX_ERR_RE_JABBER = 0x2,
 	CQE_RX_ERR_RE_FCS = 0x7,
@@ -151,7 +151,7 @@ enum cqe_rx_err_opcode {
 	CQE_RX_ERR_L2_UNDERSIZE = 0x26,
 	CQE_RX_ERR_L2_LENMISM = 0x27,
 	CQE_RX_ERR_L2_PCLP = 0x28,
-	CQE_RX_ERR_IP_NOT = 0x41,
+	CQE_RX_ERR_IP_ANALT = 0x41,
 	CQE_RX_ERR_IP_CHK = 0x42,
 	CQE_RX_ERR_IP_MAL = 0x43,
 	CQE_RX_ERR_IP_MALD = 0x44,
@@ -393,7 +393,7 @@ struct rx_hdr_t {
 	u64   skip_length:6;
 	u64   disable_rss:1;
 	u64   disable_tcp_reassembly:1;
-	u64   nodrop:1;
+	u64   analdrop:1;
 	u64   dest_alg:2;
 	u64   rsvd0:2;
 	u64   dest_rq:11;
@@ -528,7 +528,7 @@ struct sq_hdr_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u64    subdesc_type:4;
 	u64    tso:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
+	u64    post_cqe:1; /* Post CQE on anal error also */
 	u64    dont_send:1;
 	u64    tstmp:1;
 	u64    subdesc_cnt:8;
@@ -561,7 +561,7 @@ struct sq_hdr_subdesc {
 	u64    subdesc_cnt:8;
 	u64    tstmp:1;
 	u64    dont_send:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
+	u64    post_cqe:1; /* Post CQE on anal error also */
 	u64    tso:1;
 	u64    subdesc_type:4; /* W0 */
 

@@ -29,7 +29,7 @@ static int slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 
 	ret = intel_guc_slpc_set_min_freq(slpc, freq);
 	if (ret)
-		pr_err("Could not set min frequency to [%u]\n", freq);
+		pr_err("Could analt set min frequency to [%u]\n", freq);
 	else /* Delay to ensure h2g completes */
 		delay_for_h2g();
 
@@ -42,7 +42,7 @@ static int slpc_set_max_freq(struct intel_guc_slpc *slpc, u32 freq)
 
 	ret = intel_guc_slpc_set_max_freq(slpc, freq);
 	if (ret)
-		pr_err("Could not set maximum frequency [%u]\n",
+		pr_err("Could analt set maximum frequency [%u]\n",
 		       freq);
 	else /* Delay to ensure h2g completes */
 		delay_for_h2g();
@@ -86,7 +86,7 @@ static int slpc_restore_freq(struct intel_guc_slpc *slpc, u32 min, u32 max)
 		return err;
 	}
 
-	err = intel_guc_slpc_set_ignore_eff_freq(slpc, false);
+	err = intel_guc_slpc_set_iganalre_eff_freq(slpc, false);
 	if (err) {
 		pr_err("Unable to restore efficient freq");
 		return err;
@@ -215,12 +215,12 @@ static int slpc_power(struct intel_gt *gt, struct intel_engine_cs *engine)
 		max.power, max.freq);
 
 	if (10 * min.freq >= 9 * max.freq) {
-		pr_notice("Could not control frequency, ran at [%uMHz, %uMhz]\n",
+		pr_analtice("Could analt control frequency, ran at [%uMHz, %uMhz]\n",
 			  min.freq, max.freq);
 	}
 
 	if (11 * min.power > 10 * max.power) {
-		pr_err("%s: did not conserve power when setting lower frequency!\n",
+		pr_err("%s: did analt conserve power when setting lower frequency!\n",
 		       engine->name);
 		err = -EINVAL;
 	}
@@ -248,9 +248,9 @@ static int max_granted_freq(struct intel_guc_slpc *slpc, struct intel_rps *rps, 
 		perf_limit_reasons = intel_uncore_read(gt->uncore,
 						       intel_gt_perf_limit_reasons_reg(gt));
 
-		/* If not, this is an error */
+		/* If analt, this is an error */
 		if (!(perf_limit_reasons & GT0_PERF_LIMIT_REASONS_MASK)) {
-			pr_err("Pcode did not grant max freq\n");
+			pr_err("Pcode did analt grant max freq\n");
 			err = -EINVAL;
 		} else {
 			pr_info("Pcode throttled frequency 0x%x\n", perf_limit_reasons);
@@ -280,15 +280,15 @@ static int run_test(struct intel_gt *gt, int test_type)
 	}
 
 	if (igt_spinner_init(&spin, gt))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (intel_guc_slpc_get_max_freq(slpc, &slpc_max_freq)) {
-		pr_err("Could not get SLPC max freq\n");
+		pr_err("Could analt get SLPC max freq\n");
 		return -EIO;
 	}
 
 	if (intel_guc_slpc_get_min_freq(slpc, &slpc_min_freq)) {
-		pr_err("Could not get SLPC min freq\n");
+		pr_err("Could analt get SLPC min freq\n");
 		return -EIO;
 	}
 
@@ -305,7 +305,7 @@ static int run_test(struct intel_gt *gt, int test_type)
 	/*
 	 * Turn off efficient frequency so RPn/RP0 ranges are obeyed.
 	 */
-	err = intel_guc_slpc_set_ignore_eff_freq(slpc, true);
+	err = intel_guc_slpc_set_iganalre_eff_freq(slpc, true);
 	if (err) {
 		pr_err("Unable to turn off efficient freq!");
 		return err;
@@ -324,7 +324,7 @@ static int run_test(struct intel_gt *gt, int test_type)
 
 		rq = igt_spinner_create_request(&spin,
 						engine->kernel_context,
-						MI_NOOP);
+						MI_ANALOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			st_engine_heartbeat_enable(engine);
@@ -334,7 +334,7 @@ static int run_test(struct intel_gt *gt, int test_type)
 		i915_request_add(rq);
 
 		if (!igt_wait_for_spinner(&spin, rq)) {
-			pr_err("%s: Spinner did not start\n",
+			pr_err("%s: Spinner did analt start\n",
 			       engine->name);
 			igt_spinner_end(&spin);
 			st_engine_heartbeat_enable(engine);
@@ -377,7 +377,7 @@ static int run_test(struct intel_gt *gt, int test_type)
 
 			/* Actual frequency should rise above min */
 			if (max_act_freq <= slpc->min_freq) {
-				pr_err("Actual freq did not rise above min\n");
+				pr_err("Actual freq did analt rise above min\n");
 				pr_err("Perf Limit Reasons: 0x%x\n",
 				       intel_uncore_read(gt->uncore,
 							 intel_gt_perf_limit_reasons_reg(gt)));
@@ -486,7 +486,7 @@ static int live_slpc_tile_interaction(void *arg)
 
 	threads = kcalloc(I915_MAX_GT, sizeof(*threads), GFP_KERNEL);
 	if (!threads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_gt(gt, i915, i) {
 		threads[i].worker = kthread_create_worker(0, "igt/slpc_parallel:%d", gt->info.id);

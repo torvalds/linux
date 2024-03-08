@@ -183,8 +183,8 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
 		container_of(sdev->dev, struct platform_device, dev);
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *res_node;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *res_analde;
 	struct resource *mmio;
 	struct imx8_priv *priv;
 	struct resource res;
@@ -194,11 +194,11 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clks = devm_kzalloc(&pdev->dev, sizeof(*priv->clks), GFP_KERNEL);
 	if (!priv->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->num_cores = 1;
 	sdev->pdata->hw_pdata = priv;
@@ -209,19 +209,19 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	priv->num_domains = of_count_phandle_with_args(np, "power-domains",
 						       "#power-domain-cells");
 	if (priv->num_domains < 0) {
-		dev_err(sdev->dev, "no power-domains property in %pOF\n", np);
+		dev_err(sdev->dev, "anal power-domains property in %pOF\n", np);
 		return priv->num_domains;
 	}
 
 	priv->pd_dev = devm_kmalloc_array(&pdev->dev, priv->num_domains,
 					  sizeof(*priv->pd_dev), GFP_KERNEL);
 	if (!priv->pd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->link = devm_kmalloc_array(&pdev->dev, priv->num_domains,
 					sizeof(*priv->link), GFP_KERNEL);
 	if (!priv->link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->num_domains; i++) {
 		priv->pd_dev[i] = dev_pm_domain_attach_by_id(&pdev->dev, i);
@@ -234,7 +234,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 						DL_FLAG_PM_RUNTIME |
 						DL_FLAG_RPM_ACTIVE);
 		if (!priv->link[i]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			dev_pm_domain_detach(priv->pd_dev[i], false);
 			goto exit_unroll_pm;
 		}
@@ -242,13 +242,13 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 
 	ret = imx_scu_get_handle(&priv->sc_ipc);
 	if (ret) {
-		dev_err(sdev->dev, "Cannot obtain SCU handle (err = %d)\n",
+		dev_err(sdev->dev, "Cananalt obtain SCU handle (err = %d)\n",
 			ret);
 		goto exit_unroll_pm;
 	}
 
 	priv->ipc_dev = platform_device_register_data(sdev->dev, "imx-dsp",
-						      PLATFORM_DEVID_NONE,
+						      PLATFORM_DEVID_ANALNE,
 						      pdev, sizeof(*pdev));
 	if (IS_ERR(priv->ipc_dev)) {
 		ret = PTR_ERR(priv->ipc_dev);
@@ -257,7 +257,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 
 	priv->dsp_ipc = dev_get_drvdata(&priv->ipc_dev->dev);
 	if (!priv->dsp_ipc) {
-		/* DSP IPC driver not probed yet, try later */
+		/* DSP IPC driver analt probed yet, try later */
 		ret = -EPROBE_DEFER;
 		dev_err(sdev->dev, "Failed to get drvdata\n");
 		goto exit_pdev_unregister;
@@ -281,20 +281,20 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_IRAM]) {
 		dev_err(sdev->dev, "failed to ioremap base 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit_pdev_unregister;
 	}
 	sdev->mmio_bar = SOF_FW_BLK_TYPE_IRAM;
 
-	res_node = of_parse_phandle(np, "memory-region", 0);
-	if (!res_node) {
-		dev_err(&pdev->dev, "failed to get memory region node\n");
-		ret = -ENODEV;
+	res_analde = of_parse_phandle(np, "memory-region", 0);
+	if (!res_analde) {
+		dev_err(&pdev->dev, "failed to get memory region analde\n");
+		ret = -EANALDEV;
 		goto exit_pdev_unregister;
 	}
 
-	ret = of_address_to_resource(res_node, 0, &res);
-	of_node_put(res_node);
+	ret = of_address_to_resource(res_analde, 0, &res);
+	of_analde_put(res_analde);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get reserved region address\n");
 		goto exit_pdev_unregister;
@@ -305,7 +305,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_SRAM]) {
 		dev_err(sdev->dev, "failed to ioremap mem 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_pdev_unregister;
 	}
 	sdev->mailbox_bar = SOF_FW_BLK_TYPE_SRAM;
@@ -533,7 +533,7 @@ static struct snd_sof_dsp_ops sof_imx8_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+			SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 
 	/* PM */
 	.runtime_suspend	= imx8_dsp_runtime_suspend,
@@ -604,7 +604,7 @@ static struct snd_sof_dsp_ops sof_imx8x_ops = {
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
 			SNDRV_PCM_INFO_BATCH |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP
+			SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP
 };
 
 static struct sof_dev_desc sof_of_imx8qxp_desc = {
@@ -619,7 +619,7 @@ static struct sof_dev_desc sof_of_imx8qxp_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-imx8x.ri",
 	},
-	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-imx8-analcodec.tplg",
 	.ops = &sof_imx8x_ops,
 };
 
@@ -635,7 +635,7 @@ static struct sof_dev_desc sof_of_imx8qm_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-imx8.ri",
 	},
-	.nocodec_tplg_filename = "sof-imx8-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-imx8-analcodec.tplg",
 	.ops = &sof_imx8_ops,
 };
 

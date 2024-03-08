@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 enum symbol_type {
-	SYM_NORMAL, SYM_TYPEDEF, SYM_ENUM, SYM_STRUCT, SYM_UNION,
+	SYM_ANALRMAL, SYM_TYPEDEF, SYM_ENUM, SYM_STRUCT, SYM_UNION,
 	SYM_ENUM_CONST
 };
 
@@ -55,9 +55,9 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 			  struct string_list *defn, int is_extern);
 void export_symbol(const char *);
 
-void free_node(struct string_list *list);
+void free_analde(struct string_list *list);
 void free_list(struct string_list *s, struct string_list *e);
-struct string_list *copy_node(struct string_list *);
+struct string_list *copy_analde(struct string_list *);
 struct string_list *copy_list_range(struct string_list *start,
 				    struct string_list *end);
 

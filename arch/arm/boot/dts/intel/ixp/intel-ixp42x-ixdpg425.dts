@@ -5,9 +5,9 @@
  * Ethernet set-up from OpenWrt.
  *
  * The device has 4 x FXS RJ11 ports for analog phones for
- * internet telephony. (Not supported yet.)
+ * internet telephony. (Analt supported yet.)
  *
- * The device has 9 status LEDs we do not support yet.
+ * The device has 9 status LEDs we do analt support yet.
  *
  * This device is very similar to ADI engingeering Coyote.
  */

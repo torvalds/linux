@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -26,7 +26,7 @@
 #include "amdgpu_amdkfd.h"
 #include "kfd_smi_events.h"
 
-static bool cik_event_interrupt_isr(struct kfd_node *dev,
+static bool cik_event_interrupt_isr(struct kfd_analde *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
 					bool *patched_flag)
@@ -39,7 +39,7 @@ static bool cik_event_interrupt_isr(struct kfd_node *dev,
 	bool ret;
 
 	/* This workaround is due to HW/FW limitation on Hawaii that
-	 * VMID and PASID are not written into ih_ring_entry
+	 * VMID and PASID are analt written into ih_ring_entry
 	 */
 	if ((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
 		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
@@ -68,9 +68,9 @@ static bool cik_event_interrupt_isr(struct kfd_node *dev,
 	    vmid > dev->vm_info.last_vmid_kfd)
 		return false;
 
-	/* If there is no valid PASID, it's likely a firmware bug */
+	/* If there is anal valid PASID, it's likely a firmware bug */
 	pasid = (ihre->ring_id & 0xffff0000) >> 16;
-	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
+	if (WARN_ONCE(pasid == 0, "FW bug: Anal PASID in KFD interrupt"))
 		return false;
 
 	/* Interrupt types we care about: various signals and faults.
@@ -82,10 +82,10 @@ static bool cik_event_interrupt_isr(struct kfd_node *dev,
 		ihre->source_id == CIK_INTSRC_CP_BAD_OPCODE ||
 		((ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
 		ihre->source_id == CIK_INTSRC_GFX_MEM_PROT_FAULT) &&
-		!amdgpu_no_queue_eviction_on_vm_fault);
+		!amdgpu_anal_queue_eviction_on_vm_fault);
 }
 
-static void cik_event_interrupt_wq(struct kfd_node *dev,
+static void cik_event_interrupt_wq(struct kfd_analde *dev,
 					const uint32_t *ih_ring_entry)
 {
 	const struct cik_ih_ring_entry *ihre =

@@ -10,7 +10,7 @@
 #include "hpfs_fn.h"
 
 /*
- * Note: the dentry argument is the parent dentry.
+ * Analte: the dentry argument is the parent dentry.
  */
 
 static int hpfs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
@@ -24,7 +24,7 @@ static int hpfs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 	hpfs_adjust_length(qstr->name, &l);
 	/*if (hpfs_chk_name(qstr->name,&l))*/
 		/*return -ENAMETOOLONG;*/
-		/*return -ENOENT;*/
+		/*return -EANALENT;*/
 	x:
 
 	hash = init_name_hash(dentry);

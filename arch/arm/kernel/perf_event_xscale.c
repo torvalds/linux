@@ -24,7 +24,7 @@
 
 enum xscale_perf_types {
 	XSCALE_PERFCTR_ICACHE_MISS		= 0x00,
-	XSCALE_PERFCTR_ICACHE_NO_DELIVER	= 0x01,
+	XSCALE_PERFCTR_ICACHE_ANAL_DELIVER	= 0x01,
 	XSCALE_PERFCTR_DATA_STALL		= 0x02,
 	XSCALE_PERFCTR_ITLB_MISS		= 0x03,
 	XSCALE_PERFCTR_DTLB_MISS		= 0x04,
@@ -40,10 +40,10 @@ enum xscale_perf_types {
 	XSCALE_PERFCTR_BCU_REQUEST		= 0x10,
 	XSCALE_PERFCTR_BCU_FULL			= 0x11,
 	XSCALE_PERFCTR_BCU_DRAIN		= 0x12,
-	XSCALE_PERFCTR_BCU_ECC_NO_ELOG		= 0x14,
+	XSCALE_PERFCTR_BCU_ECC_ANAL_ELOG		= 0x14,
 	XSCALE_PERFCTR_BCU_1_BIT_ERR		= 0x15,
 	XSCALE_PERFCTR_RMW			= 0x16,
-	/* XSCALE_PERFCTR_CCNT is not hardware defined */
+	/* XSCALE_PERFCTR_CCNT is analt hardware defined */
 	XSCALE_PERFCTR_CCNT			= 0xFE,
 	XSCALE_PERFCTR_UNUSED			= 0xFF,
 };
@@ -62,7 +62,7 @@ static const unsigned xscale_perf_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_INSTRUCTIONS]		= XSCALE_PERFCTR_INSTRUCTION,
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= XSCALE_PERFCTR_BRANCH,
 	[PERF_COUNT_HW_BRANCH_MISSES]		= XSCALE_PERFCTR_BRANCH_MISS,
-	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= XSCALE_PERFCTR_ICACHE_NO_DELIVER,
+	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= XSCALE_PERFCTR_ICACHE_ANAL_DELIVER,
 };
 
 static const unsigned xscale_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
@@ -151,9 +151,9 @@ xscale1pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	int idx;
 
 	/*
-	 * NOTE: there's an A stepping erratum that states if an overflow
-	 *       bit already exists and another occurs, the previous
-	 *       Overflow bit gets cleared. There's no workaround.
+	 * ANALTE: there's an A stepping erratum that states if an overflow
+	 *       bit already exists and aanalther occurs, the previous
+	 *       Overflow bit gets cleared. There's anal workaround.
 	 *	 Fixed in B stepping or later.
 	 */
 	pmnc = xscale1pmu_read_pmnc();
@@ -166,7 +166,7 @@ xscale1pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	xscale1pmu_write_pmnc(pmnc & ~XSCALE_PMU_ENABLE);
 
 	if (!(pmnc & XSCALE1_OVERFLOWED_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	regs = get_irq_regs();
 
@@ -403,7 +403,7 @@ xscale2pmu_read_pmnc(void)
 static inline void
 xscale2pmu_write_pmnc(u32 val)
 {
-	/* bits 4-23 are write-as-0, 24-31 are write ignored */
+	/* bits 4-23 are write-as-0, 24-31 are write iganalred */
 	val &= 0xf;
 	asm volatile("mcr p14, 0, %0, c0, c1, 0" : : "r" (val));
 }
@@ -495,7 +495,7 @@ xscale2pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	/* Check the overflow flag register. */
 	of_flags = xscale2pmu_read_overflow_flags();
 	if (!(of_flags & XSCALE2_OVERFLOWED_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear the overflow bits. */
 	xscale2pmu_write_overflow_flags(of_flags);

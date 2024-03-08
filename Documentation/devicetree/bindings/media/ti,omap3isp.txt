@@ -23,7 +23,7 @@ ti,phy-type	: 0 -- OMAP3ISP_PHY_TYPE_COMPLEX_IO (e.g. 3430)
 		  respectively. Please find more information on common
 		  clock bindings in ../clock/clock-bindings.txt.
 
-Port nodes (optional)
+Port analdes (optional)
 ---------------------
 
 More documentation on these bindings is available in
@@ -42,11 +42,11 @@ Optional properties
 vdd-csiphy1-supply : voltage supply of the CSI-2 PHY 1
 vdd-csiphy2-supply : voltage supply of the CSI-2 PHY 2
 
-Endpoint nodes
+Endpoint analdes
 --------------
 
 lane-polarities	: lane polarity (required on CSI-2)
-		  0 -- not inverted; 1 -- inverted
+		  0 -- analt inverted; 1 -- inverted
 data-lanes	: an array of data lanes from 1 to 3. The length can
 		  be either 1 or 2. (required on CSI-2)
 clock-lanes	: the clock lane (from 1 to 3). (required on CSI-2)

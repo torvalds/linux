@@ -383,16 +383,16 @@ static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 	u32 vdd, sd;
 	int i, j;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	u8 sd_array_size = ARRAY_SIZE(edge_table[0].slowdown);
 
-	if (!of_node)
-		return -ENODEV;
+	if (!of_analde)
+		return -EANALDEV;
 
-	if (of_property_read_u32(of_node, "vsc8531,vddmac", &vdd))
+	if (of_property_read_u32(of_analde, "vsc8531,vddmac", &vdd))
 		vdd = MSCC_VDDMAC_3300;
 
-	if (of_property_read_u32(of_node, "vsc8531,edge-slowdown", &sd))
+	if (of_property_read_u32(of_analde, "vsc8531,edge-slowdown", &sd))
 		sd = 0;
 
 	for (i = 0; i < ARRAY_SIZE(edge_table); i++)
@@ -410,15 +410,15 @@ static int vsc85xx_dt_led_mode_get(struct phy_device *phydev,
 {
 	struct vsc8531_private *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	u32 led_mode;
 	int err;
 
-	if (!of_node)
-		return -ENODEV;
+	if (!of_analde)
+		return -EANALDEV;
 
 	led_mode = default_mode;
-	err = of_property_read_u32(of_node, led, &led_mode);
+	err = of_property_read_u32(of_analde, led, &led_mode);
 	if (!err && !(BIT(led_mode) & priv->supp_led_modes)) {
 		phydev_err(phydev, "DT %s invalid\n", led);
 		return -EINVAL;
@@ -518,7 +518,7 @@ out_unlock:
 /* Set the RGMII RX and TX clock skews individually, according to the PHY
  * interface type, to:
  *  * 0.2 ns (their default, and lowest, hardware value) if delays should
- *    not be enabled
+ *    analt be enabled
  *  * 2.0 ns (which causes the data to be sampled at exactly half way between
  *    clock transitions at 1000 Mbps) if delays should be enabled
  */
@@ -707,7 +707,7 @@ out_unlock:
 int phy_base_write(struct phy_device *phydev, u32 regnum, u16 val)
 {
 	if (unlikely(!mutex_is_locked(&phydev->mdio.bus->mdio_lock))) {
-		dev_err(&phydev->mdio.dev, "MDIO bus lock not held!\n");
+		dev_err(&phydev->mdio.dev, "MDIO bus lock analt held!\n");
 		dump_stack();
 	}
 
@@ -718,7 +718,7 @@ int phy_base_write(struct phy_device *phydev, u32 regnum, u16 val)
 int phy_base_read(struct phy_device *phydev, u32 regnum)
 {
 	if (unlikely(!mutex_is_locked(&phydev->mdio.bus->mdio_lock))) {
-		dev_err(&phydev->mdio.dev, "MDIO bus lock not held!\n");
+		dev_err(&phydev->mdio.dev, "MDIO bus lock analt held!\n");
 		dump_stack();
 	}
 
@@ -745,7 +745,7 @@ u32 vsc85xx_csr_read(struct phy_device *phydev,
 		       MSCC_PHY_CSR_CNTL_20_TARGET(target >> 2));
 
 	if ((target >> 2 == 0x1) || (target >> 2 == 0x3))
-		/* non-MACsec access */
+		/* analn-MACsec access */
 		target &= 0x3;
 	else
 		target = 0;
@@ -804,7 +804,7 @@ int vsc85xx_csr_write(struct phy_device *phydev,
 	phy_base_write(phydev, MSCC_EXT_PAGE_CSR_CNTL_18, (u16)(val >> 16));
 
 	if ((target >> 2 == 0x1) || (target >> 2 == 0x3))
-		/* non-MACsec access */
+		/* analn-MACsec access */
 		target &= 0x3;
 	else
 		target = 0;
@@ -908,7 +908,7 @@ static int vsc8584_micro_assert_reset(struct phy_device *phydev)
 	int ret;
 	u16 reg;
 
-	ret = vsc8584_cmd(phydev, PROC_CMD_NOP);
+	ret = vsc8584_cmd(phydev, PROC_CMD_ANALP);
 	if (ret)
 		return ret;
 
@@ -926,14 +926,14 @@ static int vsc8584_micro_assert_reset(struct phy_device *phydev)
 	reg |= EN_PATCH_RAM_TRAP_ADDR(4);
 	phy_base_write(phydev, MSCC_INT_MEM_CNTL, reg);
 
-	phy_base_write(phydev, MSCC_PHY_PROC_CMD, PROC_CMD_NOP);
+	phy_base_write(phydev, MSCC_PHY_PROC_CMD, PROC_CMD_ANALP);
 
 	reg = phy_base_read(phydev, MSCC_DW8051_CNTL_STATUS);
 	reg &= ~MICRO_NSOFT_RESET;
 	phy_base_write(phydev, MSCC_DW8051_CNTL_STATUS, reg);
 
 	phy_base_write(phydev, MSCC_PHY_PROC_CMD, PROC_CMD_MCB_ACCESS_MAC_CONF |
-		       PROC_CMD_SGMII_PORT(0) | PROC_CMD_NO_MAC_CONF |
+		       PROC_CMD_SGMII_PORT(0) | PROC_CMD_ANAL_MAC_CONF |
 		       PROC_CMD_READ);
 
 	reg = phy_base_read(phydev, MSCC_INT_MEM_CNTL);
@@ -1205,13 +1205,13 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 			}
 		}
 	} else {
-		dev_dbg(dev, "FW CRC is not the expected one, patching FW\n");
+		dev_dbg(dev, "FW CRC is analt the expected one, patching FW\n");
 
 		serdes_init = false;
 
 		if (vsc8584_patch_fw(phydev, fw))
 			dev_warn(dev,
-				 "failed to patch FW, expect non-optimal device\n");
+				 "failed to patch FW, expect analn-optimal device\n");
 	}
 
 	if (!serdes_init) {
@@ -1236,7 +1236,7 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 
 		if (crc != MSCC_VSC8574_REVB_INT8051_FW_CRC)
 			dev_warn(dev,
-				 "FW CRC after patching is not the expected one, expect non-optimal device\n");
+				 "FW CRC after patching is analt the expected one, expect analn-optimal device\n");
 	}
 
 	phy_base_write(phydev, MSCC_EXT_PAGE_ACCESS,
@@ -1393,7 +1393,7 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 	phy_base_write(phydev, MII_VSC85XX_INT_MASK, 0);
 
 	reg = phy_base_read(phydev,  MSCC_PHY_BYPASS_CONTROL);
-	reg |= PARALLEL_DET_IGNORE_ADVERTISED;
+	reg |= PARALLEL_DET_IGANALRE_ADVERTISED;
 	phy_base_write(phydev, MSCC_PHY_BYPASS_CONTROL, reg);
 
 	/* The below register writes are tweaking analog and electrical
@@ -1464,10 +1464,10 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 		goto out;
 
 	if (crc != MSCC_VSC8584_REVB_INT8051_FW_CRC) {
-		dev_dbg(dev, "FW CRC is not the expected one, patching FW\n");
+		dev_dbg(dev, "FW CRC is analt the expected one, patching FW\n");
 		if (vsc8584_patch_fw(phydev, fw))
 			dev_warn(dev,
-				 "failed to patch FW, expect non-optimal device\n");
+				 "failed to patch FW, expect analn-optimal device\n");
 	}
 
 	vsc8584_micro_deassert_reset(phydev, false);
@@ -1481,7 +1481,7 @@ static int vsc8584_config_pre_init(struct phy_device *phydev)
 
 	if (crc != MSCC_VSC8584_REVB_INT8051_FW_CRC)
 		dev_warn(dev,
-			 "FW CRC after patching is not the expected one, expect non-optimal device\n");
+			 "FW CRC after patching is analt the expected one, expect analn-optimal device\n");
 
 	ret = vsc8584_micro_assert_reset(phydev);
 	if (ret)
@@ -1811,9 +1811,9 @@ static irqreturn_t vsc8584_handle_interrupt(struct phy_device *phydev)
 
 	irq_status = phy_read(phydev, MII_VSC85XX_INT_STATUS);
 	if (irq_status < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Timestamping IRQ does not set a bit in the global INT_STATUS, so
+	/* Timestamping IRQ does analt set a bit in the global INT_STATUS, so
 	 * irq_status would be 0.
 	 */
 	ret = vsc8584_handle_ts_interrupt(phydev);
@@ -1929,7 +1929,7 @@ static int vsc8514_config_host_serdes(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = vsc8584_cmd(phydev, PROC_CMD_NOP);
+	ret = vsc8584_cmd(phydev, PROC_CMD_ANALP);
 	if (ret)
 		return ret;
 
@@ -2169,11 +2169,11 @@ static irqreturn_t vsc85xx_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_VSC85XX_INT_STATUS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_VSC85XX_INT_MASK_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -2211,7 +2211,7 @@ static int vsc8514_probe(struct phy_device *phydev)
 
 	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
 	if (!vsc8531)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = vsc8531;
 
@@ -2226,7 +2226,7 @@ static int vsc8514_probe(struct phy_device *phydev)
 	vsc8531->stats = devm_kcalloc(&phydev->mdio.dev, vsc8531->nstats,
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
@@ -2240,7 +2240,7 @@ static int vsc8574_probe(struct phy_device *phydev)
 
 	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
 	if (!vsc8531)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = vsc8531;
 
@@ -2255,7 +2255,7 @@ static int vsc8574_probe(struct phy_device *phydev)
 	vsc8531->stats = devm_kcalloc(&phydev->mdio.dev, vsc8531->nstats,
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
@@ -2270,12 +2270,12 @@ static int vsc8584_probe(struct phy_device *phydev)
 
 	if ((phydev->phy_id & MSCC_DEV_REV_MASK) != VSC8584_REVB) {
 		dev_err(&phydev->mdio.dev, "Only VSC8584 revB is supported.\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
 	if (!vsc8531)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = vsc8531;
 
@@ -2290,7 +2290,7 @@ static int vsc8584_probe(struct phy_device *phydev)
 	vsc8531->stats = devm_kcalloc(&phydev->mdio.dev, vsc8531->nstats,
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (phy_package_probe_once(phydev)) {
 		ret = vsc8584_ptp_probe_once(phydev);
@@ -2318,7 +2318,7 @@ static int vsc85xx_probe(struct phy_device *phydev)
 
 	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
 	if (!vsc8531)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = vsc8531;
 
@@ -2330,7 +2330,7 @@ static int vsc85xx_probe(struct phy_device *phydev)
 	vsc8531->stats = devm_kcalloc(&phydev->mdio.dev, vsc8531->nstats,
 				      sizeof(u64), GFP_KERNEL);
 	if (!vsc8531->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return vsc85xx_dt_led_modes_get(phydev, default_mode);
 }
@@ -2693,7 +2693,7 @@ static struct phy_driver vsc85xx_driver[] = {
 	.get_sset_count = &vsc85xx_get_sset_count,
 	.get_strings    = &vsc85xx_get_strings,
 	.get_stats      = &vsc85xx_get_stats,
-	.link_change_notify = &vsc85xx_link_change_notify,
+	.link_change_analtify = &vsc85xx_link_change_analtify,
 }
 
 };

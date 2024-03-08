@@ -2133,7 +2133,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	dev_set_drvdata(dev, indio_dev);
@@ -2145,7 +2145,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	else if (name[4] == '5')
 		chip->id = ID_ADT7516 + (name[6] - '6');
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (chip->id == ID_ADT7316 || chip->id == ID_ADT7516)
 		chip->dac_bits = 12;

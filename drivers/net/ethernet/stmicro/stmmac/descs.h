@@ -12,7 +12,7 @@
 
 #include <linux/bitops.h>
 
-/* Normal receive descriptor defines */
+/* Analrmal receive descriptor defines */
 
 /* RDES0 */
 #define	RDES0_PAYLOAD_CSUM_ERR	BIT(0)
@@ -45,10 +45,10 @@
 
 /* Enhanced receive descriptor defines */
 
-/* RDES0 (similar to normal RDES) */
+/* RDES0 (similar to analrmal RDES) */
 #define	 ERDES0_RX_MAC_ADDR	BIT(0)
 
-/* RDES1: completely differ from normal desc definitions */
+/* RDES1: completely differ from analrmal desc definitions */
 #define	ERDES1_BUFFER1_SIZE_MASK	GENMASK(12, 0)
 #define	ERDES1_SECOND_ADDRESS_CHAINED	BIT(14)
 #define	ERDES1_END_RING			BIT(15)
@@ -56,7 +56,7 @@
 #define ERDES1_BUFFER2_SIZE_SHIFT	16
 #define	ERDES1_DISABLE_IC		BIT(31)
 
-/* Normal transmit descriptor defines */
+/* Analrmal transmit descriptor defines */
 /* TDES0 */
 #define	TDES0_DEFERRED			BIT(0)
 #define	TDES0_UNDERFLOW_ERROR		BIT(1)
@@ -65,7 +65,7 @@
 #define	TDES0_VLAN_FRAME		BIT(7)
 #define	TDES0_EXCESSIVE_COLLISIONS	BIT(8)
 #define	TDES0_LATE_COLLISION		BIT(9)
-#define	TDES0_NO_CARRIER		BIT(10)
+#define	TDES0_ANAL_CARRIER		BIT(10)
 #define	TDES0_LOSS_CARRIER		BIT(11)
 #define	TDES0_PAYLOAD_ERROR		BIT(12)
 #define	TDES0_FRAME_FLUSHED		BIT(13)
@@ -98,7 +98,7 @@
 #define	ETDES0_VLAN_FRAME		BIT(7)
 #define	ETDES0_EXCESSIVE_COLLISIONS	BIT(8)
 #define	ETDES0_LATE_COLLISION		BIT(9)
-#define	ETDES0_NO_CARRIER		BIT(10)
+#define	ETDES0_ANAL_CARRIER		BIT(10)
 #define	ETDES0_LOSS_CARRIER		BIT(11)
 #define	ETDES0_PAYLOAD_ERROR		BIT(12)
 #define	ETDES0_FRAME_FLUSHED		BIT(13)
@@ -138,10 +138,10 @@
 #define	ERDES4_VLAN_TAG_PRI_VAL_MASK	GENMASK(20, 18)
 #define	ERDES4_L3_FILTER_MATCH		BIT(24)
 #define	ERDES4_L4_FILTER_MATCH		BIT(25)
-#define	ERDES4_L3_L4_FILT_NO_MATCH_MASK	GENMASK(27, 26)
+#define	ERDES4_L3_L4_FILT_ANAL_MATCH_MASK	GENMASK(27, 26)
 
 /* Extended RDES4 message type definitions */
-#define RDES_EXT_NO_PTP			0x0
+#define RDES_EXT_ANAL_PTP			0x0
 #define RDES_EXT_SYNC			0x1
 #define RDES_EXT_FOLLOW_UP		0x2
 #define RDES_EXT_DELAY_REQ		0x3
@@ -149,12 +149,12 @@
 #define RDES_EXT_PDELAY_REQ		0x5
 #define RDES_EXT_PDELAY_RESP		0x6
 #define RDES_EXT_PDELAY_FOLLOW_UP	0x7
-#define RDES_PTP_ANNOUNCE		0x8
+#define RDES_PTP_ANANALUNCE		0x8
 #define RDES_PTP_MANAGEMENT		0x9
 #define RDES_PTP_SIGNALING		0xa
 #define RDES_PTP_PKT_RESERVED_TYPE	0xf
 
-/* Basic descriptor structure for normal and alternate descriptors */
+/* Basic descriptor structure for analrmal and alternate descriptors */
 struct dma_desc {
 	__le32 des0;
 	__le32 des1;

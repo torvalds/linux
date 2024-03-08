@@ -80,10 +80,10 @@ static struct platform_device smsc9118_device = {
 };
 
 /*
- * AP320 and AP325RXA has CPLD data in NOR Flash(0xA80000-0xABFFFF).
- * If this area erased, this board can not boot.
+ * AP320 and AP325RXA has CPLD data in ANALR Flash(0xA80000-0xABFFFF).
+ * If this area erased, this board can analt boot.
  */
-static struct mtd_partition ap325rxa_nor_flash_partitions[] = {
+static struct mtd_partition ap325rxa_analr_flash_partitions[] = {
 	{
 		.name = "uboot",
 		.offset = 0,
@@ -109,27 +109,27 @@ static struct mtd_partition ap325rxa_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data ap325rxa_nor_flash_data = {
+static struct physmap_flash_data ap325rxa_analr_flash_data = {
 	.width		= 2,
-	.parts		= ap325rxa_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(ap325rxa_nor_flash_partitions),
+	.parts		= ap325rxa_analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(ap325rxa_analr_flash_partitions),
 };
 
-static struct resource ap325rxa_nor_flash_resources[] = {
+static struct resource ap325rxa_analr_flash_resources[] = {
 	[0] = {
-		.name	= "NOR Flash",
+		.name	= "ANALR Flash",
 		.start	= 0x00000000,
 		.end	= 0x00ffffff,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device ap325rxa_nor_flash_device = {
+static struct platform_device ap325rxa_analr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= ap325rxa_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(ap325rxa_nor_flash_resources),
+	.resource	= ap325rxa_analr_flash_resources,
+	.num_resources	= ARRAY_SIZE(ap325rxa_analr_flash_resources),
 	.dev		= {
-		.platform_data = &ap325rxa_nor_flash_data,
+		.platform_data = &ap325rxa_analr_flash_data,
 	},
 };
 
@@ -384,7 +384,7 @@ static struct i2c_board_info ap325rxa_i2c_devices[] __initdata = {
 
 static struct platform_device *ap325rxa_devices[] __initdata = {
 	&smsc9118_device,
-	&ap325rxa_nor_flash_device,
+	&ap325rxa_analr_flash_device,
 	&lcdc_device,
 	&nand_flash_device,
 	&sdhi0_cn3_device,

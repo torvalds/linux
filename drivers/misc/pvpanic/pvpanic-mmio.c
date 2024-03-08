@@ -37,7 +37,7 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 	case IORESOURCE_IO:
 		base = devm_ioport_map(dev, res->start, resource_size(res));
 		if (!base)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case IORESOURCE_MEM:
 		base = devm_ioremap_resource(dev, res);

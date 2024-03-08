@@ -39,7 +39,7 @@ static int ice_fwlog_alloc_ring_buffs(struct ice_fwlog_ring *rings)
 	nr_bytes = rings->size * ICE_AQ_MAX_BUF_LEN;
 	mem = vzalloc(nr_bytes);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < rings->size; i++) {
 		struct ice_fwlog_data *ring = &rings->rings[i];
@@ -85,10 +85,10 @@ void ice_fwlog_realloc_rings(struct ice_hw *hw, int index)
 	/* convert the number of bytes into a number of 4K buffers. externally
 	 * the driver presents the interface to the FW log data as a number of
 	 * bytes because that's easy for users to understand. internally the
-	 * driver uses a ring of buffers because the driver doesn't know where
+	 * driver uses a ring of buffers because the driver doesn't kanalw where
 	 * the beginning and end of any line of log data is so the driver has
 	 * to overwrite data as complete blocks. when the data is returned to
-	 * the user the driver knows that the data is correct and the FW log
+	 * the user the driver kanalws that the data is correct and the FW log
 	 * can be correctly parsed by the tools
 	 */
 	ring_size = ICE_FWLOG_INDEX_TO_BYTES(index) / ICE_AQ_MAX_BUF_LEN;
@@ -96,7 +96,7 @@ void ice_fwlog_realloc_rings(struct ice_hw *hw, int index)
 		return;
 
 	/* allocate space for the new rings and buffers then release the
-	 * old rings and buffers. that way if we don't have enough
+	 * old rings and buffers. that way if we don't have eanalugh
 	 * memory then we at least have what we had before
 	 */
 	ring.rings = kcalloc(ring_size, sizeof(*ring.rings), GFP_KERNEL);
@@ -151,7 +151,7 @@ int ice_fwlog_init(struct ice_hw *hw)
 					       GFP_KERNEL);
 		if (!hw->fwlog_ring.rings) {
 			dev_warn(ice_hw_to_dev(hw), "Unable to allocate memory for FW log rings\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		hw->fwlog_ring.size = ICE_FWLOG_RING_SIZE_DFLT;
@@ -167,7 +167,7 @@ int ice_fwlog_init(struct ice_hw *hw)
 
 		ice_debugfs_fwlog_init(hw->back);
 	} else {
-		dev_warn(ice_hw_to_dev(hw), "FW logging is not supported in this NVM image. Please update the NVM to get FW log support\n");
+		dev_warn(ice_hw_to_dev(hw), "FW logging is analt supported in this NVM image. Please update the NVM to get FW log support\n");
 	}
 
 	return 0;
@@ -188,7 +188,7 @@ void ice_fwlog_deinit(struct ice_hw *hw)
 	if (hw->bus.func)
 		return;
 
-	/* make sure FW logging is disabled to not put the FW in a weird state
+	/* make sure FW logging is disabled to analt put the FW in a weird state
 	 * for the next driver load
 	 */
 	hw->fwlog_cfg.options &= ~ICE_FWLOG_OPTION_ARQ_ENA;
@@ -213,7 +213,7 @@ void ice_fwlog_deinit(struct ice_hw *hw)
 }
 
 /**
- * ice_fwlog_supported - Cached for whether FW supports FW logging or not
+ * ice_fwlog_supported - Cached for whether FW supports FW logging or analt
  * @hw: pointer to the HW structure
  *
  * This will always return false if called before ice_init_hw(), so it must be
@@ -244,7 +244,7 @@ ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
 
 	fw_modules = kcalloc(num_entries, sizeof(*fw_modules), GFP_KERNEL);
 	if (!fw_modules)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_entries; i++) {
 		fw_modules[i].module_identifier =
@@ -285,13 +285,13 @@ ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
  * runtime.
  *
  * If the PF wishes to receive FW logging then it must register via
- * ice_fwlog_register. Note, that ice_fwlog_register does not need to be called
+ * ice_fwlog_register. Analte, that ice_fwlog_register does analt need to be called
  * for init.
  */
 int ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
 	if (!ice_fwlog_supported(hw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ice_aq_fwlog_set(hw, cfg->module_entries,
 				ICE_AQC_FW_LOG_ID_MAX, cfg->options,
@@ -317,7 +317,7 @@ static int ice_aq_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 
 	buf = kzalloc(ICE_AQ_MAX_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_query);
 	cmd = &desc.params.fw_log;
@@ -370,7 +370,7 @@ status_out:
 int ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
 	if (!ice_fwlog_supported(hw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ice_aq_fwlog_get(hw, cfg);
 }
@@ -404,7 +404,7 @@ int ice_fwlog_register(struct ice_hw *hw)
 	int status;
 
 	if (!ice_fwlog_supported(hw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = ice_aq_fwlog_register(hw, true);
 	if (status)
@@ -424,7 +424,7 @@ int ice_fwlog_unregister(struct ice_hw *hw)
 	int status;
 
 	if (!ice_fwlog_supported(hw))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	status = ice_aq_fwlog_register(hw, false);
 	if (status)
@@ -457,11 +457,11 @@ void ice_fwlog_set_supported(struct ice_hw *hw)
 		return;
 
 	/* don't call ice_fwlog_get() because that would check to see if FW
-	 * logging is supported which is what the driver is determining now
+	 * logging is supported which is what the driver is determining analw
 	 */
 	status = ice_aq_fwlog_get(hw, cfg);
 	if (status)
-		ice_debug(hw, ICE_DBG_FW_LOG, "ice_aq_fwlog_get failed, FW logging is not supported on this version of FW, status %d\n",
+		ice_debug(hw, ICE_DBG_FW_LOG, "ice_aq_fwlog_get failed, FW logging is analt supported on this version of FW, status %d\n",
 			  status);
 	else
 		hw->fwlog_supported = true;

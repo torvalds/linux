@@ -14,7 +14,7 @@
 struct cptvf_wqe {
 	struct tasklet_struct twork;
 	void *cptvf;
-	u32 qno;
+	u32 qanal;
 };
 
 struct cptvf_wqe_info {
@@ -26,7 +26,7 @@ static void vq_work_handler(unsigned long data)
 	struct cptvf_wqe_info *cwqe_info = (struct cptvf_wqe_info *)data;
 	struct cptvf_wqe *cwqe = &cwqe_info->vq_wqe[0];
 
-	vq_post_process(cwqe->cptvf, cwqe->qno);
+	vq_post_process(cwqe->cptvf, cwqe->qanal);
 }
 
 static int init_worker_threads(struct cpt_vf *cptvf)
@@ -37,7 +37,7 @@ static int init_worker_threads(struct cpt_vf *cptvf)
 
 	cwqe_info = kzalloc(sizeof(*cwqe_info), GFP_KERNEL);
 	if (!cwqe_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cptvf->nr_queues) {
 		dev_info(&pdev->dev, "Creating VQ worker threads (%d)\n",
@@ -47,7 +47,7 @@ static int init_worker_threads(struct cpt_vf *cptvf)
 	for (i = 0; i < cptvf->nr_queues; i++) {
 		tasklet_init(&cwqe_info->vq_wqe[i].twork, vq_work_handler,
 			     (u64)cwqe_info);
-		cwqe_info->vq_wqe[i].qno = i;
+		cwqe_info->vq_wqe[i].qanal = i;
 		cwqe_info->vq_wqe[i].cptvf = cptvf;
 	}
 
@@ -113,7 +113,7 @@ static int alloc_pending_queues(struct pending_qinfo *pqinfo, u32 qlen,
 	for_each_pending_queue(pqinfo, queue, i) {
 		queue->head = kcalloc(qlen, sizeof(*queue->head), GFP_KERNEL);
 		if (!queue->head) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto pending_qfail;
 		}
 
@@ -170,7 +170,7 @@ static void free_command_queues(struct cpt_vf *cptvf,
 	struct command_queue *queue = NULL;
 	struct command_chunk *chunk = NULL;
 	struct pci_dev *pdev = cptvf->pdev;
-	struct hlist_node *node;
+	struct hlist_analde *analde;
 
 	/* clean up for each queue */
 	for (i = 0; i < cptvf->nr_queues; i++) {
@@ -178,7 +178,7 @@ static void free_command_queues(struct cpt_vf *cptvf,
 		if (hlist_empty(&cqinfo->queue[i].chead))
 			continue;
 
-		hlist_for_each_entry_safe(chunk, node, &cqinfo->queue[i].chead,
+		hlist_for_each_entry_safe(chunk, analde, &cqinfo->queue[i].chead,
 					  nextchunk) {
 			dma_free_coherent(&pdev->dev, chunk->size,
 					  chunk->head,
@@ -270,7 +270,7 @@ static int alloc_command_queues(struct cpt_vf *cptvf,
 
 cmd_qfail:
 	free_command_queues(cptvf, cqinfo);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int init_command_queues(struct cpt_vf *cptvf, u32 qlen)
@@ -551,15 +551,15 @@ static irqreturn_t cptvf_misc_intr_handler(int irq, void *cptvf_irq)
 }
 
 static inline struct cptvf_wqe *get_cptvf_vq_wqe(struct cpt_vf *cptvf,
-						 int qno)
+						 int qanal)
 {
 	struct cptvf_wqe_info *nwqe_info;
 
-	if (unlikely(qno >= cptvf->nr_queues))
+	if (unlikely(qanal >= cptvf->nr_queues))
 		return NULL;
 	nwqe_info = (struct cptvf_wqe_info *)cptvf->wqe_info;
 
-	return &nwqe_info->vq_wqe[qno];
+	return &nwqe_info->vq_wqe[qanal];
 }
 
 static inline u32 cptvf_read_vq_done_count(struct cpt_vf *cptvf)
@@ -592,15 +592,15 @@ static irqreturn_t cptvf_done_intr_handler(int irq, void *cptvf_irq)
 	if (intr) {
 		struct cptvf_wqe *wqe;
 
-		/* Acknowledge the number of
+		/* Ackanalwledge the number of
 		 * scheduled completions for processing
 		 */
 		cptvf_write_vq_done_ack(cptvf, intr);
 		wqe = get_cptvf_vq_wqe(cptvf, 0);
 		if (unlikely(!wqe)) {
-			dev_err(&pdev->dev, "No work to schedule for VF (%d)",
+			dev_err(&pdev->dev, "Anal work to schedule for VF (%d)",
 				cptvf->vfid);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		tasklet_hi_schedule(&wqe->twork);
 	}
@@ -621,7 +621,7 @@ static void cptvf_set_irq_affinity(struct cpt_vf *cptvf, int vec)
 	}
 
 	cpu = cptvf->vfid % num_online_cpus();
-	cpumask_set_cpu(cpumask_local_spread(cpu, cptvf->node),
+	cpumask_set_cpu(cpumask_local_spread(cpu, cptvf->analde),
 			cptvf->affinity_mask[vec]);
 	irq_set_affinity_hint(pci_irq_vector(pdev, vec),
 			cptvf->affinity_mask[vec]);
@@ -646,7 +646,7 @@ static void cptvf_device_init(struct cpt_vf *cptvf)
 	/* Clear inflight */
 	cptvf_write_vq_inprog(cptvf, 0);
 	/* Write VQ SADDR */
-	/* TODO: for now only one queue, so hard coded */
+	/* TODO: for analw only one queue, so hard coded */
 	base_addr = (u64)(cptvf->cqinfo.queue[0].qhead->dma_addr);
 	cptvf_write_vq_saddr(cptvf, base_addr);
 	/* Configure timerhold / coalescence */
@@ -666,7 +666,7 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	cptvf = devm_kzalloc(dev, sizeof(*cptvf), GFP_KERNEL);
 	if (!cptvf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pdev, cptvf);
 	cptvf->pdev = pdev;
@@ -693,12 +693,12 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP PF's configuration registers */
 	cptvf->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!cptvf->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
-		err = -ENOMEM;
+		dev_err(dev, "Cananalt map config register space, aborting\n");
+		err = -EANALMEM;
 		goto cptvf_err_release_regions;
 	}
 
-	cptvf->node = dev_to_node(&pdev->dev);
+	cptvf->analde = dev_to_analde(&pdev->dev);
 	err = pci_alloc_irq_vectors(pdev, CPT_VF_MSIX_VECTORS,
 			CPT_VF_MSIX_VECTORS, PCI_IRQ_MSIX);
 	if (err < 0) {
@@ -723,7 +723,7 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Gets chip ID / device Id from PF if ready */
 	err = cptvf_check_pf_ready(cptvf);
 	if (err) {
-		dev_err(dev, "PF not responding to READY msg");
+		dev_err(dev, "PF analt responding to READY msg");
 		goto cptvf_free_misc_irq;
 	}
 
@@ -737,7 +737,7 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Convey VQ LEN to PF */
 	err = cptvf_send_vq_size_msg(cptvf);
 	if (err) {
-		dev_err(dev, "PF not responding to QLEN msg");
+		dev_err(dev, "PF analt responding to QLEN msg");
 		goto cptvf_free_misc_irq;
 	}
 
@@ -747,14 +747,14 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	cptvf->vfgrp = 1;
 	err = cptvf_send_vf_to_grp_msg(cptvf);
 	if (err) {
-		dev_err(dev, "PF not responding to VF_GRP msg");
+		dev_err(dev, "PF analt responding to VF_GRP msg");
 		goto cptvf_free_misc_irq;
 	}
 
 	cptvf->priority = 1;
 	err = cptvf_send_vf_priority_msg(cptvf);
 	if (err) {
-		dev_err(dev, "PF not responding to VF_PRIO msg");
+		dev_err(dev, "PF analt responding to VF_PRIO msg");
 		goto cptvf_free_misc_irq;
 	}
 
@@ -775,7 +775,7 @@ static int cptvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = cptvf_send_vf_up(cptvf);
 	if (err) {
-		dev_err(dev, "PF not responding to UP msg");
+		dev_err(dev, "PF analt responding to UP msg");
 		goto cptvf_free_irq_affinity;
 	}
 	err = cvm_crypto_init(cptvf);
@@ -812,7 +812,7 @@ static void cptvf_remove(struct pci_dev *pdev)
 
 	/* Convey DOWN to PF */
 	if (cptvf_send_vf_down(cptvf)) {
-		dev_err(&pdev->dev, "PF not responding to DOWN msg");
+		dev_err(&pdev->dev, "PF analt responding to DOWN msg");
 	} else {
 		cptvf_free_irq_affinity(cptvf, CPT_VF_INT_VEC_E_DONE);
 		cptvf_free_irq_affinity(cptvf, CPT_VF_INT_VEC_E_MISC);

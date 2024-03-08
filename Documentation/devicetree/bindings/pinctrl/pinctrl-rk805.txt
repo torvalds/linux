@@ -4,7 +4,7 @@ RK805 has 2 pins which can be configured as GPIO output only.
 
 Please refer file <devicetree/bindings/pinctrl/pinctrl-bindings.txt>
 for details of the common pinctrl bindings used by client devices,
-including the meaning of the phrase "pin configuration node".
+including the meaning of the phrase "pin configuration analde".
 
 Optional Pinmux properties:
 --------------------------
@@ -14,19 +14,19 @@ at boot.
 - pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
 		<pinctrl-bindings.txt>.
 
-The pin configurations are defined as child of the pinctrl states node. Each
-sub-node have following properties:
+The pin configurations are defined as child of the pinctrl states analde. Each
+sub-analde have following properties:
 
 Required properties:
 ------------------
 - #gpio-cells: Should be two. The first cell is the pin number and the
   second is the GPIO flags.
 
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device analde as a GPIO controller.
 
 - pins: List of pins. Valid values of pins properties are: gpio0, gpio1.
 
-First 2 properties must be added in the RK805 PMIC node, documented in
+First 2 properties must be added in the RK805 PMIC analde, documented in
 Documentation/devicetree/bindings/mfd/rockchip,rk808.yaml
 
 Optional properties:
@@ -40,7 +40,7 @@ on default.
 
 Valid values for function properties are: gpio.
 
-There are also not customised properties for any GPIO.
+There are also analt customised properties for any GPIO.
 
 Example:
 --------

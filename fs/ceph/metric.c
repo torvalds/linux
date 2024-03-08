@@ -25,7 +25,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_metric_dlease *dlease;
 	struct ceph_opened_files *files;
 	struct ceph_pinned_icaps *icaps;
-	struct ceph_opened_inodes *inodes;
+	struct ceph_opened_ianaldes *ianaldes;
 	struct ceph_read_io_size *rsize;
 	struct ceph_write_io_size *wsize;
 	struct ceph_client_metric *m = &mdsc->metric;
@@ -37,7 +37,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	s32 items = 0;
 	s32 len;
 
-	/* Do not send the metrics until the MDS rank is ready */
+	/* Do analt send the metrics until the MDS rank is ready */
 	mutex_lock(&mdsc->mutex);
 	if (ceph_mdsmap_get_state(mdsc->mdsmap, s->s_mds) != CEPH_MDS_STATE_ACTIVE) {
 		mutex_unlock(&mdsc->mutex);
@@ -47,10 +47,10 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	len = sizeof(*head) + sizeof(*cap) + sizeof(*read) + sizeof(*write)
 	      + sizeof(*meta) + sizeof(*dlease) + sizeof(*files)
-	      + sizeof(*icaps) + sizeof(*inodes) + sizeof(*rsize)
+	      + sizeof(*icaps) + sizeof(*ianaldes) + sizeof(*rsize)
 	      + sizeof(*wsize);
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_ANALFS, true);
 	if (!msg) {
 		pr_err_client(cl, "to mds%d, failed to allocate message\n",
 			      s->s_mds);
@@ -120,7 +120,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	dlease->total = cpu_to_le64(atomic64_read(&m->total_dentries));
 	items++;
 
-	sum = percpu_counter_sum(&m->total_inodes);
+	sum = percpu_counter_sum(&m->total_ianaldes);
 
 	/* encode the opened files metric */
 	files = (struct ceph_opened_files *)(dlease + 1);
@@ -142,18 +142,18 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	icaps->total = cpu_to_le64(sum);
 	items++;
 
-	/* encode the opened inodes metric */
-	inodes = (struct ceph_opened_inodes *)(icaps + 1);
-	inodes->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_INODES);
-	inodes->header.ver = 1;
-	inodes->header.compat = 1;
-	inodes->header.data_len = cpu_to_le32(sizeof(*inodes) - header_len);
-	inodes->opened_inodes = cpu_to_le64(percpu_counter_sum(&m->opened_inodes));
-	inodes->total = cpu_to_le64(sum);
+	/* encode the opened ianaldes metric */
+	ianaldes = (struct ceph_opened_ianaldes *)(icaps + 1);
+	ianaldes->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_OPENED_IANALDES);
+	ianaldes->header.ver = 1;
+	ianaldes->header.compat = 1;
+	ianaldes->header.data_len = cpu_to_le32(sizeof(*ianaldes) - header_len);
+	ianaldes->opened_ianaldes = cpu_to_le64(percpu_counter_sum(&m->opened_ianaldes));
+	ianaldes->total = cpu_to_le64(sum);
 	items++;
 
 	/* encode the read io size metric */
-	rsize = (struct ceph_read_io_size *)(inodes + 1);
+	rsize = (struct ceph_read_io_size *)(ianaldes + 1);
 	rsize->header.type = cpu_to_le32(CLIENT_METRIC_TYPE_READ_IO_SIZES);
 	rsize->header.ver = 1;
 	rsize->header.compat = 1;
@@ -274,21 +274,21 @@ int ceph_metric_init(struct ceph_client_metric *m)
 	}
 
 	atomic64_set(&m->opened_files, 0);
-	ret = percpu_counter_init(&m->opened_inodes, 0, GFP_KERNEL);
+	ret = percpu_counter_init(&m->opened_ianaldes, 0, GFP_KERNEL);
 	if (ret)
-		goto err_opened_inodes;
-	ret = percpu_counter_init(&m->total_inodes, 0, GFP_KERNEL);
+		goto err_opened_ianaldes;
+	ret = percpu_counter_init(&m->total_ianaldes, 0, GFP_KERNEL);
 	if (ret)
-		goto err_total_inodes;
+		goto err_total_ianaldes;
 
 	m->session = NULL;
 	INIT_DELAYED_WORK(&m->delayed_work, metric_delayed_work);
 
 	return 0;
 
-err_total_inodes:
-	percpu_counter_destroy(&m->opened_inodes);
-err_opened_inodes:
+err_total_ianaldes:
+	percpu_counter_destroy(&m->opened_ianaldes);
+err_opened_ianaldes:
 	percpu_counter_destroy(&m->i_caps_mis);
 err_i_caps_mis:
 	percpu_counter_destroy(&m->i_caps_hit);
@@ -307,8 +307,8 @@ void ceph_metric_destroy(struct ceph_client_metric *m)
 
 	cancel_delayed_work_sync(&m->delayed_work);
 
-	percpu_counter_destroy(&m->total_inodes);
-	percpu_counter_destroy(&m->opened_inodes);
+	percpu_counter_destroy(&m->total_ianaldes);
+	percpu_counter_destroy(&m->opened_ianaldes);
 	percpu_counter_destroy(&m->i_caps_mis);
 	percpu_counter_destroy(&m->i_caps_hit);
 	percpu_counter_destroy(&m->d_lease_mis);
@@ -347,7 +347,7 @@ void ceph_update_metrics(struct ceph_metric *m,
 	ktime_t lat = ktime_sub(r_end, r_start);
 	ktime_t total;
 
-	if (unlikely(rc < 0 && rc != -ENOENT && rc != -ETIMEDOUT))
+	if (unlikely(rc < 0 && rc != -EANALENT && rc != -ETIMEDOUT))
 		return;
 
 	spin_lock(&m->lock);

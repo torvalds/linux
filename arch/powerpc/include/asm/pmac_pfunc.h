@@ -19,7 +19,7 @@
 /*
  * Arguments to a platform function call.
  *
- * NOTE: By convention, pointer arguments point to an u32
+ * ANALTE: By convention, pointer arguments point to an u32
  */
 struct pmf_args {
 	union {
@@ -32,7 +32,7 @@ struct pmf_args {
 /*
  * A driver capable of interpreting commands provides a handlers
  * structure filled with whatever handlers are implemented by this
- * driver. Non implemented handlers are left NULL.
+ * driver. Analn implemented handlers are left NULL.
  *
  * PMF_STD_ARGS are the same arguments that are passed to the parser
  * and that gets passed back to the various handlers.
@@ -44,8 +44,8 @@ struct pmf_args {
  *
  * For interrupt capable functions, irq_enable() is called when a client
  * registers, and irq_disable() is called when the last client unregisters
- * Note that irq_enable & irq_disable are called within a semaphore held
- * by the core, thus you should not try to register yourself to some other
+ * Analte that irq_enable & irq_disable are called within a semaphore held
+ * by the core, thus you should analt try to register yourself to some other
  * pmf interrupt during those calls.
  */
 
@@ -114,7 +114,7 @@ struct pmf_handlers {
 
 /*
  * Drivers who expose platform functions register at init time, this
- * causes the platform functions for that device node to be parsed in
+ * causes the platform functions for that device analde to be parsed in
  * advance and associated with the device. The data structures are
  * partially public so a driver can walk the list of platform functions
  * and eventually inspect the flags
@@ -125,8 +125,8 @@ struct pmf_function {
 	/* All functions for a given driver are linked */
 	struct list_head	link;
 
-	/* Function node & driver data */
-	struct device_node	*node;
+	/* Function analde & driver data */
+	struct device_analde	*analde;
 	void			*driver_data;
 
 	/* For internal use by core */
@@ -158,9 +158,9 @@ struct pmf_function {
 
 /*
  * For platform functions that are interrupts, one can register
- * irq_client structures. You canNOT use the same structure twice
+ * irq_client structures. You canANALT use the same structure twice
  * as it contains a link member. Also, the callback is called with
- * a spinlock held, you must not call back into any of the pmf_* functions
+ * a spinlock held, you must analt call back into any of the pmf_* functions
  * from within that callback
  */
 struct pmf_irq_client {
@@ -175,17 +175,17 @@ struct pmf_irq_client {
 /*
  * Register/Unregister a function-capable driver and its handlers
  */
-extern int pmf_register_driver(struct device_node *np,
+extern int pmf_register_driver(struct device_analde *np,
 			      struct pmf_handlers *handlers,
 			      void *driverdata);
 
-extern void pmf_unregister_driver(struct device_node *np);
+extern void pmf_unregister_driver(struct device_analde *np);
 
 
 /*
  * Register/Unregister interrupt clients
  */
-extern int pmf_register_irq_client(struct device_node *np,
+extern int pmf_register_irq_client(struct device_analde *np,
 				   const char *name,
 				   struct pmf_irq_client *client);
 
@@ -206,15 +206,15 @@ extern void pmf_do_irq(struct pmf_function *func);
  *
  * The args array contains as many arguments as is required by the function,
  * this is dependent on the function you are calling, unfortunately Apple
- * mechanism provides no way to encode that so you have to get it right at
- * the call site. Some functions require no args, in which case, you can
+ * mechanism provides anal way to encode that so you have to get it right at
+ * the call site. Some functions require anal args, in which case, you can
  * pass NULL.
  *
  * You can also pass NULL to the name. This will match any function that has
  * the appropriate combination of flags & phandle or you can pass 0 to the
  * phandle to match any
  */
-extern int pmf_do_functions(struct device_node *np, const char *name,
+extern int pmf_do_functions(struct device_analde *np, const char *name,
 			    u32 phandle, u32 flags, struct pmf_args *args);
 
 
@@ -228,7 +228,7 @@ extern int pmf_do_functions(struct device_node *np, const char *name,
  * the "OnDemand" flag.
  */
 
-extern int pmf_call_function(struct device_node *target, const char *name,
+extern int pmf_call_function(struct device_analde *target, const char *name,
 			     struct pmf_args *args);
 
 
@@ -237,7 +237,7 @@ extern int pmf_call_function(struct device_node *target, const char *name,
  * using the functions below
  */
 
-extern struct pmf_function *pmf_find_function(struct device_node *target,
+extern struct pmf_function *pmf_find_function(struct device_analde *target,
 					      const char *name);
 
 extern struct pmf_function * pmf_get_function(struct pmf_function *func);
@@ -247,7 +247,7 @@ extern int pmf_call_one(struct pmf_function *func, struct pmf_args *args);
 
 int pmac_pfunc_base_install(void);
 
-/* Suspend/resume code called by via-pmu directly for now */
+/* Suspend/resume code called by via-pmu directly for analw */
 extern void pmac_pfunc_base_suspend(void);
 extern void pmac_pfunc_base_resume(void);
 

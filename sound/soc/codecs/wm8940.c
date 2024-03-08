@@ -8,15 +8,15 @@
  *    Copyright  2006 Wolfson Microelectronics PLC.
  *    Author:  Liam Girdwood <lrg@slimlogic.co.uk>
  *
- * Not currently handled:
- * Notch filter control
+ * Analt currently handled:
+ * Analtch filter control
  * AUXMode (inverting vs mixer)
- * No means to obtain current gain if alc enabled.
- * No use made of gpio
+ * Anal means to obtain current gain if alc enabled.
+ * Anal use made of gpio
  * Fast VMID discharge for power down
  * Soft Start
- * DLR and ALR Swaps not enabled
- * Digital Sidetone not supported
+ * DLR and ALR Swaps analt enabled
+ * Digital Sidetone analt supported
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -70,20 +70,20 @@ static bool wm8940_readable_register(struct device *dev, unsigned int reg)
 	case WM8940_DACVOL:
 	case WM8940_ADC:
 	case WM8940_ADCVOL:
-	case WM8940_NOTCH1:
-	case WM8940_NOTCH2:
-	case WM8940_NOTCH3:
-	case WM8940_NOTCH4:
-	case WM8940_NOTCH5:
-	case WM8940_NOTCH6:
-	case WM8940_NOTCH7:
-	case WM8940_NOTCH8:
+	case WM8940_ANALTCH1:
+	case WM8940_ANALTCH2:
+	case WM8940_ANALTCH3:
+	case WM8940_ANALTCH4:
+	case WM8940_ANALTCH5:
+	case WM8940_ANALTCH6:
+	case WM8940_ANALTCH7:
+	case WM8940_ANALTCH8:
 	case WM8940_DACLIM1:
 	case WM8940_DACLIM2:
 	case WM8940_ALC1:
 	case WM8940_ALC2:
 	case WM8940_ALC3:
-	case WM8940_NOISEGATE:
+	case WM8940_ANALISEGATE:
 	case WM8940_PLLN:
 	case WM8940_PLLK1:
 	case WM8940_PLLK2:
@@ -95,7 +95,7 @@ static bool wm8940_readable_register(struct device *dev, unsigned int reg)
 	case WM8940_OUTPUTCTL:
 	case WM8940_SPKMIX:
 	case WM8940_SPKVOL:
-	case WM8940_MONOMIX:
+	case WM8940_MOANALMIX:
 		return true;
 	default:
 		return false;
@@ -117,21 +117,21 @@ static const struct reg_default wm8940_reg_defaults[] = {
 
 	{  0xe, 0x0100 }, /* ADC Control */
 	{  0xf, 0x00FF }, /* ADC Volume */
-	{ 0x10, 0x0000 }, /* Notch Filter 1 Control 1 */
-	{ 0x11, 0x0000 }, /* Notch Filter 1 Control 2 */
-	{ 0x12, 0x0000 }, /* Notch Filter 2 Control 1 */
-	{ 0x13, 0x0000 }, /* Notch Filter 2 Control 2 */
-	{ 0x14, 0x0000 }, /* Notch Filter 3 Control 1 */
-	{ 0x15, 0x0000 }, /* Notch Filter 3 Control 2 */
-	{ 0x16, 0x0000 }, /* Notch Filter 4 Control 1 */
-	{ 0x17, 0x0000 }, /* Notch Filter 4 Control 2 */
+	{ 0x10, 0x0000 }, /* Analtch Filter 1 Control 1 */
+	{ 0x11, 0x0000 }, /* Analtch Filter 1 Control 2 */
+	{ 0x12, 0x0000 }, /* Analtch Filter 2 Control 1 */
+	{ 0x13, 0x0000 }, /* Analtch Filter 2 Control 2 */
+	{ 0x14, 0x0000 }, /* Analtch Filter 3 Control 1 */
+	{ 0x15, 0x0000 }, /* Analtch Filter 3 Control 2 */
+	{ 0x16, 0x0000 }, /* Analtch Filter 4 Control 1 */
+	{ 0x17, 0x0000 }, /* Analtch Filter 4 Control 2 */
 	{ 0x18, 0x0032 }, /* DAC Limit Control 1 */
 	{ 0x19, 0x0000 }, /* DAC Limit Control 2 */
 
 	{ 0x20, 0x0038 }, /* ALC Control 1 */
 	{ 0x21, 0x000B }, /* ALC Control 2 */
 	{ 0x22, 0x0032 }, /* ALC Control 3 */
-	{ 0x23, 0x0000 }, /* Noise Gate */
+	{ 0x23, 0x0000 }, /* Analise Gate */
 	{ 0x24, 0x0041 }, /* PLLN */
 	{ 0x25, 0x000C }, /* PLLK1 */
 	{ 0x26, 0x0093 }, /* PLLK2 */
@@ -149,7 +149,7 @@ static const struct reg_default wm8940_reg_defaults[] = {
 
 	{ 0x36, 0x0079 }, /* Speaker Volume */
 
-	{ 0x38, 0x0000 }, /* Mono Mixer Control */
+	{ 0x38, 0x0000 }, /* Moanal Mixer Control */
 };
 
 static const char *wm8940_companding[] = { "Off", "NC", "u-law", "A-law" };
@@ -199,9 +199,9 @@ static const struct snd_kcontrol_new wm8940_snd_controls[] = {
 	SOC_SINGLE("ALC Capture Decay", WM8940_ALC3, 4, 10, 0),
 	SOC_SINGLE("ALC Capture Attach", WM8940_ALC3, 0, 10, 0),
 	SOC_SINGLE("ALC ZC Switch", WM8940_ALC4, 1, 1, 0),
-	SOC_SINGLE("ALC Capture Noise Gate Switch", WM8940_NOISEGATE,
+	SOC_SINGLE("ALC Capture Analise Gate Switch", WM8940_ANALISEGATE,
 		   3, 1, 0),
-	SOC_SINGLE("ALC Capture Noise Gate Threshold", WM8940_NOISEGATE,
+	SOC_SINGLE("ALC Capture Analise Gate Threshold", WM8940_ANALISEGATE,
 		   0, 7, 0),
 
 	SOC_SINGLE("DAC Playback Limiter Switch", WM8940_DACLIM1, 8, 1, 0),
@@ -230,8 +230,8 @@ static const struct snd_kcontrol_new wm8940_snd_controls[] = {
 		       8, 1, 1, wm8940_att_tlv),
 	SOC_SINGLE("Speaker Playback ZC Switch", WM8940_SPKVOL, 7, 1, 0),
 
-	SOC_SINGLE("Mono Out Switch", WM8940_MONOMIX, 6, 1, 1),
-	SOC_SINGLE_TLV("Mono Mixer Line Bypass Volume", WM8940_MONOMIX,
+	SOC_SINGLE("Moanal Out Switch", WM8940_MOANALMIX, 6, 1, 1),
+	SOC_SINGLE_TLV("Moanal Mixer Line Bypass Volume", WM8940_MOANALMIX,
 		       7, 1, 1, wm8940_att_tlv),
 
 	SOC_SINGLE("High Pass Filter Switch", WM8940_ADC, 8, 1, 0),
@@ -249,10 +249,10 @@ static const struct snd_kcontrol_new wm8940_speaker_mixer_controls[] = {
 	SOC_DAPM_SINGLE("PCM Playback Switch", WM8940_SPKMIX, 0, 1, 0),
 };
 
-static const struct snd_kcontrol_new wm8940_mono_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Line Bypass Switch", WM8940_MONOMIX, 1, 1, 0),
-	SOC_DAPM_SINGLE("Aux Playback Switch", WM8940_MONOMIX, 2, 1, 0),
-	SOC_DAPM_SINGLE("PCM Playback Switch", WM8940_MONOMIX, 0, 1, 0),
+static const struct snd_kcontrol_new wm8940_moanal_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Line Bypass Switch", WM8940_MOANALMIX, 1, 1, 0),
+	SOC_DAPM_SINGLE("Aux Playback Switch", WM8940_MOANALMIX, 2, 1, 0),
+	SOC_DAPM_SINGLE("PCM Playback Switch", WM8940_MOANALMIX, 0, 1, 0),
 };
 
 static DECLARE_TLV_DB_SCALE(wm8940_boost_vol_tlv, -1500, 300, 1);
@@ -274,15 +274,15 @@ static const struct snd_soc_dapm_widget wm8940_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Speaker Mixer", WM8940_POWER3, 2, 0,
 			   &wm8940_speaker_mixer_controls[0],
 			   ARRAY_SIZE(wm8940_speaker_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", WM8940_POWER3, 3, 0,
-			   &wm8940_mono_mixer_controls[0],
-			   ARRAY_SIZE(wm8940_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moanal Mixer", WM8940_POWER3, 3, 0,
+			   &wm8940_moanal_mixer_controls[0],
+			   ARRAY_SIZE(wm8940_moanal_mixer_controls)),
 	SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM8940_POWER3, 0, 0),
 
 	SND_SOC_DAPM_PGA("SpkN Out", WM8940_POWER3, 5, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SpkP Out", WM8940_POWER3, 6, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono Out", WM8940_POWER3, 7, 0, NULL, 0),
-	SND_SOC_DAPM_OUTPUT("MONOOUT"),
+	SND_SOC_DAPM_PGA("Moanal Out", WM8940_POWER3, 7, 0, NULL, 0),
+	SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 	SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 	SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 
@@ -302,10 +302,10 @@ static const struct snd_soc_dapm_widget wm8940_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route wm8940_dapm_routes[] = {
-	/* Mono output mixer */
-	{"Mono Mixer", "PCM Playback Switch", "DAC"},
-	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
-	{"Mono Mixer", "Line Bypass Switch", "Boost Mixer"},
+	/* Moanal output mixer */
+	{"Moanal Mixer", "PCM Playback Switch", "DAC"},
+	{"Moanal Mixer", "Aux Playback Switch", "Aux Input"},
+	{"Moanal Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Speaker output mixer */
 	{"Speaker Mixer", "PCM Playback Switch", "DAC"},
@@ -313,8 +313,8 @@ static const struct snd_soc_dapm_route wm8940_dapm_routes[] = {
 	{"Speaker Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Outputs */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono Out"},
+	{"Moanal Out", NULL, "Moanal Mixer"},
+	{"MOANALOUT", NULL, "Moanal Out"},
 	{"SpkN Out", NULL, "Speaker Mixer"},
 	{"SpkP Out", NULL, "Speaker Mixer"},
 	{"SPKOUTN", NULL, "SpkN Out"},
@@ -572,7 +572,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	K /= 10;
 
 	pll_div.k = K;
@@ -603,7 +603,7 @@ static int wm8940_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	if (pll_div.k)
 		snd_soc_component_write(component, WM8940_PLLN,
 			     (pll_div.pre_scale << 4) | pll_div.n | (1 << 6));
-	else /* No factional component */
+	else /* Anal factional component */
 		snd_soc_component_write(component, WM8940_PLLN,
 			     (pll_div.pre_scale << 4) | pll_div.n);
 	snd_soc_component_write(component, WM8940_PLLK1, pll_div.k >> 18);
@@ -731,7 +731,7 @@ static const struct snd_soc_dai_ops wm8940_dai_ops = {
 	.set_fmt = wm8940_set_dai_fmt,
 	.set_clkdiv = wm8940_set_dai_clkdiv,
 	.set_pll = wm8940_set_dai_pll,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8940_dai = {
@@ -768,7 +768,7 @@ static int wm8940_probe(struct snd_soc_component *component)
 	reg = snd_soc_component_read(component, WM8940_SOFTRESET);
 	if (reg != WM8940_CHIP_ID) {
 		dev_err(component->dev, "Wrong wm8940 chip ID: 0x%x\n", reg);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = wm8940_reset(component);
@@ -812,7 +812,7 @@ static const struct regmap_config wm8940_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
 
-	.max_register = WM8940_MONOMIX,
+	.max_register = WM8940_MOANALMIX,
 	.reg_defaults = wm8940_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8940_reg_defaults),
 	.cache_type = REGCACHE_MAPLE,
@@ -829,7 +829,7 @@ static int wm8940_i2c_probe(struct i2c_client *i2c)
 	wm8940 = devm_kzalloc(&i2c->dev, sizeof(struct wm8940_priv),
 			      GFP_KERNEL);
 	if (wm8940 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8940->regmap = devm_regmap_init_i2c(i2c, &wm8940_regmap);
 	if (IS_ERR(wm8940->regmap))

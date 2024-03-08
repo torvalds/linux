@@ -14,7 +14,7 @@ Required properties:
 - reg : Specifies base physical address and size of the register sets for the
   FlexTimer Module.
 - interrupts : Should be the FlexTimer Module interrupt.
-- fsl,rcpm-wakeup property and rcpm node : Please refer
+- fsl,rcpm-wakeup property and rcpm analde : Please refer
 	Documentation/devicetree/bindings/soc/fsl/rcpm.txt
 
 Optional properties:

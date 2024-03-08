@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "omap_l3_noc.h"
+#include "omap_l3_analc.h"
 
 /**
  * l3_handle_target() - Handle Target specific parse and reporting
@@ -29,7 +29,7 @@
  *	3) Parse in the slave information
  *	4) Print the logged information.
  *	5) Add dump stack to provide kernel trace.
- *	6) Clear the source if known.
+ *	6) Clear the source if kanalwn.
  *
  * This handles two types of errors:
  *	1) Custom errors in L3 :
@@ -40,12 +40,12 @@
  *		- OCP disconnect.
  *		- Address hole error:
  *			If DSS/ISS/FDIF/USBHOSTFS access a target where they
- *			do not have connectivity, the error is logged in
+ *			do analt have connectivity, the error is logged in
  *			their default target which is DMM2.
  *
  *	On High Secure devices, firewall errors are possible and those
  *	can be trapped as well. But the trapping is implemented as part
- *	secure software and hence need not be implemented here.
+ *	secure software and hence need analt be implemented here.
  */
 static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 			    struct l3_flagmux_data *flag_mux, int err_src)
@@ -63,7 +63,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 	char err_string[30] = { 0 };
 	char info_string[60] = { 0 };
 
-	/* We DONOT expect err_src to go out of bounds */
+	/* We DOANALT expect err_src to go out of bounds */
 	BUG_ON(err_src > MAX_CLKDM_TARGETS);
 
 	if (err_src < flag_mux->num_targ_data) {
@@ -71,11 +71,11 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 		target_name = l3_targ_inst->name;
 		l3_targ_base = base + l3_targ_inst->offset;
 	} else {
-		target_name = L3_TARGET_NOT_SUPPORTED;
+		target_name = L3_TARGET_ANALT_SUPPORTED;
 	}
 
-	if (target_name == L3_TARGET_NOT_SUPPORTED)
-		return -ENODEV;
+	if (target_name == L3_TARGET_ANALT_SUPPORTED)
+		return -EANALDEV;
 
 	/* Read the stderrlog_main_source from clk domain */
 	l3_targ_stderr = l3_targ_base + L3_TARG_STDERRLOG_MAIN;
@@ -105,7 +105,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
 		break;
 
 	default:
-		/* Nothing to be handled here as of now */
+		/* Analthing to be handled here as of analw */
 		return 0;
 	}
 
@@ -154,7 +154,7 @@ static int l3_handle_target(struct omap_l3 *l3, void __iomem *base,
  *	1) Identify the L3 clockdomain partition to which the error belongs to.
  *	2) Identify the slave where the error information is logged
  *	... handle the slave event..
- *	7) if the slave is unknown, mask out the slave.
+ *	7) if the slave is unkanalwn, mask out the slave.
  */
 static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 {
@@ -206,7 +206,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 				mask_val &= ~(1 << err_src);
 				writel_relaxed(mask_val, mask_reg);
 
-				/* Mark these bits as to be ignored */
+				/* Mark these bits as to be iganalred */
 				if (inttype)
 					flag_mux->mask_app_bits |= 1 << err_src;
 				else
@@ -218,20 +218,20 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 		}
 	}
 
-	dev_err(l3->dev, "L3 %s IRQ not handled!!\n",
+	dev_err(l3->dev, "L3 %s IRQ analt handled!!\n",
 		inttype ? "debug" : "application");
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
-static const struct of_device_id l3_noc_match[] = {
-	{.compatible = "ti,omap4-l3-noc", .data = &omap4_l3_data},
-	{.compatible = "ti,omap5-l3-noc", .data = &omap5_l3_data},
-	{.compatible = "ti,dra7-l3-noc", .data = &dra_l3_data},
-	{.compatible = "ti,am4372-l3-noc", .data = &am4372_l3_data},
+static const struct of_device_id l3_analc_match[] = {
+	{.compatible = "ti,omap4-l3-analc", .data = &omap4_l3_data},
+	{.compatible = "ti,omap5-l3-analc", .data = &omap5_l3_data},
+	{.compatible = "ti,dra7-l3-analc", .data = &dra_l3_data},
+	{.compatible = "ti,am4372-l3-analc", .data = &am4372_l3_data},
 	{},
 };
-MODULE_DEVICE_TABLE(of, l3_noc_match);
+MODULE_DEVICE_TABLE(of, l3_analc_match);
 
 static int omap_l3_probe(struct platform_device *pdev)
 {
@@ -239,7 +239,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 	static struct omap_l3 *l3;
 	int ret, i, res_idx;
 
-	of_id = of_match_device(l3_noc_match, &pdev->dev);
+	of_id = of_match_device(l3_analc_match, &pdev->dev);
 	if (!of_id) {
 		dev_err(&pdev->dev, "OF data missing\n");
 		return -EINVAL;
@@ -247,7 +247,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 
 	l3 = devm_kzalloc(&pdev->dev, sizeof(*l3), GFP_KERNEL);
 	if (!l3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(l3, of_id->data, sizeof(*l3));
 	l3->dev = &pdev->dev;
@@ -258,7 +258,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 		struct resource	*res;
 
 		if (l3->l3_base[i] == L3_BASE_IS_SUBMODULE) {
-			/* First entry cannot be submodule */
+			/* First entry cananalt be submodule */
 			BUG_ON(i == 0);
 			l3->l3_base[i] = l3->l3_base[i - 1];
 			continue;
@@ -277,7 +277,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 	 */
 	l3->debug_irq = platform_get_irq(pdev, 0);
 	ret = devm_request_irq(l3->dev, l3->debug_irq, l3_interrupt_handler,
-			       IRQF_NO_THREAD, "l3-dbg-irq", l3);
+			       IRQF_ANAL_THREAD, "l3-dbg-irq", l3);
 	if (ret) {
 		dev_err(l3->dev, "request_irq failed for %d\n",
 			l3->debug_irq);
@@ -286,7 +286,7 @@ static int omap_l3_probe(struct platform_device *pdev)
 
 	l3->app_irq = platform_get_irq(pdev, 1);
 	ret = devm_request_irq(l3->dev, l3->app_irq, l3_interrupt_handler,
-			       IRQF_NO_THREAD, "l3-app-irq", l3);
+			       IRQF_ANAL_THREAD, "l3-app-irq", l3);
 	if (ret)
 		dev_err(l3->dev, "request_irq failed for %d\n", l3->app_irq);
 
@@ -296,14 +296,14 @@ static int omap_l3_probe(struct platform_device *pdev)
 #ifdef	CONFIG_PM_SLEEP
 
 /**
- * l3_resume_noirq() - resume function for l3_noc
- * @dev:	pointer to l3_noc device structure
+ * l3_resume_analirq() - resume function for l3_analc
+ * @dev:	pointer to l3_analc device structure
  *
  * We only have the resume handler only since we
  * have already maintained the delta register
  * configuration as part of configuring the system
  */
-static int l3_resume_noirq(struct device *dev)
+static int l3_resume_analirq(struct device *dev)
 {
 	struct omap_l3 *l3 = dev_get_drvdata(dev);
 	int i;
@@ -339,7 +339,7 @@ static int l3_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops l3_dev_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, l3_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(NULL, l3_resume_analirq)
 };
 
 #define L3_DEV_PM_OPS (&l3_dev_pm_ops)
@@ -350,9 +350,9 @@ static const struct dev_pm_ops l3_dev_pm_ops = {
 static struct platform_driver omap_l3_driver = {
 	.probe		= omap_l3_probe,
 	.driver		= {
-		.name		= "omap_l3_noc",
+		.name		= "omap_l3_analc",
 		.pm		= L3_DEV_PM_OPS,
-		.of_match_table = of_match_ptr(l3_noc_match),
+		.of_match_table = of_match_ptr(l3_analc_match),
 	},
 };
 

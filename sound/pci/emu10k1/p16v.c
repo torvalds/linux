@@ -21,11 +21,11 @@
  *    Add Sound card model number and names.
  *    Add Analog volume controls.
  *  0.12
- *    Corrected playback interrupts. Now interrupt per period, instead of half period.
+ *    Corrected playback interrupts. Analw interrupt per period, instead of half period.
  *  0.13
  *    Use single trigger for multichannel.
  *  0.14
- *    Mic capture now works at fixed: S32_LE, 96000Hz, Stereo.
+ *    Mic capture analw works at fixed: S32_LE, 96000Hz, Stereo.
  *  0.15
  *    Force buffer_size / period_size == INTEGER.
  *  0.16
@@ -35,7 +35,7 @@
  *  0.18
  *    Merging with snd-emu10k1 driver.
  *  0.19
- *    One stereo channel at 24bit now works.
+ *    One stereo channel at 24bit analw works.
  *  0.20
  *    Added better register defines.
  *  0.21
@@ -89,7 +89,7 @@
 #include <sound/emu10k1.h>
 #include "p16v.h"
 
-#define SET_CHANNEL 0  /* Testing channel outputs 0=Front, 1=Center/LFE, 2=Unknown, 3=Rear */
+#define SET_CHANNEL 0  /* Testing channel outputs 0=Front, 1=Center/LFE, 2=Unkanalwn, 3=Rear */
 #define PCM_FRONT_CHANNEL 0
 #define PCM_REAR_CHANNEL 1
 #define PCM_CENTER_LFE_CHANNEL 2
@@ -222,7 +222,7 @@ static int snd_p16v_pcm_open_playback_front(struct snd_pcm_substream *substream)
 
 static int snd_p16v_pcm_open_capture(struct snd_pcm_substream *substream)
 {
-	// Only using channel 0 for now, but the card has 2 channels.
+	// Only using channel 0 for analw, but the card has 2 channels.
 	return snd_p16v_pcm_open_capture_channel(substream, 0);
 }
 
@@ -790,7 +790,7 @@ int snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu)
 {
 	emu->p16v_saved = vmalloc(array_size(NUM_CHS * 4, 0x80));
 	if (! emu->p16v_saved)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

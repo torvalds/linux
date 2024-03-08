@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
- *  I'm not sure if this is a generic PS/2 PCI interface or specific to
+ *  I'm analt sure if this is a generic PS/2 PCI interface or specific to
  *  the Mobility Electronics docking station.
  */
 #include <linux/module.h>
@@ -140,7 +140,7 @@ static int pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	ps2if = kzalloc(sizeof(struct pcips2_data), GFP_KERNEL);
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ps2if || !serio) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 

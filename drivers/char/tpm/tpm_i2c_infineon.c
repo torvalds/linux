@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012,2013 Infineon Technologies
+ * Copyright (C) 2012,2013 Infineon Techanallogies
  *
  * Authors:
  * Peter Huewe <peter.huewe@infineon.com>
@@ -53,7 +53,7 @@
 enum i2c_chip_type {
 	SLB9635,
 	SLB9645,
-	UNKNOWN,
+	UNKANALWN,
 };
 
 struct tpm_inf_dev {
@@ -79,13 +79,13 @@ static struct tpm_inf_dev tpm_dev;
  * Read len bytes from TPM register and put them into
  * buffer (little-endian format, i.e. first byte is put into buffer[0]).
  *
- * NOTE: TPM is big-endian for multi-byte values. Multi-byte
+ * ANALTE: TPM is big-endian for multi-byte values. Multi-byte
  * values have to be swapped.
  *
- * NOTE: We can't unfortunately use the combined read/write functions
- * provided by the i2c core as the TPM currently does not support the
+ * ANALTE: We can't unfortunately use the combined read/write functions
+ * provided by the i2c core as the TPM currently does analt support the
  * repeated start condition and due to it's special requirements.
- * The i2c_smbus* functions do not work for this chip.
+ * The i2c_smbus* functions do analt work for this chip.
  *
  * Return -EIO on error, 0 on success.
  */
@@ -111,14 +111,14 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 
 	/* Lock the adapter for the duration of the whole sequence. */
 	if (!tpm_dev.client->adapter->algo->master_xfer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	i2c_lock_bus(tpm_dev.client->adapter, I2C_LOCK_SEGMENT);
 
 	if (tpm_dev.chip_type == SLB9645) {
 		/* use a combined read for newer chips
-		 * unfortunately the smbus functions are not suitable due to
+		 * unfortunately the smbus functions are analt suitable due to
 		 * the 32 byte limit of the smbus.
-		 * retries should usually not be needed, but are kept just to
+		 * retries should usually analt be needed, but are kept just to
 		 * be on the safe side.
 		 */
 		for (count = 0; count < MAX_COUNT; count++) {
@@ -163,7 +163,7 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 						    &msg2, 1);
 				if (rc > 0) {
 					/* Since len is unsigned, make doubly
-					 * sure we do not underflow it.
+					 * sure we do analt underflow it.
 					 */
 					if (msglen > len)
 						len = 0;
@@ -176,7 +176,7 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 				 * when the quirk read_max_len < len) fall back
 				 * to a sane minimum value and try again.
 				 */
-				if (rc == -EOPNOTSUPP)
+				if (rc == -EOPANALTSUPP)
 					tpm_dev.adapterlimit =
 							I2C_SMBUS_BLOCK_MAX;
 			}
@@ -218,7 +218,7 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 		return -EINVAL;
 
 	if (!tpm_dev.client->adapter->algo->master_xfer)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	i2c_lock_bus(tpm_dev.client->adapter, I2C_LOCK_SEGMENT);
 
 	/* prepend the 'register address' to the buffer */
@@ -226,9 +226,9 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 	memcpy(&(tpm_dev.buf[1]), buffer, len);
 
 	/*
-	 * NOTE: We have to use these special mechanisms here and unfortunately
-	 * cannot rely on the standard behavior of i2c_transfer.
-	 * Even for newer chips the smbus functions are not
+	 * ANALTE: We have to use these special mechanisms here and unfortunately
+	 * cananalt rely on the standard behavior of i2c_transfer.
+	 * Even for newer chips the smbus functions are analt
 	 * suitable due to the 32 byte limit of the smbus.
 	 */
 	for (count = 0; count < max_count; count++) {
@@ -261,10 +261,10 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
  * Write len bytes from provided buffer to TPM register (little
  * endian format, i.e. buffer[0] is written as first byte).
  *
- * NOTE: TPM is big-endian for multi-byte values. Multi-byte
+ * ANALTE: TPM is big-endian for multi-byte values. Multi-byte
  * values have to be swapped.
  *
- * NOTE: use this function instead of the iic_tpm_write_generic function.
+ * ANALTE: use this function instead of the iic_tpm_write_generic function.
  *
  * Return -EIO on error, 0 on success
  */
@@ -364,7 +364,7 @@ static int request_locality(struct tpm_chip *chip, int loc)
 
 static u8 tpm_tis_i2c_status(struct tpm_chip *chip)
 {
-	/* NOTE: since I2C read may fail, return 0 in this case --> time-out */
+	/* ANALTE: since I2C read may fail, return 0 in this case --> time-out */
 	u8 buf = 0xFF;
 	u8 i = 0;
 
@@ -373,7 +373,7 @@ static u8 tpm_tis_i2c_status(struct tpm_chip *chip)
 			return 0;
 
 		i++;
-	/* if locallity is set STS should not be 0xFF */
+	/* if locallity is set STS should analt be 0xFF */
 	} while ((buf == 0xFF) && i < 10);
 
 	return buf;
@@ -396,7 +396,7 @@ static ssize_t get_burstcount(struct tpm_chip *chip)
 	/* which timeout value, spec has 2 answers (c & d) */
 	stop = jiffies + chip->timeout_d;
 	do {
-		/* Note: STS is little endian */
+		/* Analte: STS is little endian */
 		if (iic_tpm_read(TPM_STS(tpm_dev.locality)+1, buf, 3) < 0)
 			burstcnt = 0;
 		else
@@ -626,14 +626,14 @@ static int tpm_tis_i2c_init(struct device *dev)
 	chip->timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
 	if (request_locality(chip, 0) != 0) {
-		dev_err(dev, "could not request locality\n");
-		rc = -ENODEV;
+		dev_err(dev, "could analt request locality\n");
+		rc = -EANALDEV;
 		goto out_err;
 	}
 
 	/* read four bytes from DID_VID register */
 	if (iic_tpm_read(TPM_DID_VID(0), (u8 *)&vendor, 4) < 0) {
-		dev_err(dev, "could not read vendor id\n");
+		dev_err(dev, "could analt read vendor id\n");
 		rc = -EIO;
 		goto out_release;
 	}
@@ -643,8 +643,8 @@ static int tpm_tis_i2c_init(struct device *dev)
 	} else if (vendor == TPM_TIS_I2C_DID_VID_9635) {
 		tpm_dev.chip_type = SLB9635;
 	} else {
-		dev_err(dev, "vendor id did not match! ID was %08x\n", vendor);
-		rc = -ENODEV;
+		dev_err(dev, "vendor id did analt match! ID was %08x\n", vendor);
+		rc = -EANALDEV;
 		goto out_release;
 	}
 
@@ -692,15 +692,15 @@ static int tpm_tis_i2c_probe(struct i2c_client *client)
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(dev, "no algorithms associated to the i2c bus\n");
-		return -ENODEV;
+		dev_err(dev, "anal algorithms associated to the i2c bus\n");
+		return -EANALDEV;
 	}
 
 	tpm_dev.client = client;
 	rc = tpm_tis_i2c_init(&client->dev);
 	if (rc != 0) {
 		tpm_dev.client = NULL;
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	}
 	return rc;
 }

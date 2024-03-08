@@ -22,7 +22,7 @@ struct plat_nand_data {
 static int plat_nand_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -57,7 +57,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct plat_nand_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->controller.ops = &plat_nand_ops;
 	nand_controller_init(&data->controller);
@@ -67,7 +67,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(data->io_base))
 		return PTR_ERR(data->io_base);
 
-	nand_set_flash_node(&data->chip, pdev->dev.of_node);
+	nand_set_flash_analde(&data->chip, pdev->dev.of_analde);
 	mtd = nand_to_mtd(&data->chip);
 	mtd->dev.parent = &pdev->dev;
 

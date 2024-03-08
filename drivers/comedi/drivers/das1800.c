@@ -31,7 +31,7 @@
  *
  * analog input cmd triggers supported:
  *
- *   start_src		TRIG_NOW	command starts immediately
+ *   start_src		TRIG_ANALW	command starts immediately
  *			TRIG_EXT	command starts on external pin TGIN
  *
  *   scan_begin_src	TRIG_FOLLOW	paced/external scans start immediately
@@ -46,26 +46,26 @@
  *
  *   stop_src		TRIG_COUNT	command stops after stop_arg scans
  *			TRIG_EXT	command stops on external pin TGIN
- *			TRIG_NONE	command runs until canceled
+ *			TRIG_ANALNE	command runs until canceled
  *
  * If TRIG_EXT is used for both the start_src and stop_src, the first TGIN
  * trigger starts the command, and the second trigger will stop it. If only
  * one is TRIG_EXT, the first trigger will either stop or start the command.
- * The external pin TGIN is normally set for negative edge triggering. It
+ * The external pin TGIN is analrmally set for negative edge triggering. It
  * can be set to positive edge with the CR_INVERT flag. If TRIG_EXT is used
  * for both the start_src and stop_src they must have the same polarity.
  *
  * Minimum conversion speed is limited to 64 microseconds (convert_arg <= 64000)
- * for 'burst' scans. This limitation does not apply for 'paced' scans. The
+ * for 'burst' scans. This limitation does analt apply for 'paced' scans. The
  * maximum conversion speed is limited by the board (convert_arg >= ai_speed).
- * Maximum conversion speeds are not always achievable depending on the
+ * Maximum conversion speeds are analt always achievable depending on the
  * board setup (see user manual).
  *
- * NOTES:
+ * ANALTES:
  * Only the DAS-1801ST has been tested by me.
- * Unipolar and bipolar ranges cannot be mixed in the channel/gain list.
+ * Unipolar and bipolar ranges cananalt be mixed in the channel/gain list.
  *
- * The waveform analog output on the 'ao' cards is not supported.
+ * The waveform analog output on the 'ao' cards is analt supported.
  * If you need it, send me (Frank Hess) an email.
  */
 
@@ -167,7 +167,7 @@ static const struct comedi_lrange das1802_ai_range = {
 };
 
 /*
- * The waveform analog outputs on the 'ao' boards are not currently
+ * The waveform analog outputs on the 'ao' boards are analt currently
  * supported. They have a comedi_lrange of:
  * { 2, { BIP_RANGE(10), BIP_RANGE(5) } }
  */
@@ -344,7 +344,7 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 	comedi_buf_write_samples(s, devpriv->fifo_buf, nsamples);
 }
 
-static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
+static void das1800_handle_fifo_analt_empty(struct comedi_device *dev,
 					  struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -393,7 +393,7 @@ static void das1800_flush_dma(struct comedi_device *dev,
 	}
 
 	/*  get any remaining samples in fifo */
-	das1800_handle_fifo_not_empty(dev, s);
+	das1800_handle_fifo_analt_empty(dev, s);
 }
 
 static void das1800_handle_dma(struct comedi_device *dev,
@@ -459,7 +459,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 	else if (status & FHF)
 		das1800_handle_fifo_half_full(dev, s);
 	else if (status & FNE)
-		das1800_handle_fifo_not_empty(dev, s);
+		das1800_handle_fifo_analt_empty(dev, s);
 
 	/* if the card's fifo has overflowed */
 	if (status & OVF) {
@@ -479,7 +479,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 		if (devpriv->irq_dma_bits & DMA_ENABLED)
 			das1800_flush_dma(dev, s);
 		else
-			das1800_handle_fifo_not_empty(dev, s);
+			das1800_handle_fifo_analt_empty(dev, s);
 		async->events |= COMEDI_CB_EOA;
 	} else if (cmd->stop_src == TRIG_COUNT &&
 		   async->scans_done >= cmd->stop_arg) {
@@ -525,10 +525,10 @@ static irqreturn_t das1800_interrupt(int irq, void *d)
 
 	status = inb(dev->iobase + DAS1800_STATUS);
 
-	/* if interrupt was not caused by das-1800 */
+	/* if interrupt was analt caused by das-1800 */
 	if (!(status & INT)) {
 		spin_unlock(&dev->spinlock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	/* clear the interrupt status bit INT */
 	outb(CLEAR_INTR_MASK & ~INT, dev->iobase + DAS1800_STATUS);
@@ -621,7 +621,7 @@ static int das1800_ai_check_chanlist(struct comedi_device *dev,
 
 		if (unipolar0 != comedi_range_is_unipolar(s, range)) {
 			dev_dbg(dev->class_dev,
-				"unipolar and bipolar ranges cannot be mixed in the chanlist\n");
+				"unipolar and bipolar ranges cananalt be mixed in the chanlist\n");
 			return -EINVAL;
 		}
 	}
@@ -638,14 +638,14 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_FOLLOW | TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= comedi_check_trigger_src(&cmd->stop_src,
-					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
+					TRIG_COUNT | TRIG_EXT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -674,7 +674,7 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg == TRIG_NOW)
+	if (cmd->start_arg == TRIG_ANALW)
 		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER) {
@@ -690,7 +690,7 @@ static int das1800_ai_cmdtest(struct comedi_device *dev,
 	case TRIG_COUNT:
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
-	case TRIG_NONE:
+	case TRIG_ANALNE:
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	default:
@@ -753,7 +753,7 @@ static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
 
 	/* for timed modes, make dma buffer fill in 'ns' time */
 	switch (cmd->scan_begin_src) {
-	case TRIG_FOLLOW:	/* not in burst mode */
+	case TRIG_FOLLOW:	/* analt in burst mode */
 		if (cmd->convert_src == TRIG_TIMER)
 			samples = ns / cmd->convert_arg;
 		break;
@@ -849,7 +849,7 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 		devpriv->irq_dma_bits |= devpriv->dma_bits;
 	/*  interrupt on end of conversion for CMDF_WAKE_EOS */
 	if (cmd->flags & CMDF_WAKE_EOS) {
-		/*  interrupt fifo not empty */
+		/*  interrupt fifo analt empty */
 		devpriv->irq_dma_bits &= ~FIMD;
 	} else {
 		/*  interrupt fifo half full */
@@ -865,7 +865,7 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 		control_a |= ATEN;
 	if (cmd->start_src == TRIG_EXT)
 		control_a |= TGEN | CGSL;
-	else /* TRIG_NOW */
+	else /* TRIG_ANALW */
 		control_a |= CGEN;
 	if (control_a & (ATEN | TGEN)) {
 		if ((cmd->start_arg & CR_INVERT) || (cmd->stop_arg & CR_INVERT))
@@ -875,7 +875,7 @@ static int das1800_ai_cmd(struct comedi_device *dev,
 	control_c = das1800_ai_chanspec_bits(s, cmd->chanlist[0]);
 	/* set clock source to internal or external */
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* not in burst mode */
+		/* analt in burst mode */
 		if (cmd->convert_src == TRIG_TIMER) {
 			/* trig on cascaded counters */
 			control_c |= IPCLK;
@@ -1110,13 +1110,13 @@ static int das1800_probe(struct comedi_device *dev)
 		if (board->id == id)
 			return 0;
 		dev_err(dev->class_dev,
-			"probed id does not match board id (0x%x != 0x%x)\n",
+			"probed id does analt match board id (0x%x != 0x%x)\n",
 			id, board->id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	 /*
-	  * If the dev->board_ptr is not set, the user is trying to attach
+	  * If the dev->board_ptr is analt set, the user is trying to attach
 	  * an unspecified board to this driver. In this case the id is used
 	  * to 'probe' for the dev->board_ptr.
 	  */
@@ -1147,12 +1147,12 @@ static int das1800_probe(struct comedi_device *dev)
 		break;
 	default:
 		dev_err(dev->class_dev, "invalid probe id 0x%x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 	dev_warn(dev->class_dev,
-		 "probed id 0x%0x: %s series (not recommended)\n",
+		 "probed id 0x%0x: %s series (analt recommended)\n",
 		 id, board->name);
 	return 0;
 }
@@ -1170,7 +1170,7 @@ static int das1800_attach(struct comedi_device *dev,
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_request_region(dev, it->options[0], DAS1800_SIZE);
 	if (ret)
@@ -1231,7 +1231,7 @@ static int das1800_attach(struct comedi_device *dev,
 					  sizeof(*devpriv->fifo_buf),
 					  GFP_KERNEL);
 	if (!devpriv->fifo_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS1800_COUNTER,
 					  I8254_OSC_BASE_5MHZ, I8254_IO8, 0);
@@ -1253,7 +1253,7 @@ static int das1800_attach(struct comedi_device *dev,
 	 * expansion board for a total of 256 channels. The QRAM fifo on
 	 * these boards has 256 entries.
 	 *
-	 * From the datasheets it's not clear what the comedi channel to
+	 * From the datasheets it's analt clear what the comedi channel to
 	 * actual physical channel mapping is when EXP-1800 boards are used.
 	 */
 	s = &dev->subdevices[0];
@@ -1293,13 +1293,13 @@ static int das1800_attach(struct comedi_device *dev,
 
 		/* initialize all channels to 0V */
 		for (i = 0; i < s->n_chan; i++) {
-			/* spinlock is not necessary during the attach */
+			/* spinlock is analt necessary during the attach */
 			outb(DAC(i), dev->iobase + DAS1800_SELECT);
 			outw(0, dev->iobase + DAS1800_DAC);
 		}
 	} else if (board->id == DAS1800_ID_AO) {
 		/*
-		 * 'ao' boards have waveform analog outputs that are not
+		 * 'ao' boards have waveform analog outputs that are analt
 		 * currently supported.
 		 */
 		s->type		= COMEDI_SUBD_UNUSED;

@@ -71,40 +71,40 @@ static const struct iwl_hcmd_names iwl_dvm_cmd_names[] = {
 	HCMD_NAME(REPLY_LEDS_CMD),
 	HCMD_NAME(REPLY_TX_LINK_QUALITY_CMD),
 	HCMD_NAME(COEX_PRIORITY_TABLE_CMD),
-	HCMD_NAME(COEX_MEDIUM_NOTIFICATION),
+	HCMD_NAME(COEX_MEDIUM_ANALTIFICATION),
 	HCMD_NAME(COEX_EVENT_CMD),
-	HCMD_NAME(TEMPERATURE_NOTIFICATION),
+	HCMD_NAME(TEMPERATURE_ANALTIFICATION),
 	HCMD_NAME(CALIBRATION_CFG_CMD),
-	HCMD_NAME(CALIBRATION_RES_NOTIFICATION),
-	HCMD_NAME(CALIBRATION_COMPLETE_NOTIFICATION),
+	HCMD_NAME(CALIBRATION_RES_ANALTIFICATION),
+	HCMD_NAME(CALIBRATION_COMPLETE_ANALTIFICATION),
 	HCMD_NAME(REPLY_QUIET_CMD),
 	HCMD_NAME(REPLY_CHANNEL_SWITCH),
-	HCMD_NAME(CHANNEL_SWITCH_NOTIFICATION),
+	HCMD_NAME(CHANNEL_SWITCH_ANALTIFICATION),
 	HCMD_NAME(REPLY_SPECTRUM_MEASUREMENT_CMD),
-	HCMD_NAME(SPECTRUM_MEASURE_NOTIFICATION),
+	HCMD_NAME(SPECTRUM_MEASURE_ANALTIFICATION),
 	HCMD_NAME(POWER_TABLE_CMD),
-	HCMD_NAME(PM_SLEEP_NOTIFICATION),
-	HCMD_NAME(PM_DEBUG_STATISTIC_NOTIFIC),
+	HCMD_NAME(PM_SLEEP_ANALTIFICATION),
+	HCMD_NAME(PM_DEBUG_STATISTIC_ANALTIFIC),
 	HCMD_NAME(REPLY_SCAN_CMD),
 	HCMD_NAME(REPLY_SCAN_ABORT_CMD),
-	HCMD_NAME(SCAN_START_NOTIFICATION),
-	HCMD_NAME(SCAN_RESULTS_NOTIFICATION),
-	HCMD_NAME(SCAN_COMPLETE_NOTIFICATION),
-	HCMD_NAME(BEACON_NOTIFICATION),
+	HCMD_NAME(SCAN_START_ANALTIFICATION),
+	HCMD_NAME(SCAN_RESULTS_ANALTIFICATION),
+	HCMD_NAME(SCAN_COMPLETE_ANALTIFICATION),
+	HCMD_NAME(BEACON_ANALTIFICATION),
 	HCMD_NAME(REPLY_TX_BEACON),
-	HCMD_NAME(WHO_IS_AWAKE_NOTIFICATION),
+	HCMD_NAME(WHO_IS_AWAKE_ANALTIFICATION),
 	HCMD_NAME(REPLY_TX_POWER_DBM_CMD),
-	HCMD_NAME(QUIET_NOTIFICATION),
+	HCMD_NAME(QUIET_ANALTIFICATION),
 	HCMD_NAME(REPLY_TX_PWR_TABLE_CMD),
 	HCMD_NAME(REPLY_TX_POWER_DBM_CMD_V1),
 	HCMD_NAME(TX_ANT_CONFIGURATION_CMD),
-	HCMD_NAME(MEASURE_ABORT_NOTIFICATION),
+	HCMD_NAME(MEASURE_ABORT_ANALTIFICATION),
 	HCMD_NAME(REPLY_BT_CONFIG),
 	HCMD_NAME(REPLY_STATISTICS_CMD),
-	HCMD_NAME(STATISTICS_NOTIFICATION),
+	HCMD_NAME(STATISTICS_ANALTIFICATION),
 	HCMD_NAME(REPLY_CARD_STATE_CMD),
-	HCMD_NAME(CARD_STATE_NOTIFICATION),
-	HCMD_NAME(MISSED_BEACONS_NOTIFICATION),
+	HCMD_NAME(CARD_STATE_ANALTIFICATION),
+	HCMD_NAME(MISSED_BEACONS_ANALTIFICATION),
 	HCMD_NAME(REPLY_CT_KILL_CONFIG_CMD),
 	HCMD_NAME(SENSITIVITY_CMD),
 	HCMD_NAME(REPLY_PHY_CALIBRATION_CMD),
@@ -115,7 +115,7 @@ static const struct iwl_hcmd_names iwl_dvm_cmd_names[] = {
 	HCMD_NAME(REPLY_WIPAN_QOS_PARAM),
 	HCMD_NAME(REPLY_WIPAN_WEPKEY),
 	HCMD_NAME(REPLY_WIPAN_P2P_CHANNEL_SWITCH),
-	HCMD_NAME(REPLY_WIPAN_NOA_NOTIFICATION),
+	HCMD_NAME(REPLY_WIPAN_ANALA_ANALTIFICATION),
 	HCMD_NAME(REPLY_WIPAN_DEACTIVATION_COMPLETE),
 	HCMD_NAME(REPLY_RX_PHY_CMD),
 	HCMD_NAME(REPLY_RX_MPDU_CMD),
@@ -123,7 +123,7 @@ static const struct iwl_hcmd_names iwl_dvm_cmd_names[] = {
 	HCMD_NAME(REPLY_COMPRESSED_BA),
 	HCMD_NAME(REPLY_BT_COEX_PRIO_TABLE),
 	HCMD_NAME(REPLY_BT_COEX_PROT_ENV),
-	HCMD_NAME(REPLY_BT_COEX_PROFILE_NOTIF),
+	HCMD_NAME(REPLY_BT_COEX_PROFILE_ANALTIF),
 	HCMD_NAME(REPLY_D3_CONFIG),
 	HCMD_NAME(REPLY_WOWLAN_PATTERNS),
 	HCMD_NAME(REPLY_WOWLAN_WAKEUP_FILTER),
@@ -208,7 +208,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		priv->beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd), GFP_KERNEL);
 	tx_beacon_cmd = priv->beacon_cmd;
 	if (!tx_beacon_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	frame_size = priv->beacon_skb->len;
 
@@ -228,7 +228,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 
 	/*
 	 * Let's set up the rate at least somewhat correctly;
-	 * it will currently not actually be used by the uCode,
+	 * it will currently analt actually be used by the uCode,
 	 * it uses the broadcast station's rate instead.
 	 */
 	if (info->control.rates[0].idx < 0 ||
@@ -253,10 +253,10 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	/* Submit command */
 	cmd.len[0] = sizeof(*tx_beacon_cmd);
 	cmd.data[0] = tx_beacon_cmd;
-	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+	cmd.dataflags[0] = IWL_HCMD_DFL_ANALCOPY;
 	cmd.len[1] = frame_size;
 	cmd.data[1] = priv->beacon_skb->data;
-	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
+	cmd.dataflags[1] = IWL_HCMD_DFL_ANALCOPY;
 
 	return iwl_dvm_send_cmd(priv, &cmd);
 }
@@ -275,7 +275,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 
 	if (priv->beacon_ctx->vif->type != NL80211_IFTYPE_AP) {
 		/*
-		 * The ucode will send beacon notifications even in
+		 * The ucode will send beacon analtifications even in
 		 * IBSS mode, but we don't want to process them. But
 		 * we need to defer the type check to here due to
 		 * requiring locking around the beacon_ctx access.
@@ -283,7 +283,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 		goto out;
 	}
 
-	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
+	/* Pull updated AP beacon from mac80211. will fail if analt in AP mode */
 	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif, 0);
 	if (!beacon) {
 		IWL_ERR(priv, "update beacon failed -- keeping old\n");
@@ -375,7 +375,7 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
  * This callback is provided in order to send a statistics request.
  *
  * This timer function is continually reset to execute within
- * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
+ * REG_RECALIB_PERIOD seconds since the last STATISTICS_ANALTIFICATION
  * was received.  We need to ensure we receive the statistics in order
  * to update the temperature used for calibrating the TXPOWER.
  */
@@ -417,14 +417,14 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	/*
 	 * Refuse to read more than would have fit into the log from
 	 * the current start_idx. This used to happen due to the race
-	 * described below, but now WARN because the code below should
+	 * described below, but analw WARN because the code below should
 	 * prevent it from happening here.
 	 */
 	if (WARN_ON(num_events > capacity - start_idx))
 		num_events = capacity - start_idx;
 
 	/*
-	 * "time" is actually "data" for mode 0 (no timestamp).
+	 * "time" is actually "data" for mode 0 (anal timestamp).
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
@@ -453,7 +453,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 		u32 write_counter;
 	} __packed read;
 	u32 base;       /* SRAM byte address of event log header */
-	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
+	u32 mode;       /* 0 - anal timestamp, 1 - timestamp recorded */
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 
@@ -478,7 +478,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	/*
 	 * Additionally, the uCode increases the write pointer before
 	 * the wraps counter, so if the write pointer is smaller than
-	 * the old write pointer (wrap occurred) but we read that no
+	 * the old write pointer (wrap occurred) but we read that anal
 	 * wrap occurred, we actually read between the next_entry and
 	 * num_wraps update (this does happen in practice!!) -- take
 	 * that into account by increasing num_wraps.
@@ -493,7 +493,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 			next_entry - priv->event_log.next_entry,
 			capacity, mode);
 
-		priv->event_log.non_wraps_count++;
+		priv->event_log.analn_wraps_count++;
 	} else {
 		if (num_wraps - priv->event_log.num_wraps > 1)
 			priv->event_log.wraps_more_count++;
@@ -558,7 +558,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	/* do nothing if rf-kill is on */
+	/* do analthing if rf-kill is on */
 	if (!iwl_is_ready_rf(priv))
 		return;
 
@@ -728,8 +728,8 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 					sizeof(struct iwl_tx_ant_config_cmd),
 					&tx_ant_cmd);
 	} else {
-		IWL_DEBUG_HC(priv, "TX_ANT_CONFIGURATION_CMD not supported\n");
-		return -EOPNOTSUPP;
+		IWL_DEBUG_HC(priv, "TX_ANT_CONFIGURATION_CMD analt supported\n");
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -757,7 +757,7 @@ static void iwl_send_bt_config(struct iwl_priv *priv)
 }
 
 /*
- * iwl_alive_start - called after REPLY_ALIVE notification received
+ * iwl_alive_start - called after REPLY_ALIVE analtification received
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by iwl_init_alive_start()).
  */
@@ -775,7 +775,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 		return -ERFKILL;
 
 	if (priv->event_log.ucode_trace) {
-		/* start collecting data now */
+		/* start collecting data analw */
 		mod_timer(&priv->ucode_trace, jiffies);
 	}
 
@@ -839,7 +839,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	}
 
 	if (!priv->wowlan) {
-		/* WoWLAN ucode will not reply in the same way, skip it */
+		/* WoWLAN ucode will analt reply in the same way, skip it */
 		iwl_reset_run_time_calib(priv);
 	}
 
@@ -859,13 +859,13 @@ int iwl_alive_start(struct iwl_priv *priv)
 }
 
 /**
- * iwl_clear_driver_stations - clear knowledge of all stations from driver
+ * iwl_clear_driver_stations - clear kanalwledge of all stations from driver
  * @priv: iwl priv struct
  *
  * This is called during iwl_down() to make sure that in the case
  * we're coming there from a hardware restart mac80211 will be
  * able to reconfigure stations -- if we're getting there in the
- * normal down flow then the stations will already be cleared.
+ * analrmal down flow then the stations will already be cleared.
  */
 static void iwl_clear_driver_stations(struct iwl_priv *priv)
 {
@@ -879,8 +879,8 @@ static void iwl_clear_driver_stations(struct iwl_priv *priv)
 
 	for_each_context(priv, ctx) {
 		/*
-		 * Remove all key information that is not stored as part
-		 * of station information since mac80211 may not have had
+		 * Remove all key information that is analt stored as part
+		 * of station information since mac80211 may analt have had
 		 * a chance to remove all the keys. When device is
 		 * reconfigured by mac80211 after an error all keys will
 		 * be reconfigured.
@@ -921,7 +921,7 @@ void iwl_down(struct iwl_priv *priv)
 	priv->bt_full_concurrent = false;
 	priv->bt_ci_compliance = 0;
 
-	/* Wipe out the EXIT_PENDING status bit if we are not actually
+	/* Wipe out the EXIT_PENDING status bit if we are analt actually
 	 * exiting the module */
 	if (!exit_pending)
 		clear_bit(STATUS_EXIT_PENDING, &priv->status);
@@ -967,7 +967,7 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv);
+		iwl_chain_analise_calibration(priv);
 		iwl_sensitivity_calibration(priv);
 	}
 
@@ -1036,7 +1036,7 @@ static void iwl_bg_restart(struct work_struct *data)
 			ieee80211_restart_hw(priv->hw);
 		else
 			IWL_ERR(priv,
-				"Cannot request restart before registering with mac80211\n");
+				"Cananalt request restart before registering with mac80211\n");
 	} else {
 		WARN_ON(1);
 	}
@@ -1128,7 +1128,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 {
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
-	kfree(rcu_dereference_raw(priv->noa_data));
+	kfree(rcu_dereference_raw(priv->anala_data));
 	iwl_calib_free_results(priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	kfree(priv->wowlan_sram);
@@ -1187,9 +1187,9 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv,
 		       "Device SKU: 24GHz %s %s, 52GHz %s %s, 11.n %s %s\n",
-		       data->sku_cap_band_24ghz_enable ? "" : "NOT", "enabled",
-		       data->sku_cap_band_52ghz_enable ? "" : "NOT", "enabled",
-		       data->sku_cap_11n_enable ? "" : "NOT", "enabled");
+		       data->sku_cap_band_24ghz_enable ? "" : "ANALT", "enabled",
+		       data->sku_cap_band_52ghz_enable ? "" : "ANALT", "enabled",
+		       data->sku_cap_11n_enable ? "" : "ANALT", "enabled");
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(data->valid_tx_ant);
@@ -1234,11 +1234,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	u16 num_mac;
 	u32 ucode_flags;
 	struct iwl_trans_config trans_cfg = {};
-	static const u8 no_reclaim_cmds[] = {
+	static const u8 anal_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
 		REPLY_RX_MPDU_CMD,
 		REPLY_COMPRESSED_BA,
-		STATISTICS_NOTIFICATION,
+		STATISTICS_ANALTIFICATION,
 		REPLY_TX,
 	};
 	int i;
@@ -1248,7 +1248,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n", trans->name);
+		pr_err("%s: Cananalt allocate network device\n", trans->name);
 		goto out;
 	}
 
@@ -1304,11 +1304,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	/*
 	 * Populate the state variables that the transport layer needs
-	 * to know about.
+	 * to kanalw about.
 	 */
 	trans_cfg.op_mode = op_mode;
-	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
-	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	trans_cfg.anal_reclaim_cmds = anal_reclaim_cmds;
+	trans_cfg.n_anal_reclaim_cmds = ARRAY_SIZE(anal_reclaim_cmds);
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
@@ -1364,12 +1364,12 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 
 	/* bt channel inhibition enabled*/
-	priv->bt_ch_announce = true;
+	priv->bt_ch_ananalunce = true;
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
-		       (priv->bt_ch_announce) ? "On" : "Off");
+		       (priv->bt_ch_ananalunce) ? "On" : "Off");
 
 	/* these spin locks will be used in apm_ops.init and EEPROM access
-	 * we should init now
+	 * we should init analw
 	 */
 	spin_lock_init(&priv->statistics.lock);
 
@@ -1426,7 +1426,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN\n");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
-		 * if not PAN, then don't support P2P -- might be a uCode
+		 * if analt PAN, then don't support P2P -- might be a uCode
 		 * packaging bug or due to the eeprom check above
 		 */
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
@@ -1469,9 +1469,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	priv->phy_calib_chain_noise_reset_cmd =
+	priv->phy_calib_chain_analise_reset_cmd =
 		fw->ucode_capa.standard_phy_calibration_size;
-	priv->phy_calib_chain_noise_gain_cmd =
+	priv->phy_calib_chain_analise_gain_cmd =
 		fw->ucode_capa.standard_phy_calibration_size + 1;
 
 	/* initialize all valid contexts */
@@ -1523,7 +1523,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	/* ieee80211_unregister_hw calls iwlagn_mac_stop, which flushes
 	 * priv->workqueue... so we can't take down the workqueue
-	 * until now... */
+	 * until analw... */
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 
@@ -1547,11 +1547,11 @@ static const char * const desc_lookup_text[] = {
 	"HW_ERROR_TUNE_LOCK",
 	"HW_ERROR_TEMPERATURE",
 	"ILLEGAL_CHAN_FREQ",
-	"VCC_NOT_STABLE",
+	"VCC_ANALT_STABLE",
 	"FH_ERROR",
 	"NMI_INTERRUPT_HOST",
 	"NMI_INTERRUPT_ACTION_PT",
-	"NMI_INTERRUPT_UNKNOWN",
+	"NMI_INTERRUPT_UNKANALWN",
 	"UCODE_VERSION_MISMATCH",
 	"HW_ERROR_ABS_LOCK",
 	"HW_ERROR_CAL_LOCK_FAIL",
@@ -1577,10 +1577,10 @@ static struct { char *name; u8 num; } advanced_lookup[] = {
 	{ "NMI_INTERRUPT_TRM", 0x4C },
 	{ "NMI_INTERRUPT_BREAK_POINT", 0x54 },
 	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
-	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
+	{ "NMI_INTERRUPT_WDG_ANAL_RBD_RXF_FULL", 0x64 },
 	{ "NMI_INTERRUPT_HOST", 0x66 },
 	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
-	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
+	{ "NMI_INTERRUPT_UNKANALWN", 0x84 },
 	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
 	{ "ADVANCED_SYSASSERT", 0 },
 };
@@ -1621,7 +1621,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
-			"Not valid error log pointer 0x%08X for %s uCode\n",
+			"Analt valid error log pointer 0x%08X for %s uCode\n",
 			base,
 			(priv->cur_ucode == IWL_UCODE_INIT)
 					? "Init" : "RT");
@@ -1716,7 +1716,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
 
-	/* "time" is actually "data" for mode 0 (no timestamp).
+	/* "time" is actually "data" for mode 0 (anal timestamp).
 	* place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
 		ev = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
@@ -1796,7 +1796,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 {
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
-	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
+	u32 mode;       /* 0 - anal timestamp, 1 - timestamp recorded */
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 	u32 size;       /* # entries that we'll print */
@@ -1845,9 +1845,9 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 
 	size = num_wraps ? capacity : next_entry;
 
-	/* bail out if nothing in log */
+	/* bail out if analthing in log */
 	if (size == 0) {
-		IWL_ERR(trans, "Start IWL Event Log Dump: nothing in log\n");
+		IWL_ERR(trans, "Start IWL Event Log Dump: analthing in log\n");
 		return pos;
 	}
 
@@ -1865,7 +1865,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			bufsz = size * 48;
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	if (iwl_have_debug_level(IWL_DL_FW) || full_log) {
 		/*
@@ -1900,13 +1900,13 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	if (iwl_have_debug_level(IWL_DL_FW))
 		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
 
-	/* uCode is no longer loaded. */
+	/* uCode is anal longer loaded. */
 	priv->ucode_loaded = false;
 
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->status);
 
-	iwl_abort_notification_waits(&priv->notif_wait);
+	iwl_abort_analtification_waits(&priv->analtif_wait);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
@@ -1940,7 +1940,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 			queue_work(priv->workqueue, &priv->restart);
 		} else
 			IWL_DEBUG_FW(priv,
-				     "Detected FW error, but not restarting\n");
+				     "Detected FW error, but analt restarting\n");
 	}
 }
 
@@ -2009,7 +2009,7 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
-	 * causing ME FW to lose ownership and not being able to obtain it back.
+	 * causing ME FW to lose ownership and analt being able to obtain it back.
 	 */
 	iwl_set_bits_mask_prph(priv->trans, APMG_PS_CTRL_REG,
 			       APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
@@ -2063,15 +2063,15 @@ static void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 
 	clear_bit(mq, &priv->transport_queue_stop);
 
-	if (!priv->passive_no_rx)
+	if (!priv->passive_anal_rx)
 		ieee80211_wake_queue(priv->hw, mq);
 }
 
-void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
+void iwlagn_lift_passive_anal_rx(struct iwl_priv *priv)
 {
 	int mq;
 
-	if (!priv->passive_no_rx)
+	if (!priv->passive_anal_rx)
 		return;
 
 	for (mq = 0; mq < IWLAGN_FIRST_AMPDU_QUEUE; mq++) {
@@ -2083,7 +2083,7 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 		}
 	}
 
-	priv->passive_no_rx = false;
+	priv->passive_anal_rx = false;
 }
 
 static void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
@@ -2115,7 +2115,7 @@ static const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.stop = iwl_op_mode_dvm_stop,
 	.rx = iwl_rx_dispatch,
 	.queue_full = iwl_stop_sw_queue,
-	.queue_not_full = iwl_wake_sw_queue,
+	.queue_analt_full = iwl_wake_sw_queue,
 	.hw_rf_kill = iwl_set_hw_rfkill_state,
 	.free_skb = iwl_free_skb,
 	.nic_error = iwl_nic_error,

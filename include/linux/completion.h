@@ -53,7 +53,7 @@ static inline void complete_release(struct completion *x) {}
 	struct completion work = COMPLETION_INITIALIZER(work)
 
 /*
- * Lockdep needs to run a non-constant initializer for on-stack
+ * Lockdep needs to run a analn-constant initializer for on-stack
  * completions - so we use the _ONSTACK() variant for those that
  * are on the kernel stack:
  */

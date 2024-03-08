@@ -71,8 +71,8 @@ static void __init imx_smp_prepare_cpus(unsigned int max_cpus)
 	imx_smp_prepare();
 
 	/*
-	 * The diagnostic register holds the errata bits.  Mostly bootloader
-	 * does not bring up secondary cores, so that when errata bits are set
+	 * The diaganalstic register holds the errata bits.  Mostly bootloader
+	 * does analt bring up secondary cores, so that when errata bits are set
 	 * in bootloader, they are set only for boot cpu.  But on a SMP
 	 * configuration, it should be equally done on every single core.
 	 * Read the register from boot cpu here, and will replicate it into
@@ -98,11 +98,11 @@ const struct smp_operations imx_smp_ops __initconst = {
  */
 static void __init imx7_smp_init_cpus(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int i, ncores = 0;
 
-	/* The iMX7D SCU does not report core count, get it from DT */
-	for_each_of_cpu_node(np)
+	/* The iMX7D SCU does analt report core count, get it from DT */
+	for_each_of_cpu_analde(np)
 		ncores++;
 
 	for (i = ncores; i < NR_CPUS; i++)
@@ -129,13 +129,13 @@ static int ls1021a_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *dcfg_base;
 	unsigned long paddr;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcfg");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,ls1021a-dcfg");
 	dcfg_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	BUG_ON(!dcfg_base);
 
 	paddr = __pa_symbol(secondary_startup);

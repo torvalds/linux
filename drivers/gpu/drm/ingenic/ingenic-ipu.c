@@ -48,7 +48,7 @@ struct soc_info {
 struct ingenic_ipu_private_state {
 	struct drm_private_state base;
 
-	unsigned int num_w, num_h, denom_w, denom_h;
+	unsigned int num_w, num_h, deanalm_w, deanalm_h;
 };
 
 struct ingenic_ipu {
@@ -178,7 +178,7 @@ static void jz4760_set_coefs(struct ingenic_ipu *ipu, unsigned int reg,
 		const s32 f_h = I2F(1) / 2; /* Round up 0.5 */
 
 		/*
-		 * Note that always rounding towards +infinity here is intended.
+		 * Analte that always rounding towards +infinity here is intended.
 		 * The resulting coefficients match a round-to-nearest-int
 		 * double floating-point implementation.
 		 */
@@ -231,14 +231,14 @@ static void jz4725b_set_coefs(struct ingenic_ipu *ipu, unsigned int reg,
 static void ingenic_ipu_set_downscale_coefs(struct ingenic_ipu *ipu,
 					    unsigned int reg,
 					    unsigned int num,
-					    unsigned int denom)
+					    unsigned int deanalm)
 {
-	unsigned int i, offset, weight, weight_num = denom;
+	unsigned int i, offset, weight, weight_num = deanalm;
 
 	for (i = 0; i < num; i++) {
 		weight_num = num + (weight_num - num) % (num * 2);
 		weight = 512 - 512 * (weight_num - num) / (num * 2);
-		weight_num += denom * 2;
+		weight_num += deanalm * 2;
 		offset = (weight_num - num) / (num * 2);
 
 		ipu->soc_info->set_coefs(ipu, reg, ipu->sharpness,
@@ -263,13 +263,13 @@ static void ingenic_ipu_set_integer_upscale_coefs(struct ingenic_ipu *ipu,
 static void ingenic_ipu_set_upscale_coefs(struct ingenic_ipu *ipu,
 					  unsigned int reg,
 					  unsigned int num,
-					  unsigned int denom)
+					  unsigned int deanalm)
 {
 	unsigned int i, offset, weight, weight_num = 0;
 
 	for (i = 0; i < num; i++) {
 		weight = 512 - 512 * weight_num / num;
-		weight_num += denom;
+		weight_num += deanalm;
 		offset = weight_num >= num;
 
 		if (offset)
@@ -281,29 +281,29 @@ static void ingenic_ipu_set_upscale_coefs(struct ingenic_ipu *ipu,
 }
 
 static void ingenic_ipu_set_coefs(struct ingenic_ipu *ipu, unsigned int reg,
-				  unsigned int num, unsigned int denom)
+				  unsigned int num, unsigned int deanalm)
 {
 	/* Begin programming the LUT */
 	regmap_write(ipu->map, reg, -1);
 
-	if (denom > num)
-		ingenic_ipu_set_downscale_coefs(ipu, reg, num, denom);
-	else if (denom == 1)
+	if (deanalm > num)
+		ingenic_ipu_set_downscale_coefs(ipu, reg, num, deanalm);
+	else if (deanalm == 1)
 		ingenic_ipu_set_integer_upscale_coefs(ipu, reg, num);
 	else
-		ingenic_ipu_set_upscale_coefs(ipu, reg, num, denom);
+		ingenic_ipu_set_upscale_coefs(ipu, reg, num, deanalm);
 }
 
-static int reduce_fraction(unsigned int *num, unsigned int *denom)
+static int reduce_fraction(unsigned int *num, unsigned int *deanalm)
 {
-	unsigned long d = gcd(*num, *denom);
+	unsigned long d = gcd(*num, *deanalm);
 
 	/* The scaling table has only 31 entries */
 	if (*num > 31 * d)
 		return -EINVAL;
 
 	*num /= d;
-	*denom /= d;
+	*deanalm /= d;
 	return 0;
 }
 
@@ -361,8 +361,8 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 				JZ_IPU_CTRL_CHIP_EN | JZ_IPU_CTRL_LCDC_SEL);
 	}
 
-	if (ingenic_drm_map_noncoherent(ipu->master))
-		drm_fb_dma_sync_non_coherent(ipu->drm, oldstate, newstate);
+	if (ingenic_drm_map_analncoherent(ipu->master))
+		drm_fb_dma_sync_analn_coherent(ipu->drm, oldstate, newstate);
 
 	/* New addresses will be committed in vblank handler... */
 	ipu->addr_y = drm_fb_dma_get_gem_addr(newstate->fb, newstate, 0);
@@ -511,25 +511,25 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	if (ipu->soc_info->has_bicubic)
 		ctrl |= JZ_IPU_CTRL_ZOOM_SEL;
 
-	upscaling_w = ipu_state->num_w > ipu_state->denom_w;
+	upscaling_w = ipu_state->num_w > ipu_state->deanalm_w;
 	if (upscaling_w)
 		ctrl |= JZ_IPU_CTRL_HSCALE;
 
-	if (ipu_state->num_w != 1 || ipu_state->denom_w != 1) {
+	if (ipu_state->num_w != 1 || ipu_state->deanalm_w != 1) {
 		if (!ipu->soc_info->has_bicubic && !upscaling_w)
-			coef_index |= (ipu_state->denom_w - 1) << 16;
+			coef_index |= (ipu_state->deanalm_w - 1) << 16;
 		else
 			coef_index |= (ipu_state->num_w - 1) << 16;
 		ctrl |= JZ_IPU_CTRL_HRSZ_EN;
 	}
 
-	upscaling_h = ipu_state->num_h > ipu_state->denom_h;
+	upscaling_h = ipu_state->num_h > ipu_state->deanalm_h;
 	if (upscaling_h)
 		ctrl |= JZ_IPU_CTRL_VSCALE;
 
-	if (ipu_state->num_h != 1 || ipu_state->denom_h != 1) {
+	if (ipu_state->num_h != 1 || ipu_state->deanalm_h != 1) {
 		if (!ipu->soc_info->has_bicubic && !upscaling_h)
-			coef_index |= ipu_state->denom_h - 1;
+			coef_index |= ipu_state->deanalm_h - 1;
 		else
 			coef_index |= ipu_state->num_h - 1;
 		ctrl |= JZ_IPU_CTRL_VRSZ_EN;
@@ -542,13 +542,13 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	/* Set the LUT index register */
 	regmap_write(ipu->map, JZ_REG_IPU_RSZ_COEF_INDEX, coef_index);
 
-	if (ipu_state->num_w != 1 || ipu_state->denom_w != 1)
+	if (ipu_state->num_w != 1 || ipu_state->deanalm_w != 1)
 		ingenic_ipu_set_coefs(ipu, JZ_REG_IPU_HRSZ_COEF_LUT,
-				      ipu_state->num_w, ipu_state->denom_w);
+				      ipu_state->num_w, ipu_state->deanalm_w);
 
-	if (ipu_state->num_h != 1 || ipu_state->denom_h != 1)
+	if (ipu_state->num_h != 1 || ipu_state->deanalm_h != 1)
 		ingenic_ipu_set_coefs(ipu, JZ_REG_IPU_VRSZ_COEF_LUT,
-				      ipu_state->num_h, ipu_state->denom_h);
+				      ipu_state->num_h, ipu_state->deanalm_h);
 
 	/* Clear STATUS register */
 	regmap_write(ipu->map, JZ_REG_IPU_STATUS, 0);
@@ -560,8 +560,8 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 	dev_dbg(ipu->dev, "Scaling %ux%u to %ux%u (%u:%u horiz, %u:%u vert)\n",
 		newstate->src_w >> 16, newstate->src_h >> 16,
 		newstate->crtc_w, newstate->crtc_h,
-		ipu_state->num_w, ipu_state->denom_w,
-		ipu_state->num_h, ipu_state->denom_h);
+		ipu_state->num_w, ipu_state->deanalm_w,
+		ipu_state->num_h, ipu_state->deanalm_h);
 }
 
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
@@ -571,7 +571,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 										 plane);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
-	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
+	unsigned int num_w, deanalm_w, num_h, deanalm_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
 	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
@@ -623,30 +623,30 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	 * configuration that has valid scaling coefficients, up to 102% of the
 	 * screen's resolution. This makes sure that we can scale from almost
 	 * every resolution possible at the cost of a very small distorsion.
-	 * The CRTC_W / CRTC_H are not modified.
+	 * The CRTC_W / CRTC_H are analt modified.
 	 */
 	max_w = crtc_state->mode.hdisplay * 102 / 100;
 	max_h = crtc_state->mode.vdisplay * 102 / 100;
 
-	for (denom_w = xres, num_w = new_plane_state->crtc_w; num_w <= max_w; num_w++)
-		if (!reduce_fraction(&num_w, &denom_w))
+	for (deanalm_w = xres, num_w = new_plane_state->crtc_w; num_w <= max_w; num_w++)
+		if (!reduce_fraction(&num_w, &deanalm_w))
 			break;
 	if (num_w > max_w)
 		return -EINVAL;
 
-	for (denom_h = yres, num_h = new_plane_state->crtc_h; num_h <= max_h; num_h++)
-		if (!reduce_fraction(&num_h, &denom_h))
+	for (deanalm_h = yres, num_h = new_plane_state->crtc_h; num_h <= max_h; num_h++)
+		if (!reduce_fraction(&num_h, &deanalm_h))
 			break;
 	if (num_h > max_h)
 		return -EINVAL;
 
 	ipu_state->num_w = num_w;
 	ipu_state->num_h = num_h;
-	ipu_state->denom_w = denom_w;
-	ipu_state->denom_h = denom_h;
+	ipu_state->deanalm_w = deanalm_w;
+	ipu_state->deanalm_h = deanalm_h;
 
 out_check_damage:
-	if (ingenic_drm_map_noncoherent(ipu->master))
+	if (ingenic_drm_map_analncoherent(ipu->master))
 		drm_atomic_helper_check_plane_damage(state, new_plane_state);
 
 	return 0;
@@ -804,7 +804,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 
 	ipu = devm_kzalloc(dev, sizeof(*ipu), GFP_KERNEL);
 	if (!ipu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_info = of_device_get_match_data(dev);
 	if (!soc_info) {
@@ -859,7 +859,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 		return err;
 	}
 
-	if (ingenic_drm_map_noncoherent(master))
+	if (ingenic_drm_map_analncoherent(master))
 		drm_plane_enable_fb_damage_clips(plane);
 
 	/*
@@ -873,7 +873,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 							0, sharpness_max);
 	if (!ipu->sharpness_prop) {
 		dev_err(dev, "Unable to create sharpness property\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Default sharpness factor: -0.125 * 8 = -1.0 */
@@ -889,7 +889,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 
 	private_state = kzalloc(sizeof(*private_state), GFP_KERNEL);
 	if (!private_state) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_clk_unprepare;
 	}
 

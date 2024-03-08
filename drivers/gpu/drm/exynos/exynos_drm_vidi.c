@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* exynos_drm_vidi.c
+/* exyanals_drm_vidi.c
  *
  * Copyright (C) 2012 Samsung Electronics Co.Ltd
  * Authors:
@@ -17,13 +17,13 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyanals_drm.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_plane.h"
-#include "exynos_drm_vidi.h"
+#include "exyanals_drm_crtc.h"
+#include "exyanals_drm_drv.h"
+#include "exyanals_drm_fb.h"
+#include "exyanals_drm_plane.h"
+#include "exyanals_drm_vidi.h"
 
 /* VIDI uses fixed refresh rate of 50Hz */
 #define VIDI_REFRESH_TIME (1000 / 50)
@@ -38,9 +38,9 @@ struct vidi_context {
 	struct drm_encoder		encoder;
 	struct drm_device		*drm_dev;
 	struct device			*dev;
-	struct exynos_drm_crtc		*crtc;
+	struct exyanals_drm_crtc		*crtc;
 	struct drm_connector		connector;
-	struct exynos_drm_plane		planes[WINDOWS_NR];
+	struct exyanals_drm_plane		planes[WINDOWS_NR];
 	struct edid			*raw_edid;
 	unsigned int			clkdiv;
 	unsigned int			connected;
@@ -91,7 +91,7 @@ static const enum drm_plane_type vidi_win_types[WINDOWS_NR] = {
 	DRM_PLANE_TYPE_CURSOR,
 };
 
-static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
+static int vidi_enable_vblank(struct exyanals_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -104,12 +104,12 @@ static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
 	return 0;
 }
 
-static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
+static void vidi_disable_vblank(struct exyanals_drm_crtc *crtc)
 {
 }
 
-static void vidi_update_plane(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane)
+static void vidi_update_plane(struct exyanals_drm_crtc *crtc,
+			      struct exyanals_drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->base.state;
 	struct vidi_context *ctx = crtc->ctx;
@@ -118,11 +118,11 @@ static void vidi_update_plane(struct exynos_drm_crtc *crtc,
 	if (ctx->suspended)
 		return;
 
-	addr = exynos_drm_fb_dma_addr(state->fb, 0);
+	addr = exyanals_drm_fb_dma_addr(state->fb, 0);
 	DRM_DEV_DEBUG_KMS(ctx->dev, "dma_addr = %pad\n", &addr);
 }
 
-static void vidi_atomic_enable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_enable(struct exyanals_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -135,7 +135,7 @@ static void vidi_atomic_enable(struct exynos_drm_crtc *crtc)
 	drm_crtc_vblank_on(&crtc->base);
 }
 
-static void vidi_atomic_disable(struct exynos_drm_crtc *crtc)
+static void vidi_atomic_disable(struct exyanals_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
@@ -148,13 +148,13 @@ static void vidi_atomic_disable(struct exynos_drm_crtc *crtc)
 	mutex_unlock(&ctx->lock);
 }
 
-static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
+static const struct exyanals_drm_crtc_ops vidi_crtc_ops = {
 	.atomic_enable = vidi_atomic_enable,
 	.atomic_disable = vidi_atomic_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,
-	.atomic_flush = exynos_crtc_handle_event,
+	.atomic_flush = exyanals_crtc_handle_event,
 };
 
 static void vidi_fake_vblank_timer(struct timer_list *t)
@@ -201,7 +201,7 @@ static ssize_t vidi_store_connection(struct device *dev,
 
 	/* if raw_edid isn't same as fake data then it can't be tested. */
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
-		DRM_DEV_DEBUG_KMS(dev, "edid data is not fake data.\n");
+		DRM_DEV_DEBUG_KMS(dev, "edid data is analt fake data.\n");
 		return -EINVAL;
 	}
 
@@ -225,7 +225,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 				struct drm_file *file_priv)
 {
 	struct vidi_context *ctx = dev_get_drvdata(drm_dev->dev);
-	struct drm_exynos_vidi_connection *vidi = data;
+	struct drm_exyanals_vidi_connection *vidi = data;
 
 	if (!vidi) {
 		DRM_DEV_DEBUG_KMS(ctx->dev,
@@ -258,7 +258,7 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 		if (!ctx->raw_edid) {
 			DRM_DEV_DEBUG_KMS(ctx->dev,
 					  "failed to allocate raw_edid.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		/*
@@ -323,7 +323,7 @@ static int vidi_get_modes(struct drm_connector *connector)
 	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
 		DRM_DEV_DEBUG_KMS(ctx->dev, "failed to allocate edid\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_connector_update_edid_property(connector, edid);
@@ -357,24 +357,24 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static void exynos_vidi_mode_set(struct drm_encoder *encoder,
+static void exyanals_vidi_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
 }
 
-static void exynos_vidi_enable(struct drm_encoder *encoder)
+static void exyanals_vidi_enable(struct drm_encoder *encoder)
 {
 }
 
-static void exynos_vidi_disable(struct drm_encoder *encoder)
+static void exyanals_vidi_disable(struct drm_encoder *encoder)
 {
 }
 
-static const struct drm_encoder_helper_funcs exynos_vidi_encoder_helper_funcs = {
-	.mode_set = exynos_vidi_mode_set,
-	.enable = exynos_vidi_enable,
-	.disable = exynos_vidi_disable,
+static const struct drm_encoder_helper_funcs exyanals_vidi_encoder_helper_funcs = {
+	.mode_set = exyanals_vidi_mode_set,
+	.enable = exyanals_vidi_enable,
+	.disable = exyanals_vidi_disable,
 };
 
 static int vidi_bind(struct device *dev, struct device *master, void *data)
@@ -382,8 +382,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	struct vidi_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &ctx->encoder;
-	struct exynos_drm_plane *exynos_plane;
-	struct exynos_drm_plane_config plane_config = { 0 };
+	struct exyanals_drm_plane *exyanals_plane;
+	struct exyanals_drm_plane_config plane_config = { 0 };
 	unsigned int i;
 	int ret;
 
@@ -396,15 +396,15 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		plane_config.zpos = i;
 		plane_config.type = vidi_win_types[i];
 
-		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
+		ret = exyanals_plane_init(drm_dev, &ctx->planes[i], i,
 					&plane_config);
 		if (ret)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[DEFAULT_WIN];
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-			EXYNOS_DISPLAY_TYPE_VIDI, &vidi_crtc_ops, ctx);
+	exyanals_plane = &ctx->planes[DEFAULT_WIN];
+	ctx->crtc = exyanals_drm_crtc_create(drm_dev, &exyanals_plane->base,
+			EXYANALS_DISPLAY_TYPE_VIDI, &vidi_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		DRM_DEV_ERROR(dev, "failed to create crtc.\n");
 		return PTR_ERR(ctx->crtc);
@@ -412,9 +412,9 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
-	drm_encoder_helper_add(encoder, &exynos_vidi_encoder_helper_funcs);
+	drm_encoder_helper_add(encoder, &exyanals_vidi_encoder_helper_funcs);
 
-	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_VIDI);
+	ret = exyanals_drm_set_possible_crtcs(encoder, EXYANALS_DISPLAY_TYPE_VIDI);
 	if (ret < 0)
 		return ret;
 
@@ -449,7 +449,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
@@ -478,7 +478,7 @@ struct platform_driver vidi_driver = {
 	.probe		= vidi_probe,
 	.remove_new	= vidi_remove,
 	.driver		= {
-		.name	= "exynos-drm-vidi",
+		.name	= "exyanals-drm-vidi",
 		.owner	= THIS_MODULE,
 		.dev_groups = vidi_groups,
 	},

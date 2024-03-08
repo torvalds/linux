@@ -8,7 +8,7 @@
  *    Copyright (c) 2004 Freescale Semiconductor, Inc
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>

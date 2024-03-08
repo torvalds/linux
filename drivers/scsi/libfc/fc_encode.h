@@ -82,7 +82,7 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 /**
  * fc_ct_ns_fill() - Fill in a name service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of analn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.
@@ -176,7 +176,7 @@ static inline void fc_ct_ms_fill_attr(struct fc_fdmi_attr_entry *entry,
 /**
  * fc_ct_ms_fill() - Fill in a mgmt service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of analn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.
@@ -200,7 +200,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		len = sizeof(struct fc_fdmi_rhba);
 		len -= sizeof(struct fc_fdmi_attr_entry);
 		len += (numattrs * FC_FDMI_ATTR_ENTRY_HEADER_LEN);
-		len += FC_FDMI_HBA_ATTR_NODENAME_LEN;
+		len += FC_FDMI_HBA_ATTR_ANALDENAME_LEN;
 		len += FC_FDMI_HBA_ATTR_MANUFACTURER_LEN;
 		len += FC_FDMI_HBA_ATTR_SERIALNUMBER_LEN;
 		len += FC_FDMI_HBA_ATTR_MODEL_LEN;
@@ -214,7 +214,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 
 		if (fc_host->fdmi_version == FDMI_V2) {
 			numattrs += 7;
-			len += FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN;
+			len += FC_FDMI_HBA_ATTR_ANALDESYMBLNAME_LEN;
 			len += FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN;
 			len += FC_FDMI_HBA_ATTR_NUMBEROFPORTS_LEN;
 			len += FC_FDMI_HBA_ATTR_FABRICNAME_LEN;
@@ -239,10 +239,10 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &ct->payload.rhba.hba_attrs.numattrs);
 		hba_attrs = &ct->payload.rhba.hba_attrs;
 		entry = (struct fc_fdmi_attr_entry *)hba_attrs->attr;
-		/* NodeName*/
+		/* AnaldeName*/
 		len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
-		len += FC_FDMI_HBA_ATTR_NODENAME_LEN;
-		put_unaligned_be16(FC_FDMI_HBA_ATTR_NODENAME,
+		len += FC_FDMI_HBA_ATTR_ANALDENAME_LEN;
+		put_unaligned_be16(FC_FDMI_HBA_ATTR_ANALDENAME,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		put_unaligned_be64(lport->wwnn,
@@ -250,7 +250,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 
 		/* Manufacturer */
 		entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
-					FC_FDMI_HBA_ATTR_NODENAME_LEN);
+					FC_FDMI_HBA_ATTR_ANALDENAME_LEN);
 		len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
 		len += FC_FDMI_HBA_ATTR_MANUFACTURER_LEN;
 		put_unaligned_be16(FC_FDMI_HBA_ATTR_MANUFACTURER,
@@ -329,7 +329,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		fc_ct_ms_fill_attr(entry,
-			"unknown",
+			"unkanalwn",
 			FC_FDMI_HBA_ATTR_OPTIONROMVERSION_LEN);
 
 		/* Firmware Version */
@@ -370,21 +370,21 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				&entry->value);
 
 		if (fc_host->fdmi_version == FDMI_V2) {
-			/* Node symbolic name */
+			/* Analde symbolic name */
 			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
 					FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN);
 			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
-			len += FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN;
-			put_unaligned_be16(FC_FDMI_HBA_ATTR_NODESYMBLNAME,
+			len += FC_FDMI_HBA_ATTR_ANALDESYMBLNAME_LEN;
+			put_unaligned_be16(FC_FDMI_HBA_ATTR_ANALDESYMBLNAME,
 					&entry->type);
 			put_unaligned_be16(len, &entry->len);
 			fc_ct_ms_fill_attr(entry,
 					fc_host_symbolic_name(lport->host),
-					FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN);
+					FC_FDMI_HBA_ATTR_ANALDESYMBLNAME_LEN);
 
 			/* Vendor specific info */
 			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
-					FC_FDMI_HBA_ATTR_NODESYMBLNAME_LEN);
+					FC_FDMI_HBA_ATTR_ANALDESYMBLNAME_LEN);
 			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
 			len += FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO_LEN;
 			put_unaligned_be16(FC_FDMI_HBA_ATTR_VENDORSPECIFICINFO,
@@ -468,7 +468,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 		if (fc_host->fdmi_version == FDMI_V2) {
 			numattrs += 10;
 
-			len += FC_FDMI_PORT_ATTR_NODENAME_LEN;
+			len += FC_FDMI_PORT_ATTR_ANALDENAME_LEN;
 			len += FC_FDMI_PORT_ATTR_PORTNAME_LEN;
 			len += FC_FDMI_PORT_ATTR_SYMBOLICNAME_LEN;
 			len += FC_FDMI_PORT_ATTR_PORTTYPE_LEN;
@@ -567,26 +567,26 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 					FC_FDMI_PORT_ATTR_HOSTNAME_LEN));
 		else
 			fc_ct_ms_fill_attr(entry,
-				init_utsname()->nodename,
+				init_utsname()->analdename,
 				FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
 
 
 		if (fc_host->fdmi_version == FDMI_V2) {
 
-			/* Node name */
+			/* Analde name */
 			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
 					FC_FDMI_PORT_ATTR_HOSTNAME_LEN);
 			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
-			len += FC_FDMI_PORT_ATTR_NODENAME_LEN;
-			put_unaligned_be16(FC_FDMI_PORT_ATTR_NODENAME,
+			len += FC_FDMI_PORT_ATTR_ANALDENAME_LEN;
+			put_unaligned_be16(FC_FDMI_PORT_ATTR_ANALDENAME,
 					&entry->type);
 			put_unaligned_be16(len, &entry->len);
-			put_unaligned_be64(fc_host_node_name(lport->host),
+			put_unaligned_be64(fc_host_analde_name(lport->host),
 					&entry->value);
 
 			/* Port name  */
 			entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +
-					FC_FDMI_PORT_ATTR_NODENAME_LEN);
+					FC_FDMI_PORT_ATTR_ANALDENAME_LEN);
 			len = FC_FDMI_ATTR_ENTRY_HEADER_LEN;
 			len += FC_FDMI_PORT_ATTR_PORTNAME_LEN;
 			put_unaligned_be16(FC_FDMI_PORT_ATTR_PORTNAME,
@@ -712,7 +712,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 /**
  * fc_ct_fill() - Fill in a common transport service request frame
  * @lport: local port.
- * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fc_id: FC_ID of analn-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
  * @op: CT opcode.
  * @r_ctl: pointer to FC header R_CTL.

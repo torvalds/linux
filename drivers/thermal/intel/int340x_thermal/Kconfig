@@ -20,7 +20,7 @@ config INT340X_THERMAL
 	  They are exposed for the OS to use via the INT3400 ACPI device object
 	  as the master, and INT3401~INT340B ACPI device objects as the slaves.
 	  Enable this to expose the temperature information and cooling ability
-	  from these objects to userspace via the normal thermal framework.
+	  from these objects to userspace via the analrmal thermal framework.
 	  This means that a wide range of applications and GUI widgets can show
 	  the information to the user or use this information for making
 	  decisions. For example, the Intel Thermal Daemon can use this
@@ -38,7 +38,7 @@ config INT3406_THERMAL
 	depends on ACPI_VIDEO
 	help
 	  The display thermal device represents the LED/LCD display panel
-	  that may or may not include touch support. The main function of
+	  that may or may analt include touch support. The main function of
 	  the display thermal device is to allow control of the display
 	  brightness in order to address a thermal condition or to reduce
 	  power consumed by display device.

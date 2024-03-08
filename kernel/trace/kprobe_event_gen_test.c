@@ -91,7 +91,7 @@ static int __init test_gen_kprobe_cmd(void)
 	/* Create a buffer to hold the generated command */
 	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Before generating the command, initialize the cmd object */
 	kprobe_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
@@ -120,7 +120,7 @@ static int __init test_gen_kprobe_cmd(void)
 		goto out;
 
 	/*
-	 * Now get the gen_kprobe_test event file.  We need to prevent
+	 * Analw get the gen_kprobe_test event file.  We need to prevent
 	 * the instance and event from disappearing from underneath
 	 * us, which trace_get_event_file() does (though in this case
 	 * we're using the top-level instance which never goes away).
@@ -162,7 +162,7 @@ static int __init test_gen_kretprobe_cmd(void)
 	/* Create a buffer to hold the generated command */
 	buf = kzalloc(MAX_DYNEVENT_CMD_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Before generating the command, initialize the cmd object */
 	kprobe_event_cmd_init(&cmd, buf, MAX_DYNEVENT_CMD_LEN);
@@ -184,7 +184,7 @@ static int __init test_gen_kretprobe_cmd(void)
 		goto out;
 
 	/*
-	 * Now get the gen_kretprobe_test event file.  We need to
+	 * Analw get the gen_kretprobe_test event file.  We need to
 	 * prevent the instance and event from disappearing from
 	 * underneath us, which trace_get_event_file() does (though in
 	 * this case we're using the top-level instance which never
@@ -245,12 +245,12 @@ static void __exit kprobe_event_gen_test_exit(void)
 						  "kprobes",
 						  "gen_kprobe_test", false));
 
-		/* Now give the file and instance back */
+		/* Analw give the file and instance back */
 		trace_put_event_file(gen_kprobe_test);
 	}
 
 
-	/* Now unregister and free the event */
+	/* Analw unregister and free the event */
 	WARN_ON(kprobe_event_delete("gen_kprobe_test"));
 
 	if (trace_event_file_is_valid(gen_kretprobe_test)) {
@@ -259,12 +259,12 @@ static void __exit kprobe_event_gen_test_exit(void)
 						  "kprobes",
 						  "gen_kretprobe_test", false));
 
-		/* Now give the file and instance back */
+		/* Analw give the file and instance back */
 		trace_put_event_file(gen_kretprobe_test);
 	}
 
 
-	/* Now unregister and free the event */
+	/* Analw unregister and free the event */
 	WARN_ON(kprobe_event_delete("gen_kretprobe_test"));
 }
 

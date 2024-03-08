@@ -110,9 +110,9 @@ void prom_cmdline(void)
 }
 
 /* Drop into the prom, but completely terminate the program.
- * No chance of continuing.
+ * Anal chance of continuing.
  */
-void notrace prom_halt(void)
+void analtrace prom_halt(void)
 {
 	unsigned long args[3];
 
@@ -141,7 +141,7 @@ void prom_halt_power_off(void)
 	args[2] = 0;
 	p1275_cmd_direct(args);
 
-	/* if nothing else helps, we just halt */
+	/* if analthing else helps, we just halt */
 	prom_halt();
 }
 
@@ -153,10 +153,10 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 {
 	int len;
 
-	len = prom_getproplen(prom_root_node, "idprom");
+	len = prom_getproplen(prom_root_analde, "idprom");
 	if ((len >num_bytes) || (len == -1))
 		return 0xff;
-	if (!prom_getproperty(prom_root_node, "idprom", idbuf, num_bytes))
+	if (!prom_getproperty(prom_root_analde, "idprom", idbuf, num_bytes))
 		return idbuf[0];
 
 	return 0xff;
@@ -164,14 +164,14 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 
 int prom_get_mmu_ihandle(void)
 {
-	phandle node;
+	phandle analde;
 	int ret;
 
 	if (prom_mmu_ihandle_cache != 0)
 		return prom_mmu_ihandle_cache;
 
-	node = prom_finddevice(prom_chosen_path);
-	ret = prom_getint(node, prom_mmu_name);
+	analde = prom_finddevice(prom_chosen_path);
+	ret = prom_getint(analde, prom_mmu_name);
 	if (ret == -1 || ret == 0)
 		prom_mmu_ihandle_cache = -1;
 	else
@@ -183,14 +183,14 @@ int prom_get_mmu_ihandle(void)
 static int prom_get_memory_ihandle(void)
 {
 	static int memory_ihandle_cache;
-	phandle node;
+	phandle analde;
 	int ret;
 
 	if (memory_ihandle_cache != 0)
 		return memory_ihandle_cache;
 
-	node = prom_finddevice("/chosen");
-	ret = prom_getint(node, "memory");
+	analde = prom_finddevice("/chosen");
+	ret = prom_getint(analde, "memory");
 	if (ret == -1 || ret == 0)
 		memory_ihandle_cache = -1;
 	else
@@ -275,7 +275,7 @@ void prom_unmap(unsigned long size, unsigned long vaddr)
 	p1275_cmd_direct(args);
 }
 
-/* Set aside physical memory which is not touched or modified
+/* Set aside physical memory which is analt touched or modified
  * across soft resets.
  */
 int prom_retain(const char *name, unsigned long size,
@@ -377,14 +377,14 @@ int prom_wakeupsystem(void)
 }
 
 #ifdef CONFIG_SMP
-void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg)
+void prom_startcpu(int cpuanalde, unsigned long pc, unsigned long arg)
 {
 	unsigned long args[6];
 
 	args[0] = (unsigned long) "SUNW,start-cpu";
 	args[1] = 3;
 	args[2] = 0;
-	args[3] = (unsigned int) cpunode;
+	args[3] = (unsigned int) cpuanalde;
 	args[4] = pc;
 	args[5] = arg;
 	p1275_cmd_direct(args);
@@ -434,14 +434,14 @@ void prom_idleself(void)
 	p1275_cmd_direct(args);
 }
 
-void prom_resumecpu(int cpunode)
+void prom_resumecpu(int cpuanalde)
 {
 	unsigned long args[4];
 
 	args[0] = (unsigned long) "SUNW,resume-cpu";
 	args[1] = 1;
 	args[2] = 0;
-	args[3] = (unsigned int) cpunode;
+	args[3] = (unsigned int) cpuanalde;
 	p1275_cmd_direct(args);
 }
 #endif

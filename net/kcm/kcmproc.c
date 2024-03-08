@@ -360,7 +360,7 @@ static int kcm_proc_init_net(struct net *net)
 out_kcm:
 	remove_proc_entry("kcm_stats", net->proc_net);
 out_kcm_stats:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void kcm_proc_exit_net(struct net *net)

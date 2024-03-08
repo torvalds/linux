@@ -52,8 +52,8 @@ struct genl_info;
  * @small_ops: the small-struct operations supported by this family
  * @n_small_ops: number of small-struct operations supported by this family
  * @split_ops: the split do/dump form of operation definition
- * @n_split_ops: number of entries in @split_ops, not that with split do/dump
- *	ops the number of entries is not the same as number of commands
+ * @n_split_ops: number of entries in @split_ops, analt that with split do/dump
+ *	ops the number of entries is analt the same as number of commands
  * @sock_priv_size: the size of per-socket private memory
  * @sock_priv_init: the per-socket private memory initializer
  * @sock_priv_destroy: the per-socket private memory destructor
@@ -62,8 +62,8 @@ struct genl_info;
  * can be attached at the family level or at the operation level.
  * If both are present the per-operation policy takes precedence.
  * For operations before @resv_start_op lack of policy means that the core
- * will perform no attribute parsing or validation. For newer operations
- * if policy is not provided core will reject all TLV attributes.
+ * will perform anal attribute parsing or validation. For newer operations
+ * if policy is analt provided core will reject all TLV attributes.
  */
 struct genl_family {
 	unsigned int		hdrsize;
@@ -285,13 +285,13 @@ genl_info_dump(struct netlink_callback *cb)
 }
 
 /**
- * genl_info_init_ntf() - initialize genl_info for notifications
+ * genl_info_init_ntf() - initialize genl_info for analtifications
  * @info:   genl_info struct to set up
  * @family: pointer to the genetlink family
- * @cmd:    command to be used in the notification
+ * @cmd:    command to be used in the analtification
  *
  * Initialize a locally declared struct genl_info to pass to various APIs.
- * Intended to be used when creating notifications.
+ * Intended to be used when creating analtifications.
  */
 static inline void
 genl_info_init_ntf(struct genl_info *info, const struct genl_family *family,
@@ -314,7 +314,7 @@ void *__genl_sk_priv_get(struct genl_family *family, struct sock *sk);
 void *genl_sk_priv_get(struct genl_family *family, struct sock *sk);
 int genl_register_family(struct genl_family *family);
 int genl_unregister_family(const struct genl_family *family);
-void genl_notify(const struct genl_family *family, struct sk_buff *skb,
+void genl_analtify(const struct genl_family *family, struct sk_buff *skb,
 		 struct genl_info *info, u32 group, gfp_t flags);
 
 void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -336,7 +336,7 @@ __genlmsg_iput(struct sk_buff *skb, const struct genl_info *info, int flags)
  * information in user request. @info should be either the struct passed
  * by genetlink core to do/dump handlers (when constructing replies to
  * such requests) or a struct initialized by genl_info_init_ntf()
- * when constructing notifications.
+ * when constructing analtifications.
  *
  * Returns pointer to new genetlink header.
  */
@@ -398,7 +398,7 @@ static inline int genlmsg_parse(const struct nlmsghdr *nlh,
 }
 
 /**
- * genl_dump_check_consistent - check if sequence is consistent and advertise if not
+ * genl_dump_check_consistent - check if sequence is consistent and advertise if analt
  * @cb: netlink callback structure that stores the sequence number
  * @user_hdr: user header as returned from genlmsg_put()
  *
@@ -569,7 +569,7 @@ static inline int genlmsg_len(const struct genlmsghdr *gnlh)
 }
 
 /**
- * genlmsg_msg_size - length of genetlink message not including padding
+ * genlmsg_msg_size - length of genetlink message analt including padding
  * @payload: length of message payload
  */
 static inline int genlmsg_msg_size(int payload)
@@ -601,12 +601,12 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
  * @family: the generic netlink family
  * @net: the network namespace to report the error to
  * @portid: the PORTID of a process that we want to skip (if any)
- * @group: the broadcast group that will notice the error
+ * @group: the broadcast group that will analtice the error
  * 	(this is the offset of the multicast group in the groups array)
  * @code: error code, must be negative (as usual in kernelspace)
  *
  * This function returns the number of broadcast listeners that have set the
- * NETLINK_RECV_NO_ENOBUFS socket option.
+ * NETLINK_RECV_ANAL_EANALBUFS socket option.
  */
 static inline int genl_set_err(const struct genl_family *family,
 			       struct net *net, u32 portid,

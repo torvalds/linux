@@ -32,14 +32,14 @@ int bch2_printbuf_make_room(struct printbuf *out, unsigned extra)
 	new_size = roundup_pow_of_two(out->size + extra);
 
 	/*
-	 * Note: output buffer must be freeable with kfree(), it's not required
+	 * Analte: output buffer must be freeable with kfree(), it's analt required
 	 * that the user use printbuf_exit().
 	 */
-	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_NOWAIT);
+	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_ANALWAIT);
 
 	if (!buf) {
 		out->allocation_failure = true;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	out->buf	= buf;
@@ -92,7 +92,7 @@ const char *bch2_printbuf_str(const struct printbuf *buf)
 {
 	/*
 	 * If we've written to a printbuf then it's guaranteed to be a null
-	 * terminated string - but if we haven't, then we might not have
+	 * terminated string - but if we haven't, then we might analt have
 	 * allocated a buffer at all:
 	 */
 	return buf->pos

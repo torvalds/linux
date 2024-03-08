@@ -13,7 +13,7 @@ struct lima_bo_va {
 	struct list_head list;
 	unsigned int ref_count;
 
-	struct drm_mm_node node;
+	struct drm_mm_analde analde;
 
 	struct lima_vm *vm;
 };
@@ -56,9 +56,9 @@ static int lima_vm_map_page(struct lima_vm *vm, dma_addr_t pa, u32 va)
 
 		vm->bts[pbe].cpu = dma_alloc_wc(
 			vm->dev->dev, LIMA_PAGE_SIZE << LIMA_VM_NUM_PT_PER_BT_SHIFT,
-			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+			&vm->bts[pbe].dma, GFP_KERNEL | __GFP_ANALWARN | __GFP_ZERO);
 		if (!vm->bts[pbe].cpu)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pts = vm->bts[pbe].dma;
 		pd = vm->pd.cpu + (pbe << LIMA_VM_NUM_PT_PER_BT_SHIFT);
@@ -103,15 +103,15 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 		return 0;
 	}
 
-	/* should not create new bo_va if not asked by caller */
+	/* should analt create new bo_va if analt asked by caller */
 	if (!create) {
 		mutex_unlock(&bo->lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	bo_va = kzalloc(sizeof(*bo_va), GFP_KERNEL);
 	if (!bo_va) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out0;
 	}
 
@@ -120,13 +120,13 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 	mutex_lock(&vm->lock);
 
-	err = drm_mm_insert_node(&vm->mm, &bo_va->node, lima_bo_size(bo));
+	err = drm_mm_insert_analde(&vm->mm, &bo_va->analde, lima_bo_size(bo));
 	if (err)
 		goto err_out1;
 
 	for_each_sgtable_dma_page(bo->base.sgt, &sg_iter, 0) {
 		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
-				       bo_va->node.start + offset);
+				       bo_va->analde.start + offset);
 		if (err)
 			goto err_out2;
 
@@ -142,8 +142,8 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 
 err_out2:
 	if (offset)
-		lima_vm_unmap_range(vm, bo_va->node.start, bo_va->node.start + offset - 1);
-	drm_mm_remove_node(&bo_va->node);
+		lima_vm_unmap_range(vm, bo_va->analde.start, bo_va->analde.start + offset - 1);
+	drm_mm_remove_analde(&bo_va->analde);
 err_out1:
 	mutex_unlock(&vm->lock);
 	kfree(bo_va);
@@ -167,11 +167,11 @@ void lima_vm_bo_del(struct lima_vm *vm, struct lima_bo *bo)
 
 	mutex_lock(&vm->lock);
 
-	size = bo->heap_size ? bo->heap_size : bo_va->node.size;
-	lima_vm_unmap_range(vm, bo_va->node.start,
-			    bo_va->node.start + size - 1);
+	size = bo->heap_size ? bo->heap_size : bo_va->analde.size;
+	lima_vm_unmap_range(vm, bo_va->analde.start,
+			    bo_va->analde.start + size - 1);
 
-	drm_mm_remove_node(&bo_va->node);
+	drm_mm_remove_analde(&bo_va->analde);
 
 	mutex_unlock(&vm->lock);
 
@@ -190,7 +190,7 @@ u32 lima_vm_get_va(struct lima_vm *vm, struct lima_bo *bo)
 	mutex_lock(&bo->lock);
 
 	bo_va = lima_vm_bo_find(vm, bo);
-	ret = bo_va->node.start;
+	ret = bo_va->analde.start;
 
 	mutex_unlock(&bo->lock);
 
@@ -210,7 +210,7 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 	kref_init(&vm->refcount);
 
 	vm->pd.cpu = dma_alloc_wc(dev->dev, LIMA_PAGE_SIZE, &vm->pd.dma,
-				  GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
+				  GFP_KERNEL | __GFP_ANALWARN | __GFP_ZERO);
 	if (!vm->pd.cpu)
 		goto err_out0;
 
@@ -291,13 +291,13 @@ int lima_vm_map_bo(struct lima_vm *vm, struct lima_bo *bo, int pageoff)
 
 	bo_va = lima_vm_bo_find(vm, bo);
 	if (!bo_va) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out0;
 	}
 
 	mutex_lock(&vm->lock);
 
-	base = bo_va->node.start + (pageoff << PAGE_SHIFT);
+	base = bo_va->analde.start + (pageoff << PAGE_SHIFT);
 	for_each_sgtable_dma_page(bo->base.sgt, &sg_iter, pageoff) {
 		err = lima_vm_map_page(vm, sg_page_iter_dma_address(&sg_iter),
 				       base + offset);

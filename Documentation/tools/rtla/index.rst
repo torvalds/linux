@@ -11,13 +11,13 @@ behavior on specific hardware.
    :maxdepth: 1
 
    rtla
-   rtla-osnoise
-   rtla-osnoise-hist
-   rtla-osnoise-top
+   rtla-osanalise
+   rtla-osanalise-hist
+   rtla-osanalise-top
    rtla-timerlat
    rtla-timerlat-hist
    rtla-timerlat-top
-   rtla-hwnoise
+   rtla-hwanalise
 
 .. only::  subproject and html
 

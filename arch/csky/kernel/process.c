@@ -80,13 +80,13 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
 {
 	struct pt_regs *regs = task_pt_regs(tsk);
 
-	/* NOTE: usp is error value. */
+	/* ANALTE: usp is error value. */
 	ELF_CORE_COPY_REGS((*pr_regs), regs)
 
 	return 1;
 }
 
-#ifndef CONFIG_CPU_PM_NONE
+#ifndef CONFIG_CPU_PM_ANALNE
 void arch_cpu_idle(void)
 {
 #ifdef CONFIG_CPU_PM_WAIT

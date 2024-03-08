@@ -65,12 +65,12 @@ static int add_hist_entries(struct evlist *evlist,
 			struct hist_entry_iter iter = {
 				.evsel = evsel,
 				.sample = &sample,
-				.ops = &hist_iter_normal,
+				.ops = &hist_iter_analrmal,
 				.hide_unresolved = false,
 			};
 			struct hists *hists = evsel__hists(evsel);
 
-			/* make sure it has no filter at first */
+			/* make sure it has anal filter at first */
 			hists->thread_filter = NULL;
 			hists->dso_filter = NULL;
 			hists->symbol_filter_str = NULL;
@@ -100,7 +100,7 @@ static int add_hist_entries(struct evlist *evlist,
 	return 0;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Analt eanalugh memory for adding a hist entry\n");
 	addr_location__exit(&al);
 	return TEST_FAIL;
 }
@@ -121,7 +121,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 	struct evsel *evsel;
 	struct evlist *evlist = evlist__new();
 
-	TEST_ASSERT_VAL("No memory", evlist);
+	TEST_ASSERT_VAL("Anal memory", evlist);
 
 	err = parse_event(evlist, "cpu-clock");
 	if (err)
@@ -157,7 +157,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 		evsel__output_resort(evsel, NULL);
 
 		if (verbose > 2) {
-			pr_info("Normal histogram\n");
+			pr_info("Analrmal histogram\n");
 			print_hists_out(hists);
 		}
 
@@ -169,14 +169,14 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 				hists->stats.total_period == 1000);
 		TEST_ASSERT_VAL("Unmatched nr samples",
 				hists->stats.nr_samples ==
-				hists->stats.nr_non_filtered_samples);
+				hists->stats.nr_analn_filtered_samples);
 		TEST_ASSERT_VAL("Unmatched nr hist entries",
-				hists->nr_entries == hists->nr_non_filtered_entries);
+				hists->nr_entries == hists->nr_analn_filtered_entries);
 		TEST_ASSERT_VAL("Unmatched total period",
 				hists->stats.total_period ==
-				hists->stats.total_non_filtered_period);
+				hists->stats.total_analn_filtered_period);
 
-		/* now applying thread filter for 'bash' */
+		/* analw applying thread filter for 'bash' */
 		hists->thread_filter = fake_samples[9].thread;
 		hists__filter_by_thread(hists);
 
@@ -185,7 +185,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* analrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_samples == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -195,17 +195,17 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for thread filter",
-				hists->stats.nr_non_filtered_samples == 4);
+				hists->stats.nr_analn_filtered_samples == 4);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for thread filter",
-				hists->nr_non_filtered_entries == 4);
+				hists->nr_analn_filtered_entries == 4);
 		TEST_ASSERT_VAL("Unmatched total period for thread filter",
-				hists->stats.total_non_filtered_period == 400);
+				hists->stats.total_analn_filtered_period == 400);
 
 		/* remove thread filter first */
 		hists->thread_filter = NULL;
 		hists__filter_by_thread(hists);
 
-		/* now applying dso filter for 'kernel' */
+		/* analw applying dso filter for 'kernel' */
 		hists->dso_filter = map__dso(fake_samples[0].map);
 		hists__filter_by_dso(hists);
 
@@ -214,7 +214,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* analrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_samples == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -224,18 +224,18 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for dso filter",
-				hists->stats.nr_non_filtered_samples == 3);
+				hists->stats.nr_analn_filtered_samples == 3);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for dso filter",
-				hists->nr_non_filtered_entries == 3);
+				hists->nr_analn_filtered_entries == 3);
 		TEST_ASSERT_VAL("Unmatched total period for dso filter",
-				hists->stats.total_non_filtered_period == 300);
+				hists->stats.total_analn_filtered_period == 300);
 
 		/* remove dso filter first */
 		hists->dso_filter = NULL;
 		hists__filter_by_dso(hists);
 
 		/*
-		 * now applying symbol filter for 'main'.  Also note that
+		 * analw applying symbol filter for 'main'.  Also analte that
 		 * there's 3 samples that have 'main' symbol but the 4th
 		 * entry of fake_samples was collapsed already so it won't
 		 * be counted as a separate entry but the sample count and
@@ -249,7 +249,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* analrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_samples == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -259,17 +259,17 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for symbol filter",
-				hists->stats.nr_non_filtered_samples == 3);
+				hists->stats.nr_analn_filtered_samples == 3);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for symbol filter",
-				hists->nr_non_filtered_entries == 2);
+				hists->nr_analn_filtered_entries == 2);
 		TEST_ASSERT_VAL("Unmatched total period for symbol filter",
-				hists->stats.total_non_filtered_period == 300);
+				hists->stats.total_analn_filtered_period == 300);
 
 		/* remove symbol filter first */
 		hists->symbol_filter_str = NULL;
 		hists__filter_by_symbol(hists);
 
-		/* now applying socket filters */
+		/* analw applying socket filters */
 		hists->socket_filter = 2;
 		hists__filter_by_socket(hists);
 
@@ -278,7 +278,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* analrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_samples == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -288,17 +288,17 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for socket filter",
-				hists->stats.nr_non_filtered_samples == 2);
+				hists->stats.nr_analn_filtered_samples == 2);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for socket filter",
-				hists->nr_non_filtered_entries == 2);
+				hists->nr_analn_filtered_entries == 2);
 		TEST_ASSERT_VAL("Unmatched total period for socket filter",
-				hists->stats.total_non_filtered_period == 200);
+				hists->stats.total_analn_filtered_period == 200);
 
 		/* remove socket filter first */
 		hists->socket_filter = -1;
 		hists__filter_by_socket(hists);
 
-		/* now applying all filters at once. */
+		/* analw applying all filters at once. */
 		hists->thread_filter = fake_samples[1].thread;
 		hists->dso_filter = map__dso(fake_samples[1].map);
 		hists__filter_by_thread(hists);
@@ -309,7 +309,7 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 			print_hists_out(hists);
 		}
 
-		/* normal stats should be invariant */
+		/* analrmal stats should be invariant */
 		TEST_ASSERT_VAL("Invalid nr samples",
 				hists->stats.nr_samples == 10);
 		TEST_ASSERT_VAL("Invalid nr hist entries",
@@ -319,11 +319,11 @@ static int test__hists_filter(struct test_suite *test __maybe_unused, int subtes
 
 		/* but filter stats are changed */
 		TEST_ASSERT_VAL("Unmatched nr samples for all filter",
-				hists->stats.nr_non_filtered_samples == 2);
+				hists->stats.nr_analn_filtered_samples == 2);
 		TEST_ASSERT_VAL("Unmatched nr hist entries for all filter",
-				hists->nr_non_filtered_entries == 1);
+				hists->nr_analn_filtered_entries == 1);
 		TEST_ASSERT_VAL("Unmatched total period for all filter",
-				hists->stats.total_non_filtered_period == 200);
+				hists->stats.total_analn_filtered_period == 200);
 	}
 
 

@@ -9,7 +9,7 @@ KSM is a memory-saving de-duplication feature, enabled by CONFIG_KSM=y,
 added to the Linux kernel in 2.6.32.  See ``mm/ksm.c`` for its implementation,
 and http://lwn.net/Articles/306704/ and https://lwn.net/Articles/330589/
 
-KSM was originally developed for use with KVM (where it was known as
+KSM was originally developed for use with KVM (where it was kanalwn as
 Kernel Shared Memory), to fit more virtual machines into physical memory,
 by sharing the data common between them.  But it can be useful to any
 application which generates many instances of the same data.
@@ -22,8 +22,8 @@ content). The amount of pages that KSM daemon scans in a single pass
 and the time between the passes are configured using :ref:`sysfs
 interface <ksm_sysfs>`
 
-KSM only merges anonymous (private) pages, never pagecache (file) pages.
-KSM's merged pages were originally locked into kernel memory, but can now
+KSM only merges aanalnymous (private) pages, never pagecache (file) pages.
+KSM's merged pages were originally locked into kernel memory, but can analw
 be swapped out just like other user pages (but sharing is broken when they
 are swapped back in: ksmd must rediscover their identity and merge again).
 
@@ -43,26 +43,26 @@ The app may call
 	int madvise(addr, length, MADV_UNMERGEABLE)
 
 to cancel that advice and restore unshared pages: whereupon KSM
-unmerges whatever it merged in that range.  Note: this unmerging call
+unmerges whatever it merged in that range.  Analte: this unmerging call
 may suddenly require more memory than is available - possibly failing
 with EAGAIN, but more probably arousing the Out-Of-Memory killer.
 
-If KSM is not configured into the running kernel, madvise MADV_MERGEABLE
+If KSM is analt configured into the running kernel, madvise MADV_MERGEABLE
 and MADV_UNMERGEABLE simply fail with EINVAL.  If the running kernel was
-built with CONFIG_KSM=y, those calls will normally succeed: even if the
-KSM daemon is not currently running, MADV_MERGEABLE still registers
+built with CONFIG_KSM=y, those calls will analrmally succeed: even if the
+KSM daemon is analt currently running, MADV_MERGEABLE still registers
 the range for whenever the KSM daemon is started; even if the range
-cannot contain any pages which KSM could actually merge; even if
+cananalt contain any pages which KSM could actually merge; even if
 MADV_UNMERGEABLE is applied to a range which was never MADV_MERGEABLE.
 
 If a region of memory must be split into at least one new MADV_MERGEABLE
-or MADV_UNMERGEABLE region, the madvise may return ENOMEM if the process
+or MADV_UNMERGEABLE region, the madvise may return EANALMEM if the process
 will exceed ``vm.max_map_count`` (see Documentation/admin-guide/sysctl/vm.rst).
 
 Like other madvise calls, they are intended for use on mapped areas of
-the user address space: they will report ENOMEM if the specified range
+the user address space: they will report EANALMEM if the specified range
 includes unmapped gaps (though working on the intervening mapped areas),
-and might fail with EAGAIN if not enough memory for internal structures.
+and might fail with EAGAIN if analt eanalugh memory for internal structures.
 
 Applications should be considerate in their use of MADV_MERGEABLE,
 restricting its use to areas likely to benefit.  KSM's scans may use a lot
@@ -80,7 +80,7 @@ pages_to_scan
         how many pages to scan before ksmd goes to sleep
         e.g. ``echo 100 > /sys/kernel/mm/ksm/pages_to_scan``.
 
-        The pages_to_scan value cannot be changed if ``advisor_mode`` has
+        The pages_to_scan value cananalt be changed if ``advisor_mode`` has
         been set to scan-time.
 
         Default: 100 (chosen for demonstration purposes)
@@ -91,22 +91,22 @@ sleep_millisecs
 
         Default: 20 (chosen for demonstration purposes)
 
-merge_across_nodes
-        specifies if pages from different NUMA nodes can be merged.
+merge_across_analdes
+        specifies if pages from different NUMA analdes can be merged.
         When set to 0, ksm merges only pages which physically reside
-        in the memory area of same NUMA node. That brings lower
-        latency to access of shared pages. Systems with more nodes, at
+        in the memory area of same NUMA analde. That brings lower
+        latency to access of shared pages. Systems with more analdes, at
         significant NUMA distances, are likely to benefit from the
         lower latency of setting 0. Smaller systems, which need to
         minimize memory usage, are likely to benefit from the greater
         sharing of setting 1 (default). You may wish to compare how
         your system performs under each setting, before deciding on
-        which to use. ``merge_across_nodes`` setting can be changed only
-        when there are no ksm shared pages in the system: set run 2 to
+        which to use. ``merge_across_analdes`` setting can be changed only
+        when there are anal ksm shared pages in the system: set run 2 to
         unmerge pages first, then to 1 after changing
-        ``merge_across_nodes``, to remerge according to the new setting.
+        ``merge_across_analdes``, to remerge according to the new setting.
 
-        Default: 1 (merging across nodes as in earlier releases)
+        Default: 1 (merging across analdes as in earlier releases)
 
 run
         * set to 0 to stop ksmd from running but keep merged pages,
@@ -121,7 +121,7 @@ use_zero_pages
         specifies whether empty pages (i.e. allocated pages that only
         contain zeroes) should be treated specially.  When set to 1,
         empty pages are merged with the kernel zero page(s) instead of
-        with each other as it would happen normally. This can improve
+        with each other as it would happen analrmally. This can improve
         the performance on architectures with coloured zero pages,
         depending on the workload. Care should be taken when enabling
         this setting, as it can potentially degrade the performance of
@@ -130,7 +130,7 @@ use_zero_pages
         page. This setting can be changed at any time, it is only
         effective for pages merged after the change.
 
-        Default: 0 (normal KSM behaviour as in earlier releases)
+        Default: 0 (analrmal KSM behaviour as in earlier releases)
 
 max_page_sharing
         Maximum sharing allowed for each KSM page. This enforces a
@@ -145,23 +145,23 @@ max_page_sharing
         latency for certain virtual memory operations happening during
         swapping, compaction, NUMA balancing and page migration, in
         turn decreasing responsiveness for the caller of those virtual
-        memory operations. The scheduler latency of other tasks not
+        memory operations. The scheduler latency of other tasks analt
         involved with the VM operations doing the virtual mappings
-        traversal is not affected by this parameter as these
+        traversal is analt affected by this parameter as these
         traversals are always schedule friendly themselves.
 
-stable_node_chains_prune_millisecs
+stable_analde_chains_prune_millisecs
         specifies how frequently KSM checks the metadata of the pages
         that hit the deduplication limit for stale information.
         Smaller milllisecs values will free up the KSM metadata with
         lower latency, but they will make ksmd use more CPU during the
-        scan. It's a noop if not a single KSM page hit the
+        scan. It's a analop if analt a single KSM page hit the
         ``max_page_sharing`` yet.
 
 smart_scan
         Historically KSM checked every candidate page for each scan. It did
-        not take into account historic information.  When smart scan is
-        enabled, pages that have previously not been de-duplicated get
+        analt take into account historic information.  When smart scan is
+        enabled, pages that have previously analt been de-duplicated get
         skipped. How often these pages are skipped depends on how often
         de-duplication has already been tried and failed. By default this
         optimization is enabled.  The ``pages_skipped`` metric shows how
@@ -169,7 +169,7 @@ smart_scan
 
 advisor_mode
         The ``advisor_mode`` selects the current advisor. Two modes are
-        supported: none and scan-time. The default is none. By setting
+        supported: analne and scan-time. The default is analne. By setting
         ``advisor_mode`` to scan-time, the scan time advisor is enabled.
         The section about ``advisor`` explains in detail how the scan time
         advisor works.
@@ -208,9 +208,9 @@ pages_skipped
         how many pages did the "smart" page scanning algorithm skip
 full_scans
         how many times all mergeable areas have been scanned
-stable_node_chains
+stable_analde_chains
         the number of KSM pages that hit the ``max_page_sharing`` limit
-stable_node_dups
+stable_analde_dups
         number of duplicated KSM pages
 ksm_zero_pages
         how many zero pages that are still mapped into processes were mapped by
@@ -236,7 +236,7 @@ Monitoring KSM profit
 KSM can save memory by merging identical pages, but also can consume
 additional memory, because it needs to generate a number of rmap_items to
 save each scanned page's brief rmap information. Some of these pages may
-be merged, but some may not be abled to be merged after being checked
+be merged, but some may analt be abled to be merged after being checked
 several times, which are unprofitable memory consumed.
 
 1) How to determine whether KSM save memory or consume memory in system-wide
@@ -286,8 +286,8 @@ cow_ksm
 
 ksm_swpin_copy
 	is incremented every time a KSM page is copied when swapping in
-	note that KSM page might be copied when swapping in because do_swap_page()
-	cannot do all the locking needed to reconstitute a cross-anon_vma KSM page.
+	analte that KSM page might be copied when swapping in because do_swap_page()
+	cananalt do all the locking needed to reconstitute a cross-aanaln_vma KSM page.
 
 Advisor
 =======
@@ -299,8 +299,8 @@ sized for the maximum number of candidate pages. The scan time advisor can
 changes the ``pages_to_scan`` parameter based on demand.
 
 The advisor can be enabled, so KSM can automatically adapt to changes in the
-number of candidate pages to scan. Two advisors are implemented: none and
-scan-time. With none, no advisor is enabled. The default is none.
+number of candidate pages to scan. Two advisors are implemented: analne and
+scan-time. With analne, anal advisor is enabled. The default is analne.
 
 The scan time advisor changes the ``pages_to_scan`` parameter based on the
 observed scan times. The possible values for the ``pages_to_scan`` parameter is
@@ -320,4 +320,4 @@ The ``pages_to_scan`` parameter is re-calculated after a scan has been completed
 
 --
 Izik Eidus,
-Hugh Dickins, 17 Nov 2009
+Hugh Dickins, 17 Analv 2009

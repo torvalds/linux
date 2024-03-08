@@ -57,8 +57,8 @@ BFA_TRC_FILE(CNA, IOC);
 			((__ioc)->ioc_hwif->ioc_firmware_unlock(__ioc))
 #define bfa_ioc_reg_init(__ioc) ((__ioc)->ioc_hwif->ioc_reg_init(__ioc))
 #define bfa_ioc_map_port(__ioc) ((__ioc)->ioc_hwif->ioc_map_port(__ioc))
-#define bfa_ioc_notify_fail(__ioc)              \
-			((__ioc)->ioc_hwif->ioc_notify_fail(__ioc))
+#define bfa_ioc_analtify_fail(__ioc)              \
+			((__ioc)->ioc_hwif->ioc_analtify_fail(__ioc))
 #define bfa_ioc_sync_start(__ioc)               \
 			((__ioc)->ioc_hwif->ioc_sync_start(__ioc))
 #define bfa_ioc_sync_join(__ioc)                \
@@ -98,11 +98,11 @@ static void bfa_ioc_hb_monitor(struct bfa_ioc_s *ioc);
 static void bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc);
 static void bfa_ioc_mbox_flush(struct bfa_ioc_s *ioc);
 static void bfa_ioc_recover(struct bfa_ioc_s *ioc);
-static void bfa_ioc_event_notify(struct bfa_ioc_s *ioc ,
+static void bfa_ioc_event_analtify(struct bfa_ioc_s *ioc ,
 				enum bfa_ioc_event_e event);
 static void bfa_ioc_disable_comp(struct bfa_ioc_s *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc);
-static void bfa_ioc_fail_notify(struct bfa_ioc_s *ioc);
+static void bfa_ioc_fail_analtify(struct bfa_ioc_s *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc);
 static enum bfi_ioc_img_ver_cmp_e bfa_ioc_fw_ver_patch_cmp(
 				struct bfi_ioc_image_hdr_s *base_fwhdr,
@@ -122,11 +122,11 @@ enum ioc_event {
 	IOC_E_ENABLED		= 5,	/*  f/w enabled		*/
 	IOC_E_FWRSP_GETATTR	= 6,	/*  IOC get attribute response	*/
 	IOC_E_DISABLED		= 7,	/*  f/w disabled		*/
-	IOC_E_PFFAILED		= 8,	/*  failure notice by iocpf sm	*/
+	IOC_E_PFFAILED		= 8,	/*  failure analtice by iocpf sm	*/
 	IOC_E_HBFAIL		= 9,	/*  heartbeat failure		*/
 	IOC_E_HWERROR		= 10,	/*  hardware error interrupt	*/
 	IOC_E_TIMEOUT		= 11,	/*  timeout			*/
-	IOC_E_HWFAILED		= 12,	/*  PCI mapping failure notice	*/
+	IOC_E_HWFAILED		= 12,	/*  PCI mapping failure analtice	*/
 };
 
 bfa_fsm_state_decl(bfa_ioc, uninit, struct bfa_ioc_s, enum ioc_event);
@@ -188,9 +188,9 @@ enum iocpf_event {
 	IOCPF_E_FWREADY		= 4,	/*  f/w initialization done	*/
 	IOCPF_E_FWRSP_ENABLE	= 5,	/*  enable f/w response	*/
 	IOCPF_E_FWRSP_DISABLE	= 6,	/*  disable f/w response	*/
-	IOCPF_E_FAIL		= 7,	/*  failure notice by ioc sm	*/
-	IOCPF_E_INITFAIL	= 8,	/*  init fail notice by ioc sm	*/
-	IOCPF_E_GETATTRFAIL	= 9,	/*  init fail notice by ioc sm	*/
+	IOCPF_E_FAIL		= 7,	/*  failure analtice by ioc sm	*/
+	IOCPF_E_INITFAIL	= 8,	/*  init fail analtice by ioc sm	*/
+	IOCPF_E_GETATTRFAIL	= 9,	/*  init fail analtice by ioc sm	*/
 	IOCPF_E_SEMLOCKED	= 10,	/*  h/w semaphore is locked	*/
 	IOCPF_E_TIMEOUT		= 11,	/*  f/w response timeout	*/
 	IOCPF_E_SEM_ERROR	= 12,	/*  h/w sem mapping error	*/
@@ -414,7 +414,7 @@ bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
+	bfa_ioc_event_analtify(ioc, BFA_IOC_E_ENABLED);
 	bfa_ioc_hb_monitor(ioc);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC enabled\n");
 	bfa_ioc_aen_post(ioc, BFA_IOC_AEN_ENABLE);
@@ -444,7 +444,7 @@ bfa_ioc_sm_op(struct bfa_ioc_s *ioc, enum ioc_event event)
 		else
 			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
 
-		bfa_ioc_fail_notify(ioc);
+		bfa_ioc_fail_analtify(ioc);
 
 		if (event != IOC_E_PFFAILED)
 			bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FAIL);
@@ -480,7 +480,7 @@ bfa_ioc_sm_disabling(struct bfa_ioc_s *ioc, enum ioc_event event)
 
 	case IOC_E_HWERROR:
 		/*
-		 * No state change.  Will move to disabled state
+		 * Anal state change.  Will move to disabled state
 		 * after iocpf sm completes failure processing and
 		 * moves to disabled state.
 		 */
@@ -616,7 +616,7 @@ bfa_ioc_sm_fail(struct bfa_ioc_s *ioc, enum ioc_event event)
 	case IOC_E_HWERROR:
 	case IOC_E_HWFAILED:
 		/*
-		 * HB failure / HW error notification, ignore.
+		 * HB failure / HW error analtification, iganalre.
 		 */
 		break;
 	default:
@@ -649,7 +649,7 @@ bfa_ioc_sm_hwfail(struct bfa_ioc_s *ioc, enum ioc_event event)
 		break;
 
 	case IOC_E_HWERROR:
-		/* Ignore - already in hwfail state */
+		/* Iganalre - already in hwfail state */
 		break;
 
 	default:
@@ -667,7 +667,7 @@ bfa_ioc_sm_hwfail(struct bfa_ioc_s *ioc, enum ioc_event event)
 static void
 bfa_iocpf_sm_reset_entry(struct bfa_iocpf_s *iocpf)
 {
-	iocpf->fw_mismatch_notified = BFA_FALSE;
+	iocpf->fw_mismatch_analtified = BFA_FALSE;
 	iocpf->auto_recover = bfa_auto_recover;
 }
 
@@ -722,7 +722,7 @@ bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf_s *iocpf)
 
 	bfa_ioc_fwver_get(iocpf->ioc, &fwhdr);
 
-	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL) {
+	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_ANALRMAL) {
 		writel(1, iocpf->ioc->ioc_regs.ioc_init_sem_reg);
 		goto sem_get;
 	}
@@ -806,7 +806,7 @@ bfa_iocpf_sm_fwcheck(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 }
 
 /*
- * Notify enable completion callback.
+ * Analtify enable completion callback.
  */
 static void
 bfa_iocpf_sm_mismatch_entry(struct bfa_iocpf_s *iocpf)
@@ -814,10 +814,10 @@ bfa_iocpf_sm_mismatch_entry(struct bfa_iocpf_s *iocpf)
 	/*
 	 * Call only the first time sm enters fwmismatch state.
 	 */
-	if (iocpf->fw_mismatch_notified == BFA_FALSE)
+	if (iocpf->fw_mismatch_analtified == BFA_FALSE)
 		bfa_ioc_pf_fwmismatch(iocpf->ioc);
 
-	iocpf->fw_mismatch_notified = BFA_TRUE;
+	iocpf->fw_mismatch_analtified = BFA_TRUE;
 	bfa_iocpf_timer_start(iocpf->ioc);
 }
 
@@ -1147,7 +1147,7 @@ bfa_iocpf_sm_initfail_sync(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 
 	switch (event) {
 	case IOCPF_E_SEMLOCKED:
-		bfa_ioc_notify_fail(ioc);
+		bfa_ioc_analtify_fail(ioc);
 		bfa_ioc_sync_leave(ioc);
 		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
 		writel(1, ioc->ioc_regs.ioc_sem_reg);
@@ -1235,7 +1235,7 @@ bfa_iocpf_sm_fail_sync(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	switch (event) {
 	case IOCPF_E_SEMLOCKED:
 		bfa_ioc_sync_ack(ioc);
-		bfa_ioc_notify_fail(ioc);
+		bfa_ioc_analtify_fail(ioc);
 		if (!iocpf->auto_recover) {
 			bfa_ioc_sync_leave(ioc);
 			bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
@@ -1300,17 +1300,17 @@ bfa_iocpf_sm_fail(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
  */
 
 /*
- * Notify common modules registered for notification.
+ * Analtify common modules registered for analtification.
  */
 static void
-bfa_ioc_event_notify(struct bfa_ioc_s *ioc, enum bfa_ioc_event_e event)
+bfa_ioc_event_analtify(struct bfa_ioc_s *ioc, enum bfa_ioc_event_e event)
 {
-	struct bfa_ioc_notify_s	*notify;
+	struct bfa_ioc_analtify_s	*analtify;
 	struct list_head	*qe;
 
-	list_for_each(qe, &ioc->notify_q) {
-		notify = (struct bfa_ioc_notify_s *)qe;
-		notify->cbfn(notify->cbarg, event);
+	list_for_each(qe, &ioc->analtify_q) {
+		analtify = (struct bfa_ioc_analtify_s *)qe;
+		analtify->cbfn(analtify->cbarg, event);
 	}
 }
 
@@ -1318,7 +1318,7 @@ static void
 bfa_ioc_disable_comp(struct bfa_ioc_s *ioc)
 {
 	ioc->cbfn->disable_cbfn(ioc->bfa);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_DISABLED);
+	bfa_ioc_event_analtify(ioc, BFA_IOC_E_DISABLED);
 }
 
 bfa_boolean_t
@@ -1395,7 +1395,7 @@ bfa_ioc_lmem_init(struct bfa_ioc_s *ioc)
 	} while (!(pss_ctl & __PSS_LMEM_INIT_DONE) && (i < PSS_LMEM_INIT_TIME));
 
 	/*
-	 * If memory initialization is not successful, IOC timeout will catch
+	 * If memory initialization is analt successful, IOC timeout will catch
 	 * such failures.
 	 */
 	WARN_ON(!(pss_ctl & __PSS_LMEM_INIT_DONE));
@@ -1469,7 +1469,7 @@ bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
 	/*
-	 * If smem is incompatible or old, driver should not work with it.
+	 * If smem is incompatible or old, driver should analt work with it.
 	 */
 	drv_smem_cmp = bfa_ioc_fw_ver_patch_cmp(drv_fwhdr, smem_fwhdr);
 	if (drv_smem_cmp == BFI_IOC_IMG_VER_INCOMP ||
@@ -1478,8 +1478,8 @@ bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 	}
 
 	/*
-	 * IF Flash has a better F/W than smem do not work with smem.
-	 * If smem f/w == flash f/w, as smem f/w not old | incmp, work with it.
+	 * IF Flash has a better F/W than smem do analt work with smem.
+	 * If smem f/w == flash f/w, as smem f/w analt old | incmp, work with it.
 	 * If Flash is old or incomp work with smem iff smem f/w == drv f/w.
 	 */
 	smem_flash_cmp = bfa_ioc_flash_fwver_cmp(ioc, smem_fwhdr);
@@ -1528,7 +1528,7 @@ bfa_ioc_fwver_md5_check(struct bfi_ioc_image_hdr_s *fwhdr_1,
 }
 
 /*
- * Returns TRUE if major minor and maintainence are same.
+ * Returns TRUE if major mianalr and maintainence are same.
  * If patch versions are same, check for MD5 Checksum to be same.
  */
 static bfa_boolean_t
@@ -1541,7 +1541,7 @@ bfa_ioc_fw_ver_compatible(struct bfi_ioc_image_hdr_s *drv_fwhdr,
 	if (drv_fwhdr->fwver.major != fwhdr_to_cmp->fwver.major)
 		return BFA_FALSE;
 
-	if (drv_fwhdr->fwver.minor != fwhdr_to_cmp->fwver.minor)
+	if (drv_fwhdr->fwver.mianalr != fwhdr_to_cmp->fwver.mianalr)
 		return BFA_FALSE;
 
 	if (drv_fwhdr->fwver.maint != fwhdr_to_cmp->fwver.maint)
@@ -1592,7 +1592,7 @@ bfa_ioc_fw_ver_patch_cmp(struct bfi_ioc_image_hdr_s *base_fwhdr,
 
 	/*
 	 * GA takes priority over internal builds of the same patch stream.
-	 * At this point major minor maint and patch numbers are same.
+	 * At this point major mianalr maint and patch numbers are same.
 	 */
 
 	if (fwhdr_is_ga(base_fwhdr) == BFA_TRUE) {
@@ -1703,7 +1703,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 
 	bfa_trc(ioc, ioc_fwstate);
 
-	boot_type = BFI_FWBOOT_TYPE_NORMAL;
+	boot_type = BFI_FWBOOT_TYPE_ANALRMAL;
 	boot_env = BFI_FWBOOT_ENV_OS;
 
 	/*
@@ -1731,7 +1731,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 	 * If IOC function is disabled and firmware version is same,
 	 * just re-enable IOC.
 	 *
-	 * If option rom, IOC must not be in operational state. With
+	 * If option rom, IOC must analt be in operational state. With
 	 * convergence, IOC will be in operational state when 2nd driver
 	 * is loaded.
 	 */
@@ -1739,7 +1739,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 
 		/*
 		 * When using MSI-X any pending firmware ready event should
-		 * be flushed. Otherwise MSI-X interrupts are not delivered.
+		 * be flushed. Otherwise MSI-X interrupts are analt delivered.
 		 */
 		bfa_ioc_msgflush(ioc);
 		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_FWREADY);
@@ -1862,7 +1862,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	u32 *fwimg;
 	u32 pgnum;
 	u32 loff = 0;
-	u32 chunkno = 0;
+	u32 chunkanal = 0;
 	u32 i;
 	u32 asicmode;
 	u32 fwimg_size;
@@ -1874,7 +1874,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 		fwimg_size = BFI_FLASH_IMAGE_SZ/sizeof(u32);
 
 		status = bfa_ioc_flash_img_get_chnk(ioc,
-			BFA_IOC_FLASH_CHUNK_ADDR(chunkno), fwimg_buf);
+			BFA_IOC_FLASH_CHUNK_ADDR(chunkanal), fwimg_buf);
 		if (status != BFA_STATUS_OK)
 			return status;
 
@@ -1882,7 +1882,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	} else {
 		fwimg_size = bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc));
 		fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc),
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkanal));
 	}
 
 	bfa_trc(ioc, fwimg_size);
@@ -1893,13 +1893,13 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 
 	for (i = 0; i < fwimg_size; i++) {
 
-		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkno) {
-			chunkno = BFA_IOC_FLASH_CHUNK_NO(i);
+		if (BFA_IOC_FLASH_CHUNK_ANAL(i) != chunkanal) {
+			chunkanal = BFA_IOC_FLASH_CHUNK_ANAL(i);
 
 			if (boot_env == BFI_FWBOOT_ENV_OS &&
 				boot_type == BFI_FWBOOT_TYPE_FLASH) {
 				status = bfa_ioc_flash_img_get_chnk(ioc,
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno),
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkanal),
 					fwimg_buf);
 				if (status != BFA_STATUS_OK)
 					return status;
@@ -1908,7 +1908,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 			} else {
 				fwimg = bfa_cb_image_get_chunk(
 					bfa_ioc_asic_gen(ioc),
-					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
+					BFA_IOC_FLASH_CHUNK_ADDR(chunkanal));
 			}
 		}
 
@@ -1938,7 +1938,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	 */
 	if (boot_env == BFI_FWBOOT_ENV_OS &&
 		boot_type == BFI_FWBOOT_TYPE_FLASH) {
-		boot_type = BFI_FWBOOT_TYPE_NORMAL;
+		boot_type = BFI_FWBOOT_TYPE_ANALRMAL;
 	}
 	asicmode = BFI_FWBOOT_DEVMODE(ioc->asic_gen, ioc->asic_mode,
 				ioc->port0_mode, ioc->port1_mode);
@@ -1996,13 +1996,13 @@ bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc)
 	u32			stat;
 
 	/*
-	 * If no command pending, do nothing
+	 * If anal command pending, do analthing
 	 */
 	if (list_empty(&mod->cmd_q))
 		return;
 
 	/*
-	 * If previous command is not yet fetched by firmware, do nothing
+	 * If previous command is analt yet fetched by firmware, do analthing
 	 */
 	stat = readl(ioc->ioc_regs.hfn_mbox_cmd);
 	if (stat)
@@ -2145,15 +2145,15 @@ bfa_ioc_smem_clr(struct bfa_ioc_s *ioc, u32 soff, u32 sz)
 }
 
 static void
-bfa_ioc_fail_notify(struct bfa_ioc_s *ioc)
+bfa_ioc_fail_analtify(struct bfa_ioc_s *ioc)
 {
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 
 	/*
-	 * Notify driver and common modules registered for notification.
+	 * Analtify driver and common modules registered for analtification.
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
-	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
+	bfa_ioc_event_analtify(ioc, BFA_IOC_E_FAILED);
 
 	bfa_ioc_debug_save_ftrc(ioc);
 
@@ -2182,7 +2182,7 @@ bfa_ioc_pll_init(struct bfa_ioc_s *ioc)
 {
 
 	/*
-	 *  Hold semaphore so that nobody can access the chip during init.
+	 *  Hold semaphore so that analbody can access the chip during init.
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg);
 
@@ -2219,7 +2219,7 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 		return BFA_STATUS_FAILED;
 
 	if (boot_env == BFI_FWBOOT_ENV_OS &&
-		boot_type == BFI_FWBOOT_TYPE_NORMAL) {
+		boot_type == BFI_FWBOOT_TYPE_ANALRMAL) {
 
 		drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
 			bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
@@ -2366,7 +2366,7 @@ bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa, struct bfa_ioc_cbfn_s *cbfn,
 	ioc->iocpf.ioc	= ioc;
 
 	bfa_ioc_mbox_attach(ioc);
-	INIT_LIST_HEAD(&ioc->notify_q);
+	INIT_LIST_HEAD(&ioc->analtify_q);
 
 	bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
 	bfa_fsm_send_event(ioc, IOC_E_RESET);
@@ -2379,7 +2379,7 @@ void
 bfa_ioc_detach(struct bfa_ioc_s *ioc)
 {
 	bfa_fsm_send_event(ioc, IOC_E_DETACH);
-	INIT_LIST_HEAD(&ioc->notify_q);
+	INIT_LIST_HEAD(&ioc->analtify_q);
 }
 
 /*
@@ -2703,7 +2703,7 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	ad_attr->max_speed = bfa_ioc_speed_sup(ioc);
 
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model);
-	/* For now, model descr uses same model string */
+	/* For analw, model descr uses same model string */
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model_descr);
 
 	ad_attr->card_type = ioc_attr->card_type;
@@ -2900,7 +2900,7 @@ bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc)
 }
 
 /*
- * Send AEN notification
+ * Send AEN analtification
  */
 void
 bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
@@ -2930,7 +2930,7 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 		break;
 	}
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	aen_entry->aen_data.ioc.ioc_type = ioc_type;
 	bfad_im_post_vendor_event(aen_entry, bfad, ++ioc->ioc_aen_seq,
 				  BFA_AEN_CAT_IOC, event);
@@ -2945,7 +2945,7 @@ bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 	int	tlen;
 
 	if (ioc->dbg_fwsave_len == 0)
-		return BFA_STATUS_ENOFSAVE;
+		return BFA_STATUS_EANALFSAVE;
 
 	tlen = *trclen;
 	if (tlen > ioc->dbg_fwsave_len)
@@ -2999,14 +2999,14 @@ bfa_ioc_fwsync(struct bfa_ioc_s *ioc)
 
 	/*
 	 * After sending a fw sync mbox command wait for it to
-	 * take effect.  We will not wait for a response because
+	 * take effect.  We will analt wait for a response because
 	 *    1. fw_sync mbox cmd doesn't have a response.
-	 *    2. Even if we implement that,  interrupts might not
+	 *    2. Even if we implement that,  interrupts might analt
 	 *	 be enabled when we call this function.
 	 * So, just keep checking if any mbox cmd is pending, and
 	 * after waiting for a reasonable amount of time, go ahead.
 	 * It is possible that fw has crashed and the mbox command
-	 * is never acknowledged.
+	 * is never ackanalwledged.
 	 */
 	while (bfa_ioc_mbox_cmd_pending(ioc) && fwsync_iter > 0)
 		fwsync_iter--;
@@ -3034,7 +3034,7 @@ bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
 
 	/*
 	 * First smem read, sync smem before proceeding
-	 * No need to sync before reading every chunk.
+	 * Anal need to sync before reading every chunk.
 	 */
 	if (loff == 0)
 		bfa_ioc_fwsync(ioc);
@@ -3305,7 +3305,7 @@ bfa_ablk_isr(void *cbarg, struct bfi_mbmsg_s *msg)
 	case BFI_ABLK_I2H_PF_UPDATE:
 	case BFI_ABLK_I2H_OPTROM_ENABLE:
 	case BFI_ABLK_I2H_OPTROM_DISABLE:
-		/* No-op */
+		/* Anal-op */
 		break;
 
 	case BFI_ABLK_I2H_PF_CREATE:
@@ -3326,7 +3326,7 @@ bfa_ablk_isr(void *cbarg, struct bfi_mbmsg_s *msg)
 }
 
 static void
-bfa_ablk_notify(void *cbarg, enum bfa_ioc_event_e event)
+bfa_ablk_analtify(void *cbarg, enum bfa_ioc_event_e event)
 {
 	struct bfa_ablk_s *ablk = (struct bfa_ablk_s *)cbarg;
 
@@ -3374,9 +3374,9 @@ bfa_ablk_attach(struct bfa_ablk_s *ablk, struct bfa_ioc_s *ioc)
 	ablk->ioc = ioc;
 
 	bfa_ioc_mbox_regisr(ablk->ioc, BFI_MC_ABLK, bfa_ablk_isr, ablk);
-	bfa_q_qe_init(&ablk->ioc_notify);
-	bfa_ioc_notify_init(&ablk->ioc_notify, bfa_ablk_notify, ablk);
-	list_add_tail(&ablk->ioc_notify.qe, &ablk->ioc->notify_q);
+	bfa_q_qe_init(&ablk->ioc_analtify);
+	bfa_ioc_analtify_init(&ablk->ioc_analtify, bfa_ablk_analtify, ablk);
+	list_add_tail(&ablk->ioc_analtify.qe, &ablk->ioc->analtify_q);
 }
 
 bfa_status_t
@@ -3660,7 +3660,7 @@ bfa_cb_sfp_state_query(struct bfa_sfp_s *sfp)
 		if (sfp->state_query_cbfn)
 			sfp->state_query_cbfn(sfp->state_query_cbarg,
 					sfp->status);
-		sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
+		sfp->portspeed = BFA_PORT_SPEED_UNKANALWN;
 	}
 
 	sfp->state_query_lock = 0;
@@ -3671,7 +3671,7 @@ bfa_cb_sfp_state_query(struct bfa_sfp_s *sfp)
  *	IOC event handler.
  */
 static void
-bfa_sfp_notify(void *sfp_arg, enum bfa_ioc_event_e event)
+bfa_sfp_analtify(void *sfp_arg, enum bfa_ioc_event_e event)
 {
 	struct bfa_sfp_s *sfp = sfp_arg;
 
@@ -3699,7 +3699,7 @@ bfa_sfp_notify(void *sfp_arg, enum bfa_ioc_event_e event)
 }
 
 /*
- * SFP's State Change Notification post to AEN
+ * SFP's State Change Analtification post to AEN
  */
 static void
 bfa_sfp_scn_aen_post(struct bfa_sfp_s *sfp, struct bfi_sfp_scn_s *rsp)
@@ -3741,7 +3741,7 @@ bfa_sfp_scn_aen_post(struct bfa_sfp_s *sfp, struct bfi_sfp_scn_s *rsp)
 		WARN_ON(1);
 	}
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++sfp->ioc->ioc_aen_seq,
 				  BFA_AEN_CAT_PORT, aen_evt);
 }
@@ -3891,7 +3891,7 @@ bfa_sfp_state_query(struct bfa_sfp_s *sfp)
 {
 	struct bfi_sfp_req_s *req = (struct bfi_sfp_req_s *)sfp->mbcmd.msg;
 
-	/* Should not be doing query if not in _INIT state */
+	/* Should analt be doing query if analt in _INIT state */
 	WARN_ON(sfp->state != BFA_SFP_STATE_INIT);
 	WARN_ON(sfp->state_query_lock != 0);
 	bfa_trc(sfp, sfp->state);
@@ -3908,7 +3908,7 @@ bfa_sfp_media_get(struct bfa_sfp_s *sfp)
 {
 	enum bfa_defs_sfp_media_e *media = sfp->media;
 
-	*media = BFA_SFP_MEDIA_UNKNOWN;
+	*media = BFA_SFP_MEDIA_UNKANALWN;
 
 	if (sfp->state == BFA_SFP_STATE_UNSUPPORT)
 		*media = BFA_SFP_MEDIA_UNSUPPORT;
@@ -3942,7 +3942,7 @@ bfa_sfp_media_get(struct bfa_sfp_s *sfp)
 		else if (e10g.r.e10g_lrm && e10g.r.e10g_lr)
 			*media = BFA_SFP_MEDIA_LW;
 		else if (e10g.r.e10g_unall)
-			*media = BFA_SFP_MEDIA_UNKNOWN;
+			*media = BFA_SFP_MEDIA_UNKANALWN;
 		else
 			bfa_trc(sfp, 0);
 	} else
@@ -4032,13 +4032,13 @@ bfa_sfp_attach(struct bfa_sfp_s *sfp, struct bfa_ioc_s *ioc, void *dev,
 	sfp->state_query_cbfn = NULL;
 	sfp->state_query_cbarg = NULL;
 	sfp->media = NULL;
-	sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
+	sfp->portspeed = BFA_PORT_SPEED_UNKANALWN;
 	sfp->is_elb = BFA_FALSE;
 
 	bfa_ioc_mbox_regisr(sfp->ioc, BFI_MC_SFP, bfa_sfp_intr, sfp);
-	bfa_q_qe_init(&sfp->ioc_notify);
-	bfa_ioc_notify_init(&sfp->ioc_notify, bfa_sfp_notify, sfp);
-	list_add_tail(&sfp->ioc_notify.qe, &sfp->ioc->notify_q);
+	bfa_q_qe_init(&sfp->ioc_analtify);
+	bfa_ioc_analtify_init(&sfp->ioc_analtify, bfa_sfp_analtify, sfp);
+	list_add_tail(&sfp->ioc_analtify.qe, &sfp->ioc->analtify_q);
 }
 
 /*
@@ -4070,7 +4070,7 @@ bfa_sfp_show(struct bfa_sfp_s *sfp, struct sfp_mem_s *sfpmem,
 
 	if (!bfa_ioc_is_operational(sfp->ioc)) {
 		bfa_trc(sfp, 0);
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 	}
 
 	if (sfp->lock) {
@@ -4100,7 +4100,7 @@ bfa_sfp_media(struct bfa_sfp_s *sfp, enum bfa_defs_sfp_media_e *media,
 {
 	if (!bfa_ioc_is_operational(sfp->ioc)) {
 		bfa_trc(sfp, 0);
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 	}
 
 	sfp->media = media;
@@ -4112,7 +4112,7 @@ bfa_sfp_media(struct bfa_sfp_s *sfp, enum bfa_defs_sfp_media_e *media,
 			sfp->state_query_cbfn = cbfn;
 			sfp->state_query_cbarg = cbarg;
 			bfa_sfp_state_query(sfp);
-			return BFA_STATUS_SFP_NOT_READY;
+			return BFA_STATUS_SFP_ANALT_READY;
 		}
 	}
 
@@ -4131,10 +4131,10 @@ bfa_status_t
 bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
 		bfa_cb_sfp_t cbfn, void *cbarg)
 {
-	WARN_ON(portspeed == BFA_PORT_SPEED_UNKNOWN);
+	WARN_ON(portspeed == BFA_PORT_SPEED_UNKANALWN);
 
 	if (!bfa_ioc_is_operational(sfp->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/* For Mezz card, all speed is allowed */
 	if (bfa_mfg_is_mezz(sfp->ioc->attr->card_type))
@@ -4150,14 +4150,14 @@ bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
 			sfp->state_query_cbfn = cbfn;
 			sfp->state_query_cbarg = cbarg;
 			bfa_sfp_state_query(sfp);
-			return BFA_STATUS_SFP_NOT_READY;
+			return BFA_STATUS_SFP_ANALT_READY;
 		}
 	}
 
 	if (sfp->state == BFA_SFP_STATE_REMOVED ||
 	    sfp->state == BFA_SFP_STATE_FAILED) {
 		bfa_trc(sfp, sfp->state);
-		return BFA_STATUS_NO_SFP_DEV;
+		return BFA_STATUS_ANAL_SFP_DEV;
 	}
 
 	if (sfp->state == BFA_SFP_STATE_INSERTED) {
@@ -4177,7 +4177,7 @@ bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
  */
 
 /*
- * FLASH DMA buffer should be big enough to hold both MFG block and
+ * FLASH DMA buffer should be big eanalugh to hold both MFG block and
  * asic block(64k) at the same time and also should be 2k aligned to
  * avoid write segement to cross sector boundary.
  */
@@ -4200,7 +4200,7 @@ bfa_flash_aen_audit_post(struct bfa_ioc_s *ioc, enum bfa_audit_aen_event event,
 	aen_entry->aen_data.audit.partition_inst = inst;
 	aen_entry->aen_data.audit.partition_type = type;
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++ioc->ioc_aen_seq,
 				  BFA_AEN_CAT_AUDIT, event);
 }
@@ -4214,7 +4214,7 @@ bfa_flash_cb(struct bfa_flash_s *flash)
 }
 
 static void
-bfa_flash_notify(void *cbarg, enum bfa_ioc_event_e event)
+bfa_flash_analtify(void *cbarg, enum bfa_ioc_event_e event)
 {
 	struct bfa_flash_s	*flash = cbarg;
 
@@ -4484,9 +4484,9 @@ bfa_flash_attach(struct bfa_flash_s *flash, struct bfa_ioc_s *ioc, void *dev,
 	flash->op_busy = 0;
 
 	bfa_ioc_mbox_regisr(flash->ioc, BFI_MC_FLASH, bfa_flash_intr, flash);
-	bfa_q_qe_init(&flash->ioc_notify);
-	bfa_ioc_notify_init(&flash->ioc_notify, bfa_flash_notify, flash);
-	list_add_tail(&flash->ioc_notify.qe, &flash->ioc->notify_q);
+	bfa_q_qe_init(&flash->ioc_analtify);
+	bfa_ioc_analtify_init(&flash->ioc_analtify, bfa_flash_analtify, flash);
+	list_add_tail(&flash->ioc_analtify.qe, &flash->ioc->analtify_q);
 
 	/* min driver doesn't need flash */
 	if (mincfg) {
@@ -4534,7 +4534,7 @@ bfa_flash_get_attr(struct bfa_flash_s *flash, struct bfa_flash_attr_s *attr,
 	bfa_trc(flash, BFI_FLASH_H2I_QUERY_REQ);
 
 	if (!bfa_ioc_is_operational(flash->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (flash->op_busy) {
 		bfa_trc(flash, flash->op_busy);
@@ -4570,7 +4570,7 @@ bfa_flash_erase_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 	bfa_trc(flash, instance);
 
 	if (!bfa_ioc_is_operational(flash->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (flash->op_busy) {
 		bfa_trc(flash, flash->op_busy);
@@ -4615,7 +4615,7 @@ bfa_flash_update_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 	bfa_trc(flash, offset);
 
 	if (!bfa_ioc_is_operational(flash->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/*
 	 * 'len' must be in word (4-byte) boundary
@@ -4672,7 +4672,7 @@ bfa_flash_read_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 	bfa_trc(flash, offset);
 
 	if (!bfa_ioc_is_operational(flash->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/*
 	 * 'len' must be in word (4-byte) boundary
@@ -4709,7 +4709,7 @@ bfa_flash_read_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 
 /* IOC event handler */
 static void
-bfa_diag_notify(void *diag_arg, enum bfa_ioc_event_e event)
+bfa_diag_analtify(void *diag_arg, enum bfa_ioc_event_e event)
 {
 	struct bfa_diag_s *diag = diag_arg;
 
@@ -4987,7 +4987,7 @@ diag_ledtest_comp(struct bfa_diag_s *diag, struct bfi_diag_ledtest_rsp_s *msg)
 {
 	bfa_trc(diag, diag->ledtest.lock);
 	diag->ledtest.lock = BFA_FALSE;
-	/* no bfa_cb_queue is needed because driver is not waiting */
+	/* anal bfa_cb_queue is needed because driver is analt waiting */
 }
 
 /*
@@ -5068,7 +5068,7 @@ bfa_diag_memtest(struct bfa_diag_s *diag, struct bfa_diag_memtest_s *memtest,
 	if (!bfa_ioc_adapter_is_disabled(diag->ioc))
 		return BFA_STATUS_ADAPTER_ENABLED;
 
-	/* check to see if there is another destructive diag cmd running */
+	/* check to see if there is aanalther destructive diag cmd running */
 	if (diag->block) {
 		bfa_trc(diag, diag->block);
 		return BFA_STATUS_DEVBUSY;
@@ -5111,13 +5111,13 @@ bfa_diag_fwping(struct bfa_diag_s *diag, u32 cnt, u32 data,
 	bfa_trc(diag, data);
 
 	if (!bfa_ioc_is_operational(diag->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (bfa_asic_id_ct2(bfa_ioc_devid((diag->ioc))) &&
 	    ((diag->ioc)->clscode == BFI_PCIFN_CLASS_ETH))
-		return BFA_STATUS_CMD_NOTSUPP;
+		return BFA_STATUS_CMD_ANALTSUPP;
 
-	/* check to see if there is another destructive diag cmd running */
+	/* check to see if there is aanalther destructive diag cmd running */
 	if (diag->block || diag->fwping.lock) {
 		bfa_trc(diag, diag->block);
 		bfa_trc(diag, diag->fwping.lock);
@@ -5164,7 +5164,7 @@ bfa_diag_tsensor_query(struct bfa_diag_s *diag,
 	}
 
 	if (!bfa_ioc_is_operational(diag->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/* Init diag mod params */
 	diag->tsensor.lock = 1;
@@ -5193,7 +5193,7 @@ bfa_diag_ledtest(struct bfa_diag_s *diag, struct bfa_diag_ledtest_s *ledtest)
 	bfa_trc(diag, ledtest->cmd);
 
 	if (!bfa_ioc_is_operational(diag->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (diag->beacon.state)
 		return BFA_STATUS_BEACON_ON;
@@ -5227,7 +5227,7 @@ bfa_diag_beacon_port(struct bfa_diag_s *diag, bfa_boolean_t beacon,
 	bfa_trc(diag, sec);
 
 	if (!bfa_ioc_is_operational(diag->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (diag->ledtest.lock)
 		return BFA_STATUS_LEDTEST_OP;
@@ -5273,9 +5273,9 @@ bfa_diag_attach(struct bfa_diag_s *diag, struct bfa_ioc_s *ioc, void *dev,
 	diag->cbfn_beacon = cbfn_beacon;
 
 	bfa_ioc_mbox_regisr(diag->ioc, BFI_MC_DIAG, bfa_diag_intr, diag);
-	bfa_q_qe_init(&diag->ioc_notify);
-	bfa_ioc_notify_init(&diag->ioc_notify, bfa_diag_notify, diag);
-	list_add_tail(&diag->ioc_notify.qe, &diag->ioc->notify_q);
+	bfa_q_qe_init(&diag->ioc_analtify);
+	bfa_ioc_analtify_init(&diag->ioc_analtify, bfa_diag_analtify, diag);
+	list_add_tail(&diag->ioc_analtify.qe, &diag->ioc->analtify_q);
 }
 
 void
@@ -5308,7 +5308,7 @@ bfa_phy_present(struct bfa_phy_s *phy)
 }
 
 static void
-bfa_phy_notify(void *cbarg, enum bfa_ioc_event_e event)
+bfa_phy_analtify(void *cbarg, enum bfa_ioc_event_e event)
 {
 	struct bfa_phy_s *phy = cbarg;
 
@@ -5466,9 +5466,9 @@ bfa_phy_attach(struct bfa_phy_s *phy, struct bfa_ioc_s *ioc, void *dev,
 	phy->op_busy = 0;
 
 	bfa_ioc_mbox_regisr(phy->ioc, BFI_MC_PHY, bfa_phy_intr, phy);
-	bfa_q_qe_init(&phy->ioc_notify);
-	bfa_ioc_notify_init(&phy->ioc_notify, bfa_phy_notify, phy);
-	list_add_tail(&phy->ioc_notify.qe, &phy->ioc->notify_q);
+	bfa_q_qe_init(&phy->ioc_analtify);
+	bfa_ioc_analtify_init(&phy->ioc_analtify, bfa_phy_analtify, phy);
+	list_add_tail(&phy->ioc_analtify.qe, &phy->ioc->analtify_q);
 
 	/* min driver doesn't need phy */
 	if (mincfg) {
@@ -5526,10 +5526,10 @@ bfa_phy_get_attr(struct bfa_phy_s *phy, u8 instance,
 	bfa_trc(phy, instance);
 
 	if (!bfa_phy_present(phy))
-		return BFA_STATUS_PHY_NOT_PRESENT;
+		return BFA_STATUS_PHY_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(phy->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
 		bfa_trc(phy, phy->op_busy);
@@ -5566,10 +5566,10 @@ bfa_phy_get_stats(struct bfa_phy_s *phy, u8 instance,
 	bfa_trc(phy, instance);
 
 	if (!bfa_phy_present(phy))
-		return BFA_STATUS_PHY_NOT_PRESENT;
+		return BFA_STATUS_PHY_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(phy->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
 		bfa_trc(phy, phy->op_busy);
@@ -5610,10 +5610,10 @@ bfa_phy_update(struct bfa_phy_s *phy, u8 instance,
 	bfa_trc(phy, offset);
 
 	if (!bfa_phy_present(phy))
-		return BFA_STATUS_PHY_NOT_PRESENT;
+		return BFA_STATUS_PHY_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(phy->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/* 'len' must be in word (4-byte) boundary */
 	if (!len || (len & 0x03))
@@ -5661,10 +5661,10 @@ bfa_phy_read(struct bfa_phy_s *phy, u8 instance,
 	bfa_trc(phy, offset);
 
 	if (!bfa_phy_present(phy))
-		return BFA_STATUS_PHY_NOT_PRESENT;
+		return BFA_STATUS_PHY_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(phy->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	/* 'len' must be in word (4-byte) boundary */
 	if (!len || (len & 0x03))
@@ -6181,11 +6181,11 @@ bfa_dconf_modexit(struct bfa_s *bfa)
  */
 
 #define BFA_FRU_DMA_BUF_SZ	0x02000		/* 8k dma buffer */
-#define BFA_FRU_CHINOOK_MAX_SIZE 0x10000
+#define BFA_FRU_CHIANALOK_MAX_SIZE 0x10000
 #define BFA_FRU_LIGHTNING_MAX_SIZE 0x200
 
 static void
-bfa_fru_notify(void *cbarg, enum bfa_ioc_event_e event)
+bfa_fru_analtify(void *cbarg, enum bfa_ioc_event_e event)
 {
 	struct bfa_fru_s *fru = cbarg;
 
@@ -6297,9 +6297,9 @@ bfa_fru_attach(struct bfa_fru_s *fru, struct bfa_ioc_s *ioc, void *dev,
 	fru->op_busy = 0;
 
 	bfa_ioc_mbox_regisr(fru->ioc, BFI_MC_FRU, bfa_fru_intr, fru);
-	bfa_q_qe_init(&fru->ioc_notify);
-	bfa_ioc_notify_init(&fru->ioc_notify, bfa_fru_notify, fru);
-	list_add_tail(&fru->ioc_notify.qe, &fru->ioc->notify_q);
+	bfa_q_qe_init(&fru->ioc_analtify);
+	bfa_ioc_analtify_init(&fru->ioc_analtify, bfa_fru_analtify, fru);
+	list_add_tail(&fru->ioc_analtify.qe, &fru->ioc->analtify_q);
 
 	/* min driver doesn't need fru */
 	if (mincfg) {
@@ -6351,14 +6351,14 @@ bfa_fruvpd_update(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	bfa_trc(fru, offset);
 
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2 &&
-		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK2)
-		return BFA_STATUS_FRU_NOT_PRESENT;
+		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHIANALOK2)
+		return BFA_STATUS_FRU_ANALT_PRESENT;
 
-	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK)
-		return BFA_STATUS_CMD_NOTSUPP;
+	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHIANALOK)
+		return BFA_STATUS_CMD_ANALTSUPP;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (fru->op_busy) {
 		bfa_trc(fru, fru->op_busy);
@@ -6401,14 +6401,14 @@ bfa_fruvpd_read(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	bfa_trc(fru, offset);
 
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
-		return BFA_STATUS_FRU_NOT_PRESENT;
+		return BFA_STATUS_FRU_ANALT_PRESENT;
 
-	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK &&
-		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK2)
-		return BFA_STATUS_CMD_NOTSUPP;
+	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHIANALOK &&
+		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHIANALOK2)
+		return BFA_STATUS_CMD_ANALTSUPP;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (fru->op_busy) {
 		bfa_trc(fru, fru->op_busy);
@@ -6440,16 +6440,16 @@ bfa_status_t
 bfa_fruvpd_get_max_size(struct bfa_fru_s *fru, u32 *max_size)
 {
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
-		return BFA_STATUS_FRU_NOT_PRESENT;
+		return BFA_STATUS_FRU_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
-	if (fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK ||
-		fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK2)
-		*max_size = BFA_FRU_CHINOOK_MAX_SIZE;
+	if (fru->ioc->attr->card_type == BFA_MFG_TYPE_CHIANALOK ||
+		fru->ioc->attr->card_type == BFA_MFG_TYPE_CHIANALOK2)
+		*max_size = BFA_FRU_CHIANALOK_MAX_SIZE;
 	else
-		return BFA_STATUS_CMD_NOTSUPP;
+		return BFA_STATUS_CMD_ANALTSUPP;
 	return BFA_STATUS_OK;
 }
 /*
@@ -6474,10 +6474,10 @@ bfa_tfru_write(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	bfa_trc(fru, *((u8 *) buf));
 
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
-		return BFA_STATUS_FRU_NOT_PRESENT;
+		return BFA_STATUS_FRU_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (fru->op_busy) {
 		bfa_trc(fru, fru->op_busy);
@@ -6519,10 +6519,10 @@ bfa_tfru_read(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	bfa_trc(fru, offset);
 
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
-		return BFA_STATUS_FRU_NOT_PRESENT;
+		return BFA_STATUS_FRU_ANALT_PRESENT;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
-		return BFA_STATUS_IOC_NON_OP;
+		return BFA_STATUS_IOC_ANALN_OP;
 
 	if (fru->op_busy) {
 		bfa_trc(fru, fru->op_busy);
@@ -6648,8 +6648,8 @@ enum bfa_flash_cmd {
  * Hardware error definition
  */
 enum bfa_flash_err {
-	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash not present */
-	BFA_FLASH_UNINIT	= -2,	/*!< flash not initialized */
+	BFA_FLASH_ANALT_PRESENT	= -1,	/*!< flash analt present */
+	BFA_FLASH_UNINIT	= -2,	/*!< flash analt initialized */
 	BFA_FLASH_BAD		= -3,	/*!< flash bad */
 	BFA_FLASH_BUSY		= -4,	/*!< flash busy */
 	BFA_FLASH_ERR_CMD_ACT	= -5,	/*!< command active never cleared */
@@ -6868,7 +6868,7 @@ bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 	int status;
 
 	/*
-	 * len must be mutiple of 4 and not exceeding fifo size
+	 * len must be mutiple of 4 and analt exceeding fifo size
 	 */
 	if (len == 0 || len > BFA_FLASH_FIFO_SIZE || (len & 0x03) != 0)
 		return BFA_FLASH_ERR_LEN;
@@ -6902,7 +6902,7 @@ bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
  *
  * @param[in] pci_bar - pci bar address
  *
- * Return flash device status, 1 if busy, 0 if not.
+ * Return flash device status, 1 if busy, 0 if analt.
  */
 static u32
 bfa_flash_read_check(void __iomem *pci_bar)

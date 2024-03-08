@@ -16,7 +16,7 @@
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <limits.h>
 #include <pthread.h>
@@ -83,7 +83,7 @@ int create_rt_thread(pthread_t *pth, void*(*func)(void *), void *arg,
 	return 0;
 }
 
-void handle_signal(int signo)
+void handle_signal(int siganal)
 {
 	info("signal received %s requeue\n",
 	     requeued.val ? "after" : "prior to");
@@ -101,9 +101,9 @@ void *waiterfn(void *arg)
 	old_val = f1;
 	res = futex_wait_requeue_pi(&f1, old_val, &(f2), NULL,
 				    FUTEX_PRIVATE_FLAG);
-	if (!requeued.val || errno != EWOULDBLOCK) {
+	if (!requeued.val || erranal != EWOULDBLOCK) {
 		fail("unexpected return from futex_wait_requeue_pi: %d (%s)\n",
-		     res, strerror(errno));
+		     res, strerror(erranal));
 		info("w2:futex: %x\n", f2);
 		if (!res)
 			futex_unlock_pi(&f2, FUTEX_PRIVATE_FLAG);
@@ -143,13 +143,13 @@ int main(int argc, char *argv[])
 	ksft_set_plan(1);
 	ksft_print_msg("%s: Test signal handling during requeue_pi\n",
 	       basename(argv[0]));
-	ksft_print_msg("\tArguments: <none>\n");
+	ksft_print_msg("\tArguments: <analne>\n");
 
 	sa.sa_handler = handle_signal;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
 	if (sigaction(SIGUSR1, &sa, NULL)) {
-		error("sigaction\n", errno);
+		error("sigaction\n", erranal);
 		exit(1);
 	}
 
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 		res = futex_cmp_requeue_pi(&f1, old_val, &(f2), 1, 0,
 					   FUTEX_PRIVATE_FLAG);
 		/*
-		 * If res is non-zero, we either requeued the waiter or hit an
+		 * If res is analn-zero, we either requeued the waiter or hit an
 		 * error, break out and handle it. If it is zero, then the
 		 * signal may have hit before the waiter was blocked on f1.
 		 * Try again.
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 			atomic_set(&requeued, 1);
 			break;
 		} else if (res < 0) {
-			error("FUTEX_CMP_REQUEUE_PI failed\n", errno);
+			error("FUTEX_CMP_REQUEUE_PI failed\n", erranal);
 			ret = RET_ERROR;
 			break;
 		}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mediatek,mt6795-clk.h>
@@ -14,17 +14,17 @@
 /*
  * For some clocks, we don't care what their actual rates are. And these
  * clocks may change their rate on different products or different scenarios.
- * So we model these clocks' rate as 0, to denote it's not an actual rate.
+ * So we model these clocks' rate as 0, to deanalte it's analt an actual rate.
  */
 #define DUMMY_RATE	0
 
-#define TOP_MUX_GATE_NOSR(_id, _name, _parents, _reg, _shift, _width, _gate, _flags) \
+#define TOP_MUX_GATE_ANALSR(_id, _name, _parents, _reg, _shift, _width, _gate, _flags) \
 		MUX_GATE_CLR_SET_UPD_FLAGS(_id, _name, _parents, _reg,		\
 			(_reg + 0x4), (_reg + 0x8), _shift, _width,		\
 			_gate, 0, -1, _flags)
 
 #define TOP_MUX_GATE(_id, _name, _parents, _reg, _shift, _width, _gate, _flags)	\
-		TOP_MUX_GATE_NOSR(_id, _name, _parents, _reg, _shift, _width,	\
+		TOP_MUX_GATE_ANALSR(_id, _name, _parents, _reg, _shift, _width,	\
 				  _gate, CLK_SET_RATE_PARENT | _flags)
 
 static DEFINE_SPINLOCK(mt6795_top_clk_lock);
@@ -449,9 +449,9 @@ static const struct mtk_fixed_factor top_divs[] = {
 
 static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
-	TOP_MUX_GATE_NOSR(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
+	TOP_MUX_GATE_ANALSR(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
 			  0x40, 0, 3, 7, CLK_IS_CRITICAL),
-	TOP_MUX_GATE_NOSR(CLK_TOP_MEM_SEL, "mem_sel", mem_parents,
+	TOP_MUX_GATE_ANALSR(CLK_TOP_MEM_SEL, "mem_sel", mem_parents,
 			  0x40, 8, 1, 15, CLK_IS_CRITICAL),
 	TOP_MUX_GATE(CLK_TOP_DDRPHYCFG_SEL, "ddrphycfg_sel", ddrphycfg_parents,
 		     0x40, 16, 1, 23, CLK_IS_CRITICAL),
@@ -484,10 +484,10 @@ static const struct mtk_mux top_muxes[] = {
 	TOP_MUX_GATE(CLK_TOP_MJC_SEL, "mjc_sel", mjc_parents, 0x90, 24, 4, 31, 0),
 	/* CLK_CFG_6 */
 	/*
-	 * The dpi0_sel clock should not propagate rate changes to its parent
+	 * The dpi0_sel clock should analt propagate rate changes to its parent
 	 * clock so the dpi driver can have full control over PLL and divider.
 	 */
-	TOP_MUX_GATE_NOSR(CLK_TOP_DPI0_SEL, "dpi0_sel", dpi0_parents, 0xa0, 0, 3, 7, 0),
+	TOP_MUX_GATE_ANALSR(CLK_TOP_DPI0_SEL, "dpi0_sel", dpi0_parents, 0xa0, 0, 3, 7, 0),
 	TOP_MUX_GATE(CLK_TOP_IRDA_SEL, "irda_sel", irda_parents, 0xa0, 8, 2, 15, 0),
 	TOP_MUX_GATE(CLK_TOP_CCI400_SEL, "cci400_sel", cci400_parents,
 		     0xa0, 16, 3, 23, CLK_IS_CRITICAL),

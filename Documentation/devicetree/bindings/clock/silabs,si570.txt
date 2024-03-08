@@ -28,7 +28,7 @@ Optional properties:
  - clock-frequency: Output frequency to generate. This defines the output
 		    frequency set during boot. It can be reprogrammed during
 		    runtime through the common clock framework.
- - silabs,skip-recall: Do not perform NVM->RAM recall operation. It will rely
+ - silabs,skip-recall: Do analt perform NVM->RAM recall operation. It will rely
 		       on hardware loading of RAM from NVM at power on.
 
 Example:

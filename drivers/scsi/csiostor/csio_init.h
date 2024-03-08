@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,8 +43,8 @@
 #include <scsi/scsi_transport_fc.h>
 
 #include "csio_scsi.h"
-#include "csio_lnode.h"
-#include "csio_rnode.h"
+#include "csio_lanalde.h"
+#include "csio_ranalde.h"
 #include "csio_hw.h"
 
 #define CSIO_DRV_AUTHOR			"Chelsio Communications"
@@ -54,7 +54,7 @@
 extern struct fc_function_template csio_fc_transport_funcs;
 extern struct fc_function_template csio_fc_transport_vport_funcs;
 
-void csio_fchost_attr_init(struct csio_lnode *);
+void csio_fchost_attr_init(struct csio_lanalde *);
 
 /* INTx handlers */
 void csio_scsi_intx_handler(struct csio_hw *, void *, uint32_t,
@@ -63,23 +63,23 @@ void csio_scsi_intx_handler(struct csio_hw *, void *, uint32_t,
 void csio_fwevt_intx_handler(struct csio_hw *, void *, uint32_t,
 				struct csio_fl_dma_buf *, void *);
 
-/* Common os lnode APIs */
-void csio_lnodes_block_request(struct csio_hw *);
-void csio_lnodes_unblock_request(struct csio_hw *);
-void csio_lnodes_block_by_port(struct csio_hw *, uint8_t);
-void csio_lnodes_unblock_by_port(struct csio_hw *, uint8_t);
+/* Common os lanalde APIs */
+void csio_lanaldes_block_request(struct csio_hw *);
+void csio_lanaldes_unblock_request(struct csio_hw *);
+void csio_lanaldes_block_by_port(struct csio_hw *, uint8_t);
+void csio_lanaldes_unblock_by_port(struct csio_hw *, uint8_t);
 
-struct csio_lnode *csio_shost_init(struct csio_hw *, struct device *, bool,
-					struct csio_lnode *);
-void csio_shost_exit(struct csio_lnode *);
-void csio_lnodes_exit(struct csio_hw *, bool);
+struct csio_lanalde *csio_shost_init(struct csio_hw *, struct device *, bool,
+					struct csio_lanalde *);
+void csio_shost_exit(struct csio_lanalde *);
+void csio_lanaldes_exit(struct csio_hw *, bool);
 
 /* DebugFS helper routines */
 void csio_add_debugfs_mem(struct csio_hw *, const char *,
 		unsigned int, unsigned int);
 
 static inline struct Scsi_Host *
-csio_ln_to_shost(struct csio_lnode *ln)
+csio_ln_to_shost(struct csio_lanalde *ln)
 {
 	return container_of((void *)ln, struct Scsi_Host, hostdata[0]);
 }

@@ -10,19 +10,19 @@ BUILD_BUG_ON(1)
 #endif
 
 /*
- * We do NOT shadow fields that are modified when L0
+ * We do ANALT shadow fields that are modified when L0
  * traps and emulates any vmx instruction (e.g. VMPTRLD,
  * VMXON...) executed by L1.
  * For example, VM_INSTRUCTION_ERROR is read
  * by L1 if a vmx instruction fails (part of the error path).
- * Note the code assumes this logic. If for some reason
+ * Analte the code assumes this logic. If for some reason
  * we start shadowing these fields then we need to
  * force a shadow sync when L0 emulates vmx instructions
  * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
  * by nested_vmx_failValid)
  *
- * When adding or removing fields here, note that shadowed
- * fields must always be synced by prepare_vmcs02, not just
+ * When adding or removing fields here, analte that shadowed
+ * fields must always be synced by prepare_vmcs02, analt just
  * prepare_vmcs02_rare.
  */
 

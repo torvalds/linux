@@ -21,19 +21,19 @@
 #define MICRO_BATT_CHEM_NIMH		0x03
 #define MICRO_BATT_CHEM_LION		0x04
 #define MICRO_BATT_CHEM_LIPOLY		0x05
-#define MICRO_BATT_CHEM_NOT_INSTALLED	0x06
-#define MICRO_BATT_CHEM_UNKNOWN		0xff
+#define MICRO_BATT_CHEM_ANALT_INSTALLED	0x06
+#define MICRO_BATT_CHEM_UNKANALWN		0xff
 
 #define MICRO_BATT_STATUS_HIGH		0x01
 #define MICRO_BATT_STATUS_LOW		0x02
 #define MICRO_BATT_STATUS_CRITICAL	0x04
 #define MICRO_BATT_STATUS_CHARGING	0x08
 #define MICRO_BATT_STATUS_CHARGEMAIN	0x10
-#define MICRO_BATT_STATUS_DEAD		0x20 /* Battery will not charge */
-#define MICRO_BATT_STATUS_NOTINSTALLED	0x20 /* For expansion pack batteries */
+#define MICRO_BATT_STATUS_DEAD		0x20 /* Battery will analt charge */
+#define MICRO_BATT_STATUS_ANALTINSTALLED	0x20 /* For expansion pack batteries */
 #define MICRO_BATT_STATUS_FULL		0x40 /* Battery fully charged */
-#define MICRO_BATT_STATUS_NOBATTERY	0x80
-#define MICRO_BATT_STATUS_UNKNOWN	0xff
+#define MICRO_BATT_STATUS_ANALBATTERY	0x80
+#define MICRO_BATT_STATUS_UNKANALWN	0xff
 
 struct micro_battery {
 	struct ipaq_micro *micro;
@@ -64,7 +64,7 @@ static void micro_battery_work(struct work_struct *work)
 
 	/*
 	 * Returned message format:
-	 * byte 0:   0x00 = Not plugged in
+	 * byte 0:   0x00 = Analt plugged in
 	 *           0x01 = AC adapter plugged in
 	 * byte 1:   chemistry
 	 * byte 2:   voltage LSB
@@ -79,7 +79,7 @@ static void micro_battery_work(struct work_struct *work)
 	mb->flag = msg_battery.rx_data[4];
 
 	if (msg_battery.rx_len == 9)
-		pr_debug("second battery ignored\n");
+		pr_debug("second battery iganalred\n");
 
 	/* Then read the sensor */
 	ipaq_micro_tx_msg_sync(mb->micro, &msg_sensor);
@@ -112,8 +112,8 @@ static int get_status(struct power_supply *b)
 {
 	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
-	if (mb->flag == MICRO_BATT_STATUS_UNKNOWN)
-		return POWER_SUPPLY_STATUS_UNKNOWN;
+	if (mb->flag == MICRO_BATT_STATUS_UNKANALWN)
+		return POWER_SUPPLY_STATUS_UNKANALWN;
 
 	if (mb->flag & MICRO_BATT_STATUS_FULL)
 		return POWER_SUPPLY_STATUS_FULL;
@@ -132,22 +132,22 @@ static int micro_batt_get_property(struct power_supply *b,
 	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		switch (mb->chemistry) {
 		case MICRO_BATT_CHEM_NICD:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_NiCd;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_NiCd;
 			break;
 		case MICRO_BATT_CHEM_NIMH:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_NiMH;
 			break;
 		case MICRO_BATT_CHEM_LION:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 			break;
 		case MICRO_BATT_CHEM_LIPOLY:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_LIPO;
 			break;
 		default:
-			val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+			val->intval = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 			break;
 		}
 		break;
@@ -163,7 +163,7 @@ static int micro_batt_get_property(struct power_supply *b,
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = mb->temperature;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = mb->voltage;
 		break;
 	default:
@@ -191,12 +191,12 @@ static int micro_ac_get_property(struct power_supply *b,
 }
 
 static enum power_supply_property micro_batt_power_props[] = {
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 static const struct power_supply_desc micro_batt_power_desc = {
@@ -229,12 +229,12 @@ static int micro_batt_probe(struct platform_device *pdev)
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mb->micro = dev_get_drvdata(pdev->dev.parent);
 	mb->wq = alloc_workqueue("ipaq-battery-wq", WQ_MEM_RECLAIM, 0);
 	if (!mb->wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_DELAYED_WORK(&mb->update, micro_battery_work);
 	platform_set_drvdata(pdev, mb);

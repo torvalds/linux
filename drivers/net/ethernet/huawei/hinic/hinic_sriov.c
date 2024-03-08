@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/pci.h>
@@ -49,7 +49,7 @@ static int hinic_set_mac(struct hinic_hwdev *hwdev, const u8 *mac_addr,
 	return 0;
 }
 
-static void hinic_notify_vf_link_status(struct hinic_hwdev *hwdev, u16 vf_id,
+static void hinic_analtify_vf_link_status(struct hinic_hwdev *hwdev, u16 vf_id,
 					u8 link_status)
 {
 	struct vf_data_storage *vf_infos = hwdev->func_to_io.vf_infos;
@@ -73,7 +73,7 @@ static void hinic_notify_vf_link_status(struct hinic_hwdev *hwdev, u16 vf_id,
 }
 
 /* send link change event mbox msg to active vfs under the pf */
-void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
+void hinic_analtify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 				       u8 link_status)
 {
 	struct hinic_func_to_io *nic_io = &hwdev->func_to_io;
@@ -82,7 +82,7 @@ void hinic_notify_all_vfs_link_changed(struct hinic_hwdev *hwdev,
 	nic_io->link_status = link_status;
 	for (i = 1; i <= nic_io->max_vfs; i++) {
 		if (!nic_io->vf_infos[HW_VF_ID_TO_OS(i)].link_forced)
-			hinic_notify_vf_link_status(hwdev, i,  link_status);
+			hinic_analtify_vf_link_status(hwdev, i,  link_status);
 	}
 }
 
@@ -201,7 +201,7 @@ static int hinic_set_vf_tx_rate(struct hinic_hwdev *hwdev, u16 vf_id,
 
 	if (min_rate) {
 		dev_err(&hwdev->hwif->pdev->dev, "Current firmware doesn't support to set min tx rate\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dev_info(&hwdev->hwif->pdev->dev, "Current firmware doesn't support to set min tx rate, force min_tx_rate = max_tx_rate\n");
@@ -565,7 +565,7 @@ static int hinic_update_mac(struct hinic_hwdev *hwdev, u8 *old_mac,
 	}
 
 	if (mac_info.status == HINIC_MGMT_STATUS_EXIST)
-		dev_warn(&hwdev->hwif->pdev->dev, "MAC is repeated. Ignore update operation\n");
+		dev_warn(&hwdev->hwif->pdev->dev, "MAC is repeated. Iganalre update operation\n");
 
 	return 0;
 }
@@ -796,7 +796,7 @@ int hinic_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 	if (vf >= sriov_info->num_vfs || vlan >= VLAN_N_VID || qos > HINIC_MAX_QOS)
 		return -EINVAL;
 	if (vlan_proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	vlanprio = vlan | qos << HINIC_VLAN_PRIORITY_SHIFT;
 	cur_vlanprio = hinic_vf_info_vlanprio(nic_dev->hwdev,
 					      OS_VF_ID_TO_HW(vf));
@@ -888,7 +888,7 @@ int hinic_ndo_set_vf_bw(struct net_device *netdev,
 	if (err || port_cap.speed > LINK_SPEED_100GB)
 		return -EIO;
 
-	/* rate limit cannot be less than 0 and greater than link speed */
+	/* rate limit cananalt be less than 0 and greater than link speed */
 	if (max_tx_rate < 0 || max_tx_rate > speeds[port_cap.speed]) {
 		netif_err(nic_dev, drv, netdev, "Max tx rate must be in [0 - %d]\n",
 			  speeds[port_cap.speed]);
@@ -970,7 +970,7 @@ int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	} else if (err == HINIC_MGMT_CMD_UNSUPPORTED) {
 		netif_err(nic_dev, drv, netdev,
 			  "Current firmware doesn't support to set vf spoofchk, need to upgrade latest firmware version\n");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 
 	return err;
@@ -1004,8 +1004,8 @@ static int hinic_set_vf_link_state(struct hinic_hwdev *hwdev, u16 vf_id,
 		return -EINVAL;
 	}
 
-	/* Notify the VF of its new link state */
-	hinic_notify_vf_link_status(hwdev, vf_id, link_status);
+	/* Analtify the VF of its new link state */
+	hinic_analtify_vf_link_status(hwdev, vf_id, link_status);
 
 	return 0;
 }
@@ -1207,7 +1207,7 @@ int hinic_vf_func_init(struct hinic_hwdev *hwdev)
 		if (size != 0) {
 			nic_io->vf_infos = kzalloc(size, GFP_KERNEL);
 			if (!nic_io->vf_infos) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto out_free_nic_io;
 			}
 
@@ -1279,19 +1279,19 @@ int hinic_pci_sriov_disable(struct pci_dev *pdev)
 	u16 tmp_vfs;
 
 	sriov_info = hinic_get_sriov_info_by_pcidev(pdev);
-	/* if SR-IOV is already disabled then nothing will be done */
+	/* if SR-IOV is already disabled then analthing will be done */
 	if (!sriov_info->sriov_enabled)
 		return 0;
 
 	set_bit(HINIC_SRIOV_DISABLE, &sriov_info->state);
 
-	/* If our VFs are assigned we cannot shut down SR-IOV
+	/* If our VFs are assigned we cananalt shut down SR-IOV
 	 * without causing issues, so just leave the hardware
 	 * available but disabled
 	 */
 	if (pci_vfs_assigned(sriov_info->pdev)) {
 		clear_bit(HINIC_SRIOV_DISABLE, &sriov_info->state);
-		dev_warn(&pdev->dev, "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		dev_warn(&pdev->dev, "Unloading driver while VFs are assigned - VFs will analt be deallocated\n");
 		return -EPERM;
 	}
 	sriov_info->sriov_enabled = false;

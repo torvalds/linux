@@ -24,7 +24,7 @@ static void acpi_db_dump_parser_descriptor(union acpi_parse_object *op);
 static void *acpi_db_get_pointer(void *target);
 
 static acpi_status
-acpi_db_display_non_root_handlers(acpi_handle obj_handle,
+acpi_db_display_analn_root_handlers(acpi_handle obj_handle,
 				  u32 nesting_level,
 				  void *context, void **return_value);
 
@@ -36,7 +36,7 @@ acpi_db_display_non_root_handlers(acpi_handle obj_handle,
 #define ACPI_HANDLER_NAME_STRING               "%30s : "
 #define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
 #define ACPI_HANDLER_PRESENT_STRING2                   "%-9s (%p)"
-#define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
+#define ACPI_HANDLER_ANALT_PRESENT_STRING                "%-9s\n"
 
 /* All predefined Address Space IDs */
 
@@ -66,8 +66,8 @@ typedef struct acpi_handler_info {
 } acpi_handler_info;
 
 static struct acpi_handler_info acpi_gbl_handler_list[] = {
-	{&acpi_gbl_global_notify[0].handler, "System Notifications"},
-	{&acpi_gbl_global_notify[1].handler, "Device Notifications"},
+	{&acpi_gbl_global_analtify[0].handler, "System Analtifications"},
+	{&acpi_gbl_global_analtify[1].handler, "Device Analtifications"},
 	{&acpi_gbl_table_handler, "ACPI Table Events"},
 	{&acpi_gbl_exception_handler, "Control Method Exceptions"},
 	{&acpi_gbl_interface_handler, "OSI Invocations"}
@@ -101,7 +101,7 @@ static void *acpi_db_get_pointer(void *target)
  *
  * PARAMETERS:  op              - A parser Op descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display a formatted parser object
  *
@@ -132,7 +132,7 @@ static void acpi_db_dump_parser_descriptor(union acpi_parse_object *op)
  *                                and hex pointers are supported.
  *              output_type     - Byte, Word, Dword, or Qword (B|W|D|Q)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display a formatted ACPI object
  *
@@ -141,7 +141,7 @@ static void acpi_db_dump_parser_descriptor(union acpi_parse_object *op)
 void acpi_db_decode_and_display_object(char *target, char *output_type)
 {
 	void *obj_ptr;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_operand_object *obj_desc;
 	u32 display = DB_BYTE_DISPLAY;
 	char buffer[80];
@@ -185,18 +185,18 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 		switch (ACPI_GET_DESCRIPTOR_TYPE(obj_ptr)) {
 		case ACPI_DESC_TYPE_NAMED:
 
-			/* This is a namespace Node */
+			/* This is a namespace Analde */
 
 			if (!acpi_os_readable
-			    (obj_ptr, sizeof(struct acpi_namespace_node))) {
+			    (obj_ptr, sizeof(struct acpi_namespace_analde))) {
 				acpi_os_printf
-				    ("Cannot read entire Named object at address %p\n",
+				    ("Cananalt read entire Named object at address %p\n",
 				     obj_ptr);
 				return;
 			}
 
-			node = obj_ptr;
-			goto dump_node;
+			analde = obj_ptr;
+			goto dump_analde;
 
 		case ACPI_DESC_TYPE_OPERAND:
 
@@ -205,7 +205,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 			if (!acpi_os_readable
 			    (obj_ptr, sizeof(union acpi_operand_object))) {
 				acpi_os_printf
-				    ("Cannot read entire ACPI object at address %p\n",
+				    ("Cananalt read entire ACPI object at address %p\n",
 				     obj_ptr);
 				return;
 			}
@@ -224,7 +224,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 			if (!acpi_os_readable
 			    (obj_ptr, sizeof(union acpi_parse_object))) {
 				acpi_os_printf
-				    ("Cannot read entire Parser object at address %p\n",
+				    ("Cananalt read entire Parser object at address %p\n",
 				     obj_ptr);
 				return;
 			}
@@ -239,10 +239,10 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 
 		default:
 
-			/* Is not a recognizable object */
+			/* Is analt a recognizable object */
 
 			acpi_os_printf
-			    ("Not a known ACPI internal object, descriptor type %2.2X\n",
+			    ("Analt a kanalwn ACPI internal object, descriptor type %2.2X\n",
 			     ACPI_GET_DESCRIPTOR_TYPE(obj_ptr));
 
 			size = 16;
@@ -262,35 +262,35 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 
 	/* The parameter is a name string that must be resolved to a Named obj */
 
-	node = acpi_db_local_ns_lookup(target);
-	if (!node) {
+	analde = acpi_db_local_ns_lookup(target);
+	if (!analde) {
 		return;
 	}
 
-dump_node:
-	/* Now dump the NS node */
+dump_analde:
+	/* Analw dump the NS analde */
 
-	status = acpi_get_name(node, ACPI_FULL_PATHNAME_NO_TRAILING, &ret_buf);
+	status = acpi_get_name(analde, ACPI_FULL_PATHNAME_ANAL_TRAILING, &ret_buf);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not convert name to pathname\n");
+		acpi_os_printf("Could analt convert name to pathname\n");
 	}
 
 	else {
-		acpi_os_printf("Object %p: Namespace Node - Pathname: %s\n",
-			       node, (char *)ret_buf.pointer);
+		acpi_os_printf("Object %p: Namespace Analde - Pathname: %s\n",
+			       analde, (char *)ret_buf.pointer);
 	}
 
-	if (!acpi_os_readable(node, sizeof(struct acpi_namespace_node))) {
-		acpi_os_printf("Invalid Named object at address %p\n", node);
+	if (!acpi_os_readable(analde, sizeof(struct acpi_namespace_analde))) {
+		acpi_os_printf("Invalid Named object at address %p\n", analde);
 		return;
 	}
 
-	acpi_ut_debug_dump_buffer((void *)node,
-				  sizeof(struct acpi_namespace_node), display,
+	acpi_ut_debug_dump_buffer((void *)analde,
+				  sizeof(struct acpi_namespace_analde), display,
 				  ACPI_UINT32_MAX);
-	acpi_ex_dump_namespace_node(node, 1);
+	acpi_ex_dump_namespace_analde(analde, 1);
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (obj_desc) {
 		acpi_os_printf("\nAttached Object %p:", obj_desc);
 		if (!acpi_os_readable
@@ -301,18 +301,18 @@ dump_node:
 			return;
 		}
 
-		if (ACPI_GET_DESCRIPTOR_TYPE(((struct acpi_namespace_node *)
+		if (ACPI_GET_DESCRIPTOR_TYPE(((struct acpi_namespace_analde *)
 					      obj_desc)) ==
 		    ACPI_DESC_TYPE_NAMED) {
-			acpi_os_printf(" Namespace Node - ");
+			acpi_os_printf(" Namespace Analde - ");
 			status =
-			    acpi_get_name((struct acpi_namespace_node *)
+			    acpi_get_name((struct acpi_namespace_analde *)
 					  obj_desc,
-					  ACPI_FULL_PATHNAME_NO_TRAILING,
+					  ACPI_FULL_PATHNAME_ANAL_TRAILING,
 					  &ret_buf);
 			if (ACPI_FAILURE(status)) {
 				acpi_os_printf
-				    ("Could not convert name to pathname\n");
+				    ("Could analt convert name to pathname\n");
 			} else {
 				acpi_os_printf("Pathname: %s",
 					       (char *)ret_buf.pointer);
@@ -321,7 +321,7 @@ dump_node:
 			acpi_os_printf("\n");
 			acpi_ut_debug_dump_buffer((void *)obj_desc,
 						  sizeof(struct
-							 acpi_namespace_node),
+							 acpi_namespace_analde),
 						  display, ACPI_UINT32_MAX);
 		} else {
 			acpi_os_printf("\n");
@@ -341,7 +341,7 @@ dump_node:
  *
  * PARAMETERS:  start_op        - Root of the control method parse tree
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display information about the current method
  *
@@ -351,7 +351,7 @@ void acpi_db_display_method_info(union acpi_parse_object *start_op)
 {
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_parse_object *root_op;
 	union acpi_parse_object *op;
 	const struct acpi_opcode_info *op_info;
@@ -365,15 +365,15 @@ void acpi_db_display_method_info(union acpi_parse_object *start_op)
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
 	obj_desc = walk_state->method_desc;
-	node = walk_state->method_node;
+	analde = walk_state->method_analde;
 
 	acpi_os_printf("Currently executing control method is [%4.4s]\n",
-		       acpi_ut_get_node_name(node));
+		       acpi_ut_get_analde_name(analde));
 	acpi_os_printf("%X Arguments, SyncLevel = %X\n",
 		       (u32)obj_desc->method.param_count,
 		       (u32)obj_desc->method.sync_level);
@@ -408,7 +408,7 @@ void acpi_db_display_method_info(union acpi_parse_object *start_op)
 			num_operands++;
 			break;
 
-		case AML_CLASS_UNKNOWN:
+		case AML_CLASS_UNKANALWN:
 
 			/* Bad opcode or ASCII character */
 
@@ -441,9 +441,9 @@ void acpi_db_display_method_info(union acpi_parse_object *start_op)
  *
  * FUNCTION:    acpi_db_display_locals
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display all locals for the currently running control method
  *
@@ -455,7 +455,7 @@ void acpi_db_display_locals(void)
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -466,9 +466,9 @@ void acpi_db_display_locals(void)
  *
  * FUNCTION:    acpi_db_display_arguments
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display all arguments for the currently running control method
  *
@@ -480,7 +480,7 @@ void acpi_db_display_arguments(void)
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -491,9 +491,9 @@ void acpi_db_display_arguments(void)
  *
  * FUNCTION:    acpi_db_display_results
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display current contents of a method result stack
  *
@@ -505,24 +505,24 @@ void acpi_db_display_results(void)
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
 	u32 result_count = 0;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_generic_state *frame;
 	u32 index;		/* Index onto current frame */
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
-	node = walk_state->method_node;
+	analde = walk_state->method_analde;
 
 	if (walk_state->results) {
 		result_count = walk_state->result_count;
 	}
 
 	acpi_os_printf("Method [%4.4s] has %X stacked result objects\n",
-		       acpi_ut_get_node_name(node), result_count);
+		       acpi_ut_get_analde_name(analde), result_count);
 
 	/* From the top element of result stack */
 
@@ -547,9 +547,9 @@ void acpi_db_display_results(void)
  *
  * FUNCTION:    acpi_db_display_calling_tree
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display current calling tree of nested control methods
  *
@@ -558,19 +558,19 @@ void acpi_db_display_results(void)
 void acpi_db_display_calling_tree(void)
 {
 	struct acpi_walk_state *walk_state;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
 	acpi_os_printf("Current Control Method Call Tree\n");
 
 	while (walk_state) {
-		node = walk_state->method_node;
-		acpi_os_printf("  [%4.4s]\n", acpi_ut_get_node_name(node));
+		analde = walk_state->method_analde;
+		acpi_os_printf("  [%4.4s]\n", acpi_ut_get_analde_name(analde));
 
 		walk_state = walk_state->next;
 	}
@@ -580,11 +580,11 @@ void acpi_db_display_calling_tree(void)
  *
  * FUNCTION:    acpi_db_display_object_type
  *
- * PARAMETERS:  object_arg      - User entered NS node handle
+ * PARAMETERS:  object_arg      - User entered NS analde handle
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Display type of an arbitrary NS node
+ * DESCRIPTION: Display type of an arbitrary NS analde
  *
  ******************************************************************************/
 
@@ -601,7 +601,7 @@ void acpi_db_display_object_type(char *object_arg)
 
 	status = acpi_get_object_info(handle, &info);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not get object info, %s\n",
+		acpi_os_printf("Could analt get object info, %s\n",
 			       acpi_format_exception(status));
 		return;
 	}
@@ -643,11 +643,11 @@ void acpi_db_display_object_type(char *object_arg)
  * PARAMETERS:  obj_desc        - Object to be displayed
  *              walk_state      - Current walk state
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the result of an AML opcode
  *
- * Note: Currently only displays the result object if we are single stepping.
+ * Analte: Currently only displays the result object if we are single stepping.
  * However, this output may be useful in other contexts and could be enabled
  * to do so if needed.
  *
@@ -682,7 +682,7 @@ acpi_db_display_result_object(union acpi_operand_object *obj_desc,
  * PARAMETERS:  obj_desc        - Object to be displayed
  *              walk_state      - Current walk state
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the result of an AML opcode
  *
@@ -712,9 +712,9 @@ acpi_db_display_argument_object(union acpi_operand_object *obj_desc,
  *
  * FUNCTION:    acpi_db_display_gpes
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the current GPE structures
  *
@@ -727,7 +727,7 @@ void acpi_db_display_gpes(void)
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_gpe_register_info *gpe_register_info;
 	char *gpe_type;
-	struct acpi_gpe_notify_info *notify;
+	struct acpi_gpe_analtify_info *analtify;
 	u32 gpe_index;
 	u32 block = 0;
 	u32 i;
@@ -748,23 +748,23 @@ void acpi_db_display_gpes(void)
 	while (gpe_xrupt_info) {
 		gpe_block = gpe_xrupt_info->gpe_block_list_head;
 		while (gpe_block) {
-			status = acpi_get_name(gpe_block->node,
-					       ACPI_FULL_PATHNAME_NO_TRAILING,
+			status = acpi_get_name(gpe_block->analde,
+					       ACPI_FULL_PATHNAME_ANAL_TRAILING,
 					       &ret_buf);
 			if (ACPI_FAILURE(status)) {
 				acpi_os_printf
-				    ("Could not convert name to pathname\n");
+				    ("Could analt convert name to pathname\n");
 			}
 
-			if (gpe_block->node == acpi_gbl_fadt_gpe_device) {
+			if (gpe_block->analde == acpi_gbl_fadt_gpe_device) {
 				gpe_type = "FADT-defined GPE block";
 			} else {
 				gpe_type = "GPE Block Device";
 			}
 
 			acpi_os_printf
-			    ("\nBlock %u - Info %p  DeviceNode %p [%s] - %s\n",
-			     block, gpe_block, gpe_block->node, buffer,
+			    ("\nBlock %u - Info %p  DeviceAnalde %p [%s] - %s\n",
+			     block, gpe_block, gpe_block->analde, buffer,
 			     gpe_type);
 
 			acpi_os_printf("    Registers:    %u (%u GPEs)\n",
@@ -815,7 +815,7 @@ void acpi_db_display_gpes(void)
 					       (gpe_register_info->
 						enable_address.address));
 
-				/* Now look at the individual GPEs in this byte register */
+				/* Analw look at the individual GPEs in this byte register */
 
 				for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
 					gpe_index =
@@ -825,9 +825,9 @@ void acpi_db_display_gpes(void)
 
 					if (ACPI_GPE_DISPATCH_TYPE
 					    (gpe_event_info->flags) ==
-					    ACPI_GPE_DISPATCH_NONE) {
+					    ACPI_GPE_DISPATCH_ANALNE) {
 
-						/* This GPE is not used (no method or handler), ignore it */
+						/* This GPE is analt used (anal method or handler), iganalre it */
 
 						continue;
 					}
@@ -857,9 +857,9 @@ void acpi_db_display_gpes(void)
 
 					switch (ACPI_GPE_DISPATCH_TYPE
 						(gpe_event_info->flags)) {
-					case ACPI_GPE_DISPATCH_NONE:
+					case ACPI_GPE_DISPATCH_ANALNE:
 
-						acpi_os_printf("NotUsed");
+						acpi_os_printf("AnaltUsed");
 						break;
 
 					case ACPI_GPE_DISPATCH_METHOD:
@@ -872,19 +872,19 @@ void acpi_db_display_gpes(void)
 						acpi_os_printf("Handler");
 						break;
 
-					case ACPI_GPE_DISPATCH_NOTIFY:
+					case ACPI_GPE_DISPATCH_ANALTIFY:
 
 						count = 0;
-						notify =
+						analtify =
 						    gpe_event_info->dispatch.
-						    notify_list;
-						while (notify) {
+						    analtify_list;
+						while (analtify) {
 							count++;
-							notify = notify->next;
+							analtify = analtify->next;
 						}
 
 						acpi_os_printf
-						    ("Implicit Notify on %u devices",
+						    ("Implicit Analtify on %u devices",
 						     count);
 						break;
 
@@ -895,7 +895,7 @@ void acpi_db_display_gpes(void)
 
 					default:
 
-						acpi_os_printf("UNKNOWN: %X",
+						acpi_os_printf("UNKANALWN: %X",
 							       ACPI_GPE_DISPATCH_TYPE
 							       (gpe_event_info->
 								flags));
@@ -919,9 +919,9 @@ void acpi_db_display_gpes(void)
  *
  * FUNCTION:    acpi_db_display_handlers
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display the currently installed global handlers
  *
@@ -938,7 +938,7 @@ void acpi_db_display_handlers(void)
 
 	acpi_os_printf("\nOperation Region Handlers at the namespace root:\n");
 
-	obj_desc = acpi_ns_get_attached_object(acpi_gbl_root_node);
+	obj_desc = acpi_ns_get_attached_object(acpi_gbl_root_analde);
 	if (obj_desc) {
 		for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_gbl_space_id_list); i++) {
 			space_id = acpi_gbl_space_id_list[i];
@@ -949,7 +949,7 @@ void acpi_db_display_handlers(void)
 
 			handler_obj =
 			    acpi_ev_find_region_handler(space_id,
-							obj_desc->common_notify.
+							obj_desc->common_analtify.
 							handler);
 			if (handler_obj) {
 				acpi_os_printf(ACPI_HANDLER_PRESENT_STRING,
@@ -963,16 +963,16 @@ void acpi_db_display_handlers(void)
 				goto found_handler;
 			}
 
-			/* There is no handler for this space_id */
+			/* There is anal handler for this space_id */
 
-			acpi_os_printf("None\n");
+			acpi_os_printf("Analne\n");
 
 found_handler:		;
 		}
 
 		/* Find all handlers for user-defined space_IDs */
 
-		handler_obj = obj_desc->common_notify.handler;
+		handler_obj = obj_desc->common_analtify.handler;
 		while (handler_obj) {
 			if (handler_obj->address_space.space_id >=
 			    ACPI_USER_REGION_BEGIN) {
@@ -1006,7 +1006,7 @@ found_handler:		;
 				       acpi_gbl_fixed_event_handlers[i].
 				       handler);
 		} else {
-			acpi_os_printf(ACPI_HANDLER_NOT_PRESENT_STRING, "None");
+			acpi_os_printf(ACPI_HANDLER_ANALT_PRESENT_STRING, "Analne");
 		}
 	}
 
@@ -1024,7 +1024,7 @@ found_handler:		;
 			acpi_os_printf(ACPI_HANDLER_PRESENT_STRING, "User",
 				       acpi_gbl_handler_list[i].handler);
 		} else {
-			acpi_os_printf(ACPI_HANDLER_NOT_PRESENT_STRING, "None");
+			acpi_os_printf(ACPI_HANDLER_ANALT_PRESENT_STRING, "Analne");
 		}
 	}
 
@@ -1034,13 +1034,13 @@ found_handler:		;
 
 	(void)acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX,
-				  acpi_db_display_non_root_handlers, NULL, NULL,
+				  acpi_db_display_analn_root_handlers, NULL, NULL,
 				  NULL);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_display_non_root_handlers
+ * FUNCTION:    acpi_db_display_analn_root_handlers
  *
  * PARAMETERS:  acpi_walk_callback
  *
@@ -1052,29 +1052,29 @@ found_handler:		;
  ******************************************************************************/
 
 static acpi_status
-acpi_db_display_non_root_handlers(acpi_handle obj_handle,
+acpi_db_display_analn_root_handlers(acpi_handle obj_handle,
 				  u32 nesting_level,
 				  void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node, obj_handle);
+	struct acpi_namespace_analde *analde =
+	    ACPI_CAST_PTR(struct acpi_namespace_analde, obj_handle);
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *handler_obj;
 	char *pathname;
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(analde);
 	if (!obj_desc) {
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_analrmalized_pathname(analde, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
 
 	/* Display all handlers associated with this device */
 
-	handler_obj = obj_desc->common_notify.handler;
+	handler_obj = obj_desc->common_analtify.handler;
 	while (handler_obj) {
 		acpi_os_printf(ACPI_PREDEFINED_PREFIX,
 			       acpi_ut_get_region_name((u8)handler_obj->
@@ -1086,7 +1086,7 @@ acpi_db_display_non_root_handlers(acpi_handle obj_handle,
 				ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) ? "Default"
 			       : "User", handler_obj->address_space.handler);
 
-		acpi_os_printf(" Device Name: %s (%p)\n", pathname, node);
+		acpi_os_printf(" Device Name: %s (%p)\n", pathname, analde);
 
 		handler_obj = handler_obj->address_space.next;
 	}

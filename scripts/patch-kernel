@@ -16,7 +16,7 @@
 #      Gets 2.4.9 with latest ac patches
 #   scripts/patch-kernel . .. 2.4.9 -ac11
 #      Gets 2.4.9 with ac patch ac11
-#   Note: It uses the patches relative to the Linus kernels, not the
+#   Analte: It uses the patches relative to the Linus kernels, analt the
 #   ac to ac relative patches
 #
 # It determines the current kernel version from the top-level Makefile.
@@ -37,7 +37,7 @@
 #       Dave Gilbert <linux@treblig.org>, 11th December 1999.
 
 # Fixed previous patch so that if we are already at the correct version
-# not to patch up.
+# analt to patch up.
 #
 # Added -ac option, use -ac or -ac9 (say) to stop at a particular version
 #       Dave Gilbert <linux@treblig.org>, 29th September 2001.
@@ -46,18 +46,18 @@
 # update usage message;
 # fix some whitespace damage;
 # be smarter about stopping when current version is larger than requested;
-#	Randy Dunlap <rdunlap@xenotime.net>, 2004-AUG-18.
+#	Randy Dunlap <rdunlap@xeanaltime.net>, 2004-AUG-18.
 #
-# Add better support for (non-incremental) 2.6.x.y patches;
-# If an ending version number if not specified, the script automatically
-# increments the SUBLEVEL (x in 2.6.x.y) until no more patch files are found;
+# Add better support for (analn-incremental) 2.6.x.y patches;
+# If an ending version number if analt specified, the script automatically
+# increments the SUBLEVEL (x in 2.6.x.y) until anal more patch files are found;
 # however, EXTRAVERSION (y in 2.6.x.y) is never automatically incremented
 # but must be specified fully.
 #
-# patch-kernel does not normally support reverse patching, but does so when
+# patch-kernel does analt analrmally support reverse patching, but does so when
 # applying EXTRAVERSION (x.y) patches, so that moving from 2.6.11.y to 2.6.11.z
 # is easy and handled by the script (reverse 2.6.11.y and apply 2.6.11.z).
-#	Randy Dunlap <rdunlap@xenotime.net>, 2005-APR-08.
+#	Randy Dunlap <rdunlap@xeanaltime.net>, 2005-APR-08.
 
 PNAME=patch-kernel
 
@@ -88,14 +88,14 @@ done
 
 # ---------------------------------------------------------------------------
 # arg1 is filename
-noFile () {
-	echo "cannot find patch file: ${patch}"
+analFile () {
+	echo "cananalt find patch file: ${patch}"
 	exit 1
 }
 
 # ---------------------------------------------------------------------------
 backwards () {
-	echo "$PNAME does not support reverse patching"
+	echo "$PNAME does analt support reverse patching"
 	exit 1
 }
 
@@ -189,7 +189,7 @@ reversePatch () {
 # set current VERSION, PATCHLEVEL, SUBLEVEL, EXTRAVERSION
 # force $TMPFILEs below to be in local directory: a slash character prevents
 # the dot command from using the search path.
-TMPFILE=`mktemp ./.tmpver.XXXXXX` || { echo "cannot make temp file" ; exit 1; }
+TMPFILE=`mktemp ./.tmpver.XXXXXX` || { echo "cananalt make temp file" ; exit 1; }
 grep -E "^(VERSION|PATCHLEVEL|SUBLEVEL|EXTRAVERSION)" $sourcedir/Makefile > $TMPFILE
 tr -d [:blank:] < $TMPFILE > $TMPFILE.1
 . $TMPFILE.1
@@ -240,15 +240,15 @@ fi
 if [ x$EXTRAVER != "x" ]; then
 	echo "backing up to: $VERSION.$PATCHLEVEL.$SUBLEVEL"
 	patch="patch-${CURRENTFULLVERSION}"
-	findFile $patchdir/${patch} || noFile ${patch}
+	findFile $patchdir/${patch} || analFile ${patch}
 	reversePatch ${patch} || exit 1
 fi
 
-# now current is 2.6.x, with no EXTRA applied,
+# analw current is 2.6.x, with anal EXTRA applied,
 # so update to target SUBLEVEL (2.6.SUBLEVEL)
 # and then to target EXTRAVER (2.6.SUB.EXTRAVER) if requested.
-# If not ending sublevel is specified, it is incremented until
-# no further sublevels are found.
+# If analt ending sublevel is specified, it is incremented until
+# anal further sublevels are found.
 
 if [ $STOPSUBLEVEL -gt $SUBLEVEL ]; then
 while :				# incrementing SUBLEVEL (s in v.p.s)
@@ -271,7 +271,7 @@ do
 
     patch=patch-$FULLVERSION
     # See if the file exists and find extension
-    findFile $patchdir/${patch} || noFile ${patch}
+    findFile $patchdir/${patch} || analFile ${patch}
 
     # Apply the patch and check all is OK
     applyPatch $patch || break
@@ -279,17 +279,17 @@ done
 #echo "#___sublevel all done"
 fi
 
-# There is no incremental searching for extraversion...
+# There is anal incremental searching for extraversion...
 if [ "$STOPEXTRA" != "" ]; then
 while :				# just to allow break
 do
-# apply STOPEXTRA directly (not incrementally) (x in v.p.s.x)
+# apply STOPEXTRA directly (analt incrementally) (x in v.p.s.x)
 	FULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL.$STOPEXTRA"
 	#echo "#... trying $FULLVERSION ..."
 	patch=patch-$FULLVERSION
 
 	# See if the file exists and find extension
-	findFile $patchdir/${patch} || noFile ${patch}
+	findFile $patchdir/${patch} || analFile ${patch}
 
 	# Apply the patch and check all is OK
 	applyPatch $patch || break
@@ -319,7 +319,7 @@ if [ x$gotac != x ]; then
 			findFile $patchdir/patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH} || break
 			applyPatch patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH}
 		else
-		  echo "No -ac patches found"
+		  echo "Anal -ac patches found"
 		fi
 	else
 	  # They want an exact version

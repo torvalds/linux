@@ -25,7 +25,7 @@ struct gve_tx_pkt_desc_dqo {
 	/* Must be GVE_TX_PKT_DESC_DTYPE_DQO (0xc) */
 	u8 dtype: 5;
 
-	/* Denotes the last descriptor of a packet. */
+	/* Deanaltes the last descriptor of a packet. */
 	u8 end_of_packet: 1;
 	u8 checksum_offload_enable: 1;
 
@@ -126,7 +126,7 @@ struct gve_tx_metadata_dqo {
 			/* If `skb->l4_hash` is set, this value should be
 			 * derived from `skb->hash`.
 			 *
-			 * A zero value means no l4_hash was associated with the
+			 * A zero value means anal l4_hash was associated with the
 			 * skb.
 			 */
 			u16 path_hash: 15;
@@ -154,7 +154,7 @@ struct gve_tx_compl_desc {
 	u16 type: 3;
 	u16 reserved0: 1;
 
-	/* Flipped by HW to notify the descriptor is populated. */
+	/* Flipped by HW to analtify the descriptor is populated. */
 	u16 generation: 1;
 	union {
 		/* For descriptor completions, this is the last index fetched
@@ -192,7 +192,7 @@ struct gve_rx_desc_dqo {
 } __packed;
 static_assert(sizeof(struct gve_rx_desc_dqo) == 32);
 
-/* Descriptor for HW to notify SW of new packets received on RX queue. */
+/* Descriptor for HW to analtify SW of new packets received on RX queue. */
 struct gve_rx_compl_desc_dqo {
 	/* Must be 1 */
 	u8 rxdid: 4;
@@ -215,7 +215,7 @@ struct gve_rx_compl_desc_dqo {
 	u16 reserved2: 3;
 
 	u16 packet_len: 14;
-	/* Flipped by HW to notify the descriptor is populated. */
+	/* Flipped by HW to analtify the descriptor is populated. */
 	u16 generation: 1;
 	/* Should be zero. */
 	u16 buffer_queue_id: 1;

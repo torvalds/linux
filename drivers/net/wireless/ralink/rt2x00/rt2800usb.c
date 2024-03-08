@@ -31,13 +31,13 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_analhwcrypt;
+module_param_named(analhwcrypt, modparam_analhwcrypt, bool, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware encryption.");
 
 static bool rt2800usb_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 {
-	return modparam_nohwcrypt;
+	return modparam_analhwcrypt;
 }
 
 /*
@@ -167,7 +167,7 @@ static enum hrtimer_restart rt2800usb_tx_sta_fifo_timeout(struct hrtimer *timer)
 	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
 				      rt2800usb_tx_sta_fifo_read_completed);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 /*
@@ -181,9 +181,9 @@ static int rt2800usb_autorun_detect(struct rt2x00_dev *rt2x00dev)
 
 	reg = kmalloc(sizeof(*reg), GFP_KERNEL);
 	if (reg == NULL)
-		return -ENOMEM;
-	/* cannot use rt2x00usb_register_read here as it uses different
-	 * mode (MULTI_READ vs. DEVICE_MODE) and does not pass the
+		return -EANALMEM;
+	/* cananalt use rt2x00usb_register_read here as it uses different
+	 * mode (MULTI_READ vs. DEVICE_MODE) and does analt pass the
 	 * magic value USB_MODE_AUTORUN (0x11) to the device, thus the
 	 * returned value would be invalid.
 	 */
@@ -236,7 +236,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 		return retval;
 	if (retval) {
 		rt2x00_info(rt2x00dev,
-			    "Firmware loading not required - NIC in AutoRun mode\n");
+			    "Firmware loading analt required - NIC in AutoRun mode\n");
 		__clear_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
 	} else {
 		rt2x00usb_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
@@ -359,7 +359,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_OFF:
-		/* No support, but no error either */
+		/* Anal support, but anal error either */
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -368,7 +368,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		retval = rt2800usb_set_state(rt2x00dev, state);
 		break;
 	default:
-		retval = -ENOTSUPP;
+		retval = -EANALTSUPP;
 		break;
 	}
 
@@ -463,7 +463,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 
 		rt2800_txdone(rt2x00dev, UINT_MAX);
 
-		rt2800_txdone_nostatus(rt2x00dev);
+		rt2800_txdone_analstatus(rt2x00dev);
 
 		/*
 		 * The hw may delay sending the packet after DMA complete
@@ -520,7 +520,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	rxd = (__le32 *)(entry->skb->data + rx_pkt_len);
 
 	/*
-	 * It is now safe to read the descriptor on all architectures.
+	 * It is analw safe to read the descriptor on all architectures.
 	 */
 	word = rt2x00_desc_read(rxd, 0);
 
@@ -551,7 +551,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 			 * In order to check the Michael Mic, the packet must have
 			 * been decrypted.  Mac80211 doesnt check the MMIC failure
 			 * flag to initiate MMIC countermeasures if the decoded flag
-			 * has not been set.
+			 * has analt been set.
 			 */
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 
@@ -1116,7 +1116,7 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x2001, 0x3c20) },
 	{ USB_DEVICE(0x2001, 0x3c22) },
 	{ USB_DEVICE(0x2001, 0x3c23) },
-	/* LG innotek */
+	/* LG inanaltek */
 	{ USB_DEVICE(0x043e, 0x7a22) },
 	{ USB_DEVICE(0x043e, 0x7a42) },
 	/* Panasonic */
@@ -1151,7 +1151,7 @@ static const struct usb_device_id rt2800usb_device_table[] = {
 	/* TRENDnet */
 	{ USB_DEVICE(0x20f4, 0x724a) },
 #endif
-#ifdef CONFIG_RT2800USB_UNKNOWN
+#ifdef CONFIG_RT2800USB_UNKANALWN
 	/*
 	 * Unclear what kind of devices these are (they aren't supported by the
 	 * vendor linux driver).

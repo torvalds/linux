@@ -54,7 +54,7 @@ static const struct kernel_param_ops set_param_ops = {
 
 /* Define the socket priority to use for connections were it is desirable
  * that the NIC consider performing optimized packet processing or filtering.
- * A non-zero value being sufficient to indicate general consideration of any
+ * A analn-zero value being sufficient to indicate general consideration of any
  * possible optimization.  Making it a module param allows for alternative
  * values that may be unique for some NIC implementations.
  */
@@ -127,7 +127,7 @@ struct nvmet_tcp_cmd {
 	u32				flags;
 
 	struct list_head		entry;
-	struct llist_node		lentry;
+	struct llist_analde		lentry;
 
 	/* send state */
 	u32				offset;
@@ -313,7 +313,7 @@ static int nvmet_tcp_verify_hdgst(struct nvmet_tcp_queue *queue,
 	__le32 exp_digest;
 
 	if (unlikely(!(hdr->flags & NVME_TCP_F_HDGST))) {
-		pr_err("queue %d: header digest enabled but no header digest\n",
+		pr_err("queue %d: header digest enabled but anal header digest\n",
 			queue->idx);
 		return -EPROTO;
 	}
@@ -529,11 +529,11 @@ static void nvmet_setup_response_pdu(struct nvmet_tcp_cmd *cmd)
 
 static void nvmet_tcp_process_resp_list(struct nvmet_tcp_queue *queue)
 {
-	struct llist_node *node;
+	struct llist_analde *analde;
 	struct nvmet_tcp_cmd *cmd;
 
-	for (node = llist_del_all(&queue->resp_list); node; node = node->next) {
-		cmd = llist_entry(node, struct nvmet_tcp_cmd, lentry);
+	for (analde = llist_del_all(&queue->resp_list); analde; analde = analde->next) {
+		cmd = llist_entry(analde, struct nvmet_tcp_cmd, lentry);
 		list_add(&cmd->entry, &queue->resp_send_list);
 		queue->send_list_len++;
 	}
@@ -882,7 +882,7 @@ free_snd_hash:
 	ahash_request_free(queue->snd_hash);
 free_tfm:
 	crypto_free_ahash(tfm);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 
@@ -952,7 +952,7 @@ static void nvmet_tcp_handle_req_failure(struct nvmet_tcp_queue *queue,
 	int ret;
 
 	/*
-	 * This command has not been processed yet, hence we are trying to
+	 * This command has analt been processed yet, hence we are trying to
 	 * figure out if there is still pending data left to receive. If
 	 * we don't, we can simply prepare for the next pdu and bail out,
 	 * otherwise we will need to prepare a buffer and receive the
@@ -1063,7 +1063,7 @@ static int nvmet_tcp_done_recv_pdu(struct nvmet_tcp_queue *queue)
 			queue->idx, queue->nr_cmds, queue->send_list_len,
 			nvme_cmd->common.opcode);
 		nvmet_tcp_fatal_error(queue);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req = &queue->cmd->req;
@@ -1154,7 +1154,7 @@ static int nvmet_tcp_tls_record_ok(struct nvmet_tcp_queue *queue,
 		if (level == TLS_ALERT_LEVEL_FATAL) {
 			pr_err("queue %d: TLS Alert desc %u\n",
 			       queue->idx, description);
-			ret = -ENOTCONN;
+			ret = -EANALTCONN;
 		} else {
 			pr_warn("queue %d: TLS Alert desc %u\n",
 			       queue->idx, description);
@@ -1464,7 +1464,7 @@ static int nvmet_tcp_alloc_cmd(struct nvmet_tcp_queue *queue,
 	c->cmd_pdu = page_frag_alloc(&queue->pf_cache,
 			sizeof(*c->cmd_pdu) + hdgst, GFP_KERNEL | __GFP_ZERO);
 	if (!c->cmd_pdu)
-		return -ENOMEM;
+		return -EANALMEM;
 	c->req.cmd = &c->cmd_pdu->cmd;
 
 	c->rsp_pdu = page_frag_alloc(&queue->pf_cache,
@@ -1487,7 +1487,7 @@ static int nvmet_tcp_alloc_cmd(struct nvmet_tcp_queue *queue,
 		c->recv_msg.msg_control = c->recv_cbuf;
 		c->recv_msg.msg_controllen = sizeof(c->recv_cbuf);
 	}
-	c->recv_msg.msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
+	c->recv_msg.msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL;
 
 	list_add_tail(&c->entry, &queue->free_list);
 
@@ -1498,7 +1498,7 @@ out_free_rsp:
 	page_frag_free(c->rsp_pdu);
 out_free_cmd:
 	page_frag_free(c->cmd_pdu);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void nvmet_tcp_free_cmd(struct nvmet_tcp_cmd *c)
@@ -1653,7 +1653,7 @@ static void nvmet_tcp_write_space(struct sock *sk)
 	}
 
 	if (sk_stream_is_writeable(sk)) {
-		clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		clear_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 		queue_work_on(queue_cpu(queue), nvmet_tcp_wq, &queue->io_work);
 	}
 out:
@@ -1708,7 +1708,7 @@ static int nvmet_tcp_set_queue_sock(struct nvmet_tcp_queue *queue)
 	 * close. This is done to prevent stale data from being sent should
 	 * the network connection be restored before TCP times out.
 	 */
-	sock_no_linger(sock->sk);
+	sock_anal_linger(sock->sk);
 
 	if (so_priority > 0)
 		sock_set_priority(sock->sk, so_priority);
@@ -1724,7 +1724,7 @@ static int nvmet_tcp_set_queue_sock(struct nvmet_tcp_queue *queue)
 		 * If the socket is already closing, don't even start
 		 * consuming it
 		 */
-		ret = -ENOTCONN;
+		ret = -EANALTCONN;
 	} else {
 		sock->sk->sk_user_data = queue;
 		queue->data_ready = sock->sk->sk_data_ready;
@@ -1842,11 +1842,11 @@ static void nvmet_tcp_tls_handshake_timeout(struct work_struct *w)
 
 static int nvmet_tcp_tls_handshake(struct nvmet_tcp_queue *queue)
 {
-	int ret = -EOPNOTSUPP;
+	int ret = -EOPANALTSUPP;
 	struct tls_handshake_args args;
 
 	if (queue->state != NVMET_TCP_Q_TLS_HANDSHAKE) {
-		pr_warn("cannot start TLS in state %d\n", queue->state);
+		pr_warn("cananalt start TLS in state %d\n", queue->state);
 		return -EINVAL;
 	}
 
@@ -1882,7 +1882,7 @@ static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release;
 	}
 
@@ -1945,7 +1945,7 @@ static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
 			/* TLS handshake failed, terminate the connection */
 			goto out_destroy_sq;
 		}
-		/* Not a TLS connection, continue with normal processing */
+		/* Analt a TLS connection, continue with analrmal processing */
 		queue->state = NVMET_TCP_Q_CONNECTING;
 	}
 #endif
@@ -1982,7 +1982,7 @@ static void nvmet_tcp_accept_work(struct work_struct *w)
 	int ret;
 
 	while (true) {
-		ret = kernel_accept(port->sock, &newsock, O_NONBLOCK);
+		ret = kernel_accept(port->sock, &newsock, O_ANALNBLOCK);
 		if (ret < 0) {
 			if (ret != -EAGAIN)
 				pr_warn("failed to accept err=%d\n", ret);
@@ -2017,7 +2017,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (nport->disc_addr.adrfam) {
 	case NVMF_ADDR_FAMILY_IP4:
@@ -2027,7 +2027,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 		af = AF_INET6;
 		break;
 	default:
-		pr_err("address family %d not supported\n",
+		pr_err("address family %d analt supported\n",
 				nport->disc_addr.adrfam);
 		ret = -EINVAL;
 		goto err_port;
@@ -2057,7 +2057,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 	port->data_ready = port->sock->sk->sk_data_ready;
 	port->sock->sk->sk_data_ready = nvmet_tcp_listen_data_ready;
 	sock_set_reuseaddr(port->sock->sk);
-	tcp_sock_set_nodelay(port->sock->sk);
+	tcp_sock_set_analdelay(port->sock->sk);
 	if (so_priority > 0)
 		sock_set_priority(port->sock->sk, so_priority);
 
@@ -2108,7 +2108,7 @@ static void nvmet_tcp_remove_port(struct nvmet_port *nport)
 	write_unlock_bh(&port->sock->sk->sk_callback_lock);
 	cancel_work_sync(&port->accept_work);
 	/*
-	 * Destroy the remaining queues, which are not belong to any
+	 * Destroy the remaining queues, which are analt belong to any
 	 * controller yet.
 	 */
 	nvmet_tcp_destroy_port_queues(port);
@@ -2190,7 +2190,7 @@ static int __init nvmet_tcp_init(void)
 	nvmet_tcp_wq = alloc_workqueue("nvmet_tcp_wq",
 				WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!nvmet_tcp_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nvmet_register_transport(&nvmet_tcp_ops);
 	if (ret)

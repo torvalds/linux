@@ -2,10 +2,10 @@
 /*
  * omap_device implementation
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  * Paul Walmsley, Kevin Hilman
  *
- * Developed in collaboration with (alphabetical order): Benoit
+ * Developed in collaboration with (alphabetical order): Beanalit
  * Cousson, Thara Gopinath, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff
@@ -15,7 +15,7 @@
  * devices.
  *
  * In the medium- to long-term, this code should be implemented as a
- * proper omap_bus/omap_device in Linux, no more platform_data func
+ * proper omap_bus/omap_device in Linux, anal more platform_data func
  * pointers
  */
 #undef DEBUG
@@ -32,7 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #include "common.h"
 #include "soc.h"
@@ -71,7 +71,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 	if (IS_ERR(r)) {
 		struct of_phandle_args clkspec;
 
-		clkspec.np = of_find_node_by_name(NULL, clk_name);
+		clkspec.np = of_find_analde_by_name(NULL, clk_name);
 
 		r = of_clk_get_from_provider(&clkspec);
 
@@ -83,7 +83,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 	}
 
 	if (rc) {
-		if (rc == -ENODEV || rc == -ENOMEM)
+		if (rc == -EANALDEV || rc == -EANALMEM)
 			dev_err(&od->pdev->dev,
 				"clkdev_alloc for %s failed\n", clk_alias);
 		else
@@ -100,13 +100,13 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
  *
  * For the main clock and every optional clock present per hwmod per
  * omap_device, this function adds an entry in the clkdev table of the
- * form <dev-id=dev_name, con-id=role> if it does not exist already.
+ * form <dev-id=dev_name, con-id=role> if it does analt exist already.
  *
  * This allows drivers to get a pointer to its optional clocks based on its role
  * by calling clk_get(<dev*>, <role>).
  * In the case of the main clock, a "fck" alias is used.
  *
- * No return value.
+ * Anal return value.
  */
 static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 				     struct omap_hwmod *oh)
@@ -133,52 +133,52 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct omap_hwmod **hwmods;
 	struct omap_device *od;
 	struct omap_hwmod *oh;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct resource res;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
 	bool device_active = false, skip_pm_domain = false;
 
-	oh_cnt = of_property_count_strings(node, "ti,hwmods");
+	oh_cnt = of_property_count_strings(analde, "ti,hwmods");
 	if (oh_cnt <= 0) {
-		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
-		return -ENODEV;
+		dev_dbg(&pdev->dev, "Anal 'hwmods' to build omap_device\n");
+		return -EANALDEV;
 	}
 
 	/* SDMA still needs special handling for omap_device_build() */
-	ret = of_property_read_string_index(node, "ti,hwmods", 0, &oh_name);
+	ret = of_property_read_string_index(analde, "ti,hwmods", 0, &oh_name);
 	if (!ret && (!strncmp("dma_system", oh_name, 10) ||
 		     !strncmp("dma", oh_name, 3)))
 		skip_pm_domain = true;
 
 	/* Use ti-sysc driver instead of omap_device? */
 	if (!skip_pm_domain &&
-	    !omap_hwmod_parse_module_range(NULL, node, &res))
-		return -ENODEV;
+	    !omap_hwmod_parse_module_range(NULL, analde, &res))
+		return -EANALDEV;
 
 	hwmods = kcalloc(oh_cnt, sizeof(struct omap_hwmod *), GFP_KERNEL);
 	if (!hwmods) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto odbfd_exit;
 	}
 
 	for (i = 0; i < oh_cnt; i++) {
-		of_property_read_string_index(node, "ti,hwmods", i, &oh_name);
+		of_property_read_string_index(analde, "ti,hwmods", i, &oh_name);
 		oh = omap_hwmod_lookup(oh_name);
 		if (!oh) {
-			dev_err(&pdev->dev, "Cannot lookup hwmod '%s'\n",
+			dev_err(&pdev->dev, "Cananalt lookup hwmod '%s'\n",
 				oh_name);
 			ret = -EINVAL;
 			goto odbfd_exit1;
 		}
 		hwmods[i] = oh;
-		if (oh->flags & HWMOD_INIT_NO_IDLE)
+		if (oh->flags & HWMOD_INIT_ANAL_IDLE)
 			device_active = true;
 	}
 
 	od = omap_device_alloc(pdev, hwmods, oh_cnt);
 	if (IS_ERR(od)) {
-		dev_err(&pdev->dev, "Cannot allocate omap_device for :%s\n",
+		dev_err(&pdev->dev, "Cananalt allocate omap_device for :%s\n",
 			oh_name);
 		ret = PTR_ERR(od);
 		goto odbfd_exit1;
@@ -210,7 +210,7 @@ odbfd_exit:
 	return ret;
 }
 
-static int _omap_device_notifier_call(struct notifier_block *nb,
+static int _omap_device_analtifier_call(struct analtifier_block *nb,
 				      unsigned long event, void *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -218,11 +218,11 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 	int err;
 
 	switch (event) {
-	case BUS_NOTIFY_REMOVED_DEVICE:
+	case BUS_ANALTIFY_REMOVED_DEVICE:
 		if (pdev->archdata.od)
 			omap_device_delete(pdev->archdata.od);
 		break;
-	case BUS_NOTIFY_UNBOUND_DRIVER:
+	case BUS_ANALTIFY_UNBOUND_DRIVER:
 		od = to_omap_device(pdev);
 		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED)) {
 			dev_info(dev, "enabled after unload, idling\n");
@@ -231,18 +231,18 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 				dev_err(dev, "failed to idle\n");
 		}
 		break;
-	case BUS_NOTIFY_BIND_DRIVER:
+	case BUS_ANALTIFY_BIND_DRIVER:
 		od = to_omap_device(pdev);
 		if (od) {
-			od->_driver_status = BUS_NOTIFY_BIND_DRIVER;
+			od->_driver_status = BUS_ANALTIFY_BIND_DRIVER;
 			if (od->_state == OMAP_DEVICE_STATE_ENABLED &&
 			    pm_runtime_status_suspended(dev)) {
 				pm_runtime_set_active(dev);
 			}
 		}
 		break;
-	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdev->dev.of_node)
+	case BUS_ANALTIFY_ADD_DEVICE:
+		if (pdev->dev.of_analde)
 			omap_device_build_from_dt(pdev);
 		fallthrough;
 	default:
@@ -251,7 +251,7 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 			od->_driver_status = event;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /**
@@ -304,7 +304,7 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
 static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct omap_device *od;
 	int i;
 	struct omap_hwmod **hwmods;
@@ -378,29 +378,29 @@ static int _od_runtime_resume(struct device *dev)
 static int _od_fail_runtime_suspend(struct device *dev)
 {
 	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int _od_fail_runtime_resume(struct device *dev)
 {
 	dev_warn(dev, "%s: FIXME: missing hwmod/omap_dev info\n", __func__);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif
 
 #ifdef CONFIG_SUSPEND
-static int _od_suspend_noirq(struct device *dev)
+static int _od_suspend_analirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
-	/* Don't attempt late suspend on a driver that is not bound */
-	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER)
+	/* Don't attempt late suspend on a driver that is analt bound */
+	if (od->_driver_status != BUS_ANALTIFY_BOUND_DRIVER)
 		return 0;
 
-	ret = pm_generic_suspend_noirq(dev);
+	ret = pm_generic_suspend_analirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
@@ -412,7 +412,7 @@ static int _od_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int _od_resume_noirq(struct device *dev)
+static int _od_resume_analirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
@@ -423,11 +423,11 @@ static int _od_resume_noirq(struct device *dev)
 		pm_generic_runtime_resume(dev);
 	}
 
-	return pm_generic_resume_noirq(dev);
+	return pm_generic_resume_analirq(dev);
 }
 #else
-#define _od_suspend_noirq NULL
-#define _od_resume_noirq NULL
+#define _od_suspend_analirq NULL
+#define _od_resume_analirq NULL
 #endif
 
 static struct dev_pm_domain omap_device_fail_pm_domain = {
@@ -442,8 +442,8 @@ static struct dev_pm_domain omap_device_pm_domain = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)
 		USE_PLATFORM_PM_SLEEP_OPS
-		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(_od_suspend_noirq,
-					      _od_resume_noirq)
+		SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(_od_suspend_analirq,
+					      _od_resume_analirq)
 	}
 };
 
@@ -488,7 +488,7 @@ int omap_device_enable(struct platform_device *pdev)
  * @pdev: The platform_device (omap_device) to idle
  *
  * Idle omap_device @od.  Device drivers call this function indirectly
- * via pm_runtime_put*().  Returns -EINVAL if the omap_device is not
+ * via pm_runtime_put*().  Returns -EINVAL if the omap_device is analt
  * currently enabled, or passes along the return value of
  * _omap_device_idle_hwmods().
  */
@@ -569,13 +569,13 @@ int omap_device_deassert_hardreset(struct platform_device *pdev,
 	return ret;
 }
 
-static struct notifier_block platform_nb = {
-	.notifier_call = _omap_device_notifier_call,
+static struct analtifier_block platform_nb = {
+	.analtifier_call = _omap_device_analtifier_call,
 };
 
 static int __init omap_device_init(void)
 {
-	bus_register_notifier(&platform_bus_type, &platform_nb);
+	bus_register_analtifier(&platform_bus_type, &platform_nb);
 	return 0;
 }
 omap_postcore_initcall(omap_device_init);
@@ -586,7 +586,7 @@ omap_postcore_initcall(omap_device_init);
  * @data: unused
  *
  * Check the driver bound status of this device, and idle it
- * if there is no driver attached.
+ * if there is anal driver attached.
  */
 static int __init omap_device_late_idle(struct device *dev, void *data)
 {
@@ -598,22 +598,22 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 		return 0;
 
 	/*
-	 * If omap_device state is enabled, but has no driver bound,
+	 * If omap_device state is enabled, but has anal driver bound,
 	 * idle it.
 	 */
 
 	/*
 	 * Some devices (like memory controllers) are always kept
-	 * enabled, and should not be idled even with no drivers.
+	 * enabled, and should analt be idled even with anal drivers.
 	 */
 	for (i = 0; i < od->hwmods_cnt; i++)
-		if (od->hwmods[i]->flags & HWMOD_INIT_NO_IDLE)
+		if (od->hwmods[i]->flags & HWMOD_INIT_ANAL_IDLE)
 			return 0;
 
-	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER &&
-	    od->_driver_status != BUS_NOTIFY_BIND_DRIVER) {
+	if (od->_driver_status != BUS_ANALTIFY_BOUND_DRIVER &&
+	    od->_driver_status != BUS_ANALTIFY_BIND_DRIVER) {
 		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
-			dev_warn(dev, "%s: enabled but no driver.  Idling\n",
+			dev_warn(dev, "%s: enabled but anal driver.  Idling\n",
 				 __func__);
 			omap_device_idle(pdev);
 		}

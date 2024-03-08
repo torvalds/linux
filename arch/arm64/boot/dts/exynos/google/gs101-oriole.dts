@@ -67,14 +67,14 @@
 	key_voldown: key-voldown-pins {
 		samsung,pins = "gpa7-3";
 		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
-		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-pud = <GS101_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 
 	key_volup: key-volup-pins {
 		samsung,pins = "gpa8-1";
 		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
-		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-pud = <GS101_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
@@ -83,7 +83,7 @@
 	key_power: key-power-pins {
 		samsung,pins = "gpa10-1";
 		samsung,pin-function = <GS101_PIN_FUNC_EINT>;
-		samsung,pin-pud = <GS101_PIN_PULL_NONE>;
+		samsung,pin-pud = <GS101_PIN_PULL_ANALNE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };

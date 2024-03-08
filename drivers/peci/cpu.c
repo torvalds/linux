@@ -201,11 +201,11 @@ static struct auxiliary_device *adev_alloc(struct peci_cpu *priv, int idx)
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	name = kasprintf(GFP_KERNEL, "%s.%s", peci_adev_types[idx], (const char *)priv->id->data);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_adev;
 	}
 
@@ -281,7 +281,7 @@ peci_cpu_probe(struct peci_device *device, const struct peci_device_id *id)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, priv);
 	priv->device = device;

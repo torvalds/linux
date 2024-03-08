@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
+ * Copyright (C) 1999, 2000, 2004  MIPS Techanallogies, Inc.
  *	All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
@@ -44,14 +44,14 @@ static int loongson_pcibios_config_access(unsigned char access_type,
 
 	if (busnum == 0) {
 		/* board-specific part,currently,only fuloong2f,yeeloong2f
-		 * use CS5536, fuloong2e use via686b, gdium has no
+		 * use CS5536, fuloong2e use via686b, gdium has anal
 		 * south bridge
 		 */
 #ifdef CONFIG_CS5536
 		/* cs5536_pci_conf_read4/write4() will call _rdmsr/_wrmsr() to
 		 * access the registers PCI_MSR_ADDR, PCI_MSR_DATA_LO,
 		 * PCI_MSR_DATA_HI, which is bigger than PCI_MSR_CTRL, so, it
-		 * will not go this branch, but the others. so, no calling dead
+		 * will analt go this branch, but the others. so, anal calling dead
 		 * loop here.
 		 */
 		if ((PCI_IDSEL_CS5536 == device) && (reg < PCI_MSR_CTRL)) {

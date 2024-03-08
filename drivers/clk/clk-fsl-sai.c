@@ -36,7 +36,7 @@ static int fsl_sai_clk_probe(struct platform_device *pdev)
 
 	sai_clk = devm_kzalloc(dev, sizeof(*sai_clk), GFP_KERNEL);
 	if (!sai_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -56,7 +56,7 @@ static int fsl_sai_clk_probe(struct platform_device *pdev)
 	/* set clock direction, we are the BCLK master */
 	writel(CR2_BCD, base + I2S_CR2);
 
-	hw = devm_clk_hw_register_composite_pdata(dev, dev->of_node->name,
+	hw = devm_clk_hw_register_composite_pdata(dev, dev->of_analde->name,
 						  &pdata, 1, NULL, NULL,
 						  &sai_clk->div.hw,
 						  &clk_divider_ops,

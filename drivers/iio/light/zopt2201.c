@@ -509,17 +509,17 @@ static int zopt2201_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = i2c_smbus_read_byte_data(client, ZOPT2201_PART_ID);
 	if (ret < 0)
 		return ret;
 	if (ret != ZOPT2201_PART_NUMBER)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

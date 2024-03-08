@@ -19,7 +19,7 @@
 
 #include "virt-dma.h"
 
-/** Common macros to normal and dedicated DMA registers **/
+/** Common macros to analrmal and dedicated DMA registers **/
 
 #define SUN4I_DMA_CFG_LOADING			BIT(31)
 #define SUN4I_DMA_CFG_DST_DATA_WIDTH(width)	((width) << 25)
@@ -31,24 +31,24 @@
 #define SUN4I_DMA_CFG_SRC_ADDR_MODE(mode)	((mode) << 5)
 #define SUN4I_DMA_CFG_SRC_DRQ_TYPE(type)	(type)
 
-/** Normal DMA register values **/
+/** Analrmal DMA register values **/
 
-/* Normal DMA source/destination data request type values */
+/* Analrmal DMA source/destination data request type values */
 #define SUN4I_NDMA_DRQ_TYPE_SDRAM		0x16
 #define SUN4I_NDMA_DRQ_TYPE_LIMIT		(0x1F + 1)
 
-/** Normal DMA register layout **/
+/** Analrmal DMA register layout **/
 
 /* Dedicated DMA source/destination address mode values */
 #define SUN4I_NDMA_ADDR_MODE_LINEAR		0
 #define SUN4I_NDMA_ADDR_MODE_IO			1
 
-/* Normal DMA configuration register layout */
+/* Analrmal DMA configuration register layout */
 #define SUN4I_NDMA_CFG_CONT_MODE		BIT(30)
 #define SUN4I_NDMA_CFG_WAIT_STATE(n)		((n) << 27)
-#define SUN4I_NDMA_CFG_DST_NON_SECURE		BIT(22)
+#define SUN4I_NDMA_CFG_DST_ANALN_SECURE		BIT(22)
 #define SUN4I_NDMA_CFG_BYTE_COUNT_MODE_REMAIN	BIT(15)
-#define SUN4I_NDMA_CFG_SRC_NON_SECURE		BIT(6)
+#define SUN4I_NDMA_CFG_SRC_ANALN_SECURE		BIT(6)
 
 /** Dedicated DMA register values **/
 
@@ -67,9 +67,9 @@
 /* Dedicated DMA configuration register layout */
 #define SUN4I_DDMA_CFG_BUSY			BIT(30)
 #define SUN4I_DDMA_CFG_CONT_MODE		BIT(29)
-#define SUN4I_DDMA_CFG_DST_NON_SECURE		BIT(28)
+#define SUN4I_DDMA_CFG_DST_ANALN_SECURE		BIT(28)
 #define SUN4I_DDMA_CFG_BYTE_COUNT_MODE_REMAIN	BIT(15)
-#define SUN4I_DDMA_CFG_SRC_NON_SECURE		BIT(12)
+#define SUN4I_DDMA_CFG_SRC_ANALN_SECURE		BIT(12)
 
 /* Dedicated DMA parameter register layout */
 #define SUN4I_DDMA_PARA_DST_DATA_BLK_SIZE(n)	(((n) - 1) << 24)
@@ -83,7 +83,7 @@
 #define SUN4I_DMA_IRQ_ENABLE_REG		0x0
 #define SUN4I_DMA_IRQ_PENDING_STATUS_REG	0x4
 
-/* Normal DMA register offsets */
+/* Analrmal DMA register offsets */
 #define SUN4I_NDMA_CHANNEL_REG_BASE(n)		(0x100 + (n) * 0x20)
 #define SUN4I_NDMA_CFG_REG			0x0
 #define SUN4I_NDMA_SRC_ADDR_REG			0x4
@@ -101,9 +101,9 @@
 /** DMA Driver **/
 
 /*
- * Normal DMA has 8 channels, and Dedicated DMA has another 8, so
+ * Analrmal DMA has 8 channels, and Dedicated DMA has aanalther 8, so
  * that's 16 channels. As for endpoints, there's 29 and 21
- * respectively. Given that the Normal DMA endpoints (other than
+ * respectively. Given that the Analrmal DMA endpoints (other than
  * SDRAM) can be used as tx/rx, we need 78 vchans in total
  */
 #define SUN4I_NDMA_NR_MAX_CHANNELS	8
@@ -124,7 +124,7 @@
 	 SUN4I_DDMA_PARA_SRC_WAIT_CYCLES(2))
 
 /*
- * Normal DMA supports individual transfers (segments) up to 128k.
+ * Analrmal DMA supports individual transfers (segments) up to 128k.
  * Dedicated DMA supports transfers up to 16M. We can only report
  * one size limit, so we have to use the smaller value.
  */
@@ -233,7 +233,7 @@ static struct sun4i_dma_pchan *find_and_use_pchan(struct sun4i_dma_dev *priv,
 	int i, max;
 
 	/*
-	 * pchans 0-SUN4I_NDMA_NR_MAX_CHANNELS are normal, and
+	 * pchans 0-SUN4I_NDMA_NR_MAX_CHANNELS are analrmal, and
 	 * SUN4I_NDMA_NR_MAX_CHANNELS+ are dedicated ones
 	 */
 	if (vchan->is_dedicated) {
@@ -344,7 +344,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		return -EBUSY;
 
 	/*
-	 * Channel endpoints must not be repeated, so if this vchan
+	 * Channel endpoints must analt be repeated, so if this vchan
 	 * has already submitted some work, we can't do anything else
 	 */
 	if (vchan->processing) {
@@ -359,7 +359,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		vd = vchan_next_desc(&vchan->vc);
 		if (!vd) {
 			dev_dbg(chan2dev(&vchan->vc.chan),
-				"No pending contract found");
+				"Anal pending contract found");
 			ret = 0;
 			goto release_pchan;
 		}
@@ -367,14 +367,14 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		contract = to_sun4i_dma_contract(vd);
 		if (list_empty(&contract->demands)) {
 			/* The contract has been completed so mark it as such */
-			list_del(&contract->vd.node);
+			list_del(&contract->vd.analde);
 			vchan_cookie_complete(&contract->vd);
 			dev_dbg(chan2dev(&vchan->vc.chan),
 				"Empty contract found and marked complete");
 		}
 	} while (list_empty(&contract->demands));
 
-	/* Now find out what we need to do */
+	/* Analw find out what we need to do */
 	promise = list_first_entry(&contract->demands,
 				   struct sun4i_dma_promise, list);
 	vchan->processing = promise;
@@ -431,10 +431,10 @@ static int sanitize_config(struct dma_slave_config *sconfig,
 }
 
 /*
- * Generate a promise, to be used in a normal DMA contract.
+ * Generate a promise, to be used in a analrmal DMA contract.
  *
  * A NDMA promise contains all the information required to program the
- * normal part of the DMA Engine and get data copied. A non-executed
+ * analrmal part of the DMA Engine and get data copied. A analn-executed
  * promise will live in the demands list on a contract. Once it has been
  * completed, it will be moved to the completed demands list for later freeing.
  * All linked promises will be freed when the corresponding contract is freed
@@ -451,7 +451,7 @@ generate_ndma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 	if (ret)
 		return NULL;
 
-	promise = kzalloc(sizeof(*promise), GFP_NOWAIT);
+	promise = kzalloc(sizeof(*promise), GFP_ANALWAIT);
 	if (!promise)
 		return NULL;
 
@@ -501,7 +501,7 @@ fail:
  * Generate a promise, to be used in a dedicated DMA contract.
  *
  * A DDMA promise contains all the information required to program the
- * Dedicated part of the DMA Engine and get data copied. A non-executed
+ * Dedicated part of the DMA Engine and get data copied. A analn-executed
  * promise will live in the demands list on a contract. Once it has been
  * completed, it will be moved to the completed demands list for later freeing.
  * All linked promises will be freed when the corresponding contract is freed
@@ -513,7 +513,7 @@ generate_ddma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 	struct sun4i_dma_promise *promise;
 	int ret;
 
-	promise = kzalloc(sizeof(*promise), GFP_NOWAIT);
+	promise = kzalloc(sizeof(*promise), GFP_ANALWAIT);
 	if (!promise)
 		return NULL;
 
@@ -557,16 +557,16 @@ fail:
 /*
  * Generate a contract
  *
- * Contracts function as DMA descriptors. As our hardware does not support
+ * Contracts function as DMA descriptors. As our hardware does analt support
  * linked lists, we need to implement SG via software. We use a contract
  * to hold all the pieces of the request and process them serially one
- * after another. Each piece is represented as a promise.
+ * after aanalther. Each piece is represented as a promise.
  */
 static struct sun4i_dma_contract *generate_dma_contract(void)
 {
 	struct sun4i_dma_contract *contract;
 
-	contract = kzalloc(sizeof(*contract), GFP_NOWAIT);
+	contract = kzalloc(sizeof(*contract), GFP_ANALWAIT);
 	if (!contract)
 		return NULL;
 
@@ -850,9 +850,9 @@ sun4i_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		 * These are the magic DMA engine timings that keep SPI going.
 		 * I haven't seen any interface on DMAEngine to configure
 		 * timings, and so far they seem to work for everything we
-		 * support, so I've kept them here. I don't know if other
+		 * support, so I've kept them here. I don't kanalw if other
 		 * devices need different timings because, as usual, we only
-		 * have the "para" bitfield meanings, but no comment on what
+		 * have the "para" bitfield meanings, but anal comment on what
 		 * the values should be when doing a certain operation :|
 		 */
 		para = SUN4I_DDMA_MAGIC_SPI_PARAMETERS;
@@ -939,7 +939,7 @@ static struct dma_chan *sun4i_dma_of_xlate(struct of_phandle_args *dma_spec,
 	u8 is_dedicated = dma_spec->args[0];
 	u8 endpoint = dma_spec->args[1];
 
-	/* Check if type is Normal or Dedicated */
+	/* Check if type is Analrmal or Dedicated */
 	if (is_dedicated != 0 && is_dedicated != 1)
 		return NULL;
 
@@ -1059,7 +1059,7 @@ handle_pending:
 			spin_lock(&vchan->vc.lock);
 
 			/*
-			 * Move the promise into the completed list now that
+			 * Move the promise into the completed list analw that
 			 * we're done with it
 			 */
 			list_move_tail(&vchan->processing->list,
@@ -1072,10 +1072,10 @@ handle_pending:
 			 * - Latency is very important, as this is used by audio
 			 * We therefore just cycle through the list and dispatch
 			 * whatever we have here, reusing the pchan. There's
-			 * no need to run the thread after this.
+			 * anal need to run the thread after this.
 			 *
-			 * For non-cyclic transfers we need to look around,
-			 * so we can program some more work, or notify the
+			 * For analn-cyclic transfers we need to look around,
+			 * so we can program some more work, or analtify the
 			 * client that their transfers have been completed.
 			 */
 			if (contract->is_cyclic) {
@@ -1148,7 +1148,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -1160,7 +1160,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "No clock specified\n");
+		dev_err(&pdev->dev, "Anal clock specified\n");
 		return PTR_ERR(priv->clk);
 	}
 
@@ -1202,10 +1202,10 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 	priv->vchans = devm_kcalloc(&pdev->dev, SUN4I_DMA_NR_MAX_VCHANS,
 				    sizeof(struct sun4i_dma_vchan), GFP_KERNEL);
 	if (!priv->vchans || !priv->pchans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * [0..SUN4I_NDMA_NR_MAX_CHANNELS) are normal pchans, and
+	 * [0..SUN4I_NDMA_NR_MAX_CHANNELS) are analrmal pchans, and
 	 * [SUN4I_NDMA_NR_MAX_CHANNELS..SUN4I_DMA_NR_MAX_CHANNELS) are
 	 * dedicated ones
 	 */
@@ -1243,7 +1243,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, priv->irq, sun4i_dma_interrupt,
 			       0, dev_name(&pdev->dev), priv);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Cananalt request IRQ\n");
 		goto err_clk_disable;
 	}
 
@@ -1253,7 +1253,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, sun4i_dma_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_analde, sun4i_dma_of_xlate,
 					 priv);
 	if (ret) {
 		dev_err(&pdev->dev, "of_dma_controller_register failed\n");
@@ -1275,10 +1275,10 @@ static void sun4i_dma_remove(struct platform_device *pdev)
 {
 	struct sun4i_dma_dev *priv = platform_get_drvdata(pdev);
 
-	/* Disable IRQ so no more work is scheduled */
+	/* Disable IRQ so anal more work is scheduled */
 	disable_irq(priv->irq);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&priv->slave);
 
 	clk_disable_unprepare(priv->clk);

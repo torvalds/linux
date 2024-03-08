@@ -10,7 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mod_devicetable.h>
@@ -75,7 +75,7 @@ static unsigned long global_flags;
 /*
  * Workaround for avoiding to use RX DMAC by multiple channels. On R-Car M3-W
  * ES1.0, when multiple SDHI channels use RX DMAC simultaneously, sometimes
- * hundreds of data bytes are not stored into the system memory even if the
+ * hundreds of data bytes are analt stored into the system memory even if the
  * DMAC interrupt happened. So, this driver then uses one RX DMAC channel only.
  */
 #define SDHI_INTERNAL_DMAC_RX_IN_USE	0
@@ -109,7 +109,7 @@ static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23 | MMC_CAP_WAIT_WHILE_BUSY,
-	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT | MMC_CAP2_MERGE_CAPABLE,
+	.capabilities2	= MMC_CAP2_ANAL_WRITE_PROTECT | MMC_CAP2_MERGE_CAPABLE,
 	.bus_shift	= 2,
 	.scc_offset	= 0x1000,
 	.taps		= rcar_gen3_scc_taps,
@@ -120,12 +120,12 @@ static const struct renesas_sdhi_of_data of_data_rcar_gen3 = {
 	.sdhi_flags	= SDHI_FLAG_NEED_CLKH_FALLBACK,
 };
 
-static const struct renesas_sdhi_of_data of_data_rcar_gen3_no_sdh_fallback = {
+static const struct renesas_sdhi_of_data of_data_rcar_gen3_anal_sdh_fallback = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL |
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23 | MMC_CAP_WAIT_WHILE_BUSY,
-	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT | MMC_CAP2_MERGE_CAPABLE,
+	.capabilities2	= MMC_CAP2_ANAL_WRITE_PROTECT | MMC_CAP2_MERGE_CAPABLE,
 	.bus_shift	= 2,
 	.scc_offset	= 0x1000,
 	.taps		= rcar_gen3_scc_taps,
@@ -156,12 +156,12 @@ static const u8 r8a77990_calib_table[2][SDHI_CALIB_TABLE_MAX] = {
 	 11, 12, 13, 15, 16, 17, 17, 18, 18, 19, 20, 22, 24, 25, 26, 26 }
 };
 
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_analhs400 = {
 	.hs400_disabled = true,
 	.hs400_4taps = true,
 };
 
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400_one_rx = {
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap_analhs400_one_rx = {
 	.hs400_disabled = true,
 	.hs400_4taps = true,
 	.dma_one_rx_only = true,
@@ -174,7 +174,7 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
 	.manual_tap_correction = true,
 };
 
-static const struct renesas_sdhi_quirks sdhi_quirks_nohs400 = {
+static const struct renesas_sdhi_quirks sdhi_quirks_analhs400 = {
 	.hs400_disabled = true,
 };
 
@@ -216,17 +216,17 @@ static const struct renesas_sdhi_quirks sdhi_quirks_r9a09g011 = {
 };
 
 /*
- * Note for r8a7796 / r8a774a1: we can't distinguish ES1.1 and 1.2 as of now.
+ * Analte for r8a7796 / r8a774a1: we can't distinguish ES1.1 and 1.2 as of analw.
  * So, we want to treat them equally and only have a match for ES1.2 to enforce
  * this if there ever will be a way to distinguish ES1.2.
  */
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
-	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a774a1", .revision = "ES1.[012]", .data = &sdhi_quirks_4tap_analhs400 },
 	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap_nohs400_one_rx },
-	{ .soc_id = "r8a7796", .revision = "ES1.[12]", .data = &sdhi_quirks_4tap_nohs400 },
+	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap_analhs400_one_rx },
+	{ .soc_id = "r8a7796", .revision = "ES1.[12]", .data = &sdhi_quirks_4tap_analhs400 },
 	{ .soc_id = "r8a7796", .revision = "ES1.*", .data = &sdhi_quirks_r8a7796_es13 },
-	{ .soc_id = "r8a77980", .revision = "ES1.*", .data = &sdhi_quirks_nohs400 },
+	{ .soc_id = "r8a77980", .revision = "ES1.*", .data = &sdhi_quirks_analhs400 },
 	{ /* Sentinel. */ }
 };
 
@@ -246,8 +246,8 @@ static const struct renesas_sdhi_of_data_with_quirks of_r8a77965_compatible = {
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77970_compatible = {
-	.of_data = &of_data_rcar_gen3_no_sdh_fallback,
-	.quirks = &sdhi_quirks_nohs400,
+	.of_data = &of_data_rcar_gen3_anal_sdh_fallback,
+	.quirks = &sdhi_quirks_analhs400,
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_r8a77990_compatible = {
@@ -264,9 +264,9 @@ static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_compatible = {
 	.of_data = &of_data_rcar_gen3,
 };
 
-static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_nohs400_compatible = {
+static const struct renesas_sdhi_of_data_with_quirks of_rcar_gen3_analhs400_compatible = {
 	.of_data = &of_data_rcar_gen3,
-	.quirks = &sdhi_quirks_nohs400,
+	.quirks = &sdhi_quirks_analhs400,
 };
 
 static const struct renesas_sdhi_of_data_with_quirks of_rza2_compatible = {
@@ -282,7 +282,7 @@ static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a77965", .data = &of_r8a77965_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77970", .data = &of_r8a77970_compatible, },
 	{ .compatible = "renesas,sdhi-r8a77990", .data = &of_r8a77990_compatible, },
-	{ .compatible = "renesas,sdhi-r8a77995", .data = &of_rcar_gen3_nohs400_compatible, },
+	{ .compatible = "renesas,sdhi-r8a77995", .data = &of_rcar_gen3_analhs400_compatible, },
 	{ .compatible = "renesas,sdhi-r9a09g011", .data = &of_r9a09g011_compatible, },
 	{ .compatible = "renesas,rcar-gen3-sdhi", .data = &of_rcar_gen3_compatible, },
 	{ .compatible = "renesas,rcar-gen4-sdhi", .data = &of_rcar_gen3_compatible, },
@@ -540,7 +540,7 @@ renesas_sdhi_internal_dmac_request_dma(struct tmio_mmc_host *host,
 	writel(0, host->ctl + DM_CM_INFO1);
 	writel(0, host->ctl + DM_CM_INFO2);
 
-	/* Each value is set to non-zero to assume "enabling" each DMA */
+	/* Each value is set to analn-zero to assume "enabling" each DMA */
 	host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
 
 	tasklet_init(&priv->dma_priv.dma_complete,
@@ -605,7 +605,7 @@ static const struct dev_pm_ops renesas_sdhi_internal_dmac_dev_pm_ops = {
 static struct platform_driver renesas_internal_dmac_sdhi_driver = {
 	.driver		= {
 		.name	= "renesas_sdhi_internal_dmac",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &renesas_sdhi_internal_dmac_dev_pm_ops,
 		.of_match_table = renesas_sdhi_internal_dmac_of_match,
 	},

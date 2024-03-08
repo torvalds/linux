@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_KDEBUG_H
 #define _ASM_X86_KDEBUG_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 struct pt_regs;
 
@@ -19,7 +19,7 @@ enum die_val {
 	DIE_GPF,
 	DIE_CALL,
 	DIE_PAGE_FAULT,
-	DIE_NMIUNKNOWN,
+	DIE_NMIUNKANALWN,
 };
 
 enum show_regs_mode {

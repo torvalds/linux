@@ -818,7 +818,7 @@ static int ov5695_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
@@ -852,7 +852,7 @@ static int ov5695_get_fmt(struct v4l2_subdev *sd,
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
 		fmt->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
-		fmt->format.field = V4L2_FIELD_NONE;
+		fmt->format.field = V4L2_FIELD_ANALNE;
 	}
 	mutex_unlock(&ov5695->mutex);
 
@@ -1047,10 +1047,10 @@ static int ov5695_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = def_mode->width;
 	try_fmt->height = def_mode->height;
 	try_fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
 	mutex_unlock(&ov5695->mutex);
-	/* No crop or compose */
+	/* Anal crop or compose */
 
 	return 0;
 }
@@ -1259,7 +1259,7 @@ static int ov5695_probe(struct i2c_client *client)
 
 	ov5695 = devm_kzalloc(dev, sizeof(*ov5695), GFP_KERNEL);
 	if (!ov5695)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov5695->client = client;
 	ov5695->cur_mode = &supported_modes[0];
@@ -1306,7 +1306,7 @@ static int ov5695_probe(struct i2c_client *client)
 		goto err_power_off;
 
 	sd->internal_ops = &ov5695_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	ov5695->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &ov5695->pad);

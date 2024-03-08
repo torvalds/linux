@@ -25,11 +25,11 @@ static inline int set_memory_rox(unsigned long addr, int numpages)
 #endif
 
 #ifndef CONFIG_ARCH_HAS_SET_DIRECT_MAP
-static inline int set_direct_map_invalid_noflush(struct page *page)
+static inline int set_direct_map_invalid_analflush(struct page *page)
 {
 	return 0;
 }
-static inline int set_direct_map_default_noflush(struct page *page)
+static inline int set_direct_map_default_analflush(struct page *page)
 {
 	return 0;
 }
@@ -53,14 +53,14 @@ static inline bool can_set_direct_map(void)
 #endif /* CONFIG_ARCH_HAS_SET_DIRECT_MAP */
 
 #ifdef CONFIG_X86_64
-int set_mce_nospec(unsigned long pfn);
-int clear_mce_nospec(unsigned long pfn);
+int set_mce_analspec(unsigned long pfn);
+int clear_mce_analspec(unsigned long pfn);
 #else
-static inline int set_mce_nospec(unsigned long pfn)
+static inline int set_mce_analspec(unsigned long pfn)
 {
 	return 0;
 }
-static inline int clear_mce_nospec(unsigned long pfn)
+static inline int clear_mce_analspec(unsigned long pfn)
 {
 	return 0;
 }

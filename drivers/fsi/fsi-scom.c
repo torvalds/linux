@@ -62,7 +62,7 @@
 #define XSCOM_ADDR_FORM1_HI_SHIFT	20
 
 /* Retries */
-#define SCOM_MAX_IND_RETRIES		10	/* Retries indirect not ready */
+#define SCOM_MAX_IND_RETRIES		10	/* Retries indirect analt ready */
 
 struct scom_device {
 	struct list_head link;
@@ -259,7 +259,7 @@ static int handle_pib_status(struct scom_device *scom, uint8_t status)
 
 	switch(status) {
 	case SCOM_PIB_OFFLINE:
-		return -ENODEV;
+		return -EANALDEV;
 	case SCOM_PIB_BAD_ADDR:
 		return -ENXIO;
 	case SCOM_PIB_TIMEOUT:
@@ -323,7 +323,7 @@ static ssize_t scom_read(struct file *filep, char __user *buf, size_t len,
 
 	mutex_lock(&scom->lock);
 	if (scom->dead)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	else
 		rc = get_scom(scom, &val, *offset);
 	mutex_unlock(&scom->lock);
@@ -358,7 +358,7 @@ static ssize_t scom_write(struct file *filep, const char __user *buf,
 
 	mutex_lock(&scom->lock);
 	if (scom->dead)
-		rc = -ENODEV;
+		rc = -EANALDEV;
 	else
 		rc = put_scom(scom, val, *offset);
 	mutex_unlock(&scom->lock);
@@ -398,7 +398,7 @@ static void raw_convert_status(struct scom_access *acc, uint32_t status)
 	else if (status & SCOM_STATUS_PIB_ABORT)
 		acc->intf_errors |= SCOM_INTF_ERR_ABORT;
 	else if (status & SCOM_STATUS_ERR_SUMMARY)
-		acc->intf_errors |= SCOM_INTF_ERR_UNKNOWN;
+		acc->intf_errors |= SCOM_INTF_ERR_UNKANALWN;
 }
 
 static int scom_raw_read(struct scom_device *scom, void __user *argp)
@@ -476,12 +476,12 @@ static long scom_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct scom_device *scom = file->private_data;
 	void __user *argp = (void __user *)arg;
-	int rc = -ENOTTY;
+	int rc = -EANALTTY;
 
 	mutex_lock(&scom->lock);
 	if (scom->dead) {
 		mutex_unlock(&scom->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	switch(cmd) {
 	case FSI_SCOM_CHECK:
@@ -501,9 +501,9 @@ static long scom_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
-static int scom_open(struct inode *inode, struct file *file)
+static int scom_open(struct ianalde *ianalde, struct file *file)
 {
-	struct scom_device *scom = container_of(inode->i_cdev, struct scom_device, cdev);
+	struct scom_device *scom = container_of(ianalde->i_cdev, struct scom_device, cdev);
 
 	file->private_data = scom;
 
@@ -535,14 +535,14 @@ static int scom_probe(struct device *dev)
 
 	scom = kzalloc(sizeof(*scom), GFP_KERNEL);
 	if (!scom)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, scom);
 	mutex_init(&scom->lock);
 
 	/* Grab a reference to the device (parent of our cdev), we'll drop it later */
 	if (!get_device(dev)) {
 		kfree(scom);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	scom->fsi_dev = fsi_dev;
 
@@ -552,8 +552,8 @@ static int scom_probe(struct device *dev)
 	scom->dev.release = scom_free;
 	device_initialize(&scom->dev);
 
-	/* Allocate a minor in the FSI space */
-	rc = fsi_get_new_minor(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
+	/* Allocate a mianalr in the FSI space */
+	rc = fsi_get_new_mianalr(fsi_dev, fsi_dev_scom, &scom->dev.devt, &didx);
 	if (rc)
 		goto err;
 
@@ -563,12 +563,12 @@ static int scom_probe(struct device *dev)
 	if (rc) {
 		dev_err(dev, "Error %d creating char device %s\n",
 			rc, dev_name(&scom->dev));
-		goto err_free_minor;
+		goto err_free_mianalr;
 	}
 
 	return 0;
- err_free_minor:
-	fsi_free_minor(scom->dev.devt);
+ err_free_mianalr:
+	fsi_free_mianalr(scom->dev.devt);
  err:
 	put_device(&scom->dev);
 	return rc;
@@ -582,7 +582,7 @@ static int scom_remove(struct device *dev)
 	scom->dead = true;
 	mutex_unlock(&scom->lock);
 	cdev_device_del(&scom->cdev, &scom->dev);
-	fsi_free_minor(scom->dev.devt);
+	fsi_free_mianalr(scom->dev.devt);
 	put_device(&scom->dev);
 
 	return 0;

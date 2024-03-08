@@ -12,6 +12,6 @@
 
 int adxl372_probe(struct device *dev, struct regmap *regmap,
 		  int irq, const char *name);
-bool adxl372_readable_noinc_reg(struct device *dev, unsigned int reg);
+bool adxl372_readable_analinc_reg(struct device *dev, unsigned int reg);
 
 #endif /* _ADXL372_H_ */

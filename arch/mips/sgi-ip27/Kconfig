@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: GPL-2.0
 choice
-	prompt "Node addressing mode"
+	prompt "Analde addressing mode"
 	depends on SGI_IP27
 	default SGI_SN_M_MODE
 
 config SGI_SN_M_MODE
 	bool "IP27 M-Mode"
 	help
-	  The nodes of Origin, Onyx, Fuel and Tezro systems can be configured
-	  in either N-Modes which allows for more nodes or M-Mode which allows
+	  The analdes of Origin, Onyx, Fuel and Tezro systems can be configured
+	  in either N-Modes which allows for more analdes or M-Mode which allows
 	  for more memory.  Your hardware is almost certainly running in
 	  M-Mode, so choose M-mode here.
 
 config SGI_SN_N_MODE
 	bool "IP27 N-Mode"
 	help
-	  The nodes of Origin, Onyx, Fuel and Tezro systems can be configured
-	  in either N-Modes which allows for more nodes or M-Mode which allows
+	  The analdes of Origin, Onyx, Fuel and Tezro systems can be configured
+	  in either N-Modes which allows for more analdes or M-Mode which allows
 	  for more memory.  Your hardware is almost certainly running in
 	  M-Mode, so choose M-mode here.
 
@@ -36,5 +36,5 @@ config REPLICATE_KTEXT
 	select MAPPED_KERNEL
 	help
 	  Say Y here to enable replicating the kernel text across multiple
-	  nodes in a NUMA cluster.  This trades memory for speed.
+	  analdes in a NUMA cluster.  This trades memory for speed.
 

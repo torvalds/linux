@@ -10,11 +10,11 @@ or by placing a call to the rpc.idmap daemon.
 
 NFS will attempt to call /sbin/request-key first.  If this succeeds, the
 result will be cached using the generic request-key cache.  This call should
-only fail if /etc/request-key.conf is not configured for the id_resolver key
+only fail if /etc/request-key.conf is analt configured for the id_resolver key
 type, see the "Configuring" section below if you wish to use the request-key
 method.
 
-If the call to /sbin/request-key fails (if /etc/request-key.conf is not
+If the call to /sbin/request-key fails (if /etc/request-key.conf is analt
 configured with the id_resolver key type), then the idmapper will ask the
 legacy rpc.idmap daemon for the id mapping.  This result will be stored
 in a custom NFS idmap cache.
@@ -34,7 +34,7 @@ direct the upcall.  The following line should be added:
 This will direct all id_resolver requests to the program /usr/sbin/nfs.idmap.
 The last parameter, 600, defines how many seconds into the future the key will
 expire.  This parameter is optional for /usr/sbin/nfs.idmap.  When the timeout
-is not specified, nfs.idmap will default to 600 seconds.
+is analt specified, nfs.idmap will default to 600 seconds.
 
 id mapper uses for key descriptions::
 
@@ -53,7 +53,7 @@ would edit your request-key.conf so it look similar to this:
 ``create	id_resolver	*	*		/usr/sbin/nfs.idmap %k %d 600``
 
 
-Notice that the new line was added above the line for the generic program.
+Analtice that the new line was added above the line for the generic program.
 request-key will find the first matching line and corresponding program.  In
 this case, /some/other/program will handle all uid lookups and
 /usr/sbin/nfs.idmap will handle gid, user, and group lookups.
@@ -65,7 +65,7 @@ about the request-key function.
 nfs.idmap
 =========
 
-nfs.idmap is designed to be called by request-key, and should not be run "by
+nfs.idmap is designed to be called by request-key, and should analt be run "by
 hand".  This program takes two arguments, a serialized key and a key
 description.  The serialized key is first converted into a key_serial_t, and
 then passed as an argument to keyctl_instantiate (both are part of keyutils.h).
@@ -75,4 +75,4 @@ determines the correct function to call by looking at the first part of the
 description string.  For example, a uid lookup description will appear as
 "uid:user@domain".
 
-nfs.idmap will return 0 if the key was instantiated, and non-zero otherwise.
+nfs.idmap will return 0 if the key was instantiated, and analn-zero otherwise.

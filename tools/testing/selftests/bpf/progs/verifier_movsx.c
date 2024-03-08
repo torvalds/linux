@@ -227,7 +227,7 @@ l0_%=:							\
 #else
 
 SEC("socket")
-__description("cpuv4 is not supported by compiler or jit, use a dummy test")
+__description("cpuv4 is analt supported by compiler or jit, use a dummy test")
 __success
 int dummy_test(void)
 {

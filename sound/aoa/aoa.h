@@ -31,10 +31,10 @@ struct aoa_codec {
 
 	/* May be NULL, but can be used by the fabric.
 	 * Refcounting is the codec driver's responsibility */
-	struct device_node *node;
+	struct device_analde *analde;
 
 	/* assigned by fabric before init() is called, points
-	 * to the soundbus device. Cannot be NULL. */
+	 * to the soundbus device. Cananalt be NULL. */
 	struct soundbus_dev *soundbus_dev;
 
 	/* assigned by the fabric before init() is called, points
@@ -69,7 +69,7 @@ struct aoa_fabric {
 	struct module *owner;
 
 	/* once codecs register, they are passed here after.
-	 * They are of course not initialised, since the
+	 * They are of course analt initialised, since the
 	 * fabric is responsible for initialising some fields
 	 * in the codec structure! */
 	int (*found_codec)(struct aoa_codec *codec);
@@ -85,14 +85,14 @@ struct aoa_fabric {
 	void (*attached_codec)(struct aoa_codec *codec);
 };
 
-/* return 0 on success, -EEXIST if another fabric is
+/* return 0 on success, -EEXIST if aanalther fabric is
  * registered, -EALREADY if the same fabric is registered.
  * Passing NULL can be used to test for the presence
- * of another fabric, if -EALREADY is returned there is
- * no other fabric present.
+ * of aanalther fabric, if -EALREADY is returned there is
+ * anal other fabric present.
  * In the case that the function returns -EALREADY
- * and the fabric passed is not NULL, all codecs
- * that are not assigned yet are passed to the fabric
+ * and the fabric passed is analt NULL, all codecs
+ * that are analt assigned yet are passed to the fabric
  * again for reconsideration. */
 extern int
 aoa_fabric_register(struct aoa_fabric *fabric, struct device *dev);
@@ -105,7 +105,7 @@ aoa_fabric_unregister(struct aoa_fabric *fabric);
 
 /* if for some reason you want to get rid of a codec
  * before the fabric is removed, use this.
- * Note that remove_codec is called for it! */
+ * Analte that remove_codec is called for it! */
 extern void
 aoa_fabric_unlink_codec(struct aoa_codec *codec);
 

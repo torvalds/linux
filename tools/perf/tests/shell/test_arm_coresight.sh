@@ -11,14 +11,14 @@
 
 glb_err=0
 
-skip_if_no_cs_etm_event() {
+skip_if_anal_cs_etm_event() {
 	perf list | grep -q 'cs_etm//' && return 0
 
 	# cs_etm event doesn't exist
 	return 2
 }
 
-skip_if_no_cs_etm_event || exit 2
+skip_if_anal_cs_etm_event || exit 2
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 file=$(mktemp /tmp/temporary_file.XXXXX)
@@ -84,16 +84,16 @@ arm_cs_report() {
 }
 
 is_device_sink() {
-	# If the node of "enable_sink" is existed under the device path, this
+	# If the analde of "enable_sink" is existed under the device path, this
 	# means the device is a sink device.  Need to exclude 'tpiu' since it
-	# cannot support perf PMU.
+	# cananalt support perf PMU.
 	echo "$1" | grep -E -q -v "tpiu"
 
 	if [ $? -eq 0 ] && [ -e "$1/enable_sink" ]; then
 
 		pmu_dev="/sys/bus/event_source/devices/cs_etm/sinks/$2"
 
-		# Warn if the device is not supported by PMU
+		# Warn if the device is analt supported by PMU
 		if ! [ -f $pmu_dev ]; then
 			echo "PMU doesn't support $pmu_dev"
 		fi
@@ -101,14 +101,14 @@ is_device_sink() {
 		return 0
 	fi
 
-	# Otherwise, it's not a sink device
+	# Otherwise, it's analt a sink device
 	return 1
 }
 
 arm_cs_iterate_devices() {
 	for dev in $1/connections/out\:*; do
 
-		# Skip testing if it's not a directory
+		# Skip testing if it's analt a directory
 		! [ -d $dev ] && continue;
 
 		# Read out its symbol link file name
@@ -137,7 +137,7 @@ arm_cs_iterate_devices() {
 arm_cs_etm_traverse_path_test() {
 	# Iterate for every ETM device
 	for dev in /sys/bus/event_source/devices/cs_etm/cpu*; do
-		# Canonicalize the path
+		# Caanalnicalize the path
 		dev=`readlink -f $dev`
 
 		# Find the ETM device belonging to which CPU
@@ -202,7 +202,7 @@ arm_cs_etm_traverse_path_test
 arm_cs_etm_system_wide_test
 arm_cs_etm_snapshot_test
 
-# Test all combinations of per-thread, system-wide and normal mode with
+# Test all combinations of per-thread, system-wide and analrmal mode with
 # and without timestamps
 arm_cs_etm_basic_test -e cs_etm/timestamp=0/ --per-thread
 arm_cs_etm_basic_test -e cs_etm/timestamp=1/ --per-thread

@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/device.h>
@@ -44,9 +44,9 @@ static int ov2722_read_reg(struct i2c_client *client,
 	unsigned char data[6];
 
 	if (!client->adapter) {
-		dev_err(&client->dev, "%s error, no client->adapter\n",
+		dev_err(&client->dev, "%s error, anal client->adapter\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (data_length != OV2722_8BIT && data_length != OV2722_16BIT &&
@@ -154,7 +154,7 @@ static int ov2722_write_reg(struct i2c_client *client, u16 data_length,
  *
  * __ov2722_flush_reg_array, __ov2722_buf_reg_array() and
  * __ov2722_write_reg_is_consecutive() are internal functions to
- * ov2722_write_reg_array_fast() and should be not used anywhere else.
+ * ov2722_write_reg_array_fast() and should be analt used anywhere else.
  *
  */
 
@@ -202,7 +202,7 @@ static int __ov2722_buf_reg_array(struct i2c_client *client,
 	ctrl->index += size;
 
 	/*
-	 * Buffer cannot guarantee free space for u32? Better flush it to avoid
+	 * Buffer cananalt guarantee free space for u32? Better flush it to avoid
 	 * possible lack of memory for next item.
 	 */
 	if (ctrl->index + sizeof(u16) >= OV2722_MAX_WRITE_BUF_SIZE)
@@ -239,7 +239,7 @@ static int ov2722_write_reg_array(struct i2c_client *client,
 			break;
 		default:
 			/*
-			 * If next address is not consecutive, data needs to be
+			 * If next address is analt consecutive, data needs to be
 			 * flushed before proceed.
 			 */
 			if (!__ov2722_write_reg_is_consecutive(client, &ctrl,
@@ -352,7 +352,7 @@ static long ov2722_s_exposure(struct v4l2_subdev *sd,
 	int gain = exposure->gain[0];
 	int digitgain = exposure->gain[1];
 
-	/* we should not accept the invalid value below. */
+	/* we should analt accept the invalid value below. */
 	if (gain == 0) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -375,7 +375,7 @@ static long ov2722_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 }
 
 /* This returns the exposure time being used. This should only be used
- * for filling in EXIF data, not for actual image processing.
+ * for filling in EXIF data, analt for actual image processing.
  */
 static int ov2722_q_exposure(struct v4l2_subdev *sd, s32 *value)
 {
@@ -483,7 +483,7 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (flag) {
 		ret = dev->platform_data->v1p8_ctrl(sd, 1);
@@ -506,9 +506,9 @@ static int gpio_ctrl(struct v4l2_subdev *sd, bool flag)
 	int ret = -1;
 
 	if (!dev || !dev->platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Note: the GPIO order is asymmetric: always RESET#
+	/* Analte: the GPIO order is asymmetric: always RESET#
 	 * before PWDN# when turning it on or off.
 	 */
 	ret = dev->platform_data->gpio0_ctrl(sd, flag);
@@ -524,8 +524,8 @@ static int power_up(struct v4l2_subdev *sd)
 
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
+			"anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 
 	if (dev->power_on == 1)
@@ -575,8 +575,8 @@ static int power_down(struct v4l2_subdev *sd)
 
 	if (!dev->platform_data) {
 		dev_err(&client->dev,
-			"no camera_sensor_platform_data");
-		return -ENODEV;
+			"anal camera_sensor_platform_data");
+		return -EANALDEV;
 	}
 
 	if (dev->power_on == 0)
@@ -677,7 +677,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&dev->input_lock);
 
-	/* s_power has not been called yet for std v4l2 clients (camorama) */
+	/* s_power has analt been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
 
 	dev->pixels_per_line = dev->res->pixels_per_line;
@@ -744,7 +744,7 @@ static int ov2722_detect(struct i2c_client *client)
 	u8 revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ov2722_read_reg(client, OV2722_8BIT,
 			OV2722_SC_CMMN_CHIP_ID_H, &high);
@@ -754,7 +754,7 @@ static int ov2722_detect(struct i2c_client *client)
 
 	if ((id != OV2722_ID) && (id != OV2720_ID)) {
 		dev_err(&client->dev, "sensor ID error\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	high = 0;
@@ -791,7 +791,7 @@ static int ov2722_s_config(struct v4l2_subdev *sd,
 	int ret = 0;
 
 	if (!platform_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev->platform_data =
 	    (struct camera_sensor_platform_data *)platform_data;
@@ -799,7 +799,7 @@ static int ov2722_s_config(struct v4l2_subdev *sd,
 	mutex_lock(&dev->input_lock);
 
 	/* power off the module, then power on it in future
-	 * as first power on by board may not fulfill the
+	 * as first power on by board may analt fulfill the
 	 * power on sequqence needed by the module
 	 */
 	ret = power_down(sd);
@@ -859,7 +859,7 @@ static int ov2722_get_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	interval->interval.numerator = 1;
-	interval->interval.denominator = dev->res->fps;
+	interval->interval.deanalminator = dev->res->fps;
 
 	return 0;
 }
@@ -975,7 +975,7 @@ static int ov2722_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->input_lock);
 	dev->power_on = -1;
@@ -995,7 +995,7 @@ static int ov2722_probe(struct i2c_client *client)
 	if (ret)
 		goto out_ctrl_handler_free;
 
-	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
 	dev->format.code = MEDIA_BUS_FMT_SBGGR10_1X10;
 	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

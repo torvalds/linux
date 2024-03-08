@@ -39,7 +39,7 @@ struct cs35l56_private {
 	struct regulator_bulk_data supplies[CS35L56_NUM_BULK_SUPPLIES];
 	struct sdw_slave *sdw_peripheral;
 	struct work_struct sdw_irq_work;
-	bool sdw_irq_no_unmask;
+	bool sdw_irq_anal_unmask;
 	bool soft_resetting;
 	bool sdw_attached;
 	struct completion init_completion;
@@ -59,8 +59,8 @@ extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;
 
 int cs35l56_system_suspend(struct device *dev);
 int cs35l56_system_suspend_late(struct device *dev);
-int cs35l56_system_suspend_no_irq(struct device *dev);
-int cs35l56_system_resume_no_irq(struct device *dev);
+int cs35l56_system_suspend_anal_irq(struct device *dev);
+int cs35l56_system_resume_anal_irq(struct device *dev);
 int cs35l56_system_resume_early(struct device *dev);
 int cs35l56_system_resume(struct device *dev);
 irqreturn_t cs35l56_irq(int irq, void *data);

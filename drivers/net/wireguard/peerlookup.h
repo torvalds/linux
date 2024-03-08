@@ -28,7 +28,7 @@ void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
 				struct wg_peer *peer);
 struct wg_peer *
 wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
-			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
+			   const u8 pubkey[ANALISE_PUBLIC_KEY_LEN]);
 
 struct index_hashtable {
 	/* TODO: move to rhashtable */
@@ -43,7 +43,7 @@ enum index_hashtable_type {
 
 struct index_hashtable_entry {
 	struct wg_peer *peer;
-	struct hlist_node index_hash;
+	struct hlist_analde index_hash;
 	enum index_hashtable_type type;
 	__le32 index;
 };

@@ -19,7 +19,7 @@ static loff_t in_pos, out_pos;
 
 static int __init prompt_ramdisk(char *str)
 {
-	pr_warn("ignoring the deprecated prompt_ramdisk= option\n");
+	pr_warn("iganalring the deprecated prompt_ramdisk= option\n");
 	return 1;
 }
 __setup("prompt_ramdisk=", prompt_ramdisk);
@@ -37,9 +37,9 @@ static int __init crd_load(decompress_fn deco);
 
 /*
  * This routine tries to find a RAM disk image to load, and returns the
- * number of blocks to read for a non-compressed image, 0 if the image
+ * number of blocks to read for a analn-compressed image, 0 if the image
  * is a compressed image, and -1 if an image with the right magic
- * numbers could not be found.
+ * numbers could analt be found.
  *
  * We currently check for the following magic numbers:
  *	minix
@@ -71,7 +71,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	minixsb = (struct minix_super_block *) buf;
 	romfsb = (struct romfs_super_block *) buf;
@@ -87,11 +87,11 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 
 	*decompressor = decompress_method(buf, size, &compress_name);
 	if (compress_name) {
-		printk(KERN_NOTICE "RAMDISK: %s image found at block %d\n",
+		printk(KERN_ANALTICE "RAMDISK: %s image found at block %d\n",
 		       compress_name, start_block);
 		if (!*decompressor)
 			printk(KERN_EMERG
-			       "RAMDISK: %s decompressor not configured!\n",
+			       "RAMDISK: %s decompressor analt configured!\n",
 			       compress_name);
 		nblocks = 0;
 		goto done;
@@ -100,7 +100,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 	/* romfs is at block zero too */
 	if (romfsb->word0 == ROMSB_WORD0 &&
 	    romfsb->word1 == ROMSB_WORD1) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: romfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (ntohl(romfsb->size)+BLOCK_SIZE-1)>>BLOCK_SIZE_BITS;
@@ -108,7 +108,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 	}
 
 	if (cramfsb->magic == CRAMFS_MAGIC) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: cramfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (cramfsb->size + BLOCK_SIZE - 1) >> BLOCK_SIZE_BITS;
@@ -117,7 +117,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 
 	/* squashfs is at block zero too */
 	if (le32_to_cpu(squashfsb->s_magic) == SQUASHFS_MAGIC) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: squashfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (le64_to_cpu(squashfsb->bytes_used) + BLOCK_SIZE - 1)
@@ -132,7 +132,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 	kernel_read(file, buf, size, &pos);
 
 	if (cramfsb->magic == CRAMFS_MAGIC) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: cramfs filesystem found at block %d\n",
 		       start_block);
 		nblocks = (cramfsb->size + BLOCK_SIZE - 1) >> BLOCK_SIZE_BITS;
@@ -148,7 +148,7 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 	/* Try minix */
 	if (minixsb->s_magic == MINIX_SUPER_MAGIC ||
 	    minixsb->s_magic == MINIX_SUPER_MAGIC2) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: Minix filesystem found at block %d\n",
 		       start_block);
 		nblocks = minixsb->s_nzones << minixsb->s_log_zone_size;
@@ -158,14 +158,14 @@ identify_ramdisk_image(struct file *file, loff_t pos,
 	/* Try ext2 */
 	n = ext2_image_size(buf);
 	if (n) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 		       "RAMDISK: ext2 filesystem found at block %d\n",
 		       start_block);
 		nblocks = n;
 		goto done;
 	}
 
-	printk(KERN_NOTICE
+	printk(KERN_ANALTICE
 	       "RAMDISK: Couldn't find valid RAM disk image starting at %d.\n",
 	       start_block);
 
@@ -176,11 +176,11 @@ done:
 
 static unsigned long nr_blocks(struct file *file)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct ianalde *ianalde = file->f_mapping->host;
 
-	if (!S_ISBLK(inode->i_mode))
+	if (!S_ISBLK(ianalde->i_mode))
 		return 0;
-	return i_size_read(inode) >> 10;
+	return i_size_read(ianalde) >> 10;
 }
 
 int __init rd_load_image(char *from)
@@ -201,7 +201,7 @@ int __init rd_load_image(char *from)
 
 	in_file = filp_open(from, O_RDONLY, 0);
 	if (IS_ERR(in_file))
-		goto noclose_input;
+		goto analclose_input;
 
 	in_pos = rd_image_start * BLOCK_SIZE;
 	nblocks = identify_ramdisk_image(in_file, in_pos, &decompressor);
@@ -215,7 +215,7 @@ int __init rd_load_image(char *from)
 	}
 
 	/*
-	 * NOTE NOTE: nblocks is not actually blocks but
+	 * ANALTE ANALTE: nblocks is analt actually blocks but
 	 * the number of kibibytes of data to load into a ramdisk.
 	 */
 	rd_blocks = nr_blocks(out_file);
@@ -234,17 +234,17 @@ int __init rd_load_image(char *from)
 		devblocks = nr_blocks(in_file);
 
 	if (devblocks == 0) {
-		printk(KERN_ERR "RAMDISK: could not determine device size\n");
+		printk(KERN_ERR "RAMDISK: could analt determine device size\n");
 		goto done;
 	}
 
 	buf = kmalloc(BLOCK_SIZE, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "RAMDISK: could not allocate buffer\n");
+		printk(KERN_ERR "RAMDISK: could analt allocate buffer\n");
 		goto done;
 	}
 
-	printk(KERN_NOTICE "RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
+	printk(KERN_ANALTICE "RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
 		nblocks, ((nblocks-1)/devblocks)+1, nblocks>devblocks ? "s" : "");
 	for (i = 0; i < nblocks; i++) {
 		if (i && (i % devblocks == 0)) {
@@ -268,7 +268,7 @@ successful_load:
 	res = 1;
 done:
 	fput(in_file);
-noclose_input:
+analclose_input:
 	fput(out_file);
 out:
 	kfree(buf);
@@ -324,7 +324,7 @@ static int __init crd_load(decompress_fn deco)
 	if (!deco) {
 		pr_emerg("Invalid ramdisk decompression routine.  "
 			 "Select appropriate config option.\n");
-		panic("Could not decompress initial ramdisk image.");
+		panic("Could analt decompress initial ramdisk image.");
 	}
 
 	result = deco(NULL, 0, compr_fill, compr_flush, NULL, NULL, error);

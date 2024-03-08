@@ -13,18 +13,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -69,7 +69,7 @@ typedef volatile struct au1xxx_dma_channel {
 #define DDMA_CFG_DP	(1 << 6)	/* destination DMA polarity */
 #define DDMA_CFG_SYNC	(1 << 5)	/* Sync static bus controller */
 #define DDMA_CFG_PPR	(1 << 4)	/* PCI posted read/write control */
-#define DDMA_CFG_DFN	(1 << 3)	/* Descriptor fetch non-coherent */
+#define DDMA_CFG_DFN	(1 << 3)	/* Descriptor fetch analn-coherent */
 #define DDMA_CFG_SBE	(1 << 2)	/* Source big endian */
 #define DDMA_CFG_DBE	(1 << 1)	/* Destination big endian */
 #define DDMA_CFG_EN	(1 << 0)	/* Channel enable */
@@ -115,8 +115,8 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_DW_MASK	(0x3 << 16)	/* Destination Width */
 #define DSCR_CMD0_ARB		(0x1 << 15)	/* Set for Hi Pri */
 #define DSCR_CMD0_DT_MASK	(0x3 << 13)	/* Descriptor Type */
-#define DSCR_CMD0_SN		(0x1 << 12)	/* Source non-coherent */
-#define DSCR_CMD0_DN		(0x1 << 11)	/* Destination non-coherent */
+#define DSCR_CMD0_SN		(0x1 << 12)	/* Source analn-coherent */
+#define DSCR_CMD0_DN		(0x1 << 11)	/* Destination analn-coherent */
 #define DSCR_CMD0_SM		(0x1 << 10)	/* Stride mode */
 #define DSCR_CMD0_IE		(0x1 << 8)	/* Interrupt Enable */
 #define DSCR_CMD0_SP		(0x1 << 4)	/* Status pointer select */
@@ -241,7 +241,7 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_DT(x)		(((x) & 0x3) << 13)
 
 /* Status Instruction. */
-#define DSCR_CMD0_ST_NOCHANGE	0	/* Don't change */
+#define DSCR_CMD0_ST_ANALCHANGE	0	/* Don't change */
 #define DSCR_CMD0_ST_CURRENT	1	/* Write current status */
 #define DSCR_CMD0_ST_CMD0	2	/* Write cmd0 with V cleared */
 #define DSCR_CMD0_ST_BYTECNT	3	/* Write remaining byte count */
@@ -302,7 +302,7 @@ typedef volatile struct au1xxx_ddma_desc {
 
 /*
  * DDMA API definitions
- * FIXME: may not fit to this header file
+ * FIXME: may analt fit to this header file
  */
 typedef struct dbdma_device_table {
 	u32	dev_id;
@@ -382,7 +382,7 @@ void *au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
  *	Flags for the put_source/put_dest functions.
  */
 #define DDMA_FLAGS_IE	(1 << 0)
-#define DDMA_FLAGS_NOIE (1 << 1)
+#define DDMA_FLAGS_ANALIE (1 << 1)
 
 #endif /* _LANGUAGE_ASSEMBLY */
 #endif /* _AU1000_DBDMA_H_ */

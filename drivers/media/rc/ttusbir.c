@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * TechnoTrend USB IR Receiver
+ * TechanalTrend USB IR Receiver
  *
  * Copyright (C) 2012 Sean Young <sean@mess.org>
  */
@@ -13,11 +13,11 @@
 #include <media/rc-core.h>
 
 #define DRIVER_NAME	"ttusbir"
-#define DRIVER_DESC	"TechnoTrend USB IR Receiver"
+#define DRIVER_DESC	"TechanalTrend USB IR Receiver"
 /*
  * The Windows driver uses 8 URBS, the original lirc drivers has a
  * configurable amount (2 default, 4 max). This device generates about 125
- * messages per second (!), whether IR is idle or not.
+ * messages per second (!), whether IR is idle or analt.
  */
 #define NUM_URBS	4
 #define US_PER_BYTE	62
@@ -76,7 +76,7 @@ static void ttusbir_brightness_set(struct led_classdev *led_dev, enum
 }
 
 /*
- * The urb cannot be reused until the urb completes
+ * The urb cananalt be reused until the urb completes
  */
 static void ttusbir_bulk_complete(struct urb *urb)
 {
@@ -88,7 +88,7 @@ static void ttusbir_bulk_complete(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	case -EPIPE:
@@ -148,7 +148,7 @@ static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 		}
 	}
 
-	/* don't wakeup when there's nothing to do */
+	/* don't wakeup when there's analthing to do */
 	if (event)
 		ir_raw_event_handle(tt->rc);
 }
@@ -163,7 +163,7 @@ static void ttusbir_urb_complete(struct urb *urb)
 		ttusbir_process_ir_data(tt, urb->transfer_buffer);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	case -EPIPE:
@@ -173,7 +173,7 @@ static void ttusbir_urb_complete(struct urb *urb)
 	}
 
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc && rc != -ENODEV)
+	if (rc && rc != -EANALDEV)
 		dev_warn(tt->dev, "failed to resubmit urb: %d\n", rc);
 }
 
@@ -190,7 +190,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!tt || !rc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -222,8 +222,8 @@ static int ttusbir_probe(struct usb_interface *intf,
 	}
 
 	if (altsetting == -1) {
-		dev_err(&intf->dev, "cannot find expected altsetting\n");
-		ret = -ENODEV;
+		dev_err(&intf->dev, "cananalt find expected altsetting\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -240,7 +240,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 		void *buffer;
 
 		if (!urb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -252,10 +252,10 @@ static int ttusbir_probe(struct usb_interface *intf,
 						&urb->transfer_dma);
 		if (!buffer) {
 			usb_free_urb(urb);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
-		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP | URB_ISO_ASAP;
+		urb->transfer_flags = URB_ANAL_TRANSFER_DMA_MAP | URB_ISO_ASAP;
 		urb->transfer_buffer = buffer;
 		urb->complete = ttusbir_urb_complete;
 		urb->number_of_packets = 8;
@@ -271,7 +271,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 
 	tt->bulk_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!tt->bulk_urb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -400,7 +400,7 @@ static int ttusbir_resume(struct usb_interface *intf)
 	led_classdev_resume(&tt->led);
 
 	for (i = 0; i < NUM_URBS; i++) {
-		rc = usb_submit_urb(tt->urb[i], GFP_NOIO);
+		rc = usb_submit_urb(tt->urb[i], GFP_ANALIO);
 		if (rc) {
 			dev_warn(tt->dev, "failed to submit urb: %d\n", rc);
 			break;

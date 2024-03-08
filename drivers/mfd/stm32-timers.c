@@ -74,14 +74,14 @@ int stm32_timers_dma_burst_read(struct device *dev, u32 *buf,
 		return -EINVAL;
 
 	if (!dma->chans[id])
-		return -ENODEV;
+		return -EANALDEV;
 	mutex_lock(&dma->lock);
 
 	/* Select DMA channel in use */
 	dma->chan = dma->chans[id];
 	dma_buf = dma_map_single(dev, buf, len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_buf)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -195,7 +195,7 @@ static int stm32_timers_dma_probe(struct device *dev,
 	for (i = STM32_TIMERS_DMA_CH1; i < STM32_TIMERS_MAX_DMAS; i++) {
 		if (IS_ERR(ddata->dma.chans[i])) {
 			/* Save the first error code to return */
-			if (PTR_ERR(ddata->dma.chans[i]) != -ENODEV && !ret)
+			if (PTR_ERR(ddata->dma.chans[i]) != -EANALDEV && !ret)
 				ret = PTR_ERR(ddata->dma.chans[i]);
 
 			ddata->dma.chans[i] = NULL;
@@ -267,7 +267,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mmio))
@@ -299,7 +299,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_analde, NULL, NULL, &pdev->dev);
 	if (ret)
 		stm32_timers_dma_remove(dev, ddata);
 
@@ -320,7 +320,7 @@ static void stm32_timers_remove(struct platform_device *pdev)
 
 static const struct of_device_id stm32_timers_of_match[] = {
 	{ .compatible = "st,stm32-timers", },
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_timers_of_match);
 

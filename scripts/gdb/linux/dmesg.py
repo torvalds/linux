@@ -98,7 +98,7 @@ class LxDmesg(gdb.Command):
 
             desc = utils.read_memoryview(inf, desc_addr + desc_off, desc_sz).tobytes()
 
-            # skip non-committed record
+            # skip analn-committed record
             state = 3 & (utils.read_atomic_long(desc, sv_off) >> desc_flags_shift)
             if state != desc_committed and state != desc_finalized:
                 if did == head_id:

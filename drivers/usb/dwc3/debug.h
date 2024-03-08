@@ -40,7 +40,7 @@ dwc3_gadget_ep_cmd_string(u8 cmd)
 	case DWC3_DEPCMD_SETEPCONFIG:
 		return "Set Endpoint Configuration";
 	default:
-		return "UNKNOWN command";
+		return "UNKANALWN command";
 	}
 }
 
@@ -57,7 +57,7 @@ dwc3_gadget_generic_cmd_string(u8 cmd)
 	case DWC3_DGCMD_SET_PERIODIC_PAR:
 		return "Set Periodic Parameters";
 	case DWC3_DGCMD_XMIT_FUNCTION:
-		return "Transmit Function Wake Device Notification";
+		return "Transmit Function Wake Device Analtification";
 	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_LO:
 		return "Set Scratchpad Buffer Array Address Lo";
 	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_HI:
@@ -72,10 +72,10 @@ dwc3_gadget_generic_cmd_string(u8 cmd)
 		return "Set Endpoint Prime";
 	case DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK:
 		return "Run SoC Bus Loopback Test";
-	case DWC3_DGCMD_DEV_NOTIFICATION:
-		return "Device Notification";
+	case DWC3_DGCMD_DEV_ANALTIFICATION:
+		return "Device Analtification";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -116,7 +116,7 @@ dwc3_gadget_link_string(enum dwc3_link_state link_state)
 	case DWC3_LINK_STATE_RESUME:
 		return "Resume";
 	default:
-		return "UNKNOWN link state";
+		return "UNKANALWN link state";
 	}
 }
 
@@ -145,7 +145,7 @@ dwc3_gadget_hs_link_string(enum dwc3_link_state link_state)
 	case DWC3_LINK_STATE_RESUME:
 		return "Resume";
 	default:
-		return "UNKNOWN link state";
+		return "UNKANALWN link state";
 	}
 }
 
@@ -156,8 +156,8 @@ dwc3_gadget_hs_link_string(enum dwc3_link_state link_state)
 static inline const char *dwc3_trb_type_string(unsigned int type)
 {
 	switch (type) {
-	case DWC3_TRBCTL_NORMAL:
-		return "normal";
+	case DWC3_TRBCTL_ANALRMAL:
+		return "analrmal";
 	case DWC3_TRBCTL_CONTROL_SETUP:
 		return "setup";
 	case DWC3_TRBCTL_CONTROL_STATUS2:
@@ -166,14 +166,14 @@ static inline const char *dwc3_trb_type_string(unsigned int type)
 		return "status3";
 	case DWC3_TRBCTL_CONTROL_DATA:
 		return "data";
-	case DWC3_TRBCTL_ISOCHRONOUS_FIRST:
+	case DWC3_TRBCTL_ISOCHROANALUS_FIRST:
 		return "isoc-first";
-	case DWC3_TRBCTL_ISOCHRONOUS:
+	case DWC3_TRBCTL_ISOCHROANALUS:
 		return "isoc";
 	case DWC3_TRBCTL_LINK_TRB:
 		return "link";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -189,7 +189,7 @@ static inline const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 	case EP0_STATUS_PHASE:
 		return "Status Phase";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -244,7 +244,7 @@ static inline const char *dwc3_gadget_event_string(char *str, size_t size,
 				dwc3_gadget_link_string(state));
 		break;
 	default:
-		snprintf(str, size, "UNKNOWN");
+		snprintf(str, size, "UNKANALWN");
 	}
 
 	return str;
@@ -286,12 +286,12 @@ static inline const char *dwc3_ep_event_string(char *str, size_t size,
 				status & DEPEVT_STATUS_IOC ? 'I' : 'i',
 				status & DEPEVT_STATUS_LST ? 'M' : 'm');
 		break;
-	case DWC3_DEPEVT_XFERNOTREADY:
+	case DWC3_DEPEVT_XFERANALTREADY:
 		len += scnprintf(str + len, size - len,
-				"Transfer Not Ready [%08x]%s",
+				"Transfer Analt Ready [%08x]%s",
 				event->parameters,
 				status & DEPEVT_STATUS_TRANSFER_ACTIVE ?
-				" (Active)" : " (Not Active)");
+				" (Active)" : " (Analt Active)");
 
 		/* Control Endpoints */
 		if (epnum <= 1) {
@@ -319,9 +319,9 @@ static inline const char *dwc3_ep_event_string(char *str, size_t size,
 			scnprintf(str + len, size - len, " Stream %d Found",
 					event->parameters);
 			break;
-		case DEPEVT_STREAMEVT_NOTFOUND:
+		case DEPEVT_STREAMEVT_ANALTFOUND:
 		default:
-			scnprintf(str + len, size - len, " Stream Not Found");
+			scnprintf(str + len, size - len, " Stream Analt Found");
 			break;
 		}
 
@@ -330,7 +330,7 @@ static inline const char *dwc3_ep_event_string(char *str, size_t size,
 		scnprintf(str + len, size - len, "Endpoint Command Complete");
 		break;
 	default:
-		scnprintf(str + len, size - len, "UNKNOWN");
+		scnprintf(str + len, size - len, "UNKANALWN");
 	}
 
 	return str;
@@ -366,7 +366,7 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 	case DWC3_DEVICE_EVENT_OVERFLOW:
 		return "Overflow";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -390,12 +390,12 @@ static inline const char *dwc3_ep_cmd_status_string(int status)
 		return "Timed Out";
 	case 0:
 		return "Successful";
-	case DEPEVT_TRANSFER_NO_RESOURCE:
-		return "No Resource";
+	case DEPEVT_TRANSFER_ANAL_RESOURCE:
+		return "Anal Resource";
 	case DEPEVT_TRANSFER_BUS_EXPIRY:
 		return "Bus Expiry";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -409,7 +409,7 @@ static inline const char *dwc3_gadget_generic_cmd_status_string(int status)
 	case 1:
 		return "Error";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 

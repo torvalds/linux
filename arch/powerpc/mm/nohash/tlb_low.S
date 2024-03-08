@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low-level functions for performing various
- * types of TLB invalidations on various processors with no hash
+ * types of TLB invalidations on various processors with anal hash
  * table.
  *
- * This file implements the following functions for all no-hash
+ * This file implements the following functions for all anal-hash
  * processors. Some aren't implemented for some variants. Some
  * are inline in tlbflush.h
  *
@@ -60,7 +60,7 @@ _GLOBAL(__tlbil_va)
 #elif defined(CONFIG_PPC_8xx)
 
 /*
- * Nothing to do for 8xx, everything is inline
+ * Analthing to do for 8xx, everything is inline
  */
 
 #elif defined(CONFIG_44x) /* Includes 47x */
@@ -84,7 +84,7 @@ _GLOBAL(__tlbil_va)
 	 * between the mtspr and the tlbsx.
 	 *
 	 * Critical and Machine Check interrupts take care of saving
-	 * and restoring MMUCR, so only normal interrupts have to be
+	 * and restoring MMUCR, so only analrmal interrupts have to be
 	 * taken care of.
 	 */
 	wrteei	0
@@ -126,7 +126,7 @@ _GLOBAL(_tlbil_pid)
 	isync
 	blr
 #else
-	/* 476 variant. There's not simple way to do this, hopefully we'll
+	/* 476 variant. There's analt simple way to do this, hopefully we'll
 	 * try to limit the amount of such full invalidates
 	 */
 	mfmsr	r11		/* Interrupts off */
@@ -151,7 +151,7 @@ _GLOBAL(_tlbil_pid)
 	tlbre	r6,r5,0		/* Read entry */
 3:	addis	r4,r4,0x2000	/* Next way */
 	andi.	r0,r6,PPC47x_TLB0_VALID /* Valid entry ? */
-	beq	4f		/* Nope, skip it */
+	beq	4f		/* Analpe, skip it */
 	rlwimi	r7,r5,0,1,2	/* Insert way number */
 	rlwinm	r6,r6,0,21,19	/* Clear V */
 	tlbwe   r6,r7,0		/* Write it */
@@ -161,7 +161,7 @@ _GLOBAL(_tlbil_pid)
 	addi	r3,r3,1		/* Next set */
 	beq	cr1,1f		/* End of loop */
 	andi.	r0,r3,0x1f	/* Need to load a new boltmap word ? */
-	bne	1b		/* No, loop */
+	bne	1b		/* Anal, loop */
 	lwz	r8,0(r10)	/* Load boltmap entry */
 	addi	r10,r10,4	/* Next word */
 	b	1b		/* Then loop */
@@ -174,7 +174,7 @@ _GLOBAL(_tlbil_pid)
 
 /*
  * _tlbivax_bcast is only on 47x. We don't bother doing a runtime
- * check though, it will blow up soon enough if we mistakenly try
+ * check though, it will blow up soon eanalugh if we mistakenly try
  * to use it on a 440.
  */
 _GLOBAL(_tlbivax_bcast)
@@ -196,7 +196,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	blr
 /*
  * DD2 HW could hang if in instruction fetch happens before msync completes.
- * Touch enough instruction cache lines to ensure cache hits
+ * Touch eanalugh instruction cache lines to ensure cache hits
  */
 1:	mflr	r9
 	bcl	20,31,$+4
@@ -208,14 +208,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	add	r6,r6,r7
 	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	sync
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 	mtlr	r9
 	wrtee	r10
 	blr
@@ -271,14 +271,14 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBILX)
 
 /*
  * Flush MMU TLB for a particular address, but only on the local processor
- * (no broadcast)
+ * (anal broadcast)
  */
 _GLOBAL(__tlbil_va)
 	mfmsr	r10
 	wrteei	0
 	slwi	r4,r4,16
 	ori	r4,r4,(MAS6_ISIZE(BOOK3E_PAGESZ_4K))@l
-	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+	mtspr	SPRN_MAS6,r4		/* assume AS=0 for analw */
 BEGIN_MMU_FTR_SECTION
 	tlbsx	0,r3
 	mfspr	r4,SPRN_MAS1		/* check valid */
@@ -298,7 +298,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 /*
  * New Book3E (>= 2.06) implementation
  *
- * Note: We may be able to get away without the interrupt masking stuff
+ * Analte: We may be able to get away without the interrupt masking stuff
  * if we save/restore MAS6 on exceptions that might modify it
  */
 _GLOBAL(_tlbil_pid)
@@ -312,7 +312,7 @@ _GLOBAL(_tlbil_pid)
 	isync
 	blr
 
-_GLOBAL(_tlbil_pid_noind)
+_GLOBAL(_tlbil_pid_analind)
 	slwi	r4,r3,MAS6_SPID_SHIFT
 	mfmsr	r10
 	ori	r4,r4,MAS6_SIND
@@ -338,7 +338,7 @@ _GLOBAL(_tlbil_va)
 	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
-1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for analw */
 	PPC_TLBILX_VA(0,R3)
 	msync
 	isync
@@ -353,7 +353,7 @@ _GLOBAL(_tlbivax_bcast)
 	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
-1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for analw */
 	PPC_TLBIVAX(0,R3)
 	mbar
 	tlbsync
@@ -401,7 +401,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
  *
  * r3 = first entry to write
  * r4 = number of entries to write
- * r5 = temporary tlb entry (0 means no switch to AS1)
+ * r5 = temporary tlb entry (0 means anal switch to AS1)
  */
 _GLOBAL(loadcam_multi)
 	mflr	r8

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -79,7 +79,7 @@ static int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -96,7 +96,7 @@ static int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_RB_RPTR_HI,
 					m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_RB_WPTR,
 			lower_32_bits(data64));
@@ -108,7 +108,7 @@ static int kgd_gfx_v9_4_3_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_RB_WPTR_HI,
 			m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + regSDMA_RLC0_RB_BASE_HI,
@@ -143,14 +143,14 @@ static int kgd_gfx_v9_4_3_hqd_sdma_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = regSDMA_RLC0_RB_CNTL; reg <= regSDMA_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = regSDMA_RLC0_STATUS; reg <= regSDMA_RLC0_CSA_ADDR_HI; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = regSDMA_RLC0_IB_SUB_REMAIN;
-	     reg <= regSDMA_RLC0_MINOR_PTR_UPDATE; reg++)
+	     reg <= regSDMA_RLC0_MIANALR_PTR_UPDATE; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = regSDMA_RLC0_MIDCMD_DATA0;
 	     reg <= regSDMA_RLC0_MIDCMD_CNTL; reg++)
@@ -201,7 +201,7 @@ static int kgd_gfx_v9_4_3_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd
 		if (temp & SDMA_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -230,7 +230,7 @@ static int kgd_gfx_v9_4_3_set_pasid_vmid_mapping(struct amdgpu_device *adev,
 	unsigned int aid = phy_inst / 2;
 
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is anal outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -310,7 +310,7 @@ static int kgd_gfx_v9_4_3_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may analt be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -379,7 +379,7 @@ static int kgd_gfx_v9_4_3_validate_trap_override_request(
 				uint32_t *trap_mask_supported)
 {
 	*trap_mask_supported &= KFD_DBG_TRAP_MASK_FP_INVALID |
-				KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+				KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL |
 				KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
 				KFD_DBG_TRAP_MASK_FP_OVERFLOW |
 				KFD_DBG_TRAP_MASK_FP_UNDERFLOW |
@@ -402,7 +402,7 @@ static uint32_t trap_mask_map_sw_to_hw(uint32_t mask)
 	uint32_t trap_on_start = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_START) ? 1 : 0;
 	uint32_t trap_on_end = (mask & KFD_DBG_TRAP_MASK_TRAP_ON_WAVE_END) ? 1 : 0;
 	uint32_t excp_en = mask & (KFD_DBG_TRAP_MASK_FP_INVALID |
-				KFD_DBG_TRAP_MASK_FP_INPUT_DENORMAL |
+				KFD_DBG_TRAP_MASK_FP_INPUT_DEANALRMAL |
 				KFD_DBG_TRAP_MASK_FP_DIVIDE_BY_ZERO |
 				KFD_DBG_TRAP_MASK_FP_OVERFLOW |
 				KFD_DBG_TRAP_MASK_FP_UNDERFLOW |

@@ -21,7 +21,7 @@ struct mii_timestamping_desc {
  * @device:	The device to be registered.
  * @ctrl:	Pointer to device's control interface.
  *
- * Returns zero on success or non-zero on failure.
+ * Returns zero on success or analn-zero on failure.
  */
 int register_mii_tstamp_controller(struct device *device,
 				   struct mii_timestamping_ctrl *ctrl)
@@ -30,7 +30,7 @@ int register_mii_tstamp_controller(struct device *device,
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&desc->list);
 	desc->ctrl = ctrl;
@@ -70,12 +70,12 @@ EXPORT_SYMBOL(unregister_mii_tstamp_controller);
 /**
  * register_mii_timestamper - Enables a given port of an MII time stamper.
  *
- * @node:	The device tree node of the MII time stamp controller.
+ * @analde:	The device tree analde of the MII time stamp controller.
  * @port:	The index of the port to be enabled.
  *
  * Returns a valid interface on success or ERR_PTR otherwise.
  */
-struct mii_timestamper *register_mii_timestamper(struct device_node *node,
+struct mii_timestamper *register_mii_timestamper(struct device_analde *analde,
 						 unsigned int port)
 {
 	struct mii_timestamper *mii_ts = NULL;
@@ -85,7 +85,7 @@ struct mii_timestamper *register_mii_timestamper(struct device_node *node,
 	mutex_lock(&tstamping_devices_lock);
 	list_for_each(this, &mii_timestamping_devices) {
 		desc = list_entry(this, struct mii_timestamping_desc, list);
-		if (desc->device->of_node == node) {
+		if (desc->device->of_analde == analde) {
 			mii_ts = desc->ctrl->probe_channel(desc->device, port);
 			if (!IS_ERR(mii_ts)) {
 				mii_ts->device = desc->device;

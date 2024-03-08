@@ -9,7 +9,7 @@
 #include "calling.h"
 #include <asm/asm.h>
 
-	/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */
+	/* rdi:	arg1 ... analrmal C conventions. rax is saved/restored. */
 	.macro THUNK name, func
 SYM_FUNC_START(\name)
 	pushq %rbp
@@ -39,10 +39,10 @@ SYM_FUNC_START(\name)
 	popq %rbp
 	RET
 SYM_FUNC_END(\name)
-	_ASM_NOKPROBE(\name)
+	_ASM_ANALKPROBE(\name)
 	.endm
 
 THUNK preempt_schedule_thunk, preempt_schedule
-THUNK preempt_schedule_notrace_thunk, preempt_schedule_notrace
+THUNK preempt_schedule_analtrace_thunk, preempt_schedule_analtrace
 EXPORT_SYMBOL(preempt_schedule_thunk)
-EXPORT_SYMBOL(preempt_schedule_notrace_thunk)
+EXPORT_SYMBOL(preempt_schedule_analtrace_thunk)

@@ -1,10 +1,10 @@
 * TS-4800 Touchscreen bindings
 
 Required properties:
-- compatible: must be "technologic,ts4800-ts"
+- compatible: must be "techanallogic,ts4800-ts"
 - reg: physical base address of the controller and length of memory mapped
   region.
-- syscon: phandle / integers array that points to the syscon node which
+- syscon: phandle / integers array that points to the syscon analde which
           describes the FPGA's syscon registers.
           - phandle to FPGA's syscon
           - offset to the touchscreen register

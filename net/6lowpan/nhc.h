@@ -78,7 +78,7 @@ struct lowpan_nhc *lowpan_nhc_by_nexthdr(u8 nexthdr);
 /**
  * lowpan_nhc_check_compression - checks if we support compression format. If
  *	we support the nhc by nexthdr field, the function will return 0. If we
- *	don't support the nhc by nexthdr this function will return -ENOENT.
+ *	don't support the nhc by nexthdr this function will return -EANALENT.
  *
  * @skb: skb of 6LoWPAN header to read nhc and replace header.
  * @hdr: ipv6hdr to check the nexthdr value

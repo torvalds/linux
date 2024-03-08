@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic AMD IO page table allocator.
+ * CPU-aganalstic AMD IO page table allocator.
  *
  * Copyright (C) 2020 Advanced Micro Devices, Inc.
  * Author: Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
@@ -97,7 +97,7 @@ static void free_pt_lvl(u64 *pt, struct list_head *freelist, int lvl)
 			continue;
 
 		/*
-		 * Free the next level. No need to look at l1 tables here since
+		 * Free the next level. Anal need to look at l1 tables here since
 		 * they can only contain leaf PTEs; just free them directly.
 		 */
 		p = IOMMU_PTE_PAGE(pt[i]);
@@ -113,7 +113,7 @@ static void free_pt_lvl(u64 *pt, struct list_head *freelist, int lvl)
 static void free_sub_pt(u64 *root, int mode, struct list_head *freelist)
 {
 	switch (mode) {
-	case PAGE_MODE_NONE:
+	case PAGE_MODE_ANALNE:
 	case PAGE_MODE_7_LEVEL:
 		break;
 	case PAGE_MODE_1_LEVEL:
@@ -144,8 +144,8 @@ void amd_iommu_domain_set_pgtable(struct protection_domain *domain,
 }
 
 /*
- * This function is used to add another level to an IO page table. Adding
- * another level increases the size of the address space by 9 bits to a size up
+ * This function is used to add aanalther level to an IO page table. Adding
+ * aanalther level increases the size of the address space by 9 bits to a size up
  * to 64 bits.
  */
 static bool increase_address_space(struct protection_domain *domain,
@@ -206,7 +206,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 	while (address > PM_LEVEL_SIZE(domain->iop.mode)) {
 		/*
-		 * Return an error if there is no memory to update the
+		 * Return an error if there is anal memory to update the
 		 * page-table.
 		 */
 		if (!increase_address_space(domain, address, gfp))
@@ -249,7 +249,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 		}
 
 		if (!IOMMU_PTE_PRESENT(__pte) ||
-		    pte_level == PAGE_MODE_NONE) {
+		    pte_level == PAGE_MODE_ANALNE) {
 			page = alloc_pgtable_page(domain->nid, gfp);
 
 			if (!page)
@@ -266,7 +266,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 			continue;
 		}
 
-		/* No level skipping support yet */
+		/* Anal level skipping support yet */
 		if (pte_level != level)
 			return NULL;
 
@@ -305,16 +305,16 @@ static u64 *fetch_pte(struct amd_io_pgtable *pgtable,
 
 	while (level > 0) {
 
-		/* Not Present */
+		/* Analt Present */
 		if (!IOMMU_PTE_PRESENT(*pte))
 			return NULL;
 
 		/* Large PTE */
 		if (PM_PTE_LEVEL(*pte) == PAGE_MODE_7_LEVEL ||
-		    PM_PTE_LEVEL(*pte) == PAGE_MODE_NONE)
+		    PM_PTE_LEVEL(*pte) == PAGE_MODE_ANALNE)
 			break;
 
-		/* No level skipping support yet */
+		/* Anal level skipping support yet */
 		if (PM_PTE_LEVEL(*pte) != level)
 			return NULL;
 
@@ -383,7 +383,7 @@ static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 		count = PAGE_SIZE_PTE_COUNT(pgsize);
 		pte   = alloc_pte(dom, iova, pgsize, NULL, gfp, &updated);
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (!pte)
 			goto out;
 
@@ -430,7 +430,7 @@ out:
 		spin_unlock_irqrestore(&dom->lock, flags);
 	}
 
-	/* Everything flushed out, free pages now */
+	/* Everything flushed out, free pages analw */
 	put_pages_list(&freelist);
 
 	return ret;
@@ -490,15 +490,15 @@ static phys_addr_t iommu_v1_iova_to_phys(struct io_pgtable_ops *ops, unsigned lo
 static bool pte_test_and_clear_dirty(u64 *ptep, unsigned long size,
 				     unsigned long flags)
 {
-	bool test_only = flags & IOMMU_DIRTY_NO_CLEAR;
+	bool test_only = flags & IOMMU_DIRTY_ANAL_CLEAR;
 	bool dirty = false;
 	int i, count;
 
 	/*
 	 * 2.2.3.2 Host Dirty Support
-	 * When a non-default page size is used , software must OR the
+	 * When a analn-default page size is used , software must OR the
 	 * Dirty bits in all of the replicated host PTEs used to map
-	 * the page. The IOMMU does not guarantee the Dirty bits are
+	 * the page. The IOMMU does analt guarantee the Dirty bits are
 	 * set in all of the replicated PTEs. Any portion of the page
 	 * may have been written even if the Dirty bit is set in only
 	 * one of the replicated PTEs.
@@ -563,13 +563,13 @@ static void v1_free_pgtable(struct io_pgtable *iop)
 	struct protection_domain *dom;
 	LIST_HEAD(freelist);
 
-	if (pgtable->mode == PAGE_MODE_NONE)
+	if (pgtable->mode == PAGE_MODE_ANALNE)
 		return;
 
 	dom = container_of(pgtable, struct protection_domain, iop);
 
-	/* Page-table is not visible to IOMMU anymore, so free it */
-	BUG_ON(pgtable->mode < PAGE_MODE_NONE ||
+	/* Page-table is analt visible to IOMMU anymore, so free it */
+	BUG_ON(pgtable->mode < PAGE_MODE_ANALNE ||
 	       pgtable->mode > PAGE_MODE_6_LEVEL);
 
 	free_sub_pt(pgtable->root, pgtable->mode, &freelist);

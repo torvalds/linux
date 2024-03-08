@@ -18,7 +18,7 @@
 
 extern asmlinkage void ret_from_exception(void);
 
-void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
+void analtrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 			     bool (*fn)(void *, unsigned long), void *arg)
 {
 	unsigned long fp, sp, pc;
@@ -76,7 +76,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 
 #else /* !CONFIG_FRAME_POINTER */
 
-void notrace walk_stackframe(struct task_struct *task,
+void analtrace walk_stackframe(struct task_struct *task,
 	struct pt_regs *regs, bool (*fn)(void *, unsigned long), void *arg)
 {
 	unsigned long sp, pc;
@@ -101,7 +101,7 @@ void notrace walk_stackframe(struct task_struct *task,
 	while (!kstack_end(ksp)) {
 		if (__kernel_text_address(pc) && unlikely(!fn(arg, pc)))
 			break;
-		pc = READ_ONCE_NOCHECK(*ksp++) - 0x4;
+		pc = READ_ONCE_ANALCHECK(*ksp++) - 0x4;
 	}
 }
 
@@ -115,7 +115,7 @@ static bool print_trace_address(void *arg, unsigned long pc)
 	return true;
 }
 
-noinline void dump_backtrace(struct pt_regs *regs, struct task_struct *task,
+analinline void dump_backtrace(struct pt_regs *regs, struct task_struct *task,
 		    const char *loglvl)
 {
 	walk_stackframe(task, regs, print_trace_address, (void *)loglvl);
@@ -148,7 +148,7 @@ unsigned long __get_wchan(struct task_struct *task)
 	return pc;
 }
 
-noinline void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
+analinline void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		     struct task_struct *task, struct pt_regs *regs)
 {
 	walk_stackframe(task, regs, consume_entry, cookie);

@@ -26,13 +26,13 @@
 
 #include <linux/sched/mm.h>
 
-#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+#ifndef CONFIG_BCACHEFS_ANAL_LATENCY_ACCT
 
 static bool bch2_target_congested(struct bch_fs *c, u16 target)
 {
 	const struct bch_devs_mask *devs;
 	unsigned d, nr = 0, total = 0;
-	u64 now = local_clock(), last;
+	u64 analw = local_clock(), last;
 	s64 congested;
 	struct bch_dev *ca;
 
@@ -50,8 +50,8 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 
 		congested = atomic_read(&ca->congested);
 		last = READ_ONCE(ca->congested_last);
-		if (time_after64(now, last))
-			congested -= (now - last) >> 12;
+		if (time_after64(analw, last))
+			congested -= (analw - last) >> 12;
 
 		total += max(congested, 0LL);
 		nr++;
@@ -97,20 +97,20 @@ static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 	BUG_ON(!opts.promote_target);
 
 	if (!(flags & BCH_READ_MAY_PROMOTE))
-		return -BCH_ERR_nopromote_may_not;
+		return -BCH_ERR_analpromote_may_analt;
 
 	if (bch2_bkey_has_target(c, k, opts.promote_target))
-		return -BCH_ERR_nopromote_already_promoted;
+		return -BCH_ERR_analpromote_already_promoted;
 
 	if (bkey_extent_is_unwritten(k))
-		return -BCH_ERR_nopromote_unwritten;
+		return -BCH_ERR_analpromote_unwritten;
 
 	if (bch2_target_congested(c, opts.promote_target))
-		return -BCH_ERR_nopromote_congested;
+		return -BCH_ERR_analpromote_congested;
 
 	if (rhashtable_lookup_fast(&c->promote_table, &pos,
 				   bch_promote_params))
-		return -BCH_ERR_nopromote_in_flight;
+		return -BCH_ERR_analpromote_in_flight;
 
 	return 0;
 }
@@ -145,7 +145,7 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 
 	trace_and_count(op->write.op.c, read_promote, &rbio->bio);
 
-	/* we now own pages: */
+	/* we analw own pages: */
 	BUG_ON(!rbio->bounce);
 	BUG_ON(rbio->bio.bi_vcnt > bio->bi_max_vecs);
 
@@ -172,11 +172,11 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	int ret;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
-		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
+		return ERR_PTR(-BCH_ERR_analpromote_anal_writes);
 
 	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_KERNEL);
 	if (!op) {
-		ret = -BCH_ERR_nopromote_enomem;
+		ret = -BCH_ERR_analpromote_eanalmem;
 		goto err;
 	}
 
@@ -191,7 +191,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 			sizeof(struct bio_vec) * pages,
 			GFP_KERNEL);
 	if (!*rbio) {
-		ret = -BCH_ERR_nopromote_enomem;
+		ret = -BCH_ERR_analpromote_eanalmem;
 		goto err;
 	}
 
@@ -199,7 +199,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
 	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9, GFP_KERNEL)) {
-		ret = -BCH_ERR_nopromote_enomem;
+		ret = -BCH_ERR_analpromote_eanalmem;
 		goto err;
 	}
 
@@ -209,7 +209,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
 					  bch_promote_params)) {
-		ret = -BCH_ERR_nopromote_in_flight;
+		ret = -BCH_ERR_analpromote_in_flight;
 		goto err;
 	}
 
@@ -222,12 +222,12 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 			(struct data_update_opts) {
 				.target		= opts.promote_target,
 				.extra_replicas	= 1,
-				.write_flags	= BCH_WRITE_ALLOC_NOWAIT|BCH_WRITE_CACHED,
+				.write_flags	= BCH_WRITE_ALLOC_ANALWAIT|BCH_WRITE_CACHED,
 			},
 			btree_id, k);
 	/*
-	 * possible errors: -BCH_ERR_nocow_lock_blocked,
-	 * -BCH_ERR_ENOSPC_disk_reservation:
+	 * possible errors: -BCH_ERR_analcow_lock_blocked,
+	 * -BCH_ERR_EANALSPC_disk_reservation:
 	 */
 	if (ret) {
 		BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
@@ -248,7 +248,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-noinline
+analinline
 static struct promote_op *promote_alloc(struct btree_trans *trans,
 					struct bvec_iter iter,
 					struct bkey_s_c k,
@@ -267,13 +267,13 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 		: bvec_iter_sectors(iter);
 	struct bpos pos = promote_full
 		? bkey_start_pos(k.k)
-		: POS(k.k->p.inode, iter.bi_sector);
+		: POS(k.k->p.ianalde, iter.bi_sector);
 	struct promote_op *promote;
 	int ret;
 
 	ret = should_promote(c, k, pos, opts, flags);
 	if (ret)
-		goto nopromote;
+		goto analpromote;
 
 	promote = __promote_alloc(trans,
 				  k.k->type == KEY_TYPE_reflink_v
@@ -282,13 +282,13 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 				  k, pos, pick, opts, sectors, rbio);
 	ret = PTR_ERR_OR_ZERO(promote);
 	if (ret)
-		goto nopromote;
+		goto analpromote;
 
 	*bounce		= true;
 	*read_full	= promote_full;
 	return promote;
-nopromote:
-	trace_read_nopromote(c, ret);
+analpromote:
+	trace_read_analpromote(c, ret);
 	return NULL;
 }
 
@@ -351,7 +351,7 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 
 /*
  * Only called on a top level bch_read_bio to complete an entire read request,
- * not a split:
+ * analt a split:
  */
 static void bch2_rbio_done(struct bch_read_bio *rbio)
 {
@@ -361,7 +361,7 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 	bio_endio(&rbio->bio);
 }
 
-static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio,
+static void bch2_read_retry_analdecode(struct bch_fs *c, struct bch_read_bio *rbio,
 				     struct bvec_iter bvec_iter,
 				     struct bch_io_failures *failed,
 				     unsigned flags)
@@ -394,7 +394,7 @@ retry:
 				   rbio->pick.ptr,
 				   rbio->data_pos.offset -
 				   rbio->pick.crc.offset)) {
-		/* extent we wanted to read no longer exists: */
+		/* extent we wanted to read anal longer exists: */
 		rbio->hole = true;
 		goto out;
 	}
@@ -427,7 +427,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	unsigned flags		= rbio->flags;
 	subvol_inum inum = {
 		.subvol = rbio->subvol,
-		.inum	= rbio->read_pos.inode,
+		.inum	= rbio->read_pos.ianalde,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
 
@@ -443,8 +443,8 @@ static void bch2_rbio_retry(struct work_struct *work)
 	flags |= BCH_READ_IN_RETRY;
 	flags &= ~BCH_READ_MAY_PROMOTE;
 
-	if (flags & BCH_READ_NODECODE) {
-		bch2_read_retry_nodecode(c, rbio, iter, &failed, flags);
+	if (flags & BCH_READ_ANALDECODE) {
+		bch2_read_retry_analdecode(c, rbio, iter, &failed, flags);
 	} else {
 		flags &= ~BCH_READ_LAST_FRAGMENT;
 		flags |= BCH_READ_MUST_CLONE;
@@ -510,7 +510,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	}
 
 	/*
-	 * going to be temporarily appending another checksum entry:
+	 * going to be temporarily appending aanalther checksum entry:
 	 */
 	new = bch2_trans_kmalloc(trans, bkey_bytes(k.k) +
 				 sizeof(struct bch_extent_crc128));
@@ -523,15 +523,15 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 		goto out;
 
 	ret = bch2_trans_update(trans, &iter, new,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE);
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
-static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
+static analinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
-	bch2_trans_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	bch2_trans_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_anal_eanalspc,
 		      __bch2_rbio_narrow_crcs(trans, rbio));
 }
 
@@ -546,12 +546,12 @@ static void __bch2_read_endio(struct work_struct *work)
 	struct bio *dst		= &bch2_rbio_parent(rbio)->bio;
 	struct bvec_iter dst_iter = rbio->bvec_iter;
 	struct bch_extent_crc_unpacked crc = rbio->pick.crc;
-	struct nonce nonce = extent_nonce(rbio->version, crc);
-	unsigned nofs_flags;
+	struct analnce analnce = extent_analnce(rbio->version, crc);
+	unsigned analfs_flags;
 	struct bch_csum csum;
 	int ret;
 
-	nofs_flags = memalloc_nofs_save();
+	analfs_flags = memalloc_analfs_save();
 
 	/* Reset iterator for checksumming and copying bounced data: */
 	if (rbio->bounce) {
@@ -562,8 +562,8 @@ static void __bch2_read_endio(struct work_struct *work)
 		src->bi_iter			= rbio->bvec_iter;
 	}
 
-	csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
-	if (bch2_crc_cmp(csum, rbio->pick.crc.csum) && !c->opts.no_data_io)
+	csum = bch2_checksum_bio(c, crc.csum_type, analnce, src);
+	if (bch2_crc_cmp(csum, rbio->pick.crc.csum) && !c->opts.anal_data_io)
 		goto csum_err;
 
 	/*
@@ -576,30 +576,30 @@ static void __bch2_read_endio(struct work_struct *work)
 	if (unlikely(rbio->narrow_crcs))
 		bch2_rbio_narrow_crcs(rbio);
 
-	if (rbio->flags & BCH_READ_NODECODE)
-		goto nodecode;
+	if (rbio->flags & BCH_READ_ANALDECODE)
+		goto analdecode;
 
 	/* Adjust crc to point to subset of data we want: */
 	crc.offset     += rbio->offset_into_extent;
 	crc.live_size	= bvec_iter_sectors(rbio->bvec_iter);
 
 	if (crc_is_compressed(crc)) {
-		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
+		ret = bch2_encrypt_bio(c, crc.csum_type, analnce, src);
 		if (ret)
 			goto decrypt_err;
 
 		if (bch2_bio_uncompress(c, src, dst, dst_iter, crc) &&
-		    !c->opts.no_data_io)
+		    !c->opts.anal_data_io)
 			goto decompression_err;
 	} else {
 		/* don't need to decrypt the entire bio: */
-		nonce = nonce_add(nonce, crc.offset << 9);
+		analnce = analnce_add(analnce, crc.offset << 9);
 		bio_advance(src, crc.offset << 9);
 
 		BUG_ON(src->bi_iter.bi_size < dst_iter.bi_size);
 		src->bi_iter.bi_size = dst_iter.bi_size;
 
-		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
+		ret = bch2_encrypt_bio(c, crc.csum_type, analnce, src);
 		if (ret)
 			goto decrypt_err;
 
@@ -615,20 +615,20 @@ static void __bch2_read_endio(struct work_struct *work)
 		 * Re encrypt data we decrypted, so it's consistent with
 		 * rbio->crc:
 		 */
-		ret = bch2_encrypt_bio(c, crc.csum_type, nonce, src);
+		ret = bch2_encrypt_bio(c, crc.csum_type, analnce, src);
 		if (ret)
 			goto decrypt_err;
 
 		promote_start(rbio->promote, rbio);
 		rbio->promote = NULL;
 	}
-nodecode:
+analdecode:
 	if (likely(!(rbio->flags & BCH_READ_IN_RETRY))) {
 		rbio = bch2_rbio_free(rbio);
 		bch2_rbio_done(rbio);
 	}
 out:
-	memalloc_nofs_restore(nofs_flags);
+	memalloc_analfs_restore(analfs_flags);
 	return;
 csum_err:
 	/*
@@ -648,7 +648,7 @@ csum_err:
 	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
 
 	bch_err_inum_offset_ratelimited(ca,
-		rbio->read_pos.inode,
+		rbio->read_pos.ianalde,
 		rbio->read_pos.offset << 9,
 		"data %s", buf.buf);
 	printbuf_exit(&buf);
@@ -657,13 +657,13 @@ csum_err:
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	goto out;
 decompression_err:
-	bch_err_inum_offset_ratelimited(c, rbio->read_pos.inode,
+	bch_err_inum_offset_ratelimited(c, rbio->read_pos.ianalde,
 					rbio->read_pos.offset << 9,
 					"decompression error");
 	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
 	goto out;
 decrypt_err:
-	bch_err_inum_offset_ratelimited(c, rbio->read_pos.inode,
+	bch_err_inum_offset_ratelimited(c, rbio->read_pos.ianalde,
 					rbio->read_pos.offset << 9,
 					"decrypt error");
 	bch2_rbio_error(rbio, READ_ERR, BLK_STS_IOERR);
@@ -688,7 +688,7 @@ static void bch2_read_endio(struct bio *bio)
 		rbio->bio.bi_end_io = rbio->end_io;
 
 	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
-				    rbio->read_pos.inode,
+				    rbio->read_pos.ianalde,
 				    rbio->read_pos.offset,
 				    "data read error: %s",
 			       bch2_blk_status_to_str(bio->bi_status))) {
@@ -739,9 +739,9 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	if (k.k->type != KEY_TYPE_reflink_v &&
 	    k.k->type != KEY_TYPE_indirect_inline_data) {
 		bch_err_inum_offset_ratelimited(trans->c,
-			orig_k->k->k.p.inode,
+			orig_k->k->k.p.ianalde,
 			orig_k->k->k.p.offset << 9,
-			"%llu len %u points to nonexistent indirect extent %llu",
+			"%llu len %u points to analnexistent indirect extent %llu",
 			orig_k->k->k.p.offset,
 			orig_k->k->k.size,
 			reflink_offset);
@@ -757,7 +757,7 @@ err:
 	return ret;
 }
 
-static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
+static analinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 						   struct bkey_s_c k,
 						   struct bch_extent_ptr ptr)
 {
@@ -827,8 +827,8 @@ retry_pick:
 
 	if (pick_ret < 0) {
 		bch_err_inum_offset_ratelimited(c,
-				read_pos.inode, read_pos.offset << 9,
-				"no device to read from");
+				read_pos.ianalde, read_pos.offset << 9,
+				"anal device to read from");
 		goto err;
 	}
 
@@ -836,7 +836,7 @@ retry_pick:
 
 	/*
 	 * Stale dirty pointers are treated as IO errors, but @failed isn't
-	 * allocated unless we're in the retry path - so if we're not in the
+	 * allocated unless we're in the retry path - so if we're analt in the
 	 * retry path, don't check here, it'll be caught in bch2_read_endio()
 	 * and we'll end up in the retry path:
 	 */
@@ -849,12 +849,12 @@ retry_pick:
 	}
 
 	/*
-	 * Unlock the iterator while the btree node's lock is still in
+	 * Unlock the iterator while the btree analde's lock is still in
 	 * cache, before doing the IO:
 	 */
 	bch2_trans_unlock(trans);
 
-	if (flags & BCH_READ_NODECODE) {
+	if (flags & BCH_READ_ANALDECODE) {
 		/*
 		 * can happen if we retry, and the extent we were going to read
 		 * has been merged in the meantime:
@@ -879,7 +879,7 @@ retry_pick:
 	EBUG_ON(offset_into_extent + bvec_iter_sectors(iter) > k.k->size);
 
 	if (crc_is_compressed(pick.crc) ||
-	    (pick.crc.csum_type != BCH_CSUM_none &&
+	    (pick.crc.csum_type != BCH_CSUM_analne &&
 	     (bvec_iter_sectors(iter) != pick.crc.uncompressed_size ||
 	      (bch2_csum_type_is_encryption(pick.crc.csum_type) &&
 	       (flags & BCH_READ_USER_MAPPED)) ||
@@ -913,8 +913,8 @@ get_bio:
 	if (rbio) {
 		/*
 		 * promote already allocated bounce rbio:
-		 * promote needs to allocate a bio big enough for uncompressing
-		 * data in the write path, but we're not going to use it all
+		 * promote needs to allocate a bio big eanalugh for uncompressing
+		 * data in the write path, but we're analt going to use it all
 		 * here:
 		 */
 		EBUG_ON(rbio->bio.bi_iter.bi_size <
@@ -927,7 +927,7 @@ get_bio:
 		rbio = rbio_init(bio_alloc_bioset(NULL,
 						  DIV_ROUND_UP(sectors, PAGE_SECTORS),
 						  0,
-						  GFP_NOFS,
+						  GFP_ANALFS,
 						  &c->bio_read_split),
 				 orig->opts);
 
@@ -939,11 +939,11 @@ get_bio:
 		 * Have to clone if there were any splits, due to error
 		 * reporting issues (if a split errored, and retrying didn't
 		 * work, when it reports the error to its parent (us) we don't
-		 * know if the error was from our bio, and we should retry, or
+		 * kanalw if the error was from our bio, and we should retry, or
 		 * from the whole bio, in which case we don't want to retry and
 		 * lose the error)
 		 */
-		rbio = rbio_init(bio_alloc_clone(NULL, &orig->bio, GFP_NOFS,
+		rbio = rbio_init(bio_alloc_clone(NULL, &orig->bio, GFP_ANALFS,
 						 &c->bio_read_split),
 				 orig->opts);
 		rbio->bio.bi_iter = iter;
@@ -995,7 +995,7 @@ get_bio:
 	 * If it's being moved internally, we don't want to flag it as a cache
 	 * hit:
 	 */
-	if (pick.ptr.cached && !(flags & BCH_READ_NODECODE))
+	if (pick.ptr.cached && !(flags & BCH_READ_ANALDECODE))
 		bch2_bucket_io_time_reset(trans, pick.ptr.dev,
 			PTR_BUCKET_NR(ca, &pick.ptr), READ);
 
@@ -1007,9 +1007,9 @@ get_bio:
 	if (!rbio->pick.idx) {
 		if (!rbio->have_ioref) {
 			bch_err_inum_offset_ratelimited(c,
-					read_pos.inode,
+					read_pos.ianalde,
 					read_pos.offset << 9,
-					"no device to read from");
+					"anal device to read from");
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}
@@ -1018,7 +1018,7 @@ get_bio:
 			     bio_sectors(&rbio->bio));
 		bio_set_dev(&rbio->bio, ca->disk_sb.bdev);
 
-		if (unlikely(c->opts.no_data_io)) {
+		if (unlikely(c->opts.anal_data_io)) {
 			if (likely(!(flags & BCH_READ_IN_RETRY)))
 				bio_endio(&rbio->bio);
 		} else {
@@ -1032,7 +1032,7 @@ get_bio:
 		 * We just submitted IO which may block, we expect relock fail
 		 * events and shouldn't count them:
 		 */
-		trans->notrace_relock_fail = true;
+		trans->analtrace_relock_fail = true;
 	} else {
 		/* Attempting reconstruct read: */
 		if (bch2_ec_read_extent(trans, rbio)) {
@@ -1075,11 +1075,11 @@ err:
 
 hole:
 	/*
-	 * won't normally happen in the BCH_READ_NODECODE
+	 * won't analrmally happen in the BCH_READ_ANALDECODE
 	 * (bch2_move_extent()) path, but if we retry and the extent we wanted
-	 * to read no longer exists we have to signal that:
+	 * to read anal longer exists we have to signal that:
 	 */
-	if (flags & BCH_READ_NODECODE)
+	if (flags & BCH_READ_ANALDECODE)
 		orig->hole = true;
 
 	zero_fill_bio_iter(&orig->bio, iter);
@@ -1100,7 +1100,7 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 	u32 snapshot;
 	int ret;
 
-	BUG_ON(flags & BCH_READ_NODECODE);
+	BUG_ON(flags & BCH_READ_ANALDECODE);
 
 	bch2_bkey_buf_init(&sk);
 retry:
@@ -1207,14 +1207,14 @@ int bch2_fs_io_read_init(struct bch_fs *c)
 {
 	if (bioset_init(&c->bio_read, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_bio_read_init;
+		return -BCH_ERR_EANALMEM_bio_read_init;
 
 	if (bioset_init(&c->bio_read_split, 1, offsetof(struct bch_read_bio, bio),
 			BIOSET_NEED_BVECS))
-		return -BCH_ERR_ENOMEM_bio_read_split_init;
+		return -BCH_ERR_EANALMEM_bio_read_split_init;
 
 	if (rhashtable_init(&c->promote_table, &bch_promote_params))
-		return -BCH_ERR_ENOMEM_promote_table_init;
+		return -BCH_ERR_EANALMEM_promote_table_init;
 
 	return 0;
 }

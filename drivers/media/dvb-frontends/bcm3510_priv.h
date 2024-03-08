@@ -246,9 +246,9 @@ struct bcm3510_hab_cmd_int_acquire {
 #define BCM3510_SR_USE_CMD     0x7
 
 /* special symbol rate */
-#define CMD_SET_VALUE_NOT_LISTED  0x2d
-#define MSGID_SET_SYMBOL_RATE_NOT_LISTED 0x0c
-struct bcm3510_hab_cmd_set_sr_not_listed {
+#define CMD_SET_VALUE_ANALT_LISTED  0x2d
+#define MSGID_SET_SYMBOL_RATE_ANALT_LISTED 0x0c
+struct bcm3510_hab_cmd_set_sr_analt_listed {
 	u8 HOST_SYM_RATE0;
 	u8 HOST_SYM_RATE1;
 	u8 HOST_SYM_RATE2;
@@ -256,8 +256,8 @@ struct bcm3510_hab_cmd_set_sr_not_listed {
 } PACKED;
 
 /* special IF */
-#define MSGID_SET_IF_FREQ_NOT_LISTED 0x0d
-struct bcm3510_hab_cmd_set_if_freq_not_listed {
+#define MSGID_SET_IF_FREQ_ANALT_LISTED 0x0d
+struct bcm3510_hab_cmd_set_if_freq_analt_listed {
 	u8 HOST_IF_FREQ0;
 	u8 HOST_IF_FREQ1;
 	u8 HOST_IF_FREQ2;
@@ -440,8 +440,8 @@ struct bcm3510_hab_cmd_status2 {
 	u8 SIGNAL;
 } PACKED;
 
-#define CMD_SET_RF_BW_NOT_LISTED   0x3f
-#define MSGID_SET_RF_BW_NOT_LISTED 0x11
+#define CMD_SET_RF_BW_ANALT_LISTED   0x3f
+#define MSGID_SET_RF_BW_ANALT_LISTED 0x11
 /* TODO */
 
 #endif

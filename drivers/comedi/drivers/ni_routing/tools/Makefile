@@ -40,7 +40,7 @@ convert_c_to_py: all_cfiles.c linux/comedi.h
 	gcc -g -I. convert_c_to_py.c -o convert_c_to_py -std=c99
 
 # Create a local 'linux/comedi.h' for use when compiling 'convert_c_to_py.c'
-# with the '-I.' option.  (Cannot specify '-I../../../../../include/uapi'
+# with the '-I.' option.  (Cananalt specify '-I../../../../../include/uapi'
 # because that interferes with inclusion of other system headers.)
 linux/comedi.h: $(INC_UAPI)/linux/comedi.h
 	mkdir -p linux
@@ -73,11 +73,11 @@ clean-partial :
 clean : clean-partial
 	$(RM) -rf c/ csv/ linux/
 
-# Note:  One could also use ctypeslib in order to generate these files.  The
-# caveat is that ctypeslib does not do a great job at handling macro functions.
+# Analte:  One could also use ctypeslib in order to generate these files.  The
+# caveat is that ctypeslib does analt do a great job at handling macro functions.
 # The make rules are as follows:
 # comedi.h.xml : $(INC_UAPI)/linux/comedi.h
-# 	# note that we have to use PWD here to avoid h2xml finding a system
+# 	# analte that we have to use PWD here to avoid h2xml finding a system
 # 	# installed version of the comedilib/comedi.h file
 # 	h2xml ${PWD}/$(INC_UAPI)/linux/comedi.h -c D__user="" -o comedi.h.xml
 #

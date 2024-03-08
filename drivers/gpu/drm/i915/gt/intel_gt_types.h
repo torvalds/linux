@@ -10,7 +10,7 @@
 #include <linux/list.h>
 #include <linux/llist.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/seqlock.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -49,11 +49,11 @@ struct intel_mmio_range {
  *
  * During driver startup, we initialize the steering control register to
  * direct reads to a slice/subslice that are valid for the 'subslice' class
- * of multicast registers.  If another type of steering does not have any
+ * of multicast registers.  If aanalther type of steering does analt have any
  * overlap in valid steering targets with 'subslice' style registers, we will
  * need to explicitly re-steer reads of registers of the other type.
  *
- * Only the replication types that may need additional non-default steering
+ * Only the replication types that may need additional analn-default steering
  * are listed here.
  */
 enum intel_steering_type {
@@ -66,7 +66,7 @@ enum intel_steering_type {
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that
-	 * will always return a non-terminated value at instance (0, 0).  We'll
+	 * will always return a analn-terminated value at instance (0, 0).  We'll
 	 * lump those all into a single category to keep things simple.
 	 */
 	INSTANCE0,
@@ -118,9 +118,9 @@ struct intel_gt {
 		 * But we only need one such invalidation for all unbinds,
 		 * so we track how many TLB invalidations have been
 		 * performed since unbind the PTE and only emit an extra
-		 * invalidate if no full barrier has been passed.
+		 * invalidate if anal full barrier has been passed.
 		 */
-		seqcount_mutex_t seqno;
+		seqcount_mutex_t seqanal;
 	} tlb;
 
 	struct i915_wa_list wa_list;
@@ -189,7 +189,7 @@ struct intel_gt {
 		/**
 		 * @total: Total time this engine was busy.
 		 *
-		 * Accumulated time not counting the most recent block in cases
+		 * Accumulated time analt counting the most recent block in cases
 		 * where engine is currently busy (active > 0).
 		 */
 		ktime_t total;

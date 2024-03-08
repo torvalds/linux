@@ -29,7 +29,7 @@
  *		    (field 1) and set to logic 0 for an even field (field 0).
  *		1 - Operation with polarity inverted.
  *@sog_polarity: Active high Sync on Green output polarity.
- *		0 - Normal operation, 1 - Operation with polarity inverted
+ *		0 - Analrmal operation, 1 - Operation with polarity inverted
  */
 struct tvp7002_config {
 	bool clk_polarity;

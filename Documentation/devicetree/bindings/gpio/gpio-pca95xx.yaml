@@ -94,11 +94,11 @@ properties:
     maxItems: 1
     description:
       GPIO specification for the RESET input. This is an active low signal to
-      the PCA953x.  Not valid for Maxim MAX732x devices.
+      the PCA953x.  Analt valid for Maxim MAX732x devices.
 
   vcc-supply:
     description:
-      Optional power supply.  Not valid for Maxim MAX732x devices.
+      Optional power supply.  Analt valid for Maxim MAX732x devices.
 
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag

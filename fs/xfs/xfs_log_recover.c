@@ -13,7 +13,7 @@
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
@@ -53,14 +53,14 @@ xlog_do_recovery_pass(
  * are valid, false otherwise.
  */
 static inline bool
-xlog_verify_bno(
+xlog_verify_banal(
 	struct xlog	*log,
-	xfs_daddr_t	blk_no,
+	xfs_daddr_t	blk_anal,
 	int		bbcount)
 {
-	if (blk_no < 0 || blk_no >= log->l_logBBsize)
+	if (blk_anal < 0 || blk_anal >= log->l_logBBsize)
 		return false;
-	if (bbcount <= 0 || (blk_no + bbcount) > log->l_logBBsize)
+	if (bbcount <= 0 || (blk_anal + bbcount) > log->l_logBBsize)
 		return false;
 	return true;
 }
@@ -78,7 +78,7 @@ xlog_alloc_buffer(
 	 * Pass log block 0 since we don't have an addr yet, buffer will be
 	 * verified on read.
 	 */
-	if (XFS_IS_CORRUPT(log->l_mp, !xlog_verify_bno(log, 0, nbblks))) {
+	if (XFS_IS_CORRUPT(log->l_mp, !xlog_verify_banal(log, 0, nbblks))) {
 		xfs_warn(log->l_mp, "Invalid block length (0x%x) for buffer",
 			nbblks);
 		return NULL;
@@ -89,11 +89,11 @@ xlog_alloc_buffer(
 	 * basic block size), so we round up the requested size to accommodate
 	 * the basic blocks required for complete log sectors.
 	 *
-	 * In addition, the buffer may be used for a non-sector-aligned block
+	 * In addition, the buffer may be used for a analn-sector-aligned block
 	 * offset, in which case an I/O of the requested size could extend
 	 * beyond the end of the buffer.  If the requested size is only 1 basic
 	 * block it will never straddle a sector boundary, so this won't be an
-	 * issue.  Nor will this be a problem if the log I/O is done in basic
+	 * issue.  Analr will this be a problem if the log I/O is done in basic
 	 * blocks (sector size 1).  But otherwise we extend the buffer by one
 	 * extra log sector to ensure there's space to accommodate this
 	 * possibility.
@@ -111,77 +111,77 @@ xlog_alloc_buffer(
 static inline unsigned int
 xlog_align(
 	struct xlog	*log,
-	xfs_daddr_t	blk_no)
+	xfs_daddr_t	blk_anal)
 {
-	return BBTOB(blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1));
+	return BBTOB(blk_anal & ((xfs_daddr_t)log->l_sectBBsize - 1));
 }
 
 static int
 xlog_do_io(
 	struct xlog		*log,
-	xfs_daddr_t		blk_no,
+	xfs_daddr_t		blk_anal,
 	unsigned int		nbblks,
 	char			*data,
 	enum req_op		op)
 {
 	int			error;
 
-	if (XFS_IS_CORRUPT(log->l_mp, !xlog_verify_bno(log, blk_no, nbblks))) {
+	if (XFS_IS_CORRUPT(log->l_mp, !xlog_verify_banal(log, blk_anal, nbblks))) {
 		xfs_warn(log->l_mp,
 			 "Invalid log block/length (0x%llx, 0x%x) for buffer",
-			 blk_no, nbblks);
+			 blk_anal, nbblks);
 		return -EFSCORRUPTED;
 	}
 
-	blk_no = round_down(blk_no, log->l_sectBBsize);
+	blk_anal = round_down(blk_anal, log->l_sectBBsize);
 	nbblks = round_up(nbblks, log->l_sectBBsize);
 	ASSERT(nbblks > 0);
 
-	error = xfs_rw_bdev(log->l_targ->bt_bdev, log->l_logBBstart + blk_no,
+	error = xfs_rw_bdev(log->l_targ->bt_bdev, log->l_logBBstart + blk_anal,
 			BBTOB(nbblks), data, op);
 	if (error && !xlog_is_shutdown(log)) {
 		xfs_alert(log->l_mp,
 			  "log recovery %s I/O error at daddr 0x%llx len %d error %d",
 			  op == REQ_OP_WRITE ? "write" : "read",
-			  blk_no, nbblks, error);
+			  blk_anal, nbblks, error);
 	}
 	return error;
 }
 
 STATIC int
-xlog_bread_noalign(
+xlog_bread_analalign(
 	struct xlog	*log,
-	xfs_daddr_t	blk_no,
+	xfs_daddr_t	blk_anal,
 	int		nbblks,
 	char		*data)
 {
-	return xlog_do_io(log, blk_no, nbblks, data, REQ_OP_READ);
+	return xlog_do_io(log, blk_anal, nbblks, data, REQ_OP_READ);
 }
 
 STATIC int
 xlog_bread(
 	struct xlog	*log,
-	xfs_daddr_t	blk_no,
+	xfs_daddr_t	blk_anal,
 	int		nbblks,
 	char		*data,
 	char		**offset)
 {
 	int		error;
 
-	error = xlog_do_io(log, blk_no, nbblks, data, REQ_OP_READ);
+	error = xlog_do_io(log, blk_anal, nbblks, data, REQ_OP_READ);
 	if (!error)
-		*offset = data + xlog_align(log, blk_no);
+		*offset = data + xlog_align(log, blk_anal);
 	return error;
 }
 
 STATIC int
 xlog_bwrite(
 	struct xlog	*log,
-	xfs_daddr_t	blk_no,
+	xfs_daddr_t	blk_anal,
 	int		nbblks,
 	char		*data)
 {
-	return xlog_do_io(log, blk_no, nbblks, data, REQ_OP_WRITE);
+	return xlog_do_io(log, blk_anal, nbblks, data, REQ_OP_WRITE);
 }
 
 #ifdef DEBUG
@@ -210,11 +210,11 @@ xlog_header_check_recover(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
+	ASSERT(head->h_magicanal == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
 	/*
 	 * IRIX doesn't write the h_fmt field and leaves it zeroed
-	 * (XLOG_FMT_UNKNOWN). This stops us from trying to recover
+	 * (XLOG_FMT_UNKANALWN). This stops us from trying to recover
 	 * a dirty log created in IRIX.
 	 */
 	if (XFS_IS_CORRUPT(mp, head->h_fmt != cpu_to_be32(XLOG_FMT))) {
@@ -241,7 +241,7 @@ xlog_header_check_mount(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
+	ASSERT(head->h_magicanal == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
 	if (uuid_is_null(&head->h_fs_uuid)) {
 		/*
@@ -262,7 +262,7 @@ xlog_header_check_mount(
 /*
  * This routine finds (to an approximation) the first block in the physical
  * log which contains the given cycle.  It uses a binary search algorithm.
- * Note that the algorithm can not be perfect because the disk will not
+ * Analte that the algorithm can analt be perfect because the disk will analt
  * necessarily be perfect.
  */
 STATIC int
@@ -301,19 +301,19 @@ xlog_find_cycle_start(
 }
 
 /*
- * Check that a range of blocks does not contain stop_on_cycle_no.
+ * Check that a range of blocks does analt contain stop_on_cycle_anal.
  * Fill in *new_blk with the block offset where such a block is
- * found, or with -1 (an invalid block number) if there is no such
+ * found, or with -1 (an invalid block number) if there is anal such
  * block in the range.  The scan needs to occur from front to back
  * and the pointer into the region must be updated since a later
- * routine will need to perform another test.
+ * routine will need to perform aanalther test.
  */
 STATIC int
 xlog_find_verify_cycle(
 	struct xlog	*log,
 	xfs_daddr_t	start_blk,
 	int		nbblks,
-	uint		stop_on_cycle_no,
+	uint		stop_on_cycle_anal,
 	xfs_daddr_t	*new_blk)
 {
 	xfs_daddr_t	i, j;
@@ -324,7 +324,7 @@ xlog_find_verify_cycle(
 	int		error = 0;
 
 	/*
-	 * Greedily allocate a buffer big enough to handle the full
+	 * Greedily allocate a buffer big eanalugh to handle the full
 	 * range of basic blocks we'll be examining.  If that fails,
 	 * try a smaller size.  We need to be able to read at least
 	 * a log sector, or we're out of luck.
@@ -335,7 +335,7 @@ xlog_find_verify_cycle(
 	while (!(buffer = xlog_alloc_buffer(log, bufblks))) {
 		bufblks >>= 1;
 		if (bufblks < log->l_sectBBsize)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = start_blk; i < start_blk + nbblks; i += bufblks) {
@@ -349,7 +349,7 @@ xlog_find_verify_cycle(
 
 		for (j = 0; j < bcount; j++) {
 			cycle = xlog_get_cycle(buf);
-			if (cycle == stop_on_cycle_no) {
+			if (cycle == stop_on_cycle_anal) {
 				*new_blk = i+j;
 				goto out;
 			}
@@ -412,7 +412,7 @@ xlog_find_verify_log_record(
 	if (!buffer) {
 		buffer = xlog_alloc_buffer(log, 1);
 		if (!buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		smallmem = 1;
 	} else {
 		error = xlog_bread(log, start_blk, num_blks, buffer, &offset);
@@ -423,7 +423,7 @@ xlog_find_verify_log_record(
 
 	for (i = (*last_blk) - 1; i >= 0; i--) {
 		if (i < start_blk) {
-			/* valid log record not found */
+			/* valid log record analt found */
 			xfs_warn(log->l_mp,
 		"Log inconsistent (didn't find previous header)");
 			ASSERT(0);
@@ -439,7 +439,7 @@ xlog_find_verify_log_record(
 
 		head = (xlog_rec_header_t *)offset;
 
-		if (head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
+		if (head->h_magicanal == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 			break;
 
 		if (!smallmem)
@@ -447,7 +447,7 @@ xlog_find_verify_log_record(
 	}
 
 	/*
-	 * We hit the beginning of the physical log & still no header.  Return
+	 * We hit the beginning of the physical log & still anal header.  Return
 	 * to caller.  If caller can handle a return of -1, then this routine
 	 * will be called again for the end of the physical log.
 	 */
@@ -485,14 +485,14 @@ out:
  * Head is defined to be the point of the log where the next log write
  * could go.  This means that incomplete LR writes at the end are
  * eliminated when calculating the head.  We aren't guaranteed that previous
- * LR have complete transactions.  We only know that a cycle number of
+ * LR have complete transactions.  We only kanalw that a cycle number of
  * current cycle number -1 won't be present in the log if we start writing
  * from our current block number.
  *
  * last_blk contains the block number of the first block with a given
  * cycle number.
  *
- * Return: zero if normal, non-zero if error.
+ * Return: zero if analrmal, analn-zero if error.
  */
 STATIC int
 xlog_find_head(
@@ -531,7 +531,7 @@ xlog_find_head(
 	first_blk = 0;			/* get cycle # of 1st block */
 	buffer = xlog_alloc_buffer(log, 1);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = xlog_bread(log, 0, 1, buffer, &offset);
 	if (error)
@@ -562,12 +562,12 @@ xlog_find_head(
 		/*
 		 * In this case we believe that the entire log should have
 		 * cycle number last_half_cycle.  We need to scan backwards
-		 * from the end verifying that there are no holes still
+		 * from the end verifying that there are anal holes still
 		 * containing last_half_cycle - 1.  If we find such a hole,
 		 * then the start of that hole will be the new head.  The
 		 * simple case looks like
 		 *        x | x ... | x - 1 | x
-		 * Another case that fits this picture would be
+		 * Aanalther case that fits this picture would be
 		 *        x | x + 1 | x ... | x
 		 * In this case the head really is somewhere at the end of the
 		 * log, as one of the latest writes at the beginning was
@@ -581,7 +581,7 @@ xlog_find_head(
 		 * In the 256k log case, we will read from the beginning to the
 		 * end of the log and search for cycle numbers equal to x-1.
 		 * We don't worry about the x+1 blocks that we encounter,
-		 * because we know that they cannot be the head since the log
+		 * because we kanalw that they cananalt be the head since the log
 		 * started with x.
 		 */
 		head_blk = log_bbnum;
@@ -595,7 +595,7 @@ xlog_find_head(
 		 * The first block with cycle number x (last_half_cycle) will
 		 * be where the new head belongs.  First we do a binary search
 		 * for the first occurrence of last_half_cycle.  The binary
-		 * search may not be totally accurate, so then we scan back
+		 * search may analt be totally accurate, so then we scan back
 		 * from there looking for occurrences of last_half_cycle before
 		 * us.  If that backwards scan wraps around the beginning of
 		 * the log, then we look for occurrences of last_half_cycle - 1
@@ -617,7 +617,7 @@ xlog_find_head(
 	}
 
 	/*
-	 * Now validate the answer.  Scan back some number of maximum possible
+	 * Analw validate the answer.  Scan back some number of maximum possible
 	 * blocks and make sure each one has the expected cycle number.  The
 	 * maximum is determined by the total possible amount of buffering
 	 * in the in-core log.  The following number can be made tighter if
@@ -642,7 +642,7 @@ xlog_find_head(
 		 * First we scan the physical end of the log.  In this part
 		 * of the log, we are looking for blocks with cycle number
 		 * last_half_cycle - 1.
-		 * If we find one, then we know that the log starts there, as
+		 * If we find one, then we kanalw that the log starts there, as
 		 * we've found a hole that didn't get written in going around
 		 * the end of the physical log.  The simple case for this is
 		 *        x + 1 ... | x ... | x - 1 | x
@@ -655,13 +655,13 @@ xlog_find_head(
 		 * back to the hole we've found.  This case looks like
 		 *        x + 1 ... | x | x + 1 | x ...
 		 *                               ^ binary search stopped here
-		 * Another case we need to handle that only occurs in 256k
+		 * Aanalther case we need to handle that only occurs in 256k
 		 * logs is
 		 *        x + 1 ... | x ... | x+1 | x ...
 		 *                   ^ binary search stops here
 		 * In a 256k log, the scan at the end of the log will see the
 		 * x + 1 blocks.  We need to skip past those since that is
-		 * certainly not the head of the log.  By searching for
+		 * certainly analt the head of the log.  By searching for
 		 * last_half_cycle-1 we accomplish that.
 		 */
 		ASSERT(head_blk <= INT_MAX &&
@@ -677,7 +677,7 @@ xlog_find_head(
 		}
 
 		/*
-		 * Scan beginning of log now.  The last part of the physical
+		 * Scan beginning of log analw.  The last part of the physical
 		 * log is good.  This scan needs to verify that it doesn't find
 		 * the last_half_cycle.
 		 */
@@ -693,7 +693,7 @@ xlog_find_head(
 
 validate_head:
 	/*
-	 * Now we need to make sure head_blk is not pointing to a block in
+	 * Analw we need to make sure head_blk is analt pointing to a block in
 	 * the middle of a log record.
 	 */
 	num_scan_bblks = XLOG_REC_SHIFT(log);
@@ -798,8 +798,8 @@ xlog_rseek_logrec_hdr(
 
 	/*
 	 * If we haven't hit the tail block or the log record header count,
-	 * start looking again from the end of the physical log. Note that
-	 * callers can pass head == tail if the tail is not yet known.
+	 * start looking again from the end of the physical log. Analte that
+	 * callers can pass head == tail if the tail is analt yet kanalwn.
 	 */
 	if (tail_blk >= head_blk && found != count) {
 		for (i = log->l_logBBsize - 1; i >= (int) tail_blk; i--) {
@@ -921,9 +921,9 @@ xlog_tail_distance(
  * blocked behind the tail right before a crash. If the tail had been pushed
  * immediately prior to the crash and the subsequent checkpoint was only
  * partially written, it's possible it overwrote the last referenced tail in the
- * log with garbage. This is not a coherency problem because the tail must have
+ * log with garbage. This is analt a coherency problem because the tail must have
  * been pushed before it can be overwritten, but appears as log corruption to
- * recovery because we have no way to know the tail was updated if the
+ * recovery because we have anal way to kanalw the tail was updated if the
  * subsequent checkpoint didn't write successfully.
  *
  * Therefore, CRC check the log from tail to head. If a failure occurs and the
@@ -948,7 +948,7 @@ xlog_verify_tail(
 
 	buffer = xlog_alloc_buffer(log, 1);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Make sure the tail points to a record (returns positive count on
@@ -965,7 +965,7 @@ xlog_verify_tail(
 	 * Run a CRC check from the tail to the head. We can't just check
 	 * MAX_ICLOGS records past the tail because the tail may point to stale
 	 * blocks cleared during the search for the head/tail. These blocks are
-	 * overwritten with zero-length records and thus record count is not a
+	 * overwritten with zero-length records and thus record count is analt a
 	 * reliable indicator of the iclog state before a crash.
 	 */
 	first_bad = 0;
@@ -1009,7 +1009,7 @@ out:
  * Storage without sector atomicity guarantees can result in torn writes in the
  * log in the event of a crash. Our only means to detect this scenario is via
  * CRC verification. While we can't always be certain that CRC verification
- * failure is due to a torn write vs. an unrelated corruption, we do know that
+ * failure is due to a torn write vs. an unrelated corruption, we do kanalw that
  * only a certain number (XLOG_MAX_ICLOGS) of log records can be written out at
  * one time. Therefore, CRC verify up to XLOG_MAX_ICLOGS records at the head of
  * the log and treat failures in this range as torn writes as a matter of
@@ -1042,7 +1042,7 @@ xlog_verify_head(
 	 */
 	tmp_buffer = xlog_alloc_buffer(log, 1);
 	if (!tmp_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = xlog_rseek_logrec_hdr(log, *head_blk, *tail_blk,
 				      XLOG_MAX_ICLOGS, tmp_buffer,
 				      &tmp_rhead_blk, &tmp_rhead, &tmp_wrapped);
@@ -1051,7 +1051,7 @@ xlog_verify_head(
 		return error;
 
 	/*
-	 * Now run a CRC verification pass over the records starting at the
+	 * Analw run a CRC verification pass over the records starting at the
 	 * block found above to the current head. If a CRC failure occurs, the
 	 * log block of the first bad record is saved in first_bad.
 	 */
@@ -1071,7 +1071,7 @@ xlog_verify_head(
 		 * Get the header block and buffer pointer for the last good
 		 * record before the bad record.
 		 *
-		 * Note that xlog_find_tail() clears the blocks at the new head
+		 * Analte that xlog_find_tail() clears the blocks at the new head
 		 * (i.e., the records with invalid CRC) if the cycle number
 		 * matches the current cycle.
 		 */
@@ -1107,20 +1107,20 @@ xlog_verify_head(
 
 /*
  * We need to make sure we handle log wrapping properly, so we can't use the
- * calculated logbno directly. Make sure it wraps to the correct bno inside the
+ * calculated logbanal directly. Make sure it wraps to the correct banal inside the
  * log.
  *
  * The log is limited to 32 bit sizes, so we use the appropriate modulus
  * operation here and cast it back to a 64 bit daddr on return.
  */
 static inline xfs_daddr_t
-xlog_wrap_logbno(
+xlog_wrap_logbanal(
 	struct xlog		*log,
-	xfs_daddr_t		bno)
+	xfs_daddr_t		banal)
 {
 	int			mod;
 
-	div_s64_rem(bno, log->l_logBBsize, &mod);
+	div_s64_rem(banal, log->l_logBBsize, &mod);
 	return mod;
 }
 
@@ -1149,7 +1149,7 @@ xlog_check_unmount_rec(
 	*clean = false;
 
 	/*
-	 * Look for unmount record. If we find it, then we know there was a
+	 * Look for unmount record. If we find it, then we kanalw there was a
 	 * clean unmount. Since 'i' could be the last block in the physical
 	 * log, we convert to a log block before comparing to the head_blk.
 	 *
@@ -1158,12 +1158,12 @@ xlog_check_unmount_rec(
 	 * we pass the lsn of the unmount record rather than the block after it.
 	 */
 	hblks = xlog_logrec_hblks(log, rhead);
-	after_umount_blk = xlog_wrap_logbno(log,
+	after_umount_blk = xlog_wrap_logbanal(log,
 			rhead_blk + hblks + BTOBB(be32_to_cpu(rhead->h_len)));
 
 	if (*head_blk == after_umount_blk &&
 	    be32_to_cpu(rhead->h_num_logops) == 1) {
-		umount_data_blk = xlog_wrap_logbno(log, rhead_blk + hblks);
+		umount_data_blk = xlog_wrap_logbanal(log, rhead_blk + hblks);
 		error = xlog_bread(log, umount_data_blk, 1, buffer, &offset);
 		if (error)
 			return error;
@@ -1202,7 +1202,7 @@ xlog_set_state(
 	 * one because the next write starts a new cycle rather than
 	 * continuing the cycle of the last good log record.  At this
 	 * point we have guaranteed that all partial log records have been
-	 * accounted for.  Therefore, we know that the last good log record
+	 * accounted for.  Therefore, we kanalw that the last good log record
 	 * written was complete and ended exactly on the end boundary
 	 * of the physical log.
 	 */
@@ -1229,10 +1229,10 @@ xlog_set_state(
  * log record header to believe.
  *
  * The following algorithm uses the log record header with the largest
- * lsn.  The entire log record does not need to be valid.  We only care
+ * lsn.  The entire log record does analt need to be valid.  We only care
  * that the header is valid.
  *
- * We could speed up search by using current head_blk buffer, but it is not
+ * We could speed up search by using current head_blk buffer, but it is analt
  * available.
  */
 STATIC int
@@ -1259,7 +1259,7 @@ xlog_find_tail(
 
 	buffer = xlog_alloc_buffer(log, 1);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (*head_blk == 0) {				/* special case */
 		error = xlog_bread(log, 0, 1, buffer, &offset);
 		if (error)
@@ -1304,13 +1304,13 @@ xlog_find_tail(
 		goto done;
 
 	/*
-	 * Verify the log head if the log is not clean (e.g., we have anything
+	 * Verify the log head if the log is analt clean (e.g., we have anything
 	 * but an unmount record at the head). This uses CRC verification to
 	 * detect and trim torn writes. If discovered, CRC failures are
 	 * considered torn writes and the log head is trimmed accordingly.
 	 *
-	 * Note that we can only run CRC verification when the log is dirty
-	 * because there's no guarantee that the log data behind an unmount
+	 * Analte that we can only run CRC verification when the log is dirty
+	 * because there's anal guarantee that the log data behind an unmount
 	 * record is compatible with the current architecture.
 	 */
 	if (!clean) {
@@ -1335,15 +1335,15 @@ xlog_find_tail(
 	}
 
 	/*
-	 * Note that the unmount was clean. If the unmount was not clean, we
-	 * need to know this to rebuild the superblock counters from the perag
-	 * headers if we have a filesystem using non-persistent counters.
+	 * Analte that the unmount was clean. If the unmount was analt clean, we
+	 * need to kanalw this to rebuild the superblock counters from the perag
+	 * headers if we have a filesystem using analn-persistent counters.
 	 */
 	if (clean)
 		set_bit(XFS_OPSTATE_CLEAN, &log->l_mp->m_opstate);
 
 	/*
-	 * Make sure that there are no blocks in front of the head
+	 * Make sure that there are anal blocks in front of the head
 	 * with the same cycle number as the head.  This can happen
 	 * because we allow multiple outstanding log writes concurrently,
 	 * and the later writes might make it out before earlier ones.
@@ -1353,10 +1353,10 @@ xlog_find_tail(
 	 *
 	 * Do this only if we are going to recover the filesystem
 	 *
-	 * NOTE: This used to say "if (!readonly)"
+	 * ANALTE: This used to say "if (!readonly)"
 	 * However on Linux, we can & do recover a read-only filesystem.
-	 * We only skip recovery if NORECOVERY is specified on mount,
-	 * in which case we would not be here.
+	 * We only skip recovery if ANALRECOVERY is specified on mount,
+	 * in which case we would analt be here.
 	 *
 	 * But... if the -device- itself is readonly, just skip this.
 	 * We can't recover this device anyway, so it won't matter.
@@ -1376,22 +1376,22 @@ done:
  * Is the log zeroed at all?
  *
  * The last binary search should be changed to perform an X block read
- * once X becomes small enough.  You can then search linearly through
+ * once X becomes small eanalugh.  You can then search linearly through
  * the X blocks.  This will cut down on the number of reads we need to do.
  *
- * If the log is partially zeroed, this routine will pass back the blkno
+ * If the log is partially zeroed, this routine will pass back the blkanal
  * of the first block with cycle number 0.  It won't have a complete LR
  * preceding it.
  *
  * Return:
  *	0  => the log is completely written to
- *	1 => use *blk_no as the first block of the log
+ *	1 => use *blk_anal as the first block of the log
  *	<0 => error has occurred
  */
 STATIC int
 xlog_find_zeroed(
 	struct xlog	*log,
-	xfs_daddr_t	*blk_no)
+	xfs_daddr_t	*blk_anal)
 {
 	char		*buffer;
 	char		*offset;
@@ -1400,19 +1400,19 @@ xlog_find_zeroed(
 	xfs_daddr_t     num_scan_bblks;
 	int	        error, log_bbnum = log->l_logBBsize;
 
-	*blk_no = 0;
+	*blk_anal = 0;
 
 	/* check totally zeroed log */
 	buffer = xlog_alloc_buffer(log, 1);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	error = xlog_bread(log, 0, 1, buffer, &offset);
 	if (error)
 		goto out_free_buffer;
 
 	first_cycle = xlog_get_cycle(offset);
 	if (first_cycle == 0) {		/* completely zeroed log */
-		*blk_no = 0;
+		*blk_anal = 0;
 		kmem_free(buffer);
 		return 1;
 	}
@@ -1435,10 +1435,10 @@ xlog_find_zeroed(
 		goto out_free_buffer;
 
 	/*
-	 * Validate the answer.  Because there is no way to guarantee that
+	 * Validate the answer.  Because there is anal way to guarantee that
 	 * the entire log is made up of log records which are the same size,
 	 * we scan over the defined maximum blocks.  At this point, the maximum
-	 * is not chosen to mean anything special.   XXXmiken
+	 * is analt chosen to mean anything special.   XXXmiken
 	 */
 	num_scan_bblks = XLOG_TOTAL_REC_SHIFT(log);
 	ASSERT(num_scan_bblks <= INT_MAX);
@@ -1461,7 +1461,7 @@ xlog_find_zeroed(
 
 	/*
 	 * Potentially backup over partial log record write.  We don't need
-	 * to search the end of the log because we know it is zero.
+	 * to search the end of the log because we kanalw it is zero.
 	 */
 	error = xlog_find_verify_log_record(log, start_blk, &last_blk, 0);
 	if (error == 1)
@@ -1469,7 +1469,7 @@ xlog_find_zeroed(
 	if (error)
 		goto out_free_buffer;
 
-	*blk_no = last_blk;
+	*blk_anal = last_blk;
 out_free_buffer:
 	kmem_free(buffer);
 	if (error)
@@ -1494,7 +1494,7 @@ xlog_add_record(
 	xlog_rec_header_t	*recp = (xlog_rec_header_t *)buf;
 
 	memset(buf, 0, BBSIZE);
-	recp->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
+	recp->h_magicanal = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
 	recp->h_cycle = cpu_to_be32(cycle);
 	recp->h_version = cpu_to_be32(
 			xfs_has_logv2(log->l_mp) ? 2 : 1);
@@ -1523,7 +1523,7 @@ xlog_write_log_records(
 	int		i, j = 0;
 
 	/*
-	 * Greedily allocate a buffer big enough to handle the full
+	 * Greedily allocate a buffer big eanalugh to handle the full
 	 * range of basic blocks to be written.  If that fails, try
 	 * a smaller size.  We need to be able to write at least a
 	 * log sector, or we're out of luck.
@@ -1534,16 +1534,16 @@ xlog_write_log_records(
 	while (!(buffer = xlog_alloc_buffer(log, bufblks))) {
 		bufblks >>= 1;
 		if (bufblks < sectbb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* We may need to do a read at the start to fill in part of
-	 * the buffer in the starting sector not covered by the first
+	 * the buffer in the starting sector analt covered by the first
 	 * write below.
 	 */
 	balign = round_down(start_block, sectbb);
 	if (balign != start_block) {
-		error = xlog_bread_noalign(log, start_block, 1, buffer);
+		error = xlog_bread_analalign(log, start_block, 1, buffer);
 		if (error)
 			goto out_free_buffer;
 
@@ -1557,12 +1557,12 @@ xlog_write_log_records(
 		endcount = bcount - j;
 
 		/* We may need to do a read at the end to fill in part of
-		 * the buffer in the final sector not covered by the write.
+		 * the buffer in the final sector analt covered by the write.
 		 * If this is the same sector as the above read, skip it.
 		 */
 		ealign = round_down(end_block, sectbb);
 		if (j == 0 && (start_block + endcount > ealign)) {
-			error = xlog_bread_noalign(log, ealign, sectbb,
+			error = xlog_bread_analalign(log, ealign, sectbb,
 					buffer + BBTOB(ealign - start_block));
 			if (error)
 				break;
@@ -1598,10 +1598,10 @@ out_free_buffer:
  * current one.
  *
  * The tail lsn is passed in rather than taken from
- * the log so that we will not write over the unmount record after a
+ * the log so that we will analt write over the unmount record after a
  * clean unmount in a 512 block log.  Doing so would leave the log without
  * any valid log records in it until a new one was written.  If we crashed
- * during that time we would not be able to recover.
+ * during that time we would analt be able to recover.
  */
 STATIC int
 xlog_clear_stale_blocks(
@@ -1666,7 +1666,7 @@ xlog_clear_stale_blocks(
 	 * we could have and the distance to the tail to clear out.
 	 * We take the smaller so that we don't overwrite the tail and
 	 * we don't waste all day writing from the head to the tail
-	 * for no reason.
+	 * for anal reason.
 	 */
 	max_distance = min(max_distance, tail_distance);
 
@@ -1700,9 +1700,9 @@ xlog_clear_stale_blocks(
 			return error;
 
 		/*
-		 * Now write the blocks at the start of the physical log.
+		 * Analw write the blocks at the start of the physical log.
 		 * This writes the remainder of the blocks we want to clear.
-		 * It uses the current cycle number since we're now on the
+		 * It uses the current cycle number since we're analw on the
 		 * same cycle as the head so that we get:
 		 *    n ... n ... | n - 1 ...
 		 *    ^^^^^ blocks we're writing
@@ -1746,12 +1746,12 @@ xlog_recover_release_intent(
 int
 xlog_recover_iget(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino,
-	struct xfs_inode	**ipp)
+	xfs_ianal_t		ianal,
+	struct xfs_ianalde	**ipp)
 {
 	int			error;
 
-	error = xfs_iget(mp, NULL, ino, 0, 0, ipp);
+	error = xfs_iget(mp, NULL, ianal, 0, 0, ipp);
 	if (error)
 		return error;
 
@@ -1775,7 +1775,7 @@ xlog_recover_iget(
  */
 static const struct xlog_recover_item_ops *xlog_recover_item_ops[] = {
 	&xlog_buf_item_ops,
-	&xlog_inode_item_ops,
+	&xlog_ianalde_item_ops,
 	&xlog_dquot_item_ops,
 	&xlog_quotaoff_item_ops,
 	&xlog_icreate_item_ops,
@@ -1807,7 +1807,7 @@ xlog_find_item_ops(
 /*
  * Sort the log items in the transaction.
  *
- * The ordering constraints are defined by the inode allocation and unlink
+ * The ordering constraints are defined by the ianalde allocation and unlink
  * behaviour. The rules are:
  *
  *	1. Every item is only logged once in a given transaction. Hence it
@@ -1816,40 +1816,40 @@ xlog_find_item_ops(
  *	   required initial conditions are always met.
  *
  *	2. Cancelled buffers are recorded in pass 1 in a separate table and
- *	   there's nothing to replay from them so we can simply cull them
+ *	   there's analthing to replay from them so we can simply cull them
  *	   from the transaction. However, we can't do that until after we've
  *	   replayed all the other items because they may be dependent on the
  *	   cancelled buffer and replaying the cancelled buffer can remove it
  *	   form the cancelled buffer table. Hence they have tobe done last.
  *
- *	3. Inode allocation buffers must be replayed before inode items that
+ *	3. Ianalde allocation buffers must be replayed before ianalde items that
  *	   read the buffer and replay changes into it. For filesystems using the
  *	   ICREATE transactions, this means XFS_LI_ICREATE objects need to get
- *	   treated the same as inode allocation buffers as they create and
+ *	   treated the same as ianalde allocation buffers as they create and
  *	   initialise the buffers directly.
  *
- *	4. Inode unlink buffers must be replayed after inode items are replayed.
- *	   This ensures that inodes are completely flushed to the inode buffer
- *	   in a "free" state before we remove the unlinked inode list pointer.
+ *	4. Ianalde unlink buffers must be replayed after ianalde items are replayed.
+ *	   This ensures that ianaldes are completely flushed to the ianalde buffer
+ *	   in a "free" state before we remove the unlinked ianalde list pointer.
  *
- * Hence the ordering needs to be inode allocation buffers first, inode items
- * second, inode unlink buffers third and cancelled buffers last.
+ * Hence the ordering needs to be ianalde allocation buffers first, ianalde items
+ * second, ianalde unlink buffers third and cancelled buffers last.
  *
- * But there's a problem with that - we can't tell an inode allocation buffer
+ * But there's a problem with that - we can't tell an ianalde allocation buffer
  * apart from a regular buffer, so we can't separate them. We can, however,
- * tell an inode unlink buffer from the others, and so we can separate them out
+ * tell an ianalde unlink buffer from the others, and so we can separate them out
  * from all the other buffers and move them to last.
  *
  * Hence, 4 lists, in order from head to tail:
- *	- buffer_list for all buffers except cancelled/inode unlink buffers
- *	- item_list for all non-buffer items
- *	- inode_buffer_list for inode unlink buffers
+ *	- buffer_list for all buffers except cancelled/ianalde unlink buffers
+ *	- item_list for all analn-buffer items
+ *	- ianalde_buffer_list for ianalde unlink buffers
  *	- cancel_list for the cancelled buffers
  *
- * Note that we add objects to the tail of the lists so that first-to-last
+ * Analte that we add objects to the tail of the lists so that first-to-last
  * ordering is preserved within the lists. Adding objects to the head of the
  * list means when we traverse from the head we walk them in last-to-first
- * order. For cancelled buffers and inode unlink buffers this doesn't matter,
+ * order. For cancelled buffers and ianalde unlink buffers this doesn't matter,
  * but for all other items there may be specific ordering that we need to
  * preserve.
  */
@@ -1864,7 +1864,7 @@ xlog_recover_reorder_trans(
 	LIST_HEAD(sort_list);
 	LIST_HEAD(cancel_list);
 	LIST_HEAD(buffer_list);
-	LIST_HEAD(inode_buffer_list);
+	LIST_HEAD(ianalde_buffer_list);
 	LIST_HEAD(item_list);
 
 	list_splice_init(&trans->r_itemq, &sort_list);
@@ -1899,8 +1899,8 @@ xlog_recover_reorder_trans(
 					trans, item, pass);
 			list_move(&item->ri_list, &cancel_list);
 			break;
-		case XLOG_REORDER_INODE_BUFFER_LIST:
-			list_move(&item->ri_list, &inode_buffer_list);
+		case XLOG_REORDER_IANALDE_BUFFER_LIST:
+			list_move(&item->ri_list, &ianalde_buffer_list);
 			break;
 		case XLOG_REORDER_ITEM_LIST:
 			trace_xfs_log_recover_item_reorder_tail(log,
@@ -1915,8 +1915,8 @@ xlog_recover_reorder_trans(
 		list_splice(&buffer_list, &trans->r_itemq);
 	if (!list_empty(&item_list))
 		list_splice_tail(&item_list, &trans->r_itemq);
-	if (!list_empty(&inode_buffer_list))
-		list_splice_tail(&inode_buffer_list, &trans->r_itemq);
+	if (!list_empty(&ianalde_buffer_list))
+		list_splice_tail(&ianalde_buffer_list, &trans->r_itemq);
 	if (!list_empty(&cancel_list))
 		list_splice_tail(&cancel_list, &trans->r_itemq);
 	return error;
@@ -1925,12 +1925,12 @@ xlog_recover_reorder_trans(
 void
 xlog_buf_readahead(
 	struct xlog		*log,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	uint			len,
 	const struct xfs_buf_ops *ops)
 {
-	if (!xlog_is_buffer_cancelled(log, blkno, len))
-		xfs_buf_readahead(log->l_mp->m_ddev_targp, blkno, len, ops);
+	if (!xlog_is_buffer_cancelled(log, blkanal, len))
+		xfs_buf_readahead(log->l_mp->m_ddev_targp, blkanal, len, ops);
 }
 
 /*
@@ -1983,7 +1983,7 @@ xlog_recover_items_pass2(
 /*
  * Perform the transaction.
  *
- * If the transaction modifies a buffer or inode, do it now.  Otherwise,
+ * If the transaction modifies a buffer or ianalde, do it analw.  Otherwise,
  * EFIs and EFDs get queued up by adding entries into the AIL for them.
  */
 STATIC int
@@ -2100,7 +2100,7 @@ xlog_recover_add_to_cont_trans(
 
 	ptr = kvrealloc(old_ptr, old_len, len + old_len, GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(&ptr[old_len], dp, len);
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
@@ -2128,7 +2128,7 @@ xlog_recover_add_to_trans(
 	char			*dp,
 	int			len)
 {
-	struct xfs_inode_log_format	*in_f;			/* any will do */
+	struct xfs_ianalde_log_format	*in_f;			/* any will do */
 	struct xlog_recover_item *item;
 	char			*ptr;
 
@@ -2162,7 +2162,7 @@ xlog_recover_add_to_trans(
 
 	ptr = kmem_alloc(len, 0);
 	memcpy(ptr, dp, len);
-	in_f = (struct xfs_inode_log_format *)ptr;
+	in_f = (struct xfs_ianalde_log_format *)ptr;
 
 	/* take the tail entry */
 	item = list_entry(trans->r_itemq.prev, struct xlog_recover_item,
@@ -2179,7 +2179,7 @@ xlog_recover_add_to_trans(
 		if (in_f->ilf_size == 0 ||
 		    in_f->ilf_size > XLOG_MAX_REGIONS_IN_ITEM) {
 			xfs_warn(log->l_mp,
-		"bad number of regions (%d) in inode log format",
+		"bad number of regions (%d) in ianalde log format",
 				  in_f->ilf_size);
 			ASSERT(0);
 			kmem_free(ptr);
@@ -2258,8 +2258,8 @@ xlog_recovery_process_trans(
 		flags &= ~XLOG_CONTINUE_TRANS;
 
 	/*
-	 * Callees must not free the trans structure. We'll decide if we need to
-	 * free it or not based on the operation being done and it's result.
+	 * Callees must analt free the trans structure. We'll decide if we need to
+	 * free it or analt based on the operation being done and it's result.
 	 */
 	switch (flags) {
 	/* expected flag values */
@@ -2273,7 +2273,7 @@ xlog_recovery_process_trans(
 	case XLOG_COMMIT_TRANS:
 		error = xlog_recover_commit_trans(log, trans, pass,
 						  buffer_list);
-		/* success or fail, we are now done with this transaction. */
+		/* success or fail, we are analw done with this transaction. */
 		freeit = true;
 		break;
 
@@ -2300,7 +2300,7 @@ xlog_recovery_process_trans(
  * current ophdr. If the transaction doesn't exist and the start flag is set in
  * the ophdr, then allocate a new transaction for future ID matches to find.
  * Either way, return what we found during the lookup - an existing transaction
- * or nothing.
+ * or analthing.
  */
 STATIC struct xlog_recover *
 xlog_recover_ophdr_to_trans(
@@ -2320,7 +2320,7 @@ xlog_recover_ophdr_to_trans(
 	}
 
 	/*
-	 * skip over non-start transaction headers - we could be
+	 * skip over analn-start transaction headers - we could be
 	 * processing slack space before the next transaction starts
 	 */
 	if (!(ohead->oh_flags & XLOG_START_TRANS))
@@ -2336,11 +2336,11 @@ xlog_recover_ophdr_to_trans(
 	trans->r_log_tid = tid;
 	trans->r_lsn = be64_to_cpu(rhead->h_lsn);
 	INIT_LIST_HEAD(&trans->r_itemq);
-	INIT_HLIST_NODE(&trans->r_list);
+	INIT_HLIST_ANALDE(&trans->r_list);
 	hlist_add_head(&trans->r_list, rhp);
 
 	/*
-	 * Nothing more to do for this ophdr. Items to be added to this new
+	 * Analthing more to do for this ophdr. Items to be added to this new
 	 * transaction will be in subsequent ophdr containers.
 	 */
 	return NULL;
@@ -2382,12 +2382,12 @@ xlog_recover_process_ophdr(
 
 	trans = xlog_recover_ophdr_to_trans(rhash, rhead, ohead);
 	if (!trans) {
-		/* nothing to do, so skip over this ophdr */
+		/* analthing to do, so skip over this ophdr */
 		return 0;
 	}
 
 	/*
-	 * The recovered buffer queue is drained only once we know that all
+	 * The recovered buffer queue is drained only once we kanalw that all
 	 * recovery items for the current LSN have been processed. This is
 	 * required because:
 	 *
@@ -2404,7 +2404,7 @@ xlog_recover_process_ophdr(
 	 * once per current LSN. Otherwise, we may incorrectly skip recovery
 	 * items and cause corruption.
 	 *
-	 * We don't know up front whether buffers are updated multiple times per
+	 * We don't kanalw up front whether buffers are updated multiple times per
 	 * LSN. Therefore, track the current LSN of each commit log record as it
 	 * is processed and drain the queue when it changes. Use commit records
 	 * because they are ordered correctly by the logging code.
@@ -2423,12 +2423,12 @@ xlog_recover_process_ophdr(
 
 /*
  * There are two valid states of the r_state field.  0 indicates that the
- * transaction structure is in a normal state.  We have either seen the
- * start of the transaction or the last operation we added was not a partial
+ * transaction structure is in a analrmal state.  We have either seen the
+ * start of the transaction or the last operation we added was analt a partial
  * operation.  If the last operation we added to the transaction was a
  * partial operation, we need to mark r_state with XLOG_WAS_CONT_TRANS.
  *
- * NOTE: skip LRs with 0 data length.
+ * ANALTE: skip LRs with 0 data length.
  */
 STATIC int
 xlog_recover_process_data(
@@ -2488,7 +2488,7 @@ xlog_finish_defer_ops(
 		 * Create a new transaction reservation from the captured
 		 * information.  Set logcount to 1 to force the new transaction
 		 * to regrant every roll so that we can make forward progress
-		 * in recovery no matter how full the log might be.
+		 * in recovery anal matter how full the log might be.
 		 */
 		resv.tr_logres = dfc->dfc_logres;
 		resv.tr_logcount = 1;
@@ -2533,19 +2533,19 @@ xlog_abort_defer_ops(
 }
 
 /*
- * When this is called, all of the log intent items which did not have
- * corresponding log done items should be in the AIL.  What we do now is update
+ * When this is called, all of the log intent items which did analt have
+ * corresponding log done items should be in the AIL.  What we do analw is update
  * the data structures associated with each one.
  *
- * Since we process the log intent items in normal transactions, they will be
+ * Since we process the log intent items in analrmal transactions, they will be
  * removed at some point after the commit.  This prevents us from just walking
  * down the list processing each one.  We'll use a flag in the intent item to
  * skip those that we've already processed and use the AIL iteration mechanism's
  * generation count to try to speed this up at least a bit.
  *
- * When we start, we know that the intents are the only things in the AIL. As we
- * process them, however, other items are added to the AIL. Hence we know we
- * have started recovery on all the pending intents when we find an non-intent
+ * When we start, we kanalw that the intents are the only things in the AIL. As we
+ * process them, however, other items are added to the AIL. Hence we kanalw we
+ * have started recovery on all the pending intents when we find an analn-intent
  * item in the AIL.
  */
 STATIC int
@@ -2572,12 +2572,12 @@ xlog_recover_process_intents(
 		ASSERT(XFS_LSN_CMP(last_lsn, dfp->dfp_intent->li_lsn) >= 0);
 
 		/*
-		 * NOTE: If your intent processing routine can create more
+		 * ANALTE: If your intent processing routine can create more
 		 * deferred ops, you /must/ attach them to the capture list in
 		 * the recover routine or else those subsequent intents will be
 		 * replayed in the wrong order!
 		 *
-		 * The recovery function can free the log item, so we must not
+		 * The recovery function can free the log item, so we must analt
 		 * access dfp->dfp_intent after it returns.  It must dispose of
 		 * @dfp if it returns 0.
 		 */
@@ -2620,7 +2620,7 @@ xlog_recover_cancel_intents(
 /*
  * Transfer ownership of the recovered pending work to the recovery transaction
  * and try to finish the work.  If there is more work to be done, the dfp will
- * remain attached to the transaction.  If not, the dfp is freed.
+ * remain attached to the transaction.  If analt, the dfp is freed.
  */
 int
 xlog_recover_finish_intent(
@@ -2637,8 +2637,8 @@ xlog_recover_finish_intent(
 }
 
 /*
- * This routine performs a transaction to null out a bad inode pointer
- * in an agi unlinked inode hash bucket.
+ * This routine performs a transaction to null out a bad ianalde pointer
+ * in an agi unlinked ianalde hash bucket.
  */
 STATIC void
 xlog_recover_clear_agi_bucket(
@@ -2661,11 +2661,11 @@ xlog_recover_clear_agi_bucket(
 		goto out_abort;
 
 	agi = agibp->b_addr;
-	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
+	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGIANAL);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
-		 (sizeof(xfs_agino_t) * bucket);
+		 (sizeof(xfs_agianal_t) * bucket);
 	xfs_trans_log_buf(tp, agibp, offset,
-			  (offset + sizeof(xfs_agino_t) - 1));
+			  (offset + sizeof(xfs_agianal_t) - 1));
 
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -2676,7 +2676,7 @@ out_abort:
 	xfs_trans_cancel(tp);
 out_error:
 	xfs_warn(mp, "%s: failed to clear agi %d. Continuing.", __func__,
-			pag->pag_agno);
+			pag->pag_aganal);
 	return;
 }
 
@@ -2687,15 +2687,15 @@ xlog_recover_iunlink_bucket(
 	int			bucket)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
-	struct xfs_inode	*prev_ip = NULL;
-	struct xfs_inode	*ip;
-	xfs_agino_t		prev_agino, agino;
+	struct xfs_ianalde	*prev_ip = NULL;
+	struct xfs_ianalde	*ip;
+	xfs_agianal_t		prev_agianal, agianal;
 	int			error = 0;
 
-	agino = be32_to_cpu(agi->agi_unlinked[bucket]);
-	while (agino != NULLAGINO) {
+	agianal = be32_to_cpu(agi->agi_unlinked[bucket]);
+	while (agianal != NULLAGIANAL) {
 		error = xfs_iget(mp, NULL,
-				XFS_AGINO_TO_INO(mp, pag->pag_agno, agino),
+				XFS_AGIANAL_TO_IANAL(mp, pag->pag_aganal, agianal),
 				0, 0, &ip);
 		if (error)
 			break;
@@ -2703,37 +2703,37 @@ xlog_recover_iunlink_bucket(
 		ASSERT(VFS_I(ip)->i_nlink == 0);
 		ASSERT(VFS_I(ip)->i_mode != 0);
 		xfs_iflags_clear(ip, XFS_IRECOVERY);
-		agino = ip->i_next_unlinked;
+		agianal = ip->i_next_unlinked;
 
 		if (prev_ip) {
-			ip->i_prev_unlinked = prev_agino;
+			ip->i_prev_unlinked = prev_agianal;
 			xfs_irele(prev_ip);
 
 			/*
-			 * Ensure the inode is removed from the unlinked list
+			 * Ensure the ianalde is removed from the unlinked list
 			 * before we continue so that it won't race with
 			 * building the in-memory list here. This could be
 			 * serialised with the agibp lock, but that just
 			 * serialises via lockstepping and it's much simpler
-			 * just to flush the inodegc queue and wait for it to
+			 * just to flush the ianaldegc queue and wait for it to
 			 * complete.
 			 */
-			error = xfs_inodegc_flush(mp);
+			error = xfs_ianaldegc_flush(mp);
 			if (error)
 				break;
 		}
 
-		prev_agino = agino;
+		prev_agianal = agianal;
 		prev_ip = ip;
 	}
 
 	if (prev_ip) {
 		int	error2;
 
-		ip->i_prev_unlinked = prev_agino;
+		ip->i_prev_unlinked = prev_agianal;
 		xfs_irele(prev_ip);
 
-		error2 = xfs_inodegc_flush(mp);
+		error2 = xfs_ianaldegc_flush(mp);
 		if (error2 && !error)
 			return error2;
 	}
@@ -2743,20 +2743,20 @@ xlog_recover_iunlink_bucket(
 /*
  * Recover AGI unlinked lists
  *
- * This is called during recovery to process any inodes which we unlinked but
- * not freed when the system crashed.  These inodes will be on the lists in the
+ * This is called during recovery to process any ianaldes which we unlinked but
+ * analt freed when the system crashed.  These ianaldes will be on the lists in the
  * AGI blocks. What we do here is scan all the AGIs and fully truncate and free
- * any inodes found on the lists. Each inode is removed from the lists when it
- * has been fully truncated and is freed. The freeing of the inode and its
+ * any ianaldes found on the lists. Each ianalde is removed from the lists when it
+ * has been fully truncated and is freed. The freeing of the ianalde and its
  * removal from the list must be atomic.
  *
  * If everything we touch in the agi processing loop is already in memory, this
  * loop can hold the cpu for a long time. It runs without lock contention,
  * memory allocation contention, the need wait for IO, etc, and so will run
- * until we either run out of inodes to process, run low on memory or we run out
+ * until we either run out of ianaldes to process, run low on memory or we run out
  * of log space.
  *
- * This behaviour is bad for latency on single CPU and non-preemptible kernels,
+ * This behaviour is bad for latency on single CPU and analn-preemptible kernels,
  * and can prevent other filesystem work (such as CIL pushes) from running. This
  * can lead to deadlocks if the recovery process runs out of log reservation
  * space. Hence we need to yield the CPU when there is other kernel work
@@ -2784,8 +2784,8 @@ xlog_recover_iunlink_ag(
 	}
 
 	/*
-	 * Unlock the buffer so that it can be acquired in the normal course of
-	 * the transaction to truncate and free each inode.  Because we are not
+	 * Unlock the buffer so that it can be acquired in the analrmal course of
+	 * the transaction to truncate and free each ianalde.  Because we are analt
 	 * racing with anyone else here for the AGI buffer, we don't even need
 	 * to hold it locked to read the initial unlinked bucket entries out of
 	 * the buffer. We keep buffer reference though, so that it stays pinned
@@ -2799,8 +2799,8 @@ xlog_recover_iunlink_ag(
 		if (error) {
 			/*
 			 * Bucket is unrecoverable, so only a repair scan can
-			 * free the remaining unlinked inodes. Just empty the
-			 * bucket and remaining inodes on it unreferenced and
+			 * free the remaining unlinked ianaldes. Just empty the
+			 * bucket and remaining ianaldes on it unreferenced and
 			 * unfreeable.
 			 */
 			xlog_recover_clear_agi_bucket(pag, bucket);
@@ -2815,9 +2815,9 @@ xlog_recover_process_iunlinks(
 	struct xlog	*log)
 {
 	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 
-	for_each_perag(log->l_mp, agno, pag)
+	for_each_perag(log->l_mp, aganal, pag)
 		xlog_recover_iunlink_ag(pag);
 }
 
@@ -2864,11 +2864,11 @@ xlog_recover_process(
 	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
 
 	/*
-	 * Nothing else to do if this is a CRC verification pass. Just return
-	 * if this a record with a non-zero crc. Unfortunately, mkfs always
+	 * Analthing else to do if this is a CRC verification pass. Just return
+	 * if this a record with a analn-zero crc. Unfortunately, mkfs always
 	 * sets old_crc to 0 so we must consider this valid even on v5 supers.
 	 * Otherwise, return EFSBADCRC on failure so the callers up the stack
-	 * know precisely what failed.
+	 * kanalw precisely what failed.
 	 */
 	if (pass == XLOG_RECOVER_CRCPASS) {
 		if (old_crc && crc != old_crc)
@@ -2877,10 +2877,10 @@ xlog_recover_process(
 	}
 
 	/*
-	 * We're in the normal recovery path. Issue a warning if and only if the
-	 * CRC in the header is non-zero. This is an advisory warning and the
+	 * We're in the analrmal recovery path. Issue a warning if and only if the
+	 * CRC in the header is analn-zero. This is an advisory warning and the
 	 * zero CRC check prevents warnings from being emitted when upgrading
-	 * the kernel from one that does not add CRCs by default.
+	 * the kernel from one that does analt add CRCs by default.
 	 */
 	if (crc != old_crc) {
 		if (old_crc || xfs_has_crc(log->l_mp)) {
@@ -2911,13 +2911,13 @@ STATIC int
 xlog_valid_rec_header(
 	struct xlog		*log,
 	struct xlog_rec_header	*rhead,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkanal,
 	int			bufsize)
 {
 	int			hlen;
 
 	if (XFS_IS_CORRUPT(log->l_mp,
-			   rhead->h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM)))
+			   rhead->h_magicanal != cpu_to_be32(XLOG_HEADER_MAGIC_NUM)))
 		return -EFSCORRUPTED;
 	if (XFS_IS_CORRUPT(log->l_mp,
 			   (!rhead->h_version ||
@@ -2930,14 +2930,14 @@ xlog_valid_rec_header(
 
 	/*
 	 * LR body must have data (or it wouldn't have been written)
-	 * and h_len must not be greater than LR buffer size.
+	 * and h_len must analt be greater than LR buffer size.
 	 */
 	hlen = be32_to_cpu(rhead->h_len);
 	if (XFS_IS_CORRUPT(log->l_mp, hlen <= 0 || hlen > bufsize))
 		return -EFSCORRUPTED;
 
 	if (XFS_IS_CORRUPT(log->l_mp,
-			   blkno > log->l_logBBsize || blkno > INT_MAX))
+			   blkanal > log->l_logBBsize || blkanal > INT_MAX))
 		return -EFSCORRUPTED;
 	return 0;
 }
@@ -2947,7 +2947,7 @@ xlog_valid_rec_header(
  * Handle the two cases where the tail and head are in the same cycle
  * and where the active portion of the log wraps around the end of
  * the physical log separately.  The pass parameter is passed through
- * to the routines called to process the data and is not looked at
+ * to the routines called to process the data and is analt looked at
  * here.
  */
 STATIC int
@@ -2959,7 +2959,7 @@ xlog_do_recovery_pass(
 	xfs_daddr_t		*first_bad)	/* out: first bad log rec */
 {
 	xlog_rec_header_t	*rhead;
-	xfs_daddr_t		blk_no, rblk_no;
+	xfs_daddr_t		blk_anal, rblk_anal;
 	xfs_daddr_t		rhead_blk;
 	char			*offset;
 	char			*hbp, *dbp;
@@ -2972,7 +2972,7 @@ xlog_do_recovery_pass(
 	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
-	blk_no = rhead_blk = tail_blk;
+	blk_anal = rhead_blk = tail_blk;
 
 	for (i = 0; i < XLOG_RHASH_SIZE; i++)
 		INIT_HLIST_HEAD(&rhash[i]);
@@ -2989,7 +2989,7 @@ xlog_do_recovery_pass(
 		 */
 		hbp = xlog_alloc_buffer(log, 1);
 		if (!hbp)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		error = xlog_bread(log, tail_blk, 1, hbp, &offset);
 		if (error)
@@ -2999,7 +2999,7 @@ xlog_do_recovery_pass(
 
 		/*
 		 * xfsprogs has a bug where record length is based on lsunit but
-		 * h_size (iclog size) is hardcoded to 32k. Now that we
+		 * h_size (iclog size) is hardcoded to 32k. Analw that we
 		 * unconditionally CRC verify the unmount record, this means the
 		 * log buffer can be too small for the record and cause an
 		 * overrun.
@@ -3035,41 +3035,41 @@ xlog_do_recovery_pass(
 	}
 
 	if (!hbp)
-		return -ENOMEM;
+		return -EANALMEM;
 	dbp = xlog_alloc_buffer(log, BTOBB(h_size));
 	if (!dbp) {
 		kmem_free(hbp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(rhash, 0, sizeof(rhash));
 	if (tail_blk > head_blk) {
 		/*
 		 * Perform recovery around the end of the physical log.
-		 * When the head is not on the same cycle number as the tail,
+		 * When the head is analt on the same cycle number as the tail,
 		 * we can't do a sequential recovery.
 		 */
-		while (blk_no < log->l_logBBsize) {
+		while (blk_anal < log->l_logBBsize) {
 			/*
 			 * Check for header wrapping around physical end-of-log
 			 */
 			offset = hbp;
 			split_hblks = 0;
 			wrapped_hblks = 0;
-			if (blk_no + hblks <= log->l_logBBsize) {
+			if (blk_anal + hblks <= log->l_logBBsize) {
 				/* Read header in one read */
-				error = xlog_bread(log, blk_no, hblks, hbp,
+				error = xlog_bread(log, blk_anal, hblks, hbp,
 						   &offset);
 				if (error)
 					goto bread_err2;
 			} else {
 				/* This LR is split across physical log end */
-				if (blk_no != log->l_logBBsize) {
+				if (blk_anal != log->l_logBBsize) {
 					/* some data before physical log end */
-					ASSERT(blk_no <= INT_MAX);
-					split_hblks = log->l_logBBsize - (int)blk_no;
+					ASSERT(blk_anal <= INT_MAX);
+					split_hblks = log->l_logBBsize - (int)blk_anal;
 					ASSERT(split_hblks > 0);
-					error = xlog_bread(log, blk_no,
+					error = xlog_bread(log, blk_anal,
 							   split_hblks, hbp,
 							   &offset);
 					if (error)
@@ -3077,10 +3077,10 @@ xlog_do_recovery_pass(
 				}
 
 				/*
-				 * Note: this black magic still works with
-				 * large sector sizes (non-512) only because:
+				 * Analte: this black magic still works with
+				 * large sector sizes (analn-512) only because:
 				 * - we increased the buffer size originally
-				 *   by 1 sector giving us enough extra space
+				 *   by 1 sector giving us eanalugh extra space
 				 *   for the second read;
 				 * - the log start is guaranteed to be sector
 				 *   aligned;
@@ -3089,7 +3089,7 @@ xlog_do_recovery_pass(
 				 *   - order is important.
 				 */
 				wrapped_hblks = hblks - split_hblks;
-				error = xlog_bread_noalign(log, 0,
+				error = xlog_bread_analalign(log, 0,
 						wrapped_hblks,
 						offset + BBTOB(split_hblks));
 				if (error)
@@ -3097,24 +3097,24 @@ xlog_do_recovery_pass(
 			}
 			rhead = (xlog_rec_header_t *)offset;
 			error = xlog_valid_rec_header(log, rhead,
-					split_hblks ? blk_no : 0, h_size);
+					split_hblks ? blk_anal : 0, h_size);
 			if (error)
 				goto bread_err2;
 
 			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
-			blk_no += hblks;
+			blk_anal += hblks;
 
 			/*
 			 * Read the log record data in multiple reads if it
-			 * wraps around the end of the log. Note that if the
-			 * header already wrapped, blk_no could point past the
+			 * wraps around the end of the log. Analte that if the
+			 * header already wrapped, blk_anal could point past the
 			 * end of the log. The record data is contiguous in
 			 * that case.
 			 */
-			if (blk_no + bblks <= log->l_logBBsize ||
-			    blk_no >= log->l_logBBsize) {
-				rblk_no = xlog_wrap_logbno(log, blk_no);
-				error = xlog_bread(log, rblk_no, bblks, dbp,
+			if (blk_anal + bblks <= log->l_logBBsize ||
+			    blk_anal >= log->l_logBBsize) {
+				rblk_anal = xlog_wrap_logbanal(log, blk_anal);
+				error = xlog_bread(log, rblk_anal, bblks, dbp,
 						   &offset);
 				if (error)
 					goto bread_err2;
@@ -3123,15 +3123,15 @@ xlog_do_recovery_pass(
 				 * physical end of log */
 				offset = dbp;
 				split_bblks = 0;
-				if (blk_no != log->l_logBBsize) {
+				if (blk_anal != log->l_logBBsize) {
 					/* some data is before the physical
 					 * end of log */
 					ASSERT(!wrapped_hblks);
-					ASSERT(blk_no <= INT_MAX);
+					ASSERT(blk_anal <= INT_MAX);
 					split_bblks =
-						log->l_logBBsize - (int)blk_no;
+						log->l_logBBsize - (int)blk_anal;
 					ASSERT(split_bblks > 0);
-					error = xlog_bread(log, blk_no,
+					error = xlog_bread(log, blk_anal,
 							split_bblks, dbp,
 							&offset);
 					if (error)
@@ -3139,10 +3139,10 @@ xlog_do_recovery_pass(
 				}
 
 				/*
-				 * Note: this black magic still works with
-				 * large sector sizes (non-512) only because:
+				 * Analte: this black magic still works with
+				 * large sector sizes (analn-512) only because:
 				 * - we increased the buffer size originally
-				 *   by 1 sector giving us enough extra space
+				 *   by 1 sector giving us eanalugh extra space
 				 *   for the second read;
 				 * - the log start is guaranteed to be sector
 				 *   aligned;
@@ -3150,7 +3150,7 @@ xlog_do_recovery_pass(
 				 *   _first_, then the log start (LR header end)
 				 *   - order is important.
 				 */
-				error = xlog_bread_noalign(log, 0,
+				error = xlog_bread_analalign(log, 0,
 						bblks - split_bblks,
 						offset + BBTOB(split_bblks));
 				if (error)
@@ -3162,29 +3162,29 @@ xlog_do_recovery_pass(
 			if (error)
 				goto bread_err2;
 
-			blk_no += bblks;
-			rhead_blk = blk_no;
+			blk_anal += bblks;
+			rhead_blk = blk_anal;
 		}
 
-		ASSERT(blk_no >= log->l_logBBsize);
-		blk_no -= log->l_logBBsize;
-		rhead_blk = blk_no;
+		ASSERT(blk_anal >= log->l_logBBsize);
+		blk_anal -= log->l_logBBsize;
+		rhead_blk = blk_anal;
 	}
 
 	/* read first part of physical log */
-	while (blk_no < head_blk) {
-		error = xlog_bread(log, blk_no, hblks, hbp, &offset);
+	while (blk_anal < head_blk) {
+		error = xlog_bread(log, blk_anal, hblks, hbp, &offset);
 		if (error)
 			goto bread_err2;
 
 		rhead = (xlog_rec_header_t *)offset;
-		error = xlog_valid_rec_header(log, rhead, blk_no, h_size);
+		error = xlog_valid_rec_header(log, rhead, blk_anal, h_size);
 		if (error)
 			goto bread_err2;
 
 		/* blocks in data section */
 		bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
-		error = xlog_bread(log, blk_no+hblks, bblks, dbp,
+		error = xlog_bread(log, blk_anal+hblks, bblks, dbp,
 				   &offset);
 		if (error)
 			goto bread_err2;
@@ -3194,8 +3194,8 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err2;
 
-		blk_no += bblks + hblks;
-		rhead_blk = blk_no;
+		blk_anal += bblks + hblks;
+		rhead_blk = blk_anal;
 	}
 
  bread_err2:
@@ -3219,7 +3219,7 @@ xlog_do_recovery_pass(
 	 * hash table.
 	 */
 	for (i = 0; i < XLOG_RHASH_SIZE; i++) {
-		struct hlist_node	*tmp;
+		struct hlist_analde	*tmp;
 		struct xlog_recover	*trans;
 
 		hlist_for_each_entry_safe(trans, tmp, &rhash[i], r_list)
@@ -3234,12 +3234,12 @@ xlog_do_recovery_pass(
  * The two passes are necessary in order to implement the function
  * of cancelling a record written into the log.  The first pass
  * determines those things which have been cancelled, and the
- * second pass replays log items normally except for those which
+ * second pass replays log items analrmally except for those which
  * have been cancelled.  The handling of the replay and cancellations
  * takes place in the log item type specific routines.
  *
  * The table of items which have cancel records in the log is allocated
- * and freed at this level, since only here do we know when all of
+ * and freed at this level, since only here do we kanalw when all of
  * the log recovery has been completed.
  */
 STATIC int
@@ -3305,18 +3305,18 @@ xlog_do_recover(
 		return -EIO;
 
 	/*
-	 * We now update the tail_lsn since much of the recovery has completed
-	 * and there may be space available to use.  If there were no extent
+	 * We analw update the tail_lsn since much of the recovery has completed
+	 * and there may be space available to use.  If there were anal extent
 	 * or iunlinks, we can free up the entire log and set the tail_lsn to
 	 * be the last_sync_lsn.  This was set in xlog_find_tail to be the
-	 * lsn of the last known good LR on disk.  If there are extent frees
+	 * lsn of the last kanalwn good LR on disk.  If there are extent frees
 	 * or iunlinks they will have some entries in the AIL; so we look at
 	 * the AIL to determine how to set the tail_lsn.
 	 */
 	xlog_assign_tail_lsn(mp);
 
 	/*
-	 * Now that we've finished replaying all buffer and inode updates,
+	 * Analw that we've finished replaying all buffer and ianalde updates,
 	 * re-read the superblock and reverify it.
 	 */
 	xfs_buf_lock(bp);
@@ -3346,7 +3346,7 @@ xlog_do_recover(
 	}
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
 
-	/* Normal transactions can now occur */
+	/* Analrmal transactions can analw occur */
 	clear_bit(XLOG_ACTIVE_RECOVERY, &log->l_opstate);
 	return 0;
 }
@@ -3370,8 +3370,8 @@ xlog_recover(
 
 	/*
 	 * The superblock was read before the log was available and thus the LSN
-	 * could not be verified. Check the superblock LSN against the current
-	 * LSN now that it's known.
+	 * could analt be verified. Check the superblock LSN against the current
+	 * LSN analw that it's kanalwn.
 	 */
 	if (xfs_has_crc(log->l_mp) &&
 	    !xfs_log_check_lsn(log->l_mp, log->l_mp->m_sb.sb_lsn))
@@ -3380,11 +3380,11 @@ xlog_recover(
 	if (tail_blk != head_blk) {
 		/* There used to be a comment here:
 		 *
-		 * disallow recovery on read-only mounts.  note -- mount
-		 * checks for ENOSPC and turns it into an intelligent
+		 * disallow recovery on read-only mounts.  analte -- mount
+		 * checks for EANALSPC and turns it into an intelligent
 		 * error message.
-		 * ...but this is no longer true.  Now, unless you specify
-		 * NORECOVERY (in which case this function would never be
+		 * ...but this is anal longer true.  Analw, unless you specify
+		 * ANALRECOVERY (in which case this function would never be
 		 * called), we just go ahead and recover.  We do this all
 		 * under the vfs layer, so we can get away with it unless
 		 * the device itself is read-only, in which case we fail.
@@ -3394,23 +3394,23 @@ xlog_recover(
 		}
 
 		/*
-		 * Version 5 superblock log feature mask validation. We know the
-		 * log is dirty so check if there are any unknown log features
-		 * in what we need to recover. If there are unknown features
+		 * Version 5 superblock log feature mask validation. We kanalw the
+		 * log is dirty so check if there are any unkanalwn log features
+		 * in what we need to recover. If there are unkanalwn features
 		 * (e.g. unsupported transactions, then simply reject the
 		 * attempt at recovery before touching anything.
 		 */
 		if (xfs_sb_is_v5(&log->l_mp->m_sb) &&
 		    xfs_sb_has_incompat_log_feature(&log->l_mp->m_sb,
-					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN)) {
+					XFS_SB_FEAT_INCOMPAT_LOG_UNKANALWN)) {
 			xfs_warn(log->l_mp,
-"Superblock has unknown incompatible log features (0x%x) enabled.",
+"Superblock has unkanalwn incompatible log features (0x%x) enabled.",
 				(log->l_mp->m_sb.sb_features_log_incompat &
-					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN));
+					XFS_SB_FEAT_INCOMPAT_LOG_UNKANALWN));
 			xfs_warn(log->l_mp,
-"The log can not be fully and/or safely recovered by this kernel.");
+"The log can analt be fully and/or safely recovered by this kernel.");
 			xfs_warn(log->l_mp,
-"Please recover the log on a kernel that supports the unknown features.");
+"Please recover the log on a kernel that supports the unkanalwn features.");
 			return -EINVAL;
 		}
 
@@ -3420,13 +3420,13 @@ xlog_recover(
 		 * log recovery.
 		 */
 		if (xfs_globals.log_recovery_delay) {
-			xfs_notice(log->l_mp,
+			xfs_analtice(log->l_mp,
 				"Delaying log recovery for %d seconds.",
 				xfs_globals.log_recovery_delay);
 			msleep(xfs_globals.log_recovery_delay * 1000);
 		}
 
-		xfs_notice(log->l_mp, "Starting recovery (logdev: %s)",
+		xfs_analtice(log->l_mp, "Starting recovery (logdev: %s)",
 				log->l_mp->m_logname ? log->l_mp->m_logname
 						     : "internal");
 
@@ -3437,10 +3437,10 @@ xlog_recover(
 }
 
 /*
- * In the first part of recovery we replay inodes and buffers and build up the
+ * In the first part of recovery we replay ianaldes and buffers and build up the
  * list of intents which need to be processed. Here we process the intents and
- * clean up the on disk unlinked inode lists. This is separated from the first
- * part of recovery so that the root and real-time bitmap inodes can be read in
+ * clean up the on disk unlinked ianalde lists. This is separated from the first
+ * part of recovery so that the root and real-time bitmap ianaldes can be read in
  * from disk in between the two stages.  This is necessary so that we can free
  * space in the real-time portion of the file system.
  */
@@ -3453,10 +3453,10 @@ xlog_recover_finish(
 	error = xlog_recover_process_intents(log);
 	if (error) {
 		/*
-		 * Cancel all the unprocessed intent items now so that we don't
+		 * Cancel all the unprocessed intent items analw so that we don't
 		 * leave them pinned in the AIL.  This can cause the AIL to
 		 * livelock on the pinned item if anyone tries to push the AIL
-		 * (inode reclaim does this) before we get around to
+		 * (ianalde reclaim does this) before we get around to
 		 * xfs_log_mount_cancel.
 		 */
 		xlog_recover_cancel_intents(log);
@@ -3473,8 +3473,8 @@ xlog_recover_finish(
 	xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
 	/*
-	 * Now that we've recovered the log and all the intents, we can clear
-	 * the log incompat feature bits in the superblock because there's no
+	 * Analw that we've recovered the log and all the intents, we can clear
+	 * the log incompat feature bits in the superblock because there's anal
 	 * longer anything to protect.  We rely on the AIL push to write out the
 	 * updated superblock after everything else.
 	 */
@@ -3491,9 +3491,9 @@ xlog_recover_finish(
 
 	/*
 	 * Recover any CoW staging blocks that are still referenced by the
-	 * ondisk refcount metadata.  During mount there cannot be any live
-	 * staging extents as we have not permitted any user modifications.
-	 * Therefore, it is safe to free them all right now, even on a
+	 * ondisk refcount metadata.  During mount there cananalt be any live
+	 * staging extents as we have analt permitted any user modifications.
+	 * Therefore, it is safe to free them all right analw, even on a
 	 * read-only mount.
 	 */
 	error = xfs_reflink_recover_cow(log->l_mp);

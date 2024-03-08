@@ -26,7 +26,7 @@
 		compatible = "gpio-leds";
 
 		/*
-		 * Note: the board wiring drawing documents green on
+		 * Analte: the board wiring drawing documents green on
 		 * gpio #4, red on gpio #5 and blue on gpio #6. However,
 		 * the board is actually wired differently as defined here.
 		 */
@@ -202,7 +202,7 @@
 
 &spi3 {
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <4>;

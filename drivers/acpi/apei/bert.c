@@ -5,7 +5,7 @@
  * Copyright 2011 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  *
- * Under normal circumstances, when a hardware error occurs, the error
+ * Under analrmal circumstances, when a hardware error occurs, the error
  * handler receives control and processes the error. This gives OSPM a
  * chance to process the error condition, report it, and optionally attempt
  * recovery. In some cases, the system is unable to process an error.
@@ -39,7 +39,7 @@ static int bert_disable __initdata;
 /*
  * Print "all" the error records in the BERT table, but avoid huge spam to
  * the console if the BIOS included oversize records, or too many records.
- * Skipping some records here does not lose anything because the full
+ * Skipping some records here does analt lose anything because the full
  * data is available to user tools in:
  *	/sys/firmware/acpi/tables/data/BERT
  */
@@ -60,7 +60,7 @@ static void __init bert_print_all(struct acpi_bert_region *region,
 			break;
 		}
 
-		/* No more error records. */
+		/* Anal more error records. */
 		if (!estatus->block_status)
 			break;
 
@@ -131,7 +131,7 @@ static int __init bert_init(void)
 	}
 
 	status = acpi_get_table(ACPI_SIG_BERT, 0, (struct acpi_table_header **)&bert_tab);
-	if (status == AE_NOT_FOUND)
+	if (status == AE_ANALT_FOUND)
 		return 0;
 
 	if (ACPI_FAILURE(status)) {
@@ -159,7 +159,7 @@ static int __init bert_init(void)
 		bert_print_all(boot_error_region, region_len);
 		iounmap(boot_error_region);
 	} else {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	}
 
 	apei_resources_release(&bert_resources);

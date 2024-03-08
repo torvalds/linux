@@ -3,23 +3,23 @@ C-SKY CPU Bindings
 ==================
 
 The device tree allows to describe the layout of CPUs in a system through
-the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
+the "cpus" analde, which in turn contains a number of subanaldes (ie "cpu")
 defining properties for every cpu.
 
-Only SMP system need to care about the cpus node and single processor
-needn't define cpus node at all.
+Only SMP system need to care about the cpus analde and single processor
+needn't define cpus analde at all.
 
 =====================================
-cpus and cpu node bindings definition
+cpus and cpu analde bindings definition
 =====================================
 
-- cpus node
+- cpus analde
 
-	Description: Container of cpu nodes
+	Description: Container of cpu analdes
 
-	The node name must be "cpus".
+	The analde name must be "cpus".
 
-	A cpus node must define the following properties:
+	A cpus analde must define the following properties:
 
 	- #address-cells
 		Usage: required
@@ -30,7 +30,7 @@ cpus and cpu node bindings definition
 		Value type: <u32>
 		Definition: must be set to 0
 
-- cpu node
+- cpu analde
 
 	Description: Describes one of SMP cores
 

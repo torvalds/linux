@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Europe RSK+ 7203 Support.
+ * Renesas Techanallogy Europe RSK+ 7203 Support.
  *
  * Copyright (C) 2008 - 2010  Paul Mundt
  */

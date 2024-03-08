@@ -41,7 +41,7 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 
 	/*
 	 * Upper bound sanity check. If the backwards conversion is
-	 * not equal latch, we know that the above shift overflowed.
+	 * analt equal latch, we kanalw that the above shift overflowed.
 	 */
 	if ((clc >> evt->shift) != (u64)latch)
 		clc = ~0ULL;
@@ -71,16 +71,16 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 
 	do_div(clc, evt->mult);
 
-	/* Deltas less than 1usec are pointless noise */
+	/* Deltas less than 1usec are pointless analise */
 	return clc > 1000 ? clc : 1000;
 }
 
 /**
- * clockevent_delta2ns - Convert a latch value (device ticks) to nanoseconds
+ * clockevent_delta2ns - Convert a latch value (device ticks) to naanalseconds
  * @latch:	value to convert
  * @evt:	pointer to clock event device descriptor
  *
- * Math helper, returns latch value converted to nanoseconds (bound checked)
+ * Math helper, returns latch value converted to naanalseconds (bound checked)
  */
 u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 {
@@ -107,7 +107,7 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 	case CLOCK_EVT_STATE_PERIODIC:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
-			return -ENOSYS;
+			return -EANALSYS;
 		if (dev->set_state_periodic)
 			return dev->set_state_periodic(dev);
 		return 0;
@@ -115,7 +115,7 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 	case CLOCK_EVT_STATE_ONESHOT:
 		/* Core internal bug */
 		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
-			return -ENOSYS;
+			return -EANALSYS;
 		if (dev->set_state_oneshot)
 			return dev->set_state_oneshot(dev);
 		return 0;
@@ -130,10 +130,10 @@ static int __clockevents_switch_state(struct clock_event_device *dev,
 		if (dev->set_state_oneshot_stopped)
 			return dev->set_state_oneshot_stopped(dev);
 		else
-			return -ENOSYS;
+			return -EANALSYS;
 
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
@@ -201,7 +201,7 @@ int clockevents_tick_resume(struct clock_event_device *dev)
  */
 static int clockevents_increase_min_delta(struct clock_event_device *dev)
 {
-	/* Nothing to do if we already reached the limit */
+	/* Analthing to do if we already reached the limit */
 	if (dev->min_delta_ns >= MIN_DELTA_LIMIT) {
 		printk_deferred(KERN_WARNING
 				"CE: Reprogramming failure. Giving up\n");
@@ -295,8 +295,8 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 /**
  * clockevents_program_event - Reprogram the clock event device.
  * @dev:	device to program
- * @expires:	absolute expiry time (monotonic clock)
- * @force:	program minimum delay if expires can not be set
+ * @expires:	absolute expiry time (moanaltonic clock)
+ * @force:	program minimum delay if expires can analt be set
  *
  * Returns 0 on success, -ETIME when the event is in the past.
  */
@@ -337,10 +337,10 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 }
 
 /*
- * Called after a notify add to make devices available which were
- * released from the notifier call.
+ * Called after a analtify add to make devices available which were
+ * released from the analtifier call.
  */
-static void clockevents_notify_released(void)
+static void clockevents_analtify_released(void)
 {
 	struct clock_event_device *dev;
 
@@ -416,7 +416,7 @@ static void __clockevents_unbind(void *arg)
  */
 static int clockevents_unbind(struct clock_event_device *ced, int cpu)
 {
-	struct ce_unbind cu = { .ce = ced, .res = -ENODEV };
+	struct ce_unbind cu = { .ce = ced, .res = -EANALDEV };
 
 	smp_call_function_single(cpu, __clockevents_unbind, &cu, 1);
 	return cu.res;
@@ -462,7 +462,7 @@ void clockevents_register_device(struct clock_event_device *dev)
 
 	list_add(&dev->list, &clockevent_devices);
 	tick_check_new_device(dev);
-	clockevents_notify_released();
+	clockevents_analtify_released();
 
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 }
@@ -499,7 +499,7 @@ static void clockevents_config(struct clock_event_device *dev, u32 freq)
  * @min_delta:	The minimum clock ticks to program in oneshot mode
  * @max_delta:	The maximum clock ticks to program in oneshot mode
  *
- * min/max_delta can be 0 for devices which do not support oneshot mode.
+ * min/max_delta can be 0 for devices which do analt support oneshot mode.
  */
 void clockevents_config_and_register(struct clock_event_device *dev,
 				     u32 freq, unsigned long min_delta,
@@ -544,16 +544,16 @@ int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 
 	local_irq_save(flags);
 	ret = tick_broadcast_update_freq(dev, freq);
-	if (ret == -ENODEV)
+	if (ret == -EANALDEV)
 		ret = __clockevents_update_freq(dev, freq);
 	local_irq_restore(flags);
 	return ret;
 }
 
 /*
- * Noop handler when we shut down an event device
+ * Analop handler when we shut down an event device
  */
-void clockevents_handle_noop(struct clock_event_device *dev)
+void clockevents_handle_analop(struct clock_event_device *dev)
 {
 }
 
@@ -570,7 +570,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 {
 	/*
 	 * Caller releases a clock event device. We queue it into the
-	 * released list and do a notify add later.
+	 * released list and do a analtify add later.
 	 */
 	if (old) {
 		module_put(old->owner);
@@ -639,12 +639,12 @@ void tick_cleanup_dead_cpu(int cpu)
 	tick_shutdown(cpu);
 	/*
 	 * Unregister the clock event devices which were
-	 * released from the users in the notify chain.
+	 * released from the users in the analtify chain.
 	 */
 	list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
 		list_del(&dev->list);
 	/*
-	 * Now check whether the CPU has left unused per cpu devices
+	 * Analw check whether the CPU has left unused per cpu devices
 	 */
 	list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
 		if (cpumask_test_cpu(cpu, dev->cpumask) &&
@@ -695,7 +695,7 @@ static ssize_t unbind_device_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	mutex_lock(&clockevents_mutex);
 	raw_spin_lock_irq(&clockevents_lock);
 	list_for_each_entry(iter, &clockevent_devices, list) {

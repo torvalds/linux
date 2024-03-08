@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
+ *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Analvell Inc.
  *
- * Miscellaneous helpers which do not fit or are worth
+ * Miscellaneous helpers which do analt fit or are worth
  * to put into separate headers
  */
 
@@ -20,10 +20,10 @@
 #ifdef NLS
 
 #define _(String) gettext(String)
-#ifndef gettext_noop
-#define gettext_noop(String) String
+#ifndef gettext_analop
+#define gettext_analop(String) String
 #endif
-#define N_(String) gettext_noop(String)
+#define N_(String) gettext_analop(String)
 
 #else /* !NLS */
 
@@ -42,7 +42,7 @@ extern struct bitmask *cpus_chosen;
  * define DEBUG via global Makefile variable
  * Debug output is sent to stderr, do:
  * cpupower monitor 2>/tmp/debug
- * to split debug output away from normal output
+ * to split debug output away from analrmal output
 */
 #ifdef DEBUG
 extern int be_verbose;
@@ -60,7 +60,7 @@ extern int be_verbose;
 /* Global verbose (-v) stuff *********************************/
 
 /* cpuid and cpuinfo helpers  **************************/
-enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
+enum cpupower_cpu_vendor {X86_VENDOR_UNKANALWN = 0, X86_VENDOR_INTEL,
 			  X86_VENDOR_AMD, X86_VENDOR_HYGON, X86_VENDOR_MAX};
 
 #define CPUPOWER_CAP_INV_TSC		0x00000001
@@ -94,7 +94,7 @@ struct cpupower_cpu_info {
  * Extract CPU vendor, family, model, stepping info from /proc/cpuinfo
  *
  * Returns 0 on success or a negative error code
- * Only used on x86, below global's struct values are zero/unknown on
+ * Only used on x86, below global's struct values are zero/unkanalwn on
  * other archs
  */
 extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
@@ -135,7 +135,7 @@ extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
 /* AMD HW pstate decoding **************************/
 
 extern int decode_pstates(unsigned int cpu, int boost_states,
-			  unsigned long *pstates, int *no);
+			  unsigned long *pstates, int *anal);
 
 /* AMD HW pstate decoding **************************/
 
@@ -147,7 +147,7 @@ bool cpupower_amd_pstate_enabled(void);
 void amd_pstate_boost_init(unsigned int cpu,
 			   int *support, int *active);
 void amd_pstate_show_perf_and_freq(unsigned int cpu,
-				   int no_rounding);
+				   int anal_rounding);
 
 /* AMD P-State stuff **************************/
 
@@ -163,7 +163,7 @@ unsigned int cpuid_edx(unsigned int op);
 /* X86 ONLY ********************************************/
 #else
 static inline int decode_pstates(unsigned int cpu, int boost_states,
-				 unsigned long *pstates, int *no)
+				 unsigned long *pstates, int *anal)
 { return -1; };
 
 static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)
@@ -196,7 +196,7 @@ static inline void amd_pstate_boost_init(unsigned int cpu, int *support,
 					 int *active)
 {}
 static inline void amd_pstate_show_perf_and_freq(unsigned int cpu,
-						 int no_rounding)
+						 int anal_rounding)
 {}
 
 /* cpuid and cpuinfo helpers  **************************/
@@ -216,6 +216,6 @@ extern struct bitmask *offline_cpus;
 void get_cpustate(void);
 void print_online_cpus(void);
 void print_offline_cpus(void);
-void print_speed(unsigned long speed, int no_rounding);
+void print_speed(unsigned long speed, int anal_rounding);
 
 #endif /* __CPUPOWERUTILS_HELPERS__ */

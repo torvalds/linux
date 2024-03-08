@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * HiSilicon PCIe Trace and Tuning (PTT) support
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <byteswap.h>
 #include <endian.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -102,7 +102,7 @@ static int hisi_ptt_process_auxtrace_event(struct perf_session *session,
 	int err;
 
 	if (!data)
-		return -errno;
+		return -erranal;
 
 	if (perf_data__is_pipe(session->data)) {
 		data_offset = 0;
@@ -110,14 +110,14 @@ static int hisi_ptt_process_auxtrace_event(struct perf_session *session,
 		data_offset = lseek(fd, 0, SEEK_CUR);
 		if (data_offset == -1) {
 			free(data);
-			return -errno;
+			return -erranal;
 		}
 	}
 
 	err = readn(fd, data, size);
 	if (err != (ssize_t)size) {
 		free(data);
-		return -errno;
+		return -erranal;
 	}
 
 	if (dump_trace)
@@ -174,10 +174,10 @@ int hisi_ptt_process_auxtrace_info(union perf_event *event,
 
 	ptt = zalloc(sizeof(*ptt));
 	if (!ptt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptt->session = session;
-	ptt->machine = &session->machines.host; /* No kvm support */
+	ptt->machine = &session->machines.host; /* Anal kvm support */
 	ptt->auxtrace_type = auxtrace_info->type;
 	ptt->pmu_type = auxtrace_info->priv[0];
 

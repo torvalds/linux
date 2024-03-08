@@ -46,7 +46,7 @@
 #define USBSS1_STATIC_LANE_REVERSE	BIT(0)
 
 /* Modestrap modes */
-enum modestrap_mode { USBSS_MODESTRAP_MODE_NONE,
+enum modestrap_mode { USBSS_MODESTRAP_MODE_ANALNE,
 		      USBSS_MODESTRAP_MODE_HOST,
 		      USBSS_MODESTRAP_MODE_PERIPHERAL};
 
@@ -88,7 +88,7 @@ static inline void cdns_ti_writel(struct cdns_ti *data, u32 offset, u32 value)
 static int cdns_ti_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct cdns_ti *data;
 	int error;
 	u32 reg;
@@ -97,7 +97,7 @@ static int cdns_ti_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 
@@ -169,14 +169,14 @@ static int cdns_ti_probe(struct platform_device *pdev)
 	/* set default modestrap */
 	reg |= USBSS_W1_MODESTRAP_SEL;
 	reg &= ~USBSS_W1_MODESTRAP_MASK;
-	reg |= USBSS_MODESTRAP_MODE_NONE << USBSS_W1_MODESTRAP_SHIFT;
+	reg |= USBSS_MODESTRAP_MODE_ANALNE << USBSS_W1_MODESTRAP_SHIFT;
 	cdns_ti_writel(data, USBSS_W1, reg);
 
 	/* de-assert RESET */
 	reg |= USBSS_W1_PWRUP_RST;
 	cdns_ti_writel(data, USBSS_W1, reg);
 
-	error = of_platform_populate(node, NULL, NULL, dev);
+	error = of_platform_populate(analde, NULL, NULL, dev);
 	if (error) {
 		dev_err(dev, "failed to create children: %d\n", error);
 		goto err;

@@ -12,7 +12,7 @@ Required properties:
 - interrupts		: property with a value describing the interrupt
 			  number
 - cpdma_channels 	: Specifies number of channels in CPDMA
-- ale_entries		: Specifies No of entries ALE can hold
+- ale_entries		: Specifies Anal of entries ALE can hold
 - bd_ram_size		: Specifies internal descriptor RAM size
 - mac_control		: Specifies Default MAC control register content
 			  for the specific platform
@@ -21,14 +21,14 @@ Required properties:
 			  ethtool and SIOCGMIIPHY
 - cpsw-phy-sel		: Specifies the phandle to the CPSW phy mode selection
 			  device. See also cpsw-phy-sel.txt for its binding.
-			  Note that in legacy cases cpsw-phy-sel may be
+			  Analte that in legacy cases cpsw-phy-sel may be
 			  a child device instead of a phandle
 			  (DEPRECATED, use phys property instead).
 
 Optional properties:
 - ti,hwmods		: Must be "cpgmac0"
 - dual_emac		: Specifies Switch to act as Dual EMAC
-- syscon		: Phandle to the system control device node, which is
+- syscon		: Phandle to the system control device analde, which is
 			  the control module device of the am33x
 - mode-gpios		: Should be added if one/multiple gpio lines are
 			  required to be driven so that cpsw data lines
@@ -36,11 +36,11 @@ Optional properties:
 			  For example in dra72x-evm, pcf gpio has to be
 			  driven low so that cpsw slave 0 and phy data
 			  lines are connected via mux.
-- cpts_clock_mult	: Numerator to convert input clock ticks into nanoseconds
-- cpts_clock_shift	: Denominator to convert input clock ticks into nanoseconds
+- cpts_clock_mult	: Numerator to convert input clock ticks into naanalseconds
+- cpts_clock_shift	: Deanalminator to convert input clock ticks into naanalseconds
 			  Mult and shift will be calculated basing on CPTS
 			  rftclk frequency if both cpts_clock_shift and
-			  cpts_clock_mult properties are not provided.
+			  cpts_clock_mult properties are analt provided.
 
 Slave Properties:
 Required properties:
@@ -55,12 +55,12 @@ Optional properties:
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.
 
-Slave sub-nodes:
+Slave sub-analdes:
 - fixed-link		: See fixed-link.txt file in the same directory
 
-Note: Exactly one of phy_id, phy-handle, or fixed-link must be specified.
+Analte: Exactly one of phy_id, phy-handle, or fixed-link must be specified.
 
-Note: "ti,hwmods" field is used to fetch the base address and irq
+Analte: "ti,hwmods" field is used to fetch the base address and irq
 resources from TI, omap hwmod data base during device registration.
 Future plan is to migrate hwmod data base contents into device tree
 blob so that, all the required data will be used from device tree dts

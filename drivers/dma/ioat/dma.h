@@ -40,7 +40,7 @@
 #define NULL_DESC_BUFFER_SIZE 1
 
 enum ioat_irq_mode {
-	IOAT_NOIRQ = 0,
+	IOAT_ANALIRQ = 0,
 	IOAT_MSIX,
 	IOAT_MSI,
 	IOAT_INTX
@@ -115,7 +115,7 @@ struct ioatdma_chan {
 /* ioat v2 / v3 channel attributes
  * @xfercap_log; log2 of channel max transfer length (for fast division)
  * @head: allocated index
- * @issued: hardware notification point
+ * @issued: hardware analtification point
  * @tail: cleanup index
  * @dmacount: identical to 'head' except for occasionally resetting to zero
  * @alloc_order: log2 of the number of allocated descriptors
@@ -169,7 +169,7 @@ struct ioat_sed_ent {
  * @raw: hardware raw (un-typed) descriptor
  * @txd: the generic software descriptor for all engines
  * @len: total transaction length for unmap
- * @result: asynchronous result of validate operations
+ * @result: asynchroanalus result of validate operations
  * @id: identifier for debug
  * @sed: pointer to super extended descriptor sw desc
  */

@@ -6,17 +6,17 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -41,7 +41,7 @@
  * Elements being removed from the head of the list should use the explicit
  * macro for this purpose for optimum efficiency. A singly-linked list may
  * only be traversed in the forward direction.  Singly-linked lists are ideal
- * for applications with large datasets and few or no removals or for
+ * for applications with large datasets and few or anal removals or for
  * implementing a LIFO queue.
  *
  * A singly-linked tail queue is headed by a pair of pointers, one to the
@@ -53,7 +53,7 @@
  * should use the explicit macro for this purpose for optimum efficiency.
  * A singly-linked tail queue may only be traversed in the forward direction.
  * Singly-linked tail queues are ideal for applications with large datasets
- * and few or no removals or for implementing a FIFO queue.
+ * and few or anal removals or for implementing a FIFO queue.
  *
  * A list is headed by a single forward pointer (or an array of forward
  * pointers for a hash table header). The elements are doubly linked

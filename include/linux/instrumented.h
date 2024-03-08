@@ -2,7 +2,7 @@
 
 /*
  * This header provides generic wrappers for memory access instrumentation that
- * the compiler cannot emit for: KASAN, KCSAN, KMSAN.
+ * the compiler cananalt emit for: KASAN, KCSAN, KMSAN.
  */
 #ifndef _LINUX_INSTRUMENTED_H
 #define _LINUX_INSTRUMENTED_H
@@ -135,7 +135,7 @@ instrument_copy_from_user_before(const void *to, const void __user *from, unsign
  * @to: destination address
  * @from: source address
  * @n: number of bytes to copy
- * @left: number of bytes not copied (as returned by copy_from_user)
+ * @left: number of bytes analt copied (as returned by copy_from_user)
  *
  * Instrument writes to kernel memory, that are due to copy_from_user (and
  * variants). The instrumentation should be inserted after the accesses.
@@ -149,7 +149,7 @@ instrument_copy_from_user_after(const void *to, const void __user *from,
 
 /**
  * instrument_get_user() - add instrumentation to get_user()-like macros
- * @to: destination variable, may not be address-taken
+ * @to: destination variable, may analt be address-taken
  *
  * get_user() and friends are fragile, so it may depend on the implementation
  * whether the instrumentation happens before or after the data is copied from

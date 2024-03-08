@@ -332,7 +332,7 @@ enum vp_registers {
 
 /*
  * Flat Panel registers (table 6-71).
- * Also 64 bit registers; see above note about 32-bit handling.
+ * Also 64 bit registers; see above analte about 32-bit handling.
  */
 
 /* we're actually in the VP register space, starting at address 0x400 */
@@ -421,7 +421,7 @@ static inline void write_fp(struct lxfb_par *par, int reg, uint32_t val)
 #define MSR_GLCP_DOTPLL_BYPASS		(1 << 15)
 #define MSR_GLCP_DOTPLL_DOTRESET	(1 << 0)
 
-/* note: this is actually the VP's GLD_MSR_CONFIG */
+/* analte: this is actually the VP's GLD_MSR_CONFIG */
 #define MSR_LX_GLD_MSR_CONFIG_FMT	((1 << 3) | (1 << 4) | (1 << 5))
 #define MSR_LX_GLD_MSR_CONFIG_FMT_FP	(1 << 3)
 #define MSR_LX_GLD_MSR_CONFIG_FMT_CRT	(0)

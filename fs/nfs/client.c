@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/unistd.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/clnt.h>
@@ -94,7 +94,7 @@ static struct nfs_subversion *find_nfs_version(unsigned int version)
 	}
 
 	spin_unlock(&nfs_version_lock);
-	return ERR_PTR(-EPROTONOSUPPORT);
+	return ERR_PTR(-EPROTOANALSUPPORT);
 }
 
 struct nfs_subversion *get_nfs_version(unsigned int version)
@@ -149,12 +149,12 @@ EXPORT_SYMBOL_GPL(unregister_nfs_version);
 struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	struct nfs_client *clp;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
 
-	clp->cl_minorversion = cl_init->minorversion;
+	clp->cl_mianalrversion = cl_init->mianalrversion;
 	clp->cl_nfs_mod = cl_init->nfs_mod;
 	if (!try_module_get(clp->cl_nfs_mod->owner))
 		goto error_dealloc;
@@ -168,7 +168,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_addrlen = cl_init->addrlen;
 
 	if (cl_init->hostname) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		clp->cl_hostname = kstrdup(cl_init->hostname, GFP_KERNEL);
 		if (!clp->cl_hostname)
 			goto error_cleanup;
@@ -304,14 +304,14 @@ again:
 			goto again;
 		}
 
-		/* Different NFS versions cannot share the same nfs_client */
+		/* Different NFS versions cananalt share the same nfs_client */
 		if (clp->rpc_ops != data->nfs_mod->rpc_ops)
 			continue;
 
 		if (clp->cl_proto != data->proto)
 			continue;
-		/* Match nfsv4 minorversion */
-		if (clp->cl_minorversion != data->minorversion)
+		/* Match nfsv4 mianalrversion */
+		if (clp->cl_mianalrversion != data->mianalrversion)
 			continue;
 
 		/* Match request for a dedicated DS */
@@ -349,7 +349,7 @@ bool nfs_client_init_is_complete(const struct nfs_client *clp)
 EXPORT_SYMBOL_GPL(nfs_client_init_is_complete);
 
 /*
- * Return 0 if @clp was successfully initialized, -errno otherwise.
+ * Return 0 if @clp was successfully initialized, -erranal otherwise.
  *
  * This must be called *after* nfs_client_init_is_complete() returns true,
  * otherwise it will pop WARN_ON_ONCE and return -EINVAL
@@ -511,7 +511,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.addrsize	= clp->cl_addrlen,
 		.timeout	= cl_init->timeparms,
 		.servername	= clp->cl_hostname,
-		.nodename	= cl_init->nodename,
+		.analdename	= cl_init->analdename,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
@@ -523,14 +523,14 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_DISCRTRY;
-	if (test_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags))
-		args.flags |= RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT;
-	if (test_bit(NFS_CS_NORESVPORT, &clp->cl_flags))
-		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
+	if (test_bit(NFS_CS_ANAL_RETRANS_TIMEOUT, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_ANAL_RETRANS_TIMEOUT;
+	if (test_bit(NFS_CS_ANALRESVPORT, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_ANALNPRIVPORT;
 	if (test_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_INFINITE_SLOTS;
-	if (test_bit(NFS_CS_NOPING, &clp->cl_flags))
-		args.flags |= RPC_CLNT_CREATE_NOPING;
+	if (test_bit(NFS_CS_ANALPING, &clp->cl_flags))
+		args.flags |= RPC_CLNT_CREATE_ANALPING;
 	if (test_bit(NFS_CS_REUSEPORT, &clp->cl_flags))
 		args.flags |= RPC_CLNT_CREATE_REUSEPORT;
 
@@ -539,7 +539,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
-		dprintk("%s: cannot create RPC client. Error = %ld\n",
+		dprintk("%s: cananalt create RPC client. Error = %ld\n",
 				__func__, PTR_ERR(clnt));
 		return PTR_ERR(clnt);
 	}
@@ -572,7 +572,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrlen	= clp->cl_addrlen,
 		.nfs_version	= clp->rpc_ops->version,
-		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
+		.analresvport	= server->flags & NFS_MOUNT_ANALRESVPORT ?
 					1 : 0,
 		.net		= clp->cl_net,
 		.nlmclnt_ops 	= clp->cl_nfs_mod->rpc_ops->nlmclnt_ops,
@@ -693,8 +693,8 @@ static int nfs_init_server(struct nfs_server *server,
 
 	nfs_init_timeout_values(&timeparms, ctx->nfs_server.protocol,
 				ctx->timeo, ctx->retrans);
-	if (ctx->flags & NFS_MOUNT_NORESVPORT)
-		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (ctx->flags & NFS_MOUNT_ANALRESVPORT)
+		set_bit(NFS_CS_ANALRESVPORT, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
@@ -806,7 +806,7 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 	if (server->dtsize > server->rsize)
 		server->dtsize = server->rsize;
 
-	if (server->flags & NFS_MOUNT_NOAC) {
+	if (server->flags & NFS_MOUNT_ANALAC) {
 		server->acregmin = server->acregmax = 0;
 		server->acdirmin = server->acdirmax = 0;
 	}
@@ -895,10 +895,10 @@ int nfs_probe_server(struct nfs_server *server, struct nfs_fh *mntfh)
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Sanity: the probe won't work if the destination server
-	 * does not recognize the migrated FH. */
+	 * does analt recognize the migrated FH. */
 	error = nfs_probe_fsinfo(server, mntfh, fattr);
 
 	nfs_free_fattr(fattr);
@@ -997,7 +997,7 @@ struct nfs_server *nfs_alloc_server(void)
 
 	server->change_attr_type = NFS4_CHANGE_TYPE_IS_UNDEFINED;
 
-	ida_init(&server->openowner_id);
+	ida_init(&server->opeanalwner_id);
 	ida_init(&server->lockowner_id);
 	pnfs_init_server(server);
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
@@ -1038,7 +1038,7 @@ void nfs_free_server(struct nfs_server *server)
 	ida_free(&s_sysfs_ids, server->s_sysfs_id);
 
 	ida_destroy(&server->lockowner_id);
-	ida_destroy(&server->openowner_id);
+	ida_destroy(&server->opeanalwner_id);
 	put_cred(server->cred);
 	nfs_release_automount_timer();
 	call_rcu(&server->rcu, delayed_free);
@@ -1058,11 +1058,11 @@ struct nfs_server *nfs_create_server(struct fs_context *fc)
 
 	server = nfs_alloc_server();
 	if (!server)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	server->cred = get_cred(fc->cred);
 
-	error = -ENOMEM;
+	error = -EANALMEM;
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
 		goto error;
@@ -1079,7 +1079,7 @@ struct nfs_server *nfs_create_server(struct fs_context *fc)
 	if (server->nfs_client->rpc_ops->version == 3) {
 		if (server->namelen == 0 || server->namelen > NFS3_MAXNAMLEN)
 			server->namelen = NFS3_MAXNAMLEN;
-		if (!(ctx->flags & NFS_MOUNT_NORDIRPLUS))
+		if (!(ctx->flags & NFS_MOUNT_ANALRDIRPLUS))
 			server->caps |= NFS_CAP_READDIRPLUS;
 	} else {
 		if (server->namelen == 0 || server->namelen > NFS2_MAXNAMLEN)
@@ -1098,7 +1098,7 @@ struct nfs_server *nfs_create_server(struct fs_context *fc)
 
 	dprintk("Server FSID: %llx:%llx\n",
 		(unsigned long long) server->fsid.major,
-		(unsigned long long) server->fsid.minor);
+		(unsigned long long) server->fsid.mianalr);
 
 	nfs_server_insert_lists(server);
 	server->mount_time = jiffies;
@@ -1125,7 +1125,7 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 
 	server = nfs_alloc_server();
 	if (!server)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	server->cred = get_cred(source->cred);
 
@@ -1344,11 +1344,11 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 	clp = server->nfs_client;
 
 	snprintf(dev, sizeof(dev), "%u:%u",
-		 MAJOR(server->s_dev), MINOR(server->s_dev));
+		 MAJOR(server->s_dev), MIANALR(server->s_dev));
 
 	snprintf(fsid, sizeof(fsid), "%llx:%llx",
 		 (unsigned long long) server->fsid.major,
-		 (unsigned long long) server->fsid.minor);
+		 (unsigned long long) server->fsid.mianalr);
 
 	rcu_read_lock();
 	seq_printf(m, "v%u %s %s %-12s %-33s %s\n",
@@ -1388,7 +1388,7 @@ int nfs_fs_proc_net_init(struct net *net)
 error_1:
 	remove_proc_subtree("nfsfs", net->proc_net);
 error_0:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void nfs_fs_proc_net_exit(struct net *net)
@@ -1416,7 +1416,7 @@ int __init nfs_fs_proc_init(void)
 error_1:
 	remove_proc_subtree("fs/nfsfs", NULL);
 error_0:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*

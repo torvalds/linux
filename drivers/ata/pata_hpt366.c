@@ -12,7 +12,7 @@
  *
  *
  * TODO
- *	Look into engine reset on timeout errors. Should not be required.
+ *	Look into engine reset on timeout errors. Should analt be required.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -180,7 +180,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	i = match_string(list, -1, model_num);
 	if (i >= 0) {
-		ata_dev_warn(dev, "%s is not supported for %s\n", modestr, list[i]);
+		ata_dev_warn(dev, "%s is analt supported for %s\n", modestr, list[i]);
 		return 1;
 	}
 	return 0;
@@ -228,7 +228,7 @@ static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr = 0x40 + 4 * adev->devno;
+	u32 addr = 0x40 + 4 * adev->devanal;
 	u32 mask, reg, t;
 
 	/* determine timing mask and find matching clock entry */
@@ -303,7 +303,7 @@ static int hpt366_prereset(struct ata_link *link, unsigned long deadline)
 	u8 mcr2;
 
 	if (!pci_test_config_bits(pdev, &hpt366_enable_bits))
-		return -ENOENT;
+		return -EANALENT;
 
 	pci_read_config_byte(pdev, 0x51, &mcr2);
 	if (mcr2 & 0x80)
@@ -347,7 +347,7 @@ static void hpt36x_init_chipset(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_MAX_LAT, 0x08);
 
 	/*
-	 * Now we'll have to force both channels enabled if at least one
+	 * Analw we'll have to force both channels enabled if at least one
 	 * of them has been enabled by BIOS...
 	 */
 	pci_read_config_byte(dev, 0x50, &mcr1);
@@ -365,10 +365,10 @@ static void hpt36x_init_chipset(struct pci_dev *dev)
  *	Secondly all the timings depend on the clock for the chip which we must
  *	detect and look up
  *
- *	This is the known chip mappings. It may be missing a couple of later
+ *	This is the kanalwn chip mappings. It may be missing a couple of later
  *	releases.
  *
- *	Chip version		PCI		Rev	Notes
+ *	Chip version		PCI		Rev	Analtes
  *	HPT366			4 (HPT366)	0	UDMA66
  *	HPT366			4 (HPT366)	1	UDMA66
  *	HPT368			4 (HPT366)	2	UDMA66
@@ -396,9 +396,9 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return rc;
 
 	/* May be a later chip in disguise. Check */
-	/* Newer chips are not in the HPT36x driver. Ignore them */
+	/* Newer chips are analt in the HPT36x driver. Iganalre them */
 	if (dev->revision > 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	hpt36x_init_chipset(dev);
 
@@ -417,7 +417,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		hpriv = &hpt366_33;
 		break;
 	}
-	/* Now kick off ATA set up */
+	/* Analw kick off ATA set up */
 	return ata_pci_bmdma_init_one(dev, ppi, &hpt36x_sht, (void *)hpriv, 0);
 }
 

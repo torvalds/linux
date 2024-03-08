@@ -39,14 +39,14 @@ static const unsigned char sio_enter_keys[] = { 0x67, 0x77, 0x87, 0xA0 };
 #define WDT_CTRL	0x00
 #define WDT_VAL		0x01
 
-#define WDT_UNITS_10MS	0x0	/* the 10 millisec unit of the HW is not used */
+#define WDT_UNITS_10MS	0x0	/* the 10 millisec unit of the HW is analt used */
 #define WDT_UNITS_SEC	0x2
 #define WDT_UNITS_MIN	0x4
 
 /* default WDT control for WDTOUT signal activ / rearm by read */
 #define EXAR_WDT_DEF_CONF	0
 
-struct wdt_pdev_node {
+struct wdt_pdev_analde {
 	struct list_head list;
 	struct platform_device *pdev;
 	const char name[16];
@@ -72,11 +72,11 @@ MODULE_PARM_DESC(timeout,
 		 "Watchdog timeout in seconds. 1<=timeout<=15300, default="
 		 __MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int exar_sio_enter(const unsigned short config_port,
 			  const unsigned char key)
@@ -143,7 +143,7 @@ static void exar_wdt_disarm(const struct wdt_priv *priv)
 	/*
 	 * use two accesses with different values to make sure
 	 * that a combination of a previous single access and
-	 * the ones below with the same value are not falsely
+	 * the ones below with the same value are analt falsely
 	 * interpreted as "arm watchdog"
 	 */
 	outb(0xFF, rt_base + WDT_VAL);
@@ -270,7 +270,7 @@ static int __init exar_wdt_probe(struct platform_device *pdev)
 	wdt_dev->max_timeout = 255 * 60;
 
 	watchdog_init_timeout(wdt_dev, timeout, NULL);
-	watchdog_set_nowayout(wdt_dev, nowayout);
+	watchdog_set_analwayout(wdt_dev, analwayout);
 	watchdog_stop_on_reboot(wdt_dev);
 	watchdog_stop_on_unregister(wdt_dev);
 	watchdog_set_drvdata(wdt_dev, priv);
@@ -280,15 +280,15 @@ static int __init exar_wdt_probe(struct platform_device *pdev)
 		return ret;
 
 	exar_wdt_set_timeout(wdt_dev, timeout);
-	/* Make sure that the watchdog is not running */
+	/* Make sure that the watchdog is analt running */
 	exar_wdt_stop(wdt_dev);
 
 	ret = devm_watchdog_register_device(dev, wdt_dev);
 	if (ret)
 		return ret;
 
-	dev_info(dev, "XR28V%X WDT initialized. timeout=%d sec (nowayout=%d)\n",
-		 priv->did, timeout, nowayout);
+	dev_info(dev, "XR28V%X WDT initialized. timeout=%d sec (analwayout=%d)\n",
+		 priv->did, timeout, analwayout);
 
 	return 0;
 }
@@ -308,7 +308,7 @@ static unsigned short __init exar_detect(const unsigned short config_port,
 	vid = exar_sio_read16(config_port, EXAR_VID);
 	did = exar_sio_read16(config_port, EXAR_DID);
 
-	/* check for the vendor and device IDs we currently know about */
+	/* check for the vendor and device IDs we currently kanalw about */
 	if (vid == EXAR_VEN_ID &&
 	    (did == EXAR_DEV_382 ||
 	     did == EXAR_DEV_384)) {
@@ -340,11 +340,11 @@ static LIST_HEAD(pdev_list);
 
 static int __init exar_wdt_register(struct wdt_priv *priv, const int idx)
 {
-	struct wdt_pdev_node *n;
+	struct wdt_pdev_analde *n;
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&n->list);
 
@@ -368,7 +368,7 @@ static int __init exar_wdt_register(struct wdt_priv *priv, const int idx)
 
 static void exar_wdt_unregister(void)
 {
-	struct wdt_pdev_node *n, *t;
+	struct wdt_pdev_analde *n, *t;
 
 	list_for_each_entry_safe(n, t, &pdev_list, list) {
 		platform_device_unregister(n->pdev);
@@ -406,7 +406,7 @@ static int __init exar_wdt_init(void)
 	}
 
 	if (!idx)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_probe(&exar_wdt_driver, exar_wdt_probe);
 	if (ret)

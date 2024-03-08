@@ -7,7 +7,7 @@
  * driver for ADJD-S311-CR999 digital color sensor (10-bit channels for
  * red, green, blue, clear); 7-bit I2C slave address 0x74
  *
- * limitations: no calibration, no offset mode, no sleep mode
+ * limitations: anal calibration, anal offset mode, anal sleep mode
  */
 
 #include <linux/module.h>
@@ -89,7 +89,7 @@ static int adjd_s311_req_data(struct iio_dev *indio_dev)
 
 	if (tries < 0) {
 		dev_err(&data->client->dev,
-			"adjd_s311_req_data() failed, data not ready\n");
+			"adjd_s311_req_data() failed, data analt ready\n");
 		return -EIO;
 	}
 
@@ -138,7 +138,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan, time_ns);
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -196,7 +196,7 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = 0;
 		/*
-		 * not documented, based on measurement:
+		 * analt documented, based on measurement:
 		 * 4095 LSBs correspond to roughly 4 ms
 		 */
 		*val2 = ret & ADJD_S311_INT_MASK;
@@ -241,7 +241,7 @@ static int adjd_s311_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

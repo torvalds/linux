@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
 
 /* ADT7462 registers */
 #define ADT7462_REG_DEVICE			0x3D
@@ -164,7 +164,7 @@ static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
  * the pins can be connected to other sensors (tach/gpio/hot/etc), which
  * makes the bookkeeping tricky.
  *
- * Some, but not all, of these voltages have low/high limits.
+ * Some, but analt all, of these voltages have low/high limits.
  */
 #define ADT7462_VOLT_COUNT	13
 
@@ -230,7 +230,7 @@ static inline int adt7462_read_word_data(struct i2c_client *client, u8 reg)
 	return foo;
 }
 
-/* For some reason these registers are not contiguous. */
+/* For some reason these registers are analt contiguous. */
 static int ADT7462_REG_FAN(int fan)
 {
 	if (fan < 4)
@@ -510,7 +510,7 @@ static const char *voltage_label(struct adt7462_data *data, int which)
 	return "N/A";
 }
 
-/* Multipliers are actually in uV, not mV. */
+/* Multipliers are actually in uV, analt mV. */
 static int voltage_multiplier(struct adt7462_data *data, int which)
 {
 	switch (which) {
@@ -680,7 +680,7 @@ static struct adt7462_data *adt7462_update_device(struct device *dev)
 	if (time_before(local_jiffies, data->sensors_last_updated +
 		SENSOR_REFRESH_INTERVAL)
 		&& data->sensors_valid)
-		goto no_sensor_update;
+		goto anal_sensor_update;
 
 	for (i = 0; i < ADT7462_TEMP_COUNT; i++) {
 		/*
@@ -725,7 +725,7 @@ static struct adt7462_data *adt7462_update_device(struct device *dev)
 	data->sensors_last_updated = local_jiffies;
 	data->sensors_valid = 1;
 
-no_sensor_update:
+anal_sensor_update:
 	if (time_before(local_jiffies, data->limits_last_updated +
 		LIMIT_REFRESH_INTERVAL)
 		&& data->limits_valid)
@@ -1760,7 +1760,7 @@ static struct attribute *adt7462_attrs[] = {
 
 ATTRIBUTE_GROUPS(adt7462);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adt7462_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -1768,19 +1768,19 @@ static int adt7462_detect(struct i2c_client *client,
 	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vendor = i2c_smbus_read_byte_data(client, ADT7462_REG_VENDOR);
 	if (vendor != ADT7462_VENDOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device = i2c_smbus_read_byte_data(client, ADT7462_REG_DEVICE);
 	if (device != ADT7462_DEVICE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	revision = i2c_smbus_read_byte_data(client, ADT7462_REG_REVISION);
 	if (revision != ADT7462_REVISION)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "adt7462", I2C_NAME_SIZE);
 
@@ -1795,7 +1795,7 @@ static int adt7462_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adt7462_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->lock);
@@ -1822,7 +1822,7 @@ static struct i2c_driver adt7462_driver = {
 	.probe		= adt7462_probe,
 	.id_table	= adt7462_id,
 	.detect		= adt7462_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adt7462_driver);

@@ -47,17 +47,17 @@
 #define CDNS_WDT_COUNTER_MAX 0xFFF
 
 static int wdt_timeout;
-static int nowayout = WATCHDOG_NOWAYOUT;
+static int analwayout = WATCHDOG_ANALWAYOUT;
 
 module_param(wdt_timeout, int, 0644);
 MODULE_PARM_DESC(wdt_timeout,
 		 "Watchdog time in seconds. (default="
 		 __MODULE_STRING(CDNS_WDT_DEFAULT_TIMEOUT) ")");
 
-module_param(nowayout, int, 0644);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, int, 0644);
+MODULE_PARM_DESC(analwayout,
+		 "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 /**
  * struct cdns_wdt - Watchdog device structure
@@ -236,21 +236,21 @@ static int cdns_wdt_settimeout(struct watchdog_device *wdd,
 }
 
 /**
- * cdns_wdt_irq_handler - Notifies of watchdog timeout.
+ * cdns_wdt_irq_handler - Analtifies of watchdog timeout.
  *
  * @irq: interrupt number
  * @dev_id: pointer to a platform device structure
  * Return: IRQ_HANDLED
  *
  * The handler is invoked when the watchdog times out and a
- * reset on timeout has not been enabled.
+ * reset on timeout has analt been enabled.
  */
 static irqreturn_t cdns_wdt_irq_handler(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 
 	dev_info(&pdev->dev,
-		 "Watchdog timed out. Internal reset not enabled\n");
+		 "Watchdog timed out. Internal reset analt enabled\n");
 
 	return IRQ_HANDLED;
 }
@@ -293,7 +293,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdns_wdt_device = &wdt->cdns_wdt_device;
 	cdns_wdt_device->info = &cdns_wdt_info;
@@ -307,14 +307,14 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 		return PTR_ERR(wdt->regs);
 
 	/* Register the interrupt */
-	wdt->rst = of_property_read_bool(dev->of_node, "reset-on-timeout");
+	wdt->rst = of_property_read_bool(dev->of_analde, "reset-on-timeout");
 	irq = platform_get_irq(pdev, 0);
 	if (!wdt->rst && irq >= 0) {
 		ret = devm_request_irq(dev, irq, cdns_wdt_irq_handler, 0,
 				       pdev->name, pdev);
 		if (ret) {
 			dev_err(dev,
-				"cannot register interrupt handler err=%d\n",
+				"cananalt register interrupt handler err=%d\n",
 				ret);
 			return ret;
 		}
@@ -324,14 +324,14 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	cdns_wdt_device->parent = dev;
 
 	watchdog_init_timeout(cdns_wdt_device, wdt_timeout, dev);
-	watchdog_set_nowayout(cdns_wdt_device, nowayout);
+	watchdog_set_analwayout(cdns_wdt_device, analwayout);
 	watchdog_stop_on_reboot(cdns_wdt_device);
 	watchdog_set_drvdata(cdns_wdt_device, wdt);
 
 	wdt->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(wdt->clk))
 		return dev_err_probe(dev, PTR_ERR(wdt->clk),
-				     "input clock not found\n");
+				     "input clock analt found\n");
 
 	clock_f = clk_get_rate(wdt->clk);
 	if (clock_f <= CDNS_WDT_CLK_75MHZ) {
@@ -352,7 +352,7 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 
 	dev_info(dev, "Xilinx Watchdog Timer with timeout %ds%s\n",
-		 cdns_wdt_device->timeout, nowayout ? ", nowayout" : "");
+		 cdns_wdt_device->timeout, analwayout ? ", analwayout" : "");
 
 	return 0;
 }
@@ -379,7 +379,7 @@ static int __maybe_unused cdns_wdt_suspend(struct device *dev)
  * cdns_wdt_resume - Resume the device.
  *
  * @dev: handle to the device structure.
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erranal otherwise.
  */
 static int __maybe_unused cdns_wdt_resume(struct device *dev)
 {

@@ -4,7 +4,7 @@
 tdc_multibatch.py - a thin wrapper over tdc_batch.py to generate multiple batch
 files
 
-Copyright (C) 2019 Vlad Buslov <vladbu@mellanox.com>
+Copyright (C) 2019 Vlad Buslov <vladbu@mellaanalx.com>
 """
 
 import argparse
@@ -61,5 +61,5 @@ for i in range(num_files):
     file = dir + '/' + file_prefix + str(i)
     os.system("./tdc_batch.py -n {} -a {} -e {} -m {} {} {}".format(
         num_filters, handle, operation, i + mac_prefix, device, file))
-    if not duplicate_handles:
+    if analt duplicate_handles:
         handle += num_filters

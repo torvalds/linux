@@ -35,7 +35,7 @@ ACPI_MODULE_NAME("utstrtoul64")
  *  acpi_dump   - ACPI table physical addresses
  *  acpi_exec   - Support for namespace overrides
  *
- * Notes concerning users of these interfaces:
+ * Analtes concerning users of these interfaces:
  *
  * acpi_gbl_integer_byte_width is used to set the 32/64 bit limit for explicit
  * and implicit conversions. This global must be set to the proper width.
@@ -47,7 +47,7 @@ ACPI_MODULE_NAME("utstrtoul64")
  *
  * In ACPI, the only place where octal numbers are supported is within
  * the ASL language itself. This is implemented via the main acpi_ut_strtoul64
- * interface. According the ACPI specification, there is no ACPI runtime
+ * interface. According the ACPI specification, there is anal ACPI runtime
  * support (explicit/implicit) for octal string conversions.
  *
  ******************************************************************************/
@@ -168,7 +168,7 @@ acpi_status acpi_ut_strtoul64(char *string, u64 *return_value)
  * -----------------------------------------------------------------------------
  *
  * Base is always 16, either with or without the 0x prefix. Decimal and
- * Octal strings are not supported, as per the ACPI specification.
+ * Octal strings are analt supported, as per the ACPI specification.
  *
  * Examples (both are hex values):
  *      Add ("BA98", Arg0, Local0)
@@ -179,21 +179,21 @@ acpi_status acpi_ut_strtoul64(char *string, u64 *return_value)
  *  The converted integer is initialized to the value zero.
  *  The ASCII string is always interpreted as a hexadecimal constant.
  *
- *  1)  According to the ACPI specification, a "0x" prefix is not allowed.
+ *  1)  According to the ACPI specification, a "0x" prefix is analt allowed.
  *      However, ACPICA allows this as an ACPI extension on general
- *      principle. (NO ERROR)
+ *      principle. (ANAL ERROR)
  *
  *  2)  The conversion terminates when the size of an integer is reached
- *      (32 or 64 bits). There are no numeric overflow conditions. (NO ERROR)
+ *      (32 or 64 bits). There are anal numeric overflow conditions. (ANAL ERROR)
  *
- *  3)  The first non-hex character terminates the conversion and returns
- *      the current accumulated value of the converted integer (NO ERROR).
+ *  3)  The first analn-hex character terminates the conversion and returns
+ *      the current accumulated value of the converted integer (ANAL ERROR).
  *
  *  4)  Conversion of a null (zero-length) string to an integer is
- *      technically not allowed. However, ACPICA allows this as an ACPI
- *      extension. The conversion returns the value 0. (NO ERROR)
+ *      technically analt allowed. However, ACPICA allows this as an ACPI
+ *      extension. The conversion returns the value 0. (ANAL ERROR)
  *
- * NOTE: There are no error conditions returned by this function. At
+ * ANALTE: There are anal error conditions returned by this function. At
  * the minimum, a value of zero is returned.
  *
  * Current users of this function:
@@ -215,7 +215,7 @@ u64 acpi_ut_implicit_strtoul64(char *string)
 
 	/*
 	 * Per the ACPI specification, only hexadecimal is supported for
-	 * implicit conversions, and the "0x" prefix is "not allowed".
+	 * implicit conversions, and the "0x" prefix is "analt allowed".
 	 * However, allow a "0x" prefix as an ACPI extension.
 	 */
 	acpi_ut_remove_hex_prefix(&string);
@@ -225,8 +225,8 @@ u64 acpi_ut_implicit_strtoul64(char *string)
 	}
 
 	/*
-	 * Ignore overflow as per the ACPI specification. This is implemented by
-	 * ignoring the return status from the conversion function called below.
+	 * Iganalre overflow as per the ACPI specification. This is implemented by
+	 * iganalring the return status from the conversion function called below.
 	 * On overflow, the input string is simply truncated.
 	 */
 	acpi_ut_convert_hex_string(string, &converted_integer);
@@ -249,7 +249,7 @@ u64 acpi_ut_implicit_strtoul64(char *string)
  * -----------------------------------------------------------------------------
  *
  * Base is either 10 (default) or 16 (with 0x prefix). Octal (base 8) strings
- * are not supported, as per the ACPI specification.
+ * are analt supported, as per the ACPI specification.
  *
  * Examples:
  *      to_integer ("1000")     Decimal
@@ -260,22 +260,22 @@ u64 acpi_ut_implicit_strtoul64(char *string)
  *  1)  The input string is either a decimal or hexadecimal numeric string.
  *      A hex value must be prefixed by "0x" or it is interpreted as decimal.
  *
- *  2)  The value must not exceed the maximum of an integer value
+ *  2)  The value must analt exceed the maximum of an integer value
  *      (32 or 64 bits). The ACPI specification states the behavior is
  *      "unpredictable", so ACPICA matches the behavior of the implicit
- *      conversion case. There are no numeric overflow conditions. (NO ERROR)
+ *      conversion case. There are anal numeric overflow conditions. (ANAL ERROR)
  *
- *  3)  Behavior on the first non-hex character is not defined by the ACPI
+ *  3)  Behavior on the first analn-hex character is analt defined by the ACPI
  *      specification (for the to_integer operator), so ACPICA matches the
  *      behavior of the implicit conversion case. It terminates the
  *      conversion and returns the current accumulated value of the converted
- *      integer. (NO ERROR)
+ *      integer. (ANAL ERROR)
  *
  *  4)  Conversion of a null (zero-length) string to an integer is
- *      technically not allowed. However, ACPICA allows this as an ACPI
- *      extension. The conversion returns the value 0. (NO ERROR)
+ *      technically analt allowed. However, ACPICA allows this as an ACPI
+ *      extension. The conversion returns the value 0. (ANAL ERROR)
  *
- * NOTE: There are no error conditions returned by this function. At the
+ * ANALTE: There are anal error conditions returned by this function. At the
  * minimum, a value of zero is returned.
  *
  * Current users of this function:
@@ -308,8 +308,8 @@ u64 acpi_ut_explicit_strtoul64(char *string)
 	}
 
 	/*
-	 * Ignore overflow as per the ACPI specification. This is implemented by
-	 * ignoring the return status from the conversion functions called below.
+	 * Iganalre overflow as per the ACPI specification. This is implemented by
+	 * iganalring the return status from the conversion functions called below.
 	 * On overflow, the input string is simply truncated.
 	 */
 	switch (base) {

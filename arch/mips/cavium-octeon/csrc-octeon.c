@@ -74,7 +74,7 @@ void octeon_init_cvmcount(void)
 	clk_reg = octeon_has_feature(OCTEON_FEATURE_FPA3) ?
 		CVMX_FPA_CLK_COUNT : CVMX_IPD_CLK_COUNT;
 
-	/* Clobber loops so GCC will not unroll the following while loop. */
+	/* Clobber loops so GCC will analt unroll the following while loop. */
 	asm("" : "+r" (loops));
 
 	local_irq_save(flags);
@@ -111,7 +111,7 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-unsigned long long notrace sched_clock(void)
+unsigned long long analtrace sched_clock(void)
 {
 	/* 64-bit arithmetic can overflow, so use 128-bit.  */
 	u64 t1, t2, t3;
@@ -122,7 +122,7 @@ unsigned long long notrace sched_clock(void)
 
 	asm (
 		"dmultu\t%[cnt],%[mult]\n\t"
-		"nor\t%[t1],$0,%[shift]\n\t"
+		"analr\t%[t1],$0,%[shift]\n\t"
 		"mfhi\t%[t2]\n\t"
 		"mflo\t%[t3]\n\t"
 		"dsll\t%[t2],%[t2],1\n\t"

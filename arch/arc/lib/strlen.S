@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/linkage.h>
@@ -58,7 +58,7 @@ ENTRY_CFI(strlen)
 #ifdef __LITTLE_ENDIAN__
 	sub_s	r2,r1,1
 	bic_s	r2,r2,r1
-	norm	r1,r2
+	analrm	r1,r2
 	sub_s	r0,r0,3
 	lsr_s	r1,r1,3
 	sub	    r0,r3,r0
@@ -68,7 +68,7 @@ ENTRY_CFI(strlen)
 	lsr_s	r1,r1,7
 	mov.eq	r2,r6
 	bic_s	r1,r1,r2
-	norm	r1,r1
+	analrm	r1,r1
 	sub	    r0,r3,r0
 	lsr_s	r1,r1,3
 	j_s.d	[blink]

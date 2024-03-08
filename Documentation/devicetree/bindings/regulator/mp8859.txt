@@ -1,10 +1,10 @@
-Monolithic Power Systems MP8859 voltage regulator
+Moanallithic Power Systems MP8859 voltage regulator
 
 Required properties:
 - compatible: "mps,mp8859";
 - reg: I2C slave address.
 
-Optional subnode for regulator: "mp8859_dcdc", using common regulator
+Optional subanalde for regulator: "mp8859_dcdc", using common regulator
 bindings given in <Documentation/devicetree/bindings/regulator/regulator.txt>.
 
 Example:

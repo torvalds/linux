@@ -22,10 +22,10 @@ ccflags-vdso := \
 cflags-vdso := $(ccflags-vdso) \
 	-isystem $(shell $(CC) -print-file-name=include) \
 	$(filter -W%,$(filter-out -Wa$(comma)%,$(KBUILD_CFLAGS))) \
-	-O2 -g -fno-strict-aliasing -fno-common -fno-builtin \
-	-fno-stack-protector -fno-jump-tables -DDISABLE_BRANCH_PROFILING \
-	$(call cc-option, -fno-asynchronous-unwind-tables) \
-	$(call cc-option, -fno-stack-protector)
+	-O2 -g -fanal-strict-aliasing -fanal-common -fanal-builtin \
+	-fanal-stack-protector -fanal-jump-tables -DDISABLE_BRANCH_PROFILING \
+	$(call cc-option, -fanal-asynchroanalus-unwind-tables) \
+	$(call cc-option, -fanal-stack-protector)
 aflags-vdso := $(ccflags-vdso) \
 	-D__ASSEMBLY__ -Wa,-gdwarf-2
 
@@ -34,8 +34,8 @@ ifneq ($(c-gettimeofday-y),)
 endif
 
 # VDSO linker flags.
-ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
-	$(filter -E%,$(KBUILD_CFLAGS)) -nostdlib -shared \
+ldflags-y := -Bsymbolic --anal-undefined -soname=linux-vdso.so.1 \
+	$(filter -E%,$(KBUILD_CFLAGS)) -analstdlib -shared \
 	--hash-style=sysv --build-id -T
 
 GCOV_PROFILE := n

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synopsys DesignWare Multimedia Card Interface driver
+ * Syanalpsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
- * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010 Imagination Techanallogies Ltd.
  */
 
 #ifndef _DW_MMC_H_
@@ -66,15 +66,15 @@ struct dw_mci_dma_slave {
  * @mrq: The request currently being processed on @slot,
  *	or NULL if the controller is idle.
  * @cmd: The command currently being sent to the card, or NULL.
- * @data: The data currently being transferred, or NULL if no data
+ * @data: The data currently being transferred, or NULL if anal data
  *	transfer is in progress.
  * @stop_abort: The command currently prepared for stoping transfer.
  * @prev_blksz: The former transfer blksz record.
  * @timing: Record of current ios timing.
  * @use_dma: Which DMA channel is in use for the current transfer, zero
- *	denotes PIO mode.
+ *	deanaltes PIO mode.
  * @using_dma: Whether DMA is in use for the current transfer.
- * @dma_64bit_address: Whether DMA supports 64-bit address mode or not.
+ * @dma_64bit_address: Whether DMA supports 64-bit address mode or analt.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -101,7 +101,7 @@ struct dw_mci_dma_slave {
  * @current_speed: Configured rate of the controller.
  * @minimum_speed: Stored minimum rate of the controller.
  * @fifoth_val: The value of FIFOTH register.
- * @verid: Denote Version ID.
+ * @verid: Deanalte Version ID.
  * @dev: Device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @drv_data: Driver specific data for identified variant of the controller
@@ -140,13 +140,13 @@ struct dw_mci_dma_slave {
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
  * to allow the interrupt handler to modify it directly.  Held for only long
- * enough to read-modify-write INTMASK and no other locks are grabbed when
+ * eanalugh to read-modify-write INTMASK and anal other locks are grabbed when
  * holding this one.
  *
  * @pending_events and @completed_events are accessed using atomic bit
  * operations, so they don't need any locking.
  *
- * None of the fields touched by the interrupt handler need any
+ * Analne of the fields touched by the interrupt handler need any
  * locking. However, ordering is important: Before EVENT_DATA_ERROR or
  * EVENT_DATA_COMPLETE is set in @pending_events, all data-related
  * interrupts must be disabled and @data_status updated with a
@@ -265,7 +265,7 @@ struct dw_mci_board {
 	u32 pm_caps;	/* PM capabilities */
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
-	 * but note that this may not be reliable after a bootloader has used
+	 * but analte that this may analt be reliable after a bootloader has used
 	 * it.
 	 */
 	unsigned int fifo_depth;
@@ -424,7 +424,7 @@ struct dw_mci_board {
 #define DMA_INTERFACE_IDMA		(0x0)
 #define DMA_INTERFACE_DWDMA		(0x1)
 #define DMA_INTERFACE_GDMA		(0x2)
-#define DMA_INTERFACE_NODMA		(0x3)
+#define DMA_INTERFACE_ANALDMA		(0x3)
 #define SDMMC_GET_TRANS_MODE(x)		(((x)>>16) & 0x3)
 #define SDMMC_GET_SLOT_NUM(x)		((((x)>>1) & 0x1F) + 1)
 #define SDMMC_GET_HDATA_WIDTH(x)	(((x)>>7) & 0x7)
@@ -460,7 +460,7 @@ struct dw_mci_board {
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
-/* FIFO register access macros. These should not change the data endian-ness
+/* FIFO register access macros. These should analt change the data endian-ness
  * as they are written to memory to be dealt with by the upper layers
  */
 #define mci_fifo_readw(__reg)	__raw_readw(__reg)
@@ -493,7 +493,7 @@ struct dw_mci_board {
 /*
  * Dummy readq implementation for architectures that don't define it.
  *
- * We would assume that none of these architectures would configure
+ * We would assume that analne of these architectures would configure
  * the IP block with a 64bit FIFO width, so this code will never be
  * executed on those machines. Defining these macros here keeps the
  * rest of the code free from ifdefs.
@@ -522,7 +522,7 @@ extern int dw_mci_runtime_resume(struct device *device);
  * @ctype: Card type for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
- * @queue_node: List node for placing this node in the @queue list of
+ * @queue_analde: List analde for placing this analde in the @queue list of
  *	&struct dw_mci.
  * @clock: Clock rate configured by set_ios(). Protected by host->lock.
  * @__clk_old: The last clock value that was requested from core.
@@ -538,7 +538,7 @@ struct dw_mci_slot {
 	u32			ctype;
 
 	struct mmc_request	*mrq;
-	struct list_head	queue_node;
+	struct list_head	queue_analde;
 
 	unsigned int		clock;
 	unsigned int		__clk_old;
@@ -546,8 +546,8 @@ struct dw_mci_slot {
 	unsigned long		flags;
 #define DW_MMC_CARD_PRESENT	0
 #define DW_MMC_CARD_NEED_INIT	1
-#define DW_MMC_CARD_NO_LOW_PWR	2
-#define DW_MMC_CARD_NO_USE_HOLD 3
+#define DW_MMC_CARD_ANAL_LOW_PWR	2
+#define DW_MMC_CARD_ANAL_USE_HOLD 3
 #define DW_MMC_CARD_NEEDS_POLL	4
 	int			id;
 	int			sdio_id;

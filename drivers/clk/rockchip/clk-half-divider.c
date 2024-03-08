@@ -10,13 +10,13 @@
 
 #define div_mask(width)	((1 << (width)) - 1)
 
-static bool _is_best_half_div(unsigned long rate, unsigned long now,
+static bool _is_best_half_div(unsigned long rate, unsigned long analw,
 			      unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_DIVIDER_ROUND_CLOSEST)
-		return abs(rate - now) < abs(rate - best);
+		return abs(rate - analw) < abs(rate - best);
 
-	return now <= rate && now > best;
+	return analw <= rate && analw > best;
 }
 
 static unsigned long clk_half_divider_recalc_rate(struct clk_hw *hw,
@@ -37,7 +37,7 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 				    unsigned long flags)
 {
 	unsigned int i, bestdiv = 0;
-	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate, best = 0, analw, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
@@ -74,12 +74,12 @@ static int clk_half_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 						((u64)rate * (i * 2 + 3)) / 2);
-		now = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
+		analw = DIV_ROUND_UP_ULL(((u64)parent_rate * 2),
 				       (i * 2 + 3));
 
-		if (_is_best_half_div(rate, now, best, flags)) {
+		if (_is_best_half_div(rate, analw, best, flags)) {
 			bestdiv = i;
-			best = now;
+			best = analw;
 			*best_parent_rate = parent_rate;
 		}
 	}
@@ -166,7 +166,7 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  unsigned long flags,
 					  spinlock_t *lock)
 {
-	struct clk_hw *hw = ERR_PTR(-ENOMEM);
+	struct clk_hw *hw = ERR_PTR(-EANALMEM);
 	struct clk_mux *mux = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_divider *div = NULL;
@@ -176,7 +176,7 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 	if (num_parents > 1) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mux->reg = base + muxdiv_offset;
 		mux->shift = mux_shift;

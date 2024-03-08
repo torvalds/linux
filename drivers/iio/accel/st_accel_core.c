@@ -470,7 +470,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask = 0x20,
 			/*
 			 * TODO: check these resulting gain settings, these are
-			 * not in the datsheet
+			 * analt in the datsheet
 			 */
 			.fs_avl = {
 				[0] = {
@@ -585,7 +585,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.bootime = 2,
 	},
 	{
-		/* No WAI register present */
+		/* Anal WAI register present */
 		.sensors_supported = {
 			[0] = LIS3L02DQ_ACCEL_DEV_NAME,
 		},
@@ -1093,7 +1093,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	},
 	{
 		/*
-		 * Not an ST part. Register-compatible with the LIS2DH, even
+		 * Analt an ST part. Register-compatible with the LIS2DH, even
 		 * though the WAI value is different.
 		 */
 		.wai = 0x11,
@@ -1277,8 +1277,8 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev)
 	int i, j;
 	int final_ont[3][3] = { { 0 }, };
 
-	/* For some reason, ST's _ONT translation does not apply directly
-	 * to the data read from the sensor. Another translation must be
+	/* For some reason, ST's _ONT translation does analt apply directly
+	 * to the data read from the sensor. Aanalther translation must be
 	 * performed first, as described by the matrix below. Perhaps
 	 * ST required this specific translation for the first product
 	 * where the device was mounted?
@@ -1296,7 +1296,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev)
 
 	/* Read _ONT data, which should be a package of 6 integers. */
 	status = acpi_evaluate_object(adev->handle, "_ONT", NULL, &buffer);
-	if (status == AE_NOT_FOUND) {
+	if (status == AE_ANALT_FOUND) {
 		return -ENXIO;
 	} else if (ACPI_FAILURE(status)) {
 		dev_warn(&indio_dev->dev, "failed to execute _ONT: %d\n",
@@ -1309,7 +1309,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev)
 		goto out;
 
 	/* The first 3 integers provide axis order information.
-	 * e.g. 0 1 2 would indicate normal X,Y,Z ordering.
+	 * e.g. 0 1 2 would indicate analrmal X,Y,Z ordering.
 	 * e.g. 1 0 2 indicates that data arrives in order Y,X,Z.
 	 */
 	elements = ont->package.elements;
@@ -1331,7 +1331,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev)
 	}
 
 	/* The final 3 integers provide sign flip information.
-	 * 0 means no change, 1 means flip.
+	 * 0 means anal change, 1 means flip.
 	 * e.g. 0 0 1 means that Z data should be sign-flipped.
 	 * This is applied after the axis reordering from above.
 	 */

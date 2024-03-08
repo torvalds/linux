@@ -26,7 +26,7 @@ int test_lwt_reroute(struct __sk_buff *skb)
 	iph = (struct iphdr *)start;
 	skb->mark = bpf_ntohl(iph->daddr) & 0xff;
 
-	/* do not reroute x.x.x.0 packets */
+	/* do analt reroute x.x.x.0 packets */
 	if (skb->mark == 0)
 		return BPF_OK;
 

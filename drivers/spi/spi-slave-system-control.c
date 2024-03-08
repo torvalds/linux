@@ -78,7 +78,7 @@ static void spi_slave_system_control_complete(void *arg)
 		break;
 
 	default:
-		dev_warn(&priv->spi->dev, "Unknown command 0x%x\n", cmd);
+		dev_warn(&priv->spi->dev, "Unkanalwn command 0x%x\n", cmd);
 		break;
 	}
 
@@ -117,7 +117,7 @@ static int spi_slave_system_control_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 	init_completion(&priv->finished);

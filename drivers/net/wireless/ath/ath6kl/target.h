@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -127,7 +127,7 @@
 #define MBOX_BASE_ADDRESS		0x00018000
 #define ANALOG_INTF_BASE_ADDRESS	0x0001c000
 
-/* real name of the register is unknown */
+/* real name of the register is unkanalwn */
 #define ATH6KL_ANALOG_PLL_REGISTER	(ANALOG_INTF_BASE_ADDRESS + 0x284)
 
 #define SM(f, v)	(((v) << f##_S) & f)
@@ -146,13 +146,13 @@
 
 /*
  * These are items that the Host may need to access
- * via BMI or via the Diagnostic Window. The position
+ * via BMI or via the Diaganalstic Window. The position
  * of items in this structure must remain constant.
  * across firmware revisions!
  *
  * Types for each item must be fixed size across target and host platforms.
  * The structure is used only to calculate offset for each register with
- * HI_ITEM() macro, no values are stored to it.
+ * HI_ITEM() macro, anal values are stored to it.
  *
  * More items may be added at the end.
  */
@@ -178,7 +178,7 @@ struct host_interest {
 	u32 hi_option_flag;                            /* 0x10 */
 
 	/*
-	 * Boolean that determines whether or not to
+	 * Boolean that determines whether or analt to
 	 * display messages on the serial port.
 	 */
 	u32 hi_serial_enable;                          /* 0x14 */
@@ -202,7 +202,7 @@ struct host_interest {
 
 	/*
 	 * Flash configuration overrides, used only
-	 * when firmware is not executing from flash.
+	 * when firmware is analt executing from flash.
 	 * (When using flash, modify the global variables
 	 * with equivalent names.)
 	 */
@@ -232,7 +232,7 @@ struct host_interest {
 	u32 hi_hci_uart_baud;                          /* 0x88 */
 	u32 hi_hci_uart_pin_assignments;               /* 0x8C */
 	/*
-	 * NOTE: byte [0] = tx pin, [1] = rx pin, [2] = rts pin, [3] = cts
+	 * ANALTE: byte [0] = tx pin, [1] = rx pin, [2] = rts pin, [3] = cts
 	 * pin
 	 */
 	u32 hi_hci_uart_baud_scale_val;                /* 0x90 */
@@ -243,7 +243,7 @@ struct host_interest {
 	u32 hi_hci_bridge_flags;                       /* 0xa0 */
 	u32 hi_hci_uart_support_pins;                  /* 0xa4 */
 	/*
-	 * NOTE: byte [0] = RESET pin (bit 7 is polarity),
+	 * ANALTE: byte [0] = RESET pin (bit 7 is polarity),
 	 * bytes[1]..bytes[3] are for future use
 	 */
 	u32 hi_hci_uart_pwr_mgmt_params;               /* 0xa8 */
@@ -278,7 +278,7 @@ struct host_interest {
 	u32 hi_nvram_state;                            /* 0xc8 */
 	u32 hi_option_flag2;                           /* 0xcc */
 
-	/* If non-zero, override values sent to Host in WMI_READY event. */
+	/* If analn-zero, override values sent to Host in WMI_READY event. */
 	u32 hi_sw_version_override;                    /* 0xd0 */
 	u32 hi_abi_version_override;                   /* 0xd4 */
 
@@ -307,7 +307,7 @@ struct host_interest {
 #define HI_OPTION_FW_MODE_BSS_STA 0x1
 #define HI_OPTION_FW_MODE_AP      0x2
 
-#define HI_OPTION_FW_SUBMODE_NONE      0x0
+#define HI_OPTION_FW_SUBMODE_ANALNE      0x0
 #define HI_OPTION_FW_SUBMODE_P2PDEV    0x1
 #define HI_OPTION_FW_SUBMODE_P2PCLIENT 0x2
 #define HI_OPTION_FW_SUBMODE_P2PGO     0x3

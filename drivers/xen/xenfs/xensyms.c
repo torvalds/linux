@@ -45,7 +45,7 @@ static int xensyms_next_sym(struct xensyms *xs)
 		xs->namelen = symdata->namelen;
 		xs->name = kzalloc(xs->namelen, GFP_KERNEL);
 		if (!xs->name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		set_xen_guest_handle(symdata->name, xs->name);
 		symdata->symnum--; /* Rewind */
@@ -108,7 +108,7 @@ static const struct seq_operations xensyms_seq_ops = {
 	.stop = xensyms_stop,
 };
 
-static int xensyms_open(struct inode *inode, struct file *file)
+static int xensyms_open(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m;
 	struct xensyms *xs;
@@ -125,8 +125,8 @@ static int xensyms_open(struct inode *inode, struct file *file)
 	xs->namelen = XEN_KSYM_NAME_LEN + 1;
 	xs->name = kzalloc(xs->namelen, GFP_KERNEL);
 	if (!xs->name) {
-		seq_release_private(inode, file);
-		return -ENOMEM;
+		seq_release_private(ianalde, file);
+		return -EANALMEM;
 	}
 	set_xen_guest_handle(xs->op.u.symdata.name, xs->name);
 	xs->op.cmd = XENPF_get_symbol;
@@ -135,13 +135,13 @@ static int xensyms_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int xensyms_release(struct inode *inode, struct file *file)
+static int xensyms_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct xensyms *xs = m->private;
 
 	kfree(xs->name);
-	return seq_release_private(inode, file);
+	return seq_release_private(ianalde, file);
 }
 
 const struct file_operations xensyms_ops = {

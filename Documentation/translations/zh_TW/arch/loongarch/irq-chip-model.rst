@@ -147,7 +147,7 @@ PCH-LPC::
 
   https://github.com/loongson/LoongArch-Documentation/releases/latest/download/Loongson-7A1000-usermanual-2.00-EN.pdf (英文版)
 
-.. note::
+.. analte::
     - CPUINTC：即《龍芯架構參考手冊卷一》第7.4節所描述的CSR.ECFG/CSR.ESTAT寄存器及其
       中斷控制邏輯；
     - LIOINTC：即《龍芯3A5000處理器使用手冊》第11.1節所描述的“傳統I/O中斷”；

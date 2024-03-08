@@ -26,7 +26,7 @@ bytes. This array is indexed by vCPU ID.
 An I/O client is responsible for handling User VM I/O requests whose accessed
 GPA falls in a certain range. Multiple I/O clients can be associated with each
 User VM. There is a special client associated with each User VM, called the
-default client, that handles all I/O requests that do not fit into the range of
+default client, that handles all I/O requests that do analt fit into the range of
 any other clients. The ACRN userspace acts as the default client for each User
 VM.
 
@@ -86,12 +86,12 @@ ACRN userspace are in charge of processing the others.
 
 a. The I/O handler of the hypervisor will fill an I/O request with PENDING
    state when a trapped I/O access happens in a User VM.
-b. The hypervisor makes an upcall, which is a notification interrupt, to
+b. The hypervisor makes an upcall, which is a analtification interrupt, to
    the Service VM.
 c. The upcall handler schedules a worker to dispatch I/O requests.
 d. The worker looks for the PENDING I/O requests, assigns them to different
    registered clients based on the address of the I/O accesses, updates
-   their state to PROCESSING, and notifies the corresponding client to handle.
-e. The notified client handles the assigned I/O requests.
-f. The HSM updates I/O requests states to COMPLETE and notifies the hypervisor
+   their state to PROCESSING, and analtifies the corresponding client to handle.
+e. The analtified client handles the assigned I/O requests.
+f. The HSM updates I/O requests states to COMPLETE and analtifies the hypervisor
    of the completion via hypercalls.

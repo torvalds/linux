@@ -107,7 +107,7 @@ struct rockchip_dfi {
 	unsigned int channel_mask;
 	unsigned int max_channels;
 	enum cpuhp_state cpuhp_state;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct pmu pmu;
 	struct hrtimer timer;
 	unsigned int cpu;
@@ -291,7 +291,7 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 #ifdef CONFIG_PERF_EVENTS
 
 static void rockchip_ddr_perf_counters_add(struct rockchip_dfi *dfi,
-					   const struct dmc_count *now,
+					   const struct dmc_count *analw,
 					   struct dmc_count *res)
 {
 	const struct dmc_count *last = &dfi->last_perf_count;
@@ -299,13 +299,13 @@ static void rockchip_ddr_perf_counters_add(struct rockchip_dfi *dfi,
 
 	for (i = 0; i < dfi->max_channels; i++) {
 		res->c[i].read_access = dfi->total_count.c[i].read_access +
-			(u32)(now->c[i].read_access - last->c[i].read_access);
+			(u32)(analw->c[i].read_access - last->c[i].read_access);
 		res->c[i].write_access = dfi->total_count.c[i].write_access +
-			(u32)(now->c[i].write_access - last->c[i].write_access);
+			(u32)(analw->c[i].write_access - last->c[i].write_access);
 		res->c[i].access = dfi->total_count.c[i].access +
-			(u32)(now->c[i].access - last->c[i].access);
+			(u32)(analw->c[i].access - last->c[i].access);
 		res->c[i].clock_cycles = dfi->total_count.c[i].clock_cycles +
-			(u32)(now->c[i].clock_cycles - last->c[i].clock_cycles);
+			(u32)(analw->c[i].clock_cycles - last->c[i].clock_cycles);
 	}
 }
 
@@ -404,7 +404,7 @@ static int rockchip_ddr_perf_event_init(struct perf_event *event)
 	struct rockchip_dfi *dfi = container_of(event->pmu, struct rockchip_dfi, pmu);
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -421,16 +421,16 @@ static u64 rockchip_ddr_perf_event_get_count(struct perf_event *event)
 {
 	struct rockchip_dfi *dfi = container_of(event->pmu, struct rockchip_dfi, pmu);
 	int blen = dfi->burst_len;
-	struct dmc_count total, now;
+	struct dmc_count total, analw;
 	unsigned int seq;
 	u64 count = 0;
 	int i;
 
-	rockchip_dfi_read_counters(dfi, &now);
+	rockchip_dfi_read_counters(dfi, &analw);
 
 	do {
 		seq = read_seqbegin(&dfi->count_seqlock);
-		rockchip_ddr_perf_counters_add(dfi, &now, &total);
+		rockchip_ddr_perf_counters_add(dfi, &analw, &total);
 	} while (read_seqretry(&dfi->count_seqlock, seq));
 
 	switch (event->attr.config) {
@@ -480,22 +480,22 @@ static u64 rockchip_ddr_perf_event_get_count(struct perf_event *event)
 
 static void rockchip_ddr_perf_event_update(struct perf_event *event)
 {
-	u64 now;
+	u64 analw;
 	s64 prev;
 
 	if (event->attr.config >= PERF_ACCESS_TYPE_MAX)
 		return;
 
-	now = rockchip_ddr_perf_event_get_count(event);
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	analw = rockchip_ddr_perf_event_get_count(event);
+	prev = local64_xchg(&event->hw.prev_count, analw);
+	local64_add(analw - prev, &event->count);
 }
 
 static void rockchip_ddr_perf_event_start(struct perf_event *event, int flags)
 {
-	u64 now = rockchip_ddr_perf_event_get_count(event);
+	u64 analw = rockchip_ddr_perf_event_get_count(event);
 
-	local64_set(&event->hw.prev_count, now);
+	local64_set(&event->hw.prev_count, analw);
 }
 
 static int rockchip_ddr_perf_event_add(struct perf_event *event, int flags)
@@ -536,26 +536,26 @@ static void rockchip_ddr_perf_event_del(struct perf_event *event, int flags)
 static enum hrtimer_restart rockchip_dfi_timer(struct hrtimer *timer)
 {
 	struct rockchip_dfi *dfi = container_of(timer, struct rockchip_dfi, timer);
-	struct dmc_count now, total;
+	struct dmc_count analw, total;
 
-	rockchip_dfi_read_counters(dfi, &now);
+	rockchip_dfi_read_counters(dfi, &analw);
 
 	write_seqlock(&dfi->count_seqlock);
 
-	rockchip_ddr_perf_counters_add(dfi, &now, &total);
+	rockchip_ddr_perf_counters_add(dfi, &analw, &total);
 	dfi->total_count = total;
-	dfi->last_perf_count = now;
+	dfi->last_perf_count = analw;
 
 	write_sequnlock(&dfi->count_seqlock);
 
-	hrtimer_forward_now(&dfi->timer, ns_to_ktime(NSEC_PER_SEC));
+	hrtimer_forward_analw(&dfi->timer, ns_to_ktime(NSEC_PER_SEC));
 
 	return HRTIMER_RESTART;
 };
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct rockchip_dfi *dfi = hlist_entry_safe(node, struct rockchip_dfi, node);
+	struct rockchip_dfi *dfi = hlist_entry_safe(analde, struct rockchip_dfi, analde);
 	int target;
 
 	if (cpu != dfi->cpu)
@@ -584,7 +584,7 @@ static void rockchip_ddr_cpuhp_remove_instance(void *data)
 {
 	struct rockchip_dfi *dfi = data;
 
-	cpuhp_state_remove_instance_nocalls(dfi->cpuhp_state, &dfi->node);
+	cpuhp_state_remove_instance_analcalls(dfi->cpuhp_state, &dfi->analde);
 }
 
 static void rockchip_ddr_perf_remove(void *data)
@@ -602,7 +602,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	seqlock_init(&dfi->count_seqlock);
 
 	pmu->module = THIS_MODULE;
-	pmu->capabilities = PERF_PMU_CAP_NO_EXCLUDE;
+	pmu->capabilities = PERF_PMU_CAP_ANAL_EXCLUDE;
 	pmu->task_ctx_nr = perf_invalid_context;
 	pmu->attr_groups = attr_groups;
 	pmu->event_init  = rockchip_ddr_perf_event_init;
@@ -632,7 +632,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	if (ret)
 		return ret;
 
-	ret = cpuhp_state_add_instance_nocalls(dfi->cpuhp_state, &dfi->node);
+	ret = cpuhp_state_add_instance_analcalls(dfi->cpuhp_state, &dfi->analde);
 	if (ret) {
 		dev_err(dfi->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -642,7 +642,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	if (ret)
 		return ret;
 
-	hrtimer_init(&dfi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&dfi->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	dfi->timer.function = rockchip_dfi_timer;
 
 	switch (dfi->ddr_type) {
@@ -677,7 +677,7 @@ static int rk3399_dfi_init(struct rockchip_dfi *dfi)
 	dfi->clk = devm_clk_get(dfi->dev, "pclk_ddr_mon");
 	if (IS_ERR(dfi->clk))
 		return dev_err_probe(dfi->dev, PTR_ERR(dfi->clk),
-				     "Cannot get the clk pclk_ddr_mon\n");
+				     "Cananalt get the clk pclk_ddr_mon\n");
 
 	/* get ddr type */
 	regmap_read(regmap_pmu, RK3399_PMUGRF_OS_REG2, &val);
@@ -718,7 +718,7 @@ static int rk3568_dfi_init(struct rockchip_dfi *dfi)
 
 	dfi->buswidth[0] = FIELD_GET(RK3568_PMUGRF_OS_REG2_BW_CH0, reg2) == 0 ? 4 : 2;
 
-	dfi->ddrmon_stride = 0x0; /* not relevant, we only have a single channel on this SoC */
+	dfi->ddrmon_stride = 0x0; /* analt relevant, we only have a single channel on this SoC */
 	dfi->ddrmon_ctrl_single = true;
 
 	return 0;
@@ -770,7 +770,7 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_dfi *dfi;
 	struct devfreq_event_desc *desc;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_analde *np = pdev->dev.of_analde, *analde;
 	int (*soc_init)(struct rockchip_dfi *dfi);
 	int ret;
 
@@ -780,18 +780,18 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 
 	dfi = devm_kzalloc(dev, sizeof(*dfi), GFP_KERNEL);
 	if (!dfi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dfi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dfi->regs))
 		return PTR_ERR(dfi->regs);
 
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (!node)
-		return dev_err_probe(&pdev->dev, -ENODEV, "Can't find pmu_grf registers\n");
+	analde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (!analde)
+		return dev_err_probe(&pdev->dev, -EANALDEV, "Can't find pmu_grf registers\n");
 
-	dfi->regmap_pmu = syscon_node_to_regmap(node);
-	of_node_put(node);
+	dfi->regmap_pmu = syscon_analde_to_regmap(analde);
+	of_analde_put(analde);
 	if (IS_ERR(dfi->regmap_pmu))
 		return PTR_ERR(dfi->regmap_pmu);
 

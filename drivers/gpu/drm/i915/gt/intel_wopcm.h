@@ -31,7 +31,7 @@ struct intel_wopcm {
  * Returns the base of the WOPCM shadowed region.
  *
  * Returns:
- * 0 if GuC is not present or not in use.
+ * 0 if GuC is analt present or analt in use.
  * Otherwise, the GuC WOPCM base.
  */
 static inline u32 intel_wopcm_guc_base(struct intel_wopcm *wopcm)
@@ -46,7 +46,7 @@ static inline u32 intel_wopcm_guc_base(struct intel_wopcm *wopcm)
  * Returns size of the WOPCM shadowed region.
  *
  * Returns:
- * 0 if GuC is not present or not in use.
+ * 0 if GuC is analt present or analt in use.
  * Otherwise, the GuC WOPCM size.
  */
 static inline u32 intel_wopcm_guc_size(struct intel_wopcm *wopcm)

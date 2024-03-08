@@ -61,7 +61,7 @@
 #define MAKE_REMOTE_USE			(VCHIQ_MSG_REMOTE_USE << TYPE_SHIFT)
 #define MAKE_REMOTE_USE_ACTIVE		(VCHIQ_MSG_REMOTE_USE_ACTIVE << TYPE_SHIFT)
 
-/* Ensure the fields are wide enough */
+/* Ensure the fields are wide eanalugh */
 static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
 	== 0);
 static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
@@ -103,10 +103,10 @@ static_assert((unsigned int)VCHIQ_PORT_MAX <
 
 #define BULK_INDEX(x) ((x) & (VCHIQ_NUM_SERVICE_BULKS - 1))
 
-#define NO_CLOSE_RECVD	0
+#define ANAL_CLOSE_RECVD	0
 #define CLOSE_RECVD	1
 
-#define NO_RETRY_POLL	0
+#define ANAL_RETRY_POLL	0
 #define RETRY_POLL	1
 
 struct vchiq_open_payload {
@@ -122,15 +122,15 @@ struct vchiq_openack_payload {
 
 enum {
 	QMFLAGS_IS_BLOCKING     = BIT(0),
-	QMFLAGS_NO_MUTEX_LOCK   = BIT(1),
-	QMFLAGS_NO_MUTEX_UNLOCK = BIT(2)
+	QMFLAGS_ANAL_MUTEX_LOCK   = BIT(1),
+	QMFLAGS_ANAL_MUTEX_UNLOCK = BIT(2)
 };
 
 enum {
 	VCHIQ_POLL_TERMINATE,
 	VCHIQ_POLL_REMOVE,
-	VCHIQ_POLL_TXNOTIFY,
-	VCHIQ_POLL_RXNOTIFY,
+	VCHIQ_POLL_TXANALTIFY,
+	VCHIQ_POLL_RXANALTIFY,
 	VCHIQ_POLL_COUNT
 };
 
@@ -140,13 +140,13 @@ static_assert(VCHIQ_VERSION >= VCHIQ_VERSION_MIN);
 
 static inline void check_sizes(void)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_SLOT_SIZE);
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SLOTS);
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SLOTS_PER_SIDE);
-	BUILD_BUG_ON_NOT_POWER_OF_2(sizeof(struct vchiq_header));
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_NUM_CURRENT_BULKS);
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_NUM_SERVICE_BULKS);
-	BUILD_BUG_ON_NOT_POWER_OF_2(VCHIQ_MAX_SERVICES);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_SLOT_SIZE);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_MAX_SLOTS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_MAX_SLOTS_PER_SIDE);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(sizeof(struct vchiq_header));
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_NUM_CURRENT_BULKS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_NUM_SERVICE_BULKS);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(VCHIQ_MAX_SERVICES);
 }
 
 DEFINE_SPINLOCK(bulk_waiter_spinlock);
@@ -462,7 +462,7 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 					bulk_userdata);
 	if (status && (status != -EAGAIN)) {
 		dev_warn(service->state->dev,
-			 "core: %d: ignoring ERROR from callback to service %x\n",
+			 "core: %d: iganalring ERROR from callback to service %x\n",
 			 service->state->id, service->handle);
 		status = 0;
 	}
@@ -515,7 +515,7 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 			return 0;
 		}
 		event->armed = 0;
-		/* Ensure that the peer sees that we are not waiting (armed == 0). */
+		/* Ensure that the peer sees that we are analt waiting (armed == 0). */
 		wmb();
 	}
 
@@ -524,7 +524,7 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 }
 
 /*
- * Acknowledge that the event has been signalled, and wake any waiters. Usually
+ * Ackanalwledge that the event has been signalled, and wake any waiters. Usually
  * called as a result of the doorbell being rung.
  */
 static inline void
@@ -558,7 +558,7 @@ remote_event_pollall(struct vchiq_state *state)
 
 /*
  * Round up message sizes so that any space at the end of a slot is always big
- * enough for a header. This relies on header size being a power of two, which
+ * eanalugh for a header. This relies on header size being a power of two, which
  * has been verified earlier by a static assertion.
  */
 
@@ -681,7 +681,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 	if ((tx_pos & VCHIQ_SLOT_MASK) == 0) {
 		int slot_index;
 
-		/* If there is no free slot... */
+		/* If there is anal free slot... */
 
 		if (!try_wait_for_completion(&state->slot_available_event)) {
 			/* ...wait for one. */
@@ -695,7 +695,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 
 			if (!is_blocking ||
 			    (wait_for_completion_interruptible(&state->slot_available_event)))
-				return NULL; /* No space available */
+				return NULL; /* Anal space available */
 		}
 
 		if (tx_pos == (state->slot_queue_available * VCHIQ_SLOT_SIZE)) {
@@ -786,7 +786,7 @@ process_free_queue(struct vchiq_state *state, u32 *service_found,
 
 	/*
 	 * Use a memory barrier to ensure that any state that may have been
-	 * modified by another thread is not masked by stale prefetched
+	 * modified by aanalther thread is analt masked by stale prefetched
 	 * values.
 	 */
 	mb();
@@ -847,7 +847,7 @@ process_free_queue(struct vchiq_state *state, u32 *service_found,
 		}
 
 		/*
-		 * Don't allow the slot to be reused until we are no
+		 * Don't allow the slot to be reused until we are anal
 		 * longer interested in it.
 		 */
 		mb();
@@ -916,7 +916,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 
 	WARN_ON(stride > VCHIQ_SLOT_SIZE);
 
-	if (!(flags & QMFLAGS_NO_MUTEX_LOCK) &&
+	if (!(flags & QMFLAGS_ANAL_MUTEX_LOCK) &&
 	    mutex_lock_killable(&state->slot_mutex))
 		return -EAGAIN;
 
@@ -929,8 +929,8 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			return -EINVAL;
 		}
 
-		WARN_ON(flags & (QMFLAGS_NO_MUTEX_LOCK |
-				 QMFLAGS_NO_MUTEX_UNLOCK));
+		WARN_ON(flags & (QMFLAGS_ANAL_MUTEX_LOCK |
+				 QMFLAGS_ANAL_MUTEX_UNLOCK));
 
 		if (service->closing) {
 			/* The service has been closed */
@@ -1009,7 +1009,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 		 * In the event of a failure, return the mutex to the
 		 * state it was in
 		 */
-		if (!(flags & QMFLAGS_NO_MUTEX_LOCK))
+		if (!(flags & QMFLAGS_ANAL_MUTEX_LOCK))
 			mutex_unlock(&state->slot_mutex);
 		return -EAGAIN;
 	}
@@ -1023,8 +1023,8 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)), header, size,
 			VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 
-		WARN_ON(flags & (QMFLAGS_NO_MUTEX_LOCK |
-				 QMFLAGS_NO_MUTEX_UNLOCK));
+		WARN_ON(flags & (QMFLAGS_ANAL_MUTEX_LOCK |
+				 QMFLAGS_ANAL_MUTEX_UNLOCK));
 
 		callback_result =
 			copy_message_data(copy_callback, context,
@@ -1081,7 +1081,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 			VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 		if (size != 0) {
 			/*
-			 * It is assumed for now that this code path
+			 * It is assumed for analw that this code path
 			 * only happens from calls inside this file.
 			 *
 			 * External callers are through the vchiq_queue_message
@@ -1121,7 +1121,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	if (service && (type == VCHIQ_MSG_CLOSE))
 		set_service_state(service, VCHIQ_SRVSTATE_CLOSESENT);
 
-	if (!(flags & QMFLAGS_NO_MUTEX_UNLOCK))
+	if (!(flags & QMFLAGS_ANAL_MUTEX_UNLOCK))
 		mutex_unlock(&state->slot_mutex);
 
 	remote_event_signal(&state->remote->trigger);
@@ -1160,7 +1160,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 		int oldmsgid = header->msgid;
 
 		if (oldmsgid != VCHIQ_MSGID_PADDING)
-			dev_err(state->dev, "core: %d: qms - msgid %x, not PADDING\n",
+			dev_err(state->dev, "core: %d: qms - msgid %x, analt PADDING\n",
 				state->id, oldmsgid);
 	}
 
@@ -1284,7 +1284,7 @@ get_bulk_reason(struct vchiq_bulk *bulk)
 
 /* Called by the slot handler - don't hold the bulk mutex */
 static int
-notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
+analtify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 	     int retry_poll)
 {
 	int status = 0;
@@ -1293,17 +1293,17 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 		"core: %d: nb:%d %cx - p=%x rn=%x r=%x\n",
 		service->state->id, service->localport,
 		(queue == &service->bulk_tx) ? 't' : 'r',
-		queue->process, queue->remote_notify, queue->remove);
+		queue->process, queue->remote_analtify, queue->remove);
 
-	queue->remote_notify = queue->process;
+	queue->remote_analtify = queue->process;
 
-	while (queue->remove != queue->remote_notify) {
+	while (queue->remove != queue->remote_analtify) {
 		struct vchiq_bulk *bulk =
 			&queue->bulks[BULK_INDEX(queue->remove)];
 
 		/*
-		 * Only generate callbacks for non-dummy bulk
-		 * requests, and non-terminated services
+		 * Only generate callbacks for analn-dummy bulk
+		 * requests, and analn-terminated services
 		 */
 		if (bulk->data && service->instance) {
 			if (bulk->actual != VCHIQ_BULK_ACTUAL_ABORTED) {
@@ -1347,7 +1347,7 @@ notify_bulks(struct vchiq_service *service, struct vchiq_bulk_queue *queue,
 
 	if (status == -EAGAIN)
 		request_poll(service->state, service, (queue == &service->bulk_tx) ?
-			     VCHIQ_POLL_TXNOTIFY : VCHIQ_POLL_RXNOTIFY);
+			     VCHIQ_POLL_TXANALTIFY : VCHIQ_POLL_RXANALTIFY);
 
 	return status;
 }
@@ -1378,23 +1378,23 @@ poll_services_of_group(struct vchiq_state *state, int group)
 
 			/*
 			 * Make it look like a client, because
-			 * it must be removed and not left in
+			 * it must be removed and analt left in
 			 * the LISTENING state.
 			 */
 			service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
-			if (vchiq_close_service_internal(service, NO_CLOSE_RECVD))
+			if (vchiq_close_service_internal(service, ANAL_CLOSE_RECVD))
 				request_poll(state, service, VCHIQ_POLL_REMOVE);
 		} else if (service_flags & BIT(VCHIQ_POLL_TERMINATE)) {
 			dev_dbg(state->dev, "core: %d: ps - terminate %d<->%d\n",
 				state->id, service->localport, service->remoteport);
-			if (vchiq_close_service_internal(service, NO_CLOSE_RECVD))
+			if (vchiq_close_service_internal(service, ANAL_CLOSE_RECVD))
 				request_poll(state, service, VCHIQ_POLL_TERMINATE);
 		}
-		if (service_flags & BIT(VCHIQ_POLL_TXNOTIFY))
-			notify_bulks(service, &service->bulk_tx, RETRY_POLL);
-		if (service_flags & BIT(VCHIQ_POLL_RXNOTIFY))
-			notify_bulks(service, &service->bulk_rx, RETRY_POLL);
+		if (service_flags & BIT(VCHIQ_POLL_TXANALTIFY))
+			analtify_bulks(service, &service->bulk_tx, RETRY_POLL);
+		if (service_flags & BIT(VCHIQ_POLL_RXANALTIFY))
+			analtify_bulks(service, &service->bulk_rx, RETRY_POLL);
 		vchiq_service_put(service);
 	}
 }
@@ -1505,23 +1505,23 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 		int openack_id = MAKE_OPENACK(service->localport, remoteport);
 
 		if (state->version_common <
-		    VCHIQ_VERSION_SYNCHRONOUS_MODE)
+		    VCHIQ_VERSION_SYNCHROANALUS_MODE)
 			service->sync = 0;
 
-		/* Acknowledge the OPEN */
+		/* Ackanalwledge the OPEN */
 		if (service->sync) {
 			if (queue_message_sync(state, NULL, openack_id, memcpy_copy_callback,
 					       &ack_payload, sizeof(ack_payload), 0) == -EAGAIN)
-				goto bail_not_ready;
+				goto bail_analt_ready;
 
-			/* The service is now open */
+			/* The service is analw open */
 			set_service_state(service, VCHIQ_SRVSTATE_OPENSYNC);
 		} else {
 			if (queue_message(state, NULL, openack_id, memcpy_copy_callback,
 					  &ack_payload, sizeof(ack_payload), 0) == -EAGAIN)
-				goto bail_not_ready;
+				goto bail_analt_ready;
 
-			/* The service is now open */
+			/* The service is analw open */
 			set_service_state(service, VCHIQ_SRVSTATE_OPEN);
 		}
 	}
@@ -1531,14 +1531,14 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 	return 1;
 
 fail_open:
-	/* No available service, or an invalid request - send a CLOSE */
+	/* Anal available service, or an invalid request - send a CLOSE */
 	if (queue_message(state, NULL, MAKE_CLOSE(0, VCHIQ_MSG_SRCPORT(msgid)),
 			  NULL, NULL, 0, 0) == -EAGAIN)
-		goto bail_not_ready;
+		goto bail_analt_ready;
 
 	return 1;
 
-bail_not_ready:
+bail_analt_ready:
 	if (service)
 		vchiq_service_put(service);
 
@@ -1638,7 +1638,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	case VCHIQ_MSG_OPEN:
 		WARN_ON(VCHIQ_MSG_DSTPORT(msgid));
 		if (!parse_open(state, header))
-			goto bail_not_ready;
+			goto bail_analt_ready;
 		break;
 	case VCHIQ_MSG_OPENACK:
 		if (size >= sizeof(struct vchiq_openack_payload)) {
@@ -1661,7 +1661,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		}
 		break;
 	case VCHIQ_MSG_CLOSE:
-		WARN_ON(size); /* There should be no data */
+		WARN_ON(size); /* There should be anal data */
 
 		dev_dbg(state->dev, "core: %d: prs CLOSE@%pK (%d->%d)\n",
 			state->id, header, remoteport, localport);
@@ -1669,7 +1669,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		mark_service_closing_internal(service, 1);
 
 		if (vchiq_close_service_internal(service, CLOSE_RECVD) == -EAGAIN)
-			goto bail_not_ready;
+			goto bail_analt_ready;
 
 		dev_dbg(state->dev, "core: Close Service %p4cc s:%u d:%d\n",
 			&service->base.fourcc, service->localport, service->remoteport);
@@ -1686,7 +1686,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			if (make_service_callback(service, VCHIQ_MESSAGE_AVAILABLE, header,
 						  NULL) == -EAGAIN) {
 				DEBUG_TRACE(PARSE_LINE);
-				goto bail_not_ready;
+				goto bail_analt_ready;
 			}
 			VCHIQ_SERVICE_STATS_INC(service, ctrl_rx_count);
 			VCHIQ_SERVICE_STATS_ADD(service, ctrl_rx_bytes, size);
@@ -1705,7 +1705,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	case VCHIQ_MSG_BULK_TX:
 		/*
 		 * We should never receive a bulk request from the
-		 * other side since we're not setup to perform as the
+		 * other side since we're analt setup to perform as the
 		 * master.
 		 */
 		WARN_ON(1);
@@ -1723,7 +1723,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			DEBUG_TRACE(PARSE_LINE);
 			if (mutex_lock_killable(&service->bulk_mutex)) {
 				DEBUG_TRACE(PARSE_LINE);
-				goto bail_not_ready;
+				goto bail_analt_ready;
 			}
 			if ((int)(queue->remote_insert -
 				queue->local_insert) >= 0) {
@@ -1740,7 +1740,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 				       queue->process,
 				       queue->remote_insert);
 				mutex_unlock(&service->bulk_mutex);
-				goto bail_not_ready;
+				goto bail_analt_ready;
 			}
 
 			bulk = &queue->bulks[BULK_INDEX(queue->remote_insert)];
@@ -1762,7 +1762,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			queue->process++;
 			mutex_unlock(&service->bulk_mutex);
 			DEBUG_TRACE(PARSE_LINE);
-			notify_bulks(service, queue, RETRY_POLL);
+			analtify_bulks(service, queue, RETRY_POLL);
 			DEBUG_TRACE(PARSE_LINE);
 		}
 		break;
@@ -1782,8 +1782,8 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		if (state->conn_state != VCHIQ_CONNSTATE_PAUSE_SENT) {
 			/* Send a PAUSE in response */
 			if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-					  QMFLAGS_NO_MUTEX_UNLOCK) == -EAGAIN)
-				goto bail_not_ready;
+					  QMFLAGS_ANAL_MUTEX_UNLOCK) == -EAGAIN)
+				goto bail_analt_ready;
 		}
 		/* At this point slot_mutex is held */
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSED);
@@ -1815,7 +1815,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 skip_message:
 	ret = size;
 
-bail_not_ready:
+bail_analt_ready:
 	if (service)
 		vchiq_service_put(service);
 
@@ -1899,7 +1899,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_PAUSING:
 		if (queue_message(state, NULL, MAKE_PAUSE, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_UNLOCK) != -EAGAIN) {
+				  QMFLAGS_ANAL_MUTEX_UNLOCK) != -EAGAIN) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSE_SENT);
 		} else {
 			/* Retry later */
@@ -1909,7 +1909,7 @@ handle_poll(struct vchiq_state *state)
 
 	case VCHIQ_CONNSTATE_RESUMING:
 		if (queue_message(state, NULL, MAKE_RESUME, NULL, NULL, 0,
-				  QMFLAGS_NO_MUTEX_LOCK) != -EAGAIN) {
+				  QMFLAGS_ANAL_MUTEX_LOCK) != -EAGAIN) {
 			vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
 		} else {
 			/*
@@ -1976,7 +1976,7 @@ recycle_func(void *v)
 	found = kmalloc_array(BITSET_SIZE(VCHIQ_MAX_SERVICES), sizeof(*found),
 			      GFP_KERNEL);
 	if (!found)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (1) {
 		remote_event_wait(&state->recycle_event, &local->recycle);
@@ -2061,7 +2061,7 @@ sync_func(void *v)
 				if (make_service_callback(service, VCHIQ_MESSAGE_AVAILABLE, header,
 							  NULL) == -EAGAIN)
 					dev_err(state->dev,
-						"sync: error: synchronous callback to service %d returns -EAGAIN\n",
+						"sync: error: synchroanalus callback to service %d returns -EAGAIN\n",
 						localport);
 			}
 			break;
@@ -2097,7 +2097,7 @@ vchiq_init_slots(struct device *dev, void *mem_base, int mem_size)
 
 	check_sizes();
 
-	/* Ensure there is enough memory to run an absolutely minimum system */
+	/* Ensure there is eanalugh memory to run an absolutely minimum system */
 	num_slots -= first_data_slot;
 
 	if (num_slots < 4) {
@@ -2370,7 +2370,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 	 * Although it is perfectly possible to use a spinlock
 	 * to protect the creation of services, it is overkill as it
 	 * disables interrupts while the array is searched.
-	 * The only danger is of another thread trying to create a
+	 * The only danger is of aanalther thread trying to create a
 	 * service - service deletion is safe.
 	 * Therefore it is preferable to use state->mutex which,
 	 * although slower to claim, doesn't block interrupts while
@@ -2402,7 +2402,7 @@ vchiq_add_service_internal(struct vchiq_state *state,
 				   ((srv->instance != instance) ||
 				   (srv->base.callback != params->callback))) {
 				/*
-				 * There is another server using this
+				 * There is aanalther server using this
 				 * fourcc which doesn't match.
 				 */
 				pservice = NULL;
@@ -2567,11 +2567,11 @@ do_abort_bulks(struct vchiq_service *service)
 	abort_outstanding_bulks(service, &service->bulk_rx);
 	mutex_unlock(&service->bulk_mutex);
 
-	status = notify_bulks(service, &service->bulk_tx, NO_RETRY_POLL);
+	status = analtify_bulks(service, &service->bulk_tx, ANAL_RETRY_POLL);
 	if (status)
 		return 0;
 
-	status = notify_bulks(service, &service->bulk_rx, NO_RETRY_POLL);
+	status = analtify_bulks(service, &service->bulk_rx, ANAL_RETRY_POLL);
 	return !status;
 }
 
@@ -2617,7 +2617,7 @@ close_service_complete(struct vchiq_service *service, int failstate)
 		for (i = 0; i < uc; i++)
 			/*
 			 * cater for cases where close is forced and the
-			 * client may not close all it's handles
+			 * client may analt close all it's handles
 			 */
 			vchiq_release_service_internal(service);
 
@@ -2681,7 +2681,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 			set_service_state(service, VCHIQ_SRVSTATE_CLOSEWAIT);
 			complete(&service->remove_event);
 		} else {
-			/* Shutdown mid-open - let the other side know */
+			/* Shutdown mid-open - let the other side kanalw */
 			status = queue_message(state, service, close_id, NULL, NULL, 0, 0);
 		}
 		break;
@@ -2699,7 +2699,7 @@ vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
 
 		if (!status)
 			status = queue_message(state, service, close_id, NULL,
-					       NULL, 0, QMFLAGS_NO_MUTEX_UNLOCK);
+					       NULL, 0, QMFLAGS_ANAL_MUTEX_UNLOCK);
 
 		if (status) {
 			if (service->srvstate == VCHIQ_SRVSTATE_OPENSYNC)
@@ -2869,7 +2869,7 @@ vchiq_close_service(struct vchiq_instance *instance, unsigned int handle)
 	mark_service_closing(service);
 
 	if (current == service->state->slot_handler_thread) {
-		status = vchiq_close_service_internal(service, NO_CLOSE_RECVD);
+		status = vchiq_close_service_internal(service, ANAL_CLOSE_RECVD);
 		WARN_ON(status == -EAGAIN);
 	} else {
 		/* Mark the service for termination by the slot handler */
@@ -2928,11 +2928,11 @@ vchiq_remove_service(struct vchiq_instance *instance, unsigned int handle)
 	    (current == service->state->slot_handler_thread)) {
 		/*
 		 * Make it look like a client, because it must be removed and
-		 * not left in the LISTENING state.
+		 * analt left in the LISTENING state.
 		 */
 		service->public_fourcc = VCHIQ_FOURCC_INVALID;
 
-		status = vchiq_close_service_internal(service, NO_CLOSE_RECVD);
+		status = vchiq_close_service_internal(service, ANAL_CLOSE_RECVD);
 		WARN_ON(status == -EAGAIN);
 	} else {
 		/* Mark the service for removal by the slot handler */
@@ -2998,7 +2998,7 @@ int vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
 		goto error_exit;
 
 	switch (mode) {
-	case VCHIQ_BULK_MODE_NOCALLBACK:
+	case VCHIQ_BULK_MODE_ANALCALLBACK:
 	case VCHIQ_BULK_MODE_CALLBACK:
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
@@ -3085,8 +3085,8 @@ int vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
 			       &payload,
 			       sizeof(payload),
 			       QMFLAGS_IS_BLOCKING |
-			       QMFLAGS_NO_MUTEX_LOCK |
-			       QMFLAGS_NO_MUTEX_UNLOCK);
+			       QMFLAGS_ANAL_MUTEX_LOCK |
+			       QMFLAGS_ANAL_MUTEX_UNLOCK);
 	if (status)
 		goto unlock_both_error_exit;
 
@@ -3331,7 +3331,7 @@ vchiq_set_service_option(struct vchiq_instance *instance, unsigned int handle,
 		}
 		break;
 
-	case VCHIQ_SERVICE_OPTION_SYNCHRONOUS:
+	case VCHIQ_SERVICE_OPTION_SYNCHROANALUS:
 		if ((service->srvstate == VCHIQ_SRVSTATE_HIDDEN) ||
 		    (service->srvstate == VCHIQ_SRVSTATE_LISTENING)) {
 			service->sync = value;
@@ -3519,7 +3519,7 @@ void vchiq_dump_state(struct seq_file *f, struct vchiq_state *state)
 int vchiq_send_remote_use(struct vchiq_state *state)
 {
 	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return queue_message(state, NULL, MAKE_REMOTE_USE, NULL, NULL, 0, 0);
 }
@@ -3527,7 +3527,7 @@ int vchiq_send_remote_use(struct vchiq_state *state)
 int vchiq_send_remote_use_active(struct vchiq_state *state)
 {
 	if (state->conn_state == VCHIQ_CONNSTATE_DISCONNECTED)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	return queue_message(state, NULL, MAKE_REMOTE_USE_ACTIVE,
 			     NULL, NULL, 0, 0);

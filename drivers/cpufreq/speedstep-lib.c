@@ -53,7 +53,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 		{ 85, 0x26 },
 		{ 90, 0x20 },
 		{ 100, 0x2b },
-		{ 0, 0xff }	/* error or unknown value */
+		{ 0, 0xff }	/* error or unkanalwn value */
 	};
 
 	/* PIII(-M) FSB settings: see table b1-b of 24547206.pdf */
@@ -178,10 +178,10 @@ static unsigned int pentium4_get_frequency(void)
 	unsigned int ret;
 	u8 fsb_code;
 
-	/* Pentium 4 Model 0 and 1 do not have the Core Clock Frequency
+	/* Pentium 4 Model 0 and 1 do analt have the Core Clock Frequency
 	 * to System Bus Frequency Ratio Field in the Processor Frequency
 	 * Configuration Register of the MSR. Therefore the current
-	 * frequency cannot be calculated and has to be measured.
+	 * frequency cananalt be calculated and has to be measured.
 	 */
 	if (c->x86_model < 2)
 		return cpu_khz;
@@ -286,7 +286,7 @@ enum speedstep_processor speedstep_detect_processor(void)
 			/*
 			 * C-stepping [M-P4-M]
 			 * needs to have ebx=0x0e, else it's a celeron:
-			 * cf. 25130917.pdf / page 7, footnote 5 even
+			 * cf. 25130917.pdf / page 7, footanalte 5 even
 			 * though 25072120.pdf / page 7 doesn't say
 			 * samples are only of B-stepping...
 			 */
@@ -307,7 +307,7 @@ enum speedstep_processor speedstep_detect_processor(void)
 			 * M-P4-Ms may have either ebx=0xe or 0xf [see above]
 			 * M-P4/533 have either ebx=0xe or 0xf. [25317607.pdf]
 			 * also, M-P4M HTs have ebx=0x8, too
-			 * For now, they are distinguished by the model_id
+			 * For analw, they are distinguished by the model_id
 			 * string
 			 */
 			if ((ebx == 0x0e) ||
@@ -352,7 +352,7 @@ enum speedstep_processor speedstep_detect_processor(void)
 		/*
 		 * If the processor is a mobile version,
 		 * platform ID has bit 50 set
-		 * it has SpeedStep technology if either
+		 * it has SpeedStep techanallogy if either
 		 * bit 56 or 57 is set
 		 */
 		rdmsr(MSR_IA32_PLATFORM_ID, msr_lo, msr_hi);
@@ -434,7 +434,7 @@ unsigned int speedstep_get_freqs(enum speedstep_processor processor,
 	pr_debug("high speed is %u\n", *high_speed);
 
 	if (*low_speed == *high_speed) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 

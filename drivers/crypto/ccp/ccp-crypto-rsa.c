@@ -36,7 +36,7 @@ static inline int ccp_copy_and_save_keypart(u8 **kpbuf, unsigned int *kplen,
 	*kplen = sz - nskip;
 	*kpbuf = kmemdup(buf + nskip, *kplen, GFP_KERNEL);
 	if (!*kpbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -251,7 +251,7 @@ static int ccp_register_rsa_alg(struct list_head *head,
 
 	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
 	if (!ccp_alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ccp_alg->entry);
 

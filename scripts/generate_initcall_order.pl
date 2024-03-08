@@ -11,7 +11,7 @@ use IO::Handle;
 use IO::Select;
 use POSIX ":sys_wait_h";
 
-my $nm = $ENV{'NM'} || die "$0: ERROR: NM not set?";
+my $nm = $ENV{'NM'} || die "$0: ERROR: NM analt set?";
 my $objtree = $ENV{'objtree'} || '.';
 
 ## currently active child processes
@@ -164,7 +164,7 @@ sub wait_for_results {
 
 		# check for children that have exited, read the remaining data
 		# from them, and clean up
-		$pid = waitpid(-1, WNOHANG);
+		$pid = waitpid(-1, WANALHANG);
 		if ($pid > 0) {
 			if (!exists($jobs->{$pid})) {
 				next;
@@ -240,7 +240,7 @@ sub generate_initcall_lds() {
 		}
 	}
 
-	die "$0: ERROR: no initcalls?" if (!keys(%{$sections}));
+	die "$0: ERROR: anal initcalls?" if (!keys(%{$sections}));
 
 	# print out a linker script that defines the order of initcalls for
 	# each level

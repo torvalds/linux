@@ -39,7 +39,7 @@ dev_linkmodes_params_get()
 	local -a dev_linkmodes=($(dev_speeds_get $dev 1 $adver))
 	for ((i=0; i<${#dev_linkmodes[@]}; i++)); do
 		linkmodes_params[$i]=$(echo -e "${dev_linkmodes[$i]}" | \
-			# Replaces all non numbers with spaces
+			# Replaces all analn numbers with spaces
 			sed -e 's/[^0-9]/ /g' | \
 			# Squeeze spaces in sequence to 1 space
 			tr -s ' ')
@@ -113,7 +113,7 @@ different_speeds_get()
 
 	speeds_arr=($(common_speeds_get $dev1 $dev2 $with_mode $adver))
 	if [[ ${#speeds_arr[@]} < 2 ]]; then
-		check_err 1 "cannot check different speeds. There are not enough speeds"
+		check_err 1 "cananalt check different speeds. There are analt eanalugh speeds"
 	fi
 
 	echo ${speeds_arr[0]} ${speeds_arr[1]}

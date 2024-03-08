@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/crc32.h>
 #include <scsi/libfcoe.h>
 
@@ -28,7 +28,7 @@ static struct fcoe_transport *fcoe_transport_lookup(struct net_device *device);
 static struct fcoe_transport *fcoe_netdev_map_lookup(struct net_device *device);
 static int fcoe_transport_enable(const char *, const struct kernel_param *);
 static int fcoe_transport_disable(const char *, const struct kernel_param *);
-static int libfcoe_device_notification(struct notifier_block *notifier,
+static int libfcoe_device_analtification(struct analtifier_block *analtifier,
 				    ulong event, void *ptr);
 
 static LIST_HEAD(fcoe_transports);
@@ -52,7 +52,7 @@ MODULE_PARM_DESC(create, " Creates fcoe instance on an ethernet interface");
 module_param_call(create_vn2vn, fcoe_transport_create, NULL,
 		  (void *)FIP_MODE_VN2VN, S_IWUSR);
 __MODULE_PARM_TYPE(create_vn2vn, "string");
-MODULE_PARM_DESC(create_vn2vn, " Creates a VN_node to VN_node FCoE instance "
+MODULE_PARM_DESC(create_vn2vn, " Creates a VN_analde to VN_analde FCoE instance "
 		 "on an Ethernet interface");
 
 module_param_call(destroy, fcoe_transport_destroy, NULL, NULL, S_IWUSR);
@@ -67,9 +67,9 @@ module_param_call(disable, fcoe_transport_disable, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(disable, "string");
 MODULE_PARM_DESC(disable, " Disables fcoe on an ethernet interface.");
 
-/* notification function for packets from net device */
-static struct notifier_block libfcoe_notifier = {
-	.notifier_call = libfcoe_device_notification,
+/* analtification function for packets from net device */
+static struct analtifier_block libfcoe_analtifier = {
+	.analtifier_call = libfcoe_device_analtification,
 };
 
 static const struct {
@@ -104,7 +104,7 @@ static inline u32 eth2fc_speed(u32 eth_port_speed)
 			return fcoe_port_speed_mapping[i].fc_port_speed;
 	}
 
-	return FC_PORTSPEED_UNKNOWN;
+	return FC_PORTSPEED_UNKANALWN;
 }
 
 /**
@@ -163,7 +163,7 @@ EXPORT_SYMBOL_GPL(fcoe_link_speed_update);
  * @fc_lesb: Pointer to the LESB to be filled up
  * @netdev: Pointer to the netdev that is associated with the lport
  *
- * Note, the Link Error Status Block (LESB) for FCoE is defined in FC-BB-6
+ * Analte, the Link Error Status Block (LESB) for FCoE is defined in FC-BB-6
  * Clause 7.11 in v1.04.
  */
 void __fcoe_get_lesb(struct fc_lport *lport,
@@ -257,7 +257,7 @@ int fcoe_validate_vport_create(struct fc_vport *vport)
 	mutex_lock(&n_port->lp_mutex);
 
 	fcoe_wwn_to_str(vport->port_name, buf, sizeof(buf));
-	/* Check if the wwpn is not same as that of the lport */
+	/* Check if the wwpn is analt same as that of the lport */
 	if (!memcmp(&n_port->wwpn, &vport->port_name, sizeof(u64))) {
 		LIBFCOE_TRANSPORT_DBG("vport WWPN 0x%s is same as that of the "
 				      "base port WWPN\n", buf);
@@ -351,7 +351,7 @@ int fcoe_start_io(struct sk_buff *skb)
 
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = dev_queue_xmit(nskb);
 	if (rc != 0)
 		return rc;
@@ -460,8 +460,8 @@ EXPORT_SYMBOL_GPL(fcoe_queue_timer);
  * @fps:  The fcoe context
  *
  * This routine allocates a page for frame trailers. The page is re-used if
- * there is enough room left on it for the current trailer. If there isn't
- * enough buffer left a new page is allocated for the trailer. Reference to
+ * there is eanalugh room left on it for the current trailer. If there isn't
+ * eanalugh buffer left a new page is allocated for the trailer. Reference to
  * the page from this function as well as the skbs using the page fragments
  * ensure that the page is freed at the appropriate time.
  *
@@ -476,7 +476,7 @@ int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
 	if (!page) {
 		page = alloc_page(GFP_ATOMIC);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		fps->crc_eof_page = page;
 		fps->crc_eof_offset = 0;
@@ -505,7 +505,7 @@ EXPORT_SYMBOL_GPL(fcoe_get_paged_crc_eof);
  * @netdev: The netdev to look for from all attached transports
  *
  * Returns : ptr to the fcoe transport that supports this netdev or NULL
- * if not found.
+ * if analt found.
  *
  * The ft_mutex should be held when this is called
  */
@@ -567,7 +567,7 @@ int fcoe_transport_detach(struct fcoe_transport *ft)
 	if (!ft->attached) {
 		LIBFCOE_TRANSPORT_DBG("transport %s already detached\n",
 			ft->name);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_attach;
 	}
 
@@ -609,13 +609,13 @@ static int fcoe_transport_show(char *buffer, const struct kernel_param *kp)
 	}
 	mutex_unlock(&ft_mutex);
 	if (i == j)
-		i += snprintf(&buffer[i], IFNAMSIZ, "none");
+		i += snprintf(&buffer[i], IFNAMSIZ, "analne");
 	return i;
 }
 
 static int __init fcoe_transport_init(void)
 {
-	register_netdevice_notifier(&libfcoe_notifier);
+	register_netdevice_analtifier(&libfcoe_analtifier);
 	return 0;
 }
 
@@ -623,7 +623,7 @@ static int fcoe_transport_exit(void)
 {
 	struct fcoe_transport *ft;
 
-	unregister_netdevice_notifier(&libfcoe_notifier);
+	unregister_netdevice_analtifier(&libfcoe_analtifier);
 	mutex_lock(&ft_mutex);
 	list_for_each_entry(ft, &fcoe_transports, list)
 		printk(KERN_ERR "FCoE transport %s is still attached!\n",
@@ -641,7 +641,7 @@ static int fcoe_add_netdev_mapping(struct net_device *netdev,
 	nm = kmalloc(sizeof(*nm), GFP_KERNEL);
 	if (!nm) {
 		printk(KERN_ERR "Unable to allocate netdev_mapping");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nm->netdev = netdev;
@@ -677,7 +677,7 @@ static void fcoe_del_netdev_mapping(struct net_device *netdev)
  * @netdev: The net device that the FCoE interface is on
  *
  * Returns : ptr to the fcoe transport that supports this netdev or NULL
- * if not found.
+ * if analt found.
  *
  * The ft_mutex should be held when this is called
  */
@@ -721,8 +721,8 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
 }
 
 /**
- * libfcoe_device_notification() - Handler for net device events
- * @notifier: The context of the notification
+ * libfcoe_device_analtification() - Handler for net device events
+ * @analtifier: The context of the analtification
  * @event:    The type of event
  * @ptr:      The net device that the event was on
  *
@@ -730,10 +730,10 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
  *
  * Returns: 0 for success
  */
-static int libfcoe_device_notification(struct notifier_block *notifier,
+static int libfcoe_device_analtification(struct analtifier_block *analtifier,
 				    ulong event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -742,7 +742,7 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
 		fcoe_del_netdev_mapping(netdev);
 		break;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
@@ -757,8 +757,8 @@ ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
 	netdev = fcoe_if_to_netdev(buf);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buf);
-		rc = -ENODEV;
-		goto out_nodev;
+		rc = -EANALDEV;
+		goto out_analdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
@@ -772,17 +772,17 @@ ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
 
 	ft = fcoe_transport_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("anal FCoE transport found for %s.\n",
 				      netdev->name);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_putdev;
 	}
 
 	/* pass to transport create */
-	err = ft->alloc ? ft->alloc(netdev) : -ENODEV;
+	err = ft->alloc ? ft->alloc(netdev) : -EANALDEV;
 	if (err) {
 		fcoe_del_netdev_mapping(netdev);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_putdev;
 	}
 
@@ -791,7 +791,7 @@ ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
 		LIBFCOE_TRANSPORT_DBG("failed to add new netdev mapping "
 				      "for FCoE transport %s for %s.\n",
 				      ft->name, netdev->name);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_putdev;
 	}
 
@@ -800,7 +800,7 @@ ssize_t fcoe_ctlr_create_store(const char *buf, size_t count)
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	if (rc)
 		return rc;
@@ -809,7 +809,7 @@ out_nodev:
 
 ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
@@ -818,12 +818,12 @@ ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count)
 	netdev = fcoe_if_to_netdev(buf);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buf);
-		goto out_nodev;
+		goto out_analdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("anal FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
@@ -840,7 +840,7 @@ ssize_t fcoe_ctlr_destroy_store(const char *buf, size_t count)
 	rc = count; /* required for successful return */
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -858,7 +858,7 @@ out_nodev:
 static int fcoe_transport_create(const char *buffer,
 				 const struct kernel_param *kp)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 	enum fip_mode fip_mode = (enum fip_mode)(uintptr_t)kp->arg;
@@ -868,7 +868,7 @@ static int fcoe_transport_create(const char *buffer,
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buffer);
-		goto out_nodev;
+		goto out_analdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
@@ -882,7 +882,7 @@ static int fcoe_transport_create(const char *buffer,
 
 	ft = fcoe_transport_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("anal FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
@@ -896,7 +896,7 @@ static int fcoe_transport_create(const char *buffer,
 	}
 
 	/* pass to transport create */
-	rc = ft->create ? ft->create(netdev, fip_mode) : -ENODEV;
+	rc = ft->create ? ft->create(netdev, fip_mode) : -EANALDEV;
 	if (rc)
 		fcoe_del_netdev_mapping(netdev);
 
@@ -906,7 +906,7 @@ static int fcoe_transport_create(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -924,7 +924,7 @@ out_nodev:
 static int fcoe_transport_destroy(const char *buffer,
 				  const struct kernel_param *kp)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
@@ -933,18 +933,18 @@ static int fcoe_transport_destroy(const char *buffer,
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buffer);
-		goto out_nodev;
+		goto out_analdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("anal FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
 
 	/* pass to transport destroy */
-	rc = ft->destroy ? ft->destroy(netdev) : -ENODEV;
+	rc = ft->destroy ? ft->destroy(netdev) : -EANALDEV;
 	fcoe_del_netdev_mapping(netdev);
 	LIBFCOE_TRANSPORT_DBG("transport %s %s to destroy fcoe on %s.\n",
 			      ft->name, (rc) ? "failed" : "succeeded",
@@ -952,7 +952,7 @@ static int fcoe_transport_destroy(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -969,7 +969,7 @@ out_nodev:
 static int fcoe_transport_disable(const char *buffer,
 				  const struct kernel_param *kp)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
@@ -977,17 +977,17 @@ static int fcoe_transport_disable(const char *buffer,
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
-		goto out_nodev;
+		goto out_analdev;
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft)
 		goto out_putdev;
 
-	rc = ft->disable ? ft->disable(netdev) : -ENODEV;
+	rc = ft->disable ? ft->disable(netdev) : -EANALDEV;
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -1004,7 +1004,7 @@ out_nodev:
 static int fcoe_transport_enable(const char *buffer,
 				 const struct kernel_param *kp)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
 
@@ -1012,17 +1012,17 @@ static int fcoe_transport_enable(const char *buffer,
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
-		goto out_nodev;
+		goto out_analdev;
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft)
 		goto out_putdev;
 
-	rc = ft->enable ? ft->enable(netdev) : -ENODEV;
+	rc = ft->enable ? ft->enable(netdev) : -EANALDEV;
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_analdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }

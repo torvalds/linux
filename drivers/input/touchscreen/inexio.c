@@ -12,7 +12,7 @@
  *   Copied mtouch.c and edited for iNexio protocol
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -81,7 +81,7 @@ static irqreturn_t inexio_interrupt(struct serio *serio,
 	if (INEXIO_RESPONSE_BEGIN_BYTE&pinexio->data[0])
 		inexio_process_data(pinexio);
 	else
-		printk(KERN_DEBUG "inexio.c: unknown/unsynchronized data from device, byte %x\n",pinexio->data[0]);
+		printk(KERN_DEBUG "inexio.c: unkanalwn/unsynchronized data from device, byte %x\n",pinexio->data[0]);
 
 	return IRQ_HANDLED;
 }
@@ -117,7 +117,7 @@ static int inexio_connect(struct serio *serio, struct serio_driver *drv)
 	pinexio = kzalloc(sizeof(struct inexio), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!pinexio || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

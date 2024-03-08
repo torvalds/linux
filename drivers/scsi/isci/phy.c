@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -98,7 +98,7 @@ sci_phy_transport_layer_initialization(struct isci_phy *iphy,
 
 	iphy->transport_layer_registers = reg;
 
-	writel(SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX,
+	writel(SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX,
 		&iphy->transport_layer_registers->stp_rni);
 
 	/*
@@ -164,9 +164,9 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	/* Configure the SNW capabilities */
 	phy_cap.all = 0;
 	phy_cap.start = 1;
-	phy_cap.gen3_no_ssc = 1;
-	phy_cap.gen2_no_ssc = 1;
-	phy_cap.gen1_no_ssc = 1;
+	phy_cap.gen3_anal_ssc = 1;
+	phy_cap.gen2_anal_ssc = 1;
+	phy_cap.gen1_anal_ssc = 1;
 	if (ihost->oem_parameters.controller.do_enable_ssc) {
 		struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
 		struct scu_afe_transceiver __iomem *xcvr = &afe->scu_afe_xcvr[phy_idx];
@@ -241,11 +241,11 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	writel(phy_cap.all, &llr->phy_capabilities);
 
 	/* Set the enable spinup period but disable the ability to send
-	 * notify enable spinup
+	 * analtify enable spinup
 	 */
 	writel(SCU_ENSPINUP_GEN_VAL(COUNT,
-			phy_user->notify_enable_spin_up_insertion_frequency),
-		&llr->notify_enable_spinup_control);
+			phy_user->analtify_enable_spin_up_insertion_frequency),
+		&llr->analtify_enable_spinup_control);
 
 	/* Write the ALIGN Insertion Ferequency for connected phy and
 	 * inpendent of connected state
@@ -264,8 +264,8 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	} else
 		writel(0x02108421, &llr->afe_lookup_table_control);
 
-	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
-		(u8)ihost->user_parameters.no_outbound_task_timeout);
+	llctl = SCU_SAS_LLCTL_GEN_VAL(ANAL_OUTBOUND_TASK_TIMEOUT,
+		(u8)ihost->user_parameters.anal_outbound_task_timeout);
 
 	switch (phy_user->max_speed_generation) {
 	case SCIC_SDS_PARM_GEN3_SPEED:
@@ -328,7 +328,7 @@ static void phy_sata_timeout(struct timer_list *t)
 		goto done;
 
 	dev_dbg(sciphy_to_dev(iphy),
-		 "%s: SCIC SDS Phy 0x%p did not receive signature fis before "
+		 "%s: SCIC SDS Phy 0x%p did analt receive signature fis before "
 		 "timeout.\n",
 		 __func__,
 		 iphy);
@@ -339,19 +339,19 @@ done:
 }
 
 /**
- * phy_get_non_dummy_port() - This method returns the port currently containing
+ * phy_get_analn_dummy_port() - This method returns the port currently containing
  * this phy. If the phy is currently contained by the dummy port, then the phy
- * is considered to not be part of a port.
+ * is considered to analt be part of a port.
  *
  * @iphy: This parameter specifies the phy for which to retrieve the
  *    containing port.
  *
  * This method returns a handle to a port that contains the supplied phy.
- * NULL This value is returned if the phy is not part of a real
+ * NULL This value is returned if the phy is analt part of a real
  * port (i.e. it's contained in the dummy port). !NULL All other
  * values indicate a handle/pointer to the port containing the phy.
  */
-struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy)
+struct isci_port *phy_get_analn_dummy_port(struct isci_phy *iphy)
 {
 	struct isci_port *iport = iphy->owning_port;
 
@@ -386,7 +386,7 @@ enum sci_status sci_phy_initialize(struct isci_phy *iphy,
 	/* Perofrm the initialization of the PE hardware */
 	sci_phy_link_layer_initialization(iphy, ll);
 
-	/* There is nothing that needs to be done in this state just
+	/* There is analthing that needs to be done in this state just
 	 * transition to the stopped state
 	 */
 	sci_change_state(&iphy->sm, SCI_PHY_STOPPED);
@@ -401,7 +401,7 @@ enum sci_status sci_phy_initialize(struct isci_phy *iphy,
  *       be assigned.
  * @device_id: The direct attached device ID to assign to the phy.
  *       This will either be the RNi for the device or an invalid RNi if there
- *       is no current device assigned to the phy.
+ *       is anal current device assigned to the phy.
  */
 void sci_phy_setup_transport(struct isci_phy *iphy, u32 device_id)
 {
@@ -428,7 +428,7 @@ static void sci_phy_suspend(struct isci_phy *iphy)
 	writel(scu_sas_pcfg_value,
 		&iphy->link_layer_registers->phy_configuration);
 
-	sci_phy_setup_transport(iphy, SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
+	sci_phy_setup_transport(iphy, SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX);
 }
 
 void sci_phy_resume(struct isci_phy *iphy)
@@ -523,9 +523,9 @@ enum sci_status sci_phy_consume_power_handler(struct isci_phy *iphy)
 	case SCI_PHY_SUB_AWAIT_SAS_POWER: {
 		u32 enable_spinup;
 
-		enable_spinup = readl(&iphy->link_layer_registers->notify_enable_spinup_control);
+		enable_spinup = readl(&iphy->link_layer_registers->analtify_enable_spinup_control);
 		enable_spinup |= SCU_ENSPINUP_GEN_BIT(ENABLE);
-		writel(enable_spinup, &iphy->link_layer_registers->notify_enable_spinup_control);
+		writel(enable_spinup, &iphy->link_layer_registers->analtify_enable_spinup_control);
 
 		/* Change state to the final state this substate machine has run to completion */
 		sci_change_state(&iphy->sm, SCI_PHY_SUB_FINAL);
@@ -544,7 +544,7 @@ enum sci_status sci_phy_consume_power_handler(struct isci_phy *iphy)
 		writel(scu_sas_pcfg_value,
 			&iphy->link_layer_registers->phy_configuration);
 
-		/* Now restart the OOB operation */
+		/* Analw restart the OOB operation */
 		scu_sas_pcfg_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
 		scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 		writel(scu_sas_pcfg_value,
@@ -584,7 +584,7 @@ static void sci_phy_start_sata_link_training(struct isci_phy *iphy)
 {
 	/* This method continues the link training for the phy as if it were a SATA PHY
 	 * instead of a SAS PHY.  This is done because the completion queue had a SATA
-	 * SPINUP HOLD event when the state machine was expecting a SAS PHY event. none
+	 * SPINUP HOLD event when the state machine was expecting a SAS PHY event. analne
 	 */
 	sci_change_state(&iphy->sm, SCI_PHY_SUB_AWAIT_SATA_POWER);
 
@@ -651,7 +651,7 @@ static const char *phy_event_name(u32 event_code)
 	case SCU_EVENT_SATA_PHY_DETECTED:
 		return "sata detect";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -835,14 +835,14 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_SATA_SPINUP_HOLD:
-			/* These events might be received since we dont know how many may be in
+			/* These events might be received since we dont kanalw how many may be in
 			 * the completion queue while waiting for power
 			 */
 			break;
 		case SCU_EVENT_SATA_PHY_DETECTED:
 			iphy->protocol = SAS_PROTOCOL_SATA;
 
-			/* We have received the SATA PHY notification change state */
+			/* We have received the SATA PHY analtification change state */
 			sci_change_state(&iphy->sm, SCI_PHY_SUB_AWAIT_SATA_SPEED_EN);
 			break;
 		case SCU_EVENT_SAS_PHY_DETECTED:
@@ -861,7 +861,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		case SCU_EVENT_SATA_PHY_DETECTED:
 			/*
 			 * The hardware reports multiple SATA PHY detected events
-			 * ignore the extras */
+			 * iganalre the extras */
 			break;
 		case SCU_EVENT_SATA_15:
 		case SCU_EVENT_SATA_15_SSC:
@@ -932,8 +932,8 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		case SCU_EVENT_BROADCAST_RESERVED1:
 		case SCU_EVENT_BROADCAST_EXPANDER:
 		case SCU_EVENT_BROADCAST_AEN:
-			/* Broadcast change received. Notify the port. */
-			if (phy_get_non_dummy_port(iphy) != NULL)
+			/* Broadcast change received. Analtify the port. */
+			if (phy_get_analn_dummy_port(iphy) != NULL)
 				sci_port_broadcast_change_received(iphy->owning_port, iphy);
 			else
 				iphy->bcn_received_while_port_unassigned = true;
@@ -991,12 +991,12 @@ enum sci_status sci_phy_frame_handler(struct isci_phy *iphy, u32 frame_index)
 			spin_unlock_irqrestore(&iphy->sas_phy.frame_rcvd_lock, flags);
 			if (iaf.smp_tport) {
 				/* We got the IAF for an expander PHY go to the final
-				 * state since there are no power requirements for
+				 * state since there are anal power requirements for
 				 * expander phys.
 				 */
 				state = SCI_PHY_SUB_FINAL;
 			} else {
-				/* We got the IAF we can now go to the await spinup
+				/* We got the IAF we can analw go to the await spinup
 				 * semaphore state
 				 */
 				state = SCI_PHY_SUB_AWAIT_SAS_POWER;
@@ -1035,7 +1035,7 @@ enum sci_status sci_phy_frame_handler(struct isci_phy *iphy, u32 frame_index)
 							  fis_frame_data);
 			spin_unlock_irqrestore(&iphy->sas_phy.frame_rcvd_lock, flags);
 
-			/* got IAF we can now go to the await spinup semaphore state */
+			/* got IAF we can analw go to the await spinup semaphore state */
 			sci_change_state(&iphy->sm, SCI_PHY_SUB_FINAL);
 
 			result = SCI_SUCCESS;
@@ -1135,7 +1135,7 @@ static void sci_phy_starting_await_sig_fis_uf_substate_enter(struct sci_base_sta
 		/*
 		 * Clear the PE suspend condition so we can actually
 		 * receive SIG FIS
-		 * The hardware will not respond to the XRDY until the PE
+		 * The hardware will analt respond to the XRDY until the PE
 		 * suspend condition is cleared.
 		 */
 		sci_phy_resume(iphy);
@@ -1167,9 +1167,9 @@ static void sci_phy_starting_final_substate_enter(struct sci_base_state_machine 
  * scu_link_layer_stop_protocol_engine()
  * @iphy: This is the struct isci_phy object to stop.
  *
- * This method will stop the struct isci_phy object. This does not reset the
+ * This method will stop the struct isci_phy object. This does analt reset the
  * protocol engine it just suspends it and places it in a state where it will
- * not cause the end device to power up. none
+ * analt cause the end device to power up. analne
  */
 static void scu_link_layer_stop_protocol_engine(
 	struct isci_phy *iphy)
@@ -1187,10 +1187,10 @@ static void scu_link_layer_stop_protocol_engine(
 	writel(scu_sas_pcfg_value,
 	       &iphy->link_layer_registers->phy_configuration);
 
-	/* Disable the notify enable spinup primitives */
-	enable_spinup_value = readl(&iphy->link_layer_registers->notify_enable_spinup_control);
+	/* Disable the analtify enable spinup primitives */
+	enable_spinup_value = readl(&iphy->link_layer_registers->analtify_enable_spinup_control);
 	enable_spinup_value &= ~SCU_ENSPINUP_GEN_BIT(ENABLE);
-	writel(enable_spinup_value, &iphy->link_layer_registers->notify_enable_spinup_control);
+	writel(enable_spinup_value, &iphy->link_layer_registers->analtify_enable_spinup_control);
 }
 
 static void scu_link_layer_start_oob(struct isci_phy *iphy)
@@ -1230,7 +1230,7 @@ static void scu_link_layer_tx_hard_reset(
 	u32 phy_configuration_value;
 
 	/*
-	 * SAS Phys must wait for the HARD_RESET_TX event notification to transition
+	 * SAS Phys must wait for the HARD_RESET_TX event analtification to transition
 	 * to the starting state. */
 	phy_configuration_value =
 		readl(&iphy->link_layer_registers->phy_configuration);
@@ -1241,7 +1241,7 @@ static void scu_link_layer_tx_hard_reset(
 	writel(phy_configuration_value,
 	       &iphy->link_layer_registers->phy_configuration);
 
-	/* Now take the OOB state machine out of reset */
+	/* Analw take the OOB state machine out of reset */
 	phy_configuration_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
 	phy_configuration_value &= ~SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
 	writel(phy_configuration_value,
@@ -1263,7 +1263,7 @@ static void sci_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 	scu_link_layer_stop_protocol_engine(iphy);
 
 	if (iphy->sm.previous_state_id != SCI_PHY_INITIAL)
-		sci_controller_link_down(ihost, phy_get_non_dummy_port(iphy), iphy);
+		sci_controller_link_down(ihost, phy_get_analn_dummy_port(iphy), iphy);
 }
 
 static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
@@ -1275,12 +1275,12 @@ static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
 	scu_link_layer_stop_protocol_engine(iphy);
 	scu_link_layer_start_oob(iphy);
 
-	/* We don't know what kind of phy we are going to be just yet */
-	iphy->protocol = SAS_PROTOCOL_NONE;
+	/* We don't kanalw what kind of phy we are going to be just yet */
+	iphy->protocol = SAS_PROTOCOL_ANALNE;
 	iphy->bcn_received_while_port_unassigned = false;
 
 	if (iphy->sm.previous_state_id == SCI_PHY_READY)
-		sci_controller_link_down(ihost, phy_get_non_dummy_port(iphy), iphy);
+		sci_controller_link_down(ihost, phy_get_analn_dummy_port(iphy), iphy);
 
 	sci_change_state(&iphy->sm, SCI_PHY_SUB_INITIAL);
 }
@@ -1291,7 +1291,7 @@ static void sci_phy_ready_state_enter(struct sci_base_state_machine *sm)
 	struct isci_port *iport = iphy->owning_port;
 	struct isci_host *ihost = iport->owning_controller;
 
-	sci_controller_link_up(ihost, phy_get_non_dummy_port(iphy), iphy);
+	sci_controller_link_up(ihost, phy_get_analn_dummy_port(iphy), iphy);
 }
 
 static void sci_phy_ready_state_exit(struct sci_base_state_machine *sm)
@@ -1306,15 +1306,15 @@ static void sci_phy_resetting_state_enter(struct sci_base_state_machine *sm)
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
 
 	/* The phy is being reset, therefore deactivate it from the port.  In
-	 * the resetting state we don't notify the user regarding link up and
-	 * link down notifications
+	 * the resetting state we don't analtify the user regarding link up and
+	 * link down analtifications
 	 */
 	sci_port_deactivate_phy(iphy->owning_port, iphy, false);
 
 	if (iphy->protocol == SAS_PROTOCOL_SSP) {
 		scu_link_layer_tx_hard_reset(iphy);
 	} else {
-		/* The SCU does not need to have a discrete reset state so
+		/* The SCU does analt need to have a discrete reset state so
 		 * just go back to the starting state.
 		 */
 		sci_change_state(&iphy->sm, SCI_PHY_STARTING);
@@ -1377,9 +1377,9 @@ void sci_phy_construct(struct isci_phy *iphy,
 	iphy->owning_port = iport;
 	iphy->phy_index = phy_index;
 	iphy->bcn_received_while_port_unassigned = false;
-	iphy->protocol = SAS_PROTOCOL_NONE;
+	iphy->protocol = SAS_PROTOCOL_ANALNE;
 	iphy->link_layer_registers = NULL;
-	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
+	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKANALWN;
 
 	/* Create the SIGNATURE FIS Timeout timer for this phy */
 	sci_init_timer(&iphy->sata_timer, phy_sata_timeout);
@@ -1407,8 +1407,8 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 	iphy->sas_phy.iproto = SAS_PROTOCOL_ALL;
 	iphy->sas_phy.tproto = 0;
 	iphy->sas_phy.role = PHY_ROLE_INITIATOR;
-	iphy->sas_phy.oob_mode = OOB_NOT_CONNECTED;
-	iphy->sas_phy.linkrate = SAS_LINK_RATE_UNKNOWN;
+	iphy->sas_phy.oob_mode = OOB_ANALT_CONNECTED;
+	iphy->sas_phy.linkrate = SAS_LINK_RATE_UNKANALWN;
 	memset(&iphy->frame_rcvd, 0, sizeof(iphy->frame_rcvd));
 }
 
@@ -1454,7 +1454,7 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 
 	case PHY_FUNC_HARD_RESET:
 		if (!port)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = isci_port_perform_hard_reset(ihost, port->lldd_port, iphy);
 
@@ -1473,9 +1473,9 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 
 	default:
 		dev_dbg(&ihost->pdev->dev,
-			   "%s: phy %p; func %d NOT IMPLEMENTED!\n",
+			   "%s: phy %p; func %d ANALT IMPLEMENTED!\n",
 			   __func__, sas_phy, func);
-		ret = -ENOSYS;
+		ret = -EANALSYS;
 		break;
 	}
 	return ret;

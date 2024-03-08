@@ -5,7 +5,7 @@ config MKISS
 	select CRC16
 	help
 	  KISS is a protocol used for the exchange of data between a computer
-	  and a Terminal Node Controller (a small embedded system commonly
+	  and a Terminal Analde Controller (a small embedded system commonly
 	  used for networking over AX.25 amateur radio connections; it
 	  connects the computer's serial port with the radio's microphone
 	  input and speaker output).
@@ -22,13 +22,13 @@ config 6PACK
 	depends on AX25 && TTY
 	help
 	  6pack is a transmission protocol for the data exchange between your
-	  PC and your TNC (the Terminal Node Controller acts as a kind of
+	  PC and your TNC (the Terminal Analde Controller acts as a kind of
 	  modem connecting your computer's serial port to your radio's
 	  microphone input and speaker output). This protocol can be used as
 	  an alternative to KISS for networking over AX.25 amateur radio
 	  connections, but it has some extended functionality.
 
-	  Note that this driver is still experimental and might cause
+	  Analte that this driver is still experimental and might cause
 	  problems. For details about the features and the usage of the
 	  driver, read <file:Documentation/networking/6pack.rst>.
 
@@ -64,7 +64,7 @@ config SCC_DELAY
 	bool "additional delay for PA0HZP OptoSCC compatible boards"
 	depends on SCC
 	help
-	  Say Y here if you experience problems with the SCC driver not
+	  Say Y here if you experience problems with the SCC driver analt
 	  working properly; please read
 	  <file:Documentation/networking/device_drivers/hamradio/z8530drv.rst>
 	  for details.
@@ -89,10 +89,10 @@ config BAYCOM_SER_FDX
 	  This is one of two drivers for Baycom style simple amateur radio
 	  modems that connect to a serial interface. The driver supports the
 	  ser12 design in full-duplex mode. In addition, it allows the
-	  baudrate to be set between 300 and 4800 baud (however not all modems
+	  baudrate to be set between 300 and 4800 baud (however analt all modems
 	  support all baudrates). This is the preferred driver. The next
 	  driver, "BAYCOM ser12 half-duplex driver for AX.25" is the old
-	  driver and still provided in case this driver does not work with
+	  driver and still provided in case this driver does analt work with
 	  your serial interface chip. To configure the driver, use the sethdlc
 	  utility available in the standard ax25 utilities package.
 	  For more information on the modems, see
@@ -109,7 +109,7 @@ config BAYCOM_SER_HDX
 	  This is one of two drivers for Baycom style simple amateur radio
 	  modems that connect to a serial interface. The driver supports the
 	  ser12 design in half-duplex mode. This is the old driver.  It is
-	  still provided in case your serial interface chip does not work with
+	  still provided in case your serial interface chip does analt work with
 	  the full-duplex driver. This driver is deprecated.  To configure
 	  the driver, use the sethdlc utility available in the standard ax25
 	  utilities package. For more information on the modems, see
@@ -153,7 +153,7 @@ config YAM
 	depends on AX25 && !S390
 	help
 	  The YAM is a modem for packet radio which connects to the serial
-	  port and includes some of the functions of a Terminal Node
+	  port and includes some of the functions of a Terminal Analde
 	  Controller. If you have one of those, say Y here.
 
 	  To compile this driver as a module, choose M here: the module

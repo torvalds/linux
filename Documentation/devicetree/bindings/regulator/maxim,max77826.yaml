@@ -10,7 +10,7 @@ maintainers:
   - Iskren Chernev <iskren.chernev@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "pmic@[0-9a-f]{1,2}"
   compatible:
     enum:

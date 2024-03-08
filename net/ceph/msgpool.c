@@ -45,7 +45,7 @@ int ceph_msgpool_init(struct ceph_msgpool *pool, int type,
 	pool->max_data_items = max_data_items;
 	pool->pool = mempool_create(size, msgpool_alloc, msgpool_free, pool);
 	if (!pool->pool)
-		return -ENOMEM;
+		return -EANALMEM;
 	pool->name = name;
 	return 0;
 }
@@ -70,10 +70,10 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool, int front_len,
 
 		/* try to alloc a fresh message */
 		return ceph_msg_new2(pool->type, front_len, max_data_items,
-				     GFP_NOFS, false);
+				     GFP_ANALFS, false);
 	}
 
-	msg = mempool_alloc(pool->pool, GFP_NOFS);
+	msg = mempool_alloc(pool->pool, GFP_ANALFS);
 	dout("msgpool_get %s %p\n", pool->name, msg);
 	return msg;
 }

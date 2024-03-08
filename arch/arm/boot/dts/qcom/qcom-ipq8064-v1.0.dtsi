@@ -4,7 +4,7 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ8064-v1.0";
+	model = "Qualcomm Techanallogies, Inc. IPQ8064-v1.0";
 
 	aliases {
 		serial0 = &gsbi4_serial;

@@ -12,7 +12,7 @@
 #include <linux/thread_info.h>
 
 #ifndef CONFIG_SMP
-# error "<asm/smp.h> included in non-SMP build"
+# error "<asm/smp.h> included in analn-SMP build"
 #endif
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)

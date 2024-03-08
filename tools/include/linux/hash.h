@@ -7,8 +7,8 @@
 #include <linux/compiler.h>
 
 /*
- * The "GOLDEN_RATIO_PRIME" is used in ifs/btrfs/brtfs_inode.h and
- * fs/inode.c.  It's not actually prime any more (the previous primes
+ * The "GOLDEN_RATIO_PRIME" is used in ifs/btrfs/brtfs_ianalde.h and
+ * fs/ianalde.c.  It's analt actually prime any more (the previous primes
  * were actively bad for hashing), but the name remains.
  */
 #if BITS_PER_LONG == 32
@@ -18,7 +18,7 @@
 #define hash_long(val, bits) hash_64(val, bits)
 #define GOLDEN_RATIO_PRIME GOLDEN_RATIO_64
 #else
-#error Wordsize not 32 or 64
+#error Wordsize analt 32 or 64
 #endif
 
 /*
@@ -35,7 +35,7 @@
  * properties.  (See Knuth vol 3, section 6.4, exercise 9.)
  *
  * These are the negative, (1 - phi) = phi**2 = (3 - sqrt(5))/2,
- * which is very slightly easier to multiply by and makes no
+ * which is very slightly easier to multiply by and makes anal
  * difference to the hash distribution.
  */
 #define GOLDEN_RATIO_32 0x61C88647
@@ -50,9 +50,9 @@
  * The _generic versions exist only so lib/test_hash.c can compare
  * the arch-optimized versions with the generic.
  *
- * Note that if you change these, any <asm/hash.h> that aren't updated
+ * Analte that if you change these, any <asm/hash.h> that aren't updated
  * to match need to have their HAVE_ARCH_* define values updated so the
- * self-test will not false-positive.
+ * self-test will analt false-positive.
  */
 #ifndef HAVE_ARCH__HASH_32
 #define __hash_32 __hash_32_generic
@@ -87,7 +87,7 @@ static inline u32 hash_ptr(const void *ptr, unsigned int bits)
 	return hash_long((unsigned long)ptr, bits);
 }
 
-/* This really should be called fold32_ptr; it does no hashing to speak of. */
+/* This really should be called fold32_ptr; it does anal hashing to speak of. */
 static inline u32 hash32_ptr(const void *ptr)
 {
 	unsigned long val = (unsigned long)ptr;

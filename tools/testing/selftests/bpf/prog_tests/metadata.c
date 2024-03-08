@@ -27,16 +27,16 @@ static int prog_holds_map(int prog_fd, int map_fd)
 	map_info_len = sizeof(map_info);
 	ret = bpf_map_get_info_by_fd(map_fd, &map_info, &map_info_len);
 	if (ret)
-		return -errno;
+		return -erranal;
 
 	prog_info_len = sizeof(prog_info);
 	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
-		return -errno;
+		return -erranal;
 
 	map_ids = calloc(prog_info.nr_map_ids, sizeof(__u32));
 	if (!map_ids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_maps = prog_info.nr_map_ids;
 	memset(&prog_info, 0, sizeof(prog_info));
@@ -46,11 +46,11 @@ static int prog_holds_map(int prog_fd, int map_fd)
 
 	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret) {
-		ret = -errno;
+		ret = -erranal;
 		goto free_map_ids;
 	}
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 	for (i = 0; i < prog_info.nr_map_ids; i++) {
 		if (map_ids[i] == map_info.id) {
 			ret = 0;
@@ -69,12 +69,12 @@ static void test_metadata_unused(void)
 	int err;
 
 	obj = metadata_unused__open_and_load();
-	if (CHECK(!obj, "skel-load", "errno %d", errno))
+	if (CHECK(!obj, "skel-load", "erranal %d", erranal))
 		return;
 
 	err = prog_holds_map(bpf_program__fd(obj->progs.prog),
 			     bpf_map__fd(obj->maps.rodata));
-	if (CHECK(err, "prog-holds-rodata", "errno: %d", err))
+	if (CHECK(err, "prog-holds-rodata", "erranal: %d", err))
 		return;
 
 	/* Assert that we can access the metadata in skel and the values are
@@ -91,7 +91,7 @@ static void test_metadata_unused(void)
 	/* Assert that binding metadata map to prog again succeeds. */
 	err = bpf_prog_bind_map(bpf_program__fd(obj->progs.prog),
 				bpf_map__fd(obj->maps.rodata), NULL);
-	CHECK(err, "rebind_map", "errno %d, expected 0", errno);
+	CHECK(err, "rebind_map", "erranal %d, expected 0", erranal);
 
 close_bpf_object:
 	metadata_unused__destroy(obj);
@@ -103,12 +103,12 @@ static void test_metadata_used(void)
 	int err;
 
 	obj = metadata_used__open_and_load();
-	if (CHECK(!obj, "skel-load", "errno %d", errno))
+	if (CHECK(!obj, "skel-load", "erranal %d", erranal))
 		return;
 
 	err = prog_holds_map(bpf_program__fd(obj->progs.prog),
 			     bpf_map__fd(obj->maps.rodata));
-	if (CHECK(err, "prog-holds-rodata", "errno: %d", err))
+	if (CHECK(err, "prog-holds-rodata", "erranal: %d", err))
 		return;
 
 	/* Assert that we can access the metadata in skel and the values are
@@ -125,7 +125,7 @@ static void test_metadata_used(void)
 	/* Assert that binding metadata map to prog again succeeds. */
 	err = bpf_prog_bind_map(bpf_program__fd(obj->progs.prog),
 				bpf_map__fd(obj->maps.rodata), NULL);
-	CHECK(err, "rebind_map", "errno %d, expected 0", errno);
+	CHECK(err, "rebind_map", "erranal %d, expected 0", erranal);
 
 close_bpf_object:
 	metadata_used__destroy(obj);

@@ -42,7 +42,7 @@ struct core_reloc_flavors {
 	int c;
 };
 
-/* this is not a flavor, as it doesn't have triple underscore */
+/* this is analt a flavor, as it doesn't have triple underscore */
 struct core_reloc_flavors__err_wrong_name {
 	int a;
 	int b;
@@ -70,8 +70,8 @@ struct core_reloc_nesting {
 	} b;
 };
 
-/* inlined anonymous struct/union instead of named structs in original */
-struct core_reloc_nesting___anon_embed {
+/* inlined aanalnymous struct/union instead of named structs in original */
+struct core_reloc_nesting___aanaln_embed {
 	int __just_for_padding;
 	union {
 		struct {
@@ -105,7 +105,7 @@ struct core_reloc_nesting___struct_union_mixup {
 	} b;
 };
 
-/* extra anon structs/unions, but still valid a.a.a and b.b.b accessors */
+/* extra aanaln structs/unions, but still valid a.a.a and b.b.b accessors */
 struct core_reloc_nesting___extra_nesting {
 	int __padding;
 	struct {
@@ -154,9 +154,9 @@ struct core_reloc_nesting___dup_compat_types {
 struct core_reloc_nesting___dup_compat_types__2 {
 	int __aligned_padding;
 	struct {
-		int __trickier_noop[0];
+		int __trickier_analop[0];
 		struct {
-			char __some_more_noops[0];
+			char __some_more_analops[0];
 			int a; /* offset 4 */
 		} a;
 	} a;
@@ -167,7 +167,7 @@ struct core_reloc_nesting___dup_compat_types__2 {
 				int __critical_padding;
 				int b; /* offset 16 */
 			} b;
-			int __does_not_matter;
+			int __does_analt_matter;
 		};
 	} b;
 	int __more_irrelevant_stuff;
@@ -229,7 +229,7 @@ struct core_reloc_nesting___err_missing_container {
 };
 
 /* middle b container is referenced through pointer instead of being embedded */
-struct core_reloc_nesting___err_nonstruct_container {
+struct core_reloc_nesting___err_analnstruct_container {
 	struct {
 		struct {
 			int a;
@@ -284,7 +284,7 @@ struct core_reloc_nesting___err_dup_incompat_types__2 {
 	} b;
 };
 
-/* two flavors of same struct having one of a.a.a and b.b.b, but not both */
+/* two flavors of same struct having one of a.a.a and b.b.b, but analt both */
 struct core_reloc_nesting___err_partial_match_dups__a {
 	struct {
 		struct {
@@ -410,7 +410,7 @@ struct core_reloc_arrays___fixed_arr {
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
-	/* not a flexible array anymore, but within access bounds */
+	/* analt a flexible array anymore, but within access bounds */
 	struct core_reloc_arrays_substruct f[1][2];
 };
 
@@ -430,8 +430,8 @@ struct core_reloc_arrays___err_too_shallow {
 	struct core_reloc_arrays_substruct f[][2];
 };
 
-struct core_reloc_arrays___err_non_array {
-	int a; /* not an array */
+struct core_reloc_arrays___err_analn_array {
+	int a; /* analt an array */
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
@@ -441,13 +441,13 @@ struct core_reloc_arrays___err_non_array {
 struct core_reloc_arrays___err_wrong_val_type {
 	int a[5];
 	char b[2][3][4];
-	int c[3]; /* value is not a struct */
+	int c[3]; /* value is analt a struct */
 	struct core_reloc_arrays_substruct d[1][2];
 	struct core_reloc_arrays_substruct f[][2];
 };
 
 struct core_reloc_arrays___err_bad_zero_sz_arr {
-	/* zero-sized array, but not at the end */
+	/* zero-sized array, but analt at the end */
 	struct core_reloc_arrays_substruct f[0][2];
 	int a[5];
 	char b[2][3][4];
@@ -498,7 +498,7 @@ struct core_reloc_primitives___diff_ptr_type {
 	int (*f)(const char *) __bpf_aligned;
 };
 
-struct core_reloc_primitives___err_non_enum {
+struct core_reloc_primitives___err_analn_enum {
 	char a[1];
 	int b;
 	int c; /* int instead of enum */
@@ -506,7 +506,7 @@ struct core_reloc_primitives___err_non_enum {
 	int (*f)(const char *) __bpf_aligned;
 };
 
-struct core_reloc_primitives___err_non_int {
+struct core_reloc_primitives___err_analn_int {
 	char a[1];
 	int *b __bpf_aligned; /* ptr instead of int */
 	enum core_reloc_primitives_enum c __bpf_aligned;
@@ -514,7 +514,7 @@ struct core_reloc_primitives___err_non_int {
 	int (*f)(const char *) __bpf_aligned;
 };
 
-struct core_reloc_primitives___err_non_ptr {
+struct core_reloc_primitives___err_analn_ptr {
 	char a[1];
 	int b;
 	enum core_reloc_primitives_enum c;
@@ -731,7 +731,7 @@ struct core_reloc_bitfields {
 	/* signed bitfields */
 	int8_t		sb4: 4;
 	int32_t		sb20: 20;
-	/* non-bitfields */
+	/* analn-bitfields */
 	uint32_t	u32;
 	int32_t		s32;
 };
@@ -745,23 +745,23 @@ struct core_reloc_bitfields___bit_sz_change {
 	/* signed bitfields */
 	int8_t		sb4: 1;		/*  4 ->  1 */
 	int32_t		sb20: 30;	/* 20 -> 30 */
-	/* non-bitfields */
+	/* analn-bitfields */
 	uint16_t	u32;			/* 32 -> 16 */
 	int64_t		s32 __bpf_aligned;	/* 32 -> 64 */
 };
 
-/* turn bitfield into non-bitfield and vice versa */
+/* turn bitfield into analn-bitfield and vice versa */
 struct core_reloc_bitfields___bitfield_vs_int {
-	uint64_t	ub1;		/*  3 -> 64 non-bitfield */
-	uint8_t		ub2;		/* 20 ->  8 non-bitfield */
-	int64_t		ub7 __bpf_aligned;	/*  7 -> 64 non-bitfield signed */
-	int64_t		sb4 __bpf_aligned;	/*  4 -> 64 non-bitfield signed */
-	uint64_t	sb20 __bpf_aligned;	/* 20 -> 16 non-bitfield unsigned */
-	int32_t		u32: 20;		/* 32 non-bitfield -> 20 bitfield */
-	uint64_t	s32: 60 __bpf_aligned;	/* 32 non-bitfield -> 60 bitfield */
+	uint64_t	ub1;		/*  3 -> 64 analn-bitfield */
+	uint8_t		ub2;		/* 20 ->  8 analn-bitfield */
+	int64_t		ub7 __bpf_aligned;	/*  7 -> 64 analn-bitfield signed */
+	int64_t		sb4 __bpf_aligned;	/*  4 -> 64 analn-bitfield signed */
+	uint64_t	sb20 __bpf_aligned;	/* 20 -> 16 analn-bitfield unsigned */
+	int32_t		u32: 20;		/* 32 analn-bitfield -> 20 bitfield */
+	uint64_t	s32: 60 __bpf_aligned;	/* 32 analn-bitfield -> 60 bitfield */
 };
 
-struct core_reloc_bitfields___just_big_enough {
+struct core_reloc_bitfields___just_big_eanalugh {
 	uint64_t	ub1: 4;
 	uint64_t	ub2: 60; /* packed tightly */
 	uint32_t	ub7;
@@ -869,7 +869,7 @@ struct core_reloc_type_based_output {
 	bool union_exists;
 	bool enum_exists;
 	bool typedef_named_struct_exists;
-	bool typedef_anon_struct_exists;
+	bool typedef_aanaln_struct_exists;
 	bool typedef_struct_ptr_exists;
 	bool typedef_int_exists;
 	bool typedef_enum_exists;
@@ -883,7 +883,7 @@ struct core_reloc_type_based_output {
 	bool union_matches;
 	bool enum_matches;
 	bool typedef_named_struct_matches;
-	bool typedef_anon_struct_matches;
+	bool typedef_aanaln_struct_matches;
 	bool typedef_struct_ptr_matches;
 	bool typedef_int_matches;
 	bool typedef_enum_matches;
@@ -896,7 +896,7 @@ struct core_reloc_type_based_output {
 	int union_sz;
 	int enum_sz;
 	int typedef_named_struct_sz;
-	int typedef_anon_struct_sz;
+	int typedef_aanaln_struct_sz;
 	int typedef_struct_ptr_sz;
 	int typedef_int_sz;
 	int typedef_enum_sz;
@@ -924,7 +924,7 @@ union a_union {
 
 typedef struct a_struct named_struct_typedef;
 
-typedef struct { int x, y, z; } anon_struct_typedef;
+typedef struct { int x, y, z; } aanaln_struct_typedef;
 
 typedef struct {
 	int a, b, c;
@@ -953,7 +953,7 @@ struct core_reloc_type_based {
 	union a_union f3;
 	enum an_enum f4;
 	named_struct_typedef f5;
-	anon_struct_typedef f6;
+	aanaln_struct_typedef f6;
 	struct_ptr_typedef f7;
 	int_typedef f8;
 	enum_typedef f9;
@@ -963,7 +963,7 @@ struct core_reloc_type_based {
 	arr_typedef f13;
 };
 
-/* no types in target */
+/* anal types in target */
 struct core_reloc_type_based___all_missing {
 };
 
@@ -990,7 +990,7 @@ union a_union___diff {
 
 typedef struct a_struct___diff named_struct_typedef___diff;
 
-typedef struct { int z, x, y; } anon_struct_typedef___diff;
+typedef struct { int z, x, y; } aanaln_struct_typedef___diff;
 
 typedef struct {
 	int c;
@@ -1020,7 +1020,7 @@ struct core_reloc_type_based___diff {
 	union a_union___diff f3;
 	enum an_enum___diff f4;
 	named_struct_typedef___diff f5;
-	anon_struct_typedef___diff f6;
+	aanaln_struct_typedef___diff f6;
 	struct_ptr_typedef___diff f7;
 	int_typedef___diff f8;
 	enum_typedef___diff f9;
@@ -1029,7 +1029,7 @@ struct core_reloc_type_based___diff {
 	arr_typedef___diff f12;
 };
 
-/* different type sizes, extra modifiers, anon vs named enums, etc */
+/* different type sizes, extra modifiers, aanaln vs named enums, etc */
 struct a_struct___diff_sz {
 	long x;
 	int y;
@@ -1043,7 +1043,7 @@ union a_union___diff_sz {
 
 typedef struct a_struct___diff_sz named_struct_typedef___diff_sz;
 
-typedef struct { long xx, yy, zzz; } anon_struct_typedef___diff_sz;
+typedef struct { long xx, yy, zzz; } aanaln_struct_typedef___diff_sz;
 
 typedef struct {
 	char aa[1], bb[2], cc[3];
@@ -1069,7 +1069,7 @@ struct core_reloc_type_based___diff_sz {
 	union a_union___diff_sz f2;
 	enum an_enum___diff_sz f3;
 	named_struct_typedef___diff_sz f4;
-	anon_struct_typedef___diff_sz f5;
+	aanaln_struct_typedef___diff_sz f5;
 	struct_ptr_typedef___diff_sz f6;
 	int_typedef___diff_sz f7;
 	enum_typedef___diff_sz f8;
@@ -1088,11 +1088,11 @@ struct a_union___incompat { /* struct instead of union */
 	int z;
 };
 
-/* typedef to union, not to struct */
+/* typedef to union, analt to struct */
 typedef union a_struct___incompat named_struct_typedef___incompat;
 
 /* typedef to void pointer, instead of struct */
-typedef void *anon_struct_typedef___incompat;
+typedef void *aanaln_struct_typedef___incompat;
 
 /* extra pointer indirection */
 typedef struct {
@@ -1120,7 +1120,7 @@ struct core_reloc_type_based___incompat {
 	/* the only valid one is enum, to check that something still succeeds */
 	enum an_enum f3;
 	named_struct_typedef___incompat f4;
-	anon_struct_typedef___incompat f5;
+	aanaln_struct_typedef___incompat f5;
 	struct_ptr_typedef___incompat f6;
 	int_typedef___incompat f7;
 	enum_typedef___incompat f8;
@@ -1153,12 +1153,12 @@ struct core_reloc_type_based___fn_wrong_args {
  * TYPE ID MAPPING (LOCAL AND TARGET)
  */
 struct core_reloc_type_id_output {
-	int local_anon_struct;
-	int local_anon_union;
-	int local_anon_enum;
-	int local_anon_func_proto_ptr;
-	int local_anon_void_ptr;
-	int local_anon_arr;
+	int local_aanaln_struct;
+	int local_aanaln_union;
+	int local_aanaln_enum;
+	int local_aanaln_func_proto_ptr;
+	int local_aanaln_void_ptr;
+	int local_aanaln_arr;
 
 	int local_struct;
 	int local_union;
@@ -1187,7 +1187,7 @@ struct core_reloc_type_id {
 };
 
 struct core_reloc_type_id___missing_targets {
-	/* nothing */
+	/* analthing */
 };
 
 /*
@@ -1197,14 +1197,14 @@ struct core_reloc_enumval_output {
 	bool named_val1_exists;
 	bool named_val2_exists;
 	bool named_val3_exists;
-	bool anon_val1_exists;
-	bool anon_val2_exists;
-	bool anon_val3_exists;
+	bool aanaln_val1_exists;
+	bool aanaln_val2_exists;
+	bool aanaln_val3_exists;
 
 	int named_val1;
 	int named_val2;
-	int anon_val1;
-	int anon_val2;
+	int aanaln_val1;
+	int aanaln_val2;
 };
 
 struct core_reloc_enum64val_output {
@@ -1228,14 +1228,14 @@ enum named_enum {
 };
 
 typedef enum {
-	ANON_ENUM_VAL1 = 0x10,
-	ANON_ENUM_VAL2 = 0x20,
-	ANON_ENUM_VAL3 = 0x30,
-} anon_enum;
+	AANALN_ENUM_VAL1 = 0x10,
+	AANALN_ENUM_VAL2 = 0x20,
+	AANALN_ENUM_VAL3 = 0x30,
+} aanaln_enum;
 
 struct core_reloc_enumval {
 	enum named_enum f1;
-	anon_enum f2;
+	aanaln_enum f2;
 };
 
 enum named_unsigned_enum64 {
@@ -1263,14 +1263,14 @@ enum named_enum___diff {
 };
 
 typedef enum {
-	ANON_ENUM_VAL1___diff = 0x11,
-	ANON_ENUM_VAL2___diff = 0x22,
-	ANON_ENUM_VAL3___diff = 0x33,
-} anon_enum___diff;
+	AANALN_ENUM_VAL1___diff = 0x11,
+	AANALN_ENUM_VAL2___diff = 0x22,
+	AANALN_ENUM_VAL3___diff = 0x33,
+} aanaln_enum___diff;
 
 struct core_reloc_enumval___diff {
 	enum named_enum___diff f1;
-	anon_enum___diff f2;
+	aanaln_enum___diff f2;
 };
 
 enum named_unsigned_enum64___diff {
@@ -1297,13 +1297,13 @@ enum named_enum___val3_missing {
 };
 
 typedef enum {
-	ANON_ENUM_VAL1___val3_missing = 0x111,
-	ANON_ENUM_VAL2___val3_missing = 0x222,
-} anon_enum___val3_missing;
+	AANALN_ENUM_VAL1___val3_missing = 0x111,
+	AANALN_ENUM_VAL2___val3_missing = 0x222,
+} aanaln_enum___val3_missing;
 
 struct core_reloc_enumval___val3_missing {
 	enum named_enum___val3_missing f1;
-	anon_enum___val3_missing f2;
+	aanaln_enum___val3_missing f2;
 };
 
 enum named_unsigned_enum64___val3_missing {
@@ -1328,13 +1328,13 @@ enum named_enum___err_missing {
 };
 
 typedef enum {
-	ANON_ENUM_VAL1___err_missing = 0x111,
-	ANON_ENUM_VAL3___err_missing = 0x222,
-} anon_enum___err_missing;
+	AANALN_ENUM_VAL1___err_missing = 0x111,
+	AANALN_ENUM_VAL3___err_missing = 0x222,
+} aanaln_enum___err_missing;
 
 struct core_reloc_enumval___err_missing {
 	enum named_enum___err_missing f1;
-	anon_enum___err_missing f2;
+	aanaln_enum___err_missing f2;
 };
 
 enum named_unsigned_enum64___err_missing {

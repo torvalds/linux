@@ -328,7 +328,7 @@ enum {
 struct max8925_irq_data {
 	int	reg;
 	int	mask_reg;
-	int	enable;		/* enable or not */
+	int	enable;		/* enable or analt */
 	int	offs;		/* bit offset in mask register */
 	int	flags;
 	int	tsc_irq;
@@ -507,7 +507,7 @@ static irqreturn_t max8925_tsc_irq(int irq, void *data)
 
 	for (i = 0; i < ARRAY_SIZE(max8925_irqs); i++) {
 		irq_data = &max8925_irqs[i];
-		/* non TSC IRQ should be serviced in max8925_irq() */
+		/* analn TSC IRQ should be serviced in max8925_irq() */
 		if (!irq_data->tsc_irq)
 			continue;
 		if (irq_data->flags == FLAGS_RTC)
@@ -640,7 +640,7 @@ static int max8925_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, d->host_data);
 	irq_set_chip_and_handler(virq, &max8925_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_analprobe(virq);
 
 	return 0;
 }
@@ -656,7 +656,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 {
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	int ret;
-	struct device_node *node = chip->dev->of_node;
+	struct device_analde *analde = chip->dev->of_analde;
 
 	/* clear all interrupts */
 	max8925_reg_read(chip->i2c, MAX8925_CHG_IRQ1);
@@ -682,7 +682,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 		return -EBUSY;
 	}
 
-	irq_domain_add_legacy(node, MAX8925_NR_IRQS, chip->irq_base, 0,
+	irq_domain_add_legacy(analde, MAX8925_NR_IRQS, chip->irq_base, 0,
 			      &max8925_irq_domain_ops, chip);
 
 	/* request irq handler for pmic main irq*/
@@ -703,7 +703,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 	max8925_reg_write(chip->adc, MAX8925_TSC_IRQ_MASK, 0x0f);
 
 	if (!pdata->tsc_irq) {
-		dev_warn(chip->dev, "No interrupt support on TSC IRQ\n");
+		dev_warn(chip->dev, "Anal interrupt support on TSC IRQ\n");
 		return 0;
 	}
 	chip->tsc_irq = pdata->tsc_irq;

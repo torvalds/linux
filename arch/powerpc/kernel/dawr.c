@@ -70,7 +70,7 @@ static ssize_t dawr_write_file_bool(struct file *file,
 	if (!dawr_force_enable &&
 	    firmware_has_feature(FW_FEATURE_LPAR) &&
 	    set_dawr(0, &null_brk) != H_SUCCESS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = debugfs_write_file_bool(file, user_buf, count, ppos);
 	if (rc)

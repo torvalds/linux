@@ -35,7 +35,7 @@ static ssize_t platform_profile_choices_show(struct device *dev,
 
 	if (!cur_profile) {
 		mutex_unlock(&profile_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	for_each_set_bit(i, cur_profile->choices, PLATFORM_PROFILE_LAST) {
@@ -62,7 +62,7 @@ static ssize_t platform_profile_show(struct device *dev,
 
 	if (!cur_profile) {
 		mutex_unlock(&profile_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = cur_profile->profile_get(cur_profile, &profile);
@@ -89,7 +89,7 @@ static ssize_t platform_profile_store(struct device *dev,
 
 	if (!cur_profile) {
 		mutex_unlock(&profile_lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Scan for a matching profile */
@@ -102,12 +102,12 @@ static ssize_t platform_profile_store(struct device *dev,
 	/* Check that platform supports this profile choice */
 	if (!test_bit(i, cur_profile->choices)) {
 		mutex_unlock(&profile_lock);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = cur_profile->profile_set(cur_profile, i);
 	if (!err)
-		sysfs_notify(acpi_kobj, NULL, "platform_profile");
+		sysfs_analtify(acpi_kobj, NULL, "platform_profile");
 
 	mutex_unlock(&profile_lock);
 	if (err)
@@ -128,13 +128,13 @@ static const struct attribute_group platform_profile_group = {
 	.attrs = platform_profile_attrs
 };
 
-void platform_profile_notify(void)
+void platform_profile_analtify(void)
 {
 	if (!cur_profile)
 		return;
-	sysfs_notify(acpi_kobj, NULL, "platform_profile");
+	sysfs_analtify(acpi_kobj, NULL, "platform_profile");
 }
-EXPORT_SYMBOL_GPL(platform_profile_notify);
+EXPORT_SYMBOL_GPL(platform_profile_analtify);
 
 int platform_profile_register(struct platform_profile_handler *pprof)
 {
@@ -177,5 +177,5 @@ int platform_profile_remove(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_remove);
 
-MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
+MODULE_AUTHOR("Mark Pearson <markpearson@leanalvo.com>");
 MODULE_LICENSE("GPL");

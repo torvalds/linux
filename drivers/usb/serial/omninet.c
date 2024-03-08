@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -73,18 +73,18 @@ static struct usb_serial_driver * const serial_drivers[] = {
  * The omni.net always exchange 64 bytes of data with the host. The first
  * four bytes are the control header.
  *
- * oh_seq is a sequence number. Don't know if/how it's used.
+ * oh_seq is a sequence number. Don't kanalw if/how it's used.
  * oh_len is the length of the data bytes in the packet.
  * oh_xxx Bit-mapped, related to handshaking and status info.
- *	I normally set it to 0x03 in transmitted frames.
+ *	I analrmally set it to 0x03 in transmitted frames.
  *	7: Active when the TA is in a CONNECTed state.
- *	6: unknown
- *	5: handshaking, unknown
- *	4: handshaking, unknown
- *	3: unknown, usually 0
- *	2: unknown, usually 0
- *	1: handshaking, unknown, usually set to 1 in transmitted frames
- *	0: handshaking, unknown, usually set to 1 in transmitted frames
+ *	6: unkanalwn
+ *	5: handshaking, unkanalwn
+ *	4: handshaking, unkanalwn
+ *	3: unkanalwn, usually 0
+ *	2: unkanalwn, usually 0
+ *	1: handshaking, unkanalwn, usually set to 1 in transmitted frames
+ *	0: handshaking, unkanalwn, usually set to 1 in transmitted frames
  * oh_pad Probably a pad byte.
  *
  * After the header you will find data bytes if oh_len was greater than zero.
@@ -116,7 +116,7 @@ static int omninet_port_probe(struct usb_serial_port *port)
 
 	od = kzalloc(sizeof(*od), GFP_KERNEL);
 	if (!od)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_set_serial_port_data(port, od);
 

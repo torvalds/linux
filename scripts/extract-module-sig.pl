@@ -6,7 +6,7 @@
 # Reads the module file and writes out some or all of the signature
 # section to stdout.  Part is the bit to be written and is one of:
 #
-#  -0: The unsigned module, no signature data at all
+#  -0: The unsigned module, anal signature data at all
 #  -a: All of the signature data, including magic number
 #  -d: Just the descriptor values as a sequence of numbers
 #  -n: Just the signer's name
@@ -48,7 +48,7 @@ die "The file is too short to have a sig magic number and descriptor\n"
 my $p = $len - length($magic_number);
 my $raw_magic = substr($buf, $p);
 
-die "Magic number not found at $len\n"
+die "Magic number analt found at $len\n"
     if ($raw_magic ne $magic_number);
 print STDERR "Found magic number at $len\n";
 
@@ -109,7 +109,7 @@ if ($name_len > 0) {
 # Produce the requested output
 #
 if ($part eq "-0") {
-    # The unsigned module, no signature data at all
+    # The unsigned module, anal signature data at all
     binmode(STDOUT);
     print substr($buf, 0, $module_len);
 } elsif ($part eq "-a") {
@@ -121,13 +121,13 @@ if ($part eq "-0") {
     print join(" ", @info), "\n";
 } elsif ($part eq "-n") {
     # Just the signer's name
-    print STDERR "No signer's name for PKCS#7 message type sig\n"
+    print STDERR "Anal signer's name for PKCS#7 message type sig\n"
 	if ($id_type == 2);
     binmode(STDOUT);
     print $raw_name;
 } elsif ($part eq "-k") {
     # Just the key identifier
-    print STDERR "No key ID for PKCS#7 message type sig\n"
+    print STDERR "Anal key ID for PKCS#7 message type sig\n"
 	if ($id_type == 2);
     binmode(STDOUT);
     print $raw_kid;

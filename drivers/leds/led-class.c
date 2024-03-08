@@ -30,7 +30,7 @@ static ssize_t brightness_show(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
-	/* no lock needed for this */
+	/* anal lock needed for this */
 	led_update_brightness(led_cdev);
 
 	return sprintf(buf, "%u\n", led_cdev->brightness);
@@ -111,7 +111,7 @@ static ssize_t brightness_hw_changed_show(struct device *dev,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
 	if (led_cdev->brightness_hw_changed == -1)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return sprintf(buf, "%u\n", led_cdev->brightness_hw_changed);
 }
@@ -146,15 +146,15 @@ static void led_remove_brightness_hw_changed(struct led_classdev *led_cdev)
 	device_remove_file(led_cdev->dev, &dev_attr_brightness_hw_changed);
 }
 
-void led_classdev_notify_brightness_hw_changed(struct led_classdev *led_cdev, unsigned int brightness)
+void led_classdev_analtify_brightness_hw_changed(struct led_classdev *led_cdev, unsigned int brightness)
 {
 	if (WARN_ON(!led_cdev->brightness_hw_changed_kn))
 		return;
 
 	led_cdev->brightness_hw_changed = brightness;
-	sysfs_notify_dirent(led_cdev->brightness_hw_changed_kn);
+	sysfs_analtify_dirent(led_cdev->brightness_hw_changed_kn);
 }
-EXPORT_SYMBOL_GPL(led_classdev_notify_brightness_hw_changed);
+EXPORT_SYMBOL_GPL(led_classdev_analtify_brightness_hw_changed);
 #else
 static int led_add_brightness_hw_changed(struct led_classdev *led_cdev)
 {
@@ -172,7 +172,7 @@ static void led_remove_brightness_hw_changed(struct led_classdev *led_cdev)
 void led_classdev_suspend(struct led_classdev *led_cdev)
 {
 	led_cdev->flags |= LED_SUSPENDED;
-	led_set_brightness_nopm(led_cdev, 0);
+	led_set_brightness_analpm(led_cdev, 0);
 	flush_work(&led_cdev->set_brightness_work);
 }
 EXPORT_SYMBOL_GPL(led_classdev_suspend);
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(led_classdev_suspend);
  */
 void led_classdev_resume(struct led_classdev *led_cdev)
 {
-	led_set_brightness_nopm(led_cdev, led_cdev->brightness);
+	led_set_brightness_analpm(led_cdev, led_cdev->brightness);
 
 	if (led_cdev->flash_resume)
 		led_cdev->flash_resume(led_cdev);
@@ -227,7 +227,7 @@ static struct led_classdev *led_module_get(struct device *led_dev)
 
 	if (!try_module_get(led_cdev->dev->parent->driver->owner)) {
 		put_device(led_cdev->dev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return led_cdev;
@@ -241,23 +241,23 @@ static const struct class leds_class = {
 
 /**
  * of_led_get() - request a LED device via the LED framework
- * @np: device node to get the LED device from
+ * @np: device analde to get the LED device from
  * @index: the index of the LED
  *
  * Returns the LED device parsed from the phandle specified in the "leds"
- * property of a device tree node or a negative error-code on failure.
+ * property of a device tree analde or a negative error-code on failure.
  */
-struct led_classdev *of_led_get(struct device_node *np, int index)
+struct led_classdev *of_led_get(struct device_analde *np, int index)
 {
 	struct device *led_dev;
-	struct device_node *led_node;
+	struct device_analde *led_analde;
 
-	led_node = of_parse_phandle(np, "leds", index);
-	if (!led_node)
-		return ERR_PTR(-ENOENT);
+	led_analde = of_parse_phandle(np, "leds", index);
+	if (!led_analde)
+		return ERR_PTR(-EANALENT);
 
-	led_dev = class_find_device_by_of_node(&leds_class, led_node);
-	of_node_put(led_node);
+	led_dev = class_find_device_by_of_analde(&leds_class, led_analde);
+	of_analde_put(led_analde);
 	put_device(led_dev);
 
 	return led_module_get(led_dev);
@@ -289,7 +289,7 @@ static struct led_classdev *__devm_led_get(struct device *dev, struct led_classd
 	dr = devres_alloc(devm_led_release, sizeof(struct led_classdev *), GFP_KERNEL);
 	if (!dr) {
 		led_put(led);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	*dr = led;
@@ -303,11 +303,11 @@ static struct led_classdev *__devm_led_get(struct device *dev, struct led_classd
  * @dev:	LED consumer
  * @index:	index of the LED to obtain in the consumer
  *
- * The device node of the device is parse to find the request LED device.
+ * The device analde of the device is parse to find the request LED device.
  * The LED device returned from this function is automatically released
  * on driver detach.
  *
- * @return a pointer to a LED device or ERR_PTR(errno) on failure.
+ * @return a pointer to a LED device or ERR_PTR(erranal) on failure.
  */
 struct led_classdev *__must_check devm_of_led_get(struct device *dev,
 						  int index)
@@ -317,7 +317,7 @@ struct led_classdev *__must_check devm_of_led_get(struct device *dev,
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	led = of_led_get(dev->of_node, index);
+	led = of_led_get(dev->of_analde, index);
 	if (IS_ERR(led))
 		return led;
 
@@ -330,7 +330,7 @@ EXPORT_SYMBOL_GPL(devm_of_led_get);
  * @dev: device for which to get the LED device
  * @con_id: name of the LED from the device's point of view
  *
- * @return a pointer to a LED device or ERR_PTR(errno) on failure.
+ * @return a pointer to a LED device or ERR_PTR(erranal) on failure.
  */
 struct led_classdev *led_get(struct device *dev, char *con_id)
 {
@@ -349,7 +349,7 @@ struct led_classdev *led_get(struct device *dev, char *con_id)
 	mutex_unlock(&leds_lookup_lock);
 
 	if (!provider)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	led_dev = class_find_device_by_name(&leds_class, provider);
 	kfree_const(provider);
@@ -366,7 +366,7 @@ EXPORT_SYMBOL_GPL(led_get);
  * The LED device returned from this function is automatically released
  * on driver detach.
  *
- * @return a pointer to a LED device or ERR_PTR(errno) on failure.
+ * @return a pointer to a LED device or ERR_PTR(erranal) on failure.
  */
 struct led_classdev *devm_led_get(struct device *dev, char *con_id)
 {
@@ -412,12 +412,12 @@ EXPORT_SYMBOL_GPL(led_remove_lookup);
  * @dev:	LED consumer
  * @index:	index of the LED to obtain in the consumer
  *
- * The device node of the device is parsed to find the requested LED device.
+ * The device analde of the device is parsed to find the requested LED device.
  * The LED device returned from this function is automatically released
  * on driver detach.
  *
- * @return a pointer to a LED device, ERR_PTR(errno) on failure and NULL if the
- * led was not found.
+ * @return a pointer to a LED device, ERR_PTR(erranal) on failure and NULL if the
+ * led was analt found.
  */
 struct led_classdev *__must_check devm_of_led_get_optional(struct device *dev,
 							int index)
@@ -425,7 +425,7 @@ struct led_classdev *__must_check devm_of_led_get_optional(struct device *dev,
 	struct led_classdev *led;
 
 	led = devm_of_led_get(dev, index);
-	if (IS_ERR(led) && PTR_ERR(led) == -ENOENT)
+	if (IS_ERR(led) && PTR_ERR(led) == -EANALENT)
 		return NULL;
 
 	return led;
@@ -448,7 +448,7 @@ static int led_classdev_next_name(const char *init_name, char *name,
 	}
 
 	if (ret >= len)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return i;
 }
@@ -479,21 +479,21 @@ int led_classdev_register_ext(struct device *parent,
 		if (ret < 0)
 			return ret;
 
-		if (init_data->fwnode) {
-			fwnode_property_read_string(init_data->fwnode,
+		if (init_data->fwanalde) {
+			fwanalde_property_read_string(init_data->fwanalde,
 				"linux,default-trigger",
 				&led_cdev->default_trigger);
 
-			if (fwnode_property_present(init_data->fwnode,
+			if (fwanalde_property_present(init_data->fwanalde,
 						    "retain-state-shutdown"))
 				led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
 
-			fwnode_property_read_u32(init_data->fwnode,
+			fwanalde_property_read_u32(init_data->fwanalde,
 				"max-brightness",
 				&led_cdev->max_brightness);
 
-			if (fwnode_property_present(init_data->fwnode, "color"))
-				fwnode_property_read_u32(init_data->fwnode, "color",
+			if (fwanalde_property_present(init_data->fwanalde, "color"))
+				fwanalde_property_read_u32(init_data->fwanalde, "color",
 							 &led_cdev->color);
 		}
 	} else {
@@ -515,8 +515,8 @@ int led_classdev_register_ext(struct device *parent,
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
 	}
-	if (init_data && init_data->fwnode)
-		device_set_node(led_cdev->dev, init_data->fwnode);
+	if (init_data && init_data->fwanalde)
+		device_set_analde(led_cdev->dev, init_data->fwanalde);
 
 	if (ret)
 		dev_warn(parent, "Led %s renamed to %s due to name collision",
@@ -541,7 +541,7 @@ int led_classdev_register_ext(struct device *parent,
 #endif
 	/* add to the list of leds */
 	down_write(&leds_list_lock);
-	list_add_tail(&led_cdev->node, &leds_list);
+	list_add_tail(&led_cdev->analde, &leds_list);
 	up_write(&leds_list_lock);
 
 	if (!led_cdev->max_brightness)
@@ -598,7 +598,7 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	device_unregister(led_cdev->dev);
 
 	down_write(&leds_list_lock);
-	list_del(&led_cdev->node);
+	list_del(&led_cdev->analde);
 	up_write(&leds_list_lock);
 
 	mutex_destroy(&led_cdev->led_access);
@@ -626,7 +626,7 @@ int devm_led_classdev_register_ext(struct device *parent,
 
 	dr = devres_alloc(devm_led_classdev_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = led_classdev_register_ext(parent, led_cdev, init_data);
 	if (rc) {

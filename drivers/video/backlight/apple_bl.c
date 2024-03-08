@@ -144,7 +144,7 @@ static int apple_bl_add(struct acpi_device *dev)
 
 	if (!host) {
 		pr_err("unable to find PCI host\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (host->vendor == PCI_VENDOR_ID_INTEL)
@@ -155,18 +155,18 @@ static int apple_bl_add(struct acpi_device *dev)
 	pci_dev_put(host);
 
 	if (!hw_data) {
-		pr_err("unknown hardware\n");
-		return -ENODEV;
+		pr_err("unkanalwn hardware\n");
+		return -EANALDEV;
 	}
 
-	/* Check that the hardware responds - this may not work under EFI */
+	/* Check that the hardware responds - this may analt work under EFI */
 
 	intensity = hw_data->backlight_ops.get_brightness(NULL);
 
 	if (!intensity) {
 		hw_data->set_brightness(1);
 		if (!hw_data->backlight_ops.get_brightness(NULL))
-			return -ENODEV;
+			return -EANALDEV;
 
 		hw_data->set_brightness(0);
 	}
@@ -219,10 +219,10 @@ static int __init apple_bl_init(void)
 {
 	/*
 	 * Use ACPI video detection code to see if this driver should register
-	 * or if another driver, e.g. the apple-gmux driver should be used.
+	 * or if aanalther driver, e.g. the apple-gmux driver should be used.
 	 */
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return acpi_bus_register_driver(&apple_bl_driver);
 }

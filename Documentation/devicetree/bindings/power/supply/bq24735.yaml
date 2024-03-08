@@ -29,7 +29,7 @@ properties:
     description: |
       This GPIO is optionally used to read the AC adapter status. This is a Host GPIO
       that is configured as an input and connected to the ACOK pin on the bq24735.
-      Note: for backwards compatibility reasons, the GPIO must be active on AC adapter
+      Analte: for backwards compatibility reasons, the GPIO must be active on AC adapter
       absence despite ACOK being active (high) on AC adapter presence.
 
   ti,charge-current:
@@ -59,13 +59,13 @@ properties:
   ti,external-control:
     type: boolean
     description: |
-      Indicates that the charger is configured externally and that the host should not
+      Indicates that the charger is configured externally and that the host should analt
       attempt to enable/disable charging or set the charge voltage/current.
 
   poll-interval:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-      If 'interrupts' is not specified, poll AC adapter presence with this interval (milliseconds).
+      If 'interrupts' is analt specified, poll AC adapter presence with this interval (milliseconds).
 
 required:
   - compatible

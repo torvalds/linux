@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -44,12 +44,12 @@
 #include "mlx4_en.h"
 
 MODULE_AUTHOR("Liran Liss, Yevgeny Petrilin");
-MODULE_DESCRIPTION("Mellanox ConnectX HCA Ethernet driver");
+MODULE_DESCRIPTION("Mellaanalx ConnectX HCA Ethernet driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
 static const char mlx4_en_version[] =
-	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
+	DRV_NAME ": Mellaanalx ConnectX HCA Ethernet driver v"
 	DRV_VERSION "\n";
 
 #define MLX4_EN_PARM_INT(X, def_val, desc) \
@@ -111,8 +111,8 @@ void mlx4_en_update_loopback_state(struct net_device *dev,
 	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
 			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
 
-	/* Drop the packet if SRIOV is not enabled
-	 * and not performing the selftest or flb disabled
+	/* Drop the packet if SRIOV is analt enabled
+	 * and analt performing the selftest or flb disabled
 	 */
 	if (mlx4_is_mfunc(priv->mdev->dev) &&
 	    !(features & NETIF_F_LOOPBACK) && !priv->validate_loopback)
@@ -159,7 +159,7 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 
 	if (params->udp_rss && !(mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UDP_RSS)) {
-		mlx4_warn(mdev, "UDP RSS is not supported on this device\n");
+		mlx4_warn(mdev, "UDP RSS is analt supported on this device\n");
 		params->udp_rss = 0;
 	}
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
@@ -183,7 +183,7 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 }
 
-static int mlx4_en_event(struct notifier_block *this, unsigned long event,
+static int mlx4_en_event(struct analtifier_block *this, unsigned long event,
 			 void *param)
 {
 	struct mlx4_en_dev *mdev =
@@ -207,7 +207,7 @@ static int mlx4_en_event(struct notifier_block *this, unsigned long event,
 	case MLX4_DEV_EVENT_PORT_UP:
 	case MLX4_DEV_EVENT_PORT_DOWN:
 		if (!mdev->pndev[port])
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		priv = netdev_priv(mdev->pndev[port]);
 		/* To prevent races, we poll the link state in a separate
 		  task rather than changing it here */
@@ -226,12 +226,12 @@ static int mlx4_en_event(struct notifier_block *this, unsigned long event,
 	default:
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		mlx4_warn(mdev, "Unhandled event %d for port %d\n", (int)event,
 			  port);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void mlx4_en_remove(struct auxiliary_device *adev)
@@ -241,7 +241,7 @@ static void mlx4_en_remove(struct auxiliary_device *adev)
 	struct mlx4_en_dev *mdev = auxiliary_get_drvdata(adev);
 	int i;
 
-	mlx4_unregister_event_notifier(dev, &mdev->mlx_nb);
+	mlx4_unregister_event_analtifier(dev, &mdev->mlx_nb);
 
 	mutex_lock(&mdev->state_lock);
 	mdev->device_up = false;
@@ -256,8 +256,8 @@ static void mlx4_en_remove(struct auxiliary_device *adev)
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
-	if (mdev->netdev_nb.notifier_call)
-		unregister_netdevice_notifier(&mdev->netdev_nb);
+	if (mdev->netdev_nb.analtifier_call)
+		unregister_netdevice_analtifier(&mdev->netdev_nb);
 	kfree(mdev);
 }
 
@@ -273,7 +273,7 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_res;
 	}
 
@@ -288,7 +288,7 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 	mdev->uar_map = ioremap((phys_addr_t) mdev->priv_uar.pfn << PAGE_SHIFT,
 				PAGE_SIZE);
 	if (!mdev->uar_map) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_uar;
 	}
 	spin_lock_init(&mdev->uar_lock);
@@ -300,7 +300,7 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));
 	if (!mdev->LSO_support)
-		mlx4_warn(mdev, "LSO not supported, please upgrade to later FW version to enable LSO\n");
+		mlx4_warn(mdev, "LSO analt supported, please upgrade to later FW version to enable LSO\n");
 
 	err = mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
 			    MLX4_PERM_LOCAL_WRITE | MLX4_PERM_LOCAL_READ, 0, 0,
@@ -327,23 +327,23 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 	mlx4_en_set_num_rx_rings(mdev);
 
 	/* Create our own workqueue for reset/multicast tasks
-	 * Note: we cannot use the shared workqueue because of deadlocks caused
+	 * Analte: we cananalt use the shared workqueue because of deadlocks caused
 	 *       by the rtnl lock */
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
 	if (!mdev->workqueue) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_mr;
 	}
 
-	/* At this stage all non-port specific tasks are complete:
+	/* At this stage all analn-port specific tasks are complete:
 	 * mark the card state as up */
 	mutex_init(&mdev->state_lock);
 	mdev->device_up = true;
 
-	/* register mlx4 core notifier */
-	mdev->mlx_nb.notifier_call = mlx4_en_event;
-	err = mlx4_register_event_notifier(dev, &mdev->mlx_nb);
-	WARN(err, "failed to register mlx4 event notifier (%d)", err);
+	/* register mlx4 core analtifier */
+	mdev->mlx_nb.analtifier_call = mlx4_en_event;
+	err = mlx4_register_event_analtifier(dev, &mdev->mlx_nb);
+	WARN(err, "failed to register mlx4 event analtifier (%d)", err);
 
 	/* Setup ports */
 
@@ -354,11 +354,11 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 			mdev->pndev[i] = NULL;
 	}
 
-	/* register netdev notifier */
-	mdev->netdev_nb.notifier_call = mlx4_en_netdev_event;
-	if (register_netdevice_notifier(&mdev->netdev_nb)) {
-		mdev->netdev_nb.notifier_call = NULL;
-		mlx4_err(mdev, "Failed to create netdev notifier\n");
+	/* register netdev analtifier */
+	mdev->netdev_nb.analtifier_call = mlx4_en_netdev_event;
+	if (register_netdevice_analtifier(&mdev->netdev_nb)) {
+		mdev->netdev_nb.analtifier_call = NULL;
+		mlx4_err(mdev, "Failed to create netdev analtifier\n");
 	}
 
 	auxiliary_set_drvdata(adev, mdev);

@@ -14,7 +14,7 @@
 #include "pm8150l.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8150 MTP";
+	model = "Qualcomm Techanallogies, Inc. SM8150 MTP";
 	compatible = "qcom,sm8150-mtp", "qcom,sm8150";
 	chassis-type = "handset";
 
@@ -34,7 +34,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8150 S4 because it
+	 * Apparently RPMh does analt provide support for PM8150 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	vreg_s4a_1p8: pm8150-s4 {
@@ -356,10 +356,10 @@
 
 &gpu {
 	/*
-	 * NOTE: "amd,imageon" makes Adreno start in headless mode, remove it
+	 * ANALTE: "amd,imageon" makes Adreanal start in headless mode, remove it
 	 * after display support is added on this board.
 	 */
-	compatible = "qcom,adreno-640.1", "qcom,adreno", "amd,imageon";
+	compatible = "qcom,adreanal-640.1", "qcom,adreanal", "amd,imageon";
 	status = "okay";
 };
 

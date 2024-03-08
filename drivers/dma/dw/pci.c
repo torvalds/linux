@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PCI driver for the Synopsys DesignWare DMA Controller
+ * PCI driver for the Syanalpsys DesignWare DMA Controller
  *
  * Copyright (C) 2013 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -38,11 +38,11 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	data = devm_kmemdup(&pdev->dev, drv_data, sizeof(*drv_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = &pdev->dev;
 	chip->id = pdev->devfn;
@@ -143,5 +143,5 @@ static struct pci_driver dw_pci_driver = {
 module_pci_driver(dw_pci_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller PCI driver");
+MODULE_DESCRIPTION("Syanalpsys DesignWare DMA Controller PCI driver");
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");

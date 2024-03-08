@@ -3,7 +3,7 @@
  * IPQ9574 RDP board common device tree source
  *
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -74,7 +74,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-analr";
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -95,7 +95,7 @@
 		ipq9574_s1: s1 {
 		/*
 		 * During kernel bootup, the SoC runs at 800MHz with 875mV set by the bootloaders.
-		 * During regulator registration, kernel not knowing the initial voltage,
+		 * During regulator registration, kernel analt kanalwing the initial voltage,
 		 * considers it as zero and brings up the regulators with minimum supported voltage.
 		 * Update the regulator-min-microvolt with SVS voltage of 725mV so that
 		 * the regulators are brought up with 725mV which is sufficient for all the

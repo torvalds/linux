@@ -2,9 +2,9 @@
 /*
  * OMAP GPIO handling defines and functions
  *
- * Copyright (C) 2003-2005 Nokia Corporation
+ * Copyright (C) 2003-2005 Analkia Corporation
  *
- * Written by Juha Yrjölä <juha.yrjola@nokia.com>
+ * Written by Juha Yrjölä <juha.yrjola@analkia.com>
  */
 
 #ifndef __ASM_ARCH_OMAP_GPIO_H
@@ -181,10 +181,10 @@ struct omap_gpio_platform_data {
 	int bank_type;
 	int bank_width;		/* GPIO bank width */
 	int bank_stride;	/* Only needed for omap1 MPUIO */
-	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
+	bool dbck_flag;		/* dbck required or analt - True for OMAP3&4 */
 	bool loses_context;	/* whether the bank would ever lose context */
 	bool is_mpuio;		/* whether the bank is of type MPUIO */
-	u32 non_wakeup_gpios;
+	u32 analn_wakeup_gpios;
 
 	const struct omap_gpio_reg_offs *regs;
 

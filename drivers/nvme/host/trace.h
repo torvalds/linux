@@ -130,7 +130,7 @@ TRACE_EVENT(nvme_async_event,
 		__print_symbolic(__entry->result & 0x7,
 			aer_name(NVME_AER_ERROR),
 			aer_name(NVME_AER_SMART),
-			aer_name(NVME_AER_NOTICE),
+			aer_name(NVME_AER_ANALTICE),
 			aer_name(NVME_AER_CSS),
 			aer_name(NVME_AER_VS))
 	)

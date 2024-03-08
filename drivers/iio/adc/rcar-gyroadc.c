@@ -108,7 +108,7 @@ static void rcar_gyroadc_hw_start(struct rcar_gyroadc *priv)
 
 	/*
 	 * Wait for the first conversion to complete. This is longer than
-	 * the 1.25 mS in the datasheet because 1.25 mS is not enough for
+	 * the 1.25 mS in the datasheet because 1.25 mS is analt eanalugh for
 	 * the hardware to deliver the first sample and the hardware does
 	 * then return zeroes instead of valid data.
 	 */
@@ -195,7 +195,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		if (chan->type != IIO_VOLTAGE)
 			return -EINVAL;
 
-		/* Channel not connected. */
+		/* Channel analt connected. */
 		if (!consumer)
 			return -EINVAL;
 
@@ -219,7 +219,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		/* Channel not connected. */
+		/* Channel analt connected. */
 		if (!consumer)
 			return -EINVAL;
 
@@ -317,8 +317,8 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 	const struct iio_chan_spec *channels;
 	struct rcar_gyroadc *priv = iio_priv(indio_dev);
 	struct device *dev = priv->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	struct regulator *vref;
 	unsigned int reg;
 	unsigned int adcmode = -1, childmode;
@@ -326,10 +326,10 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 	unsigned int num_channels;
 	int ret, first = 1;
 
-	for_each_child_of_node(np, child) {
-		of_id = of_match_node(rcar_gyroadc_child_match, child);
+	for_each_child_of_analde(np, child) {
+		of_id = of_match_analde(rcar_gyroadc_child_match, child);
 		if (!of_id) {
-			dev_err(dev, "Ignoring unsupported ADC \"%pOFn\".",
+			dev_err(dev, "Iganalring unsupported ADC \"%pOFn\".",
 				child);
 			continue;
 		}
@@ -358,7 +358,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		/*
 		 * MB88101 is special in that it's only a single chip taking
 		 * up all the CHS lines. Thus, the DT binding is also special
-		 * and has no reg property. If we run into such ADC, handle
+		 * and has anal reg property. If we run into such ADC, handle
 		 * it here.
 		 */
 		if (childmode == RCAR_GYROADC_MODE_SELECT_1_MB88101A) {
@@ -369,7 +369,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 				dev_err(dev,
 					"Failed to get child reg property of ADC \"%pOFn\".\n",
 					child);
-				goto err_of_node_put;
+				goto err_of_analde_put;
 			}
 
 			/* Channel number is too high. */
@@ -381,7 +381,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 			}
 		}
 
-		/* Child node selected different mode than the rest. */
+		/* Child analde selected different mode than the rest. */
 		if (!first && (adcmode != childmode)) {
 			dev_err(dev,
 				"Channel %i uses different ADC mode than the rest.\n",
@@ -390,14 +390,14 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		}
 
 		/* Channel is valid, grab the regulator. */
-		dev->of_node = child;
+		dev->of_analde = child;
 		vref = devm_regulator_get(dev, "vref");
-		dev->of_node = np;
+		dev->of_analde = np;
 		if (IS_ERR(vref)) {
-			dev_dbg(dev, "Channel %i 'vref' supply not connected.\n",
+			dev_dbg(dev, "Channel %i 'vref' supply analt connected.\n",
 				reg);
 			ret = PTR_ERR(vref);
-			goto err_of_node_put;
+			goto err_of_analde_put;
 		}
 
 		priv->vref[reg] = vref;
@@ -405,7 +405,7 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		if (!first)
 			continue;
 
-		/* First child node which passed sanity tests. */
+		/* First child analde which passed sanity tests. */
 		adcmode = childmode;
 		first = 0;
 
@@ -422,13 +422,13 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 		 * we can stop parsing here.
 		 */
 		if (childmode == RCAR_GYROADC_MODE_SELECT_1_MB88101A) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
 	if (first) {
-		dev_err(dev, "No valid ADC channels found, aborting.\n");
+		dev_err(dev, "Anal valid ADC channels found, aborting.\n");
 		return -EINVAL;
 	}
 
@@ -436,8 +436,8 @@ static int rcar_gyroadc_parse_subdevs(struct iio_dev *indio_dev)
 
 err_e_inval:
 	ret = -EINVAL;
-err_of_node_put:
-	of_node_put(child);
+err_of_analde_put:
+	of_analde_put(child);
 	return ret;
 }
 
@@ -489,7 +489,7 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = iio_priv(indio_dev);
 	priv->dev = dev;
@@ -521,7 +521,7 @@ static int rcar_gyroadc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(dev, "Could not prepare or enable the IF clock.\n");
+		dev_err(dev, "Could analt prepare or enable the IF clock.\n");
 		goto err_clk_if_enable;
 	}
 

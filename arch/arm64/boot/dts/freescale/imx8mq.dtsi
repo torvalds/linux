@@ -227,8 +227,8 @@
 
 	funnel {
 		/*
-		 * non-configurable funnel don't show up on the AMBA
-		 * bus.  As such no need to add "arm,primecell".
+		 * analn-configurable funnel don't show up on the AMBA
+		 * bus.  As such anal need to add "arm,primecell".
 		 */
 		compatible = "arm,coresight-static-funnel";
 
@@ -313,10 +313,10 @@
 				map0 {
 					trip = <&cpu_alert>;
 					cooling-device =
-						<&A53_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						<&A53_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&A53_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+						<&A53_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -344,7 +344,7 @@
 				map0 {
 					trip = <&gpu_alert>;
 					cooling-device =
-						<&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&gpu THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -367,11 +367,11 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>, /* Physical Secure */
-		             <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Non-Secure */
+		             <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>, /* Physical Analn-Secure */
 		             <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>, /* Virtual */
 		             <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>; /* Hypervisor */
 		interrupt-parent = <&gic>;
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 	};
 
 	soc: soc@0 {
@@ -472,7 +472,7 @@
 					/* M4 input */
 					};
 				};
-				/* the other input ports are not connect to anything */
+				/* the other input ports are analt connect to anything */
 			};
 
 			out-ports {
@@ -793,7 +793,7 @@
 				 *   reg = <ADDR SIZE>;
 				 * then
 				 *   Fuse Address = (ADDR * 4) + 0x400
-				 * Note that if SIZE is greater than 4, then
+				 * Analte that if SIZE is greater than 4, then
 				 * each subsequent fuse is located at offset
 				 * +0x10 in Fusemap Description Table (e.g.
 				 * reg = <0x4 0x8> describes fuses 0x410 and
@@ -859,7 +859,7 @@
 				              "clk_ext3", "clk_ext4";
 				assigned-clocks = <&clk IMX8MQ_CLK_A53_SRC>,
 						  <&clk IMX8MQ_CLK_A53_CORE>,
-						  <&clk IMX8MQ_CLK_NOC>,
+						  <&clk IMX8MQ_CLK_ANALC>,
 						  <&clk IMX8MQ_CLK_AUDIO_AHB>,
 						  <&clk IMX8MQ_AUDIO_PLL1_BYPASS>,
 						  <&clk IMX8MQ_AUDIO_PLL2_BYPASS>,
@@ -1383,7 +1383,7 @@
 					 <&src IMX8MQ_RESET_MIPI_CSI1_PHY_REF_RESET>,
 					 <&src IMX8MQ_RESET_MIPI_CSI1_ESC_RESET>;
 				fsl,mipi-phy-gpr = <&iomuxc_gpr 0x88>;
-				interconnects = <&noc IMX8MQ_ICM_CSI1 &noc IMX8MQ_ICS_DRAM>;
+				interconnects = <&analc IMX8MQ_ICM_CSI1 &analc IMX8MQ_ICS_DRAM>;
 				interconnect-names = "dram";
 				status = "disabled";
 
@@ -1435,7 +1435,7 @@
 					 <&src IMX8MQ_RESET_MIPI_CSI2_PHY_REF_RESET>,
 					 <&src IMX8MQ_RESET_MIPI_CSI2_ESC_RESET>;
 				fsl,mipi-phy-gpr = <&iomuxc_gpr 0xa4>;
-				interconnects = <&noc IMX8MQ_ICM_CSI2 &noc IMX8MQ_ICS_DRAM>;
+				interconnects = <&analc IMX8MQ_ICM_CSI2 &analc IMX8MQ_ICS_DRAM>;
 				interconnect-names = "dram";
 				status = "disabled";
 
@@ -1563,15 +1563,15 @@
 			};
 		};
 
-		noc: interconnect@32700000 {
-			compatible = "fsl,imx8mq-noc", "fsl,imx8m-noc";
+		analc: interconnect@32700000 {
+			compatible = "fsl,imx8mq-analc", "fsl,imx8m-analc";
 			reg = <0x32700000 0x100000>;
-			clocks = <&clk IMX8MQ_CLK_NOC>;
+			clocks = <&clk IMX8MQ_CLK_ANALC>;
 			fsl,ddrc = <&ddrc>;
 			#interconnect-cells = <1>;
-			operating-points-v2 = <&noc_opp_table>;
+			operating-points-v2 = <&analc_opp_table>;
 
-			noc_opp_table: opp-table {
+			analc_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-133000000 {
@@ -1734,7 +1734,7 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0x00000000 0x1ff80000 0 0x00010000>, /* downstream I/O 64KB */
-				 <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* non-prefetchable memory */
+				 <0x82000000 0 0x18000000 0x18000000 0 0x07f00000>; /* analn-prefetchable memory */
 			num-lanes = <1>;
 			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
@@ -1754,8 +1754,8 @@
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY>,
 			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
-			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURNOFF>;
-			reset-names = "pciephy", "apps", "turnoff";
+			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_TURANALFF>;
+			reset-names = "pciephy", "apps", "turanalff";
 			assigned-clocks = <&clk IMX8MQ_CLK_PCIE1_CTRL>,
 			                  <&clk IMX8MQ_CLK_PCIE1_PHY>,
 			                  <&clk IMX8MQ_CLK_PCIE1_AUX>;
@@ -1777,7 +1777,7 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0x00000000 0x27f80000 0 0x00010000>, /* downstream I/O 64KB */
-				 <0x82000000 0 0x20000000 0x20000000 0 0x07f00000>; /* non-prefetchable memory */
+				 <0x82000000 0 0x20000000 0x20000000 0 0x07f00000>; /* analn-prefetchable memory */
 			num-lanes = <1>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
@@ -1797,8 +1797,8 @@
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY2>,
 			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_EN>,
-			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_TURNOFF>;
-			reset-names = "pciephy", "apps", "turnoff";
+			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_TURANALFF>;
+			reset-names = "pciephy", "apps", "turanalff";
 			assigned-clocks = <&clk IMX8MQ_CLK_PCIE2_CTRL>,
 			                  <&clk IMX8MQ_CLK_PCIE2_PHY>,
 			                  <&clk IMX8MQ_CLK_PCIE2_AUX>;
@@ -1827,8 +1827,8 @@
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY2>,
 				 <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_EN>,
-				 <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_TURNOFF>;
-			reset-names = "pciephy", "apps", "turnoff";
+				 <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_TURANALFF>;
+			reset-names = "pciephy", "apps", "turanalff";
 			assigned-clocks = <&clk IMX8MQ_CLK_PCIE2_CTRL>,
 					  <&clk IMX8MQ_CLK_PCIE2_PHY>,
 					  <&clk IMX8MQ_CLK_PCIE2_AUX>;

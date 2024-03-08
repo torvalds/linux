@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0+
 #
 # Runs the C-language litmus tests matching the specified criteria
-# that do not already have a corresponding .litmus.out file, and does
-# not judge the result.
+# that do analt already have a corresponding .litmus.out file, and does
+# analt judge the result.
 #
 # sh newlitmushist.sh
 #
@@ -41,12 +41,12 @@ fi
 	sed -e 's/\.out$//' |
 	xargs -r grep -L "^P${LKMM_PROCS}"> $T/list-C-already
 
-# Form full list of litmus tests with no more than the specified
+# Form full list of litmus tests with anal more than the specified
 # number of processes (per the --procs argument).
 find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C-all
 xargs < $T/list-C-all -r grep -L "^P${LKMM_PROCS}" > $T/list-C-short
 
-# Form list of new tests.  Note: This does not handle litmus-test deletion!
+# Form list of new tests.  Analte: This does analt handle litmus-test deletion!
 sort $T/list-C-already $T/list-C-short | uniq -u > $T/list-C-new
 
 # Form list of litmus tests that have changed since the last run.

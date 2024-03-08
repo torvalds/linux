@@ -3,7 +3,7 @@
 """
 tdc_batch.py - a script to generate TC batch file
 
-Copyright (C) 2017 Chris Mi <chrism@mellanox.com>
+Copyright (C) 2017 Chris Mi <chrism@mellaanalx.com>
 """
 
 import argparse

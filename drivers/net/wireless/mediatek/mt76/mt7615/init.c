@@ -89,7 +89,7 @@ mt7615_init_mac_chain(struct mt7615_dev *dev, int chain)
 		 FIELD_PREP(MT_TMAC_TRCR_SEC_CCA_SEL, 0));
 
 	mt76_wr(dev, MT_AGG_ACR(chain),
-		MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_NO_BA_AR_RULE |
+		MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_ANAL_BA_AR_RULE |
 		FIELD_PREP(MT_AGG_ACR_CFEND_RATE, MT7615_CFEND_RATE_DEFAULT) |
 		FIELD_PREP(MT_AGG_ACR_BAR_RATE, MT7615_BAR_RATE_DEFAULT));
 
@@ -118,7 +118,7 @@ mt7615_init_mac_chain(struct mt7615_dev *dev, int chain)
 		u32 mask, set;
 
 		mask = MT_DMA_RCFR0_MCU_RX_MGMT |
-		       MT_DMA_RCFR0_MCU_RX_CTL_NON_BAR |
+		       MT_DMA_RCFR0_MCU_RX_CTL_ANALN_BAR |
 		       MT_DMA_RCFR0_MCU_RX_CTL_BAR |
 		       MT_DMA_RCFR0_MCU_RX_BYPASS |
 		       MT_DMA_RCFR0_RX_DROPPED_UCAST |
@@ -247,7 +247,7 @@ static const struct ieee80211_iface_combination if_comb_radar[] = {
 		.max_interfaces = MT7615_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
-		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_ANALHT) |
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80) |
@@ -325,7 +325,7 @@ void mt7615_init_work(struct mt7615_dev *dev)
 EXPORT_SYMBOL_GPL(mt7615_init_work);
 
 static void
-mt7615_regd_notifier(struct wiphy *wiphy,
+mt7615_regd_analtifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -380,7 +380,7 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 		wiphy->iface_combinations = if_comb_radar;
 		wiphy->n_iface_combinations = ARRAY_SIZE(if_comb_radar);
 	}
-	wiphy->reg_notifier = mt7615_regd_notifier;
+	wiphy->reg_analtifier = mt7615_regd_analtifier;
 
 	wiphy->max_sched_scan_plan_interval =
 		MT76_CONNAC_MAX_TIME_SCHED_SCAN_INTERVAL;
@@ -398,7 +398,7 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
 
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
-	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
+	ieee80211_hw_set(hw, TX_STATUS_ANAL_AMPDU_LEN);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
@@ -529,7 +529,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	int i, ret;
 
 	if (!is_mt7615(&dev->mt76))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 		return -EINVAL;
@@ -540,7 +540,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	mt7615_cap_dbdc_enable(dev);
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops, MT_BAND1);
 	if (!mphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy = mphy->priv;
 	phy->dev = dev;

@@ -5,7 +5,7 @@
 #define __A6XX_GPU_H__
 
 
-#include "adreno_gpu.h"
+#include "adreanal_gpu.h"
 #include "a6xx.xml.h"
 
 #include "a6xx_gmu.h"
@@ -13,7 +13,7 @@
 extern bool hang_debug;
 
 struct a6xx_gpu {
-	struct adreno_gpu base;
+	struct adreanal_gpu base;
 
 	struct drm_gem_object *sqe_bo;
 	uint64_t sqe_iova;
@@ -42,7 +42,7 @@ struct a6xx_gpu {
  * REG_CP_PROTECT_REG(n) - this will block both reads and writes for
  * _len + 1 registers starting at _reg.
  */
-#define A6XX_PROTECT_NORDWR(_reg, _len) \
+#define A6XX_PROTECT_ANALRDWR(_reg, _len) \
 	((1 << 31) | \
 	(((_len) & 0x3FFF) << 18) | ((_reg) & 0x3FFFF))
 
@@ -54,9 +54,9 @@ struct a6xx_gpu {
 #define A6XX_PROTECT_RDONLY(_reg, _len) \
 	((((_len) & 0x3FFF) << 18) | ((_reg) & 0x3FFFF))
 
-static inline bool a6xx_has_gbif(struct adreno_gpu *gpu)
+static inline bool a6xx_has_gbif(struct adreanal_gpu *gpu)
 {
-	if(adreno_is_a630(gpu))
+	if(adreanal_is_a630(gpu))
 		return false;
 
 	return true;
@@ -90,8 +90,8 @@ bool a6xx_gmu_isidle(struct a6xx_gmu *gmu);
 int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state);
 void a6xx_gmu_clear_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state);
 
-int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node);
-int a6xx_gmu_wrapper_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node);
+int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_analde *analde);
+int a6xx_gmu_wrapper_init(struct a6xx_gpu *a6xx_gpu, struct device_analde *analde);
 void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu);
 
 void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp,
@@ -104,7 +104,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu);
 int a6xx_gpu_state_put(struct msm_gpu_state *state);
 
-void a6xx_bus_clear_pending_transactions(struct adreno_gpu *adreno_gpu, bool gx_off);
+void a6xx_bus_clear_pending_transactions(struct adreanal_gpu *adreanal_gpu, bool gx_off);
 void a6xx_gpu_sw_reset(struct msm_gpu *gpu, bool assert);
 
 #endif /* __A6XX_GPU_H__ */

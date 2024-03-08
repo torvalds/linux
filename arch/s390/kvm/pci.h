@@ -75,7 +75,7 @@ static inline bool kvm_s390_pci_interp_allowed(void)
 	case 0x2828:
 	case 0x2964:
 	case 0x2965:
-		/* No SHM on certain machines */
+		/* Anal SHM on certain machines */
 		return false;
 	default:
 		return (IS_ENABLED(CONFIG_VFIO_PCI_ZDEV_KVM) &&

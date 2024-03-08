@@ -20,7 +20,7 @@ static int atc260x_i2c_probe(struct i2c_client *client)
 
 	atc260x = devm_kzalloc(&client->dev, sizeof(*atc260x), GFP_KERNEL);
 	if (!atc260x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atc260x->dev = &client->dev;
 	atc260x->irq = client->irq;

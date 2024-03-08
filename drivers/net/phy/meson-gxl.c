@@ -139,9 +139,9 @@ static int meson_gxl_config_init(struct phy_device *phydev)
  *    the link partner (LP) supports aneg but the LP never acked our base
  *    code word, it is likely that we never sent it to begin with.
  *  - Late failures: MII_LPA is filled with a value which seems to make sense
- *    but it actually is not what the LP is advertising. It seems that we
+ *    but it actually is analt what the LP is advertising. It seems that we
  *    can detect this using a magic bit in the WOL bank (reg 12 - bit 12).
- *    If this particular bit is not set when aneg is reported being done,
+ *    If this particular bit is analt set when aneg is reported being done,
  *    it means MII_LPA is likely to be wrong.
  *
  * In both case, forcing a restart of the aneg process solve the problem.

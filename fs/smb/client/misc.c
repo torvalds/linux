@@ -99,7 +99,7 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	atomic_dec(&sesInfoAllocCount);
 	kfree(buf_to_free->serverOS);
 	kfree(buf_to_free->serverDomain);
-	kfree(buf_to_free->serverNOS);
+	kfree(buf_to_free->serverANALS);
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
@@ -171,7 +171,7 @@ cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
 	/*
-	 * SMB2 header is bigger than CIFS one - no problems to clean some
+	 * SMB2 header is bigger than CIFS one - anal problems to clean some
 	 * more bytes for CIFS.
 	 */
 	size_t buf_size = sizeof(struct smb2_hdr);
@@ -180,9 +180,9 @@ cifs_buf_get(void)
 	 * We could use negotiated size instead of max_msgsize -
 	 * but it may be more efficient to always alloc same size
 	 * albeit slightly larger than necessary and maxbuffersize
-	 * defaults to this and can not be bigger.
+	 * defaults to this and can analt be bigger.
 	 */
-	ret_buf = mempool_alloc(cifs_req_poolp, GFP_NOFS);
+	ret_buf = mempool_alloc(cifs_req_poolp, GFP_ANALFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
@@ -216,9 +216,9 @@ cifs_small_buf_get(void)
 /* We could use negotiated size instead of max_msgsize -
    but it may be more efficient to always alloc same size
    albeit slightly larger than necessary and maxbuffersize
-   defaults to this and can not be bigger */
-	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
-	/* No need to clear memory here, cleared in header assemble */
+   defaults to this and can analt be bigger */
+	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_ANALFS);
+	/* Anal need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
 	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
@@ -251,7 +251,7 @@ free_rsp_buf(int resp_buftype, void *rsp)
 		cifs_buf_release(rsp);
 }
 
-/* NB: MID can not be set if treeCon not passed in, in that
+/* NB: MID can analt be set if treeCon analt passed in, in that
    case it is responsbility of caller to set the mid */
 void
 header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
@@ -264,7 +264,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 	buffer->smb_buf_length = cpu_to_be32(
 	    (2 * word_count) + sizeof(struct smb_hdr) -
-	    4 /*  RFC 1001 length field does not count */  +
+	    4 /*  RFC 1001 length field does analt count */  +
 	    2 /* for bcc field itself */) ;
 
 	buffer->Protocol[0] = 0xFF;
@@ -273,7 +273,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	buffer->Protocol[3] = 'B';
 	buffer->Command = smb_command;
 	buffer->Flags = 0x00;	/* case sensitive */
-	buffer->Flags2 = SMBFLG2_KNOWS_LONG_NAMES;
+	buffer->Flags2 = SMBFLG2_KANALWS_LONG_NAMES;
 	buffer->Pid = cpu_to_le16((__u16)current->tgid);
 	buffer->PidHigh = cpu_to_le16((__u16)(current->tgid >> 16));
 	if (treeCon) {
@@ -284,21 +284,21 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			if (treeCon->ses->capabilities & CAP_STATUS32)
 				buffer->Flags2 |= SMBFLG2_ERR_STATUS;
 
-			/* Uid is not converted */
+			/* Uid is analt converted */
 			buffer->Uid = treeCon->ses->Suid;
 			if (treeCon->ses->server)
 				buffer->Mid = get_next_mid(treeCon->ses->server);
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
-		if (treeCon->nocase)
+		if (treeCon->analcase)
 			buffer->Flags  |= SMBFLG_CASELESS;
 		if ((treeCon->ses) && (treeCon->ses->server))
 			if (treeCon->ses->server->sign)
 				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 	}
 
-/*  endian conversion of flags is now done just before sending */
+/*  endian conversion of flags is analw done just before sending */
 	buffer->WordCount = (char) word_count;
 	return;
 }
@@ -321,7 +321,7 @@ check_smb_hdr(struct smb_hdr *smb)
 	if (smb->Command == SMB_COM_LOCKING_ANDX)
 		return 0;
 
-	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n",
+	cifs_dbg(VFS, "Server sent request, analt response. mid=%u\n",
 		 get_mid(smb));
 	return 1;
 }
@@ -341,7 +341,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			    && (smb->Status.CifsError != 0)) {
 			/* it's an error return */
 			smb->WordCount = 0;
-			/* some error cases do not return wct and bcc */
+			/* some error cases do analt return wct and bcc */
 			return 0;
 		} else if ((total_read == sizeof(struct smb_hdr) + 1) &&
 				(smb->WordCount == 0)) {
@@ -370,13 +370,13 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 		return -EIO;
 	}
 
-	/* otherwise, there is enough to get to the BCC */
+	/* otherwise, there is eanalugh to get to the BCC */
 	if (check_smb_hdr(smb))
 		return -EIO;
 	clc_len = smbCalcSize(smb);
 
 	if (4 + rfclen != total_read) {
-		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",
+		cifs_dbg(VFS, "Length read does analt match RFC1001 length %d\n",
 			 rfclen);
 		return -EIO;
 	}
@@ -402,7 +402,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			 * data than the lengths in the SMB packet would
 			 * indicate on certain calls (byte range locks and
 			 * trans2 find first calls in particular). While the
-			 * client can handle such a frame by ignoring the
+			 * client can handle such a frame by iganalring the
 			 * trailing data, we choose limit the amount of extra
 			 * data to 512 bytes.
 			 */
@@ -422,37 +422,37 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	struct TCP_Server_Info *pserver;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct cifsInodeInfo *pCifsInode;
+	struct cifsIanaldeInfo *pCifsIanalde;
 	struct cifsFileInfo *netfile;
 
-	cifs_dbg(FYI, "Checking for oplock break or dnotify response\n");
+	cifs_dbg(FYI, "Checking for oplock break or danaltify response\n");
 	if ((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
 	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
-		struct smb_com_transaction_change_notify_rsp *pSMBr =
-			(struct smb_com_transaction_change_notify_rsp *)buf;
-		struct file_notify_information *pnotify;
+		struct smb_com_transaction_change_analtify_rsp *pSMBr =
+			(struct smb_com_transaction_change_analtify_rsp *)buf;
+		struct file_analtify_information *panaltify;
 		__u32 data_offset = 0;
 		size_t len = srv->total_read - sizeof(pSMBr->hdr.smb_buf_length);
 
-		if (get_bcc(buf) > sizeof(struct file_notify_information)) {
+		if (get_bcc(buf) > sizeof(struct file_analtify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
 			if (data_offset >
-			    len - sizeof(struct file_notify_information)) {
+			    len - sizeof(struct file_analtify_information)) {
 				cifs_dbg(FYI, "Invalid data_offset %u\n",
 					 data_offset);
 				return true;
 			}
-			pnotify = (struct file_notify_information *)
+			panaltify = (struct file_analtify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",
-				 pnotify->FileName, pnotify->Action);
-			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
+			cifs_dbg(FYI, "danaltify on %s Action: 0x%x\n",
+				 panaltify->FileName, panaltify->Action);
+			/*   cifs_dump_mem("Rcvd analtify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
-			cifs_dbg(FYI, "notify err 0x%x\n",
+			cifs_dbg(FYI, "analtify err 0x%x\n",
 				 pSMBr->hdr.Status.CifsError);
 			return true;
 		}
@@ -461,7 +461,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
 		return false;
 	if (pSMB->hdr.Flags & SMBFLG_RESPONSE) {
-		/* no sense logging error on invalid handle on oplock
+		/* anal sense logging error on invalid handle on oplock
 		   break - harmless race between close request and oplock
 		   break response is expected from time to time writing out
 		   large dirty files cached on the client */
@@ -501,10 +501,10 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 					continue;
 
 				cifs_dbg(FYI, "file id match, oplock break\n");
-				pCifsInode = CIFS_I(d_inode(netfile->dentry));
+				pCifsIanalde = CIFS_I(d_ianalde(netfile->dentry));
 
-				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
-					&pCifsInode->flags);
+				set_bit(CIFS_IANALDE_PENDING_OPLOCK_BREAK,
+					&pCifsIanalde->flags);
 
 				netfile->oplock_epoch = 0;
 				netfile->oplock_level = pSMB->OplockLevel;
@@ -517,12 +517,12 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			}
 			spin_unlock(&tcon->open_file_lock);
 			spin_unlock(&cifs_tcp_ses_lock);
-			cifs_dbg(FYI, "No matching file for oplock break\n");
+			cifs_dbg(FYI, "Anal matching file for oplock break\n");
 			return true;
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
+	cifs_dbg(FYI, "Can analt process oplock break for analn-existent connection\n");
 	return true;
 }
 
@@ -532,12 +532,12 @@ dump_smb(void *buf, int smb_buf_length)
 	if (traceSMB == 0)
 		return;
 
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_NONE, 8, 2, buf,
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_ANALNE, 8, 2, buf,
 		       smb_buf_length, true);
 }
 
 void
-cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
+cifs_autodisable_serverianal(struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		struct cifs_tcon *tcon = NULL;
@@ -546,72 +546,72 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 			tcon = cifs_sb_master_tcon(cifs_sb);
 
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
-		cifs_sb->mnt_cifs_serverino_autodisabled = true;
-		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s\n",
+		cifs_sb->mnt_cifs_serverianal_autodisabled = true;
+		cifs_dbg(VFS, "Autodisabling the use of server ianalde numbers on %s\n",
 			 tcon ? tcon->tree_name : "new server");
 		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS)\n");
-		cifs_dbg(VFS, "Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n");
+		cifs_dbg(VFS, "Hardlinks will analt be recognized on this mount. Consider mounting with the \"analserverianal\" option to silence this message.\n");
 
 	}
 }
 
-void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+void cifs_set_oplock_level(struct cifsIanaldeInfo *cianalde, __u32 oplock)
 {
 	oplock &= 0xF;
 
 	if (oplock == OPLOCK_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_WRITE_FLG | CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->netfs.inode);
+		cianalde->oplock = CIFS_CACHE_WRITE_FLG | CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Exclusive Oplock granted on ianalde %p\n",
+			 &cianalde->netfs.ianalde);
 	} else if (oplock == OPLOCK_READ) {
-		cinode->oplock = CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->netfs.inode);
+		cianalde->oplock = CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Level II Oplock granted on ianalde %p\n",
+			 &cianalde->netfs.ianalde);
 	} else
-		cinode->oplock = 0;
+		cianalde->oplock = 0;
 }
 
 /*
  * We wait for oplock breaks to be processed before we attempt to perform
  * writes.
  */
-int cifs_get_writer(struct cifsInodeInfo *cinode)
+int cifs_get_writer(struct cifsIanaldeInfo *cianalde)
 {
 	int rc;
 
 start:
-	rc = wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK,
+	rc = wait_on_bit(&cianalde->flags, CIFS_IANALDE_PENDING_OPLOCK_BREAK,
 			 TASK_KILLABLE);
 	if (rc)
 		return rc;
 
-	spin_lock(&cinode->writers_lock);
-	if (!cinode->writers)
-		set_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-	cinode->writers++;
+	spin_lock(&cianalde->writers_lock);
+	if (!cianalde->writers)
+		set_bit(CIFS_IANALDE_PENDING_WRITERS, &cianalde->flags);
+	cianalde->writers++;
 	/* Check to see if we have started servicing an oplock break */
-	if (test_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags)) {
-		cinode->writers--;
-		if (cinode->writers == 0) {
-			clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-			wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+	if (test_bit(CIFS_IANALDE_PENDING_OPLOCK_BREAK, &cianalde->flags)) {
+		cianalde->writers--;
+		if (cianalde->writers == 0) {
+			clear_bit(CIFS_IANALDE_PENDING_WRITERS, &cianalde->flags);
+			wake_up_bit(&cianalde->flags, CIFS_IANALDE_PENDING_WRITERS);
 		}
-		spin_unlock(&cinode->writers_lock);
+		spin_unlock(&cianalde->writers_lock);
 		goto start;
 	}
-	spin_unlock(&cinode->writers_lock);
+	spin_unlock(&cianalde->writers_lock);
 	return 0;
 }
 
-void cifs_put_writer(struct cifsInodeInfo *cinode)
+void cifs_put_writer(struct cifsIanaldeInfo *cianalde)
 {
-	spin_lock(&cinode->writers_lock);
-	cinode->writers--;
-	if (cinode->writers == 0) {
-		clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-		wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+	spin_lock(&cianalde->writers_lock);
+	cianalde->writers--;
+	if (cianalde->writers == 0) {
+		clear_bit(CIFS_IANALDE_PENDING_WRITERS, &cianalde->flags);
+		wake_up_bit(&cianalde->flags, CIFS_IANALDE_PENDING_WRITERS);
 	}
-	spin_unlock(&cinode->writers_lock);
+	spin_unlock(&cianalde->writers_lock);
 }
 
 /**
@@ -622,12 +622,12 @@ void cifs_put_writer(struct cifsInodeInfo *cinode)
  * receives an oplock break for @cfile.
  *
  * Assumes the tcon->open_file_lock is held.
- * Assumes cfile->file_info_lock is NOT held.
+ * Assumes cfile->file_info_lock is ANALT held.
  */
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 {
 	/*
-	 * Bump the handle refcount now while we hold the
+	 * Bump the handle refcount analw while we hold the
 	 * open_file_lock to enforce the validity of it for the oplock
 	 * break handler. The matching put is done at the end of the
 	 * handler.
@@ -637,10 +637,10 @@ void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 	queue_work(cifsoplockd_wq, &cfile->oplock_break);
 }
 
-void cifs_done_oplock_break(struct cifsInodeInfo *cinode)
+void cifs_done_oplock_break(struct cifsIanaldeInfo *cianalde)
 {
-	clear_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags);
-	wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK);
+	clear_bit(CIFS_IANALDE_PENDING_OPLOCK_BREAK, &cianalde->flags);
+	wake_up_bit(&cianalde->flags, CIFS_IANALDE_PENDING_OPLOCK_BREAK);
 }
 
 bool
@@ -671,7 +671,7 @@ cifs_add_pending_open_locked(struct cifs_fid *fid, struct tcon_link *tlink,
 			     struct cifs_pending_open *open)
 {
 	memcpy(open->lease_key, fid->lease_key, SMB2_LEASE_KEY_SIZE);
-	open->oplock = CIFS_OPLOCK_NO_CHANGE;
+	open->oplock = CIFS_OPLOCK_ANAL_CHANGE;
 	open->tlink = tlink;
 	fid->pending_open = open;
 	list_add_tail(&open->olist, &tlink_tcon(tlink)->pending_opens);
@@ -688,15 +688,15 @@ cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
 
 /*
  * Critical section which runs after acquiring deferred_lock.
- * As there is no reference count on cifs_deferred_close, pdclose
- * should not be used outside deferred_lock.
+ * As there is anal reference count on cifs_deferred_close, pdclose
+ * should analt be used outside deferred_lock.
  */
 bool
 cifs_is_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close **pdclose)
 {
 	struct cifs_deferred_close *dclose;
 
-	list_for_each_entry(dclose, &CIFS_I(d_inode(cfile->dentry))->deferred_closes, dlist) {
+	list_for_each_entry(dclose, &CIFS_I(d_ianalde(cfile->dentry))->deferred_closes, dlist) {
 		if ((dclose->netfid == cfile->fid.netfid) &&
 			(dclose->persistent_fid == cfile->fid.persistent_fid) &&
 			(dclose->volatile_fid == cfile->fid.volatile_fid)) {
@@ -726,7 +726,7 @@ cifs_add_deferred_close(struct cifsFileInfo *cfile, struct cifs_deferred_close *
 	dclose->netfid = cfile->fid.netfid;
 	dclose->persistent_fid = cfile->fid.persistent_fid;
 	dclose->volatile_fid = cfile->fid.volatile_fid;
-	list_add_tail(&dclose->dlist, &CIFS_I(d_inode(cfile->dentry))->deferred_closes);
+	list_add_tail(&dclose->dlist, &CIFS_I(d_ianalde(cfile->dentry))->deferred_closes);
 }
 
 /*
@@ -746,23 +746,23 @@ cifs_del_deferred_close(struct cifsFileInfo *cfile)
 }
 
 void
-cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
+cifs_close_deferred_file(struct cifsIanaldeInfo *cifs_ianalde)
 {
 	struct cifsFileInfo *cfile = NULL;
 	struct file_list *tmp_list, *tmp_next_list;
 	struct list_head file_head;
 
-	if (cifs_inode == NULL)
+	if (cifs_ianalde == NULL)
 		return;
 
 	INIT_LIST_HEAD(&file_head);
-	spin_lock(&cifs_inode->open_file_lock);
-	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
+	spin_lock(&cifs_ianalde->open_file_lock);
+	list_for_each_entry(cfile, &cifs_ianalde->openFileList, flist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
-				spin_lock(&cifs_inode->deferred_lock);
+				spin_lock(&cifs_ianalde->deferred_lock);
 				cifs_del_deferred_close(cfile);
-				spin_unlock(&cifs_inode->deferred_lock);
+				spin_unlock(&cifs_ianalde->deferred_lock);
 
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
@@ -772,7 +772,7 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 			}
 		}
 	}
-	spin_unlock(&cifs_inode->open_file_lock);
+	spin_unlock(&cifs_ianalde->open_file_lock);
 
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
 		_cifsFileInfo_put(tmp_list->cfile, false, false);
@@ -793,9 +793,9 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
-				spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+				spin_lock(&CIFS_I(d_ianalde(cfile->dentry))->deferred_lock);
 				cifs_del_deferred_close(cfile);
-				spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+				spin_unlock(&CIFS_I(d_ianalde(cfile->dentry))->deferred_lock);
 
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
@@ -830,9 +830,9 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 		if (strstr(full_path, path)) {
 			if (delayed_work_pending(&cfile->deferred)) {
 				if (cancel_delayed_work(&cfile->deferred)) {
-					spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+					spin_lock(&CIFS_I(d_ianalde(cfile->dentry))->deferred_lock);
 					cifs_del_deferred_close(cfile);
-					spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
+					spin_unlock(&CIFS_I(d_ianalde(cfile->dentry))->deferred_lock);
 
 					tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 					if (tmp_list == NULL)
@@ -854,15 +854,15 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 }
 
 /* parses DFS referral V3 structure
- * caller is responsible for freeing target_nodes
+ * caller is responsible for freeing target_analdes
  * returns:
  * - on success - 0
- * - on failure - errno
+ * - on failure - erranal
  */
 int
 parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
-		    unsigned int *num_of_nodes,
-		    struct dfs_info3_param **target_nodes,
+		    unsigned int *num_of_analdes,
+		    struct dfs_info3_param **target_analdes,
 		    const struct nls_table *nls_codepage, int remap,
 		    const char *searchName, bool is_unicode)
 {
@@ -870,18 +870,18 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	char *data_end;
 	struct dfs_referral_level_3 *ref;
 
-	*num_of_nodes = le16_to_cpu(rsp->NumberOfReferrals);
+	*num_of_analdes = le16_to_cpu(rsp->NumberOfReferrals);
 
-	if (*num_of_nodes < 1) {
+	if (*num_of_analdes < 1) {
 		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
-			 *num_of_nodes);
+			 *num_of_analdes);
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(rsp->referrals);
 	if (ref->VersionNumber != cpu_to_le16(3)) {
-		cifs_dbg(VFS, "Referrals of V%d version are not supported, should be V3\n",
+		cifs_dbg(VFS, "Referrals of V%d version are analt supported, should be V3\n",
 			 le16_to_cpu(ref->VersionNumber));
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
@@ -891,71 +891,71 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	data_end = (char *)rsp + rsp_size;
 
 	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
-		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
+		 *num_of_analdes, le32_to_cpu(rsp->DFSFlags));
 
-	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
+	*target_analdes = kcalloc(*num_of_analdes, sizeof(struct dfs_info3_param),
 				GFP_KERNEL);
-	if (*target_nodes == NULL) {
-		rc = -ENOMEM;
+	if (*target_analdes == NULL) {
+		rc = -EANALMEM;
 		goto parse_DFS_referrals_exit;
 	}
 
 	/* collect necessary data from referrals */
-	for (i = 0; i < *num_of_nodes; i++) {
+	for (i = 0; i < *num_of_analdes; i++) {
 		char *temp;
 		int max_len;
-		struct dfs_info3_param *node = (*target_nodes)+i;
+		struct dfs_info3_param *analde = (*target_analdes)+i;
 
-		node->flags = le32_to_cpu(rsp->DFSFlags);
+		analde->flags = le32_to_cpu(rsp->DFSFlags);
 		if (is_unicode) {
 			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
 						GFP_KERNEL);
 			if (tmp == NULL) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto parse_DFS_referrals_exit;
 			}
 			cifsConvertToUTF16((__le16 *) tmp, searchName,
 					   PATH_MAX, nls_codepage, remap);
-			node->path_consumed = cifs_utf16_bytes(tmp,
+			analde->path_consumed = cifs_utf16_bytes(tmp,
 					le16_to_cpu(rsp->PathConsumed),
 					nls_codepage);
 			kfree(tmp);
 		} else
-			node->path_consumed = le16_to_cpu(rsp->PathConsumed);
+			analde->path_consumed = le16_to_cpu(rsp->PathConsumed);
 
-		node->server_type = le16_to_cpu(ref->ServerType);
-		node->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
+		analde->server_type = le16_to_cpu(ref->ServerType);
+		analde->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
 
 		/* copy DfsPath */
 		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
 		max_len = data_end - temp;
-		node->path_name = cifs_strndup_from_utf16(temp, max_len,
+		analde->path_name = cifs_strndup_from_utf16(temp, max_len,
 						is_unicode, nls_codepage);
-		if (!node->path_name) {
-			rc = -ENOMEM;
+		if (!analde->path_name) {
+			rc = -EANALMEM;
 			goto parse_DFS_referrals_exit;
 		}
 
 		/* copy link target UNC */
 		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
 		max_len = data_end - temp;
-		node->node_name = cifs_strndup_from_utf16(temp, max_len,
+		analde->analde_name = cifs_strndup_from_utf16(temp, max_len,
 						is_unicode, nls_codepage);
-		if (!node->node_name) {
-			rc = -ENOMEM;
+		if (!analde->analde_name) {
+			rc = -EANALMEM;
 			goto parse_DFS_referrals_exit;
 		}
 
-		node->ttl = le32_to_cpu(ref->TimeToLive);
+		analde->ttl = le32_to_cpu(ref->TimeToLive);
 
 		ref++;
 	}
 
 parse_DFS_referrals_exit:
 	if (rc) {
-		free_dfs_info_array(*target_nodes, *num_of_nodes);
-		*target_nodes = NULL;
-		*num_of_nodes = 0;
+		free_dfs_info_array(*target_analdes, *num_of_analdes);
+		*target_analdes = NULL;
+		*num_of_analdes = 0;
 	}
 	return rc;
 }
@@ -967,7 +967,7 @@ cifs_aio_ctx_alloc(void)
 
 	/*
 	 * Must use kzalloc to initialize ctx->bv to NULL and ctx->direct_io
-	 * to false so that we know when we have to unreference pages within
+	 * to false so that we kanalw when we have to unreference pages within
 	 * cifs_aio_ctx_release()
 	 */
 	ctx = kzalloc(sizeof(struct cifs_aio_ctx), GFP_KERNEL);
@@ -1033,7 +1033,7 @@ cifs_alloc_hash(const char *name, struct shash_desc **sdesc)
 
 	alg = crypto_alloc_shash(name, 0, 0);
 	if (IS_ERR(alg)) {
-		cifs_dbg(VFS, "Could not allocate shash TFM '%s'\n", name);
+		cifs_dbg(VFS, "Could analt allocate shash TFM '%s'\n", name);
 		rc = PTR_ERR(alg);
 		*sdesc = NULL;
 		return rc;
@@ -1041,9 +1041,9 @@ cifs_alloc_hash(const char *name, struct shash_desc **sdesc)
 
 	*sdesc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(alg), GFP_KERNEL);
 	if (*sdesc == NULL) {
-		cifs_dbg(VFS, "no memory left to allocate shash TFM '%s'\n", name);
+		cifs_dbg(VFS, "anal memory left to allocate shash TFM '%s'\n", name);
 		crypto_free_shash(alg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	(*sdesc)->tfm = alg;
@@ -1161,7 +1161,7 @@ static struct super_block *__cifs_get_super(void (*f)(struct super_block *, void
 			return sd.sb;
 		}
 	}
-	pr_warn_once("%s: could not find dfs superblock\n", __func__);
+	pr_warn_once("%s: could analt find dfs superblock\n", __func__);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -1176,7 +1176,7 @@ struct super_block *cifs_get_dfs_tcon_super(struct cifs_tcon *tcon)
 	spin_lock(&tcon->tc_lock);
 	if (!tcon->origin_fullpath) {
 		spin_unlock(&tcon->tc_lock);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 	spin_unlock(&tcon->tc_lock);
 	return __cifs_get_super(tcon_super_cb, tcon);
@@ -1200,7 +1200,7 @@ int match_target_ip(struct TCP_Server_Info *server,
 
 	target = kzalloc(share_len + 3, GFP_KERNEL);
 	if (!target)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scnprintf(target, share_len + 3, "\\\\%.*s", (int)share_len, share);
 
@@ -1245,7 +1245,7 @@ int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
  * Handle weird Windows SMB server behaviour. It responds with
  * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request for
  * "\<server>\<dfsname>\<linkpath>" DFS reference, where <dfsname> contains
- * non-ASCII unicode symbols.
+ * analn-ASCII unicode symbols.
  */
 int cifs_inval_name_dfs_link_error(const unsigned int xid,
 				   struct cifs_tcon *tcon,
@@ -1262,10 +1262,10 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 
 	/*
 	 * Fast path - skip check when @full_path doesn't have a prefix path to
-	 * look up or tcon is not DFS.
+	 * look up or tcon is analt DFS.
 	 */
 	if (strlen(full_path) < 2 || !cifs_sb ||
-	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS) ||
+	    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_ANAL_DFS) ||
 	    !is_tcon_dfs(tcon))
 		return 0;
 
@@ -1283,10 +1283,10 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 	len = strnlen(tcon->tree_name, MAX_TREE_SIZE + 1) + strlen(full_path) + 1;
 	path = kmalloc(len, GFP_KERNEL);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scnprintf(path, len, "%s%s", tcon->tree_name, full_path);
-	ref_path = dfs_cache_canonical_path(path + 1, cifs_sb->local_nls,
+	ref_path = dfs_cache_caanalnical_path(path + 1, cifs_sb->local_nls,
 					    cifs_remap(cifs_sb));
 	kfree(path);
 
@@ -1298,7 +1298,7 @@ int cifs_inval_name_dfs_link_error(const unsigned int xid,
 		int num_refs = 0;
 
 		/*
-		 * XXX: we are not using dfs_cache_find() here because we might
+		 * XXX: we are analt using dfs_cache_find() here because we might
 		 * end up filling all the DFS cache and thus potentially
 		 * removing cached DFS targets that the client would eventually
 		 * need during failover.

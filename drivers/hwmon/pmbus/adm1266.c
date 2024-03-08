@@ -293,7 +293,7 @@ static int adm1266_config_gpio(struct adm1266_data *data)
 		gpio_name = devm_kasprintf(&data->client->dev, GFP_KERNEL, "adm1266-%x-%s",
 					   data->client->addr, adm1266_names[i]);
 		if (!gpio_name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->gpio_names[i] = gpio_name;
 	}
@@ -388,7 +388,7 @@ static int adm1266_nvmem_read(void *priv, unsigned int offset, void *val, size_t
 
 		ret = adm1266_nvmem_read_blackbox(data, data->dev_mem);
 		if (ret) {
-			dev_err(&data->client->dev, "Could not read blackbox!");
+			dev_err(&data->client->dev, "Could analt read blackbox!");
 			return ret;
 		}
 	}
@@ -415,11 +415,11 @@ static int adm1266_config_nvmem(struct adm1266_data *data)
 
 	data->dev_mem = devm_kzalloc(&data->client->dev, data->nvmem_config.size, GFP_KERNEL);
 	if (!data->dev_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->nvmem = devm_nvmem_register(&data->client->dev, &data->nvmem_config);
 	if (IS_ERR(data->nvmem)) {
-		dev_err(&data->client->dev, "Could not register nvmem!");
+		dev_err(&data->client->dev, "Could analt register nvmem!");
 		return PTR_ERR(data->nvmem);
 	}
 
@@ -451,7 +451,7 @@ static int adm1266_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(struct adm1266_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	data->info.pages = 17;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* vnode and volume validity verification.
+/* vanalde and volume validity verification.
  *
  * Copyright (C) 2023 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -16,26 +16,26 @@
  *  (1) On first contact with a server (such as if it has just been rebooted),
  *      the server sends us a CB.InitCallBackState* request.
  *
- *  (2) On a RW volume, in response to certain vnode (inode)-accessing RPC
- *      calls, the server maintains a time-limited per-vnode promise that it
- *      will send us a CB.CallBack request if a third party alters the vnodes
+ *  (2) On a RW volume, in response to certain vanalde (ianalde)-accessing RPC
+ *      calls, the server maintains a time-limited per-vanalde promise that it
+ *      will send us a CB.CallBack request if a third party alters the vanaldes
  *      accessed.
  *
- *      Note that a vnode-level callbacks may also be sent for other reasons,
+ *      Analte that a vanalde-level callbacks may also be sent for other reasons,
  *      such as filelock release.
  *
- *  (3) On a RO (or Backup) volume, in response to certain vnode-accessing RPC
+ *  (3) On a RO (or Backup) volume, in response to certain vanalde-accessing RPC
  *      calls, each server maintains a time-limited per-volume promise that it
  *      will send us a CB.CallBack request if the RO volume is updated to a
  *      snapshot of the RW volume ("vos release").  This is an atomic event
  *      that cuts over all instances of the RO volume across multiple servers
  *      simultaneously.
  *
- *	Note that a volume-level callbacks may also be sent for other reasons,
+ *	Analte that a volume-level callbacks may also be sent for other reasons,
  *	such as the volumeserver taking over control of the volume from the
  *	fileserver.
  *
- *	Note also that each server maintains an independent time limit on an
+ *	Analte also that each server maintains an independent time limit on an
  *	independent callback.
  *
  *  (4) Certain RPC calls include a volume information record "VolSync" in
@@ -47,7 +47,7 @@
  * In order to track this events, the following are provided:
  *
  *	->cb_v_break.  A counter of events that might mean that the contents of
- *	a volume have been altered since we last checked a vnode.
+ *	a volume have been altered since we last checked a vanalde.
  *
  *	->cb_v_check.  A counter of the number of events that we've sent a
  *	query to the server for.  Everything's up to date if this equals
@@ -60,34 +60,34 @@
  *      recognised that a RO volume has been updated.
  *
  *	->cb_break.  A counter of events that might mean that the contents of a
- *      vnode have been altered.
+ *      vanalde have been altered.
  *
  *	->cb_expires_at.  The time at which the callback promise expires or
- *      AFS_NO_CB_PROMISE if we have no promise.
+ *      AFS_ANAL_CB_PROMISE if we have anal promise.
  *
  * The way we manage things is:
  *
  *  (1) When a volume-level CB.CallBack occurs, we increment ->cb_v_break on
- *      the volume and reset ->cb_expires_at (ie. set AFS_NO_CB_PROMISE) on the
+ *      the volume and reset ->cb_expires_at (ie. set AFS_ANAL_CB_PROMISE) on the
  *      volume and volume's server record.
  *
  *  (2) When a CB.InitCallBackState occurs, we treat this as a volume-level
  *	callback break on all the volumes that have been using that volume
  *	(ie. increment ->cb_v_break and reset ->cb_expires_at).
  *
- *  (3) When a vnode-level CB.CallBack occurs, we increment ->cb_break on the
- *	vnode and reset its ->cb_expires_at.  If the vnode is mmapped, we also
- *	dispatch a work item to unmap all PTEs to the vnode's pagecache to
+ *  (3) When a vanalde-level CB.CallBack occurs, we increment ->cb_break on the
+ *	vanalde and reset its ->cb_expires_at.  If the vanalde is mmapped, we also
+ *	dispatch a work item to unmap all PTEs to the vanalde's pagecache to
  *	force reentry to the filesystem for revalidation.
  *
  *  (4) When entering the filesystem, we call afs_validate() to check the
- *	validity of a vnode.  This first checks to see if ->cb_v_check and
+ *	validity of a vanalde.  This first checks to see if ->cb_v_check and
  *	->cb_v_break match, and if they don't, we lock volume->cb_check_lock
- *	exclusively and perform an FS.FetchStatus on the vnode.
+ *	exclusively and perform an FS.FetchStatus on the vanalde.
  *
- *	After checking the volume, we check the vnode.  If there's a mismatch
- *	between the volume counters and the vnode's mirrors of those counters,
- *	we lock vnode->validate_lock and issue an FS.FetchStatus on the vnode.
+ *	After checking the volume, we check the vanalde.  If there's a mismatch
+ *	between the volume counters and the vanalde's mirrors of those counters,
+ *	we lock vanalde->validate_lock and issue an FS.FetchStatus on the vanalde.
  *
  *  (5) When the reply from FS.FetchStatus arrives, the VolSync record is
  *      parsed:
@@ -100,34 +100,34 @@
  *      (B) If the Update timestamp has regressed, we try to increment
  *	    ->cb_scrub.
  *
- *      Note that in both of these cases, we only do the increment if we can
- *      cmpxchg the value of the timestamp from the value we noted before the
- *      op.  This tries to prevent parallel ops from fighting one another.
+ *      Analte that in both of these cases, we only do the increment if we can
+ *      cmpxchg the value of the timestamp from the value we analted before the
+ *      op.  This tries to prevent parallel ops from fighting one aanalther.
  *
  *	volume->cb_v_check is then set to ->cb_v_break.
  *
  *  (6) The AFSCallBack record included in the FS.FetchStatus reply is also
- *	parsed and used to set the promise in ->cb_expires_at for the vnode,
+ *	parsed and used to set the promise in ->cb_expires_at for the vanalde,
  *	the volume and the volume's server record.
  *
  *  (7) If ->cb_scrub is seen to have advanced, we invalidate the pagecache for
- *      the vnode.
+ *      the vanalde.
  */
 
 /*
- * Check the validity of a vnode/inode and its parent volume.
+ * Check the validity of a vanalde/ianalde and its parent volume.
  */
-bool afs_check_validity(const struct afs_vnode *vnode)
+bool afs_check_validity(const struct afs_vanalde *vanalde)
 {
-	const struct afs_volume *volume = vnode->volume;
+	const struct afs_volume *volume = vanalde->volume;
 	time64_t deadline = ktime_get_real_seconds() + 10;
 
 	if (atomic_read(&volume->cb_v_check) != atomic_read(&volume->cb_v_break) ||
-	    atomic64_read(&vnode->cb_expires_at)  <= deadline ||
+	    atomic64_read(&vanalde->cb_expires_at)  <= deadline ||
 	    volume->cb_expires_at <= deadline ||
-	    vnode->cb_ro_snapshot != atomic_read(&volume->cb_ro_snapshot) ||
-	    vnode->cb_scrub	  != atomic_read(&volume->cb_scrub) ||
-	    test_bit(AFS_VNODE_ZAP_DATA, &vnode->flags)) {
+	    vanalde->cb_ro_snapshot != atomic_read(&volume->cb_ro_snapshot) ||
+	    vanalde->cb_scrub	  != atomic_read(&volume->cb_scrub) ||
+	    test_bit(AFS_VANALDE_ZAP_DATA, &vanalde->flags)) {
 		_debug("inval");
 		return false;
 	}
@@ -251,7 +251,7 @@ regressed:
  */
 static void afs_update_volume_update_time(struct afs_operation *op, struct afs_volume *volume)
 {
-	enum afs_cb_break_reason reason = afs_cb_break_no_break;
+	enum afs_cb_break_reason reason = afs_cb_break_anal_break;
 	time64_t cur = volume->update_time;
 	time64_t old = op->pre_volsync.update;
 	time64_t new = op->volsync.update;
@@ -349,26 +349,26 @@ int afs_update_volume_state(struct afs_operation *op)
 }
 
 /*
- * mark the data attached to an inode as obsolete due to a write on the server
+ * mark the data attached to an ianalde as obsolete due to a write on the server
  * - might also want to ditch all the outstanding writes and dirty pages
  */
-static void afs_zap_data(struct afs_vnode *vnode)
+static void afs_zap_data(struct afs_vanalde *vanalde)
 {
-	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu}", vanalde->fid.vid, vanalde->fid.vanalde);
 
-	afs_invalidate_cache(vnode, 0);
+	afs_invalidate_cache(vanalde, 0);
 
-	/* nuke all the non-dirty pages that aren't locked, mapped or being
+	/* nuke all the analn-dirty pages that aren't locked, mapped or being
 	 * written back in a regular file and completely discard the pages in a
 	 * directory or symlink */
-	if (S_ISREG(vnode->netfs.inode.i_mode))
-		invalidate_remote_inode(&vnode->netfs.inode);
+	if (S_ISREG(vanalde->netfs.ianalde.i_mode))
+		invalidate_remote_ianalde(&vanalde->netfs.ianalde);
 	else
-		invalidate_inode_pages2(vnode->netfs.inode.i_mapping);
+		invalidate_ianalde_pages2(vanalde->netfs.ianalde.i_mapping);
 }
 
 /*
- * validate a vnode/inode
+ * validate a vanalde/ianalde
  * - there are several things we need to check
  *   - parent dir data changes (rm, rmdir, rename, mkdir, create, link,
  *     symlink)
@@ -376,22 +376,22 @@ static void afs_zap_data(struct afs_vnode *vnode)
  *   - dentry data changed (write, truncate)
  *   - dentry metadata changed (security changes)
  */
-int afs_validate(struct afs_vnode *vnode, struct key *key)
+int afs_validate(struct afs_vanalde *vanalde, struct key *key)
 {
-	struct afs_volume *volume = vnode->volume;
+	struct afs_volume *volume = vanalde->volume;
 	unsigned int cb_ro_snapshot, cb_scrub;
 	time64_t deadline = ktime_get_real_seconds() + 10;
 	bool zap = false, locked_vol = false;
 	int ret;
 
 	_enter("{v={%llx:%llu} fl=%lx},%x",
-	       vnode->fid.vid, vnode->fid.vnode, vnode->flags,
+	       vanalde->fid.vid, vanalde->fid.vanalde, vanalde->flags,
 	       key_serial(key));
 
-	if (afs_check_validity(vnode))
+	if (afs_check_validity(vanalde))
 		return 0;
 
-	ret = down_write_killable(&vnode->validate_lock);
+	ret = down_write_killable(&vanalde->validate_lock);
 	if (ret < 0)
 		goto error;
 
@@ -410,29 +410,29 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 
 	cb_ro_snapshot = atomic_read(&volume->cb_ro_snapshot);
 	cb_scrub = atomic_read(&volume->cb_scrub);
-	if (vnode->cb_ro_snapshot != cb_ro_snapshot ||
-	    vnode->cb_scrub	  != cb_scrub)
-		unmap_mapping_pages(vnode->netfs.inode.i_mapping, 0, 0, false);
+	if (vanalde->cb_ro_snapshot != cb_ro_snapshot ||
+	    vanalde->cb_scrub	  != cb_scrub)
+		unmap_mapping_pages(vanalde->netfs.ianalde.i_mapping, 0, 0, false);
 
-	if (vnode->cb_ro_snapshot != cb_ro_snapshot ||
-	    vnode->cb_scrub	  != cb_scrub ||
+	if (vanalde->cb_ro_snapshot != cb_ro_snapshot ||
+	    vanalde->cb_scrub	  != cb_scrub ||
 	    volume->cb_expires_at <= deadline ||
 	    atomic_read(&volume->cb_v_check) != atomic_read(&volume->cb_v_break) ||
-	    atomic64_read(&vnode->cb_expires_at) <= deadline
+	    atomic64_read(&vanalde->cb_expires_at) <= deadline
 	    ) {
-		ret = afs_fetch_status(vnode, key, false, NULL);
+		ret = afs_fetch_status(vanalde, key, false, NULL);
 		if (ret < 0) {
-			if (ret == -ENOENT) {
-				set_bit(AFS_VNODE_DELETED, &vnode->flags);
+			if (ret == -EANALENT) {
+				set_bit(AFS_VANALDE_DELETED, &vanalde->flags);
 				ret = -ESTALE;
 			}
 			goto error_unlock;
 		}
 
-		_debug("new promise [fl=%lx]", vnode->flags);
+		_debug("new promise [fl=%lx]", vanalde->flags);
 	}
 
-	/* We can drop the volume lock now as. */
+	/* We can drop the volume lock analw as. */
 	if (locked_vol) {
 		mutex_unlock(&volume->cb_check_lock);
 		locked_vol = false;
@@ -440,33 +440,33 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 
 	cb_ro_snapshot = atomic_read(&volume->cb_ro_snapshot);
 	cb_scrub = atomic_read(&volume->cb_scrub);
-	_debug("vnode inval %x==%x %x==%x",
-	       vnode->cb_ro_snapshot, cb_ro_snapshot,
-	       vnode->cb_scrub, cb_scrub);
-	if (vnode->cb_scrub != cb_scrub)
+	_debug("vanalde inval %x==%x %x==%x",
+	       vanalde->cb_ro_snapshot, cb_ro_snapshot,
+	       vanalde->cb_scrub, cb_scrub);
+	if (vanalde->cb_scrub != cb_scrub)
 		zap = true;
-	vnode->cb_ro_snapshot = cb_ro_snapshot;
-	vnode->cb_scrub = cb_scrub;
+	vanalde->cb_ro_snapshot = cb_ro_snapshot;
+	vanalde->cb_scrub = cb_scrub;
 
-	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
+	if (test_bit(AFS_VANALDE_DELETED, &vanalde->flags)) {
 		_debug("file already deleted");
 		ret = -ESTALE;
 		goto error_unlock;
 	}
 
-	/* if the vnode's data version number changed then its contents are
+	/* if the vanalde's data version number changed then its contents are
 	 * different */
-	zap |= test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
+	zap |= test_and_clear_bit(AFS_VANALDE_ZAP_DATA, &vanalde->flags);
 	if (zap)
-		afs_zap_data(vnode);
-	up_write(&vnode->validate_lock);
+		afs_zap_data(vanalde);
+	up_write(&vanalde->validate_lock);
 	_leave(" = 0");
 	return 0;
 
 error_unlock:
 	if (locked_vol)
 		mutex_unlock(&volume->cb_check_lock);
-	up_write(&vnode->validate_lock);
+	up_write(&vanalde->validate_lock);
 error:
 	_leave(" = %d", ret);
 	return ret;

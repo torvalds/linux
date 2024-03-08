@@ -2,7 +2,7 @@
 /*
  * DTS File for HiSilicon Poplar Development Board
  *
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techanallogies Co., Ltd.
  */
 
 /dts-v1/;
@@ -56,7 +56,7 @@
 		user-led3 {
 			label = "green:user4";
 			gpios = <&gpio10 6 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "analne";
 			panic-indicator;
 			default-state = "off";
 		};
@@ -85,7 +85,7 @@
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };
@@ -203,4 +203,4 @@
 	status = "okay";
 	label = "LS-UART0";
 };
-/* No optional LS-UART1 on Low Speed Expansion Connector. */
+/* Anal optional LS-UART1 on Low Speed Expansion Connector. */

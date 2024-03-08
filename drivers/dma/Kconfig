@@ -7,7 +7,7 @@ menuconfig DMADEVICES
 	bool "DMA Engine support"
 	depends on HAS_DMA
 	help
-	  DMA engines can do asynchronous data transfers without
+	  DMA engines can do asynchroanalus data transfers without
 	  involving the host CPU.  Currently, this framework can be
 	  used to offload memory copies in the network stack and
 	  RAID operations in the MD driver.  This menu only presents
@@ -70,10 +70,10 @@ config AMBA_PL08X
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Say yes if your platform has a PL08x DMAC device which can
+	  Say anal if your platform has a PL08x DMAC device which can
 	  provide DMA engine support. This includes the original ARM
 	  PL080 and PL081, Samsungs PL080 derivative and Faraday
-	  Technology's FTDMAC020 PL080 derivative.
+	  Techanallogy's FTDMAC020 PL080 derivative.
 
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
@@ -180,15 +180,15 @@ config DMA_SUN6I
 	  Support for the DMA engine first found in Allwinner A31 SoCs.
 
 config DW_AXI_DMAC
-	tristate "Synopsys DesignWare AXI DMA support"
+	tristate "Syanalpsys DesignWare AXI DMA support"
 	depends on OF
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Enable support for Synopsys DesignWare AXI DMA controller.
-	  NOTE: This driver wasn't tested on 64 bit platform because
-	  of lack 64 bit platform with Synopsys DW AXI DMAC.
+	  Enable support for Syanalpsys DesignWare AXI DMA controller.
+	  ANALTE: This driver wasn't tested on 64 bit platform because
+	  of lack 64 bit platform with Syanalpsys DW AXI DMAC.
 
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
@@ -390,7 +390,7 @@ config LS2X_APB_DMA
 	  etc which is in APB bus.
 
 	  This DMA controller transfers data from memory to peripheral fifo.
-	  It does not support memory to memory data transfer.
+	  It does analt support memory to memory data transfer.
 
 config MCF_EDMA
 	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
@@ -410,7 +410,7 @@ config MILBEAUT_HDMAC
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Say yes here to support the Socionext Milbeaut
+	  Say anal here to support the Socionext Milbeaut
 	  HDMAC device.
 
 config MILBEAUT_XDMAC
@@ -420,7 +420,7 @@ config MILBEAUT_XDMAC
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Say yes here to support the Socionext Milbeaut
+	  Say anal here to support the Socionext Milbeaut
 	  XDMAC device.
 
 config MMP_PDMA
@@ -639,7 +639,7 @@ config TEGRA20_APB_DMA
 	  configured for different peripherals like audio, UART, SPI,
 	  I2C etc which is in APB bus.
 	  This DMA controller transfers data from memory to peripheral fifo
-	  or vice versa. It does not support memory to memory data transfer.
+	  or vice versa. It does analt support memory to memory data transfer.
 
 config TEGRA210_ADMA
 	tristate "NVIDIA Tegra210 ADMA support"
@@ -651,7 +651,7 @@ config TEGRA210_ADMA
 	  DMA controller has multiple DMA channels and is used to service
 	  various audio clients in the Tegra210 audio processing engine
 	  (APE). This DMA controller transfers data from memory to
-	  peripheral and vice versa. It does not support memory to
+	  peripheral and vice versa. It does analt support memory to
 	  memory data transfer.
 
 config TIMB_DMA

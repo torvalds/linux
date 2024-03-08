@@ -58,14 +58,14 @@
 		 * +-----------------------+ 0x4320_0000
 		 */
 		optee_reserved: optee@43200000 {
-			no-map;
+			anal-map;
 			reg = <0 0x43200000 0 0x00c00000>;
 		};
 
 		scp_mem: memory@50000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
+			anal-map;
 		};
 
 		vpu_mem: memory@53000000 {
@@ -75,14 +75,14 @@
 
 		/* 2 MiB reserved for ARM Trusted Firmware (BL31) */
 		bl31_secmon_mem: memory@54600000 {
-			no-map;
+			anal-map;
 			reg = <0 0x54600000 0x0 0x200000>;
 		};
 
 		snd_dma_mem: memory@60000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x60000000 0 0x1100000>;
-			no-map;
+			anal-map;
 		};
 
 		apu_mem: memory@62000000 {
@@ -246,7 +246,7 @@
 
 		charger {
 			compatible = "mediatek,mt6360-chg";
-			richtek,vinovp-microvolt = <14500000>;
+			richtek,vianalvp-microvolt = <14500000>;
 
 			otg_vbus_regulator: usb-otg-vbus-regulator {
 				regulator-name = "usb-otg-vbus";
@@ -263,7 +263,7 @@
 				regulator-name = "emi_vdd2";
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP
 							   MT6360_OPMODE_ULP>;
 				regulator-always-on;
@@ -273,7 +273,7 @@
 				regulator-name = "emi_vddq";
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP
 							   MT6360_OPMODE_ULP>;
 				regulator-always-on;
@@ -283,7 +283,7 @@
 				regulator-name = "tp1_p3v0";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 				regulator-always-on;
 			};
@@ -292,7 +292,7 @@
 				regulator-name = "panel1_p1v8";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 			};
 
@@ -300,7 +300,7 @@
 				regulator-name = "vmc_pmu";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <3600000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 			};
 
@@ -308,7 +308,7 @@
 				regulator-name = "vmch_pmu";
 				regulator-min-microvolt = <2700000>;
 				regulator-max-microvolt = <3600000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 			};
 
@@ -317,7 +317,7 @@
 				regulator-name = "mt6360_ldo1";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <2100000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 			};
 
@@ -325,7 +325,7 @@
 				regulator-name = "emi_vmddr_en";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <2100000>;
-				regulator-allowed-modes = <MT6360_OPMODE_NORMAL
+				regulator-allowed-modes = <MT6360_OPMODE_ANALRMAL
 							   MT6360_OPMODE_LP>;
 				regulator-always-on;
 			};
@@ -348,12 +348,12 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-hw-reset;
-	no-sdio;
-	no-sd;
+	anal-sdio;
+	anal-sd;
 	hs400-ds-delay = <0x14c11>;
 	vmmc-supply = <&mt6359_vemc_1_ldo_reg>;
 	vqmmc-supply = <&mt6359_vufs_ldo_reg>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {
@@ -365,12 +365,12 @@
 	cap-sd-highspeed;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	no-mmc;
-	no-sdio;
+	anal-mmc;
+	anal-sdio;
 	vmmc-supply = <&mt6360_ldo5>;
 	vqmmc-supply = <&mt6360_ldo3>;
 	status = "okay";
-	non-removable;
+	analn-removable;
 };
 
 &mt6359_vaud18_ldo_reg {

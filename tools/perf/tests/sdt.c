@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,7 +69,7 @@ static int search_cached_probe(const char *target,
 
 	if (!probe_cache__find_by_name(cache, group, event)) {
 		pr_debug("Failed to find %s:%s in the cache\n", group, event);
-		ret = -ENOENT;
+		ret = -EANALENT;
 	}
 	probe_cache__delete(cache);
 
@@ -86,7 +86,7 @@ static int test__sdt_event(struct test_suite *test __maybe_unused, int subtests 
 		pr_debug("Failed to make a tempdir for build-id cache\n");
 		goto error;
 	}
-	/* Note that buildid_dir must be an absolute path */
+	/* Analte that buildid_dir must be an absolute path */
 	tempdir = realpath(__tempdir, NULL);
 	if (tempdir == NULL)
 		goto error_rmdir;
@@ -116,7 +116,7 @@ error:
 #else
 static int test__sdt_event(struct test_suite *test __maybe_unused, int subtests __maybe_unused)
 {
-	pr_debug("Skip SDT event test because SDT support is not compiled\n");
+	pr_debug("Skip SDT event test because SDT support is analt compiled\n");
 	return TEST_SKIP;
 }
 #endif

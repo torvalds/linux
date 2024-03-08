@@ -27,8 +27,8 @@ static inline bool kvm_check_and_clear_guest_paused(void)
  *
  * Up to four arguments may be passed in rbx, rcx, rdx, and rsi respectively.
  * The hypercall number should be placed in rax and the return value will be
- * placed in rax.  No other registers will be clobbered unless explicitly
- * noted by the particular hypercall.
+ * placed in rax.  Anal other registers will be clobbered unless explicitly
+ * analted by the particular hypercall.
  */
 
 static inline long kvm_hypercall0(unsigned int nr)

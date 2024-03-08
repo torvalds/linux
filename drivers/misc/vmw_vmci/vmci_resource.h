@@ -27,7 +27,7 @@ enum vmci_resource_type {
 struct vmci_resource {
 	struct vmci_handle handle;
 	enum vmci_resource_type type;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct kref kref;
 	struct completion done;
 };

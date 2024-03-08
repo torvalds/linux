@@ -1,4 +1,4 @@
-Imagination Technologies I2S Output Controller
+Imagination Techanallogies I2S Output Controller
 
 Required Properties:
 
@@ -28,7 +28,7 @@ Required Properties:
 Optional Properties:
 
   - interrupts : Contains the I2S out interrupts. Depending on
-	the configuration, there may be no interrupts, one interrupt,
+	the configuration, there may be anal interrupts, one interrupt,
 	or an interrupt per I2S channel. For the case where there is
 	one interrupt per channel, the interrupts should be listed
 	in ascending channel order

@@ -18,16 +18,16 @@ static int trace_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int trace_open(struct inode *inode, struct file *file)
+static int trace_open(struct ianalde *ianalde, struct file *file)
 {
 	atomic_inc(&trace_count);
 	return single_open(file, trace_show, NULL);
 }
 
-static int trace_release(struct inode *inode, struct file *file)
+static int trace_release(struct ianalde *ianalde, struct file *file)
 {
 	atomic_dec(&trace_count);
-	return single_release(inode, file);
+	return single_release(ianalde, file);
 }
 
 static const struct file_operations trace_fops = {
@@ -42,12 +42,12 @@ int __init ras_add_daemon_trace(void)
 	struct dentry *fentry;
 
 	if (!ras_debugfs_dir)
-		return -ENOENT;
+		return -EANALENT;
 
 	fentry = debugfs_create_file("daemon_active", S_IRUSR, ras_debugfs_dir,
 				     NULL, &trace_fops);
 	if (IS_ERR(fentry))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 

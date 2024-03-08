@@ -41,7 +41,7 @@ struct ssam_tablet_sw {
 	struct input_dev *mode_switch;
 
 	struct ssam_tablet_sw_ops ops;
-	struct ssam_event_notifier notif;
+	struct ssam_event_analtifier analtif;
 };
 
 struct ssam_tablet_sw_desc {
@@ -51,7 +51,7 @@ struct ssam_tablet_sw_desc {
 	} dev;
 
 	struct {
-		u32 (*notify)(struct ssam_event_notifier *nf, const struct ssam_event *event);
+		u32 (*analtify)(struct ssam_event_analtifier *nf, const struct ssam_event *event);
 		int (*get_state)(struct ssam_tablet_sw *sw, struct ssam_tablet_sw_state *state);
 		const char *(*state_name)(struct ssam_tablet_sw *sw,
 					  const struct ssam_tablet_sw_state *state);
@@ -122,13 +122,13 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 
 	desc = ssam_device_get_match_data(sdev);
 	if (!desc) {
-		WARN(1, "no driver match data specified");
+		WARN(1, "anal driver match data specified");
 		return -EINVAL;
 	}
 
 	sw = devm_kzalloc(&sdev->dev, sizeof(*sw), GFP_KERNEL);
 	if (!sw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw->sdev = sdev;
 
@@ -148,7 +148,7 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 	/* Set up tablet mode switch. */
 	sw->mode_switch = devm_input_allocate_device(&sdev->dev);
 	if (!sw->mode_switch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw->mode_switch->name = desc->dev.name;
 	sw->mode_switch->phys = desc->dev.phys;
@@ -163,15 +163,15 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 	if (status)
 		return status;
 
-	/* Set up notifier. */
-	sw->notif.base.priority = 0;
-	sw->notif.base.fn = desc->ops.notify;
-	sw->notif.event.reg = desc->event.reg;
-	sw->notif.event.id = desc->event.id;
-	sw->notif.event.mask = desc->event.mask;
-	sw->notif.event.flags = SSAM_EVENT_SEQUENCED;
+	/* Set up analtifier. */
+	sw->analtif.base.priority = 0;
+	sw->analtif.base.fn = desc->ops.analtify;
+	sw->analtif.event.reg = desc->event.reg;
+	sw->analtif.event.id = desc->event.id;
+	sw->analtif.event.mask = desc->event.mask;
+	sw->analtif.event.flags = SSAM_EVENT_SEQUENCED;
 
-	status = ssam_device_notifier_register(sdev, &sw->notif);
+	status = ssam_device_analtifier_register(sdev, &sw->analtif);
 	if (status)
 		return status;
 
@@ -184,7 +184,7 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 	return 0;
 
 err:
-	ssam_device_notifier_unregister(sdev, &sw->notif);
+	ssam_device_analtifier_unregister(sdev, &sw->analtif);
 	cancel_work_sync(&sw->update_work);
 	return status;
 }
@@ -195,7 +195,7 @@ static void ssam_tablet_sw_remove(struct ssam_device *sdev)
 
 	sysfs_remove_group(&sdev->dev.kobj, &ssam_tablet_sw_group);
 
-	ssam_device_notifier_unregister(sdev, &sw->notif);
+	ssam_device_analtifier_unregister(sdev, &sw->analtif);
 	cancel_work_sync(&sw->update_work);
 }
 
@@ -236,8 +236,8 @@ static const char *ssam_kip_cover_state_name(struct ssam_tablet_sw *sw,
 		return "book";
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %u\n", state->state);
-		return "<unknown>";
+		dev_warn(&sw->sdev->dev, "unkanalwn KIP cover state: %u\n", state->state);
+		return "<unkanalwn>";
 	}
 }
 
@@ -256,7 +256,7 @@ static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw,
 		return false;
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %d\n", state->state);
+		dev_warn(&sw->sdev->dev, "unkanalwn KIP cover state: %d\n", state->state);
 		return true;
 	}
 }
@@ -284,9 +284,9 @@ static int ssam_kip_get_cover_state(struct ssam_tablet_sw *sw, struct ssam_table
 	return 0;
 }
 
-static u32 ssam_kip_sw_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_kip_sw_analtif(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct ssam_tablet_sw *sw = container_of(nf, struct ssam_tablet_sw, notif);
+	struct ssam_tablet_sw *sw = container_of(nf, struct ssam_tablet_sw, analtif);
 
 	if (event->command_id != SSAM_EVENT_KIP_CID_COVER_STATE_CHANGED)
 		return 0;	/* Return "unhandled". */
@@ -295,7 +295,7 @@ static u32 ssam_kip_sw_notif(struct ssam_event_notifier *nf, const struct ssam_e
 		dev_warn(&sw->sdev->dev, "unexpected payload size: %u\n", event->length);
 
 	schedule_work(&sw->update_work);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 static const struct ssam_tablet_sw_desc ssam_kip_sw_desc = {
@@ -304,7 +304,7 @@ static const struct ssam_tablet_sw_desc ssam_kip_sw_desc = {
 		.phys = "ssam/01:0e:01:00:01/input0",
 	},
 	.ops = {
-		.notify = ssam_kip_sw_notif,
+		.analtify = ssam_kip_sw_analtif,
 		.get_state = ssam_kip_get_cover_state,
 		.state_name = ssam_kip_cover_state_name,
 		.state_is_tablet_mode = ssam_kip_cover_state_is_tablet_mode,
@@ -377,8 +377,8 @@ static const char *ssam_pos_state_name_cover(struct ssam_tablet_sw *sw, u32 stat
 		return "book";
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
-		return "<unknown>";
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture for type-cover: %u\n", state);
+		return "<unkanalwn>";
 	}
 }
 
@@ -398,8 +398,8 @@ static const char *ssam_pos_state_name_sls(struct ssam_tablet_sw *sw, u32 state)
 		return "tablet";
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture for SLS: %u\n", state);
-		return "<unknown>";
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture for SLS: %u\n", state);
+		return "<unkanalwn>";
 	}
 }
 
@@ -414,8 +414,8 @@ static const char *ssam_pos_state_name(struct ssam_tablet_sw *sw,
 		return ssam_pos_state_name_sls(sw, state->state);
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture source: %u\n", state->source);
-		return "<unknown>";
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture source: %u\n", state->source);
+		return "<unkanalwn>";
 	}
 }
 
@@ -433,7 +433,7 @@ static bool ssam_pos_state_is_tablet_mode_cover(struct ssam_tablet_sw *sw, u32 s
 		return false;
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture for type-cover: %u\n", state);
 		return true;
 	}
 }
@@ -452,7 +452,7 @@ static bool ssam_pos_state_is_tablet_mode_sls(struct ssam_tablet_sw *sw, u32 sta
 		return true;
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture for SLS: %u\n", state);
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture for SLS: %u\n", state);
 		return true;
 	}
 }
@@ -468,7 +468,7 @@ static bool ssam_pos_state_is_tablet_mode(struct ssam_tablet_sw *sw,
 		return ssam_pos_state_is_tablet_mode_sls(sw, state->state);
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture source: %u\n", state->source);
+		dev_warn(&sw->sdev->dev, "unkanalwn device posture source: %u\n", state->source);
 		return true;
 	}
 }
@@ -520,14 +520,14 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 		return status;
 
 	if (get_unaligned_le32(&sources.count) == 0) {
-		dev_err(&sw->sdev->dev, "no posture sources found\n");
-		return -ENODEV;
+		dev_err(&sw->sdev->dev, "anal posture sources found\n");
+		return -EANALDEV;
 	}
 
 	/*
-	 * We currently don't know what to do with more than one posture
+	 * We currently don't kanalw what to do with more than one posture
 	 * source. At the moment, only one source seems to be used/provided.
-	 * The WARN_ON() here should hopefully let us know quickly once there
+	 * The WARN_ON() here should hopefully let us kanalw quickly once there
 	 * is a device that provides multiple sources, at which point we can
 	 * then try to figure out how to handle them.
 	 */
@@ -583,9 +583,9 @@ static int ssam_pos_get_posture(struct ssam_tablet_sw *sw, struct ssam_tablet_sw
 	return 0;
 }
 
-static u32 ssam_pos_sw_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_pos_sw_analtif(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct ssam_tablet_sw *sw = container_of(nf, struct ssam_tablet_sw, notif);
+	struct ssam_tablet_sw *sw = container_of(nf, struct ssam_tablet_sw, analtif);
 
 	if (event->command_id != SSAM_EVENT_POS_CID_POSTURE_CHANGED)
 		return 0;	/* Return "unhandled". */
@@ -594,7 +594,7 @@ static u32 ssam_pos_sw_notif(struct ssam_event_notifier *nf, const struct ssam_e
 		dev_warn(&sw->sdev->dev, "unexpected payload size: %u\n", event->length);
 
 	schedule_work(&sw->update_work);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 static const struct ssam_tablet_sw_desc ssam_pos_sw_desc = {
@@ -603,7 +603,7 @@ static const struct ssam_tablet_sw_desc ssam_pos_sw_desc = {
 		.phys = "ssam/01:26:01:00:01/input0",
 	},
 	.ops = {
-		.notify = ssam_pos_sw_notif,
+		.analtify = ssam_pos_sw_analtif,
 		.get_state = ssam_pos_get_posture,
 		.state_name = ssam_pos_state_name,
 		.state_is_tablet_mode = ssam_pos_state_is_tablet_mode,
@@ -634,7 +634,7 @@ static struct ssam_device_driver ssam_tablet_sw_driver = {
 	.match_table = ssam_tablet_sw_match,
 	.driver = {
 		.name = "surface_aggregator_tablet_mode_switch",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = &ssam_tablet_sw_pm_ops,
 	},
 };

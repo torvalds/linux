@@ -12,7 +12,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "hid_descriptor/amd_sfh_hid_desc.h"
 #include "amd_sfh_pcie.h"
@@ -46,7 +46,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 			struct request_list *new = kzalloc(sizeof(*new), GFP_KERNEL);
 
 			if (!new)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			new->current_index = i;
 			new->sensor_idx = cli_data->sensor_idx[i];
@@ -68,24 +68,24 @@ void amd_sfh_work(struct work_struct *work)
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work.work);
 	struct request_list *req_list = &cli_data->req_list;
 	struct amd_input_data *in_data = cli_data->in_data;
-	struct request_list *req_node;
+	struct request_list *req_analde;
 	u8 current_index, sensor_index;
 	struct amd_mp2_ops *mp2_ops;
 	struct amd_mp2_dev *mp2;
-	u8 report_id, node_type;
+	u8 report_id, analde_type;
 	u8 report_size = 0;
 
-	req_node = list_last_entry(&req_list->list, struct request_list, list);
-	list_del(&req_node->list);
-	current_index = req_node->current_index;
-	sensor_index = req_node->sensor_idx;
-	report_id = req_node->report_id;
-	node_type = req_node->report_type;
-	kfree(req_node);
+	req_analde = list_last_entry(&req_list->list, struct request_list, list);
+	list_del(&req_analde->list);
+	current_index = req_analde->current_index;
+	sensor_index = req_analde->sensor_idx;
+	report_id = req_analde->report_id;
+	analde_type = req_analde->report_type;
+	kfree(req_analde);
 
 	mp2 = container_of(in_data, struct amd_mp2_dev, in_data);
 	mp2_ops = mp2->mp2_ops;
-	if (node_type == HID_FEATURE_REPORT) {
+	if (analde_type == HID_FEATURE_REPORT) {
 		report_size = mp2_ops->get_feat_rep(sensor_index, report_id,
 						    cli_data->feature_report[current_index]);
 		if (report_size)
@@ -95,7 +95,7 @@ void amd_sfh_work(struct work_struct *work)
 		else
 			pr_err("AMDSFH: Invalid report size\n");
 
-	} else if (node_type == HID_INPUT_REPORT) {
+	} else if (analde_type == HID_INPUT_REPORT) {
 		report_size = mp2_ops->get_in_rep(current_index, sensor_index, report_id, in_data);
 		if (report_size)
 			hid_input_report(cli_data->hid_sensor_hubs[current_index],
@@ -152,7 +152,7 @@ static const char *get_sensor_name(int idx)
 	case HPD_IDX:
 		return "HPD";
 	default:
-		return "unknown sensor type";
+		return "unkanalwn sensor type";
 	}
 }
 
@@ -227,7 +227,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 
 	cl_data->num_hid_devices = amd_mp2_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 	if (cl_data->num_hid_devices == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	cl_data->is_any_sensor_enabled = false;
 
 	INIT_DELAYED_WORK(&cl_data->work, amd_sfh_work);
@@ -240,7 +240,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 								  &cl_data->sensor_dma_addr[i],
 								  GFP_KERNEL);
 		if (!in_data->sensor_virt_addr[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		cl_data->sensor_sts[i] = SENSOR_DISABLED;
@@ -264,12 +264,12 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		}
 		cl_data->feature_report[i] = devm_kzalloc(dev, feature_report_size, GFP_KERNEL);
 		if (!cl_data->feature_report[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		in_data->input_report[i] = devm_kzalloc(dev, input_report_size, GFP_KERNEL);
 		if (!in_data->input_report[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		info.period = AMD_SFH_IDLE_LOOP;
@@ -279,7 +279,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		cl_data->report_descr[i] =
 			devm_kzalloc(dev, cl_data->report_descr_sz[i], GFP_KERNEL);
 		if (!cl_data->report_descr[i]) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto cleanup;
 		}
 		rc = mp2_ops->get_rep_desc(cl_idx, cl_data->report_descr[i]);
@@ -307,8 +307,8 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 
 	if (!cl_data->is_any_sensor_enabled ||
 	   (mp2_ops->discovery_status && mp2_ops->discovery_status(privdata) == 0)) {
-		dev_warn(dev, "Failed to discover, sensors not enabled is %d\n", cl_data->is_any_sensor_enabled);
-		rc = -EOPNOTSUPP;
+		dev_warn(dev, "Failed to discover, sensors analt enabled is %d\n", cl_data->is_any_sensor_enabled);
+		rc = -EOPANALTSUPP;
 		goto cleanup;
 	}
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));

@@ -4,7 +4,7 @@ config NET_DSA_MSCC_FELIX_DSA_LIB
 	help
 	  This is an umbrella module for all network switches that are
 	  register-compatible with Ocelot and that perform I/O to their host
-	  CPU through an NPI (Node Processor Interface) Ethernet port.
+	  CPU through an NPI (Analde Processor Interface) Ethernet port.
 	  Its name comes from the first hardware chip to make use of it
 	  (VSC9959), code named Felix.
 

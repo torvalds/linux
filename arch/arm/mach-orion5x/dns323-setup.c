@@ -59,7 +59,7 @@
 #define DNS323C_GPIO_FAN_BIT1		18
 #define DNS323C_GPIO_FAN_BIT0		19
 
-/* Exposed to userspace, do not change */
+/* Exposed to userspace, do analt change */
 enum {
 	DNS323_REV_A1,	/* 0 */
 	DNS323_REV_B1,	/* 1 */
@@ -106,7 +106,7 @@ static int __init dns323_pci_init(void)
 subsys_initcall(dns323_pci_init);
 
 /****************************************************************************
- * 8MiB NOR flash (Spansion S29GL064M90TFIR4)
+ * 8MiB ANALR flash (Spansion S29GL064M90TFIR4)
  *
  * Layout as used by D-Link:
  *  0x00000000-0x00010000 : "MTD1"
@@ -116,8 +116,8 @@ subsys_initcall(dns323_pci_init);
  *  0x007d0000-0x00800000 : "u-boot"
  */
 
-#define DNS323_NOR_BOOT_BASE 0xf4000000
-#define DNS323_NOR_BOOT_SIZE SZ_8M
+#define DNS323_ANALR_BOOT_BASE 0xf4000000
+#define DNS323_ANALR_BOOT_SIZE SZ_8M
 
 static struct mtd_partition dns323_partitions[] = {
 	{
@@ -143,25 +143,25 @@ static struct mtd_partition dns323_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data dns323_nor_flash_data = {
+static struct physmap_flash_data dns323_analr_flash_data = {
 	.width		= 1,
 	.parts		= dns323_partitions,
 	.nr_parts	= ARRAY_SIZE(dns323_partitions)
 };
 
-static struct resource dns323_nor_flash_resource = {
+static struct resource dns323_analr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
-	.start		= DNS323_NOR_BOOT_BASE,
-	.end		= DNS323_NOR_BOOT_BASE + DNS323_NOR_BOOT_SIZE - 1,
+	.start		= DNS323_ANALR_BOOT_BASE,
+	.end		= DNS323_ANALR_BOOT_BASE + DNS323_ANALR_BOOT_SIZE - 1,
 };
 
-static struct platform_device dns323_nor_flash = {
+static struct platform_device dns323_analr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &dns323_nor_flash_data,
+		.platform_data	= &dns323_analr_flash_data,
 	},
-	.resource	= &dns323_nor_flash_resource,
+	.resource	= &dns323_analr_flash_resource,
 	.num_resources	= 1,
 };
 
@@ -213,9 +213,9 @@ static int __init dns323_read_mac_addr(void)
 	/* MAC address is stored as a regular ol' string in /dev/mtdblock4
 	 * (0x007d0000-0x00800000) starting at offset 196480 (0x2ff80).
 	 */
-	mac_page = ioremap(DNS323_NOR_BOOT_BASE + 0x7d0000 + 196480, 1024);
+	mac_page = ioremap(DNS323_ANALR_BOOT_BASE + 0x7d0000 + 196480, 1024);
 	if (!mac_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Sanity check the string we're looking at */
 	for (i = 0; i < 5; i++) {
@@ -434,7 +434,7 @@ static unsigned int dns323c_mpp_modes[] __initdata = {
 	0,
 };
 
-/* Rev C1 Fan speed notes:
+/* Rev C1 Fan speed analtes:
  *
  * The fan is controlled by 2 GPIOs on this board. The settings
  * of the bits is as follow:
@@ -565,9 +565,9 @@ static int __init dns323_identify_rev(void)
 	}
 	pr_debug("DNS-323: Ethernet PHY ID 0x%x\n", reg & 0xffff);
 
-	/* Note: the Marvell tools mask the ID with 0x3f0 before comparison
+	/* Analte: the Marvell tools mask the ID with 0x3f0 before comparison
 	 * but I don't see that making a difference here, at least with
-	 * any known Marvell PHY ID
+	 * any kanalwn Marvell PHY ID
 	 */
 	switch(reg & 0xfff0) {
 	case 0x0cc0: /* MV88E1111 */
@@ -575,7 +575,7 @@ static int __init dns323_identify_rev(void)
 	case 0x0e10: /* MV88E1118 */
 		return DNS323_REV_C1;
 	default:
-		pr_warn("DNS-323: Unknown PHY ID 0x%04x, assuming rev B1\n",
+		pr_warn("DNS-323: Unkanalwn PHY ID 0x%04x, assuming rev B1\n",
 			reg & 0xffff);
 	}
 	return DNS323_REV_B1;
@@ -611,9 +611,9 @@ static void __init dns323_init(void)
 	 */
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
-				    DNS323_NOR_BOOT_BASE,
-				    DNS323_NOR_BOOT_SIZE);
-	platform_device_register(&dns323_nor_flash);
+				    DNS323_ANALR_BOOT_BASE,
+				    DNS323_ANALR_BOOT_SIZE);
+	platform_device_register(&dns323_analr_flash);
 
 	/* Sort out LEDs, Buttons and i2c devices */
 	switch(system_rev) {
@@ -674,7 +674,7 @@ static void __init dns323_init(void)
 		orion5x_sata_init(&dns323_sata_data);
 
 		/* The DNS323 rev B1 has flag to indicate the system is up.
-		 * Without this flag set, power LED will flash and cannot be
+		 * Without this flag set, power LED will flash and cananalt be
 		 * controlled via leds-gpio.
 		 */
 		if (gpio_request(DNS323_GPIO_SYSTEM_UP, "SYS_READY") == 0)
@@ -696,12 +696,12 @@ static void __init dns323_init(void)
 			pr_err("DNS-323: failed to setup power-off GPIO\n");
 		pm_power_off = dns323c_power_off;
 
-		/* Now, -this- should theoretically be done by the sata_mv driver
+		/* Analw, -this- should theoretically be done by the sata_mv driver
 		 * once I figure out what's going on there. Maybe the behaviour
 		 * of the LEDs should be somewhat passed via the platform_data.
-		 * for now, just whack the register and make the LEDs happy
+		 * for analw, just whack the register and make the LEDs happy
 		 *
-		 * Note: AFAIK, rev B1 needs the same treatment but I'll let
+		 * Analte: AFAIK, rev B1 needs the same treatment but I'll let
 		 * somebody else test it.
 		 */
 		writel(0x5, ORION5X_SATA_VIRT_BASE + 0x2c);

@@ -43,13 +43,13 @@ static bool ex_handler_default(const struct exception_table_entry *e,
 
 /*
  * This is the *very* rare case where we do a "load_unaligned_zeropad()"
- * and it's a page crosser into a non-existent page.
+ * and it's a page crosser into a analn-existent page.
  *
  * This happens when we optimistically load a pathname a word-at-a-time
- * and the name is less than the full word and the  next page is not
+ * and the name is less than the full word and the  next page is analt
  * mapped. Typically that only happens for CONFIG_DEBUG_PAGEALLOC.
  *
- * NOTE! The faulting address is always a 'mov mem,reg' type instruction
+ * ANALTE! The faulting address is always a 'mov mem,reg' type instruction
  * of size 'long', and the exception fixup must always point to right
  * after the instruction.
  */
@@ -132,8 +132,8 @@ static bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 
 /*
  * On x86-64, we end up being imprecise with 'access_ok()', and allow
- * non-canonical user addresses to make the range comparisons simpler,
- * and to not have to worry about LAM being enabled.
+ * analn-caanalnical user addresses to make the range comparisons simpler,
+ * and to analt have to worry about LAM being enabled.
  *
  * In fact, we allow up to one page of "slop" at the sign boundary,
  * which means that we can do access_ok() by just checking the sign
@@ -142,7 +142,7 @@ static bool ex_handler_fprestore(const struct exception_table_entry *fixup,
 static bool gp_fault_address_ok(unsigned long fault_address)
 {
 #ifdef CONFIG_X86_64
-	/* Is it in the "user space" part of the non-canonical space? */
+	/* Is it in the "user space" part of the analn-caanalnical space? */
 	if (valid_user_address(fault_address))
 		return true;
 
@@ -159,14 +159,14 @@ static bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 			       unsigned long fault_address)
 {
 	WARN_ONCE(trapnr == X86_TRAP_GP && !gp_fault_address_ok(fault_address),
-		"General protection fault in user access. Non-canonical address?");
+		"General protection fault in user access. Analn-caanalnical address?");
 	return ex_handler_default(fixup, regs);
 }
 
 static bool ex_handler_copy(const struct exception_table_entry *fixup,
 			    struct pt_regs *regs, int trapnr)
 {
-	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Analn-caanalnical address?");
 	return ex_handler_fault(fixup, regs, trapnr);
 }
 
@@ -227,7 +227,7 @@ int ex_get_fixup_type(unsigned long ip)
 {
 	const struct exception_table_entry *e = search_exception_tables(ip);
 
-	return e ? FIELD_GET(EX_DATA_TYPE_MASK, e->data) : EX_TYPE_NONE;
+	return e ? FIELD_GET(EX_DATA_TYPE_MASK, e->data) : EX_TYPE_ANALNE;
 }
 
 int fixup_exception(struct pt_regs *regs, int trapnr, unsigned long error_code,
@@ -309,7 +309,7 @@ extern unsigned int early_recursion_flag;
 /* Restricted version used during very early boot */
 void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
-	/* Ignore early NMIs. */
+	/* Iganalre early NMIs. */
 	if (trapnr == X86_TRAP_NMI)
 		return;
 
@@ -318,9 +318,9 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 
 	/*
 	 * Old CPUs leave the high bits of CS on the stack
-	 * undefined.  I'm not sure which CPUs do this, but at least
+	 * undefined.  I'm analt sure which CPUs do this, but at least
 	 * the 486 DX works this way.
-	 * Xen pv domains are not using the default __KERNEL_CS.
+	 * Xen pv domains are analt using the default __KERNEL_CS.
 	 */
 	if (!xen_pv_domain() && regs->cs != __KERNEL_CS)
 		goto fail;
@@ -336,7 +336,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * because refusing to call a handler here is guaranteed to
 	 * result in a hard-to-debug panic.
 	 *
-	 * Keep in mind that not all vectors actually get here.  Early
+	 * Keep in mind that analt all vectors actually get here.  Early
 	 * page faults, for example, are special.
 	 */
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
@@ -351,7 +351,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 
 		/*
 		 * If this was a BUG and report_bug returns or if this
-		 * was just a normal #UD, we want to continue onward and
+		 * was just a analrmal #UD, we want to continue onward and
 		 * crash.
 		 */
 	}

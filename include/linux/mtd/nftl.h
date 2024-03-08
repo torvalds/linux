@@ -14,7 +14,7 @@
 /* these info are used in ReplUnitTable */
 #define BLOCK_NIL          0xffff /* last block of a chain */
 #define BLOCK_FREE         0xfffe /* free block */
-#define BLOCK_NOTEXPLORED  0xfffd /* non explored block, only used during mounting */
+#define BLOCK_ANALTEXPLORED  0xfffd /* analn explored block, only used during mounting */
 #define BLOCK_RESERVED     0xfffc /* bios block or bad block */
 
 struct NFTLrecord {

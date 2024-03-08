@@ -118,10 +118,10 @@ void bcm_vk_set_host_alert(struct bcm_vk *vk, u32 bit_mask)
 
 	/* use irqsave version as this maybe called inside timer interrupt */
 	spin_lock_irqsave(&vk->host_alert_lock, flags);
-	alert->notfs |= bit_mask;
+	alert->analtfs |= bit_mask;
 	spin_unlock_irqrestore(&vk->host_alert_lock, flags);
 
-	if (test_and_set_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload) == 0)
+	if (test_and_set_bit(BCM_VK_WQ_ANALTF_PEND, vk->wq_offload) == 0)
 		queue_work(vk->wq_thread, &vk->wq_work);
 }
 
@@ -218,7 +218,7 @@ static struct bcm_vk_ctx *bcm_vk_get_ctx(struct bcm_vk *vk, const pid_t pid)
 	/* check if it is in reset, if so, don't allow */
 	if (vk->reset_pid) {
 		dev_err(&vk->pdev->dev,
-			"No context allowed during reset by pid %d\n",
+			"Anal context allowed during reset by pid %d\n",
 			vk->reset_pid);
 
 		goto in_reset_exit;
@@ -241,7 +241,7 @@ static struct bcm_vk_ctx *bcm_vk_get_ctx(struct bcm_vk *vk, const pid_t pid)
 	/* set the pid and insert it to hash table */
 	ctx->pid = pid;
 	ctx->hash_idx = hash_idx;
-	list_add_tail(&ctx->node, &vk->pid_ht[hash_idx].head);
+	list_add_tail(&ctx->analde, &vk->pid_ht[hash_idx].head);
 
 	/* increase kref */
 	kref_get(&vk->kref);
@@ -306,15 +306,15 @@ static int bcm_vk_free_ctx(struct bcm_vk *vk, struct bcm_vk_ctx *ctx)
 	spin_lock(&vk->ctx_lock);
 
 	if (!vk->ctx[idx].in_use) {
-		dev_err(&vk->pdev->dev, "context[%d] not in use!\n", idx);
+		dev_err(&vk->pdev->dev, "context[%d] analt in use!\n", idx);
 	} else {
 		vk->ctx[idx].in_use = false;
 		vk->ctx[idx].miscdev = NULL;
 
 		/* Remove it from hash list and see if it is the last one. */
-		list_del(&ctx->node);
+		list_del(&ctx->analde);
 		hash_idx = ctx->hash_idx;
-		list_for_each_entry(entry, &vk->pid_ht[hash_idx].head, node) {
+		list_for_each_entry(entry, &vk->pid_ht[hash_idx].head, analde) {
 			if (entry->pid == pid)
 				count++;
 		}
@@ -352,9 +352,9 @@ static void bcm_vk_drain_all_pend(struct device *dev,
 	INIT_LIST_HEAD(&del_q);
 	spin_lock(&chan->pendq_lock);
 	for (num = 0; num < chan->q_nr; num++) {
-		list_for_each_entry_safe(entry, tmp, &chan->pendq[num], node) {
+		list_for_each_entry_safe(entry, tmp, &chan->pendq[num], analde) {
 			if ((!ctx) || (entry->ctx->idx == ctx->idx)) {
-				list_move_tail(&entry->node, &del_q);
+				list_move_tail(&entry->analde, &del_q);
 			}
 		}
 	}
@@ -362,8 +362,8 @@ static void bcm_vk_drain_all_pend(struct device *dev,
 
 	/* batch clean up */
 	num = 0;
-	list_for_each_entry_safe(entry, tmp, &del_q, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &del_q, analde) {
+		list_del(&entry->analde);
 		num++;
 		if (ctx) {
 			struct vk_msg_blk *msg;
@@ -418,13 +418,13 @@ int bcm_vk_sync_msgq(struct bcm_vk *vk, bool force_sync)
 	int ret = 0;
 
 	/*
-	 * If the driver is loaded at startup where vk OS is not up yet,
-	 * the msgq-info may not be available until a later time.  In
+	 * If the driver is loaded at startup where vk OS is analt up yet,
+	 * the msgq-info may analt be available until a later time.  In
 	 * this case, we skip and the sync function is supposed to be
 	 * called again.
 	 */
 	if (!bcm_vk_msgq_marker_valid(vk)) {
-		dev_info(dev, "BAR1 msgq marker not initialized.\n");
+		dev_info(dev, "BAR1 msgq marker analt initialized.\n");
 		return -EAGAIN;
 	}
 
@@ -524,7 +524,7 @@ static void bcm_vk_append_pendq(struct bcm_vk_msg_chan *chan, u16 q_num,
 	struct bcm_vk_ctx *ctx;
 
 	spin_lock(&chan->pendq_lock);
-	list_add_tail(&entry->node, &chan->pendq[q_num]);
+	list_add_tail(&entry->analde, &chan->pendq[q_num]);
 	if (entry->to_h_msg) {
 		ctx = entry->ctx;
 		atomic_inc(&ctx->pend_cnt);
@@ -606,7 +606,7 @@ static int bcm_to_v_msg_enqueue(struct bcm_vk *vk, struct bcm_vk_wkent *entry)
 	u32 retry;
 
 	if (entry->to_v_blks != src->size + 1) {
-		dev_err(dev, "number of blks %d not matching %d MsgId[0x%x]: func %d ctx 0x%x\n",
+		dev_err(dev, "number of blks %d analt matching %d MsgId[0x%x]: func %d ctx 0x%x\n",
 			entry->to_v_blks,
 			src->size + 1,
 			get_msg_id(src),
@@ -622,7 +622,7 @@ static int bcm_to_v_msg_enqueue(struct bcm_vk *vk, struct bcm_vk_wkent *entry)
 
 	avail = msgq_avail_space(msgq, qinfo);
 
-	/* if not enough space, return EAGAIN and let app handles it */
+	/* if analt eanalugh space, return EAGAIN and let app handles it */
 	retry = 0;
 	while ((avail < entry->to_v_blks) &&
 	       (retry++ < BCM_VK_H2VK_ENQ_RETRY)) {
@@ -637,7 +637,7 @@ static int bcm_to_v_msg_enqueue(struct bcm_vk *vk, struct bcm_vk_wkent *entry)
 		return -EAGAIN;
 	}
 
-	/* at this point, mutex is taken and there is enough space */
+	/* at this point, mutex is taken and there is eanalugh space */
 	entry->seq_num = seq_num++; /* update debug seq number */
 	wr_idx = readl_relaxed(&msgq->wr_idx);
 
@@ -702,7 +702,7 @@ int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
 
 	entry = kzalloc(struct_size(entry, to_v_msg, 1), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	entry->to_v_blks = 1;	/* always 1 block */
 
 	/* fill up necessary data */
@@ -731,7 +731,7 @@ static int bcm_vk_handle_last_sess(struct bcm_vk *vk, const pid_t pid,
 	struct device *dev = &vk->pdev->dev;
 
 	/*
-	 * don't send down or do anything if message queue is not initialized
+	 * don't send down or do anything if message queue is analt initialized
 	 * and if it is the reset session, clear it.
 	 */
 	if (!bcm_vk_drv_access_ok(vk)) {
@@ -740,9 +740,9 @@ static int bcm_vk_handle_last_sess(struct bcm_vk *vk, const pid_t pid,
 		return -EPERM;
 	}
 
-	dev_dbg(dev, "No more sessions, shut down pid %d\n", pid);
+	dev_dbg(dev, "Anal more sessions, shut down pid %d\n", pid);
 
-	/* only need to do it if it is not the reset process */
+	/* only need to do it if it is analt the reset process */
 	if (vk->reset_pid != pid)
 		rc = bcm_vk_send_shutdown_msg(vk, VK_SHUTDOWN_PID, pid, q_num);
 	else
@@ -760,9 +760,9 @@ static struct bcm_vk_wkent *bcm_vk_dequeue_pending(struct bcm_vk *vk,
 	struct bcm_vk_wkent *entry = NULL, *iter;
 
 	spin_lock(&chan->pendq_lock);
-	list_for_each_entry(iter, &chan->pendq[q_num], node) {
+	list_for_each_entry(iter, &chan->pendq[q_num], analde) {
 		if (get_msg_id(&iter->to_v_msg[0]) == msg_id) {
-			list_del(&iter->node);
+			list_del(&iter->analde);
 			entry = iter;
 			bcm_vk_msgid_bitmap_clear(vk, msg_id, 1);
 			break;
@@ -848,11 +848,11 @@ s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
 				total++;
 			} else {
 				/*
-				 * if we could not allocate memory in kernel,
+				 * if we could analt allocate memory in kernel,
 				 * that is fatal.
 				 */
 				dev_crit(dev, "Kernel mem allocation failure.\n");
-				total = -ENOMEM;
+				total = -EANALMEM;
 				goto idx_err;
 			}
 
@@ -871,8 +871,8 @@ s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
 				readl_relaxed(&msgq->size));
 
 			/*
-			 * No need to search if it is an autonomous one-way
-			 * message from driver, as these messages do not bear
+			 * Anal need to search if it is an autoanalmous one-way
+			 * message from driver, as these messages do analt bear
 			 * a to_v pending item. Currently, only the shutdown
 			 * message falls into this category.
 			 */
@@ -889,7 +889,7 @@ s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
 						       msg_id);
 
 			/*
-			 * if there is message to does not have prior send,
+			 * if there is message to does analt have prior send,
 			 * this is the location to add here
 			 */
 			if (entry) {
@@ -901,7 +901,7 @@ s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
 			} else {
 				if (cnt++ < batch_log)
 					dev_info(dev,
-						 "Could not find MsgId[0x%x] for resp func %d bmap %d\n",
+						 "Could analt find MsgId[0x%x] for resp func %d bmap %d\n",
 						 msg_id, data->function_id,
 						 test_bit(msg_id, vk->bmap));
 				kfree(data);
@@ -958,7 +958,7 @@ irqreturn_t bcm_vk_msgq_irqhandler(int irq, void *dev_id)
 
 	if (!bcm_vk_drv_access_ok(vk)) {
 		dev_err(&vk->pdev->dev,
-			"Interrupt %d received when msgq not inited\n", irq);
+			"Interrupt %d received when msgq analt inited\n", irq);
 		goto skip_schedule_work;
 	}
 
@@ -968,7 +968,7 @@ skip_schedule_work:
 	return IRQ_HANDLED;
 }
 
-int bcm_vk_open(struct inode *inode, struct file *p_file)
+int bcm_vk_open(struct ianalde *ianalde, struct file *p_file)
 {
 	struct bcm_vk_ctx *ctx;
 	struct miscdevice *miscdev = (struct miscdevice *)p_file->private_data;
@@ -980,7 +980,7 @@ int bcm_vk_open(struct inode *inode, struct file *p_file)
 	ctx = bcm_vk_get_ctx(vk, task_tgid_nr(current));
 	if (!ctx) {
 		dev_err(dev, "Error allocating context\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 	} else {
 		/*
 		 * set up context and replace private data with context for
@@ -1003,7 +1003,7 @@ ssize_t bcm_vk_read(struct file *p_file,
 		    size_t count,
 		    loff_t *f_pos)
 {
-	ssize_t rc = -ENOMSG;
+	ssize_t rc = -EANALMSG;
 	struct bcm_vk_ctx *ctx = p_file->private_data;
 	struct bcm_vk *vk = container_of(ctx->miscdev, struct bcm_vk,
 					 miscdev);
@@ -1025,15 +1025,15 @@ ssize_t bcm_vk_read(struct file *p_file,
 	 */
 	spin_lock(&chan->pendq_lock);
 	for (q_num = 0; q_num < chan->q_nr; q_num++) {
-		list_for_each_entry(iter, &chan->pendq[q_num], node) {
+		list_for_each_entry(iter, &chan->pendq[q_num], analde) {
 			if (iter->ctx->idx == ctx->idx) {
 				if (count >=
 				    (iter->to_h_blks * VK_MSGQ_BLK_SIZE)) {
-					list_del(&iter->node);
+					list_del(&iter->analde);
 					atomic_dec(&ctx->pend_cnt);
 					entry = iter;
 				} else {
-					/* buffer not big enough */
+					/* buffer analt big eanalugh */
 					rc = -EMSGSIZE;
 				}
 				goto read_loop_exit;
@@ -1056,7 +1056,7 @@ read_loop_exit:
 
 		/*
 		 * in this case, return just the first block, so
-		 * that app knows what size it is looking for.
+		 * that app kanalws what size it is looking for.
 		 */
 		set_msg_id(&tmp_msg, entry->usr_msg_id);
 		tmp_msg.size = entry->to_h_blks - 1;
@@ -1092,7 +1092,7 @@ ssize_t bcm_vk_write(struct file *p_file,
 
 	/* first, do sanity check where count should be multiple of basic blk */
 	if (count & (VK_MSGQ_BLK_SIZE - 1)) {
-		dev_err(dev, "Failure with size %zu not multiple of %zu\n",
+		dev_err(dev, "Failure with size %zu analt multiple of %zu\n",
 			count, VK_MSGQ_BLK_SIZE);
 		rc = -EINVAL;
 		goto write_err;
@@ -1102,11 +1102,11 @@ ssize_t bcm_vk_write(struct file *p_file,
 	entry = kzalloc(sizeof(*entry) + count + vk->ib_sgl_size,
 			GFP_KERNEL);
 	if (!entry) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto write_err;
 	}
 
-	/* now copy msg from user space, and then formulate the work entry */
+	/* analw copy msg from user space, and then formulate the work entry */
 	if (copy_from_user(&entry->to_v_msg[0], buf, count)) {
 		rc = -EFAULT;
 		goto write_free_ent;
@@ -1115,7 +1115,7 @@ ssize_t bcm_vk_write(struct file *p_file,
 	entry->to_v_blks = count >> VK_MSGQ_BLK_SZ_SHIFT;
 	entry->ctx = ctx;
 
-	/* do a check on the blk size which could not exceed queue space */
+	/* do a check on the blk size which could analt exceed queue space */
 	q_num = get_q_num(&entry->to_v_msg[0]);
 	msgq = vk->to_v_msg_chan.msgq[q_num];
 	msgq_size = readl_relaxed(&msgq->size);
@@ -1150,11 +1150,11 @@ ssize_t bcm_vk_write(struct file *p_file,
 		struct _vk_data *data;
 
 		/*
-		 * check if we are in reset, if so, no buffer transfer is
+		 * check if we are in reset, if so, anal buffer transfer is
 		 * allowed and return error.
 		 */
 		if (vk->reset_pid) {
-			dev_dbg(dev, "No Transfer allowed during reset, pid %d.\n",
+			dev_dbg(dev, "Anal Transfer allowed during reset, pid %d.\n",
 				ctx->pid);
 			rc = -EACCES;
 			goto write_free_msgid;
@@ -1176,7 +1176,7 @@ ssize_t bcm_vk_write(struct file *p_file,
 
 		data = (struct _vk_data *)&entry->to_v_msg[msg_size + 1];
 
-		/* Now back up to the start of the pointers */
+		/* Analw back up to the start of the pointers */
 		data -= num_planes;
 
 		/* Convert user addresses to DMA SG List */
@@ -1258,7 +1258,7 @@ __poll_t bcm_vk_poll(struct file *p_file, struct poll_table_struct *wait)
 
 	cnt = atomic_read(&ctx->pend_cnt);
 	if (cnt) {
-		ret = (__force __poll_t)(POLLIN | POLLRDNORM);
+		ret = (__force __poll_t)(POLLIN | POLLRDANALRM);
 		if (cnt < 0) {
 			dev_err(dev, "Error cnt %d, setting back to 0", cnt);
 			atomic_set(&ctx->pend_cnt, 0);
@@ -1268,7 +1268,7 @@ __poll_t bcm_vk_poll(struct file *p_file, struct poll_table_struct *wait)
 	return ret;
 }
 
-int bcm_vk_release(struct inode *inode, struct file *p_file)
+int bcm_vk_release(struct ianalde *ianalde, struct file *p_file)
 {
 	int ret;
 	struct bcm_vk_ctx *ctx = p_file->private_data;
@@ -1279,11 +1279,11 @@ int bcm_vk_release(struct inode *inode, struct file *p_file)
 	unsigned long timeout, start_time;
 
 	/*
-	 * if there are outstanding DMA transactions, need to delay long enough
+	 * if there are outstanding DMA transactions, need to delay long eanalugh
 	 * to ensure that the card side would have stopped touching the host buffer
 	 * and its SGL list.  A race condition could happen if the host app is killed
 	 * abruptly, eg kill -9, while some DMA transfer orders are still inflight.
-	 * Nothing could be done except for a delay as host side is running in a
+	 * Analthing could be done except for a delay as host side is running in a
 	 * completely async fashion.
 	 */
 	start_time = jiffies;

@@ -9,7 +9,7 @@ Overview
 These events are similar to tracepoint-based events. Instead of tracepoints,
 this is based on kprobes (kprobe and kretprobe). So it can probe wherever
 kprobes can probe (this means, all functions except those with
-__kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).
+__kprobes/analkprobe_inline ananaltation and those marked ANALKPROBE_SYMBOL).
 Unlike the tracepoint-based event, this can be added and removed
 dynamically, on the fly.
 
@@ -24,7 +24,7 @@ You can also use /sys/kernel/tracing/dynamic_events instead of
 kprobe_events. That interface will provide unified access to other
 dynamic events too.
 
-Synopsis of kprobe_events
+Syanalpsis of kprobe_events
 -------------------------
 ::
 
@@ -61,10 +61,10 @@ Synopsis of kprobe_events
 		  (x8/x16/x32/x64), "char", "string", "ustring", "symbol", "symstr"
                   and bitfield are supported.
 
-  (\*1) only for the probe on function entry (offs == 0). Note, this argument access
+  (\*1) only for the probe on function entry (offs == 0). Analte, this argument access
         is best effort, because depending on the argument type, it may be passed on
         the stack. But this only support the arguments via registers.
-  (\*2) only for return probe. Note that this is also best effort. Depending on the
+  (\*2) only for return probe. Analte that this is also best effort. Depending on the
         return value type, it might be passed via a pair of registers. But this only
         accesses one register.
   (\*3) this is useful for fetching a field of data structures.
@@ -84,7 +84,7 @@ x86-64 uses x64).
 These value types can be an array. To record array data, you can add '[N]'
 (where N is a fixed number, less than 64) to the base type.
 E.g. 'x16[4]' means an array of x16 (2-byte hex) with 4 elements.
-Note that the array can be applied to memory type fetchargs, you can not
+Analte that the array can be applied to memory type fetchargs, you can analt
 apply it to registers/stack-entries etc. (for example, '$stack1:x8[8]' is
 wrong, but '+8($stack):x8[8]' is OK.)
 
@@ -97,10 +97,10 @@ See :ref:`user_mem_access` for more info.
 
 The string array type is a bit different from other types. For other base
 types, <base-type>[1] is equal to <base-type> (e.g. +0(%di):x32[1] is same
-as +0(%di):x32.) But string[1] is not equal to string. The string type itself
+as +0(%di):x32.) But string[1] is analt equal to string. The string type itself
 represents "char array", but string array type represents "char * array".
 So, for example, +0(%di):string[1] is equal to +0(+0(%di)):string.
-Bitfield is another special type, which takes 3 parameters, bit-width, bit-
+Bitfield is aanalther special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is::
 
  b<bit-width>@<bit-offset>/<container-size>
@@ -129,8 +129,8 @@ a string from the address in the register %si that is expected to be in user-
 space. 'ustring' is a shortcut way of performing the same task. That is,
 +0(%si):ustring is equivalent to +u0(%si):string.
 
-Note that kprobe-event provides the user-memory access syntax but it doesn't
-use it transparently. This means if you use normal dereference or string type
+Analte that kprobe-event provides the user-memory access syntax but it doesn't
+use it transparently. This means if you use analrmal dereference or string type
 for user memory, it might fail, and may always fail on some architectures. The
 user has to carefully check if the target data is in kernel or user space.
 
@@ -188,7 +188,7 @@ as below::
   echo 'p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)' > /sys/kernel/tracing/kprobe_events
 
 This sets a kprobe on the top of do_sys_open() function with recording
-1st to 4th arguments as "myprobe" event. Note, which register/stack entry is
+1st to 4th arguments as "myprobe" event. Analte, which register/stack entry is
 assigned to each function argument depends on arch-specific ABI. If you unsure
 the ABI, please try to use probe subcommand of perf-tools (you can find it
 under tools/perf/).
@@ -255,7 +255,7 @@ And you can see the traced information via /sys/kernel/tracing/trace.
 ::
 
   cat /sys/kernel/tracing/trace
-  # tracer: nop
+  # tracer: analp
   #
   #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
   #              | |       |          |         |

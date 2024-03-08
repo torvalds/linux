@@ -135,8 +135,8 @@ struct brcmf_pub {
 	struct dentry *dbgfs_dir;
 #endif
 
-	struct notifier_block inetaddr_notifier;
-	struct notifier_block inet6addr_notifier;
+	struct analtifier_block inetaddr_analtifier;
+	struct analtifier_block inet6addr_analtifier;
 	struct brcmf_mp_device *settings;
 
 	struct work_struct bus_reset;
@@ -159,7 +159,7 @@ struct brcmf_fws_mac_descriptor;
  * @BRCMF_NETIF_STOP_REASON_FLOW:
  *	netif stopped due to flowring full.
  * @BRCMF_NETIF_STOP_REASON_DISCONNECTED:
- *	netif stopped due to not being connected (STA mode).
+ *	netif stopped due to analt being connected (STA mode).
  */
 enum brcmf_netif_stop_reason {
 	BRCMF_NETIF_STOP_REASON_FWS_FC = BIT(0),

@@ -35,7 +35,7 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 					   BCM2835_AUX_CLOCK_COUNT),
 			       GFP_KERNEL);
 	if (!onecell)
-		return -ENOMEM;
+		return -EANALMEM;
 	onecell->num = BCM2835_AUX_CLOCK_COUNT;
 
 	gate = reg + BCM2835_AUXENB;
@@ -48,7 +48,7 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 	onecell->hws[BCM2835_AUX_CLOCK_SPI2] =
 		clk_hw_register_gate(dev, "aux_spi2", parent, 0, gate, 2, 0, NULL);
 
-	return of_clk_add_hw_provider(pdev->dev.of_node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(pdev->dev.of_analde, of_clk_hw_onecell_get,
 				      onecell);
 }
 

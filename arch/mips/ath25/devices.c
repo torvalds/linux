@@ -11,7 +11,7 @@
 #include "ar2315.h"
 
 struct ar231x_board_config ath25_board;
-enum ath25_soc_type ath25_soc = ATH25_SOC_UNKNOWN;
+enum ath25_soc_type ath25_soc = ATH25_SOC_UNKANALWN;
 
 static struct resource ath25_wmac0_res[] = {
 	{
@@ -60,14 +60,14 @@ static const char * const soc_type_strings[] = {
 	[ATH25_SOC_AR2316] = "Atheros AR2316",
 	[ATH25_SOC_AR2317] = "Atheros AR2317",
 	[ATH25_SOC_AR2318] = "Atheros AR2318",
-	[ATH25_SOC_UNKNOWN] = "Atheros (unknown)",
+	[ATH25_SOC_UNKANALWN] = "Atheros (unkanalwn)",
 };
 
 const char *get_system_type(void)
 {
 	if ((ath25_soc >= ARRAY_SIZE(soc_type_strings)) ||
 	    !soc_type_strings[ath25_soc])
-		return soc_type_strings[ATH25_SOC_UNKNOWN];
+		return soc_type_strings[ATH25_SOC_UNKANALWN];
 	return soc_type_strings[ath25_soc];
 }
 

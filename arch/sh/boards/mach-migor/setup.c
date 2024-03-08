@@ -38,7 +38,7 @@
 #include <cpu/sh7722.h>
 
 /* Address     IRQ  Size  Bus  Description
- * 0x00000000       64MB  16   NOR Flash (SP29PL256N)
+ * 0x00000000       64MB  16   ANALR Flash (SP29PL256N)
  * 0x0c000000       64MB  64   SDRAM (2xK4M563233G)
  * 0x10000000  IRQ0       16   Ethernet (SMC91C111)
  * 0x14000000  IRQ4       16   USB 2.0 Host Controller (M66596)
@@ -49,7 +49,7 @@
 static phys_addr_t ceu_dma_membase;
 
 static struct smc91x_platdata smc91x_info = {
-	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.flags = SMC91X_USE_16BIT | SMC91X_ANALWAIT,
 };
 
 static struct resource smc91x_eth_resources[] = {
@@ -109,7 +109,7 @@ static struct platform_device sh_keysc_device = {
 	},
 };
 
-static struct mtd_partition migor_nor_flash_partitions[] =
+static struct mtd_partition migor_analr_flash_partitions[] =
 {
 	{
 		.name = "uboot",
@@ -129,27 +129,27 @@ static struct mtd_partition migor_nor_flash_partitions[] =
 	},
 };
 
-static struct physmap_flash_data migor_nor_flash_data = {
+static struct physmap_flash_data migor_analr_flash_data = {
 	.width		= 2,
-	.parts		= migor_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(migor_nor_flash_partitions),
+	.parts		= migor_analr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(migor_analr_flash_partitions),
 };
 
-static struct resource migor_nor_flash_resources[] = {
+static struct resource migor_analr_flash_resources[] = {
 	[0] = {
-		.name		= "NOR Flash",
+		.name		= "ANALR Flash",
 		.start		= 0x00000000,
 		.end		= 0x03ffffff,
 		.flags		= IORESOURCE_MEM,
 	}
 };
 
-static struct platform_device migor_nor_flash_device = {
+static struct platform_device migor_analr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= migor_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(migor_nor_flash_resources),
+	.resource	= migor_analr_flash_resources,
+	.num_resources	= ARRAY_SIZE(migor_analr_flash_resources),
 	.dev		= {
-		.platform_data = &migor_nor_flash_data,
+		.platform_data = &migor_analr_flash_data,
 	},
 };
 
@@ -169,7 +169,7 @@ static struct mtd_partition migor_nand_flash_partitions[] = {
 static void migor_nand_flash_cmd_ctl(struct nand_chip *chip, int cmd,
 				     unsigned int ctrl)
 {
-	if (cmd == NAND_CMD_NONE)
+	if (cmd == NAND_CMD_ANALNE)
 		return;
 
 	if (ctrl & NAND_CLE)
@@ -432,7 +432,7 @@ static struct platform_device *migor_devices[] __initdata = {
 	&smc91x_eth_device,
 	&sh_keysc_device,
 	&migor_lcdc_device,
-	&migor_nor_flash_device,
+	&migor_analr_flash_device,
 	&migor_nand_flash_device,
 	&sdhi_cn9_device,
 };

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -28,7 +28,7 @@
 /*
  * This information is private to VBT parsing in intel_bios.c.
  *
- * Please do NOT include anywhere else.
+ * Please do ANALT include anywhere else.
  */
 #ifndef _INTEL_BIOS_PRIVATE
 #error "intel_vbt_defs.h is private to intel_bios.c"
@@ -86,13 +86,13 @@ struct bdb_header {
  *    indicates the field was introduced in version <start>
  *    and obsoleted in version <end>+1.
  *
- * ??? indicates the specific version number is unknown
+ * ??? indicates the specific version number is unkanalwn
  */
 
 /*
  * There are several types of BIOS data blocks (BDBs), each block has
  * an ID and size in the first 3 bytes (ID in first, size in next 2).
- * Known types are listed below.
+ * Kanalwn types are listed below.
  */
 enum bdb_block_id {
 	BDB_GENERAL_FEATURES		= 1,
@@ -130,7 +130,7 @@ enum bdb_block_id {
 	BDB_MIPI_SEQUENCE		= 53,
 	BDB_COMPRESSION_PARAMETERS	= 56,
 	BDB_GENERIC_DTD			= 58,
-	BDB_SKIP			= 254, /* VBIOS private block, ignore */
+	BDB_SKIP			= 254, /* VBIOS private block, iganalre */
 };
 
 /*
@@ -163,7 +163,7 @@ struct bdb_general_features {
 	u8 vbios_extended_mode:1;				/* 160+ */
 	u8 copy_ilfp_dtd_to_sdvo_lvds_dtd:1;			/* 160+ */
 	u8 panel_best_fit_timing:1;				/* 160+ */
-	u8 ignore_strap_state:1;				/* 160+ */
+	u8 iganalre_strap_state:1;				/* 160+ */
 
         /* bits 4 */
 	u8 legacy_monitor_detect;
@@ -210,7 +210,7 @@ struct bdb_general_features {
 #define DEVICE_HANDLE_LFP2	0x0080
 
 /* Pre 915 */
-#define DEVICE_TYPE_NONE	0x00
+#define DEVICE_TYPE_ANALNE	0x00
 #define DEVICE_TYPE_CRT		0x01
 #define DEVICE_TYPE_TV		0x09
 #define DEVICE_TYPE_EFP		0x12
@@ -249,7 +249,7 @@ struct bdb_general_features {
 #define DEVICE_TYPE_POWER_MANAGEMENT	(1 << 14)
 #define DEVICE_TYPE_HOTPLUG_SIGNALING	(1 << 13)
 #define DEVICE_TYPE_INTERNAL_CONNECTOR	(1 << 12)
-#define DEVICE_TYPE_NOT_HDMI_OUTPUT	(1 << 11)
+#define DEVICE_TYPE_ANALT_HDMI_OUTPUT	(1 << 11)
 #define DEVICE_TYPE_MIPI_OUTPUT		(1 << 10)
 #define DEVICE_TYPE_COMPOSITE_OUTPUT	(1 << 9)
 #define DEVICE_TYPE_DUAL_CHANNEL	(1 << 8)
@@ -261,7 +261,7 @@ struct bdb_general_features {
 #define DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
 #define DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
 
-#define DEVICE_CFG_NONE		0x00
+#define DEVICE_CFG_ANALNE		0x00
 #define DEVICE_CFG_12BIT_DVOB	0x01
 #define DEVICE_CFG_12BIT_DVOC	0x02
 #define DEVICE_CFG_24BIT_DVOBC	0x09
@@ -272,7 +272,7 @@ struct bdb_general_features {
 #define DEVICE_CFG_DUAL_LINK_DVOBC	0x19
 #define DEVICE_CFG_DUAL_LINK_DVOCB	0x1a
 
-#define DEVICE_WIRE_NONE	0x00
+#define DEVICE_WIRE_ANALNE	0x00
 #define DEVICE_WIRE_DVOB	0x01
 #define DEVICE_WIRE_DVOC	0x02
 #define DEVICE_WIRE_DVOBC	0x03
@@ -282,7 +282,7 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
 /* dvo_port pre BDB 155 */
-#define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
+#define DEVICE_PORT_DVOA	0x00 /* analne on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
@@ -386,7 +386,7 @@ enum vbt_gmbus_ddi {
  * version in question.
  *
  * When we copy the child device configs to dev_priv->display.vbt.child_dev, we
- * reserve space for the full structure below, and initialize the tail not
+ * reserve space for the full structure below, and initialize the tail analt
  * actually present in VBT to zeros. Accessing those fields is fine, as long as
  * the default zero is taken into account, again according to the BDB version.
  *
@@ -417,7 +417,7 @@ struct child_device_config {
 			u8 compression_enable:1;		/* 198+ */
 			u8 compression_method_cps:1;		/* 198+ */
 			u8 ganged_edp:1;			/* 202+ */
-			u8 lttpr_non_transparent:1;		/* 235+ */
+			u8 lttpr_analn_transparent:1;		/* 235+ */
 			u8 disable_compression_for_ext_disp:1;	/* 251+ */
 			u8 reserved2:2;
 			u8 compression_structure_index:4;	/* 198+ */
@@ -492,7 +492,7 @@ struct bdb_general_definitions {
 	u8 crt_ddc_gmbus_pin;
 
 	/* DPMS bits */
-	u8 dpms_non_acpi:1;
+	u8 dpms_analn_acpi:1;
 	u8 skip_boot_crt_detect:1;
 	u8 dpms_aim:1;
 	u8 rsvd1:5; /* finish byte */
@@ -546,7 +546,7 @@ struct bdb_psr {
  * Block 12 - Driver Features Data Block
  */
 
-#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_ANAL_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
 #define BDB_DRIVER_FEATURE_SDVO_LVDS		2
 #define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
@@ -672,7 +672,7 @@ struct lvds_dvo_timing {
 	u8 digital:2;
 	u8 vsync_positive:1;
 	u8 hsync_positive:1;
-	u8 non_interlaced:1;
+	u8 analn_interlaced:1;
 } __packed;
 
 struct bdb_sdvo_panel_dtds {
@@ -692,7 +692,7 @@ struct bdb_sdvo_panel_dtds {
 #define EDP_LANE_1	0
 #define EDP_LANE_2	1
 #define EDP_LANE_4	3
-#define EDP_PREEMPHASIS_NONE	0
+#define EDP_PREEMPHASIS_ANALNE	0
 #define EDP_PREEMPHASIS_3_5dB	1
 #define EDP_PREEMPHASIS_6dB	2
 #define EDP_PREEMPHASIS_9_5dB	3
@@ -837,7 +837,7 @@ struct lvds_pnp_id {
 /*
  * For reference only. fp_timing has variable size so
  * the data must be accessed using the data table pointers.
- * Do not use this directly!
+ * Do analt use this directly!
  */
 struct lvds_lfp_data_entry {
 	struct lvds_fp_timing fp_timing;
@@ -874,7 +874,7 @@ struct bdb_lvds_lfp_data_tail {
  * Block 43 - LFP Backlight Control Data Block
  */
 
-#define BDB_BACKLIGHT_TYPE_NONE	0
+#define BDB_BACKLIGHT_TYPE_ANALNE	0
 #define BDB_BACKLIGHT_TYPE_PWM	2
 
 struct lfp_backlight_data_entry {
@@ -997,7 +997,7 @@ struct bdb_mipi_sequence {
 
 struct dsc_compression_parameters_entry {
 	u8 version_major:4;
-	u8 version_minor:4;
+	u8 version_mianalr:4;
 
 	u8 rc_buffer_block_size:2;
 	u8 reserved1:6;

@@ -21,7 +21,7 @@ extern void xfs_buf_verifier_error(struct xfs_buf *bp, int error,
 			xfs_failaddr_t failaddr);
 extern void xfs_verifier_error(struct xfs_buf *bp, int error,
 			xfs_failaddr_t failaddr);
-extern void xfs_inode_verifier_error(struct xfs_inode *ip, int error,
+extern void xfs_ianalde_verifier_error(struct xfs_ianalde *ip, int error,
 			const char *name, const void *buf, size_t bufsz,
 			xfs_failaddr_t failaddr);
 
@@ -68,16 +68,16 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #define xfs_errortag_del(mp)
 #define XFS_TEST_ERROR(expr, mp, tag)		(expr)
 #define XFS_ERRORTAG_DELAY(mp, tag)		((void)0)
-#define xfs_errortag_set(mp, tag, val)		(ENOSYS)
-#define xfs_errortag_add(mp, tag)		(ENOSYS)
-#define xfs_errortag_clearall(mp)		(ENOSYS)
+#define xfs_errortag_set(mp, tag, val)		(EANALSYS)
+#define xfs_errortag_add(mp, tag)		(EANALSYS)
+#define xfs_errortag_clearall(mp)		(EANALSYS)
 #endif /* DEBUG */
 
 /*
  * XFS panic tags -- allow a call to xfs_alert_tag() be turned into
  *			a panic by setting fs.xfs.panic_mask in a sysctl.
  */
-#define		XFS_NO_PTAG			0u
+#define		XFS_ANAL_PTAG			0u
 #define		XFS_PTAG_IFLUSH			(1u << 0)
 #define		XFS_PTAG_LOGRES			(1u << 1)
 #define		XFS_PTAG_AILDELETE		(1u << 2)
@@ -99,7 +99,7 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 				 XFS_PTAG_VERIFIER_ERROR)
 
 #define XFS_PTAG_STRINGS \
-	{ XFS_NO_PTAG,			"none" }, \
+	{ XFS_ANAL_PTAG,			"analne" }, \
 	{ XFS_PTAG_IFLUSH,		"iflush" }, \
 	{ XFS_PTAG_LOGRES,		"logres" }, \
 	{ XFS_PTAG_AILDELETE,		"aildelete" }, \

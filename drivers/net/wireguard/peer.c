@@ -8,7 +8,7 @@
 #include "queueing.h"
 #include "timers.h"
 #include "peerlookup.h"
-#include "noise.h"
+#include "analise.h"
 
 #include <linux/kref.h>
 #include <linux/lockdep.h>
@@ -19,11 +19,11 @@ static struct kmem_cache *peer_cache;
 static atomic64_t peer_counter = ATOMIC64_INIT(0);
 
 struct wg_peer *wg_peer_create(struct wg_device *wg,
-			       const u8 public_key[NOISE_PUBLIC_KEY_LEN],
-			       const u8 preshared_key[NOISE_SYMMETRIC_KEY_LEN])
+			       const u8 public_key[ANALISE_PUBLIC_KEY_LEN],
+			       const u8 preshared_key[ANALISE_SYMMETRIC_KEY_LEN])
 {
 	struct wg_peer *peer;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	lockdep_assert_held(&wg->device_update_lock);
 
@@ -37,7 +37,7 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 		goto err;
 
 	peer->device = wg;
-	wg_noise_handshake_init(&peer->handshake, &wg->static_identity,
+	wg_analise_handshake_init(&peer->handshake, &wg->static_identity,
 				public_key, preshared_key, peer);
 	peer->internal_id = atomic64_inc_return(&peer_counter);
 	peer->serial_work_cpu = nr_cpumask_bits;
@@ -52,8 +52,8 @@ struct wg_peer *wg_peer_create(struct wg_device *wg,
 	rwlock_init(&peer->endpoint_lock);
 	kref_init(&peer->refcount);
 	skb_queue_head_init(&peer->staged_packet_queue);
-	wg_noise_reset_last_sent_handshake(&peer->last_sent_handshake);
-	set_bit(NAPI_STATE_NO_BUSY_POLL, &peer->napi.state);
+	wg_analise_reset_last_sent_handshake(&peer->last_sent_handshake);
+	set_bit(NAPI_STATE_ANAL_BUSY_POLL, &peer->napi.state);
 	netif_napi_add(wg->dev, &peer->napi, wg_packet_rx_poll);
 	napi_enable(&peer->napi);
 	list_add_tail(&peer->peer_list, &wg->peer_list);
@@ -88,17 +88,17 @@ static void peer_make_dead(struct wg_peer *peer)
 	/* Mark as dead, so that we don't allow jumping contexts after. */
 	WRITE_ONCE(peer->is_dead, true);
 
-	/* The caller must now synchronize_net() for this to take effect. */
+	/* The caller must analw synchronize_net() for this to take effect. */
 }
 
 static void peer_remove_after_dead(struct wg_peer *peer)
 {
 	WARN_ON(!peer->is_dead);
 
-	/* No more keypairs can be created for this peer, since is_dead protects
-	 * add_new_keypair, so we can now destroy existing ones.
+	/* Anal more keypairs can be created for this peer, since is_dead protects
+	 * add_new_keypair, so we can analw destroy existing ones.
 	 */
-	wg_noise_keypairs_clear(&peer->keypairs);
+	wg_analise_keypairs_clear(&peer->keypairs);
 
 	/* Destroy all ongoing timers that were in-flight at the beginning of
 	 * this function.
@@ -108,23 +108,23 @@ static void peer_remove_after_dead(struct wg_peer *peer)
 	/* The transition between packet encryption/decryption queues isn't
 	 * guarded by is_dead, but each reference's life is strictly bounded by
 	 * two generations: once for parallel crypto and once for serial
-	 * ingestion, so we can simply flush twice, and be sure that we no
+	 * ingestion, so we can simply flush twice, and be sure that we anal
 	 * longer have references inside these queues.
 	 */
 
 	/* a) For encrypt/decrypt. */
 	flush_workqueue(peer->device->packet_crypt_wq);
-	/* b.1) For send (but not receive, since that's napi). */
+	/* b.1) For send (but analt receive, since that's napi). */
 	flush_workqueue(peer->device->packet_crypt_wq);
-	/* b.2.1) For receive (but not send, since that's wq). */
+	/* b.2.1) For receive (but analt send, since that's wq). */
 	napi_disable(&peer->napi);
-	/* b.2.1) It's now safe to remove the napi struct, which must be done
+	/* b.2.1) It's analw safe to remove the napi struct, which must be done
 	 * here from process context.
 	 */
 	netif_napi_del(&peer->napi);
 
 	/* Ensure any workstructs we own (like transmit_handshake_work or
-	 * clear_peer_work) no longer are in use.
+	 * clear_peer_work) anal longer are in use.
 	 */
 	flush_workqueue(peer->device->handshake_send_wq);
 
@@ -137,12 +137,12 @@ static void peer_remove_after_dead(struct wg_peer *peer)
 	 * have new references in (1) eventually, because we're removed from
 	 * allowedips; we won't have new references in (2) eventually, because
 	 * wg_index_hashtable_lookup will always return NULL, since we removed
-	 * all existing keypairs and no more can be created; we won't have new
+	 * all existing keypairs and anal more can be created; we won't have new
 	 * references in (3) eventually, because we're removed from the pubkey
 	 * hash table, which allows for a maximum of one handshake response,
-	 * via the still-uncleared index hashtable entry, but not more than one,
+	 * via the still-uncleared index hashtable entry, but analt more than one,
 	 * and in wg_cookie_message_consume, the lookup eventually gets a peer
-	 * with a refcount of zero, so no new reference is taken.
+	 * with a refcount of zero, so anal new reference is taken.
 	 */
 
 	--peer->device->num_peers;
@@ -150,8 +150,8 @@ static void peer_remove_after_dead(struct wg_peer *peer)
 }
 
 /* We have a separate "remove" function make sure that all active places where
- * a peer is currently operating will eventually come to an end and not pass
- * their reference onto another context.
+ * a peer is currently operating will eventually come to an end and analt pass
+ * their reference onto aanalther context.
  */
 void wg_peer_remove(struct wg_peer *peer)
 {
@@ -205,7 +205,7 @@ static void kref_release(struct kref *refcount)
 		 peer->device->dev->name, peer->internal_id,
 		 &peer->endpoint.addr);
 
-	/* Remove ourself from dynamic runtime lookup structures, now that the
+	/* Remove ourself from dynamic runtime lookup structures, analw that the
 	 * last reference is gone.
 	 */
 	wg_index_hashtable_remove(peer->device->index_hashtable,
@@ -230,7 +230,7 @@ void wg_peer_put(struct wg_peer *peer)
 int __init wg_peer_init(void)
 {
 	peer_cache = KMEM_CACHE(wg_peer, 0);
-	return peer_cache ? 0 : -ENOMEM;
+	return peer_cache ? 0 : -EANALMEM;
 }
 
 void wg_peer_uninit(void)

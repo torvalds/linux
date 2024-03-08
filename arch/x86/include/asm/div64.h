@@ -8,7 +8,7 @@
 #include <linux/log2.h>
 
 /*
- * do_div() is NOT a C function. It wants to return
+ * do_div() is ANALT a C function. It wants to return
  * two values (the quotient and the remainder), but
  * since that doesn't work very well in C, what it
  * does is:

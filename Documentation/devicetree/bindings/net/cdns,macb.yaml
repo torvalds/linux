@@ -114,7 +114,7 @@ properties:
     description:
       When the receive partial store and forward mode is activated,
       the receiver will only begin to forward the packet to the external
-      AHB or AXI slave when enough packet data is stored in the SRAM packet buffer.
+      AHB or AXI slave when eanalugh packet data is stored in the SRAM packet buffer.
       rx-watermark corresponds to the number of SRAM buffer locations,
       that need to be filled, before the forwarding process is activated.
       Width of the SRAM is platform dependent, and can be 4, 8 or 16 bytes.
@@ -128,7 +128,7 @@ properties:
   mdio:
     type: object
     description:
-      Node containing PHY children. If this node is not present, then PHYs will
+      Analde containing PHY children. If this analde is analt present, then PHYs will
       be direct children.
 
 patternProperties:
@@ -158,7 +158,7 @@ allOf:
   - $ref: ethernet-controller.yaml#
 
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

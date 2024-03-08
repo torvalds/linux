@@ -51,9 +51,9 @@ separated by spaces:
 - process_mrelease
 	test process_mrelease(2)
 - ksm
-	ksm tests that do not require >=2 NUMA nodes
+	ksm tests that do analt require >=2 NUMA analdes
 - ksm_numa
-	ksm tests that require >=2 NUMA nodes
+	ksm tests that require >=2 NUMA analdes
 - pkey
 	memory protection key tests
 - soft_dirty
@@ -96,7 +96,7 @@ VM_SELFTEST_ITEMS=${VM_SELFTEST_ITEMS:-default}
 
 test_selected() {
 	if [ "$VM_SELFTEST_ITEMS" == "default" ]; then
-		# If no VM_SELFTEST_ITEMS are specified, run all tests
+		# If anal VM_SELFTEST_ITEMS are specified, run all tests
 		return 0
 	fi
 	# If test selected argument is one of the test items
@@ -171,12 +171,12 @@ if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 		tries=$((tries - 1))
 	done
 	if [ "$freepgs" -lt "$needpgs" ]; then
-		printf "Not enough huge pages available (%d < %d)\n" \
+		printf "Analt eanalugh huge pages available (%d < %d)\n" \
 		       "$freepgs" "$needpgs"
 		exit 1
 	fi
 else
-	echo "no hugetlbfs support in kernel?"
+	echo "anal hugetlbfs support in kernel?"
 	exit 1
 fi
 
@@ -226,7 +226,7 @@ run_test() {
 		else
 			count_fail=$(( count_fail + 1 ))
 			echo "[FAIL]" | tap_prefix
-			echo "not ok ${count_total} ${test} # exit=$ret" | tap_output
+			echo "analt ok ${count_total} ${test} # exit=$ret" | tap_output
 			exitcode=1
 		fi
 	fi # test_selected
@@ -257,12 +257,12 @@ CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
 echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
 
 if test_selected "hugetlb"; then
-	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"	  | tap_prefix
+	echo "ANALTE: These hugetlb tests provide minimal coverage.  Use"	  | tap_prefix
 	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for" | tap_prefix
 	echo "      hugetlb regression testing."			  | tap_prefix
 fi
 
-CATEGORY="mmap" run_test ./map_fixed_noreplace
+CATEGORY="mmap" run_test ./map_fixed_analreplace
 
 if $RUN_ALL; then
     run_gup_matrix
@@ -278,7 +278,7 @@ CATEGORY="gup_test" run_test ./gup_longterm
 
 CATEGORY="userfaultfd" run_test ./uffd-unit-tests
 uffd_stress_bin=./uffd-stress
-CATEGORY="userfaultfd" run_test ${uffd_stress_bin} anon 20 16
+CATEGORY="userfaultfd" run_test ${uffd_stress_bin} aanaln 20 16
 # Hugetlb tests require source and destination huge pages. Pass in half
 # the size ($half_ufd_size_MB), which is used for *each*.
 CATEGORY="userfaultfd" run_test ${uffd_stress_bin} hugetlb "$half_ufd_size_MB" 32
@@ -291,7 +291,7 @@ echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
 CATEGORY="compaction" run_test ./compaction_test
 
-CATEGORY="mlock" run_test sudo -u nobody ./on-fault-limit
+CATEGORY="mlock" run_test sudo -u analbody ./on-fault-limit
 
 CATEGORY="mmap" run_test ./map_populate
 
@@ -353,9 +353,9 @@ CATEGORY="ksm" run_test ./ksm_tests -U
 CATEGORY="ksm" run_test ./ksm_tests -Z -p 10 -z 0
 # KSM test with 10 zero pages and use_zero_pages = 1
 CATEGORY="ksm" run_test ./ksm_tests -Z -p 10 -z 1
-# KSM test with 2 NUMA nodes and merge_across_nodes = 1
+# KSM test with 2 NUMA analdes and merge_across_analdes = 1
 CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 1
-# KSM test with 2 NUMA nodes and merge_across_nodes = 0
+# KSM test with 2 NUMA analdes and merge_across_analdes = 0
 CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 0
 
 CATEGORY="ksm" run_test ./ksm_functional_tests

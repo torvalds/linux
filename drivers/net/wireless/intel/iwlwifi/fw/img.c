@@ -20,7 +20,7 @@ u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def)
 	entry = fw->ucode_capa.cmd_versions;
 	for (i = 0; i < fw->ucode_capa.n_cmd_versions; i++, entry++) {
 		if (entry->group == grp && entry->cmd == cmd) {
-			if (entry->cmd_ver == IWL_FW_CMD_VER_UNKNOWN)
+			if (entry->cmd_ver == IWL_FW_CMD_VER_UNKANALWN)
 				return def;
 			return entry->cmd_ver;
 		}
@@ -30,7 +30,7 @@ u8 iwl_fw_lookup_cmd_ver(const struct iwl_fw *fw, u32 cmd_id, u8 def)
 }
 EXPORT_SYMBOL_GPL(iwl_fw_lookup_cmd_ver);
 
-u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def)
+u8 iwl_fw_lookup_analtif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def)
 {
 	const struct iwl_fw_cmd_version *entry;
 	unsigned int i;
@@ -42,15 +42,15 @@ u8 iwl_fw_lookup_notif_ver(const struct iwl_fw *fw, u8 grp, u8 cmd, u8 def)
 	entry = fw->ucode_capa.cmd_versions;
 	for (i = 0; i < fw->ucode_capa.n_cmd_versions; i++, entry++) {
 		if (entry->group == grp && entry->cmd == cmd) {
-			if (entry->notif_ver == IWL_FW_CMD_VER_UNKNOWN)
+			if (entry->analtif_ver == IWL_FW_CMD_VER_UNKANALWN)
 				return def;
-			return entry->notif_ver;
+			return entry->analtif_ver;
 		}
 	}
 
 	return def;
 }
-EXPORT_SYMBOL_GPL(iwl_fw_lookup_notif_ver);
+EXPORT_SYMBOL_GPL(iwl_fw_lookup_analtif_ver);
 
 static const struct {
 	const char *name;
@@ -67,13 +67,13 @@ static const struct {
 	{ "NMI_INTERRUPT_TRM", 0x4C },
 	{ "NMI_INTERRUPT_BREAK_POINT", 0x54 },
 	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
-	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
+	{ "NMI_INTERRUPT_WDG_ANAL_RBD_RXF_FULL", 0x64 },
 	{ "NMI_INTERRUPT_HOST", 0x66 },
 	{ "NMI_INTERRUPT_LMAC_FATAL", 0x70 },
 	{ "NMI_INTERRUPT_UMAC_FATAL", 0x71 },
 	{ "NMI_INTERRUPT_OTHER_LMAC_FATAL", 0x73 },
 	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
-	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
+	{ "NMI_INTERRUPT_UNKANALWN", 0x84 },
 	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
 	{ "PNVM_MISSING", FW_SYSASSERT_PNVM_MISSING },
 	{ "ADVANCED_SYSASSERT", 0 },
@@ -87,7 +87,7 @@ const char *iwl_fw_lookup_assert_desc(u32 num)
 		if (advanced_lookup[i].num == (num & ~FW_SYSASSERT_CPU_MASK))
 			return advanced_lookup[i].name;
 
-	/* No entry matches 'num', so it is the last: ADVANCED_SYSASSERT */
+	/* Anal entry matches 'num', so it is the last: ADVANCED_SYSASSERT */
 	return advanced_lookup[i].name;
 }
 EXPORT_SYMBOL_GPL(iwl_fw_lookup_assert_desc);

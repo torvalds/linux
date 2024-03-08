@@ -20,7 +20,7 @@
  * Regardless, if the host bus endianness mismatches that of PCI/ISA, then
  * you can't have the numerical value of data and byte addresses within
  * multibyte quantities both preserved at the same time.  Hence two
- * variations of functions: non-prefixed ones that preserve the value
+ * variations of functions: analn-prefixed ones that preserve the value
  * and prefixed ones that preserve byte addresses.  The latters are
  * typically used for moving raw data between a peripheral and memory (cf.
  * string I/O functions), hence the "__mem_" prefix.

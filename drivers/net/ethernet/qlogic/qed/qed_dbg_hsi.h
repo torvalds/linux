@@ -408,8 +408,8 @@ struct dbg_idle_chk_rule_parsing_data {
 enum dbg_idle_chk_severity_types {
 	/* idle check failure should cause an error */
 	IDLE_CHK_SEVERITY_ERROR,
-	/* idle check failure should cause an error only if theres no traffic */
-	IDLE_CHK_SEVERITY_ERROR_NO_TRAFFIC,
+	/* idle check failure should cause an error only if theres anal traffic */
+	IDLE_CHK_SEVERITY_ERROR_ANAL_TRAFFIC,
 	/* idle check failure should cause a warning */
 	IDLE_CHK_SEVERITY_WARNING,
 	MAX_DBG_IDLE_CHK_SEVERITY_TYPES
@@ -525,7 +525,7 @@ struct dbg_bus_storm_data {
 	u8 mode;
 	u8 hw_id;
 	u8 eid_filter_en;
-	u8 eid_range_not_mask;
+	u8 eid_range_analt_mask;
 	u8 cid_filter_en;
 	union dbg_bus_storm_eid_params eid_filter_params;
 	u32 cid;
@@ -643,8 +643,8 @@ enum dbg_grc_params {
 	DBG_GRC_PARAM_PARITY_SAFE,
 	DBG_GRC_PARAM_DUMP_CM,
 	DBG_GRC_PARAM_DUMP_PHY,
-	DBG_GRC_PARAM_NO_MCP,
-	DBG_GRC_PARAM_NO_FW_VER,
+	DBG_GRC_PARAM_ANAL_MCP,
+	DBG_GRC_PARAM_ANAL_FW_VER,
 	DBG_GRC_PARAM_RESERVED3,
 	DBG_GRC_PARAM_DUMP_MCP_HW_DUMP,
 	DBG_GRC_PARAM_DUMP_ILT_CDUC,
@@ -656,57 +656,57 @@ enum dbg_grc_params {
 /* Debug status codes */
 enum dbg_status {
 	DBG_STATUS_OK,
-	DBG_STATUS_APP_VERSION_NOT_SET,
+	DBG_STATUS_APP_VERSION_ANALT_SET,
 	DBG_STATUS_UNSUPPORTED_APP_VERSION,
-	DBG_STATUS_DBG_BLOCK_NOT_RESET,
+	DBG_STATUS_DBG_BLOCK_ANALT_RESET,
 	DBG_STATUS_INVALID_ARGS,
 	DBG_STATUS_OUTPUT_ALREADY_SET,
 	DBG_STATUS_INVALID_PCI_BUF_SIZE,
 	DBG_STATUS_PCI_BUF_ALLOC_FAILED,
-	DBG_STATUS_PCI_BUF_NOT_ALLOCATED,
+	DBG_STATUS_PCI_BUF_ANALT_ALLOCATED,
 	DBG_STATUS_INVALID_FILTER_TRIGGER_DWORDS,
-	DBG_STATUS_NO_MATCHING_FRAMING_MODE,
+	DBG_STATUS_ANAL_MATCHING_FRAMING_MODE,
 	DBG_STATUS_VFC_READ_ERROR,
 	DBG_STATUS_STORM_ALREADY_ENABLED,
-	DBG_STATUS_STORM_NOT_ENABLED,
+	DBG_STATUS_STORM_ANALT_ENABLED,
 	DBG_STATUS_BLOCK_ALREADY_ENABLED,
-	DBG_STATUS_BLOCK_NOT_ENABLED,
-	DBG_STATUS_NO_INPUT_ENABLED,
-	DBG_STATUS_NO_FILTER_TRIGGER_256B,
+	DBG_STATUS_BLOCK_ANALT_ENABLED,
+	DBG_STATUS_ANAL_INPUT_ENABLED,
+	DBG_STATUS_ANAL_FILTER_TRIGGER_256B,
 	DBG_STATUS_FILTER_ALREADY_ENABLED,
 	DBG_STATUS_TRIGGER_ALREADY_ENABLED,
-	DBG_STATUS_TRIGGER_NOT_ENABLED,
+	DBG_STATUS_TRIGGER_ANALT_ENABLED,
 	DBG_STATUS_CANT_ADD_CONSTRAINT,
 	DBG_STATUS_TOO_MANY_TRIGGER_STATES,
 	DBG_STATUS_TOO_MANY_CONSTRAINTS,
-	DBG_STATUS_RECORDING_NOT_STARTED,
+	DBG_STATUS_RECORDING_ANALT_STARTED,
 	DBG_STATUS_DATA_DIDNT_TRIGGER,
-	DBG_STATUS_NO_DATA_RECORDED,
+	DBG_STATUS_ANAL_DATA_RECORDED,
 	DBG_STATUS_DUMP_BUF_TOO_SMALL,
-	DBG_STATUS_DUMP_NOT_CHUNK_ALIGNED,
-	DBG_STATUS_UNKNOWN_CHIP,
+	DBG_STATUS_DUMP_ANALT_CHUNK_ALIGNED,
+	DBG_STATUS_UNKANALWN_CHIP,
 	DBG_STATUS_VIRT_MEM_ALLOC_FAILED,
 	DBG_STATUS_BLOCK_IN_RESET,
 	DBG_STATUS_INVALID_TRACE_SIGNATURE,
 	DBG_STATUS_INVALID_NVRAM_BUNDLE,
 	DBG_STATUS_NVRAM_GET_IMAGE_FAILED,
-	DBG_STATUS_NON_ALIGNED_NVRAM_IMAGE,
+	DBG_STATUS_ANALN_ALIGNED_NVRAM_IMAGE,
 	DBG_STATUS_NVRAM_READ_FAILED,
 	DBG_STATUS_IDLE_CHK_PARSE_FAILED,
 	DBG_STATUS_MCP_TRACE_BAD_DATA,
-	DBG_STATUS_MCP_TRACE_NO_META,
-	DBG_STATUS_MCP_COULD_NOT_HALT,
-	DBG_STATUS_MCP_COULD_NOT_RESUME,
+	DBG_STATUS_MCP_TRACE_ANAL_META,
+	DBG_STATUS_MCP_COULD_ANALT_HALT,
+	DBG_STATUS_MCP_COULD_ANALT_RESUME,
 	DBG_STATUS_RESERVED0,
-	DBG_STATUS_SEMI_FIFO_NOT_EMPTY,
+	DBG_STATUS_SEMI_FIFO_ANALT_EMPTY,
 	DBG_STATUS_IGU_FIFO_BAD_DATA,
-	DBG_STATUS_MCP_COULD_NOT_MASK_PRTY,
+	DBG_STATUS_MCP_COULD_ANALT_MASK_PRTY,
 	DBG_STATUS_FW_ASSERTS_PARSE_FAILED,
 	DBG_STATUS_REG_FIFO_BAD_DATA,
 	DBG_STATUS_PROTECTION_OVERRIDE_BAD_DATA,
-	DBG_STATUS_DBG_ARRAY_NOT_SET,
+	DBG_STATUS_DBG_ARRAY_ANALT_SET,
 	DBG_STATUS_RESERVED1,
-	DBG_STATUS_NON_MATCHING_LINES,
+	DBG_STATUS_ANALN_MATCHING_LINES,
 	DBG_STATUS_INSUFFICIENT_HW_IDS,
 	DBG_STATUS_DBG_BUS_IN_USE,
 	DBG_STATUS_INVALID_STORM_DBG_MODE,
@@ -815,7 +815,7 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
  *
  * The FW info contains FW-related information, such as the FW version,
  * FW image (main/L2B/kuku), FW timestamp, etc.
- * The FW info is read from the internal RAM of the first Storm that is not in
+ * The FW info is read from the internal RAM of the first Storm that is analt in
  * reset.
  */
 bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
@@ -931,7 +931,7 @@ enum dbg_status qed_dbg_idle_chk_dump(struct qed_hwfn *p_hwfn,
  *         - The version wasn't set.
  *         - The trace data in MCP scratchpad contain an invalid signature.
  *         - The bundle ID in NVRAM is invalid.
- *         - The trace meta data cannot be found (in NVRAM or image file).
+ *         - The trace meta data cananalt be found (in NVRAM or image file).
  *           Otherwise, returns ok.
  */
 enum dbg_status qed_dbg_mcp_trace_get_dump_buf_size(struct qed_hwfn *p_hwfn,
@@ -953,8 +953,8 @@ enum dbg_status qed_dbg_mcp_trace_get_dump_buf_size(struct qed_hwfn *p_hwfn,
  *        - The specified buffer is too small.
  *        - The trace data in MCP scratchpad contain an invalid signature.
  *        - The bundle ID in NVRAM is invalid.
- *        - The trace meta data cannot be found (in NVRAM or image file).
- *        - The trace meta data cannot be read (from NVRAM or image file).
+ *        - The trace meta data cananalt be found (in NVRAM or image file).
+ *        - The trace meta data cananalt be read (from NVRAM or image file).
  *          Otherwise, returns ok.
  */
 enum dbg_status qed_dbg_mcp_trace_dump(struct qed_hwfn *p_hwfn,
@@ -1267,7 +1267,7 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
  * Return: Void.
  *
  * Needed in case the MCP Trace dump doesn't contain the meta data (e.g. due to
- * no NVRAM access).
+ * anal NVRAM access).
  */
 void qed_dbg_mcp_trace_set_meta_data(struct qed_hwfn *p_hwfn,
 				     const u32 *meta_buf);

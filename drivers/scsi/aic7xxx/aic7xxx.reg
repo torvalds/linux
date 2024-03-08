@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -24,13 +24,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -51,14 +51,14 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#40 $"
  */
 
 /*
- * Registers marked "dont_generate_debug_code" are not (yet) referenced
+ * Registers marked "dont_generate_debug_code" are analt (yet) referenced
  * from the driver code, and this keyword inhibit generation
  * of debug code for them.
  *
  * REG_PRETTY_PRINT config will complain if dont_generate_debug_code
  * is added to the register which is referenced in the driver.
- * Unreferenced register with no dont_generate_debug_code will result
- * in dead code. No warning is issued.
+ * Unreferenced register with anal dont_generate_debug_code will result
+ * in dead code. Anal warning is issued.
  */
 
 /*
@@ -72,7 +72,7 @@ register SCSISEQ {
 	field	ENSELO		0x40
 	field	ENSELI		0x20
 	field	ENRSELI		0x10
-	field	ENAUTOATNO	0x08
+	field	ENAUTOATANAL	0x08
 	field	ENAUTOATNI	0x04
 	field	ENAUTOATNP	0x02
 	field	SCSIRSTO	0x01
@@ -152,7 +152,7 @@ register SCSISIGO {
 	field	CDO		0x80
 	field	IOO		0x40
 	field	MSGO		0x20
-	field	ATNO		0x10
+	field	ATANAL		0x10
 	field	SELO		0x08
 	field	BSYO		0x04
 	field	REQO		0x02
@@ -172,10 +172,10 @@ register SCSISIGO {
 
 /* 
  * SCSI Rate Control (p. 3-17).
- * Contents of this register determine the Synchronous SCSI data transfer
- * rate and the maximum synchronous Req/Ack offset.  An offset of 0 in the
- * SOFS (3:0) bits disables synchronous data transfers.  Any offset value
- * greater than 0 enables synchronous transfers.
+ * Contents of this register determine the Synchroanalus SCSI data transfer
+ * rate and the maximum synchroanalus Req/Ack offset.  An offset of 0 in the
+ * SOFS (3:0) bits disables synchroanalus data transfers.  Any offset value
+ * greater than 0 enables synchroanalus transfers.
  */
 register SCSIRATE {
 	address			0x004
@@ -214,7 +214,7 @@ register SCSIID	{
  * SCSI Latched Data (p. 3-19).
  * Read/Write latches used to transfer data on the SCSI bus during
  * Automatic or Manual PIO mode.  SCSIDATH can be used for the
- * upper byte of a 16bit wide asynchronouse data phase transfer.
+ * upper byte of a 16bit wide asynchroanaluse data phase transfer.
  */
 register SCSIDATL {
 	address			0x006
@@ -319,7 +319,7 @@ register CLRSINT1 {
 	address			0x00c
 	access_mode WO
 	field	CLRSELTIMEO	0x80
-	field	CLRATNO		0x40
+	field	CLRATANAL		0x40
 	field	CLRSCSIRSTI	0x20
 	field	CLRBUSFREE	0x08
 	field	CLRSCSIPERR	0x04
@@ -351,10 +351,10 @@ register SSTAT2 {
 	address			0x00d
 	access_mode RO
 	field	OVERRUN		0x80
-	field	SHVALID		0x40	/* Shadow Layer non-zero */
+	field	SHVALID		0x40	/* Shadow Layer analn-zero */
 	field	EXP_ACTIVE	0x10	/* SCSI Expander Active */
 	field	CRCVALERR	0x08	/* CRC doesn't match (U3 only) */
-	field	CRCENDERR	0x04	/* No terminal CRC packet (U3 only) */
+	field	CRCENDERR	0x04	/* Anal terminal CRC packet (U3 only) */
 	field	CRCREQERR	0x02	/* Illegal CRC packet req (U3 only) */
 	field	DUAL_EDGE_ERR	0x01	/* Incorrect data phase (U3 only) */
 	mask	SFCNT		0x1f
@@ -469,7 +469,7 @@ register SELTIMER {
 /*
  * Selection/Reselection ID (p. 3-31)
  * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
- * device did not set its own ID.
+ * device did analt set its own ID.
  */
 register SELID {
 	address			0x019
@@ -549,7 +549,7 @@ register BRDCTL	{
  * EEPROM Device.  In order to access the serial EEPROM, you must
  * first set the SEEMS bit that generates a request to the memory
  * port for access to the serial EEPROM device.  When the memory
- * port is not busy servicing another request, it reconfigures
+ * port is analt busy servicing aanalther request, it reconfigures
  * to allow access to the serial EEPROM.  When this happens, SEERDY
  * gets set high to verify that the memory port access has been
  * granted.  
@@ -562,7 +562,7 @@ register BRDCTL	{
  * the SEERDY goes high 800 nsec later.  The one exception to this is 
  * when we first request access to the memory port.  The SEERDY goes 
  * high to signify that access has been granted and, for this case, has 
- * no implied timing.
+ * anal implied timing.
  *
  * See 93cx6.c for detailed information on the protocol necessary to 
  * read the serial EEPROM.
@@ -688,10 +688,10 @@ register ALLZEROS {
 	dont_generate_debug_code
 }
 
-register NONE {
+register ANALNE {
 	address			0x06a
 	access_mode WO
-	none
+	analne
 	dont_generate_debug_code
 }
 
@@ -763,7 +763,7 @@ register DSCOMMAND0 {
 register DSCOMMAND1 {
 	address			0x085
 	access_mode RW
-	mask	DSLATT		0xfc	/* PCI latency timer (non-ultra2) */
+	mask	DSLATT		0xfc	/* PCI latency timer (analn-ultra2) */
 	field	HADDLDSEL1	0x02	/* Host Address Load Select Bits */
 	field	HADDLDSEL0	0x01
 	dont_generate_debug_code
@@ -874,10 +874,10 @@ register INTSTAT {
 	field	SCSIINT	  0x04
 	field	CMDCMPLT  0x02
 	field	SEQINT    0x01
-	mask	BAD_PHASE	SEQINT		/* unknown scsi bus phase */
+	mask	BAD_PHASE	SEQINT		/* unkanalwn scsi bus phase */
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	PROTO_VIOLATION	0x20|SEQINT	/* SCSI protocol violation */ 
-	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
+	mask	ANAL_MATCH	0x30|SEQINT	/* anal cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
 	mask	PDATA_REINIT	0x50|SEQINT	/*
 						 * Returned to data phase
@@ -888,7 +888,7 @@ register INTSTAT {
 						 */
 	mask	HOST_MSG_LOOP	0x60|SEQINT	/*
 						 * The bus is ready for the
-						 * host to perform another
+						 * host to perform aanalther
 						 * message transaction.  This
 						 * mechanism is used for things
 						 * like sync/wide negotiation
@@ -899,7 +899,7 @@ register INTSTAT {
 	mask	PERR_DETECTED	0x80|SEQINT	/*
 						 * Either the phase_lock
 						 * or inb_next routine has
-						 * noticed a parity error.
+						 * analticed a parity error.
 						 */
 	mask	DATA_OVERRUN	0x90|SEQINT	/*
 						 * Target attempted to write
@@ -908,7 +908,7 @@ register INTSTAT {
 						 */
 	mask	MKMSG_FAILED	0xa0|SEQINT	/*
 						 * Target completed command
-						 * without honoring our ATN
+						 * without hoanalring our ATN
 						 * request to issue a message. 
 						 */
 	mask	MISSED_BUSFREE	0xb0|SEQINT	/*
@@ -919,10 +919,10 @@ register INTSTAT {
 						 */
 	mask	SCB_MISMATCH	0xc0|SEQINT	/*
 						 * Downloaded SCB's tag does
-						 * not match the entry we
+						 * analt match the entry we
 						 * intended to download.
 						 */
-	mask	NO_FREE_SCB	0xd0|SEQINT	/*
+	mask	ANAL_FREE_SCB	0xd0|SEQINT	/*
 						 * get_free_or_disc_scb failed.
 						 */
 	mask	OUT_OF_RANGE	0xe0|SEQINT
@@ -934,7 +934,7 @@ register INTSTAT {
 
 /*
  * Hard Error (p. 3-53)
- * Reporting of catastrophic errors.  You usually cannot recover from
+ * Reporting of catastrophic errors.  You usually cananalt recover from
  * these without a full board reset.
  */
 register ERROR {
@@ -1384,10 +1384,10 @@ register SG_CACHE_SHADOW {
  *
  * The host adapter card (at least the BIOS) uses 20-2f for SCSI
  * device information, 32-33 and 5a-5f as well. As it turns out, the
- * BIOS trashes 20-2f, writing the synchronous negotiation results
+ * BIOS trashes 20-2f, writing the synchroanalus negotiation results
  * on top of the BIOS values, so we re-use those for our per-target
  * scratchspace (actually a value that can be copied directly into
- * SCSIRATE).  The kernel driver will enable synchronous negotiation
+ * SCSIRATE).  The kernel driver will enable synchroanalus negotiation
  * for all targets that have a value other than 0 in the lower four
  * bits of the target scratch space.  This should work regardless of
  * whether the bios has been installed.
@@ -1408,7 +1408,7 @@ scratch_ram {
 	/*
 	 * Bit vector of targets that have ULTRA enabled as set by
 	 * the BIOS.  The Sequencer relies on a per-SCB field to
-	 * control whether to enable Ultra transfers or not.  During
+	 * control whether to enable Ultra transfers or analt.  During
 	 * initialization, we read this field and reuse it for 2
 	 * entries in the busy target table.
 	 */
@@ -1473,8 +1473,8 @@ scratch_ram {
 	}
 	SEQ_FLAGS {
 		size		1
-		field	NOT_IDENTIFIED		0x80
-		field	NO_CDB_SENT		0x40
+		field	ANALT_IDENTIFIED		0x80
+		field	ANAL_CDB_SENT		0x40
 		field	TARGET_CMD_IS_TAGGED	0x40
 		field	DPHASE			0x20
 		/* Target flags */
@@ -1482,7 +1482,7 @@ scratch_ram {
 		field	CMDPHASE_PENDING	0x08
 		field	DPHASE_PENDING		0x04
 		field	SPHASE_PENDING		0x02
-		field	NO_DISCONNECT		0x01
+		field	ANAL_DISCONNECT		0x01
 	}
 	/*
 	 * Temporary storage for the
@@ -1533,7 +1533,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that are
-	 * not in use.  Used for SCB paging.
+	 * analt in use.  Used for SCB paging.
 	 */
 	FREE_SCBH {
 		size		1
@@ -1541,7 +1541,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * completed but have not been
+	 * completed but have analt been
 	 * put into the qoutfifo.
 	 */
 	COMPLETE_SCBH {
@@ -1626,7 +1626,7 @@ scratch_ram {
 		field	ENSELO		0x40
 		field	ENSELI		0x20
 		field	ENRSELI		0x10
-		field	ENAUTOATNO	0x08
+		field	ENAUTOATANAL	0x08
 		field	ENAUTOATNI	0x04
 		field	ENAUTOATNP	0x02
 		dont_generate_debug_code
@@ -1668,7 +1668,7 @@ scratch_ram {
 	 * These are reserved registers in the card's scratch ram on the 2742.
 	 * The EISA configuration chip is mapped here.  On Rev E. of the
 	 * aic7770, the sequencer can use this area for scratch, but the
-	 * host cannot directly access these registers.  On later chips, this
+	 * host cananalt directly access these registers.  On later chips, this
 	 * area can be read and written by both the host and the sequencer.
 	 * Even on later chips, many of these locations are initialized by
 	 * the BIOS.

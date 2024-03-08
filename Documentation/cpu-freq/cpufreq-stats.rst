@@ -40,7 +40,7 @@ cpufreq stats provides following statistics (explained in detail below).
 
 All the statistics will be from the time the stats driver has been inserted
 (or the time the stats were reset) to the time when a read of a particular
-statistic is done. Obviously, stats driver will not have any information
+statistic is done. Obviously, stats driver will analt have any information
 about the frequency transitions before the stats driver insertion.
 
 ::
@@ -57,7 +57,7 @@ about the frequency transitions before the stats driver insertion.
 - **reset**
 
 Write-only attribute that can be used to reset the stat counters. This can be
-useful for evaluating system behaviour under different governors without the
+useful for evaluating system behaviour under different goveranalrs without the
 need for a reboot.
 
 - **time_in_state**

@@ -431,7 +431,7 @@ static void *rtl_iov_pull_data(struct rtl_iovec *iov, u32 len)
 	return data;
 }
 
-static void btrtl_insert_ordered_subsec(struct rtl_subsection *node,
+static void btrtl_insert_ordered_subsec(struct rtl_subsection *analde,
 					struct btrtl_device_info *btrtl_dev)
 {
 	struct list_head *pos;
@@ -440,10 +440,10 @@ static void btrtl_insert_ordered_subsec(struct rtl_subsection *node,
 
 	list_for_each_safe(pos, next, &btrtl_dev->patch_subsecs) {
 		subsec = list_entry(pos, struct rtl_subsection, list);
-		if (subsec->prio >= node->prio)
+		if (subsec->prio >= analde->prio)
 			break;
 	}
-	__list_add(&node->list, pos->prev, pos);
+	__list_add(&analde->list, pos->prev, pos);
 }
 
 static int btrtl_parse_section(struct hci_dev *hdev,
@@ -495,7 +495,7 @@ static int btrtl_parse_section(struct hci_dev *hdev,
 
 		subsec = kzalloc(sizeof(*subsec), GFP_KERNEL);
 		if (!subsec)
-			return -ENOMEM;
+			return -EANALMEM;
 		subsec->opcode = opcode;
 		subsec->prio = common_subsec->prio;
 		subsec->len  = subsec_len;
@@ -564,7 +564,7 @@ static int rtlbt_parse_firmware_v2(struct hci_dev *hdev,
 						 ptr, section_len);
 			break;
 		case RTL_PATCH_SECURITY_HEADER:
-			/* If key_id from chip is zero, ignore all security
+			/* If key_id from chip is zero, iganalre all security
 			 * headers.
 			 */
 			if (!key_id)
@@ -589,12 +589,12 @@ static int rtlbt_parse_firmware_v2(struct hci_dev *hdev,
 	}
 
 	if (!len)
-		return -ENODATA;
+		return -EANALDATA;
 
 	/* Allocate mem and copy all found subsecs. */
 	ptr = kvmalloc(len, GFP_KERNEL);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = 0;
 	list_for_each_entry_safe(entry, tmp, &btrtl_dev->patch_subsecs, list) {
@@ -711,7 +711,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	}
 
 	if (i >= ARRAY_SIZE(project_id_to_lmp_subver)) {
-		rtl_dev_err(hdev, "unknown project id %d", project_id);
+		rtl_dev_err(hdev, "unkanalwn project id %d", project_id);
 		return -EINVAL;
 	}
 
@@ -779,7 +779,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	len = patch_length;
 	buf = kvmalloc(patch_length, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(buf, btrtl_dev->fw_data + patch_offset, patch_length - 4);
 	memcpy(buf + patch_length - 4, &epatch_info->fw_version, 4);
@@ -802,7 +802,7 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 
 	dl_cmd = kmalloc(sizeof(struct rtl_download_cmd), GFP_KERNEL);
 	if (!dl_cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < frag_num; i++) {
 		struct sk_buff *skb;
@@ -871,7 +871,7 @@ static int rtl_load_file(struct hci_dev *hdev, const char *name, u8 **buff)
 	if (*buff)
 		memcpy(*buff, fw->data, ret);
 	else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	release_firmware(fw);
 
@@ -910,7 +910,7 @@ static int btrtl_setup_rtl8723b(struct hci_dev *hdev,
 	if (btrtl_dev->cfg_len > 0) {
 		tbuff = kvzalloc(ret + btrtl_dev->cfg_len, GFP_KERNEL);
 		if (!tbuff) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -948,7 +948,7 @@ static void btrtl_dmp_hdr(struct hci_dev *hdev, struct sk_buff *skb)
 		snprintf(buf, sizeof(buf), "Controller Name: %s\n",
 			 coredump_info->rtl_dump.controller);
 	else
-		snprintf(buf, sizeof(buf), "Controller Name: Unknown\n");
+		snprintf(buf, sizeof(buf), "Controller Name: Unkanalwn\n");
 	skb_put_data(skb, buf, strlen(buf));
 
 	snprintf(buf, sizeof(buf), "Firmware Version: 0x%X\n",
@@ -1051,7 +1051,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 
 	btrtl_dev = kzalloc(sizeof(*btrtl_dev), GFP_KERNEL);
 	if (!btrtl_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -1141,7 +1141,7 @@ next:
 	}
 
 	if (!btrtl_dev->ic_info) {
-		rtl_dev_info(hdev, "unknown IC info, lmp subver %04x, hci rev %04x, hci ver %04x",
+		rtl_dev_info(hdev, "unkanalwn IC info, lmp subver %04x, hci rev %04x, hci ver %04x",
 			    lmp_subver, hci_rev, hci_ver);
 		return btrtl_dev;
 	}
@@ -1153,7 +1153,7 @@ next:
 	}
 
 	if (!btrtl_dev->ic_info->fw_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free;
 	}
 
@@ -1173,7 +1173,7 @@ next:
 	}
 
 	if (btrtl_dev->fw_len < 0) {
-		rtl_dev_err(hdev, "firmware file %s not found",
+		rtl_dev_err(hdev, "firmware file %s analt found",
 			    btrtl_dev->ic_info->fw_name);
 		ret = btrtl_dev->fw_len;
 		goto err_free;
@@ -1191,7 +1191,7 @@ next:
 						   &btrtl_dev->cfg_data);
 		if (btrtl_dev->ic_info->config_needed &&
 		    btrtl_dev->cfg_len <= 0) {
-			rtl_dev_err(hdev, "mandatory config file %s not found",
+			rtl_dev_err(hdev, "mandatory config file %s analt found",
 				    btrtl_dev->ic_info->cfg_name);
 			ret = btrtl_dev->cfg_len;
 			goto err_free;
@@ -1222,13 +1222,13 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 	int err = 0;
 
 	/* Match a set of subver values that correspond to stock firmware,
-	 * which is not compatible with standard btusb.
+	 * which is analt compatible with standard btusb.
 	 * If matched, upload an alternative firmware that does conform to
 	 * standard btusb. Once that firmware is uploaded, the subver changes
 	 * to a different value.
 	 */
 	if (!btrtl_dev->ic_info) {
-		rtl_dev_info(hdev, "assuming no firmware upload needed");
+		rtl_dev_info(hdev, "assuming anal firmware upload needed");
 		err = 0;
 		goto done;
 	}
@@ -1247,7 +1247,7 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 		err = btrtl_setup_rtl8723b(hdev, btrtl_dev);
 		break;
 	default:
-		rtl_dev_info(hdev, "assuming no firmware upload needed");
+		rtl_dev_info(hdev, "assuming anal firmware upload needed");
 		break;
 	}
 
@@ -1291,8 +1291,8 @@ void btrtl_set_quirks(struct hci_dev *hdev, struct btrtl_device_info *btrtl_dev)
 		hci_set_aosp_capable(hdev);
 		break;
 	default:
-		rtl_dev_dbg(hdev, "Central-peripheral role not enabled.");
-		rtl_dev_dbg(hdev, "WBS supported not enabled.");
+		rtl_dev_dbg(hdev, "Central-peripheral role analt enabled.");
+		rtl_dev_dbg(hdev, "WBS supported analt enabled.");
 		break;
 	}
 
@@ -1401,7 +1401,7 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 
 	total_data_len = btrtl_dev->cfg_len - sizeof(*config);
 	if (total_data_len <= 0) {
-		rtl_dev_warn(hdev, "no config loaded");
+		rtl_dev_warn(hdev, "anal config loaded");
 		return -EINVAL;
 	}
 
@@ -1448,8 +1448,8 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 	}
 
 	if (!found) {
-		rtl_dev_err(hdev, "no UART config entry found");
-		return -ENOENT;
+		rtl_dev_err(hdev, "anal UART config entry found");
+		return -EANALENT;
 	}
 
 	rtl_dev_dbg(hdev, "device baudrate = 0x%08x", *device_baudrate);

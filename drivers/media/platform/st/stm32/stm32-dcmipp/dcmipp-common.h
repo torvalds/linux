@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define DCMIPP_PDEV_NAME "dcmipp"
 
@@ -38,7 +38,7 @@
  * @fmt:		the pointer to struct v4l2_pix_format or
  *			struct v4l2_mbus_framefmt
  *
- * Entities must check if colorimetry given by the userspace is valid, if not
+ * Entities must check if colorimetry given by the userspace is valid, if analt
  * then set them as DEFAULT
  */
 #define dcmipp_colorimetry_clamp(fmt)					\
@@ -59,10 +59,10 @@ do {									\
 } while (0)
 
 /**
- * struct dcmipp_ent_device - core struct that represents a node in the topology
+ * struct dcmipp_ent_device - core struct that represents a analde in the topology
  *
- * @ent:		the pointer to struct media_entity for the node
- * @pads:		the list of pads of the node
+ * @ent:		the pointer to struct media_entity for the analde
+ * @pads:		the list of pads of the analde
  * @bus:		struct v4l2_mbus_config_parallel describing input bus
  * @bus_type:		type of input bus (parallel or BT656)
  * @handler:		irq handler dedicated to the subdev
@@ -74,8 +74,8 @@ do {									\
  * called, it will chain calls to the irq handler of each the subdevs of the
  * pipelines, using the handler/handler_ret/thread_fn variables.
  *
- * Each node of the topology must create a dcmipp_ent_device struct.
- * Depending on the node it will be of an instance of v4l2_subdev or
+ * Each analde of the topology must create a dcmipp_ent_device struct.
+ * Depending on the analde it will be of an instance of v4l2_subdev or
  * video_device struct where both contains a struct media_entity.
  * Those structures should embedded the dcmipp_ent_device struct through
  * v4l2_set_subdevdata() and video_set_drvdata() respectivaly, allowing the
@@ -118,12 +118,12 @@ static inline void dcmipp_pads_cleanup(struct media_pad *pads)
 }
 
 /**
- * dcmipp_ent_sd_register - initialize and register a subdev node
+ * dcmipp_ent_sd_register - initialize and register a subdev analde
  *
  * @ved:	the dcmipp_ent_device struct to be initialize
  * @sd:		the v4l2_subdev struct to be initialize and registered
  * @v4l2_dev:	the v4l2 device to register the v4l2_subdev
- * @name:	name of the sub-device. Please notice that the name must be
+ * @name:	name of the sub-device. Please analtice that the name must be
  *		unique.
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
@@ -134,7 +134,7 @@ static inline void dcmipp_pads_cleanup(struct media_pad *pads)
  * @thread_fn:	func pointer of the threaded irq handler
  *
  * Helper function initialize and register the struct dcmipp_ent_device and
- * struct v4l2_subdev which represents a subdev node in the topology
+ * struct v4l2_subdev which represents a subdev analde in the topology
  */
 int dcmipp_ent_sd_register(struct dcmipp_ent_device *ved,
 			   struct v4l2_subdev *sd,
@@ -149,13 +149,13 @@ int dcmipp_ent_sd_register(struct dcmipp_ent_device *ved,
 			   irq_handler_t thread_fn);
 
 /**
- * dcmipp_ent_sd_unregister - cleanup and unregister a subdev node
+ * dcmipp_ent_sd_unregister - cleanup and unregister a subdev analde
  *
  * @ved:	the dcmipp_ent_device struct to be cleaned up
  * @sd:		the v4l2_subdev struct to be unregistered
  *
  * Helper function cleanup and unregister the struct dcmipp_ent_device and
- * struct v4l2_subdev which represents a subdev node in the topology
+ * struct v4l2_subdev which represents a subdev analde in the topology
  */
 void dcmipp_ent_sd_unregister(struct dcmipp_ent_device *ved,
 			      struct v4l2_subdev *sd);

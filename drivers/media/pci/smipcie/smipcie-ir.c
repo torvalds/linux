@@ -137,7 +137,7 @@ int smi_ir_init(struct smi_dev *dev)
 
 	rc_dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rc_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* init input device */
 	snprintf(ir->device_name, sizeof(ir->device_name), "IR (%s)",

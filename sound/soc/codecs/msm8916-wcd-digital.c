@@ -166,7 +166,7 @@
 #define TX_MUX_CTL_CF_NEG_3DB_150HZ		(0x2 << 4)
 #define TX_MUX_CTL_HPF_BP_SEL_MASK		BIT(3)
 #define TX_MUX_CTL_HPF_BP_SEL_BYPASS		BIT(3)
-#define TX_MUX_CTL_HPF_BP_SEL_NO_BYPASS		0
+#define TX_MUX_CTL_HPF_BP_SEL_ANAL_BYPASS		0
 
 #define LPASS_CDC_TX2_MUX_CTL			(0x2AC)
 #define LPASS_CDC_TX1_CLK_FS_CTL		(0x290)
@@ -381,7 +381,7 @@ static uint32_t get_iir_band_coeff(struct snd_soc_component *component,
 {
 	uint32_t value = 0;
 
-	/* Address does not automatically update if reading */
+	/* Address does analt automatically update if reading */
 	snd_soc_component_write(component,
 		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
 		((band_idx * BAND_MAX + coeff_idx)
@@ -629,7 +629,7 @@ static int msm8916_wcd_digital_enable_dec(struct snd_soc_dapm_widget *w,
 		/* enable HPF */
 		snd_soc_component_update_bits(component, tx_mux_ctl_reg,
 				    TX_MUX_CTL_HPF_BP_SEL_MASK,
-				    TX_MUX_CTL_HPF_BP_SEL_NO_BYPASS);
+				    TX_MUX_CTL_HPF_BP_SEL_ANAL_BYPASS);
 		/* apply the digital gain after the decimator is enabled */
 		snd_soc_component_write(component, tx_gain_reg[w->shift],
 			      snd_soc_component_read(component, tx_gain_reg[w->shift]));
@@ -722,9 +722,9 @@ static const struct snd_kcontrol_new iir2_inp1_mux =
 
 static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	/*RX stuff */
-	SND_SOC_DAPM_AIF_IN("I2S RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("I2S RX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("I2S RX3", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S RX2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S RX3", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("PDM_RX1"),
 	SND_SOC_DAPM_OUTPUT("PDM_RX2"),
@@ -732,9 +732,9 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("LPASS_PDM_TX"),
 
-	SND_SOC_DAPM_MIXER("RX1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX2 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("RX3 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX1 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX2 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX3 MIX1", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* Interpolator */
 	SND_SOC_DAPM_MIXER_E("RX1 INT", LPASS_CDC_CLK_RX_B1_CTL, 0, 0, NULL,
@@ -746,35 +746,35 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER_E("RX3 INT", LPASS_CDC_CLK_RX_B1_CTL, 2, 0, NULL,
 			     0, msm8916_wcd_digital_enable_interpolator,
 			     SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("RX1 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX1 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx_mix1_inp1_mux),
-	SND_SOC_DAPM_MUX("RX1 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX1 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx_mix1_inp2_mux),
-	SND_SOC_DAPM_MUX("RX1 MIX1 INP3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX1 MIX1 INP3", SND_SOC_ANALPM, 0, 0,
 			 &rx_mix1_inp3_mux),
-	SND_SOC_DAPM_MUX("RX2 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX2 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx2_mix1_inp1_mux),
-	SND_SOC_DAPM_MUX("RX2 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX2 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx2_mix1_inp2_mux),
-	SND_SOC_DAPM_MUX("RX2 MIX1 INP3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX2 MIX1 INP3", SND_SOC_ANALPM, 0, 0,
 			 &rx2_mix1_inp3_mux),
-	SND_SOC_DAPM_MUX("RX3 MIX1 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX3 MIX1 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx3_mix1_inp1_mux),
-	SND_SOC_DAPM_MUX("RX3 MIX1 INP2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX3 MIX1 INP2", SND_SOC_ANALPM, 0, 0,
 			 &rx3_mix1_inp2_mux),
-	SND_SOC_DAPM_MUX("RX3 MIX1 INP3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX3 MIX1 INP3", SND_SOC_ANALPM, 0, 0,
 			 &rx3_mix1_inp3_mux),
-	SND_SOC_DAPM_MUX("RX1 MIX2 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX1 MIX2 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx1_mix2_inp1_mux),
-	SND_SOC_DAPM_MUX("RX2 MIX2 INP1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("RX2 MIX2 INP1", SND_SOC_ANALPM, 0, 0,
 			 &rx2_mix2_inp1_mux),
 
-	SND_SOC_DAPM_MUX("CIC1 MUX", SND_SOC_NOPM, 0, 0, &cic1_mux),
-	SND_SOC_DAPM_MUX("CIC2 MUX", SND_SOC_NOPM, 0, 0, &cic2_mux),
+	SND_SOC_DAPM_MUX("CIC1 MUX", SND_SOC_ANALPM, 0, 0, &cic1_mux),
+	SND_SOC_DAPM_MUX("CIC2 MUX", SND_SOC_ANALPM, 0, 0, &cic2_mux),
 	/* TX */
-	SND_SOC_DAPM_MIXER("ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("ADC3", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ADC1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ADC2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ADC3", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX_E("DEC1 MUX", LPASS_CDC_CLK_TX_CLK_EN_B1_CTL, 0, 0,
 			   &dec1_mux, msm8916_wcd_digital_enable_dec,
@@ -784,15 +784,15 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 			   &dec2_mux, msm8916_wcd_digital_enable_dec,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_OUT("I2S TX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S TX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S TX3", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S TX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S TX2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S TX3", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Digital Mic Inputs */
-	SND_SOC_DAPM_ADC_E("DMIC1", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC1", NULL, SND_SOC_ANALPM, 0, 0,
 			   msm8916_wcd_digital_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_ADC_E("DMIC2", NULL, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_ADC_E("DMIC2", NULL, SND_SOC_ANALPM, 0, 0,
 			   msm8916_wcd_digital_enable_dmic,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("DMIC_CLK", LPASS_CDC_CLK_DMIC_B1_CTL, 0, 0,
@@ -802,7 +802,7 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("TX_I2S_CLK", LPASS_CDC_CLK_TX_I2S_CTL, 4, 0,
 			    NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_ANALPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PDM_CLK", LPASS_CDC_CLK_PDM_CTL, 0, 0, NULL, 0),
 	/* Connectivity Clock */
 	SND_SOC_DAPM_SUPPLY_S("CDC_CONN", -2, LPASS_CDC_CLK_OTHR_CTL, 2, 0,
@@ -811,11 +811,11 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
 
 	/* Sidetone */
-	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir1_inp1_mux),
 	SND_SOC_DAPM_PGA_E("IIR1", LPASS_CDC_CLK_SD_CTL, 0, 0, NULL, 0,
 		msm8x16_wcd_codec_set_iir_gain, SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_MUX("IIR2 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir2_inp1_mux),
+	SND_SOC_DAPM_MUX("IIR2 INP1 MUX", SND_SOC_ANALPM, 0, 0, &iir2_inp1_mux),
 	SND_SOC_DAPM_PGA_E("IIR2", LPASS_CDC_CLK_SD_CTL, 1, 0, NULL, 0,
 		msm8x16_wcd_codec_set_iir_gain, SND_SOC_DAPM_POST_PMU),
 
@@ -1175,7 +1175,7 @@ static int msm8916_wcd_digital_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))

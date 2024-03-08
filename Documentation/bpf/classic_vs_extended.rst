@@ -28,8 +28,8 @@ Some core changes of the eBPF format from classic BPF:
   and may let more complex programs to be interpreted.
 
   R0 - R5 are scratch registers and eBPF program needs spill/fill them if
-  necessary across calls. Note that there is only one eBPF program (== one
-  eBPF main routine) and it cannot call other eBPF functions, it can only
+  necessary across calls. Analte that there is only one eBPF program (== one
+  eBPF main routine) and it cananalt call other eBPF functions, it can only
   call predefined in-kernel functions, though.
 
 - Register width increases from 32-bit to 64-bit:
@@ -50,7 +50,7 @@ Some core changes of the eBPF format from classic BPF:
   ABI, thus, there won't be able to use a direct eBPF register to HW register
   mapping and JIT would need to do combine/split/move operations for every
   register in and out of the function, which is complex, bug prone and slow.
-  Another reason is the use of atomic 64-bit counters.
+  Aanalther reason is the use of atomic 64-bit counters.
 
 - Conditional jt/jf targets replaced with jt/fall-through:
 
@@ -107,7 +107,7 @@ Some core changes of the eBPF format from classic BPF:
   For practical reasons all eBPF programs have only one argument 'ctx' which is
   already placed into R1 (e.g. on __bpf_prog_run() startup) and the programs
   can call kernel functions with up to 5 arguments. Calls with 6 or more arguments
-  are currently not supported, but these restrictions can be lifted if necessary
+  are currently analt supported, but these restrictions can be lifted if necessary
   in the future.
 
   On 64-bit architectures all register map to HW registers one to one. For
@@ -195,7 +195,7 @@ Some core changes of the eBPF format from classic BPF:
     bpf_mov R0, R1
     bpf_exit
 
-  After the call the registers R1-R5 contain junk values and cannot be read.
+  After the call the registers R1-R5 contain junk values and cananalt be read.
   An in-kernel verifier.rst is used to validate eBPF programs.
 
 Also in the new design, eBPF is limited to 4096 insns, which means that any
@@ -215,18 +215,18 @@ So far 87 eBPF instructions were implemented. 8-bit 'op' opcode field
 has room for new instructions. Some of them may use 16/24/32 byte encoding. New
 instructions must be multiple of 8 bytes to preserve backward compatibility.
 
-eBPF is a general purpose RISC instruction set. Not every register and
+eBPF is a general purpose RISC instruction set. Analt every register and
 every instruction are used during translation from original BPF to eBPF.
-For example, socket filters are not using ``exclusive add`` instruction, but
+For example, socket filters are analt using ``exclusive add`` instruction, but
 tracing filters may do to maintain counters of events, for example. Register R9
-is not used by socket filters either, but more complex filters may be running
+is analt used by socket filters either, but more complex filters may be running
 out of registers and would have to resort to spill/fill to stack.
 
 eBPF can be used as a generic assembler for last step performance
 optimizations, socket filters and seccomp are using it as assembler. Tracing
 filters may use it as assembler to generate code from kernel. In kernel usage
-may not be bounded by security considerations, since generated eBPF code
-may be optimizing internal code path and not being exposed to the user space.
+may analt be bounded by security considerations, since generated eBPF code
+may be optimizing internal code path and analt being exposed to the user space.
 Safety of eBPF can come from the verifier.rst. In such use cases as
 described, it may be used as safe instruction set.
 
@@ -327,7 +327,7 @@ BPF_XOR | BPF_K | BPF_ALU means A ^= imm32 in classic BPF and analogous
 src_reg = (u32) src_reg ^ (u32) imm32 in eBPF.
 
 Classic BPF is using BPF_MISC class to represent A = X and X = A moves.
-eBPF is using BPF_MOV | BPF_X | BPF_ALU code instead. Since there are no
+eBPF is using BPF_MOV | BPF_X | BPF_ALU code instead. Since there are anal
 BPF_MISC operations in eBPF, the class 7 is used as BPF_ALU64 to mean
 exactly the same operations as BPF_ALU, but with 64-bit wide operands
 instead. So BPF_ADD | BPF_X | BPF_ALU64 means 64-bit addition, i.e.:

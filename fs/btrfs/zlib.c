@@ -59,11 +59,11 @@ struct list_head *zlib_alloc_workspace(unsigned int level)
 
 	workspace = kzalloc(sizeof(*workspace), GFP_KERNEL);
 	if (!workspace)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	workspacesize = max(zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL),
 			zlib_inflate_workspacesize());
-	workspace->strm.workspace = kvzalloc(workspacesize, GFP_KERNEL | __GFP_NOWARN);
+	workspace->strm.workspace = kvzalloc(workspacesize, GFP_KERNEL | __GFP_ANALWARN);
 	workspace->level = level;
 	workspace->buf = NULL;
 	/*
@@ -72,8 +72,8 @@ struct list_head *zlib_alloc_workspace(unsigned int level)
 	 */
 	if (zlib_deflate_dfltcc_enabled()) {
 		workspace->buf = kmalloc(ZLIB_DFLTCC_BUF_SIZE,
-					 __GFP_NOMEMALLOC | __GFP_NORETRY |
-					 __GFP_NOWARN | GFP_NOIO);
+					 __GFP_ANALMEMALLOC | __GFP_ANALRETRY |
+					 __GFP_ANALWARN | GFP_ANALIO);
 		workspace->buf_size = ZLIB_DFLTCC_BUF_SIZE;
 	}
 	if (!workspace->buf) {
@@ -88,7 +88,7 @@ struct list_head *zlib_alloc_workspace(unsigned int level)
 	return &workspace->list;
 fail:
 	zlib_free_workspace(&workspace->list);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
@@ -123,7 +123,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 
 	out_page = btrfs_alloc_compr_page();
 	if (out_page == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	cpage_out = page_address(out_page);
@@ -191,7 +191,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 			ret = -E2BIG;
 			goto out;
 		}
-		/* we need another page for writing out.  Test this
+		/* we need aanalther page for writing out.  Test this
 		 * before the total_in so we will pull in a new page for
 		 * the stream end if required
 		 */
@@ -202,7 +202,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 			}
 			out_page = btrfs_alloc_compr_page();
 			if (out_page == NULL) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			cpage_out = page_address(out_page);
@@ -220,7 +220,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 	workspace->strm.avail_in = 0;
 	/*
 	 * Call deflate with Z_FINISH flush parameter providing more output
-	 * space but no more input data, until it returns with Z_STREAM_END.
+	 * space but anal more input data, until it returns with Z_STREAM_END.
 	 */
 	while (ret != Z_STREAM_END) {
 		ret = zlib_deflate(&workspace->strm, Z_FINISH);
@@ -231,14 +231,14 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 			ret = -EIO;
 			goto out;
 		} else if (workspace->strm.avail_out == 0) {
-			/* get another page for the stream end */
+			/* get aanalther page for the stream end */
 			if (nr_pages == nr_dest_pages) {
 				ret = -E2BIG;
 				goto out;
 			}
 			out_page = btrfs_alloc_compr_page();
 			if (out_page == NULL) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			cpage_out = page_address(out_page);
@@ -290,7 +290,7 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	workspace->strm.next_out = workspace->buf;
 	workspace->strm.avail_out = workspace->buf_size;
 
-	/* If it's deflate, and it's got no preset dictionary, then
+	/* If it's deflate, and it's got anal preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
 	if (srclen > 2 && !(data_in[1] & PRESET_DICT) &&
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
@@ -307,7 +307,7 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		return -EIO;
 	}
 	while (workspace->strm.total_in < srclen) {
-		ret = zlib_inflate(&workspace->strm, Z_NO_FLUSH);
+		ret = zlib_inflate(&workspace->strm, Z_ANAL_FLUSH);
 		if (ret != Z_OK && ret != Z_STREAM_END)
 			break;
 
@@ -369,7 +369,7 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 	workspace->strm.next_out = workspace->buf;
 	workspace->strm.avail_out = workspace->buf_size;
 	workspace->strm.total_out = 0;
-	/* If it's deflate, and it's got no preset dictionary, then
+	/* If it's deflate, and it's got anal preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
 	if (srclen > 2 && !(data_in[1] & PRESET_DICT) &&
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
@@ -387,7 +387,7 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 
 	/*
 	 * Everything (in/out buf) should be at most one sector, there should
-	 * be no need to switch any input/output buffer.
+	 * be anal need to switch any input/output buffer.
 	 */
 	ret = zlib_inflate(&workspace->strm, Z_FINISH);
 	to_copy = min(workspace->strm.total_out, destlen);

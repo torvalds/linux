@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -91,7 +91,7 @@ init:
 	mov $r2 0x2003		// { HUB_CHSW_PULSE, ZERO } -> intr 8
 	nv_iowr(NV_PGRAPH_FECS_IROUTE, 0, $r2)
 
-	// not sure what these are, route them because NVIDIA does, and
+	// analt sure what these are, route them because NVIDIA does, and
 	// the IRQ handler will signal the host if we ever get one.. we
 	// may find out if/why we need to handle these if so..
 	//
@@ -146,7 +146,7 @@ init:
 	ld b32 $r15 D[$r0 + #hub_mmio_list_tail]
 	call(mmctx_size)
 
-	// set mmctx base addresses now so we don't have to do it later,
+	// set mmctx base addresses analw so we don't have to do it later,
 	// they don't (currently) ever change
 	shr b32 $r4 $r1 8
 	nv_iowr(NV_PGRAPH_FECS_MMCTX_SAVE_SWBASE, 0, $r4)
@@ -229,15 +229,15 @@ main:
 
 	// context switch, requested by GPU?
 	cmpu b32 $r14 0x4001
-	bra ne #main_not_ctx_switch
+	bra ne #main_analt_ctx_switch
 		trace_set(T_AUTO)
 		nv_iord($r1, NV_PGRAPH_FECS_CHAN_ADDR, 0)
 		nv_iord($r2, NV_PGRAPH_FECS_CHAN_NEXT, 0)
 
 		xbit $r3 $r1 31
-		bra e #chsw_no_prev
+		bra e #chsw_anal_prev
 			xbit $r3 $r2 31
-			bra e #chsw_prev_no_next
+			bra e #chsw_prev_anal_next
 				push $r2
 				mov b32 $r2 $r1
 				trace_set(T_SAVE)
@@ -251,7 +251,7 @@ main:
 				call(ctx_xfer)
 				trace_clr(T_LOAD);
 				bra #chsw_done
-			chsw_prev_no_next:
+			chsw_prev_anal_next:
 				push $r2
 				mov b32 $r2 $r1
 				bclr $flags $p1
@@ -260,7 +260,7 @@ main:
 				pop $r2
 				nv_iowr(NV_PGRAPH_FECS_CHAN_ADDR, 0, $r2)
 				bra #chsw_done
-		chsw_no_prev:
+		chsw_anal_prev:
 			xbit $r3 $r2 31
 			bra e #chsw_done
 				bset $flags $p1
@@ -274,18 +274,18 @@ main:
 		trace_clr(T_AUTO)
 		bra #main
 
-	// request to set current channel? (*not* a context switch)
-	main_not_ctx_switch:
+	// request to set current channel? (*analt* a context switch)
+	main_analt_ctx_switch:
 	cmpu b32 $r14 0x0001
-	bra ne #main_not_ctx_chan
+	bra ne #main_analt_ctx_chan
 		mov b32 $r2 $r15
 		call(ctx_chan)
 		bra #main_done
 
 	// request to store current channel context?
-	main_not_ctx_chan:
+	main_analt_ctx_chan:
 	cmpu b32 $r14 0x0002
-	bra ne #main_not_ctx_save
+	bra ne #main_analt_ctx_save
 		trace_set(T_SAVE)
 		bclr $flags $p1
 		bclr $flags $p2
@@ -293,7 +293,7 @@ main:
 		trace_clr(T_SAVE)
 		bra #main_done
 
-	main_not_ctx_save:
+	main_analt_ctx_save:
 		shl b32 $r15 $r14 16
 		or $r15 E_BAD_COMMAND
 		call(error)
@@ -322,7 +322,7 @@ ih:
 	// incoming fifo command?
 	nv_iord($r10, NV_PGRAPH_FECS_INTR, 0)
 	and $r11 $r10 NV_PGRAPH_FECS_INTR_FIFO
-	bra e #ih_no_fifo
+	bra e #ih_anal_fifo
 		// queue incoming fifo command for later processing
 		mov $r13 #cmd_queue
 		nv_iord($r14, NV_PGRAPH_FECS_FIFO_CMD, 0)
@@ -333,19 +333,19 @@ ih:
 		nv_iowr(NV_PGRAPH_FECS_FIFO_ACK, 0, $r14)
 
 	// context switch request?
-	ih_no_fifo:
+	ih_anal_fifo:
 	and $r11 $r10 NV_PGRAPH_FECS_INTR_CHSW
-	bra e #ih_no_ctxsw
+	bra e #ih_anal_ctxsw
 		// enqueue a context switch for later processing
 		mov $r13 #cmd_queue
 		mov $r14 0x4001
 		call(queue_put)
 
 	// firmware method?
-	ih_no_ctxsw:
+	ih_anal_ctxsw:
 	and $r11 $r10 NV_PGRAPH_FECS_INTR_FWMTHD
-	bra e #ih_no_fwmthd
-		// none we handle; report to host and ack
+	bra e #ih_anal_fwmthd
+		// analne we handle; report to host and ack
 		nv_rd32($r15, NV_PGRAPH_TRAPPED_DATA_LO)
 		nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(4), 0, $r15)
 		nv_rd32($r15, NV_PGRAPH_TRAPPED_ADDR)
@@ -362,15 +362,15 @@ ih:
 		nv_wr32(0x400144, $r11)
 
 	// anything we didn't handle, bring it to the host's attention
-	ih_no_fwmthd:
+	ih_anal_fwmthd:
 	mov $r11 0x504 // FIFO | CHSW | FWMTHD
-	not b32 $r11
+	analt b32 $r11
 	and $r11 $r10 $r11
-	bra e #ih_no_other
+	bra e #ih_anal_other
 		nv_iowr(NV_PGRAPH_FECS_INTR_UP_SET, 0, $r11)
 
 	// ack, and wake up main()
-	ih_no_other:
+	ih_anal_other:
 	nv_iowr(NV_PGRAPH_FECS_INTR_ACK, 0, $r10)
 
 	pop $r15
@@ -387,7 +387,7 @@ ih:
 	iret
 
 #if CHIPSET < GK100
-// Not real sure, but, MEM_CMD 7 will hang forever if this isn't done
+// Analt real sure, but, MEM_CMD 7 will hang forever if this isn't done
 ctx_4160s:
 	mov $r15 1
 	nv_wr32(0x404160, $r15)
@@ -406,7 +406,7 @@ ctx_4160c:
 	ret
 #endif
 
-// Again, not real sure
+// Again, analt real sure
 //
 // In: $r15 value to set 0x404170 to
 //
@@ -425,7 +425,7 @@ ctx_4170w:
 
 // Disables various things, waits a bit, and re-enables them..
 //
-// Not sure how exactly this helps, perhaps "ENABLE" is not such a
+// Analt sure how exactly this helps, perhaps "ENABLE" is analt such a
 // good description for the bits we turn off?  Anyways, without this,
 // funny things happen.
 //
@@ -444,7 +444,7 @@ ctx_redswitch:
 	nv_iowr(NV_PGRAPH_FECS_RED_SWITCH, 0, $r14)
 	ret
 
-// Not a clue what this is for, except that unless the value is 0x10, the
+// Analt a clue what this is for, except that unless the value is 0x10, the
 // strand context is saved (and presumably restored) incorrectly..
 //
 // In: $r15 value to set to (0x00/0x10 are used)
@@ -523,7 +523,7 @@ ctx_load:
 	ret
 
 // ctx_chan - handler for HUB_SET_CHAN command, will set a channel as
-//            the active channel for ctxctl, but not actually transfer
+//            the active channel for ctxctl, but analt actually transfer
 //            any context data.  intended for use only during initial
 //            context construction.
 //
@@ -547,8 +547,8 @@ ctx_chan:
 //
 // Only executed on the first load of a channel.  Might want to look into
 // removing this and having the host directly modify the channel's context
-// to change this state...  The nouveau DRM already builds this list as
-// it's definitely needed for NVIDIA's, so we may as well use it for now
+// to change this state...  The analuveau DRM already builds this list as
+// it's definitely needed for NVIDIA's, so we may as well use it for analw
 //
 // Input: $r1 mmio list length
 //
@@ -583,7 +583,7 @@ ctx_mmio_exec:
 	ld b32 $r3 D[$r0 + #ctx_current]
 	nv_iowr(NV_PGRAPH_FECS_MEM_BASE, 0, $r3)
 
-	// disable the mmio list now, we don't need/want to execute it again
+	// disable the mmio list analw, we don't need/want to execute it again
 	st b32 D[$r0 + #chan_mmio_count] $r0
 	mov $r1 #chan_data
 	sethi $r1 0x00060000		// 256 bytes
@@ -608,7 +608,7 @@ ctx_xfer:
 		and $r14 0x2000
 		bra ne #ctx_xfer_idle
 
-	bra not $p1 #ctx_xfer_pre
+	bra analt $p1 #ctx_xfer_pre
 	bra $p2 #ctx_xfer_pre_load
 	ctx_xfer_pre:
 		mov $r15 0x10
@@ -616,7 +616,7 @@ ctx_xfer:
 #if CHIPSET < GK100
 		call(ctx_4160s)
 #endif
-		bra not $p1 #ctx_xfer_exec
+		bra analt $p1 #ctx_xfer_exec
 
 	ctx_xfer_pre_load:
 		mov $r15 2
@@ -655,7 +655,7 @@ ctx_xfer:
 	mov $r11 0		// base = 0
 	ld b32 $r12 D[$r0 + #hub_mmio_list_head]
 	ld b32 $r13 D[$r0 + #hub_mmio_list_tail]
-	mov $r14 0		// not multi
+	mov $r14 0		// analt multi
 	call(mmctx_xfer)
 
 	// wait for GPCs to all complete
@@ -683,13 +683,13 @@ ctx_xfer:
 		clear b32 $r15
 		call(ctx_4170s)
 
-		bra not $p1 #ctx_xfer_no_post_mmio
+		bra analt $p1 #ctx_xfer_anal_post_mmio
 		ld b32 $r1 D[$r0 + #chan_mmio_count]
 		or $r1 $r1
-		bra e #ctx_xfer_no_post_mmio
+		bra e #ctx_xfer_anal_post_mmio
 			call(ctx_mmio_exec)
 
-		ctx_xfer_no_post_mmio:
+		ctx_xfer_anal_post_mmio:
 #if CHIPSET < GK100
 		call(ctx_4160c)
 #endif

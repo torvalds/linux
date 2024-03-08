@@ -6,7 +6,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technologies Co., Ltd. <www.moxa.com>
+ * Moxa Techanallogies Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
@@ -543,7 +543,7 @@ static const struct mmc_host_ops moxart_ops = {
 static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct resource res_mmc;
 	struct mmc_host *mmc;
 	struct moxart_host *host = NULL;
@@ -556,17 +556,17 @@ static int moxart_probe(struct platform_device *pdev)
 	mmc = mmc_alloc_host(sizeof(struct moxart_host), dev);
 	if (!mmc) {
 		dev_err(dev, "mmc_alloc_host failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_mmc;
 	}
 
-	ret = of_address_to_resource(node, 0, &res_mmc);
+	ret = of_address_to_resource(analde, 0, &res_mmc);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource failed\n");
 		goto out_mmc;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (irq <= 0) {
 		dev_err(dev, "irq_of_parse_and_map failed\n");
 		ret = -EINVAL;
@@ -717,7 +717,7 @@ static struct platform_driver moxart_mmc_driver = {
 	.remove_new = moxart_remove,
 	.driver     = {
 		.name		= "mmc-moxart",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= moxart_mmc_match,
 	},
 };

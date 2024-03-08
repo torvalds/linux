@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <regex.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/types.h>
 #include <getopt.h>
 
@@ -60,14 +60,14 @@ enum ALLOCATOR_BIT {
 };
 enum ARG_TYPE {
 	ARG_TXT, ARG_COMM, ARG_STACKTRACE, ARG_ALLOC_TS, ARG_CULL_TIME,
-	ARG_PAGE_NUM, ARG_PID, ARG_TGID, ARG_UNKNOWN, ARG_ALLOCATOR
+	ARG_PAGE_NUM, ARG_PID, ARG_TGID, ARG_UNKANALWN, ARG_ALLOCATOR
 };
 enum SORT_ORDER {
 	SORT_ASC = 1,
 	SORT_DESC = -1,
 };
 enum COMP_FLAG {
-	COMP_NO_FLAG = 0,
+	COMP_ANAL_FLAG = 0,
 	COMP_ALLOC = 1<<0,
 	COMP_PAGE_NUM = 1<<1,
 	COMP_PID = 1<<2,
@@ -120,7 +120,7 @@ int read_block(char *buf, char *ext_buf, int buf_size, FILE *fin)
 		curr += strlen(curr);
 	}
 
-	return -1; /* EOF or no space left in buf. */
+	return -1; /* EOF or anal space left in buf. */
 }
 
 static int compare_txt(const void *p1, const void *p2)
@@ -218,7 +218,7 @@ static int remove_pattern(regex_t *pattern, char *buf, int len)
 	regmatch_t pmatch[2];
 	int err;
 
-	err = regexec(pattern, buf, 2, pmatch, REG_NOTBOL);
+	err = regexec(pattern, buf, 2, pmatch, REG_ANALTBOL);
 	if (err != 0 || pmatch[1].rm_so == -1)
 		return len;
 
@@ -233,10 +233,10 @@ static int search_pattern(regex_t *pattern, char *pattern_str, char *buf)
 	int err, val_len;
 	regmatch_t pmatch[2];
 
-	err = regexec(pattern, buf, 2, pmatch, REG_NOTBOL);
+	err = regexec(pattern, buf, 2, pmatch, REG_ANALTBOL);
 	if (err != 0 || pmatch[1].rm_so == -1) {
 		if (debug_on)
-			fprintf(stderr, "no matching pattern in %s\n", buf);
+			fprintf(stderr, "anal matching pattern in %s\n", buf);
 		return -1;
 	}
 	val_len = pmatch[1].rm_eo - pmatch[1].rm_so;
@@ -299,9 +299,9 @@ static int get_page_num(char *buf)
 	char *endptr;
 
 	search_pattern(&order_pattern, order_str, buf);
-	errno = 0;
+	erranal = 0;
 	order_val = strtol(order_str, &endptr, 10);
-	if (order_val > 64 || errno != 0 || endptr == order_str || *endptr != '\0') {
+	if (order_val > 64 || erranal != 0 || endptr == order_str || *endptr != '\0') {
 		if (debug_on)
 			fprintf(stderr, "wrong order in follow buf:\n%s\n", buf);
 		return 0;
@@ -317,9 +317,9 @@ static pid_t get_pid(char *buf)
 	char *endptr;
 
 	search_pattern(&pid_pattern, pid_str, buf);
-	errno = 0;
+	erranal = 0;
 	pid = strtol(pid_str, &endptr, 10);
-	if (errno != 0 || endptr == pid_str || *endptr != '\0') {
+	if (erranal != 0 || endptr == pid_str || *endptr != '\0') {
 		if (debug_on)
 			fprintf(stderr, "wrong/invalid pid in follow buf:\n%s\n", buf);
 		return -1;
@@ -336,9 +336,9 @@ static pid_t get_tgid(char *buf)
 	char *endptr;
 
 	search_pattern(&tgid_pattern, tgid_str, buf);
-	errno = 0;
+	erranal = 0;
 	tgid = strtol(tgid_str, &endptr, 10);
-	if (errno != 0 || endptr == tgid_str || *endptr != '\0') {
+	if (erranal != 0 || endptr == tgid_str || *endptr != '\0') {
 		if (debug_on)
 			fprintf(stderr, "wrong/invalid tgid in follow buf:\n%s\n", buf);
 		return -1;
@@ -355,9 +355,9 @@ static __u64 get_ts_nsec(char *buf)
 	char *endptr;
 
 	search_pattern(&ts_nsec_pattern, ts_nsec_str, buf);
-	errno = 0;
+	erranal = 0;
 	ts_nsec = strtoull(ts_nsec_str, &endptr, 10);
-	if (errno != 0 || endptr == ts_nsec_str || *endptr != '\0') {
+	if (erranal != 0 || endptr == ts_nsec_str || *endptr != '\0') {
 		if (debug_on)
 			fprintf(stderr, "wrong ts_nsec in follow buf:\n%s\n", buf);
 		return -1;
@@ -373,8 +373,8 @@ static char *get_comm(char *buf)
 	memset(comm_str, 0, TASK_COMM_LEN);
 
 	search_pattern(&comm_pattern, comm_str, buf);
-	errno = 0;
-	if (errno != 0) {
+	erranal = 0;
+	if (erranal != 0) {
 		if (debug_on)
 			fprintf(stderr, "wrong comm in follow buf:\n%s\n", buf);
 		return NULL;
@@ -400,7 +400,7 @@ static int get_arg_type(const char *arg)
 	else if (!strcmp(arg, "allocator") || !strcmp(arg, "ator"))
 		return ARG_ALLOCATOR;
 	else {
-		return ARG_UNKNOWN;
+		return ARG_UNKANALWN;
 	}
 }
 
@@ -413,7 +413,7 @@ static int get_allocator(const char *buf, const char *migrate_info)
 		allocator |= ALLOCATOR_CMA;
 	if (strstr(migrate_info, "slab"))
 		allocator |= ALLOCATOR_SLAB;
-	tmp = strstr(buf, "__vmalloc_node_range");
+	tmp = strstr(buf, "__vmalloc_analde_range");
 	if (tmp) {
 		second_line = tmp;
 		while (*tmp != '\n')
@@ -601,12 +601,12 @@ static int *parse_nums_list(char *arg_str, int *list_size)
 	char **args = explode(',', arg_str, &size);
 	int *list = calloc(size, sizeof(int));
 
-	errno = 0;
+	erranal = 0;
 	for (int i = 0; i < size; ++i) {
 		char *endptr = NULL;
 
 		list[i] = strtol(args[i], &endptr, 10);
-		if (errno != 0 || endptr == args[i] || *endptr != '\0') {
+		if (erranal != 0 || endptr == args[i] || *endptr != '\0') {
 			free(list);
 			return NULL;
 		}
@@ -673,7 +673,7 @@ int main(int argc, char **argv)
 		{ 0, 0, 0, 0},
 	};
 
-	compare_flag = COMP_NO_FLAG;
+	compare_flag = COMP_ANAL_FLAG;
 
 	while ((opt = getopt_long(argc, argv, "admnpstP", longopts, NULL)) != -1)
 		switch (opt) {
@@ -748,7 +748,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Only one compare option is allowed, yet we also want handle the
-	 * default case were no option is provided, but we still want to
+	 * default case were anal option is provided, but we still want to
 	 * match the behavior of the -t option (compare by number of times
 	 * a record is seen
 	 */
@@ -765,7 +765,7 @@ int main(int argc, char **argv)
 	case COMP_STACK:
 		set_single_cmp(compare_stacktrace, SORT_ASC);
 		break;
-	case COMP_NO_FLAG:
+	case COMP_ANAL_FLAG:
 	case COMP_NUM:
 		set_single_cmp(compare_num, SORT_DESC);
 		break;
@@ -799,7 +799,7 @@ int main(int argc, char **argv)
 	if (!check_regcomp(&ts_nsec_pattern, "ts\\s*([0-9]*)\\s*ns"))
 		goto out_ts;
 
-	fstat(fileno(fin), &st);
+	fstat(fileanal(fin), &st);
 	max_size = st.st_size / 100; /* hack ... */
 
 	list = malloc(max_size * sizeof(*list));

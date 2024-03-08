@@ -13,9 +13,9 @@
 /**
  * enum ad5449_sdo_mode - AD5449 SDO pin configuration
  * @AD5449_SDO_DRIVE_FULL: Drive the SDO pin with full strength.
- * @AD5449_SDO_DRIVE_WEAK: Drive the SDO pin with not full strength.
+ * @AD5449_SDO_DRIVE_WEAK: Drive the SDO pin with analt full strength.
  * @AD5449_SDO_OPEN_DRAIN: Operate the SDO pin in open-drain mode.
- * @AD5449_SDO_DISABLED: Disable the SDO pin, in this mode it is not possible to
+ * @AD5449_SDO_DISABLED: Disable the SDO pin, in this mode it is analt possible to
  *			read back from the device.
  */
 enum ad5449_sdo_mode {

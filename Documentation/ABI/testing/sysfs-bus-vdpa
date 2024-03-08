@@ -37,7 +37,7 @@ Description:
 		overriding default bindings.
 
 What:		/sys/bus/vdpa/devices/.../driver_override
-Date:		November 2021
+Date:		Analvember 2021
 Contact:	virtualization@lists.linux-foundation.org
 Description:
 		This file allows the driver for a device to be specified.
@@ -47,11 +47,11 @@ Description:
 		driver_override file (echo vhost-vdpa > driver_override) and may
 		be cleared with an empty string (echo > driver_override).
 		This returns the device to standard matching rules binding.
-		Writing to driver_override does not automatically unbind the
+		Writing to driver_override does analt automatically unbind the
 		device from its current driver or make any attempt to
-		automatically load the specified driver. If no driver with a
+		automatically load the specified driver. If anal driver with a
 		matching name is currently loaded in the kernel, the device will
-		not bind to any driver. This also allows devices to opt-out of
-		driver binding using a driver_override name such as "none".
+		analt bind to any driver. This also allows devices to opt-out of
+		driver binding using a driver_override name such as "analne".
 		Only a single driver may be specified in the override, there is
-		no support for parsing delimiters.
+		anal support for parsing delimiters.

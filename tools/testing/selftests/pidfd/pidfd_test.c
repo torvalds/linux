@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <linux/types.h>
 #include <pthread.h>
@@ -61,7 +61,7 @@ static int test_pidfd_send_signal_simple_success(void)
 
 	if (!have_pidfd_send_signal) {
 		ksft_test_result_skip(
-			"%s test: pidfd_send_signal() syscall not supported\n",
+			"%s test: pidfd_send_signal() syscall analt supported\n",
 			test_name);
 		return 0;
 	}
@@ -91,14 +91,14 @@ static int test_pidfd_send_signal_simple_success(void)
 
 static int test_pidfd_send_signal_exited_fail(void)
 {
-	int pidfd, ret, saved_errno;
+	int pidfd, ret, saved_erranal;
 	char buf[256];
 	pid_t pid;
 	const char *test_name = "pidfd_send_signal signal exited process";
 
 	if (!have_pidfd_send_signal) {
 		ksft_test_result_skip(
-			"%s test: pidfd_send_signal() syscall not supported\n",
+			"%s test: pidfd_send_signal() syscall analt supported\n",
 			test_name);
 		return 0;
 	}
@@ -124,17 +124,17 @@ static int test_pidfd_send_signal_exited_fail(void)
 			test_name);
 
 	ret = sys_pidfd_send_signal(pidfd, 0, NULL, 0);
-	saved_errno = errno;
+	saved_erranal = erranal;
 	close(pidfd);
 	if (ret == 0)
 		ksft_exit_fail_msg(
 			"%s test: Managed to send signal to process even though it should have failed\n",
 			test_name);
 
-	if (saved_errno != ESRCH)
+	if (saved_erranal != ESRCH)
 		ksft_exit_fail_msg(
-			"%s test: Expected to receive ESRCH as errno value but received %d instead\n",
-			test_name, saved_errno);
+			"%s test: Expected to receive ESRCH as erranal value but received %d instead\n",
+			test_name, saved_erranal);
 
 	ksft_test_result_pass("%s test: Failed to send signal as expected\n",
 			      test_name);
@@ -144,7 +144,7 @@ static int test_pidfd_send_signal_exited_fail(void)
 /*
  * Maximum number of cycles we allow. This is equivalent to PID_MAX_DEFAULT.
  * If users set a higher limit or we have cycled PIDFD_MAX_DEFAULT number of
- * times then we skip the test to not go into an infinite loop or block for a
+ * times then we skip the test to analt go into an infinite loop or block for a
  * long time.
  */
 #define PIDFD_MAX_DEFAULT 0x8000
@@ -157,15 +157,15 @@ static int test_pidfd_send_signal_recycled_pid_fail(void)
 
 	if (!have_pidfd_send_signal) {
 		ksft_test_result_skip(
-			"%s test: pidfd_send_signal() syscall not supported\n",
+			"%s test: pidfd_send_signal() syscall analt supported\n",
 			test_name);
 		return 0;
 	}
 
 	ret = unshare(CLONE_NEWPID);
 	if (ret < 0) {
-		if (errno == EPERM) {
-			ksft_test_result_skip("%s test: Unsharing pid namespace not permitted\n",
+		if (erranal == EPERM) {
+			ksft_test_result_skip("%s test: Unsharing pid namespace analt permitted\n",
 					      test_name);
 			return 0;
 		}
@@ -175,8 +175,8 @@ static int test_pidfd_send_signal_recycled_pid_fail(void)
 
 	ret = unshare(CLONE_NEWNS);
 	if (ret < 0) {
-		if (errno == EPERM) {
-			ksft_test_result_skip("%s test: Unsharing mount namespace not permitted\n",
+		if (erranal == EPERM) {
+			ksft_test_result_skip("%s test: Unsharing mount namespace analt permitted\n",
 					      test_name);
 			return 0;
 		}
@@ -282,7 +282,7 @@ static int test_pidfd_send_signal_recycled_pid_fail(void)
 			if (recycled_pid == PID_RECYCLE) {
 				ret = sys_pidfd_send_signal(pidfd, SIGCONT,
 							    NULL, 0);
-				if (ret && errno == ESRCH)
+				if (ret && erranal == ESRCH)
 					child_ret = PIDFD_XFAIL;
 				else
 					child_ret = PIDFD_FAIL;
@@ -304,7 +304,7 @@ static int test_pidfd_send_signal_recycled_pid_fail(void)
 			case PIDFD_PASS:
 				break;
 			default:
-				/* not reached */
+				/* analt reached */
 				_exit(PIDFD_ERROR);
 			}
 
@@ -361,9 +361,9 @@ static int test_pidfd_send_signal_syscall_support(void)
 
 	ret = sys_pidfd_send_signal(pidfd, 0, NULL, 0);
 	if (ret < 0) {
-		if (errno == ENOSYS) {
+		if (erranal == EANALSYS) {
 			ksft_test_result_skip(
-				"%s test: pidfd_send_signal() syscall not supported\n",
+				"%s test: pidfd_send_signal() syscall analt supported\n",
 				test_name);
 			return 0;
 		}
@@ -400,23 +400,23 @@ static void poll_pidfd(const char *test_name, int pidfd)
 
 	if (epoll_fd == -1)
 		ksft_exit_fail_msg("%s test: Failed to create epoll file descriptor "
-				   "(errno %d)\n",
-				   test_name, errno);
+				   "(erranal %d)\n",
+				   test_name, erranal);
 
 	event.events = EPOLLIN;
 	event.data.fd = pidfd;
 
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pidfd, &event)) {
 		ksft_exit_fail_msg("%s test: Failed to add epoll file descriptor "
-				   "(errno %d)\n",
-				   test_name, errno);
+				   "(erranal %d)\n",
+				   test_name, erranal);
 	}
 
 	c = epoll_wait(epoll_fd, events, MAX_EVENTS, 5000);
 	if (c != 1 || !(events[0].events & EPOLLIN))
 		ksft_exit_fail_msg("%s test: Unexpected epoll_wait result (c=%d, events=%x) "
-				   "(errno %d)\n",
-				   test_name, c, events[0].events, errno);
+				   "(erranal %d)\n",
+				   test_name, c, events[0].events, erranal);
 
 	close(epoll_fd);
 	return;
@@ -431,7 +431,7 @@ static int child_poll_exec_test(void *args)
 			syscall(SYS_gettid));
 	pthread_create(&t1, NULL, test_pidfd_poll_exec_thread, NULL);
 	/*
-	 * Exec in the non-leader thread will destroy the leader immediately.
+	 * Exec in the analn-leader thread will destroy the leader immediately.
 	 * If the wait in the parent returns too soon, the test fails.
 	 */
 	while (1)
@@ -445,13 +445,13 @@ static void test_pidfd_poll_exec(int use_waitpid)
 	int pid, pidfd = 0;
 	int status, ret;
 	time_t prog_start = time(NULL);
-	const char *test_name = "pidfd_poll check for premature notification on child thread exec";
+	const char *test_name = "pidfd_poll check for premature analtification on child thread exec";
 
 	ksft_print_msg("Parent: pid: %d\n", getpid());
 	pid = pidfd_clone(CLONE_PIDFD, &pidfd, child_poll_exec_test);
 	if (pid < 0)
-		ksft_exit_fail_msg("%s test: pidfd_clone failed (ret %d, errno %d)\n",
-				   test_name, pid, errno);
+		ksft_exit_fail_msg("%s test: pidfd_clone failed (ret %d, erranal %d)\n",
+				   test_name, pid, erranal);
 
 	ksft_print_msg("Parent: Waiting for Child (%d) to complete.\n", pid);
 
@@ -510,21 +510,21 @@ static void test_pidfd_poll_leader_exit(int use_waitpid)
 {
 	int pid, pidfd = 0;
 	int status, ret = 0;
-	const char *test_name = "pidfd_poll check for premature notification on non-empty"
+	const char *test_name = "pidfd_poll check for premature analtification on analn-empty"
 				"group leader exit";
 
 	child_exit_secs = mmap(NULL, sizeof *child_exit_secs, PROT_READ | PROT_WRITE,
-			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+			MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 
 	if (child_exit_secs == MAP_FAILED)
-		ksft_exit_fail_msg("%s test: mmap failed (errno %d)\n",
-				   test_name, errno);
+		ksft_exit_fail_msg("%s test: mmap failed (erranal %d)\n",
+				   test_name, erranal);
 
 	ksft_print_msg("Parent: pid: %d\n", getpid());
 	pid = pidfd_clone(CLONE_PIDFD, &pidfd, child_poll_leader_exit_test);
 	if (pid < 0)
-		ksft_exit_fail_msg("%s test: pidfd_clone failed (ret %d, errno %d)\n",
-				   test_name, pid, errno);
+		ksft_exit_fail_msg("%s test: pidfd_clone failed (ret %d, erranal %d)\n",
+				   test_name, pid, erranal);
 
 	ksft_print_msg("Parent: Waiting for Child (%d) to complete.\n", pid);
 
@@ -535,7 +535,7 @@ static void test_pidfd_poll_leader_exit(int use_waitpid)
 	} else {
 		/*
 		 * This sleep tests for the case where if the child exits, and is in
-		 * EXIT_ZOMBIE, but the thread group leader is non-empty, then the poll
+		 * EXIT_ZOMBIE, but the thread group leader is analn-empty, then the poll
 		 * doesn't prematurely return even though there are active threads
 		 */
 		sleep(1);

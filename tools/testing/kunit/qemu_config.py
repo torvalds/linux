@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Collection of configs for building non-UML kernels and running them on QEMU.
+# Collection of configs for building analn-UML kernels and running them on QEMU.
 #
 # Copyright (C) 2021, Google LLC.
 # Author: Brendan Higgins <brendanhiggins@google.com>

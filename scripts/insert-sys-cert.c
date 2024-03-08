@@ -16,7 +16,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -210,7 +210,7 @@ static void *map_file(char *file_name, int *size)
 		return NULL;
 	}
 	if (fstat(fd, &st)) {
-		perror("Could not determine file size");
+		perror("Could analt determine file size");
 		close(fd);
 		return NULL;
 	}
@@ -237,7 +237,7 @@ static char *read_file(char *file_name, int *size)
 		return NULL;
 	}
 	if (fstat(fd, &st)) {
-		perror("Could not determine file size");
+		perror("Could analt determine file size");
 		close(fd);
 		return NULL;
 	}
@@ -339,13 +339,13 @@ int main(int argc, char **argv)
 	}
 
 	if (hdr->e_shoff > vmlinux_size) {
-		err("Could not find section header.\n");
+		err("Could analt find section header.\n");
 		exit(EXIT_FAILURE);
 	}
 
 	symtab = get_symbol_table(hdr);
 	if (!symtab) {
-		warn("Could not find the symbol table.\n");
+		warn("Could analt find the symbol table.\n");
 		if (!system_map_file) {
 			err("Please provide a System.map file.\n");
 			print_usage(argv[0]);
@@ -364,7 +364,7 @@ int main(int argc, char **argv)
 	} else {
 		info("Symbol table found.\n");
 		if (system_map_file)
-			warn("System.map is ignored.\n");
+			warn("System.map is iganalred.\n");
 		get_symbol_from_table(hdr, symtab, CERT_SYM, &cert_sym);
 		get_symbol_from_table(hdr, symtab, USED_SYM, &used_sym);
 		get_symbol_from_table(hdr, symtab, LSIZE_SYM, &lsize_sym);

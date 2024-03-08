@@ -47,7 +47,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 	len = le16_to_cpu(p->ext_param_page_length) * 16;
 	ep = kmalloc(len, GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Use the Change Read Column command to skip the ONFI param pages and
@@ -68,7 +68,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 
 	/*
 	 * Check the signature.
-	 * Do not strictly follow the ONFI spec, maybe changed in future.
+	 * Do analt strictly follow the ONFI spec, maybe changed in future.
 	 */
 	if (strncmp(ep->sig, "EPPS", 4)) {
 		pr_debug("The signature is invalid.\n");
@@ -84,7 +84,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 		cursor += s->length * 16;
 	}
 	if (i == ONFI_EXT_SECTION_MAX) {
-		pr_debug("We can not find the ECC section.\n");
+		pr_debug("We can analt find the ECC section.\n");
 		goto ext_out;
 	}
 
@@ -156,7 +156,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 
 	memorg = nanddev_get_memorg(&chip->base);
 
-	/* Try ONFI for unknown chip or LP */
+	/* Try ONFI for unkanalwn chip or LP */
 	ret = nand_readid_op(chip, 0x20, id, sizeof(id));
 	if (ret || strncmp(id, "ONFI", 4))
 		return 0;
@@ -164,7 +164,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	/* ONFI chip: allocate a buffer to hold its parameter page */
 	pbuf = kzalloc((sizeof(*pbuf) * ONFI_PARAM_PAGES), GFP_KERNEL);
 	if (!pbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!nand_has_exec_op(chip) || chip->controller->supported_op.data_only_read)
 		use_datain = true;
@@ -199,7 +199,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 		for (j = 0; j < ONFI_PARAM_PAGES; j++)
 			srcbufs[j] = pbuf + j;
 
-		pr_warn("Could not find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
+		pr_warn("Could analt find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
 		nand_bit_wise_majority(srcbufs, ONFI_PARAM_PAGES, pbuf,
 				       sizeof(*pbuf));
 
@@ -237,7 +237,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	sanitize_string(p->model, sizeof(p->model));
 	chip->parameters.model = kstrdup(p->model, GFP_KERNEL);
 	if (!chip->parameters.model) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_onfi_param_page;
 	}
 
@@ -245,7 +245,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	mtd->writesize = memorg->pagesize;
 
 	/*
-	 * pages_per_block and blocks_per_lun may not be a power-of-2 size
+	 * pages_per_block and blocks_per_lun may analt be a power-of-2 size
 	 * (don't ask me who thought of this...). MTD assumes that these
 	 * dimensions will be power-of-2, so just truncate the remaining area.
 	 */
@@ -280,9 +280,9 @@ int nand_onfi_detect(struct nand_chip *chip)
 
 		/*
 		 * The nand_flash_detect_ext_param_page() uses the
-		 * Change Read Column command which maybe not supported
+		 * Change Read Column command which maybe analt supported
 		 * by the chip->legacy.cmdfunc. So try to update the
-		 * chip->legacy.cmdfunc now. We do not replace user supplied
+		 * chip->legacy.cmdfunc analw. We do analt replace user supplied
 		 * command function.
 		 */
 		nand_legacy_adjust_cmdfunc(chip);
@@ -291,7 +291,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 		if (nand_flash_detect_ext_param_page(chip, p))
 			pr_warn("Failed to detect ONFI extended param page\n");
 	} else {
-		pr_warn("Could not retrieve ONFI ECC requirements\n");
+		pr_warn("Could analt retrieve ONFI ECC requirements\n");
 	}
 
 	/* Save some parameters from the parameter page for future use */
@@ -308,7 +308,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 
 	onfi = kzalloc(sizeof(*onfi), GFP_KERNEL);
 	if (!onfi) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_model;
 	}
 

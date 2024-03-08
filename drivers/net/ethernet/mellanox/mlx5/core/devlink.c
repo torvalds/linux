@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellaanalx Techanallogies */
 
 #include <devlink.h>
 
@@ -25,12 +25,12 @@ static u8 mlx5_fw_ver_major(u32 version)
 	return (version >> 24) & 0xff;
 }
 
-static u8 mlx5_fw_ver_minor(u32 version)
+static u8 mlx5_fw_ver_mianalr(u32 version)
 {
 	return (version >> 16) & 0xff;
 }
 
-static u16 mlx5_fw_ver_subminor(u32 version)
+static u16 mlx5_fw_ver_submianalr(u32 version)
 {
 	return version & 0xffff;
 }
@@ -55,8 +55,8 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		return err;
 
 	snprintf(version_str, sizeof(version_str), "%d.%d.%04d",
-		 mlx5_fw_ver_major(running_fw), mlx5_fw_ver_minor(running_fw),
-		 mlx5_fw_ver_subminor(running_fw));
+		 mlx5_fw_ver_major(running_fw), mlx5_fw_ver_mianalr(running_fw),
+		 mlx5_fw_ver_submianalr(running_fw));
 	err = devlink_info_version_running_put(req, "fw.version", version_str);
 	if (err)
 		return err;
@@ -66,13 +66,13 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 	if (err)
 		return err;
 
-	/* no pending version, return running (stored) version */
+	/* anal pending version, return running (stored) version */
 	if (stored_fw == 0)
 		stored_fw = running_fw;
 
 	snprintf(version_str, sizeof(version_str), "%d.%d.%04d",
-		 mlx5_fw_ver_major(stored_fw), mlx5_fw_ver_minor(stored_fw),
-		 mlx5_fw_ver_subminor(stored_fw));
+		 mlx5_fw_ver_major(stored_fw), mlx5_fw_ver_mianalr(stored_fw),
+		 mlx5_fw_ver_submianalr(stored_fw));
 	err = devlink_info_version_stored_put(req, "fw.version", version_str);
 	if (err)
 		return err;
@@ -142,25 +142,25 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 
 	if (mlx5_dev_is_lightweight(dev)) {
 		if (action != DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		mlx5_unload_one_light(dev);
 		return 0;
 	}
 
 	if (mlx5_lag_is_active(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported in Lag mode");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (mlx5_core_is_mp_slave(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported for multi port slave");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (action == DEVLINK_RELOAD_ACTION_FW_ACTIVATE &&
 	    !dev->priv.fw_reset) {
 		NL_SET_ERR_MSG_MOD(extack, "FW activate is unsupported for this function");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (mlx5_core_is_pf(dev) && pci_num_vf(pdev))
@@ -171,15 +171,15 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		mlx5_unload_one_devl_locked(dev, false);
 		break;
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
-		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+		if (limit == DEVLINK_RELOAD_LIMIT_ANAL_RESET)
 			ret = mlx5_devlink_trigger_fw_live_patch(devlink, extack);
 		else
 			ret = mlx5_devlink_reload_fw_activate(devlink, extack);
 		break;
 	default:
-		/* Unsupported action should not get to this function */
+		/* Unsupported action should analt get to this function */
 		WARN_ON(1);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -202,7 +202,7 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 		ret = mlx5_load_one_devl_locked(dev, false);
 		break;
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
-		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
+		if (limit == DEVLINK_RELOAD_LIMIT_ANAL_RESET)
 			break;
 		/* On fw_activate action, also driver is reloaded and reinit performed */
 		*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
@@ -212,9 +212,9 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 		ret = mlx5_fw_reset_verify_fw_complete(dev, extack);
 		break;
 	default:
-		/* Unsupported action should not get to this function */
+		/* Unsupported action should analt get to this function */
 		WARN_ON(1);
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -239,7 +239,7 @@ static int mlx5_devlink_trap_init(struct devlink *devlink, const struct devlink_
 
 	dl_trap = kzalloc(sizeof(*dl_trap), GFP_KERNEL);
 	if (!dl_trap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dl_trap->trap.id = trap->id;
 	dl_trap->trap.action = DEVLINK_TRAP_ACTION_DROP;
@@ -283,7 +283,7 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 
 	if (is_mdev_switchdev_mode(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Devlink traps can't be set in switchdev mode");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dl_trap = mlx5_find_trap_by_id(dev, trap->id);
@@ -293,7 +293,7 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 	}
 
 	if (action != DEVLINK_TRAP_ACTION_DROP && action != DEVLINK_TRAP_ACTION_TRAP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (action == dl_trap->trap.action)
 		return 0;
@@ -302,9 +302,9 @@ static int mlx5_devlink_trap_action_set(struct devlink *devlink,
 	dl_trap->trap.action = action;
 	trap_event_ctx.trap = &dl_trap->trap;
 	trap_event_ctx.err = 0;
-	err = mlx5_blocking_notifier_call_chain(dev, MLX5_DRIVER_EVENT_TYPE_TRAP,
+	err = mlx5_blocking_analtifier_call_chain(dev, MLX5_DRIVER_EVENT_TYPE_TRAP,
 						&trap_event_ctx);
-	if (err == NOTIFY_BAD)
+	if (err == ANALTIFY_BAD)
 		dl_trap->trap.action = action_orig;
 
 	return trap_event_ctx.err;
@@ -320,10 +320,10 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.eswitch_encap_mode_get = mlx5_devlink_eswitch_encap_mode_get,
 	.rate_leaf_tx_share_set = mlx5_esw_devlink_rate_leaf_tx_share_set,
 	.rate_leaf_tx_max_set = mlx5_esw_devlink_rate_leaf_tx_max_set,
-	.rate_node_tx_share_set = mlx5_esw_devlink_rate_node_tx_share_set,
-	.rate_node_tx_max_set = mlx5_esw_devlink_rate_node_tx_max_set,
-	.rate_node_new = mlx5_esw_devlink_rate_node_new,
-	.rate_node_del = mlx5_esw_devlink_rate_node_del,
+	.rate_analde_tx_share_set = mlx5_esw_devlink_rate_analde_tx_share_set,
+	.rate_analde_tx_max_set = mlx5_esw_devlink_rate_analde_tx_max_set,
+	.rate_analde_new = mlx5_esw_devlink_rate_analde_new,
+	.rate_analde_del = mlx5_esw_devlink_rate_analde_del,
 	.rate_leaf_parent_set = mlx5_esw_devlink_rate_parent_set,
 #endif
 #ifdef CONFIG_MLX5_SF_MANAGER
@@ -333,7 +333,7 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.info_get = mlx5_devlink_info_get,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 			  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
-	.reload_limits = BIT(DEVLINK_RELOAD_LIMIT_NO_RESET),
+	.reload_limits = BIT(DEVLINK_RELOAD_LIMIT_ANAL_RESET),
 	.reload_down = mlx5_devlink_reload_down,
 	.reload_up = mlx5_devlink_reload_up,
 	.trap_init = mlx5_devlink_trap_init,
@@ -410,11 +410,11 @@ static int mlx5_devlink_enable_roce_validate(struct devlink *devlink, u32 id,
 	if (new_state && !MLX5_CAP_GEN(dev, roce) &&
 	    !(MLX5_CAP_GEN(dev, roce_rw_supported) && MLX5_CAP_GEN_MAX(dev, roce))) {
 		NL_SET_ERR_MSG_MOD(extack, "Device doesn't support RoCE");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (mlx5_core_is_mp_slave(dev) || mlx5_lag_is_active(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Multi port slave/Lag device can't configure RoCE");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -430,7 +430,7 @@ static int mlx5_devlink_large_group_num_validate(struct devlink *devlink, u32 id
 	if (group_num < 1 || group_num > 1024) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported group number, supported range is 1-1024");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -461,7 +461,7 @@ mlx5_devlink_hairpin_queue_size_validate(struct devlink *devlink, u32 id,
 	u32 val32 = val.vu32;
 
 	if (!is_power_of_2(val32)) {
-		NL_SET_ERR_MSG_MOD(extack, "Value is not power of two");
+		NL_SET_ERR_MSG_MOD(extack, "Value is analt power of two");
 		return -EINVAL;
 	}
 
@@ -599,7 +599,7 @@ static int mlx5_devlink_enable_rdma_validate(struct devlink *devlink, u32 id,
 	bool new_state = val.vbool;
 
 	if (new_state && !mlx5_rdma_supported(dev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 

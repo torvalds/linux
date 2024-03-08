@@ -117,13 +117,13 @@ static inline int cphy_mdio_write(struct cphy *cphy, int mmd, int reg,
 static inline int simple_mdio_read(struct cphy *cphy, int reg,
 				   unsigned int *valp)
 {
-	return cphy_mdio_read(cphy, MDIO_DEVAD_NONE, reg, valp);
+	return cphy_mdio_read(cphy, MDIO_DEVAD_ANALNE, reg, valp);
 }
 
 static inline int simple_mdio_write(struct cphy *cphy, int reg,
 				    unsigned int val)
 {
-	return cphy_mdio_write(cphy, MDIO_DEVAD_NONE, reg, val);
+	return cphy_mdio_write(cphy, MDIO_DEVAD_ANALNE, reg, val);
 }
 
 /* Convenience initializer */
@@ -151,7 +151,7 @@ struct gphy {
 			       const struct mdio_ops *mdio_ops);
 
 	/*
-	 * Reset the PHY chip.  This resets the whole PHY chip, not individual
+	 * Reset the PHY chip.  This resets the whole PHY chip, analt individual
 	 * ports.
 	 */
 	int (*reset)(adapter_t *adapter);

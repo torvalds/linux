@@ -62,7 +62,7 @@ EXPORT_SYMBOL(blk_rq_count_integrity_sg);
  * @sglist:	target scatterlist
  *
  * Description: Map the integrity vectors in request into a
- * scatterlist.  The scatterlist must be big enough to hold all
+ * scatterlist.  The scatterlist must be big eanalugh to hold all
  * elements.  I.e. sized using blk_rq_count_integrity_sg().
  */
 int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
@@ -224,7 +224,7 @@ static ssize_t format_show(struct device *dev, struct device_attribute *attr,
 
 	if (bi->profile && bi->profile->name)
 		return sysfs_emit(page, "%s\n", bi->profile->name);
-	return sysfs_emit(page, "none\n");
+	return sysfs_emit(page, "analne\n");
 }
 
 static ssize_t tag_size_show(struct device *dev, struct device_attribute *attr,
@@ -326,26 +326,26 @@ const struct attribute_group blk_integrity_attr_group = {
 	.attrs = integrity_attrs,
 };
 
-static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
+static blk_status_t blk_integrity_analp_fn(struct blk_integrity_iter *iter)
 {
 	return BLK_STS_OK;
 }
 
-static void blk_integrity_nop_prepare(struct request *rq)
+static void blk_integrity_analp_prepare(struct request *rq)
 {
 }
 
-static void blk_integrity_nop_complete(struct request *rq,
+static void blk_integrity_analp_complete(struct request *rq,
 		unsigned int nr_bytes)
 {
 }
 
-static const struct blk_integrity_profile nop_profile = {
-	.name = "nop",
-	.generate_fn = blk_integrity_nop_fn,
-	.verify_fn = blk_integrity_nop_fn,
-	.prepare_fn = blk_integrity_nop_prepare,
-	.complete_fn = blk_integrity_nop_complete,
+static const struct blk_integrity_profile analp_profile = {
+	.name = "analp",
+	.generate_fn = blk_integrity_analp_fn,
+	.verify_fn = blk_integrity_analp_fn,
+	.prepare_fn = blk_integrity_analp_prepare,
+	.complete_fn = blk_integrity_analp_complete,
 };
 
 /**
@@ -367,7 +367,7 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 		template->flags;
 	bi->interval_exp = template->interval_exp ? :
 		ilog2(queue_logical_block_size(disk->queue));
-	bi->profile = template->profile ? template->profile : &nop_profile;
+	bi->profile = template->profile ? template->profile : &analp_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 
@@ -375,7 +375,7 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	if (disk->queue->crypto_profile) {
-		pr_warn("blk-integrity: Integrity and hardware inline encryption are not supported together. Disabling hardware inline encryption.\n");
+		pr_warn("blk-integrity: Integrity and hardware inline encryption are analt supported together. Disabling hardware inline encryption.\n");
 		disk->queue->crypto_profile = NULL;
 	}
 #endif

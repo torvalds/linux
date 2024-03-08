@@ -60,7 +60,7 @@
 				usable-privilege = <3>;
 			};
 
-			no-execute {
+			anal-execute {
 				isa = <2010>;
 				usable-privilege = <2>;
 			};

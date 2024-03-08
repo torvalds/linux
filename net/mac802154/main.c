@@ -3,7 +3,7 @@
  * Copyright (C) 2007-2012 Siemens AG
  *
  * Written by:
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/kernel.h>
@@ -28,14 +28,14 @@ static void ieee802154_tasklet_handler(struct tasklet_struct *t)
 	while ((skb = skb_dequeue(&local->skb_queue))) {
 		switch (skb->pkt_type) {
 		case IEEE802154_RX_MSG:
-			/* Clear skb->pkt_type in order to not confuse kernel
+			/* Clear skb->pkt_type in order to analt confuse kernel
 			 * netstack.
 			 */
 			skb->pkt_type = 0;
 			ieee802154_rx(local, skb);
 			break;
 		default:
-			WARN(1, "mac802154: Packet is of unknown type %d\n",
+			WARN(1, "mac802154: Packet is of unkanalwn type %d\n",
 			     skb->pkt_type);
 			kfree_skb(skb);
 			break;
@@ -115,7 +115,7 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
 
 	/* always supported */
-	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE) | BIT(NL802154_IFTYPE_COORD);
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_ANALDE) | BIT(NL802154_IFTYPE_COORD);
 
 	return &local->hw;
 }
@@ -156,7 +156,7 @@ void ieee802154_configure_durations(struct wpan_phy *phy,
 	}
 
 	if (!duration) {
-		pr_debug("Unknown PHY symbol duration\n");
+		pr_debug("Unkanalwn PHY symbol duration\n");
 		return;
 	}
 
@@ -195,23 +195,23 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	struct ieee802154_local *local = hw_to_local(hw);
 	char mac_wq_name[IFNAMSIZ + 10] = {};
 	struct net_device *dev;
-	int rc = -ENOSYS;
+	int rc = -EANALSYS;
 
 	local->workqueue =
 		create_singlethread_workqueue(wpan_phy_name(local->phy));
 	if (!local->workqueue) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	snprintf(mac_wq_name, IFNAMSIZ + 10, "%s-mac-cmds", wpan_phy_name(local->phy));
 	local->mac_wq =	create_singlethread_workqueue(mac_wq_name);
 	if (!local->mac_wq) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_wq;
 	}
 
-	hrtimer_init(&local->ifs_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&local->ifs_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	local->ifs_timer.function = ieee802154_xmit_ifs_timer;
 
 	wpan_phy_set_dev(local->phy, local->hw.parent);
@@ -245,7 +245,7 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	rtnl_lock();
 
 	dev = ieee802154_if_add(local, "wpan%d", NET_NAME_ENUM,
-				NL802154_IFTYPE_NODE,
+				NL802154_IFTYPE_ANALDE,
 				cpu_to_le64(0x0000000000000000ULL));
 	if (IS_ERR(dev)) {
 		rtnl_unlock();

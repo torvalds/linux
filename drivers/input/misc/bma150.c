@@ -32,7 +32,7 @@
 #define BMA150_POLL_MAX		200
 #define BMA150_POLL_MIN		0
 
-#define BMA150_MODE_NORMAL	0
+#define BMA150_MODE_ANALRMAL	0
 #define BMA150_MODE_SLEEP	2
 #define BMA150_MODE_WAKE_UP	3
 
@@ -153,7 +153,7 @@ static int bma150_write_byte(struct i2c_client *client, u8 reg, u8 val)
 
 	/* As per specification, disable irq in between register writes */
 	if (client->irq)
-		disable_irq_nosync(client->irq);
+		disable_irq_analsync(client->irq);
 
 	ret = i2c_smbus_write_byte_data(client, reg, val);
 
@@ -190,7 +190,7 @@ static int bma150_set_mode(struct bma150_data *bma150, u8 mode)
 	if (error)
 		return error;
 
-	if (mode == BMA150_MODE_NORMAL)
+	if (mode == BMA150_MODE_ANALRMAL)
 		usleep_range(2000, 2100);
 
 	bma150->mode = mode;
@@ -347,15 +347,15 @@ static int bma150_open(struct input_dev *input)
 	int error;
 
 	error = pm_runtime_get_sync(&bma150->client->dev);
-	if (error < 0 && error != -ENOSYS)
+	if (error < 0 && error != -EANALSYS)
 		return error;
 
 	/*
 	 * See if runtime PM woke up the device. If runtime PM
 	 * is disabled we need to do it ourselves.
 	 */
-	if (bma150->mode != BMA150_MODE_NORMAL) {
-		error = bma150_set_mode(bma150, BMA150_MODE_NORMAL);
+	if (bma150->mode != BMA150_MODE_ANALRMAL) {
+		error = bma150_set_mode(bma150, BMA150_MODE_ANALRMAL);
 		if (error)
 			return error;
 	}
@@ -437,7 +437,7 @@ static int bma150_probe(struct i2c_client *client)
 
 	bma150 = devm_kzalloc(&client->dev, sizeof(*bma150), GFP_KERNEL);
 	if (!bma150)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bma150->client = client;
 
@@ -462,7 +462,7 @@ static int bma150_probe(struct i2c_client *client)
 
 	idev = devm_input_allocate_device(&bma150->client->dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(idev, bma150);
 	bma150->input = idev;
@@ -530,7 +530,7 @@ static int __maybe_unused bma150_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma150_data *bma150 = i2c_get_clientdata(client);
 
-	return bma150_set_mode(bma150, BMA150_MODE_NORMAL);
+	return bma150_set_mode(bma150, BMA150_MODE_ANALRMAL);
 }
 
 static UNIVERSAL_DEV_PM_OPS(bma150_pm, bma150_suspend, bma150_resume, NULL);

@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/byteorder/generic.h>
 
 #include <drm/display/drm_dp_helper.h>
@@ -107,7 +107,7 @@ void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_payload,
 
 	/* PPS 0 */
 	pps_payload->dsc_version =
-		dsc_cfg->dsc_version_minor |
+		dsc_cfg->dsc_version_mianalr |
 		dsc_cfg->dsc_version_major << DSC_PPS_VERSION_MAJOR_SHIFT;
 
 	/* PPS 1, 2 is 0 */

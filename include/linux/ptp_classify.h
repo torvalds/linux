@@ -17,7 +17,7 @@
 #include <linux/udp.h>
 #include <net/checksum.h>
 
-#define PTP_CLASS_NONE  0x00 /* not a PTP event message */
+#define PTP_CLASS_ANALNE  0x00 /* analt a PTP event message */
 #define PTP_CLASS_V1    0x01 /* protocol version 1 */
 #define PTP_CLASS_V2    0x02 /* protocol version 2 */
 #define PTP_CLASS_VMASK 0x0f /* max protocol version is 15 */
@@ -86,8 +86,8 @@ struct ptp_header {
  * @skb: buffer
  *
  * Runs a minimal BPF dissector to classify a network packet to
- * determine the PTP class. In case the skb does not contain any
- * PTP protocol data, PTP_CLASS_NONE will be returned, otherwise
+ * determine the PTP class. In case the skb does analt contain any
+ * PTP protocol data, PTP_CLASS_ANALNE will be returned, otherwise
  * PTP_CLASS_V1_IPV{4,6}, PTP_CLASS_V2_IPV{4,6} or
  * PTP_CLASS_V2_{L2,VLAN}, depending on the packet content.
  */
@@ -101,10 +101,10 @@ unsigned int ptp_classify_raw(const struct sk_buff *skb);
  * This function takes care of the VLAN, UDP, IPv4 and IPv6 headers. The length
  * is checked.
  *
- * Note, internally skb_mac_header() is used. Make sure that the @skb is
+ * Analte, internally skb_mac_header() is used. Make sure that the @skb is
  * initialized accordingly.
  *
- * Return: Pointer to the ptp v2 header or NULL if not found
+ * Return: Pointer to the ptp v2 header or NULL if analt found
  */
 struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type);
 
@@ -160,7 +160,7 @@ static inline __wsum ptp_check_diff8(__be64 old, __be64 new, __wsum oldsum)
  *
  * This updates the correction field of a PTP header and updates the UDP
  * checksum (if UDP is used as transport). It is needed for hardware capable of
- * one-step P2P that does not already modify the correction field of Pdelay_Req
+ * one-step P2P that does analt already modify the correction field of Pdelay_Req
  * event messages on ingress.
  */
 static inline
@@ -193,7 +193,7 @@ void ptp_header_update_correction(struct sk_buff *skb, unsigned int type,
 	if (!uhdr->check)
 		uhdr->check = CSUM_MANGLED_0;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 }
 
 /**
@@ -214,7 +214,7 @@ static inline void ptp_classifier_init(void)
 }
 static inline unsigned int ptp_classify_raw(struct sk_buff *skb)
 {
-	return PTP_CLASS_NONE;
+	return PTP_CLASS_ANALNE;
 }
 static inline struct ptp_header *ptp_parse_header(struct sk_buff *skb,
 						  unsigned int type)
@@ -224,8 +224,8 @@ static inline struct ptp_header *ptp_parse_header(struct sk_buff *skb,
 static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
 				 unsigned int type)
 {
-	/* The return is meaningless. The stub function would not be
-	 * executed since no available header from ptp_parse_header.
+	/* The return is meaningless. The stub function would analt be
+	 * executed since anal available header from ptp_parse_header.
 	 */
 	return PTP_MSGTYPE_SYNC;
 }

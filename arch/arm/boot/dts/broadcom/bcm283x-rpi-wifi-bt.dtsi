@@ -13,7 +13,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_gpio34>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	status = "okay";
 

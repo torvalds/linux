@@ -17,19 +17,19 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
-* NO WARRANTY
+* ANAL WARRANTY
 * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but analt limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
 * DISCLAIMER OF LIABILITY
-* NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+* NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
 * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -38,7 +38,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if analt, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -59,7 +59,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_8250.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include "smapi.h"
 #include "mwavedd.h"
 #include "3780i.h"
@@ -70,9 +70,9 @@ MODULE_AUTHOR("Mike Sullivan and Paul Schroeder");
 MODULE_LICENSE("GPL");
 
 /*
-* These parameters support the setting of MWave resources. Note that no
+* These parameters support the setting of MWave resources. Analte that anal
 * checks are made against other devices (ie. superio) for conflicts.
-* We'll depend on users using the tpctl utility to do that for now
+* We'll depend on users using the tpctl utility to do that for analw
 */
 static DEFINE_MUTEX(mwave_mutex);
 int mwave_debug = 0;
@@ -86,33 +86,33 @@ module_param_hw(mwave_3780i_io, int, ioport, 0);
 module_param_hw(mwave_uart_irq, int, irq, 0);
 module_param_hw(mwave_uart_io, int, ioport, 0);
 
-static int mwave_open(struct inode *inode, struct file *file);
-static int mwave_close(struct inode *inode, struct file *file);
+static int mwave_open(struct ianalde *ianalde, struct file *file);
+static int mwave_close(struct ianalde *ianalde, struct file *file);
 static long mwave_ioctl(struct file *filp, unsigned int iocmd,
 							unsigned long ioarg);
 
 MWAVE_DEVICE_DATA mwave_s_mdd;
 
-static int mwave_open(struct inode *inode, struct file *file)
+static int mwave_open(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int retval = 0;
 
 	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_open, entry inode %p file %p\n",
-		 inode, file);
+		"mwavedd::mwave_open, entry ianalde %p file %p\n",
+		 ianalde, file);
 	PRINTK_2(TRACE_MWAVE,
 		"mwavedd::mwave_open, exit return retval %x\n", retval);
 
 	return retval;
 }
 
-static int mwave_close(struct inode *inode, struct file *file)
+static int mwave_close(struct ianalde *ianalde, struct file *file)
 {
 	unsigned int retval = 0;
 
 	PRINTK_3(TRACE_MWAVE,
-		"mwavedd::mwave_close, entry inode %p file %p\n",
-		 inode,  file);
+		"mwavedd::mwave_close, entry ianalde %p file %p\n",
+		 ianalde,  file);
 
 	PRINTK_2(TRACE_MWAVE, "mwavedd::mwave_close, exit retval %x\n",
 		retval);
@@ -290,7 +290,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_analspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			PRINTK_3(TRACE_MWAVE,
 				"mwavedd::mwave_ioctl IOCTL_MW_REGISTER_IPC"
@@ -320,7 +320,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" Invalid ipcnum %x\n", ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_analspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			PRINTK_3(TRACE_MWAVE,
 				"mwavedd::mwave_ioctl IOCTL_MW_GET_IPC"
@@ -348,7 +348,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						" IOCTL_MW_GET_IPC ipcnum %x"
 						" handling first int\n",
 						ipcnum);
-				} else {	/* either 1st int has not yet occurred, or we have already handled the first int */
+				} else {	/* either 1st int has analt yet occurred, or we have already handled the first int */
 					schedule();
 					if (pDrvData->IPCs[ipcnum].usIntCount == 1) {
 						pDrvData->IPCs[ipcnum].usIntCount = 2;
@@ -388,7 +388,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 						ipcnum);
 				return -EINVAL;
 			}
-			ipcnum = array_index_nospec(ipcnum,
+			ipcnum = array_index_analspec(ipcnum,
 						    ARRAY_SIZE(pDrvData->IPCs));
 			mutex_lock(&mwave_mutex);
 			if (pDrvData->IPCs[ipcnum].bIsEnabled == true) {
@@ -402,7 +402,7 @@ static long mwave_ioctl(struct file *file, unsigned int iocmd,
 			break;
 	
 		default:
-			return -ENOTTY;
+			return -EANALTTY;
 	} /* switch */
 
 	PRINTK_2(TRACE_MWAVE, "mwavedd::mwave_ioctl, exit retval %x\n", retval);
@@ -490,7 +490,7 @@ static const struct file_operations mwave_fops = {
 };
 
 
-static struct miscdevice mwave_misc_dev = { MWAVE_MINOR, "mwave", &mwave_fops };
+static struct miscdevice mwave_misc_dev = { MWAVE_MIANALR, "mwave", &mwave_fops };
 
 #if 0 /* totally b0rked */
 /*
@@ -592,7 +592,7 @@ static int __init mwave_init(void)
 	for (i = 0; i < ARRAY_SIZE(pDrvData->IPCs); i++) {
 		pDrvData->IPCs[i].bIsEnabled = false;
 		pDrvData->IPCs[i].bIsHere = false;
-		pDrvData->IPCs[i].usIntCount = 0;	/* no ints received yet */
+		pDrvData->IPCs[i].usIntCount = 0;	/* anal ints received yet */
 		init_waitqueue_head(&pDrvData->IPCs[i].ipc_wait_queue);
 	}
 

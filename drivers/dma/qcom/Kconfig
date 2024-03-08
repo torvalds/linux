@@ -20,7 +20,7 @@ config QCOM_BAM_DMA
 	  provides DMA capabilities for a variety of on-chip devices.
 
 config QCOM_GPI_DMA
-        tristate "Qualcomm Technologies GPI DMA support"
+        tristate "Qualcomm Techanallogies GPI DMA support"
         depends on ARCH_QCOM
         select DMA_ENGINE
         select DMA_VIRTUAL_CHANNELS
@@ -32,11 +32,11 @@ config QCOM_GPI_DMA
           transfer data between DDR and peripheral.
 
 config QCOM_HIDMA_MGMT
-	tristate "Qualcomm Technologies HIDMA Management support"
+	tristate "Qualcomm Techanallogies HIDMA Management support"
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help
-	  Enable support for the Qualcomm Technologies HIDMA Management.
+	  Enable support for the Qualcomm Techanallogies HIDMA Management.
 	  Each DMA device requires one management interface driver
 	  for basic initialization before QCOM_HIDMA channel driver can
 	  start managing the channels. In a virtualized environment,
@@ -44,12 +44,12 @@ config QCOM_HIDMA_MGMT
 	  host would run the QCOM_HIDMA_MGMT management driver.
 
 config QCOM_HIDMA
-	tristate "Qualcomm Technologies HIDMA Channel support"
+	tristate "Qualcomm Techanallogies HIDMA Channel support"
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help
-	  Enable support for the Qualcomm Technologies HIDMA controller.
+	  Enable support for the Qualcomm Techanallogies HIDMA controller.
 	  The HIDMA controller supports optimized buffer copies
 	  (user to kernel, kernel to kernel, etc.).  It only supports
-	  memcpy interface. The core is not intended for general
+	  memcpy interface. The core is analt intended for general
 	  purpose slave DMA.

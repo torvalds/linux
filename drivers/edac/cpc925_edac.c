@@ -210,7 +210,7 @@ enum mmcr_bits {
  *  Error Handling/Enumeration Scratch Pad Register (ERRCTRL)
  ************************************************************/
 #define REG_ERRCTRL_OFFSET	0x70140
-enum errctrl_bits {			 /* nonfatal interrupts for */
+enum errctrl_bits {			 /* analnfatal interrupts for */
 	ERRCTRL_SERR_NF	= CPC925_BIT(0), /* system error */
 	ERRCTRL_CRC_NF	= CPC925_BIT(1), /* CRC error */
 	ERRCTRL_RSP_NF	= CPC925_BIT(2), /* Response error */
@@ -283,12 +283,12 @@ struct cpc925_dev_info {
 /* Get total memory size from Open Firmware DTB */
 static void get_total_mem(struct cpc925_mc_pdata *pdata)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	const unsigned int *reg, *reg_end;
 	int len, sw, aw;
 	unsigned long start, size;
 
-	np = of_find_node_by_type(NULL, "memory");
+	np = of_find_analde_by_type(NULL, "memory");
 	if (!np)
 		return;
 
@@ -307,7 +307,7 @@ static void get_total_mem(struct cpc925_mc_pdata *pdata)
 		pdata->total_mem += size;
 	} while (reg < reg_end);
 
-	of_node_put(np);
+	of_analde_put(np);
 	edac_dbg(0, "total_mem 0x%lx\n", pdata->total_mem);
 }
 
@@ -332,7 +332,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		       ((mbbar & MBBAR_BBA_MASK) >> MBBAR_BBA_SHIFT);
 
 		if (bba == 0)
-			continue; /* not populated */
+			continue; /* analt populated */
 
 		csrow = mci->csrows[index];
 
@@ -352,7 +352,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 			break;
 		}
 		switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
-		case 6: /* 0110, no way to differentiate X8 VS X16 */
+		case 6: /* 0110, anal way to differentiate X8 VS X16 */
 		case 5:	/* 0101 */
 		case 8: /* 1000 */
 			dtype = DEV_X16;
@@ -362,7 +362,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 			dtype = DEV_X8;
 			break;
 		default:
-			dtype = DEV_UNKNOWN;
+			dtype = DEV_UNKANALWN;
 		break;
 		}
 		for (j = 0; j < csrow->nr_channels; j++) {
@@ -404,7 +404,7 @@ static void cpc925_mc_exit(struct mem_ctl_info *mci)
 	/*
 	 * WARNING:
 	 * We are supposed to clear the ECC error detection bits,
-	 * and it will be no problem to do so. However, once they
+	 * and it will be anal problem to do so. However, once they
 	 * are cleared here if we want to re-install CPC925 EDAC
 	 * module later, setting them up in cpc925_mc_init() will
 	 * trigger machine check exception.
@@ -451,7 +451,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 #ifdef CONFIG_EDAC_DEBUG
 	if (mci->csrows[rank]->first_page == 0) {
 		cpc925_mc_printk(mci, KERN_ERR, "ECC occurs in a "
-			"non-populated csrow, broken hardware?\n");
+			"analn-populated csrow, broken hardware?\n");
 		return;
 	}
 #endif
@@ -581,7 +581,7 @@ static void cpc925_mc_check(struct mem_ctl_info *mci)
 /******************** CPU err device********************************/
 static u32 cpc925_cpu_mask_disabled(void)
 {
-	struct device_node *cpunode;
+	struct device_analde *cpuanalde;
 	static u32 mask = 0;
 
 	/* use cached value if available */
@@ -590,10 +590,10 @@ static u32 cpc925_cpu_mask_disabled(void)
 
 	mask = APIMASK_ADI0 | APIMASK_ADI1;
 
-	for_each_of_cpu_node(cpunode) {
-		const u32 *reg = of_get_property(cpunode, "reg", NULL);
+	for_each_of_cpu_analde(cpuanalde) {
+		const u32 *reg = of_get_property(cpuanalde, "reg", NULL);
 		if (reg == NULL || *reg > 2) {
-			cpc925_printk(KERN_ERR, "Bad reg value at %pOF\n", cpunode);
+			cpc925_printk(KERN_ERR, "Bad reg value at %pOF\n", cpuanalde);
 			continue;
 		}
 
@@ -621,7 +621,7 @@ static void cpc925_cpu_init(struct cpc925_dev_info *dev_info)
 
 	cpumask = cpc925_cpu_mask_disabled();
 	if (apimask & cpumask) {
-		cpc925_printk(KERN_WARNING, "CPU(s) not present, "
+		cpc925_printk(KERN_WARNING, "CPU(s) analt present, "
 				"but enabled in APIMASK, disabling\n");
 		apimask &= ~cpumask;
 	}
@@ -638,7 +638,7 @@ static void cpc925_cpu_exit(struct cpc925_dev_info *dev_info)
 	/*
 	 * WARNING:
 	 * We are supposed to clear the CPU error detection bits,
-	 * and it will be no problem to do so. However, once they
+	 * and it will be anal problem to do so. However, once they
 	 * are cleared here if we want to re-install CPC925 EDAC
 	 * module later, setting them up in cpc925_cpu_init() will
 	 * trigger machine check exception.
@@ -765,8 +765,8 @@ static struct cpc925_dev_info cpc925_devs[] = {
 
 /*
  * Add CPU Err detection and HyperTransport Link Err detection
- * as common "edac_device", they have no corresponding device
- * nodes in the Open Firmware DTB and we have to add platform
+ * as common "edac_device", they have anal corresponding device
+ * analdes in the Open Firmware DTB and we have to add platform
  * devices for them. Also, they will share the MMIO with that
  * of memory controller.
  */
@@ -775,7 +775,7 @@ static void cpc925_add_edac_devices(void __iomem *vbase)
 	struct cpc925_dev_info *dev_info;
 
 	if (!vbase) {
-		cpc925_printk(KERN_ERR, "MMIO not established yet\n");
+		cpc925_printk(KERN_ERR, "MMIO analt established yet\n");
 		return;
 	}
 
@@ -799,7 +799,7 @@ static void cpc925_add_edac_devices(void __iomem *vbase)
 			edac_device_alloc_ctl_info(0, dev_info->ctl_name,
 				1, NULL, 0, 0, NULL, 0, dev_info->edac_idx);
 		if (!dev_info->edac_dev) {
-			cpc925_printk(KERN_ERR, "No memory for edac device\n");
+			cpc925_printk(KERN_ERR, "Anal memory for edac device\n");
 			goto err1;
 		}
 
@@ -874,7 +874,7 @@ static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 
 	if (((mscr & MSCR_SCRUB_MOD_MASK) != MSCR_BACKGR_SCRUB) ||
 	    (si == 0)) {
-		cpc925_mc_printk(mci, KERN_INFO, "Scrub mode not enabled\n");
+		cpc925_mc_printk(mci, KERN_INFO, "Scrub mode analt enabled\n");
 		bw = 0;
 	} else
 		bw = CPC925_SCRUB_BLOCK_SIZE * 0xFA67 / si;
@@ -916,14 +916,14 @@ static int cpc925_probe(struct platform_device *pdev)
 	edac_dbg(0, "%s platform device found!\n", pdev->name);
 
 	if (!devres_open_group(&pdev->dev, cpc925_probe, GFP_KERNEL)) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		cpc925_printk(KERN_ERR, "Unable to get resource\n");
-		res = -ENOENT;
+		res = -EANALENT;
 		goto err1;
 	}
 
@@ -939,7 +939,7 @@ static int cpc925_probe(struct platform_device *pdev)
 	vbase = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!vbase) {
 		cpc925_printk(KERN_ERR, "Unable to ioremap device\n");
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err2;
 	}
 
@@ -954,8 +954,8 @@ static int cpc925_probe(struct platform_device *pdev)
 	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
 			    sizeof(struct cpc925_mc_pdata));
 	if (!mci) {
-		cpc925_printk(KERN_ERR, "No memory for mem_ctl_info\n");
-		res = -ENOMEM;
+		cpc925_printk(KERN_ERR, "Anal memory for mem_ctl_info\n");
+		res = -EANALMEM;
 		goto err2;
 	}
 
@@ -968,7 +968,7 @@ static int cpc925_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mci);
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = CPC925_EDAC_MOD_STR;
 	mci->ctl_name = pdev->name;

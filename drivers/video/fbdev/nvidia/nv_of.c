@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/nvidia/nv_of.c
  *
- * Copyright 2004 Antonino A. Daplas <adaplas @pol.net>
+ * Copyright 2004 Antonianal A. Daplas <adaplas @pol.net>
  *
  * Based on rivafb-i2c.c
  *
@@ -28,21 +28,21 @@
 int nvidia_probe_of_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
 	struct nvidia_par *par = info->par;
-	struct device_node *parent, *dp;
+	struct device_analde *parent, *dp;
 	const unsigned char *pedid = NULL;
 	static char *propnames[] = {
 		"DFP,EDID", "LCD,EDID", "EDID", "EDID1",
 		"EDID,B", "EDID,A", NULL };
 	int i;
 
-	parent = pci_device_to_OF_node(par->pci_dev);
+	parent = pci_device_to_OF_analde(par->pci_dev);
 	if (parent == NULL)
 		return -1;
 	if (par->twoHeads) {
 		const char *pname;
 		int len;
 
-		for_each_child_of_node(parent, dp) {
+		for_each_child_of_analde(parent, dp) {
 			pname = of_get_property(dp, "name", NULL);
 			if (!pname)
 				continue;
@@ -55,7 +55,7 @@ int nvidia_probe_of_connector(struct fb_info *info, int conn, u8 **out_edid)
 					if (pedid != NULL)
 						break;
 				}
-				of_node_put(dp);
+				of_analde_put(dp);
 				break;
 			}
 		}

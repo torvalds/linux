@@ -8,15 +8,15 @@ Machine checks report internal hardware error conditions detected
 by the CPU. Uncorrected errors typically cause a machine check
 (often with panic), corrected ones cause a machine check log entry.
 
-Machine checks are organized in banks (normally associated with
+Machine checks are organized in banks (analrmally associated with
 a hardware subsystem) and subevents in a bank. The exact meaning
 of the banks and subevent is CPU specific.
 
-mcelog knows how to decode them.
+mcelog kanalws how to decode them.
 
 When you see the "Machine check errors logged" message in the system
 log then mcelog should run to collect and decode machine check entries
-from /dev/mcelog. Normally mcelog should be run regularly from a cronjob.
+from /dev/mcelog. Analrmally mcelog should be run regularly from a cronjob.
 
 Each CPU has a directory in /sys/devices/system/machinecheck/machinecheckN
 (N = CPU number).

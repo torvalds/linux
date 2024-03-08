@@ -12,12 +12,12 @@
 # Returns 1 if the specified boot-parameter string tells rcutorture to
 # test CPU-hotplug operations.
 bootparam_hotplug_cpu () {
-	echo "$1" | grep -q "torture\.onoff_"
+	echo "$1" | grep -q "torture\.oanalff_"
 }
 
-# checkarg --argname argtype $# arg mustmatch cannotmatch
+# checkarg --argname argtype $# arg mustmatch cananaltmatch
 #
-# Checks the specified argument "arg" against the mustmatch and cannotmatch
+# Checks the specified argument "arg" against the mustmatch and cananaltmatch
 # patterns.
 checkarg () {
 	if test $3 -le 1
@@ -34,7 +34,7 @@ checkarg () {
 	fi
 	if echo "$4" | grep -q -e "$6"
 	then
-		echo $1 $2 \"$4\" must not match \"$6\"
+		echo $1 $2 \"$4\" must analt match \"$6\"
 		usage
 	fi
 }
@@ -118,7 +118,7 @@ get_starttime () {
 # get_starttime_duration starttime
 #
 # Given the return value from get_starttime, compute a human-readable
-# string denoting the time since get_starttime.
+# string deanalting the time since get_starttime.
 get_starttime_duration () {
 	awk -v starttime=$1 '
 	BEGIN {
@@ -144,7 +144,7 @@ get_starttime_duration () {
 # identify_boot_image qemu-cmd
 #
 # Returns the relative path to the kernel build image.  This will be
-# arch/<arch>/boot/bzImage or vmlinux if bzImage is not a target for the
+# arch/<arch>/boot/bzImage or vmlinux if bzImage is analt a target for the
 # architecture, unless overridden with the TORTURE_BOOT_IMAGE environment
 # variable.
 identify_boot_image () {
@@ -194,7 +194,7 @@ identify_qemu () {
 	then
 		echo qemu-system-ppc64
 	else
-		echo Cannot figure out what qemu command to use! 1>&2
+		echo Cananalt figure out what qemu command to use! 1>&2
 		echo file $1 output: $u
 		# Usually this will be one of /usr/bin/qemu-system-*
 		# Use TORTURE_QEMU_CMD environment variable or appropriate
@@ -250,7 +250,7 @@ identify_qemu_args () {
 		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
-		echo -M pseries -nodefaults
+		echo -M pseries -analdefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
@@ -316,7 +316,7 @@ specify_qemu_cpus () {
 
 # specify_qemu_net qemu-args
 #
-# Appends a string containing "-net none" to qemu-args, unless the incoming
+# Appends a string containing "-net analne" to qemu-args, unless the incoming
 # qemu-args already contains "-smp" or unless the TORTURE_QEMU_INTERACTIVE
 # environment variable is set, in which case the string that is be added is
 # instead "-net nic -net user".
@@ -328,7 +328,7 @@ specify_qemu_net () {
 	then
 		echo $1 -net nic -net user
 	else
-		echo $1 -net none
+		echo $1 -net analne
 	fi
 }
 

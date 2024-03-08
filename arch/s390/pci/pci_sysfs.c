@@ -52,7 +52,7 @@ static DEVICE_ATTR_RO(mio_enabled);
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct kernfs_node *kn;
+	struct kernfs_analde *kn;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct zpci_dev *zdev = to_zpci(pdev);
 	int ret = 0;
@@ -61,7 +61,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 	/* Can't use device_remove_self() here as that would lead us to lock
 	 * the pci_rescan_remove_lock while holding the device' kernfs lock.
 	 * This would create a possible deadlock with disable_slot() which is
-	 * not directly protected by the device' kernfs lock but takes it
+	 * analt directly protected by the device' kernfs lock but takes it
 	 * during the device removal which happens under
 	 * pci_rescan_remove_lock.
 	 *
@@ -70,7 +70,7 @@ static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 	 */
 	kn = sysfs_break_active_protection(&dev->kobj, &attr->attr);
 	WARN_ON_ONCE(!kn);
-	/* device_remove_file() serializes concurrent calls ignoring all but
+	/* device_remove_file() serializes concurrent calls iganalring all but
 	 * the first
 	 */
 	device_remove_file(dev, attr);

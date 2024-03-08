@@ -1,6 +1,6 @@
 Freescale SOC USB controllers
 
-The device node for a USB controller that is part of a Freescale
+The device analde for a USB controller that is part of a Freescale
 SOC is as described in the document "Open Firmware Recommended
 Practice : Universal Serial Bus" with the following modifications
 and additions :
@@ -25,7 +25,7 @@ Required properties :
    controllers.
  - dr_mode : indicates the working mode for "fsl-usb2-dr" compatible
    controllers.  Can be "host", "peripheral", or "otg".  Default to
-   "host" if not defined for backward compatibility.
+   "host" if analt defined for backward compatibility.
 
 Recommended properties :
  - interrupts : <a b> where a is the interrupt number and b is a
@@ -40,7 +40,7 @@ Optional properties :
  - fsl,invert-pwr-fault : boolean; for MPC5121 USB0 only. Indicates
    the PWR_FAULT signal polarity is inverted.
 
-Example multi port host USB controller device node :
+Example multi port host USB controller device analde :
 	usb@22000 {
 		compatible = "fsl-usb2-mph";
 		reg = <22000 1000>;
@@ -53,7 +53,7 @@ Example multi port host USB controller device node :
 		port1;
 	};
 
-Example dual role USB controller device node :
+Example dual role USB controller device analde :
 	usb@23000 {
 		compatible = "fsl-usb2-dr";
 		reg = <23000 1000>;
@@ -65,7 +65,7 @@ Example dual role USB controller device node :
 		phy = "ulpi";
 	};
 
-Example dual role USB controller device node for MPC5121ADS:
+Example dual role USB controller device analde for MPC5121ADS:
 
 	usb@4000 {
 		compatible = "fsl,mpc5121-usb2-dr";

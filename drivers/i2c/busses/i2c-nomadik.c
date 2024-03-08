@@ -3,7 +3,7 @@
  * Copyright (C) 2009 ST-Ericsson SA
  * Copyright (C) 2009 STMicroelectronics
  *
- * I2C master mode controller driver, used in Nomadik 8815
+ * I2C master mode controller driver, used in Analmadik 8815
  * and Ux500 platforms.
  *
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
@@ -118,7 +118,7 @@ struct i2c_vendor_data {
 };
 
 enum i2c_status {
-	I2C_NOP,
+	I2C_ANALP,
 	I2C_ON_GOING,
 	I2C_OK,
 	I2C_ABORT
@@ -126,7 +126,7 @@ enum i2c_status {
 
 /* operation */
 enum i2c_operation {
-	I2C_NO_OPERATION = 0xff,
+	I2C_ANAL_OPERATION = 0xff,
 	I2C_WRITE = 0x00,
 	I2C_READ = 0x01
 };
@@ -134,9 +134,9 @@ enum i2c_operation {
 /**
  * struct i2c_nmk_client - client specific data
  * @slave_adr: 7-bit slave address
- * @count: no. bytes to be transferred
+ * @count: anal. bytes to be transferred
  * @buffer: client data buffer
- * @xfer_bytes: bytes transferred till now
+ * @xfer_bytes: bytes transferred till analw
  * @operation: current I2C operation
  */
 struct i2c_nmk_client {
@@ -162,7 +162,7 @@ struct i2c_nmk_client {
  * @timeout: Slave response timeout (ms)
  * @sm: speed mode
  * @stop: stop condition.
- * @xfer_complete: acknowledge completion for a I2C message.
+ * @xfer_complete: ackanalwledge completion for a I2C message.
  * @result: controller propogated result.
  */
 struct nmk_i2c_dev {
@@ -185,8 +185,8 @@ struct nmk_i2c_dev {
 
 /* controller's abort causes */
 static const char *abort_causes[] = {
-	"no ack received after address transmission",
-	"no ack received during data phase",
+	"anal ack received after address transmission",
+	"anal ack received during data phase",
 	"ack received after xmission of master code",
 	"master lost arbitration",
 	"slave restarts",
@@ -221,7 +221,7 @@ static int flush_i2c_fifo(struct nmk_i2c_dev *dev)
 	 * flush the transmit and receive FIFO. The flushing
 	 * operation takes several cycles before to be completed.
 	 * On the completion, the I2C internal logic clears these
-	 * bits, until then no one must access Tx, Rx FIFO and
+	 * bits, until then anal one must access Tx, Rx FIFO and
 	 * should poll on these bits waiting for the completion.
 	 */
 	writel((I2C_CR_FTX | I2C_CR_FRX), dev->virtbase + I2C_CR);
@@ -283,7 +283,7 @@ static int init_hw(struct nmk_i2c_dev *dev)
 
 	clear_all_interrupts(dev);
 
-	dev->cli.operation = I2C_NO_OPERATION;
+	dev->cli.operation = I2C_ANAL_OPERATION;
 
 exit:
 	return stat;
@@ -321,7 +321,7 @@ static u32 load_i2c_mcr_reg(struct nmk_i2c_dev *dev, u16 flags)
 		mcr |= GEN_MASK(1, I2C_MCR_AM, 12);
 	}
 
-	/* start byte procedure not applied */
+	/* start byte procedure analt applied */
 	mcr |= GEN_MASK(0, I2C_MCR_SB, 11);
 
 	/* check the operation, master read/write? */
@@ -368,7 +368,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 	 * "wait one cycle"), the needed setup time for the three
 	 * modes are 250ns, 100ns, 10ns respectively.
 	 *
-	 * As the time for one cycle T in nanoseconds is
+	 * As the time for one cycle T in naanalseconds is
 	 * T = (1/f) * 1000000000 =>
 	 * slsu = cycles / (1000000000 / f) + 1
 	 */
@@ -402,7 +402,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 	 * generate the mask for baud rate counters. The controller
 	 * has two baud rate counters. One is used for High speed
 	 * operation, and the other is for std, fast mode, fast mode
-	 * plus operation. Currently we do not supprt high speed mode
+	 * plus operation. Currently we do analt supprt high speed mode
 	 * so set brcr1 to 0.
 	 */
 	brcr1 = 0 << 16;
@@ -419,7 +419,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
 	 */
 	if (dev->sm > I2C_FREQ_MODE_FAST) {
 		dev_err(&dev->adev->dev,
-			"do not support this mode defaulting to std. mode\n");
+			"do analt support this mode defaulting to std. mode\n");
 		brcr2 = i2c_clk / (I2C_MAX_STANDARD_MODE_FREQ * 2) & 0xffff;
 		writel((brcr1 | brcr2), dev->virtbase + I2C_BRCR);
 		writel(I2C_FREQ_MODE_STANDARD << 4,
@@ -438,7 +438,7 @@ static void setup_i2c_controller(struct nmk_i2c_dev *dev)
  * @flags: message flags
  *
  * This function reads from i2c client device when controller is in
- * master mode. There is a completion timeout. If there is no transfer
+ * master mode. There is a completion timeout. If there is anal transfer
  * before timeout error is returned.
  */
 static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
@@ -485,11 +485,11 @@ static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	return status;
 }
 
-static void fill_tx_fifo(struct nmk_i2c_dev *dev, int no_bytes)
+static void fill_tx_fifo(struct nmk_i2c_dev *dev, int anal_bytes)
 {
 	int count;
 
-	for (count = (no_bytes - 2);
+	for (count = (anal_bytes - 2);
 			(count > 0) &&
 			(dev->cli.count != 0);
 			count--) {
@@ -599,7 +599,7 @@ static int nmk_i2c_xfer_one(struct nmk_i2c_dev *dev, u16 flags)
 			cause =	(i2c_sr >> 4) & 0x7;
 			dev_err(&dev->adev->dev, "%s\n",
 				cause >= ARRAY_SIZE(abort_causes) ?
-				"unknown reason" :
+				"unkanalwn reason" :
 				abort_causes[cause]);
 		}
 
@@ -618,13 +618,13 @@ static int nmk_i2c_xfer_one(struct nmk_i2c_dev *dev, u16 flags)
  * @num_msgs: Number of messages to be executed
  *
  * This is the function called by the generic kernel i2c_transfer()
- * or i2c_smbus...() API calls. Note that this code is protected by the
+ * or i2c_smbus...() API calls. Analte that this code is protected by the
  * semaphore set in the kernel i2c_transfer() function.
  *
- * NOTE:
+ * ANALTE:
  * READ TRANSFER : We impose a restriction of the first message to be the
  *		index message for any read transaction.
- *		- a no index is coded as '0',
+ *		- a anal index is coded as '0',
  *		- 2byte big endian index is coded as '3'
  *		!!! msg[0].buf holds the actual index.
  *		This is compatible with generic messages of smbus emulator
@@ -690,7 +690,7 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	pm_runtime_put_sync(&dev->adev->dev);
 
-	/* return the no. messages processed */
+	/* return the anal. messages processed */
 	if (status)
 		return status;
 	else
@@ -938,10 +938,10 @@ static const struct i2c_algorithm nmk_i2c_algo = {
 	.functionality	= nmk_i2c_functionality
 };
 
-static void nmk_i2c_of_probe(struct device_node *np,
+static void nmk_i2c_of_probe(struct device_analde *np,
 			     struct nmk_i2c_dev *nmk)
 {
-	/* Default to 100 kHz if no frequency is given in the node */
+	/* Default to 100 kHz if anal frequency is given in the analde */
 	if (of_property_read_u32(np, "clock-frequency", &nmk->clk_freq))
 		nmk->clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
@@ -958,7 +958,7 @@ static void nmk_i2c_of_probe(struct device_node *np,
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
-	struct device_node *np = adev->dev.of_node;
+	struct device_analde *np = adev->dev.of_analde;
 	struct nmk_i2c_dev	*dev;
 	struct i2c_adapter *adap;
 	struct i2c_vendor_data *vendor = id->data;
@@ -966,7 +966,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	dev = devm_kzalloc(&adev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->vendor = vendor;
 	dev->adev = adev;
@@ -989,14 +989,14 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	dev->virtbase = devm_ioremap(&adev->dev, adev->res.start,
 				resource_size(&adev->res));
 	if (!dev->virtbase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->irq = adev->irq[0];
 	ret = devm_request_irq(&adev->dev, dev->irq, i2c_irq_handler, 0,
 				DRIVER_NAME, dev);
 	if (ret)
 		return dev_err_probe(&adev->dev, ret,
-				     "cannot claim the irq %d\n", dev->irq);
+				     "cananalt claim the irq %d\n", dev->irq);
 
 	dev->clk = devm_clk_get_enabled(&adev->dev, NULL);
 	if (IS_ERR(dev->clk))
@@ -1006,14 +1006,14 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	init_hw(dev);
 
 	adap = &dev->adap;
-	adap->dev.of_node = np;
+	adap->dev.of_analde = np;
 	adap->dev.parent = &adev->dev;
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
 	adap->algo = &nmk_i2c_algo;
 	adap->timeout = msecs_to_jiffies(dev->timeout);
 	snprintf(adap->name, sizeof(adap->name),
-		 "Nomadik I2C at %pR", &adev->res);
+		 "Analmadik I2C at %pR", &adev->res);
 
 	i2c_set_adapdata(adap, dev);
 
@@ -1094,5 +1094,5 @@ module_exit(nmk_i2c_exit);
 
 MODULE_AUTHOR("Sachin Verma");
 MODULE_AUTHOR("Srinidhi KASAGAR");
-MODULE_DESCRIPTION("Nomadik/Ux500 I2C driver");
+MODULE_DESCRIPTION("Analmadik/Ux500 I2C driver");
 MODULE_LICENSE("GPL");

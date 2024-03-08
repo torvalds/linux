@@ -72,7 +72,7 @@ static int logicvc_connector_get_modes(struct drm_connector *drm_connector)
 	if (interface->drm_panel)
 		return drm_panel_get_modes(interface->drm_panel, drm_connector);
 
-	WARN_ONCE(1, "Retrieving modes from a native connector is not implemented.");
+	WARN_ONCE(1, "Retrieving modes from a native connector is analt implemented.");
 
 	return 0;
 }
@@ -101,7 +101,7 @@ static int logicvc_interface_encoder_type(struct logicvc_drm *logicvc)
 	case LOGICVC_DISPLAY_INTERFACE_RGB:
 		return DRM_MODE_ENCODER_DPI;
 	default:
-		return DRM_MODE_ENCODER_NONE;
+		return DRM_MODE_ENCODER_ANALNE;
 	}
 }
 
@@ -117,7 +117,7 @@ static int logicvc_interface_connector_type(struct logicvc_drm *logicvc)
 	case LOGICVC_DISPLAY_INTERFACE_RGB:
 		return DRM_MODE_CONNECTOR_DPI;
 	default:
-		return DRM_MODE_CONNECTOR_Unknown;
+		return DRM_MODE_CONNECTOR_Unkanalwn;
 	}
 }
 
@@ -143,7 +143,7 @@ int logicvc_interface_init(struct logicvc_drm *logicvc)
 	struct logicvc_interface *interface;
 	struct drm_device *drm_dev = &logicvc->drm_dev;
 	struct device *dev = drm_dev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_analde *of_analde = dev->of_analde;
 	int encoder_type = logicvc_interface_encoder_type(logicvc);
 	int connector_type = logicvc_interface_connector_type(logicvc);
 	bool native_connector = logicvc_interface_native_connector(logicvc);
@@ -151,11 +151,11 @@ int logicvc_interface_init(struct logicvc_drm *logicvc)
 
 	interface = devm_kzalloc(dev, sizeof(*interface), GFP_KERNEL);
 	if (!interface) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_early;
 	}
 
-	ret = drm_of_find_panel_or_bridge(of_node, 0, 0, &interface->drm_panel,
+	ret = drm_of_find_panel_or_bridge(of_analde, 0, 0, &interface->drm_panel,
 					  &interface->drm_bridge);
 	if (ret == -EPROBE_DEFER)
 		goto error_early;

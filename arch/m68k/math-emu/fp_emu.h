@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -23,11 +23,11 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -60,8 +60,8 @@
 
 /* linkage for several useful functions */
 
-/* Normalize the extended struct, return 0 for a NaN */
-#define fp_normalize_ext(fpreg) ({				\
+/* Analrmalize the extended struct, return 0 for a NaN */
+#define fp_analrmalize_ext(fpreg) ({				\
 	register struct fp_ext *reg asm ("a0") = fpreg;		\
 	register int res asm ("d0");				\
 								\
@@ -77,14 +77,14 @@
 
 #define fp_monadic_check(dest, src) ({				\
 	fp_copy_ext(dest, src);					\
-	if (!fp_normalize_ext(dest))				\
+	if (!fp_analrmalize_ext(dest))				\
 		return dest;					\
 })
 
 #define fp_dyadic_check(dest, src) ({				\
-	if (!fp_normalize_ext(dest))				\
+	if (!fp_analrmalize_ext(dest))				\
 		return dest;					\
-	if (!fp_normalize_ext(src)) {				\
+	if (!fp_analrmalize_ext(src)) {				\
 		fp_copy_ext(dest, src);				\
 		return dest;					\
 	}							\

@@ -199,7 +199,7 @@ enum offs_rev {
 #define MT_LPON_TCR_SW_READ			GENMASK(1, 0)
 
 /* MIB: band 0(0x820ed000), band 1(0x820fd000), band 2(0x830ed000)*/
-/* These counters are (mostly?) clear-on-read.  So, some should not
+/* These counters are (mostly?) clear-on-read.  So, some should analt
  * be read at all in case firmware is already reading them.  These
  * are commented with 'DNR' below. The DNR stats will be read by querying
  * the firmware API for the appropriate message.  For counters the driver
@@ -365,7 +365,7 @@ enum offs_rev {
 #define MT_WF_RMAC_MIB_OBSS_BACKOFF		GENMASK(15, 0)
 
 #define MT_WF_RMAC_MIB_AIRTIME1(_band)		MT_WF_RMAC(_band, 0x0384)
-#define MT_WF_RMAC_MIB_NONQOSD_BACKOFF		GENMASK(31, 16)
+#define MT_WF_RMAC_MIB_ANALNQOSD_BACKOFF		GENMASK(31, 16)
 
 #define MT_WF_RMAC_MIB_AIRTIME3(_band)		MT_WF_RMAC(_band, 0x038c)
 #define MT_WF_RMAC_MIB_QOS01_BACKOFF		GENMASK(31, 0)
@@ -565,7 +565,7 @@ enum offs_rev {
 #define MT_MCU_CMD_STOP_DMA			BIT(2)
 #define MT_MCU_CMD_RESET_DONE			BIT(3)
 #define MT_MCU_CMD_RECOVERY_DONE		BIT(4)
-#define MT_MCU_CMD_NORMAL_STATE			BIT(5)
+#define MT_MCU_CMD_ANALRMAL_STATE			BIT(5)
 #define MT_MCU_CMD_ERROR_MASK			GENMASK(5, 1)
 
 #define MT_MCU_CMD_WA_WDT			BIT(31)
@@ -603,7 +603,7 @@ enum offs_rev {
 
 #define MT_SWDEF(ofs)				(MT_SWDEF_BASE + (ofs))
 #define MT_SWDEF_MODE				MT_SWDEF(0x3c)
-#define MT_SWDEF_NORMAL_MODE			0
+#define MT_SWDEF_ANALRMAL_MODE			0
 
 #define MT_SWDEF_SER_STATS			MT_SWDEF(0x040)
 #define MT_SWDEF_PLE_STATS			MT_SWDEF(0x044)

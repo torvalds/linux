@@ -10,7 +10,7 @@ The problem
 There is a problem with active restarts in autofs (that is to say
 restarting autofs when there are busy mounts).
 
-During normal operation autofs uses a file descriptor opened on the
+During analrmal operation autofs uses a file descriptor opened on the
 directory that is being managed in order to be able to issue control
 operations. Using a file descriptor gives ioctl operations access to
 autofs specific information stored in the super block. The operations
@@ -23,7 +23,7 @@ file descriptor for these operations if we don't already have one open.
 Currently autofs uses "umount -l" (lazy umount) to clear active mounts
 at restart. While using lazy umount works for most cases, anything that
 needs to walk back up the mount tree to construct a path, such as
-getcwd(2) and the proc file system /proc/<pid>/cwd, no longer works
+getcwd(2) and the proc file system /proc/<pid>/cwd, anal longer works
 because the point from which the path is constructed has been detached
 from the mount tree.
 
@@ -58,7 +58,7 @@ and the corresponding map files::
     and so on.
 
 For the above indirect map an autofs file system is mounted on /test and
-mounts are triggered for each sub-directory key by the inode lookup
+mounts are triggered for each sub-directory key by the ianalde lookup
 operation. So we see a mount of shark:/autofs/export1 on /test/g1, for
 example.
 
@@ -66,7 +66,7 @@ The way that direct mounts are handled is by making an autofs mount on
 each full path, such as /automount/dparse/g1, and using it as a mount
 trigger. So when we walk on the path we mount shark:/autofs/export1 "on
 top of this mount point". Since these are always directories we can
-use the follow_link inode operation to trigger the mount.
+use the follow_link ianalde operation to trigger the mount.
 
 But, each entry in direct and indirect maps can have offsets (making
 them multi-mount map entries).
@@ -91,9 +91,9 @@ and a similarly a direct mount map entry could also be::
 
 One of the issues with version 4 of autofs was that, when mounting an
 entry with a large number of offsets, possibly with nesting, we needed
-to mount and umount all of the offsets as a single unit. Not really a
+to mount and umount all of the offsets as a single unit. Analt really a
 problem, except for people with a large number of offsets in map entries.
-This mechanism is used for the well known "hosts" map and we have seen
+This mechanism is used for the well kanalwn "hosts" map and we have seen
 cases (in 2.4) where the available number of mounts are exhausted or
 where the number of privileged ports available is exhausted.
 
@@ -133,27 +133,27 @@ problems with the existing interface have been addressed. First, when
 a mount or expire operation completes a status is returned to the
 kernel by either a "send ready" or a "send fail" operation. The
 "send fail" operation of the ioctl interface could only ever send
-ENOENT so the re-implementation allows user space to send an actual
-status. Another expensive operation in user space, for those using
+EANALENT so the re-implementation allows user space to send an actual
+status. Aanalther expensive operation in user space, for those using
 very large maps, is discovering if a mount is present. Usually this
 involves scanning /proc/mounts and since it needs to be done quite
 often it can introduce significant overhead when there are many entries
 in the mount table. An operation to lookup the mount status of a mount
-point dentry (covered or not) has also been added.
+point dentry (covered or analt) has also been added.
 
 Current kernel development policy recommends avoiding the use of the
 ioctl mechanism in favor of systems such as Netlink. An implementation
 using this system was attempted to evaluate its suitability and it was
 found to be inadequate, in this case. The Generic Netlink system was
 used for this as raw Netlink would lead to a significant increase in
-complexity. There's no question that the Generic Netlink system is an
-elegant solution for common case ioctl functions but it's not a complete
+complexity. There's anal question that the Generic Netlink system is an
+elegant solution for common case ioctl functions but it's analt a complete
 replacement probably because its primary purpose in life is to be a
 message bus implementation rather than specifically an ioctl replacement.
 While it would be possible to work around this there is one concern
-that lead to the decision to not use it. This is that the autofs
+that lead to the decision to analt use it. This is that the autofs
 expire in the daemon has become far to complex because umount
-candidates are enumerated, almost for no other reason than to "count"
+candidates are enumerated, almost for anal other reason than to "count"
 the number of times to call the expire ioctl. This involves scanning
 the mount table which has proved to be a big overhead for users with
 large maps. The best way to improve this is try and get back to the
@@ -169,14 +169,14 @@ message bus architecture.
 autofs Miscellaneous Device mount control interface
 ====================================================
 
-The control interface is opening a device node, typically /dev/autofs.
+The control interface is opening a device analde, typically /dev/autofs.
 
 All the ioctls use a common structure to pass the needed parameter
 information and return operation results::
 
     struct autofs_dev_ioctl {
 	    __u32 ver_major;
-	    __u32 ver_minor;
+	    __u32 ver_mianalr;
 	    __u32 size;             /* total size of data passed in
 				    * including this struct */
 	    __s32 ioctlfd;          /* automount command fd */
@@ -218,7 +218,7 @@ the void function call init_autofs_dev_ioctl(``struct autofs_dev_ioctl *``).
 
 All of the ioctls perform a copy of this structure from user space to
 kernel space and return -EINVAL if the size parameter is smaller than
-the structure size itself, -ENOMEM if the kernel memory allocation fails
+the structure size itself, -EANALMEM if the kernel memory allocation fails
 or -EFAULT if the copy itself fails. Other checks include a version check
 of the compiled in user space version against the module version and a
 mismatch results in a -EINVAL return. If the size field is greater than
@@ -227,8 +227,8 @@ ensure it begins with a "/" and is NULL terminated, otherwise -EINVAL is
 returned. Following these checks, for all ioctl commands except
 AUTOFS_DEV_IOCTL_VERSION_CMD, AUTOFS_DEV_IOCTL_OPENMOUNT_CMD and
 AUTOFS_DEV_IOCTL_CLOSEMOUNT_CMD the ioctlfd is validated and if it is
-not a valid descriptor or doesn't correspond to an autofs mount point
-an error of -EBADF, -ENOTTY or -EINVAL (not an autofs descriptor) is
+analt a valid descriptor or doesn't correspond to an autofs mount point
+an error of -EBADF, -EANALTTY or -EINVAL (analt an autofs descriptor) is
 returned.
 
 
@@ -240,13 +240,13 @@ in autofs version 5.0.4 and later in file lib/dev-ioctl-lib.c of the
 distribution tar available for download from kernel.org in directory
 /pub/linux/daemons/autofs/v5.
 
-The device node ioctl operations implemented by this interface are:
+The device analde ioctl operations implemented by this interface are:
 
 
 AUTOFS_DEV_IOCTL_VERSION
 ------------------------
 
-Get the major and minor version of the autofs device ioctl kernel module
+Get the major and mianalr version of the autofs device ioctl kernel module
 implementation. It requires an initialized struct autofs_dev_ioctl as an
 input parameter and sets the version information in the passed in structure.
 It returns 0 on success or the error -EINVAL if a version mismatch is
@@ -256,7 +256,7 @@ detected.
 AUTOFS_DEV_IOCTL_PROTOVER_CMD and AUTOFS_DEV_IOCTL_PROTOSUBVER_CMD
 ------------------------------------------------------------------
 
-Get the major and minor version of the autofs protocol version understood
+Get the major and mianalr version of the autofs protocol version understood
 by loaded module. This call requires an initialized struct autofs_dev_ioctl
 with the ioctlfd field set to a valid autofs mount point descriptor
 and sets the requested version number in version field of struct args_protover
@@ -289,14 +289,14 @@ with the ioctlfd field set to the descriptor obtained from the open
 call and the token field of struct args_ready or struct args_fail set
 to the wait queue token number, received by user space in the foregoing
 mount or expire request. The status field of struct args_fail is set to
-the errno of the operation. It is set to 0 on success.
+the erranal of the operation. It is set to 0 on success.
 
 
 AUTOFS_DEV_IOCTL_SETPIPEFD_CMD
 ------------------------------
 
 Set the pipe file descriptor used for kernel communication to the daemon.
-Normally this is set at mount time using an option but when reconnecting
+Analrmally this is set at mount time using an option but when reconnecting
 to a existing mount we need to use this to tell the autofs mount about
 the new kernel pipe descriptor. In order to protect mounts against
 incorrectly setting the pipe descriptor we also require that the autofs
@@ -313,7 +313,7 @@ group of the caller.
 AUTOFS_DEV_IOCTL_CATATONIC_CMD
 ------------------------------
 
-Make the autofs mount point catatonic. The autofs mount will no longer
+Make the autofs mount point catatonic. The autofs mount will anal longer
 issue mount requests, the kernel communication pipe descriptor is released
 and any remaining waits in the queue released.
 
@@ -352,15 +352,15 @@ AUTOFS_DEV_IOCTL_EXPIRE_CMD
 ---------------------------
 
 Issue an expire request to the kernel for an autofs mount. Typically
-this ioctl is called until no further expire candidates are found.
+this ioctl is called until anal further expire candidates are found.
 
 The call requires an initialized struct autofs_dev_ioctl with the
 ioctlfd field set to the descriptor obtained from the open call. In
 addition an immediate expire that's independent of the mount timeout,
 and a forced expire that's independent of whether the mount is busy,
 can be requested by setting the how field of struct args_expire to
-AUTOFS_EXP_IMMEDIATE or AUTOFS_EXP_FORCED, respectively . If no
-expire candidates can be found the ioctl returns -1 with errno set to
+AUTOFS_EXP_IMMEDIATE or AUTOFS_EXP_FORCED, respectively . If anal
+expire candidates can be found the ioctl returns -1 with erranal set to
 EAGAIN.
 
 This call causes the kernel module to check the mount corresponding
@@ -395,7 +395,7 @@ it isn't a mountpoint. In both cases the device number (as returned
 by new_encode_dev()) is returned in out.devid field.
 
 If supplied with a file descriptor we're looking for a specific mount,
-not necessarily at the top of the mounted stack. In this case the path
+analt necessarily at the top of the mounted stack. In this case the path
 the descriptor corresponds to is considered a mountpoint if it is itself
 a mountpoint or contains a mount, such as a multi-mount without a root
 mount. In this case we return 1 if the descriptor corresponds to a mount

@@ -81,18 +81,18 @@ struct tegra20_das {
 };
 
 /*
- * Terminology:
+ * Termianallogy:
  * DAS: Digital audio switch (HW module controlled by this driver)
  * DAP: Digital audio port (port/pins on Tegra device)
  * DAC: Digital audio controller (e.g. I2S or AC97 controller elsewhere)
  *
  * The Tegra DAS is a mux/cross-bar which can connect each DAP to a specific
- * DAC, or another DAP. When DAPs are connected, one must be the master and
+ * DAC, or aanalther DAP. When DAPs are connected, one must be the master and
  * one the slave. Each DAC allows selection of a specific DAP for input, to
  * cater for the case where N DAPs are connected to 1 DAC for broadcast
  * output.
  *
- * This driver is dumb; no attempt is made to ensure that a valid routing
+ * This driver is dumb; anal attempt is made to ensure that a valid routing
  * configuration is programmed.
  */
 
@@ -159,7 +159,7 @@ static int tegra20_das_probe(struct platform_device *pdev)
 
 	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
 	if (!das)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))

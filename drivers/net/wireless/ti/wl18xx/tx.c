@@ -86,7 +86,7 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 	}
 
 	/* update the TX status info */
-	if (tx_success && !(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (tx_success && !(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	/*
 	 * first pass info->control.vif while it's valid, and then fill out
@@ -97,7 +97,7 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 				&info->status.rates[0],
 				tx_desc->hlid);
 
-	info->status.rates[0].count = 1; /* no data about retries */
+	info->status.rates[0].count = 1; /* anal data about retries */
 	info->status.ack_signal = -1;
 
 	if (!tx_success)
@@ -105,7 +105,7 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 
 	/*
 	 * TODO: update sequence number for encryption? seems to be
-	 * unsupported for now. needed for recovery with encryption.
+	 * unsupported for analw. needed for recovery with encryption.
 	 */
 
 	/* remove private header from packet */
@@ -136,7 +136,7 @@ void wl18xx_tx_immediate_complete(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 	u8 i, hlid;
 
-	/* nothing to do here */
+	/* analthing to do here */
 	if (priv->last_fw_rls_idx == status_priv->fw_release_idx)
 		return;
 

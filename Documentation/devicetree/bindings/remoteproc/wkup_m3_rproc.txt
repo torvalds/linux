@@ -3,14 +3,14 @@ TI Wakeup M3 Remoteproc Driver
 
 The TI AM33xx and AM43xx family of devices use a small Cortex M3 co-processor
 (commonly referred to as Wakeup M3 or CM3) to help with various low power tasks
-that cannot be controlled from the MPU. This CM3 processor requires a firmware
+that cananalt be controlled from the MPU. This CM3 processor requires a firmware
 binary to accomplish this. The wkup_m3 remoteproc driver handles the loading of
 the firmware and booting of the CM3.
 
-Wkup M3 Device Node:
+Wkup M3 Device Analde:
 ====================
-A wkup_m3 device node is used to represent the Wakeup M3 processor instance
-within the SoC. It is added as a child node of the parent interconnect bus
+A wkup_m3 device analde is used to represent the Wakeup M3 processor instance
+within the SoC. It is added as a child analde of the parent interconnect bus
 (l4_wkup) through which it is accessible to the MPU.
 
 Required properties:
@@ -19,7 +19,7 @@ Required properties:
 				"ti,am3352-wkup-m3" for AM33xx SoCs
 				"ti,am4372-wkup-m3" for AM43xx SoCs
 - reg:			Should contain the address ranges for the two internal
-			memory regions, UMEM and DMEM. The parent node should
+			memory regions, UMEM and DMEM. The parent analde should
 			provide an appropriate ranges property for properly
 			translating these into bus addresses.
 - reg-names:		Contains the corresponding names for the two memory

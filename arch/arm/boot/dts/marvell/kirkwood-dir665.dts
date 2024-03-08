@@ -81,7 +81,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "mxicy,mx25l12805d", "jedec,spi-nor";
+				compatible = "mxicy,mx25l12805d", "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				reg = <0>;
 
@@ -262,8 +262,8 @@
 	status = "disabled";
 };
 
-/* There is no battery on the boards, so the RTC does not keep time
- * when there is no power, making it useless. */
+/* There is anal battery on the boards, so the RTC does analt keep time
+ * when there is anal power, making it useless. */
 &rtc {
 	status = "disabled";
 };

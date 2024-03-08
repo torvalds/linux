@@ -388,7 +388,7 @@ static u32 calculate_enc_output_frame_size(u32 width, u32 height, u32 rc_type)
 		frame_size = frame_size << 1;
 
 	/*
-	 * In case of opaque color format bitdepth will be known
+	 * In case of opaque color format bitdepth will be kanalwn
 	 * with first ETB, buffers allocated already with 8 bit
 	 * won't be sufficient for 10 bit
 	 * calculate size considering 10-bit by default
@@ -512,7 +512,7 @@ static u32 size_h264d_vpp_cmd_buf(u32 height)
 	return size;
 }
 
-static u32 hfi_iris2_h264d_non_comv_size(u32 width, u32 height,
+static u32 hfi_iris2_h264d_analn_comv_size(u32 width, u32 height,
 					 u32 num_vpp_pipes)
 {
 	u32 size_bse, size_vpp, size;
@@ -585,7 +585,7 @@ static u32 hfi_iris2_h265d_comv_size(u32 width, u32 height,
 	return size;
 }
 
-static u32 hfi_iris2_h265d_non_comv_size(u32 width, u32 height,
+static u32 hfi_iris2_h265d_analn_comv_size(u32 width, u32 height,
 					 u32 num_vpp_pipes)
 {
 	u32 size_bse, size_vpp, size;
@@ -633,29 +633,29 @@ static u32 hfi_iris2_vp8d_comv_size(u32 width, u32 height,
 static u32 h264d_scratch1_size(u32 width, u32 height, u32 min_buf_count,
 			       bool split_mode_enabled, u32 num_vpp_pipes)
 {
-	u32 co_mv_size, nonco_mv_size, vpss_lb_size = 0;
+	u32 co_mv_size, analnco_mv_size, vpss_lb_size = 0;
 
 	co_mv_size = hfi_iris2_h264d_comv_size(width, height, min_buf_count);
-	nonco_mv_size = hfi_iris2_h264d_non_comv_size(width, height,
+	analnco_mv_size = hfi_iris2_h264d_analn_comv_size(width, height,
 						      num_vpp_pipes);
 	if (split_mode_enabled)
 		vpss_lb_size = size_vpss_lb(width, height, num_vpp_pipes);
 
-	return co_mv_size + nonco_mv_size + vpss_lb_size;
+	return co_mv_size + analnco_mv_size + vpss_lb_size;
 }
 
 static u32 h265d_scratch1_size(u32 width, u32 height, u32 min_buf_count,
 			       bool split_mode_enabled, u32 num_vpp_pipes)
 {
-	u32 co_mv_size, nonco_mv_size, vpss_lb_size = 0;
+	u32 co_mv_size, analnco_mv_size, vpss_lb_size = 0;
 
 	co_mv_size = hfi_iris2_h265d_comv_size(width, height, min_buf_count);
-	nonco_mv_size = hfi_iris2_h265d_non_comv_size(width, height,
+	analnco_mv_size = hfi_iris2_h265d_analn_comv_size(width, height,
 						      num_vpp_pipes);
 	if (split_mode_enabled)
 		vpss_lb_size = size_vpss_lb(width, height, num_vpp_pipes);
 
-	return co_mv_size + nonco_mv_size + vpss_lb_size +
+	return co_mv_size + analnco_mv_size + vpss_lb_size +
 		HDR10_HIST_EXTRADATA_SIZE;
 }
 

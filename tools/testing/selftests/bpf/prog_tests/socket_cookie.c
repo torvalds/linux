@@ -46,11 +46,11 @@ void test_socket_cookie(void)
 		goto close_cgroup_fd;
 
 	server_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
-	if (CHECK(server_fd < 0, "start_server", "errno %d\n", errno))
+	if (CHECK(server_fd < 0, "start_server", "erranal %d\n", erranal))
 		goto close_cgroup_fd;
 
 	client_fd = connect_to_fd(server_fd, 0);
-	if (CHECK(client_fd < 0, "connect_to_fd", "errno %d\n", errno))
+	if (CHECK(client_fd < 0, "connect_to_fd", "erranal %d\n", erranal))
 		goto close_server_fd;
 
 	err = bpf_map_lookup_elem(bpf_map__fd(skel->maps.socket_cookies),

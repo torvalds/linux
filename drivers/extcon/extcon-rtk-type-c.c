@@ -76,7 +76,7 @@ struct type_c_data {
 	/* type_c state */
 	int connect_change;
 #define CONNECT_CHANGE 1
-#define CONNECT_NO_CHANGE 0
+#define CONNECT_ANAL_CHANGE 0
 	int cc_mode; /* cc is host or device */
 #define IN_HOST_MODE 0x10
 #define IN_DEVICE_MODE 0x20
@@ -224,11 +224,11 @@ enum parameter_version {
 static const unsigned int usb_type_c_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 enum usb_data_roles {
-	DR_NONE,
+	DR_ANALNE,
 	DR_HOST,
 	DR_DEVICE,
 };
@@ -309,7 +309,7 @@ static void switch_type_c_dr_mode(struct type_c_data *type_c, int dr_mode, int c
 		vbus = true;
 		break;
 	default:
-		dev_dbg(type_c->dev, "%s dr_mode=%d ==> no host or device\n",
+		dev_dbg(type_c->dev, "%s dr_mode=%d ==> anal host or device\n",
 			__func__, dr_mode);
 		break;
 	}
@@ -356,7 +356,7 @@ static void switch_type_c_dr_mode(struct type_c_data *type_c, int dr_mode, int c
 			typec_set_pwr_role(type_c->port, TYPEC_SINK);
 			break;
 		default:
-			dev_dbg(type_c->dev, "%s unknown dr_mode=%d\n",
+			dev_dbg(type_c->dev, "%s unkanalwn dr_mode=%d\n",
 				__func__, dr_mode);
 			break;
 		}
@@ -470,7 +470,7 @@ static int detect_type_c_state(struct type_c_data *type_c)
 	int_status = readl(reg_base + USB_TYPEC_CTRL);
 	cc_status = readl(reg_base + USB_TYPEC_STS);
 
-	type_c->connect_change = CONNECT_NO_CHANGE;
+	type_c->connect_change = CONNECT_ANAL_CHANGE;
 
 	switch (type_c->cc_mode | type_c->is_attach) {
 	case IN_HOST_MODE | IN_ATTACH:
@@ -620,7 +620,7 @@ static void host_device_switch(struct work_struct *work)
 		cc_mode = type_c->cc_mode;
 		is_attach = type_c->is_attach;
 		at_cc1 = type_c->at_cc1;
-		type_c->connect_change = CONNECT_NO_CHANGE;
+		type_c->connect_change = CONNECT_ANAL_CHANGE;
 	} else {
 		host_device_switch_detection(type_c);
 
@@ -647,7 +647,7 @@ static void host_device_switch(struct work_struct *work)
 		else
 			connector_detached(type_c, DISABLE_CC, USB_DR_MODE_PERIPHERAL);
 	} else {
-		dev_err(dev, "Error: IN unknown mode %d to %s at %s (cc_status=0x%x)\n",
+		dev_err(dev, "Error: IN unkanalwn mode %d to %s at %s (cc_status=0x%x)\n",
 			cc_mode, is_attach ? "attach" : "detach",
 			at_cc1 ? "cc1" : "cc2", type_c->cc_status);
 	}
@@ -684,7 +684,7 @@ static irqreturn_t type_c_detect_irq(int irq, void *__data)
 	} else {
 		static int local_count;
 
-		/* if no connect_change, we keep the status to avoid status lose */
+		/* if anal connect_change, we keep the status to avoid status lose */
 		if (local_count++ > 10) {
 			/* clear interrupt status */
 			writel(~ALL_CC_INT_STS & readl(reg), reg);
@@ -789,9 +789,9 @@ static int type_c_parameter_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int type_c_parameter_open(struct inode *inode, struct file *file)
+static int type_c_parameter_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, type_c_parameter_show, inode->i_private);
+	return single_open(file, type_c_parameter_show, ianalde->i_private);
 }
 
 static const struct file_operations type_c_parameter_fops = {
@@ -831,9 +831,9 @@ static int type_c_status_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int type_c_status_open(struct inode *inode, struct file *file)
+static int type_c_status_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, type_c_status_show, inode->i_private);
+	return single_open(file, type_c_status_show, ianalde->i_private);
 }
 
 static const struct file_operations type_c_status_fops = {
@@ -1129,7 +1129,7 @@ static int setup_type_c_parameter(struct type_c_data *type_c)
 		type_c->dfp_mode_rp_en = dfp_mode(CC_MODE_DFP_3_0) | EN_RP4P7K;
 		break;
 	default:
-		dev_err(type_c->dev, "%s: unknown cc_dfp_mode %d\n",
+		dev_err(type_c->dev, "%s: unkanalwn cc_dfp_mode %d\n",
 			__func__, type_c_cfg->cc_dfp_mode);
 	}
 
@@ -1160,7 +1160,7 @@ static int setup_type_c_parameter(struct type_c_data *type_c)
 				   V1_vref_1_1p6v(cc_param->vref_1_1p6v) |
 				   V1_vref_0_1p6v(cc_param->vref_0_1p6v);
 	else
-		dev_err(type_c->dev, "%s: unknown parameter_ver %d\n",
+		dev_err(type_c->dev, "%s: unkanalwn parameter_ver %d\n",
 			__func__, type_c_cfg->parameter_ver);
 
 	cc_param = &type_c_cfg->cc2_param;
@@ -1188,7 +1188,7 @@ static int setup_type_c_parameter(struct type_c_data *type_c)
 				   V1_vref_1_1p6v(cc_param->vref_1_1p6v) |
 				   V1_vref_0_1p6v(cc_param->vref_0_1p6v);
 	else
-		dev_err(type_c->dev, "%s: unknown parameter_ver %d\n",
+		dev_err(type_c->dev, "%s: unkanalwn parameter_ver %d\n",
 			__func__, type_c_cfg->parameter_ver);
 
 	type_c->debounce = (type_c_cfg->debounce_val << 1) | DEBOUNCE_EN;
@@ -1228,7 +1228,7 @@ static int extcon_rtk_type_c_init(struct type_c_data *type_c)
 	dev_info(dev, "First check USB_DR_MODE_PERIPHERAL");
 	type_c->cc_mode = IN_DEVICE_MODE;
 	type_c->is_attach = IN_DETACH;
-	type_c->connect_change = CONNECT_NO_CHANGE;
+	type_c->connect_change = CONNECT_ANAL_CHANGE;
 
 	detect_host(type_c);
 
@@ -1238,22 +1238,22 @@ static int extcon_rtk_type_c_init(struct type_c_data *type_c)
 
 	if (!type_c->port) {
 		struct typec_capability typec_cap = { };
-		struct fwnode_handle *fwnode;
+		struct fwanalde_handle *fwanalde;
 		const char *buf;
 		int ret;
 
 		typec_cap.revision = USB_TYPEC_REV_1_0;
-		typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+		typec_cap.prefer_role = TYPEC_ANAL_PREFERRED_ROLE;
 		typec_cap.driver_data = type_c;
 		typec_cap.ops = &type_c_port_ops;
 
-		fwnode = device_get_named_child_node(dev, "connector");
-		if (!fwnode)
+		fwanalde = device_get_named_child_analde(dev, "connector");
+		if (!fwanalde)
 			return -EINVAL;
 
-		ret = fwnode_property_read_string(fwnode, "power-role", &buf);
+		ret = fwanalde_property_read_string(fwanalde, "power-role", &buf);
 		if (ret) {
-			dev_err(dev, "power-role not found: %d\n", ret);
+			dev_err(dev, "power-role analt found: %d\n", ret);
 			return ret;
 		}
 
@@ -1262,9 +1262,9 @@ static int extcon_rtk_type_c_init(struct type_c_data *type_c)
 			return ret;
 		typec_cap.type = ret;
 
-		ret = fwnode_property_read_string(fwnode, "data-role", &buf);
+		ret = fwanalde_property_read_string(fwanalde, "data-role", &buf);
 		if (ret) {
-			dev_err(dev, "data-role not found: %d\n", ret);
+			dev_err(dev, "data-role analt found: %d\n", ret);
 			return ret;
 		}
 
@@ -1289,7 +1289,7 @@ static int extcon_rtk_type_c_edev_register(struct type_c_data *type_c)
 	type_c->edev = devm_extcon_dev_allocate(dev, usb_type_c_cable);
 	if (IS_ERR(type_c->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = devm_extcon_dev_register(dev, type_c->edev);
@@ -1324,7 +1324,7 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 
 	type_c = devm_kzalloc(dev, sizeof(*type_c), GFP_KERNEL);
 	if (!type_c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	type_c->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(type_c->reg_base))
@@ -1332,11 +1332,11 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 
 	type_c->dev = dev;
 
-	type_c->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	type_c->irq = irq_of_parse_and_map(pdev->dev.of_analde, 0);
 	if (type_c->irq <= 0) {
-		dev_err(&pdev->dev, "Type C driver with no IRQ. Check %s setup!\n",
+		dev_err(&pdev->dev, "Type C driver with anal IRQ. Check %s setup!\n",
 			dev_name(&pdev->dev));
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 
@@ -1349,11 +1349,11 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 	if (soc_device_match(rtk_soc_kylin)) {
 		struct gpio_desc *gpio;
 
-		gpio = fwnode_gpiod_get_index(of_fwnode_handle(dev->of_node),
+		gpio = fwanalde_gpiod_get_index(of_fwanalde_handle(dev->of_analde),
 					      "realtek,rd-ctrl-gpios",
 					      0, GPIOD_OUT_HIGH, "rd-ctrl-gpio");
 		if (IS_ERR(gpio)) {
-			dev_err(dev, "Error rd_ctrl-gpios no found (err=%d)\n",
+			dev_err(dev, "Error rd_ctrl-gpios anal found (err=%d)\n",
 				(int)PTR_ERR(gpio));
 		} else {
 			type_c->rd_ctrl_gpio_desc = gpio;
@@ -1364,7 +1364,7 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 
 	type_c_cfg = of_device_get_match_data(dev);
 	if (!type_c_cfg) {
-		dev_err(dev, "type_c config are not assigned!\n");
+		dev_err(dev, "type_c config are analt assigned!\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1742,12 +1742,12 @@ static int extcon_rtk_type_c_prepare(struct device *dev)
 
 static void extcon_rtk_type_c_complete(struct device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static int extcon_rtk_type_c_suspend(struct device *dev)
 {
-	/* nothing */
+	/* analthing */
 
 	return 0;
 }

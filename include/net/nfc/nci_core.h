@@ -9,7 +9,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackanalwledgements:
  *  This file is based on hci_core.h, which was written
  *  by Maxim Krasnyansky.
  */
@@ -133,19 +133,19 @@ struct nci_conn_info {
 
 /* Generic responses */
 #define NCI_HCI_ANY_OK                     0x00
-#define NCI_HCI_ANY_E_NOT_CONNECTED        0x01
-#define NCI_HCI_ANY_E_CMD_PAR_UNKNOWN      0x02
-#define NCI_HCI_ANY_E_NOK                  0x03
+#define NCI_HCI_ANY_E_ANALT_CONNECTED        0x01
+#define NCI_HCI_ANY_E_CMD_PAR_UNKANALWN      0x02
+#define NCI_HCI_ANY_E_ANALK                  0x03
 #define NCI_HCI_ANY_E_PIPES_FULL           0x04
-#define NCI_HCI_ANY_E_REG_PAR_UNKNOWN      0x05
-#define NCI_HCI_ANY_E_PIPE_NOT_OPENED      0x06
-#define NCI_HCI_ANY_E_CMD_NOT_SUPPORTED    0x07
+#define NCI_HCI_ANY_E_REG_PAR_UNKANALWN      0x05
+#define NCI_HCI_ANY_E_PIPE_ANALT_OPENED      0x06
+#define NCI_HCI_ANY_E_CMD_ANALT_SUPPORTED    0x07
 #define NCI_HCI_ANY_E_INHIBITED            0x08
 #define NCI_HCI_ANY_E_TIMEOUT              0x09
 #define NCI_HCI_ANY_E_REG_ACCESS_DENIED    0x0a
 #define NCI_HCI_ANY_E_PIPE_ACCESS_DENIED   0x0b
 
-#define NCI_HCI_DO_NOT_OPEN_PIPE           0x81
+#define NCI_HCI_DO_ANALT_OPEN_PIPE           0x81
 #define NCI_HCI_INVALID_PIPE               0x80
 #define NCI_HCI_INVALID_GATE               0xFF
 #define NCI_HCI_INVALID_HOST               0x80
@@ -384,9 +384,9 @@ int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
 					  const struct dest_spec_params *params);
 
 /* ----- NCI status code ----- */
-int nci_to_errno(__u8 code);
+int nci_to_erranal(__u8 code);
 
-/* ----- NCI over SPI acknowledge modes ----- */
+/* ----- NCI over SPI ackanalwledge modes ----- */
 #define NCI_SPI_CRC_DISABLED	0x00
 #define NCI_SPI_CRC_ENABLED	0x01
 
@@ -403,7 +403,7 @@ struct nci_spi {
 						* 0 => default clock
 						*/
 
-	u8			acknowledge_mode;
+	u8			ackanalwledge_mode;
 
 	struct completion	req_completion;
 	u8			req_result;
@@ -411,7 +411,7 @@ struct nci_spi {
 
 /* ----- NCI SPI ----- */
 struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
-				     u8 acknowledge_mode, unsigned int delay,
+				     u8 ackanalwledge_mode, unsigned int delay,
 				     struct nci_dev *ndev);
 int nci_spi_send(struct nci_spi *nspi,
 		 struct completion *write_handshake_completion,

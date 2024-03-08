@@ -2,7 +2,7 @@
 /*
  * Toshiba CT-90405 remote controller keytable
  *
- * Copyright (C) 2021 Alexander Voronov <avv.0@ya.ru>
+ * Copyright (C) 2021 Alexander Voroanalv <avv.0@ya.ru>
  */
 
 #include <media/rc-map.h>
@@ -83,5 +83,5 @@ module_init(init_rc_map_ct_90405)
 module_exit(exit_rc_map_ct_90405)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alexander Voronov <avv.0@ya.ru>");
+MODULE_AUTHOR("Alexander Voroanalv <avv.0@ya.ru>");
 MODULE_DESCRIPTION("Toshiba CT-90405 remote controller keytable");

@@ -8,13 +8,13 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * them Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTIBILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTIBILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -55,14 +55,14 @@ static void vgem_fence_release(struct dma_fence *base)
 
 static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%llu", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqanal);
 }
 
 static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
 	snprintf(str, size, "%llu",
-		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
+		 dma_fence_is_signaled(fence) ? fence->seqanal : 0);
 }
 
 static const struct dma_fence_ops vgem_fence_ops = {
@@ -111,7 +111,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
  * vGEM buffer is being written to by the client and is exposed as an exclusive
  * fence, otherwise the fence indicates the client is current reading from the
  * buffer and all future writes should wait for the client to signal its
- * completion. Note that if a conflicting fence is already on the dma-buf (i.e.
+ * completion. Analte that if a conflicting fence is already on the dma-buf (i.e.
  * an exclusive fence when adding a read, or any fence when adding a write),
  * -EBUSY is reported. Serialisation between operations should be handled
  * by waiting upon the dma-buf.
@@ -120,7 +120,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
  * seconds (or otherwise it will automatically expire). See
  * vgem_fence_signal_ioctl (DRM_IOCTL_VGEM_FENCE_SIGNAL).
  *
- * If the vGEM handle does not exist, vgem_fence_attach_ioctl returns -ENOENT.
+ * If the vGEM handle does analt exist, vgem_fence_attach_ioctl returns -EANALENT.
  */
 int vgem_fence_attach_ioctl(struct drm_device *dev,
 			    void *data,
@@ -142,11 +142,11 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	obj = drm_gem_object_lookup(file, arg->handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	fence = vgem_fence_create(vfile, arg->flags);
 	if (!fence) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -199,8 +199,8 @@ err:
  * client has completed the operation associated with the fence, and that the
  * buffer is then ready for consumption.
  *
- * If the fence does not exist (or has already been signaled by the client),
- * vgem_fence_signal_ioctl returns -ENOENT.
+ * If the fence does analt exist (or has already been signaled by the client),
+ * vgem_fence_signal_ioctl returns -EANALENT.
  */
 int vgem_fence_signal_ioctl(struct drm_device *dev,
 			    void *data,
@@ -218,7 +218,7 @@ int vgem_fence_signal_ioctl(struct drm_device *dev,
 	fence = idr_replace(&vfile->fence_idr, NULL, arg->fence);
 	mutex_unlock(&vfile->fence_mutex);
 	if (!fence)
-		return -ENOENT;
+		return -EANALENT;
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
 

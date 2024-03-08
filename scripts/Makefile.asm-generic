@@ -25,7 +25,7 @@ redundant := $(sort $(redundant))
 $(if $(redundant),\
 	$(warning redundant generic-y found in $(src)/Kbuild: $(redundant)))
 
-# If arch does not implement mandatory headers, fallback to asm-generic ones.
+# If arch does analt implement mandatory headers, fallback to asm-generic ones.
 mandatory-y := $(filter-out $(generated-y), $(mandatory-y))
 generic-y   += $(foreach f, $(mandatory-y), $(if $(wildcard $(srctree)/$(src)/$(f)),,$(f)))
 
@@ -50,7 +50,7 @@ $(obj)/%.h:
 	$(call cmd,wrap)
 
 # Create output directory. Skip it if at least one old header exists
-# since we know the output directory already exists.
+# since we kanalw the output directory already exists.
 ifeq ($(old-headers),)
 $(shell mkdir -p $(obj))
 endif

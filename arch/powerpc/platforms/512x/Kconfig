@@ -29,7 +29,7 @@ config MPC512x_GENERIC
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for simple MPC512x based boards
-	  which do not need custom platform specific setup.
+	  which do analt need custom platform specific setup.
 
 	  Compatible boards include:  Protonic LVT base boards (ZANMCU
 	  and VICVT2), Freescale MPC5125 Tower system.

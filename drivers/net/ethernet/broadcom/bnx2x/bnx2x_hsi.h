@@ -148,13 +148,13 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 		#define SHARED_HW_CFG_MFW_SELECT_UMP                 0x00000200
 		#define SHARED_HW_CFG_MFW_SELECT_IPMI                0x00000300
 	/* Use SPIO4 as an arbiter between: 0-NC_SI, 1-IPMI
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, analt BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_NC_SI_IPMI    0x00000400
 	/* Use SPIO4 as an arbiter between: 0-UMP, 1-IPMI
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, analt BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_UMP_IPMI      0x00000500
 	/* Use SPIO4 as an arbiter between: 0-NC-SI, 1-UMP
-	  (can only be used when an add-in board, not BMC, pulls-down SPIO4) */
+	  (can only be used when an add-in board, analt BMC, pulls-down SPIO4) */
 		#define SHARED_HW_CFG_MFW_SELECT_SPIO4_NC_SI_UMP     0x00000600
 
 	#define SHARED_HW_CFG_LED_MODE_MASK                 0x000f0000
@@ -232,7 +232,7 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 	/*  The fan failure mechanism is usually related to the PHY type
 	      since the power consumption of the board is determined by the PHY.
 	      Currently, fan is required for most designs with SFX7101, BCM8727
-	      and BCM8481. If a fan is not required for a board which uses one
+	      and BCM8481. If a fan is analt required for a board which uses one
 	      of those PHYs, this field should be set to "Disabled". If a fan is
 	      required for a different PHY type, this option should be set to
 	      "Enabled". The fan failure indication is expected on SPIO5 */
@@ -250,7 +250,7 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 		#define SHARED_HW_CFG_ASPM_SUPPORT_L1_DISABLED       0x00400000
 		#define SHARED_HW_CFG_ASPM_SUPPORT_L0S_L1_DISABLED   0x00600000
 
-	/* The value of PM_TL_IGNORE_REQS (bit0) in PCI register
+	/* The value of PM_TL_IGANALRE_REQS (bit0) in PCI register
 	   tl_control_0 (register 0x2800) */
 	#define SHARED_HW_CFG_PREVENT_L1_ENTRY_MASK         0x00800000
 		#define SHARED_HW_CFG_PREVENT_L1_ENTRY_DISABLED      0x00000000
@@ -301,7 +301,7 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 
 	#define SHARED_HW_CFG_UMP_NC_SI_EXT_PHY_TYPE_MASK   0x00ff0000
 		#define SHARED_HW_CFG_UMP_NC_SI_EXT_PHY_TYPE_SHIFT   16
-		#define SHARED_HW_CFG_UMP_NC_SI_EXT_PHY_TYPE_NONE    0x00000000
+		#define SHARED_HW_CFG_UMP_NC_SI_EXT_PHY_TYPE_ANALNE    0x00000000
 		#define SHARED_HW_CFG_UMP_NC_SI_EXT_PHY_TYPE_BCM5221 0x00010000
 
 	u32 board;			/* 0x124 */
@@ -316,8 +316,8 @@ struct shared_hw_cfg {			 /* NVRAM Offset */
 	#define SHARED_HW_CFG_BOARD_MAJOR_VER_MASK          0x0f000000
 	#define SHARED_HW_CFG_BOARD_MAJOR_VER_SHIFT                  24
 
-	#define SHARED_HW_CFG_BOARD_MINOR_VER_MASK          0xf0000000
-	#define SHARED_HW_CFG_BOARD_MINOR_VER_SHIFT                  28
+	#define SHARED_HW_CFG_BOARD_MIANALR_VER_MASK          0xf0000000
+	#define SHARED_HW_CFG_BOARD_MIANALR_VER_SHIFT                  28
 
 	u32 wc_lane_config;				    /* 0x128 */
 	#define SHARED_HW_CFG_LANE_SWAP_CFG_MASK            0x0000FFFF
@@ -459,7 +459,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	#define PORT_HW_CFG_E3_FAULT_MDL_LED_SHIFT                   8
 
 	/*  The input pin MOD_ABS that indicates whether SFP+ module is
-	  present or not. Use the PIN_CFG_XXX defines on top */
+	  present or analt. Use the PIN_CFG_XXX defines on top */
 	#define PORT_HW_CFG_E3_MOD_ABS_MASK                 0x00FF0000
 	#define PORT_HW_CFG_E3_MOD_ABS_SHIFT                         16
 
@@ -511,7 +511,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 
 	/* SFP+ Tx Equalization: NIC recommended and tested value is 0xBEB2
 	 * LOM recommended and tested value is 0xBEB2. Using a different
-	 * value means using a value not tested by BRCM
+	 * value means using a value analt tested by BRCM
 	 */
 	u32 sfi_tap_values;                                 /* 0x178 */
 	#define PORT_HW_CFG_TX_EQUALIZATION_MASK                      0x0000FFFF
@@ -519,19 +519,19 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 
 	/* SFP+ Tx driver broadcast IDRIVER: NIC recommended and tested
 	 * value is 0x2. LOM recommended and tested value is 0x2. Using a
-	 * different value means using a value not tested by BRCM
+	 * different value means using a value analt tested by BRCM
 	 */
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_MASK                     0x000F0000
 	#define PORT_HW_CFG_TX_DRV_BROADCAST_SHIFT                    16
-	/*  Set non-default values for TXFIR in SFP mode. */
+	/*  Set analn-default values for TXFIR in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_IFIR_MASK                          0x00F00000
 	#define PORT_HW_CFG_TX_DRV_IFIR_SHIFT                         20
 
-	/*  Set non-default values for IPREDRIVER in SFP mode. */
+	/*  Set analn-default values for IPREDRIVER in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_MASK                    0x0F000000
 	#define PORT_HW_CFG_TX_DRV_IPREDRIVER_SHIFT                   24
 
-	/*  Set non-default values for POST2 in SFP mode. */
+	/*  Set analn-default values for POST2 in SFP mode. */
 	#define PORT_HW_CFG_TX_DRV_POST2_MASK                         0xF0000000
 	#define PORT_HW_CFG_TX_DRV_POST2_SHIFT                        28
 
@@ -550,9 +550,9 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	#define PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT                    16
 
 	/*  4 times 16 bits for all 4 lanes. In case external PHY is present
-	      (not direct mode), those values will not take effect on the 4 XGXS
+	      (analt direct mode), those values will analt take effect on the 4 XGXS
 	      lanes. For some external PHYs (such as 8706 and 8726) the values
-	      will be used to configure the external PHY  in those cases, not
+	      will be used to configure the external PHY  in those cases, analt
 	      all 4 values are needed. */
 	u16 xgxs_config_rx[4];			/* 0x198 */
 	u16 xgxs_config_tx[4];			/* 0x1A0 */
@@ -566,8 +566,8 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_analde_name_upper;
+	u32 fcoe_wwn_analde_name_lower;
 
 	u32 Reserved1[49];				    /* 0x1C0 */
 
@@ -606,15 +606,15 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_GPIO3_CONFIG_HIGH                0x00000080
 		#define PORT_HW_CFG_GPIO3_CONFIG_INPUT               0x000000c0
 
-	/*  When KR link is required to be set to force which is not
+	/*  When KR link is required to be set to force which is analt
 	      KR-compliant, this parameter determine what is the trigger for it.
 	      When GPIO is selected, low input will force the speed. Currently
 	      default speed is 1G. In the future, it may be widen to select the
-	      forced speed in with another parameter. Note when force-1G is
+	      forced speed in with aanalther parameter. Analte when force-1G is
 	      enabled, it override option 56: Link Speed option. */
 	#define PORT_HW_CFG_FORCE_KR_ENABLER_MASK           0x00000F00
 		#define PORT_HW_CFG_FORCE_KR_ENABLER_SHIFT           8
-		#define PORT_HW_CFG_FORCE_KR_ENABLER_NOT_FORCED      0x00000000
+		#define PORT_HW_CFG_FORCE_KR_ENABLER_ANALT_FORCED      0x00000000
 		#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO0_P0        0x00000100
 		#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO1_P0        0x00000200
 		#define PORT_HW_CFG_FORCE_KR_ENABLER_GPIO2_P0        0x00000300
@@ -723,7 +723,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8481       0x00000700
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_SFX7101       0x00000800
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8727       0x00000900
-		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8727_NOC   0x00000a00
+		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM8727_ANALC   0x00000a00
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84823      0x00000b00
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM54640      0x00000c00
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84833      0x00000d00
@@ -733,11 +733,11 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84834      0x00001100
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_BCM84858      0x00001200
 		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_FAILURE       0x0000fd00
-		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_NOT_CONN      0x0000ff00
+		#define PORT_HW_CFG_XGXS_EXT_PHY2_TYPE_ANALT_CONN      0x0000ff00
 
 
 	/*  4 times 16 bits for all 4 lanes. For some external PHYs (such as
-	      8706, 8726 and 8727) not all 4 values are needed. */
+	      8706, 8726 and 8727) analt all 4 values are needed. */
 	u16 xgxs_config2_rx[4];				    /* 0x296 */
 	u16 xgxs_config2_tx[4];				    /* 0x2A0 */
 
@@ -781,7 +781,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481        0x00000700
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101        0x00000800
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727        0x00000900
-		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC    0x00000a00
+		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_ANALC    0x00000a00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823       0x00000b00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54640       0x00000c00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833       0x00000d00
@@ -792,7 +792,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84858       0x00001200
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT_WC      0x0000fc00
 		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE        0x0000fd00
-		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN       0x0000ff00
+		#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_ANALT_CONN       0x0000ff00
 
 	#define PORT_HW_CFG_SERDES_EXT_PHY_ADDR_MASK        0x00ff0000
 	#define PORT_HW_CFG_SERDES_EXT_PHY_ADDR_SHIFT                16
@@ -802,7 +802,7 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 		#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT       0x00000000
 		#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_BCM5482      0x01000000
 		#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT_SD    0x02000000
-		#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_NOT_CONN     0xff000000
+		#define PORT_HW_CFG_SERDES_EXT_PHY_TYPE_ANALT_CONN     0xff000000
 
 	u32 speed_capability_mask;
 	#define PORT_HW_CFG_SPEED_CAPABILITY_D3_MASK        0x0000ffff
@@ -950,7 +950,7 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 	   in a separate nvram image */
 	#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK         0xe0000000
 		#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_SHIFT         29
-		#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_NO_ENFORCEMENT \
+		#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ANAL_ENFORCEMENT \
 								     0x00000000
 		#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER \
 								     0x20000000
@@ -977,7 +977,7 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 		#define PORT_FEATURE_MBA_BOOT_AGENT_TYPE_BOOTP       0x00000002
 		#define PORT_FEATURE_MBA_BOOT_AGENT_TYPE_ISCSIB      0x00000003
 		#define PORT_FEATURE_MBA_BOOT_AGENT_TYPE_FCOE_BOOT   0x00000004
-		#define PORT_FEATURE_MBA_BOOT_AGENT_TYPE_NONE        0x00000007
+		#define PORT_FEATURE_MBA_BOOT_AGENT_TYPE_ANALNE        0x00000007
 
 	#define PORT_FEATURE_MBA_BOOT_RETRY_MASK            0x00000038
 	#define PORT_FEATURE_MBA_BOOT_RETRY_SHIFT                    3
@@ -1094,7 +1094,7 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 		#define PORT_FEATURE_FLOW_CONTROL_TX                 0x00000100
 		#define PORT_FEATURE_FLOW_CONTROL_RX                 0x00000200
 		#define PORT_FEATURE_FLOW_CONTROL_BOTH               0x00000300
-		#define PORT_FEATURE_FLOW_CONTROL_NONE               0x00000400
+		#define PORT_FEATURE_FLOW_CONTROL_ANALNE               0x00000400
 
 	/* The default for MCP link configuration,
 	   uses the same defines as link_config */
@@ -1128,7 +1128,7 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
  ****************************************************************************/
 struct shm_dev_info {				/* size */
 
-	u32    bc_rev; /* 8 bits each: major, minor, build */	       /* 4 */
+	u32    bc_rev; /* 8 bits each: major, mianalr, build */	       /* 4 */
 
 	struct shared_hw_cfg     shared_hw_config;	      /* 40 */
 
@@ -1176,8 +1176,8 @@ struct extended_dev_info_shared_cfg {
 #define DRV_PULSE_PERIOD_MS     250
 
 /* This value (in milliseconds) determines how long the driver should
- * wait for an acknowledgement from the firmware before timing out.  Once
- * the firmware has timed out, the driver will assume there is no firmware
+ * wait for an ackanalwledgement from the firmware before timing out.  Once
+ * the firmware has timed out, the driver will assume there is anal firmware
  * running and there won't be any firmware-driver synchronization during a
  * driver reset. */
 #define FW_ACK_TIME_OUT_MS      5000
@@ -1196,11 +1196,11 @@ struct drv_port_mb {
 	u32 link_status;
 	/* Driver should update this field on any link change event */
 
-	#define LINK_STATUS_NONE				(0<<0)
+	#define LINK_STATUS_ANALNE				(0<<0)
 	#define LINK_STATUS_LINK_FLAG_MASK			0x00000001
 	#define LINK_STATUS_LINK_UP				0x00000001
 	#define LINK_STATUS_SPEED_AND_DUPLEX_MASK		0x0000001E
-	#define LINK_STATUS_SPEED_AND_DUPLEX_AN_NOT_COMPLETE	(0<<1)
+	#define LINK_STATUS_SPEED_AND_DUPLEX_AN_ANALT_COMPLETE	(0<<1)
 	#define LINK_STATUS_SPEED_AND_DUPLEX_10THD		(1<<1)
 	#define LINK_STATUS_SPEED_AND_DUPLEX_10TFD		(2<<1)
 	#define LINK_STATUS_SPEED_AND_DUPLEX_100TXHD		(3<<1)
@@ -1239,7 +1239,7 @@ struct drv_port_mb {
 	#define LINK_STATUS_RX_FLOW_CONTROL_ENABLED		0x00020000
 
 	#define LINK_STATUS_LINK_PARTNER_FLOW_CONTROL_MASK	0x000C0000
-	#define LINK_STATUS_LINK_PARTNER_NOT_PAUSE_CAPABLE	(0<<18)
+	#define LINK_STATUS_LINK_PARTNER_ANALT_PAUSE_CAPABLE	(0<<18)
 	#define LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE	(1<<18)
 	#define LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE	(2<<18)
 	#define LINK_STATUS_LINK_PARTNER_BOTH_PAUSE		(3<<18)
@@ -1260,7 +1260,7 @@ struct drv_port_mb {
 
 	u32 stat_nig_timer;
 
-	/* MCP firmware does not use this field */
+	/* MCP firmware does analt use this field */
 	u32 ext_phy_fw_version;
 
 };
@@ -1307,7 +1307,7 @@ struct drv_func_mb {
 
 	#define DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG         0xb0000000
 	#define DRV_MSG_CODE_DCBX_PMF_DRV_OK            0xb2000000
-	#define REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF     0x00070401
+	#define REQ_BC_VER_4_DCBX_ADMIN_MSG_ANALN_PMF     0x00070401
 
 	#define DRV_MSG_CODE_VF_DISABLED_DONE           0xc0000000
 
@@ -1373,8 +1373,8 @@ struct drv_func_mb {
 	#define FW_MSG_CODE_VALIDATE_KEY_SUCCESS        0x70100000
 	#define FW_MSG_CODE_VALIDATE_KEY_FAILURE        0x70200000
 	#define FW_MSG_CODE_GET_KEY_DONE                0x80100000
-	#define FW_MSG_CODE_NO_KEY                      0x80f00000
-	#define FW_MSG_CODE_LIC_INFO_NOT_READY          0x80f80000
+	#define FW_MSG_CODE_ANAL_KEY                      0x80f00000
+	#define FW_MSG_CODE_LIC_INFO_ANALT_READY          0x80f80000
 	#define FW_MSG_CODE_L2B_PRAM_LOADED             0x90100000
 	#define FW_MSG_CODE_L2B_PRAM_T_LOAD_FAILURE     0x90210000
 	#define FW_MSG_CODE_L2B_PRAM_C_LOAD_FAILURE     0x90220000
@@ -1422,15 +1422,15 @@ struct drv_func_mb {
 	 */
 	#define DRV_PULSE_ALWAYS_ALIVE                  0x00008000
 	/*
-	 * Indicate to the firmware not to go into the
-	 * OS-absent when it is not getting driver pulse.
+	 * Indicate to the firmware analt to go into the
+	 * OS-absent when it is analt getting driver pulse.
 	 * This is used for debugging as well for PXE(MBA).
 	 */
 
 	u32 mcp_pulse_mb;
 	#define MCP_PULSE_SEQ_MASK                      0x00007fff
 	#define MCP_PULSE_ALWAYS_ALIVE                  0x00008000
-	/* Indicates to the driver not to assert due to lack
+	/* Indicates to the driver analt to assert due to lack
 	 * of MCP response */
 	#define MCP_EVENT_MASK                          0xffff0000
 	#define MCP_EVENT_OTHER_DRIVER_RESET_REQ        0x00010000
@@ -1518,7 +1518,7 @@ struct func_mf_cfg {
 
 	u32 config;
 	/* E/R/I/D */
-	/* function 0 of each port cannot be hidden */
+	/* function 0 of each port cananalt be hidden */
 	#define FUNC_MF_CFG_FUNC_HIDE                   0x00000001
 
 	#define FUNC_MF_CFG_PROTOCOL_MASK               0x00000006
@@ -1581,7 +1581,7 @@ enum mf_cfg_afex_vlan_mode {
 	FUNC_MF_CFG_AFEX_VLAN_TRUNK_TAG_NATIVE_MODE
 };
 
-/* This structure is not applicable and should not be accessed on 57711 */
+/* This structure is analt applicable and should analt be accessed on 57711 */
 struct func_ext_cfg {
 	u32 func_cfg;
 	#define MACP_FUNC_CFG_FLAGS_MASK                0x0000007F
@@ -1601,8 +1601,8 @@ struct func_ext_cfg {
 	u32 fcoe_wwn_port_name_upper;
 	u32 fcoe_wwn_port_name_lower;
 
-	u32 fcoe_wwn_node_name_upper;
-	u32 fcoe_wwn_node_name_lower;
+	u32 fcoe_wwn_analde_name_upper;
+	u32 fcoe_wwn_analde_name_lower;
 
 	u32 preserve_data;
 	#define MF_FUNC_CFG_PRESERVE_L2_MAC             (1<<0)
@@ -1621,8 +1621,8 @@ struct mf_cfg {
 	/* for all chips, there are 8 mf functions */
 	struct func_mf_cfg  func_mf_config[E1H_FUNC_MAX]; /* 0x18 * 8 = 0xc0 */
 	/*
-	 * Extended configuration per function  - this array does not exist and
-	 * should not be accessed on 57711
+	 * Extended configuration per function  - this array does analt exist and
+	 * should analt be accessed on 57711
 	 */
 	struct func_ext_cfg func_ext_config[E1H_FUNC_MAX]; /* 0x28 * 8 = 0x140*/
 }; /* 0x224 */
@@ -1644,14 +1644,14 @@ struct shmem_region {		       /*   SharedMem Offset (size) */
 	#define SHR_MEM_VALIDITY_LIC_KEY_IN_EFFECT_MASK     0x00000038
 	#define SHR_MEM_VALIDITY_LIC_MANUF_KEY_IN_EFFECT    0x00000008
 	#define SHR_MEM_VALIDITY_LIC_UPGRADE_KEY_IN_EFFECT  0x00000010
-	#define SHR_MEM_VALIDITY_LIC_NO_KEY_IN_EFFECT       0x00000020
+	#define SHR_MEM_VALIDITY_LIC_ANAL_KEY_IN_EFFECT       0x00000020
 	/* Active MFW */
-	#define SHR_MEM_VALIDITY_ACTIVE_MFW_UNKNOWN         0x00000000
+	#define SHR_MEM_VALIDITY_ACTIVE_MFW_UNKANALWN         0x00000000
 	#define SHR_MEM_VALIDITY_ACTIVE_MFW_MASK            0x000001c0
 	#define SHR_MEM_VALIDITY_ACTIVE_MFW_IPMI            0x00000040
 	#define SHR_MEM_VALIDITY_ACTIVE_MFW_UMP             0x00000080
 	#define SHR_MEM_VALIDITY_ACTIVE_MFW_NCSI            0x000000c0
-	#define SHR_MEM_VALIDITY_ACTIVE_MFW_NONE            0x000001c0
+	#define SHR_MEM_VALIDITY_ACTIVE_MFW_ANALNE            0x000001c0
 
 	struct shm_dev_info dev_info;	     /* 0x8     (0x438) */
 
@@ -1979,9 +1979,9 @@ struct lldp_local_mib {
 	#define DCBX_LOCAL_PFC_MISMATCH          0x00000010
 	#define DCBX_LOCAL_APP_MISMATCH          0x00000020
 	#define DCBX_REMOTE_MIB_ERROR		 0x00000040
-	#define DCBX_REMOTE_ETS_TLV_NOT_FOUND    0x00000080
-	#define DCBX_REMOTE_PFC_TLV_NOT_FOUND    0x00000100
-	#define DCBX_REMOTE_APP_TLV_NOT_FOUND    0x00000200
+	#define DCBX_REMOTE_ETS_TLV_ANALT_FOUND    0x00000080
+	#define DCBX_REMOTE_PFC_TLV_ANALT_FOUND    0x00000100
+	#define DCBX_REMOTE_APP_TLV_ANALT_FOUND    0x00000200
 	struct dcbx_features   features;
 	u32 suffix_seq_num;
 };
@@ -2011,7 +2011,7 @@ struct shmem_lfa {
 	u32 additional_config;
 	#define REQ_FC_AUTO_ADV_MASK        0x0000ffff
 	#define REQ_FC_AUTO_ADV0_SHIFT      0
-	#define NO_LFA_DUE_TO_DCC_MASK      0x00010000
+	#define ANAL_LFA_DUE_TO_DCC_MASK      0x00010000
 	u32 lfa_sts;
 	#define LFA_LINK_FLAP_REASON_OFFSET		0
 	#define LFA_LINK_FLAP_REASON_MASK		0x000000ff
@@ -2040,7 +2040,7 @@ struct shmem_lfa {
  * on driver unload driver value of 0x0 will be set.
  */
 struct os_drv_ver {
-#define DRV_VER_NOT_LOADED			0
+#define DRV_VER_ANALT_LOADED			0
 
 	/* personalties order is important */
 #define DRV_PERS_ETHERNET			0
@@ -2080,7 +2080,7 @@ struct ncsi_oem_fcoe_features {
 };
 
 enum curr_cfg_method_e {
-	CURR_CFG_MET_NONE = 0,  /* default config */
+	CURR_CFG_MET_ANALNE = 0,  /* default config */
 	CURR_CFG_MET_OS = 1,
 	CURR_CFG_MET_VENDOR_SPEC = 2,/* e.g. Option ROM, NPAR, O/S Cfg Utils */
 };
@@ -2128,7 +2128,7 @@ struct shmem2_region {
 	u32 size;					/* 0x0000 */
 
 	u32 dcc_support;				/* 0x0004 */
-	#define SHMEM_DCC_SUPPORT_NONE                      0x00000000
+	#define SHMEM_DCC_SUPPORT_ANALNE                      0x00000000
 	#define SHMEM_DCC_SUPPORT_DISABLE_ENABLE_PF_TLV     0x00000001
 	#define SHMEM_DCC_SUPPORT_BANDWIDTH_ALLOCATION_TLV  0x00000004
 	#define SHMEM_DCC_SUPPORT_CHANGE_MAC_ADDRESS_TLV    0x00000008
@@ -2137,23 +2137,23 @@ struct shmem2_region {
 
 	u32 ext_phy_fw_version2[PORT_MAX];		/* 0x0008 */
 	/*
-	 * For backwards compatibility, if the mf_cfg_addr does not exist
+	 * For backwards compatibility, if the mf_cfg_addr does analt exist
 	 * (the size filed is smaller than 0xc) the mf_cfg resides at the
 	 * end of struct shmem_region
 	 */
 	u32 mf_cfg_addr;				/* 0x0010 */
-	#define SHMEM_MF_CFG_ADDR_NONE                  0x00000000
+	#define SHMEM_MF_CFG_ADDR_ANALNE                  0x00000000
 
 	struct fw_flr_mb flr_mb;			/* 0x0014 */
 	u32 dcbx_lldp_params_offset;			/* 0x0028 */
-	#define SHMEM_LLDP_DCBX_PARAMS_NONE             0x00000000
+	#define SHMEM_LLDP_DCBX_PARAMS_ANALNE             0x00000000
 	u32 dcbx_neg_res_offset;			/* 0x002c */
-	#define SHMEM_DCBX_NEG_RES_NONE			0x00000000
+	#define SHMEM_DCBX_NEG_RES_ANALNE			0x00000000
 	u32 dcbx_remote_mib_offset;			/* 0x0030 */
-	#define SHMEM_DCBX_REMOTE_MIB_NONE              0x00000000
+	#define SHMEM_DCBX_REMOTE_MIB_ANALNE              0x00000000
 	/*
 	 * The other shmemX_base_addr holds the other path's shmem address
-	 * required for example in case of common phy init, or for path1 to know
+	 * required for example in case of common phy init, or for path1 to kanalw
 	 * the address of mcp debug trace which is located in offset from shmem
 	 * of path0
 	 */
@@ -2172,7 +2172,7 @@ struct shmem2_region {
 	u32 drv_ack_vf_disabled[E2_FUNC_MAX][E2_VF_MAX / 32]; /* 0x0044 */
 
 	u32 dcbx_lldp_dcbx_stat_offset;			/* 0x0064 */
-	#define SHMEM_LLDP_DCBX_STAT_NONE               0x00000000
+	#define SHMEM_LLDP_DCBX_STAT_ANALNE               0x00000000
 
 	/*
 	 * edebug_driver_if field is used to transfer messages between edebug
@@ -2209,7 +2209,7 @@ struct shmem2_region {
 	u32 swim_funcs;
 	u32 swim_main_cb;
 
-	/* bitmap notifying which VIF profiles stored in nvram are enabled by
+	/* bitmap analtifying which VIF profiles stored in nvram are enabled by
 	 * switch
 	 */
 	u32 afex_profiles_enabled[2];
@@ -2234,7 +2234,7 @@ struct shmem2_region {
 	u32 glob_struct_in_host;
 
 	u32 dcbx_neg_res_ext_offset;
-#define SHMEM_DCBX_NEG_RES_EXT_NONE			0x00000000
+#define SHMEM_DCBX_NEG_RES_EXT_ANALNE			0x00000000
 
 	u32 drv_capabilities_flag[E2_FUNC_MAX];
 #define DRV_FLAGS_CAPABILITIES_LOADED_SUPPORTED 0x00000001
@@ -2328,7 +2328,7 @@ struct shmem2_region {
 	union { /* For various OEMs */			/* Offset 0x1a0 */
 		u8 storage_boot_prog[E2_FUNC_MAX];
 	#define STORAGE_BOOT_PROG_MASK				0x000000FF
-	#define STORAGE_BOOT_PROG_NONE				0x00000000
+	#define STORAGE_BOOT_PROG_ANALNE				0x00000000
 	#define STORAGE_BOOT_PROG_ISCSI_IP_ACQUIRED		0x00000002
 	#define STORAGE_BOOT_PROG_FCOE_FABRIC_LOGIN_SUCCESS	0x00000002
 	#define STORAGE_BOOT_PROG_TARGET_FOUND			0x00000004
@@ -2365,7 +2365,7 @@ struct shmem2_region {
 	enum curr_cfg_method_e curr_cfg;			/* 0x1dc */
 
 	/* Storm FW version, shold be kept in the format 0xMMmmbbdd:
-	 * MM - Major, mm - Minor, bb - Build ,dd - Drop
+	 * MM - Major, mm - Mianalr, bb - Build ,dd - Drop
 	 */
 	u32 netproc_fw_ver;					/* 0x1e0 */
 
@@ -2375,7 +2375,7 @@ struct shmem2_region {
 	u32 pcie_bus_num;					/* 0x1e8 */
 
 	u32 sriov_switch_mode;					/* 0x1ec */
-	#define SRIOV_SWITCH_MODE_NONE		0x0
+	#define SRIOV_SWITCH_MODE_ANALNE		0x0
 	#define SRIOV_SWITCH_MODE_VEB		0x1
 	#define SRIOV_SWITCH_MODE_VEPA		0x2
 
@@ -2386,7 +2386,7 @@ struct shmem2_region {
 	u32 mtu_size[E2_FUNC_MAX];				/* 0x1f8 */
 
 	u32 os_driver_state[E2_FUNC_MAX];			/* 0x208 */
-	#define OS_DRIVER_STATE_NOT_LOADED	0 /* not installed */
+	#define OS_DRIVER_STATE_ANALT_LOADED	0 /* analt installed */
 	#define OS_DRIVER_STATE_LOADING		1 /* transition state */
 	#define OS_DRIVER_STATE_DISABLED	2 /* installed but disabled */
 	#define OS_DRIVER_STATE_ACTIVE		3 /* installed and active */
@@ -2397,7 +2397,7 @@ struct shmem2_region {
 
 
 struct emac_stats {
-	u32     rx_stat_ifhcinoctets;
+	u32     rx_stat_ifhcianalctets;
 	u32     rx_stat_ifhcinbadoctets;
 	u32     rx_stat_etherstatsfragments;
 	u32     rx_stat_ifhcinucastpkts;
@@ -2934,7 +2934,7 @@ struct host_port_stats {
 	u32            brb_drop_hi;
 	u32            brb_drop_lo;
 
-	u32            not_used; /* obsolete */
+	u32            analt_used; /* obsolete */
 	u32            pfc_frames_tx_hi;
 	u32            pfc_frames_tx_lo;
 	u32            pfc_frames_rx_hi;
@@ -2983,7 +2983,7 @@ struct host_func_stats {
 
 
 /* stats collected for afex.
- * NOTE: structure is exactly as expected to be received by the switch.
+ * ANALTE: structure is exactly as expected to be received by the switch.
  *       order must remain exactly as is unless protocol changes !
  */
 struct afex_stats {
@@ -3023,7 +3023,7 @@ struct afex_stats {
 };
 
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			13
+#define BCM_5710_FW_MIANALR_VERSION			13
 #define BCM_5710_FW_REVISION_VERSION		21
 #define BCM_5710_FW_REVISION_VERSION_V15	15
 #define BCM_5710_FW_ENGINEERING_VERSION		0
@@ -3249,7 +3249,7 @@ struct host_sp_status_block {
 
 
 /*
- * IGU driver acknowledgment register
+ * IGU driver ackanalwledgment register
  */
 struct igu_ack_register {
 #if defined(__BIG_ENDIAN)
@@ -3283,7 +3283,7 @@ struct igu_ack_register {
 
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackanalwledgement register
  */
 struct igu_backward_compatible {
 	u32 sb_id_and_flags;
@@ -3304,7 +3304,7 @@ struct igu_backward_compatible {
 
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackanalwledgement register
  */
 struct igu_regular {
 	u32 sb_id_and_flags;
@@ -3330,7 +3330,7 @@ struct igu_regular {
 };
 
 /*
- * IGU driver acknowledgement register
+ * IGU driver ackanalwledgement register
  */
 union igu_consprod_reg {
 	struct igu_regular regular;
@@ -3372,8 +3372,8 @@ struct igu_ctrl_reg {
 enum igu_int_cmd {
 	IGU_INT_ENABLE,
 	IGU_INT_DISABLE,
-	IGU_INT_NOP,
-	IGU_INT_NOP2,
+	IGU_INT_ANALP,
+	IGU_INT_ANALP2,
 	MAX_IGU_INT_CMD
 };
 
@@ -3382,7 +3382,7 @@ enum igu_int_cmd {
  * Igu segments
  */
 enum igu_seg_access {
-	IGU_SEG_ACCESS_NORM,
+	IGU_SEG_ACCESS_ANALRM,
 	IGU_SEG_ACCESS_DEF,
 	IGU_SEG_ACCESS_ATTN,
 	MAX_IGU_SEG_ACCESS
@@ -3437,7 +3437,7 @@ enum prs_flags_ack_type {
  * Parsing flags for Ethernet address type
  */
 enum prs_flags_eth_addr_type {
-	PRS_FLAG_ETHTYPE_NON_UNICAST,
+	PRS_FLAG_ETHTYPE_ANALN_UNICAST,
 	PRS_FLAG_ETHTYPE_UNICAST,
 	MAX_PRS_FLAGS_ETH_ADDR_TYPE
 };
@@ -3447,10 +3447,10 @@ enum prs_flags_eth_addr_type {
  * Parsing flags for over-ethernet protocol
  */
 enum prs_flags_over_eth {
-	PRS_FLAG_OVERETH_UNKNOWN,
+	PRS_FLAG_OVERETH_UNKANALWN,
 	PRS_FLAG_OVERETH_IPV4,
 	PRS_FLAG_OVERETH_IPV6,
-	PRS_FLAG_OVERETH_LLCSNAP_UNKNOWN,
+	PRS_FLAG_OVERETH_LLCSNAP_UNKANALWN,
 	MAX_PRS_FLAGS_OVER_ETH
 };
 
@@ -3459,7 +3459,7 @@ enum prs_flags_over_eth {
  * Parsing flags for over-IP protocol
  */
 enum prs_flags_over_ip {
-	PRS_FLAG_OVERIP_UNKNOWN,
+	PRS_FLAG_OVERIP_UNKANALWN,
 	PRS_FLAG_OVERIP_TCP,
 	PRS_FLAG_OVERIP_UDP,
 	MAX_PRS_FLAGS_OVER_IP
@@ -3729,8 +3729,8 @@ struct client_init_tx_data {
 	u8 force_default_pri_flg;
 	u8 tunnel_lso_inc_ip_id;
 	u8 refuse_outband_vlan_flg;
-	u8 tunnel_non_lso_pcsum_location;
-	u8 tunnel_non_lso_outer_ip_csum_location;
+	u8 tunnel_analn_lso_pcsum_location;
+	u8 tunnel_analn_lso_outer_ip_csum_location;
 };
 
 /*
@@ -3800,7 +3800,7 @@ enum eth_2nd_parse_bd_type {
  * Ethernet address typesm used in ethernet tx BDs
  */
 enum eth_addr_type {
-	UNKNOWN_ADDRESS,
+	UNKANALWN_ADDRESS,
 	UNICAST_ADDRESS,
 	MULTICAST_ADDRESS,
 	BROADCAST_ADDRESS,
@@ -4020,10 +4020,10 @@ struct eth_fast_path_rx_cqe {
 #define ETH_FAST_PATH_RX_CQE_BROADCAST_FLG_SHIFT 4
 #define ETH_FAST_PATH_RX_CQE_MAC_MATCH_FLG (0x1<<5)
 #define ETH_FAST_PATH_RX_CQE_MAC_MATCH_FLG_SHIFT 5
-#define ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG (0x1<<6)
-#define ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG_SHIFT 6
-#define ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG (0x1<<7)
-#define ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG_SHIFT 7
+#define ETH_FAST_PATH_RX_CQE_IP_XSUM_ANAL_VALIDATION_FLG (0x1<<6)
+#define ETH_FAST_PATH_RX_CQE_IP_XSUM_ANAL_VALIDATION_FLG_SHIFT 6
+#define ETH_FAST_PATH_RX_CQE_L4_XSUM_ANAL_VALIDATION_FLG (0x1<<7)
+#define ETH_FAST_PATH_RX_CQE_L4_XSUM_ANAL_VALIDATION_FLG_SHIFT 7
 	u8 queue_index;
 	u8 placement_offset;
 	__le32 rss_hash_result;
@@ -4421,7 +4421,7 @@ enum eth_spqe_cmd_id {
  * eth tpa update command
  */
 enum eth_tpa_update_command {
-	TPA_UPDATE_NONE_COMMAND,
+	TPA_UPDATE_ANALNE_COMMAND,
 	TPA_UPDATE_ENABLE_COMMAND,
 	TPA_UPDATE_DISABLE_COMMAND,
 	MAX_ETH_TPA_UPDATE_COMMAND
@@ -4439,14 +4439,14 @@ enum eth_tunnel_lso_inc_ip_id {
 /* In case tunnel exist and L4 checksum offload,
  * the pseudo checksum location, on packet or on BD.
  */
-enum eth_tunnel_non_lso_csum_location {
+enum eth_tunnel_analn_lso_csum_location {
 	CSUM_ON_PKT,
 	CSUM_ON_BD,
-	MAX_ETH_TUNNEL_NON_LSO_CSUM_LOCATION
+	MAX_ETH_TUNNEL_ANALN_LSO_CSUM_LOCATION
 };
 
 enum eth_tunn_type {
-	TUNN_TYPE_NONE,
+	TUNN_TYPE_ANALNE,
 	TUNN_TYPE_VXLAN,
 	TUNN_TYPE_L2_GRE,
 	TUNN_TYPE_IPV4_GRE,
@@ -4503,8 +4503,8 @@ struct eth_tx_start_bd {
 	u8 general_data;
 #define ETH_TX_START_BD_HDR_NBDS (0x7<<0)
 #define ETH_TX_START_BD_HDR_NBDS_SHIFT 0
-#define ETH_TX_START_BD_NO_ADDED_TAGS (0x1<<3)
-#define ETH_TX_START_BD_NO_ADDED_TAGS_SHIFT 3
+#define ETH_TX_START_BD_ANAL_ADDED_TAGS (0x1<<3)
+#define ETH_TX_START_BD_ANAL_ADDED_TAGS_SHIFT 3
 #define ETH_TX_START_BD_FORCE_VLAN_MODE (0x1<<4)
 #define ETH_TX_START_BD_FORCE_VLAN_MODE_SHIFT 4
 #define ETH_TX_START_BD_PARSE_NBDS (0x3<<5)
@@ -4654,7 +4654,7 @@ struct eth_tx_bds_array {
  * VLAN mode on TX BDs
  */
 enum eth_tx_vlan_type {
-	X_ETH_NO_VLAN,
+	X_ETH_ANAL_VLAN,
 	X_ETH_OUTBAND_VLAN,
 	X_ETH_INBAND_VLAN,
 	X_ETH_FW_ADDED_VLAN,
@@ -5071,7 +5071,7 @@ enum connection_type {
 	RESERVED_CONNECTION_TYPE_0,
 	RESERVED_CONNECTION_TYPE_1,
 	RESERVED_CONNECTION_TYPE_2,
-	NONE_CONNECTION_TYPE,
+	ANALNE_CONNECTION_TYPE,
 	MAX_CONNECTION_TYPE
 };
 
@@ -5104,7 +5104,7 @@ struct cstorm_queue_zone_data {
 
 
 /*
- * Vf-PF channel data in cstorm ram (non-triggered zone)
+ * Vf-PF channel data in cstorm ram (analn-triggered zone)
  */
 struct vf_pf_channel_zone_data {
 	u32 msg_addr_lo;
@@ -5112,9 +5112,9 @@ struct vf_pf_channel_zone_data {
 };
 
 /*
- * zone for VF non-triggered data
+ * zone for VF analn-triggered data
  */
-struct non_trigger_vf_zone {
+struct analn_trigger_vf_zone {
 	struct vf_pf_channel_zone_data vf_pf_channel;
 };
 
@@ -5139,7 +5139,7 @@ struct trigger_vf_zone {
  * zone B per-VF data
  */
 struct cstorm_vf_zone_data {
-	struct non_trigger_vf_zone non_trigger;
+	struct analn_trigger_vf_zone analn_trigger;
 	struct trigger_vf_zone trigger;
 };
 
@@ -5403,7 +5403,7 @@ struct function_start_data {
 	u8 path_id;
 	u8 network_cos_mode;
 	u8 dmae_cmd_id;
-	u8 no_added_tags;
+	u8 anal_added_tags;
 	__le16 reserved0;
 	__le32 reserved1;
 	u8 inner_clss_vxlan;
@@ -5467,11 +5467,11 @@ struct fw_version {
 #if defined(__BIG_ENDIAN)
 	u8 engineering;
 	u8 revision;
-	u8 minor;
+	u8 mianalr;
 	u8 major;
 #elif defined(__LITTLE_ENDIAN)
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 revision;
 	u8 engineering;
 #endif
@@ -5660,8 +5660,8 @@ enum ip_ver {
  * Malicious VF error ID
  */
 enum malicious_vf_error_id {
-	MALICIOUS_VF_NO_ERROR,
-	VF_PF_CHANNEL_NOT_READY,
+	MALICIOUS_VF_ANAL_ERROR,
+	VF_PF_CHANNEL_ANALT_READY,
 	ETH_ILLEGAL_BD_LENGTHS,
 	ETH_PACKET_TOO_SHORT,
 	ETH_PAYLOAD_TOO_BIG,
@@ -5669,12 +5669,12 @@ enum malicious_vf_error_id {
 	ETH_ILLEGAL_LSO_HDR_LEN,
 	ETH_TOO_MANY_BDS,
 	ETH_ZERO_HDR_NBDS,
-	ETH_START_BD_NOT_SET,
+	ETH_START_BD_ANALT_SET,
 	ETH_ILLEGAL_PARSE_NBDS,
 	ETH_IPV6_AND_CHECKSUM,
 	ETH_VLAN_FLG_INCORRECT,
 	ETH_ILLEGAL_LSO_MSS,
-	ETH_TUNNEL_NOT_SUPPORTED,
+	ETH_TUNNEL_ANALT_SUPPORTED,
 	MAX_MALICIOUS_VF_ERROR_ID
 };
 
@@ -5737,7 +5737,7 @@ struct tstorm_per_queue_stats {
 	struct regpair rcv_mcast_bytes;
 	__le32 rcv_mcast_pkts;
 	__le32 ttl0_discard;
-	__le16 no_buff_discard;
+	__le16 anal_buff_discard;
 	__le16 reserved0;
 	__le32 reserved1;
 };
@@ -5746,12 +5746,12 @@ struct tstorm_per_queue_stats {
  * Protocol-common statistics collected by the Ustorm (per client)
  */
 struct ustorm_per_queue_stats {
-	struct regpair ucast_no_buff_bytes;
-	struct regpair mcast_no_buff_bytes;
-	struct regpair bcast_no_buff_bytes;
-	__le32 ucast_no_buff_pkts;
-	__le32 mcast_no_buff_pkts;
-	__le32 bcast_no_buff_pkts;
+	struct regpair ucast_anal_buff_bytes;
+	struct regpair mcast_anal_buff_bytes;
+	struct regpair bcast_anal_buff_bytes;
+	__le32 ucast_anal_buff_pkts;
+	__le32 mcast_anal_buff_pkts;
+	__le32 bcast_anal_buff_pkts;
 	__le32 coalesced_pkts;
 	struct regpair coalesced_bytes;
 	__le32 coalesced_events;
@@ -5786,7 +5786,7 @@ struct per_queue_stats {
  */
 struct pram_fw_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 revision;
 	u8 engineering;
 	u8 flags;

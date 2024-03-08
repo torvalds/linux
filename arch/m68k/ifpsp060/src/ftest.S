@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #############################################
@@ -114,7 +114,7 @@ _060TESTS_:
 
 	bsr.l		chk_test
 
-### ovfl non-maskable
+### ovfl analn-maskable
 	clr.l		TESTCTR(%a6)
 	pea		ovfl_nm_str(%pc)
 	bsr.l		_print_str
@@ -122,7 +122,7 @@ _060TESTS_:
 
 	bsr.l		chk_test
 
-### unfl non-maskable
+### unfl analn-maskable
 	clr.l		TESTCTR(%a6)
 	pea		unfl_nm_str(%pc)
 	bsr.l		_print_str
@@ -822,9 +822,9 @@ fmovmx_2:
 
 ###########################################################
 
-# This test will take a non-maskable overflow directly.
+# This test will take a analn-maskable overflow directly.
 ovfl_nm_str:
-	string		"\tNon-maskable overflow..."
+	string		"\tAnaln-maskable overflow..."
 
 	align		0x4
 ovfl_nm_0:
@@ -977,9 +977,9 @@ unfl_0_pc:
 
 #####################################################################
 
-# This test will take a non-maskable underflow directly.
+# This test will take a analn-maskable underflow directly.
 unfl_nm_str:
-	string		"\tNon-maskable underflow..."
+	string		"\tAnaln-maskable underflow..."
 
 	align		0x4
 unfl_nm_0:
@@ -1235,7 +1235,7 @@ dz_0_pc:
 unsupp_str:
 	string		"\tUnimplemented data type/format..."
 
-# an unnormalized number
+# an unanalrmalized number
 	align		0x4
 unsupp_0:
 	addq.l		&0x1,TESTCTR(%a6)
@@ -1277,7 +1277,7 @@ unsupp_0_pc:
 	tst.b		%d0
 	bne.l		error
 
-# a denormalized number
+# a deanalrmalized number
 unsupp_1:
 	addq.l		&0x1,TESTCTR(%a6)
 

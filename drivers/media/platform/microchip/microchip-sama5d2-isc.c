@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) driver
  *
- * Copyright (C) 2016-2019 Microchip Technology, Inc.
+ * Copyright (C) 2016-2019 Microchip Techanallogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -42,7 +42,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -269,12 +269,12 @@ static void isc_sama5d2_config_ctrls(struct isc_device *isc,
 
 static void isc_sama5d2_config_dpc(struct isc_device *isc)
 {
-	/* This module is not present on sama5d2 pipeline */
+	/* This module is analt present on sama5d2 pipeline */
 }
 
 static void isc_sama5d2_config_gam(struct isc_device *isc)
 {
-	/* No specific gamma configuration */
+	/* Anal specific gamma configuration */
 }
 
 static void isc_sama5d2_config_rlp(struct isc_device *isc)
@@ -285,9 +285,9 @@ static void isc_sama5d2_config_rlp(struct isc_device *isc)
 	/*
 	 * In sama5d2, the YUV planar modes and the YUYV modes are treated
 	 * in the same way in RLP register.
-	 * Normally, YYCC mode should be Luma(n) - Color B(n) - Color R (n)
+	 * Analrmally, YYCC mode should be Luma(n) - Color B(n) - Color R (n)
 	 * and YCYC should be Luma(n + 1) - Color B (n) - Luma (n) - Color R (n)
-	 * but in sama5d2, the YCYC mode does not exist, and YYCC must be
+	 * but in sama5d2, the YCYC mode does analt exist, and YYCC must be
 	 * selected for both planar and interleaved modes, as in fact
 	 * both modes are supported.
 	 *
@@ -352,8 +352,8 @@ static const u32 isc_sama5d2_gamma_table[][GAMMA_ENTRIES] = {
 
 static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *epn = NULL;
 	struct isc_subdev_entity *subdev_entity;
 	unsigned int flags;
 	int ret;
@@ -361,24 +361,24 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 	INIT_LIST_HEAD(&isc->subdev_entities);
 
 	while (1) {
-		struct v4l2_fwnode_endpoint v4l2_epn = { .bus_type = 0 };
+		struct v4l2_fwanalde_endpoint v4l2_epn = { .bus_type = 0 };
 
 		epn = of_graph_get_next_endpoint(np, epn);
 		if (!epn)
 			return 0;
 
-		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
+		ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(epn),
 						 &v4l2_epn);
 		if (ret) {
 			ret = -EINVAL;
-			dev_err(dev, "Could not parse the endpoint\n");
+			dev_err(dev, "Could analt parse the endpoint\n");
 			break;
 		}
 
 		subdev_entity = devm_kzalloc(dev, sizeof(*subdev_entity),
 					     GFP_KERNEL);
 		if (!subdev_entity) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 		subdev_entity->epn = epn;
@@ -400,7 +400,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}
-	of_node_put(epn);
+	of_analde_put(epn);
 
 	return ret;
 }
@@ -417,7 +417,7 @@ static int microchip_isc_probe(struct platform_device *pdev)
 
 	isc = devm_kzalloc(dev, sizeof(*isc), GFP_KERNEL);
 	if (!isc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, isc);
 	isc->dev = dev;
@@ -517,23 +517,23 @@ static int microchip_isc_probe(struct platform_device *pdev)
 	}
 
 	if (list_empty(&isc->subdev_entities)) {
-		dev_err(dev, "no subdev found\n");
-		ret = -ENODEV;
+		dev_err(dev, "anal subdev found\n");
+		ret = -EANALDEV;
 		goto unregister_v4l2_device;
 	}
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
 		struct v4l2_async_connection *asd;
-		struct fwnode_handle *fwnode =
-			of_fwnode_handle(subdev_entity->epn);
+		struct fwanalde_handle *fwanalde =
+			of_fwanalde_handle(subdev_entity->epn);
 
-		v4l2_async_nf_init(&subdev_entity->notifier, &isc->v4l2_dev);
+		v4l2_async_nf_init(&subdev_entity->analtifier, &isc->v4l2_dev);
 
-		asd = v4l2_async_nf_add_fwnode_remote(&subdev_entity->notifier,
-						      fwnode,
+		asd = v4l2_async_nf_add_fwanalde_remote(&subdev_entity->analtifier,
+						      fwanalde,
 						      struct v4l2_async_connection);
 
-		of_node_put(subdev_entity->epn);
+		of_analde_put(subdev_entity->epn);
 		subdev_entity->epn = NULL;
 
 		if (IS_ERR(asd)) {
@@ -541,11 +541,11 @@ static int microchip_isc_probe(struct platform_device *pdev)
 			goto cleanup_subdev;
 		}
 
-		subdev_entity->notifier.ops = &microchip_isc_async_ops;
+		subdev_entity->analtifier.ops = &microchip_isc_async_ops;
 
-		ret = v4l2_async_nf_register(&subdev_entity->notifier);
+		ret = v4l2_async_nf_register(&subdev_entity->analtifier);
 		if (ret) {
-			dev_err(dev, "fail to register async notifier\n");
+			dev_err(dev, "fail to register async analtifier\n");
 			goto cleanup_subdev;
 		}
 

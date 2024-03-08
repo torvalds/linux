@@ -16,7 +16,7 @@
 #include <asm/mipsregs.h>
 #include <asm/hazards.h>
 
-/* NOTE: the CBR register returns a PA, and it can be above 0xff00_0000 */
+/* ANALTE: the CBR register returns a PA, and it can be above 0xff00_0000 */
 #define BMIPS_GET_CBR()			((void __iomem *)(CKSEG1 | \
 					 (unsigned long) \
 					 ((read_c0_brcm_cbr() >> 18) << 18)))
@@ -66,12 +66,12 @@ static inline int register_bmips_smp_ops(void)
 		register_smp_ops(&bmips5000_smp_ops);
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
 #else
-	return -ENODEV;
+	return -EANALDEV;
 #endif
 }
 
@@ -97,15 +97,15 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 	barrier();
 	cache_op(Index_Load_Tag_S, ZSCM_REG_BASE + offset);
 	__sync();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
 	ret = read_c0_ddatalo();
-	_ssnop();
+	_ssanalp();
 
 	return ret;
 }
@@ -113,13 +113,13 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 {
 	write_c0_ddatalo(data);
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
 	cache_op(Index_Store_Tag_S, ZSCM_REG_BASE + offset);
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssanalp();
+	_ssanalp();
+	_ssanalp();
 	barrier();
 }
 

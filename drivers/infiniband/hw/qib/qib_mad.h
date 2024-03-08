@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -97,7 +97,7 @@ struct ib_pma_portcounters_cong {
  * Congestion control class attributes
  */
 #define IB_CC_ATTR_CLASSPORTINFO			cpu_to_be16(0x0001)
-#define IB_CC_ATTR_NOTICE				cpu_to_be16(0x0002)
+#define IB_CC_ATTR_ANALTICE				cpu_to_be16(0x0002)
 #define IB_CC_ATTR_CONGESTION_INFO			cpu_to_be16(0x0011)
 #define IB_CC_ATTR_CONGESTION_KEY_INFO			cpu_to_be16(0x0012)
 #define IB_CC_ATTR_CONGESTION_LOG			cpu_to_be16(0x0013)
@@ -108,7 +108,7 @@ struct ib_pma_portcounters_cong {
 #define IB_CC_ATTR_TIME_STAMP				cpu_to_be16(0x0018)
 
 /* generalizations for threshold values */
-#define IB_CC_THRESHOLD_NONE 0x0
+#define IB_CC_THRESHOLD_ANALNE 0x0
 #define IB_CC_THRESHOLD_MIN  0x1
 #define IB_CC_THRESHOLD_MAX  0xf
 
@@ -139,7 +139,7 @@ struct ib_cc_mad {
  * Congestion Control class portinfo capability mask bits
  */
 #define IB_CC_CPI_CM_TRAP_GEN		cpu_to_be16(1 << 0)
-#define IB_CC_CPI_CM_GET_SET_NOTICE	cpu_to_be16(1 << 1)
+#define IB_CC_CPI_CM_GET_SET_ANALTICE	cpu_to_be16(1 << 1)
 #define IB_CC_CPI_CM_CAP2		cpu_to_be16(1 << 2)
 #define IB_CC_CPI_CM_ENHANCEDPORT0_CC	cpu_to_be16(1 << 8)
 

@@ -1,4 +1,4 @@
-Texas Instruments TAS5720 Mono Audio amplifier
+Texas Instruments TAS5720 Moanal Audio amplifier
 
 The TAS5720 serial control bus communicates through the I2C protocol only. The
 serial bus is also used for periodic codec fault checking/reporting during

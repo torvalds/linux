@@ -11,6 +11,6 @@ static inline int crypto_reportstat(struct sk_buff *in_skb,
 				    struct nlmsghdr *in_nlh,
 				    struct nlattr **attrs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 #endif

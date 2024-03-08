@@ -162,7 +162,7 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 
 	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);
 	if (!clk_configs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_configs->m250_mux.reg = dwmac->regs + PRG_ETH0;
 	clk_configs->m250_mux.shift = __ffs(PRG_ETH0_CLK_M250_SEL_MASK);
@@ -406,7 +406,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwmac->data = (const struct meson8b_dwmac_data *)
 		of_device_get_match_data(&pdev->dev);
@@ -417,21 +417,21 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(dwmac->regs);
 
 	dwmac->dev = &pdev->dev;
-	ret = of_get_phy_mode(pdev->dev.of_node, &dwmac->phy_mode);
+	ret = of_get_phy_mode(pdev->dev.of_analde, &dwmac->phy_mode);
 	if (ret) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
 		return ret;
 	}
 
 	/* use 2ns as fallback since this value was previously hardcoded */
-	if (of_property_read_u32(pdev->dev.of_node, "amlogic,tx-delay-ns",
+	if (of_property_read_u32(pdev->dev.of_analde, "amlogic,tx-delay-ns",
 				 &dwmac->tx_delay_ns))
 		dwmac->tx_delay_ns = 2;
 
 	/* RX delay defaults to 0ps since this is what many boards use */
-	if (of_property_read_u32(pdev->dev.of_node, "rx-internal-delay-ps",
+	if (of_property_read_u32(pdev->dev.of_analde, "rx-internal-delay-ps",
 				 &dwmac->rx_delay_ps)) {
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_analde,
 					  "amlogic,rx-delay-ns",
 					  &dwmac->rx_delay_ps))
 			/* convert ns to ps */

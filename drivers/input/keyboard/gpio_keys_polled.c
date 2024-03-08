@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Driver for buttons on GPIO lines not capable of generating interrupts
+ *  Driver for buttons on GPIO lines analt capable of generating interrupts
  *
  *  Copyright (C) 2007-2010 Gabor Juhos <juhosg@openwrt.org>
- *  Copyright (C) 2010 Nuno Goncalves <nunojpg@gmail.com>
+ *  Copyright (C) 2010 Nuanal Goncalves <nuanaljpg@gmail.com>
  *
  *  This file was based on: /drivers/input/misc/cobalt_btns.c
  *	Copyright (C) 2007 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
@@ -144,17 +144,17 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 {
 	struct gpio_keys_platform_data *pdata;
 	struct gpio_keys_button *button;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int nbuttons;
 
-	nbuttons = device_get_child_node_count(dev);
+	nbuttons = device_get_child_analde_count(dev);
 	if (nbuttons == 0)
 		return ERR_PTR(-EINVAL);
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata) + nbuttons * sizeof(*button),
 			     GFP_KERNEL);
 	if (!pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	button = (struct gpio_keys_button *)(pdata + 1);
 
@@ -166,30 +166,30 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 
 	device_property_read_string(dev, "label", &pdata->name);
 
-	device_for_each_child_node(dev, child) {
-		if (fwnode_property_read_u32(child, "linux,code",
+	device_for_each_child_analde(dev, child) {
+		if (fwanalde_property_read_u32(child, "linux,code",
 					     &button->code)) {
 			dev_err(dev, "button without keycode\n");
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 
-		fwnode_property_read_string(child, "label", &button->desc);
+		fwanalde_property_read_string(child, "label", &button->desc);
 
-		if (fwnode_property_read_u32(child, "linux,input-type",
+		if (fwanalde_property_read_u32(child, "linux,input-type",
 					     &button->type))
 			button->type = EV_KEY;
 
-		if (fwnode_property_read_u32(child, "linux,input-value",
+		if (fwanalde_property_read_u32(child, "linux,input-value",
 					     (u32 *)&button->value))
 			button->value = 1;
 
 		button->wakeup =
-			fwnode_property_read_bool(child, "wakeup-source") ||
+			fwanalde_property_read_bool(child, "wakeup-source") ||
 			/* legacy name */
-			fwnode_property_read_bool(child, "gpio-key,wakeup");
+			fwanalde_property_read_bool(child, "gpio-key,wakeup");
 
-		if (fwnode_property_read_u32(child, "debounce-interval",
+		if (fwanalde_property_read_u32(child, "debounce-interval",
 					     &button->debounce_interval))
 			button->debounce_interval = 5;
 
@@ -228,7 +228,7 @@ MODULE_DEVICE_TABLE(of, gpio_keys_polled_of_match);
 static int gpio_keys_polled_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child = NULL;
+	struct fwanalde_handle *child = NULL;
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);
 	struct gpio_keys_polled_dev *bdev;
 	struct input_dev *input;
@@ -249,14 +249,14 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 	bdev = devm_kzalloc(dev, struct_size(bdev, data, pdata->nbuttons),
 			    GFP_KERNEL);
 	if (!bdev) {
-		dev_err(dev, "no memory for private data\n");
-		return -ENOMEM;
+		dev_err(dev, "anal memory for private data\n");
+		return -EANALMEM;
 	}
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
-		dev_err(dev, "no memory for input device\n");
-		return -ENOMEM;
+		dev_err(dev, "anal memory for input device\n");
+		return -EANALMEM;
 	}
 
 	input_set_drvdata(input, bdev);
@@ -282,24 +282,24 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 		unsigned int type = button->type ?: EV_KEY;
 
 		if (button->wakeup) {
-			dev_err(dev, DRV_NAME " does not support wakeup\n");
-			fwnode_handle_put(child);
+			dev_err(dev, DRV_NAME " does analt support wakeup\n");
+			fwanalde_handle_put(child);
 			return -EINVAL;
 		}
 
 		if (!dev_get_platdata(dev)) {
-			/* No legacy static platform data */
-			child = device_get_next_child_node(dev, child);
+			/* Anal legacy static platform data */
+			child = device_get_next_child_analde(dev, child);
 			if (!child) {
-				dev_err(dev, "missing child device node\n");
+				dev_err(dev, "missing child device analde\n");
 				return -EINVAL;
 			}
 
-			bdata->gpiod = devm_fwnode_gpiod_get(dev, child,
+			bdata->gpiod = devm_fwanalde_gpiod_get(dev, child,
 							     NULL, GPIOD_IN,
 							     button->desc);
 			if (IS_ERR(bdata->gpiod)) {
-				fwnode_handle_put(child);
+				fwanalde_handle_put(child);
 				return dev_err_probe(dev, PTR_ERR(bdata->gpiod),
 						     "failed to get gpio\n");
 			}
@@ -341,7 +341,7 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 							button->code);
 	}
 
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 
 	bdev->input = input;
 	bdev->dev = dev;

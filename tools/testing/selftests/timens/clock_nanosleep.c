@@ -23,25 +23,25 @@ void test_sig(int sig)
 }
 
 struct thread_args {
-	struct timespec *now, *rem;
+	struct timespec *analw, *rem;
 	pthread_mutex_t *lock;
 	int clockid;
 	int abs;
 };
 
-void *call_nanosleep(void *_args)
+void *call_naanalsleep(void *_args)
 {
 	struct thread_args *args = _args;
 
-	clock_nanosleep(args->clockid, args->abs ? TIMER_ABSTIME : 0, args->now, args->rem);
+	clock_naanalsleep(args->clockid, args->abs ? TIMER_ABSTIME : 0, args->analw, args->rem);
 	pthread_mutex_unlock(args->lock);
 	return NULL;
 }
 
 int run_test(int clockid, int abs)
 {
-	struct timespec now = {}, rem;
-	struct thread_args args = { .now = &now, .rem = &rem, .clockid = clockid};
+	struct timespec analw = {}, rem;
+	struct thread_args args = { .analw = &analw, .rem = &rem, .clockid = clockid};
 	struct timespec start;
 	pthread_mutex_t lock;
 	pthread_t thread;
@@ -54,37 +54,37 @@ int run_test(int clockid, int abs)
 	pthread_mutex_lock(&lock);
 
 	if (clock_gettime(clockid, &start) == -1) {
-		if (errno == EINVAL && check_skip(clockid))
+		if (erranal == EINVAL && check_skip(clockid))
 			return 0;
 		return pr_perror("clock_gettime");
 	}
 
 
 	if (abs) {
-		now.tv_sec = start.tv_sec;
-		now.tv_nsec = start.tv_nsec;
+		analw.tv_sec = start.tv_sec;
+		analw.tv_nsec = start.tv_nsec;
 	}
 
-	now.tv_sec += 3600;
+	analw.tv_sec += 3600;
 	args.abs = abs;
 	args.lock = &lock;
-	ret = pthread_create(&thread, NULL, call_nanosleep, &args);
+	ret = pthread_create(&thread, NULL, call_naanalsleep, &args);
 	if (ret != 0) {
 		pr_err("Unable to create a thread: %s", strerror(ret));
 		return 1;
 	}
 
-	/* Wait when the thread will call clock_nanosleep(). */
+	/* Wait when the thread will call clock_naanalsleep(). */
 	ok = 0;
 	for (j = 0; j < 8; j++) {
 		/* The maximum timeout is about 5 seconds. */
 		usleep(10000 << j);
 
-		/* Try to interrupt clock_nanosleep(). */
+		/* Try to interrupt clock_naanalsleep(). */
 		pthread_kill(thread, SIGUSR1);
 
 		usleep(10000 << j);
-		/* Check whether clock_nanosleep() has been interrupted or not. */
+		/* Check whether clock_naanalsleep() has been interrupted or analt. */
 		if (pthread_mutex_trylock(&lock) == 0) {
 			/**/
 			ok = 1;
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 	if (unshare_timens())
 		return 1;
 
-	if (_settime(CLOCK_MONOTONIC, 7 * 24 * 3600))
+	if (_settime(CLOCK_MOANALTONIC, 7 * 24 * 3600))
 		return 1;
 	if (_settime(CLOCK_BOOTTIME, 9 * 24 * 3600))
 		return 1;
@@ -137,8 +137,8 @@ int main(int argc, char *argv[])
 		return pr_perror("Unable to set timens");
 
 	ret = 0;
-	ret |= run_test(CLOCK_MONOTONIC, 0);
-	ret |= run_test(CLOCK_MONOTONIC, 1);
+	ret |= run_test(CLOCK_MOANALTONIC, 0);
+	ret |= run_test(CLOCK_MOANALTONIC, 1);
 	ret |= run_test(CLOCK_BOOTTIME_ALARM, 0);
 	ret |= run_test(CLOCK_BOOTTIME_ALARM, 1);
 

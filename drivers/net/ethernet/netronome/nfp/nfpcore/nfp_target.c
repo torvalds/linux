@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_target.c
  * CPP Access Width Decoder
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Francois H. Theron <francois.theron@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Francois H. Theron <francois.theron@netroanalme.com>
  */
 
 #define pr_fmt(fmt)       "NFP target: " fmt
@@ -23,7 +23,7 @@
 #define P64 2
 
 /* This structure ONLY includes items that can be done with a read or write of
- * 32-bit or 64-bit words. All others are not listed.
+ * 32-bit or 64-bit words. All others are analt listed.
  */
 
 #define AT(_action, _token, _pull, _push)				\
@@ -99,7 +99,7 @@ static int nfp6000_nbi(u32 cpp_id, u64 address)
 }
 
 /* This structure ONLY includes items that can be done with a read or write of
- * 32-bit or 64-bit words. All others are not listed.
+ * 32-bit or 64-bit words. All others are analt listed.
  */
 static int nfp6000_mu_common(u32 cpp_id)
 {
@@ -249,11 +249,11 @@ static int nfp6000_cap_xpb(u32 cpp_id)
 	AT(0, 2, P32,   0); /* Interthread Signal */
 	AT(1, 1, P32,   0); /* RingPut */
 	AT(1, 2, P32,   0); /* CTNNWr */
-	AT(2, 0,   0, P32); /* ReflectRd, signal none */
+	AT(2, 0,   0, P32); /* ReflectRd, signal analne */
 	AT(2, 1,   0, P32); /* ReflectRd, signal self */
 	AT(2, 2,   0, P32); /* ReflectRd, signal remote */
 	AT(2, 3,   0, P32); /* ReflectRd, signal both */
-	AT(3, 0, P32,   0); /* ReflectWr, signal none */
+	AT(3, 0, P32,   0); /* ReflectWr, signal analne */
 	AT(3, 1, P32,   0); /* ReflectWr, signal self */
 	AT(3, 2, P32,   0); /* ReflectWr, signal remote */
 	AT(3, 3, P32,   0); /* ReflectWr, signal both */
@@ -354,7 +354,7 @@ static int nfp_decode_basic(u64 addr, int *dest_island, int cpp_tgt,
 		/* For VQDR, in this mode for 32-bit addressing
 		 * it would be islands 0, 16, 32 and 48 depending on channel
 		 * and upper address bits.
-		 * Since those are not all valid islands, most decode
+		 * Since those are analt all valid islands, most decode
 		 * cases would result in bad island IDs, but we do them
 		 * anyway since this is decoding an address that is already
 		 * assumed to be used as-is to get to sram.
@@ -403,9 +403,9 @@ static int nfp_decode_basic(u64 addr, int *dest_island, int cpp_tgt,
 		return 0;
 	case 3:
 		/* In this mode the data address starts to affect the island ID
-		 * so rather not allow it. In some really specific case
+		 * so rather analt allow it. In some really specific case
 		 * one could use this to send the upper half of the
-		 * VQDR channel to another MU, but this is getting very
+		 * VQDR channel to aanalther MU, but this is getting very
 		 * specific.
 		 * However, as above for mode 0, this is the decoder
 		 * and the caller should validate the resulting IID.
@@ -447,8 +447,8 @@ static int nfp_encode_basic_qdr(u64 addr, int dest_island, int cpp_tgt,
 }
 
 /* Try each option, take first one that fits.
- * Not sure if we would want to do some smarter
- * searching and prefer 0 or non-0 island IDs.
+ * Analt sure if we would want to do some smarter
+ * searching and prefer 0 or analn-0 island IDs.
  */
 static int nfp_encode_basic_search(u64 *addr, int dest_island, int *isld,
 				   int iid_lsb, int idx_lsb, int v_max)
@@ -466,10 +466,10 @@ static int nfp_encode_basic_search(u64 *addr, int dest_island, int *isld,
 			return 0;
 		}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-/* For VQDR, we may not modify the Channel bits, which might overlap
+/* For VQDR, we may analt modify the Channel bits, which might overlap
  *  with the Index bit. When it does, we need to ensure that isld0 == isld1.
  */
 static int nfp_encode_basic(u64 *addr, int dest_island, int cpp_tgt,
@@ -489,7 +489,7 @@ static int nfp_encode_basic(u64 *addr, int dest_island, int cpp_tgt,
 	switch (mode) {
 	case 0:
 		if (cpp_tgt == NFP_CPP_TARGET_QDR && !addr40)
-			/* In this specific mode we'd rather not modify
+			/* In this specific mode we'd rather analt modify
 			 * the address but we can verify if the existing
 			 * contents will point to a valid island.
 			 */
@@ -520,7 +520,7 @@ static int nfp_encode_basic(u64 *addr, int dest_island, int cpp_tgt,
 			return 0;
 		}
 
-		return -ENODEV;
+		return -EANALDEV;
 	case 2:
 		/* iid<0> = addr<30> = channel<0>
 		 * channel<1> = addr<31> = Index
@@ -611,7 +611,7 @@ static int nfp_encode_mu(u64 *addr, int dest_island, int mode,
 			return 0;
 		}
 
-		return -ENODEV;
+		return -EANALDEV;
 	case 2:
 		if (da) {
 			iid_lsb = addr40 ? 32 : 24;
@@ -639,7 +639,7 @@ static int nfp_encode_mu(u64 *addr, int dest_island, int mode,
 		 * The SDK toolchain uses dest_island <= 0 to test
 		 * for atypical address encodings to support access
 		 * to local-island CTM with a 32-but address (high-locality
-		 * is effewctively ignored and just used for
+		 * is effewctively iganalred and just used for
 		 * routing to island #0).
 		 */
 		if (dest_island > 0 && (dest_island < 24 || dest_island > 26)) {

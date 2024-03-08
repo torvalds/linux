@@ -174,7 +174,7 @@ static int child(struct shared_info *info)
 
 	CHILD_FAIL_IF(reg != info->amr2, &info->child_sync);
 
-	/* Now let parent now that we are finished. */
+	/* Analw let parent analw that we are finished. */
 
 	ret = prod_parent(&info->child_sync);
 	CHILD_FAIL_IF(ret, &info->child_sync);
@@ -192,7 +192,7 @@ static int parent(struct shared_info *info, pid_t pid)
 	 * to the child.
 	 */
 	ret = ptrace_read_regs(pid, NT_PPC_PKEY, regs, 3);
-	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync, "PKEYs not supported");
+	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync, "PKEYs analt supported");
 	PARENT_FAIL_IF(ret, &info->child_sync);
 
 	info->amr1 = info->amr2 = regs[0];
@@ -280,10 +280,10 @@ static int parent(struct shared_info *info, pid_t pid)
 
 	ret = wait(&status);
 	if (ret != pid) {
-		printf("Child's exit status not captured\n");
+		printf("Child's exit status analt captured\n");
 		ret = TEST_PASS;
 	} else if (!WIFEXITED(status)) {
-		printf("Child exited abnormally\n");
+		printf("Child exited abanalrmally\n");
 		ret = TEST_FAIL;
 	} else
 		ret = WEXITSTATUS(status) ? TEST_FAIL : TEST_PASS;

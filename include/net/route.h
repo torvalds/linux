@@ -107,7 +107,7 @@ struct ip_rt_acct {
 struct rt_cache_stat {
         unsigned int in_slow_tot;
         unsigned int in_slow_mc;
-        unsigned int in_no_route;
+        unsigned int in_anal_route;
         unsigned int in_brd;
         unsigned int in_martian_dst;
         unsigned int in_martian_src;
@@ -187,7 +187,7 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 int ip_mc_validate_source(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			  u8 tos, struct net_device *dev,
 			  struct in_device *in_dev, u32 *itag);
-int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
+int ip_route_input_analref(struct sk_buff *skb, __be32 dst, __be32 src,
 			 u8 tos, struct net_device *devin);
 int ip_route_use_hint(struct sk_buff *skb, __be32 dst, __be32 src,
 		      u8 tos, struct net_device *devin,
@@ -199,7 +199,7 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	int err;
 
 	rcu_read_lock();
-	err = ip_route_input_noref(skb, dst, src, tos, devin);
+	err = ip_route_input_analref(skb, dst, src, tos, devin);
 	if (!err) {
 		skb_dst_force(skb);
 		if (!skb_dst(skb))
@@ -228,7 +228,7 @@ void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, struct rtentry *rt);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 struct rtable *rt_dst_alloc(struct net_device *dev,
-			    unsigned int flags, u16 type, bool noxfrm);
+			    unsigned int flags, u16 type, bool analxfrm);
 struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt);
 
 struct in_ifaddr;
@@ -277,7 +277,7 @@ static inline char rt_tos2priority(u8 tos)
  * addresses to use for port allocation.
  *
  * Later, once the ports are allocated, ip_route_newports() will make
- * another route lookup if needed to make sure we catch any IPSEC
+ * aanalther route lookup if needed to make sure we catch any IPSEC
  * rules keyed on the port information.
  *
  * The callers allocate the flow key on their stack, and must pass in
@@ -363,7 +363,7 @@ static inline struct neighbour *ip_neigh_gw4(struct net_device *dev,
 {
 	struct neighbour *neigh;
 
-	neigh = __ipv4_neigh_lookup_noref(dev, (__force u32)daddr);
+	neigh = __ipv4_neigh_lookup_analref(dev, (__force u32)daddr);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &daddr, dev, false);
 

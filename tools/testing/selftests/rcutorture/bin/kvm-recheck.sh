@@ -7,7 +7,7 @@
 #
 # Usage: kvm-recheck.sh resdir ...
 #
-# Returns status reflecting the success or not of the last run specified.
+# Returns status reflecting the success or analt of the last run specified.
 #
 # Copyright (C) IBM Corporation, 2011
 #
@@ -79,7 +79,7 @@ do
 		else
 			if test -f "$i/buildonly"
 			then
-				echo Build-only run, no boot/test
+				echo Build-only run, anal boot/test
 				configcheck.sh $i/.config $i/ConfigFragment > $i/ConfigFragment.diags 2>&1
 				if test -s $i/ConfigFragment.diags
 				then
@@ -106,7 +106,7 @@ do
 			:
 		elif grep -q CONFIG_KCSAN=y $i/ConfigFragment.diags
 		then
-			echo "Compiler or architecture does not support KCSAN!"
+			echo "Compiler or architecture does analt support KCSAN!"
 			echo Did you forget to switch your compiler with '--kmake-arg CC=<cc-that-supports-kcsan>'?
 		elif test -s "$rd/kcsan.sum"
 		then

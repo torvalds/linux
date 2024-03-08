@@ -14,7 +14,7 @@
  * this archive for more details.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
@@ -168,7 +168,7 @@ asmlinkage void handle_unaligned_c(struct pt_regs *fp, int cause)
 
 	/*
 	 * kernel mode -
-	 *  note exception and skip bad instruction (return)
+	 *  analte exception and skip bad instruction (return)
 	 */
 	if (in_kernel) {
 		fp->ea += 4;

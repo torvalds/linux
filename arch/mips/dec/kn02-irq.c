@@ -19,7 +19,7 @@
  * meaning.  Hence we use a cache.  It speeds up things a bit
  * as well.
  *
- * There is no default value -- it has to be initialized.
+ * There is anal default value -- it has to be initialized.
  */
 u32 cached_kn02_csr;
 

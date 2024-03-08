@@ -24,7 +24,7 @@ static int wm8350_i2c_probe(struct i2c_client *i2c)
 
 	wm8350 = devm_kzalloc(&i2c->dev, sizeof(struct wm8350), GFP_KERNEL);
 	if (wm8350 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8350->regmap = devm_regmap_init_i2c(i2c, &wm8350_regmap);
 	if (IS_ERR(wm8350->regmap)) {

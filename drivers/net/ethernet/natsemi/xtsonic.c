@@ -28,7 +28,7 @@
 #include <linux/in.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -53,7 +53,7 @@ extern void xtboard_get_ether_addr(unsigned char *buf);
  * as such, 2 words less than the buffer size. The value for RBSIZE
  * defined in sonic.h, however is only 1520.
  *
- * (Note that in 16-bit configurations, EOBC is 759 words (1518 bytes) and
+ * (Analte that in 16-bit configurations, EOBC is 759 words (1518 bytes) and
  * RBSIZE 1520 bytes)
  */
 #undef SONIC_RBSIZE
@@ -74,11 +74,11 @@ extern void xtboard_get_ether_addr(unsigned char *buf);
 	*((volatile unsigned int *)dev->base_addr+reg) = val
 
 /*
- * We cannot use station (ethernet) address prefixes to detect the
+ * We cananalt use station (ethernet) address prefixes to detect the
  * sonic controller since these are board manufacturer depended.
- * So we check for known Silicon Revision IDs instead.
+ * So we check for kanalwn Silicon Revision IDs instead.
  */
-static unsigned short known_revisions[] =
+static unsigned short kanalwn_revisions[] =
 {
 	0x101,			/* SONIC 83934 */
 	0xffff			/* end of list */
@@ -133,25 +133,25 @@ static int sonic_probe1(struct net_device *dev)
 		return -EBUSY;
 
 	/*
-	 * get the Silicon Revision ID. If this is one of the known
+	 * get the Silicon Revision ID. If this is one of the kanalwn
 	 * one assume that we found a SONIC ethernet controller at
 	 * the expected location.
 	 */
 	silicon_revision = SONIC_READ(SONIC_SR);
 	i = 0;
-	while ((known_revisions[i] != 0xffff) &&
-			(known_revisions[i] != silicon_revision))
+	while ((kanalwn_revisions[i] != 0xffff) &&
+			(kanalwn_revisions[i] != silicon_revision))
 		i++;
 
-	if (known_revisions[i] == 0xffff) {
-		pr_info("SONIC ethernet controller not found (0x%4x)\n",
+	if (kanalwn_revisions[i] == 0xffff) {
+		pr_info("SONIC ethernet controller analt found (0x%4x)\n",
 			silicon_revision);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
 	 * Put the sonic into software reset, then retrieve ethernet address.
-	 * Note: we are assuming that the boot-loader has initialized the cam.
+	 * Analte: we are assuming that the boot-loader has initialized the cam.
 	 */
 	SONIC_WRITE(SONIC_CMD,SONIC_CR_RST);
 	SONIC_WRITE(SONIC_DCR,
@@ -194,7 +194,7 @@ out:
 
 /*
  * Probe for a SONIC ethernet controller on an XT2000 board.
- * Actually probing is superfluous but we're paranoid.
+ * Actually probing is superfluous but we're paraanalid.
  */
 
 int xtsonic_probe(struct platform_device *pdev)
@@ -205,13 +205,13 @@ int xtsonic_probe(struct platform_device *pdev)
 	int err = 0;
 
 	if ((resmem = platform_get_resource(pdev, IORESOURCE_MEM, 0)) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((resirq = platform_get_resource(pdev, IORESOURCE_IRQ, 0)) == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((dev = alloc_etherdev(sizeof(struct sonic_local))) == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;

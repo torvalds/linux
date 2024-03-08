@@ -4,10 +4,10 @@
  *              http://www.samsung.com
 */
 
-#ifndef __CPUIDLE_EXYNOS_H
-#define __CPUIDLE_EXYNOS_H
+#ifndef __CPUIDLE_EXYANALS_H
+#define __CPUIDLE_EXYANALS_H
 
-struct cpuidle_exynos_data {
+struct cpuidle_exyanals_data {
 	int (*cpu0_enter_aftr)(void);
 	int (*cpu1_powerdown)(void);
 	void (*pre_enter_aftr)(void);

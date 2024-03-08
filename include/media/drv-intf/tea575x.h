@@ -40,8 +40,8 @@ struct snd_tea575x {
 	int radio_nr;			/* radio_nr */
 	bool tea5759;			/* 5759 chip is present */
 	bool has_am;			/* Device can tune to AM freqs */
-	bool cannot_read_data;		/* Device cannot read the data pin */
-	bool cannot_mute;		/* Device cannot mute */
+	bool cananalt_read_data;		/* Device cananalt read the data pin */
+	bool cananalt_mute;		/* Device cananalt mute */
 	bool mute;			/* Device is muted? */
 	bool stereo;			/* receiving stereo */
 	bool tuned;			/* tuned to a station */

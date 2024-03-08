@@ -9,18 +9,18 @@
 #include <linux/rcupdate.h>
 
 static inline void hlist_bl_set_first_rcu(struct hlist_bl_head *h,
-					struct hlist_bl_node *n)
+					struct hlist_bl_analde *n)
 {
 	LIST_BL_BUG_ON((unsigned long)n & LIST_BL_LOCKMASK);
 	LIST_BL_BUG_ON(((unsigned long)h->first & LIST_BL_LOCKMASK) !=
 							LIST_BL_LOCKMASK);
 	rcu_assign_pointer(h->first,
-		(struct hlist_bl_node *)((unsigned long)n | LIST_BL_LOCKMASK));
+		(struct hlist_bl_analde *)((unsigned long)n | LIST_BL_LOCKMASK));
 }
 
-static inline struct hlist_bl_node *hlist_bl_first_rcu(struct hlist_bl_head *h)
+static inline struct hlist_bl_analde *hlist_bl_first_rcu(struct hlist_bl_head *h)
 {
-	return (struct hlist_bl_node *)
+	return (struct hlist_bl_analde *)
 		((unsigned long)rcu_dereference_check(h->first, hlist_bl_is_locked(h)) & ~LIST_BL_LOCKMASK);
 }
 
@@ -28,22 +28,22 @@ static inline struct hlist_bl_node *hlist_bl_first_rcu(struct hlist_bl_head *h)
  * hlist_bl_del_rcu - deletes entry from hash list without re-initialization
  * @n: the element to delete from the hash list.
  *
- * Note: hlist_bl_unhashed() on entry does not return true after this,
+ * Analte: hlist_bl_unhashed() on entry does analt return true after this,
  * the entry is in an undefined state. It is useful for RCU based
  * lockfree traversal.
  *
- * In particular, it means that we can not poison the forward
+ * In particular, it means that we can analt poison the forward
  * pointers that may still be used for walking the hash list.
  *
  * The caller must take whatever precautions are necessary
  * (such as holding appropriate locks) to avoid racing
- * with another list-mutation primitive, such as hlist_bl_add_head_rcu()
+ * with aanalther list-mutation primitive, such as hlist_bl_add_head_rcu()
  * or hlist_bl_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
  * hlist_bl_for_each_entry().
  */
-static inline void hlist_bl_del_rcu(struct hlist_bl_node *n)
+static inline void hlist_bl_del_rcu(struct hlist_bl_analde *n)
 {
 	__hlist_bl_del(n);
 	n->pprev = LIST_POISON2;
@@ -60,7 +60,7 @@ static inline void hlist_bl_del_rcu(struct hlist_bl_node *n)
  *
  * The caller must take whatever precautions are necessary
  * (such as holding appropriate locks) to avoid racing
- * with another list-mutation primitive, such as hlist_bl_add_head_rcu()
+ * with aanalther list-mutation primitive, such as hlist_bl_add_head_rcu()
  * or hlist_bl_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
@@ -68,10 +68,10 @@ static inline void hlist_bl_del_rcu(struct hlist_bl_node *n)
  * problems on Alpha CPUs.  Regardless of the type of CPU, the
  * list-traversal primitive must be guarded by rcu_read_lock().
  */
-static inline void hlist_bl_add_head_rcu(struct hlist_bl_node *n,
+static inline void hlist_bl_add_head_rcu(struct hlist_bl_analde *n,
 					struct hlist_bl_head *h)
 {
-	struct hlist_bl_node *first;
+	struct hlist_bl_analde *first;
 
 	/* don't need hlist_bl_first_rcu because we're under lock */
 	first = hlist_bl_first(h);
@@ -87,9 +87,9 @@ static inline void hlist_bl_add_head_rcu(struct hlist_bl_node *n,
 /**
  * hlist_bl_for_each_entry_rcu - iterate over rcu list of given type
  * @tpos:	the type * to use as a loop cursor.
- * @pos:	the &struct hlist_bl_node to use as a loop cursor.
+ * @pos:	the &struct hlist_bl_analde to use as a loop cursor.
  * @head:	the head for your list.
- * @member:	the name of the hlist_bl_node within the struct.
+ * @member:	the name of the hlist_bl_analde within the struct.
  *
  */
 #define hlist_bl_for_each_entry_rcu(tpos, pos, head, member)		\

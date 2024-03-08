@@ -148,7 +148,7 @@ u32 vpu_helper_valid_frame_height(struct vpu_inst *inst, u32 height)
 	return height;
 }
 
-static u32 get_nv12_plane_size(u32 width, u32 height, int plane_no,
+static u32 get_nv12_plane_size(u32 width, u32 height, int plane_anal,
 			       u32 stride, u32 interlaced, u32 *pbl)
 {
 	u32 bytesperline;
@@ -159,9 +159,9 @@ static u32 get_nv12_plane_size(u32 width, u32 height, int plane_no,
 		bytesperline = max(bytesperline, *pbl);
 	bytesperline = ALIGN(bytesperline, stride);
 	height = ALIGN(height, 2);
-	if (plane_no == 0)
+	if (plane_anal == 0)
 		size = bytesperline * height;
-	else if (plane_no == 1)
+	else if (plane_anal == 1)
 		size = bytesperline * height >> 1;
 	if (pbl)
 		*pbl = bytesperline;
@@ -169,7 +169,7 @@ static u32 get_nv12_plane_size(u32 width, u32 height, int plane_no,
 	return size;
 }
 
-static u32 get_tiled_8l128_plane_size(u32 fmt, u32 width, u32 height, int plane_no,
+static u32 get_tiled_8l128_plane_size(u32 fmt, u32 width, u32 height, int plane_anal,
 				      u32 stride, u32 interlaced, u32 *pbl)
 {
 	u32 ws = 3;
@@ -188,9 +188,9 @@ static u32 get_tiled_8l128_plane_size(u32 fmt, u32 width, u32 height, int plane_
 	bytesperline = ALIGN(bytesperline, 1 << ws);
 	bytesperline = ALIGN(bytesperline, stride);
 	height = ALIGN(height, 1 << hs);
-	if (plane_no == 0)
+	if (plane_anal == 0)
 		size = bytesperline * height;
-	else if (plane_no == 1)
+	else if (plane_anal == 1)
 		size = (bytesperline * ALIGN(height, 1 << (hs + 1))) >> 1;
 	if (pbl)
 		*pbl = bytesperline;
@@ -198,7 +198,7 @@ static u32 get_tiled_8l128_plane_size(u32 fmt, u32 width, u32 height, int plane_
 	return size;
 }
 
-static u32 get_default_plane_size(u32 width, u32 height, int plane_no,
+static u32 get_default_plane_size(u32 width, u32 height, int plane_anal,
 				  u32 stride, u32 interlaced, u32 *pbl)
 {
 	u32 bytesperline;
@@ -208,7 +208,7 @@ static u32 get_default_plane_size(u32 width, u32 height, int plane_no,
 	if (pbl)
 		bytesperline = max(bytesperline, *pbl);
 	bytesperline = ALIGN(bytesperline, stride);
-	if (plane_no == 0)
+	if (plane_anal == 0)
 		size = bytesperline * height;
 	if (pbl)
 		*pbl = bytesperline;
@@ -216,20 +216,20 @@ static u32 get_default_plane_size(u32 width, u32 height, int plane_no,
 	return size;
 }
 
-u32 vpu_helper_get_plane_size(u32 fmt, u32 w, u32 h, int plane_no,
+u32 vpu_helper_get_plane_size(u32 fmt, u32 w, u32 h, int plane_anal,
 			      u32 stride, u32 interlaced, u32 *pbl)
 {
 	switch (fmt) {
 	case V4L2_PIX_FMT_NV12:
 	case V4L2_PIX_FMT_NV12M:
-		return get_nv12_plane_size(w, h, plane_no, stride, interlaced, pbl);
+		return get_nv12_plane_size(w, h, plane_anal, stride, interlaced, pbl);
 	case V4L2_PIX_FMT_NV12_8L128:
 	case V4L2_PIX_FMT_NV12M_8L128:
 	case V4L2_PIX_FMT_NV12_10BE_8L128:
 	case V4L2_PIX_FMT_NV12M_10BE_8L128:
-		return get_tiled_8l128_plane_size(fmt, w, h, plane_no, stride, interlaced, pbl);
+		return get_tiled_8l128_plane_size(fmt, w, h, plane_anal, stride, interlaced, pbl);
 	default:
-		return get_default_plane_size(w, h, plane_no, stride, interlaced, pbl);
+		return get_default_plane_size(w, h, plane_anal, stride, interlaced, pbl);
 	}
 }
 
@@ -452,7 +452,7 @@ int vpu_find_src_by_dst(struct vpu_pair *pairs, u32 cnt, u32 dst)
 const char *vpu_id_name(u32 id)
 {
 	switch (id) {
-	case VPU_CMD_ID_NOOP: return "noop";
+	case VPU_CMD_ID_ANALOP: return "analop";
 	case VPU_CMD_ID_CONFIGURE_CODEC: return "configure codec";
 	case VPU_CMD_ID_START: return "start";
 	case VPU_CMD_ID_STOP: return "stop";
@@ -491,7 +491,7 @@ const char *vpu_id_name(u32 id)
 	case VPU_MSG_ID_PIC_SKIPPED: return "skipped";
 	case VPU_MSG_ID_DBG_MSG: return "debug msg";
 	}
-	return "<unknown>";
+	return "<unkanalwn>";
 }
 
 const char *vpu_codec_state_name(enum vpu_codec_state state)
@@ -507,5 +507,5 @@ const char *vpu_codec_state_name(enum vpu_codec_state state)
 	case VPU_CODEC_STATE_DRAIN: return "drain";
 	case VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE: return "resolution change";
 	}
-	return "<unknown>";
+	return "<unkanalwn>";
 }

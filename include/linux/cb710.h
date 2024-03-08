@@ -39,7 +39,7 @@ struct cb710_chip {
 	struct cb710_slot	slot[];
 };
 
-/* NOTE: cb710_chip.slots is modified only during device init/exit and
+/* ANALTE: cb710_chip.slots is modified only during device init/exit and
  * they are all serialized wrt themselves */
 
 /* cb710_chip.slot_mask values */
@@ -163,7 +163,7 @@ void cb710_sg_dwiter_write_next_block(struct sg_mapping_iter *miter, uint32_t da
  * Description:
  *   Reads @count 32-bit words from register @port and stores it in
  *   buffer iterated by @miter.  Data that would overflow the buffer
- *   is silently ignored.  Iterator is advanced by 4*@count bytes
+ *   is silently iganalred.  Iterator is advanced by 4*@count bytes
  *   or to the buffer's end whichever is closer.
  *
  * Context:

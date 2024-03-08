@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Sascha Hauer, Pengutronix
  *
- * Based on Samsung Exynos code
+ * Based on Samsung Exyanals code
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  */
@@ -28,7 +28,7 @@
  *
  * The DRM GEM/DMA helpers are a means to provide buffer objects that are
  * presented to the device as a contiguous chunk of memory. This is useful
- * for devices that do not support scatter-gather DMA (either directly or
+ * for devices that do analt support scatter-gather DMA (either directly or
  * by using an intimately attached IOMMU).
  *
  * For devices that access the memory bus through an (external) IOMMU then
@@ -82,7 +82,7 @@ __drm_gem_dma_create(struct drm_device *drm, size_t size, bool private)
 	} else {
 		dma_obj = kzalloc(sizeof(*dma_obj), GFP_KERNEL);
 		if (!dma_obj)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		gem_obj = &dma_obj->base;
 	}
 
@@ -93,7 +93,7 @@ __drm_gem_dma_create(struct drm_device *drm, size_t size, bool private)
 		drm_gem_private_object_init(drm, gem_obj, size);
 
 		/* Always use writecombine for dma-buf mappings */
-		dma_obj->map_noncoherent = false;
+		dma_obj->map_analncoherent = false;
 	} else {
 		ret = drm_gem_object_init(drm, gem_obj, size);
 	}
@@ -123,7 +123,7 @@ error:
  *
  * For devices that are directly connected to the memory bus then the allocated
  * memory will be physically contiguous. For devices that access through an
- * IOMMU, then the allocated memory is not expected to be physically contiguous
+ * IOMMU, then the allocated memory is analt expected to be physically contiguous
  * because having contiguous IOVAs is sufficient to meet a devices DMA
  * requirements.
  *
@@ -143,20 +143,20 @@ struct drm_gem_dma_object *drm_gem_dma_create(struct drm_device *drm,
 	if (IS_ERR(dma_obj))
 		return dma_obj;
 
-	if (dma_obj->map_noncoherent) {
-		dma_obj->vaddr = dma_alloc_noncoherent(drm->dev, size,
+	if (dma_obj->map_analncoherent) {
+		dma_obj->vaddr = dma_alloc_analncoherent(drm->dev, size,
 						       &dma_obj->dma_addr,
 						       DMA_TO_DEVICE,
-						       GFP_KERNEL | __GFP_NOWARN);
+						       GFP_KERNEL | __GFP_ANALWARN);
 	} else {
 		dma_obj->vaddr = dma_alloc_wc(drm->dev, size,
 					      &dma_obj->dma_addr,
-					      GFP_KERNEL | __GFP_NOWARN);
+					      GFP_KERNEL | __GFP_ANALWARN);
 	}
 	if (!dma_obj->vaddr) {
 		drm_dbg(drm, "failed to allocate buffer with size %zu\n",
 			 size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -207,7 +207,7 @@ drm_gem_dma_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it analw. */
 	drm_gem_object_put(gem_obj);
 	if (ret)
 		return ERR_PTR(ret);
@@ -233,8 +233,8 @@ void drm_gem_dma_free(struct drm_gem_dma_object *dma_obj)
 			dma_buf_vunmap_unlocked(gem_obj->import_attach->dmabuf, &map);
 		drm_prime_gem_destroy(gem_obj, dma_obj->sgt);
 	} else if (dma_obj->vaddr) {
-		if (dma_obj->map_noncoherent)
-			dma_free_noncoherent(gem_obj->dev->dev, dma_obj->base.size,
+		if (dma_obj->map_analncoherent)
+			dma_free_analncoherent(gem_obj->dev->dev, dma_obj->base.size,
 					     dma_obj->vaddr, dma_obj->dma_addr,
 					     DMA_TO_DEVICE);
 		else
@@ -256,7 +256,7 @@ EXPORT_SYMBOL_GPL(drm_gem_dma_free);
  *
  * This aligns the pitch and size arguments to the minimum required. This is
  * an internal helper that can be wrapped by a driver to account for hardware
- * with more specific alignment requirements. It should not be used directly
+ * with more specific alignment requirements. It should analt be used directly
  * as their &drm_driver.dumb_create callback.
  *
  * Returns:
@@ -322,14 +322,14 @@ EXPORT_SYMBOL_GPL(drm_gem_dma_vm_ops);
 
 #ifndef CONFIG_MMU
 /**
- * drm_gem_dma_get_unmapped_area - propose address for mapping in noMMU cases
+ * drm_gem_dma_get_unmapped_area - propose address for mapping in analMMU cases
  * @filp: file object
  * @addr: memory address
  * @len: buffer size
  * @pgoff: page offset
  * @flags: memory flags
  *
- * This function is used in noMMU platforms to propose address mapping
+ * This function is used in analMMU platforms to propose address mapping
  * for a given buffer.
  * It's intended to be used as a direct handler for the struct
  * &file_operations.get_unmapped_area operation.
@@ -346,24 +346,24 @@ unsigned long drm_gem_dma_get_unmapped_area(struct file *filp,
 	struct drm_gem_dma_object *dma_obj;
 	struct drm_gem_object *obj = NULL;
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_offset_node *node;
+	struct drm_device *dev = priv->mianalr->dev;
+	struct drm_vma_offset_analde *analde;
 
 	if (drm_dev_is_unplugged(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
-	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
+	analde = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
 						  pgoff,
 						  len >> PAGE_SHIFT);
-	if (likely(node)) {
-		obj = container_of(node, struct drm_gem_object, vma_node);
+	if (likely(analde)) {
+		obj = container_of(analde, struct drm_gem_object, vma_analde);
 		/*
 		 * When the object is being freed, after it hits 0-refcnt it
 		 * proceeds to tear down the object. In the process it will
 		 * attempt to remove the VMA offset and so acquire this
 		 * mgr->vm_lock.  Therefore if we find an object with a 0-refcnt
-		 * that matches our range, we know it is in the process of being
+		 * that matches our range, we kanalw it is in the process of being
 		 * destroyed and will be freed as soon as we release the lock -
 		 * so we have to check for the 0-refcnted object and treat it as
 		 * invalid.
@@ -377,7 +377,7 @@ unsigned long drm_gem_dma_get_unmapped_area(struct file *filp,
 	if (!obj)
 		return -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, priv)) {
+	if (!drm_vma_analde_is_allowed(analde, priv)) {
 		drm_gem_object_put(obj);
 		return -EACCES;
 	}
@@ -426,7 +426,7 @@ struct sg_table *drm_gem_dma_get_sg_table(struct drm_gem_dma_object *dma_obj)
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = dma_get_sgtable(obj->dev->dev, sgt, dma_obj->vaddr,
 			      dma_obj->dma_addr, obj->size);
@@ -442,14 +442,14 @@ out:
 EXPORT_SYMBOL_GPL(drm_gem_dma_get_sg_table);
 
 /**
- * drm_gem_dma_prime_import_sg_table - produce a DMA GEM object from another
+ * drm_gem_dma_prime_import_sg_table - produce a DMA GEM object from aanalther
  *     driver's scatter/gather table of pinned pages
  * @dev: device to import into
  * @attach: DMA-BUF attachment
  * @sgt: scatter/gather table of pinned pages
  *
  * This function imports a scatter/gather table exported via DMA-BUF by
- * another driver. Imported buffers must be physically contiguous in memory
+ * aanalther driver. Imported buffers must be physically contiguous in memory
  * (i.e. the scatter/gather table must contain a single entry). Drivers that
  * use the DMA helpers should set this as their
  * &drm_driver.gem_prime_import_sg_table callback.
@@ -529,10 +529,10 @@ int drm_gem_dma_mmap(struct drm_gem_dma_object *dma_obj, struct vm_area_struct *
 	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
 	 * the whole buffer.
 	 */
-	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
+	vma->vm_pgoff -= drm_vma_analde_start(&obj->vma_analde);
 	vm_flags_mod(vma, VM_DONTEXPAND, VM_PFNMAP);
 
-	if (dma_obj->map_noncoherent) {
+	if (dma_obj->map_analncoherent) {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 
 		ret = dma_mmap_pages(dma_obj->base.dev->dev,
@@ -551,7 +551,7 @@ int drm_gem_dma_mmap(struct drm_gem_dma_object *dma_obj, struct vm_area_struct *
 EXPORT_SYMBOL_GPL(drm_gem_dma_mmap);
 
 /**
- * drm_gem_dma_prime_import_sg_table_vmap - PRIME import another driver's
+ * drm_gem_dma_prime_import_sg_table_vmap - PRIME import aanalther driver's
  *	scatter/gather table and get the virtual address of the buffer
  * @dev: DRM device
  * @attach: DMA-BUF attachment

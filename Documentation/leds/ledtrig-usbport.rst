@@ -10,7 +10,7 @@ It requires selecting USB ports that should be observed. All available ones are
 listed as separated entries in a "ports" subdirectory. Selecting is handled by
 echoing "1" to a chosen port.
 
-Please note that this trigger allows selecting multiple USB ports for a single
+Please analte that this trigger allows selecting multiple USB ports for a single
 LED.
 
 This can be useful in two cases:

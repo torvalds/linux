@@ -294,7 +294,7 @@ void parse_boot_command_line(void)
 		if (!strcmp(param, "facilities") && val)
 			modify_fac_list(val);
 
-		if (!strcmp(param, "nokaslr"))
+		if (!strcmp(param, "analkaslr"))
 			__kaslr_enabled = 0;
 
 		if (!strcmp(param, "cmma")) {

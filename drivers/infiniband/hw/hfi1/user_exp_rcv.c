@@ -19,26 +19,26 @@ static int set_rcvarray_entry(struct hfi1_filedata *fd,
 			      u32 rcventry, struct tid_group *grp,
 			      u16 pageidx, unsigned int npages);
 static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
-				    struct tid_rb_node *tnode);
-static bool tid_rb_invalidate(struct mmu_interval_notifier *mni,
-			      const struct mmu_notifier_range *range,
+				    struct tid_rb_analde *tanalde);
+static bool tid_rb_invalidate(struct mmu_interval_analtifier *mni,
+			      const struct mmu_analtifier_range *range,
 			      unsigned long cur_seq);
-static bool tid_cover_invalidate(struct mmu_interval_notifier *mni,
-			         const struct mmu_notifier_range *range,
+static bool tid_cover_invalidate(struct mmu_interval_analtifier *mni,
+			         const struct mmu_analtifier_range *range,
 			         unsigned long cur_seq);
 static int program_rcvarray(struct hfi1_filedata *fd, struct tid_user_buf *,
 			    struct tid_group *grp, u16 count,
 			    u32 *tidlist, unsigned int *tididx,
 			    unsigned int *pmapped);
 static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo);
-static void __clear_tid_node(struct hfi1_filedata *fd,
-			     struct tid_rb_node *node);
-static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node);
+static void __clear_tid_analde(struct hfi1_filedata *fd,
+			     struct tid_rb_analde *analde);
+static void clear_tid_analde(struct hfi1_filedata *fd, struct tid_rb_analde *analde);
 
-static const struct mmu_interval_notifier_ops tid_mn_ops = {
+static const struct mmu_interval_analtifier_ops tid_mn_ops = {
 	.invalidate = tid_rb_invalidate,
 };
-static const struct mmu_interval_notifier_ops tid_cover_ops = {
+static const struct mmu_interval_analtifier_ops tid_cover_ops = {
 	.invalidate = tid_cover_invalidate,
 };
 
@@ -53,10 +53,10 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 	int ret = 0;
 
 	fd->entry_to_rb = kcalloc(uctxt->expected_count,
-				  sizeof(struct rb_node *),
+				  sizeof(struct rb_analde *),
 				  GFP_KERNEL);
 	if (!fd->entry_to_rb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
@@ -66,18 +66,18 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 		if (!fd->invalid_tids) {
 			kfree(fd->entry_to_rb);
 			fd->entry_to_rb = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		fd->use_mn = true;
 	}
 
 	/*
-	 * PSM does not have a good way to separate, count, and
+	 * PSM does analt have a good way to separate, count, and
 	 * effectively enforce a limit on RcvArray entries used by
 	 * subctxts (when context sharing is used) when TID caching
 	 * is enabled. To help with that, we calculate a per-process
 	 * RcvArray entry share and enforce that.
-	 * If TID caching is not in use, PSM deals with usage on its
+	 * If TID caching is analt in use, PSM deals with usage on its
 	 * own. In that case, we allow any subctxt to take all of the
 	 * entries.
 	 *
@@ -123,15 +123,15 @@ void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
  *
  * @mapped: true if the pages have been DMA mapped. false otherwise.
  * @idx: Index of the first page to unpin.
- * @npages: No of pages to unpin.
+ * @npages: Anal of pages to unpin.
  *
  * If the pages have been DMA mapped (indicated by mapped parameter), their
- * info will be passed via a struct tid_rb_node. If they haven't been mapped,
+ * info will be passed via a struct tid_rb_analde. If they haven't been mapped,
  * their info will be passed via a struct tid_user_buf.
  */
 static void unpin_rcv_pages(struct hfi1_filedata *fd,
 			    struct tid_user_buf *tidbuf,
-			    struct tid_rb_node *node,
+			    struct tid_rb_analde *analde,
 			    unsigned int idx,
 			    unsigned int npages,
 			    bool mapped)
@@ -141,10 +141,10 @@ static void unpin_rcv_pages(struct hfi1_filedata *fd,
 	struct mm_struct *mm;
 
 	if (mapped) {
-		dma_unmap_single(&dd->pcidev->dev, node->dma_addr,
-				 node->npages * PAGE_SIZE, DMA_FROM_DEVICE);
-		pages = &node->pages[idx];
-		mm = mm_from_tid_node(node);
+		dma_unmap_single(&dd->pcidev->dev, analde->dma_addr,
+				 analde->npages * PAGE_SIZE, DMA_FROM_DEVICE);
+		pages = &analde->pages[idx];
+		mm = mm_from_tid_analde(analde);
 	} else {
 		pages = &tidbuf->pages[idx];
 		mm = current->mm;
@@ -172,16 +172,16 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 	/* Allocate the array of struct page pointers needed for pinning */
 	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Pin all the pages of the user buffer. If we can't pin all the
 	 * pages, accept the amount pinned so far and program only that.
-	 * User space knows how to deal with partially programmed buffers.
+	 * User space kanalws how to deal with partially programmed buffers.
 	 */
 	if (!hfi1_can_pin_pages(dd, current->mm, fd->tid_n_pinned, npages)) {
 		kfree(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pinned = hfi1_acquire_user_pages(current->mm, vaddr, npages, true, pages);
@@ -205,7 +205,7 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
  *      RcvArray entries.
  *   2. List of partially used groups - tid_used_list
  *      This list contains sets of RcvArray entries which are
- *      not completely used up. Another mapping request could
+ *      analt completely used up. Aanalther mapping request could
  *      use some of all of the remaining entries.
  *   3. List of full groups - tid_full_list
  *      This is the list where sets that are completely used
@@ -237,7 +237,7 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
  *          is empty, stop processing pageset and return only
  *          what has been programmed up to this point.
  *      2.2 If the tid_used_list is empty and the tid_group_list
- *          is not empty, move a group from tid_group_list to
+ *          is analt empty, move a group from tid_group_list to
  *          tid_used_list.
  *      2.3 For each group is tid_used_group, program as much as
  *          can fit into the group. If the group becomes fully
@@ -262,7 +262,7 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 
 	tidbuf = kzalloc(sizeof(*tidbuf), GFP_KERNEL);
 	if (!tidbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&tidbuf->cover_mutex);
 	tidbuf->vaddr = tinfo->vaddr;
@@ -271,23 +271,23 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 	tidbuf->psets = kcalloc(uctxt->expected_count, sizeof(*tidbuf->psets),
 				GFP_KERNEL);
 	if (!tidbuf->psets) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_release_mem;
 	}
 
 	if (fd->use_mn) {
-		ret = mmu_interval_notifier_insert(
-			&tidbuf->notifier, current->mm,
+		ret = mmu_interval_analtifier_insert(
+			&tidbuf->analtifier, current->mm,
 			tidbuf->vaddr, tidbuf->npages * PAGE_SIZE,
 			&tid_cover_ops);
 		if (ret)
 			goto fail_release_mem;
-		mmu_seq = mmu_interval_read_begin(&tidbuf->notifier);
+		mmu_seq = mmu_interval_read_begin(&tidbuf->analtifier);
 	}
 
 	pinned = pin_rcv_pages(fd, tidbuf);
 	if (pinned <= 0) {
-		ret = (pinned < 0) ? pinned : -ENOSPC;
+		ret = (pinned < 0) ? pinned : -EANALSPC;
 		goto fail_unpin;
 	}
 
@@ -304,14 +304,14 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 	spin_unlock(&fd->tid_lock);
 
 	if (!pageset_count) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto fail_unreserve;
 	}
 
 	ngroups = pageset_count / dd->rcv_entries.group_size;
 	tidlist = kcalloc(pageset_count, sizeof(*tidlist), GFP_KERNEL);
 	if (!tidlist) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_unreserve;
 	}
 
@@ -395,7 +395,7 @@ int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 					break;
 			} else if (WARN_ON(ret == 0)) {
 				/*
-				 * If ret is 0, we did not program any entries
+				 * If ret is 0, we did analt program any entries
 				 * into this group, which can only happen if
 				 * we've screwed up the accounting somewhere.
 				 * Warn and try to continue.
@@ -409,10 +409,10 @@ unlock:
 	hfi1_cdbg(TID, "total mapped: tidpairs:%u pages:%u (%d)", tididx,
 		  mapped_pages, ret);
 
-	/* fail if nothing was programmed, set error if none provided */
+	/* fail if analthing was programmed, set error if analne provided */
 	if (tididx == 0) {
 		if (ret >= 0)
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 		goto fail_unreserve;
 	}
 
@@ -421,7 +421,7 @@ unlock:
 	fd->tid_used -= pageset_count - tididx;
 	spin_unlock(&fd->tid_lock);
 
-	/* unpin all pages not covered by a TID */
+	/* unpin all pages analt covered by a TID */
 	unpin_rcv_pages(fd, tidbuf, NULL, mapped_pages, pinned - mapped_pages,
 			false);
 
@@ -430,7 +430,7 @@ unlock:
 		bool fail = false;
 
 		mutex_lock(&tidbuf->cover_mutex);
-		fail = mmu_interval_read_retry(&tidbuf->notifier, mmu_seq);
+		fail = mmu_interval_read_retry(&tidbuf->analtifier, mmu_seq);
 		mutex_unlock(&tidbuf->cover_mutex);
 
 		if (fail) {
@@ -449,7 +449,7 @@ unlock:
 	}
 
 	if (fd->use_mn)
-		mmu_interval_notifier_remove(&tidbuf->notifier);
+		mmu_interval_analtifier_remove(&tidbuf->analtifier);
 	kfree(tidbuf->pages);
 	kfree(tidbuf->psets);
 	kfree(tidbuf);
@@ -461,15 +461,15 @@ fail_unprogram:
 	tinfo->tidlist = (unsigned long)tidlist;
 	hfi1_user_exp_rcv_clear(fd, tinfo);
 	tinfo->tidlist = 0;
-	pinned = 0;		/* nothing left to unpin */
-	pageset_count = 0;	/* nothing left reserved */
+	pinned = 0;		/* analthing left to unpin */
+	pageset_count = 0;	/* analthing left reserved */
 fail_unreserve:
 	spin_lock(&fd->tid_lock);
 	fd->tid_used -= pageset_count;
 	spin_unlock(&fd->tid_lock);
 fail_unpin:
 	if (fd->use_mn)
-		mmu_interval_notifier_remove(&tidbuf->notifier);
+		mmu_interval_analtifier_remove(&tidbuf->analtifier);
 	if (pinned > 0)
 		unpin_rcv_pages(fd, tidbuf, NULL, 0, pinned, false);
 fail_release_mem:
@@ -526,7 +526,7 @@ int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 
 	/*
 	 * copy_to_user() can sleep, which will leave the invalid_lock
-	 * locked and cause the MMU notifier to be blocked on the lock
+	 * locked and cause the MMU analtifier to be blocked on the lock
 	 * for a long time.
 	 * Copy the data to a local buffer so we can release the lock.
 	 */
@@ -546,7 +546,7 @@ int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
 		 * Reset the user flag while still holding the lock.
 		 * Otherwise, PSM can miss events.
 		 */
-		clear_bit(_HFI1_EVENT_TID_MMU_NOTIFY_BIT, ev);
+		clear_bit(_HFI1_EVENT_TID_MMU_ANALTIFY_BIT, ev);
 	} else {
 		tinfo->tidcnt = 0;
 	}
@@ -582,7 +582,7 @@ static u32 find_phys_blocks(struct tid_user_buf *tidbuf, unsigned int npages)
 		this_pfn = i < npages ? page_to_pfn(pages[i]) : 0;
 
 		/*
-		 * If the pfn's are not sequential, pages are not physically
+		 * If the pfn's are analt sequential, pages are analt physically
 		 * contiguous.
 		 */
 		if (this_pfn != ++pfn) {
@@ -595,7 +595,7 @@ static u32 find_phys_blocks(struct tid_user_buf *tidbuf, unsigned int npages)
 			 *        If the total set size is bigger than that
 			 *        program only a MAX_EXPECTED_BUFFER chunk.
 			 *     2. The buffer size has to be a power of two. If
-			 *        it is not, round down to the closes power of
+			 *        it is analt, round down to the closes power of
 			 *        2 and program that size.
 			 */
 			while (pagecount) {
@@ -644,13 +644,13 @@ static u32 find_phys_blocks(struct tid_user_buf *tidbuf, unsigned int npages)
  *
  * This function will program up to 'count' number of RcvArray entries from the
  * group 'grp'. To make best use of write-combining writes, the function will
- * perform writes to the unused RcvArray entries which will be ignored by the
+ * perform writes to the unused RcvArray entries which will be iganalred by the
  * HW. Each RcvArray entry will be programmed with a physically contiguous
  * buffer chunk from the user's virtual buffer.
  *
  * Return:
  * -EINVAL if the requested count is larger than the size of the group,
- * -ENOMEM or -EFAULT on error from set_rcvarray_entry(), or
+ * -EANALMEM or -EFAULT on error from set_rcvarray_entry(), or
  * number of RcvArray entries programmed.
  */
 static int program_rcvarray(struct hfi1_filedata *fd, struct tid_user_buf *tbuf,
@@ -727,61 +727,61 @@ static int set_rcvarray_entry(struct hfi1_filedata *fd,
 {
 	int ret;
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
-	struct tid_rb_node *node;
+	struct tid_rb_analde *analde;
 	struct hfi1_devdata *dd = uctxt->dd;
 	dma_addr_t phys;
 	struct page **pages = tbuf->pages + pageidx;
 
 	/*
-	 * Allocate the node first so we can handle a potential
+	 * Allocate the analde first so we can handle a potential
 	 * failure before we've programmed anything.
 	 */
-	node = kzalloc(struct_size(node, pages, npages), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(struct_size(analde, pages, npages), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
 	phys = dma_map_single(&dd->pcidev->dev, __va(page_to_phys(pages[0])),
 			      npages * PAGE_SIZE, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&dd->pcidev->dev, phys)) {
 		dd_dev_err(dd, "Failed to DMA map Exp Rcv pages 0x%llx\n",
 			   phys);
-		kfree(node);
+		kfree(analde);
 		return -EFAULT;
 	}
 
-	node->fdata = fd;
-	mutex_init(&node->invalidate_mutex);
-	node->phys = page_to_phys(pages[0]);
-	node->npages = npages;
-	node->rcventry = rcventry;
-	node->dma_addr = phys;
-	node->grp = grp;
-	node->freed = false;
-	memcpy(node->pages, pages, flex_array_size(node, pages, npages));
+	analde->fdata = fd;
+	mutex_init(&analde->invalidate_mutex);
+	analde->phys = page_to_phys(pages[0]);
+	analde->npages = npages;
+	analde->rcventry = rcventry;
+	analde->dma_addr = phys;
+	analde->grp = grp;
+	analde->freed = false;
+	memcpy(analde->pages, pages, flex_array_size(analde, pages, npages));
 
 	if (fd->use_mn) {
-		ret = mmu_interval_notifier_insert(
-			&node->notifier, current->mm,
+		ret = mmu_interval_analtifier_insert(
+			&analde->analtifier, current->mm,
 			tbuf->vaddr + (pageidx * PAGE_SIZE), npages * PAGE_SIZE,
 			&tid_mn_ops);
 		if (ret)
 			goto out_unmap;
 	}
-	fd->entry_to_rb[node->rcventry - uctxt->expected_base] = node;
+	fd->entry_to_rb[analde->rcventry - uctxt->expected_base] = analde;
 
 	hfi1_put_tid(dd, rcventry, PT_EXPECTED, phys, ilog2(npages) + 1);
 	trace_hfi1_exp_tid_reg(uctxt->ctxt, fd->subctxt, rcventry, npages,
-			       node->notifier.interval_tree.start, node->phys,
+			       analde->analtifier.interval_tree.start, analde->phys,
 			       phys);
 	return 0;
 
 out_unmap:
-	hfi1_cdbg(TID, "Failed to insert RB node %u 0x%lx, 0x%lx %d",
-		  node->rcventry, node->notifier.interval_tree.start,
-		  node->phys, ret);
+	hfi1_cdbg(TID, "Failed to insert RB analde %u 0x%lx, 0x%lx %d",
+		  analde->rcventry, analde->analtifier.interval_tree.start,
+		  analde->phys, ret);
 	dma_unmap_single(&dd->pcidev->dev, phys, npages * PAGE_SIZE,
 			 DMA_FROM_DEVICE);
-	kfree(node);
+	kfree(analde);
 	return -EFAULT;
 }
 
@@ -789,7 +789,7 @@ static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
-	struct tid_rb_node *node;
+	struct tid_rb_analde *analde;
 	u32 tidctrl = EXP_TID_GET(tidinfo, CTRL);
 	u32 tididx = EXP_TID_GET(tidinfo, IDX) << 1, rcventry;
 
@@ -804,61 +804,61 @@ static int unprogram_rcvarray(struct hfi1_filedata *fd, u32 tidinfo)
 		return -EINVAL;
 	}
 
-	node = fd->entry_to_rb[rcventry];
-	if (!node || node->rcventry != (uctxt->expected_base + rcventry))
+	analde = fd->entry_to_rb[rcventry];
+	if (!analde || analde->rcventry != (uctxt->expected_base + rcventry))
 		return -EBADF;
 
 	if (fd->use_mn)
-		mmu_interval_notifier_remove(&node->notifier);
-	cacheless_tid_rb_remove(fd, node);
+		mmu_interval_analtifier_remove(&analde->analtifier);
+	cacheless_tid_rb_remove(fd, analde);
 
 	return 0;
 }
 
-static void __clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
+static void __clear_tid_analde(struct hfi1_filedata *fd, struct tid_rb_analde *analde)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 
-	mutex_lock(&node->invalidate_mutex);
-	if (node->freed)
+	mutex_lock(&analde->invalidate_mutex);
+	if (analde->freed)
 		goto done;
-	node->freed = true;
+	analde->freed = true;
 
-	trace_hfi1_exp_tid_unreg(uctxt->ctxt, fd->subctxt, node->rcventry,
-				 node->npages,
-				 node->notifier.interval_tree.start, node->phys,
-				 node->dma_addr);
+	trace_hfi1_exp_tid_unreg(uctxt->ctxt, fd->subctxt, analde->rcventry,
+				 analde->npages,
+				 analde->analtifier.interval_tree.start, analde->phys,
+				 analde->dma_addr);
 
 	/* Make sure device has seen the write before pages are unpinned */
-	hfi1_put_tid(dd, node->rcventry, PT_INVALID_FLUSH, 0, 0);
+	hfi1_put_tid(dd, analde->rcventry, PT_INVALID_FLUSH, 0, 0);
 
-	unpin_rcv_pages(fd, NULL, node, 0, node->npages, true);
+	unpin_rcv_pages(fd, NULL, analde, 0, analde->npages, true);
 done:
-	mutex_unlock(&node->invalidate_mutex);
+	mutex_unlock(&analde->invalidate_mutex);
 }
 
-static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
+static void clear_tid_analde(struct hfi1_filedata *fd, struct tid_rb_analde *analde)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 
-	__clear_tid_node(fd, node);
+	__clear_tid_analde(fd, analde);
 
-	node->grp->used--;
-	node->grp->map &= ~(1 << (node->rcventry - node->grp->base));
+	analde->grp->used--;
+	analde->grp->map &= ~(1 << (analde->rcventry - analde->grp->base));
 
-	if (node->grp->used == node->grp->size - 1)
-		tid_group_move(node->grp, &uctxt->tid_full_list,
+	if (analde->grp->used == analde->grp->size - 1)
+		tid_group_move(analde->grp, &uctxt->tid_full_list,
 			       &uctxt->tid_used_list);
-	else if (!node->grp->used)
-		tid_group_move(node->grp, &uctxt->tid_used_list,
+	else if (!analde->grp->used)
+		tid_group_move(analde->grp, &uctxt->tid_used_list,
 			       &uctxt->tid_group_list);
-	kfree(node);
+	kfree(analde);
 }
 
 /*
  * As a simple helper for hfi1_user_exp_rcv_free, this function deals with
- * clearing nodes in the non-cached case.
+ * clearing analdes in the analn-cached case.
  */
 static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 			    struct exp_tid_set *set,
@@ -873,50 +873,50 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 		for (i = 0; i < grp->size; i++) {
 			if (grp->map & (1 << i)) {
 				u16 rcventry = grp->base + i;
-				struct tid_rb_node *node;
+				struct tid_rb_analde *analde;
 
-				node = fd->entry_to_rb[rcventry -
+				analde = fd->entry_to_rb[rcventry -
 							  uctxt->expected_base];
-				if (!node || node->rcventry != rcventry)
+				if (!analde || analde->rcventry != rcventry)
 					continue;
 
 				if (fd->use_mn)
-					mmu_interval_notifier_remove(
-						&node->notifier);
-				cacheless_tid_rb_remove(fd, node);
+					mmu_interval_analtifier_remove(
+						&analde->analtifier);
+				cacheless_tid_rb_remove(fd, analde);
 			}
 		}
 	}
 }
 
-static bool tid_rb_invalidate(struct mmu_interval_notifier *mni,
-			      const struct mmu_notifier_range *range,
+static bool tid_rb_invalidate(struct mmu_interval_analtifier *mni,
+			      const struct mmu_analtifier_range *range,
 			      unsigned long cur_seq)
 {
-	struct tid_rb_node *node =
-		container_of(mni, struct tid_rb_node, notifier);
-	struct hfi1_filedata *fdata = node->fdata;
+	struct tid_rb_analde *analde =
+		container_of(mni, struct tid_rb_analde, analtifier);
+	struct hfi1_filedata *fdata = analde->fdata;
 	struct hfi1_ctxtdata *uctxt = fdata->uctxt;
 
-	if (node->freed)
+	if (analde->freed)
 		return true;
 
 	/* take action only if unmapping */
-	if (range->event != MMU_NOTIFY_UNMAP)
+	if (range->event != MMU_ANALTIFY_UNMAP)
 		return true;
 
 	trace_hfi1_exp_tid_inval(uctxt->ctxt, fdata->subctxt,
-				 node->notifier.interval_tree.start,
-				 node->rcventry, node->npages, node->dma_addr);
+				 analde->analtifier.interval_tree.start,
+				 analde->rcventry, analde->npages, analde->dma_addr);
 
 	/* clear the hardware rcvarray entry */
-	__clear_tid_node(fdata, node);
+	__clear_tid_analde(fdata, analde);
 
 	spin_lock(&fdata->invalid_lock);
 	if (fdata->invalid_tid_idx < uctxt->expected_count) {
 		fdata->invalid_tids[fdata->invalid_tid_idx] =
-			create_tid(node->rcventry - uctxt->expected_base,
-				   node->npages);
+			create_tid(analde->rcventry - uctxt->expected_base,
+				   analde->npages);
 		if (!fdata->invalid_tid_idx) {
 			unsigned long *ev;
 
@@ -931,7 +931,7 @@ static bool tid_rb_invalidate(struct mmu_interval_notifier *mni,
 			 */
 			ev = uctxt->dd->events +
 				(uctxt_offset(uctxt) + fdata->subctxt);
-			set_bit(_HFI1_EVENT_TID_MMU_NOTIFY_BIT, ev);
+			set_bit(_HFI1_EVENT_TID_MMU_ANALTIFY_BIT, ev);
 		}
 		fdata->invalid_tid_idx++;
 	}
@@ -939,15 +939,15 @@ static bool tid_rb_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static bool tid_cover_invalidate(struct mmu_interval_notifier *mni,
-			         const struct mmu_notifier_range *range,
+static bool tid_cover_invalidate(struct mmu_interval_analtifier *mni,
+			         const struct mmu_analtifier_range *range,
 			         unsigned long cur_seq)
 {
 	struct tid_user_buf *tidbuf =
-		container_of(mni, struct tid_user_buf, notifier);
+		container_of(mni, struct tid_user_buf, analtifier);
 
 	/* take action only if unmapping */
-	if (range->event == MMU_NOTIFY_UNMAP) {
+	if (range->event == MMU_ANALTIFY_UNMAP) {
 		mutex_lock(&tidbuf->cover_mutex);
 		mmu_interval_set_seq(mni, cur_seq);
 		mutex_unlock(&tidbuf->cover_mutex);
@@ -957,10 +957,10 @@ static bool tid_cover_invalidate(struct mmu_interval_notifier *mni,
 }
 
 static void cacheless_tid_rb_remove(struct hfi1_filedata *fdata,
-				    struct tid_rb_node *tnode)
+				    struct tid_rb_analde *tanalde)
 {
 	u32 base = fdata->uctxt->expected_base;
 
-	fdata->entry_to_rb[tnode->rcventry - base] = NULL;
-	clear_tid_node(fdata, tnode);
+	fdata->entry_to_rb[tanalde->rcventry - base] = NULL;
+	clear_tid_analde(fdata, tanalde);
 }

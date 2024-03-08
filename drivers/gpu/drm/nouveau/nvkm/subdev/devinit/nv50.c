@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,7 +94,7 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 	struct nvkm_device *device = subdev->device;
 
 	/* our heuristics can't detect whether the board has had its
-	 * devinit scripts executed or not if the display engine is
+	 * devinit scripts executed or analt if the display engine is
 	 * missing, assume it's a secondary gpu which requires post
 	 */
 	if (!base->post) {
@@ -103,13 +103,13 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 			base->post = true;
 	}
 
-	/* magic to detect whether or not x86 vbios code has executed
+	/* magic to detect whether or analt x86 vbios code has executed
 	 * the devinit scripts to initialise the board
 	 */
 	if (!base->post) {
 		if (!nvkm_rdvgac(device, 0, 0x00) &&
 		    !nvkm_rdvgac(device, 0, 0x1a)) {
-			nvkm_debug(subdev, "adaptor not initialised\n");
+			nvkm_debug(subdev, "adaptor analt initialised\n");
 			base->post = true;
 		}
 	}
@@ -151,7 +151,7 @@ nv50_devinit_new_(const struct nvkm_devinit_func *func, struct nvkm_device *devi
 	struct nv50_devinit *init;
 
 	if (!(init = kzalloc(sizeof(*init), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pinit = &init->base;
 
 	nvkm_devinit_ctor(func, device, type, inst, &init->base);

@@ -139,11 +139,11 @@ static unsigned int nf_ct_sack_adjust(struct sk_buff *skb,
 		switch (op[0]) {
 		case TCPOPT_EOL:
 			return 1;
-		case TCPOPT_NOP:
+		case TCPOPT_ANALP:
 			optoff++;
 			continue;
 		default:
-			/* no partial options */
+			/* anal partial options */
 			if (optoff + 1 == optend ||
 			    optoff + op[1] > optend ||
 			    op[1] < 2)

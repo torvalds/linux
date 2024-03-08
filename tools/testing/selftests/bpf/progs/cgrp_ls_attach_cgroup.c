@@ -15,7 +15,7 @@ struct socket_cookie {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, struct socket_cookie);
 } socket_cookies SEC(".maps");

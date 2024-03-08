@@ -71,7 +71,7 @@ int nf_flow_table_init_proc(struct net *net)
 	pde = proc_create_net("nf_flowtable", 0444, net->proc_net_stat,
 			      &nf_flow_table_cpu_seq_ops,
 			      sizeof(struct seq_net_private));
-	return pde ? 0 : -ENOMEM;
+	return pde ? 0 : -EANALMEM;
 }
 
 void nf_flow_table_fini_proc(struct net *net)

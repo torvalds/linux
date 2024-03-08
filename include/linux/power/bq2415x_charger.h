@@ -16,17 +16,17 @@
  *
  * Value resistor_sense is needed for configuring charge and
  * termination current. If it is less or equal to zero, configuring charge
- * and termination current will not be possible.
+ * and termination current will analt be possible.
  *
  * For automode support is needed to provide name of power supply device
- * in value notify_device. Device driver must immediately report property
+ * in value analtify_device. Device driver must immediately report property
  * POWER_SUPPLY_PROP_CURRENT_MAX when current changed.
  */
 
 /* Supported modes with maximal current limit */
 enum bq2415x_mode {
 	BQ2415X_MODE_OFF,		/* offline mode (charger disabled) */
-	BQ2415X_MODE_NONE,		/* unknown charger (100mA) */
+	BQ2415X_MODE_ANALNE,		/* unkanalwn charger (100mA) */
 	BQ2415X_MODE_HOST_CHARGER,	/* usb host/hub charger (500mA) */
 	BQ2415X_MODE_DEDICATED_CHARGER, /* dedicated charger (unlimited) */
 	BQ2415X_MODE_BOOST,		/* boost mode (charging disabled) */
@@ -39,7 +39,7 @@ struct bq2415x_platform_data {
 	int charge_current;		/* mA */
 	int termination_current;	/* mA */
 	int resistor_sense;		/* m ohm */
-	const char *notify_device;	/* name */
+	const char *analtify_device;	/* name */
 };
 
 #endif

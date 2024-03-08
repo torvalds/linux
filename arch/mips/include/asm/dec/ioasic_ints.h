@@ -12,7 +12,7 @@
  *
  * and the Mach Sources
  *
- * Copyright (C) 199x  the Anonymous
+ * Copyright (C) 199x  the Aanalnymous
  * Copyright (C) 2002  Maciej W. Rozycki
  */
 

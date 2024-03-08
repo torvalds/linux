@@ -40,11 +40,11 @@
 
 /* delete unused always-on power-domains on die 1 */
 
-/delete-node/ &ps_atc2_usb_aon_die1;
-/delete-node/ &ps_atc2_usb_die1;
+/delete-analde/ &ps_atc2_usb_aon_die1;
+/delete-analde/ &ps_atc2_usb_die1;
 
-/delete-node/ &ps_atc3_usb_aon_die1;
-/delete-node/ &ps_atc3_usb_die1;
+/delete-analde/ &ps_atc3_usb_aon_die1;
+/delete-analde/ &ps_atc3_usb_die1;
 
-/delete-node/ &ps_disp0_cpu0_die1;
-/delete-node/ &ps_disp0_fe_die1;
+/delete-analde/ &ps_disp0_cpu0_die1;
+/delete-analde/ &ps_disp0_fe_die1;

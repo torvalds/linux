@@ -102,7 +102,7 @@
 
 /*
  * The year parameter passed to the driver is usually an offset relative to
- * the year 1900. This macro is used to convert this offset to another one
+ * the year 1900. This macro is used to convert this offset to aanalther one
  * relative to the minimum year allowed by the hardware.
  */
 #define SUNXI_YEAR_OFF(x)			((x)->min - 1900)
@@ -157,7 +157,7 @@ static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void sunxi_rtc_setaie(unsigned int to, struct sunxi_rtc_dev *chip)
@@ -253,7 +253,7 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct sunxi_rtc_dev *chip = dev_get_drvdata(dev);
 	struct rtc_time *alrm_tm = &wkalrm->time;
-	struct rtc_time tm_now;
+	struct rtc_time tm_analw;
 	u32 alrm;
 	time64_t diff;
 	unsigned long time_gap;
@@ -262,13 +262,13 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	unsigned long time_gap_min;
 	int ret;
 
-	ret = sunxi_rtc_gettime(dev, &tm_now);
+	ret = sunxi_rtc_gettime(dev, &tm_analw);
 	if (ret < 0) {
 		dev_err(dev, "Error in getting time\n");
 		return -EINVAL;
 	}
 
-	diff = rtc_tm_sub(alrm_tm, &tm_now);
+	diff = rtc_tm_sub(alrm_tm, &tm_analw);
 	if (diff <= 0) {
 		dev_err(dev, "Date to set in the past\n");
 		return -EINVAL;
@@ -365,7 +365,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC HH-MM-SS register, the
-	 * SUNXI_LOSC_CTRL_RTC_HMS_ACC bit is set and it will not
+	 * SUNXI_LOSC_CTRL_RTC_HMS_ACC bit is set and it will analt
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -379,7 +379,7 @@ static int sunxi_rtc_settime(struct device *dev, struct rtc_time *rtc_tm)
 
 	/*
 	 * After writing the RTC YY-MM-DD register, the
-	 * SUNXI_LOSC_CTRL_RTC_YMD_ACC bit is set and it will not
+	 * SUNXI_LOSC_CTRL_RTC_YMD_ACC bit is set and it will analt
 	 * be cleared until the real writing operation is finished
 	 */
 
@@ -424,7 +424,7 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, chip);
 	chip->dev = &pdev->dev;
@@ -443,20 +443,20 @@ static int sunxi_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, chip->irq, sunxi_rtc_alarmirq,
 			0, dev_name(&pdev->dev), chip);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request IRQ\n");
+		dev_err(&pdev->dev, "Could analt request IRQ\n");
 		return ret;
 	}
 
 	chip->data_year = of_device_get_match_data(&pdev->dev);
 	if (!chip->data_year) {
 		dev_err(&pdev->dev, "Unable to setup RTC data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* clear the alarm count value */
 	writel(0, chip->base + SUNXI_ALRM_DHMS);
 
-	/* disable alarm, not generate irq pending */
+	/* disable alarm, analt generate irq pending */
 	writel(0, chip->base + SUNXI_ALRM_EN);
 
 	/* disable alarm week/cnt irq, unset to cpu */

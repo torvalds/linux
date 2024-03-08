@@ -21,7 +21,7 @@
   },
   {
         "EventCode": "0xC8",
-        "EventName": "EXT_SNOOP",
-        "BriefDescription": "SCU Snooped data from another CPU for this CPU"
+        "EventName": "EXT_SANALOP",
+        "BriefDescription": "SCU Sanaloped data from aanalther CPU for this CPU"
   }
 ]

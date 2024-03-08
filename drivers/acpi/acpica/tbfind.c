@@ -53,7 +53,7 @@ acpi_tb_find_table(char *signature,
 		return_ACPI_STATUS(AE_AML_STRING_LIMIT);
 	}
 
-	/* Normalize the input strings */
+	/* Analrmalize the input strings */
 
 	memset(&header, 0, sizeof(struct acpi_table_header));
 	ACPI_COPY_NAMESEG(header.signature, signature);
@@ -67,7 +67,7 @@ acpi_tb_find_table(char *signature,
 		if (memcmp(&(acpi_gbl_root_table_list.tables[i].signature),
 			   header.signature, ACPI_NAMESEG_SIZE)) {
 
-			/* Not the requested table */
+			/* Analt the requested table */
 
 			continue;
 		}
@@ -76,7 +76,7 @@ acpi_tb_find_table(char *signature,
 
 		if (!acpi_gbl_root_table_list.tables[i].pointer) {
 
-			/* Table is not currently mapped, map it */
+			/* Table is analt currently mapped, map it */
 
 			status =
 			    acpi_tb_validate_table(&acpi_gbl_root_table_list.
@@ -114,7 +114,7 @@ acpi_tb_find_table(char *signature,
 			goto unlock_and_exit;
 		}
 	}
-	status = AE_NOT_FOUND;
+	status = AE_ANALT_FOUND;
 
 unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

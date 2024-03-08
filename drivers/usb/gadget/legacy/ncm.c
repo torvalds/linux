@@ -2,14 +2,14 @@
 /*
  * ncm.c -- NCM gadget driver
  *
- * Copyright (C) 2010 Nokia Corporation
- * Contact: Yauheni Kaliuta <yauheni.kaliuta@nokia.com>
+ * Copyright (C) 2010 Analkia Corporation
+ * Contact: Yauheni Kaliuta <yauheni.kaliuta@analkia.com>
  *
  * The driver borrows from ether.c which is:
  *
  * Copyright (C) 2003-2005,2008 David Brownell
  * Copyright (C) 2003-2004 Robert Schwebel, Benedikt Spranger
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 /* #define DEBUG */
@@ -26,11 +26,11 @@
 
 /*-------------------------------------------------------------------------*/
 
-/* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+/* DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techanallogies for donating this product ID.
  * It's for devices with only CDC Ethernet configurations.
  */
 #define CDC_VENDOR_NUM		0x0525	/* NetChip */
@@ -61,7 +61,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
-	/* NO SERIAL NUMBER */
+	/* ANAL SERIAL NUMBER */
 	.bNumConfigurations =	1,
 };
 
@@ -142,7 +142,7 @@ static int gncm_bind(struct usb_composite_dev *cdev)
 	if (!gether_set_dev_addr(ncm_opts->net, dev_addr))
 		pr_info("using self ethernet address: %s", dev_addr);
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... analte that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
@@ -157,7 +157,7 @@ static int gncm_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail;
 		}
 		usb_otg_descriptor_init(gadget, usb_desc);

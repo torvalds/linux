@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ nv40_ram_calc(struct nvkm_ram *base, u32 freq)
 
 	ret = nvbios_pll_parse(bios, 0x04, &pll);
 	if (ret) {
-		nvkm_error(subdev, "mclk pll data not found\n");
+		nvkm_error(subdev, "mclk pll data analt found\n");
 		return ret;
 	}
 
@@ -116,7 +116,7 @@ nv40_ram_prog(struct nvkm_ram *base)
 	nvkm_wr32(device, 0x1002d4, 0x00000001); /* precharge */
 	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
 	nvkm_wr32(device, 0x1002d0, 0x00000001); /* refresh */
-	nvkm_mask(device, 0x100210, 0x80000000, 0x00000000); /* no auto refresh */
+	nvkm_mask(device, 0x100210, 0x80000000, 0x00000000); /* anal auto refresh */
 	nvkm_wr32(device, 0x1002dc, 0x00000001); /* enable self-refresh */
 
 	/* change the PLL of each memory partition */
@@ -146,7 +146,7 @@ nv40_ram_prog(struct nvkm_ram *base)
 	udelay(100);
 	nvkm_mask(device, 0x00c040, 0x0000c000, 0x0000c000);
 
-	/* re-enable normal operation of memory controller */
+	/* re-enable analrmal operation of memory controller */
 	nvkm_wr32(device, 0x1002dc, 0x00000000);
 	nvkm_mask(device, 0x100210, 0x80000000, 0x80000000);
 	udelay(100);
@@ -193,7 +193,7 @@ nv40_ram_new_(struct nvkm_fb *fb, enum nvkm_ram_type type, u64 size,
 {
 	struct nv40_ram *ram;
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pram = &ram->base;
 	return nvkm_ram_ctor(&nv40_ram_func, fb, type, size, &ram->base);
 }
@@ -204,7 +204,7 @@ nv40_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct nvkm_device *device = fb->subdev.device;
 	u32 pbus1218 = nvkm_rd32(device, 0x001218);
 	u32     size = nvkm_rd32(device, 0x10020c) & 0xff000000;
-	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
+	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKANALWN;
 	int ret;
 
 	switch (pbus1218 & 0x00000300) {

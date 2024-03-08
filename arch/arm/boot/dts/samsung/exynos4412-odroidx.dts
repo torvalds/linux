@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel's Exynos4412 based ODROID-X board device tree source
+ * Hardkernel's Exyanals4412 based ODROID-X board device tree source
  *
  * Copyright (c) 2012 Dongjin Kim <tobetter@gmail.com>
  *
  * Device tree source file for Hardkernel's ODROID-X board which is based
- * on Samsung's Exynos4412 SoC.
+ * on Samsung's Exyanals4412 SoC.
  */
 
 /dts-v1/;
 #include <dt-bindings/leds/common.h>
-#include "exynos4412-odroid-common.dtsi"
+#include "exyanals4412-odroid-common.dtsi"
 
 / {
-	model = "Hardkernel ODROID-X board based on Exynos4412";
-	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
+	model = "Hardkernel ODROID-X board based on Exyanals4412";
+	compatible = "hardkernel,odroid-x", "samsung,exyanals4412", "samsung,exyanals4";
 
 	aliases {
 		ethernet = &ethernet;
@@ -69,7 +69,7 @@
 &ehci {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	phys = <&exynos_usbphy 2>;
+	phys = <&exyanals_usbphy 2>;
 	phy-names = "hsic0";
 
 	hub@2 {
@@ -117,7 +117,7 @@
 &pinctrl_1 {
 	gpio_home_key: home-key-pins {
 		samsung,pins = "gpx2-2";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 	};
 };
 

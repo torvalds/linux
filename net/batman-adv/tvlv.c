@@ -246,7 +246,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 	tvlv_new->tvlv_hdr.len = htons(tvlv_value_len);
 
 	memcpy(tvlv_new + 1, tvlv_value, ntohs(tvlv_new->tvlv_hdr.len));
-	INIT_HLIST_NODE(&tvlv_new->list);
+	INIT_HLIST_ANALDE(&tvlv_new->list);
 	kref_init(&tvlv_new->refcount);
 
 	spin_lock_bh(&bat_priv->tvlv.container_list_lock);
@@ -353,18 +353,18 @@ end:
  * @bat_priv: the bat priv with all the soft interface information
  * @tvlv_handler: tvlv callback function handling the tvlv content
  * @packet_type: indicates for which packet type the TVLV handler is called
- * @orig_node: orig node emitting the ogm packet
+ * @orig_analde: orig analde emitting the ogm packet
  * @skb: the skb the TVLV handler is called for
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Return: success if the handler was not found or the return value of the
+ * Return: success if the handler was analt found or the return value of the
  * handler callback.
  */
 static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 				    struct batadv_tvlv_handler *tvlv_handler,
 				    u8 packet_type,
-				    struct batadv_orig_node *orig_node,
+				    struct batadv_orig_analde *orig_analde,
 				    struct sk_buff *skb, void *tvlv_value,
 				    u16 tvlv_value_len)
 {
@@ -380,11 +380,11 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 		if (!tvlv_handler->ogm_handler)
 			return NET_RX_SUCCESS;
 
-		if (!orig_node)
+		if (!orig_analde)
 			return NET_RX_SUCCESS;
 
-		tvlv_handler->ogm_handler(bat_priv, orig_node,
-					  BATADV_NO_FLAGS,
+		tvlv_handler->ogm_handler(bat_priv, orig_analde,
+					  BATADV_ANAL_FLAGS,
 					  tvlv_value, tvlv_value_len);
 		tvlv_handler->flags |= BATADV_TVLV_HANDLER_OGM_CALLED;
 		break;
@@ -423,7 +423,7 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  *  appropriate handlers
  * @bat_priv: the bat priv with all the soft interface information
  * @packet_type: indicates for which packet type the TVLV handler is called
- * @orig_node: orig node emitting the ogm packet
+ * @orig_analde: orig analde emitting the ogm packet
  * @skb: the skb the TVLV handler is called for
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
@@ -433,14 +433,14 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  */
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				   u8 packet_type,
-				   struct batadv_orig_node *orig_node,
+				   struct batadv_orig_analde *orig_analde,
 				   struct sk_buff *skb, void *tvlv_value,
 				   u16 tvlv_value_len)
 {
 	struct batadv_tvlv_handler *tvlv_handler;
 	struct batadv_tvlv_hdr *tvlv_hdr;
 	u16 tvlv_value_cont_len;
-	u8 cifnotfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
+	u8 cifanaltfound = BATADV_TVLV_HANDLER_OGM_CIFANALTFND;
 	int ret = NET_RX_SUCCESS;
 
 	while (tvlv_value_len >= sizeof(*tvlv_hdr)) {
@@ -457,7 +457,7 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 						       tvlv_hdr->version);
 
 		ret |= batadv_tvlv_call_handler(bat_priv, tvlv_handler,
-						packet_type, orig_node, skb,
+						packet_type, orig_analde, skb,
 						tvlv_value,
 						tvlv_value_cont_len);
 		batadv_tvlv_handler_put(tvlv_handler);
@@ -475,10 +475,10 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 		if (!tvlv_handler->ogm_handler)
 			continue;
 
-		if ((tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND) &&
+		if ((tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CIFANALTFND) &&
 		    !(tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CALLED))
-			tvlv_handler->ogm_handler(bat_priv, orig_node,
-						  cifnotfound, NULL, 0);
+			tvlv_handler->ogm_handler(bat_priv, orig_analde,
+						  cifanaltfound, NULL, 0);
 
 		tvlv_handler->flags &= ~BATADV_TVLV_HANDLER_OGM_CALLED;
 	}
@@ -492,11 +492,11 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
  *  handlers
  * @bat_priv: the bat priv with all the soft interface information
  * @batadv_ogm_packet: ogm packet containing the tvlv containers
- * @orig_node: orig node emitting the ogm packet
+ * @orig_analde: orig analde emitting the ogm packet
  */
 void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 			     struct batadv_ogm_packet *batadv_ogm_packet,
-			     struct batadv_orig_node *orig_node)
+			     struct batadv_orig_analde *orig_analde)
 {
 	void *tvlv_value;
 	u16 tvlv_value_len;
@@ -510,7 +510,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 
 	tvlv_value = batadv_ogm_packet + 1;
 
-	batadv_tvlv_containers_process(bat_priv, BATADV_IV_OGM, orig_node, NULL,
+	batadv_tvlv_containers_process(bat_priv, BATADV_IV_OGM, orig_analde, NULL,
 				       tvlv_value, tvlv_value_len);
 }
 
@@ -520,7 +520,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
  *  payload
  * @bat_priv: the bat priv with all the soft interface information
  * @optr: ogm tvlv handler callback function. This function receives the orig
- *  node, flags and the tvlv content as argument to process.
+ *  analde, flags and the tvlv content as argument to process.
  * @uptr: unicast tvlv handler callback function. This function receives the
  *  source & destination of the unicast packet as well as the tvlv content
  *  to process.
@@ -534,7 +534,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
  */
 void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 				  void (*optr)(struct batadv_priv *bat_priv,
-					       struct batadv_orig_node *orig,
+					       struct batadv_orig_analde *orig,
 					       u8 flags,
 					       void *tvlv_value,
 					       u16 tvlv_value_len),
@@ -570,7 +570,7 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 	tvlv_handler->version = version;
 	tvlv_handler->flags = flags;
 	kref_init(&tvlv_handler->refcount);
-	INIT_HLIST_NODE(&tvlv_handler->list);
+	INIT_HLIST_ANALDE(&tvlv_handler->list);
 
 	kref_get(&tvlv_handler->refcount);
 	hlist_add_head_rcu(&tvlv_handler->list, &bat_priv->tvlv.handler_list);
@@ -620,14 +620,14 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, const u8 *src,
 {
 	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
 	struct batadv_tvlv_hdr *tvlv_hdr;
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_analde *orig_analde;
 	struct sk_buff *skb;
 	unsigned char *tvlv_buff;
 	unsigned int tvlv_len;
 	ssize_t hdr_len = sizeof(*unicast_tvlv_packet);
 
-	orig_node = batadv_orig_hash_find(bat_priv, dst);
-	if (!orig_node)
+	orig_analde = batadv_orig_hash_find(bat_priv, dst);
+	if (!orig_analde)
 		return;
 
 	tvlv_len = sizeof(*tvlv_hdr) + tvlv_value_len;
@@ -657,7 +657,7 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, const u8 *src,
 	tvlv_buff += sizeof(*tvlv_hdr);
 	memcpy(tvlv_buff, tvlv_value, tvlv_value_len);
 
-	batadv_send_skb_to_orig(skb, orig_node, NULL);
+	batadv_send_skb_to_orig(skb, orig_analde, NULL);
 out:
-	batadv_orig_node_put(orig_node);
+	batadv_orig_analde_put(orig_analde);
 }

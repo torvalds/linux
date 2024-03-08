@@ -18,7 +18,7 @@
 
 #define MT_MDP_BNRCFR0(_band)		MT_MDP(0x090 + ((_band) << 8))
 #define MT_MDP_RCFR0_MCU_RX_MGMT	GENMASK(5, 4)
-#define MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR	GENMASK(7, 6)
+#define MT_MDP_RCFR0_MCU_RX_CTL_ANALN_BAR	GENMASK(7, 6)
 #define MT_MDP_RCFR0_MCU_RX_CTL_BAR	GENMASK(9, 8)
 
 #define MT_MDP_BNRCFR1(_band)		MT_MDP(0x094 + ((_band) << 8))

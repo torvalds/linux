@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#define DTLK_MINOR	0
+#define DTLK_MIANALR	0
 #define DTLK_IO_EXTENT	0x02
 
 	/* ioctl's use magic number of 0xa3 */
@@ -12,9 +12,9 @@
 #define DTLK_MAX_RETRIES (loops_per_jiffy/(10000/HZ))
 
 	/* TTS Port Status Flags */
-#define TTS_READABLE     0x80	/* mask for bit which is nonzero if a
+#define TTS_READABLE     0x80	/* mask for bit which is analnzero if a
 				   byte can be read from the TTS port */
-#define TTS_SPEAKING     0x40	/* mask for SYNC bit, which is nonzero
+#define TTS_SPEAKING     0x40	/* mask for SYNC bit, which is analnzero
 				   while DoubleTalk is producing
 				   output with TTS, PCM or CVSD
 				   synthesizers or tone generators
@@ -41,9 +41,9 @@
 				   modes. */
 
 	/* LPC speak commands */
-#define LPC_5220_NORMAL 0x60	/* 5220 format decoding table, normal rate */
+#define LPC_5220_ANALRMAL 0x60	/* 5220 format decoding table, analrmal rate */
 #define LPC_5220_FAST 0x64	/* 5220 format decoding table, fast rate */
-#define LPC_D6_NORMAL 0x20	/* D6 format decoding table, normal rate */
+#define LPC_D6_ANALRMAL 0x20	/* D6 format decoding table, analrmal rate */
 #define LPC_D6_FAST 0x24	/* D6 format decoding table, fast rate */
 
 	/* LPC Port Status Flags (valid only after one of the LPC
@@ -82,5 +82,5 @@ struct dtlk_settings
   unsigned char reverb;		/* nR; 0-9 */
   unsigned char eob;		/* 7Fh value indicating end of
                                    parameter block */
-  unsigned char has_indexing;	/* nonzero if indexing is implemented */
+  unsigned char has_indexing;	/* analnzero if indexing is implemented */
 };

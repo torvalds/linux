@@ -9,7 +9,7 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -36,13 +36,13 @@
 #include "../kselftest.h"
 #include "vm_util.h"
 
-#define UFFD_FLAGS	(O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY)
+#define UFFD_FLAGS	(O_CLOEXEC | O_ANALNBLOCK | UFFD_USER_MODE_ONLY)
 
 #define _err(fmt, ...)						\
 	do {							\
-		int ret = errno;				\
+		int ret = erranal;				\
 		fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__);	\
-		fprintf(stderr, " (errno=%d, @%s:%d)\n",	\
+		fprintf(stderr, " (erranal=%d, @%s:%d)\n",	\
 			ret, __FILE__, __LINE__);		\
 	} while (0)
 
@@ -59,7 +59,7 @@
 	((pthread_mutex_t *) ((___area) + (___nr)*page_size))
 /*
  * count is placed in the page after pthread_mutex_t naturally aligned
- * to avoid non alignment faults on non-x86 archs.
+ * to avoid analn alignment faults on analn-x86 archs.
  */
 #define area_count(___area, ___nr)					\
 	((volatile unsigned long long *) ((unsigned long)		\
@@ -76,7 +76,7 @@ struct uffd_args {
 	bool apply_wp;
 	unsigned long missing_faults;
 	unsigned long wp_faults;
-	unsigned long minor_faults;
+	unsigned long mianalr_faults;
 
 	/* A custom fault handler; defaults to uffd_handle_page_fault. */
 	void (*handle_fault)(struct uffd_msg *msg, struct uffd_args *args);
@@ -104,7 +104,7 @@ extern bool test_uffdio_wp;
 extern unsigned long long *count_verify;
 extern volatile bool test_uffdio_copy_eexist;
 
-extern uffd_test_ops_t anon_uffd_test_ops;
+extern uffd_test_ops_t aanaln_uffd_test_ops;
 extern uffd_test_ops_t shmem_uffd_test_ops;
 extern uffd_test_ops_t hugetlb_uffd_test_ops;
 extern uffd_test_ops_t *uffd_test_ops;
@@ -127,7 +127,7 @@ int uffd_open_sys(unsigned int flags);
 int uffd_open(unsigned int flags);
 int uffd_get_features(uint64_t *features);
 
-#define TEST_ANON	1
+#define TEST_AANALN	1
 #define TEST_HUGETLB	2
 #define TEST_SHMEM	3
 

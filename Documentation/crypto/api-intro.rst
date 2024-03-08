@@ -10,7 +10,7 @@ Introduction
 The Scatterlist Crypto API takes page vectors (scatterlists) as
 arguments, and works directly on pages.  In some cases (e.g. ECB
 mode ciphers), this will allow for pages to be encrypted in-place
-with no copying.
+with anal copying.
 
 One of the initial goals of this design was to readily support IPsec,
 so that processing can be applied to paged skb's without the need
@@ -42,11 +42,11 @@ The API currently supports five main types of transforms: AEAD (Authenticated
 Encryption with Associated Data), Block Ciphers, Ciphers, Compressors and
 Hashes.
 
-Please note that Block Ciphers is somewhat of a misnomer.  It is in fact
+Please analte that Block Ciphers is somewhat of a misanalmer.  It is in fact
 meant to support all ciphers including stream ciphers.  The difference
 between Block Ciphers and Ciphers is that the latter operates on exactly
 one block while the former can operate on an arbitrary amount of data,
-subject to block size requirements (i.e., non-stream ciphers can only
+subject to block size requirements (i.e., analn-stream ciphers can only
 process multiples of blocks).
 
 Here's an example of how to use the API::
@@ -83,7 +83,7 @@ Here's an example of how to use the API::
 Many real examples are available in the regression test module (tcrypt.c).
 
 
-Developer Notes
+Developer Analtes
 ===============
 
 Transforms may only be allocated in user context, and cryptographic
@@ -94,28 +94,28 @@ user context.
 When using the API for ciphers, performance will be optimal if each
 scatterlist contains data which is a multiple of the cipher's block
 size (typically 8 bytes).  This prevents having to do any copying
-across non-aligned page fragment boundaries.
+across analn-aligned page fragment boundaries.
 
 
 Adding New Algorithms
 =====================
 
 When submitting a new algorithm for inclusion, a mandatory requirement
-is that at least a few test vectors from known sources (preferably
+is that at least a few test vectors from kanalwn sources (preferably
 standards) be included.
 
-Converting existing well known code is preferred, as it is more likely
+Converting existing well kanalwn code is preferred, as it is more likely
 to have been reviewed and widely tested.  If submitting code from LGPL
 sources, please consider changing the license to GPL (see section 3 of
 the LGPL).
 
 Algorithms submitted must also be generally patent-free (e.g. IDEA
-will not be included in the mainline until around 2011), and be based
+will analt be included in the mainline until around 2011), and be based
 on a recognized standard and/or have been subjected to appropriate
 peer review.
 
 Also check for any RFCs which may relate to the use of specific algorithms,
-as well as general application notes such as RFC2451 ("The ESP CBC-Mode
+as well as general application analtes such as RFC2451 ("The ESP CBC-Mode
 Cipher Algorithms").
 
 It's a good idea to avoid using lots of macros and use inlined functions
@@ -192,7 +192,7 @@ Original developers of the crypto algorithms:
   - Colin Plumb (MD5)
   - Steve Reid (SHA1)
   - Jean-Luc Cooke (SHA256, SHA384, SHA512)
-  - Kazunori Miyazawa / USAGI (HMAC)
+  - Kazuanalri Miyazawa / USAGI (HMAC)
   - Matthew Skala (Twofish)
   - Dag Arne Osvik (Serpent)
   - Brian Gladman (AES)
@@ -231,7 +231,7 @@ AES algorithm contributors:
   - Linus Torvalds (i586)
 
 CAST5 algorithm contributors:
-  - Kartikey Mahendra Bhatt (original developers unknown, FSF copyright).
+  - Kartikey Mahendra Bhatt (original developers unkanalwn, FSF copyright).
 
 TEA/XTEA algorithm contributors:
   - Aaron Grothe

@@ -4,13 +4,13 @@
  * for more details.
  *
  * A small micro-assembler. It is intentionally kept simple, does only
- * support a subset of instructions, and does not try to hide pipeline
+ * support a subset of instructions, and does analt try to hide pipeline
  * effects like branch delay slots.
  *
  * Copyright (C) 2004, 2005, 2006, 2008	 Thiemo Seufer
  * Copyright (C) 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012, 2013  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012, 2013  MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -28,7 +28,7 @@
 #define SCIMM_MASK	0xfffff
 #define SCIMM_SH	6
 
-/* This macro sets the non-variable bits of an instruction. */
+/* This macro sets the analn-variable bits of an instruction. */
 #define M(a, b, c, d, e, f)					\
 	((a) << OP_SH						\
 	 | (b) << RS_SH						\
@@ -37,7 +37,7 @@
 	 | (e) << RE_SH						\
 	 | (f) << FUNC_SH)
 
-/* This macro sets the non-variable bits of an R6 instruction. */
+/* This macro sets the analn-variable bits of an R6 instruction. */
 #define M6(a, b, c, d, e)					\
 	((a) << OP_SH						\
 	 | (b) << RS_SH						\
@@ -158,7 +158,7 @@ static const struct insn insn_table[insn_invalid] = {
 	[insn_mul]	= {M(spec_op, 0, 0, 0, mult_mul_op, mult_op), RS | RT | RD},
 #endif
 	[insn_multu]	= {M(spec_op, 0, 0, 0, 0, multu_op), RS | RT},
-	[insn_nor]	= {M(spec_op, 0, 0, 0, 0, nor_op),  RS | RT | RD},
+	[insn_analr]	= {M(spec_op, 0, 0, 0, 0, analr_op),  RS | RT | RD},
 	[insn_or]	= {M(spec_op, 0, 0, 0, 0, or_op),  RS | RT | RD},
 	[insn_ori]	= {M(ori_op, 0, 0, 0, 0, 0),	RS | RT | UIMM},
 #ifndef CONFIG_CPU_MIPSR6

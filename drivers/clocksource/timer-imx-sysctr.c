@@ -28,12 +28,12 @@ static void sysctr_timer_enable(bool enable)
 	writel(enable ? cmpcr | SYS_CTR_EN : cmpcr, sys_ctr_base + CMPCR);
 }
 
-static void sysctr_irq_acknowledge(void)
+static void sysctr_irq_ackanalwledge(void)
 {
 	/*
 	 * clear the enable bit(EN =0) will clear
 	 * the status bit(ISTAT = 0), then the interrupt
-	 * signal will be negated(acknowledged).
+	 * signal will be negated(ackanalwledged).
 	 */
 	sysctr_timer_enable(false);
 }
@@ -90,7 +90,7 @@ static irqreturn_t sysctr_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	sysctr_irq_acknowledge();
+	sysctr_irq_ackanalwledge();
 
 	evt->event_handler(evt);
 
@@ -126,7 +126,7 @@ static void __init sysctr_clockevent_init(void)
 					0xff, 0x7fffffff);
 }
 
-static int __init sysctr_timer_init(struct device_node *np)
+static int __init sysctr_timer_init(struct device_analde *np)
 {
 	int ret = 0;
 
@@ -134,7 +134,7 @@ static int __init sysctr_timer_init(struct device_node *np)
 	if (ret)
 		return ret;
 
-	if (!of_property_read_bool(np, "nxp,no-divider")) {
+	if (!of_property_read_bool(np, "nxp,anal-divider")) {
 		/* system counter clock is divided by 3 internally */
 		to_sysctr.of_clk.rate /= SYS_CTR_CLK_DIV;
 	}

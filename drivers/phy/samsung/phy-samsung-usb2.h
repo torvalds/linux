@@ -6,8 +6,8 @@
  * Author: Kamil Debski <k.debski@samsung.com>
  */
 
-#ifndef _PHY_EXYNOS_USB2_H
-#define _PHY_EXYNOS_USB2_H
+#ifndef _PHY_EXYANALS_USB2_H
+#define _PHY_EXYANALS_USB2_H
 
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
@@ -62,10 +62,10 @@ struct samsung_usb2_phy_config {
 	bool has_refclk_sel;
 };
 
-extern const struct samsung_usb2_phy_config exynos3250_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos4210_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos4x12_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos5250_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos5420_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyanals3250_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyanals4210_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyanals4x12_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyanals5250_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyanals5420_usb2_phy_config;
 extern const struct samsung_usb2_phy_config s5pv210_usb2_phy_config;
 #endif

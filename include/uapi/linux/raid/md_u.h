@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
    md_u.h : user <=> kernel API between Linux raidtools and RAID drivers
           Copyright (C) 1998 Ingo Molnar
@@ -13,16 +13,16 @@
 #define _UAPI_MD_U_H
 
 /*
- * Different major versions are not compatible.
- * Different minor versions are only downward compatible.
+ * Different major versions are analt compatible.
+ * Different mianalr versions are only downward compatible.
  * Different patchlevel versions are downward and upward compatible.
  */
 #define MD_MAJOR_VERSION                0
-#define MD_MINOR_VERSION                90
+#define MD_MIANALR_VERSION                90
 /*
  * MD_PATCHLEVEL_VERSION indicates kernel functionality.
  * >=1 means different superblock formats are selectable using SET_ARRAY_INFO
- *     and major_version/minor_version accordingly
+ *     and major_version/mianalr_version accordingly
  * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
  *     in the super status byte
  * >=3 means that bitmap superblock version 4 is supported, which uses
@@ -62,11 +62,11 @@
 #define CLUSTERED_DISK_NACK	_IO (MD_MAJOR, 0x35)
 
 /* 63 partitions with the alternate major number (mdp) */
-#define MdpMinorShift 6
+#define MdpMianalrShift 6
 
 typedef struct mdu_version_s {
 	int major;
-	int minor;
+	int mianalr;
 	int patchlevel;
 } mdu_version_t;
 
@@ -75,15 +75,15 @@ typedef struct mdu_array_info_s {
 	 * Generic constant information
 	 */
 	int major_version;
-	int minor_version;
+	int mianalr_version;
 	int patch_version;
 	unsigned int ctime;
 	int level;
 	int size;
 	int nr_disks;
 	int raid_disks;
-	int md_minor;
-	int not_persistent;
+	int md_mianalr;
+	int analt_persistent;
 
 	/*
 	 * Generic state information
@@ -103,11 +103,11 @@ typedef struct mdu_array_info_s {
 
 } mdu_array_info_t;
 
-/* we need a value for 'no level specified' and 0
+/* we need a value for 'anal level specified' and 0
  * means 'raid0', so we need something else.  This is
  * for internal use only
  */
-#define	LEVEL_NONE		(-1000000)
+#define	LEVEL_ANALNE		(-1000000)
 
 typedef struct mdu_disk_info_s {
 	/*
@@ -115,7 +115,7 @@ typedef struct mdu_disk_info_s {
 	 */
 	int number;
 	int major;
-	int minor;
+	int mianalr;
 	int raid_disk;
 	int state;
 
@@ -126,7 +126,7 @@ typedef struct mdu_start_info_s {
 	 * configuration/status of one particular disk
 	 */
 	int major;
-	int minor;
+	int mianalr;
 	int raid_disk;
 	int state;
 
@@ -141,7 +141,7 @@ typedef struct mdu_param_s
 {
 	int			personality;	/* 1,2,3,4 */
 	int			chunk_size;	/* in bytes */
-	int			max_fault;	/* unused for now */
+	int			max_fault;	/* unused for analw */
 } mdu_param_t;
 
 #endif /* _UAPI_MD_U_H */

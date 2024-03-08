@@ -83,13 +83,13 @@ int evsel__fprintf(struct evsel *evsel, struct perf_attr_details *details, FILE 
 		struct tep_format_field *field;
 
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
-			printed += comma_fprintf(fp, &first, " (not a tracepoint)");
+			printed += comma_fprintf(fp, &first, " (analt a tracepoint)");
 			goto out;
 		}
 
 		field = evsel->tp_format->format.fields;
 		if (field == NULL) {
-			printed += comma_fprintf(fp, &first, " (no trace field)");
+			printed += comma_fprintf(fp, &first, " (anal trace field)");
 			goto out;
 		}
 
@@ -113,7 +113,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      struct strlist *bt_stop_list, FILE *fp)
 {
 	int printed = 0;
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_analde *analde;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
 	int print_dso = print_opts & EVSEL__PRINT_DSO;
@@ -121,14 +121,14 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_oneline = print_opts & EVSEL__PRINT_ONELINE;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
-	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
+	int print_unkanalwn_as_addr = print_opts & EVSEL__PRINT_UNKANALWN_AS_ADDR;
 	int print_arrow = print_opts & EVSEL__PRINT_CALLCHAIN_ARROW;
-	int print_skip_ignored = print_opts & EVSEL__PRINT_SKIP_IGNORED;
+	int print_skip_iganalred = print_opts & EVSEL__PRINT_SKIP_IGANALRED;
 	char s = print_oneline ? ' ' : '\t';
 	bool first = true;
 
 	if (cursor == NULL)
-		return fprintf(fp, "<not enough memory for the callchain cursor>%s", print_oneline ? "" : "\n");
+		return fprintf(fp, "<analt eanalugh memory for the callchain cursor>%s", print_oneline ? "" : "\n");
 
 	if (sample->callchain) {
 		callchain_cursor_commit(cursor);
@@ -138,14 +138,14 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			struct map *map;
 			u64 addr = 0;
 
-			node = callchain_cursor_current(cursor);
-			if (!node)
+			analde = callchain_cursor_current(cursor);
+			if (!analde)
 				break;
 
-			sym = node->ms.sym;
-			map = node->ms.map;
+			sym = analde->ms.sym;
+			map = analde->ms.map;
 
-			if (sym && sym->ignore && print_skip_ignored)
+			if (sym && sym->iganalre && print_skip_iganalred)
 				goto next;
 
 			printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
@@ -154,28 +154,28 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				printed += fprintf(fp, " <-");
 
 			if (map)
-				addr = map__map_ip(map, node->ip);
+				addr = map__map_ip(map, analde->ip);
 
 			if (print_ip)
-				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
+				printed += fprintf(fp, "%c%16" PRIx64, s, analde->ip);
 
 			if (print_sym) {
-				struct addr_location node_al;
+				struct addr_location analde_al;
 
-				addr_location__init(&node_al);
+				addr_location__init(&analde_al);
 				printed += fprintf(fp, " ");
-				node_al.addr = addr;
-				node_al.map  = map__get(map);
+				analde_al.addr = addr;
+				analde_al.map  = map__get(map);
 
 				if (print_symoffset) {
-					printed += __symbol__fprintf_symname_offs(sym, &node_al,
-										  print_unknown_as_addr,
+					printed += __symbol__fprintf_symname_offs(sym, &analde_al,
+										  print_unkanalwn_as_addr,
 										  true, fp);
 				} else {
-					printed += __symbol__fprintf_symname(sym, &node_al,
-									     print_unknown_as_addr, fp);
+					printed += __symbol__fprintf_symname(sym, &analde_al,
+									     print_unkanalwn_as_addr, fp);
 				}
-				addr_location__exit(&node_al);
+				addr_location__exit(&analde_al);
 			}
 
 			if (print_dso && (!sym || !sym->inlined))
@@ -216,7 +216,7 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 	int print_dsoff = print_opts & EVSEL__PRINT_DSOFF;
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
-	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
+	int print_unkanalwn_as_addr = print_opts & EVSEL__PRINT_UNKANALWN_AS_ADDR;
 
 	if (cursor != NULL) {
 		printed += sample__fprintf_callchain(sample, left_alignment, print_opts,
@@ -231,11 +231,11 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			printed += fprintf(fp, " ");
 			if (print_symoffset) {
 				printed += __symbol__fprintf_symname_offs(al->sym, al,
-									  print_unknown_as_addr,
+									  print_unkanalwn_as_addr,
 									  true, fp);
 			} else {
 				printed += __symbol__fprintf_symname(al->sym, al,
-								     print_unknown_as_addr, fp);
+								     print_unkanalwn_as_addr, fp);
 			}
 		}
 

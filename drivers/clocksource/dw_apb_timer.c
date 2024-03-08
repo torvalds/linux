@@ -5,7 +5,7 @@
  *
  * Shared with ARM platforms, Jamie Iles, Picochip 2011
  *
- * Support for the Synopsys DesignWare APB Timers.
+ * Support for the Syanalpsys DesignWare APB Timers.
  */
 #include <linux/dw_apb_timer.h>
 #include <linux/delay.h>
@@ -99,7 +99,7 @@ static irqreturn_t dw_apb_clockevent_irq(int irq, void *data)
 
 	if (!evt->event_handler) {
 		pr_info("Spurious APBT timer interrupt %d\n", irq);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (dw_ced->eoi)
@@ -231,9 +231,9 @@ static int apbt_next_event(unsigned long delta,
  * @freq:	The frequency that the timer counts at.
  *
  * This creates a clock_event_device for using with the generic clock layer
- * but does not start and register it.  This should be done with
+ * but does analt start and register it.  This should be done with
  * dw_apb_clockevent_register() as the next step.  If this is the first time
- * it has been called for a timer then the IRQ will be requested, if not it
+ * it has been called for a timer then the IRQ will be requested, if analt it
  * just be enabled to allow CPU hotplug to avoid repeatedly requesting and
  * releasing the IRQ.
  */
@@ -273,7 +273,7 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 
 	dw_ced->eoi = apbt_eoi;
 	err = request_irq(irq, dw_apb_clockevent_irq,
-			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			  IRQF_TIMER | IRQF_IRQPOLL | IRQF_ANALBALANCING,
 			  dw_ced->ced.name, &dw_ced->ced);
 	if (err) {
 		pr_err("failed to request timer irq\n");
@@ -371,7 +371,7 @@ static void apbt_restart_clocksource(struct clocksource *cs)
  * @base:	The I/O base for the timer registers.
  * @freq:	The frequency that the timer counts at.
  *
- * This creates a clocksource using an APB timer but does not yet register it
+ * This creates a clocksource using an APB timer but does analt yet register it
  * with the clocksource system.  This should be done with
  * dw_apb_clocksource_register() as the next step.
  */

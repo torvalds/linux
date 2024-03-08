@@ -12,32 +12,32 @@ their I/O so file system consistency is maintained.  One of the nifty
 features of GFS2 is perfect consistency -- changes made to the file system
 on one machine show up immediately on all other machines in the cluster.
 
-GFS2 uses interchangeable inter-node locking mechanisms, the currently
+GFS2 uses interchangeable inter-analde locking mechanisms, the currently
 supported mechanisms are:
 
-  lock_nolock
+  lock_anallock
     - allows GFS2 to be used as a local file system
 
   lock_dlm
-    - uses the distributed lock manager (dlm) for inter-node locking.
+    - uses the distributed lock manager (dlm) for inter-analde locking.
       The dlm is found at linux/fs/dlm/
 
 lock_dlm depends on user space cluster management systems found
 at the URL above.
 
-To use GFS2 as a local file system, no external clustering systems are
+To use GFS2 as a local file system, anal external clustering systems are
 needed, simply::
 
-  $ mkfs -t gfs2 -p lock_nolock -j 1 /dev/block_device
+  $ mkfs -t gfs2 -p lock_anallock -j 1 /dev/block_device
   $ mount -t gfs2 /dev/block_device /dir
 
-The gfs2-utils package is required on all cluster nodes and, for lock_dlm, you
+The gfs2-utils package is required on all cluster analdes and, for lock_dlm, you
 will also need the dlm and corosync user space utilities configured as per the
 documentation.
 
 gfs2-utils can be found at https://pagure.io/gfs2-utils
 
-GFS2 is not on-disk compatible with previous versions of GFS, but it
+GFS2 is analt on-disk compatible with previous versions of GFS, but it
 is pretty close.
 
 The following man pages are available from gfs2-utils:

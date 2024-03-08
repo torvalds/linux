@@ -20,7 +20,7 @@ ENTRY(stext)
 	/*
 	 * VMM will already have set up true vector page, MMU, etc.
 	 * To set up initial kernel identity map, we have to pass
-	 * the VMM a pointer to some canonical page tables. In
+	 * the VMM a pointer to some caanalnical page tables. In
 	 * this implementation, we're assuming that we've got
 	 * them precompiled. Generate value in R24, as we'll need
 	 * it again shortly.
@@ -35,7 +35,7 @@ ENTRY(stext)
 	r25 = pc;
 	r2.h = #0xffc0;
 	r2.l = #0x0000;
-	r25 = and(r2,r25);	/*  R25 holds PHYS_OFFSET now  */
+	r25 = and(r2,r25);	/*  R25 holds PHYS_OFFSET analw  */
 	r1.h = #HI(PAGE_OFFSET);
 	r1.l = #LO(PAGE_OFFSET);
 	r24 = sub(r24,r1);	/* swapper_pg_dir - PAGE_OFFSET */
@@ -114,8 +114,8 @@ ENTRY(stext)
 
 	/*
 	 * The subroutine wrapper around the virtual instruction touches
-	 * no memory, so we should be able to use it even here.
-	 * Note that in this version, R1 and R2 get "clobbered"; see
+	 * anal memory, so we should be able to use it even here.
+	 * Analte that in this version, R1 and R2 get "clobbered"; see
 	 * vm_ops.S
 	 */
 	r1 = #VM_TRANS_TYPE_TABLE
@@ -131,7 +131,7 @@ ENTRY(stext)
 
 __head_s_vaddr_target:
 	/*
-	 * Tear down VA=PA translation now that we are running
+	 * Tear down VA=PA translation analw that we are running
 	 * in kernel virtual space.
 	 */
 	r0 = #__HVM_PDE_S_INVALID
@@ -179,7 +179,7 @@ __head_s_vaddr_target:
 	 * So uhhhhh...
 	 * It's accessible via the init_thread_union, which is a union
 	 * of a thread_info struct and a stack; of course, the top
-	 * of the stack is not for you.  The end of the stack
+	 * of the stack is analt for you.  The end of the stack
 	 * is simply init_thread_union + THREAD_SIZE.
 	 */
 
@@ -208,7 +208,7 @@ __head_s_vaddr_target:
 	call start_kernel
 
 	/*
-	 * Should not reach here.
+	 * Should analt reach here.
 	 */
 1:
 	jump 1b

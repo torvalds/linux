@@ -11,9 +11,9 @@
 	__clang_major__ >= 18
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 1")
+__description("SDIV32, analn-zero imm divisor, check 1")
 __success __success_unpriv __retval(-20)
-__naked void sdiv32_non_zero_imm_1(void)
+__naked void sdiv32_analn_zero_imm_1(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -23,9 +23,9 @@ __naked void sdiv32_non_zero_imm_1(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 2")
+__description("SDIV32, analn-zero imm divisor, check 2")
 __success __success_unpriv __retval(-20)
-__naked void sdiv32_non_zero_imm_2(void)
+__naked void sdiv32_analn_zero_imm_2(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -35,9 +35,9 @@ __naked void sdiv32_non_zero_imm_2(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 3")
+__description("SDIV32, analn-zero imm divisor, check 3")
 __success __success_unpriv __retval(20)
-__naked void sdiv32_non_zero_imm_3(void)
+__naked void sdiv32_analn_zero_imm_3(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -47,9 +47,9 @@ __naked void sdiv32_non_zero_imm_3(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 4")
+__description("SDIV32, analn-zero imm divisor, check 4")
 __success __success_unpriv __retval(-21)
-__naked void sdiv32_non_zero_imm_4(void)
+__naked void sdiv32_analn_zero_imm_4(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -59,9 +59,9 @@ __naked void sdiv32_non_zero_imm_4(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 5")
+__description("SDIV32, analn-zero imm divisor, check 5")
 __success __success_unpriv __retval(-21)
-__naked void sdiv32_non_zero_imm_5(void)
+__naked void sdiv32_analn_zero_imm_5(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -71,9 +71,9 @@ __naked void sdiv32_non_zero_imm_5(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 6")
+__description("SDIV32, analn-zero imm divisor, check 6")
 __success __success_unpriv __retval(21)
-__naked void sdiv32_non_zero_imm_6(void)
+__naked void sdiv32_analn_zero_imm_6(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -83,9 +83,9 @@ __naked void sdiv32_non_zero_imm_6(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 7")
+__description("SDIV32, analn-zero imm divisor, check 7")
 __success __success_unpriv __retval(21)
-__naked void sdiv32_non_zero_imm_7(void)
+__naked void sdiv32_analn_zero_imm_7(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -95,9 +95,9 @@ __naked void sdiv32_non_zero_imm_7(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero imm divisor, check 8")
+__description("SDIV32, analn-zero imm divisor, check 8")
 __success __success_unpriv __retval(20)
-__naked void sdiv32_non_zero_imm_8(void)
+__naked void sdiv32_analn_zero_imm_8(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -107,9 +107,9 @@ __naked void sdiv32_non_zero_imm_8(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 1")
+__description("SDIV32, analn-zero reg divisor, check 1")
 __success __success_unpriv __retval(-20)
-__naked void sdiv32_non_zero_reg_1(void)
+__naked void sdiv32_analn_zero_reg_1(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -120,9 +120,9 @@ __naked void sdiv32_non_zero_reg_1(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 2")
+__description("SDIV32, analn-zero reg divisor, check 2")
 __success __success_unpriv __retval(-20)
-__naked void sdiv32_non_zero_reg_2(void)
+__naked void sdiv32_analn_zero_reg_2(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -133,9 +133,9 @@ __naked void sdiv32_non_zero_reg_2(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 3")
+__description("SDIV32, analn-zero reg divisor, check 3")
 __success __success_unpriv __retval(20)
-__naked void sdiv32_non_zero_reg_3(void)
+__naked void sdiv32_analn_zero_reg_3(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -146,9 +146,9 @@ __naked void sdiv32_non_zero_reg_3(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 4")
+__description("SDIV32, analn-zero reg divisor, check 4")
 __success __success_unpriv __retval(-21)
-__naked void sdiv32_non_zero_reg_4(void)
+__naked void sdiv32_analn_zero_reg_4(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -159,9 +159,9 @@ __naked void sdiv32_non_zero_reg_4(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 5")
+__description("SDIV32, analn-zero reg divisor, check 5")
 __success __success_unpriv __retval(-21)
-__naked void sdiv32_non_zero_reg_5(void)
+__naked void sdiv32_analn_zero_reg_5(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -172,9 +172,9 @@ __naked void sdiv32_non_zero_reg_5(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 6")
+__description("SDIV32, analn-zero reg divisor, check 6")
 __success __success_unpriv __retval(21)
-__naked void sdiv32_non_zero_reg_6(void)
+__naked void sdiv32_analn_zero_reg_6(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -185,9 +185,9 @@ __naked void sdiv32_non_zero_reg_6(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 7")
+__description("SDIV32, analn-zero reg divisor, check 7")
 __success __success_unpriv __retval(21)
-__naked void sdiv32_non_zero_reg_7(void)
+__naked void sdiv32_analn_zero_reg_7(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -198,9 +198,9 @@ __naked void sdiv32_non_zero_reg_7(void)
 }
 
 SEC("socket")
-__description("SDIV32, non-zero reg divisor, check 8")
+__description("SDIV32, analn-zero reg divisor, check 8")
 __success __success_unpriv __retval(20)
-__naked void sdiv32_non_zero_reg_8(void)
+__naked void sdiv32_analn_zero_reg_8(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -211,9 +211,9 @@ __naked void sdiv32_non_zero_reg_8(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 1")
+__description("SDIV64, analn-zero imm divisor, check 1")
 __success __success_unpriv __retval(-20)
-__naked void sdiv64_non_zero_imm_1(void)
+__naked void sdiv64_analn_zero_imm_1(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -223,9 +223,9 @@ __naked void sdiv64_non_zero_imm_1(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 2")
+__description("SDIV64, analn-zero imm divisor, check 2")
 __success __success_unpriv __retval(-20)
-__naked void sdiv64_non_zero_imm_2(void)
+__naked void sdiv64_analn_zero_imm_2(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -235,9 +235,9 @@ __naked void sdiv64_non_zero_imm_2(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 3")
+__description("SDIV64, analn-zero imm divisor, check 3")
 __success __success_unpriv __retval(20)
-__naked void sdiv64_non_zero_imm_3(void)
+__naked void sdiv64_analn_zero_imm_3(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -247,9 +247,9 @@ __naked void sdiv64_non_zero_imm_3(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 4")
+__description("SDIV64, analn-zero imm divisor, check 4")
 __success __success_unpriv __retval(-21)
-__naked void sdiv64_non_zero_imm_4(void)
+__naked void sdiv64_analn_zero_imm_4(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -259,9 +259,9 @@ __naked void sdiv64_non_zero_imm_4(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 5")
+__description("SDIV64, analn-zero imm divisor, check 5")
 __success __success_unpriv __retval(-21)
-__naked void sdiv64_non_zero_imm_5(void)
+__naked void sdiv64_analn_zero_imm_5(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -271,9 +271,9 @@ __naked void sdiv64_non_zero_imm_5(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero imm divisor, check 6")
+__description("SDIV64, analn-zero imm divisor, check 6")
 __success __success_unpriv __retval(21)
-__naked void sdiv64_non_zero_imm_6(void)
+__naked void sdiv64_analn_zero_imm_6(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -283,9 +283,9 @@ __naked void sdiv64_non_zero_imm_6(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 1")
+__description("SDIV64, analn-zero reg divisor, check 1")
 __success __success_unpriv __retval(-20)
-__naked void sdiv64_non_zero_reg_1(void)
+__naked void sdiv64_analn_zero_reg_1(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -296,9 +296,9 @@ __naked void sdiv64_non_zero_reg_1(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 2")
+__description("SDIV64, analn-zero reg divisor, check 2")
 __success __success_unpriv __retval(-20)
-__naked void sdiv64_non_zero_reg_2(void)
+__naked void sdiv64_analn_zero_reg_2(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -309,9 +309,9 @@ __naked void sdiv64_non_zero_reg_2(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 3")
+__description("SDIV64, analn-zero reg divisor, check 3")
 __success __success_unpriv __retval(20)
-__naked void sdiv64_non_zero_reg_3(void)
+__naked void sdiv64_analn_zero_reg_3(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -322,9 +322,9 @@ __naked void sdiv64_non_zero_reg_3(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 4")
+__description("SDIV64, analn-zero reg divisor, check 4")
 __success __success_unpriv __retval(-21)
-__naked void sdiv64_non_zero_reg_4(void)
+__naked void sdiv64_analn_zero_reg_4(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -335,9 +335,9 @@ __naked void sdiv64_non_zero_reg_4(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 5")
+__description("SDIV64, analn-zero reg divisor, check 5")
 __success __success_unpriv __retval(-21)
-__naked void sdiv64_non_zero_reg_5(void)
+__naked void sdiv64_analn_zero_reg_5(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -348,9 +348,9 @@ __naked void sdiv64_non_zero_reg_5(void)
 }
 
 SEC("socket")
-__description("SDIV64, non-zero reg divisor, check 6")
+__description("SDIV64, analn-zero reg divisor, check 6")
 __success __success_unpriv __retval(21)
-__naked void sdiv64_non_zero_reg_6(void)
+__naked void sdiv64_analn_zero_reg_6(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -361,9 +361,9 @@ __naked void sdiv64_non_zero_reg_6(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 1")
+__description("SMOD32, analn-zero imm divisor, check 1")
 __success __success_unpriv __retval(-1)
-__naked void smod32_non_zero_imm_1(void)
+__naked void smod32_analn_zero_imm_1(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -373,9 +373,9 @@ __naked void smod32_non_zero_imm_1(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 2")
+__description("SMOD32, analn-zero imm divisor, check 2")
 __success __success_unpriv __retval(1)
-__naked void smod32_non_zero_imm_2(void)
+__naked void smod32_analn_zero_imm_2(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -385,9 +385,9 @@ __naked void smod32_non_zero_imm_2(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 3")
+__description("SMOD32, analn-zero imm divisor, check 3")
 __success __success_unpriv __retval(-1)
-__naked void smod32_non_zero_imm_3(void)
+__naked void smod32_analn_zero_imm_3(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -397,9 +397,9 @@ __naked void smod32_non_zero_imm_3(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 4")
+__description("SMOD32, analn-zero imm divisor, check 4")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_imm_4(void)
+__naked void smod32_analn_zero_imm_4(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -409,9 +409,9 @@ __naked void smod32_non_zero_imm_4(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 5")
+__description("SMOD32, analn-zero imm divisor, check 5")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_imm_5(void)
+__naked void smod32_analn_zero_imm_5(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -421,9 +421,9 @@ __naked void smod32_non_zero_imm_5(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero imm divisor, check 6")
+__description("SMOD32, analn-zero imm divisor, check 6")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_imm_6(void)
+__naked void smod32_analn_zero_imm_6(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -433,9 +433,9 @@ __naked void smod32_non_zero_imm_6(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 1")
+__description("SMOD32, analn-zero reg divisor, check 1")
 __success __success_unpriv __retval(-1)
-__naked void smod32_non_zero_reg_1(void)
+__naked void smod32_analn_zero_reg_1(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -446,9 +446,9 @@ __naked void smod32_non_zero_reg_1(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 2")
+__description("SMOD32, analn-zero reg divisor, check 2")
 __success __success_unpriv __retval(1)
-__naked void smod32_non_zero_reg_2(void)
+__naked void smod32_analn_zero_reg_2(void)
 {
 	asm volatile ("					\
 	w0 = 41;					\
@@ -459,9 +459,9 @@ __naked void smod32_non_zero_reg_2(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 3")
+__description("SMOD32, analn-zero reg divisor, check 3")
 __success __success_unpriv __retval(-1)
-__naked void smod32_non_zero_reg_3(void)
+__naked void smod32_analn_zero_reg_3(void)
 {
 	asm volatile ("					\
 	w0 = -41;					\
@@ -472,9 +472,9 @@ __naked void smod32_non_zero_reg_3(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 4")
+__description("SMOD32, analn-zero reg divisor, check 4")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_reg_4(void)
+__naked void smod32_analn_zero_reg_4(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -485,9 +485,9 @@ __naked void smod32_non_zero_reg_4(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 5")
+__description("SMOD32, analn-zero reg divisor, check 5")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_reg_5(void)
+__naked void smod32_analn_zero_reg_5(void)
 {
 	asm volatile ("					\
 	w0 = 42;					\
@@ -498,9 +498,9 @@ __naked void smod32_non_zero_reg_5(void)
 }
 
 SEC("socket")
-__description("SMOD32, non-zero reg divisor, check 6")
+__description("SMOD32, analn-zero reg divisor, check 6")
 __success __success_unpriv __retval(0)
-__naked void smod32_non_zero_reg_6(void)
+__naked void smod32_analn_zero_reg_6(void)
 {
 	asm volatile ("					\
 	w0 = -42;					\
@@ -511,9 +511,9 @@ __naked void smod32_non_zero_reg_6(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 1")
+__description("SMOD64, analn-zero imm divisor, check 1")
 __success __success_unpriv __retval(-1)
-__naked void smod64_non_zero_imm_1(void)
+__naked void smod64_analn_zero_imm_1(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -523,9 +523,9 @@ __naked void smod64_non_zero_imm_1(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 2")
+__description("SMOD64, analn-zero imm divisor, check 2")
 __success __success_unpriv __retval(1)
-__naked void smod64_non_zero_imm_2(void)
+__naked void smod64_analn_zero_imm_2(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -535,9 +535,9 @@ __naked void smod64_non_zero_imm_2(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 3")
+__description("SMOD64, analn-zero imm divisor, check 3")
 __success __success_unpriv __retval(-1)
-__naked void smod64_non_zero_imm_3(void)
+__naked void smod64_analn_zero_imm_3(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -547,9 +547,9 @@ __naked void smod64_non_zero_imm_3(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 4")
+__description("SMOD64, analn-zero imm divisor, check 4")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_imm_4(void)
+__naked void smod64_analn_zero_imm_4(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -559,9 +559,9 @@ __naked void smod64_non_zero_imm_4(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 5")
+__description("SMOD64, analn-zero imm divisor, check 5")
 __success __success_unpriv __retval(-0)
-__naked void smod64_non_zero_imm_5(void)
+__naked void smod64_analn_zero_imm_5(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -571,9 +571,9 @@ __naked void smod64_non_zero_imm_5(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 6")
+__description("SMOD64, analn-zero imm divisor, check 6")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_imm_6(void)
+__naked void smod64_analn_zero_imm_6(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -583,9 +583,9 @@ __naked void smod64_non_zero_imm_6(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 7")
+__description("SMOD64, analn-zero imm divisor, check 7")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_imm_7(void)
+__naked void smod64_analn_zero_imm_7(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -595,9 +595,9 @@ __naked void smod64_non_zero_imm_7(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero imm divisor, check 8")
+__description("SMOD64, analn-zero imm divisor, check 8")
 __success __success_unpriv __retval(1)
-__naked void smod64_non_zero_imm_8(void)
+__naked void smod64_analn_zero_imm_8(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -607,9 +607,9 @@ __naked void smod64_non_zero_imm_8(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 1")
+__description("SMOD64, analn-zero reg divisor, check 1")
 __success __success_unpriv __retval(-1)
-__naked void smod64_non_zero_reg_1(void)
+__naked void smod64_analn_zero_reg_1(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -620,9 +620,9 @@ __naked void smod64_non_zero_reg_1(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 2")
+__description("SMOD64, analn-zero reg divisor, check 2")
 __success __success_unpriv __retval(1)
-__naked void smod64_non_zero_reg_2(void)
+__naked void smod64_analn_zero_reg_2(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -633,9 +633,9 @@ __naked void smod64_non_zero_reg_2(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 3")
+__description("SMOD64, analn-zero reg divisor, check 3")
 __success __success_unpriv __retval(-1)
-__naked void smod64_non_zero_reg_3(void)
+__naked void smod64_analn_zero_reg_3(void)
 {
 	asm volatile ("					\
 	r0 = -41;					\
@@ -646,9 +646,9 @@ __naked void smod64_non_zero_reg_3(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 4")
+__description("SMOD64, analn-zero reg divisor, check 4")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_reg_4(void)
+__naked void smod64_analn_zero_reg_4(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -659,9 +659,9 @@ __naked void smod64_non_zero_reg_4(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 5")
+__description("SMOD64, analn-zero reg divisor, check 5")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_reg_5(void)
+__naked void smod64_analn_zero_reg_5(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -672,9 +672,9 @@ __naked void smod64_non_zero_reg_5(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 6")
+__description("SMOD64, analn-zero reg divisor, check 6")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_reg_6(void)
+__naked void smod64_analn_zero_reg_6(void)
 {
 	asm volatile ("					\
 	r0 = -42;					\
@@ -685,9 +685,9 @@ __naked void smod64_non_zero_reg_6(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 7")
+__description("SMOD64, analn-zero reg divisor, check 7")
 __success __success_unpriv __retval(0)
-__naked void smod64_non_zero_reg_7(void)
+__naked void smod64_analn_zero_reg_7(void)
 {
 	asm volatile ("					\
 	r0 = 42;					\
@@ -698,9 +698,9 @@ __naked void smod64_non_zero_reg_7(void)
 }
 
 SEC("socket")
-__description("SMOD64, non-zero reg divisor, check 8")
+__description("SMOD64, analn-zero reg divisor, check 8")
 __success __success_unpriv __retval(1)
-__naked void smod64_non_zero_reg_8(void)
+__naked void smod64_analn_zero_reg_8(void)
 {
 	asm volatile ("					\
 	r0 = 41;					\
@@ -773,7 +773,7 @@ __naked void smod64_zero_divisor(void)
 #else
 
 SEC("socket")
-__description("cpuv4 is not supported by compiler or jit, use a dummy test")
+__description("cpuv4 is analt supported by compiler or jit, use a dummy test")
 __success
 int dummy_test(void)
 {

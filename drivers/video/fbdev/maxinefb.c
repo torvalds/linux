@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -45,10 +45,10 @@ static const struct fb_var_screeninfo maxinefb_defined = {
 	.xres_virtual =	1024,
 	.yres_virtual =	768,
 	.bits_per_pixel =8,
-	.activate =	FB_ACTIVATE_NOW,
+	.activate =	FB_ACTIVATE_ANALW,
 	.height =	-1,
 	.width =	-1,
-	.vmode =	FB_VMODE_NONINTERLACED,
+	.vmode =	FB_VMODE_ANALNINTERLACED,
 };
 
 static struct fb_fix_screeninfo maxinefb_fix __initdata = {
@@ -61,23 +61,23 @@ static struct fb_fix_screeninfo maxinefb_fix __initdata = {
 
 /* Handle the funny Inmos RamDAC/video controller ... */
 
-void maxinefb_ims332_write_register(int regno, register unsigned int val)
+void maxinefb_ims332_write_register(int reganal, register unsigned int val)
 {
 	register unsigned char *regs = (char *) MAXINEFB_IMS332_ADDRESS;
 	unsigned char *wptr;
 
-	wptr = regs + 0xa0000 + (regno << 4);
+	wptr = regs + 0xa0000 + (reganal << 4);
 	*((volatile unsigned int *) (regs)) = (val >> 8) & 0xff00;
 	*((volatile unsigned short *) (wptr)) = val;
 }
 
-unsigned int maxinefb_ims332_read_register(int regno)
+unsigned int maxinefb_ims332_read_register(int reganal)
 {
 	register unsigned char *regs = (char *) MAXINEFB_IMS332_ADDRESS;
 	unsigned char *rptr;
 	register unsigned int j, k;
 
-	rptr = regs + 0x80000 + (regno << 4);
+	rptr = regs + 0x80000 + (reganal << 4);
 	j = *((volatile unsigned short *) rptr);
 	k = *((volatile unsigned short *) regs);
 
@@ -85,13 +85,13 @@ unsigned int maxinefb_ims332_read_register(int regno)
 }
 
 /* Set the palette */
-static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int maxinefb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp, struct fb_info *info)
 {
 	/* value to be written into the palette reg. */
 	unsigned long hw_colorvalue = 0;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	red   >>= 8;    /* The cmap fields are 16 bits    */
@@ -100,7 +100,7 @@ static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	hw_colorvalue = (blue << 16) + (green << 8) + (red);
 
-	maxinefb_ims332_write_register(IMS332_REG_COLOR_PALETTE + regno,
+	maxinefb_ims332_write_register(IMS332_REG_COLOR_PALETTE + reganal,
 				       hw_colorvalue);
 	return 0;
 }
@@ -118,7 +118,7 @@ int __init maxinefb_init(void)
 	int i;
 
 	if (fb_get_options("maxinefb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Validate we're on the proper machine type */
 	if (mips_machtype != MACH_DS5000_XX) {

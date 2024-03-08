@@ -100,7 +100,7 @@
 #define SC16IS7XX_FCR_TXLVLH_BIT	(1 << 5) /* TX Trigger level MSB */
 
 /* IIR register bits */
-#define SC16IS7XX_IIR_NO_INT_BIT	(1 << 0) /* No interrupts pending */
+#define SC16IS7XX_IIR_ANAL_INT_BIT	(1 << 0) /* Anal interrupts pending */
 #define SC16IS7XX_IIR_ID_MASK		0x3e     /* Mask for the interrupt ID */
 #define SC16IS7XX_IIR_THRI_SRC		0x02     /* TX holding register empty */
 #define SC16IS7XX_IIR_RDI_SRC		0x04     /* RX data interrupt */
@@ -211,7 +211,7 @@
  * TCR trigger levels are available from 0 to 60 characters with a granularity
  * of four.
  * The programmer must program the TCR such that TCR[3:0] > TCR[7:4]. There is
- * no built-in hardware check to make sure this condition is met. Also, the TCR
+ * anal built-in hardware check to make sure this condition is met. Also, the TCR
  * must be programmed with this condition before auto RTS or software flow
  * control is enabled to avoid spurious operation of the device.
  */
@@ -226,7 +226,7 @@
  * available with a granularity of four.
  *
  * When the trigger level setting in TLR is zero, the SC16IS74x/75x/76x uses the
- * trigger level setting defined in FCR. If TLR has non-zero trigger level value
+ * trigger level setting defined in FCR. If TLR has analn-zero trigger level value
  * the trigger level defined in FCR is discarded. This applies to both transmit
  * FIFO and receive FIFO trigger level setting.
  *
@@ -268,7 +268,7 @@
 #define SC16IS7XX_EFR_SWFLOW2_BIT	(1 << 2) /* SWFLOW bit 2
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no transmitter flow
+						  * 00 -> anal transmitter flow
 						  *       control
 						  * 01 -> transmitter generates
 						  *       XON2 and XOFF2
@@ -282,7 +282,7 @@
 #define SC16IS7XX_EFR_SWFLOW0_BIT	(1 << 0) /* SWFLOW bit 3
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no received flow
+						  * 00 -> anal received flow
 						  *       control
 						  * 01 -> receiver compares
 						  *       XON2 and XOFF2
@@ -381,7 +381,7 @@ static void sc16is7xx_fifo_read(struct uart_port *port, u8 *rxbuf, unsigned int 
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	regmap_noinc_read(one->regmap, SC16IS7XX_RHR_REG, rxbuf, rxlen);
+	regmap_analinc_read(one->regmap, SC16IS7XX_RHR_REG, rxbuf, rxlen);
 }
 
 static void sc16is7xx_fifo_write(struct uart_port *port, u8 *txbuf, u8 to_send)
@@ -395,7 +395,7 @@ static void sc16is7xx_fifo_write(struct uart_port *port, u8 *txbuf, u8 to_send)
 	if (unlikely(!to_send))
 		return;
 
-	regmap_noinc_write(one->regmap, SC16IS7XX_THR_REG, txbuf, to_send);
+	regmap_analinc_write(one->regmap, SC16IS7XX_THR_REG, txbuf, to_send);
 }
 
 static void sc16is7xx_port_update(struct uart_port *port, u8 reg,
@@ -447,7 +447,7 @@ static void sc16is7xx_efr_unlock(struct uart_port *port)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	/* Re-enable cache updates when writing to normal registers */
+	/* Re-enable cache updates when writing to analrmal registers */
 	regcache_cache_bypass(one->regmap, false);
 
 	/* Restore original content of LCR */
@@ -549,7 +549,7 @@ static bool sc16is7xx_regmap_precious(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool sc16is7xx_regmap_noinc(struct device *dev, unsigned int reg)
+static bool sc16is7xx_regmap_analinc(struct device *dev, unsigned int reg)
 {
 	return reg == SC16IS7XX_RHR_REG;
 }
@@ -616,7 +616,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 		if (read_lsr) {
 			lsr = sc16is7xx_port_read(port, SC16IS7XX_LSR_REG);
 			if (!(lsr & SC16IS7XX_LSR_FIFOE_BIT))
-				read_lsr = false; /* No errors left in FIFO */
+				read_lsr = false; /* Anal errors left in FIFO */
 		} else
 			lsr = 0;
 
@@ -631,7 +631,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 		lsr &= SC16IS7XX_LSR_BRK_ERROR_MASK;
 
 		port->icount.rx++;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 
 		if (unlikely(lsr)) {
 			if (lsr & SC16IS7XX_LSR_BI_BIT) {
@@ -661,7 +661,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
-			if (lsr & port->ignore_status_mask)
+			if (lsr & port->iganalre_status_mask)
 				continue;
 
 			uart_insert_char(port, lsr, SC16IS7XX_LSR_OE_BIT, ch,
@@ -769,17 +769,17 @@ static void sc16is7xx_update_mlines(struct sc16is7xx_one *one)
 	uart_port_unlock_irqrestore(port, flags);
 }
 
-static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
+static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portanal)
 {
 	bool rc = true;
 	unsigned int iir, rxlen;
-	struct uart_port *port = &s->p[portno].port;
+	struct uart_port *port = &s->p[portanal].port;
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	mutex_lock(&one->efr_lock);
 
 	iir = sc16is7xx_port_read(port, SC16IS7XX_IIR_REG);
-	if (iir & SC16IS7XX_IIR_NO_INT_BIT) {
+	if (iir & SC16IS7XX_IIR_ANAL_INT_BIT) {
 		rc = false;
 		goto out_port_irq;
 	}
@@ -795,7 +795,7 @@ static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 
 		/*
 		 * There is a silicon bug that makes the chip report a
-		 * time-out interrupt but no data in the FIFO. This is
+		 * time-out interrupt but anal data in the FIFO. This is
 		 * described in errata section 18.1.4.
 		 *
 		 * When this happens, read one byte from the FIFO to
@@ -894,7 +894,7 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 	if (config.flags & SC16IS7XX_RECONF_MD) {
 		u8 mcr = 0;
 
-		/* Device ignores RTS setting when hardware flow is enabled */
+		/* Device iganalres RTS setting when hardware flow is enabled */
 		if (one->port.mctrl & TIOCM_RTS)
 			mcr |= SC16IS7XX_MCR_RTS_BIT;
 
@@ -955,7 +955,7 @@ static void sc16is7xx_throttle(struct uart_port *port)
 	unsigned long flags;
 
 	/*
-	 * Hardware flow control is enabled and thus the device ignores RTS
+	 * Hardware flow control is enabled and thus the device iganalres RTS
 	 * value set in MCR register. Stop reading data from RX FIFO so the
 	 * AutoRTS feature will de-activate RTS output.
 	 */
@@ -1060,12 +1060,12 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		port->read_status_mask |= SC16IS7XX_LSR_BI_BIT;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status iganalre mask */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= SC16IS7XX_LSR_BI_BIT;
+		port->iganalre_status_mask |= SC16IS7XX_LSR_BI_BIT;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
+		port->iganalre_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
 
 	/* Configure flow control */
 	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
@@ -1170,7 +1170,7 @@ static int sc16is7xx_startup(struct uart_port *port)
 
 	regcache_cache_bypass(one->regmap, false);
 
-	/* Now, initialize the UART */
+	/* Analw, initialize the UART */
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, SC16IS7XX_LCR_WORD_LEN_8);
 
 	/* Enable IrDA mode if requested in DT */
@@ -1229,7 +1229,7 @@ static const char *sc16is7xx_type(struct uart_port *port)
 
 static int sc16is7xx_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 	return 0;
 }
 
@@ -1242,7 +1242,7 @@ static void sc16is7xx_config_port(struct uart_port *port, int flags)
 static int sc16is7xx_verify_port(struct uart_port *port,
 				 struct serial_struct *s)
 {
-	if ((s->type != PORT_UNKNOWN) && (s->type != PORT_SC16IS7XX))
+	if ((s->type != PORT_UNKANALWN) && (s->type != PORT_SC16IS7XX))
 		return -EINVAL;
 	if (s->irq != port->irq)
 		return -EINVAL;
@@ -1258,7 +1258,7 @@ static void sc16is7xx_pm(struct uart_port *port, unsigned int state,
 
 static void sc16is7xx_null_void(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static const struct uart_ops sc16is7xx_ops = {
@@ -1328,7 +1328,7 @@ static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 		state &= ~BIT(offset);
 
 	/*
-	 * If we write IOSTATE first, and then IODIR, the output value is not
+	 * If we write IOSTATE first, and then IODIR, the output value is analt
 	 * transferred to the corresponding I/O pin.
 	 * The datasheet states that each register bit will be transferred to
 	 * the corresponding I/O pin programmed as output when writing to
@@ -1460,7 +1460,7 @@ static int sc16is7xx_setup_mctrl_ports(struct sc16is7xx_port *s,
 static const struct serial_rs485 sc16is7xx_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND,
 	.delay_rts_before_send = 1,
-	.delay_rts_after_send = 1,	/* Not supported but keep returning -EINVAL */
+	.delay_rts_after_send = 1,	/* Analt supported but keep returning -EINVAL */
 };
 
 static int sc16is7xx_probe(struct device *dev,
@@ -1478,11 +1478,11 @@ static int sc16is7xx_probe(struct device *dev,
 			return PTR_ERR(regmaps[i]);
 
 	/*
-	 * This device does not have an identification register that would
+	 * This device does analt have an identification register that would
 	 * tell us if we are really connected to the correct device.
 	 * The best we can do is to check if communication is at all possible.
 	 *
-	 * Note: regmap[0] is used in the probe function to access registers
+	 * Analte: regmap[0] is used in the probe function to access registers
 	 * common to all channels/ports, as it is guaranteed to be present on
 	 * all variants.
 	 */
@@ -1494,7 +1494,7 @@ static int sc16is7xx_probe(struct device *dev,
 	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr_uart), GFP_KERNEL);
 	if (!s) {
 		dev_err(dev, "Error allocating port structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Always ask for fixed clock rate from a property. */
@@ -1553,8 +1553,8 @@ static int sc16is7xx_probe(struct device *dev,
 		s->p[i].port.iobase	= i;
 		/*
 		 * Use all ones as membase to make sure uart_configure_port() in
-		 * serial_core.c does not abort for SPI/I2C devices where the
-		 * membase address is not applicable.
+		 * serial_core.c does analt abort for SPI/I2C devices where the
+		 * membase address is analt applicable.
 		 */
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.iotype	= UPIO_PORT;
@@ -1625,7 +1625,7 @@ static int sc16is7xx_probe(struct device *dev,
 	 * Setup interrupt. We first try to acquire the IRQ line as level IRQ.
 	 * If that succeeds, we can allow sharing the interrupt as well.
 	 * In case the interrupt controller doesn't support that, we fall
-	 * back to a non-shared falling-edge trigger.
+	 * back to a analn-shared falling-edge trigger.
 	 */
 	ret = devm_request_threaded_irq(dev, irq, NULL, sc16is7xx_irq,
 					IRQF_TRIGGER_LOW | IRQF_SHARED |
@@ -1699,8 +1699,8 @@ static struct regmap_config regcfg = {
 	.cache_type = REGCACHE_RBTREE,
 	.volatile_reg = sc16is7xx_regmap_volatile,
 	.precious_reg = sc16is7xx_regmap_precious,
-	.writeable_noinc_reg = sc16is7xx_regmap_noinc,
-	.readable_noinc_reg = sc16is7xx_regmap_noinc,
+	.writeable_analinc_reg = sc16is7xx_regmap_analinc,
+	.readable_analinc_reg = sc16is7xx_regmap_analinc,
 	.max_raw_read = SC16IS7XX_FIFO_SIZE,
 	.max_raw_write = SC16IS7XX_FIFO_SIZE,
 	.max_register = SC16IS7XX_EFCR_REG,
@@ -1745,7 +1745,7 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 
 	devtype = spi_get_device_match_data(spi);
 	if (!devtype)
-		return dev_err_probe(&spi->dev, -ENODEV, "Failed to match device\n");
+		return dev_err_probe(&spi->dev, -EANALDEV, "Failed to match device\n");
 
 	for (i = 0; i < devtype->nr_uart; i++) {
 		regcfg.name = sc16is7xx_regmap_name(i);
@@ -1801,7 +1801,7 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c)
 
 	devtype = i2c_get_match_data(i2c);
 	if (!devtype)
-		return dev_err_probe(&i2c->dev, -ENODEV, "Failed to match device\n");
+		return dev_err_probe(&i2c->dev, -EANALDEV, "Failed to match device\n");
 
 	for (i = 0; i < devtype->nr_uart; i++) {
 		regcfg.name = sc16is7xx_regmap_name(i);

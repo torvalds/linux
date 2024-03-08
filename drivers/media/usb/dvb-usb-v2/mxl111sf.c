@@ -58,7 +58,7 @@ int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 
 	if (1 + wlen > MXL_MAX_XFER_SIZE) {
 		pr_warn("%s: len=%d is too big!\n", __func__, wlen);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	pr_debug("%s(wlen = %d, rlen = %d)\n", __func__, wlen, rlen);
@@ -137,7 +137,7 @@ int mxl111sf_write_reg_mask(struct mxl111sf_state *state,
 	if (mask != 0xff) {
 		ret = mxl111sf_read_reg(state, addr, &val);
 #if 1
-		/* don't know why this usually errors out on the first try */
+		/* don't kanalw why this usually errors out on the first try */
 		if (mxl_fail(ret))
 			pr_err("error writing addr: 0x%02x, mask: 0x%02x, data: 0x%02x, retrying...",
 			       addr, mask, data);
@@ -209,7 +209,7 @@ static int mxl1x1sf_get_chip_info(struct mxl111sf_state *state)
 		mxl_chip = "MxL111SF";
 		break;
 	default:
-		mxl_chip = "UNKNOWN MxL1X1";
+		mxl_chip = "UNKANALWN MxL1X1";
 		break;
 	}
 	switch (ver) {
@@ -227,7 +227,7 @@ static int mxl1x1sf_get_chip_info(struct mxl111sf_state *state)
 		break;
 	default:
 		state->chip_rev = 0;
-		mxl_rev = "UNKNOWN REVISION";
+		mxl_rev = "UNKANALWN REVISION";
 		break;
 	}
 	pr_info("%s detected, %s (0x%x)", mxl_chip, mxl_rev, ver);
@@ -254,7 +254,7 @@ fail:
 
 /* ------------------------------------------------------------------------ */
 #if 0
-static int mxl111sf_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int mxl111sf_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 	/* power control depends on which adapter is being woken:
 	 * save this for init, instead, via mxl111sf_adap_fe_init */
@@ -271,7 +271,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 
 	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
-		mxl_debug("driver not yet initialized, exit.");
+		mxl_debug("driver analt yet initialized, exit.");
 		goto fail;
 	}
 
@@ -316,7 +316,7 @@ static int mxl111sf_adap_fe_init(struct dvb_frontend *fe)
 
 	return (adap_state->fe_init) ? adap_state->fe_init(fe) : 0;
 fail:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
@@ -327,7 +327,7 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 
 	/* exit if we didn't initialize the driver yet */
 	if (!state->chip_id) {
-		mxl_debug("driver not yet initialized, exit.");
+		mxl_debug("driver analt yet initialized, exit.");
 		goto fail;
 	}
 
@@ -339,19 +339,19 @@ static int mxl111sf_adap_fe_sleep(struct dvb_frontend *fe)
 
 	return err;
 fail:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
-static int mxl111sf_ep6_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_ep6_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct mxl111sf_state *state = fe_to_priv(fe);
 	struct mxl111sf_adap_state *adap_state = &state->adap_state[fe->id];
 	int ret = 0;
 
-	pr_debug("%s(%d)\n", __func__, onoff);
+	pr_debug("%s(%d)\n", __func__, oanalff);
 
-	if (onoff) {
+	if (oanalff) {
 		ret = mxl111sf_enable_usb_output(state);
 		mxl_fail(ret);
 		ret = mxl111sf_config_mpeg_in(state, 1, 1,
@@ -368,14 +368,14 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 	return ret;
 }
 
-static int mxl111sf_ep5_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_ep5_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct mxl111sf_state *state = fe_to_priv(fe);
 	int ret = 0;
 
-	pr_debug("%s(%d)\n", __func__, onoff);
+	pr_debug("%s(%d)\n", __func__, oanalff);
 
-	if (onoff) {
+	if (oanalff) {
 		ret = mxl111sf_enable_usb_output(state);
 		mxl_fail(ret);
 
@@ -388,20 +388,20 @@ static int mxl111sf_ep5_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		mxl_fail(ret);
 	}
 	if (state->chip_rev > MXL111SF_V6)
-		ret = mxl111sf_config_spi(state, onoff);
+		ret = mxl111sf_config_spi(state, oanalff);
 	mxl_fail(ret);
 
 	return ret;
 }
 
-static int mxl111sf_ep4_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_ep4_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct mxl111sf_state *state = fe_to_priv(fe);
 	int ret = 0;
 
-	pr_debug("%s(%d)\n", __func__, onoff);
+	pr_debug("%s(%d)\n", __func__, oanalff);
 
-	if (onoff) {
+	if (oanalff) {
 		ret = mxl111sf_enable_usb_output(state);
 		mxl_fail(ret);
 	}
@@ -952,7 +952,7 @@ static int mxl111sf_init(struct dvb_usb_device *d)
 	case 138001:
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: unknown hauppauge model #%d\n",
+		printk(KERN_WARNING "%s: warning: unkanalwn hauppauge model #%d\n",
 		       __func__, state->tv.model);
 	}
 #endif
@@ -1220,16 +1220,16 @@ static int mxl111sf_get_stream_config_atsc_mh(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_streaming_ctrl_atsc_mh(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_streaming_ctrl_atsc_mh(struct dvb_frontend *fe, int oanalff)
 {
-	pr_debug("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+	pr_debug("%s: fe=%d oanalff=%d\n", __func__, fe->id, oanalff);
 
 	if (fe->id == 0)
-		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep6_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 1)
-		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep4_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 2)
-		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep5_streaming_ctrl(fe, oanalff);
 	return 0;
 }
 
@@ -1297,18 +1297,18 @@ static int mxl111sf_get_stream_config_mercury(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_streaming_ctrl_mercury(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_streaming_ctrl_mercury(struct dvb_frontend *fe, int oanalff)
 {
-	pr_debug("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+	pr_debug("%s: fe=%d oanalff=%d\n", __func__, fe->id, oanalff);
 
 	if (fe->id == 0)
-		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep6_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 1)
-		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep4_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 2 && dvb_usb_mxl111sf_spi)
-		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep5_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 2 && !dvb_usb_mxl111sf_spi)
-		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep6_streaming_ctrl(fe, oanalff);
 	return 0;
 }
 
@@ -1370,16 +1370,16 @@ static int mxl111sf_get_stream_config_mercury_mh(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_streaming_ctrl_mercury_mh(struct dvb_frontend *fe, int onoff)
+static int mxl111sf_streaming_ctrl_mercury_mh(struct dvb_frontend *fe, int oanalff)
 {
-	pr_debug("%s: fe=%d onoff=%d\n", __func__, fe->id, onoff);
+	pr_debug("%s: fe=%d oanalff=%d\n", __func__, fe->id, oanalff);
 
 	if (fe->id == 0)
-		return mxl111sf_ep4_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep4_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 1  && dvb_usb_mxl111sf_spi)
-		return mxl111sf_ep5_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep5_streaming_ctrl(fe, oanalff);
 	else if (fe->id == 1 && !dvb_usb_mxl111sf_spi)
-		return mxl111sf_ep6_streaming_ctrl(fe, onoff);
+		return mxl111sf_ep6_streaming_ctrl(fe, oanalff);
 	return 0;
 }
 
@@ -1454,7 +1454,7 @@ static struct usb_driver mxl111sf_usb_driver = {
 	.disconnect = dvb_usbv2_disconnect,
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

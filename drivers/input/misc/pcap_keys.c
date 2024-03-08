@@ -30,7 +30,7 @@ static irqreturn_t pcap_keys_handler(int irq, void *_pcap_keys)
 	pstat &= 1 << pirq;
 
 	switch (pirq) {
-	case PCAP_IRQ_ONOFF:
+	case PCAP_IRQ_OANALFF:
 		input_report_key(pcap_keys->input, KEY_POWER, !pstat);
 		break;
 	case PCAP_IRQ_MIC:
@@ -45,7 +45,7 @@ static irqreturn_t pcap_keys_handler(int irq, void *_pcap_keys)
 
 static int pcap_keys_probe(struct platform_device *pdev)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	struct pcap_keys *pcap_keys;
 	struct input_dev *input_dev;
 
@@ -75,7 +75,7 @@ static int pcap_keys_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_allocate;
 
-	err = request_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_ONOFF),
+	err = request_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_OANALFF),
 			pcap_keys_handler, 0, "Power key", pcap_keys);
 	if (err)
 		goto fail_register;
@@ -88,7 +88,7 @@ static int pcap_keys_probe(struct platform_device *pdev)
 	return 0;
 
 fail_pwrkey:
-	free_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_ONOFF), pcap_keys);
+	free_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_OANALFF), pcap_keys);
 fail_register:
 	input_unregister_device(input_dev);
 	goto fail;
@@ -103,7 +103,7 @@ static void pcap_keys_remove(struct platform_device *pdev)
 {
 	struct pcap_keys *pcap_keys = platform_get_drvdata(pdev);
 
-	free_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_ONOFF), pcap_keys);
+	free_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_OANALFF), pcap_keys);
 	free_irq(pcap_to_irq(pcap_keys->pcap, PCAP_IRQ_MIC), pcap_keys);
 
 	input_unregister_device(pcap_keys->input);

@@ -21,7 +21,7 @@
 
 #define BIN_SAMPLE ((BIN0_PULSE + BIN1_PULSE) / 2)
 
-#define NO_SYNC 25
+#define ANAL_SYNC 25
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -33,13 +33,13 @@ MODULE_AUTHOR("Peter Popovec <popovec@fei.tuke.sk>");
 MODULE_DESCRIPTION("Walkera WK-0701 TX as joystick");
 MODULE_LICENSE("GPL");
 
-static unsigned int walkera0701_pp_no;
-module_param_named(port, walkera0701_pp_no, int, 0);
+static unsigned int walkera0701_pp_anal;
+module_param_named(port, walkera0701_pp_anal, int, 0);
 MODULE_PARM_DESC(port,
 		 "Parallel port adapter for Walkera WK-0701 TX (default is 0)");
 
 /*
- * For now, only one device is supported, if somebody need more devices, code
+ * For analw, only one device is supported, if somebody need more devices, code
  * can be expanded, one struct walkera_dev per device must be allocated and
  * set up by walkera0701_connect (release of device by walkera0701_disconnect)
  */
@@ -131,11 +131,11 @@ static void walkera0701_irq_handler(void *handler_data)
 
 	/* cancel timer, if in handler or active do resync */
 	if (unlikely(0 != hrtimer_try_to_cancel(&w->timer))) {
-		w->counter = NO_SYNC;
+		w->counter = ANAL_SYNC;
 		return;
 	}
 
-	if (w->counter < NO_SYNC) {
+	if (w->counter < ANAL_SYNC) {
 		if (w->ack) {
 			pulse_time -= BIN1_PULSE;
 			w->buf[w->counter] = 8;
@@ -145,7 +145,7 @@ static void walkera0701_irq_handler(void *handler_data)
 		}
 		if (w->counter == 24) {	/* full frame */
 			walkera0701_parse_frame(w);
-			w->counter = NO_SYNC;
+			w->counter = ANAL_SYNC;
 			if (abs(pulse_time - SYNC_PULSE) < RESERVE)	/* new frame sync */
 				w->counter = 0;
 		} else {
@@ -155,7 +155,7 @@ static void walkera0701_irq_handler(void *handler_data)
 				pulse_time = (u32) pulse_time / ANALOG_DELTA;	/* overtiping is safe, pulsetime < s32.. */
 				w->buf[w->counter++] |= (pulse_time & 7);
 			} else
-				w->counter = NO_SYNC;
+				w->counter = ANAL_SYNC;
 		}
 	} else if (abs(pulse_time - SYNC_PULSE - BIN0_PULSE) <
 				RESERVE + BIN1_PULSE - BIN0_PULSE)	/* frame sync .. */
@@ -172,7 +172,7 @@ static enum hrtimer_restart timer_handler(struct hrtimer
 	w = container_of(handle, struct walkera_dev, timer);
 	w->ack = read_ack(w->pardevice);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static int walkera0701_open(struct input_dev *dev)
@@ -201,13 +201,13 @@ static void walkera0701_attach(struct parport *pp)
 	struct pardev_cb walkera0701_parport_cb;
 	struct walkera_dev *w = &w_dev;
 
-	if (pp->number != walkera0701_pp_no) {
-		pr_debug("Not using parport%d.\n", pp->number);
+	if (pp->number != walkera0701_pp_anal) {
+		pr_debug("Analt using parport%d.\n", pp->number);
 		return;
 	}
 
 	if (pp->irq == -1) {
-		pr_err("parport %d does not have interrupt assigned\n",
+		pr_err("parport %d does analt have interrupt assigned\n",
 			pp->number);
 		return;
 	}
@@ -232,7 +232,7 @@ static void walkera0701_attach(struct parport *pp)
 		goto err_unregister_device;
 	}
 
-	hrtimer_init(&w->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&w->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	w->timer.function = timer_handler;
 
 	w->input_dev = input_allocate_device();

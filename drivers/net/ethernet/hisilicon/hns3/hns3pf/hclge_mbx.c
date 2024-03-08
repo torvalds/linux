@@ -9,19 +9,19 @@
 #define CREATE_TRACE_POINTS
 #include "hclge_trace.h"
 
-static u16 hclge_errno_to_resp(int errno)
+static u16 hclge_erranal_to_resp(int erranal)
 {
-	int resp = abs(errno);
+	int resp = abs(erranal);
 
 	/* The status for pf to vf msg cmd is u16, constrainted by HW.
 	 * We need to keep the same type with it.
-	 * The intput errno is the stander error code, it's safely to
-	 * use a u16 to store the abs(errno).
+	 * The intput erranal is the stander error code, it's safely to
+	 * use a u16 to store the abs(erranal).
 	 */
 	return (u16)resp;
 }
 
-/* hclge_gen_resp_to_vf: used to generate a synchronous response to VF when PF
+/* hclge_gen_resp_to_vf: used to generate a synchroanalus response to VF when PF
  * receives a mailbox message from VF.
  * @vport: pointer to struct hclge_vport
  * @vf_to_pf_req: pointer to hclge_mbx_vf_to_pf_cmd of the original mailbox
@@ -62,7 +62,7 @@ static int hclge_gen_resp_to_vf(struct hclge_vport *vport,
 				cpu_to_le16(vf_to_pf_req->msg.code);
 	resp_pf_to_vf->msg.vf_mbx_msg_subcode =
 				cpu_to_le16(vf_to_pf_req->msg.subcode);
-	resp = hclge_errno_to_resp(resp_msg->status);
+	resp = hclge_erranal_to_resp(resp_msg->status);
 	if (resp < SHRT_MAX) {
 		resp_pf_to_vf->msg.resp_status = cpu_to_le16(resp);
 	} else {
@@ -154,9 +154,9 @@ int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 	return hclge_inform_vf_reset(vport, reset_type);
 }
 
-static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
+static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_analde *head)
 {
-	struct hnae3_ring_chain_node *chain_tmp, *chain;
+	struct hnae3_ring_chain_analde *chain_tmp, *chain;
 
 	chain = head->next;
 
@@ -170,7 +170,7 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 /* hclge_get_ring_chain_from_mbx: get ring type & tqp id & int_gl idx
  * from mailbox message
  * msg[0]: opcode
- * msg[1]: <not relevant to this function>
+ * msg[1]: <analt relevant to this function>
  * msg[2]: ring_num
  * msg[3]: first ring type (TX|RX)
  * msg[4]: first tqp id
@@ -179,10 +179,10 @@ static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
  */
 static int hclge_get_ring_chain_from_mbx(
 			struct hclge_mbx_vf_to_pf_cmd *req,
-			struct hnae3_ring_chain_node *ring_chain,
+			struct hnae3_ring_chain_analde *ring_chain,
 			struct hclge_vport *vport)
 {
-	struct hnae3_ring_chain_node *cur_chain, *new_chain;
+	struct hnae3_ring_chain_analde *cur_chain, *new_chain;
 	struct hclge_dev *hdev = vport->back;
 	int ring_num;
 	int i;
@@ -234,13 +234,13 @@ static int hclge_get_ring_chain_from_mbx(
 	return 0;
 err:
 	hclge_free_vector_ring_chain(ring_chain);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 					     struct hclge_mbx_vf_to_pf_cmd *req)
 {
-	struct hnae3_ring_chain_node ring_chain;
+	struct hnae3_ring_chain_analde ring_chain;
 	int vector_id = req->msg.vector_id;
 	int ret;
 
@@ -257,7 +257,7 @@ static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
 }
 
 static int hclge_query_ring_vector_map(struct hclge_vport *vport,
-				       struct hnae3_ring_chain_node *ring_chain,
+				       struct hnae3_ring_chain_analde *ring_chain,
 				       struct hclge_desc *desc)
 {
 	struct hclge_ctrl_vector_chain_cmd *req =
@@ -295,7 +295,7 @@ static int hclge_get_vf_ring_vector_map(struct hclge_vport *vport,
 #define HCLGE_INT_GL_INDEX_OFFSET		2
 #define HCLGE_VECTOR_ID_OFFSET			3
 #define HCLGE_RING_VECTOR_MAP_INFO_LEN		4
-	struct hnae3_ring_chain_node ring_chain;
+	struct hnae3_ring_chain_analde ring_chain;
 	struct hclge_desc desc;
 	struct hclge_ctrl_vector_chain_cmd *data =
 		(struct hclge_ctrl_vector_chain_cmd *)desc.data;
@@ -365,7 +365,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 		(&mbx_req->msg.data[HCLGE_MBX_VF_OLD_MAC_ADDR_OFFSET]);
 
 		/* If VF MAC has been configured by the host then it
-		 * cannot be overridden by the MAC specified by the VM.
+		 * cananalt be overridden by the MAC specified by the VM.
 		 */
 		if (!is_zero_ether_addr(vport->vf_info.mac) &&
 		    !ether_addr_equal(mac_addr, vport->vf_info.mac))
@@ -375,7 +375,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 			return -EINVAL;
 
 		spin_lock_bh(&vport->mac_list_lock);
-		status = hclge_update_mac_node_for_dev_addr(vport, old_addr,
+		status = hclge_update_mac_analde_for_dev_addr(vport, old_addr,
 							    mac_addr);
 		spin_unlock_bh(&vport->mac_list_lock);
 		hclge_task_schedule(hdev, 0);
@@ -387,7 +387,7 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 					       HCLGE_MAC_ADDR_UC, mac_addr);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set unicast mac addr, unknown subcode %u\n",
+			"failed to set unicast mac addr, unkanalwn subcode %u\n",
 			mbx_req->msg.subcode);
 		return -EIO;
 	}
@@ -409,7 +409,7 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 				      HCLGE_MAC_ADDR_MC, mac_addr);
 	} else {
 		dev_err(&hdev->pdev->dev,
-			"failed to set mcast mac addr, unknown subcode %u\n",
+			"failed to set mcast mac addr, unkanalwn subcode %u\n",
 			mbx_req->msg.subcode);
 		return -EIO;
 	}
@@ -455,7 +455,7 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 	case HCLGE_MBX_VLAN_RX_OFF_CFG:
 		return hclge_en_hw_strip_rxvtag(handle, msg_cmd->enable);
 	case HCLGE_MBX_GET_PORT_BASE_VLAN_STATE:
-		/* vf does not need to know about the port based VLAN state
+		/* vf does analt need to kanalw about the port based VLAN state
 		 * on device HNAE3_DEVICE_VERSION_V3. So always return disable
 		 * on device HNAE3_DEVICE_VERSION_V3 if vf queries the port
 		 * based VLAN state.
@@ -657,7 +657,7 @@ static int hclge_reset_vf(struct hclge_vport *vport)
 	return hclge_func_reset_cmd(hdev, vport->vport_id);
 }
 
-static void hclge_notify_vf_config(struct hclge_vport *vport)
+static void hclge_analtify_vf_config(struct hclge_vport *vport)
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -665,7 +665,7 @@ static void hclge_notify_vf_config(struct hclge_vport *vport)
 	int ret;
 
 	hclge_push_vf_link_status(vport);
-	if (test_bit(HCLGE_VPORT_NEED_NOTIFY_RESET, &vport->need_notify)) {
+	if (test_bit(HCLGE_VPORT_NEED_ANALTIFY_RESET, &vport->need_analtify)) {
 		ret = hclge_inform_vf_reset(vport, HNAE3_VF_PF_FUNC_RESET);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -673,12 +673,12 @@ static void hclge_notify_vf_config(struct hclge_vport *vport)
 				vport->vport_id - HCLGE_VF_VPORT_START_NUM);
 			return;
 		}
-		vport->need_notify = 0;
+		vport->need_analtify = 0;
 		return;
 	}
 
 	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3 &&
-	    test_bit(HCLGE_VPORT_NEED_NOTIFY_VF_VLAN, &vport->need_notify)) {
+	    test_bit(HCLGE_VPORT_NEED_ANALTIFY_VF_VLAN, &vport->need_analtify)) {
 		vlan_cfg = &vport->port_base_vlan_cfg;
 		ret = hclge_push_vf_port_base_vlan_info(&hdev->vport[0],
 							vport->vport_id,
@@ -690,7 +690,7 @@ static void hclge_notify_vf_config(struct hclge_vport *vport)
 				vport->vport_id - HCLGE_VF_VPORT_START_NUM);
 			return;
 		}
-		clear_bit(HCLGE_VPORT_NEED_NOTIFY_VF_VLAN, &vport->need_notify);
+		clear_bit(HCLGE_VPORT_NEED_ANALTIFY_VF_VLAN, &vport->need_analtify);
 	}
 }
 
@@ -705,7 +705,7 @@ static void hclge_vf_keep_alive(struct hclge_vport *vport)
 		set_bit(HCLGE_VPORT_STATE_ALIVE, &vport->state);
 		dev_info(&hdev->pdev->dev, "VF %u is alive!",
 			 vport->vport_id - HCLGE_VF_VPORT_START_NUM);
-		hclge_notify_vf_config(vport);
+		hclge_analtify_vf_config(vport);
 	}
 }
 
@@ -754,7 +754,7 @@ static int hclge_get_rss_key(struct hclge_vport *vport,
 	index = mbx_req->msg.data[0];
 	rss_cfg = &hdev->rss_cfg;
 
-	/* Check the query index of rss_hash_key from VF, make sure no
+	/* Check the query index of rss_hash_key from VF, make sure anal
 	 * more than the size of rss_hash_key.
 	 */
 	if (((index + 1) * HCLGE_RSS_MBX_RESP_LEN) >
@@ -1084,7 +1084,7 @@ static void hclge_mbx_request_handling(struct hclge_mbx_ops_param *param)
 			"un-supported mailbox message, code = %u\n",
 			param->req->msg.code);
 
-	/* PF driver should not reply IMP */
+	/* PF driver should analt reply IMP */
 	if (hnae3_get_bit(param->req->mbx_need_resp, HCLGE_MBX_NEED_RESP_B) &&
 	    param->req->msg.code < HCLGE_MBX_GET_VF_FLR_STATUS) {
 		param->resp_msg->status = ret;
@@ -1128,7 +1128,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 				 "dropped invalid mailbox message, code = %u\n",
 				 req->msg.code);
 
-			/* dropping/not processing this invalid message */
+			/* dropping/analt processing this invalid message */
 			crq->desc[crq->next_to_use].flag = 0;
 			hclge_mbx_ring_ptr_move_crq(crq);
 			continue;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. */
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -93,7 +93,7 @@ void cxl_probe_component_regs(struct device *dev, void __iomem *base,
 			rmap = &map->ras;
 			break;
 		default:
-			dev_dbg(dev, "Unknown CM cap ID: %d (0x%x)\n", cap_id,
+			dev_dbg(dev, "Unkanalwn CM cap ID: %d (0x%x)\n", cap_id,
 				offset);
 			break;
 		}
@@ -162,7 +162,7 @@ void cxl_probe_device_regs(struct device *dev, void __iomem *base,
 			if (cap_id >= 0x8000)
 				dev_dbg(dev, "Vendor cap ID: %#x offset: %#x\n", cap_id, offset);
 			else
-				dev_dbg(dev, "Unknown cap ID: %#x offset: %#x\n", cap_id, offset);
+				dev_dbg(dev, "Unkanalwn cap ID: %#x offset: %#x\n", cap_id, offset);
 			break;
 		}
 
@@ -182,7 +182,7 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 	void __iomem *ret_val;
 	struct resource *res;
 
-	if (WARN_ON_ONCE(addr == CXL_RESOURCE_NONE))
+	if (WARN_ON_ONCE(addr == CXL_RESOURCE_ANALNE))
 		return NULL;
 
 	res = devm_request_mem_region(dev, addr, length, dev_name(dev));
@@ -227,7 +227,7 @@ int cxl_map_component_regs(const struct cxl_register_map *map,
 		length = mi->rmap->size;
 		*(mi->addr) = devm_cxl_iomap_block(host, addr, length);
 		if (!*(mi->addr))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -261,7 +261,7 @@ int cxl_map_device_regs(const struct cxl_register_map *map,
 		length = mi->rmap->size;
 		*(mi->addr) = devm_cxl_iomap_block(host, addr, length);
 		if (!*(mi->addr))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -310,7 +310,7 @@ int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
 
 	*map = (struct cxl_register_map) {
 		.host = &pdev->dev,
-		.resource = CXL_RESOURCE_NONE,
+		.resource = CXL_RESOURCE_ANALNE,
 	};
 
 	regloc = pci_find_dvsec_capability(pdev, PCI_DVSEC_VENDOR_ID_CXL,
@@ -340,8 +340,8 @@ int cxl_find_regblock_instance(struct pci_dev *pdev, enum cxl_regloc_type type,
 		}
 	}
 
-	map->resource = CXL_RESOURCE_NONE;
-	return -ENODEV;
+	map->resource = CXL_RESOURCE_ANALNE;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_find_regblock_instance, CXL);
 
@@ -394,7 +394,7 @@ int cxl_map_pmu_regs(struct cxl_register_map *map, struct cxl_pmu_regs *regs)
 	phys_addr = map->resource;
 	regs->pmu = devm_cxl_iomap_block(dev, phys_addr, CXL_PMU_REGMAP_SIZE);
 	if (!regs->pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -407,7 +407,7 @@ static int cxl_map_regblock(struct cxl_register_map *map)
 	map->base = ioremap(map->resource, map->max_size);
 	if (!map->base) {
 		dev_err(host, "failed to map registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dev_dbg(host, "Mapped CXL Memory Device resource %pa\n", &map->resource);
@@ -438,7 +438,7 @@ static int cxl_probe_regs(struct cxl_register_map *map)
 		cxl_probe_device_regs(host, base, dev_map);
 		if (!dev_map->status.valid || !dev_map->mbox.valid ||
 		    !dev_map->memdev.valid) {
-			dev_err(host, "registers not found: %s%s%s\n",
+			dev_err(host, "registers analt found: %s%s%s\n",
 				!dev_map->status.valid ? "status " : "",
 				!dev_map->mbox.valid ? "mbox " : "",
 				!dev_map->memdev.valid ? "memdev " : "");
@@ -475,7 +475,7 @@ u16 cxl_rcrb_to_aer(struct device *dev, resource_size_t rcrb)
 	u16 offset = 0;
 	u32 cap_hdr;
 
-	if (WARN_ON_ONCE(rcrb == CXL_RESOURCE_NONE))
+	if (WARN_ON_ONCE(rcrb == CXL_RESOURCE_ANALNE))
 		return 0;
 
 	if (!request_mem_region(rcrb, SZ_4K, dev_name(dev)))
@@ -525,12 +525,12 @@ resource_size_t __rcrb_to_component(struct device *dev, struct cxl_rcrb_info *ri
 	 * ranges alignment (6.0, 7.5.1.2.1).
 	 */
 	if (!request_mem_region(rcrb, SZ_4K, "CXL RCRB"))
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 	addr = ioremap(rcrb, SZ_4K);
 	if (!addr) {
 		dev_err(dev, "Failed to map region %pr\n", addr);
 		release_mem_region(rcrb, SZ_4K);
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 	}
 
 	id = readl(addr + PCI_VENDOR_ID);
@@ -541,30 +541,30 @@ resource_size_t __rcrb_to_component(struct device *dev, struct cxl_rcrb_info *ri
 	release_mem_region(rcrb, SZ_4K);
 
 	/*
-	 * Sanity check, see CXL 3.0 Figure 9-8 CXL Device that Does Not
+	 * Sanity check, see CXL 3.0 Figure 9-8 CXL Device that Does Analt
 	 * Remap Upstream Port and Component Registers
 	 */
 	if (id == U32_MAX) {
 		if (which == CXL_RCRB_DOWNSTREAM)
 			dev_err(dev, "Failed to access Downstream Port RCRB\n");
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 	}
 	if (!(cmd & PCI_COMMAND_MEMORY))
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 	/* The RCRB is a Memory Window, and the MEM_TYPE_1M bit is obsolete */
 	if (bar0 & (PCI_BASE_ADDRESS_MEM_TYPE_1M | PCI_BASE_ADDRESS_SPACE_IO))
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 
 	component_reg_phys = bar0 & PCI_BASE_ADDRESS_MEM_MASK;
 	if (bar0 & PCI_BASE_ADDRESS_MEM_TYPE_64)
 		component_reg_phys |= ((u64)bar1) << 32;
 
 	if (!component_reg_phys)
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 
 	/* MEMBAR is block size (64k) aligned. */
 	if (!IS_ALIGNED(component_reg_phys, CXL_COMPONENT_REG_BLOCK_SIZE))
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 
 	return component_reg_phys;
 }
@@ -573,7 +573,7 @@ resource_size_t cxl_rcd_component_reg_phys(struct device *dev,
 					   struct cxl_dport *dport)
 {
 	if (!dport->rch)
-		return CXL_RESOURCE_NONE;
+		return CXL_RESOURCE_ANALNE;
 	return __rcrb_to_component(dev, &dport->rcrb, CXL_RCRB_UPSTREAM);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_rcd_component_reg_phys, CXL);

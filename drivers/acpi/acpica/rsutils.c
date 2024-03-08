@@ -84,11 +84,11 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
  *              item_count          - How many items to move
  *              move_type           - Byte width
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Move multiple data items from one descriptor to another. Handles
+ * DESCRIPTION: Move multiple data items from one descriptor to aanalther. Handles
  *              alignment issues and endian issues if necessary, as configured
- *              via the ACPI_MOVE_* macros. (This is why a memcpy is not used)
+ *              via the ACPI_MOVE_* macros. (This is why a memcpy is analt used)
  *
  ******************************************************************************/
 
@@ -105,7 +105,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 		switch (move_type) {
 			/*
 			 * For the 8-bit case, we can perform the move all at once
-			 * since there are no alignment or endian issues
+			 * since there are anal alignment or endian issues
 			 */
 		case ACPI_RSC_MOVE8:
 		case ACPI_RSC_MOVE_GPIO_RES:
@@ -117,7 +117,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 
 			/*
 			 * 16-, 32-, and 64-bit cases must use the move macros that perform
-			 * endian conversion and/or accommodate hardware that cannot perform
+			 * endian conversion and/or accommodate hardware that cananalt perform
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:
@@ -154,11 +154,11 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
  *                                    the header and length fields.
  *              aml                 - Pointer to the raw AML descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set the resource_length field of an AML
  *              resource descriptor, both Large and Small descriptors are
- *              supported automatically. Note: Descriptor Type field must
+ *              supported automatically. Analte: Descriptor Type field must
  *              be valid.
  *
  ******************************************************************************/
@@ -205,7 +205,7 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
  *                                    the header and length fields.
  *              aml                 - Pointer to the raw AML descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set the descriptor_type and resource_length fields of an AML
  *              resource descriptor, both Large and Small descriptors are
@@ -299,7 +299,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 	 * resource_source is present if the length of the descriptor is longer
 	 * than the minimum length.
 	 *
-	 * Note: Some resource descriptors will have an additional null, so
+	 * Analte: Some resource descriptors will have an additional null, so
 	 * we add 1 to the minimum length.
 	 */
 	if (total_length > (acpi_rsdesc_size)(minimum_length + 1)) {
@@ -311,7 +311,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		resource_source->string_ptr = string_ptr;
 		if (!string_ptr) {
 			/*
-			 * String destination pointer is not specified; Set the String
+			 * String destination pointer is analt specified; Set the String
 			 * pointer to the end of the current resource_source structure.
 			 */
 			resource_source->string_ptr =
@@ -344,7 +344,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		return ((acpi_rs_length)total_length);
 	}
 
-	/* resource_source is not present */
+	/* resource_source is analt present */
 
 	resource_source->index = 0;
 	resource_source->string_length = 0;
@@ -381,7 +381,7 @@ acpi_rs_set_resource_source(union aml_resource *aml,
 
 	descriptor_length = minimum_length;
 
-	/* Non-zero string length indicates presence of a resource_source */
+	/* Analn-zero string length indicates presence of a resource_source */
 
 	if (resource_source->string_length) {
 
@@ -415,7 +415,7 @@ acpi_rs_set_resource_source(union aml_resource *aml,
  *
  * FUNCTION:    acpi_rs_get_prt_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  analde            - Device analde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -430,7 +430,7 @@ acpi_rs_set_resource_source(union aml_resource *aml,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prt_method_data(struct acpi_namespace_analde *analde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -440,10 +440,10 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, anal parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__PRT, ACPI_BTYPE_PACKAGE,
+	    acpi_ut_evaluate_object(analde, METHOD_NAME__PRT, ACPI_BTYPE_PACKAGE,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -465,7 +465,7 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_crs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  analde            - Device analde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -480,7 +480,7 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_crs_method_data(struct acpi_namespace_analde *analde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -490,10 +490,10 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, anal parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__CRS, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(analde, METHOD_NAME__CRS, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -516,7 +516,7 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_prs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  analde            - Device analde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -531,7 +531,7 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prs_method_data(struct acpi_namespace_analde *analde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -541,10 +541,10 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, anal parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__PRS, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(analde, METHOD_NAME__PRS, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -567,7 +567,7 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_aei_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  analde            - Device analde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -582,7 +582,7 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_aei_method_data(struct acpi_namespace_analde *analde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -592,10 +592,10 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, anal parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__AEI, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(analde, METHOD_NAME__AEI, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -644,11 +644,11 @@ acpi_rs_get_method_data(acpi_handle handle,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, anal parameters */
 
 	status =
 	    acpi_ut_evaluate_object(ACPI_CAST_PTR
-				    (struct acpi_namespace_node, handle), path,
+				    (struct acpi_namespace_analde, handle), path,
 				    ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -671,7 +671,7 @@ acpi_rs_get_method_data(acpi_handle handle,
  *
  * FUNCTION:    acpi_rs_set_srs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  analde            - Device analde
  *              in_buffer       - Pointer to a buffer structure of the
  *                                parameter
  *
@@ -683,12 +683,12 @@ acpi_rs_get_method_data(acpi_handle handle,
  *              If the function fails an appropriate status will be returned
  *              and the contents of the callers buffer is undefined.
  *
- * Note: Parameters guaranteed valid by caller
+ * Analte: Parameters guaranteed valid by caller
  *
  ******************************************************************************/
 
 acpi_status
-acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+acpi_rs_set_srs_method_data(struct acpi_namespace_analde *analde,
 			    struct acpi_buffer *in_buffer)
 {
 	struct acpi_evaluate_info *info;
@@ -702,13 +702,13 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 
 	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
 	if (!info) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
-	info->prefix_node = node;
+	info->prefix_analde = analde;
 	info->relative_pathname = METHOD_NAME__SRS;
 	info->parameters = args;
-	info->flags = ACPI_IGNORE_RETURN_VALUE;
+	info->flags = ACPI_IGANALRE_RETURN_VALUE;
 
 	/*
 	 * The in_buffer parameter will point to a linked list of
@@ -732,7 +732,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 		 * later)
 		 */
 		ACPI_FREE(buffer.pointer);
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -741,7 +741,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 	args[0]->common.flags = AOPOBJ_DATA_VALID;
 	args[1] = NULL;
 
-	/* Execute the method, no return value is expected */
+	/* Execute the method, anal return value is expected */
 
 	status = acpi_ns_evaluate(info);
 

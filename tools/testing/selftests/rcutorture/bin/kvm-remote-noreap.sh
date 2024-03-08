@@ -4,7 +4,7 @@
 # Periodically scan a directory tree to prevent files from being reaped
 # by systemd and friends on long runs.
 #
-# Usage: kvm-remote-noreap.sh pathname
+# Usage: kvm-remote-analreap.sh pathname
 #
 # Copyright (C) 2021 Facebook, Inc.
 #
@@ -13,12 +13,12 @@
 pathname="$1"
 if test "$pathname" = ""
 then
-	echo Usage: kvm-remote-noreap.sh pathname
+	echo Usage: kvm-remote-analreap.sh pathname
 	exit 1
 fi
 if ! test -d "$pathname"
 then
-	echo  Usage: kvm-remote-noreap.sh pathname
+	echo  Usage: kvm-remote-analreap.sh pathname
 	echo "       pathname must be a directory."
 	exit 2
 fi

@@ -112,8 +112,8 @@ intel_load_detect_get_pipe(struct drm_connector *connector,
 	 */
 	if (!crtc) {
 		drm_dbg_kms(&dev_priv->drm,
-			    "no pipe available for load-detect\n");
-		ret = -ENODEV;
+			    "anal pipe available for load-detect\n");
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -121,7 +121,7 @@ found:
 	state = drm_atomic_state_alloc(dev);
 	restore_state = drm_atomic_state_alloc(dev);
 	if (!state || !restore_state) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 

@@ -12,7 +12,7 @@
   {
     "EventCode": "0x3C046",
     "EventName": "PM_DATA_FROM_L21_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L2 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther core's L2 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x4D05C",
@@ -22,7 +22,7 @@
   {
     "EventCode": "0x4E04C",
     "EventName": "PM_DPTEG_FROM_DMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group (Distant) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x20016",
@@ -32,7 +32,7 @@
   {
     "EventCode": "0x1504A",
     "EventName": "PM_IPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a instruction side request"
   },
   {
     "EventCode": "0x40132",
@@ -57,7 +57,7 @@
   {
     "EventCode": "0x3E048",
     "EventName": "PM_DPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x2E018",
@@ -72,12 +72,12 @@
   {
     "EventCode": "0x15048",
     "EventName": "PM_IPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on the same chip due to a instruction side request"
   },
   {
     "EventCode": "0x34046",
     "EventName": "PM_INST_FROM_L21_SHR",
-    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another core's L2 on the same chip due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from aanalther core's L2 on the same chip due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x1E058",
@@ -92,12 +92,12 @@
   {
     "EventCode": "0x4C046",
     "EventName": "PM_DATA_FROM_L21_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another core's L2 on the same chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther core's L2 on the same chip due to a demand load"
   },
   {
     "EventCode": "0x2504A",
     "EventName": "PM_IPTEG_FROM_RL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on the same Analde or Group ( Remote) due to a instruction side request"
   },
   {
     "EventCode": "0x2003E",
@@ -112,7 +112,7 @@
   {
     "EventCode": "0x4405C",
     "EventName": "PM_CMPLU_STALL_VDP",
-    "BriefDescription": "Finish stall because the NTF instruction was a vector instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Not qualified multicycle. Qualified by vector"
+    "BriefDescription": "Finish stall because the NTF instruction was a vector instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Analt qualified multicycle. Qualified by vector"
   },
   {
     "EventCode": "0x4D010",
@@ -122,17 +122,17 @@
   {
     "EventCode": "0x44042",
     "EventName": "PM_INST_FROM_L3",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x200FE",
     "EventName": "PM_DATA_FROM_L2MISS",
-    "BriefDescription": "Demand LD - L2 Miss (not L2 hit)"
+    "BriefDescription": "Demand LD - L2 Miss (analt L2 hit)"
   },
   {
     "EventCode": "0x2D14A",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD_CYC",
-    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load"
   },
   {
     "EventCode": "0x10028",
@@ -147,22 +147,22 @@
   {
     "EventCode": "0x4504A",
     "EventName": "PM_IPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a instruction side request"
   },
   {
     "EventCode": "0x1404E",
     "EventName": "PM_INST_FROM_L2MISS",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L2 due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x34042",
     "EventName": "PM_INST_FROM_L3_DISP_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 with dispatch conflict due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x4E048",
     "EventName": "PM_DPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x200F0",
@@ -176,18 +176,18 @@
   },
   {
     "EventCode": "0x14044",
-    "EventName": "PM_INST_FROM_L3_NO_CONFLICT",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to an instruction fetch (not prefetch)"
+    "EventName": "PM_INST_FROM_L3_ANAL_CONFLICT",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without conflict due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x3E04C",
     "EventName": "PM_DPTEG_FROM_DL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on a different Analde or Group (Distant) due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x1F15E",
-    "EventName": "PM_MRK_PROBE_NOP_CMPL",
-    "BriefDescription": "Marked probeNops completed"
+    "EventName": "PM_MRK_PROBE_ANALP_CMPL",
+    "BriefDescription": "Marked probeAnalps completed"
   },
   {
     "EventCode": "0x20018",
@@ -197,27 +197,27 @@
   {
     "EventCode": "0x1D142",
     "EventName": "PM_MRK_DATA_FROM_L31_ECO_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another core's ECO L3 on the same chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from aanalther core's ECO L3 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x24042",
     "EventName": "PM_INST_FROM_L3_MEPF",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 without dispatch conflicts hit on Mepf state. due to an instruction fetch (analt prefetch)"
   },
   {
     "EventCode": "0x25046",
     "EventName": "PM_IPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a instruction side request"
   },
   {
     "EventCode": "0x3504A",
     "EventName": "PM_IPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a instruction side request"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a instruction side request"
   },
   {
     "EventCode": "0x3C05A",
     "EventName": "PM_CMPLU_STALL_VDPLONG",
-    "BriefDescription": "Finish stall because the NTF instruction was a scalar multi-cycle instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Qualified by NOT vector AND multicycle"
+    "BriefDescription": "Finish stall because the NTF instruction was a scalar multi-cycle instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Qualified by ANALT vector AND multicycle"
   },
   {
     "EventCode": "0x2E01C",

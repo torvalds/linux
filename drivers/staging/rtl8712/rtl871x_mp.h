@@ -14,7 +14,7 @@
 #ifndef __RTL871X_MP_H_
 #define __RTL871X_MP_H_
 
-#define MPT_NOOP			0
+#define MPT_ANALOP			0
 #define MPT_READ_MAC_1BYTE		1
 #define MPT_READ_MAC_2BYTE		2
 #define MPT_READ_MAC_4BYTE		3
@@ -95,7 +95,7 @@ struct mp_priv {
 	struct wlan_network mp_network;
 	unsigned char network_macaddr[6];
 	/*Testing Flag*/
-	u32 mode;/*0 for normal type packet,
+	u32 mode;/*0 for analrmal type packet,
 		  * 1 for loopback packet (16bytes TXCMD)
 		  */
 	sint prev_fw_state;
@@ -191,7 +191,7 @@ enum HT_CHANNEL_WIDTH {
 
 enum POWER_MODE {
 	POWER_LOW = 0,
-	POWER_NORMAL
+	POWER_ANALRMAL
 };
 
 #define RX_PKT_BROADCAST	1

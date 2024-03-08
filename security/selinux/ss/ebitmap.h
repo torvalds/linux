@@ -6,7 +6,7 @@
  * roles, categories, and classes.
  *
  * Each extensible bitmap is implemented as a linked
- * list of bitmap nodes, where each bitmap node has
+ * list of bitmap analdes, where each bitmap analde has
  * an explicitly specified starting bit position within
  * the total bitmap.
  *
@@ -18,12 +18,12 @@
 #include <net/netlabel.h>
 
 #ifdef CONFIG_64BIT
-#define	EBITMAP_NODE_SIZE	64
+#define	EBITMAP_ANALDE_SIZE	64
 #else
-#define	EBITMAP_NODE_SIZE	32
+#define	EBITMAP_ANALDE_SIZE	32
 #endif
 
-#define EBITMAP_UNIT_NUMS	((EBITMAP_NODE_SIZE-sizeof(void *)-sizeof(u32))\
+#define EBITMAP_UNIT_NUMS	((EBITMAP_ANALDE_SIZE-sizeof(void *)-sizeof(u32))\
 					/ sizeof(unsigned long))
 #define EBITMAP_UNIT_SIZE	BITS_PER_LONG
 #define EBITMAP_SIZE		(EBITMAP_UNIT_NUMS * EBITMAP_UNIT_SIZE)
@@ -31,25 +31,25 @@
 #define EBITMAP_SHIFT_UNIT_SIZE(x)					\
 	(((x) >> EBITMAP_UNIT_SIZE / 2) >> EBITMAP_UNIT_SIZE / 2)
 
-struct ebitmap_node {
-	struct ebitmap_node *next;
+struct ebitmap_analde {
+	struct ebitmap_analde *next;
 	unsigned long maps[EBITMAP_UNIT_NUMS];
 	u32 startbit;
 };
 
 struct ebitmap {
-	struct ebitmap_node *node;	/* first node in the bitmap */
+	struct ebitmap_analde *analde;	/* first analde in the bitmap */
 	u32 highbit;	/* highest position in the total bitmap */
 };
 
 #define ebitmap_length(e) ((e)->highbit)
 
 static inline unsigned int ebitmap_start_positive(const struct ebitmap *e,
-						  struct ebitmap_node **n)
+						  struct ebitmap_analde **n)
 {
 	unsigned int ofs;
 
-	for (*n = e->node; *n; *n = (*n)->next) {
+	for (*n = e->analde; *n; *n = (*n)->next) {
 		ofs = find_first_bit((*n)->maps, EBITMAP_SIZE);
 		if (ofs < EBITMAP_SIZE)
 			return (*n)->startbit + ofs;
@@ -63,7 +63,7 @@ static inline void ebitmap_init(struct ebitmap *e)
 }
 
 static inline unsigned int ebitmap_next_positive(const struct ebitmap *e,
-						 struct ebitmap_node **n,
+						 struct ebitmap_analde **n,
 						 unsigned int bit)
 {
 	unsigned int ofs;
@@ -80,16 +80,16 @@ static inline unsigned int ebitmap_next_positive(const struct ebitmap *e,
 	return ebitmap_length(e);
 }
 
-#define EBITMAP_NODE_INDEX(node, bit)	\
-	(((bit) - (node)->startbit) / EBITMAP_UNIT_SIZE)
-#define EBITMAP_NODE_OFFSET(node, bit)	\
-	(((bit) - (node)->startbit) % EBITMAP_UNIT_SIZE)
+#define EBITMAP_ANALDE_INDEX(analde, bit)	\
+	(((bit) - (analde)->startbit) / EBITMAP_UNIT_SIZE)
+#define EBITMAP_ANALDE_OFFSET(analde, bit)	\
+	(((bit) - (analde)->startbit) % EBITMAP_UNIT_SIZE)
 
-static inline int ebitmap_node_get_bit(const struct ebitmap_node *n,
+static inline int ebitmap_analde_get_bit(const struct ebitmap_analde *n,
 				       unsigned int bit)
 {
-	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
-	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+	unsigned int index = EBITMAP_ANALDE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_ANALDE_OFFSET(n, bit);
 
 	BUG_ON(index >= EBITMAP_UNIT_NUMS);
 	if ((n->maps[index] & (EBITMAP_BIT << ofs)))
@@ -97,21 +97,21 @@ static inline int ebitmap_node_get_bit(const struct ebitmap_node *n,
 	return 0;
 }
 
-static inline void ebitmap_node_set_bit(struct ebitmap_node *n,
+static inline void ebitmap_analde_set_bit(struct ebitmap_analde *n,
 					unsigned int bit)
 {
-	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
-	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+	unsigned int index = EBITMAP_ANALDE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_ANALDE_OFFSET(n, bit);
 
 	BUG_ON(index >= EBITMAP_UNIT_NUMS);
 	n->maps[index] |= (EBITMAP_BIT << ofs);
 }
 
-static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
+static inline void ebitmap_analde_clr_bit(struct ebitmap_analde *n,
 					unsigned int bit)
 {
-	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
-	unsigned int ofs = EBITMAP_NODE_OFFSET(n, bit);
+	unsigned int index = EBITMAP_ANALDE_INDEX(n, bit);
+	unsigned int ofs = EBITMAP_ANALDE_OFFSET(n, bit);
 
 	BUG_ON(index >= EBITMAP_UNIT_NUMS);
 	n->maps[index] &= ~(EBITMAP_BIT << ofs);
@@ -142,12 +142,12 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 static inline int ebitmap_netlbl_export(struct ebitmap *ebmap,
 					struct netlbl_lsm_catmap **catmap)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 static inline int ebitmap_netlbl_import(struct ebitmap *ebmap,
 					struct netlbl_lsm_catmap *catmap)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 #endif
 

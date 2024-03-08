@@ -3,14 +3,14 @@
         "BriefDescription": "Counts the number of core requests (demand and L1 prefetchers) rejected by the L2 queue (L2Q) due to a full condition.",
         "EventCode": "0x31",
         "EventName": "CORE_REJECT_L2Q.ANY",
-        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2 queue (L2Q) due to a full or nearly full condition, which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the External Queue (XQ), but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to ensure fairness between cores, or to delay a cores dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event).  Counts on a per core basis.",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2 queue (L2Q) due to a full or nearly full condition, which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the External Queue (XQ), but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to ensure fairness between cores, or to delay a cores dirty eviction when the address conflicts incoming external sanalops.  (Analte that L2 prefetcher requests that are dropped are analt counted by this event).  Counts on a per core basis.",
         "SampleAfterValue": "200003"
     },
     {
         "BriefDescription": "Counts the number of L1D cacheline (dirty) evictions caused by load misses, stores, and prefetches.",
         "EventCode": "0x51",
         "EventName": "DL1.DIRTY_EVICTION",
-        "PublicDescription": "Counts the number of L1D cacheline (dirty) evictions caused by load misses, stores, and prefetches.  Does not count evictions or dirty writebacks caused by snoops.  Does not count a replacement unless a (dirty) line was written back.",
+        "PublicDescription": "Counts the number of L1D cacheline (dirty) evictions caused by load misses, stores, and prefetches.  Does analt count evictions or dirty writebacks caused by sanalops.  Does analt count a replacement unless a (dirty) line was written back.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -18,7 +18,7 @@
         "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
         "EventCode": "0x30",
         "EventName": "L2_REJECT_XQ.ANY",
-        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (analn-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
         "SampleAfterValue": "200003"
     },
     {
@@ -32,7 +32,7 @@
         "BriefDescription": "Counts the number of L2 Cache accesses that resulted in a hit. Counts on a per core basis.",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.HIT",
-        "PublicDescription": "Counts the number of L2 Cache accesses that resulted in a hit from a front door request only (does not include rejects or recycles), Counts on a per core basis.",
+        "PublicDescription": "Counts the number of L2 Cache accesses that resulted in a hit from a front door request only (does analt include rejects or recycles), Counts on a per core basis.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },
@@ -40,7 +40,7 @@
         "BriefDescription": "Counts the number of L2 Cache accesses that resulted in a miss. Counts on a per core basis.",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.MISS",
-        "PublicDescription": "Counts the number of L2 Cache accesses that resulted in a miss from a front door request only (does not include rejects or recycles). Counts on a per core basis.",
+        "PublicDescription": "Counts the number of L2 Cache accesses that resulted in a miss from a front door request only (does analt include rejects or recycles). Counts on a per core basis.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -69,18 +69,18 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH",
-        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "SampleAfterValue": "200003",
         "UMask": "0x38"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH_DRAM_HIT",
-        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in DRAM or MMIO (non-DRAM).",
+        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in DRAM or MMIO (analn-DRAM).",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },
@@ -101,14 +101,14 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.LOAD",
         "SampleAfterValue": "200003",
         "UMask": "0x7"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.LOAD_DRAM_HIT",
         "SampleAfterValue": "200003",
@@ -146,7 +146,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Counts the number of load uops retired that hit in the L3 cache, in which a snoop was required and modified data was forwarded from another core or module.",
+        "BriefDescription": "Counts the number of load uops retired that hit in the L3 cache, in which a sanalop was required and modified data was forwarded from aanalther core or module.",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HITM",
@@ -205,7 +205,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.ALL",
         "PEBS": "1",
-        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST)",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, analt 2 (e.g. ADD [mem], CONST)",
         "SampleAfterValue": "200003",
         "UMask": "0x83"
     },
@@ -275,45 +275,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0044",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0044",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0044",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0044",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts all code reads that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.ALL_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0044",
         "SampleAfterValue": "100003",
@@ -338,45 +338,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0004",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0004",
         "SampleAfterValue": "100003",
@@ -392,45 +392,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts cacheable demand data reads, L1 data cache hardware prefetches and software prefetches (except PREFETCHW) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0001",
         "SampleAfterValue": "100003",
@@ -447,50 +447,50 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HITM",
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HITM",
         "Deprecated": "1",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "Deprecated": "1",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "Deprecated": "1",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_MISS",
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_MISS",
         "Deprecated": "1",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "Deprecated": "1",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0001",
         "SampleAfterValue": "100003",
@@ -506,45 +506,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0002",
         "SampleAfterValue": "100003",
@@ -560,9 +560,9 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L1 data cache hardware prefetches and software prefetches (except PREFETCHW and PFRFO) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts L1 data cache hardware prefetches and software prefetches (except PREFETCHW and PFRFO) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0400",
         "SampleAfterValue": "100003",
@@ -578,45 +578,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0040",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts L2 cache hardware prefetch code reads (written to the L2 cache only) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.HWPF_L2_CODE_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0040",
         "SampleAfterValue": "100003",
@@ -632,45 +632,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0010",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts L2 cache hardware prefetch data reads (written to the L2 cache only) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0010",
         "SampleAfterValue": "100003",
@@ -686,45 +686,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0020",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts L2 cache hardware prefetch RFOs (written to the L2 cache only) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0020",
         "SampleAfterValue": "100003",
@@ -767,45 +767,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.READS_TO_CORE.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0477",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.READS_TO_CORE.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0477",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.READS_TO_CORE.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0477",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.READS_TO_CORE.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x2003C0477",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts all data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.READS_TO_CORE.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.READS_TO_CORE.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1003C0477",
         "SampleAfterValue": "100003",
@@ -830,45 +830,45 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.UC_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1010003C0000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.UC_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1004003C0000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0XB7",
-        "EventName": "OCR.UC_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.UC_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1008003C0000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a snoop was sent but the snoop missed.",
+        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where a sanalop was sent but the sanalop missed.",
         "EventCode": "0XB7",
-        "EventName": "OCR.UC_RD.L3_HIT.SNOOP_MISS",
+        "EventName": "OCR.UC_RD.L3_HIT.SANALOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1002003C0000",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where no snoop was needed to satisfy the request.",
+        "BriefDescription": "Counts uncached memory reads that were supplied by the L3 cache where anal sanalop was needed to satisfy the request.",
         "EventCode": "0XB7",
-        "EventName": "OCR.UC_RD.L3_HIT.SNOOP_NOT_NEEDED",
+        "EventName": "OCR.UC_RD.L3_HIT.SANALOP_ANALT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x1001003C0000",
         "SampleAfterValue": "100003",
@@ -884,7 +884,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to instruction cache misses.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to instruction cache misses.",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ICACHE",
         "SampleAfterValue": "1000003",

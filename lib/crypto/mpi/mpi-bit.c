@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -25,14 +25,14 @@
 
 /****************
  * Sometimes we have MSL (most significant limbs) which are 0;
- * this is for some reasons not good, so this function removes them.
+ * this is for some reasons analt good, so this function removes them.
  */
-void mpi_normalize(MPI a)
+void mpi_analrmalize(MPI a)
 {
 	for (; a->nlimbs && !a->d[a->nlimbs - 1]; a->nlimbs--)
 		;
 }
-EXPORT_SYMBOL_GPL(mpi_normalize);
+EXPORT_SYMBOL_GPL(mpi_analrmalize);
 
 /****************
  * Return the number of bits in A.
@@ -41,7 +41,7 @@ unsigned mpi_get_nbits(MPI a)
 {
 	unsigned n;
 
-	mpi_normalize(a);
+	mpi_analrmalize(a);
 
 	if (a->nlimbs) {
 		mpi_limb_t alimb = a->d[a->nlimbs - 1];
@@ -61,16 +61,16 @@ EXPORT_SYMBOL_GPL(mpi_get_nbits);
  */
 int mpi_test_bit(MPI a, unsigned int n)
 {
-	unsigned int limbno, bitno;
+	unsigned int limbanal, bitanal;
 	mpi_limb_t limb;
 
-	limbno = n / BITS_PER_MPI_LIMB;
-	bitno  = n % BITS_PER_MPI_LIMB;
+	limbanal = n / BITS_PER_MPI_LIMB;
+	bitanal  = n % BITS_PER_MPI_LIMB;
 
-	if (limbno >= a->nlimbs)
+	if (limbanal >= a->nlimbs)
 		return 0; /* too far left: this is a 0 */
-	limb = a->d[limbno];
-	return (limb & (A_LIMB_1 << bitno)) ? 1 : 0;
+	limb = a->d[limbanal];
+	return (limb & (A_LIMB_1 << bitanal)) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(mpi_test_bit);
 
@@ -79,18 +79,18 @@ EXPORT_SYMBOL_GPL(mpi_test_bit);
  */
 void mpi_set_bit(MPI a, unsigned int n)
 {
-	unsigned int i, limbno, bitno;
+	unsigned int i, limbanal, bitanal;
 
-	limbno = n / BITS_PER_MPI_LIMB;
-	bitno  = n % BITS_PER_MPI_LIMB;
+	limbanal = n / BITS_PER_MPI_LIMB;
+	bitanal  = n % BITS_PER_MPI_LIMB;
 
-	if (limbno >= a->nlimbs) {
+	if (limbanal >= a->nlimbs) {
 		for (i = a->nlimbs; i < a->alloced; i++)
 			a->d[i] = 0;
-		mpi_resize(a, limbno+1);
-		a->nlimbs = limbno+1;
+		mpi_resize(a, limbanal+1);
+		a->nlimbs = limbanal+1;
 	}
-	a->d[limbno] |= (A_LIMB_1<<bitno);
+	a->d[limbanal] |= (A_LIMB_1<<bitanal);
 }
 
 /****************
@@ -98,21 +98,21 @@ void mpi_set_bit(MPI a, unsigned int n)
  */
 void mpi_set_highbit(MPI a, unsigned int n)
 {
-	unsigned int i, limbno, bitno;
+	unsigned int i, limbanal, bitanal;
 
-	limbno = n / BITS_PER_MPI_LIMB;
-	bitno  = n % BITS_PER_MPI_LIMB;
+	limbanal = n / BITS_PER_MPI_LIMB;
+	bitanal  = n % BITS_PER_MPI_LIMB;
 
-	if (limbno >= a->nlimbs) {
+	if (limbanal >= a->nlimbs) {
 		for (i = a->nlimbs; i < a->alloced; i++)
 			a->d[i] = 0;
-		mpi_resize(a, limbno+1);
-		a->nlimbs = limbno+1;
+		mpi_resize(a, limbanal+1);
+		a->nlimbs = limbanal+1;
 	}
-	a->d[limbno] |= (A_LIMB_1<<bitno);
-	for (bitno++; bitno < BITS_PER_MPI_LIMB; bitno++)
-		a->d[limbno] &= ~(A_LIMB_1 << bitno);
-	a->nlimbs = limbno+1;
+	a->d[limbanal] |= (A_LIMB_1<<bitanal);
+	for (bitanal++; bitanal < BITS_PER_MPI_LIMB; bitanal++)
+		a->d[limbanal] &= ~(A_LIMB_1 << bitanal);
+	a->nlimbs = limbanal+1;
 }
 EXPORT_SYMBOL_GPL(mpi_set_highbit);
 
@@ -121,17 +121,17 @@ EXPORT_SYMBOL_GPL(mpi_set_highbit);
  */
 void mpi_clear_highbit(MPI a, unsigned int n)
 {
-	unsigned int limbno, bitno;
+	unsigned int limbanal, bitanal;
 
-	limbno = n / BITS_PER_MPI_LIMB;
-	bitno  = n % BITS_PER_MPI_LIMB;
+	limbanal = n / BITS_PER_MPI_LIMB;
+	bitanal  = n % BITS_PER_MPI_LIMB;
 
-	if (limbno >= a->nlimbs)
-		return; /* not allocated, therefore no need to clear bits :-) */
+	if (limbanal >= a->nlimbs)
+		return; /* analt allocated, therefore anal need to clear bits :-) */
 
-	for ( ; bitno < BITS_PER_MPI_LIMB; bitno++)
-		a->d[limbno] &= ~(A_LIMB_1 << bitno);
-	a->nlimbs = limbno+1;
+	for ( ; bitanal < BITS_PER_MPI_LIMB; bitanal++)
+		a->d[limbanal] &= ~(A_LIMB_1 << bitanal);
+	a->nlimbs = limbanal+1;
 }
 
 /****************
@@ -139,14 +139,14 @@ void mpi_clear_highbit(MPI a, unsigned int n)
  */
 void mpi_clear_bit(MPI a, unsigned int n)
 {
-	unsigned int limbno, bitno;
+	unsigned int limbanal, bitanal;
 
-	limbno = n / BITS_PER_MPI_LIMB;
-	bitno  = n % BITS_PER_MPI_LIMB;
+	limbanal = n / BITS_PER_MPI_LIMB;
+	bitanal  = n % BITS_PER_MPI_LIMB;
 
-	if (limbno >= a->nlimbs)
+	if (limbanal >= a->nlimbs)
 		return; /* Don't need to clear this bit, it's far too left.  */
-	a->d[limbno] &= ~(A_LIMB_1 << bitno);
+	a->d[limbanal] &= ~(A_LIMB_1 << bitanal);
 }
 EXPORT_SYMBOL_GPL(mpi_clear_bit);
 
@@ -232,7 +232,7 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 			if (nbits)
 				mpihelp_rshift(x->d, a->d, x->nlimbs, nbits);
 			else {
-				/* The rshift helper function is not specified for
+				/* The rshift helper function is analt specified for
 				 * NBITS==0, thus we do a plain copy here.
 				 */
 				for (i = 0; i < x->nlimbs; i++)
@@ -240,7 +240,7 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 			}
 		}
 	}
-	MPN_NORMALIZE(x->d, x->nlimbs);
+	MPN_ANALRMALIZE(x->d, x->nlimbs);
 }
 EXPORT_SYMBOL_GPL(mpi_rshift);
 
@@ -304,5 +304,5 @@ void mpi_lshift(MPI x, MPI a, unsigned int n)
 		mpi_rshift(x, x, BITS_PER_MPI_LIMB - nbits);
 	}
 
-	MPN_NORMALIZE(x->d, x->nlimbs);
+	MPN_ANALRMALIZE(x->d, x->nlimbs);
 }

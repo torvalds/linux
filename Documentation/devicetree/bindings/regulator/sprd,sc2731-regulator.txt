@@ -10,7 +10,7 @@ Required properties:
 
 List of regulators provided by this controller. It is named according to
 its regulator type, BUCK_<name> and LDO_<name>. The definition for each
-of these nodes is defined using the standard binding for regulators at
+of these analdes is defined using the standard binding for regulators at
 Documentation/devicetree/bindings/regulator/regulator.txt.
 
 The valid names for regulators are:

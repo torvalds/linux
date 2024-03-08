@@ -61,7 +61,7 @@
 #define __ARCH_WANT_SYS_CLONE3
 
 /* whitelists for checksyscalls */
-#define __IGNORE_fadvise64_64
+#define __IGANALRE_fadvise64_64
 
 #endif /* !__ASSEMBLY__ */
 

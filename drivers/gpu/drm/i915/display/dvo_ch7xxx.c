@@ -12,14 +12,14 @@ distribute, sub license, and/or sell copies of the Software, and to
 permit persons to whom the Software is furnished to do so, subject to
 the following conditions:
 
-The above copyright notice and this permission notice (including the
+The above copyright analtice and this permission analtice (including the
 next paragraph) shall be included in all copies or substantial portions
 of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
-IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.
+IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
 ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -229,7 +229,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	name = ch7xxx_get_id(vendor);
 	if (!name) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got VID 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx analt detected; got VID 0x%02x from %s slave %d.\n",
 			      vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -240,7 +240,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	devid = ch7xxx_get_did(device);
 	if (!devid) {
-		DRM_DEBUG_KMS("ch7xxx not detected; got DID 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx analt detected; got DID 0x%02x from %s slave %d.\n",
 			      device, adapter->name, dvo->slave_addr);
 		goto out;
 	}

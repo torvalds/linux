@@ -93,7 +93,7 @@
 #define CDC_A_MICB_1_EN			(0xf140)
 #define MICB_1_EN_MICB_ENABLE		BIT(7)
 #define MICB_1_EN_BYP_CAP_MASK		BIT(6)
-#define MICB_1_EN_NO_EXT_BYP_CAP	BIT(6)
+#define MICB_1_EN_ANAL_EXT_BYP_CAP	BIT(6)
 #define MICB_1_EN_EXT_BYP_CAP		0
 #define MICB_1_EN_PULL_DOWN_EN_MASK	BIT(5)
 #define MICB_1_EN_PULL_DOWN_EN_ENABLE	BIT(5)
@@ -163,8 +163,8 @@
 #define CDC_A_MBHC_DET_CTL_HS_L_DET_PULL_UP_CTRL_I_3P0	(BIT(7) | BIT(6))
 #define CDC_A_MBHC_DET_CTL_HS_L_DET_COMPA_CTRL_V0P9_VDD	BIT(5)
 #define CDC_A_PLUG_TYPE_MASK				GENMASK(4, 3)
-#define CDC_A_HPHL_PLUG_TYPE_NO				BIT(4)
-#define CDC_A_GND_PLUG_TYPE_NO				BIT(3)
+#define CDC_A_HPHL_PLUG_TYPE_ANAL				BIT(4)
+#define CDC_A_GND_PLUG_TYPE_ANAL				BIT(3)
 #define CDC_A_MBHC_DET_CTL_HPHL_100K_TO_GND_EN_MASK	BIT(0)
 #define CDC_A_MBHC_DET_CTL_HPHL_100K_TO_GND_EN		BIT(0)
 #define CDC_A_MBHC_FSM_CTL		(0xf151)
@@ -234,7 +234,7 @@
 
 #define CDC_A_SPKR_DAC_CTL		(0xf1B0)
 #define SPKR_DAC_CTL_DAC_RESET_MASK	BIT(4)
-#define SPKR_DAC_CTL_DAC_RESET_NORMAL	0
+#define SPKR_DAC_CTL_DAC_RESET_ANALRMAL	0
 
 #define CDC_A_SPKR_DRV_CTL		(0xf1B2)
 #define SPKR_DRV_CTL_DEF_MASK		0xEF
@@ -297,8 +297,8 @@ struct pm8916_wcd_analog_priv {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 	struct snd_soc_jack *jack;
-	bool hphl_jack_type_normally_open;
-	bool gnd_jack_type_normally_open;
+	bool hphl_jack_type_analrmally_open;
+	bool gnd_jack_type_analrmally_open;
 	/* Voltage threshold when internal current source of 100uA is used */
 	u32 vref_btn_cs[MBHC_MAX_BUTTONS];
 	/* Voltage threshold when microphone bias is ON */
@@ -487,11 +487,11 @@ static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
 		      CDC_A_MBHC_DET_CTL_MIC_CLAMP_CTL_AUTO |
 		      CDC_A_MBHC_DET_CTL_MBHC_BIAS_EN);
 
-	if (wcd->hphl_jack_type_normally_open)
-		plug_type |= CDC_A_HPHL_PLUG_TYPE_NO;
+	if (wcd->hphl_jack_type_analrmally_open)
+		plug_type |= CDC_A_HPHL_PLUG_TYPE_ANAL;
 
-	if (wcd->gnd_jack_type_normally_open)
-		plug_type |= CDC_A_GND_PLUG_TYPE_NO;
+	if (wcd->gnd_jack_type_analrmally_open)
+		plug_type |= CDC_A_GND_PLUG_TYPE_ANAL;
 
 	snd_soc_component_write(component, CDC_A_MBHC_DET_CTL_2,
 		      CDC_A_MBHC_DET_CTL_HS_L_DET_PULL_UP_CTRL_I_3P0 |
@@ -569,7 +569,7 @@ static int pm8916_wcd_analog_enable_adc(struct snd_soc_dapm_widget *w,
 					    MICB_1_CTL_CFILT_REF_SEL_HPF_REF);
 		/*
 		 * Add delay of 10 ms to give sufficient time for the voltage
-		 * to shoot up and settle so that the txfe init does not
+		 * to shoot up and settle so that the txfe init does analt
 		 * happen when the input voltage is changing too much.
 		 */
 		usleep_range(10000, 10010);
@@ -660,7 +660,7 @@ static int pm8916_wcd_analog_enable_spk_pa(struct snd_soc_dapm_widget *w,
 
 		snd_soc_component_update_bits(component, CDC_A_SPKR_DAC_CTL,
 				    SPKR_DAC_CTL_DAC_RESET_MASK,
-				    SPKR_DAC_CTL_DAC_RESET_NORMAL);
+				    SPKR_DAC_CTL_DAC_RESET_ANALRMAL);
 		snd_soc_component_update_bits(component, CDC_A_RX_EAR_CTL,
 				    RX_EAR_CTL_SPK_VBAT_LDO_EN_MASK, 0);
 		break;
@@ -860,10 +860,10 @@ static const struct snd_soc_dapm_route pm8916_wcd_analog_audio_map[] = {
 
 static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 
-	SND_SOC_DAPM_AIF_IN("PDM_RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("PDM_RX2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("PDM_RX3", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("PDM_TX", NULL, 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("PDM_RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("PDM_RX2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("PDM_RX3", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("PDM_TX", NULL, 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_INPUT("AMIC1"),
 	SND_SOC_DAPM_INPUT("AMIC3"),
@@ -873,25 +873,25 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPH_R"),
 
 	/* RX stuff */
-	SND_SOC_DAPM_SUPPLY("INT_LDO_H", SND_SOC_NOPM, 1, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("INT_LDO_H", SND_SOC_ANALPM, 1, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA_E("EAR PA", SND_SOC_NOPM,
+	SND_SOC_DAPM_PGA_E("EAR PA", SND_SOC_ANALPM,
 			   0, 0, NULL, 0,
 			   pm8916_wcd_analog_enable_ear_pa,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("EAR_S", SND_SOC_NOPM, 0, 0, &ear_mux),
+	SND_SOC_DAPM_MUX("EAR_S", SND_SOC_ANALPM, 0, 0, &ear_mux),
 	SND_SOC_DAPM_SUPPLY("EAR CP", CDC_A_NCP_EN, 4, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA("HPHL PA", CDC_A_RX_HPH_CNP_EN, 5, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("HPHL", SND_SOC_NOPM, 0, 0, &hphl_mux),
+	SND_SOC_DAPM_MUX("HPHL", SND_SOC_ANALPM, 0, 0, &hphl_mux),
 	SND_SOC_DAPM_MIXER("HPHL DAC", CDC_A_RX_HPH_L_PA_DAC_CTL, 3, 0, NULL,
 			   0),
 	SND_SOC_DAPM_PGA("HPHR PA", CDC_A_RX_HPH_CNP_EN, 4, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("HPHR", SND_SOC_NOPM, 0, 0, &hphr_mux),
+	SND_SOC_DAPM_MUX("HPHR", SND_SOC_ANALPM, 0, 0, &hphr_mux),
 	SND_SOC_DAPM_MIXER("HPHR DAC", CDC_A_RX_HPH_R_PA_DAC_CTL, 3, 0, NULL,
 			   0),
-	SND_SOC_DAPM_MIXER("SPK DAC", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("SPK DAC", SND_SOC_ANALPM, 0, 0,
 			   spkr_switch, ARRAY_SIZE(spkr_switch)),
 
 	/* Speaker */
@@ -915,8 +915,8 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 			    pm8916_wcd_analog_enable_micbias2,
 			    SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_SUPPLY("MIC BIAS External1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS External2", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MIC BIAS External1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MIC BIAS External2", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("MIC BIAS Internal1", CDC_A_MICB_1_INT_RBIAS, 7, 0,
 			    pm8916_wcd_analog_enable_micbias_int,
@@ -942,11 +942,11 @@ static const struct snd_soc_dapm_widget pm8916_wcd_analog_dapm_widgets[] = {
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("ADC3", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ADC2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("ADC3", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("ADC2 MUX", SND_SOC_NOPM, 0, 0, &tx_adc2_mux),
-	SND_SOC_DAPM_MUX("RDAC2 MUX", SND_SOC_NOPM, 0, 0, &rdac2_mux),
+	SND_SOC_DAPM_MUX("ADC2 MUX", SND_SOC_ANALPM, 0, 0, &tx_adc2_mux),
+	SND_SOC_DAPM_MUX("RDAC2 MUX", SND_SOC_ANALPM, 0, 0, &rdac2_mux),
 
 	/* Analog path clocks */
 	SND_SOC_DAPM_SUPPLY("EAR_HPHR_CLK", CDC_D_CDC_ANA_CLK_CTL, 0, 0, NULL,
@@ -1134,40 +1134,40 @@ static int pm8916_wcd_analog_parse_dt(struct device *dev,
 {
 	int rval;
 
-	if (of_property_read_bool(dev->of_node, "qcom,micbias1-ext-cap"))
+	if (of_property_read_bool(dev->of_analde, "qcom,micbias1-ext-cap"))
 		priv->micbias1_cap_mode = MICB_1_EN_EXT_BYP_CAP;
 	else
-		priv->micbias1_cap_mode = MICB_1_EN_NO_EXT_BYP_CAP;
+		priv->micbias1_cap_mode = MICB_1_EN_ANAL_EXT_BYP_CAP;
 
-	if (of_property_read_bool(dev->of_node, "qcom,micbias2-ext-cap"))
+	if (of_property_read_bool(dev->of_analde, "qcom,micbias2-ext-cap"))
 		priv->micbias2_cap_mode = MICB_1_EN_EXT_BYP_CAP;
 	else
-		priv->micbias2_cap_mode = MICB_1_EN_NO_EXT_BYP_CAP;
+		priv->micbias2_cap_mode = MICB_1_EN_ANAL_EXT_BYP_CAP;
 
-	of_property_read_u32(dev->of_node, "qcom,micbias-lvl",
+	of_property_read_u32(dev->of_analde, "qcom,micbias-lvl",
 			     &priv->micbias_mv);
 
-	if (of_property_read_bool(dev->of_node,
-				  "qcom,hphl-jack-type-normally-open"))
-		priv->hphl_jack_type_normally_open = true;
+	if (of_property_read_bool(dev->of_analde,
+				  "qcom,hphl-jack-type-analrmally-open"))
+		priv->hphl_jack_type_analrmally_open = true;
 	else
-		priv->hphl_jack_type_normally_open = false;
+		priv->hphl_jack_type_analrmally_open = false;
 
-	if (of_property_read_bool(dev->of_node,
-				  "qcom,gnd-jack-type-normally-open"))
-		priv->gnd_jack_type_normally_open = true;
+	if (of_property_read_bool(dev->of_analde,
+				  "qcom,gnd-jack-type-analrmally-open"))
+		priv->gnd_jack_type_analrmally_open = true;
 	else
-		priv->gnd_jack_type_normally_open = false;
+		priv->gnd_jack_type_analrmally_open = false;
 
 	priv->mbhc_btn_enabled = true;
-	rval = of_property_read_u32_array(dev->of_node,
+	rval = of_property_read_u32_array(dev->of_analde,
 					  "qcom,mbhc-vthreshold-low",
 					  &priv->vref_btn_cs[0],
 					  MBHC_MAX_BUTTONS);
 	if (rval < 0) {
 		priv->mbhc_btn_enabled = false;
 	} else {
-		rval = of_property_read_u32_array(dev->of_node,
+		rval = of_property_read_u32_array(dev->of_analde,
 						  "qcom,mbhc-vthreshold-high",
 						  &priv->vref_btn_micb[0],
 						  MBHC_MAX_BUTTONS);
@@ -1191,7 +1191,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pm8916_wcd_analog_parse_dt(dev, priv);
 	if (ret < 0)
@@ -1217,7 +1217,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 			       IRQF_ONESHOT,
 			       "mbhc switch irq", priv);
 	if (ret) {
-		dev_err(dev, "cannot request mbhc switch irq\n");
+		dev_err(dev, "cananalt request mbhc switch irq\n");
 		return ret;
 	}
 
@@ -1232,7 +1232,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn press irq", priv);
 		if (ret) {
-			dev_err(dev, "cannot request mbhc button press irq\n");
+			dev_err(dev, "cananalt request mbhc button press irq\n");
 			return ret;
 		}
 
@@ -1246,7 +1246,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn release irq", priv);
 		if (ret) {
-			dev_err(dev, "cannot request mbhc button release irq\n");
+			dev_err(dev, "cananalt request mbhc button release irq\n");
 			return ret;
 		}
 	}

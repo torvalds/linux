@@ -21,7 +21,7 @@
  * This type is used to indicate RPC RM function calls.
  */
 enum imx_sc_rm_func {
-	IMX_SC_RM_FUNC_UNKNOWN = 0,
+	IMX_SC_RM_FUNC_UNKANALWN = 0,
 	IMX_SC_RM_FUNC_PARTITION_ALLOC = 1,
 	IMX_SC_RM_FUNC_SET_CONFIDENTIAL = 31,
 	IMX_SC_RM_FUNC_PARTITION_FREE = 2,
@@ -68,7 +68,7 @@ imx_sc_rm_is_resource_owned(struct imx_sc_ipc *ipc, u16 resource)
 }
 static inline int imx_sc_rm_get_resource_owner(struct imx_sc_ipc *ipc, u16 resource, u8 *pt)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif
 #endif

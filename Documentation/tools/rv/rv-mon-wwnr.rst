@@ -4,12 +4,12 @@
 rv-mon-wwnr
 ===========
 --------------------------------
-Wakeup While Not Running monitor
+Wakeup While Analt Running monitor
 --------------------------------
 
 :Manual section: 1
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 **rv mon wip** [*OPTIONS*]
@@ -17,7 +17,7 @@ SYNOPSIS
 DESCRIPTION
 ===========
 
-The wakeup while not running (**wwnr**) is a per-task sample monitor.
+The wakeup while analt running (**wwnr**) is a per-task sample monitor.
 
 See kernel documentation for further information about this monitor:
 <https://docs.kernel.org/trace/rv/monitor_wwnr.html>

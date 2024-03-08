@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 
 #include <linux/usb.h>
@@ -129,12 +129,12 @@ static inline int bpa10x_submit_intr_urb(struct hci_dev *hdev)
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe = usb_rcvintpipe(data->udev, 0x81);
@@ -169,12 +169,12 @@ static inline int bpa10x_submit_bulk_urb(struct hci_dev *hdev)
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe = usb_rcvbulkpipe(data->udev, 0x82);
@@ -276,7 +276,7 @@ static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Prepend skb with frame type */
 	*(u8 *)skb_push(skb, 1) = hci_skb_pkt_type(skb);
@@ -286,7 +286,7 @@ static int bpa10x_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		dr = kmalloc(sizeof(*dr), GFP_KERNEL);
 		if (!dr) {
 			usb_free_urb(urb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dr->bRequestType = USB_TYPE_VENDOR;
@@ -369,11 +369,11 @@ static int bpa10x_probe(struct usb_interface *intf,
 	BT_DBG("intf %p id %p", intf, id);
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->udev = interface_to_usbdev(intf);
 
@@ -382,7 +382,7 @@ static int bpa10x_probe(struct usb_interface *intf,
 
 	hdev = hci_alloc_dev();
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev->bus = HCI_USB;
 	hci_set_drvdata(hdev, data);

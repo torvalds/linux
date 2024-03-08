@@ -123,8 +123,8 @@ static const struct reg_default wm1811_defaults[] = {
 	{ 0x0421, 0x0010 },    /* R1057 - AIF1 DAC1 Filters (2) */
 	{ 0x0422, 0x0200 },    /* R1058 - AIF1 DAC2 Filters (1) */
 	{ 0x0423, 0x0010 },    /* R1059 - AIF1 DAC2 Filters (2) */
-	{ 0x0430, 0x0068 },    /* R1072 - AIF1 DAC1 Noise Gate */
-	{ 0x0431, 0x0068 },    /* R1073 - AIF1 DAC2 Noise Gate */
+	{ 0x0430, 0x0068 },    /* R1072 - AIF1 DAC1 Analise Gate */
+	{ 0x0431, 0x0068 },    /* R1073 - AIF1 DAC2 Analise Gate */
 	{ 0x0440, 0x0098 },    /* R1088 - AIF1 DRC1 (1) */
 	{ 0x0441, 0x0845 },    /* R1089 - AIF1 DRC1 (2) */
 	{ 0x0442, 0x0000 },    /* R1090 - AIF1 DRC1 (3) */
@@ -184,7 +184,7 @@ static const struct reg_default wm1811_defaults[] = {
 	{ 0x0510, 0x0000 },    /* R1296 - AIF2 ADC Filters */
 	{ 0x0520, 0x0200 },    /* R1312 - AIF2 DAC Filters (1) */
 	{ 0x0521, 0x0010 },    /* R1313 - AIF2 DAC Filters (2) */
-	{ 0x0530, 0x0068 },    /* R1328 - AIF2 DAC Noise Gate */
+	{ 0x0530, 0x0068 },    /* R1328 - AIF2 DAC Analise Gate */
 	{ 0x0540, 0x0098 },    /* R1344 - AIF2 DRC (1) */
 	{ 0x0541, 0x0845 },    /* R1345 - AIF2 DRC (2) */
 	{ 0x0542, 0x0000 },    /* R1346 - AIF2 DRC (3) */
@@ -579,8 +579,8 @@ static const struct reg_default wm8958_defaults[] = {
 	{ 0x0421, 0x0010 },    /* R1057  - AIF1 DAC1 Filters (2) */
 	{ 0x0422, 0x0200 },    /* R1058  - AIF1 DAC2 Filters (1) */
 	{ 0x0423, 0x0010 },    /* R1059  - AIF1 DAC2 Filters (2) */
-	{ 0x0430, 0x0068 },    /* R1072  - AIF1 DAC1 Noise Gate */
-	{ 0x0431, 0x0068 },    /* R1073  - AIF1 DAC2 Noise Gate */
+	{ 0x0430, 0x0068 },    /* R1072  - AIF1 DAC1 Analise Gate */
+	{ 0x0431, 0x0068 },    /* R1073  - AIF1 DAC2 Analise Gate */
 	{ 0x0440, 0x0098 },    /* R1088  - AIF1 DRC1 (1) */
 	{ 0x0441, 0x0845 },    /* R1089  - AIF1 DRC1 (2) */
 	{ 0x0442, 0x0000 },    /* R1090  - AIF1 DRC1 (3) */
@@ -640,7 +640,7 @@ static const struct reg_default wm8958_defaults[] = {
 	{ 0x0510, 0x0000 },    /* R1296  - AIF2 ADC Filters */
 	{ 0x0520, 0x0200 },    /* R1312  - AIF2 DAC Filters (1) */
 	{ 0x0521, 0x0010 },    /* R1313  - AIF2 DAC Filters (2) */
-	{ 0x0530, 0x0068 },    /* R1328  - AIF2 DAC Noise Gate */
+	{ 0x0530, 0x0068 },    /* R1328  - AIF2 DAC Analise Gate */
 	{ 0x0540, 0x0098 },    /* R1344  - AIF2 DRC (1) */
 	{ 0x0541, 0x0845 },    /* R1345  - AIF2 DRC (2) */
 	{ 0x0542, 0x0000 },    /* R1346  - AIF2 DRC (3) */
@@ -878,8 +878,8 @@ static bool wm1811_readable_register(struct device *dev, unsigned int reg)
 	case WM8994_AIF1_DAC1_FILTERS_2:
 	case WM8994_AIF1_DAC2_FILTERS_1:
 	case WM8994_AIF1_DAC2_FILTERS_2:
-	case WM8958_AIF1_DAC1_NOISE_GATE:
-	case WM8958_AIF1_DAC2_NOISE_GATE:
+	case WM8958_AIF1_DAC1_ANALISE_GATE:
+	case WM8958_AIF1_DAC2_ANALISE_GATE:
 	case WM8994_AIF1_DRC1_1:
 	case WM8994_AIF1_DRC1_2:
 	case WM8994_AIF1_DRC1_3:
@@ -939,7 +939,7 @@ static bool wm1811_readable_register(struct device *dev, unsigned int reg)
 	case WM8994_AIF2_ADC_FILTERS:
 	case WM8994_AIF2_DAC_FILTERS_1:
 	case WM8994_AIF2_DAC_FILTERS_2:
-	case WM8958_AIF2_DAC_NOISE_GATE:
+	case WM8958_AIF2_DAC_ANALISE_GATE:
 	case WM8994_AIF2_DRC_1:
 	case WM8994_AIF2_DRC_2:
 	case WM8994_AIF2_DRC_3:
@@ -1022,7 +1022,7 @@ static bool wm8994_readable_register(struct device *dev, unsigned int reg)
 	case WM8994_AIF1_ADC2_FILTERS:
 	case WM8994_AIF1_DAC2_FILTERS_1:
 	case WM8994_AIF1_DAC2_FILTERS_2:
-	case WM8958_AIF1_DAC2_NOISE_GATE:
+	case WM8958_AIF1_DAC2_ANALISE_GATE:
 	case WM8994_AIF1_DRC2_1:
 	case WM8994_AIF1_DRC2_2:
 	case WM8994_AIF1_DRC2_3:
@@ -1106,8 +1106,8 @@ static bool wm8958_readable_register(struct device *dev, unsigned int reg)
 	case WM8958_FW_ID_0:
 	case WM8958_FW_MAJOR_1:
 	case WM8958_FW_MAJOR_0:
-	case WM8958_FW_MINOR_1:
-	case WM8958_FW_MINOR_0:
+	case WM8958_FW_MIANALR_1:
+	case WM8958_FW_MIANALR_0:
 	case WM8958_FW_PATCH_1:
 	case WM8958_FW_PATCH_0:
 	case WM8958_MBC_BAND_1_K_1:
@@ -1224,8 +1224,8 @@ static bool wm8958_volatile_register(struct device *dev, unsigned int reg)
 	case WM8958_FW_ID_0:
 	case WM8958_FW_MAJOR_1:
 	case WM8958_FW_MAJOR_0:
-	case WM8958_FW_MINOR_1:
-	case WM8958_FW_MINOR_0:
+	case WM8958_FW_MIANALR_1:
+	case WM8958_FW_MIANALR_0:
 	case WM8958_FW_PATCH_1:
 	case WM8958_FW_PATCH_0:
 		return true;

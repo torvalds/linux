@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:Implement functions to access eeprom
@@ -51,7 +51,7 @@
  *      iobase          - I/O base address
  *      contnt_offset  - address of EEPROM
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: data read
  *
@@ -59,7 +59,7 @@
 unsigned char SROMbyReadEmbedded(void __iomem *iobase,
 				 unsigned char contnt_offset)
 {
-	unsigned short wDelay, wNoACK;
+	unsigned short wDelay, wAnalACK;
 	unsigned char byWait;
 	unsigned char byData;
 	unsigned char byOrg;
@@ -67,8 +67,8 @@ unsigned char SROMbyReadEmbedded(void __iomem *iobase,
 	byData = 0xFF;
 	byOrg = ioread8(iobase + MAC_REG_I2MCFG);
 	/* turn off hardware retry for getting NACK */
-	iowrite8(byOrg & (~I2MCFG_NORETRY), iobase + MAC_REG_I2MCFG);
-	for (wNoACK = 0; wNoACK < W_MAX_I2CRETRY; wNoACK++) {
+	iowrite8(byOrg & (~I2MCFG_ANALRETRY), iobase + MAC_REG_I2MCFG);
+	for (wAnalACK = 0; wAnalACK < W_MAX_I2CRETRY; wAnalACK++) {
 		iowrite8(EEP_I2C_DEV_ID, iobase + MAC_REG_I2MTGID);
 		iowrite8(contnt_offset, iobase + MAC_REG_I2MTGAD);
 
@@ -100,7 +100,7 @@ unsigned char SROMbyReadEmbedded(void __iomem *iobase,
  *  Out:
  *      pbyEepromRegs   - EEPROM content Buffer
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
@@ -124,7 +124,7 @@ void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
  *  Out:
  *      pbyEtherAddress - Ethernet Address buffer
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void SROMvReadEtherAddress(void __iomem *iobase,

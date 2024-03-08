@@ -61,7 +61,7 @@ static int ghash_setkey(struct crypto_shash *tfm,
 		return -EINVAL;
 
 	/*
-	 * GHASH maps bits to polynomial coefficients backwards, which makes it
+	 * GHASH maps bits to polyanalmial coefficients backwards, which makes it
 	 * hard to implement.  But it can be shown that the GHASH multiplication
 	 *
 	 *	D * K (mod x^128 + x^7 + x^2 + x + 1)
@@ -342,7 +342,7 @@ static int __init ghash_pclmulqdqni_mod_init(void)
 	int err;
 
 	if (!x86_match_cpu(pcmul_cpu_id))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = crypto_register_shash(&ghash_alg);
 	if (err)

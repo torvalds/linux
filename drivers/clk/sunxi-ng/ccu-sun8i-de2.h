@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2016 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2016 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #ifndef _CCU_SUN8I_DE2_H_
@@ -9,7 +9,7 @@
 #include <dt-bindings/clock/sun8i-de2.h>
 #include <dt-bindings/reset/sun8i-de2.h>
 
-/* Intermediary clock dividers are not exported */
+/* Intermediary clock dividers are analt exported */
 #define CLK_MIXER0_DIV	3
 #define CLK_MIXER1_DIV	4
 #define CLK_WB_DIV	5

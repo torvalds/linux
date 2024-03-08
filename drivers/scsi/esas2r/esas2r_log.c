@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_log.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techanallogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,19 +15,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -101,9 +101,9 @@ static const char *translate_esas2r_event_level_to_kernel(const long level)
 	}
 }
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#pragma GCC diaganalstic iganalred "-Wsuggest-attribute=format"
 #endif
 
 /*
@@ -128,7 +128,7 @@ static int esas2r_log_master(const long level,
 		int retval = 0;
 		char *buffer = event_buffer;
 		size_t buflen = EVENT_LOG_BUFF_SIZE;
-		const char *fmt_nodev = "%s%s: ";
+		const char *fmt_analdev = "%s%s: ";
 		const char *fmt_dev = "%s%s [%s, %s, %s]";
 		const char *slevel =
 			translate_esas2r_event_level_to_kernel(level);
@@ -144,13 +144,13 @@ static int esas2r_log_master(const long level,
 		 */
 
 		if (dev == NULL) {
-			snprintf(buffer, buflen, fmt_nodev, slevel,
+			snprintf(buffer, buflen, fmt_analdev, slevel,
 				 ESAS2R_DRVR_NAME);
 		} else {
 			snprintf(buffer, buflen, fmt_dev, slevel,
 				 ESAS2R_DRVR_NAME,
-				 (dev->driver ? dev->driver->name : "unknown"),
-				 (dev->bus ? dev->bus->name : "unknown"),
+				 (dev->driver ? dev->driver->name : "unkanalwn"),
+				 (dev->bus ? dev->bus->name : "unkanalwn"),
 				 dev_name(dev));
 		}
 
@@ -175,7 +175,7 @@ static int esas2r_log_master(const long level,
 	return 0;
 }
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 /*
  * formats and logs a message to the system log.

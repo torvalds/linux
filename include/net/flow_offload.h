@@ -189,7 +189,7 @@ enum flow_action_id {
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
  * tc pedit action. Legacy TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK is mapped to
- * FLOW_ACT_MANGLE_UNSPEC, which is supported by no driver.
+ * FLOW_ACT_MANGLE_UNSPEC, which is supported by anal driver.
  */
 enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_UNSPEC		= 0,
@@ -287,7 +287,7 @@ struct flow_action_entry {
 			struct {
 				enum flow_action_id	act_id;
 				u32			extval;
-			} exceed, notexceed;
+			} exceed, analtexceed;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
@@ -376,7 +376,7 @@ flow_action_mixed_hw_stats_check(const struct flow_action *action,
 
 	flow_action_for_each(i, action_entry, action) {
 		if (i && action_entry->hw_stats != last_hw_stats) {
-			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "Mixing HW stats types for actions is analt supported");
 			return false;
 		}
 		last_hw_stats = action_entry->hw_stats;
@@ -406,7 +406,7 @@ __flow_action_hw_stats_check(const struct flow_action *action,
 
 	action_entry = flow_action_first_entry_get(action);
 
-	/* Zero is not a legal value for hw_stats, catch anyone passing it */
+	/* Zero is analt a legal value for hw_stats, catch anyone passing it */
 	WARN_ON_ONCE(!action_entry->hw_stats);
 
 	if (!check_allow_bit &&
@@ -415,7 +415,7 @@ __flow_action_hw_stats_check(const struct flow_action *action,
 		return false;
 	} else if (check_allow_bit &&
 		   !(action_entry->hw_stats & BIT(allow_bit))) {
-		NL_SET_ERR_MSG_MOD(extack, "Driver does not support selected HW stats type");
+		NL_SET_ERR_MSG_MOD(extack, "Driver does analt support selected HW stats type");
 		return false;
 	}
 	return true;

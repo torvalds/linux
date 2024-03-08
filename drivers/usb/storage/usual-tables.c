@@ -37,9 +37,9 @@ MODULE_DEVICE_TABLE(usb, usb_storage_usb_ids);
 #undef USUAL_DEV
 
 /*
- * The table of devices to ignore
+ * The table of devices to iganalre
  */
-struct ignore_entry {
+struct iganalre_entry {
 	u16	vid, pid, bcdmin, bcdmax;
 };
 
@@ -53,7 +53,7 @@ struct ignore_entry {
 	.bcdmax = bcdDeviceMax,		\
 }
 
-static const struct ignore_entry ignore_ids[] = {
+static const struct iganalre_entry iganalre_ids[] = {
 #	include "unusual_alauda.h"
 #	include "unusual_cypress.h"
 #	include "unusual_datafab.h"
@@ -72,19 +72,19 @@ static const struct ignore_entry ignore_ids[] = {
 
 #undef UNUSUAL_DEV
 
-/* Return an error if a device is in the ignore_ids list */
-int usb_usual_ignore_device(struct usb_interface *intf)
+/* Return an error if a device is in the iganalre_ids list */
+int usb_usual_iganalre_device(struct usb_interface *intf)
 {
 	struct usb_device *udev;
 	unsigned vid, pid, bcd;
-	const struct ignore_entry *p;
+	const struct iganalre_entry *p;
 
 	udev = interface_to_usbdev(intf);
 	vid = le16_to_cpu(udev->descriptor.idVendor);
 	pid = le16_to_cpu(udev->descriptor.idProduct);
 	bcd = le16_to_cpu(udev->descriptor.bcdDevice);
 
-	for (p = ignore_ids; p->vid; ++p) {
+	for (p = iganalre_ids; p->vid; ++p) {
 		if (p->vid == vid && p->pid == pid &&
 				p->bcdmin <= bcd && p->bcdmax >= bcd)
 			return -ENXIO;

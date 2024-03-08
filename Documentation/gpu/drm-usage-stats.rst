@@ -22,9 +22,9 @@ File format specification
 - File shall contain one key value pair per one line of text.
 - Colon character (`:`) must be used to delimit keys and values.
 - All keys shall be prefixed with `drm-`.
-- Whitespace between the delimiter and first non-whitespace character shall be
-  ignored when parsing.
-- Keys are not allowed to contain whitespace characters.
+- Whitespace between the delimiter and first analn-whitespace character shall be
+  iganalred when parsing.
+- Keys are analt allowed to contain whitespace characters.
 - Numerical key value pairs can end with optional unit string.
 - Data type of the value is fixed as defined in the specification.
 
@@ -70,7 +70,7 @@ to the in kernel representation of `struct drm_file` instances.
 Uniqueness of the value shall be either globally unique, or unique within the
 scope of each device, in which case `drm-pdev` shall be present as well.
 
-Userspace should make sure to not double account any usage statistics by using
+Userspace should make sure to analt double account any usage statistics by using
 the above described criteria in order to associate data to individual clients.
 
 Utilization
@@ -85,11 +85,11 @@ documentation.
 Value shall be in specified time units which the respective GPU engine spent
 busy executing workloads belonging to this client.
 
-Values are not required to be constantly monotonic if it makes the driver
+Values are analt required to be constantly moanaltonic if it makes the driver
 implementation easier, but are required to catch up with the previously reported
 larger value within a reasonable period. Upon observing a value lower than what
 was previously read, userspace is expected to stay with that larger previous
-value until a monotonic update is seen.
+value until a moanaltonic update is seen.
 
 - drm-engine-capacity-<keystr>: <uint>
 
@@ -98,7 +98,7 @@ drm-engine-<keystr> tag and shall contain a greater than zero number in case the
 exported engine corresponds to a group of identical hardware engines.
 
 In the absence of this tag parser shall assume capacity of one. Zero capacity
-is not allowed.
+is analt allowed.
 
 - drm-cycles-<keystr>: <uint>
 
@@ -106,11 +106,11 @@ Engine identifier string must be the same as the one specified in the
 drm-engine-<keystr> tag and shall contain the number of busy cycles for the given
 engine.
 
-Values are not required to be constantly monotonic if it makes the driver
+Values are analt required to be constantly moanaltonic if it makes the driver
 implementation easier, but are required to catch up with the previously reported
 larger value within a reasonable period. Upon observing a value lower than what
 was previously read, userspace is expected to stay with that larger previous
-value until a monotonic update is seen.
+value until a moanaltonic update is seen.
 
 - drm-maxfreq-<keystr>: <uint> [Hz|MHz|KHz]
 
@@ -128,7 +128,7 @@ Memory
 
 Each possible memory type which can be used to store buffer objects by the
 GPU in question shall be given a stable and unique name to be returned as the
-string here.  The name "memory" is reserved to refer to normal system memory.
+string here.  The name "memory" is reserved to refer to analrmal system memory.
 
 Value shall reflect the amount of storage currently consumed by the buffer
 objects belong to this client, in the respective memory region.
@@ -138,7 +138,7 @@ indicating kibi- or mebi-bytes.
 
 - drm-shared-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are shared with another file (ie. have more
+The total size of buffers that are shared with aanalther file (ie. have more
 than a single handle).
 
 - drm-total-<region>: <uint> [KiB|MiB]
@@ -162,7 +162,7 @@ Implementation Details
 
 Drivers should use drm_show_fdinfo() in their `struct file_operations`, and
 implement &drm_driver.show_fdinfo if they wish to provide any stats which
-are not provided by drm_show_fdinfo().  But even driver specific stats should
+are analt provided by drm_show_fdinfo().  But even driver specific stats should
 be documented above and where possible, aligned with other drivers.
 
 Driver specific implementations

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Tom Herbert <tom@herbertland.com>
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -52,7 +52,7 @@
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
 
 struct tls_cipher_desc {
-	unsigned int nonce;
+	unsigned int analnce;
 	unsigned int iv;
 	unsigned int key;
 	unsigned int salt;
@@ -161,7 +161,7 @@ int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		   int flags, int *addr_len);
 bool tls_sw_sock_is_readable(struct sock *sk);
 ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
-			   struct pipe_inode_info *pipe,
+			   struct pipe_ianalde_info *pipe,
 			   size_t len, unsigned int flags);
 int tls_sw_read_sock(struct sock *sk, read_descriptor_t *desc,
 		     sk_read_actor_t read_actor);
@@ -239,7 +239,7 @@ static inline void tls_device_cleanup(void) {}
 static inline int
 tls_set_device_offload(struct sock *sk)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void tls_device_free_resources_tx(struct sock *sk) {}
@@ -247,7 +247,7 @@ static inline void tls_device_free_resources_tx(struct sock *sk) {}
 static inline int
 tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void tls_device_offload_cleanup_rx(struct sock *sk) {}
@@ -340,19 +340,19 @@ tls_fill_prepend(struct tls_context *ctx, char *buf, size_t plaintext_len,
 	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305) {
 		pkt_len += iv_size;
 
-		memcpy(buf + TLS_NONCE_OFFSET,
+		memcpy(buf + TLS_ANALNCE_OFFSET,
 		       ctx->tx.iv + prot->salt_size, iv_size);
 	}
 
-	/* we cover nonce explicit here as well, so buf should be of
-	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
+	/* we cover analnce explicit here as well, so buf should be of
+	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_ANALNCE_EXPLICIT_SIZE
 	 */
 	buf[0] = prot->version == TLS_1_3_VERSION ?
 		   TLS_RECORD_TYPE_DATA : record_type;
-	/* Note that VERSION must be TLS_1_2 for both TLS1.2 and TLS1.3 */
-	buf[1] = TLS_1_2_VERSION_MINOR;
+	/* Analte that VERSION must be TLS_1_2 for both TLS1.2 and TLS1.3 */
+	buf[1] = TLS_1_2_VERSION_MIANALR;
 	buf[2] = TLS_1_2_VERSION_MAJOR;
-	/* we can use IV for nonce explicit according to spec */
+	/* we can use IV for analnce explicit according to spec */
 	buf[3] = pkt_len >> 8;
 	buf[4] = pkt_len & 0xFF;
 }
@@ -371,7 +371,7 @@ void tls_make_aad(char *buf, size_t size, char *record_sequence,
 	buf[0] = prot->version == TLS_1_3_VERSION ?
 		  TLS_RECORD_TYPE_DATA : record_type;
 	buf[1] = TLS_1_2_VERSION_MAJOR;
-	buf[2] = TLS_1_2_VERSION_MINOR;
+	buf[2] = TLS_1_2_VERSION_MIANALR;
 	buf[3] = size >> 8;
 	buf[4] = size & 0xFF;
 }

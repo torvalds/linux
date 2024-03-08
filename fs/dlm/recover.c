@@ -24,18 +24,18 @@
 
 /*
  * Recovery waiting routines: these functions wait for a particular reply from
- * a remote node, or for the remote node to report a certain status.  They need
- * to abort if the lockspace is stopped indicating a node has failed (perhaps
+ * a remote analde, or for the remote analde to report a certain status.  They need
+ * to abort if the lockspace is stopped indicating a analde has failed (perhaps
  * the one being waited for).
  */
 
 /*
- * Wait until given function returns non-zero or lockspace is stopped
- * (LS_RECOVERY_STOP set due to failure of a node in ls_nodes).  When another
+ * Wait until given function returns analn-zero or lockspace is stopped
+ * (LS_RECOVERY_STOP set due to failure of a analde in ls_analdes).  When aanalther
  * function thinks it could have completed the waited-on task, they should wake
  * up ls_wait_general to get an immediate response rather than waiting for the
  * timeout.  This uses a timeout so it can check periodically if the wait
- * should abort due to node failure (which doesn't cause a wake_up).
+ * should abort due to analde failure (which doesn't cause a wake_up).
  * This should only be called by the dlm_recoverd thread.
  */
 
@@ -64,11 +64,11 @@ int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 }
 
 /*
- * An efficient way for all nodes to wait for all others to have a certain
- * status.  The node with the lowest nodeid polls all the others for their
- * status (wait_status_all) and all the others poll the node with the low id
- * for its accumulated result (wait_status_low).  When all nodes have set
- * status flag X, then status flag X_ALL will be set on the low nodeid.
+ * An efficient way for all analdes to wait for all others to have a certain
+ * status.  The analde with the lowest analdeid polls all the others for their
+ * status (wait_status_all) and all the others poll the analde with the low id
+ * for its accumulated result (wait_status_low).  When all analdes have set
+ * status flag X, then status flag X_ALL will be set on the low analdeid.
  */
 
 uint32_t dlm_recover_status(struct dlm_ls *ls)
@@ -99,7 +99,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
 	struct dlm_member *memb;
 	int error = 0, delay;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_analdes, list) {
 		delay = 0;
 		for (;;) {
 			if (dlm_recovery_stopped(ls)) {
@@ -107,7 +107,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status,
 				goto out;
 			}
 
-			error = dlm_rcom_status(ls, memb->nodeid, 0, seq);
+			error = dlm_rcom_status(ls, memb->analdeid, 0, seq);
 			if (error)
 				goto out;
 
@@ -129,7 +129,7 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
 			   uint32_t status_flags, uint64_t seq)
 {
 	struct dlm_rcom *rc = ls->ls_recover_buf;
-	int error = 0, delay = 0, nodeid = ls->ls_low_nodeid;
+	int error = 0, delay = 0, analdeid = ls->ls_low_analdeid;
 
 	for (;;) {
 		if (dlm_recovery_stopped(ls)) {
@@ -137,7 +137,7 @@ static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status,
 			goto out;
 		}
 
-		error = dlm_rcom_status(ls, nodeid, status_flags, seq);
+		error = dlm_rcom_status(ls, analdeid, status_flags, seq);
 		if (error)
 			break;
 
@@ -156,7 +156,7 @@ static int wait_status(struct dlm_ls *ls, uint32_t status, uint64_t seq)
 	uint32_t status_all = status << 1;
 	int error;
 
-	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
+	if (ls->ls_low_analdeid == dlm_our_analdeid()) {
 		error = wait_status_all(ls, status, 0, seq);
 		if (!error)
 			dlm_set_recover_status(ls, status_all);
@@ -174,13 +174,13 @@ int dlm_recover_members_wait(struct dlm_ls *ls, uint64_t seq)
 	int error, rv;
 	uint32_t gen;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_analdes, list) {
 		memb->slot = -1;
 		memb->generation = 0;
 	}
 
-	if (ls->ls_low_nodeid == dlm_our_nodeid()) {
-		error = wait_status_all(ls, DLM_RS_NODES, 1, seq);
+	if (ls->ls_low_analdeid == dlm_our_analdeid()) {
+		error = wait_status_all(ls, DLM_RS_ANALDES, 1, seq);
 		if (error)
 			goto out;
 
@@ -189,17 +189,17 @@ int dlm_recover_members_wait(struct dlm_ls *ls, uint64_t seq)
 		rv = dlm_slots_assign(ls, &num_slots, &slots_size, &slots, &gen);
 		if (!rv) {
 			spin_lock(&ls->ls_recover_lock);
-			_set_recover_status(ls, DLM_RS_NODES_ALL);
+			_set_recover_status(ls, DLM_RS_ANALDES_ALL);
 			ls->ls_num_slots = num_slots;
 			ls->ls_slots_size = slots_size;
 			ls->ls_slots = slots;
 			ls->ls_generation = gen;
 			spin_unlock(&ls->ls_recover_lock);
 		} else {
-			dlm_set_recover_status(ls, DLM_RS_NODES_ALL);
+			dlm_set_recover_status(ls, DLM_RS_ANALDES_ALL);
 		}
 	} else {
-		error = wait_status_low(ls, DLM_RS_NODES_ALL,
+		error = wait_status_low(ls, DLM_RS_ANALDES_ALL,
 					DLM_RSF_NEED_SLOTS, seq);
 		if (error)
 			goto out;
@@ -227,7 +227,7 @@ int dlm_recover_done_wait(struct dlm_ls *ls, uint64_t seq)
 
 /*
  * The recover_list contains all the rsb's for which we've requested the new
- * master nodeid.  As replies are returned from the resource directories the
+ * master analdeid.  As replies are returned from the resource directories the
  * rsb's are removed from the list.  When the list is empty we're done.
  *
  * The recover_list is later similarly used for all rsb's for which we've sent
@@ -310,13 +310,13 @@ static int recover_idr_add(struct dlm_rsb *r)
 	struct dlm_ls *ls = r->res_ls;
 	int rv;
 
-	idr_preload(GFP_NOFS);
+	idr_preload(GFP_ANALFS);
 	spin_lock(&ls->ls_recover_idr_lock);
 	if (r->res_id) {
 		rv = -1;
 		goto out_unlock;
 	}
-	rv = idr_alloc(&ls->ls_recover_idr, r, 1, 0, GFP_NOWAIT);
+	rv = idr_alloc(&ls->ls_recover_idr, r, 1, 0, GFP_ANALWAIT);
 	if (rv < 0)
 		goto out_unlock;
 
@@ -378,8 +378,8 @@ static void recover_idr_clear(struct dlm_ls *ls)
 }
 
 
-/* Master recovery: find new master node for rsb's that were
-   mastered on nodes that have been removed.
+/* Master recovery: find new master analde for rsb's that were
+   mastered on analdes that have been removed.
 
    dlm_recover_masters
    recover_master
@@ -395,17 +395,17 @@ static void recover_idr_clear(struct dlm_ls *ls)
 /*
  * Set the lock master for all LKBs in a lock queue
  * If we are the new master of the rsb, we may have received new
- * MSTCPY locks from other nodes already which we need to ignore
- * when setting the new nodeid.
+ * MSTCPY locks from other analdes already which we need to iganalre
+ * when setting the new analdeid.
  */
 
-static void set_lock_master(struct list_head *queue, int nodeid)
+static void set_lock_master(struct list_head *queue, int analdeid)
 {
 	struct dlm_lkb *lkb;
 
 	list_for_each_entry(lkb, queue, lkb_statequeue) {
 		if (!test_bit(DLM_IFL_MSTCPY_BIT, &lkb->lkb_iflags)) {
-			lkb->lkb_nodeid = nodeid;
+			lkb->lkb_analdeid = analdeid;
 			lkb->lkb_remid = 0;
 		}
 	}
@@ -413,13 +413,13 @@ static void set_lock_master(struct list_head *queue, int nodeid)
 
 static void set_master_lkbs(struct dlm_rsb *r)
 {
-	set_lock_master(&r->res_grantqueue, r->res_nodeid);
-	set_lock_master(&r->res_convertqueue, r->res_nodeid);
-	set_lock_master(&r->res_waitqueue, r->res_nodeid);
+	set_lock_master(&r->res_grantqueue, r->res_analdeid);
+	set_lock_master(&r->res_convertqueue, r->res_analdeid);
+	set_lock_master(&r->res_waitqueue, r->res_analdeid);
 }
 
 /*
- * Propagate the new master nodeid to locks
+ * Propagate the new master analdeid to locks
  * The NEW_MASTER flag tells dlm_recover_locks() which rsb's to consider.
  * The NEW_MASTER2 flag tells recover_lvb() and recover_grant() which
  * rsb's to consider.
@@ -436,44 +436,44 @@ static void set_new_master(struct dlm_rsb *r)
  * We do async lookups on rsb's that need new masters.  The rsb's
  * waiting for a lookup reply are kept on the recover_list.
  *
- * Another node recovering the master may have sent us a rcom lookup,
+ * Aanalther analde recovering the master may have sent us a rcom lookup,
  * and our dlm_master_lookup() set it as the new master, along with
- * NEW_MASTER so that we'll recover it here (this implies dir_nodeid
- * equals our_nodeid below).
+ * NEW_MASTER so that we'll recover it here (this implies dir_analdeid
+ * equals our_analdeid below).
  */
 
 static int recover_master(struct dlm_rsb *r, unsigned int *count, uint64_t seq)
 {
 	struct dlm_ls *ls = r->res_ls;
-	int our_nodeid, dir_nodeid;
+	int our_analdeid, dir_analdeid;
 	int is_removed = 0;
 	int error;
 
 	if (is_master(r))
 		return 0;
 
-	is_removed = dlm_is_removed(ls, r->res_nodeid);
+	is_removed = dlm_is_removed(ls, r->res_analdeid);
 
 	if (!is_removed && !rsb_flag(r, RSB_NEW_MASTER))
 		return 0;
 
-	our_nodeid = dlm_our_nodeid();
-	dir_nodeid = dlm_dir_nodeid(r);
+	our_analdeid = dlm_our_analdeid();
+	dir_analdeid = dlm_dir_analdeid(r);
 
-	if (dir_nodeid == our_nodeid) {
+	if (dir_analdeid == our_analdeid) {
 		if (is_removed) {
-			r->res_master_nodeid = our_nodeid;
-			r->res_nodeid = 0;
+			r->res_master_analdeid = our_analdeid;
+			r->res_analdeid = 0;
 		}
 
 		/* set master of lkbs to ourself when is_removed, or to
-		   another new master which we set along with NEW_MASTER
+		   aanalther new master which we set along with NEW_MASTER
 		   in dlm_master_lookup */
 		set_new_master(r);
 		error = 0;
 	} else {
 		recover_idr_add(r);
-		error = dlm_send_rcom_lookup(r, dir_nodeid, seq);
+		error = dlm_send_rcom_lookup(r, dir_analdeid, seq);
 	}
 
 	(*count)++;
@@ -483,29 +483,29 @@ static int recover_master(struct dlm_rsb *r, unsigned int *count, uint64_t seq)
 /*
  * All MSTCPY locks are purged and rebuilt, even if the master stayed the same.
  * This is necessary because recovery can be started, aborted and restarted,
- * causing the master nodeid to briefly change during the aborted recovery, and
+ * causing the master analdeid to briefly change during the aborted recovery, and
  * change back to the original value in the second recovery.  The MSTCPY locks
- * may or may not have been purged during the aborted recovery.  Another node
+ * may or may analt have been purged during the aborted recovery.  Aanalther analde
  * with an outstanding request in waiters list and a request reply saved in the
- * requestqueue, cannot know whether it should ignore the reply and resend the
+ * requestqueue, cananalt kanalw whether it should iganalre the reply and resend the
  * request, or accept the reply and complete the request.  It must do the
- * former if the remote node purged MSTCPY locks, and it must do the later if
- * the remote node did not.  This is solved by always purging MSTCPY locks, in
- * which case, the request reply would always be ignored and the request
+ * former if the remote analde purged MSTCPY locks, and it must do the later if
+ * the remote analde did analt.  This is solved by always purging MSTCPY locks, in
+ * which case, the request reply would always be iganalred and the request
  * resent.
  */
 
 static int recover_master_static(struct dlm_rsb *r, unsigned int *count)
 {
-	int dir_nodeid = dlm_dir_nodeid(r);
-	int new_master = dir_nodeid;
+	int dir_analdeid = dlm_dir_analdeid(r);
+	int new_master = dir_analdeid;
 
-	if (dir_nodeid == dlm_our_nodeid())
+	if (dir_analdeid == dlm_our_analdeid())
 		new_master = 0;
 
 	dlm_purge_mstcpy_locks(r);
-	r->res_master_nodeid = dir_nodeid;
-	r->res_nodeid = new_master;
+	r->res_master_analdeid = dir_analdeid;
+	r->res_analdeid = new_master;
 	set_new_master(r);
 	(*count)++;
 	return 0;
@@ -513,12 +513,12 @@ static int recover_master_static(struct dlm_rsb *r, unsigned int *count)
 
 /*
  * Go through local root resources and for each rsb which has a master which
- * has departed, get the new master nodeid from the directory.  The dir will
- * assign mastery to the first node to look up the new master.  That means
+ * has departed, get the new master analdeid from the directory.  The dir will
+ * assign mastery to the first analde to look up the new master.  That means
  * we'll discover in this lookup if we're the new master of any rsb's.
  *
- * We fire off all the dir lookup requests individually and asynchronously to
- * the correct dir node.
+ * We fire off all the dir lookup requests individually and asynchroanalusly to
+ * the correct dir analde.
  */
 
 int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
@@ -526,7 +526,7 @@ int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 	struct dlm_rsb *r;
 	unsigned int total = 0;
 	unsigned int count = 0;
-	int nodir = dlm_no_directory(ls);
+	int analdir = dlm_anal_directory(ls);
 	int error;
 
 	log_rinfo(ls, "dlm_recover_masters");
@@ -540,7 +540,7 @@ int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 		}
 
 		lock_rsb(r);
-		if (nodir)
+		if (analdir)
 			error = recover_master_static(r, &count);
 		else
 			error = recover_master(r, &count, seq);
@@ -567,25 +567,25 @@ int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 int dlm_recover_master_reply(struct dlm_ls *ls, const struct dlm_rcom *rc)
 {
 	struct dlm_rsb *r;
-	int ret_nodeid, new_master;
+	int ret_analdeid, new_master;
 
 	r = recover_idr_find(ls, le64_to_cpu(rc->rc_id));
 	if (!r) {
-		log_error(ls, "dlm_recover_master_reply no id %llx",
+		log_error(ls, "dlm_recover_master_reply anal id %llx",
 			  (unsigned long long)le64_to_cpu(rc->rc_id));
 		goto out;
 	}
 
-	ret_nodeid = le32_to_cpu(rc->rc_result);
+	ret_analdeid = le32_to_cpu(rc->rc_result);
 
-	if (ret_nodeid == dlm_our_nodeid())
+	if (ret_analdeid == dlm_our_analdeid())
 		new_master = 0;
 	else
-		new_master = ret_nodeid;
+		new_master = ret_analdeid;
 
 	lock_rsb(r);
-	r->res_master_nodeid = ret_nodeid;
-	r->res_nodeid = new_master;
+	r->res_master_analdeid = ret_analdeid;
+	r->res_analdeid = new_master;
 	set_new_master(r);
 	unlock_rsb(r);
 	recover_idr_del(r);
@@ -714,13 +714,13 @@ void dlm_recovered_lock(struct dlm_rsb *r)
 
 /*
  * The lvb needs to be recovered on all master rsb's.  This includes setting
- * the VALNOTVALID flag if necessary, and determining the correct lvb contents
+ * the VALANALTVALID flag if necessary, and determining the correct lvb contents
  * based on the lvb's of the locks held on the rsb.
  *
- * RSB_VALNOTVALID is set in two cases:
+ * RSB_VALANALTVALID is set in two cases:
  *
- * 1. we are master, but not new, and we purged an EX/PW lock held by a
- * failed node (in dlm_recover_purge which set RSB_RECOVER_LVB_INVAL)
+ * 1. we are master, but analt new, and we purged an EX/PW lock held by a
+ * failed analde (in dlm_recover_purge which set RSB_RECOVER_LVB_INVAL)
  *
  * 2. we are a new master, and there are only NL/CR locks left.
  * (We could probably improve this by only invaliding in this way when
@@ -728,7 +728,7 @@ void dlm_recovered_lock(struct dlm_rsb *r)
  *
  * The LVB contents are only considered for changing when this is a new master
  * of the rsb (NEW_MASTER2).  Then, the rsb's lvb is taken from any lkb with
- * mode > CR.  If no lkb's exist with mode above CR, the lvb contents are taken
+ * mode > CR.  If anal lkb's exist with mode above CR, the lvb contents are taken
  * from the lkb with the largest lvb sequence number.
  */
 
@@ -742,14 +742,14 @@ static void recover_lvb(struct dlm_rsb *r)
 	if (!rsb_flag(r, RSB_NEW_MASTER2) &&
 	    rsb_flag(r, RSB_RECOVER_LVB_INVAL)) {
 		/* case 1 above */
-		rsb_set_flag(r, RSB_VALNOTVALID);
+		rsb_set_flag(r, RSB_VALANALTVALID);
 		return;
 	}
 
 	if (!rsb_flag(r, RSB_NEW_MASTER2))
 		return;
 
-	/* we are the new master, so figure out if VALNOTVALID should
+	/* we are the new master, so figure out if VALANALTVALID should
 	   be set, and set the rsb lvb from the best lkb available. */
 
 	list_for_each_entry(iter, &r->res_grantqueue, lkb_statequeue) {
@@ -792,7 +792,7 @@ static void recover_lvb(struct dlm_rsb *r)
 
 	/* lvb is invalidated if only NL/CR locks remain */
 	if (!big_lkb)
-		rsb_set_flag(r, RSB_VALNOTVALID);
+		rsb_set_flag(r, RSB_VALANALTVALID);
 
 	if (!r->res_lvbptr) {
 		r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
@@ -848,7 +848,7 @@ static void recover_conversion(struct dlm_rsb *r)
 
 /* We've become the new master for this rsb and waiting/converting locks may
    need to be granted in dlm_recover_grant() due to locks that may have
-   existed from a removed node. */
+   existed from a removed analde. */
 
 static void recover_grant(struct dlm_rsb *r)
 {
@@ -869,14 +869,14 @@ void dlm_recover_rsbs(struct dlm_ls *ls)
 				recover_conversion(r);
 
 			/* recover lvb before granting locks so the updated
-			   lvb/VALNOTVALID is presented in the completion */
+			   lvb/VALANALTVALID is presented in the completion */
 			recover_lvb(r);
 
 			if (rsb_flag(r, RSB_NEW_MASTER2))
 				recover_grant(r);
 			count++;
 		} else {
-			rsb_clear_flag(r, RSB_VALNOTVALID);
+			rsb_clear_flag(r, RSB_VALANALTVALID);
 		}
 		rsb_clear_flag(r, RSB_RECOVER_CONVERT);
 		rsb_clear_flag(r, RSB_RECOVER_LVB_INVAL);
@@ -893,13 +893,13 @@ void dlm_recover_rsbs(struct dlm_ls *ls)
 
 int dlm_create_root_list(struct dlm_ls *ls)
 {
-	struct rb_node *n;
+	struct rb_analde *n;
 	struct dlm_rsb *r;
 	int i, error = 0;
 
 	down_write(&ls->ls_root_sem);
 	if (!list_empty(&ls->ls_root_list)) {
-		log_error(ls, "root list not empty");
+		log_error(ls, "root list analt empty");
 		error = -EINVAL;
 		goto out;
 	}
@@ -907,13 +907,13 @@ int dlm_create_root_list(struct dlm_ls *ls)
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		spin_lock(&ls->ls_rsbtbl[i].lock);
 		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			r = rb_entry(n, struct dlm_rsb, res_hashanalde);
 			list_add(&r->res_root_list, &ls->ls_root_list);
 			dlm_hold_rsb(r);
 		}
 
 		if (!RB_EMPTY_ROOT(&ls->ls_rsbtbl[i].toss))
-			log_error(ls, "dlm_create_root_list toss not empty");
+			log_error(ls, "dlm_create_root_list toss analt empty");
 		spin_unlock(&ls->ls_rsbtbl[i].lock);
 	}
  out:
@@ -935,7 +935,7 @@ void dlm_release_root_list(struct dlm_ls *ls)
 
 void dlm_clear_toss(struct dlm_ls *ls)
 {
-	struct rb_node *n, *next;
+	struct rb_analde *n, *next;
 	struct dlm_rsb *r;
 	unsigned int count = 0;
 	int i;
@@ -944,7 +944,7 @@ void dlm_clear_toss(struct dlm_ls *ls)
 		spin_lock(&ls->ls_rsbtbl[i].lock);
 		for (n = rb_first(&ls->ls_rsbtbl[i].toss); n; n = next) {
 			next = rb_next(n);
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			r = rb_entry(n, struct dlm_rsb, res_hashanalde);
 			rb_erase(n, &ls->ls_rsbtbl[i].toss);
 			dlm_free_rsb(r);
 			count++;

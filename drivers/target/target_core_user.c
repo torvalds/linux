@@ -42,19 +42,19 @@
  * It uses the UIO framework to do a lot of the device-creation and
  * introspection work for us.
  *
- * See the .h file for how the ring is laid out. Note that while the
+ * See the .h file for how the ring is laid out. Analte that while the
  * command ring is defined, the particulars of the data area are
- * not. Offset values in the command entry point to other locations
+ * analt. Offset values in the command entry point to other locations
  * internal to the mmap-ed area. There is separate space outside the
  * command ring for data buffers. This leaves maximum flexibility for
  * moving buffer allocations, or even page flipping or other
  * allocation techniques, without altering the command ring layout.
  *
  * SECURITY:
- * The user process must be assumed to be malicious. There's no way to
+ * The user process must be assumed to be malicious. There's anal way to
  * prevent it breaking the command ring protocol if it wants, but in
  * order to prevent other issues we must only ever read *data* from
- * the shared memory area, not offsets or sizes. This applies to
+ * the shared memory area, analt offsets or sizes. This applies to
  * command ring entries as well as the mailbox. Extra code needed for
  * this may have a 'UAM' comment.
  */
@@ -109,7 +109,7 @@ struct tcmu_nl_cmd {
 };
 
 struct tcmu_dev {
-	struct list_head node;
+	struct list_head analde;
 	struct kref kref;
 
 	struct se_device se_dev;
@@ -121,13 +121,13 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_OPEN 0
 #define TCMU_DEV_BIT_BROKEN 1
 #define TCMU_DEV_BIT_BLOCKED 2
-#define TCMU_DEV_BIT_TMR_NOTIFY 3
+#define TCMU_DEV_BIT_TMR_ANALTIFY 3
 #define TCMU_DEV_BIT_PLUGGED 4
 	unsigned long flags;
 
 	struct uio_info uio_info;
 
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	uint64_t dev_size;
 
@@ -305,7 +305,7 @@ static int tcmu_fail_netlink_cmd(struct tcmu_nl_cmd *nl_cmd)
 	struct tcmu_dev *udev = nl_cmd->udev;
 
 	if (!tcmu_netlink_blocked) {
-		pr_err("Could not reset device's netlink interface. Netlink is not blocked.\n");
+		pr_err("Could analt reset device's netlink interface. Netlink is analt blocked.\n");
 		return -EBUSY;
 	}
 
@@ -363,7 +363,7 @@ static const struct genl_multicast_group tcmu_mcgrps[] = {
 
 static struct nla_policy tcmu_attr_policy[TCMU_ATTR_MAX+1] = {
 	[TCMU_ATTR_DEVICE]	= { .type = NLA_STRING },
-	[TCMU_ATTR_MINOR]	= { .type = NLA_U32 },
+	[TCMU_ATTR_MIANALR]	= { .type = NLA_U32 },
 	[TCMU_ATTR_CMD_STATUS]	= { .type = NLA_S32 },
 	[TCMU_ATTR_DEVICE_ID]	= { .type = NLA_U32 },
 	[TCMU_ATTR_SUPP_KERN_CMD_REPLY] = { .type = NLA_U8 },
@@ -377,7 +377,7 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 
 	if (!info->attrs[TCMU_ATTR_CMD_STATUS] ||
 	    !info->attrs[TCMU_ATTR_DEVICE_ID]) {
-		printk(KERN_ERR "TCMU_ATTR_CMD_STATUS or TCMU_ATTR_DEVICE_ID not set, doing nothing\n");
+		printk(KERN_ERR "TCMU_ATTR_CMD_STATUS or TCMU_ATTR_DEVICE_ID analt set, doing analthing\n");
 		return -EINVAL;
         }
 
@@ -393,9 +393,9 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 	}
 
 	if (!udev) {
-		pr_err("tcmu nl cmd %u/%d completion could not find device with dev id %u.\n",
+		pr_err("tcmu nl cmd %u/%d completion could analt find device with dev id %u.\n",
 		       completed_cmd, rc, dev_id);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto unlock;
 	}
 	list_del(&nl_cmd->nl_list);
@@ -526,11 +526,11 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 
 	for (i = cnt; i < page_cnt; i++) {
 		/* try to get new zeroed page from the mm */
-		page = alloc_page(GFP_NOIO | __GFP_ZERO);
+		page = alloc_page(GFP_ANALIO | __GFP_ZERO);
 		if (!page)
 			break;
 
-		if (xa_store(&udev->data_pages, dpi + i, page, GFP_NOIO)) {
+		if (xa_store(&udev->data_pages, dpi + i, page, GFP_ANALIO)) {
 			__free_page(page);
 			break;
 		}
@@ -554,7 +554,7 @@ static inline int tcmu_get_empty_block(struct tcmu_dev *udev,
 static int tcmu_get_empty_blocks(struct tcmu_dev *udev,
 				 struct tcmu_cmd *tcmu_cmd, int length)
 {
-	/* start value of dbi + 1 must not be a valid dbi */
+	/* start value of dbi + 1 must analt be a valid dbi */
 	int dbi = -2;
 	int blk_data_len, iov_cnt = 0;
 	uint32_t blk_size = udev->data_blk_size;
@@ -599,7 +599,7 @@ static int new_block_to_iov(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 	/* Get the next dbi */
 	int dbi = tcmu_cmd_get_dbi(cmd);
 
-	/* Do not add more than udev->data_blk_size to iov */
+	/* Do analt add more than udev->data_blk_size to iov */
 	len = min_t(int,  len, udev->data_blk_size);
 
 	/*
@@ -607,7 +607,7 @@ static int new_block_to_iov(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 	 * when the blocks are all next to each other.
 	 */
 	if (dbi != prev_dbi + 1) {
-		/* dbi is not next to previous dbi, so start new iov */
+		/* dbi is analt next to previous dbi, so start new iov */
 		if (prev_dbi >= 0)
 			(*iov)++;
 		/* write offset relative to mb_addr */
@@ -622,7 +622,7 @@ static int new_block_to_iov(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 static void tcmu_setup_iovs(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 			    struct iovec **iov, int data_length)
 {
-	/* start value of dbi + 1 must not be a valid dbi */
+	/* start value of dbi + 1 must analt be a valid dbi */
 	int dbi = -2;
 
 	/* We prepare the IOVs for DMA_FROM_DEVICE transfer direction */
@@ -636,7 +636,7 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 	struct tcmu_cmd *tcmu_cmd;
 
-	tcmu_cmd = kmem_cache_zalloc(tcmu_cmd_cache, GFP_NOIO);
+	tcmu_cmd = kmem_cache_zalloc(tcmu_cmd_cache, GFP_ANALIO);
 	if (!tcmu_cmd)
 		return NULL;
 
@@ -646,7 +646,7 @@ static struct tcmu_cmd *tcmu_alloc_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd_set_block_cnts(tcmu_cmd);
 	tcmu_cmd->dbi = kcalloc(tcmu_cmd->dbi_cnt, sizeof(uint32_t),
-				GFP_NOIO);
+				GFP_ANALIO);
 	if (!tcmu_cmd->dbi) {
 		kmem_cache_free(tcmu_cmd_cache, tcmu_cmd);
 		return NULL;
@@ -704,7 +704,7 @@ static inline void tcmu_copy_data(struct tcmu_dev *udev,
 				  struct scatterlist *sg, unsigned int sg_nents,
 				  struct iovec **iov, size_t data_len)
 {
-	/* start value of dbi + 1 must not be a valid dbi */
+	/* start value of dbi + 1 must analt be a valid dbi */
 	int dbi = -2;
 	size_t page_remaining, cp_len;
 	int page_cnt, page_inx, dpi;
@@ -828,7 +828,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size)
 	cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
 
 	/*
-	 * If cmd end-of-ring space is too small then we need space for a NOP plus
+	 * If cmd end-of-ring space is too small then we need space for a ANALP plus
 	 * original cmd - cmds are internally contiguous.
 	 */
 	if (head_to_end(cmd_head, udev->cmdr_size) >= cmd_size)
@@ -838,7 +838,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size)
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
-		pr_debug("no cmd space: %u %u %u\n", cmd_head,
+		pr_debug("anal cmd space: %u %u %u\n", cmd_head,
 		       udev->cmdr_last_cleaned, udev->cmdr_size);
 		return false;
 	}
@@ -847,7 +847,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size)
 
 /*
  * We have to allocate data buffers before we can queue a command.
- * Returns -1 on error (not enough space) or number of needed iovs on success
+ * Returns -1 on error (analt eanalugh space) or number of needed iovs on success
  *
  * Called with ring lock held.
  */
@@ -866,7 +866,7 @@ static int tcmu_alloc_data_space(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 				(udev->max_blocks - udev->dbi_thresh) + space;
 
 		if (blocks_left < cmd->dbi_cnt) {
-			pr_debug("no data space: only %lu available, but ask for %u\n",
+			pr_debug("anal data space: only %lu available, but ask for %u\n",
 					blocks_left * udev->data_blk_size,
 					cmd->dbi_cnt * udev->data_blk_size);
 			return -1;
@@ -932,8 +932,8 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 	unsigned int tmo;
 
 	/*
-	 * For backwards compat if qfull_time_out is not set use
-	 * cmd_time_out and if that's not set use the default time out.
+	 * For backwards compat if qfull_time_out is analt set use
+	 * cmd_time_out and if that's analt set use the default time out.
 	 */
 	if (!udev->qfull_time_out)
 		return -ETIMEDOUT;
@@ -965,7 +965,7 @@ static uint32_t ring_insert_padding(struct tcmu_dev *udev, size_t cmd_size)
 		hdr = udev->cmdr + cmd_head;
 		tcmu_hdr_set_op(&hdr->len_op, TCMU_OP_PAD);
 		tcmu_hdr_set_len(&hdr->len_op, pad_size);
-		hdr->cmd_id = 0; /* not used for PAD */
+		hdr->cmd_id = 0; /* analt used for PAD */
 		hdr->kflags = 0;
 		hdr->uflags = 0;
 		tcmu_flush_dcache_range(hdr, sizeof(*hdr));
@@ -986,7 +986,7 @@ static void tcmu_unplug_device(struct se_dev_plug *se_plug)
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
 
 	clear_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags);
-	uio_event_notify(&udev->uio_info);
+	uio_event_analtify(&udev->uio_info);
 }
 
 static struct se_dev_plug *tcmu_plug_device(struct se_device *se_dev)
@@ -1005,7 +1005,7 @@ static struct se_dev_plug *tcmu_plug_device(struct se_device *se_dev)
  * @scsi_err: TCM error code if failure (-1) returned.
  *
  * Returns:
- * -1 we cannot queue internally or to the ring.
+ * -1 we cananalt queue internally or to the ring.
  *  0 success
  *  1 internally queued to wait for ring memory to free.
  */
@@ -1024,7 +1024,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	/* size of data buffer needed */
 	size_t data_length = (size_t)tcmu_cmd->dbi_cnt * blk_size;
 
-	*scsi_err = TCM_NO_SENSE;
+	*scsi_err = TCM_ANAL_SENSE;
 
 	if (test_bit(TCMU_DEV_BIT_BLOCKED, &udev->flags)) {
 		*scsi_err = TCM_LUN_BUSY;
@@ -1073,8 +1073,8 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 		goto free_and_queue;
 
 	if (xa_alloc(&udev->commands, &cmd_id, tcmu_cmd, XA_LIMIT(1, 0xffff),
-		     GFP_NOWAIT) < 0) {
-		pr_err("tcmu: Could not allocate cmd id.\n");
+		     GFP_ANALWAIT) < 0) {
+		pr_err("tcmu: Could analt allocate cmd id.\n");
 
 		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
 		*scsi_err = TCM_OUT_OF_RESOURCES;
@@ -1116,7 +1116,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 
 	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
 
-	/* All offsets relative to mb_addr, not start of entry! */
+	/* All offsets relative to mb_addr, analt start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
 	memcpy((void *) mb + cdb_off, se_cmd->t_task_cdb, scsi_command_size(se_cmd->t_task_cdb));
 	entry->req.cdb_off = cdb_off;
@@ -1128,7 +1128,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->inflight_queue);
 
 	if (!test_bit(TCMU_DEV_BIT_PLUGGED, &udev->flags))
-		uio_event_notify(&udev->uio_info);
+		uio_event_analtify(&udev->uio_info);
 
 	return 0;
 
@@ -1191,7 +1191,7 @@ queue_tmr_ring(struct tcmu_dev *udev, struct tcmu_tmr *tmr)
 	UPDATE_HEAD(mb->cmd_head, cmd_size, udev->cmdr_size);
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
-	uio_event_notify(&udev->uio_info);
+	uio_event_analtify(&udev->uio_info);
 
 out_free:
 	kfree(tmr);
@@ -1247,12 +1247,12 @@ tcmu_tmr_type(enum tcm_tmreq_table tmf)
 	case TMR_TARGET_WARM_RESET:	return TCMU_TMR_TARGET_WARM_RESET;
 	case TMR_TARGET_COLD_RESET:	return TCMU_TMR_TARGET_COLD_RESET;
 	case TMR_LUN_RESET_PRO:		return TCMU_TMR_LUN_RESET_PRO;
-	default:			return TCMU_TMR_UNKNOWN;
+	default:			return TCMU_TMR_UNKANALWN;
 	}
 }
 
 static void
-tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
+tcmu_tmr_analtify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 		struct list_head *cmd_list)
 {
 	int i = 0, cmd_cnt = 0;
@@ -1270,7 +1270,7 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 		if (!se_cmd->priv)
 			continue;
 		cmd = se_cmd->priv;
-		/* Commands on qfull queue have no id yet */
+		/* Commands on qfull queue have anal id yet */
 		if (cmd->cmd_id) {
 			cmd_cnt++;
 			continue;
@@ -1287,13 +1287,13 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 	if (unqueued)
 		tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
 
-	if (!test_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags))
+	if (!test_bit(TCMU_DEV_BIT_TMR_ANALTIFY, &udev->flags))
 		goto unlock;
 
 	pr_debug("TMR event %d on dev %s, aborted cmds %d, afflicted cmd_ids %d\n",
 		 tcmu_tmr_type(tmf), udev->name, i, cmd_cnt);
 
-	tmr = kmalloc(struct_size(tmr, tmr_cmd_ids, cmd_cnt), GFP_NOIO);
+	tmr = kmalloc(struct_size(tmr, tmr_cmd_ids, cmd_cnt), GFP_ANALIO);
 	if (!tmr)
 		goto unlock;
 
@@ -1346,8 +1346,8 @@ static bool tcmu_handle_completion(struct tcmu_cmd *cmd,
 
 	tcmu_cmd_reset_dbi_cur(cmd);
 
-	if (entry->hdr.uflags & TCMU_UFLAG_UNKNOWN_OP) {
-		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
+	if (entry->hdr.uflags & TCMU_UFLAG_UNKANALWN_OP) {
+		pr_warn("TCMU: Userspace set UNKANALWN_OP flag on se_cmd %p\n",
 			cmd->se_cmd);
 		entry->rsp.scsi_status = SAM_STAT_CHECK_CONDITION;
 		goto done;
@@ -1366,7 +1366,7 @@ static bool tcmu_handle_completion(struct tcmu_cmd *cmd,
 		if (!read_len_valid )
 			goto done;
 		else
-			se_cmd->se_cmd_flags |= SCF_TREAT_READ_AS_NORMAL;
+			se_cmd->se_cmd_flags |= SCF_TREAT_READ_AS_ANALRMAL;
 	}
 	if (se_cmd->se_cmd_flags & SCF_BIDI) {
 		/* Get Data-In buffer before clean up */
@@ -1375,7 +1375,7 @@ static bool tcmu_handle_completion(struct tcmu_cmd *cmd,
 		gather_data_area(udev, cmd, false, read_len);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
 		/* TODO: */
-	} else if (se_cmd->data_direction != DMA_NONE) {
+	} else if (se_cmd->data_direction != DMA_ANALNE) {
 		pr_warn("TCMU: data direction was %d!\n",
 			se_cmd->data_direction);
 	}
@@ -1447,7 +1447,7 @@ static bool tcmu_handle_completions(struct tcmu_dev *udev)
 	bool free_space = false;
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags)) {
-		pr_err("ring broken, not handling completions\n");
+		pr_err("ring broken, analt handling completions\n");
 		return false;
 	}
 
@@ -1485,7 +1485,7 @@ static bool tcmu_handle_completions(struct tcmu_dev *udev)
 		else
 			cmd = xa_erase(&udev->commands, entry->hdr.cmd_id);
 		if (!cmd) {
-			pr_err("cmd_id %u not found, ring is broken\n",
+			pr_err("cmd_id %u analt found, ring is broken\n",
 			       entry->hdr.cmd_id);
 			set_bit(TCMU_DEV_BIT_BROKEN, &udev->flags);
 			return false;
@@ -1504,7 +1504,7 @@ static bool tcmu_handle_completions(struct tcmu_dev *udev)
 	if (atomic_read(&global_page_count) > tcmu_global_max_pages &&
 	    xa_empty(&udev->commands) && list_empty(&udev->qfull_queue)) {
 		/*
-		 * Allocated blocks exceeded global block limit, currently no
+		 * Allocated blocks exceeded global block limit, currently anal
 		 * more pending or waiting commands so try to reclaim blocks.
 		 */
 		schedule_delayed_work(&tcmu_unmap_work, 0);
@@ -1584,7 +1584,7 @@ static int tcmu_attach_hba(struct se_hba *hba, u32 host_id)
 
 	tcmu_hba = kzalloc(sizeof(struct tcmu_hba), GFP_KERNEL);
 	if (!tcmu_hba)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcmu_hba->host_id = host_id;
 	hba->hba_ptr = tcmu_hba;
@@ -1624,7 +1624,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 
 	mutex_init(&udev->cmdr_lock);
 
-	INIT_LIST_HEAD(&udev->node);
+	INIT_LIST_HEAD(&udev->analde);
 	INIT_LIST_HEAD(&udev->timedout_entry);
 	INIT_LIST_HEAD(&udev->qfull_queue);
 	INIT_LIST_HEAD(&udev->tmr_queue);
@@ -1676,10 +1676,10 @@ static u32 tcmu_blocks_release(struct tcmu_dev *udev, unsigned long first,
 		 * unmap_mapping_range() is called before page faults on these
 		 * pages have completed; a valid but stale map is created.
 		 *
-		 * If another command subsequently runs and needs to extend
+		 * If aanalther command subsequently runs and needs to extend
 		 * dbi_thresh, it may reuse the slot corresponding to the
 		 * previous page in data_bitmap. Though we will allocate a new
-		 * page for the slot in data_area, no page fault will happen
+		 * page for the slot in data_area, anal page fault will happen
 		 * because we have a valid map. Therefore the command's data
 		 * will be lost.
 		 *
@@ -1769,7 +1769,7 @@ static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
 
 		if (fail) {
 			/*
-			 * We were not able to even start the command, so
+			 * We were analt able to even start the command, so
 			 * fail with busy to allow a retry in case runner
 			 * was only temporarily down. If the device is being
 			 * removed then LIO core will do the right thing and
@@ -1786,7 +1786,7 @@ static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
 			pr_debug("cmd %p on dev %s failed with %u\n",
 				 tcmu_cmd, udev->name, scsi_ret);
 			/*
-			 * Ignore scsi_ret for now. target_complete_cmd
+			 * Iganalre scsi_ret for analw. target_complete_cmd
 			 * drops it.
 			 */
 			tcmu_cmd->se_cmd->priv = NULL;
@@ -1850,7 +1850,7 @@ static struct page *tcmu_try_get_data_page(struct tcmu_dev *udev, uint32_t dpi)
 	}
 
 	/*
-	 * Userspace messed up and passed in a address not in the
+	 * Userspace messed up and passed in a address analt in the
 	 * data iov passed to it.
 	 */
 	pr_err("Invalid addr to data page mapping (dpi %u) on device %s\n",
@@ -1942,22 +1942,22 @@ static int tcmu_mmap(struct uio_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int tcmu_open(struct uio_info *info, struct inode *inode)
+static int tcmu_open(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
 
-	/* O_EXCL not supported for char devs, so fake it? */
+	/* O_EXCL analt supported for char devs, so fake it? */
 	if (test_and_set_bit(TCMU_DEV_BIT_OPEN, &udev->flags))
 		return -EBUSY;
 
-	udev->inode = inode;
+	udev->ianalde = ianalde;
 
 	pr_debug("open\n");
 
 	return 0;
 }
 
-static int tcmu_release(struct uio_info *info, struct inode *inode)
+static int tcmu_release(struct uio_info *info, struct ianalde *ianalde)
 {
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
 	struct tcmu_cmd *cmd;
@@ -1967,10 +1967,10 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 	mutex_lock(&udev->cmdr_lock);
 
 	xa_for_each(&udev->commands, i, cmd) {
-		/* Cmds with KEEP_BUF set are no longer on the ring, but
+		/* Cmds with KEEP_BUF set are anal longer on the ring, but
 		 * userspace still holds the data buffer. If userspace closes
 		 * we implicitly free these cmds and buffers, since after new
-		 * open the (new ?) userspace cannot find the cmd in the ring
+		 * open the (new ?) userspace cananalt find the cmd in the ring
 		 * and thus never will release the buffer by writing cmd_id to
 		 * free_kept_buf action attribute.
 		 */
@@ -1985,7 +1985,7 @@ static int tcmu_release(struct uio_info *info, struct inode *inode)
 		tcmu_free_cmd(cmd);
 	}
 	/*
-	 * We only freed data space, not ring space. Therefore we dont call
+	 * We only freed data space, analt ring space. Therefore we dont call
 	 * run_tmr_queue, but call run_qfull_queue if tmr_list is empty.
 	 */
 	if (freed && list_empty(&udev->tmr_queue))
@@ -2084,7 +2084,7 @@ static int tcmu_netlink_event_init(struct tcmu_dev *udev,
 {
 	struct sk_buff *skb;
 	void *msg_header;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -2098,7 +2098,7 @@ static int tcmu_netlink_event_init(struct tcmu_dev *udev,
 	if (ret < 0)
 		goto free_skb;
 
-	ret = nla_put_u32(skb, TCMU_ATTR_MINOR, udev->uio_info.uio_dev->minor);
+	ret = nla_put_u32(skb, TCMU_ATTR_MIANALR, udev->uio_info.uio_dev->mianalr);
 	if (ret < 0)
 		goto free_skb;
 
@@ -2132,7 +2132,7 @@ static int tcmu_netlink_event_send(struct tcmu_dev *udev,
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
 				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
 
-	/* Wait during an add as the listener may not be up yet */
+	/* Wait during an add as the listener may analt be up yet */
 	if (ret == 0 ||
 	   (ret == -ESRCH && cmd == TCMU_CMD_ADDED_DEVICE))
 		return tcmu_wait_genl_cmd_reply(udev);
@@ -2185,7 +2185,7 @@ static int tcmu_update_uio_info(struct tcmu_dev *udev)
 		str = kasprintf(GFP_KERNEL, "tcm-user/%u/%s", hba->host_id,
 				udev->name);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* If the old string exists, free it */
 	kfree(info->name);
@@ -2212,13 +2212,13 @@ static int tcmu_configure_device(struct se_device *dev)
 	udev->data_bitmap = bitmap_zalloc(udev->max_blocks, GFP_KERNEL);
 	mutex_unlock(&udev->cmdr_lock);
 	if (!udev->data_bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_bitmap_alloc;
 	}
 
 	mb = vzalloc(udev->cmdr_size + CMDR_OFF);
 	if (!mb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vzalloc;
 	}
 
@@ -2248,7 +2248,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	info->mem[0].name = "tcm-user command & data buffer";
 	info->mem[0].addr = (phys_addr_t)(uintptr_t)udev->mb_addr;
 	info->mem[0].size = data_size + udev->cmdr_size + CMDR_OFF;
-	info->mem[0].memtype = UIO_MEM_NONE;
+	info->mem[0].memtype = UIO_MEM_ANALNE;
 
 	info->irqcontrol = tcmu_irqcontrol;
 	info->irq = UIO_IRQ_CUSTOM;
@@ -2288,7 +2288,7 @@ static int tcmu_configure_device(struct se_device *dev)
 		goto err_netlink;
 
 	mutex_lock(&root_udev_mutex);
-	list_add(&udev->node, &root_udev);
+	list_add(&udev->analde, &root_udev);
 	mutex_unlock(&root_udev_mutex);
 
 	return 0;
@@ -2325,7 +2325,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 	del_timer_sync(&udev->qfull_timer);
 
 	mutex_lock(&root_udev_mutex);
-	list_del(&udev->node);
+	list_del(&udev->analde);
 	mutex_unlock(&root_udev_mutex);
 
 	tcmu_send_dev_remove_event(udev);
@@ -2383,7 +2383,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 			cmd->se_cmd->priv = NULL;
 			if (err_level == 1) {
 				/*
-				 * Userspace was not able to start the
+				 * Userspace was analt able to start the
 				 * command or it is retryable.
 				 */
 				target_complete_cmd(cmd->se_cmd, SAM_STAT_BUSY);
@@ -2412,9 +2412,9 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 
 	/*
 	 * ring is empty and qfull queue never contains aborted commands.
-	 * So TMRs in tmr queue do not contain relevant cmd_ids.
+	 * So TMRs in tmr queue do analt contain relevant cmd_ids.
 	 * After a ring reset userspace should do a fresh start, so
-	 * even LUN RESET message is no longer relevant.
+	 * even LUN RESET message is anal longer relevant.
 	 * Therefore remove all TMRs from qfull queue
 	 */
 	tcmu_remove_all_queued_tmr(udev);
@@ -2490,7 +2490,7 @@ static int tcmu_set_max_blocks_param(struct tcmu_dev *udev, substring_t *arg)
 
 	mutex_lock(&udev->cmdr_lock);
 	if (udev->data_bitmap) {
-		pr_err("Cannot set max_data_area_mb after it has been enabled.\n");
+		pr_err("Cananalt set max_data_area_mb after it has been enabled.\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -2523,7 +2523,7 @@ static int tcmu_set_data_pages_per_blk(struct tcmu_dev *udev, substring_t *arg)
 
 	mutex_lock(&udev->cmdr_lock);
 	if (udev->data_bitmap) {
-		pr_err("Cannot set data_pages_per_blk after it has been enabled.\n");
+		pr_err("Cananalt set data_pages_per_blk after it has been enabled.\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -2554,7 +2554,7 @@ static int tcmu_set_cmd_ring_size(struct tcmu_dev *udev, substring_t *arg)
 
 	mutex_lock(&udev->cmdr_lock);
 	if (udev->data_bitmap) {
-		pr_err("Cannot set cmd_ring_size_mb after it has been enabled.\n");
+		pr_err("Cananalt set cmd_ring_size_mb after it has been enabled.\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -2581,7 +2581,7 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	orig = opts;
 
@@ -2971,17 +2971,17 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 }
 CONFIGFS_ATTR(tcmu_, emulate_write_cache);
 
-static ssize_t tcmu_tmr_notification_show(struct config_item *item, char *page)
+static ssize_t tcmu_tmr_analtification_show(struct config_item *item, char *page)
 {
 	struct se_dev_attrib *da = container_of(to_config_group(item),
 					struct se_dev_attrib, da_group);
 	struct tcmu_dev *udev = TCMU_DEV(da->da_dev);
 
 	return snprintf(page, PAGE_SIZE, "%i\n",
-			test_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags));
+			test_bit(TCMU_DEV_BIT_TMR_ANALTIFY, &udev->flags));
 }
 
-static ssize_t tcmu_tmr_notification_store(struct config_item *item,
+static ssize_t tcmu_tmr_analtification_store(struct config_item *item,
 					   const char *page, size_t count)
 {
 	struct se_dev_attrib *da = container_of(to_config_group(item),
@@ -2997,12 +2997,12 @@ static ssize_t tcmu_tmr_notification_store(struct config_item *item,
 		return -EINVAL;
 
 	if (val)
-		set_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
+		set_bit(TCMU_DEV_BIT_TMR_ANALTIFY, &udev->flags);
 	else
-		clear_bit(TCMU_DEV_BIT_TMR_NOTIFY, &udev->flags);
+		clear_bit(TCMU_DEV_BIT_TMR_ANALTIFY, &udev->flags);
 	return count;
 }
-CONFIGFS_ATTR(tcmu_, tmr_notification);
+CONFIGFS_ATTR(tcmu_, tmr_analtification);
 
 static ssize_t tcmu_block_dev_show(struct config_item *item, char *page)
 {
@@ -3028,7 +3028,7 @@ static ssize_t tcmu_block_dev_store(struct config_item *item, const char *page,
 	int ret;
 
 	if (!target_dev_configured(&udev->se_dev)) {
-		pr_err("Device is not configured.\n");
+		pr_err("Device is analt configured.\n");
 		return -EINVAL;
 	}
 
@@ -3060,7 +3060,7 @@ static ssize_t tcmu_reset_ring_store(struct config_item *item, const char *page,
 	int ret;
 
 	if (!target_dev_configured(&udev->se_dev)) {
-		pr_err("Device is not configured.\n");
+		pr_err("Device is analt configured.\n");
 		return -EINVAL;
 	}
 
@@ -3090,7 +3090,7 @@ static ssize_t tcmu_free_kept_buf_store(struct config_item *item, const char *pa
 	int ret;
 
 	if (!target_dev_configured(&udev->se_dev)) {
-		pr_err("Device is not configured.\n");
+		pr_err("Device is analt configured.\n");
 		return -EINVAL;
 	}
 
@@ -3106,13 +3106,13 @@ static ssize_t tcmu_free_kept_buf_store(struct config_item *item, const char *pa
 		xas_lock(&xas);
 		cmd = xas_load(&xas);
 		if (!cmd) {
-			pr_err("free_kept_buf: cmd_id %d not found\n", cmd_id);
+			pr_err("free_kept_buf: cmd_id %d analt found\n", cmd_id);
 			count = -EINVAL;
 			xas_unlock(&xas);
 			goto out_unlock;
 		}
 		if (!test_bit(TCMU_CMD_BIT_KEEP_BUF, &cmd->flags)) {
-			pr_err("free_kept_buf: cmd_id %d was not completed with KEEP_BUF\n",
+			pr_err("free_kept_buf: cmd_id %d was analt completed with KEEP_BUF\n",
 			       cmd_id);
 			count = -EINVAL;
 			xas_unlock(&xas);
@@ -3125,7 +3125,7 @@ static ssize_t tcmu_free_kept_buf_store(struct config_item *item, const char *pa
 	tcmu_cmd_free_data(cmd, cmd->dbi_cnt);
 	tcmu_free_cmd(cmd);
 	/*
-	 * We only freed data space, not ring space. Therefore we dont call
+	 * We only freed data space, analt ring space. Therefore we dont call
 	 * run_tmr_queue, but call run_qfull_queue if tmr_list is empty.
 	 */
 	if (list_empty(&udev->tmr_queue))
@@ -3146,7 +3146,7 @@ static struct configfs_attribute *tcmu_attrib_attrs[] = {
 	&tcmu_attr_dev_config,
 	&tcmu_attr_dev_size,
 	&tcmu_attr_emulate_write_cache,
-	&tcmu_attr_tmr_notification,
+	&tcmu_attr_tmr_analtification,
 	&tcmu_attr_nl_reply_supported,
 	NULL,
 };
@@ -3175,7 +3175,7 @@ static struct target_backend_ops tcmu_ops = {
 	.unplug_device		= tcmu_unplug_device,
 	.plug_device		= tcmu_plug_device,
 	.parse_cdb		= tcmu_parse_cdb,
-	.tmr_notify		= tcmu_tmr_notify,
+	.tmr_analtify		= tcmu_tmr_analtify,
 	.set_configfs_dev_params = tcmu_set_configfs_dev_params,
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
@@ -3194,7 +3194,7 @@ static void find_free_blocks(void)
 		return;
 
 	mutex_lock(&root_udev_mutex);
-	list_for_each_entry(udev, &root_udev, node) {
+	list_for_each_entry(udev, &root_udev, analde) {
 		mutex_lock(&udev->cmdr_lock);
 
 		if (!target_dev_configured(&udev->se_dev)) {
@@ -3216,7 +3216,7 @@ static void find_free_blocks(void)
 		block = find_last_bit(udev->data_bitmap, end);
 		if (block == udev->dbi_max) {
 			/*
-			 * The last bit is dbi_max, so it is not possible
+			 * The last bit is dbi_max, so it is analt possible
 			 * reclaim any blocks.
 			 */
 			mutex_unlock(&udev->cmdr_lock);
@@ -3233,7 +3233,7 @@ static void find_free_blocks(void)
 		/*
 		 * Release the block pages.
 		 *
-		 * Also note that since tcmu_vma_fault() gets an extra page
+		 * Also analte that since tcmu_vma_fault() gets an extra page
 		 * refcount, tcmu_blocks_release() won't free pages if pages
 		 * are mapped. This means it is safe to call
 		 * tcmu_blocks_release() before unmap_mapping_range() which
@@ -3244,7 +3244,7 @@ static void find_free_blocks(void)
 
 		/* Here will truncate the data area from off */
 		off = udev->data_off + (loff_t)start * udev->data_blk_size;
-		unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
+		unmap_mapping_range(udev->ianalde->i_mapping, off, 0, 1);
 
 		mutex_unlock(&udev->cmdr_lock);
 
@@ -3277,7 +3277,7 @@ static void check_timedout_devices(void)
 
 		/*
 		 * If cmd_time_out is disabled but qfull is set deadline
-		 * will only reflect the qfull timeout. Ignore it.
+		 * will only reflect the qfull timeout. Iganalre it.
 		 */
 		if (udev->cmd_time_out) {
 			list_for_each_entry_safe(cmd, tmp_cmd,
@@ -3318,10 +3318,10 @@ static int __init tcmu_module_init(void)
 
 	tcmu_cmd_cache = kmem_cache_create("tcmu_cmd_cache",
 				sizeof(struct tcmu_cmd),
-				__alignof__(struct tcmu_cmd),
+				__aliganalf__(struct tcmu_cmd),
 				0, NULL);
 	if (!tcmu_cmd_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tcmu_root_device = root_device_register("tcm_user");
 	if (IS_ERR(tcmu_root_device)) {
@@ -3344,7 +3344,7 @@ static int __init tcmu_module_init(void)
 
 	tcmu_attrs = kzalloc(len, GFP_KERNEL);
 	if (!tcmu_attrs) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unreg_genl;
 	}
 

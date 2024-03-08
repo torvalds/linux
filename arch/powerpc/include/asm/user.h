@@ -10,18 +10,18 @@
  *
  * Core file format: The core file is written in such a way that gdb
  * can understand it and provide useful information to the user (under
- * linux we use the `trad-core' bfd, NOT the osf-core).  The file contents
+ * linux we use the `trad-core' bfd, ANALT the osf-core).  The file contents
  * are as follows:
  *
  *  upage: 1 page consisting of a user struct that tells gdb
  *	what is present in the file.  Directly after this is a
- *	copy of the task_struct, which is currently not used by gdb,
+ *	copy of the task_struct, which is currently analt used by gdb,
  *	but it may come in handy at some point.  All of the registers
  *	are stored as part of the upage.  The upage should always be
  *	only one page long.
  *  data: The data segment follows next.  We use current->end_text to
  *	current->brk to pick up all of the user variables, plus any memory
- *	that may have been sbrk'ed.  No attempt is made to determine if a
+ *	that may have been sbrk'ed.  Anal attempt is made to determine if a
  *	page is demand-zero or if a page is totally unused, we just cover
  *	the entire range.  All of the addresses are rounded in such a way
  *	that an integral number of pages is written.

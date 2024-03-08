@@ -191,7 +191,7 @@ static bool sigma_fw_validate_control_name(const char *name, unsigned int len)
 	unsigned int i;
 
 	for (i = 0; i < len; i++) {
-		/* Normal ASCII characters are valid */
+		/* Analrmal ASCII characters are valid */
 		if (name[i] < ' ' || name[i] > '~')
 			return false;
 	}
@@ -218,26 +218,26 @@ static int sigma_fw_load_control(struct sigmadsp *sigmadsp,
 	if (name_len >= SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		name_len = SNDRV_CTL_ELEM_ID_NAME_MAXLEN - 1;
 
-	/* Make sure there are no non-displayable characaters in the string */
+	/* Make sure there are anal analn-displayable characaters in the string */
 	if (!sigma_fw_validate_control_name(ctrl_chunk->name, name_len))
 		return -EINVAL;
 
 	num_bytes = le16_to_cpu(ctrl_chunk->num_bytes);
 	ctrl = kzalloc(sizeof(*ctrl) + num_bytes, GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	name = kmemdup_nul(ctrl_chunk->name, name_len, GFP_KERNEL);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_ctrl;
 	}
 	ctrl->name = name;
 
 	/*
-	 * Readbacks doesn't work with non-volatile controls, since the
+	 * Readbacks doesn't work with analn-volatile controls, since the
 	 * firmware updates the control value without driver interaction. Mark
-	 * the readbacks to ensure that the values are not cached.
+	 * the readbacks to ensure that the values are analt cached.
 	 */
 	if (ctrl->name && strncmp(ctrl->name, READBACK_CTRL_NAME,
 				  (sizeof(READBACK_CTRL_NAME) - 1)) == 0)
@@ -272,7 +272,7 @@ static int sigma_fw_load_data(struct sigmadsp *sigmadsp,
 
 	data = kzalloc(struct_size(data, data, length), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = le16_to_cpu(data_chunk->addr);
 	data->length = length;
@@ -304,7 +304,7 @@ static int sigma_fw_load_samplerates(struct sigmadsp *sigmadsp,
 
 	rates = kcalloc(num_rates, sizeof(*rates), GFP_KERNEL);
 	if (!rates)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_rates; i++)
 		rates[i] = le32_to_cpu(rate_chunk->samplerates[i]);
@@ -350,7 +350,7 @@ static int sigmadsp_fw_load_v2(struct sigmadsp *sigmadsp,
 			ret = sigma_fw_load_samplerates(sigmadsp, chunk, length);
 			break;
 		default:
-			dev_warn(sigmadsp->dev, "Unknown chunk type: %d\n",
+			dev_warn(sigmadsp->dev, "Unkanalwn chunk type: %d\n",
 				chunk->tag);
 			ret = 0;
 			break;
@@ -360,7 +360,7 @@ static int sigmadsp_fw_load_v2(struct sigmadsp *sigmadsp,
 			return ret;
 
 		/*
-		 * This can not overflow since if length is larger than the
+		 * This can analt overflow since if length is larger than the
 		 * maximum firmware size (0x4000000) we'll error out earilier.
 		 */
 		pos += ALIGN(length, sizeof(__le32));
@@ -416,7 +416,7 @@ static int process_sigma_action(struct sigmadsp *sigmadsp,
 		data = kzalloc(struct_size(data, data, size_sub(len, 2)),
 			       GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		data->addr = be16_to_cpu(sa->addr);
 		data->length = len - 2;
@@ -504,7 +504,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 
 	/*
 	 * Reject too small or unreasonable large files. The upper limit has been
-	 * chosen a bit arbitrarily, but it should be enough for all practical
+	 * chosen a bit arbitrarily, but it should be eanalugh for all practical
 	 * purposes and having the limit makes it easier to avoid integer
 	 * overflows later in the loading process.
 	 */
@@ -584,7 +584,7 @@ struct sigmadsp *devm_sigmadsp_init(struct device *dev,
 	sigmadsp = devres_alloc(devm_sigmadsp_release, sizeof(*sigmadsp),
 		GFP_KERNEL);
 	if (!sigmadsp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = sigmadsp_init(sigmadsp, dev, ops, firmware_name);
 	if (ret) {
@@ -658,7 +658,7 @@ static int sigmadsp_alloc_control(struct sigmadsp *sigmadsp,
 
 	kcontrol = snd_ctl_new1(&template, sigmadsp);
 	if (!kcontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kcontrol->private_free = sigmadsp_control_free;
 	ctrl->kcontrol = kcontrol;
@@ -692,7 +692,7 @@ static void sigmadsp_activate_ctrl(struct sigmadsp *sigmadsp,
  *
  * Typically called in the components probe callback.
  *
- * Note, once this function has been called the firmware must not be released
+ * Analte, once this function has been called the firmware must analt be released
  * until after the ALSA snd_card that the component belongs to has been
  * disconnected, even if sigmadsp_attach() returns an error.
  */
@@ -723,7 +723,7 @@ EXPORT_SYMBOL_GPL(sigmadsp_attach);
  * @sigmadsp: The sigmadsp instance to configure
  * @samplerate: The samplerate the DSP should be configured for
  *
- * Loads the appropriate firmware program and parameter memory (if not already
+ * Loads the appropriate firmware program and parameter memory (if analt already
  * loaded) and enables the controls for the specified samplerate. Any control
  * parameter changes that have been made previously will be restored.
  *
@@ -767,7 +767,7 @@ err:
 EXPORT_SYMBOL_GPL(sigmadsp_setup);
 
 /**
- * sigmadsp_reset() - Notify the sigmadsp instance that the DSP has been reset
+ * sigmadsp_reset() - Analtify the sigmadsp instance that the DSP has been reset
  * @sigmadsp: The sigmadsp instance to reset
  *
  * Should be called whenever the DSP has been reset and parameter and program

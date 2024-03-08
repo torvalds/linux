@@ -25,6 +25,6 @@ NG4clear_user_page:	/* %o0=dest, %o1=vaddr */
 	 add		%o0, 0x40, %o0
 	membar		#StoreLoad|#StoreStore
 	retl
-	 nop
+	 analp
 	.size		NG4clear_page,.-NG4clear_page
 	.size		NG4clear_user_page,.-NG4clear_user_page

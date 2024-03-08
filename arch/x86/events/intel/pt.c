@@ -109,11 +109,11 @@ PMU_FORMAT_ATTR(pwr_evt,	"config:4"	);
 PMU_FORMAT_ATTR(fup_on_ptw,	"config:5"	);
 PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
-PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(analretcomp,	"config:11"	);
 PMU_FORMAT_ATTR(ptw,		"config:12"	);
 PMU_FORMAT_ATTR(branch,		"config:13"	);
 PMU_FORMAT_ATTR(event,		"config:31"	);
-PMU_FORMAT_ATTR(notnt,		"config:55"	);
+PMU_FORMAT_ATTR(analtnt,		"config:55"	);
 PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
 PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
 PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
@@ -123,11 +123,11 @@ static struct attribute *pt_formats_attr[] = {
 	&format_attr_cyc.attr,
 	&format_attr_pwr_evt.attr,
 	&format_attr_event.attr,
-	&format_attr_notnt.attr,
+	&format_attr_analtnt.attr,
 	&format_attr_fup_on_ptw.attr,
 	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
-	&format_attr_noretcomp.attr,
+	&format_attr_analretcomp.attr,
 	&format_attr_ptw.attr,
 	&format_attr_branch.attr,
 	&format_attr_mtc_period.attr,
@@ -150,7 +150,7 @@ pt_timing_attr_show(struct device *dev, struct device_attribute *attr,
 
 	switch (pmu_attr->id) {
 	case 0:
-		return sprintf(page, "%lu\n", pt_pmu.max_nonturbo_ratio);
+		return sprintf(page, "%lu\n", pt_pmu.max_analnturbo_ratio);
 	case 1:
 		return sprintf(page, "%u:%u\n",
 			       pt_pmu.tsc_art_num,
@@ -162,13 +162,13 @@ pt_timing_attr_show(struct device *dev, struct device_attribute *attr,
 	return -EINVAL;
 }
 
-PMU_EVENT_ATTR(max_nonturbo_ratio, timing_attr_max_nonturbo_ratio, 0,
+PMU_EVENT_ATTR(max_analnturbo_ratio, timing_attr_max_analnturbo_ratio, 0,
 	       pt_timing_attr_show);
 PMU_EVENT_ATTR(tsc_art_ratio, timing_attr_tsc_art_ratio, 1,
 	       pt_timing_attr_show);
 
 static struct attribute *pt_timing_attr[] = {
-	&timing_attr_max_nonturbo_ratio.attr.attr,
+	&timing_attr_max_analnturbo_ratio.attr.attr,
 	&timing_attr_tsc_art_ratio.attr.attr,
 	NULL,
 };
@@ -194,11 +194,11 @@ static int __init pt_pmu_hw_init(void)
 	long i;
 
 	rdmsrl(MSR_PLATFORM_INFO, reg);
-	pt_pmu.max_nonturbo_ratio = (reg & 0xff00) >> 8;
+	pt_pmu.max_analnturbo_ratio = (reg & 0xff00) >> 8;
 
 	/*
 	 * if available, read in TSC to core crystal clock ratio,
-	 * otherwise, zero for numerator stands for "not enumerated"
+	 * otherwise, zero for numerator stands for "analt enumerated"
 	 * as per SDM
 	 */
 	if (boot_cpu_data.cpuid_level >= CPUID_TSC_LEAF) {
@@ -216,7 +216,7 @@ static int __init pt_pmu_hw_init(void)
 	case INTEL_FAM6_BROADWELL_D:
 	case INTEL_FAM6_BROADWELL_G:
 	case INTEL_FAM6_BROADWELL_X:
-		/* not setting BRANCH_EN will #GP, erratum BDM106 */
+		/* analt setting BRANCH_EN will #GP, erratum BDM106 */
 		pt_pmu.branch_en_always_on = true;
 		break;
 	default:
@@ -242,7 +242,7 @@ static int __init pt_pmu_hw_init(void)
 			    &pt_pmu.caps[CPUID_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	size = sizeof(struct attribute *) * (ARRAY_SIZE(pt_caps)+1);
 	attrs = kzalloc(size, GFP_KERNEL);
 	if (!attrs)
@@ -292,7 +292,7 @@ fail:
  * corresponding bit in the RTIT_CTL can only be controlled
  * by the driver; therefore, repurpose it to mean: pass
  * through the bit that was previously assumed to be always
- * on for PT, thereby allowing the user to *not* set it if
+ * on for PT, thereby allowing the user to *analt* set it if
  * they so wish. See also pt_event_valid() and pt_config().
  */
 #define RTIT_CTL_PASSTHROUGH RTIT_CTL_TRACEEN
@@ -305,7 +305,7 @@ fail:
 			RTIT_CTL_MTC		| \
 			RTIT_CTL_PWR_EVT_EN	| \
 			RTIT_CTL_EVENT_EN	| \
-			RTIT_CTL_NOTNT		| \
+			RTIT_CTL_ANALTNT		| \
 			RTIT_CTL_FUP_ON_PTW	| \
 			RTIT_CTL_PTW_EN)
 
@@ -337,7 +337,7 @@ static bool pt_event_valid(struct perf_event *event)
 	if (config & RTIT_CTL_MTC) {
 		/*
 		 * In the unlikely case that CPUID lists valid mtc periods,
-		 * but not the mtc capability, drop out here.
+		 * but analt the mtc capability, drop out here.
 		 *
 		 * Spec says that setting mtc period bits while mtc bit in
 		 * CPUID is 0 will #GP, so better safe than sorry.
@@ -364,7 +364,7 @@ static bool pt_event_valid(struct perf_event *event)
 	    !intel_pt_validate_hw_cap(PT_CAP_event_trace))
 		return false;
 
-	if (config & RTIT_CTL_NOTNT &&
+	if (config & RTIT_CTL_ANALTNT &&
 	    !intel_pt_validate_hw_cap(PT_CAP_tnt_disable))
 		return false;
 
@@ -382,7 +382,7 @@ static bool pt_event_valid(struct perf_event *event)
 	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
 	 * clears the assumption that BranchEn must always be enabled,
 	 * as was the case with the first implementation of PT.
-	 * If this bit is not set, the legacy behavior is preserved
+	 * If this bit is analt set, the legacy behavior is preserved
 	 * for compatibility with the older userspace.
 	 *
 	 * Re-using bit 0 for this purpose is fine because it is never
@@ -391,7 +391,7 @@ static bool pt_event_valid(struct perf_event *event)
 	 */
 	if (config & RTIT_CTL_PASSTHROUGH) {
 		/*
-		 * Disallow not setting BRANCH_EN where BRANCH_EN is
+		 * Disallow analt setting BRANCH_EN where BRANCH_EN is
 		 * always required.
 		 */
 		if (pt_pmu.branch_en_always_on &&
@@ -471,10 +471,10 @@ static u64 pt_config_filters(struct perf_event *event)
 		struct pt_filter *filter = &filters->filter[range];
 
 		/*
-		 * Note, if the range has zero start/end addresses due
-		 * to its dynamic object not being loaded yet, we just
+		 * Analte, if the range has zero start/end addresses due
+		 * to its dynamic object analt being loaded yet, we just
 		 * go ahead and program zeroed range, which will simply
-		 * produce no data. Note^2: if executable code at 0x0
+		 * produce anal data. Analte^2: if executable code at 0x0
 		 * is a concern, we can set up an "invalid" configuration
 		 * such as msr_b < msr_a.
 		 */
@@ -514,7 +514,7 @@ static void pt_config(struct perf_event *event)
 		reg |= RTIT_CTL_TOPA;
 
 	/*
-	 * Previously, we had BRANCH_EN on by default, but now that PT has
+	 * Previously, we had BRANCH_EN on by default, but analw that PT has
 	 * grown features outside of branch tracing, it is useful to allow
 	 * the user to disable it. Setting bit 0 in the event's attr.config
 	 * allows BRANCH_EN to pass through instead of being always on. See
@@ -656,11 +656,11 @@ static void pt_config_buffer(struct pt_buffer *buf)
  */
 static struct topa *topa_alloc(int cpu, gfp_t gfp)
 {
-	int node = cpu_to_node(cpu);
+	int analde = cpu_to_analde(cpu);
 	struct topa_page *tp;
 	struct page *p;
 
-	p = alloc_pages_node(node, gfp | __GFP_ZERO, 0);
+	p = alloc_pages_analde(analde, gfp | __GFP_ZERO, 0);
 	if (!p)
 		return NULL;
 
@@ -757,7 +757,7 @@ static int topa_insert_pages(struct pt_buffer *buf, int cpu, gfp_t gfp)
 	if (topa_table_full(topa)) {
 		topa = topa_alloc(cpu, gfp);
 		if (!topa)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		topa_insert_table(buf, topa);
 	}
@@ -914,7 +914,7 @@ static void pt_handle_status(struct pt *pt)
 		/*
 		 * On systems that only do single-entry ToPA, hitting STOP
 		 * means we are already losing data; need to let the decoder
-		 * know.
+		 * kanalw.
 		 */
 		if (!buf->single &&
 		    (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) ||
@@ -1072,7 +1072,7 @@ pt_topa_prev_entry(struct pt_buffer *buf, struct topa_entry *te)
  *
  * Place INT and STOP marks to prevent overwriting old data that the consumer
  * hasn't yet collected and waking up the consumer after a certain fraction of
- * the buffer has filled up. Only needed and sensible for non-snapshot counters.
+ * the buffer has filled up. Only needed and sensible for analn-snapshot counters.
  *
  * This obviously relies on buf::head to figure out buffer markers, so it has
  * to be called after pt_buffer_reset_offsets() and before the hardware tracing
@@ -1198,8 +1198,8 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
 
 	list_for_each_entry_safe(topa, iter, &buf->tables, list) {
 		/*
-		 * right now, this is in free_aux() path only, so
-		 * no need to unlink this table from the list
+		 * right analw, this is in free_aux() path only, so
+		 * anal need to unlink this table from the list
 		 */
 		topa_free(topa);
 	}
@@ -1209,7 +1209,7 @@ static void pt_buffer_fini_topa(struct pt_buffer *buf)
  * pt_buffer_init_topa() - initialize ToPA table for pt buffer
  * @buf:	PT buffer.
  * @cpu:	CPU on which to allocate.
- * @nr_pages:	No. of pages to allocate.
+ * @nr_pages:	Anal. of pages to allocate.
  * @gfp:	Allocation flags.
  *
  * Return:	0 on success or error code.
@@ -1222,7 +1222,7 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 
 	topa = topa_alloc(cpu, gfp);
 	if (!topa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	topa_insert_table(buf, topa);
 
@@ -1230,7 +1230,7 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 		err = topa_insert_pages(buf, cpu, gfp);
 		if (err) {
 			pt_buffer_fini_topa(buf);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1247,7 +1247,7 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, int cpu,
 static int pt_buffer_try_single(struct pt_buffer *buf, int nr_pages)
 {
 	struct page *p = virt_to_page(buf->data_pages[0]);
-	int ret = -ENOTSUPP, order = 0;
+	int ret = -EANALTSUPP, order = 0;
 
 	/*
 	 * We can use single range output mode
@@ -1268,9 +1268,9 @@ static int pt_buffer_try_single(struct pt_buffer *buf, int nr_pages)
 		goto out;
 
 	/*
-	 * Some processors cannot always support single range for more than
+	 * Some processors cananalt always support single range for more than
 	 * 4KB - refer errata TGL052, ADL037 and RPL017. Future processors might
-	 * also be affected, so for now rather than trying to keep track of
+	 * also be affected, so for analw rather than trying to keep track of
 	 * which ones, just disable it for all.
 	 */
 	if (nr_pages > 1)
@@ -1300,7 +1300,7 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 		    int nr_pages, bool snapshot)
 {
 	struct pt_buffer *buf;
-	int node, ret, cpu = event->cpu;
+	int analde, ret, cpu = event->cpu;
 
 	if (!nr_pages)
 		return NULL;
@@ -1314,9 +1314,9 @@ pt_buffer_setup_aux(struct perf_event *event, void **pages,
 
 	if (cpu == -1)
 		cpu = raw_smp_processor_id();
-	node = cpu_to_node(cpu);
+	analde = cpu_to_analde(cpu);
 
-	buf = kzalloc_node(sizeof(struct pt_buffer), GFP_KERNEL, node);
+	buf = kzalloc_analde(sizeof(struct pt_buffer), GFP_KERNEL, analde);
 	if (!buf)
 		return NULL;
 
@@ -1355,14 +1355,14 @@ static void pt_buffer_free_aux(void *data)
 static int pt_addr_filters_init(struct perf_event *event)
 {
 	struct pt_filters *filters;
-	int node = event->cpu == -1 ? -1 : cpu_to_node(event->cpu);
+	int analde = event->cpu == -1 ? -1 : cpu_to_analde(event->cpu);
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_num_address_ranges))
 		return 0;
 
-	filters = kzalloc_node(sizeof(struct pt_filters), GFP_KERNEL, node);
+	filters = kzalloc_analde(sizeof(struct pt_filters), GFP_KERNEL, analde);
 	if (!filters)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (event->parent)
 		memcpy(filters, event->parent->hw.addr_filters,
@@ -1380,24 +1380,24 @@ static void pt_addr_filters_fini(struct perf_event *event)
 }
 
 #ifdef CONFIG_X86_64
-/* Clamp to a canonical address greater-than-or-equal-to the address given */
-static u64 clamp_to_ge_canonical_addr(u64 vaddr, u8 vaddr_bits)
+/* Clamp to a caanalnical address greater-than-or-equal-to the address given */
+static u64 clamp_to_ge_caanalnical_addr(u64 vaddr, u8 vaddr_bits)
 {
-	return __is_canonical_address(vaddr, vaddr_bits) ?
+	return __is_caanalnical_address(vaddr, vaddr_bits) ?
 	       vaddr :
 	       -BIT_ULL(vaddr_bits - 1);
 }
 
-/* Clamp to a canonical address less-than-or-equal-to the address given */
-static u64 clamp_to_le_canonical_addr(u64 vaddr, u8 vaddr_bits)
+/* Clamp to a caanalnical address less-than-or-equal-to the address given */
+static u64 clamp_to_le_caanalnical_addr(u64 vaddr, u8 vaddr_bits)
 {
-	return __is_canonical_address(vaddr, vaddr_bits) ?
+	return __is_caanalnical_address(vaddr, vaddr_bits) ?
 	       vaddr :
 	       BIT_ULL(vaddr_bits - 1) - 1;
 }
 #else
-#define clamp_to_ge_canonical_addr(x, y) (x)
-#define clamp_to_le_canonical_addr(x, y) (x)
+#define clamp_to_ge_caanalnical_addr(x, y) (x)
+#define clamp_to_le_caanalnical_addr(x, y) (x)
 #endif
 
 static int pt_event_addr_filters_validate(struct list_head *filters)
@@ -1412,10 +1412,10 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 		 */
 		if (!filter->size ||
 		    filter->action == PERF_ADDR_FILTER_ACTION_START)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (++range > intel_pt_validate_hw_cap(PT_CAP_num_address_ranges))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1447,14 +1447,14 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 				b = a + n;
 			/*
 			 * Apply the offset. 64-bit addresses written to the
-			 * MSRs must be canonical, but the range can encompass
-			 * non-canonical addresses. Since software cannot
-			 * execute at non-canonical addresses, adjusting to
-			 * canonical addresses does not affect the result of the
+			 * MSRs must be caanalnical, but the range can encompass
+			 * analn-caanalnical addresses. Since software cananalt
+			 * execute at analn-caanalnical addresses, adjusting to
+			 * caanalnical addresses does analt affect the result of the
 			 * address filter.
 			 */
-			msr_a = clamp_to_ge_canonical_addr(a, boot_cpu_data.x86_virt_bits);
-			msr_b = clamp_to_le_canonical_addr(b, boot_cpu_data.x86_virt_bits);
+			msr_a = clamp_to_ge_caanalnical_addr(a, boot_cpu_data.x86_virt_bits);
+			msr_b = clamp_to_le_caanalnical_addr(b, boot_cpu_data.x86_virt_bits);
 			if (msr_b < msr_a)
 				msr_a = msr_b = 0;
 		}
@@ -1533,13 +1533,13 @@ void intel_pt_handle_vmx(int on)
 	struct perf_event *event;
 	unsigned long flags;
 
-	/* PT plays nice with VMX, do nothing */
+	/* PT plays nice with VMX, do analthing */
 	if (pt_pmu.vmx)
 		return;
 
 	/*
 	 * VMXON will clear RTIT_CTL.TraceEn; we need to make
-	 * sure to not try to set it while VMX is on. Disable
+	 * sure to analt try to set it while VMX is on. Disable
 	 * interrupts to avoid racing with pmu callbacks;
 	 * concurrent PMI should be handled fine.
 	 */
@@ -1674,7 +1674,7 @@ static long pt_event_snapshot_aux(struct perf_event *event,
 
 	/*
 	 * If the tracing was on when we turned up, restart it.
-	 * Compiler barrier not needed as we couldn't have been
+	 * Compiler barrier analt needed as we couldn't have been
 	 * preempted by anything that touches pt->handle_nmi.
 	 */
 	if (pt->handle_nmi)
@@ -1725,7 +1725,7 @@ static void pt_event_destroy(struct perf_event *event)
 static int pt_event_init(struct perf_event *event)
 {
 	if (event->attr.type != pt_pmu.pmu.type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (!pt_event_valid(event))
 		return -EINVAL;
@@ -1735,7 +1735,7 @@ static int pt_event_init(struct perf_event *event)
 
 	if (pt_addr_filters_init(event)) {
 		x86_del_exclusive(x86_lbr_exclusive_pt);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	event->destroy = pt_event_destroy;
@@ -1763,7 +1763,7 @@ static __init int pt_init(void)
 	BUILD_BUG_ON(sizeof(struct topa) > PAGE_SIZE);
 
 	if (!boot_cpu_has(X86_FEATURE_INTEL_PT))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
@@ -1777,7 +1777,7 @@ static __init int pt_init(void)
 
 	if (prior_warn) {
 		x86_add_exclusive(x86_lbr_exclusive_pt);
-		pr_warn("PT is enabled at boot time, doing nothing\n");
+		pr_warn("PT is enabled at boot time, doing analthing\n");
 
 		return -EBUSY;
 	}
@@ -1787,12 +1787,12 @@ static __init int pt_init(void)
 		return ret;
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_output)) {
-		pr_warn("ToPA output is not supported on this CPU\n");
-		return -ENODEV;
+		pr_warn("ToPA output is analt supported on this CPU\n");
+		return -EANALDEV;
 	}
 
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
-		pt_pmu.pmu.capabilities = PERF_PMU_CAP_AUX_NO_SG;
+		pt_pmu.pmu.capabilities = PERF_PMU_CAP_AUX_ANAL_SG;
 
 	pt_pmu.pmu.capabilities	|= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE;
 	pt_pmu.pmu.attr_groups		 = pt_attr_groups;

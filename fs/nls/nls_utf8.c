@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 static unsigned char identity[256];
 
@@ -44,7 +44,7 @@ static struct nls_table table = {
 	.charset	= "utf8",
 	.uni2char	= uni2char,
 	.char2uni	= char2uni,
-	.charset2lower	= identity,	/* no conversion */
+	.charset2lower	= identity,	/* anal conversion */
 	.charset2upper	= identity,
 };
 

@@ -32,7 +32,7 @@ void *memset(void *dst, int c, size_t len)
 /**
  * memcmp - Compare two areas of memory
  * @cs: One area of memory
- * @ct: Another area of memory
+ * @ct: Aanalther area of memory
  * @count: The size of the area.
  */
 #undef memcmp

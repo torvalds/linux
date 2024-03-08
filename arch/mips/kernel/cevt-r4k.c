@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techanallogies, Inc.
  * Copyright (C) 2007 Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/clockchips.h>
@@ -111,7 +111,7 @@ int cp0_timer_irq_installed;
 
 /*
  * Possibly handle a performance counter interrupt.
- * Return true if the timer interrupt should not be checked
+ * Return true if the timer interrupt should analt be checked
  */
 static inline int handle_perf_irq(int r2)
 {
@@ -135,7 +135,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 
 	/*
 	 * Suckage alert:
-	 * Before R2 of the architecture there was no way to see if a
+	 * Before R2 of the architecture there was anal way to see if a
 	 * performance counter interrupt was pending, so we have to run
 	 * the performance counter interrupt handler anyway.
 	 */
@@ -144,8 +144,8 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 
 	/*
 	 * The same applies to performance counter interrupts.	But with the
-	 * above we now know that the reason we got here must be a timer
-	 * interrupt.  Being the paranoiacs we are we check anyway.
+	 * above we analw kanalw that the reason we got here must be a timer
+	 * interrupt.  Being the paraanaliacs we are we check anyway.
 	 */
 	if (!r2 || (read_c0_cause() & CAUSEF_TI)) {
 		/* Clear Count/Compare Interrupt */
@@ -156,7 +156,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 struct irqaction c0_compare_irqaction = {
@@ -251,7 +251,7 @@ unsigned int __weak get_c0_compare_int(void)
 
 static unsigned long mips_ref_freq;
 
-static int r4k_cpufreq_callback(struct notifier_block *nb,
+static int r4k_cpufreq_callback(struct analtifier_block *nb,
 				unsigned long val, void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -276,17 +276,17 @@ static int r4k_cpufreq_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block r4k_cpufreq_notifier = {
-	.notifier_call  = r4k_cpufreq_callback,
+static struct analtifier_block r4k_cpufreq_analtifier = {
+	.analtifier_call  = r4k_cpufreq_callback,
 };
 
-static int __init r4k_register_cpufreq_notifier(void)
+static int __init r4k_register_cpufreq_analtifier(void)
 {
-	return cpufreq_register_notifier(&r4k_cpufreq_notifier,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&r4k_cpufreq_analtifier,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 
 }
-core_initcall(r4k_register_cpufreq_notifier);
+core_initcall(r4k_register_cpufreq_analtifier);
 
 #endif /* !CONFIG_CPU_FREQ */
 

@@ -11,8 +11,8 @@
 #include <linux/wmi.h>
 
 /* possible return values:
- *  -ENODEV: Descriptor GUID missing from WMI bus
- *  -EPROBE_DEFER: probing for dell-wmi-descriptor not yet run
+ *  -EANALDEV: Descriptor GUID missing from WMI bus
+ *  -EPROBE_DEFER: probing for dell-wmi-descriptor analt yet run
  *  0: valid descriptor, successfully probed
  *  < 0: invalid descriptor, don't probe dependent devices
  */

@@ -19,12 +19,12 @@
 
 
 /*
- * List of stat red-black nodes from a tracer
+ * List of stat red-black analdes from a tracer
  * We use a such tree to sort quickly the stat
  * entries from the tracer.
  */
-struct stat_node {
-	struct rb_node		node;
+struct stat_analde {
+	struct rb_analde		analde;
 	void			*stat;
 };
 
@@ -46,12 +46,12 @@ static struct dentry		*stat_dir;
 
 static void __reset_stat_session(struct stat_session *session)
 {
-	struct stat_node *snode, *n;
+	struct stat_analde *sanalde, *n;
 
-	rbtree_postorder_for_each_entry_safe(snode, n, &session->stat_root, node) {
+	rbtree_postorder_for_each_entry_safe(sanalde, n, &session->stat_root, analde) {
 		if (session->ts->stat_release)
-			session->ts->stat_release(snode->stat);
-		kfree(snode);
+			session->ts->stat_release(sanalde->stat);
+		kfree(sanalde);
 	}
 
 	session->stat_root = RB_ROOT;
@@ -74,23 +74,23 @@ static void destroy_session(struct stat_session *session)
 
 static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
-	struct stat_node *data;
+	struct rb_analde **new = &(root->rb_analde), *parent = NULL;
+	struct stat_analde *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->stat = stat;
 
 	/*
-	 * Figure out where to put new node
+	 * Figure out where to put new analde
 	 * This is a descendent sorting
 	 */
 	while (*new) {
-		struct stat_node *this;
+		struct stat_analde *this;
 		int result;
 
-		this = container_of(*new, struct stat_node, node);
+		this = container_of(*new, struct stat_analde, analde);
 		result = cmp(data->stat, this->stat);
 
 		parent = *new;
@@ -100,14 +100,14 @@ static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 			new = &((*new)->rb_right);
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_analde(&data->analde, parent, new);
+	rb_insert_color(&data->analde, root);
 	return 0;
 }
 
 /*
  * For tracers that don't provide a stat_cmp callback.
- * This one will force an insertion as right-most node
+ * This one will force an insertion as right-most analde
  * in the rbtree.
  */
 static int dummy_cmp(const void *p1, const void *p2)
@@ -171,7 +171,7 @@ exit_free_rbtree:
 static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct stat_session *session = s->private;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int n = *pos;
 	int i;
 
@@ -185,24 +185,24 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 		n--;
 	}
 
-	node = rb_first(&session->stat_root);
-	for (i = 0; node && i < n; i++)
-		node = rb_next(node);
+	analde = rb_first(&session->stat_root);
+	for (i = 0; analde && i < n; i++)
+		analde = rb_next(analde);
 
-	return node;
+	return analde;
 }
 
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
 	struct stat_session *session = s->private;
-	struct rb_node *node = p;
+	struct rb_analde *analde = p;
 
 	(*pos)++;
 
 	if (p == SEQ_START_TOKEN)
 		return rb_first(&session->stat_root);
 
-	return rb_next(node);
+	return rb_next(analde);
 }
 
 static void stat_seq_stop(struct seq_file *s, void *p)
@@ -214,7 +214,7 @@ static void stat_seq_stop(struct seq_file *s, void *p)
 static int stat_seq_show(struct seq_file *s, void *v)
 {
 	struct stat_session *session = s->private;
-	struct stat_node *l = container_of(v, struct stat_node, node);
+	struct stat_analde *l = container_of(v, struct stat_analde, analde);
 
 	if (v == SEQ_START_TOKEN)
 		return session->ts->stat_headers(s);
@@ -230,11 +230,11 @@ static const struct seq_operations trace_stat_seq_ops = {
 };
 
 /* The session stat is refilled and resorted at each stat file opening */
-static int tracing_stat_open(struct inode *inode, struct file *file)
+static int tracing_stat_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 	struct seq_file *m;
-	struct stat_session *session = inode->i_private;
+	struct stat_session *session = ianalde->i_private;
 
 	ret = security_locked_down(LOCKDOWN_TRACEFS);
 	if (ret)
@@ -256,9 +256,9 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 }
 
 /*
- * Avoid consuming memory with our now useless rbtree.
+ * Avoid consuming memory with our analw useless rbtree.
  */
-static int tracing_stat_release(struct inode *i, struct file *f)
+static int tracing_stat_release(struct ianalde *i, struct file *f)
 {
 	struct stat_session *session = i->i_private;
 
@@ -280,12 +280,12 @@ static int tracing_stat_init(void)
 
 	ret = tracing_init_dentry();
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	stat_dir = tracefs_create_dir("trace_stat", NULL);
 	if (!stat_dir) {
-		pr_warn("Could not create tracefs 'trace_stat' entry\n");
-		return -ENOMEM;
+		pr_warn("Could analt create tracefs 'trace_stat' entry\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -301,13 +301,13 @@ static int init_stat_file(struct stat_session *session)
 					    stat_dir, session,
 					    &tracing_stat_fops);
 	if (!session->file)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
 int register_stat_tracer(struct tracer_stat *trace)
 {
-	struct stat_session *session, *node;
+	struct stat_session *session, *analde;
 	int ret = -EINVAL;
 
 	if (!trace)
@@ -318,12 +318,12 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry(node, &all_stat_sessions, session_list) {
-		if (node->ts == trace)
+	list_for_each_entry(analde, &all_stat_sessions, session_list) {
+		if (analde->ts == trace)
 			goto out;
 	}
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	/* Init the session */
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
@@ -350,13 +350,13 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 void unregister_stat_tracer(struct tracer_stat *trace)
 {
-	struct stat_session *node, *tmp;
+	struct stat_session *analde, *tmp;
 
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
-		if (node->ts == trace) {
-			list_del(&node->session_list);
-			destroy_session(node);
+	list_for_each_entry_safe(analde, tmp, &all_stat_sessions, session_list) {
+		if (analde->ts == trace) {
+			list_del(&analde->session_list);
+			destroy_session(analde);
 			break;
 		}
 	}

@@ -10,7 +10,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/timer.h>
@@ -94,7 +94,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 				if ((ax25_rt->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
 					write_unlock_bh(&ax25_route_lock);
 					ax25_dev_put(ax25_dev);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				ax25_rt->digipeat->lastrepeat = -1;
 				ax25_rt->digipeat->ndigi      = route->digi_count;
@@ -113,7 +113,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 	if ((ax25_rt = kmalloc(sizeof(ax25_route), GFP_ATOMIC)) == NULL) {
 		write_unlock_bh(&ax25_route_lock);
 		ax25_dev_put(ax25_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ax25_rt->callsign     = route->dest_addr;
@@ -125,7 +125,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 			write_unlock_bh(&ax25_route_lock);
 			kfree(ax25_rt);
 			ax25_dev_put(ax25_dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		ax25_rt->digipeat->lastrepeat = -1;
 		ax25_rt->digipeat->ndigi      = route->digi_count;
@@ -350,7 +350,7 @@ ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 
 	/*
 	 *	Bind to the physical interface we heard them on, or the default
-	 *	route if none is found;
+	 *	route if analne is found;
 	 */
 	for (ax25_rt = ax25_route_list; ax25_rt != NULL; ax25_rt = ax25_rt->next) {
 		if (dev == NULL) {
@@ -427,7 +427,7 @@ int ax25_rt_autobind(ax25_cb *ax25, ax25_address *addr)
 		ax25->digipeat = kmemdup(ax25_rt->digipeat, sizeof(ax25_digi),
 					 GFP_ATOMIC);
 		if (ax25->digipeat == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto put;
 		}
 		ax25_adjust_path(addr, ax25->digipeat);

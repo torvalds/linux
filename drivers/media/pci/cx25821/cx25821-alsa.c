@@ -46,7 +46,7 @@ do {									\
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
 
-static int devno;
+static int devanal;
 
 struct cx25821_audio_buffer {
 	unsigned int bpl;
@@ -116,7 +116,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 #define AUD_INT_DN_RISCI1       (1 <<  0)
 #define AUD_INT_UP_RISCI1       (1 <<  1)
 #define AUD_INT_RDS_DN_RISCI1   (1 <<  2)
-#define AUD_INT_DN_RISCI2       (1 <<  4)	/* yes, 3 is skipped */
+#define AUD_INT_DN_RISCI2       (1 <<  4)	/* anal, 3 is skipped */
 #define AUD_INT_UP_RISCI2       (1 <<  5)
 #define AUD_INT_RDS_DN_RISCI2   (1 <<  6)
 #define AUD_INT_DN_SYNC         (1 << 12)
@@ -140,7 +140,7 @@ static int cx25821_alsa_dma_init(struct cx25821_audio_dev *chip,
 	buf->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
 	if (NULL == buf->vaddr) {
 		dprintk(1, "vmalloc_32(%lu pages) failed\n", nr_pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dprintk(1, "vmalloc is at addr 0x%p, size=%lu\n",
@@ -169,7 +169,7 @@ vmalloc_to_page_err:
 vzalloc_err:
 	vfree(buf->vaddr);
 	buf->vaddr = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int cx25821_alsa_dma_map(struct cx25821_audio_dev *dev)
@@ -181,7 +181,7 @@ static int cx25821_alsa_dma_map(struct cx25821_audio_dev *dev)
 
 	if (0 == buf->sglen) {
 		pr_warn("%s: cx25821_alsa_map_sg failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -430,7 +430,7 @@ static const struct snd_pcm_hardware snd_cx25821_digital_hw = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* Analog audio output will be full of clicks and pops if there
-	   are not exactly four lines in the SRAM FIFO buffer.  */
+	   are analt exactly four lines in the SRAM FIFO buffer.  */
 	.period_bytes_min = DEFAULT_FIFO_SIZE / 3,
 	.period_bytes_max = DEFAULT_FIFO_SIZE / 3,
 	.periods_min = 1,
@@ -451,7 +451,7 @@ static int snd_cx25821_pcm_open(struct snd_pcm_substream *substream)
 
 	if (!chip) {
 		pr_err("DEBUG: cx25821 can't find device struct. Can't proceed with open\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = snd_pcm_hw_constraint_pow2(runtime, 0,
@@ -514,7 +514,7 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (NULL == buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (chip->period_size > AUDIO_LINE_SIZE)
 		chip->period_size = AUDIO_LINE_SIZE;
@@ -695,22 +695,22 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	struct cx25821_audio_dev *chip;
 	int err;
 
-	if (devno >= SNDRV_CARDS) {
-		pr_info("DEBUG ERROR: devno >= SNDRV_CARDS %s\n", __func__);
-		return -ENODEV;
+	if (devanal >= SNDRV_CARDS) {
+		pr_info("DEBUG ERROR: devanal >= SNDRV_CARDS %s\n", __func__);
+		return -EANALDEV;
 	}
 
-	if (!enable[devno]) {
-		++devno;
-		pr_info("DEBUG ERROR: !enable[devno] %s\n", __func__);
-		return -ENOENT;
+	if (!enable[devanal]) {
+		++devanal;
+		pr_info("DEBUG ERROR: !enable[devanal] %s\n", __func__);
+		return -EANALENT;
 	}
 
-	err = snd_card_new(&dev->pci->dev, index[devno], id[devno],
+	err = snd_card_new(&dev->pci->dev, index[devanal], id[devanal],
 			   THIS_MODULE,
 			   sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
+		pr_info("DEBUG ERROR: cananalt create snd_card_new in %s\n",
 			__func__);
 		return err;
 	}
@@ -739,7 +739,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 
 	err = snd_cx25821_pcm(chip, 0, "cx25821 Digital");
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot create snd_cx25821_pcm %s\n",
+		pr_info("DEBUG ERROR: cananalt create snd_cx25821_pcm %s\n",
 			__func__);
 		goto error;
 	}
@@ -750,17 +750,17 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	strscpy(card->mixername, "CX25821", sizeof(card->mixername));
 
 	pr_info("%s/%i: ALSA support for cx25821 boards\n", card->driver,
-		devno);
+		devanal);
 
 	err = snd_card_register(card);
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot register sound card %s\n",
+		pr_info("DEBUG ERROR: cananalt register sound card %s\n",
 			__func__);
 		goto error;
 	}
 
 	dev->card = card;
-	devno++;
+	devanal++;
 	return 0;
 
 error:

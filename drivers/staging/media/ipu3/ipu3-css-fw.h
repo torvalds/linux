@@ -21,7 +21,7 @@ enum imgu_fw_type {
 };
 
 enum imgu_fw_acc_type {
-	IMGU_FW_ACC_NONE,	/* Normal binary */
+	IMGU_FW_ACC_ANALNE,	/* Analrmal binary */
 	IMGU_FW_ACC_OUTPUT,	/* Accelerator stage on output frame */
 	IMGU_FW_ACC_VIEWFINDER,	/* Accelerator stage on viewfinder frame */
 	IMGU_FW_ACC_STANDALONE,	/* Stand-alone acceleration */
@@ -136,7 +136,7 @@ struct imgu_fw_bl_info {
 };
 
 struct imgu_fw_acc_info {
-	u32 per_frame_data;	/* Dummy for now */
+	u32 per_frame_data;	/* Dummy for analw */
 };
 
 union imgu_fw_union {

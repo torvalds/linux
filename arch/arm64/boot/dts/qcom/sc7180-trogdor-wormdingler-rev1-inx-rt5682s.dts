@@ -19,5 +19,5 @@
 };
 
 &panel {
-	compatible = "innolux,hj110iz-01a";
+	compatible = "inanallux,hj110iz-01a";
 };

@@ -39,7 +39,7 @@ struct ds2780_device_info {
 };
 
 enum current_types {
-	CURRENT_NOW,
+	CURRENT_ANALW,
 	CURRENT_AVG,
 };
 
@@ -232,7 +232,7 @@ static int ds2780_get_current(struct ds2780_device_info *dev_info,
 	}
 	sense_res = 1000 / sense_res_raw;
 
-	if (type == CURRENT_NOW)
+	if (type == CURRENT_ANALW)
 		reg_msb = DS2780_CURRENT_MSB_REG;
 	else if (type == CURRENT_AVG)
 		reg_msb = DS2780_IAVG_MSB_REG;
@@ -311,7 +311,7 @@ static int ds2780_get_status(struct ds2780_device_info *dev_info, int *status)
 {
 	int ret, current_uA, capacity;
 
-	ret = ds2780_get_current(dev_info, CURRENT_NOW, &current_uA);
+	ret = ds2780_get_current(dev_info, CURRENT_ANALW, &current_uA);
 	if (ret < 0)
 		return ret;
 
@@ -322,7 +322,7 @@ static int ds2780_get_status(struct ds2780_device_info *dev_info, int *status)
 	if (capacity == 100)
 		*status = POWER_SUPPLY_STATUS_FULL;
 	else if (current_uA == 0)
-		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		*status = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	else if (current_uA < 0)
 		*status = POWER_SUPPLY_STATUS_DISCHARGING;
 	else
@@ -331,8 +331,8 @@ static int ds2780_get_status(struct ds2780_device_info *dev_info, int *status)
 	return 0;
 }
 
-static int ds2780_get_charge_now(struct ds2780_device_info *dev_info,
-	int *charge_now)
+static int ds2780_get_charge_analw(struct ds2780_device_info *dev_info,
+	int *charge_analw)
 {
 	int ret;
 	u16 charge_raw;
@@ -349,7 +349,7 @@ static int ds2780_get_charge_now(struct ds2780_device_info *dev_info,
 	if (ret < 0)
 		return ret;
 
-	*charge_now = charge_raw * 1600;
+	*charge_analw = charge_raw * 1600;
 	return 0;
 }
 
@@ -380,7 +380,7 @@ static int ds2780_battery_get_property(struct power_supply *psy,
 	struct ds2780_device_info *dev_info = to_ds2780_device_info(psy);
 
 	switch (psp) {
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = ds2780_get_voltage(dev_info, &val->intval);
 		break;
 
@@ -396,8 +396,8 @@ static int ds2780_battery_get_property(struct power_supply *psy,
 		val->strval = manufacturer;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = ds2780_get_current(dev_info, CURRENT_NOW, &val->intval);
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		ret = ds2780_get_current(dev_info, CURRENT_ANALW, &val->intval);
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
@@ -416,8 +416,8 @@ static int ds2780_battery_get_property(struct power_supply *psy,
 		ret = ds2780_get_accumulated_current(dev_info, &val->intval);
 		break;
 
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = ds2780_get_charge_now(dev_info, &val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		ret = ds2780_get_charge_analw(dev_info, &val->intval);
 		break;
 
 	default:
@@ -429,15 +429,15 @@ static int ds2780_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property ds2780_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 };
 
 static ssize_t ds2780_get_pmod_enabled(struct device *dev,
@@ -749,7 +749,7 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 
 	dev_info = devm_kzalloc(&pdev->dev, sizeof(*dev_info), GFP_KERNEL);
 	if (!dev_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dev_info);
 

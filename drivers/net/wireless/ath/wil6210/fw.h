@@ -135,7 +135,7 @@ struct wil_fw_record_direct_write { /* type == wil_fw_type_direct_write */
 } __packed;
 
 /* verify condition: [@addr] & @mask == @value
- * if condition not met, firmware download fails
+ * if condition analt met, firmware download fails
  */
 struct wil_fw_record_verify { /* type == wil_fw_verify */
 	__le32 addr; /* read from this address */

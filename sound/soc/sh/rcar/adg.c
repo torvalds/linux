@@ -2,7 +2,7 @@
 //
 // Helper routines for R-Car sound ADG.
 //
-//  Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//  Copyright (C) 2013  Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include "rsnd.h"
@@ -169,7 +169,7 @@ static void __rsnd_adg_get_timesel_ratio(struct rsnd_priv *priv,
 	}
 
 	if (min == ~0) {
-		dev_err(dev, "no Input clock\n");
+		dev_err(dev, "anal Input clock\n");
 		return;
 	}
 
@@ -289,7 +289,7 @@ static void rsnd_adg_set_ssi_clk(struct rsnd_mod *ssi_mod, u32 val)
 	val = val << shift;
 
 	/*
-	 * SSI 8 is not connected to ADG.
+	 * SSI 8 is analt connected to ADG.
 	 * it works with SSI 7
 	 */
 	if (id == 8)
@@ -487,7 +487,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	struct rsnd_adg *adg = priv->adg;
 	struct clk *clk;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct property *prop;
 	u32 ckr, brgx, brga, brgb;
 	u32 req_rate[ADG_HZ_SIZE] = {};
@@ -535,7 +535,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 
 	/*
 	 * This driver is assuming that AUDIO_CLKA/AUDIO_CLKB/AUDIO_CLKC
-	 * have 44.1kHz or 48kHz base clocks for now.
+	 * have 44.1kHz or 48kHz base clocks for analw.
 	 *
 	 * SSI itself can divide parent clock by 1/1 - 1/16
 	 * see
@@ -548,7 +548,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	 *
 	 * clk_i (internal clock) can't create accurate rate, it will be approximate rate.
 	 *
-	 * <Note>
+	 * <Analte>
 	 *
 	 * clk_i needs x2 of required maximum rate.
 	 * see
@@ -557,8 +557,8 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 	 *
 	 * Sample Settings for TDM 8ch, 32bit width
 	 *
-	 *	8(ch) x 32(bit) x 44100(Hz) x 2<Note> = 22579200
-	 *	8(ch) x 32(bit) x 48000(Hz) x 2<Note> = 24576000
+	 *	8(ch) x 32(bit) x 44100(Hz) x 2<Analte> = 22579200
+	 *	8(ch) x 32(bit) x 48000(Hz) x 2<Analte> = 24576000
 	 *
 	 *	clock-frequency = <22579200 24576000>;
 	 */
@@ -567,7 +567,7 @@ static int rsnd_adg_get_clkout(struct rsnd_priv *priv)
 
 		rate = clk_get_rate(clk);
 
-		if (0 == rate) /* not used */
+		if (0 == rate) /* analt used */
 			continue;
 
 		/* BRGA */
@@ -729,7 +729,7 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rsnd_mod_init(priv, &adg->mod, &adg_ops,
 		      NULL, 0, 0);
@@ -755,7 +755,7 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 void rsnd_adg_remove(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	rsnd_adg_unregister_clkout(priv);
 

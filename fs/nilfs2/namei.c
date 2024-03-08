@@ -28,21 +28,21 @@
 #include "nilfs.h"
 #include "export.h"
 
-#define NILFS_FID_SIZE_NON_CONNECTABLE \
+#define NILFS_FID_SIZE_ANALN_CONNECTABLE \
 	(offsetof(struct nilfs_fid, parent_gen) / 4)
 #define NILFS_FID_SIZE_CONNECTABLE	(sizeof(struct nilfs_fid) / 4)
 
-static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
+static inline int nilfs_add_analndir(struct dentry *dentry, struct ianalde *ianalde)
 {
-	int err = nilfs_add_link(dentry, inode);
+	int err = nilfs_add_link(dentry, ianalde);
 
 	if (!err) {
-		d_instantiate_new(dentry, inode);
+		d_instantiate_new(dentry, ianalde);
 		return 0;
 	}
-	inode_dec_link_count(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	ianalde_dec_link_count(ianalde);
+	unlock_new_ianalde(ianalde);
+	iput(ianalde);
 	return err;
 }
 
@@ -51,45 +51,45 @@ static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
  */
 
 static struct dentry *
-nilfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+nilfs_lookup(struct ianalde *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
-	ino_t ino;
+	struct ianalde *ianalde;
+	ianal_t ianal;
 
 	if (dentry->d_name.len > NILFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ino = nilfs_inode_by_name(dir, &dentry->d_name);
-	inode = ino ? nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino) : NULL;
-	return d_splice_alias(inode, dentry);
+	ianal = nilfs_ianalde_by_name(dir, &dentry->d_name);
+	ianalde = ianal ? nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ianal) : NULL;
+	return d_splice_alias(ianalde, dentry);
 }
 
 /*
  * By the time this is called, we already have created
  * the directory cache entry for the new file, but it
- * is so far negative - it has no inode.
+ * is so far negative - it has anal ianalde.
  *
- * If the create succeeds, we fill in the inode information
+ * If the create succeeds, we fill in the ianalde information
  * with d_instantiate().
  */
-static int nilfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int nilfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 			struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nilfs_transaction_info ti;
 	int err;
 
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
 		return err;
-	inode = nilfs_new_inode(dir, mode);
-	err = PTR_ERR(inode);
-	if (!IS_ERR(inode)) {
-		inode->i_op = &nilfs_file_inode_operations;
-		inode->i_fop = &nilfs_file_operations;
-		inode->i_mapping->a_ops = &nilfs_aops;
-		nilfs_mark_inode_dirty(inode);
-		err = nilfs_add_nondir(dentry, inode);
+	ianalde = nilfs_new_ianalde(dir, mode);
+	err = PTR_ERR(ianalde);
+	if (!IS_ERR(ianalde)) {
+		ianalde->i_op = &nilfs_file_ianalde_operations;
+		ianalde->i_fop = &nilfs_file_operations;
+		ianalde->i_mapping->a_ops = &nilfs_aops;
+		nilfs_mark_ianalde_dirty(ianalde);
+		err = nilfs_add_analndir(dentry, ianalde);
 	}
 	if (!err)
 		err = nilfs_transaction_commit(dir->i_sb);
@@ -100,22 +100,22 @@ static int nilfs_create(struct mnt_idmap *idmap, struct inode *dir,
 }
 
 static int
-nilfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+nilfs_mkanald(struct mnt_idmap *idmap, struct ianalde *dir,
 	    struct dentry *dentry, umode_t mode, dev_t rdev)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nilfs_transaction_info ti;
 	int err;
 
 	err = nilfs_transaction_begin(dir->i_sb, &ti, 1);
 	if (err)
 		return err;
-	inode = nilfs_new_inode(dir, mode);
-	err = PTR_ERR(inode);
-	if (!IS_ERR(inode)) {
-		init_special_inode(inode, inode->i_mode, rdev);
-		nilfs_mark_inode_dirty(inode);
-		err = nilfs_add_nondir(dentry, inode);
+	ianalde = nilfs_new_ianalde(dir, mode);
+	err = PTR_ERR(ianalde);
+	if (!IS_ERR(ianalde)) {
+		init_special_ianalde(ianalde, ianalde->i_mode, rdev);
+		nilfs_mark_ianalde_dirty(ianalde);
+		err = nilfs_add_analndir(dentry, ianalde);
 	}
 	if (!err)
 		err = nilfs_transaction_commit(dir->i_sb);
@@ -125,13 +125,13 @@ nilfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	return err;
 }
 
-static int nilfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+static int nilfs_symlink(struct mnt_idmap *idmap, struct ianalde *dir,
 			 struct dentry *dentry, const char *symname)
 {
 	struct nilfs_transaction_info ti;
 	struct super_block *sb = dir->i_sb;
 	unsigned int l = strlen(symname) + 1;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int err;
 
 	if (l > sb->s_blocksize)
@@ -141,23 +141,23 @@ static int nilfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	if (err)
 		return err;
 
-	inode = nilfs_new_inode(dir, S_IFLNK | 0777);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	ianalde = nilfs_new_ianalde(dir, S_IFLNK | 0777);
+	err = PTR_ERR(ianalde);
+	if (IS_ERR(ianalde))
 		goto out;
 
 	/* slow symlink */
-	inode->i_op = &nilfs_symlink_inode_operations;
-	inode_nohighmem(inode);
-	inode->i_mapping->a_ops = &nilfs_aops;
-	err = page_symlink(inode, symname, l);
+	ianalde->i_op = &nilfs_symlink_ianalde_operations;
+	ianalde_analhighmem(ianalde);
+	ianalde->i_mapping->a_ops = &nilfs_aops;
+	err = page_symlink(ianalde, symname, l);
 	if (err)
 		goto out_fail;
 
-	/* mark_inode_dirty(inode); */
+	/* mark_ianalde_dirty(ianalde); */
 	/* page_symlink() do this */
 
-	err = nilfs_add_nondir(dentry, inode);
+	err = nilfs_add_analndir(dentry, ianalde);
 out:
 	if (!err)
 		err = nilfs_transaction_commit(dir->i_sb);
@@ -167,17 +167,17 @@ out:
 	return err;
 
 out_fail:
-	drop_nlink(inode);
-	nilfs_mark_inode_dirty(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	drop_nlink(ianalde);
+	nilfs_mark_ianalde_dirty(ianalde);
+	unlock_new_ianalde(ianalde);
+	iput(ianalde);
 	goto out;
 }
 
-static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
+static int nilfs_link(struct dentry *old_dentry, struct ianalde *dir,
 		      struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct ianalde *ianalde = d_ianalde(old_dentry);
 	struct nilfs_transaction_info ti;
 	int err;
 
@@ -185,27 +185,27 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (err)
 		return err;
 
-	inode_set_ctime_current(inode);
-	inode_inc_link_count(inode);
-	ihold(inode);
+	ianalde_set_ctime_current(ianalde);
+	ianalde_inc_link_count(ianalde);
+	ihold(ianalde);
 
-	err = nilfs_add_link(dentry, inode);
+	err = nilfs_add_link(dentry, ianalde);
 	if (!err) {
-		d_instantiate(dentry, inode);
+		d_instantiate(dentry, ianalde);
 		err = nilfs_transaction_commit(dir->i_sb);
 	} else {
-		inode_dec_link_count(inode);
-		iput(inode);
+		ianalde_dec_link_count(ianalde);
+		iput(ianalde);
 		nilfs_transaction_abort(dir->i_sb);
 	}
 
 	return err;
 }
 
-static int nilfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int nilfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		       struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nilfs_transaction_info ti;
 	int err;
 
@@ -215,27 +215,27 @@ static int nilfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inc_nlink(dir);
 
-	inode = nilfs_new_inode(dir, S_IFDIR | mode);
-	err = PTR_ERR(inode);
-	if (IS_ERR(inode))
+	ianalde = nilfs_new_ianalde(dir, S_IFDIR | mode);
+	err = PTR_ERR(ianalde);
+	if (IS_ERR(ianalde))
 		goto out_dir;
 
-	inode->i_op = &nilfs_dir_inode_operations;
-	inode->i_fop = &nilfs_dir_operations;
-	inode->i_mapping->a_ops = &nilfs_aops;
+	ianalde->i_op = &nilfs_dir_ianalde_operations;
+	ianalde->i_fop = &nilfs_dir_operations;
+	ianalde->i_mapping->a_ops = &nilfs_aops;
 
-	inc_nlink(inode);
+	inc_nlink(ianalde);
 
-	err = nilfs_make_empty(inode, dir);
+	err = nilfs_make_empty(ianalde, dir);
 	if (err)
 		goto out_fail;
 
-	err = nilfs_add_link(dentry, inode);
+	err = nilfs_add_link(dentry, ianalde);
 	if (err)
 		goto out_fail;
 
-	nilfs_mark_inode_dirty(inode);
-	d_instantiate_new(dentry, inode);
+	nilfs_mark_ianalde_dirty(ianalde);
+	d_instantiate_new(dentry, ianalde);
 out:
 	if (!err)
 		err = nilfs_transaction_commit(dir->i_sb);
@@ -245,53 +245,53 @@ out:
 	return err;
 
 out_fail:
-	drop_nlink(inode);
-	drop_nlink(inode);
-	nilfs_mark_inode_dirty(inode);
-	unlock_new_inode(inode);
-	iput(inode);
+	drop_nlink(ianalde);
+	drop_nlink(ianalde);
+	nilfs_mark_ianalde_dirty(ianalde);
+	unlock_new_ianalde(ianalde);
+	iput(ianalde);
 out_dir:
 	drop_nlink(dir);
-	nilfs_mark_inode_dirty(dir);
+	nilfs_mark_ianalde_dirty(dir);
 	goto out;
 }
 
-static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
+static int nilfs_do_unlink(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nilfs_dir_entry *de;
 	struct folio *folio;
 	int err;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	de = nilfs_find_entry(dir, &dentry->d_name, &folio);
 	if (!de)
 		goto out;
 
-	inode = d_inode(dentry);
+	ianalde = d_ianalde(dentry);
 	err = -EIO;
-	if (le64_to_cpu(de->inode) != inode->i_ino)
+	if (le64_to_cpu(de->ianalde) != ianalde->i_ianal)
 		goto out;
 
-	if (!inode->i_nlink) {
-		nilfs_warn(inode->i_sb,
-			   "deleting nonexistent file (ino=%lu), %d",
-			   inode->i_ino, inode->i_nlink);
-		set_nlink(inode, 1);
+	if (!ianalde->i_nlink) {
+		nilfs_warn(ianalde->i_sb,
+			   "deleting analnexistent file (ianal=%lu), %d",
+			   ianalde->i_ianal, ianalde->i_nlink);
+		set_nlink(ianalde, 1);
 	}
 	err = nilfs_delete_entry(de, folio);
 	folio_release_kmap(folio, de);
 	if (err)
 		goto out;
 
-	inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
-	drop_nlink(inode);
+	ianalde_set_ctime_to_ts(ianalde, ianalde_get_ctime(dir));
+	drop_nlink(ianalde);
 	err = 0;
 out:
 	return err;
 }
 
-static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
+static int nilfs_unlink(struct ianalde *dir, struct dentry *dentry)
 {
 	struct nilfs_transaction_info ti;
 	int err;
@@ -303,8 +303,8 @@ static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
 	err = nilfs_do_unlink(dir, dentry);
 
 	if (!err) {
-		nilfs_mark_inode_dirty(dir);
-		nilfs_mark_inode_dirty(d_inode(dentry));
+		nilfs_mark_ianalde_dirty(dir);
+		nilfs_mark_ianalde_dirty(d_ianalde(dentry));
 		err = nilfs_transaction_commit(dir->i_sb);
 	} else
 		nilfs_transaction_abort(dir->i_sb);
@@ -312,9 +312,9 @@ static int nilfs_unlink(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
-static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
+static int nilfs_rmdir(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct nilfs_transaction_info ti;
 	int err;
 
@@ -322,15 +322,15 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (err)
 		return err;
 
-	err = -ENOTEMPTY;
-	if (nilfs_empty_dir(inode)) {
+	err = -EANALTEMPTY;
+	if (nilfs_empty_dir(ianalde)) {
 		err = nilfs_do_unlink(dir, dentry);
 		if (!err) {
-			inode->i_size = 0;
-			drop_nlink(inode);
-			nilfs_mark_inode_dirty(inode);
+			ianalde->i_size = 0;
+			drop_nlink(ianalde);
+			nilfs_mark_ianalde_dirty(ianalde);
 			drop_nlink(dir);
-			nilfs_mark_inode_dirty(dir);
+			nilfs_mark_ianalde_dirty(dir);
 		}
 	}
 	if (!err)
@@ -342,12 +342,12 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int nilfs_rename(struct mnt_idmap *idmap,
-			struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry,
+			struct ianalde *old_dir, struct dentry *old_dentry,
+			struct ianalde *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
-	struct inode *old_inode = d_inode(old_dentry);
-	struct inode *new_inode = d_inode(new_dentry);
+	struct ianalde *old_ianalde = d_ianalde(old_dentry);
+	struct ianalde *new_ianalde = d_ianalde(new_dentry);
 	struct folio *dir_folio = NULL;
 	struct nilfs_dir_entry *dir_de = NULL;
 	struct folio *old_folio;
@@ -355,72 +355,72 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 	struct nilfs_transaction_info ti;
 	int err;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~RENAME_ANALREPLACE)
 		return -EINVAL;
 
 	err = nilfs_transaction_begin(old_dir->i_sb, &ti, 1);
 	if (unlikely(err))
 		return err;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	old_de = nilfs_find_entry(old_dir, &old_dentry->d_name, &old_folio);
 	if (!old_de)
 		goto out;
 
-	if (S_ISDIR(old_inode->i_mode)) {
+	if (S_ISDIR(old_ianalde->i_mode)) {
 		err = -EIO;
-		dir_de = nilfs_dotdot(old_inode, &dir_folio);
+		dir_de = nilfs_dotdot(old_ianalde, &dir_folio);
 		if (!dir_de)
 			goto out_old;
 	}
 
-	if (new_inode) {
+	if (new_ianalde) {
 		struct folio *new_folio;
 		struct nilfs_dir_entry *new_de;
 
-		err = -ENOTEMPTY;
-		if (dir_de && !nilfs_empty_dir(new_inode))
+		err = -EANALTEMPTY;
+		if (dir_de && !nilfs_empty_dir(new_ianalde))
 			goto out_dir;
 
-		err = -ENOENT;
+		err = -EANALENT;
 		new_de = nilfs_find_entry(new_dir, &new_dentry->d_name, &new_folio);
 		if (!new_de)
 			goto out_dir;
-		nilfs_set_link(new_dir, new_de, new_folio, old_inode);
+		nilfs_set_link(new_dir, new_de, new_folio, old_ianalde);
 		folio_release_kmap(new_folio, new_de);
-		nilfs_mark_inode_dirty(new_dir);
-		inode_set_ctime_current(new_inode);
+		nilfs_mark_ianalde_dirty(new_dir);
+		ianalde_set_ctime_current(new_ianalde);
 		if (dir_de)
-			drop_nlink(new_inode);
-		drop_nlink(new_inode);
-		nilfs_mark_inode_dirty(new_inode);
+			drop_nlink(new_ianalde);
+		drop_nlink(new_ianalde);
+		nilfs_mark_ianalde_dirty(new_ianalde);
 	} else {
-		err = nilfs_add_link(new_dentry, old_inode);
+		err = nilfs_add_link(new_dentry, old_ianalde);
 		if (err)
 			goto out_dir;
 		if (dir_de) {
 			inc_nlink(new_dir);
-			nilfs_mark_inode_dirty(new_dir);
+			nilfs_mark_ianalde_dirty(new_dir);
 		}
 	}
 
 	/*
-	 * Like most other Unix systems, set the ctime for inodes on a
+	 * Like most other Unix systems, set the ctime for ianaldes on a
 	 * rename.
 	 */
-	inode_set_ctime_current(old_inode);
+	ianalde_set_ctime_current(old_ianalde);
 
 	nilfs_delete_entry(old_de, old_folio);
 
 	if (dir_de) {
-		nilfs_set_link(old_inode, dir_de, dir_folio, new_dir);
+		nilfs_set_link(old_ianalde, dir_de, dir_folio, new_dir);
 		folio_release_kmap(dir_folio, dir_de);
 		drop_nlink(old_dir);
 	}
 	folio_release_kmap(old_folio, old_de);
 
-	nilfs_mark_inode_dirty(old_dir);
-	nilfs_mark_inode_dirty(old_inode);
+	nilfs_mark_ianalde_dirty(old_dir);
+	nilfs_mark_ianalde_dirty(old_ianalde);
 
 	err = nilfs_transaction_commit(old_dir->i_sb);
 	return err;
@@ -440,41 +440,41 @@ out:
  */
 static struct dentry *nilfs_get_parent(struct dentry *child)
 {
-	unsigned long ino;
+	unsigned long ianal;
 	struct nilfs_root *root;
 
-	ino = nilfs_inode_by_name(d_inode(child), &dotdot_name);
-	if (!ino)
-		return ERR_PTR(-ENOENT);
+	ianal = nilfs_ianalde_by_name(d_ianalde(child), &dotdot_name);
+	if (!ianal)
+		return ERR_PTR(-EANALENT);
 
-	root = NILFS_I(d_inode(child))->i_root;
+	root = NILFS_I(d_ianalde(child))->i_root;
 
-	return d_obtain_alias(nilfs_iget(child->d_sb, root, ino));
+	return d_obtain_alias(nilfs_iget(child->d_sb, root, ianal));
 }
 
-static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 cno,
-				       u64 ino, u32 gen)
+static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 canal,
+				       u64 ianal, u32 gen)
 {
 	struct nilfs_root *root;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO)
+	if (ianal < NILFS_FIRST_IANAL(sb) && ianal != NILFS_ROOT_IANAL)
 		return ERR_PTR(-ESTALE);
 
-	root = nilfs_lookup_root(sb->s_fs_info, cno);
+	root = nilfs_lookup_root(sb->s_fs_info, canal);
 	if (!root)
 		return ERR_PTR(-ESTALE);
 
-	inode = nilfs_iget(sb, root, ino);
+	ianalde = nilfs_iget(sb, root, ianal);
 	nilfs_put_root(root);
 
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	if (gen && inode->i_generation != gen) {
-		iput(inode);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
+	if (gen && ianalde->i_generation != gen) {
+		iput(ianalde);
 		return ERR_PTR(-ESTALE);
 	}
-	return d_obtain_alias(inode);
+	return d_obtain_alias(ianalde);
 }
 
 static struct dentry *nilfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
@@ -482,12 +482,12 @@ static struct dentry *nilfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 {
 	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
 
-	if (fh_len < NILFS_FID_SIZE_NON_CONNECTABLE ||
+	if (fh_len < NILFS_FID_SIZE_ANALN_CONNECTABLE ||
 	    (fh_type != FILEID_NILFS_WITH_PARENT &&
 	     fh_type != FILEID_NILFS_WITHOUT_PARENT))
 		return NULL;
 
-	return nilfs_get_dentry(sb, fid->cno, fid->ino, fid->gen);
+	return nilfs_get_dentry(sb, fid->canal, fid->ianal, fid->gen);
 }
 
 static struct dentry *nilfs_fh_to_parent(struct super_block *sb, struct fid *fh,
@@ -499,43 +499,43 @@ static struct dentry *nilfs_fh_to_parent(struct super_block *sb, struct fid *fh,
 	    fh_type != FILEID_NILFS_WITH_PARENT)
 		return NULL;
 
-	return nilfs_get_dentry(sb, fid->cno, fid->parent_ino, fid->parent_gen);
+	return nilfs_get_dentry(sb, fid->canal, fid->parent_ianal, fid->parent_gen);
 }
 
-static int nilfs_encode_fh(struct inode *inode, __u32 *fh, int *lenp,
-			   struct inode *parent)
+static int nilfs_encode_fh(struct ianalde *ianalde, __u32 *fh, int *lenp,
+			   struct ianalde *parent)
 {
 	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
-	struct nilfs_root *root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(ianalde)->i_root;
 	int type;
 
 	if (parent && *lenp < NILFS_FID_SIZE_CONNECTABLE) {
 		*lenp = NILFS_FID_SIZE_CONNECTABLE;
 		return FILEID_INVALID;
 	}
-	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE) {
-		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
+	if (*lenp < NILFS_FID_SIZE_ANALN_CONNECTABLE) {
+		*lenp = NILFS_FID_SIZE_ANALN_CONNECTABLE;
 		return FILEID_INVALID;
 	}
 
-	fid->cno = root->cno;
-	fid->ino = inode->i_ino;
-	fid->gen = inode->i_generation;
+	fid->canal = root->canal;
+	fid->ianal = ianalde->i_ianal;
+	fid->gen = ianalde->i_generation;
 
 	if (parent) {
-		fid->parent_ino = parent->i_ino;
+		fid->parent_ianal = parent->i_ianal;
 		fid->parent_gen = parent->i_generation;
 		type = FILEID_NILFS_WITH_PARENT;
 		*lenp = NILFS_FID_SIZE_CONNECTABLE;
 	} else {
 		type = FILEID_NILFS_WITHOUT_PARENT;
-		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
+		*lenp = NILFS_FID_SIZE_ANALN_CONNECTABLE;
 	}
 
 	return type;
 }
 
-const struct inode_operations nilfs_dir_inode_operations = {
+const struct ianalde_operations nilfs_dir_ianalde_operations = {
 	.create		= nilfs_create,
 	.lookup		= nilfs_lookup,
 	.link		= nilfs_link,
@@ -543,7 +543,7 @@ const struct inode_operations nilfs_dir_inode_operations = {
 	.symlink	= nilfs_symlink,
 	.mkdir		= nilfs_mkdir,
 	.rmdir		= nilfs_rmdir,
-	.mknod		= nilfs_mknod,
+	.mkanald		= nilfs_mkanald,
 	.rename		= nilfs_rename,
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
@@ -552,12 +552,12 @@ const struct inode_operations nilfs_dir_inode_operations = {
 	.fileattr_set	= nilfs_fileattr_set,
 };
 
-const struct inode_operations nilfs_special_inode_operations = {
+const struct ianalde_operations nilfs_special_ianalde_operations = {
 	.setattr	= nilfs_setattr,
 	.permission	= nilfs_permission,
 };
 
-const struct inode_operations nilfs_symlink_inode_operations = {
+const struct ianalde_operations nilfs_symlink_ianalde_operations = {
 	.get_link	= page_get_link,
 	.permission     = nilfs_permission,
 };

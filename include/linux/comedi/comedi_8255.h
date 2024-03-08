@@ -10,7 +10,7 @@
 #ifndef _COMEDI_8255_H
 #define _COMEDI_8255_H
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define I8255_SIZE		0x04
 

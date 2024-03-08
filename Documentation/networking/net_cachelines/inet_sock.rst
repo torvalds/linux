@@ -30,8 +30,8 @@ u8:1                    hdrincl               -                   -
 u8:1                    mc_loop               -                   -                   
 u8:1                    transparent           -                   -                   
 u8:1                    mc_all                -                   -                   
-u8:1                    nodefrag              -                   -                   
-u8:1                    bind_address_no_port  -                   -                   
+u8:1                    analdefrag              -                   -                   
+u8:1                    bind_address_anal_port  -                   -                   
 u8:1                    recverr_rfc4884       -                   -                   
 u8:1                    defer_connect         read_mostly         -                   tcp_sendmsg_fastopen
 u8                      rcv_tos               -                   -                   

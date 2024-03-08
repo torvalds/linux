@@ -16,18 +16,18 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH",
-        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "SampleAfterValue": "200003",
         "UMask": "0x38"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH_DRAM_HIT",
-        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in DRAM or MMIO (non-DRAM).",
+        "PublicDescription": "Counts the number of cycles the core is stalled due to an instruction cache or translation lookaside buffer (TLB) miss which hit in DRAM or MMIO (analn-DRAM).",
         "SampleAfterValue": "200003",
         "UMask": "0x20"
     },
@@ -48,14 +48,14 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in the L2, LLC, DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.LOAD",
         "SampleAfterValue": "200003",
         "UMask": "0x7"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load miss which hit in DRAM or MMIO (Analn-DRAM).",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.LOAD_DRAM_HIT",
         "SampleAfterValue": "200003",
@@ -276,27 +276,27 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, but no data was forwarded.",
+        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, but anal data was forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HIT_ANAL_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x4003C0001",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a snoop was sent, the snoop hit, and non-modified data was forwarded.",
+        "BriefDescription": "Counts demand data reads that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and analn-modified data was forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SANALOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x8003C0001",
         "SampleAfterValue": "100003",
@@ -312,16 +312,16 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a sanalop was sent, the sanalop hit, and modified data was forwarded.",
         "EventCode": "0xB7",
-        "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
+        "EventName": "OCR.DEMAND_RFO.L3_HIT.SANALOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x10003C0002",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to instruction cache misses.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were analt delivered by the frontend due to instruction cache misses.",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ICACHE",
         "SampleAfterValue": "1000003",

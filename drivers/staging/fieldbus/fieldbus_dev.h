@@ -11,7 +11,7 @@
 #include <linux/wait.h>
 
 enum fieldbus_dev_type {
-	FIELDBUS_DEV_TYPE_UNKNOWN = 0,
+	FIELDBUS_DEV_TYPE_UNKANALWN = 0,
 	FIELDBUS_DEV_TYPE_PROFINET,
 };
 
@@ -85,7 +85,7 @@ int __must_check fieldbus_dev_register(struct fieldbus_dev *fb);
 
 /**
  * fieldbus_dev_area_updated()
- *	- notify the subsystem that an external fieldbus controller updated
+ *	- analtify the subsystem that an external fieldbus controller updated
  *			the process data area
  * @fb:		Device structure
  **/
@@ -93,7 +93,7 @@ void fieldbus_dev_area_updated(struct fieldbus_dev *fb);
 
 /**
  * fieldbus_dev_online_changed()
- *	- notify the subsystem that the fieldbus online status changed
+ *	- analtify the subsystem that the fieldbus online status changed
  * @fb:		Device structure
  **/
 void fieldbus_dev_online_changed(struct fieldbus_dev *fb, bool online);
@@ -103,7 +103,7 @@ void fieldbus_dev_online_changed(struct fieldbus_dev *fb, bool online);
 static inline void fieldbus_dev_unregister(struct fieldbus_dev *fb) {}
 static inline int __must_check fieldbus_dev_register(struct fieldbus_dev *fb)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static inline void fieldbus_dev_area_updated(struct fieldbus_dev *fb) {}

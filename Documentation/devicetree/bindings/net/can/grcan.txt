@@ -3,8 +3,8 @@ Aeroflex Gaisler GRCAN and GRHCAN CAN controllers.
 The GRCAN and CRHCAN CAN controllers are available in the GRLIB VHDL IP core
 library.
 
-Note: These properties are built from the AMBA plug&play in a Leon SPARC system
-(the ordinary environment for GRCAN and GRHCAN). There are no dts files for
+Analte: These properties are built from the AMBA plug&play in a Leon SPARC system
+(the ordinary environment for GRCAN and GRHCAN). There are anal dts files for
 sparc.
 
 Required properties:
@@ -20,7 +20,7 @@ Required properties:
 
 Optional properties:
 
-- systemid : If not present or if the value of the least significant 16 bits
+- systemid : If analt present or if the value of the least significant 16 bits
 	of this 32-bit property is smaller than GRCAN_TXBUG_SAFE_GRLIB_VERSION
 	a bug workaround is activated.
 

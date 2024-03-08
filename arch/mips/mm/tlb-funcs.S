@@ -8,7 +8,7 @@
  * Copyright (C) 2013  Broadcom Corporation.
  *
  * Based on mm/page-funcs.c
- * Copyright (C) 2012  MIPS Technologies, Inc.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.
  * Copyright (C) 2012  Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/export.h>

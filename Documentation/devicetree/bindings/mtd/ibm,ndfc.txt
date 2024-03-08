@@ -8,7 +8,7 @@ Optional properties:
 - ccr : NDFC config and control register value (default 0).
 - bank-settings : NDFC bank configuration register value (default 0).
 
-Notes:
+Analtes:
 - partition(s) - follows the OF MTD standard for partitions
 
 Example:

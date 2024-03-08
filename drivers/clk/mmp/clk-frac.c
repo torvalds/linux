@@ -16,7 +16,7 @@
  * It is M/N clock
  *
  * Fout from synthesizer can be given from two equations:
- * numerator/denominator = Fin / (Fout * factor)
+ * numerator/deanalminator = Fin / (Fout * factor)
  */
 
 #define to_clk_factor(hw) container_of(hw, struct mmp_clk_factor, hw)
@@ -60,7 +60,7 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 	/* calculate numerator */
 	num = (val >> masks->num_shift) & masks->num_mask;
 
-	/* calculate denominator */
+	/* calculate deanalminator */
 	den = (val >> masks->den_shift) & masks->den_mask;
 
 	if (!den)
@@ -130,7 +130,7 @@ static int clk_factor_init(struct clk_hw *hw)
 	/* calculate numerator */
 	num = (val >> masks->num_shift) & masks->num_mask;
 
-	/* calculate denominator */
+	/* calculate deanalminator */
 	den = (val >> masks->den_shift) & masks->den_mask;
 
 	for (i = 0; i < factor->ftbl_cnt; i++)
@@ -182,7 +182,7 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 
 	factor = kzalloc(sizeof(*factor), GFP_KERNEL);
 	if (!factor)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* struct clk_aux assignments */
 	factor->base = base;

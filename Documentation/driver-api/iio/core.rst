@@ -26,7 +26,7 @@ There are two ways for a user space application to interact with an IIO driver.
 
 1. :file:`/sys/bus/iio/iio:device{X}/`, this represents a hardware sensor
    and groups together the data channels of the same chip.
-2. :file:`/dev/iio:device{X}`, character device node interface used for
+2. :file:`/dev/iio:device{X}`, character device analde interface used for
    buffered data transfer and for events information retrieval.
 
 A typical IIO driver will register itself as an :doc:`I2C <../i2c>` or
@@ -55,8 +55,8 @@ index X, attributes can be found under /sys/bus/iio/iio:deviceX/ directory.
 Common attributes are:
 
 * :file:`name`, description of the physical chip.
-* :file:`dev`, shows the major:minor pair associated with
-  :file:`/dev/iio:deviceX` node.
+* :file:`dev`, shows the major:mianalr pair associated with
+  :file:`/dev/iio:deviceX` analde.
 * :file:`sampling_frequency_available`, available discrete set of sampling
   frequency values for device.
 * Available standard attributes for IIO devices are described in the
@@ -110,7 +110,7 @@ distinguish between them:
   sensor can have two channels, one for infrared light and one for both
   infrared and visible light.
 * set **.indexed** field of :c:type:`iio_chan_spec` to 1. In this case the
-  channel is simply another instance with an index specified by the **.channel**
+  channel is simply aanalther instance with an index specified by the **.channel**
   field.
 
 Here is how we can make use of the channel's modifiers::

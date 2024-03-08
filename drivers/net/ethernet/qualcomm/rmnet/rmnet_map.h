@@ -24,11 +24,11 @@ struct rmnet_map_control_command {
 }  __aligned(1);
 
 enum rmnet_map_commands {
-	RMNET_MAP_COMMAND_NONE,
+	RMNET_MAP_COMMAND_ANALNE,
 	RMNET_MAP_COMMAND_FLOW_DISABLE,
 	RMNET_MAP_COMMAND_FLOW_ENABLE,
 	/* These should always be the last 2 elements */
-	RMNET_MAP_COMMAND_UNKNOWN,
+	RMNET_MAP_COMMAND_UNKANALWN,
 	RMNET_MAP_COMMAND_ENUM_LENGTH
 };
 
@@ -37,7 +37,7 @@ enum rmnet_map_commands {
 #define RMNET_MAP_COMMAND_UNSUPPORTED 2
 #define RMNET_MAP_COMMAND_INVALID     3
 
-#define RMNET_MAP_NO_PAD_BYTES        0
+#define RMNET_MAP_ANAL_PAD_BYTES        0
 #define RMNET_MAP_ADD_PAD_BYTES       1
 
 struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,

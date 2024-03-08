@@ -41,7 +41,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	case INSN_REJECTED:
 		return -EINVAL;
 
-	case INSN_GOOD_NO_SLOT:
+	case INSN_GOOD_ANAL_SLOT:
 		auprobe->simulate = true;
 		break;
 
@@ -139,15 +139,15 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr,
 	return ra;
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_analtify(struct analtifier_block *self,
 				 unsigned long val, void *data)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 bool uprobe_breakpoint_handler(struct pt_regs *regs)
 {
-	if (uprobe_pre_sstep_notifier(regs))
+	if (uprobe_pre_sstep_analtifier(regs))
 		return true;
 
 	return false;
@@ -155,7 +155,7 @@ bool uprobe_breakpoint_handler(struct pt_regs *regs)
 
 bool uprobe_single_step_handler(struct pt_regs *regs)
 {
-	if (uprobe_post_sstep_notifier(regs))
+	if (uprobe_post_sstep_analtifier(regs))
 		return true;
 
 	return false;

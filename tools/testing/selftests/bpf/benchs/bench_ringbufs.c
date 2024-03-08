@@ -41,8 +41,8 @@ static const struct argp_option opts[] = {
 	{ "rb-b2b", ARG_RB_BACK2BACK, NULL, 0, "Back-to-back mode"},
 	{ "rb-use-output", ARG_RB_USE_OUTPUT, NULL, 0, "Use bpf_ringbuf_output() instead of bpf_ringbuf_reserve()"},
 	{ "rb-batch-cnt", ARG_RB_BATCH_CNT, "CNT", 0, "Set BPF-side record batch count"},
-	{ "rb-sampled", ARG_RB_SAMPLED, NULL, 0, "Notification sampling"},
-	{ "rb-sample-rate", ARG_RB_SAMPLE_RATE, "RATE", 0, "Notification sample rate"},
+	{ "rb-sampled", ARG_RB_SAMPLED, NULL, 0, "Analtification sampling"},
+	{ "rb-sample-rate", ARG_RB_SAMPLE_RATE, "RATE", 0, "Analtification sample rate"},
 	{},
 };
 
@@ -73,7 +73,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 	return 0;
 }
@@ -236,7 +236,7 @@ static void ringbuf_custom_setup(void)
 
 	ctx->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (ctx->epoll_fd < 0) {
-		fprintf(stderr, "failed to create epoll fd: %d\n", -errno);
+		fprintf(stderr, "failed to create epoll fd: %d\n", -erranal);
 		exit(1);
 	}
 
@@ -248,7 +248,7 @@ static void ringbuf_custom_setup(void)
 	tmp = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 		   r->map_fd, 0);
 	if (tmp == MAP_FAILED) {
-		fprintf(stderr, "failed to mmap consumer page: %d\n", -errno);
+		fprintf(stderr, "failed to mmap consumer page: %d\n", -erranal);
 		exit(1);
 	}
 	r->consumer_pos = tmp;
@@ -257,7 +257,7 @@ static void ringbuf_custom_setup(void)
 	tmp = mmap(NULL, page_size + 2 * args.ringbuf_sz, PROT_READ, MAP_SHARED,
 		   r->map_fd, page_size);
 	if (tmp == MAP_FAILED) {
-		fprintf(stderr, "failed to mmap data pages: %d\n", -errno);
+		fprintf(stderr, "failed to mmap data pages: %d\n", -erranal);
 		exit(1);
 	}
 	r->producer_pos = tmp;
@@ -266,7 +266,7 @@ static void ringbuf_custom_setup(void)
 	ctx->event.events = EPOLLIN;
 	err = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, r->map_fd, &ctx->event);
 	if (err < 0) {
-		fprintf(stderr, "failed to epoll add ringbuf: %d\n", -errno);
+		fprintf(stderr, "failed to epoll add ringbuf: %d\n", -erranal);
 		exit(1);
 	}
 
@@ -306,7 +306,7 @@ static void ringbuf_custom_process_ring(struct ringbuf_custom *r)
 			len_ptr = r->data + (cons_pos & r->mask);
 			len = smp_load_acquire(len_ptr);
 
-			/* sample not committed yet, bail out for now */
+			/* sample analt committed yet, bail out for analw */
 			if (len & RINGBUF_BUSY_BIT)
 				return;
 
@@ -402,7 +402,7 @@ static void perfbuf_libbpf_setup(void)
 	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.sample_type = PERF_SAMPLE_RAW;
-	/* notify only every Nth sample */
+	/* analtify only every Nth sample */
 	if (args.sampled) {
 		attr.sample_period = args.sample_rate;
 		attr.wakeup_events = args.sample_rate;
@@ -490,7 +490,7 @@ static void *perfbuf_custom_consumer(void *input)
 			bufs_trigger_batch();
 		cnt = epoll_wait(pb->epoll_fd, pb->events, pb->cpu_cnt, -1);
 		if (cnt <= 0) {
-			fprintf(stderr, "perf epoll failed: %d\n", -errno);
+			fprintf(stderr, "perf epoll failed: %d\n", -erranal);
 			exit(1);
 		}
 

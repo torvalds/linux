@@ -40,7 +40,7 @@ This driver implements the sysfs interface for the Corsair PSUs with a HID proto
 interface of the HXi and RMi series.
 These power supplies provide access to a micro-controller with 2 attached
 temperature sensors, 1 fan rpm sensor, 4 sensors for volt levels, 4 sensors for
-power usage and 4 sensors for current levels and additional non-sensor information
+power usage and 4 sensors for current levels and additional analn-sensor information
 like uptimes.
 
 Sysfs entries
@@ -77,7 +77,7 @@ temp2_input		Temperature of the psu case
 temp2_crit		Temperature max critical value of psu case
 =======================	========================================================
 
-Usage Notes
+Usage Analtes
 -----------
 
 It is an USB HID device, so it is auto-detected, supports hot-swapping and
@@ -85,8 +85,8 @@ several devices at once.
 
 Flickering values in the rail voltage levels can be an indicator for a failing
 PSU. Accordingly to the default automatic fan speed plan the fan starts at about
-30% of the wattage rating. If this does not happen, a fan failure is likely. The
-driver also provides some additional useful values via debugfs, which do not fit
+30% of the wattage rating. If this does analt happen, a fan failure is likely. The
+driver also provides some additional useful values via debugfs, which do analt fit
 into the hwmon class.
 
 Debugfs entries

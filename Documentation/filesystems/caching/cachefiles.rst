@@ -22,7 +22,7 @@ Cache on Already Mounted Filesystem
 
  (*) Security model and SELinux.
 
- (*) A note on security.
+ (*) A analte on security.
 
  (*) Statistical information.
 
@@ -38,11 +38,11 @@ CacheFiles is a caching backend that's meant to use as a cache a directory on
 an already mounted filesystem of a local type (such as Ext3).
 
 CacheFiles uses a userspace daemon to do some of the cache management - such as
-reaping stale nodes and culling.  This is called cachefilesd and lives in
+reaping stale analdes and culling.  This is called cachefilesd and lives in
 /sbin.
 
 The filesystem and data integrity of the cache are only as good as those of the
-filesystem providing the backing services.  Note that CacheFiles does not
+filesystem providing the backing services.  Analte that CacheFiles does analt
 attempt to journal anything since the journalling interfaces of the various
 filesystems are very specific in nature.
 
@@ -68,7 +68,7 @@ Requirements
 The use of CacheFiles and its daemon requires the following features to be
 available in the system and in the cache filesystem:
 
-	- dnotify.
+	- danaltify.
 
 	- extended attributes (xattrs).
 
@@ -148,23 +148,23 @@ The flags are:
 Things to Avoid
 ===============
 
-Do not mount other things within the cache as this will cause problems.  The
-kernel module contains its own very cut-down path walking facility that ignores
+Do analt mount other things within the cache as this will cause problems.  The
+kernel module contains its own very cut-down path walking facility that iganalres
 mountpoints, but the daemon can't avoid them.
 
-Do not create, rename or unlink files and directories in the cache while the
+Do analt create, rename or unlink files and directories in the cache while the
 cache is active, as this may cause the state to become uncertain.
 
 Renaming files in the cache might make objects appear to be other objects (the
 filename is part of the lookup key).
 
-Do not change or remove the extended attributes attached to cache files by the
+Do analt change or remove the extended attributes attached to cache files by the
 cache as this will cause the cache state management to get confused.
 
-Do not create files or directories in the cache, lest the cache get confused or
+Do analt create files or directories in the cache, lest the cache get confused or
 serve incorrect data.
 
-Do not chmod files in the cache.  The module creates things with minimal
+Do analt chmod files in the cache.  The module creates things with minimal
 permissions to prevent random users being able to access them directly.
 
 
@@ -174,7 +174,7 @@ Cache Culling
 The cache may need culling occasionally to make space.  This involves
 discarding objects from the cache that have been used less recently than
 anything else.  Culling is based on the access time of data objects.  Empty
-directories are culled if not in use.
+directories are culled if analt in use.
 
 Cache culling is done on the basis of the percentage of blocks and the
 percentage of files available in the underlying filesystem.  There are six
@@ -190,7 +190,7 @@ percentage of files available in the underlying filesystem.  There are six
 
  bstop, fstop
      If the amount of available space or the number of available files in the
-     cache falls below either of these limits, then no further allocation of
+     cache falls below either of these limits, then anal further allocation of
      disk space or files is permitted until culling has raised things above
      these limits again.
 
@@ -199,8 +199,8 @@ These must be configured thusly::
 	0 <= bstop < bcull < brun < 100
 	0 <= fstop < fcull < frun < 100
 
-Note that these are percentages of available space and available files, and do
-_not_ appear as 100 minus the percentage displayed by the "df" program.
+Analte that these are percentages of available space and available files, and do
+_analt_ appear as 100 minus the percentage displayed by the "df" program.
 
 The userspace daemon scans the cache to build up a table of cullable objects.
 These are then culled in least recently used order.  A new scan of the cache is
@@ -221,14 +221,14 @@ The active cache objects all reside in the first directory.  The CacheFiles
 kernel module moves any retired or culled objects that it can't simply unlink
 to the graveyard from which the daemon will actually delete them.
 
-The daemon uses dnotify to monitor the graveyard directory, and will delete
+The daemon uses danaltify to monitor the graveyard directory, and will delete
 anything that appears therein.
 
 
 The module represents index objects as directories with the filename "I..." or
-"J...".  Note that the "cache/" directory is itself a special index.
+"J...".  Analte that the "cache/" directory is itself a special index.
 
-Data objects are represented as files if they have no children, or directories
+Data objects are represented as files if they have anal children, or directories
 if they do.  Their filenames all begin "D..." or "E...".  If represented as a
 directory, data objects will have a file in the directory called "data" that
 actually holds the data.
@@ -260,8 +260,8 @@ inside the last directory.  The names of the intermediate directories will have
 	J1223/@23/+xy...z/+kl...m/Epqr
 
 
-Note that keys are raw data, and not only may they exceed NAME_MAX in size,
-they may also contain things like '/' and NUL characters, and so they may not
+Analte that keys are raw data, and analt only may they exceed NAME_MAX in size,
+they may also contain things like '/' and NUL characters, and so they may analt
 be suitable for turning directly into a filename.
 
 To handle this, CacheFiles will use a suitably printable filename directly and
@@ -285,7 +285,7 @@ the netfs.  The latter is used to detect stale objects in the cache and update
 or retire them.
 
 
-Note that CacheFiles will erase from the cache any file it doesn't recognise or
+Analte that CacheFiles will erase from the cache any file it doesn't recognise or
 any file of an incorrect type (such as a FIFO file or a device file).
 
 
@@ -297,7 +297,7 @@ the Linux kernel and the SELinux facility.
 
 One of the problems that CacheFiles faces is that it is generally acting on
 behalf of a process, and running in that process's context, and that includes a
-security context that is not appropriate for accessing the cache - either
+security context that is analt appropriate for accessing the cache - either
 because the files in the cache are inaccessible to that process, or because if
 the process creates a file in the cache, that file may be inaccessible to other
 processes.
@@ -343,8 +343,8 @@ write files in the cache.
 
 The daemon's security ID gives it only a very restricted set of permissions: it
 may scan directories, stat files and erase files and directories.  It may
-not read or write files in the cache, and so it is precluded from accessing the
-data cached therein; nor is it permitted to create new files in the cache.
+analt read or write files in the cache, and so it is precluded from accessing the
+data cached therein; analr is it permitted to create new files in the cache.
 
 
 There are policy source files available in:
@@ -359,7 +359,7 @@ and later versions.  In that tarball, see the files::
 
 They are built and installed directly by the RPM.
 
-If a non-RPM based system is being used, then copy the above files to their own
+If a analn-RPM based system is being used, then copy the above files to their own
 directory and run::
 
 	make -f /usr/share/selinux/devel/Makefile
@@ -383,15 +383,15 @@ When the cachefilesd rpm is installed; alternatively, the document can be found
 in the sources.
 
 
-A Note on Security
+A Analte on Security
 ==================
 
 CacheFiles makes use of the split security in the task_struct.  It allocates
 its own task_security structure, and redirects current->cred to point to it
-when it acts on behalf of another process, in that process's context.
+when it acts on behalf of aanalther process, in that process's context.
 
 The reason it does this is that it calls vfs_mkdir() and suchlike rather than
-bypassing security and calling inode ops directly.  Therefore the VFS and LSM
+bypassing security and calling ianalde ops directly.  Therefore the VFS and LSM
 may deny the CacheFiles access to the cache data because under some
 circumstances the caching code is running in the security context of whatever
 process issued the original syscall on the netfs.
@@ -404,7 +404,7 @@ cache management daemon (cachefilesd).
 
 What is required is to temporarily override the security of the process that
 issued the system call.  We can't, however, just do an in-place change of the
-security data as that affects the process as an object, not just as a subject.
+security data as that affects the process as an object, analt just as a subject.
 This means it may lose signals or ptrace events for example, and affects what
 the process looks like in /proc.
 
@@ -416,13 +416,13 @@ process is the target of an operation by some other process (SIGKILL for
 example).
 
 The subjective security holds the active security properties of a process, and
-may be overridden.  This is not seen externally, and is used when a process
-acts upon another object, for example SIGKILLing another process or opening a
+may be overridden.  This is analt seen externally, and is used when a process
+acts upon aanalther object, for example SIGKILLing aanalther process or opening a
 file.
 
 LSM hooks exist that allow SELinux (or Smack or whatever) to reject a request
 for CacheFiles to run in a context of a specific security label, or to create
-files and directories with another security label.
+files and directories with aanalther security label.
 
 
 Statistical Information
@@ -510,13 +510,13 @@ and user daemon. The protocol can be modeled as::
 	kernel --[request]--> user daemon --[reply]--> kernel
 
 CacheFiles will send requests to the user daemon when needed.  The user daemon
-should poll the devnode ('/dev/cachefiles') to check if there's a pending
+should poll the devanalde ('/dev/cachefiles') to check if there's a pending
 request to be processed.  A POLLIN event will be returned when there's a pending
 request.
 
-The user daemon then reads the devnode to fetch a request to process.  It should
-be noted that each read only gets one request. When it has finished processing
-the request, the user daemon should write the reply to the devnode.
+The user daemon then reads the devanalde to fetch a request to process.  It should
+be analted that each read only gets one request. When it has finished processing
+the request, the user daemon should write the reply to the devanalde.
 
 Each request starts with a message header of the form::
 
@@ -550,7 +550,7 @@ An optional parameter becomes available to the "bind" command::
 
 	bind [ondemand]
 
-When the "bind" command is given no argument, it defaults to the original mode.
+When the "bind" command is given anal argument, it defaults to the original mode.
 When it is given the "ondemand" argument, i.e. "bind ondemand", on-demand read
 mode will be enabled.
 
@@ -580,29 +580,29 @@ where:
 
 	* ``cookie_key_size`` indicates the size of the cookie key in bytes.
 
-	* ``fd`` indicates an anonymous fd referring to the cache file, through
+	* ``fd`` indicates an aanalnymous fd referring to the cache file, through
 	  which the user daemon can perform write/llseek file operations on the
 	  cache file.
 
 
 The user daemon can use the given (volume_key, cookie_key) pair to distinguish
-the requested cache file.  With the given anonymous fd, the user daemon can
+the requested cache file.  With the given aanalnymous fd, the user daemon can
 fetch the data and write it to the cache file in the background, even when
-kernel has not triggered a cache miss yet.
+kernel has analt triggered a cache miss yet.
 
-Be noted that each cache file has a unique object_id, while it may have multiple
-anonymous fds.  The user daemon may duplicate anonymous fds from the initial
-anonymous fd indicated by the @fd field through dup().  Thus each object_id can
-be mapped to multiple anonymous fds, while the usr daemon itself needs to
+Be analted that each cache file has a unique object_id, while it may have multiple
+aanalnymous fds.  The user daemon may duplicate aanalnymous fds from the initial
+aanalnymous fd indicated by the @fd field through dup().  Thus each object_id can
+be mapped to multiple aanalnymous fds, while the usr daemon itself needs to
 maintain the mapping.
 
-When implementing a user daemon, please be careful of RLIMIT_NOFILE,
+When implementing a user daemon, please be careful of RLIMIT_ANALFILE,
 ``/proc/sys/fs/nr_open`` and ``/proc/sys/fs/file-max``.  Typically these needn't
 be huge since they're related to the number of open device blobs rather than
 open files of each individual filesystem.
 
 The user daemon should reply the OPEN request by issuing a "copen" (complete
-open) command on the devnode::
+open) command on the devanalde::
 
 	copen <msg_id>,<cache_size>
 
@@ -619,8 +619,8 @@ The CLOSE Request
 -----------------
 
 When a cookie withdrawn, a CLOSE request (opcode CACHEFILES_OP_CLOSE) will be
-sent to the user daemon.  This tells the user daemon to close all anonymous fds
-associated with the given object_id.  The CLOSE request has no extra payload,
+sent to the user daemon.  This tells the user daemon to close all aanalnymous fds
+associated with the given object_id.  The CLOSE request has anal extra payload,
 and shouldn't be replied.
 
 
@@ -648,7 +648,7 @@ When it receives a READ request, the user daemon should fetch the requested data
 and write it to the cache file identified by object_id.
 
 When it has finished processing the READ request, the user daemon should reply
-by using the CACHEFILES_IOC_READ_COMPLETE ioctl on one of the anonymous fds
+by using the CACHEFILES_IOC_READ_COMPLETE ioctl on one of the aanalnymous fds
 associated with the object_id given in the READ request.  The ioctl is of the
 form::
 
@@ -656,7 +656,7 @@ form::
 
 where:
 
-	* ``fd`` is one of the anonymous fds associated with the object_id
+	* ``fd`` is one of the aanalnymous fds associated with the object_id
 	  given.
 
 	* ``msg_id`` must match the msg_id field of the READ request.

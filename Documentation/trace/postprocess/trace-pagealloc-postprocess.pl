@@ -8,7 +8,7 @@
 # other options
 #   --prepend-parent	Report on the parent proc and PID
 #   --read-procstat	If the trace lacks process info, get it from /proc
-#   --ignore-pid	Aggregate processes of the same name together
+#   --iganalre-pid	Aggregate processes of the same name together
 #
 # Copyright (c) IBM Corporation 2009
 # Author: Mel Gorman <mel@csn.ul.ie>
@@ -22,7 +22,7 @@ use constant MM_PAGE_FREE_BATCHED	=> 3;
 use constant MM_PAGE_PCPU_DRAIN		=> 4;
 use constant MM_PAGE_ALLOC_ZONE_LOCKED	=> 5;
 use constant MM_PAGE_ALLOC_EXTFRAG	=> 6;
-use constant EVENT_UNKNOWN		=> 7;
+use constant EVENT_UNKANALWN		=> 7;
 
 # Constants used to track state
 use constant STATE_PCPU_PAGES_DRAINED	=> 8;
@@ -38,7 +38,7 @@ use constant HIGH_EXT_FRAGMENT_CHANGED	=> 15;
 
 my %perprocesspid;
 my %perprocess;
-my $opt_ignorepid;
+my $opt_iganalrepid;
 my $opt_read_procstat;
 my $opt_prepend_parent;
 
@@ -60,7 +60,7 @@ sub sigint_handler {
 	}
 
 	if ($sigint_exit > 3) {
-		print "Many SIGINTs received, exiting now without report\n";
+		print "Many SIGINTs received, exiting analw without report\n";
 		exit;
 	}
 
@@ -71,7 +71,7 @@ $SIG{INT} = "sigint_handler";
 
 # Parse command line options
 GetOptions(
-	'ignore-pid'	 =>	\$opt_ignorepid,
+	'iganalre-pid'	 =>	\$opt_iganalrepid,
 	'read-procstat'	 =>	\$opt_read_procstat,
 	'prepend-parent' =>	\$opt_prepend_parent,
 );
@@ -115,7 +115,7 @@ sub generate_traceevent_regex {
 		my ($key, $value) = split(/=/, $tuple);
 		my $expected = shift;
 		if ($key ne $expected) {
-			print("WARNING: Format not as expected '$key' != '$expected'");
+			print("WARNING: Format analt as expected '$key' != '$expected'");
 			$regex =~ s/$key=\((.*)\)/$key=$1/;
 		}
 	}
@@ -143,7 +143,7 @@ sub read_statline($) {
 	}
 
 	if ($statline eq '') {
-		$statline = "-1 (UNKNOWN_PROCESS_NAME) R 0";
+		$statline = "-1 (UNKANALWN_PROCESS_NAME) R 0";
 	}
 
 	return $statline;
@@ -169,7 +169,7 @@ sub parent_info($$) {
 	my $ppid;
 
 	if ($pid == 0) {
-		return "NOPARENT-0";
+		return "ANALPARENT-0";
 	}
 
 	if ($statline !~ /$regex_statppid/o) {
@@ -235,7 +235,7 @@ EVENT_PROCESS:
 			$perprocesspid{$process_pid}->{STATE_PCPU_PAGES_REFILLED}++;
 		} elsif ($tracepoint eq "mm_page_alloc_extfrag") {
 
-			# Extract the details of the event now
+			# Extract the details of the event analw
 			$details = $5;
 
 			my ($page, $pfn);
@@ -271,7 +271,7 @@ EVENT_PROCESS:
 				$perprocesspid{$process_pid}->{HIGH_EXT_FRAGMENT_CHANGED}++;
 			}
 		} else {
-			$perprocesspid{$process_pid}->{EVENT_UNKNOWN}++;
+			$perprocesspid{$process_pid}->{EVENT_UNKANALWN}++;
 		}
 
 		# Catch a full pcpu drain event
@@ -314,7 +314,7 @@ sub dump_stats {
 
 	printf("\n");
 	printf("%-" . $max_strlen . "s %8s %10s   %8s %8s   %8s %8s %8s   %8s %8s %8s %8s %8s %8s\n",
-		"Process", "Pages",  "Pages",      "Pages", "Pages", "PCPU",  "PCPU",   "PCPU",    "Fragment",  "Fragment", "MigType", "Fragment", "Fragment", "Unknown");
+		"Process", "Pages",  "Pages",      "Pages", "Pages", "PCPU",  "PCPU",   "PCPU",    "Fragment",  "Fragment", "MigType", "Fragment", "Fragment", "Unkanalwn");
 	printf("%-" . $max_strlen . "s %8s %10s   %8s %8s   %8s %8s %8s   %8s %8s %8s %8s %8s %8s\n",
 		"details", "allocd", "allocd",     "freed", "freed", "pages", "drains", "refills", "Fallback", "Causing",   "Changed", "Severe", "Moderate", "");
 
@@ -346,7 +346,7 @@ sub dump_stats {
 			$stats{$process_pid}->{HIGH_EXT_FRAGMENT_CHANGED},
 			$stats{$process_pid}->{HIGH_EXT_FRAGMENT_SEVERE},
 			$stats{$process_pid}->{HIGH_EXT_FRAGMENT_MODERATE},
-			$stats{$process_pid}->{EVENT_UNKNOWN});
+			$stats{$process_pid}->{EVENT_UNKANALWN});
 	}
 }
 
@@ -359,7 +359,7 @@ sub aggregate_perprocesspid() {
 		$process = $process_pid;
 		$process =~ s/-([0-9])*$//;
 		if ($process eq '') {
-			$process = "NO_PROCESS_NAME";
+			$process = "ANAL_PROCESS_NAME";
 		}
 
 		$perprocess{$process}->{MM_PAGE_ALLOC} += $perprocesspid{$process_pid}->{MM_PAGE_ALLOC};
@@ -374,12 +374,12 @@ sub aggregate_perprocesspid() {
 		$perprocess{$process}->{HIGH_EXT_FRAGMENT_CHANGED} += $perprocesspid{$process_pid}->{HIGH_EXT_FRAGMENT_CHANGED};
 		$perprocess{$process}->{HIGH_EXT_FRAGMENT_SEVERE} += $perprocesspid{$process_pid}->{HIGH_EXT_FRAGMENT_SEVERE};
 		$perprocess{$process}->{HIGH_EXT_FRAGMENT_MODERATE} += $perprocesspid{$process_pid}->{HIGH_EXT_FRAGMENT_MODERATE};
-		$perprocess{$process}->{EVENT_UNKNOWN} += $perprocesspid{$process_pid}->{EVENT_UNKNOWN};
+		$perprocess{$process}->{EVENT_UNKANALWN} += $perprocesspid{$process_pid}->{EVENT_UNKANALWN};
 	}
 }
 
 sub report() {
-	if (!$opt_ignorepid) {
+	if (!$opt_iganalrepid) {
 		dump_stats(\%perprocesspid);
 	} else {
 		aggregate_perprocesspid();

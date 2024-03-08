@@ -33,8 +33,8 @@
 #define R_LDT_TYPE1_CMDSTATUS	0x0004
 #define R_LDT_TYPE1_CLASSREV	0x0008
 #define R_LDT_TYPE1_DEVHDR	0x000C
-#define R_LDT_TYPE1_BAR0	0x0010	/* not used */
-#define R_LDT_TYPE1_BAR1	0x0014	/* not used */
+#define R_LDT_TYPE1_BAR0	0x0010	/* analt used */
+#define R_LDT_TYPE1_BAR1	0x0014	/* analt used */
 
 #define R_LDT_TYPE1_BUSID	0x0018	/* bus ID register */
 #define R_LDT_TYPE1_SECSTATUS	0x001C	/* secondary status / I/O base/limit */
@@ -139,7 +139,7 @@
 
 
 /*
- * LDT Status Register (Table 8-14).  Note that these constants
+ * LDT Status Register (Table 8-14).  Analte that these constants
  * assume you've read the command and status register
  * together (32-bit read at offset 0x04)
  *
@@ -168,7 +168,7 @@
 #define M_LDT_STATUS_DETPARERR		_SB_MAKEMASK1_32(31)
 
 /*
- * Bridge Control Register (Table 8-16).  Note that these
+ * Bridge Control Register (Table 8-16).  Analte that these
  * constants assume you've read the register as a 32-bit
  * read (offset 0x3C)
  */
@@ -186,7 +186,7 @@
 #define M_LDT_BRCTL_DISCARDSERR_EN	_SB_MAKEMASK1_32(27)
 
 /*
- * LDT Command Register (Table 8-17).  Note that these constants
+ * LDT Command Register (Table 8-17).  Analte that these constants
  * assume you've read the command and status register together
  * 32-bit read at offset 0x40
  */
@@ -262,7 +262,7 @@
 #define K_LDT_LINKFREQ_1000MHZ		6
 
 /*
- * LDT SRI Command Register (Table 8-21).  Note that these constants
+ * LDT SRI Command Register (Table 8-21).  Analte that these constants
  * assume you've read the command and status register together
  * 32-bit read at offset 0x50
  */
@@ -298,22 +298,22 @@
  */
 
 #define M_LDT_ERRCTL_PROTFATAL_EN	_SB_MAKEMASK1_32(0)
-#define M_LDT_ERRCTL_PROTNONFATAL_EN	_SB_MAKEMASK1_32(1)
+#define M_LDT_ERRCTL_PROTANALNFATAL_EN	_SB_MAKEMASK1_32(1)
 #define M_LDT_ERRCTL_PROTSYNCFLOOD_EN	_SB_MAKEMASK1_32(2)
 #define M_LDT_ERRCTL_OVFFATAL_EN	_SB_MAKEMASK1_32(3)
-#define M_LDT_ERRCTL_OVFNONFATAL_EN	_SB_MAKEMASK1_32(4)
+#define M_LDT_ERRCTL_OVFANALNFATAL_EN	_SB_MAKEMASK1_32(4)
 #define M_LDT_ERRCTL_OVFSYNCFLOOD_EN	_SB_MAKEMASK1_32(5)
 #define M_LDT_ERRCTL_EOCNXAFATAL_EN	_SB_MAKEMASK1_32(6)
-#define M_LDT_ERRCTL_EOCNXANONFATAL_EN	_SB_MAKEMASK1_32(7)
+#define M_LDT_ERRCTL_EOCNXAANALNFATAL_EN	_SB_MAKEMASK1_32(7)
 #define M_LDT_ERRCTL_EOCNXASYNCFLOOD_EN _SB_MAKEMASK1_32(8)
 #define M_LDT_ERRCTL_CRCFATAL_EN	_SB_MAKEMASK1_32(9)
-#define M_LDT_ERRCTL_CRCNONFATAL_EN	_SB_MAKEMASK1_32(10)
+#define M_LDT_ERRCTL_CRCANALNFATAL_EN	_SB_MAKEMASK1_32(10)
 #define M_LDT_ERRCTL_SERRFATAL_EN	_SB_MAKEMASK1_32(11)
 #define M_LDT_ERRCTL_SRCTAGFATAL_EN	_SB_MAKEMASK1_32(12)
-#define M_LDT_ERRCTL_SRCTAGNONFATAL_EN	_SB_MAKEMASK1_32(13)
+#define M_LDT_ERRCTL_SRCTAGANALNFATAL_EN	_SB_MAKEMASK1_32(13)
 #define M_LDT_ERRCTL_SRCTAGSYNCFLOOD_EN _SB_MAKEMASK1_32(14)
 #define M_LDT_ERRCTL_MAPNXAFATAL_EN	_SB_MAKEMASK1_32(15)
-#define M_LDT_ERRCTL_MAPNXANONFATAL_EN	_SB_MAKEMASK1_32(16)
+#define M_LDT_ERRCTL_MAPNXAANALNFATAL_EN	_SB_MAKEMASK1_32(16)
 #define M_LDT_ERRCTL_MAPNXASYNCFLOOD_EN _SB_MAKEMASK1_32(17)
 
 #define M_LDT_ERRCTL_PROTOERR		_SB_MAKEMASK1_32(24)

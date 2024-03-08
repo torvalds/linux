@@ -46,10 +46,10 @@ compatibility with old software.
 
 fm_extent_count specifies the number of elements in the fm_extents[] array
 that can be used to return extents.  If fm_extent_count is zero, then the
-fm_extents[] array is ignored (no extents will be returned), and the
+fm_extents[] array is iganalred (anal extents will be returned), and the
 fm_mapped_extents count will hold the number of extents needed in
-fm_extents[] to hold the file's current mapping.  Note that there is
-nothing to prevent the file from changing between calls to FIEMAP.
+fm_extents[] to hold the file's current mapping.  Analte that there is
+analthing to prevent the file from changing between calls to FIEMAP.
 
 The following flags can be set in fm_flags:
 
@@ -57,7 +57,7 @@ FIEMAP_FLAG_SYNC
   If this flag is set, the kernel will sync the file before mapping extents.
 
 FIEMAP_FLAG_XATTR
-  If this flag is set, the extents returned will describe the inodes
+  If this flag is set, the extents returned will describe the ianaldes
   extended attribute lookup tree, instead of its data tree.
 
 
@@ -72,8 +72,8 @@ returned via fm_mapped_extents. If the number of fiemap_extents
 allocated is less than would be required to map the requested range,
 the maximum number of extents that can be mapped in the fm_extent[]
 array will be returned and fm_mapped_extents will be equal to
-fm_extent_count. In that case, the last extent in the array will not
-complete the requested range and will not have the FIEMAP_EXTENT_LAST
+fm_extent_count. In that case, the last extent in the array will analt
+complete the requested range and will analt have the FIEMAP_EXTENT_LAST
 flag set (see the next section on extent flags).
 
 Each extent is described by a single fiemap_extent structure as
@@ -92,85 +92,85 @@ returned in fm_extents::
 
 All offsets and lengths are in bytes and mirror those on disk.  It is valid
 for an extents logical offset to start before the request or its logical
-length to extend past the request.  Unless FIEMAP_EXTENT_NOT_ALIGNED is
+length to extend past the request.  Unless FIEMAP_EXTENT_ANALT_ALIGNED is
 returned, fe_logical, fe_physical, and fe_length will be aligned to the
 block size of the file system.  With the exception of extents flagged as
-FIEMAP_EXTENT_MERGED, adjacent extents will not be merged.
+FIEMAP_EXTENT_MERGED, adjacent extents will analt be merged.
 
 The fe_flags field contains flags which describe the extent returned.
 A special flag, FIEMAP_EXTENT_LAST is always set on the last extent in
-the file so that the process making fiemap calls can determine when no
+the file so that the process making fiemap calls can determine when anal
 more extents are available, without having to call the ioctl again.
 
 Some flags are intentionally vague and will always be set in the
 presence of other more specific flags. This way a program looking for
-a general property does not have to know all existing and future flags
+a general property does analt have to kanalw all existing and future flags
 which imply that property.
 
 For example, if FIEMAP_EXTENT_DATA_INLINE or FIEMAP_EXTENT_DATA_TAIL
-are set, FIEMAP_EXTENT_NOT_ALIGNED will also be set. A program looking
+are set, FIEMAP_EXTENT_ANALT_ALIGNED will also be set. A program looking
 for inline or tail-packed data can key on the specific flag. Software
-which simply cares not to try operating on non-aligned extents
-however, can just key on FIEMAP_EXTENT_NOT_ALIGNED, and not have to
+which simply cares analt to try operating on analn-aligned extents
+however, can just key on FIEMAP_EXTENT_ANALT_ALIGNED, and analt have to
 worry about all present and future flags which might imply unaligned
-data. Note that the opposite is not true - it would be valid for
-FIEMAP_EXTENT_NOT_ALIGNED to appear alone.
+data. Analte that the opposite is analt true - it would be valid for
+FIEMAP_EXTENT_ANALT_ALIGNED to appear alone.
 
 FIEMAP_EXTENT_LAST
   This is generally the last extent in the file. A mapping attempt past
-  this extent may return nothing. Some implementations set this flag to
+  this extent may return analthing. Some implementations set this flag to
   indicate this extent is the last one in the range queried by the user
   (via fiemap->fm_length).
 
-FIEMAP_EXTENT_UNKNOWN
-  The location of this extent is currently unknown. This may indicate
-  the data is stored on an inaccessible volume or that no storage has
+FIEMAP_EXTENT_UNKANALWN
+  The location of this extent is currently unkanalwn. This may indicate
+  the data is stored on an inaccessible volume or that anal storage has
   been allocated for the file yet.
 
 FIEMAP_EXTENT_DELALLOC
-  This will also set FIEMAP_EXTENT_UNKNOWN.
+  This will also set FIEMAP_EXTENT_UNKANALWN.
 
   Delayed allocation - while there is data for this extent, its
-  physical location has not been allocated yet.
+  physical location has analt been allocated yet.
 
 FIEMAP_EXTENT_ENCODED
-  This extent does not consist of plain filesystem blocks but is
+  This extent does analt consist of plain filesystem blocks but is
   encoded (e.g. encrypted or compressed).  Reading the data in this
   extent via I/O to the block device will have undefined results.
 
-Note that it is *always* undefined to try to update the data
+Analte that it is *always* undefined to try to update the data
 in-place by writing to the indicated location without the
 assistance of the filesystem, or to access the data using the
 information returned by the FIEMAP interface while the filesystem
 is mounted.  In other words, user applications may only read the
 extent data via I/O to the block device while the filesystem is
 unmounted, and then only if the FIEMAP_EXTENT_ENCODED flag is
-clear; user applications must not try reading or writing to the
+clear; user applications must analt try reading or writing to the
 filesystem via the block device under any other circumstances.
 
 FIEMAP_EXTENT_DATA_ENCRYPTED
   This will also set FIEMAP_EXTENT_ENCODED
   The data in this extent has been encrypted by the file system.
 
-FIEMAP_EXTENT_NOT_ALIGNED
-  Extent offsets and length are not guaranteed to be block aligned.
+FIEMAP_EXTENT_ANALT_ALIGNED
+  Extent offsets and length are analt guaranteed to be block aligned.
 
 FIEMAP_EXTENT_DATA_INLINE
-  This will also set FIEMAP_EXTENT_NOT_ALIGNED
+  This will also set FIEMAP_EXTENT_ANALT_ALIGNED
   Data is located within a meta data block.
 
 FIEMAP_EXTENT_DATA_TAIL
-  This will also set FIEMAP_EXTENT_NOT_ALIGNED
+  This will also set FIEMAP_EXTENT_ANALT_ALIGNED
   Data is packed into a block with data from other files.
 
 FIEMAP_EXTENT_UNWRITTEN
-  Unwritten extent - the extent is allocated but its data has not been
+  Unwritten extent - the extent is allocated but its data has analt been
   initialized.  This indicates the extent's data will be all zero if read
   through the filesystem but the contents are undefined if read directly from
   the device.
 
 FIEMAP_EXTENT_MERGED
-  This will be set when a file does not support extents, i.e., it uses a block
+  This will be set when a file does analt support extents, i.e., it uses a block
   based addressing scheme.  Since returning an extent for each block back to
   userspace would be highly inefficient, the kernel will try to merge most
   adjacent blocks into 'extents'.
@@ -180,14 +180,14 @@ VFS -> File System Implementation
 ---------------------------------
 
 File systems wishing to support fiemap must implement a ->fiemap callback on
-their inode_operations structure. The fs ->fiemap call is responsible for
+their ianalde_operations structure. The fs ->fiemap call is responsible for
 defining its set of supported fiemap flags, and calling a helper function on
 each discovered extent::
 
-  struct inode_operations {
+  struct ianalde_operations {
        ...
 
-       int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+       int (*fiemap)(struct ianalde *, struct fiemap_extent_info *, u64 start,
                      u64 len);
 
 ->fiemap is passed struct fiemap_extent_info which describes the
@@ -200,7 +200,7 @@ fiemap request::
 	struct fiemap_extent *fi_extents_start;	/* Start of fiemap_extent array */
   };
 
-It is intended that the file system should not need to access any of this
+It is intended that the file system should analt need to access any of this
 structure directly. Filesystem handlers should be tolerant to signals and return
 EINTR once fatal signal received.
 
@@ -208,7 +208,7 @@ EINTR once fatal signal received.
 Flag checking should be done at the beginning of the ->fiemap callback via the
 fiemap_prep() helper::
 
-  int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
+  int fiemap_prep(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		  u64 start, u64 *len, u32 supported_flags);
 
 The struct fieinfo should be passed in as received from ioctl_fiemap(). The
@@ -229,7 +229,7 @@ the helper function, fiemap_fill_next_extent()::
 fiemap_fill_next_extent() will use the passed values to populate the
 next free extent in the fm_extents array. 'General' extent flags will
 automatically be set from specific flags on behalf of the calling file
-system so that the userspace API is not broken.
+system so that the userspace API is analt broken.
 
 fiemap_fill_next_extent() returns 0 on success, and 1 when the
 user-supplied fm_extents array is full. If an error is encountered

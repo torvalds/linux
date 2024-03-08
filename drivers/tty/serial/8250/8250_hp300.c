@@ -3,7 +3,7 @@
  * Driver for the 98626/98644/internal serial interface on hp300/hp400
  * (based on the National Semiconductor INS8250/NS16550AF/WD16C552 UARTs)
  *
- * Ported from 2.2 and modified to use the normal 8250 driver
+ * Ported from 2.2 and modified to use the analrmal 8250 driver
  * by Kars de Jong <jongk@linux-m68k.org>, May 2004.
  */
 #include <linux/module.h>
@@ -21,7 +21,7 @@
 #include "8250.h"
 
 #if !defined(CONFIG_HPDCA) && !defined(CONFIG_HPAPCI) && !defined(CONFIG_COMPILE_TEST)
-#warning CONFIG_SERIAL_8250 defined but neither CONFIG_HPDCA nor CONFIG_HPAPCI defined, are you sure?
+#warning CONFIG_SERIAL_8250 defined but neither CONFIG_HPDCA analr CONFIG_HPAPCI defined, are you sure?
 #endif
 
 #ifdef CONFIG_HPAPCI
@@ -106,7 +106,7 @@ int __init hp300_setup_serial_console(void)
 	/* Memory mapped I/O */
 	port.iotype = UPIO_MEM;
 	port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
-	port.type = PORT_UNKNOWN;
+	port.type = PORT_UNKANALWN;
 
 	/* Check for APCI console */
 	if (scode == 256) {
@@ -180,10 +180,10 @@ static int hpdca_init_one(struct dio_dev *d,
 	line = serial8250_register_8250_port(&uart);
 
 	if (line < 0) {
-		dev_notice(&d->dev,
+		dev_analtice(&d->dev,
 			  "8250_hp300: register_serial() DCA scode %d irq %d failed\n",
 			  d->scode, uart.port.irq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Enable board-interrupts */
@@ -211,11 +211,11 @@ static int __init hp300_8250_init(void)
 	int i;
 #endif
 	if (called)
-		return -ENODEV;
+		return -EANALDEV;
 	called = 1;
 
 	if (!MACH_IS_HP300)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef CONFIG_HPDCA
 	dio_register_driver(&hpdca_driver);
@@ -223,7 +223,7 @@ static int __init hp300_8250_init(void)
 #ifdef CONFIG_HPAPCI
 	if (hp300_model < HP_400) {
 		if (!num_ports)
-			return -ENODEV;
+			return -EANALDEV;
 		return 0;
 	}
 	/* These models have the Frodo chip.
@@ -242,7 +242,7 @@ static int __init hp300_8250_init(void)
 		/* Create new serial device */
 		port = kmalloc(sizeof(struct hp300_port), GFP_KERNEL);
 		if (!port)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(&uart, 0, sizeof(uart));
 
@@ -252,7 +252,7 @@ static int __init hp300_8250_init(void)
 		uart.port.iotype = UPIO_MEM;
 		uart.port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ
 				| UPF_BOOT_AUTOCONF;
-		/* XXX - no interrupt support yet */
+		/* XXX - anal interrupt support yet */
 		uart.port.irq = 0;
 		uart.port.uartclk = HPAPCI_BAUD_BASE * 16;
 		uart.port.mapbase = base;
@@ -262,7 +262,7 @@ static int __init hp300_8250_init(void)
 		line = serial8250_register_8250_port(&uart);
 
 		if (line < 0) {
-			dev_notice(uart.port.dev,
+			dev_analtice(uart.port.dev,
 				   "8250_hp300: register_serial() APCI %d irq %d failed\n",
 				   i, uart.port.irq);
 			kfree(port);
@@ -279,7 +279,7 @@ static int __init hp300_8250_init(void)
 
 	/* Any boards found? */
 	if (!num_ports)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

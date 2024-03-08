@@ -29,9 +29,9 @@ init_suite
 		1 + 1 == 2
 		3 == 3
 	# example_simple_test: example_simple_test failed
-	not ok 1 - example_simple_test
+	analt ok 1 - example_simple_test
 	# example_mock_test: initializing
 	# example_mock_test: example_mock_test passed
 	ok 2 - example_mock_test
 kunit example: one or more tests failed
-not ok 2 - example
+analt ok 2 - example

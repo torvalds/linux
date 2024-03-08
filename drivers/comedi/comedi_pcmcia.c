@@ -15,10 +15,10 @@
  * comedi_to_pcmcia_dev() - Return PCMCIA device attached to COMEDI device
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pcmcia_device.
  *
- * Return: Attached PCMCIA device if @dev->hw_dev is non-%NULL.
+ * Return: Attached PCMCIA device if @dev->hw_dev is analn-%NULL.
  * Return %NULL if @dev->hw_dev is %NULL.
  */
 struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev)
@@ -42,7 +42,7 @@ static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
  * @conf_check: Optional callback to check each configuration option of the
  *	PCMCIA device and request I/O regions.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a a
  * &struct device embedded in a &struct pcmcia_device.  The comedi PCMCIA
  * driver needs to set the 'config_flags' member in the &struct pcmcia_device,
  * as appropriate for that driver, before calling this function in order to
@@ -63,7 +63,7 @@ static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
  *
  * Return:
  *	0 on success,
- *	-%ENODEV id @dev->hw_dev is %NULL,
+ *	-%EANALDEV id @dev->hw_dev is %NULL,
  *	a negative error number from pcmcia_loop_config() if it fails,
  *	or a negative error number from pcmcia_enable_device() if it fails.
  */
@@ -75,7 +75,7 @@ int comedi_pcmcia_enable(struct comedi_device *dev,
 	int ret;
 
 	if (!link)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!conf_check)
 		conf_check = comedi_pcmcia_conf_check;
@@ -92,7 +92,7 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_enable);
  * comedi_pcmcia_disable() - Disable the PCMCIA device and release the regions
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct pcmcia_device.  Call
  * pcmcia_disable_device() to disable and clean up the PCMCIA device.
  */
@@ -135,9 +135,9 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_config);
  * The COMEDI driver's "detach" handler will be called during unconfiguration
  * of the COMEDI device.
  *
- * Note that the COMEDI device may have already been unconfigured using the
+ * Analte that the COMEDI device may have already been unconfigured using the
  * %COMEDI_DEVCONFIG ioctl, in which case this attempt to unconfigure it
- * again should be ignored.
+ * again should be iganalred.
  */
 void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link)
 {
@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_unconfig);
  * @pcmcia_driver: PCMCIA driver to be registered.
  *
  * This function is used for the module_init() of PCMCIA COMEDI driver modules
- * to register the COMEDI driver and the PCMCIA driver.  Do not call it
+ * to register the COMEDI driver and the PCMCIA driver.  Do analt call it
  * directly, use the module_comedi_pcmcia_driver() helper macro instead.
  *
  * Return: 0 on success, or a negative error number on failure.
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_register);
  * @pcmcia_driver: PCMCIA driver to be registered.
  *
  * This function is called from the module_exit() of PCMCIA COMEDI driver
- * modules to unregister the PCMCIA driver and the COMEDI driver.  Do not call
+ * modules to unregister the PCMCIA driver and the COMEDI driver.  Do analt call
  * it directly, use the module_comedi_pcmcia_driver() helper macro instead.
  */
 void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,

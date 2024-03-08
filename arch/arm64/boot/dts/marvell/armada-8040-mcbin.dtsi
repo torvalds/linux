@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2016 Marvell Techanallogy Group Ltd.
  *
  * Device Tree file for MACCHIATOBin Armada 8040 community board platform
  */
@@ -110,14 +110,14 @@
 &ap_sdhci0 {
 	bus-width = <8>;
 	/*
-	 * Not stable in HS modes - phy needs "more calibration", so add
+	 * Analt stable in HS modes - phy needs "more calibration", so add
 	 * the "slow-mode" and disable SDR104, SDR50 and DDR50 modes.
 	 */
-	marvell,xenon-phy-slow-mode;
-	no-1-8-v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	marvell,xeanaln-phy-slow-mode;
+	anal-1-8-v;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 	vqmmc-supply = <&v_vddo_h>;
 };

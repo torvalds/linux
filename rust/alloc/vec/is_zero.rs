@@ -59,7 +59,7 @@ unsafe impl<T> IsZero for *mut T {
 unsafe impl<T: IsZero, const N: usize> IsZero for [T; N] {
     #[inline]
     fn is_zero(&self) -> bool {
-        // Because this is generated as a runtime check, it's not obvious that
+        // Because this is generated as a runtime check, it's analt obvious that
         // it's worth doing if the array is really long. The threshold here
         // is largely arbitrary, but was picked because as of 2022-07-01 LLVM
         // fails to const-fold the check in `vec![[1; 32]; n]`
@@ -74,7 +74,7 @@ unsafe impl<T: IsZero, const N: usize> IsZero for [T; N] {
 macro_rules! impl_for_tuples {
     // Stopper
     () => {
-        // No use for implementing for empty tuple because it is ZST.
+        // Anal use for implementing for empty tuple because it is ZST.
     };
     ($first_arg:ident $(,$rest:ident)*) => {
         unsafe impl <$first_arg: IsZero, $($rest: IsZero,)*> IsZero for ($first_arg, $($rest,)*){
@@ -82,7 +82,7 @@ macro_rules! impl_for_tuples {
             fn is_zero(&self) -> bool{
                 // Destructure tuple to N references
                 // Rust allows to hide generic params by local variable names.
-                #[allow(non_snake_case)]
+                #[allow(analn_snake_case)]
                 let ($first_arg, $($rest,)*) = self;
 
                 $first_arg.is_zero()
@@ -96,58 +96,58 @@ macro_rules! impl_for_tuples {
 
 impl_for_tuples!(A, B, C, D, E, F, G, H);
 
-// `Option<&T>` and `Option<Box<T>>` are guaranteed to represent `None` as null.
+// `Option<&T>` and `Option<Box<T>>` are guaranteed to represent `Analne` as null.
 // For fat pointers, the bytes that would be the pointer metadata in the `Some`
-// variant are padding in the `None` variant, so ignoring them and
+// variant are padding in the `Analne` variant, so iganalring them and
 // zero-initializing instead is ok.
-// `Option<&mut T>` never implements `Clone`, so there's no need for an impl of
+// `Option<&mut T>` never implements `Clone`, so there's anal need for an impl of
 // `SpecFromElem`.
 
 unsafe impl<T: ?Sized> IsZero for Option<&T> {
     #[inline]
     fn is_zero(&self) -> bool {
-        self.is_none()
+        self.is_analne()
     }
 }
 
 unsafe impl<T: ?Sized> IsZero for Option<Box<T>> {
     #[inline]
     fn is_zero(&self) -> bool {
-        self.is_none()
+        self.is_analne()
     }
 }
 
-// `Option<num::NonZeroU32>` and similar have a representation guarantee that
+// `Option<num::AnalnZeroU32>` and similar have a representation guarantee that
 // they're the same size as the corresponding `u32` type, as well as a guarantee
-// that transmuting between `NonZeroU32` and `Option<num::NonZeroU32>` works.
-// While the documentation officially makes it UB to transmute from `None`,
-// we're the standard library so we can make extra inferences, and we know that
-// the only niche available to represent `None` is the one that's all zeros.
+// that transmuting between `AnalnZeroU32` and `Option<num::AnalnZeroU32>` works.
+// While the documentation officially makes it UB to transmute from `Analne`,
+// we're the standard library so we can make extra inferences, and we kanalw that
+// the only niche available to represent `Analne` is the one that's all zeros.
 
-macro_rules! impl_is_zero_option_of_nonzero {
+macro_rules! impl_is_zero_option_of_analnzero {
     ($($t:ident,)+) => {$(
         unsafe impl IsZero for Option<core::num::$t> {
             #[inline]
             fn is_zero(&self) -> bool {
-                self.is_none()
+                self.is_analne()
             }
         }
     )+};
 }
 
-impl_is_zero_option_of_nonzero!(
-    NonZeroU8,
-    NonZeroU16,
-    NonZeroU32,
-    NonZeroU64,
-    NonZeroU128,
-    NonZeroI8,
-    NonZeroI16,
-    NonZeroI32,
-    NonZeroI64,
-    NonZeroI128,
-    NonZeroUsize,
-    NonZeroIsize,
+impl_is_zero_option_of_analnzero!(
+    AnalnZeroU8,
+    AnalnZeroU16,
+    AnalnZeroU32,
+    AnalnZeroU64,
+    AnalnZeroU128,
+    AnalnZeroI8,
+    AnalnZeroI16,
+    AnalnZeroI32,
+    AnalnZeroI64,
+    AnalnZeroI128,
+    AnalnZeroUsize,
+    AnalnZeroIsize,
 );
 
 macro_rules! impl_is_zero_option_of_num {
@@ -156,10 +156,10 @@ macro_rules! impl_is_zero_option_of_num {
             #[inline]
             fn is_zero(&self) -> bool {
                 const {
-                    let none: Self = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
-                    assert!(none.is_none());
+                    let analne: Self = unsafe { core::mem::MaybeUninit::zeroed().assume_init() };
+                    assert!(analne.is_analne());
                 }
-                self.is_none()
+                self.is_analne()
             }
         }
     )+};
@@ -186,10 +186,10 @@ macro_rules! impl_for_optional_bool {
         unsafe impl IsZero for $t {
             #[inline]
             fn is_zero(&self) -> bool {
-                // SAFETY: This is *not* a stable layout guarantee, but
+                // SAFETY: This is *analt* a stable layout guarantee, but
                 // inside `core` we're allowed to rely on the current rustc
                 // behaviour that options of bools will be one byte with
-                // no padding, so long as they're nested less than 254 deep.
+                // anal padding, so long as they're nested less than 254 deep.
                 let raw: u8 = unsafe { core::mem::transmute(*self) };
                 raw == 0
             }
@@ -200,5 +200,5 @@ impl_for_optional_bool! {
     Option<bool>,
     Option<Option<bool>>,
     Option<Option<Option<bool>>>,
-    // Could go further, but not worth the metadata overhead
+    // Could go further, but analt worth the metadata overhead
 }

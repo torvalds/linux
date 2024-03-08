@@ -13,12 +13,12 @@
 
 /*
  * Out events may be sent only when requested by backend, and receipt
- * of an unknown out event is an error.
+ * of an unkanalwn out event is an error.
  */
 
-/* Event type 1 currently not used */
+/* Event type 1 currently analt used */
 /*
- * Framebuffer update notification event
+ * Framebuffer update analtification event
  * Capable frontend sets feature-update in xenstore.
  * Backend requests it by setting request-update in xenstore.
  */
@@ -33,7 +33,7 @@ struct xenfb_update {
 };
 
 /*
- * Framebuffer resize notification event
+ * Framebuffer resize analtification event
  * Capable backend sets feature-resize in xenstore.
  */
 #define XENFB_TYPE_RESIZE 3
@@ -59,8 +59,8 @@ union xenfb_out_event {
 /* In events (backend -> frontend) */
 
 /*
- * Frontends should ignore unknown in events.
- * No in events currently defined.
+ * Frontends should iganalre unkanalwn in events.
+ * Anal in events currently defined.
  */
 
 #define XENFB_IN_EVENT_SIZE 40
@@ -105,16 +105,16 @@ struct xenfb_page {
 	 * framebuffer pages, and can thus map up to PAGE_SIZE *
 	 * PAGE_SIZE / sizeof(*pd) bytes.  With PAGE_SIZE == 4096 and
 	 * sizeof(unsigned long) == 4/8, that's 4 Megs 32 bit and 2
-	 * Megs 64 bit.  256 directories give enough room for a 512
+	 * Megs 64 bit.  256 directories give eanalugh room for a 512
 	 * Meg framebuffer with a max resolution of 12,800x10,240.
-	 * Should be enough for a while with room leftover for
+	 * Should be eanalugh for a while with room leftover for
 	 * expansion.
 	 */
 	unsigned long pd[256];
 };
 
 /*
- * Wart: xenkbd needs to know default resolution.  Put it here until a
+ * Wart: xenkbd needs to kanalw default resolution.  Put it here until a
  * better solution is found, but don't leak it to the backend.
  */
 #ifdef __KERNEL__

@@ -23,7 +23,7 @@
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
-#define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
+#define E1000_IAM      0x000E0  /* Interrupt Ackanalwledge Auto Mask */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */
@@ -134,7 +134,7 @@
 
 /* Convenience macros
  *
- * Note: "_n" is the queue number of the register to be written to.
+ * Analte: "_n" is the queue number of the register to be written to.
  *
  * Example usage:
  * E1000_RDBAL_REG(current_rx_queue)
@@ -195,7 +195,7 @@
 #define E1000_LATECOL  0x04020  /* Late Collision Count - R/clr */
 #define E1000_COLC     0x04028  /* Collision Count - R/clr */
 #define E1000_DC       0x04030  /* Defer Count - R/clr */
-#define E1000_TNCRS    0x04034  /* TX-No CRS - R/clr */
+#define E1000_TNCRS    0x04034  /* TX-Anal CRS - R/clr */
 #define E1000_SEC      0x04038  /* Sequence Error Count - R/clr */
 #define E1000_CEXTERR  0x0403C  /* Carrier Extension Error Count - R/clr */
 #define E1000_RLEC     0x04040  /* Receive Length Error Count - R/clr */
@@ -218,7 +218,7 @@
 #define E1000_GORCH    0x0408C  /* Good Octets RX Count High - R/clr */
 #define E1000_GOTCL    0x04090  /* Good Octets TX Count Low - R/clr */
 #define E1000_GOTCH    0x04094  /* Good Octets TX Count High - R/clr */
-#define E1000_RNBC     0x040A0  /* RX No Buffers Count - R/clr */
+#define E1000_RNBC     0x040A0  /* RX Anal Buffers Count - R/clr */
 #define E1000_RUC      0x040A4  /* RX Undersize Count - R/clr */
 #define E1000_RFC      0x040A8  /* RX Fragment Count - R/clr */
 #define E1000_ROC      0x040AC  /* RX Oversize Count - R/clr */

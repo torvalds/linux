@@ -89,7 +89,7 @@ static void imx_gpcv2_set_m_core_pgc(bool enable, u32 offset)
 
 /*
  * The motivation for bringing up the second i.MX7D core inside the kernel
- * is that legacy vendor bootloaders usually do not implement PSCI support.
+ * is that legacy vendor bootloaders usually do analt implement PSCI support.
  * This is a significant blocker for systems in the field that are running old
  * bootloader versions to upgrade to a modern mainline kernel version, as only
  * one CPU of the i.MX7D would be brought up.
@@ -164,10 +164,10 @@ void imx_set_cpu_arg(int cpu, u32 arg)
 
 void __init imx_src_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-src");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx51-src");
 	if (!np)
 		return;
 	src_base = of_iomap(np, 0);
@@ -186,11 +186,11 @@ void __init imx_src_init(void)
 
 void __init imx7_src_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	gpr_v2 = true;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-src");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx7d-src");
 	if (!np)
 		return;
 
@@ -198,7 +198,7 @@ void __init imx7_src_init(void)
 	if (!src_base)
 		return;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-gpc");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx7d-gpc");
 	if (!np)
 		return;
 
@@ -218,11 +218,11 @@ static int imx_src_probe(struct platform_device *pdev)
 
 	rcdev = devm_kzalloc(&pdev->dev, sizeof(*rcdev), GFP_KERNEL);
 	if (!rcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcdev->ops = &imx_src_ops;
 	rcdev->dev = &pdev->dev;
-	rcdev->of_node = pdev->dev.of_node;
+	rcdev->of_analde = pdev->dev.of_analde;
 	rcdev->nr_resets = ARRAY_SIZE(sw_reset_bits);
 
 	return devm_reset_controller_register(&pdev->dev, rcdev);

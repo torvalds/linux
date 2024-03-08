@@ -32,7 +32,7 @@ static ssize_t led_shot(struct device *dev,
 			&led_cdev->blink_delay_on, &led_cdev->blink_delay_off,
 			oneshot_data->invert);
 
-	/* content is ignored */
+	/* content is iganalred */
 	return size;
 }
 static ssize_t led_invert_show(struct device *dev,
@@ -58,9 +58,9 @@ static ssize_t led_invert_store(struct device *dev,
 	oneshot_data->invert = !!state;
 
 	if (oneshot_data->invert)
-		led_set_brightness_nosleep(led_cdev, LED_FULL);
+		led_set_brightness_analsleep(led_cdev, LED_FULL);
 	else
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_analsleep(led_cdev, LED_OFF);
 
 	return size;
 }
@@ -161,7 +161,7 @@ static int oneshot_trig_activate(struct led_classdev *led_cdev)
 
 	oneshot_data = kzalloc(sizeof(*oneshot_data), GFP_KERNEL);
 	if (!oneshot_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led_set_trigger_data(led_cdev, oneshot_data);
 

@@ -19,7 +19,7 @@
  * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
  * irrelevant.
  */
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-analnatomic-hi-lo.h>
 
 static DEFINE_PER_CPU(int, flush_idx);
 
@@ -119,9 +119,9 @@ int nd_region_activate(struct nd_region *nd_region)
 			return -EBUSY;
 		}
 
-		/* at least one null hint slot per-dimm for the "no-hint" case */
+		/* at least one null hint slot per-dimm for the "anal-hint" case */
 		flush_data_size += sizeof(void *);
-		num_flush = min_not_zero(num_flush, nvdimm->num_flush);
+		num_flush = min_analt_zero(num_flush, nvdimm->num_flush);
 		if (!nvdimm->num_flush)
 			continue;
 		flush_data_size += nvdimm->num_flush * sizeof(void *);
@@ -134,7 +134,7 @@ int nd_region_activate(struct nd_region *nd_region)
 
 	ndrd = devm_kzalloc(dev, sizeof(*ndrd) + flush_data_size, GFP_KERNEL);
 	if (!ndrd)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, ndrd);
 
 	if (!num_flush)
@@ -155,7 +155,7 @@ int nd_region_activate(struct nd_region *nd_region)
 	 * extra flushings.
 	 */
 	for (i = 0; i < nd_region->ndr_mappings - 1; i++) {
-		/* ignore if NULL already */
+		/* iganalre if NULL already */
 		if (!ndrd_get_flush_wpq(ndrd, i, 0))
 			continue;
 
@@ -266,8 +266,8 @@ static ssize_t deep_flush_show(struct device *dev,
 	struct nd_region *nd_region = to_nd_region(dev);
 
 	/*
-	 * NOTE: in the nvdimm_has_flush() error case this attribute is
-	 * not visible.
+	 * ANALTE: in the nvdimm_has_flush() error case this attribute is
+	 * analt visible.
 	 */
 	return sprintf(buf, "%d\n", nvdimm_has_flush(nd_region));
 }
@@ -323,7 +323,7 @@ static ssize_t set_cookie_show(struct device *dev,
 
 	/*
 	 * The cookie to show depends on which specification of the
-	 * labels we are using. If there are not labels then default to
+	 * labels we are using. If there are analt labels then default to
 	 * the v1.1 namespace label cookie definition. To read all this
 	 * data we need to wait for probing to settle.
 	 */
@@ -383,7 +383,7 @@ resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region)
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 
-		avail = min_not_zero(avail, nd_pmem_max_contiguous_dpa(
+		avail = min_analt_zero(avail, nd_pmem_max_contiguous_dpa(
 						    nd_region, nd_mapping));
 	}
 	return avail * nd_region->ndr_mappings;
@@ -399,7 +399,7 @@ static ssize_t available_size_show(struct device *dev,
 	 * Flush in-flight updates and grab a snapshot of the available
 	 * size.  Of course, this value is potentially invalidated the
 	 * memory nvdimm_bus_lock() is dropped, but that's userspace's
-	 * problem to not race itself.
+	 * problem to analt race itself.
 	 */
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
@@ -523,7 +523,7 @@ static ssize_t read_only_show(struct device *dev,
 
 static int revalidate_read_only(struct device *dev, void *data)
 {
-	nd_device_notify(dev, NVDIMM_REVALIDATE_REGION);
+	nd_device_analtify(dev, NVDIMM_REVALIDATE_REGION);
 	return 0;
 }
 
@@ -565,7 +565,7 @@ static ssize_t align_store(struct device *dev,
 
 	/*
 	 * Ensure space-align is evenly divisible by the region
-	 * interleave-width because the kernel typically has no facility
+	 * interleave-width because the kernel typically has anal facility
 	 * to determine which DIMM(s), dimm-physical-addresses, would
 	 * contribute to the tail capacity in system-physical-address
 	 * space for the namespace.
@@ -578,7 +578,7 @@ static ssize_t align_store(struct device *dev,
 
 	/*
 	 * Given that space allocation consults this value multiple
-	 * times ensure it does not change for the duration of the
+	 * times ensure it does analt change for the duration of the
 	 * allocation.
 	 */
 	nvdimm_bus_lock(dev);
@@ -728,7 +728,7 @@ static ssize_t mapping##idx##_show(struct device *dev,		\
 static DEVICE_ATTR_RO(mapping##idx)
 
 /*
- * 32 should be enough for a while, even in the presence of socket
+ * 32 should be eanalugh for a while, even in the presence of socket
  * interleave a 32-way interleave set is a degenerate case.
  */
 REGION_MAPPING(0);
@@ -859,7 +859,7 @@ u64 nd_region_interleave_set_cookie(struct nd_region *nd_region,
 		return 0;
 
 	if (nsindex && __le16_to_cpu(nsindex->major) == 1
-			&& __le16_to_cpu(nsindex->minor) == 1)
+			&& __le16_to_cpu(nsindex->mianalr) == 1)
 		return nd_set->cookie1;
 	return nd_set->cookie2;
 }
@@ -924,7 +924,7 @@ void nd_region_advance_seeds(struct nd_region *nd_region, struct device *dev)
  *
  * A lane correlates to a BLK-data-window and/or a log slot in the BTT.
  * We optimize for the common case where there are 256 lanes, one
- * per-cpu.  For larger systems we need to lock to share lanes.  For now
+ * per-cpu.  For larger systems we need to lock to share lanes.  For analw
  * this implementation assumes the cost of maintaining an allocator for
  * free lanes is on the order of the lock hold time, so it implements a
  * static lane = cpu % num_lanes mapping.
@@ -1012,7 +1012,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 
 		if ((mapping->start | mapping->size) % PAGE_SIZE) {
 			dev_err(&nvdimm_bus->dev,
-				"%s: %s mapping%d is not %ld aligned\n",
+				"%s: %s mapping%d is analt %ld aligned\n",
 				caller, dev_name(&nvdimm->dev), i, PAGE_SIZE);
 			return NULL;
 		}
@@ -1068,8 +1068,8 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->num_lanes = ndr_desc->num_lanes;
 	nd_region->flags = ndr_desc->flags;
 	nd_region->ro = ro;
-	nd_region->numa_node = ndr_desc->numa_node;
-	nd_region->target_node = ndr_desc->target_node;
+	nd_region->numa_analde = ndr_desc->numa_analde;
+	nd_region->target_analde = ndr_desc->target_analde;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	ida_init(&nd_region->pfn_ida);
@@ -1079,7 +1079,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	dev->parent = &nvdimm_bus->dev;
 	dev->type = dev_type;
 	dev->groups = ndr_desc->attr_groups;
-	dev->of_node = ndr_desc->of_node;
+	dev->of_analde = ndr_desc->of_analde;
 	nd_region->ndr_size = resource_size(ndr_desc->res);
 	nd_region->ndr_start = ndr_desc->res->start;
 	nd_region->align = default_align(nd_region);
@@ -1159,7 +1159,7 @@ int generic_nvdimm_flush(struct nd_region *nd_region)
 	/*
 	 * The pmem_wmb() is needed to 'sfence' all
 	 * previous writes such that they are architecturally visible for
-	 * the platform buffer flush. Note that we've already arranged for pmem
+	 * the platform buffer flush. Analte that we've already arranged for pmem
 	 * writes to avoid the cache via memcpy_flushcache().  The final
 	 * wmb() ensures ordering for the NVDIMM flush write.
 	 */
@@ -1178,14 +1178,14 @@ EXPORT_SYMBOL_GPL(nvdimm_flush);
  * @nd_region: interleaved pmem region
  *
  * Returns 1 if writes require flushing
- * Returns 0 if writes do not require flushing
- * Returns -ENXIO if flushing capability can not be determined
+ * Returns 0 if writes do analt require flushing
+ * Returns -ENXIO if flushing capability can analt be determined
  */
 int nvdimm_has_flush(struct nd_region *nd_region)
 {
 	int i;
 
-	/* no nvdimm or pmem api == flushing capability unknown */
+	/* anal nvdimm or pmem api == flushing capability unkanalwn */
 	if (nd_region->ndr_mappings == 0
 			|| !IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API))
 		return -ENXIO;
@@ -1205,7 +1205,7 @@ int nvdimm_has_flush(struct nd_region *nd_region)
 	}
 
 	/*
-	 * The platform defines dimm devices without hints nor explicit flush,
+	 * The platform defines dimm devices without hints analr explicit flush,
 	 * assume platform persistence mechanism like ADR
 	 */
 	return 0;

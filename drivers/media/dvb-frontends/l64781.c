@@ -100,16 +100,16 @@ static int reset_and_configure (struct l64781_state* state)
 {
 	u8 buf [] = { 0x06 };
 	struct i2c_msg msg = { .addr = 0x00, .flags = 0, .buf = buf, .len = 1 };
-	// NOTE: this is correct in writing to address 0x00
+	// ANALTE: this is correct in writing to address 0x00
 
-	return (i2c_transfer(state->i2c, &msg, 1) == 1) ? 0 : -ENODEV;
+	return (i2c_transfer(state->i2c, &msg, 1) == 1) ? 0 : -EANALDEV;
 }
 
 static int apply_frontend_param(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct l64781_state* state = fe->demodulator_priv;
-	/* The coderates for FEC_NONE, FEC_4_5 and FEC_FEC_6_7 are arbitrary */
+	/* The coderates for FEC_ANALNE, FEC_4_5 and FEC_FEC_6_7 are arbitrary */
 	static const u8 fec_tab[] = { 7, 0, 1, 2, 9, 3, 10, 4 };
 	/* QPSK, QAM_16, QAM_64 */
 	static const u8 qam_tab [] = { 2, 4, 0, 6 };
@@ -154,7 +154,7 @@ static int apply_frontend_param(struct dvb_frontend *fe)
 	    p->code_rate_HP != FEC_7_8)
 		return -EINVAL;
 
-	if (p->hierarchy != HIERARCHY_NONE &&
+	if (p->hierarchy != HIERARCHY_ANALNE &&
 	    (p->code_rate_LP != FEC_1_2 && p->code_rate_LP != FEC_2_3 &&
 	     p->code_rate_LP != FEC_3_4 && p->code_rate_LP != FEC_5_6 &&
 	     p->code_rate_LP != FEC_7_8))
@@ -172,7 +172,7 @@ static int apply_frontend_param(struct dvb_frontend *fe)
 	    p->guard_interval > GUARD_INTERVAL_1_4)
 		return -EINVAL;
 
-	if ((int)p->hierarchy < HIERARCHY_NONE ||
+	if ((int)p->hierarchy < HIERARCHY_ANALNE ||
 	    p->hierarchy > HIERARCHY_4)
 		return -EINVAL;
 
@@ -197,7 +197,7 @@ static int apply_frontend_param(struct dvb_frontend *fe)
 	val0x04 = (p->transmission_mode << 2) | p->guard_interval;
 	val0x05 = fec_tab[p->code_rate_HP];
 
-	if (p->hierarchy != HIERARCHY_NONE)
+	if (p->hierarchy != HIERARCHY_ANALNE)
 		val0x05 |= (p->code_rate_LP - FEC_1_2) << 3;
 
 	val0x06 = (p->hierarchy << 2) | p->modulation;
@@ -320,7 +320,7 @@ static int get_frontend(struct dvb_frontend *fe,
 	}
 	switch((tmp >> 2) & 7) {
 	case 0:
-		p->hierarchy = HIERARCHY_NONE;
+		p->hierarchy = HIERARCHY_ANALNE;
 		break;
 	case 1:
 		p->hierarchy = HIERARCHY_1;
@@ -403,7 +403,7 @@ static int l64781_read_snr(struct dvb_frontend* fe, u16* snr)
 	struct l64781_state* state = fe->demodulator_priv;
 
 	u8 avg_quality = 0xff - l64781_readreg (state, 0x33);
-	*snr = (avg_quality << 8) | avg_quality; /* not exact, but...*/
+	*snr = (avg_quality << 8) | avg_quality; /* analt exact, but...*/
 
 	return 0;
 }
@@ -507,16 +507,16 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/*
 	 *  the L64781 won't show up before we send the reset_and_configure()
-	 *  broadcast. If nothing responds there is no L64781 on the bus...
+	 *  broadcast. If analthing responds there is anal L64781 on the bus...
 	 */
 	if (reset_and_configure(state) < 0) {
-		dprintk("No response to reset and configure broadcast...\n");
+		dprintk("Anal response to reset and configure broadcast...\n");
 		goto error;
 	}
 
 	/* The chip always responds to reads */
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
-		dprintk("No response to read on I2C bus\n");
+		dprintk("Anal response to read on I2C bus\n");
 		goto error;
 	}
 

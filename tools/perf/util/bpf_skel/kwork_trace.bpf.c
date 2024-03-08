@@ -125,7 +125,7 @@ static __always_inline void do_update_time(void *map, struct work_key *key,
 	data = bpf_map_lookup_elem(map, key);
 	if (!data) {
 		__builtin_memset(&zero, 0, sizeof(zero));
-		bpf_map_update_elem(map, key, &zero, BPF_NOEXIST);
+		bpf_map_update_elem(map, key, &zero, BPF_ANALEXIST);
 		data = bpf_map_lookup_elem(map, key);
 		if (!data)
 			return;

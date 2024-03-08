@@ -94,7 +94,7 @@
 };
 
 &avb {
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	phy-mode = "gmii";
 	status = "okay";
@@ -115,9 +115,9 @@
 	vqmmc-supply = <&reg_1v8>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	fixed-emmc-driver-type = <1>;
 	max-frequency = <200000000>;
 	status = "okay";

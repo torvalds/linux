@@ -20,7 +20,7 @@ enum vchiq_reason {
 enum vchiq_bulk_mode {
 	VCHIQ_BULK_MODE_CALLBACK,
 	VCHIQ_BULK_MODE_BLOCKING,
-	VCHIQ_BULK_MODE_NOCALLBACK,
+	VCHIQ_BULK_MODE_ANALCALLBACK,
 	VCHIQ_BULK_MODE_WAITING		/* Reserved for internal use */
 };
 
@@ -28,7 +28,7 @@ enum vchiq_service_option {
 	VCHIQ_SERVICE_OPTION_AUTOCLOSE,
 	VCHIQ_SERVICE_OPTION_SLOT_QUOTA,
 	VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA,
-	VCHIQ_SERVICE_OPTION_SYNCHRONOUS,
+	VCHIQ_SERVICE_OPTION_SYNCHROANALUS,
 	VCHIQ_SERVICE_OPTION_TRACE
 };
 
@@ -74,7 +74,7 @@ struct vchiq_service_params_kernel {
 			unsigned int handle,
 			void *bulk_userdata);
 	void *userdata;
-	short version;       /* Increment for non-trivial changes */
+	short version;       /* Increment for analn-trivial changes */
 	short version_min;   /* Update for incompatible changes */
 };
 

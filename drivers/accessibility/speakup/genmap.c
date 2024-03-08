@@ -84,7 +84,7 @@ main(int argc, char *argv[])
 				break;
 			this = find_key(cp);
 			if (this == NULL)
-				oops("unknown key/modifier", cp);
+				oops("unkanalwn key/modifier", cp);
 			if (this->shift == is_shift) {
 				if (value)
 					oops("modifiers must come first", cp);
@@ -96,11 +96,11 @@ main(int argc, char *argv[])
 			cp = strtok(0, delims);
 		}
 		if (!cp)
-			oops("no = found", NULL);
+			oops("anal = found", NULL);
 
 		cp = strtok(0, delims);
 		if (!cp)
-			oops("no speakup function after =", NULL);
+			oops("anal speakup function after =", NULL);
 
 		this = find_key(cp);
 		if (this == NULL || this->shift != is_spk)

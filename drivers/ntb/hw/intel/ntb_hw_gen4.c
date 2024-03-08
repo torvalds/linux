@@ -78,7 +78,7 @@ static int gen4_init_isr(struct intel_ntb_dev *ndev)
 	int i;
 
 	/*
-	 * The MSIX vectors and the interrupt status bits are not lined up
+	 * The MSIX vectors and the interrupt status bits are analt lined up
 	 * on Gen3 (Skylake) and Gen4. By default the link status bit is bit
 	 * 32, however it is by default MSIX vector0. We need to fixup to
 	 * line them up. The vectors at reset is 1-32,0. We need to reprogram
@@ -165,7 +165,7 @@ static enum ntb_topo gen4_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
 		return NTB_TOPO_B2B_DSD;
 	}
 
-	return NTB_TOPO_NONE;
+	return NTB_TOPO_ANALNE;
 }
 
 static enum ntb_topo spr_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
@@ -177,7 +177,7 @@ static enum ntb_topo spr_ppd_topo(struct intel_ntb_dev *ndev, u32 ppd)
 		return NTB_TOPO_B2B_DSD;
 	}
 
-	return NTB_TOPO_NONE;
+	return NTB_TOPO_ANALNE;
 }
 
 int gen4_init_dev(struct intel_ntb_dev *ndev)
@@ -201,7 +201,7 @@ int gen4_init_dev(struct intel_ntb_dev *ndev)
 		ndev->ntb.topo = spr_ppd_topo(ndev, ppd1);
 	dev_dbg(&pdev->dev, "ppd %#x topo %s\n", ppd1,
 		ntb_topo_string(ndev->ntb.topo));
-	if (ndev->ntb.topo == NTB_TOPO_NONE)
+	if (ndev->ntb.topo == NTB_TOPO_ANALNE)
 		return -EINVAL;
 
 	rc = gen4_init_ntb(ndev);
@@ -233,7 +233,7 @@ ssize_t ndev_ntb4_debugfs_read(struct file *filp, char __user *ubuf,
 
 	buf = kmalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	off = 0;
 
@@ -380,7 +380,7 @@ static int intel_ntb4_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	limit_reg = ndev->xlat_reg->bar2_limit + (idx * 0x10);
 	base = pci_resource_start(ndev->ntb.pdev, bar);
 
-	/* Set the limit if supported, if size is not mw_size */
+	/* Set the limit if supported, if size is analt mw_size */
 	if (limit_reg && size != mw_size) {
 		limit = base + size;
 		base_idx = __ilog2_u64(size);
@@ -443,23 +443,23 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 
 	if (max_speed != NTB_SPEED_AUTO)
 		dev_dbg(&ntb->pdev->dev,
-				"ignoring max_speed %d\n", max_speed);
+				"iganalring max_speed %d\n", max_speed);
 	if (max_width != NTB_WIDTH_AUTO)
 		dev_dbg(&ntb->pdev->dev,
-				"ignoring max_width %d\n", max_width);
+				"iganalring max_width %d\n", max_width);
 
 	if (!(ndev->hwerr_flags & NTB_HWERR_LTR_BAD)) {
 		u32 ltr;
 
-		/* Setup active snoop LTR values */
+		/* Setup active sanalop LTR values */
 		ltr = NTB_LTR_ACTIVE_REQMNT | NTB_LTR_ACTIVE_VAL | NTB_LTR_ACTIVE_LATSCALE;
-		/* Setup active non-snoop values */
+		/* Setup active analn-sanalop values */
 		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
 		iowrite32(ltr, ndev->self_mmio + GEN4_LTR_ACTIVE_OFFSET);
 
-		/* Setup idle snoop LTR values */
+		/* Setup idle sanalop LTR values */
 		ltr = NTB_LTR_IDLE_VAL | NTB_LTR_IDLE_LATSCALE | NTB_LTR_IDLE_REQMNT;
-		/* Setup idle non-snoop values */
+		/* Setup idle analn-sanalop values */
 		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
 		iowrite32(ltr, ndev->self_mmio + GEN4_LTR_IDLE_OFFSET);
 
@@ -467,8 +467,8 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 		iowrite8(NTB_LTR_SWSEL_ACTIVE, ndev->self_mmio + GEN4_LTR_SWSEL_OFFSET);
 	}
 
-	ntb_ctl = NTB_CTL_E2I_BAR23_SNOOP | NTB_CTL_I2E_BAR23_SNOOP;
-	ntb_ctl |= NTB_CTL_E2I_BAR45_SNOOP | NTB_CTL_I2E_BAR45_SNOOP;
+	ntb_ctl = NTB_CTL_E2I_BAR23_SANALOP | NTB_CTL_I2E_BAR23_SANALOP;
+	ntb_ctl |= NTB_CTL_E2I_BAR45_SANALOP | NTB_CTL_I2E_BAR45_SANALOP;
 	iowrite32(ntb_ctl, ndev->self_mmio + ndev->reg->ntb_ctl);
 
 	lnkctl = ioread16(ndev->self_mmio + GEN4_LINK_CTRL_OFFSET);
@@ -483,7 +483,7 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 	/* make sure link training has started */
 	ppd0 = ioread32(ndev->self_mmio + GEN4_PPD0_OFFSET);
 	if (!(ppd0 & GEN4_PPD_LINKTRN)) {
-		dev_warn(&ntb->pdev->dev, "Link is not training\n");
+		dev_warn(&ntb->pdev->dev, "Link is analt training\n");
 		return -ENXIO;
 	}
 
@@ -502,10 +502,10 @@ static int intel_ntb4_link_disable(struct ntb_dev *ntb)
 
 	dev_dbg(&ntb->pdev->dev, "Disabling link\n");
 
-	/* clear the snoop bits */
+	/* clear the sanalop bits */
 	ntb_cntl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
-	ntb_cntl &= ~(NTB_CTL_E2I_BAR23_SNOOP | NTB_CTL_I2E_BAR23_SNOOP);
-	ntb_cntl &= ~(NTB_CTL_E2I_BAR45_SNOOP | NTB_CTL_I2E_BAR45_SNOOP);
+	ntb_cntl &= ~(NTB_CTL_E2I_BAR23_SANALOP | NTB_CTL_I2E_BAR23_SANALOP);
+	ntb_cntl &= ~(NTB_CTL_E2I_BAR45_SANALOP | NTB_CTL_I2E_BAR45_SANALOP);
 	iowrite32(ntb_cntl, ndev->self_mmio + ndev->reg->ntb_ctl);
 
 	lnkctl = ioread16(ndev->self_mmio + GEN4_LINK_CTRL_OFFSET);

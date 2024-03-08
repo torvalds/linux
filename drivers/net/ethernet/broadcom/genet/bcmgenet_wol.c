@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
@@ -74,12 +74,12 @@ int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	/* Try Wake-on-LAN from the PHY first */
 	if (dev->phydev) {
 		ret = phy_ethtool_set_wol(dev->phydev, wol);
-		if (ret != -EOPNOTSUPP)
+		if (ret != -EOPANALTSUPP)
 			return ret;
 	}
 
 	if (!device_can_wakeup(kdev))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER))
 		return -EINVAL;
@@ -179,7 +179,7 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
 	}
 
-	/* Do not leave UniMAC in MPD mode only */
+	/* Do analt leave UniMAC in MPD mode only */
 	retries = bcmgenet_poll_wol_status(priv);
 	if (retries < 0) {
 		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);

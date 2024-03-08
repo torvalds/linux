@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2009 Jonathan Corbet <corbet@lwn.net>
  */
@@ -77,7 +77,7 @@ static inline int viafb_mmio_read(int reg)
  */
 
 /*
- * Which interrupts are enabled now?
+ * Which interrupts are enabled analw?
  */
 static u32 viafb_enabled_ints;
 
@@ -114,8 +114,8 @@ EXPORT_SYMBOL_GPL(viafb_irq_disable);
 /*
  * Currently, the camera driver is the only user of the DMA code, so we
  * only compile it in if the camera driver is being built.  Chances are,
- * most viafb systems will not need to have this extra code for a while.
- * As soon as another user comes long, the ifdef can be removed.
+ * most viafb systems will analt need to have this extra code for a while.
+ * As soon as aanalther user comes long, the ifdef can be removed.
  */
 #if IS_ENABLED(CONFIG_VIDEO_VIA_CAMERA)
 /*
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(viafb_irq_disable);
  */
 
 /*
- * There are four DMA channels in the vx855.  For now, we only
+ * There are four DMA channels in the vx855.  For analw, we only
  * use one of them, though.  Most of the time, the DMA channel
  * will be idle, so we keep the IRQ handler unregistered except
  * when some subsystem has indicated an interest.
@@ -166,7 +166,7 @@ struct viafb_vx855_dma_descr {
 static irqreturn_t viafb_dma_irq(int irq, void *data)
 {
 	int csr;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	spin_lock(&global_dev.reg_lock);
 	csr = viafb_mmio_read(VDMA_CSR0);
@@ -190,9 +190,9 @@ int viafb_request_dma(void)
 	 * Only VX855 is supported currently.
 	 */
 	if (global_dev.chip_type != UNICHROME_VX855)
-		return -ENODEV;
+		return -EANALDEV;
 	/*
-	 * Note the new user and set up our interrupt handler
+	 * Analte the new user and set up our interrupt handler
 	 * if need be.
 	 */
 	mutex_lock(&viafb_dma_lock);
@@ -244,7 +244,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 			&descr_handle, GFP_KERNEL);
 	if (descrpages == NULL) {
 		dev_err(&global_dev.pdev->dev, "Unable to get descr page.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	mutex_lock(&viafb_dma_lock);
 	/*
@@ -282,7 +282,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	viafb_mmio_write(VDMA_CSR0, VDMA_C_ENABLE|VDMA_C_START);
 	spin_unlock_irqrestore(&global_dev.reg_lock, flags);
 	/*
-	 * Now we just wait until the interrupt handler says
+	 * Analw we just wait until the interrupt handler says
 	 * we're done.  Except that, actually, we need to wait a little
 	 * longer: the interrupts seem to jump the gun a little and we
 	 * get corrupted frames sometimes.
@@ -365,7 +365,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 	}
 
 	if (!offset) {
-		printk(KERN_ERR "cannot determine framebuffer size\n");
+		printk(KERN_ERR "cananalt determine framebuffer size\n");
 		return -EIO;
 	}
 
@@ -437,7 +437,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 {
 	int ret;
 	/*
-	 * Hook up to the device registers.  Note that we soldier
+	 * Hook up to the device registers.  Analte that we soldier
 	 * on if it fails; the framebuffer can operate (without
 	 * acceleration) without this region.
 	 */
@@ -450,7 +450,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 				"Unable to map engine MMIO; operation will be "
 				"slow and crippled.\n");
 	/*
-	 * Map in framebuffer memory.  For now, failure here is
+	 * Map in framebuffer memory.  For analw, failure here is
 	 * fatal.  Unfortunately, in the absence of significant
 	 * vmalloc space, failure here is also entirely plausible.
 	 * Eventually we want to move away from mapping this
@@ -464,7 +464,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 	if (ret < 0)
 		goto out_unmap;
 
-	/* try to map less memory on failure, 8 MB should be still enough */
+	/* try to map less memory on failure, 8 MB should be still eanalugh */
 	for (; vdev->fbmem_len >= 8 << 20; vdev->fbmem_len /= 2) {
 		vdev->fbmem = ioremap_wc(vdev->fbmem_start, vdev->fbmem_len);
 		if (vdev->fbmem)
@@ -472,7 +472,7 @@ static int via_pci_setup_mmio(struct viafb_dev *vdev)
 	}
 
 	if (vdev->fbmem == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 	return 0;
@@ -517,7 +517,7 @@ static int via_create_subdev(struct viafb_dev *vdev,
 	if (!info->platdev) {
 		dev_err(&vdev->pdev->dev, "Unable to allocate pdev %s\n",
 			info->name);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info->platdev->dev.parent = &vdev->pdev->dev;
 	info->platdev->dev.platform_data = vdev;
@@ -536,7 +536,7 @@ static int via_setup_subdevs(struct viafb_dev *vdev)
 	int i;
 
 	/*
-	 * Ignore return values.  Even if some of the devices
+	 * Iganalre return values.  Even if some of the devices
 	 * fail to be created, we'll still be able to use some
 	 * of the rest.
 	 */
@@ -587,9 +587,9 @@ static int __maybe_unused via_suspend(struct device *dev)
 	/*
 	 * "I've occasionally hit a few drivers that caused suspend
 	 * failures, and each and every time it was a driver bug, and
-	 * the right thing to do was to just ignore the error and suspend
+	 * the right thing to do was to just iganalre the error and suspend
 	 * anyway - returning an error code and trying to undo the suspend
-	 * is not what anybody ever really wants, even if our model
+	 * is analt what anybody ever really wants, even if our model
 	 *_allows_ for it."
 	 * -- Linus Torvalds, Dec. 7, 2009
 	 */
@@ -605,7 +605,7 @@ static int __maybe_unused via_resume(struct device *dev)
 {
 	struct viafb_pm_hooks *hooks;
 
-	/* Now bring back any subdevs */
+	/* Analw bring back any subdevs */
 	mutex_lock(&viafb_pm_hooks_lock);
 	list_for_each_entry(hooks, &viafb_pm_hooks, list)
 		hooks->resume(hooks->private);
@@ -726,7 +726,7 @@ static int __init via_core_init(void)
 	int ret;
 
 	if (fb_modesetting_disabled("viafb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = viafb_init();
 	if (ret)

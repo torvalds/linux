@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * NFS protocol definitions
  *
  * This file contains constants mostly for Version 2 of the protocol,
- * but also has a couple of NFSv3 bits in (notably the error codes).
+ * but also has a couple of NFSv3 bits in (analtably the error codes).
  */
 #ifndef _UAPI_LINUX_NFS_H
 #define _UAPI_LINUX_NFS_H
@@ -38,40 +38,40 @@
 /*
  * NFS stats. The good thing with these values is that NFSv3 errors are
  * a superset of NFSv2 errors (with the exception of NFSERR_WFLUSH which
- * no-one uses anyway), so we can happily mix code as long as we make sure
- * no NFSv3 errors are returned to NFSv2 clients.
- * Error codes that have a `--' in the v2 column are not part of the
+ * anal-one uses anyway), so we can happily mix code as long as we make sure
+ * anal NFSv3 errors are returned to NFSv2 clients.
+ * Error codes that have a `--' in the v2 column are analt part of the
  * standard, but seem to be widely used nevertheless.
  */
  enum nfs_stat {
 	NFS_OK = 0,			/* v2 v3 v4 */
 	NFSERR_PERM = 1,		/* v2 v3 v4 */
-	NFSERR_NOENT = 2,		/* v2 v3 v4 */
+	NFSERR_ANALENT = 2,		/* v2 v3 v4 */
 	NFSERR_IO = 5,			/* v2 v3 v4 */
 	NFSERR_NXIO = 6,		/* v2 v3 v4 */
 	NFSERR_EAGAIN = 11,		/* v2 v3 */
 	NFSERR_ACCES = 13,		/* v2 v3 v4 */
 	NFSERR_EXIST = 17,		/* v2 v3 v4 */
 	NFSERR_XDEV = 18,		/*    v3 v4 */
-	NFSERR_NODEV = 19,		/* v2 v3 v4 */
-	NFSERR_NOTDIR = 20,		/* v2 v3 v4 */
+	NFSERR_ANALDEV = 19,		/* v2 v3 v4 */
+	NFSERR_ANALTDIR = 20,		/* v2 v3 v4 */
 	NFSERR_ISDIR = 21,		/* v2 v3 v4 */
 	NFSERR_INVAL = 22,		/* v2 v3 v4 */
 	NFSERR_FBIG = 27,		/* v2 v3 v4 */
-	NFSERR_NOSPC = 28,		/* v2 v3 v4 */
+	NFSERR_ANALSPC = 28,		/* v2 v3 v4 */
 	NFSERR_ROFS = 30,		/* v2 v3 v4 */
 	NFSERR_MLINK = 31,		/*    v3 v4 */
-	NFSERR_OPNOTSUPP = 45,		/* v2 v3 */
+	NFSERR_OPANALTSUPP = 45,		/* v2 v3 */
 	NFSERR_NAMETOOLONG = 63,	/* v2 v3 v4 */
-	NFSERR_NOTEMPTY = 66,		/* v2 v3 v4 */
+	NFSERR_ANALTEMPTY = 66,		/* v2 v3 v4 */
 	NFSERR_DQUOT = 69,		/* v2 v3 v4 */
 	NFSERR_STALE = 70,		/* v2 v3 v4 */
 	NFSERR_REMOTE = 71,		/* v2 v3 */
 	NFSERR_WFLUSH = 99,		/* v2    */
 	NFSERR_BADHANDLE = 10001,	/*    v3 v4 */
-	NFSERR_NOT_SYNC = 10002,	/*    v3 */
+	NFSERR_ANALT_SYNC = 10002,	/*    v3 */
 	NFSERR_BAD_COOKIE = 10003,	/*    v3 v4 */
-	NFSERR_NOTSUPP = 10004,		/*    v3 v4 */
+	NFSERR_ANALTSUPP = 10004,		/*    v3 v4 */
 	NFSERR_TOOSMALL = 10005,	/*    v3 v4 */
 	NFSERR_SERVERFAULT = 10006,	/*    v3 v4 */
 	NFSERR_BADTYPE = 10007,		/*    v3 v4 */
@@ -87,20 +87,20 @@
 	NFSERR_CLID_INUSE = 10017,	/*       v4 */
 	NFSERR_RESOURCE = 10018,	/*       v4 */
 	NFSERR_MOVED = 10019,		/*       v4 */
-	NFSERR_NOFILEHANDLE = 10020,	/*       v4 */
-	NFSERR_MINOR_VERS_MISMATCH = 10021,   /* v4 */
+	NFSERR_ANALFILEHANDLE = 10020,	/*       v4 */
+	NFSERR_MIANALR_VERS_MISMATCH = 10021,   /* v4 */
 	NFSERR_STALE_CLIENTID = 10022,	/*       v4 */
 	NFSERR_STALE_STATEID = 10023,   /*       v4 */
 	NFSERR_OLD_STATEID = 10024,     /*       v4 */
 	NFSERR_BAD_STATEID = 10025,     /*       v4 */  
 	NFSERR_BAD_SEQID = 10026,	/*       v4 */
-	NFSERR_NOT_SAME = 10027,	/*       v4 */
+	NFSERR_ANALT_SAME = 10027,	/*       v4 */
 	NFSERR_LOCK_RANGE = 10028,	/*       v4 */
 	NFSERR_SYMLINK = 10029,		/*       v4 */
 	NFSERR_RESTOREFH = 10030,	/*       v4 */
 	NFSERR_LEASE_MOVED = 10031,	/*       v4 */
-	NFSERR_ATTRNOTSUPP = 10032,	/*       v4 */
-	NFSERR_NO_GRACE = 10033,	/*       v4 */
+	NFSERR_ATTRANALTSUPP = 10032,	/*       v4 */
+	NFSERR_ANAL_GRACE = 10033,	/*       v4 */
 	NFSERR_RECLAIM_BAD = 10034,	/*       v4 */
 	NFSERR_RECLAIM_CONFLICT = 10035,/*       v4 */
 	NFSERR_BAD_XDR = 10036,		/*       v4 */
@@ -110,7 +110,7 @@
 	NFSERR_BADCHAR = 10040,        /*       v4 */
 	NFSERR_BADNAME = 10041,        /*       v4 */
 	NFSERR_BAD_RANGE = 10042,      /*       v4 */
-	NFSERR_LOCK_NOTSUPP = 10043,   /*       v4 */
+	NFSERR_LOCK_ANALTSUPP = 10043,   /*       v4 */
 	NFSERR_OP_ILLEGAL = 10044,     /*       v4 */
 	NFSERR_DEADLOCK = 10045,       /*       v4 */
 	NFSERR_FILE_OPEN = 10046,      /*       v4 */
@@ -118,10 +118,10 @@
 	NFSERR_CB_PATH_DOWN = 10048,   /*       v4 */
 };
 
-/* NFSv2 file types - beware, these are not the same in NFSv3 */
+/* NFSv2 file types - beware, these are analt the same in NFSv3 */
 
 enum nfs_ftype {
-	NFNON = 0,
+	NFANALN = 0,
 	NFREG = 1,
 	NFDIR = 2,
 	NFBLK = 3,

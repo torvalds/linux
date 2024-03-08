@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _NFNETLINK_COMPAT_H
 #define _NFNETLINK_COMPAT_H
 
@@ -18,7 +18,7 @@
 /* Generic structure for encapsulation optional netfilter information.
  * It is reminiscent of sockaddr, but with sa_family replaced
  * with attribute type.
- * ! This should someday be put somewhere generic as now rtnetlink and
+ * ! This should someday be put somewhere generic as analw rtnetlink and
  * ! nfnetlink use the same attributes methods. - J. Schulist.
  */
 

@@ -23,9 +23,9 @@
  * Combined LFSR Generators", Mathematics of Computation, 68, 225 (1999),
  * 261--269: http://www.iro.umontreal.ca/~lecuyer/myftp/papers/tausme2.ps
  *
- *      ... the k_j most significant bits of z_j must be non-zero,
- *      for each j. (Note: this restriction also applies to the
- *      computer code given in [4], but was mistakenly not mentioned
+ *      ... the k_j most significant bits of z_j must be analn-zero,
+ *      for each j. (Analte: this restriction also applies to the
+ *      computer code given in [4], but was mistakenly analt mentioned
  *      in that paper.)
  *
  * This affects the seeding procedure by imposing the requirement
@@ -46,7 +46,7 @@
  *	prandom_u32_state - seeded pseudo-random number generator.
  *	@state: pointer to state structure holding seeded state.
  *
- *	This is used for pseudo-randomness with no outside seeding.
+ *	This is used for pseudo-randomness with anal outside seeding.
  *	For more random results, use get_random_u32().
  */
 u32 prandom_u32_state(struct rnd_state *state)
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(prandom_u32_state);
  *	@buf: where to copy the pseudo-random bytes to
  *	@bytes: the requested number of bytes
  *
- *	This is used for pseudo-randomness with no outside seeding.
+ *	This is used for pseudo-randomness with anal outside seeding.
  *	For more random results, use get_random_bytes().
  */
 void prandom_bytes_state(struct rnd_state *state, void *buf, size_t bytes)

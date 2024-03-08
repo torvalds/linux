@@ -224,7 +224,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, int enc)
 	memset(ivbuf, 0, sizeof(ivbuf));
 	memcpy(iv, req->iv, GCM_IV_SIZE);
 
-	/* Linearize assoc, if not already linear */
+	/* Linearize assoc, if analt already linear */
 	if (req->src->length >= assoclen && req->src->length) {
 		scatterwalk_start(&assoc_sg_walk, req->src);
 		assoc = scatterwalk_map(&assoc_sg_walk);
@@ -235,7 +235,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, int enc)
 		/* assoc can be any length, so must be on heap */
 		assocmem = kmalloc(assoclen, flags);
 		if (unlikely(!assocmem))
-			return -ENOMEM;
+			return -EANALMEM;
 		assoc = assocmem;
 
 		scatterwalk_map_and_copy(assoc, req->src, 0, assoclen, 0);

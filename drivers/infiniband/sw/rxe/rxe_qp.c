@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -69,7 +69,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	case IB_QPT_UD:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!init->recv_cq || !init->send_cq) {
@@ -107,7 +107,7 @@ static int alloc_rd_atomic_resources(struct rxe_qp *qp, unsigned int n)
 	qp->resp.resources = kcalloc(n, sizeof(struct resp_res), GFP_KERNEL);
 
 	if (!qp->resp.resources)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int rxe_init_sq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 				      QUEUE_TYPE_FROM_CLIENT);
 	if (!qp->sq.queue) {
 		rxe_err_qp(qp, "Unable to allocate send queue");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -293,7 +293,7 @@ static int rxe_init_rq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 				      QUEUE_TYPE_FROM_CLIENT);
 	if (!qp->rq.queue) {
 		rxe_err_qp(qp, "Unable to allocate recv queue");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -339,7 +339,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	rxe_init_task(&qp->resp.task, qp, rxe_responder);
 
-	qp->resp.opcode		= OPCODE_NONE;
+	qp->resp.opcode		= OPCODE_ANALNE;
 	qp->resp.msn		= 0;
 
 	return 0;
@@ -533,7 +533,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	qp->req.opcode = -1;
 	qp->req.need_retry = 0;
 	qp->req.wait_for_rnr_timer = 0;
-	qp->req.noack_pkts = 0;
+	qp->req.analack_pkts = 0;
 	qp->resp.msn = 0;
 	qp->resp.opcode = -1;
 	qp->resp.drop_msg = 0;
@@ -673,8 +673,8 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 			return err;
 	}
 
-	if (mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
-		qp->attr.en_sqd_async_notify = attr->en_sqd_async_notify;
+	if (mask & IB_QP_EN_SQD_ASYNC_ANALTIFY)
+		qp->attr.en_sqd_async_analtify = attr->en_sqd_async_analtify;
 
 	if (mask & IB_QP_ACCESS_FLAGS)
 		qp->attr.qp_access_flags = attr->qp_access_flags;

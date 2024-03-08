@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  * Copyright (C) 2011 Intel Corporation
  *
  * Author:
- * Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Dmitry Kasatkin <dmitry.kasatkin@analkia.com>
  *                 <dmitry.kasatkin@intel.com>
  */
 
@@ -26,7 +26,7 @@ enum digest_algo {
 
 struct pubkey_hdr {
 	uint8_t		version;	/* key format version */
-	uint32_t	timestamp;	/* key made, always 0 for now */
+	uint32_t	timestamp;	/* key made, always 0 for analw */
 	uint8_t		algo;
 	uint8_t		nmpi;
 	char		mpi[];
@@ -52,7 +52,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 static inline int digsig_verify(struct key *keyring, const char *sig,
 				int siglen, const char *digest, int digestlen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif /* CONFIG_SIGNATURE */

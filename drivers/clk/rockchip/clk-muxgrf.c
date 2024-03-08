@@ -63,13 +63,13 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 	struct clk *clk;
 
 	if (IS_ERR(regmap)) {
-		pr_err("%s: regmap not available\n", __func__);
-		return ERR_PTR(-ENOTSUPP);
+		pr_err("%s: regmap analt available\n", __func__);
+		return ERR_PTR(-EANALTSUPP);
 	}
 
 	muxgrf_clock = kmalloc(sizeof(*muxgrf_clock), GFP_KERNEL);
 	if (!muxgrf_clock)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = flags;

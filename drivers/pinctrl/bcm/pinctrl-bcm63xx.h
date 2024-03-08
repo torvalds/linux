@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2021 Álvaro Fernández Rojas <noltari@gmail.com>
+ * Copyright (C) 2021 Álvaro Fernández Rojas <analltari@gmail.com>
  * Copyright (C) 2016 Jonas Gorski <jonas.gorski@gmail.com>
  */
 

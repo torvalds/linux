@@ -56,7 +56,7 @@ static int ls1b_dwmac_syscon_init(struct platform_device *pdev, void *priv)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "Could not get IO_MEM resources\n");
+		dev_err(&pdev->dev, "Could analt get IO_MEM resources\n");
 		return -EINVAL;
 	}
 	reg_base = (unsigned long)res->start;
@@ -76,7 +76,7 @@ static int ls1b_dwmac_syscon_init(struct platform_device *pdev, void *priv)
 		default:
 			dev_err(&pdev->dev, "Unsupported PHY mode %u\n",
 				plat->phy_interface);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		regmap_update_bits(regmap, LS1X_SYSCON0, GMAC0_SHUT, 0);
@@ -100,7 +100,7 @@ static int ls1b_dwmac_syscon_init(struct platform_device *pdev, void *priv)
 		default:
 			dev_err(&pdev->dev, "Unsupported PHY mode %u\n",
 				plat->phy_interface);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		regmap_update_bits(regmap, LS1X_SYSCON1, GMAC1_SHUT, 0);
@@ -131,7 +131,7 @@ static int ls1c_dwmac_syscon_init(struct platform_device *pdev, void *priv)
 	default:
 		dev_err(&pdev->dev, "Unsupported PHY-mode %u\n",
 			plat->phy_interface);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	regmap_update_bits(regmap, LS1X_SYSCON0, GMAC0_SHUT, 0);
@@ -153,7 +153,7 @@ static int ls1x_dwmac_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Probe syscon */
-	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						 "loongson,ls1-syscon");
 	if (IS_ERR(regmap))
 		return dev_err_probe(&pdev->dev, PTR_ERR(regmap),
@@ -161,13 +161,13 @@ static int ls1x_dwmac_probe(struct platform_device *pdev)
 
 	init = of_device_get_match_data(&pdev->dev);
 	if (!init) {
-		dev_err(&pdev->dev, "No of match data provided\n");
+		dev_err(&pdev->dev, "Anal of match data provided\n");
 		return -EINVAL;
 	}
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat_dat = devm_stmmac_probe_config_dt(pdev, stmmac_res.mac);
 	if (IS_ERR(plat_dat))

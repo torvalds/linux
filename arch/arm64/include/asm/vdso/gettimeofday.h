@@ -73,10 +73,10 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 
 	/*
 	 * Core checks for mode already, so this raced against a concurrent
-	 * update. Return something. Core will do another round and then
+	 * update. Return something. Core will do aanalther round and then
 	 * see the mode change and fallback to the syscall.
 	 */
-	if (clock_mode == VDSO_CLOCKMODE_NONE)
+	if (clock_mode == VDSO_CLOCKMODE_ANALNE)
 		return 0;
 
 	/*
@@ -87,7 +87,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 	asm volatile(
 	ALTERNATIVE("isb\n"
 		    "mrs %0, cntvct_el0",
-		    "nop\n"
+		    "analp\n"
 		    __mrs_s("%0", SYS_CNTVCTSS_EL0),
 		    ARM64_HAS_ECV)
 	: "=r" (res)

@@ -13,7 +13,7 @@
  * and then read/write in chunks of 8 bytes.  A larger size means multiple
  * reads or writes of the same register.
  *
- * This driver uses /dev/cpu/%d/msr where %d is the minor number, and on
+ * This driver uses /dev/cpu/%d/msr where %d is the mianalr number, and on
  * an SMP box will direct the access to CPU %d.
  */
 
@@ -22,7 +22,7 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -31,7 +31,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
 #include <linux/security.h>
@@ -55,7 +55,7 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 	u32 __user *tmp = (u32 __user *) buf;
 	u32 data[2];
 	u32 reg = *ppos;
-	int cpu = iminor(file_inode(file));
+	int cpu = imianalr(file_ianalde(file));
 	int err = 0;
 	ssize_t bytes = 0;
 
@@ -84,7 +84,7 @@ static int filter_write(u32 reg)
 	 * Only allow one message every 30 seconds.
 	 *
 	 * It's possible to be smarter here and do it (for example) per-MSR, but
-	 * it would certainly be more complex, and this is enough at least to
+	 * it would certainly be more complex, and this is eanalugh at least to
 	 * avoid saturating the ring buffer.
 	 */
 	static DEFINE_RATELIMIT_STATE(fw_rs, 30 * HZ, 1);
@@ -111,7 +111,7 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 	const u32 __user *tmp = (const u32 __user *)buf;
 	u32 data[2];
 	u32 reg = *ppos;
-	int cpu = iminor(file_inode(file));
+	int cpu = imianalr(file_ianalde(file));
 	int err = 0;
 	ssize_t bytes = 0;
 
@@ -149,7 +149,7 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 {
 	u32 __user *uregs = (u32 __user *)arg;
 	u32 regs[8];
-	int cpu = iminor(file_inode(file));
+	int cpu = imianalr(file_ianalde(file));
 	int err;
 
 	switch (ioc) {
@@ -196,27 +196,27 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 		break;
 
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
 	return err;
 }
 
-static int msr_open(struct inode *inode, struct file *file)
+static int msr_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int cpu = iminor(file_inode(file));
+	unsigned int cpu = imianalr(file_ianalde(file));
 	struct cpuinfo_x86 *c;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
-		return -ENXIO;	/* No such CPU */
+		return -ENXIO;	/* Anal such CPU */
 
 	c = &cpu_data(cpu);
 	if (!cpu_has(c, X86_FEATURE_MSR))
-		return -EIO;	/* MSR not supported */
+		return -EIO;	/* MSR analt supported */
 
 	return 0;
 }
@@ -226,7 +226,7 @@ static int msr_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations msr_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_seek_end_llseek,
+	.llseek = anal_seek_end_llseek,
 	.read = msr_read,
 	.write = msr_write,
 	.open = msr_open,
@@ -234,14 +234,14 @@ static const struct file_operations msr_fops = {
 	.compat_ioctl = msr_ioctl,
 };
 
-static char *msr_devnode(const struct device *dev, umode_t *mode)
+static char *msr_devanalde(const struct device *dev, umode_t *mode)
 {
-	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MINOR(dev->devt));
+	return kasprintf(GFP_KERNEL, "cpu/%u/msr", MIANALR(dev->devt));
 }
 
 static const struct class msr_class = {
 	.name		= "msr",
-	.devnode	= msr_devnode,
+	.devanalde	= msr_devanalde,
 };
 
 static int msr_device_create(unsigned int cpu)

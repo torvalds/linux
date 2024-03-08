@@ -19,7 +19,7 @@
 static inline struct ttm_buffer_object *
 i915_gem_to_ttm(struct drm_i915_gem_object *obj)
 {
-	return &obj->__do_not_access;
+	return &obj->__do_analt_access;
 }
 
 /*
@@ -31,7 +31,7 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo);
  * i915_ttm_is_ghost_object - Check if the ttm bo is a ghost object.
  * @bo: Pointer to the ttm buffer object
  *
- * Return: True if the ttm bo is not a i915 object but a ghost ttm object,
+ * Return: True if the ttm bo is analt a i915 object but a ghost ttm object,
  * False otherwise.
  */
 static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo)
@@ -49,7 +49,7 @@ static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo)
 static inline struct drm_i915_gem_object *
 i915_ttm_to_gem(struct ttm_buffer_object *bo)
 {
-	return container_of(bo, struct drm_i915_gem_object, __do_not_access);
+	return container_of(bo, struct drm_i915_gem_object, __do_analt_access);
 }
 
 int __i915_gem_ttm_object_init(struct intel_memory_region *mem,

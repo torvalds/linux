@@ -42,8 +42,8 @@ static inline struct xfrm6_tunnel_net *xfrm6_tunnel_pernet(struct net *net)
  * per xfrm_address_t.
  */
 struct xfrm6_tunnel_spi {
-	struct hlist_node	list_byaddr;
-	struct hlist_node	list_byspi;
+	struct hlist_analde	list_byaddr;
+	struct hlist_analde	list_byspi;
 	xfrm_address_t		addr;
 	u32			spi;
 	refcount_t		refcnt;
@@ -188,7 +188,7 @@ static void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	spin_lock_bh(&xfrm6_tunnel_spi_lock);
 
@@ -236,9 +236,9 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	switch (type) {
 	case ICMPV6_DEST_UNREACH:
 		switch (code) {
-		case ICMPV6_NOROUTE:
+		case ICMPV6_ANALROUTE:
 		case ICMPV6_ADM_PROHIBITED:
-		case ICMPV6_NOT_NEIGHBOUR:
+		case ICMPV6_ANALT_NEIGHBOUR:
 		case ICMPV6_ADDR_UNREACH:
 		case ICMPV6_PORT_UNREACH:
 		default:
@@ -278,7 +278,7 @@ static int xfrm6_tunnel_init_state(struct xfrm_state *x, struct netlink_ext_ack 
 	}
 
 	if (x->encap) {
-		NL_SET_ERR_MSG(extack, "IPv6 tunnel is not compatible with encapsulation");
+		NL_SET_ERR_MSG(extack, "IPv6 tunnel is analt compatible with encapsulation");
 		return -EINVAL;
 	}
 
@@ -360,7 +360,7 @@ static int __init xfrm6_tunnel_init(void)
 						  0, SLAB_HWCACHE_ALIGN,
 						  NULL);
 	if (!xfrm6_tunnel_spi_kmem)
-		return -ENOMEM;
+		return -EANALMEM;
 	rv = register_pernet_subsys(&xfrm6_tunnel_net_ops);
 	if (rv < 0)
 		goto out_pernet;

@@ -107,7 +107,7 @@ enum {
 };
 
 enum sja1105_internal_phy_t {
-	SJA1105_NO_PHY		= 0,
+	SJA1105_ANAL_PHY		= 0,
 	SJA1105_PHY_BASE_TX,
 	SJA1105_PHY_BASE_T1,
 };
@@ -118,7 +118,7 @@ struct sja1105_info {
 	 * (since the parts with/without SGMII share the same
 	 * switch core and device_id)
 	 */
-	u64 part_no;
+	u64 part_anal;
 	/* E/T and P/Q/R/S have partial timestamps of different sizes.
 	 * They must be reconstructed on both families anyway to get the full
 	 * 64-bit values back.
@@ -199,7 +199,7 @@ enum sja1105_rule_type {
 };
 
 enum sja1105_vl_type {
-	SJA1105_VL_NONCRITICAL,
+	SJA1105_VL_ANALNCRITICAL,
 	SJA1105_VL_RATE_CONSTRAINED,
 	SJA1105_VL_TIME_TRIGGERED,
 };
@@ -263,7 +263,7 @@ struct sja1105_private {
 	u16 tag_8021q_pvid[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_flow_block flow_block;
 	/* Serializes transmission of management frames so that
-	 * the switch doesn't confuse them with one another.
+	 * the switch doesn't confuse them with one aanalther.
 	 */
 	struct mutex mgmt_lock;
 	/* Serializes accesses to the FDB */

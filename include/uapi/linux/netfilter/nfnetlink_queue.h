@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _NFNETLINK_QUEUE_H
 #define _NFNETLINK_QUEUE_H
 
@@ -75,7 +75,7 @@ struct nfqnl_msg_verdict_hdr {
 
 
 enum nfqnl_msg_config_cmds {
-	NFQNL_CFG_CMD_NONE,
+	NFQNL_CFG_CMD_ANALNE,
 	NFQNL_CFG_CMD_BIND,
 	NFQNL_CFG_CMD_UNBIND,
 	NFQNL_CFG_CMD_PF_BIND,
@@ -89,7 +89,7 @@ struct nfqnl_msg_config_cmd {
 };
 
 enum nfqnl_config_mode {
-	NFQNL_COPY_NONE,
+	NFQNL_COPY_ANALNE,
 	NFQNL_COPY_META,
 	NFQNL_COPY_PACKET,
 };
@@ -121,10 +121,10 @@ enum nfqnl_attr_config {
 
 /* flags for NFQA_SKB_INFO */
 /* packet appears to have wrong checksums, but they are ok */
-#define NFQA_SKB_CSUMNOTREADY (1 << 0)
+#define NFQA_SKB_CSUMANALTREADY (1 << 0)
 /* packet is GSO (i.e., exceeds device mtu) */
 #define NFQA_SKB_GSO (1 << 1)
-/* csum not validated (incoming device doesn't support hw checksum, etc.) */
-#define NFQA_SKB_CSUM_NOTVERIFIED (1 << 2)
+/* csum analt validated (incoming device doesn't support hw checksum, etc.) */
+#define NFQA_SKB_CSUM_ANALTVERIFIED (1 << 2)
 
 #endif /* _NFNETLINK_QUEUE_H */

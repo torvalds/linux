@@ -6,7 +6,7 @@
  *
  * Based on the omapdrm-specific panel-tpo-td043mtea1 driver
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Iganaltas <analtasas@gmail.com>
  */
 
 #include <linux/delay.h>
@@ -37,7 +37,7 @@
 #define TPO_R04_CP_CLK_FREQ_1H		BIT(2)
 #define TPO_R04_VGL_FREQ_1H		BIT(4)
 
-#define TPO_R03_VAL_NORMAL \
+#define TPO_R03_VAL_ANALRMAL \
 	(TPO_R03_NSTANDBY | TPO_R03_EN_CP_CLK | TPO_R03_EN_VGL_PUMP | \
 	 TPO_R03_EN_PWM | TPO_R03_DRIVING_CAP_100 | TPO_R03_EN_PRE_CHARGE | \
 	 TPO_R03_SOFTWARE_CTL)
@@ -147,7 +147,7 @@ static int td043mtea1_power_on(struct td043mtea1_panel *lcd)
 	gpiod_set_value(lcd->reset_gpio, 0);
 
 	td043mtea1_write(lcd, 2, TPO_R02_MODE(lcd->mode) | TPO_R02_NCLK_RISING);
-	td043mtea1_write(lcd, 3, TPO_R03_VAL_NORMAL);
+	td043mtea1_write(lcd, 3, TPO_R03_VAL_ANALRMAL);
 	td043mtea1_write(lcd, 0x20, 0xf0);
 	td043mtea1_write(lcd, 0x21, 0xf0);
 	td043mtea1_write_mirror(lcd);
@@ -313,7 +313,7 @@ static int td043mtea1_prepare(struct drm_panel *panel)
 	int ret;
 
 	/*
-	 * If we are resuming from system suspend, SPI might not be enabled
+	 * If we are resuming from system suspend, SPI might analt be enabled
 	 * yet, so we'll program the LCD from SPI PM resume callback.
 	 */
 	if (lcd->spi_suspended)
@@ -352,7 +352,7 @@ static int td043mtea1_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &td043mtea1_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -423,7 +423,7 @@ static int td043mtea1_probe(struct spi_device *spi)
 
 	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
 	if (lcd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, lcd);
 	lcd->spi = spi;
@@ -501,6 +501,6 @@ static struct spi_driver td043mtea1_driver = {
 
 module_spi_driver(td043mtea1_driver);
 
-MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Gražvydas Iganaltas <analtasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 Panel Driver");
 MODULE_LICENSE("GPL");

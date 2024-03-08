@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -182,7 +182,7 @@ static void
 gp100_vmm_lpt_invalid(struct nvkm_vmm *vmm,
 		      struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
 {
-	/* VALID_FALSE + PRIV tells the MMU to ignore corresponding SPTEs. */
+	/* VALID_FALSE + PRIV tells the MMU to iganalre corresponding SPTEs. */
 	VMM_FO064(pt, vmm, ptei * 8, BIT_ULL(5) /* PRIV. */, ptes);
 }
 
@@ -414,7 +414,7 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	struct nvkm_device *device = vmm->mmu->subdev.device;
 	struct nvkm_memory *memory = map->memory;
 	u8  kind, kind_inv, priv, ro, vol;
-	int kindn, aper, ret = -ENOSYS;
+	int kindn, aper, ret = -EANALSYS;
 	const u8 *kindm;
 
 	map->next = (1ULL << page->shift) >> 4;
@@ -453,7 +453,7 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		if (!map->no_comp) {
+		if (!map->anal_comp) {
 			ret = nvkm_memory_tags_get(memory, device, tags,
 						   nvkm_ltc_tags_clear,
 						   &map->tags);
@@ -463,7 +463,7 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			}
 		}
 
-		if (!map->no_comp && map->tags->mn) {
+		if (!map->anal_comp && map->tags->mn) {
 			tags = map->tags->mn->offset + (map->offset >> 16);
 			map->ctag |= ((1ULL << page->shift) >> 16) << 36;
 			map->type |= tags << 36;
@@ -489,7 +489,7 @@ gp100_vmm_fault_cancel(struct nvkm_vmm *vmm, void *argv, u32 argc)
 	union {
 		struct gp100_vmm_fault_cancel_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	u32 aper;
 
 	if ((ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false)))
@@ -523,7 +523,7 @@ gp100_vmm_fault_replay(struct nvkm_vmm *vmm, void *argv, u32 argc)
 	union {
 		struct gp100_vmm_fault_replay_vn vn;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
 		gf100_vmm_invalidate(vmm, 0x0000000b); /* REPLAY_GLOBAL. */
@@ -606,7 +606,7 @@ gp100_vmm_new_(const struct nvkm_vmm_func *func,
 		struct gp100_vmm_vn vn;
 		struct gp100_vmm_v0 v0;
 	} *args = argv;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	bool replay;
 
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {

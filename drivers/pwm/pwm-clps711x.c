@@ -46,7 +46,7 @@ static int clps711x_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long flags;
 	u32 pmpcon, val;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (state->period != pwm->args.period)
@@ -89,7 +89,7 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->pmpcon = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->pmpcon))

@@ -168,7 +168,7 @@ check_nic_rxhash_enabled
 # Actual test starts here
 if [[ "${TEST_RSS}" = true ]]; then
 	# RPS/RFS must be disabled because they move packets between cpus,
-	# which breaks the PACKET_FANOUT_CPU identification of RSS decisions.
+	# which breaks the PACKET_FAANALUT_CPU identification of RSS decisions.
 	eval "$(get_disable_rfs_cmd) $(get_disable_rps_cmd)" \
 	  ip netns exec $server_ns ./toeplitz "${IP_FLAG}" "${PROTO_FLAG}" \
 	  -d "${PORT}" -i "${DEV}" -k "${KEY}" -T 1000 \

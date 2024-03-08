@@ -46,7 +46,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 {
 	unsigned int pvr;
 	struct mpc52xx_cdm  __iomem *cdm;
-	struct device_node *np_cdm;
+	struct device_analde *np_cdm;
 	unsigned int freq;
 	u32 val;
 
@@ -57,7 +57,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	 * (IP_CLK) can be selected as MSCAN clock source. According to
 	 * the MPC5200 user's manual, the oscillator clock is the better
 	 * choice as it has less jitter. For this reason, it is selected
-	 * by default. Unfortunately, it can not be selected for the old
+	 * by default. Unfortunately, it can analt be selected for the old
 	 * MPC5200 Rev. A chips due to a hardware bug (check errata).
 	 */
 	if (clock_name && strcmp(clock_name, "ip") == 0)
@@ -73,15 +73,15 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 		return freq;
 
 	/* Determine SYS_XTAL_IN frequency from the clock domain settings */
-	np_cdm = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	np_cdm = of_find_matching_analde(NULL, mpc52xx_cdm_ids);
 	if (!np_cdm) {
-		dev_err(&ofdev->dev, "can't get clock node!\n");
+		dev_err(&ofdev->dev, "can't get clock analde!\n");
 		return 0;
 	}
 	cdm = of_iomap(np_cdm, 0);
 	if (!cdm) {
-		of_node_put(np_cdm);
-		dev_err(&ofdev->dev, "can't map clock node!\n");
+		of_analde_put(np_cdm);
+		dev_err(&ofdev->dev, "can't map clock analde!\n");
 		return 0;
 	}
 
@@ -92,7 +92,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	freq *= (val & (1 << 5)) ? 8 : 4;
 	freq /= (val & (1 << 6)) ? 12 : 16;
 
-	of_node_put(np_cdm);
+	of_analde_put(np_cdm);
 	iounmap(cdm);
 
 	return freq;
@@ -109,7 +109,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 				 const char *clock_source, int *mscan_clksrc)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	u32 clockdiv;
 	enum {
 		CLK_FROM_AUTO,
@@ -125,7 +125,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	/* the caller passed in the clock source spec that was read from
 	 * the device tree, get the optional clock divider as well
 	 */
-	np = ofdev->dev.of_node;
+	np = ofdev->dev.of_analde;
 	clockdiv = 1;
 	of_property_read_u32(np, "fsl,mscan-clock-divider", &clockdiv);
 	dev_dbg(&ofdev->dev, "device tree specs: clk src[%s] div[%d]\n",
@@ -158,13 +158,13 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		dev_dbg(&ofdev->dev, "got a clk source spec[%d]\n", clk_from);
 	}
 	if (clk_from == CLK_FROM_AUTO) {
-		/* no spec so far, try the 'sys' clock; round to the
+		/* anal spec so far, try the 'sys' clock; round to the
 		 * next MHz and see if we can get a multiple of 16MHz
 		 */
-		dev_dbg(&ofdev->dev, "no clk source spec, trying SYS\n");
+		dev_dbg(&ofdev->dev, "anal clk source spec, trying SYS\n");
 		clk_in = devm_clk_get(&ofdev->dev, "sys");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_analtavail;
 		freq_calc = clk_get_rate(clk_in);
 		freq_calc +=  499999;
 		freq_calc /= 1000000;
@@ -178,15 +178,15 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		}
 	}
 	if (clk_from == CLK_FROM_AUTO) {
-		/* no spec so far, use the 'ref' clock */
-		dev_dbg(&ofdev->dev, "no clk source spec, trying REF\n");
+		/* anal spec so far, use the 'ref' clock */
+		dev_dbg(&ofdev->dev, "anal clk source spec, trying REF\n");
 		clk_in = devm_clk_get(&ofdev->dev, "ref");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_analtavail;
 		clk_from = CLK_FROM_REF;
 		freq_calc = clk_get_rate(clk_in);
 		dev_dbg(&ofdev->dev,
-			"clk fit, ref[%lu] (no div) freq[%lu]\n",
+			"clk fit, ref[%lu] (anal div) freq[%lu]\n",
 			freq_calc, freq_calc);
 	}
 
@@ -199,7 +199,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	case CLK_FROM_IPS:
 		clk_can = devm_clk_get(&ofdev->dev, "ips");
 		if (IS_ERR(clk_can))
-			goto err_notavail;
+			goto err_analtavail;
 		priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 		priv->clk_can = clk_can;
 		freq_calc = clk_get_rate(clk_can);
@@ -211,7 +211,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	case CLK_FROM_REF:
 		clk_can = devm_clk_get(&ofdev->dev, "mclk");
 		if (IS_ERR(clk_can))
-			goto err_notavail;
+			goto err_analtavail;
 		priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 		priv->clk_can = clk_can;
 		if (clk_from == CLK_FROM_SYS)
@@ -219,7 +219,7 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		if (clk_from == CLK_FROM_REF)
 			clk_in = devm_clk_get(&ofdev->dev, "ref");
 		if (IS_ERR(clk_in))
-			goto err_notavail;
+			goto err_analtavail;
 		clk_set_parent(clk_can, clk_in);
 		freq_calc = clk_get_rate(clk_in);
 		freq_calc /= clockdiv;
@@ -238,9 +238,9 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 	 */
 	clk_ipg = devm_clk_get(&ofdev->dev, "ipg");
 	if (IS_ERR(clk_ipg))
-		goto err_notavail_ipg;
+		goto err_analtavail_ipg;
 	if (clk_prepare_enable(clk_ipg))
-		goto err_notavail_ipg;
+		goto err_analtavail_ipg;
 	priv = netdev_priv(dev_get_drvdata(&ofdev->dev));
 	priv->clk_ipg = clk_ipg;
 
@@ -249,17 +249,17 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 
 err_invalid:
 	dev_err(&ofdev->dev, "invalid clock source specification\n");
-	/* clock source rate could not get determined */
+	/* clock source rate could analt get determined */
 	return 0;
 
-err_notavail:
-	dev_err(&ofdev->dev, "cannot acquire or setup bitrate clock source\n");
-	/* clock source rate could not get determined */
+err_analtavail:
+	dev_err(&ofdev->dev, "cananalt acquire or setup bitrate clock source\n");
+	/* clock source rate could analt get determined */
 	return 0;
 
-err_notavail_ipg:
-	dev_err(&ofdev->dev, "cannot acquire or setup register clock\n");
-	/* clock source rate could not get determined */
+err_analtavail_ipg:
+	dev_err(&ofdev->dev, "cananalt acquire or setup register clock\n");
+	/* clock source rate could analt get determined */
 	return 0;
 }
 
@@ -284,13 +284,13 @@ static const struct of_device_id mpc5xxx_can_table[];
 static int mpc5xxx_can_probe(struct platform_device *ofdev)
 {
 	const struct mpc5xxx_can_data *data;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_analde *np = ofdev->dev.of_analde;
 	struct net_device *dev;
 	struct mscan_priv *priv;
 	void __iomem *base;
 	const char *clock_name = NULL;
 	int irq, mscan_clksrc = 0;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	data = device_get_match_data(&ofdev->dev);
 	if (!data)
@@ -302,8 +302,8 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		dev_err(&ofdev->dev, "no irq found\n");
-		err = -ENODEV;
+		dev_err(&ofdev->dev, "anal irq found\n");
+		err = -EANALDEV;
 		goto exit_unmap_mem;
 	}
 
@@ -412,7 +412,7 @@ static int mpc5xxx_can_resume(struct platform_device *ofdev)
 static const struct mpc5xxx_can_data mpc5200_can_data = {
 	.type = MSCAN_TYPE_MPC5200,
 	.get_clock = mpc52xx_can_get_clock,
-	/* .put_clock not applicable */
+	/* .put_clock analt applicable */
 };
 
 static const struct mpc5xxx_can_data mpc5121_can_data = {
@@ -423,7 +423,7 @@ static const struct mpc5xxx_can_data mpc5121_can_data = {
 
 static const struct of_device_id mpc5xxx_can_table[] = {
 	{ .compatible = "fsl,mpc5200-mscan", .data = &mpc5200_can_data, },
-	/* Note that only MPC5121 Rev. 2 (and later) is supported */
+	/* Analte that only MPC5121 Rev. 2 (and later) is supported */
 	{ .compatible = "fsl,mpc5121-mscan", .data = &mpc5121_can_data, },
 	{},
 };

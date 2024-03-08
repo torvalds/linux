@@ -180,7 +180,7 @@ static int st7789v_read_data(struct st7789v *ctx, u8 cmd, u8 *buf,
 	case 4:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spi_message_init(&msg);
@@ -214,7 +214,7 @@ static int st7789v_check_id(struct drm_panel *panel)
 	int ret, i;
 	u8 ids[3];
 
-	if (ctx->spi->mode & SPI_NO_RX)
+	if (ctx->spi->mode & SPI_ANAL_RX)
 		return 0;
 
 	ret = st7789v_read_data(ctx, MIPI_DCS_GET_DISPLAY_ID, ids, ST7789V_IDS_SIZE);
@@ -340,7 +340,7 @@ static int st7789v_get_modes(struct drm_panel *panel,
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			ctx->info->mode->hdisplay, ctx->info->mode->vdisplay,
 			drm_mode_vrefresh(ctx->info->mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -614,7 +614,7 @@ static int st7789v_probe(struct spi_device *spi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, ctx);
 	ctx->spi = spi;
@@ -643,7 +643,7 @@ static int st7789v_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get backlight\n");
 
-	of_drm_get_panel_orientation(spi->dev.of_node, &ctx->orientation);
+	of_drm_get_panel_orientation(spi->dev.of_analde, &ctx->orientation);
 
 	drm_panel_add(&ctx->panel);
 

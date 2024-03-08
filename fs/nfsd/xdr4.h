@@ -12,20 +12,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -189,7 +189,7 @@ struct nfsd4_compound_state {
 	int			data_offset;
 	bool                    spo_must_allowed;
 	size_t			iovlen;
-	u32			minorversion;
+	u32			mianalrversion;
 	__be32			status;
 	stateid_t	current_stateid;
 	stateid_t	save_stateid;
@@ -335,7 +335,7 @@ struct nfsd4_lookup {
 struct nfsd4_putfh {
 	u32		pf_fhlen;           /* request */
 	char		*pf_fhval;          /* request */
-	bool		no_verify;	    /* represents foreigh fh */
+	bool		anal_verify;	    /* represents foreigh fh */
 };
 
 struct nfsd4_getxattr {
@@ -370,7 +370,7 @@ struct nfsd4_open {
 	char *		op_fname;	    /* request - everything but CLAIM_PREV */
 	u32		op_delegate_type;   /* request - CLAIM_PREV only */
 	stateid_t       op_delegate_stateid; /* request - response */
-	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
+	u32		op_why_anal_deleg;    /* response - DELEG_ANALNE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
 	int		op_umask;           /* request */
@@ -391,7 +391,7 @@ struct nfsd4_open {
 	bool		op_recall;          /* response */
 	bool		op_truncate;        /* used during processing */
 	bool		op_created;         /* used during processing */
-	struct nfs4_openowner *op_openowner; /* used during processing */
+	struct nfs4_opeanalwner *op_opeanalwner; /* used during processing */
 	struct file	*op_filp;           /* used during processing */
 	struct nfs4_file *op_file;          /* used during processing */
 	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
@@ -472,7 +472,7 @@ struct nfsd4_secinfo {
 	struct svc_export *si_exp;			/* response */
 };
 
-struct nfsd4_secinfo_no_name {
+struct nfsd4_secinfo_anal_name {
 	u32 sin_style;					/* request */
 	struct svc_export *sin_exp;			/* response */
 };
@@ -559,7 +559,7 @@ struct nfsd4_sequence {
 	u32			cachethis;		/* request */
 #if 0
 	u32			target_maxslots;	/* response */
-#endif /* not yet */
+#endif /* analt yet */
 	u32			status_flags;		/* response */
 };
 
@@ -591,7 +591,7 @@ struct nfsd4_getdeviceinfo {
 	struct nfsd4_deviceid	gd_devid;	/* request */
 	u32			gd_layout_type;	/* request */
 	u32			gd_maxcount;	/* request */
-	u32			gd_notify_types;/* request - response */
+	u32			gd_analtify_types;/* request - response */
 	void			*gd_device;	/* response */
 };
 
@@ -672,7 +672,7 @@ struct nfsd4_copy {
 	unsigned long		cp_flags;
 #define NFSD4_COPY_F_STOPPED		(0)
 #define NFSD4_COPY_F_INTRA		(1)
-#define NFSD4_COPY_F_SYNCHRONOUS	(2)
+#define NFSD4_COPY_F_SYNCHROANALUS	(2)
 #define NFSD4_COPY_F_COMMITTED		(3)
 
 	/* response */
@@ -698,19 +698,19 @@ struct nfsd4_copy {
 static inline void nfsd4_copy_set_sync(struct nfsd4_copy *copy, bool sync)
 {
 	if (sync)
-		set_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+		set_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 	else
-		clear_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+		clear_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 }
 
 static inline bool nfsd4_copy_is_sync(const struct nfsd4_copy *copy)
 {
-	return test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+	return test_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 }
 
 static inline bool nfsd4_copy_is_async(const struct nfsd4_copy *copy)
 {
-	return !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+	return !test_bit(NFSD4_COPY_F_SYNCHROANALUS, &copy->cp_flags);
 }
 
 static inline bool nfsd4_ssc_is_inter(const struct nfsd4_copy *copy)
@@ -738,7 +738,7 @@ struct nfsd4_offload_status {
 	u32		status;
 };
 
-struct nfsd4_copy_notify {
+struct nfsd4_copy_analtify {
 	/* request */
 	stateid_t		cpn_src_stateid;
 	struct nl4_server	*cpn_dst;
@@ -801,7 +801,7 @@ struct nfsd4_op {
 		struct nfsd4_layoutget		layoutget;
 		struct nfsd4_layoutcommit	layoutcommit;
 		struct nfsd4_layoutreturn	layoutreturn;
-		struct nfsd4_secinfo_no_name	secinfo_no_name;
+		struct nfsd4_secinfo_anal_name	secinfo_anal_name;
 
 		/* NFSv4.2 */
 		struct nfsd4_fallocate		allocate;
@@ -809,7 +809,7 @@ struct nfsd4_op {
 		struct nfsd4_clone		clone;
 		struct nfsd4_copy		copy;
 		struct nfsd4_offload_status	offload_status;
-		struct nfsd4_copy_notify	copy_notify;
+		struct nfsd4_copy_analtify	copy_analtify;
 		struct nfsd4_seek		seek;
 
 		struct nfsd4_getxattr		getxattr;
@@ -837,7 +837,7 @@ struct nfsd4_compoundargs {
 
 	char *				tag;
 	u32				taglen;
-	u32				minorversion;
+	u32				mianalrversion;
 	u32				client_opcnt;
 	u32				opcnt;
 	bool				splice_ok;
@@ -889,7 +889,7 @@ static inline bool nfsd4_last_compound_op(struct svc_rqst *rqstp)
 
 const struct nfsd4_operation *OPDESC(struct nfsd4_op *op);
 int nfsd4_max_reply(struct svc_rqst *rqstp, struct nfsd4_op *op);
-void warn_on_nonidempotent_op(struct nfsd4_op *op);
+void warn_on_analnidempotent_op(struct nfsd4_op *op);
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
 
@@ -902,7 +902,7 @@ void nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op);
 __be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
 		struct svc_fh *fhp, struct svc_export *exp,
 		struct dentry *dentry,
-		u32 *bmval, struct svc_rqst *, int ignore_crossmnt);
+		u32 *bmval, struct svc_rqst *, int iganalre_crossmnt);
 extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
@@ -960,7 +960,7 @@ extern __be32 nfsd4_free_stateid(struct svc_rqst *rqstp,
 extern void nfsd4_bump_seqid(struct nfsd4_compound_state *, __be32 nfserr);
 
 enum nfsd4_op_flags {
-	ALLOWED_WITHOUT_FH = 1 << 0,    /* No current filehandle required */
+	ALLOWED_WITHOUT_FH = 1 << 0,    /* Anal current filehandle required */
 	ALLOWED_ON_ABSENT_FS = 1 << 1,  /* ops processed on absent fs */
 	ALLOWED_AS_FIRST_OP = 1 << 2,   /* ops reqired first in compound */
 	/* For rfc 5661 section 2.6.3.1.1: */
@@ -968,14 +968,14 @@ enum nfsd4_op_flags {
 	OP_IS_PUTFH_LIKE = 1 << 4,
 	/*
 	 * These are the ops whose result size we estimate before
-	 * encoding, to avoid performing an op then not being able to
+	 * encoding, to avoid performing an op then analt being able to
 	 * respond or cache a response.  This includes writes and setattrs
-	 * as well as the operations usually called "nonidempotent":
+	 * as well as the operations usually called "analnidempotent":
 	 */
 	OP_MODIFIES_SOMETHING = 1 << 5,
 	/*
 	 * Cache compounds containing these ops in the xid-based drc:
-	 * We use the DRC for compounds containing non-idempotent
+	 * We use the DRC for compounds containing analn-idempotent
 	 * operations, *except* those that are 4.1-specific (since
 	 * sessions provide their own EOS), and except for stateful
 	 * operations other than setclientid and setclientid_confirm
@@ -988,7 +988,7 @@ enum nfsd4_op_flags {
 	 */
 	OP_CLEAR_STATEID = 1 << 7,
 	/* Most ops return only an error on failure; some may do more: */
-	OP_NONTRIVIAL_ERROR_ENCODE = 1 << 8,
+	OP_ANALNTRIVIAL_ERROR_ENCODE = 1 << 8,
 };
 
 struct nfsd4_operation {

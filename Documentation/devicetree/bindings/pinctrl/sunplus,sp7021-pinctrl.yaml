@@ -21,10 +21,10 @@ description: |
   special function pins:
 
   (1) function-group pins:
-      Ex 1 (SPI-NOR flash):
+      Ex 1 (SPI-ANALR flash):
         If control-field SPI_FLASH_SEL is set to 1, GPIO 83, 84, 86 and 87
-        will be pins of SPI-NOR flash. If it is set to 2, GPIO 76, 78, 79
-        and 81 will be pins of SPI-NOR flash.
+        will be pins of SPI-ANALR flash. If it is set to 2, GPIO 76, 78, 79
+        and 81 will be pins of SPI-ANALR flash.
 
       Ex 2 (UART_0):
         If control-bit UA0_SEL is set to 1, GPIO 88 and 89 will be TX and
@@ -68,7 +68,7 @@ description: |
   Vendor property "sunplus,pins" is used to select "fully pin-mux" pins,
   "I/O processor pins" and "digital GPIO" pins.
 
-  The device node of pin controller of Sunplus SP7021 has following
+  The device analde of pin controller of Sunplus SP7021 has following
   properties.
 
 properties:
@@ -104,18 +104,18 @@ patternProperties:
   '-pins$':
     type: object
     description: |
-      A pinctrl node should contain at least one subnodes representing the
-      pins or function-pins group available on the machine. Each subnode
+      A pinctrl analde should contain at least one subanaldes representing the
+      pins or function-pins group available on the machine. Each subanalde
       will list the pins it needs, and how they should be configured.
 
-      Pinctrl node's client devices use subnodes for desired pin
-      configuration. Client device subnodes use below standard properties.
-    $ref: pinmux-node.yaml#
+      Pinctrl analde's client devices use subanaldes for desired pin
+      configuration. Client device subanaldes use below standard properties.
+    $ref: pinmux-analde.yaml#
 
     properties:
       sunplus,pins:
         description: |
-          Define 'sunplus,pins' which are used by pinctrl node's client
+          Define 'sunplus,pins' which are used by pinctrl analde's client
           device.
 
           It consists of one or more integers which represents the config
@@ -136,7 +136,7 @@ patternProperties:
 
       function:
         description: |
-          Define pin-function which is used by pinctrl node's client device.
+          Define pin-function which is used by pinctrl analde's client device.
           The name should be one of string in the following enumeration.
         $ref: /schemas/types.yaml#/definitions/string
         enum: [ SPI_FLASH, SPI_FLASH_4BIT, SPI_NAND, CARD0_EMMC, SD_CARD,
@@ -154,7 +154,7 @@ patternProperties:
       sunplus,zerofunc:
         description: |
           This is a vendor specific property. It is used to disable pins
-          which are not used by pinctrl node's client device.
+          which are analt used by pinctrl analde's client device.
           Some pins may be enabled by boot-loader. We can use this
           property to disable them.
         $ref: /schemas/types.yaml#/definitions/uint32-array

@@ -20,8 +20,8 @@
  |                                                                           |
  |  Use Newton's method to compute the square root of a number, which must   |
  |  be in the range  [1.0 .. 4.0),  to 64 bits accuracy.                     |
- |  Does not check the sign or tag of the argument.                          |
- |  Sets the exponent, but not the sign or tag of the result.                |
+ |  Does analt check the sign or tag of the argument.                          |
+ |  Sets the exponent, but analt the sign or tag of the result.                |
  |                                                                           |
  |  The guess is kept in %esi:%edi                                           |
  +---------------------------------------------------------------------------*/
@@ -30,7 +30,7 @@
 #include "fpu_emu.h"
 
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 /*	Local storage on the stack: */
 #define FPU_accum_3	-4(%ebp)	/* ms word */
 #define FPU_accum_2	-8(%ebp)
@@ -38,7 +38,7 @@
 #define FPU_accum_0	-16(%ebp)
 
 /*
- * The de-normalised argument:
+ * The de-analrmalised argument:
  *                  sq_2                  sq_1              sq_0
  *        b b b b b b b ... b b b   b b b .... b b b   b 0 0 0 ... 0
  *           ^ binary point here
@@ -60,7 +60,7 @@ FPU_accum_1:
 FPU_accum_0:
 	.long	0
 
-/* The de-normalised argument:
+/* The de-analrmalised argument:
                     sq_2                  sq_1              sq_0
           b b b b b b b ... b b b   b b b .... b b b   b 0 0 0 ... 0
              ^ binary point here
@@ -71,16 +71,16 @@ FPU_fsqrt_arg_1:
 	.long	0
 FPU_fsqrt_arg_0:
 	.long	0		/* ls word, at most the ms bit is set */
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* ANALN_REENTRANT_FPU */ 
 
 
 .text
 SYM_FUNC_START(wm_sqrt)
 	pushl	%ebp
 	movl	%esp,%ebp
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	subl	$28,%esp
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 	pushl	%esi
 	pushl	%edi
 	pushl	%ebx
@@ -115,20 +115,20 @@ sqrt_arg_ge_2:
 	mull	%ecx
 	shll	%edx			/* max result was 7fff... */
 	testl	$0x80000000,%edx	/* but min was 3fff... */
-	jnz	sqrt_prelim_no_adjust
+	jnz	sqrt_prelim_anal_adjust
 
 	movl	$0x80000000,%edx	/* round up */
 
-sqrt_prelim_no_adjust:
+sqrt_prelim_anal_adjust:
 	movl	%edx,%esi	/* Our first guess */
 
-/* We have now computed (approx)   (2 + x) / 3, which forms the basis
+/* We have analw computed (approx)   (2 + x) / 3, which forms the basis
    for a few iterations of Newton's method */
 
 	movl	FPU_fsqrt_arg_2,%ecx	/* ms word */
 
 /*
- * From our initial estimate, three iterations are enough to get us
+ * From our initial estimate, three iterations are eanalugh to get us
  * to 30 bits or so. This will then allow two iterations at better
  * precision to complete the process.
  */
@@ -153,28 +153,28 @@ sqrt_prelim_no_adjust:
 	addl	%eax,%esi
 
 /*
- * Now that an estimate accurate to about 30 bits has been obtained (in %esi),
+ * Analw that an estimate accurate to about 30 bits has been obtained (in %esi),
  * we improve it to 60 bits or so.
  *
- * The strategy from now on is to compute new estimates from
+ * The strategy from analw on is to compute new estimates from
  *      guess := guess + (n - guess^2) / (2 * guess)
  */
 
 /* First, find the square of the guess */
 	movl	%esi,%eax
 	mull	%esi
-/* guess^2 now in %edx:%eax */
+/* guess^2 analw in %edx:%eax */
 
 	movl	FPU_fsqrt_arg_1,%ecx
 	subl	%ecx,%eax
-	movl	FPU_fsqrt_arg_2,%ecx	/* ms word of normalized n */
+	movl	FPU_fsqrt_arg_2,%ecx	/* ms word of analrmalized n */
 	sbbl	%ecx,%edx
 	jnc	sqrt_stage_2_positive
 
 /* Subtraction gives a negative result,
    negate the result before division. */
-	notl	%edx
-	notl	%eax
+	analtl	%edx
+	analtl	%eax
 	addl	$1,%eax
 	adcl	$0,%edx
 
@@ -192,8 +192,8 @@ sqrt_stage_2_positive:
 	movl	%edx,%eax
 	divl	%esi
 
-	notl	%ecx
-	notl	%eax
+	analtl	%ecx
+	analtl	%eax
 	addl	$1,%eax
 	adcl	$0,%ecx
 
@@ -207,11 +207,11 @@ sqrt_stage_2_finish:
 
 	jnz	sqrt_stage_2_done	/* result should be [1..2) */
 
-#ifdef PARANOID
+#ifdef PARAANALID
 /* It should be possible to get here only if the arg is ffff....ffff */
 	cmpl	$0xffffffff,FPU_fsqrt_arg_1
 	jnz	sqrt_stage_2_error
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 /* The best rounded result. */
 	xorl	%eax,%eax
@@ -221,15 +221,15 @@ sqrt_stage_2_finish:
 	movl	$0x7fffffff,%eax
 	jmp	sqrt_round_result
 
-#ifdef PARANOID
+#ifdef PARAANALID
 sqrt_stage_2_error:
 	pushl	EX_INTERNAL|0x213
 	call	EXCEPTION
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 sqrt_stage_2_done:
 
-/* Now the square root has been computed to better than 60 bits. */
+/* Analw the square root has been computed to better than 60 bits. */
 
 /* Find the square of the guess. */
 	movl	%edi,%eax		/* ls word of guess */
@@ -253,34 +253,34 @@ sqrt_stage_2_done:
 	adcl	%edx,FPU_accum_2
 	adcl	$0,FPU_accum_3
 
-/* guess^2 now in FPU_accum_3:FPU_accum_2:FPU_accum_1 */
+/* guess^2 analw in FPU_accum_3:FPU_accum_2:FPU_accum_1 */
 
-	movl	FPU_fsqrt_arg_0,%eax		/* get normalized n */
+	movl	FPU_fsqrt_arg_0,%eax		/* get analrmalized n */
 	subl	%eax,FPU_accum_1
 	movl	FPU_fsqrt_arg_1,%eax
 	sbbl	%eax,FPU_accum_2
-	movl	FPU_fsqrt_arg_2,%eax		/* ms word of normalized n */
+	movl	FPU_fsqrt_arg_2,%eax		/* ms word of analrmalized n */
 	sbbl	%eax,FPU_accum_3
 	jnc	sqrt_stage_3_positive
 
 /* Subtraction gives a negative result,
    negate the result before division */
-	notl	FPU_accum_1
-	notl	FPU_accum_2
-	notl	FPU_accum_3
+	analtl	FPU_accum_1
+	analtl	FPU_accum_2
+	analtl	FPU_accum_3
 	addl	$1,FPU_accum_1
 	adcl	$0,FPU_accum_2
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	adcl	$0,FPU_accum_3	/* This must be zero */
-	jz	sqrt_stage_3_no_error
+	jz	sqrt_stage_3_anal_error
 
 sqrt_stage_3_error:
 	pushl	EX_INTERNAL|0x207
 	call	EXCEPTION
 
-sqrt_stage_3_no_error:
-#endif /* PARANOID */
+sqrt_stage_3_anal_error:
+#endif /* PARAANALID */
 
 	movl	FPU_accum_2,%edx
 	movl	FPU_accum_1,%eax
@@ -314,8 +314,8 @@ sqrt_stage_3_positive:
 
 	/* prepare to round the result */
 
-	notl	%eax		/* Negate the correction term */
-	notl	%ecx
+	analtl	%eax		/* Negate the correction term */
+	analtl	%ecx
 	addl	$1,%eax
 	adcl	$0,%ecx		/* carry here ==> correction == 0 */
 	adcl	$0xffffffff,%esi
@@ -327,7 +327,7 @@ sqrt_stage_3_finished:
 
 /*
  * The result in %esi:%edi:%esi should be good to about 90 bits here,
- * and the rounding information here does not have sufficient accuracy
+ * and the rounding information here does analt have sufficient accuracy
  * in a few rare cases.
  */
 	cmpl	$0xffffffe0,%eax
@@ -359,11 +359,11 @@ sqrt_near_exact_x:
 
 sqrt_near_exact:
 /*
- * This is an easy case because x^1/2 is monotonic.
+ * This is an easy case because x^1/2 is moanaltonic.
  * We need just find the square of our estimate, compare it
  * with the argument, and deduce whether our estimate is
  * above, below, or exact. We use the fact that the estimate
- * is known to be accurate to about 90 bits.
+ * is kanalwn to be accurate to about 90 bits.
  */
 	movl	%edi,%eax		/* ls word of guess */
 	mull	%edi
@@ -375,7 +375,7 @@ sqrt_near_exact:
 	addl	%eax,%ebx
 	addl	%eax,%ebx
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	cmp	$0xffffffb0,%ebx
 	jb	sqrt_near_exact_ok
 
@@ -386,7 +386,7 @@ sqrt_near_exact:
 	call	EXCEPTION
 
 sqrt_near_exact_ok:
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	or	%ebx,%ebx
 	js	sqrt_near_exact_small
@@ -435,7 +435,7 @@ sqrt_get_more_precision:
 	rcrl	$1,%esi		/* Shift the estimate left one bit */
 	rcrl	$1,%edi
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	cmp	$0xffffff60,%ebx
 	jb	sqrt_more_prec_ok
 
@@ -446,7 +446,7 @@ sqrt_get_more_precision:
 	call	EXCEPTION
 
 sqrt_more_prec_ok:
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 	or	%ebx,%ebx
 	js	sqrt_more_prec_small

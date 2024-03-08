@@ -8,9 +8,9 @@
  *
  * Based on cs4270.c - Copyright (c) Freescale Semiconductor
  *
- * For now:
- *  - Only I2C is support. Not SPI
- *  - master mode *NOT* supported
+ * For analw:
+ *  - Only I2C is support. Analt SPI
+ *  - master mode *ANALT* supported
  */
 
 #include <linux/clk.h>
@@ -78,7 +78,7 @@ static int cs42l51_get_chan_mix(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define CHAN_MIX_NORMAL	0x00
+#define CHAN_MIX_ANALRMAL	0x00
 #define CHAN_MIX_BOTH	0x55
 #define CHAN_MIX_SWAP	0xFF
 
@@ -91,7 +91,7 @@ static int cs42l51_set_chan_mix(struct snd_kcontrol *kcontrol,
 	switch (ucontrol->value.enumerated.item[0]) {
 	default:
 	case 0:
-		val = CHAN_MIX_NORMAL;
+		val = CHAN_MIX_ANALRMAL;
 		break;
 	case 1:
 		val = CHAN_MIX_BOTH;
@@ -243,11 +243,11 @@ static const struct snd_soc_dapm_widget cs42l51_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPR"),
 
 	/* mux */
-	SND_SOC_DAPM_MUX("DAC Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAC Mux", SND_SOC_ANALPM, 0, 0,
 		&cs42l51_dac_mux_controls),
-	SND_SOC_DAPM_MUX("PGA-ADC Mux Left", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA-ADC Mux Left", SND_SOC_ANALPM, 0, 0,
 		&cs42l51_adcl_mux_controls),
-	SND_SOC_DAPM_MUX("PGA-ADC Mux Right", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("PGA-ADC Mux Right", SND_SOC_ANALPM, 0, 0,
 		&cs42l51_adcr_mux_controls),
 };
 
@@ -271,7 +271,7 @@ static int mclk_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget cs42l51_dapm_mclk_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_NOPM, 0, 0, mclk_event,
+	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_ANALPM, 0, 0, mclk_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
@@ -329,7 +329,7 @@ static int cs42l51_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		cs42l51->func = MODE_SLAVE_AUTO;
 		break;
 	default:
-		dev_err(component->dev, "Unknown master/slave configuration\n");
+		dev_err(component->dev, "Unkanalwn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -428,8 +428,8 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (i == nr_ratios) {
-		/* We did not find a matching ratio */
-		dev_err(component->dev, "could not find matching ratio\n");
+		/* We did analt find a matching ratio */
+		dev_err(component->dev, "could analt find matching ratio\n");
 		return -EINVAL;
 	}
 
@@ -450,8 +450,8 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 			mode = CS42L51_DSM_MODE;
 		power_ctl |= CS42L51_MIC_POWER_CTL_SPEED(mode);
 		/*
-		 * Auto detect mode is not applicable for master mode and has to
-		 * be disabled. Otherwise SPEED[1:0] bits will be ignored.
+		 * Auto detect mode is analt applicable for master mode and has to
+		 * be disabled. Otherwise SPEED[1:0] bits will be iganalred.
 		 */
 		power_ctl &= ~CS42L51_MIC_POWER_CTL_AUTO;
 		break;
@@ -486,13 +486,13 @@ static int cs42l51_hw_params(struct snd_pcm_substream *substream,
 			fmt = CS42L51_DAC_DIF_RJ24;
 			break;
 		default:
-			dev_err(component->dev, "unknown format\n");
+			dev_err(component->dev, "unkanalwn format\n");
 			return -EINVAL;
 		}
 		intf_ctl |= CS42L51_INTF_CTL_DAC_FORMAT(fmt);
 		break;
 	default:
-		dev_err(component->dev, "unknown format\n");
+		dev_err(component->dev, "unkanalwn format\n");
 		return -EINVAL;
 	}
 
@@ -527,7 +527,7 @@ static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 }
 
 static int cs42l51_of_xlate_dai_id(struct snd_soc_component *component,
-				   struct device_node *endpoint)
+				   struct device_analde *endpoint)
 {
 	/* return dai id 0, whatever the endpoint index */
 	return 0;
@@ -538,7 +538,7 @@ static const struct snd_soc_dai_ops cs42l51_dai_ops = {
 	.set_sysclk     = cs42l51_set_dai_sysclk,
 	.set_fmt        = cs42l51_set_dai_fmt,
 	.mute_stream    = cs42l51_dai_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs42l51_dai = {
@@ -577,7 +577,7 @@ static int cs42l51_component_probe(struct snd_soc_component *component)
 	 * - Use signal processor
 	 * - auto mute
 	 * - vol changes immediate
-	 * - no de-emphasize
+	 * - anal de-emphasize
 	 */
 	reg = CS42L51_DAC_CTL_DATA_SEL(1)
 		| CS42L51_DAC_CTL_AMUTE | CS42L51_DAC_CTL_DACSZ(0);
@@ -634,7 +634,7 @@ static bool cs42l51_writeable_reg(struct device *dev, unsigned int reg)
 	case CS42L51_ALC_EN:
 	case CS42L51_ALC_REL:
 	case CS42L51_ALC_THRES:
-	case CS42L51_NOISE_CONF:
+	case CS42L51_ANALISE_CONF:
 	case CS42L51_CHARGE_FREQ:
 		return true;
 	default:
@@ -685,7 +685,7 @@ static bool cs42l51_readable_reg(struct device *dev, unsigned int reg)
 	case CS42L51_ALC_EN:
 	case CS42L51_ALC_REL:
 	case CS42L51_ALC_THRES:
-	case CS42L51_NOISE_CONF:
+	case CS42L51_ANALISE_CONF:
 	case CS42L51_STATUS:
 	case CS42L51_CHARGE_FREQ:
 		return true;
@@ -719,7 +719,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 	cs42l51 = devm_kzalloc(dev, sizeof(struct cs42l51_private),
 			       GFP_KERNEL);
 	if (!cs42l51)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, cs42l51);
 	cs42l51->regmap = regmap;
@@ -766,7 +766,7 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 	if ((val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_A)) &&
 	    (val != CS42L51_MK_CHIP_REV(CS42L51_CHIP_ID, CS42L51_CHIP_REV_B))) {
 		dev_err(dev, "Invalid chip id: %x\n", val);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 	dev_info(dev, "Cirrus Logic CS42L51, Revision: %02X\n",

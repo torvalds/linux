@@ -10,7 +10,7 @@ maintainers:
   - Hans Verkuil <hverkuil@xs4all.nl>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^cec(@[0-9a-f]+|-[0-9]+)?$"
 
   hdmi-phandle:

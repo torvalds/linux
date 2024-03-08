@@ -50,7 +50,7 @@ static int zynqmp_fpga_ops_write(struct fpga_manager *mgr,
 
 	kbuf = dma_alloc_coherent(priv->dev, size, &dma_addr, GFP_KERNEL);
 	if (!kbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(kbuf, buf, size);
 
@@ -74,7 +74,7 @@ static enum fpga_mgr_states zynqmp_fpga_ops_state(struct fpga_manager *mgr)
 	if (status & IXR_FPGA_DONE_MASK)
 		return FPGA_MGR_STATE_OPERATING;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static ssize_t status_show(struct device *dev,
@@ -111,7 +111,7 @@ static int zynqmp_fpga_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 

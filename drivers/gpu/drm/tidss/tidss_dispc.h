@@ -47,7 +47,7 @@ struct dispc_features_scaling {
 };
 
 struct dispc_errata {
-	bool i2000; /* DSS Does Not Support YUV Pixel Data Formats */
+	bool i2000; /* DSS Does Analt Support YUV Pixel Data Formats */
 };
 
 enum dispc_vp_bus_type {

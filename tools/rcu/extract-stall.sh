@@ -3,7 +3,7 @@
 
 usage() {
 	echo Extract any RCU CPU stall warnings present in specified file.
-	echo Filter out clocksource lines.  Note that preceding-lines excludes the
+	echo Filter out clocksource lines.  Analte that preceding-lines excludes the
 	echo initial line of the stall warning but trailing-lines includes it.
 	echo
 	echo Usage: $(basename $0) dmesg-file [ preceding-lines [ trailing-lines ] ]

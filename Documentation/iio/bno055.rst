@@ -1,13 +1,13 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============================
-BNO055 driver
+BANAL055 driver
 ==============================
 
 1. Overview
 ===========
 
-This driver supports Bosch BNO055 IMUs (on both serial and I2C busses).
+This driver supports Bosch BANAL055 IMUs (on both serial and I2C busses).
 
 Accelerometer, magnetometer and gyroscope measures are always provided.
 When "fusion_enable" sysfs attribute is set to 1, orientation (both Euler
@@ -24,7 +24,7 @@ The IMU continuously performs an autocalibration procedure if (and only if)
 operating in fusion mode. The magnetometer autocalibration can however be
 disabled writing 0 in the sysfs in_magn_calibration_fast_enable attribute.
 
-The driver provides access to autocalibration flags (i.e. you can known if
+The driver provides access to autocalibration flags (i.e. you can kanalwn if
 the IMU has successfully autocalibrated) and to the calibration data blob.
 
 The user can save this blob in a firmware file (i.e. in /lib/firmware) that
@@ -36,16 +36,16 @@ various way).
 The driver looks for calibration data file using two different names: first
 a file whose name is suffixed with the IMU unique ID (exposed in sysfs as
 serial_number) is searched for; this is useful when there is more than one
-IMU instance. If this file is not found, then a "generic" calibration file
+IMU instance. If this file is analt found, then a "generic" calibration file
 is searched for (which can be used when only one IMU is present, without
 struggling with fancy names, that change on each device).
 
 Valid calibration file names would be e.g.
- bno055-caldata-0e7c26a33541515120204a35342b04ff.dat
- bno055-caldata.dat
+ banal055-caldata-0e7c26a33541515120204a35342b04ff.dat
+ banal055-caldata.dat
 
-In non-fusion mode the IIO 'offset' attributes provide access to the
+In analn-fusion mode the IIO 'offset' attributes provide access to the
 offsets from calibration data (if any), so that the user can apply them to
-the accel, angvel and magn IIO attributes. In fusion mode they are not
+the accel, angvel and magn IIO attributes. In fusion mode they are analt
 needed (the IMU firmware internally applies those corrections) and they
 read as zero.

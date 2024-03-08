@@ -74,7 +74,7 @@ static int qcom_icc_rpm_smd_probe(struct platform_device *pdev)
 
 	if (!icc_smd_rpm) {
 		dev_err(&pdev->dev, "unable to retrieve handle to RPM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

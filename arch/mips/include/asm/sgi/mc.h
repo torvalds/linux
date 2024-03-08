@@ -27,13 +27,13 @@ struct sgimc_regs {
 #define SGIMC_CCTRL0_EISALOCK	0x00000800 /* Lock CPU from memory for EISA */
 #define SGIMC_CCTRL0_EPERRSCMD	0x00001000 /* SysCMD bus parity error enable */
 #define SGIMC_CCTRL0_IENAB	0x00002000 /* Allow interrupts from MC */
-#define SGIMC_CCTRL0_ESNOOP	0x00004000 /* Snooping I/O enable */
+#define SGIMC_CCTRL0_ESANALOP	0x00004000 /* Sanaloping I/O enable */
 #define SGIMC_CCTRL0_EPROMWR	0x00008000 /* Prom writes from cpu enable */
 #define SGIMC_CCTRL0_WRESETPMEM 0x00010000 /* Perform warm reset, preserves mem */
 #define SGIMC_CCTRL0_LENDIAN	0x00020000 /* Put MC in little-endian mode */
 #define SGIMC_CCTRL0_WRESETDMEM 0x00040000 /* Warm reset, destroys mem contents */
 #define SGIMC_CCTRL0_CMEMBADPAR 0x02000000 /* Generate bad perr from cpu to mem */
-#define SGIMC_CCTRL0_R4KNOCHKPARR 0x04000000 /* Don't chk parity on mem data reads */
+#define SGIMC_CCTRL0_R4KANALCHKPARR 0x04000000 /* Don't chk parity on mem data reads */
 #define SGIMC_CCTRL0_GIOBTOB	0x08000000 /* Allow GIO back to back writes */
 	u32 _unused1;
 	volatile u32 cpuctrl1;	/* CPU control register 1, readwrite */
@@ -135,7 +135,7 @@ struct sgimc_regs {
 #define SGIMC_GSTAT_RD		0x00000100 /* read parity error */
 #define SGIMC_GSTAT_WR		0x00000200 /* write parity error */
 #define SGIMC_GSTAT_TIME	0x00000400 /* GIO bus timed out */
-#define SGIMC_GSTAT_PROM	0x00000800 /* write to PROM when PROM_EN not set */
+#define SGIMC_GSTAT_PROM	0x00000800 /* write to PROM when PROM_EN analt set */
 #define SGIMC_GSTAT_ADDR	0x00001000 /* parity error on addr cycle */
 #define SGIMC_GSTAT_BC		0x00002000 /* parity error on byte count cycle */
 #define SGIMC_GSTAT_PIO_RD	0x00004000 /* read data parity on pio */

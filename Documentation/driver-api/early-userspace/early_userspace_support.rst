@@ -6,7 +6,7 @@ Last update: 2004-12-20 tlh
 
 
 "Early userspace" is a set of libraries and programs that provide
-various pieces of functionality that are important enough to be
+various pieces of functionality that are important eanalugh to be
 available while a Linux kernel is coming up, but that don't need to be
 run inside the kernel itself.
 
@@ -32,7 +32,7 @@ CPIO ARCHIVE method
 You can create a cpio archive that contains the early userspace image.
 Your cpio archive should be specified in CONFIG_INITRAMFS_SOURCE and it
 will be used directly.  Only a single cpio file may be specified in
-CONFIG_INITRAMFS_SOURCE and directory and file names are not allowed in
+CONFIG_INITRAMFS_SOURCE and directory and file names are analt allowed in
 combination with a cpio archive.
 
 IMAGE BUILDING method
@@ -45,7 +45,7 @@ built by an unprivileged user.
 
 The image is specified as one or more sources in
 CONFIG_INITRAMFS_SOURCE.  Sources can be either directories or files -
-cpio archives are *not* allowed when building from sources.
+cpio archives are *analt* allowed when building from sources.
 
 A source directory will have it and all of its contents packaged.  The
 specified directory name will be mapped to '/'.  When packaging a
@@ -62,12 +62,12 @@ usr/gen_init_cpio.
 When a combination of directories and files are specified then the
 initramfs image will be an aggregate of all of them.  In this way a user
 can create a 'root-image' directory and install all files into it.
-Because device-special files cannot be created by a unprivileged user,
+Because device-special files cananalt be created by a unprivileged user,
 special files can be listed in a 'root-files' file.  Both 'root-image'
 and 'root-files' can be listed in CONFIG_INITRAMFS_SOURCE and a complete
 early userspace image can be built by an unprivileged user.
 
-As a technical note, when directories and files are specified, the
+As a technical analte, when directories and files are specified, the
 entire CONFIG_INITRAMFS_SOURCE is passed to
 usr/gen_initramfs.sh.  This means that CONFIG_INITRAMFS_SOURCE
 can really be interpreted as any legal argument to
@@ -129,7 +129,7 @@ How does it work?
 
 The kernel has currently 3 ways to mount the root filesystem:
 
-a) all required device and filesystem drivers compiled into the kernel, no
+a) all required device and filesystem drivers compiled into the kernel, anal
    initrd.  init/main.c:init() will call prepare_namespace() to mount the
    final root filesystem, based on the root= option and optional init= to run
    some other init binary than listed at the end of init/main.c:init().
@@ -147,7 +147,7 @@ c) using initramfs.  The call to prepare_namespace() must be skipped.
    is responsible to do all the things prepare_namespace() would do.
 
    To maintain backwards compatibility, the /init binary will only run if it
-   comes via an initramfs cpio archive.  If this is not the case,
+   comes via an initramfs cpio archive.  If this is analt the case,
    init/main.c:init() will run prepare_namespace() to mount the final root
    and exec one of the predefined init binaries.
 

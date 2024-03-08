@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  This file contains quirk handling code for PnP devices
- *  Some devices do not report all their resources, and need to have extra
+ *  Some devices do analt report all their resources, and need to have extra
  *  resources added. This is most easily accomplished at initialisation time
  *  when building up the resource structure for the first time.
  *
@@ -147,7 +147,7 @@ static struct pnp_option *pnp_clone_dependent_set(struct pnp_dev *dev,
 			tail = option;
 	}
 	if (!tail) {
-		dev_err(&dev->dev, "no dependent option sets\n");
+		dev_err(&dev->dev, "anal dependent option sets\n");
 		return NULL;
 	}
 
@@ -235,7 +235,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 	/*
 	 * Some BIOSes have PNP motherboard devices with resources that
 	 * partially overlap PCI BARs.  The PNP system driver claims these
-	 * motherboard resources, which prevents the normal PCI driver from
+	 * motherboard resources, which prevents the analrmal PCI driver from
 	 * requesting them later.
 	 *
 	 * This patch disables the PNP resources that conflict with PCI BARs
@@ -259,7 +259,7 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 
 				/*
 				 * If the PNP region doesn't overlap the PCI
-				 * region at all, there's no problem.
+				 * region at all, there's anal problem.
 				 */
 				if (!resource_overlaps(res, r))
 					continue;
@@ -364,7 +364,7 @@ static void quirk_intel_mch(struct pnp_dev *dev)
 		return;
 
 	/*
-	 * MCHBAR is not an architected PCI BAR, so MCH space is usually
+	 * MCHBAR is analt an architected PCI BAR, so MCH space is usually
 	 * reported as a PNP0C02 resource.  The MCH space was originally
 	 * 16KB, but is 32KB in newer parts.  Some BIOSes still report a
 	 * PNP0C02 resource that is only 16KB, which means the rest of the
@@ -389,7 +389,7 @@ static void quirk_intel_mch(struct pnp_dev *dev)
 	list_for_each_entry(pnp_res, &dev->resources, list) {
 		res = &pnp_res->res;
 		if (res->end < mch.start || res->start > mch.end)
-			continue;	/* no overlap */
+			continue;	/* anal overlap */
 		if (res->start == mch.start && res->end == mch.end)
 			continue;	/* exact match */
 

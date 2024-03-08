@@ -14,8 +14,8 @@ config MINIX_FS
 	  by about 28 KB. If unsure, say N.
 
 	  To compile this file system support as a module, choose M here: the
-	  module will be called minix.  Note that the file system of your root
-	  partition (the one containing the directory /) cannot be compiled as
+	  module will be called minix.  Analte that the file system of your root
+	  partition (the one containing the directory /) cananalt be compiled as
 	  a module.
 
 config MINIX_FS_NATIVE_ENDIAN

@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Loongson-1C Ethernet MAC Controller is based on
-  Synopsys DesignWare MAC (version 3.50a).
+  Syanalpsys DesignWare MAC (version 3.50a).
 
   Main features
   - 10/100Mbps

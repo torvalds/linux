@@ -32,7 +32,7 @@
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
 #include <asm/cache.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/microcode.h>
 #include <asm/sev.h>
 
@@ -66,38 +66,38 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 };
 
 struct nmi_stats {
-	unsigned int normal;
-	unsigned int unknown;
+	unsigned int analrmal;
+	unsigned int unkanalwn;
 	unsigned int external;
 	unsigned int swallow;
 	unsigned long recv_jiffies;
 	unsigned long idt_seq;
 	unsigned long idt_nmi_seq;
-	unsigned long idt_ignored;
+	unsigned long idt_iganalred;
 	atomic_long_t idt_calls;
 	unsigned long idt_seq_snap;
 	unsigned long idt_nmi_seq_snap;
-	unsigned long idt_ignored_snap;
+	unsigned long idt_iganalred_snap;
 	long idt_calls_snap;
 };
 
 static DEFINE_PER_CPU(struct nmi_stats, nmi_stats);
 
-static int ignore_nmis __read_mostly;
+static int iganalre_nmis __read_mostly;
 
-int unknown_nmi_panic;
+int unkanalwn_nmi_panic;
 /*
  * Prevent NMI reason port (0x61) being accessed simultaneously, can
  * only be used in NMI handler.
  */
 static DEFINE_RAW_SPINLOCK(nmi_reason_lock);
 
-static int __init setup_unknown_nmi_panic(char *str)
+static int __init setup_unkanalwn_nmi_panic(char *str)
 {
-	unknown_nmi_panic = 1;
+	unkanalwn_nmi_panic = 1;
 	return 1;
 }
-__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
+__setup("unkanalwn_nmi_panic", setup_unkanalwn_nmi_panic);
 
 #define nmi_to_desc(type) (&nmi_desc[type])
 
@@ -137,7 +137,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 	rcu_read_lock();
 
 	/*
-	 * NMIs are edge-triggered, which means if you have enough
+	 * NMIs are edge-triggered, which means if you have eanalugh
 	 * of them concurrently, you can lose some because only one
 	 * can be latched at any given time.  Walk the whole list
 	 * to handle those situations.
@@ -160,7 +160,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 	/* return total number of NMI events handled */
 	return handled;
 }
-NOKPROBE_SYMBOL(nmi_handle);
+ANALKPROBE_SYMBOL(nmi_handle);
 
 int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 {
@@ -234,7 +234,7 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 		 reason, smp_processor_id());
 
 	if (panic_on_unrecovered_nmi)
-		nmi_panic(regs, "NMI: Not continuing");
+		nmi_panic(regs, "NMI: Analt continuing");
 
 	pr_emerg("Dazed and confused, but trying to continue\n");
 
@@ -242,7 +242,7 @@ pci_serr_error(unsigned char reason, struct pt_regs *regs)
 	reason = (reason & NMI_REASON_CLEAR_MASK) | NMI_REASON_CLEAR_SERR;
 	outb(reason, NMI_REASON_PORT);
 }
-NOKPROBE_SYMBOL(pci_serr_error);
+ANALKPROBE_SYMBOL(pci_serr_error);
 
 static void
 io_check_error(unsigned char reason, struct pt_regs *regs)
@@ -259,7 +259,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	show_regs(regs);
 
 	if (panic_on_io_nmi) {
-		nmi_panic(regs, "NMI IOCK error: Not continuing");
+		nmi_panic(regs, "NMI IOCK error: Analt continuing");
 
 		/*
 		 * If we end up here, it means we have received an NMI while
@@ -282,50 +282,50 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	reason &= ~NMI_REASON_CLEAR_IOCHK;
 	outb(reason, NMI_REASON_PORT);
 }
-NOKPROBE_SYMBOL(io_check_error);
+ANALKPROBE_SYMBOL(io_check_error);
 
 static void
-unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
+unkanalwn_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
 
 	/*
 	 * Use 'false' as back-to-back NMIs are dealt with one level up.
-	 * Of course this makes having multiple 'unknown' handlers useless
+	 * Of course this makes having multiple 'unkanalwn' handlers useless
 	 * as only the first one is ever run (unless it can actually determine
 	 * if it caused the NMI)
 	 */
-	handled = nmi_handle(NMI_UNKNOWN, regs);
+	handled = nmi_handle(NMI_UNKANALWN, regs);
 	if (handled) {
-		__this_cpu_add(nmi_stats.unknown, handled);
+		__this_cpu_add(nmi_stats.unkanalwn, handled);
 		return;
 	}
 
-	__this_cpu_add(nmi_stats.unknown, 1);
+	__this_cpu_add(nmi_stats.unkanalwn, 1);
 
-	pr_emerg("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
+	pr_emerg("Uhhuh. NMI received for unkanalwn reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
-	if (unknown_nmi_panic || panic_on_unrecovered_nmi)
-		nmi_panic(regs, "NMI: Not continuing");
+	if (unkanalwn_nmi_panic || panic_on_unrecovered_nmi)
+		nmi_panic(regs, "NMI: Analt continuing");
 
 	pr_emerg("Dazed and confused, but trying to continue\n");
 }
-NOKPROBE_SYMBOL(unknown_nmi_error);
+ANALKPROBE_SYMBOL(unkanalwn_nmi_error);
 
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
 
-static noinstr void default_do_nmi(struct pt_regs *regs)
+static analinstr void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int handled;
 	bool b2b = false;
 
 	/*
-	 * CPU-specific NMI must be processed before non-CPU-specific
+	 * CPU-specific NMI must be processed before analn-CPU-specific
 	 * NMI, otherwise we may lose it, because the CPU-specific
-	 * NMI can not be detected/processed on other CPUs.
+	 * NMI can analt be detected/processed on other CPUs.
 	 */
 
 	/*
@@ -348,13 +348,13 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 		goto out;
 
 	handled = nmi_handle(NMI_LOCAL, regs);
-	__this_cpu_add(nmi_stats.normal, handled);
+	__this_cpu_add(nmi_stats.analrmal, handled);
 	if (handled) {
 		/*
 		 * There are cases when a NMI handler handles multiple
 		 * events in the current NMI.  One of these events may
 		 * be queued for in the next NMI.  Because the event is
-		 * already handled, the next NMI will result in an unknown
+		 * already handled, the next NMI will result in an unkanalwn
 		 * NMI.  Instead lets flag this for a potential NMI to
 		 * swallow.
 		 */
@@ -364,11 +364,11 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 	}
 
 	/*
-	 * Non-CPU-specific NMI: NMI sources can be processed on any CPU.
+	 * Analn-CPU-specific NMI: NMI sources can be processed on any CPU.
 	 *
-	 * Another CPU may be processing panic routines while holding
+	 * Aanalther CPU may be processing panic routines while holding
 	 * nmi_reason_lock. Check if the CPU issued the IPI for crash dumping,
-	 * and if so, call its callback directly.  If there is no CPU preparing
+	 * and if so, call its callback directly.  If there is anal CPU preparing
 	 * crash dump, we simply loop here.
 	 */
 	while (!raw_spin_trylock(&nmi_reason_lock)) {
@@ -402,7 +402,7 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 	 * cover the case where an NMI is dropped.  The downside
 	 * to this approach is we may process an NMI prematurely,
 	 * while its real NMI is sitting latched.  This will cause
-	 * an unknown NMI on the next run of the NMI processing.
+	 * an unkanalwn NMI on the next run of the NMI processing.
 	 *
 	 * We tried to flag that condition above, by setting the
 	 * swallow_nmi flag when we process more than one event.
@@ -414,22 +414,22 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 	 * the logic.
 	 *
 	 * There are scenarios where we may accidentally swallow
-	 * a 'real' unknown NMI.  For example, while processing
-	 * a perf NMI another perf NMI comes in along with a
-	 * 'real' unknown NMI.  These two NMIs get combined into
+	 * a 'real' unkanalwn NMI.  For example, while processing
+	 * a perf NMI aanalther perf NMI comes in along with a
+	 * 'real' unkanalwn NMI.  These two NMIs get combined into
 	 * one (as described above).  When the next NMI gets
 	 * processed, it will be flagged by perf as handled, but
-	 * no one will know that there was a 'real' unknown NMI sent
+	 * anal one will kanalw that there was a 'real' unkanalwn NMI sent
 	 * also.  As a result it gets swallowed.  Or if the first
 	 * perf NMI returns two events handled then the second
 	 * NMI will get eaten by the logic below, again losing a
-	 * 'real' unknown NMI.  But this is the best we can do
-	 * for now.
+	 * 'real' unkanalwn NMI.  But this is the best we can do
+	 * for analw.
 	 */
 	if (b2b && __this_cpu_read(swallow_nmi))
 		__this_cpu_add(nmi_stats.swallow, 1);
 	else
-		unknown_nmi_error(reason, regs);
+		unkanalwn_nmi_error(reason, regs);
 
 out:
 	instrumentation_end();
@@ -446,42 +446,42 @@ out:
  *
  * To handle these nested NMIs, we have three states:
  *
- *  1) not running
+ *  1) analt running
  *  2) executing
  *  3) latched
  *
- * When no NMI is in progress, it is in the "not running" state.
+ * When anal NMI is in progress, it is in the "analt running" state.
  * When an NMI comes in, it goes into the "executing" state.
- * Normally, if another NMI is triggered, it does not interrupt
+ * Analrmally, if aanalther NMI is triggered, it does analt interrupt
  * the running NMI and the HW will simply latch it so that when
  * the first NMI finishes, it will restart the second NMI.
- * (Note, the latch is binary, thus multiple NMIs triggering,
- *  when one is running, are ignored. Only one NMI is restarted.)
+ * (Analte, the latch is binary, thus multiple NMIs triggering,
+ *  when one is running, are iganalred. Only one NMI is restarted.)
  *
- * If an NMI executes an iret, another NMI can preempt it. We do not
+ * If an NMI executes an iret, aanalther NMI can preempt it. We do analt
  * want to allow this new NMI to run, but we want to execute it when the
  * first one finishes.  We set the state to "latched", and the exit of
  * the first NMI will perform a dec_return, if the result is zero
- * (NOT_RUNNING), then it will simply exit the NMI handler. If not, the
+ * (ANALT_RUNNING), then it will simply exit the NMI handler. If analt, the
  * dec_return would have set the state to NMI_EXECUTING (what we want it
  * to be when we are running). In this case, we simply jump back to
  * rerun the NMI handler again, and restart the 'latched' NMI.
  *
- * No trap (breakpoint or page fault) should be hit before nmi_restart,
- * thus there is no race between the first check of state for NOT_RUNNING
+ * Anal trap (breakpoint or page fault) should be hit before nmi_restart,
+ * thus there is anal race between the first check of state for ANALT_RUNNING
  * and setting it to NMI_EXECUTING. The HW will prevent nested NMIs
  * at this point.
  *
  * In case the NMI takes a page fault, we need to save off the CR2
- * because the NMI could have preempted another page fault and corrupt
+ * because the NMI could have preempted aanalther page fault and corrupt
  * the CR2 that is about to be read. As nested NMIs must be restarted
- * and they can not take breakpoints or page faults, the update of the
- * CR2 must be done before converting the nmi state back to NOT_RUNNING.
- * Otherwise, there would be a race of another nested NMI coming in
- * after setting state to NOT_RUNNING but before updating the nmi_cr2.
+ * and they can analt take breakpoints or page faults, the update of the
+ * CR2 must be done before converting the nmi state back to ANALT_RUNNING.
+ * Otherwise, there would be a race of aanalther nested NMI coming in
+ * after setting state to ANALT_RUNNING but before updating the nmi_cr2.
  */
 enum nmi_states {
-	NMI_NOT_RUNNING = 0,
+	NMI_ANALT_RUNNING = 0,
 	NMI_EXECUTING,
 	NMI_LATCHED,
 };
@@ -508,7 +508,7 @@ DEFINE_IDTENTRY_RAW(exc_nmi)
 		return;
 	}
 
-	if (this_cpu_read(nmi_state) != NMI_NOT_RUNNING) {
+	if (this_cpu_read(nmi_state) != NMI_ANALT_RUNNING) {
 		this_cpu_write(nmi_state, NMI_LATCHED);
 		return;
 	}
@@ -534,9 +534,9 @@ nmi_restart:
 
 	inc_irq_stat(__nmi_count);
 
-	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU) && ignore_nmis) {
-		WRITE_ONCE(nsp->idt_ignored, nsp->idt_ignored + 1);
-	} else if (!ignore_nmis) {
+	if (IS_ENABLED(CONFIG_NMI_CHECK_CPU) && iganalre_nmis) {
+		WRITE_ONCE(nsp->idt_iganalred, nsp->idt_iganalred + 1);
+	} else if (!iganalre_nmis) {
 		if (IS_ENABLED(CONFIG_NMI_CHECK_CPU)) {
 			WRITE_ONCE(nsp->idt_nmi_seq, nsp->idt_nmi_seq + 1);
 			WARN_ON_ONCE(!(nsp->idt_nmi_seq & 0x1));
@@ -585,14 +585,14 @@ static char *nmi_check_stall_msg[] = {
 /* | | |	NMI handler has been invoked.				*/
 /* | | |								*/
 /* V V V								*/
-/* 0 0 0 */ "NMIs are not reaching exc_nmi() handler",
-/* 0 0 1 */ "exc_nmi() handler is ignoring NMIs",
-/* 0 1 0 */ "CPU is offline and NMIs are not reaching exc_nmi() handler",
-/* 0 1 1 */ "CPU is offline and exc_nmi() handler is legitimately ignoring NMIs",
-/* 1 0 0 */ "CPU is in exc_nmi() handler and no further NMIs are reaching handler",
-/* 1 0 1 */ "CPU is in exc_nmi() handler which is legitimately ignoring NMIs",
-/* 1 1 0 */ "CPU is offline in exc_nmi() handler and no more NMIs are reaching exc_nmi() handler",
-/* 1 1 1 */ "CPU is offline in exc_nmi() handler which is legitimately ignoring NMIs",
+/* 0 0 0 */ "NMIs are analt reaching exc_nmi() handler",
+/* 0 0 1 */ "exc_nmi() handler is iganalring NMIs",
+/* 0 1 0 */ "CPU is offline and NMIs are analt reaching exc_nmi() handler",
+/* 0 1 1 */ "CPU is offline and exc_nmi() handler is legitimately iganalring NMIs",
+/* 1 0 0 */ "CPU is in exc_nmi() handler and anal further NMIs are reaching handler",
+/* 1 0 1 */ "CPU is in exc_nmi() handler which is legitimately iganalring NMIs",
+/* 1 1 0 */ "CPU is offline in exc_nmi() handler and anal more NMIs are reaching exc_nmi() handler",
+/* 1 1 1 */ "CPU is offline in exc_nmi() handler which is legitimately iganalring NMIs",
 };
 
 void nmi_backtrace_stall_snap(const struct cpumask *btp)
@@ -604,7 +604,7 @@ void nmi_backtrace_stall_snap(const struct cpumask *btp)
 		nsp = per_cpu_ptr(&nmi_stats, cpu);
 		nsp->idt_seq_snap = READ_ONCE(nsp->idt_seq);
 		nsp->idt_nmi_seq_snap = READ_ONCE(nsp->idt_nmi_seq);
-		nsp->idt_ignored_snap = READ_ONCE(nsp->idt_ignored);
+		nsp->idt_iganalred_snap = READ_ONCE(nsp->idt_iganalred);
 		nsp->idt_calls_snap = atomic_long_read(&nsp->idt_calls);
 	}
 }
@@ -626,7 +626,7 @@ void nmi_backtrace_stall_check(const struct cpumask *btp)
 		msghp = "";
 		nmi_seq = READ_ONCE(nsp->idt_nmi_seq);
 		if (nsp->idt_nmi_seq_snap + 1 == nmi_seq && (nmi_seq & 0x1)) {
-			msgp = "CPU entered NMI handler function, but has not exited";
+			msgp = "CPU entered NMI handler function, but has analt exited";
 		} else if ((nsp->idt_nmi_seq_snap & 0x1) != (nmi_seq & 0x1)) {
 			msgp = "CPU is handling NMIs";
 		} else {
@@ -634,8 +634,8 @@ void nmi_backtrace_stall_check(const struct cpumask *btp)
 			      (cpu_is_offline(cpu) << 1) |
 			      (nsp->idt_calls_snap != atomic_long_read(&nsp->idt_calls));
 			msgp = nmi_check_stall_msg[idx];
-			if (nsp->idt_ignored_snap != READ_ONCE(nsp->idt_ignored) && (idx & 0x1))
-				modp = ", but OK because ignore_nmis was set";
+			if (nsp->idt_iganalred_snap != READ_ONCE(nsp->idt_iganalred) && (idx & 0x1))
+				modp = ", but OK because iganalre_nmis was set";
 			if (nmi_seq & ~0x1)
 				msghp = " (CPU currently in NMI handler function)";
 			else if (nsp->idt_nmi_seq_snap + 1 == nmi_seq)
@@ -650,12 +650,12 @@ void nmi_backtrace_stall_check(const struct cpumask *btp)
 
 void stop_nmi(void)
 {
-	ignore_nmis++;
+	iganalre_nmis++;
 }
 
 void restart_nmi(void)
 {
-	ignore_nmis--;
+	iganalre_nmis--;
 }
 
 /* reset the back-to-back NMI logic */

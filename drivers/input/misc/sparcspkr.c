@@ -149,7 +149,7 @@ static int sparcspkr_probe(struct device *dev)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = state->name;
 	input_dev->phys = "sparc/input0";
@@ -188,8 +188,8 @@ static int bbc_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct bbc_beep_info *info;
-	struct device_node *dp;
-	int err = -ENOMEM;
+	struct device_analde *dp;
+	int err = -EANALMEM;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -199,14 +199,14 @@ static int bbc_beep_probe(struct platform_device *op)
 	state->event = bbc_spkr_event;
 	spin_lock_init(&state->lock);
 
-	dp = of_find_node_by_path("/");
-	err = -ENODEV;
+	dp = of_find_analde_by_path("/");
+	err = -EANALDEV;
 	if (!dp)
 		goto out_free;
 
 	info = &state->u.bbc;
 	info->clock_freq = of_getintprop_default(dp, "clock-frequency", 0);
-	of_node_put(dp);
+	of_analde_put(dp);
 	if (!info->clock_freq)
 		goto out_free;
 
@@ -270,7 +270,7 @@ static int grover_beep_probe(struct platform_device *op)
 {
 	struct sparcspkr_state *state;
 	struct grover_beep_info *info;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)

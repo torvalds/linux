@@ -24,7 +24,7 @@ struct ocelot_skb_cb {
 #define IFH_TAG_TYPE_C			0
 #define IFH_TAG_TYPE_S			1
 
-#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ANALOP			0x0
 #define IFH_REW_OP_DSCP			0x1
 #define IFH_REW_OP_ONE_STEP_PTP		0x2
 #define IFH_REW_OP_TWO_STEP_PTP		0x3
@@ -36,7 +36,7 @@ struct ocelot_skb_cb {
 #define OCELOT_TOTAL_TAG_LEN	(OCELOT_SHORT_PREFIX_LEN + OCELOT_TAG_LEN)
 
 /* The CPU injection header and the CPU extraction header can have 3 types of
- * prefixes: long, short and no prefix. The format of the header itself is the
+ * prefixes: long, short and anal prefix. The format of the header itself is the
  * same in all 3 cases.
  *
  * Extraction with long prefix:
@@ -55,7 +55,7 @@ struct ocelot_skb_cb {
  *                                         +------+------+------------+-------+
  *                                         16 bits 16 bits  128 bits
  *
- * Extraction with no prefix:
+ * Extraction with anal prefix:
  *
  *                                                       +------------+-------+
  *                                                       | extraction | frame |
@@ -80,7 +80,7 @@ struct ocelot_skb_cb {
  *                                         +------+------+------------+-------+
  *                                         16 bits 16 bits  128 bits
  *
- * Injection with no prefix:
+ * Injection with anal prefix:
  *
  *                                                       +------------+-------+
  *                                                       | injection  | frame |

@@ -29,7 +29,7 @@
 #define cpu_has_ic_fills_f_dc	0
 #define cpu_has_dsp		0
 #define cpu_has_dsp2		0
-#define cpu_has_nofpuex		0
+#define cpu_has_analfpuex		0
 #define cpu_has_64bits		1
 #define cpu_has_mipsmt		0
 #define cpu_has_userlocal	0

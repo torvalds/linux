@@ -88,13 +88,13 @@ struct __packed pcan_usb_pro_btr {
 struct __packed pcan_usb_pro_busact {
 	u8 data_type;
 	u8 channel;
-	__le16 onoff;
+	__le16 oanalff;
 };
 
 struct __packed pcan_usb_pro_silent {
 	u8 data_type;
 	u8 channel;
-	__le16 onoff;
+	__le16 oanalff;
 };
 
 struct __packed pcan_usb_pro_filter {

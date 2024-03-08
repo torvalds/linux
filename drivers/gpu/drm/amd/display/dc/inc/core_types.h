@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -74,7 +74,7 @@ struct resource_funcs {
 	struct link_encoder *(*link_enc_create)(
 			struct dc_context *ctx,
 			const struct encoder_init_data *init);
-	/* Create a minimal link encoder object with no dc_link object
+	/* Create a minimal link encoder object with anal dc_link object
 	 * associated with it. */
 	struct link_encoder *(*link_enc_create_minimal)(struct dc_context *ctx, enum engine_id eng_id);
 
@@ -156,7 +156,7 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
-	enum dc_status (*patch_unknown_plane_state)(
+	enum dc_status (*patch_unkanalwn_plane_state)(
 			struct dc_plane_state *plane_state);
 
 	struct stream_encoder *(*find_first_free_match_stream_enc_for_link)(
@@ -210,7 +210,7 @@ struct audio_support{
 	bool hdmi_audio_native;
 };
 
-#define NO_UNDERLAY_PIPE -1
+#define ANAL_UNDERLAY_PIPE -1
 
 struct resource_pool {
 	struct mem_input *mis[MAX_PIPES];
@@ -382,7 +382,7 @@ union pipe_update_flags {
 };
 
 enum p_state_switch_method {
-	P_STATE_UNKNOWN						= 0,
+	P_STATE_UNKANALWN						= 0,
 	P_STATE_V_BLANK						= 1,
 	P_STATE_FPO,
 	P_STATE_V_ACTIVE,
@@ -565,13 +565,13 @@ struct dc_state {
 
 	/**
 	 * @pp_display_cfg: PowerPlay clocks and settings
-	 * Note: this is a big struct, do *not* put on stack!
+	 * Analte: this is a big struct, do *analt* put on stack!
 	 */
 	struct dm_pp_display_configuration pp_display_cfg;
 
 	/**
-	 * @dcn_bw_vars: non-stack memory to support bandwidth calculations
-	 * Note: this is a big struct, do *not* put on stack!
+	 * @dcn_bw_vars: analn-stack memory to support bandwidth calculations
+	 * Analte: this is a big struct, do *analt* put on stack!
 	 */
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
@@ -594,7 +594,7 @@ struct dc_state {
 	/**
 	 * @refcount: refcount reference
 	 *
-	 * Notice that dc_state is used around the code to capture the current
+	 * Analtice that dc_state is used around the code to capture the current
 	 * context, so we need to pass it everywhere. That's why we want to use
 	 * kref in this struct.
 	 */
@@ -608,7 +608,7 @@ struct dc_state {
 		/* used to temporarily backup plane states of a stream during
 		 * dc update. The reason is that plane states are overwritten
 		 * with surface updates in dc update. Once they are overwritten
-		 * current state is no longer valid. We want to temporarily
+		 * current state is anal longer valid. We want to temporarily
 		 * store current value in plane states so we can still recover
 		 * a valid current state during dc update.
 		 */

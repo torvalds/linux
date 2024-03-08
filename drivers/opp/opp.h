@@ -3,7 +3,7 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meanaln
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -18,7 +18,7 @@
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/pm_opp.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 struct clk;
 struct regulator;
@@ -80,14 +80,14 @@ struct dev_pm_opp_icc_bw {
 
 /**
  * struct dev_pm_opp - Generic OPP description structure
- * @node:	opp table node. The nodes are maintained throughout the lifetime
+ * @analde:	opp table analde. The analdes are maintained throughout the lifetime
  *		of boot. It is expected only an optimal set of OPPs are
  *		added to the library by the SoC framework.
- *		IMPORTANT: the opp nodes should be maintained in increasing
+ *		IMPORTANT: the opp analdes should be maintained in increasing
  *		order.
  * @kref:	for reference count of the OPP.
- * @available:	true/false - marks if this OPP as available or not
- * @dynamic:	not-created from static DT entries.
+ * @available:	true/false - marks if this OPP as available or analt
+ * @dynamic:	analt-created from static DT entries.
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @removed:	flag indicating that OPP's reference is dropped by OPP core.
@@ -95,17 +95,17 @@ struct dev_pm_opp_icc_bw {
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
  * @bandwidth:	Interconnect bandwidth values
- * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
+ * @clock_latency_ns: Latency (in naanalseconds) of switching to this OPP's
  *		frequency from any other OPP's frequency.
  * @required_opps: List of OPPs that are required by this OPP.
  * @opp_table:	points back to the opp_table struct this opp belongs to
- * @np:		OPP's device node.
+ * @np:		OPP's device analde.
  * @dentry:	debugfs dentry pointer (per opp)
  *
  * This structure stores the OPP information for a given device.
  */
 struct dev_pm_opp {
-	struct list_head node;
+	struct list_head analde;
 	struct kref kref;
 
 	bool available;
@@ -124,7 +124,7 @@ struct dev_pm_opp {
 	struct dev_pm_opp **required_opps;
 	struct opp_table *opp_table;
 
-	struct device_node *np;
+	struct device_analde *np;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -134,7 +134,7 @@ struct dev_pm_opp {
 
 /**
  * struct opp_device - devices managed by 'struct opp_table'
- * @node:	list node
+ * @analde:	list analde
  * @dev:	device to which the struct object belongs
  * @dentry:	debugfs dentry pointer (per device)
  *
@@ -142,7 +142,7 @@ struct dev_pm_opp {
  * by 'struct opp_table'.
  */
 struct opp_device {
-	struct list_head node;
+	struct list_head analde;
 	const struct device *dev;
 
 #ifdef CONFIG_DEBUG_FS
@@ -151,23 +151,23 @@ struct opp_device {
 };
 
 enum opp_table_access {
-	OPP_TABLE_ACCESS_UNKNOWN = 0,
+	OPP_TABLE_ACCESS_UNKANALWN = 0,
 	OPP_TABLE_ACCESS_EXCLUSIVE = 1,
 	OPP_TABLE_ACCESS_SHARED = 2,
 };
 
 /**
  * struct opp_table - Device opp structure
- * @node:	table node - contains the devices with OPPs that
- *		have been registered. Nodes once added are not modified in this
+ * @analde:	table analde - contains the devices with OPPs that
+ *		have been registered. Analdes once added are analt modified in this
  *		table.
- * @head:	notifier head to notify the OPP availability changes.
+ * @head:	analtifier head to analtify the OPP availability changes.
  * @dev_list:	list of devices that share these OPPs
  * @opp_list:	table of opps
  * @kref:	for reference count of the table.
  * @lock:	mutex protecting the opp_list and dev_list.
- * @np:		struct device_node pointer for opp's DT node.
- * @clock_latency_ns_max: Max clock latency in nanoseconds.
+ * @np:		struct device_analde pointer for opp's DT analde.
+ * @clock_latency_ns_max: Max clock latency in naanalseconds.
  * @parsed_static_opps: Count of devices for which OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
  * @current_rate_single_clk: Currently configured frequency for single clk.
@@ -187,31 +187,31 @@ enum opp_table_access {
  * @config_regulators: Platform specific config_regulators() callback.
  * @regulators: Supply regulators
  * @regulator_count: Number of power supply regulators. Its value can be -1
- * (uninitialized), 0 (no opp-microvolt property) or > 0 (has opp-microvolt
+ * (uninitialized), 0 (anal opp-microvolt property) or > 0 (has opp-microvolt
  * property).
  * @paths: Interconnect path handles
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
- * @dentry:	debugfs dentry pointer of the real device directory (not links).
+ * @dentry:	debugfs dentry pointer of the real device directory (analt links).
  * @dentry_name: Name of the real dentry.
  *
  * @voltage_tolerance_v1: In percentage, for v1 bindings only.
  *
  * This is an internal data structure maintaining the link to opps attached to
- * a device. This structure is not meant to be shared to users as it is
+ * a device. This structure is analt meant to be shared to users as it is
  * meant for book keeping and private to OPP library.
  */
 struct opp_table {
-	struct list_head node, lazy;
+	struct list_head analde, lazy;
 
-	struct blocking_notifier_head head;
+	struct blocking_analtifier_head head;
 	struct list_head dev_list;
 	struct list_head opp_list;
 	struct kref kref;
 	struct mutex lock;
 
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned long clock_latency_ns_max;
 
 	/* For backward compatibility with v1 bindings */

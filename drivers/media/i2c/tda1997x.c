@@ -20,7 +20,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/i2c/tda1997x.h>
 
 #include <sound/core.h>
@@ -802,7 +802,7 @@ tda1997x_configure_vhref(struct v4l2_subdev *sd)
 	/*
 	 * Configure the VHRef timing values. In case the VHREF generator has
 	 * been configured in manual mode, this will allow to manually set all
-	 * horiz and vert ref values (non-active pixel areas) of the generator
+	 * horiz and vert ref values (analn-active pixel areas) of the generator
 	 * and allows setting the frame reference params.
 	 */
 	/* horizontal reference start/end */
@@ -887,7 +887,7 @@ tda1997x_configure_vidout(struct tda1997x_state *state)
 		      pdata->vidout_inv_hs << HS_HREF_INV_SHIFT |
 		      pdata->vidout_sel_hs << HS_HREF_SEL_SHIFT;
 	} else
-		reg = HS_HREF_SEL_NONE << HS_HREF_SEL_SHIFT;
+		reg = HS_HREF_SEL_ANALNE << HS_HREF_SEL_SHIFT;
 	io_write(sd, REG_HS_HREF, reg);
 
 	/* Configure VS/VREF output signal: delay, polarity, and source */
@@ -896,7 +896,7 @@ tda1997x_configure_vidout(struct tda1997x_state *state)
 		      pdata->vidout_inv_vs << VS_VREF_INV_SHIFT |
 		      pdata->vidout_sel_vs << VS_VREF_SEL_SHIFT;
 	} else
-		reg = VS_VREF_SEL_NONE << VS_VREF_SEL_SHIFT;
+		reg = VS_VREF_SEL_ANALNE << VS_VREF_SEL_SHIFT;
 	io_write(sd, REG_VS_VREF, reg);
 
 	return 0;
@@ -984,7 +984,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 			reg |= AUDIO_OUT_ENABLE_AP2;
 		if (channel_assignment >= 0x0c)
 			reg |= AUDIO_OUT_ENABLE_AP3;
-		/* specific cases where AP1 is not used */
+		/* specific cases where AP1 is analt used */
 		if ((channel_assignment == 0x04)
 		 || (channel_assignment == 0x08)
 		 || (channel_assignment == 0x0c)
@@ -993,7 +993,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 		 || (channel_assignment == 0x18)
 		 || (channel_assignment == 0x1c))
 			reg &= ~AUDIO_OUT_ENABLE_AP1;
-		/* specific cases where AP2 is not used */
+		/* specific cases where AP2 is analt used */
 		if ((channel_assignment >= 0x14)
 		 && (channel_assignment <= 0x17))
 			reg &= ~AUDIO_OUT_ENABLE_AP2;
@@ -1007,7 +1007,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 		reg |= (AUDIO_OUT_ENABLE_ACLK | AUDIO_OUT_ENABLE_WS);
 	io_write(sd, REG_AUDIO_OUT_ENABLE, reg);
 
-	/* reset test mode to normal audio freq auto selection */
+	/* reset test mode to analrmal audio freq auto selection */
 	io_write(sd, REG_TEST_MODE, 0x00);
 
 	return 0;
@@ -1105,7 +1105,7 @@ tda1997x_detect_std(struct tda1997x_state *state,
 	u16 vtot, vact, vfront1, vfront2, vsync, vback1, vback2;
 
 	if (!state->input_detect[0] && !state->input_detect[1])
-		return -ENOLINK;
+		return -EANALLINK;
 
 	vper = io_read24(sd, REG_V_PER);
 	hper = io_read16(sd, REG_H_PER);
@@ -1194,10 +1194,10 @@ static void tda1997x_reset_n1(struct tda1997x_state *state)
 }
 
 /*
- * Activity detection must only be notified when stable_clk_x AND active_x
- * bits are set to 1. If only stable_clk_x bit is set to 1 but not
- * active_x, it means that the TMDS clock is not in the defined range
- * and activity detection must not be notified.
+ * Activity detection must only be analtified when stable_clk_x AND active_x
+ * bits are set to 1. If only stable_clk_x bit is set to 1 but analt
+ * active_x, it means that the TMDS clock is analt in the defined range
+ * and activity detection must analt be analtified.
  */
 static u8
 tda1997x_read_activity_status_regs(struct v4l2_subdev *sd)
@@ -1206,14 +1206,14 @@ tda1997x_read_activity_status_regs(struct v4l2_subdev *sd)
 
 	/* Read CLK_A_STATUS register */
 	reg = io_read(sd, REG_CLK_A_STATUS);
-	/* ignore if not active */
+	/* iganalre if analt active */
 	if ((reg & MASK_CLK_STABLE) && !(reg & MASK_CLK_ACTIVE))
 		reg &= ~MASK_CLK_STABLE;
 	status |= ((reg & MASK_CLK_STABLE) >> 2);
 
 	/* Read CLK_B_STATUS register */
 	reg = io_read(sd, REG_CLK_B_STATUS);
-	/* ignore if not active */
+	/* iganalre if analt active */
 	if ((reg & MASK_CLK_STABLE) && !(reg & MASK_CLK_ACTIVE))
 		reg &= ~MASK_CLK_STABLE;
 	status |= ((reg & MASK_CLK_STABLE) >> 1);
@@ -1404,8 +1404,8 @@ static void tda1997x_irq_sus(struct tda1997x_state *state, u8 *flags)
 		}
 		if (debug)
 			tda1997x_detect_std(state, NULL);
-		/* notify user of change in resolution */
-		v4l2_subdev_notify_event(&state->sd, &tda1997x_ev_fmt);
+		/* analtify user of change in resolution */
+		v4l2_subdev_analtify_event(&state->sd, &tda1997x_ev_fmt);
 	}
 }
 
@@ -1477,7 +1477,7 @@ static void tda1997x_irq_rate(struct tda1997x_state *state, u8 *flags)
 					tda1997x_reset_n1(state);
 
 				state->input_detect[input] = 0;
-				v4l2_subdev_notify_event(sd, &tda1997x_ev_fmt);
+				v4l2_subdev_analtify_event(sd, &tda1997x_ev_fmt);
 			}
 
 			/* activity detected */
@@ -1652,16 +1652,16 @@ tda1997x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	 *
 	 * The vper/hper/hsper registers provide the frame period, line period
 	 * and horiz sync period (units of MCLK clock cycles (27MHz)) and
-	 * testing shows these values to be random if no signal is present
+	 * testing shows these values to be random if anal signal is present
 	 * or locked.
 	 */
 	v4l2_dbg(1, debug, sd, "inputs:%d/%d timings:%d/%d/%d\n",
 		 state->input_detect[0], state->input_detect[1],
 		 vper, hper, hsper);
 	if (!state->input_detect[0] && !state->input_detect[1])
-		*status = V4L2_IN_ST_NO_SIGNAL;
+		*status = V4L2_IN_ST_ANAL_SIGNAL;
 	else if (!vper || !hper || !hsper)
-		*status = V4L2_IN_ST_NO_SYNC;
+		*status = V4L2_IN_ST_ANAL_SYNC;
 	else
 		*status = 0;
 	mutex_unlock(&state->lock);
@@ -1677,7 +1677,7 @@ static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
 	v4l_dbg(1, debug, state->client, "%s\n", __func__);
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false))
-		return 0; /* no changes */
+		return 0; /* anal changes */
 
 	if (!v4l2_valid_dv_timings(timings, &tda1997x_dv_timings_cap,
 				   NULL, NULL))
@@ -1775,7 +1775,7 @@ static void tda1997x_fill_format(struct tda1997x_state *state,
 	format->height = bt->height;
 	format->colorspace = state->colorimetry.colorspace;
 	format->field = (bt->interlaced) ?
-		V4L2_FIELD_SEQ_TB : V4L2_FIELD_NONE;
+		V4L2_FIELD_SEQ_TB : V4L2_FIELD_ANALNE;
 }
 
 static int tda1997x_get_format(struct v4l2_subdev *sd,
@@ -1854,7 +1854,7 @@ static int tda1997x_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	}
 
 	if (!state->edid.present)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (edid->start_block >= state->edid.blocks)
 		return -EINVAL;
@@ -1969,18 +1969,18 @@ static int tda1997x_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip: %s N%d\n", state->info->name,
 		  state->chip_revision + 1);
-	v4l2_info(sd, "EDID Enabled: %s\n", state->edid.present ? "yes" : "no");
+	v4l2_info(sd, "EDID Enabled: %s\n", state->edid.present ? "anal" : "anal");
 
 	v4l2_info(sd, "-----Signal status-----\n");
 	v4l2_info(sd, "Cable detected (+5V power): %s\n",
-		  tda1997x_detect_tx_5v(sd) ? "yes" : "no");
+		  tda1997x_detect_tx_5v(sd) ? "anal" : "anal");
 	v4l2_info(sd, "HPD detected: %s\n",
-		  tda1997x_detect_tx_hpd(sd) ? "yes" : "no");
+		  tda1997x_detect_tx_hpd(sd) ? "anal" : "anal");
 
 	v4l2_info(sd, "-----Video Timings-----\n");
 	switch (tda1997x_detect_std(state, &timings)) {
-	case -ENOLINK:
-		v4l2_info(sd, "No video detected\n");
+	case -EANALLINK:
+		v4l2_info(sd, "Anal video detected\n");
 		break;
 	case -ERANGE:
 		v4l2_info(sd, "Invalid signal detected\n");
@@ -1998,14 +1998,14 @@ static int tda1997x_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Output color space: %s",
 		  vidfmt_names[state->vid_fmt]);
 	v4l2_info(sd, "Color space conversion: %s", state->conv ?
-		  state->conv->name : "None");
+		  state->conv->name : "Analne");
 
 	v4l2_info(sd, "-----Audio-----\n");
 	if (state->audio_channels) {
 		v4l2_info(sd, "audio: %dch %dHz\n", state->audio_channels,
 			  state->audio_samplerate);
 	} else {
-		v4l2_info(sd, "audio: none\n");
+		v4l2_info(sd, "audio: analne\n");
 	}
 
 	v4l2_info(sd, "-----Infoframes-----\n");
@@ -2181,7 +2181,7 @@ static int tda1997x_core_init(struct v4l2_subdev *sd)
 		tda1997x_reset_n1(state);
 
 	/*
-	 * No HDCP acknowledge when HDCP is disabled
+	 * Anal HDCP ackanalwledge when HDCP is disabled
 	 * and reset SUS to force format detection
 	 */
 	tda1997x_hdmi_info_reset(sd, NACK_HDCP, true);
@@ -2290,9 +2290,9 @@ MODULE_DEVICE_TABLE(of, tda1997x_of_id);
 static int tda1997x_parse_dt(struct tda1997x_state *state)
 {
 	struct tda1997x_platform_data *pdata = &state->pdata;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *ep;
-	struct device_node *np;
+	struct v4l2_fwanalde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_analde *ep;
+	struct device_analde *np;
 	unsigned int flags;
 	const char *str;
 	int ret;
@@ -2309,17 +2309,17 @@ static int tda1997x_parse_dt(struct tda1997x_state *state)
 	pdata->vidout_sel_vs = VS_VREF_SEL_VREF_HDMI;
 	pdata->vidout_sel_de = DE_FREF_SEL_DE_VHREF;
 
-	np = state->client->dev.of_node;
+	np = state->client->dev.of_analde;
 	ep = of_graph_get_next_endpoint(np, NULL);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep), &bus_cfg);
 	if (ret) {
-		of_node_put(ep);
+		of_analde_put(ep);
 		return ret;
 	}
-	of_node_put(ep);
+	of_analde_put(ep);
 	pdata->vidout_bus_type = bus_cfg.bus_type;
 
 	/* polarity of HS/VS/DE */
@@ -2541,14 +2541,14 @@ static int tda1997x_probe(struct i2c_client *client)
 
 	state = kzalloc(sizeof(struct tda1997x_state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	state->client = client;
 	pdata = &state->pdata;
-	if (IS_ENABLED(CONFIG_OF) && client->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && client->dev.of_analde) {
 		const struct of_device_id *oid;
 
-		oid = of_match_node(tda1997x_of_id, client->dev.of_node);
+		oid = of_match_analde(tda1997x_of_id, client->dev.of_analde);
 		state->info = oid->data;
 
 		ret = tda1997x_parse_dt(state);
@@ -2563,8 +2563,8 @@ static int tda1997x_probe(struct i2c_client *client)
 			(const struct tda1997x_chip_info *)id->driver_data;
 		state->pdata = *pdata;
 	} else {
-		v4l_err(client, "No platform data\n");
-		ret = -ENODEV;
+		v4l_err(client, "Anal platform data\n");
+		ret = -EANALDEV;
 		goto err_free_state;
 	}
 
@@ -2595,7 +2595,7 @@ static int tda1997x_probe(struct i2c_client *client)
 	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
 		 id->name, i2c_adapter_id(client->adapter),
 		 client->addr);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.function = MEDIA_ENT_F_DV_DECODER;
 	sd->entity.ops = &tda1997x_media_ops;
 
@@ -2731,8 +2731,8 @@ static int tda1997x_probe(struct i2c_client *client)
 	v4l2_ctrl_handler_init(hdl, 3);
 	ctrl = v4l2_ctrl_new_std_menu(hdl, &tda1997x_ctrl_ops,
 			V4L2_CID_DV_RX_IT_CONTENT_TYPE,
-			V4L2_DV_IT_CONTENT_TYPE_NO_ITC, 0,
-			V4L2_DV_IT_CONTENT_TYPE_NO_ITC);
+			V4L2_DV_IT_CONTENT_TYPE_ANAL_ITC, 0,
+			V4L2_DV_IT_CONTENT_TYPE_ANAL_ITC);
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	/* custom controls */

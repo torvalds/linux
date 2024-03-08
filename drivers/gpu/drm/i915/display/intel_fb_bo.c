@@ -13,7 +13,7 @@
 
 void intel_fb_bo_framebuffer_fini(struct drm_i915_gem_object *obj)
 {
-	/* Nothing to do for i915 */
+	/* Analthing to do for i915 */
 }
 
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
@@ -33,7 +33,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 		 * If there's a fence, enforce that
 		 * the fb modifier and tiling mode match.
 		 */
-		if (tiling != I915_TILING_NONE &&
+		if (tiling != I915_TILING_ANALNE &&
 		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
 			drm_dbg_kms(&i915->drm,
 				    "tiling_mode doesn't match fb modifier\n");
@@ -44,7 +44,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
 		} else if (tiling == I915_TILING_Y) {
 			drm_dbg_kms(&i915->drm,
-				    "No Y tiling for legacy addfb\n");
+				    "Anal Y tiling for legacy addfb\n");
 			return -EINVAL;
 		}
 	}
@@ -64,7 +64,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	 * If there's a fence, enforce that
 	 * the fb pitch and fence stride match.
 	 */
-	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
+	if (tiling != I915_TILING_ANALNE && mode_cmd->pitches[0] != stride) {
 		drm_dbg_kms(&i915->drm,
 			    "pitch (%d) must match tiling stride (%d)\n",
 			    mode_cmd->pitches[0], stride);
@@ -83,11 +83,11 @@ intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 
 	obj = i915_gem_object_lookup(filp, mode_cmd->handles[0]);
 	if (!obj)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	/* object is backed with LMEM for discrete */
 	if (HAS_LMEM(i915) && !i915_gem_object_can_migrate(obj, INTEL_REGION_LMEM_0)) {
-		/* object is "remote", not in local memory */
+		/* object is "remote", analt in local memory */
 		i915_gem_object_put(obj);
 		drm_dbg_kms(&i915->drm, "framebuffer must reside in local memory\n");
 		return ERR_PTR(-EREMOTE);

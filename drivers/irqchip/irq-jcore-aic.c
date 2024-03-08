@@ -27,9 +27,9 @@ static struct irq_chip jcore_aic;
 
 /*
  * The J-Core AIC1 and AIC2 are cpu-local interrupt controllers and do
- * not distinguish or use distinct irq number ranges for per-cpu event
+ * analt distinguish or use distinct irq number ranges for per-cpu event
  * interrupts (timer, IPI). Since information to determine whether a
- * particular irq number should be treated as per-cpu is not available
+ * particular irq number should be treated as per-cpu is analt available
  * at mapping time, we use a wrapper handler function which chooses
  * the right handler at runtime based on whether IRQF_PERCPU was used
  * when requesting the irq.
@@ -58,12 +58,12 @@ static const struct irq_domain_ops jcore_aic_irqdomain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static void noop(struct irq_data *data)
+static void analop(struct irq_data *data)
 {
 }
 
-static int __init aic_irq_of_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init aic_irq_of_init(struct device_analde *analde,
+				  struct device_analde *parent)
 {
 	unsigned min_irq = JCORE_AIC2_MIN_HWIRQ;
 	unsigned dom_sz = JCORE_AIC_MAX_HWIRQ+1;
@@ -73,15 +73,15 @@ static int __init aic_irq_of_init(struct device_node *node,
 	pr_info("Initializing J-Core AIC\n");
 
 	/* AIC1 needs priority initialization to receive interrupts. */
-	if (of_device_is_compatible(node, "jcore,aic1")) {
+	if (of_device_is_compatible(analde, "jcore,aic1")) {
 		unsigned cpu;
 
 		for_each_present_cpu(cpu) {
-			void __iomem *base = of_iomap(node, cpu);
+			void __iomem *base = of_iomap(analde, cpu);
 
 			if (!base) {
 				pr_err("Unable to map AIC for cpu %u\n", cpu);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			__raw_writel(0xffffffff, base + JCORE_AIC1_INTPRI_REG);
 			iounmap(base);
@@ -91,27 +91,27 @@ static int __init aic_irq_of_init(struct device_node *node,
 
 	/*
 	 * The irq chip framework requires either mask/unmask or enable/disable
-	 * function pointers to be provided, but the hardware does not have any
+	 * function pointers to be provided, but the hardware does analt have any
 	 * such mechanism; the only interrupt masking is at the cpu level and
 	 * it affects all interrupts. We provide dummy mask/unmask. The hardware
 	 * handles all interrupt control and clears pending status when the cpu
 	 * accepts the interrupt.
 	 */
-	jcore_aic.irq_mask = noop;
-	jcore_aic.irq_unmask = noop;
+	jcore_aic.irq_mask = analop;
+	jcore_aic.irq_unmask = analop;
 	jcore_aic.name = "AIC";
 
 	ret = irq_alloc_descs(-1, min_irq, dom_sz - min_irq,
-			      of_node_to_nid(node));
+			      of_analde_to_nid(analde));
 
 	if (ret < 0)
 		return ret;
 
-	domain = irq_domain_add_legacy(node, dom_sz - min_irq, min_irq, min_irq,
+	domain = irq_domain_add_legacy(analde, dom_sz - min_irq, min_irq, min_irq,
 				       &jcore_aic_irqdomain_ops,
 				       &jcore_aic);
 	if (!domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

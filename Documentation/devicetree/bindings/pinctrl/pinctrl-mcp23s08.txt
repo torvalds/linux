@@ -14,14 +14,14 @@ Required properties:
     - "microchip,mcp23008" for  8 GPIO I2C version or
     - "microchip,mcp23017" for 16 GPIO I2C version of the chip
     - "microchip,mcp23018" for 16 GPIO I2C version
-    NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
+    ANALTE: Do analt use the old mcp prefix any more. It is deprecated and will be
     removed.
 - #gpio-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify flags as described in
     'Documentation/devicetree/bindings/gpio/gpio.txt'. Allowed values defined by
     'include/dt-bindings/gpio/gpio.h' (e.g. GPIO_ACTIVE_LOW).
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device analde as a GPIO controller.
 - reg : For an address on its bus. I2C uses this a the I2C address of the chip.
         SPI uses this to specify the chipselect line which the chip is
         connected to. The driver and the SPI variant of the chip support
@@ -35,10 +35,10 @@ Required device specific properties (only for SPI chips):
         SPI chipselect. Set a bit in bit0-7 in this mask to 1 if there is a
         chip connected with the corresponding spi address set. For example if
         you have a chip with address 3 connected, you have to set bit3 to 1,
-        which is 0x08. mcp23s08 chip variant only supports bits 0-3. It is not
+        which is 0x08. mcp23s08 chip variant only supports bits 0-3. It is analt
         possible to mix mcp23s08 and mcp23s17 on the same chipselect. Set at
         least one bit to 1 for SPI chips.
-    NOTE: Do not use the old mcp prefix any more. It is deprecated and will be
+    ANALTE: Do analt use the old mcp prefix any more. It is deprecated and will be
     removed.
 - spi-max-frequency = The maximum frequency this chip is able to handle
 
@@ -46,7 +46,7 @@ Optional properties:
 - #interrupt-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify flags.
-- interrupt-controller: Marks the device node as a interrupt controller.
+- interrupt-controller: Marks the device analde as a interrupt controller.
 - drive-open-drain: Sets the ODR flag in the IOCON register. This configures
         the IRQ output as open drain active low.
 - reset-gpios: Corresponds to the active-low RESET# pin for the chip
@@ -56,9 +56,9 @@ Optional device specific properties:
         with two interrupt outputs (these are the devices ending with 17 and
         those that have 16 IOs) have two IO banks: IO 0-7 form bank 1 and
         IO 8-15 are bank 2. These chips have two different interrupt outputs:
-        One for bank 1 and another for bank 2. If irq-mirror is set, both
+        One for bank 1 and aanalther for bank 2. If irq-mirror is set, both
         interrupts are generated regardless of the bank that an input change
-        occurred on. If it is not set, the interrupt are only generated for the
+        occurred on. If it is analt set, the interrupt are only generated for the
         bank they belong to.
         On devices with only one interrupt output this property is useless.
 - microchip,irq-active-high: Sets the INTPOL flag in the IOCON register. This
@@ -96,7 +96,7 @@ done with pinctrl.
 
 Please refer file <devicetree/bindings/pinctrl/pinctrl-bindings.txt>
 for details of the common pinctrl bindings used by client devices,
-including the meaning of the phrase "pin configuration node".
+including the meaning of the phrase "pin configuration analde".
 
 Optional Pinmux properties:
 --------------------------
@@ -106,8 +106,8 @@ at boot.
 - pinctrl[0...n]: Properties to contain the phandle for pinctrl states per
 		<pinctrl-bindings.txt>.
 
-The pin configurations are defined as child of the pinctrl states node. Each
-sub-node have following properties:
+The pin configurations are defined as child of the pinctrl states analde. Each
+sub-analde have following properties:
 
 Required properties:
 ------------------

@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'tmp102'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp102.html
 

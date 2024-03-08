@@ -14,16 +14,16 @@ Required properties:
 - cell-index        : controller index.  0 for controller @ 0x8100
 - interrupts        : interrupt specifier for DMA IRQ
 
-- DMA channel nodes:
+- DMA channel analdes:
         - compatible        : must include "fsl,elo-dma-channel"
-                              However, see note below.
+                              However, see analte below.
         - reg               : DMA channel specific registers
         - cell-index        : DMA channel index starts at 0.
 
 Optional properties:
         - interrupts        : interrupt specifier for DMA channel IRQ
                               (on 83xx this is expected to be identical to
-                              the interrupts property of the parent node)
+                              the interrupts property of the parent analde)
 
 Example:
 	dma@82a8 {
@@ -80,9 +80,9 @@ Required properties:
 - ranges            : describes the mapping between the address space of the
                       DMA channels and the address space of the DMA controller
 
-- DMA channel nodes:
+- DMA channel analdes:
         - compatible        : must include "fsl,eloplus-dma-channel"
-                              However, see note below.
+                              However, see analte below.
         - cell-index        : DMA channel index starts at 0.
         - reg               : DMA channel specific registers
         - interrupts        : interrupt specifier for DMA channel IRQ
@@ -139,7 +139,7 @@ Required properties:
 - ranges            : describes the mapping between the address space of the
                       DMA channels and the address space of the DMA controller
 
-- DMA channel nodes:
+- DMA channel analdes:
         - compatible        : must include "fsl,eloplus-dma-channel"
         - reg               : DMA channel specific registers
         - interrupts        : interrupt specifier for DMA channel IRQ
@@ -194,11 +194,11 @@ dma@100300 {
 	};
 };
 
-Note on DMA channel compatible properties: The compatible property must say
+Analte on DMA channel compatible properties: The compatible property must say
 "fsl,elo-dma-channel" or "fsl,eloplus-dma-channel" to be used by the Elo DMA
-driver (fsldma).  Any DMA channel used by fsldma cannot be used by another
+driver (fsldma).  Any DMA channel used by fsldma cananalt be used by aanalther
 DMA driver, such as the SSI sound drivers for the MPC8610.  Therefore, any DMA
-channel that should be used for another driver should not use
+channel that should be used for aanalther driver should analt use
 "fsl,elo-dma-channel" or "fsl,eloplus-dma-channel".  For the SSI drivers, for
 example, the compatible property should be "fsl,ssi-dma-channel".  See ssi.txt
 for more information.

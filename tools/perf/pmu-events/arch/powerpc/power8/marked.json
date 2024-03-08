@@ -32,49 +32,49 @@
   {
     "EventCode": "0x4d148",
     "EventName": "PM_MRK_DATA_FROM_DL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d128",
     "EventName": "PM_MRK_DATA_FROM_DL2L3_MOD_CYC",
-    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3d148",
     "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2c128",
     "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load",
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3d14c",
     "EventName": "PM_MRK_DATA_FROM_DL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on a different Analde or Group (Distant) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2c12c",
     "EventName": "PM_MRK_DATA_FROM_DL4_CYC",
-    "BriefDescription": "Duration in cycles to reload from another chip's L4 on a different Node or Group (Distant) due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from aanalther chip's L4 on a different Analde or Group (Distant) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4d14c",
     "EventName": "PM_MRK_DATA_FROM_DMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group (Distant) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d12c",
     "EventName": "PM_MRK_DATA_FROM_DMEM_CYC",
-    "BriefDescription": "Duration in cycles to reload from another chip's memory on the same Node or Group (Distant) due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from aanalther chip's memory on the same Analde or Group (Distant) due to a marked load",
     "PublicDescription": ""
   },
   {
@@ -139,13 +139,13 @@
   },
   {
     "EventCode": "0x1d140",
-    "EventName": "PM_MRK_DATA_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_MRK_DATA_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L2 without conflict due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4c120",
-    "EventName": "PM_MRK_DATA_FROM_L2_NO_CONFLICT_CYC",
+    "EventName": "PM_MRK_DATA_FROM_L2_ANAL_CONFLICT_CYC",
     "BriefDescription": "Duration in cycles to reload from local core's L2 without conflict due to a marked load",
     "PublicDescription": ""
   },
@@ -199,13 +199,13 @@
   },
   {
     "EventCode": "0x1d144",
-    "EventName": "PM_MRK_DATA_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_MRK_DATA_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 without conflict due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4c124",
-    "EventName": "PM_MRK_DATA_FROM_L3_NO_CONFLICT_CYC",
+    "EventName": "PM_MRK_DATA_FROM_L3_ANAL_CONFLICT_CYC",
     "BriefDescription": "Duration in cycles to reload from local core's L3 without conflict due to a marked load",
     "PublicDescription": ""
   },
@@ -248,73 +248,73 @@
   {
     "EventCode": "0x4d14a",
     "EventName": "PM_MRK_DATA_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d12a",
     "EventName": "PM_MRK_DATA_FROM_OFF_CHIP_CACHE_CYC",
-    "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked load",
+    "BriefDescription": "Duration in cycles to reload either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1d148",
     "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from aanalther core's L2/L3 on the same chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4c128",
     "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE_CYC",
-    "BriefDescription": "Duration in cycles to reload either shared or modified data from another core's L2/L3 on the same chip due to a marked load",
+    "BriefDescription": "Duration in cycles to reload either shared or modified data from aanalther core's L2/L3 on the same chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d146",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4d126",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD_CYC",
-    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1d14a",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4c12a",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load",
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2d14a",
     "EventName": "PM_MRK_DATA_FROM_RL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's L4 on the same Analde or Group ( Remote) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4d12a",
     "EventName": "PM_MRK_DATA_FROM_RL4_CYC",
-    "BriefDescription": "Duration in cycles to reload from another chip's L4 on the same Node or Group ( Remote) due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from aanalther chip's L4 on the same Analde or Group ( Remote) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3d14a",
     "EventName": "PM_MRK_DATA_FROM_RMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to a marked load",
+    "BriefDescription": "The processor's data cache was reloaded from aanalther chip's memory on the same Analde or Group ( Remote) due to a marked load",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2c12a",
     "EventName": "PM_MRK_DATA_FROM_RMEM_CYC",
-    "BriefDescription": "Duration in cycles to reload from another chip's memory on the same Node or Group ( Remote) due to a marked load",
+    "BriefDescription": "Duration in cycles to reload from aanalther chip's memory on the same Analde or Group ( Remote) due to a marked load",
     "PublicDescription": ""
   },
   {
@@ -362,25 +362,25 @@
   {
     "EventCode": "0x4f148",
     "EventName": "PM_MRK_DPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3f148",
     "EventName": "PM_MRK_DPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on a different Analde or Group (Distant), as this chip due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3f14c",
     "EventName": "PM_MRK_DPTEG_FROM_DL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on a different Analde or Group (Distant) due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x4f14c",
     "EventName": "PM_MRK_DPTEG_FROM_DMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group (Distant) due to a marked data side request",
     "PublicDescription": ""
   },
   {
@@ -403,7 +403,7 @@
   },
   {
     "EventCode": "0x1f140",
-    "EventName": "PM_MRK_DPTEG_FROM_L2_NO_CONFLICT",
+    "EventName": "PM_MRK_DPTEG_FROM_L2_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 without conflict due to a marked data side request",
     "PublicDescription": ""
   },
@@ -433,7 +433,7 @@
   },
   {
     "EventCode": "0x1f144",
-    "EventName": "PM_MRK_DPTEG_FROM_L3_NO_CONFLICT",
+    "EventName": "PM_MRK_DPTEG_FROM_L3_ANAL_CONFLICT",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a marked data side request",
     "PublicDescription": ""
   },
@@ -458,37 +458,37 @@
   {
     "EventCode": "0x4f14a",
     "EventName": "PM_MRK_DPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on a different chip (remote or distant) due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1f148",
     "EventName": "PM_MRK_DPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from aanalther core's L2/L3 on the same chip due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2f146",
     "EventName": "PM_MRK_DPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1f14a",
     "EventName": "PM_MRK_DPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from aanalther chip's L2 or L3 on the same Analde or Group (Remote), as this chip due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2f14a",
     "EventName": "PM_MRK_DPTEG_FROM_RL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's L4 on the same Analde or Group ( Remote) due to a marked data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3f14a",
     "EventName": "PM_MRK_DPTEG_FROM_RMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a marked data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from aanalther chip's memory on the same Analde or Group ( Remote) due to a marked data side request",
     "PublicDescription": ""
   },
   {
@@ -752,43 +752,43 @@
   {
     "EventCode": "0x15152",
     "EventName": "PM_SYNC_MRK_BR_LINK",
-    "BriefDescription": "Marked Branch and link branch that can cause a synchronous interrupt",
+    "BriefDescription": "Marked Branch and link branch that can cause a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1515c",
     "EventName": "PM_SYNC_MRK_BR_MPRED",
-    "BriefDescription": "Marked Branch mispredict that can cause a synchronous interrupt",
+    "BriefDescription": "Marked Branch mispredict that can cause a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x15156",
     "EventName": "PM_SYNC_MRK_FX_DIVIDE",
-    "BriefDescription": "Marked fixed point divide that can cause a synchronous interrupt",
+    "BriefDescription": "Marked fixed point divide that can cause a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x15158",
     "EventName": "PM_SYNC_MRK_L2HIT",
-    "BriefDescription": "Marked L2 Hits that can throw a synchronous interrupt",
+    "BriefDescription": "Marked L2 Hits that can throw a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1515a",
     "EventName": "PM_SYNC_MRK_L2MISS",
-    "BriefDescription": "Marked L2 Miss that can throw a synchronous interrupt",
+    "BriefDescription": "Marked L2 Miss that can throw a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x15154",
     "EventName": "PM_SYNC_MRK_L3MISS",
-    "BriefDescription": "Marked L3 misses that can throw a synchronous interrupt",
+    "BriefDescription": "Marked L3 misses that can throw a synchroanalus interrupt",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x15150",
-    "EventName": "PM_SYNC_MRK_PROBE_NOP",
-    "BriefDescription": "Marked probeNops which can cause synchronous interrupts",
+    "EventName": "PM_SYNC_MRK_PROBE_ANALP",
+    "BriefDescription": "Marked probeAnalps which can cause synchroanalus interrupts",
     "PublicDescription": ""
   }
 ]

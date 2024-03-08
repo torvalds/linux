@@ -10,7 +10,7 @@
 
 
 /*
- * The kldir memory area resides at a fixed place in each node's memory and
+ * The kldir memory area resides at a fixed place in each analde's memory and
  * provides pointers to most other IP27 memory areas.  This allows us to
  * resize and/or relocate memory areas at a later time without breaking all
  * firmware and kernels that use them.	Indices in the array are
@@ -23,7 +23,7 @@
  * The upper portion of the memory map applies during boot
  * only and is overwritten by IRIX/SYMMON.
  *
- *				      MEMORY MAP PER NODE
+ *				      MEMORY MAP PER ANALDE
  *
  * 0x2000000 (32M)	   +-----------------------------------------+
  *			   |	  IO6 BUFFERS FOR FLASH ENET IOC3    |
@@ -49,14 +49,14 @@
  *			   |	  SYMMON			     |
  *			   |	  (For UNIX Debug only)		     |
  * 0x34000 (208K)	   +-----------------------------------------+
- *			   |	  SYMMON STACK [NUM_CPU_PER_NODE]    |
+ *			   |	  SYMMON STACK [NUM_CPU_PER_ANALDE]    |
  *			   |	  (For UNIX Debug only)		     |
  * 0x25000 (148K)	   +-----------------------------------------+
  *			   |	  KLCONFIG - II (temp)		     |
  *			   |					     |
  *			   |	----------------------------	     |
  *			   |					     |
- *			   |	  UNIX NON-DEBUG Version	     |
+ *			   |	  UNIX ANALN-DEBUG Version	     |
  * 0x19000 (100K)	   +-----------------------------------------+
  *
  *
@@ -97,9 +97,9 @@
  * 0x4000 (16K)		   +-----------------------------------------+
  *			   |	  NMI Handler (Protected Page)	     |
  * 0x3000 (12K)		   +-----------------------------------------+
- *			   |	  ARCS PVECTORS (master node only)   |
+ *			   |	  ARCS PVECTORS (master analde only)   |
  * 0x2c00 (11K)		   +-----------------------------------------+
- *			   |	  ARCS TVECTORS (master node only)   |
+ *			   |	  ARCS TVECTORS (master analde only)   |
  * 0x2800 (10K)		   +-----------------------------------------+
  *			   |	  LAUNCH [NUM_CPU]		     |
  * 0x2400 (9K)		   +-----------------------------------------+
@@ -122,14 +122,14 @@
  * we define here.  Since it's set up in the prom.  We can't redefine it later
  * and expect more space to be allocated.  The way to find out the true size
  * of the symmon stacks is to divide SYMMON_STK_SIZE by SYMMON_STK_STRIDE
- * for a particular node.
+ * for a particular analde.
  */
 #define SYMMON_STACK_SIZE		0x8000
 
 #if defined(PROM)
 
 /*
- * These defines are prom version dependent.  No code other than the IP27
+ * These defines are prom version dependent.  Anal code other than the IP27
  * prom should attempt to use these values.
  */
 #define IP27_LAUNCH_OFFSET		0x2400

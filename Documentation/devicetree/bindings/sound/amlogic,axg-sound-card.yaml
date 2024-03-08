@@ -21,7 +21,7 @@ properties:
     description: list of auxiliary devices
 
   audio-widgets:
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
     description:
       A list off component DAPM widget. Each entry is a pair of strings,
       the first being the widget type, the second being the widget name
@@ -31,8 +31,8 @@ patternProperties:
     type: object
     additionalProperties: false
     description:
-      Container for dai-link level properties and the CODEC sub-nodes.
-      There should be at least one (and probably more) subnode of this type
+      Container for dai-link level properties and the CODEC sub-analdes.
+      There should be at least one (and probably more) subanalde of this type
 
     properties:
       dai-format:
@@ -69,7 +69,7 @@ patternProperties:
         maxItems: 32
         description:
           Transmit and receive cpu slot masks of each TDM lane
-          When omitted, mask is assumed to have to no slots. A valid
+          When omitted, mask is assumed to have to anal slots. A valid
           interface must have at least one slot, so at least one these
           mask should be provided with an enabled slot.
 
@@ -77,9 +77,9 @@ patternProperties:
         type: object
         additionalProperties: false
         description:
-          dai-link representing backend links should have at least one subnode.
-          One subnode for each codec of the dai-link. dai-link representing
-          frontend links have no codec, therefore have no subnodes
+          dai-link representing backend links should have at least one subanalde.
+          One subanalde for each codec of the dai-link. dai-link representing
+          frontend links have anal codec, therefore have anal subanaldes
 
         properties:
           sound-dai:

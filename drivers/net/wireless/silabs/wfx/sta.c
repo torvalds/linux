@@ -29,10 +29,10 @@ void wfx_cooling_timeout_work(struct work_struct *work)
 	wfx_tx_unlock(wdev);
 }
 
-void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd)
+void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_analtify_cmd cmd)
 {
-	if (cmd == STA_NOTIFY_AWAKE) {
-		/* Device recover normal temperature */
+	if (cmd == STA_ANALTIFY_AWAKE) {
+		/* Device recover analrmal temperature */
 		if (cancel_delayed_work(&wdev->cooling_timeout_work))
 			wfx_tx_unlock(wdev);
 	} else {
@@ -48,23 +48,23 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.anal_longer    = 1,
 			.has_appeared = 1,
 			.oui          = { 0x50, 0x6F, 0x9A },
 		}, {
 			.ie_id        = WLAN_EID_HT_OPERATION,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.anal_longer    = 1,
 			.has_appeared = 1,
 		}, {
 			.ie_id        = WLAN_EID_ERP_INFO,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.anal_longer    = 1,
 			.has_appeared = 1,
 		}, {
 			.ie_id        = WLAN_EID_CHANNEL_SWITCH,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.anal_longer    = 1,
 			.has_appeared = 1,
 		}
 	};
@@ -85,7 +85,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = NULL;
 
-	/* Notes:
+	/* Analtes:
 	 *   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
 	 *   - PS-Poll (FIF_PSPOLL) are never filtered
 	 *   - RTS, CTS and Ack (FIF_CONTROL) are always filtered
@@ -96,13 +96,13 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	*total_flags &= FIF_BCN_PRBRESP_PROMISC | FIF_ALLMULTI | FIF_OTHER_BSS |
 			FIF_PROBE_REQ | FIF_PSPOLL;
 
-	/* Filters are ignored during the scan. No frames are filtered. */
+	/* Filters are iganalred during the scan. Anal frames are filtered. */
 	if (mutex_is_locked(&wdev->scan_lock))
 		return;
 
 	mutex_lock(&wdev->conf_mutex);
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		/* Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
+		/* Analte: FIF_BCN_PRBRESP_PROMISC covers probe response and
 		 * beacons from other BSS
 		 */
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
@@ -119,7 +119,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		vif = wvif_to_vif(wvif);
 		/* In AP mode, chip can reply to probe request itself */
 		if (*total_flags & FIF_PROBE_REQ && vif->type == NL80211_IFTYPE_AP) {
-			dev_dbg(wdev->dev, "do not forward probe request in AP mode\n");
+			dev_dbg(wdev->dev, "do analt forward probe request in AP mode\n");
 			*total_flags &= ~FIF_PROBE_REQ;
 		}
 
@@ -158,7 +158,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			if (enable_ps)
 				*enable_ps = false;
 			if (vif->cfg.assoc && vif->cfg.ps)
-				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
+				dev_info(wvif->wdev->dev, "iganalring requested PS mode");
 			return -1;
 		}
 		/* It is necessary to enable PS if channels are different. */
@@ -243,7 +243,7 @@ void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
 	else
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
-	ieee80211_cqm_rssi_notify(vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
+	ieee80211_cqm_rssi_analtify(vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
 }
 
 static void wfx_beacon_loss_work(struct work_struct *work)
@@ -308,7 +308,7 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif, struct ie
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
 
-	/* See note in wfx_sta_add() */
+	/* See analte in wfx_sta_add() */
 	if (!sta_priv->link_id)
 		return 0;
 	/* FIXME add a mutex? */
@@ -324,13 +324,13 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 
 	skb = ieee80211_beacon_get(wvif->wdev->hw, vif, 0);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN, API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 
 	skb = ieee80211_proberesp_get(wvif->wdev->hw, vif);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES, API_RATE_INDEX_B_1MBPS);
 	dev_kfree_skb(skb);
 	return 0;
@@ -347,7 +347,7 @@ static int wfx_set_mfp_ap(struct wfx_vif *wvif)
 	const u16 *ptr;
 
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
 				      skb->len - ieoffset);
@@ -439,7 +439,7 @@ static void wfx_join(struct wfx_vif *wvif)
 		ieee80211_connection_loss(vif);
 		wfx_reset(wvif);
 	} else {
-		/* Due to beacon filtering it is possible that the AP's beacon is not known for the
+		/* Due to beacon filtering it is possible that the AP's beacon is analt kanalwn for the
 		 * mac80211 stack.  Disable filtering temporary to make sure the stack receives at
 		 * least one
 		 */
@@ -461,7 +461,7 @@ static void wfx_join_finalize(struct wfx_vif *wvif, struct ieee80211_bss_conf *i
 	if (sta && sta->deflink.ht_cap.ht_supported)
 		ampdu_density = sta->deflink.ht_cap.ampdu_density;
 	if (sta && sta->deflink.ht_cap.ht_supported &&
-	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
+	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT))
 		greenfield = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
 	rcu_read_unlock();
 
@@ -532,7 +532,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (vif->type != NL80211_IFTYPE_STATION)
 			dev_warn(wdev->dev, "misunderstood change: BEACON_INFO\n");
 		wfx_hif_set_beacon_wakeup_period(wvif, info->dtim_period, info->dtim_period);
-		/* We temporary forwarded beacon for join process. It is now no more necessary. */
+		/* We temporary forwarded beacon for join process. It is analw anal more necessary. */
 		wfx_filter_beacon(wvif, true);
 	}
 
@@ -586,7 +586,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, vif, &tim_offset,
 				       &tim_length, 0);
 	if (!skb)
-		return -ENOENT;
+		return -EANALENT;
 	tim_ptr = skb->data + tim_offset;
 
 	if (tim_offset && tim_length >= 6) {
@@ -620,19 +620,19 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, sta_dev->vif_id);
 
 	if (!wvif) {
-		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		dev_warn(wdev->dev, "%s: received event for analn-existent vif\n", __func__);
 		return -EIO;
 	}
 	schedule_work(&wvif->update_tim_work);
 	return 0;
 }
 
-void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
+void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_analtify_cmd analtify_cmd)
 {
-	if (notify_cmd != STA_NOTIFY_AWAKE)
+	if (analtify_cmd != STA_ANALTIFY_AWAKE)
 		return;
 
-	/* Device won't be able to honor CAB if a scan is in progress on any interface. Prefer to
+	/* Device won't be able to hoanalr CAB if a scan is in progress on any interface. Prefer to
 	 * skip this DTIM and wait for the next one.
 	 */
 	if (mutex_is_locked(&wvif->wdev->scan_lock))
@@ -652,11 +652,11 @@ int wfx_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	switch (params->action) {
 	case IEEE80211_AMPDU_RX_START:
 	case IEEE80211_AMPDU_RX_STOP:
-		/* Just acknowledge it to enable frame re-ordering */
+		/* Just ackanalwledge it to enable frame re-ordering */
 		return 0;
 	default:
 		/* Leave the firmware doing its business for tx aggregation */
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -721,7 +721,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		break;
 	default:
 		mutex_unlock(&wdev->conf_mutex);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	wvif->wdev = wdev;
@@ -756,7 +756,7 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		/* Combo mode does not support Block Acks. We can re-enable them */
+		/* Combo mode does analt support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
 			wfx_hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
@@ -787,7 +787,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		/* Combo mode does not support Block Acks. We can re-enable them */
+		/* Combo mode does analt support Block Acks. We can re-enable them */
 		if (wvif_count(wdev) == 1)
 			wfx_hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else

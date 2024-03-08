@@ -126,7 +126,7 @@ gve_get_recycled_buf_state(struct gve_rx_ring *rx)
 		return NULL;
 
 	/* Used buf states are only usable when ref count reaches 0, which means
-	 * no SKBs refer to them.
+	 * anal SKBs refer to them.
 	 *
 	 * Search a limited number before giving up.
 	 */
@@ -140,13 +140,13 @@ gve_get_recycled_buf_state(struct gve_rx_ring *rx)
 		gve_enqueue_buf_state(rx, &rx->dqo.used_buf_states, buf_state);
 	}
 
-	/* For QPL, we cannot allocate any new buffers and must
+	/* For QPL, we cananalt allocate any new buffers and must
 	 * wait for the existing ones to be available.
 	 */
 	if (rx->dqo.qpl)
 		return NULL;
 
-	/* If there are no free buf states discard an entry from
+	/* If there are anal free buf states discard an entry from
 	 * `used_buf_states` so it can be used.
 	 */
 	if (unlikely(rx->dqo.free_buf_states == -1)) {
@@ -181,7 +181,7 @@ static int gve_alloc_page_dqo(struct gve_rx_ring *rx,
 		if (idx >= priv->rx_pages_per_qpl) {
 			net_err_ratelimited("%s: Out of QPL pages\n",
 					    priv->dev->name);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		buf_state->page_info.page = rx->dqo.qpl->pages[idx];
 		buf_state->addr = rx->dqo.qpl->page_buses[idx];
@@ -281,7 +281,7 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 				      sizeof(rx->dqo.buf_states[0]),
 				      GFP_KERNEL);
 	if (!rx->dqo.buf_states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set up linked list of buffer IDs */
 	for (i = 0; i < rx->dqo.num_buf_states - 1; i++)
@@ -326,7 +326,7 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 
 err:
 	gve_rx_free_ring_dqo(priv, idx);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void gve_rx_write_doorbell_dqo(const struct gve_priv *priv, int queue_idx)
@@ -430,7 +430,7 @@ static void gve_try_recycle_buf(struct gve_priv *priv, struct gve_rx_ring *rx,
 
 	/* Record the offset when we have a single remaining reference.
 	 *
-	 * When this happens, we know all of the other offsets of the page are
+	 * When this happens, we kanalw all of the other offsets of the page are
 	 * usable.
 	 */
 	if (pagecount == 1) {
@@ -443,7 +443,7 @@ static void gve_try_recycle_buf(struct gve_priv *priv, struct gve_rx_ring *rx,
 	buf_state->page_info.page_offset &= (PAGE_SIZE - 1);
 
 	/* If we wrap around to the same offset without ever dropping to 1
-	 * reference, then we don't know if this offset was ever freed.
+	 * reference, then we don't kanalw if this offset was ever freed.
 	 */
 	if (buf_state->page_info.page_offset ==
 	    buf_state->last_single_ref_offset) {
@@ -462,9 +462,9 @@ static void gve_rx_skb_csum(struct sk_buff *skb,
 			    const struct gve_rx_compl_desc_dqo *desc,
 			    struct gve_ptype ptype)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
-	/* HW did not identify and process L3 and L4 headers. */
+	/* HW did analt identify and process L3 and L4 headers. */
 	if (unlikely(!desc->l3_l4_processed))
 		return;
 
@@ -498,9 +498,9 @@ static void gve_rx_skb_hash(struct sk_buff *skb,
 {
 	enum pkt_hash_types hash_type = PKT_HASH_TYPE_L2;
 
-	if (ptype.l4_type != GVE_L4_TYPE_UNKNOWN)
+	if (ptype.l4_type != GVE_L4_TYPE_UNKANALWN)
 		hash_type = PKT_HASH_TYPE_L4;
-	else if (ptype.l3_type != GVE_L3_TYPE_UNKNOWN)
+	else if (ptype.l3_type != GVE_L3_TYPE_UNKANALWN)
 		hash_type = PKT_HASH_TYPE_L3;
 
 	skb_set_hash(skb, le32_to_cpu(compl_desc->hash), hash_type);
@@ -535,7 +535,7 @@ static int gve_rx_copy_ondemand(struct gve_rx_ring *rx,
 	int num_frags;
 
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(page_address(page),
 	       buf_state->page_info.page_address +
@@ -602,7 +602,7 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 
 /* Returns 0 if descriptor is completed successfully.
  * Returns -EINVAL if descriptor is invalid.
- * Returns -ENOMEM if data cannot be copied to skb.
+ * Returns -EANALMEM if data cananalt be copied to skb.
  */
 static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		      const struct gve_rx_compl_desc_dqo *compl_desc,
@@ -621,7 +621,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	}
 	buf_state = &rx->dqo.buf_states[buffer_id];
 	if (unlikely(!gve_buf_state_is_allocated(rx, buf_state))) {
-		net_err_ratelimited("%s: RX buffer_id is not allocated: %u\n",
+		net_err_ratelimited("%s: RX buffer_id is analt allocated: %u\n",
 				    priv->dev->name, buffer_id);
 		return -EINVAL;
 	}
@@ -634,7 +634,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 	buf_len = compl_desc->packet_len;
 
-	/* Page might have not been used for awhile and was likely last written
+	/* Page might have analt been used for awhile and was likely last written
 	 * by a different thread.
 	 */
 	prefetch(buf_state->page_info.page);
@@ -691,7 +691,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 error:
 	gve_enqueue_buf_state(rx, &rx->dqo.recycled_buf_states, buf_state);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int gve_rx_complete_rsc(struct sk_buff *skb,
@@ -700,7 +700,7 @@ static int gve_rx_complete_rsc(struct sk_buff *skb,
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-	/* Only TCP is supported right now. */
+	/* Only TCP is supported right analw. */
 	if (ptype.l4_type != GVE_L4_TYPE_TCP)
 		return -EINVAL;
 
@@ -753,7 +753,7 @@ static int gve_rx_complete_skb(struct gve_rx_ring *rx, struct napi_struct *napi,
 	return 0;
 }
 
-int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
+int gve_rx_poll_dqo(struct gve_analtify_block *block, int budget)
 {
 	struct napi_struct *napi = &block->napi;
 	netdev_features_t feat = napi->dev->features;
@@ -770,7 +770,7 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 			&complq->desc_ring[complq->head];
 		u32 pkt_bytes;
 
-		/* No more new packets */
+		/* Anal more new packets */
 		if (compl_desc->generation == complq->cur_gen_bit)
 			break;
 
@@ -778,14 +778,14 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		prefetch(&complq->desc_ring[(complq->head + 1) & complq->mask]);
 		prefetch(&complq->desc_ring[(complq->head + 2) & complq->mask]);
 
-		/* Do not read data until we own the descriptor */
+		/* Do analt read data until we own the descriptor */
 		dma_rmb();
 
 		err = gve_rx_dqo(napi, rx, compl_desc, rx->q_num);
 		if (err < 0) {
 			gve_rx_free_skb(rx);
 			u64_stats_update_begin(&rx->statss);
-			if (err == -ENOMEM)
+			if (err == -EANALMEM)
 				rx->rx_skb_alloc_fail++;
 			else if (err == -EINVAL)
 				rx->rx_desc_err_dropped_pkt++;
@@ -798,7 +798,7 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		/* When the ring wraps, the generation bit is flipped. */
 		complq->cur_gen_bit ^= (complq->head == 0);
 
-		/* Receiving a completion means we have space to post another
+		/* Receiving a completion means we have space to post aanalther
 		 * buffer on the buffer queue.
 		 */
 		{

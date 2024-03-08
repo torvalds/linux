@@ -21,8 +21,8 @@ unsigned int xfs_agfl_size(struct xfs_mount *mp);
  */
 #define	XFS_ALLOC_FLAG_TRYLOCK	(1U << 0)  /* use trylock for buffer locking */
 #define	XFS_ALLOC_FLAG_FREEING	(1U << 1)  /* indicate caller is freeing extents*/
-#define	XFS_ALLOC_FLAG_NORMAP	(1U << 2)  /* don't modify the rmapbt */
-#define	XFS_ALLOC_FLAG_NOSHRINK	(1U << 3)  /* don't shrink the freelist */
+#define	XFS_ALLOC_FLAG_ANALRMAP	(1U << 2)  /* don't modify the rmapbt */
+#define	XFS_ALLOC_FLAG_ANALSHRINK	(1U << 3)  /* don't shrink the freelist */
 #define	XFS_ALLOC_FLAG_CHECK	(1U << 4)  /* test only, don't modify args */
 #define	XFS_ALLOC_FLAG_TRYFLUSH	(1U << 5)  /* don't wait in busy extent flush */
 
@@ -35,10 +35,10 @@ typedef struct xfs_alloc_arg {
 	struct xfs_trans *tp;		/* transaction pointer */
 	struct xfs_mount *mp;		/* file system mount point */
 	struct xfs_buf	*agbp;		/* buffer for a.g. freelist header */
-	struct xfs_perag *pag;		/* per-ag struct for this agno */
-	xfs_fsblock_t	fsbno;		/* file system block number */
-	xfs_agnumber_t	agno;		/* allocation group number */
-	xfs_agblock_t	agbno;		/* allocation group-relative block # */
+	struct xfs_perag *pag;		/* per-ag struct for this aganal */
+	xfs_fsblock_t	fsbanal;		/* file system block number */
+	xfs_agnumber_t	aganal;		/* allocation group number */
+	xfs_agblock_t	agbanal;		/* allocation group-relative block # */
 	xfs_extlen_t	minlen;		/* minimum size of extent */
 	xfs_extlen_t	maxlen;		/* maximum size of extent */
 	xfs_extlen_t	mod;		/* mod value for extent size */
@@ -47,8 +47,8 @@ typedef struct xfs_alloc_arg {
 	xfs_extlen_t	total;		/* total blocks needed in xaction */
 	xfs_extlen_t	alignment;	/* align answer to multiple of this */
 	xfs_extlen_t	minalignslop;	/* slop for minlen+alignment calcs */
-	xfs_agblock_t	min_agbno;	/* set an agbno range for NEAR allocs */
-	xfs_agblock_t	max_agbno;	/* ... */
+	xfs_agblock_t	min_agbanal;	/* set an agbanal range for NEAR allocs */
+	xfs_agblock_t	max_agbanal;	/* ... */
 	xfs_extlen_t	len;		/* output: actual size of extent */
 	int		datatype;	/* mask defining data type treatment */
 	char		wasdel;		/* set if allocation was prev delayed */
@@ -65,7 +65,7 @@ typedef struct xfs_alloc_arg {
  */
 #define XFS_ALLOC_USERDATA		(1 << 0)/* allocation is for user data*/
 #define XFS_ALLOC_INITIAL_USER_DATA	(1 << 1)/* special case start of file */
-#define XFS_ALLOC_NOBUSY		(1 << 2)/* Busy extents not allowed */
+#define XFS_ALLOC_ANALBUSY		(1 << 2)/* Busy extents analt allowed */
 
 /* freespace limit calculations */
 unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
@@ -76,10 +76,10 @@ xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_perag *pag,
 unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 int xfs_alloc_get_freelist(struct xfs_perag *pag, struct xfs_trans *tp,
-		struct xfs_buf *agfbp, xfs_agblock_t *bnop, int	 btreeblk);
+		struct xfs_buf *agfbp, xfs_agblock_t *banalp, int	 btreeblk);
 int xfs_alloc_put_freelist(struct xfs_perag *pag, struct xfs_trans *tp,
 		struct xfs_buf *agfbp, struct xfs_buf *agflbp,
-		xfs_agblock_t bno, int btreeblk);
+		xfs_agblock_t banal, int btreeblk);
 
 /*
  * Compute and fill in value of m_alloc_maxlevels.
@@ -98,38 +98,38 @@ xfs_alloc_log_agf(
 	uint32_t	fields);/* mask of fields to be logged (XFS_AGF_...) */
 
 /*
- * Allocate an extent anywhere in the specific AG given. If there is no
+ * Allocate an extent anywhere in the specific AG given. If there is anal
  * space matching the requirements in that AG, then the allocation will fail.
  */
-int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args, xfs_agnumber_t agno);
+int xfs_alloc_vextent_this_ag(struct xfs_alloc_arg *args, xfs_agnumber_t aganal);
 
 /*
- * Allocate an extent as close to the target as possible. If there are not
+ * Allocate an extent as close to the target as possible. If there are analt
  * viable candidates in the AG, then fail the allocation.
  */
-int xfs_alloc_vextent_near_bno(struct xfs_alloc_arg *args,
+int xfs_alloc_vextent_near_banal(struct xfs_alloc_arg *args,
 		xfs_fsblock_t target);
 
 /*
- * Allocate an extent exactly at the target given. If this is not possible
+ * Allocate an extent exactly at the target given. If this is analt possible
  * then the allocation fails.
  */
-int xfs_alloc_vextent_exact_bno(struct xfs_alloc_arg *args,
+int xfs_alloc_vextent_exact_banal(struct xfs_alloc_arg *args,
 		xfs_fsblock_t target);
 
 /*
  * Best effort full filesystem allocation scan.
  *
  * Locality aware allocation will be attempted in the initial AG, but on failure
- * non-localised attempts will be made. The AGs are constrained by previous
+ * analn-localised attempts will be made. The AGs are constrained by previous
  * allocations in the current transaction. Two passes will be made - the first
- * non-blocking, the second blocking.
+ * analn-blocking, the second blocking.
  */
 int xfs_alloc_vextent_start_ag(struct xfs_alloc_arg *args,
 		xfs_fsblock_t target);
 
 /*
- * Iterate from the AG indicated from args->fsbno through to the end of the
+ * Iterate from the AG indicated from args->fsbanal through to the end of the
  * filesystem attempting blocking allocation. This is for use in last
  * resort allocation attempts when everything else has failed.
  */
@@ -143,7 +143,7 @@ int				/* error */
 __xfs_free_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
 	struct xfs_perag	*pag,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	xfs_extlen_t		len,	/* length of extent */
 	const struct xfs_owner_info	*oinfo,	/* extent owner */
 	enum xfs_ag_resv_type	type,	/* block reservation type */
@@ -153,32 +153,32 @@ static inline int
 xfs_free_extent(
 	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbanal,
 	xfs_extlen_t		len,
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type	type)
 {
-	return __xfs_free_extent(tp, pag, agbno, len, oinfo, type, false);
+	return __xfs_free_extent(tp, pag, agbanal, len, oinfo, type, false);
 }
 
 int				/* error */
 xfs_alloc_lookup_le(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		bno,	/* starting block of extent */
+	xfs_agblock_t		banal,	/* starting block of extent */
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat);	/* success/failure */
 
 int				/* error */
 xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		bno,	/* starting block of extent */
+	xfs_agblock_t		banal,	/* starting block of extent */
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat);	/* success/failure */
 
 int					/* error */
 xfs_alloc_get_rec(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		*bno,	/* output: starting block of extent */
+	xfs_agblock_t		*banal,	/* output: starting block of extent */
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat);	/* output: success/failure */
 
@@ -214,16 +214,16 @@ int xfs_alloc_query_range(struct xfs_btree_cur *cur,
 int xfs_alloc_query_all(struct xfs_btree_cur *cur, xfs_alloc_query_range_fn fn,
 		void *priv);
 
-int xfs_alloc_has_records(struct xfs_btree_cur *cur, xfs_agblock_t bno,
+int xfs_alloc_has_records(struct xfs_btree_cur *cur, xfs_agblock_t banal,
 		xfs_extlen_t len, enum xbtree_recpacking *outcome);
 
-typedef int (*xfs_agfl_walk_fn)(struct xfs_mount *mp, xfs_agblock_t bno,
+typedef int (*xfs_agfl_walk_fn)(struct xfs_mount *mp, xfs_agblock_t banal,
 		void *priv);
 int xfs_agfl_walk(struct xfs_mount *mp, struct xfs_agf *agf,
 		struct xfs_buf *agflbp, xfs_agfl_walk_fn walk_fn, void *priv);
 
 static inline __be32 *
-xfs_buf_to_agfl_bno(
+xfs_buf_to_agfl_banal(
 	struct xfs_buf		*bp)
 {
 	if (xfs_has_crc(bp->b_mount))
@@ -231,7 +231,7 @@ xfs_buf_to_agfl_bno(
 	return bp->b_addr;
 }
 
-int xfs_free_extent_later(struct xfs_trans *tp, xfs_fsblock_t bno,
+int xfs_free_extent_later(struct xfs_trans *tp, xfs_fsblock_t banal,
 		xfs_filblks_t len, const struct xfs_owner_info *oinfo,
 		enum xfs_ag_resv_type type, bool skip_discard);
 
@@ -273,7 +273,7 @@ extern struct kmem_cache	*xfs_extfree_item_cache;
 int __init xfs_extfree_intent_init_cache(void);
 void xfs_extfree_intent_destroy_cache(void);
 
-xfs_failaddr_t xfs_validate_ag_length(struct xfs_buf *bp, uint32_t seqno,
+xfs_failaddr_t xfs_validate_ag_length(struct xfs_buf *bp, uint32_t seqanal,
 		uint32_t length);
 
 #endif	/* __XFS_ALLOC_H__ */

@@ -38,8 +38,8 @@ u64 get_leaf_frame_caller_aarch64(struct perf_sample *sample, struct thread *thr
 		return 0;
 
 	/*
-	 * If PC and SP are not recorded, get the value of PC from the stack
-	 * and set its mask. SP is not used when doing the unwinding but it
+	 * If PC and SP are analt recorded, get the value of PC from the stack
+	 * and set its mask. SP is analt used when doing the unwinding but it
 	 * still needs to be set to prevent failures.
 	 */
 

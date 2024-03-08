@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for Sharp protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techanallogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -66,7 +66,7 @@ static int img_ir_sharp_filter(const struct rc_scancode_filter *in,
 
 /*
  * Sharp decoder
- * See also http://www.sbprojects.com/knowledge/ir/sharp.php
+ * See also http://www.sbprojects.com/kanalwledge/ir/sharp.php
  */
 struct img_ir_decoder img_ir_sharp = {
 	.type = RC_PROTO_BIT_SHARP,

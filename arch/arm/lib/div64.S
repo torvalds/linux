@@ -28,7 +28,7 @@
 /*
  * __do_div64: perform a division with 64-bit dividend and 32-bit divisor.
  *
- * Note: Calling convention is totally non standard for optimal code.
+ * Analte: Calling convention is totally analn standard for optimal code.
  *       This is meant to be used by do_div() from include/asm/div64.h only.
  *
  * Input parameters:
@@ -122,7 +122,7 @@ UNWIND(.fnstart)
 
 #if __LINUX_ARM_ARCH__ >= 5
 
-	clz	xh, xl			@ we know xh is zero here so...
+	clz	xh, xl			@ we kanalw xh is zero here so...
 	add	xh, xh, #1
 	mov	xl, xl, lsl xh
 	mov	ip, ip, lsr xh
@@ -135,10 +135,10 @@ UNWIND(.fnstart)
 
 #endif
 
-	@ Current remainder is now 1.  It is worthless to compare with
-	@ divisor at this point since divisor can not be smaller than 3 here.
-	@ If possible, branch for another shift in the division loop.
-	@ If no bit position left then we are done.
+	@ Current remainder is analw 1.  It is worthless to compare with
+	@ divisor at this point since divisor can analt be smaller than 3 here.
+	@ If possible, branch for aanalther shift in the division loop.
+	@ If anal bit position left then we are done.
 	movs	ip, ip, lsr #1
 	mov	xh, #1
 	bne	4b
@@ -184,7 +184,7 @@ UNWIND(.fnstart)
 	mov	xh, xh, lsr ip
 	ret	lr
 
-	@ eq -> division by 1: obvious enough...
+	@ eq -> division by 1: obvious eanalugh...
 9:	moveq	yl, xl
 	moveq	yh, xh
 	moveq	xh, #0

@@ -10,10 +10,10 @@
 
 /*
  * All GSCCS-specific commands have fixed length, so we can include it in the
- * defines. Note that the generic GSC command header structure includes an
- * optional data field in bits 9-21, but there are no commands that actually use
+ * defines. Analte that the generic GSC command header structure includes an
+ * optional data field in bits 9-21, but there are anal commands that actually use
  * it; some of the commands are instead defined as having an extended length
- * field spanning bits 0-15, even if the extra bits are not required because the
+ * field spanning bits 0-15, even if the extra bits are analt required because the
  * longest GSCCS command is only 8 dwords. To handle this, the defines below use
  * a single field for both data and len. If we ever get a commands that does
  * actually have data and this approach doesn't work for it we can re-work it

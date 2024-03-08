@@ -27,7 +27,7 @@
  * (ISP2: DE2 is used.)
  */
 struct ia_css_de_config {
-	ia_css_u0_16 pixelnoise; /** Pixel noise used in moire elimination.
+	ia_css_u0_16 pixelanalise; /** Pixel analise used in moire elimination.
 				u0.16, [0,65535],
 				default 0, ineffective 0 */
 	ia_css_u0_16 c1_coring_threshold; /** Coring threshold for C1.

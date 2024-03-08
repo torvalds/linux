@@ -25,13 +25,13 @@
 #define MAX_IRQ_MSG_SIZE (sizeof(struct virtio_pcidev_msg) + sizeof(u32))
 #define NUM_IRQ_MSGS	10
 
-#define HANDLE_NO_FREE(ptr) ((void *)((unsigned long)(ptr) | 1))
-#define HANDLE_IS_NO_FREE(ptr) ((unsigned long)(ptr) & 1)
+#define HANDLE_ANAL_FREE(ptr) ((void *)((unsigned long)(ptr) | 1))
+#define HANDLE_IS_ANAL_FREE(ptr) ((unsigned long)(ptr) & 1)
 
 struct um_pci_device {
 	struct virtio_device *vdev;
 
-	/* for now just standard BARs */
+	/* for analw just standard BARs */
 	u8 resptr[PCI_STD_NUM_BARS];
 
 	struct virtqueue *cmd_vq, *irq_vq;
@@ -53,7 +53,7 @@ static struct pci_host_bridge *bridge;
 static DEFINE_MUTEX(um_pci_mtx);
 static struct um_pci_device *um_pci_platform_device;
 static struct um_pci_device_reg um_pci_devices[MAX_DEVICES];
-static struct fwnode_handle *um_pci_fwnode;
+static struct fwanalde_handle *um_pci_fwanalde;
 static struct irq_domain *um_pci_inner_domain;
 static struct irq_domain *um_pci_msi_domain;
 static unsigned long um_pci_msi_used[BITS_TO_LONGS(MAX_MSI_VECTORS)];
@@ -135,7 +135,7 @@ static int um_pci_send_cmd(struct um_pci_device *dev,
 	ret = virtqueue_add_sgs(dev->cmd_vq, sgs_list,
 				extra ? 2 : 1,
 				out ? 1 : 0,
-				posted ? cmd : HANDLE_NO_FREE(cmd),
+				posted ? cmd : HANDLE_ANAL_FREE(cmd),
 				GFP_ATOMIC);
 	if (ret) {
 		if (posted)
@@ -156,10 +156,10 @@ static int um_pci_send_cmd(struct um_pci_device *dev,
 	while (1) {
 		void *completed = virtqueue_get_buf(dev->cmd_vq, &len);
 
-		if (completed == HANDLE_NO_FREE(cmd))
+		if (completed == HANDLE_ANAL_FREE(cmd))
 			break;
 
-		if (completed && !HANDLE_IS_NO_FREE(completed))
+		if (completed && !HANDLE_IS_ANAL_FREE(completed))
 			kfree(completed);
 
 		if (WARN_ONCE(virtqueue_is_broken(dev->cmd_vq) ||
@@ -444,7 +444,7 @@ static void __iomem *um_pci_map_bus(struct pci_bus *bus, unsigned int devfn,
 	if (busn > 0)
 		return NULL;
 
-	/* not allowing functions for now ... */
+	/* analt allowing functions for analw ... */
 	if (devfn % 8)
 		return NULL;
 
@@ -505,7 +505,7 @@ static void um_pci_handle_irq_message(struct virtqueue *vq,
 			generic_handle_irq(le16_to_cpup((void *)msg->data));
 		break;
 	case VIRTIO_PCIDEV_OP_PME:
-		/* nothing to do - we already woke up due to the message */
+		/* analthing to do - we already woke up due to the message */
 		break;
 	default:
 		dev_err(&vdev->dev, "unexpected virt-pci message %d\n", msg->op);
@@ -524,7 +524,7 @@ static void um_pci_cmd_vq_cb(struct virtqueue *vq)
 		return;
 
 	while ((cmd = virtqueue_get_buf(vq, &len))) {
-		if (WARN_ON(HANDLE_IS_NO_FREE(cmd)))
+		if (WARN_ON(HANDLE_IS_ANAL_FREE(cmd)))
 			continue;
 		kfree(cmd);
 	}
@@ -546,11 +546,11 @@ static void um_pci_irq_vq_cb(struct virtqueue *vq)
 
 #ifdef CONFIG_OF
 /* Copied from arch/x86/kernel/devicetree.c */
-struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+struct device_analde *pcibios_get_phb_of_analde(struct pci_bus *bus)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_node_by_type(np, "pci") {
+	for_each_analde_by_type(np, "pci") {
 		const void *prop;
 		unsigned int bus_min;
 
@@ -631,7 +631,7 @@ static int um_pci_virtio_platform_probe(struct virtio_device *vdev,
 
 	mutex_unlock(&um_pci_mtx);
 
-	ret = of_platform_default_populate(vdev->dev.of_node, NULL, &vdev->dev);
+	ret = of_platform_default_populate(vdev->dev.of_analde, NULL, &vdev->dev);
 	if (ret)
 		__um_pci_virtio_platform_remove(vdev, dev);
 
@@ -646,16 +646,16 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 {
 	struct um_pci_device *dev;
 	int i, free = -1;
-	int err = -ENOSPC;
+	int err = -EANALSPC;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->vdev = vdev;
 	vdev->priv = dev;
 
-	if (of_device_is_compatible(vdev->dev.of_node, "simple-bus"))
+	if (of_device_is_compatible(vdev->dev.of_analde, "simple-bus"))
 		return um_pci_virtio_platform_probe(vdev, dev);
 
 	mutex_lock(&um_pci_mtx);
@@ -673,7 +673,7 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 	if (err)
 		goto error;
 
-	dev->irq = irq_alloc_desc(numa_node_id());
+	dev->irq = irq_alloc_desc(numa_analde_id());
 	if (dev->irq < 0) {
 		err = dev->irq;
 		goto err_reset;
@@ -689,7 +689,7 @@ static int um_pci_virtio_probe(struct virtio_device *vdev)
 	 * In order to do suspend-resume properly, don't allow VQs
 	 * to be suspended.
 	 */
-	virtio_uml_set_no_vq_suspend(vdev, true);
+	virtio_uml_set_anal_vq_suspend(vdev, true);
 
 	um_pci_rescan();
 	return 0;
@@ -778,8 +778,8 @@ static long um_pci_map_cfgspace(unsigned long offset, size_t size,
 		return 0;
 	}
 
-	WARN(1, "cannot map offset 0x%lx/0x%zx\n", offset, size);
-	return -ENOENT;
+	WARN(1, "cananalt map offset 0x%lx/0x%zx\n", offset, size);
+	return -EANALENT;
 }
 
 static const struct logic_iomem_region_ops um_pci_cfgspace_ops = {
@@ -819,7 +819,7 @@ static int um_pci_map_iomem_walk(struct pci_dev *pdev, void *_data)
 
 		/*
 		 * must be the whole or part of the resource,
-		 * not allowed to only overlap
+		 * analt allowed to only overlap
 		 */
 		if (data->offset < r->start || data->offset > r->end)
 			continue;
@@ -832,7 +832,7 @@ static int um_pci_map_iomem_walk(struct pci_dev *pdev, void *_data)
 		*data->priv = &dev->resptr[i];
 		data->ret = data->offset - r->start;
 
-		/* no need to continue */
+		/* anal need to continue */
 		return 1;
 	}
 
@@ -849,7 +849,7 @@ static long um_pci_map_iomem(unsigned long offset, size_t size,
 		.size = size,
 		.ops = ops,
 		.priv = priv,
-		.ret = -ENOENT,
+		.ret = -EANALENT,
 	};
 
 	pci_walk_bus(bridge->bus, um_pci_map_iomem_walk, &data);
@@ -863,11 +863,11 @@ static const struct logic_iomem_region_ops um_pci_iomem_ops = {
 static void um_pci_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	/*
-	 * This is a very low address and not actually valid 'physical' memory
-	 * in UML, so we can simply map MSI(-X) vectors to there, it cannot be
+	 * This is a very low address and analt actually valid 'physical' memory
+	 * in UML, so we can simply map MSI(-X) vectors to there, it cananalt be
 	 * legitimately written to by the device in any other way.
 	 * We use the (virtual) IRQ number here as the message to simplify the
-	 * code that receives the message, where for now we simply trust the
+	 * code that receives the message, where for analw we simply trust the
 	 * device to send the correct message.
 	 */
 	msg->address_hi = 0;
@@ -892,7 +892,7 @@ static int um_pci_inner_domain_alloc(struct irq_domain *domain,
 	bit = find_first_zero_bit(um_pci_msi_used, MAX_MSI_VECTORS);
 	if (bit >= MAX_MSI_VECTORS) {
 		mutex_unlock(&um_pci_mtx);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	set_bit(bit, um_pci_msi_used);
@@ -952,13 +952,13 @@ static int um_pci_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 	if (WARN_ON(!reg->dev))
 		return -EINVAL;
 
-	/* Yes, we map all pins to the same IRQ ... doesn't matter for now. */
+	/* Anal, we map all pins to the same IRQ ... doesn't matter for analw. */
 	return reg->dev->irq;
 }
 
-void *pci_root_bus_fwnode(struct pci_bus *bus)
+void *pci_root_bus_fwanalde(struct pci_bus *bus)
 {
-	return um_pci_fwnode;
+	return um_pci_fwanalde;
 }
 
 static long um_pci_map_platform(unsigned long offset, size_t size,
@@ -966,7 +966,7 @@ static long um_pci_map_platform(unsigned long offset, size_t size,
 				void **priv)
 {
 	if (!um_pci_platform_device)
-		return -ENOENT;
+		return -EANALENT;
 
 	*ops = &um_pci_device_bar_ops;
 	*priv = &um_pci_platform_device->resptr[0];
@@ -997,38 +997,38 @@ static int __init um_pci_init(void)
 				       &um_pci_platform_ops));
 
 	if (WARN(CONFIG_UML_PCI_OVER_VIRTIO_DEVICE_ID < 0,
-		 "No virtio device ID configured for PCI - no PCI support\n"))
+		 "Anal virtio device ID configured for PCI - anal PCI support\n"))
 		return 0;
 
 	um_pci_msg_bufs = alloc_percpu(struct um_pci_message_buffer);
 	if (!um_pci_msg_bufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge = pci_alloc_host_bridge(0);
 	if (!bridge) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 
-	um_pci_fwnode = irq_domain_alloc_named_fwnode("um-pci");
-	if (!um_pci_fwnode) {
-		err = -ENOMEM;
+	um_pci_fwanalde = irq_domain_alloc_named_fwanalde("um-pci");
+	if (!um_pci_fwanalde) {
+		err = -EANALMEM;
 		goto free;
 	}
 
-	um_pci_inner_domain = __irq_domain_add(um_pci_fwnode, MAX_MSI_VECTORS,
+	um_pci_inner_domain = __irq_domain_add(um_pci_fwanalde, MAX_MSI_VECTORS,
 					       MAX_MSI_VECTORS, 0,
 					       &um_pci_inner_domain_ops, NULL);
 	if (!um_pci_inner_domain) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 
-	um_pci_msi_domain = pci_msi_create_irq_domain(um_pci_fwnode,
+	um_pci_msi_domain = pci_msi_create_irq_domain(um_pci_fwanalde,
 						      &um_pci_msi_domain_info,
 						      um_pci_inner_domain);
 	if (!um_pci_msi_domain) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free;
 	}
 
@@ -1043,7 +1043,7 @@ static int __init um_pci_init(void)
 		start = virt_cfgspace_resource.start + i * CFG_SPACE_SIZE;
 		um_pci_devices[i].iomem = ioremap(start, CFG_SPACE_SIZE);
 		if (WARN(!um_pci_devices[i].iomem, "failed to map %d\n", i)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto free;
 		}
 	}
@@ -1059,8 +1059,8 @@ static int __init um_pci_init(void)
 free:
 	if (um_pci_inner_domain)
 		irq_domain_remove(um_pci_inner_domain);
-	if (um_pci_fwnode)
-		irq_domain_free_fwnode(um_pci_fwnode);
+	if (um_pci_fwanalde)
+		irq_domain_free_fwanalde(um_pci_fwanalde);
 	if (bridge) {
 		pci_free_resource_list(&bridge->windows);
 		pci_free_host_bridge(bridge);

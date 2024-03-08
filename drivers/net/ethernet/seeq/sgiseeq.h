@@ -93,7 +93,7 @@ struct sgiseeq_regs {
 #define SEEQ_HDMA_D2BITS  0x00000020 /* cycles to stay in D2 phase for DMA */
 #define SEEQ_HDMA_D3BITS  0x00000000 /* cycles to stay in D3 phase for DMA */
 #define SEEQ_HDMA_TIMEO   0x00030000 /* cycles for DMA timeout */
-#define SEEQ_HCTL_NORM    0x00000000 /* Normal operation mode */
+#define SEEQ_HCTL_ANALRM    0x00000000 /* Analrmal operation mode */
 #define SEEQ_HCTL_RESET   0x00000001 /* Reset Seeq8003 and HPC interface */
 #define SEEQ_HCTL_IPEND   0x00000002 /* IRQ is pending for the chip */
 #define SEEQ_HCTL_IPG     0x00001000 /* Inter-packet gap */

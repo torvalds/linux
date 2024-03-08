@@ -35,7 +35,7 @@ struct qede_ptp {
  *
  * Scaled parts per million is ppm with a 16-bit binary fractional field.
  *
- * Return: Zero on success, negative errno otherwise.
+ * Return: Zero on success, negative erranal otherwise.
  */
 static int qede_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 {
@@ -129,9 +129,9 @@ static int qede_ptp_ancillary_feature_enable(struct ptp_clock_info *info,
 	ptp = container_of(info, struct qede_ptp, clock_info);
 	edev = ptp->edev;
 
-	DP_ERR(edev, "PHC ancillary features are not supported\n");
+	DP_ERR(edev, "PHC ancillary features are analt supported\n");
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static void qede_ptp_task(struct work_struct *work)
@@ -154,7 +154,7 @@ static void qede_ptp_task(struct work_struct *work)
 	spin_unlock_bh(&ptp->lock);
 	if (rc) {
 		if (unlikely(timedout)) {
-			DP_INFO(edev, "Tx timestamp is not recorded\n");
+			DP_INFO(edev, "Tx timestamp is analt recorded\n");
 			dev_kfree_skb_any(ptp->tx_skb);
 			ptp->tx_skb = NULL;
 			clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS,
@@ -202,14 +202,14 @@ static u64 qede_ptp_read_cc(const struct cyclecounter *cc)
 static int qede_ptp_cfg_filters(struct qede_dev *edev)
 {
 	enum qed_ptp_hwtstamp_tx_type tx_type = QED_PTP_HWTSTAMP_TX_ON;
-	enum qed_ptp_filter_type rx_filter = QED_PTP_FILTER_NONE;
+	enum qed_ptp_filter_type rx_filter = QED_PTP_FILTER_ANALNE;
 	struct qede_ptp *ptp = edev->ptp;
 
 	if (!ptp)
 		return -EIO;
 
 	if (!ptp->hw_ts_ioctl_called) {
-		DP_INFO(edev, "TS IOCTL not called\n");
+		DP_INFO(edev, "TS IOCTL analt called\n");
 		return 0;
 	}
 
@@ -226,19 +226,19 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 	case HWTSTAMP_TX_ONESTEP_P2P:
-		DP_ERR(edev, "One-step timestamping is not supported\n");
+		DP_ERR(edev, "One-step timestamping is analt supported\n");
 		return -ERANGE;
 	}
 
 	spin_lock_bh(&ptp->lock);
 	switch (ptp->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
-		rx_filter = QED_PTP_FILTER_NONE;
+	case HWTSTAMP_FILTER_ANALNE:
+		rx_filter = QED_PTP_FILTER_ANALNE;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
+		ptp->rx_filter = HWTSTAMP_FILTER_ANALNE;
 		rx_filter = QED_PTP_FILTER_ALL;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -346,7 +346,7 @@ int qede_ptp_get_ts_info(struct qede_dev *edev, struct ethtool_ts_info *info)
 	else
 		info->phc_index = -1;
 
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
@@ -438,7 +438,7 @@ int qede_ptp_enable(struct qede_dev *edev)
 	ptp = kzalloc(sizeof(*ptp), GFP_KERNEL);
 	if (!ptp) {
 		DP_INFO(edev, "Failed to allocate struct for PTP\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ptp->edev = edev;
@@ -506,12 +506,12 @@ void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb)
 
 	if (unlikely(!test_bit(QEDE_FLAGS_TX_TIMESTAMPING_EN, &edev->flags))) {
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
-			   "Tx timestamping was not enabled, this pkt will not be timestamped\n");
+			   "Tx timestamping was analt enabled, this pkt will analt be timestamped\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else if (unlikely(ptp->tx_skb)) {
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
-			   "Device supports a single outstanding pkt to ts, It will not be ts\n");
+			   "Device supports a single outstanding pkt to ts, It will analt be ts\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else {

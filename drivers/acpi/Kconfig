@@ -138,7 +138,7 @@ config ACPI_EC_DEBUGFS
 	  Say N to disable Embedded Controller /sys/kernel/debug interface
 
 	  Be aware that using this interface can confuse your Embedded
-	  Controller in a way that a normal reboot is not enough. You then
+	  Controller in a way that a analrmal reboot is analt eanalugh. You then
 	  have to power off your system, and remove the laptop battery for
 	  some seconds.
 	  An Embedded Controller typically is available on laptops and reads
@@ -155,7 +155,7 @@ config ACPI_AC
 	default y
 	help
 	  This driver supports the AC Adapter object, which indicates
-	  whether a system is on AC or not.  If you have a system that can
+	  whether a system is on AC or analt.  If you have a system that can
 	  switch between A/C and battery, say Y.
 
 	  To compile this driver as a module, choose M here:
@@ -192,12 +192,12 @@ config ACPI_TINY_POWER_BUTTON
 	help
 	  This driver provides a tiny alternative to the ACPI Button driver.
 	  The tiny power button driver only handles the power button. Rather
-	  than notifying userspace via the input layer or a netlink event, this
+	  than analtifying userspace via the input layer or a netlink event, this
 	  driver directly signals the init process to shut down.
 
 	  This driver is particularly suitable for cloud and VM environments,
 	  which use a simulated power button to initiate a controlled poweroff,
-	  but which may not want to run a separate userspace daemon to process
+	  but which may analt want to run a separate userspace daemon to process
 	  input events.
 
 config ACPI_TINY_POWER_BUTTON_SIGNAL
@@ -281,7 +281,7 @@ config ACPI_CPPC_LIB
 	  to parse CPPC tables as described in the ACPI 5.1+ spec. The
 	  routines implemented are meant to be used by other
 	  drivers to control CPU performance using CPPC semantics.
-	  If your platform does not support CPPC in firmware,
+	  If your platform does analt support CPPC in firmware,
 	  leave this option disabled.
 
 config ACPI_PROCESSOR
@@ -369,14 +369,14 @@ config ACPI_TABLE_UPGRADE
 	default y
 	help
 	  This option provides functionality to upgrade arbitrary ACPI tables
-	  via initrd. No functional change if no ACPI tables are passed via
+	  via initrd. Anal functional change if anal ACPI tables are passed via
 	  initrd, therefore it's safe to say Y.
 	  See Documentation/admin-guide/acpi/initrd_table_override.rst for details
 
 config ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD
 	bool "Override ACPI tables from built-in initrd"
 	depends on ACPI_TABLE_UPGRADE
-	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION_NONE
+	depends on INITRAMFS_SOURCE!="" && INITRAMFS_COMPRESSION_ANALNE
 	help
 	  This option provides functionality to override arbitrary ACPI tables
 	  from built-in uncompressed initrd.
@@ -410,19 +410,19 @@ config ACPI_CONTAINER
 	  This driver supports ACPI Container and Module devices (IDs
 	  ACPI0004, PNP0A05, and PNP0A06).
 
-	  This helps support hotplug of nodes, CPUs, and memory.
+	  This helps support hotplug of analdes, CPUs, and memory.
 
 config ACPI_HOTPLUG_MEMORY
 	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
 	help
 	  This driver supports ACPI memory hotplug.  The driver
-	  fields notifications on ACPI memory devices (PNP0C80),
+	  fields analtifications on ACPI memory devices (PNP0C80),
 	  which represent memory ranges that may be onlined or
 	  offlined during runtime.
 
-	  If your hardware and firmware do not support adding or
-	  removing memory devices at runtime, you need not enable
+	  If your hardware and firmware do analt support adding or
+	  removing memory devices at runtime, you need analt enable
 	  this driver.
 
 config ACPI_HOTPLUG_IOAPIC
@@ -436,7 +436,7 @@ config ACPI_SBS
 	depends on X86
 	select POWER_SUPPLY
 	help
-	  This driver supports the Smart Battery System, another
+	  This driver supports the Smart Battery System, aanalther
 	  type of access to battery information, found on some laptops.
 
 	  To compile this driver as a module, choose M here:
@@ -446,7 +446,7 @@ config ACPI_HED
 	tristate "Hardware Error Device"
 	help
 	  This driver supports the Hardware Error Device (PNP0C33),
-	  which is used to report some hardware errors notified via
+	  which is used to report some hardware errors analtified via
 	  SCI, mainly the corrected errors.
 
 config ACPI_CUSTOM_METHOD
@@ -457,9 +457,9 @@ config ACPI_CUSTOM_METHOD
 	  replaced without rebooting the system. For details refer to:
 	  Documentation/firmware-guide/acpi/method-customizing.rst.
 
-	  NOTE: This option is security sensitive, because it allows arbitrary
+	  ANALTE: This option is security sensitive, because it allows arbitrary
 	  kernel memory to be written to by root (uid=0) users, allowing them
-	  to bypass certain security measures (e.g. if root is not allowed to
+	  to bypass certain security measures (e.g. if root is analt allowed to
 	  load additional kernel modules after boot, this feature may be used
 	  to override that restriction).
 
@@ -482,7 +482,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
 	  resulting kernel will be smaller but it will also be restricted to
 	  running in ACPI reduced hardware mode ONLY.
 
-	  If you are unsure what to do, do not enable this option.
+	  If you are unsure what to do, do analt enable this option.
 
 source "drivers/acpi/nfit/Kconfig"
 source "drivers/acpi/numa/Kconfig"
@@ -502,13 +502,13 @@ config ACPI_EXTLOG
 	  processor machine check banks. Most server processors log
 	  additional information about the error in processor uncore
 	  registers. Since the addresses and layout of these registers vary
-	  widely from one processor to another, system software cannot
+	  widely from one processor to aanalther, system software cananalt
 	  readily make use of them. To complicate matters further, some of
-	  the additional error information cannot be constructed without
-	  detailed knowledge about platform topology.
+	  the additional error information cananalt be constructed without
+	  detailed kanalwledge about platform topology.
 
 	  Enhanced MCA Logging allows firmware to provide additional error
-	  information to system software, synchronous with MCE or CMCI. This
+	  information to system software, synchroanalus with MCE or CMCI. This
 	  driver adds support for that functionality with corresponding
 	  tracepoint which carries that information to userspace.
 
@@ -530,10 +530,10 @@ config ACPI_PFRUT
 	  This mechanism allows certain pieces of the platform firmware
 	  to be updated on the fly while the system is running (runtime)
 	  without the need to restart it, which is key in the cases when
-	  the system needs to be available 100% of the time and it cannot
+	  the system needs to be available 100% of the time and it cananalt
 	  afford the downtime related to restarting it, or when the work
-	  carried out by the system is particularly important, so it cannot
-	  be interrupted, and it is not practical to wait until it is complete.
+	  carried out by the system is particularly important, so it cananalt
+	  be interrupted, and it is analt practical to wait until it is complete.
 
 	  The existing firmware code can be modified (driver update) or
 	  extended by adding new code to the firmware (code injection).
@@ -562,7 +562,7 @@ config ACPI_PCC
 
 	  The PCC Operation Region works in conjunction with the PCC Table
 	  (Platform Communications Channel Table). PCC subspaces that are
-	  marked for use as PCC Operation Regions must not be used as PCC
+	  marked for use as PCC Operation Regions must analt be used as PCC
 	  subspaces for the standard ACPI features such as CPPC, RASF, PDTT and
 	  MPST. These standard features must always use the PCC Table instead.
 
@@ -609,7 +609,7 @@ config X86_PM_TIMER
 	  The Power Management Timer is available on all ACPI-capable,
 	  in most cases even if ACPI is unusable or blacklisted.
 
-	  This timing source is not affected by power management features
+	  This timing source is analt affected by power management features
 	  like aggressive processor idling, throttling, frequency and/or
 	  voltage scaling, unlike the commonly used Time Stamp Counter
 	  (TSC) timing source.

@@ -4,7 +4,7 @@
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
- * Copyright:   (C) 2009 Nokia Corporation
+ * Copyright:   (C) 2009 Analkia Corporation
  */
 
 #ifndef __TLV320DAC33_PLAT_H

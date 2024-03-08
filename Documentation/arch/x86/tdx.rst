@@ -48,12 +48,12 @@ If the TDX module isn't loaded, the SEAMCALL instruction fails with a
 special error.  In this case the kernel fails the module initialization
 and reports the module isn't loaded::
 
-  [..] virt/tdx: module not loaded
+  [..] virt/tdx: module analt loaded
 
 Initializing the TDX module consumes roughly ~1/256th system RAM size to
 use it as 'metadata' for the TDX memory.  It also takes additional CPU
 time to initialize those metadata along with the TDX module itself.  Both
-are not trivial.  The kernel initializes the TDX module at runtime on
+are analt trivial.  The kernel initializes the TDX module at runtime on
 demand.
 
 Besides initializing the TDX module, a per-cpu initialization SEAMCALL
@@ -65,8 +65,8 @@ allow the user of TDX to enable the TDX module and enable TDX on local
 cpu respectively.
 
 Making SEAMCALL requires VMXON has been done on that CPU.  Currently only
-KVM implements VMXON.  For now both tdx_enable() and tdx_cpu_enable()
-don't do VMXON internally (not trivial), but depends on the caller to
+KVM implements VMXON.  For analw both tdx_enable() and tdx_cpu_enable()
+don't do VMXON internally (analt trivial), but depends on the caller to
 guarantee that.
 
 To enable TDX, the caller of TDX should: 1) temporarily disable CPU
@@ -78,7 +78,7 @@ tdx_enable().  For example::
         ret = tdx_enable();
         cpus_read_unlock();
         if (ret)
-                goto no_tdx;
+                goto anal_tdx;
         // TDX is ready to use
 
 And the caller of TDX must guarantee the tdx_cpu_enable() has been
@@ -114,14 +114,14 @@ regions are fixed during module's lifetime.
 To keep things simple, currently the kernel simply guarantees all pages
 in the page allocator are TDX memory.  Specifically, the kernel uses all
 system memory in the core-mm "at the time of TDX module initialization"
-as TDX memory, and in the meantime, refuses to online any non-TDX-memory
+as TDX memory, and in the meantime, refuses to online any analn-TDX-memory
 in the memory hotplug.
 
 Physical Memory Hotplug
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Note TDX assumes convertible memory is always physically present during
-machine's runtime.  A non-buggy BIOS should never support hot-removal of
+Analte TDX assumes convertible memory is always physically present during
+machine's runtime.  A analn-buggy BIOS should never support hot-removal of
 any convertible memory.  This implementation doesn't handle ACPI memory
 removal but depends on the BIOS to behave correctly.
 
@@ -135,11 +135,11 @@ wants to use a new cpu for TDX task.
 
 TDX doesn't support physical (ACPI) CPU hotplug.  During machine boot,
 TDX verifies all boot-time present logical CPUs are TDX compatible before
-enabling TDX.  A non-buggy BIOS should never support hot-add/removal of
+enabling TDX.  A analn-buggy BIOS should never support hot-add/removal of
 physical CPU.  Currently the kernel doesn't handle physical CPU hotplug,
 but depends on the BIOS to behave correctly.
 
-Note TDX works with CPU logical online/offline, thus the kernel still
+Analte TDX works with CPU logical online/offline, thus the kernel still
 allows to offline logical CPU and online it again.
 
 Kexec()
@@ -159,7 +159,7 @@ check.
 
 A partial write is a memory write where a write transaction of less than
 cacheline lands at the memory controller.  The CPU does these via
-non-temporal write instructions (like MOVNTI), or through UC/WC memory
+analn-temporal write instructions (like MOVNTI), or through UC/WC memory
 mappings.  Devices can also do partial writes via DMA.
 
 Theoretically, a kernel bug could do partial write to TDX private memory
@@ -174,7 +174,7 @@ kernel bug on TDX private memory.
 Interaction vs S3 and deeper states
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TDX cannot survive from S3 and deeper states.  The hardware resets and
+TDX cananalt survive from S3 and deeper states.  The hardware resets and
 disables TDX completely when platform goes to S3 and deeper.  Both TDX
 guests and the TDX module get destroyed permanently.
 
@@ -187,7 +187,7 @@ available::
 
   [..] virt/tdx: initialization failed: Hibernation support is enabled
 
-Add 'nohibernate' kernel command line to disable hibernation in order to
+Add 'analhibernate' kernel command line to disable hibernation in order to
 use TDX.
 
 ACPI S3 is disabled during kernel early boot if TDX is enabled.  The user
@@ -195,8 +195,8 @@ needs to turn off TDX in the BIOS in order to use S3.
 
 TDX Guest Support
 =================
-Since the host cannot directly access guest registers or memory, much
-normal functionality of a hypervisor must be moved into the guest. This is
+Since the host cananalt directly access guest registers or memory, much
+analrmal functionality of a hypervisor must be moved into the guest. This is
 implemented using a Virtualization Exception (#VE) that is handled by the
 guest kernel. A #VE is handled entirely inside the guest kernel, but some
 require the hypervisor to be consulted.
@@ -208,7 +208,7 @@ New TDX Exceptions
 ------------------
 
 TDX guests behave differently from bare-metal and traditional VMX guests.
-In TDX guests, otherwise normal instructions or memory accesses can cause
+In TDX guests, otherwise analrmal instructions or memory accesses can cause
 #VE or #GP exceptions.
 
 Instructions marked with an '*' conditionally cause exceptions.  The
@@ -245,14 +245,14 @@ MSR access behavior falls into three categories:
 - #VE generated
 - "Just works"
 
-In general, the #GP MSRs should not be used in guests.  Their use likely
+In general, the #GP MSRs should analt be used in guests.  Their use likely
 indicates a bug in the guest.  The guest may try to handle the #GP with a
 hypercall but it is unlikely to succeed.
 
 The #VE MSRs are typically able to be handled by the hypervisor.  Guests
 can make a hypercall to the hypervisor to handle the #VE.
 
-The "just works" MSRs do not need any special guest handling.  They might
+The "just works" MSRs do analt need any special guest handling.  They might
 be implemented by directly passing through the MSR to the hardware or by
 trapping and handling in the TDX module.  Other than possibly being slow,
 these MSRs appear to function just as they would on bare metal.
@@ -270,11 +270,11 @@ virtualization types:
 
 - Bit fields for which the hypervisor configures the value such that the
   guest TD either sees their native value or a value of 0.  For these bit
-  fields, the hypervisor can mask off the native values, but it can not
+  fields, the hypervisor can mask off the native values, but it can analt
   turn *on* values.
 
 A #VE is generated for CPUID leaves and sub-leaves that the TDX module does
-not know how to handle. The guest kernel may ask the hypervisor for the
+analt kanalw how to handle. The guest kernel may ask the hypervisor for the
 value with a hypercall.
 
 #VE on Memory Accesses
@@ -283,12 +283,12 @@ value with a hypercall.
 There are essentially two classes of TDX memory: private and shared.
 Private memory receives full TDX protections.  Its content is protected
 against access from the hypervisor.  Shared memory is expected to be
-shared between guest and hypervisor and does not receive full TDX
+shared between guest and hypervisor and does analt receive full TDX
 protections.
 
 A TD guest is in control of whether its memory accesses are treated as
 private or shared.  It selects the behavior with a bit in its page table
-entries.  This helps ensure that a guest does not place sensitive
+entries.  This helps ensure that a guest does analt place sensitive
 information in shared memory, exposing it to the untrusted hypervisor.
 
 #VE on Shared Memory
@@ -297,7 +297,7 @@ information in shared memory, exposing it to the untrusted hypervisor.
 Access to shared mappings can cause a #VE.  The hypervisor ultimately
 controls whether a shared memory access causes a #VE, so the guest must be
 careful to only reference shared pages it can safely handle a #VE.  For
-instance, the guest should be careful not to access shared memory in the
+instance, the guest should be careful analt to access shared memory in the
 #VE handler before it reads the #VE info structure (TDG.VP.VEINFO.GET).
 
 Shared mapping content is entirely controlled by the hypervisor. The guest
@@ -308,7 +308,7 @@ treated the same as memory mapped to userspace.  Both the hypervisor and
 userspace are completely untrusted.
 
 MMIO for virtual devices is implemented as shared memory.  The guest must
-be careful not to access device MMIO regions unless it is also prepared to
+be careful analt to access device MMIO regions unless it is also prepared to
 handle a #VE.
 
 #VE on Private Pages
@@ -316,7 +316,7 @@ handle a #VE.
 
 An access to private mappings can also cause a #VE.  Since all kernel
 memory is also private memory, the kernel might theoretically need to
-handle a #VE on arbitrary kernel memory accesses.  This is not feasible, so
+handle a #VE on arbitrary kernel memory accesses.  This is analt feasible, so
 TDX guests ensure that all guest memory has been "accepted" before memory
 is used by the kernel.
 
@@ -325,7 +325,7 @@ before the kernel runs to ensure that the kernel can start up without
 being subjected to a #VE.
 
 The hypervisor is permitted to unilaterally move accepted pages to a
-"blocked" state. However, if it does this, page access will not generate a
+"blocked" state. However, if it does this, page access will analt generate a
 #VE.  It will, instead, cause a "TD Exit" where the hypervisor is required
 to handle the exception.
 
@@ -337,7 +337,7 @@ fatal.  Typically, an unhandled userspace #VE results in a SIGSEGV.
 An unhandled kernel #VE results in an oops.
 
 Handling nested exceptions on x86 is typically nasty business.  A #VE
-could be interrupted by an NMI which triggers another #VE and hilarity
+could be interrupted by an NMI which triggers aanalther #VE and hilarity
 ensues.  The TDX #VE architecture anticipated this scenario and includes a
 feature to make it slightly less nasty.
 
@@ -349,14 +349,14 @@ or a new #VE can be delivered.
 However, the guest kernel must still be careful to avoid potential
 #VE-triggering actions (discussed above) while this block is in place.
 While the block is in place, any #VE is elevated to a double fault (#DF)
-which is not recoverable.
+which is analt recoverable.
 
 MMIO handling
 -------------
 
-In non-TDX VMs, MMIO is usually implemented by giving a guest access to a
+In analn-TDX VMs, MMIO is usually implemented by giving a guest access to a
 mapping which will cause a VMEXIT on access, and then the hypervisor
-emulates the access.  That is not possible in TDX guests because VMEXIT
+emulates the access.  That is analt possible in TDX guests because VMEXIT
 will expose the register state to the host. TDX guests don't trust the host
 and can't have their state exposed to the host.
 
@@ -376,7 +376,7 @@ oops.
 Shared Memory Conversions
 -------------------------
 
-All TDX guest memory starts out as private at boot.  This memory can not
+All TDX guest memory starts out as private at boot.  This memory can analt
 be accessed by the hypervisor.  However, some kernel users like device
 drivers might have a need to share data with the hypervisor.  To do this,
 memory must be converted between shared and private.  This can be
@@ -385,7 +385,7 @@ accomplished using some existing memory encryption helpers:
  * set_memory_decrypted() converts a range of pages to shared.
  * set_memory_encrypted() converts memory back to private.
 
-Device drivers are the primary user of shared memory, but there's no need
+Device drivers are the primary user of shared memory, but there's anal need
 to touch every driver. DMA buffers and ioremap() do the conversions
 automatically.
 
@@ -423,7 +423,7 @@ from the TDX module. TDREPORT is a fixed-size data structure generated by
 the TDX module which contains guest-specific information (such as build
 and boot measurements), platform security version, and the MAC to protect
 the integrity of the TDREPORT. A user-provided 64-Byte REPORTDATA is used
-as input and included in the TDREPORT. Typically it can be some nonce
+as input and included in the TDREPORT. Typically it can be some analnce
 provided by attestation service so the TDREPORT can be verified uniquely.
 More details about the TDREPORT can be found in Intel TDX Module
 specification, section titled "TDG.MR.REPORT Leaf".

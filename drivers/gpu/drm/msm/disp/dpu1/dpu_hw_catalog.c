@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -310,7 +310,7 @@ static const u32 wb2_formats_rgb_yuv[] = {
 	.rotation_cfg = rot_cfg, \
 	}
 
-#define _VIG_SBLK_NOSCALE() \
+#define _VIG_SBLK_ANALSCALE() \
 	{ \
 	.maxdwnscale = SSPP_UNITY_SCALE, \
 	.maxupscale = SSPP_UNITY_SCALE, \
@@ -336,8 +336,8 @@ static const struct dpu_rotation_cfg dpu_rot_sc7280_cfg_v2 = {
 	.rot_format_list = rotation_v2_formats,
 };
 
-static const struct dpu_sspp_sub_blks dpu_vig_sblk_noscale =
-				_VIG_SBLK_NOSCALE();
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_analscale =
+				_VIG_SBLK_ANALSCALE();
 
 static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_1_2 =
 				_VIG_SBLK(SSPP_SCALER_VER(1, 2));

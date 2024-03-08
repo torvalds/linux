@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #ifndef __LINUX_KBUILD_H
-# error "Please do not build this file directly, build asm-offsets.c instead"
+# error "Please do analt build this file directly, build asm-offsets.c instead"
 #endif
 
 #include <linux/efi.h>

@@ -301,7 +301,7 @@ static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 	struct fm801 *chip = ac97->private_data;
 
 	/*
-	 *  Wait until the codec interface is not ready..
+	 *  Wait until the codec interface is analt ready..
 	 */
 	if (!fm801_ac97_is_ready(chip, 100)) {
 		dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
@@ -312,7 +312,7 @@ static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 	fm801_writew(chip, AC97_DATA, val);
 	fm801_writew(chip, AC97_CMD, reg | (ac97->addr << FM801_AC97_ADDR_SHIFT));
 	/*
-	 *  Wait until the write command is not completed..
+	 *  Wait until the write command is analt completed..
 	 */
 	if (!fm801_ac97_is_ready(chip, 1000))
 		dev_err(chip->card->dev, "AC'97 interface #%d is busy (2)\n",
@@ -324,7 +324,7 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 	struct fm801 *chip = ac97->private_data;
 
 	/*
-	 *  Wait until the codec interface is not ready..
+	 *  Wait until the codec interface is analt ready..
 	 */
 	if (!fm801_ac97_is_ready(chip, 100)) {
 		dev_err(chip->card->dev, "AC'97 interface is busy (1)\n");
@@ -342,7 +342,7 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 
 	if (!fm801_ac97_is_valid(chip, 1000)) {
 		dev_err(chip->card->dev,
-			"AC'97 interface #%d is not valid (2)\n", ac97->num);
+			"AC'97 interface #%d is analt valid (2)\n", ac97->num);
 		return 0;
 	}
 
@@ -563,7 +563,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	status = fm801_readw(chip, IRQ_STATUS);
 	status &= FM801_IRQ_PLAYBACK|FM801_IRQ_CAPTURE|FM801_IRQ_MPU|FM801_IRQ_VOLUME;
 	if (! status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* ack first */
 	fm801_writew(chip, IRQ_STATUS, status);
 	if (chip->pcm && (status & FM801_IRQ_PLAYBACK) && chip->playback_substream) {
@@ -610,7 +610,7 @@ static const struct snd_pcm_hardware snd_fm801_playback =
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5500,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -630,7 +630,7 @@ static const struct snd_pcm_hardware snd_fm801_capture =
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
-	.rates =		SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_8000_48000,
+	.rates =		SNDRV_PCM_RATE_KANALT | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5500,
 	.rate_max =		48000,
 	.channels_min =		1,
@@ -1128,7 +1128,7 @@ static void snd_fm801_chip_multichannel_init(struct fm801 *chip)
 			}
 		}
 
-		/* the recovery phase, it seems that probing for non-existing codec might */
+		/* the recovery phase, it seems that probing for analn-existing codec might */
 		/* cause timeout problems */
 		wait_for_codec(chip, 0, AC97_VENDOR_ID1, msecs_to_jiffies(750));
 	}
@@ -1149,7 +1149,7 @@ static void snd_fm801_chip_init(struct fm801 *chip)
 	/* interrupt setup */
 	cmdw = fm801_readw(chip, IRQ_MASK);
 	if (chip->irq < 0)
-		cmdw |= 0x00c3;		/* mask everything, no PCM nor MPU */
+		cmdw |= 0x00c3;		/* mask everything, anal PCM analr MPU */
 	else
 		cmdw &= ~0x0083;	/* unmask MPU, PLAYBACK & CAPTURE */
 	fm801_writew(chip, IRQ_MASK, cmdw);
@@ -1204,7 +1204,7 @@ static int snd_fm801_create(struct snd_card *card,
 	if (!(chip->tea575x_tuner & TUNER_ONLY)) {
 		if (reset_codec(chip) < 0) {
 			dev_info(chip->card->dev,
-				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
+				 "Primary AC'97 codec analt found, assume SF64-PCR (tuner-only)\n");
 			chip->tea575x_tuner = 3 | TUNER_ONLY;
 		} else {
 			snd_fm801_chip_multichannel_init(chip);
@@ -1237,8 +1237,8 @@ static int snd_fm801_create(struct snd_card *card,
 	if ((chip->tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
 	    (chip->tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
-			dev_err(card->dev, "TEA575x radio not found\n");
-			return -ENODEV;
+			dev_err(card->dev, "TEA575x radio analt found\n");
+			return -EANALDEV;
 		}
 	} else if ((chip->tea575x_tuner & TUNER_TYPE_MASK) == 0) {
 		unsigned int tuner_only = chip->tea575x_tuner & TUNER_ONLY;
@@ -1254,7 +1254,7 @@ static int snd_fm801_create(struct snd_card *card,
 			}
 		}
 		if (tea575x_tuner == 4) {
-			dev_err(card->dev, "TEA575x radio not found\n");
+			dev_err(card->dev, "TEA575x radio analt found\n");
 			chip->tea575x_tuner = TUNER_DISABLED;
 		}
 
@@ -1278,10 +1278,10 @@ static int __snd_card_fm801_probe(struct pci_dev *pci,
 	int err;
 
         if (dev >= SNDRV_CARDS)
-                return -ENODEV;
+                return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

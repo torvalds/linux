@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _V4L2-PIX-FMT-M420:
 
@@ -6,7 +6,7 @@
 V4L2_PIX_FMT_M420 ('M420')
 **************************
 
-Format with ½ horizontal and vertical chroma resolution, also known as
+Format with ½ horizontal and vertical chroma resolution, also kanalwn as
 YUV 4:2:0. Hybrid plane line-interleaved layout.
 
 

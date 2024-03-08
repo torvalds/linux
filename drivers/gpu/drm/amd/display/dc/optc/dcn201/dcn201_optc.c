@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -89,7 +89,7 @@ static bool optc201_validate_timing(
 		timing->h_border_right -
 		timing->h_border_left);
 
-	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE &&
+	if (timing->timing_3d_format != TIMING_3D_FORMAT_ANALNE &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_HW_FRAME_PACKING &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_TOP_AND_BOTTOM &&
 		timing->timing_3d_format != TIMING_3D_FORMAT_SIDE_BY_SIDE &&
@@ -144,14 +144,14 @@ static struct timing_generator_funcs dcn201_tg_funcs = {
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc2_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scaanalutpos = optc1_get_crtc_scaanalutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
-		/* used by enable_timing_synchronization. Not need for FPGA */
+		/* used by enable_timing_synchronization. Analt need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
 		.set_blank = optc1_set_blank,
 		.is_blanked = optc1_is_blanked,

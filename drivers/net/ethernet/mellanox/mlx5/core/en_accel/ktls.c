@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include <linux/debugfs.h>
 #include "en.h"
@@ -55,7 +55,7 @@ static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
 	int err;
 
 	if (!mlx5e_ktls_type_check(mdev, crypto_info))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
 		err = mlx5e_ktls_add_tx(netdev, sk, crypto_info, start_offload_tcp_sn);
@@ -80,7 +80,7 @@ static int mlx5e_ktls_resync(struct net_device *netdev,
 			     enum tls_offload_ctx_dir direction)
 {
 	if (unlikely(direction != TLS_OFFLOAD_CTX_DIR_RX))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mlx5e_ktls_rx_resync(netdev, sk, seq, rcd_sn);
 	return 0;
@@ -153,7 +153,7 @@ int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
 
 	priv->tls->rx_wq = create_singlethread_workqueue("mlx5e_tls_rx");
 	if (!priv->tls->rx_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (priv->netdev->features & NETIF_F_HW_TLS_RX) {
 		err = mlx5e_accel_fs_tcp_create(priv->fs);
@@ -195,7 +195,7 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 
 	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
 	if (!tls)
-		return -ENOMEM;
+		return -EANALMEM;
 	tls->mdev = priv->mdev;
 
 	priv->tls = tls;

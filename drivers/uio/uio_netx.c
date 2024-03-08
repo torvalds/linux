@@ -39,7 +39,7 @@ static irqreturn_t netx_handler(int irq, struct uio_info *dev_info)
 	/* Is one of our interrupts enabled and active ? */
 	if (!(ioread32(int_enable_reg) & ioread32(int_status_reg)
 		& DPM_HOST_INT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Disable interrupt */
 	iowrite32(ioread32(int_enable_reg) & ~DPM_HOST_INT_GLOBAL_EN,
@@ -55,10 +55,10 @@ static int netx_pci_probe(struct pci_dev *dev,
 
 	info = devm_kzalloc(&dev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pci_enable_device(dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pci_request_regions(dev, "netx"))
 		goto out_disable;
@@ -112,7 +112,7 @@ out_release:
 	pci_release_regions(dev);
 out_disable:
 	pci_disable_device(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void netx_pci_remove(struct pci_dev *dev)

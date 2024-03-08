@@ -26,7 +26,7 @@
 /* Macros for apic_extnmi which controls external NMI masking */
 #define APIC_EXTNMI_BSP		0 /* Default */
 #define APIC_EXTNMI_ALL		1
-#define APIC_EXTNMI_NONE	2
+#define APIC_EXTNMI_ANALNE	2
 
 /*
  * Define the default level of output to be very little
@@ -60,9 +60,9 @@ extern enum apic_intr_mode_id apic_intr_mode;
 enum apic_intr_mode_id {
 	APIC_PIC,
 	APIC_VIRTUAL_WIRE,
-	APIC_VIRTUAL_WIRE_NO_CONFIG,
+	APIC_VIRTUAL_WIRE_ANAL_CONFIG,
 	APIC_SYMMETRIC_IO,
-	APIC_SYMMETRIC_IO_NO_ROUTING
+	APIC_SYMMETRIC_IO_ANAL_ROUTING
 };
 
 /*
@@ -174,8 +174,8 @@ static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1
 static inline void init_apic_mappings(void) { }
 static inline void disable_local_APIC(void) { }
-# define setup_boot_APIC_clock x86_init_noop
-# define setup_secondary_APIC_clock x86_init_noop
+# define setup_boot_APIC_clock x86_init_analop
+# define setup_secondary_APIC_clock x86_init_analop
 static inline void lapic_update_tsc_freq(void) { }
 static inline void init_bsp_APIC(void) { }
 static inline void apic_intr_mode_select(void) { }
@@ -504,7 +504,7 @@ extern void generic_bigsmp_probe(void);
 
 #include <asm/smp.h>
 
-extern struct apic apic_noop;
+extern struct apic apic_analop;
 
 static inline u32 read_apic_id(void)
 {

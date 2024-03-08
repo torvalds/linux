@@ -3,7 +3,7 @@
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <init.h>
 #include <kern.h>
 #include <os.h>

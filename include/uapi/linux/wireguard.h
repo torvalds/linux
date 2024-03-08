@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-analte) OR MIT */
 /*
  * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
@@ -7,7 +7,7 @@
  *
  * The below enums and macros are for interfacing with WireGuard, using generic
  * netlink, with family WG_GENL_NAME and version WG_GENL_VERSION. It defines two
- * methods: get and set. Note that while they share many common attributes,
+ * methods: get and set. Analte that while they share many common attributes,
  * these two functions actually accept a slightly different set of inputs and
  * outputs.
  *
@@ -15,7 +15,7 @@
  * -----------------
  *
  * May only be called via NLM_F_REQUEST | NLM_F_DUMP. The command should contain
- * one but not both of:
+ * one but analt both of:
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
  *    WGDEVICE_A_IFNAME: NLA_NUL_STRING, maxlen IFNAMSIZ - 1
@@ -53,13 +53,13 @@
  *            ...
  *        ...
  *
- * It is possible that all of the allowed IPs of a single peer will not
+ * It is possible that all of the allowed IPs of a single peer will analt
  * fit within a single netlink message. In that case, the same peer will
  * be written in the following message, except it will only contain
  * WGPEER_A_PUBLIC_KEY and WGPEER_A_ALLOWEDIPS. This may occur several
  * times in a row for the same peer. It is then up to the receiver to
  * coalesce adjacent peers. Likewise, it is possible that all peers will
- * not fit within a single message. So, subsequent peers will be sent
+ * analt fit within a single message. So, subsequent peers will be sent
  * in following messages, except those will only contain WGDEVICE_A_IFNAME
  * and WGDEVICE_A_PEERS. It is then up to the receiver to coalesce these
  * messages to form the complete list of peers.
@@ -67,13 +67,13 @@
  * Since this is an NLA_F_DUMP command, the final message will always be
  * NLMSG_DONE, even if an error occurs. However, this NLMSG_DONE message
  * contains an integer error code. It is either zero or a negative error
- * code corresponding to the errno.
+ * code corresponding to the erranal.
  *
  * WG_CMD_SET_DEVICE
  * -----------------
  *
  * May only be called via NLM_F_REQUEST. The command should contain the
- * following tree of nested items, containing one but not both of
+ * following tree of nested items, containing one but analt both of
  * WGDEVICE_A_IFINDEX and WGDEVICE_A_IFNAME:
  *
  *    WGDEVICE_A_IFINDEX: NLA_U32
@@ -87,7 +87,7 @@
  *        0: NLA_NESTED
  *            WGPEER_A_PUBLIC_KEY: len WG_KEY_LEN
  *            WGPEER_A_FLAGS: NLA_U32, 0 and/or WGPEER_F_REMOVE_ME if the
- *                            specified peer should not exist at the end of the
+ *                            specified peer should analt exist at the end of the
  *                            operation, rather than added/updated and/or
  *                            WGPEER_F_REPLACE_ALLOWEDIPS if all current allowed
  *                            IPs of this peer should be removed prior to adding
@@ -106,7 +106,7 @@
  *                0: NLA_NESTED
  *                    ...
  *                ...
- *            WGPEER_A_PROTOCOL_VERSION: NLA_U32, should not be set or used at
+ *            WGPEER_A_PROTOCOL_VERSION: NLA_U32, should analt be set or used at
  *                                       all by most users of this API, as the
  *                                       most recent protocol will be used when
  *                                       this is unset. Otherwise, must be set
@@ -117,15 +117,15 @@
  *
  * It is possible that the amount of configuration data exceeds that of
  * the maximum message length accepted by the kernel. In that case, several
- * messages should be sent one after another, with each successive one
- * filling in information not contained in the prior. Note that if
+ * messages should be sent one after aanalther, with each successive one
+ * filling in information analt contained in the prior. Analte that if
  * WGDEVICE_F_REPLACE_PEERS is specified in the first message, it probably
- * should not be specified in fragments that come after, so that the list
+ * should analt be specified in fragments that come after, so that the list
  * of peers is only cleared the first time but appended after. Likewise for
  * peers, if WGPEER_F_REPLACE_ALLOWEDIPS is specified in the first message
- * of a peer, it likely should not be specified in subsequent fragments.
+ * of a peer, it likely should analt be specified in subsequent fragments.
  *
- * If an error occurs, NLMSG_ERROR will reply containing an errno.
+ * If an error occurs, NLMSG_ERROR will reply containing an erranal.
  */
 
 #ifndef _WG_UAPI_WIREGUARD_H

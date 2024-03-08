@@ -43,7 +43,7 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		ns += 999999984;
 	}
 
-	set_normalized_timespec64(ts, s, ns);
+	set_analrmalized_timespec64(ts, s, ns);
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_ptp_gettime64);
@@ -117,14 +117,14 @@ int ocelot_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 		if (ocelot->ops->tas_clock_adjust)
 			ocelot->ops->tas_clock_adjust(ocelot);
 	} else {
-		/* Fall back using ocelot_ptp_settime64 which is not exact. */
+		/* Fall back using ocelot_ptp_settime64 which is analt exact. */
 		struct timespec64 ts;
-		u64 now;
+		u64 analw;
 
 		ocelot_ptp_gettime64(ptp, &ts);
 
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
+		analw = ktime_to_ns(timespec64_to_ktime(ts));
+		ts = ns_to_timespec64(analw + delta);
 
 		ocelot_ptp_settime64(ptp, &ts);
 	}
@@ -183,7 +183,7 @@ int ocelot_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 		      enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_PEROUT:
 		break;
 	case PTP_PF_EXTTS:
@@ -212,7 +212,7 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags & ~(PTP_PEROUT_DUTY_CYCLE |
 					 PTP_PEROUT_PHASE))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		pin = ptp_find_pin(ocelot->ptp_clock, PTP_PF_PEROUT,
 				   rq->perout.index);
@@ -252,7 +252,7 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		}
 		if (ts_phase.tv_sec || (ts_phase.tv_nsec && !pps)) {
 			dev_warn(ocelot->dev,
-				 "Absolute start time not supported!\n");
+				 "Absolute start time analt supported!\n");
 			dev_warn(ocelot->dev,
 				 "Accept nsec for PPS phase adjustment, otherwise start time should be 0 0.\n");
 			return -EINVAL;
@@ -308,7 +308,7 @@ int ocelot_ptp_enable(struct ptp_clock_info *ptp,
 		spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -492,7 +492,7 @@ static int ocelot_traps_to_ptp_rx_filter(unsigned int proto)
 	else if (proto & OCELOT_PROTO_PTP_L4)
 		return HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 
-	return HWTSTAMP_FILTER_NONE;
+	return HWTSTAMP_FILTER_ANALNE;
 }
 
 int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr)
@@ -547,7 +547,7 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 	}
 
 	switch (cfg.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
@@ -598,7 +598,7 @@ int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 				 SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON) |
 			 BIT(HWTSTAMP_TX_ONESTEP_SYNC);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
@@ -667,12 +667,12 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 	unsigned int ptp_class;
 	int err;
 
-	/* Don't do anything if PTP timestamping not enabled */
+	/* Don't do anything if PTP timestamping analt enabled */
 	if (!ptp_cmd)
 		return 0;
 
 	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
+	if (ptp_class == PTP_CLASS_ANALNE)
 		return -EINVAL;
 
 	/* Store ptp_cmd in OCELOT_SKB_CB(skb)->ptp_cmd */
@@ -689,7 +689,7 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 	if (ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
 		*clone = skb_clone_sk(skb);
 		if (!(*clone))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = ocelot_port_add_txtstamp_skb(ocelot, port, *clone);
 		if (err)
@@ -825,7 +825,7 @@ int ocelot_init_timestamp(struct ocelot *ocelot,
 
 		snprintf(p->name, sizeof(p->name), "switch_1588_dat%d", i);
 		p->index = i;
-		p->func = PTP_PF_NONE;
+		p->func = PTP_PF_ANALNE;
 	}
 
 	ocelot->ptp_info.pin_config = &ocelot->ptp_pins[0];

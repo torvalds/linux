@@ -24,7 +24,7 @@ atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
 #define invalid_pg_dir		vmlinux.invalid_pg_dir_off
 
 enum populate_mode {
-	POPULATE_NONE,
+	POPULATE_ANALNE,
 	POPULATE_DIRECT,
 	POPULATE_ABS_LOWCORE,
 #ifdef CONFIG_KASAN
@@ -66,7 +66,7 @@ static void kasan_populate_shadow(void)
 
 	pte_z = __pte(__pa(kasan_early_shadow_page) | pgprot_val(PAGE_KERNEL_RO));
 	if (!machine.has_nx)
-		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
+		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_ANALEXEC));
 	crst_table_init((unsigned long *)kasan_early_shadow_p4d, p4d_val(p4d_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
@@ -257,7 +257,7 @@ static pte_t *boot_pte_alloc(void)
 static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_mode mode)
 {
 	switch (mode) {
-	case POPULATE_NONE:
+	case POPULATE_ANALNE:
 		return -1;
 	case POPULATE_DIRECT:
 		return addr;
@@ -294,13 +294,13 @@ static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long e
 
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
-		if (pte_none(*pte)) {
+		if (pte_analne(*pte)) {
 			if (kasan_pte_populate_zero_shadow(pte, mode))
 				continue;
 			entry = __pte(_pa(addr, PAGE_SIZE, mode));
 			entry = set_pte_bit(entry, PAGE_KERNEL);
 			if (!machine.has_nx)
-				entry = clear_pte_bit(entry, __pgprot(_PAGE_NOEXEC));
+				entry = clear_pte_bit(entry, __pgprot(_PAGE_ANALEXEC));
 			set_pte(pte, entry);
 			pages++;
 		}
@@ -319,14 +319,14 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 	pmd = pmd_offset(pud, addr);
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none(*pmd)) {
+		if (pmd_analne(*pmd)) {
 			if (kasan_pmd_populate_zero_shadow(pmd, addr, next, mode))
 				continue;
 			if (can_large_pmd(pmd, addr, next)) {
 				entry = __pmd(_pa(addr, _SEGMENT_SIZE, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL);
 				if (!machine.has_nx)
-					entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_NOEXEC));
+					entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_ANALEXEC));
 				set_pmd(pmd, entry);
 				pages++;
 				continue;
@@ -352,14 +352,14 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 	pud = pud_offset(p4d, addr);
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
-		if (pud_none(*pud)) {
+		if (pud_analne(*pud)) {
 			if (kasan_pud_populate_zero_shadow(pud, addr, next, mode))
 				continue;
 			if (can_large_pud(pud, addr, next)) {
 				entry = __pud(_pa(addr, _REGION3_SIZE, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL);
 				if (!machine.has_nx)
-					entry = clear_pud_bit(entry, __pgprot(_REGION_ENTRY_NOEXEC));
+					entry = clear_pud_bit(entry, __pgprot(_REGION_ENTRY_ANALEXEC));
 				set_pud(pud, entry);
 				pages++;
 				continue;
@@ -385,7 +385,7 @@ static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long e
 	p4d = p4d_offset(pgd, addr);
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
-		if (p4d_none(*p4d)) {
+		if (p4d_analne(*p4d)) {
 			if (kasan_p4d_populate_zero_shadow(p4d, addr, next, mode))
 				continue;
 			pud = boot_crst_alloc(_REGION3_ENTRY_EMPTY);
@@ -404,7 +404,7 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	pgd = pgd_offset(&init_mm, addr);
 	for (; addr < end; addr = next, pgd++) {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none(*pgd)) {
+		if (pgd_analne(*pgd)) {
 			if (kasan_pgd_populate_zero_shadow(pgd, addr, next, mode))
 				continue;
 			p4d = boot_crst_alloc(_REGION2_ENTRY_EMPTY);
@@ -426,12 +426,12 @@ void setup_vmem(unsigned long asce_limit)
 	int i;
 
 	/*
-	 * Mark whole memory as no-dat. This must be done before any
+	 * Mark whole memory as anal-dat. This must be done before any
 	 * page tables are allocated, or kernel image builtin pages
 	 * are marked as dat tables.
 	 */
 	for_each_physmem_online_range(i, &start, &end)
-		__arch_set_page_nodat((void *)start, (end - start) >> PAGE_SHIFT);
+		__arch_set_page_analdat((void *)start, (end - start) >> PAGE_SHIFT);
 
 	if (asce_limit == _REGION1_SIZE) {
 		asce_type = _REGION2_ENTRY_EMPTY;
@@ -458,7 +458,7 @@ void setup_vmem(unsigned long asce_limit)
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
-			 POPULATE_NONE);
+			 POPULATE_ANALNE);
 	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);
 
 	kasan_populate_shadow();

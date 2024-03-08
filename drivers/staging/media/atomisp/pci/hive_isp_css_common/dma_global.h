@@ -102,10 +102,10 @@ typedef enum {
   hive_dma_snd(dma_id, from_is_var); \
 }
 
-#define hive_dma_move_data_no_ack(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
+#define hive_dma_move_data_anal_ack(dma_id, read, channel, addr_a, addr_b, to_is_var, from_is_var) \
 { \
   hive_dma_snd(dma_id, DMA_PACK(_DMA_V2_SET_CRUN_COMMAND, CMD)); \
-  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read ? _DMA_V2_NO_ACK_MOVE_B2A_NO_SYNC_CHK_COMMAND : _DMA_V2_NO_ACK_MOVE_A2B_NO_SYNC_CHK_COMMAND, channel)); \
+  hive_dma_snd(dma_id, DMA_PACK_CMD_CHANNEL(read ? _DMA_V2_ANAL_ACK_MOVE_B2A_ANAL_SYNC_CHK_COMMAND : _DMA_V2_ANAL_ACK_MOVE_A2B_ANAL_SYNC_CHK_COMMAND, channel)); \
   hive_dma_snd(dma_id, read ? (unsigned int)(addr_b) : (unsigned int)(addr_a)); \
   hive_dma_snd(dma_id, read ? (unsigned int)(addr_a) : (unsigned int)(addr_b)); \
   hive_dma_snd(dma_id, to_is_var); \
@@ -187,12 +187,12 @@ typedef enum {
 #define	DMA_CFG_CMDBIT		0x20
 #define	DMA_PARAM_CMDBIT	0x01
 
-/* Write complete check not necessary if there's no ack */
-#define	DMA_NOACK_CMD		(DMA_ACK_CMDBIT | DMA_CHECK_CMDBIT)
+/* Write complete check analt necessary if there's anal ack */
+#define	DMA_ANALACK_CMD		(DMA_ACK_CMDBIT | DMA_CHECK_CMDBIT)
 #define	DMA_CFG_CMD			(DMA_CFG_CMDBIT)
 #define	DMA_CFGPARAM_CMD	(DMA_CFG_CMDBIT | DMA_PARAM_CMDBIT)
 
-#define DMA_CMD_NEEDS_ACK(cmd) ((cmd & DMA_NOACK_CMD) == 0)
+#define DMA_CMD_NEEDS_ACK(cmd) ((cmd & DMA_ANALACK_CMD) == 0)
 #define DMA_CMD_IS_TRANSFER(cmd) ((cmd & DMA_CFG_CMDBIT) == 0)
 #define DMA_CMD_IS_WR(cmd) ((cmd & DMA_RW_CMDBIT) != 0)
 #define DMA_CMD_IS_RD(cmd) ((cmd & DMA_RW_CMDBIT) == 0)
@@ -213,18 +213,18 @@ typedef enum {
 	DMA_TRANSFER_CLEAR_B = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT,                       /* 12 */
 	DMA_TRANSFER_A2B = DMA_RW_CMDBIT,                                              /* 4 */
 	DMA_TRANSFER_B2A = 0,                                                          /* 0 */
-	DMA_TRANSFER_CLEAR_A_NOACK = DMA_CLEAR_CMDBIT | DMA_NOACK_CMD,                 /* 26 */
-	DMA_TRANSFER_CLEAR_B_NOACK = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT | DMA_NOACK_CMD, /* 30 */
-	DMA_TRANSFER_A2B_NOACK = DMA_RW_CMDBIT | DMA_NOACK_CMD,                        /* 22 */
-	DMA_TRANSFER_B2A_NOACK = DMA_NOACK_CMD,                                        /* 18 */
+	DMA_TRANSFER_CLEAR_A_ANALACK = DMA_CLEAR_CMDBIT | DMA_ANALACK_CMD,                 /* 26 */
+	DMA_TRANSFER_CLEAR_B_ANALACK = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT | DMA_ANALACK_CMD, /* 30 */
+	DMA_TRANSFER_A2B_ANALACK = DMA_RW_CMDBIT | DMA_ANALACK_CMD,                        /* 22 */
+	DMA_TRANSFER_B2A_ANALACK = DMA_ANALACK_CMD,                                        /* 18 */
 	DMA_FASTTRANSFER_CLEAR_A = DMA_CLEAR_CMDBIT | DMA_SPECIFIC_CMDBIT,
 	DMA_FASTTRANSFER_CLEAR_B = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT | DMA_SPECIFIC_CMDBIT,
 	DMA_FASTTRANSFER_A2B = DMA_RW_CMDBIT | DMA_SPECIFIC_CMDBIT,
 	DMA_FASTTRANSFER_B2A = DMA_SPECIFIC_CMDBIT,
-	DMA_FASTTRANSFER_CLEAR_A_NOACK = DMA_CLEAR_CMDBIT | DMA_NOACK_CMD | DMA_SPECIFIC_CMDBIT,
-	DMA_FASTTRANSFER_CLEAR_B_NOACK = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT | DMA_NOACK_CMD | DMA_SPECIFIC_CMDBIT,
-	DMA_FASTTRANSFER_A2B_NOACK = DMA_RW_CMDBIT | DMA_NOACK_CMD | DMA_SPECIFIC_CMDBIT,
-	DMA_FASTTRANSFER_B2A_NOACK = DMA_NOACK_CMD | DMA_SPECIFIC_CMDBIT,
+	DMA_FASTTRANSFER_CLEAR_A_ANALACK = DMA_CLEAR_CMDBIT | DMA_ANALACK_CMD | DMA_SPECIFIC_CMDBIT,
+	DMA_FASTTRANSFER_CLEAR_B_ANALACK = DMA_CLEAR_CMDBIT | DMA_RW_CMDBIT | DMA_ANALACK_CMD | DMA_SPECIFIC_CMDBIT,
+	DMA_FASTTRANSFER_A2B_ANALACK = DMA_RW_CMDBIT | DMA_ANALACK_CMD | DMA_SPECIFIC_CMDBIT,
+	DMA_FASTTRANSFER_B2A_ANALACK = DMA_ANALACK_CMD | DMA_SPECIFIC_CMDBIT,
 } dma_transfer_type_t;
 
 typedef enum {

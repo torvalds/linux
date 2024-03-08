@@ -49,7 +49,7 @@
 #define DRIVER_DESC "qemu cirrus vga"
 #define DRIVER_DATE "2019"
 #define DRIVER_MAJOR 2
-#define DRIVER_MINOR 0
+#define DRIVER_MIANALR 0
 
 #define CIRRUS_MAX_PITCH (0x1FF << 3)      /* (4096 - 1) & ~111b bytes */
 #define CIRRUS_VRAM_SIZE (4 * 1024 * 1024) /* 4 MB */
@@ -73,7 +73,7 @@ struct cirrus_device {
 struct cirrus_primary_plane_state {
 	struct drm_shadow_plane_state base;
 
-	/* HW scanout buffer */
+	/* HW scaanalut buffer */
 	const struct drm_format_info   *format;
 	unsigned int		       pitch;
 };
@@ -354,8 +354,8 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -537,7 +537,7 @@ static int cirrus_connector_helper_get_modes(struct drm_connector *connector)
 {
 	int count;
 
-	count = drm_add_modes_noedid(connector,
+	count = drm_add_modes_analedid(connector,
 				     connector->dev->mode_config.max_width,
 				     connector->dev->mode_config.max_height);
 	drm_set_preferred_mode(connector, 1024, 768);
@@ -658,7 +658,7 @@ static const struct drm_driver cirrus_driver = {
 	.desc		 = DRIVER_DESC,
 	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
-	.minor		 = DRIVER_MINOR,
+	.mianalr		 = DRIVER_MIANALR,
 
 	.fops		 = &cirrus_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
@@ -683,7 +683,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	cirrus = devm_drm_dev_alloc(&pdev->dev, &cirrus_driver,
 				    struct cirrus_device, dev);
 	if (IS_ERR(cirrus))
@@ -694,12 +694,12 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	cirrus->vram = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0),
 				    pci_resource_len(pdev, 0));
 	if (cirrus->vram == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cirrus->mmio = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 1),
 				    pci_resource_len(pdev, 1));
 	if (cirrus->mmio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cirrus_mode_config_init(cirrus);
 	if (ret)

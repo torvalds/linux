@@ -196,7 +196,7 @@ DEFINE_SMB3_FD_EVENT(flush_enter);
 DEFINE_SMB3_FD_EVENT(flush_done);
 DEFINE_SMB3_FD_EVENT(close_enter);
 DEFINE_SMB3_FD_EVENT(close_done);
-DEFINE_SMB3_FD_EVENT(oplock_not_found);
+DEFINE_SMB3_FD_EVENT(oplock_analt_found);
 
 DECLARE_EVENT_CLASS(smb3_fd_err_class,
 	TP_PROTO(unsigned int xid,
@@ -281,8 +281,8 @@ DEFINE_EVENT(smb3_inf_enter_class, smb3_##name,    \
 
 DEFINE_SMB3_INF_ENTER_EVENT(query_info_enter);
 DEFINE_SMB3_INF_ENTER_EVENT(query_info_done);
-DEFINE_SMB3_INF_ENTER_EVENT(notify_enter);
-DEFINE_SMB3_INF_ENTER_EVENT(notify_done);
+DEFINE_SMB3_INF_ENTER_EVENT(analtify_enter);
+DEFINE_SMB3_INF_ENTER_EVENT(analtify_done);
 
 DECLARE_EVENT_CLASS(smb3_inf_err_class,
 	TP_PROTO(unsigned int xid,
@@ -329,7 +329,7 @@ DEFINE_EVENT(smb3_inf_err_class, smb3_##name,    \
 
 DEFINE_SMB3_INF_ERR_EVENT(query_info_err);
 DEFINE_SMB3_INF_ERR_EVENT(set_info_err);
-DEFINE_SMB3_INF_ERR_EVENT(notify_err);
+DEFINE_SMB3_INF_ERR_EVENT(analtify_err);
 DEFINE_SMB3_INF_ERR_EVENT(fsctl_err);
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_enter_class,
@@ -606,26 +606,26 @@ DEFINE_SMB3_EXIT_ERR_EVENT(exit_err);
 
 
 DECLARE_EVENT_CLASS(smb3_sync_err_class,
-	TP_PROTO(unsigned long ino,
+	TP_PROTO(unsigned long ianal,
 		int	rc),
-	TP_ARGS(ino, rc),
+	TP_ARGS(ianal, rc),
 	TP_STRUCT__entry(
-		__field(unsigned long, ino)
+		__field(unsigned long, ianal)
 		__field(int, rc)
 	),
 	TP_fast_assign(
-		__entry->ino = ino;
+		__entry->ianal = ianal;
 		__entry->rc = rc;
 	),
-	TP_printk("\tino=%lu rc=%d",
-		__entry->ino, __entry->rc)
+	TP_printk("\tianal=%lu rc=%d",
+		__entry->ianal, __entry->rc)
 )
 
 #define DEFINE_SMB3_SYNC_ERR_EVENT(name)          \
 DEFINE_EVENT(smb3_sync_err_class, cifs_##name,    \
-	TP_PROTO(unsigned long ino,		\
+	TP_PROTO(unsigned long ianal,		\
 		int	rc),			\
-	TP_ARGS(ino, rc))
+	TP_ARGS(ianal, rc))
 
 DEFINE_SMB3_SYNC_ERR_EVENT(fsync_err);
 DEFINE_SMB3_SYNC_ERR_EVENT(flush_err);
@@ -865,7 +865,7 @@ DEFINE_EVENT(smb3_lease_done_class, smb3_##name,  \
 	TP_ARGS(lease_state, tid, sesid, lease_key_low, lease_key_high))
 
 DEFINE_SMB3_LEASE_DONE_EVENT(lease_done);
-DEFINE_SMB3_LEASE_DONE_EVENT(lease_not_found);
+DEFINE_SMB3_LEASE_DONE_EVENT(lease_analt_found);
 
 DECLARE_EVENT_CLASS(smb3_lease_err_class,
 	TP_PROTO(__u32	lease_state,
@@ -1028,7 +1028,7 @@ DEFINE_EVENT(smb3_ses_class, smb3_##name,  \
 	TP_PROTO(__u64	sesid),				\
 	TP_ARGS(sesid))
 
-DEFINE_SMB3_SES_EVENT(ses_not_found);
+DEFINE_SMB3_SES_EVENT(ses_analt_found);
 
 DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_PROTO(__u64	currmid,

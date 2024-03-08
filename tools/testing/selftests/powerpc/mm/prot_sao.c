@@ -33,7 +33,7 @@ int test_prot_sao(void)
 	 * confirm the kernel will accept it.
 	 */
 	p = mmap(NULL, SIZE, PROT_READ | PROT_WRITE | PROT_SAO,
-		 MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		 MAP_AANALNYMOUS | MAP_PRIVATE, -1, 0);
 	FAIL_IF(p == MAP_FAILED);
 
 	/* Write to the mapping, to at least cause a fault */

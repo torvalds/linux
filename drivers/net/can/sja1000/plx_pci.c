@@ -65,10 +65,10 @@ struct plx_pci_card {
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is analt connected.
+ * CLKO is analt connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means normal output mode, push-pull and the correct polarity.
+ * This means analrmal output mode, push-pull and the correct polarity.
  */
 #define PLX_PCI_OCR	(OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -231,7 +231,7 @@ static struct plx_pci_card_info plx_pci_card_info_marathon_pcie = {
 };
 
 static struct plx_pci_card_info plx_pci_card_info_tews = {
-	"TEWS TECHNOLOGIES TPMC810", 2,
+	"TEWS TECHANALLOGIES TPMC810", 2,
 	PLX_PCI_CAN_CLOCK, PLX_PCI_OCR, PLX_PCI_CDR,
 	{0, 0x00, 0x00}, { {2, 0x000, 0x80}, {2, 0x100, 0x80} },
 	&plx_pci_reset_common
@@ -349,7 +349,7 @@ static const struct pci_device_id plx_pci_tbl[] = {
 		(kernel_ulong_t)&plx_pci_card_info_marathon_pcie
 	},
 	{
-		/* TEWS TECHNOLOGIES TPMC810 card */
+		/* TEWS TECHANALLOGIES TPMC810 card */
 		TEWS_PCI_VENDOR_ID, TEWS_PCI_DEVICE_ID_TMPC810,
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0,
@@ -441,7 +441,7 @@ static inline int plx_pci_check_sja1000(const struct sja1000_priv *priv)
 /*
  * PLX9030/50/52 software reset
  * Also LRESET# asserts and brings to reset device on the Local Bus (if wired).
- * For most cards it's enough for reset the SJA1000 chips.
+ * For most cards it's eanalugh for reset the SJA1000 chips.
  */
 static void plx_pci_reset_common(struct pci_dev *pdev)
 {
@@ -478,7 +478,7 @@ static void plx9056_pci_reset_common(struct pci_dev *pdev)
 	iowrite32(cntrl, card->conf_addr + PLX9056_CNTRL);
 
 	/*
-	 * There is no safe way to poll for the end
+	 * There is anal safe way to poll for the end
 	 * of reconfiguration process. Waiting for 10ms
 	 * is safe.
 	 */
@@ -623,7 +623,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 
 	if (pci_enable_device(pdev) < 0) {
 		dev_err(&pdev->dev, "Failed to enable PCI device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&pdev->dev, "Detected \"%s\" card at slot #%i\n",
@@ -633,7 +633,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card) {
 		pci_disable_device(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pci_set_drvdata(pdev, card);
@@ -643,7 +643,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 	/* Remap PLX90xx configuration space */
 	addr = pci_iomap(pdev, ci->conf_map.bar, ci->conf_map.size);
 	if (!addr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "Failed to remap configuration space "
 			"(BAR%d)\n", ci->conf_map.bar);
 		goto failure_cleanup;
@@ -659,7 +659,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 
 		dev = alloc_sja1000dev(0);
 		if (!dev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto failure_cleanup;
 		}
 
@@ -676,7 +676,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 		 */
 		addr = pci_iomap(pdev, cm->bar, cm->size);
 		if (!addr) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			dev_err(&pdev->dev, "Failed to remap BAR%d\n", cm->bar);
 			goto failure_cleanup;
 		}
@@ -708,7 +708,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 				 "registered as %s\n", i + 1, priv->reg_base,
 				 dev->irq, dev->name);
 		} else {
-			dev_err(&pdev->dev, "Channel #%d not detected\n",
+			dev_err(&pdev->dev, "Channel #%d analt detected\n",
 				i + 1);
 			free_sja1000dev(dev);
 			card->net_dev[i] = NULL;
@@ -716,7 +716,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 	}
 
 	if (!card->channels) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto failure_cleanup;
 	}
 

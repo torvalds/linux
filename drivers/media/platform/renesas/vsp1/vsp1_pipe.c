@@ -228,7 +228,7 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
  * @fourcc: the format 4CC
  *
  * Return a pointer to the format information structure corresponding to the
- * given V4L2 format 4CC, or NULL if no corresponding format can be found.
+ * given V4L2 format 4CC, or NULL if anal corresponding format can be found.
  */
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc)
@@ -360,18 +360,18 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->route && entity->route->reg)
 			vsp1_write(vsp1, entity->route->reg,
-				   VI6_DPR_NODE_UNUSED);
+				   VI6_DPR_ANALDE_UNUSED);
 	}
 
 	if (pipe->hgo)
 		vsp1_write(vsp1, VI6_DPR_HGO_SMPPT,
 			   (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
-			   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+			   (VI6_DPR_ANALDE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
 	if (pipe->hgt)
 		vsp1_write(vsp1, VI6_DPR_HGT_SMPPT,
 			   (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
-			   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
+			   (VI6_DPR_ANALDE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
 	vsp1_wpf_stop(pipe->output);
 
@@ -410,7 +410,7 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 		vsp1_hgt_frame_end(pipe->hgt);
 
 	/*
-	 * Regardless of frame completion we still need to notify the pipe
+	 * Regardless of frame completion we still need to analtify the pipe
 	 * frame_end to account for vblank events.
 	 */
 	if (pipe->frame_end)

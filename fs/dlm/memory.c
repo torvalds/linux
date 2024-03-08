@@ -35,7 +35,7 @@ int __init dlm_memory_init(void)
 		goto mhandle;
 
 	lkb_cache = kmem_cache_create("dlm_lkb", sizeof(struct dlm_lkb),
-				__alignof__(struct dlm_lkb), 0, NULL);
+				__aliganalf__(struct dlm_lkb), 0, NULL);
 	if (!lkb_cache)
 		goto lkb;
 
@@ -44,12 +44,12 @@ int __init dlm_memory_init(void)
 		goto msg;
 
 	rsb_cache = kmem_cache_create("dlm_rsb", sizeof(struct dlm_rsb),
-				__alignof__(struct dlm_rsb), 0, NULL);
+				__aliganalf__(struct dlm_rsb), 0, NULL);
 	if (!rsb_cache)
 		goto rsb;
 
 	cb_cache = kmem_cache_create("dlm_cb", sizeof(struct dlm_callback),
-				     __alignof__(struct dlm_callback), 0,
+				     __aliganalf__(struct dlm_callback), 0,
 				     NULL);
 	if (!cb_cache)
 		goto cb;
@@ -67,7 +67,7 @@ lkb:
 mhandle:
 	kmem_cache_destroy(writequeue_cache);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void dlm_memory_exit(void)
@@ -84,7 +84,7 @@ char *dlm_allocate_lvb(struct dlm_ls *ls)
 {
 	char *p;
 
-	p = kzalloc(ls->ls_lvblen, GFP_NOFS);
+	p = kzalloc(ls->ls_lvblen, GFP_ANALFS);
 	return p;
 }
 
@@ -97,7 +97,7 @@ struct dlm_rsb *dlm_allocate_rsb(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
 
-	r = kmem_cache_zalloc(rsb_cache, GFP_NOFS);
+	r = kmem_cache_zalloc(rsb_cache, GFP_ANALFS);
 	return r;
 }
 
@@ -112,7 +112,7 @@ struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 
-	lkb = kmem_cache_zalloc(lkb_cache, GFP_NOFS);
+	lkb = kmem_cache_zalloc(lkb_cache, GFP_ANALFS);
 	return lkb;
 }
 

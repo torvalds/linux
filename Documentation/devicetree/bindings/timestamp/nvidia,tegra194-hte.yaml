@@ -11,7 +11,7 @@ maintainers:
 
 description:
   Tegra SoC has two instances of generic hardware timestamping engines (GTE)
-  known as GTE GPIO and GTE IRQ, which can monitor subset of GPIO and on chip
+  kanalwn as GTE GPIO and GTE IRQ, which can monitor subset of GPIO and on chip
   IRQ lines for the state change respectively, upon detection it will record
   timestamp (taken from system counter) in its internal hardware FIFO. It has
   a bitmap array arranged in 32bit slices where each bit represent signal/line

@@ -242,7 +242,7 @@ static const unsigned adis16136_3db_divisors[] = {
 	[4] = 50,
 	[5] = 100,
 	[6] = 200,
-	[7] = 200, /* Not a valid setting */
+	[7] = 200, /* Analt a valid setting */
 };
 
 static int adis16136_set_filter(struct iio_dev *indio_dev, int val)
@@ -417,7 +417,7 @@ static int adis16136_stop_device(struct iio_dev *indio_dev)
 	ret = adis_write_reg_16(&adis16136->adis, ADIS16136_REG_SLP_CTRL, 0xff);
 	if (ret)
 		dev_err(&indio_dev->dev,
-			"Could not power down device: %d\n", ret);
+			"Could analt power down device: %d\n", ret);
 
 	return ret;
 }
@@ -443,7 +443,7 @@ static int adis16136_initial_setup(struct iio_dev *indio_dev)
 		return -EINVAL;
 
 	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
+		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do analt match.",
 				device_id, prod_id);
 
 	return 0;
@@ -530,7 +530,7 @@ static int adis16136_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adis16136));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, indio_dev);
 

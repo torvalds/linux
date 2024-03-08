@@ -106,7 +106,7 @@ static int ls037v7dw01_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &ls037v7dw01_mode);
 	if (!mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
@@ -140,7 +140,7 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 
 	lcd = devm_kzalloc(&pdev->dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, lcd);
 	lcd->pdev = pdev;

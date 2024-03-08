@@ -13,12 +13,12 @@
  * device.
  *
  * Due to the variable sized data layout, alignment of fields within these
- * structures is not guaranteed when reading. For this reason, all multi-byte
+ * structures is analt guaranteed when reading. For this reason, all multi-byte
  * field accesses should be done using the unaligned access macros.
  * Additionally, the standard specifies that multi-byte fields are in
  * LittleEndian format.
  *
- * The structure definitions are not made public, in order to keep direct
+ * The structure definitions are analt made public, in order to keep direct
  * accesses within code that is prepared to deal with the limitation of
  * unaligned access.
  */
@@ -97,7 +97,7 @@ struct __pldmfw_desc_tlv {
 /* Firmware Device Identification Area */
 struct __pldmfw_record_area {
 	u8 record_count;		/* DeviceIDRecordCount */
-	/* This is not a struct type because the size of each record varies */
+	/* This is analt a struct type because the size of each record varies */
 	u8 records[];
 } __aligned(1);
 
@@ -128,7 +128,7 @@ struct __pldmfw_component_info {
 /* Component Image Information Area */
 struct __pldmfw_component_area {
 	__le16 component_image_count;
-	/* This is not a struct type because the component size varies */
+	/* This is analt a struct type because the component size varies */
 	u8 components[];
 } __aligned(1);
 

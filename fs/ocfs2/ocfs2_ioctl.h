@@ -14,7 +14,7 @@
  * Space reservation / allocation / free ioctls and argument structure
  * are designed to be compatible with XFS.
  *
- * ALLOCSP* and FREESP* are not and will never be supported, but are
+ * ALLOCSP* and FREESP* are analt and will never be supported, but are
  * included here for completeness.
  */
 struct ocfs2_space_resv {
@@ -38,7 +38,7 @@ struct ocfs2_space_resv {
 
 /* Used to pass group descriptor data when online resize is done */
 struct ocfs2_new_group_input {
-	__u64 group;		/* Group descriptor's blkno. */
+	__u64 group;		/* Group descriptor's blkanal. */
 	__u32 clusters;		/* Total number of clusters in this group */
 	__u32 frees;		/* Total free clusters in this group */
 	__u16 chain;		/* Chain for this group */
@@ -124,9 +124,9 @@ struct ocfs2_info_journal_size {
 	__u64 ij_journal_size;
 };
 
-struct ocfs2_info_freeinode {
+struct ocfs2_info_freeianalde {
 	struct ocfs2_info_request ifi_req;
-	struct ocfs2_info_local_freeinode {
+	struct ocfs2_info_local_freeianalde {
 		__u64 lfi_total;
 		__u64 lfi_free;
 	} ifi_stat[OCFS2_MAX_SLOTS];
@@ -165,14 +165,14 @@ enum ocfs2_info_type {
 	OCFS2_INFO_UUID,
 	OCFS2_INFO_FS_FEATURES,
 	OCFS2_INFO_JOURNAL_SIZE,
-	OCFS2_INFO_FREEINODE,
+	OCFS2_INFO_FREEIANALDE,
 	OCFS2_INFO_FREEFRAG,
 	OCFS2_INFO_NUM_TYPES
 };
 
 /* Flags for struct ocfs2_info_request */
 /* Filled by the caller */
-#define OCFS2_INFO_FL_NON_COHERENT	(0x00000001)	/* Cluster coherency not
+#define OCFS2_INFO_FL_ANALN_COHERENT	(0x00000001)	/* Cluster coherency analt
 							   required. This is a hint.
 							   It is up to ocfs2 whether
 							   the request can be fulfilled

@@ -100,7 +100,7 @@ struct pru_private_data {
  * @rproc: remoteproc pointer for this PRU core
  * @data: PRU core specific data
  * @mem_regions: data for each of the PRU memory regions
- * @client_np: client device node
+ * @client_np: client device analde
  * @lock: mutex to protect client usage
  * @fw_name: name of firmware image used during loading
  * @mapped_irq: virtual interrupt numbers of created fw specific mapping
@@ -119,7 +119,7 @@ struct pru_rproc {
 	struct rproc *rproc;
 	const struct pru_private_data *data;
 	struct pruss_mem_region mem_regions[PRU_IOMEM_MAX];
-	struct device_node *client_np;
+	struct device_analde *client_np;
 	struct mutex lock;
 	const char *fw_name;
 	unsigned int *mapped_irq;
@@ -165,7 +165,7 @@ void pru_control_set_reg(struct pru_rproc *pru, unsigned int reg,
  * @rproc: the rproc instance of the PRU
  * @fw_name: the new firmware name, or NULL if default is desired
  *
- * Return: 0 on success, or errno in error case.
+ * Return: 0 on success, or erranal in error case.
  */
 static int pru_rproc_set_firmware(struct rproc *rproc, const char *fw_name)
 {
@@ -177,7 +177,7 @@ static int pru_rproc_set_firmware(struct rproc *rproc, const char *fw_name)
 	return rproc_set_firmware(rproc, fw_name);
 }
 
-static struct rproc *__pru_rproc_get(struct device_node *np, int index)
+static struct rproc *__pru_rproc_get(struct device_analde *np, int index)
 {
 	struct rproc *rproc;
 	phandle rproc_phandle;
@@ -196,22 +196,22 @@ static struct rproc *__pru_rproc_get(struct device_node *np, int index)
 	/* make sure it is PRU rproc */
 	if (!is_pru_rproc(rproc->dev.parent)) {
 		rproc_put(rproc);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return rproc;
 }
 
 /**
- * pru_rproc_get() - get the PRU rproc instance from a device node
- * @np: the user/client device node
+ * pru_rproc_get() - get the PRU rproc instance from a device analde
+ * @np: the user/client device analde
  * @index: index to use for the ti,prus property
  * @pru_id: optional pointer to return the PRU remoteproc processor id
  *
- * This function looks through a client device node's "ti,prus" property at
+ * This function looks through a client device analde's "ti,prus" property at
  * index @index and returns the rproc handle for a valid PRU remote processor if
  * found. The function allows only one user to own the PRU rproc resource at a
- * time. Caller must call pru_rproc_put() when done with using the rproc, not
+ * time. Caller must call pru_rproc_put() when done with using the rproc, analt
  * required if the function returns a failure.
  *
  * When optional @pru_id pointer is passed the PRU remoteproc processor id is
@@ -219,11 +219,11 @@ static struct rproc *__pru_rproc_get(struct device_node *np, int index)
  *
  * Return: rproc handle on success, and an ERR_PTR on failure using one
  * of the following error values
- *    -ENODEV if device is not found
+ *    -EANALDEV if device is analt found
  *    -EBUSY if PRU is already acquired by anyone
- *    -EPROBE_DEFER is PRU device is not probed yet
+ *    -EPROBE_DEFER is PRU device is analt probed yet
  */
-struct rproc *pru_rproc_get(struct device_node *np, int index,
+struct rproc *pru_rproc_get(struct device_analde *np, int index,
 			    enum pruss_pru_id *pru_id)
 {
 	struct rproc *rproc;
@@ -245,7 +245,7 @@ struct rproc *pru_rproc_get(struct device_node *np, int index,
 	if (pru->client_np) {
 		mutex_unlock(&pru->lock);
 		ret = -EBUSY;
-		goto err_no_rproc_handle;
+		goto err_anal_rproc_handle;
 	}
 
 	pru->client_np = np;
@@ -285,7 +285,7 @@ struct rproc *pru_rproc_get(struct device_node *np, int index,
 
 	return rproc;
 
-err_no_rproc_handle:
+err_anal_rproc_handle:
 	rproc_put(rproc);
 	return ERR_PTR(ret);
 
@@ -336,7 +336,7 @@ EXPORT_SYMBOL_GPL(pru_rproc_put);
  * @c: constant table index to set
  * @addr: physical address to set it to
  *
- * Return: 0 on success, or errno in error case.
+ * Return: 0 on success, or erranal in error case.
  */
 int pru_rproc_set_ctable(struct rproc *rproc, enum pru_ctable_idx c, u32 addr)
 {
@@ -350,7 +350,7 @@ int pru_rproc_set_ctable(struct rproc *rproc, enum pru_ctable_idx c, u32 addr)
 		return -EINVAL;
 
 	if (!rproc->dev.parent || !is_pru_rproc(rproc->dev.parent))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* pointer is 16 bit and index is 8-bit so mask out the rest */
 	idx_mask = (c >= PRU_C28) ? 0xFFFF : 0xFF;
@@ -406,7 +406,7 @@ static int regs_show(struct seq_file *s, void *data)
 	pru_is_running = pru_control_read_reg(pru, PRU_CTRL_CTRL) &
 				CTRL_CTRL_RUNSTATE;
 	if (pru_is_running) {
-		seq_puts(s, "PRU is executing, cannot print/access debug registers.\n");
+		seq_puts(s, "PRU is executing, cananalt print/access debug registers.\n");
 		return 0;
 	}
 
@@ -424,10 +424,10 @@ DEFINE_SHOW_ATTRIBUTE(regs);
  * Control PRU single-step mode
  *
  * This is a debug helper function used for controlling the single-step
- * mode of the PRU. The PRU Debug registers are not accessible when the
+ * mode of the PRU. The PRU Debug registers are analt accessible when the
  * PRU is in RUNNING state.
  *
- * Writing a non-zero value sets the PRU into single-step mode irrespective
+ * Writing a analn-zero value sets the PRU into single-step mode irrespective
  * of its previous state. The PRU mode is saved only on the first set into
  * a single-step mode. Writing a zero value will restore the PRU into its
  * original mode.
@@ -512,10 +512,10 @@ static int pru_handle_intrmap(struct rproc *rproc)
 	struct pru_rproc *pru = rproc->priv;
 	struct pru_irq_rsc *rsc = pru->pru_interrupt_map;
 	struct irq_fwspec fwspec;
-	struct device_node *parent, *irq_parent;
+	struct device_analde *parent, *irq_parent;
 	int i, ret = 0;
 
-	/* not having pru_interrupt_map is not an error */
+	/* analt having pru_interrupt_map is analt an error */
 	if (!rsc)
 		return 0;
 
@@ -537,33 +537,33 @@ static int pru_handle_intrmap(struct rproc *rproc)
 				  GFP_KERNEL);
 	if (!pru->mapped_irq) {
 		pru->evt_count = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
 	 * parse and fill in system event to interrupt channel and
 	 * channel-to-host mapping. The interrupt controller to be used
 	 * for these mappings for a given PRU remoteproc is always its
-	 * corresponding sibling PRUSS INTC node.
+	 * corresponding sibling PRUSS INTC analde.
 	 */
-	parent = of_get_parent(dev_of_node(pru->dev));
+	parent = of_get_parent(dev_of_analde(pru->dev));
 	if (!parent) {
 		kfree(pru->mapped_irq);
 		pru->mapped_irq = NULL;
 		pru->evt_count = 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	irq_parent = of_get_child_by_name(parent, "interrupt-controller");
-	of_node_put(parent);
+	of_analde_put(parent);
 	if (!irq_parent) {
 		kfree(pru->mapped_irq);
 		pru->mapped_irq = NULL;
 		pru->evt_count = 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	fwspec.fwnode = of_node_to_fwnode(irq_parent);
+	fwspec.fwanalde = of_analde_to_fwanalde(irq_parent);
 	fwspec.param_count = 3;
 	for (i = 0; i < pru->evt_count; i++) {
 		fwspec.param[0] = rsc->pru_intc_map[i].event;
@@ -582,13 +582,13 @@ static int pru_handle_intrmap(struct rproc *rproc)
 			goto map_fail;
 		}
 	}
-	of_node_put(irq_parent);
+	of_analde_put(irq_parent);
 
 	return ret;
 
 map_fail:
 	pru_dispose_irq_mapping(pru);
-	of_node_put(irq_parent);
+	of_analde_put(irq_parent);
 
 	return ret;
 }
@@ -684,7 +684,7 @@ static void *pru_d_da_to_va(struct pru_rproc *pru, u32 da, size_t len)
 /*
  * Convert PRU device address (instruction space) to kernel virtual address.
  *
- * A PRU does not have an unified address space. Each PRU has its very own
+ * A PRU does analt have an unified address space. Each PRU has its very own
  * private Instruction RAM, and its device address is identical to that of
  * its primary Data RAM device address.
  */
@@ -697,7 +697,7 @@ static void *pru_i_da_to_va(struct pru_rproc *pru, u32 da, size_t len)
 		return NULL;
 
 	/*
-	 * GNU binutils do not support multiple address spaces. The GNU
+	 * GNU binutils do analt support multiple address spaces. The GNU
 	 * linker's default linker script places IRAM at an arbitrary high
 	 * offset, in order to differentiate it from DRAM. Hence we need to
 	 * strip the artificial offset in the IRAM addresses coming from the
@@ -759,13 +759,13 @@ static struct rproc_ops pru_rproc_ops = {
  * Custom memory copy implementation for ICSSG PRU/RTU/Tx_PRU Cores
  *
  * The ICSSG PRU/RTU/Tx_PRU cores have a memory copying issue with IRAM
- * memories, that is not seen on previous generation SoCs. The data is reflected
+ * memories, that is analt seen on previous generation SoCs. The data is reflected
  * properly in the IRAM memories only for integer (4-byte) copies. Any unaligned
  * copies result in all the other pre-existing bytes zeroed out within that
  * 4-byte boundary, thereby resulting in wrong text/code in the IRAMs. Also, the
- * IRAM memory port interface does not allow any 8-byte copies (as commonly used
+ * IRAM memory port interface does analt allow any 8-byte copies (as commonly used
  * by ARM64 memcpy implementation) and throws an exception. The DRAM memory
- * ports do not show this behavior.
+ * ports do analt show this behavior.
  */
 static int pru_rproc_memcpy(void *dest, const void *src, size_t count)
 {
@@ -781,11 +781,11 @@ static int pru_rproc_memcpy(void *dest, const void *src, size_t count)
 	if ((long)dest % 4 || count % 4)
 		return -EINVAL;
 
-	/* src offsets in ELF firmware image can be non-aligned */
+	/* src offsets in ELF firmware image can be analn-aligned */
 	if ((long)src % 4) {
 		tmp_src = kmemdup(src, count, GFP_KERNEL);
 		if (!tmp_src)
-			return -ENOMEM;
+			return -EANALMEM;
 		s = tmp_src;
 	}
 
@@ -907,7 +907,7 @@ pru_rproc_find_interrupt_map(struct device *dev, const struct firmware *fw)
 		return shdr;
 	}
 
-	dev_dbg(dev, "no .pru_irq_map section found for this fw\n");
+	dev_dbg(dev, "anal .pru_irq_map section found for this fw\n");
 
 	return NULL;
 }
@@ -919,8 +919,8 @@ pru_rproc_find_interrupt_map(struct device *dev, const struct firmware *fw)
  * The firmware blob can contain optional ELF sections: .resource_table section
  * and .pru_irq_map one. The second one contains the PRUSS interrupt mapping
  * description, which needs to be setup before powering on the PRU core. To
- * avoid RAM wastage this ELF section is not mapped to any ELF segment (by the
- * firmware linker) and therefore is not loaded to PRU memory.
+ * avoid RAM wastage this ELF section is analt mapped to any ELF segment (by the
+ * firmware linker) and therefore is analt loaded to PRU memory.
  */
 static int pru_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
@@ -935,11 +935,11 @@ static int pru_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 	/* load optional rsc table */
 	ret = rproc_elf_load_rsc_table(rproc, fw);
 	if (ret == -EINVAL)
-		dev_dbg(&rproc->dev, "no resource table found for this fw\n");
+		dev_dbg(&rproc->dev, "anal resource table found for this fw\n");
 	else if (ret)
 		return ret;
 
-	/* find .pru_interrupt_map section, not having it is not an error */
+	/* find .pru_interrupt_map section, analt having it is analt an error */
 	shdr = pru_rproc_find_interrupt_map(dev, fw);
 	if (IS_ERR(shdr))
 		return PTR_ERR(shdr);
@@ -988,7 +988,7 @@ static int pru_rproc_set_id(struct pru_rproc *pru)
 static int pru_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct platform_device *ppdev = to_platform_device(dev->parent);
 	struct pru_rproc *pru;
 	const char *fw_name;
@@ -1000,7 +1000,7 @@ static int pru_rproc_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = of_property_read_string(np, "firmware-name", &fw_name);
 	if (ret) {
@@ -1012,7 +1012,7 @@ static int pru_rproc_probe(struct platform_device *pdev)
 				 sizeof(*pru));
 	if (!rproc) {
 		dev_err(dev, "rproc_alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* use a custom load function to deal with PRU-specific quirks */
 	rproc->ops->load = pru_rproc_load_elf_segments;
@@ -1020,11 +1020,11 @@ static int pru_rproc_probe(struct platform_device *pdev)
 	/* use a custom parse function to deal with PRU-specific resources */
 	rproc->ops->parse_fw = pru_rproc_parse_fw;
 
-	/* error recovery is not supported for PRUs */
+	/* error recovery is analt supported for PRUs */
 	rproc->recovery_disabled = true;
 
 	/*
-	 * rproc_add will auto-boot the processor normally, but this is not
+	 * rproc_add will auto-boot the processor analrmally, but this is analt
 	 * desired with PRU client driven boot-flow methodology. A PRU
 	 * application/client driver will boot the corresponding PRU
 	 * remote-processor as part of its state machine either through the
@@ -1074,7 +1074,7 @@ static int pru_rproc_probe(struct platform_device *pdev)
 
 	pru_rproc_create_debug_entries(rproc);
 
-	dev_dbg(dev, "PRU rproc node %pOF probed successfully\n", np);
+	dev_dbg(dev, "PRU rproc analde %pOF probed successfully\n", np);
 
 	return 0;
 }

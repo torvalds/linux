@@ -11,7 +11,7 @@
 
 /*
  * VID/PID are probably "borrowed", so keep them locally and
- * do not populate hid-ids.h with those.
+ * do analt populate hid-ids.h with those.
  */
 #define USB_VENDOR_ID_VRC2	(0x07c0)
 #define USB_DEVICE_ID_VRC2	(0x1125)
@@ -30,7 +30,7 @@ static __u8 vrc2_rdesc_fixed[] = {
 	0x46, 0xFF, 0x00,  //     Physical Maximum (255)
 	0x75, 0x10,        //     Report Size (16)
 	0x95, 0x02,        //     Report Count (2)
-	0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0x81, 0x02,        //     Input (Data,Var,Abs,Anal Wrap,Linear,Preferred State,Anal Null Position)
 	0xC0,              //   End Collection
 	0x75, 0x08,        //   Report Size (8)
 	0x95, 0x03,        //   Report Count (3)
@@ -52,10 +52,10 @@ static int vrc2_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/*
 	 * The device gives us 2 separate USB endpoints.
-	 * One of those (the one with report descriptor size of 23) is just bogus so ignore it
+	 * One of those (the one with report descriptor size of 23) is just bogus so iganalre it
 	 */
 	if (hdev->dev_rsize == 23)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = hid_parse(hdev);
 	if (ret) {

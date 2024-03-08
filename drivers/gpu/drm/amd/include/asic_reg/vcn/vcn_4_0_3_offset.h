@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -201,8 +201,8 @@
 #define regUVD_CONTEXT_ID_BASE_IDX                                                                      1
 #define regUVD_CONTEXT_ID2                                                                              0x00e8
 #define regUVD_CONTEXT_ID2_BASE_IDX                                                                     1
-#define regUVD_NO_OP                                                                                    0x00e9
-#define regUVD_NO_OP_BASE_IDX                                                                           1
+#define regUVD_ANAL_OP                                                                                    0x00e9
+#define regUVD_ANAL_OP_BASE_IDX                                                                           1
 #define regUVD_RB_BASE_LO                                                                               0x00ea
 #define regUVD_RB_BASE_LO_BASE_IDX                                                                      1
 #define regUVD_RB_BASE_HI                                                                               0x00eb
@@ -413,14 +413,14 @@
 #define regUVD_VCPU_CACHE_OFFSET8_BASE_IDX                                                              1
 #define regUVD_VCPU_CACHE_SIZE8                                                                         0x0191
 #define regUVD_VCPU_CACHE_SIZE8_BASE_IDX                                                                1
-#define regUVD_VCPU_NONCACHE_OFFSET0                                                                    0x0192
-#define regUVD_VCPU_NONCACHE_OFFSET0_BASE_IDX                                                           1
-#define regUVD_VCPU_NONCACHE_SIZE0                                                                      0x0193
-#define regUVD_VCPU_NONCACHE_SIZE0_BASE_IDX                                                             1
-#define regUVD_VCPU_NONCACHE_OFFSET1                                                                    0x0194
-#define regUVD_VCPU_NONCACHE_OFFSET1_BASE_IDX                                                           1
-#define regUVD_VCPU_NONCACHE_SIZE1                                                                      0x0195
-#define regUVD_VCPU_NONCACHE_SIZE1_BASE_IDX                                                             1
+#define regUVD_VCPU_ANALNCACHE_OFFSET0                                                                    0x0192
+#define regUVD_VCPU_ANALNCACHE_OFFSET0_BASE_IDX                                                           1
+#define regUVD_VCPU_ANALNCACHE_SIZE0                                                                      0x0193
+#define regUVD_VCPU_ANALNCACHE_SIZE0_BASE_IDX                                                             1
+#define regUVD_VCPU_ANALNCACHE_OFFSET1                                                                    0x0194
+#define regUVD_VCPU_ANALNCACHE_OFFSET1_BASE_IDX                                                           1
+#define regUVD_VCPU_ANALNCACHE_SIZE1                                                                      0x0195
+#define regUVD_VCPU_ANALNCACHE_SIZE1_BASE_IDX                                                             1
 #define regUVD_VCPU_CNTL                                                                                0x0196
 #define regUVD_VCPU_CNTL_BASE_IDX                                                                       1
 #define regUVD_VCPU_PRID                                                                                0x0197
@@ -1321,14 +1321,14 @@
 #define regMMSCH_VF_MAILBOX_1_RESP_BASE_IDX                                                             1
 #define regMMSCH_CNTL                                                                                   0x055c
 #define regMMSCH_CNTL_BASE_IDX                                                                          1
-#define regMMSCH_NONCACHE_OFFSET0                                                                       0x055d
-#define regMMSCH_NONCACHE_OFFSET0_BASE_IDX                                                              1
-#define regMMSCH_NONCACHE_SIZE0                                                                         0x055e
-#define regMMSCH_NONCACHE_SIZE0_BASE_IDX                                                                1
-#define regMMSCH_NONCACHE_OFFSET1                                                                       0x055f
-#define regMMSCH_NONCACHE_OFFSET1_BASE_IDX                                                              1
-#define regMMSCH_NONCACHE_SIZE1                                                                         0x0560
-#define regMMSCH_NONCACHE_SIZE1_BASE_IDX                                                                1
+#define regMMSCH_ANALNCACHE_OFFSET0                                                                       0x055d
+#define regMMSCH_ANALNCACHE_OFFSET0_BASE_IDX                                                              1
+#define regMMSCH_ANALNCACHE_SIZE0                                                                         0x055e
+#define regMMSCH_ANALNCACHE_SIZE0_BASE_IDX                                                                1
+#define regMMSCH_ANALNCACHE_OFFSET1                                                                       0x055f
+#define regMMSCH_ANALNCACHE_OFFSET1_BASE_IDX                                                              1
+#define regMMSCH_ANALNCACHE_SIZE1                                                                         0x0560
+#define regMMSCH_ANALNCACHE_SIZE1_BASE_IDX                                                                1
 #define regMMSCH_PROC_STATE1                                                                            0x0566
 #define regMMSCH_PROC_STATE1_BASE_IDX                                                                   1
 #define regMMSCH_LAST_MC_ADDR                                                                           0x0567

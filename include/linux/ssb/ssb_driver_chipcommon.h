@@ -30,12 +30,12 @@
 #define  SSB_CHIPCO_CAP_UARTGPIO	0x00000020	/* UARTs on GPIO 15-12 */
 #define  SSB_CHIPCO_CAP_EXTBUS		0x000000C0	/* External buses present */
 #define  SSB_CHIPCO_CAP_FLASHT		0x00000700	/* Flash Type */
-#define   SSB_CHIPCO_FLASHT_NONE	0x00000000	/* No flash */
+#define   SSB_CHIPCO_FLASHT_ANALNE	0x00000000	/* Anal flash */
 #define   SSB_CHIPCO_FLASHT_STSER	0x00000100	/* ST serial flash */
 #define   SSB_CHIPCO_FLASHT_ATSER	0x00000200	/* Atmel serial flash */
 #define	  SSB_CHIPCO_FLASHT_PARA	0x00000700	/* Parallel flash */
 #define  SSB_CHIPCO_CAP_PLLT		0x00038000	/* PLL Type */
-#define   SSB_PLLTYPE_NONE		0x00000000
+#define   SSB_PLLTYPE_ANALNE		0x00000000
 #define   SSB_PLLTYPE_1			0x00010000	/* 48Mhz base, 3 dividers */
 #define   SSB_PLLTYPE_2			0x00020000	/* 48Mhz, 4 dividers */
 #define   SSB_PLLTYPE_3			0x00030000	/* 25Mhz, 2 dividers */
@@ -160,7 +160,7 @@
 #define  SSB_CHIPCO_SLOWCLKCTL_LPOFREQ	0x00000200	/* LPOFreqSel, 1: 160Khz, 0: 32KHz */
 #define  SSB_CHIPCO_SLOWCLKCTL_LPOPD	0x00000400	/* LPOPowerDown, 1: LPO is disabled, 0: LPO is enabled */
 #define  SSB_CHIPCO_SLOWCLKCTL_FSLOW	0x00000800	/* ForceSlowClk, 1: sb/cores running on slow clock, 0: power logic control */
-#define  SSB_CHIPCO_SLOWCLKCTL_IPLL	0x00001000	/* IgnorePllOffReq, 1/0: power logic ignores/honors PLL clock disable requests from core */
+#define  SSB_CHIPCO_SLOWCLKCTL_IPLL	0x00001000	/* IganalrePllOffReq, 1/0: power logic iganalres/hoanalrs PLL clock disable requests from core */
 #define  SSB_CHIPCO_SLOWCLKCTL_ENXTAL	0x00002000	/* XtalControlEn, 1/0: power logic does/doesn't disable crystal when appropriate */
 #define  SSB_CHIPCO_SLOWCLKCTL_XTALPU	0x00004000	/* XtalPU (RO), 1/0: crystal running/disabled */
 #define  SSB_CHIPCO_SLOWCLKCTL_CLKDIV	0xFFFF0000	/* ClockDivider (SlowClk = 1/(4+divisor)) */
@@ -169,7 +169,7 @@
 #define	 SSB_CHIPCO_SYSCLKCTL_IDLPEN	0x00000001	/* ILPen: Enable Idle Low Power */
 #define	 SSB_CHIPCO_SYSCLKCTL_ALPEN	0x00000002	/* ALPen: Enable Active Low Power */
 #define	 SSB_CHIPCO_SYSCLKCTL_PLLEN	0x00000004	/* ForcePLLOn */
-#define	 SSB_CHIPCO_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is not set */
+#define	 SSB_CHIPCO_SYSCLKCTL_FORCEALP	0x00000008	/* Force ALP (or HT if ALPen is analt set */
 #define	 SSB_CHIPCO_SYSCLKCTL_FORCEHT	0x00000010	/* Force HT */
 #define  SSB_CHIPCO_SYSCLKCTL_CLKDIV	0xFFFF0000	/* ClkDiv  (ILP = 1/(4+divisor)) */
 #define  SSB_CHIPCO_SYSCLKCTL_CLKDIV_SHIFT	16
@@ -219,7 +219,7 @@
 #define  SSB_CHIPCO_PMU_CTL_ILP_DIV		0xFFFF0000 /* ILP div mask */
 #define  SSB_CHIPCO_PMU_CTL_ILP_DIV_SHIFT	16
 #define  SSB_CHIPCO_PMU_CTL_PLL_UPD		0x00000400
-#define  SSB_CHIPCO_PMU_CTL_NOILPONW		0x00000200 /* No ILP on wait */
+#define  SSB_CHIPCO_PMU_CTL_ANALILPONW		0x00000200 /* Anal ILP on wait */
 #define  SSB_CHIPCO_PMU_CTL_HTREQEN		0x00000100 /* HT req enable */
 #define  SSB_CHIPCO_PMU_CTL_ALPREQEN		0x00000080 /* ALP req enable */
 #define  SSB_CHIPCO_PMU_CTL_XTALFREQ		0x0000007C /* Crystal freq */
@@ -395,9 +395,9 @@
 /** Chip specific Chip-Status register contents. */
 #define SSB_CHIPCO_CHST_4322_SPROM_EXISTS	0x00000040 /* SPROM present */
 #define SSB_CHIPCO_CHST_4325_SPROM_OTP_SEL	0x00000003
-#define SSB_CHIPCO_CHST_4325_DEFCIS_SEL		0 /* OTP is powered up, use def. CIS, no SPROM */
+#define SSB_CHIPCO_CHST_4325_DEFCIS_SEL		0 /* OTP is powered up, use def. CIS, anal SPROM */
 #define SSB_CHIPCO_CHST_4325_SPROM_SEL		1 /* OTP is powered up, SPROM is present */
-#define SSB_CHIPCO_CHST_4325_OTP_SEL		2 /* OTP is powered up, no SPROM */
+#define SSB_CHIPCO_CHST_4325_OTP_SEL		2 /* OTP is powered up, anal SPROM */
 #define SSB_CHIPCO_CHST_4325_OTP_PWRDN		3 /* OTP is powered down, SPROM is present */
 #define SSB_CHIPCO_CHST_4325_SDIO_USB_MODE	0x00000004
 #define SSB_CHIPCO_CHST_4325_SDIO_USB_MODE_SHIFT  2
@@ -483,7 +483,7 @@
 #define	SSB_CHIPCO_CFG_EN		0x0001		/* Enable */
 #define	SSB_CHIPCO_CFG_EXTM		0x000E		/* Extif Mode */
 #define	 SSB_CHIPCO_CFG_EXTM_ASYNC	0x0002		/* Async/Parallel flash */
-#define	 SSB_CHIPCO_CFG_EXTM_SYNC	0x0004		/* Synchronous */
+#define	 SSB_CHIPCO_CFG_EXTM_SYNC	0x0004		/* Synchroanalus */
 #define	 SSB_CHIPCO_CFG_EXTM_PCMCIA	0x0008		/* PCMCIA */
 #define	 SSB_CHIPCO_CFG_EXTM_IDE	0x000A		/* IDE */
 #define	SSB_CHIPCO_CFG_DS16		0x0010		/* Data size, 0=8bit, 1=16bit */

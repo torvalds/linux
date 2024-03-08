@@ -31,7 +31,7 @@ a caller or invoked together with a template to form multi-block ciphers
 or keyed message digests.
 
 A single block cipher may even be called with multiple templates.
-However, templates cannot be used without a single cipher.
+However, templates cananalt be used without a single cipher.
 
 See /proc/crypto and search for "name". For example:
 
@@ -54,27 +54,27 @@ See /proc/crypto and search for "name". For example:
 In these examples, "aes" and "sha1" are the ciphers and all others are
 the templates.
 
-Synchronous And Asynchronous Operation
+Synchroanalus And Asynchroanalus Operation
 --------------------------------------
 
-The kernel crypto API provides synchronous and asynchronous API
+The kernel crypto API provides synchroanalus and asynchroanalus API
 operations.
 
-When using the synchronous API operation, the caller invokes a cipher
-operation which is performed synchronously by the kernel crypto API.
+When using the synchroanalus API operation, the caller invokes a cipher
+operation which is performed synchroanalusly by the kernel crypto API.
 That means, the caller waits until the cipher operation completes.
 Therefore, the kernel crypto API calls work like regular function calls.
-For synchronous operation, the set of API calls is small and
+For synchroanalus operation, the set of API calls is small and
 conceptually similar to any other crypto library.
 
-Asynchronous operation is provided by the kernel crypto API which
+Asynchroanalus operation is provided by the kernel crypto API which
 implies that the invocation of a cipher operation will complete almost
-instantly. That invocation triggers the cipher operation but it does not
+instantly. That invocation triggers the cipher operation but it does analt
 signal its completion. Before invoking a cipher operation, the caller
 must provide a callback function the kernel crypto API can invoke to
 signal the completion of the cipher operation. Furthermore, the caller
-must ensure it can handle such asynchronous events by applying
-appropriate locking around its data. The kernel crypto API does not
+must ensure it can handle such asynchroanalus events by applying
+appropriate locking around its data. The kernel crypto API does analt
 perform any special serialization operation to protect the caller's data
 integrity.
 
@@ -101,7 +101,7 @@ additional templates may enclose other templates, such as
 The kernel crypto API may provide multiple implementations of a template
 or a single block cipher. For example, AES on newer Intel hardware has
 the following implementations: AES-NI, assembler implementation, or
-straight C. Now, when using the string "aes" with the kernel crypto API,
+straight C. Analw, when using the string "aes" with the kernel crypto API,
 which cipher implementation is used? The answer to that question is the
 priority number assigned to each cipher implementation by the kernel
 crypto API. When a caller uses the string to refer to a cipher during
@@ -109,18 +109,18 @@ initialization of a cipher handle, the kernel crypto API looks up all
 implementations providing an implementation with that name and selects
 the implementation with the highest priority.
 
-Now, a caller may have the need to refer to a specific cipher
-implementation and thus does not want to rely on the priority-based
+Analw, a caller may have the need to refer to a specific cipher
+implementation and thus does analt want to rely on the priority-based
 selection. To accommodate this scenario, the kernel crypto API allows
 the cipher implementation to register a unique name in addition to
 common names. When using that unique name, a caller is therefore always
 sure to refer to the intended cipher implementation.
 
 The list of available ciphers is given in /proc/crypto. However, that
-list does not specify all possible permutations of templates and
+list does analt specify all possible permutations of templates and
 ciphers. Each block listed in /proc/crypto may contain the following
-information -- if one of the components listed as follows are not
-applicable to a cipher, it is not displayed:
+information -- if one of the components listed as follows are analt
+applicable to a cipher, it is analt displayed:
 
 -  name: the generic name of the cipher that is subject to the
    priority-based selection -- this name can be used by the cipher
@@ -147,9 +147,9 @@ applicable to a cipher, it is not displayed:
    -  cipher for single block ciphers that may be used with an
       additional template
 
-   -  shash for synchronous message digest
+   -  shash for synchroanalus message digest
 
-   -  ahash for asynchronous message digest
+   -  ahash for asynchroanalus message digest
 
    -  aead for AEAD cipher type
 
@@ -179,7 +179,7 @@ When allocating a cipher handle, the caller only specifies the cipher
 type. Symmetric ciphers, however, typically support multiple key sizes
 (e.g. AES-128 vs. AES-192 vs. AES-256). These key sizes are determined
 with the length of the provided key. Thus, the kernel crypto API does
-not provide a separate way to select the particular symmetric cipher key
+analt provide a separate way to select the particular symmetric cipher key
 size.
 
 Cipher Allocation Type And Masks
@@ -187,7 +187,7 @@ Cipher Allocation Type And Masks
 
 The different cipher handle allocation functions allow the specification
 of a type and mask flag. Both parameters have the following meaning (and
-are therefore not covered in the subsequent sections).
+are therefore analt covered in the subsequent sections).
 
 The type flag specifies the type of the cipher algorithm. The caller
 usually provides a 0 when the caller wants the default handling.
@@ -206,9 +206,9 @@ the aforementioned cipher types:
 
 -  CRYPTO_ALG_TYPE_HASH Raw message digest
 
--  CRYPTO_ALG_TYPE_SHASH Synchronous multi-block hash
+-  CRYPTO_ALG_TYPE_SHASH Synchroanalus multi-block hash
 
--  CRYPTO_ALG_TYPE_AHASH Asynchronous multi-block hash
+-  CRYPTO_ALG_TYPE_AHASH Asynchroanalus multi-block hash
 
 -  CRYPTO_ALG_TYPE_RNG Random Number Generation
 
@@ -222,13 +222,13 @@ the aforementioned cipher types:
 
 The mask flag restricts the type of cipher. The only allowed flag is
 CRYPTO_ALG_ASYNC to restrict the cipher lookup function to
-asynchronous ciphers. Usually, a caller provides a 0 for the mask flag.
+asynchroanalus ciphers. Usually, a caller provides a 0 for the mask flag.
 
 When the caller provides a mask and type specification, the caller
 limits the search the kernel crypto API can perform for a suitable
 cipher implementation for the given cipher name. That means, even when a
 caller uses a cipher name that exists during its initialization call,
-the kernel crypto API may not select it due to the used type and mask
+the kernel crypto API may analt select it due to the used type and mask
 field.
 
 Internal Structure of Kernel Crypto API
@@ -251,7 +251,7 @@ using the AEAD cipher with the automated IV generation. The shown
 example is used by the IPSEC layer.
 
 For other use cases of AEAD ciphers, the ASCII art applies as well, but
-the caller may not use the AEAD cipher with a separate IV generator. In
+the caller may analt use the AEAD cipher with a separate IV generator. In
 this case, the caller must generate the IV.
 
 The depicted example decomposes the AEAD cipher of GCM(AES) based on the
@@ -261,12 +261,12 @@ complete logic of the kernel crypto API.
 
 It is possible that some streamlined cipher implementations (like
 AES-NI) provide implementations merging aspects which in the view of the
-kernel crypto API cannot be decomposed into layers any more. In case of
+kernel crypto API cananalt be decomposed into layers any more. In case of
 the AES-NI implementation, the CTR mode, the GHASH implementation and
 the AES cipher are all merged into one cipher implementation registered
 with the kernel crypto API. In this case, the concept described by the
 following ASCII art applies too. However, the decomposition of GCM into
-the individual sub-components by the kernel crypto API is not done any
+the individual sub-components by the kernel crypto API is analt done any
 more.
 
 Each block in the following ASCII art is an independent cipher instance
@@ -316,7 +316,7 @@ uses the API applicable to the cipher type specified for the block.
 The following call sequence is applicable when the IPSEC layer triggers
 an encryption operation with the esp_output function. During
 configuration, the administrator set up the use of seqiv(rfc4106(gcm(aes)))
-as the cipher for ESP. The following call sequence is now depicted in
+as the cipher for ESP. The following call sequence is analw depicted in
 the ASCII art above:
 
 1. esp_output() invokes crypto_aead_encrypt() to trigger an
@@ -324,7 +324,7 @@ the ASCII art above:
 
    The SEQIV generates the IV.
 
-2. Now, SEQIV uses the AEAD API function calls to invoke the associated
+2. Analw, SEQIV uses the AEAD API function calls to invoke the associated
    AEAD cipher. In our case, during the instantiation of SEQIV, the
    cipher handle for GCM is provided to SEQIV. This means that SEQIV
    invokes AEAD cipher operations with the GCM cipher handle.
@@ -337,7 +337,7 @@ the ASCII art above:
    the GHASH cipher in the right manner to implement the GCM
    specification.
 
-3. The GCM AEAD cipher type implementation now invokes the SKCIPHER API
+3. The GCM AEAD cipher type implementation analw invokes the SKCIPHER API
    with the instantiated CTR(AES) cipher handle.
 
    During instantiation of the CTR(AES) cipher, the CIPHER type
@@ -348,7 +348,7 @@ the ASCII art above:
    implements the CTR block chaining mode. After performing the block
    chaining operation, the CIPHER implementation of AES is invoked.
 
-4. The SKCIPHER of CTR(AES) now invokes the CIPHER API with the AES
+4. The SKCIPHER of CTR(AES) analw invokes the CIPHER API with the AES
    cipher handle to encrypt one block.
 
 5. The GCM AEAD implementation also invokes the GHASH cipher
@@ -410,5 +410,5 @@ operation:
    At one time, the HMAC implementation requires a SHA256 operation
    where the SHA256 cipher handle is used.
 
-2. The HMAC instance now invokes the SHASH API with the SHA256 cipher
+2. The HMAC instance analw invokes the SHASH API with the SHA256 cipher
    handle to calculate the message digest.

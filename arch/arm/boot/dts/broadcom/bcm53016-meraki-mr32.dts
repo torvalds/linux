@@ -127,7 +127,7 @@
 &nandcs {
 	partitions {
 		/*
-		 * The partition autodetection does not work for this device.
+		 * The partition autodetection does analt work for this device.
 		 * It will only detect the "nvram" partition with an incorrect size.
 		 *	[    1.721667] 1 bcm47xxpart partitions found on MTD device brcmnand.0
 		 *	[    1.727962] Creating 1 MTD partitions on "brcmnand.0":

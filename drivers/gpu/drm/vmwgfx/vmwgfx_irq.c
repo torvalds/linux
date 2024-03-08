@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -55,7 +55,7 @@ static irqreturn_t vmw_thread_fn(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct vmw_private *dev_priv = vmw_priv(dev);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (test_and_clear_bit(VMW_IRQTHREAD_FENCE,
 			       dev_priv->irqthread_pending)) {
@@ -98,7 +98,7 @@ static irqreturn_t vmw_irq_handler(int irq, void *arg)
 		vmw_irq_status_write(dev_priv, status);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (masked_status & SVGA_IRQFLAG_FIFO_PROGRESS)
 		wake_up_all(&dev_priv->fifo_queue);
@@ -117,43 +117,43 @@ static irqreturn_t vmw_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
+static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqanal)
 {
 
 	return (vmw_read(dev_priv, SVGA_REG_BUSY) == 0);
 }
 
-void vmw_update_seqno(struct vmw_private *dev_priv)
+void vmw_update_seqanal(struct vmw_private *dev_priv)
 {
-	uint32_t seqno = vmw_fence_read(dev_priv);
+	uint32_t seqanal = vmw_fence_read(dev_priv);
 
-	if (dev_priv->last_read_seqno != seqno) {
-		dev_priv->last_read_seqno = seqno;
+	if (dev_priv->last_read_seqanal != seqanal) {
+		dev_priv->last_read_seqanal = seqanal;
 		vmw_fences_update(dev_priv->fman);
 	}
 }
 
-bool vmw_seqno_passed(struct vmw_private *dev_priv,
-			 uint32_t seqno)
+bool vmw_seqanal_passed(struct vmw_private *dev_priv,
+			 uint32_t seqanal)
 {
 	bool ret;
 
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	if (likely(dev_priv->last_read_seqanal - seqanal < VMW_FENCE_WRAP))
 		return true;
 
-	vmw_update_seqno(dev_priv);
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	vmw_update_seqanal(dev_priv);
+	if (likely(dev_priv->last_read_seqanal - seqanal < VMW_FENCE_WRAP))
 		return true;
 
-	if (!vmw_has_fences(dev_priv) && vmw_fifo_idle(dev_priv, seqno))
+	if (!vmw_has_fences(dev_priv) && vmw_fifo_idle(dev_priv, seqanal))
 		return true;
 
 	/**
-	 * Then check if the seqno is higher than what we've actually
+	 * Then check if the seqanal is higher than what we've actually
 	 * emitted. Then the fence is stale and signaled.
 	 */
 
-	ret = ((atomic_read(&dev_priv->marker_seq) - seqno)
+	ret = ((atomic_read(&dev_priv->marker_seq) - seqanal)
 	       > VMW_FENCE_WRAP);
 
 	return ret;
@@ -162,7 +162,7 @@ bool vmw_seqno_passed(struct vmw_private *dev_priv,
 int vmw_fallback_wait(struct vmw_private *dev_priv,
 		      bool lazy,
 		      bool fifo_idle,
-		      uint32_t seqno,
+		      uint32_t seqanal,
 		      bool interruptible,
 		      unsigned long timeout)
 {
@@ -177,7 +177,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	DEFINE_WAIT(__wait);
 
 	wait_condition = (fifo_idle) ? &vmw_fifo_idle :
-		&vmw_seqno_passed;
+		&vmw_seqanal_passed;
 
 	/**
 	 * Block command submission while waiting for idle.
@@ -202,7 +202,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 		prepare_to_wait(&dev_priv->fence_queue, &__wait,
 				(interruptible) ?
 				TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-		if (wait_condition(dev_priv, seqno))
+		if (wait_condition(dev_priv, seqanal))
 			break;
 		if (time_after_eq(jiffies, end_jiffies)) {
 			DRM_ERROR("SVGA device lockup.\n");
@@ -262,13 +262,13 @@ void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
 	spin_unlock_bh(&dev_priv->waiter_lock);
 }
 
-void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
+void vmw_seqanal_waiter_add(struct vmw_private *dev_priv)
 {
 	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
 			       &dev_priv->fence_queue_waiters);
 }
 
-void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
+void vmw_seqanal_waiter_remove(struct vmw_private *dev_priv)
 {
 	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
 				  &dev_priv->fence_queue_waiters);

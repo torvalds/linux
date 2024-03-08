@@ -20,20 +20,20 @@
 #define HOSTFS_ATTR_MTIME_SET	256
 
 /* This one is unused by hostfs. */
-#define HOSTFS_ATTR_FORCE	512	/* Not a change, but a change it */
+#define HOSTFS_ATTR_FORCE	512	/* Analt a change, but a change it */
 #define HOSTFS_ATTR_ATTR_FLAG	1024
 
 /*
- * If you are very careful, you'll notice that these two are missing:
+ * If you are very careful, you'll analtice that these two are missing:
  *
  * #define ATTR_KILL_SUID	2048
  * #define ATTR_KILL_SGID	4096
  *
  * and this is because they were added in 2.5 development.
- * Actually, they are not needed by most ->setattr() methods - they are set by
- * callers of notify_change() to notify that the setuid/setgid bits must be
+ * Actually, they are analt needed by most ->setattr() methods - they are set by
+ * callers of analtify_change() to analtify that the setuid/setgid bits must be
  * dropped.
- * notify_change() will delete those flags, make sure attr->ia_valid & ATTR_MODE
+ * analtify_change() will delete those flags, make sure attr->ia_valid & ATTR_MODE
  * is on, and remove the appropriate bits from attr->ia_mode (attr is a
  * "struct iattr *"). -BlaisorBlade
  */
@@ -54,7 +54,7 @@ struct hostfs_iattr {
 };
 
 struct hostfs_stat {
-	unsigned long long ino;
+	unsigned long long ianal;
 	unsigned int mode;
 	unsigned int nlink;
 	unsigned int uid;
@@ -74,7 +74,7 @@ extern int open_file(char *path, int r, int w, int append);
 extern void *open_dir(char *path, int *err_out);
 extern void seek_dir(void *stream, unsigned long long pos);
 extern char *read_dir(void *stream, unsigned long long *pos_out,
-		      unsigned long long *ino_out, int *len_out,
+		      unsigned long long *ianal_out, int *len_out,
 		      unsigned int *type_out);
 extern void close_file(void *stream);
 extern int replace_file(int oldfd, int fd);
@@ -90,8 +90,8 @@ extern int make_symlink(const char *from, const char *to);
 extern int unlink_file(const char *file);
 extern int do_mkdir(const char *file, int mode);
 extern int hostfs_do_rmdir(const char *file);
-extern int do_mknod(const char *file, int mode, unsigned int major,
-		    unsigned int minor);
+extern int do_mkanald(const char *file, int mode, unsigned int major,
+		    unsigned int mianalr);
 extern int link_file(const char *to, const char *from);
 extern int hostfs_do_readlink(char *file, char *buf, int size);
 extern int rename_file(char *from, char *to);

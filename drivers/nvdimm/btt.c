@@ -122,10 +122,10 @@ static int btt_map_write(struct arena_info *arena, u32 lba, u32 mapping,
 		/*
 		 * We want to set neither of the Z or E flags, and
 		 * in the actual layout, this means setting the bit
-		 * positions of both to '1' to indicate a 'normal'
+		 * positions of both to '1' to indicate a 'analrmal'
 		 * map entry
 		 */
-		mapping |= MAP_ENT_NORMAL;
+		mapping |= MAP_ENT_ANALRMAL;
 		break;
 	case 1:
 		mapping |= (1 << MAP_ERR_SHIFT);
@@ -136,7 +136,7 @@ static int btt_map_write(struct arena_info *arena, u32 lba, u32 mapping,
 	default:
 		/*
 		 * The case where Z and E are both sent in as '1' could be
-		 * construed as a valid 'normal' case, but we decide not to,
+		 * construed as a valid 'analrmal' case, but we decide analt to,
 		 * to avoid confusion
 		 */
 		dev_err_ratelimited(to_dev(arena),
@@ -220,7 +220,7 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 	char dirname[32];
 	struct dentry *d;
 
-	/* If for some reason, parent bttN was not created, exit */
+	/* If for some reason, parent bttN was analt created, exit */
 	if (!parent)
 		return;
 
@@ -241,7 +241,7 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 				&a->external_lbasize);
 	debugfs_create_u32("nfree", S_IRUGO, d, &a->nfree);
 	debugfs_create_u16("version_major", S_IRUGO, d, &a->version_major);
-	debugfs_create_u16("version_minor", S_IRUGO, d, &a->version_minor);
+	debugfs_create_u16("version_mianalr", S_IRUGO, d, &a->version_mianalr);
 	debugfs_create_x64("nextoff", S_IRUGO, d, &a->nextoff);
 	debugfs_create_x64("infooff", S_IRUGO, d, &a->infooff);
 	debugfs_create_x64("dataoff", S_IRUGO, d, &a->dataoff);
@@ -321,7 +321,7 @@ static int btt_log_get_old(struct arena_info *a, struct log_group *log)
 
 /*
  * This function copies the desired (old/new) log entry into ent if
- * it is not NULL. It returns the sub-slot number (0 or 1)
+ * it is analt NULL. It returns the sub-slot number (0 or 1)
  * where the desired log entry was found. Negative return values
  * indicate errors.
  */
@@ -356,7 +356,7 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 
 /*
  * This function commits a log entry to media
- * It does _not_ prepare the freelist entry for the next write
+ * It does _analt_ prepare the freelist entry for the next write
  * btt_flog_write is the wrapper for updating the freelist elements
  */
 static int __btt_log_write(struct arena_info *arena, u32 lane,
@@ -414,7 +414,7 @@ static int btt_map_init(struct arena_info *arena)
 
 	zerobuf = kzalloc(chunk_size, GFP_KERNEL);
 	if (!zerobuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * mapoff should always be at least 512B  aligned. We rely on that to
@@ -459,7 +459,7 @@ static int btt_log_init(struct arena_info *arena)
 
 	zerobuf = kzalloc(chunk_size, GFP_KERNEL);
 	if (!zerobuf)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * logoff should always be at least 512B  aligned. We rely on that to
 	 * make sure rw_bytes does error clearing correctly, so make sure that
@@ -541,7 +541,7 @@ static int btt_freelist_init(struct arena_info *arena)
 	arena->freelist = kcalloc(arena->nfree, sizeof(struct free_entry),
 					GFP_KERNEL);
 	if (!arena->freelist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < arena->nfree; i++) {
 		new = btt_log_read(arena, i, &log_new, LOG_NEW_ENT);
@@ -562,12 +562,12 @@ static int btt_freelist_init(struct arena_info *arena)
 		 * the BTT read-only
 		 */
 		if (ent_e_flag(le32_to_cpu(log_new.old_map)) &&
-		    !ent_normal(le32_to_cpu(log_new.old_map))) {
+		    !ent_analrmal(le32_to_cpu(log_new.old_map))) {
 			arena->freelist[i].has_err = 1;
 			ret = arena_clear_freelist_error(arena, i);
 			if (ret)
 				dev_err_ratelimited(to_dev(arena),
-					"Unable to clear known errors\n");
+					"Unable to clear kanalwn errors\n");
 		}
 
 		/* This implies a newly created or untouched flog entry */
@@ -683,7 +683,7 @@ static int log_set_indices(struct arena_info *arena)
 		}
 		/*
 		 * If any of the log_groups have more than one valid,
-		 * non-padding entry, then the we are no longer in the
+		 * analn-padding entry, then the we are anal longer in the
 		 * initial_state
 		 */
 		if (pad_count < 3)
@@ -702,13 +702,13 @@ static int log_set_indices(struct arena_info *arena)
 		log_index[1] = 1;
 
 	/*
-	 * Only allow the known permutations of log/padding indices,
+	 * Only allow the kanalwn permutations of log/padding indices,
 	 * i.e. (0, 1), and (0, 2)
 	 */
 	if ((log_index[0] == 0) && ((log_index[1] == 1) || (log_index[1] == 2)))
-		; /* known index possibilities */
+		; /* kanalwn index possibilities */
 	else {
-		dev_err(to_dev(arena), "Found an unknown padding scheme\n");
+		dev_err(to_dev(arena), "Found an unkanalwn padding scheme\n");
 		return -ENXIO;
 	}
 
@@ -723,7 +723,7 @@ static int btt_rtt_init(struct arena_info *arena)
 {
 	arena->rtt = kcalloc(arena->nfree, sizeof(u32), GFP_KERNEL);
 	if (arena->rtt == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -735,7 +735,7 @@ static int btt_maplocks_init(struct arena_info *arena)
 	arena->map_locks = kcalloc(arena->nfree, sizeof(struct aligned_lock),
 				GFP_KERNEL);
 	if (!arena->map_locks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < arena->nfree; i++)
 		spin_lock_init(&arena->map_locks[i].lock);
@@ -767,7 +767,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 					INT_LBASIZE_ALIGNMENT);
 	arena->nfree = BTT_DEFAULT_NFREE;
 	arena->version_major = btt->nd_btt->version_major;
-	arena->version_minor = btt->nd_btt->version_minor;
+	arena->version_mianalr = btt->nd_btt->version_mianalr;
 
 	if (available % BTT_PG_SIZE)
 		available -= (available % BTT_PG_SIZE);
@@ -827,7 +827,7 @@ static void parse_arena_meta(struct arena_info *arena, struct btt_sb *super,
 	arena->external_lbasize = le32_to_cpu(super->external_lbasize);
 	arena->nfree = le32_to_cpu(super->nfree);
 	arena->version_major = le16_to_cpu(super->version_major);
-	arena->version_minor = le16_to_cpu(super->version_minor);
+	arena->version_mianalr = le16_to_cpu(super->version_mianalr);
 
 	arena->nextoff = (super->nextoff == 0) ? 0 : (arena_off +
 			le64_to_cpu(super->nextoff));
@@ -855,13 +855,13 @@ static int discover_arenas(struct btt *btt)
 
 	struct btt_sb *super __free(kfree) = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (remaining) {
 		/* Alloc memory for arena */
 		arena = alloc_arena(btt, 0, 0, 0);
 		if (!arena)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		arena->infooff = cur_off;
 		ret = btt_info_read(arena, super);
@@ -870,13 +870,13 @@ static int discover_arenas(struct btt *btt)
 
 		if (!nd_btt_arena_is_valid(btt->nd_btt, super)) {
 			if (remaining == btt->rawsize) {
-				btt->init_state = INIT_NOTFOUND;
-				dev_info(to_dev(arena), "No existing arenas\n");
+				btt->init_state = INIT_ANALTFOUND;
+				dev_info(to_dev(arena), "Anal existing arenas\n");
 				goto out;
 			} else {
 				dev_err(to_dev(arena),
 						"Found corrupted metadata!\n");
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto out;
 			}
 		}
@@ -941,7 +941,7 @@ static int create_arenas(struct btt *btt)
 		arena = alloc_arena(btt, arena_size, btt->nlba, cur_off);
 		if (!arena) {
 			free_arenas(btt);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		btt->nlba += arena->external_nlba;
 		if (remaining >= ARENA_MIN_SIZE)
@@ -977,16 +977,16 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	if (ret)
 		return ret;
 
-	super = kzalloc(sizeof(struct btt_sb), GFP_NOIO);
+	super = kzalloc(sizeof(struct btt_sb), GFP_ANALIO);
 	if (!super)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(super->signature, BTT_SIG, sizeof(super->signature));
 	export_uuid(super->uuid, nd_btt->uuid);
 	export_uuid(super->parent_uuid, parent_uuid);
 	super->flags = cpu_to_le32(arena->flags);
 	super->version_major = cpu_to_le16(arena->version_major);
-	super->version_minor = cpu_to_le16(arena->version_minor);
+	super->version_mianalr = cpu_to_le16(arena->version_mianalr);
 	super->external_lbasize = cpu_to_le32(arena->external_lbasize);
 	super->external_nlba = cpu_to_le32(arena->external_nlba);
 	super->internal_lbasize = cpu_to_le32(arena->internal_lbasize);
@@ -1233,7 +1233,7 @@ static int btt_read_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 			arena->rtt[lane] = RTT_VALID | postmap;
 			/*
-			 * Barrier to make sure this write is not reordered
+			 * Barrier to make sure this write is analt reordered
 			 * to do the verification map_read before the RTT store
 			 */
 			barrier();
@@ -1286,7 +1286,7 @@ static int btt_read_pg(struct btt *btt, struct bio_integrity_payload *bip,
 }
 
 /*
- * Normally, arena_{read,write}_bytes will take care of the initial offset
+ * Analrmally, arena_{read,write}_bytes will take care of the initial offset
  * adjustment, but in the case of btt_is_badblock, where we query is_bad_pmem,
  * we need the final, raw namespace offset here
  */
@@ -1467,7 +1467,7 @@ static void btt_submit_bio(struct bio *bio)
 					(op_is_write(bio_op(bio))) ? "WRITE" :
 					"READ",
 					(unsigned long long) iter.bi_sector, len);
-			bio->bi_status = errno_to_blk_status(err);
+			bio->bi_status = erranal_to_blk_status(err);
 			break;
 		}
 	}
@@ -1496,21 +1496,21 @@ static int btt_blk_init(struct btt *btt)
 {
 	struct nd_btt *nd_btt = btt->nd_btt;
 	struct nd_namespace_common *ndns = nd_btt->ndns;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
-	btt->btt_disk = blk_alloc_disk(NUMA_NO_NODE);
+	btt->btt_disk = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (!btt->btt_disk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
-	btt->btt_disk->first_minor = 0;
+	btt->btt_disk->first_mianalr = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
 
 	blk_queue_logical_block_size(btt->btt_disk->queue, btt->sector_size);
 	blk_queue_max_hw_sectors(btt->btt_disk->queue, UINT_MAX);
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, btt->btt_disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, btt->btt_disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_SYNCHROANALUS, btt->btt_disk->queue);
 
 	if (btt_meta_size(btt)) {
 		rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));
@@ -1648,12 +1648,12 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 
 	if (!nd_btt->uuid || !nd_btt->ndns || !nd_btt->lbasize) {
 		dev_dbg(&nd_btt->dev, "incomplete btt configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	btt_sb = devm_kzalloc(&nd_btt->dev, sizeof(*btt_sb), GFP_KERNEL);
 	if (!btt_sb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = nvdimm_namespace_capacity(ndns);
 	rc = devm_namespace_enable(&nd_btt->dev, ndns, size);
@@ -1679,7 +1679,7 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	btt = btt_init(nd_btt, rawsize, nd_btt->lbasize, nd_btt->uuid,
 		       nd_region);
 	if (!btt)
-		return -ENOMEM;
+		return -EANALMEM;
 	nd_btt->btt = btt;
 
 	return 0;

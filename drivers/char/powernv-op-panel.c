@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -112,7 +112,7 @@ static ssize_t oppanel_write(struct file *filp, const char __user *userbuf,
 	return ret;
 }
 
-static int oppanel_open(struct inode *inode, struct file *filp)
+static int oppanel_open(struct ianalde *ianalde, struct file *filp)
 {
 	if (!mutex_trylock(&oppanel_mutex)) {
 		pr_debug("Device Busy\n");
@@ -121,7 +121,7 @@ static int oppanel_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int oppanel_release(struct inode *inode, struct file *filp)
+static int oppanel_release(struct ianalde *ianalde, struct file *filp)
 {
 	mutex_unlock(&oppanel_mutex);
 	return 0;
@@ -137,25 +137,25 @@ static const struct file_operations oppanel_fops = {
 };
 
 static struct miscdevice oppanel_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "op_panel",
 	.fops		= &oppanel_fops
 };
 
 static int oppanel_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	u32 line_len;
 	int rc, i;
 
 	rc = of_property_read_u32(np, "#length", &line_len);
 	if (rc) {
-		pr_err_ratelimited("Operator panel length property not found\n");
+		pr_err_ratelimited("Operator panel length property analt found\n");
 		return rc;
 	}
 	rc = of_property_read_u32(np, "#lines", &num_lines);
 	if (rc) {
-		pr_err_ratelimited("Operator panel lines property not found\n");
+		pr_err_ratelimited("Operator panel lines property analt found\n");
 		return rc;
 	}
 	oppanel_size = line_len * num_lines;
@@ -165,11 +165,11 @@ static int oppanel_probe(struct platform_device *pdev)
 
 	oppanel_data = kcalloc(oppanel_size, sizeof(*oppanel_data), GFP_KERNEL);
 	if (!oppanel_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	oppanel_lines = kcalloc(num_lines, sizeof(oppanel_line_t), GFP_KERNEL);
 	if (!oppanel_lines) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto free_oppanel_data;
 	}
 

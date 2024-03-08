@@ -49,7 +49,7 @@ static int ssam_hid_get_descriptor(struct surface_hid_device *shid, u8 entry, u8
 	int status;
 
 	/*
-	 * Note: The 0x76 above has been chosen because that's what's used by
+	 * Analte: The 0x76 above has been chosen because that's what's used by
 	 * the Windows driver. Together with the header, this leads to a 128
 	 * byte payload in total.
 	 */
@@ -154,15 +154,15 @@ static int ssam_hid_get_raw_report(struct surface_hid_device *shid, u8 rprt_id, 
 	return ssam_retry(ssam_request_do_sync_onstack, shid->ctrl, &rqst, &rsp, sizeof(rprt_id));
 }
 
-static u32 ssam_hid_event_fn(struct ssam_event_notifier *nf, const struct ssam_event *event)
+static u32 ssam_hid_event_fn(struct ssam_event_analtifier *nf, const struct ssam_event *event)
 {
-	struct surface_hid_device *shid = container_of(nf, struct surface_hid_device, notif);
+	struct surface_hid_device *shid = container_of(nf, struct surface_hid_device, analtif);
 
 	if (event->command_id != 0x00)
 		return 0;
 
 	hid_input_report(shid->hid, HID_INPUT_REPORT, (u8 *)&event->data[0], event->length, 0);
-	return SSAM_NOTIF_HANDLED;
+	return SSAM_ANALTIF_HANDLED;
 }
 
 
@@ -201,19 +201,19 @@ static int surface_hid_probe(struct ssam_device *sdev)
 
 	shid = devm_kzalloc(&sdev->dev, sizeof(*shid), GFP_KERNEL);
 	if (!shid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shid->dev = &sdev->dev;
 	shid->ctrl = sdev->ctrl;
 	shid->uid = sdev->uid;
 
-	shid->notif.base.priority = 1;
-	shid->notif.base.fn = ssam_hid_event_fn;
-	shid->notif.event.reg = SSAM_EVENT_REGISTRY_REG(sdev->uid.target);
-	shid->notif.event.id.target_category = sdev->uid.category;
-	shid->notif.event.id.instance = sdev->uid.instance;
-	shid->notif.event.mask = SSAM_EVENT_MASK_STRICT;
-	shid->notif.event.flags = 0;
+	shid->analtif.base.priority = 1;
+	shid->analtif.base.fn = ssam_hid_event_fn;
+	shid->analtif.event.reg = SSAM_EVENT_REGISTRY_REG(sdev->uid.target);
+	shid->analtif.event.id.target_category = sdev->uid.category;
+	shid->analtif.event.id.instance = sdev->uid.instance;
+	shid->analtif.event.mask = SSAM_EVENT_MASK_STRICT;
+	shid->analtif.event.flags = 0;
 
 	shid->ops.get_descriptor = ssam_hid_get_descriptor;
 	shid->ops.output_report = shid_output_report;
@@ -242,7 +242,7 @@ static struct ssam_device_driver surface_hid_driver = {
 	.driver = {
 		.name = "surface_hid",
 		.pm = &surface_hid_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_ssam_device_driver(surface_hid_driver);

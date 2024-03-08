@@ -17,8 +17,8 @@
 #include <linux/devm-helpers.h>
 
 /* MAX8997_REG_STATUS4 */
-#define DCINOK_SHIFT		1
-#define DCINOK_MASK		(1 << DCINOK_SHIFT)
+#define DCIANALK_SHIFT		1
+#define DCIANALK_MASK		(1 << DCIANALK_SHIFT)
 #define DETBAT_SHIFT		2
 #define DETBAT_MASK		(1 << DETBAT_SHIFT)
 
@@ -36,17 +36,17 @@ struct charger_data {
 	struct power_supply *battery;
 	struct regulator *reg;
 	struct extcon_dev *edev;
-	struct notifier_block extcon_nb;
+	struct analtifier_block extcon_nb;
 	struct work_struct extcon_work;
 };
 
 static enum power_supply_property max8997_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS, /* "FULL", "CHARGING" or "DISCHARGING". */
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
-	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_ONLINE, /* charger is active or analt */
 };
 
-/* Note that the charger control is done by a current regulator "CHARGER" */
+/* Analte that the charger control is done by a current regulator "CHARGER" */
 static int max8997_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
@@ -64,7 +64,7 @@ static int max8997_battery_get_property(struct power_supply *psy,
 			return ret;
 		if ((reg & (1 << 0)) == 0x1)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
-		else if ((reg & DCINOK_MASK))
+		else if ((reg & DCIANALK_MASK))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -84,7 +84,7 @@ static int max8997_battery_get_property(struct power_supply *psy,
 		ret = max8997_read_reg(i2c, MAX8997_REG_STATUS4, &reg);
 		if (ret)
 			return ret;
-		if (reg & DCINOK_MASK)
+		if (reg & DCIANALK_MASK)
 			val->intval = 1;
 
 		break;
@@ -140,13 +140,13 @@ static void max8997_battery_extcon_evt_worker(struct work_struct *work)
 	}
 }
 
-static int max8997_battery_extcon_evt(struct notifier_block *nb,
+static int max8997_battery_extcon_evt(struct analtifier_block *nb,
 				unsigned long event, void *param)
 {
 	struct charger_data *charger =
 		container_of(nb, struct charger_data, extcon_nb);
 	schedule_work(&charger->extcon_work);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct power_supply_desc max8997_battery_desc = {
@@ -162,13 +162,13 @@ static int max8997_battery_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct charger_data *charger;
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct i2c_client *i2c = iodev->i2c;
 	struct max8997_platform_data *pdata = iodev->pdata;
 	struct power_supply_config psy_cfg = {};
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data supplied.\n");
+		dev_err(&pdev->dev, "Anal platform data supplied.\n");
 		return -EINVAL;
 	}
 
@@ -182,7 +182,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		ret = max8997_update_reg(i2c, MAX8997_REG_MBCCTRL5,
 				val << ITOPOFF_SHIFT, ITOPOFF_MASK);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "Cannot use i2c bus.\n");
+			dev_err(&pdev->dev, "Cananalt use i2c bus.\n");
 			return ret;
 		}
 	}
@@ -209,13 +209,13 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot use i2c bus.\n");
+		dev_err(&pdev->dev, "Cananalt use i2c bus.\n");
 		return ret;
 	}
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, charger);
 
@@ -232,10 +232,10 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		return PTR_ERR(charger->battery);
 	}
 
-	// grab regulator from parent device's node
-	pdev->dev.of_node = iodev->dev->of_node;
+	// grab regulator from parent device's analde
+	pdev->dev.of_analde = iodev->dev->of_analde;
 	charger->reg = devm_regulator_get_optional(&pdev->dev, "charger");
-	pdev->dev.of_node = np;
+	pdev->dev.of_analde = np;
 	if (IS_ERR(charger->reg)) {
 		if (PTR_ERR(charger->reg) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
@@ -255,11 +255,11 @@ static int max8997_battery_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to add extcon evt stop action: %d\n", ret);
 			return ret;
 		}
-		charger->extcon_nb.notifier_call = max8997_battery_extcon_evt;
-		ret = devm_extcon_register_notifier_all(&pdev->dev, charger->edev,
+		charger->extcon_nb.analtifier_call = max8997_battery_extcon_evt;
+		ret = devm_extcon_register_analtifier_all(&pdev->dev, charger->edev,
 							&charger->extcon_nb);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to register extcon notifier\n");
+			dev_err(&pdev->dev, "failed to register extcon analtifier\n");
 			return ret;
 		}
 	}

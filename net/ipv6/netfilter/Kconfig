@@ -52,7 +52,7 @@ config NF_DUP_IPV6
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	help
 	  This option enables the nf_dup_ipv6 core, which duplicates an IPv6
-	  packet to be rerouted to another destination.
+	  packet to be rerouted to aanalther destination.
 
 config NF_REJECT_IPV6
 	tristate "IPv6 packet rejection"

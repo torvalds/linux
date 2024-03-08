@@ -30,7 +30,7 @@ enum asymmetric_payload_bits {
  * Identifiers for an asymmetric key ID.  We have three ways of looking up a
  * key derived from an X.509 certificate:
  *
- * (1) Serial Number & Issuer.  Non-optional.  This is the only valid way to
+ * (1) Serial Number & Issuer.  Analn-optional.  This is the only valid way to
  *     map a PKCS#7 signature to an X.509 certificate.
  *
  * (2) Issuer & Subject Unique IDs.  Optional.  These were the original way to
@@ -42,7 +42,7 @@ enum asymmetric_payload_bits {
  *
  * We could also support an PGP key identifier, which is just a SHA1 sum of the
  * public key and certain parameters, but since we don't support PGP keys at
- * the moment, we shall ignore those.
+ * the moment, we shall iganalre those.
  *
  * What we actually do is provide a place where binary identifiers can be
  * stashed and then compare against them when checking for an id match.

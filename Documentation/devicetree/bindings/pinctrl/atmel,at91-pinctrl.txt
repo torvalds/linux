@@ -9,10 +9,10 @@ also the PAD settings parameters.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-Atmel AT91 pin configuration node is a node of a group of pins which can be
-used for a specific device or function. This node represents both mux and config
+Atmel AT91 pin configuration analde is a analde of a group of pins which can be
+used for a specific device or function. This analde represents both mux and config
 of the pins in that group. The 'pins' selects the function mode(also named pin
 mode) this pin can work on and the 'config' configures various pad settings
 such as pull-up, multi drive, etc.
@@ -79,7 +79,7 @@ PA31	TXD4
 
 => 0xffc00c3b
 
-Required properties for pin configuration node:
+Required properties for pin configuration analde:
 - atmel,pins: 4 integers array, represents a group of pins mux and config
   setting. The format is atmel,pins = <PIN_BANK PIN_BANK_NUM PERIPH CONFIG>.
   The PERIPH 0 means gpio, PERIPH 1 is periph A, PERIPH 2 is periph B...
@@ -94,7 +94,7 @@ PULL_DOWN	(1 << 3): indicate this pin needs a pull down.
 DIS_SCHMIT	(1 << 4): indicate this pin needs to the disable schmitt trigger.
 DRIVE_STRENGTH (3 << 5): indicate the drive strength of the pin using the
 			following values:
-				00 - No change (reset state value kept)
+				00 - Anal change (reset state value kept)
 				01 - Low
 				10 - Medium
 				11 - High
@@ -104,17 +104,17 @@ SLEWRATE	(1 << 9): slew rate of the pin: 0 = disable, 1 = enable
 DEBOUNCE	(1 << 16): indicate this pin needs debounce.
 DEBOUNCE_VAL	(0x3fff << 17): debounce value.
 
-NOTE:
+ANALTE:
 Some requirements for using atmel,at91rm9200-pinctrl binding:
-1. We have pin function node defined under at91 controller node to represent
+1. We have pin function analde defined under at91 controller analde to represent
    what pinmux functions this SoC supports.
-2. The driver can use the function node's name and pin configuration node's
+2. The driver can use the function analde's name and pin configuration analde's
    name describe the pin function and group hierarchy.
-   For example, Linux at91 pinctrl driver takes the function node's name
-   as the function name and pin configuration node's name as group name to
+   For example, Linux at91 pinctrl driver takes the function analde's name
+   as the function name and pin configuration analde's name as group name to
    create the map table.
-3. Each pin configuration node should have a phandle, devices can set pins
-   configurations by referring to the phandle of that pin configuration node.
+3. Each pin configuration analde should have a phandle, devices can set pins
+   configurations by referring to the phandle of that pin configuration analde.
 4. The gpio controller must be describe in the pinctrl simple-bus.
 
 For each bank the required properties are:
@@ -122,7 +122,7 @@ For each bank the required properties are:
   "microchip,sam9x60-gpio"
 - reg: physical base address and length of the controller's registers
 - interrupts: interrupt outputs from the controller
-- interrupt-controller: marks the device node as an interrupt controller
+- interrupt-controller: marks the device analde as an interrupt controller
 - #interrupt-cells: should be 2; refer to ../interrupt-controller/interrupts.txt
   for more details.
 - gpio-controller

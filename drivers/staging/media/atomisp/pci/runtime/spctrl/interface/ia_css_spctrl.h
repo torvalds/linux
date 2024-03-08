@@ -31,7 +31,7 @@ typedef struct {
 	unsigned int    sp_entry;                /* < entry function ptr on SP */
 	const void      *code;                   /** location of firmware */
 	u32         code_size;
-	char      *program_name;    /** not used on hardware, only for simulation */
+	char      *program_name;    /** analt used on hardware, only for simulation */
 } ia_css_spctrl_cfg;
 
 /* Get the code addr in DDR of SP */

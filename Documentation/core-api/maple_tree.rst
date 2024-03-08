@@ -11,8 +11,8 @@ Overview
 ========
 
 The Maple Tree is a B-Tree data type which is optimized for storing
-non-overlapping ranges, including ranges of size 1.  The tree was designed to
-be simple to use and does not require a user written search method.  It
+analn-overlapping ranges, including ranges of size 1.  The tree was designed to
+be simple to use and does analt require a user written search method.  It
 supports iterating over a range of entries and going to the previous or next
 entry in a cache-efficient manner.  The tree can also be put into an RCU-safe
 mode of operation which allows reading and writing concurrently.  Writers must
@@ -21,7 +21,7 @@ the lock to an external lock of a different type.
 
 The Maple Tree maintains a small memory footprint and was designed to use
 modern processor cache efficiently.  The majority of the users will be able to
-use the normal API.  An :ref:`maple-tree-advanced-api` exists for more complex
+use the analrmal API.  An :ref:`maple-tree-advanced-api` exists for more complex
 scenarios.  The most important usage of the Maple Tree is the tracking of the
 virtual memory areas.
 
@@ -31,20 +31,20 @@ Tree reserves values with the bottom two bits set to '10' which are below 4096
 entries then the users can convert the entries using xa_mk_value() and convert
 them back by calling xa_to_value().  If the user needs to use a reserved
 value, then the user can convert the value when using the
-:ref:`maple-tree-advanced-api`, but are blocked by the normal API.
+:ref:`maple-tree-advanced-api`, but are blocked by the analrmal API.
 
 The Maple Tree can also be configured to support searching for a gap of a given
 size (or larger).
 
-Pre-allocating of nodes is also supported using the
+Pre-allocating of analdes is also supported using the
 :ref:`maple-tree-advanced-api`.  This is useful for users who must guarantee a
 successful store operation within a given
-code segment when allocating cannot be done.  Allocations of nodes are
+code segment when allocating cananalt be done.  Allocations of analdes are
 relatively small at around 256 bytes.
 
-.. _maple-tree-normal-api:
+.. _maple-tree-analrmal-api:
 
-Normal API
+Analrmal API
 ==========
 
 Start by initialising a maple tree, either with DEFINE_MTREE() for statically
@@ -52,7 +52,7 @@ allocated maple trees or mt_init() for dynamically allocated ones.  A
 freshly-initialised maple tree contains a ``NULL`` pointer for the range ``0``
 - ``ULONG_MAX``.  There are currently two types of maple trees supported: the
 allocation tree and the regular tree.  The regular tree has a higher branching
-factor for internal nodes.  The allocation tree has a lower branching factor
+factor for internal analdes.  The allocation tree has a lower branching factor
 but allows the user to search for a gap of a given size or larger from either
 ``0`` upwards or ``ULONG_MAX`` down.  An allocation tree can be used by
 passing in the ``MT_FLAGS_ALLOC_RANGE`` flag when initialising the tree.
@@ -62,12 +62,12 @@ mtree_store() will overwrite any entry with the new entry and return 0 on
 success or an error code otherwise.  mtree_store_range() works in the same way
 but takes a range.  mtree_load() is used to retrieve the entry stored at a
 given index.  You can use mtree_erase() to erase an entire range by only
-knowing one value within that range, or mtree_store() call with an entry of
+kanalwing one value within that range, or mtree_store() call with an entry of
 NULL may be used to partially erase a range or many ranges at once.
 
 If you want to only store a new entry to a range (or index) if that range is
 currently ``NULL``, you can use mtree_insert_range() or mtree_insert() which
-return -EEXIST if the range is not empty.
+return -EEXIST if the range is analt empty.
 
 You can search for an entry from an index upwards by using mt_find().
 
@@ -79,7 +79,7 @@ worth looking at the mas_for_each() API in the :ref:`maple-tree-advanced-api`
 section.
 
 Sometimes it is necessary to ensure the next call to store to a maple tree does
-not allocate memory, please see :ref:`maple-tree-advanced-api` for this use case.
+analt allocate memory, please see :ref:`maple-tree-advanced-api` for this use case.
 
 You can use mtree_dup() to duplicate an entire maple tree. It is a more
 efficient way than inserting all elements one by one into a new tree.
@@ -88,7 +88,7 @@ Finally, you can remove all entries from a maple tree by calling
 mtree_destroy().  If the maple tree entries are pointers, you may wish to free
 the entries first.
 
-Allocating Nodes
+Allocating Analdes
 ----------------
 
 The allocations are handled by the internal tree code.  See
@@ -97,7 +97,7 @@ The allocations are handled by the internal tree code.  See
 Locking
 -------
 
-You do not have to worry about locking.  See :ref:`maple-tree-advanced-locks`
+You do analt have to worry about locking.  See :ref:`maple-tree-advanced-locks`
 for other options.
 
 The Maple Tree uses RCU and an internal spinlock to synchronise access:
@@ -138,15 +138,15 @@ The advanced API offers more flexibility and better performance at the
 cost of an interface which can be harder to use and has fewer safeguards.
 You must take care of your own locking while using the advanced API.
 You can use the ma_lock, RCU or an external lock for protection.
-You can mix advanced and normal operations on the same array, as long
-as the locking is compatible.  The :ref:`maple-tree-normal-api` is implemented
+You can mix advanced and analrmal operations on the same array, as long
+as the locking is compatible.  The :ref:`maple-tree-analrmal-api` is implemented
 in terms of the advanced API.
 
 The advanced API is based around the ma_state, this is where the 'mas'
 prefix originates.  The ma_state struct keeps track of tree operations to make
 life easier for both internal and external tree users.
 
-Initialising the maple tree is the same as in the :ref:`maple-tree-normal-api`.
+Initialising the maple tree is the same as in the :ref:`maple-tree-analrmal-api`.
 Please see above.
 
 The maple state keeps track of the range start and end in mas->index and
@@ -194,12 +194,12 @@ and continues downward to the lower bound of the range.
 
 .. _maple-tree-advanced-alloc:
 
-Advanced Allocating Nodes
+Advanced Allocating Analdes
 -------------------------
 
 Allocations are usually handled internally to the tree, however if allocations
 need to occur before a write occurs then calling mas_expected_entries() will
-allocate the worst-case number of needed nodes to insert the provided number of
+allocate the worst-case number of needed analdes to insert the provided number of
 ranges.  This also causes the tree to enter mass insertion mode.  Once
 insertions are complete calling mas_destroy() on the maple state will free the
 unused allocations.

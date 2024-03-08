@@ -1,9 +1,9 @@
 [
     {
-        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule.",
+        "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Analn-AVX turbo schedule.",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
-        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "PublicDescription": "Counts Core cycles where the core was running with power-delivery for baseline license level 0.  This includes analn-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
         "SampleAfterValue": "200003",
         "UMask": "0x7"
     },
@@ -24,58 +24,58 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Hit snoop reply with data, line invalidated.",
+        "BriefDescription": "Hit sanalop reply with data, line invalidated.",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.I_FWD_FE",
-        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's cache, after the data is forwarded back to the requestor and indicating the data was found unmodified in the (FE) Forward or Exclusive State in this cores caches cache.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.I_FWD_FE",
+        "PublicDescription": "Counts responses to sanalops indicating the line will analw be (I)nvalidated: removed from this core's cache, after the data is forwarded back to the requestor and indicating the data was found unmodified in the (FE) Forward or Exclusive State in this cores caches cache.  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "HitM snoop reply with data, line invalidated.",
+        "BriefDescription": "HitM sanalop reply with data, line invalidated.",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.I_FWD_M",
-        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's caches, after the data is forwarded back to the requestor, and indicating the data was found modified(M) in this cores caches cache (aka HitM response).  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.I_FWD_M",
+        "PublicDescription": "Counts responses to sanalops indicating the line will analw be (I)nvalidated: removed from this core's caches, after the data is forwarded back to the requestor, and indicating the data was found modified(M) in this cores caches cache (aka HitM response).  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Hit snoop reply without sending the data, line invalidated.",
+        "BriefDescription": "Hit sanalop reply without sending the data, line invalidated.",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.I_HIT_FSE",
-        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated in this core's caches without being forwarded back to the requestor. The line was in Forward, Shared or Exclusive (FSE) state in this cores caches.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.I_HIT_FSE",
+        "PublicDescription": "Counts responses to sanalops indicating the line will analw be (I)nvalidated in this core's caches without being forwarded back to the requestor. The line was in Forward, Shared or Exclusive (FSE) state in this cores caches.  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Line not found snoop reply",
+        "BriefDescription": "Line analt found sanalop reply",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.MISS",
-        "PublicDescription": "Counts responses to snoops indicating that the data was not found (IHitI) in this core's caches. A single snoop response from the core counts on all hyperthreads of the Core.",
+        "EventName": "CORE_SANALOP_RESPONSE.MISS",
+        "PublicDescription": "Counts responses to sanalops indicating that the data was analt found (IHitI) in this core's caches. A single sanalop response from the core counts on all hyperthreads of the Core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Hit snoop reply with data, line kept in Shared state.",
+        "BriefDescription": "Hit sanalop reply with data, line kept in Shared state.",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.S_FWD_FE",
-        "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (FS) Forward or Shared state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.S_FWD_FE",
+        "PublicDescription": "Counts responses to sanalops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (FS) Forward or Shared state.  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "HitM snoop reply with data, line kept in Shared state",
+        "BriefDescription": "HitM sanalop reply with data, line kept in Shared state",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.S_FWD_M",
-        "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (M)odified state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.S_FWD_M",
+        "PublicDescription": "Counts responses to sanalops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (M)odified state.  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Hit snoop reply without sending the data, line kept in Shared state.",
+        "BriefDescription": "Hit sanalop reply without sending the data, line kept in Shared state.",
         "EventCode": "0xef",
-        "EventName": "CORE_SNOOP_RESPONSE.S_HIT_FSE",
-        "PublicDescription": "Counts responses to snoops indicating the line was kept on this core in the (S)hared state, and that the data was found unmodified but not forwarded back to the requestor, initially the data was found in the cache in the (FSE) Forward, Shared state or Exclusive state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "EventName": "CORE_SANALOP_RESPONSE.S_HIT_FSE",
+        "PublicDescription": "Counts responses to sanalops indicating the line was kept on this core in the (S)hared state, and that the data was found unmodified but analt forwarded back to the requestor, initially the data was found in the cache in the (FSE) Forward, Shared state or Exclusive state.  A single sanalop response from the core counts on all hyperthreads of the core.",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -161,7 +161,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to another socket.",
+        "BriefDescription": "Counts demand data reads that were supplied by DRAM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -170,7 +170,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that were supplied by PMM attached to another socket.",
+        "BriefDescription": "Counts demand data reads that were supplied by PMM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.REMOTE_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -242,7 +242,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by PMM attached to another socket.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that were supplied by PMM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.REMOTE_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -305,7 +305,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware prefetches to the L3 only that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline was homed in a remote socket.",
+        "BriefDescription": "Counts hardware prefetches to the L3 only that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline was homed in a remote socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L3.REMOTE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -314,7 +314,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts full cacheline writes (ItoM) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline was homed in a remote socket.",
+        "BriefDescription": "Counts full cacheline writes (ItoM) that were analt supplied by the local socket's L1, L2, or L3 caches and the cacheline was homed in a remote socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.ITOM.REMOTE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -368,7 +368,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to this socket, whether or analt in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts DRAM accesses that are controlled by the close or distant SNC Cluster.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -377,7 +377,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, whether or not in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to this socket, whether or analt in Sub NUMA Cluster(SNC) Mode.  In SNC Mode counts PMM accesses that are controlled by the close or distant SNC Cluster.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.LOCAL_SOCKET_PMM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -386,7 +386,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were analt supplied by the local socket's L1, L2, or L3 caches and were supplied by a remote socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -395,7 +395,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to another socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE_DRAM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -404,7 +404,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to another socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by DRAM or PMM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE_MEMORY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -413,7 +413,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to another socket.",
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were supplied by PMM attached to aanalther socket.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.READS_TO_CORE.REMOTE_PMM",
         "MSRIndex": "0x1a6,0x1a7",

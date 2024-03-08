@@ -290,15 +290,15 @@ static const struct vadc_map_pt adcmap7_100k[] = {
 };
 
 static const struct u32_fract adc5_prescale_ratios[] = {
-	{ .numerator =  1, .denominator =  1 },
-	{ .numerator =  1, .denominator =  3 },
-	{ .numerator =  1, .denominator =  4 },
-	{ .numerator =  1, .denominator =  6 },
-	{ .numerator =  1, .denominator = 20 },
-	{ .numerator =  1, .denominator =  8 },
-	{ .numerator = 10, .denominator = 81 },
-	{ .numerator =  1, .denominator = 10 },
-	{ .numerator =  1, .denominator = 16 },
+	{ .numerator =  1, .deanalminator =  1 },
+	{ .numerator =  1, .deanalminator =  3 },
+	{ .numerator =  1, .deanalminator =  4 },
+	{ .numerator =  1, .deanalminator =  6 },
+	{ .numerator =  1, .deanalminator = 20 },
+	{ .numerator =  1, .deanalminator =  8 },
+	{ .numerator = 10, .deanalminator = 81 },
+	{ .numerator =  1, .deanalminator = 10 },
+	{ .numerator =  1, .deanalminator = 16 },
 };
 
 static int qcom_vadc_scale_hw_calib_volt(
@@ -414,7 +414,7 @@ static int qcom_vadc_scale_volt(const struct vadc_linear_graph *calib_graph,
 
 	qcom_vadc_scale_calib(calib_graph, adc_code, absolute, &voltage);
 
-	voltage *= prescale->denominator;
+	voltage *= prescale->deanalminator;
 	result = div64_s64(voltage, prescale->numerator);
 	*result_uv = result;
 
@@ -454,7 +454,7 @@ static int qcom_vadc_scale_die_temp(const struct vadc_linear_graph *calib_graph,
 	qcom_vadc_scale_calib(calib_graph, adc_code, absolute, &voltage);
 
 	if (voltage > 0) {
-		temp = voltage * prescale->denominator;
+		temp = voltage * prescale->deanalminator;
 		do_div(temp, prescale->numerator * 2);
 		voltage = temp;
 	} else {
@@ -475,7 +475,7 @@ static int qcom_vadc_scale_chg_temp(const struct vadc_linear_graph *calib_graph,
 
 	qcom_vadc_scale_calib(calib_graph, adc_code, absolute, &voltage);
 
-	voltage *= prescale->denominator;
+	voltage *= prescale->deanalminator;
 	voltage = div64_s64(voltage, prescale->numerator);
 	voltage = ((PMI_CHG_SCALE_1) * (voltage * 2));
 	voltage = (voltage + PMI_CHG_SCALE_2);
@@ -495,7 +495,7 @@ static u16 qcom_vadc_scale_voltage_code(s32 voltage,
 	s64 adc_vdd_ref_mv = 1875; /* reference voltage */
 
 	volt *= prescale->numerator * factor * full_scale_code_volt;
-	volt = div64_s64(volt, (s64)prescale->denominator * adc_vdd_ref_mv * 1000);
+	volt = div64_s64(volt, (s64)prescale->deanalminator * adc_vdd_ref_mv * 1000);
 
 	return volt;
 }
@@ -508,7 +508,7 @@ static int qcom_vadc_scale_code_voltage_factor(u16 adc_code,
 	s64 voltage, temp, adc_vdd_ref_mv = 1875;
 
 	/*
-	 * The normal data range is between 0V to 1.875V. On cases where
+	 * The analrmal data range is between 0V to 1.875V. On cases where
 	 * we read low voltage values, the ADC code can go beyond the
 	 * range and the scale result is incorrect so we clamp the values
 	 * for the cases where the code represents a value below 0V
@@ -520,7 +520,7 @@ static int qcom_vadc_scale_code_voltage_factor(u16 adc_code,
 	voltage = (s64) adc_code * adc_vdd_ref_mv * 1000;
 	voltage = div64_s64(voltage, data->full_scale_code_volt);
 	if (voltage > 0) {
-		voltage *= prescale->denominator;
+		voltage *= prescale->deanalminator;
 		temp = prescale->numerator * factor;
 		voltage = div64_s64(voltage, temp);
 	} else {
@@ -706,13 +706,13 @@ int qcom_adc5_hw_scale(enum vadc_scale_fn_type scaletype,
 }
 EXPORT_SYMBOL(qcom_adc5_hw_scale);
 
-int qcom_adc5_prescaling_from_dt(u32 numerator, u32 denominator)
+int qcom_adc5_prescaling_from_dt(u32 numerator, u32 deanalminator)
 {
 	unsigned int pre;
 
 	for (pre = 0; pre < ARRAY_SIZE(adc5_prescale_ratios); pre++)
 		if (adc5_prescale_ratios[pre].numerator == numerator &&
-		    adc5_prescale_ratios[pre].denominator == denominator)
+		    adc5_prescale_ratios[pre].deanalminator == deanalminator)
 			break;
 
 	if (pre == ARRAY_SIZE(adc5_prescale_ratios))

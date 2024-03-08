@@ -11,13 +11,13 @@ Código de Conducta para Contribuyentes
 Nuestro Compromiso
 ==================
 
-Nosotros, como miembros, contribuyentes y administradores nos comprometemos
+Analsotros, como miembros, contribuyentes y administradores anals comprometemos
 a hacer de la participación en nuestra comunidad una experiencia libre de
 acoso para todo el mundo, independientemente de la edad, dimensión corporal,
 minusvalía visible o invisible, etnicidad, características sexuales,
 identidad y expresión de género, nivel de experiencia, educación, nivel
 socio-económico, nacionalidad, apariencia personal, raza, religión, o
-identidad u orientación sexual. Nos comprometemos a actuar e interactuar de
+identidad u orientación sexual. Anals comprometemos a actuar e interactuar de
 maneras que contribuyan a una comunidad abierta, acogedora, diversa,
 inclusiva y sana.
 
@@ -32,7 +32,7 @@ para nuestra comunidad:
 * Dar y aceptar adecuadamente retroalimentación constructiva
 * Aceptar la responsabilidad y disculparse ante quienes se vean afectados
   por nuestros errores, aprendiendo de la experiencia
-* Centrarse en lo que sea mejor no sólo para nosotros como individuos, sino
+* Centrarse en lo que sea mejor anal sólo para analsotros como individuos, sianal
   para la comunidad en general
 
 
@@ -47,7 +47,7 @@ Ejemplos de comportamiento inaceptable:
   físicas o de correo
   electrónico, sin su permiso explícito
 * Otras conductas que puedan ser razonablemente consideradas como
-  inapropiadas en un entorno profesional
+  inapropiadas en un entoranal profesional
 
 
 Aplicación de las responsabilidades
@@ -56,11 +56,11 @@ Aplicación de las responsabilidades
 Los administradores de la comunidad son responsables de aclarar y hacer
 cumplir nuestros estándares de comportamiento aceptable y tomarán acciones
 apropiadas y correctivas de forma justa en respuesta a cualquier
-comportamiento que consideren inapropiado, amenazante, ofensivo o dañino.
+comportamiento que consideren inapropiado, amenazante, ofensivo o dañianal.
 
 Los administradores de la comunidad tendrán el derecho y la responsabilidad
 de eliminar, editar o rechazar comentarios, commits, código, ediciones de
-páginas de wiki, issues y otras contribuciones que no se alineen con este
+páginas de wiki, issues y otras contribuciones que anal se alineen con este
 Código de Conducta, y comunicarán las razones para sus decisiones de
 moderación cuando sea apropiado.
 
@@ -71,7 +71,7 @@ Este código de conducta aplica tanto a espacios del proyecto como a
 espacios públicos donde un individuo esté en representación del proyecto o
 comunidad. Ejemplos de esto incluyen el uso de la cuenta oficial de correo
 electrónico, publicaciones a través de las redes sociales oficiales, o
-presentaciones con personas designadas en eventos en línea o no.
+presentaciones con personas designadas en eventos en línea o anal.
 
 Aplicación
 ==========

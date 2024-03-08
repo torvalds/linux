@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -166,7 +166,7 @@ static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_fl
 
 	io_ring_submit_lock(ctx, issue_flags);
 	if (likely(idx < ctx->nr_user_files)) {
-		idx = array_index_nospec(idx, ctx->nr_user_files);
+		idx = array_index_analspec(idx, ctx->nr_user_files);
 		file = io_file_from_index(&ctx->file_table, idx);
 		if (file)
 			get_file(file);
@@ -196,7 +196,7 @@ static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flag
 		goto out_unlock;
 	/*
 	 * If this fails, the target still received the file descriptor but
-	 * wasn't notified of the fact. This means that if this request
+	 * wasn't analtified of the fact. This means that if this request
 	 * completes with -EOVERFLOW, then the sender must ensure that a
 	 * later IORING_OP_MSG_RING delivers the message.
 	 */

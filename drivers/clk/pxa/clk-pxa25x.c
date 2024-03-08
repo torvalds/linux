@@ -6,7 +6,7 @@
  *
  * Heavily inspired from former arch/arm/mach-pxa/pxa25x.c.
  *
- * For non-devicetree platforms. Once pxa is fully converted to devicetree, this
+ * For analn-devicetree platforms. Once pxa is fully converted to devicetree, this
  * should go away.
  */
 #include <linux/clk-provider.h>
@@ -50,7 +50,7 @@ static unsigned char L_clk_mult[32] = { 0, 27, 32, 36, 40, 45, 0, };
 static unsigned char M_clk_mult[4] = { 0, 1, 2, 4 };
 
 /* Run Mode Frequency to Turbo Mode Frequency Multiplier (N) */
-/* Note: we store the value N * 2 here. */
+/* Analte: we store the value N * 2 here. */
 static unsigned char N2_clk_mult[8] = { 0, 0, 2, 3, 4, 0, 6, 0 };
 
 static const char * const get_freq_khz[] = {
@@ -67,7 +67,7 @@ static u32 mdrefr_dri(unsigned int freq_khz)
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.
  * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
+ * If info is analt 0 we also display the current settings.
  */
 unsigned int pxa25x_get_clk_frequency_khz(int info)
 {
@@ -131,7 +131,7 @@ PARENTS(pxa25x_osc3) = { "osc_3_6864mhz", "osc_3_6864mhz" };
 		       CKEN, CKEN_ ## bit, 0)
 #define PXA25X_CKEN_1RATE_AO(dev_id, con_id, bit, parents, delay)	\
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
-		       CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
+		       CKEN, CKEN_ ## bit, CLK_IGANALRE_UNUSED)
 
 static struct desc_clk_cken pxa25x_clocks[] __initdata = {
 	PXA25X_PBUS95_CKEN("pxa2xx-mci.0", NULL, MMC, 1, 5, 0),
@@ -256,9 +256,9 @@ RATE_OPS(clk_pxa25x_cpll, "cpll");
 
 static void __init pxa25x_register_core(void)
 {
-	clkdev_pxa_register(CLK_NONE, "cpll", NULL,
+	clkdev_pxa_register(CLK_ANALNE, "cpll", NULL,
 			    clk_register_clk_pxa25x_cpll());
-	clkdev_pxa_register(CLK_NONE, "run", NULL,
+	clkdev_pxa_register(CLK_ANALNE, "run", NULL,
 			    clk_register_clk_pxa25x_run());
 	clkdev_pxa_register(CLK_CORE, "core", NULL,
 			    clk_register_clk_pxa25x_core());
@@ -267,10 +267,10 @@ static void __init pxa25x_register_core(void)
 static void __init pxa25x_register_plls(void)
 {
 	clk_register_fixed_rate(NULL, "osc_3_6864mhz", NULL,
-				CLK_GET_RATE_NOCACHE, 3686400);
+				CLK_GET_RATE_ANALCACHE, 3686400);
 	clkdev_pxa_register(CLK_OSC32k768, "osc_32_768khz", NULL,
 			    clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-						    CLK_GET_RATE_NOCACHE,
+						    CLK_GET_RATE_ANALCACHE,
 						    32768));
 	clk_register_fixed_rate(NULL, "clk_dummy", NULL, 0, 0);
 	clk_register_fixed_factor(NULL, "ppll_95_85mhz", "osc_3_6864mhz",
@@ -283,7 +283,7 @@ static void __init pxa25x_base_clocks_init(void)
 {
 	pxa25x_register_plls();
 	pxa25x_register_core();
-	clkdev_pxa_register(CLK_NONE, "system_bus", NULL,
+	clkdev_pxa_register(CLK_ANALNE, "system_bus", NULL,
 			    clk_register_clk_pxa25x_memory());
 }
 
@@ -332,7 +332,7 @@ int __init pxa25x_clocks_init(void __iomem *regs)
 	return clk_pxa_cken_init(pxa25x_clocks, ARRAY_SIZE(pxa25x_clocks), clk_regs);
 }
 
-static void __init pxa25x_dt_clocks_init(struct device_node *np)
+static void __init pxa25x_dt_clocks_init(struct device_analde *np)
 {
 	pxa25x_clocks_init(ioremap(0x41300000ul, 0x10));
 	clk_pxa_dt_common_init(np);

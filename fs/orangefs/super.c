@@ -13,8 +13,8 @@
 #include <linux/hashtable.h>
 #include <linux/seq_file.h>
 
-/* a cache for orangefs-inode objects (i.e. orangefs inode private data) */
-static struct kmem_cache *orangefs_inode_cache;
+/* a cache for orangefs-ianalde objects (i.e. orangefs ianalde private data) */
+static struct kmem_cache *orangefs_ianalde_cache;
 
 /* list for storing orangefs specific superblocks in use */
 LIST_HEAD(orangefs_superblocks);
@@ -91,79 +91,79 @@ static int parse_mount_options(struct super_block *sb, char *options,
 	return 0;
 fail:
 	if (!silent)
-		gossip_err("Error: mount option [%s] is not supported.\n", p);
+		gossip_err("Error: mount option [%s] is analt supported.\n", p);
 	return -EINVAL;
 }
 
-static void orangefs_inode_cache_ctor(void *req)
+static void orangefs_ianalde_cache_ctor(void *req)
 {
-	struct orangefs_inode_s *orangefs_inode = req;
+	struct orangefs_ianalde_s *orangefs_ianalde = req;
 
-	inode_init_once(&orangefs_inode->vfs_inode);
-	init_rwsem(&orangefs_inode->xattr_sem);
+	ianalde_init_once(&orangefs_ianalde->vfs_ianalde);
+	init_rwsem(&orangefs_ianalde->xattr_sem);
 }
 
-static struct inode *orangefs_alloc_inode(struct super_block *sb)
+static struct ianalde *orangefs_alloc_ianalde(struct super_block *sb)
 {
-	struct orangefs_inode_s *orangefs_inode;
+	struct orangefs_ianalde_s *orangefs_ianalde;
 
-	orangefs_inode = alloc_inode_sb(sb, orangefs_inode_cache, GFP_KERNEL);
-	if (!orangefs_inode)
+	orangefs_ianalde = alloc_ianalde_sb(sb, orangefs_ianalde_cache, GFP_KERNEL);
+	if (!orangefs_ianalde)
 		return NULL;
 
 	/*
 	 * We want to clear everything except for rw_semaphore and the
-	 * vfs_inode.
+	 * vfs_ianalde.
 	 */
-	memset(&orangefs_inode->refn.khandle, 0, 16);
-	orangefs_inode->refn.fs_id = ORANGEFS_FS_ID_NULL;
-	orangefs_inode->last_failed_block_index_read = 0;
-	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
+	memset(&orangefs_ianalde->refn.khandle, 0, 16);
+	orangefs_ianalde->refn.fs_id = ORANGEFS_FS_ID_NULL;
+	orangefs_ianalde->last_failed_block_index_read = 0;
+	memset(orangefs_ianalde->link_target, 0, sizeof(orangefs_ianalde->link_target));
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "orangefs_alloc_inode: allocated %p\n",
-		     &orangefs_inode->vfs_inode);
-	return &orangefs_inode->vfs_inode;
+		     "orangefs_alloc_ianalde: allocated %p\n",
+		     &orangefs_ianalde->vfs_ianalde);
+	return &orangefs_ianalde->vfs_ianalde;
 }
 
-static void orangefs_free_inode(struct inode *inode)
+static void orangefs_free_ianalde(struct ianalde *ianalde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_cached_xattr *cx;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int i;
 
-	hash_for_each_safe(orangefs_inode->xattr_cache, i, tmp, cx, node) {
-		hlist_del(&cx->node);
+	hash_for_each_safe(orangefs_ianalde->xattr_cache, i, tmp, cx, analde) {
+		hlist_del(&cx->analde);
 		kfree(cx);
 	}
 
-	kmem_cache_free(orangefs_inode_cache, orangefs_inode);
+	kmem_cache_free(orangefs_ianalde_cache, orangefs_ianalde);
 }
 
-static void orangefs_destroy_inode(struct inode *inode)
+static void orangefs_destroy_ianalde(struct ianalde *ianalde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-			"%s: deallocated %p destroying inode %pU\n",
-			__func__, orangefs_inode, get_khandle_from_ino(inode));
+			"%s: deallocated %p destroying ianalde %pU\n",
+			__func__, orangefs_ianalde, get_khandle_from_ianal(ianalde));
 }
 
-static int orangefs_write_inode(struct inode *inode,
+static int orangefs_write_ianalde(struct ianalde *ianalde,
 				struct writeback_control *wbc)
 {
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_write_inode\n");
-	return orangefs_inode_setattr(inode);
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_write_ianalde\n");
+	return orangefs_ianalde_setattr(ianalde);
 }
 
 /*
- * NOTE: information filled in here is typically reflected in the
+ * ANALTE: information filled in here is typically reflected in the
  * output of the system command 'df'
 */
 static int orangefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int flags = 0;
 	struct super_block *sb = NULL;
@@ -220,7 +220,7 @@ out_op_release:
 
 /*
  * Remount as initiated by VFS layer.  We just need to reparse the mount
- * options, no need to signal pvfs2-client-core about it.
+ * options, anal need to signal pvfs2-client-core about it.
  */
 static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
 {
@@ -241,7 +241,7 @@ static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
  * is waiting for servicing.  this means that the pvfs2-client won't
  * fail to start several times for all other pending operations before
  * the client regains all of the mount information from us.
- * NOTE: this function assumes that the request_mutex is already acquired!
+ * ANALTE: this function assumes that the request_mutex is already acquired!
  */
 int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 {
@@ -252,7 +252,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
 		orangefs_sb->devname,
 		ORANGEFS_MAX_SERVER_ADDR_LEN);
@@ -267,7 +267,7 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 	 * this one
 	 */
 	ret = service_operation(new_op, "orangefs_remount",
-		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		ORANGEFS_OP_PRIORITY | ORANGEFS_OP_ANAL_MUTEX);
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "orangefs_remount: mount got return value of %d\n",
 		     ret);
@@ -286,10 +286,10 @@ int orangefs_remount(struct orangefs_sb_info_s *orangefs_sb)
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
-			return -ENOMEM;
+			return -EANALMEM;
 		new_op->upcall.req.features.features = 0;
 		ret = service_operation(new_op, "orangefs_features",
-		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_NO_MUTEX);
+		    ORANGEFS_OP_PRIORITY | ORANGEFS_OP_ANAL_MUTEX);
 		if (!ret)
 			orangefs_features =
 			    new_op->downcall.resp.features.features;
@@ -313,11 +313,11 @@ void fsid_key_table_finalize(void)
 }
 
 static const struct super_operations orangefs_s_ops = {
-	.alloc_inode = orangefs_alloc_inode,
-	.free_inode = orangefs_free_inode,
-	.destroy_inode = orangefs_destroy_inode,
-	.write_inode = orangefs_write_inode,
-	.drop_inode = generic_delete_inode,
+	.alloc_ianalde = orangefs_alloc_ianalde,
+	.free_ianalde = orangefs_free_ianalde,
+	.destroy_ianalde = orangefs_destroy_ianalde,
+	.write_ianalde = orangefs_write_ianalde,
+	.drop_ianalde = generic_delete_ianalde,
 	.statfs = orangefs_statfs,
 	.remount_fs = orangefs_remount_fs,
 	.show_options = orangefs_show_options,
@@ -343,10 +343,10 @@ static struct dentry *orangefs_fh_to_dentry(struct super_block *sb,
 	return d_obtain_alias(orangefs_iget(sb, &refn));
 }
 
-static int orangefs_encode_fh(struct inode *inode,
+static int orangefs_encode_fh(struct ianalde *ianalde,
 		    __u32 *fh,
 		    int *max_len,
-		    struct inode *parent)
+		    struct ianalde *parent)
 {
 	int len = parent ? 10 : 5;
 	int type = 1;
@@ -359,7 +359,7 @@ static int orangefs_encode_fh(struct inode *inode,
 		goto out;
 	}
 
-	refn = ORANGEFS_I(inode)->refn;
+	refn = ORANGEFS_I(ianalde)->refn;
 	ORANGEFS_khandle_to(&refn.khandle, fh, 16);
 	fh[4] = refn.fs_id;
 
@@ -397,13 +397,13 @@ static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
 	int r;
 	op = op_alloc(ORANGEFS_VFS_OP_FS_UMOUNT);
 	if (!op)
-		return -ENOMEM;
+		return -EANALMEM;
 	op->upcall.req.fs_umount.id = id;
 	op->upcall.req.fs_umount.fs_id = fs_id;
 	strncpy(op->upcall.req.fs_umount.orangefs_config_server,
 	    devname, ORANGEFS_MAX_SERVER_ADDR_LEN - 1);
 	r = service_operation(op, "orangefs_fs_umount", 0);
-	/* Not much to do about an error here. */
+	/* Analt much to do about an error here. */
 	if (r)
 		gossip_err("orangefs_unmount: service_operation %d\n", r);
 	op_release(op);
@@ -415,7 +415,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 		void *data, int silent)
 {
 	int ret;
-	struct inode *root;
+	struct ianalde *root;
 	struct dentry *root_dentry;
 	struct orangefs_object_kref root_object;
 
@@ -448,7 +448,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 	root_object.khandle = ORANGEFS_SB(sb)->root_khandle;
 	root_object.fs_id = ORANGEFS_SB(sb)->fs_id;
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "get inode %pU, fsid %d\n",
+		     "get ianalde %pU, fsid %d\n",
 		     &root_object.khandle,
 		     root_object.fs_id);
 
@@ -457,14 +457,14 @@ static int orangefs_fill_sb(struct super_block *sb,
 		return PTR_ERR(root);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "Allocated root inode [%p] with mode %x\n",
+		     "Allocated root ianalde [%p] with mode %x\n",
 		     root,
 		     root->i_mode);
 
 	/* allocates and places root dentry in dcache */
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_export_op = &orangefs_export_ops;
 	sb->s_root = root_dentry;
@@ -486,13 +486,13 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		     devname);
 
 	if (!devname) {
-		gossip_err("ERROR: device name not specified.\n");
+		gossip_err("ERROR: device name analt specified.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	strncpy(new_op->upcall.req.fs_mount.orangefs_config_server,
 		devname,
@@ -514,7 +514,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		goto free_op;
 	}
 
-	sb = sget(fst, NULL, set_anon_super, flags, NULL);
+	sb = sget(fst, NULL, set_aanaln_super, flags, NULL);
 
 	if (IS_ERR(sb)) {
 		d = ERR_CAST(sb);
@@ -526,7 +526,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	/* alloc and init our private orangefs sb info */
 	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
 	if (!ORANGEFS_SB(sb)) {
-		d = ERR_PTR(-ENOMEM);
+		d = ERR_PTR(-EANALMEM);
 		goto free_sb_and_op;
 	}
 
@@ -551,7 +551,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	ORANGEFS_SB(sb)->mount_pending = 0;
 
 	/*
-	 * finally, add this sb to our list of known orangefs
+	 * finally, add this sb to our list of kanalwn orangefs
 	 * sb's
 	 */
 	gossip_debug(GOSSIP_SUPER_DEBUG,
@@ -562,13 +562,13 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	spin_unlock(&orangefs_superblocks_lock);
 	op_release(new_op);
 
-	/* Must be removed from the list now. */
-	ORANGEFS_SB(sb)->no_list = 0;
+	/* Must be removed from the list analw. */
+	ORANGEFS_SB(sb)->anal_list = 0;
 
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		new_op->upcall.req.features.features = 0;
 		ret = service_operation(new_op, "orangefs_features", 0);
 		orangefs_features = new_op->downcall.resp.features.features;
@@ -580,8 +580,8 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	return dget(sb->s_root);
 
 free_sb_and_op:
-	/* Will call orangefs_kill_sb with sb not in list. */
-	ORANGEFS_SB(sb)->no_list = 1;
+	/* Will call orangefs_kill_sb with sb analt in list. */
+	ORANGEFS_SB(sb)->anal_list = 1;
 	/* ORANGEFS_VFS_OP_FS_UMOUNT is done by orangefs_kill_sb. */
 	deactivate_locked_super(sb);
 free_op:
@@ -602,7 +602,7 @@ void orangefs_kill_sb(struct super_block *sb)
 	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_kill_sb: called\n");
 
 	/* provided sb cleanup */
-	kill_anon_super(sb);
+	kill_aanaln_super(sb);
 
 	if (!ORANGEFS_SB(sb)) {
 		mutex_lock(&orangefs_request_mutex);
@@ -618,10 +618,10 @@ void orangefs_kill_sb(struct super_block *sb)
 	if (!r)
 		ORANGEFS_SB(sb)->mount_pending = 1;
 
-	if (!ORANGEFS_SB(sb)->no_list) {
+	if (!ORANGEFS_SB(sb)->anal_list) {
 		/* remove the sb from our list of orangefs specific sb's */
 		spin_lock(&orangefs_superblocks_lock);
-		/* not list_del_init */
+		/* analt list_del_init */
 		__list_del_entry(&ORANGEFS_SB(sb)->list);
 		ORANGEFS_SB(sb)->list.prev = NULL;
 		spin_unlock(&orangefs_superblocks_lock);
@@ -638,28 +638,28 @@ void orangefs_kill_sb(struct super_block *sb)
 	kfree(ORANGEFS_SB(sb));
 }
 
-int orangefs_inode_cache_initialize(void)
+int orangefs_ianalde_cache_initialize(void)
 {
-	orangefs_inode_cache = kmem_cache_create_usercopy(
-					"orangefs_inode_cache",
-					sizeof(struct orangefs_inode_s),
+	orangefs_ianalde_cache = kmem_cache_create_usercopy(
+					"orangefs_ianalde_cache",
+					sizeof(struct orangefs_ianalde_s),
 					0,
 					ORANGEFS_CACHE_CREATE_FLAGS,
-					offsetof(struct orangefs_inode_s,
+					offsetof(struct orangefs_ianalde_s,
 						link_target),
-					sizeof_field(struct orangefs_inode_s,
+					sizeof_field(struct orangefs_ianalde_s,
 						link_target),
-					orangefs_inode_cache_ctor);
+					orangefs_ianalde_cache_ctor);
 
-	if (!orangefs_inode_cache) {
-		gossip_err("Cannot create orangefs_inode_cache\n");
-		return -ENOMEM;
+	if (!orangefs_ianalde_cache) {
+		gossip_err("Cananalt create orangefs_ianalde_cache\n");
+		return -EANALMEM;
 	}
 	return 0;
 }
 
-int orangefs_inode_cache_finalize(void)
+int orangefs_ianalde_cache_finalize(void)
 {
-	kmem_cache_destroy(orangefs_inode_cache);
+	kmem_cache_destroy(orangefs_ianalde_cache);
 	return 0;
 }

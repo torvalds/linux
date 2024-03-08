@@ -305,7 +305,7 @@ msm_hdmi_hotplug_work(struct work_struct *work)
 		container_of(work, struct hdmi_bridge, hpd_work);
 	struct drm_bridge *bridge = &hdmi_bridge->base;
 
-	drm_bridge_hpd_notify(bridge, drm_bridge_detect(bridge));
+	drm_bridge_hpd_analtify(bridge, drm_bridge_detect(bridge));
 }
 
 /* initialize bridge */
@@ -318,7 +318,7 @@ int msm_hdmi_bridge_init(struct hdmi *hdmi)
 	hdmi_bridge = devm_kzalloc(hdmi->dev->dev,
 			sizeof(*hdmi_bridge), GFP_KERNEL);
 	if (!hdmi_bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdmi_bridge->hdmi = hdmi;
 	INIT_WORK(&hdmi_bridge->hpd_work, msm_hdmi_hotplug_work);
@@ -335,7 +335,7 @@ int msm_hdmi_bridge_init(struct hdmi *hdmi)
 	if (ret)
 		return ret;
 
-	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL, DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret)
 		return ret;
 

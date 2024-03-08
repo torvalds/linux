@@ -217,7 +217,7 @@ static int bsg_map_buffer(struct bsg_buffer *buf, struct request *req)
 
 	buf->sg_list = kmalloc(sz, GFP_KERNEL);
 	if (!buf->sg_list)
-		return -ENOMEM;
+		return -EANALMEM;
 	sg_init_table(buf->sg_list, req->nr_phys_segments);
 	buf->sg_cnt = blk_rq_map_sg(req->q, req, buf->sg_list);
 	buf->payload_len = blk_rq_bytes(req);
@@ -255,7 +255,7 @@ static bool bsg_prepare_job(struct device *dev, struct request *req)
 failjob_rls_rqst_payload:
 	kfree(job->request_payload.sg_list);
 failjob_rls_job:
-	job->result = -ENOMEM;
+	job->result = -EANALMEM;
 	return false;
 }
 
@@ -299,13 +299,13 @@ out:
 
 /* called right after the request is allocated for the request_queue */
 static int bsg_init_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx, unsigned int numa_node)
+		       unsigned int hctx_idx, unsigned int numa_analde)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 
 	job->reply = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 	if (!job->reply)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -364,11 +364,11 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	struct bsg_set *bset;
 	struct blk_mq_tag_set *set;
 	struct request_queue *q;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	bset = kzalloc(sizeof(*bset), GFP_KERNEL);
 	if (!bset)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bset->job_fn = job_fn;
 	bset->timeout_fn = timeout;
@@ -377,9 +377,9 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	set->ops = &bsg_mq_ops;
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
-	set->numa_node = NUMA_NO_NODE;
+	set->numa_analde = NUMA_ANAL_ANALDE;
 	set->cmd_size = sizeof(struct bsg_job) + dd_job_size;
-	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING;
+	set->flags = BLK_MQ_F_ANAL_SCHED | BLK_MQ_F_BLOCKING;
 	if (blk_mq_alloc_tag_set(set))
 		goto out_tag_set;
 

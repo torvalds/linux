@@ -60,7 +60,7 @@ static char *mutex_path_override;
 
 #define MAX_IDENTICAL_BOARD_VARIATIONS	3
 
-/* Moniker for the ACPI global lock (':' is not allowed in ASL identifiers) */
+/* Moniker for the ACPI global lock (':' is analt allowed in ASL identifiers) */
 #define ACPI_GLOBAL_LOCK_PSEUDO_PATH	":GLOBAL_LOCK"
 
 typedef union {
@@ -161,7 +161,7 @@ enum ec_sensors {
 #define SENSOR_TEMP_SENSOR_EXTRA_3 BIT(ec_sensor_temp_sensor_extra_3)
 
 enum board_family {
-	family_unknown,
+	family_unkanalwn,
 	family_amd_400_series,
 	family_amd_500_series,
 	family_amd_600_series,
@@ -169,7 +169,7 @@ enum board_family {
 	family_intel_600_series
 };
 
-/* All the known sensors for ASUS EC controllers */
+/* All the kanalwn sensors for ASUS EC controllers */
 static const struct ec_sensor_info sensors_family_amd_400[] = {
 	[ec_sensor_temp_chipset] =
 		EC_SENSOR("Chipset", hwmon_temp, 1, 0x00, 0x3a),
@@ -188,7 +188,7 @@ static const struct ec_sensor_info sensors_family_amd_400[] = {
 	[ec_sensor_fan_vrm_hs] =
 		EC_SENSOR("VRM HS", hwmon_fan, 2, 0x00, 0xb2),
 	[ec_sensor_fan_chipset] =
-		/* no chipset fans in this generation */
+		/* anal chipset fans in this generation */
 		EC_SENSOR("Chipset", hwmon_fan, 0, 0x00, 0x00),
 	[ec_sensor_fan_water_flow] =
 		EC_SENSOR("Water_Flow", hwmon_fan, 2, 0x00, 0xb4),
@@ -292,7 +292,7 @@ struct ec_board_info {
 	 * hardware. Can be either a full path to an AML mutex or the
 	 * pseudo-path ACPI_GLOBAL_LOCK_PSEUDO_PATH to use the global ACPI lock,
 	 * or left empty to use a regular mutex object, in which case access to
-	 * the hardware is not guarded.
+	 * the hardware is analt guarded.
 	 */
 	const char *mutex_path;
 	enum board_family family;
@@ -553,7 +553,7 @@ struct lock_data {
 static bool lock_via_acpi_mutex(struct lock_data *data)
 {
 	/*
-	 * ASUS DSDT does not specify that access to the EC has to be guarded,
+	 * ASUS DSDT does analt specify that access to the EC has to be guarded,
 	 * but firmware does access it via ACPI
 	 */
 	return ACPI_SUCCESS(acpi_acquire_mutex(data->mutex.aml,
@@ -636,7 +636,7 @@ static int find_ec_sensor_index(const struct ec_sensors_data *ec,
 			channel--;
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int bank_compare(const void *a, const void *b)
@@ -715,7 +715,7 @@ static int setup_lock_data(struct device *dev)
 			dev_err(dev,
 				"Failed to get hardware access guard AML mutex '%s': error %d",
 				mutex_path, status);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		state->lock_data.lock = lock_via_acpi_mutex;
 		state->lock_data.unlock = unlock_acpi_mutex;
@@ -869,7 +869,7 @@ static int get_cached_value_or_update(const struct device *dev,
 }
 
 /*
- * Now follow the functions that implement the hwmon interface
+ * Analw follow the functions that implement the hwmon interface
  */
 
 static int asus_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
@@ -923,7 +923,7 @@ asus_ec_hwmon_add_chan_info(struct hwmon_channel_info *asus_ec_hwmon_chan,
 	u32 *cfg = devm_kcalloc(dev, num + 1, sizeof(*cfg), GFP_KERNEL);
 
 	if (!cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asus_ec_hwmon_chan->type = type;
 	asus_ec_hwmon_chan->config = cfg;
@@ -968,12 +968,12 @@ static int asus_ec_probe(struct platform_device *pdev)
 
 	pboard_info = get_board_info();
 	if (!pboard_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ec_data = devm_kzalloc(dev, sizeof(struct ec_sensors_data),
 			       GFP_KERNEL);
 	if (!ec_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, ec_data);
 	ec_data->board_info = pboard_info;
@@ -995,7 +995,7 @@ static int asus_ec_probe(struct platform_device *pdev)
 		ec_data->sensors_info = sensors_family_intel_600;
 		break;
 	default:
-		dev_err(dev, "Unknown board family: %d",
+		dev_err(dev, "Unkanalwn board family: %d",
 			ec_data->board_info->family);
 		return -EINVAL;
 	}
@@ -1004,7 +1004,7 @@ static int asus_ec_probe(struct platform_device *pdev)
 	ec_data->sensors = devm_kcalloc(dev, ec_data->nr_sensors,
 					sizeof(struct ec_sensor), GFP_KERNEL);
 	if (!ec_data->sensors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	status = setup_lock_data(dev);
 	if (status) {
@@ -1019,7 +1019,7 @@ static int asus_ec_probe(struct platform_device *pdev)
 					    sizeof(u8), GFP_KERNEL);
 
 	if (!ec_data->registers || !ec_data->read_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fill_ec_registers(ec_data);
 
@@ -1036,12 +1036,12 @@ static int asus_ec_probe(struct platform_device *pdev)
 	asus_ec_hwmon_chan = devm_kcalloc(
 		dev, nr_types, sizeof(*asus_ec_hwmon_chan), GFP_KERNEL);
 	if (!asus_ec_hwmon_chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr_asus_ec_ci = devm_kcalloc(dev, nr_types + 1,
 				       sizeof(*ptr_asus_ec_ci), GFP_KERNEL);
 	if (!ptr_asus_ec_ci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	asus_ec_chip_info.info = ptr_asus_ec_ci;
 	chip_info = &asus_ec_chip_info;

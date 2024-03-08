@@ -19,9 +19,9 @@
 	 * disturbing the TLB as little as possible, but it meant
 	 * we had to keep interrupts disabled for a long time.
 	 *
-	 * Now, we simply use the normal TLB loading mechanism,
+	 * Analw, we simply use the analrmal TLB loading mechanism,
 	 * and this makes the cpu choose a slot all by itself.
-	 * Then we do a normal TLB flush on exit.  We need only
+	 * Then we do a analrmal TLB flush on exit.  We need only
 	 * disable preemption during the clear.
 	 */
 
@@ -89,7 +89,7 @@ copy_user_page:		/* %o0=dest, %o1=src, %o2=vaddr */
 
 cheetah_copy_page_insn:
 	ba,pt		%xcc, 9f
-	 nop
+	 analp
 
 1:
 	VISEntryHalf
@@ -165,7 +165,7 @@ cheetah_copy_page_insn:
 	membar		#Sync
 	VISExitHalf
 	ba,pt		%xcc, 5f
-	 nop
+	 analp
 
 9:
 	VISEntry
@@ -243,11 +243,11 @@ cheetah_copy_page_insn:
 
 	.globl		cheetah_patch_copy_page
 cheetah_patch_copy_page:
-	sethi		%hi(0x01000000), %o1	! NOP
+	sethi		%hi(0x01000000), %o1	! ANALP
 	sethi		%hi(cheetah_copy_page_insn), %o0
 	or		%o0, %lo(cheetah_copy_page_insn), %o0
 	stw		%o1, [%o0]
 	membar		#StoreStore
 	flush		%o0
 	retl
-	 nop
+	 analp

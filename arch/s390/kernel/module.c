@@ -22,7 +22,7 @@
 #include <linux/bug.h>
 #include <linux/memory.h>
 #include <asm/alternative.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/facility.h>
 #include <asm/ftrace.lds.h>
 #include <asm/set_memory.h>
@@ -61,11 +61,11 @@ void *module_alloc(unsigned long size)
 
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
-	p = __vmalloc_node_range(size, MODULE_ALIGN,
+	p = __vmalloc_analde_range(size, MODULE_ALIGN,
 				 MODULES_VADDR + get_module_load_offset(),
 				 MODULES_END, gfp_mask, PAGE_KERNEL,
 				 VM_FLUSH_RESET_PERMS | VM_DEFER_KMEMLEAK,
-				 NUMA_NO_NODE, __builtin_return_address(0));
+				 NUMA_ANAL_ANALDE, __builtin_return_address(0));
 	if (p && (kasan_alloc_module_shadow(p, size, gfp_mask) < 0)) {
 		vfree(p);
 		return NULL;
@@ -158,8 +158,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			break;
 		}
 	if (!symtab) {
-		printk(KERN_ERR "module %s: no symbol table\n", me->name);
-		return -ENOEXEC;
+		printk(KERN_ERR "module %s: anal symbol table\n", me->name);
+		return -EANALEXEC;
 	}
 
 	/* Allocate one syminfo structure per symbol. */
@@ -167,7 +167,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	me->arch.syminfo = vmalloc(array_size(sizeof(struct mod_arch_syminfo),
 					      me->arch.nsyms));
 	if (!me->arch.syminfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	symbols = (void *) hdr + symtab->sh_offset;
 	strings = (void *) hdr + sechdrs[symtab->sh_link].sh_offset;
 	for (i = 0; i < me->arch.nsyms; i++) {
@@ -201,7 +201,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	mod_mem->size += me->arch.got_size;
 	me->arch.plt_offset = mod_mem->size;
 	if (me->arch.plt_size) {
-		if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable)
+		if (IS_ENABLED(CONFIG_EXPOLINE) && !analspec_disable)
 			me->arch.plt_size += PLT_ENTRY_SIZE;
 		mod_mem->size += me->arch.plt_size;
 	}
@@ -217,18 +217,18 @@ static int apply_rela_bits(Elf_Addr loc, Elf_Addr val,
 	void *dest = (void *)loc;
 
 	if (val & ((1UL << shift) - 1))
-		return -ENOEXEC;
+		return -EANALEXEC;
 	if (sign) {
 		val = (Elf_Addr)(((long) val) >> shift);
 		min = -(1L << (bits - 1));
 		max = (1L << (bits - 1)) - 1;
 		if ((long) val < min || (long) val > max)
-			return -ENOEXEC;
+			return -EANALEXEC;
 	} else {
 		val >>= shift;
 		umax = ((1UL << (bits - 1)) << 1) - 1;
 		if ((unsigned long) val > umax)
-			return -ENOEXEC;
+			return -EANALEXEC;
 	}
 
 	if (bits == 8) {
@@ -262,11 +262,11 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	struct mod_arch_syminfo *info;
 	Elf_Addr loc, val;
 	int r_type, r_sym;
-	int rc = -ENOEXEC;
+	int rc = -EANALEXEC;
 
 	/* This is where to make the change */
 	loc = base + rela->r_offset;
-	/* This is the symbol it is referring to.  Note that all
+	/* This is the symbol it is referring to.  Analte that all
 	   undefined symbols have been resolved.  */
 	r_sym = ELF_R_SYM(rela->r_info);
 	r_type = ELF_R_TYPE(rela->r_info);
@@ -274,7 +274,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	val = symtab[r_sym].st_value;
 
 	switch (r_type) {
-	case R_390_NONE:	/* No relocation.  */
+	case R_390_ANALNE:	/* Anal relocation.  */
 		rc = 0;
 		break;
 	case R_390_8:		/* Direct 8 bit.   */
@@ -373,7 +373,7 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 			ip = plt_base + info->plt_offset;
 			*(int *)insn = 0x0d10e310;	/* basr 1,0  */
 			*(int *)&insn[4] = 0x100c0004;	/* lg	1,12(1) */
-			if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable) {
+			if (IS_ENABLED(CONFIG_EXPOLINE) && !analspec_disable) {
 				char *jump_r1;
 
 				jump_r1 = plt_base + me->arch.plt_size -
@@ -444,11 +444,11 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_RELATIVE:	/* Adjust by program base.  */
 		/* Only needed if we want to support loading of 
 		   modules linked with -shared. */
-		return -ENOEXEC;
+		return -EANALEXEC;
 	default:
-		printk(KERN_ERR "module %s: unknown relocation: %u\n",
+		printk(KERN_ERR "module %s: unkanalwn relocation: %u\n",
 		       me->name, r_type);
-		return -ENOEXEC;
+		return -EANALEXEC;
 	}
 	if (rc) {
 		printk(KERN_ERR "module %s: relocation error for symbol %s "
@@ -512,7 +512,7 @@ static int module_alloc_ftrace_hotpatch_trampolines(struct module *me,
 	numpages = DIV_ROUND_UP(size, PAGE_SIZE);
 	start = module_alloc(numpages * PAGE_SIZE);
 	if (!start)
-		return -ENOMEM;
+		return -EANALMEM;
 	set_memory_rox((unsigned long)start, numpages);
 	end = start + size;
 
@@ -536,7 +536,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 #endif
 
 	if (IS_ENABLED(CONFIG_EXPOLINE) &&
-	    !nospec_disable && me->arch.plt_size) {
+	    !analspec_disable && me->arch.plt_size) {
 		unsigned int *ij;
 
 		ij = me->mem[MOD_TEXT].base + me->arch.plt_offset +
@@ -557,11 +557,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_indirect")))
-			nospec_revert(aseg, aseg + s->sh_size);
+			analspec_revert(aseg, aseg + s->sh_size);
 
 		if (IS_ENABLED(CONFIG_EXPOLINE) &&
 		    (str_has_prefix(secname, ".s390_return")))
-			nospec_revert(aseg, aseg + s->sh_size);
+			analspec_revert(aseg, aseg + s->sh_size);
 
 #ifdef CONFIG_FUNCTION_TRACER
 		if (!strcmp(FTRACE_CALLSITE_SECTION, secname)) {

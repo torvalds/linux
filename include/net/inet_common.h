@@ -45,13 +45,13 @@ void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 int inet_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len);
 /* Don't allocate port at this moment, defer to connect. */
-#define BIND_FORCE_ADDRESS_NO_PORT	(1 << 0)
+#define BIND_FORCE_ADDRESS_ANAL_PORT	(1 << 0)
 /* Grab and release socket lock. */
 #define BIND_WITH_LOCK			(1 << 1)
 /* Called from BPF program. */
 #define BIND_FROM_BPF			(1 << 2)
 /* Skip CAP_NET_BIND_SERVICE check. */
-#define BIND_NO_CAP_NET_BIND_SERVICE	(1 << 3)
+#define BIND_ANAL_CAP_NET_BIND_SERVICE	(1 << 3)
 int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		u32 flags);
 int inet_getname(struct socket *sock, struct sockaddr *uaddr,

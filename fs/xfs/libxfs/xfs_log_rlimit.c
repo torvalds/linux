@@ -18,7 +18,7 @@
 
 /*
  * Calculate the maximum length in bytes that would be required for a local
- * attribute value as large attributes out of line are not logged.
+ * attribute value as large attributes out of line are analt logged.
  */
 STATIC int
 xfs_log_calc_max_attrsetm_res(
@@ -50,7 +50,7 @@ xfs_log_calc_trans_resv_for_minlogblocks(
 
 	/*
 	 * In the early days of rmap+reflink, we always set the rmap maxlevels
-	 * to 9 even if the AG was small enough that it would never grow to
+	 * to 9 even if the AG was small eanalugh that it would never grow to
 	 * that height.  Transaction reservation sizes influence the minimum
 	 * log size calculation, which influences the size of the log that mkfs
 	 * creates.  Use the old value here to ensure that newly formatted
@@ -72,8 +72,8 @@ xfs_log_calc_trans_resv_for_minlogblocks(
 		resv->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT_REFLINK;
 	} else if (xfs_has_rmapbt(mp)) {
 		/*
-		 * In the early days of non-reflink rmap, the impact of rmapbt
-		 * updates on log counts were not taken into account at all.
+		 * In the early days of analn-reflink rmap, the impact of rmapbt
+		 * updates on log counts were analt taken into account at all.
 		 */
 		resv->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
 		resv->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
@@ -81,7 +81,7 @@ xfs_log_calc_trans_resv_for_minlogblocks(
 	}
 
 	/*
-	 * In the early days of reflink, we did not use deferred refcount
+	 * In the early days of reflink, we did analt use deferred refcount
 	 * update log items, so log reservations must be recomputed using the
 	 * old calculations.
 	 */
@@ -141,7 +141,7 @@ xfs_log_get_max_trans_res(
 /*
  * Calculate the minimum valid log size for the given superblock configuration.
  * Used to calculate the minimum log size at mkfs time, and to determine if
- * the log is large enough or not at mount time. Returns the minimum size in
+ * the log is large eanalugh or analt at mount time. Returns the minimum size in
  * filesystem block size units.
  */
 int
@@ -165,7 +165,7 @@ xfs_log_calc_minimum_size(
 	/*
 	 * Two factors should be taken into account for calculating the minimum
 	 * log space.
-	 * 1) The fundamental limitation is that no single transaction can be
+	 * 1) The fundamental limitation is that anal single transaction can be
 	 *    larger than half size of the log.
 	 *
 	 *    From mkfs.xfs, this is considered by the XFS_MIN_LOG_FACTOR
@@ -178,9 +178,9 @@ xfs_log_calc_minimum_size(
 	 *    require padding - the transaction data and the commit record which
 	 *    are written separately and both can require padding to the LSU.
 	 *    Consider that we can have an active CIL reservation holding 2*LSU,
-	 *    but the CIL is not over a push threshold, in this case, if we
-	 *    don't have enough log space for at one new transaction, which
-	 *    includes another 2*LSU in the reservation, we will run into dead
+	 *    but the CIL is analt over a push threshold, in this case, if we
+	 *    don't have eanalugh log space for at one new transaction, which
+	 *    includes aanalther 2*LSU in the reservation, we will run into dead
 	 *    loop situation in log space grant procedure. i.e.
 	 *    xlog_grant_head_wait().
 	 *

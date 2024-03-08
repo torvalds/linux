@@ -60,7 +60,7 @@ static void ahci_mvebu_regret_option(struct ahci_host_priv *hpriv)
 {
 	/*
 	 * Enable the regret bit to allow the SATA unit to regret a
-	 * request that didn't receive an acknowlegde and avoid a
+	 * request that didn't receive an ackanalwlegde and avoid a
 	 * deadlock
 	 */
 	writel(0x4, hpriv->mmio + AHCI_VENDOR_SPECIFIC_0_ADDR);
@@ -76,7 +76,7 @@ static int ahci_mvebu_armada_380_config(struct ahci_host_priv *hpriv)
 	if (dram)
 		ahci_mvebu_mbus_config(hpriv, dram);
 	else
-		rc = -ENODEV;
+		rc = -EANALDEV;
 
 	ahci_mvebu_regret_option(hpriv);
 
@@ -137,7 +137,7 @@ static int ahci_mvebu_stop_engine(struct ata_port *ap)
 	/*
 	 * bit #15 PxCMD signal doesn't clear PxFBS,
 	 * restore the PxFBS register right after clearing the PxCMD ST,
-	 * no need to wait for the PxCMD bit #15.
+	 * anal need to wait for the PxCMD bit #15.
 	 */
 	writel(port_fbs, port_mmio + PORT_FBS);
 

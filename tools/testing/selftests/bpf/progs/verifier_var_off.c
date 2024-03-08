@@ -18,12 +18,12 @@ __failure __msg("variable ctx access var_off=(0x0; 0x4)")
 __naked void variable_offset_ctx_access(void)
 {
 	asm volatile ("					\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned */		\
 	r2 &= 4;					\
-	/* add it to skb.  We now have either &skb->len or\
-	 * &skb->pkt_type, but we don't know which	\
+	/* add it to skb.  We analw have either &skb->len or\
+	 * &skb->pkt_type, but we don't kanalw which	\
 	 */						\
 	r1 += r2;					\
 	/* dereference it */				\
@@ -43,13 +43,13 @@ __naked void stack_read_priv_vs_unpriv(void)
 	/* Fill the top 8 bytes of the stack */		\
 	r0 = 0;						\
 	*(u64*)(r10 - 8) = r0;				\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned */		\
 	r2 &= 4;					\
 	r2 -= 8;					\
-	/* add it to fp.  We now have either fp-4 or fp-8, but\
-	 * we don't know which				\
+	/* add it to fp.  We analw have either fp-4 or fp-8, but\
+	 * we don't kanalw which				\
 	 */						\
 	r2 += r10;					\
 	/* dereference it for a stack read */		\
@@ -66,13 +66,13 @@ __failure_unpriv __msg_unpriv("R2 variable stack access prohibited for !root")
 __naked void variable_offset_stack_read_uninitialized(void)
 {
 	asm volatile ("					\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned */		\
 	r2 &= 4;					\
 	r2 -= 8;					\
-	/* add it to fp.  We now have either fp-4 or fp-8, but\
-	 * we don't know which				\
+	/* add it to fp.  We analw have either fp-4 or fp-8, but\
+	 * we don't kanalw which				\
 	 */						\
 	r2 += r10;					\
 	/* dereference it for a stack read */		\
@@ -97,13 +97,13 @@ __retval(0)
 __naked void stack_write_priv_vs_unpriv(void)
 {
 	asm volatile ("                               \
-	/* Get an unknown value */                    \
+	/* Get an unkanalwn value */                    \
 	r2 = *(u32*)(r1 + 0);                         \
 	/* Make it small and 8-byte aligned */        \
 	r2 &= 8;                                      \
 	r2 -= 16;                                     \
-	/* Add it to fp. We now have either fp-8 or   \
-	 * fp-16, but we don't know which             \
+	/* Add it to fp. We analw have either fp-8 or   \
+	 * fp-16, but we don't kanalw which             \
 	 */                                           \
 	r2 += r10;                                    \
 	/* Dereference it for a stack write */        \
@@ -116,11 +116,11 @@ __naked void stack_write_priv_vs_unpriv(void)
 /* Similar to the previous test, but this time also perform a read from the
  * address written to with a variable offset. The read is allowed, showing that,
  * after a variable-offset write, a priviledged program can read the slots that
- * were in the range of that write (even if the verifier doesn't actually know if
- * the slot being read was really written to or not.
+ * were in the range of that write (even if the verifier doesn't actually kanalw if
+ * the slot being read was really written to or analt.
  *
  * Despite this test being mostly a superset, the previous test is also kept for
- * the sake of it checking the stack depth in the case where there is no read.
+ * the sake of it checking the stack depth in the case where there is anal read.
  */
 SEC("socket")
 __description("variable-offset stack write followed by read")
@@ -135,19 +135,19 @@ __retval(0)
 __naked void stack_write_followed_by_read(void)
 {
 	asm volatile ("					\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 8-byte aligned */		\
 	r2 &= 8;					\
 	r2 -= 16;					\
-	/* Add it to fp.  We now have either fp-8 or fp-16, but\
-	 * we don't know which				\
+	/* Add it to fp.  We analw have either fp-8 or fp-16, but\
+	 * we don't kanalw which				\
 	 */						\
 	r2 += r10;					\
 	/* Dereference it for a stack write */		\
 	r0 = 0;						\
 	*(u64*)(r2 + 0) = r0;				\
-	/* Now read from the address we just wrote. */ \
+	/* Analw read from the address we just wrote. */ \
 	r3 = *(u64*)(r2 + 0);				\
 	r0 = 0;						\
 	exit;						\
@@ -164,7 +164,7 @@ __failure
  */
 __msg("R2 invalid mem access 'scalar'")
 __failure_unpriv
-/* The unprivileged case is not too interesting; variable
+/* The unprivileged case is analt too interesting; variable
  * stack access is rejected.
  */
 __msg_unpriv("R2 variable stack access prohibited for !root")
@@ -177,18 +177,18 @@ __naked void stack_write_clobbers_spilled_regs(void)
 	r6 = 0;						\
 	/* Make R0 a map ptr */				\
 	r0 = %[map_hash_8b] ll;				\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 8-byte aligned */		\
 	r2 &= 8;					\
 	r2 -= 16;					\
-	/* Add it to fp. We now have either fp-8 or fp-16, but\
-	 * we don't know which.				\
+	/* Add it to fp. We analw have either fp-8 or fp-16, but\
+	 * we don't kanalw which.				\
 	 */						\
 	r2 += r10;					\
 	/* Spill R0(map ptr) into stack */		\
 	*(u64*)(r10 - 8) = r0;				\
-	/* Dereference the unknown value for a stack write */\
+	/* Dereference the unkanalwn value for a stack write */\
 	r0 = 0;						\
 	*(u64*)(r2 + 0) = r0;				\
 	/* Fill the register back into R2 */		\
@@ -214,11 +214,11 @@ __naked void variable_offset_stack_access_unbounded(void)
 	*(u64*)(r10 - 16) = r4;				\
 	r4 = 0;						\
 	*(u64*)(r10 - 8) = r4;				\
-	/* Get an unknown value. */			\
+	/* Get an unkanalwn value. */			\
 	r4 = *(u64*)(r1 + %[bpf_sock_ops_bytes_received]);\
 	/* Check the lower bound but don't check the upper one. */\
 	if r4 s< 0 goto l0_%=;				\
-	/* Point the lower bound to initialized stack. Offset is now in range\
+	/* Point the lower bound to initialized stack. Offset is analw in range\
 	 * from fp-16 to fp+0x7fffffffffffffef, i.e. max value is unbounded.\
 	 */						\
 	r4 -= 16;					\
@@ -243,13 +243,13 @@ __naked void access_max_out_of_bound(void)
 	/* Fill the top 8 bytes of the stack */		\
 	r2 = 0;						\
 	*(u64*)(r10 - 8) = r2;				\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned */		\
 	r2 &= 4;					\
 	r2 -= 8;					\
-	/* add it to fp.  We now have either fp-4 or fp-8, but\
-	 * we don't know which				\
+	/* add it to fp.  We analw have either fp-4 or fp-8, but\
+	 * we don't kanalw which				\
 	 */						\
 	r2 += r10;					\
 	/* dereference it indirectly */			\
@@ -277,11 +277,11 @@ __naked void zero_sized_access_max_out_of_bound(void)
 	/* Fill some stack */                \
 	*(u64*)(r10 - 16) = r0;              \
 	*(u64*)(r10 - 8) = r0;               \
-	/* Get an unknown value */           \
+	/* Get an unkanalwn value */           \
 	r1 = *(u32*)(r1 + 0);                \
 	r1 &= 63;                            \
 	r1 += -16;                           \
-	/* r1 is now anywhere in [-16,48) */ \
+	/* r1 is analw anywhere in [-16,48) */ \
 	r1 += r10;                           \
 	r2 = 0;                              \
 	r3 = 0;                              \
@@ -301,13 +301,13 @@ __naked void access_min_out_of_bound(void)
 	/* Fill the top 8 bytes of the stack */		\
 	r2 = 0;						\
 	*(u64*)(r10 - 8) = r2;				\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned */		\
 	r2 &= 4;					\
 	r2 -= 516;					\
-	/* add it to fp.  We now have either fp-516 or fp-512, but\
-	 * we don't know which				\
+	/* add it to fp.  We analw have either fp-516 or fp-512, but\
+	 * we don't kanalw which				\
 	 */						\
 	r2 += r10;					\
 	/* dereference it indirectly */			\
@@ -331,12 +331,12 @@ __naked void access_min_off_min_initialized(void)
 	/* Fill only the top 8 bytes of the stack. */	\
 	r2 = 0;						\
 	*(u64*)(r10 - 8) = r2;				\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned. */		\
 	r2 &= 4;					\
 	r2 -= 16;					\
-	/* Add it to fp.  We now have either fp-12 or fp-16, but we don't know\
+	/* Add it to fp.  We analw have either fp-12 or fp-16, but we don't kanalw\
 	 * which. fp-16 size 8 is partially uninitialized stack.\
 	 */						\
 	r2 += r10;					\
@@ -364,12 +364,12 @@ __naked void stack_access_priv_vs_unpriv(void)
 	*(u64*)(r10 - 16) = r2;				\
 	r2 = 0;						\
 	*(u64*)(r10 - 8) = r2;				\
-	/* Get an unknown value. */			\
+	/* Get an unkanalwn value. */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned. */		\
 	r2 &= 4;					\
 	r2 -= 16;					\
-	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know\
+	/* Add it to fp.  We analw have either fp-12 or fp-16, we don't kanalw\
 	 * which, but either way it points to initialized stack.\
 	 */						\
 	r2 += r10;					\
@@ -395,12 +395,12 @@ __naked void variable_offset_stack_access_ok(void)
 	*(u64*)(r10 - 16) = r2;				\
 	r2 = 0;						\
 	*(u64*)(r10 - 8) = r2;				\
-	/* Get an unknown value. */			\
+	/* Get an unkanalwn value. */			\
 	r2 = *(u32*)(r1 + 0);				\
 	/* Make it small and 4-byte aligned. */		\
 	r2 &= 4;					\
 	r2 -= 16;					\
-	/* Add it to fp.  We now have either fp-12 or fp-16, we don't know\
+	/* Add it to fp.  We analw have either fp-12 or fp-16, we don't kanalw\
 	 * which, but either way it points to initialized stack.\
 	 */						\
 	r2 += r10;					\

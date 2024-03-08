@@ -18,11 +18,11 @@
 #define nlm_stale_fh	nlm4_stale_fh
 #define nlm_failed	nlm4_failed
 #else
-#define nlm_stale_fh	nlm_lck_denied_nolocks
-#define nlm_failed	nlm_lck_denied_nolocks
+#define nlm_stale_fh	nlm_lck_denied_anallocks
+#define nlm_failed	nlm_lck_denied_anallocks
 #endif
 /*
- * Note: we hold the dentry use count while the file is open.
+ * Analte: we hold the dentry use count while the file is open.
  */
 static __be32
 nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp,
@@ -42,8 +42,8 @@ nlm_fopen(struct svc_rqst *rqstp, struct nfs_fh *f, struct file **filp,
 	access |= NFSD_MAY_LOCK;
 	nfserr = nfsd_open(rqstp, &fh, S_IFREG, access, filp);
 	fh_put(&fh);
- 	/* We return nlm error codes as nlm doesn't know
-	 * about nfsd, but nfsd does know about nlm..
+ 	/* We return nlm error codes as nlm doesn't kanalw
+	 * about nfsd, but nfsd does kanalw about nlm..
 	 */
 	switch (nfserr) {
 	case nfs_ok:

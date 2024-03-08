@@ -97,7 +97,7 @@ static int cx22700_set_inversion (struct cx22700_state* state, int inversion)
 
 	switch (inversion) {
 	case INVERSION_AUTO:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case INVERSION_ON:
 		val = cx22700_readreg (state, 0x09);
 		return cx22700_writereg (state, 0x09, val | 0x01);
@@ -140,7 +140,7 @@ static int cx22700_set_tps(struct cx22700_state *state,
 	    p->modulation != QAM_64)
 		return -EINVAL;
 
-	if ((int)p->hierarchy < HIERARCHY_NONE ||
+	if ((int)p->hierarchy < HIERARCHY_ANALNE ||
 	    p->hierarchy > HIERARCHY_4)
 		return -EINVAL;
 
@@ -153,7 +153,7 @@ static int cx22700_set_tps(struct cx22700_state *state,
 		cx22700_writereg (state, 0x09, cx22700_readreg (state, 0x09 & ~0x10));
 
 	val = qam_tab[p->modulation - QPSK];
-	val |= p->hierarchy - HIERARCHY_NONE;
+	val |= p->hierarchy - HIERARCHY_ANALNE;
 
 	cx22700_writereg (state, 0x04, val);
 
@@ -195,7 +195,7 @@ static int cx22700_get_tps(struct cx22700_state *state,
 	if ((val & 0x7) > 4)
 		p->hierarchy = HIERARCHY_AUTO;
 	else
-		p->hierarchy = HIERARCHY_NONE + (val & 0x7);
+		p->hierarchy = HIERARCHY_ANALNE + (val & 0x7);
 
 	if (((val >> 3) & 0x3) > 2)
 		p->modulation = QAM_AUTO;

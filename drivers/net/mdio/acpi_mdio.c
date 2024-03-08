@@ -10,7 +10,7 @@
 #include <linux/acpi_mdio.h>
 #include <linux/bits.h>
 #include <linux/dev_printk.h>
-#include <linux/fwnode_mdio.h>
+#include <linux/fwanalde_mdio.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -21,18 +21,18 @@ MODULE_DESCRIPTION("ACPI MDIO bus (Ethernet PHY) accessors");
 /**
  * __acpi_mdiobus_register - Register mii_bus and create PHYs from the ACPI ASL.
  * @mdio: pointer to mii_bus structure
- * @fwnode: pointer to fwnode of MDIO bus. This fwnode is expected to represent
+ * @fwanalde: pointer to fwanalde of MDIO bus. This fwanalde is expected to represent
  * @owner: module owning this @mdio object.
  * an ACPI device object corresponding to the MDIO bus and its children are
  * expected to correspond to the PHY devices on that bus.
  *
  * This function registers the mii_bus structure and registers a phy_device
- * for each child node of @fwnode.
+ * for each child analde of @fwanalde.
  */
-int __acpi_mdiobus_register(struct mii_bus *mdio, struct fwnode_handle *fwnode,
+int __acpi_mdiobus_register(struct mii_bus *mdio, struct fwanalde_handle *fwanalde,
 			    struct module *owner)
 {
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	u32 addr;
 	int ret;
 
@@ -42,16 +42,16 @@ int __acpi_mdiobus_register(struct mii_bus *mdio, struct fwnode_handle *fwnode,
 	if (ret)
 		return ret;
 
-	ACPI_COMPANION_SET(&mdio->dev, to_acpi_device_node(fwnode));
+	ACPI_COMPANION_SET(&mdio->dev, to_acpi_device_analde(fwanalde));
 
-	/* Loop over the child nodes and register a phy_device for each PHY */
-	fwnode_for_each_child_node(fwnode, child) {
-		ret = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), &addr);
+	/* Loop over the child analdes and register a phy_device for each PHY */
+	fwanalde_for_each_child_analde(fwanalde, child) {
+		ret = acpi_get_local_address(ACPI_HANDLE_FWANALDE(child), &addr);
 		if (ret || addr >= PHY_MAX_ADDR)
 			continue;
 
-		ret = fwnode_mdiobus_register_phy(mdio, child, addr);
-		if (ret == -ENODEV)
+		ret = fwanalde_mdiobus_register_phy(mdio, child, addr);
+		if (ret == -EANALDEV)
 			dev_err(&mdio->dev,
 				"MDIO device at address %d is missing.\n",
 				addr);

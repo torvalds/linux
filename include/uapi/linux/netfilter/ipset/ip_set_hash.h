@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__IP_SET_HASH_H
 #define _UAPI__IP_SET_HASH_H
 
@@ -14,7 +14,7 @@ enum {
 	IPSET_ERR_INVALID_PROTO,
 	/* Protocol missing but must be specified */
 	IPSET_ERR_MISSING_PROTO,
-	/* Range not supported */
+	/* Range analt supported */
 	IPSET_ERR_HASH_RANGE_UNSUPPORTED,
 	/* Invalid range */
 	IPSET_ERR_HASH_RANGE,

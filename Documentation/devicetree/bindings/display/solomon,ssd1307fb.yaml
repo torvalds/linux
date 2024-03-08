@@ -21,7 +21,7 @@ properties:
           - solomon,ssd1309fb-i2c
         deprecated: true
       - enum:
-          - sinowealth,sh1106
+          - sianalwealth,sh1106
           - solomon,ssd1305
           - solomon,ssd1306
           - solomon,ssd1307
@@ -39,10 +39,10 @@ properties:
     description:
       Offset of pages (band of 8 pixels) that the screen is mapped to
 
-  solomon,segment-no-remap:
+  solomon,segment-anal-remap:
     type: boolean
     description:
-      Display needs normal (non-inverted) data column to segment mapping
+      Display needs analrmal (analn-inverted) data column to segment mapping
 
   solomon,col-offset:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -128,7 +128,7 @@ allOf:
       properties:
         compatible:
           contains:
-            const: sinowealth,sh1106
+            const: sianalwealth,sh1106
     then:
       properties:
         width:

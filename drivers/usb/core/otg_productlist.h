@@ -14,8 +14,8 @@ static struct usb_device_id productlist_table[] = {
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 1), },
 
-#ifdef	CONFIG_USB_PRINTER		/* ignoring nonstatic linkage! */
-/* FIXME actually, printers are NOT supposed to use device classes;
+#ifdef	CONFIG_USB_PRINTER		/* iganalring analnstatic linkage! */
+/* FIXME actually, printers are ANALT supposed to use device classes;
  * they're supposed to use interface classes...
  */
 { USB_DEVICE_INFO(7, 1, 1) },
@@ -52,7 +52,7 @@ static int is_targeted(struct usb_device *dev)
 	     le16_to_cpu(dev->descriptor.idProduct) == 0x0200))
 		return 1;
 
-	/* NOTE: can't use usb_match_id() since interface caches
+	/* ANALTE: can't use usb_match_id() since interface caches
 	 * aren't set up yet. this is cut/paste from that code.
 	 */
 	for (id = productlist_table; id->match_flags; id++) {
@@ -64,7 +64,7 @@ static int is_targeted(struct usb_device *dev)
 		    id->idProduct != le16_to_cpu(dev->descriptor.idProduct))
 			continue;
 
-		/* No need to test id->bcdDevice_lo != 0, since 0 is never
+		/* Anal need to test id->bcdDevice_lo != 0, since 0 is never
 		   greater than any unsigned number. */
 		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO) &&
 		    (id->bcdDevice_lo > le16_to_cpu(dev->descriptor.bcdDevice)))
@@ -93,7 +93,7 @@ static int is_targeted(struct usb_device *dev)
 
 
 	/* OTG MESSAGE: report errors here, customize to match your product */
-	dev_err(&dev->dev, "device v%04x p%04x is not supported\n",
+	dev_err(&dev->dev, "device v%04x p%04x is analt supported\n",
 		le16_to_cpu(dev->descriptor.idVendor),
 		le16_to_cpu(dev->descriptor.idProduct));
 

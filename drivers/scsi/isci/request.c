@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -147,7 +147,7 @@ static void sci_request_build_sgl(struct isci_request *ireq)
 			prev_sg = scu_sg;
 			sg_idx++;
 		}
-	} else {	/* handle when no sg */
+	} else {	/* handle when anal sg */
 		scu_sg = to_sgl_element_pair(ireq, sg_idx);
 
 		dma_addr = dma_map_single(&ihost->pdev->dev,
@@ -232,11 +232,11 @@ static void scu_ssp_request_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_analde_index = idev->rnc.remote_analde_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_analt_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 0;
 	task_context->timeout_enable = 0;
@@ -428,7 +428,7 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 
 	switch (dir) {
 	case DMA_FROM_DEVICE:
-	case DMA_NONE:
+	case DMA_ANALNE:
 	default:
 		task_context->task_type = SCU_TASK_TYPE_IOREAD;
 		break;
@@ -455,8 +455,8 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
  *    the SCU Task Context for a SSP Task request.  The following important
  *    settings are utilized: -# priority == SCU_TASK_PRIORITY_HIGH.  This
  *    ensures that the task request is issued ahead of other task destined
- *    for the same Remote Node. -# task_type == SCU_TASK_TYPE_IOREAD.  This
- *    simply indicates that a normal request type (i.e. non-raw frame) is
+ *    for the same Remote Analde. -# task_type == SCU_TASK_TYPE_IOREAD.  This
+ *    simply indicates that a analrmal request type (i.e. analn-raw frame) is
  *    being utilized to perform task management. -#control_frame == 1.  This
  *    ensures that the proper endianness is set so that the bytes are
  *    transmitted in the right order for a task frame.
@@ -487,7 +487,7 @@ static void scu_ssp_task_request_construct_task_context(struct isci_request *ire
  *    constructed.
  *
  * The general io request construction is complete. The buffer assignment for
- * the command buffer is complete. none Revisit task context construction to
+ * the command buffer is complete. analne Revisit task context construction to
  * determine what is common for SSP/SMP/STP task context structures.
  */
 static void scu_sata_request_construct_task_context(
@@ -503,7 +503,7 @@ static void scu_sata_request_construct_task_context(
 
 	/* Fill in the TC with its required data */
 	task_context->abort = 0;
-	task_context->priority = SCU_TASK_PRIORITY_NORMAL;
+	task_context->priority = SCU_TASK_PRIORITY_ANALRMAL;
 	task_context->initiator_request = 1;
 	task_context->connection_rate = idev->connection_rate;
 	task_context->protocol_engine_index = ISCI_PEG;
@@ -512,11 +512,11 @@ static void scu_sata_request_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_analde_index = idev->rnc.remote_analde_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_analt_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 0;
 	task_context->timeout_enable = 0;
@@ -548,7 +548,7 @@ static void scu_sata_request_construct_task_context(
 	task_context->command_iu_upper = upper_32_bits(dma_addr);
 	task_context->command_iu_lower = lower_32_bits(dma_addr);
 
-	/* SATA Requests do not have a response buffer */
+	/* SATA Requests do analt have a response buffer */
 	task_context->response_iu_upper = 0;
 	task_context->response_iu_lower = 0;
 }
@@ -560,7 +560,7 @@ static void scu_stp_raw_request_construct_task_context(struct isci_request *ireq
 	scu_sata_request_construct_task_context(ireq, task_context);
 
 	task_context->control_frame         = 0;
-	task_context->priority              = SCU_TASK_PRIORITY_NORMAL;
+	task_context->priority              = SCU_TASK_PRIORITY_ANALRMAL;
 	task_context->task_type             = SCU_TASK_TYPE_SATA_RAW_FRAME;
 	task_context->type.stp.fis_type     = FIS_REGH2D;
 	task_context->transfer_length_bytes = sizeof(struct host_to_dev_fis) - sizeof(u32);
@@ -581,7 +581,7 @@ static enum sci_status sci_stp_pio_request_construct(struct isci_request *ireq,
 		sci_request_build_sgl(ireq);
 		stp_req->sgl.index = 0;
 	} else {
-		/* The user does not want the data copied to the SGL buffer location */
+		/* The user does analt want the data copied to the SGL buffer location */
 		stp_req->sgl.index = -1;
 	}
 
@@ -648,7 +648,7 @@ static void sci_atapi_construct(struct isci_request *ireq)
 	scu_stp_raw_request_construct_task_context(ireq);
 
 	task = isci_request_access_task(ireq);
-	if (task->data_dir == DMA_NONE)
+	if (task->data_dir == DMA_ANALNE)
 		task->total_xfer_len = 0;
 
 	/* clear the response so we can detect arrivial of an
@@ -681,7 +681,7 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 
 	if (!sas_protocol_ata(task->task_proto)) {
 		dev_err(&ireq->owning_controller->pdev->dev,
-			"%s: Non-ATA protocol in SATA path: 0x%x\n",
+			"%s: Analn-ATA protocol in SATA path: 0x%x\n",
 			__func__,
 			task->task_proto);
 		return SCI_FAILURE;
@@ -695,8 +695,8 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 		return SCI_SUCCESS;
 	}
 
-	/* non data */
-	if (task->data_dir == DMA_NONE) {
+	/* analn data */
+	if (task->data_dir == DMA_ANALNE) {
 		scu_stp_raw_request_construct_task_context(ireq);
 		return SCI_SUCCESS;
 	}
@@ -757,7 +757,7 @@ static enum sci_status sci_io_request_construct_basic_sata(struct isci_request *
 
 	ireq->protocol = SAS_PROTOCOL_STP;
 
-	copy = (task->data_dir == DMA_NONE) ? false : true;
+	copy = (task->data_dir == DMA_ANALNE) ? false : true;
 
 	status = sci_io_request_construct_sata(ireq,
 						task->total_xfer_len,
@@ -827,8 +827,8 @@ enum sci_status sci_request_start(struct isci_request *ireq)
 		 */
 		break;
 
-	case SCU_TASK_CONTEXT_PROTOCOL_NONE:
-		/* / @todo When do we set no protocol type? */
+	case SCU_TASK_CONTEXT_PROTOCOL_ANALNE:
+		/* / @todo When do we set anal protocol type? */
 		break;
 
 	default:
@@ -855,7 +855,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 
 	switch (state) {
 	case SCI_REQ_CONSTRUCTED:
-		/* Set to make sure no HW terminate posting is done: */
+		/* Set to make sure anal HW terminate posting is done: */
 		set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags);
 		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
 		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
@@ -867,8 +867,8 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_SMP_WAIT_TC_COMP:
 	case SCI_REQ_STP_UDMA_WAIT_TC_COMP:
 	case SCI_REQ_STP_UDMA_WAIT_D2H:
-	case SCI_REQ_STP_NON_DATA_WAIT_H2D:
-	case SCI_REQ_STP_NON_DATA_WAIT_D2H:
+	case SCI_REQ_STP_ANALN_DATA_WAIT_H2D:
+	case SCI_REQ_STP_ANALN_DATA_WAIT_D2H:
 	case SCI_REQ_STP_PIO_WAIT_H2D:
 	case SCI_REQ_STP_PIO_WAIT_FRAME:
 	case SCI_REQ_STP_PIO_DATA_IN:
@@ -881,7 +881,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_TASK_WAIT_TC_RESP:
 		/* The task frame was already confirmed to have been
 		 * sent by the SCU HW.  Since the state machine is
-		 * now only waiting for the task response itself,
+		 * analw only waiting for the task response itself,
 		 * abort the request and complete it immediately
 		 * and don't wait for the task response.
 		 */
@@ -1085,14 +1085,14 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_BAD_DESTINATION):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_ZONE_VIOLATION):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED):
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_PROTOCOL_ANALT_SUPPORTED):
+	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_CONNECTION_RATE_ANALT_SUPPORTED):
 		ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
 				   SCU_COMPLETION_TL_STATUS_SHIFT;
 		ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 		break;
 
-	/* neither ssp nor stp gets suspended. */
+	/* neither ssp analr stp gets suspended. */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_NAK_CMD_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_XR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_XR_IU_LEN_ERR):
@@ -1174,7 +1174,7 @@ static enum sci_status ssp_task_request_await_tc_event(struct isci_request *ireq
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1202,7 +1202,7 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_FRM_TYPE_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_LL_RX_ERR):
 		/* These status has been seen in a specific LSI
-		 * expander, which sometimes is not able to send smp
+		 * expander, which sometimes is analt able to send smp
 		 * response within 2 ms. This causes our hardware break
 		 * the connection and set TC completion with one of
 		 * these SMP_XXX_XX_ERR status. For these type of error,
@@ -1216,7 +1216,7 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 		/* All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1240,7 +1240,7 @@ smp_request_await_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1283,14 +1283,14 @@ static struct scu_sgl_element *pio_sgl_next(struct isci_stp_request *stp_req)
 }
 
 static enum sci_status
-stp_request_non_data_await_h2d_tc_event(struct isci_request *ireq,
+stp_request_analn_data_await_h2d_tc_event(struct isci_request *ireq,
 					u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		ireq->scu_status = SCU_TASK_DONE_GOOD;
 		ireq->sci_status = SCI_SUCCESS;
-		sci_change_state(&ireq->sm, SCI_REQ_STP_NON_DATA_WAIT_D2H);
+		sci_change_state(&ireq->sm, SCI_REQ_STP_ANALN_DATA_WAIT_D2H);
 		break;
 
 	default:
@@ -1298,7 +1298,7 @@ stp_request_non_data_await_h2d_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1485,7 +1485,7 @@ stp_request_pio_await_h2d_completion_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1534,7 +1534,7 @@ pio_data_out_tx_done_tc_event(struct isci_request *ireq,
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -1630,8 +1630,8 @@ static enum sci_status atapi_d2h_reg_frame_handler(struct isci_request *ireq,
 		ireq->sci_status = SCI_SUCCESS;
 	}
 
-	/* the d2h ufi is the end of non-data commands */
-	if (task->data_dir == DMA_NONE)
+	/* the d2h ufi is the end of analn-data commands */
+	if (task->data_dir == DMA_ANALNE)
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
 	return status;
@@ -1668,7 +1668,7 @@ static void scu_atapi_construct_task_context(struct isci_request *ireq)
 		task_context->task_type = SCU_TASK_TYPE_PACKET_DMA_OUT;
 		task_context->sata_direction = 0;
 	} else {
-		/* todo: for NO_DATA command, we need to send out raw frame. */
+		/* todo: for ANAL_DATA command, we need to send out raw frame. */
 		task_context->task_type = SCU_TASK_TYPE_PACKET_DMA_IN;
 		task_context->sata_direction = 1;
 	}
@@ -1737,7 +1737,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				ireq->sci_status = SCI_SUCCESS;
 			}
 		} else {
-			/* not a response frame, why did it get forwarded? */
+			/* analt a response frame, why did it get forwarded? */
 			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p received unexpected "
 				"frame %d type 0x%02x\n", __func__, ireq,
@@ -1790,7 +1790,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			sci_change_state(&ireq->sm, SCI_REQ_SMP_WAIT_TC_COMP);
 		} else {
 			/*
-			 * This was not a response frame why did it get
+			 * This was analt a response frame why did it get
 			 * forwarded?
 			 */
 			dev_err(&ihost->pdev->dev,
@@ -1828,7 +1828,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
 
-	case SCI_REQ_STP_NON_DATA_WAIT_D2H: {
+	case SCI_REQ_STP_ANALN_DATA_WAIT_D2H: {
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
@@ -1838,7 +1838,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could analt get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
 				stp_req,
@@ -1893,7 +1893,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could analt get frame "
 				"header for frame index %d, status %x\n",
 				__func__, stp_req, frame_index, status);
 			return status;
@@ -1945,8 +1945,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 		case FIS_REGD2H:
 			if (frame_header->status & ATA_BUSY) {
 				/*
-				 * Now why is the drive sending a D2H Register
-				 * FIS when it is still busy?  Do nothing since
+				 * Analw why is the drive sending a D2H Register
+				 * FIS when it is still busy?  Do analthing since
 				 * we are still in the right state.
 				 */
 				dev_dbg(&ihost->pdev->dev,
@@ -1993,7 +1993,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		if (status != SCI_SUCCESS) {
 			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
+				"%s: SCIC IO Request 0x%p could analt get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
 				stp_req,
@@ -2057,7 +2057,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 		sci_controller_release_frame(ihost, frame_index);
 		ireq->target_device->working_request = ireq;
-		if (task->data_dir == DMA_NONE) {
+		if (task->data_dir == DMA_ANALNE) {
 			sci_change_state(&ireq->sm, SCI_REQ_ATAPI_WAIT_TC_COMP);
 			scu_atapi_reconstruct_raw_frame_task_context(ireq);
 		} else {
@@ -2108,7 +2108,7 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 		 */
 		if (ireq->stp.rsp.fis_type == FIS_REGD2H) {
 			sci_remote_device_suspend(ireq->target_device,
-						  SCI_SW_SUSPEND_NORMAL);
+						  SCI_SW_SUSPEND_ANALRMAL);
 
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
@@ -2131,7 +2131,7 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 	 */
 	default:
 		/* All other completion status cause the IO to be complete. */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
@@ -2154,7 +2154,7 @@ static enum sci_status atapi_raw_completion(struct isci_request *ireq, u32 compl
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->scu_status = SCU_ANALRMALIZE_COMPLETION_STATUS(completion_code);
 		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
@@ -2179,7 +2179,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 	case (SCU_TASK_DONE_UNEXP_FIS << SCU_COMPLETION_TL_STATUS_SHIFT): {
 		u16 len = sci_req_tx_bytes(ireq);
 
-		/* likely non-error data underrun, workaround missing
+		/* likely analn-error data underrun, workaround missing
 		 * d2h frame from the controller
 		 */
 		if (d2h->fis_type != FIS_REGD2H) {
@@ -2213,8 +2213,8 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 		break;
 	}
 	case (SCU_TASK_DONE_EXCESS_DATA << SCU_COMPLETION_TL_STATUS_SHIFT):
-		/* In this case, there is no UF coming after.
-		 * compelte the IO now.
+		/* In this case, there is anal UF coming after.
+		 * compelte the IO analw.
 		 */
 		ireq->scu_status = SCU_TASK_DONE_GOOD;
 		ireq->sci_status = SCI_SUCCESS;
@@ -2227,7 +2227,7 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 			status = ireq->sci_status;
 			sci_change_state(&idev->sm, SCI_STP_DEV_ATAPI_ERROR);
 		} else {
-			/* If receiving any non-success TC status, no UF
+			/* If receiving any analn-success TC status, anal UF
 			 * received yet, then an UF for the status fis
 			 * is coming after (XXX: suspect this is
 			 * actually a protocol error or a bug like the
@@ -2262,7 +2262,7 @@ static int sci_request_smp_completion_status_is_tx_suspend(
 static int sci_request_smp_completion_status_is_tx_rx_suspend(
 	unsigned int completion_status)
 {
-	return 0; /* There are no Tx/Rx SMP suspend conditions. */
+	return 0; /* There are anal Tx/Rx SMP suspend conditions. */
 }
 
 static int sci_request_ssp_completion_status_is_tx_suspend(
@@ -2278,8 +2278,8 @@ static int sci_request_ssp_completion_status_is_tx_suspend(
 	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
 	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
 	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
-	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
-	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_ANALT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_ANALT_SUPPORTED:
 		return 1;
 	}
 	return 0;
@@ -2288,7 +2288,7 @@ static int sci_request_ssp_completion_status_is_tx_suspend(
 static int sci_request_ssp_completion_status_is_tx_rx_suspend(
 	unsigned int completion_status)
 {
-	return 0; /* There are no Tx/Rx SSP suspend conditions. */
+	return 0; /* There are anal Tx/Rx SSP suspend conditions. */
 }
 
 static int sci_request_stpsata_completion_status_is_tx_suspend(
@@ -2307,8 +2307,8 @@ static int sci_request_stpsata_completion_status_is_tx_suspend(
 	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
 	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
 	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
-	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
-	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_ANALT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_ANALT_SUPPORTED:
 		return 1;
 	}
 	return 0;
@@ -2361,14 +2361,14 @@ static void sci_request_handle_suspending_completions(
 		break;
 	default:
 		dev_warn(&ireq->isci_host->pdev->dev,
-			 "%s: request %p has no valid protocol\n",
+			 "%s: request %p has anal valid protocol\n",
 			 __func__, ireq);
 		break;
 	}
 	if (is_tx || is_tx_rx) {
 		BUG_ON(is_tx && is_tx_rx);
 
-		sci_remote_node_context_suspend(
+		sci_remote_analde_context_suspend(
 			&ireq->target_device->rnc,
 			SCI_HW_SUSPEND,
 			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
@@ -2408,8 +2408,8 @@ sci_io_request_tc_completion(struct isci_request *ireq,
 		return stp_request_udma_await_tc_event(ireq,
 						       completion_code);
 
-	case SCI_REQ_STP_NON_DATA_WAIT_H2D:
-		return stp_request_non_data_await_h2d_tc_event(ireq,
+	case SCI_REQ_STP_ANALN_DATA_WAIT_H2D:
+		return stp_request_analn_data_await_h2d_tc_event(ireq,
 							       completion_code);
 
 	case SCI_REQ_STP_PIO_WAIT_H2D:
@@ -2449,7 +2449,7 @@ sci_io_request_tc_completion(struct isci_request *ireq,
  * @resp_iu: This parameter points to the response iu of the completed request.
  * @dev: This parameter specifies the linux device struct.
  *
- * none.
+ * analne.
  */
 static void isci_request_process_response_iu(
 	struct sas_task *task,
@@ -2484,7 +2484,7 @@ static void isci_request_process_response_iu(
  * @open_rej_reason: This parameter specifies the encoded reason for the
  *    abandon-class reject.
  *
- * none.
+ * analne.
  */
 static void isci_request_set_open_reject_status(
 	struct isci_request *request,
@@ -2509,7 +2509,7 @@ static void isci_request_set_open_reject_status(
  * @response_ptr: This parameter specifies the service response for the I/O.
  * @status_ptr: This parameter specifies the exec status for the I/O.
  *
- * none.
+ * analne.
  */
 static void isci_request_handle_controller_specific_errors(
 	struct isci_remote_device *idev,
@@ -2532,7 +2532,7 @@ static void isci_request_handle_controller_specific_errors(
 	 * the target may still have a task outstanding that
 	 * must be aborted.
 	 *
-	 * Note that there are SCU completion codes being
+	 * Analte that there are SCU completion codes being
 	 * named in the decode below for which SCIC has already
 	 * done work to handle them in a way other than as
 	 * a controller-specific completion code; these are left
@@ -2547,22 +2547,22 @@ static void isci_request_handle_controller_specific_errors(
 			/* SCU_TASK_DONE_SMP_UFI_ERR == Task Done. */
 			*response_ptr = SAS_TASK_COMPLETE;
 
-			/* See if the device has been/is being stopped. Note
-			 * that we ignore the quiesce state, since we are
+			/* See if the device has been/is being stopped. Analte
+			 * that we iganalre the quiesce state, since we are
 			 * concerned about the actual device state.
 			 */
 			if (!idev)
-				*status_ptr = SAS_DEVICE_UNKNOWN;
+				*status_ptr = SAS_DEVICE_UNKANALWN;
 			else
 				*status_ptr = SAS_ABORTED_TASK;
 
 			set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
 		} else {
-			/* Task in the target is not done. */
+			/* Task in the target is analt done. */
 			*response_ptr = SAS_TASK_UNDELIVERED;
 
 			if (!idev)
-				*status_ptr = SAS_DEVICE_UNKNOWN;
+				*status_ptr = SAS_DEVICE_UNKANALWN;
 			else
 				*status_ptr = SAS_SAM_STAT_TASK_ABORTED;
 
@@ -2580,17 +2580,17 @@ static void isci_request_handle_controller_specific_errors(
 	case SCU_TASK_DONE_IIT_ENTRY_NV:        /* TODO - conditions? */
 	case SCU_TASK_DONE_RNCNV_OUTBOUND:      /* TODO - conditions? */
 		/* These are conditions in which the target
-		 * has completed the task, so that no cleanup
+		 * has completed the task, so that anal cleanup
 		 * is necessary.
 		 */
 		*response_ptr = SAS_TASK_COMPLETE;
 
-		/* See if the device has been/is being stopped. Note
-		 * that we ignore the quiesce state, since we are
+		/* See if the device has been/is being stopped. Analte
+		 * that we iganalre the quiesce state, since we are
 		 * concerned about the actual device state.
 		 */
 		if (!idev)
-			*status_ptr = SAS_DEVICE_UNKNOWN;
+			*status_ptr = SAS_DEVICE_UNKANALWN;
 		else
 			*status_ptr = SAS_ABORTED_TASK;
 
@@ -2598,7 +2598,7 @@ static void isci_request_handle_controller_specific_errors(
 		break;
 
 
-	/* Note that the only open reject completion codes seen here will be
+	/* Analte that the only open reject completion codes seen here will be
 	 * abandon-class codes; all others are automatically retried in the SCU.
 	 */
 	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
@@ -2610,7 +2610,7 @@ static void isci_request_handle_controller_specific_errors(
 
 	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
 
-		/* Note - the return of AB0 will change when
+		/* Analte - the return of AB0 will change when
 		 * libsas implements detection of zone violations.
 		 */
 		isci_request_set_open_reject_status(
@@ -2650,17 +2650,17 @@ static void isci_request_handle_controller_specific_errors(
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
-			SAS_OREJ_STP_NORES);
+			SAS_OREJ_STP_ANALRES);
 		break;
 
-	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_ANALT_SUPPORTED:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
 			SAS_OREJ_EPROTO);
 		break;
 
-	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_ANALT_SUPPORTED:
 
 		isci_request_set_open_reject_status(
 			request, task, response_ptr, status_ptr,
@@ -2692,7 +2692,7 @@ static void isci_request_handle_controller_specific_errors(
 	case SCU_TASK_DONE_SDB_ERR:
 	case SCU_TASK_DONE_TASK_ABORT:
 	default:
-		/* Task in the target is not done. */
+		/* Task in the target is analt done. */
 		*response_ptr = SAS_TASK_UNDELIVERED;
 		*status_ptr = SAS_SAM_STAT_TASK_ABORTED;
 
@@ -2766,7 +2766,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 		} else
 			dev_err(&ihost->pdev->dev,
-				"%s: unknown protocol\n", __func__);
+				"%s: unkanalwn protocol\n", __func__);
 
 		/* use the task status set in the task struct by the
 		* isci_request_process_response_iu call.
@@ -2819,12 +2819,12 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
 		response = SAS_TASK_UNDELIVERED;
 
-		/* See if the device has been/is being stopped. Note
-		* that we ignore the quiesce state, since we are
+		/* See if the device has been/is being stopped. Analte
+		* that we iganalre the quiesce state, since we are
 		* concerned about the actual device state.
 		*/
 		if (!idev)
-			status = SAS_DEVICE_UNKNOWN;
+			status = SAS_DEVICE_UNKANALWN;
 		else
 			status = SAS_ABORTED_TASK;
 		break;
@@ -2840,7 +2840,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		/* This is a special case, in that the I/O completion
 		* is telling us that the device needs a reset.
 		* In order for the device reset condition to be
-		* noticed, the I/O has to be handled in the error
+		* analticed, the I/O has to be handled in the error
 		* handler.  Set the reset flag and cause the
 		* SCSI error thread to be scheduled.
 		*/
@@ -2860,7 +2860,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		/* Fail the I/O so it can be retried. */
 		response = SAS_TASK_UNDELIVERED;
 		if (!idev)
-			status = SAS_DEVICE_UNKNOWN;
+			status = SAS_DEVICE_UNKANALWN;
 		else
 			status = SAS_ABORTED_TASK;
 
@@ -2877,12 +2877,12 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 		response = SAS_TASK_UNDELIVERED;
 
-		/* See if the device has been/is being stopped. Note
-		* that we ignore the quiesce state, since we are
+		/* See if the device has been/is being stopped. Analte
+		* that we iganalre the quiesce state, since we are
 		* concerned about the actual device state.
 		*/
 		if (!idev)
-			status = SAS_DEVICE_UNKNOWN;
+			status = SAS_DEVICE_UNKANALWN;
 		else
 			status = SAS_ABORTED_TASK;
 
@@ -2895,7 +2895,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
-		if (task->data_dir == DMA_NONE)
+		if (task->data_dir == DMA_ANALNE)
 			break;
 		if (task->num_scatter == 0)
 			/* 0 indicates a single dma address */
@@ -2930,7 +2930,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	task->task_status.stat = status;
 
 	if (test_bit(IREQ_COMPLETE_IN_TARGET, &request->flags)) {
-		/* Normal notification (task_done) */
+		/* Analrmal analtification (task_done) */
 		task->task_state_flags |= SAS_TASK_STATE_DONE;
 		task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	}
@@ -2939,7 +2939,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
 
-	/* set terminated handle so it cannot be completed or
+	/* set terminated handle so it cananalt be completed or
 	 * terminated again, and to cause any calls into abort
 	 * task to recognize the already completed case.
 	 */
@@ -2960,7 +2960,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 	 */
 	task = (test_bit(IREQ_TMF, &ireq->flags)) ? NULL : isci_request_access_task(ireq);
 
-	/* all unaccelerated request types (non ssp or ncq) handled with
+	/* all unaccelerated request types (analn ssp or ncq) handled with
 	 * substates
 	 */
 	if (!task && dev->dev_type == SAS_END_DEVICE) {
@@ -2972,15 +2972,15 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 		if (dev->sata_dev.class == ATA_DEV_ATAPI &&
 			task->ata_task.fis.command == ATA_CMD_PACKET) {
 			state = SCI_REQ_ATAPI_WAIT_H2D;
-		} else if (task->data_dir == DMA_NONE) {
-			state = SCI_REQ_STP_NON_DATA_WAIT_H2D;
+		} else if (task->data_dir == DMA_ANALNE) {
+			state = SCI_REQ_STP_ANALN_DATA_WAIT_H2D;
 		} else if (task->ata_task.dma_xfer) {
 			state = SCI_REQ_STP_UDMA_WAIT_TC_COMP;
 		} else /* PIO */ {
 			state = SCI_REQ_STP_PIO_WAIT_H2D;
 		}
 	} else {
-		/* SSP or NCQ are fully accelerated, no substates */
+		/* SSP or NCQ are fully accelerated, anal substates */
 		return;
 	}
 	sci_change_state(sm, state);
@@ -3007,7 +3007,7 @@ static void sci_request_aborting_state_enter(struct sci_base_state_machine *sm)
 	ireq->tc->abort = 1;
 }
 
-static void sci_stp_request_started_non_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
+static void sci_stp_request_started_analn_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
 
@@ -3027,10 +3027,10 @@ static const struct sci_base_state sci_request_state_table[] = {
 	[SCI_REQ_STARTED] = {
 		.enter_state = sci_request_started_state_enter,
 	},
-	[SCI_REQ_STP_NON_DATA_WAIT_H2D] = {
-		.enter_state = sci_stp_request_started_non_data_await_h2d_completion_enter,
+	[SCI_REQ_STP_ANALN_DATA_WAIT_H2D] = {
+		.enter_state = sci_stp_request_started_analn_data_await_h2d_completion_enter,
 	},
-	[SCI_REQ_STP_NON_DATA_WAIT_D2H] = { },
+	[SCI_REQ_STP_ANALN_DATA_WAIT_D2H] = { },
 	[SCI_REQ_STP_PIO_WAIT_H2D] = {
 		.enter_state = sci_stp_request_started_pio_await_h2d_completion_enter,
 	},
@@ -3064,7 +3064,7 @@ sci_general_request_construct(struct isci_host *ihost,
 	sci_init_sm(&ireq->sm, sci_request_state_table, SCI_REQ_INIT);
 
 	ireq->target_device = idev;
-	ireq->protocol = SAS_PROTOCOL_NONE;
+	ireq->protocol = SAS_PROTOCOL_ANALNE;
 	ireq->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
 
 	ireq->sci_status   = SCI_SUCCESS;
@@ -3083,7 +3083,7 @@ sci_io_request_construct(struct isci_host *ihost,
 	/* Build the common part of the request */
 	sci_general_request_construct(ihost, idev, ireq);
 
-	if (idev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+	if (idev->rnc.remote_analde_index == SCIC_SDS_REMOTE_ANALDE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
 	if (dev->dev_type == SAS_END_DEVICE)
@@ -3161,7 +3161,7 @@ static enum sci_status isci_request_stp_request_construct(struct isci_request *i
 		   qc->tf.command == ATA_CMD_FPDMA_READ ||
 		   qc->tf.command == ATA_CMD_FPDMA_RECV ||
 		   qc->tf.command == ATA_CMD_FPDMA_SEND ||
-		   qc->tf.command == ATA_CMD_NCQ_NON_DATA)) {
+		   qc->tf.command == ATA_CMD_NCQ_ANALN_DATA)) {
 		fis->sector_count = qc->tag << 3;
 		ireq->tc->type.stp.ncq_tag = qc->tag;
 	}
@@ -3188,7 +3188,7 @@ sci_io_request_construct_smp(struct device *dev,
 	/*
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
 	 * functions under SAS 2.0, a zero request length really indicates
-	 * a non-zero default length.
+	 * a analn-zero default length.
 	 */
 	if (smp_req->req_len == 0) {
 		switch (smp_req->func) {
@@ -3238,13 +3238,13 @@ sci_io_request_construct_smp(struct device *dev,
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	/* 04h */
-	task_context->remote_node_index = idev->rnc.remote_node_index;
+	task_context->remote_analde_index = idev->rnc.remote_analde_index;
 	task_context->command_code = 0;
 	task_context->task_type = SCU_TASK_TYPE_SMP_REQUEST;
 
 	/* 08h */
 	task_context->link_layer_control = 0;
-	task_context->do_not_dma_ssp_good_response = 1;
+	task_context->do_analt_dma_ssp_good_response = 1;
 	task_context->strict_ordering = 0;
 	task_context->control_frame = 1;
 	task_context->timeout_enable = 0;
@@ -3279,12 +3279,12 @@ sci_io_request_construct_smp(struct device *dev,
 			      ISCI_TAG_TCI(ireq->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
-	 * Context command buffer should not contain command header.
+	 * Context command buffer should analt contain command header.
 	 */
 	task_context->command_iu_upper = upper_32_bits(sg_dma_address(sg));
 	task_context->command_iu_lower = lower_32_bits(sg_dma_address(sg) + sizeof(u32));
 
-	/* SMP response comes as UF, so no need to set response IU address. */
+	/* SMP response comes as UF, so anal need to set response IU address. */
 	task_context->response_iu_upper = 0;
 	task_context->response_iu_lower = 0;
 
@@ -3383,7 +3383,7 @@ static enum sci_status isci_io_request_build(struct isci_host *ihost,
 		break;
 	default:
 		dev_dbg(&ihost->pdev->dev,
-			 "%s: unknown protocol\n", __func__);
+			 "%s: unkanalwn protocol\n", __func__);
 		return SCI_FAILURE;
 	}
 
@@ -3453,7 +3453,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 		if (isci_task_is_ncq_recovery(task)) {
 
 			/* The device is in an NCQ recovery state.  Issue the
-			 * request on the task side.  Note that it will
+			 * request on the task side.  Analte that it will
 			 * complete on the I/O request side because the
 			 * request was built that way (ie.
 			 * ireq->is_task_management_request is false).
@@ -3482,9 +3482,9 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 	 * the device needs a target reset.
 	 */
 	if (status != SCI_SUCCESS) {
-		/* The request did not really start in the
+		/* The request did analt really start in the
 		 * hardware, so clear the request handle
-		 * here so no terminations will be done.
+		 * here so anal terminations will be done.
 		 */
 		set_bit(IREQ_TERMINATED, &ireq->flags);
 	}

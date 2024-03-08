@@ -56,8 +56,8 @@ static inline unsigned omap3_l3_decode_req_info(u64 error)
 static char *omap3_l3_code_string(u8 code)
 {
 	switch (code) {
-	case OMAP_L3_CODE_NOERROR:
-		return "No Error";
+	case OMAP_L3_CODE_ANALERROR:
+		return "Anal Error";
 	case OMAP_L3_CODE_UNSUP_CMD:
 		return "Unsupported Command";
 	case OMAP_L3_CODE_ADDR_HOLE:
@@ -66,12 +66,12 @@ static char *omap3_l3_code_string(u8 code)
 		return "Protection Violation";
 	case OMAP_L3_CODE_IN_BAND_ERR:
 		return "In-band Error";
-	case OMAP_L3_CODE_REQ_TOUT_NOT_ACCEPT:
-		return "Request Timeout Not Accepted";
-	case OMAP_L3_CODE_REQ_TOUT_NO_RESP:
-		return "Request Timeout, no response";
+	case OMAP_L3_CODE_REQ_TOUT_ANALT_ACCEPT:
+		return "Request Timeout Analt Accepted";
+	case OMAP_L3_CODE_REQ_TOUT_ANAL_RESP:
+		return "Request Timeout, anal response";
 	default:
-		return "UNKNOWN error";
+		return "UNKANALWN error";
 	}
 }
 
@@ -120,7 +120,7 @@ static char *omap3_l3_initiator_string(u8 initid)
 	case OMAP_L3_USBHOST:
 		return "USB_HOST";
 	default:
-		return "UNKNOWN Initiator";
+		return "UNKANALWN Initiator";
 	}
 }
 
@@ -162,7 +162,7 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	u64 err_source = 0;
 	void __iomem *base;
 	int int_type;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 	if (!int_type)
@@ -181,10 +181,10 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	}
 
 	/*
-	 * if we have a timeout error, there's nothing we can
+	 * if we have a timeout error, there's analthing we can
 	 * do besides rebooting the board. So let's BUG on any
 	 * of such errors and handle the others. timeout error
-	 * is severe and not expected to occur.
+	 * is severe and analt expected to occur.
 	 */
 	BUG_ON(!int_type && status & L3_STATUS_0_TIMEOUT_MASK);
 
@@ -217,20 +217,20 @@ static int omap3_l3_probe(struct platform_device *pdev)
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
 	if (!l3)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, l3);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err0;
 	}
 	l3->rt = ioremap(res->start, resource_size(res));
 	if (!l3->rt) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err0;
 	}
 

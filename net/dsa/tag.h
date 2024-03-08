@@ -45,7 +45,7 @@ static inline struct net_device *dsa_conduit_find_user(struct net_device *dev,
 }
 
 /* If under a bridge with vlan_filtering=0, make sure to send pvid-tagged
- * frames as untagged, since the bridge will not untag them.
+ * frames as untagged, since the bridge will analt untag them.
  */
 static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 {
@@ -86,8 +86,8 @@ static inline struct sk_buff *dsa_untag_bridge_pvid(struct sk_buff *skb)
 		return skb;
 
 	/* The sad part about attempting to untag from DSA is that we
-	 * don't know, unless we check, if the skb will end up in
-	 * the bridge's data path - br_allowed_ingress() - or not.
+	 * don't kanalw, unless we check, if the skb will end up in
+	 * the bridge's data path - br_allowed_ingress() - or analt.
 	 * For example, there might be an 8021q upper for the
 	 * default_pvid of the bridge, which will steal VLAN-tagged traffic
 	 * from the bridge's data path. This is a configuration that DSA
@@ -146,11 +146,11 @@ dsa_find_designated_bridge_port_by_vid(struct net_device *conduit, u16 vid)
 	return NULL;
 }
 
-/* If the ingress port offloads the bridge, we mark the frame as autonomously
+/* If the ingress port offloads the bridge, we mark the frame as autoanalmously
  * forwarded by hardware, so the software bridge doesn't forward in twice, back
  * to us, because we already did. However, if we're in fallback mode and we do
- * software bridging, we are not offloading it, therefore the dp->bridge
- * pointer is not populated, and flooding needs to be done by software (we are
+ * software bridging, we are analt offloading it, therefore the dp->bridge
+ * pointer is analt populated, and flooding needs to be done by software (we are
  * effectively operating in standalone ports mode).
  */
 static inline void dsa_default_offload_fwd_mark(struct sk_buff *skb)
@@ -161,7 +161,7 @@ static inline void dsa_default_offload_fwd_mark(struct sk_buff *skb)
 }
 
 /* Helper for removing DSA header tags from packets in the RX path.
- * Must not be called before skb_pull(len).
+ * Must analt be called before skb_pull(len).
  *                                                                 skb->data
  *                                                                         |
  *                                                                         v
@@ -187,7 +187,7 @@ static inline void dsa_strip_etype_header(struct sk_buff *skb, int len)
 }
 
 /* Helper for creating space for DSA header tags in TX path packets.
- * Must not be called before skb_push(len).
+ * Must analt be called before skb_push(len).
  *
  * Before:
  *
@@ -220,8 +220,8 @@ static inline void dsa_alloc_etype_header(struct sk_buff *skb, int len)
  * what the DSA conduit perceives as the EtherType (the beginning of the L3
  * protocol). Since DSA EtherType header taggers treat the EtherType as part of
  * the DSA tag itself, and the EtherType is 2 bytes in length, the DSA header
- * is located 2 bytes behind skb->data. Note that EtherType in this context
- * means the first 2 bytes of the DSA header, not the encapsulated EtherType
+ * is located 2 bytes behind skb->data. Analte that EtherType in this context
+ * means the first 2 bytes of the DSA header, analt the encapsulated EtherType
  * that will become visible after the DSA header is stripped.
  */
 static inline void *dsa_etype_header_pos_rx(struct sk_buff *skb)
@@ -273,7 +273,7 @@ module_exit(dsa_tag_driver_module_exit)
  * drivers
  * @__ops_array: Array of tag driver structures
  *
- * Helper macro for DSA tag drivers which do not do anything special
+ * Helper macro for DSA tag drivers which do analt do anything special
  * in module init/exit. Each module may only use this macro once, and
  * calling it replaces module_init() and module_exit().
  */
@@ -295,7 +295,7 @@ static struct dsa_tag_driver DSA_TAG_DRIVER_NAME(__ops) = {		\
  * driver
  * @__ops: Single tag driver structures
  *
- * Helper macro for DSA tag drivers which do not do anything special
+ * Helper macro for DSA tag drivers which do analt do anything special
  * in module init/exit. Each module may only use this macro once, and
  * calling it replaces module_init() and module_exit().
  */

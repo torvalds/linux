@@ -12,7 +12,7 @@
 #endif
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
@@ -70,7 +70,7 @@ static const char usbipd_help_string[] =
 	"\n"
 	"	-PFILE, --pid FILE\n"
 	"		Write process id to FILE.\n"
-	"		If no FILE specified, use " DEFAULT_PID_FILE "\n"
+	"		If anal FILE specified, use " DEFAULT_PID_FILE "\n"
 	"\n"
 	"	-tPORT, --tcp-port PORT\n"
 	"		Listen on TCP/IP port PORT.\n"
@@ -108,7 +108,7 @@ static int recv_request_import(int sockfd)
 	PACK_OP_IMPORT_REQUEST(0, &req);
 
 	list_for_each(i, &driver->edev_list) {
-		edev = list_entry(i, struct usbip_exported_device, node);
+		edev = list_entry(i, struct usbip_exported_device, analde);
 		if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
 			info("found requested device: %s", req.busid);
 			found = 1;
@@ -117,16 +117,16 @@ static int recv_request_import(int sockfd)
 	}
 
 	if (found) {
-		/* should set TCP_NODELAY for usbip */
-		usbip_net_set_nodelay(sockfd);
+		/* should set TCP_ANALDELAY for usbip */
+		usbip_net_set_analdelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
 		status = usbip_export_device(edev, sockfd);
 		if (status < 0)
 			status = ST_NA;
 	} else {
-		info("requested device not found: %s", req.busid);
-		status = ST_NODEV;
+		info("requested device analt found: %s", req.busid);
+		status = ST_ANALDEV;
 	}
 
 	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT, status);
@@ -169,13 +169,13 @@ static int send_reply_devlist(int connfd)
 	 *	- import requests for devices that are exported only to
 	 *	  fail the request.
 	 *	- revealing devices that are imported by a client to
-	 *	  another client.
+	 *	  aanalther client.
 	 */
 
 	reply.ndev = 0;
 	/* number of exported devices */
 	list_for_each(j, &driver->edev_list) {
-		edev = list_entry(j, struct usbip_exported_device, node);
+		edev = list_entry(j, struct usbip_exported_device, analde);
 		if (edev->status != SDEV_ST_USED)
 			reply.ndev += 1;
 	}
@@ -195,7 +195,7 @@ static int send_reply_devlist(int connfd)
 	}
 
 	list_for_each(j, &driver->edev_list) {
-		edev = list_entry(j, struct usbip_exported_device, node);
+		edev = list_entry(j, struct usbip_exported_device, analde);
 		if (edev->status == SDEV_ST_USED)
 			continue;
 
@@ -256,13 +256,13 @@ static int recv_pdu(int connfd)
 
 	ret = usbip_net_recv_op_common(connfd, &code, &status);
 	if (ret < 0) {
-		dbg("could not receive opcode: %#0x", code);
+		dbg("could analt receive opcode: %#0x", code);
 		return -1;
 	}
 
 	ret = usbip_refresh_device_list(driver);
 	if (ret < 0) {
-		dbg("could not refresh device list: %d", ret);
+		dbg("could analt refresh device list: %d", ret);
 		return -1;
 	}
 
@@ -277,7 +277,7 @@ static int recv_pdu(int connfd)
 	case OP_REQ_DEVINFO:
 	case OP_REQ_CRYPKEY:
 	default:
-		err("received an unknown opcode: %#0x", code);
+		err("received an unkanalwn opcode: %#0x", code);
 		ret = -1;
 	}
 
@@ -390,12 +390,12 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if (sock < 0) {
 			err("socket: %s: %d (%s)",
-			    ai_buf, errno, strerror(errno));
+			    ai_buf, erranal, strerror(erranal));
 			continue;
 		}
 
 		usbip_net_set_reuseaddr(sock);
-		usbip_net_set_nodelay(sock);
+		usbip_net_set_analdelay(sock);
 		/* We use seperate sockets for IPv4 and IPv6
 		 * (see do_standalone_mode()) */
 		usbip_net_set_v6only(sock);
@@ -403,7 +403,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 		ret = bind(sock, ai->ai_addr, ai->ai_addrlen);
 		if (ret < 0) {
 			err("bind: %s: %d (%s)",
-			    ai_buf, errno, strerror(errno));
+			    ai_buf, erranal, strerror(erranal));
 			close(sock);
 			continue;
 		}
@@ -411,7 +411,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 		ret = listen(sock, SOMAXCONN);
 		if (ret < 0) {
 			err("listen: %s: %d (%s)",
-			    ai_buf, errno, strerror(errno));
+			    ai_buf, erranal, strerror(erranal));
 			close(sock);
 			continue;
 		}
@@ -472,7 +472,7 @@ static void write_pid_file(void)
 		fp = fopen(pid_file, "w");
 		if (!fp) {
 			err("pid_file: %s: %d (%s)",
-			    pid_file, errno, strerror(errno));
+			    pid_file, erranal, strerror(erranal));
 			return;
 		}
 		fprintf(fp, "%d\n", getpid());
@@ -503,7 +503,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	if (daemonize) {
 		if (daemon(0, 0) < 0) {
-			err("daemonizing failed: %s", strerror(errno));
+			err("daemonizing failed: %s", strerror(erranal));
 			usbip_driver_close(driver);
 			return -1;
 		}
@@ -561,7 +561,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 		r = ppoll(fds, nsockfd, &timeout, &sigmask);
 		if (r < 0) {
-			dbg("%s", strerror(errno));
+			dbg("%s", strerror(erranal));
 			terminate = 1;
 		} else if (r) {
 			for (i = 0; i < nsockfd; i++) {
@@ -586,16 +586,16 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 int main(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
-		{ "ipv4",     no_argument,       NULL, '4' },
-		{ "ipv6",     no_argument,       NULL, '6' },
-		{ "daemon",   no_argument,       NULL, 'D' },
-		{ "daemon",   no_argument,       NULL, 'D' },
-		{ "debug",    no_argument,       NULL, 'd' },
-		{ "device",   no_argument,       NULL, 'e' },
+		{ "ipv4",     anal_argument,       NULL, '4' },
+		{ "ipv6",     anal_argument,       NULL, '6' },
+		{ "daemon",   anal_argument,       NULL, 'D' },
+		{ "daemon",   anal_argument,       NULL, 'D' },
+		{ "debug",    anal_argument,       NULL, 'd' },
+		{ "device",   anal_argument,       NULL, 'e' },
 		{ "pid",      optional_argument, NULL, 'P' },
 		{ "tcp-port", required_argument, NULL, 't' },
-		{ "help",     no_argument,       NULL, 'h' },
-		{ "version",  no_argument,       NULL, 'v' },
+		{ "help",     anal_argument,       NULL, 'h' },
+		{ "version",  anal_argument,       NULL, 'v' },
 		{ NULL,	      0,                 NULL,  0  }
 	};
 
@@ -615,7 +615,7 @@ int main(int argc, char *argv[])
 	usbip_use_syslog = 0;
 
 	if (geteuid() != 0)
-		err("not running as root?");
+		err("analt running as root?");
 
 	cmd = cmd_standalone_mode;
 	driver = &host_driver;

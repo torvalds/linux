@@ -52,7 +52,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		args.hashmap_nr_keys_used = ret;
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 
 	return 0;
@@ -120,7 +120,7 @@ static void __setup(struct bpf_program *prog, bool hashmap)
 	LIBBPF_OPTS(bpf_map_create_opts, create_opts);
 
 	if (!hashmap)
-		create_opts.map_flags = BPF_F_NO_PREALLOC;
+		create_opts.map_flags = BPF_F_ANAL_PREALLOC;
 
 	ctx.skel->rodata->num_maps = args.nr_maps;
 	ctx.skel->rodata->hashmap_num_keys = args.hashmap_nr_keys_used;

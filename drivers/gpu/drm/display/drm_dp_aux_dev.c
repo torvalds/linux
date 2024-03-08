@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antoganallli <rafael.antoganallli@intel.com>
  *
  */
 
@@ -50,14 +50,14 @@ struct drm_dp_aux_dev {
 	atomic_t usecount;
 };
 
-#define DRM_AUX_MINORS	256
+#define DRM_AUX_MIANALRS	256
 #define AUX_MAX_OFFSET	(1 << 20)
 static DEFINE_IDR(aux_idr);
 static DEFINE_MUTEX(aux_idr_mutex);
 static struct class *drm_dp_aux_dev_class;
 static int drm_dev_major = -1;
 
-static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_minor(unsigned index)
+static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_mianalr(unsigned index)
 {
 	struct drm_dp_aux_dev *aux_dev = NULL;
 
@@ -77,13 +77,13 @@ static struct drm_dp_aux_dev *alloc_drm_dp_aux_dev(struct drm_dp_aux *aux)
 
 	aux_dev = kzalloc(sizeof(*aux_dev), GFP_KERNEL);
 	if (!aux_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	aux_dev->aux = aux;
 	atomic_set(&aux_dev->usecount, 1);
 	kref_init(&aux_dev->refcount);
 
 	mutex_lock(&aux_idr_mutex);
-	index = idr_alloc(&aux_idr, aux_dev, 0, DRM_AUX_MINORS, GFP_KERNEL);
+	index = idr_alloc(&aux_idr, aux_dev, 0, DRM_AUX_MIANALRS, GFP_KERNEL);
 	mutex_unlock(&aux_idr_mutex);
 	if (index < 0) {
 		kfree(aux_dev);
@@ -107,10 +107,10 @@ static ssize_t name_show(struct device *dev,
 {
 	ssize_t res;
 	struct drm_dp_aux_dev *aux_dev =
-		drm_dp_aux_dev_get_by_minor(MINOR(dev->devt));
+		drm_dp_aux_dev_get_by_mianalr(MIANALR(dev->devt));
 
 	if (!aux_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = sprintf(buf, "%s\n", aux_dev->aux->name);
 	kref_put(&aux_dev->refcount, release_drm_dp_aux_dev);
@@ -125,14 +125,14 @@ static struct attribute *drm_dp_aux_attrs[] = {
 };
 ATTRIBUTE_GROUPS(drm_dp_aux);
 
-static int auxdev_open(struct inode *inode, struct file *file)
+static int auxdev_open(struct ianalde *ianalde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int mianalr = imianalr(ianalde);
 	struct drm_dp_aux_dev *aux_dev;
 
-	aux_dev = drm_dp_aux_dev_get_by_minor(minor);
+	aux_dev = drm_dp_aux_dev_get_by_mianalr(mianalr);
 	if (!aux_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	file->private_data = aux_dev;
 	return 0;
@@ -149,8 +149,8 @@ static ssize_t auxdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	loff_t pos = iocb->ki_pos;
 	ssize_t res = 0;
 
-	if (!atomic_inc_not_zero(&aux_dev->usecount))
-		return -ENODEV;
+	if (!atomic_inc_analt_zero(&aux_dev->usecount))
+		return -EANALDEV;
 
 	iov_iter_truncate(to, AUX_MAX_OFFSET - pos);
 
@@ -192,8 +192,8 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	loff_t pos = iocb->ki_pos;
 	ssize_t res = 0;
 
-	if (!atomic_inc_not_zero(&aux_dev->usecount))
-		return -ENODEV;
+	if (!atomic_inc_analt_zero(&aux_dev->usecount))
+		return -EANALDEV;
 
 	iov_iter_truncate(from, AUX_MAX_OFFSET - pos);
 
@@ -229,7 +229,7 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return res;
 }
 
-static int auxdev_release(struct inode *inode, struct file *file)
+static int auxdev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct drm_dp_aux_dev *aux_dev = file->private_data;
 
@@ -254,8 +254,8 @@ static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_aux(struct drm_dp_aux *aux)
 	int id;
 
 	/* don't increase kref count here because this function should only be
-	 * used by drm_dp_aux_unregister_devnode. Thus, it will always have at
-	 * least one reference - the one that drm_dp_aux_register_devnode
+	 * used by drm_dp_aux_unregister_devanalde. Thus, it will always have at
+	 * least one reference - the one that drm_dp_aux_register_devanalde
 	 * created
 	 */
 	mutex_lock(&aux_idr_mutex);
@@ -269,10 +269,10 @@ static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_aux(struct drm_dp_aux *aux)
 	return aux_dev;
 }
 
-void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
+void drm_dp_aux_unregister_devanalde(struct drm_dp_aux *aux)
 {
 	struct drm_dp_aux_dev *aux_dev;
-	unsigned int minor;
+	unsigned int mianalr;
 
 	aux_dev = drm_dp_aux_dev_get_by_aux(aux);
 	if (!aux_dev) /* attach must have failed */
@@ -291,16 +291,16 @@ void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 	atomic_dec(&aux_dev->usecount);
 	wait_var_event(&aux_dev->usecount, !atomic_read(&aux_dev->usecount));
 
-	minor = aux_dev->index;
+	mianalr = aux_dev->index;
 	if (aux_dev->dev)
 		device_destroy(drm_dp_aux_dev_class,
-			       MKDEV(drm_dev_major, minor));
+			       MKDEV(drm_dev_major, mianalr));
 
 	DRM_DEBUG("drm_dp_aux_dev: aux [%s] unregistering\n", aux->name);
 	kref_put(&aux_dev->refcount, release_drm_dp_aux_dev);
 }
 
-int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
+int drm_dp_aux_register_devanalde(struct drm_dp_aux *aux)
 {
 	struct drm_dp_aux_dev *aux_dev;
 	int res;
@@ -318,11 +318,11 @@ int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
 		goto error;
 	}
 
-	DRM_DEBUG("drm_dp_aux_dev: aux [%s] registered as minor %d\n",
+	DRM_DEBUG("drm_dp_aux_dev: aux [%s] registered as mianalr %d\n",
 		  aux->name, aux_dev->index);
 	return 0;
 error:
-	drm_dp_aux_unregister_devnode(aux);
+	drm_dp_aux_unregister_devanalde(aux);
 	return res;
 }
 

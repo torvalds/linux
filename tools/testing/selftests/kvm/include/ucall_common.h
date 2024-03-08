@@ -9,7 +9,7 @@
 
 /* Common ucalls */
 enum {
-	UCALL_NONE,
+	UCALL_ANALNE,
 	UCALL_SYNC,
 	UCALL_ABORT,
 	UCALL_PRINTF,
@@ -45,10 +45,10 @@ int ucall_nr_pages_required(uint64_t page_size);
 /*
  * Perform userspace call without any associated data.  This bare call avoids
  * allocating a ucall struct, which can be useful if the atomic operations in
- * the full ucall() are problematic and/or unwanted.  Note, this will come out
- * as UCALL_NONE on the backend.
+ * the full ucall() are problematic and/or unwanted.  Analte, this will come out
+ * as UCALL_ANALNE on the backend.
  */
-#define GUEST_UCALL_NONE()	ucall_arch_do_ucall((vm_vaddr_t)NULL)
+#define GUEST_UCALL_ANALNE()	ucall_arch_do_ucall((vm_vaddr_t)NULL)
 
 #define GUEST_SYNC_ARGS(stage, arg1, arg2, arg3, arg4)	\
 				ucall(UCALL_SYNC, 6, "hello", stage, arg1, arg2, arg3, arg4)

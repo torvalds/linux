@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * NET		An implementation of the SOCKET network access protocol.
  *		This is the master header file for the Linux NET layer,
@@ -46,7 +46,7 @@
 #define SYS_SENDMMSG	20		/* sys_sendmmsg(2)		*/
 
 typedef enum {
-	SS_FREE = 0,			/* not allocated		*/
+	SS_FREE = 0,			/* analt allocated		*/
 	SS_UNCONNECTED,			/* unconnected to any socket	*/
 	SS_CONNECTING,			/* in process of connecting	*/
 	SS_CONNECTED,			/* connected to socket		*/

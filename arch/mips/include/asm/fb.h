@@ -7,7 +7,7 @@ static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
 					  unsigned long vm_start, unsigned long vm_end,
 					  unsigned long offset)
 {
-	return pgprot_noncached(prot);
+	return pgprot_analncached(prot);
 }
 #define pgprot_framebuffer pgprot_framebuffer
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 #include "dc_ddc_types.h"
 
 enum dc_lane_count {
-	LANE_COUNT_UNKNOWN = 0,
+	LANE_COUNT_UNKANALWN = 0,
 	LANE_COUNT_ONE = 1,
 	LANE_COUNT_TWO = 2,
 	LANE_COUNT_FOUR = 4,
@@ -46,7 +46,7 @@ enum dc_lane_count {
  * 810MBps for 8.10GHz
  */
 enum dc_link_rate {
-	LINK_RATE_UNKNOWN = 0,
+	LINK_RATE_UNKANALWN = 0,
 	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)  - 1.62 Gbps/Lane
 	LINK_RATE_RATE_2 = 0x08,	// Rate_2        - 2.16 Gbps/Lane
 	LINK_RATE_RATE_3 = 0x09,	// Rate_3        - 2.43 Gbps/Lane
@@ -130,7 +130,7 @@ enum dc_dp_training_pattern {
 };
 
 enum dp_link_encoding {
-	DP_UNKNOWN_ENCODING = 0,
+	DP_UNKANALWN_ENCODING = 0,
 	DP_8b_10b_ENCODING = 1,
 	DP_128b_132b_ENCODING = 2,
 };
@@ -158,8 +158,8 @@ union dc_dp_ffe_preset {
 	struct {
 		uint8_t level		: 4;
 		uint8_t reserved	: 1;
-		uint8_t no_preshoot	: 1;
-		uint8_t no_deemphasis	: 1;
+		uint8_t anal_preshoot	: 1;
+		uint8_t anal_deemphasis	: 1;
 		uint8_t method2		: 1;
 	} settings;
 	uint8_t raw;
@@ -200,7 +200,7 @@ union payload_table_update_status {
 
 union dpcd_rev {
 	struct {
-		uint8_t MINOR:4;
+		uint8_t MIANALR:4;
 		uint8_t MAJOR:4;
 	} bits;
 	uint8_t raw;
@@ -220,7 +220,7 @@ union max_down_spread {
 	struct {
 		uint8_t MAX_DOWN_SPREAD:1;
 		uint8_t RESERVED:5;
-		uint8_t NO_AUX_HANDSHAKE_LINK_TRAINING:1;
+		uint8_t ANAL_AUX_HANDSHAKE_LINK_TRAINING:1;
 		uint8_t TPS4_SUPPORTED:1;
 	} bits;
 	uint8_t raw;
@@ -357,7 +357,7 @@ enum dpcd_downstream_port_detailed_type {
 	DOWN_STREAM_DETAILED_VGA,
 	DOWN_STREAM_DETAILED_DVI,
 	DOWN_STREAM_DETAILED_HDMI,
-	DOWN_STREAM_DETAILED_NONDDC,/* has no EDID (TV,CV)*/
+	DOWN_STREAM_DETAILED_ANALNDDC,/* has anal EDID (TV,CV)*/
 	DOWN_STREAM_DETAILED_DP_PLUS_PLUS
 };
 
@@ -483,13 +483,13 @@ union down_stream_port_count {
 	struct {
 		uint8_t DOWN_STR_PORT_COUNT:4;
 		uint8_t RESERVED:2; /*Bits 5:4 = RESERVED. Read all 0s.*/
-		/*Bit 6 = MSA_TIMING_PAR_IGNORED
+		/*Bit 6 = MSA_TIMING_PAR_IGANALRED
 		0 = Sink device requires the MSA timing parameters
 		1 = Sink device is capable of rendering incoming video
 		 stream without MSA timing parameters*/
-		uint8_t IGNORE_MSA_TIMING_PARAM:1;
+		uint8_t IGANALRE_MSA_TIMING_PARAM:1;
 		/*Bit 7 = OUI Support
-		0 = OUI not supported
+		0 = OUI analt supported
 		1 = OUI supported
 		(OUI and Device Identification mandatory for DP 1.2)*/
 		uint8_t OUI_SUPPORT:1;
@@ -501,19 +501,19 @@ union down_spread_ctrl {
 	struct {
 		uint8_t RESERVED1:4;/* Bit 3:0 = RESERVED. Read all 0s*/
 	/* Bits 4 = SPREAD_AMP. Spreading amplitude
-	0 = Main link signal is not downspread
+	0 = Main link signal is analt downspread
 	1 = Main link signal is downspread <= 0.5%
 	with frequency in the range of 30kHz ~ 33kHz*/
 		uint8_t SPREAD_AMP:1;
 		uint8_t RESERVED2:1;/*Bit 5 = RESERVED. Read all 0s*/
 	/* Bit 6 = FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE.
-	0 = FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE is not enabled by the Source device (default)
+	0 = FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE is analt enabled by the Source device (default)
 	1 = FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE is enabled by Source device */
 		uint8_t FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE:1;
-	/*Bit 7 = MSA_TIMING_PAR_IGNORE_EN
+	/*Bit 7 = MSA_TIMING_PAR_IGANALRE_EN
 	0 = Source device will send valid data for the MSA Timing Params
 	1 = Source device may send invalid data for these MSA Timing Params*/
-		uint8_t IGNORE_MSA_TIMING_PARAM:1;
+		uint8_t IGANALRE_MSA_TIMING_PARAM:1;
 	} bits;
 	uint8_t raw;
 };
@@ -646,7 +646,7 @@ union test_request {
 union test_response {
 	struct {
 		uint8_t ACK         :1;
-		uint8_t NO_ACK      :1;
+		uint8_t ANAL_ACK      :1;
 		uint8_t EDID_CHECKSUM_WRITE:1;
 		uint8_t RESERVED    :5;
 	} bits;
@@ -752,7 +752,7 @@ struct dpcd_dsc_support {
 
 struct dpcd_dsc_algorithm_revision {
 	uint8_t DSC_VERSION_MAJOR	:4;
-	uint8_t DSC_VERSION_MINOR	:4;
+	uint8_t DSC_VERSION_MIANALR	:4;
 };
 
 struct dpcd_dsc_rc_buffer_block_size {
@@ -874,7 +874,7 @@ struct psr_caps {
 union dpcd_dprx_feature_enumeration_list_cont_1 {
 	struct {
 		uint8_t ADAPTIVE_SYNC_SDP_SUPPORT:1;
-		uint8_t AS_SDP_FIRST_HALF_LINE_OR_3840_PIXEL_CYCLE_WINDOW_NOT_SUPPORTED: 1;
+		uint8_t AS_SDP_FIRST_HALF_LINE_OR_3840_PIXEL_CYCLE_WINDOW_ANALT_SUPPORTED: 1;
 		uint8_t RESERVED0: 2;
 		uint8_t VSC_EXT_SDP_VER1_SUPPORT: 1;
 		uint8_t RESERVED1: 3;
@@ -1044,11 +1044,11 @@ union edp_alpm_caps {
 
 union edp_psr_dpcd_caps {
 	struct {
-		uint8_t LINK_TRAINING_ON_EXIT_NOT_REQUIRED      :1;
+		uint8_t LINK_TRAINING_ON_EXIT_ANALT_REQUIRED      :1;
 		uint8_t PSR_SETUP_TIME  :3;
 		uint8_t Y_COORDINATE_REQUIRED   :1;
 		uint8_t SU_GRANULARITY_REQUIRED :1;
-		uint8_t FRAME_SYNC_IS_NOT_NEEDED_FOR_SU :1;
+		uint8_t FRAME_SYNC_IS_ANALT_NEEDED_FOR_SU :1;
 		uint8_t RESERVED                :1;
 	} bits;
 	uint8_t raw;
@@ -1206,7 +1206,7 @@ union dpcd_sink_ext_caps {
 };
 
 enum dc_link_fec_state {
-	dc_link_fec_not_ready,
+	dc_link_fec_analt_ready,
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };

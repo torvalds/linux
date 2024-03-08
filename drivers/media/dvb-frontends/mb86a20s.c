@@ -53,7 +53,7 @@ struct regdata {
 
 /*
  * Initialization sequence: Use whatevere default values that PV SBTVD
- * does on its initialisation, obtained via USB snoop
+ * does on its initialisation, obtained via USB sanalop
  */
 static struct regdata mb86a20s_init1[] = {
 	{ 0x70, 0x0f },
@@ -304,7 +304,7 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	/*
 	 * Actually, on state S8, it starts receiving TS, but the TS
-	 * output is only on normal state after the transition to S9.
+	 * output is only on analrmal state after the transition to S9.
 	 */
 	if (val >= 9)
 		*status |= FE_HAS_LOCK;
@@ -545,7 +545,7 @@ static u32 isdbt_layer_min_bitrate(struct dtv_frontend_properties *c,
 	int mod, fec, guard;
 
 	/*
-	 * If modulation/fec/guard is not detected, the default is
+	 * If modulation/fec/guard is analt detected, the default is
 	 * to consider the lowest bit rate, to avoid taking too long time
 	 * to get BER.
 	 */
@@ -630,7 +630,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 
 		rc = mb86a20s_get_segment_count(state, layer);
 		if (rc < 0)
-			goto noperlayer_error;
+			goto analperlayer_error;
 		if (rc >= 0 && rc < 14) {
 			c->layer[layer].segment_count = rc;
 		} else {
@@ -641,19 +641,19 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 		c->isdbt_layer_enabled |= 1 << layer;
 		rc = mb86a20s_get_modulation(state, layer);
 		if (rc < 0)
-			goto noperlayer_error;
+			goto analperlayer_error;
 		dev_dbg(&state->i2c->dev, "%s: modulation %d.\n",
 			__func__, rc);
 		c->layer[layer].modulation = rc;
 		rc = mb86a20s_get_fec(state, layer);
 		if (rc < 0)
-			goto noperlayer_error;
+			goto analperlayer_error;
 		dev_dbg(&state->i2c->dev, "%s: FEC %d.\n",
 			__func__, rc);
 		c->layer[layer].fec = rc;
 		rc = mb86a20s_get_interleaving(state, layer);
 		if (rc < 0)
-			goto noperlayer_error;
+			goto analperlayer_error;
 		dev_dbg(&state->i2c->dev, "%s: interleaving %d.\n",
 			__func__, rc);
 		c->layer[layer].interleaving = rc;
@@ -702,7 +702,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 	}
 	c->guard_interval = GUARD_INTERVAL_AUTO;
 	if (!(rc & 0x10)) {
-		/* Guard interval 1/32 is not supported */
+		/* Guard interval 1/32 is analt supported */
 		switch (rc & 0x3) {
 		case 0:
 			c->guard_interval = GUARD_INTERVAL_1_4;
@@ -717,7 +717,7 @@ static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 	}
 	return 0;
 
-noperlayer_error:
+analperlayer_error:
 
 	/* per-layer info is incomplete; discard all per-layer */
 	c->isdbt_layer_enabled = 0;
@@ -809,7 +809,7 @@ static int mb86a20s_get_pre_ber(struct dvb_frontend *fe,
 	/* Check if data is available for that layer */
 	if (!(rc & (1 << layer))) {
 		dev_dbg(&state->i2c->dev,
-			"%s: preBER for layer %c is not available yet.\n",
+			"%s: preBER for layer %c is analt available yet.\n",
 			__func__, 'A' + layer);
 		return -EBUSY;
 	}
@@ -943,7 +943,7 @@ static int mb86a20s_get_post_ber(struct dvb_frontend *fe,
 	/* Check if data is available for that layer */
 	if (!(rc & (1 << layer))) {
 		dev_dbg(&state->i2c->dev,
-			"%s: post BER for layer %c is not available yet.\n",
+			"%s: post BER for layer %c is analt available yet.\n",
 			__func__, 'A' + layer);
 		return -EBUSY;
 	}
@@ -1354,7 +1354,7 @@ static u32 interpolate_value(u32 value, const struct linear_segments *segments,
 		return segments[len-1].y;
 
 	for (i = 1; i < len - 1; i++) {
-		/* If value is identical, no need to interpolate */
+		/* If value is identical, anal need to interpolate */
 		if (value == segments[i].x)
 			return segments[i].y;
 		if (value > segments[i].x)
@@ -1385,7 +1385,7 @@ static int mb86a20s_get_main_CNR(struct dvb_frontend *fe)
 		return rc;
 
 	if (!(rc & 0x40)) {
-		dev_dbg(&state->i2c->dev, "%s: CNR is not available yet.\n",
+		dev_dbg(&state->i2c->dev, "%s: CNR is analt available yet.\n",
 			 __func__);
 		return -EBUSY;
 	}
@@ -1448,7 +1448,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 	/* Read all layers */
 	for (layer = 0; layer < NUM_LAYERS; layer++) {
 		if (!(c->isdbt_layer_enabled & (1 << layer))) {
-			c->cnr.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
+			c->cnr.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
 			continue;
 		}
 
@@ -1521,7 +1521,7 @@ static int mb86a20s_get_blk_error_layer_CNR(struct dvb_frontend *fe)
 	return 0;
 }
 
-static void mb86a20s_stats_not_ready(struct dvb_frontend *fe)
+static void mb86a20s_stats_analt_ready(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1547,15 +1547,15 @@ static void mb86a20s_stats_not_ready(struct dvb_frontend *fe)
 	c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 	c->strength.stat[0].uvalue = 0;
 
-	/* Put all of them at FE_SCALE_NOT_AVAILABLE */
+	/* Put all of them at FE_SCALE_ANALT_AVAILABLE */
 	for (layer = 0; layer < NUM_LAYERS + 1; layer++) {
-		c->cnr.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->pre_bit_error.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->pre_bit_count.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_error.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->post_bit_count.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_count.stat[layer].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->pre_bit_error.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->pre_bit_count.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_error.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->post_bit_count.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_count.stat[layer].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 }
 
@@ -1600,15 +1600,15 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 			} else if (rc != -EBUSY) {
 				/*
 					* If an I/O error happened,
-					* measures are now unavailable
+					* measures are analw unavailable
 					*/
-				c->pre_bit_error.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
-				c->pre_bit_count.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
+				c->pre_bit_error.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
+				c->pre_bit_count.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
 				dev_err(&state->i2c->dev,
 					"%s: Can't get BER for layer %c (error %d).\n",
 					__func__, 'A' + layer, rc);
 			}
-			if (c->block_error.stat[1 + layer].scale != FE_SCALE_NOT_AVAILABLE)
+			if (c->block_error.stat[1 + layer].scale != FE_SCALE_ANALT_AVAILABLE)
 				pre_ber_layers++;
 
 			/* Handle BER post vterbi */
@@ -1622,15 +1622,15 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 			} else if (rc != -EBUSY) {
 				/*
 					* If an I/O error happened,
-					* measures are now unavailable
+					* measures are analw unavailable
 					*/
-				c->post_bit_error.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
-				c->post_bit_count.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
+				c->post_bit_error.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
+				c->post_bit_count.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
 				dev_err(&state->i2c->dev,
 					"%s: Can't get BER for layer %c (error %d).\n",
 					__func__, 'A' + layer, rc);
 			}
-			if (c->block_error.stat[1 + layer].scale != FE_SCALE_NOT_AVAILABLE)
+			if (c->block_error.stat[1 + layer].scale != FE_SCALE_ANALT_AVAILABLE)
 				post_ber_layers++;
 
 			/* Handle Block errors for PER/UCB reports */
@@ -1645,16 +1645,16 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 			} else if (rc != -EBUSY) {
 				/*
 					* If an I/O error happened,
-					* measures are now unavailable
+					* measures are analw unavailable
 					*/
-				c->block_error.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
-				c->block_count.stat[1 + layer].scale = FE_SCALE_NOT_AVAILABLE;
+				c->block_error.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
+				c->block_count.stat[1 + layer].scale = FE_SCALE_ANALT_AVAILABLE;
 				dev_err(&state->i2c->dev,
 					"%s: Can't get PER for layer %c (error %d).\n",
 					__func__, 'A' + layer, rc);
 
 			}
-			if (c->block_error.stat[1 + layer].scale != FE_SCALE_NOT_AVAILABLE)
+			if (c->block_error.stat[1 + layer].scale != FE_SCALE_ANALT_AVAILABLE)
 				per_layers++;
 
 			/* Update total preBER */
@@ -1677,7 +1677,7 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 	 */
 	if (pre_ber_layers) {
 		/*
-		 * At least one per-layer BER measure was read. We can now
+		 * At least one per-layer BER measure was read. We can analw
 		 * calculate the total BER
 		 *
 		 * Total Bit Error/Count is calculated as the sum of the
@@ -1688,7 +1688,7 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->pre_bit_count.stat[0].uvalue = t_pre_bit_count;
 	} else {
-		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
@@ -1698,7 +1698,7 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 	 */
 	if (post_ber_layers) {
 		/*
-		 * At least one per-layer BER measure was read. We can now
+		 * At least one per-layer BER measure was read. We can analw
 		 * calculate the total BER
 		 *
 		 * Total Bit Error/Count is calculated as the sum of the
@@ -1709,13 +1709,13 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_count.stat[0].uvalue = t_post_bit_count;
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
 	if (per_layers) {
 		/*
-		 * At least one per-layer UCB measure was read. We can now
+		 * At least one per-layer UCB measure was read. We can analw
 		 * calculate the total UCB
 		 *
 		 * Total block Error/Count is calculated as the sum of the
@@ -1726,7 +1726,7 @@ static int mb86a20s_get_stats(struct dvb_frontend *fe, int status_nr)
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_count.stat[0].uvalue = t_block_count;
 	} else {
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 	}
 
@@ -1902,14 +1902,14 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	 * a SBTVD parameters are adjusted.
 	 *
 	 * Unfortunately, due to a hard to track bug at tda829x/tda18271,
-	 * the agc callback logic is not called during DVB attach time,
-	 * causing mb86a20s to not be initialized with Kworld SBTVD.
+	 * the agc callback logic is analt called during DVB attach time,
+	 * causing mb86a20s to analt be initialized with Kworld SBTVD.
 	 * So, this hack is needed, in order to make Kworld SBTVD to work.
 	 *
 	 * It is also needed to change the IF after the initial init.
 	 *
 	 * HACK: Always init the frontend when set_frontend is called:
-	 * it was noticed that, on some devices, it fails to lock on a
+	 * it was analticed that, on some devices, it fails to lock on a
 	 * different channel. So, it is better to reset everything, even
 	 * wasting some time, than to loose channel lock.
 	 */
@@ -1920,7 +1920,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 
 	rc = mb86a20s_writeregdata(state, mb86a20s_reset_reception);
 	mb86a20s_reset_counters(fe);
-	mb86a20s_stats_not_ready(fe);
+	mb86a20s_stats_analt_ready(fe);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -1942,7 +1942,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	/* Get lock */
 	status_nr = mb86a20s_read_status(fe, status);
 	if (status_nr < 7) {
-		mb86a20s_stats_not_ready(fe);
+		mb86a20s_stats_analt_ready(fe);
 		mb86a20s_reset_frontend_cache(fe);
 	}
 	if (status_nr < 0) {
@@ -1957,7 +1957,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (rc < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't reset VBER registers.\n", __func__);
-		mb86a20s_stats_not_ready(fe);
+		mb86a20s_stats_analt_ready(fe);
 		mb86a20s_reset_frontend_cache(fe);
 
 		rc = 0;		/* Status is OK */
@@ -1987,7 +1987,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	goto ok;
 
 error:
-	mb86a20s_stats_not_ready(fe);
+	mb86a20s_stats_analt_ready(fe);
 
 ok:
 	if (fe->ops.i2c_gate_ctrl)
@@ -2070,7 +2070,7 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 	if (rev != 0x13) {
 		kfree(state);
 		dev_dbg(&i2c->dev,
-			"Frontend revision %d is unknown - aborting.\n",
+			"Frontend revision %d is unkanalwn - aborting.\n",
 		       rev);
 		return NULL;
 	}

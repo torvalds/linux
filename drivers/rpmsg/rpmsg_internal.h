@@ -25,11 +25,11 @@ extern struct class *rpmsg_class;
  * @create_channel:	create backend-specific channel, optional
  * @release_channel:	release backend-specific channel, optional
  * @create_ept:		create backend-specific endpoint, required
- * @announce_create:	announce presence of new channel, optional
- * @announce_destroy:	announce destruction of channel, optional
+ * @ananalunce_create:	ananalunce presence of new channel, optional
+ * @ananalunce_destroy:	ananalunce destruction of channel, optional
  *
  * Indirection table for the operations that a rpmsg backend should implement.
- * @announce_create and @announce_destroy are optional as the backend might
+ * @ananalunce_create and @ananalunce_destroy are optional as the backend might
  * advertise new channels implicitly by creating the endpoints.
  */
 struct rpmsg_device_ops {
@@ -41,8 +41,8 @@ struct rpmsg_device_ops {
 					    rpmsg_rx_cb_t cb, void *priv,
 					    struct rpmsg_channel_info chinfo);
 
-	int (*announce_create)(struct rpmsg_device *rpdev);
-	int (*announce_destroy)(struct rpmsg_device *rpdev);
+	int (*ananalunce_create)(struct rpmsg_device *rpdev);
+	int (*ananalunce_destroy)(struct rpmsg_device *rpdev);
 };
 
 /**

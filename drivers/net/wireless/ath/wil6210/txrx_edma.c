@@ -84,7 +84,7 @@ static int wil_sring_alloc(struct wil6210_priv *wil,
 	wil_dbg_misc(wil, "status_ring_alloc: size=%zu\n", sz);
 
 	if (sz == 0) {
-		wil_err(wil, "Cannot allocate a zero size status ring\n");
+		wil_err(wil, "Cananalt allocate a zero size status ring\n");
 		return -EINVAL;
 	}
 
@@ -95,7 +95,7 @@ static int wil_sring_alloc(struct wil6210_priv *wil,
 	 */
 	sring->va = dma_alloc_coherent(dev, sz, &sring->pa, GFP_KERNEL);
 	if (!sring->va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wil_dbg_misc(wil, "status_ring[%d] 0x%p:%pad\n", sring->size, sring->va,
 		     &sring->pa);
@@ -171,7 +171,7 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 
 	skb = dev_alloc_skb(sz);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put(skb, sz);
 
@@ -179,12 +179,12 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 	 * Make sure that the network stack calculates checksum for packets
 	 * which failed the HW checksum calculation
 	 */
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	pa = dma_map_single(dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(dev, pa))) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Get the buffer ID - the index of the rx buffer in the buff_arr */
@@ -241,7 +241,7 @@ static int wil_rx_refill_edma(struct wil6210_priv *wil)
 		rc = wil_ring_alloc_skb_edma(wil, ring, ring->swhead);
 		if (unlikely(rc)) {
 			if (rc == -EAGAIN)
-				wil_dbg_txrx(wil, "No free buffer ID found\n");
+				wil_dbg_txrx(wil, "Anal free buffer ID found\n");
 			else
 				wil_err_ratelimited(wil,
 						    "Error %d in refill desc[%d]\n",
@@ -276,7 +276,7 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 		struct sk_buff *skb = rx_buff->skb;
 
 		if (unlikely(!skb)) {
-			wil_err(wil, "No Rx skb at buff_id %d\n", rx_buff->id);
+			wil_err(wil, "Anal Rx skb at buff_id %d\n", rx_buff->id);
 		} else {
 			rx_buff->skb = NULL;
 			memcpy(&pa, skb->cb, sizeof(pa));
@@ -298,7 +298,7 @@ static void wil_free_rx_buff_arr(struct wil6210_priv *wil)
 		return;
 
 	/* Move all the buffers to the free list in case active list is
-	 * not empty in order to release all SKBs before deleting the array
+	 * analt empty in order to release all SKBs before deleting the array
 	 */
 	wil_move_all_rx_buff_to_free_list(wil, ring);
 
@@ -318,14 +318,14 @@ static int wil_init_rx_buff_arr(struct wil6210_priv *wil,
 					     sizeof(struct wil_rx_buff),
 					     GFP_KERNEL);
 	if (!wil->rx_buff_mgmt.buff_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set list heads */
 	INIT_LIST_HEAD(active);
 	INIT_LIST_HEAD(free);
 
 	/* Linkify the list.
-	 * buffer id 0 should not be used (marks invalid id).
+	 * buffer id 0 should analt be used (marks invalid id).
 	 */
 	buff_arr = wil->rx_buff_mgmt.buff_arr;
 	for (i = 1; i <= size; i++) {
@@ -412,7 +412,7 @@ err_free_ctx:
 	kfree(ring->ctx);
 	ring->ctx = NULL;
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void wil_ring_free_edma(struct wil6210_priv *wil, struct wil_ring *ring)
@@ -611,14 +611,14 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 	/* In SW reorder one must use extended status messages */
 	if (wil->use_compressed_rx_status && !wil->use_rx_hw_reordering) {
 		wil_err(wil,
-			"compressed RX status cannot be used with SW reorder\n");
+			"compressed RX status cananalt be used with SW reorder\n");
 		return -EINVAL;
 	}
 	if (wil->rx_status_ring_order <= desc_ring_order)
 		/* make sure sring is larger than desc ring */
 		wil->rx_status_ring_order = desc_ring_order + 1;
 	if (wil->rx_buff_id_count <= desc_ring_size)
-		/* make sure we will not run out of buff_ids */
+		/* make sure we will analt run out of buff_ids */
 		wil->rx_buff_id_count = desc_ring_size + 512;
 	if (wil->rx_status_ring_order < WIL_SRING_SIZE_ORDER_MIN ||
 	    wil->rx_status_ring_order > WIL_SRING_SIZE_ORDER_MAX)
@@ -746,9 +746,9 @@ static int wil_tx_ring_modify_edma(struct wil6210_vif *vif, int ring_id,
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
-	wil_err(wil, "ring modify is not supported for EDMA\n");
+	wil_err(wil, "ring modify is analt supported for EDMA\n");
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /* This function is used only for RX SW reorder */
@@ -778,10 +778,10 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 	}
 
 	wil_dbg_txrx(wil,
-		     "Non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+		     "Analn-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 		     fc1, mid, cid, tid, seq);
 	if (stats)
-		stats->rx_non_data_frame++;
+		stats->rx_analn_data_frame++;
 	if (wil_is_back_req(fc1)) {
 		wil_dbg_txrx(wil,
 			     "BAR: MID %d CID %d TID %d Seq 0x%03x\n",
@@ -796,9 +796,9 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 		 * without overhead for printing every Rx frame
 		 */
 		wil_dbg_txrx(wil,
-			     "Unhandled non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+			     "Unhandled analn-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 			     fc1, mid, cid, tid, seq);
-		wil_hex_dump_txrx("RxS ", DUMP_PREFIX_NONE, 32, 4,
+		wil_hex_dump_txrx("RxS ", DUMP_PREFIX_ANALNE, 32, 4,
 				  (const void *)msg, sz, false);
 		wil_hex_dump_txrx("Rx ", DUMP_PREFIX_OFFSET, 16, 1,
 				  skb->data, skb_headlen(skb), false);
@@ -886,7 +886,7 @@ again:
 		struct wil_rx_status_extended *s;
 
 		wil_dbg_txrx(wil,
-			     "buff_id is not updated yet by HW, (swhead 0x%x)\n",
+			     "buff_id is analt updated yet by HW, (swhead 0x%x)\n",
 			     sring->swhead);
 		if (++invalid_buff_id_retry > MAX_INVALID_BUFF_ID_RETRY)
 			break;
@@ -916,7 +916,7 @@ again:
 	skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 	wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
 	if (!skb) {
-		wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
+		wil_err(wil, "Anal Rx skb at buff_id %d\n", buff_id);
 		wil_rx_status_reset_buff_id(sring);
 		/* Move the buffer from the active list to the free list */
 		list_move_tail(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
@@ -937,7 +937,7 @@ again:
 				msg);
 	wil_dbg_txrx(wil, "Rx, buff_id=%u, sring_idx=%u, dmalen=%u bytes\n",
 		     buff_id, sring_idx, dmalen);
-	wil_hex_dump_txrx("RxS ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("RxS ", DUMP_PREFIX_ANALNE, 32, 4,
 			  (const void *)msg, wil->use_compressed_rx_status ?
 			  sizeof(struct wil_rx_status_compressed) :
 			  sizeof(struct wil_rx_status_extended), false);
@@ -1072,7 +1072,7 @@ void wil_rx_handle_edma(struct wil6210_priv *wil, int *quota)
 	int i;
 
 	if (unlikely(!ring->va)) {
-		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
+		wil_err(wil, "Rx IRQ while Rx analt yet initialized\n");
 		return;
 	}
 	wil_dbg_txrx(wil, "rx_handle\n");
@@ -1081,7 +1081,7 @@ void wil_rx_handle_edma(struct wil6210_priv *wil, int *quota)
 		sring = &wil->srings[i];
 		if (unlikely(!sring->va)) {
 			wil_err(wil,
-				"Rx IRQ while Rx status ring %d not yet initialized\n",
+				"Rx IRQ while Rx status ring %d analt yet initialized\n",
 				i);
 			continue;
 		}
@@ -1195,7 +1195,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		}
 		ring = &wil->ring_tx[ring_id];
 		if (unlikely(!ring->va)) {
-			wil_err(wil, "Tx irq[%d]: ring not initialized\n",
+			wil_err(wil, "Tx irq[%d]: ring analt initialized\n",
 				ring_id);
 			goto again;
 		}
@@ -1239,7 +1239,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 				     "TxC[%2d][%3d] : %d bytes, status 0x%02x\n",
 				     ring_id, ring->swtail, dmalen,
 				     msg.status);
-			wil_hex_dump_txrx("TxS ", DUMP_PREFIX_NONE, 32, 4,
+			wil_hex_dump_txrx("TxS ", DUMP_PREFIX_ANALNE, 32, 4,
 					  (const void *)&msg, sizeof(msg),
 					  false);
 
@@ -1390,7 +1390,7 @@ static int wil_tx_tso_gen_desc(struct wil6210_priv *wil, void *buff_addr,
 	if (tso_desc_type == wil_tso_type_lst)
 		ring->ctx[i].skb = skb_get(skb);
 
-	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_NONE, 32, 4,
+	wil_hex_dump_txrx("TxD ", DUMP_PREFIX_ANALNE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
 	*_desc = *d;
@@ -1427,9 +1427,9 @@ static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
 
 	if (unlikely(avail < min_desc_required)) {
 		wil_err_ratelimited(wil,
-				    "TSO: Tx ring[%2d] full. No space for %d fragments\n",
+				    "TSO: Tx ring[%2d] full. Anal space for %d fragments\n",
 				    ring_index, min_desc_required);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gso_type = skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV6 | SKB_GSO_TCPV4);
@@ -1502,7 +1502,7 @@ static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
 	if (wil_val_in_range(wil->ring_idle_trsh,
 			     used, used + descs_used)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
-		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+		wil_dbg_txrx(wil,  "Ring[%2d] analt idle %d -> %d\n",
 			     ring_index, used, used + descs_used);
 	}
 

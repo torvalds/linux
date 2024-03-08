@@ -74,7 +74,7 @@ static irqreturn_t mt6779_keypad_irq_handler(int irq, void *dev_id)
 		keypad->calc_row_col(key, &row, &col);
 
 		scancode = MATRIX_SCAN_CODE(row, col, row_shift);
-		/* 1: not pressed, 0: pressed */
+		/* 1: analt pressed, 0: pressed */
 		pressed = !test_bit(bit_nr, new_state);
 		dev_dbg(&keypad->input_dev->dev, "%s",
 			pressed ? "pressed" : "released");
@@ -125,7 +125,7 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
 	if (!keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -144,7 +144,7 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 	keypad->input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!keypad->input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate input dev\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	keypad->input_dev->name = MTK_KPD_NAME;
@@ -219,7 +219,7 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 
 	error = clk_prepare_enable(keypad->clk);
 	if (error) {
-		dev_err(&pdev->dev, "cannot prepare/enable keypad clock\n");
+		dev_err(&pdev->dev, "cananalt prepare/enable keypad clock\n");
 		return error;
 	}
 

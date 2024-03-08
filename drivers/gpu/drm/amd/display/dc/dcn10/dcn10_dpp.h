@@ -7,12 +7,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -30,7 +30,7 @@
 #define TO_DCN10_DPP(dpp)\
 	container_of(dpp, struct dcn10_dpp, base)
 
-/* TODO: Use correct number of taps. Using polaris values for now */
+/* TODO: Use correct number of taps. Using polaris values for analw */
 #define LB_TOTAL_NUMBER_OF_ENTRIES 5124
 #define LB_BITS_PER_ENTRY 144
 
@@ -461,7 +461,7 @@
 		field :ID9_RGAM_LUT_MODE, [14..12], R
 		#1 free bit
 		field :ID9_OCSC_MODE, [18..16], R
-		field :ID9_DENORM_MODE, [21..19], R
+		field :ID9_DEANALRM_MODE, [21..19], R
 		field :ID9_ROUND_TRUNC_MODE, [25..22], R
 		field :ID9_DITHER_EN, [26], R
 		field :ID9_DITHER_MODE, [28..27], R

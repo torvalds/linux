@@ -60,7 +60,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 
 		/*
 		 * A NULL or invalid return address probably means there's some
-		 * generated code which __kernel_text_address() doesn't know
+		 * generated code which __kernel_text_address() doesn't kanalw
 		 * about.
 		 */
 		if (!addr)

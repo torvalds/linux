@@ -91,7 +91,7 @@ l0_%=:	exit;						\
 
 /* Call a function taking a pointer and a size which doesn't allow the size to
  * be zero (i.e. bpf_trace_printk() declares the second argument to be
- * ARG_CONST_SIZE, not ARG_CONST_SIZE_OR_ZERO). We attempt to pass zero for the
+ * ARG_CONST_SIZE, analt ARG_CONST_SIZE_OR_ZERO). We attempt to pass zero for the
  * size and expect to fail.
  */
 SEC("tracepoint")
@@ -118,7 +118,7 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
-/* Like the test above, but this time the size register is not known to be zero;
+/* Like the test above, but this time the size register is analt kanalwn to be zero;
  * its lower-bound is zero though, which is still unacceptable.
  */
 SEC("tracepoint")
@@ -135,7 +135,7 @@ __naked void access_to_map_possibly_empty_range(void)
 	call %[bpf_map_lookup_elem];                            \
 	if r0 == 0 goto l0_%=;                                  \
 	r1 = r0;                                                \
-	/* Read an unknown value */                             \
+	/* Read an unkanalwn value */                             \
 	r7 = *(u64*)(r0 + 0);                                   \
 	/* Make it small and positive, to avoid other errors */ \
 	r7 &= 4;                                                \
@@ -620,9 +620,9 @@ l0_%=:	exit;						\
 }
 
 SEC("tracepoint")
-__description("helper access to adjusted map (via variable): no max check")
+__description("helper access to adjusted map (via variable): anal max check")
 __failure __msg("R1 unbounded memory access")
-__naked void via_variable_no_max_check_1(void)
+__naked void via_variable_anal_max_check_1(void)
 {
 	asm volatile ("					\
 	r2 = r10;					\
@@ -1227,10 +1227,10 @@ l0_%=:	exit;						\
 }
 
 SEC("tracepoint")
-__description("map helper access to adjusted map (via variable): no max check")
+__description("map helper access to adjusted map (via variable): anal max check")
 __failure
 __msg("R2 unbounded memory access, make sure to bounds check any such access")
-__naked void via_variable_no_max_check_2(void)
+__naked void via_variable_anal_max_check_2(void)
 {
 	asm volatile ("					\
 	r2 = r10;					\

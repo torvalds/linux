@@ -13,16 +13,16 @@
 #include <hal_sdio.h>
 
 /*  */
-/*  <Roger_Notes> For RTL8723 WiFi/BT/GPS multi-function configuration. 2010.10.06. */
+/*  <Roger_Analtes> For RTL8723 WiFi/BT/GPS multi-function configuration. 2010.10.06. */
 /*  */
 enum rt_multi_func {
-	RT_MULTI_FUNC_NONE	= 0x00,
+	RT_MULTI_FUNC_ANALNE	= 0x00,
 	RT_MULTI_FUNC_WIFI	= 0x01,
 	RT_MULTI_FUNC_BT		= 0x02,
 	RT_MULTI_FUNC_GPS	= 0x04,
 };
 /*  */
-/*  <Roger_Notes> For RTL8723 WiFi PDn/GPIO polarity control configuration. 2010.10.08. */
+/*  <Roger_Analtes> For RTL8723 WiFi PDn/GPIO polarity control configuration. 2010.10.08. */
 /*  */
 enum rt_polarity_ctl {
 	RT_POLARITY_LOW_ACT	= 0,
@@ -36,7 +36,7 @@ enum rt_regulator_mode {
 };
 
 enum rt_ampdu_burst {
-	RT_AMPDU_BURST_NONE	= 0,
+	RT_AMPDU_BURST_ANALNE	= 0,
 	RT_AMPDU_BURST_92D	= 1,
 	RT_AMPDU_BURST_88E	= 2,
 	RT_AMPDU_BURST_8812_4	= 3,
@@ -118,7 +118,7 @@ struct dm_priv {
 	/* for APK */
 	u32 APKoutput[2][2];	/* path A/B; output1_1a/output1_2a */
 	u8 bAPKdone;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIganalre;
 	u8 bDPdone;
 	u8 bDPPathAOK;
 	u8 bDPPathBOK;
@@ -210,7 +210,7 @@ struct hal_com_data {
 	u8 EEPROMBluetoothAntIsolation;
 	u8 EEPROMBluetoothRadioShared;
 	u8 bTXPowerDataReadFromEEPORM;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIganalre;
 	u8 bDisableSWChannelPlan; /*  flag of disable software change channel plan */
 
 	bool		EepromOrEfuse;
@@ -363,7 +363,7 @@ struct hal_com_data {
 	u8 RegIQKFWOffload;
 	struct submit_ctx	iqk_sctx;
 
-	enum rt_ampdu_burst	AMPDUBurstMode; /* 92C maybe not use, but for compile successfully */
+	enum rt_ampdu_burst	AMPDUBurstMode; /* 92C maybe analt use, but for compile successfully */
 
 	u32 		sdio_himr;
 	u32 		sdio_hisr;

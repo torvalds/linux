@@ -54,7 +54,7 @@ DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 **
 ** The goal of consolidating CPU initialization into one place is
 ** to make sure all CPUs get initialized the same way.
-** The code path not shared is how PDC hands control of the CPU to the OS.
+** The code path analt shared is how PDC hands control of the CPU to the OS.
 ** The initialization of OS data structures is the same (done below).
 */
 
@@ -74,7 +74,7 @@ init_percpu_prof(unsigned long cpunum)
  * processor_probe - Determine if processor driver should claim this device.
  * @dev: The device which has been found.
  *
- * Determine if processor driver should claim this chip (return 0) or not 
+ * Determine if processor driver should claim this chip (return 0) or analt 
  * (return 1).  If so, initialize the chip and tell other partners in crime 
  * they have work to do.
  */
@@ -92,7 +92,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	}
 #else
 	if (boot_cpu_data.cpu_count > 0) {
-		printk(KERN_INFO "CONFIG_SMP=n  ignoring additional CPUs\n");
+		printk(KERN_INFO "CONFIG_SMP=n  iganalring additional CPUs\n");
 		return 1;
 	}
 #endif
@@ -138,17 +138,17 @@ static int __init processor_probe(struct parisc_device *dev)
 
 #undef USE_PAT_CPUID
 #ifdef USE_PAT_CPUID
-/* We need contiguous numbers for cpuid. Firmware's notion
+/* We need contiguous numbers for cpuid. Firmware's analtion
  * of cpuid is for physical CPUs and we just don't care yet.
  * We'll care when we need to query PAT PDC about a CPU *after*
  * boot time (ie shutdown a CPU from an OS perspective).
  */
 		if (cpu_info.cpu_num >= NR_CPUS) {
-			printk(KERN_WARNING "IGNORING CPU at %pa,"
+			printk(KERN_WARNING "IGANALRING CPU at %pa,"
 				" cpu_slot_id > NR_CPUS"
 				" (%ld > %d)\n",
 				&dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
-			/* Ignore CPU since it will only crash */
+			/* Iganalre CPU since it will only crash */
 			boot_cpu_data.cpu_count--;
 			return 1;
 		} else {
@@ -199,7 +199,7 @@ static int __init processor_probe(struct parisc_device *dev)
 		*/
 		actions = kmalloc(sizeof(struct irqaction)*MAX_CPU_IRQ, GFP_ATOMIC);
 		if (!actions) {
-			/* not getting it's own table, share with monarch */
+			/* analt getting it's own table, share with monarch */
 			actions = cpu_irq_actions[0];
 		}
 
@@ -208,7 +208,7 @@ static int __init processor_probe(struct parisc_device *dev)
 #endif
 
 	/* 
-	 * Bring this CPU up now! (ignore bootstrap cpuid == 0)
+	 * Bring this CPU up analw! (iganalre bootstrap cpuid == 0)
 	 */
 #ifdef CONFIG_SMP
 	if (cpuid) {
@@ -229,7 +229,7 @@ static int __init processor_probe(struct parisc_device *dev)
 void __init collect_boot_cpu_data(void)
 {
 	unsigned long cr16_seed;
-	char orig_prod_num[64], current_prod_num[64], serial_no[64];
+	char orig_prod_num[64], current_prod_num[64], serial_anal[64];
 
 	memset(&boot_cpu_data, 0, sizeof(boot_cpu_data));
 
@@ -276,10 +276,10 @@ void __init collect_boot_cpu_data(void)
 		pr_info("HP-UX model name: %s\n",
 			boot_cpu_data.pdc.sys_model_name);
 
-	serial_no[0] = 0;
-	if (pdc_model_sysmodel(OS_ID_MPEXL, serial_no) == PDC_OK &&
-		serial_no[0])
-		pr_info("MPE/iX model name: %s\n", serial_no);
+	serial_anal[0] = 0;
+	if (pdc_model_sysmodel(OS_ID_MPEXL, serial_anal) == PDC_OK &&
+		serial_anal[0])
+		pr_info("MPE/iX model name: %s\n", serial_anal);
 
 	dump_stack_set_arch_desc("%s", boot_cpu_data.pdc.sys_model_name);
 
@@ -295,13 +295,13 @@ void __init collect_boot_cpu_data(void)
 				(boot_cpu_data.cpu_type == mako2);
 #endif
 
-	if (pdc_model_platform_info(orig_prod_num, current_prod_num, serial_no) == PDC_OK) {
+	if (pdc_model_platform_info(orig_prod_num, current_prod_num, serial_anal) == PDC_OK) {
 		printk(KERN_INFO "product %s, original product %s, S/N: %s\n",
 			current_prod_num[0] ? current_prod_num : "n/a",
-			orig_prod_num, serial_no);
+			orig_prod_num, serial_anal);
 		add_device_randomness(orig_prod_num, strlen(orig_prod_num));
 		add_device_randomness(current_prod_num, strlen(current_prod_num));
-		add_device_randomness(serial_no, strlen(serial_no));
+		add_device_randomness(serial_anal, strlen(serial_anal));
 	}
 }
 
@@ -317,7 +317,7 @@ void __init collect_boot_cpu_data(void)
  *
  * o Enable FP coprocessor
  *   REVISIT: this could be done in the "code 22" trap handler.
- *	(frowands idea - that way we know which processes need FP
+ *	(frowands idea - that way we kanalw which processes need FP
  *	registers saved on the interrupt stack.)
  *   NEWS FLASH: wide kernels need FP coprocessor enabled to handle
  *	formatted printing of %lx for example (double divides I think)
@@ -352,7 +352,7 @@ int init_per_cpu(int cpunum)
 		asm volatile ("fstd    %fr0,8(%sp)");
 
 	} else {
-		printk(KERN_WARNING  "WARNING: No FP CoProcessor?!"
+		printk(KERN_WARNING  "WARNING: Anal FP CoProcessor?!"
 			" (coproc_cfg.ccr_functional == 0x%lx, expected 0xc0)\n"
 #ifdef CONFIG_64BIT
 			"Halting Machine - FP required\n"
@@ -360,7 +360,7 @@ int init_per_cpu(int cpunum)
 			, coproc_cfg.ccr_functional);
 #ifdef CONFIG_64BIT
 		mdelay(100);	/* previous chars get pushed to console */
-		panic("FP CoProc not reported");
+		panic("FP CoProc analt reported");
 #endif
 	}
 
@@ -381,7 +381,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 	unsigned long cpu;
 	char cpu_name[60], *p;
 
-	/* strip PA path from CPU name to not confuse lscpu */
+	/* strip PA path from CPU name to analt confuse lscpu */
 	strscpy(cpu_name, per_cpu(cpu_data, 0).dev->name, sizeof(cpu_name));
 	p = strrchr(cpu_name, '[');
 	if (p)

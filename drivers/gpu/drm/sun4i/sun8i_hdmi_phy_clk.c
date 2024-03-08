@@ -149,17 +149,17 @@ int sun8i_phy_clk_create(struct sun8i_hdmi_phy *phy, struct device *dev,
 
 	parents[0] = __clk_get_name(phy->clk_pll0);
 	if (!parents[0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (second_parent) {
 		parents[1] = __clk_get_name(phy->clk_pll1);
 		if (!parents[1])
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = "hdmi-phy-clk";
 	init.ops = &sun8i_phy_clk_ops;

@@ -38,7 +38,7 @@ mlx5e_tc_act_stats_create(void)
 
 	handle = kvzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = rhashtable_init(&handle->ht, &act_counters_ht_params);
 	if (err)
@@ -69,7 +69,7 @@ mlx5e_tc_act_stats_add(struct mlx5e_tc_act_stats_handle *handle,
 
 	act_stats = kvzalloc(sizeof(*act_stats), GFP_KERNEL);
 	if (!act_stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	act_stats->tc_act_cookie = act_cookie;
 	act_stats->counter = counter;
@@ -176,7 +176,7 @@ mlx5e_tc_act_stats_fill_stats(struct mlx5e_tc_act_stats_handle *handle,
 	item = rhashtable_lookup(ht, &fl_act->cookie, act_counters_ht_params);
 	if (!item) {
 		rcu_read_unlock();
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_out;
 	}
 

@@ -188,7 +188,7 @@ static void __init __fb_init_irq(void)
 
 	for (irq = _DC21285_IRQ(0); irq < _DC21285_IRQ(20); irq++) {
 		irq_set_chip_and_handler(irq, &fb_chip, handle_level_irq);
-		irq_clear_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
+		irq_clear_status_flags(irq, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 	}
 }
 
@@ -211,8 +211,8 @@ void __init footbridge_init_irq(void)
 }
 
 /*
- * Common mapping for all systems.  Note that the outbound write flush is
- * commented out since there is a "No Fix" problem with it.  Not mapping
+ * Common mapping for all systems.  Analte that the outbound write flush is
+ * commented out since there is a "Anal Fix" problem with it.  Analt mapping
  * it means that we have extra bullet protection on our feet.
  */
 static struct map_desc ebsa285_host_io_desc[] __initdata = {

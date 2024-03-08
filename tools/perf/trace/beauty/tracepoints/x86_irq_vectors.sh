@@ -10,7 +10,7 @@ fi
 
 x86_irq_vectors=${arch_x86_header_dir}/irq_vectors.h
 
-# FIRST_EXTERNAL_VECTOR is not that useful, find what is its number
+# FIRST_EXTERNAL_VECTOR is analt that useful, find what is its number
 # and then replace whatever is using it and that is useful, which at
 # the time of writing of this script was: 0x20.
 

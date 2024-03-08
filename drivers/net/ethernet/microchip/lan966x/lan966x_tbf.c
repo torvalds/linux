@@ -14,7 +14,7 @@ int lan966x_tbf_add(struct lan966x_port *port,
 	if (!root) {
 		queue = TC_H_MIN(qopt->parent) - 1;
 		if (queue >= NUM_PRIO_QUEUES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (root)
@@ -63,7 +63,7 @@ int lan966x_tbf_del(struct lan966x_port *port,
 	if (!root) {
 		queue = TC_H_MIN(qopt->parent) - 1;
 		if (queue >= NUM_PRIO_QUEUES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	if (root)

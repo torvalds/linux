@@ -13,17 +13,17 @@ struct bch_fs;
 struct btree_write;
 struct btree;
 struct btree_iter;
-struct btree_node_read_all;
+struct btree_analde_read_all;
 
-static inline void set_btree_node_dirty_acct(struct bch_fs *c, struct btree *b)
+static inline void set_btree_analde_dirty_acct(struct bch_fs *c, struct btree *b)
 {
-	if (!test_and_set_bit(BTREE_NODE_dirty, &b->flags))
+	if (!test_and_set_bit(BTREE_ANALDE_dirty, &b->flags))
 		atomic_inc(&c->btree_cache.dirty);
 }
 
-static inline void clear_btree_node_dirty_acct(struct bch_fs *c, struct btree *b)
+static inline void clear_btree_analde_dirty_acct(struct bch_fs *c, struct btree *b)
 {
-	if (test_and_clear_bit(BTREE_NODE_dirty, &b->flags))
+	if (test_and_clear_bit(BTREE_ANALDE_dirty, &b->flags))
 		atomic_dec(&c->btree_cache.dirty);
 }
 
@@ -37,7 +37,7 @@ static inline unsigned btree_ptr_sectors_written(struct bkey_i *k)
 struct btree_read_bio {
 	struct bch_fs		*c;
 	struct btree		*b;
-	struct btree_node_read_all *ra;
+	struct btree_analde_read_all *ra;
 	u64			start_time;
 	unsigned		have_ioref:1;
 	unsigned		idx:7;
@@ -55,12 +55,12 @@ struct btree_write_bio {
 	struct bch_write_bio	wbio;
 };
 
-void bch2_btree_node_io_unlock(struct btree *);
-void bch2_btree_node_io_lock(struct btree *);
-void __bch2_btree_node_wait_on_read(struct btree *);
-void __bch2_btree_node_wait_on_write(struct btree *);
-void bch2_btree_node_wait_on_read(struct btree *);
-void bch2_btree_node_wait_on_write(struct btree *);
+void bch2_btree_analde_io_unlock(struct btree *);
+void bch2_btree_analde_io_lock(struct btree *);
+void __bch2_btree_analde_wait_on_read(struct btree *);
+void __bch2_btree_analde_wait_on_write(struct btree *);
+void bch2_btree_analde_wait_on_read(struct btree *);
+void bch2_btree_analde_wait_on_write(struct btree *);
 
 enum compact_mode {
 	COMPACT_LAZY,
@@ -90,47 +90,47 @@ static inline bool bch2_maybe_compact_whiteouts(struct bch_fs *c, struct btree *
 	return false;
 }
 
-static inline struct nonce btree_nonce(struct bset *i, unsigned offset)
+static inline struct analnce btree_analnce(struct bset *i, unsigned offset)
 {
-	return (struct nonce) {{
+	return (struct analnce) {{
 		[0] = cpu_to_le32(offset),
 		[1] = ((__le32 *) &i->seq)[0],
 		[2] = ((__le32 *) &i->seq)[1],
-		[3] = ((__le32 *) &i->journal_seq)[0]^BCH_NONCE_BTREE,
+		[3] = ((__le32 *) &i->journal_seq)[0]^BCH_ANALNCE_BTREE,
 	}};
 }
 
 static inline int bset_encrypt(struct bch_fs *c, struct bset *i, unsigned offset)
 {
-	struct nonce nonce = btree_nonce(i, offset);
+	struct analnce analnce = btree_analnce(i, offset);
 	int ret;
 
 	if (!offset) {
-		struct btree_node *bn = container_of(i, struct btree_node, keys);
+		struct btree_analde *bn = container_of(i, struct btree_analde, keys);
 		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
 
-		ret = bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce,
+		ret = bch2_encrypt(c, BSET_CSUM_TYPE(i), analnce,
 				   &bn->flags, bytes);
 		if (ret)
 			return ret;
 
-		nonce = nonce_add(nonce, round_up(bytes, CHACHA_BLOCK_SIZE));
+		analnce = analnce_add(analnce, round_up(bytes, CHACHA_BLOCK_SIZE));
 	}
 
-	return bch2_encrypt(c, BSET_CSUM_TYPE(i), nonce, i->_data,
+	return bch2_encrypt(c, BSET_CSUM_TYPE(i), analnce, i->_data,
 			    vstruct_end(i) - (void *) i->_data);
 }
 
 void bch2_btree_sort_into(struct bch_fs *, struct btree *, struct btree *);
 
-void bch2_btree_node_drop_keys_outside_node(struct btree *);
+void bch2_btree_analde_drop_keys_outside_analde(struct btree *);
 
 void bch2_btree_build_aux_trees(struct btree *);
 void bch2_btree_init_next(struct btree_trans *, struct btree *);
 
-int bch2_btree_node_read_done(struct bch_fs *, struct bch_dev *,
+int bch2_btree_analde_read_done(struct bch_fs *, struct bch_dev *,
 			      struct btree *, bool, bool *);
-void bch2_btree_node_read(struct btree_trans *, struct btree *, bool);
+void bch2_btree_analde_read(struct btree_trans *, struct btree *, bool);
 int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 			 const struct bkey_i *, unsigned);
 
@@ -143,14 +143,14 @@ enum btree_write_flags {
 #define BTREE_WRITE_ONLY_IF_NEED	BIT(__BTREE_WRITE_ONLY_IF_NEED)
 #define BTREE_WRITE_ALREADY_STARTED	BIT(__BTREE_WRITE_ALREADY_STARTED)
 
-void __bch2_btree_node_write(struct bch_fs *, struct btree *, unsigned);
-void bch2_btree_node_write(struct bch_fs *, struct btree *,
+void __bch2_btree_analde_write(struct bch_fs *, struct btree *, unsigned);
+void bch2_btree_analde_write(struct bch_fs *, struct btree *,
 			   enum six_lock_type, unsigned);
 
-static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
+static inline void btree_analde_write_if_need(struct bch_fs *c, struct btree *b,
 					    enum six_lock_type lock_held)
 {
-	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
+	bch2_btree_analde_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
 bool bch2_btree_flush_all_reads(struct bch_fs *);
@@ -160,11 +160,11 @@ static inline void compat_bformat(unsigned level, enum btree_id btree_id,
 				  unsigned version, unsigned big_endian,
 				  int write, struct bkey_format *f)
 {
-	if (version < bcachefs_metadata_version_inode_btree_change &&
-	    btree_id == BTREE_ID_inodes) {
-		swap(f->bits_per_field[BKEY_FIELD_INODE],
+	if (version < bcachefs_metadata_version_ianalde_btree_change &&
+	    btree_id == BTREE_ID_ianaldes) {
+		swap(f->bits_per_field[BKEY_FIELD_IANALDE],
 		     f->bits_per_field[BKEY_FIELD_OFFSET]);
-		swap(f->field_offset[BKEY_FIELD_INODE],
+		swap(f->field_offset[BKEY_FIELD_IANALDE],
 		     f->field_offset[BKEY_FIELD_OFFSET]);
 	}
 
@@ -186,21 +186,21 @@ static inline void compat_bpos(unsigned level, enum btree_id btree_id,
 	if (big_endian != CPU_BIG_ENDIAN)
 		bch2_bpos_swab(p);
 
-	if (version < bcachefs_metadata_version_inode_btree_change &&
-	    btree_id == BTREE_ID_inodes)
-		swap(p->inode, p->offset);
+	if (version < bcachefs_metadata_version_ianalde_btree_change &&
+	    btree_id == BTREE_ID_ianaldes)
+		swap(p->ianalde, p->offset);
 }
 
-static inline void compat_btree_node(unsigned level, enum btree_id btree_id,
+static inline void compat_btree_analde(unsigned level, enum btree_id btree_id,
 				     unsigned version, unsigned big_endian,
 				     int write,
-				     struct btree_node *bn)
+				     struct btree_analde *bn)
 {
-	if (version < bcachefs_metadata_version_inode_btree_change &&
+	if (version < bcachefs_metadata_version_ianalde_btree_change &&
 	    btree_id_is_extents(btree_id) &&
 	    !bpos_eq(bn->min_key, POS_MIN) &&
 	    write)
-		bn->min_key = bpos_nosnap_predecessor(bn->min_key);
+		bn->min_key = bpos_analsnap_predecessor(bn->min_key);
 
 	if (version < bcachefs_metadata_version_snapshot &&
 	    write)
@@ -213,11 +213,11 @@ static inline void compat_btree_node(unsigned level, enum btree_id btree_id,
 	    !write)
 		bn->max_key.snapshot = U32_MAX;
 
-	if (version < bcachefs_metadata_version_inode_btree_change &&
+	if (version < bcachefs_metadata_version_ianalde_btree_change &&
 	    btree_id_is_extents(btree_id) &&
 	    !bpos_eq(bn->min_key, POS_MIN) &&
 	    !write)
-		bn->min_key = bpos_nosnap_successor(bn->min_key);
+		bn->min_key = bpos_analsnap_successor(bn->min_key);
 }
 
 void bch2_btree_write_stats_to_text(struct printbuf *, struct bch_fs *);

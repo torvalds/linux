@@ -34,7 +34,7 @@
  * (SMP) systems which share clock and voltage across all CPUs.
  *
  * Actual voltage and frequency scaling is done solely by the AVS
- * firmware. This driver does not change frequency or voltage itself.
+ * firmware. This driver does analt change frequency or voltage itself.
  * It provides a standard CPUfreq interface to the rest of the kernel
  * and to userland. It interfaces with the AVS firmware to effect the
  * requested changes and to report back the current system status in a
@@ -139,17 +139,17 @@
 
 /* AVS Command Status Values */
 #define AVS_STATUS_CLEAR	0x00
-/* Command/notification accepted */
+/* Command/analtification accepted */
 #define AVS_STATUS_SUCCESS	0xf0
-/* Command/notification rejected */
+/* Command/analtification rejected */
 #define AVS_STATUS_FAILURE	0xff
-/* Invalid command/notification (unknown) */
+/* Invalid command/analtification (unkanalwn) */
 #define AVS_STATUS_INVALID	0xf1
-/* Non-AVS modes are not supported */
-#define AVS_STATUS_NO_SUPP	0xf2
-/* Cannot set P-State until P-Map supplied */
-#define AVS_STATUS_NO_MAP	0xf3
-/* Cannot change P-Map after initial P-Map set */
+/* Analn-AVS modes are analt supported */
+#define AVS_STATUS_ANAL_SUPP	0xf2
+/* Cananalt set P-State until P-Map supplied */
+#define AVS_STATUS_ANAL_MAP	0xf3
+/* Cananalt change P-Map after initial P-Map set */
 #define AVS_STATUS_MAP_SET	0xf4
 /* Max AVS status; higher numbers are used for debugging */
 #define AVS_STATUS_MAX		0xff
@@ -184,15 +184,15 @@ struct private_data {
 
 static void __iomem *__map_region(const char *name)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *ptr;
 
-	np = of_find_compatible_node(NULL, NULL, name);
+	np = of_find_compatible_analde(NULL, NULL, name);
 	if (!np)
 		return NULL;
 
 	ptr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ptr;
 }
@@ -236,7 +236,7 @@ static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 		return ret;
 
 	/*
-	 * Make sure no other command is currently running: cmd is 0 if AVS
+	 * Make sure anal other command is currently running: cmd is 0 if AVS
 	 * co-processor is idle. Due to the guard above, we should almost never
 	 * have to wait here.
 	 */
@@ -259,7 +259,7 @@ static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 	/* Protect from spurious interrupts. */
 	reinit_completion(&priv->done);
 
-	/* Now issue the command & tell firmware to wake up to process it. */
+	/* Analw issue the command & tell firmware to wake up to process it. */
 	writel(cmd, base + AVS_MBOX_COMMAND);
 	writel(AVS_CPU_L2_INT_MASK, priv->avs_intr_base + AVS_CPU_L2_SET0);
 
@@ -267,9 +267,9 @@ static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 	time_left = wait_for_avs_command(priv, AVS_TIMEOUT);
 
 	/*
-	 * If the AVS status is not in the expected range, it means AVS didn't
+	 * If the AVS status is analt in the expected range, it means AVS didn't
 	 * complete our command in time, and we return an error. Also, if there
-	 * is no "time left", we timed out waiting for the interrupt.
+	 * is anal "time left", we timed out waiting for the interrupt.
 	 */
 	val = readl(base + AVS_MBOX_STATUS);
 	if (time_left == 0 || val == 0 || val > AVS_STATUS_MAX) {
@@ -288,16 +288,16 @@ static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 	/* Clear status to tell AVS co-processor we are done. */
 	writel(AVS_STATUS_CLEAR, base + AVS_MBOX_STATUS);
 
-	/* Convert firmware errors to errno's as much as possible. */
+	/* Convert firmware errors to erranal's as much as possible. */
 	switch (val) {
 	case AVS_STATUS_INVALID:
 		ret = -EINVAL;
 		break;
-	case AVS_STATUS_NO_SUPP:
-		ret = -ENOTSUPP;
+	case AVS_STATUS_ANAL_SUPP:
+		ret = -EANALTSUPP;
 		break;
-	case AVS_STATUS_NO_MAP:
-		ret = -ENOENT;
+	case AVS_STATUS_ANAL_MAP:
+		ret = -EANALENT;
 		break;
 	case AVS_STATUS_MAP_SET:
 		ret = -EEXIST;
@@ -441,7 +441,7 @@ brcm_avs_get_freq_table(struct device *dev, struct private_data *priv)
 	table = devm_kcalloc(dev, AVS_PSTATE_MAX + 1 + 1, sizeof(*table),
 			     GFP_KERNEL);
 	if (!table)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = AVS_PSTATE_P0; i <= AVS_PSTATE_MAX; i++) {
 		ret = brcm_avs_set_pstate(priv, i);
@@ -463,7 +463,7 @@ brcm_avs_get_freq_table(struct device *dev, struct private_data *priv)
 /*
  * To ensure the right firmware is running we need to
  *    - check the MAGIC matches what we expect
- *    - brcm_avs_get_pmap() doesn't return -ENOTSUPP or -EINVAL
+ *    - brcm_avs_get_pmap() doesn't return -EANALTSUPP or -EINVAL
  * We need to set up our interrupt handling before calling brcm_avs_get_pmap()!
  */
 static bool brcm_avs_is_firmware_loaded(struct private_data *priv)
@@ -474,7 +474,7 @@ static bool brcm_avs_is_firmware_loaded(struct private_data *priv)
 	rc = brcm_avs_get_pmap(priv, NULL);
 	magic = readl(priv->base + AVS_MBOX_MAGIC);
 
-	return (magic == AVS_FIRMWARE_MAGIC) && ((rc != -ENOTSUPP) ||
+	return (magic == AVS_FIRMWARE_MAGIC) && ((rc != -EANALTSUPP) ||
 		(rc != -EINVAL));
 }
 
@@ -507,14 +507,14 @@ static int brcm_avs_suspend(struct cpufreq_policy *policy)
 	/*
 	 * We can't use the P-state returned by brcm_avs_get_pmap(), since
 	 * that's the initial P-state from when the P-map was downloaded to the
-	 * AVS co-processor, not necessarily the P-state we are running at now.
+	 * AVS co-processor, analt necessarily the P-state we are running at analw.
 	 * So, we get the current P-state explicitly.
 	 */
 	ret = brcm_avs_get_pstate(priv, &priv->pmap.state);
 	if (ret)
 		return ret;
 
-	/* This is best effort. Nothing to do if it fails. */
+	/* This is best effort. Analthing to do if it fails. */
 	(void)__issue_avs_command(priv, AVS_CMD_S2_ENTER, 0, 0, NULL);
 
 	return 0;
@@ -525,7 +525,7 @@ static int brcm_avs_resume(struct cpufreq_policy *policy)
 	struct private_data *priv = policy->driver_data;
 	int ret;
 
-	/* This is best effort. Nothing to do if it fails. */
+	/* This is best effort. Analthing to do if it fails. */
 	(void)__issue_avs_command(priv, AVS_CMD_S2_EXIT, 0, 0, NULL);
 
 	ret = brcm_avs_set_pmap(priv, &priv->pmap);
@@ -554,7 +554,7 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 	dev = &pdev->dev;
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	sema_init(&priv->sem, 1);
@@ -565,14 +565,14 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 	if (!priv->base) {
 		dev_err(dev, "Couldn't find property %s in device tree.\n",
 			BRCM_AVS_CPU_DATA);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	priv->avs_intr_base = __map_region(BRCM_AVS_CPU_INTR);
 	if (!priv->avs_intr_base) {
 		dev_err(dev, "Couldn't find property %s in device tree.\n",
 			BRCM_AVS_CPU_INTR);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto unmap_base;
 	}
 
@@ -590,8 +590,8 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 	if (brcm_avs_is_firmware_loaded(priv))
 		return 0;
 
-	dev_err(dev, "AVS firmware is not loaded or doesn't support DVFS\n");
-	ret = -ENODEV;
+	dev_err(dev, "AVS firmware is analt loaded or doesn't support DVFS\n");
+	ret = -EANALDEV;
 
 unmap_intr_base:
 	iounmap(priv->avs_intr_base);
@@ -659,7 +659,7 @@ static ssize_t show_brcm_avs_pstate(struct cpufreq_policy *policy, char *buf)
 	unsigned int pstate;
 
 	if (brcm_avs_get_pstate(priv, &pstate))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkanalwn>\n");
 
 	return sprintf(buf, "%u\n", pstate);
 }
@@ -670,7 +670,7 @@ static ssize_t show_brcm_avs_mode(struct cpufreq_policy *policy, char *buf)
 	struct pmap pmap;
 
 	if (brcm_avs_get_pmap(priv, &pmap))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkanalwn>\n");
 
 	return sprintf(buf, "%s %u\n", brcm_avs_mode_to_string(pmap.mode),
 		pmap.mode);
@@ -684,7 +684,7 @@ static ssize_t show_brcm_avs_pmap(struct cpufreq_policy *policy, char *buf)
 	struct pmap pmap;
 
 	if (brcm_avs_get_pmap(priv, &pmap))
-		return sprintf(buf, "<unknown>\n");
+		return sprintf(buf, "<unkanalwn>\n");
 
 	brcm_avs_parse_p1(pmap.p1, &mdiv_p0, &pdiv, &ndiv);
 	brcm_avs_parse_p2(pmap.p2, &mdiv_p1, &mdiv_p2, &mdiv_p3, &mdiv_p4);

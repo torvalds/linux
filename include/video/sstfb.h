@@ -23,7 +23,7 @@
 #  define SST_DEBUG_FUNC 1
 #  define SST_DEBUG_VAR  1
 #else
-#  define dprintk(X...)		no_printk(X)
+#  define dprintk(X...)		anal_printk(X)
 #  define SST_DEBUG_REG  0
 #  define SST_DEBUG_FUNC 0
 #  define SST_DEBUG_VAR  0
@@ -48,7 +48,7 @@
 #if (SST_DEBUG_FUNC > 1)
 #  define f_ddprintk(X...)	dprintk(" " X)
 #else
-#  define f_ddprintk(X...)	no_printk(X)
+#  define f_ddprintk(X...)	anal_printk(X)
 #endif
 #if (SST_DEBUG_FUNC > 2)
 #  define f_dddprintk(X...)	dprintk(" " X)
@@ -109,7 +109,7 @@
 #  define LFB_BYTE_SWIZZLE_RD	  BIT(16)	/* enable read-byteswap (big-endian) */
 #define CLIP_LEFT_RIGHT		0x0118
 #define CLIP_LOWY_HIGHY		0x011c
-#define NOPCMD			0x0120
+#define ANALPCMD			0x0120
 #define FASTFILLCMD		0x0124
 #define SWAPBUFFCMD		0x0128
 #define FBIINIT4		0x0200		/* misc controls */
@@ -301,7 +301,7 @@
 #define SSTFB_GET_VGAPASS	_IOR('F', 0xdd, __u32)
 
 
-/* used to know witch clock to set */
+/* used to kanalw witch clock to set */
 enum {
 	VID_CLOCK=0,
 	GFX_CLOCK=1,

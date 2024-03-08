@@ -2,7 +2,7 @@
 /*
  * ulpi.h -- ULPI defines and function prorotypes
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  */
 
 #ifndef __LINUX_USB_ULPI_H
@@ -39,8 +39,8 @@
 #define ULPI_FC_LS			(1 << 18)
 #define ULPI_FC_FS4LS			(1 << 19)
 #define ULPI_FC_TERMSEL			(1 << 20)
-#define ULPI_FC_OP_NORM			(1 << 21)
-#define ULPI_FC_OP_NODRV		(1 << 22)
+#define ULPI_FC_OP_ANALRM			(1 << 21)
+#define ULPI_FC_OP_ANALDRV		(1 << 22)
 #define ULPI_FC_OP_DIS_NRZI		(1 << 23)
 #define ULPI_FC_OP_NSYNC_NEOP		(1 << 24)
 #define ULPI_FC_RST			(1 << 25)

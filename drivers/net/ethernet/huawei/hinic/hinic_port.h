@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #ifndef HINIC_PORT_H
@@ -77,7 +77,7 @@ enum hinic_speed {
 	HINIC_SPEED_40GB_LINK,
 	HINIC_SPEED_100GB_LINK,
 
-	HINIC_SPEED_UNKNOWN = 0xFF,
+	HINIC_SPEED_UNKANALWN = 0xFF,
 };
 
 enum hinic_link_mode {
@@ -93,7 +93,7 @@ enum hinic_link_mode {
 	HINIC_GE_BASE_KX = 9,
 	HINIC_LINK_MODE_NUMBERS,
 
-	HINIC_SUPPORTED_UNKNOWN = 0xFFFF,
+	HINIC_SUPPORTED_UNKANALWN = 0xFFFF,
 };
 
 enum hinic_port_type {
@@ -106,7 +106,7 @@ enum hinic_port_type {
 	HINIC_PORT_COPPER,	/* PORT_DA */
 	HINIC_PORT_AOC,
 	HINIC_PORT_BACKPLANE,
-	HINIC_PORT_NONE = 0xEF,
+	HINIC_PORT_ANALNE = 0xEF,
 	HINIC_PORT_OTHER = 0xFF,
 };
 
@@ -281,7 +281,7 @@ struct hinic_link_ksettings_info {
 	u32	valid_bitmap;
 	u32	speed;		/* enum nic_speed_level */
 	u8	autoneg;	/* 0 - off; 1 - on */
-	u8	fec;		/* 0 - RSFEC; 1 - BASEFEC; 2 - NOFEC */
+	u8	fec;		/* 0 - RSFEC; 1 - BASEFEC; 2 - ANALFEC */
 	u8	rsvd2[18];	/* reserved for duplex, port, etc. */
 };
 

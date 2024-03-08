@@ -18,19 +18,19 @@
 /* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
 /* GNU General Public License for more details.                              */
 /*                                                                           */
-/* NO WARRANTY                                                               */
+/* ANAL WARRANTY                                                               */
 /* THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR        */
 /* CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT      */
-/* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,      */
+/* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,      */
 /* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is    */
 /* solely responsible for determining the appropriateness of using and       */
 /* distributing the Program and assumes all risks associated with its        */
-/* exercise of rights under this Agreement, including but not limited to     */
+/* exercise of rights under this Agreement, including but analt limited to     */
 /* the risks and costs of program errors, damage to or loss of data,         */
 /* programs or equipment, and unavailability or interruption of operations.  */
 /*                                                                           */
 /* DISCLAIMER OF LIABILITY                                                   */
-/* NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY   */
+/* NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY   */
 /* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL        */
 /* DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND   */
 /* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR     */
@@ -39,7 +39,7 @@
 /* HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES             */
 /*                                                                           */
 /* You should have received a copy of the GNU General Public License         */
-/* along with this program; if not, write to the Free Software               */
+/* along with this program; if analt, write to the Free Software               */
 /* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 /*                                                                           */
 /* Bugs/Comments/Suggestions should be mailed to:                            */
@@ -92,7 +92,7 @@
       #define min(x,y) ((x) < (y) ? x : y)
    #endif
 
-   #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem annotations */
+   #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem ananaltations */
       #define __iomem
    #endif
 
@@ -168,7 +168,7 @@
     */
    #define IPS_CSL                      0xFF
    #define IPS_POCL                     0x30
-   #define IPS_NORM_STATE               0x00
+   #define IPS_ANALRM_STATE               0x00
    #define IPS_MAX_ADAPTER_TYPES        3
    #define IPS_MAX_ADAPTERS             16
    #define IPS_MAX_IOCTL                1
@@ -220,8 +220,8 @@
     */
    #define IPS_COMP_HEADS               128
    #define IPS_COMP_SECTORS             32
-   #define IPS_NORM_HEADS               254
-   #define IPS_NORM_SECTORS             63
+   #define IPS_ANALRM_HEADS               254
+   #define IPS_ANALRM_SECTORS             63
 
    /*
     * Adapter Basic Status Codes
@@ -314,15 +314,15 @@
    /*
     * DCDB Table Equates
     */
-   #define IPS_NO_DISCONNECT            0x00
+   #define IPS_ANAL_DISCONNECT            0x00
    #define IPS_DISCONNECT_ALLOWED       0x80
-   #define IPS_NO_AUTO_REQSEN           0x40
-   #define IPS_DATA_NONE                0x00
+   #define IPS_ANAL_AUTO_REQSEN           0x40
+   #define IPS_DATA_ANALNE                0x00
    #define IPS_DATA_UNK                 0x00
    #define IPS_DATA_IN                  0x01
    #define IPS_DATA_OUT                 0x02
    #define IPS_TRANSFER64K              0x08
-   #define IPS_NOTIMEOUT                0x00
+   #define IPS_ANALTIMEOUT                0x00
    #define IPS_TIMEOUT10                0x10
    #define IPS_TIMEOUT60                0x20
    #define IPS_TIMEOUT20M               0x30
@@ -354,7 +354,7 @@
     */
    #define IPS_SCSI_REQSEN_VALID        0x80
    #define IPS_SCSI_REQSEN_CURRENT_ERR  0x70
-   #define IPS_SCSI_REQSEN_NO_SENSE     0x00
+   #define IPS_SCSI_REQSEN_ANAL_SENSE     0x00
 
    /*
     * SCSI Mode Page Equates
@@ -606,7 +606,7 @@ typedef struct {
 } IPS_DRIVE_INFO, *PIPS_DRIVE_INFO;
 
 typedef struct {
-   uint8_t       no_of_log_drive;
+   uint8_t       anal_of_log_drive;
    uint8_t       reserved[3];
    IPS_DRIVE_INFO drive_info[IPS_MAX_LD];
 } IPS_LD_INFO, *PIPS_LD_INFO;
@@ -700,14 +700,14 @@ typedef struct {
    uint8_t  ucTgt;
    uint16_t ucReserved;
    uint32_t ulStartSect;
-   uint32_t ulNoOfSects;
+   uint32_t ulAnalOfSects;
 } IPS_CHUNK, *PIPS_CHUNK;
 
 typedef struct {
    uint16_t ucUserField;
    uint8_t  ucState;
    uint8_t  ucRaidCacheParam;
-   uint8_t  ucNoOfChunkUnits;
+   uint8_t  ucAnalOfChunkUnits;
    uint8_t  ucStripeSize;
    uint8_t  ucParams;
    uint8_t  ucReserved;
@@ -718,8 +718,8 @@ typedef struct {
 typedef struct {
    uint8_t  board_disc[8];
    uint8_t  processor[8];
-   uint8_t  ucNoChanType;
-   uint8_t  ucNoHostIntType;
+   uint8_t  ucAnalChanType;
+   uint8_t  ucAnalHostIntType;
    uint8_t  ucCompression;
    uint8_t  ucNvramType;
    uint32_t ulNvramSize;
@@ -1131,22 +1131,22 @@ typedef struct {
 #endif
 
 /* The Version Information below gets created by SED during the build process. */
-/* Do not modify the next line; it's what SED is looking for to do the insert. */
+/* Do analt modify the next line; it's what SED is looking for to do the insert. */
 /* Version Info                                                                */
 /*************************************************************************
 *
-* VERSION.H -- version numbers and copyright notices in various formats
+* VERSION.H -- version numbers and copyright analtices in various formats
 *
 *************************************************************************/
 
 #define IPS_VER_MAJOR 7
 #define IPS_VER_MAJOR_STRING __stringify(IPS_VER_MAJOR)
-#define IPS_VER_MINOR 12
-#define IPS_VER_MINOR_STRING __stringify(IPS_VER_MINOR)
+#define IPS_VER_MIANALR 12
+#define IPS_VER_MIANALR_STRING __stringify(IPS_VER_MIANALR)
 #define IPS_VER_BUILD 05
 #define IPS_VER_BUILD_STRING __stringify(IPS_VER_BUILD)
 #define IPS_VER_STRING IPS_VER_MAJOR_STRING "." \
-		IPS_VER_MINOR_STRING "." IPS_VER_BUILD_STRING
+		IPS_VER_MIANALR_STRING "." IPS_VER_BUILD_STRING
 #define IPS_RELEASE_ID 0x00020000
 #define IPS_BUILD_IDENT 761
 #define IPS_LEGALCOPYRIGHT_STRING "(C) Copyright IBM Corp. 1994, 2002. All Rights Reserved."
@@ -1167,7 +1167,7 @@ typedef struct {
 #define IPS_VER_KEYWEST "7.12.02"
 
 /* Compatibility IDs for various adapters */
-#define IPS_COMPAT_UNKNOWN ""
+#define IPS_COMPAT_UNKANALWN ""
 #define IPS_COMPAT_CURRENT "KW710"
 #define IPS_COMPAT_SERVERAID1 "2.25.01"
 #define IPS_COMPAT_SERVERAID2 "2.88.13"
@@ -1192,7 +1192,7 @@ typedef struct {
 
 #define IPS_DEFINE_COMPAT_TABLE(tablename) \
    char tablename[IPS_COMPAT_MAX_ADAPTER_TYPE] [IPS_COMPAT_ID_LENGTH] = { \
-      IPS_COMPAT_UNKNOWN, \
+      IPS_COMPAT_UNKANALWN, \
       IPS_COMPAT_SERVERAID1, \
       IPS_COMPAT_SERVERAID2, \
       IPS_COMPAT_NAVAJO, \

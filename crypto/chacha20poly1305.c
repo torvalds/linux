@@ -571,7 +571,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx = aead_instance_ctx(inst);
 	ctx->saltlen = CHACHAPOLY_IV_SIZE - ivsize;
 
@@ -593,7 +593,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	/* Need 16-byte IV size, including Initial Block Counter value */
 	if (chacha->ivsize != CHACHA_IV_SIZE)
 		goto err_free_inst;
-	/* Not a stream cipher? */
+	/* Analt a stream cipher? */
 	if (chacha->base.cra_blocksize != 1)
 		goto err_free_inst;
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /* 	pg.h (c) 1998  Grant R. Guenther <grant@torque.net>
  		       Under the terms of the GNU General Public License
 
@@ -13,18 +13,18 @@
 	ATAPI reset operation, all operations are performed by a pair
         of read and write operations to the appropriate /dev/pgN device.
 	A write operation delivers a command and any outbound data in
-        a single buffer.  Normally, the write will succeed unless the
-        device is offline or malfunctioning, or there is already another
+        a single buffer.  Analrmally, the write will succeed unless the
+        device is offline or malfunctioning, or there is already aanalther
 	command pending.  If the write succeeds, it should be followed
         immediately by a read operation, to obtain any returned data and
-        status information.  A read will fail if there is no operation
+        status information.  A read will fail if there is anal operation
         in progress.
 
 	As a special case, the device can be reset with a write operation,
-        and in this case, no following read is expected, or permitted.
+        and in this case, anal following read is expected, or permitted.
 
-	There are no ioctl() operations.  Any single operation
-	may transfer at most PG_MAX_DATA bytes.  Note that the driver must
+	There are anal ioctl() operations.  Any single operation
+	may transfer at most PG_MAX_DATA bytes.  Analte that the driver must
         copy the data through an internal buffer.  In keeping with all
 	current ATAPI devices, command packets are assumed to be exactly
 	12 bytes in length.
@@ -60,7 +60,7 @@ struct pg_read_hdr {
 	char	scsi;		/* "scsi" status == sense key */
 	int	dlen;		/* size of device transfer request */
 	int     duration;	/* time in seconds command took */
-	char    pad[12];	/* not used */
+	char    pad[12];	/* analt used */
 
 };
 

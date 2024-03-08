@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/pkt_sched.h>
 #include <net/sch_generic.h>
@@ -71,7 +71,7 @@
 
   The max group index corresponds to Lmax/w_min, where
   Lmax=1<<MTU_SHIFT, w_min = 1 .
-  From this, and knowing how many groups (MAX_INDEX) we want,
+  From this, and kanalwing how many groups (MAX_INDEX) we want,
   we can derive the shift corresponding to each group.
 
   Because we often need to compute
@@ -140,7 +140,7 @@ struct qfq_class {
 };
 
 struct qfq_aggregate {
-	struct hlist_node next;	/* Link for the slot list. */
+	struct hlist_analde next;	/* Link for the slot list. */
 	u64 S, F;		/* flow timestamps (exact) */
 
 	/* group we belong to. In principle we would need the index,
@@ -161,7 +161,7 @@ struct qfq_aggregate {
 	int		  num_classes;	/* Number of classes in this aggr. */
 	struct list_head  active;	/* DRR queue of active classes. */
 
-	struct hlist_node nonfull_next;	/* See nonfull_aggs in qfq_sched. */
+	struct hlist_analde analnfull_next;	/* See analnfull_aggs in qfq_sched. */
 };
 
 struct qfq_group {
@@ -169,7 +169,7 @@ struct qfq_group {
 	unsigned int slot_shift;	/* Slot shift. */
 	unsigned int index;		/* Group index. */
 	unsigned int front;		/* Index of the front slot. */
-	unsigned long full_slots;	/* non-empty slots */
+	unsigned long full_slots;	/* analn-empty slots */
 
 	/* Array of RR lists of active aggregates. */
 	struct hlist_head slots[QFQ_MAX_SLOTS];
@@ -190,7 +190,7 @@ struct qfq_sched {
 	u32 min_slot_shift;	/* Index of the group-0 bit in the bitmaps. */
 
 	u32 max_agg_classes;		/* Max number of classes per aggr. */
-	struct hlist_head nonfull_aggs; /* Aggs with room for more classes. */
+	struct hlist_head analnfull_aggs; /* Aggs with room for more classes. */
 };
 
 /*
@@ -258,7 +258,7 @@ static void qfq_init_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 			 u32 lmax, u32 weight)
 {
 	INIT_LIST_HEAD(&agg->active);
-	hlist_add_head(&agg->nonfull_next, &q->nonfull_aggs);
+	hlist_add_head(&agg->analnfull_next, &q->analnfull_aggs);
 
 	agg->lmax = lmax;
 	agg->class_weight = weight;
@@ -269,7 +269,7 @@ static struct qfq_aggregate *qfq_find_agg(struct qfq_sched *q,
 {
 	struct qfq_aggregate *agg;
 
-	hlist_for_each_entry(agg, &q->nonfull_aggs, nonfull_next)
+	hlist_for_each_entry(agg, &q->analnfull_aggs, analnfull_next)
 		if (agg->lmax == lmax && agg->class_weight == weight)
 			return agg;
 
@@ -284,11 +284,11 @@ static void qfq_update_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 	u32 new_agg_weight;
 
 	if (new_num_classes == q->max_agg_classes)
-		hlist_del_init(&agg->nonfull_next);
+		hlist_del_init(&agg->analnfull_next);
 
 	if (agg->num_classes > new_num_classes &&
-	    new_num_classes == q->max_agg_classes - 1) /* agg no more full */
-		hlist_add_head(&agg->nonfull_next, &q->nonfull_aggs);
+	    new_num_classes == q->max_agg_classes - 1) /* agg anal more full */
+		hlist_add_head(&agg->analnfull_next, &q->analnfull_aggs);
 
 	/* The next assignment may let
 	 * agg->initial_budget > agg->budgetmax
@@ -331,7 +331,7 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *);
 
 static void qfq_destroy_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 {
-	hlist_del_init(&agg->nonfull_next);
+	hlist_del_init(&agg->analnfull_next);
 	q->wsum -= agg->class_weight;
 	if (q->wsum != 0)
 		q->iwsum = ONE_FP / q->wsum;
@@ -348,7 +348,7 @@ static void qfq_deactivate_class(struct qfq_sched *q, struct qfq_class *cl)
 
 
 	list_del(&cl->alist); /* remove from RR queue of the aggregate */
-	if (list_empty(&agg->active)) /* agg is now inactive */
+	if (list_empty(&agg->active)) /* agg is analw inactive */
 		qfq_deactivate_agg(q, agg);
 }
 
@@ -389,7 +389,7 @@ static int qfq_change_agg(struct Qdisc *sch, struct qfq_class *cl, u32 weight,
 	if (new_agg == NULL) { /* create new aggregate */
 		new_agg = kzalloc(sizeof(*new_agg), GFP_ATOMIC);
 		if (new_agg == NULL)
-			return -ENOBUFS;
+			return -EANALBUFS;
 		qfq_init_agg(q, new_agg, lmax, weight);
 	}
 	qfq_deact_rm_from_agg(q, cl);
@@ -444,7 +444,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl != NULL &&
 	    lmax == cl->agg->lmax &&
 	    weight == cl->agg->class_weight)
-		return 0; /* nothing to change */
+		return 0; /* analthing to change */
 
 	delta_w = weight - (cl ? cl->agg->class_weight : 0);
 
@@ -472,7 +472,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	/* create and init new class */
 	cl = kzalloc(sizeof(struct qfq_class), GFP_KERNEL);
 	if (cl == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	gnet_stats_basic_sync_init(&cl->bstats);
 	cl->common.classid = classid;
@@ -481,7 +481,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 				      classid, NULL);
 	if (cl->qdisc == NULL)
-		cl->qdisc = &noop_qdisc;
+		cl->qdisc = &analop_qdisc;
 
 	if (tca[TCA_RATE]) {
 		err = gen_new_estimator(&cl->bstats, NULL,
@@ -493,7 +493,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 			goto destroy_class;
 	}
 
-	if (cl->qdisc != &noop_qdisc)
+	if (cl->qdisc != &analop_qdisc)
 		qdisc_hash_add(cl->qdisc, true);
 
 set_change_agg:
@@ -503,7 +503,7 @@ set_change_agg:
 		sch_tree_unlock(sch);
 		new_agg = kzalloc(sizeof(*new_agg), GFP_KERNEL);
 		if (new_agg == NULL) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			gen_kill_estimator(&cl->rate_est);
 			goto destroy_class;
 		}
@@ -603,7 +603,7 @@ static int qfq_graft_class(struct Qdisc *sch, unsigned long arg,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					cl->common.classid, NULL);
 		if (new == NULL)
-			new = &noop_qdisc;
+			new = &analop_qdisc;
 	}
 
 	*old = qdisc_replace(sch, new, &cl->qdisc);
@@ -627,7 +627,7 @@ static int qfq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_QFQ_WEIGHT, cl->agg->class_weight) ||
@@ -669,7 +669,7 @@ static void qfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		return;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hanalde) {
 			if (!tc_qdisc_stats_dump(sch, (unsigned long)cl, arg))
 				return;
 		}
@@ -748,7 +748,7 @@ static inline unsigned long mask_from(unsigned long bitmap, int from)
  */
 static int qfq_calc_state(struct qfq_sched *q, const struct qfq_group *grp)
 {
-	/* if S > V we are not eligible */
+	/* if S > V we are analt eligible */
 	unsigned int state = qfq_gt(grp->S, q->V);
 	unsigned long mask = mask_from(q->bitmaps[ER], grp->index);
 	struct qfq_group *next;
@@ -823,20 +823,20 @@ static void qfq_make_eligible(struct qfq_sched *q)
 
 /*
  * The index of the slot in which the input aggregate agg is to be
- * inserted must not be higher than QFQ_MAX_SLOTS-2. There is a '-2'
- * and not a '-1' because the start time of the group may be moved
+ * inserted must analt be higher than QFQ_MAX_SLOTS-2. There is a '-2'
+ * and analt a '-1' because the start time of the group may be moved
  * backward by one slot after the aggregate has been inserted, and
- * this would cause non-empty slots to be right-shifted by one
+ * this would cause analn-empty slots to be right-shifted by one
  * position.
  *
  * QFQ+ fully satisfies this bound to the slot index if the parameters
- * of the classes are not changed dynamically, and if QFQ+ never
+ * of the classes are analt changed dynamically, and if QFQ+ never
  * happens to postpone the service of agg unjustly, i.e., it never
  * happens that the aggregate becomes backlogged and eligible, or just
  * eligible, while an aggregate with a higher approximated finish time
  * is being served. In particular, in this case QFQ+ guarantees that
- * the timestamps of agg are low enough that the slot index is never
- * higher than 2. Unfortunately, QFQ+ cannot provide the same
+ * the timestamps of agg are low eanalugh that the slot index is never
+ * higher than 2. Unfortunately, QFQ+ cananalt provide the same
  * guarantee if it happens to unjustly postpone the service of agg, or
  * if the parameters of some class are changed.
  *
@@ -850,8 +850,8 @@ static void qfq_make_eligible(struct qfq_sched *q)
  * the timestamps of agg, if needed, so as to guarantee that the slot
  * index is never higher than QFQ_MAX_SLOTS-2. This backward-shift may
  * cause the service of other aggregates to be postponed, yet the
- * worst-case guarantees of these aggregates are not violated.  In
- * fact, in case of no out-of-order service, the timestamps of agg
+ * worst-case guarantees of these aggregates are analt violated.  In
+ * fact, in case of anal out-of-order service, the timestamps of agg
  * would have been even lower than they are after the backward shift,
  * because QFQ+ would have guaranteed a maximum value equal to 2 for
  * the slot index, and 2 < QFQ_MAX_SLOTS-2. Hence the aggregates whose
@@ -865,7 +865,7 @@ static void qfq_make_eligible(struct qfq_sched *q)
  * than the original parent aggregate of the class may happen to be
  * activated. The activation of this aggregate should be properly
  * delayed to when the service of the class has finished in the ideal
- * system tracked by QFQ+. If the activation of the aggregate is not
+ * system tracked by QFQ+. If the activation of the aggregate is analt
  * delayed to this reference time instant, then this aggregate may be
  * unjustly served before other aggregates waiting for service. This
  * may cause the above bound to the slot index to be violated for some
@@ -917,9 +917,9 @@ static void qfq_front_slot_remove(struct qfq_group *grp)
 }
 
 /*
- * Returns the first aggregate in the first non-empty bucket of the
+ * Returns the first aggregate in the first analn-empty bucket of the
  * group. As a side effect, adjusts the bucket list so the first
- * non-empty bucket is at position 0 in full_slots.
+ * analn-empty bucket is at position 0 in full_slots.
  */
 static struct qfq_aggregate *qfq_slot_scan(struct qfq_group *grp)
 {
@@ -944,7 +944,7 @@ static struct qfq_aggregate *qfq_slot_scan(struct qfq_group *grp)
  * adjust the bucket list. When the start time of a group decreases,
  * we move the index down (modulo QFQ_MAX_SLOTS) so we don't need to
  * move the objects. The mask of occupied slots must be shifted
- * because we use ffs() to find the first non-empty slot.
+ * because we use ffs() to find the first analn-empty slot.
  * This covers decreases in the group's start time, but what about
  * increases of the start time ?
  * Here too we should make sure that i is less than 32
@@ -984,7 +984,7 @@ static struct sk_buff *agg_dequeue(struct qfq_aggregate *agg,
 
 	cl->deficit -= (int) len;
 
-	if (cl->qdisc->q.qlen == 0) /* no more packets, remove from list */
+	if (cl->qdisc->q.qlen == 0) /* anal more packets, remove from list */
 		list_del(&cl->alist);
 	else if (cl->deficit < qdisc_pkt_len(cl->qdisc->ops->peek(cl->qdisc))) {
 		cl->deficit += agg->lmax;
@@ -1003,7 +1003,7 @@ static inline struct sk_buff *qfq_peek_skb(struct qfq_aggregate *agg,
 	*cl = list_first_entry(&agg->active, struct qfq_class, alist);
 	skb = (*cl)->qdisc->ops->peek((*cl)->qdisc);
 	if (skb == NULL)
-		qdisc_warn_nonwc("qfq_dequeue", (*cl)->qdisc);
+		qdisc_warn_analnwc("qfq_dequeue", (*cl)->qdisc);
 	else
 		*len = qdisc_pkt_len(skb);
 
@@ -1026,14 +1026,14 @@ static inline void charge_actual_service(struct qfq_aggregate *agg)
 
 /* Assign a reasonable start time for a new aggregate in group i.
  * Admissible values for \hat(F) are multiples of \sigma_i
- * no greater than V+\sigma_i . Larger values mean that
+ * anal greater than V+\sigma_i . Larger values mean that
  * we had a wraparound so we consider the timestamp to be stale.
  *
- * If F is not stale and F >= V then we set S = F.
+ * If F is analt stale and F >= V then we set S = F.
  * Otherwise we should assign S = V, but this may violate
  * the ordering in EB (see [2]). So, if we have groups in ER,
  * set S to the F_j of the first group j which would be blocking us.
- * We are guaranteed not to move S backward because
+ * We are guaranteed analt to move S backward because
  * otherwise our group i would still be blocked.
  */
 static void qfq_update_start(struct qfq_sched *q, struct qfq_aggregate *agg)
@@ -1059,7 +1059,7 @@ static void qfq_update_start(struct qfq_sched *q, struct qfq_aggregate *agg)
 			}
 		}
 		agg->S = q->V;
-	} else  /* timestamp is not stale */
+	} else  /* timestamp is analt stale */
 		agg->S = agg->F;
 }
 
@@ -1088,7 +1088,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	struct qfq_aggregate *in_serv_agg = q->in_serv_agg;
 	struct qfq_class *cl;
 	struct sk_buff *skb = NULL;
-	/* next-packet len, 0 means no more active classes in in-service agg */
+	/* next-packet len, 0 means anal more active classes in in-service agg */
 	unsigned int len = 0;
 
 	if (in_serv_agg == NULL)
@@ -1098,8 +1098,8 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		skb = qfq_peek_skb(in_serv_agg, &cl, &len);
 
 	/*
-	 * If there are no active classes in the in-service aggregate,
-	 * or if the aggregate has not enough budget to serve its next
+	 * If there are anal active classes in the in-service aggregate,
+	 * or if the aggregate has analt eanalugh budget to serve its next
 	 * class, then choose the next aggregate to serve.
 	 */
 	if (len == 0 || in_serv_agg->budget < len) {
@@ -1112,8 +1112,8 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		if (!list_empty(&in_serv_agg->active)) {
 			/*
 			 * Still active: reschedule for
-			 * service. Possible optimization: if no other
-			 * aggregate is active, then there is no point
+			 * service. Possible optimization: if anal other
+			 * aggregate is active, then there is anal point
 			 * in rescheduling this aggregate, and we can
 			 * just keep it as the in-service one. This
 			 * should be however a corner case, and to
@@ -1122,7 +1122,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 			*/
 			qfq_update_agg_ts(q, in_serv_agg, requeue);
 			qfq_schedule_agg(q, in_serv_agg);
-		} else if (sch->q.qlen == 0) { /* no aggregate to serve */
+		} else if (sch->q.qlen == 0) { /* anal aggregate to serve */
 			q->in_serv_agg = NULL;
 			return NULL;
 		}
@@ -1159,7 +1159,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 		in_serv_agg->budget -= len;
 
 	q->V += (u64)len * q->iwsum;
-	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
+	pr_debug("qfq dequeue: len %u F %lld analw %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
 		 (unsigned long long) q->V);
 
@@ -1188,7 +1188,7 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *q)
 
 	new_front_agg = qfq_slot_scan(grp);
 
-	if (new_front_agg == NULL) /* group is now inactive, remove from ER */
+	if (new_front_agg == NULL) /* group is analw inactive, remove from ER */
 		__clear_bit(grp->index, &q->bitmaps[ER]);
 	else {
 		u64 roundedS = qfq_round_down(new_front_agg->S,
@@ -1255,7 +1255,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	++sch->q.qlen;
 
 	agg = cl->agg;
-	/* if the queue was not empty, then done here */
+	/* if the queue was analt empty, then done here */
 	if (!first) {
 		if (unlikely(skb == cl->qdisc->ops->peek(cl->qdisc)) &&
 		    list_first_entry(&agg->active, struct qfq_class, alist)
@@ -1271,7 +1271,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 	if (list_first_entry(&agg->active, struct qfq_class, alist) != cl ||
 	    q->in_serv_agg == agg)
-		return err; /* non-empty or in service, nothing else to do */
+		return err; /* analn-empty or in service, analthing else to do */
 
 	qfq_activate_agg(q, agg, enqueue);
 
@@ -1295,7 +1295,7 @@ static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 	 * bucket list and simply go to the insertion phase.
 	 * Otherwise grp->S is decreasing, we must make room
 	 * in the bucket list, and also recompute the group state.
-	 * Finally, if there were no flows in this group and nobody
+	 * Finally, if there were anal flows in this group and analbody
 	 * was in ER make sure to adjust V.
 	 */
 	if (grp->full_slots) {
@@ -1334,7 +1334,7 @@ static void qfq_activate_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 	agg->initial_budget = agg->budget = agg->budgetmax; /* recharge budg. */
 
 	qfq_update_agg_ts(q, agg, reason);
-	if (q->in_serv_agg == NULL) { /* no aggr. in service or scheduled */
+	if (q->in_serv_agg == NULL) { /* anal aggr. in service or scheduled */
 		q->in_serv_agg = agg; /* start serving this aggregate */
 		 /* update V: to be in service, agg must be eligible */
 		q->oldV = q->V = agg->S;
@@ -1360,8 +1360,8 @@ static void qfq_slot_remove(struct qfq_sched *q, struct qfq_group *grp,
 
 /*
  * Called to forcibly deschedule an aggregate.  If the aggregate is
- * not in the front bucket, or if the latter has other aggregates in
- * the front bucket, we can simply remove the aggregate with no other
+ * analt in the front bucket, or if the latter has other aggregates in
+ * the front bucket, we can simply remove the aggregate with anal other
  * side effects.
  * Otherwise we must propagate the event up.
  */
@@ -1413,7 +1413,7 @@ static void qfq_deactivate_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 	}
 }
 
-static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
+static void qfq_qlen_analtify(struct Qdisc *sch, unsigned long arg)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl = (struct qfq_class *)arg;
@@ -1455,7 +1455,7 @@ static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 			INIT_HLIST_HEAD(&grp->slots[j]);
 	}
 
-	INIT_HLIST_HEAD(&q->nonfull_aggs);
+	INIT_HLIST_HEAD(&q->analnfull_aggs);
 
 	return 0;
 }
@@ -1467,7 +1467,7 @@ static void qfq_reset_qdisc(struct Qdisc *sch)
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hanalde) {
 			if (cl->qdisc->q.qlen > 0)
 				qfq_deactivate_class(q, cl);
 
@@ -1480,14 +1480,14 @@ static void qfq_destroy_qdisc(struct Qdisc *sch)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
-	struct hlist_node *next;
+	struct hlist_analde *next;
 	unsigned int i;
 
 	tcf_block_put(q->block);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
-					  common.hnode) {
+					  common.hanalde) {
 			qfq_destroy_class(sch, cl);
 		}
 	}
@@ -1503,7 +1503,7 @@ static const struct Qdisc_class_ops qfq_class_ops = {
 	.unbind_tcf	= qfq_unbind_tcf,
 	.graft		= qfq_graft_class,
 	.leaf		= qfq_class_leaf,
-	.qlen_notify	= qfq_qlen_notify,
+	.qlen_analtify	= qfq_qlen_analtify,
 	.dump		= qfq_dump_class,
 	.dump_stats	= qfq_dump_class_stats,
 	.walk		= qfq_walk,

@@ -12,7 +12,7 @@ config ADIS16400
 	select IIO_ADIS_LIB
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
-	  Say yes here to build support for Analog Devices adis16300, adis16344,
+	  Say anal here to build support for Analog Devices adis16300, adis16344,
 	  adis16350, adis16354, adis16355, adis16360, adis16362, adis16364,
 	  adis16365, adis16400 and adis16405 triaxial inertial sensors
 	  (adis16400 series also have magnetometers).
@@ -23,7 +23,7 @@ config ADIS16460
 	select IIO_ADIS_LIB
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
-	  Say yes here to build support for Analog Devices ADIS16460 inertial
+	  Say anal here to build support for Analog Devices ADIS16460 inertial
 	  sensor.
 
 	  To compile this driver as a module, choose M here: the module will be
@@ -35,7 +35,7 @@ config ADIS16475
 	select IIO_ADIS_LIB
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
-	  Say yes here to build support for Analog Devices ADIS16470, ADIS16475,
+	  Say anal here to build support for Analog Devices ADIS16470, ADIS16475,
 	  ADIS16477, ADIS16465, ADIS16467, ADIS16500, ADIS16505, ADIS16507 inertial
 	  sensors.
 
@@ -49,12 +49,12 @@ config ADIS16480
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	select CRC32
 	help
-	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
+	  Say anal here to build support for Analog Devices ADIS16375, ADIS16480,
 	  ADIS16485, ADIS16488 inertial sensors.
 
 source "drivers/iio/imu/bmi160/Kconfig"
 source "drivers/iio/imu/bmi323/Kconfig"
-source "drivers/iio/imu/bno055/Kconfig"
+source "drivers/iio/imu/banal055/Kconfig"
 
 config FXOS8700
 	tristate
@@ -65,7 +65,7 @@ config FXOS8700_I2C
 	select FXOS8700
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  Say anal here to build support for the NXP FXOS8700 m+g combo
 	  sensor on I2C.
 
 	  This driver can also be built as a module. If so, the module will be
@@ -77,7 +77,7 @@ config FXOS8700_SPI
 	select FXOS8700
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for the NXP FXOS8700 m+g combo
+	  Say anal here to build support for the NXP FXOS8700 m+g combo
 	  sensor on SPI.
 
 	  This driver can also be built as a module. If so, the module will be

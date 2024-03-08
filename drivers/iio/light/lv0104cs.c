@@ -482,7 +482,7 @@ static int lv0104cs_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*lv0104cs));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lv0104cs = iio_priv(indio_dev);
 

@@ -133,7 +133,7 @@ enum led_values {
 };
 
 enum link_status {
-	LinkNoChange = 0,
+	LinkAnalChange = 0,
 	LinkGood     = 1,
 	LinkBad      = 2
 };
@@ -280,7 +280,7 @@ static void catc_irq_done(struct urb *urb)
 	struct catc *catc = urb->context;
 	u8 *data = urb->transfer_buffer;
 	int status = urb->status;
-	unsigned int hasdata, linksts = LinkNoChange;
+	unsigned int hasdata, linksts = LinkAnalChange;
 	int res;
 
 	if (!catc->is_f5u011) {
@@ -301,7 +301,7 @@ static void catc_irq_done(struct urb *urb)
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	/* -EPIPE:  should clear the halt */
@@ -682,7 +682,7 @@ static int catc_get_link_ksettings(struct net_device *dev,
 {
 	struct catc *catc = netdev_priv(dev);
 	if (!catc->is_f5u011)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ethtool_link_ksettings_zero_link_mode(cmd, supported);
 	ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
@@ -771,7 +771,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct catc *catc;
 	u8 broadcast[ETH_ALEN];
 	u8 *macbuf;
-	int pktsz, ret = -ENOMEM;
+	int pktsz, ret = -EANALMEM;
 
 	macbuf = kmalloc(ETH_ALEN, GFP_KERNEL);
 	if (!macbuf)
@@ -808,8 +808,8 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	catc->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if ((!catc->ctrl_urb) || (!catc->tx_urb) ||
 	    (!catc->rx_urb) || (!catc->irq_urb)) {
-		dev_err(&intf->dev, "No free urbs available.\n");
-		ret = -ENOMEM;
+		dev_err(&intf->dev, "Anal free urbs available.\n");
+		ret = -EANALMEM;
 		goto fail_free;
 	}
 
@@ -845,7 +845,7 @@ static int catc_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 		buf = kmalloc(4, GFP_KERNEL);
 		if (!buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail_free;
 		}
 

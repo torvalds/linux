@@ -5,16 +5,16 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and anal later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -195,7 +195,7 @@ vmxnet3_get_sset_count(struct net_device *netdev, int sset)
 		       adapter->num_rx_queues +
 			ARRAY_SIZE(vmxnet3_global_stats);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -270,9 +270,9 @@ netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
 	if (!(features & NETIF_F_RXCSUM))
 		features &= ~NETIF_F_LRO;
 
-	/* If XDP is enabled, then LRO should not be enabled */
+	/* If XDP is enabled, then LRO should analt be enabled */
 	if (vmxnet3_xdp_enabled(adapter) && (features & NETIF_F_LRO)) {
-		netdev_err(netdev, "LRO is not supported with XDP");
+		netdev_err(netdev, "LRO is analt supported with XDP");
 		features &= ~NETIF_F_LRO;
 	}
 
@@ -627,7 +627,7 @@ vmxnet3_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (wol->wolopts & (WAKE_PHY | WAKE_MCAST | WAKE_BCAST |
 			    WAKE_MAGICSECURE)) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	adapter->wol = wol->wolopts;
@@ -656,8 +656,8 @@ vmxnet3_get_link_ksettings(struct net_device *netdev,
 		ecmd->base.speed = adapter->link_speed;
 		ecmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ecmd->base.speed = SPEED_UNKNOWN;
-		ecmd->base.duplex = DUPLEX_UNKNOWN;
+		ecmd->base.speed = SPEED_UNKANALWN;
+		ecmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 	return 0;
 }
@@ -707,11 +707,11 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	    param->rx_jumbo_pending > VMXNET3_RX_RING2_MAX_SIZE)
 		return -EINVAL;
 
-	/* if adapter not yet initialized, do nothing */
+	/* if adapter analt yet initialized, do analthing */
 	if (adapter->rx_buf_per_pkt == 0) {
-		netdev_err(netdev, "adapter not completely initialized, "
-			   "ring size cannot be changed yet\n");
-		return -EOPNOTSUPP;
+		netdev_err(netdev, "adapter analt completely initialized, "
+			   "ring size cananalt be changed yet\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (VMXNET3_VERSION_GE_3(adapter)) {
@@ -905,7 +905,7 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 {
 	enum Vmxnet3_RSSField rss_fields = adapter->rss_fields;
 
-	/* RSS does not support anything other than hashing
+	/* RSS does analt support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -972,7 +972,7 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 	case AH_V6_FLOW:
 	case AH_ESP_V6_FLOW:
 		if (!VMXNET3_VERSION_GE_6(adapter))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (!(nfc->data & RXH_IP_SRC) ||
 		    !(nfc->data & RXH_IP_DST))
 			return -EINVAL;
@@ -1045,7 +1045,7 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_SET_RSS_FIELDS);
 
-			/* Not all requested RSS may get applied, so get and
+			/* Analt all requested RSS may get applied, so get and
 			 * cache what was actually applied.
 			 */
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
@@ -1076,19 +1076,19 @@ vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		break;
 	case ETHTOOL_GRXFH:
 		if (!VMXNET3_VERSION_GE_4(adapter)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 #ifdef VMXNET3_RSS
 		if (!adapter->rss) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			break;
 		}
 #endif
 		err = vmxnet3_get_rss_hash_opts(adapter, info);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1102,12 +1102,12 @@ vmxnet3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	int err = 0;
 
 	if (!VMXNET3_VERSION_GE_4(adapter)) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 #ifdef VMXNET3_RSS
 	if (!adapter->rss) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto done;
 	}
 #endif
@@ -1117,7 +1117,7 @@ vmxnet3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		err = vmxnet3_set_rss_hash_opt(netdev, adapter, info);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1162,11 +1162,11 @@ vmxnet3_set_rss(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do analt allow change in unsupported parameters */
 	if (rxfh->key ||
-	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	     rxfh->hfunc != ETH_RSS_HASH_TOP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!rxfh->indir)
 		return 0;
 	for (i = 0; i < rssConf->indTableSize; i++)
@@ -1190,7 +1190,7 @@ static int vmxnet3_get_coalesce(struct net_device *netdev,
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
 	if (!VMXNET3_VERSION_GE_3(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (adapter->coal_conf->coalMode) {
 	case VMXNET3_COALESCE_DISABLED:
@@ -1213,7 +1213,7 @@ static int vmxnet3_get_coalesce(struct net_device *netdev,
 	}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1230,7 +1230,7 @@ static int vmxnet3_set_coalesce(struct net_device *netdev,
 	unsigned long flags;
 
 	if (!VMXNET3_VERSION_GE_3(adapter))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((ec->rx_coalesce_usecs == 0) &&
 	    (ec->use_adaptive_rx_coalesce == 0) &&
@@ -1335,7 +1335,7 @@ static void vmxnet3_get_channels(struct net_device *netdev,
 
 	ec->other_count = 1;
 
-	/* Number of interrupts cannot be changed on the fly */
+	/* Number of interrupts cananalt be changed on the fly */
 	/* Just set maximums to actual values */
 	ec->max_rx = ec->rx_count;
 	ec->max_tx = ec->tx_count;

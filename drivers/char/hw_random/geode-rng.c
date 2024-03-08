@@ -41,9 +41,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do analt actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register aanalther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_LX_AES), 0, },
@@ -91,7 +91,7 @@ static struct hwrng geode_rng = {
 
 static int __init geode_rng_init(void)
 {
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 	void __iomem *mem;
@@ -103,20 +103,20 @@ static int __init geode_rng_init(void)
 		if (ent)
 			goto found;
 	}
-	/* Device not found. */
+	/* Device analt found. */
 	return err;
 
 found:
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto put_dev;
 	}
 
 	rng_base = pci_resource_start(pdev, 0);
 	if (rng_base == 0)
 		goto free_priv;
-	err = -ENOMEM;
+	err = -EANALMEM;
 	mem = ioremap(rng_base, 0x58);
 	if (!mem)
 		goto free_priv;

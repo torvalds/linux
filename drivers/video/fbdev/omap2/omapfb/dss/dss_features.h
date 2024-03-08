@@ -28,7 +28,7 @@ enum dss_feat_id {
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV,
 	FEAT_LCD_CLK_SRC,
-	/* DSI-PLL power command 0x3 is not working */
+	/* DSI-PLL power command 0x3 is analt working */
 	FEAT_DSI_PLL_PWR_BUG,
 	FEAT_DSI_DCS_CMD_CONFIG_VC,
 	FEAT_DSI_VC_OCP_WIDTH,
@@ -46,7 +46,7 @@ enum dss_feat_id {
 	FEAT_ALPHA_FIXED_ZORDER,
 	FEAT_ALPHA_FREE_ZORDER,
 	FEAT_FIFO_MERGE,
-	/* An unknown HW bug causing the normal FIFO thresholds not to work */
+	/* An unkanalwn HW bug causing the analrmal FIFO thresholds analt to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
 	FEAT_DSI_PHY_DCC,

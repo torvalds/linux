@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-__attribute__ ((noinline))
+__attribute__ ((analinline))
 void foo(struct __sk_buff *skb)
 {
 	skb->tc_index = 0;

@@ -63,8 +63,8 @@ enum hw_registers {
 	MVS_INT_MASK_SRS_0	= 0x15C,
 	MVS_INT_STAT_SRS_1	= 0x160,
 	MVS_INT_MASK_SRS_1	= 0x164,
-	MVS_NON_NCQ_ERR_0	= 0x168, /* SRS Non-specific NCQ Error */
-	MVS_NON_NCQ_ERR_1	= 0x16C,
+	MVS_ANALN_NCQ_ERR_0	= 0x168, /* SRS Analn-specific NCQ Error */
+	MVS_ANALN_NCQ_ERR_1	= 0x16C,
 	MVS_CMD_ADDR		= 0x170, /* Command register port (addr) */
 	MVS_CMD_DATA		= 0x174, /* Command register port (data) */
 	MVS_MEM_PARITY_ERR	= 0x178, /* Memory parity error */

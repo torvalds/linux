@@ -86,7 +86,7 @@
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "ext_clock";
 		reset-gpios = <&r_pio 1 3 GPIO_ACTIVE_LOW>; /* PM3 */
 		post-power-on-delay-ms = <200>;
@@ -140,7 +140,7 @@
 	vqmmc-supply = <&reg_vcc_wifi_io>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	brcm: sdio-wifi@1 {
@@ -156,7 +156,7 @@
 	vmmc-supply = <&reg_cldo1>;
 	vqmmc-supply = <&reg_bldo2>;
 	cap-mmc-hw-reset;
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };
@@ -314,7 +314,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4345c5";
-		clocks = <&rtc CLK_OSC32K_FANOUT>;
+		clocks = <&rtc CLK_OSC32K_FAANALUT>;
 		clock-names = "lpo";
 		device-wakeup-gpios = <&r_pio 1 2 GPIO_ACTIVE_HIGH>; /* PM2 */
 		host-wakeup-gpios = <&r_pio 1 1 GPIO_ACTIVE_HIGH>; /* PM1 */

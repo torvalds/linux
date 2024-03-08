@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -72,13 +72,13 @@ void hubp32_prepare_subvp_buffering(struct hubp *hubp, bool enable)
 
 	/* Programming guide suggests CURSOR_REQ_MODE = 1 for SubVP:
 	 * For Pstate change using the MALL with sub-viewport buffering,
-	 * the cursor does not use the MALL (USE_MALL_FOR_CURSOR is ignored)
+	 * the cursor does analt use the MALL (USE_MALL_FOR_CURSOR is iganalred)
 	 * and sub-viewport positioning by Display FW has to avoid the cursor
 	 * requests to DRAM (set CURSOR_REQ_MODE = 1 to minimize this exclusion).
 	 *
 	 * CURSOR_REQ_MODE = 1 begins fetching cursor data at the beginning of display prefetch.
 	 * Setting this should allow the sub-viewport position to always avoid the cursor because
-	 * we do not allow the sub-viewport region to overlap with display prefetch (i.e. during blank).
+	 * we do analt allow the sub-viewport region to overlap with display prefetch (i.e. during blank).
 	 */
 	REG_UPDATE(CURSOR_CONTROL, CURSOR_REQ_MODE, enable);
 }
@@ -96,11 +96,11 @@ void hubp32_phantom_hubp_post_enable(struct hubp *hubp)
 		/* init sequence workaround: in case HUBP is
 		 * power gated, this wait would timeout.
 		 *
-		 * we just wrote reg_val to non-0, if it stay 0
+		 * we just wrote reg_val to analn-0, if it stay 0
 		 * it means HUBP is gated
 		 */
 		REG_WAIT(DCHUBP_CNTL,
-				HUBP_NO_OUTSTANDING_REQ, 1,
+				HUBP_ANAL_OUTSTANDING_REQ, 1,
 				1, 200);
 	}
 }
@@ -137,13 +137,13 @@ void hubp32_cursor_set_attributes(
 			CURSOR_LINES_PER_CHUNK, lpc);
 
 	REG_SET_2(CURSOR_SETTINGS, 0,
-			/* no shift of the cursor HDL schedule */
+			/* anal shift of the cursor HDL schedule */
 			CURSOR0_DST_Y_OFFSET, 0,
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
 
 	switch (attr->color_format) {
-	case CURSOR_MODE_MONO:
+	case CURSOR_MODE_MOANAL:
 		cursor_size /= 2;
 		break;
 	case CURSOR_MODE_COLOR_1BIT_AND:

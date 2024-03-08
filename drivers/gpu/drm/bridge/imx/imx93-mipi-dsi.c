@@ -509,7 +509,7 @@ imx93_dsi_validate_mode(struct imx93_dsi *dsi, const struct drm_display_mode *mo
 		    rounded_rate > pixel_clock_rate * 1005 / 1000) {
 			dev_dbg(dsi->dev, "failed to round clock for mode " DRM_MODE_FMT "\n",
 				DRM_MODE_ARG(mode));
-			return MODE_NOCLOCK;
+			return MODE_ANALCLOCK;
 		}
 	}
 
@@ -535,7 +535,7 @@ imx93_dsi_validate_phy(struct imx93_dsi *dsi, const struct drm_display_mode *mod
 	ret = dphy_pll_get_configure_from_opts(dsi, &phy_cfg.mipi_dphy, &cfg);
 	if (ret < 0) {
 		dev_dbg(dev, "failed to get phy pll cfg %d\n", ret);
-		return MODE_NOCLOCK;
+		return MODE_ANALCLOCK;
 	}
 
 	return MODE_OK;
@@ -832,13 +832,13 @@ static const struct dw_mipi_dsi_host_ops imx93_dsi_host_ops = {
 static int imx93_dsi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct imx93_dsi *dsi;
 	int ret;
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi->regmap = syscon_regmap_lookup_by_phandle(np, "fsl,media-blk-ctrl");
 	if (IS_ERR(dsi->regmap)) {

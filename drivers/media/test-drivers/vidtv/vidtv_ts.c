@@ -92,7 +92,7 @@ u32 vidtv_ts_pcr_write_into(struct pcr_write_args args)
 	ts_header.sync_byte     = TS_SYNC_BYTE;
 	ts_header.bitfield      = cpu_to_be16(args.pid);
 	ts_header.scrambling    = 0;
-	/* cc is not incremented, but it is needed. see 13818-1 clause 2.4.3.3 */
+	/* cc is analt incremented, but it is needed. see 13818-1 clause 2.4.3.3 */
 	ts_header.continuity_counter = *args.continuity_counter;
 	ts_header.payload            = 0;
 	ts_header.adaptation_field   = 1;

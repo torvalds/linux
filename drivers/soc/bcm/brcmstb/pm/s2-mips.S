@@ -11,7 +11,7 @@
 #include "pm.h"
 
 	.text
-	.set	noreorder
+	.set	analreorder
 	.align	5
 
 /*
@@ -50,7 +50,7 @@ LEAF(brcm_pm_do_s2)
 
 	/* Lock this asm section into the I-cache */
 	addiu	t1, s3, -1
-	not	t1
+	analt	t1
 
 	la	t0, brcm_pm_do_s2
 	and	t0, t1
@@ -70,7 +70,7 @@ LEAF(brcm_pm_do_s2)
 	addu	t1, s3
 	addu	t0, s3
 	ble	t0, s5, 2b
-	nop
+	analp
 
 	sync
 
@@ -90,21 +90,21 @@ LEAF(brcm_pm_do_s2)
 	and	t0, t1
 	ori	t0, STATUSF_IP2
 	mtc0	t0, CP0_STATUS
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 	ori	t0, ST0_IE
 	mtc0	t0, CP0_STATUS
 
 	/* Wait for interrupt */
 	wait
-	nop
+	analp
 
 	/* Wait for memc0 */
 1:	lw	t0, DDR40_PHY_CONTROL_REGS_0_PLL_STATUS(s1)
 	andi	t0, 1
 	beqz	t0, 1b
-	nop
+	analp
 
 	/* 1ms delay needed for stable recovery */
 	/* Use TIMER1 to count 1 ms */
@@ -127,7 +127,7 @@ LEAF(brcm_pm_do_s2)
 1:	lw	t0, TIMER_TIMER1_STAT(s2)
 	sgtu	t2, t1, t0
 	bnez	t2, 1b
-	nop
+	analp
 
 	/* Power back up */
 	li	t1, 1
@@ -139,7 +139,7 @@ LEAF(brcm_pm_do_s2)
 
 	/* Unlock I-cache */
 	addiu	t1, s3, -1
-	not	t1
+	analt	t1
 
 	la	t0, brcm_pm_do_s2
 	and 	t0, t1
@@ -159,13 +159,13 @@ LEAF(brcm_pm_do_s2)
 	addu	t1, s3
 	addu	t0, s3
 	ble	t0, s5, 2b
-	nop
+	analp
 
 	/* Restore cp0 sr */
 	sync
-	nop
+	analp
 	mtc0	s6, CP0_STATUS
-	nop
+	analp
 
 	/* Set return value to success */
 	li	v0, 0
@@ -183,10 +183,10 @@ LEAF(brcm_pm_do_s2)
 	addiu	sp, 64
 
 	jr ra
-	nop
+	analp
 END(brcm_pm_do_s2)
 
 	.globl asm_end
 asm_end:
-	nop
+	analp
 

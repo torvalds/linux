@@ -2,7 +2,7 @@
 /*
  * FB driver for the ILI9325 LCD Controller
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  *
  * Based on ili9325.c by Jeroen Domburg
  */
@@ -90,7 +90,7 @@ static int init_display(struct fbtft_par *par)
 	vdv &= 0x1f;
 	vcm &= 0x3f;
 
-	/* Initialization sequence from ILI9325 Application Notes */
+	/* Initialization sequence from ILI9325 Application Analtes */
 
 	/* ----------- Start Initial Sequence ----------- */
 	write_reg(par, 0x00E3, 0x3008); /* Set internal timing */
@@ -100,7 +100,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0002, 0x0700); /* set 1 line inversion */
 	write_reg(par, 0x0004, 0x0000); /* Resize register */
 	write_reg(par, 0x0008, 0x0207); /* set the back porch and front porch */
-	write_reg(par, 0x0009, 0x0000); /* set non-display area refresh cycle */
+	write_reg(par, 0x0009, 0x0000); /* set analn-display area refresh cycle */
 	write_reg(par, 0x000A, 0x0000); /* FMARK function */
 	write_reg(par, 0x000C, 0x0000); /* RGB interface setting */
 	write_reg(par, 0x000D, 0x0000); /* Frame marker Position */
@@ -257,5 +257,5 @@ MODULE_ALIAS("spi:ili9325");
 MODULE_ALIAS("platform:ili9325");
 
 MODULE_DESCRIPTION("FB driver for the ILI9325 LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

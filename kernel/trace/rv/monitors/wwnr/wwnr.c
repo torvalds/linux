@@ -61,7 +61,7 @@ static void disable_wwnr(void)
 
 static struct rv_monitor rv_wwnr = {
 	.name = "wwnr",
-	.description = "wakeup while not running per-task testing model.",
+	.description = "wakeup while analt running per-task testing model.",
 	.enable = enable_wwnr,
 	.disable = disable_wwnr,
 	.reset = da_monitor_reset_all_wwnr,
@@ -84,4 +84,4 @@ module_exit(unregister_wwnr);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Bristot de Oliveira <bristot@kernel.org>");
-MODULE_DESCRIPTION("wwnr: wakeup while not running monitor");
+MODULE_DESCRIPTION("wwnr: wakeup while analt running monitor");

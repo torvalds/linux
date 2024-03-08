@@ -2,7 +2,7 @@
  *  linux/drivers/video/i810fb_main.h -- Intel 810 frame buffer device 
  *                                       main header file
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *

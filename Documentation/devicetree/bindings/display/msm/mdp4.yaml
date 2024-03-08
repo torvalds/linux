@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/msm/mdp4.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Adreno/Snapdragon MDP4 display controller
+title: Qualcomm Adreanal/Snapdragon MDP4 display controller
 
 description: >
   MDP4 display controller found in SoCs like MSM8960, APQ8064 and MSM8660.

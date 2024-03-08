@@ -13,12 +13,12 @@
 /*
  * void *memcpy(void *dst, const void *src, size_t n);
  *
- * It is assumed that there is no overlap between src and dst.
+ * It is assumed that there is anal overlap between src and dst.
  * If there is an overlap, then the results are undefined.
  */
 
 	!
-	!	GHIJ KLMN OPQR -->  ...G HIJK LMNO PQR.
+	!	GHIJ KLMN OPQR -->  ...G HIJK LMANAL PQR.
 	!
 
 	! Size is 16 or greater, and may have trailing bytes
@@ -66,7 +66,7 @@
 	shll8	r6		! 102 EX		! LMNx
 	mov	r1,r7		!   5 MT (latency=0)
 
-	or	r6,r3		!  82 EX		! LMNO
+	or	r6,r3		!  82 EX		! LMANAL
 	bt/s	3b		! 109 BR
 
 	 mov.l	r3,@-r0		!  30 LS
@@ -87,11 +87,11 @@
 	 mov.b	r1,@-r0		!  29 LS
 
 9:	rts
-	 nop
+	 analp
 
 
 	!
-	!	GHIJ KLMN OPQR -->  .GHI JKLM NOPQ R...
+	!	GHIJ KLMN OPQR -->  .GHI JKLM ANALPQ R...
 	!
 
 	! Size is 16 or greater, and may have trailing bytes
@@ -133,7 +133,7 @@
 	mov	r7,r6
 	shll16	r6
 	shll8	r6		! Nxxx
-	or	r6,r3		! NOPQ
+	or	r6,r3		! ANALPQ
 	cmp/hi	r2,r0
 	bt/s	3b
 	 mov.l	r3,@-r0
@@ -155,7 +155,7 @@
 	 mov.b	r1,@-r0		!  29 LS
 
 9:	rts
-	 nop
+	 analp
 
 ENTRY(memcpy)
 
@@ -189,10 +189,10 @@ ENTRY(memcpy)
 
 	 sub	r4, r5		!  75 EX
 
-	! Arguments are not nicely long word aligned or zero len.
+	! Arguments are analt nicely long word aligned or zero len.
 	! Check for small copies, and if so do a simple byte at a time copy.
 	!
-	! Deciding on an exact value of 'small' is not easy, as the point at which
+	! Deciding on an exact value of 'small' is analt easy, as the point at which
 	! using the optimised routines become worthwhile varies (these are the
 	! cycle counts for differnet sizes using byte-at-a-time vs. optimised):
 	!	size	byte-at-time	long	word	byte
@@ -205,7 +205,7 @@ ENTRY(memcpy)
 	cmp/gt	r6,r1		!  56 MT
 
 	add	#-1,r5		!  50 EX
-	bf/s	6f		! 108 BR		(not small)
+	bf/s	6f		! 108 BR		(analt small)
 
 	 mov	r5, r3		!   5 MT (latency=0)
 	shlr	r6		! 104 EX
@@ -231,15 +231,15 @@ ENTRY(memcpy)
 	 mov.b	r2,@-r0		!  29 LS
 98:
 	rts
-	 nop
+	 analp
 
 99:	rts
 	 mov	r4, r0
 
-	! Size is not small, so its worthwhile looking for optimisations.
+	! Size is analt small, so its worthwhile looking for optimisations.
 	! First align destination to a long word boundary.
 	!
-	! r5 = normal value -1
+	! r5 = analrmal value -1
 
 6:	tst	#3, r0		!  87 MT
         mov	#3, r3		!   6 EX
@@ -258,7 +258,7 @@ ENTRY(memcpy)
 
 2:	add	#1, r5		!  79 EX
 
-	! Now select the appropriate bulk transfer code based on relative
+	! Analw select the appropriate bulk transfer code based on relative
 	! alignment of src and dst.
 
 	mov	r0, r3		!   5 MT (latency=0)
@@ -281,14 +281,14 @@ ENTRY(memcpy)
 	 mov	r3, r0
 
 	bra	.Lcase2
-	 nop
+	 analp
 
 	! big
 2:	bt/s	.Lcase0b
 	 mov	r3, r0
 
 	bra	.Lcase2b
-	 nop
+	 analp
 
 	! bit 0 set
 1:	tst	#2, r0		! 87 MT
@@ -297,7 +297,7 @@ ENTRY(memcpy)
 	 mov	r3, r0
 
 	bra	.Lcase3
-	 nop
+	 analp
 
 
 	!
@@ -305,7 +305,7 @@ ENTRY(memcpy)
 	!
 
 	! src, dst and size are all long word aligned
-	! size is non-zero
+	! size is analn-zero
 
 	.balign	32
 .Lcase00:
@@ -341,7 +341,7 @@ ENTRY(memcpy)
 	 mov.l	r2, @-r0	!  30 LS
 
 5:	rts
-	 nop
+	 analp
 
 
 	! Size is 16 or greater and less than 64, but may have trailing bytes
@@ -391,7 +391,7 @@ ENTRY(memcpy)
 	 mov.b	r1,@-r0		!  28 LS
 
 9:	rts
-	 nop
+	 analp
 
 	! Size is at least 64 bytes, so will be going round the big loop at least once.
 	!
@@ -509,7 +509,7 @@ ENTRY(memcpy)
 1:	 mov.l	@r15+, r8	!  15 LS
 	sub	r4, r1		!  75 EX		(len remaining)
 
-	! number of trailing bytes is non-zero
+	! number of trailing bytes is analn-zero
 	!
 	! invariants restored (r5 already decremented by 4)
 	! also r1=num bytes remaining
@@ -562,10 +562,10 @@ ENTRY(memcpy)
 	 mov.b	r1,@-r0		!  28 LS
 
 9:	rts
-	 nop
+	 analp
 
 	!
-	!	GHIJ KLMN OPQR -->  ..GH IJKL MNOP QR..
+	!	GHIJ KLMN OPQR -->  ..GH IJKL MANALP QR..
 	!
 
 	.balign	32
@@ -590,7 +590,7 @@ ENTRY(memcpy)
 	 mov.w	r3,@-r0		!  29 LS
 
 	bra	10f
-	 nop
+	 analp
 
 
 	.balign	32
@@ -614,7 +614,7 @@ ENTRY(memcpy)
 	 and	r1, r2		!  78 EX
 
 	! Copy a short word one at a time until we are cache line aligned
-	!   Normal values: r0, r2, r3, r4
+	!   Analrmal values: r0, r2, r3, r4
 	!   Unused: r1, r6, r7
 	!   Mod: r5 (=r5-2)
 	!

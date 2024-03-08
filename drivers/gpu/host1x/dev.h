@@ -112,14 +112,14 @@ struct host1x_info {
 	struct host1x_table_desc mmio_vm_table;
 	/*
 	 * On T20-T148, the boot chain may setup DC to increment syncpoints
-	 * 26/27 on VBLANK. As such we cannot use these syncpoints until
+	 * 26/27 on VBLANK. As such we cananalt use these syncpoints until
 	 * the display driver disables VBLANK increments.
 	 */
 	bool reserve_vblank_syncpts;
 	/*
 	 * On Tegra186, secure world applications may require access to
 	 * host1x during suspend/resume. To allow this, we need to leave
-	 * host1x not in reset.
+	 * host1x analt in reset.
 	 */
 	bool skip_reset_assert;
 };
@@ -153,7 +153,7 @@ struct host1x {
 	const struct host1x_pushbuffer_ops *cdma_pb_op;
 	const struct host1x_debug_ops *debug_op;
 
-	struct host1x_syncpt *nop_sp;
+	struct host1x_syncpt *analp_sp;
 
 	struct mutex syncpt_mutex;
 

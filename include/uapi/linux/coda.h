@@ -30,14 +30,14 @@ CREDITS.
 
 Permission  to  use, copy, modify and distribute this software and its
 documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
+analtice  and  this  permission  analtice  appear  in  all  copies  of the
 software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
+thereof, and that both analtices appear in supporting documentation, and
 that credit is given to Carnegie Mellon University  in  all  documents
 and publicity pertaining to direct or indirect use of this code or its
 derivatives.
 
-CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
+CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KANALWN  TO  HAVE  BUGS,
 SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
 FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
 DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
@@ -75,7 +75,7 @@ Mellon the rights to redistribute these changes without encumbrance.
 typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
-typedef u_long ino_t;
+typedef u_long ianal_t;
 typedef u_long dev_t;
 typedef void * caddr_t;
 #ifdef DOS
@@ -86,7 +86,7 @@ typedef unsigned long long u_quad_t;
 
 #define inline
 
-#else  /* DJGPP but not KERNEL */
+#else  /* DJGPP but analt KERNEL */
 #include <sys/time.h>
 typedef unsigned long long u_quad_t;
 #endif /* !KERNEL */
@@ -149,11 +149,11 @@ typedef unsigned int	   u_int32_t;
 #ifndef _VENUS_DIRENT_T_
 #define _VENUS_DIRENT_T_ 1
 struct venus_dirent {
-        u_int32_t d_fileno;		/* file number of entry */
+        u_int32_t d_fileanal;		/* file number of entry */
         u_int16_t d_reclen;		/* length of this record */
         u_int8_t  d_type;			/* file type, see below */
         u_int8_t  d_namlen;		/* length of string in d_name */
-        char	  d_name[CODA_MAXNAMLEN + 1];/* name must be no longer than this */
+        char	  d_name[CODA_MAXNAMLEN + 1];/* name must be anal longer than this */
 };
 #undef DIRSIZ
 #define DIRSIZ(dp)      ((sizeof (struct venus_dirent) - (CODA_MAXNAMLEN+1)) + \
@@ -162,7 +162,7 @@ struct venus_dirent {
 /*
  * File types
  */
-#define	CDT_UNKNOWN	 0
+#define	CDT_UNKANALWN	 0
 #define	CDT_FIFO	 1
 #define	CDT_CHR		 2
 #define	CDT_DIR		 4
@@ -196,17 +196,17 @@ struct CodaFid {
 #ifndef _VENUS_VATTR_T_
 #define _VENUS_VATTR_T_
 /*
- * Vnode types.  VNON means no type.
+ * Vanalde types.  VANALN means anal type.
  */
-enum coda_vtype	{ C_VNON, C_VREG, C_VDIR, C_VBLK, C_VCHR, C_VLNK, C_VSOCK, C_VFIFO, C_VBAD };
+enum coda_vtype	{ C_VANALN, C_VREG, C_VDIR, C_VBLK, C_VCHR, C_VLNK, C_VSOCK, C_VFIFO, C_VBAD };
 
 struct coda_timespec {
 	int64_t		tv_sec;		/* seconds */
-	long		tv_nsec;	/* nanoseconds */
+	long		tv_nsec;	/* naanalseconds */
 };
 
 struct coda_vattr {
-	long     	va_type;	/* vnode type (for create) */
+	long     	va_type;	/* vanalde type (for create) */
 	u_short		va_mode;	/* files access mode and type */
 	short		va_nlink;	/* number of references to file */
 	vuid_t		va_uid;		/* owner user id */
@@ -307,7 +307,7 @@ struct coda_out_hdr {
     u_int32_t result;
 };
 
-/* coda_root: NO_IN */
+/* coda_root: ANAL_IN */
 struct coda_root_out {
     struct coda_out_hdr oh;
     struct CodaFid VFid;
@@ -327,7 +327,7 @@ struct coda_open_in {
 struct coda_open_out {
     struct coda_out_hdr oh;
     cdev_t	dev;
-    ino_t	inode;
+    ianal_t	ianalde;
 };
 
 
@@ -393,7 +393,7 @@ struct coda_getattr_out {
 };
 
 
-/* coda_setattr: NO_OUT */
+/* coda_setattr: ANAL_OUT */
 struct coda_setattr_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
@@ -404,7 +404,7 @@ struct coda_setattr_out {
     struct coda_out_hdr out;
 };
 
-/* coda_access: NO_OUT */
+/* coda_access: ANAL_OUT */
 struct coda_access_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
@@ -452,7 +452,7 @@ struct coda_create_out {
 };
 
 
-/* coda_remove: NO_OUT */
+/* coda_remove: ANAL_OUT */
 struct coda_remove_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
@@ -463,10 +463,10 @@ struct coda_remove_out {
     struct coda_out_hdr out;
 };
 
-/* coda_link: NO_OUT */
+/* coda_link: ANAL_OUT */
 struct coda_link_in {
     struct coda_in_hdr ih;
-    struct CodaFid sourceFid;	/* cnode to link *to* */
+    struct CodaFid sourceFid;	/* canalde to link *to* */
     struct CodaFid destFid;	/* Directory in which to place link */
     int tname;		/* Place holder for data. */
 };
@@ -476,7 +476,7 @@ struct coda_link_out {
 };
 
 
-/* coda_rename: NO_OUT */
+/* coda_rename: ANAL_OUT */
 struct coda_rename_in {
     struct coda_in_hdr ih;
     struct CodaFid sourceFid;
@@ -504,7 +504,7 @@ struct coda_mkdir_out {
 };
 
 
-/* coda_rmdir: NO_OUT */
+/* coda_rmdir: ANAL_OUT */
 struct coda_rmdir_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
@@ -515,7 +515,7 @@ struct coda_rmdir_out {
     struct coda_out_hdr out;
 };
 
-/* coda_symlink: NO_OUT */
+/* coda_symlink: ANAL_OUT */
 struct coda_symlink_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;	/* Directory to put symlink in */
@@ -541,7 +541,7 @@ struct coda_readlink_out {
 };
 
 
-/* coda_fsync: NO_OUT */
+/* coda_fsync: ANAL_OUT */
 struct coda_fsync_in {
     struct coda_in_hdr ih;
     struct CodaFid VFid;
@@ -616,7 +616,7 @@ struct coda_open_by_fd_out {
     int fd;
 
 #ifdef __KERNEL__
-    struct file *fh; /* not passed from userspace but used in-kernel only */
+    struct file *fh; /* analt passed from userspace but used in-kernel only */
 #endif
 };
 
@@ -632,7 +632,7 @@ struct coda_open_by_path_out {
 	int path;
 };
 
-/* coda_statfs: NO_IN */
+/* coda_statfs: ANAL_IN */
 struct coda_statfs_in {
     struct coda_in_hdr in;
 };
@@ -648,7 +648,7 @@ struct coda_statfs_out {
 #define CODA_ACCESS_TYPE_READ_FINISH	4
 #define CODA_ACCESS_TYPE_WRITE_FINISH	5
 
-/* coda_access_intent: NO_OUT */
+/* coda_access_intent: ANAL_OUT */
 struct coda_access_intent_in {
 	struct coda_in_hdr ih;
 	struct CodaFid VFid;
@@ -666,7 +666,7 @@ struct coda_access_intent_out {
  * For instance, if the fid is inconsistent. 
  * This case is handled by setting the top bit of the type result parameter.
  */
-#define CODA_NOCACHE          0x80000000
+#define CODA_ANALCACHE          0x80000000
 
 union inputArgs {
     struct coda_in_hdr ih;		/* NB: every struct below begins with an ih */
@@ -747,7 +747,7 @@ struct PioctlData {
 
 #define CODA_CONTROL		".CONTROL"
 #define CODA_CONTROLLEN		8
-#define CTL_INO			-1
+#define CTL_IANAL			-1
 
 /* Data passed to mount */
 

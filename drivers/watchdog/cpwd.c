@@ -6,7 +6,7 @@
  * interface and Solaris-compatible ioctls as best it is
  * able.
  *
- * NOTE:	CP1400 systems appear to have a defective intr_mask
+ * ANALTE:	CP1400 systems appear to have a defective intr_mask
  *			register on the PLD, preventing the disabling of
  *			timer interrupts.  We use a timer to periodically
  *			reset 'stopped' watchdogs on affected platforms.
@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/major.h>
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
@@ -44,9 +44,9 @@
 #define WD_BTIMEOUT	(jiffies + (HZ * 1000))
 #define WD_BLIMIT	0xFFFF
 
-#define WD0_MINOR	212
-#define WD1_MINOR	213
-#define WD2_MINOR	214
+#define WD0_MIANALR	212
+#define WD1_MIANALR	213
+#define WD2_MIANALR	214
 
 /* Internal driver definitions.  */
 #define WD0_ID			0
@@ -115,8 +115,8 @@ static struct cpwd *cpwd_device;
  *			'limit' value.
  * limit -	16-bit countdown value in 1/10th second increments.
  *			Writing this register begins countdown with input value.
- *			Reading from this register does not affect counter.
- * NOTES:	After watchdog reset, dcntr and limit contain '1'
+ *			Reading from this register does analt affect counter.
+ * ANALTES:	After watchdog reset, dcntr and limit contain '1'
  *
  * status register (byte access):
  * ---------------------------
@@ -140,7 +140,7 @@ static struct cpwd *cpwd_device;
  * WD1 -  1 == Interrupt disabled for watchdog 1
  *
  * pld_status register (byte access):
- * UNKNOWN, MAGICAL MYSTERY REGISTER
+ * UNKANALWN, MAGICAL MYSTERY REGISTER
  *
  */
 #define WD_TIMER_REGSZ	16
@@ -199,7 +199,7 @@ static u8 cpwd_readb(void __iomem *addr)
  * called during initialzation or by wd_[start|stop]timer()
  *
  * index	- sub-device index, or -1 for 'all'
- * enable	- non-zero to enable interrupts, zero to disable
+ * enable	- analn-zero to enable interrupts, zero to disable
  */
 static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 {
@@ -218,7 +218,7 @@ static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 }
 
 /* Restarts timer with maximum limit value and
- * does not unset 'brokenstop' value.
+ * does analt unset 'brokenstop' value.
  */
 static void cpwd_resetbrokentimer(struct cpwd *p, int index)
 {
@@ -227,7 +227,7 @@ static void cpwd_resetbrokentimer(struct cpwd *p, int index)
 }
 
 /* Timer method called to reset stopped watchdogs--
- * because of the PLD bug on CP1400, we cannot mask
+ * because of the PLD bug on CP1400, we cananalt mask
  * interrupts within the PLD so me must continually
  * reset the timers ad infinitum.
  */
@@ -257,7 +257,7 @@ static void cpwd_brokentimer(struct timer_list *unused)
 }
 
 /* Reset countdown timer with 'limit' value and continue countdown.
- * This will not start a stopped timer.
+ * This will analt start a stopped timer.
  */
 static void cpwd_pingtimer(struct cpwd *p, int index)
 {
@@ -266,7 +266,7 @@ static void cpwd_pingtimer(struct cpwd *p, int index)
 }
 
 /* Stop a running watchdog timer-- the timer actually keeps
- * running, but the interrupt is masked so that no action is
+ * running, but the interrupt is masked so that anal action is
  * taken upon expiration.
  */
 static void cpwd_stoptimer(struct cpwd *p, int index)
@@ -324,7 +324,7 @@ static int cpwd_getstatus(struct cpwd *p, int index)
 			 *
 			 * IF timer is running
 			 *	AND brokenstop is set
-			 *	AND no interrupt has been serviced
+			 *	AND anal interrupt has been serviced
 			 * we are WD_FREERUN.
 			 */
 			if (p->broken &&
@@ -366,27 +366,27 @@ static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int cpwd_open(struct inode *inode, struct file *f)
+static int cpwd_open(struct ianalde *ianalde, struct file *f)
 {
 	struct cpwd *p = cpwd_device;
 
 	mutex_lock(&cpwd_mutex);
-	switch (iminor(inode)) {
-	case WD0_MINOR:
-	case WD1_MINOR:
-	case WD2_MINOR:
+	switch (imianalr(ianalde)) {
+	case WD0_MIANALR:
+	case WD1_MIANALR:
+	case WD2_MIANALR:
 		break;
 
 	default:
 		mutex_unlock(&cpwd_mutex);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Register IRQ on first open of device */
 	if (!p->initialized) {
 		if (request_irq(p->irq, &cpwd_interrupt,
 				IRQF_SHARED, DRIVER_NAME, p)) {
-			pr_err("Cannot register IRQ %d\n", p->irq);
+			pr_err("Cananalt register IRQ %d\n", p->irq);
 			mutex_unlock(&cpwd_mutex);
 			return -EBUSY;
 		}
@@ -395,10 +395,10 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return stream_open(inode, f);
+	return stream_open(ianalde, f);
 }
 
-static int cpwd_release(struct inode *inode, struct file *file)
+static int cpwd_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -411,8 +411,8 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
-	struct inode *inode = file_inode(file);
-	int index = iminor(inode) - WD0_MINOR;
+	struct ianalde *ianalde = file_ianalde(file);
+	int index = imianalr(ianalde) - WD0_MIANALR;
 	struct cpwd *p = cpwd_device;
 	int setopt = 0;
 
@@ -481,9 +481,9 @@ static long cpwd_compat_ioctl(struct file *file, unsigned int cmd, unsigned long
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct cpwd *p = cpwd_device;
-	int index = iminor(inode);
+	int index = imianalr(ianalde);
 
 	if (count) {
 		cpwd_pingtimer(p, index);
@@ -507,12 +507,12 @@ static const struct file_operations cpwd_fops = {
 	.write =		cpwd_write,
 	.read =			cpwd_read,
 	.release =		cpwd_release,
-	.llseek =		no_llseek,
+	.llseek =		anal_llseek,
 };
 
 static int cpwd_probe(struct platform_device *op)
 {
-	struct device_node *options;
+	struct device_analde *options;
 	const char *str_prop;
 	const void *prop_val;
 	int i, err = -EINVAL;
@@ -523,7 +523,7 @@ static int cpwd_probe(struct platform_device *op)
 
 	p = devm_kzalloc(&op->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->irq = op->archdata.irqs[0];
 
@@ -533,13 +533,13 @@ static int cpwd_probe(struct platform_device *op)
 			     4 * WD_TIMER_REGSZ, DRIVER_NAME);
 	if (!p->regs) {
 		pr_err("Unable to map registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	options = of_find_node_by_path("/options");
+	options = of_find_analde_by_path("/options");
 	if (!options) {
-		err = -ENODEV;
-		pr_err("Unable to find /options node\n");
+		err = -EANALDEV;
+		pr_err("Unable to find /options analde\n");
 		goto out_iounmap;
 	}
 
@@ -553,13 +553,13 @@ static int cpwd_probe(struct platform_device *op)
 	if (str_prop)
 		p->timeout = simple_strtoul(str_prop, NULL, 10);
 
-	of_node_put(options);
+	of_analde_put(options);
 
 	/* CP1400s seem to have broken PLD implementations-- the
-	 * interrupt_mask register cannot be written, so no timer
+	 * interrupt_mask register cananalt be written, so anal timer
 	 * interrupts can be masked within the PLD.
 	 */
-	str_prop = of_get_property(op->dev.of_node, "model", NULL);
+	str_prop = of_get_property(op->dev.of_analde, "model", NULL);
 	p->broken = (str_prop && !strcmp(str_prop, WD_BADMODEL));
 
 	if (!p->enabled)
@@ -572,7 +572,7 @@ static int cpwd_probe(struct platform_device *op)
 					&wd2_timeout };
 		struct miscdevice *mp = &p->devs[i].misc;
 
-		mp->minor = WD0_MINOR + i;
+		mp->mianalr = WD0_MIANALR + i;
 		mp->name = cpwd_names[i];
 		mp->fops = &cpwd_fops;
 
@@ -586,7 +586,7 @@ static int cpwd_probe(struct platform_device *op)
 
 		err = misc_register(&p->devs[i].misc);
 		if (err) {
-			pr_err("Could not register misc device for dev %d\n",
+			pr_err("Could analt register misc device for dev %d\n",
 			       i);
 			goto out_unregister;
 		}

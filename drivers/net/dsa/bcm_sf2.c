@@ -112,7 +112,7 @@ static u32 bcm_sf2_port_override_offset(struct bcm_sf2_priv *priv, int port)
 	return REG_SWITCH_STATUS;
 }
 
-/* Return the number of active ports, not counting the IMP (CPU) port */
+/* Return the number of active ports, analt counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
@@ -316,7 +316,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			 * will be in halted state, and phy_start()
 			 * will call resume.
 			 *
-			 * the resume path does not configure back
+			 * the resume path does analt configure back
 			 * autoneg settings, and since we hard reset
 			 * the phy manually here, we need to reset the
 			 * state machine also.
@@ -326,7 +326,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* Enable MoCA port interrupts to get notified */
+	/* Enable MoCA port interrupts to get analtified */
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
@@ -476,7 +476,7 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 	u32 reg;
 	int ret;
 
-	/* The watchdog reset does not work on 7278, we need to hit the
+	/* The watchdog reset does analt work on 7278, we need to hit the
 	 * "external" reset line through the reset controller.
 	 */
 	if (priv->type == BCM7278_DEVICE_ID) {
@@ -552,18 +552,18 @@ static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
 }
 
 static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
-				   struct device_node *dn)
+				   struct device_analde *dn)
 {
 	struct device *dev = priv->dev->ds->dev;
 	struct bcm_sf2_port_status *port_st;
-	struct device_node *port;
+	struct device_analde *port;
 	unsigned int port_num;
 	struct property *prop;
 	int err;
 
 	priv->moca_port = -1;
 
-	for_each_available_child_of_node(dn, port) {
+	for_each_available_child_of_analde(dn, port) {
 		if (of_property_read_u32(port, "reg", &port_num))
 			continue;
 
@@ -592,7 +592,7 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 		if (of_property_read_bool(port, "brcm,use-bcm-hdr"))
 			priv->brcm_tag_mask |= 1 << port_num;
 
-		/* Ensure that port 5 is not picked up as a DSA CPU port
+		/* Ensure that port 5 is analt picked up as a DSA CPU port
 		 * flavour but a regular port instead. We should be using
 		 * devlink to be able to set the port flavour.
 		 */
@@ -607,23 +607,23 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct device_node *dn, *child;
+	struct device_analde *dn, *child;
 	struct phy_device *phydev;
 	struct property *prop;
 	static int index;
 	int err, reg;
 
-	/* Find our integrated MDIO bus node */
-	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
+	/* Find our integrated MDIO bus analde */
+	dn = of_find_compatible_analde(NULL, NULL, "brcm,unimac-mdio");
 	priv->master_mii_bus = of_mdio_find_bus(dn);
 	if (!priv->master_mii_bus) {
 		err = -EPROBE_DEFER;
-		goto err_of_node_put;
+		goto err_of_analde_put;
 	}
 
 	priv->user_mii_bus = mdiobus_alloc();
 	if (!priv->user_mii_bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put_master_mii_bus_dev;
 	}
 
@@ -654,11 +654,11 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	priv->user_mii_bus->parent = ds->dev->parent;
 	priv->user_mii_bus->phy_mask = ~priv->indir_phy_mask;
 
-	/* We need to make sure that of_phy_connect() will not work by
+	/* We need to make sure that of_phy_connect() will analt work by
 	 * removing the 'phandle' and 'linux,phandle' properties and
 	 * unregister the existing PHY device that was already registered.
 	 */
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_analde(dn, child) {
 		if (of_property_read_u32(child, "reg", &reg) ||
 		    reg >= PHY_MAX_ADDR)
 			continue;
@@ -683,7 +683,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	if (err)
 		goto err_free_user_mii_bus;
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return 0;
 
@@ -691,8 +691,8 @@ err_free_user_mii_bus:
 	mdiobus_free(priv->user_mii_bus);
 err_put_master_mii_bus_dev:
 	put_device(&priv->master_mii_bus->dev);
-err_of_node_put:
-	of_node_put(dn);
+err_of_analde_put:
+	of_analde_put(dn);
 	return err;
 }
 
@@ -715,7 +715,7 @@ static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
 		return priv->hw_params.gphy_rev;
 	else
 		return PHY_BRCM_AUTO_PWRDWN_ENABLE |
-		       PHY_BRCM_DIS_TXCRXC_NOENRGY |
+		       PHY_BRCM_DIS_TXCRXC_ANALENRGY |
 		       PHY_BRCM_IDDQ_SUSPEND;
 }
 
@@ -766,7 +766,7 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 		port_mode = EXT_REVMII;
 		break;
 	default:
-		/* Nothing required for all other PHYs: internal and MoCA */
+		/* Analthing required for all other PHYs: internal and MoCA */
 		return;
 	}
 
@@ -897,7 +897,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 
 	status->link = false;
 
-	/* MoCA port is special as we do not get link status from CORE_LNKSTS,
+	/* MoCA port is special as we do analt get link status from CORE_LNKSTS,
 	 * which means that we need to force the link at the port override
 	 * level to get the data to flow. We do use what the interrupt handler
 	 * did determine before.
@@ -907,7 +907,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 	 */
 	if (port == priv->moca_port) {
 		status->link = priv->port_sts[port].link;
-		/* For MoCA interfaces, also force a link down notification
+		/* For MoCA interfaces, also force a link down analtification
 		 * since some version of the user-space daemon (mocad) use
 		 * cmd->autoneg to force the link, which messes up the PHY
 		 * state machine and make it go in PHY_FORCING state instead.
@@ -1028,7 +1028,7 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 
 	/* If we have at least one port enabled, make sure the CPU port
 	 * is also enabled. If the CPU port is the last one enabled, we disable
-	 * it since this configuration does not make sense.
+	 * it since this configuration does analt make sense.
 	 */
 	if (priv->wol_ports_mask && priv->wol_ports_mask != (1 << cpu_port))
 		priv->wol_ports_mask |= (1 << cpu_port);
@@ -1341,12 +1341,12 @@ MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 static int bcm_sf2_sw_probe(struct platform_device *pdev)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	const struct of_device_id *of_id = NULL;
 	const struct bcm_sf2_of_data *data;
 	struct b53_platform_data *pdata;
 	struct dsa_switch_ops *ops;
-	struct device_node *ports;
+	struct device_analde *ports;
 	struct bcm_sf2_priv *priv;
 	struct b53_device *dev;
 	struct dsa_switch *ds;
@@ -1357,21 +1357,21 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev = b53_switch_alloc(&pdev->dev, &bcm_sf2_io_ops, priv);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	of_id = of_match_node(bcm_sf2_of_match, dn);
+	of_id = of_match_analde(bcm_sf2_of_match, dn);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
@@ -1389,7 +1389,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->rcdev))
 		return PTR_ERR(priv->rcdev);
 
-	/* Auto-detection using standard registers will not work, so
+	/* Auto-detection using standard registers will analt work, so
 	 * provide an indication of what kind of device we are for
 	 * b53_common to work with
 	 */
@@ -1409,18 +1409,18 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	mutex_init(&priv->cfp.lock);
 	INIT_LIST_HEAD(&priv->cfp.rules_list);
 
-	/* CFP rule #0 cannot be used for specific classifications, flag it as
+	/* CFP rule #0 cananalt be used for specific classifications, flag it as
 	 * permanently used
 	 */
 	set_bit(0, priv->cfp.used);
 	set_bit(0, priv->cfp.unique);
 
-	/* Balance of_node_put() done by of_find_node_by_name() */
-	of_node_get(dn);
-	ports = of_find_node_by_name(dn, "ports");
+	/* Balance of_analde_put() done by of_find_analde_by_name() */
+	of_analde_get(dn);
+	ports = of_find_analde_by_name(dn, "ports");
 	if (ports) {
 		bcm_sf2_identify_ports(priv, ports);
-		of_node_put(ports);
+		of_analde_put(ports);
 	}
 
 	priv->irq0 = irq_of_parse_and_map(dn, 0);
@@ -1571,7 +1571,7 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 	 * successful MDIO bus scan to occur. If we did turn off the GPHY
 	 * before (e.g: port_disable), this will also power it back on.
 	 *
-	 * Do not rely on kexec_in_progress, just power the PHY on.
+	 * Do analt rely on kexec_in_progress, just power the PHY on.
 	 */
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(priv->dev->ds, true);

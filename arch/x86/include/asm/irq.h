@@ -12,13 +12,13 @@
 #include <asm/irq_vectors.h>
 
 /*
- * The irq entry code is in the noinstr section and the start/end of
+ * The irq entry code is in the analinstr section and the start/end of
  * __irqentry_text is emitted via labels. Make the build fail if
  * something moves a C function into the __irq_entry section.
  */
 #define __irq_entry __invalid_section
 
-static inline int irq_canonicalize(int irq)
+static inline int irq_caanalnicalize(int irq)
 {
 	return ((irq == 2) ? 9 : irq);
 }

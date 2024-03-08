@@ -33,6 +33,6 @@ ENTRY(__ashldi3)
 	mov	%o5, %o1
 9:
 	retl
-	 nop
+	 analp
 ENDPROC(__ashldi3)
 EXPORT_SYMBOL(__ashldi3)

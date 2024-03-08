@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2019, Mellaanalx Techanallogies inc.  All rights reserved.
  */
 
 #include <rdma/uverbs_std_types.h>
@@ -32,14 +32,14 @@ static void uverbs_async_event_destroy_uobj(struct ib_uobject *uobj,
 					NULL, NULL);
 }
 
-int uverbs_async_event_release(struct inode *inode, struct file *filp)
+int uverbs_async_event_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct ib_uverbs_async_event_file *event_file;
 	struct ib_uobject *uobj = filp->private_data;
 	int ret;
 
 	if (!uobj)
-		return uverbs_uobject_fd_release(inode, filp);
+		return uverbs_uobject_fd_release(ianalde, filp);
 
 	event_file =
 		container_of(uobj, struct ib_uverbs_async_event_file, uobj);
@@ -47,11 +47,11 @@ int uverbs_async_event_release(struct inode *inode, struct file *filp)
 	/*
 	 * The async event FD has to deliver IB_EVENT_DEVICE_FATAL even after
 	 * disassociation, so cleaning the event list must only happen after
-	 * release. The user knows it has reached the end of the event stream
+	 * release. The user kanalws it has reached the end of the event stream
 	 * when it sees IB_EVENT_DEVICE_FATAL.
 	 */
 	uverbs_uobject_get(uobj);
-	ret = uverbs_uobject_fd_release(inode, filp);
+	ret = uverbs_uobject_fd_release(ianalde, filp);
 	ib_uverbs_free_event_queue(&event_file->ev_queue);
 	uverbs_uobject_put(uobj);
 	return ret;

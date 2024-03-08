@@ -16,13 +16,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -259,7 +259,7 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int rpi_touchscreen_noop(struct drm_panel *panel)
+static int rpi_touchscreen_analop(struct drm_panel *panel)
 {
 	return 0;
 }
@@ -354,7 +354,7 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel,
 
 static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.disable = rpi_touchscreen_disable,
-	.unprepare = rpi_touchscreen_noop,
+	.unprepare = rpi_touchscreen_analop,
 	.prepare = rpi_touchscreen_prepare,
 	.enable = rpi_touchscreen_enable,
 	.get_modes = rpi_touchscreen_get_modes,
@@ -364,18 +364,18 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct rpi_touchscreen *ts;
-	struct device_node *endpoint, *dsi_host_node;
+	struct device_analde *endpoint, *dsi_host_analde;
 	struct mipi_dsi_host *host;
 	int ver;
 	struct mipi_dsi_device_info info = {
 		.type = RPI_DSI_DRIVER_NAME,
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, ts);
 
@@ -384,7 +384,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 	ver = rpi_touchscreen_i2c_read(ts, REG_ID);
 	if (ver < 0) {
 		dev_err(dev, "Atmel I2C read failed: %d\n", ver);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (ver) {
@@ -392,34 +392,34 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 	case 0xc3: /* ver 2 */
 		break;
 	default:
-		dev_err(dev, "Unknown Atmel firmware revision: 0x%02x\n", ver);
-		return -ENODEV;
+		dev_err(dev, "Unkanalwn Atmel firmware revision: 0x%02x\n", ver);
+		return -EANALDEV;
 	}
 
 	/* Turn off at boot, so we can cleanly sequence powering on. */
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 
 	/* Look up the DSI host.  It needs to probe before we do. */
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(dev->of_analde, NULL);
 	if (!endpoint)
-		return -ENODEV;
+		return -EANALDEV;
 
-	dsi_host_node = of_graph_get_remote_port_parent(endpoint);
-	if (!dsi_host_node)
+	dsi_host_analde = of_graph_get_remote_port_parent(endpoint);
+	if (!dsi_host_analde)
 		goto error;
 
-	host = of_find_mipi_dsi_host_by_node(dsi_host_node);
-	of_node_put(dsi_host_node);
+	host = of_find_mipi_dsi_host_by_analde(dsi_host_analde);
+	of_analde_put(dsi_host_analde);
 	if (!host) {
-		of_node_put(endpoint);
+		of_analde_put(endpoint);
 		return -EPROBE_DEFER;
 	}
 
-	info.node = of_graph_get_remote_port(endpoint);
-	if (!info.node)
+	info.analde = of_graph_get_remote_port(endpoint);
+	if (!info.analde)
 		goto error;
 
-	of_node_put(endpoint);
+	of_analde_put(endpoint);
 
 	ts->dsi = mipi_dsi_device_register_full(host, &info);
 	if (IS_ERR(ts->dsi)) {
@@ -439,8 +439,8 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 	return 0;
 
 error:
-	of_node_put(endpoint);
-	return -ENODEV;
+	of_analde_put(endpoint);
+	return -EANALDEV;
 }
 
 static void rpi_touchscreen_remove(struct i2c_client *i2c)

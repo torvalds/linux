@@ -3,9 +3,9 @@
  * Save/restore floating point context for signal handlers.
  *
  * Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
- * Copyright (C) 2006  ST Microelectronics Ltd. (denorm support)
+ * Copyright (C) 2006  ST Microelectronics Ltd. (deanalrm support)
  *
- * FIXME! These routines have not been tested for big endian case.
+ * FIXME! These routines have analt been tested for big endian case.
  */
 #include <linux/sched/signal.h>
 #include <linux/io.h>
@@ -137,13 +137,13 @@ void restore_fpu(struct task_struct *tsk)
 }
 
 /**
- *      denormal_to_double - Given denormalized float number,
+ *      deanalrmal_to_double - Given deanalrmalized float number,
  *                           store double float
  *
  *      @fpu: Pointer to sh_fpu_hard structure
  *      @n: Index to FP register
  */
-static void denormal_to_double(struct sh_fpu_hard_struct *fpu, int n)
+static void deanalrmal_to_double(struct sh_fpu_hard_struct *fpu, int n)
 {
 	unsigned long du, dl;
 	unsigned long x = fpu->fpul;
@@ -165,11 +165,11 @@ static void denormal_to_double(struct sh_fpu_hard_struct *fpu, int n)
 }
 
 /**
- *	ieee_fpe_handler - Handle denormalized number exception
+ *	ieee_fpe_handler - Handle deanalrmalized number exception
  *
  *	@regs: Pointer to register structure
  *
- *	Returns 1 when it's handled (should not cause exception).
+ *	Returns 1 when it's handled (should analt cause exception).
  */
 static int ieee_fpe_handler(struct pt_regs *regs)
 {
@@ -229,7 +229,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 
 		if ((tsk->thread.xstate->hardfpu.fpscr & FPSCR_CAUSE_ERROR))
 			/* FPU error */
-			denormal_to_double(&tsk->thread.xstate->hardfpu,
+			deanalrmal_to_double(&tsk->thread.xstate->hardfpu,
 					   (finsn >> 8) & 0xf);
 		else
 			return 0;
@@ -255,7 +255,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 				 || (hy & 0x7fffffff) < 0x00100000))) {
 			long long llx, lly;
 
-			/* FPU error because of denormal (doubles) */
+			/* FPU error because of deanalrmal (doubles) */
 			llx = ((long long)hx << 32)
 			    | tsk->thread.xstate->hardfpu.fp_regs[n + 1];
 			lly = ((long long)hy << 32)
@@ -266,7 +266,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 		} else if ((fpscr & FPSCR_CAUSE_ERROR)
 			   && (!prec && ((hx & 0x7fffffff) < 0x00800000
 					 || (hy & 0x7fffffff) < 0x00800000))) {
-			/* FPU error because of denormal (floats) */
+			/* FPU error because of deanalrmal (floats) */
 			hx = float32_mul(hx, hy);
 			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
@@ -293,7 +293,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 				 || (hy & 0x7fffffff) < 0x00100000))) {
 			long long llx, lly;
 
-			/* FPU error because of denormal (doubles) */
+			/* FPU error because of deanalrmal (doubles) */
 			llx = ((long long)hx << 32)
 			    | tsk->thread.xstate->hardfpu.fp_regs[n + 1];
 			lly = ((long long)hy << 32)
@@ -307,7 +307,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 		} else if ((fpscr & FPSCR_CAUSE_ERROR)
 			   && (!prec && ((hx & 0x7fffffff) < 0x00800000
 					 || (hy & 0x7fffffff) < 0x00800000))) {
-			/* FPU error because of denormal (floats) */
+			/* FPU error because of deanalrmal (floats) */
 			if ((finsn & 0xf00f) == 0xf000)
 				hx = float32_add(hx, hy);
 			else
@@ -337,7 +337,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 				 || (hy & 0x7fffffff) < 0x00100000))) {
 			long long llx, lly;
 
-			/* FPU error because of denormal (doubles) */
+			/* FPU error because of deanalrmal (doubles) */
 			llx = ((long long)hx << 32)
 			    | tsk->thread.xstate->hardfpu.fp_regs[n + 1];
 			lly = ((long long)hy << 32)
@@ -350,7 +350,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 		} else if ((fpscr & FPSCR_CAUSE_ERROR)
 			   && (!prec && ((hx & 0x7fffffff) < 0x00800000
 					 || (hy & 0x7fffffff) < 0x00800000))) {
-			/* FPU error because of denormal (floats) */
+			/* FPU error because of deanalrmal (floats) */
 			hx = float32_div(hx, hy);
 			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
@@ -369,7 +369,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 
 		if ((tsk->thread.xstate->hardfpu.fpscr & FPSCR_CAUSE_ERROR)
 			&& ((hx & 0x7fffffff) < 0x00100000)) {
-			/* subnormal double to float conversion */
+			/* subanalrmal double to float conversion */
 			long long llx;
 
 			llx = ((long long)tsk->thread.xstate->hardfpu.fp_regs[m] << 32)

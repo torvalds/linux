@@ -59,7 +59,7 @@ sub kmem::kmalloc
 	       flag_str("kmem::kmalloc", "gfp_flags", $gfp_flags));
 }
 
-# print trace fields not included in handler args
+# print trace fields analt included in handler args
 sub print_uncommon
 {
     my ($context) = @_;

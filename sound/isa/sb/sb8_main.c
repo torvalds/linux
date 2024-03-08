@@ -4,7 +4,7 @@
  *                   Uros Bizjak <uros@kss-loka.si>
  *
  *  Routines for control of 8-bit SoundBlaster cards and clones
- *  Please note: I don't have access to old SB8 soundcards.
+ *  Please analte: I don't have access to old SB8 soundcards.
  *
  * --
  *
@@ -133,10 +133,10 @@ static int snd_sb8_playback_prepare(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 	if (chip->mode & SB_MODE_PLAYBACK_16) {
-		format = stereo ? SB_DSP_STEREO_16BIT : SB_DSP_MONO_16BIT;
+		format = stereo ? SB_DSP_STEREO_16BIT : SB_DSP_MOANAL_16BIT;
 		dma = chip->dma16;
 	} else {
-		format = stereo ? SB_DSP_STEREO_8BIT : SB_DSP_MONO_8BIT;
+		format = stereo ? SB_DSP_STEREO_8BIT : SB_DSP_MOANAL_8BIT;
 		chip->mode |= SB_MODE_PLAYBACK_8;
 		dma = chip->dma8;
 	}
@@ -212,7 +212,7 @@ static int snd_sb8_playback_trigger(struct snd_pcm_substream *substream,
 			snd_sbdsp_reset(chip);
 			if (runtime->channels > 1) {
 				spin_lock(&chip->mixer_lock);
-				/* restore output filter and set hardware to mono mode */ 
+				/* restore output filter and set hardware to moanal mode */ 
 				snd_sbmixer_write(chip, SB_DSP_STEREO_SW, chip->force_mode16 & ~0x02);
 				spin_unlock(&chip->mixer_lock);
 			}
@@ -272,10 +272,10 @@ static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 	if (chip->mode & SB_MODE_CAPTURE_16) {
-		format = stereo ? SB_DSP_STEREO_16BIT : SB_DSP_MONO_16BIT;
+		format = stereo ? SB_DSP_STEREO_16BIT : SB_DSP_MOANAL_16BIT;
 		dma = chip->dma16;
 	} else {
-		format = stereo ? SB_DSP_STEREO_8BIT : SB_DSP_MONO_8BIT;
+		format = stereo ? SB_DSP_STEREO_8BIT : SB_DSP_MOANAL_8BIT;
 		chip->mode |= SB_MODE_CAPTURE_8;
 		dma = chip->dma8;
 	}
@@ -340,8 +340,8 @@ static int snd_sb8_capture_trigger(struct snd_pcm_substream *substream,
 				spin_lock(&chip->mixer_lock);
 				snd_sbmixer_write(chip, SB_DSP_CAPTURE_FILT, chip->force_mode16);
 				spin_unlock(&chip->mixer_lock);
-				/* set hardware to mono mode */
-				snd_sbdsp_command(chip, SB_DSP_MONO_8BIT);
+				/* set hardware to moanal mode */
+				snd_sbdsp_command(chip, SB_DSP_MOANAL_8BIT);
 			}
 		} else {
 			snd_sbdsp_command(chip, SB_DSP_DMA8_OFF);

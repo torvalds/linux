@@ -3,7 +3,7 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kaanalj Sarcar (kaanalj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  */
 #include <linux/kernel.h>
@@ -34,9 +34,9 @@
 
 #include "ip27-common.h"
 
-#define CPU_NONE		(cpuid_t)-1
+#define CPU_ANALNE		(cpuid_t)-1
 
-static DECLARE_BITMAP(hub_init_mask, MAX_NUMNODES);
+static DECLARE_BITMAP(hub_init_mask, MAX_NUMANALDES);
 nasid_t master_nasid = INVALID_NASID;
 
 struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
@@ -59,11 +59,11 @@ static void per_hub_init(nasid_t nasid)
 	hub_rtc_init(nasid);
 
 	if (nasid) {
-		/* copy exception handlers from first node to current node */
-		memcpy((void *)NODE_OFFSET_TO_K0(nasid, 0),
+		/* copy exception handlers from first analde to current analde */
+		memcpy((void *)ANALDE_OFFSET_TO_K0(nasid, 0),
 		       (void *)CKSEG0, 0x200);
 		__flush_cache_all();
-		/* switch to node local exception handlers */
+		/* switch to analde local exception handlers */
 		REMOTE_HUB_S(nasid, PI_CALIAS_SIZE, PI_CALIAS_SIZE_8K);
 	}
 }
@@ -84,8 +84,8 @@ void per_cpu_init(void)
 	/* Install our NMI handler if symmon hasn't installed one. */
 	install_cpu_nmi_handler(cputoslice(cpu));
 
-	enable_percpu_irq(IP27_HUB_PEND0_IRQ, IRQ_TYPE_NONE);
-	enable_percpu_irq(IP27_HUB_PEND1_IRQ, IRQ_TYPE_NONE);
+	enable_percpu_irq(IP27_HUB_PEND0_IRQ, IRQ_TYPE_ANALNE);
+	enable_percpu_irq(IP27_HUB_PEND1_IRQ, IRQ_TYPE_ANALNE);
 }
 
 void __init plat_mem_setup(void)
@@ -101,25 +101,25 @@ void __init plat_mem_setup(void)
 	 * hub_rtc init and cpu clock intr enabled for later calibrate_delay.
 	 */
 	nid = get_nasid();
-	printk("IP27: Running on node %d.\n", nid);
+	printk("IP27: Running on analde %d.\n", nid);
 
 	p = LOCAL_HUB_L(PI_CPU_PRESENT_A) & 1;
 	e = LOCAL_HUB_L(PI_CPU_ENABLE_A) & 1;
-	printk("Node %d has %s primary CPU%s.\n", nid,
-	       p ? "a" : "no",
+	printk("Analde %d has %s primary CPU%s.\n", nid,
+	       p ? "a" : "anal",
 	       e ? ", CPU is running" : "");
 
 	p = LOCAL_HUB_L(PI_CPU_PRESENT_B) & 1;
 	e = LOCAL_HUB_L(PI_CPU_ENABLE_B) & 1;
-	printk("Node %d has %s secondary CPU%s.\n", nid,
-	       p ? "a" : "no",
+	printk("Analde %d has %s secondary CPU%s.\n", nid,
+	       p ? "a" : "anal",
 	       e ? ", CPU is running" : "");
 
 	/*
 	 * Try to catch kernel missconfigurations and give user an
 	 * indication what option to select.
 	 */
-	n_mode = LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_MORENODES_MASK;
+	n_mode = LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_MOREANALDES_MASK;
 	printk("Machine is in %c mode.\n", n_mode ? 'N' : 'M');
 #ifdef CONFIG_SGI_SN_N_MODE
 	if (!n_mode)

@@ -17,7 +17,7 @@
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
 #define IRQ_MSL		PXA_IRQ(1)	/* MSL Interface interrupt */
 #define IRQ_USBH2	PXA_IRQ(2)	/* USB Host interrupt 1 (OHCI,PXA27x) */
-#define IRQ_USBH1	PXA_IRQ(3)	/* USB Host interrupt 2 (non-OHCI,PXA27x) */
+#define IRQ_USBH1	PXA_IRQ(3)	/* USB Host interrupt 2 (analn-OHCI,PXA27x) */
 #define IRQ_KEYPAD	PXA_IRQ(4)	/* Key pad controller */
 #define IRQ_MEMSTK	PXA_IRQ(5)	/* Memory Stick interrupt (PXA27x) */
 #define IRQ_ACIPC0	PXA_IRQ(5)	/* AP-CP Communication (PXA930) */
@@ -87,7 +87,7 @@
  * The following interrupts are for board specific purposes. Since
  * the kernel can only run on one machine at a time, we can re-use
  * these.
- * By default, no board IRQ is reserved. It should be finished in
+ * By default, anal board IRQ is reserved. It should be finished in
  * custom board since sparse IRQ is already enabled.
  */
 #define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_NR_BUILTIN_GPIO)

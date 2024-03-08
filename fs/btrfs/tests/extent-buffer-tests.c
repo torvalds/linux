@@ -10,7 +10,7 @@
 #include "../disk-io.h"
 #include "../accessors.h"
 
-static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
+static int test_btrfs_split_item(u32 sectorsize, u32 analdesize)
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_path *path = NULL;
@@ -28,10 +28,10 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	test_msg("running btrfs_split_item tests");
 
-	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	fs_info = btrfs_alloc_dummy_fs_info(analdesize, sectorsize);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	root = btrfs_alloc_dummy_root(fs_info);
@@ -44,15 +44,15 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 	path = btrfs_alloc_path();
 	if (!path) {
 		test_std_err(TEST_ALLOC_PATH);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	eb = alloc_dummy_extent_buffer(fs_info, nodesize);
-	path->nodes[0] = eb;
+	eb = alloc_dummy_extent_buffer(fs_info, analdesize);
+	path->analdes[0] = eb;
 	if (!eb) {
 		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	path->slots[0] = 0;
@@ -63,7 +63,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	/*
 	 * Passing a NULL trans handle is fine here, we have a dummy root eb
-	 * and the tree is a single node (level 0).
+	 * and the tree is a single analde (level 0).
 	 */
 	btrfs_setup_item_for_insert(NULL, root, path, &key, value_len);
 	write_extent_buffer(eb, value, btrfs_item_ptr_offset(eb, 0),
@@ -216,8 +216,8 @@ out:
 	return ret;
 }
 
-int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize)
+int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 analdesize)
 {
 	test_msg("running extent buffer operation tests");
-	return test_btrfs_split_item(sectorsize, nodesize);
+	return test_btrfs_split_item(sectorsize, analdesize);
 }

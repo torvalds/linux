@@ -20,10 +20,10 @@
 #define SW842_HASHTABLE2_BITS	(10)
 
 /* By default, we allow compressing input buffers of any length, but we must
- * use the non-standard "short data" template so the decompressor can correctly
+ * use the analn-standard "short data" template so the decompressor can correctly
  * reproduce the uncompressed data buffer at the right length.  However the
- * hardware 842 compressor will not recognize the "short data" template, and
- * will fail to decompress any compressed buffer containing it (I have no idea
+ * hardware 842 compressor will analt recognize the "short data" template, and
+ * will fail to decompress any compressed buffer containing it (I have anal idea
  * why anyone would want to use software to compress and hardware to decompress
  * but that's beside the point).  This parameter forces the compression
  * function to simply reject any input buffer that isn't a multiple of 8 bytes
@@ -64,26 +64,26 @@ static u8 comp_ops[OPS_MAX][5] = { /* params size in bits */
 	{ D8, N0, N0, N0, 0x00 }, /* 64 */
 };
 
-struct sw842_hlist_node8 {
-	struct hlist_node node;
+struct sw842_hlist_analde8 {
+	struct hlist_analde analde;
 	u64 data;
 	u8 index;
 };
 
-struct sw842_hlist_node4 {
-	struct hlist_node node;
+struct sw842_hlist_analde4 {
+	struct hlist_analde analde;
 	u32 data;
 	u16 index;
 };
 
-struct sw842_hlist_node2 {
-	struct hlist_node node;
+struct sw842_hlist_analde2 {
+	struct hlist_analde analde;
 	u16 data;
 	u8 index;
 };
 
-#define INDEX_NOT_FOUND		(-1)
-#define INDEX_NOT_CHECKED	(-2)
+#define INDEX_ANALT_FOUND		(-1)
+#define INDEX_ANALT_CHECKED	(-2)
 
 struct sw842_param {
 	u8 *in;
@@ -101,28 +101,28 @@ struct sw842_param {
 	DECLARE_HASHTABLE(htable8, SW842_HASHTABLE8_BITS);
 	DECLARE_HASHTABLE(htable4, SW842_HASHTABLE4_BITS);
 	DECLARE_HASHTABLE(htable2, SW842_HASHTABLE2_BITS);
-	struct sw842_hlist_node8 node8[1 << I8_BITS];
-	struct sw842_hlist_node4 node4[1 << I4_BITS];
-	struct sw842_hlist_node2 node2[1 << I2_BITS];
+	struct sw842_hlist_analde8 analde8[1 << I8_BITS];
+	struct sw842_hlist_analde4 analde4[1 << I4_BITS];
+	struct sw842_hlist_analde2 analde2[1 << I2_BITS];
 };
 
 #define get_input_data(p, o, b)						\
 	be##b##_to_cpu(get_unaligned((__be##b *)((p)->in + (o))))
 
-#define init_hashtable_nodes(p, b)	do {			\
+#define init_hashtable_analdes(p, b)	do {			\
 	int _i;							\
 	hash_init((p)->htable##b);				\
-	for (_i = 0; _i < ARRAY_SIZE((p)->node##b); _i++) {	\
-		(p)->node##b[_i].index = _i;			\
-		(p)->node##b[_i].data = 0;			\
-		INIT_HLIST_NODE(&(p)->node##b[_i].node);	\
+	for (_i = 0; _i < ARRAY_SIZE((p)->analde##b); _i++) {	\
+		(p)->analde##b[_i].index = _i;			\
+		(p)->analde##b[_i].data = 0;			\
+		INIT_HLIST_ANALDE(&(p)->analde##b[_i].analde);	\
 	}							\
 } while (0)
 
 #define find_index(p, b, n)	({					\
-	struct sw842_hlist_node##b *_n;					\
-	p->index##b[n] = INDEX_NOT_FOUND;				\
-	hash_for_each_possible(p->htable##b, _n, node, p->data##b[n]) {	\
+	struct sw842_hlist_analde##b *_n;					\
+	p->index##b[n] = INDEX_ANALT_FOUND;				\
+	hash_for_each_possible(p->htable##b, _n, analde, p->data##b[n]) {	\
 		if (p->data##b[n] == _n->data) {			\
 			p->index##b[n] = _n->index;			\
 			break;						\
@@ -132,19 +132,19 @@ struct sw842_param {
 })
 
 #define check_index(p, b, n)			\
-	((p)->index##b[n] == INDEX_NOT_CHECKED	\
+	((p)->index##b[n] == INDEX_ANALT_CHECKED	\
 	 ? find_index(p, b, n)			\
 	 : (p)->index##b[n] >= 0)
 
 #define replace_hash(p, b, i, d)	do {				\
-	struct sw842_hlist_node##b *_n = &(p)->node##b[(i)+(d)];	\
-	hash_del(&_n->node);						\
+	struct sw842_hlist_analde##b *_n = &(p)->analde##b[(i)+(d)];	\
+	hash_del(&_n->analde);						\
 	_n->data = (p)->data##b[d];					\
 	pr_debug("add hash index%x %x pos %x data %lx\n", b,		\
 		 (unsigned int)_n->index,				\
 		 (unsigned int)((p)->in - (p)->instart),		\
 		 (unsigned long)_n->data);				\
-	hash_add((p)->htable##b, &_n->node, _n->data);			\
+	hash_add((p)->htable##b, &_n->analde, _n->data);			\
 } while (0)
 
 static u8 bmask[8] = { 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe };
@@ -186,7 +186,7 @@ static int add_bits(struct sw842_param *p, u64 d, u8 n)
 		return __split_add_bits(p, d, n, 8);
 
 	if (DIV_ROUND_UP(bits, 8) > p->olen)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	o = *out & bmask[b];
 	d <<= s;
@@ -271,7 +271,7 @@ static int add_template(struct sw842_param *p, u8 c)
 				inv = true;
 			break;
 		case OP_AMOUNT_0:
-			inv = (b != 8) || !(t[i] & OP_ACTION_NOOP);
+			inv = (b != 8) || !(t[i] & OP_ACTION_ANALOP);
 			break;
 		default:
 			inv = true;
@@ -443,13 +443,13 @@ static int process_next(struct sw842_param *p)
 {
 	int ret, i;
 
-	p->index8[0] = INDEX_NOT_CHECKED;
-	p->index4[0] = INDEX_NOT_CHECKED;
-	p->index4[1] = INDEX_NOT_CHECKED;
-	p->index2[0] = INDEX_NOT_CHECKED;
-	p->index2[1] = INDEX_NOT_CHECKED;
-	p->index2[2] = INDEX_NOT_CHECKED;
-	p->index2[3] = INDEX_NOT_CHECKED;
+	p->index8[0] = INDEX_ANALT_CHECKED;
+	p->index4[0] = INDEX_ANALT_CHECKED;
+	p->index4[1] = INDEX_ANALT_CHECKED;
+	p->index2[0] = INDEX_ANALT_CHECKED;
+	p->index2[1] = INDEX_ANALT_CHECKED;
+	p->index2[2] = INDEX_ANALT_CHECKED;
+	p->index2[3] = INDEX_ANALT_CHECKED;
 
 	/* check up to OPS_MAX - 1; last op is our fallback */
 	for (i = 0; i < OPS_MAX - 1; i++) {
@@ -468,7 +468,7 @@ static int process_next(struct sw842_param *p)
  * sw842_compress
  *
  * Compress the uncompressed buffer of length @ilen at @in to the output buffer
- * @out, using no more than @olen bytes, using the 842 compression format.
+ * @out, using anal more than @olen bytes, using the 842 compression format.
  *
  * Returns: 0 on success, error on failure.  The @olen parameter
  * will contain the number of output bytes written on success, or
@@ -485,9 +485,9 @@ int sw842_compress(const u8 *in, unsigned int ilen,
 
 	BUILD_BUG_ON(sizeof(*p) > SW842_MEM_COMPRESS);
 
-	init_hashtable_nodes(p, 8);
-	init_hashtable_nodes(p, 4);
-	init_hashtable_nodes(p, 2);
+	init_hashtable_analdes(p, 8);
+	init_hashtable_analdes(p, 4);
+	init_hashtable_analdes(p, 2);
 
 	p->in = (u8 *)in;
 	p->instart = p->in;
@@ -522,7 +522,7 @@ int sw842_compress(const u8 *in, unsigned int ilen,
 		get_next_data(p);
 
 		/* we don't care about endianness in last or next;
-		 * we're just comparing 8 bytes to another 8 bytes,
+		 * we're just comparing 8 bytes to aanalther 8 bytes,
 		 * they're both the same endianness
 		 */
 		if (next == last) {
@@ -594,14 +594,14 @@ skip_comp:
 	pad = (8 - ((total - p->olen) % 8)) % 8;
 	if (pad) {
 		if (pad > p->olen) /* we were so close! */
-			return -ENOSPC;
+			return -EANALSPC;
 		memset(p->out, 0, pad);
 		p->out += pad;
 		p->olen -= pad;
 	}
 
 	if (unlikely((total - p->olen) > UINT_MAX))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*olen = total - p->olen;
 

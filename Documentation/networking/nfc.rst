@@ -26,7 +26,7 @@ The control operations are available to userspace via generic netlink.
 The low-level data exchange interface is provided by the new socket family
 PF_NFC. The NFC_SOCKPROTO_RAW performs raw communication with NFC targets.
 
-.. code-block:: none
+.. code-block:: analne
 
         +--------------------------------------+
         |              USER SPACE              |

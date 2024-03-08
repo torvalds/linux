@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -63,7 +63,7 @@ enum api_cmd_type {
 };
 
 enum api_cmd_bypass {
-	NO_BYPASS       = 0,
+	ANAL_BYPASS       = 0,
 	BYPASS          = 1,
 };
 
@@ -160,7 +160,7 @@ static int chain_busy(struct hinic_api_cmd_chain *chain)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown API CMD Chain type\n");
+		dev_err(&pdev->dev, "Unkanalwn API CMD Chain type\n");
 		break;
 	}
 
@@ -215,15 +215,15 @@ static void prepare_cell_ctrl(u64 *cell_ctrl, u16 data_size)
 /**
  * prepare_api_cmd - prepare API CMD command
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination analde on the card that will receive the command
  * @cmd: command data
  * @cmd_size: the command size
  **/
 static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
-			    enum hinic_node_id dest,
+			    enum hinic_analde_id dest,
 			    void *cmd, u16 cmd_size)
 {
-	struct hinic_api_cmd_cell *cell = chain->curr_node;
+	struct hinic_api_cmd_cell *cell = chain->curr_analde;
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
@@ -234,11 +234,11 @@ static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
 	case HINIC_API_CMD_WRITE_TO_MGMT_CPU:
 		cell->desc = HINIC_API_CMD_DESC_SET(SGE_DATA, API_TYPE)   |
 			     HINIC_API_CMD_DESC_SET(API_CMD_WRITE, RD_WR) |
-			     HINIC_API_CMD_DESC_SET(NO_BYPASS, MGMT_BYPASS);
+			     HINIC_API_CMD_DESC_SET(ANAL_BYPASS, MGMT_BYPASS);
 		break;
 
 	default:
-		dev_err(&pdev->dev, "unknown Chain type\n");
+		dev_err(&pdev->dev, "unkanalwn Chain type\n");
 		return;
 	}
 
@@ -257,20 +257,20 @@ static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
 /**
  * prepare_cell - prepare cell ctrl and cmd in the current cell
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination analde on the card that will receive the command
  * @cmd: command data
  * @cmd_size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 static void prepare_cell(struct hinic_api_cmd_chain *chain,
-			 enum  hinic_node_id dest,
+			 enum  hinic_analde_id dest,
 			 void *cmd, u16 cmd_size)
 {
-	struct hinic_api_cmd_cell *curr_node = chain->curr_node;
+	struct hinic_api_cmd_cell *curr_analde = chain->curr_analde;
 	u16 data_size = get_cell_data_size(chain->chain_type);
 
-	prepare_cell_ctrl(&curr_node->ctrl, data_size);
+	prepare_cell_ctrl(&curr_analde->ctrl, data_size);
 	prepare_api_cmd(chain, dest, cmd, cmd_size);
 }
 
@@ -303,7 +303,7 @@ static void api_cmd_status_update(struct hinic_api_cmd_chain *chain)
 
 	chain_type = HINIC_API_CMD_STATUS_HEADER_GET(status_header, CHAIN_ID);
 	if (chain_type >= HINIC_API_CMD_MAX) {
-		dev_err(&pdev->dev, "unknown API CMD Chain %d\n", chain_type);
+		dev_err(&pdev->dev, "unkanalwn API CMD Chain %d\n", chain_type);
 		return;
 	}
 
@@ -360,7 +360,7 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "unknown API CMD Chain type\n");
+		dev_err(&pdev->dev, "unkanalwn API CMD Chain type\n");
 		err = -EINVAL;
 		break;
 	}
@@ -371,14 +371,14 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
 /**
  * api_cmd - API CMD command
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination analde on the card that will receive the command
  * @cmd: command data
  * @cmd_size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 static int api_cmd(struct hinic_api_cmd_chain *chain,
-		   enum hinic_node_id dest, u8 *cmd, u16 cmd_size)
+		   enum hinic_analde_id dest, u8 *cmd, u16 cmd_size)
 {
 	struct hinic_api_cmd_cell_ctxt *ctxt;
 	int err;
@@ -398,7 +398,7 @@ static int api_cmd(struct hinic_api_cmd_chain *chain,
 
 	ctxt = &chain->cell_ctxt[chain->prod_idx];
 
-	chain->curr_node = ctxt->cell_vaddr;
+	chain->curr_analde = ctxt->cell_vaddr;
 
 	err = wait_for_api_cmd_completion(chain);
 
@@ -409,14 +409,14 @@ static int api_cmd(struct hinic_api_cmd_chain *chain,
 /**
  * hinic_api_cmd_write - Write API CMD command
  * @chain: chain for write command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination analde on the card that will receive the command
  * @cmd: command data
  * @size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 int hinic_api_cmd_write(struct hinic_api_cmd_chain *chain,
-			enum hinic_node_id dest, u8 *cmd, u16 size)
+			enum hinic_analde_id dest, u8 *cmd, u16 size)
 {
 	/* Verify the chain type */
 	if (chain->chain_type == HINIC_API_CMD_WRITE_TO_MGMT_CPU)
@@ -630,7 +630,7 @@ static int alloc_cmd_buf(struct hinic_api_cmd_chain *chain,
 	cmd_vaddr = dma_alloc_coherent(&pdev->dev, API_CMD_BUF_SIZE,
 				       &cmd_paddr, GFP_KERNEL);
 	if (!cmd_vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cell_ctxt = &chain->cell_ctxt[cell_idx];
 
@@ -658,45 +658,45 @@ static int alloc_cmd_buf(struct hinic_api_cmd_chain *chain,
  * api_cmd_create_cell - create API CMD cell for specific chain
  * @chain: the API CMD specific chain to create its cell
  * @cell_idx: the index of the cell to create
- * @pre_node: previous cell
- * @node_vaddr: the returned virt addr of the cell
+ * @pre_analde: previous cell
+ * @analde_vaddr: the returned virt addr of the cell
  *
  * Return 0 - Success, negative - Failure
  **/
 static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 			       int cell_idx,
-			       struct hinic_api_cmd_cell *pre_node,
-			       struct hinic_api_cmd_cell **node_vaddr)
+			       struct hinic_api_cmd_cell *pre_analde,
+			       struct hinic_api_cmd_cell **analde_vaddr)
 {
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	struct hinic_api_cmd_cell *node;
-	dma_addr_t node_paddr;
+	struct hinic_api_cmd_cell *analde;
+	dma_addr_t analde_paddr;
 	int err;
 
-	node = dma_alloc_coherent(&pdev->dev, chain->cell_size, &node_paddr,
+	analde = dma_alloc_coherent(&pdev->dev, chain->cell_size, &analde_paddr,
 				  GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	if (!analde)
+		return -EANALMEM;
 
-	node->read.hw_wb_resp_paddr = 0;
+	analde->read.hw_wb_resp_paddr = 0;
 
 	cell_ctxt = &chain->cell_ctxt[cell_idx];
-	cell_ctxt->cell_vaddr = node;
-	cell_ctxt->cell_paddr = node_paddr;
+	cell_ctxt->cell_vaddr = analde;
+	cell_ctxt->cell_paddr = analde_paddr;
 
-	if (!pre_node) {
-		chain->head_cell_paddr = node_paddr;
-		chain->head_node = node;
+	if (!pre_analde) {
+		chain->head_cell_paddr = analde_paddr;
+		chain->head_analde = analde;
 	} else {
 		/* The data in the HW should be in Big Endian Format */
-		pre_node->next_cell_paddr = cpu_to_be64(node_paddr);
+		pre_analde->next_cell_paddr = cpu_to_be64(analde_paddr);
 	}
 
 	switch (chain->chain_type) {
 	case HINIC_API_CMD_WRITE_TO_MGMT_CPU:
-		err = alloc_cmd_buf(chain, node, cell_idx);
+		err = alloc_cmd_buf(chain, analde, cell_idx);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to allocate cmd buffer\n");
 			goto err_alloc_cmd_buf;
@@ -709,11 +709,11 @@ static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 		goto err_alloc_cmd_buf;
 	}
 
-	*node_vaddr = node;
+	*analde_vaddr = analde;
 	return 0;
 
 err_alloc_cmd_buf:
-	dma_free_coherent(&pdev->dev, chain->cell_size, node, node_paddr);
+	dma_free_coherent(&pdev->dev, chain->cell_size, analde, analde_paddr);
 	return err;
 }
 
@@ -728,15 +728,15 @@ static void api_cmd_destroy_cell(struct hinic_api_cmd_chain *chain,
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	struct hinic_api_cmd_cell *node;
-	dma_addr_t node_paddr;
-	size_t node_size;
+	struct hinic_api_cmd_cell *analde;
+	dma_addr_t analde_paddr;
+	size_t analde_size;
 
 	cell_ctxt = &chain->cell_ctxt[cell_idx];
 
-	node = cell_ctxt->cell_vaddr;
-	node_paddr = cell_ctxt->cell_paddr;
-	node_size = chain->cell_size;
+	analde = cell_ctxt->cell_vaddr;
+	analde_paddr = cell_ctxt->cell_paddr;
+	analde_size = chain->cell_size;
 
 	if (cell_ctxt->api_cmd_vaddr) {
 		switch (chain->chain_type) {
@@ -748,8 +748,8 @@ static void api_cmd_destroy_cell(struct hinic_api_cmd_chain *chain,
 			break;
 		}
 
-		dma_free_coherent(&pdev->dev, node_size, node,
-				  node_paddr);
+		dma_free_coherent(&pdev->dev, analde_size, analde,
+				  analde_paddr);
 	}
 }
 
@@ -775,26 +775,26 @@ static void api_cmd_destroy_cells(struct hinic_api_cmd_chain *chain,
  **/
 static int api_cmd_create_cells(struct hinic_api_cmd_chain *chain)
 {
-	struct hinic_api_cmd_cell *node = NULL, *pre_node = NULL;
+	struct hinic_api_cmd_cell *analde = NULL, *pre_analde = NULL;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	int err, cell_idx;
 
 	for (cell_idx = 0; cell_idx < chain->num_cells; cell_idx++) {
-		err = api_cmd_create_cell(chain, cell_idx, pre_node, &node);
+		err = api_cmd_create_cell(chain, cell_idx, pre_analde, &analde);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to create API CMD cell\n");
 			goto err_create_cell;
 		}
 
-		pre_node = node;
+		pre_analde = analde;
 	}
 
-	/* set the Final node to point on the start */
-	node->next_cell_paddr = cpu_to_be64(chain->head_cell_paddr);
+	/* set the Final analde to point on the start */
+	analde->next_cell_paddr = cpu_to_be64(chain->head_cell_paddr);
 
-	/* set the current node to be the head */
-	chain->curr_node = chain->head_node;
+	/* set the current analde to be the head */
+	chain->curr_analde = chain->head_analde;
 	return 0;
 
 err_create_cell:
@@ -828,7 +828,7 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 	chain->cell_ctxt = devm_kcalloc(&pdev->dev, chain->num_cells,
 					sizeof(*chain->cell_ctxt), GFP_KERNEL);
 	if (!chain->cell_ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chain->wb_status = dma_alloc_coherent(&pdev->dev,
 					      sizeof(*chain->wb_status),
@@ -836,7 +836,7 @@ static int api_chain_init(struct hinic_api_cmd_chain *chain,
 					      GFP_KERNEL);
 	if (!chain->wb_status) {
 		dev_err(&pdev->dev, "Failed to allocate DMA wb status\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -876,7 +876,7 @@ static struct hinic_api_cmd_chain *
 
 	chain = devm_kzalloc(&pdev->dev, sizeof(*chain), GFP_KERNEL);
 	if (!chain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = api_chain_init(chain, attr);
 	if (err) {

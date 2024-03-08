@@ -4,7 +4,7 @@
  *	     I/Os using the Attansic ATXP1 chip.
  *
  * The ATXP1 can reside on I2C addresses 0x37 or 0x4e. The chip is
- * not auto-detected by the driver and must be instantiated explicitly.
+ * analt auto-detected by the driver and must be instantiated explicitly.
  * See Documentation/i2c/instantiating-devices.rst for more information.
  */
 
@@ -120,7 +120,7 @@ static ssize_t cpu0_vid_store(struct device *dev,
 	else
 		cvid = data->reg.cpu_vid;
 
-	/* Nothing changed, aborting */
+	/* Analthing changed, aborting */
 	if (vid == cvid)
 		return count;
 
@@ -253,14 +253,14 @@ static int atxp1_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct atxp1_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get VRM */
 	data->vrm = vid_which_vrm();
 	if (data->vrm != 90 && data->vrm != 91) {
-		dev_err(dev, "atxp1: Not supporting VRM %d.%d\n",
+		dev_err(dev, "atxp1: Analt supporting VRM %d.%d\n",
 			data->vrm / 10, data->vrm % 10);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data->client = client;

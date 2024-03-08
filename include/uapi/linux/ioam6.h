@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  IPv6 IOAM implementation
  *
@@ -43,7 +43,7 @@ struct ioam6_trace_hdr {
 	__u8	:1,				/* unused */
 		:1,				/* unused */
 		overflow:1,
-		nodelen:5;
+		analdelen:5;
 
 	__u8	remlen:7,
 		:1;				/* unused */
@@ -82,7 +82,7 @@ struct ioam6_trace_hdr {
 
 #elif defined(__BIG_ENDIAN_BITFIELD)
 
-	__u8	nodelen:5,
+	__u8	analdelen:5,
 		overflow:1,
 		:1,				/* unused */
 		:1;				/* unused */

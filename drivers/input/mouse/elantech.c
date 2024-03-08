@@ -294,8 +294,8 @@ static void elantech_packet_dump(struct psmouse *psmouse)
  * Fujitsu T725            0x470f01        05, 12, 09      2 hw buttons
  * Fujitsu H730            0x570f00        c0, 14, 0c      3 hw buttons (**)
  * Gigabyte U2442          0x450f01        58, 17, 0c      2 hw buttons
- * Lenovo L430             0x350f02        b9, 15, 0c      2 hw buttons (*)
- * Lenovo L530             0x350f02        b9, 15, 0c      2 hw buttons (*)
+ * Leanalvo L430             0x350f02        b9, 15, 0c      2 hw buttons (*)
+ * Leanalvo L530             0x350f02        b9, 15, 0c      2 hw buttons (*)
  * Samsung NF210           0x150b00        78, 14, 0a      2 hw buttons
  * Samsung NP770Z5E        0x575f01        10, 15, 0f      clickpad
  * Samsung NP700Z5B        0x361f06        21, 15, 0f      clickpad
@@ -306,7 +306,7 @@ static void elantech_packet_dump(struct psmouse *psmouse)
  * System76 Pangolin       0x250f01        ?               2 hw buttons
  * (*) + 3 trackpoint buttons
  * (**) + 0 trackpoint buttons
- * Note: Lenovo L430 and Lenovo L530 have the same fw_version/caps
+ * Analte: Leanalvo L430 and Leanalvo L530 have the same fw_version/caps
  */
 static inline int elantech_is_buttonpad(struct elantech_device_info *info)
 {
@@ -391,7 +391,7 @@ static void elantech_set_slot(struct input_dev *dev, int slot, bool active,
 	}
 }
 
-/* x1 < x2 and y1 < y2 when two fingers, x = y = 0 when not pressed */
+/* x1 < x2 and y1 < y2 when two fingers, x = y = 0 when analt pressed */
 static void elantech_report_semi_mt_data(struct input_dev *dev,
 					 unsigned int num_fingers,
 					 unsigned int x1, unsigned int y1,
@@ -461,7 +461,7 @@ static void elantech_report_absolute_v2(struct psmouse *psmouse)
 		y2 = etd->y_max -
 			((((packet[3] & 0x20) << 3) | packet[5]) << 2);
 
-		/* Unknown so just report sensible values */
+		/* Unkanalwn so just report sensible values */
 		pres = 127;
 		width = 7;
 		break;
@@ -657,7 +657,7 @@ static void process_packet_status_v4(struct psmouse *psmouse)
 	unsigned fingers;
 	int i;
 
-	/* notify finger state change */
+	/* analtify finger state change */
 	fingers = packet[1] & 0x1f;
 	for (i = 0; i < ETP_MAX_FINGERS; i++) {
 		if ((fingers & (1 << i)) == 0) {
@@ -756,7 +756,7 @@ static void elantech_report_absolute_v4(struct psmouse *psmouse,
 		process_packet_motion_v4(psmouse);
 		break;
 
-	case PACKET_UNKNOWN:
+	case PACKET_UNKANALWN:
 	default:
 		/* impossible to get here */
 		break;
@@ -791,7 +791,7 @@ static int elantech_debounce_check_v2(struct psmouse *psmouse)
 {
         /*
          * When we encounter packet that matches this exactly, it means the
-         * hardware is in debounce status. Just ignore the whole packet.
+         * hardware is in debounce status. Just iganalre the whole packet.
          */
 	static const u8 debounce_packet[] = {
 		0x84, 0xff, 0xff, 0x02, 0xff, 0xff
@@ -807,12 +807,12 @@ static int elantech_packet_check_v2(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 
 	/*
-	 * V2 hardware has two flavors. Older ones that do not report pressure,
+	 * V2 hardware has two flavors. Older ones that do analt report pressure,
 	 * and newer ones that reports pressure and width. With newer ones, all
 	 * packets (1, 2, 3 finger touch) have the same constant bits. With
 	 * older ones, 1/3 finger touch packets and 2 finger touch packets
 	 * have different constant bits.
-	 * With all three cases, if the constant bits are not exactly what I
+	 * With all three cases, if the constant bits are analt exactly what I
 	 * expected, I consider them invalid.
 	 */
 	if (etd->info.reports_pressure)
@@ -868,7 +868,7 @@ static int elantech_packet_check_v3(struct psmouse *psmouse)
 			return PACKET_TRACKPOINT;
 	}
 
-	return PACKET_UNKNOWN;
+	return PACKET_UNKANALWN;
 }
 
 static int elantech_packet_check_v4(struct psmouse *psmouse)
@@ -901,7 +901,7 @@ static int elantech_packet_check_v4(struct psmouse *psmouse)
 				(packet[3] & 0x1c) == 0x10);
 
 	if (!sanity_check)
-		return PACKET_UNKNOWN;
+		return PACKET_UNKANALWN;
 
 	switch (packet_type) {
 	case 0:
@@ -914,7 +914,7 @@ static int elantech_packet_check_v4(struct psmouse *psmouse)
 		return PACKET_V4_MOTION;
 	}
 
-	return PACKET_UNKNOWN;
+	return PACKET_UNKANALWN;
 }
 
 /*
@@ -940,7 +940,7 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 		break;
 
 	case 2:
-		/* ignore debounce */
+		/* iganalre debounce */
 		if (elantech_debounce_check_v2(psmouse))
 			return PSMOUSE_FULL_PACKET;
 
@@ -953,11 +953,11 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 	case 3:
 		packet_type = elantech_packet_check_v3(psmouse);
 		switch (packet_type) {
-		case PACKET_UNKNOWN:
+		case PACKET_UNKANALWN:
 			return PSMOUSE_BAD_DATA;
 
 		case PACKET_DEBOUNCE:
-			/* ignore debounce */
+			/* iganalre debounce */
 			break;
 
 		case PACKET_TRACKPOINT:
@@ -974,7 +974,7 @@ static psmouse_ret_t elantech_process_byte(struct psmouse *psmouse)
 	case 4:
 		packet_type = elantech_packet_check_v4(psmouse);
 		switch (packet_type) {
-		case PACKET_UNKNOWN:
+		case PACKET_UNKANALWN:
 			return PSMOUSE_BAD_DATA;
 
 		case PACKET_TRACKPOINT:
@@ -1055,14 +1055,14 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 		if (elantech_write_reg(psmouse, 0x07, etd->reg_07))
 			rc = -1;
 
-		goto skip_readback_reg_10; /* v4 has no reg 0x10 to read */
+		goto skip_readback_reg_10; /* v4 has anal reg 0x10 to read */
 	}
 
 	if (rc == 0) {
 		/*
 		 * Read back reg 0x10. For hardware version 1 we must make
 		 * sure the absolute mode bit is set. For hardware version 2
-		 * the touchpad is probably initializing and not ready until
+		 * the touchpad is probably initializing and analt ready until
 		 * we read back the value we just wrote.
 		 */
 		do {
@@ -1397,7 +1397,7 @@ static bool elantech_is_signature_valid(const unsigned char *param)
 }
 
 /*
- * Use magic knock to detect Elantech touchpad
+ * Use magic kanalck to detect Elantech touchpad
  */
 int elantech_detect(struct psmouse *psmouse, bool set_properties)
 {
@@ -1411,7 +1411,7 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev,  NULL, PSMOUSE_CMD_SETSCALE11) ||
 	    ps2_command(ps2dev, param, PSMOUSE_CMD_GETINFO)) {
-		psmouse_dbg(psmouse, "sending Elantech magic knock failed.\n");
+		psmouse_dbg(psmouse, "sending Elantech magic kanalck failed.\n");
 		return -1;
 	}
 
@@ -1422,15 +1422,15 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 	if (param[0] != 0x3c || param[1] != 0x03 ||
 	    (param[2] != 0xc8 && param[2] != 0x00)) {
 		psmouse_dbg(psmouse,
-			    "unexpected magic knock result 0x%02x, 0x%02x, 0x%02x.\n",
+			    "unexpected magic kanalck result 0x%02x, 0x%02x, 0x%02x.\n",
 			    param[0], param[1], param[2]);
 		return -1;
 	}
 
 	/*
-	 * Query touchpad's firmware version and see if it reports known
-	 * value to avoid mis-detection. Logitech mice are known to respond
-	 * to Elantech magic knock and there might be more.
+	 * Query touchpad's firmware version and see if it reports kanalwn
+	 * value to avoid mis-detection. Logitech mice are kanalwn to respond
+	 * to Elantech magic kanalck and there might be more.
 	 */
 	if (synaptics_send_cmd(psmouse, ETP_FW_VERSION_QUERY, param)) {
 		psmouse_dbg(psmouse, "failed to query firmware version.\n");
@@ -1443,7 +1443,7 @@ int elantech_detect(struct psmouse *psmouse, bool set_properties)
 
 	if (!elantech_is_signature_valid(param)) {
 		psmouse_dbg(psmouse,
-			    "Probably not a real Elantech touchpad. Aborting.\n");
+			    "Probably analt a real Elantech touchpad. Aborting.\n");
 		return -1;
 	}
 
@@ -1496,68 +1496,68 @@ static int elantech_reconnect(struct psmouse *psmouse)
 }
 
 /*
- * Some hw_version 4 models do not work with crc_disabled
+ * Some hw_version 4 models do analt work with crc_disabled
  */
 static const struct dmi_system_id elantech_dmi_force_crc_enabled[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		/* Fujitsu H730 does not work with crc_enabled == 0 */
+		/* Fujitsu H730 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H730"),
 		},
 	},
 	{
-		/* Fujitsu H760 does not work with crc_enabled == 0 */
+		/* Fujitsu H760 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CELSIUS H760"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E544  does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E544  does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E544"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E546  does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E546  does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E546"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E547 does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E547 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E547"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E554  does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E554  does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E554"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E556 does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E556 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E556"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK E557 does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK E557 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E557"),
 		},
 	},
 	{
-		/* Fujitsu LIFEBOOK U745 does not work with crc_enabled == 0 */
+		/* Fujitsu LIFEBOOK U745 does analt work with crc_enabled == 0 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK U745"),
@@ -1571,7 +1571,7 @@ static const struct dmi_system_id elantech_dmi_force_crc_enabled[] = {
  * Some hw_version 3 models go into error state when we try to set
  * bit 3 and/or bit 1 of r10.
  */
-static const struct dmi_system_id no_hw_res_dmi_table[] = {
+static const struct dmi_system_id anal_hw_res_dmi_table[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
 		/* Gigabyte U2442 */
@@ -1590,7 +1590,7 @@ static const struct dmi_system_id no_hw_res_dmi_table[] = {
 static int elantech_change_report_id(struct psmouse *psmouse)
 {
 	/*
-	 * NOTE: the code is expecting to receive param[] as an array of 3
+	 * ANALTE: the code is expecting to receive param[] as an array of 3
 	 * items (see __ps2_command()), even if in this case only 2 are
 	 * actually needed. Make sure the array size is 3 to avoid potential
 	 * stack out-of-bound accesses.
@@ -1655,7 +1655,7 @@ static int elantech_set_properties(struct elantech_device_info *info)
 		(info->fw_version == 0x020022 || info->fw_version == 0x020600);
 
 	if (info->hw_version > 1) {
-		/* For now show extra debug information */
+		/* For analw show extra debug information */
 		info->debug = 1;
 
 		if (info->fw_version >= 0x020800)
@@ -1670,7 +1670,7 @@ static int elantech_set_properties(struct elantech_device_info *info)
 			     dmi_check_system(elantech_dmi_force_crc_enabled);
 
 	/* Enable real hardware resolution on hw_version 3 ? */
-	info->set_hw_resolution = !dmi_check_system(no_hw_res_dmi_table);
+	info->set_hw_resolution = !dmi_check_system(anal_hw_res_dmi_table);
 
 	return 0;
 }
@@ -1694,7 +1694,7 @@ static int elantech_query_info(struct psmouse *psmouse,
 	info->fw_version = (param[0] << 16) | (param[1] << 8) | param[2];
 
 	if (elantech_set_properties(info)) {
-		psmouse_err(psmouse, "unknown hardware version, aborting...\n");
+		psmouse_err(psmouse, "unkanalwn hardware version, aborting...\n");
 		return -EINVAL;
 	}
 	psmouse_info(psmouse,
@@ -1746,7 +1746,7 @@ static int elantech_query_info(struct psmouse *psmouse,
 		 */
 		psmouse_info(psmouse,
 			     "absolute mode broken, forcing standard PS/2 protocol\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* The MSB indicates the presence of the trackpoint */
@@ -1758,14 +1758,14 @@ static int elantech_query_info(struct psmouse *psmouse,
 		/*
 		 * This module has a bug which makes trackpoint in SMBus
 		 * mode return invalid data unless trackpoint is switched
-		 * from using 0x5e reports to 0x5f. If we are not able to
+		 * from using 0x5e reports to 0x5f. If we are analt able to
 		 * make the switch, let's abort initialization so we'll be
 		 * using standard PS/2 protocol.
 		 */
 		if (elantech_change_report_id(psmouse)) {
 			psmouse_info(psmouse,
 				     "Trackpoint report is broken, forcing standard PS/2 protocol\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -1862,7 +1862,7 @@ static int elantech_query_info(struct psmouse *psmouse,
 
 	/* check for the middle button: DMI matching or new v4 firmwares */
 	info->has_middle_button = dmi_check_system(elantech_dmi_has_middle_button) ||
-				  (ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version) &&
+				  (ETP_NEW_IC_SMBUS_HOST_ANALTIFY(info->fw_version) &&
 				   !elantech_is_buttonpad(info));
 
 	return 0;
@@ -1873,22 +1873,22 @@ static int elantech_query_info(struct psmouse *psmouse,
 /*
  * The newest Elantech device can use a secondary bus (over SMBus) which
  * provides a better bandwidth and allow a better control of the touchpads.
- * This is used to decide if we need to use this bus or not.
+ * This is used to decide if we need to use this bus or analt.
  */
 enum {
-	ELANTECH_SMBUS_NOT_SET = -1,
+	ELANTECH_SMBUS_ANALT_SET = -1,
 	ELANTECH_SMBUS_OFF,
 	ELANTECH_SMBUS_ON,
 };
 
 static int elantech_smbus = IS_ENABLED(CONFIG_MOUSE_ELAN_I2C_SMBUS) ?
-		ELANTECH_SMBUS_NOT_SET : ELANTECH_SMBUS_OFF;
+		ELANTECH_SMBUS_ANALT_SET : ELANTECH_SMBUS_OFF;
 module_param_named(elantech_smbus, elantech_smbus, int, 0644);
 MODULE_PARM_DESC(elantech_smbus, "Use a secondary bus for the Elantech device.");
 
 static const char * const i2c_blacklist_pnp_ids[] = {
 	/*
-	 * These are known to not be working properly as bits are missing
+	 * These are kanalwn to analt be working properly as bits are missing
 	 * in elan_i2c.
 	 */
 	NULL
@@ -1901,7 +1901,7 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 	struct property_entry i2c_props[11] = {};
 	struct i2c_board_info smbus_board = {
 		I2C_BOARD_INFO("elan_i2c", 0x15),
-		.flags = I2C_CLIENT_HOST_NOTIFY,
+		.flags = I2C_CLIENT_HOST_ANALTIFY,
 	};
 	unsigned int idx = 0;
 
@@ -1936,9 +1936,9 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 	if (elantech_is_buttonpad(info))
 		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,clickpad");
 
-	smbus_board.fwnode = fwnode_create_software_node(i2c_props, NULL);
-	if (IS_ERR(smbus_board.fwnode))
-		return PTR_ERR(smbus_board.fwnode);
+	smbus_board.fwanalde = fwanalde_create_software_analde(i2c_props, NULL);
+	if (IS_ERR(smbus_board.fwanalde))
+		return PTR_ERR(smbus_board.fwanalde);
 
 	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0, false,
 				  leave_breadcrumbs);
@@ -1957,13 +1957,13 @@ static int elantech_setup_smbus(struct psmouse *psmouse,
 	if (elantech_smbus == ELANTECH_SMBUS_OFF)
 		return -ENXIO;
 
-	if (elantech_smbus == ELANTECH_SMBUS_NOT_SET) {
+	if (elantech_smbus == ELANTECH_SMBUS_ANALT_SET) {
 		/*
 		 * New ICs are enabled by default, unless mentioned in
 		 * i2c_blacklist_pnp_ids.
 		 * Old ICs are up to the user to decide.
 		 */
-		if (!ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version) ||
+		if (!ETP_NEW_IC_SMBUS_HOST_ANALTIFY(info->fw_version) ||
 		    psmouse_matches_pnp_id(psmouse, i2c_blacklist_pnp_ids))
 			return -ENXIO;
 	}
@@ -1973,7 +1973,7 @@ static int elantech_setup_smbus(struct psmouse *psmouse,
 	error = elantech_create_smbus(psmouse, info, leave_breadcrumbs);
 	if (error) {
 		if (error == -EAGAIN)
-			psmouse_info(psmouse, "SMbus companion is not ready yet\n");
+			psmouse_info(psmouse, "SMbus companion is analt ready yet\n");
 		else
 			psmouse_err(psmouse, "unable to create intertouch device\n");
 
@@ -1983,10 +1983,10 @@ static int elantech_setup_smbus(struct psmouse *psmouse,
 	return 0;
 }
 
-static bool elantech_use_host_notify(struct psmouse *psmouse,
+static bool elantech_use_host_analtify(struct psmouse *psmouse,
 				     struct elantech_device_info *info)
 {
-	if (ETP_NEW_IC_SMBUS_HOST_NOTIFY(info->fw_version))
+	if (ETP_NEW_IC_SMBUS_HOST_ANALTIFY(info->fw_version))
 		return true;
 
 	switch (info->bus) {
@@ -1995,14 +1995,14 @@ static bool elantech_use_host_notify(struct psmouse *psmouse,
 		break;
 	case ETP_BUS_SMB_ALERT_ONLY:
 	case ETP_BUS_PS2_SMB_ALERT:
-		psmouse_dbg(psmouse, "Ignoring SMBus provider through alert protocol.\n");
+		psmouse_dbg(psmouse, "Iganalring SMBus provider through alert protocol.\n");
 		break;
 	case ETP_BUS_SMB_HST_NTFY_ONLY:
 	case ETP_BUS_PS2_SMB_HST_NTFY:
 		return true;
 	default:
 		psmouse_dbg(psmouse,
-			    "Ignoring SMBus bus provider %d.\n",
+			    "Iganalring SMBus bus provider %d.\n",
 			    info->bus);
 	}
 
@@ -2045,7 +2045,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 
 	psmouse->private = etd = kzalloc(sizeof(*etd), GFP_KERNEL);
 	if (!etd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	etd->info = *info;
 
@@ -2082,7 +2082,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 		tp_dev = input_allocate_device();
 
 		if (!tp_dev) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			goto init_fail_tp_alloc;
 		}
 
@@ -2162,7 +2162,7 @@ int elantech_init(struct psmouse *psmouse)
 
 #if defined(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)
 
-	if (elantech_use_host_notify(psmouse, &info)) {
+	if (elantech_use_host_analtify(psmouse, &info)) {
 		if (!IS_ENABLED(CONFIG_MOUSE_ELAN_I2C_SMBUS) ||
 		    !IS_ENABLED(CONFIG_MOUSE_PS2_ELANTECH_SMBUS)) {
 			psmouse_warn(psmouse,
@@ -2179,7 +2179,7 @@ int elantech_init(struct psmouse *psmouse)
 	error = elantech_setup_ps2(psmouse, &info);
 	if (error < 0) {
 		/*
-		 * Not using any flavor of Elantech support, so clean up
+		 * Analt using any flavor of Elantech support, so clean up
 		 * SMbus breadcrumbs, if any.
 		 */
 		psmouse_smbus_cleanup(psmouse);

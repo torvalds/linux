@@ -21,7 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -74,7 +74,7 @@ struct fb_info_platinum {
  * Frame buffer device API
  */
 
-static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int platinumfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info);
 static int platinumfb_blank(int blank_mode, struct fb_info *info);
 static int platinumfb_set_par (struct fb_info *info);
@@ -177,38 +177,38 @@ static int platinumfb_blank(int blank,  struct fb_info *fb)
 	return 0;
 }
 
-static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int platinumfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	struct fb_info_platinum *pinfo = info->par;
 	volatile struct cmap_regs __iomem *cmap_regs = pinfo->cmap_regs;
 
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
-	pinfo->palette[regno].red = red;
-	pinfo->palette[regno].green = green;
-	pinfo->palette[regno].blue = blue;
+	pinfo->palette[reganal].red = red;
+	pinfo->palette[reganal].green = green;
+	pinfo->palette[reganal].blue = blue;
 
-	out_8(&cmap_regs->addr, regno);		/* tell clut what addr to fill	*/
+	out_8(&cmap_regs->addr, reganal);		/* tell clut what addr to fill	*/
 	out_8(&cmap_regs->lut, red);		/* send one color channel at	*/
 	out_8(&cmap_regs->lut, green);		/* a time...			*/
 	out_8(&cmap_regs->lut, blue);
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		int i;
 		u32 *pal = info->pseudo_palette;
 		switch (pinfo->cmode) {
 		case CMODE_16:
-			pal[regno] = (regno << 10) | (regno << 5) | regno;
+			pal[reganal] = (reganal << 10) | (reganal << 5) | reganal;
 			break;
 		case CMODE_32:
-			i = (regno << 8) | regno;
-			pal[regno] = (i << 16) | i;
+			i = (reganal << 8) | reganal;
+			pal[reganal] = (i << 16) | i;
 			break;
 		}
 	}
@@ -258,7 +258,7 @@ static void set_platinum_clock(struct fb_info_platinum *pinfo)
 }
 
 
-/* Now how about actually saying, Make it so! */
+/* Analw how about actually saying, Make it so! */
 /* Some things in here probably don't need to be done each time. */
 static void platinum_set_hardware(struct fb_info_platinum *pinfo)
 {
@@ -330,7 +330,7 @@ static void platinum_init_info(struct fb_info *info,
 	info->fix.xpanstep = 0;
 	info->fix.ypanstep = 0;
         info->fix.type_aux = 0;
-        info->fix.accel = FB_ACCEL_NONE;
+        info->fix.accel = FB_ACCEL_ANALNE;
 }
 
 
@@ -357,7 +357,7 @@ static int platinum_init_fb(struct fb_info *info)
 	if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
 		default_cmode = CMODE_8;
 	/*
-	 * Reduce the pixel size if we don't have enough VRAM.
+	 * Reduce the pixel size if we don't have eanalugh VRAM.
 	 */
 	while(default_cmode > CMODE_8 &&
 	      platinum_vram_reqd(default_vmode, default_cmode) > pinfo->total_vram)
@@ -383,7 +383,7 @@ try_again:
 
 	/* Apply default var */
 	info->var = var;
-	var.activate = FB_ACTIVATE_NOW;
+	var.activate = FB_ACTIVATE_ANALW;
 	rc = fb_set_var(info, &var);
 	if (rc && (default_vmode != VMODE_640_480_60 || default_cmode != CMODE_8))
 		goto try_again;
@@ -400,7 +400,7 @@ try_again:
 
 /*
  * Get the monitor sense value.
- * Note that this can be called before calibrate_delay,
+ * Analte that this can be called before calibrate_delay,
  * so we can't use udelay.
  */
 static int read_platinum_sense(struct fb_info_platinum *info)
@@ -452,12 +452,12 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 	}
 
 	if (!platinum_reg_init[vmode-1]) {
-		printk(KERN_ERR "platinum_var_to_par, vmode %d not valid.\n", vmode);
+		printk(KERN_ERR "platinum_var_to_par, vmode %d analt valid.\n", vmode);
 		return -EINVAL;
 	}
 
 	if (platinum_vram_reqd(vmode, cmode) > pinfo->total_vram) {
-		printk(KERN_ERR "platinum_var_to_par, not enough ram for vmode %d, cmode %d.\n", vmode, cmode);
+		printk(KERN_ERR "platinum_var_to_par, analt eanalugh ram for vmode %d, cmode %d.\n", vmode, cmode);
 		return -EINVAL;
 	}
 
@@ -526,7 +526,7 @@ static int __init platinumfb_setup(char *options)
 
 static int platinumfb_probe(struct platform_device* odev)
 {
-	struct device_node	*dp = odev->dev.of_node;
+	struct device_analde	*dp = odev->dev.of_analde;
 	struct fb_info		*info;
 	struct fb_info_platinum	*pinfo;
 	volatile __u8		*fbuffer;
@@ -536,7 +536,7 @@ static int platinumfb_probe(struct platform_device* odev)
 
 	info = framebuffer_alloc(sizeof(*pinfo), &odev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinfo = info->par;
 
@@ -553,8 +553,8 @@ static int platinumfb_probe(struct platform_device* odev)
 		(unsigned long long)pinfo->rsrc_fb.start,
 		(unsigned long long)pinfo->rsrc_fb.end);
 
-	/* Do not try to request register space, they overlap with the
-	 * northbridge and that can fail. Only request framebuffer
+	/* Do analt try to request register space, they overlap with the
+	 * analrthbridge and that can fail. Only request framebuffer
 	 */
 	if (!request_mem_region(pinfo->rsrc_fb.start,
 				resource_size(&pinfo->rsrc_fb),
@@ -573,7 +573,7 @@ static int platinumfb_probe(struct platform_device* odev)
 	pinfo->platinum_regs_phys = pinfo->rsrc_reg.start;
 	pinfo->platinum_regs = ioremap(pinfo->rsrc_reg.start, 0x1000);
 
-	pinfo->cmap_regs_phys = 0xf301b000;	/* XXX not in prom? */
+	pinfo->cmap_regs_phys = 0xf301b000;	/* XXX analt in prom? */
 	request_mem_region(pinfo->cmap_regs_phys, 0x1000, "platinumfb cmap");
 	pinfo->cmap_regs = ioremap(pinfo->cmap_regs_phys, 0x1000);
 
@@ -617,7 +617,7 @@ static int platinumfb_probe(struct platform_device* odev)
 		break;
 	default:
 		pinfo->clktype = 0;
-		printk(KERN_INFO "platinumfb: Unknown DACula type: %x\n", pinfo->dactype);
+		printk(KERN_INFO "platinumfb: Unkanalwn DACula type: %x\n", pinfo->dactype);
 		break;
 	}
 	dev_set_drvdata(&odev->dev, info);
@@ -677,7 +677,7 @@ static int __init platinumfb_init(void)
 	char *option = NULL;
 
 	if (fb_get_options("platinumfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 	platinumfb_setup(option);
 #endif
 	platform_driver_register(&platinum_driver);

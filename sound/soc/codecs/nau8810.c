@@ -2,7 +2,7 @@
 /*
  * nau8810.c  --  NAU8810 ALSA Soc Audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techanallogy Corp.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
  *
@@ -55,14 +55,14 @@ static const struct reg_default nau8810_reg_defaults[] = {
 	{ NAU8810_REG_EQ5, 0x002C },
 	{ NAU8810_REG_DACLIM1, 0x0032 },
 	{ NAU8810_REG_DACLIM2, 0x0000 },
-	{ NAU8810_REG_NOTCH1, 0x0000 },
-	{ NAU8810_REG_NOTCH2, 0x0000 },
-	{ NAU8810_REG_NOTCH3, 0x0000 },
-	{ NAU8810_REG_NOTCH4, 0x0000 },
+	{ NAU8810_REG_ANALTCH1, 0x0000 },
+	{ NAU8810_REG_ANALTCH2, 0x0000 },
+	{ NAU8810_REG_ANALTCH3, 0x0000 },
+	{ NAU8810_REG_ANALTCH4, 0x0000 },
 	{ NAU8810_REG_ALC1, 0x0038 },
 	{ NAU8810_REG_ALC2, 0x000B },
 	{ NAU8810_REG_ALC3, 0x0032 },
-	{ NAU8810_REG_NOISEGATE, 0x0000 },
+	{ NAU8810_REG_ANALISEGATE, 0x0000 },
 	{ NAU8810_REG_PLLN, 0x0008 },
 	{ NAU8810_REG_PLLK1, 0x000C },
 	{ NAU8810_REG_PLLK2, 0x0093 },
@@ -74,7 +74,7 @@ static const struct reg_default nau8810_reg_defaults[] = {
 	{ NAU8810_REG_OUTPUT, 0x0002 },
 	{ NAU8810_REG_SPKMIX, 0x0001 },
 	{ NAU8810_REG_SPKGAIN, 0x0039 },
-	{ NAU8810_REG_MONOMIX, 0x0001 },
+	{ NAU8810_REG_MOANALMIX, 0x0001 },
 	{ NAU8810_REG_POWER4, 0x0000 },
 	{ NAU8810_REG_TSLOTCTL1, 0x0000 },
 	{ NAU8810_REG_TSLOTCTL2, 0x0020 },
@@ -101,13 +101,13 @@ static bool nau8810_readable_reg(struct device *dev, unsigned int reg)
 	case NAU8810_REG_ADC ... NAU8810_REG_ADCGAIN:
 	case NAU8810_REG_EQ1 ... NAU8810_REG_EQ5:
 	case NAU8810_REG_DACLIM1 ... NAU8810_REG_DACLIM2:
-	case NAU8810_REG_NOTCH1 ... NAU8810_REG_NOTCH4:
+	case NAU8810_REG_ANALTCH1 ... NAU8810_REG_ANALTCH4:
 	case NAU8810_REG_ALC1 ... NAU8810_REG_ATTEN:
 	case NAU8810_REG_INPUT_SIGNAL ... NAU8810_REG_PGAGAIN:
 	case NAU8810_REG_ADCBOOST:
 	case NAU8810_REG_OUTPUT ... NAU8810_REG_SPKMIX:
 	case NAU8810_REG_SPKGAIN:
-	case NAU8810_REG_MONOMIX:
+	case NAU8810_REG_MOANALMIX:
 	case NAU8810_REG_POWER4 ... NAU8810_REG_TSLOTCTL2:
 	case NAU8810_REG_DEVICE_REVID ... NAU8810_REG_RESERVE:
 	case NAU8810_REG_OUTCTL ... NAU8810_REG_ALC1ENHAN2:
@@ -127,13 +127,13 @@ static bool nau8810_writeable_reg(struct device *dev, unsigned int reg)
 	case NAU8810_REG_ADC ... NAU8810_REG_ADCGAIN:
 	case NAU8810_REG_EQ1 ... NAU8810_REG_EQ5:
 	case NAU8810_REG_DACLIM1 ... NAU8810_REG_DACLIM2:
-	case NAU8810_REG_NOTCH1 ... NAU8810_REG_NOTCH4:
+	case NAU8810_REG_ANALTCH1 ... NAU8810_REG_ANALTCH4:
 	case NAU8810_REG_ALC1 ... NAU8810_REG_ATTEN:
 	case NAU8810_REG_INPUT_SIGNAL ... NAU8810_REG_PGAGAIN:
 	case NAU8810_REG_ADCBOOST:
 	case NAU8810_REG_OUTPUT ... NAU8810_REG_SPKMIX:
 	case NAU8810_REG_SPKGAIN:
-	case NAU8810_REG_MONOMIX:
+	case NAU8810_REG_MOANALMIX:
 	case NAU8810_REG_POWER4 ... NAU8810_REG_TSLOTCTL2:
 	case NAU8810_REG_OUTCTL ... NAU8810_REG_ALC1ENHAN2:
 	case NAU8810_REG_MISCCTL:
@@ -207,7 +207,7 @@ static int nau8810_eq_put(struct snd_kcontrol *kcontrol,
 	data = kmemdup(ucontrol->value.bytes.data,
 		params->max, GFP_KERNEL | GFP_DMA);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	val = (u16 *)data;
 	reg = NAU8810_REG_EQ1;
@@ -242,7 +242,7 @@ static const struct soc_enum nau8810_companding_dac_enum =
 		ARRAY_SIZE(nau8810_companding), nau8810_companding);
 
 static const char * const nau8810_deemp[] = {
-	"None", "32kHz", "44.1kHz", "48kHz" };
+	"Analne", "32kHz", "44.1kHz", "48kHz" };
 
 static const struct soc_enum nau8810_deemp_enum =
 	SOC_ENUM_SINGLE(NAU8810_REG_DAC, NAU8810_DEEMP_SFT,
@@ -254,7 +254,7 @@ static const struct soc_enum nau8810_eqmode_enum =
 	SOC_ENUM_SINGLE(NAU8810_REG_EQ1, NAU8810_EQM_SFT,
 		ARRAY_SIZE(nau8810_eqmode), nau8810_eqmode);
 
-static const char * const nau8810_alc[] = {"Normal", "Limiter" };
+static const char * const nau8810_alc[] = {"Analrmal", "Limiter" };
 
 static const struct soc_enum nau8810_alc_enum =
 	SOC_ENUM_SINGLE(NAU8810_REG_ALC3, NAU8810_ALCM_SFT,
@@ -328,9 +328,9 @@ static const struct snd_kcontrol_new nau8810_snd_controls[] = {
 		NAU8810_ALCDCY_SFT, 0xf, 0),
 	SOC_SINGLE("ALC Attack", NAU8810_REG_ALC3,
 		NAU8810_ALCATK_SFT, 0xf, 0),
-	SOC_SINGLE("ALC Noise Gate Switch", NAU8810_REG_NOISEGATE,
+	SOC_SINGLE("ALC Analise Gate Switch", NAU8810_REG_ANALISEGATE,
 		NAU8810_ALCNEN_SFT, 1, 0),
-	SOC_SINGLE("ALC Noise Gate Threshold", NAU8810_REG_NOISEGATE,
+	SOC_SINGLE("ALC Analise Gate Threshold", NAU8810_REG_ANALISEGATE,
 		NAU8810_ALCNTH_SFT, 0x7, 0),
 
 	SOC_SINGLE("PGA ZC Switch", NAU8810_REG_PGAGAIN,
@@ -347,7 +347,7 @@ static const struct snd_kcontrol_new nau8810_snd_controls[] = {
 
 	SOC_SINGLE("Capture Boost(+20dB)", NAU8810_REG_ADCBOOST,
 		NAU8810_PGABST_SFT, 1, 0),
-	SOC_SINGLE("Mono Mute Switch", NAU8810_REG_MONOMIX,
+	SOC_SINGLE("Moanal Mute Switch", NAU8810_REG_MOANALMIX,
 		NAU8810_MOUTMXMT_SFT, 1, 0),
 
 	SOC_SINGLE("DAC Oversampling Rate(128x) Switch", NAU8810_REG_DAC,
@@ -366,13 +366,13 @@ static const struct snd_kcontrol_new nau8810_speaker_mixer_controls[] = {
 		NAU8810_DACSPK_SFT, 1, 0),
 };
 
-/* Mono Output Mixer */
-static const struct snd_kcontrol_new nau8810_mono_mixer_controls[] = {
-	SOC_DAPM_SINGLE("AUX Bypass Switch", NAU8810_REG_MONOMIX,
+/* Moanal Output Mixer */
+static const struct snd_kcontrol_new nau8810_moanal_mixer_controls[] = {
+	SOC_DAPM_SINGLE("AUX Bypass Switch", NAU8810_REG_MOANALMIX,
 		NAU8810_AUXMOUT_SFT, 1, 0),
-	SOC_DAPM_SINGLE("Line Bypass Switch", NAU8810_REG_MONOMIX,
+	SOC_DAPM_SINGLE("Line Bypass Switch", NAU8810_REG_MOANALMIX,
 		NAU8810_BYPMOUT_SFT, 1, 0),
-	SOC_DAPM_SINGLE("PCM Playback Switch", NAU8810_REG_MONOMIX,
+	SOC_DAPM_SINGLE("PCM Playback Switch", NAU8810_REG_MOANALMIX,
 		NAU8810_DACMOUT_SFT, 1, 0),
 };
 
@@ -433,9 +433,9 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Speaker Mixer", NAU8810_REG_POWER3,
 		NAU8810_SPKMX_EN_SFT, 0, &nau8810_speaker_mixer_controls[0],
 		ARRAY_SIZE(nau8810_speaker_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", NAU8810_REG_POWER3,
-		NAU8810_MOUTMX_EN_SFT, 0, &nau8810_mono_mixer_controls[0],
-		ARRAY_SIZE(nau8810_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moanal Mixer", NAU8810_REG_POWER3,
+		NAU8810_MOUTMX_EN_SFT, 0, &nau8810_moanal_mixer_controls[0],
+		ARRAY_SIZE(nau8810_moanal_mixer_controls)),
 	SND_SOC_DAPM_DAC("DAC", "Playback", NAU8810_REG_POWER3,
 		NAU8810_DAC_EN_SFT, 0),
 	SND_SOC_DAPM_ADC("ADC", "Capture", NAU8810_REG_POWER2,
@@ -444,7 +444,7 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 		NAU8810_NSPK_EN_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SpkP Out", NAU8810_REG_POWER3,
 		NAU8810_PSPK_EN_SFT, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono Out", NAU8810_REG_POWER3,
+	SND_SOC_DAPM_PGA("Moanal Out", NAU8810_REG_POWER3,
 		NAU8810_MOUT_EN_SFT, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("Input PGA", NAU8810_REG_POWER2,
@@ -461,13 +461,13 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("PLL", NAU8810_REG_POWER1,
 		NAU8810_PLL_EN_SFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_SWITCH("Digital Loopback", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SWITCH("Digital Loopback", SND_SOC_ANALPM, 0, 0,
 		&nau8810_loopback),
 
 	SND_SOC_DAPM_INPUT("AUX"),
 	SND_SOC_DAPM_INPUT("MICN"),
 	SND_SOC_DAPM_INPUT("MICP"),
-	SND_SOC_DAPM_OUTPUT("MONOOUT"),
+	SND_SOC_DAPM_OUTPUT("MOANALOUT"),
 	SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 	SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
@@ -475,10 +475,10 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	{"DAC", NULL, "PLL", check_mclk_select_pll},
 
-	/* Mono output mixer */
-	{"Mono Mixer", "AUX Bypass Switch", "AUX Input"},
-	{"Mono Mixer", "PCM Playback Switch", "DAC"},
-	{"Mono Mixer", "Line Bypass Switch", "Input Boost Stage"},
+	/* Moanal output mixer */
+	{"Moanal Mixer", "AUX Bypass Switch", "AUX Input"},
+	{"Moanal Mixer", "PCM Playback Switch", "DAC"},
+	{"Moanal Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
 	/* Speaker output mixer */
 	{"Speaker Mixer", "AUX Bypass Switch", "AUX Input"},
@@ -486,8 +486,8 @@ static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	{"Speaker Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
 	/* Outputs */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono Out"},
+	{"Moanal Out", NULL, "Moanal Mixer"},
+	{"MOANALOUT", NULL, "Moanal Out"},
 	{"SpkN Out", NULL, "Speaker Mixer"},
 	{"SpkP Out", NULL, "Speaker Mixer"},
 	{"SPKOUTN", NULL, "SpkN Out"},
@@ -879,7 +879,7 @@ static int nau8810_i2c_probe(struct i2c_client *i2c)
 	if (!nau8810) {
 		nau8810 = devm_kzalloc(dev, sizeof(*nau8810), GFP_KERNEL);
 		if (!nau8810)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	i2c_set_clientdata(i2c, nau8810);
 

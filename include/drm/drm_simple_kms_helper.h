@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Noralf Trønnes
+ * Copyright (C) 2016 Analralf Trønnes
  */
 
 #ifndef __LINUX_DRM_SIMPLE_KMS_HELPER_H
@@ -24,11 +24,11 @@ struct drm_simple_display_pipe_funcs {
 	 * crtc used in this simple display pipe. This should be implemented
 	 * if the display pipe has some sort of restriction in the modes
 	 * it can display. For example, a given display pipe may be responsible
-	 * to set a clock value. If the clock can not produce all the values
+	 * to set a clock value. If the clock can analt produce all the values
 	 * for the available modes then this callback can be used to restrict
-	 * the number of modes to only the ones that can be displayed. Another
+	 * the number of modes to only the ones that can be displayed. Aanalther
 	 * reason can be bandwidth mitigation: the memory port on the display
-	 * controller can have bandwidth limitations not allowing pixel data
+	 * controller can have bandwidth limitations analt allowing pixel data
 	 * to be fetched at any rate.
 	 *
 	 * This hook is used by the probe helpers to filter the mode list in
@@ -38,10 +38,10 @@ struct drm_simple_display_pipe_funcs {
 	 *
 	 * This function is optional.
 	 *
-	 * NOTE:
+	 * ANALTE:
 	 *
 	 * Since this function is both called from the check phase of an atomic
-	 * commit, and the mode validation in the probe paths it is not allowed
+	 * commit, and the mode validation in the probe paths it is analt allowed
 	 * to look at anything else but the passed-in mode, and validate it
 	 * against configuration-invariant hardware constraints.
 	 *
@@ -77,15 +77,15 @@ struct drm_simple_display_pipe_funcs {
 	 * This function is called in the check phase of an atomic update,
 	 * specifically when the underlying plane is checked.
 	 * The simple display pipeline helpers already check that the plane is
-	 * not scaled, fills the entire visible area and is always enabled
+	 * analt scaled, fills the entire visible area and is always enabled
 	 * when the crtc is also enabled.
 	 * This hook is optional.
 	 *
 	 * RETURNS:
 	 *
 	 * 0 on success, -EINVAL if the state or the transition can't be
-	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
-	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * supported, -EANALMEM on memory allocation failure and -EDEADLK if an
+	 * attempt to obtain aanalther state object ran into a &drm_modeset_lock
 	 * deadlock.
 	 */
 	int (*check)(struct drm_simple_display_pipe *pipe,
@@ -102,7 +102,7 @@ struct drm_simple_display_pipe_funcs {
 	 * drm_crtc_arm_vblank_event(), when the driver supports vblank
 	 * interrupt handling, or drm_crtc_send_vblank_event() for more
 	 * complex case. In case the hardware lacks vblank support entirely,
-	 * drivers can set &struct drm_crtc_state.no_vblank in
+	 * drivers can set &struct drm_crtc_state.anal_vblank in
 	 * &struct drm_simple_display_pipe_funcs.check and let DRM's
 	 * atomic helper fake a vblank event.
 	 */
@@ -116,7 +116,7 @@ struct drm_simple_display_pipe_funcs {
 	 * the documentation for the &drm_plane_helper_funcs.prepare_fb hook for
 	 * more details.
 	 *
-	 * For GEM drivers who neither have a @prepare_fb nor @cleanup_fb hook
+	 * For GEM drivers who neither have a @prepare_fb analr @cleanup_fb hook
 	 * set, drm_gem_plane_helper_prepare_fb() is called automatically
 	 * to implement this. Other drivers which need additional plane
 	 * processing can call drm_gem_plane_helper_prepare_fb() from
@@ -273,7 +273,7 @@ void *__drmm_simple_encoder_alloc(struct drm_device *dev, size_t size,
  * @member: the name of the &drm_encoder within @type.
  * @encoder_type: user visible type of the encoder
  *
- * Allocates and initializes an encoder that has no further functionality.
+ * Allocates and initializes an encoder that has anal further functionality.
  * Settings for possible CRTC and clones are left to their initial values.
  * Cleanup is automatically handled through registering drm_encoder_cleanup()
  * with drmm_add_action().

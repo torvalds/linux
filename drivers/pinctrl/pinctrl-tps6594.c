@@ -300,7 +300,7 @@ static const char *tps6594_group_name(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops tps6594_pctrl_ops = {
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 	.get_groups_count = tps6594_groups_cnt,
 	.get_group_name = tps6594_group_name,
@@ -317,7 +317,7 @@ static int tps6594_pinctrl_probe(struct platform_device *pdev)
 
 	pctrl_desc = devm_kzalloc(dev, sizeof(*pctrl_desc), GFP_KERNEL);
 	if (!pctrl_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctrl_desc->name = dev_name(dev);
 	pctrl_desc->owner = THIS_MODULE;
 	pctrl_desc->pins = tps6594_pins;
@@ -327,7 +327,7 @@ static int tps6594_pinctrl_probe(struct platform_device *pdev)
 
 	pinctrl = devm_kzalloc(dev, sizeof(*pinctrl), GFP_KERNEL);
 	if (!pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pinctrl->tps = dev_get_drvdata(dev->parent);
 	pinctrl->funcs = pinctrl_functions;
 	pinctrl->pins = tps6594_pins;

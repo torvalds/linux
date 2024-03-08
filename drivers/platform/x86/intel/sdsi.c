@@ -56,7 +56,7 @@
 #define MBOX_ACQUIRE_RETRY_DELAY_MS	500
 #define MBOX_MAX_PACKETS		4
 
-#define MBOX_OWNER_NONE			0x00
+#define MBOX_OWNER_ANALNE			0x00
 #define MBOX_OWNER_INBAND		0x01
 
 #define CTRL_RUN_BUSY			BIT(0)
@@ -144,7 +144,7 @@ static inline void sdsi_complete_transaction(struct sdsi_priv *priv)
 	writeq(control, priv->control_addr);
 }
 
-static int sdsi_status_to_errno(u32 status)
+static int sdsi_status_to_erranal(u32 status)
 {
 	switch (status) {
 	case SDSI_MBOX_CMD_SUCCESS:
@@ -191,7 +191,7 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 		packet_size = FIELD_GET(CTRL_PACKET_SIZE, control);
 		message_size = FIELD_GET(CTRL_MSG_SIZE, control);
 
-		ret = sdsi_status_to_errno(status);
+		ret = sdsi_status_to_erranal(status);
 		if (ret)
 			break;
 
@@ -263,7 +263,7 @@ static int sdsi_mbox_cmd_write(struct sdsi_priv *priv, struct sdsi_mbox_info *in
 		goto release_mbox;
 
 	status = FIELD_GET(CTRL_STATUS, control);
-	ret = sdsi_status_to_errno(status);
+	ret = sdsi_status_to_erranal(status);
 
 release_mbox:
 	sdsi_complete_transaction(priv);
@@ -282,11 +282,11 @@ static int sdsi_mbox_acquire(struct sdsi_priv *priv, struct sdsi_mbox_info *info
 	/* Check mailbox is available */
 	control = readq(priv->control_addr);
 	owner = FIELD_GET(CTRL_OWNER, control);
-	if (owner != MBOX_OWNER_NONE)
+	if (owner != MBOX_OWNER_ANALNE)
 		return -EBUSY;
 
 	/*
-	 * If there has been no recent transaction and no one owns the mailbox,
+	 * If there has been anal recent transaction and anal one owns the mailbox,
 	 * we should acquire it in under 1ms. However, if we've accessed it
 	 * recently it may take up to 2.1 seconds to acquire it again.
 	 */
@@ -299,7 +299,7 @@ static int sdsi_mbox_acquire(struct sdsi_priv *priv, struct sdsi_mbox_info *info
 			FIELD_GET(CTRL_OWNER, control) == MBOX_OWNER_INBAND,
 			MBOX_POLLING_PERIOD_US, MBOX_TIMEOUT_ACQUIRE_US);
 
-		if (FIELD_GET(CTRL_OWNER, control) == MBOX_OWNER_NONE &&
+		if (FIELD_GET(CTRL_OWNER, control) == MBOX_OWNER_ANALNE &&
 		    retries++ < MBOX_ACQUIRE_NUM_RETRIES) {
 			msleep(MBOX_ACQUIRE_RETRY_DELAY_MS);
 			continue;
@@ -352,7 +352,7 @@ static ssize_t sdsi_provision(struct sdsi_priv *priv, char *buf, size_t count,
 
 	info.payload = kzalloc(info.size, GFP_KERNEL);
 	if (!info.payload)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Copy message to payload buffer */
 	memcpy(info.payload, buf, count);
@@ -417,7 +417,7 @@ certificate_read(u64 command, struct sdsi_priv *priv, char *buf, loff_t off,
 	/* Buffer for return data */
 	info.buffer = kmalloc(SDSI_SIZE_READ_MSG, GFP_KERNEL);
 	if (!info.buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info.payload = &command;
 	info.size = sizeof(command);
@@ -513,7 +513,7 @@ sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
 	if (attr == &bin_attr_registers)
 		return attr->attr.mode;
 
-	/* All other attributes not visible if BIOS has not enabled On Demand */
+	/* All other attributes analt visible if BIOS has analt enabled On Demand */
 	if (!(priv->features & SDSI_FEATURE_SDSI))
 		return 0;
 
@@ -622,7 +622,7 @@ static int sdsi_probe(struct auxiliary_device *auxdev, const struct auxiliary_de
 
 	priv = devm_kzalloc(&auxdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &auxdev->dev;
 	mutex_init(&priv->mb_lock);
@@ -663,7 +663,7 @@ static struct auxiliary_driver sdsi_aux_driver = {
 	},
 	.id_table	= sdsi_aux_id_table,
 	.probe		= sdsi_probe,
-	/* No remove. All resources are handled under devm */
+	/* Anal remove. All resources are handled under devm */
 };
 module_auxiliary_driver(sdsi_aux_driver);
 

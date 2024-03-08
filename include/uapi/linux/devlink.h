@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * include/uapi/linux/devlink.h - Network physical device Netlink interface
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellaanalx.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ enum devlink_command {
 	DEVLINK_CMD_RESOURCE_DUMP,
 
 	/* Hot driver reload, makes configuration changes take place. The
-	 * devlink instance is not released during the process.
+	 * devlink instance is analt released during the process.
 	 */
 	DEVLINK_CMD_RELOAD,
 
@@ -101,13 +101,13 @@ enum devlink_command {
 	DEVLINK_CMD_HEALTH_REPORTER_GET,
 	DEVLINK_CMD_HEALTH_REPORTER_SET,
 	DEVLINK_CMD_HEALTH_REPORTER_RECOVER,
-	DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE,
+	DEVLINK_CMD_HEALTH_REPORTER_DIAGANALSE,
 	DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET,
 	DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
 
 	DEVLINK_CMD_FLASH_UPDATE,
-	DEVLINK_CMD_FLASH_UPDATE_END,		/* notification only */
-	DEVLINK_CMD_FLASH_UPDATE_STATUS,	/* notification only */
+	DEVLINK_CMD_FLASH_UPDATE_END,		/* analtification only */
+	DEVLINK_CMD_FLASH_UPDATE_STATUS,	/* analtification only */
 
 	DEVLINK_CMD_TRAP_GET,		/* can dump */
 	DEVLINK_CMD_TRAP_SET,
@@ -139,7 +139,7 @@ enum devlink_command {
 	DEVLINK_CMD_SELFTESTS_GET,	/* can dump */
 	DEVLINK_CMD_SELFTESTS_RUN,
 
-	DEVLINK_CMD_NOTIFY_FILTER_SET,
+	DEVLINK_CMD_ANALTIFY_FILTER_SET,
 
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
@@ -147,7 +147,7 @@ enum devlink_command {
 };
 
 enum devlink_port_type {
-	DEVLINK_PORT_TYPE_NOTSET,
+	DEVLINK_PORT_TYPE_ANALTSET,
 	DEVLINK_PORT_TYPE_AUTO,
 	DEVLINK_PORT_TYPE_ETH,
 	DEVLINK_PORT_TYPE_IB,
@@ -164,7 +164,7 @@ enum devlink_sb_pool_type {
  *   In this mode, the maximum quota is calculated based
  *   on the following formula:
  *     max_quota = alpha / (1 + alpha) * Free_Buffer
- *   While Free_Buffer is the amount of none-occupied buffer associated to
+ *   While Free_Buffer is the amount of analne-occupied buffer associated to
  *   the relevant pool.
  *   The value range which can be passed is 0-20 and serves
  *   for computation of alpha by following formula:
@@ -184,14 +184,14 @@ enum devlink_eswitch_mode {
 };
 
 enum devlink_eswitch_inline_mode {
-	DEVLINK_ESWITCH_INLINE_MODE_NONE,
+	DEVLINK_ESWITCH_INLINE_MODE_ANALNE,
 	DEVLINK_ESWITCH_INLINE_MODE_LINK,
 	DEVLINK_ESWITCH_INLINE_MODE_NETWORK,
 	DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT,
 };
 
 enum devlink_eswitch_encap_mode {
-	DEVLINK_ESWITCH_ENCAP_MODE_NONE,
+	DEVLINK_ESWITCH_ENCAP_MODE_ANALNE,
 	DEVLINK_ESWITCH_ENCAP_MODE_BASIC,
 };
 
@@ -213,7 +213,7 @@ enum devlink_port_flavour {
 				      */
 	DEVLINK_PORT_FLAVOUR_VIRTUAL, /* Any virtual port facing the user. */
 	DEVLINK_PORT_FLAVOUR_UNUSED, /* Port which exists in the switch, but
-				      * is not used in any way.
+				      * is analt used in any way.
 				      */
 	DEVLINK_PORT_FLAVOUR_PCI_SF, /* Represents eswitch port
 				      * for the PCI SF. It is an internal
@@ -223,7 +223,7 @@ enum devlink_port_flavour {
 
 enum devlink_rate_type {
 	DEVLINK_RATE_TYPE_LEAF,
-	DEVLINK_RATE_TYPE_NODE,
+	DEVLINK_RATE_TYPE_ANALDE,
 };
 
 enum devlink_param_cmode {
@@ -240,11 +240,11 @@ enum devlink_param_fw_load_policy_value {
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
-	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKNOWN,
+	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKANALWN,
 };
 
 enum devlink_param_reset_dev_on_drv_probe_value {
-	DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKNOWN,
+	DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_UNKANALWN,
 	DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_ALWAYS,
 	DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_NEVER,
 	DEVLINK_PARAM_RESET_DEV_ON_DRV_PROBE_VALUE_DISK,
@@ -307,7 +307,7 @@ enum devlink_attr_selftest_result {
 
 /**
  * enum devlink_trap_action - Packet trap action.
- * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
+ * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is analt
  *                            sent to the CPU.
  * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
  * @DEVLINK_TRAP_ACTION_MIRROR: Packet is forwarded by the device and a copy is
@@ -322,9 +322,9 @@ enum devlink_trap_action {
 /**
  * enum devlink_trap_type - Packet trap type.
  * @DEVLINK_TRAP_TYPE_DROP: Trap reason is a drop. Trapped packets are only
- *                          processed by devlink and not injected to the
+ *                          processed by devlink and analt injected to the
  *                          kernel's Rx path.
- * @DEVLINK_TRAP_TYPE_EXCEPTION: Trap reason is an exception. Packet was not
+ * @DEVLINK_TRAP_TYPE_EXCEPTION: Trap reason is an exception. Packet was analt
  *                               forwarded as intended due to an exception
  *                               (e.g., missing neighbour entry) and trapped to
  *                               control plane for resolution. Trapped packets
@@ -334,7 +334,7 @@ enum devlink_trap_action {
  *                             the correct functioning of the control plane.
  *                             For example, an ARP request packet. Trapped
  *                             packets are injected to the kernel's Rx path,
- *                             but not reported to drop monitor.
+ *                             but analt reported to drop monitor.
  */
 enum devlink_trap_type {
 	DEVLINK_TRAP_TYPE_DROP,
@@ -360,9 +360,9 @@ enum devlink_reload_action {
 };
 
 enum devlink_reload_limit {
-	DEVLINK_RELOAD_LIMIT_UNSPEC,	/* unspecified, no constraints */
-	DEVLINK_RELOAD_LIMIT_NO_RESET,	/* No reset allowed, no down time allowed,
-					 * no link flap and no configuration is lost.
+	DEVLINK_RELOAD_LIMIT_UNSPEC,	/* unspecified, anal constraints */
+	DEVLINK_RELOAD_LIMIT_ANAL_RESET,	/* Anal reset allowed, anal down time allowed,
+					 * anal link flap and anal configuration is lost.
 					 */
 
 	/* Add new reload limit above */
@@ -595,8 +595,8 @@ enum devlink_attr {
 	DEVLINK_ATTR_RATE_TYPE,			/* u16 */
 	DEVLINK_ATTR_RATE_TX_SHARE,		/* u64 */
 	DEVLINK_ATTR_RATE_TX_MAX,		/* u64 */
-	DEVLINK_ATTR_RATE_NODE_NAME,		/* string */
-	DEVLINK_ATTR_RATE_PARENT_NODE_NAME,	/* string */
+	DEVLINK_ATTR_RATE_ANALDE_NAME,		/* string */
+	DEVLINK_ATTR_RATE_PARENT_ANALDE_NAME,	/* string */
 
 	DEVLINK_ATTR_REGION_MAX_SNAPSHOTS,	/* u32 */
 
@@ -624,7 +624,7 @@ enum devlink_attr {
  * structure
  */
 enum devlink_dpipe_field_mapping_type {
-	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE,
+	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_ANALNE,
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX,
 };
 

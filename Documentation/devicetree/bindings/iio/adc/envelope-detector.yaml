@@ -33,7 +33,7 @@ properties:
 
   io-channels:
     maxItems: 1
-    description: Channel node of the dac to be used for comparator input.
+    description: Channel analde of the dac to be used for comparator input.
 
   io-channel-names:
     const: dac

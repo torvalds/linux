@@ -1,7 +1,7 @@
 /*
  * llc_conn.c - Driver routines for connection component.
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  *		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -115,15 +115,15 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	case LLC_RESET_PRIM:
 		/*
 		 * FIXME:
-		 * RESET is not being notified to upper layers for now
+		 * RESET is analt being analtified to upper layers for analw
 		 */
 		printk(KERN_INFO "%s: received a reset ind!\n", __func__);
 		break;
 	default:
 		if (ev->ind_prim)
-			printk(KERN_INFO "%s: received unknown %d prim!\n",
+			printk(KERN_INFO "%s: received unkanalwn %d prim!\n",
 				__func__, ev->ind_prim);
-		/* No indication */
+		/* Anal indication */
 		break;
 	}
 
@@ -159,15 +159,15 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 	case LLC_RESET_PRIM:
 		/*
 		 * FIXME:
-		 * RESET is not being notified to upper layers for now
+		 * RESET is analt being analtified to upper layers for analw
 		 */
 		printk(KERN_INFO "%s: received a reset conf!\n", __func__);
 		break;
 	default:
 		if (ev->cfm_prim)
-			printk(KERN_INFO "%s: received unknown %d prim!\n",
+			printk(KERN_INFO "%s: received unkanalwn %d prim!\n",
 					__func__, ev->cfm_prim);
-		/* No confirmation */
+		/* Anal confirmation */
 		break;
 	}
 out_skb_put:
@@ -199,12 +199,12 @@ void llc_conn_rtn_pdu(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- *	llc_conn_resend_i_pdu_as_cmd - resend all all unacknowledged I PDUs
+ *	llc_conn_resend_i_pdu_as_cmd - resend all all unackanalwledged I PDUs
  *	@sk: active connection
  *	@nr: NR
  *	@first_p_bit: p_bit value of first pdu
  *
- *	Resend all unacknowledged I PDUs, starting with the NR; send first as
+ *	Resend all unackanalwledged I PDUs, starting with the NR; send first as
  *	command PDU with P bit equal first_p_bit; if more than one send
  *	subsequent as command PDUs with P bit equal zero (0).
  */
@@ -220,7 +220,7 @@ void llc_conn_resend_i_pdu_as_cmd(struct sock *sk, u8 nr, u8 first_p_bit)
 	if (!nbr_unack_pdus)
 		goto out;
 	/*
-	 * Process unack PDUs only if unack queue is not empty; remove
+	 * Process unack PDUs only if unack queue is analt empty; remove
 	 * appropriate PDUs, fix them up, and put them on mac_pdu_q.
 	 */
 	llc = llc_sk(sk);
@@ -242,12 +242,12 @@ out:;
 }
 
 /**
- *	llc_conn_resend_i_pdu_as_rsp - Resend all unacknowledged I PDUs
+ *	llc_conn_resend_i_pdu_as_rsp - Resend all unackanalwledged I PDUs
  *	@sk: active connection.
  *	@nr: NR
  *	@first_f_bit: f_bit value of first pdu.
  *
- *	Resend all unacknowledged I PDUs, starting with the NR; send first as
+ *	Resend all unackanalwledged I PDUs, starting with the NR; send first as
  *	response PDU with F bit equal first_f_bit; if more than one send
  *	subsequent as response PDUs with F bit equal zero (0).
  */
@@ -262,7 +262,7 @@ void llc_conn_resend_i_pdu_as_rsp(struct sock *sk, u8 nr, u8 first_f_bit)
 	if (!nbr_unack_pdus)
 		goto out;
 	/*
-	 * Process unack PDUs only if unack queue is not empty; remove
+	 * Process unack PDUs only if unack queue is analt empty; remove
 	 * appropriate PDUs, fix them up, and put them on mac_pdu_q
 	 */
 	while ((skb = skb_dequeue(&llc->pdu_unack_q)) != NULL) {
@@ -283,12 +283,12 @@ out:;
 }
 
 /**
- *	llc_conn_remove_acked_pdus - Removes acknowledged pdus from tx queue
+ *	llc_conn_remove_acked_pdus - Removes ackanalwledged pdus from tx queue
  *	@sk: active connection
  *	@nr: NR
  *	@how_many_unacked: size of pdu_unack_q after removing acked pdus
  *
- *	Removes acknowledged pdus from transmit queue (pdu_unack_q). Returns
+ *	Removes ackanalwledged pdus from transmit queue (pdu_unack_q). Returns
  *	the number of pdus that removed from queue.
  */
 int llc_conn_remove_acked_pdus(struct sock *sk, u8 nr, u16 *how_many_unacked)
@@ -366,7 +366,7 @@ static int llc_conn_service(struct sock *sk, struct sk_buff *skb)
 	trans = llc_qualify_conn_ev(sk, skb);
 	if (trans) {
 		rc = llc_exec_conn_trans_actions(sk, trans, skb);
-		if (!rc && trans->next_state != NO_STATE_CHANGE) {
+		if (!rc && trans->next_state != ANAL_STATE_CHANGE) {
 			llc->state = trans->next_state;
 			if (!llc_data_accept_state(llc->state))
 				sk->sk_state_change(sk);
@@ -395,7 +395,7 @@ static struct llc_conn_state_trans *llc_qualify_conn_ev(struct sock *sk,
 					&llc_conn_state_table[llc->state - 1];
 
 	/* search thru events for this state until
-	 * list exhausted or until no more
+	 * list exhausted or until anal more
 	 */
 	for (next_trans = curr_state->transitions +
 		llc_find_offset(llc->state - 1, ev->type);
@@ -410,7 +410,7 @@ static struct llc_conn_state_trans *llc_qualify_conn_ev(struct sock *sk,
 			for (next_qualifier = (*next_trans)->ev_qualifiers;
 			     next_qualifier && *next_qualifier &&
 			     !(*next_qualifier)(sk, skb); next_qualifier++)
-				/* nothing */;
+				/* analthing */;
 			if (!next_qualifier || !*next_qualifier)
 				/* all qualifiers executed successfully; this is
 				 * our transition; return it so we can perform
@@ -484,16 +484,16 @@ static struct sock *__llc_lookup_established(struct llc_sap *sap,
 					     const struct net *net)
 {
 	struct sock *rc;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	int slot = llc_sk_laddr_hashfn(sap, laddr);
 	struct hlist_nulls_head *laddr_hb = &sap->sk_laddr_hash[slot];
 
 	rcu_read_lock();
 again:
-	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
+	sk_nulls_for_each_rcu(rc, analde, laddr_hb) {
 		if (llc_estab_match(sap, daddr, laddr, rc, net)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
-			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
+			if (unlikely(!refcount_inc_analt_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_estab_match(sap, daddr, laddr, rc, net))) {
@@ -506,10 +506,10 @@ again:
 	rc = NULL;
 	/*
 	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * analt the expected one, we must restart lookup.
+	 * We probably met an item that was moved to aanalther chain.
 	 */
-	if (unlikely(get_nulls_value(node) != slot))
+	if (unlikely(get_nulls_value(analde) != slot))
 		goto again;
 found:
 	rcu_read_unlock();
@@ -547,16 +547,16 @@ static struct sock *__llc_lookup_listener(struct llc_sap *sap,
 					  const struct net *net)
 {
 	struct sock *rc;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_analde *analde;
 	int slot = llc_sk_laddr_hashfn(sap, laddr);
 	struct hlist_nulls_head *laddr_hb = &sap->sk_laddr_hash[slot];
 
 	rcu_read_lock();
 again:
-	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
+	sk_nulls_for_each_rcu(rc, analde, laddr_hb) {
 		if (llc_listener_match(sap, laddr, rc, net)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
-			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
+			if (unlikely(!refcount_inc_analt_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_listener_match(sap, laddr, rc, net))) {
@@ -569,10 +569,10 @@ again:
 	rc = NULL;
 	/*
 	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * analt the expected one, we must restart lookup.
+	 * We probably met an item that was moved to aanalther chain.
 	 */
-	if (unlikely(get_nulls_value(node) != slot))
+	if (unlikely(get_nulls_value(analde) != slot))
 		goto again;
 found:
 	rcu_read_unlock();
@@ -621,7 +621,7 @@ static struct sock *__llc_lookup(struct llc_sap *sap,
  */
 u8 llc_data_accept_state(u8 state)
 {
-	return state != LLC_CONN_STATE_NORMAL && state != LLC_CONN_STATE_BUSY &&
+	return state != LLC_CONN_STATE_ANALRMAL && state != LLC_CONN_STATE_BUSY &&
 	       state != LLC_CONN_STATE_REJ;
 }
 
@@ -677,8 +677,8 @@ void __init llc_build_offset_table(void)
 static int llc_find_offset(int state, int ev_type)
 {
 	int rc = 0;
-	/* at this stage, llc_offset_table[..][2] is not important. it is for
-	 * init_pf_cycle and I don't know what is it.
+	/* at this stage, llc_offset_table[..][2] is analt important. it is for
+	 * init_pf_cycle and I don't kanalw what is it.
 	 */
 	switch (ev_type) {
 	case LLC_CONN_EV_TYPE_PRIM:
@@ -715,8 +715,8 @@ void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 	spin_lock_bh(&sap->sk_lock);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	sap->sk_count++;
-	sk_nulls_add_node_rcu(sk, laddr_hb);
-	hlist_add_head(&llc->dev_hash_node, dev_hb);
+	sk_nulls_add_analde_rcu(sk, laddr_hb);
+	hlist_add_head(&llc->dev_hash_analde, dev_hb);
 	spin_unlock_bh(&sap->sk_lock);
 }
 
@@ -733,8 +733,8 @@ void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 	struct llc_sock *llc = llc_sk(sk);
 
 	spin_lock_bh(&sap->sk_lock);
-	sk_nulls_del_node_init_rcu(sk);
-	hlist_del(&llc->dev_hash_node);
+	sk_nulls_del_analde_init_rcu(sk);
+	hlist_del(&llc->dev_hash_analde);
 	sap->sk_count--;
 	spin_unlock_bh(&sap->sk_lock);
 	llc_sap_put(sap);
@@ -794,7 +794,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 
 	bh_lock_sock(sk);
 	/*
-	 * This has to be done here and not at the upper layer ->accept
+	 * This has to be done here and analt at the upper layer ->accept
 	 * method because of the way the PROCOM state machine works:
 	 * it needs to set several state variables (see, for instance,
 	 * llc_adm_actions_2 in net/llc/llc_c_st.c) and send a packet to
@@ -812,7 +812,7 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 		 * Can't be skb_set_owner_r, this will be done at the
 		 * llc_conn_state_process function, later on, when we will use
 		 * skb_queue_rcv_skb to send it to upper layers, this is
-		 * another trick required to cope with how the PROCOM state
+		 * aanalther trick required to cope with how the PROCOM state
 		 * machine works. -acme
 		 */
 		skb_orphan(skb);
@@ -861,13 +861,13 @@ static int llc_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 
 	if (likely(llc_backlog_type(skb) == LLC_PACKET)) {
-		if (likely(llc->state > 1)) /* not closed */
+		if (likely(llc->state > 1)) /* analt closed */
 			rc = llc_conn_rcv(sk, skb);
 		else
 			goto out_kfree_skb;
 	} else if (llc_backlog_type(skb) == LLC_EVENT) {
 		/* timer expiration event */
-		if (likely(llc->state > 1))  /* not closed */
+		if (likely(llc->state > 1))  /* analt closed */
 			rc = llc_conn_state_process(sk, skb);
 		else
 			goto out_kfree_skb;
@@ -925,7 +925,7 @@ static void llc_sk_init(struct sock *sk)
  *	@kern: is this to be a kernel socket?
  *
  *	Allocates a LLC sock and initializes it. Returns the new LLC sock
- *	or %NULL if there's no memory available for one
+ *	or %NULL if there's anal memory available for one
  */
 struct sock *llc_sk_alloc(struct net *net, int family, gfp_t priority, struct proto *prot, int kern)
 {
@@ -937,7 +937,7 @@ struct sock *llc_sk_alloc(struct net *net, int family, gfp_t priority, struct pr
 	sock_init_data(NULL, sk);
 #ifdef LLC_REFCNT_DEBUG
 	atomic_inc(&llc_sock_nr);
-	printk(KERN_DEBUG "LLC socket %p created in %s, now we have %d alive\n", sk,
+	printk(KERN_DEBUG "LLC socket %p created in %s, analw we have %d alive\n", sk,
 		__func__, atomic_read(&llc_sock_nr));
 #endif
 out:

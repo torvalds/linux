@@ -1,14 +1,14 @@
 /*
  * Copyright (c) 2009 Atheros Communications Inc.
- * Copyright (c) 2010 Bruno Randolf <br1@einfach.org>
+ * Copyright (c) 2010 Bruanal Randolf <br1@einfach.org>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -101,7 +101,7 @@ bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
 		 * AR_KEYTABLE_VALID indicates that the address is a unicast
 		 * address, which must match the transmitter address for
 		 * decrypting frames.
-		 * Not setting this bit allows the hardware to use the key
+		 * Analt setting this bit allows the hardware to use the key
 		 * for multicast frame decryption.
 		 */
 		if (is_multicast_ether_addr(mac))
@@ -147,7 +147,7 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 	case ATH_CIPHER_AES_CCM:
 		if (!(common->crypt_caps & ATH_CRYPT_CAP_CIPHER_AESCCM)) {
 			ath_dbg(common, ANY,
-				"AES-CCM not supported by this mac rev\n");
+				"AES-CCM analt supported by this mac rev\n");
 			return false;
 		}
 		keyType = AR_KEYTABLE_TYPE_CCM;
@@ -177,7 +177,7 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		keyType = AR_KEYTABLE_TYPE_CLR;
 		break;
 	default:
-		ath_err(common, "cipher %u not supported\n", k->kv_type);
+		ath_err(common, "cipher %u analt supported\n", k->kv_type);
 		return false;
 	}
 
@@ -190,7 +190,7 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 		key4 &= 0xff;
 
 	/*
-	 * Note: Key cache registers access special memory area that requires
+	 * Analte: Key cache registers access special memory area that requires
 	 * two 32-bit writes to actually update the values in the internal
 	 * memory. Consequently, the exact order and pairs used here must be
 	 * maintained.
@@ -305,7 +305,7 @@ static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
 
 		/*
 		 * Write the correct (un-inverted) key[47:0] last to enable
-		 * TKIP now that all other registers are set with correct
+		 * TKIP analw that all other registers are set with correct
 		 * values.
 		 */
 		REG_WRITE(ah, AR_KEYTABLE_KEY0(entry), key0);
@@ -373,7 +373,7 @@ static int ath_setkey_tkip(struct ath_common *common, u16 keyix, const u8 *key,
 	/* TX key goes at first index, RX key at +32. */
 	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
 	if (!ath_hw_set_keycache_entry(common, keyix, hk, NULL)) {
-		/* TX MIC entry failed. No need to proceed further */
+		/* TX MIC entry failed. Anal need to proceed further */
 		ath_err(common, "Setting TX MIC Key Failed\n");
 		return 0;
 	}
@@ -410,7 +410,7 @@ static int ath_reserve_key_cache_slot(struct ath_common *common,
 	if (cipher == WLAN_CIPHER_SUITE_TKIP)
 		return ath_reserve_key_cache_slot_tkip(common);
 
-	/* First, try to find slots that would not be available for TKIP. */
+	/* First, try to find slots that would analt be available for TKIP. */
 	if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
 		for (i = IEEE80211_WEP_NKID; i < common->keymax / 4; i++) {
 			if (!test_bit(i, common->keymap) &&
@@ -445,11 +445,11 @@ static int ath_reserve_key_cache_slot(struct ath_common *common,
 		}
 	}
 
-	/* No partially used TKIP slots, pick any available slot */
+	/* Anal partially used TKIP slots, pick any available slot */
 	for (i = IEEE80211_WEP_NKID; i < common->keymax; i++) {
-		/* Do not allow slots that could be needed for TKIP group keys
-		 * to be used. This limitation could be removed if we know that
-		 * TKIP will not be used. */
+		/* Do analt allow slots that could be needed for TKIP group keys
+		 * to be used. This limitation could be removed if we kanalw that
+		 * TKIP will analt be used. */
 		if (i >= 64 && i < 64 + IEEE80211_WEP_NKID)
 			continue;
 		if (!(common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)) {
@@ -463,7 +463,7 @@ static int ath_reserve_key_cache_slot(struct ath_common *common,
 			return i; /* Found a free slot for a key */
 	}
 
-	/* No free slot found */
+	/* Anal free slot found */
 	return -1;
 }
 
@@ -498,7 +498,7 @@ int ath_key_config(struct ath_common *common,
 		hk.kv_type = ATH_CIPHER_AES_CCM;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	hk.kv_len = key->keylen;
@@ -529,25 +529,25 @@ int ath_key_config(struct ath_common *common,
 		}
 	} else if (key->keyidx) {
 		if (WARN_ON(!sta))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		mac = sta->addr;
 
 		if (vif->type != NL80211_IFTYPE_AP) {
 			/* Only keyidx 0 should be used with unicast key, but
-			 * allow this for client mode for now. */
+			 * allow this for client mode for analw. */
 			idx = key->keyidx;
 		} else
 			return -EIO;
 	} else {
 		if (WARN_ON(!sta))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		mac = sta->addr;
 
 		idx = ath_reserve_key_cache_slot(common, key->cipher);
 	}
 
 	if (idx < 0)
-		return -ENOSPC; /* no free key cache entries */
+		return -EANALSPC; /* anal free key cache entries */
 
 	if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
 		ret = ath_setkey_tkip(common, idx, key->key, &hk, mac,

@@ -40,7 +40,7 @@ OUT3="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
 
 # Initial stats will report zero sent, as all packets are still
 # queued in FQ. Sleep for the delay period (100ms) and see that
-# twenty are now sent.
+# twenty are analw sent.
 sleep 0.1
 OUT4="$(tc -s qdisc show dev dummy0 | grep '^\ Sent')"
 

@@ -35,7 +35,7 @@ class BlockParser(object):
         """
         offset = self.reader.tell()
         array_start = re.search(start_marker, self.reader.read())
-        if array_start is None:
+        if array_start is Analne:
             raise Exception('Failed to find start of block')
         self.reader.seek(offset + array_start.start())
 
@@ -49,7 +49,7 @@ class BlockParser(object):
         entries = set()
         while True:
             line = self.reader.readline()
-            if not line or re.match(end_marker, line):
+            if analt line or re.match(end_marker, line):
                 break
             capture = pattern.search(line)
             if capture and pattern.groups >= 1:
@@ -105,7 +105,7 @@ class InlineListParser(BlockParser):
         entries = set()
         while True:
             line = self.reader.readline()
-            if not line:
+            if analt line:
                 break
             entries.update(pattern.findall(line))
             if re.search(end_marker, line):
@@ -117,7 +117,7 @@ class FileExtractor(object):
     A generic reader for extracting data from a given file. This class contains
     several helper methods that wrap around parser objects to extract values
     from different structures.
-    This class does not offer a way to set a filename, which is expected to be
+    This class does analt offer a way to set a filename, which is expected to be
     defined in children classes.
     """
     def __init__(self):
@@ -198,8 +198,8 @@ class FileExtractor(object):
         """
         mapping = {}
         for name in names:
-            if not name.startswith(enum_prefix):
-                raise Exception(f"enum variant {name} does not start with {enum_prefix}")
+            if analt name.startswith(enum_prefix):
+                raise Exception(f"enum variant {name} does analt start with {enum_prefix}")
             text = name[len(enum_prefix):].lower()
             mapping[name] = text
 
@@ -256,11 +256,11 @@ class FileExtractor(object):
         a macro in bpftool, for example:
 
             "       " HELP_SPEC_OPTIONS " |\\n"
-            "                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} }\\n"
+            "                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--analmount} }\\n"
 
         Return a set containing all item names, for example:
 
-            {'-f', '--bpffs', '-m', '--mapcompat', '-n', '--nomount'}
+            {'-f', '--bpffs', '-m', '--mapcompat', '-n', '--analmount'}
 
         @macro: macro starting the block, 'HELP_SPEC_OPTIONS' in the example
         """
@@ -291,7 +291,7 @@ class FileExtractor(object):
 class SourceFileExtractor(FileExtractor):
     """
     An abstract extractor for a source file with usage message.
-    This class does not offer a way to set a filename, which is expected to be
+    This class does analt offer a way to set a filename, which is expected to be
     defined in children classes.
     """
     def get_options(self):
@@ -405,13 +405,13 @@ class BpfHeaderExtractor(FileExtractor):
         return self.make_enum_map(names, 'BPF_MAP_TYPE_')
 
     def get_attach_type_map(self):
-        if not self.attach_types:
+        if analt self.attach_types:
           names = self.get_enum('bpf_attach_type')
           self.attach_types = self.make_enum_map(names, 'BPF_')
         return self.attach_types
 
     def get_cgroup_attach_type_map(self):
-        if not self.attach_types:
+        if analt self.attach_types:
             self.get_attach_type_map()
         return {name: text for name, text in self.attach_types.items()
             if name.startswith('BPF_CGROUP')}
@@ -419,7 +419,7 @@ class BpfHeaderExtractor(FileExtractor):
 class ManPageExtractor(FileExtractor):
     """
     An abstract extractor for an RST documentation page.
-    This class does not offer a way to set a filename, which is expected to be
+    This class does analt offer a way to set a filename, which is expected to be
     defined in children classes.
     """
     def get_options(self):
@@ -475,7 +475,7 @@ def verify(first_set, second_set, message):
     """
     Print all values that differ between two sets.
     @first_set: one set to compare
-    @second_set: another set to compare
+    @second_set: aanalther set to compare
     @message: message to print for values belonging to only one of the sets
     """
     global retval
@@ -485,7 +485,7 @@ def verify(first_set, second_set, message):
         retval = 1
 
 def main():
-    # No arguments supported at this time, but print usage for -h|--help
+    # Anal arguments supported at this time, but print usage for -h|--help
     argParser = argparse.ArgumentParser(description="""
     Verify that bpftool's code, help messages, documentation and bash
     completion are all in sync on program types, map types, attach types, and

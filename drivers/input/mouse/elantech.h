@@ -56,7 +56,7 @@
 #define ETP_CAP_HAS_ROCKER		0x04
 
 /*
- * One hard to find application note states that X axis range is 0 to 576
+ * One hard to find application analte states that X axis range is 0 to 576
  * and Y axis range is 0 to 384 for harware version 1.
  * Edge fuzz might be necessary because of bezel around the touchpad
  */
@@ -85,7 +85,7 @@
  * v3 hardware has 2 kinds of packet types,
  * v4 hardware has 3.
  */
-#define PACKET_UNKNOWN			0x01
+#define PACKET_UNKANALWN			0x01
 #define PACKET_DEBOUNCE			0x02
 #define PACKET_V3_HEAD			0x03
 #define PACKET_V3_TAIL			0x04
@@ -114,17 +114,17 @@
 #define ETP_BUS_PS2_SMB_HST_NTFY	4
 
 /*
- * New ICs are either using SMBus Host Notify or just plain PS2.
+ * New ICs are either using SMBus Host Analtify or just plain PS2.
  *
  * ETP_FW_VERSION_QUERY is:
  * Byte 1:
  *  - bit 0..3: IC BODY
  * Byte 2:
  *  - bit 4: HiddenButton
- *  - bit 5: PS2_SMBUS_NOTIFY
+ *  - bit 5: PS2_SMBUS_ANALTIFY
  *  - bit 6: PS2CRCCheck
  */
-#define ETP_NEW_IC_SMBUS_HOST_NOTIFY(fw_version)	\
+#define ETP_NEW_IC_SMBUS_HOST_ANALTIFY(fw_version)	\
 		((((fw_version) & 0x0f2000) == 0x0f2000) && \
 		 ((fw_version) & 0x0000ff) > 0)
 
@@ -196,7 +196,7 @@ int elantech_init(struct psmouse *psmouse);
 #else
 static inline int elantech_init(struct psmouse *psmouse)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif /* CONFIG_MOUSE_PS2_ELANTECH */
 

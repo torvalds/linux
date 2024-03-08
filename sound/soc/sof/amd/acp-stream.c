@@ -134,7 +134,7 @@ struct acp_dsp_stream *acp_dsp_stream_get(struct snd_sof_dev *sdev, int tag)
 		if (stream->active)
 			continue;
 
-		/* return stream if tag not specified*/
+		/* return stream if tag analt specified*/
 		if (!tag) {
 			stream->active = 1;
 			return stream;
@@ -147,7 +147,7 @@ struct acp_dsp_stream *acp_dsp_stream_get(struct snd_sof_dev *sdev, int tag)
 		}
 	}
 
-	dev_err(sdev->dev, "stream %d active or no inactive stream\n", tag);
+	dev_err(sdev->dev, "stream %d active or anal inactive stream\n", tag);
 	return NULL;
 }
 EXPORT_SYMBOL_NS(acp_dsp_stream_get, SND_SOC_SOF_AMD_COMMON);
@@ -167,7 +167,7 @@ int acp_dsp_stream_put(struct snd_sof_dev *sdev,
 		}
 	}
 
-	dev_err(sdev->dev, "Cannot find active stream tag %d\n", acp_stream->stream_tag);
+	dev_err(sdev->dev, "Cananalt find active stream tag %d\n", acp_stream->stream_tag);
 	return -EINVAL;
 }
 EXPORT_SYMBOL_NS(acp_dsp_stream_put, SND_SOC_SOF_AMD_COMMON);

@@ -35,24 +35,24 @@ enum cxl_command_effects {
 	SECONDARY_MBOX_SUPPORTED,
 };
 
-#define CXL_CMD_EFFECT_NONE cpu_to_le16(0)
+#define CXL_CMD_EFFECT_ANALNE cpu_to_le16(0)
 
 static struct cxl_cel_entry mock_cel[] = {
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_SUPPORTED_LOGS),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_IDENTIFY),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_LSA),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_PARTITION_INFO),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_SET_LSA),
@@ -61,11 +61,11 @@ static struct cxl_cel_entry mock_cel[] = {
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_POISON),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_INJECT_POISON),
@@ -77,7 +77,7 @@ static struct cxl_cel_entry mock_cel[] = {
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_FW_INFO),
-		.effect = CXL_CMD_EFFECT_NONE,
+		.effect = CXL_CMD_EFFECT_ANALNE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_TRANSFER_FW),
@@ -289,12 +289,12 @@ static int mock_clear_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 
 	log = event_find_log(dev, log_type);
 	if (!log)
-		return 0; /* No mock data in this log */
+		return 0; /* Anal mock data in this log */
 
 	/*
-	 * This check is technically not invalid per the specification AFAICS.
+	 * This check is technically analt invalid per the specification AFAICS.
 	 * (The host could 'guess' handles and clear them in order).
-	 * However, this is not good behavior for the host so test it.
+	 * However, this is analt good behavior for the host so test it.
 	 */
 	if (log->clear_idx + pl->nr_recs > log->cur_idx) {
 		dev_err(dev,
@@ -603,8 +603,8 @@ void cxl_mockmem_sanitize_work(struct work_struct *work)
 		container_of(work, typeof(*mds), security.poll_dwork.work);
 
 	mutex_lock(&mds->mbox_mutex);
-	if (mds->security.sanitize_node)
-		sysfs_notify_dirent(mds->security.sanitize_node);
+	if (mds->security.sanitize_analde)
+		sysfs_analtify_dirent(mds->security.sanitize_analde);
 	mds->security.sanitize_active = false;
 	mutex_unlock(&mds->mbox_mutex);
 
@@ -723,7 +723,7 @@ static int mock_set_passphrase(struct cxl_mockmem_data *mdata,
 		}
 		/*
 		 * CXL spec rev3.0 8.2.9.8.6.2, The master pasphrase shall only be set in
-		 * the security disabled state when the user passphrase is not set.
+		 * the security disabled state when the user passphrase is analt set.
 		 */
 		if (mdata->security_state & CXL_PMEM_SEC_STATE_USER_PASS_SET) {
 			cmd->return_code = CXL_MBOX_CMD_RC_SECURITY;
@@ -918,9 +918,9 @@ static int mock_passphrase_secure_erase(struct cxl_mockmem_data *mdata,
 	switch (erase->type) {
 	case CXL_PMEM_SEC_PASS_MASTER:
 		/*
-		 * The spec does not clearly define the behavior of the scenario
+		 * The spec does analt clearly define the behavior of the scenario
 		 * where a master passphrase is passed in while the master
-		 * passphrase is not set and user passphrase is not set. The
+		 * passphrase is analt set and user passphrase is analt set. The
 		 * code will take the assumption that it will behave the same
 		 * as a CXL secure erase command without passphrase (0x4401).
 		 */
@@ -949,9 +949,9 @@ static int mock_passphrase_secure_erase(struct cxl_mockmem_data *mdata,
 		break;
 	case CXL_PMEM_SEC_PASS_USER:
 		/*
-		 * The spec does not clearly define the behavior of the scenario
+		 * The spec does analt clearly define the behavior of the scenario
 		 * where a user passphrase is passed in while the user
-		 * passphrase is not set. The code will take the assumption that
+		 * passphrase is analt set. The code will take the assumption that
 		 * it will behave the same as a CXL secure erase command without
 		 * passphrase (0x4401).
 		 */
@@ -969,10 +969,10 @@ static int mock_passphrase_secure_erase(struct cxl_mockmem_data *mdata,
 
 		/*
 		 * CXL rev3 Table 8-118
-		 * If user passphrase is not set or supported by device, current
-		 * passphrase value is ignored. Will make the assumption that
+		 * If user passphrase is analt set or supported by device, current
+		 * passphrase value is iganalred. Will make the assumption that
 		 * the operation will proceed as secure erase w/o passphrase
-		 * since spec is not explicit.
+		 * since spec is analt explicit.
 		 */
 
 		/* Scramble encryption keys so that data is effectively erased */
@@ -1031,10 +1031,10 @@ static int mock_health_info(struct cxl_mbox_cmd *cmd)
 		.media_status = 0x3,
 		/*
 		 * set ext_status flags for:
-		 *  ext_life_used: normal,
+		 *  ext_life_used: analrmal,
 		 *  ext_temperature: critical,
 		 *  ext_corrected_volatile: warning,
-		 *  ext_corrected_persistent: normal,
+		 *  ext_corrected_persistent: analrmal,
 		 */
 		.ext_status = 0x18,
 		.life_used = 15,
@@ -1099,7 +1099,7 @@ static int mock_get_poison(struct cxl_dev_state *cxlds,
 
 	po = cxl_get_injected_po(cxlds, offset, length);
 	if (!po)
-		return -ENOMEM;
+		return -EANALMEM;
 	nr_records = le16_to_cpu(po->count);
 	memcpy(cmd->payload_out, po, struct_size(po, record, nr_records));
 	cmd->size_out = struct_size(po, record, nr_records);
@@ -1159,7 +1159,7 @@ static int mock_inject_poison(struct cxl_dev_state *cxlds,
 	u64 dpa = le64_to_cpu(pi->address);
 
 	if (mock_poison_found(cxlds, dpa)) {
-		/* Not an error to inject poison if already poisoned */
+		/* Analt an error to inject poison if already poisoned */
 		dev_dbg(cxlds->dev, "DPA: 0x%llx already poisoned\n", dpa);
 		return 0;
 	}
@@ -1193,7 +1193,7 @@ static int mock_clear_poison(struct cxl_dev_state *cxlds,
 	 * the mock poison list.
 	 */
 	if (!mock_poison_del(cxlds, dpa))
-		dev_dbg(cxlds->dev, "DPA: 0x%llx not in poison list\n", dpa);
+		dev_dbg(cxlds->dev, "DPA: 0x%llx analt in poison list\n", dpa);
 
 	return 0;
 }
@@ -1449,15 +1449,15 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 
 	mdata = devm_kzalloc(dev, sizeof(*mdata), GFP_KERNEL);
 	if (!mdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, mdata);
 
 	mdata->lsa = vmalloc(LSA_SIZE);
 	if (!mdata->lsa)
-		return -ENOMEM;
+		return -EANALMEM;
 	mdata->fw = vmalloc(FW_SIZE);
 	if (!mdata->fw)
-		return -ENOMEM;
+		return -EANALMEM;
 	mdata->fw_slot = 2;
 
 	rc = devm_add_action_or_reset(dev, label_area_release, mdata->lsa);
@@ -1514,7 +1514,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = devm_cxl_sanitize_setup_notifier(&pdev->dev, cxlmd);
+	rc = devm_cxl_sanitize_setup_analtifier(&pdev->dev, cxlmd);
 	if (rc)
 		return rc;
 
@@ -1572,7 +1572,7 @@ static ssize_t fw_buf_checksum_show(struct device *dev,
 
 	hstr = kzalloc((SHA256_DIGEST_SIZE * 2) + 1, GFP_KERNEL);
 	if (!hstr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hptr = hstr;
 	for (i = 0; i < SHA256_DIGEST_SIZE; i++)

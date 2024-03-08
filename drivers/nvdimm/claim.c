@@ -128,7 +128,7 @@ static void nd_detach_and_reset(struct device *dev,
 
 		kfree(nd_pfn->uuid);
 		nd_pfn->uuid = NULL;
-		nd_pfn->mode = PFN_MODE_NONE;
+		nd_pfn->mode = PFN_MODE_ANALNE;
 	}
 }
 
@@ -147,7 +147,7 @@ ssize_t nd_namespace_store(struct device *dev,
 
 	name = kstrndup(buf, len, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 	strim(name);
 
 	if (strncmp(name, "namespace", 9) == 0 || strcmp(name, "") == 0)
@@ -170,16 +170,16 @@ ssize_t nd_namespace_store(struct device *dev,
 
 	found = device_find_child(dev->parent, name, namespace_match);
 	if (!found) {
-		dev_dbg(dev, "'%s' not found under %s\n", name,
+		dev_dbg(dev, "'%s' analt found under %s\n", name,
 				dev_name(dev->parent));
-		len = -ENODEV;
+		len = -EANALDEV;
 		goto out;
 	}
 
 	ndns = to_ndns(found);
 
 	switch (ndns->claim_class) {
-	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_ANALNE:
 		break;
 	case NVDIMM_CCLASS_BTT:
 	case NVDIMM_CCLASS_BTT2:
@@ -313,13 +313,13 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio,
 	nsio->size = size;
 	if (!devm_request_mem_region(dev, range.start, size,
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", &nsio->res);
+		dev_warn(dev, "could analt reserve region %pR\n", &nsio->res);
 		return -EBUSY;
 	}
 
 	ndns->rw_bytes = nsio_rw_bytes;
 	if (devm_init_badblocks(dev, &nsio->bb))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvdimm_badblocks_populate(to_nd_region(ndns->dev.parent), &nsio->bb,
 			&range);
 

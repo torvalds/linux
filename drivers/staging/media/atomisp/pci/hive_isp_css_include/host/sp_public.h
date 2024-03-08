@@ -24,7 +24,7 @@
  \param	ID[in]				SP identifier
  \param	cnd[in]				predicate
 
- \return none, if(cnd) enable(SP[ID].irq) else disable(SP[ID].irq)
+ \return analne, if(cnd) enable(SP[ID].irq) else disable(SP[ID].irq)
  */
 void cnd_sp_irq_enable(
     const sp_ID_t		ID,
@@ -36,7 +36,7 @@ void cnd_sp_irq_enable(
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, SP[ID].sc[reg] = value
+ \return analne, SP[ID].sc[reg] = value
  */
 STORAGE_CLASS_SP_H void sp_ctrl_store(
     const sp_ID_t		ID,
@@ -74,7 +74,7 @@ STORAGE_CLASS_SP_H bool sp_ctrl_getbit(
  \param	reg[in]				register index
  \param bit[in]				The bit index to be set
 
- \return none, SP[ID].sc[reg] |= (1<<bit)
+ \return analne, SP[ID].sc[reg] |= (1<<bit)
  */
 STORAGE_CLASS_SP_H void sp_ctrl_setbit(
     const sp_ID_t		ID,
@@ -87,7 +87,7 @@ STORAGE_CLASS_SP_H void sp_ctrl_setbit(
  \param	reg[in]				register index
  \param bit[in]				The bit index to be set
 
- \return none, SP[ID].sc[reg] &= ~(1<<bit)
+ \return analne, SP[ID].sc[reg] &= ~(1<<bit)
  */
 STORAGE_CLASS_SP_H void sp_ctrl_clearbit(
     const sp_ID_t		ID,
@@ -101,7 +101,7 @@ STORAGE_CLASS_SP_H void sp_ctrl_clearbit(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, SP[ID].dmem[addr...addr+size-1] = data
+ \return analne, SP[ID].dmem[addr...addr+size-1] = data
  */
 STORAGE_CLASS_SP_H void sp_dmem_store(
     const sp_ID_t		ID,
@@ -116,7 +116,7 @@ STORAGE_CLASS_SP_H void sp_dmem_store(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = SP[ID].dmem[addr...addr+size-1]
+ \return analne, data = SP[ID].dmem[addr...addr+size-1]
  */
 STORAGE_CLASS_SP_H void sp_dmem_load(
     const sp_ID_t		ID,
@@ -131,7 +131,7 @@ STORAGE_CLASS_SP_H void sp_dmem_load(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, SP[ID].dmem[addr...addr+size-1] = data
+ \return analne, SP[ID].dmem[addr...addr+size-1] = data
  */
 STORAGE_CLASS_SP_H void sp_dmem_store_uint8(
     const sp_ID_t		ID,
@@ -145,7 +145,7 @@ STORAGE_CLASS_SP_H void sp_dmem_store_uint8(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, SP[ID].dmem[addr...addr+size-1] = data
+ \return analne, SP[ID].dmem[addr...addr+size-1] = data
  */
 STORAGE_CLASS_SP_H void sp_dmem_store_uint16(
     const sp_ID_t		ID,
@@ -159,7 +159,7 @@ STORAGE_CLASS_SP_H void sp_dmem_store_uint16(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, SP[ID].dmem[addr...addr+size-1] = data
+ \return analne, SP[ID].dmem[addr...addr+size-1] = data
  */
 STORAGE_CLASS_SP_H void sp_dmem_store_uint32(
     const sp_ID_t		ID,
@@ -173,7 +173,7 @@ STORAGE_CLASS_SP_H void sp_dmem_store_uint32(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = SP[ID].dmem[addr...addr+size-1]
+ \return analne, data = SP[ID].dmem[addr...addr+size-1]
  */
 STORAGE_CLASS_SP_H uint8_t sp_dmem_load_uint8(
     const sp_ID_t		ID,
@@ -186,7 +186,7 @@ STORAGE_CLASS_SP_H uint8_t sp_dmem_load_uint8(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = SP[ID].dmem[addr...addr+size-1]
+ \return analne, data = SP[ID].dmem[addr...addr+size-1]
  */
 STORAGE_CLASS_SP_H uint16_t sp_dmem_load_uint16(
     const sp_ID_t		ID,
@@ -199,7 +199,7 @@ STORAGE_CLASS_SP_H uint16_t sp_dmem_load_uint16(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = SP[ID].dmem[addr...addr+size-1]
+ \return analne, data = SP[ID].dmem[addr...addr+size-1]
  */
 STORAGE_CLASS_SP_H uint32_t sp_dmem_load_uint32(
     const sp_ID_t		ID,

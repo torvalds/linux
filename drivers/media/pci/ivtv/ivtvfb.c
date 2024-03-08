@@ -5,7 +5,7 @@
     This module presents the cx23415 OSD (onscreen display) framebuffer memory
     as a standard Linux /dev/fb style framebuffer device. The framebuffer has
     support for 8, 16 & 32 bpp packed pixel formats with alpha channel. In 16bpp
-    mode, there is a choice of a three color depths (12, 15 or 16 bits), but no
+    mode, there is a choice of a three color depths (12, 15 or 16 bits), but anal
     local alpha. The colorspace is selectable between rgb & yuv.
     Depending on the TV standard configured in the ivtv module at load time,
     the initial resolution is either 640x400 (NTSC) or 640x480 (PAL) at 8bpp.
@@ -15,7 +15,7 @@
     Copyright (c) 2003 Matt T. Yourst <yourst@yourst.com>
 
     Derived from drivers/video/vesafb.c
-    Portions (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+    Portions (c) 1998 Gerd Kanalrr <kraxel@goldbach.in-berlin.de>
 
     2.6 kernel port:
     Copyright (C) 2004 Matthias Badaire
@@ -72,7 +72,7 @@ MODULE_PARM_DESC(debug,
 MODULE_PARM_DESC(force_pat,
 		 "Force initialization on x86 PAT-enabled systems (bool).\n");
 
-/* Why upper, left, xres, yres, depth, laced ? To match terminology used
+/* Why upper, left, xres, yres, depth, laced ? To match termianallogy used
    by fbset.
    Why start at 1 for left & upper coordinate ? Because X doesn't allow 0 */
 
@@ -155,7 +155,7 @@ struct osd_info {
 	int set_osd_coords_x;
 	int set_osd_coords_y;
 
-	/* Current dimensions (NOT VISIBLE SIZE!) */
+	/* Current dimensions (ANALT VISIBLE SIZE!) */
 	int display_width;
 	int display_height;
 	int display_byte_stride;
@@ -293,7 +293,7 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 
 	ivtv_udma_prepare(itv);
 	prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
-	/* if no UDMA is pending and no UDMA is in progress, then the DMA
+	/* if anal UDMA is pending and anal UDMA is in progress, then the DMA
 	   is finished */
 	while (test_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags) ||
 	       test_bit(IVTV_F_I_UDMA, &itv->i_flags)) {
@@ -324,9 +324,9 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	DEFINE_WAIT(wait);
 	struct osd_info *oi = itv->osd_info;
 
-	/* Nothing to do */
+	/* Analthing to do */
 	if (count == 0) {
-		IVTVFB_DEBUG_WARN("ivtvfb_prep_frame: Nothing to do. count = 0\n");
+		IVTVFB_DEBUG_WARN("ivtvfb_prep_frame: Analthing to do. count = 0\n");
 		return -EINVAL;
 	}
 
@@ -337,16 +337,16 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 		return -E2BIG;
 	}
 
-	/* Not fatal, but will have undesirable results */
+	/* Analt fatal, but will have undesirable results */
 	if ((unsigned long)source & 3)
-		IVTVFB_WARN("ivtvfb_prep_frame: Source address not 32 bit aligned (%p)\n",
+		IVTVFB_WARN("ivtvfb_prep_frame: Source address analt 32 bit aligned (%p)\n",
 			    source);
 
 	if (dest_offset & 3)
-		IVTVFB_WARN("ivtvfb_prep_frame: Dest offset not 32 bit aligned (%ld)\n", dest_offset);
+		IVTVFB_WARN("ivtvfb_prep_frame: Dest offset analt 32 bit aligned (%ld)\n", dest_offset);
 
 	if (count & 3)
-		IVTVFB_WARN("ivtvfb_prep_frame: Count not a multiple of 4 (%d)\n", count);
+		IVTVFB_WARN("ivtvfb_prep_frame: Count analt a multiple of 4 (%d)\n", count);
 
 	/* Check Source */
 	if (!access_ok(source + dest_offset, count)) {
@@ -379,7 +379,7 @@ static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
 	u16 lead = 0, tail = 0;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	total_size = info->screen_size;
 
@@ -396,7 +396,7 @@ static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
 
 	if (count + p > total_size) {
 		if (!err)
-			err = -ENOSPC;
+			err = -EANALSPC;
 		count = total_size - p;
 	}
 
@@ -489,7 +489,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 		}
 
 		default:
-			IVTVFB_DEBUG_INFO("Unknown ioctl %08x\n", cmd);
+			IVTVFB_DEBUG_INFO("Unkanalwn ioctl %08x\n", cmd);
 			return -EINVAL;
 	}
 	return 0;
@@ -507,7 +507,7 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	IVTVFB_DEBUG_INFO("ivtvfb_set_var\n");
 
 	/* Select color space */
-	if (var->nonstd) /* YUV */
+	if (var->analnstd) /* YUV */
 		write_reg(read_reg(0x02a00) | 0x0002000, 0x02a00);
 	else /* RGB  */
 		write_reg(read_reg(0x02a00) & ~0x0002000, 0x02a00);
@@ -551,7 +551,7 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 
 	/* Set the flicker filter */
 	switch (var->vmode & FB_VMODE_MASK) {
-		case FB_VMODE_NONINTERLACED: /* Filter on */
+		case FB_VMODE_ANALNINTERLACED: /* Filter on */
 			ivtv_vapi(itv, CX2341X_OSD_SET_FLICKER_STATE, 1, 1);
 			break;
 		case FB_VMODE_INTERLACED: /* Filter off */
@@ -564,7 +564,7 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	/* Read the current osd info */
 	ivtvfb_get_osd_coords(itv, &ivtv_osd);
 
-	/* Now set the OSD to the size we want */
+	/* Analw set the OSD to the size we want */
 	ivtv_osd.pixel_stride = var->xres_virtual;
 	ivtv_osd.lines = var->yres_virtual;
 	ivtv_osd.x = 0;
@@ -572,11 +572,11 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 	ivtvfb_set_osd_coords(itv, &ivtv_osd);
 
 	/* Can't seem to find the right API combo for this.
-	   Use another function which does what we need through direct register access. */
+	   Use aanalther function which does what we need through direct register access. */
 	ivtv_window.width = var->xres;
 	ivtv_window.height = var->yres;
 
-	/* Minimum margin cannot be 0, as X won't allow such a mode */
+	/* Minimum margin cananalt be 0, as X won't allow such a mode */
 	if (!var->upper_margin)
 		var->upper_margin++;
 	if (!var->left_margin)
@@ -605,8 +605,8 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 		      var->left_margin, var->upper_margin);
 
 	IVTVFB_DEBUG_INFO("Display filter: %s\n",
-			(var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED ? "on" : "off");
-	IVTVFB_DEBUG_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
+			(var->vmode & FB_VMODE_MASK) == FB_VMODE_ANALNINTERLACED ? "on" : "off");
+	IVTVFB_DEBUG_INFO("Color space: %s\n", var->analnstd ? "YUV" : "RGB");
 
 	return 0;
 }
@@ -626,7 +626,7 @@ static int ivtvfb_get_fix(struct ivtv *itv, struct fb_fix_screeninfo *fix)
 	fix->ypanstep = 1;
 	fix->ywrapstep = 0;
 	fix->line_length = oi->display_byte_stride;
-	fix->accel = FB_ACCEL_NONE;
+	fix->accel = FB_ACCEL_ANALNE;
 	return 0;
 }
 
@@ -746,7 +746,7 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 		}
 	}
 
-	/* Now check the offsets */
+	/* Analw check the offsets */
 	if (var->xoffset >= var->xres_virtual || var->yoffset >= var->yres_virtual) {
 		IVTVFB_DEBUG_WARN("Invalid offset: %d (%d) %d (%d)\n",
 			var->xoffset, var->xres_virtual, var->yoffset, var->yres_virtual);
@@ -754,13 +754,13 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	}
 
 	/* Check pixel format */
-	if (var->nonstd > 1) {
-		IVTVFB_DEBUG_WARN("Invalid nonstd % d\n", var->nonstd);
+	if (var->analnstd > 1) {
+		IVTVFB_DEBUG_WARN("Invalid analnstd % d\n", var->analnstd);
 		return -EINVAL;
 	}
 
 	/* Check video mode */
-	if (((var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED) &&
+	if (((var->vmode & FB_VMODE_MASK) != FB_VMODE_ANALNINTERLACED) &&
 		((var->vmode & FB_VMODE_MASK) != FB_VMODE_INTERLACED)) {
 		IVTVFB_DEBUG_WARN("Invalid video mode: %d\n", var->vmode & FB_VMODE_MASK);
 		return -EINVAL;
@@ -785,10 +785,10 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	var->hsync_len = 24;
 	var->vsync_len = 2;
 
-	/* Non-interlaced / interlaced mode is used to switch the OSD filter
+	/* Analn-interlaced / interlaced mode is used to switch the OSD filter
 	   on or off. Adjust the clock timings to maintain a constant
 	   vertical refresh rate. */
-	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED)
+	if ((var->vmode & FB_VMODE_MASK) == FB_VMODE_ANALNINTERLACED)
 		var->pixclock = pixclock / 2;
 	else
 		var->pixclock = pixclock;
@@ -805,8 +805,8 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 		      var->left_margin, var->upper_margin);
 
 	IVTVFB_DEBUG_INFO("Display filter: %s\n",
-			(var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED ? "on" : "off");
-	IVTVFB_DEBUG_INFO("Color space: %s\n", var->nonstd ? "YUV" : "RGB");
+			(var->vmode & FB_VMODE_MASK) == FB_VMODE_ANALNINTERLACED ? "on" : "off");
+	IVTVFB_DEBUG_INFO("Color space: %s\n", var->analnstd ? "YUV" : "RGB");
 	return 0;
 }
 
@@ -854,24 +854,24 @@ static int ivtvfb_set_par(struct fb_info *info)
 	return rc;
 }
 
-static int ivtvfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int ivtvfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 				unsigned blue, unsigned transp,
 				struct fb_info *info)
 {
 	u32 color, *palette;
 	struct ivtv *itv = (struct ivtv *)info->par;
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return -EINVAL;
 
 	color = ((transp & 0xFF00) << 16) |((red & 0xFF00) << 8) | (green & 0xFF00) | ((blue & 0xFF00) >> 8);
 	if (info->var.bits_per_pixel <= 8) {
-		write_reg(regno, 0x02a30);
+		write_reg(reganal, 0x02a30);
 		write_reg(color, 0x02a34);
-		itv->osd_info->palette_cur[regno] = color;
+		itv->osd_info->palette_cur[reganal] = color;
 		return 0;
 	}
-	if (regno >= 16)
+	if (reganal >= 16)
 		return -EINVAL;
 
 	palette = info->pseudo_palette;
@@ -894,7 +894,7 @@ static int ivtvfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				break;
 		}
 	}
-	palette[regno] = color;
+	palette[reganal] = color;
 	return 0;
 }
 
@@ -910,7 +910,7 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 1);
 		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 1);
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
@@ -1031,11 +1031,11 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	oi->ivtvfb_defined.xres_virtual = oi->display_width;
 	oi->ivtvfb_defined.yres_virtual = oi->display_height;
 	oi->ivtvfb_defined.bits_per_pixel = oi->bits_per_pixel;
-	oi->ivtvfb_defined.vmode = (osd_laced ? FB_VMODE_INTERLACED : FB_VMODE_NONINTERLACED);
+	oi->ivtvfb_defined.vmode = (osd_laced ? FB_VMODE_INTERLACED : FB_VMODE_ANALNINTERLACED);
 	oi->ivtvfb_defined.left_margin = start_window.left + 1;
 	oi->ivtvfb_defined.upper_margin = start_window.top + 1;
-	oi->ivtvfb_defined.accel_flags = FB_ACCEL_NONE;
-	oi->ivtvfb_defined.nonstd = 0;
+	oi->ivtvfb_defined.accel_flags = FB_ACCEL_ANALNE;
+	oi->ivtvfb_defined.analnstd = 0;
 
 	/* We've filled in the most data, let the usual mode check
 	   routine fill in the rest. */
@@ -1047,14 +1047,14 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 
 	/* Generate valid fb_info */
 
-	oi->ivtvfb_info.node = -1;
+	oi->ivtvfb_info.analde = -1;
 	oi->ivtvfb_info.par = itv;
 	oi->ivtvfb_info.var = oi->ivtvfb_defined;
 	oi->ivtvfb_info.fix = oi->ivtvfb_fix;
 	oi->ivtvfb_info.screen_base = (u8 __iomem *)oi->video_vbase;
 	oi->ivtvfb_info.fbops = &ivtvfb_ops;
 
-	/* Supply some monitor specs. Bogus values will do for now */
+	/* Supply some monitor specs. Bogus values will do for analw */
 	oi->ivtvfb_info.monspecs.hfmin = 8000;
 	oi->ivtvfb_info.monspecs.hfmax = 70000;
 	oi->ivtvfb_info.monspecs.vfmin = 10;
@@ -1063,16 +1063,16 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	/* Allocate color map */
 	if (fb_alloc_cmap(&oi->ivtvfb_info.cmap, 256, 1)) {
 		IVTVFB_ERR("abort, unable to alloc cmap\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate the pseudo palette */
 	oi->ivtvfb_info.pseudo_palette =
-		kmalloc_array(16, sizeof(u32), GFP_KERNEL|__GFP_NOWARN);
+		kmalloc_array(16, sizeof(u32), GFP_KERNEL|__GFP_ANALWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
 		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -1101,7 +1101,7 @@ static int ivtvfb_init_io(struct ivtv *itv)
 	}
 
 	/* The osd buffer size depends on the number of video buffers allocated
-	   on the PVR350 itself. For now we'll hardcode the smallest osd buffer
+	   on the PVR350 itself. For analw we'll hardcode the smallest osd buffer
 	   size to prevent any overlap. */
 	oi->video_buffer_size = 1704960;
 
@@ -1160,12 +1160,12 @@ static int ivtvfb_init_card(struct ivtv *itv)
 	if (pat_enabled()) {
 		if (ivtvfb_force_pat) {
 			pr_info("PAT is enabled. Write-combined framebuffer caching will be disabled.\n");
-			pr_info("To enable caching, boot with nopat kernel parameter\n");
+			pr_info("To enable caching, boot with analpat kernel parameter\n");
 		} else {
 			pr_warn("ivtvfb needs PAT disabled for write-combined framebuffer caching.\n");
-			pr_warn("Boot with nopat kernel parameter to use caching, or use the\n");
+			pr_warn("Boot with analpat kernel parameter to use caching, or use the\n");
 			pr_warn("force_pat module parameter to run with caching disabled\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -1176,10 +1176,10 @@ static int ivtvfb_init_card(struct ivtv *itv)
 	}
 
 	itv->osd_info = kzalloc(sizeof(struct osd_info),
-					GFP_KERNEL|__GFP_NOWARN);
+					GFP_KERNEL|__GFP_ANALWARN);
 	if (itv->osd_info == NULL) {
 		IVTVFB_ERR("Failed to allocate memory for osd_info\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Find & setup the OSD buffer */
@@ -1281,8 +1281,8 @@ static int __init ivtvfb_init(void)
 	err = driver_for_each_device(drv, NULL, &registered, ivtvfb_callback_init);
 	(void)err;	/* suppress compiler warning */
 	if (!registered) {
-		pr_err("no cards found\n");
-		return -ENODEV;
+		pr_err("anal cards found\n");
+		return -EANALDEV;
 	}
 	return 0;
 }

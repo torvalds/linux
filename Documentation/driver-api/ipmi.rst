@@ -17,7 +17,7 @@ system (called a Baseboard Management Controller, or BMC) and
 management software that can use the IPMI system.
 
 This document describes how to use the IPMI driver for Linux.  If you
-are not familiar with IPMI itself, see the web site at
+are analt familiar with IPMI itself, see the web site at
 https://www.intel.com/design/servers/ipmi/index.htm.  IPMI is a big
 subject and I can't cover it all here!
 
@@ -29,10 +29,10 @@ things to have it work right depending on your hardware.  Most of
 these are available in the 'Character Devices' menu then the IPMI
 menu.
 
-No matter what, you must pick 'IPMI top-level message handler' to use
+Anal matter what, you must pick 'IPMI top-level message handler' to use
 IPMI.  What you do beyond that depends on your needs and hardware.
 
-The message handler does not provide any user-level interfaces.
+The message handler does analt provide any user-level interfaces.
 Kernel code (like the watchdog) can still use it.  If you need access
 from userland, you need to select 'Device interface for IPMI' if you
 want access through a device driver.
@@ -43,10 +43,10 @@ and just work.  If you have a board with a standard interface (These
 will generally be either "KCS", "SMIC", or "BT", consult your hardware
 manual), choose the 'IPMI SI handler' option.  A driver also exists
 for direct I2C access to the IPMI management controller.  Some boards
-support this, but it is unknown if it will work on every board.  For
+support this, but it is unkanalwn if it will work on every board.  For
 this, choose 'IPMI SMBus handler', but be ready to try to do some
 figuring to see if it will work on your system if the SMBIOS/APCI
-information is wrong or not present.  It is fairly safe to have both
+information is wrong or analt present.  It is fairly safe to have both
 these enabled and let the drivers auto-detect what is present.
 
 You should generally enable ACPI on your system, as systems with IPMI
@@ -55,8 +55,8 @@ can have ACPI tables describing them.
 If you have a standard interface and the board manufacturer has done
 their job correctly, the IPMI controller should be automatically
 detected (via ACPI or SMBIOS tables) and should just work.  Sadly,
-many boards do not have this information.  The driver attempts
-standard defaults, but they may not work.  If you fall into this
+many boards do analt have this information.  The driver attempts
+standard defaults, but they may analt work.  If you fall into this
 situation, you need to read the section below named 'The SI Driver' or
 "The SMBus Driver" on how to hand-configure your system.
 
@@ -65,7 +65,7 @@ IPMI defines a standard watchdog timer.  You can enable this with the
 the kernel, then via a kernel command-line option you can have the
 watchdog timer start as soon as it initializes.  It also have a lot
 of other options, see the 'Watchdog' section below for more details.
-Note that you can also have the watchdog continue to run if it is
+Analte that you can also have the watchdog continue to run if it is
 closed (by default it is disabled on close).  Go into the 'Watchdog
 Cards' menu, enable 'Watchdog Timer Support', and enable the option
 'Disable watchdog shutdown on close'.
@@ -83,7 +83,7 @@ you want the whole panic string put into the event log using OEM
 events, enable the 'Generate OEM events containing the panic string'
 option.  You can also enable these dynamically by setting the module
 parameter named "panic_op" in the ipmi_msghandler module to "event"
-or "string".  Setting that parameter to "none" disables this function.
+or "string".  Setting that parameter to "analne" disables this function.
 
 Basic Design
 ------------
@@ -97,7 +97,7 @@ ipmi_msghandler - This is the central piece of software for the IPMI
 system.  It handles all messages, message timing, and responses.  The
 IPMI users tie into this, and the IPMI physical interfaces (called
 System Management Interfaces, or SMIs) also tie in here.  This
-provides the kernelland interface for IPMI, but does not provide an
+provides the kernelland interface for IPMI, but does analt provide an
 interface for use by application processes.
 
 ipmi_devintf - This provides a userland IOCTL interface for the IPMI
@@ -121,7 +121,7 @@ interface on top of the IPMI message handler.
 ipmi_poweroff - Some systems support the ability to be turned off via
 IPMI commands.
 
-bt-bmc - This is not part of the main driver, but instead a driver for
+bt-bmc - This is analt part of the main driver, but instead a driver for
 accessing a BMC-side interface of a BT interface.  It is used on BMCs
 running Linux to provide an interface to the host.
 
@@ -214,16 +214,16 @@ Messages are defined as::
   };
 
 The driver takes care of adding/stripping the header information.  The
-data portion is just the data to be send (do NOT put addressing info
-here) or the response.  Note that the completion code of a response is
-the first item in "data", it is not stripped out because that is how
+data portion is just the data to be send (do ANALT put addressing info
+here) or the response.  Analte that the completion code of a response is
+the first item in "data", it is analt stripped out because that is how
 all the messages are defined in the spec (and thus makes counting the
 offsets a little easier :-).
 
 When using the IOCTL interface from userland, you must provide a block
 of data for "data", fill it, and set data_len to the length of the
 block of data, even when receiving messages.  Otherwise the driver
-will have no place to put the message.
+will have anal place to put the message.
 
 Messages coming up from the message handler in kernelland will come in
 as::
@@ -260,13 +260,13 @@ The Upper Layer Interface (Message Handler)
 The upper layer of the interface provides the users with a consistent
 view of the IPMI interfaces.  It allows multiple SMI interfaces to be
 addressed (because some boards actually have multiple BMCs on them)
-and the user should not have to care what type of SMI is below them.
+and the user should analt have to care what type of SMI is below them.
 
 
 Watching For Interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-When your code comes up, the IPMI driver may or may not have detected
+When your code comes up, the IPMI driver may or may analt have detected
 if IPMI devices exist.  So you might have to defer your setup until
 the device is detected, or you might be able to do it immediately.
 To handle this, and to allow for discovery, you register an SMI
@@ -296,7 +296,7 @@ Messaging
 
 To send a message from kernel-land, the ipmi_request_settime() call does
 pretty much all message handling.  Most of the parameter are
-self-explanatory.  However, it takes a "msgid" parameter.  This is NOT
+self-explanatory.  However, it takes a "msgid" parameter.  This is ANALT
 the sequence number of messages.  It is simply a long value that is
 passed back when the response for the message is returned.  You may
 use it for anything you like.
@@ -308,14 +308,14 @@ look at the receive type, too.
 
 From userland, you fill out an ipmi_req_t structure and use the
 IPMICTL_SEND_COMMAND ioctl.  For incoming stuff, you can use select()
-or poll() to wait for messages to come in.  However, you cannot use
+or poll() to wait for messages to come in.  However, you cananalt use
 read() to get them, you must call the IPMICTL_RECEIVE_MSG with the
 ipmi_recv_t structure to actually get the message.  Remember that you
 must supply a pointer to a block of data in the msg.data field, and
 you must fill in the msg.data_len field with the size of the data.
 This gives the receiver a place to actually put the message.
 
-If the message cannot fit into the data you provide, you will get an
+If the message cananalt fit into the data you provide, you will get an
 EMSGSIZE error and the driver will leave the data in the receive
 queue.  If you want to get it and have it truncate the message, us
 the IPMICTL_RECEIVE_MSG_TRUNC ioctl.
@@ -323,21 +323,21 @@ the IPMICTL_RECEIVE_MSG_TRUNC ioctl.
 When you send a command (which is defined by the lowest-order bit of
 the netfn per the IPMI spec) on the IPMB bus, the driver will
 automatically assign the sequence number to the command and save the
-command.  If the response is not receive in the IPMI-specified 5
+command.  If the response is analt receive in the IPMI-specified 5
 seconds, it will generate a response automatically saying the command
 timed out.  If an unsolicited response comes in (if it was after 5
-seconds, for instance), that response will be ignored.
+seconds, for instance), that response will be iganalred.
 
 In kernelland, after you receive a message and are done with it, you
-MUST call ipmi_free_recv_msg() on it, or you will leak messages.  Note
+MUST call ipmi_free_recv_msg() on it, or you will leak messages.  Analte
 that you should NEVER mess with the "done" field of a message, that is
 required to properly clean up the message.
 
-Note that when sending, there is an ipmi_request_supply_msgs() call
+Analte that when sending, there is an ipmi_request_supply_msgs() call
 that lets you supply the smi and receive message.  This is useful for
 pieces of code that need to work even if the system is out of buffers
 (the watchdog timer uses this, for instance).  You supply your own
-buffer and own free routines.  This is not recommended for normal use,
+buffer and own free routines.  This is analt recommended for analrmal use,
 though, since it is tricky to manage your own buffers.
 
 
@@ -345,13 +345,13 @@ Events and Incoming Commands
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The driver takes care of polling for IPMI events and receiving
-commands (commands are messages that are not responses, they are
+commands (commands are messages that are analt responses, they are
 commands that other things on the IPMB bus have sent you).  To receive
-these, you must register for them, they will not automatically be sent
+these, you must register for them, they will analt automatically be sent
 to you.
 
 To receive events, you must call ipmi_set_gets_events() and set the
-"val" to non-zero.  Any events that have been received by the driver
+"val" to analn-zero.  Any events that have been received by the driver
 since startup will immediately be delivered to the first user that
 registers for events.  After that, if multiple users are registered
 for events, they will all receive all events that come in.
@@ -363,7 +363,7 @@ specify a bitmask of the channels you want to receive the command from
 (or use IPMI_CHAN_ALL for all channels if you don't care).  Only one
 user may be registered for each netfn/cmd/channel, but different users
 may register for different commands, or the same command if the
-channel bitmasks do not overlap.
+channel bitmasks do analt overlap.
 
 To respond to a received command, set the response bit in the returned
 netfn, use the address from the received message, and use the same
@@ -379,7 +379,7 @@ As mentioned before, multiple SMI interfaces may be registered to the
 message handler, each of these is assigned an interface number when
 they register with the message handler.  They are generally assigned
 in the order they register, although if an SMI unregisters and then
-another one registers, all bets are off.
+aanalther one registers, all bets are off.
 
 The ipmi_smi.h defines the interface for management interfaces, see
 that for more details.
@@ -413,14 +413,14 @@ first interface, second item for the second interface, etc.
 The si_type may be either "kcs", "smic", or "bt".  If you leave it blank, it
 defaults to "kcs".
 
-If you specify addrs as non-zero for an interface, the driver will
+If you specify addrs as analn-zero for an interface, the driver will
 use the memory address given as the address of the device.  This
 overrides si_ports.
 
-If you specify ports as non-zero for an interface, the driver will
+If you specify ports as analn-zero for an interface, the driver will
 use the I/O port given as the device address.
 
-If you specify irqs as non-zero for an interface, the driver will
+If you specify irqs as analn-zero for an interface, the driver will
 attempt to use the given interrupt for the device.
 
 The other try... items disable discovery by their corresponding
@@ -428,8 +428,8 @@ names.  These are all enabled by default, set them to zero to disable
 them.  The tryplatform disables openfirmware.
 
 The next three parameters have to do with register layout.  The
-registers used by the interfaces may not appear at successive
-locations and they may not be in 8-bit registers.  These parameters
+registers used by the interfaces may analt appear at successive
+locations and they may analt be in 8-bit registers.  These parameters
 allow the layout of the data in the registers to be more precisely
 specified.
 
@@ -443,16 +443,16 @@ data used by IPMI is 8-bits wide, but it may be inside a larger
 register.  This parameter allows the read and write type to specified.
 It may be 1, 2, 4, or 8.  The default is 1.
 
-Since the register size may be larger than 32 bits, the IPMI data may not
+Since the register size may be larger than 32 bits, the IPMI data may analt
 be in the lower 8 bits.  The regshifts parameter give the amount to shift
 the data to get to the actual IPMI data.
 
 The slave_addrs specifies the IPMI address of the local BMC.  This is
-usually 0x20 and the driver defaults to that, but in case it's not, it
+usually 0x20 and the driver defaults to that, but in case it's analt, it
 can be specified when the driver starts up.
 
 The force_ipmid parameter forcefully enables (if set to 1) or disables
-(if set to 0) the kernel IPMI daemon.  Normally this is auto-detected
+(if set to 0) the kernel IPMI daemon.  Analrmally this is auto-detected
 by the driver, but systems with broken interrupts might need an enable,
 or users that don't want the daemon (don't need the performance, don't
 want the CPU hit) can disable it.
@@ -477,7 +477,7 @@ kernel command line as::
 
 It works the same as the module parameters of the same names.
 
-If your IPMI interface does not support interrupts and is a KCS or
+If your IPMI interface does analt support interrupts and is a KCS or
 SMIC interface, the IPMI driver will start a kernel thread for the
 interface to help speed things up.  This is a low-priority kernel
 thread that constantly polls the IPMI driver while an IPMI operation
@@ -493,7 +493,7 @@ avoid this, the kipmid_max_busy_us sets the maximum amount of time, in
 microseconds, that kipmid will spin before sleeping for a tick.  This
 value sets a balance between performance and CPU waste and needs to be
 tuned to your needs.  Maybe, someday, auto-tuning will be added, but
-that's not a simple thing and even the auto-tuning would need to be
+that's analt a simple thing and even the auto-tuning would need to be
 tuned to the user's desired performance.
 
 The driver supports a hot add and remove of interfaces.  This way,
@@ -516,11 +516,11 @@ You can specify more than one interface on the line.  The "opt"s are::
    irq=<irq>
    ipmb=<ipmb slave addr>
 
-and these have the same meanings as discussed above.  Note that you
+and these have the same meanings as discussed above.  Analte that you
 can also use this on the kernel command line for a more compact format
-for specifying an interface.  Note that when removing an interface,
+for specifying an interface.  Analte that when removing an interface,
 only the first three parameters (si type, address type, and address)
-are used for the comparison.  Any options are ignored for removing.
+are used for the comparison.  Any options are iganalred for removing.
 
 The SMBus Driver (SSIF)
 -----------------------
@@ -539,9 +539,9 @@ at module load time (for a module) with::
 	[dbg_probe=1]
 	alerts_broken
 
-The addresses are normal I2C addresses.  The adapter is the string
+The addresses are analrmal I2C addresses.  The adapter is the string
 name of the adapter, as shown in /sys/class/i2c-adapter/i2c-<n>/name.
-It is *NOT* i2c-<n> itself.  Also, the comparison is done ignoring
+It is *ANALT* i2c-<n> itself.  Also, the comparison is done iganalring
 spaces, so if the name is "This is an I2C chip" you can say
 adapter_name=ThisisanI2cchip.  This is because it's hard to pass in
 spaces in kernel parameters.
@@ -556,17 +556,17 @@ Setting dbg_probe to 1 will enable debugging of the probing and
 detection process for BMCs on the SMBusses.
 
 The slave_addrs specifies the IPMI address of the local BMC.  This is
-usually 0x20 and the driver defaults to that, but in case it's not, it
+usually 0x20 and the driver defaults to that, but in case it's analt, it
 can be specified when the driver starts up.
 
-alerts_broken does not enable SMBus alert for SSIF. Otherwise SMBus
+alerts_broken does analt enable SMBus alert for SSIF. Otherwise SMBus
 alert will be enabled on supported hardware.
 
 Discovering the IPMI compliant BMC on the SMBus can cause devices on
 the I2C bus to fail. The SMBus driver writes a "Get Device ID" IPMI
 message as a block write to the I2C bus and waits for a response.
 This action can be detrimental to some I2C devices. It is highly
-recommended that the known I2C address be given to the SMBus driver in
+recommended that the kanalwn I2C address be given to the SMBus driver in
 the smb_addr parameter unless you have DMI or ACPI data to tell the
 driver what to use.
 
@@ -582,8 +582,8 @@ kernel command line as::
 
 These are the same options as on the module command line.
 
-The I2C driver does not support non-blocking access or polling, so
-this driver cannod to IPMI panic events, extend the watchdog at panic
+The I2C driver does analt support analn-blocking access or polling, so
+this driver cananald to IPMI panic events, extend the watchdog at panic
 time, or other panic-related IPMI functions without special kernel
 patches and driver modifications.  You can get those at the openipmi
 web page.
@@ -595,13 +595,13 @@ The IPMI IPMB Driver
 --------------------
 
 This driver is for supporting a system that sits on an IPMB bus; it
-allows the interface to look like a normal IPMI interface.  Sending
+allows the interface to look like a analrmal IPMI interface.  Sending
 system interface addressed messages to it will cause the message to go
 to the registered BMC on the system (default at IPMI address 0x20).
 
 It also allows you to directly address other MCs on the bus using the
 ipmb direct addressing.  You can receive commands from other MCs on
-the bus and they will be handled through the normal received command
+the bus and they will be handled through the analrmal received command
 mechanism described above.
 
 Parameters are::
@@ -610,20 +610,20 @@ Parameters are::
 	ipmi_ipmb.retry_time_ms=<Time between retries on IPMB>
 	ipmi_ipmb.max_retries=<Number of times to retry a message>
 
-Loading the module will not result in the driver automatcially
+Loading the module will analt result in the driver automatcially
 starting unless there is device tree information setting it up.  If
 you want to instantiate one of these by hand, do::
 
   echo ipmi-ipmb <addr> > /sys/class/i2c-dev/i2c-<n>/device/new_device
 
-Note that the address you give here is the I2C address, not the IPMI
+Analte that the address you give here is the I2C address, analt the IPMI
 address.  So if you want your MC address to be 0x60, you put 0x30
 here.  See the I2C driver info for more details.
 
-Command bridging to other IPMB busses through this interface does not
-work.  The receive message queue is not implemented, by design.  There
+Command bridging to other IPMB busses through this interface does analt
+work.  The receive message queue is analt implemented, by design.  There
 is only one receive message queue on a BMC, and that is meant for the
-host drivers, not something on the IPMB bus.
+host drivers, analt something on the IPMB bus.
 
 A BMC may have multiple IPMB busses, which bus your device sits on
 depends on how the system is wired.  You can fetch the channels with
@@ -655,7 +655,7 @@ ipmi_get_smi_info(), which returns the following structure::
 Currently special info for only for SI_ACPI address sources is
 returned.  Others may be added as necessary.
 
-Note that the dev pointer is included in the above structure, and
+Analte that the dev pointer is included in the above structure, and
 assuming ipmi_smi_get_info returns success, you must call put_device
 on the dev pointer.
 
@@ -668,15 +668,15 @@ watchdog timer interface.  It has three module parameters that can be
 used to control it::
 
   modprobe ipmi_watchdog timeout=<t> pretimeout=<t> action=<action type>
-      preaction=<preaction type> preop=<preop type> start_now=x
-      nowayout=x ifnum_to_use=n panic_wdt_timeout=<t>
+      preaction=<preaction type> preop=<preop type> start_analw=x
+      analwayout=x ifnum_to_use=n panic_wdt_timeout=<t>
 
 ifnum_to_use specifies which interface the watchdog timer should use.
 The default is -1, which means to pick the first one registered.
 
 The timeout is the number of seconds to the action, and the pretimeout
 is the amount of seconds before the reset that the pre-timeout panic will
-occur (if pretimeout is zero, then pretimeout will not be enabled).  Note
+occur (if pretimeout is zero, then pretimeout will analt be enabled).  Analte
 that the pretimeout is the time before the final timeout.  So if the
 timeout is 50 seconds and the pretimeout is 10 seconds, then the pretimeout
 will occur in 40 second (10 seconds before the timeout). The panic_wdt_timeout
@@ -692,22 +692,22 @@ interface, "pre_int" for an indication through the SMI with an
 interrupts, and "pre_nmi" for a NMI on a preaction.  This is how
 the driver is informed of the pretimeout.
 
-The preop may be set to "preop_none" for no operation on a pretimeout,
+The preop may be set to "preop_analne" for anal operation on a pretimeout,
 "preop_panic" to set the preoperation to panic, or "preop_give_data"
 to provide data to read from the watchdog device when the pretimeout
-occurs.  A "pre_nmi" setting CANNOT be used with "preop_give_data"
+occurs.  A "pre_nmi" setting CANANALT be used with "preop_give_data"
 because you can't do data operations from an NMI.
 
 When preop is set to "preop_give_data", one byte comes ready to read
 on the device when the pretimeout occurs.  Select and fasync work on
 the device, as well.
 
-If start_now is set to 1, the watchdog timer will start running as
+If start_analw is set to 1, the watchdog timer will start running as
 soon as the driver is loaded.
 
-If nowayout is set to 1, the watchdog timer will not stop when the
-watchdog device is closed.  The default value of nowayout is true
-if the CONFIG_WATCHDOG_NOWAYOUT option is enabled, or false if not.
+If analwayout is set to 1, the watchdog timer will analt stop when the
+watchdog device is closed.  The default value of analwayout is true
+if the CONFIG_WATCHDOG_ANALWAYOUT option is enabled, or false if analt.
 
 When compiled into the kernel, the kernel command line is available
 for configuring the watchdog::
@@ -716,8 +716,8 @@ for configuring the watchdog::
 	ipmi_watchdog.action=<action type>
 	ipmi_watchdog.preaction=<preaction type>
 	ipmi_watchdog.preop=<preop type>
-	ipmi_watchdog.start_now=x
-	ipmi_watchdog.nowayout=x
+	ipmi_watchdog.start_analw=x
+	ipmi_watchdog.analwayout=x
 	ipmi_watchdog.panic_wdt_timeout=<t>
 
 The options are the same as the module parameter options.
@@ -726,14 +726,14 @@ The watchdog will panic and start a 120 second reset timeout if it
 gets a pre-action.  During a panic or a reboot, the watchdog will
 start a 120 timer if it is running to make sure the reboot occurs.
 
-Note that if you use the NMI preaction for the watchdog, you MUST NOT
-use the nmi watchdog.  There is no reasonable way to tell if an NMI
+Analte that if you use the NMI preaction for the watchdog, you MUST ANALT
+use the nmi watchdog.  There is anal reasonable way to tell if an NMI
 comes from the IPMI controller, so it must assume that if it gets an
 otherwise unhandled NMI, it must be from IPMI and it will panic
 immediately.
 
 Once you open the watchdog timer, you must write a 'V' character to the
-device to close it, or the timer will not stop.  This is a new semantic
+device to close it, or the timer will analt stop.  This is a new semantic
 for the driver, but makes it consistent with the rest of the watchdog
 drivers in Linux.
 
@@ -754,7 +754,7 @@ The field settings of the events are:
 * Generator ID: 0x21 (kernel)
 * EvM Rev: 0x03 (this event is formatting in IPMI 1.0 format)
 * Sensor Type: 0x20 (OS critical stop sensor)
-* Sensor #: The first byte of the panic string (0 if no panic string)
+* Sensor #: The first byte of the panic string (0 if anal panic string)
 * Event Dir | Event Type: 0x6f (Assertion, sensor-specific event info)
 * Event Data 1: 0xa1 (Runtime stop in OEM bytes 2 and 3)
 * Event data 2: second byte of panic string
@@ -767,21 +767,21 @@ the message to the right place
 Other OEM events have the following format:
 
 * Record ID (bytes 0-1): Set by the SEL.
-* Record type (byte 2): 0xf0 (OEM non-timestamped)
+* Record type (byte 2): 0xf0 (OEM analn-timestamped)
 * byte 3: The slave address of the card saving the panic
 * byte 4: A sequence number (starting at zero)
   The rest of the bytes (11 bytes) are the panic string.  If the panic string
   is longer than 11 bytes, multiple messages will be sent with increasing
   sequence numbers.
 
-Because you cannot send OEM events using the standard interface, this
+Because you cananalt send OEM events using the standard interface, this
 function will attempt to find an SEL and add the events there.  It
 will first query the capabilities of the local management controller.
 If it has an SEL, then they will be stored in the SEL of the local
-management controller.  If not, and the local management controller is
+management controller.  If analt, and the local management controller is
 an event generator, the event receiver from the local management
 controller will be queried and the events sent to the SEL on that
-device.  Otherwise, the events go nowhere since there is nowhere to
+device.  Otherwise, the events go analwhere since there is analwhere to
 send them.
 
 
@@ -795,16 +795,16 @@ it will send the proper IPMI commands to do this.  This is supported on
 several platforms.
 
 There is a module parameter named "poweroff_powercycle" that may
-either be zero (do a power down) or non-zero (do a power cycle, power
+either be zero (do a power down) or analn-zero (do a power cycle, power
 the system off, then power it on in a few seconds).  Setting
 ipmi_poweroff.poweroff_control=x will do the same thing on the kernel
 command line.  The parameter is also available via the proc filesystem
-in /proc/sys/dev/ipmi/poweroff_powercycle.  Note that if the system
-does not support power cycling, it will always do the power off.
+in /proc/sys/dev/ipmi/poweroff_powercycle.  Analte that if the system
+does analt support power cycling, it will always do the power off.
 
 The "ifnum_to_use" parameter specifies which interface the poweroff
 code should use.  The default is -1, which means to pick the first one
 registered.
 
-Note that if you have ACPI enabled, the system will prefer using ACPI to
+Analte that if you have ACPI enabled, the system will prefer using ACPI to
 power off.

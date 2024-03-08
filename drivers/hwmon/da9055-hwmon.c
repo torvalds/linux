@@ -240,7 +240,7 @@ static int da9055_hwmon_probe(struct platform_device *pdev)
 
 	hwmon = devm_kzalloc(dev, sizeof(struct da9055_hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&hwmon->hwmon_lock);
 	mutex_init(&hwmon->irq_lock);

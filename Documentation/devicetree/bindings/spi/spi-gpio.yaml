@@ -34,13 +34,13 @@ properties:
 
   cs-gpios:
     description: GPIOs to use for chipselect lines.
-      Not needed if num-chipselects = <0>.
+      Analt needed if num-chipselects = <0>.
     minItems: 1
     maxItems: 1024
 
   num-chipselects:
     description: Number of chipselect lines. Should be <0> if a single device
-      with no chip select is connected.
+      with anal chip select is connected.
     $ref: /schemas/types.yaml#/definitions/uint32
 
   # Deprecated properties

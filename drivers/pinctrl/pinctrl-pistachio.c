@@ -2,7 +2,7 @@
 /*
  * Pistachio SoC pinctrl driver
  *
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -510,7 +510,7 @@ static const char * const pistachio_bt_pll_lock_groups[] = {
 	}
 
 enum pistachio_mux_option {
-	PISTACHIO_FUNCTION_NONE = -1,
+	PISTACHIO_FUNCTION_ANALNE = -1,
 	PISTACHIO_FUNCTION_SPIM0,
 	PISTACHIO_FUNCTION_SPIM1,
 	PISTACHIO_FUNCTION_SPIS,
@@ -637,9 +637,9 @@ static const struct pistachio_function pistachio_functions[] = {
 		.name = #_name,					\
 		.pin = PISTACHIO_PIN_##_pin,			\
 		.mux_option = {					\
-			PISTACHIO_FUNCTION_NONE,		\
-			PISTACHIO_FUNCTION_NONE,		\
-			PISTACHIO_FUNCTION_NONE,		\
+			PISTACHIO_FUNCTION_ANALNE,		\
+			PISTACHIO_FUNCTION_ANALNE,		\
+			PISTACHIO_FUNCTION_ANALNE,		\
 		},						\
 		.mux_reg = -1,					\
 		.mux_shift = -1,				\
@@ -652,8 +652,8 @@ static const struct pistachio_function pistachio_functions[] = {
 		.pin = PISTACHIO_PIN_MFIO(_pin),		\
 		.mux_option = {					\
 			PISTACHIO_FUNCTION_##_func,		\
-			PISTACHIO_FUNCTION_NONE,		\
-			PISTACHIO_FUNCTION_NONE,		\
+			PISTACHIO_FUNCTION_ANALNE,		\
+			PISTACHIO_FUNCTION_ANALNE,		\
 		},						\
 		.mux_reg = -1,					\
 		.mux_shift = -1,				\
@@ -704,45 +704,45 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 			   PADS_FUNCTION_SELECT0, 12, 0x3),
 	MFIO_MUX_PIN_GROUP(20, SDHOST, MIPS_TRACE_PROBE_N, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT0, 14, 0x3),
-	MFIO_MUX_PIN_GROUP(21, SDHOST, NONE, MIPS_TRACE_DATA,
+	MFIO_MUX_PIN_GROUP(21, SDHOST, ANALNE, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT0, 16, 0x3),
-	MFIO_MUX_PIN_GROUP(22, SDHOST, NONE, MIPS_TRACE_DATA,
+	MFIO_MUX_PIN_GROUP(22, SDHOST, ANALNE, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT0, 18, 0x3),
 	MFIO_PIN_GROUP(23, SDHOST),
 	MFIO_PIN_GROUP(24, SDHOST),
 	MFIO_PIN_GROUP(25, SDHOST),
 	MFIO_PIN_GROUP(26, SDHOST),
 	MFIO_PIN_GROUP(27, SDHOST),
-	MFIO_MUX_PIN_GROUP(28, I2C0, SPIM0, NONE,
+	MFIO_MUX_PIN_GROUP(28, I2C0, SPIM0, ANALNE,
 			   PADS_FUNCTION_SELECT0, 20, 0x1),
-	MFIO_MUX_PIN_GROUP(29, I2C0, SPIM0, NONE,
+	MFIO_MUX_PIN_GROUP(29, I2C0, SPIM0, ANALNE,
 			   PADS_FUNCTION_SELECT0, 21, 0x1),
-	MFIO_MUX_PIN_GROUP(30, I2C1, SPIM0, NONE,
+	MFIO_MUX_PIN_GROUP(30, I2C1, SPIM0, ANALNE,
 			   PADS_FUNCTION_SELECT0, 22, 0x1),
-	MFIO_MUX_PIN_GROUP(31, I2C1, SPIM1, NONE,
+	MFIO_MUX_PIN_GROUP(31, I2C1, SPIM1, ANALNE,
 			   PADS_FUNCTION_SELECT0, 23, 0x1),
 	MFIO_PIN_GROUP(32, I2C2),
 	MFIO_PIN_GROUP(33, I2C2),
 	MFIO_PIN_GROUP(34, I2C3),
 	MFIO_PIN_GROUP(35, I2C3),
-	MFIO_MUX_PIN_GROUP(36, I2S_OUT, AUDIO_CLK_IN, NONE,
+	MFIO_MUX_PIN_GROUP(36, I2S_OUT, AUDIO_CLK_IN, ANALNE,
 			   PADS_FUNCTION_SELECT0, 24, 0x1),
-	MFIO_MUX_PIN_GROUP(37, I2S_OUT, DEBUG_RAW_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(37, I2S_OUT, DEBUG_RAW_CCA_IND, ANALNE,
 			   PADS_FUNCTION_SELECT0, 25, 0x1),
-	MFIO_MUX_PIN_GROUP(38, I2S_OUT, DEBUG_ED_SEC20_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(38, I2S_OUT, DEBUG_ED_SEC20_CCA_IND, ANALNE,
 			   PADS_FUNCTION_SELECT0, 26, 0x1),
-	MFIO_MUX_PIN_GROUP(39, I2S_OUT, DEBUG_ED_SEC40_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(39, I2S_OUT, DEBUG_ED_SEC40_CCA_IND, ANALNE,
 			   PADS_FUNCTION_SELECT0, 27, 0x1),
-	MFIO_MUX_PIN_GROUP(40, I2S_OUT, DEBUG_AGC_DONE_0, NONE,
+	MFIO_MUX_PIN_GROUP(40, I2S_OUT, DEBUG_AGC_DONE_0, ANALNE,
 			   PADS_FUNCTION_SELECT0, 28, 0x1),
-	MFIO_MUX_PIN_GROUP(41, I2S_OUT, DEBUG_AGC_DONE_1, NONE,
+	MFIO_MUX_PIN_GROUP(41, I2S_OUT, DEBUG_AGC_DONE_1, ANALNE,
 			   PADS_FUNCTION_SELECT0, 29, 0x1),
-	MFIO_MUX_PIN_GROUP(42, I2S_OUT, DEBUG_ED_CCA_IND, NONE,
+	MFIO_MUX_PIN_GROUP(42, I2S_OUT, DEBUG_ED_CCA_IND, ANALNE,
 			   PADS_FUNCTION_SELECT0, 30, 0x1),
-	MFIO_MUX_PIN_GROUP(43, I2S_OUT, DEBUG_S2L_DONE, NONE,
+	MFIO_MUX_PIN_GROUP(43, I2S_OUT, DEBUG_S2L_DONE, ANALNE,
 			   PADS_FUNCTION_SELECT0, 31, 0x1),
 	MFIO_PIN_GROUP(44, I2S_OUT),
-	MFIO_MUX_PIN_GROUP(45, I2S_DAC_CLK, AUDIO_SYNC, NONE,
+	MFIO_MUX_PIN_GROUP(45, I2S_DAC_CLK, AUDIO_SYNC, ANALNE,
 			   PADS_FUNCTION_SELECT1, 0, 0x1),
 	MFIO_PIN_GROUP(46, AUDIO_TRIGGER),
 	MFIO_PIN_GROUP(47, I2S_IN),
@@ -752,7 +752,7 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 	MFIO_PIN_GROUP(51, I2S_IN),
 	MFIO_PIN_GROUP(52, I2S_IN),
 	MFIO_PIN_GROUP(53, I2S_IN),
-	MFIO_MUX_PIN_GROUP(54, I2S_IN, NONE, SPDIF_IN,
+	MFIO_MUX_PIN_GROUP(54, I2S_IN, ANALNE, SPDIF_IN,
 			   PADS_FUNCTION_SELECT1, 1, 0x3),
 	MFIO_MUX_PIN_GROUP(55, UART0, SPIM0, SPIM1,
 			   PADS_FUNCTION_SELECT1, 3, 0x3),
@@ -760,7 +760,7 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 			   PADS_FUNCTION_SELECT1, 5, 0x3),
 	MFIO_MUX_PIN_GROUP(57, UART0, SPIM0, SPIM1,
 			   PADS_FUNCTION_SELECT1, 7, 0x3),
-	MFIO_MUX_PIN_GROUP(58, UART0, SPIM1, NONE,
+	MFIO_MUX_PIN_GROUP(58, UART0, SPIM1, ANALNE,
 			   PADS_FUNCTION_SELECT1, 9, 0x1),
 	MFIO_PIN_GROUP(59, UART1),
 	MFIO_PIN_GROUP(60, UART1),
@@ -778,9 +778,9 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 			   PADS_FUNCTION_SELECT1, 18, 0x3),
 	MFIO_MUX_PIN_GROUP(68, ETH, MIPS_TRACE_PROBE_N, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT1, 20, 0x3),
-	MFIO_MUX_PIN_GROUP(69, ETH, NONE, MIPS_TRACE_DATA,
+	MFIO_MUX_PIN_GROUP(69, ETH, ANALNE, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT1, 22, 0x3),
-	MFIO_MUX_PIN_GROUP(70, ETH, NONE, MIPS_TRACE_DATA,
+	MFIO_MUX_PIN_GROUP(70, ETH, ANALNE, MIPS_TRACE_DATA,
 			   PADS_FUNCTION_SELECT1, 24, 0x3),
 	MFIO_PIN_GROUP(71, ETH),
 	MFIO_PIN_GROUP(72, IR),
@@ -909,7 +909,7 @@ static const struct pinctrl_ops pistachio_pinctrl_ops = {
 	.get_groups_count = pistachio_pinctrl_get_groups_count,
 	.get_group_name = pistachio_pinctrl_get_group_name,
 	.get_group_pins = pistachio_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -957,7 +957,7 @@ static int pistachio_pinmux_enable(struct pinctrl_dev *pctldev,
 				break;
 		}
 		if (i == ARRAY_SIZE(pg->mux_option)) {
-			dev_err(pctl->dev, "Cannot mux pin %u to function %u\n",
+			dev_err(pctl->dev, "Cananalt mux pin %u to function %u\n",
 				group, func);
 			return -EINVAL;
 		}
@@ -1052,8 +1052,8 @@ static int pistachio_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 		}
 		break;
 	default:
-		dev_dbg(pctl->dev, "Property %u not supported\n", param);
-		return -ENOTSUPP;
+		dev_dbg(pctl->dev, "Property %u analt supported\n", param);
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -1133,7 +1133,7 @@ static int pistachio_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 				break;
 			default:
 				dev_err(pctl->dev,
-					"Drive strength %umA not supported\n",
+					"Drive strength %umA analt supported\n",
 					arg);
 				return -EINVAL;
 			}
@@ -1141,9 +1141,9 @@ static int pistachio_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			pctl_writel(pctl, val, PADS_DRIVE_STRENGTH_REG(pin));
 			break;
 		default:
-			dev_err(pctl->dev, "Property %u not supported\n",
+			dev_err(pctl->dev, "Property %u analt supported\n",
 				param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -1368,34 +1368,34 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 
 	for (i = 0; i < pctl->nbanks; i++) {
 		char child_name[sizeof("gpioXX")];
-		struct fwnode_handle *child;
+		struct fwanalde_handle *child;
 		struct gpio_irq_chip *girq;
 
 		snprintf(child_name, sizeof(child_name), "gpio%d", i);
-		child = device_get_named_child_node(pctl->dev, child_name);
+		child = device_get_named_child_analde(pctl->dev, child_name);
 		if (!child) {
-			dev_err(pctl->dev, "No node for bank %u\n", i);
-			ret = -ENODEV;
+			dev_err(pctl->dev, "Anal analde for bank %u\n", i);
+			ret = -EANALDEV;
 			goto err;
 		}
 
-		if (!fwnode_property_present(child, "gpio-controller")) {
-			fwnode_handle_put(child);
+		if (!fwanalde_property_present(child, "gpio-controller")) {
+			fwanalde_handle_put(child);
 			dev_err(pctl->dev,
-				"No gpio-controller property for bank %u\n", i);
-			ret = -ENODEV;
+				"Anal gpio-controller property for bank %u\n", i);
+			ret = -EANALDEV;
 			goto err;
 		}
 
-		ret = fwnode_irq_get(child, 0);
+		ret = fwanalde_irq_get(child, 0);
 		if (ret < 0) {
-			fwnode_handle_put(child);
+			fwanalde_handle_put(child);
 			dev_err(pctl->dev, "Failed to retrieve IRQ for bank %u\n", i);
 			goto err;
 		}
 		if (!ret) {
-			fwnode_handle_put(child);
-			dev_err(pctl->dev, "No IRQ for bank %u\n", i);
+			fwanalde_handle_put(child);
+			dev_err(pctl->dev, "Anal IRQ for bank %u\n", i);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -1406,7 +1406,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
 		bank->gpio_chip.parent = pctl->dev;
-		bank->gpio_chip.fwnode = child;
+		bank->gpio_chip.fwanalde = child;
 
 		girq = &bank->gpio_chip.irq;
 		gpio_irq_chip_set_chip(girq, &pistachio_gpio_irq_chip);
@@ -1416,11 +1416,11 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		girq->parents[0] = irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 
 		ret = gpiochip_add_data(&bank->gpio_chip, bank);
@@ -1461,7 +1461,7 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctl->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pctl);
 

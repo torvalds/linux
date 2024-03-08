@@ -30,7 +30,7 @@
  *      write_reg(par, val2);
  */
 
-/* Init sequence taken from the Adafruit SSD1306 Arduino library */
+/* Init sequence taken from the Adafruit SSD1306 Arduianal library */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);

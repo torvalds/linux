@@ -29,21 +29,21 @@ enum ipa_rsrc_group_id {
 	IPA_RSRC_GROUP_SRC_UL_DL			= 0,
 	IPA_RSRC_GROUP_SRC_DMA,
 	IPA_RSRC_GROUP_SRC_UC_RX_Q,
-	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; analt a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_UL_DL_DPL			= 0,
 	IPA_RSRC_GROUP_DST_DMA,
 	IPA_RSRC_GROUP_DST_UC,
 	IPA_RSRC_GROUP_DST_DRB_IP,
-	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; analt a destination group */
 };
 
 /* QSB configuration data for an SoC having IPA v4.9 */
 static const struct ipa_qsb_data ipa_qsb_data[] = {
 	[IPA_QSB_MASTER_DDR] = {
 		.max_writes		= 8,
-		.max_reads		= 0,	/* no limit (hardware max) */
+		.max_reads		= 0,	/* anal limit (hardware max) */
 		.max_reads_beats	= 120,
 	},
 };

@@ -28,7 +28,7 @@ enum {
 	TS_FSM_PERHAPS,		/* 1 or 0 occurrence */
 	TS_FSM_ANY,		/* 0..n occurrences */
 	TS_FSM_MULTI,		/* 1..n occurrences */
-	TS_FSM_HEAD_IGNORE,	/* 0..n ignored occurrences at head */
+	TS_FSM_HEAD_IGANALRE,	/* 0..n iganalred occurrences at head */
 	__TS_FSM_RECUR_MAX,
 };
 #define TS_FSM_RECUR_MAX (__TS_FSM_RECUR_MAX - 1)

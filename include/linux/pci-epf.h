@@ -17,8 +17,8 @@
 struct pci_epf;
 enum pci_epc_interface_type;
 
-enum pci_barno {
-	NO_BAR = -1,
+enum pci_baranal {
+	ANAL_BAR = -1,
 	BAR_0,
 	BAR_1,
 	BAR_2,
@@ -112,14 +112,14 @@ struct pci_epf_driver {
  * @phys_addr: physical address that should be mapped to the BAR
  * @addr: virtual address corresponding to the @phys_addr
  * @size: the size of the address space present in BAR
- * @barno: BAR number
+ * @baranal: BAR number
  * @flags: flags that are set for the BAR
  */
 struct pci_epf_bar {
 	dma_addr_t	phys_addr;
 	void		*addr;
 	size_t		size;
-	enum pci_barno	barno;
+	enum pci_baranal	baranal;
 	int		flags;
 };
 
@@ -131,8 +131,8 @@ struct pci_epf_bar {
  * @bar: represents the BAR of EPF device
  * @msi_interrupts: number of MSI interrupts required by this function
  * @msix_interrupts: number of MSI-X interrupts required by this function
- * @func_no: unique (physical) function number within this endpoint device
- * @vfunc_no: unique virtual function number within a physical function
+ * @func_anal: unique (physical) function number within this endpoint device
+ * @vfunc_anal: unique virtual function number within a physical function
  * @epc: the EPC device to which this EPF device is bound
  * @epf_pf: the physical EPF device to which this virtual EPF device is bound
  * @driver: the EPF driver to which this EPF device is bound
@@ -143,9 +143,9 @@ struct pci_epf_bar {
  * @sec_epc_list: to add pci_epf as list of PCI endpoint functions to secondary
  *   EPC device
  * @sec_epc_bar: represents the BAR of EPF device associated with secondary EPC
- * @sec_epc_func_no: unique (physical) function number within the secondary EPC
+ * @sec_epc_func_anal: unique (physical) function number within the secondary EPC
  * @group: configfs group associated with the EPF device
- * @is_bound: indicates if bind notification to function driver has been invoked
+ * @is_bound: indicates if bind analtification to function driver has been invoked
  * @is_vf: true - virtual function, false - physical function
  * @vfunction_num_map: bitmap to manage virtual function number
  * @pci_vepf: list of virtual endpoint functions associated with this function
@@ -158,8 +158,8 @@ struct pci_epf {
 	struct pci_epf_bar	bar[6];
 	u8			msi_interrupts;
 	u16			msix_interrupts;
-	u8			func_no;
-	u8			vfunc_no;
+	u8			func_anal;
+	u8			vfunc_anal;
 
 	struct pci_epc		*epc;
 	struct pci_epf		*epf_pf;
@@ -173,7 +173,7 @@ struct pci_epf {
 	struct pci_epc		*sec_epc;
 	struct list_head	sec_epc_list;
 	struct pci_epf_bar	sec_epc_bar[6];
-	u8			sec_epc_func_no;
+	u8			sec_epc_func_anal;
 	struct config_group	*group;
 	unsigned int		is_bound;
 	unsigned int		is_vf;
@@ -215,9 +215,9 @@ void pci_epf_destroy(struct pci_epf *epf);
 int __pci_epf_register_driver(struct pci_epf_driver *driver,
 			      struct module *owner);
 void pci_epf_unregister_driver(struct pci_epf_driver *driver);
-void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
+void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_baranal bar,
 			  size_t align, enum pci_epc_interface_type type);
-void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
+void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_baranal bar,
 			enum pci_epc_interface_type type);
 int pci_epf_bind(struct pci_epf *epf);
 void pci_epf_unbind(struct pci_epf *epf);

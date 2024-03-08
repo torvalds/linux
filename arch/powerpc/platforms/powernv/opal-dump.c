@@ -49,7 +49,7 @@ static const char* dump_type_to_string(uint32_t type)
 	case 0x01: return "SP Dump";
 	case 0x02: return "System/Platform Dump";
 	case 0x03: return "SMA Dump";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 
@@ -66,11 +66,11 @@ static ssize_t dump_ack_show(struct dump_obj *dump_obj,
 			     struct dump_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "ack - acknowledge dump\n");
+	return sprintf(buf, "ack - ackanalwledge dump\n");
 }
 
 /*
- * Send acknowledgement to OPAL
+ * Send ackanalwledgement to OPAL
  */
 static int64_t dump_send_ack(uint32_t dump_id)
 {
@@ -108,7 +108,7 @@ static struct dump_attribute id_attribute =
 static struct dump_attribute type_attribute =
 	__ATTR(type, 0444, dump_type_show, NULL);
 static struct dump_attribute ack_attribute =
-	__ATTR(acknowledge, 0660, dump_ack_show, dump_ack_store);
+	__ATTR(ackanalwledge, 0660, dump_ack_show, dump_ack_store);
 
 static ssize_t init_dump_show(struct dump_obj *dump_obj,
 			      struct dump_attribute *attr,
@@ -250,14 +250,14 @@ static int64_t dump_read_data(struct dump_obj *dump)
 	dump->buffer = vzalloc(PAGE_ALIGN(dump->size));
 	if (!dump->buffer) {
 		pr_err("%s : Failed to allocate memory\n", __func__);
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	/* Generate SG list */
 	list = opal_vmalloc_to_sg_list(dump->buffer, dump->size);
 	if (!list) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -315,10 +315,10 @@ static ssize_t dump_attr_read(struct file *filep, struct kobject *kobj,
 
 	memcpy(buffer, dump->buffer + pos, count);
 
-	/* You may think we could free the dump buffer now and retrieve
+	/* You may think we could free the dump buffer analw and retrieve
 	 * it again later if needed, but due to current firmware limitation,
-	 * that's not the case. So, once read into userspace once,
-	 * we keep the dump around until it's acknowledged by userspace.
+	 * that's analt the case. So, once read into userspace once,
+	 * we keep the dump around until it's ackanalwledged by userspace.
 	 */
 
 	return count;
@@ -357,7 +357,7 @@ static void create_dump_obj(uint32_t id, size_t size, uint32_t type)
 	/*
 	 * As soon as the sysfs file for this dump is created/activated there is
 	 * a chance the opal_errd daemon (or any userspace) might read and
-	 * acknowledge the dump before kobject_uevent() is called. If that
+	 * ackanalwledge the dump before kobject_uevent() is called. If that
 	 * happens then there is a potential race between
 	 * dump_ack_store->kobject_put() and kobject_uevent() which leads to a
 	 * use-after-free of a kernfs object resulting in a kernel crash.
@@ -399,8 +399,8 @@ static irqreturn_t process_dump(int irq, void *data)
 
 	sprintf(name, "0x%x-0x%x", dump_type, dump_id);
 
-	/* we may get notified twice, let's handle
-	 * that gracefully and not create two conflicting
+	/* we may get analtified twice, let's handle
+	 * that gracefully and analt create two conflicting
 	 * entries.
 	 */
 	kobj = kset_find_obj(dump_kset, name);
@@ -420,7 +420,7 @@ void __init opal_platform_dump_init(void)
 	int rc;
 	int dump_irq;
 
-	/* Dump not supported by firmware */
+	/* Dump analt supported by firmware */
 	if (!opal_check_token(OPAL_DUMP_READ))
 		return;
 
@@ -455,5 +455,5 @@ void __init opal_platform_dump_init(void)
 	}
 
 	if (opal_check_token(OPAL_DUMP_RESEND))
-		opal_dump_resend_notification();
+		opal_dump_resend_analtification();
 }

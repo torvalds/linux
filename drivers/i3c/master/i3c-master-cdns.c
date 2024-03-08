@@ -8,7 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -53,7 +53,7 @@
 #define REV_ID_VID(id)			(((id) & GENMASK(31, 20)) >> 20)
 #define REV_ID_PID(id)			(((id) & GENMASK(19, 8)) >> 8)
 #define REV_ID_REV_MAJOR(id)		(((id) & GENMASK(7, 4)) >> 4)
-#define REV_ID_REV_MINOR(id)		((id) & GENMASK(3, 0))
+#define REV_ID_REV_MIANALR(id)		((id) & GENMASK(3, 0))
 
 #define CTRL				0x10
 #define CTRL_DEV_EN			BIT(31)
@@ -127,7 +127,7 @@
 #define MST_STATUS0_CMDR_EMP		BIT(0)
 
 #define CMDR				0x38
-#define CMDR_NO_ERROR			0
+#define CMDR_ANAL_ERROR			0
 #define CMDR_DDR_PREAMBLE_ERROR		1
 #define CMDR_DDR_PARITY_ERROR		2
 #define CMDR_DDR_RX_FIFO_OVF		3
@@ -384,7 +384,7 @@ struct cdns_i3c_cmd {
 };
 
 struct cdns_i3c_xfer {
-	struct list_head node;
+	struct list_head analde;
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
@@ -513,7 +513,7 @@ cdns_i3c_master_alloc_xfer(struct cdns_i3c_master *master, unsigned int ncmds)
 	if (!xfer)
 		return NULL;
 
-	INIT_LIST_HEAD(&xfer->node);
+	INIT_LIST_HEAD(&xfer->analde);
 	xfer->ncmds = ncmds;
 	xfer->ret = -ETIMEDOUT;
 
@@ -590,7 +590,7 @@ static void cdns_i3c_master_end_xfer_locked(struct cdns_i3c_master *master,
 
 	for (i = 0; i < xfer->ncmds; i++) {
 		switch (xfer->cmds[i].error) {
-		case CMDR_NO_ERROR:
+		case CMDR_ANAL_ERROR:
 			break;
 
 		case CMDR_DDR_PREAMBLE_ERROR:
@@ -606,7 +606,7 @@ static void cdns_i3c_master_end_xfer_locked(struct cdns_i3c_master *master,
 
 		case CMDR_DDR_RX_FIFO_OVF:
 		case CMDR_DDR_TX_FIFO_UNF:
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			break;
 
 		case CMDR_INVALID_DA:
@@ -620,9 +620,9 @@ static void cdns_i3c_master_end_xfer_locked(struct cdns_i3c_master *master,
 	complete(&xfer->comp);
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
-					struct cdns_i3c_xfer, node);
+					struct cdns_i3c_xfer, analde);
 	if (xfer)
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 
 	master->xferqueue.cur = xfer;
 	cdns_i3c_master_start_xfer_locked(master);
@@ -636,7 +636,7 @@ static void cdns_i3c_master_queue_xfer(struct cdns_i3c_master *master,
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
-		list_add_tail(&xfer->node, &master->xferqueue.list);
+		list_add_tail(&xfer->analde, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		cdns_i3c_master_start_xfer_locked(master);
@@ -666,7 +666,7 @@ static void cdns_i3c_master_unqueue_xfer(struct cdns_i3c_master *master,
 		writel(readl(master->regs + CTRL) | CTRL_DEV_EN,
 		       master->regs + CTRL);
 	} else {
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->analde);
 	}
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
@@ -688,7 +688,7 @@ static enum i3c_error_code cdns_i3c_cmd_get_err(struct cdns_i3c_cmd *cmd)
 		break;
 	}
 
-	return I3C_ERROR_UNKNOWN;
+	return I3C_ERROR_UNKANALWN;
 }
 
 static int cdns_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
@@ -701,7 +701,7 @@ static int cdns_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 
 	xfer = cdns_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ccmd = xfer->cmds;
 	ccmd->cmd1 = CMD1_FIFO_CCC(cmd->id);
@@ -742,7 +742,7 @@ static int cdns_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 	for (i = 0; i < nxfers; i++) {
 		if (xfers[i].len > CMD0_FIFO_PL_LEN_MAX)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 	}
 
 	if (!nxfers)
@@ -750,7 +750,7 @@ static int cdns_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 	if (nxfers > master->caps.cmdfifodepth ||
 	    nxfers > master->caps.cmdrfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * First make sure that all transactions (block of transfers separated
@@ -765,11 +765,11 @@ static int cdns_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 	if (rxslots > master->caps.rxfifodepth ||
 	    txslots > master->caps.txfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	cdns_xfer = cdns_i3c_master_alloc_xfer(master, nxfers);
 	if (!cdns_xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nxfers; i++) {
 		struct cdns_i3c_cmd *ccmd = &cdns_xfer->cmds[i];
@@ -822,11 +822,11 @@ static int cdns_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	int i, ret = 0;
 
 	if (nxfers > master->caps.cmdfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < nxfers; i++) {
 		if (xfers[i].len > CMD0_FIFO_PL_LEN_MAX)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		if (xfers[i].flags & I2C_M_RD)
 			nrxwords += DIV_ROUND_UP(xfers[i].len, 4);
@@ -836,11 +836,11 @@ static int cdns_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 
 	if (ntxwords > master->caps.txfifodepth ||
 	    nrxwords > master->caps.rxfifodepth)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	xfer = cdns_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nxfers; i++) {
 		struct cdns_i3c_cmd *ccmd = &xfer->cmds[i];
@@ -917,7 +917,7 @@ static int cdns_i3c_master_get_rr_slot(struct cdns_i3c_master *master,
 
 	if (!dyn_addr) {
 		if (!master->free_rr_slots)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		return ffs(master->free_rr_slots) - 1;
 	}
@@ -954,7 +954,7 @@ static int cdns_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slot = cdns_i3c_master_get_rr_slot(master, dev->info.dyn_addr);
 	if (slot < 0) {
@@ -1005,7 +1005,7 @@ static int cdns_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->id = slot;
 	master->free_rr_slots &= ~BIT(slot);
@@ -1144,7 +1144,7 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 	for_each_clear_bit(slot, &olddevs, master->maxdevs + 1) {
 		ret = i3c_master_get_free_addr(m, last_addr + 1);
 		if (ret < 0)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		last_addr = ret;
 		addrs[slot] = last_addr;
@@ -1169,10 +1169,10 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 		i3c_master_add_i3c_dev_locked(m, addrs[slot]);
 
 	/*
-	 * Clear slots that ended up not being used. Can be caused by I3C
-	 * device creation failure or when the I3C device was already known
+	 * Clear slots that ended up analt being used. Can be caused by I3C
+	 * device creation failure or when the I3C device was already kanalwn
 	 * by the system but with a different address (in this case the device
-	 * already has a slot and does not need a new one).
+	 * already has a slot and does analt need a new one).
 	 */
 	writel(readl(master->regs + DEVS_CTRL) |
 	       master->free_rr_slots << DEVS_CTRL_DEV_CLR_SHIFT,
@@ -1195,7 +1195,7 @@ static u8 cdns_i3c_master_calculate_thd_delay(struct cdns_i3c_master *master)
 	u8 thd_delay = DIV_ROUND_UP(master->devdata->thd_delay_ns,
 				    (NSEC_PER_SEC / sysclk_rate));
 
-	/* Every value greater than 3 is not valid. */
+	/* Every value greater than 3 is analt valid. */
 	if (thd_delay > THD_DELAY_MAX)
 		thd_delay = THD_DELAY_MAX;
 
@@ -1290,7 +1290,7 @@ static int cdns_i3c_master_bus_init(struct i3c_master_controller *m)
 	/*
 	 * Configure data hold delay based on device-specific data.
 	 *
-	 * MIPI I3C Specification 1.0 defines non-zero minimal tHD_PP timing on
+	 * MIPI I3C Specification 1.0 defines analn-zero minimal tHD_PP timing on
 	 * master output. This setting allows to meet this timing on master's
 	 * SoC outputs, regardless of PCB balancing.
 	 */
@@ -1347,7 +1347,7 @@ out_unlock:
 	spin_unlock(&master->ibi.lock);
 
 out:
-	/* Consume data from the FIFO if it's not been done already. */
+	/* Consume data from the FIFO if it's analt been done already. */
 	if (!data_consumed) {
 		int i;
 
@@ -1394,7 +1394,7 @@ static irqreturn_t cdns_i3c_master_interrupt(int irq, void *data)
 
 	status = readl(master->regs + MST_ISR);
 	if (!(status & readl(master->regs + MST_IMR)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&master->xferqueue.lock);
 	cdns_i3c_master_end_xfer_locked(master, status);
@@ -1499,7 +1499,7 @@ static int cdns_i3c_master_request_ibi(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_free_pool(data->ibi_pool);
 	data->ibi_pool = NULL;
 
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static void cdns_i3c_master_free_ibi(struct i3c_dev_desc *dev)
@@ -1571,7 +1571,7 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	master->devdata = of_device_get_match_data(&pdev->dev);
 	if (!master->devdata)
@@ -1638,7 +1638,7 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 					 sizeof(*master->ibi.slots),
 					 GFP_KERNEL);
 	if (!master->ibi.slots) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_sysclk;
 	}
 

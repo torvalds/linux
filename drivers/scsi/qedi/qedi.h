@@ -34,7 +34,7 @@ struct qedi_endpoint;
 /*
  * PCI function probe defines
  */
-#define QEDI_MODE_NORMAL	0
+#define QEDI_MODE_ANALRMAL	0
 #define QEDI_MODE_RECOVERY	1
 #define QEDI_MODE_SHUTDOWN	2
 

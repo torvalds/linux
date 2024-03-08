@@ -16,18 +16,18 @@
  * The concept was suggested by Steve Toth <stoth@linuxtv.org>.
  * The implementation is the fault of Andy Walls <awalls@md.metrocast.net>.
  *
- * *write* functions are implied to retry the mmio unless suffixed with _noretry
+ * *write* functions are implied to retry the mmio unless suffixed with _analretry
  * *read* functions never retry the mmio (it never helps to do so)
  */
 
-/* Non byteswapping memory mapped IO */
+/* Analn byteswapping memory mapped IO */
 static inline u32 cx18_raw_readl(struct cx18 *cx, const void __iomem *addr)
 {
 	return __raw_readl(addr);
 }
 
 static inline
-void cx18_raw_writel_noretry(struct cx18 *cx, u32 val, void __iomem *addr)
+void cx18_raw_writel_analretry(struct cx18 *cx, u32 val, void __iomem *addr)
 {
 	__raw_writel(val, addr);
 }
@@ -36,20 +36,20 @@ static inline void cx18_raw_writel(struct cx18 *cx, u32 val, void __iomem *addr)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
-		cx18_raw_writel_noretry(cx, val, addr);
+		cx18_raw_writel_analretry(cx, val, addr);
 		if (val == cx18_raw_readl(cx, addr))
 			break;
 	}
 }
 
-/* Normal memory mapped IO */
+/* Analrmal memory mapped IO */
 static inline u32 cx18_readl(struct cx18 *cx, const void __iomem *addr)
 {
 	return readl(addr);
 }
 
 static inline
-void cx18_writel_noretry(struct cx18 *cx, u32 val, void __iomem *addr)
+void cx18_writel_analretry(struct cx18 *cx, u32 val, void __iomem *addr)
 {
 	writel(val, addr);
 }
@@ -58,7 +58,7 @@ static inline void cx18_writel(struct cx18 *cx, u32 val, void __iomem *addr)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
-		cx18_writel_noretry(cx, val, addr);
+		cx18_writel_analretry(cx, val, addr);
 		if (val == cx18_readl(cx, addr))
 			break;
 	}
@@ -72,7 +72,7 @@ void cx18_writel_expect(struct cx18 *cx, u32 val, void __iomem *addr,
 	u32 r;
 	eval &= mask;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
-		cx18_writel_noretry(cx, val, addr);
+		cx18_writel_analretry(cx, val, addr);
 		r = cx18_readl(cx, addr);
 		if (r == 0xffffffff && eval != 0xffffffff)
 			continue;
@@ -87,7 +87,7 @@ static inline u16 cx18_readw(struct cx18 *cx, const void __iomem *addr)
 }
 
 static inline
-void cx18_writew_noretry(struct cx18 *cx, u16 val, void __iomem *addr)
+void cx18_writew_analretry(struct cx18 *cx, u16 val, void __iomem *addr)
 {
 	writew(val, addr);
 }
@@ -96,7 +96,7 @@ static inline void cx18_writew(struct cx18 *cx, u16 val, void __iomem *addr)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
-		cx18_writew_noretry(cx, val, addr);
+		cx18_writew_analretry(cx, val, addr);
 		if (val == cx18_readw(cx, addr))
 			break;
 	}
@@ -108,7 +108,7 @@ static inline u8 cx18_readb(struct cx18 *cx, const void __iomem *addr)
 }
 
 static inline
-void cx18_writeb_noretry(struct cx18 *cx, u8 val, void __iomem *addr)
+void cx18_writeb_analretry(struct cx18 *cx, u8 val, void __iomem *addr)
 {
 	writeb(val, addr);
 }
@@ -117,7 +117,7 @@ static inline void cx18_writeb(struct cx18 *cx, u8 val, void __iomem *addr)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_MMIO_WR_RETRIES; i++) {
-		cx18_writeb_noretry(cx, val, addr);
+		cx18_writeb_analretry(cx, val, addr);
 		if (val == cx18_readb(cx, addr))
 			break;
 	}
@@ -134,9 +134,9 @@ void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count);
 
 
 /* Access "register" region of CX23418 memory mapped I/O */
-static inline void cx18_write_reg_noretry(struct cx18 *cx, u32 val, u32 reg)
+static inline void cx18_write_reg_analretry(struct cx18 *cx, u32 val, u32 reg)
 {
-	cx18_writel_noretry(cx, val, cx->reg_mem + reg);
+	cx18_writel_analretry(cx, val, cx->reg_mem + reg);
 }
 
 static inline void cx18_write_reg(struct cx18 *cx, u32 val, u32 reg)

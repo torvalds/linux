@@ -24,7 +24,7 @@ struct fw_mgmt {
 	struct device		*parent;
 	struct gb_connection	*connection;
 	struct kref		kref;
-	struct list_head	node;
+	struct list_head	analde;
 
 	/* Common id-map for interface and backend firmware requests */
 	struct ida		id_map;
@@ -42,7 +42,7 @@ struct fw_mgmt {
 	u8			intf_fw_request_id;
 	u8			intf_fw_status;
 	u16			intf_fw_major;
-	u16			intf_fw_minor;
+	u16			intf_fw_mianalr;
 
 	/* Backend Firmware specific fields */
 	u8			backend_fw_request_id;
@@ -50,17 +50,17 @@ struct fw_mgmt {
 };
 
 /*
- * Number of minor devices this driver supports.
+ * Number of mianalr devices this driver supports.
  * There will be exactly one required per Interface.
  */
-#define NUM_MINORS		U8_MAX
+#define NUM_MIANALRS		U8_MAX
 
 static const struct class fw_mgmt_class = {
 	.name = "gb_fw_mgmt",
 };
 
 static dev_t fw_mgmt_dev_num;
-static DEFINE_IDA(fw_mgmt_minors_map);
+static DEFINE_IDA(fw_mgmt_mianalrs_map);
 static LIST_HEAD(fw_mgmt_list);
 static DEFINE_MUTEX(list_mutex);
 
@@ -89,7 +89,7 @@ static struct fw_mgmt *get_fw_mgmt(struct cdev *cdev)
 
 	mutex_lock(&list_mutex);
 
-	list_for_each_entry(fw_mgmt, &fw_mgmt_list, node) {
+	list_for_each_entry(fw_mgmt, &fw_mgmt_list, analde) {
 		if (&fw_mgmt->cdev == cdev) {
 			kref_get(&fw_mgmt->kref);
 			goto unlock;
@@ -121,7 +121,7 @@ static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	}
 
 	fw_info->major = le16_to_cpu(response.major);
-	fw_info->minor = le16_to_cpu(response.minor);
+	fw_info->mianalr = le16_to_cpu(response.mianalr);
 
 	strncpy(fw_info->firmware_tag, response.firmware_tag,
 		GB_FIRMWARE_TAG_MAX_SIZE);
@@ -132,7 +132,7 @@ static int fw_mgmt_interface_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	 */
 	if (fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
 		dev_err(fw_mgmt->parent,
-			"fw-version: firmware-tag is not NULL terminated\n");
+			"fw-version: firmware-tag is analt NULL terminated\n");
 		fw_info->firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] = '\0';
 	}
 
@@ -160,7 +160,7 @@ static int fw_mgmt_load_and_validate_operation(struct fw_mgmt *fw_mgmt,
 	 * fail.
 	 */
 	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
-		dev_err(fw_mgmt->parent, "load-and-validate: firmware-tag is not NULL terminated\n");
+		dev_err(fw_mgmt->parent, "load-and-validate: firmware-tag is analt NULL terminated\n");
 		return -EINVAL;
 	}
 
@@ -198,11 +198,11 @@ static int fw_mgmt_interface_fw_loaded_operation(struct gb_operation *op)
 	struct fw_mgmt *fw_mgmt = gb_connection_get_data(connection);
 	struct gb_fw_mgmt_loaded_fw_request *request;
 
-	/* No pending load and validate request ? */
+	/* Anal pending load and validate request ? */
 	if (!fw_mgmt->intf_fw_request_id) {
 		dev_err(fw_mgmt->parent,
 			"unexpected firmware loaded request received\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (op->request->payload_size != sizeof(*request)) {
@@ -217,14 +217,14 @@ static int fw_mgmt_interface_fw_loaded_operation(struct gb_operation *op)
 	if (request->request_id != fw_mgmt->intf_fw_request_id) {
 		dev_err(fw_mgmt->parent, "invalid request id for firmware loaded request (%02u != %02u)\n",
 			fw_mgmt->intf_fw_request_id, request->request_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ida_simple_remove(&fw_mgmt->id_map, fw_mgmt->intf_fw_request_id);
 	fw_mgmt->intf_fw_request_id = 0;
 	fw_mgmt->intf_fw_status = request->status;
 	fw_mgmt->intf_fw_major = le16_to_cpu(request->major);
-	fw_mgmt->intf_fw_minor = le16_to_cpu(request->minor);
+	fw_mgmt->intf_fw_mianalr = le16_to_cpu(request->mianalr);
 
 	if (fw_mgmt->intf_fw_status == GB_FW_LOAD_STATUS_FAILED)
 		dev_err(fw_mgmt->parent,
@@ -258,7 +258,7 @@ static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
 	 * fail.
 	 */
 	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
-		dev_err(fw_mgmt->parent, "backend-version: firmware-tag is not NULL terminated\n");
+		dev_err(fw_mgmt->parent, "backend-version: firmware-tag is analt NULL terminated\n");
 		return -EINVAL;
 	}
 
@@ -273,21 +273,21 @@ static int fw_mgmt_backend_fw_version_operation(struct fw_mgmt *fw_mgmt,
 
 	fw_info->status = response.status;
 
-	/* Reset version as that should be non-zero only for success case */
+	/* Reset version as that should be analn-zero only for success case */
 	fw_info->major = 0;
-	fw_info->minor = 0;
+	fw_info->mianalr = 0;
 
 	switch (fw_info->status) {
 	case GB_FW_BACKEND_VERSION_STATUS_SUCCESS:
 		fw_info->major = le16_to_cpu(response.major);
-		fw_info->minor = le16_to_cpu(response.minor);
+		fw_info->mianalr = le16_to_cpu(response.mianalr);
 		break;
-	case GB_FW_BACKEND_VERSION_STATUS_NOT_AVAILABLE:
+	case GB_FW_BACKEND_VERSION_STATUS_ANALT_AVAILABLE:
 	case GB_FW_BACKEND_VERSION_STATUS_RETRY:
 		break;
-	case GB_FW_BACKEND_VERSION_STATUS_NOT_SUPPORTED:
+	case GB_FW_BACKEND_VERSION_STATUS_ANALT_SUPPORTED:
 		dev_err(fw_mgmt->parent,
-			"Firmware with tag %s is not supported by Interface\n",
+			"Firmware with tag %s is analt supported by Interface\n",
 			fw_info->firmware_tag);
 		break;
 	default:
@@ -311,7 +311,7 @@ static int fw_mgmt_backend_fw_update_operation(struct fw_mgmt *fw_mgmt,
 	 * fail.
 	 */
 	if (request.firmware_tag[GB_FIRMWARE_TAG_MAX_SIZE - 1] != '\0') {
-		dev_err(fw_mgmt->parent, "backend-update: firmware-tag is not NULL terminated\n");
+		dev_err(fw_mgmt->parent, "backend-update: firmware-tag is analt NULL terminated\n");
 		return -EINVAL;
 	}
 
@@ -348,10 +348,10 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 	struct fw_mgmt *fw_mgmt = gb_connection_get_data(connection);
 	struct gb_fw_mgmt_backend_fw_updated_request *request;
 
-	/* No pending load and validate request ? */
+	/* Anal pending load and validate request ? */
 	if (!fw_mgmt->backend_fw_request_id) {
 		dev_err(fw_mgmt->parent, "unexpected backend firmware updated request received\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (op->request->payload_size != sizeof(*request)) {
@@ -366,7 +366,7 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 	if (request->request_id != fw_mgmt->backend_fw_request_id) {
 		dev_err(fw_mgmt->parent, "invalid request id for backend firmware updated request (%02u != %02u)\n",
 			fw_mgmt->backend_fw_request_id, request->request_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ida_simple_remove(&fw_mgmt->id_map, fw_mgmt->backend_fw_request_id);
@@ -386,9 +386,9 @@ static int fw_mgmt_backend_fw_updated_operation(struct gb_operation *op)
 
 /* Char device fops */
 
-static int fw_mgmt_open(struct inode *inode, struct file *file)
+static int fw_mgmt_open(struct ianalde *ianalde, struct file *file)
 {
-	struct fw_mgmt *fw_mgmt = get_fw_mgmt(inode->i_cdev);
+	struct fw_mgmt *fw_mgmt = get_fw_mgmt(ianalde->i_cdev);
 
 	/* fw_mgmt structure can't get freed until file descriptor is closed */
 	if (fw_mgmt) {
@@ -396,10 +396,10 @@ static int fw_mgmt_open(struct inode *inode, struct file *file)
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static int fw_mgmt_release(struct inode *inode, struct file *file)
+static int fw_mgmt_release(struct ianalde *ianalde, struct file *file)
 {
 	struct fw_mgmt *fw_mgmt = file->private_data;
 
@@ -464,7 +464,7 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 
 		intf_load.status = fw_mgmt->intf_fw_status;
 		intf_load.major = fw_mgmt->intf_fw_major;
-		intf_load.minor = fw_mgmt->intf_fw_minor;
+		intf_load.mianalr = fw_mgmt->intf_fw_mianalr;
 
 		if (copy_to_user(buf, &intf_load, sizeof(intf_load)))
 			return -EFAULT;
@@ -507,7 +507,7 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 	case FW_MGMT_IOC_MODE_SWITCH:
 		if (!fw_mgmt->intf_fw_loaded) {
 			dev_err(fw_mgmt->parent,
-				"Firmware not loaded for mode-switch\n");
+				"Firmware analt loaded for mode-switch\n");
 			return -EPERM;
 		}
 
@@ -528,7 +528,7 @@ static int fw_mgmt_ioctl(struct fw_mgmt *fw_mgmt, unsigned int cmd,
 
 		return 0;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -537,15 +537,15 @@ static long fw_mgmt_ioctl_unlocked(struct file *file, unsigned int cmd,
 {
 	struct fw_mgmt *fw_mgmt = file->private_data;
 	struct gb_bundle *bundle = fw_mgmt->connection->bundle;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	/*
 	 * Serialize ioctls.
 	 *
 	 * We don't want the user to do few operations in parallel. For example,
 	 * updating Interface firmware in parallel for the same Interface. There
-	 * is no need to do things in parallel for speed and we can avoid having
-	 * complicated code for now.
+	 * is anal need to do things in parallel for speed and we can avoid having
+	 * complicated code for analw.
 	 *
 	 * This is also used to protect ->disabled, which is used to check if
 	 * the connection is getting disconnected, so that we don't start any
@@ -590,14 +590,14 @@ int gb_fw_mgmt_request_handler(struct gb_operation *op)
 int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 {
 	struct fw_mgmt *fw_mgmt;
-	int ret, minor;
+	int ret, mianalr;
 
 	if (!connection)
 		return 0;
 
 	fw_mgmt = kzalloc(sizeof(*fw_mgmt), GFP_KERNEL);
 	if (!fw_mgmt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_mgmt->parent = &connection->bundle->dev;
 	fw_mgmt->timeout_jiffies = msecs_to_jiffies(FW_MGMT_TIMEOUT_MS);
@@ -610,21 +610,21 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	kref_init(&fw_mgmt->kref);
 
 	mutex_lock(&list_mutex);
-	list_add(&fw_mgmt->node, &fw_mgmt_list);
+	list_add(&fw_mgmt->analde, &fw_mgmt_list);
 	mutex_unlock(&list_mutex);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
 		goto err_list_del;
 
-	minor = ida_simple_get(&fw_mgmt_minors_map, 0, NUM_MINORS, GFP_KERNEL);
-	if (minor < 0) {
-		ret = minor;
+	mianalr = ida_simple_get(&fw_mgmt_mianalrs_map, 0, NUM_MIANALRS, GFP_KERNEL);
+	if (mianalr < 0) {
+		ret = mianalr;
 		goto err_connection_disable;
 	}
 
 	/* Add a char device to allow userspace to interact with fw-mgmt */
-	fw_mgmt->dev_num = MKDEV(MAJOR(fw_mgmt_dev_num), minor);
+	fw_mgmt->dev_num = MKDEV(MAJOR(fw_mgmt_dev_num), mianalr);
 	cdev_init(&fw_mgmt->cdev, &fw_mgmt_fops);
 
 	ret = cdev_add(&fw_mgmt->cdev, fw_mgmt->dev_num, 1);
@@ -634,7 +634,7 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	/* Add a soft link to the previously added char-dev within the bundle */
 	fw_mgmt->class_device = device_create(&fw_mgmt_class, fw_mgmt->parent,
 					      fw_mgmt->dev_num, NULL,
-					      "gb-fw-mgmt-%d", minor);
+					      "gb-fw-mgmt-%d", mianalr);
 	if (IS_ERR(fw_mgmt->class_device)) {
 		ret = PTR_ERR(fw_mgmt->class_device);
 		goto err_del_cdev;
@@ -645,12 +645,12 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 err_del_cdev:
 	cdev_del(&fw_mgmt->cdev);
 err_remove_ida:
-	ida_simple_remove(&fw_mgmt_minors_map, minor);
+	ida_simple_remove(&fw_mgmt_mianalrs_map, mianalr);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_list_del:
 	mutex_lock(&list_mutex);
-	list_del(&fw_mgmt->node);
+	list_del(&fw_mgmt->analde);
 	mutex_unlock(&list_mutex);
 
 	put_fw_mgmt(fw_mgmt);
@@ -669,7 +669,7 @@ void gb_fw_mgmt_connection_exit(struct gb_connection *connection)
 
 	device_destroy(&fw_mgmt_class, fw_mgmt->dev_num);
 	cdev_del(&fw_mgmt->cdev);
-	ida_simple_remove(&fw_mgmt_minors_map, MINOR(fw_mgmt->dev_num));
+	ida_simple_remove(&fw_mgmt_mianalrs_map, MIANALR(fw_mgmt->dev_num));
 
 	/*
 	 * Disallow any new ioctl operations on the char device and wait for
@@ -679,17 +679,17 @@ void gb_fw_mgmt_connection_exit(struct gb_connection *connection)
 	fw_mgmt->disabled = true;
 	mutex_unlock(&fw_mgmt->mutex);
 
-	/* All pending greybus operations should have finished by now */
+	/* All pending greybus operations should have finished by analw */
 	gb_connection_disable(fw_mgmt->connection);
 
 	/* Disallow new users to get access to the fw_mgmt structure */
 	mutex_lock(&list_mutex);
-	list_del(&fw_mgmt->node);
+	list_del(&fw_mgmt->analde);
 	mutex_unlock(&list_mutex);
 
 	/*
 	 * All current users of fw_mgmt would have taken a reference to it by
-	 * now, we can drop our reference and wait the last user will get
+	 * analw, we can drop our reference and wait the last user will get
 	 * fw_mgmt freed.
 	 */
 	put_fw_mgmt(fw_mgmt);
@@ -703,7 +703,7 @@ int fw_mgmt_init(void)
 	if (ret)
 		return ret;
 
-	ret = alloc_chrdev_region(&fw_mgmt_dev_num, 0, NUM_MINORS,
+	ret = alloc_chrdev_region(&fw_mgmt_dev_num, 0, NUM_MIANALRS,
 				  "gb_fw_mgmt");
 	if (ret)
 		goto err_remove_class;
@@ -717,7 +717,7 @@ err_remove_class:
 
 void fw_mgmt_exit(void)
 {
-	unregister_chrdev_region(fw_mgmt_dev_num, NUM_MINORS);
+	unregister_chrdev_region(fw_mgmt_dev_num, NUM_MIANALRS);
 	class_unregister(&fw_mgmt_class);
-	ida_destroy(&fw_mgmt_minors_map);
+	ida_destroy(&fw_mgmt_mianalrs_map);
 }

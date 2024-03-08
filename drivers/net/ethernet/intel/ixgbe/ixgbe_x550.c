@@ -205,13 +205,13 @@ static s32 ixgbe_reset_cs4227(struct ixgbe_hw *hw)
 		msleep(IXGBE_CS4227_CHECK_DELAY);
 	}
 	if (retry == IXGBE_CS4227_RETRIES) {
-		hw_err(hw, "CS4227 reset did not complete\n");
+		hw_err(hw, "CS4227 reset did analt complete\n");
 		return -EIO;
 	}
 
 	status = ixgbe_read_cs4227(hw, IXGBE_CS4227_EEPROM_STATUS, &value);
 	if (status || !(value & IXGBE_CS4227_EEPROM_LOAD_OK)) {
-		hw_err(hw, "CS4227 EEPROM did not load successfully\n");
+		hw_err(hw, "CS4227 EEPROM did analt load successfully\n");
 		return -EIO;
 	}
 
@@ -350,13 +350,13 @@ static s32 ixgbe_identify_phy_x550em(struct ixgbe_hw *hw)
 static s32 ixgbe_read_phy_reg_x550em(struct ixgbe_hw *hw, u32 reg_addr,
 				     u32 device_type, u16 *phy_data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static s32 ixgbe_write_phy_reg_x550em(struct ixgbe_hw *hw, u32 reg_addr,
 				      u32 device_type, u16 phy_data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -567,7 +567,7 @@ static s32 ixgbe_setup_fw_link(struct ixgbe_hw *hw)
 		return 0;
 
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
-		hw_err(hw, "rx_pause not valid in strict IEEE mode\n");
+		hw_err(hw, "rx_pause analt valid in strict IEEE mode\n");
 		return -EINVAL;
 	}
 
@@ -657,7 +657,7 @@ static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
  *
  * Return: failing status on timeout
  *
- * Note: ctrl can be NULL if the IOSF control register value is not needed
+ * Analte: ctrl can be NULL if the IOSF control register value is analt needed
  */
 static s32 ixgbe_iosf_wait(struct ixgbe_hw *hw, u32 *ctrl)
 {
@@ -1116,7 +1116,7 @@ static s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
  *  @checksum_val: calculated checksum
  *
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
- *  caller does not need checksum_val, the value can be NULL.
+ *  caller does analt need checksum_val, the value can be NULL.
  **/
 static s32 ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 					       u16 *checksum_val)
@@ -1126,7 +1126,7 @@ static s32 ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 	u16 read_checksum = 0;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * analt continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
@@ -1235,14 +1235,14 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
  * ixgbe_get_bus_info_X550em - Set PCI bus info
  * @hw: pointer to hardware structure
  *
- * Sets bus link width and speed to unknown because X550em is
- * not a PCI device.
+ * Sets bus link width and speed to unkanalwn because X550em is
+ * analt a PCI device.
  **/
 static s32 ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 {
 	hw->bus.type  = ixgbe_bus_type_internal;
-	hw->bus.width = ixgbe_bus_width_unknown;
-	hw->bus.speed = ixgbe_bus_speed_unknown;
+	hw->bus.width = ixgbe_bus_width_unkanalwn;
+	hw->bus.speed = ixgbe_bus_speed_unkanalwn;
 
 	hw->mac.ops.set_lan_id(hw);
 
@@ -1317,7 +1317,7 @@ static s32 ixgbe_update_eeprom_checksum_X550(struct ixgbe_hw *hw)
 	u16 checksum = 0;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * analt continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = ixgbe_read_ee_hostif_X550(hw, 0, &checksum);
@@ -1513,7 +1513,7 @@ static s32 ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &link_ctrl);
 
 	if (status) {
-		hw_dbg(hw, "Auto-negotiation did not complete\n");
+		hw_dbg(hw, "Auto-negotiation did analt complete\n");
 		return status;
 	}
 
@@ -1531,7 +1531,7 @@ static s32 ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &flx_mask_st20);
 
 		if (status) {
-			hw_dbg(hw, "Auto-negotiation did not complete\n");
+			hw_dbg(hw, "Auto-negotiation did analt complete\n");
 			return status;
 		}
 
@@ -1580,7 +1580,7 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 		reg_val |= IXGBE_KRM_LINK_CTRL_1_TETH_FORCE_SPEED_1G;
 		break;
 	default:
-		/* Other link speeds are not supported by internal KR PHY. */
+		/* Other link speeds are analt supported by internal KR PHY. */
 		return -EINVAL;
 	}
 
@@ -1611,8 +1611,8 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 {
 	switch (hw->phy.sfp_type) {
-	case ixgbe_sfp_type_not_present:
-		return -ENOENT;
+	case ixgbe_sfp_type_analt_present:
+		return -EANALENT;
 	case ixgbe_sfp_type_da_cu_core0:
 	case ixgbe_sfp_type_da_cu_core1:
 		*linear = true;
@@ -1627,11 +1627,11 @@ static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 	case ixgbe_sfp_type_1g_lx_core1:
 		*linear = false;
 		break;
-	case ixgbe_sfp_type_unknown:
+	case ixgbe_sfp_type_unkanalwn:
 	case ixgbe_sfp_type_1g_cu_core0:
 	case ixgbe_sfp_type_1g_cu_core1:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1657,11 +1657,11 @@ ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
 	/* Check if SFP module is supported and linear */
 	status = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
-	/* If no SFP module present, then return success. Return success since
-	 * there is no reason to configure CS4227 and SFP not present error is
-	 * not accepted in the setup MAC link flow.
+	/* If anal SFP module present, then return success. Return success since
+	 * there is anal reason to configure CS4227 and SFP analt present error is
+	 * analt accepted in the setup MAC link flow.
 	 */
-	if (status == -ENOENT)
+	if (status == -EANALENT)
 		return 0;
 
 	if (status)
@@ -1718,7 +1718,7 @@ static s32 ixgbe_setup_sfi_x550a(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 		reg_val |= IXGBE_KRM_PMD_FLX_MASK_ST20_SPEED_1G;
 		break;
 	default:
-		/* Other link speeds are not supported by internal PHY. */
+		/* Other link speeds are analt supported by internal PHY. */
 		return -EINVAL;
 	}
 
@@ -1801,10 +1801,10 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	/* Check if SFP module is supported and linear */
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
-	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	/* If anal SFP module present, then return success. Return success since
+	 * SFP analt present error is analt excepted in the setup MAC link flow.
 	 */
-	if (ret_val == -ENOENT)
+	if (ret_val == -EANALENT)
 		return 0;
 
 	if (ret_val)
@@ -1851,10 +1851,10 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	/* Check if SFP module is supported and linear */
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
-	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	/* If anal SFP module present, then return success. Return success since
+	 * SFP analt present error is analt excepted in the setup MAC link flow.
 	 */
-	if (ret_val == -ENOENT)
+	if (ret_val == -EANALENT)
 		return 0;
 
 	if (ret_val)
@@ -1863,7 +1863,7 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	/* Configure internal PHY for KR/KX. */
 	ixgbe_setup_kr_speed_x550em(hw, speed);
 
-	if (hw->phy.mdio.prtad == MDIO_PRTAD_NONE)
+	if (hw->phy.mdio.prtad == MDIO_PRTAD_ANALNE)
 		return -EFAULT;
 
 	/* Get external PHY SKU id */
@@ -1950,7 +1950,7 @@ static s32 ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
   * @hw: pointer to hardware structure
   * @speed: pointer to link speed
   * @link_up: true when link is up
-  * @link_up_wait_to_complete: bool used to wait for link up or not
+  * @link_up_wait_to_complete: bool used to wait for link up or analt
   *
   * Check that both the MAC and X557 external PHY have link.
   **/
@@ -1968,13 +1968,13 @@ static s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw,
 	status = ixgbe_check_mac_link_generic(hw, speed, link_up,
 					      link_up_wait_to_complete);
 
-	/* If check link fails or MAC link is not up, then return */
+	/* If check link fails or MAC link is analt up, then return */
 	if (status || !(*link_up))
 		return status;
 
 	/* MAC link is up, so check external PHY link.
 	 * Link status is latching low, and can only be used to detect link
-	 * drop, and not the current status of the link without performing
+	 * drop, and analt the current status of the link without performing
 	 * back-to-back reads.
 	 */
 	for (i = 0; i < 2; i++) {
@@ -1985,7 +1985,7 @@ static s32 ixgbe_check_link_t_X550em(struct ixgbe_hw *hw,
 			return status;
 	}
 
-	/* If external PHY link is not up, then indicate link not up */
+	/* If external PHY link is analt up, then indicate link analt up */
 	if (!(autoneg_status & IXGBE_MDIO_AUTO_NEG_LINK_STATUS))
 		*link_up = false;
 
@@ -2154,7 +2154,7 @@ static void ixgbe_fc_autoneg_sgmii_x550em_a(struct ixgbe_hw *hw)
 	/* AN should have completed when the cable was plugged in.
 	 * Look for reasons to bail out.  Bail out if:
 	 * - FC autoneg is disabled, or if
-	 * - link is not up.
+	 * - link is analt up.
 	 */
 	if (hw->fc.disable_fc_autoneg)
 		goto out;
@@ -2229,7 +2229,7 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 
 	switch (mac->ops.get_media_type(hw)) {
 	case ixgbe_media_type_fiber:
-		/* CS4227 does not support autoneg, so disable the laser control
+		/* CS4227 does analt support autoneg, so disable the laser control
 		 * functions for SFP+ fiber
 		 */
 		mac->ops.disable_tx_laser = NULL;
@@ -2309,7 +2309,7 @@ static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 
 	/* SFP */
 	if (hw->phy.media_type == ixgbe_media_type_fiber) {
-		/* CS4227 SFP must not enable auto-negotiation */
+		/* CS4227 SFP must analt enable auto-negotiation */
 		*autoneg = false;
 
 		if (hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
@@ -2474,10 +2474,10 @@ static s32 ixgbe_enable_lasi_ext_t_x550em(struct ixgbe_hw *hw)
 
 	/* Enable link status change alarm */
 
-	/* Enable the LASI interrupts on X552 devices to receive notifications
+	/* Enable the LASI interrupts on X552 devices to receive analtifications
 	 * of the link configurations of the external PHY and correspondingly
 	 * support the configuration of the internal iXFI link, since iXFI does
-	 * not support auto-negotiation. This is not required for X553 devices
+	 * analt support auto-negotiation. This is analt required for X553 devices
 	 * having KR support, which performs auto-negotiations and which is used
 	 * as the internal link to the external PHY. Hence adding a check here
 	 * to avoid enabling LASI interrupts for X553 devices.
@@ -2683,8 +2683,8 @@ static s32 ixgbe_ext_phy_t_x550em_get_link(struct ixgbe_hw *hw, bool *link_up)
  *  interrupt from the X557 PHY. This function configures the link speed
  *  between the PHYs to match the link speed of the BASE-T link.
  *
- * A return of a non-zero value indicates an error, and the base driver should
- * not report link up.
+ * A return of a analn-zero value indicates an error, and the base driver should
+ * analt report link up.
  **/
 static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 {
@@ -2703,7 +2703,7 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 		return ixgbe_setup_kr_speed_x550em(hw, speed);
 	}
 
-	/* If link is not up, then there is no setup necessary so return  */
+	/* If link is analt up, then there is anal setup necessary so return  */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
 		return status;
@@ -2717,7 +2717,7 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* If link is not still up, then no setup is necessary so return */
+	/* If link is analt still up, then anal setup is necessary so return */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
 		return status;
@@ -2736,7 +2736,7 @@ static s32 ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 		force_speed = IXGBE_LINK_SPEED_1GB_FULL;
 		break;
 	default:
-		/* Internal PHY does not support anything else */
+		/* Internal PHY does analt support anything else */
 		return -EINVAL;
 	}
 
@@ -2807,7 +2807,7 @@ static s32 ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
  *  ixgbe_set_fw_drv_ver_x550 - Sends driver version to firmware
  *  @hw: pointer to the HW structure
  *  @maj: driver version major number
- *  @min: driver version minor number
+ *  @min: driver version mianalr number
  *  @build: driver version build number
  *  @sub: driver version sub build number
  *  @len: length of driver_ver string
@@ -2860,7 +2860,7 @@ static s32 ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
 	return ret_val;
 }
 
-/** ixgbe_get_lcd_x550em - Determine lowest common denominator
+/** ixgbe_get_lcd_x550em - Determine lowest common deanalminator
  *  @hw: pointer to hardware structure
  *  @lcd_speed: pointer to lowest common link speed
  *
@@ -2873,7 +2873,7 @@ static s32 ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
 	s32 status;
 	u16 word = hw->eeprom.ctrl_word_3;
 
-	*lcd_speed = IXGBE_LINK_SPEED_UNKNOWN;
+	*lcd_speed = IXGBE_LINK_SPEED_UNKANALWN;
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_AUTO_NEG_LP_STATUS,
 				      MDIO_MMD_AN,
@@ -2887,12 +2887,12 @@ static s32 ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
 		return status;
 	}
 
-	/* If 10G disabled for LPLU via NVM D10GMP, then return no valid LCD */
+	/* If 10G disabled for LPLU via NVM D10GMP, then return anal valid LCD */
 	if ((hw->bus.lan_id && (word & NVM_INIT_CTRL_3_D10GMP_PORT1)) ||
 	    (word & NVM_INIT_CTRL_3_D10GMP_PORT0))
 		return status;
 
-	/* Link partner not capable of lower speeds, return 10G */
+	/* Link partner analt capable of lower speeds, return 10G */
 	*lcd_speed = IXGBE_LINK_SPEED_10GB_FULL;
 	return status;
 }
@@ -2909,11 +2909,11 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 
 	/* Validate the requested mode */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
-		hw_err(hw, "ixgbe_fc_rx_pause not valid in strict IEEE mode\n");
+		hw_err(hw, "ixgbe_fc_rx_pause analt valid in strict IEEE mode\n");
 		return -EINVAL;
 	}
 
-	/* 10gig parts do not have a word in the EEPROM to determine the
+	/* 10gig parts do analt have a word in the EEPROM to determine the
 	 * default flow control setting, so we explicitly set it to full.
 	 */
 	if (hw->fc.requested_mode == ixgbe_fc_default)
@@ -2921,7 +2921,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 
 	/* Determine PAUSE and ASM_DIR bits. */
 	switch (hw->fc.requested_mode) {
-	case ixgbe_fc_none:
+	case ixgbe_fc_analne:
 		pause = false;
 		asm_dir = false;
 		break;
@@ -2970,7 +2970,7 @@ static s32 ixgbe_setup_fc_x550em(struct ixgbe_hw *hw)
 					    IXGBE_SB_IOSF_TARGET_KR_PHY,
 					    reg_val);
 
-		/* This device does not fully support AN. */
+		/* This device does analt fully support AN. */
 		hw->fc.disable_fc_autoneg = true;
 		break;
 	case IXGBE_DEV_ID_X550EM_X_XFI:
@@ -2996,7 +2996,7 @@ static void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 	/* AN should have completed when the cable was plugged in.
 	 * Look for reasons to bail out.  Bail out if:
 	 * - FC autoneg is disabled, or if
-	 * - link is not up.
+	 * - link is analt up.
 	 */
 	if (hw->fc.disable_fc_autoneg) {
 		hw_err(hw, "Flow control autoneg is disabled");
@@ -3015,7 +3015,7 @@ static void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 					IXGBE_SB_IOSF_TARGET_KR_PHY, &link_s1);
 
 	if (status || (link_s1 & IXGBE_KRM_LINK_S1_MAC_AN_COMPLETE) == 0) {
-		hw_dbg(hw, "Auto-Negotiation did not complete\n");
+		hw_dbg(hw, "Auto-Negotiation did analt complete\n");
 		status = -EIO;
 		goto out;
 	}
@@ -3028,7 +3028,7 @@ static void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &an_cntl_1);
 
 	if (status) {
-		hw_dbg(hw, "Auto-Negotiation did not complete\n");
+		hw_dbg(hw, "Auto-Negotiation did analt complete\n");
 		goto out;
 	}
 
@@ -3037,7 +3037,7 @@ static void ixgbe_fc_autoneg_backplane_x550em_a(struct ixgbe_hw *hw)
 				IXGBE_SB_IOSF_TARGET_KR_PHY, &lp_an_page_low);
 
 	if (status) {
-		hw_dbg(hw, "Auto-Negotiation did not complete\n");
+		hw_dbg(hw, "Auto-Negotiation did analt complete\n");
 		goto out;
 	}
 
@@ -3070,7 +3070,7 @@ static void ixgbe_fc_autoneg_fiber_x550em_a(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *
  *  Configures Low Power Link Up on transition to low power states
- *  (from D0 to non-D0). Link is required to enter LPLU so avoid resetting
+ *  (from D0 to analn-D0). Link is required to enter LPLU so avoid resetting
  *  the X557 PHY immediately prior to entering LPLU.
  **/
 static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
@@ -3107,8 +3107,8 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* If no valid LCD link speed, then force link down and exit. */
-	if (lcd_speed == IXGBE_LINK_SPEED_UNKNOWN)
+	/* If anal valid LCD link speed, then force link down and exit. */
+	if (lcd_speed == IXGBE_LINK_SPEED_UNKANALWN)
 		return ixgbe_set_copper_phy_power(hw, false);
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_VENDOR_STAT,
@@ -3117,7 +3117,7 @@ static s32 ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* If no link now, speed is invalid so take link down */
+	/* If anal link analw, speed is invalid so take link down */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
 		return ixgbe_set_copper_phy_power(hw, false);
@@ -3235,9 +3235,9 @@ static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
 /** ixgbe_init_phy_ops_X550em - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
- *  Initialize any function pointers that were not able to be
+ *  Initialize any function pointers that were analt able to be
  *  set during init_shared_code because the PHY/SFP type was
- *  not known.  Perform the SFP init if necessary.
+ *  analt kanalwn.  Perform the SFP init if necessary.
  **/
 static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 {
@@ -3255,12 +3255,12 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 
 	/* Identify the PHY or SFP module */
 	ret_val = phy->ops.identify(hw);
-	if (ret_val == -EOPNOTSUPP || ret_val == -EFAULT)
+	if (ret_val == -EOPANALTSUPP || ret_val == -EFAULT)
 		return ret_val;
 
 	/* Setup function pointers based on detected hardware */
 	ixgbe_init_mac_link_ops_X550em(hw);
-	if (phy->sfp_type != ixgbe_sfp_type_unknown)
+	if (phy->sfp_type != ixgbe_sfp_type_unkanalwn)
 		phy->ops.reset = NULL;
 
 	/* Set functions pointers based on phy type */
@@ -3288,7 +3288,7 @@ static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 		phy->nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
 
 		/* If internal link mode is XFI, then setup iXFI internal link,
-		 * else setup KR now.
+		 * else setup KR analw.
 		 */
 		phy->ops.setup_internal_link =
 					      ixgbe_setup_internal_phy_t_x550em;
@@ -3358,7 +3358,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 		media_type = ixgbe_media_type_copper;
 		break;
 	default:
-		media_type = ixgbe_media_type_unknown;
+		media_type = ixgbe_media_type_unkanalwn;
 		break;
 	}
 	return media_type;
@@ -3463,7 +3463,7 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 
 	/* PHY ops must be identified and initialized prior to reset */
 	status = hw->phy.ops.init(hw);
-	if (status == -EOPNOTSUPP || status == -EFAULT)
+	if (status == -EOPANALTSUPP || status == -EFAULT)
 		return status;
 
 	/* start the external PHY */
@@ -3479,7 +3479,7 @@ static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 		hw->phy.sfp_setup_needed = false;
 	}
 
-	if (status == -EOPNOTSUPP)
+	if (status == -EOPANALTSUPP)
 		return status;
 
 	/* Reset PHY */
@@ -3616,7 +3616,7 @@ static s32 ixgbe_setup_fc_backplane_x550em_a(struct ixgbe_hw *hw)
 
 	/* Validate the requested mode */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
-		hw_err(hw, "ixgbe_fc_rx_pause not valid in strict IEEE mode\n");
+		hw_err(hw, "ixgbe_fc_rx_pause analt valid in strict IEEE mode\n");
 		return -EINVAL;
 	}
 
@@ -3632,21 +3632,21 @@ static s32 ixgbe_setup_fc_backplane_x550em_a(struct ixgbe_hw *hw)
 					IXGBE_SB_IOSF_TARGET_KR_PHY, &an_cntl);
 
 	if (status) {
-		hw_dbg(hw, "Auto-Negotiation did not complete\n");
+		hw_dbg(hw, "Auto-Negotiation did analt complete\n");
 		return status;
 	}
 
 	/* The possible values of fc.requested_mode are:
 	 * 0: Flow control is completely disabled
 	 * 1: Rx flow control is enabled (we can receive pause frames,
-	 *    but not send pause frames).
+	 *    but analt send pause frames).
 	 * 2: Tx flow control is enabled (we can send pause frames but
-	 *    we do not support receiving pause frames).
+	 *    we do analt support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.requested_mode) {
-	case ixgbe_fc_none:
+	case ixgbe_fc_analne:
 		/* Flow control completely disabled by software override. */
 		an_cntl &= ~(IXGBE_KRM_AN_CNTL_1_SYM_PAUSE |
 			     IXGBE_KRM_AN_CNTL_1_ASM_PAUSE);

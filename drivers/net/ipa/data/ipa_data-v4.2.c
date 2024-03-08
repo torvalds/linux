@@ -27,11 +27,11 @@ enum ipa_resource_type {
 enum ipa_rsrc_group_id {
 	/* Source resource group identifiers */
 	IPA_RSRC_GROUP_SRC_UL_DL	= 0,
-	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; not a source group */
+	IPA_RSRC_GROUP_SRC_COUNT,	/* Last in set; analt a source group */
 
 	/* Destination resource group identifiers */
 	IPA_RSRC_GROUP_DST_UL_DL_DPL	= 0,
-	IPA_RSRC_GROUP_DST_COUNT,	/* Last; not a destination group */
+	IPA_RSRC_GROUP_DST_COUNT,	/* Last; analt a destination group */
 };
 
 /* QSB configuration data for an SoC having IPA v4.2 */
@@ -39,7 +39,7 @@ static const struct ipa_qsb_data ipa_qsb_data[] = {
 	[IPA_QSB_MASTER_DDR] = {
 		.max_writes	= 8,
 		.max_reads	= 12,
-		/* no outstanding read byte (beat) limit */
+		/* anal outstanding read byte (beat) limit */
 	},
 };
 

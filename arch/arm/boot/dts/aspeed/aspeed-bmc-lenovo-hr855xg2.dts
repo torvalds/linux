@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Device Tree file for Lenovo Hr855xg2 platform
+ * Device Tree file for Leanalvo Hr855xg2 platform
  *
- * Copyright (C) 2019-present Lenovo
+ * Copyright (C) 2019-present Leanalvo
  */
 
 /dts-v1/;
@@ -12,7 +12,7 @@
 
 / {
 	model = "HR855XG2 BMC";
-	compatible = "lenovo,hr855xg2-bmc", "aspeed,ast2500";
+	compatible = "leanalvo,hr855xg2-bmc", "aspeed,ast2500";
 
 	aliases {
 		i2c14 = &i2c_riser1;
@@ -41,7 +41,7 @@
 		ranges;
 
 		flash_memory: region@98000000 {
-			no-map;
+			anal-map;
 			reg = <0x98000000 0x00100000>; /* 1M */
 		};
 
@@ -97,9 +97,9 @@
 	flash = <&spi1>;
 };
 
-&lpc_snoop {
+&lpc_sanalop {
 	status = "okay";
-	snoop-ports = <0x80>;
+	sanalop-ports = <0x80>;
 };
 
 &uart1 {

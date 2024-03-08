@@ -65,15 +65,15 @@
 #define AML_BIT_AND_OP              (u16) 0x7b
 #define AML_BIT_NAND_OP             (u16) 0x7c
 #define AML_BIT_OR_OP               (u16) 0x7d
-#define AML_BIT_NOR_OP              (u16) 0x7e
+#define AML_BIT_ANALR_OP              (u16) 0x7e
 #define AML_BIT_XOR_OP              (u16) 0x7f
-#define AML_BIT_NOT_OP              (u16) 0x80
+#define AML_BIT_ANALT_OP              (u16) 0x80
 #define AML_FIND_SET_LEFT_BIT_OP    (u16) 0x81
 #define AML_FIND_SET_RIGHT_BIT_OP   (u16) 0x82
 #define AML_DEREF_OF_OP             (u16) 0x83
 #define AML_CONCATENATE_TEMPLATE_OP (u16) 0x84	/* ACPI 2.0 */
 #define AML_MOD_OP                  (u16) 0x85	/* ACPI 2.0 */
-#define AML_NOTIFY_OP               (u16) 0x86
+#define AML_ANALTIFY_OP               (u16) 0x86
 #define AML_SIZE_OF_OP              (u16) 0x87
 #define AML_INDEX_OP                (u16) 0x88
 #define AML_MATCH_OP                (u16) 0x89
@@ -85,7 +85,7 @@
 #define AML_CREATE_QWORD_FIELD_OP   (u16) 0x8f	/* ACPI 2.0 */
 #define AML_LOGICAL_AND_OP          (u16) 0x90
 #define AML_LOGICAL_OR_OP           (u16) 0x91
-#define AML_LOGICAL_NOT_OP          (u16) 0x92
+#define AML_LOGICAL_ANALT_OP          (u16) 0x92
 #define AML_LOGICAL_EQUAL_OP        (u16) 0x93
 #define AML_LOGICAL_GREATER_OP      (u16) 0x94
 #define AML_LOGICAL_LESS_OP         (u16) 0x95
@@ -100,7 +100,7 @@
 #define AML_IF_OP                   (u16) 0xa0
 #define AML_ELSE_OP                 (u16) 0xa1
 #define AML_WHILE_OP                (u16) 0xa2
-#define AML_NOOP_OP                 (u16) 0xa3
+#define AML_ANALOP_OP                 (u16) 0xa3
 #define AML_RETURN_OP               (u16) 0xa4
 #define AML_BREAK_OP                (u16) 0xa5
 #define AML_COMMENT_OP              (u16) 0xa9
@@ -111,9 +111,9 @@
  * Combination opcodes (actually two one-byte opcodes)
  * Used by the disassembler and iASL compiler
  */
-#define AML_LOGICAL_GREATER_EQUAL_OP (u16) 0x9295	/* LNot (LLess) */
-#define AML_LOGICAL_LESS_EQUAL_OP    (u16) 0x9294	/* LNot (LGreater) */
-#define AML_LOGICAL_NOT_EQUAL_OP     (u16) 0x9293	/* LNot (LEqual) */
+#define AML_LOGICAL_GREATER_EQUAL_OP (u16) 0x9295	/* LAnalt (LLess) */
+#define AML_LOGICAL_LESS_EQUAL_OP    (u16) 0x9294	/* LAnalt (LGreater) */
+#define AML_LOGICAL_ANALT_EQUAL_OP     (u16) 0x9293	/* LAnalt (LEqual) */
 
 /* Prefixed (2-byte) opcodes (with AML_EXTENDED_PREFIX) */
 
@@ -121,8 +121,8 @@
 
 #define AML_MUTEX_OP                (u16) 0x5b01
 #define AML_EVENT_OP                (u16) 0x5b02
-#define AML_SHIFT_RIGHT_BIT_OP      (u16) 0x5b10	/* Obsolete, not in ACPI spec */
-#define AML_SHIFT_LEFT_BIT_OP       (u16) 0x5b11	/* Obsolete, not in ACPI spec */
+#define AML_SHIFT_RIGHT_BIT_OP      (u16) 0x5b10	/* Obsolete, analt in ACPI spec */
+#define AML_SHIFT_LEFT_BIT_OP       (u16) 0x5b11	/* Obsolete, analt in ACPI spec */
 #define AML_CONDITIONAL_REF_OF_OP   (u16) 0x5b12
 #define AML_CREATE_FIELD_OP         (u16) 0x5b13
 #define AML_LOAD_TABLE_OP           (u16) 0x5b1f	/* ACPI 2.0 */
@@ -161,7 +161,7 @@
 
 /*
  * Internal opcodes
- * Use only "Unknown" AML opcodes, don't attempt to use
+ * Use only "Unkanalwn" AML opcodes, don't attempt to use
  * any valid ACPI ASCII values (A-Z, 0-9, '-')
  */
 #define AML_INT_NAMEPATH_OP         (u16) 0x002d
@@ -175,7 +175,7 @@
 #define AML_INT_CONNECTION_OP       (u16) 0x0038
 #define AML_INT_EXTACCESSFIELD_OP   (u16) 0x0039
 
-#define ARG_NONE                    0x0
+#define ARG_ANALNE                    0x0
 
 /*
  * Argument types for the AML Parser
@@ -210,10 +210,10 @@
  * Each field in the arg_types u32 is 5 bits, allowing for a maximum of 6 arguments.
  * There can be up to 31 unique argument types (0 is end-of-arg-list indicator)
  *
- * Note1: These values are completely independent from the ACPI_TYPEs
+ * Analte1: These values are completely independent from the ACPI_TYPEs
  *        i.e., ARGI_INTEGER != ACPI_TYPE_INTEGER
  *
- * Note2: If and when 5 bits becomes insufficient, it would probably be best
+ * Analte2: If and when 5 bits becomes insufficient, it would probably be best
  * to convert to a 6-byte array of argument types, allowing 8 bits per argument.
  */
 
@@ -240,19 +240,19 @@
 #define ARGI_DEVICE_REF             0x0D
 #define ARGI_REFERENCE              0x0E
 #define ARGI_TARGETREF              0x0F	/* Target, subject to implicit conversion */
-#define ARGI_FIXED_TARGET           0x10	/* Target, no implicit conversion */
-#define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- no implicit conversion */
+#define ARGI_FIXED_TARGET           0x10	/* Target, anal implicit conversion */
+#define ARGI_SIMPLE_TARGET          0x11	/* Name, Local, Arg -- anal implicit conversion */
 #define ARGI_STORE_TARGET           0x12	/* Target for store is TARGETREF + package objects */
 
 /* Multiple/complex types */
 
-#define ARGI_DATAOBJECT             0x13	/* Buffer, String, package or reference to a node - Used only by size_of operator */
+#define ARGI_DATAOBJECT             0x13	/* Buffer, String, package or reference to a analde - Used only by size_of operator */
 #define ARGI_COMPLEXOBJ             0x14	/* Buffer, String, or package (Used by INDEX op only) */
 #define ARGI_REF_OR_STRING          0x15	/* Reference or String (Used by DEREFOF op only) */
 #define ARGI_REGION_OR_BUFFER       0x16	/* Used by LOAD op only */
 #define ARGI_DATAREFOBJ             0x17
 
-/* Note: types above can expand to 0x1F maximum */
+/* Analte: types above can expand to 0x1F maximum */
 
 #define ARGI_INVALID_OPCODE         0xFFFFFFFF
 
@@ -282,14 +282,14 @@
 #define AML_FIELD                   0x0010
 #define AML_DEFER                   0x0020
 #define AML_NAMED                   0x0040
-#define AML_NSNODE                  0x0080
+#define AML_NSANALDE                  0x0080
 #define AML_NSOPCODE                0x0100
 #define AML_NSOBJECT                0x0200
 #define AML_HAS_RETVAL              0x0400
 #define AML_HAS_TARGET              0x0800
 #define AML_HAS_ARGS                0x1000
 #define AML_CONSTANT                0x2000
-#define AML_NO_OPERAND_RESOLVE      0x4000
+#define AML_ANAL_OPERAND_RESOLVE      0x4000
 
 /* Convenient flag groupings of the flags above */
 
@@ -307,7 +307,7 @@
 #define AML_FLAGS_EXEC_6A_0T_1R     AML_HAS_ARGS |                  AML_HAS_RETVAL
 
 /*
- * The opcode Type is used in a dispatch table, do not change
+ * The opcode Type is used in a dispatch table, do analt change
  * or add anything new without updating the table.
  */
 #define AML_TYPE_EXEC_0A_0T_1R      0x00	/* 0 Args, 0 Target, 1 ret_val */
@@ -339,7 +339,7 @@
 #define AML_TYPE_CREATE_FIELD       0x12
 #define AML_TYPE_CREATE_OBJECT      0x13
 #define AML_TYPE_CONTROL            0x14
-#define AML_TYPE_NAMED_NO_OBJ       0x15
+#define AML_TYPE_NAMED_ANAL_OBJ       0x15
 #define AML_TYPE_NAMED_FIELD        0x16
 #define AML_TYPE_NAMED_SIMPLE       0x17
 #define AML_TYPE_NAMED_COMPLEX      0x18
@@ -367,7 +367,7 @@
 #define AML_CLASS_INTERNAL          0x07
 #define AML_CLASS_RETURN_VALUE      0x08
 #define AML_CLASS_METHOD_CALL       0x09
-#define AML_CLASS_UNKNOWN           0x0A
+#define AML_CLASS_UNKANALWN           0x0A
 
 /* Comparison operation codes for match_op operator */
 

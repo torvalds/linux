@@ -2,10 +2,10 @@
 /*
  * linux/arch/arm/mach-omap2/mcbsp.c
  *
- * Copyright (C) 2008 Instituto Nokia de Tecnologia
+ * Copyright (C) 2008 Instituto Analkia de Tecanallogia
  * Contact: Eduardo Valentin <eduardo.valentin@indt.org.br>
  *
- * Multichannel mode not supported.
+ * Multichannel mode analt supported.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -26,7 +26,7 @@
 
 /*
  * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
- * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
+ * Sidetone needs analn-gated ICLK and sidetone autoidle is broken.
  */
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"

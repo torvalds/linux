@@ -12,10 +12,10 @@
  *			podule slot.
  *  06-May-1997	RMK	Added blacklist for cards whose loader doesn't work.
  *  12-Sep-1997	RMK	Created new handling of interrupt enables/disables
- *			- cards can now register their own routine to control
+ *			- cards can analw register their own routine to control
  *			interrupts (recommended).
- *  29-Sep-1997	RMK	Expansion card interrupt hardware not being re-enabled
- *			on reset from Linux. (Caused cards not to respond
+ *  29-Sep-1997	RMK	Expansion card interrupt hardware analt being re-enabled
+ *			on reset from Linux. (Caused cards analt to respond
  *			under RiscOS without hard reset).
  *  15-Feb-1998	RMK	Added DMA support
  *  12-Sep-1998	RMK	Added EASI support
@@ -121,7 +121,7 @@ static void ecard_task_reset(struct ecard_request *req)
 	struct expansion_card *ec = req->ec;
 	struct resource *res;
 
-	res = ec->slot_no == 8
+	res = ec->slot_anal == 8
 		? &ec->resource[ECARD_RES_MEMC]
 		: ec->easi
 		  ? &ec->resource[ECARD_RES_EASI]
@@ -137,7 +137,7 @@ static void ecard_task_readbytes(struct ecard_request *req)
 	unsigned int len = req->length;
 	unsigned int off = req->address;
 
-	if (ec->slot_no == 8) {
+	if (ec->slot_anal == 8) {
 		void __iomem *base = (void __iomem *)
 				ec->resource[ECARD_RES_MEMC].start;
 
@@ -248,7 +248,7 @@ static int ecard_init_mm(void)
 	struct mm_struct *active_mm = current->active_mm;
 
 	if (!mm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	current->mm = mm;
 	current->active_mm = mm;
@@ -262,9 +262,9 @@ static int
 ecard_task(void * unused)
 {
 	/*
-	 * Allocate a mm.  We're not a lazy-TLB kernel task since we need
-	 * to set page table entries where the user space would be.  Note
-	 * that this also creates the page tables.  Failure is not an
+	 * Allocate a mm.  We're analt a lazy-TLB kernel task since we need
+	 * to set page table entries where the user space would be.  Analte
+	 * that this also creates the page tables.  Failure is analt an
 	 * option here.
 	 */
 	if (ecard_init_mm())
@@ -286,7 +286,7 @@ ecard_task(void * unused)
 /*
  * Wake the expansion card daemon to action our request.
  *
- * FIXME: The test here is not sufficient to detect if the
+ * FIXME: The test here is analt sufficient to detect if the
  * kcardd is running.
  */
 static void ecard_call(struct ecard_request *req)
@@ -300,7 +300,7 @@ static void ecard_call(struct ecard_request *req)
 	wake_up(&ecard_wait);
 
 	/*
-	 * Now wait for kecardd to run.
+	 * Analw wait for kecardd to run.
 	 */
 	wait_for_completion(&completion);
 	mutex_unlock(&ecard_mutex);
@@ -423,7 +423,7 @@ static expansioncard_ops_t ecard_default_ops = {
  * Enable and disable interrupts from expansion cards.
  * (interrupts are disabled for these functions).
  *
- * They are not meant to be called directly, but via enable/disable_irq.
+ * They are analt meant to be called directly, but via enable/disable_irq.
  */
 static void ecard_irq_unmask(struct irq_data *d)
 {
@@ -499,19 +499,19 @@ static void ecard_dump_irq_state(void)
 	for (ec = cards; ec; ec = ec->next) {
 		const char *claimed;
 
-		if (ec->slot_no == 8)
+		if (ec->slot_anal == 8)
 			continue;
 
-		claimed = ec->claimed ? "" : "not ";
+		claimed = ec->claimed ? "" : "analt ";
 
 		if (ec->ops && ec->ops->irqpending &&
 		    ec->ops != &ecard_default_ops)
 			printk("  %d: %sclaimed irq %spending\n",
-			       ec->slot_no, claimed,
-			       ec->ops->irqpending(ec) ? "" : "not ");
+			       ec->slot_anal, claimed,
+			       ec->ops->irqpending(ec) ? "" : "analt ");
 		else
 			printk("  %d: %sclaimed irqaddr %p, mask = %02X, status = %02X\n",
-			       ec->slot_no, claimed,
+			       ec->slot_anal, claimed,
 			       ec->irqaddr, ec->irqmask, readb(ec->irqaddr));
 	}
 }
@@ -522,7 +522,7 @@ static void ecard_check_lockup(struct irq_desc *desc)
 	static int lockup;
 
 	/*
-	 * If the timer interrupt has not run since the last million
+	 * If the timer interrupt has analt run since the last million
 	 * unrecognised expansion card interrupts, then there is
 	 * something seriously wrong.  Disable the expansion card
 	 * interrupts so at least we can continue.
@@ -543,7 +543,7 @@ static void ecard_check_lockup(struct irq_desc *desc)
 		lockup = 0;
 
 	/*
-	 * If we did not recognise the source of this interrupt,
+	 * If we did analt recognise the source of this interrupt,
 	 * warn the user, but don't flood the user with these messages.
 	 */
 	if (!last || time_after(jiffies, last + 5*HZ)) {
@@ -562,7 +562,7 @@ static void ecard_irq_handler(struct irq_desc *desc)
 	for (ec = cards; ec; ec = ec->next) {
 		int pending;
 
-		if (!ec->claimed || !ec->irq || ec->slot_no == 8)
+		if (!ec->claimed || !ec->irq || ec->slot_anal == 8)
 			continue;
 
 		if (ec->ops && ec->ops->irqpending)
@@ -584,9 +584,9 @@ static void ecard_irq_handler(struct irq_desc *desc)
 static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
 	void __iomem *address = NULL;
-	int slot = ec->slot_no;
+	int slot = ec->slot_anal;
 
-	if (ec->slot_no == 8)
+	if (ec->slot_anal == 8)
 		return ECARD_MEMC8_BASE;
 
 	ectcr &= ~(1 << slot);
@@ -624,7 +624,7 @@ static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t
 
 static int ecard_prints(struct seq_file *m, ecard_t *ec)
 {
-	seq_printf(m, "  %d: %s ", ec->slot_no, ec->easi ? "EASI" : "    ");
+	seq_printf(m, "  %d: %s ", ec->slot_anal, ec->easi ? "EASI" : "    ");
 
 	if (ec->cid.id == 0) {
 		struct in_chunk_dir incd;
@@ -640,7 +640,7 @@ static int ecard_prints(struct seq_file *m, ecard_t *ec)
 				strcpy((char *)ec->card_desc, incd.d.string);
 		}
 
-		seq_printf(m, "%s\n", ec->card_desc ? ec->card_desc : "*unknown*");
+		seq_printf(m, "%s\n", ec->card_desc ? ec->card_desc : "*unkanalwn*");
 	} else
 		seq_printf(m, "Simple card %d\n", ec->cid.id);
 
@@ -694,15 +694,15 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 
 	ec = kzalloc(sizeof(ecard_t), GFP_KERNEL);
 	if (!ec) {
-		ec = ERR_PTR(-ENOMEM);
-		goto nomem;
+		ec = ERR_PTR(-EANALMEM);
+		goto analmem;
 	}
 
-	ec->slot_no = slot;
+	ec->slot_anal = slot;
 	ec->easi = type == ECARD_EASI;
 	ec->irq = 0;
 	ec->fiq = 0;
-	ec->dma = NO_DMA;
+	ec->dma = ANAL_DMA;
 	ec->ops = &ecard_default_ops;
 
 	dev_set_name(&ec->dev, "ecard%d", slot);
@@ -739,14 +739,14 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	for (i = 0; i < ECARD_NUM_RESOURCES; i++) {
 		if (ec->resource[i].flags &&
 		    request_resource(&iomem_resource, &ec->resource[i])) {
-			dev_err(&ec->dev, "resource(s) not available\n");
+			dev_err(&ec->dev, "resource(s) analt available\n");
 			ec->resource[i].end -= ec->resource[i].start;
 			ec->resource[i].start = 0;
 			ec->resource[i].flags = 0;
 		}
 	}
 
- nomem:
+ analmem:
 	return ec;
 }
 
@@ -886,7 +886,7 @@ static void atomwide_3p_quirk(ecard_t *ec)
  * Probe for an expansion card.
  *
  * If bit 1 of the first byte of the card is set, then the
- * card does not exist.
+ * card does analt exist.
  */
 static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 {
@@ -899,17 +899,17 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 	ec = ecard_alloc_card(type, slot);
 	if (IS_ERR(ec)) {
 		rc = PTR_ERR(ec);
-		goto nomem;
+		goto analmem;
 	}
 
-	rc = -ENODEV;
+	rc = -EANALDEV;
 	if ((addr = __ecard_address(ec, type, ECARD_SYNC)) == NULL)
-		goto nodev;
+		goto analdev;
 
 	cid.r_zero = 1;
 	ecard_readbytes(&cid, ec, 0, 16, 0);
 	if (cid.r_zero)
-		goto nodev;
+		goto analdev;
 
 	ec->cid.id	= cid.r_id;
 	ec->cid.cd	= cid.r_cd;
@@ -954,7 +954,7 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 		irq_set_chip_and_handler(ec->irq, &ecard_chip,
 					 handle_level_irq);
 		irq_set_chip_data(ec->irq, ec);
-		irq_clear_status_flags(ec->irq, IRQ_NOREQUEST);
+		irq_clear_status_flags(ec->irq, IRQ_ANALREQUEST);
 	}
 
 #ifdef CONFIG_ARCH_RPC
@@ -970,13 +970,13 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 
 	rc = device_register(&ec->dev);
 	if (rc)
-		goto nodev;
+		goto analdev;
 
 	return 0;
 
- nodev:
+ analdev:
 	ecard_free_card(ec);
- nomem:
+ analmem:
 	return rc;
 }
 
@@ -1005,7 +1005,7 @@ static int __init ecard_init(void)
 	printk("Probing expansion cards\n");
 
 	for (slot = 0; slot < 8; slot ++) {
-		if (ecard_probe(slot, irqbase + slot, ECARD_EASI) == -ENODEV)
+		if (ecard_probe(slot, irqbase + slot, ECARD_EASI) == -EANALDEV)
 			ecard_probe(slot, irqbase + slot, ECARD_IOC);
 	}
 

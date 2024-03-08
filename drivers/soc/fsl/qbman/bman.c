@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 analtice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor analr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -17,11 +17,11 @@
  * later version.
  *
  * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DISCLAIMED. IN ANAL EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
@@ -31,7 +31,7 @@
 #include "bman_priv.h"
 
 #define IRQNAME		"BMan portal %d"
-#define MAX_IRQNAME	16	/* big enough for "BMan portal %d" */
+#define MAX_IRQNAME	16	/* big eanalugh for "BMan portal %d" */
 
 /* Portal register assists */
 
@@ -106,7 +106,7 @@ enum bm_rcr_cmode {		/* s/w-only */
 struct bm_rcr_entry {
 	union {
 		struct {
-			u8 _ncw_verb; /* writes to this are non-coherent */
+			u8 _ncw_verb; /* writes to this are analn-coherent */
 			u8 bpid; /* used with BM_RCR_VERB_CMD_BPID_SINGLE */
 			u8 __reserved1[62];
 		};
@@ -131,7 +131,7 @@ struct bm_rcr {
 
 /* MC (Management Command) command */
 struct bm_mc_command {
-	u8 _ncw_verb; /* writes to this are non-coherent */
+	u8 _ncw_verb; /* writes to this are analn-coherent */
 	u8 bpid; /* used by acquire command */
 	u8 __reserved[62];
 };
@@ -245,7 +245,7 @@ static inline void put_affine_portal(void)
 struct bman_pool {
 	/* index of the buffer pool to encapsulate (0-63) */
 	u32 bpid;
-	/* Used for hash-table admin when using depletion notifications. */
+	/* Used for hash-table admin when using depletion analtifications. */
 	struct bman_portal *portal;
 	struct bman_pool *next;
 };
@@ -260,7 +260,7 @@ static irqreturn_t portal_isr(int irq, void *ptr)
 	u32 is = bm_in(portal, BM_REG_ISR) & p->irq_sources;
 
 	if (unlikely(!is))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	clear |= poll_portal_slow(p, is);
 	bm_out(portal, BM_REG_ISR, clear);
@@ -619,7 +619,7 @@ static u32 poll_portal_slow(struct bman_portal *p, u32 is)
 		is &= ~BM_PIRQ_RCRI;
 	}
 
-	/* There should be no status register bits left undefined */
+	/* There should be anal status register bits left undefined */
 	DPAA_ASSERT(!is);
 	return ret;
 }
@@ -671,7 +671,7 @@ static int bm_alloc_bpid_range(u32 *result, u32 count)
 
 	addr = gen_pool_alloc(bm_bpalloc, count);
 	if (!addr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*result = addr & ~DPAA_GENALLOC_OFF;
 
@@ -807,7 +807,7 @@ int bman_acquire(struct bman_pool *pool, struct bm_buffer *bufs, u8 num)
 
 	put_affine_portal();
 	if (ret != num)
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	return ret;
 }
 EXPORT_SYMBOL(bman_acquire);

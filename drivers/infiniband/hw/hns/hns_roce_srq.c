@@ -69,7 +69,7 @@ static int alloc_srqn(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 			     GFP_KERNEL);
 	if (id < 0) {
 		ibdev_err(&hr_dev->ib_dev, "failed to alloc srq(%d).\n", id);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	srq->srqn = id;
@@ -192,7 +192,7 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 		idx_que->bitmap = bitmap_zalloc(srq->wqe_cnt, GFP_KERNEL);
 		if (!idx_que->bitmap) {
 			ibdev_err(ibdev, "failed to alloc SRQ idx bitmap.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_idx_mtr;
 		}
 	}
@@ -254,7 +254,7 @@ static int alloc_srq_wrid(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 {
 	srq->wrid = kvmalloc_array(srq->wqe_cnt, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -275,7 +275,7 @@ static u32 proc_srq_sge(struct hns_roce_dev *dev, struct hns_roce_srq *hr_srq,
 
 	/* Reserve SGEs only for HIP08 in kernel; The userspace driver will
 	 * calculate number of max_sge with reserved SGEs when allocating wqe
-	 * buf, so there is no need to do this again in kernel. But the number
+	 * buf, so there is anal need to do this again in kernel. But the number
 	 * may exceed the capacity of SGEs recorded in the firmware, so the
 	 * kernel driver should just adapt the value accordingly.
 	 */

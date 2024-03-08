@@ -8,7 +8,7 @@
 struct usb_role_switch;
 
 enum usb_role {
-	USB_ROLE_NONE,
+	USB_ROLE_ANALNE,
 	USB_ROLE_HOST,
 	USB_ROLE_DEVICE,
 };
@@ -19,7 +19,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct usb_role_switch *sw);
 
 /**
  * struct usb_role_switch_desc - USB Role Switch Descriptor
- * @fwnode: The device node to be associated with the role switch
+ * @fwanalde: The device analde to be associated with the role switch
  * @usb2_port: Optional reference to the host controller port device (USB2)
  * @usb3_port: Optional reference to the host controller port device (USB3)
  * @udc: Optional reference to the peripheral controller device
@@ -36,7 +36,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct usb_role_switch *sw);
  * usb_role_switch_register() before registering the switch.
  */
 struct usb_role_switch_desc {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct device *usb2_port;
 	struct device *usb3_port;
 	struct device *udc;
@@ -52,11 +52,11 @@ struct usb_role_switch_desc {
 int usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role);
 enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw);
 struct usb_role_switch *usb_role_switch_get(struct device *dev);
-struct usb_role_switch *fwnode_usb_role_switch_get(struct fwnode_handle *node);
+struct usb_role_switch *fwanalde_usb_role_switch_get(struct fwanalde_handle *analde);
 void usb_role_switch_put(struct usb_role_switch *sw);
 
 struct usb_role_switch *
-usb_role_switch_find_by_fwnode(const struct fwnode_handle *fwnode);
+usb_role_switch_find_by_fwanalde(const struct fwanalde_handle *fwanalde);
 
 struct usb_role_switch *
 usb_role_switch_register(struct device *parent,
@@ -75,24 +75,24 @@ static inline int usb_role_switch_set_role(struct usb_role_switch *sw,
 
 static inline enum usb_role usb_role_switch_get_role(struct usb_role_switch *sw)
 {
-	return USB_ROLE_NONE;
+	return USB_ROLE_ANALNE;
 }
 
 static inline struct usb_role_switch *usb_role_switch_get(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct usb_role_switch *
-fwnode_usb_role_switch_get(struct fwnode_handle *node)
+fwanalde_usb_role_switch_get(struct fwanalde_handle *analde)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void usb_role_switch_put(struct usb_role_switch *sw) { }
 
 static inline struct usb_role_switch *
-usb_role_switch_find_by_fwnode(const struct fwnode_handle *fwnode)
+usb_role_switch_find_by_fwanalde(const struct fwanalde_handle *fwanalde)
 {
 	return NULL;
 }
@@ -101,7 +101,7 @@ static inline struct usb_role_switch *
 usb_role_switch_register(struct device *parent,
 			 const struct usb_role_switch_desc *desc)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void usb_role_switch_unregister(struct usb_role_switch *sw) { }
@@ -118,7 +118,7 @@ static inline void *usb_role_switch_get_drvdata(struct usb_role_switch *sw)
 
 static inline const char *usb_role_string(enum usb_role role)
 {
-	return "unknown";
+	return "unkanalwn";
 }
 
 #endif

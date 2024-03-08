@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2017 Benjamin Tissoires <benjamin.tissoires@gmail.com>
 # Copyright (c) 2017 Red Hat, Inc.
-# Copyright (c) 2020 Wacom Technology Corp.
+# Copyright (c) 2020 Wacom Techanallogy Corp.
 #
 # Authors:
 #     Jason Gerecke <jason.gerecke@wacom.com>
@@ -13,7 +13,7 @@
 Tests for the Wacom driver generic codepath.
 
 This module tests the function of the Wacom driver's generic codepath.
-The generic codepath is used by devices which are not explicitly listed
+The generic codepath is used by devices which are analt explicitly listed
 in the driver's device table. It uses the device's HID descriptor to
 decode reports sent by the device.
 """
@@ -48,14 +48,14 @@ class ProximityState(Enum):
     Enumeration of allowed proximity states.
     """
 
-    # Tool is not able to be sensed by the device
+    # Tool is analt able to be sensed by the device
     OUT = 0
 
-    # Tool is close enough to be sensed, but some data may be invalid
+    # Tool is close eanalugh to be sensed, but some data may be invalid
     # or inaccurate
     IN_PROXIMITY = 1
 
-    # Tool is close enough to be sensed with high accuracy. All data
+    # Tool is close eanalugh to be sensed with high accuracy. All data
     # valid.
     IN_RANGE = 2
 
@@ -82,13 +82,13 @@ class Buttons:
     Stylus button state.
 
     Describes the state of each of the buttons / "side switches" that
-    may be present on a stylus. Buttons set to 'None' indicate the
+    may be present on a stylus. Buttons set to 'Analne' indicate the
     state is "unchanged" since the previous event.
     """
 
-    primary = attr.ib(default=None)
-    secondary = attr.ib(default=None)
-    tertiary = attr.ib(default=None)
+    primary = attr.ib(default=Analne)
+    secondary = attr.ib(default=Analne)
+    tertiary = attr.ib(default=Analne)
 
     @staticmethod
     def clear():
@@ -146,9 +146,9 @@ class PhysRange:
 
         Compare the physical size described by the provided HID field
         against the range of sizes described by this object. This is
-        an exclusive range comparison (e.g. 0 cm is not within the
+        an exclusive range comparison (e.g. 0 cm is analt within the
         range 0 cm - 5 cm) and exact unit comparison (e.g. 1 inch is
-        not within the range 0 cm - 5 cm).
+        analt within the range 0 cm - 5 cm).
         """
         phys_size = (field.physical_max - field.physical_min) * 10 ** (field.unit_exp)
         return (
@@ -163,8 +163,8 @@ class BaseTablet(base.UHIDTestDevice):
     Skeleton object for all kinds of tablet devices.
     """
 
-    def __init__(self, rdesc, name=None, info=None):
-        assert rdesc is not None
+    def __init__(self, rdesc, name=Analne, info=Analne):
+        assert rdesc is analt Analne
         super().__init__(name, "Pen", input_info=info, rdesc=rdesc)
         self.buttons = Buttons.clear()
         self.toolid = ToolID.clear()
@@ -175,11 +175,11 @@ class BaseTablet(base.UHIDTestDevice):
 
     def match_evdev_rule(self, application, evdev):
         """
-        Filter out evdev nodes based on the requested application.
+        Filter out evdev analdes based on the requested application.
 
-        The Wacom driver may create several device nodes for each USB
+        The Wacom driver may create several device analdes for each USB
         interface device. It is crucial that we run tests with the
-        expected device node or things will obviously go off the rails.
+        expected device analde or things will obviously go off the rails.
         Use the Wacom driver's usual naming conventions to apply a
         sensible default filter.
         """
@@ -189,7 +189,7 @@ class BaseTablet(base.UHIDTestDevice):
             return True
 
     def create_report(
-        self, x, y, pressure, buttons=None, toolid=None, proximity=None, reportID=None
+        self, x, y, pressure, buttons=Analne, toolid=Analne, proximity=Analne, reportID=Analne
     ):
         """
         Return an input report for this device.
@@ -197,22 +197,22 @@ class BaseTablet(base.UHIDTestDevice):
         :param x: absolute x
         :param y: absolute y
         :param pressure: pressure
-        :param buttons: stylus button state. Use ``None`` for unchanged.
-        :param toolid: tool identifiers. Use ``None`` for unchanged.
+        :param buttons: stylus button state. Use ``Analne`` for unchanged.
+        :param toolid: tool identifiers. Use ``Analne`` for unchanged.
         :param proximity: a ProximityState indicating the sensor's ability
-             to detect and report attributes of this tool. Use ``None``
+             to detect and report attributes of this tool. Use ``Analne``
              for unchanged.
         :param reportID: the numeric report ID for this report, if needed
         """
-        if buttons is not None:
+        if buttons is analt Analne:
             self.buttons = buttons
         buttons = self.buttons
 
-        if toolid is not None:
+        if toolid is analt Analne:
             self.toolid = toolid
         toolid = self.toolid
 
-        if proximity is not None:
+        if proximity is analt Analne:
             self.proximity = proximity
         proximity = self.proximity
 
@@ -243,11 +243,11 @@ class BaseTablet(base.UHIDTestDevice):
     def create_report_pad(self, reportID, ring, ek0):
         report = ReportData()
 
-        if ring is not None:
+        if ring is analt Analne:
             self.ring = ring
         ring = self.ring
 
-        if ek0 is not None:
+        if ek0 is analt Analne:
             self.ek0 = ek0
         ek0 = self.ek0
 
@@ -261,16 +261,16 @@ class BaseTablet(base.UHIDTestDevice):
         report.wacomexpresskey00 = ek0
         return super().create_report(report, reportID=reportID)
 
-    def event(self, x, y, pressure, buttons=None, toolid=None, proximity=None):
+    def event(self, x, y, pressure, buttons=Analne, toolid=Analne, proximity=Analne):
         """
         Send an input event on the default report ID.
 
         :param x: absolute x
         :param y: absolute y
-        :param buttons: stylus button state. Use ``None`` for unchanged.
-        :param toolid: tool identifiers. Use ``None`` for unchanged.
+        :param buttons: stylus button state. Use ``Analne`` for unchanged.
+        :param toolid: tool identifiers. Use ``Analne`` for unchanged.
         :param proximity: a ProximityState indicating the sensor's ability
-             to detect and report attributes of this tool. Use ``None``
+             to detect and report attributes of this tool. Use ``Analne``
              for unchanged.
         """
         r = self.create_report(x, y, pressure, buttons, toolid, proximity)
@@ -285,7 +285,7 @@ class BaseTablet(base.UHIDTestDevice):
         self.call_input_event(r)
         return [r]
 
-    def event_pad(self, reportID, ring=None, ek0=None):
+    def event_pad(self, reportID, ring=Analne, ek0=Analne):
         """
         Send a pad event on the requested report ID.
         """
@@ -297,12 +297,12 @@ class BaseTablet(base.UHIDTestDevice):
         if rtype != self.UHID_FEATURE_REPORT:
             return (1, [])
 
-        rdesc = None
+        rdesc = Analne
         for v in self.parsed_rdesc.feature_reports.values():
             if v.report_ID == rnum:
                 rdesc = v
 
-        if rdesc is None:
+        if rdesc is Analne:
             return (1, [])
 
         result = (1, [])
@@ -316,15 +316,15 @@ class BaseTablet(base.UHIDTestDevice):
             "Wacom Offset Right",
             "Wacom Offset Bottom",
         ]
-        if not set(require).issubset(set([f.usage_name for f in rdesc])):
-            return None
+        if analt set(require).issubset(set([f.usage_name for f in rdesc])):
+            return Analne
 
         report = ReportData()
         report.wacomoffsetleft = self.offset
         report.wacomoffsettop = self.offset
         report.wacomoffsetright = self.offset
         report.wacomoffsetbottom = self.offset
-        r = rdesc.create_report([report], None)
+        r = rdesc.create_report([report], Analne)
         return (0, r)
 
 
@@ -333,11 +333,11 @@ class OpaqueTablet(BaseTablet):
     Bare-bones opaque tablet with a minimum of features.
 
     A tablet stripped down to its absolute core. It is capable of
-    reporting X/Y position and if the pen is in contact. No pressure,
-    no barrel switches, no eraser. Notably it *does* report an "In
+    reporting X/Y position and if the pen is in contact. Anal pressure,
+    anal barrel switches, anal eraser. Analtably it *does* report an "In
     Range" flag, but this is only because the Wacom driver expects
     one to function properly. The device uses only standard HID usages,
-    not any of Wacom's vendor-defined pages.
+    analt any of Wacom's vendor-defined pages.
     """
 
     # fmt: off
@@ -375,7 +375,7 @@ class OpaqueTablet(BaseTablet):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, info=(0x3, 0x056A, 0x9999)):
+    def __init__(self, rdesc=report_descriptor, name=Analne, info=(0x3, 0x056A, 0x9999)):
         super().__init__(rdesc, name, info)
         self.default_reportID = 1
 
@@ -459,7 +459,7 @@ class OpaqueCTLTablet(BaseTablet):
     ]
     # fmt: on
 
-    def __init__(self, rdesc=report_descriptor, name=None, info=(0x3, 0x056A, 0x9999)):
+    def __init__(self, rdesc=report_descriptor, name=Analne, info=(0x3, 0x056A, 0x9999)):
         super().__init__(rdesc, name, info)
         self.default_reportID = 16
 
@@ -473,7 +473,7 @@ class PTHX60_Pen(BaseTablet):
     the pad among several physical collections)
     """
 
-    def __init__(self, rdesc=None, name=None, info=None):
+    def __init__(self, rdesc=Analne, name=Analne, info=Analne):
         super().__init__(rdesc, name, info)
         self.default_reportID = 16
 
@@ -503,7 +503,7 @@ class BaseTest:
             def get_report_usages(report):
                 application = report.application
                 for field in report.fields:
-                    if field.usages is not None:
+                    if field.usages is analt Analne:
                         for usage in field.usages:
                             yield (field, usage, application)
                     else:
@@ -524,12 +524,12 @@ class BaseTest:
             Assert that the name is as we expect.
 
             The Wacom driver applies a number of decorations to the name
-            provided by the hardware. We cannot rely on the definition of
+            provided by the hardware. We cananalt rely on the definition of
             this assertion from the base class to work properly.
             """
             evdev = uhdev.get_evdev()
             expected_name = uhdev.name + type
-            if "wacom" not in expected_name.lower():
+            if "wacom" analt in expected_name.lower():
                 expected_name = "Wacom " + expected_name
             assert evdev.name == expected_name
 
@@ -583,7 +583,7 @@ class BaseTest:
             }
             for field, usage, application in self.get_usages(self.uhdev):
                 if application == usage_id("Generic Desktop", "Mouse"):
-                    # Ignore the vestigial Mouse collection which exists
+                    # Iganalre the vestigial Mouse collection which exists
                     # on Wacom tablets only for backwards compatibility.
                     continue
 
@@ -775,7 +775,7 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
 
     def test_heartbeat_spurious(self):
         """
-        Test that the heartbeat report does not send spurious events.
+        Test that the heartbeat report does analt send spurious events.
         """
         uhdev = self.uhdev
 
@@ -796,7 +796,7 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
             ],
         )
 
-        # Exactly zero events: not even a SYN
+        # Exactly zero events: analt even a SYN
         self.sync_and_assert_events(
             uhdev.event_heartbeat(19), [], auto_syn=False, strict=True
         )
@@ -809,11 +809,11 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
         )
 
     def test_empty_pad_sync(self):
-        self.empty_pad_sync(num=3, denom=16, reverse=True)
+        self.empty_pad_sync(num=3, deanalm=16, reverse=True)
 
-    def empty_pad_sync(self, num, denom, reverse):
+    def empty_pad_sync(self, num, deanalm, reverse):
         """
-        Test that multiple pad collections do not trigger empty syncs.
+        Test that multiple pad collections do analt trigger empty syncs.
         """
 
         def offset_rotation(value):
@@ -827,7 +827,7 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
             delta = info.maximum - info.minimum + 1
             if reverse:
                 value = info.maximum - value
-            value += num * delta // denom
+            value += num * delta // deanalm
             if value > info.maximum:
                 value -= delta
             elif value < info.minimum:
@@ -876,8 +876,8 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         """
         Make a single touch contact that can move over time.
 
-        Creates a touch object that has a well-known position in space that
-        does not overlap with other contacts. The value of `t` may be
+        Creates a touch object that has a well-kanalwn position in space that
+        does analt overlap with other contacts. The value of `t` may be
         incremented over time to move the point along a linear path.
         """
         x = 50 + 10 * contact_id + t * 11
@@ -888,7 +888,7 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         """
         Make multiple touch contacts that can move over time.
 
-        Returns a list of `n` touch objects that are positioned at well-known
+        Returns a list of `n` touch objects that are positioned at well-kanalwn
         locations. The value of `t` may be incremented over time to move the
         points along a linear path.
         """
@@ -906,8 +906,8 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         y = 100 + 100 * contact_id + t * 11
 
         # If the data isn't supposed to be stored in any slots, there is
-        # nothing we can check for in the evdev stream.
-        if slot_num is None:
+        # analthing we can check for in the evdev stream.
+        if slot_num is Analne:
             assert tracking_id == -1
             return
 
@@ -948,7 +948,7 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_POSITION_Y] == 100
 
         t0.tipswitch = False
-        if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+        if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
             t0.inrange = False
         r = uhdev.event([t0])
         events = uhdev.next_sync_events()
@@ -960,7 +960,7 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         """
         Bring a finger in contact with the tablet with confidence set to false.
 
-        Ensure that the confidence bit being set to false should not result in a touch event.
+        Ensure that the confidence bit being set to false should analt result in a touch event.
         """
         uhdev = self.uhdev
         _evdev = uhdev.get_evdev()
@@ -973,15 +973,15 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
         _slot = self.get_slot(uhdev, t0, 0)
 
-        assert not events
+        assert analt events
 
     def test_confidence_multitouch(self):
         """
         Bring multiple fingers in contact with the tablet, some with the
         confidence bit set, and some without.
 
-        Ensure that all confident touches are reported and that all non-
-        confident touches are ignored.
+        Ensure that all confident touches are reported and that all analn-
+        confident touches are iganalred.
         """
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()
@@ -998,11 +998,11 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 1) in events
 
         self.assert_contacts(uhdev, evdev,
-            [ self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = None),
+            [ self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = Analne),
               self.ContactIds(contact_id = 1, tracking_id = 0, slot_num = 0),
-              self.ContactIds(contact_id = 2, tracking_id = -1, slot_num = None),
+              self.ContactIds(contact_id = 2, tracking_id = -1, slot_num = Analne),
               self.ContactIds(contact_id = 3, tracking_id = 1, slot_num = 1),
-              self.ContactIds(contact_id = 4, tracking_id = -1, slot_num = None) ])
+              self.ContactIds(contact_id = 4, tracking_id = -1, slot_num = Analne) ])
 
     def confidence_change_assert_playback(self, uhdev, evdev, timeline):
         """
@@ -1033,12 +1033,12 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
     def test_confidence_loss_a(self):
         """
-        Transition a confident contact to a non-confident contact by
+        Transition a confident contact to a analn-confident contact by
         first clearing the tipswitch.
 
         Ensure that the driver reports the transitioned contact as
         being removed and that other contacts continue to report
-        normally. This mode of confidence loss is used by the
+        analrmally. This mode of confidence loss is used by the
         DTH-2452.
         """
         uhdev = self.uhdev
@@ -1068,12 +1068,12 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
     def test_confidence_loss_b(self):
         """
-        Transition a confident contact to a non-confident contact by
+        Transition a confident contact to a analn-confident contact by
         cleraing both tipswitch and confidence bits simultaneously.
 
         Ensure that the driver reports the transitioned contact as
         being removed and that other contacts continue to report
-        normally. This mode of confidence loss is used by some
+        analrmally. This mode of confidence loss is used by some
         AES devices.
         """
         uhdev = self.uhdev
@@ -1103,12 +1103,12 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
     def test_confidence_loss_c(self):
         """
-        Transition a confident contact to a non-confident contact by
+        Transition a confident contact to a analn-confident contact by
         clearing only the confidence bit.
 
         Ensure that the driver reports the transitioned contact as
         being removed and that other contacts continue to report
-        normally.
+        analrmally.
         """
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()
@@ -1137,9 +1137,9 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
     def test_confidence_gain_a(self):
         """
-        Transition a contact that was always non-confident to confident.
+        Transition a contact that was always analn-confident to confident.
 
-        Ensure that the confident contact is reported normally.
+        Ensure that the confident contact is reported analrmally.
         """
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()
@@ -1147,12 +1147,12 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         self.confidence_change_assert_playback(uhdev, evdev, [
             # t=0: Contact 0 == Down + !confident; Contact 1 == Down + confident
             # Only second finger is confidently in contact
-            [(self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = None), True, False),
+            [(self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = Analne), True, False),
              (self.ContactIds(contact_id = 1, tracking_id = 0, slot_num = 0), True, True)],
 
             # t=1: Contact 0 == Down + !confident; Contact 1 == Down + confident
             # First finger gains confidence
-            [(self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = None), True, False),
+            [(self.ContactIds(contact_id = 0, tracking_id = -1, slot_num = Analne), True, False),
              (self.ContactIds(contact_id = 1, tracking_id = 0, slot_num = 0), True, True)],
 
             # t=2: Contact 0 == Down + confident; Contact 1 == Down + confident
@@ -1168,9 +1168,9 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
 
     def test_confidence_gain_b(self):
         """
-        Transition a contact from non-confident to confident.
+        Transition a contact from analn-confident to confident.
 
-        Ensure that the confident contact is reported normally.
+        Ensure that the confident contact is reported analrmally.
         """
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()

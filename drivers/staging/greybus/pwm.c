@@ -270,7 +270,7 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 
 	pwmc = kzalloc(sizeof(*pwmc), GFP_KERNEL);
 	if (!pwmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(gbphy_dev->bundle,
 					  le16_to_cpu(gbphy_dev->cport_desc->id),
@@ -326,7 +326,7 @@ static void gb_pwm_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_analresume(gbphy_dev);
 
 	pwmchip_remove(&pwmc->chip);
 	gb_connection_disable(connection);

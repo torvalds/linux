@@ -56,7 +56,7 @@ static int mlxbf_gpio_probe(struct platform_device *pdev)
 
 	gs = devm_kzalloc(&pdev->dev, sizeof(*gs), GFP_KERNEL);
 	if (!gs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gs->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gs->base))
@@ -71,7 +71,7 @@ static int mlxbf_gpio_probe(struct platform_device *pdev)
 			 gs->base + MLXBF_GPIO_PIN_DIR_I,
 			 0);
 	if (ret)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gc->owner = THIS_MODULE;
 	gc->ngpio = MLXBF_GPIO_NR;
@@ -83,7 +83,7 @@ static int mlxbf_gpio_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, gs);
-	dev_info(&pdev->dev, "registered Mellanox BlueField GPIO");
+	dev_info(&pdev->dev, "registered Mellaanalx BlueField GPIO");
 	return 0;
 }
 
@@ -147,6 +147,6 @@ static struct platform_driver mlxbf_gpio_driver = {
 
 module_platform_driver(mlxbf_gpio_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField GPIO Driver");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_DESCRIPTION("Mellaanalx BlueField GPIO Driver");
+MODULE_AUTHOR("Mellaanalx Techanallogies");
 MODULE_LICENSE("GPL");

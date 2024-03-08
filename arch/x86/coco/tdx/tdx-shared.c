@@ -70,7 +70,7 @@ bool tdx_accept_memory(phys_addr_t start, phys_addr_t end)
 	return true;
 }
 
-noinstr u64 __tdx_hypercall(struct tdx_module_args *args)
+analinstr u64 __tdx_hypercall(struct tdx_module_args *args)
 {
 	/*
 	 * For TDVMCALL explicitly set RCX to the bitmap of shared registers.

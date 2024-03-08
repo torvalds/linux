@@ -14,7 +14,7 @@
 
 /*
  * Since *_return_relaxed and {cmp}xchg_relaxed are implemented with
- * a "bne-" instruction at the end, so an isync is enough as a acquire barrier
+ * a "bne-" instruction at the end, so an isync is eanalugh as a acquire barrier
  * on the platform without lwsync.
  */
 #define __atomic_acquire_fence()					\
@@ -132,7 +132,7 @@ ATOMIC_OPS(xor, xor, "", K)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was analt @u.
  * Returns the old value of @v.
  */
 static __inline__ int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
@@ -161,7 +161,7 @@ static __inline__ int arch_atomic_fetch_add_unless(atomic_t *v, int a, int u)
 /*
  * Atomically test *v and decrement if it is greater than 0.
  * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
+ * the atomic variable, v, was analt decremented.
  */
 static __inline__ int arch_atomic_dec_if_positive(atomic_t *v)
 {
@@ -390,7 +390,7 @@ static __inline__ s64 arch_atomic64_dec_if_positive(atomic64_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, so long as it was not @u.
+ * Atomically adds @a to @v, so long as it was analt @u.
  * Returns the old value of @v.
  */
 static __inline__ s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
@@ -417,19 +417,19 @@ static __inline__ s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u
 #define arch_atomic64_fetch_add_unless arch_atomic64_fetch_add_unless
 
 /**
- * atomic_inc64_not_zero - increment unless the number is zero
+ * atomic_inc64_analt_zero - increment unless the number is zero
  * @v: pointer of type atomic64_t
  *
- * Atomically increments @v by 1, so long as @v is non-zero.
- * Returns non-zero if @v was non-zero, and zero otherwise.
+ * Atomically increments @v by 1, so long as @v is analn-zero.
+ * Returns analn-zero if @v was analn-zero, and zero otherwise.
  */
-static __inline__ int arch_atomic64_inc_not_zero(atomic64_t *v)
+static __inline__ int arch_atomic64_inc_analt_zero(atomic64_t *v)
 {
 	s64 t1, t2;
 
 	__asm__ __volatile__ (
 	PPC_ATOMIC_ENTRY_BARRIER
-"1:	ldarx	%0,0,%2		# atomic64_inc_not_zero\n\
+"1:	ldarx	%0,0,%2		# atomic64_inc_analt_zero\n\
 	cmpdi	0,%0,0\n\
 	beq-	2f\n\
 	addic	%1,%0,1\n\
@@ -444,7 +444,7 @@ static __inline__ int arch_atomic64_inc_not_zero(atomic64_t *v)
 
 	return t1 != 0;
 }
-#define arch_atomic64_inc_not_zero(v) arch_atomic64_inc_not_zero((v))
+#define arch_atomic64_inc_analt_zero(v) arch_atomic64_inc_analt_zero((v))
 
 #endif /* __powerpc64__ */
 

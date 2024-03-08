@@ -106,14 +106,14 @@ static int olpc_bat_get_status(struct olpc_battery_data *data,
 		else if (ec_byte & BAT_STAT_FULL)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else /* er,... */
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 	} else {
 		/* Older EC didn't report charge/discharge bits */
-		if (!(ec_byte & BAT_STAT_AC)) /* No AC means discharging */
+		if (!(ec_byte & BAT_STAT_AC)) /* Anal AC means discharging */
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		else if (ec_byte & BAT_STAT_FULL)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
-		else /* Not _necessarily_ true but EC doesn't tell all yet */
+		else /* Analt _necessarily_ true but EC doesn't tell all yet */
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 	}
 
@@ -150,7 +150,7 @@ static int olpc_bat_get_health(union power_supply_propval *val)
 		break;
 
 	default:
-		/* Eep. We don't know this failure code */
+		/* Eep. We don't kanalw this failure code */
 		ret = -EIO;
 	}
 
@@ -175,7 +175,7 @@ static int olpc_bat_get_mfr(union power_supply_propval *val)
 		val->strval = "BYD";
 		break;
 	default:
-		val->strval = "Unknown";
+		val->strval = "Unkanalwn";
 		break;
 	}
 
@@ -194,13 +194,13 @@ static int olpc_bat_get_tech(union power_supply_propval *val)
 
 	switch (ec_byte & 0xf) {
 	case 1:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
+		val->intval = POWER_SUPPLY_TECHANALLOGY_NiMH;
 		break;
 	case 2:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LiFe;
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LiFe;
 		break;
 	default:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		val->intval = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 		break;
 	}
 
@@ -225,7 +225,7 @@ static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
 	mfr = ec_byte >> 4;
 
 	switch (tech.intval) {
-	case POWER_SUPPLY_TECHNOLOGY_NiMH:
+	case POWER_SUPPLY_TECHANALLOGY_NiMH:
 		switch (mfr) {
 		case 1: /* Gold Peak */
 			val->intval = 3000000*.8;
@@ -235,7 +235,7 @@ static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
 		}
 		break;
 
-	case POWER_SUPPLY_TECHNOLOGY_LiFe:
+	case POWER_SUPPLY_TECHANALLOGY_LiFe:
 		switch (mfr) {
 		case 1: /* Gold Peak, fall through */
 		case 2: /* BYD */
@@ -253,7 +253,7 @@ static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
 	return ret;
 }
 
-static int olpc_bat_get_charge_now(union power_supply_propval *val)
+static int olpc_bat_get_charge_analw(union power_supply_propval *val)
 {
 	uint8_t soc;
 	union power_supply_propval full;
@@ -290,7 +290,7 @@ static int olpc_bat_get_voltage_max_design(union power_supply_propval *val)
 	mfr = ec_byte >> 4;
 
 	switch (tech.intval) {
-	case POWER_SUPPLY_TECHNOLOGY_NiMH:
+	case POWER_SUPPLY_TECHANALLOGY_NiMH:
 		switch (mfr) {
 		case 1: /* Gold Peak */
 			val->intval = 6000000;
@@ -300,7 +300,7 @@ static int olpc_bat_get_voltage_max_design(union power_supply_propval *val)
 		}
 		break;
 
-	case POWER_SUPPLY_TECHNOLOGY_LiFe:
+	case POWER_SUPPLY_TECHANALLOGY_LiFe:
 		switch (mfr) {
 		case 1: /* Gold Peak */
 			val->intval = 6400000;
@@ -347,13 +347,13 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 	/* Theoretically there's a race here -- the battery could be
 	   removed immediately after we check whether it's present, and
-	   then we query for some other property of the now-absent battery.
-	   It doesn't matter though -- the EC will return the last-known
+	   then we query for some other property of the analw-absent battery.
+	   It doesn't matter though -- the EC will return the last-kanalwn
 	   information, and it's as if we just ran that _little_ bit faster
 	   and managed to read it out before the battery went away. */
 	if (!(ec_byte & (BAT_STAT_PRESENT | BAT_STAT_TRICKLE)) &&
 			psp != POWER_SUPPLY_PROP_PRESENT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -367,7 +367,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		else if (ec_byte & BAT_STAT_CHARGING)
 			val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		else
-			val->intval = POWER_SUPPLY_CHARGE_TYPE_NONE;
+			val->intval = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = !!(ec_byte & (BAT_STAT_PRESENT |
@@ -389,13 +389,13 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		ret = olpc_bat_get_tech(val);
 		if (ret)
 			return ret;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = olpc_ec_cmd(EC_BAT_VOLTAGE, NULL, 0, (void *)&ec_word, 2);
 		if (ret)
 			return ret;
@@ -403,7 +403,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		val->intval = ecword_to_cpu(data, ec_word) * 9760L / 32;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		ret = olpc_ec_cmd(EC_BAT_CURRENT, NULL, 0, (void *)&ec_word, 2);
 		if (ret)
 			return ret;
@@ -422,15 +422,15 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		else if (ec_byte & BAT_STAT_LOW)
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		else
-			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		ret = olpc_bat_get_charge_full_design(val);
 		if (ret)
 			return ret;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = olpc_bat_get_charge_now(val);
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+		ret = olpc_bat_get_charge_analw(val);
 		if (ret)
 			return ret;
 		break;
@@ -481,15 +481,15 @@ static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -498,21 +498,21 @@ static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 };
 
-/* XO-1.5 does not have ambient temperature property */
+/* XO-1.5 does analt have ambient temperature property */
 static enum power_supply_property olpc_xo15_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_HEALTH,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
@@ -635,14 +635,14 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	struct power_supply_config bat_psy_cfg = {};
 	struct power_supply_config ac_psy_cfg = {};
 	struct olpc_battery_data *data;
-	struct device_node *np;
+	struct device_analde *np;
 	uint8_t status;
 	uint8_t ecver;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, data);
 
 	/* See if the EC is already there and get the EC revision */
@@ -650,9 +650,9 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	np = of_find_compatible_node(NULL, NULL, "olpc,xo1.75-ec");
+	np = of_find_compatible_analde(NULL, NULL, "olpc,xo1.75-ec");
 	if (np) {
-		of_node_put(np);
+		of_analde_put(np);
 		/* XO 1.75 */
 		data->new_proto = true;
 		data->little_endian = true;
@@ -664,7 +664,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		 * We've seen a number of EC protocol changes; this driver
 		 * requires the latest EC protocol, supported by 0x44 and above.
 		 */
-		printk(KERN_NOTICE "OLPC EC version 0x%02x too old for "
+		printk(KERN_ANALTICE "OLPC EC version 0x%02x too old for "
 			"battery driver.\n", ecver);
 		return -ENXIO;
 	}
@@ -673,9 +673,9 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Ignore the status. It doesn't actually matter */
+	/* Iganalre the status. It doesn't actually matter */
 
-	ac_psy_cfg.of_node = pdev->dev.of_node;
+	ac_psy_cfg.of_analde = pdev->dev.of_analde;
 	ac_psy_cfg.drv_data = data;
 
 	data->olpc_ac = devm_power_supply_register(&pdev->dev, &olpc_ac_desc,
@@ -683,7 +683,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (IS_ERR(data->olpc_ac))
 		return PTR_ERR(data->olpc_ac);
 
-	if (of_device_is_compatible(pdev->dev.of_node, "olpc,xo1.5-battery")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "olpc,xo1.5-battery")) {
 		/* XO-1.5 */
 		olpc_bat_desc.properties = olpc_xo15_bat_props;
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo15_bat_props);
@@ -693,7 +693,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	bat_psy_cfg.of_node = pdev->dev.of_node;
+	bat_psy_cfg.of_analde = pdev->dev.of_analde;
 	bat_psy_cfg.drv_data = data;
 	bat_psy_cfg.attr_grp = olpc_bat_sysfs_groups;
 

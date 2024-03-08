@@ -47,7 +47,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	}
 
 	if (len > TASK_SIZE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (addr) {
 		if (do_align)

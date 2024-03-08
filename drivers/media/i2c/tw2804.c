@@ -29,7 +29,7 @@ struct tw2804 {
 	struct v4l2_ctrl_handler hdl;
 	u8 channel:2;
 	u8 input:1;
-	int norm;
+	int analrm;
 };
 
 static const u8 global_registers[] = {
@@ -41,7 +41,7 @@ static const u8 global_registers[] = {
 	0x3e, 0x82,
 	0x3f, 0x82,
 	0x78, 0x00,
-	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
+	0xff, 0xff, /* Terminator (reg 0xff does analt exist) */
 };
 
 static const u8 channel_registers[] = {
@@ -100,7 +100,7 @@ static const u8 channel_registers[] = {
 	0x35, 0x00,
 	0x36, 0x00,
 	0x37, 0x00,
-	0xff, 0xff, /* Terminator (reg 0xff does not exist) */
+	0xff, 0xff, /* Terminator (reg 0xff does analt exist) */
 };
 
 static int write_reg(struct i2c_client *client, u8 reg, u8 value, u8 channel)
@@ -142,7 +142,7 @@ static int tw2804_log_status(struct v4l2_subdev *sd)
 	struct tw2804 *state = to_state(sd);
 
 	v4l2_info(sd, "Standard: %s\n",
-			state->norm & V4L2_STD_525_60 ? "60 Hz" : "50 Hz");
+			state->analrm & V4L2_STD_525_60 ? "60 Hz" : "50 Hz");
 	v4l2_info(sd, "Channel: %d\n", state->channel);
 	v4l2_info(sd, "Input: %d\n", state->input);
 	return v4l2_ctrl_subdev_log_status(sd);
@@ -151,13 +151,13 @@ static int tw2804_log_status(struct v4l2_subdev *sd)
 /*
  * These volatile controls are needed because all four channels share
  * these controls. So a change made to them through one channel would
- * require another channel to be updated.
+ * require aanalther channel to be updated.
  *
- * Normally this would have been done in a different way, but since the one
+ * Analrmally this would have been done in a different way, but since the one
  * board that uses this driver sees this single chip as if it was on four
  * different i2c adapters (each adapter belonging to a separate instance of
- * the same USB driver) there is no reliable method that I have found to let
- * the instances know about each other.
+ * the same USB driver) there is anal reliable method that I have found to let
+ * the instances kanalw about each other.
  *
  * So implementing these global registers as volatile is the best we can do.
  */
@@ -247,11 +247,11 @@ static int tw2804_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static int tw2804_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int tw2804_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct tw2804 *dec = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	bool is_60hz = norm & V4L2_STD_525_60;
+	bool is_60hz = analrm & V4L2_STD_525_60;
 	u8 regs[] = {
 		0x01, is_60hz ? 0xc4 : 0x84,
 		0x09, is_60hz ? 0x07 : 0x04,
@@ -267,7 +267,7 @@ static int tw2804_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	};
 
 	write_regs(client, regs, dec->channel);
-	dec->norm = norm;
+	dec->analrm = analrm;
 	return 0;
 }
 
@@ -281,7 +281,7 @@ static int tw2804_s_video_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	if (config && config - 1 != dec->channel) {
 		if (config > 4) {
 			dev_err(&client->dev,
-				"channel %d is not between 1 and 4!\n", config);
+				"channel %d is analt between 1 and 4!\n", config);
 			return -EINVAL;
 		}
 		dec->channel = config - 1;
@@ -352,15 +352,15 @@ static int tw2804_probe(struct i2c_client *client)
 	int err;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tw2804_ops);
 	state->channel = -1;
-	state->norm = V4L2_STD_NTSC;
+	state->analrm = V4L2_STD_NTSC;
 
 	v4l2_ctrl_handler_init(&state->hdl, 10);
 	v4l2_ctrl_new_std(&state->hdl, &tw2804_ctrl_ops,

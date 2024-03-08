@@ -144,7 +144,7 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 
 		/*
 		 * we leave the sdw->cdns.link_up flag as false since we've disabled
-		 * the link at this point and cannot handle interrupts any longer.
+		 * the link at this point and cananalt handle interrupts any longer.
 		 */
 	}
 
@@ -294,7 +294,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
 	if (!pconfig) {
-		ret =  -ENOMEM;
+		ret =  -EANALMEM;
 		goto error;
 	}
 
@@ -339,7 +339,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 		 * .prepare() is called after system resume, where we
 		 * need to reinitialize the SHIM/ALH/Cadence IP.
 		 * .prepare() is also called to deal with underflows,
-		 * but in those cases we cannot touch ALH/SHIM
+		 * but in those cases we cananalt touch ALH/SHIM
 		 * registers
 		 */
 
@@ -449,7 +449,7 @@ static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct sn
 
 		/*
 		 * The .prepare callback is used to deal with xruns and resume operations.
-		 * In the case of xruns, the DMAs and SHIM registers cannot be touched,
+		 * In the case of xruns, the DMAs and SHIM registers cananalt be touched,
 		 * but for resume operations the DMAs and SHIM registers need to be initialized.
 		 * the .trigger callback is used to track the suspend case only.
 		 */
@@ -559,7 +559,7 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 					      "SDW%d Pin%d",
 					      cdns->instance, i);
 		if (!dais[i].name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_OUT) {
 			dais[i].playback.channels_min = 1;
@@ -603,12 +603,12 @@ static int intel_register_dai(struct sdw_intel *sdw)
 					 sizeof(struct sdw_cdns_dai_runtime *),
 					 GFP_KERNEL);
 	if (!dai_runtime_array)
-		return -ENOMEM;
+		return -EANALMEM;
 	cdns->dai_runtime_array = dai_runtime_array;
 
 	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
 	if (!dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Create PCM DAIs */
 	stream = &cdns->pcm;
@@ -640,7 +640,7 @@ static void intel_program_sdi(struct sdw_intel *sdw, int dev_num)
 
 	ret = hdac_bus_eml_sdw_set_lsdiid(sdw->link_res->hbus, sdw->instance, dev_num);
 	if (ret < 0)
-		dev_err(sdw->cdns.dev, "%s: could not set lsdiid for link %d %d\n",
+		dev_err(sdw->cdns.dev, "%s: could analt set lsdiid for link %d %d\n",
 			__func__, sdw->instance, dev_num);
 }
 

@@ -34,7 +34,7 @@ ENTRY(memset)
 	swap.w	r5,r0		! VV00
 	or	r0,r5		! VVVV
 
-	! Check if enough bytes need to be copied to be worth the big loop
+	! Check if eanalugh bytes need to be copied to be worth the big loop
 	mov	#0x40, r0	! (MT)
 	cmp/gt	r6,r0		! (MT)  64 > len => slow loop
 

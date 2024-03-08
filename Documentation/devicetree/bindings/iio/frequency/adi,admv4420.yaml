@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ADMV4420 K Band Downconverter
 
 maintainers:
-  - Nuno Sá <nuno.sa@analog.com>
+  - Nuanal Sá <nuanal.sa@analog.com>
 
 description:
   The ADMV4420 is a highly integrated, double balanced, active

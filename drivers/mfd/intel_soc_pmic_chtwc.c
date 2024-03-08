@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various analn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -38,7 +38,7 @@ enum {
 	CHT_WC_ADC_IRQ,
 	CHT_WC_EXT_CHGR_IRQ,
 	CHT_WC_GPIO_IRQ,
-	/* There is no irq 6 */
+	/* There is anal irq 6 */
 	CHT_WC_CRIT_IRQ = 7,
 };
 
@@ -76,7 +76,7 @@ static int cht_wc_byte_reg_read(void *context, unsigned int reg,
 	int ret, orig_addr = client->addr;
 
 	if (!(reg & REG_ADDR_MASK)) {
-		dev_err(&client->dev, "Error I2C address not specified\n");
+		dev_err(&client->dev, "Error I2C address analt specified\n");
 		return -EINVAL;
 	}
 
@@ -98,7 +98,7 @@ static int cht_wc_byte_reg_write(void *context, unsigned int reg,
 	int ret, orig_addr = client->addr;
 
 	if (!(reg & REG_ADDR_MASK)) {
-		dev_err(&client->dev, "Error I2C address not specified\n");
+		dev_err(&client->dev, "Error I2C address analt specified\n");
 		return -EINVAL;
 	}
 
@@ -140,7 +140,7 @@ static const struct dmi_system_id cht_wc_model_dmi_ids[] = {
 		/* GPD win / GPD pocket mini laptops */
 		.driver_data = (void *)(long)INTEL_CHT_WC_GPD_WIN_POCKET,
 		/*
-		 * This DMI match may not seem unique, but it is. In the 67000+
+		 * This DMI match may analt seem unique, but it is. In the 67000+
 		 * DMI decode dumps from linux-hardware.org only 116 have
 		 * board_vendor set to "AMI Corporation" and of those 116 only
 		 * the GPD win's and pocket's board_name is "Default string".
@@ -159,23 +159,23 @@ static const struct dmi_system_id cht_wc_model_dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Mipad2"),
 		},
 	}, {
-		/* Lenovo Yoga Book X90F / X90L */
-		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YOGABOOK1,
+		/* Leanalvo Yoga Book X90F / X90L */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LEANALVO_YOGABOOK1,
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "YETI-11"),
 		},
 	}, {
-		/* Lenovo Yoga Book X91F / X91L */
-		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YOGABOOK1,
+		/* Leanalvo Yoga Book X91F / X91L */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LEANALVO_YOGABOOK1,
 		.matches = {
-			/* Non exact match to match F + L versions */
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
+			/* Analn exact match to match F + L versions */
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leanalvo YB1-X91"),
 		},
 	}, {
-		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
-		.driver_data = (void *)(long)INTEL_CHT_WC_LENOVO_YT3_X90,
+		/* Leanalvo Yoga Tab 3 Pro YT3-X90F */
+		.driver_data = (void *)(long)INTEL_CHT_WC_LEANALVO_YT3_X90,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
@@ -196,16 +196,16 @@ static int cht_wc_probe(struct i2c_client *client)
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
 	if (ACPI_FAILURE(status))
-		return dev_err_probe(dev, -ENODEV, "Failed to get PMIC hardware revision\n");
+		return dev_err_probe(dev, -EANALDEV, "Failed to get PMIC hardware revision\n");
 	if (hrv != CHT_WC_HRV)
-		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
+		return dev_err_probe(dev, -EANALDEV, "Invalid PMIC hardware revision: %llu\n", hrv);
 
 	if (client->irq < 0)
 		return dev_err_probe(dev, -EINVAL, "Invalid IRQ\n");
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	id = dmi_first_match(cht_wc_model_dmi_ids);
 	if (id)
@@ -226,7 +226,7 @@ static int cht_wc_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				cht_wc_dev, ARRAY_SIZE(cht_wc_dev), NULL, 0,
 				regmap_irq_get_domain(pmic->irq_chip_data));
 }

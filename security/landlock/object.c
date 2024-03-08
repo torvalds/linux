@@ -24,10 +24,10 @@ landlock_create_object(const struct landlock_object_underops *const underops,
 	struct landlock_object *new_object;
 
 	if (WARN_ON_ONCE(!underops || !underobj))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	new_object = kzalloc(sizeof(*new_object), GFP_KERNEL_ACCOUNT);
 	if (!new_object)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	refcount_set(&new_object->usage, 1);
 	spin_lock_init(&new_object->lock);
 	new_object->underops = underops;
@@ -50,10 +50,10 @@ void landlock_put_object(struct landlock_object *const object)
 		return;
 
 	/*
-	 * If the @object's refcount cannot drop to zero, we can just decrement
+	 * If the @object's refcount cananalt drop to zero, we can just decrement
 	 * the refcount without holding a lock. Otherwise, the decrement must
 	 * happen under @object->lock for synchronization with things like
-	 * get_inode_object().
+	 * get_ianalde_object().
 	 */
 	if (refcount_dec_and_lock(&object->usage, &object->lock)) {
 		__acquire(&object->lock);

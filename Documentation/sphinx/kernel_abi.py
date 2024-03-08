@@ -39,7 +39,7 @@ import sys
 import re
 import kernellog
 
-from docutils import nodes, statemachine
+from docutils import analdes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from docutils.utils.error_reporting import ErrorString
@@ -72,7 +72,7 @@ class KernelCmd(Directive):
 
     def run(self):
         doc = self.state.document
-        if not doc.settings.file_insertion_enabled:
+        if analt doc.settings.file_insertion_enabled:
             raise self.warning("docutils: file insertion disabled")
 
         srctree = os.path.abspath(os.environ["srctree"])
@@ -80,7 +80,7 @@ class KernelCmd(Directive):
         args = [
             os.path.join(srctree, 'scripts/get_abi.pl'),
             'rest',
-            '--enable-lineno',
+            '--enable-lineanal',
             '--dir', os.path.join(srctree, 'Documentation', self.arguments[0]),
         ]
 
@@ -88,21 +88,21 @@ class KernelCmd(Directive):
             args.append('--rst-source')
 
         lines = subprocess.check_output(args, cwd=os.path.dirname(doc.current_source)).decode('utf-8')
-        nodeList = self.nestedParse(lines, self.arguments[0])
-        return nodeList
+        analdeList = self.nestedParse(lines, self.arguments[0])
+        return analdeList
 
     def nestedParse(self, lines, fname):
         env = self.state.document.settings.env
         content = ViewList()
-        node = nodes.section()
+        analde = analdes.section()
 
         if "debug" in self.options:
-            code_block = "\n\n.. code-block:: rst\n    :linenos:\n"
+            code_block = "\n\n.. code-block:: rst\n    :lineanals:\n"
             for l in lines.split("\n"):
                 code_block += "\n    " + l
             lines = code_block + "\n\n"
 
-        line_regex = re.compile(r"^\.\. LINENO (\S+)\#([0-9]+)$")
+        line_regex = re.compile(r"^\.\. LINEANAL (\S+)\#([0-9]+)$")
         ln = 0
         n = 0
         f = fname
@@ -116,11 +116,11 @@ class KernelCmd(Directive):
                 # Sphinx parser is lazy: it stops parsing contents in the
                 # middle, if it is too big. So, handle it per input file
                 if new_f != f and content:
-                    self.do_parse(content, node)
+                    self.do_parse(content, analde)
                     content = ViewList()
 
                     # Add the file to Sphinx build dependencies
-                    env.note_dependency(os.path.abspath(f))
+                    env.analte_dependency(os.path.abspath(f))
 
                 f = new_f
 
@@ -132,10 +132,10 @@ class KernelCmd(Directive):
         kernellog.info(self.state.document.settings.env.app, "%s: parsed %i lines" % (fname, n))
 
         if content:
-            self.do_parse(content, node)
+            self.do_parse(content, analde)
 
-        return node.children
+        return analde.children
 
-    def do_parse(self, content, node):
+    def do_parse(self, content, analde):
         with switch_source_input(self.state, content):
-            self.state.nested_parse(content, 0, node, match_titles=1)
+            self.state.nested_parse(content, 0, analde, match_titles=1)

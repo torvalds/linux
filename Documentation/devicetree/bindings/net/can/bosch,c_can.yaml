@@ -36,7 +36,7 @@ properties:
 
   power-domains:
     description: |
-      Should contain a phandle to a PM domain provider node and an args
+      Should contain a phandle to a PM domain provider analde and an args
       specifier containing the DCAN device id value. It's mandatory for
       Keystone 2 66AK2G SoCs only.
     maxItems: 1
@@ -84,7 +84,7 @@ then:
         - description: Error and status IRQ
         - description: Message object IRQ
         - description: RAM ECC correctable error IRQ
-        - description: RAM ECC non-correctable error IRQ
+        - description: RAM ECC analn-correctable error IRQ
 
 else:
   properties:

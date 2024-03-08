@@ -20,10 +20,10 @@ struct mmp_clk_reset_unit {
 };
 
 #ifdef CONFIG_RESET_CONTROLLER
-void mmp_clk_reset_register(struct device_node *np,
+void mmp_clk_reset_register(struct device_analde *np,
 			struct mmp_clk_reset_cell *cells, int nr_resets);
 #else
-static inline void mmp_clk_reset_register(struct device_node *np,
+static inline void mmp_clk_reset_register(struct device_analde *np,
 			struct mmp_clk_reset_cell *cells, int nr_resets)
 {
 }

@@ -26,13 +26,13 @@
  * descriptor. All ioctl operations on this file descriptor will be targeted to
  * the VM instance. Release of this file descriptor will destroy the object.
  */
-static int acrn_dev_open(struct inode *inode, struct file *filp)
+static int acrn_dev_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct acrn_vm *vm;
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vm->vmid = ACRN_INVALID_VMID;
 	filp->private_data = vm;
@@ -51,7 +51,7 @@ static int pmcmd_ioctl(u64 cmd, void __user *uptr)
 	case ACRN_PMCMD_GET_CX_CNT:
 		pm_info = kmalloc(sizeof(u64), GFP_KERNEL);
 		if (!pm_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = hcall_get_cpu_state(cmd, virt_to_phys(pm_info));
 		if (ret < 0) {
@@ -66,7 +66,7 @@ static int pmcmd_ioctl(u64 cmd, void __user *uptr)
 	case ACRN_PMCMD_GET_PX_DATA:
 		px_data = kmalloc(sizeof(*px_data), GFP_KERNEL);
 		if (!px_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = hcall_get_cpu_state(cmd, virt_to_phys(px_data));
 		if (ret < 0) {
@@ -81,7 +81,7 @@ static int pmcmd_ioctl(u64 cmd, void __user *uptr)
 	case ACRN_PMCMD_GET_CX_DATA:
 		cx_data = kmalloc(sizeof(*cx_data), GFP_KERNEL);
 		if (!cx_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = hcall_get_cpu_state(cmd, virt_to_phys(cx_data));
 		if (ret < 0) {
@@ -110,7 +110,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_vm *vm = filp->private_data;
 	struct acrn_vm_creation *vm_param;
 	struct acrn_vcpu_regs *cpu_regs;
-	struct acrn_ioreq_notify notify;
+	struct acrn_ioreq_analtify analtify;
 	struct acrn_ptdev_irq *irq_info;
 	struct acrn_ioeventfd ioeventfd;
 	struct acrn_vm_memmap memmap;
@@ -376,17 +376,17 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		if (vm->default_client)
 			ret = acrn_ioreq_client_wait(vm->default_client);
 		else
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		break;
-	case ACRN_IOCTL_NOTIFY_REQUEST_FINISH:
-		if (copy_from_user(&notify, (void __user *)ioctl_param,
-				   sizeof(struct acrn_ioreq_notify)))
+	case ACRN_IOCTL_ANALTIFY_REQUEST_FINISH:
+		if (copy_from_user(&analtify, (void __user *)ioctl_param,
+				   sizeof(struct acrn_ioreq_analtify)))
 			return -EFAULT;
 
-		if (notify.reserved != 0)
+		if (analtify.reserved != 0)
 			return -EINVAL;
 
-		ret = acrn_ioreq_request_default_complete(vm, notify.vcpu);
+		ret = acrn_ioreq_request_default_complete(vm, analtify.vcpu);
 		break;
 	case ACRN_IOCTL_CLEAR_VM_IOREQ:
 		acrn_ioreq_request_clear(vm);
@@ -415,14 +415,14 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		ret = acrn_irqfd_config(vm, &irqfd);
 		break;
 	default:
-		dev_dbg(acrn_dev.this_device, "Unknown IOCTL 0x%x!\n", cmd);
-		ret = -ENOTTY;
+		dev_dbg(acrn_dev.this_device, "Unkanalwn IOCTL 0x%x!\n", cmd);
+		ret = -EANALTTY;
 	}
 
 	return ret;
 }
 
-static int acrn_dev_release(struct inode *inode, struct file *filp)
+static int acrn_dev_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct acrn_vm *vm = filp->private_data;
 
@@ -494,7 +494,7 @@ static const struct file_operations acrn_fops = {
 };
 
 struct miscdevice acrn_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.mianalr	= MISC_DYNAMIC_MIANALR,
 	.name	= "acrn_hsm",
 	.fops	= &acrn_fops,
 	.groups	= acrn_attr_groups,
@@ -505,7 +505,7 @@ static int __init hsm_init(void)
 	int ret;
 
 	if (x86_hyper_type != X86_HYPER_ACRN)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(cpuid_eax(ACRN_CPUID_FEATURES) & ACRN_FEATURE_PRIVILEGED_VM))
 		return -EPERM;

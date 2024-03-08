@@ -24,11 +24,11 @@ struct gpmc_bool_timings {
 };
 
 /*
- * Note that all values in this struct are in nanoseconds except sync_clk
+ * Analte that all values in this struct are in naanalseconds except sync_clk
  * (which is in picoseconds), while the register values are in gpmc_fck cycles.
  */
 struct gpmc_timings {
-	/* Minimum clock period for synchronous mode (in picoseconds) */
+	/* Minimum clock period for synchroanalus mode (in picoseconds) */
 	u32 sync_clk;
 
 	/* Chip-select signal timings corresponding to GPMC_CS_CONFIG2 */
@@ -148,8 +148,8 @@ struct gpmc_settings {
 	bool burst_read;	/* enables read page/burst mode */
 	bool burst_write;	/* enables write page/burst mode */
 	bool device_nand;	/* device is NAND */
-	bool sync_read;		/* enables synchronous reads */
-	bool sync_write;	/* enables synchronous writes */
+	bool sync_read;		/* enables synchroanalus reads */
+	bool sync_write;	/* enables synchroanalus writes */
 	bool wait_on_read;	/* monitor wait on reads */
 	bool wait_on_write;	/* monitor wait on writes */
 	u32 burst_len;		/* page/burst length */

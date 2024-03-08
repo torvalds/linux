@@ -47,7 +47,7 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define alt_max_short(a, b)	"((" a ") ^ (((" a ") ^ (" b ")) & -(-((" a ") < (" b ")))))"
 
 /*
- * Pad the second replacement alternative with additional NOPs if it is
+ * Pad the second replacement alternative with additional ANALPs if it is
  * additionally longer than the first replacement alternative.
  */
 #define OLDINSTR_2(oldinstr, num1, num2) \
@@ -95,9 +95,9 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * kernels.
  *
  * length of oldinstr must be longer or equal the length of newinstr
- * It can be padded with nops as needed.
+ * It can be padded with analps as needed.
  *
- * For non barrier like inlines please define new variants
+ * For analn barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
 #define alternative(oldinstr, newinstr, feature)			\

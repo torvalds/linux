@@ -23,7 +23,7 @@
 
     Copyright (C) 2003 Vadim Catana <skystar@moldova.cc>:
 
-    Support for Philips SU1278 on Technotrend hardware
+    Support for Philips SU1278 on Techanaltrend hardware
 
     Copyright (C) 2004 Andrew de Quincey <adq_dvb@lidskialf.net>
 
@@ -504,7 +504,7 @@ static int stv0299_read_ber(struct dvb_frontend* fe, u32* ber)
 	struct stv0299_state* state = fe->demodulator_priv;
 
 	if (state->errmode != STATUS_BER)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	*ber = stv0299_readreg(state, 0x1e) | (stv0299_readreg(state, 0x1d) << 8);
 
@@ -545,7 +545,7 @@ static int stv0299_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	struct stv0299_state* state = fe->demodulator_priv;
 
 	if (state->errmode != STATUS_UCBLOCKS)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	state->ucblocks += stv0299_readreg(state, 0x1e);
 	state->ucblocks += (stv0299_readreg(state, 0x1d) << 8);
@@ -568,7 +568,7 @@ static int stv0299_set_frontend(struct dvb_frontend *fe)
 	if (p->inversion == INVERSION_OFF) invval = 0;
 	else if (p->inversion == INVERSION_ON) invval = 1;
 	else {
-		printk("stv0299 does not support auto-inversion\n");
+		printk("stv0299 does analt support auto-inversion\n");
 		return -EINVAL;
 	}
 	if (state->config->invert) invval = (~invval) & 1;

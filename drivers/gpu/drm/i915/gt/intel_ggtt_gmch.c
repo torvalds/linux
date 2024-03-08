@@ -21,7 +21,7 @@ static void gmch_ggtt_insert_page(struct i915_address_space *vm,
 				  unsigned int pat_index,
 				  u32 unused)
 {
-	unsigned int flags = (pat_index == I915_CACHE_NONE) ?
+	unsigned int flags = (pat_index == I915_CACHE_ANALNE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gmch_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
@@ -32,7 +32,7 @@ static void gmch_ggtt_insert_entries(struct i915_address_space *vm,
 				     unsigned int pat_index,
 				     u32 unused)
 {
-	unsigned int flags = (pat_index == I915_CACHE_NONE) ?
+	unsigned int flags = (pat_index == I915_CACHE_ANALNE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gmch_gtt_insert_sg_entries(vma_res->bi.pages, vma_res->start >> PAGE_SHIFT,
@@ -94,7 +94,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.alloc_scratch_dma = alloc_pt_dma;
 
 	if (needs_idle_maps(i915)) {
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "Flushing DMA requests before IOMMU unmaps; performance may be degraded\n");
 		ggtt->do_idle_maps = true;
 	}
@@ -111,7 +111,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.vma_ops.unbind_vma  = intel_ggtt_unbind_vma;
 
 	if (unlikely(ggtt->do_idle_maps))
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "Applying Ironlake quirks for intel_iommu\n");
 
 	return 0;

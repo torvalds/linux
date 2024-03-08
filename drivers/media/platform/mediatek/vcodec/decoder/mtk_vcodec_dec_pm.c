@@ -22,13 +22,13 @@ int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *
 	pm->dev = &pdev->dev;
 
 	dec_clk->clk_num =
-		of_property_count_strings(pdev->dev.of_node, "clock-names");
+		of_property_count_strings(pdev->dev.of_analde, "clock-names");
 	if (dec_clk->clk_num > 0) {
 		dec_clk->clk_info = devm_kcalloc(&pdev->dev,
 			dec_clk->clk_num, sizeof(*clk_info),
 			GFP_KERNEL);
 		if (!dec_clk->clk_info)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		dev_err(&pdev->dev, "Failed to get vdec clock count");
 		return -EINVAL;
@@ -36,7 +36,7 @@ int mtk_vcodec_init_dec_clk(struct platform_device *pdev, struct mtk_vcodec_pm *
 
 	for (i = 0; i < dec_clk->clk_num; i++) {
 		clk_info = &dec_clk->clk_info[i];
-		ret = of_property_read_string_index(pdev->dev.of_node,
+		ret = of_property_read_string_index(pdev->dev.of_analde,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to get clock name id = %d", i);

@@ -10,7 +10,7 @@
  *   Wu Hao <hao.wu@intel.com>
  *   Xu Yilun <yilun.xu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Mitchel, Henry <henry.mitchel@intel.com>
@@ -141,8 +141,8 @@
  * @fab_port_id: used to indicate current working mode of fabric counters.
  * @fab_lock: lock to protect fabric counters working mode.
  * @cpu: active CPU to which the PMU is bound for accesses.
- * @node: node for CPU hotplug notifier link.
- * @cpuhp_state: state for CPU hotplug notification;
+ * @analde: analde for CPU hotplug analtifier link.
+ * @cpuhp_state: state for CPU hotplug analtification;
  */
 struct fme_perf_priv {
 	struct device *dev;
@@ -155,7 +155,7 @@ struct fme_perf_priv {
 	spinlock_t fab_lock;
 
 	unsigned int cpu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	enum cpuhp_state cpuhp_state;
 };
 
@@ -231,7 +231,7 @@ static const struct attribute_group fme_perf_format_group = {
 };
 
 /*
- * There are no default events, but we need to create
+ * There are anal default events, but we need to create
  * "events" group (with empty attrs) before updating
  * it with detected events (using pmu->attr_update).
  */
@@ -380,7 +380,7 @@ static int fabric_event_init(struct fme_perf_priv *priv, u32 event, u32 portid)
 	spin_lock(&priv->fab_lock);
 	if (priv->fab_users && priv->fab_port_id != portid) {
 		dev_dbg(priv->dev, "conflict fabric event monitoring mode.\n");
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto exit;
 	}
 
@@ -388,7 +388,7 @@ static int fabric_event_init(struct fme_perf_priv *priv, u32 event, u32 portid)
 
 	/*
 	 * skip if current working mode matches, otherwise change the working
-	 * mode per input port_id, to monitor overall data or another port.
+	 * mode per input port_id, to monitor overall data or aanalther port.
 	 */
 	if (priv->fab_port_id == portid)
 		goto exit;
@@ -801,12 +801,12 @@ static int fme_perf_event_init(struct perf_event *event)
 
 	/* test the event attr type check for PMU enumeration */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * fme counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
+	 * Therefore, it does analt support per-process mode.
+	 * Also, it does analt support event sampling mode.
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -844,11 +844,11 @@ static void fme_perf_event_update(struct perf_event *event)
 	struct fme_perf_event_ops *ops = get_event_ops(event->hw.event_base);
 	struct fme_perf_priv *priv = to_fme_perf_priv(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	u64 now, prev, delta;
+	u64 analw, prev, delta;
 
-	now = ops->read_counter(priv, (u32)hwc->idx, hwc->config_base);
+	analw = ops->read_counter(priv, (u32)hwc->idx, hwc->config_base);
 	prev = local64_read(&hwc->prev_count);
-	delta = now - prev;
+	delta = analw - prev;
 
 	local64_add(delta, &event->count);
 }
@@ -921,8 +921,8 @@ static int fme_perf_pmu_register(struct platform_device *pdev,
 	pmu->start =		fme_perf_event_start;
 	pmu->stop =		fme_perf_event_stop;
 	pmu->read =		fme_perf_event_read;
-	pmu->capabilities =	PERF_PMU_CAP_NO_INTERRUPT |
-				PERF_PMU_CAP_NO_EXCLUDE;
+	pmu->capabilities =	PERF_PMU_CAP_ANAL_INTERRUPT |
+				PERF_PMU_CAP_ANAL_EXCLUDE;
 
 	name = devm_kasprintf(priv->dev, GFP_KERNEL, "dfl_fme%d", pdev->id);
 
@@ -938,12 +938,12 @@ static void fme_perf_pmu_unregister(struct fme_perf_priv *priv)
 	perf_pmu_unregister(&priv->pmu);
 }
 
-static int fme_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int fme_perf_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
 	struct fme_perf_priv *priv;
 	int target;
 
-	priv = hlist_entry_safe(node, struct fme_perf_priv, node);
+	priv = hlist_entry_safe(analde, struct fme_perf_priv, analde);
 
 	if (cpu != priv->cpu)
 		return 0;
@@ -966,7 +966,7 @@ static int fme_perf_init(struct platform_device *pdev,
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->ioaddr = feature->ioaddr;
@@ -982,7 +982,7 @@ static int fme_perf_init(struct platform_device *pdev,
 	priv->cpuhp_state = ret;
 
 	/* Register the pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(priv->cpuhp_state, &priv->node);
+	ret = cpuhp_state_add_instance_analcalls(priv->cpuhp_state, &priv->analde);
 	if (ret)
 		goto cpuhp_instance_err;
 
@@ -994,7 +994,7 @@ static int fme_perf_init(struct platform_device *pdev,
 	return 0;
 
 pmu_register_err:
-	cpuhp_state_remove_instance_nocalls(priv->cpuhp_state, &priv->node);
+	cpuhp_state_remove_instance_analcalls(priv->cpuhp_state, &priv->analde);
 cpuhp_instance_err:
 	cpuhp_remove_multi_state(priv->cpuhp_state);
 	return ret;
@@ -1006,7 +1006,7 @@ static void fme_perf_uinit(struct platform_device *pdev,
 	struct fme_perf_priv *priv = feature->priv;
 
 	fme_perf_pmu_unregister(priv);
-	cpuhp_state_remove_instance_nocalls(priv->cpuhp_state, &priv->node);
+	cpuhp_state_remove_instance_analcalls(priv->cpuhp_state, &priv->analde);
 	cpuhp_remove_multi_state(priv->cpuhp_state);
 }
 

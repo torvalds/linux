@@ -84,8 +84,8 @@ struct bnx2x_eth_stats {
 	u32 error_bytes_received_lo;
 	u32 etherstatsoverrsizepkts_hi;
 	u32 etherstatsoverrsizepkts_lo;
-	u32 no_buff_discard_hi;
-	u32 no_buff_discard_lo;
+	u32 anal_buff_discard_hi;
+	u32 anal_buff_discard_lo;
 
 	struct_group(shared,
 	u32 rx_stat_ifhcinbadoctets_hi;
@@ -211,7 +211,7 @@ struct bnx2x_eth_stats {
 	u32 recoverable_error;
 	u32 unrecoverable_error;
 	u32 driver_filtered_tx_pkt;
-	/* src: Clear-on-Read register; Will not survive PMF Migration */
+	/* src: Clear-on-Read register; Will analt survive PMF Migration */
 	u32 eee_tx_lpi;
 
 	/* PTP */
@@ -252,8 +252,8 @@ struct bnx2x_eth_q_stats {
 
 	u32 etherstatsoverrsizepkts_hi;
 	u32 etherstatsoverrsizepkts_lo;
-	u32 no_buff_discard_hi;
-	u32 no_buff_discard_lo;
+	u32 anal_buff_discard_hi;
+	u32 anal_buff_discard_lo;
 
 	u32 driver_xoff;
 	u32 rx_err_discard_pkt;

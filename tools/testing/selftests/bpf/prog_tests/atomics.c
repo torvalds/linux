@@ -9,7 +9,7 @@ static void test_add(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.add.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -26,7 +26,7 @@ static void test_add(struct atomics_lskel *skel)
 	ASSERT_EQ(skel->bss->add_stack_value_copy, 3, "add_stack_value");
 	ASSERT_EQ(skel->bss->add_stack_result, 1, "add_stack_result");
 
-	ASSERT_EQ(skel->data->add_noreturn_value, 3, "add_noreturn_value");
+	ASSERT_EQ(skel->data->add_analreturn_value, 3, "add_analreturn_value");
 }
 
 static void test_sub(struct atomics_lskel *skel)
@@ -34,7 +34,7 @@ static void test_sub(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.sub.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -51,7 +51,7 @@ static void test_sub(struct atomics_lskel *skel)
 	ASSERT_EQ(skel->bss->sub_stack_value_copy, -1, "sub_stack_value");
 	ASSERT_EQ(skel->bss->sub_stack_result, 1, "sub_stack_result");
 
-	ASSERT_EQ(skel->data->sub_noreturn_value, -1, "sub_noreturn_value");
+	ASSERT_EQ(skel->data->sub_analreturn_value, -1, "sub_analreturn_value");
 }
 
 static void test_and(struct atomics_lskel *skel)
@@ -59,7 +59,7 @@ static void test_and(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.and.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -73,7 +73,7 @@ static void test_and(struct atomics_lskel *skel)
 	ASSERT_EQ(skel->data->and32_value, 0x010, "and32_value");
 	ASSERT_EQ(skel->bss->and32_result, 0x110, "and32_result");
 
-	ASSERT_EQ(skel->data->and_noreturn_value, 0x010ull << 32, "and_noreturn_value");
+	ASSERT_EQ(skel->data->and_analreturn_value, 0x010ull << 32, "and_analreturn_value");
 }
 
 static void test_or(struct atomics_lskel *skel)
@@ -81,7 +81,7 @@ static void test_or(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.or.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -95,7 +95,7 @@ static void test_or(struct atomics_lskel *skel)
 	ASSERT_EQ(skel->data->or32_value, 0x111, "or32_value");
 	ASSERT_EQ(skel->bss->or32_result, 0x110, "or32_result");
 
-	ASSERT_EQ(skel->data->or_noreturn_value, 0x111ull << 32, "or_noreturn_value");
+	ASSERT_EQ(skel->data->or_analreturn_value, 0x111ull << 32, "or_analreturn_value");
 }
 
 static void test_xor(struct atomics_lskel *skel)
@@ -103,7 +103,7 @@ static void test_xor(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.xor.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -117,7 +117,7 @@ static void test_xor(struct atomics_lskel *skel)
 	ASSERT_EQ(skel->data->xor32_value, 0x101, "xor32_value");
 	ASSERT_EQ(skel->bss->xor32_result, 0x110, "xor32_result");
 
-	ASSERT_EQ(skel->data->xor_noreturn_value, 0x101ull << 32, "xor_nxoreturn_value");
+	ASSERT_EQ(skel->data->xor_analreturn_value, 0x101ull << 32, "xor_nxoreturn_value");
 }
 
 static void test_cmpxchg(struct atomics_lskel *skel)
@@ -125,7 +125,7 @@ static void test_cmpxchg(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.cmpxchg.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -147,7 +147,7 @@ static void test_xchg(struct atomics_lskel *skel)
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	/* No need to attach it, just run it directly */
+	/* Anal need to attach it, just run it directly */
 	prog_fd = skel->progs.xchg.prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	if (!ASSERT_OK(err, "test_run_opts err"))
@@ -171,7 +171,7 @@ void test_atomics(void)
 		return;
 
 	if (skel->data->skip_tests) {
-		printf("%s:SKIP:no ENABLE_ATOMICS_TESTS (missing Clang BPF atomics support)",
+		printf("%s:SKIP:anal ENABLE_ATOMICS_TESTS (missing Clang BPF atomics support)",
 		       __func__);
 		test__skip();
 		goto cleanup;

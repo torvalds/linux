@@ -3,10 +3,10 @@
  * include/media/si476x-core.h -- Common definitions for si476x core
  * device
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inanalvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #ifndef SI476X_CORE_H
@@ -63,7 +63,7 @@ enum si476x_mfd_cells {
  * POWER_UP command. The device is ready to be used.
  * @SI476X_POWER_INCONSISTENT: This state indicates that previous
  * power down was inconsistent, meaning some of the regulators were
- * not turned down and thus use of the device, without power-cycling
+ * analt turned down and thus use of the device, without power-cycling
  * is impossible.
  */
 enum si476x_power_state {
@@ -80,7 +80,7 @@ enum si476x_power_state {
  * @chip_id: Last digit of the chip model(E.g. "1" for SI4761)
  * @cells: MFD cell devices created by this driver.
  * @cmd_lock: Mutex used to serialize all the requests to the core
- * device. This filed should not be used directly. Instead
+ * device. This filed should analt be used directly. Instead
  * si476x_core_lock()/si476x_core_unlock() should be used to get
  * exclusive access to the "core" device.
  * @users: Active users counter(Used by the radio cell)
@@ -102,12 +102,12 @@ enum si476x_power_state {
  * command when the device is started.
  * @state: Current power state of the device.
  * @supplues: Structure containing handles to all power supplies used
- * by the device (NULL ones are ignored).
+ * by the device (NULL ones are iganalred).
  * @gpio_reset: GPIO pin connectet to the RSTB pin of the chip.
  * @pinmux: Chip's configurable pins configuration.
  * @diversity_mode: Chips role when functioning in diversity mode.
  * @status_monitor: Polling worker used in polling use case scenarion
- * (when IRQ is not avalible).
+ * (when IRQ is analt avalible).
  * @revision: Chip's running firmware revision number(Used for correct
  * command set support).
  */
@@ -247,13 +247,13 @@ static inline int si476x_to_v4l2(struct si476x_core *core, u16 freq)
  * FUNC_INFO command.
  *
  * @firmware.major: Firmware major number.
- * @firmware.minor[...]: Firmware minor numbers.
+ * @firmware.mianalr[...]: Firmware mianalr numbers.
  * @patch_id:
  * @func: Mode tuner is working in.
  */
 struct si476x_func_info {
 	struct {
-		u8 major, minor[2];
+		u8 major, mianalr[2];
 	} firmware;
 	u16 patch_id;
 	enum si476x_func func;
@@ -273,17 +273,17 @@ struct si476x_power_down_args {
 /**
  * enum si476x_tunemode - enum representing possible tune modes for
  * the chip.
- * @SI476X_TM_VALIDATED_NORMAL_TUNE: Unconditionally stay on the new
+ * @SI476X_TM_VALIDATED_ANALRMAL_TUNE: Unconditionally stay on the new
  * channel after tune, tune status is valid.
  * @SI476X_TM_INVALIDATED_FAST_TUNE: Unconditionally stay in the new
  * channel after tune, tune status invalid.
  * @SI476X_TM_VALIDATED_AF_TUNE: Jump back to previous channel if
- * metric thresholds are not met.
+ * metric thresholds are analt met.
  * @SI476X_TM_VALIDATED_AF_CHECK: Unconditionally jump back to the
  * previous channel.
  */
 enum si476x_tunemode {
-	SI476X_TM_VALIDATED_NORMAL_TUNE = 0,
+	SI476X_TM_VALIDATED_ANALRMAL_TUNE = 0,
 	SI476X_TM_INVALIDATED_FAST_TUNE = 1,
 	SI476X_TM_VALIDATED_AF_TUNE     = 2,
 	SI476X_TM_VALIDATED_AF_CHECK    = 3,

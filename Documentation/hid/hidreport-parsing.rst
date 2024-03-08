@@ -39,7 +39,7 @@ the HUT. We have a ``Usage Page``, thus we need to refer to HUT
 Sec. 3, "Usage Pages"; from there, one sees that ``0x01`` stands for
 ``Generic Desktop Page``.
 
-Moving now to the second two bytes, and following the same scheme,
+Moving analw to the second two bytes, and following the same scheme,
 ``0x09`` (i.e. ``00001001``) will be followed by one byte (``01``)
 and is a ``Local`` item (``10``). Thus, the meaning of the remaining four bits
 (``0000``) is given in the HID spec Sec. 6.2.2.8 "Local Items", so that

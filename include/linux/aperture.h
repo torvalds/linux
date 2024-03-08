@@ -52,7 +52,7 @@ static inline int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, 
  * that can have their framebuffer located anywhere in memory.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise
+ * 0 on success, or a negative erranal code otherwise
  */
 static inline int aperture_remove_all_conflicting_devices(const char *name)
 {

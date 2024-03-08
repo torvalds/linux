@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -399,7 +399,7 @@ static int adin_get_edpd(struct phy_device *phydev, u16 *tx_interval)
 			/* default is 1 second */
 			*tx_interval = ETHTOOL_PHY_EDPD_DFLT_TX_MSECS;
 		else
-			*tx_interval = ETHTOOL_PHY_EDPD_NO_TX;
+			*tx_interval = ETHTOOL_PHY_EDPD_ANAL_TX;
 	} else {
 		*tx_interval = ETHTOOL_PHY_EDPD_DISABLE;
 	}
@@ -423,7 +423,7 @@ static int adin_set_edpd(struct phy_device *phydev, u16 tx_interval)
 	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
 		val |= ADIN1300_NRG_PD_TX_EN;
 		fallthrough;
-	case ETHTOOL_PHY_EDPD_NO_TX:
+	case ETHTOOL_PHY_EDPD_ANAL_TX:
 		break;
 	default:
 		return -EINVAL;
@@ -476,7 +476,7 @@ static int adin_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_FAST_LINK_DOWN:
 		return adin_get_fast_down(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -491,7 +491,7 @@ static int adin_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_FAST_LINK_DOWN:
 		return adin_set_fast_down(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -503,7 +503,7 @@ static int adin_config_clk_out(struct phy_device *phydev)
 
 	device_property_read_string(dev, "adi,phy-output-clock", &val);
 	if (!val) {
-		/* property not present, do not enable GP_CLK pin */
+		/* property analt present, do analt enable GP_CLK pin */
 	} else if (strcmp(val, "25mhz-reference") == 0) {
 		sel |= ADIN1300_GE_CLK_CFG_25;
 	} else if (strcmp(val, "125mhz-free-running") == 0) {
@@ -592,11 +592,11 @@ static irqreturn_t adin_phy_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, ADIN1300_INT_STATUS_REG);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & ADIN1300_INT_LINK_STAT_CHNG_EN))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -619,7 +619,7 @@ static int adin_cl45_to_adin_reg(struct phy_device *phydev, int devad,
 	}
 
 	phydev_err(phydev,
-		   "No translation available for devad: %d reg: %04x\n",
+		   "Anal translation available for devad: %d reg: %04x\n",
 		   devad, cl45_regnum);
 
 	return -EINVAL;
@@ -876,7 +876,7 @@ static int adin_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 

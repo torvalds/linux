@@ -44,13 +44,13 @@ void ps3_get_firmware_version(union ps3_firmware_version *v)
 }
 EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
 
-int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev)
+int ps3_compare_firmware_version(u16 major, u16 mianalr, u16 rev)
 {
 	union ps3_firmware_version x;
 
 	x.pad = 0;
 	x.major = major;
-	x.minor = minor;
+	x.mianalr = mianalr;
 	x.rev = rev;
 
 	return (ps3_firmware_version.raw > x.raw) -
@@ -62,14 +62,14 @@ static void ps3_power_save(void)
 {
 	/*
 	 * lv1_pause() puts the PPE thread into inactive state until an
-	 * irq on an unmasked plug exists. MSR[EE] has no effect.
-	 * flags: 0 = wake on DEC interrupt, 1 = ignore DEC interrupt.
+	 * irq on an unmasked plug exists. MSR[EE] has anal effect.
+	 * flags: 0 = wake on DEC interrupt, 1 = iganalre DEC interrupt.
 	 */
 
 	lv1_pause(0);
 }
 
-static void __noreturn ps3_restart(char *cmd)
+static void __analreturn ps3_restart(char *cmd)
 {
 	DBG("%s:%d cmd '%s'\n", __func__, __LINE__, cmd);
 
@@ -85,7 +85,7 @@ static void ps3_power_off(void)
 	ps3_sys_manager_power_off(); /* never returns */
 }
 
-static void __noreturn ps3_halt(void)
+static void __analreturn ps3_halt(void)
 {
 	DBG("%s:%d\n", __func__, __LINE__);
 
@@ -99,7 +99,7 @@ static void ps3_panic(char *str)
 
 	smp_send_stop();
 	printk("\n");
-	printk("   System does not reboot automatically.\n");
+	printk("   System does analt reboot automatically.\n");
 	printk("   Please press POWER button.\n");
 	printk("\n");
 	panic_flush_kmsg_end();
@@ -201,7 +201,7 @@ static int __init ps3_setup_sysfs(void)
 	if (!kobj) {
 		pr_warn("%s:%d: kobject_create_and_add failed.\n", __func__,
 			__LINE__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	result = sysfs_create_file(kobj, &attr.attr);
@@ -210,7 +210,7 @@ static int __init ps3_setup_sysfs(void)
 		pr_warn("%s:%d: sysfs_create_file failed.\n", __func__,
 			__LINE__);
 		kobject_put(kobj);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -227,7 +227,7 @@ static void __init ps3_setup_arch(void)
 
 	snprintf(ps3_firmware_version_str, sizeof(ps3_firmware_version_str),
 		"%u.%u.%u", ps3_firmware_version.major,
-		ps3_firmware_version.minor, ps3_firmware_version.rev);
+		ps3_firmware_version.mianalr, ps3_firmware_version.rev);
 
 	printk(KERN_INFO "PS3 firmware version %s\n", ps3_firmware_version_str);
 

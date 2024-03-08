@@ -11,7 +11,7 @@
 #include "msm_mmu.h"
 #include "msm_fence.h"
 #include "msm_gpu_trace.h"
-#include "adreno/adreno_gpu.h"
+#include "adreanal/adreanal_gpu.h"
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
@@ -73,7 +73,7 @@ static int disable_clk(struct msm_gpu *gpu)
 
 	/*
 	 * Set the clock to a deliberately low rate. On older targets the clock
-	 * speed had to be non zero to avoid problems. On newer targets this
+	 * speed had to be analn zero to avoid problems. On newer targets this
 	 * will be rounded down to zero anyway so it all works out.
 	 */
 	if (gpu->core_clk)
@@ -313,8 +313,8 @@ find_submit(struct msm_ringbuffer *ring, uint32_t fence)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ring->submit_lock, flags);
-	list_for_each_entry(submit, &ring->submits, node) {
-		if (submit->seqno == fence) {
+	list_for_each_entry(submit, &ring->submits, analde) {
+		if (submit->seqanal == fence) {
 			spin_unlock_irqrestore(&ring->submit_lock, flags);
 			return submit;
 		}
@@ -333,7 +333,7 @@ static void get_comm_cmdline(struct msm_gem_submit *submit, char **comm, char **
 
 	WARN_ON(!mutex_is_locked(&submit->gpu->lock));
 
-	/* Note that kstrdup will return NULL if argument is NULL: */
+	/* Analte that kstrdup will return NULL if argument is NULL: */
 	*comm = kstrdup(ctx->comm, GFP_KERNEL);
 	*cmd  = kstrdup(ctx->cmdline, GFP_KERNEL);
 
@@ -368,7 +368,7 @@ static void recover_worker(struct kthread_work *work)
 
 	/*
 	 * If the submit retired while we were waiting for the worker to run,
-	 * or waiting to acquire the gpu lock, then nothing more to do.
+	 * or waiting to acquire the gpu lock, then analthing more to do.
 	 */
 	if (!submit)
 		goto out_unlock;
@@ -387,7 +387,7 @@ static void recover_worker(struct kthread_work *work)
 		msm_rd_dump_submit(priv->hangrd, submit,
 				   "offending task: %s (%s)", comm, cmd);
 	} else {
-		DRM_DEV_ERROR(dev->dev, "%s: offending task: unknown\n", gpu->name);
+		DRM_DEV_ERROR(dev->dev, "%s: offending task: unkanalwn\n", gpu->name);
 
 		msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
@@ -434,7 +434,7 @@ static void recover_worker(struct kthread_work *work)
 			unsigned long flags;
 
 			spin_lock_irqsave(&ring->submit_lock, flags);
-			list_for_each_entry(submit, &ring->submits, node)
+			list_for_each_entry(submit, &ring->submits, analde)
 				gpu->funcs->submit(gpu, submit);
 			spin_unlock_irqrestore(&ring->submit_lock, flags);
 		}
@@ -521,7 +521,7 @@ static void hangcheck_handler(struct timer_list *t)
 		ring->hangcheck_progress_retries = 0;
 	} else if (fence_before(fence, ring->fctx->last_fence) &&
 			!made_progress(gpu, ring)) {
-		/* no progress and not done.. hung! */
+		/* anal progress and analt done.. hung! */
 		ring->hangcheck_fence = fence;
 		ring->hangcheck_progress_retries = 0;
 		DRM_DEV_ERROR(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
@@ -613,7 +613,7 @@ void msm_gpu_perfcntr_stop(struct msm_gpu *gpu)
 	pm_runtime_put_sync(&gpu->pdev->dev);
 }
 
-/* returns -errno or # of cntrs sampled */
+/* returns -erranal or # of cntrs sampled */
 int msm_gpu_perfcntr_sample(struct msm_gpu *gpu, uint32_t *activetime,
 		uint32_t *totaltime, uint32_t ncntrs, uint32_t *cntrs)
 {
@@ -647,13 +647,13 @@ out:
 static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 		struct msm_gem_submit *submit)
 {
-	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
+	int index = submit->seqanal % MSM_GPU_SUBMIT_STATS_COUNT;
 	volatile struct msm_gpu_submit_stats *stats;
 	u64 elapsed, clock = 0, cycles;
 	unsigned long flags;
 
 	stats = &ring->memptrs->stats[index];
-	/* Convert 19.2Mhz alwayson ticks to nanoseconds for elapsed time */
+	/* Convert 19.2Mhz alwayson ticks to naanalseconds for elapsed time */
 	elapsed = (stats->alwayson_end - stats->alwayson_start) * 10000;
 	do_div(elapsed, 192);
 
@@ -676,7 +676,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	pm_runtime_mark_last_busy(&gpu->pdev->dev);
 
 	spin_lock_irqsave(&ring->submit_lock, flags);
-	list_del(&submit->node);
+	list_del(&submit->analde);
 	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 	/* Update devfreq on transition from active->idle: */
@@ -707,12 +707,12 @@ static void retire_submits(struct msm_gpu *gpu)
 
 			spin_lock_irqsave(&ring->submit_lock, flags);
 			submit = list_first_entry_or_null(&ring->submits,
-					struct msm_gem_submit, node);
+					struct msm_gem_submit, analde);
 			spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 			/*
-			 * If no submit, we are done.  If submit->fence hasn't
-			 * been signalled, then later submits are not signalled
+			 * If anal submit, we are done.  If submit->fence hasn't
+			 * been signalled, then later submits are analt signalled
 			 * either, so we are also done.
 			 */
 			if (submit && dma_fence_is_signaled(submit->hw_fence)) {
@@ -757,7 +757,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 
 	msm_gpu_hw_init(gpu);
 
-	submit->seqno = submit->hw_fence->seqno;
+	submit->seqanal = submit->hw_fence->seqanal;
 
 	update_sw_cntrs(gpu);
 
@@ -768,7 +768,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	msm_gem_submit_get(submit);
 
 	spin_lock_irqsave(&ring->submit_lock, flags);
-	list_add_tail(&submit->node, &ring->submits);
+	list_add_tail(&submit->analde, &ring->submits);
 	spin_unlock_irqrestore(&ring->submit_lock, flags);
 
 	/* Update devfreq on transition from idle->active: */
@@ -781,7 +781,7 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	mutex_unlock(&gpu->active_lock);
 
 	gpu->funcs->submit(gpu, submit);
-	gpu->cur_ctx_seqno = submit->queue->ctx->seqno;
+	gpu->cur_ctx_seqanal = submit->queue->ctx->seqanal;
 
 	pm_runtime_put(&gpu->pdev->dev);
 	hangcheck_timer_reset(gpu);
@@ -930,7 +930,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		gpu->gpu_cx = NULL;
 
 	gpu->pdev = pdev;
-	platform_set_drvdata(pdev, &gpu->adreno_smmu);
+	platform_set_drvdata(pdev, &gpu->adreanal_smmu);
 
 	msm_devfreq_init(gpu);
 
@@ -938,7 +938,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->aspace = gpu->funcs->create_address_space(gpu, pdev);
 
 	if (gpu->aspace == NULL)
-		DRM_DEV_INFO(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
+		DRM_DEV_INFO(drm->dev, "%s: anal IOMMU, fallback to VRAM carveout!\n", name);
 	else if (IS_ERR(gpu->aspace)) {
 		ret = PTR_ERR(gpu->aspace);
 		goto fail;
@@ -951,7 +951,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	if (IS_ERR(memptrs)) {
 		ret = PTR_ERR(memptrs);
-		DRM_DEV_ERROR(drm->dev, "could not allocate memptrs: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "could analt allocate memptrs: %d\n", ret);
 		goto fail;
 	}
 
@@ -970,7 +970,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		if (IS_ERR(gpu->rb[i])) {
 			ret = PTR_ERR(gpu->rb[i]);
 			DRM_DEV_ERROR(drm->dev,
-				"could not create ringbuffer %d: %d\n", i, ret);
+				"could analt create ringbuffer %d: %d\n", i, ret);
 			goto fail;
 		}
 

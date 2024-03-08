@@ -1,4 +1,4 @@
-Synopsys ARC Free Running 64-bit Local Timer for ARC HS CPUs
+Syanalpsys ARC Free Running 64-bit Local Timer for ARC HS CPUs
 - clocksource provider for UP SoC
 
 Required properties:

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -163,9 +163,9 @@ struct dmub_srv;
 	DMUB_SF(DMCUB_INTERRUPT_ENABLE, DMCUB_GPINT_IH_INT_EN) \
 	DMUB_SF(DMCUB_INTERRUPT_ACK, DMCUB_GPINT_IH_INT_ACK) \
 	DMUB_SF(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS) \
-	DMUB_SF(DMU_CLK_CNTL, LONO_DISPCLK_GATE_DISABLE) \
-	DMUB_SF(DMU_CLK_CNTL, LONO_SOCCLK_GATE_DISABLE) \
-	DMUB_SF(DMU_CLK_CNTL, LONO_DMCUBCLK_GATE_DISABLE)
+	DMUB_SF(DMU_CLK_CNTL, LOANAL_DISPCLK_GATE_DISABLE) \
+	DMUB_SF(DMU_CLK_CNTL, LOANAL_SOCCLK_GATE_DISABLE) \
+	DMUB_SF(DMU_CLK_CNTL, LOANAL_DMCUBCLK_GATE_DISABLE)
 
 struct dmub_srv_dcn35_reg_offset {
 #define DMUB_SR(reg) uint32_t reg;
@@ -263,7 +263,7 @@ void dmub_dcn35_set_outbox0_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 
 uint32_t dmub_dcn35_get_current_time(struct dmub_srv *dmub);
 
-void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data);
+void dmub_dcn35_get_diaganalstic_data(struct dmub_srv *dmub, struct dmub_diaganalstic_data *diag_data);
 
 void dmub_dcn35_configure_dmub_in_system_memory(struct dmub_srv *dmub);
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef _ASM_LOONGARCH_KVM_TYPES_H

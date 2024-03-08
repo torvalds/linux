@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <net/pkt_cls.h>
@@ -83,7 +83,7 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 	} else {
 		if (!cmsg_port) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid ingress interface for match offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		frame->in_port = cpu_to_be32(cmsg_port);
 	}
@@ -131,7 +131,7 @@ nfp_flower_compile_mpls(struct nfp_flower_mac_mpls *ext,
 		if (match.mask->used_lses != 1) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "unsupported offload: invalid LSE depth for MPLS match offload");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		key_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB,
@@ -648,7 +648,7 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 			entry = nfp_tunnel_add_ipv6_off(app, dst);
 			if (!entry)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			nfp_flow->nfp_tun_ipv6 = entry;
 		} else {
@@ -684,7 +684,7 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 			entry = nfp_tunnel_add_ipv6_off(app, dst);
 			if (!entry)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			nfp_flow->nfp_tun_ipv6 = entry;
 		} else {
@@ -708,14 +708,14 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		}
 	}
 
-	/* Check that the flow key does not exceed the maximum limit.
+	/* Check that the flow key does analt exceed the maximum limit.
 	 * All structures in the key is multiples of 4 bytes, so use u32.
 	 */
 	ext_len = (u32 *)ext - (u32 *)nfp_flow->unmasked_data;
 	if (ext_len > NFP_FLOWER_KEY_MAX_LW) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "unsupported offload: flow key too long");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;

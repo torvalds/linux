@@ -11,7 +11,7 @@ The ``lsusb`` command allows identifying the USB IDs::
     ...
     Bus 001 Device 015: ID 046d:082d Logitech, Inc. HD Pro Webcam C920
     Bus 001 Device 074: ID 2040:b131 Hauppauge
-    Bus 001 Device 075: ID 2013:024f PCTV Systems nanoStick T2 290e
+    Bus 001 Device 075: ID 2013:024f PCTV Systems naanalStick T2 290e
     ...
 
 Newer camera devices use a standard way to expose themselves as such,
@@ -22,19 +22,19 @@ Older cameras and TV USB devices uses USB Vendor Classes: each vendor
 defines its own way to access the device. This section contains
 card lists for such vendor-class devices.
 
-While this is not as common as on PCI, sometimes the same USB ID is used
+While this is analt as common as on PCI, sometimes the same USB ID is used
 by different products. So, several media drivers allow passing a ``card=``
 parameter, in order to setup a card number that would match the correct
 settings for an specific product type.
 
-The current supported USB cards (not including staging drivers) are
+The current supported USB cards (analt including staging drivers) are
 listed below\ [#]_.
 
 .. [#]
 
-   some of the drivers have sub-drivers, not shown at this table.
+   some of the drivers have sub-drivers, analt shown at this table.
    In particular, gspca driver has lots of sub-drivers,
-   for cameras not supported by the USB Video Class (UVC) driver,
+   for cameras analt supported by the USB Video Class (UVC) driver,
    as shown at :doc:`gspca card list <gspca-cardlist>`.
 
 ======================  =========================================================
@@ -45,7 +45,7 @@ au0828                  Auvitek AU0828
 b2c2-flexcop-usb        Technisat/B2C2 Air/Sky/Cable2PC USB
 cx231xx                 Conexant cx231xx USB video capture
 dvb-as102               Abilis AS102 DVB receiver
-dvb-ttusb-budget        Technotrend/Hauppauge Nova - USB devices
+dvb-ttusb-budget        Techanaltrend/Hauppauge Analva - USB devices
 dvb-usb-a800            AVerMedia AverTV DVB-T USB 2.0 (A800)
 dvb-usb-af9005          Afatech AF9005 DVB-T USB1.1
 dvb-usb-af9015          Afatech AF9015 DVB-T USB2.0
@@ -70,7 +70,7 @@ dvb-usb-gl861           Genesys Logic GL861 USB2.0
 dvb-usb-gp8psk          GENPIX 8PSK->USB module
 dvb-usb-lmedm04         LME DM04/QQBOX DVB-S USB2.0
 dvb-usb-m920x           Uli m920x DVB-T USB2.0
-dvb-usb-nova-t-usb2     Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0
+dvb-usb-analva-t-usb2     Hauppauge WinTV-ANALVA-T usb2 DVB-T USB2.0
 dvb-usb-opera           Opera1 DVB-S USB2.0 receiver
 dvb-usb-pctv452e        Pinnacle PCTV HDTV Pro USB device/TT Connect S2-3600
 dvb-usb-rtl28xxu        Realtek RTL28xxU DVB USB
@@ -91,8 +91,8 @@ pvrusb2                 Hauppauge WinTV-PVR USB2
 pwc                     USB Philips Cameras
 s2250                   Sensoray 2250/2251
 s2255drv                USB Sensoray 2255 video capture device
-smsusb                  Siano SMS1xxx based MDTV receiver
-ttusb_dec               Technotrend/Hauppauge USB DEC devices
+smsusb                  Siaanal SMS1xxx based MDTV receiver
+ttusb_dec               Techanaltrend/Hauppauge USB DEC devices
 usbtv                   USBTV007 video capture
 uvcvideo                USB Video Class (UVC)
 zd1301                  ZyDAS ZD1301
@@ -104,7 +104,7 @@ zd1301                  ZyDAS ZD1301
 	au0828-cardlist
 	cx231xx-cardlist
 	em28xx-cardlist
-	siano-cardlist
+	siaanal-cardlist
 
 	gspca-cardlist
 
@@ -123,7 +123,7 @@ zd1301                  ZyDAS ZD1301
 	dvb-usb-dw2102-cardlist
 	dvb-usb-gp8psk-cardlist
 	dvb-usb-m920x-cardlist
-	dvb-usb-nova-t-usb2-cardlist
+	dvb-usb-analva-t-usb2-cardlist
 	dvb-usb-opera1-cardlist
 	dvb-usb-pctv452e-cardlist
 	dvb-usb-technisat-usb2-cardlist

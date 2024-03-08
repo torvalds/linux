@@ -35,7 +35,7 @@ static irqreturn_t lima_mmu_irq_handler(int irq, void *data)
 
 	/* for shared irq case */
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & LIMA_MMU_INT_PAGE_FAULT) {
 		u32 fault = mmu_read(LIMA_MMU_PAGE_FAULT_ADDR);

@@ -270,7 +270,7 @@ static const struct pinctrl_ops pm8xxx_pinctrl_ops = {
 	.get_groups_count	= pm8xxx_get_groups_count,
 	.get_group_name		= pm8xxx_get_group_name,
 	.get_group_pins         = pm8xxx_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map		= pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -818,7 +818,7 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 {
 	struct pm8xxx_pin_data *pin_data;
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct pinctrl_pin_desc *pins;
 	struct gpio_irq_chip *girq;
 	struct pm8xxx_mpp *pctrl;
@@ -827,7 +827,7 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->dev = &pdev->dev;
 	pctrl->npins = (uintptr_t) device_get_match_data(&pdev->dev);
@@ -846,14 +846,14 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 			    sizeof(struct pinctrl_pin_desc),
 			    GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pin_data = devm_kcalloc(&pdev->dev,
 				pctrl->desc.npins,
 				sizeof(struct pm8xxx_pin_data),
 				GFP_KERNEL);
 	if (!pin_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < pctrl->desc.npins; i++) {
 		pin_data[i].reg = SSBI_REG_ADDR_MPP(i);
@@ -887,22 +887,22 @@ static int pm8xxx_mpp_probe(struct platform_device *pdev)
 	pctrl->chip.label = dev_name(pctrl->dev);
 	pctrl->chip.ngpio = pctrl->npins;
 
-	parent_node = of_irq_find_parent(pctrl->dev->of_node);
-	if (!parent_node)
+	parent_analde = of_irq_find_parent(pctrl->dev->of_analde);
+	if (!parent_analde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_analde);
+	of_analde_put(parent_analde);
 	if (!parent_domain)
 		return -ENXIO;
 
 	girq = &pctrl->chip.irq;
 	gpio_irq_chip_set_chip(girq, &pm8xxx_mpp_irq_chip);
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = dev_fwnode(pctrl->dev);
+	girq->fwanalde = dev_fwanalde(pctrl->dev);
 	girq->parent_domain = parent_domain;
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm8821-mpp"))
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,pm8821-mpp"))
 		girq->child_to_parent_hwirq = pm8821_mpp_child_to_parent_hwirq;
 	else
 		girq->child_to_parent_hwirq = pm8xxx_mpp_child_to_parent_hwirq;

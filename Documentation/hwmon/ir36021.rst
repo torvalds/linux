@@ -22,10 +22,10 @@ Description
 The IR36021 is a dual-loop digital multi-phase buck controller designed for
 point of load applications.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

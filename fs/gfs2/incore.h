@@ -41,11 +41,11 @@ struct gfs2_log_header_host {
 	u64 lh_sequence;	/* Sequence number of this transaction */
 	u32 lh_flags;		/* GFS2_LOG_HEAD_... */
 	u32 lh_tail;		/* Block number of log tail */
-	u32 lh_blkno;
+	u32 lh_blkanal;
 
 	s64 lh_local_total;
 	s64 lh_local_free;
-	s64 lh_local_dinodes;
+	s64 lh_local_dianaldes;
 };
 
 /*
@@ -74,7 +74,7 @@ struct gfs2_log_operations {
  *   clone bitmap, and only mark the block as free in the real bitmap.
  *
  * - When looking for a block to allocate, we check for a free block in the
- *   clone bitmap, and if no clone bitmap exists, in the real bitmap.
+ *   clone bitmap, and if anal clone bitmap exists, in the real bitmap.
  *
  * - For allocating a block, we mark it as allocated in the real bitmap, and if
  *   a clone bitmap exists, also in the clone bitmap.
@@ -85,7 +85,7 @@ struct gfs2_log_operations {
  *
  * The clone bitmaps are in-core only, and is never written to disk.
  *
- * These steps ensure that blocks which have been freed in a transaction cannot
+ * These steps ensure that blocks which have been freed in a transaction cananalt
  * be reallocated in that same transaction.
  */
 struct gfs2_bitmap {
@@ -99,7 +99,7 @@ struct gfs2_bitmap {
 };
 
 struct gfs2_rgrpd {
-	struct rb_node rd_node;		/* Link with superblock */
+	struct rb_analde rd_analde;		/* Link with superblock */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	u64 rd_addr;			/* grp block disk address */
 	u64 rd_data0;			/* first data location */
@@ -110,7 +110,7 @@ struct gfs2_rgrpd {
 	u32 rd_requested;		/* number of blocks in rd_rstree */
 	u32 rd_reserved;		/* number of reserved blocks */
 	u32 rd_free_clone;
-	u32 rd_dinodes;
+	u32 rd_dianaldes;
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
 	struct gfs2_sbd *rd_sbd;
@@ -118,7 +118,7 @@ struct gfs2_rgrpd {
 	u32 rd_last_alloc;
 	u32 rd_flags;
 	u32 rd_extfail_pt;		/* extent failure point */
-#define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
+#define GFS2_RDF_CHECK		0x10000000 /* check for unlinked ianaldes */
 #define GFS2_RDF_ERROR		0x40000000 /* error in rg */
 #define GFS2_RDF_PREFERRED	0x80000000 /* This rgrp is preferred */
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
@@ -140,7 +140,7 @@ TAS_BUFFER_FNS(Escaped, escaped)
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
 	struct gfs2_glock *bd_gl;
-	u64 bd_blkno;
+	u64 bd_blkanal;
 
 	struct list_head bd_list;
 
@@ -161,7 +161,7 @@ struct gfs2_bufdata {
  * ls_recover_flags:
  *
  * DFL_BLOCK_LOCKS: dlm is in recovery and will grant locks that had been
- * held by failed nodes whose journals need recovery.  Those locks should
+ * held by failed analdes whose journals need recovery.  Those locks should
  * only be used for journal recovery until the journal recovery is done.
  * This is set by the dlm recover_prep callback and cleared by the
  * gfs2_control thread when journal recovery is complete.  To avoid
@@ -169,17 +169,17 @@ struct gfs2_bufdata {
  * is held while changing this bit and reading/writing recover_block
  * and recover_start.
  *
- * DFL_NO_DLM_OPS: dlm lockspace ops/callbacks are not being used.
+ * DFL_ANAL_DLM_OPS: dlm lockspace ops/callbacks are analt being used.
  *
- * DFL_FIRST_MOUNT: this node is the first to mount this fs and is doing
- * recovery of all journals before allowing other nodes to mount the fs.
+ * DFL_FIRST_MOUNT: this analde is the first to mount this fs and is doing
+ * recovery of all journals before allowing other analdes to mount the fs.
  * This is cleared when FIRST_MOUNT_DONE is set.
  *
- * DFL_FIRST_MOUNT_DONE: this node was the first mounter, and has finished
- * recovery of all journals, and now allows other nodes to mount the fs.
+ * DFL_FIRST_MOUNT_DONE: this analde was the first mounter, and has finished
+ * recovery of all journals, and analw allows other analdes to mount the fs.
  *
  * DFL_MOUNT_DONE: gdlm_mount has completed successfully and cleared
- * BLOCK_LOCKS for the first time.  The gfs2_control thread should now
+ * BLOCK_LOCKS for the first time.  The gfs2_control thread should analw
  * control clearing BLOCK_LOCKS for further recoveries.
  *
  * DFL_UNMOUNT: gdlm_unmount sets to keep sdp off gfs2_control_wq.
@@ -190,7 +190,7 @@ struct gfs2_bufdata {
 
 enum {
 	DFL_BLOCK_LOCKS		= 0,
-	DFL_NO_DLM_OPS		= 1,
+	DFL_ANAL_DLM_OPS		= 1,
 	DFL_FIRST_MOUNT		= 2,
 	DFL_FIRST_MOUNT_DONE	= 3,
 	DFL_MOUNT_DONE		= 4,
@@ -231,12 +231,12 @@ struct gfs2_glock_operations {
 #define GLOF_ASPACE 1 /* address space attached */
 #define GLOF_LVB    2 /* Lock Value Block attached */
 #define GLOF_LRU    4 /* LRU managed */
-#define GLOF_NONDISK   8 /* not I/O related */
+#define GLOF_ANALNDISK   8 /* analt I/O related */
 };
 
 enum {
-	GFS2_LKS_SRTT = 0,	/* Non blocking smoothed round trip time */
-	GFS2_LKS_SRTTVAR = 1,	/* Non blocking smoothed variance */
+	GFS2_LKS_SRTT = 0,	/* Analn blocking smoothed round trip time */
+	GFS2_LKS_SRTTVAR = 1,	/* Analn blocking smoothed variance */
 	GFS2_LKS_SRTTB = 2,	/* Blocking smoothed round trip time */
 	GFS2_LKS_SRTTVARB = 3,	/* Blocking smoothed variance */
 	GFS2_LKS_SIRT = 4,	/* Smoothed Inter-request time */
@@ -290,7 +290,7 @@ struct gfs2_qadata { /* quota allocation data */
 */
 
 struct gfs2_blkreserv {
-	struct rb_node rs_node;       /* node within rd_rstree */
+	struct rb_analde rs_analde;       /* analde within rd_rstree */
 	struct gfs2_rgrpd *rs_rgd;
 	u64 rs_start;
 	u32 rs_requested;
@@ -325,7 +325,7 @@ enum {
 	GLF_REPLY_PENDING		= 9,
 	GLF_INITIAL			= 10,
 	GLF_FROZEN			= 11,
-	GLF_INSTANTIATE_IN_PROG		= 12, /* instantiate happening now */
+	GLF_INSTANTIATE_IN_PROG		= 12, /* instantiate happening analw */
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
@@ -343,7 +343,7 @@ struct gfs2_glock {
 	/* State fields protected by gl_lockref.lock */
 	unsigned int gl_state:2,	/* Current state */
 		     gl_target:2,	/* Target state */
-		     gl_demote_state:2,	/* State requested by remote node */
+		     gl_demote_state:2,	/* State requested by remote analde */
 		     gl_req:2,		/* State in last dlm request */
 		     gl_reply:8;	/* Last reply from the dlm */
 
@@ -366,25 +366,25 @@ struct gfs2_glock {
 	/* For iopen glocks only */
 	struct {
 		struct delayed_work gl_delete;
-		u64 gl_no_formal_ino;
+		u64 gl_anal_formal_ianal;
 	};
 	struct rcu_head gl_rcu;
-	struct rhash_head gl_node;
+	struct rhash_head gl_analde;
 };
 
 enum {
 	GIF_QD_LOCKED		= 1,
 	GIF_ALLOC_FAILED	= 2,
 	GIF_SW_PAGED		= 3,
-	GIF_FREE_VFS_INODE      = 5,
+	GIF_FREE_VFS_IANALDE      = 5,
 	GIF_GLOP_PENDING	= 6,
 	GIF_DEFERRED_DELETE	= 7,
 };
 
-struct gfs2_inode {
-	struct inode i_inode;
-	u64 i_no_addr;
-	u64 i_no_formal_ino;
+struct gfs2_ianalde {
+	struct ianalde i_ianalde;
+	u64 i_anal_addr;
+	u64 i_anal_formal_ianal;
 	u64 i_generation;
 	u64 i_eattr;
 	unsigned long i_flags;		/* GIF_... */
@@ -406,17 +406,17 @@ struct gfs2_inode {
 };
 
 /*
- * Since i_inode is the first element of struct gfs2_inode,
+ * Since i_ianalde is the first element of struct gfs2_ianalde,
  * this is effectively a cast.
  */
-static inline struct gfs2_inode *GFS2_I(struct inode *inode)
+static inline struct gfs2_ianalde *GFS2_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct gfs2_inode, i_inode);
+	return container_of(ianalde, struct gfs2_ianalde, i_ianalde);
 }
 
-static inline struct gfs2_sbd *GFS2_SB(const struct inode *inode)
+static inline struct gfs2_sbd *GFS2_SB(const struct ianalde *ianalde)
 {
-	return inode->i_sb->s_fs_info;
+	return ianalde->i_sb->s_fs_info;
 }
 
 struct gfs2_file {
@@ -426,7 +426,7 @@ struct gfs2_file {
 
 struct gfs2_revoke_replay {
 	struct list_head rr_list;
-	u64 rr_blkno;
+	u64 rr_blkanal;
 	unsigned int rr_where;
 };
 
@@ -438,7 +438,7 @@ enum {
 };
 
 struct gfs2_quota_data {
-	struct hlist_bl_node qd_hlist;
+	struct hlist_bl_analde qd_hlist;
 	struct list_head qd_list;
 	struct kqid qd_id;
 	struct gfs2_sbd *qd_sbd;
@@ -508,7 +508,7 @@ struct gfs2_jdesc {
 	struct list_head extent_list;
 	unsigned int nr_extents;
 	struct work_struct jd_work;
-	struct inode *jd_inode;
+	struct ianalde *jd_ianalde;
 	struct bio *jd_log_bio;
 	unsigned long jd_flags;
 #define JDF_RECOVERY 1
@@ -524,20 +524,20 @@ struct gfs2_jdesc {
 	struct list_head jd_revoke_list;
 	unsigned int jd_replay_tail;
 
-	u64 jd_no_addr;
+	u64 jd_anal_addr;
 };
 
 struct gfs2_statfs_change_host {
 	s64 sc_total;
 	s64 sc_free;
-	s64 sc_dinodes;
+	s64 sc_dianaldes;
 };
 
 #define GFS2_QUOTA_DEFAULT	GFS2_QUOTA_OFF
 #define GFS2_QUOTA_OFF		0
 #define GFS2_QUOTA_ACCOUNT	1
 #define GFS2_QUOTA_ON		2
-#define GFS2_QUOTA_QUIET	3 /* on but not complaining */
+#define GFS2_QUOTA_QUIET	3 /* on but analt complaining */
 
 #define GFS2_DATA_DEFAULT	GFS2_DATA_ORDERED
 #define GFS2_DATA_WRITEBACK	1
@@ -563,7 +563,7 @@ struct gfs2_args {
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
-	unsigned int ar_nobarrier:1;            /* do not send barriers */
+	unsigned int ar_analbarrier:1;            /* do analt send barriers */
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
 	unsigned int ar_got_rgrplvb:1;		/* Was the rgrplvb opt given? */
 	unsigned int ar_loccookie:1;		/* use location based readdir
@@ -581,7 +581,7 @@ struct gfs2_tune {
 
 	unsigned int gt_quota_warn_period; /* Secs between quota warn msgs */
 	unsigned int gt_quota_scale_num; /* Numerator */
-	unsigned int gt_quota_scale_den; /* Denominator */
+	unsigned int gt_quota_scale_den; /* Deanalminator */
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
@@ -594,10 +594,10 @@ enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
 	SDF_WITHDRAWN		= 2,
-	SDF_NOBARRIERS		= 3,
-	SDF_NORECOVERY		= 4,
+	SDF_ANALBARRIERS		= 3,
+	SDF_ANALRECOVERY		= 4,
 	SDF_DEMOTE		= 5,
-	SDF_NOJOURNALID		= 6,
+	SDF_ANALJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
 	SDF_SKIP_DLM_UNLOCK	= 8,
 	SDF_FORCE_AIL_FLUSH     = 9,
@@ -615,8 +615,8 @@ enum {
 #define GFS2_FSNAME_LEN		256
 
 struct gfs2_inum_host {
-	u64 no_formal_ino;
-	u64 no_addr;
+	u64 anal_formal_ianal;
+	u64 anal_addr;
 };
 
 struct gfs2_sb_host {
@@ -638,8 +638,8 @@ struct gfs2_sb_host {
 /*
  * lm_mount() return values
  *
- * ls_jid - the journal ID this node should use
- * ls_first - this node is the first to mount the file system
+ * ls_jid - the journal ID this analde should use
+ * ls_first - this analde is the first to mount the file system
  * ls_lockspace - lock module's context for this file system
  * ls_ops - lock module's functions
  */
@@ -674,11 +674,11 @@ struct gfs2_pcpu_lkstats {
 	struct gfs2_lkstats lkstats[10];
 };
 
-/* List of local (per node) statfs inodes */
-struct local_statfs_inode {
+/* List of local (per analde) statfs ianaldes */
+struct local_statfs_ianalde {
 	struct list_head si_list;
-	struct inode *si_sc_inode;
-	unsigned int si_jid; /* journal id this statfs inode corresponds to */
+	struct ianalde *si_sc_ianalde;
+	unsigned int si_jid; /* journal id this statfs ianalde corresponds to */
 };
 
 struct gfs2_sbd {
@@ -693,7 +693,7 @@ struct gfs2_sbd {
 
 	u32 sd_fsb2bb;
 	u32 sd_fsb2bb_shift;
-	u32 sd_diptrs;	/* Number of pointers in a dinode */
+	u32 sd_diptrs;	/* Number of pointers in a dianalde */
 	u32 sd_inptrs;	/* Number of pointers in a indirect block */
 	u32 sd_ldptrs;  /* Number of pointers in a log descriptor block */
 	u32 sd_jbsize;	/* Size of a journaled data block */
@@ -724,18 +724,18 @@ struct gfs2_sbd {
 	struct completion sd_wdack;
 	struct delayed_work sd_control_work;
 
-	/* Inode Stuff */
+	/* Ianalde Stuff */
 
 	struct dentry *sd_master_dir;
 	struct dentry *sd_root_dir;
 
-	struct inode *sd_jindex;
-	struct inode *sd_statfs_inode;
-	struct inode *sd_sc_inode;
-	struct list_head sd_sc_inodes_list;
-	struct inode *sd_qc_inode;
-	struct inode *sd_rindex;
-	struct inode *sd_quota_inode;
+	struct ianalde *sd_jindex;
+	struct ianalde *sd_statfs_ianalde;
+	struct ianalde *sd_sc_ianalde;
+	struct list_head sd_sc_ianaldes_list;
+	struct ianalde *sd_qc_ianalde;
+	struct ianalde *sd_rindex;
+	struct ianalde *sd_quota_ianalde;
 
 	/* StatFS stuff */
 
@@ -761,8 +761,8 @@ struct gfs2_sbd {
 
 	struct gfs2_jdesc *sd_jdesc;
 	struct gfs2_holder sd_journal_gh;
-	struct gfs2_holder sd_jinode_gh;
-	struct gfs2_glock *sd_jinode_gl;
+	struct gfs2_holder sd_jianalde_gh;
+	struct gfs2_glock *sd_jianalde_gl;
 
 	struct gfs2_holder sd_sc_gh;
 	struct buffer_head *sd_sc_bh;
@@ -865,9 +865,9 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 
 struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
-static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
+static inline unsigned gfs2_max_stuffed_size(const struct gfs2_ianalde *ip)
 {
-	return GFS2_SB(&ip->i_inode)->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+	return GFS2_SB(&ip->i_ianalde)->sd_sb.sb_bsize - sizeof(struct gfs2_dianalde);
 }
 
 #endif /* __INCORE_DOT_H__ */

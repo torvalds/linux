@@ -18,7 +18,7 @@ static inline u32 get_baudrate(void) { return -1; }
 extern u32 fsl_get_sys_freq(void);
 
 struct spi_board_info;
-struct device_node;
+struct device_analde;
 
 /* The different ports that the DIU can be connected to */
 enum fsl_diu_monitor_port {
@@ -41,8 +41,8 @@ struct platform_diu_data_ops {
 
 extern struct platform_diu_data_ops diu_ops;
 
-void __noreturn fsl_hv_restart(char *cmd);
-void __noreturn fsl_hv_halt(void);
+void __analreturn fsl_hv_restart(char *cmd);
+void __analreturn fsl_hv_halt(void);
 
 #endif
 #endif

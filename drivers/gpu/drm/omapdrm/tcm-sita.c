@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/bitmap.h>
@@ -53,7 +53,7 @@ static int r2l_b2t_1d(u16 w, unsigned long *pos, unsigned long *map,
 		bit = find_next_bit(map, num_bits, *pos);
 
 		if (bit - *pos >= w) {
-			/* found a long enough free area */
+			/* found a long eanalugh free area */
 			bitmap_set(map, *pos, w);
 			area_found = true;
 			break;
@@ -63,7 +63,7 @@ static int r2l_b2t_1d(u16 w, unsigned long *pos, unsigned long *map,
 		*pos = bit - w;
 	}
 
-	return (area_found) ? 0 : -ENOMEM;
+	return (area_found) ? 0 : -EANALMEM;
 }
 
 /*
@@ -97,7 +97,7 @@ static int l2r_t2b(u16 w, u16 h, u16 a, s16 offset,
 		*pos = bitmap_find_next_zero_area(map, num_bits, curr_bit, w,
 				a);
 
-		/* skip forward if we are not at right offset */
+		/* skip forward if we are analt at right offset */
 		if (bit_offset > 0 && (*pos % slots_per_band != bit_offset)) {
 			curr_bit = ALIGN(*pos, slots_per_band) + bit_offset;
 			continue;
@@ -148,7 +148,7 @@ static int l2r_t2b(u16 w, u16 h, u16 a, s16 offset,
 			bitmap_set(map, index, w);
 	}
 
-	return (area_free) ? 0 : -ENOMEM;
+	return (area_free) ? 0 : -EANALMEM;
 }
 
 static s32 sita_reserve_1d(struct tcm *tcm, u32 num_slots,

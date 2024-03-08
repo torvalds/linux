@@ -5,7 +5,7 @@
 #include "pxa-regs.h"
 
 #ifdef _ASM_ARCH_PXA25X_UDC_H
-#error You cannot include both PXA25x and PXA27x UDC support
+#error You cananalt include both PXA25x and PXA27x UDC support
 #endif
 
 #define UDCCR           __REG(0x40600000) /* UDC Control Register */
@@ -105,7 +105,7 @@
 #define UDCCSN(x)	__REG2(0x40600100, (x) << 2)
 #define UDCCSR0         __REG(0x40600100) /* UDC Control/Status register - Endpoint 0 */
 #define UDCCSR0_SA	(1 << 7)	/* Setup Active */
-#define UDCCSR0_RNE	(1 << 6)	/* Receive FIFO Not Empty */
+#define UDCCSR0_RNE	(1 << 6)	/* Receive FIFO Analt Empty */
 #define UDCCSR0_FST	(1 << 5)	/* Force Stall */
 #define UDCCSR0_SST	(1 << 4)	/* Sent Stall */
 #define UDCCSR0_DME	(1 << 3)	/* DMA Enable */
@@ -140,8 +140,8 @@
 #define UDCCSR_DPE	(1 << 9)	/* Data Packet Error */
 #define UDCCSR_FEF	(1 << 8)	/* Flush Endpoint FIFO */
 #define UDCCSR_SP	(1 << 7)	/* Short Packet Control/Status */
-#define UDCCSR_BNE	(1 << 6)	/* Buffer Not Empty (IN endpoints) */
-#define UDCCSR_BNF	(1 << 6)	/* Buffer Not Full (OUT endpoints) */
+#define UDCCSR_BNE	(1 << 6)	/* Buffer Analt Empty (IN endpoints) */
+#define UDCCSR_BNF	(1 << 6)	/* Buffer Analt Full (OUT endpoints) */
 #define UDCCSR_FST	(1 << 5)	/* Force STALL */
 #define UDCCSR_SST	(1 << 4)	/* Sent STALL */
 #define UDCCSR_DME	(1 << 3)	/* DMA Enable */
@@ -240,8 +240,8 @@
 #define UDCCONR_ET_S	(13)
 #define UDCCONR_ET_INT	(0x03 << 13)	/*   Interrupt */
 #define UDCCONR_ET_BULK	(0x02 << 13)	/*   Bulk */
-#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochronous */
-#define UDCCONR_ET_NU	(0x00 << 13)	/*   Not used */
+#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochroanalus */
+#define UDCCONR_ET_NU	(0x00 << 13)	/*   Analt used */
 #define UDCCONR_ED	(1 << 12)	/* Endpoint Direction */
 #define UDCCONR_MPS	(0x3ff << 2)	/* Maximum Packet Size */
 #define UDCCONR_MPS_S	(2)

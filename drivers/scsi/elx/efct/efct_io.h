@@ -47,7 +47,7 @@ enum efct_els_state {
  * @efct:		pointer back to efct
  * @instance_index:	unique instance index value
  * @io:			IO display name
- * @node:		pointer to node
+ * @analde:		pointer to analde
  * @list_entry:		io list entry
  * @io_pending_link:	io pending list entry
  * @ref:		reference counter
@@ -81,7 +81,7 @@ enum efct_els_state {
  * @cmd_tgt:		True if this is a Target command
  * @send_abts:		when aborting, indicates ABTS is to be sent
  * @cmd_ini:		True if this is an Initiator command
- * @seq_init:		True if local node has sequence initiative
+ * @seq_init:		True if local analde has sequence initiative
  * @iparam:		iparams for hw io send call
  * @hio_type:		HW IO type
  * @wire_len:		wire length
@@ -97,7 +97,7 @@ struct efct_io {
 	struct efct		*efct;
 	u32			instance_index;
 	const char		*display_name;
-	struct efct_node	*node;
+	struct efct_analde	*analde;
 
 	struct list_head	list_entry;
 	struct list_head	io_pending_link;
@@ -169,6 +169,6 @@ efct_io_pool_io_alloc(struct efct_io_pool *io_pool);
 void
 efct_io_pool_io_free(struct efct_io_pool *io_pool, struct efct_io *io);
 struct efct_io *
-efct_io_find_tgt_io(struct efct *efct, struct efct_node *node,
+efct_io_find_tgt_io(struct efct *efct, struct efct_analde *analde,
 		    u16 ox_id, u16 rx_id);
 #endif /* __EFCT_IO_H__ */

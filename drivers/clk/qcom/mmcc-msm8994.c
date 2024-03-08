@@ -300,7 +300,7 @@ static struct clk_alpha_pll_postdiv mmpll5 = {
 };
 
 static const struct freq_tbl ftbl_ahb_clk_src[] = {
-	/* Note: There might be more frequencies desired here. */
+	/* Analte: There might be more frequencies desired here. */
 	F(19200000, P_XO, 1, 0, 0),
 	F(40000000, P_GPLL0, 15, 0, 0),
 	F(80000000, P_MMPLL0, 10, 0, 0),
@@ -677,7 +677,7 @@ static struct clk_rcg2 pclk0_clk_src = {
 		.parent_data = mmcc_xo_dsi0pll_dsi1pll,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsi0pll_dsi1pll),
 		.ops = &clk_pixel_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -691,11 +691,11 @@ static struct clk_rcg2 pclk1_clk_src = {
 		.parent_data = mmcc_xo_dsi0pll_dsi1pll,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsi0pll_dsi1pll),
 		.ops = &clk_pixel_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
-static const struct freq_tbl ftbl_ocmemnoc_clk_src[] = {
+static const struct freq_tbl ftbl_ocmemanalc_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(75000000, P_GPLL0, 8, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
@@ -707,7 +707,7 @@ static const struct freq_tbl ftbl_ocmemnoc_clk_src[] = {
 	{ }
 };
 
-static const struct freq_tbl ftbl_ocmemnoc_clk_src_8992[] = {
+static const struct freq_tbl ftbl_ocmemanalc_clk_src_8992[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(75000000, P_GPLL0, 8, 0, 0),
 	F(100000000, P_GPLL0, 6, 0, 0),
@@ -717,13 +717,13 @@ static const struct freq_tbl ftbl_ocmemnoc_clk_src_8992[] = {
 	{ }
 };
 
-static struct clk_rcg2 ocmemnoc_clk_src = {
+static struct clk_rcg2 ocmemanalc_clk_src = {
 	.cmd_rcgr = 0x5090,
 	.hid_width = 5,
 	.parent_map = mmcc_xo_gpll0_mmpll0_map,
-	.freq_tbl = ftbl_ocmemnoc_clk_src,
+	.freq_tbl = ftbl_ocmemanalc_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
-		.name = "ocmemnoc_clk_src",
+		.name = "ocmemanalc_clk_src",
 		.parent_data = mmcc_xo_gpll0_mmpll0,
 		.num_parents = ARRAY_SIZE(mmcc_xo_gpll0_mmpll0),
 		.ops = &clk_rcg2_ops,
@@ -957,7 +957,7 @@ static struct clk_rcg2 byte0_clk_src = {
 		.parent_data = mmcc_xo_dsibyte,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsibyte),
 		.ops = &clk_byte2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -970,7 +970,7 @@ static struct clk_rcg2 byte1_clk_src = {
 		.parent_data = mmcc_xo_dsibyte,
 		.num_parents = ARRAY_SIZE(mmcc_xo_dsibyte),
 		.ops = &clk_byte2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_ANALCACHE,
 	},
 };
 
@@ -2057,13 +2057,13 @@ static struct clk_branch mmss_misc_ahb_clk = {
 	},
 };
 
-static struct clk_branch mmss_mmssnoc_axi_clk = {
+static struct clk_branch mmss_mmssanalc_axi_clk = {
 	.halt_reg = 0x506c,
 	.clkr = {
 		.enable_reg = 0x506c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mmss_mmssnoc_axi_clk",
+			.name = "mmss_mmssanalc_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){ &axi_clk_src.clkr.hw },
 			.num_parents = 1,
 			/* Gating this clock will wreck havoc among MMSS! */
@@ -2082,20 +2082,20 @@ static struct clk_branch mmss_s0_axi_clk = {
 			.name = "mmss_s0_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){ &axi_clk_src.clkr.hw, },
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGANALRE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
 };
 
-static struct clk_branch ocmemcx_ocmemnoc_clk = {
+static struct clk_branch ocmemcx_ocmemanalc_clk = {
 	.halt_reg = 0x4058,
 	.clkr = {
 		.enable_reg = 0x4058,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "ocmemcx_ocmemnoc_clk",
-			.parent_hws = (const struct clk_hw *[]){ &ocmemnoc_clk_src.clkr.hw },
+			.name = "ocmemcx_ocmemanalc_clk",
+			.parent_hws = (const struct clk_hw *[]){ &ocmemanalc_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
@@ -2180,14 +2180,14 @@ static struct clk_branch venus0_axi_clk = {
 	},
 };
 
-static struct clk_branch venus0_ocmemnoc_clk = {
+static struct clk_branch venus0_ocmemanalc_clk = {
 	.halt_reg = 0x1038,
 	.clkr = {
 		.enable_reg = 0x1038,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "venus0_ocmemnoc_clk",
-			.parent_hws = (const struct clk_hw *[]){ &ocmemnoc_clk_src.clkr.hw },
+			.name = "venus0_ocmemanalc_clk",
+			.parent_hws = (const struct clk_hw *[]){ &ocmemanalc_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
@@ -2410,7 +2410,7 @@ static struct clk_regmap *mmcc_msm8994_clocks[] = {
 	[MDP_CLK_SRC] = &mdp_clk_src.clkr,
 	[PCLK0_CLK_SRC] = &pclk0_clk_src.clkr,
 	[PCLK1_CLK_SRC] = &pclk1_clk_src.clkr,
-	[OCMEMNOC_CLK_SRC] = &ocmemnoc_clk_src.clkr,
+	[OCMEMANALC_CLK_SRC] = &ocmemanalc_clk_src.clkr,
 	[CCI_CLK_SRC] = &cci_clk_src.clkr,
 	[MMSS_GP0_CLK_SRC] = &mmss_gp0_clk_src.clkr,
 	[MMSS_GP1_CLK_SRC] = &mmss_gp1_clk_src.clkr,
@@ -2497,15 +2497,15 @@ static struct clk_regmap *mmcc_msm8994_clocks[] = {
 	[MDSS_PCLK1_CLK] = &mdss_pclk1_clk.clkr,
 	[MDSS_VSYNC_CLK] = &mdss_vsync_clk.clkr,
 	[MMSS_MISC_AHB_CLK] = &mmss_misc_ahb_clk.clkr,
-	[MMSS_MMSSNOC_AXI_CLK] = &mmss_mmssnoc_axi_clk.clkr,
+	[MMSS_MMSSANALC_AXI_CLK] = &mmss_mmssanalc_axi_clk.clkr,
 	[MMSS_S0_AXI_CLK] = &mmss_s0_axi_clk.clkr,
-	[OCMEMCX_OCMEMNOC_CLK] = &ocmemcx_ocmemnoc_clk.clkr,
+	[OCMEMCX_OCMEMANALC_CLK] = &ocmemcx_ocmemanalc_clk.clkr,
 	[OXILI_GFX3D_CLK] = &oxili_gfx3d_clk.clkr,
 	[OXILI_RBBMTIMER_CLK] = &oxili_rbbmtimer_clk.clkr,
 	[OXILICX_AHB_CLK] = &oxilicx_ahb_clk.clkr,
 	[VENUS0_AHB_CLK] = &venus0_ahb_clk.clkr,
 	[VENUS0_AXI_CLK] = &venus0_axi_clk.clkr,
-	[VENUS0_OCMEMNOC_CLK] = &venus0_ocmemnoc_clk.clkr,
+	[VENUS0_OCMEMANALC_CLK] = &venus0_ocmemanalc_clk.clkr,
 	[VENUS0_VCODEC0_CLK] = &venus0_vcodec0_clk.clkr,
 	[VENUS0_CORE0_VCODEC_CLK] = &venus0_core0_vcodec_clk.clkr,
 	[VENUS0_CORE1_VCODEC_CLK] = &venus0_core1_vcodec_clk.clkr,
@@ -2560,7 +2560,7 @@ static int mmcc_msm8994_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,mmcc-msm8992")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,mmcc-msm8992")) {
 		/* MSM8992 features less clocks and some have different freq tables */
 		mmcc_msm8994_desc.clks[CAMSS_JPEG_JPEG1_CLK] = NULL;
 		mmcc_msm8994_desc.clks[CAMSS_JPEG_JPEG2_CLK] = NULL;
@@ -2587,7 +2587,7 @@ static int mmcc_msm8994_probe(struct platform_device *pdev)
 		mclk2_clk_src.freq_tbl = ftbl_mclk1_2_3_clk_src_8992;
 		mclk3_clk_src.freq_tbl = ftbl_mclk1_2_3_clk_src_8992;
 		mdp_clk_src.freq_tbl = ftbl_mdp_clk_src_8992;
-		ocmemnoc_clk_src.freq_tbl = ftbl_ocmemnoc_clk_src_8992;
+		ocmemanalc_clk_src.freq_tbl = ftbl_ocmemanalc_clk_src_8992;
 		vcodec0_clk_src.freq_tbl = ftbl_vcodec0_clk_src_8992;
 		vfe0_clk_src.freq_tbl = ftbl_vfe0_1_clk_src_8992;
 		vfe1_clk_src.freq_tbl = ftbl_vfe0_1_clk_src_8992;

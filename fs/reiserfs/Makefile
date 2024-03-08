@@ -5,7 +5,7 @@
 
 obj-$(CONFIG_REISERFS_FS) += reiserfs.o
 
-reiserfs-objs := bitmap.o do_balan.o namei.o inode.o file.o dir.o fix_node.o \
+reiserfs-objs := bitmap.o do_balan.o namei.o ianalde.o file.o dir.o fix_analde.o \
 		 super.o prints.o objectid.o lbalance.o ibalance.o stree.o \
 		 hashes.o tail_conversion.o journal.o resize.o \
 		 item_ops.o ioctl.o xattr.o lock.o

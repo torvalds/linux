@@ -4,7 +4,7 @@
  *
  * These are the RPC server socket internals.
  *
- * The server scheduling algorithm does not always distribute the load
+ * The server scheduling algorithm does analt always distribute the load
  * evenly when servicing a single client. May need to modify the
  * svc_xprt_enqueue procedure...
  *
@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/net.h>
 #include <linux/in.h>
@@ -216,7 +216,7 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 		break;
 #endif
 	default:
-		len = snprintf(buf, remaining, "*unknown-%d*\n",
+		len = snprintf(buf, remaining, "*unkanalwn-%d*\n",
 				sk->sk_family);
 	}
 
@@ -247,7 +247,7 @@ svc_tcp_sock_process_cmsg(struct socket *sock, struct msghdr *msg,
 	case TLS_RECORD_TYPE_ALERT:
 		tls_alert_recv(sock->sk, msg, &level, &description);
 		ret = (level == TLS_ALERT_LEVEL_FATAL) ?
-			-ENOTCONN : -EAGAIN;
+			-EANALTCONN : -EAGAIN;
 		break;
 	default:
 		/* discard this record type */
@@ -402,14 +402,14 @@ static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 
 	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
 		return 1;
-	return !test_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
+	return !test_bit(SOCK_ANALSPACE, &svsk->sk_sock->flags);
 }
 
 static void svc_tcp_kill_temp_xprt(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 
-	sock_no_linger(svsk->sk_sock->sk);
+	sock_anal_linger(svsk->sk_sock->sk);
 }
 
 /**
@@ -429,7 +429,7 @@ static void svc_tcp_handshake_done(void *data, int status, key_serial_t peerid)
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 
 	if (!status) {
-		if (peerid != TLS_NO_PEERID)
+		if (peerid != TLS_ANAL_PEERID)
 			set_bit(XPT_PEER_AUTH, &xprt->xpt_flags);
 		set_bit(XPT_TLS_SESSION, &xprt->xpt_flags);
 	}
@@ -460,7 +460,7 @@ static void svc_tcp_handshake(struct svc_xprt *xprt)
 
 	ret = tls_server_hello_x509(&args, GFP_KERNEL);
 	if (ret) {
-		trace_svc_tls_not_started(xprt);
+		trace_svc_tls_analt_started(xprt);
 		goto out_failed;
 	}
 
@@ -533,7 +533,7 @@ static int svc_udp_get_dest_address6(struct svc_rqst *rqstp,
  * Copy the UDP datagram's destination address to the rqstp structure.
  * The 'destination' address in this case is the address to which the
  * peer sent the datagram, i.e. our local address. For multihomed
- * hosts, this can change from msg to msg. Note that only the IP
+ * hosts, this can change from msg to msg. Analte that only the IP
  * address changes, the port number should remain the same.
  */
 static int svc_udp_get_dest_address(struct svc_rqst *rqstp,
@@ -557,7 +557,7 @@ static int svc_udp_get_dest_address(struct svc_rqst *rqstp,
  *
  * Returns:
  *   On success, the number of bytes in a received RPC Call, or
- *   %0 if a complete RPC Call message was not ready to return
+ *   %0 if a complete RPC Call message was analt ready to return
  */
 static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 {
@@ -582,7 +582,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
 	    /* udp sockets need large rcvbuf as all pending
 	     * requests are still in that buffer.  sndbuf must
-	     * also be large enough that there is enough space
+	     * also be large eanalugh that there is eanalugh space
 	     * for one reply per thread.  We count all threads
 	     * rather than threads in a particular pool, which
 	     * provides an upper bound on the number of threads
@@ -619,7 +619,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		goto out_cmsg_err;
 	rqstp->rq_daddrlen = svc_addr_len(svc_daddr(rqstp));
 
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_analnlinear(skb)) {
 		/* we have to copy */
 		local_bh_disable();
 		if (csum_partial_copy_to_xdr(&rqstp->rq_arg, skb))
@@ -662,7 +662,7 @@ out_recv_err:
 	trace_svcsock_udp_recv_err(&svsk->sk_xprt, err);
 	goto out_clear_busy;
 out_cmsg_err:
-	net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
+	net_warn_ratelimited("svc: received unkanalwn control message %d/%d; dropping RPC reply datagram\n",
 			     cmh->cmsg_level, cmh->cmsg_type);
 	goto out_free;
 out_bh_enable:
@@ -681,7 +681,7 @@ out_clear_busy:
  * xpt_mutex ensures @rqstp's whole message is written to the socket
  * without interruption.
  *
- * Returns the number of bytes sent, or a negative errno.
+ * Returns the number of bytes sent, or a negative erranal.
  */
 static int svc_udp_sendto(struct svc_rqst *rqstp)
 {
@@ -711,7 +711,7 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 	mutex_lock(&xprt->xpt_mutex);
 
 	if (svc_xprt_is_dead(xprt))
-		goto out_notconn;
+		goto out_analtconn;
 
 	count = xdr_buf_to_bvec(rqstp->rq_bvec,
 				ARRAY_SIZE(rqstp->rq_bvec), xdr);
@@ -731,9 +731,9 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 	mutex_unlock(&xprt->xpt_mutex);
 	return err;
 
-out_notconn:
+out_analtconn:
 	mutex_unlock(&xprt->xpt_mutex);
-	return -ENOTCONN;
+	return -EANALTCONN;
 }
 
 static int svc_udp_has_wspace(struct svc_xprt *xprt)
@@ -743,14 +743,14 @@ static int svc_udp_has_wspace(struct svc_xprt *xprt)
 	unsigned long required;
 
 	/*
-	 * Set the SOCK_NOSPACE flag before checking the available
+	 * Set the SOCK_ANALSPACE flag before checking the available
 	 * sock space.
 	 */
-	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
+	set_bit(SOCK_ANALSPACE, &svsk->sk_sock->flags);
 	required = atomic_read(&svsk->sk_xprt.xpt_reserved) + serv->sv_max_mesg;
 	if (required*2 > sock_wspace(svsk->sk_sk))
 		return 0;
-	clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
+	clear_bit(SOCK_ANALSPACE, &svsk->sk_sock->flags);
 	return 1;
 }
 
@@ -801,7 +801,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 	svsk->sk_sk->sk_data_ready = svc_data_ready;
 	svsk->sk_sk->sk_write_space = svc_write_space;
 
-	/* initialise setting must have enough space to
+	/* initialise setting must have eanalugh space to
 	 * receive and respond to one request.
 	 * svc_udp_recvfrom will re-adjust if necessary
 	 */
@@ -826,7 +826,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 
 /*
  * A data_ready event on a listening socket means there's a connection
- * pending. Do not use state_change as a substitute for it.
+ * pending. Do analt use state_change as a substitute for it.
  */
 static void svc_tcp_listen_data_ready(struct sock *sk)
 {
@@ -842,7 +842,7 @@ static void svc_tcp_listen_data_ready(struct sock *sk)
 	 *    when one of child sockets become ESTABLISHED.
 	 * 2) data_ready method of the child socket may be called
 	 *    when it receives data before the socket is accepted.
-	 * In case of 2, we should ignore it silently and DO NOT
+	 * In case of 2, we should iganalre it silently and DO ANALT
 	 * dereference svsk.
 	 */
 	if (sk->sk_state != TCP_LISTEN)
@@ -892,13 +892,13 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 		return NULL;
 
 	clear_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags);
-	err = kernel_accept(sock, &newsock, O_NONBLOCK);
+	err = kernel_accept(sock, &newsock, O_ANALNBLOCK);
 	if (err < 0) {
 		if (err != -EAGAIN)
 			trace_svcsock_accept_err(xprt, serv->sv_name, err);
 		return NULL;
 	}
-	if (IS_ERR(sock_alloc_file(newsock, O_NONBLOCK, NULL)))
+	if (IS_ERR(sock_alloc_file(newsock, O_ANALNBLOCK, NULL)))
 		return NULL;
 
 	set_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags);
@@ -921,7 +921,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	newsock->sk->sk_sndtimeo = HZ*30;
 
 	newsvsk = svc_setup_socket(serv, newsock,
-				 (SVC_SOCK_ANONYMOUS | SVC_SOCK_TEMPORARY));
+				 (SVC_SOCK_AANALNYMOUS | SVC_SOCK_TEMPORARY));
 	if (IS_ERR(newsvsk))
 		goto failed;
 	svc_xprt_set_remote(&newsvsk->sk_xprt, sin, slen);
@@ -1035,7 +1035,7 @@ static ssize_t svc_tcp_read_marker(struct svc_sock *svsk,
 	return svc_sock_reclen(svsk);
 
 err_too_large:
-	net_notice_ratelimited("svc: %s %s RPC fragment too large: %d\n",
+	net_analtice_ratelimited("svc: %s %s RPC fragment too large: %d\n",
 			       __func__, svsk->sk_xprt.xpt_server->sv_name,
 			       svc_sock_reclen(svsk));
 	svc_xprt_deferred_close(&svsk->sk_xprt);
@@ -1060,8 +1060,8 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
 	/*
-	 * XXX!: cheating for now!  Only copying HEAD.
-	 * But we know this is good enough for now (in fact, for any
+	 * XXX!: cheating for analw!  Only copying HEAD.
+	 * But we kanalw this is good eanalugh for analw (in fact, for any
 	 * callback reply in the forseeable future).
 	 */
 	dst = &req->rq_private_buf.head[0];
@@ -1100,7 +1100,7 @@ static void svc_tcp_fragment_received(struct svc_sock *svsk)
  *
  * Returns:
  *   On success, the number of bytes in a received RPC Call, or
- *   %0 if a complete RPC Call message was not ready to return
+ *   %0 if a complete RPC Call message was analt ready to return
  *
  * The zero return case handles partial receives and callback Replies.
  * The state of a partial receive is preserved in the svc_sock for
@@ -1186,20 +1186,20 @@ err_incomplete:
 				svc_sock_reclen(svsk),
 				svsk->sk_tcplen - sizeof(rpc_fraghdr));
 	}
-	goto err_noclose;
+	goto err_analclose;
 error:
 	if (len != -EAGAIN)
 		goto err_delete;
 	trace_svcsock_tcp_recv_eagain(&svsk->sk_xprt, 0);
-	goto err_noclose;
+	goto err_analclose;
 err_nuts:
 	svsk->sk_datalen = 0;
 err_delete:
 	trace_svcsock_tcp_recv_err(&svsk->sk_xprt, len);
 	svc_xprt_deferred_close(&svsk->sk_xprt);
-err_noclose:
+err_analclose:
 	svc_xprt_received(rqstp->rq_xprt);
-	return 0;	/* record not complete */
+	return 0;	/* record analt complete */
 }
 
 /*
@@ -1207,7 +1207,7 @@ err_noclose:
  * copy operations in this path. Therefore the caller must ensure
  * that the pages backing @xdr are unchanging.
  *
- * Note that the send is non-blocking. The caller has incremented
+ * Analte that the send is analn-blocking. The caller has incremented
  * the reference count on each page backing the RPC message, and
  * the network layer will "put" these pages when transmission is
  * complete.
@@ -1234,7 +1234,7 @@ static int svc_tcp_sendmsg(struct svc_sock *svsk, struct svc_rqst *rqstp,
 	buf = page_frag_alloc(&svsk->sk_frag_cache, sizeof(marker),
 			      GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(buf, &marker, sizeof(marker));
 	bvec_set_virt(rqstp->rq_bvec, buf, sizeof(marker));
 
@@ -1257,7 +1257,7 @@ static int svc_tcp_sendmsg(struct svc_sock *svsk, struct svc_rqst *rqstp,
  * xpt_mutex ensures @rqstp's whole message is written to the socket
  * without interruption.
  *
- * Returns the number of bytes sent, or a negative errno.
+ * Returns the number of bytes sent, or a negative erranal.
  */
 static int svc_tcp_sendto(struct svc_rqst *rqstp)
 {
@@ -1274,7 +1274,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 
 	mutex_lock(&xprt->xpt_mutex);
 	if (svc_xprt_is_dead(xprt))
-		goto out_notconn;
+		goto out_analtconn;
 	err = svc_tcp_sendmsg(svsk, rqstp, marker, &sent);
 	trace_svcsock_tcp_send(xprt, err < 0 ? (long)err : sent);
 	if (err < 0 || sent != (xdr->len + sizeof(marker)))
@@ -1282,11 +1282,11 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	mutex_unlock(&xprt->xpt_mutex);
 	return sent;
 
-out_notconn:
+out_analtconn:
 	mutex_unlock(&xprt->xpt_mutex);
-	return -ENOTCONN;
+	return -EANALTCONN;
 out_close:
-	pr_notice("rpc-srv/tcp: %s: %s %d when sending %d bytes - shutting down socket\n",
+	pr_analtice("rpc-srv/tcp: %s: %s %d when sending %d bytes - shutting down socket\n",
 		  xprt->xpt_server->sv_name,
 		  (err < 0) ? "got error" : "sent",
 		  (err < 0) ? err : sent, xdr->len);
@@ -1360,7 +1360,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		svsk->sk_datalen = 0;
 		memset(&svsk->sk_pages[0], 0, sizeof(svsk->sk_pages));
 
-		tcp_sock_set_nodelay(sk);
+		tcp_sock_set_analdelay(sk);
 
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		switch (sk->sk_state) {
@@ -1397,11 +1397,11 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 {
 	struct svc_sock	*svsk;
 	struct sock	*inet;
-	int		pmap_register = !(flags & SVC_SOCK_ANONYMOUS);
+	int		pmap_register = !(flags & SVC_SOCK_AANALNYMOUS);
 
 	svsk = kzalloc(sizeof(*svsk), GFP_KERNEL);
 	if (!svsk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	inet = sock->sk;
 
@@ -1450,7 +1450,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
  * @cred: credential
  *
  * Fills in socket name and returns positive length of name if successful.
- * Name is terminated with '\n'.  On error, returns a negative errno
+ * Name is terminated with '\n'.  On error, returns a negative erranal
  * value.
  */
 int svc_addsock(struct svc_serv *serv, struct net *net, const int fd,
@@ -1468,17 +1468,17 @@ int svc_addsock(struct svc_serv *serv, struct net *net, const int fd,
 	err = -EINVAL;
 	if (sock_net(so->sk) != net)
 		goto out;
-	err = -EAFNOSUPPORT;
+	err = -EAFANALSUPPORT;
 	if ((so->sk->sk_family != PF_INET) && (so->sk->sk_family != PF_INET6))
 		goto out;
-	err =  -EPROTONOSUPPORT;
+	err =  -EPROTOANALSUPPORT;
 	if (so->sk->sk_protocol != IPPROTO_TCP &&
 	    so->sk->sk_protocol != IPPROTO_UDP)
 		goto out;
 	err = -EISCONN;
 	if (so->state > SS_UNCONNECTED)
 		goto out;
-	err = -ENOENT;
+	err = -EANALENT;
 	if (!try_module_get(THIS_MODULE))
 		goto out;
 	svsk = svc_setup_socket(serv, so, SVC_SOCK_DEFAULTS);
@@ -1577,7 +1577,7 @@ bummer:
 }
 
 /*
- * Detach the svc_sock from the socket so that no
+ * Detach the svc_sock from the socket so that anal
  * more callbacks occur.
  */
 static void svc_sock_detach(struct svc_xprt *xprt)

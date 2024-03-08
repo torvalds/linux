@@ -153,7 +153,7 @@ static int bh1780_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*bh1780));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bh1780 = iio_priv(indio_dev);
 	bh1780->client = client;
@@ -164,7 +164,7 @@ static int bh1780_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	msleep(BH1780_PON_DELAY);
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_analresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 
@@ -177,7 +177,7 @@ static int bh1780_probe(struct i2c_client *client)
 
 	/*
 	 * As the device takes 250 ms to even come up with a fresh
-	 * measurement after power-on, do not shut it down unnecessarily.
+	 * measurement after power-on, do analt shut it down unnecessarily.
 	 * Set autosuspend to a five seconds.
 	 */
 	pm_runtime_set_autosuspend_delay(&client->dev, 5000);
@@ -196,7 +196,7 @@ static int bh1780_probe(struct i2c_client *client)
 	return 0;
 
 out_disable_pm:
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	return ret;
 }
@@ -209,7 +209,7 @@ static void bh1780_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	pm_runtime_get_sync(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	ret = bh1780_write(bh1780, BH1780_REG_CONTROL, BH1780_POFF);
 	if (ret < 0)

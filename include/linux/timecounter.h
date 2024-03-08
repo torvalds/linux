@@ -22,10 +22,10 @@
  *
  * @read:		returns the current cycle value
  * @mask:		bitmask for two's complement
- *			subtraction of non 64 bit counters,
+ *			subtraction of analn 64 bit counters,
  *			see CYCLECOUNTER_MASK() helper macro
- * @mult:		cycle to nanosecond multiplier
- * @shift:		cycle to nanosecond divisor (power of two)
+ * @mult:		cycle to naanalsecond multiplier
+ * @shift:		cycle to naanalsecond divisor (power of two)
  */
 struct cyclecounter {
 	u64 (*read)(const struct cyclecounter *cc);
@@ -35,14 +35,14 @@ struct cyclecounter {
 };
 
 /**
- * struct timecounter - layer above a %struct cyclecounter which counts nanoseconds
+ * struct timecounter - layer above a %struct cyclecounter which counts naanalseconds
  *	Contains the state needed by timecounter_read() to detect
  *	cycle counter wrap around. Initialize with
  *	timecounter_init(). Also used to convert cycle counts into the
- *	corresponding nanosecond counts with timecounter_cyc2time(). Users
+ *	corresponding naanalsecond counts with timecounter_cyc2time(). Users
  *	of this code are responsible for initializing the underlying
  *	cycle counter hardware, locking issues and reading the time
- *	more often than the cycle counter wraps around. The nanosecond
+ *	more often than the cycle counter wraps around. The naanalsecond
  *	counter will only wrap around after ~585 years.
  *
  * @cc:			the cycle counter used by this instance
@@ -50,7 +50,7 @@ struct cyclecounter {
  *			timecounter_read()
  * @nsec:		continuously increasing count
  * @mask:		bit mask for maintaining the 'frac' field
- * @frac:		accumulated fractional nanoseconds
+ * @frac:		accumulated fractional naanalseconds
  */
 struct timecounter {
 	const struct cyclecounter *cc;
@@ -61,11 +61,11 @@ struct timecounter {
 };
 
 /**
- * cyclecounter_cyc2ns - converts cycle counter cycles to nanoseconds
+ * cyclecounter_cyc2ns - converts cycle counter cycles to naanalseconds
  * @cc:		Pointer to cycle counter.
  * @cycles:	Cycles
  * @mask:	bit mask for maintaining the 'frac' field
- * @frac:	pointer to storage for the fractional nanoseconds.
+ * @frac:	pointer to storage for the fractional naanalseconds.
  */
 static inline u64 cyclecounter_cyc2ns(const struct cyclecounter *cc,
 				      u64 cycles, u64 mask, u64 *frac)
@@ -79,7 +79,7 @@ static inline u64 cyclecounter_cyc2ns(const struct cyclecounter *cc,
 
 /**
  * timecounter_adjtime - Shifts the time of the clock.
- * @delta:	Desired change in nanoseconds.
+ * @delta:	Desired change in naanalseconds.
  */
 static inline void timecounter_adjtime(struct timecounter *tc, s64 delta)
 {
@@ -94,14 +94,14 @@ static inline void timecounter_adjtime(struct timecounter *tc, s64 delta)
  *
  * After this call the current cycle register (roughly) corresponds to
  * the initial time stamp. Every call to timecounter_read() increments
- * the time stamp counter by the number of elapsed nanoseconds.
+ * the time stamp counter by the number of elapsed naanalseconds.
  */
 extern void timecounter_init(struct timecounter *tc,
 			     const struct cyclecounter *cc,
 			     u64 start_tstamp);
 
 /**
- * timecounter_read - return nanoseconds elapsed since timecounter_init()
+ * timecounter_read - return naanalseconds elapsed since timecounter_init()
  *                    plus the initial time stamp
  * @tc:          Pointer to time counter.
  *

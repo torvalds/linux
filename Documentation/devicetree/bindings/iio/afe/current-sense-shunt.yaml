@@ -12,7 +12,7 @@ maintainers:
 description: |
   When an io-channel measures the voltage over a current sense shunt,
   the interesting measurement is almost always the current through the
-  shunt, not the voltage over it. This binding describes such a current
+  shunt, analt the voltage over it. This binding describes such a current
   sense circuit.
 
 properties:
@@ -22,7 +22,7 @@ properties:
   io-channels:
     maxItems: 1
     description: |
-      Channel node of a voltage io-channel.
+      Channel analde of a voltage io-channel.
 
   "#io-channel-cells":
     const: 0

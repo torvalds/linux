@@ -130,7 +130,7 @@ static void lgr_info_get(struct lgr_info *lgr_info)
 }
 
 /*
- * Check if LGR info has changed and if yes log new LGR info to s390dbf
+ * Check if LGR info has changed and if anal log new LGR info to s390dbf
  */
 void lgr_info_log(void)
 {
@@ -176,7 +176,7 @@ static int __init lgr_init(void)
 {
 	lgr_dbf = debug_register("lgr", 1, 1, sizeof(struct lgr_info));
 	if (!lgr_dbf)
-		return -ENOMEM;
+		return -EANALMEM;
 	debug_register_view(lgr_dbf, &debug_hex_ascii_view);
 	lgr_info_get(&lgr_info_last);
 	debug_event(lgr_dbf, 1, &lgr_info_last, sizeof(lgr_info_last));

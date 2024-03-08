@@ -107,11 +107,11 @@ static int ccu_rst_reset(struct reset_controller_dev *rcdev, unsigned long idx)
 	const struct ccu_rst_info *info = &rst->rsts_info[idx];
 
 	if (info->type != CCU_RST_TRIG)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	regmap_update_bits(rst->sys_regs, info->base, info->mask, info->mask);
 
-	/* The next delay must be enough to cover all the resets. */
+	/* The next delay must be eanalugh to cover all the resets. */
 	udelay(CCU_RST_DELAY_US);
 
 	return 0;
@@ -124,7 +124,7 @@ static int ccu_rst_set(struct reset_controller_dev *rcdev,
 	const struct ccu_rst_info *info = &rst->rsts_info[idx];
 
 	if (info->type != CCU_RST_DIR)
-		return high ? -EOPNOTSUPP : 0;
+		return high ? -EOPANALTSUPP : 0;
 
 	return regmap_update_bits(rst->sys_regs, info->base,
 				  info->mask, high ? info->mask : 0);
@@ -150,7 +150,7 @@ static int ccu_rst_status(struct reset_controller_dev *rcdev,
 	u32 val;
 
 	if (info->type != CCU_RST_DIR)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	regmap_read(rst->sys_regs, info->base, &val);
 
@@ -174,7 +174,7 @@ struct ccu_rst *ccu_rst_hw_register(const struct ccu_rst_init_data *rst_init)
 
 	rst = kzalloc(sizeof(*rst), GFP_KERNEL);
 	if (!rst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rst->sys_regs = rst_init->sys_regs;
 	if (of_device_is_compatible(rst_init->np, "baikal,bt1-ccu-axi")) {
@@ -184,20 +184,20 @@ struct ccu_rst *ccu_rst_hw_register(const struct ccu_rst_init_data *rst_init)
 		rst->rcdev.nr_resets = ARRAY_SIZE(sys_rst_info);
 		rst->rsts_info = sys_rst_info;
 	} else {
-		pr_err("Incompatible DT node '%s' specified\n",
-		       of_node_full_name(rst_init->np));
+		pr_err("Incompatible DT analde '%s' specified\n",
+		       of_analde_full_name(rst_init->np));
 		ret = -EINVAL;
 		goto err_kfree_rst;
 	}
 
 	rst->rcdev.owner = THIS_MODULE;
 	rst->rcdev.ops = &ccu_rst_ops;
-	rst->rcdev.of_node = rst_init->np;
+	rst->rcdev.of_analde = rst_init->np;
 
 	ret = reset_controller_register(&rst->rcdev);
 	if (ret) {
 		pr_err("Couldn't register '%s' reset controller\n",
-		       of_node_full_name(rst_init->np));
+		       of_analde_full_name(rst_init->np));
 		goto err_kfree_rst;
 	}
 

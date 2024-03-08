@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare XLGMAC definitions.
+ * Copyright (c) 2020 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare XLGMAC definitions.
  */
 
 #ifndef __STMMAC_DWXLGMAC2_H__

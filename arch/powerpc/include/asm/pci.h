@@ -17,8 +17,8 @@
 #include <asm/pci-bridge.h>
 
 /* Return values for pci_controller_ops.probe_mode function */
-#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
-#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_ANALNE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_ANALRMAL	0	/* Do analrmal PCI probing */
 #define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #define PCIBIOS_MIN_IO		0x1000
@@ -55,7 +55,7 @@ void __init set_pci_dma_ops(const struct dma_map_ops *dma_ops);
 
 /*
  * We want to avoid touching the cacheline size or MWI bit.
- * pSeries firmware sets the cacheline size (which is not the cpu cacheline
+ * pSeries firmware sets the cacheline size (which is analt the cpu cacheline
  * size in all cases) and hardware treats MWI the same as memory write.
  */
 #define PCI_DISABLE_MWI
@@ -92,18 +92,18 @@ extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
 
-extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
+extern struct pci_controller *init_phb_dynamic(struct device_analde *dn);
 extern int remove_phb_dynamic(struct pci_controller *phb);
 
-extern struct pci_dev *of_create_pci_dev(struct device_node *node,
+extern struct pci_dev *of_create_pci_dev(struct device_analde *analde,
 					struct pci_bus *bus, int devfn);
 
 extern unsigned int pci_parse_of_flags(u32 addr0, int bridge);
 
 extern void of_scan_pci_bridge(struct pci_dev *dev);
 
-extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
-extern void of_rescan_bus(struct device_node *node, struct pci_bus *bus);
+extern void of_scan_bus(struct device_analde *analde, struct pci_bus *bus);
+extern void of_rescan_bus(struct device_analde *analde, struct pci_bus *bus);
 
 extern pgprot_t	pci_phys_mem_access_prot(unsigned long pfn,
 					 unsigned long size,

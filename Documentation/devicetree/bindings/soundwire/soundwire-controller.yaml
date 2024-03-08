@@ -8,14 +8,14 @@ title: SoundWire Controller Common Properties
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-  - Vinod Koul <vkoul@kernel.org>
+  - Vianald Koul <vkoul@kernel.org>
 
 description: |
-  SoundWire busses can be described with a node for the SoundWire controller
-  device and a set of child nodes for each SoundWire slave on the bus.
+  SoundWire busses can be described with a analde for the SoundWire controller
+  device and a set of child analdes for each SoundWire slave on the bus.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^soundwire(@.*)?$"
 
   "#address-cells":

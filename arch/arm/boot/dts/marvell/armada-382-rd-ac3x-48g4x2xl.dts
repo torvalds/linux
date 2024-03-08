@@ -45,7 +45,7 @@
 		reg = <0x53>;
 	};
 
-	/* CPLD device present at 0x3c. Function unknown */
+	/* CPLD device present at 0x3c. Function unkanalwn */
 };
 
 &uart0 {

@@ -23,12 +23,12 @@
  *  modes. In pass through mode then it is an IDE controller. In its smart
  *  mode its actually quite a capable hardware raid controller disguised
  *  as an IDE controller. Smart mode only understands DMA read/write and
- *  identify, none of the fancier commands apply. The IT8211 is identical
+ *  identify, analne of the fancier commands apply. The IT8211 is identical
  *  in other respects but lacks the raid mode.
  *
  *  Errata:
  *  o	Rev 0x10 also requires master/slave hold the same DMA timings and
- *	cannot do ATAPI MWDMA.
+ *	cananalt do ATAPI MWDMA.
  *  o	The identify data for raid volumes lacks CHS info (technically ok)
  *	but also fails to set the LBA28 and other bits. We fix these in
  *	the IDE probe quirk code.
@@ -42,7 +42,7 @@
  *  - In smart mode the clocking set up is done by the controller generally
  *    but we must watch the other limits and filter.
  *  - There are a few extra vendor commands that actually talk to the
- *    controller but only work PIO with no IRQ.
+ *    controller but only work PIO with anal IRQ.
  *
  *  Vendor areas of the identify block in smart mode are used for the
  *  timing and policy set up. Each HDD in raid mode also has a serial
@@ -50,19 +50,19 @@
  *  rebuild, get rebuild status.
  *
  *  In Linux the driver supports pass through mode as if the device was
- *  just another IDE controller. If the smart mode is running then
+ *  just aanalther IDE controller. If the smart mode is running then
  *  volumes are managed by the controller firmware and each IDE "disk"
  *  is a raid volume. Even more cute - the controller can do automated
  *  hotplug and rebuild.
  *
  *  The pass through controller itself is a little demented. It has a
  *  flaw that it has a single set of PIO/MWDMA timings per channel so
- *  non UDMA devices restrict each others performance. It also has a
+ *  analn UDMA devices restrict each others performance. It also has a
  *  single clock source per channel so mixed UDMA100/133 performance
- *  isn't perfect and we have to pick a clock. Thankfully none of this
- *  matters in smart mode. ATAPI DMA is not currently supported.
+ *  isn't perfect and we have to pick a clock. Thankfully analne of this
+ *  matters in smart mode. ATAPI DMA is analt currently supported.
  *
- *  It seems the smart mode is a win for RAID1/RAID10 but otherwise not.
+ *  It seems the smart mode is a win for RAID1/RAID10 but otherwise analt.
  *
  *  TODO
  *	-	ATAPI and other speed filtering
@@ -104,13 +104,13 @@ struct it821x_dev
 #define MWDMA_OFF	0
 
 /*
- *	We allow users to force the card into non raid mode without
- *	flashing the alternative BIOS. This is also necessary right now
- *	for embedded platforms that cannot run a PC BIOS but are using this
+ *	We allow users to force the card into analn raid mode without
+ *	flashing the alternative BIOS. This is also necessary right analw
+ *	for embedded platforms that cananalt run a PC BIOS but are using this
  *	device.
  */
 
-static int it8212_noraid;
+static int it8212_analraid;
 
 /**
  *	it821x_program	-	program the PIO/MWDMA registers
@@ -127,7 +127,7 @@ static void it821x_program(struct ata_port *ap, struct ata_device *adev, u16 tim
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct it821x_dev *itdev = ap->private_data;
-	int channel = ap->port_no;
+	int channel = ap->port_anal;
 	u8 conf;
 
 	/* Program PIO/MWDMA timing bits */
@@ -146,7 +146,7 @@ static void it821x_program(struct ata_port *ap, struct ata_device *adev, u16 tim
  *	@timing: Timing bits. Top 8 are for 66Mhz bottom for 50Mhz
  *
  *	Program the UDMA timing for this drive according to the
- *	current clock. Handles the dual clocks and also knows about
+ *	current clock. Handles the dual clocks and also kanalws about
  *	the errata on the 0x10 revision. The UDMA errata is partly handled
  *	here and partly in start_dma.
  */
@@ -155,8 +155,8 @@ static void it821x_program_udma(struct ata_port *ap, struct ata_device *adev, u1
 {
 	struct it821x_dev *itdev = ap->private_data;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int channel = ap->port_no;
-	int unit = adev->devno;
+	int channel = ap->port_anal;
+	int unit = adev->devanal;
 	u8 conf;
 
 	/* Program UDMA timing bits */
@@ -186,7 +186,7 @@ static void it821x_clock_strategy(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct it821x_dev *itdev = ap->private_data;
-	u8 unit = adev->devno;
+	u8 unit = adev->devanal;
 	struct ata_device *pair = ata_dev_pair(adev);
 
 	int clock, altclock;
@@ -206,10 +206,10 @@ static void it821x_clock_strategy(struct ata_port *ap, struct ata_device *adev)
 	if (clock == ATA_ANY)
 		clock = altclock;
 
-	/* Nobody cares - keep the same clock */
+	/* Analbody cares - keep the same clock */
 	if (clock == ATA_ANY)
 		return;
-	/* No change */
+	/* Anal change */
 	if (clock == itdev->clock_mode)
 		return;
 
@@ -221,8 +221,8 @@ static void it821x_clock_strategy(struct ata_port *ap, struct ata_device *adev)
 		sel = 1;
 	}
 	pci_read_config_byte(pdev, 0x50, &v);
-	v &= ~(1 << (1 + ap->port_no));
-	v |= sel << (1 + ap->port_no);
+	v &= ~(1 << (1 + ap->port_anal));
+	v |= sel << (1 + ap->port_anal);
 	pci_write_config_byte(pdev, 0x50, v);
 
 	/*
@@ -259,7 +259,7 @@ static void it821x_passthru_set_piomode(struct ata_port *ap, struct ata_device *
 	static const u8 pio_want[]    = { ATA_66, ATA_66, ATA_66, ATA_66, ATA_ANY };
 
 	struct it821x_dev *itdev = ap->private_data;
-	int unit = adev->devno;
+	int unit = adev->devanal;
 	int mode_wanted = adev->pio_mode - XFER_PIO_0;
 
 	/* We prefer 66Mhz clock for PIO 0-3, don't care for PIO4 */
@@ -291,8 +291,8 @@ static void it821x_passthru_set_dmamode(struct ata_port *ap, struct ata_device *
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct it821x_dev *itdev = ap->private_data;
-	int channel = ap->port_no;
-	int unit = adev->devno;
+	int channel = ap->port_anal;
+	int unit = adev->devanal;
 	u8 conf;
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
@@ -347,7 +347,7 @@ static void it821x_passthru_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct it821x_dev *itdev = ap->private_data;
-	int unit = adev->devno;
+	int unit = adev->devanal;
 
 	if (itdev->mwdma[unit] != MWDMA_OFF)
 		it821x_program(ap, adev, itdev->mwdma[unit]);
@@ -370,7 +370,7 @@ static void it821x_passthru_bmdma_stop(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct it821x_dev *itdev = ap->private_data;
-	int unit = adev->devno;
+	int unit = adev->devanal;
 
 	ata_bmdma_stop(qc);
 	if (itdev->mwdma[unit] != MWDMA_OFF)
@@ -381,7 +381,7 @@ static void it821x_passthru_bmdma_stop(struct ata_queued_cmd *qc)
 /**
  *	it821x_passthru_dev_select	-	Select master/slave
  *	@ap: ATA port
- *	@device: Device number (not pointer)
+ *	@device: Device number (analt pointer)
  *
  *	Device selection hook. If necessary perform clock switching
  */
@@ -392,7 +392,7 @@ static void it821x_passthru_dev_select(struct ata_port *ap,
 	struct it821x_dev *itdev = ap->private_data;
 	if (itdev && device != itdev->last_device) {
 		struct ata_device *adev = &ap->link.device[device];
-		it821x_program(ap, adev, itdev->pio[adev->devno]);
+		it821x_program(ap, adev, itdev->pio[adev->devanal]);
 		itdev->last_device = device;
 	}
 	ata_sff_dev_select(ap, device);
@@ -427,7 +427,7 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 		case ATA_CMD_ID_ATA:
 		case ATA_CMD_INIT_DEV_PARAMS:
 		case 0xFC:	/* Internal 'report rebuild state' */
-		/* Arguably should just no-op this one */
+		/* Arguably should just anal-op this one */
 		case ATA_CMD_SET_FEATURES:
 			return ata_bmdma_qc_issue(qc);
 	}
@@ -447,7 +447,7 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 
 static unsigned int it821x_passthru_qc_issue(struct ata_queued_cmd *qc)
 {
-	it821x_passthru_dev_select(qc->ap, qc->dev->devno);
+	it821x_passthru_dev_select(qc->ap, qc->dev->devanal);
 	return ata_bmdma_qc_issue(qc);
 }
 
@@ -456,8 +456,8 @@ static unsigned int it821x_passthru_qc_issue(struct ata_queued_cmd *qc)
  *	@link: interface to set up
  *	@unused: device that failed (error only)
  *
- *	Use a non standard set_mode function. We don't want to be tuned.
- *	The BIOS configured everything. Our job is not to fiddle. We
+ *	Use a analn standard set_mode function. We don't want to be tuned.
+ *	The BIOS configured everything. Our job is analt to fiddle. We
  *	read the dma enabled bits from the PCI configuration of the device
  *	and respect them.
  */
@@ -506,7 +506,7 @@ static void it821x_dev_config(struct ata_device *adev)
 	if (adev->max_sectors > 255)
 		adev->max_sectors = 255;
 
-	if (strstr(model_num, "Integrated Technology Express")) {
+	if (strstr(model_num, "Integrated Techanallogy Express")) {
 		/* RAID mode */
 		if (adev->id[129] == 1)
 			ata_dev_info(adev, "%sRAID%d volume\n",
@@ -519,8 +519,8 @@ static void it821x_dev_config(struct ata_device *adev)
 	}
 	/* This is a controller firmware triggered funny, don't
 	   report the drive faulty! */
-	adev->horkage &= ~ATA_HORKAGE_DIAGNOSTIC;
-	/* No HPA in 'smart' mode */
+	adev->horkage &= ~ATA_HORKAGE_DIAGANALSTIC;
+	/* Anal HPA in 'smart' mode */
 	adev->horkage |= ATA_HORKAGE_BROKEN_HPA;
 }
 
@@ -532,8 +532,8 @@ static void it821x_dev_config(struct ata_device *adev)
  *
  *	Query the devices on this firmware driven port and slightly
  *	mash the identify data to stop us and common tools trying to
- *	use features not firmware supported. The firmware itself does
- *	some masking (eg SMART) but not enough.
+ *	use features analt firmware supported. The firmware itself does
+ *	some masking (eg SMART) but analt eanalugh.
  */
 
 static unsigned int it821x_read_id(struct ata_device *adev,
@@ -548,11 +548,11 @@ static unsigned int it821x_read_id(struct ata_device *adev,
 	ata_id_c_string((u16 *)id, model_num, ATA_ID_PROD, sizeof(model_num));
 
 	id[83] &= cpu_to_le16(~(1 << 12)); /* Cache flush is firmware handled */
-	id[84] &= cpu_to_le16(~(1 << 6));  /* No FUA */
-	id[85] &= cpu_to_le16(~(1 << 10)); /* No HPA */
-	id[76] = 0;			   /* No NCQ/AN etc */
+	id[84] &= cpu_to_le16(~(1 << 6));  /* Anal FUA */
+	id[85] &= cpu_to_le16(~(1 << 10)); /* Anal HPA */
+	id[76] = 0;			   /* Anal NCQ/AN etc */
 
-	if (strstr(model_num, "Integrated Technology Express")) {
+	if (strstr(model_num, "Integrated Techanallogy Express")) {
 		/* Set feature bits the firmware neglects */
 		id[49] |= cpu_to_le16(0x0300);	/* LBA, DMA */
 		id[83] &= cpu_to_le16(0x7FFF);
@@ -561,7 +561,7 @@ static unsigned int it821x_read_id(struct ata_device *adev,
 		id[ATA_ID_MAJOR_VER] |= cpu_to_le16(0x1F);
 		/* Clear the serial number because it's different each boot
 		   which breaks validation on resume */
-		memset(&id[ATA_ID_SERNO], 0x20, ATA_ID_SERNO_LEN);
+		memset(&id[ATA_ID_SERANAL], 0x20, ATA_ID_SERANAL_LEN);
 	}
 	return err_mask;
 }
@@ -581,14 +581,14 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 
 	/* Only use dma for transfers to/from the media. */
 	if (ata_qc_raw_nbytes(qc) < 2048)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* No ATAPI DMA in smart mode */
+	/* Anal ATAPI DMA in smart mode */
 	if (itdev->smart)
-		return -EOPNOTSUPP;
-	/* No ATAPI DMA on rev 10 */
+		return -EOPANALTSUPP;
+	/* Anal ATAPI DMA on rev 10 */
 	if (itdev->timing10)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Cool */
 	return 0;
 }
@@ -615,7 +615,7 @@ static void it821x_display_disk(struct ata_port *ap, int n, u8 *buf)
 		"RAID0", "RAID1", "RAID 0+1", "JBOD", "DISK"
 	};
 
-	if (buf[52] > 4)	/* No Disk */
+	if (buf[52] > 4)	/* Anal Disk */
 		return;
 
 	ata_id_c_string((u16 *)buf, id, 0, 41);
@@ -652,8 +652,8 @@ static void it821x_display_disk(struct ata_port *ap, int n, u8 *buf)
  *	@len: length
  *
  *	Issue firmware commands expecting data back from the controller. We
- *	use this to issue commands that do not go via the normal paths. Other
- *	commands such as 0xFC can be issued normally.
+ *	use this to issue commands that do analt go via the analrmal paths. Other
+ *	commands such as 0xFC can be issued analrmally.
  */
 
 static u8 *it821x_firmware_command(struct ata_port *ap, u8 cmd, int len)
@@ -665,15 +665,15 @@ static u8 *it821x_firmware_command(struct ata_port *ap, u8 cmd, int len)
 	if (!buf)
 		return NULL;
 
-	/* This isn't quite a normal ATA command as we are talking to the
-	   firmware not the drives */
+	/* This isn't quite a analrmal ATA command as we are talking to the
+	   firmware analt the drives */
 	ap->ctl |= ATA_NIEN;
 	iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
 	ata_wait_idle(ap);
 	iowrite8(ATA_DEVICE_OBS, ap->ioaddr.device_addr);
 	iowrite8(cmd, ap->ioaddr.command_addr);
 	udelay(1);
-	/* This should be almost immediate but a little paranoia goes a long
+	/* This should be almost immediate but a little paraanalia goes a long
 	   way. */
 	while(n++ < 10) {
 		status = ioread8(ap->ioaddr.status_addr);
@@ -747,7 +747,7 @@ static int it821x_port_start(struct ata_port *ap)
 
 	itdev = devm_kzalloc(&pdev->dev, sizeof(struct it821x_dev), GFP_KERNEL);
 	if (itdev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ap->private_data = itdev;
 
 	pci_read_config_byte(pdev, 0x50, &conf);
@@ -756,12 +756,12 @@ static int it821x_port_start(struct ata_port *ap)
 		itdev->smart = 1;
 		/* Long I/O's although allowed in LBA48 space cause the
 		   onboard firmware to enter the twighlight zone */
-		/* No ATAPI DMA in this mode either */
-		if (ap->port_no == 0)
+		/* Anal ATAPI DMA in this mode either */
+		if (ap->port_anal == 0)
 			it821x_probe_firmware(ap);
 	}
 	/* Pull the current clocks from 0x50 */
-	if (conf & (1 << (1 + ap->port_no)))
+	if (conf & (1 << (1 + ap->port_anal)))
 		itdev->clock_mode = ATA_50;
 	else
 		itdev->clock_mode = ATA_66;
@@ -785,7 +785,7 @@ static int it821x_port_start(struct ata_port *ap)
  *	it821x_rdc_cable	-	Cable detect for RDC1010
  *	@ap: port we are checking
  *
- *	Return the RDC1010 cable type. Unlike the IT821x we know how to do
+ *	Return the RDC1010 cable type. Unlike the IT821x we kanalw how to do
  *	this and can do host side cable detect
  */
 
@@ -795,7 +795,7 @@ static int it821x_rdc_cable(struct ata_port *ap)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	pci_read_config_word(pdev, 0x40, &r40);
-	if (r40 & (1 << (2 + ap->port_no)))
+	if (r40 & (1 << (2 + ap->port_anal)))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
 }
@@ -827,7 +827,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.bmdma_stop	= it821x_passthru_bmdma_stop,
 	.qc_issue	= it821x_passthru_qc_issue,
 
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkanalwn,
 	.set_piomode	= it821x_passthru_set_piomode,
 	.set_dmamode	= it821x_passthru_set_dmamode,
 
@@ -852,12 +852,12 @@ static struct ata_port_operations it821x_rdc_port_ops = {
 
 static void it821x_disable_raid(struct pci_dev *pdev)
 {
-	/* Neither the RDC nor the IT8211 */
+	/* Neither the RDC analr the IT8211 */
 	if (pdev->vendor != PCI_VENDOR_ID_ITE ||
 			pdev->device != PCI_DEVICE_ID_ITE_8212)
 			return;
 
-	/* Reset local CPU, and set BIOS not ready */
+	/* Reset local CPU, and set BIOS analt ready */
 	pci_write_config_byte(pdev, 0x5E, 0x01);
 
 	/* Set to bypass mode, and reset PCI bus */
@@ -902,7 +902,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.mwdma_mask = ATA_MWDMA2,
-		/* No UDMA */
+		/* Anal UDMA */
 		.port_ops = &it821x_rdc_port_ops
 	};
 
@@ -922,7 +922,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			ppi[0] = &info_rdc;
 	} else {
 		/* Force the card into bypass mode if so requested */
-		if (it8212_noraid) {
+		if (it8212_analraid) {
 			dev_info(&pdev->dev, "forcing bypass mode.\n");
 			it821x_disable_raid(pdev);
 		}
@@ -949,7 +949,7 @@ static int it821x_reinit_one(struct pci_dev *pdev)
 	if (rc)
 		return rc;
 	/* Resume - turn raid back off if need be */
-	if (it8212_noraid)
+	if (it8212_analraid)
 		it821x_disable_raid(pdev);
 	ata_host_resume(host);
 	return rc;
@@ -983,5 +983,5 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, it821x);
 MODULE_VERSION(DRV_VERSION);
 
-module_param_named(noraid, it8212_noraid, int, S_IRUGO);
-MODULE_PARM_DESC(noraid, "Force card into bypass mode");
+module_param_named(analraid, it8212_analraid, int, S_IRUGO);
+MODULE_PARM_DESC(analraid, "Force card into bypass mode");

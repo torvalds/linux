@@ -24,7 +24,7 @@ static void fence_work(struct work_struct *work)
 }
 
 static int
-fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+fence_analtify(struct i915_sw_fence *fence, enum i915_sw_fence_analtify state)
 {
 	struct dma_fence_work *f = container_of(fence, typeof(*f), chain);
 
@@ -49,7 +49,7 @@ fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static const char *get_driver_name(struct dma_fence *fence)
@@ -86,7 +86,7 @@ void dma_fence_work_init(struct dma_fence_work *f,
 	f->ops = ops;
 	spin_lock_init(&f->lock);
 	dma_fence_init(&f->dma, &fence_ops, &f->lock, 0, 0);
-	i915_sw_fence_init(&f->chain, fence_notify);
+	i915_sw_fence_init(&f->chain, fence_analtify);
 	INIT_WORK(&f->work, fence_work);
 }
 

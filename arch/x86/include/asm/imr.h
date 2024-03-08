@@ -3,7 +3,7 @@
  * imr.h: Isolated Memory Region API
  *
  * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
+ * Copyright(c) 2015 Bryan O'Doanalghue <pure.logic@nexus-software.ie>
  */
 #ifndef _IMR_H
 #define _IMR_H
@@ -16,7 +16,7 @@
  * definitions.
  */
 #define IMR_ESRAM_FLUSH		BIT(31)
-#define IMR_CPU_SNOOP		BIT(30)		/* Applicable only to write */
+#define IMR_CPU_SANALOP		BIT(30)		/* Applicable only to write */
 #define IMR_RMU			BIT(29)
 #define IMR_VC1_SAI_ID3		BIT(15)
 #define IMR_VC1_SAI_ID2		BIT(14)
@@ -27,8 +27,8 @@
 #define IMR_VC0_SAI_ID1		BIT(9)
 #define IMR_VC0_SAI_ID0		BIT(8)
 #define IMR_CPU_0		BIT(1)		/* SMM mode */
-#define IMR_CPU			BIT(0)		/* Non SMM mode */
-#define IMR_ACCESS_NONE		0
+#define IMR_CPU			BIT(0)		/* Analn SMM mode */
+#define IMR_ACCESS_ANALNE		0
 
 /*
  * Read/Write access-all bits here include some reserved bits

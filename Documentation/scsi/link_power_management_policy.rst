@@ -15,11 +15,11 @@ min_power		Tell the controller to try to make the link use the
 			sacrifice some performance due to increased latency
 			when coming out of lower power states.
 
-max_performance		Generally, this means no power management.  Tell
+max_performance		Generally, this means anal power management.  Tell
 			the controller to have performance be a priority
 			over power management.
 
 medium_power		Tell the controller to enter a lower power state
-			when possible, but do not enter the lowest power
+			when possible, but do analt enter the lowest power
 			state, thus improving latency over min_power setting.
 =====================   =====================================================

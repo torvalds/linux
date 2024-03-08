@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/mmc/samsung,exynos-dw-mshc.yaml#
+$id: http://devicetree.org/schemas/mmc/samsung,exyanals-dw-mshc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title:
-  Samsung Exynos SoC specific extensions to the Synopsys Designware Mobile
+  Samsung Exyanals SoC specific extensions to the Syanalpsys Designware Mobile
   Storage Host Controller
 
 maintainers:
@@ -17,19 +17,19 @@ properties:
     oneOf:
       - enum:
           - axis,artpec8-dw-mshc
-          - samsung,exynos4210-dw-mshc
-          - samsung,exynos4412-dw-mshc
-          - samsung,exynos5250-dw-mshc
-          - samsung,exynos5420-dw-mshc
-          - samsung,exynos5420-dw-mshc-smu
-          - samsung,exynos7-dw-mshc
-          - samsung,exynos7-dw-mshc-smu
+          - samsung,exyanals4210-dw-mshc
+          - samsung,exyanals4412-dw-mshc
+          - samsung,exyanals5250-dw-mshc
+          - samsung,exyanals5420-dw-mshc
+          - samsung,exyanals5420-dw-mshc-smu
+          - samsung,exyanals7-dw-mshc
+          - samsung,exyanals7-dw-mshc-smu
       - items:
           - enum:
-              - samsung,exynos5433-dw-mshc-smu
-              - samsung,exynos7885-dw-mshc-smu
-              - samsung,exynos850-dw-mshc-smu
-          - const: samsung,exynos7-dw-mshc-smu
+              - samsung,exyanals5433-dw-mshc-smu
+              - samsung,exyanals7885-dw-mshc-smu
+              - samsung,exyanals850-dw-mshc-smu
+          - const: samsung,exyanals7-dw-mshc-smu
 
   reg:
     maxItems: 1
@@ -119,16 +119,16 @@ required:
   - samsung,dw-mshc-sdr-timing
 
 allOf:
-  - $ref: synopsys-dw-mshc-common.yaml#
+  - $ref: syanalpsys-dw-mshc-common.yaml#
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - samsung,exynos5250-dw-mshc
-              - samsung,exynos5420-dw-mshc
-              - samsung,exynos7-dw-mshc
-              - samsung,exynos7-dw-mshc-smu
+              - samsung,exyanals5250-dw-mshc
+              - samsung,exyanals5420-dw-mshc
+              - samsung,exyanals7-dw-mshc
+              - samsung,exyanals7-dw-mshc-smu
               - axis,artpec8-dw-mshc
     then:
       required:
@@ -138,11 +138,11 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/exyanals5420.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     mmc@12220000 {
-        compatible = "samsung,exynos5420-dw-mshc";
+        compatible = "samsung,exyanals5420-dw-mshc";
         interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
         #address-cells = <1>;
         #size-cells = <0>;

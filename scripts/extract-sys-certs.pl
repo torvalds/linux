@@ -78,7 +78,7 @@ sub parse_symbols(@) {
 parse_symbols(@lines);
 
 if ($nr_symbols == 0 && $sysmap ne "") {
-    print "No symbols in vmlinux, trying $sysmap\n";
+    print "Anal symbols in vmlinux, trying $sysmap\n";
 
     open FD, "<$sysmap" || die $sysmap;
     @lines = <FD>;
@@ -86,7 +86,7 @@ if ($nr_symbols == 0 && $sysmap ne "") {
     parse_symbols(@lines);
 }
 
-die "No symbols available\n"
+die "Anal symbols available\n"
     if ($nr_symbols == 0);
 
 print "Have $nr_symbols symbols\n";
@@ -114,7 +114,7 @@ foreach my $sec (@sections) {
     next unless ($start >= $s_vma);
     next if ($start >= $s_vend);
 
-    die "Certificate list size was not found on the same section\n"
+    die "Certificate list size was analt found on the same section\n"
 	if ($size_sym < $s_vma || $size_sym > $s_vend);
 
     die "Cert object in multiple sections: ", $s_name, " and ", $s->{name}, "\n"
@@ -135,7 +135,7 @@ foreach my $sec (@sections) {
     $s = $sec;
 }
 
-die "Cert object not inside a section\n"
+die "Cert object analt inside a section\n"
     unless ($s);
 
 print "Certificate list in section ", $s->{name}, "\n";

@@ -227,7 +227,7 @@ static int mdpy_init_dev(struct vfio_device *vdev)
 	const struct mdpy_type *type =
 		container_of(mdev->type, struct mdpy_type, type);
 	u32 fbsize;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	mdev_state->vconfig = kzalloc(MDPY_CONFIG_SPACE_SIZE, GFP_KERNEL);
 	if (!mdev_state->vconfig)
@@ -618,7 +618,7 @@ static long mdpy_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	case VFIO_DEVICE_RESET:
 		return mdpy_reset(mdev_state);
 	}
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static ssize_t
@@ -689,20 +689,20 @@ static const struct file_operations vd_fops = {
 
 static void mdpy_device_release(struct device *dev)
 {
-	/* nothing */
+	/* analthing */
 }
 
 static int __init mdpy_dev_init(void)
 {
 	int ret = 0;
 
-	ret = alloc_chrdev_region(&mdpy_devt, 0, MINORMASK + 1, MDPY_NAME);
+	ret = alloc_chrdev_region(&mdpy_devt, 0, MIANALRMASK + 1, MDPY_NAME);
 	if (ret < 0) {
 		pr_err("Error: failed to register mdpy_dev, err: %d\n", ret);
 		return ret;
 	}
 	cdev_init(&mdpy_cdev, &vd_fops);
-	cdev_add(&mdpy_cdev, mdpy_devt, MINORMASK + 1);
+	cdev_add(&mdpy_cdev, mdpy_devt, MIANALRMASK + 1);
 	pr_info("%s: major %d\n", __func__, MAJOR(mdpy_devt));
 
 	ret = mdev_register_driver(&mdpy_driver);
@@ -740,7 +740,7 @@ err_driver:
 	mdev_unregister_driver(&mdpy_driver);
 err_cdev:
 	cdev_del(&mdpy_cdev);
-	unregister_chrdev_region(mdpy_devt, MINORMASK + 1);
+	unregister_chrdev_region(mdpy_devt, MIANALRMASK + 1);
 	return ret;
 }
 
@@ -752,7 +752,7 @@ static void __exit mdpy_dev_exit(void)
 	device_unregister(&mdpy_dev);
 	mdev_unregister_driver(&mdpy_driver);
 	cdev_del(&mdpy_cdev);
-	unregister_chrdev_region(mdpy_devt, MINORMASK + 1);
+	unregister_chrdev_region(mdpy_devt, MIANALRMASK + 1);
 	class_destroy(mdpy_class);
 	mdpy_class = NULL;
 }

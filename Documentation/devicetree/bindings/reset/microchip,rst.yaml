@@ -16,7 +16,7 @@ description: |
     - One Time Switch Core Reset (Soft Reset)
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^reset-controller@[0-9a-f]+$"
 
   compatible:

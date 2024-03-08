@@ -3,7 +3,7 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -37,7 +37,7 @@ void rose_clear_queues(struct sock *sk)
 
 /*
  * This routine purges the input queue of those frames that have been
- * acknowledged. This replaces the boxes labelled "V(a) <- N(r)" on the
+ * ackanalwledged. This replaces the boxes labelled "V(a) <- N(r)" on the
  * SDL diagram.
  */
 void rose_frames_acked(struct sock *sk, unsigned short nr)
@@ -163,7 +163,7 @@ void rose_write_internal(struct sock *sk, int frametype)
 		*dptr++ = lci2;
 		*dptr++ = frametype;
 		*dptr++ = rose->cause;
-		*dptr++ = rose->diagnostic;
+		*dptr++ = rose->diaganalstic;
 		break;
 
 	case ROSE_RESET_REQUEST:
@@ -416,7 +416,7 @@ int rose_parse_facilities(unsigned char *p, unsigned packet_len,
 			break;
 
 		default:
-			printk(KERN_DEBUG "ROSE: rose_parse_facilities - unknown facilities family %02X\n", *p);
+			printk(KERN_DEBUG "ROSE: rose_parse_facilities - unkanalwn facilities family %02X\n", *p);
 			len = 1;
 			break;
 		}
@@ -527,7 +527,7 @@ static int rose_create_facilities(unsigned char *buffer, struct rose_sock *rose)
 	return len;
 }
 
-void rose_disconnect(struct sock *sk, int reason, int cause, int diagnostic)
+void rose_disconnect(struct sock *sk, int reason, int cause, int diaganalstic)
 {
 	struct rose_sock *rose = rose_sk(sk);
 
@@ -542,8 +542,8 @@ void rose_disconnect(struct sock *sk, int reason, int cause, int diagnostic)
 	if (cause != -1)
 		rose->cause = cause;
 
-	if (diagnostic != -1)
-		rose->diagnostic = diagnostic;
+	if (diaganalstic != -1)
+		rose->diaganalstic = diaganalstic;
 
 	sk->sk_state     = TCP_CLOSE;
 	sk->sk_err       = reason;

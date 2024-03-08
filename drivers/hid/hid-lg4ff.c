@@ -23,7 +23,7 @@
 
 #define LG4FF_MMODE_IS_MULTIMODE 0
 #define LG4FF_MMODE_SWITCHED 1
-#define LG4FF_MMODE_NOT_MULTIMODE 2
+#define LG4FF_MMODE_ANALT_MULTIMODE 2
 
 #define LG4FF_MODE_NATIVE_IDX 0
 #define LG4FF_MODE_DFEX_IDX 1
@@ -91,7 +91,7 @@ static const signed short lg4ff_wheel_effects[] = {
 	-1
 };
 
-static const signed short no_wheel_effects[] = {
+static const signed short anal_wheel_effects[] = {
 	-1
 };
 
@@ -129,7 +129,7 @@ struct lg4ff_alternate_mode {
 };
 
 static const struct lg4ff_wheel lg4ff_devices[] = {
-	{USB_DEVICE_ID_LOGITECH_WINGMAN_FG,  no_wheel_effects,    40, 180, NULL},
+	{USB_DEVICE_ID_LOGITECH_WINGMAN_FG,  anal_wheel_effects,    40, 180, NULL},
 	{USB_DEVICE_ID_LOGITECH_WINGMAN_FFG, lg4ff_wheel_effects, 40, 180, NULL},
 	{USB_DEVICE_ID_LOGITECH_WHEEL,       lg4ff_wheel_effects, 40, 270, NULL},
 	{USB_DEVICE_ID_LOGITECH_MOMO_WHEEL,  lg4ff_wheel_effects, 40, 270, NULL},
@@ -304,7 +304,7 @@ int lg4ff_adjust_input_event(struct hid_device *hid, struct hid_field *field,
 	s32 new_value = 0;
 
 	if (!entry) {
-		hid_err(hid, "Device properties not found");
+		hid_err(hid, "Device properties analt found");
 		return 0;
 	}
 
@@ -365,7 +365,7 @@ int lg4ff_raw_event(struct hid_device *hdev, struct hid_report *report,
 			return 0;
 		}
 
-		/* Compute a combined axis when wheel does not supply it */
+		/* Compute a combined axis when wheel does analt supply it */
 		rd[offset] = (0xFF + rd[offset] - rd[offset+1]) >> 1;
 		rd[offset+1] = 0x7F;
 		return 1;
@@ -414,13 +414,13 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return -EINVAL;
 	}
 	value = entry->report->field[0]->value;
@@ -429,7 +429,7 @@ static int lg4ff_play(struct input_dev *dev, void *data, struct ff_effect *effec
 
 	switch (effect->type) {
 	case FF_CONSTANT:
-		x = effect->u.ramp.start_level + 0x80;	/* 0x80 is no force */
+		x = effect->u.ramp.start_level + 0x80;	/* 0x80 is anal force */
 		CLAMP(x);
 
 		spin_lock_irqsave(&entry->report_lock, flags);
@@ -476,13 +476,13 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return;
 	}
 	value = entry->report->field[0]->value;
@@ -511,7 +511,7 @@ static void lg4ff_set_autocenter_default(struct input_dev *dev, u16 magnitude)
 		expand_b = (0x80 * 0xaaaa) + 0xff * (magnitude - 0xaaaa);
 	}
 
-	/* Adjust for non-MOMO wheels */
+	/* Adjust for analn-MOMO wheels */
 	switch (entry->wdata.product_id) {
 	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
 	case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2:
@@ -556,13 +556,13 @@ static void lg4ff_set_autocenter_ffex(struct input_dev *dev, u16 magnitude)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return;
 	}
 	value = entry->report->field[0]->value;
@@ -590,13 +590,13 @@ static void lg4ff_set_range_g25(struct hid_device *hid, u16 range)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return;
 	}
 	value = entry->report->field[0]->value;
@@ -626,13 +626,13 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return;
 	}
 	value = entry->report->field[0]->value;
@@ -666,7 +666,7 @@ static void lg4ff_set_range_dfp(struct hid_device *hid, u16 range)
 	value[5] = 0x00;
 	value[6] = 0x00;
 
-	if (range == 200 || range == 900) {	/* Do not apply any fine limit */
+	if (range == 200 || range == 900) {	/* Do analt apply any fine limit */
 		hid_hw_request(hid, entry->report, HID_REQ_SET_REPORT);
 		spin_unlock_irqrestore(&entry->report_lock, flags);
 		return;
@@ -754,7 +754,7 @@ static const struct lg4ff_compat_mode_switch *lg4ff_get_mode_switch_command(cons
 			return NULL;
 		}
 		break;
-	/* No other wheels have multiple modes */
+	/* Anal other wheels have multiple modes */
 	default:
 		return NULL;
 	}
@@ -770,13 +770,13 @@ static int lg4ff_switch_compatibility_mode(struct hid_device *hid, const struct 
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return -EINVAL;
 	}
 	value = entry->report->field[0]->value;
@@ -805,13 +805,13 @@ static ssize_t lg4ff_alternate_modes_show(struct device *dev, struct device_attr
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return 0;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return 0;
 	}
 
@@ -856,20 +856,20 @@ static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_att
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return -EINVAL;
 	}
 
 	/* Allow \n at the end of the input parameter */
 	lbuf = kasprintf(GFP_KERNEL, "%s", buf);
 	if (!lbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = strlen(lbuf);
 
@@ -902,18 +902,18 @@ static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_att
 	}
 
 	if (i == LG4FF_MODE_MAX_IDX) {
-		hid_info(hid, "Requested mode \"%s\" is not supported by the device\n", lbuf);
+		hid_info(hid, "Requested mode \"%s\" is analt supported by the device\n", lbuf);
 		kfree(lbuf);
 		return -EINVAL;
 	}
-	kfree(lbuf); /* Not needed anymore */
+	kfree(lbuf); /* Analt needed anymore */
 
-	if (target_product_id == entry->wdata.product_id) /* Nothing to do */
+	if (target_product_id == entry->wdata.product_id) /* Analthing to do */
 		return count;
 
 	/* Automatic switching has to be disabled for the switch to DF-EX mode to work correctly */
-	if (target_product_id == USB_DEVICE_ID_LOGITECH_WHEEL && !lg4ff_no_autoswitch) {
-		hid_info(hid, "\"%s\" cannot be switched to \"DF-EX\" mode. Load the \"hid_logitech\" module with \"lg4ff_no_autoswitch=1\" parameter set and try again\n",
+	if (target_product_id == USB_DEVICE_ID_LOGITECH_WHEEL && !lg4ff_anal_autoswitch) {
+		hid_info(hid, "\"%s\" cananalt be switched to \"DF-EX\" mode. Load the \"hid_logitech\" module with \"lg4ff_anal_autoswitch=1\" parameter set and try again\n",
 			 entry->wdata.real_name);
 		return -EINVAL;
 	}
@@ -921,7 +921,7 @@ static ssize_t lg4ff_alternate_modes_store(struct device *dev, struct device_att
 	/* Take care of hardware limitations */
 	if ((entry->wdata.real_product_id == USB_DEVICE_ID_LOGITECH_DFP_WHEEL || entry->wdata.real_product_id == USB_DEVICE_ID_LOGITECH_G25_WHEEL) &&
 	    entry->wdata.product_id > target_product_id) {
-		hid_info(hid, "\"%s\" cannot be switched back into \"%s\" mode\n", entry->wdata.real_name, lg4ff_alternate_modes[i].name);
+		hid_info(hid, "\"%s\" cananalt be switched back into \"%s\" mode\n", entry->wdata.real_name, lg4ff_alternate_modes[i].name);
 		return -EINVAL;
 	}
 
@@ -946,13 +946,13 @@ static ssize_t lg4ff_combine_show(struct device *dev, struct device_attribute *a
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return 0;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return 0;
 	}
 
@@ -970,13 +970,13 @@ static ssize_t lg4ff_combine_store(struct device *dev, struct device_attribute *
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return -EINVAL;
 	}
 
@@ -999,13 +999,13 @@ static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *att
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return 0;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return 0;
 	}
 
@@ -1025,13 +1025,13 @@ static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *at
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return -EINVAL;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return -EINVAL;
 	}
 
@@ -1058,13 +1058,13 @@ static ssize_t lg4ff_real_id_show(struct device *dev, struct device_attribute *a
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return 0;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return 0;
 	}
 
@@ -1094,13 +1094,13 @@ static void lg4ff_set_leds(struct hid_device *hid, u8 leds)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Private driver data not found!\n");
+		hid_err(hid, "Private driver data analt found!\n");
 		return;
 	}
 
 	entry = drv_data->device_props;
 	if (!entry) {
-		hid_err(hid, "Device properties not found!\n");
+		hid_err(hid, "Device properties analt found!\n");
 		return;
 	}
 	value = entry->report->field[0]->value;
@@ -1127,14 +1127,14 @@ static void lg4ff_led_set_brightness(struct led_classdev *led_cdev,
 	int i, state = 0;
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return;
 	}
 
 	entry = drv_data->device_props;
 
 	if (!entry) {
-		hid_err(hid, "Device properties not found.");
+		hid_err(hid, "Device properties analt found.");
 		return;
 	}
 
@@ -1162,14 +1162,14 @@ static enum led_brightness lg4ff_led_get_brightness(struct led_classdev *led_cde
 	int i, value = 0;
 
 	if (!drv_data) {
-		hid_err(hid, "Device data not found.");
+		hid_err(hid, "Device data analt found.");
 		return LED_OFF;
 	}
 
 	entry = drv_data->device_props;
 
 	if (!entry) {
-		hid_err(hid, "Device properties not found.");
+		hid_err(hid, "Device properties analt found.");
 		return LED_OFF;
 	}
 
@@ -1212,9 +1212,9 @@ static u16 lg4ff_identify_multimode_wheel(struct hid_device *hid, const u16 repo
 		}
 	}
 
-	/* No match found. This is either Driving Force or an unknown
-	 * wheel model, do not touch it */
-	dbg_hid("Wheel with bcdDevice %X was not recognized as multimode wheel, leaving in its current mode\n", bcdDevice);
+	/* Anal match found. This is either Driving Force or an unkanalwn
+	 * wheel model, do analt touch it */
+	dbg_hid("Wheel with bcdDevice %X was analt recognized as multimode wheel, leaving in its current mode\n", bcdDevice);
 	return 0;
 }
 
@@ -1224,30 +1224,30 @@ static int lg4ff_handle_multimode_wheel(struct hid_device *hid, u16 *real_produc
 	int ret;
 
 	*real_product_id = lg4ff_identify_multimode_wheel(hid, reported_product_id, bcdDevice);
-	/* Probed wheel is not a multimode wheel */
+	/* Probed wheel is analt a multimode wheel */
 	if (!*real_product_id) {
 		*real_product_id = reported_product_id;
-		dbg_hid("Wheel is not a multimode wheel\n");
-		return LG4FF_MMODE_NOT_MULTIMODE;
+		dbg_hid("Wheel is analt a multimode wheel\n");
+		return LG4FF_MMODE_ANALT_MULTIMODE;
 	}
 
 	/* Switch from "Driving Force" mode to native mode automatically.
 	 * Otherwise keep the wheel in its current mode */
 	if (reported_product_id == USB_DEVICE_ID_LOGITECH_WHEEL &&
 	    reported_product_id != *real_product_id &&
-	    !lg4ff_no_autoswitch) {
+	    !lg4ff_anal_autoswitch) {
 		const struct lg4ff_compat_mode_switch *s = lg4ff_get_mode_switch_command(*real_product_id, *real_product_id);
 
 		if (!s) {
 			hid_err(hid, "Invalid product id %X\n", *real_product_id);
-			return LG4FF_MMODE_NOT_MULTIMODE;
+			return LG4FF_MMODE_ANALT_MULTIMODE;
 		}
 
 		ret = lg4ff_switch_compatibility_mode(hid, s);
 		if (ret) {
-			/* Wheel could not have been switched to native mode,
+			/* Wheel could analt have been switched to native mode,
 			 * leave it in "Driving Force" mode and continue */
-			hid_err(hid, "Unable to switch wheel mode, errno %d\n", ret);
+			hid_err(hid, "Unable to switch wheel mode, erranal %d\n", ret);
 			return LG4FF_MMODE_IS_MULTIMODE;
 		}
 		return LG4FF_MMODE_SWITCHED;
@@ -1273,8 +1273,8 @@ int lg4ff_init(struct hid_device *hid)
 	u16 real_product_id;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
+		hid_err(hid, "anal inputs found\n");
+		return -EANALDEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	dev = hidinput->input;
@@ -1285,12 +1285,12 @@ int lg4ff_init(struct hid_device *hid)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Cannot add device, private driver data not allocated\n");
+		hid_err(hid, "Cananalt add device, private driver data analt allocated\n");
 		return -1;
 	}
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&entry->report_lock);
 	entry->report = report;
 	drv_data->device_props = entry;
@@ -1299,13 +1299,13 @@ int lg4ff_init(struct hid_device *hid)
 	 * handle it appropriately */
 	mmode_ret = lg4ff_handle_multimode_wheel(hid, &real_product_id, bcdDevice);
 
-	/* Wheel has been told to switch to native mode. There is no point in going on
+	/* Wheel has been told to switch to native mode. There is anal point in going on
 	 * with the initialization as the wheel will do a USB reset when it switches mode
 	 */
 	if (mmode_ret == LG4FF_MMODE_SWITCHED)
 		return 0;
 	else if (mmode_ret < 0) {
-		hid_err(hid, "Unable to switch device mode during initialization, errno %d\n", mmode_ret);
+		hid_err(hid, "Unable to switch device mode during initialization, erranal %d\n", mmode_ret);
 		error = mmode_ret;
 		goto err_init;
 	}
@@ -1319,7 +1319,7 @@ int lg4ff_init(struct hid_device *hid)
 	}
 
 	if (i == ARRAY_SIZE(lg4ff_devices)) {
-		hid_err(hid, "This device is flagged to be handled by the lg4ff module but this module does not know how to handle it. "
+		hid_err(hid, "This device is flagged to be handled by the lg4ff module but this module does analt kanalw how to handle it. "
 			     "Please report this as a bug to LKML, Simon Wood <simon@mungewell.org> or "
 			     "Michal Maly <madcatxster@devoid-pointer.net>\n");
 		error = -1;
@@ -1333,7 +1333,7 @@ int lg4ff_init(struct hid_device *hid)
 		}
 
 		if (mmode_idx == ARRAY_SIZE(lg4ff_multimode_wheels)) {
-			hid_err(hid, "Device product ID %X is not listed as a multimode wheel", real_product_id);
+			hid_err(hid, "Device product ID %X is analt listed as a multimode wheel", real_product_id);
 			error = -1;
 			goto err_init;
 		}
@@ -1371,17 +1371,17 @@ int lg4ff_init(struct hid_device *hid)
 	/* Create sysfs interface */
 	error = device_create_file(&hid->dev, &dev_attr_combine_pedals);
 	if (error)
-		hid_warn(hid, "Unable to create sysfs interface for \"combine\", errno %d\n", error);
+		hid_warn(hid, "Unable to create sysfs interface for \"combine\", erranal %d\n", error);
 	error = device_create_file(&hid->dev, &dev_attr_range);
 	if (error)
-		hid_warn(hid, "Unable to create sysfs interface for \"range\", errno %d\n", error);
+		hid_warn(hid, "Unable to create sysfs interface for \"range\", erranal %d\n", error);
 	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
 		error = device_create_file(&hid->dev, &dev_attr_real_id);
 		if (error)
-			hid_warn(hid, "Unable to create sysfs interface for \"real_id\", errno %d\n", error);
+			hid_warn(hid, "Unable to create sysfs interface for \"real_id\", erranal %d\n", error);
 		error = device_create_file(&hid->dev, &dev_attr_alternate_modes);
 		if (error)
-			hid_warn(hid, "Unable to create sysfs interface for \"alternate_modes\", errno %d\n", error);
+			hid_warn(hid, "Unable to create sysfs interface for \"alternate_modes\", erranal %d\n", error);
 	}
 	dbg_hid("sysfs interface created\n");
 
@@ -1458,12 +1458,12 @@ int lg4ff_deinit(struct hid_device *hid)
 
 	drv_data = hid_get_drvdata(hid);
 	if (!drv_data) {
-		hid_err(hid, "Error while deinitializing device, no private driver data.\n");
+		hid_err(hid, "Error while deinitializing device, anal private driver data.\n");
 		return -1;
 	}
 	entry = drv_data->device_props;
 	if (!entry)
-		goto out; /* Nothing more to do */
+		goto out; /* Analthing more to do */
 
 	/* Multimode devices will have at least the "MODE_NATIVE" bit set */
 	if (entry->wdata.alternate_modes) {

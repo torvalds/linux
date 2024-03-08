@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -6553,8 +6553,8 @@
 #define regPCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                                       5
 #define regPCIE_TX_VENDOR_SPECIFIC                                                                      0x2890194
 #define regPCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                             5
-#define regPCIE_TX_NOP_DLLP                                                                             0x2890195
-#define regPCIE_TX_NOP_DLLP_BASE_IDX                                                                    5
+#define regPCIE_TX_ANALP_DLLP                                                                             0x2890195
+#define regPCIE_TX_ANALP_DLLP_BASE_IDX                                                                    5
 #define regPCIE_TX_REQUEST_NUM_CNTL                                                                     0x2890198
 #define regPCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                            5
 #define regPCIE_TX_CREDITS_ADVT_P                                                                       0x28901a0

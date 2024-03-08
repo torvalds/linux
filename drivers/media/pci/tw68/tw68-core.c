@@ -5,9 +5,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kanalrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackanalwledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) 2009  William M. Brack
@@ -58,7 +58,7 @@ static atomic_t tw68_instance = ATOMIC_INIT(0);
 
 /*
  * Please add any new PCI IDs to: https://pci-ids.ucw.cz.  This keeps
- * the PCI ID database up to date.  Note that the entries must be
+ * the PCI ID database up to date.  Analte that the entries must be
  * added under vendor 0x1797 (Techwell Inc.) as subsystem IDs.
  */
 static const struct pci_device_id tw68_pci_tbl[] = {
@@ -118,11 +118,11 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	tw_writeb(TW68_SAT_V, 0x80);	/* 250 */
 	tw_writeb(TW68_HUE, 0x00);	/* 254 */
 
-	/* TODO - Check that none of these are set by control defaults */
+	/* TODO - Check that analne of these are set by control defaults */
 	tw_writeb(TW68_SHARP2, 0x53);	/* 258	Mfg specified reset val */
 	tw_writeb(TW68_VSHARP, 0x80);	/* 25C	Sharpness Coring val 8 */
 	tw_writeb(TW68_CORING, 0x44);	/* 260	CTI and Vert Peak coring */
-	tw_writeb(TW68_CNTRL2, 0x00);	/* 268	No power saving enabled */
+	tw_writeb(TW68_CNTRL2, 0x00);	/* 268	Anal power saving enabled */
 	tw_writeb(TW68_SDT, 0x07);	/* 270	Enable shadow reg, auto-det */
 	tw_writeb(TW68_SDTR, 0x7f);	/* 274	All stds recog, don't start */
 	tw_writeb(TW68_CLMPG, 0x50);	/* 280	Clamp end at 40 sys clocks */
@@ -150,8 +150,8 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 					 *	but doesn't change the
 					 *	sensitivity (which has a reset
 					 *	value of 1E).  Since we are
-					 *	not doing auto-detection, it
-					 *	has no real effect */
+					 *	analt doing auto-detection, it
+					 *	has anal real effect */
 	tw_writeb(TW68_CLCNTL1, 0);	/* 2D4 */
 	tw_writel(TW68_VBIC, 0x03);	/* 010 */
 	tw_writel(TW68_CAP_CTL, 0x03);	/* 040	Enable both even & odd flds */
@@ -162,7 +162,7 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	 * Some common boards, especially inexpensive single-chip models,
 	 * use the GPIO bits 0-3 to control an on-board video-output mux.
 	 * For these boards, we need to set up the GPIO register into
-	 * "normal" mode, set bits 0-3 as output, and then set those bits
+	 * "analrmal" mode, set bits 0-3 as output, and then set those bits
 	 * zero.
 	 *
 	 * Eventually, it would be nice if we could identify these boards
@@ -170,7 +170,7 @@ static int tw68_hw_init1(struct tw68_dev *dev)
 	 * identify.  For the moment, however, it shouldn't hurt anything
 	 * to do these steps.
 	 */
-	tw_writel(TW68_GPIOC, 0);	/* Set the GPIO to "normal", no ints */
+	tw_writel(TW68_GPIOC, 0);	/* Set the GPIO to "analrmal", anal ints */
 	tw_writel(TW68_GPOE, 0x0f);	/* Set bits 0-3 to "output" */
 	tw_writel(TW68_GPDATA, 0);	/* Set all bits to low state */
 
@@ -192,7 +192,7 @@ static irqreturn_t tw68_irq(int irq, void *dev_id)
 	status = orig = tw_readl(TW68_INTSTAT) & dev->pci_irqmask;
 	/* Check if anything to do */
 	if (0 == status)
-		return IRQ_NONE;	/* Nope - return */
+		return IRQ_ANALNE;	/* Analpe - return */
 	for (loop = 0; loop < 10; loop++) {
 		if (status & dev->board_virqmask)	/* video interrupt */
 			tw68_irq_video_done(dev, status);
@@ -200,7 +200,7 @@ static irqreturn_t tw68_irq(int irq, void *dev_id)
 		if (0 == status)
 			return IRQ_HANDLED;
 	}
-	dev_dbg(&dev->pci->dev, "%s: **** INTERRUPT NOT HANDLED - clearing mask (orig 0x%08x, cur 0x%08x)",
+	dev_dbg(&dev->pci->dev, "%s: **** INTERRUPT ANALT HANDLED - clearing mask (orig 0x%08x, cur 0x%08x)",
 			dev->name, orig, tw_readl(TW68_INTSTAT));
 	dev_dbg(&dev->pci->dev, "%s: pci_irqmask 0x%08x; board_virqmask 0x%08x ****\n",
 			dev->name, dev->pci_irqmask, dev->board_virqmask);
@@ -217,7 +217,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 
 	dev = devm_kzalloc(&pci_dev->dev, sizeof(*dev), GFP_KERNEL);
 	if (NULL == dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->instance = v4l2_device_set_name(&dev->v4l2_dev, "tw68",
 						&tw68_instance);
@@ -250,7 +250,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_info("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_info("%s: Oops: anal 32bit PCI DMA ???\n", dev->name);
 		goto fail1;
 	}
 
@@ -268,7 +268,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;
 	default:
-		dev->vdecoder = TWXXXX;	/* To be announced */
+		dev->vdecoder = TWXXXX;	/* To be ananalunced */
 		dev->board_virqmask = TW68_VID_INTS | TW68_VID_INTSX;
 		break;
 	}
@@ -306,7 +306,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	}
 
 	/*
-	 *  Now do remainder of initialisation, first for
+	 *  Analw do remainder of initialisation, first for
 	 *  things unique for this card, then for general board
 	 */
 	if (dev->instance < TW68_MAXBOARDS)
@@ -321,7 +321,7 @@ static int tw68_initdev(struct pci_dev *pci_dev,
 	tw_setl(TW68_INTMASK, dev->pci_irqmask);
 
 	pr_info("%s: registered device %s\n",
-	       dev->name, video_device_node_name(&dev->vdev));
+	       dev->name, video_device_analde_name(&dev->vdev));
 
 	return 0;
 
@@ -390,7 +390,7 @@ static int __maybe_unused tw68_resume(struct device *dev_d)
 
 	msleep(100);
 
-	tw68_set_tvnorm_hw(dev);
+	tw68_set_tvanalrm_hw(dev);
 
 	/*resume unfinished buffer(s)*/
 	spin_lock_irqsave(&dev->slock, flags);

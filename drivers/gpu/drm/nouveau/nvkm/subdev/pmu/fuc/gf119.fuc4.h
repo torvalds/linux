@@ -1668,7 +1668,7 @@ static uint32_t gf119_pmu_code[] = {
 	0x076c21f5,
 	0xb90464b6,
 	0x74bd025b,
-/* 0x0a4b: i2c_recv_not_rd08 */
+/* 0x0a4b: i2c_recv_analt_rd08 */
 	0xb0430ef4,
 	0x1bf401d6,
 	0x0057f03d,
@@ -1685,7 +1685,7 @@ static uint32_t gf119_pmu_code[] = {
 	0xc774bd07,
 	0x1bf408c5,
 	0x0232f409,
-/* 0x0a8b: i2c_recv_not_wr08 */
+/* 0x0a8b: i2c_recv_analt_wr08 */
 /* 0x0a8b: i2c_recv_done */
 	0xc7030ef4,
 	0x21f5f8ce,

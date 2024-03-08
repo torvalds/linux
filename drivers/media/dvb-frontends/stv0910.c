@@ -27,7 +27,7 @@
 
 static LIST_HEAD(stvlist);
 
-enum receive_mode { RCVMODE_NONE, RCVMODE_DVBS, RCVMODE_DVBS2, RCVMODE_AUTO };
+enum receive_mode { RCVMODE_ANALNE, RCVMODE_DVBS, RCVMODE_DVBS2, RCVMODE_AUTO };
 
 enum dvbs2_fectype { DVBS2_64K, DVBS2_16K };
 
@@ -113,7 +113,7 @@ struct stv {
 	u32   cur_scrambling_code;
 
 	u32   last_bernumerator;
-	u32   last_berdenominator;
+	u32   last_berdeanalminator;
 	u8    berscale;
 
 	u8    vth[6];
@@ -513,7 +513,7 @@ static int get_signal_parameters(struct stv *state)
 
 	} else if (state->receive_mode == RCVMODE_DVBS) {
 		read_reg(state, RSTV0910_P2_VITCURPUN + state->regoff, &tmp);
-		state->puncture_rate = FEC_NONE;
+		state->puncture_rate = FEC_ANALNE;
 		switch (tmp & 0x1F) {
 		case 0x0d:
 			state->puncture_rate = FEC_1_2;
@@ -628,7 +628,7 @@ static s32 table_lookup(const struct slookup *table,
 	return value;
 }
 
-static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
+static int get_signal_to_analise(struct stv *state, s32 *signal_to_analise)
 {
 	u8 data0;
 	u8 data1;
@@ -636,33 +636,33 @@ static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
 	int n_lookup;
 	const struct slookup *lookup;
 
-	*signal_to_noise = 0;
+	*signal_to_analise = 0;
 
 	if (!state->started)
 		return -EINVAL;
 
 	if (state->receive_mode == RCVMODE_DVBS2) {
-		read_reg(state, RSTV0910_P2_NNOSPLHT1 + state->regoff,
+		read_reg(state, RSTV0910_P2_NANALSPLHT1 + state->regoff,
 			 &data1);
-		read_reg(state, RSTV0910_P2_NNOSPLHT0 + state->regoff,
+		read_reg(state, RSTV0910_P2_NANALSPLHT0 + state->regoff,
 			 &data0);
 		n_lookup = ARRAY_SIZE(s2_sn_lookup);
 		lookup = s2_sn_lookup;
 	} else {
-		read_reg(state, RSTV0910_P2_NNOSDATAT1 + state->regoff,
+		read_reg(state, RSTV0910_P2_NANALSDATAT1 + state->regoff,
 			 &data1);
-		read_reg(state, RSTV0910_P2_NNOSDATAT0 + state->regoff,
+		read_reg(state, RSTV0910_P2_NANALSDATAT0 + state->regoff,
 			 &data0);
 		n_lookup = ARRAY_SIZE(s1_sn_lookup);
 		lookup = s1_sn_lookup;
 	}
 	data = (((u16)data1) << 8) | (u16)data0;
-	*signal_to_noise = table_lookup(lookup, n_lookup, data);
+	*signal_to_analise = table_lookup(lookup, n_lookup, data);
 	return 0;
 }
 
 static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
-				u32 *berdenominator)
+				u32 *berdeanalminator)
 {
 	u8 regs[3];
 
@@ -674,7 +674,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator = 1ULL << ((state->berscale * 2) +
+		state->last_berdeanalminator = 1ULL << ((state->berscale * 2) +
 						     10 + 3);
 		state->last_bernumerator = ((u32)(regs[0] & 0x7F) << 16) |
 			((u32)regs[1] << 8) | regs[2];
@@ -692,7 +692,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 		}
 	}
 	*bernumerator = state->last_bernumerator;
-	*berdenominator = state->last_berdenominator;
+	*berdeanalminator = state->last_berdeanalminator;
 	return 0;
 }
 
@@ -737,7 +737,7 @@ static u32 dvbs2_nbch(enum dvbs2_mod_cod mod_cod, enum dvbs2_fectype fectype)
 }
 
 static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
-				 u32 *berdenominator)
+				 u32 *berdeanalminator)
 {
 	u8 regs[3];
 
@@ -748,7 +748,7 @@ static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
 		return -EINVAL;
 
 	if ((regs[0] & 0x80) == 0) {
-		state->last_berdenominator =
+		state->last_berdeanalminator =
 			dvbs2_nbch((enum dvbs2_mod_cod)state->mod_cod,
 				   state->fectype) <<
 			(state->berscale * 2);
@@ -766,23 +766,23 @@ static int get_bit_error_rate_s2(struct stv *state, u32 *bernumerator,
 		}
 	}
 	*bernumerator = state->last_bernumerator;
-	*berdenominator = state->last_berdenominator;
+	*berdeanalminator = state->last_berdeanalminator;
 	return status;
 }
 
 static int get_bit_error_rate(struct stv *state, u32 *bernumerator,
-			      u32 *berdenominator)
+			      u32 *berdeanalminator)
 {
 	*bernumerator = 0;
-	*berdenominator = 1;
+	*berdeanalminator = 1;
 
 	switch (state->receive_mode) {
 	case RCVMODE_DVBS:
 		return get_bit_error_rate_s(state,
-					    bernumerator, berdenominator);
+					    bernumerator, berdeanalminator);
 	case RCVMODE_DVBS2:
 		return get_bit_error_rate_s2(state,
-					     bernumerator, berdenominator);
+					     bernumerator, berdeanalminator);
 	default:
 		break;
 	}
@@ -868,7 +868,7 @@ static int stop(struct stv *state)
 		write_reg(state, RSTV0910_P2_DMDISTATE + state->regoff, 0x5c);
 		state->started = 0;
 	}
-	state->receive_mode = RCVMODE_NONE;
+	state->receive_mode = RCVMODE_ANALNE;
 	return 0;
 }
 
@@ -889,11 +889,11 @@ static void set_pls(struct stv *state, u32 pls_code)
 
 static void set_isi(struct stv *state, u32 isi)
 {
-	if (isi == NO_STREAM_ID_FILTER)
+	if (isi == ANAL_STREAM_ID_FILTER)
 		return;
 	if (isi == 0x80000000) {
 		SET_FIELD(FORCE_CONTINUOUS, 1);
-		SET_FIELD(TSOUT_NOSYNC, 1);
+		SET_FIELD(TSOUT_ANALSYNC, 1);
 	} else {
 		SET_FIELD(FILTER_EN, 1);
 		write_reg(state, RSTV0910_P2_ISIENTRY + state->regoff,
@@ -917,7 +917,7 @@ static int init_search_param(struct stv *state,
 	SET_FIELD(FORCE_CONTINUOUS, 0);
 	SET_FIELD(FRAME_MODE, 0);
 	SET_FIELD(FILTER_EN, 0);
-	SET_FIELD(TSOUT_NOSYNC, 0);
+	SET_FIELD(TSOUT_ANALSYNC, 0);
 	SET_FIELD(TSFIFO_EMBINDVB, 0);
 	SET_FIELD(TSDEL_SYNCBYTE, 0);
 	SET_REG(UPLCCST0, 0xe0);
@@ -949,7 +949,7 @@ static int enable_puncture_rate(struct stv *state, enum fe_code_rate rate)
 	case FEC_7_8:
 		val = 0x20;
 		break;
-	case FEC_NONE:
+	case FEC_ANALNE:
 	default:
 		val = 0x2f;
 		break;
@@ -988,7 +988,7 @@ static int set_vth(struct stv *state)
 	int i;
 	u8 tmp[2];
 	int status = read_regs(state,
-			       RSTV0910_P2_NNOSDATAT1 + state->regoff,
+			       RSTV0910_P2_NANALSDATAT1 + state->regoff,
 			       tmp, 2);
 	u16 reg_value = (tmp[0] << 8) | tmp[1];
 	s32 vth = table_lookup(vthlookup_table, ARRAY_SIZE(vthlookup_table),
@@ -1016,7 +1016,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 	if (p->symbol_rate < 100000 || p->symbol_rate > 70000000)
 		return -EINVAL;
 
-	state->receive_mode = RCVMODE_NONE;
+	state->receive_mode = RCVMODE_ANALNE;
 	state->demod_lock_time = 0;
 
 	/* Demod Stop */
@@ -1066,7 +1066,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 	write_reg(state, RSTV0910_P2_FECM  + state->regoff, 0x00);
 	write_reg(state, RSTV0910_P2_PRVIT + state->regoff, 0x2F);
 
-	enable_puncture_rate(state, FEC_NONE);
+	enable_puncture_rate(state, FEC_ANALNE);
 
 	/* 8PSK 3/5, 8PSK 2/3 Poff tracking optimization WA */
 	write_reg(state, RSTV0910_P2_ACLC2S2Q + state->regoff, 0x0B);
@@ -1083,7 +1083,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 
 	/*
 	 * Reset CAR3, bug DVBS2->DVBS1 lock
-	 * Note: The bit is only pulsed -> no lock on shared register needed
+	 * Analte: The bit is only pulsed -> anal lock on shared register needed
 	 */
 	write_reg(state, RSTV0910_TSTRES0, state->nr ? 0x04 : 0x08);
 	write_reg(state, RSTV0910_TSTRES0, 0);
@@ -1140,11 +1140,11 @@ static int probe(struct stv *state)
 {
 	u8 id;
 
-	state->receive_mode = RCVMODE_NONE;
+	state->receive_mode = RCVMODE_ANALNE;
 	state->started = 0;
 
 	if (read_reg(state, RSTV0910_MID, &id) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (id != 0x51)
 		return -EINVAL;
@@ -1226,9 +1226,9 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	u8 i2crpt = state->i2crpt & ~0x86;
 
 	/*
-	 * mutex_lock note: Concurrent I2C gate bus accesses must be
+	 * mutex_lock analte: Concurrent I2C gate bus accesses must be
 	 * prevented (STV0910 = dual demod on a single IC with a single I2C
-	 * gate/bus, and two tuners attached), similar to most (if not all)
+	 * gate/bus, and two tuners attached), similar to most (if analt all)
 	 * other I2C host interfaces/buses.
 	 *
 	 * enable=1 (open I2C gate) will grab the lock
@@ -1314,11 +1314,11 @@ static int read_snr(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	s32 snrval;
 
-	if (!get_signal_to_noise(state, &snrval)) {
+	if (!get_signal_to_analise(state, &snrval)) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = 100 * snrval; /* fix scale */
 	} else {
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -1373,7 +1373,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u8 dmd_state = 0;
 	u8 dstatus  = 0;
-	enum receive_mode cur_receive_mode = RCVMODE_NONE;
+	enum receive_mode cur_receive_mode = RCVMODE_ANALNE;
 	u32 feclock = 0;
 
 	*status = 0;
@@ -1386,14 +1386,14 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 			cur_receive_mode = (dmd_state & 0x20) ?
 				RCVMODE_DVBS : RCVMODE_DVBS2;
 	}
-	if (cur_receive_mode == RCVMODE_NONE) {
+	if (cur_receive_mode == RCVMODE_ANALNE) {
 		set_vth(state);
 
 		/* reset signal statistics */
-		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 		return 0;
 	}
@@ -1403,7 +1403,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 		| FE_HAS_VITERBI
 		| FE_HAS_SYNC);
 
-	if (state->receive_mode == RCVMODE_NONE) {
+	if (state->receive_mode == RCVMODE_ANALNE) {
 		state->receive_mode = cur_receive_mode;
 		state->demod_lock_time = jiffies;
 		state->first_time_lock = 1;
@@ -1472,7 +1472,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 				state->berscale = 2;
 				state->last_bernumerator = 0;
-				state->last_berdenominator = 1;
+				state->last_berdeanalminator = 1;
 				/* force to PRE BCH Rate */
 				write_reg(state,
 					  RSTV0910_P2_ERRCTRL1 + state->regoff,
@@ -1480,7 +1480,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 			} else {
 				state->berscale = 2;
 				state->last_bernumerator = 0;
-				state->last_berdenominator = 1;
+				state->last_berdeanalminator = 1;
 				/* force to PRE RS Rate */
 				write_reg(state,
 					  RSTV0910_P2_ERRCTRL1 + state->regoff,
@@ -1521,18 +1521,18 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	/* read signal strength */
 	read_signal_strength(fe);
 
-	/* read carrier/noise on FE_HAS_CARRIER */
+	/* read carrier/analise on FE_HAS_CARRIER */
 	if (*status & FE_HAS_CARRIER)
 		read_snr(fe);
 	else
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	/* read ber */
 	if (*status & FE_HAS_VITERBI) {
 		read_ber(fe);
 	} else {
-		p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -1558,7 +1558,7 @@ static int get_frontend(struct dvb_frontend *fe,
 			APSK_32,
 		};
 		const enum fe_code_rate modcod2fec[0x20] = {
-			FEC_NONE, FEC_NONE, FEC_NONE, FEC_2_5,
+			FEC_ANALNE, FEC_ANALNE, FEC_ANALNE, FEC_2_5,
 			FEC_1_2, FEC_3_5, FEC_2_3, FEC_3_4,
 			FEC_4_5, FEC_5_6, FEC_8_9, FEC_9_10,
 			FEC_3_5, FEC_2_3, FEC_3_4, FEC_5_6,
@@ -1591,13 +1591,13 @@ static int get_frontend(struct dvb_frontend *fe,
 			p->fec_inner = FEC_7_8;
 			break;
 		default:
-			p->fec_inner = FEC_NONE;
+			p->fec_inner = FEC_ANALNE;
 			break;
 		}
 		p->rolloff = ROLLOFF_35;
 	}
 
-	if (state->receive_mode != RCVMODE_NONE) {
+	if (state->receive_mode != RCVMODE_ANALNE) {
 		get_cur_symbol_rate(state, &symbolrate);
 		p->symbol_rate = symbolrate;
 	}
@@ -1755,13 +1755,13 @@ static void stv0910_init_stats(struct stv *state)
 	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
 
 	p->strength.len = 1;
-	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->cnr.len = 1;
-	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->pre_bit_error.len = 1;
-	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->pre_bit_count.len = 1;
-	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 }
 
 struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
@@ -1784,7 +1784,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	state->regoff = state->nr ? 0 : 0x200;
 	state->search_range = 16000000;
 	state->demod_bits = 0x10; /* Inversion : Auto with reset to 0 */
-	state->receive_mode = RCVMODE_NONE;
+	state->receive_mode = RCVMODE_ANALNE;
 	state->cur_scrambling_code = (~0U);
 	state->single = cfg->single ? 1 : 0;
 
@@ -1805,7 +1805,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 		mutex_init(&base->reg_lock);
 		state->base = base;
 		if (probe(state) < 0) {
-			dev_info(&i2c->dev, "No demod found at adr %02X on %s\n",
+			dev_info(&i2c->dev, "Anal demod found at adr %02X on %s\n",
 				 cfg->adr, dev_name(&i2c->dev));
 			kfree(base);
 			goto fail;

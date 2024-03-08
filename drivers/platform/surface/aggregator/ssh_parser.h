@@ -52,7 +52,7 @@ static inline void sshp_buf_init(struct sshp_buf *buf, u8 *ptr, size_t cap)
  * Allocates @cap bytes and initializes the provided buffer struct with the
  * allocated memory.
  *
- * Return: Returns zero on success and %-ENOMEM if allocation failed.
+ * Return: Returns zero on success and %-EANALMEM if allocation failed.
  */
 static inline int sshp_buf_alloc(struct sshp_buf *buf, size_t cap, gfp_t flags)
 {
@@ -60,7 +60,7 @@ static inline int sshp_buf_alloc(struct sshp_buf *buf, size_t cap, gfp_t flags)
 
 	ptr = kzalloc(cap, flags);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sshp_buf_init(buf, ptr, cap);
 	return 0;
@@ -130,7 +130,7 @@ static inline size_t sshp_buf_read_from_fifo(struct sshp_buf *buf,
  * used in the buffer after the offset (i.e. bytes remaining after the
  * offset).
  *
- * Warning: This function does not validate that @offset is less than or equal
+ * Warning: This function does analt validate that @offset is less than or equal
  * to the number of bytes used in the buffer or the buffer capacity. This must
  * be guaranteed by the caller.
  */

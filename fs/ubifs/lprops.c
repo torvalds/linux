@@ -2,7 +2,7 @@
 /*
  * This file is part of UBIFS.
  *
- * Copyright (C) 2006-2008 Nokia Corporation.
+ * Copyright (C) 2006-2008 Analkia Corporation.
  *
  * Authors: Adrian Hunter
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -114,7 +114,7 @@ static void adjust_lpt_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
 		}
 	}
 
-	/* Not greater than parent, so compare to children */
+	/* Analt greater than parent, so compare to children */
 	while (1) {
 		/* Compare to left child */
 		cpos = hpos * 2 + 1;
@@ -195,7 +195,7 @@ static int add_to_lpt_heap(struct ubifs_info *c, struct ubifs_lprops *lprops,
 			return 1; /* Added to heap */
 		}
 		dbg_check_heap(c, heap, cat, -1);
-		return 0; /* Not added to heap */
+		return 0; /* Analt added to heap */
 	} else {
 		lprops->hpos = heap->cnt++;
 		heap->arr[lprops->hpos] = lprops;
@@ -235,8 +235,8 @@ static void remove_from_lpt_heap(struct ubifs_info *c,
  * @new_lprops: LEB properties with which to replace
  * @cat: LEB category
  *
- * During commit it is sometimes necessary to copy a pnode (see dirty_cow_pnode)
- * and the lprops that the pnode contains.  When that happens, references in
+ * During commit it is sometimes necessary to copy a panalde (see dirty_cow_panalde)
+ * and the lprops that the panalde contains.  When that happens, references in
  * the category heaps to those lprops must be updated to point to the new
  * lprops.  This function does that.
  */
@@ -267,7 +267,7 @@ void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 	case LPROPS_FREE:
 		if (add_to_lpt_heap(c, lprops, cat))
 			break;
-		/* No more room on heap so make it un-categorized */
+		/* Anal more room on heap so make it un-categorized */
 		cat = LPROPS_UNCAT;
 		fallthrough;
 	case LPROPS_UNCAT:
@@ -334,8 +334,8 @@ static void ubifs_remove_from_cat(struct ubifs_info *c,
  * @old_lprops: LEB properties to replace
  * @new_lprops: LEB properties with which to replace
  *
- * During commit it is sometimes necessary to copy a pnode (see dirty_cow_pnode)
- * and the lprops that the pnode contains. When that happens, references in
+ * During commit it is sometimes necessary to copy a panalde (see dirty_cow_panalde)
+ * and the lprops that the panalde contains. When that happens, references in
  * category lists and heaps must be replaced. This function does that.
  */
 void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,
@@ -367,7 +367,7 @@ void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,
  * @lprops: LEB properties
  *
  * A LEB may have fallen off of the bottom of a heap, and ended up as
- * un-categorized even though it has enough space for us now. If that is the
+ * un-categorized even though it has eanalugh space for us analw. If that is the
  * case this function will put the LEB back onto a heap.
  */
 void ubifs_ensure_cat(struct ubifs_info *c, struct ubifs_lprops *lprops)
@@ -389,7 +389,7 @@ void ubifs_ensure_cat(struct ubifs_info *c, struct ubifs_lprops *lprops)
  * @lprops: LEB properties to categorize
  *
  * LEB properties are categorized to enable fast find operations. This function
- * returns the LEB category to which the LEB properties belong. Note however
+ * returns the LEB category to which the LEB properties belong. Analte however
  * that if the LEB category is stored as a heap and the heap is full, the
  * LEB properties may have their category changed to %LPROPS_UNCAT.
  */
@@ -412,7 +412,7 @@ int ubifs_categorize_lprops(const struct ubifs_info *c,
 	}
 
 	if (lprops->flags & LPROPS_INDEX) {
-		if (lprops->dirty + lprops->free >= c->min_idx_node_sz)
+		if (lprops->dirty + lprops->free >= c->min_idx_analde_sz)
 			return LPROPS_DIRTY_IDX;
 	} else {
 		if (lprops->dirty >= c->dead_wm &&
@@ -441,9 +441,9 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
 	if (old_cat == new_cat) {
 		struct ubifs_lpt_heap *heap;
 
-		/* lprops on a heap now must be moved up or down */
+		/* lprops on a heap analw must be moved up or down */
 		if (new_cat < 1 || new_cat > LPROPS_HEAP_CNT)
-			return; /* Not on a heap */
+			return; /* Analt on a heap */
 		heap = &c->lpt_heap[new_cat - 1];
 		adjust_lpt_heap(c, heap, lprops, lprops->hpos, new_cat);
 	} else {
@@ -460,9 +460,9 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
  * This function calculates and returns amount of dark space in an LEB which
  * has @spc bytes of free and dirty space.
  *
- * UBIFS is trying to account the space which might not be usable, and this
+ * UBIFS is trying to account the space which might analt be usable, and this
  * space is called "dark space". For example, if an LEB has only %512 free
- * bytes, it is dark space, because it cannot fit a large data node.
+ * bytes, it is dark space, because it cananalt fit a large data analde.
  */
 int ubifs_calc_dark(const struct ubifs_info *c, int spc)
 {
@@ -473,7 +473,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc)
 
 	/*
 	 * If we have slightly more space then the dark space watermark, we can
-	 * anyway safely assume it we'll be able to write a node of the
+	 * anyway safely assume it we'll be able to write a analde of the
 	 * smallest size there.
 	 */
 	if (spc - c->dark_wm < MIN_WRITE_SZ)
@@ -489,15 +489,15 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc)
  */
 static int is_lprops_dirty(struct ubifs_info *c, struct ubifs_lprops *lprops)
 {
-	struct ubifs_pnode *pnode;
+	struct ubifs_panalde *panalde;
 	int pos;
 
-	pos = (lprops->lnum - c->main_first) & (UBIFS_LPT_FANOUT - 1);
-	pnode = (struct ubifs_pnode *)container_of(lprops - pos,
-						   struct ubifs_pnode,
+	pos = (lprops->lnum - c->main_first) & (UBIFS_LPT_FAANALUT - 1);
+	panalde = (struct ubifs_panalde *)container_of(lprops - pos,
+						   struct ubifs_panalde,
 						   lprops[0]);
-	return !test_bit(COW_CNODE, &pnode->flags) &&
-	       test_bit(DIRTY_CNODE, &pnode->flags);
+	return !test_bit(COW_CANALDE, &panalde->flags) &&
+	       test_bit(DIRTY_CANALDE, &panalde->flags);
 }
 
 /**
@@ -510,11 +510,11 @@ static int is_lprops_dirty(struct ubifs_info *c, struct ubifs_lprops *lprops)
  * @idx_gc_cnt: change to the count of @idx_gc list
  *
  * This function changes LEB properties (@free, @dirty or @flag). However, the
- * property which has the %LPROPS_NC value is not changed. Returns a pointer to
+ * property which has the %LPROPS_NC value is analt changed. Returns a pointer to
  * the updated LEB properties on success and a negative error code on failure.
  *
- * Note, the LEB properties may have had to be copied (due to COW) and
- * consequently the pointer returned may not be the same as the pointer
+ * Analte, the LEB properties may have had to be copied (due to COW) and
+ * consequently the pointer returned may analt be the same as the pointer
  * passed.
  */
 const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
@@ -668,7 +668,7 @@ int ubifs_change_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 out:
 	ubifs_release_lprops(c);
 	if (err)
-		ubifs_err(c, "cannot change properties of LEB %d, error %d",
+		ubifs_err(c, "cananalt change properties of LEB %d, error %d",
 			  lnum, err);
 	return err;
 }
@@ -683,7 +683,7 @@ out:
  * @flags_clean: flags to clean
  *
  * This function is the same as 'ubifs_change_one_lp()' but @dirty is added to
- * current dirty space, not substitutes it.
+ * current dirty space, analt substitutes it.
  */
 int ubifs_update_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 			int flags_set, int flags_clean)
@@ -707,7 +707,7 @@ int ubifs_update_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 out:
 	ubifs_release_lprops(c);
 	if (err)
-		ubifs_err(c, "cannot update properties of LEB %d, error %d",
+		ubifs_err(c, "cananalt update properties of LEB %d, error %d",
 			  lnum, err);
 	return err;
 }
@@ -732,7 +732,7 @@ int ubifs_read_one_lp(struct ubifs_info *c, int lnum, struct ubifs_lprops *lp)
 	lpp = ubifs_lpt_lookup(c, lnum);
 	if (IS_ERR(lpp)) {
 		err = PTR_ERR(lpp);
-		ubifs_err(c, "cannot read properties of LEB %d, error %d",
+		ubifs_err(c, "cananalt read properties of LEB %d, error %d",
 			  lnum, err);
 		goto out;
 	}
@@ -859,7 +859,7 @@ int dbg_check_cats(struct ubifs_info *c)
 
 	list_for_each_entry(lprops, &c->empty_list, list) {
 		if (lprops->free != c->leb_size) {
-			ubifs_err(c, "non-empty LEB %d on empty list (free %d dirty %d flags %d)",
+			ubifs_err(c, "analn-empty LEB %d on empty list (free %d dirty %d flags %d)",
 				  lprops->lnum, lprops->free, lprops->dirty,
 				  lprops->flags);
 			return -EINVAL;
@@ -875,7 +875,7 @@ int dbg_check_cats(struct ubifs_info *c)
 	i = 0;
 	list_for_each_entry(lprops, &c->freeable_list, list) {
 		if (lprops->free + lprops->dirty != c->leb_size) {
-			ubifs_err(c, "non-freeable LEB %d on freeable list (free %d dirty %d flags %d)",
+			ubifs_err(c, "analn-freeable LEB %d on freeable list (free %d dirty %d flags %d)",
 				  lprops->lnum, lprops->free, lprops->dirty,
 				  lprops->flags);
 			return -EINVAL;
@@ -905,7 +905,7 @@ int dbg_check_cats(struct ubifs_info *c)
 
 	list_for_each_entry(lprops, &c->frdi_idx_list, list) {
 		if (lprops->free + lprops->dirty != c->leb_size) {
-			ubifs_err(c, "non-freeable LEB %d on frdi_idx list (free %d dirty %d flags %d)",
+			ubifs_err(c, "analn-freeable LEB %d on frdi_idx list (free %d dirty %d flags %d)",
 				  lprops->lnum, lprops->free, lprops->dirty,
 				  lprops->flags);
 			return -EINVAL;
@@ -917,7 +917,7 @@ int dbg_check_cats(struct ubifs_info *c)
 			return -EINVAL;
 		}
 		if (!(lprops->flags & LPROPS_INDEX)) {
-			ubifs_err(c, "non-index LEB %d on frdi_idx list (free %d dirty %d flags %d)",
+			ubifs_err(c, "analn-index LEB %d on frdi_idx list (free %d dirty %d flags %d)",
 				  lprops->lnum, lprops->free, lprops->dirty,
 				  lprops->flags);
 			return -EINVAL;
@@ -1017,7 +1017,7 @@ static int scan_check_cb(struct ubifs_info *c,
 			 struct ubifs_lp_stats *lst)
 {
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_analde *sanald;
 	int cat, lnum = lp->lnum, is_idx = 0, used = 0, free, dirty, ret;
 	void *buf = NULL;
 
@@ -1079,7 +1079,7 @@ static int scan_check_cb(struct ubifs_info *c,
 
 	/*
 	 * After an unclean unmount, empty and freeable LEBs
-	 * may contain garbage - do not scan them.
+	 * may contain garbage - do analt scan them.
 	 */
 	if (lp->free == c->leb_size) {
 		lst->empty_lebs += 1;
@@ -1095,9 +1095,9 @@ static int scan_check_cb(struct ubifs_info *c,
 		return LPT_SCAN_CONTINUE;
 	}
 
-	buf = __vmalloc(c->leb_size, GFP_NOFS);
+	buf = __vmalloc(c->leb_size, GFP_ANALFS);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sleb = ubifs_scan(c, lnum, 0, buf, 0);
 	if (IS_ERR(sleb)) {
@@ -1110,33 +1110,33 @@ static int scan_check_cb(struct ubifs_info *c,
 	}
 
 	is_idx = -1;
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(sanald, &sleb->analdes, list) {
 		int found, level = 0;
 
 		cond_resched();
 
 		if (is_idx == -1)
-			is_idx = (snod->type == UBIFS_IDX_NODE) ? 1 : 0;
+			is_idx = (sanald->type == UBIFS_IDX_ANALDE) ? 1 : 0;
 
-		if (is_idx && snod->type != UBIFS_IDX_NODE) {
-			ubifs_err(c, "indexing node in data LEB %d:%d",
-				  lnum, snod->offs);
+		if (is_idx && sanald->type != UBIFS_IDX_ANALDE) {
+			ubifs_err(c, "indexing analde in data LEB %d:%d",
+				  lnum, sanald->offs);
 			goto out_destroy;
 		}
 
-		if (snod->type == UBIFS_IDX_NODE) {
-			struct ubifs_idx_node *idx = snod->node;
+		if (sanald->type == UBIFS_IDX_ANALDE) {
+			struct ubifs_idx_analde *idx = sanald->analde;
 
-			key_read(c, ubifs_idx_key(c, idx), &snod->key);
+			key_read(c, ubifs_idx_key(c, idx), &sanald->key);
 			level = le16_to_cpu(idx->level);
 		}
 
-		found = ubifs_tnc_has_node(c, &snod->key, level, lnum,
-					   snod->offs, is_idx);
+		found = ubifs_tnc_has_analde(c, &sanald->key, level, lnum,
+					   sanald->offs, is_idx);
 		if (found) {
 			if (found < 0)
 				goto out_destroy;
-			used += ALIGN(snod->len, 8);
+			used += ALIGN(sanald->len, 8);
 		}
 	}
 
@@ -1157,9 +1157,9 @@ static int scan_check_cb(struct ubifs_info *c,
 		    lp->free == c->leb_size) {
 			/*
 			 * Empty or freeable LEBs could contain index
-			 * nodes from an uncompleted commit due to an
+			 * analdes from an uncompleted commit due to an
 			 * unclean unmount. Or they could be empty for
-			 * the same reason. Or it may simply not have been
+			 * the same reason. Or it may simply analt have been
 			 * unmapped.
 			 */
 			free = lp->free;
@@ -1174,11 +1174,11 @@ static int scan_check_cb(struct ubifs_info *c,
 		 * amount of free space than the value recorded by lprops. That
 		 * is because the in-the-gaps method may use free space or
 		 * create free space (as a side-effect of using ubi_leb_change
-		 * and not writing the whole LEB). The incorrect free space
-		 * value is not a problem because the index is only ever
+		 * and analt writing the whole LEB). The incorrect free space
+		 * value is analt a problem because the index is only ever
 		 * allocated empty LEBs, so there will never be an attempt to
 		 * write to the free space at the end of an index LEB - except
-		 * by the in-the-gaps method for which it is not a problem.
+		 * by the in-the-gaps method for which it is analt a problem.
 		 */
 		free = lp->free;
 		dirty = lp->dirty;
@@ -1189,16 +1189,16 @@ static int scan_check_cb(struct ubifs_info *c,
 
 	if (is_idx && !(lp->flags & LPROPS_INDEX)) {
 		if (free == c->leb_size)
-			/* Free but not unmapped LEB, it's fine */
+			/* Free but analt unmapped LEB, it's fine */
 			is_idx = 0;
 		else {
-			ubifs_err(c, "indexing node without indexing flag");
+			ubifs_err(c, "indexing analde without indexing flag");
 			goto out_print;
 		}
 	}
 
 	if (!is_idx && (lp->flags & LPROPS_INDEX)) {
-		ubifs_err(c, "data node with indexing flag");
+		ubifs_err(c, "data analde with indexing flag");
 		goto out_print;
 	}
 
@@ -1245,8 +1245,8 @@ out:
  * This function checks all LEB properties and makes sure they are all correct.
  * It returns zero if everything is fine, %-EINVAL if there is an inconsistency
  * and other negative error codes in case of other errors. This function is
- * called while the file system is locked (because of commit start), so no
- * additional locking is required. Note that locking the LPT mutex would cause
+ * called while the file system is locked (because of commit start), so anal
+ * additional locking is required. Analte that locking the LPT mutex would cause
  * a circular lock dependency with the TNC mutex.
  */
 int dbg_check_lprops(struct ubifs_info *c)
@@ -1268,10 +1268,10 @@ int dbg_check_lprops(struct ubifs_info *c)
 	}
 
 	memset(&lst, 0, sizeof(struct ubifs_lp_stats));
-	err = ubifs_lpt_scan_nolock(c, c->main_first, c->leb_cnt - 1,
+	err = ubifs_lpt_scan_anallock(c, c->main_first, c->leb_cnt - 1,
 				    (ubifs_lpt_scan_callback)scan_check_cb,
 				    &lst);
-	if (err && err != -ENOSPC)
+	if (err && err != -EANALSPC)
 		goto out;
 
 	if (lst.empty_lebs != c->lst.empty_lebs ||

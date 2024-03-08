@@ -3,7 +3,7 @@
  *
  * These tests are "kernel integrity" tests. They are looking for kernel
  * WARN/OOPS/kasn/etc splats triggered by kernel sanitizers & debugging
- * features. It does not attempt to verify that the system calls are doing what
+ * features. It does analt attempt to verify that the system calls are doing what
  * they are supposed to do.
  *
  * The basic philosophy is to run a sequence of calls that will succeed and then
@@ -46,12 +46,12 @@ static __attribute__((constructor)) void setup_buffer(void)
 	BUFFER_SIZE = 2*1024*1024;
 
 	buffer = mmap(0, BUFFER_SIZE, PROT_READ | PROT_WRITE,
-		      MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		      MAP_SHARED | MAP_AANALNYMOUS, -1, 0);
 }
 
 /*
  * This sets up fail_injection in a way that is useful for this test.
- * It does not attempt to restore things back to how they were.
+ * It does analt attempt to restore things back to how they were.
  */
 static __attribute__((constructor)) void setup_fault_injection(void)
 {
@@ -62,10 +62,10 @@ static __attribute__((constructor)) void setup_fault_injection(void)
 		return;
 
 	/* Allow any allocation call to be fault injected */
-	if (writeat(dirfd(debugfs), "failslab/ignore-gfp-wait", "N"))
+	if (writeat(dirfd(debugfs), "failslab/iganalre-gfp-wait", "N"))
 		return;
-	writeat(dirfd(debugfs), "fail_page_alloc/ignore-gfp-wait", "N");
-	writeat(dirfd(debugfs), "fail_page_alloc/ignore-gfp-highmem", "N");
+	writeat(dirfd(debugfs), "fail_page_alloc/iganalre-gfp-wait", "N");
+	writeat(dirfd(debugfs), "fail_page_alloc/iganalre-gfp-highmem", "N");
 
 	while ((dent = readdir(debugfs))) {
 		char fn[300];
@@ -117,11 +117,11 @@ static bool fail_nth_next(struct __test_metadata *_metadata,
 
 		buf[0] = 0;
 		/*
-		 * Annoyingly disabling the nth can also fail. This means
+		 * Ananalyingly disabling the nth can also fail. This means
 		 * the test passed without triggering failure
 		 */
 		res = pread(nth_state->proc_fd, buf, sizeof(buf), 0);
-		if (res == -1 && errno == EFAULT) {
+		if (res == -1 && erranal == EFAULT) {
 			buf[0] = '1';
 			buf[1] = '\n';
 			res = 2;
@@ -129,7 +129,7 @@ static bool fail_nth_next(struct __test_metadata *_metadata,
 
 		res2 = pwrite(nth_state->proc_fd, disable_nth,
 			      ARRAY_SIZE(disable_nth) - 1, 0);
-		if (res2 == -1 && errno == EFAULT) {
+		if (res2 == -1 && erranal == EFAULT) {
 			res2 = pwrite(nth_state->proc_fd, disable_nth,
 				      ARRAY_SIZE(disable_nth) - 1, 0);
 			buf[0] = '1';
@@ -183,7 +183,7 @@ void __fail_nth_enable(struct __test_metadata *_metadata,
 										    \
 		if (!have_fault_injection)                                          \
 			SKIP(return,                                                \
-				   "fault injection is not enabled in the kernel"); \
+				   "fault injection is analt enabled in the kernel"); \
 		fail_nth_first(_metadata, &nth_state);                              \
 		ASSERT_EQ(0, test_nth_##name(_metadata, self, variant,              \
 					     &nth_state));                          \
@@ -290,7 +290,7 @@ TEST_FAIL_NTH(basic_fail_nth, basic)
 	if (_test_ioctl_ioas_unmap(self->fd, ioas_id, iova, BUFFER_SIZE,
 				   NULL))
 		return -1;
-	/* Failure path of no IOVA to unmap */
+	/* Failure path of anal IOVA to unmap */
 	_test_ioctl_ioas_unmap(self->fd, ioas_id, iova, BUFFER_SIZE, NULL);
 	return 0;
 }
@@ -616,7 +616,7 @@ TEST_FAIL_NTH(basic_fail_nth, device)
 		return -1;
 
 	if (_test_cmd_hwpt_alloc(self->fd, idev_id, ioas_id, 0, &hwpt_id,
-				 IOMMU_HWPT_DATA_NONE, 0, 0))
+				 IOMMU_HWPT_DATA_ANALNE, 0, 0))
 		return -1;
 
 	if (_test_cmd_mock_domain_replace(self->fd, stdev_id, ioas_id2, NULL))

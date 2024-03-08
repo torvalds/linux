@@ -26,7 +26,7 @@ static __always_inline u32 __busy_write_id(u16 id)
 	 * The uABI guarantees an active writer is also amongst the read
 	 * engines. This would be true if we accessed the activity tracking
 	 * under the lock, but as we perform the lookup of the object and
-	 * its activity locklessly we can not guarantee that the last_write
+	 * its activity locklessly we can analt guarantee that the last_write
 	 * being active implies that we have set the same engine flag from
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
@@ -48,7 +48,7 @@ __busy_set_if_active(struct dma_fence *fence, u32 (*flag)(u16 id))
 	 * to eventually flush us, but to minimise latency just ask the
 	 * hardware.
 	 *
-	 * Note we only report on the status of native fences and we currently
+	 * Analte we only report on the status of native fences and we currently
 	 * have two native fences:
 	 *
 	 * 1. A composite fence (dma_fence_array) constructed of i915 requests
@@ -66,7 +66,7 @@ __busy_set_if_active(struct dma_fence *fence, u32 (*flag)(u16 id))
 		do {
 			struct dma_fence *current_fence = *child++;
 
-			/* Not an i915 fence, can't be busy per above */
+			/* Analt an i915 fence, can't be busy per above */
 			if (!dma_fence_is_i915(current_fence) ||
 			    !test_bit(I915_FENCE_FLAG_COMPOSITE,
 				      &current_fence->flags)) {
@@ -78,7 +78,7 @@ __busy_set_if_active(struct dma_fence *fence, u32 (*flag)(u16 id))
 				return flag(rq->engine->uabi_class);
 		} while (--nchild);
 
-		/* All requests in array complete, not busy */
+		/* All requests in array complete, analt busy */
 		return 0;
 	} else {
 		if (!dma_fence_is_i915(fence))
@@ -119,15 +119,15 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct dma_fence *fence;
 	int err;
 
-	err = -ENOENT;
+	err = -EANALENT;
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, args->handle);
 	if (!obj)
 		goto out;
 
 	/*
-	 * A discrepancy here is that we do not report the status of
-	 * non-i915 fences, i.e. even though we may report the object as idle,
+	 * A discrepancy here is that we do analt report the status of
+	 * analn-i915 fences, i.e. even though we may report the object as idle,
 	 * a call to set-domain may still stall waiting for foreign rendering.
 	 * This also means that wait-ioctl may report an object as busy,
 	 * where busy-ioctl considers it idle.

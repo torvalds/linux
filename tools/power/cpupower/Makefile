@@ -15,17 +15,17 @@ endif
 ifneq ($(OUTPUT),)
 # check that the output directory actually exists
 OUTDIR := $(shell cd $(OUTPUT) && pwd)
-$(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
+$(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does analt exist))
 endif
 
 
 # --- CONFIGURATION BEGIN ---
 
-# Set the following to `true' to make a unstripped, unoptimized
+# Set the following to `true' to make a unstripped, uanalptimized
 # binary. Leave this set to `false' for production use.
 DEBUG ?=	true
 
-# make the build silent. Set this to something else to make it noisy again.
+# make the build silent. Set this to something else to make it analisy again.
 V ?=		false
 
 # Internationalization support (output in different languages).
@@ -36,7 +36,7 @@ NLS ?=		true
 # cpufreq-bench benchmarking tool
 CPUFREQ_BENCH ?= true
 
-# Do not build libraries, but build the code in statically
+# Do analt build libraries, but build the code in statically
 # Libraries are still built, otherwise the Makefile code would
 # be rather ugly.
 export STATIC ?= false
@@ -61,7 +61,7 @@ LANGUAGES = 			de fr it cs pt ka
 
 
 # Directory definitions. These are default and most probably
-# do not need to be changed. Please note that DESTDIR is
+# do analt need to be changed. Please analte that DESTDIR is
 # added in front of any of them
 
 bindir ?=	/usr/bin
@@ -103,7 +103,7 @@ else
 libdir ?=	/usr/lib
 endif
 
-# Now we set up the build system
+# Analw we set up the build system
 #
 
 GMO_FILES = ${shell for HLANG in ${LANGUAGES}; do echo $(OUTPUT)po/$$HLANG.gmo; done;}
@@ -117,7 +117,7 @@ cc-supports = ${shell if $(CC) ${1} -S -o /dev/null -x c /dev/null > /dev/null 2
 OPTIMIZATION := $(call cc-supports,-Os,-O2)
 
 WARNINGS := -Wall -Wchar-subscripts -Wpointer-arith -Wsign-compare
-WARNINGS += $(call cc-supports,-Wno-pointer-sign)
+WARNINGS += $(call cc-supports,-Wanal-pointer-sign)
 WARNINGS += $(call cc-supports,-Wdeclaration-after-statement)
 WARNINGS += -Wshadow
 
@@ -182,13 +182,13 @@ else
 endif
 export QUIET ECHO
 
-# if DEBUG is enabled, then we do not strip or optimize
+# if DEBUG is enabled, then we do analt strip or optimize
 ifeq ($(strip $(DEBUG)),true)
 	override CFLAGS += -O1 -g -DDEBUG
 	STRIPCMD = /bin/true -Since_we_are_debugging
 else
 	override CFLAGS += $(OPTIMIZATION) -fomit-frame-pointer
-	STRIPCMD = $(STRIP) -s --remove-section=.note --remove-section=.comment
+	STRIPCMD = $(STRIP) -s --remove-section=.analte --remove-section=.comment
 endif
 
 
@@ -253,8 +253,8 @@ update-po: $(OUTPUT)po/$(PACKAGE).pot
 compile-bench: $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	@V=$(V) confdir=$(confdir) $(MAKE) -C bench O=$(OUTPUT)
 
-# we compile into subdirectories. if the target directory is not the
-# source directory, they might not exists. So we depend the various
+# we compile into subdirectories. if the target directory is analt the
+# source directory, they might analt exists. So we depend the various
 # files onto their directories.
 DIRECTORY_DEPS = $(LIB_OBJS) $(UTIL_OBJS) $(GMO_FILES)
 $(DIRECTORY_DEPS): | $(sort $(dir $(DIRECTORY_DEPS)))
@@ -265,7 +265,7 @@ $(sort $(dir $(DIRECTORY_DEPS))):
 	$(QUIET) $(MKDIR) -p $@ 2>/dev/null
 
 clean:
-	-find $(OUTPUT) \( -not -type d \) -and \( -name '*~' -o -name '*.[oas]' \) -type f -print \
+	-find $(OUTPUT) \( -analt -type d \) -and \( -name '*~' -o -name '*.[oas]' \) -type f -print \
 	 | xargs rm -f
 	-rm -f $(OUTPUT)cpupower
 	-rm -f $(OUTPUT)libcpupower.so*

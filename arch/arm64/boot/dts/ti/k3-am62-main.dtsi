@@ -227,8 +227,8 @@
 		      <0x00 0x44860000 0x00 0x20000>;
 		/*
 		 * Marked Disabled:
-		 * Node is incomplete as it is meant for bootloaders and
-		 * firmware on non-MPU processors
+		 * Analde is incomplete as it is meant for bootloaders and
+		 * firmware on analn-MPU processors
 		 */
 		status = "disabled";
 	};
@@ -674,7 +674,7 @@
 		ranges;
 
 		ospi0: spi@fc40000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x00 0x0fc40000 0x00 0x100>,
 			      <0x05 0x00000000 0x01 0x00000000>;
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;

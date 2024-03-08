@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -56,7 +56,7 @@
  * but generally the ELDV/PD change in the codec sequence indicates to the audio
  * driver that the controller sequence should start. Indeed, most of the
  * co-operation between the graphics and audio drivers is handled via audio
- * related registers. (The notable exception is the power management, not
+ * related registers. (The analtable exception is the power management, analt
  * covered here.)
  *
  * The struct &i915_audio_component is used to interact between the graphics
@@ -268,7 +268,7 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
 		drm_dbg_kms(&i915->drm,
-			    "HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+			    "HDMI audio pixel clock setting for %d analt found, falling back to defaults\n",
 			    adjusted_mode->crtc_clock);
 		i = 1;
 	}
@@ -841,15 +841,15 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	mutex_unlock(&i915->display.audio.mutex);
 
 	if (acomp && acomp->base.audio_ops &&
-	    acomp->base.audio_ops->pin_eld_notify) {
-		/* audio drivers expect cpu_transcoder = -1 to indicate Non-MST cases */
+	    acomp->base.audio_ops->pin_eld_analtify) {
+		/* audio drivers expect cpu_transcoder = -1 to indicate Analn-MST cases */
 		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 			cpu_transcoder = -1;
-		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_analtify(acomp->base.audio_ops->audio_ptr,
 						      (int)port, (int)cpu_transcoder);
 	}
 
-	intel_lpe_audio_notify(i915, cpu_transcoder, port, crtc_state->eld,
+	intel_lpe_audio_analtify(i915, cpu_transcoder, port, crtc_state->eld,
 			       crtc_state->port_clock,
 			       intel_crtc_has_dp_encoder(crtc_state));
 }
@@ -898,15 +898,15 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	mutex_unlock(&i915->display.audio.mutex);
 
 	if (acomp && acomp->base.audio_ops &&
-	    acomp->base.audio_ops->pin_eld_notify) {
-		/* audio drivers expect cpu_transcoder = -1 to indicate Non-MST cases */
+	    acomp->base.audio_ops->pin_eld_analtify) {
+		/* audio drivers expect cpu_transcoder = -1 to indicate Analn-MST cases */
 		if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 			cpu_transcoder = -1;
-		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_analtify(acomp->base.audio_ops->audio_ptr,
 						      (int)port, (int)cpu_transcoder);
 	}
 
-	intel_lpe_audio_notify(i915, cpu_transcoder, port, NULL, 0, false);
+	intel_lpe_audio_analtify(i915, cpu_transcoder, port, NULL, 0, false);
 }
 
 static void intel_acomp_get_config(struct intel_encoder *encoder,
@@ -1095,7 +1095,7 @@ static void i915_audio_component_put_power(struct device *kdev,
 {
 	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
-	/* Stop forcing CDCLK to 2*BCLK if no need for audio to be powered. */
+	/* Stop forcing CDCLK to 2*BCLK if anal need for audio to be powered. */
 	if (--i915->display.audio.power_refcount == 0)
 		if (IS_GEMINILAKE(i915))
 			glk_force_audio_cdclk(i915, false);
@@ -1137,7 +1137,7 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
 	if (drm_WARN_ON_ONCE(&i915->drm, !HAS_DDI(i915)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return i915->display.cdclk.hw.cdclk;
 }
@@ -1147,9 +1147,9 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
  * MST & (cpu_transcoder >= 0): return the audio.state[cpu_transcoder].encoder],
  *   when port is matched
  * MST & (cpu_transcoder < 0): this is invalid
- * Non-MST & (cpu_transcoder >= 0): only cpu_transcoder = 0 (the first device entry)
+ * Analn-MST & (cpu_transcoder >= 0): only cpu_transcoder = 0 (the first device entry)
  *   will get the right intel_encoder with port matched
- * Non-MST & (cpu_transcoder < 0): get the right intel_encoder with port matched
+ * Analn-MST & (cpu_transcoder < 0): get the right intel_encoder with port matched
  */
 static struct intel_audio_state *find_audio_state(struct drm_i915_private *i915,
 						  int port, int cpu_transcoder)
@@ -1171,7 +1171,7 @@ static struct intel_audio_state *find_audio_state(struct drm_i915_private *i915,
 			return audio_state;
 	}
 
-	/* Non-MST */
+	/* Analn-MST */
 	if (cpu_transcoder > 0)
 		return NULL;
 
@@ -1209,8 +1209,8 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 
 	audio_state = find_audio_state(i915, port, cpu_transcoder);
 	if (!audio_state) {
-		drm_dbg_kms(&i915->drm, "Not valid for port %c\n", port_name(port));
-		err = -ENODEV;
+		drm_dbg_kms(&i915->drm, "Analt valid for port %c\n", port_name(port));
+		err = -EANALDEV;
 		goto unlock;
 	}
 
@@ -1219,7 +1219,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	/* FIXME stop using the legacy crtc pointer */
 	crtc = to_intel_crtc(encoder->base.crtc);
 
-	/* port must be valid now, otherwise the cpu_transcoder will be invalid */
+	/* port must be valid analw, otherwise the cpu_transcoder will be invalid */
 	acomp->aud_sample_rate[port] = rate;
 
 	/* FIXME get rid of the crtc->config stuff */
@@ -1243,7 +1243,7 @@ static int i915_audio_component_get_eld(struct device *kdev, int port,
 
 	audio_state = find_audio_state(i915, port, cpu_transcoder);
 	if (!audio_state) {
-		drm_dbg_kms(&i915->drm, "Not valid for port %c\n", port_name(port));
+		drm_dbg_kms(&i915->drm, "Analt valid for port %c\n", port_name(port));
 		mutex_unlock(&i915->display.audio.mutex);
 		return -EINVAL;
 	}
@@ -1283,7 +1283,7 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 	if (drm_WARN_ON(&i915->drm,
 			!device_link_add(hda_kdev, i915_kdev,
 					 DL_FLAG_STATELESS)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_modeset_lock_all(&i915->drm);
 	acomp->base.ops = &i915_audio_component_ops;
@@ -1343,7 +1343,7 @@ static const struct component_ops i915_audio_component_bind_ops = {
  * its own component after which each side's component unbind callback is
  * called.
  *
- * We ignore any error during registration and continue with reduced
+ * We iganalre any error during registration and continue with reduced
  * functionality (i.e. without HDMI audio).
  */
 static void i915_audio_component_init(struct drm_i915_private *i915)
@@ -1369,7 +1369,7 @@ static void i915_audio_component_init(struct drm_i915_private *i915)
 		else
 			aud_freq = aud_freq_init;
 
-		/* use BIOS provided value for TGL and RKL unless it is a known bad value */
+		/* use BIOS provided value for TGL and RKL unless it is a kanalwn bad value */
 		if ((IS_TIGERLAKE(i915) || IS_ROCKETLAKE(i915)) &&
 		    aud_freq_init != AUD_FREQ_TGL_BROKEN)
 			aud_freq = aud_freq_init;

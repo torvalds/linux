@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -108,7 +108,7 @@ nv44_mpeg_chan_new(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 	unsigned long flags;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv44_mpeg_chan, oclass, &chan->object);
 	chan->mpeg = mpeg;
 	chan->fifo = fifoch;
@@ -182,7 +182,7 @@ nv44_mpeg_intr(struct nvkm_engine *engine)
 	if (show) {
 		nvkm_error(subdev, "ch %d [%08x %s] %08x %08x %08x %08x\n",
 			   chan ? chan->fifo->id : -1, inst << 4,
-			   chan ? chan->fifo->name : "unknown",
+			   chan ? chan->fifo->name : "unkanalwn",
 			   stat, type, mthd, data);
 	}
 
@@ -208,7 +208,7 @@ nv44_mpeg_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct nv44_mpeg *mpeg;
 
 	if (!(mpeg = kzalloc(sizeof(*mpeg), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&mpeg->chan);
 	*pmpeg = &mpeg->engine;
 

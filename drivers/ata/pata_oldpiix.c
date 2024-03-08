@@ -44,8 +44,8 @@ static int oldpiix_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port 1 */
 	};
 
-	if (!pci_test_config_bits(pdev, &oldpiix_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &oldpiix_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -58,20 +58,20 @@ static int oldpiix_pre_reset(struct ata_link *link, unsigned long deadline)
  *	Set PIO mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void oldpiix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int idetm_port= ap->port_no ? 0x42 : 0x40;
+	unsigned int idetm_port= ap->port_anal ? 0x42 : 0x40;
 	u16 idetm_data;
 	int control = 0;
 
 	/*
 	 *	See Intel Document 298600-004 for the timing programing rules
-	 *	for PIIX/ICH. Note that the early PIIX does not have the slave
+	 *	for PIIX/ICH. Analte that the early PIIX does analt have the slave
 	 *	timing port at 0x44.
 	 */
 
@@ -97,7 +97,7 @@ static void oldpiix_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	 * Set PPE, IE and TIME as appropriate.
 	 * Clear the other drive's timing bits.
 	 */
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		idetm_data &= 0xCCE0;
 		idetm_data |= control;
 	} else {
@@ -120,13 +120,13 @@ static void oldpiix_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	Set MWDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void oldpiix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	u8 idetm_port		= ap->port_no ? 0x42 : 0x40;
+	u8 idetm_port		= ap->port_anal ? 0x42 : 0x40;
 	u16 idetm_data;
 
 	static const	 /* ISP  RTC */
@@ -165,7 +165,7 @@ static void oldpiix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 
 	/* Mask out the relevant control and timing bits we will load. Also
 	   clear the other drive TIME register as a precaution */
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		idetm_data &= 0xCCE0;
 		idetm_data |= control;
 	} else {
@@ -230,7 +230,7 @@ static struct ata_port_operations oldpiix_pata_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int oldpiix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)

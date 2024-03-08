@@ -8,20 +8,20 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_platform.h"
+#include "analuveau_platform.h"
 
-static int nouveau_platform_probe(struct platform_device *pdev)
+static int analuveau_platform_probe(struct platform_device *pdev)
 {
 	const struct nvkm_device_tegra_func *func;
 	struct nvkm_device *device = NULL;
@@ -30,7 +30,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 
 	func = of_device_get_match_data(&pdev->dev);
 
-	drm = nouveau_platform_device_create(func, pdev, &device);
+	drm = analuveau_platform_device_create(func, pdev, &device);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
@@ -43,10 +43,10 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void nouveau_platform_remove(struct platform_device *pdev)
+static void analuveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *dev = platform_get_drvdata(pdev);
-	nouveau_drm_device_remove(dev);
+	analuveau_drm_device_remove(dev);
 }
 
 #if IS_ENABLED(CONFIG_OF)
@@ -67,7 +67,7 @@ static const struct nvkm_device_tegra_func gp10b_platform_data = {
 	.require_vdd = false,
 };
 
-static const struct of_device_id nouveau_platform_match[] = {
+static const struct of_device_id analuveau_platform_match[] = {
 	{
 		.compatible = "nvidia,gk20a",
 		.data = &gk20a_platform_data,
@@ -83,14 +83,14 @@ static const struct of_device_id nouveau_platform_match[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(of, nouveau_platform_match);
+MODULE_DEVICE_TABLE(of, analuveau_platform_match);
 #endif
 
-struct platform_driver nouveau_platform_driver = {
+struct platform_driver analuveau_platform_driver = {
 	.driver = {
-		.name = "nouveau",
-		.of_match_table = of_match_ptr(nouveau_platform_match),
+		.name = "analuveau",
+		.of_match_table = of_match_ptr(analuveau_platform_match),
 	},
-	.probe = nouveau_platform_probe,
-	.remove_new = nouveau_platform_remove,
+	.probe = analuveau_platform_probe,
+	.remove_new = analuveau_platform_remove,
 };

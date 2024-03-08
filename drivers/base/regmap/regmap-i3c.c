@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
+// Copyright (c) 2018 Syanalpsys, Inc. and/or its affiliates.
 
 #include <linux/regmap.h>
 #include <linux/i3c/device.h>
@@ -55,6 +55,6 @@ struct regmap *__devm_regmap_init_i3c(struct i3c_device *i3c,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_i3c);
 
-MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
+MODULE_AUTHOR("Vitor Soares <vitor.soares@syanalpsys.com>");
 MODULE_DESCRIPTION("Regmap I3C Module");
 MODULE_LICENSE("GPL v2");

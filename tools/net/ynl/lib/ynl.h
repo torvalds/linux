@@ -9,21 +9,21 @@
 #include "ynl-priv.h"
 
 enum ynl_error_code {
-	YNL_ERROR_NONE = 0,
-	__YNL_ERRNO_END = 4096,
+	YNL_ERROR_ANALNE = 0,
+	__YNL_ERRANAL_END = 4096,
 	YNL_ERROR_INTERNAL,
 	YNL_ERROR_EXPECT_ACK,
 	YNL_ERROR_EXPECT_MSG,
 	YNL_ERROR_UNEXPECT_MSG,
 	YNL_ERROR_ATTR_MISSING,
 	YNL_ERROR_ATTR_INVALID,
-	YNL_ERROR_UNKNOWN_NTF,
+	YNL_ERROR_UNKANALWN_NTF,
 	YNL_ERROR_INV_RESP,
 };
 
 /**
  * struct ynl_error - error encountered by YNL
- * @code:	errno (low values) or YNL error code (enum ynl_error_code)
+ * @code:	erranal (low values) or YNL error code (enum ynl_error_code)
  * @attr_offs:	offset of bad attribute (for very advanced users)
  * @msg:	error message
  *
@@ -93,11 +93,11 @@ int ynl_socket_get_fd(struct ynl_sock *ys);
 int ynl_ntf_check(struct ynl_sock *ys);
 
 /**
- * ynl_has_ntf() - check if socket has *parsed* notifications
+ * ynl_has_ntf() - check if socket has *parsed* analtifications
  * @ys: active YNL socket
  *
- * Note that this does not take into account notifications sitting
- * in netlink socket, just the notifications which have already been
+ * Analte that this does analt take into account analtifications sitting
+ * in netlink socket, just the analtifications which have already been
  * read and parsed (e.g. during a ynl_ntf_check() call).
  */
 static inline bool ynl_has_ntf(struct ynl_sock *ys)

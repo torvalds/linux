@@ -34,21 +34,21 @@ struct sd {
 
 struct init_command {
 	unsigned char instruction[6];
-	unsigned char to_read; /* length to read. 0 means no reply requested */
+	unsigned char to_read; /* length to read. 0 means anal reply requested */
 };
 
-/* How to change the resolution of any of the VGA cams is unknown */
+/* How to change the resolution of any of the VGA cams is unkanalwn */
 static const struct v4l2_pix_format vga_mode[] = {
-	{640, 480, V4L2_PIX_FMT_SN9C2028, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SN9C2028, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
 
-/* No way to change the resolution of the CIF cams is known */
+/* Anal way to change the resolution of the CIF cams is kanalwn */
 static const struct v4l2_pix_format cif_mode[] = {
-	{352, 288, V4L2_PIX_FMT_SN9C2028, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_SN9C2028, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 4,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -380,7 +380,7 @@ static int start_spy_cam(struct gspca_dev *gspca_dev)
 		/* {{0x1b, 0x13, 0x01, 0x00, 0x00, 0x00}, 1}, observed */
 		{{0x1b, 0x13, 0x11, 0x00, 0x00, 0x00}, 1},
 		{{0x20, 0x34, 0xa1, 0x00, 0x00, 0x00}, 1}, /* compresses */
-		/* Camera should start to capture now. */
+		/* Camera should start to capture analw. */
 	};
 
 	return run_start_commands(gspca_dev, spy_start_commands,
@@ -436,11 +436,11 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		{{0x13, 0x25, 0x01, 0x16, 0x00, 0x00}, 1}, /* width/8 */
 		{{0x13, 0x26, 0x01, 0x12, 0x00, 0x00}, 1}, /* height/8 */
 		/* {{0x13, 0x27, 0x01, 0x68, 0x00, 0x00}, 4}, subsample?
-		 * {{0x13, 0x28, 0x01, 0x1e, 0x00, 0x00}, 4}, does nothing
+		 * {{0x13, 0x28, 0x01, 0x1e, 0x00, 0x00}, 4}, does analthing
 		 * {{0x13, 0x27, 0x01, 0x20, 0x00, 0x00}, 4}, */
 		/* {{0x13, 0x29, 0x01, 0x22, 0x00, 0x00}, 4},
 		 * causes subsampling
-		 * but not a change in the resolution setting! */
+		 * but analt a change in the resolution setting! */
 		{{0x13, 0x2c, 0x01, 0x02, 0x00, 0x00}, 4},
 		{{0x13, 0x2d, 0x01, 0x01, 0x00, 0x00}, 4},
 		{{0x13, 0x2e, 0x01, 0x08, 0x00, 0x00}, 4},
@@ -457,7 +457,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		{{0x1b, 0x02, 0x06, 0x00, 0x00, 0x00}, 1},
 		{{0x1b, 0x11, 0x01, 0x00, 0x00, 0x00}, 1},
 		{{0x20, 0x34, 0xa1, 0x00, 0x00, 0x00}, 1},/* use compression */
-		/* Camera should start to capture now. */
+		/* Camera should start to capture analw. */
 	};
 
 	return run_start_commands(gspca_dev, cif_start_commands,
@@ -525,7 +525,7 @@ static int start_ms350_cam(struct gspca_dev *gspca_dev)
 		{{0x20, 0x18, 0x00, 0x00, 0x00, 0x00}, 1},
 		{{0x1b, 0x02, 0x0a, 0x00, 0x00, 0x00}, 1},
 		{{0x1b, 0x11, 0x01, 0x00, 0x00, 0x00}, 0},
-		/* Camera should start to capture now. */
+		/* Camera should start to capture analw. */
 	};
 
 	return run_start_commands(gspca_dev, ms350_start_commands,
@@ -597,7 +597,7 @@ static int start_genius_cam(struct gspca_dev *gspca_dev)
 		{{0x1c, 0x20, 0x00, 0x2a, 0x00, 0x00}, 1},
 		{{0x1c, 0x20, 0x00, 0x2a, 0x00, 0x00}, 1},
 		{{0x20, 0x34, 0xa1, 0x00, 0x00, 0x00}, 0}
-		/* Camera should start to capture now. */
+		/* Camera should start to capture analw. */
 	};
 
 	return run_start_commands(gspca_dev, genius_start_commands,
@@ -700,7 +700,7 @@ static int start_genius_videocam_live(struct gspca_dev *gspca_dev)
 		{{0x11, 0x17, 0x80, 0x00, 0x00, 0x00}, 4},
 		{{0x1c, 0x20, 0x00, 0x2a, 0x00, 0x00}, 1},
 		{{0x20, 0x34, 0xa1, 0x00, 0x00, 0x00}, 0},
-		/* Camera should start to capture now. */
+		/* Camera should start to capture analw. */
 		{{0x12, 0x27, 0x01, 0x00, 0x00, 0x00}, 0},
 		{{0x1b, 0x32, 0x26, 0x00, 0x00, 0x00}, 0},
 		{{0x1d, 0x25, 0x10, 0x20, 0xab, 0x00}, 0},
@@ -826,7 +826,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		err_code = start_vivitar_cam(gspca_dev);
 		break;
 	default:
-		pr_err("Starting unknown camera, please report this\n");
+		pr_err("Starting unkanalwn camera, please report this\n");
 		return -ENXIO;
 	}
 
@@ -930,10 +930,10 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0458, 0x7005)}, /* Genius Smart 300, version 2 */
 	{USB_DEVICE(0x0458, 0x7003)}, /* Genius Videocam Live v2  */
 	/* The Genius Smart is untested. I can't find an owner ! */
-	/* {USB_DEVICE(0x0c45, 0x8000)}, DC31VC, Don't know this camera */
+	/* {USB_DEVICE(0x0c45, 0x8000)}, DC31VC, Don't kanalw this camera */
 	{USB_DEVICE(0x0c45, 0x8001)}, /* Wild Planet digital spy cam */
 	{USB_DEVICE(0x0c45, 0x8003)}, /* Several small CIF cameras */
-	/* {USB_DEVICE(0x0c45, 0x8006)}, Unknown VGA camera */
+	/* {USB_DEVICE(0x0c45, 0x8006)}, Unkanalwn VGA camera */
 	{USB_DEVICE(0x0c45, 0x8008)}, /* Mini-Shotz ms-350 */
 	{USB_DEVICE(0x0c45, 0x800a)}, /* Vivicam 3350B */
 	{}

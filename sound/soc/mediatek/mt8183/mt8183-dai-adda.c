@@ -13,8 +13,8 @@
 
 enum {
 	AUDIO_SDM_LEVEL_MUTE = 0,
-	AUDIO_SDM_LEVEL_NORMAL = 0x1d,
-	/* if you change level normal */
+	AUDIO_SDM_LEVEL_ANALRMAL = 0x1d,
+	/* if you change level analrmal */
 	/* you need to change formula of hp impedance and dc trim too */
 };
 
@@ -238,10 +238,10 @@ enum {
 
 static const struct snd_soc_dapm_widget mtk_dai_adda_widgets[] = {
 	/* adda */
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch1_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch1_mix)),
-	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("ADDA_DL_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_adda_dl_ch2_mix,
 			   ARRAY_SIZE(mtk_adda_dl_ch2_mix)),
 
@@ -406,7 +406,7 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(afe->regmap,
 				   AFE_ADDA_DL_SDM_DCCOMP_CON,
 				   ATTGAIN_CTL_MASK_SFT,
-				   AUDIO_SDM_LEVEL_NORMAL << ATTGAIN_CTL_SFT);
+				   AUDIO_SDM_LEVEL_ANALRMAL << ATTGAIN_CTL_SFT);
 	} else {
 		unsigned int voice_mode = 0;
 		unsigned int ul_src_con0 = 0;	/* default value */
@@ -493,7 +493,7 @@ int mt8183_dai_adda_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

@@ -61,7 +61,7 @@
 /* States we can be in for a port's Data Center Bridging.
  */
 enum cxgb4_dcb_state {
-	CXGB4_DCB_STATE_START,		/* initial unknown state */
+	CXGB4_DCB_STATE_START,		/* initial unkanalwn state */
 	CXGB4_DCB_STATE_HOST,		/* we're using Host DCB (if at all) */
 	CXGB4_DCB_STATE_FW_INCOMPLETE,	/* using firmware DCB, incomplete */
 	CXGB4_DCB_STATE_FW_ALLSYNCED,	/* using firmware DCB, all sync'ed */

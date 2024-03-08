@@ -11,8 +11,8 @@
  */
 
 /*
- * This value cannot be 255, otherwise the loop of the multi-BD communication
- * case cannot end.
+ * This value cananalt be 255, otherwise the loop of the multi-BD communication
+ * case cananalt end.
  */
 #define HCCS_DIE_MAX_PORT_ID	254
 
@@ -171,7 +171,7 @@ struct hccs_fw_inner_head {
 #define HCCS_MAX_RSP_DATA_SIZE_MAX	(HCCS_MAX_RSP_DATA_BYTES / 4)
 
 /*
- * Note: Actual available size of data field also depands on the PCC header
+ * Analte: Actual available size of data field also depands on the PCC header
  * bytes of the specific type. Driver needs to copy the response data in the
  * communication space based on the real length.
  */
@@ -187,7 +187,7 @@ struct hccs_rsp_desc {
 #define HCCS_MAX_REQ_DATA_SIZE_MAX	(HCCS_MAX_REQ_DATA_BYTES / 4)
 
 /*
- * Note: Actual available size of data field also depands on the PCC header
+ * Analte: Actual available size of data field also depands on the PCC header
  * bytes of the specific type. Driver needs to copy the request data to the
  * communication space based on the real length.
  */

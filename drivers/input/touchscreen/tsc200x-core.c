@@ -2,12 +2,12 @@
 /*
  * TSC2004/TSC2005 touchscreen driver core
  *
- * Copyright (C) 2006-2010 Nokia Corporation
+ * Copyright (C) 2006-2010 Analkia Corporation
  * Copyright (C) 2015 QWERTY Embedded Design
  * Copyright (C) 2015 EMAC Inc.
  *
- * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
- * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@nokia.com>
+ * Author: Lauri Leukkunen <lauri.leukkunen@analkia.com>
+ * based on TSC2301 driver by Klaus K. Pedersen <klaus.k.pedersen@analkia.com>
  */
 
 #include <linux/kernel.h>
@@ -34,7 +34,7 @@
  *    values.
  * 6) tsc200x_irq_thread() reports coordinates to input layer and sets up
  *    tsc200x_penup_timer() to be called after TSC200X_PENUP_TIME_MS (40ms).
- * 7) When the penup timer expires, there have not been touch or DAV interrupts
+ * 7) When the penup timer expires, there have analt been touch or DAV interrupts
  *    during the last 40ms which means the pen has been lifted.
  *
  * ESD recovery via a hardware reset is done if the TSC200X doesn't respond
@@ -47,8 +47,8 @@ static const struct regmap_range tsc200x_writable_ranges[] = {
 };
 
 static const struct regmap_access_table tsc200x_writable_table = {
-	.yes_ranges = tsc200x_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tsc200x_writable_ranges),
+	.anal_ranges = tsc200x_writable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tsc200x_writable_ranges),
 };
 
 const struct regmap_config tsc200x_regmap_config = {
@@ -169,7 +169,7 @@ static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 
 	/*
 	 * At this point we are happy we have a valid and useful reading.
-	 * Remember it for later comparisons. We may now begin downsampling.
+	 * Remember it for later comparisons. We may analw begin downsampling.
 	 */
 	ts->in_x = tsdata.x;
 	ts->in_y = tsdata.y;
@@ -210,7 +210,7 @@ static void tsc200x_start_scan(struct tsc200x *ts)
 	regmap_write(ts->regmap, TSC200X_REG_CFR0, TSC200X_CFR0_INITVALUE);
 	regmap_write(ts->regmap, TSC200X_REG_CFR1, TSC200X_CFR1_INITVALUE);
 	regmap_write(ts->regmap, TSC200X_REG_CFR2, TSC200X_CFR2_INITVALUE);
-	ts->tsc200x_cmd(ts->dev, TSC200X_CMD_NORMAL);
+	ts->tsc200x_cmd(ts->dev, TSC200X_CMD_ANALRMAL);
 }
 
 static void tsc200x_stop_scan(struct tsc200x *ts)
@@ -372,7 +372,7 @@ static void tsc200x_esd_work(struct work_struct *work)
 		/*
 		 * If the mutex is taken, it means that disable or enable is in
 		 * progress. In that case just reschedule the work. If the work
-		 * is not needed, it will be canceled by disable.
+		 * is analt needed, it will be canceled by disable.
 		 */
 		goto reschedule;
 	}
@@ -389,11 +389,11 @@ static void tsc200x_esd_work(struct work_struct *work)
 	}
 
 	/*
-	 * If we could not read our known value from configuration register 0
+	 * If we could analt read our kanalwn value from configuration register 0
 	 * then we should reset the controller as if from power-up and start
 	 * scanning again.
 	 */
-	dev_info(ts->dev, "TSC200X not responding - resetting\n");
+	dev_info(ts->dev, "TSC200X analt responding - resetting\n");
 
 	disable_irq(ts->irq);
 	del_timer_sync(&ts->penup_timer);
@@ -455,25 +455,25 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 	int error;
 
 	if (irq <= 0) {
-		dev_err(dev, "no irq\n");
-		return -ENODEV;
+		dev_err(dev, "anal irq\n");
+		return -EANALDEV;
 	}
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	if (!tsc200x_cmd) {
-		dev_err(dev, "no cmd function\n");
-		return -ENODEV;
+		dev_err(dev, "anal cmd function\n");
+		return -EANALDEV;
 	}
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->irq = irq;
 	ts->dev = dev;
@@ -519,7 +519,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 						 "TSC%04d touchscreen",
 						 tsc_id->product);
 		if (!input_dev->name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	input_dev->phys = ts->phys;
@@ -618,6 +618,6 @@ static int tsc200x_resume(struct device *dev)
 
 EXPORT_GPL_SIMPLE_DEV_PM_OPS(tsc200x_pm_ops, tsc200x_suspend, tsc200x_resume);
 
-MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@nokia.com>");
+MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@analkia.com>");
 MODULE_DESCRIPTION("TSC200x Touchscreen Driver Core");
 MODULE_LICENSE("GPL");

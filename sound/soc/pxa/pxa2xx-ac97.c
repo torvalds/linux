@@ -72,21 +72,21 @@ static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_out = {
 	.maxburst	= 32,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_out = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_moanal_out = {
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mono_out",
+	.chan_name	= "pcm_aux_moanal_out",
 	.maxburst	= 16,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_in = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_moanal_in = {
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mono_in",
+	.chan_name	= "pcm_aux_moanal_in",
 	.maxburst	= 16,
 };
 
-static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_mono_in = {
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_moanal_in = {
 	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
-	.chan_name	= "pcm_aux_mic_mono",
+	.chan_name	= "pcm_aux_mic_moanal",
 	.maxburst	= 16,
 };
 
@@ -111,9 +111,9 @@ static int pxa2xx_ac97_aux_startup(struct snd_pcm_substream *substream,
 	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
+		dma_data = &pxa2xx_ac97_pcm_aux_moanal_out;
 	else
-		dma_data = &pxa2xx_ac97_pcm_aux_mono_in;
+		dma_data = &pxa2xx_ac97_pcm_aux_moanal_in;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
@@ -124,9 +124,9 @@ static int pxa2xx_ac97_mic_startup(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *cpu_dai)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return -ENODEV;
+		return -EANALDEV;
 	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &pxa2xx_ac97_pcm_mic_mono_in);
+				 &pxa2xx_ac97_pcm_mic_moanal_in);
 
 	return 0;
 }
@@ -237,9 +237,9 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 
 	pxa2xx_ac97_pcm_stereo_in.addr = regs->start + PCDR;
 	pxa2xx_ac97_pcm_stereo_out.addr = regs->start + PCDR;
-	pxa2xx_ac97_pcm_aux_mono_out.addr = regs->start + MODR;
-	pxa2xx_ac97_pcm_aux_mono_in.addr = regs->start + MODR;
-	pxa2xx_ac97_pcm_mic_mono_in.addr = regs->start + MCDR;
+	pxa2xx_ac97_pcm_aux_moanal_out.addr = regs->start + MODR;
+	pxa2xx_ac97_pcm_aux_moanal_in.addr = regs->start + MODR;
+	pxa2xx_ac97_pcm_mic_moanal_in.addr = regs->start + MCDR;
 
 	ret = pxa2xx_ac97_hw_probe(pdev);
 	if (ret) {

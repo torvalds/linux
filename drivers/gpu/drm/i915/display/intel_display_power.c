@@ -406,7 +406,7 @@ print_async_put_domains_state(struct i915_power_domains *power_domains)
 						     display.power.domains);
 
 	drm_dbg(&i915->drm, "async_put_wakeref: %s\n",
-		str_yes_no(power_domains->async_put_wakeref));
+		str_anal_anal(power_domains->async_put_wakeref));
 
 	print_power_domains(power_domains, "async_put_domains[0]",
 			    &power_domains->async_put_domains[0]);
@@ -712,7 +712,7 @@ out_verify:
 }
 
 /**
- * __intel_display_power_put_async - release a power domain reference asynchronously
+ * __intel_display_power_put_async - release a power domain reference asynchroanalusly
  * @i915: i915 device instance
  * @domain: power domain to reference
  * @wakeref: wakeref acquired for the reference that is being released
@@ -776,7 +776,7 @@ out_verify:
  * intel_display_power_put_async() call, completing the disabling of the
  * corresponding power domains.
  *
- * Note that the work handler function may still be running after this
+ * Analte that the work handler function may still be running after this
  * function returns; to ensure that the work handler isn't running use
  * intel_display_power_flush_work_sync() instead.
  */
@@ -810,7 +810,7 @@ out_verify:
  * @i915: i915 device instance
  *
  * Like intel_display_power_flush_work(), but also ensure that the work
- * handler function is not running any more when this function returns.
+ * handler function is analt running any more when this function returns.
  */
 static void
 intel_display_power_flush_work_sync(struct drm_i915_private *i915)
@@ -854,7 +854,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
  * block right away if this is the last reference.
  *
  * This function is only for the power domain code's internal use to suppress wakeref
- * tracking when the correspondig debug kconfig option is disabled, should not
+ * tracking when the correspondig debug kconfig option is disabled, should analt
  * be used otherwise.
  */
 void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
@@ -960,7 +960,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 
 	/*
 	 * DC9 has a separate HW flow from the rest of the DC states,
-	 * not depending on the DMC firmware. It's needed by system
+	 * analt depending on the DMC firmware. It's needed by system
 	 * suspend/resume, so allow it unconditionally.
 	 */
 	mask = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ||
@@ -1091,7 +1091,7 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	 * being called from intel_dp_detect for instance,
 	 * which causes assertion triggered by race condition,
 	 * as gen9_assert_dbuf_enabled might preempt this when registers
-	 * were already updated, while dev_priv was not.
+	 * were already updated, while dev_priv was analt.
 	 */
 	mutex_lock(&power_domains->lock);
 
@@ -1177,19 +1177,19 @@ static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 	u32 val = intel_de_read(dev_priv, LCPLL_CTL);
 
 	/*
-	 * The LCPLL register should be turned on by the BIOS. For now
+	 * The LCPLL register should be turned on by the BIOS. For analw
 	 * let's just check its state and print errors in case
 	 * something is wrong.  Don't even try to turn it on.
 	 */
 
 	if (val & LCPLL_CD_SOURCE_FCLK)
-		drm_err(&dev_priv->drm, "CDCLK source is not LCPLL\n");
+		drm_err(&dev_priv->drm, "CDCLK source is analt LCPLL\n");
 
 	if (val & LCPLL_PLL_DISABLE)
 		drm_err(&dev_priv->drm, "LCPLL is disabled\n");
 
-	if ((val & LCPLL_REF_MASK) != LCPLL_REF_NON_SSC)
-		drm_err(&dev_priv->drm, "LCPLL not using non-SSC reference\n");
+	if ((val & LCPLL_REF_MASK) != LCPLL_REF_ANALN_SSC)
+		drm_err(&dev_priv->drm, "LCPLL analt using analn-SSC reference\n");
 }
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
@@ -1236,7 +1236,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	 * In theory we can still leave IRQs enabled, as long as only the HPD
 	 * interrupts remain enabled. We used to check for that, but since it's
 	 * gen-specific and since we only disable LCPLL after we fully disable
-	 * the interrupts, the check below should be enough.
+	 * the interrupts, the check below should be eanalugh.
 	 */
 	I915_STATE_WARN(dev_priv, intel_irqs_enabled(dev_priv),
 			"IRQs enabled\n");
@@ -1327,7 +1327,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		return;
 
 	/*
-	 * Make sure we're not on PC8 state before disabling PC8, otherwise
+	 * Make sure we're analt on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
 	 */
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
@@ -1348,7 +1348,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	intel_de_write(dev_priv, LCPLL_CTL, val);
 
 	if (intel_de_wait_for_set(dev_priv, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
-		drm_err(&dev_priv->drm, "LCPLL not locked yet\n");
+		drm_err(&dev_priv->drm, "LCPLL analt locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
 		intel_de_rmw(dev_priv, LCPLL_CTL, LCPLL_CD_SOURCE_FCLK, 0);
@@ -1375,13 +1375,13 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
  * well is disabled and most interrupts are disabled, and these are also
  * requirements for runtime PM. When these conditions are met, we manually do
  * the other conditions: disable the interrupts, clocks and switch LCPLL refclk
- * to Fclk. If we're in PC8+ and we get an non-hotplug interrupt, we can hard
+ * to Fclk. If we're in PC8+ and we get an analn-hotplug interrupt, we can hard
  * hang the machine.
  *
- * When we really reach PC8 or deeper states (not just when we allow it) we lose
+ * When we really reach PC8 or deeper states (analt just when we allow it) we lose
  * the state of some registers, so when we come back from PC8+ we need to
- * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
- * need to take care of the registers kept by RC6. Notice that this happens even
+ * restore this state. We don't get into PC8+ if we're analt in RC6, so we don't
+ * need to take care of the registers kept by RC6. Analtice that this happens even
  * if we don't put the device in PCI D3 state (which is what currently happens
  * because of the runtime PM support).
  *
@@ -1440,7 +1440,7 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	/* enable PCH reset handshake */
-	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_ANALP(dev_priv));
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
@@ -1487,7 +1487,7 @@ static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
 	/*
 	 * BSpec says to keep the MISC IO power well enabled here, only
 	 * remove our request for power well 1.
-	 * Note that even though the driver's request is removed power well 1
+	 * Analte that even though the driver's request is removed power well 1
 	 * may stay enabled after this due to DMC's own request on it.
 	 */
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
@@ -1507,7 +1507,7 @@ static void bxt_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	/*
 	 * NDE_RSTWRN_OPT RST PCH Handshake En must always be 0b on BXT
-	 * or else the reset will hang because there is no PCH to respond.
+	 * or else the reset will hang because there is anal PCH to respond.
 	 * Move the handshake programming to initialization sequence.
 	 * Previously was left up to BIOS.
 	 */
@@ -1551,7 +1551,7 @@ static void bxt_display_core_uninit(struct drm_i915_private *dev_priv)
 
 	/*
 	 * Disable PW1 (PG1).
-	 * Note that even though the driver's request is removed power well 1
+	 * Analte that even though the driver's request is removed power well 1
 	 * may stay enabled after this due to DMC's own request on it.
 	 */
 	mutex_lock(&power_domains->lock);
@@ -1602,7 +1602,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	unsigned long abox_mask = DISPLAY_INFO(dev_priv)->abox_mask;
 	int config, i;
 
-	/* BW_BUDDY registers are not used on dgpu's beyond DG1 */
+	/* BW_BUDDY registers are analt used on dgpu's beyond DG1 */
 	if (IS_DGFX(dev_priv) && !IS_DG1(dev_priv))
 		return;
 
@@ -1620,7 +1620,7 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 
 	if (table[config].page_mask == 0) {
 		drm_dbg(&dev_priv->drm,
-			"Unknown memory configuration; disabling address buddy logic.\n");
+			"Unkanalwn memory configuration; disabling address buddy logic.\n");
 		for_each_set_bit(i, &abox_mask, sizeof(abox_mask))
 			intel_de_write(dev_priv, BW_BUDDY_CTL(i),
 				       BW_BUDDY_DISABLE);
@@ -1653,7 +1653,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 			     PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 
 	/* 1. Enable PCH reset handshake. */
-	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
+	intel_pch_reset_handshake(dev_priv, !HAS_PCH_ANALP(dev_priv));
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
@@ -1851,10 +1851,10 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	intel_power_well_enable(dev_priv, disp2d);
 
 	/*
-	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
+	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_analtes_11.docx:
 	 * Need to assert and de-assert PHY SB reset by gating the
 	 * common lane power, then un-gating it.
-	 * Simply ungating isn't enough to reset the PHY enough to get
+	 * Simply ungating isn't eanalugh to reset the PHY eanalugh to get
 	 * ports and lanes running.
 	 */
 	intel_power_well_disable(dev_priv, cmn);
@@ -1875,7 +1875,7 @@ static void assert_ved_power_gated(struct drm_i915_private *dev_priv)
 {
 	drm_WARN(&dev_priv->drm,
 		 !vlv_punit_is_power_gated(dev_priv, PUNIT_REG_VEDSSPM0),
-		 "VED not power gated\n");
+		 "VED analt power gated\n");
 }
 
 static void assert_isp_power_gated(struct drm_i915_private *dev_priv)
@@ -1888,7 +1888,7 @@ static void assert_isp_power_gated(struct drm_i915_private *dev_priv)
 
 	drm_WARN(&dev_priv->drm, !pci_dev_present(isp_ids) &&
 		 !vlv_punit_is_power_gated(dev_priv, PUNIT_REG_ISPSSPM0),
-		 "ISP not power gated\n");
+		 "ISP analt power gated\n");
 }
 
 static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
@@ -1896,11 +1896,11 @@ static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
 /**
  * intel_power_domains_init_hw - initialize hardware power domain state
  * @i915: i915 device instance
- * @resume: Called from resume code paths or not
+ * @resume: Called from resume code paths or analt
  *
  * This function initializes the hardware power domain state and enables all
  * power wells belonging to the INIT power domain. Power wells in other
- * domains (and not in the INIT domain) are referenced or disabled by
+ * domains (and analt in the INIT domain) are referenced or disabled by
  * intel_modeset_readout_hw_state(). After that the reference count of each
  * power well must match its HW enabled state, see
  * intel_power_domains_verify_state().
@@ -1934,9 +1934,9 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 		assert_isp_power_gated(i915);
 	} else if (IS_BROADWELL(i915) || IS_HASWELL(i915)) {
 		hsw_assert_cdclk(i915);
-		intel_pch_reset_handshake(i915, !HAS_PCH_NOP(i915));
+		intel_pch_reset_handshake(i915, !HAS_PCH_ANALP(i915));
 	} else if (IS_IVYBRIDGE(i915)) {
-		intel_pch_reset_handshake(i915, !HAS_PCH_NOP(i915));
+		intel_pch_reset_handshake(i915, !HAS_PCH_ANALP(i915));
 	}
 
 	/*
@@ -2024,9 +2024,9 @@ void intel_power_domains_sanitize_state(struct drm_i915_private *i915)
  * intel_power_domains_enable - enable toggling of display power wells
  * @i915: i915 device instance
  *
- * Enable the ondemand enabling/disabling of the display power wells. Note that
- * power wells not belonging to POWER_DOMAIN_INIT are allowed to be toggled
- * only at specific points of the display modeset sequence, thus they are not
+ * Enable the ondemand enabling/disabling of the display power wells. Analte that
+ * power wells analt belonging to POWER_DOMAIN_INIT are allowed to be toggled
+ * only at specific points of the display modeset sequence, thus they are analt
  * affected by the intel_power_domains_enable()/disable() calls. The purpose
  * of these function is to keep the rest of power wells enabled until the end
  * of display HW readout (which will acquire the power references reflecting
@@ -2167,7 +2167,7 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
  * state and the total refcount of the domains it belongs to. This must be
  * called after modeset HW state sanitization, which is responsible for
  * acquiring reference counts for any power wells in use and disabling the
- * ones left on by BIOS but not required by any active output.
+ * ones left on by BIOS but analt required by any active output.
  */
 static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 {

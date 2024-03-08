@@ -9,7 +9,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -39,10 +39,10 @@
 
 #define GP_STATUS_REG_227E	0x404D	/* IO PORT for SAFE_EN_N on 227E */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0000);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0000);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static struct resource gp_status_reg_227e_res =
 	DEFINE_RES_IO_NAMED(GP_STATUS_REG_227E, SZ_1, KBUILD_MODNAME);
@@ -108,7 +108,7 @@ static void wd_secondary_enable(u32 wdtmode)
 {
 	u16 resetbit;
 
-	/* set safe_en_n so we are not just WDIOF_ALARMONLY */
+	/* set safe_en_n so we are analt just WDIOF_ALARMONLY */
 	if (wdtmode == SIMATIC_IPC_DEVICE_227E) {
 		/* enable SAFE_EN_N on GP_STATUS_REG_227E */
 		resetbit = inb(GP_STATUS_REG_227E);
@@ -213,7 +213,7 @@ static int simatic_ipc_wdt_probe(struct platform_device *pdev)
 		release_region(gp_status_reg_227e_res.start,
 			       resource_size(&gp_status_reg_227e_res));
 
-	watchdog_set_nowayout(&wdd_data, nowayout);
+	watchdog_set_analwayout(&wdd_data, analwayout);
 	watchdog_stop_on_reboot(&wdd_data);
 	return devm_watchdog_register_device(dev, &wdd_data);
 }

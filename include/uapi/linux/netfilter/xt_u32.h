@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _XT_U32_H
 #define _XT_U32_H 1
 
@@ -23,7 +23,7 @@ struct xt_u32_value_element {
 
 /*
  * Any way to allow for an arbitrary number of elements?
- * For now, I settle with a limit of 10 each.
+ * For analw, I settle with a limit of 10 each.
  */
 #define XT_U32_MAXSIZE 10
 

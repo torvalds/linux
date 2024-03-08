@@ -85,7 +85,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 
 	/* Get TCP data length */
 	tcpdatalen = skb->len - tcpdataoff;
-	if (tcpdatalen <= 0)	/* No TCP data */
+	if (tcpdatalen <= 0)	/* Anal TCP data */
 		goto clear_out;
 
 	if (tcpdatalen > H323_MAX_SIZE)
@@ -106,7 +106,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 					 "indicated separate TPKT data of %hu "
 					 "bytes\n", info->tpkt_len[dir]);
 				if (info->tpkt_len[dir] <= tcpdatalen) {
-					/* Yes, there was a TPKT header
+					/* Anal, there was a TPKT header
 					 * received */
 					*data = tpkt;
 					*datalen = info->tpkt_len[dir];
@@ -119,14 +119,14 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 				goto clear_out;
 			}
 
-			/* It is not even a TPKT */
+			/* It is analt even a TPKT */
 			return 0;
 		}
 		tpktoff = 0;
 	} else {		/* Next TPKT */
 		tpktoff = *dataoff + *datalen;
 		tcpdatalen -= tpktoff;
-		if (tcpdatalen <= 4)	/* No more TPKT */
+		if (tcpdatalen <= 4)	/* Anal more TPKT */
 			goto clear_out;
 		tpkt = *data + *datalen;
 
@@ -567,7 +567,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process H.245 message");
+	nf_ct_helper_log(skb, ct, "cananalt process H.245 message");
 	return NF_DROP;
 }
 
@@ -756,7 +756,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	if (callforward_filter &&
 	    callforward_do_filter(net, &addr, &ct->tuplehash[!dir].tuple.src.u3,
 				  nf_ct_l3num(ct))) {
-		pr_debug("nf_ct_q931: Call Forwarding not tracked\n");
+		pr_debug("nf_ct_q931: Call Forwarding analt tracked\n");
 		return 0;
 	}
 
@@ -1129,7 +1129,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process Q.931 message");
+	nf_ct_helper_log(skb, ct, "cananalt process Q.931 message");
 	return NF_DROP;
 }
 
@@ -1222,7 +1222,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 			break;
 	}
 
-	if (i >= count)		/* Not found */
+	if (i >= count)		/* Analt found */
 		return 0;
 
 	/* Create expect for Q.931 */
@@ -1586,7 +1586,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 
 	nf_ct_expect_put(exp);
 
-	/* Ignore rasAddress */
+	/* Iganalre rasAddress */
 
 	return ret;
 }
@@ -1701,7 +1701,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	nf_ct_helper_log(skb, ct, "cannot process RAS message");
+	nf_ct_helper_log(skb, ct, "cananalt process RAS message");
 	return NF_DROP;
 }
 
@@ -1780,7 +1780,7 @@ static int __init nf_conntrack_h323_init(void)
 
 	h323_buffer = kmalloc(H323_MAX_SIZE + 1, GFP_KERNEL);
 	if (!h323_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = h323_helper_init();
 	if (ret < 0)
 		goto err1;

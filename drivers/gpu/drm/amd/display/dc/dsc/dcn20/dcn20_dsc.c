@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -69,7 +69,7 @@ enum dsc_bits_per_comp {
 	DSC_BPC_8 = 8,
 	DSC_BPC_10 = 10,
 	DSC_BPC_12 = 12,
-	DSC_BPC_UNKNOWN
+	DSC_BPC_UNKANALWN
 };
 
 /* API functions (external or via structure->function_pointer) */
@@ -296,7 +296,7 @@ void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *p
 	int bits_per_pixel = pps->bits_per_pixel;
 
 	DC_LOG_DSC("\tdsc_version_major %d", pps->dsc_version_major);
-	DC_LOG_DSC("\tdsc_version_minor %d", pps->dsc_version_minor);
+	DC_LOG_DSC("\tdsc_version_mianalr %d", pps->dsc_version_mianalr);
 	DC_LOG_DSC("\tbits_per_component %d", pps->bits_per_component);
 	DC_LOG_DSC("\tline_buf_depth %d", pps->line_buf_depth);
 	DC_LOG_DSC("\tblock_pred_enable %d", pps->block_pred_enable);
@@ -380,22 +380,22 @@ bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values 
 	/* Validate input parameters */
 	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_h);
 	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_v);
-	ASSERT(dsc_cfg->dc_dsc_cfg.version_minor == 1 || dsc_cfg->dc_dsc_cfg.version_minor == 2);
+	ASSERT(dsc_cfg->dc_dsc_cfg.version_mianalr == 1 || dsc_cfg->dc_dsc_cfg.version_mianalr == 2);
 	ASSERT(dsc_cfg->pic_width);
 	ASSERT(dsc_cfg->pic_height);
-	ASSERT((dsc_cfg->dc_dsc_cfg.version_minor == 1 &&
+	ASSERT((dsc_cfg->dc_dsc_cfg.version_mianalr == 1 &&
 		  (8 <= dsc_cfg->dc_dsc_cfg.linebuf_depth && dsc_cfg->dc_dsc_cfg.linebuf_depth <= 13)) ||
-		(dsc_cfg->dc_dsc_cfg.version_minor == 2 &&
+		(dsc_cfg->dc_dsc_cfg.version_mianalr == 2 &&
 		  ((8 <= dsc_cfg->dc_dsc_cfg.linebuf_depth && dsc_cfg->dc_dsc_cfg.linebuf_depth <= 15) ||
 		    dsc_cfg->dc_dsc_cfg.linebuf_depth == 0)));
 	ASSERT(96 <= dsc_cfg->dc_dsc_cfg.bits_per_pixel && dsc_cfg->dc_dsc_cfg.bits_per_pixel <= 0x3ff); // 6.0 <= bits_per_pixel <= 63.9375
 
 	if (!dsc_cfg->dc_dsc_cfg.num_slices_v || !dsc_cfg->dc_dsc_cfg.num_slices_h ||
-		!(dsc_cfg->dc_dsc_cfg.version_minor == 1 || dsc_cfg->dc_dsc_cfg.version_minor == 2) ||
+		!(dsc_cfg->dc_dsc_cfg.version_mianalr == 1 || dsc_cfg->dc_dsc_cfg.version_mianalr == 2) ||
 		!dsc_cfg->pic_width || !dsc_cfg->pic_height ||
-		!((dsc_cfg->dc_dsc_cfg.version_minor == 1 && // v1.1 line buffer depth range:
+		!((dsc_cfg->dc_dsc_cfg.version_mianalr == 1 && // v1.1 line buffer depth range:
 			8 <= dsc_cfg->dc_dsc_cfg.linebuf_depth && dsc_cfg->dc_dsc_cfg.linebuf_depth <= 13) ||
-		(dsc_cfg->dc_dsc_cfg.version_minor == 2 && // v1.2 line buffer depth range:
+		(dsc_cfg->dc_dsc_cfg.version_mianalr == 2 && // v1.2 line buffer depth range:
 			((8 <= dsc_cfg->dc_dsc_cfg.linebuf_depth && dsc_cfg->dc_dsc_cfg.linebuf_depth <= 15) ||
 			dsc_cfg->dc_dsc_cfg.linebuf_depth == 0))) ||
 		!(96 <= dsc_cfg->dc_dsc_cfg.bits_per_pixel && dsc_cfg->dc_dsc_cfg.bits_per_pixel <= 0x3ff)) {
@@ -409,13 +409,13 @@ bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values 
 	dsc_reg_vals->pixel_format = dsc_dc_pixel_encoding_to_dsc_pixel_format(dsc_cfg->pixel_encoding, dsc_cfg->dc_dsc_cfg.ycbcr422_simple);
 	dsc_reg_vals->num_slices_h = dsc_cfg->dc_dsc_cfg.num_slices_h;
 	dsc_reg_vals->num_slices_v = dsc_cfg->dc_dsc_cfg.num_slices_v;
-	dsc_reg_vals->pps.dsc_version_minor = dsc_cfg->dc_dsc_cfg.version_minor;
+	dsc_reg_vals->pps.dsc_version_mianalr = dsc_cfg->dc_dsc_cfg.version_mianalr;
 	dsc_reg_vals->pps.pic_width = dsc_cfg->pic_width;
 	dsc_reg_vals->pps.pic_height = dsc_cfg->pic_height;
 	dsc_reg_vals->pps.bits_per_component = dsc_dc_color_depth_to_dsc_bits_per_comp(dsc_cfg->color_depth);
 	dsc_reg_vals->pps.block_pred_enable = dsc_cfg->dc_dsc_cfg.block_pred_enable;
 	dsc_reg_vals->pps.line_buf_depth = dsc_cfg->dc_dsc_cfg.linebuf_depth;
-	dsc_reg_vals->alternate_ich_encoding_en = dsc_reg_vals->pps.dsc_version_minor == 1 ? 0 : 1;
+	dsc_reg_vals->alternate_ich_encoding_en = dsc_reg_vals->pps.dsc_version_mianalr == 1 ? 0 : 1;
 	dsc_reg_vals->ich_reset_at_eol = (dsc_cfg->is_odm || dsc_reg_vals->num_slices_h > 1) ? 0xF : 0;
 
 	// TODO: in addition to validating slice height (pic height must be divisible by slice height),
@@ -425,7 +425,7 @@ bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values 
 
 	ASSERT(dsc_reg_vals->pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height);
 	if (!(dsc_reg_vals->pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height)) {
-		dm_output_to_console("%s: pix height %d not divisible by num_slices_v %d\n\n", __func__, dsc_cfg->pic_height, dsc_cfg->dc_dsc_cfg.num_slices_v);
+		dm_output_to_console("%s: pix height %d analt divisible by num_slices_v %d\n\n", __func__, dsc_cfg->pic_height, dsc_cfg->dc_dsc_cfg.num_slices_v);
 		return false;
 	}
 
@@ -464,9 +464,9 @@ bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values 
 
 enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc, bool is_ycbcr422_simple)
 {
-	enum dsc_pixel_format dsc_pix_fmt = DSC_PIXFMT_UNKNOWN;
+	enum dsc_pixel_format dsc_pix_fmt = DSC_PIXFMT_UNKANALWN;
 
-	/* NOTE: We don't support DSC_PIXFMT_SIMPLE_YCBCR422 */
+	/* ANALTE: We don't support DSC_PIXFMT_SIMPLE_YCBCR422 */
 
 	switch (dc_pix_enc) {
 	case PIXEL_ENCODING_RGB:
@@ -485,18 +485,18 @@ enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_en
 		dsc_pix_fmt = DSC_PIXFMT_NATIVE_YCBCR420;
 		break;
 	default:
-		dsc_pix_fmt = DSC_PIXFMT_UNKNOWN;
+		dsc_pix_fmt = DSC_PIXFMT_UNKANALWN;
 		break;
 	}
 
-	ASSERT(dsc_pix_fmt != DSC_PIXFMT_UNKNOWN);
+	ASSERT(dsc_pix_fmt != DSC_PIXFMT_UNKANALWN);
 	return dsc_pix_fmt;
 }
 
 
 enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth dc_color_depth)
 {
-	enum dsc_bits_per_comp bpc = DSC_BPC_UNKNOWN;
+	enum dsc_bits_per_comp bpc = DSC_BPC_UNKANALWN;
 
 	switch (dc_color_depth) {
 	case COLOR_DEPTH_888:
@@ -509,7 +509,7 @@ enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_dep
 		bpc = DSC_BPC_12;
 		break;
 	default:
-		bpc = DSC_BPC_UNKNOWN;
+		bpc = DSC_BPC_UNKANALWN;
 		break;
 	}
 
@@ -523,7 +523,7 @@ void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 
 	memset(reg_vals, 0, sizeof(struct dsc_reg_values));
 
-	/* Non-PPS values */
+	/* Analn-PPS values */
 	reg_vals->dsc_clock_enable            = 1;
 	reg_vals->dsc_clock_gating_disable    = 0;
 	reg_vals->underflow_recovery_en       = 0;
@@ -539,7 +539,7 @@ void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 		reg_vals->rc_buffer_model_overflow_int_en[i] = 0;
 
 	/* PPS values */
-	reg_vals->pps.dsc_version_minor           = 2;
+	reg_vals->pps.dsc_version_mianalr           = 2;
 	reg_vals->pps.dsc_version_major           = 1;
 	reg_vals->pps.line_buf_depth              = 9;
 	reg_vals->pps.bits_per_component          = 8;
@@ -571,7 +571,7 @@ void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 
 /* Updates dsc_reg_values::reg_vals::xxx fields based on the values from computed params.
  * This is required because dscc_compute_dsc_parameters returns a modified PPS, which in turn
- * affects non-PPS register values.
+ * affects analn-PPS register values.
  */
 void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
 {
@@ -633,7 +633,7 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 		DSCC_RATE_CONTROL_BUFFER_MODEL3_OVERFLOW_OCCURRED_INT_EN, reg_vals->rc_buffer_model_overflow_int_en[3]);
 
 	REG_SET_3(DSCC_PPS_CONFIG0, 0,
-		DSC_VERSION_MINOR, reg_vals->pps.dsc_version_minor,
+		DSC_VERSION_MIANALR, reg_vals->pps.dsc_version_mianalr,
 		LINEBUF_DEPTH, reg_vals->pps.line_buf_depth,
 		DSCC_PPS_CONFIG0__BITS_PER_COMPONENT, reg_vals->pps.bits_per_component);
 

@@ -8,4 +8,4 @@
 Sottomettere patch per devicetree (DT) *binding*
 ================================================
 
-.. note:: to be translated
+.. analte:: to be translated

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Annotations for marking C functions as exception handlers.
+ * Ananaltations for marking C functions as exception handlers.
  *
  * These should only be used for C functions that are called from the low
- * level exception entry code and not any intervening C code.
+ * level exception entry code and analt any intervening C code.
  */
 #ifndef __ASM_ARM_EXCEPTION_H
 #define __ASM_ARM_EXCEPTION_H

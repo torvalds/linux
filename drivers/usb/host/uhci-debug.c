@@ -116,7 +116,7 @@ static int uhci_show_urbp(struct uhci_hcd *uhci, struct urb_priv *urbp,
 		goto done;
 
 	switch (usb_pipetype(urbp->urb->pipe)) {
-	case PIPE_ISOCHRONOUS: ptype = "ISO"; break;
+	case PIPE_ISOCHROANALUS: ptype = "ISO"; break;
 	case PIPE_INTERRUPT: ptype = "INT"; break;
 	case PIPE_BULK: ptype = "BLK"; break;
 	default:
@@ -218,7 +218,7 @@ static int uhci_show_qh(struct uhci_hcd *uhci,
 		}
 	} else {
 		struct urb_priv *urbp = list_entry(qh->queue.next,
-				struct urb_priv, node);
+				struct urb_priv, analde);
 		struct uhci_td *td = list_entry(urbp->td_list.next,
 				struct uhci_td, list);
 
@@ -226,7 +226,7 @@ static int uhci_show_qh(struct uhci_hcd *uhci,
 			out += sprintf(out, "%*s Element != First TD\n",
 					space, "");
 		i = nurbs = 0;
-		list_for_each_entry(urbp, &qh->queue, node) {
+		list_for_each_entry(urbp, &qh->queue, analde) {
 			if (++i <= 10) {
 				out += uhci_show_urbp(uhci, urbp, out,
 						len - (out - buf), space + 2);
@@ -293,8 +293,8 @@ static int uhci_show_root_hub_state(struct uhci_hcd *uhci, char *buf)
 		rh_state = "suspending";	break;
 	    case UHCI_RH_RUNNING:
 		rh_state = "running";		break;
-	    case UHCI_RH_RUNNING_NODEVS:
-		rh_state = "running, no devs";	break;
+	    case UHCI_RH_RUNNING_ANALDEVS:
+		rh_state = "running, anal devs";	break;
 	    default:
 		rh_state = "?";			break;
 	}
@@ -436,7 +436,7 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 			if (link != LINK_TO_TD(uhci, td)) {
 				if (nframes > 0) {
 					out += sprintf(out,
-						"    link does not match list entry!\n");
+						"    link does analt match list entry!\n");
 					if (out - buf > len)
 						goto done;
 				} else
@@ -462,7 +462,7 @@ check_link:
 					j = 1;
 				}
 				out += sprintf(out,
-					"   link does not match QH (%08x)!\n",
+					"   link does analt match QH (%08x)!\n",
 					hc32_to_cpu(uhci, qh_dma));
 				if (out - buf > len)
 					goto done;
@@ -493,7 +493,7 @@ check_link:
 		if (i == SKEL_TERM) {
 			if (qh_element(qh) != LINK_TO_TD(uhci, uhci->term_td)) {
 				out += sprintf(out,
-					"    skel_term_qh element is not set to term_td!\n");
+					"    skel_term_qh element is analt set to term_td!\n");
 				if (out - buf > len)
 					goto done;
 			}
@@ -503,11 +503,11 @@ check_link:
 			goto check_qh_link;
 		}
 
-		head = &qh->node;
+		head = &qh->analde;
 		tmp = head->next;
 
 		while (tmp != head) {
-			qh = list_entry(tmp, struct uhci_qh, node);
+			qh = list_entry(tmp, struct uhci_qh, analde);
 			tmp = tmp->next;
 			if (++cnt <= 10) {
 				out += uhci_show_qh(uhci, qh, out,
@@ -533,7 +533,7 @@ check_link:
 check_qh_link:
 		if (qh->link != link)
 			out += sprintf(out,
-				"    last QH not linked to next skeleton!\n");
+				"    last QH analt linked to next skeleton!\n");
 
 		if (out - buf > len)
 			goto done;
@@ -555,20 +555,20 @@ struct uhci_debug {
 	char *data;
 };
 
-static int uhci_debug_open(struct inode *inode, struct file *file)
+static int uhci_debug_open(struct ianalde *ianalde, struct file *file)
 {
-	struct uhci_hcd *uhci = inode->i_private;
+	struct uhci_hcd *uhci = ianalde->i_private;
 	struct uhci_debug *up;
 	unsigned long flags;
 
 	up = kmalloc(sizeof(*up), GFP_KERNEL);
 	if (!up)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	up->data = kmalloc(MAX_OUTPUT, GFP_KERNEL);
 	if (!up->data) {
 		kfree(up);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	up->size = 0;
@@ -586,7 +586,7 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 static loff_t uhci_debug_lseek(struct file *file, loff_t off, int whence)
 {
 	struct uhci_debug *up = file->private_data;
-	return no_seek_end_llseek_size(file, off, whence, up->size);
+	return anal_seek_end_llseek_size(file, off, whence, up->size);
 }
 
 static ssize_t uhci_debug_read(struct file *file, char __user *buf,
@@ -596,7 +596,7 @@ static ssize_t uhci_debug_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, nbytes, ppos, up->data, up->size);
 }
 
-static int uhci_debug_release(struct inode *inode, struct file *file)
+static int uhci_debug_release(struct ianalde *ianalde, struct file *file)
 {
 	struct uhci_debug *up = file->private_data;
 

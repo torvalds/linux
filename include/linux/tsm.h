@@ -47,7 +47,7 @@ struct tsm_report {
  * @name: tsm id reflected in /sys/kernel/config/tsm/report/$report/provider
  * @privlevel_floor: convey base privlevel for nested scenarios
  * @report_new: Populate @report with the report blob and auxblob
- * (optional), return 0 on successful population, or -errno otherwise
+ * (optional), return 0 on successful population, or -erranal otherwise
  *
  * Implementation specific ops, only one is expected to be registered at
  * a time i.e. only one of "sev-guest", "tdx-guest", etc.

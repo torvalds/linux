@@ -86,7 +86,7 @@ static int mt7915_pci_hif2_probe(struct pci_dev *pdev)
 
 	hif = devm_kzalloc(&pdev->dev, sizeof(*hif), GFP_KERNEL);
 	if (!hif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hif->dev = &pdev->dev;
 	hif->regs = pcim_iomap_table(pdev)[0];

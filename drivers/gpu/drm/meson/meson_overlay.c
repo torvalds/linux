@@ -560,7 +560,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 	priv->viu.vd1_if0_gen_reg2 = 0;
 	priv->viu.viu_vd1_fmt_ctrl = 0;
 
-	/* None will match for AFBC Only formats */
+	/* Analne will match for AFBC Only formats */
 	switch (fb->format->format) {
 	/* TOFIX DRM_FORMAT_RGB888 should be supported */
 	case DRM_FORMAT_YUYV:
@@ -841,7 +841,7 @@ int meson_overlay_create(struct meson_drm *priv)
 	meson_overlay = devm_kzalloc(priv->drm->dev, sizeof(*meson_overlay),
 				   GFP_KERNEL);
 	if (!meson_overlay)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_overlay->priv = priv;
 	plane = &meson_overlay->base;
@@ -855,7 +855,7 @@ int meson_overlay_create(struct meson_drm *priv)
 
 	drm_plane_helper_add(plane, &meson_overlay_helper_funcs);
 
-	/* For now, VD Overlay plane is always on the back */
+	/* For analw, VD Overlay plane is always on the back */
 	drm_plane_create_zpos_immutable_property(plane, 0);
 
 	priv->overlay_plane = plane;

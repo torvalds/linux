@@ -2,7 +2,7 @@
  *  linux/fs/hfs/dir.c
  *
  * Copyright (C) 1995-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains directory-related functions independent of which
@@ -17,29 +17,29 @@
 /*
  * hfs_lookup()
  */
-static struct dentry *hfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *hfs_lookup(struct ianalde *dir, struct dentry *dentry,
 				 unsigned int flags)
 {
 	hfs_cat_rec rec;
 	struct hfs_find_data fd;
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	int res;
 
 	res = hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
 	if (res)
 		return ERR_PTR(res);
-	hfs_cat_build_key(dir->i_sb, fd.search_key, dir->i_ino, &dentry->d_name);
+	hfs_cat_build_key(dir->i_sb, fd.search_key, dir->i_ianal, &dentry->d_name);
 	res = hfs_brec_read(&fd, &rec, sizeof(rec));
 	if (res) {
-		if (res != -ENOENT)
-			inode = ERR_PTR(res);
+		if (res != -EANALENT)
+			ianalde = ERR_PTR(res);
 	} else {
-		inode = hfs_iget(dir->i_sb, &fd.search_key->cat, &rec);
-		if (!inode)
-			inode = ERR_PTR(-EACCES);
+		ianalde = hfs_iget(dir->i_sb, &fd.search_key->cat, &rec);
+		if (!ianalde)
+			ianalde = ERR_PTR(-EACCES);
 	}
 	hfs_find_exit(&fd);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 }
 
 /*
@@ -47,8 +47,8 @@ static struct dentry *hfs_lookup(struct inode *dir, struct dentry *dentry,
  */
 static int hfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct super_block *sb = ianalde->i_sb;
 	int len, err;
 	char strbuf[HFS_MAX_NAMELEN];
 	union hfs_cat_rec entry;
@@ -56,13 +56,13 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 	struct hfs_readdir_data *rd;
 	u16 type;
 
-	if (ctx->pos >= inode->i_size)
+	if (ctx->pos >= ianalde->i_size)
 		return 0;
 
 	err = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return err;
-	hfs_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
+	hfs_cat_build_key(sb, fd.search_key, ianalde->i_ianal, NULL);
 	err = hfs_brec_find(&fd);
 	if (err)
 		goto out;
@@ -79,7 +79,7 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 
-		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
+		hfs_banalde_read(fd.banalde, &entry, fd.entryoffset, fd.entrylength);
 		if (entry.type != HFS_CDR_THD) {
 			pr_err("bad catalog folder thread\n");
 			err = -EIO;
@@ -95,14 +95,14 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		ctx->pos = 2;
 	}
-	if (ctx->pos >= inode->i_size)
+	if (ctx->pos >= ianalde->i_size)
 		goto out;
 	err = hfs_brec_goto(&fd, ctx->pos - 1);
 	if (err)
 		goto out;
 
 	for (;;) {
-		if (be32_to_cpu(fd.key->cat.ParID) != inode->i_ino) {
+		if (be32_to_cpu(fd.key->cat.ParID) != ianalde->i_ianal) {
 			pr_err("walked past end of dir\n");
 			err = -EIO;
 			goto out;
@@ -113,7 +113,7 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 
-		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
+		hfs_banalde_read(fd.banalde, &entry, fd.entryoffset, fd.entrylength);
 		type = entry.type;
 		len = hfs_mac2asc(sb, strbuf, &fd.key->cat.CName);
 		if (type == HFS_CDR_DIR) {
@@ -140,7 +140,7 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		}
 		ctx->pos++;
-		if (ctx->pos >= inode->i_size)
+		if (ctx->pos >= ianalde->i_size)
 			goto out;
 		err = hfs_brec_goto(&fd, 1);
 		if (err)
@@ -150,14 +150,14 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 	if (!rd) {
 		rd = kmalloc(sizeof(struct hfs_readdir_data), GFP_KERNEL);
 		if (!rd) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		file->private_data = rd;
 		rd->file = file;
-		spin_lock(&HFS_I(inode)->open_dir_lock);
-		list_add(&rd->list, &HFS_I(inode)->open_dir_list);
-		spin_unlock(&HFS_I(inode)->open_dir_lock);
+		spin_lock(&HFS_I(ianalde)->open_dir_lock);
+		list_add(&rd->list, &HFS_I(ianalde)->open_dir_list);
+		spin_unlock(&HFS_I(ianalde)->open_dir_lock);
 	}
 	/*
 	 * Can be done after the list insertion; exclusion with
@@ -169,13 +169,13 @@ out:
 	return err;
 }
 
-static int hfs_dir_release(struct inode *inode, struct file *file)
+static int hfs_dir_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hfs_readdir_data *rd = file->private_data;
 	if (rd) {
-		spin_lock(&HFS_I(inode)->open_dir_lock);
+		spin_lock(&HFS_I(ianalde)->open_dir_lock);
 		list_del(&rd->list);
-		spin_unlock(&HFS_I(inode)->open_dir_lock);
+		spin_unlock(&HFS_I(ianalde)->open_dir_lock);
 		kfree(rd);
 	}
 	return 0;
@@ -184,109 +184,109 @@ static int hfs_dir_release(struct inode *inode, struct file *file)
 /*
  * hfs_create()
  *
- * This is the create() entry in the inode_operations structure for
+ * This is the create() entry in the ianalde_operations structure for
  * regular HFS directories.  The purpose is to create a new file in
- * a directory and return a corresponding inode, given the inode for
+ * a directory and return a corresponding ianalde, given the ianalde for
  * the directory and the name (and its length) of the new file.
  */
-static int hfs_create(struct mnt_idmap *idmap, struct inode *dir,
+static int hfs_create(struct mnt_idmap *idmap, struct ianalde *dir,
 		      struct dentry *dentry, umode_t mode, bool excl)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int res;
 
-	inode = hfs_new_inode(dir, &dentry->d_name, mode);
-	if (!inode)
-		return -ENOMEM;
+	ianalde = hfs_new_ianalde(dir, &dentry->d_name, mode);
+	if (!ianalde)
+		return -EANALMEM;
 
-	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
+	res = hfs_cat_create(ianalde->i_ianal, dir, &dentry->d_name, ianalde);
 	if (res) {
-		clear_nlink(inode);
-		hfs_delete_inode(inode);
-		iput(inode);
+		clear_nlink(ianalde);
+		hfs_delete_ianalde(ianalde);
+		iput(ianalde);
 		return res;
 	}
-	d_instantiate(dentry, inode);
-	mark_inode_dirty(inode);
+	d_instantiate(dentry, ianalde);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
 /*
  * hfs_mkdir()
  *
- * This is the mkdir() entry in the inode_operations structure for
+ * This is the mkdir() entry in the ianalde_operations structure for
  * regular HFS directories.  The purpose is to create a new directory
- * in a directory, given the inode for the parent directory and the
+ * in a directory, given the ianalde for the parent directory and the
  * name (and its length) of the new directory.
  */
-static int hfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+static int hfs_mkdir(struct mnt_idmap *idmap, struct ianalde *dir,
 		     struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int res;
 
-	inode = hfs_new_inode(dir, &dentry->d_name, S_IFDIR | mode);
-	if (!inode)
-		return -ENOMEM;
+	ianalde = hfs_new_ianalde(dir, &dentry->d_name, S_IFDIR | mode);
+	if (!ianalde)
+		return -EANALMEM;
 
-	res = hfs_cat_create(inode->i_ino, dir, &dentry->d_name, inode);
+	res = hfs_cat_create(ianalde->i_ianal, dir, &dentry->d_name, ianalde);
 	if (res) {
-		clear_nlink(inode);
-		hfs_delete_inode(inode);
-		iput(inode);
+		clear_nlink(ianalde);
+		hfs_delete_ianalde(ianalde);
+		iput(ianalde);
 		return res;
 	}
-	d_instantiate(dentry, inode);
-	mark_inode_dirty(inode);
+	d_instantiate(dentry, ianalde);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
 /*
  * hfs_remove()
  *
- * This serves as both unlink() and rmdir() in the inode_operations
+ * This serves as both unlink() and rmdir() in the ianalde_operations
  * structure for regular HFS directories.  The purpose is to delete
- * an existing child, given the inode for the parent directory and
+ * an existing child, given the ianalde for the parent directory and
  * the name (and its length) of the existing directory.
  *
- * HFS does not have hardlinks, so both rmdir and unlink set the
+ * HFS does analt have hardlinks, so both rmdir and unlink set the
  * link count to 0.  The only difference is the emptiness check.
  */
-static int hfs_remove(struct inode *dir, struct dentry *dentry)
+static int hfs_remove(struct ianalde *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int res;
 
-	if (S_ISDIR(inode->i_mode) && inode->i_size != 2)
-		return -ENOTEMPTY;
-	res = hfs_cat_delete(inode->i_ino, dir, &dentry->d_name);
+	if (S_ISDIR(ianalde->i_mode) && ianalde->i_size != 2)
+		return -EANALTEMPTY;
+	res = hfs_cat_delete(ianalde->i_ianal, dir, &dentry->d_name);
 	if (res)
 		return res;
-	clear_nlink(inode);
-	inode_set_ctime_current(inode);
-	hfs_delete_inode(inode);
-	mark_inode_dirty(inode);
+	clear_nlink(ianalde);
+	ianalde_set_ctime_current(ianalde);
+	hfs_delete_ianalde(ianalde);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
 /*
  * hfs_rename()
  *
- * This is the rename() entry in the inode_operations structure for
+ * This is the rename() entry in the ianalde_operations structure for
  * regular HFS directories.  The purpose is to rename an existing
- * file or directory, given the inode for the current directory and
+ * file or directory, given the ianalde for the current directory and
  * the name (and its length) of the existing file/directory and the
- * inode for the new directory and the name (and its length) of the
+ * ianalde for the new directory and the name (and its length) of the
  * new file/directory.
  * XXX: how do you handle must_be dir?
  */
-static int hfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
-		      struct dentry *old_dentry, struct inode *new_dir,
+static int hfs_rename(struct mnt_idmap *idmap, struct ianalde *old_dir,
+		      struct dentry *old_dentry, struct ianalde *new_dir,
 		      struct dentry *new_dentry, unsigned int flags)
 {
 	int res;
 
-	if (flags & ~RENAME_NOREPLACE)
+	if (flags & ~RENAME_ANALREPLACE)
 		return -EINVAL;
 
 	/* Unlink destination if it already exists */
@@ -296,13 +296,13 @@ static int hfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			return res;
 	}
 
-	res = hfs_cat_move(d_inode(old_dentry)->i_ino,
+	res = hfs_cat_move(d_ianalde(old_dentry)->i_ianal,
 			   old_dir, &old_dentry->d_name,
 			   new_dir, &new_dentry->d_name);
 	if (!res)
 		hfs_cat_build_key(old_dir->i_sb,
-				  (btree_key *)&HFS_I(d_inode(old_dentry))->cat_key,
-				  new_dir->i_ino, &new_dentry->d_name);
+				  (btree_key *)&HFS_I(d_ianalde(old_dentry))->cat_key,
+				  new_dir->i_ianal, &new_dentry->d_name);
 	return res;
 }
 
@@ -313,12 +313,12 @@ const struct file_operations hfs_dir_operations = {
 	.release	= hfs_dir_release,
 };
 
-const struct inode_operations hfs_dir_inode_operations = {
+const struct ianalde_operations hfs_dir_ianalde_operations = {
 	.create		= hfs_create,
 	.lookup		= hfs_lookup,
 	.unlink		= hfs_remove,
 	.mkdir		= hfs_mkdir,
 	.rmdir		= hfs_remove,
 	.rename		= hfs_rename,
-	.setattr	= hfs_inode_setattr,
+	.setattr	= hfs_ianalde_setattr,
 };

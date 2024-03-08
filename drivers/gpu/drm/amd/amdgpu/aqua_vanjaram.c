@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -56,8 +56,8 @@ void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.ih = AMDGPU_DOORBELL_LAYOUT1_IH;
 	adev->doorbell_index.vcn.vcn_ring0_1 = AMDGPU_DOORBELL_LAYOUT1_VCN_START;
 
-	adev->doorbell_index.first_non_cp = AMDGPU_DOORBELL_LAYOUT1_FIRST_NON_CP;
-	adev->doorbell_index.last_non_cp = AMDGPU_DOORBELL_LAYOUT1_LAST_NON_CP;
+	adev->doorbell_index.first_analn_cp = AMDGPU_DOORBELL_LAYOUT1_FIRST_ANALN_CP;
+	adev->doorbell_index.last_analn_cp = AMDGPU_DOORBELL_LAYOUT1_LAST_ANALN_CP;
 
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT << 1;
 }
@@ -69,8 +69,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	enum AMDGPU_XCP_IP_BLOCK ip_blk;
 	uint32_t inst_mask;
 
-	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
-	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	ring->xcp_id = AMDGPU_XCP_ANAL_PARTITION;
+	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_ANALNE)
 		return;
 
 	inst_mask = 1 << inst_idx;
@@ -91,7 +91,7 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 			inst_mask = 1 << (inst_idx * 2);
 		break;
 	default:
-		DRM_ERROR("Not support ring type %d!", ring->funcs->type);
+		DRM_ERROR("Analt support ring type %d!", ring->funcs->type);
 		return;
 	}
 
@@ -130,12 +130,12 @@ static int aqua_vanjaram_xcp_sched_list_update(
 		memset(adev->xcp_mgr->xcp[i].gpu_sched, 0, sizeof(adev->xcp_mgr->xcp->gpu_sched));
 	}
 
-	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_ANALNE)
 		return 0;
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		ring = adev->rings[i];
-		if (!ring || !ring->sched.ready || ring->no_scheduler)
+		if (!ring || !ring->sched.ready || ring->anal_scheduler)
 			continue;
 
 		aqua_vanjaram_xcp_gpu_sched_update(adev, ring, ring->xcp_id);
@@ -178,7 +178,7 @@ static int aqua_vanjaram_select_scheds(
 	u32 sel_xcp_id;
 	int i;
 
-	if (fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION) {
+	if (fpriv->xcp_id == AMDGPU_XCP_ANAL_PARTITION) {
 		u32 least_ref_cnt = ~0;
 
 		fpriv->xcp_id = 0;
@@ -201,7 +201,7 @@ static int aqua_vanjaram_select_scheds(
 		DRM_DEBUG("Selected partition #%d", sel_xcp_id);
 	} else {
 		DRM_ERROR("Failed to schedule partition #%d.", sel_xcp_id);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -221,7 +221,7 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 		dev_inst = adev->ip_map.dev_inst[block][inst];
 		break;
 	default:
-		/* For rest of the IPs, no look up required.
+		/* For rest of the IPs, anal look up required.
 		 * Assume 'logical instance == physical instance' for all configs. */
 		dev_inst = inst;
 		break;
@@ -291,7 +291,7 @@ u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id)
 	if (ext_id == 0)
 		return 0;
 
-	/* Initiated from host, accessing to all non-zero aids are cross traffic */
+	/* Initiated from host, accessing to all analn-zero aids are cross traffic */
 	ext_offset = ((u64)(ext_id & 0x3) << 32) | (1ULL << 34);
 
 	return ext_offset;
@@ -299,7 +299,7 @@ u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id)
 
 static int aqua_vanjaram_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 {
-	enum amdgpu_gfx_partition mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	enum amdgpu_gfx_partition mode = AMDGPU_UNKANALWN_COMPUTE_PARTITION_MODE;
 	struct amdgpu_device *adev = xcp_mgr->adev;
 
 	if (adev->nbio.funcs->get_compute_partition_mode)
@@ -420,7 +420,7 @@ __aqua_vanjaram_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	if (adev->gmc.num_mem_partitions == 2 && !(adev->flags & AMD_IS_APU))
 		return AMDGPU_DPX_PARTITION_MODE;
 
-	return AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	return AMDGPU_UNKANALWN_COMPUTE_PARTITION_MODE;
 }
 
 static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
@@ -550,7 +550,7 @@ static int aqua_vanjaram_get_xcp_mem_id(struct amdgpu_xcp_mgr *xcp_mgr,
 	int r, i, xcc_id;
 
 	adev = xcp_mgr->adev;
-	/* TODO: BIOS is not returning the right info now
+	/* TODO: BIOS is analt returning the right info analw
 	 * Check on this later
 	 */
 	/*
@@ -578,7 +578,7 @@ static int aqua_vanjaram_get_xcp_mem_id(struct amdgpu_xcp_mgr *xcp_mgr,
 
 	r = -EINVAL;
 	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
-		if (adev->gmc.mem_partitions[i].numa.node == numa_info.nid) {
+		if (adev->gmc.mem_partitions[i].numa.analde == numa_info.nid) {
 			*mem_id = i;
 			r = 0;
 			break;
@@ -611,12 +611,12 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 {
 	int ret;
 
-	ret = amdgpu_xcp_mgr_init(adev, AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE, 1,
+	ret = amdgpu_xcp_mgr_init(adev, AMDGPU_UNKANALWN_COMPUTE_PARTITION_MODE, 1,
 				  &aqua_vanjaram_xcp_funcs);
 	if (ret)
 		return ret;
 
-	/* TODO: Default memory node affinity init */
+	/* TODO: Default memory analde affinity init */
 
 	return ret;
 }
@@ -639,7 +639,7 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 			adev->aid_mask |= (1 << i);
 	}
 
-	/* Harvest config is not used for aqua vanjaram. VCN and JPEGs will be
+	/* Harvest config is analt used for aqua vanjaram. VCN and JPEGs will be
 	 * addressed based on logical instance ids.
 	 */
 	adev->vcn.harvest_config = 0;

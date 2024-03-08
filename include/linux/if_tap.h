@@ -13,7 +13,7 @@ struct socket *tap_get_socket(struct file *);
 struct ptr_ring *tap_get_ptr_ring(struct file *file);
 #else
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 static inline struct socket *tap_get_socket(struct file *f)
 {
 	return ERR_PTR(-EINVAL);
@@ -42,7 +42,7 @@ struct tap_dev {
 	int			numvtaps;
 	int			numqueues;
 	netdev_features_t	tap_features;
-	int			minor;
+	int			mianalr;
 
 	void (*update_features)(struct tap_dev *tap, netdev_features_t features);
 	void (*count_tx_dropped)(struct tap_dev *tap);
@@ -75,8 +75,8 @@ struct tap_queue {
 
 rx_handler_result_t tap_handle_frame(struct sk_buff **pskb);
 void tap_del_queues(struct tap_dev *tap);
-int tap_get_minor(dev_t major, struct tap_dev *tap);
-void tap_free_minor(dev_t major, struct tap_dev *tap);
+int tap_get_mianalr(dev_t major, struct tap_dev *tap);
+void tap_free_mianalr(dev_t major, struct tap_dev *tap);
 int tap_queue_resize(struct tap_dev *tap);
 int tap_create_cdev(struct cdev *tap_cdev, dev_t *tap_major,
 		    const char *device_name, struct module *module);

@@ -11,7 +11,7 @@ add, and even remove fixes. And it is typically safe to replace any version
 of the livepatch with any other one thanks to the atomic replace feature.
 
 The problems might come with shadow variables and callbacks. They might
-change the system behavior or state so that it is no longer safe to
+change the system behavior or state so that it is anal longer safe to
 go back and use an older livepatch or the original kernel code. Also
 any new livepatch must be able to detect what changes have already been
 done by the already installed livepatches.
@@ -43,7 +43,7 @@ struct klp_state:
 
   - *id*
 
-    - Non-zero number used to identify the affected system state.
+    - Analn-zero number used to identify the affected system state.
 
   - *version*
 
@@ -76,7 +76,7 @@ The check is done when the livepatch is enabled. The rules are:
   - Cumulative livepatches must handle all system state modifications from
     already installed livepatches.
 
-  - Non-cumulative livepatches are allowed to touch already modified
+  - Analn-cumulative livepatches are allowed to touch already modified
     system states.
 
 3. Supported scenarios
@@ -87,7 +87,7 @@ state changes. Every compatible livepatch has to support the following
 scenarios:
 
   - Modify the system state when the livepatch gets enabled and the state
-    has not been already modified by a livepatches that are being
+    has analt been already modified by a livepatches that are being
     replaced.
 
   - Take over or update the system state modification when is has already
@@ -100,7 +100,7 @@ scenarios:
     done by livepatches that were being replaced.
 
   - Remove any already made changes when error occurs and the livepatch
-    cannot get enabled.
+    cananalt get enabled.
 
 4. Expected usage
 =================
@@ -112,7 +112,7 @@ role of each callback is as follows:
 
   - Allocate *state->data* when necessary. The allocation might fail
     and *pre_patch()* is the only callback that could stop loading
-    of the livepatch. The allocation is not needed when the data
+    of the livepatch. The allocation is analt needed when the data
     are already provided by previously installed livepatches.
 
   - Do any other preparatory action that is needed by
@@ -136,7 +136,7 @@ role of each callback is as follows:
   - Make sure that *state->data* has all necessary information.
 
   - Free *state->data* from replaces livepatches when they are
-    not longer needed.
+    analt longer needed.
 
 *pre_unpatch()*
 
@@ -151,15 +151,15 @@ role of each callback is as follows:
     checking *klp_get_prev_state()*.
 
   - In case of transition reverse, restore the previous system
-    state. It might mean doing nothing.
+    state. It might mean doing analthing.
 
-  - Remove any not longer needed setting or data.
+  - Remove any analt longer needed setting or data.
 
-.. note::
+.. analte::
 
    *pre_unpatch()* typically does symmetric operations to *post_patch()*.
    Except that it is called only when the livepatch is being disabled.
-   Therefore it does not need to care about any previously installed
+   Therefore it does analt need to care about any previously installed
    livepatch.
 
    *post_unpatch()* typically does symmetric operations to *pre_patch()*.

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -48,7 +48,7 @@ struct gvt_firmware_header {
 	unsigned char data[];
 };
 
-#define dev_to_drm_minor(d) dev_get_drvdata((d))
+#define dev_to_drm_mianalr(d) dev_get_drvdata((d))
 
 static ssize_t
 gvt_firmware_read(struct file *filp, struct kobject *kobj,
@@ -80,7 +80,7 @@ static int expose_firmware_sysfs(struct intel_gvt *gvt)
 	size = offsetof(struct gvt_firmware_header, data) + info->mmio_size + info->cfg_space_size;
 	firmware = vzalloc(size);
 	if (!firmware)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h = firmware;
 
@@ -208,12 +208,12 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 
 	path = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mem = kmalloc(info->cfg_space_size, GFP_KERNEL);
 	if (!mem) {
 		kfree(path);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	firmware->cfg_space = mem;
@@ -222,7 +222,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 	if (!mem) {
 		kfree(path);
 		kfree(firmware->cfg_space);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	firmware->mmio = mem;

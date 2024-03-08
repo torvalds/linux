@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Azoteq IQS620A, IQS621, IQS622, IQS624 and IQS625 multi-function sensors
-  integrate multiple sensing technologies in a single package.
+  integrate multiple sensing techanallogies in a single package.
 
   Link to datasheets: https://www.azoteq.com/
 
@@ -127,7 +127,7 @@ examples:
                                              <0>,
                                              <KEY_MUTE>;
 
-                            hall-switch-north {
+                            hall-switch-analrth {
                                     linux,code = <SW_DOCK>;
                             };
 
@@ -139,7 +139,7 @@ examples:
     };
 
   - |
-    /* Dual capacitive buttons with volume knob. */
+    /* Dual capacitive buttons with volume kanalb. */
     #include <dt-bindings/input/input.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 

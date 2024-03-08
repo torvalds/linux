@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ASM_ARC_ELF_H
@@ -52,7 +52,7 @@ extern int elf_check_arch(const struct elf32_hdr *);
 /*
  * When the program starts, a1 contains a pointer to a function to be
  * registered with atexit, as per the SVR4 ABI.  A value of 0 means we
- * have no such handler.
+ * have anal such handler.
  */
 #define ELF_PLAT_INIT(_r, load_addr)	((_r)->r0 = 0)
 

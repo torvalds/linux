@@ -43,7 +43,7 @@
  * power domains states to the desired target power state.
  *
  * @cpu_state : contains context save state (r0)
- *	0 - No context lost
+ *	0 - Anal context lost
  * 	1 - CPUx L1 and logic lost: MPUSS CSWR
  * 	2 - CPUx L1 and logic lost + GIC lost: MPUSS OSWR
  *	3 - CPUx L1 and logic lost + GIC + L2 lost: MPUSS OFF
@@ -61,7 +61,7 @@
 ENTRY(omap4_finish_suspend)
 	stmfd	sp!, {r4-r12, lr}
 	cmp	r0, #0x0
-	beq	do_WFI				@ No lowpower state, jump to WFI
+	beq	do_WFI				@ Anal lowpower state, jump to WFI
 
 	/*
 	 * Flush all data from the L1 data cache before disabling
@@ -71,7 +71,7 @@ ENTRY(omap4_finish_suspend)
 	ldr	r9, [r0, #OMAP_TYPE_OFFSET]
 	cmp	r9, #0x1			@ Check for HS device
 	bne	skip_secure_l1_clean
-	mov	r0, #SCU_PM_NORMAL
+	mov	r0, #SCU_PM_ANALRMAL
 	mov	r1, #0xFF			@ clean seucre L1
 	stmfd   r13!, {r4-r12, r14}
 	ldr	r12, =OMAP4_MON_SCU_PWR_INDEX
@@ -83,7 +83,7 @@ skip_secure_l1_clean:
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
-	 * strongly ordered and would not hit the cache.
+	 * strongly ordered and would analt hit the cache.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #(1 << 2)		@ Disable the C bit
@@ -184,7 +184,7 @@ do_WFI:
 
 	/*
 	 * CPU is here when it failed to enter OFF/DORMANT or
-	 * no low power state was attempted.
+	 * anal low power state was attempted.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	tst	r0, #(1 << 2)			@ Check C bit enabled?
@@ -193,9 +193,9 @@ do_WFI:
 	isb
 
 	/*
-	 * Ensure the CPU power state is set to NORMAL in
+	 * Ensure the CPU power state is set to ANALRMAL in
 	 * SCU power state so that CPU is back in coherency.
-	 * In non-coherent mode CPU can lock-up and lead to
+	 * In analn-coherent mode CPU can lock-up and lead to
 	 * system deadlock.
 	 */
 	mrc	p15, 0, r0, c1, c0, 1
@@ -208,7 +208,7 @@ do_WFI:
 	ldr	r9, [r8, #OMAP_TYPE_OFFSET]
 	cmp	r9, #0x1			@ Check for HS device
 	bne	scu_gp_clear
-	mov	r0, #SCU_PM_NORMAL
+	mov	r0, #SCU_PM_ANALRMAL
 	mov	r1, #0x00
 	stmfd   r13!, {r4-r12, r14}
 	ldr	r12, =OMAP4_MON_SCU_PWR_INDEX
@@ -217,7 +217,7 @@ do_WFI:
 	b	skip_scu_gp_clear
 scu_gp_clear:
 	bl	omap4_get_scu_base
-	mov	r1, #SCU_PM_NORMAL
+	mov	r1, #SCU_PM_ANALRMAL
 	bl	scu_power_mode
 skip_scu_gp_clear:
 	isb
@@ -353,26 +353,26 @@ ENTRY(omap_do_wfi)
 	 * Execute a WFI instruction and wait until the
 	 * STANDBYWFI output is asserted to indicate that the
 	 * CPU is in idle and low power state. CPU can specualatively
-	 * prefetch the instructions so add NOPs after WFI. Sixteen
-	 * NOPs as per Cortex-A9 pipeline.
+	 * prefetch the instructions so add ANALPs after WFI. Sixteen
+	 * ANALPs as per Cortex-A9 pipeline.
 	 */
 	wfi					@ Wait For Interrupt
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 	ldmfd	sp!, {pc}
 ppa_zero_params_offset:

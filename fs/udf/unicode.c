@@ -103,7 +103,7 @@ static int udf_name_conv_char(uint8_t *str_o, int str_o_max_len,
 
 		len = get_utf16_char(str_i, str_i_max_len, *str_i_idx, u_ch,
 				     &c);
-		/* These chars cannot be converted. Replace them. */
+		/* These chars cananalt be converted. Replace them. */
 		if (c == 0 || c > UNICODE_MAX || (conv_f && c > MAX_WCHAR_T) ||
 		    (translate && c == '/')) {
 			illChar = 1;
@@ -181,7 +181,7 @@ static int udf_name_from_CS0(struct super_block *sb,
 	cmp_id = ocu[0];
 	if (cmp_id != 8 && cmp_id != 16) {
 		memset(str_o, 0, str_max_len);
-		pr_err("unknown compression code (%u)\n", cmp_id);
+		pr_err("unkanalwn compression code (%u)\n", cmp_id);
 		return -EINVAL;
 	}
 	u_ch = cmp_id >> 3;
@@ -324,7 +324,7 @@ try_again:
 			}
 			/*
 			 * Use UTF-16 encoding for chars outside we
-			 * cannot encode directly.
+			 * cananalt encode directly.
 			 */
 			if (u_len + 2 * u_ch > ocu_max_len)
 				return 0;

@@ -21,7 +21,7 @@
 void poly1305_init_arm(void *state, const u8 *key);
 void poly1305_blocks_arm(void *state, const u8 *src, u32 len, u32 hibit);
 void poly1305_blocks_neon(void *state, const u8 *src, u32 len, u32 hibit);
-void poly1305_emit_arm(void *state, u8 *digest, const u32 *nonce);
+void poly1305_emit_arm(void *state, u8 *digest, const u32 *analnce);
 
 void __weak poly1305_blocks_neon(void *state, const u8 *src, u32 len, u32 hibit)
 {
@@ -204,7 +204,7 @@ static int arm_poly1305_final(struct shash_desc *desc, u8 *dst)
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
 	if (unlikely(!dctx->sset))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	poly1305_final_arch(dctx, dst);
 	return 0;

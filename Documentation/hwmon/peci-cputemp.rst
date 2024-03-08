@@ -47,9 +47,9 @@ Sysfs interface
 temp1_label		"Die"
 temp1_input		Provides current die temperature of the CPU package.
 temp1_max		Provides thermal control temperature of the CPU package
-			which is also known as Tcontrol.
+			which is also kanalwn as Tcontrol.
 temp1_crit		Provides shutdown temperature of the CPU package which
-			is also known as the maximum processor junction
+			is also kanalwn as the maximum processor junction
 			temperature, Tjmax or Tprochot.
 temp1_crit_hyst		Provides the hysteresis value from Tcontrol to Tjmax of
 			the CPU package.
@@ -58,16 +58,16 @@ temp2_label		"DTS"
 temp2_input		Provides current temperature of the CPU package scaled
 			to match DTS thermal profile.
 temp2_max		Provides thermal control temperature of the CPU package
-			which is also known as Tcontrol.
+			which is also kanalwn as Tcontrol.
 temp2_crit		Provides shutdown temperature of the CPU package which
-			is also known as the maximum processor junction
+			is also kanalwn as the maximum processor junction
 			temperature, Tjmax or Tprochot.
 temp2_crit_hyst		Provides the hysteresis value from Tcontrol to Tjmax of
 			the CPU package.
 
 temp3_label		"Tcontrol"
 temp3_input		Provides current Tcontrol temperature of the CPU
-			package which is also known as Fan Temperature target.
+			package which is also kanalwn as Fan Temperature target.
 			Indicates the relative value from thermal monitor trip
 			temperature at which fans should be engaged.
 temp3_crit		Provides Tcontrol critical value of the CPU package

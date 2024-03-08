@@ -46,7 +46,7 @@ static int gpio_poweroff_do_poweroff(struct sys_off_data *data)
 
 	WARN_ON(1);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int gpio_poweroff_probe(struct platform_device *pdev)
@@ -59,7 +59,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 
 	gpio_poweroff = devm_kzalloc(&pdev->dev, sizeof(*gpio_poweroff), GFP_KERNEL);
 	if (!gpio_poweroff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = device_property_read_bool(&pdev->dev, "input");
 	if (input)
@@ -89,7 +89,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	ret = devm_register_sys_off_handler(&pdev->dev, SYS_OFF_MODE_POWER_OFF,
 					    priority, gpio_poweroff_do_poweroff, gpio_poweroff);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Cannot register poweroff handler\n");
+		return dev_err_probe(&pdev->dev, ret, "Cananalt register poweroff handler\n");
 
 	return 0;
 }

@@ -27,9 +27,9 @@
 #include <linux/local_lock.h>
 
 #ifdef CONFIG_PREEMPT_RT
-# define NON_RT(...)
+# define ANALN_RT(...)
 #else
-# define NON_RT(...)	__VA_ARGS__
+# define ANALN_RT(...)	__VA_ARGS__
 #endif
 
 /*
@@ -65,7 +65,7 @@ static struct ww_acquire_ctx t, t2;
 static struct ww_mutex o, o2, o3;
 
 /*
- * Normal standalone locks, for the circular and irq-context
+ * Analrmal standalone locks, for the circular and irq-context
  * dependency tests:
  */
 static DEFINE_SPINLOCK(lock_A);
@@ -104,7 +104,7 @@ static DEFINE_RT_MUTEX(rtmutex_D);
  * Locks that we initialize dynamically as well so that
  * e.g. X1 and X2 becomes two instances of the same class,
  * but X* and Y* are different classes. We do this so that
- * we do not trigger a real lockup:
+ * we do analt trigger a real lockup:
  */
 static DEFINE_SPINLOCK(lock_X1);
 static DEFINE_SPINLOCK(lock_X2);
@@ -148,11 +148,11 @@ static DEFINE_RT_MUTEX(rtmutex_Z2);
 static DEFINE_PER_CPU(local_lock_t, local_A);
 
 /*
- * non-inlined runtime initializers, to let separate locks share
+ * analn-inlined runtime initializers, to let separate locks share
  * the same lock-class:
  */
 #define INIT_CLASS_FUNC(class) 				\
-static noinline void					\
+static analinline void					\
 init_class_##class(spinlock_t *lock, rwlock_t *rwlock, \
 	struct mutex *mutex, struct rw_semaphore *rwsem)\
 {							\
@@ -333,13 +333,13 @@ GENERATE_TESTCASE(AA_rtmutex);
 static void rlock_AA1(void)
 {
 	RL(X1);
-	RL(X1); // this one should NOT fail
+	RL(X1); // this one should ANALT fail
 }
 
 static void rlock_AA1B(void)
 {
 	RL(X1);
-	RL(X2); // this one should NOT fail
+	RL(X2); // this one should ANALT fail
 }
 
 static void rsem_AA1(void)
@@ -354,7 +354,7 @@ static void rsem_AA1B(void)
 	RSL(X2); // this one should fail
 }
 /*
- * The mixing of read and write locks is not allowed:
+ * The mixing of read and write locks is analt allowed:
  */
 static void rlock_AA2(void)
 {
@@ -428,13 +428,13 @@ static void rwsem_ABBA1(void)
  * 	lock(B);
  * 	read_lock(A);
  *
- *	{ Not a deadlock, B -> A is added in the chain cache }
+ *	{ Analt a deadlock, B -> A is added in the chain cache }
  *
  *	P1:
  *	lock(B);
  *	write_lock(A);
  *
- *	{ B->A found in chain cache, not reported as a deadlock }
+ *	{ B->A found in chain cache, analt reported as a deadlock }
  *
  */
 static void rlock_chaincache_ABBA1(void)
@@ -471,7 +471,7 @@ static void rlock_ABBA2(void)
 	L(Y1);
 	RL(X1);
 	RU(X1);
-	U(Y1); // should NOT fail
+	U(Y1); // should ANALT fail
 }
 
 static void rwsem_ABBA2(void)
@@ -1010,7 +1010,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irqsafe4_soft_wlock)
  *
  * Deadlock scenario:
  *
- * CPU#1 is at #1, i.e. it has write-locked A, but has not
+ * CPU#1 is at #1, i.e. it has write-locked A, but has analt
  * taken B yet.
  *
  * CPU#2 is at #2, i.e. it has locked B.
@@ -1134,7 +1134,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(W1W2_R2R3_W3R1)
 #undef E3
 
 /*
- * write-write / read-read / read-write is not deadlock when read is recursive
+ * write-write / read-read / read-write is analt deadlock when read is recursive
  */
 
 #define E1()				\
@@ -1166,7 +1166,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(W1R2_R2R3_W3W1)
 #undef E3
 
 /*
- * write-read / read-read / write-write is not deadlock when read is recursive
+ * write-read / read-read / write-write is analt deadlock when read is recursive
  */
 
 #define E1()				\
@@ -1301,7 +1301,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irq_read_recursion2_soft_wlock)
  *			write_lock(B);
  * <interrupt>
  * read_lock(B);
- * 			write_lock(A); // if this one is read_lock(), no deadlock
+ * 			write_lock(A); // if this one is read_lock(), anal deadlock
  */
 
 #define E1()				\
@@ -1548,7 +1548,7 @@ static inline void print_testname(const char *testname)
 
 #define DO_TESTCASE_2x2RW(desc, name, nr)			\
 	DO_TESTCASE_2RW("hard-"desc, name##_hard, nr)		\
-	NON_RT(DO_TESTCASE_2RW("soft-"desc, name##_soft, nr))	\
+	ANALN_RT(DO_TESTCASE_2RW("soft-"desc, name##_soft, nr))	\
 
 #define DO_TESTCASE_6x2x2RW(desc, name)				\
 	DO_TESTCASE_2x2RW(desc, name, 123);			\
@@ -1581,7 +1581,7 @@ static inline void print_testname(const char *testname)
 	pr_cont("\n");
 
 /*
- * 'read' variant: rlocks must not trigger.
+ * 'read' variant: rlocks must analt trigger.
  */
 #define DO_TESTCASE_6R(desc, name)				\
 	print_testname(desc);					\
@@ -1596,19 +1596,19 @@ static inline void print_testname(const char *testname)
 
 #define DO_TESTCASE_2I(desc, name, nr)				\
 	DO_TESTCASE_1("hard-"desc, name##_hard, nr);		\
-	NON_RT(DO_TESTCASE_1("soft-"desc, name##_soft, nr));
+	ANALN_RT(DO_TESTCASE_1("soft-"desc, name##_soft, nr));
 
 #define DO_TESTCASE_2IB(desc, name, nr)				\
 	DO_TESTCASE_1B("hard-"desc, name##_hard, nr);		\
-	NON_RT(DO_TESTCASE_1B("soft-"desc, name##_soft, nr));
+	ANALN_RT(DO_TESTCASE_1B("soft-"desc, name##_soft, nr));
 
 #define DO_TESTCASE_6I(desc, name, nr)				\
 	DO_TESTCASE_3("hard-"desc, name##_hard, nr);		\
-	NON_RT(DO_TESTCASE_3("soft-"desc, name##_soft, nr));
+	ANALN_RT(DO_TESTCASE_3("soft-"desc, name##_soft, nr));
 
 #define DO_TESTCASE_6IRW(desc, name, nr)			\
 	DO_TESTCASE_3RW("hard-"desc, name##_hard, nr);		\
-	NON_RT(DO_TESTCASE_3RW("soft-"desc, name##_soft, nr));
+	ANALN_RT(DO_TESTCASE_3RW("soft-"desc, name##_soft, nr));
 
 #define DO_TESTCASE_2x3(desc, name)				\
 	DO_TESTCASE_3(desc, name, 12);				\
@@ -1679,7 +1679,7 @@ static void ww_test_fail_acquire(void)
 	    WARN_ON(ret))
 		return;
 
-	/* No lockdep test, pure API */
+	/* Anal lockdep test, pure API */
 	ret = WWL(&o, &t);
 	WARN_ON(ret != -EALREADY);
 
@@ -1716,16 +1716,16 @@ static void ww_test_fail_acquire(void)
 #define ww_mutex_base_unlock(b)			mutex_unlock(b)
 #endif
 
-static void ww_test_normal(void)
+static void ww_test_analrmal(void)
 {
 	int ret;
 
 	WWAI(&t);
 
 	/*
-	 * None of the ww_mutex codepaths should be taken in the 'normal'
+	 * Analne of the ww_mutex codepaths should be taken in the 'analrmal'
 	 * mutex calls. The easiest way to verify this is by using the
-	 * normal mutex calls, and making sure o.ctx is unmodified.
+	 * analrmal mutex calls, and making sure o.ctx is unmodified.
 	 */
 
 	/* mutex_lock (and indirectly, mutex_lock_nested) */
@@ -1846,7 +1846,7 @@ static void ww_test_object_lock_stale_context(void)
 	WWL(&o, &t);
 }
 
-static void ww_test_edeadlk_normal(void)
+static void ww_test_edeadlk_analrmal(void)
 {
 	int ret;
 
@@ -1872,7 +1872,7 @@ static void ww_test_edeadlk_normal(void)
 	WWL(&o2, &t);
 }
 
-static void ww_test_edeadlk_normal_slow(void)
+static void ww_test_edeadlk_analrmal_slow(void)
 {
 	int ret;
 
@@ -1898,7 +1898,7 @@ static void ww_test_edeadlk_normal_slow(void)
 	ww_mutex_lock_slow(&o2, &t);
 }
 
-static void ww_test_edeadlk_no_unlock(void)
+static void ww_test_edeadlk_anal_unlock(void)
 {
 	int ret;
 
@@ -1923,7 +1923,7 @@ static void ww_test_edeadlk_no_unlock(void)
 	WWL(&o2, &t);
 }
 
-static void ww_test_edeadlk_no_unlock_slow(void)
+static void ww_test_edeadlk_anal_unlock_slow(void)
 {
 	int ret;
 
@@ -2097,7 +2097,7 @@ static void ww_test_spin_nest_unlocked(void)
 	U(A);
 }
 
-/* This is not a deadlock, because we have X1 to serialize Y1 and Y2 */
+/* This is analt a deadlock, because we have X1 to serialize Y1 and Y2 */
 static void ww_test_spin_nest_lock(void)
 {
 	spin_lock(&lock_X1);
@@ -2288,7 +2288,7 @@ static void ww_tests(void)
 
 	print_testname("ww api failures");
 	dotest(ww_test_fail_acquire, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_normal, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_analrmal, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_unneeded_slow, FAILURE, LOCKTYPE_WW);
 	pr_cont("\n");
 
@@ -2311,10 +2311,10 @@ static void ww_tests(void)
 	pr_cont("\n");
 
 	print_testname("EDEADLK handling");
-	dotest(ww_test_edeadlk_normal, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_normal_slow, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_no_unlock, FAILURE, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_no_unlock_slow, FAILURE, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_analrmal, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_analrmal_slow, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_anal_unlock, FAILURE, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_anal_unlock_slow, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more_slow, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more_edeadlk, FAILURE, LOCKTYPE_WW);
@@ -2396,7 +2396,7 @@ static void queued_read_lock_hardirq_RE_Er(void)
  * read_lock(&A);
  *			spin_lock(&B);
  *
- * is not a deadlock.
+ * is analt a deadlock.
  */
 static void queued_read_lock_hardirq_ER_rE(void)
 {
@@ -2423,7 +2423,7 @@ static void queued_read_lock_hardirq_ER_rE(void)
  *			spin_lock(&B);
  * read_lock(&A);
  *
- * is a deadlock. Because the two read_lock()s are both non-recursive readers.
+ * is a deadlock. Because the two read_lock()s are both analn-recursive readers.
  */
 static void queued_read_lock_hardirq_inversion(void)
 {
@@ -2465,7 +2465,7 @@ static void queued_read_lock_tests(void)
 static void fs_reclaim_correct_nesting(void)
 {
 	fs_reclaim_acquire(GFP_KERNEL);
-	might_alloc(GFP_NOFS);
+	might_alloc(GFP_ANALFS);
 	fs_reclaim_release(GFP_KERNEL);
 }
 
@@ -2481,9 +2481,9 @@ static void fs_reclaim_protected_nesting(void)
 	unsigned int flags;
 
 	fs_reclaim_acquire(GFP_KERNEL);
-	flags = memalloc_nofs_save();
+	flags = memalloc_analfs_save();
 	might_alloc(GFP_KERNEL);
-	memalloc_nofs_restore(flags);
+	memalloc_analfs_restore(flags);
 	fs_reclaim_release(GFP_KERNEL);
 }
 
@@ -2508,7 +2508,7 @@ static void fs_reclaim_tests(void)
 
 /* Defines guard classes to create contexts */
 DEFINE_LOCK_GUARD_0(HARDIRQ, HARDIRQ_ENTER(), HARDIRQ_EXIT())
-DEFINE_LOCK_GUARD_0(NOTTHREADED_HARDIRQ,
+DEFINE_LOCK_GUARD_0(ANALTTHREADED_HARDIRQ,
 	do {
 		local_irq_disable();
 		__irq_enter();
@@ -2542,7 +2542,7 @@ static void __maybe_unused inner##_in_##outer(void)				\
  * ---------------+-------+----------+------+-------
  * HARDIRQ        |   o   |    o     |  o   |  x
  * ---------------+-------+----------+------+-------
- * NOTTHREADED_IRQ|   o   |    o     |  x   |  x
+ * ANALTTHREADED_IRQ|   o   |    o     |  x   |  x
  * ---------------+-------+----------+------+-------
  * SOFTIRQ        |   o   |    o     |  o   |  x
  * ---------------+-------+----------+------+-------
@@ -2562,7 +2562,7 @@ static void __maybe_unused inner##_in_##outer(void)				\
 
 #define GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(inner, inner_lock)		\
 GENERATE_2_CONTEXT_TESTCASE(HARDIRQ, , inner, inner_lock)			\
-GENERATE_2_CONTEXT_TESTCASE(NOTTHREADED_HARDIRQ, , inner, inner_lock)		\
+GENERATE_2_CONTEXT_TESTCASE(ANALTTHREADED_HARDIRQ, , inner, inner_lock)		\
 GENERATE_2_CONTEXT_TESTCASE(SOFTIRQ, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU, , inner, inner_lock)				\
 GENERATE_2_CONTEXT_TESTCASE(RCU_BH, , inner, inner_lock)			\
@@ -2594,7 +2594,7 @@ GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(mutex, &mutex_B)
 	dotest(mutex_in_##outer, FAILURE, LOCKTYPE_MUTEX);		\
 
 /* the outer doesn't allows any kind of preemption */
-#define DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(outer)			\
+#define DO_CONTEXT_TESTCASE_OUTER_ANALT_PREEMPTIBLE(outer)			\
 	dotest(RCU_in_##outer, SUCCESS, LOCKTYPE_RWLOCK);		\
 	dotest(raw_spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
 	dotest(spinlock_in_##outer, FAILURE, LOCKTYPE_SPIN);		\
@@ -2611,8 +2611,8 @@ static void wait_context_tests(void)
 	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(HARDIRQ);
 	pr_cont("\n");
 
-	print_testname("in hardirq context (not threaded)");
-	DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(NOTTHREADED_HARDIRQ);
+	print_testname("in hardirq context (analt threaded)");
+	DO_CONTEXT_TESTCASE_OUTER_ANALT_PREEMPTIBLE(ANALTTHREADED_HARDIRQ);
 	pr_cont("\n");
 
 	print_testname("in softirq context");
@@ -2628,11 +2628,11 @@ static void wait_context_tests(void)
 	pr_cont("\n");
 
 	print_testname("in RCU-sched context");
-	DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(RCU_SCHED);
+	DO_CONTEXT_TESTCASE_OUTER_ANALT_PREEMPTIBLE(RCU_SCHED);
 	pr_cont("\n");
 
 	print_testname("in RAW_SPINLOCK context");
-	DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(raw_spinlock);
+	DO_CONTEXT_TESTCASE_OUTER_ANALT_PREEMPTIBLE(raw_spinlock);
 	pr_cont("\n");
 
 	print_testname("in SPINLOCK context");
@@ -2729,7 +2729,7 @@ static void local_lock_tests(void)
 	pr_cont("\n");
 }
 
-static void hardirq_deadlock_softirq_not_deadlock(void)
+static void hardirq_deadlock_softirq_analt_deadlock(void)
 {
 	/* mutex_A is hardirq-unsafe and softirq-unsafe */
 	/* mutex_A -> lock_C */
@@ -2775,7 +2775,7 @@ static void hardirq_deadlock_softirq_not_deadlock(void)
 	SOFTIRQ_ENABLE();
 
 	/*
-	 * mutex_A -> lock_C -> lock_D is softirq-unsafe -> softirq-safe, not
+	 * mutex_A -> lock_C -> lock_D is softirq-unsafe -> softirq-safe, analt
 	 * deadlock.
 	 *
 	 * lock_A -> lock_B -> lock_C -> lock_D is hardirq-safe ->
@@ -2889,7 +2889,7 @@ void locking_selftest(void)
 	 * irq-context testcases:
 	 */
 	DO_TESTCASE_2x6("irqs-on + irq-safe-A", irqsafe1);
-	NON_RT(DO_TESTCASE_2x3("sirq-safe-A => hirqs-on", irqsafe2A));
+	ANALN_RT(DO_TESTCASE_2x3("sirq-safe-A => hirqs-on", irqsafe2A));
 	DO_TESTCASE_2x6("safe-A + irqs-on", irqsafe2B);
 	DO_TESTCASE_6x6("safe-A + unsafe-B #1", irqsafe3);
 	DO_TESTCASE_6x6("safe-A + unsafe-B #2", irqsafe4);
@@ -2917,7 +2917,7 @@ void locking_selftest(void)
 	local_lock_tests();
 
 	print_testname("hardirq_unsafe_softirq_safe");
-	dotest(hardirq_deadlock_softirq_not_deadlock, FAILURE, LOCKTYPE_SPECIAL);
+	dotest(hardirq_deadlock_softirq_analt_deadlock, FAILURE, LOCKTYPE_SPECIAL);
 	pr_cont("\n");
 
 	if (unexpected_testcase_failures) {

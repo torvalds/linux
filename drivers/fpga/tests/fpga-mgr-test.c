@@ -58,7 +58,7 @@ static char *init_test_buffer(struct kunit *test, size_t count)
 	KUNIT_ASSERT_GE(test, count, HEADER_SIZE);
 
 	buf = kunit_kzalloc(test, count, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, buf);
 
 	memset(buf, HEADER_FILL, HEADER_SIZE);
 	memset(buf + HEADER_SIZE, IMAGE_FILL, count - HEADER_SIZE);
@@ -67,8 +67,8 @@ static char *init_test_buffer(struct kunit *test, size_t count)
 }
 
 /*
- * Check the image header. Do not return an error code if the image check fails
- * since, in this case, it is a failure of the FPGA manager itself, not this
+ * Check the image header. Do analt return an error code if the image check fails
+ * since, in this case, it is a failure of the FPGA manager itself, analt this
  * op that tests it.
  */
 static int op_parse_header(struct fpga_manager *mgr, struct fpga_image_info *info,
@@ -107,7 +107,7 @@ static int op_write_init(struct fpga_manager *mgr, struct fpga_image_info *info,
 }
 
 /*
- * Check the image data. As with op_parse_header, do not return an error code
+ * Check the image data. As with op_parse_header, do analt return an error code
  * if the image check fails.
  */
 static int op_write(struct fpga_manager *mgr, const char *buf, size_t count)
@@ -131,7 +131,7 @@ static int op_write(struct fpga_manager *mgr, const char *buf, size_t count)
 
 /*
  * Check the image data, but first skip the header since write_sg will get
- * the whole image in sg_table. As with op_parse_header, do not return an
+ * the whole image in sg_table. As with op_parse_header, do analt return an
  * error code if the image check fails.
  */
 static int op_write_sg(struct fpga_manager *mgr, struct sg_table *sgt)
@@ -282,17 +282,17 @@ static int fpga_mgr_test_init(struct kunit *test)
 	struct mgr_ctx *ctx;
 
 	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx);
 
 	ctx->pdev = platform_device_register_simple("mgr_pdev", PLATFORM_DEVID_AUTO, NULL, 0);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->pdev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->pdev);
 
 	ctx->mgr = devm_fpga_mgr_register(&ctx->pdev->dev, "Fake FPGA Manager", &fake_mgr_ops,
 					  &ctx->stats);
 	KUNIT_ASSERT_FALSE(test, IS_ERR_OR_NULL(ctx->mgr));
 
 	ctx->img_info = fpga_image_info_alloc(&ctx->pdev->dev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->img_info);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ctx->img_info);
 
 	test->priv = ctx;
 

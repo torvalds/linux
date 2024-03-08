@@ -21,7 +21,7 @@
 #ifdef SAVAGEFB_DEBUG
 # define DBG(x)		printk (KERN_DEBUG "savagefb: %s\n", (x));
 #else
-# define DBG(x)		no_printk(x)
+# define DBG(x)		anal_printk(x)
 # define SavagePrintRegs(...)
 #endif
 
@@ -66,7 +66,7 @@
  */
 
 typedef enum {
-  S3_UNKNOWN = 0,
+  S3_UNKANALWN = 0,
   S3_SAVAGE3D,
   S3_SAVAGE_MX,
   S3_SAVAGE4,
@@ -94,12 +94,12 @@ typedef enum {
 #define STREAMS_TIMEOUT_REG	     0x8208
 #define MISC_TIMEOUT_REG	     0x820c
 
-#define MONO_PAT_0                   0xa4e8
-#define MONO_PAT_1                   0xa4ec
+#define MOANAL_PAT_0                   0xa4e8
+#define MOANAL_PAT_1                   0xa4ec
 
 #define MAXFIFO                      0x7f00
 
-#define BCI_CMD_NOP                  0x40000000
+#define BCI_CMD_ANALP                  0x40000000
 #define BCI_CMD_SETREG               0x96000000
 #define BCI_CMD_RECT                 0x48000000
 #define BCI_CMD_RECT_XP              0x01000000
@@ -108,7 +108,7 @@ typedef enum {
 #define BCI_CMD_DEST_GBD             0x00000000
 #define BCI_CMD_SRC_GBD              0x00000020
 #define BCI_CMD_SRC_SOLID            0x00000000
-#define BCI_CMD_SRC_MONO             0x00000060
+#define BCI_CMD_SRC_MOANAL             0x00000060
 #define BCI_CMD_CLIP_NEW             0x00006000
 #define BCI_CMD_CLIP_LR              0x00004000
 

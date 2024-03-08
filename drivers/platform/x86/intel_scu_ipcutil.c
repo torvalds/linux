@@ -8,7 +8,7 @@
  * This driver provides IOCTL interfaces to call Intel SCU IPC driver API.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@ static DEFINE_MUTEX(scu_lock);
 #define INTE_SCU_IPC_REGISTER_UPDATE	2
 
 struct scu_ipc_data {
-	u32     count;  /* No. of registers */
+	u32     count;  /* Anal. of registers */
 	u16     addr[5]; /* Register addresses */
 	u8      data[5]; /* Register data */
 	u8      mask; /* Valid for read-modify-write */
@@ -62,7 +62,7 @@ static int scu_reg_access(u32 cmd, struct scu_ipc_data  *data)
 		return intel_scu_ipc_dev_update(scu, data->addr[0], data->data[0],
 						data->mask);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -94,7 +94,7 @@ static long scu_ipc_ioctl(struct file *fp, unsigned int cmd,
 	return 0;
 }
 
-static int scu_ipc_open(struct inode *inode, struct file *file)
+static int scu_ipc_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = 0;
 
@@ -107,14 +107,14 @@ static int scu_ipc_open(struct inode *inode, struct file *file)
 
 	scu = intel_scu_ipc_dev_get();
 	if (!scu)
-		ret = -ENODEV;
+		ret = -EANALDEV;
 
 unlock:
 	mutex_unlock(&scu_lock);
 	return ret;
 }
 
-static int scu_ipc_release(struct inode *inode, struct file *file)
+static int scu_ipc_release(struct ianalde *ianalde, struct file *file)
 {
 	mutex_lock(&scu_lock);
 	intel_scu_ipc_dev_put(scu);

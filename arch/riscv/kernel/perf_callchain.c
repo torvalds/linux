@@ -50,8 +50,8 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
  * $ perf report --call-graph
  *
  * On RISC-V platform, the program being sampled and the C library
- * need to be compiled with -fno-omit-frame-pointer, otherwise
- * the user stack will not contain function frame.
+ * need to be compiled with -fanal-omit-frame-pointer, otherwise
+ * the user stack will analt contain function frame.
  */
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)

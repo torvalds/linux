@@ -20,7 +20,7 @@ logger = logging.getLogger("hidtools.test.base")
 
 # application to matches
 application_matches: Final = {
-    # pyright: ignore
+    # pyright: iganalre
     "Accelerometer": EvdevMatch(
         req_properties=[
             libevdev.INPUT_PROP_ACCELEROMETER,
@@ -133,26 +133,26 @@ application_matches: Final = {
 
 
 class UHIDTestDevice(BaseDevice):
-    def __init__(self, name, application, rdesc_str=None, rdesc=None, input_info=None):
+    def __init__(self, name, application, rdesc_str=Analne, rdesc=Analne, input_info=Analne):
         super().__init__(name, application, rdesc_str, rdesc, input_info)
         self.application_matches = application_matches
-        if name is None:
+        if name is Analne:
             name = f"uhid test {self.__class__.__name__}"
-        if not name.startswith("uhid test "):
+        if analt name.startswith("uhid test "):
             name = "uhid test " + self.name
         self.name = name
 
 
 class BaseTestCase:
     class TestUhid(object):
-        syn_event = libevdev.InputEvent(libevdev.EV_SYN.SYN_REPORT)  # type: ignore
-        key_event = libevdev.InputEvent(libevdev.EV_KEY)  # type: ignore
-        abs_event = libevdev.InputEvent(libevdev.EV_ABS)  # type: ignore
-        rel_event = libevdev.InputEvent(libevdev.EV_REL)  # type: ignore
-        msc_event = libevdev.InputEvent(libevdev.EV_MSC.MSC_SCAN)  # type: ignore
+        syn_event = libevdev.InputEvent(libevdev.EV_SYN.SYN_REPORT)  # type: iganalre
+        key_event = libevdev.InputEvent(libevdev.EV_KEY)  # type: iganalre
+        abs_event = libevdev.InputEvent(libevdev.EV_ABS)  # type: iganalre
+        rel_event = libevdev.InputEvent(libevdev.EV_REL)  # type: iganalre
+        msc_event = libevdev.InputEvent(libevdev.EV_MSC.MSC_SCAN)  # type: iganalre
 
         # List of kernel modules to load before starting the test
-        # if any module is not available (not compiled), the test will skip.
+        # if any module is analt available (analt compiled), the test will skip.
         # Each element is a tuple '(kernel driver name, kernel module)',
         # for example ("playstation", "hid-playstation")
         kernel_modules: List[Tuple[str, str]] = []
@@ -169,10 +169,10 @@ class BaseTestCase:
             assert remaining == []
 
         @classmethod
-        def debug_reports(cls, reports, uhdev=None, events=None):
+        def debug_reports(cls, reports, uhdev=Analne, events=Analne):
             data = [" ".join([f"{v:02x}" for v in r]) for r in reports]
 
-            if uhdev is not None:
+            if uhdev is analt Analne:
                 human_data = [
                     uhdev.parsed_rdesc.format_report(r, split_lines=True)
                     for r in reports
@@ -183,7 +183,7 @@ class BaseTestCase:
                         for h in human_data
                     ]
                 except ValueError:
-                    # '/' not found: not a numbered report
+                    # '/' analt found: analt a numbered report
                     human_data = ["\n\t      ".join(h.split("\n")) for h in human_data]
                 data = [f"{d}\n\t ====> {h}" for d, h in zip(data, human_data)]
 
@@ -196,7 +196,7 @@ class BaseTestCase:
             for report in reports:
                 print("\t", report)
 
-            if events is not None:
+            if events is analt Analne:
                 print("events received:", events)
 
         def create_device(self):
@@ -204,19 +204,19 @@ class BaseTestCase:
 
         def _load_kernel_module(self, kernel_driver, kernel_module):
             sysfs_path = Path("/sys/bus/hid/drivers")
-            if kernel_driver is not None:
+            if kernel_driver is analt Analne:
                 sysfs_path /= kernel_driver
             else:
                 # special case for when testing all available modules:
-                # we don't know beforehand the name of the module from modinfo
+                # we don't kanalw beforehand the name of the module from modinfo
                 sysfs_path = Path("/sys/module") / kernel_module.replace("-", "_")
-            if not sysfs_path.exists():
+            if analt sysfs_path.exists():
                 import subprocess
 
                 ret = subprocess.run(["/usr/sbin/modprobe", kernel_module])
                 if ret.returncode != 0:
                     pytest.skip(
-                        f"module {kernel_module} could not be loaded, skipping the test"
+                        f"module {kernel_module} could analt be loaded, skipping the test"
                     )
 
         @pytest.fixture()
@@ -238,23 +238,23 @@ class BaseTestCase:
             try:
                 with HIDTestUdevRule.instance():
                     with new_uhdev as self.uhdev:
-                        for skip_cond in request.node.iter_markers("skip_if_uhdev"):
+                        for skip_cond in request.analde.iter_markers("skip_if_uhdev"):
                             test, message, *rest = skip_cond.args
 
                             if test(self.uhdev):
                                 pytest.skip(message)
 
                         self.uhdev.create_kernel_device()
-                        now = time.time()
-                        while not self.uhdev.is_ready() and time.time() - now < 5:
+                        analw = time.time()
+                        while analt self.uhdev.is_ready() and time.time() - analw < 5:
                             self.uhdev.dispatch(1)
-                        if self.uhdev.get_evdev() is None:
+                        if self.uhdev.get_evdev() is Analne:
                             logger.warning(
-                                f"available list of input nodes: (default application is '{self.uhdev.application}')"
+                                f"available list of input analdes: (default application is '{self.uhdev.application}')"
                             )
-                            logger.warning(self.uhdev.input_nodes)
+                            logger.warning(self.uhdev.input_analdes)
                         yield
-                        self.uhdev = None
+                        self.uhdev = Analne
             except PermissionError:
                 pytest.skip("Insufficient permissions, run me as root")
 
@@ -270,20 +270,20 @@ class BaseTestCase:
 
         def test_creation(self):
             """Make sure the device gets processed by the kernel and creates
-            the expected application input node.
+            the expected application input analde.
 
             If this fail, there is something wrong in the device report
             descriptors."""
             uhdev = self.uhdev
-            assert uhdev is not None
-            assert uhdev.get_evdev() is not None
+            assert uhdev is analt Analne
+            assert uhdev.get_evdev() is analt Analne
             self.assertName(uhdev)
             assert len(uhdev.next_sync_events()) == 0
-            assert uhdev.get_evdev() is not None
+            assert uhdev.get_evdev() is analt Analne
 
 
 class HIDTestUdevRule(object):
-    _instance = None
+    _instance = Analne
     """
     A context-manager compatible class that sets up our udev rules file and
     deletes it on context exit.
@@ -298,11 +298,11 @@ class HIDTestUdevRule(object):
 
     def __init__(self):
         self.refs = 0
-        self.rulesfile = None
+        self.rulesfile = Analne
 
     def __enter__(self):
         self.refs += 1
-        if self.refs == 2 and self.rulesfile is None:
+        if self.refs == 2 and self.rulesfile is Analne:
             self.create_udev_rule()
             self.reload_udev_rules()
 
@@ -330,7 +330,7 @@ class HIDTestUdevRule(object):
             delete=False,
         ) as f:
             f.write(
-                'KERNELS=="*input*", ATTRS{name}=="*uhid test *", ENV{LIBINPUT_IGNORE_DEVICE}="1"\n'
+                'KERNELS=="*input*", ATTRS{name}=="*uhid test *", ENV{LIBINPUT_IGANALRE_DEVICE}="1"\n'
             )
             f.write(
                 'KERNELS=="*input*", ATTRS{name}=="*uhid test * System Multi Axis", ENV{ID_INPUT_TOUCHSCREEN}="", ENV{ID_INPUT_SYSTEM_MULTIAXIS}="1"\n'
@@ -339,6 +339,6 @@ class HIDTestUdevRule(object):
 
     @classmethod
     def instance(cls):
-        if not cls._instance:
+        if analt cls._instance:
             cls._instance = HIDTestUdevRule()
         return cls._instance

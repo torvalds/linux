@@ -300,7 +300,7 @@ static int bcm2835_asb_power_on(struct bcm2835_power_domain *pd,
 		return ret;
 	}
 
-	/* Wait 32 clocks for reset to propagate, 1 us will be enough */
+	/* Wait 32 clocks for reset to propagate, 1 us will be eanalugh */
 	udelay(1);
 
 	clk_disable_unprepare(pd->clk);
@@ -538,7 +538,7 @@ bcm2835_init_power_domain(struct bcm2835_power *power,
  * PM block.
  *
  * The consumer of the reset controller must have the power domain up
- * -- there's no reset ability with the power domain down.  To reset
+ * -- there's anal reset ability with the power domain down.  To reset
  * the sub-block, we just disable its access to memory through the
  * ASB, reset, and re-enable.
  */
@@ -634,7 +634,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 
 	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
 	if (!power)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, power);
 
 	power->dev = dev;
@@ -645,7 +645,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 	id = readl(power->asb + ASB_AXI_BRDG_ID);
 	if (id != BCM2835_BRDG_ID /* "BRDG" */) {
 		dev_err(dev, "ASB register ID returned 0x%08x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (power->rpivid_asb) {
@@ -653,7 +653,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 		if (id != BCM2835_BRDG_ID /* "BRDG" */) {
 			dev_err(dev, "RPiVid ASB register ID returned 0x%08x\n",
 				     id);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -662,7 +662,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 					       sizeof(*power->pd_xlate.domains),
 					       GFP_KERNEL);
 	if (!power->pd_xlate.domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	power->pd_xlate.num_domains = ARRAY_SIZE(power_domain_names);
 
@@ -680,13 +680,13 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 	power->reset.owner = THIS_MODULE;
 	power->reset.nr_resets = BCM2835_RESET_COUNT;
 	power->reset.ops = &bcm2835_reset_ops;
-	power->reset.of_node = dev->parent->of_node;
+	power->reset.of_analde = dev->parent->of_analde;
 
 	ret = devm_reset_controller_register(dev, &power->reset);
 	if (ret)
 		goto fail;
 
-	of_genpd_add_provider_onecell(dev->parent->of_node, &power->pd_xlate);
+	of_genpd_add_provider_onecell(dev->parent->of_analde, &power->pd_xlate);
 
 	dev_info(dev, "Broadcom BCM2835 power domains driver");
 	return 0;

@@ -443,7 +443,7 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
 	bus_ops = devm_kmemdup(dev->mt76.dev, dev->bus_ops, sizeof(*bus_ops),
 			       GFP_KERNEL);
 	if (!bus_ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus_ops->rr = mt7996_rr;
 	bus_ops->wr = mt7996_wr;
@@ -572,7 +572,7 @@ irqreturn_t mt7996_irq_handler(int irq, void *dev_instance)
 	}
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	tasklet_schedule(&dev->mt76.irq_tasklet);
 
@@ -585,7 +585,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
-		.drv_flags = MT_DRV_TXWI_NO_FREE |
+		.drv_flags = MT_DRV_TXWI_ANAL_FREE |
 			     MT_DRV_AMSDU_OFFLOAD |
 			     MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
@@ -607,7 +607,7 @@ struct mt7996_dev *mt7996_mmio_probe(struct device *pdev,
 
 	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt7996_ops, &drv_ops);
 	if (!mdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = container_of(mdev, struct mt7996_dev, mt76);
 

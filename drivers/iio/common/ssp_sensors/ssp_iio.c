@@ -22,12 +22,12 @@ int ssp_common_buffer_postenable(struct iio_dev *indio_dev)
 	struct ssp_sensor_data *spd = iio_priv(indio_dev);
 	struct ssp_data *data = dev_get_drvdata(indio_dev->dev.parent->parent);
 
-	/* the allocation is made in post because scan size is known in this
+	/* the allocation is made in post because scan size is kanalwn in this
 	 * moment
 	 * */
 	spd->buffer = kmalloc(indio_dev->scan_bytes, GFP_KERNEL | GFP_DMA);
 	if (!spd->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return ssp_enable_sensor(data, spd->type,
 				 ssp_get_sensor_delay(data, spd->type));

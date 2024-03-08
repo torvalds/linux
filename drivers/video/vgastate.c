@@ -6,7 +6,7 @@
  * Copyright history from vga16fb.c:
  *	Copyright 1999 Ben Pfaff and Petr Vandrovec
  *	Based on VGA info at http://www.goodnet.com/~tinara/FreeVGA/home.htm
- *	Based on VESA framebuffer (c) 1998 Gerd Knorr
+ *	Based on VESA framebuffer (c) 1998 Gerd Kanalrr
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
@@ -52,7 +52,7 @@ static void save_vga_text(struct vgastate *state, void __iomem *fbbase)
 	u8 misc, attr10, gr4, gr5, gr6, seq1, seq2, seq4;
 	unsigned short iobase;
 
-	/* if in graphics mode, no need to save */
+	/* if in graphics mode, anal need to save */
 	misc = vga_r(state->vgabase, VGA_MIS_R);
 	iobase = (misc & 1) ? 0x3d0 : 0x3b0;
 

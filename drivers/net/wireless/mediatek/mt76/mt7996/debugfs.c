@@ -46,7 +46,7 @@ mt7996_implicit_txbf_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7996_implicit_txbf_get,
 			 mt7996_implicit_txbf_set, "%lld\n");
 
-/* test knob of system error recovery */
+/* test kanalb of system error recovery */
 static ssize_t
 mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
 			size_t count, loff_t *ppos)
@@ -135,7 +135,7 @@ mt7996_sys_recovery_get(struct file *file, char __user *user_buf,
 
 	buff = kmalloc(bufsz, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* HELP */
 	desc += scnprintf(buff + desc, bufsz - desc,
@@ -248,7 +248,7 @@ mt7996_rdd_monitor(struct seq_file *s, void *data)
 	}
 
 	if (!dev->rdd2_phy) {
-		seq_puts(s, "not running\n");
+		seq_puts(s, "analt running\n");
 		goto out;
 	}
 
@@ -405,7 +405,7 @@ mt7996_fw_debug_bin_set(void *data, u64 val)
 		dev->relay_fwlog = relay_open("fwlog_data", dev->debugfs_dir,
 					      1500, 512, &relay_cb, NULL);
 	if (!dev->relay_fwlog)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->fw_debug_bin = val;
 
@@ -673,7 +673,7 @@ mt7996_hw_queues_show(struct seq_file *file, void *data)
 	seq_printf(file, "\tHIF free page: 0x%03x res: 0x%03x used: 0x%03x\n",
 		   val, head, tail);
 
-	seq_puts(file, "PLE non-empty queue info:\n");
+	seq_puts(file, "PLE analn-empty queue info:\n");
 	mt7996_hw_queue_read(file, ARRAY_SIZE(ple_queue_map),
 			     &ple_queue_map[0]);
 
@@ -681,7 +681,7 @@ mt7996_hw_queues_show(struct seq_file *file, void *data)
 	ieee80211_iterate_stations_atomic(phy->mt76->hw,
 					  mt7996_sta_hw_queue_read, file);
 	/* pse queue */
-	seq_puts(file, "PSE non-empty queue info:\n");
+	seq_puts(file, "PSE analn-empty queue info:\n");
 	mt7996_hw_queue_read(file, ARRAY_SIZE(pse_queue_map),
 			     &pse_queue_map[0]);
 
@@ -787,7 +787,7 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
 
 	dir = mt76_register_debugfs_fops(phy->mt76, NULL);
 	if (!dir)
-		return -ENOMEM;
+		return -EANALMEM;
 	debugfs_create_file("hw-queues", 0400, dir, phy,
 			    &mt7996_hw_queues_fops);
 	debugfs_create_file("xmit-queues", 0400, dir, phy,
@@ -913,7 +913,7 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 
 	/* mode - cck: 0, ofdm: 1, ht: 2, gf: 3, vht: 4, he_su: 8, he_er: 9 EHT: 15
 	 * bw - bw20: 0, bw40: 1, bw80: 2, bw160: 3, BW320: 4
-	 * nss - vht: 1~4, he: 1~4, eht: 1~4, others: ignore
+	 * nss - vht: 1~4, he: 1~4, eht: 1~4, others: iganalre
 	 * mcs - cck: 0~4, ofdm: 0~7, ht: 0~32, vht: 0~9, he_su: 0~11, he_er: 0~2, eht: 0~13
 	 * gi - (ht/vht) lgi: 0, sgi: 1; (he) 0.8us: 0, 1.6us: 1, 3.2us: 2
 	 * preamble - short: 1, long: 0

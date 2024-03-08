@@ -22,7 +22,7 @@ static vm_fault_t alpha_core_agp_vm_fault(struct vm_fault *vmf)
 	pa = agp->ops->translate(agp, dma_addr);
 
 	if (pa == (unsigned long)-EINVAL)
-		return VM_FAULT_SIGBUS;	/* no translation */
+		return VM_FAULT_SIGBUS;	/* anal translation */
 
 	/*
 	 * Get the page, inc the use count, and return it
@@ -157,9 +157,9 @@ alpha_core_agp_setup(void)
 	struct aper_size_info_fixed *aper_size;
 
 	if (!agp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (agp->ops->setup(agp))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Build the aperture size descriptor
@@ -174,7 +174,7 @@ alpha_core_agp_setup(void)
 	 */
 	pdev = pci_alloc_dev(NULL);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	pdev->vendor = 0xffff;
 	pdev->device = 0xffff;
 	pdev->sysdata = agp->hose;
@@ -195,7 +195,7 @@ alpha_core_agp_setup(void)
 
  fail:
 	kfree(pdev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int __init agp_alpha_core_init(void)
@@ -204,7 +204,7 @@ static int __init agp_alpha_core_init(void)
 		return -EINVAL;
 	if (alpha_mv.agp_info)
 		return alpha_core_agp_setup();
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void __exit agp_alpha_core_cleanup(void)

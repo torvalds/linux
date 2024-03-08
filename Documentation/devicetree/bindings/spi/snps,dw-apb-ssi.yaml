@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/snps,dw-apb-ssi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare AMBA 2.0 Synchronous Serial Interface
+title: Syanalpsys DesignWare AMBA 2.0 Synchroanalus Serial Interface
 
 maintainers:
   - Mark Brown <broonie@kernel.org>
@@ -140,10 +140,10 @@ properties:
     default: 0
     description: |
       Default value of the rx-sample-delay-ns property.
-      This value will be used if the property is not explicitly defined
+      This value will be used if the property is analt explicitly defined
       for a SPI slave device.
 
-      SPI Rx sample delay offset, unit is nanoseconds.
+      SPI Rx sample delay offset, unit is naanalseconds.
       The delay from the default sample time before the actual sample of the
       rxd input signal occurs. The "rx_sample_delay" is an optional feature
       of the designware controller, and the upper limit is also subject to

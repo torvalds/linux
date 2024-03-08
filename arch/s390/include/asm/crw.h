@@ -48,7 +48,7 @@ void crw_wait_for_channel_report(void);
 #define CRW_ERC_TERROR	 0x03 /* temporary error */
 #define CRW_ERC_IPARM	 0x04 /* installed parm initialized */
 #define CRW_ERC_TERM	 0x05 /* terminal */
-#define CRW_ERC_PERRN	 0x06 /* perm. error, fac. not init */
+#define CRW_ERC_PERRN	 0x06 /* perm. error, fac. analt init */
 #define CRW_ERC_PERRI	 0x07 /* perm. error, facility init */
 #define CRW_ERC_PMOD	 0x08 /* installed parameters modified */
 

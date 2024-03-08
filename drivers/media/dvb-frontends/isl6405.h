@@ -16,7 +16,7 @@
 /* system register bits */
 
 /* this bit selects register (control) 1 or 2
-   note that the bit maps are different */
+   analte that the bit maps are different */
 
 #define ISL6405_SR	0x80
 

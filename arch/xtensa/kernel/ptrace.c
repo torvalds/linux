@@ -13,7 +13,7 @@
  */
 
 #include <linux/audit.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -126,7 +126,7 @@ static int tie_get(struct task_struct *target,
 	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
 
 	if (!newregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newregs->opt = regs->xtregs_opt;
 	newregs->user = ti->xtregs_user;
@@ -159,7 +159,7 @@ static int tie_set(struct task_struct *target,
 	elf_xtregs_t *newregs = kzalloc(sizeof(elf_xtregs_t), GFP_KERNEL);
 
 	if (!newregs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 newregs, 0, -1);
@@ -193,7 +193,7 @@ enum xtensa_regset {
 
 static const struct user_regset xtensa_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_analte_type = NT_PRSTATUS,
 		.n = sizeof(struct user_pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -201,7 +201,7 @@ static const struct user_regset xtensa_regsets[] = {
 		.set = gpr_set,
 	},
 	[REGSET_TIE] = {
-		.core_note_type = NT_PRFPREG,
+		.core_analte_type = NT_PRFPREG,
 		.n = sizeof(elf_xtregs_t) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -238,7 +238,7 @@ void user_disable_single_step(struct task_struct *child)
 
 void ptrace_disable(struct task_struct *child)
 {
-	/* Nothing to do.. */
+	/* Analthing to do.. */
 }
 
 static int ptrace_getregs(struct task_struct *child, void __user *uregs)
@@ -265,7 +265,7 @@ static int ptrace_setxregs(struct task_struct *child, void __user *uregs)
 				     0, sizeof(elf_xtregs_t), uregs);
 }
 
-static int ptrace_peekusr(struct task_struct *child, long regno,
+static int ptrace_peekusr(struct task_struct *child, long reganal,
 			  long __user *ret)
 {
 	struct pt_regs *regs;
@@ -274,13 +274,13 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 	regs = task_pt_regs(child);
 	tmp = 0;  /* Default return value. */
 
-	switch(regno) {
+	switch(reganal) {
 	case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-		tmp = regs->areg[regno - REG_AR_BASE];
+		tmp = regs->areg[reganal - REG_AR_BASE];
 		break;
 
 	case REG_A_BASE ... REG_A_BASE + 15:
-		tmp = regs->areg[regno - REG_A_BASE];
+		tmp = regs->areg[reganal - REG_A_BASE];
 		break;
 
 	case REG_PC:
@@ -288,7 +288,7 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 		break;
 
 	case REG_PS:
-		/* Note: PS.EXCM is not set while user task is running;
+		/* Analte: PS.EXCM is analt set while user task is running;
 		 * its being set in regs is for exception handling
 		 * convenience.
 		 */
@@ -332,18 +332,18 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 	return put_user(tmp, ret);
 }
 
-static int ptrace_pokeusr(struct task_struct *child, long regno, long val)
+static int ptrace_pokeusr(struct task_struct *child, long reganal, long val)
 {
 	struct pt_regs *regs;
 	regs = task_pt_regs(child);
 
-	switch (regno) {
+	switch (reganal) {
 	case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-		regs->areg[regno - REG_AR_BASE] = val;
+		regs->areg[reganal - REG_AR_BASE] = val;
 		break;
 
 	case REG_A_BASE ... REG_A_BASE + 15:
-		regs->areg[regno - REG_A_BASE] = val;
+		regs->areg[reganal - REG_A_BASE] = val;
 		break;
 
 	case REG_PC:
@@ -380,7 +380,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		i = (i << 1) | 1;
 	}
 
-	force_sig_ptrace_errno_trap(i, (void __user *)bkpt->address);
+	force_sig_ptrace_erranal_trap(i, (void __user *)bkpt->address);
 }
 
 static struct perf_event *ptrace_hbp_create(struct task_struct *tsk, int type)
@@ -543,17 +543,17 @@ long arch_ptrace(struct task_struct *child, long request,
 
 int do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (regs->syscall == NO_SYSCALL)
-		regs->areg[2] = -ENOSYS;
+	if (regs->syscall == ANAL_SYSCALL)
+		regs->areg[2] = -EANALSYS;
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    ptrace_report_syscall_entry(regs)) {
-		regs->areg[2] = -ENOSYS;
-		regs->syscall = NO_SYSCALL;
+		regs->areg[2] = -EANALSYS;
+		regs->syscall = ANAL_SYSCALL;
 		return 0;
 	}
 
-	if (regs->syscall == NO_SYSCALL ||
+	if (regs->syscall == ANAL_SYSCALL ||
 	    secure_computing() == -1) {
 		do_syscall_trace_leave(regs);
 		return 0;

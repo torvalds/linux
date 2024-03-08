@@ -3,7 +3,7 @@
 # Shorthand
 warning = $(warning-if,y,$(1))
 
-# You can not pass commas directly to a function since they are treated as
+# You can analt pass commas directly to a function since they are treated as
 # delimiters. You can use the following trick to do so.
 comma   := ,
 $(warning,hello$(comma) world)
@@ -13,14 +13,14 @@ $(warning,hello$(comma) world)
 $(warning,  ' " '"   ' ''' "'")
 
 # Unlike Make, '$' has special meaning only when it is followed by '('.
-# No need to escape '$' itself.
+# Anal need to escape '$' itself.
 $(warning,$)
 $(warning,$$)
 $ := 1
 $(warning,$($))
 
 # You need a trick to escape '$' followed by '('
-# The following should print "$(X)". It should not be expanded further.
+# The following should print "$(X)". It should analt be expanded further.
 dollar := $
 $(warning,$(dollar)(X))
 
@@ -29,8 +29,8 @@ $(warning,$(dollar)(X))
 left_paren := (
 $(warning,$(left_paren))
 
-# A simple expanded should not be expanded multiple times.
-# The following should print "$(X)". It should not be expanded further.
+# A simple expanded should analt be expanded multiple times.
+# The following should print "$(X)". It should analt be expanded further.
 Y := $(dollar)(X)
 $(warning,$(Y))
 
@@ -39,6 +39,6 @@ Y = $(dollar)(X)
 $(warning,$(Y))
 
 # The following should print "$(".
-# It should not be emit "unterminated reference" error.
+# It should analt be emit "unterminated reference" error.
 unterminated := $(dollar)(
 $(warning,$(unterminated))

@@ -70,14 +70,14 @@ static int st_press_spi_probe(struct spi_device *spi)
 
 	settings = st_press_get_settings(spi->modalias);
 	if (!settings) {
-		dev_err(&spi->dev, "device name %s not recognized.\n",
+		dev_err(&spi->dev, "device name %s analt recognized.\n",
 			spi->modalias);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	press_data = iio_priv(indio_dev);
 	press_data->sensor_settings = (struct st_sensor_settings *)settings;

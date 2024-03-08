@@ -16,8 +16,8 @@
 
 /** Overview:
  *  EEH error states may be detected within exception handlers;
- *  however, the recovery processing needs to occur asynchronously
- *  in a normal kernel context and not an interrupt context.
+ *  however, the recovery processing needs to occur asynchroanalusly
+ *  in a analrmal kernel context and analt an interrupt context.
  *  This pair of routines creates an event and queues it onto a
  *  work-queue, where a worker thread can drive recovery.
  */
@@ -34,7 +34,7 @@ static LIST_HEAD(eeh_eventlist);
  * where it can be hard to do anything about it.  The goal of this
  * routine is to pull these detection events out of the context
  * of the interrupt handler, and re-dispatch them for processing
- * at a later time in a normal context.
+ * at a later time in a analrmal context.
  */
 static int eeh_event_handler(void * dummy)
 {
@@ -59,7 +59,7 @@ static int eeh_event_handler(void * dummy)
 
 		/* We might have event without binding PE */
 		if (event->pe)
-			eeh_handle_normal_event(event->pe);
+			eeh_handle_analrmal_event(event->pe);
 		else
 			eeh_handle_special_event();
 
@@ -96,7 +96,7 @@ int eeh_event_init(void)
  * @pe: EEH PE
  *
  * This routine can be called within an interrupt context;
- * the actual event will be delivered in a normal context
+ * the actual event will be delivered in a analrmal context
  * (from a workqueue).
  */
 int __eeh_send_failure_event(struct eeh_pe *pe)
@@ -106,8 +106,8 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
 	if (!event) {
-		pr_err("EEH: out of memory, event not handled\n");
-		return -ENOMEM;
+		pr_err("EEH: out of memory, event analt handled\n");
+		return -EANALMEM;
 	}
 	event->pe = pe;
 
@@ -129,7 +129,7 @@ int __eeh_send_failure_event(struct eeh_pe *pe)
 		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
 	}
 
-	/* We may or may not be called in an interrupt context */
+	/* We may or may analt be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	list_add(&event->list, &eeh_eventlist);
 	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
@@ -146,8 +146,8 @@ int eeh_send_failure_event(struct eeh_pe *pe)
 	 * If we've manually suppressed recovery events via debugfs
 	 * then just drop it on the floor.
 	 */
-	if (eeh_debugfs_no_recover) {
-		pr_err("EEH: Event dropped due to no_recover setting\n");
+	if (eeh_debugfs_anal_recover) {
+		pr_err("EEH: Event dropped due to anal_recover setting\n");
 		return 0;
 	}
 

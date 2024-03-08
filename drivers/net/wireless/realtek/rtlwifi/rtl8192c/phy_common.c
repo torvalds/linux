@@ -81,7 +81,7 @@ u32 _rtl92c_phy_rf_serial_read(struct ieee80211_hw *hw,
 
 	offset &= 0x3f;
 	newoffset = offset;
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("return all one\n");
 		return 0xFFFFFFFF;
 	}
@@ -129,7 +129,7 @@ void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
 
-	if (RT_CANNOT_IO(hw)) {
+	if (RT_CANANALT_IO(hw)) {
 		pr_err("stop\n");
 		return;
 	}
@@ -660,7 +660,7 @@ void rtl92c_phy_set_bw_mode(struct ieee80211_hw *hw,
 	if (rtlphy->set_bwmode_inprogress)
 		return;
 	rtlphy->set_bwmode_inprogress = true;
-	if ((!is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if ((!is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtlpriv->cfg->ops->phy_set_bw_mode_callback(hw);
 	} else {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -716,7 +716,7 @@ u8 rtl92c_phy_sw_chnl(struct ieee80211_hw *hw)
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
-	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
+	if (!(is_hal_stop(rtlhal)) && !(RT_CANANALT_IO(hw))) {
 		rtl92c_phy_sw_chnl_callback(hw);
 		rtl_dbg(rtlpriv, COMP_CHAN, DBG_LOUD,
 			"sw_chnl_inprogress false schedule workitem\n");
@@ -759,7 +759,7 @@ static bool _rtl92c_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192c-common: cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192c-common: cmdtable cananalt be NULL.\n");
 		return false;
 	}
 
@@ -873,7 +873,7 @@ bool _rtl92c_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n",
+				"switch case %#x analt processed\n",
 				currentcmd->cmdid);
 			break;
 		}
@@ -1522,7 +1522,7 @@ bool rtl92c_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-				"switch case %#x not processed\n", iotype);
+				"switch case %#x analt processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -1560,7 +1560,7 @@ void rtl92c_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_LOUD,
-			"switch case %#x not processed\n",
+			"switch case %#x analt processed\n",
 			rtlphy->current_io_type);
 		break;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
+ * Copyright (C) 2003 Bernardo Inanalcenti <bernie@develer.com>
  *
  * Based on former do_div() implementation from asm-parisc/div64.h:
  *	Copyright (C) 1999 Hewlett-Packard Co
@@ -24,7 +24,7 @@
 #include <linux/math64.h>
 #include <linux/log2.h>
 
-/* Not needed on 64bit architectures */
+/* Analt needed on 64bit architectures */
 #if BITS_PER_LONG == 32
 
 #ifndef __div64_32
@@ -173,7 +173,7 @@ EXPORT_SYMBOL(div64_s64);
 #endif /* BITS_PER_LONG == 32 */
 
 /*
- * Iterative div/mod for use when dividend is not expected to be much
+ * Iterative div/mod for use when dividend is analt expected to be much
  * bigger than divisor.
  */
 u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
@@ -196,8 +196,8 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c)
 		 *      (b / c) * a +
 		 *      (b % c) * a / c
 		 *
-		 * if nothing overflows. Can the 1st multiplication
-		 * overflow? Yes, but we do not care: this can only
+		 * if analthing overflows. Can the 1st multiplication
+		 * overflow? Anal, but we do analt care: this can only
 		 * happen if the end result can't fit in u64 anyway.
 		 *
 		 * So the code below does

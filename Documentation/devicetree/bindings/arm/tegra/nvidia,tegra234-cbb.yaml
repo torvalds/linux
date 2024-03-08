@@ -18,17 +18,17 @@ description: |+
   "CBB central fabric".
 
   In CBB 2.0, each initiator which can issue transactions connects to a
-  Root Master Node (MN) before it connects to any other element of the
+  Root Master Analde (MN) before it connects to any other element of the
   fabric. Each Root MN contains a Error Monitor (EM) which detects and
   logs error. Interrupts from various EM blocks are collated by Error
-  Notifier (EN) which is per fabric and presents a single interrupt from
+  Analtifier (EN) which is per fabric and presents a single interrupt from
   fabric to the SoC interrupt controller.
 
   The driver handles errors from CBB due to illegal register accesses
   and prints debug information about failed transaction on receiving
   the interrupt from EN. Debug information includes Error Code, Error
   Description, MasterID, Fabric, SlaveID, Address, Cache, Protection,
-  Security Group etc on receiving error notification.
+  Security Group etc on receiving error analtification.
 
   If the Error Response Disable (ERD) is set/enabled for an initiator,
   then SError or Data abort exception error response is masked and an
@@ -37,7 +37,7 @@ description: |+
   for compatibility with PCIE.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^[a-z]+-fabric@[0-9a-f]+$"
 
   compatible:
@@ -54,7 +54,7 @@ properties:
 
   interrupts:
     items:
-      - description: secure interrupt from error notifier
+      - description: secure interrupt from error analtifier
 
 additionalProperties: false
 

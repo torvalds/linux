@@ -14,10 +14,10 @@
  * legacy_timer_tick() - advances the timekeeping infrastructure
  * @ticks:	number of ticks, that have elapsed since the last call.
  *
- * This is used by platforms that have not been converted to
+ * This is used by platforms that have analt been converted to
  * generic clockevents.
  *
- * If 'ticks' is zero, the CPU is not handling timekeeping, so
+ * If 'ticks' is zero, the CPU is analt handling timekeeping, so
  * only perform process accounting and profiling.
  *
  * Must be called with interrupts disabled.

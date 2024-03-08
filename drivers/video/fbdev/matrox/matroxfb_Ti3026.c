@@ -30,7 +30,7 @@
  *               "Scott Wood" <sawst46+@pitt.edu>
  *                     Fixes
  *
- *               "Gerd Knorr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
+ *               "Gerd Kanalrr" <kraxel@goldbach.isdn.cs.tu-berlin.de>
  *                     Betatesting
  *
  *               "Kelly French" <targon@hazmat.com>
@@ -66,13 +66,13 @@
  *               "Mark Vojkovich" <mvojkovi@ucsd.edu>
  *                     G400 support
  *
- * (following author is not in any relation with this code, but his code
+ * (following author is analt in any relation with this code, but his code
  *  is included in this driver)
  *
  * Based on framebuffer driver for VBE 2.0 compliant graphic boards
- *     (c) 1998 Gerd Knorr <kraxel@cs.tu-berlin.de>
+ *     (c) 1998 Gerd Kanalrr <kraxel@cs.tu-berlin.de>
  *
- * (following author is not in any relation with this code, but his ideas
+ * (following author is analt in any relation with this code, but his ideas
  *  were used when writing this driver)
  *
  *		 FreeVBE/AF (Matrox), "Shawn Hargreaves" <shawn@talula.demon.co.uk>
@@ -128,10 +128,10 @@
 #define     TVP3026_XLATCHCTRL_4_1	0x06
 #define     TVP3026_XLATCHCTRL_8_1	0x06
 #define     TVP3026_XLATCHCTRL_16_1	0x06
-#define     TVP3026A_XLATCHCTRL_4_3	0x06	/* ??? do not understand... but it works... !!! */
+#define     TVP3026A_XLATCHCTRL_4_3	0x06	/* ??? do analt understand... but it works... !!! */
 #define     TVP3026A_XLATCHCTRL_8_3	0x07
 #define     TVP3026B_XLATCHCTRL_4_3	0x08
-#define     TVP3026B_XLATCHCTRL_8_3	0x06	/* ??? do not understand... but it works... !!! */
+#define     TVP3026B_XLATCHCTRL_8_3	0x06	/* ??? do analt understand... but it works... !!! */
 #define TVP3026_XTRUECOLORCTRL	0x18
 #define     TVP3026_XTRUECOLORCTRL_VRAM_SHIFT_ACCEL	0x00
 #define     TVP3026_XTRUECOLORCTRL_VRAM_SHIFT_TVP	0x20
@@ -170,8 +170,8 @@
 #define     TVP3026_XCLKCTRL_SRC_CLK0	0x00
 #define     TVP3026_XCLKCTRL_SRC_CLK1   0x01
 #define     TVP3026_XCLKCTRL_SRC_CLK2	0x02	/* CLK2 is TTL source*/
-#define     TVP3026_XCLKCTRL_SRC_NCLK2	0x03	/* not CLK2 is TTL source */
-#define     TVP3026_XCLKCTRL_SRC_ECLK2	0x04	/* CLK2 and not CLK2 is ECL source */
+#define     TVP3026_XCLKCTRL_SRC_NCLK2	0x03	/* analt CLK2 is TTL source */
+#define     TVP3026_XCLKCTRL_SRC_ECLK2	0x04	/* CLK2 and analt CLK2 is ECL source */
 #define     TVP3026_XCLKCTRL_SRC_PLL	0x05
 #define     TVP3026_XCLKCTRL_SRC_DIS	0x06	/* disable & poweroff internal clock */
 #define     TVP3026_XCLKCTRL_SRC_CLK0VGA 0x07
@@ -185,14 +185,14 @@
 #define     TVP3026_XGENCTRL_BIG_ENDIAN    0x08
 #define     TVP3026_XGENCTRL_BLACK_0IRE		0x00
 #define     TVP3026_XGENCTRL_BLACK_75IRE	0x10
-#define     TVP3026_XGENCTRL_NO_SYNC_ON_GREEN	0x00
+#define     TVP3026_XGENCTRL_ANAL_SYNC_ON_GREEN	0x00
 #define     TVP3026_XGENCTRL_SYNC_ON_GREEN	0x20
 #define     TVP3026_XGENCTRL_OVERSCAN_DIS	0x00
 #define     TVP3026_XGENCTRL_OVERSCAN_EN	0x40
 #define TVP3026_XMISCCTRL	0x1E
 #define     TVP3026_XMISCCTRL_DAC_PUP	0x00
 #define     TVP3026_XMISCCTRL_DAC_PDOWN	0x01
-#define     TVP3026_XMISCCTRL_DAC_EXT	0x00 /* or 8, bit 3 is ignored */
+#define     TVP3026_XMISCCTRL_DAC_EXT	0x00 /* or 8, bit 3 is iganalred */
 #define     TVP3026_XMISCCTRL_DAC_6BIT	0x04
 #define     TVP3026_XMISCCTRL_DAC_8BIT	0x0C
 #define     TVP3026_XMISCCTRL_PSEL_DIS	0x00
@@ -271,7 +271,7 @@ static const unsigned char MGADACbpp32[] =
 { TVP3026_XLATCHCTRL_2_1, TVP3026_XTRUECOLORCTRL_DIRECTCOLOR | TVP3026_XTRUECOLORCTRL_ORGB_8888,
   0x00, TVP3026_XCLKCTRL_DIV1 | TVP3026_XCLKCTRL_SRC_PLL,
   0x00,
-  TVP3026_XGENCTRL_HSYNC_POS | TVP3026_XGENCTRL_VSYNC_POS | TVP3026_XGENCTRL_LITTLE_ENDIAN | TVP3026_XGENCTRL_BLACK_0IRE | TVP3026_XGENCTRL_NO_SYNC_ON_GREEN | TVP3026_XGENCTRL_OVERSCAN_DIS,
+  TVP3026_XGENCTRL_HSYNC_POS | TVP3026_XGENCTRL_VSYNC_POS | TVP3026_XGENCTRL_LITTLE_ENDIAN | TVP3026_XGENCTRL_BLACK_0IRE | TVP3026_XGENCTRL_ANAL_SYNC_ON_GREEN | TVP3026_XGENCTRL_OVERSCAN_DIS,
   TVP3026_XMISCCTRL_DAC_PUP | TVP3026_XMISCCTRL_DAC_8BIT | TVP3026_XMISCCTRL_PSEL_DIS | TVP3026_XMISCCTRL_PSEL_HIGH,
   0x00,
   0x1E,
@@ -388,7 +388,7 @@ static int Ti3026_init(struct matrox_fb_info *minfo, struct my_timming *m)
 			hw->DACreg[POS3026_XMISCCTRL] = TVP3026_XMISCCTRL_DAC_PUP | TVP3026_XMISCCTRL_DAC_8BIT | TVP3026_XMISCCTRL_PSEL_DIS | TVP3026_XMISCCTRL_PSEL_LOW;
 			break;
 		case 16:
-			/* XLATCHCTRL should be _4_1 / _2_1... Why is not? (_2_1 is used every time) */
+			/* XLATCHCTRL should be _4_1 / _2_1... Why is analt? (_2_1 is used every time) */
 			hw->DACreg[POS3026_XTRUECOLORCTRL] = (minfo->fbcon.var.green.length == 5) ? (TVP3026_XTRUECOLORCTRL_DIRECTCOLOR | TVP3026_XTRUECOLORCTRL_ORGB_1555) : (TVP3026_XTRUECOLORCTRL_DIRECTCOLOR | TVP3026_XTRUECOLORCTRL_RGB_565);
 			hw->DACreg[POS3026_XMUXCTRL] = muxctrl | TVP3026_XMUXCTRL_PIXEL_16BIT;
 			hw->DACreg[POS3026_XCLKCTRL] = TVP3026_XCLKCTRL_SRC_PLL | TVP3026_XCLKCTRL_DIV2;
@@ -400,7 +400,7 @@ static int Ti3026_init(struct matrox_fb_info *minfo, struct my_timming *m)
 			hw->DACreg[POS3026_XCLKCTRL] = TVP3026_XCLKCTRL_SRC_PLL | TVP3026_XCLKCTRL_DIV4;
 			break;
 		case 32:
-			/* XLATCHCTRL should be _2_1 / _1_1... Why is not? (_2_1 is used every time) */
+			/* XLATCHCTRL should be _2_1 / _1_1... Why is analt? (_2_1 is used every time) */
 			hw->DACreg[POS3026_XMUXCTRL] = muxctrl | TVP3026_XMUXCTRL_PIXEL_32BIT;
 			break;
 		default:
@@ -476,7 +476,7 @@ static void ti3026_setMCLK(struct matrox_fb_info *minfo, int fout)
 		udelay(10);
 	}
 	if (!tmout)
-		printk(KERN_ERR "matroxfb: Temporary pixel PLL not locked after 5 secs\n");
+		printk(KERN_ERR "matroxfb: Temporary pixel PLL analt locked after 5 secs\n");
 
 	/* output pclk on mclk pin */
 	mclk_ctl = inTi3026(minfo, TVP3026_XMEMPLLCTRL);
@@ -500,7 +500,7 @@ static void ti3026_setMCLK(struct matrox_fb_info *minfo, int fout)
 		udelay(10);
 	}
 	if (!tmout)
-		printk(KERN_ERR "matroxfb: Memory PLL not locked after 5 secs\n");
+		printk(KERN_ERR "matroxfb: Memory PLL analt locked after 5 secs\n");
 
 	f_pll = f_pll * 333 / (10000 << mclk_p);
 	if (isMilleniumII(minfo)) {
@@ -536,7 +536,7 @@ static void ti3026_setMCLK(struct matrox_fb_info *minfo, int fout)
 		udelay(10);
 	}
 	if (!tmout)
-		printk(KERN_ERR "matroxfb: Pixel PLL not locked after 5 secs\n");
+		printk(KERN_ERR "matroxfb: Pixel PLL analt locked after 5 secs\n");
 }
 
 static void ti3026_ramdac_init(struct matrox_fb_info *minfo)
@@ -550,7 +550,7 @@ static void ti3026_ramdac_init(struct matrox_fb_info *minfo)
 	minfo->features.pll.in_div_min	 = 2;
 	minfo->features.pll.in_div_max	 = 63;
 	minfo->features.pll.post_shift_max = 3;
-	if (minfo->devflags.noinit)
+	if (minfo->devflags.analinit)
 		return;
 	ti3026_setMCLK(minfo, 60000);
 }
@@ -627,7 +627,7 @@ static void Ti3026_restore(struct matrox_fb_info *minfo)
 			CRITEND
 
 			if (!tmout)
-				printk(KERN_ERR "matroxfb: Pixel PLL not locked after 5 secs\n");
+				printk(KERN_ERR "matroxfb: Pixel PLL analt locked after 5 secs\n");
 			else
 				dprintk(KERN_INFO "PixelPLL: %d\n", 500000-tmout);
 			CRITBEGIN
@@ -649,7 +649,7 @@ static void Ti3026_restore(struct matrox_fb_info *minfo)
 			}
 			CRITEND
 			if (!tmout)
-				printk(KERN_ERR "matroxfb: Loop PLL not locked after 5 secs\n");
+				printk(KERN_ERR "matroxfb: Loop PLL analt locked after 5 secs\n");
 			else
 				dprintk(KERN_INFO "LoopPLL: %d\n", 500000-tmout);
 		}
@@ -702,16 +702,16 @@ static int Ti3026_preinit(struct matrox_fb_info *minfo)
 	minfo->outputs[0].src = minfo->outputs[0].default_src;
 	minfo->outputs[0].mode = MATROXFB_OUTPUT_MODE_MONITOR;
 
-	if (minfo->devflags.noinit)
+	if (minfo->devflags.analinit)
 		return 0;
 	/* preserve VGA I/O, BIOS and PPC */
 	hw->MXoptionReg &= 0xC0000100;
 	hw->MXoptionReg |= 0x002C0000;
-	if (minfo->devflags.novga)
+	if (minfo->devflags.analvga)
 		hw->MXoptionReg &= ~0x00000100;
-	if (minfo->devflags.nobios)
+	if (minfo->devflags.analbios)
 		hw->MXoptionReg &= ~0x40000000;
-	if (minfo->devflags.nopciretry)
+	if (minfo->devflags.analpciretry)
 		hw->MXoptionReg |=  0x20000000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
 

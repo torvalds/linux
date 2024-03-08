@@ -27,7 +27,7 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 		return;
 	if (CHECK(meta->ifindex != 1, "check_meta_ifindex",
 		  "meta->ifindex = %d\n", meta->ifindex))
-		/* spurious kfree_skb not on loopback device */
+		/* spurious kfree_skb analt on loopback device */
 		return;
 	if (CHECK(meta->cb8_0 != cb.cb8[0], "check_cb8_0", "cb8_0 %x != %x\n",
 		  meta->cb8_0, cb.cb8[0]))
@@ -71,7 +71,7 @@ void serial_test_kfree_skb(void)
 
 	err = bpf_prog_test_load("./test_pkt_access.bpf.o", BPF_PROG_TYPE_SCHED_CLS,
 				 &obj, &prog_fd);
-	if (CHECK(err, "prog_load sched cls", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load sched cls", "err %d erranal %d\n", err, erranal))
 		return;
 
 	skel = kfree_skb__open_and_load();

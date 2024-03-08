@@ -12,7 +12,7 @@
 
 #ifdef __KERNEL__
 
-/* ACPICA external files should not include ACPICA headers directly. */
+/* ACPICA external files should analt include ACPICA headers directly. */
 
 #if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
 #error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
@@ -24,7 +24,7 @@
 
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_DO_WHILE_0
-#define ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS
+#define ACPI_IGANALRE_PACKAGE_RESOLUTION_ERRORS
 
 #ifdef __KERNEL__
 
@@ -80,17 +80,17 @@
 
 /* Generating stubs for configurable ACPICA macros */
 
-#define ACPI_NO_MEM_ALLOCATIONS
+#define ACPI_ANAL_MEM_ALLOCATIONS
 
 /* Generating stubs for configurable ACPICA functions */
 
-#define ACPI_NO_ERROR_MESSAGES
+#define ACPI_ANAL_ERROR_MESSAGES
 #undef ACPI_DEBUG_OUTPUT
 
 /* External interface for __KERNEL__, stub is needed */
 
 #define ACPI_EXTERNAL_RETURN_STATUS(prototype) \
-	static ACPI_INLINE prototype {return(AE_NOT_CONFIGURED);}
+	static ACPI_INLINE prototype {return(AE_ANALT_CONFIGURED);}
 #define ACPI_EXTERNAL_RETURN_OK(prototype) \
 	static ACPI_INLINE prototype {return(AE_OK);}
 #define ACPI_EXTERNAL_RETURN_VOID(prototype) \

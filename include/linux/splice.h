@@ -15,13 +15,13 @@
  * Flags passed in from splice/tee/vmsplice
  */
 #define SPLICE_F_MOVE	(0x01)	/* move pages instead of copying */
-#define SPLICE_F_NONBLOCK (0x02) /* don't block on the pipe splicing (but */
+#define SPLICE_F_ANALNBLOCK (0x02) /* don't block on the pipe splicing (but */
 				 /* we may still block on the fd we splice */
 				 /* from/to, of course */
 #define SPLICE_F_MORE	(0x04)	/* expect more data */
 #define SPLICE_F_GIFT	(0x08)	/* pages passed in are a gift */
 
-#define SPLICE_F_ALL (SPLICE_F_MOVE|SPLICE_F_NONBLOCK|SPLICE_F_MORE|SPLICE_F_GIFT)
+#define SPLICE_F_ALL (SPLICE_F_MOVE|SPLICE_F_ANALNBLOCK|SPLICE_F_MORE|SPLICE_F_GIFT)
 
 /*
  * Passed to the actors
@@ -56,28 +56,28 @@ struct partial_page {
  */
 struct splice_pipe_desc {
 	struct page **pages;		/* page map */
-	struct partial_page *partial;	/* pages[] may not be contig */
+	struct partial_page *partial;	/* pages[] may analt be contig */
 	int nr_pages;			/* number of populated pages in map */
 	unsigned int nr_pages_max;	/* pages[] & partial[] arrays size */
 	const struct pipe_buf_operations *ops;/* ops associated with output pipe */
 	void (*spd_release)(struct splice_pipe_desc *, unsigned int);
 };
 
-typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
+typedef int (splice_actor)(struct pipe_ianalde_info *, struct pipe_buffer *,
 			   struct splice_desc *);
-typedef int (splice_direct_actor)(struct pipe_inode_info *,
+typedef int (splice_direct_actor)(struct pipe_ianalde_info *,
 				  struct splice_desc *);
 
-ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+ssize_t splice_from_pipe(struct pipe_ianalde_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags,
 			 splice_actor *actor);
-ssize_t __splice_from_pipe(struct pipe_inode_info *pipe,
+ssize_t __splice_from_pipe(struct pipe_ianalde_info *pipe,
 			   struct splice_desc *sd, splice_actor *actor);
-ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+ssize_t splice_to_pipe(struct pipe_ianalde_info *pipe,
 			      struct splice_pipe_desc *spd);
-ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf);
+ssize_t add_to_pipe(struct pipe_ianalde_info *pipe, struct pipe_buffer *buf);
 ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
-			struct pipe_inode_info *pipe, size_t len,
+			struct pipe_ianalde_info *pipe, size_t len,
 			unsigned int flags);
 ssize_t splice_direct_to_actor(struct file *file, struct splice_desc *sd,
 			       splice_direct_actor *actor);
@@ -97,13 +97,13 @@ static inline long splice_copy_file_range(struct file *in, loff_t pos_in,
 
 ssize_t do_tee(struct file *in, struct file *out, size_t len,
 	       unsigned int flags);
-ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
+ssize_t splice_to_socket(struct pipe_ianalde_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags);
 
 /*
  * for dynamic pipe sizing
  */
-extern int splice_grow_spd(const struct pipe_inode_info *, struct splice_pipe_desc *);
+extern int splice_grow_spd(const struct pipe_ianalde_info *, struct splice_pipe_desc *);
 extern void splice_shrink_spd(struct splice_pipe_desc *);
 
 extern const struct pipe_buf_operations page_cache_pipe_buf_ops;

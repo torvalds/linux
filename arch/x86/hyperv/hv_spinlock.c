@@ -45,7 +45,7 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	 */
 	local_irq_save(flags);
 	/*
-	 * Only issue the rdmsrl() when the lock state has not changed.
+	 * Only issue the rdmsrl() when the lock state has analt changed.
 	 */
 	if (READ_ONCE(*byte) == val) {
 		unsigned long msr_val;
@@ -58,7 +58,7 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 }
 
 /*
- * Hyper-V does not support this so far.
+ * Hyper-V does analt support this so far.
  */
 __visible bool hv_vcpu_is_preempted(int vcpu)
 {
@@ -84,9 +84,9 @@ void __init hv_init_spinlocks(void)
 	pv_ops.lock.vcpu_is_preempted = PV_CALLEE_SAVE(hv_vcpu_is_preempted);
 }
 
-static __init int hv_parse_nopvspin(char *arg)
+static __init int hv_parse_analpvspin(char *arg)
 {
 	hv_pvspin = false;
 	return 0;
 }
-early_param("hv_nopvspin", hv_parse_nopvspin);
+early_param("hv_analpvspin", hv_parse_analpvspin);

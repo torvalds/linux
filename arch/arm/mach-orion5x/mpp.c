@@ -29,7 +29,7 @@ static unsigned int __init orion5x_variant(void)
 	if (dev == MV88F5281_DEV_ID)
 		return MPP_F5281_MASK;
 
-	printk(KERN_ERR "MPP setup: unknown orion5x variant "
+	printk(KERN_ERR "MPP setup: unkanalwn orion5x variant "
 	       "(dev %#x rev %#x)\n", dev, rev);
 	return 0;
 }

@@ -456,13 +456,13 @@ struct iqs626_private {
 	unsigned int suspend_mode;
 };
 
-static noinline_for_stack int
+static analinline_for_stack int
 iqs626_parse_events(struct iqs626_private *iqs626,
-		    struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
+		    struct fwanalde_handle *ch_analde, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	struct fwnode_handle *ev_node;
+	struct fwanalde_handle *ev_analde;
 	const char *ev_name;
 	u8 *thresh, *hyst;
 	unsigned int val;
@@ -504,20 +504,20 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 		if (ch_id == IQS626_CH_TP_2 || ch_id == IQS626_CH_TP_3) {
 			/*
 			 * Trackpad touch events are simply described under the
-			 * trackpad child node.
+			 * trackpad child analde.
 			 */
-			ev_node = fwnode_handle_get(ch_node);
+			ev_analde = fwanalde_handle_get(ch_analde);
 		} else {
 			ev_name = iqs626_events[i].name;
-			ev_node = fwnode_get_named_child_node(ch_node, ev_name);
-			if (!ev_node)
+			ev_analde = fwanalde_get_named_child_analde(ch_analde, ev_name);
+			if (!ev_analde)
 				continue;
 
-			if (!fwnode_property_read_u32(ev_node, "linux,code",
+			if (!fwanalde_property_read_u32(ev_analde, "linux,code",
 						      &val)) {
 				iqs626->kp_code[ch_id][i] = val;
 
-				if (fwnode_property_read_u32(ev_node,
+				if (fwanalde_property_read_u32(ev_analde,
 							     "linux,input-type",
 							     &val)) {
 					if (ch_id == IQS626_CH_HALL)
@@ -530,7 +530,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 					dev_err(&client->dev,
 						"Invalid input type: %u\n",
 						val);
-					fwnode_handle_put(ev_node);
+					fwanalde_handle_put(ev_analde);
 					return -EINVAL;
 				}
 
@@ -540,12 +540,12 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 			}
 		}
 
-		if (!fwnode_property_read_u32(ev_node, "azoteq,hyst", &val)) {
+		if (!fwanalde_property_read_u32(ev_analde, "azoteq,hyst", &val)) {
 			if (val > IQS626_CHx_HYST_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s channel hysteresis: %u\n",
-					fwnode_get_name(ch_node), val);
-				fwnode_handle_put(ev_node);
+					fwanalde_get_name(ch_analde), val);
+				fwanalde_handle_put(ev_analde);
 				return -EINVAL;
 			}
 
@@ -561,12 +561,12 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 		}
 
 		if (ch_id != IQS626_CH_TP_2 && ch_id != IQS626_CH_TP_3 &&
-		    !fwnode_property_read_u32(ev_node, "azoteq,thresh", &val)) {
+		    !fwanalde_property_read_u32(ev_analde, "azoteq,thresh", &val)) {
 			if (val > IQS626_CHx_THRESH_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s channel threshold: %u\n",
-					fwnode_get_name(ch_node), val);
-				fwnode_handle_put(ev_node);
+					fwanalde_get_name(ch_analde), val);
+				fwanalde_handle_put(ev_analde);
 				return -EINVAL;
 			}
 
@@ -576,15 +576,15 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				*(thresh + iqs626_events[i].th_offs) = val;
 		}
 
-		fwnode_handle_put(ev_node);
+		fwanalde_handle_put(ev_analde);
 	}
 
 	return 0;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 iqs626_parse_ati_target(struct iqs626_private *iqs626,
-			struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
+			struct fwanalde_handle *ch_analde, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
@@ -617,11 +617,11 @@ iqs626_parse_ati_target(struct iqs626_private *iqs626,
 		return -EINVAL;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,ati-target", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,ati-target", &val)) {
 		if (val > IQS626_CHx_ATI_TARGET_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel ATI target: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -630,7 +630,7 @@ iqs626_parse_ati_target(struct iqs626_private *iqs626,
 	}
 
 	if (ch_id != IQS626_CH_TP_2 && ch_id != IQS626_CH_TP_3 &&
-	    !fwnode_property_read_u32(ch_node, "azoteq,ati-base", &val)) {
+	    !fwanalde_property_read_u32(ch_analde, "azoteq,ati-base", &val)) {
 		switch (val) {
 		case 75:
 			val = IQS626_CHx_ATI_BASE_75;
@@ -651,7 +651,7 @@ iqs626_parse_ati_target(struct iqs626_private *iqs626,
 		default:
 			dev_err(&client->dev,
 				"Invalid %s channel ATI base: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -663,34 +663,34 @@ iqs626_parse_ati_target(struct iqs626_private *iqs626,
 }
 
 static int iqs626_parse_pins(struct iqs626_private *iqs626,
-			     struct fwnode_handle *ch_node,
+			     struct fwanalde_handle *ch_analde,
 			     const char *propname, u8 *enable)
 {
 	struct i2c_client *client = iqs626->client;
 	unsigned int val[IQS626_NUM_CRx_TX];
 	int error, count, i;
 
-	if (!fwnode_property_present(ch_node, propname))
+	if (!fwanalde_property_present(ch_analde, propname))
 		return 0;
 
-	count = fwnode_property_count_u32(ch_node, propname);
+	count = fwanalde_property_count_u32(ch_analde, propname);
 	if (count > IQS626_NUM_CRx_TX) {
 		dev_err(&client->dev,
 			"Too many %s channel CRX/TX pins present\n",
-			fwnode_get_name(ch_node));
+			fwanalde_get_name(ch_analde));
 		return -EINVAL;
 	} else if (count < 0) {
 		dev_err(&client->dev,
 			"Failed to count %s channel CRX/TX pins: %d\n",
-			fwnode_get_name(ch_node), count);
+			fwanalde_get_name(ch_analde), count);
 		return count;
 	}
 
-	error = fwnode_property_read_u32_array(ch_node, propname, val, count);
+	error = fwanalde_property_read_u32_array(ch_analde, propname, val, count);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to read %s channel CRX/TX pins: %d\n",
-			fwnode_get_name(ch_node), error);
+			fwanalde_get_name(ch_analde), error);
 		return error;
 	}
 
@@ -700,7 +700,7 @@ static int iqs626_parse_pins(struct iqs626_private *iqs626,
 		if (val[i] >= IQS626_NUM_CRx_TX) {
 			dev_err(&client->dev,
 				"Invalid %s channel CRX/TX pin: %u\n",
-				fwnode_get_name(ch_node), val[i]);
+				fwanalde_get_name(ch_analde), val[i]);
 			return -EINVAL;
 		}
 
@@ -711,7 +711,7 @@ static int iqs626_parse_pins(struct iqs626_private *iqs626,
 }
 
 static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
-				 struct fwnode_handle *ch_node,
+				 struct fwanalde_handle *ch_analde,
 				 enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
@@ -720,11 +720,11 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 	int error, count, i;
 	unsigned int val;
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,lta-update", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,lta-update", &val)) {
 		if (val > IQS626_MISC_A_TPx_LTA_UPDATE_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel update rate: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -732,12 +732,12 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 		sys_reg->misc_a |= (val << IQS626_MISC_A_TPx_LTA_UPDATE_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-trackpad",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-trackpad",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -745,12 +745,12 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 		sys_reg->misc_b |= val;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-np-cnt",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-np-cnt",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -758,12 +758,12 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 		*hyst |= (val << IQS626_FILT_STR_NP_TPx_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-lp-cnt",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-lp-cnt",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -774,49 +774,49 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 	for (i = 0; i < iqs626_channels[ch_id].num_ch; i++) {
 		u8 *ati_base = &sys_reg->tp_grp_reg.ch_reg_tp[i].ati_base;
 		u8 *thresh = &sys_reg->tp_grp_reg.ch_reg_tp[i].thresh;
-		struct fwnode_handle *tc_node;
+		struct fwanalde_handle *tc_analde;
 		char tc_name[10];
 
 		snprintf(tc_name, sizeof(tc_name), "channel-%d", i);
 
-		tc_node = fwnode_get_named_child_node(ch_node, tc_name);
-		if (!tc_node)
+		tc_analde = fwanalde_get_named_child_analde(ch_analde, tc_name);
+		if (!tc_analde)
 			continue;
 
-		if (!fwnode_property_read_u32(tc_node, "azoteq,ati-base",
+		if (!fwanalde_property_read_u32(tc_analde, "azoteq,ati-base",
 					      &val)) {
 			if (val < IQS626_TPx_ATI_BASE_MIN ||
 			    val > IQS626_TPx_ATI_BASE_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s %s ATI base: %u\n",
-					fwnode_get_name(ch_node), tc_name, val);
-				fwnode_handle_put(tc_node);
+					fwanalde_get_name(ch_analde), tc_name, val);
+				fwanalde_handle_put(tc_analde);
 				return -EINVAL;
 			}
 
 			*ati_base = val - IQS626_TPx_ATI_BASE_MIN;
 		}
 
-		if (!fwnode_property_read_u32(tc_node, "azoteq,thresh",
+		if (!fwanalde_property_read_u32(tc_analde, "azoteq,thresh",
 					      &val)) {
 			if (val > IQS626_CHx_THRESH_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s %s threshold: %u\n",
-					fwnode_get_name(ch_node), tc_name, val);
-				fwnode_handle_put(tc_node);
+					fwanalde_get_name(ch_analde), tc_name, val);
+				fwanalde_handle_put(tc_analde);
 				return -EINVAL;
 			}
 
 			*thresh = val;
 		}
 
-		fwnode_handle_put(tc_node);
+		fwanalde_handle_put(tc_analde);
 	}
 
-	if (!fwnode_property_present(ch_node, "linux,keycodes"))
+	if (!fwanalde_property_present(ch_analde, "linux,keycodes"))
 		return 0;
 
-	count = fwnode_property_count_u32(ch_node, "linux,keycodes");
+	count = fwanalde_property_count_u32(ch_analde, "linux,keycodes");
 	if (count > IQS626_NUM_GESTURES) {
 		dev_err(&client->dev, "Too many keycodes present\n");
 		return -EINVAL;
@@ -825,7 +825,7 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 		return count;
 	}
 
-	error = fwnode_property_read_u32_array(ch_node, "linux,keycodes",
+	error = fwanalde_property_read_u32_array(ch_analde, "linux,keycodes",
 					       iqs626->tp_code, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read keycodes: %d\n", error);
@@ -833,39 +833,39 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 	}
 
 	sys_reg->misc_b &= ~IQS626_MISC_B_TPx_SWIPE;
-	if (fwnode_property_present(ch_node, "azoteq,gesture-swipe"))
+	if (fwanalde_property_present(ch_analde, "azoteq,gesture-swipe"))
 		sys_reg->misc_b |= IQS626_MISC_B_TPx_SWIPE;
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,timeout-tap-ms",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,timeout-tap-ms",
 				      &val)) {
 		if (val > IQS626_TIMEOUT_TAP_MS_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel timeout: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
 		sys_reg->timeout_tap = val / 16;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,timeout-swipe-ms",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,timeout-swipe-ms",
 				      &val)) {
 		if (val > IQS626_TIMEOUT_SWIPE_MS_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel timeout: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
 		sys_reg->timeout_swipe = val / 16;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,thresh-swipe",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,thresh-swipe",
 				      &val)) {
 		if (val > IQS626_THRESH_SWIPE_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel threshold: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -877,9 +877,9 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 	return 0;
 }
 
-static noinline_for_stack int
+static analinline_for_stack int
 iqs626_parse_channel(struct iqs626_private *iqs626,
-		     struct fwnode_handle *ch_node, enum iqs626_ch_id ch_id)
+		     struct fwanalde_handle *ch_analde, enum iqs626_ch_id ch_id)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
@@ -913,26 +913,26 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		return -EINVAL;
 	}
 
-	error = iqs626_parse_ati_target(iqs626, ch_node, ch_id);
+	error = iqs626_parse_ati_target(iqs626, ch_analde, ch_id);
 	if (error)
 		return error;
 
-	error = iqs626_parse_events(iqs626, ch_node, ch_id);
+	error = iqs626_parse_events(iqs626, ch_analde, ch_id);
 	if (error)
 		return error;
 
-	if (!fwnode_property_present(ch_node, "azoteq,ati-exclude"))
+	if (!fwanalde_property_present(ch_analde, "azoteq,ati-exclude"))
 		sys_reg->redo_ati |= iqs626_channels[ch_id].active;
 
-	if (!fwnode_property_present(ch_node, "azoteq,reseed-disable"))
+	if (!fwanalde_property_present(ch_analde, "azoteq,reseed-disable"))
 		sys_reg->reseed |= iqs626_channels[ch_id].active;
 
 	*engine |= IQS626_CHx_ENG_0_MEAS_CAP_SIZE;
-	if (fwnode_property_present(ch_node, "azoteq,meas-cap-decrease"))
+	if (fwanalde_property_present(ch_analde, "azoteq,meas-cap-decrease"))
 		*engine &= ~IQS626_CHx_ENG_0_MEAS_CAP_SIZE;
 
 	*engine |= IQS626_CHx_ENG_0_RX_TERM_VSS;
-	if (!fwnode_property_read_u32(ch_node, "azoteq,rx-inactive", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,rx-inactive", &val)) {
 		switch (val) {
 		case IQS626_RX_INACTIVE_VSS:
 			break;
@@ -958,28 +958,28 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		default:
 			dev_err(&client->dev,
 				"Invalid %s channel CRX pin termination: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 	}
 
 	*engine &= ~IQS626_CHx_ENG_0_LINEARIZE;
-	if (fwnode_property_present(ch_node, "azoteq,linearize"))
+	if (fwanalde_property_present(ch_analde, "azoteq,linearize"))
 		*engine |= IQS626_CHx_ENG_0_LINEARIZE;
 
 	*engine &= ~IQS626_CHx_ENG_0_DUAL_DIR;
-	if (fwnode_property_present(ch_node, "azoteq,dual-direction"))
+	if (fwanalde_property_present(ch_analde, "azoteq,dual-direction"))
 		*engine |= IQS626_CHx_ENG_0_DUAL_DIR;
 
 	*engine &= ~IQS626_CHx_ENG_0_FILT_DISABLE;
-	if (fwnode_property_present(ch_node, "azoteq,filt-disable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,filt-disable"))
 		*engine |= IQS626_CHx_ENG_0_FILT_DISABLE;
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,ati-mode", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,ati-mode", &val)) {
 		if (val > IQS626_CHx_ENG_0_ATI_MODE_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel ATI mode: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -991,7 +991,7 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		return 0;
 
 	*(engine + 1) &= ~IQS626_CHx_ENG_1_CCT_ENABLE;
-	if (!fwnode_property_read_u32(ch_node, "azoteq,cct-increase",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,cct-increase",
 				      &val) && val) {
 		unsigned int orig_val = val--;
 
@@ -1016,7 +1016,7 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		if (val & ~GENMASK(1, 0)) {
 			dev_err(&client->dev,
 				"Invalid %s channel charge cycle time: %u\n",
-				fwnode_get_name(ch_node), orig_val);
+				fwanalde_get_name(ch_analde), orig_val);
 			return -EINVAL;
 		}
 
@@ -1031,11 +1031,11 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*(engine + 1) |= IQS626_CHx_ENG_1_CCT_ENABLE;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,proj-bias", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,proj-bias", &val)) {
 		if (val > IQS626_CHx_ENG_1_PROJ_BIAS_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel bias current: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1043,11 +1043,11 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*(engine + 1) |= (val << IQS626_CHx_ENG_1_PROJ_BIAS_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,sense-freq", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,sense-freq", &val)) {
 		if (val > IQS626_CHx_ENG_1_SENSE_FREQ_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel sensing frequency: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1056,15 +1056,15 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 	}
 
 	*(engine + 1) &= ~IQS626_CHx_ENG_1_ATI_BAND_TIGHTEN;
-	if (fwnode_property_present(ch_node, "azoteq,ati-band-tighten"))
+	if (fwanalde_property_present(ch_analde, "azoteq,ati-band-tighten"))
 		*(engine + 1) |= IQS626_CHx_ENG_1_ATI_BAND_TIGHTEN;
 
 	if (ch_id == IQS626_CH_TP_2 || ch_id == IQS626_CH_TP_3)
-		return iqs626_parse_trackpad(iqs626, ch_node, ch_id);
+		return iqs626_parse_trackpad(iqs626, ch_analde, ch_id);
 
 	if (ch_id == IQS626_CH_ULP_0) {
 		sys_reg->ch_reg_ulp.hyst &= ~IQS626_ULP_PROJ_ENABLE;
-		if (fwnode_property_present(ch_node, "azoteq,proj-enable"))
+		if (fwanalde_property_present(ch_analde, "azoteq,proj-enable"))
 			sys_reg->ch_reg_ulp.hyst |= IQS626_ULP_PROJ_ENABLE;
 
 		filter = &sys_reg->ch_reg_ulp.filter;
@@ -1079,12 +1079,12 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		tx_enable = &sys_reg->ch_reg_gen[i].tx_enable;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-np-cnt",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-np-cnt",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1092,12 +1092,12 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*filter |= (val << IQS626_FILT_STR_NP_CNT_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-lp-cnt",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-lp-cnt",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1105,12 +1105,12 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*filter |= (val << IQS626_FILT_STR_LP_CNT_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-np-lta",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-np-lta",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1118,12 +1118,12 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*filter |= (val << IQS626_FILT_STR_NP_LTA_SHIFT);
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,filt-str-lp-lta",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,filt-str-lp-lta",
 				      &val)) {
 		if (val > IQS626_FILT_STR_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel filter strength: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1131,12 +1131,12 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*filter |= val;
 	}
 
-	error = iqs626_parse_pins(iqs626, ch_node, "azoteq,rx-enable",
+	error = iqs626_parse_pins(iqs626, ch_analde, "azoteq,rx-enable",
 				  rx_enable);
 	if (error)
 		return error;
 
-	error = iqs626_parse_pins(iqs626, ch_node, "azoteq,tx-enable",
+	error = iqs626_parse_pins(iqs626, ch_analde, "azoteq,tx-enable",
 				  tx_enable);
 	if (error)
 		return error;
@@ -1145,14 +1145,14 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		return 0;
 
 	*(engine + 2) &= ~IQS626_CHx_ENG_2_LOCAL_CAP_ENABLE;
-	if (!fwnode_property_read_u32(ch_node, "azoteq,local-cap-size",
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,local-cap-size",
 				      &val) && val) {
 		unsigned int orig_val = val--;
 
 		if (val > IQS626_CHx_ENG_2_LOCAL_CAP_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel local cap. size: %u\n",
-				fwnode_get_name(ch_node), orig_val);
+				fwanalde_get_name(ch_analde), orig_val);
 			return -EINVAL;
 		}
 
@@ -1162,11 +1162,11 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*(engine + 2) |= IQS626_CHx_ENG_2_LOCAL_CAP_ENABLE;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,sense-mode", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,sense-mode", &val)) {
 		if (val > IQS626_CHx_ENG_2_SENSE_MODE_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel sensing mode: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1174,11 +1174,11 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 		*(engine + 2) |= val;
 	}
 
-	if (!fwnode_property_read_u32(ch_node, "azoteq,tx-freq", &val)) {
+	if (!fwanalde_property_read_u32(ch_analde, "azoteq,tx-freq", &val)) {
 		if (val > IQS626_CHx_ENG_3_TX_FREQ_MAX) {
 			dev_err(&client->dev,
 				"Invalid %s channel excitation frequency: %u\n",
-				fwnode_get_name(ch_node), val);
+				fwanalde_get_name(ch_analde), val);
 			return -EINVAL;
 		}
 
@@ -1187,15 +1187,15 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 	}
 
 	*(engine + 3) &= ~IQS626_CHx_ENG_3_INV_LOGIC;
-	if (fwnode_property_present(ch_node, "azoteq,invert-enable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,invert-enable"))
 		*(engine + 3) |= IQS626_CHx_ENG_3_INV_LOGIC;
 
 	*(engine + 4) &= ~IQS626_CHx_ENG_4_COMP_DISABLE;
-	if (fwnode_property_present(ch_node, "azoteq,comp-disable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,comp-disable"))
 		*(engine + 4) |= IQS626_CHx_ENG_4_COMP_DISABLE;
 
 	*(engine + 4) &= ~IQS626_CHx_ENG_4_STATIC_ENABLE;
-	if (fwnode_property_present(ch_node, "azoteq,static-enable"))
+	if (fwanalde_property_present(ch_analde, "azoteq,static-enable"))
 		*(engine + 4) |= IQS626_CHx_ENG_4_STATIC_ENABLE;
 
 	i = ch_id - IQS626_CH_GEN_0;
@@ -1203,24 +1203,24 @@ iqs626_parse_channel(struct iqs626_private *iqs626,
 	assoc_weight = &sys_reg->ch_reg_gen[i].assoc_weight;
 
 	*assoc_select = 0;
-	if (!fwnode_property_present(ch_node, "azoteq,assoc-select"))
+	if (!fwanalde_property_present(ch_analde, "azoteq,assoc-select"))
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(iqs626_channels); i++) {
-		if (fwnode_property_match_string(ch_node, "azoteq,assoc-select",
+		if (fwanalde_property_match_string(ch_analde, "azoteq,assoc-select",
 						 iqs626_channels[i].name) < 0)
 			continue;
 
 		*assoc_select |= iqs626_channels[i].active;
 	}
 
-	if (fwnode_property_read_u32(ch_node, "azoteq,assoc-weight", &val))
+	if (fwanalde_property_read_u32(ch_analde, "azoteq,assoc-weight", &val))
 		return 0;
 
 	if (val > IQS626_GEN_WEIGHT_MAX) {
 		dev_err(&client->dev,
 			"Invalid %s channel associated weight: %u\n",
-			fwnode_get_name(ch_node), val);
+			fwanalde_get_name(ch_analde), val);
 		return -EINVAL;
 	}
 
@@ -1233,7 +1233,7 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	struct fwnode_handle *ch_node;
+	struct fwanalde_handle *ch_analde;
 	unsigned int val;
 	int error, i;
 	u16 general;
@@ -1375,13 +1375,13 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 	sys_reg->active = 0;
 
 	for (i = 0; i < ARRAY_SIZE(iqs626_channels); i++) {
-		ch_node = device_get_named_child_node(&client->dev,
+		ch_analde = device_get_named_child_analde(&client->dev,
 						      iqs626_channels[i].name);
-		if (!ch_node)
+		if (!ch_analde)
 			continue;
 
-		error = iqs626_parse_channel(iqs626, ch_node, i);
-		fwnode_handle_put(ch_node);
+		error = iqs626_parse_channel(iqs626, ch_analde, i);
+		fwanalde_handle_put(ch_analde);
 		if (error)
 			return error;
 
@@ -1391,7 +1391,7 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 	general |= IQS626_SYS_SETTINGS_EVENT_MODE;
 
 	/*
-	 * Enable streaming during normal-power mode if the trackpad is used to
+	 * Enable streaming during analrmal-power mode if the trackpad is used to
 	 * report raw coordinates instead of gestures. In that case, the device
 	 * returns to event mode during low-power mode.
 	 */
@@ -1422,7 +1422,7 @@ static int iqs626_input_init(struct iqs626_private *iqs626)
 
 	iqs626->keypad = devm_input_allocate_device(&client->dev);
 	if (!iqs626->keypad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs626->keypad->keycodemax = ARRAY_SIZE(iqs626->kp_code);
 	iqs626->keypad->keycode = iqs626->kp_code;
@@ -1450,7 +1450,7 @@ static int iqs626_input_init(struct iqs626_private *iqs626)
 
 	iqs626->trackpad = devm_input_allocate_device(&client->dev);
 	if (!iqs626->trackpad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs626->trackpad->keycodemax = ARRAY_SIZE(iqs626->tp_code);
 	iqs626->trackpad->keycode = iqs626->tp_code;
@@ -1460,7 +1460,7 @@ static int iqs626_input_init(struct iqs626_private *iqs626)
 	iqs626->trackpad->id.bustype = BUS_I2C;
 
 	/*
-	 * Present the trackpad as a traditional pointing device if no gestures
+	 * Present the trackpad as a traditional pointing device if anal gestures
 	 * have been mapped to a keycode.
 	 */
 	if (sys_reg->event_mask & IQS626_EVENT_MASK_GESTURE) {
@@ -1532,7 +1532,7 @@ static int iqs626_report(struct iqs626_private *iqs626)
 		return 0;
 
 	/*
-	 * Unlike the ULP or generic channels, the Hall channel does not have a
+	 * Unlike the ULP or generic channels, the Hall channel does analt have a
 	 * direction flag. Instead, the direction (i.e. magnet polarity) can be
 	 * derived based on the sign of the 2's complement differential output.
 	 */
@@ -1617,12 +1617,12 @@ static irqreturn_t iqs626_irq(int irq, void *context)
 	struct iqs626_private *iqs626 = context;
 
 	if (iqs626_report(iqs626))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
-	 * The device does not deassert its interrupt (RDY) pin until shortly
+	 * The device does analt deassert its interrupt (RDY) pin until shortly
 	 * after receiving an I2C stop condition; the following delay ensures
-	 * the interrupt handler does not return before this time.
+	 * the interrupt handler does analt return before this time.
 	 */
 	iqs626_irq_wait();
 
@@ -1643,7 +1643,7 @@ static int iqs626_probe(struct i2c_client *client)
 
 	iqs626 = devm_kzalloc(&client->dev, sizeof(*iqs626), GFP_KERNEL);
 	if (!iqs626)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs626);
 	iqs626->client = client;
@@ -1692,7 +1692,7 @@ static int iqs626_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * The keypad may include one or more switches and is not registered
+	 * The keypad may include one or more switches and is analt registered
 	 * until ATI is complete and the initial switch states are read.
 	 */
 	error = input_register_device(iqs626->keypad);
@@ -1717,7 +1717,7 @@ static int iqs626_suspend(struct device *dev)
 	/*
 	 * Automatic power mode switching must be disabled before the device is
 	 * forced into any particular power mode. In this case, the device will
-	 * transition into normal-power mode.
+	 * transition into analrmal-power mode.
 	 */
 	error = regmap_update_bits(iqs626->regmap, IQS626_SYS_SETTINGS,
 				   IQS626_SYS_SETTINGS_DIS_AUTO, ~0);
@@ -1726,7 +1726,7 @@ static int iqs626_suspend(struct device *dev)
 
 	/*
 	 * The following check ensures the device has completed its transition
-	 * into normal-power mode before a manual mode switch is performed.
+	 * into analrmal-power mode before a manual mode switch is performed.
 	 */
 	error = regmap_read_poll_timeout(iqs626->regmap, IQS626_SYS_FLAGS, val,
 					!(val & IQS626_SYS_FLAGS_PWR_MODE_MASK),
@@ -1779,7 +1779,7 @@ static int iqs626_resume(struct device *dev)
 		goto err_irq;
 
 	/*
-	 * This check ensures the device has returned to normal-power mode
+	 * This check ensures the device has returned to analrmal-power mode
 	 * before automatic power mode switching is re-enabled.
 	 */
 	error = regmap_read_poll_timeout(iqs626->regmap, IQS626_SYS_FLAGS, val,
@@ -1796,7 +1796,7 @@ static int iqs626_resume(struct device *dev)
 
 	/*
 	 * This step reports any events that may have been "swallowed" as a
-	 * result of polling PWR_MODE (which automatically acknowledges any
+	 * result of polling PWR_MODE (which automatically ackanalwledges any
 	 * pending interrupts).
 	 */
 	error = iqs626_report(iqs626);

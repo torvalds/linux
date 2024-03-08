@@ -81,7 +81,7 @@ enum irdma_term_ddp_errors {
 	DDP_TAGGED_TO_WRAP	    = 0x03,
 	DDP_TAGGED_INV_DDP_VER      = 0x04,
 	DDP_UNTAGGED_INV_QN	    = 0x01,
-	DDP_UNTAGGED_INV_MSN_NO_BUF = 0x02,
+	DDP_UNTAGGED_INV_MSN_ANAL_BUF = 0x02,
 	DDP_UNTAGGED_INV_MSN_RANGE  = 0x03,
 	DDP_UNTAGGED_INV_MO	    = 0x04,
 	DDP_UNTAGGED_INV_TOO_LONG   = 0x05,
@@ -105,10 +105,10 @@ enum irdma_hw_stats_index {
 	/* gen1 - 32-bit */
 	IRDMA_HW_STAT_INDEX_IP4RXDISCARD	= 0,
 	IRDMA_HW_STAT_INDEX_IP4RXTRUNC		= 1,
-	IRDMA_HW_STAT_INDEX_IP4TXNOROUTE	= 2,
+	IRDMA_HW_STAT_INDEX_IP4TXANALROUTE	= 2,
 	IRDMA_HW_STAT_INDEX_IP6RXDISCARD	= 3,
 	IRDMA_HW_STAT_INDEX_IP6RXTRUNC		= 4,
-	IRDMA_HW_STAT_INDEX_IP6TXNOROUTE	= 5,
+	IRDMA_HW_STAT_INDEX_IP6TXANALROUTE	= 5,
 	IRDMA_HW_STAT_INDEX_TCPRTXSEG		= 6,
 	IRDMA_HW_STAT_INDEX_TCPRXOPTERR		= 7,
 	IRDMA_HW_STAT_INDEX_TCPRXPROTOERR	= 8,
@@ -151,7 +151,7 @@ enum irdma_hw_stats_index {
 	IRDMA_HW_STAT_INDEX_RXNPECNMARKEDPKTS   = 42,
 	/* gen2 - 32-bit */
 	IRDMA_HW_STAT_INDEX_RXRPCNPHANDLED      = 43,
-	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED      = 44,
+	IRDMA_HW_STAT_INDEX_RXRPCNPIGANALRED      = 44,
 	IRDMA_HW_STAT_INDEX_TXNPCNPSENT         = 45,
 	IRDMA_HW_STAT_INDEX_MAX_GEN_2		= 46,
 };
@@ -331,7 +331,7 @@ struct irdma_pfpdu {
 	u64 fpdu_processed;
 	u64 bad_seq_num;
 	u64 crc_err;
-	u64 no_tx_bufs;
+	u64 anal_tx_bufs;
 	u64 tx_err;
 	u64 out_of_order;
 	u64 pmode_count;
@@ -418,7 +418,7 @@ struct irdma_sc_ceq {
 	spinlock_t req_cq_lock; /* protect access to reg_cq array */
 	bool virtual_map:1;
 	bool tph_en:1;
-	bool itr_no_expire:1;
+	bool itr_anal_expire:1;
 };
 
 struct irdma_sc_cq {
@@ -500,10 +500,10 @@ struct irdma_up_info {
 	bool use_cnp_up_override:1;
 };
 
-#define IRDMA_MAX_WS_NODES	0x3FF
-#define IRDMA_WS_NODE_INVALID	0xFFFF
+#define IRDMA_MAX_WS_ANALDES	0x3FF
+#define IRDMA_WS_ANALDE_INVALID	0xFFFF
 
-struct irdma_ws_node_info {
+struct irdma_ws_analde_info {
 	u16 id;
 	u16 vsi;
 	u16 parent_id;
@@ -533,7 +533,7 @@ struct irdma_qos {
 	struct list_head qplist;
 	struct mutex qos_mutex; /* protect QoS attributes per QoS level */
 	u64 lan_qos_handle;
-	u32 l2_sched_node_id;
+	u32 l2_sched_analde_id;
 	u16 qs_handle;
 	u8 traffic_class;
 	u8 rel_bw;
@@ -561,9 +561,9 @@ struct irdma_sc_vsi {
 	struct irdma_vsi_pestat *pestat;
 	atomic_t qp_suspend_reqs;
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
-			     struct irdma_ws_node *tc_node);
+			     struct irdma_ws_analde *tc_analde);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
-				struct irdma_ws_node *tc_node);
+				struct irdma_ws_analde *tc_analde);
 	u8 qos_rel_bw;
 	u8 qos_prio_type;
 	u8 stats_idx;
@@ -607,7 +607,7 @@ struct irdma_sc_dev {
 	struct irdma_sc_cq *ccq;
 	const struct irdma_irq_ops *irq_ops;
 	struct irdma_hmc_fpm_misc hmc_fpm_misc;
-	struct irdma_ws_node *ws_tree_root;
+	struct irdma_ws_analde *ws_tree_root;
 	struct mutex ws_mutex; /* ws tree mutex */
 	u16 num_vfs;
 	u8 hmc_fn_id;
@@ -713,9 +713,9 @@ struct irdma_vsi_init_info {
 	enum irdma_vm_vf_type vm_vf_type;
 	u16 vm_id;
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
-			     struct irdma_ws_node *tc_node);
+			     struct irdma_ws_analde *tc_analde);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
-				struct irdma_ws_node *tc_node);
+				struct irdma_ws_analde *tc_analde);
 };
 
 struct irdma_vsi_stats_info {
@@ -743,7 +743,7 @@ struct irdma_ceq_init_info {
 	u32 ceq_id;
 	bool virtual_map:1;
 	bool tph_en:1;
-	bool itr_no_expire:1;
+	bool itr_anal_expire:1;
 	u8 pbl_chunk_size;
 	u8 tph_val;
 	u32 first_pm_pbl_idx;
@@ -823,7 +823,7 @@ struct irdma_roce_offload_info {
 	bool is_qp1:1;
 	bool udprivcq_en:1;
 	bool dcqcn_en:1;
-	bool rcv_no_icrc:1;
+	bool rcv_anal_icrc:1;
 	bool wr_rdresp_en:1;
 	bool bind_en:1;
 	bool fast_reg_en:1;
@@ -852,7 +852,7 @@ struct irdma_iwarp_offload_info {
 	u16 ird_size;
 	bool ib_rd_en:1;
 	bool align_hdrs:1;
-	bool rcv_no_mpa_crc:1;
+	bool rcv_anal_mpa_crc:1;
 	bool err_rq_idx_valid:1;
 	bool snd_mark_en:1;
 	bool rcv_mark_en:1;
@@ -874,14 +874,14 @@ struct irdma_iwarp_offload_info {
 
 struct irdma_tcp_offload_info {
 	bool ipv4:1;
-	bool no_nagle:1;
+	bool anal_nagle:1;
 	bool insert_vlan_tag:1;
 	bool time_stamp:1;
 	bool drop_ooo_seg:1;
 	bool avoid_stretch_ack:1;
 	bool wscale:1;
-	bool ignore_tcp_opt:1;
-	bool ignore_tcp_uns_opt:1;
+	bool iganalre_tcp_opt:1;
+	bool iganalre_tcp_uns_opt:1;
 	u8 cwnd_inc_limit;
 	u8 dup_ack_thresh;
 	u8 ttl;
@@ -1130,9 +1130,9 @@ struct irdma_cqp_manage_push_page_info {
 };
 
 struct irdma_qp_flush_info {
-	u16 sq_minor_code;
+	u16 sq_mianalr_code;
 	u16 sq_major_code;
-	u16 rq_minor_code;
+	u16 rq_mianalr_code;
 	u16 rq_major_code;
 	u16 ae_code;
 	u8 ae_src;
@@ -1202,7 +1202,7 @@ int irdma_sc_qp_create(struct irdma_sc_qp *qp,
 		       struct irdma_create_qp_info *info, u64 scratch,
 		       bool post_sq);
 int irdma_sc_qp_destroy(struct irdma_sc_qp *qp, u64 scratch,
-			bool remove_hash_idx, bool ignore_mw_bnd, bool post_sq);
+			bool remove_hash_idx, bool iganalre_mw_bnd, bool post_sq);
 int irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
 			   struct irdma_qp_flush_info *info, u64 scratch,
 			   bool post_sq);
@@ -1244,7 +1244,7 @@ struct cqp_info {
 			struct irdma_sc_qp *qp;
 			u64 scratch;
 			bool remove_hash_idx;
-			bool ignore_mw_bnd;
+			bool iganalre_mw_bnd;
 		} qp_destroy;
 
 		struct {
@@ -1280,7 +1280,7 @@ struct cqp_info {
 			struct irdma_sc_dev *dev;
 			struct irdma_reg_ns_stag_info info;
 			u64 scratch;
-		} mr_reg_non_shared;
+		} mr_reg_analn_shared;
 
 		struct {
 			struct irdma_sc_dev *dev;
@@ -1310,7 +1310,7 @@ struct cqp_info {
 			struct irdma_sc_cqp *cqp;
 			u64 scratch;
 			u8 entry_idx;
-			u8 ignore_ref_count;
+			u8 iganalre_ref_count;
 		} del_local_mac_entry;
 
 		struct {
@@ -1452,9 +1452,9 @@ struct cqp_info {
 
 		struct {
 			struct irdma_sc_cqp *cqp;
-			struct irdma_ws_node_info info;
+			struct irdma_ws_analde_info info;
 			u64 scratch;
-		} ws_node;
+		} ws_analde;
 
 		struct {
 			struct irdma_sc_cqp *cqp;

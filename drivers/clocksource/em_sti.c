@@ -68,7 +68,7 @@ static int em_sti_enable(struct em_sti_priv *p)
 	/* enable clock */
 	ret = clk_enable(p->clk);
 	if (ret) {
-		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		dev_err(&p->pdev->dev, "cananalt enable clock\n");
 		return ret;
 	}
 
@@ -283,7 +283,7 @@ static int em_sti_probe(struct platform_device *pdev)
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->pdev = pdev;
 	platform_set_drvdata(pdev, p);
@@ -298,7 +298,7 @@ static int em_sti_probe(struct platform_device *pdev)
 		return PTR_ERR(p->base);
 
 	ret = devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
-			       IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			       IRQF_TIMER | IRQF_IRQPOLL | IRQF_ANALBALANCING,
 			       dev_name(&pdev->dev), p);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request low IRQ\n");
@@ -308,19 +308,19 @@ static int em_sti_probe(struct platform_device *pdev)
 	/* get hold of clock */
 	p->clk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(p->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "cananalt get clock\n");
 		return PTR_ERR(p->clk);
 	}
 
 	ret = clk_prepare(p->clk);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot prepare clock\n");
+		dev_err(&pdev->dev, "cananalt prepare clock\n");
 		return ret;
 	}
 
 	ret = clk_enable(p->clk);
 	if (ret < 0) {
-		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		dev_err(&p->pdev->dev, "cananalt enable clock\n");
 		clk_unprepare(p->clk);
 		return ret;
 	}

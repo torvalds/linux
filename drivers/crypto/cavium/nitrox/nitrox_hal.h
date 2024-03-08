@@ -18,7 +18,7 @@ void nitrox_config_bmi_unit(struct nitrox_device *ndev);
 void nitrox_config_bmo_unit(struct nitrox_device *ndev);
 void nitrox_config_lbc_unit(struct nitrox_device *ndev);
 void invalidate_lbc(struct nitrox_device *ndev);
-void enable_aqm_ring(struct nitrox_device *ndev, int qno);
+void enable_aqm_ring(struct nitrox_device *ndev, int qanal);
 void enable_pkt_input_ring(struct nitrox_device *ndev, int ring);
 void enable_pkt_solicit_port(struct nitrox_device *ndev, int port);
 void config_nps_core_vfcfg_mode(struct nitrox_device *ndev, enum vf_mode mode);

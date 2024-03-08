@@ -236,7 +236,7 @@ int dm_bitset_cursor_begin(struct dm_disk_bitset *info,
 	__le64 *value;
 
 	if (!nr_entries)
-		return -ENODATA;
+		return -EANALDATA;
 
 	c->info = info;
 	c->entries_remaining = nr_entries;
@@ -265,7 +265,7 @@ int dm_bitset_cursor_next(struct dm_bitset_cursor *c)
 	int r = 0;
 
 	if (!c->entries_remaining)
-		return -ENODATA;
+		return -EANALDATA;
 
 	c->entries_remaining--;
 	if (++c->bit_index > 63)
@@ -283,7 +283,7 @@ int dm_bitset_cursor_skip(struct dm_bitset_cursor *c, uint32_t count)
 	uint32_t remaining_in_word = 64 - c->bit_index;
 
 	if (c->entries_remaining < count)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (count < remaining_in_word) {
 		c->bit_index += count;

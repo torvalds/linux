@@ -10,7 +10,7 @@ maintainers:
   - Hauke Mehrtens <hauke@hauke-m.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^ethernet@[0-9a-f]+$"
 
   compatible:

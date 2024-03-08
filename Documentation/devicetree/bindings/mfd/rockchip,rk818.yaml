@@ -39,7 +39,7 @@ properties:
     type: boolean
     deprecated: true
     description:
-      Telling whether or not this PMIC is controlling the system power.
+      Telling whether or analt this PMIC is controlling the system power.
 
   system-power-controller: true
 

@@ -8,7 +8,7 @@ struct S {
 	int x;
 };
 
-__noinline int foo(const struct S *s)
+__analinline int foo(const struct S *s)
 {
 	return s ? bpf_get_prandom_u32() < s->x : 0;
 }

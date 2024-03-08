@@ -17,12 +17,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -132,7 +132,7 @@ struct netfront_queue {
 	 */
 	struct sk_buff *tx_skbs[NET_TX_RING_SIZE];
 	unsigned short tx_link[NET_TX_RING_SIZE];
-#define TX_LINK_NONE 0xffff
+#define TX_LINK_ANALNE 0xffff
 #define TX_PENDING   0xfffe
 	grant_ref_t gref_tx_head;
 	grant_ref_t grant_tx_ref[NET_TX_RING_SIZE];
@@ -203,9 +203,9 @@ static unsigned short get_id_from_list(unsigned *head, unsigned short *list)
 {
 	unsigned int id = *head;
 
-	if (id != TX_LINK_NONE) {
+	if (id != TX_LINK_ANALNE) {
 		*head = list[id];
-		list[id] = TX_LINK_NONE;
+		list[id] = TX_LINK_ANALNE;
 	}
 	return id;
 }
@@ -274,12 +274,12 @@ static struct sk_buff *xennet_alloc_one_rx_buffer(struct netfront_queue *queue)
 
 	skb = __netdev_alloc_skb(queue->info->netdev,
 				 RX_COPY_THRESHOLD + NET_IP_ALIGN,
-				 GFP_ATOMIC | __GFP_NOWARN);
+				 GFP_ATOMIC | __GFP_ANALWARN);
 	if (unlikely(!skb))
 		return NULL;
 
 	page = page_pool_alloc_pages(queue->page_pool,
-				     GFP_ATOMIC | __GFP_NOWARN | __GFP_ZERO);
+				     GFP_ATOMIC | __GFP_ANALWARN | __GFP_ZERO);
 	if (unlikely(!page)) {
 		kfree_skb(skb);
 		return NULL;
@@ -297,7 +297,7 @@ static struct sk_buff *xennet_alloc_one_rx_buffer(struct netfront_queue *queue)
 static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 {
 	RING_IDX req_prod = queue->rx.req_prod_pvt;
-	int notify;
+	int analtify;
 	int err = 0;
 
 	if (unlikely(!netif_carrier_ok(queue->info->netdev)))
@@ -314,7 +314,7 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 
 		skb = xennet_alloc_one_rx_buffer(queue);
 		if (!skb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -340,9 +340,9 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 
 	queue->rx.req_prod_pvt = req_prod;
 
-	/* Try again later if there are not enough requests or skb allocation
+	/* Try again later if there are analt eanalugh requests or skb allocation
 	 * failed.
-	 * Enough requests is quantified as the sum of newly created slots and
+	 * Eanalugh requests is quantified as the sum of newly created slots and
 	 * the unconsumed slots at the backend.
 	 */
 	if (req_prod - queue->rx.rsp_cons < NET_RX_SLOTS_MIN ||
@@ -351,9 +351,9 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		return;
 	}
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->rx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->rx_irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&queue->rx, analtify);
+	if (analtify)
+		analtify_remote_via_irq(queue->rx_irq);
 }
 
 static int xennet_open(struct net_device *dev)
@@ -364,7 +364,7 @@ static int xennet_open(struct net_device *dev)
 	struct netfront_queue *queue = NULL;
 
 	if (!np->queues || np->broken)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < num_queues; ++i) {
 		queue = &np->queues[i];
@@ -427,7 +427,7 @@ static bool xennet_tx_buf_gc(struct netfront_queue *queue)
 				goto err;
 			}
 
-			queue->tx_link[id] = TX_LINK_NONE;
+			queue->tx_link[id] = TX_LINK_ANALNE;
 			skb = queue->tx_skbs[id];
 			queue->tx_skbs[id] = NULL;
 			if (unlikely(!gnttab_end_foreign_access_ref(
@@ -604,7 +604,7 @@ static void xennet_mark_tx_pending(struct netfront_queue *queue)
 	unsigned int i;
 
 	while ((i = get_id_from_list(&queue->tx_pend_queue, queue->tx_link)) !=
-	       TX_LINK_NONE)
+	       TX_LINK_ANALNE)
 		queue->tx_link[i] = TX_PENDING;
 }
 
@@ -619,7 +619,7 @@ static int xennet_xdp_xmit_one(struct net_device *dev,
 		.skb = NULL,
 		.page = virt_to_page(xdpf->data),
 	};
-	int notify;
+	int analtify;
 
 	xennet_make_first_txreq(&info,
 				offset_in_page(xdpf->data),
@@ -627,9 +627,9 @@ static int xennet_xdp_xmit_one(struct net_device *dev,
 
 	xennet_mark_tx_pending(queue);
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&queue->tx, analtify);
+	if (analtify)
+		analtify_remote_via_irq(queue->tx_irq);
 
 	u64_stats_update_begin(&tx_stats->syncp);
 	tx_stats->bytes += xdpf->len;
@@ -652,7 +652,7 @@ static int xennet_xdp_xmit(struct net_device *dev, int n,
 	int i;
 
 	if (unlikely(np->broken))
-		return -ENODEV;
+		return -EANALDEV;
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
 		return -EINVAL;
 
@@ -709,7 +709,7 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	struct netfront_stats *tx_stats = this_cpu_ptr(np->tx_stats);
 	struct xen_netif_tx_request *first_tx;
 	unsigned int i;
-	int notify;
+	int analtify;
 	int slots;
 	struct page *page;
 	unsigned int offset;
@@ -721,7 +721,7 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	u16 queue_index;
 	struct sk_buff *nskb;
 
-	/* Drop the packet if no queues are set up */
+	/* Drop the packet if anal queues are set up */
 	if (num_queues < 1)
 		goto drop;
 	if (unlikely(np->broken))
@@ -754,8 +754,8 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	/* The first req should be at least ETH_HLEN size or the packet will be
 	 * dropped by netback.
 	 *
-	 * If the backend is not trusted bounce all data to zeroed pages to
-	 * avoid exposing contiguous data on the granted page not belonging to
+	 * If the backend is analt trusted bounce all data to zeroed pages to
+	 * avoid exposing contiguous data on the granted page analt belonging to
 	 * the skb.
 	 */
 	if (np->bounce || unlikely(PAGE_SIZE - offset < ETH_HLEN)) {
@@ -838,16 +838,16 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 
 	xennet_mark_tx_pending(queue);
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
+	RING_PUSH_REQUESTS_AND_CHECK_ANALTIFY(&queue->tx, analtify);
+	if (analtify)
+		analtify_remote_via_irq(queue->tx_irq);
 
 	u64_stats_update_begin(&tx_stats->syncp);
 	tx_stats->bytes += skb->len;
 	tx_stats->packets++;
 	u64_stats_update_end(&tx_stats->syncp);
 
-	/* Note: It is not safe to access skb after xennet_tx_buf_gc()! */
+	/* Analte: It is analt safe to access skb after xennet_tx_buf_gc()! */
 	xennet_tx_buf_gc(queue);
 
 	if (!netfront_tx_slot_available(queue))
@@ -1102,7 +1102,7 @@ next:
 		if (cons + slots == rp) {
 			if (net_ratelimit())
 				dev_warn(dev, "Need more slots\n");
-			err = -ENOENT;
+			err = -EANALENT;
 			break;
 		}
 
@@ -1130,7 +1130,7 @@ static int xennet_set_skb_gso(struct sk_buff *skb,
 {
 	if (!gso->u.gso.size) {
 		if (net_ratelimit())
-			pr_warn("GSO size must not be zero\n");
+			pr_warn("GSO size must analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -1177,7 +1177,7 @@ static int xennet_fill_frags(struct netfront_queue *queue,
 			xennet_set_rx_rsp_cons(queue,
 					       ++cons + skb_queue_len(list));
 			kfree_skb(nskb);
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
@@ -1210,7 +1210,7 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 		recalculate_partial_csum = true;
 	}
 
-	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
+	/* A analn-CHECKSUM_PARTIAL SKB does analt require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -1497,7 +1497,7 @@ static int xennet_set_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN) {
-		netdev_info(dev, "Reducing MTU because no SG offload");
+		netdev_info(dev, "Reducing MTU because anal SG offload");
 		dev->mtu = ETH_DATA_LEN;
 	}
 
@@ -1605,7 +1605,7 @@ static int talk_to_netback_xdp(struct netfront_info *np, int xdp)
 	unsigned short headroom;
 
 	headroom = xdp ? XDP_PACKET_HEADROOM : 0;
-	err = xenbus_printf(XBT_NIL, np->xbdev->nodename,
+	err = xenbus_printf(XBT_NIL, np->xbdev->analdename,
 			    "xdp-headroom", "%hu",
 			    headroom);
 	if (err)
@@ -1665,7 +1665,7 @@ static int xennet_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	struct netfront_info *np = netdev_priv(dev);
 
 	if (np->broken)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
@@ -1711,14 +1711,14 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 
 	netdev = alloc_etherdev_mq(sizeof(struct netfront_info), xennet_max_queues);
 	if (!netdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	np                   = netdev_priv(netdev);
 	np->xbdev            = dev;
 
 	np->queues = NULL;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	np->rx_stats = netdev_alloc_pcpu_stats(struct netfront_stats);
 	if (np->rx_stats == NULL)
 		goto exit;
@@ -1735,7 +1735,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 				  NETIF_F_TSO | NETIF_F_TSO6;
 
 	/*
-         * Assume that all hw features are available for now. This set
+         * Assume that all hw features are available for analw. This set
          * will be adjusted by the call to netdev_update_features() in
          * xennet_connect() which is the earliest point where we can
          * negotiate with the backend regarding supported features.
@@ -1760,7 +1760,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 				 xenbus_read_driver_state(dev->otherend) !=
 				 XenbusStateClosed &&
 				 xenbus_read_driver_state(dev->otherend) !=
-				 XenbusStateUnknown, XENNET_TIMEOUT);
+				 XenbusStateUnkanalwn, XENNET_TIMEOUT);
 	} while (!err);
 
 	return netdev;
@@ -1857,7 +1857,7 @@ static int netfront_resume(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
-	dev_dbg(&dev->dev, "%s\n", dev->nodename);
+	dev_dbg(&dev->dev, "%s\n", dev->analdename);
 
 	netif_tx_lock_bh(info->netdev);
 	netif_device_detach(info->netdev);
@@ -1878,7 +1878,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 	char *s, *e, *macstr;
 	int i;
 
-	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
+	macstr = s = xenbus_read(XBT_NIL, dev->analdename, "mac", NULL);
 	if (IS_ERR(macstr))
 		return PTR_ERR(macstr);
 
@@ -1886,7 +1886,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 		mac[i] = simple_strtoul(s, &e, 16);
 		if ((s == e) || (*e != ((i == ETH_ALEN-1) ? '\0' : ':'))) {
 			kfree(macstr);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		s = e+1;
 	}
@@ -1977,14 +1977,14 @@ static int setup_netfront(struct xenbus_device *dev,
 	queue->rx.sring = NULL;
 	queue->tx.sring = NULL;
 
-	err = xenbus_setup_ring(dev, GFP_NOIO | __GFP_HIGH, (void **)&txs,
+	err = xenbus_setup_ring(dev, GFP_ANALIO | __GFP_HIGH, (void **)&txs,
 				1, &queue->tx_ring_ref);
 	if (err)
 		goto fail;
 
 	XEN_FRONT_RING_INIT(&queue->tx, txs, XEN_PAGE_SIZE);
 
-	err = xenbus_setup_ring(dev, GFP_NOIO | __GFP_HIGH, (void **)&rxs,
+	err = xenbus_setup_ring(dev, GFP_ANALIO | __GFP_HIGH, (void **)&rxs,
 				1, &queue->rx_ring_ref);
 	if (err)
 		goto fail;
@@ -2013,7 +2013,7 @@ static int setup_netfront(struct xenbus_device *dev,
 }
 
 /* Queue-specific initialisation
- * This used to be done in xennet_create_dev() but must now
+ * This used to be done in xennet_create_dev() but must analw
  * be run per-queue.
  */
 static int xennet_init_queue(struct netfront_queue *queue)
@@ -2028,19 +2028,19 @@ static int xennet_init_queue(struct netfront_queue *queue)
 
 	timer_setup(&queue->rx_refill_timer, rx_refill_timeout, 0);
 
-	devid = strrchr(queue->info->xbdev->nodename, '/') + 1;
+	devid = strrchr(queue->info->xbdev->analdename, '/') + 1;
 	snprintf(queue->name, sizeof(queue->name), "vif%s-q%u",
 		 devid, queue->id);
 
 	/* Initialise tx_skb_freelist as a free chain containing every entry. */
 	queue->tx_skb_freelist = 0;
-	queue->tx_pend_queue = TX_LINK_NONE;
+	queue->tx_pend_queue = TX_LINK_ANALNE;
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		queue->tx_link[i] = i + 1;
 		queue->grant_tx_ref[i] = INVALID_GRANT_REF;
 		queue->grant_tx_page[i] = NULL;
 	}
-	queue->tx_link[NET_TX_RING_SIZE - 1] = TX_LINK_NONE;
+	queue->tx_link[NET_TX_RING_SIZE - 1] = TX_LINK_ANALNE;
 
 	/* Clear out rx_skbs */
 	for (i = 0; i < NET_RX_RING_SIZE; i++) {
@@ -2052,7 +2052,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
 					  &queue->gref_tx_head) < 0) {
 		pr_alert("can't alloc tx grant refs\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 
@@ -2060,7 +2060,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	if (gnttab_alloc_grant_references(NET_RX_RING_SIZE,
 					  &queue->gref_rx_head) < 0) {
 		pr_alert("can't alloc rx grant refs\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_free_tx;
 	}
 
@@ -2087,17 +2087,17 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 
 	/* Choose the correct place to write the keys */
 	if (write_hierarchical) {
-		pathsize = strlen(dev->nodename) + 10;
+		pathsize = strlen(dev->analdename) + 10;
 		path = kzalloc(pathsize, GFP_KERNEL);
 		if (!path) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			message = "out of memory while writing ring references";
 			goto error;
 		}
 		snprintf(path, pathsize, "%s/queue-%u",
-				dev->nodename, queue->id);
+				dev->analdename, queue->id);
 	} else {
-		path = (char *)dev->nodename;
+		path = (char *)dev->analdename;
 	}
 
 	/* Write ring references */
@@ -2163,7 +2163,7 @@ static int xennet_create_page_pool(struct netfront_queue *queue)
 		.order = 0,
 		.flags = 0,
 		.pool_size = NET_RX_RING_SIZE,
-		.nid = NUMA_NO_NODE,
+		.nid = NUMA_ANAL_ANALDE,
 		.dev = &queue->info->netdev->dev,
 		.offset = XDP_PACKET_HEADROOM,
 		.max_len = XEN_PAGE_SIZE - XDP_PACKET_HEADROOM,
@@ -2208,7 +2208,7 @@ static int xennet_create_queues(struct netfront_info *info,
 	info->queues = kcalloc(*num_queues, sizeof(struct netfront_queue),
 			       GFP_KERNEL);
 	if (!info->queues)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < *num_queues; i++) {
 		struct netfront_queue *queue = &info->queues[i];
@@ -2240,7 +2240,7 @@ static int xennet_create_queues(struct netfront_info *info,
 	netif_set_real_num_tx_queues(info->netdev, *num_queues);
 
 	if (*num_queues == 0) {
-		dev_err(&info->xbdev->dev, "no queues\n");
+		dev_err(&info->xbdev->dev, "anal queues\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -2264,7 +2264,7 @@ static int talk_to_netback(struct xenbus_device *dev,
 
 	/* Check if backend is trusted. */
 	info->bounce = !xennet_trusted ||
-		       !xenbus_read_unsigned(dev->nodename, "trusted", 1);
+		       !xenbus_read_unsigned(dev->analdename, "trusted", 1);
 
 	/* Check if backend supports multiple queues */
 	max_queues = xenbus_read_unsigned(info->xbdev->otherend,
@@ -2278,7 +2278,7 @@ static int talk_to_netback(struct xenbus_device *dev,
 	/* Read mac addr. */
 	err = xen_net_read_mac(dev, addr);
 	if (err) {
-		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->nodename);
+		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->analdename);
 		goto out_unlocked;
 	}
 	eth_hw_addr_set(info->netdev, addr);
@@ -2328,61 +2328,61 @@ again:
 	if (xenbus_exists(XBT_NIL,
 			  info->xbdev->otherend, "multi-queue-max-queues")) {
 		/* Write the number of queues */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->analdename,
 				    "multi-queue-num-queues", "%u", num_queues);
 		if (err) {
 			message = "writing multi-queue-num-queues";
-			goto abort_transaction_no_dev_fatal;
+			goto abort_transaction_anal_dev_fatal;
 		}
 	}
 
 	if (num_queues == 1) {
 		err = write_queue_xenstore_keys(&info->queues[0], &xbt, 0); /* flat */
 		if (err)
-			goto abort_transaction_no_dev_fatal;
+			goto abort_transaction_anal_dev_fatal;
 	} else {
 		/* Write the keys for each queue */
 		for (i = 0; i < num_queues; ++i) {
 			queue = &info->queues[i];
 			err = write_queue_xenstore_keys(queue, &xbt, 1); /* hierarchical */
 			if (err)
-				goto abort_transaction_no_dev_fatal;
+				goto abort_transaction_anal_dev_fatal;
 		}
 	}
 
-	/* The remaining keys are not queue-specific */
-	err = xenbus_printf(xbt, dev->nodename, "request-rx-copy", "%u",
+	/* The remaining keys are analt queue-specific */
+	err = xenbus_printf(xbt, dev->analdename, "request-rx-copy", "%u",
 			    1);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-rx-notify", "%d", 1);
+	err = xenbus_printf(xbt, dev->analdename, "feature-rx-analtify", "%d", 1);
 	if (err) {
-		message = "writing feature-rx-notify";
+		message = "writing feature-rx-analtify";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-sg", "%d", 1);
+	err = xenbus_printf(xbt, dev->analdename, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv4", "%d", 1);
+	err = xenbus_printf(xbt, dev->analdename, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-gso-tcpv6", "1");
+	err = xenbus_write(xbt, dev->analdename, "feature-gso-tcpv6", "1");
 	if (err) {
 		message = "writing feature-gso-tcpv6";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-ipv6-csum-offload",
+	err = xenbus_write(xbt, dev->analdename, "feature-ipv6-csum-offload",
 			   "1");
 	if (err) {
 		message = "writing feature-ipv6-csum-offload";
@@ -2401,7 +2401,7 @@ again:
 
  abort_transaction:
 	xenbus_dev_fatal(dev, err, "%s", message);
-abort_transaction_no_dev_fatal:
+abort_transaction_anal_dev_fatal:
 	xenbus_transaction_end(xbt, 1);
  destroy_ring:
 	xennet_disconnect_backend(info);
@@ -2424,8 +2424,8 @@ static int xennet_connect(struct net_device *dev)
 
 	if (!xenbus_read_unsigned(np->xbdev->otherend, "feature-rx-copy", 0)) {
 		dev_info(&dev->dev,
-			 "backend does not support copying receive path\n");
-		return -ENODEV;
+			 "backend does analt support copying receive path\n");
+		return -EANALDEV;
 	}
 
 	err = talk_to_netback(np->xbdev, np);
@@ -2454,7 +2454,7 @@ static int xennet_connect(struct net_device *dev)
 	rtnl_unlock();
 
 	/*
-	 * All public and private state should now be sane.  Get
+	 * All public and private state should analw be sane.  Get
 	 * ready to start sending and receiving packets and give the driver
 	 * domain a kick because we've probably just requeued some
 	 * packets.
@@ -2467,9 +2467,9 @@ static int xennet_connect(struct net_device *dev)
 	for (j = 0; j < num_queues; ++j) {
 		queue = &np->queues[j];
 
-		notify_remote_via_irq(queue->tx_irq);
+		analtify_remote_via_irq(queue->tx_irq);
 		if (queue->tx_irq != queue->rx_irq)
-			notify_remote_via_irq(queue->rx_irq);
+			analtify_remote_via_irq(queue->rx_irq);
 
 		spin_lock_bh(&queue->rx_lock);
 		xennet_alloc_rx_buffers(queue);
@@ -2497,7 +2497,7 @@ static void netback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkanalwn:
 		break;
 
 	case XenbusStateInitWait:
@@ -2509,7 +2509,7 @@ static void netback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
-		netdev_notify_peers(netdev);
+		netdev_analtify_peers(netdev);
 		break;
 
 	case XenbusStateClosed:
@@ -2595,7 +2595,7 @@ static ssize_t store_rxbuf(struct device *dev,
 	if (endp == buf)
 		return -EBADMSG;
 
-	/* rxbuf_min and rxbuf_max are no longer configurable. */
+	/* rxbuf_min and rxbuf_max are anal longer configurable. */
 
 	return len;
 }
@@ -2630,7 +2630,7 @@ static void xennet_bus_close(struct xenbus_device *dev)
 				   xenbus_read_driver_state(dev->otherend) ==
 				   XenbusStateClosed ||
 				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
+				   XenbusStateUnkanalwn,
 				   XENNET_TIMEOUT);
 	} while (!ret);
 
@@ -2643,7 +2643,7 @@ static void xennet_bus_close(struct xenbus_device *dev)
 				   xenbus_read_driver_state(dev->otherend) ==
 				   XenbusStateClosed ||
 				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
+				   XenbusStateUnkanalwn,
 				   XENNET_TIMEOUT);
 	} while (!ret);
 }
@@ -2682,14 +2682,14 @@ static struct xenbus_driver netfront_driver = {
 static int __init netif_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!xen_has_pv_nic_devices())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Initialising Xen virtual ethernet driver\n");
 
-	/* Allow as many queues as there are CPUs inut max. 8 if user has not
+	/* Allow as many queues as there are CPUs inut max. 8 if user has analt
 	 * specified a value.
 	 */
 	if (xennet_max_queues == 0)

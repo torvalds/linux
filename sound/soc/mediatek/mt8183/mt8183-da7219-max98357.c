@@ -302,8 +302,8 @@ SND_SOC_DAILINK_DEFS(capture3,
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono,
-	DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_1")),
+SND_SOC_DAILINK_DEFS(capture_moanal,
+	DAILINK_COMP_ARRAY(COMP_CPU("UL_MOANAL_1")),
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
@@ -478,13 +478,13 @@ static struct snd_soc_dai_link mt8183_da7219_dai_links[] = {
 		SND_SOC_DAILINK_REG(capture3),
 	},
 	{
-		.name = "Capture_Mono_1",
-		.stream_name = "Capture_Mono_1",
+		.name = "Capture_Moanal_1",
+		.stream_name = "Capture_Moanal_1",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono),
+		SND_SOC_DAILINK_REG(capture_moanal),
 	},
 	{
 		.name = "Playback_HDMI",
@@ -498,51 +498,51 @@ static struct snd_soc_dai_link mt8183_da7219_dai_links[] = {
 	/* BE */
 	{
 		.name = "Primary Codec",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(primary_codec),
 	},
 	{
 		.name = "PCM 1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
 	{
 		.name = "PCM 2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm2),
 	},
 	{
 		.name = "I2S0",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s0),
 	},
 	{
 		.name = "I2S1",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s1),
 	},
 	{
 		.name = "I2S2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_da7219_i2s_ops,
 		.init = &mt8183_da7219_init,
@@ -550,15 +550,15 @@ static struct snd_soc_dai_link mt8183_da7219_dai_links[] = {
 	},
 	{
 		.name = "I2S3",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 	},
 	{
 		.name = "I2S5",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		.init = &mt8183_bt_init,
@@ -566,14 +566,14 @@ static struct snd_soc_dai_link mt8183_da7219_dai_links[] = {
 	},
 	{
 		.name = "TDM",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			   SND_SOC_DAIFMT_IB_IF |
 			   SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
-		.ignore = 1,
+		.iganalre = 1,
 		.init = mt8183_da7219_max98357_hdmi_init,
 		SND_SOC_DAILINK_REG(tdm),
 	},
@@ -741,15 +741,15 @@ static struct snd_soc_card mt8183_da7219_rt1015p_card = {
 static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
-	struct device_node *platform_node, *hdmi_codec;
+	struct device_analde *platform_analde, *hdmi_codec;
 	struct snd_soc_dai_link *dai_link;
 	struct mt8183_da7219_max98357_priv *priv;
 	struct pinctrl *pinctrl;
 	int ret, i;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_analde = of_parse_phandle(pdev->dev.of_analde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_analde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
@@ -757,12 +757,12 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 	card = (struct snd_soc_card *)of_device_get_match_data(&pdev->dev);
 	if (!card) {
 		ret = -EINVAL;
-		goto put_platform_node;
+		goto put_platform_analde;
 	}
 
 	card->dev = &pdev->dev;
 
-	hdmi_codec = of_parse_phandle(pdev->dev.of_node,
+	hdmi_codec = of_parse_phandle(pdev->dev.of_analde,
 				      "mediatek,hdmi-codec", 0);
 
 	for_each_card_prelinks(card, i, dai_link) {
@@ -810,18 +810,18 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 		}
 
 		if (hdmi_codec && strcmp(dai_link->name, "TDM") == 0) {
-			dai_link->codecs->of_node = hdmi_codec;
-			dai_link->ignore = 0;
+			dai_link->codecs->of_analde = hdmi_codec;
+			dai_link->iganalre = 0;
 		}
 
 		if (!dai_link->platforms->name)
-			dai_link->platforms->of_node = platform_node;
+			dai_link->platforms->of_analde = platform_analde;
 	}
 
-	mt8183_da7219_max98357_headset_dev.dlc.of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	mt8183_da7219_max98357_headset_dev.dlc.of_analde =
+		of_parse_phandle(pdev->dev.of_analde,
 				 "mediatek,headset-codec", 0);
-	if (!mt8183_da7219_max98357_headset_dev.dlc.of_node) {
+	if (!mt8183_da7219_max98357_headset_dev.dlc.of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'mediatek,headset-codec' missing/invalid\n");
 		ret = -EINVAL;
@@ -830,7 +830,7 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_hdmi_codec;
 	}
 
@@ -848,9 +848,9 @@ static int mt8183_da7219_max98357_dev_probe(struct platform_device *pdev)
 
 
 put_hdmi_codec:
-	of_node_put(hdmi_codec);
-put_platform_node:
-	of_node_put(platform_node);
+	of_analde_put(hdmi_codec);
+put_platform_analde:
+	of_analde_put(platform_analde);
 	return ret;
 }
 

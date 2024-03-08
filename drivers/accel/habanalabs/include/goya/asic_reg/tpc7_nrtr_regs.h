@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC7_NRTR_REGS_H_
@@ -221,6 +221,6 @@
 
 #define mmTPC7_NRTR_SCRAMB_EN                                        0xFC0600
 
-#define mmTPC7_NRTR_NON_LIN_SCRAMB                                   0xFC0604
+#define mmTPC7_NRTR_ANALN_LIN_SCRAMB                                   0xFC0604
 
 #endif /* ASIC_REG_TPC7_NRTR_REGS_H_ */

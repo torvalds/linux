@@ -341,8 +341,8 @@
 		interrupts = <19 2>;
 
 		ranges = <
-			0 0x0 0xfc000000 0x04000000	// NOR FLASH bank 1
-			1 0x0 0xf8000000 0x08000000	// NOR FLASH bank 0
+			0 0x0 0xfc000000 0x04000000	// ANALR FLASH bank 1
+			1 0x0 0xf8000000 0x08000000	// ANALR FLASH bank 0
 			2 0x0 0xe3000000 0x00008000	// CAN (2 x CC770)
 			3 0x0 0xe3010000 0x00008000	// NAND FLASH
 
@@ -383,7 +383,7 @@
 			};
 		};
 
-		/* Note: CAN support needs be enabled in U-Boot */
+		/* Analte: CAN support needs be enabled in U-Boot */
 		can@2,0 {
 			compatible = "bosch,cc770"; // Bosch CC770
 			reg = <2 0x0 0x100>;
@@ -407,7 +407,7 @@
 			bosch,iso-low-speed-mux;
 		};
 
-		/* Note: NAND support needs to be enabled in U-Boot */
+		/* Analte: NAND support needs to be enabled in U-Boot */
 		upm@3,0 {
 			#address-cells = <0>;
 			#size-cells = <0>;

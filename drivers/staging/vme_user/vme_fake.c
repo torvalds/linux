@@ -22,7 +22,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,7 +39,7 @@
 #define FAKE_MAX_MASTER		8	/* Max Master Windows */
 #define FAKE_MAX_SLAVE		8	/* Max Slave Windows */
 
-/* Structures to hold information normally held in device registers */
+/* Structures to hold information analrmally held in device registers */
 struct fake_slave_window {
 	int enabled;
 	unsigned long long vme_base;
@@ -107,7 +107,7 @@ static void fake_VIRQ_tasklet(unsigned long data)
 static void fake_irq_set(struct vme_bridge *fake_bridge, int level,
 			 int state, int sync)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 }
 
 static void *fake_pci_to_ptr(dma_addr_t addr)
@@ -138,7 +138,7 @@ static int fake_irq_generate(struct vme_bridge *fake_bridge, int level,
 	bridge->int_statid = statid;
 
 	/*
-	 * Schedule tasklet to run VME handler to emulate normal VME interrupt
+	 * Schedule tasklet to run VME handler to emulate analrmal VME interrupt
 	 * handler behaviour.
 	 */
 	tasklet_schedule(&bridge->int_tasklet);
@@ -275,7 +275,7 @@ static int fake_master_set(struct vme_master_resource *image, int enabled,
 	}
 
 	if ((size == 0) && (enabled != 0)) {
-		pr_err("Size must be non-zero for enabled windows\n");
+		pr_err("Size must be analn-zero for enabled windows\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -410,7 +410,7 @@ static void fake_lm_check(struct fake_driver *bridge, unsigned long long addr,
 	}
 }
 
-static noinline_for_stack u8 fake_vmeread8(struct fake_driver *bridge,
+static analinline_for_stack u8 fake_vmeread8(struct fake_driver *bridge,
 					   unsigned long long addr,
 					   u32 aspace, u32 cycle)
 {
@@ -443,7 +443,7 @@ static noinline_for_stack u8 fake_vmeread8(struct fake_driver *bridge,
 	return retval;
 }
 
-static noinline_for_stack u16 fake_vmeread16(struct fake_driver *bridge,
+static analinline_for_stack u16 fake_vmeread16(struct fake_driver *bridge,
 					     unsigned long long addr,
 					     u32 aspace, u32 cycle)
 {
@@ -476,7 +476,7 @@ static noinline_for_stack u16 fake_vmeread16(struct fake_driver *bridge,
 	return retval;
 }
 
-static noinline_for_stack u32 fake_vmeread32(struct fake_driver *bridge,
+static analinline_for_stack u32 fake_vmeread32(struct fake_driver *bridge,
 					     unsigned long long addr,
 					     u32 aspace, u32 cycle)
 {
@@ -534,12 +534,12 @@ static ssize_t fake_master_read(struct vme_master_resource *image, void *buf,
 
 	spin_lock(&image->lock);
 
-	/* The following code handles VME address alignment. We cannot use
+	/* The following code handles VME address alignment. We cananalt use
 	 * memcpy_xxx here because it may cut data transfers in to 8-bit
 	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
-	 * automatically for non-aligned addresses, so we don't want the
+	 * automatically for analn-aligned addresses, so we don't want the
 	 * overhead of needlessly forcing small transfers for the entire cycle.
 	 */
 	if (addr & 0x1) {
@@ -607,7 +607,7 @@ out:
 	return retval;
 }
 
-static noinline_for_stack void fake_vmewrite8(struct fake_driver *bridge,
+static analinline_for_stack void fake_vmewrite8(struct fake_driver *bridge,
 					      u8 *buf, unsigned long long addr,
 					      u32 aspace, u32 cycle)
 {
@@ -637,7 +637,7 @@ static noinline_for_stack void fake_vmewrite8(struct fake_driver *bridge,
 	fake_lm_check(bridge, addr, aspace, cycle);
 }
 
-static noinline_for_stack void fake_vmewrite16(struct fake_driver *bridge,
+static analinline_for_stack void fake_vmewrite16(struct fake_driver *bridge,
 					       u16 *buf, unsigned long long addr,
 					       u32 aspace, u32 cycle)
 {
@@ -667,7 +667,7 @@ static noinline_for_stack void fake_vmewrite16(struct fake_driver *bridge,
 	fake_lm_check(bridge, addr, aspace, cycle);
 }
 
-static noinline_for_stack void fake_vmewrite32(struct fake_driver *bridge,
+static analinline_for_stack void fake_vmewrite32(struct fake_driver *bridge,
 					       u32 *buf, unsigned long long addr,
 					       u32 aspace, u32 cycle)
 {
@@ -841,7 +841,7 @@ static unsigned int fake_master_rmw(struct vme_master_resource *image,
  * All 4 location monitors reside at the same base - this is therefore a
  * system wide configuration.
  *
- * This does not enable the LM monitor - that should be done when the first
+ * This does analt enable the LM monitor - that should be done when the first
  * callback is attached and disabled when the last callback is removed.
  */
 static int fake_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
@@ -929,7 +929,7 @@ static int fake_lm_attach(struct vme_lm_resource *lm, int monitor,
 	/* Ensure that the location monitor is configured - need PGM or DATA */
 	if (bridge->lm_cycle == 0) {
 		mutex_unlock(&lm->mtx);
-		pr_err("Location monitor not properly configured\n");
+		pr_err("Location monitor analt properly configured\n");
 		return -EINVAL;
 	}
 
@@ -1031,7 +1031,7 @@ static int fake_crcsr_init(struct vme_bridge *fake_bridge)
 	bridge->crcsr_kernel = kzalloc(VME_CRCSR_BUF_SIZE, GFP_KERNEL);
 	bridge->crcsr_bus = fake_ptr_to_pci(bridge->crcsr_kernel);
 	if (!bridge->crcsr_kernel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vstat = fake_slot_get(fake_bridge);
 
@@ -1069,13 +1069,13 @@ static int __init fake_init(void)
 	 */
 	fake_bridge = kzalloc(sizeof(*fake_bridge), GFP_KERNEL);
 	if (!fake_bridge) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_struct;
 	}
 
 	fake_device = kzalloc(sizeof(*fake_device), GFP_KERNEL);
 	if (!fake_device) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_driver;
 	}
 
@@ -1098,7 +1098,7 @@ static int __init fake_init(void)
 	for (i = 0; i < FAKE_MAX_MASTER; i++) {
 		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
 		if (!master_image) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_master;
 		}
 		master_image->parent = fake_bridge;
@@ -1124,7 +1124,7 @@ static int __init fake_init(void)
 	for (i = 0; i < FAKE_MAX_SLAVE; i++) {
 		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
 		if (!slave_image) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto err_slave;
 		}
 		slave_image->parent = fake_bridge;
@@ -1146,7 +1146,7 @@ static int __init fake_init(void)
 	INIT_LIST_HEAD(&fake_bridge->lm_resources);
 	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
 	if (!lm) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto err_lm;
 	}
 	lm->parent = fake_bridge;
@@ -1174,7 +1174,7 @@ static int __init fake_init(void)
 	fake_bridge->free_consistent = fake_free_consistent;
 
 	pr_info("Board is%s the VME system controller\n",
-		(geoid == 1) ? "" : " not");
+		(geoid == 1) ? "" : " analt");
 
 	pr_info("VME geographical address is set to %d\n", geoid);
 

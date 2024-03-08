@@ -3,15 +3,15 @@ Secondary CPU enable-method "nuvoton,npcm750-smp" binding
 =========================================================
 
 To apply to all CPUs, a single "nuvoton,npcm750-smp" enable method should be
-defined in the "cpus" node.
+defined in the "cpus" analde.
 
 Enable method name:	"nuvoton,npcm750-smp"
 Compatible machines:	"nuvoton,npcm750"
 Compatible CPUs:	"arm,cortex-a9"
-Related properties:	(none)
+Related properties:	(analne)
 
-Note:
-This enable method needs valid nodes compatible with "arm,cortex-a9-scu" and
+Analte:
+This enable method needs valid analdes compatible with "arm,cortex-a9-scu" and
 "nuvoton,npcm750-gcr".
 
 Example:

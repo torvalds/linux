@@ -1,4 +1,4 @@
-.. _stable_api_nonsense:
+.. _stable_api_analnsense:
 
 The Linux Kernel Driver Interface
 ==================================
@@ -7,17 +7,17 @@ The Linux Kernel Driver Interface
 
 Greg Kroah-Hartman <greg@kroah.com>
 
-This is being written to try to explain why Linux **does not have a binary
-kernel interface, nor does it have a stable kernel interface**.
+This is being written to try to explain why Linux **does analt have a binary
+kernel interface, analr does it have a stable kernel interface**.
 
-.. note::
+.. analte::
 
-  Please realize that this article describes the **in kernel** interfaces, not
+  Please realize that this article describes the **in kernel** interfaces, analt
   the kernel to userspace interfaces.
 
   The kernel to userspace interface is the one that application programs use,
   the syscall interface.  That interface is **very** stable over time, and
-  will not break.  I have old programs that were built on a pre 0.9something
+  will analt break.  I have old programs that were built on a pre 0.9something
   kernel that still work just fine on the latest 2.6 kernel release.
   That interface is the one that users and application programmers can count
   on being stable.
@@ -25,8 +25,8 @@ kernel interface, nor does it have a stable kernel interface**.
 
 Executive Summary
 -----------------
-You think you want a stable kernel interface, but you really do not, and
-you don't even know it.  What you want is a stable running driver, and
+You think you want a stable kernel interface, but you really do analt, and
+you don't even kanalw it.  What you want is a stable running driver, and
 you get that only if your driver is in the main kernel tree.  You also
 get lots of other good benefits if your driver is in the main kernel
 tree, all of which has made Linux into such a strong, stable, and mature
@@ -39,15 +39,15 @@ Intro
 
 It's only the odd person who wants to write a kernel driver that needs
 to worry about the in-kernel interfaces changing.  For the majority of
-the world, they neither see this interface, nor do they care about it at
+the world, they neither see this interface, analr do they care about it at
 all.
 
-First off, I'm not going to address **any** legal issues about closed
+First off, I'm analt going to address **any** legal issues about closed
 source, hidden source, binary blobs, source wrappers, or any other term
-that describes kernel drivers that do not have their source code
+that describes kernel drivers that do analt have their source code
 released under the GPL.  Please consult a lawyer if you have any legal
 questions, I'm a programmer and hence, I'm just going to be describing
-the technical issues here (not to make light of the legal issues, they
+the technical issues here (analt to make light of the legal issues, they
 are real, and you do need to be aware of them at all times.)
 
 So, there are two main topics here, binary kernel interfaces and stable
@@ -64,7 +64,7 @@ consider the following facts about the Linux kernel:
   - Depending on the version of the C compiler you use, different kernel
     data structures will contain different alignment of structures, and
     possibly include different functions in different ways (putting
-    functions inline or not.)  The individual function organization
+    functions inline or analt.)  The individual function organization
     isn't that important, but the different data structure padding is
     very important.
 
@@ -72,16 +72,16 @@ consider the following facts about the Linux kernel:
     different things can be assumed by the kernel:
 
       - different structures can contain different fields
-      - Some functions may not be implemented at all, (i.e. some locks
-	compile away to nothing for non-SMP builds.)
+      - Some functions may analt be implemented at all, (i.e. some locks
+	compile away to analthing for analn-SMP builds.)
       - Memory within the kernel can be aligned in different ways,
 	depending on the build options.
 
   - Linux runs on a wide range of different processor architectures.
-    There is no way that binary drivers from one architecture will run
-    on another architecture properly.
+    There is anal way that binary drivers from one architecture will run
+    on aanalther architecture properly.
 
-Now a number of these issues can be addressed by simply compiling your
+Analw a number of these issues can be addressed by simply compiling your
 module for the exact specific kernel configuration, using the same exact
 C compiler that the kernel was built with.  This is sufficient if you
 want to provide a module for a specific release version of a specific
@@ -102,7 +102,7 @@ Stable Kernel Source Interfaces
 -------------------------------
 
 This is a much more "volatile" topic if you talk to people who try to
-keep a Linux kernel driver that is not in the main kernel tree up to
+keep a Linux kernel driver that is analt in the main kernel tree up to
 date over time.
 
 Linux kernel development is continuous and at a rapid pace, never
@@ -119,12 +119,12 @@ undergone at least three different reworks over the lifetime of this
 subsystem.  These reworks were done to address a number of different
 issues:
 
-  - A change from a synchronous model of data streams to an asynchronous
+  - A change from a synchroanalus model of data streams to an asynchroanalus
     one.  This reduced the complexity of a number of drivers and
-    increased the throughput of all USB drivers such that we are now
+    increased the throughput of all USB drivers such that we are analw
     running almost all USB devices at their maximum speed possible.
   - A change was made in the way data packets were allocated from the
-    USB core by USB drivers so that all drivers now needed to provide
+    USB core by USB drivers so that all drivers analw needed to provide
     more information to the USB core to fix a number of documented
     deadlocks.
 
@@ -140,20 +140,20 @@ relatively little pain.  If Linux had to ensure that it will preserve a
 stable source interface, a new interface would have been created, and
 the older, broken one would have had to be maintained over time, leading
 to extra work for the USB developers.  Since all Linux USB developers do
-their work on their own time, asking programmers to do extra work for no
-gain, for free, is not a possibility.
+their work on their own time, asking programmers to do extra work for anal
+gain, for free, is analt a possibility.
 
 Security issues are also very important for Linux.  When a
 security issue is found, it is fixed in a very short amount of time.  A
 number of times this has caused internal kernel interfaces to be
 reworked to prevent the security problem from occurring.  When this
 happens, all drivers that use the interfaces were also fixed at the
-same time, ensuring that the security problem was fixed and could not
+same time, ensuring that the security problem was fixed and could analt
 come back at some future time accidentally.  If the internal interfaces
-were not allowed to change, fixing this kind of security problem and
-insuring that it could not happen again would not be possible.
+were analt allowed to change, fixing this kind of security problem and
+insuring that it could analt happen again would analt be possible.
 
-Kernel interfaces are cleaned up over time.  If there is no one using a
+Kernel interfaces are cleaned up over time.  If there is anal one using a
 current interface, it is deleted.  This ensures that the kernel remains
 as small as possible, and that all potential interfaces are tested as
 well as they can be (unused interfaces are pretty much impossible to
@@ -163,7 +163,7 @@ test for validity.)
 What to do
 ----------
 
-So, if you have a Linux kernel driver that is not in the main kernel
+So, if you have a Linux kernel driver that is analt in the main kernel
 tree, what are you, a developer, supposed to do?  Releasing a binary
 driver for every different kernel version for every distribution is a
 nightmare, and trying to keep up with an ever changing kernel interface

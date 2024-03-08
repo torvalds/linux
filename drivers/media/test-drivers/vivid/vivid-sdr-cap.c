@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -185,7 +185,7 @@ static int vivid_thread_sdr_cap(void *data)
 
 		/*
 		 * Calculate the number of samples streamed since we started,
-		 * not including the current buffer.
+		 * analt including the current buffer.
 		 */
 		samples_since_start = buffers_since_start * SDR_CAP_SAMPLES_PER_BUF;
 
@@ -240,7 +240,7 @@ static int sdr_cap_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	if (vb2_plane_size(vb, 0) < size) {
-		dprintk(dev, 1, "%s data will not fit into plane (%lu < %u)\n",
+		dprintk(dev, 1, "%s data will analt fit into plane (%lu < %u)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -534,7 +534,7 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 		/*
 		 * Transfer phase angle to [0, 2xPI] in order to avoid variable
 		 * overflow and make it suitable for cosine implementation
-		 * used, which does not support negative angles.
+		 * used, which does analt support negative angles.
 		 */
 		dev->sdr_fixp_src_phase %= FIXP_2PI;
 		dev->sdr_fixp_mod_phase %= FIXP_2PI;
@@ -545,7 +545,7 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 		fixp_i = fixp_cos32_rad(dev->sdr_fixp_mod_phase, FIXP_2PI);
 		fixp_q = fixp_sin32_rad(dev->sdr_fixp_mod_phase, FIXP_2PI);
 
-		/* Normalize fraction values represented with 32 bit precision
+		/* Analrmalize fraction values represented with 32 bit precision
 		 * to fixed point representation with FIXP_N bits */
 		fixp_i >>= (31 - FIXP_N);
 		fixp_q >>= (31 - FIXP_N);

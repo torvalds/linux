@@ -121,7 +121,7 @@ static void davinci_mdio_init_clk(struct davinci_mdio_data *data)
 	 * One mdio transaction consists of:
 	 *	32 bits of preamble
 	 *	32 bits of transferred data
-	 *	24 bits of bus yield (not needed unless shared?)
+	 *	24 bits of bus yield (analt needed unless shared?)
 	 */
 	mdio_out_khz = mdio_in / (1000 * (div + 1));
 	access_time  = (88 * 1000) / mdio_out_khz;
@@ -326,7 +326,7 @@ static int davinci_mdio_common_reset(struct davinci_mdio_data *data)
 		phy_mask = ~phy_mask;
 	} else {
 		/* desperately scan all phys */
-		dev_warn(data->dev, "no live phy, scanning all\n");
+		dev_warn(data->dev, "anal live phy, scanning all\n");
 		phy_mask = 0;
 	}
 	data->bus->phy_mask = phy_mask;
@@ -355,7 +355,7 @@ static int davinci_mdiobb_reset(struct mii_bus *bus)
 	return davinci_mdio_common_reset(data);
 }
 
-/* wait until hardware is ready for another user access */
+/* wait until hardware is ready for aanalther user access */
 static inline int wait_for_user_access(struct davinci_mdio_data *data)
 {
 	struct davinci_mdio_regs __iomem *regs = data->regs;
@@ -487,13 +487,13 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	u32 prop;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
-	if (of_property_read_u32(node, "bus_freq", &prop)) {
+	if (of_property_read_u32(analde, "bus_freq", &prop)) {
 		dev_err(&pdev->dev, "Missing bus_freq property in the DT.\n");
 		return -EINVAL;
 	}
@@ -553,12 +553,12 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->manual_mode = false;
 	data->bb_ctrl.ops = &davinci_mdiobb_ops;
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_analde) {
 		const struct soc_device_attribute *soc_match_data;
 
 		soc_match_data = soc_device_match(k3_mdio_socinfo);
@@ -577,10 +577,10 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 
 	if (!data->bus) {
 		dev_err(dev, "failed to alloc mii bus\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_analde) {
 		const struct davinci_mdio_of_param *of_mdio_data;
 
 		ret = davinci_mdio_probe_dt(&data->pdata, pdev);
@@ -631,7 +631,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	data->regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (!data->regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	davinci_mdio_init_clk(data);
 
@@ -640,14 +640,14 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	/* register the mii bus
-	 * Create PHYs from DT only in case if PHY child nodes are explicitly
+	 * Create PHYs from DT only in case if PHY child analdes are explicitly
 	 * defined to support backward compatibility with DTs which assume that
 	 * Davinci MDIO will always scan the bus for PHYs detection.
 	 */
-	if (dev->of_node && of_get_child_count(dev->of_node))
+	if (dev->of_analde && of_get_child_count(dev->of_analde))
 		data->skip_scan = true;
 
-	ret = of_mdiobus_register(data->bus, dev->of_node);
+	ret = of_mdiobus_register(data->bus, dev->of_analde);
 	if (ret)
 		goto bail_out;
 
@@ -657,7 +657,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		if (phy) {
 			dev_info(dev, "phy[%d]: device %s, driver %s\n",
 				 phy->mdio.addr, phydev_name(phy),
-				 phy->drv ? phy->drv->name : "unknown");
+				 phy->drv ? phy->drv->name : "unkanalwn");
 		}
 	}
 

@@ -12,7 +12,7 @@
 #include "dccp.h"
 
 /*
- * Known limit values
+ * Kanalwn limit values
  */
 /* Ack Ratio takes 2-byte integer values (11.3) */
 #define DCCPF_ACK_RATIO_MAX	0xFFFF
@@ -26,14 +26,14 @@ enum dccp_feat_type {
 	FEAT_AT_RX   = 1,	/* located at RX side of half-connection  */
 	FEAT_AT_TX   = 2,	/* located at TX side of half-connection  */
 	FEAT_SP      = 4,	/* server-priority reconciliation (6.3.1) */
-	FEAT_NN	     = 8,	/* non-negotiable reconciliation (6.3.2)  */
-	FEAT_UNKNOWN = 0xFF	/* not understood or invalid feature	  */
+	FEAT_NN	     = 8,	/* analn-negotiable reconciliation (6.3.2)  */
+	FEAT_UNKANALWN = 0xFF	/* analt understood or invalid feature	  */
 };
 
 enum dccp_feat_state {
 	FEAT_DEFAULT = 0,	/* using default values from 6.4 */
 	FEAT_INITIALISING,	/* feature is being initialised  */
-	FEAT_CHANGING,		/* Change sent but not confirmed yet */
+	FEAT_CHANGING,		/* Change sent but analt confirmed yet */
 	FEAT_UNSTABLE,		/* local modification in state CHANGING */
 	FEAT_STABLE		/* both ends (think they) agree */
 };
@@ -61,7 +61,7 @@ typedef union {
  * @needs_confirm: whether to send a Confirm instead of a Change
  * @empty_confirm: whether to send an empty Confirm (depends on @needs_confirm)
  * @is_local: feature location (1) or feature-remote (0)
- * @node: list pointers, entries arranged in FIFO order
+ * @analde: list pointers, entries arranged in FIFO order
  */
 struct dccp_feat_entry {
 	dccp_feat_val           val;
@@ -73,10 +73,10 @@ struct dccp_feat_entry {
 				empty_confirm,
 				is_local;
 
-	struct list_head	node;
+	struct list_head	analde;
 };
 
-static inline u8 dccp_feat_genopt(struct dccp_feat_entry *entry)
+static inline u8 dccp_feat_geanalpt(struct dccp_feat_entry *entry)
 {
 	if (entry->needs_confirm)
 		return entry->is_local ? DCCPO_CONFIRM_L : DCCPO_CONFIRM_R;
@@ -87,7 +87,7 @@ static inline u8 dccp_feat_genopt(struct dccp_feat_entry *entry)
  * struct ccid_dependency  -  Track changes resulting from choosing a CCID
  * @dependent_feat: one of %dccp_feature_numbers
  * @is_local: local (1) or remote (0) @dependent_feat
- * @is_mandatory: whether presence of @dependent_feat is mission-critical or not
+ * @is_mandatory: whether presence of @dependent_feat is mission-critical or analt
  * @val: corresponding default value for @dependent_feat (u8 is sufficient here)
  */
 struct ccid_dependency {

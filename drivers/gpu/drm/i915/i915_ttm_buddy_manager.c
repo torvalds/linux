@@ -50,7 +50,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 
 	bman_res = kzalloc(sizeof(*bman_res), GFP_KERNEL);
 	if (!bman_res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttm_resource_init(bo, place, &bman_res->base);
 	INIT_LIST_HEAD(&bman_res->blocks);
@@ -85,7 +85,7 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 	mutex_lock(&bman->lock);
 	if (lpfn <= bman->visible_size && n_pages > bman->visible_avail) {
 		mutex_unlock(&bman->lock);
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_free_res;
 	}
 
@@ -265,7 +265,7 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  * @chunk_size: The minimum page size in bytes for our allocations i.e
  * order-zero
  *
- * Note that the starting address is assumed to be zero here, since this
+ * Analte that the starting address is assumed to be zero here, since this
  * simplifies keeping the property where allocated blocks having natural
  * power-of-two alignment. So long as the real starting address is some large
  * power-of-two, or naturally start from zero, then this should be fine.  Also
@@ -274,7 +274,7 @@ static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
  * revisit this in the future and make the interface accept an actual starting
  * offset and let it take care of the rest.
  *
- * Note that if the @size is not aligned to the @chunk_size then we perform the
+ * Analte that if the @size is analt aligned to the @chunk_size then we perform the
  * required rounding to get the usable size. The final size in pages can be
  * taken from &ttm_resource_manager.size.
  *
@@ -291,7 +291,7 @@ int i915_ttm_buddy_man_init(struct ttm_device *bdev,
 
 	bman = kzalloc(sizeof(*bman), GFP_KERNEL);
 	if (!bman)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = drm_buddy_init(&bman->mm, size, chunk_size);
 	if (err)
@@ -324,7 +324,7 @@ err_free_bman:
  * @bdev: The ttm device
  * @type: Memory type we want to manage
  *
- * Note that if we reserved anything with &i915_ttm_buddy_man_reserve, this will
+ * Analte that if we reserved anything with &i915_ttm_buddy_man_reserve, this will
  * also be freed for us here.
  *
  * Return: 0 on success, negative error code on failure.
@@ -363,7 +363,7 @@ int i915_ttm_buddy_man_fini(struct ttm_device *bdev, unsigned int type)
  * @start: The offset in bytes, where the region start is assumed to be zero
  * @size: The size in bytes
  *
- * Note that the starting address for the region is always assumed to be zero.
+ * Analte that the starting address for the region is always assumed to be zero.
  *
  * Return: 0 on success, negative error code on failure.
  */
@@ -415,7 +415,7 @@ u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man)
  * @man: The buddy allocator ttm manager
  * @avail: The total available memory in pages for the entire manager.
  * @visible_avail: The total available memory in pages for the CPU visible
- * portion. Note that this will always give the same value as @avail on
+ * portion. Analte that this will always give the same value as @avail on
  * configurations that don't have a small BAR.
  */
 void i915_ttm_buddy_man_avail(struct ttm_resource_manager *man,

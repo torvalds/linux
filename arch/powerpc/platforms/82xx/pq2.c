@@ -20,7 +20,7 @@
 
 #define RMR_CSRE 0x00000001
 
-void __noreturn pq2_restart(char *cmd)
+void __analreturn pq2_restart(char *cmd)
 {
 	local_irq_disable();
 	setbits32(&cpm2_immr->im_clkrst.car_rmr, RMR_CSRE);
@@ -31,4 +31,4 @@ void __noreturn pq2_restart(char *cmd)
 
 	panic("Restart failed\n");
 }
-NOKPROBE_SYMBOL(pq2_restart)
+ANALKPROBE_SYMBOL(pq2_restart)

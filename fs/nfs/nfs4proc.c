@@ -14,20 +14,20 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     analtice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- *  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- *  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ *  DISCLAIMED. IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  *  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  *  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
@@ -37,7 +37,7 @@
 
 #include <linux/mm.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/ratelimit.h>
 #include <linux/printk.h>
@@ -94,8 +94,8 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-			      struct nfs_fattr *fattr, struct inode *inode);
-static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
+			      struct nfs_fattr *fattr, struct ianalde *ianalde);
+static int nfs4_do_setattr(struct ianalde *ianalde, const struct cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs_open_context *ctx, struct nfs4_label *ilabel);
 #ifdef CONFIG_NFS_V4_1
@@ -111,7 +111,7 @@ static int nfs41_free_stateid(struct nfs_server *, const nfs4_stateid *,
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 static inline struct nfs4_label *
-nfs4_label_init_security(struct inode *dir, struct dentry *dentry,
+nfs4_label_init_security(struct ianalde *dir, struct dentry *dentry,
 	struct iattr *sattr, struct nfs4_label *label)
 {
 	int err;
@@ -150,7 +150,7 @@ static inline u32 *nfs4_bitmask(struct nfs_server *server, struct nfs4_label *la
 }
 #else
 static inline struct nfs4_label *
-nfs4_label_init_security(struct inode *dir, struct dentry *dentry,
+nfs4_label_init_security(struct ianalde *dir, struct dentry *dentry,
 	struct iattr *sattr, struct nfs4_label *l)
 { return NULL; }
 static inline void
@@ -180,14 +180,14 @@ static int nfs4_map_errors(int err)
 		return -EINVAL;
 	case -NFS4ERR_SHARE_DENIED:
 		return -EACCES;
-	case -NFS4ERR_MINOR_VERS_MISMATCH:
-		return -EPROTONOSUPPORT;
+	case -NFS4ERR_MIANALR_VERS_MISMATCH:
+		return -EPROTOANALSUPPORT;
 	case -NFS4ERR_FILE_OPEN:
 		return -EBUSY;
-	case -NFS4ERR_NOT_SAME:
-		return -ENOTSYNC;
+	case -NFS4ERR_ANALT_SAME:
+		return -EANALTSYNC;
 	default:
-		dprintk("%s could not handle NFSv4 error %d\n",
+		dprintk("%s could analt handle NFSv4 error %d\n",
 				__func__, -err);
 		break;
 	}
@@ -239,7 +239,7 @@ static const u32 nfs4_pnfs_open_bitmap[3] = {
 #endif
 };
 
-static const u32 nfs4_open_noattr_bitmap[3] = {
+static const u32 nfs4_open_analattr_bitmap[3] = {
 	FATTR4_WORD0_TYPE
 	| FATTR4_WORD0_FILEID,
 };
@@ -288,27 +288,27 @@ const u32 nfs4_fs_locations_bitmap[3] = {
 };
 
 static void nfs4_bitmap_copy_adjust(__u32 *dst, const __u32 *src,
-				    struct inode *inode, unsigned long flags)
+				    struct ianalde *ianalde, unsigned long flags)
 {
 	unsigned long cache_validity;
 
 	memcpy(dst, src, NFS4_BITMASK_SZ*sizeof(*dst));
-	if (!inode || !nfs4_have_delegation(inode, FMODE_READ))
+	if (!ianalde || !nfs4_have_delegation(ianalde, FMODE_READ))
 		return;
 
-	cache_validity = READ_ONCE(NFS_I(inode)->cache_validity) | flags;
+	cache_validity = READ_ONCE(NFS_I(ianalde)->cache_validity) | flags;
 
 	/* Remove the attributes over which we have full control */
 	dst[1] &= ~FATTR4_WORD1_RAWDEV;
-	if (!(cache_validity & NFS_INO_INVALID_SIZE))
+	if (!(cache_validity & NFS_IANAL_INVALID_SIZE))
 		dst[0] &= ~FATTR4_WORD0_SIZE;
 
-	if (!(cache_validity & NFS_INO_INVALID_CHANGE))
+	if (!(cache_validity & NFS_IANAL_INVALID_CHANGE))
 		dst[0] &= ~FATTR4_WORD0_CHANGE;
 
-	if (!(cache_validity & NFS_INO_INVALID_MODE))
+	if (!(cache_validity & NFS_IANAL_INVALID_MODE))
 		dst[1] &= ~FATTR4_WORD1_MODE;
-	if (!(cache_validity & NFS_INO_INVALID_OTHER))
+	if (!(cache_validity & NFS_IANAL_INVALID_OTHER))
 		dst[1] &= ~(FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP);
 }
 
@@ -330,9 +330,9 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 		return;
 	
 	/*
-	 * NFSv4 servers do not return entries for '.' and '..'
+	 * NFSv4 servers do analt return entries for '.' and '..'
 	 * Therefore, we fake these entries here.  We let '.'
-	 * have cookie 0 and '..' have cookie 1.  Note that
+	 * have cookie 0 and '..' have cookie 1.  Analte that
 	 * when talking to the server, we always send cookie 0
 	 * instead of 1 or 2.
 	 */
@@ -349,7 +349,7 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 		*p++ = htonl(attrs);                           /* bitmap */
 		*p++ = htonl(12);             /* attribute buffer length */
 		*p++ = htonl(NF4DIR);
-		p = xdr_encode_hyper(p, NFS_FILEID(d_inode(dentry)));
+		p = xdr_encode_hyper(p, NFS_FILEID(d_ianalde(dentry)));
 	}
 	
 	*p++ = xdr_one;                                  /* next */
@@ -362,7 +362,7 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 	*p++ = htonl(attrs);                           /* bitmap */
 	*p++ = htonl(12);             /* attribute buffer length */
 	*p++ = htonl(NF4DIR);
-	p = xdr_encode_hyper(p, NFS_FILEID(d_inode(dentry->d_parent)));
+	p = xdr_encode_hyper(p, NFS_FILEID(d_ianalde(dentry->d_parent)));
 
 	readdir->pgbase = (char *)p - (char *)start;
 	readdir->count -= readdir->pgbase;
@@ -381,7 +381,7 @@ static void nfs4_test_and_free_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
 		const struct cred *cred)
 {
-	const struct nfs4_minor_version_ops *ops = server->nfs_client->cl_mvops;
+	const struct nfs4_mianalr_version_ops *ops = server->nfs_client->cl_mvops;
 
 	ops->test_and_free_expired(server, stateid, cred);
 }
@@ -472,7 +472,7 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_state *state = exception->state;
 	const nfs4_stateid *stateid;
-	struct inode *inode = exception->inode;
+	struct ianalde *ianalde = exception->ianalde;
 	int ret = errorcode;
 
 	exception->delay = 0;
@@ -488,25 +488,25 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 			return 0;
 		case -NFS4ERR_BADHANDLE:
 		case -ESTALE:
-			if (inode != NULL && S_ISREG(inode->i_mode))
-				pnfs_destroy_layout(NFS_I(inode));
+			if (ianalde != NULL && S_ISREG(ianalde->i_mode))
+				pnfs_destroy_layout(NFS_I(ianalde));
 			break;
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_PARTNER_NO_AUTH:
-			if (inode != NULL && stateid != NULL) {
-				nfs_inode_find_state_and_recover(inode,
+		case -NFS4ERR_PARTNER_ANAL_AUTH:
+			if (ianalde != NULL && stateid != NULL) {
+				nfs_ianalde_find_state_and_recover(ianalde,
 						stateid);
 				goto wait_on_recovery;
 			}
 			fallthrough;
 		case -NFS4ERR_OPENMODE:
-			if (inode) {
+			if (ianalde) {
 				int err;
 
-				err = nfs_async_inode_return_delegation(inode,
+				err = nfs_async_ianalde_return_delegation(ianalde,
 						stateid);
 				if (err == 0)
 					goto wait_on_recovery;
@@ -537,7 +537,7 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
 		case -NFS4ERR_BAD_HIGH_SLOT:
-		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		case -NFS4ERR_CONN_ANALT_BOUND_TO_SESSION:
 		case -NFS4ERR_DEADSESSION:
 		case -NFS4ERR_SEQ_FALSE_RETRY:
 		case -NFS4ERR_SEQ_MISORDERED:
@@ -570,11 +570,11 @@ static int nfs4_do_handle_exception(struct nfs_server *server,
 		case -NFS4ERR_BADOWNER:
 			/* The following works around a Linux server bug! */
 		case -NFS4ERR_BADNAME:
-			if (server->caps & NFS_CAP_UIDGID_NOMAP) {
-				server->caps &= ~NFS_CAP_UIDGID_NOMAP;
+			if (server->caps & NFS_CAP_UIDGID_ANALMAP) {
+				server->caps &= ~NFS_CAP_UIDGID_ANALMAP;
 				exception->retry = 1;
 				printk(KERN_WARNING "NFS: v4 server %s "
-						"does not accept raw "
+						"does analt accept raw "
 						"uid/gids. "
 						"Reenabling the idmapper.\n",
 						server->nfs_client->cl_hostname);
@@ -795,12 +795,12 @@ static void nfs41_release_slot(struct nfs4_slot *slot)
 	}
 	nfs4_free_slot(tbl, slot);
 
-	if (tbl->highest_used_slotid != NFS4_NO_SLOT)
+	if (tbl->highest_used_slotid != NFS4_ANAL_SLOT)
 		send_new_highest_used_slotid = false;
 out_unlock:
 	spin_unlock(&tbl->slot_tbl_lock);
 	if (send_new_highest_used_slotid)
-		nfs41_notify_server(session->clp);
+		nfs41_analtify_server(session->clp);
 	if (waitqueue_active(&tbl->slot_waitq))
 		wake_up_all(&tbl->slot_waitq);
 }
@@ -841,7 +841,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 	int ret = 1;
 
 	if (slot == NULL)
-		goto out_noaction;
+		goto out_analaction;
 	/* don't increment the sequence number if the task wasn't sent */
 	if (!RPC_WAS_SENT(task) || slot->seq_done)
 		goto out;
@@ -871,7 +871,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 	case 1:
 		/*
 		 * sr_status remains 1 if an RPC level error occurred.
-		 * The server may or may not have processed the sequence
+		 * The server may or may analt have processed the sequence
 		 * operation..
 		 */
 		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
@@ -902,7 +902,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 */
 		if (slot->slot_nr < slot->table->target_highest_slotid)
 			goto session_recover;
-		goto retry_nowait;
+		goto retry_analwait;
 	case -NFS4ERR_SEQ_MISORDERED:
 		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
 		/*
@@ -920,7 +920,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 				nfs4_probe_sequence(clp, task->tk_msg.rpc_cred, slot);
 				res->sr_slot = NULL;
 			}
-			goto retry_nowait;
+			goto retry_analwait;
 		}
 		/*
 		 * RFC5661:
@@ -936,16 +936,16 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		goto out_retry;
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_DEADSESSION:
-	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+	case -NFS4ERR_CONN_ANALT_BOUND_TO_SESSION:
 		goto session_recover;
 	default:
-		/* Just update the slot sequence no. */
+		/* Just update the slot sequence anal. */
 		slot->seq_done = 1;
 	}
 out:
 	/* The session may be reset by one of the error handlers. */
 	dprintk("%s: Error %d free the slot \n", __func__, res->sr_status);
-out_noaction:
+out_analaction:
 	return ret;
 session_recover:
 	set_bit(NFS4_SLOT_TBL_DRAINING, &session->fc_slot_table.slot_tbl_state);
@@ -955,7 +955,7 @@ session_recover:
 	goto out;
 retry_new_seq:
 	++slot->seq_nr;
-retry_nowait:
+retry_analwait:
 	if (rpc_restart_call_prepare(task)) {
 		nfs41_sequence_free_slot(res);
 		task->tk_status = 0;
@@ -1096,7 +1096,7 @@ int nfs4_setup_sequence(struct nfs_client *client,
 
 	slot = nfs4_alloc_slot(tbl);
 	if (IS_ERR(slot)) {
-		if (slot == ERR_PTR(-ENOMEM))
+		if (slot == ERR_PTR(-EANALMEM))
 			goto out_sleep_timeout;
 		goto out_sleep;
 	}
@@ -1212,44 +1212,44 @@ int nfs4_call_sync(struct rpc_clnt *clnt,
 }
 
 static void
-nfs4_inc_nlink_locked(struct inode *inode)
+nfs4_inc_nlink_locked(struct ianalde *ianalde)
 {
-	nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
-					     NFS_INO_INVALID_CTIME |
-					     NFS_INO_INVALID_NLINK);
-	inc_nlink(inode);
+	nfs_set_cache_invalid(ianalde, NFS_IANAL_INVALID_CHANGE |
+					     NFS_IANAL_INVALID_CTIME |
+					     NFS_IANAL_INVALID_NLINK);
+	inc_nlink(ianalde);
 }
 
 static void
-nfs4_inc_nlink(struct inode *inode)
+nfs4_inc_nlink(struct ianalde *ianalde)
 {
-	spin_lock(&inode->i_lock);
-	nfs4_inc_nlink_locked(inode);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
+	nfs4_inc_nlink_locked(ianalde);
+	spin_unlock(&ianalde->i_lock);
 }
 
 static void
-nfs4_dec_nlink_locked(struct inode *inode)
+nfs4_dec_nlink_locked(struct ianalde *ianalde)
 {
-	nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
-					     NFS_INO_INVALID_CTIME |
-					     NFS_INO_INVALID_NLINK);
-	drop_nlink(inode);
+	nfs_set_cache_invalid(ianalde, NFS_IANAL_INVALID_CHANGE |
+					     NFS_IANAL_INVALID_CTIME |
+					     NFS_IANAL_INVALID_NLINK);
+	drop_nlink(ianalde);
 }
 
 static void
-nfs4_update_changeattr_locked(struct inode *inode,
+nfs4_update_changeattr_locked(struct ianalde *ianalde,
 		struct nfs4_change_info *cinfo,
 		unsigned long timestamp, unsigned long cache_validity)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	u64 change_attr = inode_peek_iversion_raw(inode);
+	struct nfs_ianalde *nfsi = NFS_I(ianalde);
+	u64 change_attr = ianalde_peek_iversion_raw(ianalde);
 
-	cache_validity |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
-	if (S_ISDIR(inode->i_mode))
-		cache_validity |= NFS_INO_INVALID_DATA;
+	cache_validity |= NFS_IANAL_INVALID_CTIME | NFS_IANAL_INVALID_MTIME;
+	if (S_ISDIR(ianalde->i_mode))
+		cache_validity |= NFS_IANAL_INVALID_DATA;
 
-	switch (NFS_SERVER(inode)->change_attr_type) {
+	switch (NFS_SERVER(ianalde)->change_attr_type) {
 	case NFS4_CHANGE_TYPE_IS_UNDEFINED:
 		if (cinfo->after == change_attr)
 			goto out;
@@ -1259,29 +1259,29 @@ nfs4_update_changeattr_locked(struct inode *inode,
 			goto out;
 	}
 
-	inode_set_iversion_raw(inode, cinfo->after);
+	ianalde_set_iversion_raw(ianalde, cinfo->after);
 	if (!cinfo->atomic || cinfo->before != change_attr) {
-		if (S_ISDIR(inode->i_mode))
-			nfs_force_lookup_revalidate(inode);
+		if (S_ISDIR(ianalde->i_mode))
+			nfs_force_lookup_revalidate(ianalde);
 
-		if (!NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		if (!NFS_PROTO(ianalde)->have_delegation(ianalde, FMODE_READ))
 			cache_validity |=
-				NFS_INO_INVALID_ACCESS | NFS_INO_INVALID_ACL |
-				NFS_INO_INVALID_SIZE | NFS_INO_INVALID_OTHER |
-				NFS_INO_INVALID_BLOCKS | NFS_INO_INVALID_NLINK |
-				NFS_INO_INVALID_MODE | NFS_INO_INVALID_XATTR;
-		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
+				NFS_IANAL_INVALID_ACCESS | NFS_IANAL_INVALID_ACL |
+				NFS_IANAL_INVALID_SIZE | NFS_IANAL_INVALID_OTHER |
+				NFS_IANAL_INVALID_BLOCKS | NFS_IANAL_INVALID_NLINK |
+				NFS_IANAL_INVALID_MODE | NFS_IANAL_INVALID_XATTR;
+		nfsi->attrtimeo = NFS_MINATTRTIMEO(ianalde);
 	}
 	nfsi->attrtimeo_timestamp = jiffies;
 	nfsi->read_cache_jiffies = timestamp;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
-	nfsi->cache_validity &= ~NFS_INO_INVALID_CHANGE;
+	nfsi->cache_validity &= ~NFS_IANAL_INVALID_CHANGE;
 out:
-	nfs_set_cache_invalid(inode, cache_validity);
+	nfs_set_cache_invalid(ianalde, cache_validity);
 }
 
 void
-nfs4_update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo,
+nfs4_update_changeattr(struct ianalde *dir, struct nfs4_change_info *cinfo,
 		unsigned long timestamp, unsigned long cache_validity)
 {
 	spin_lock(&dir->i_lock);
@@ -1337,9 +1337,9 @@ nfs4_map_atomic_open_share(struct nfs_server *server,
 	}
 	if (!(server->caps & NFS_CAP_ATOMIC_OPEN_V1))
 		goto out;
-	/* Want no delegation if we're using O_DIRECT */
+	/* Want anal delegation if we're using O_DIRECT */
 	if (openflags & O_DIRECT)
-		res |= NFS4_SHARE_WANT_NO_DELEG;
+		res |= NFS4_SHARE_WANT_ANAL_DELEG;
 out:
 	return res;
 }
@@ -1380,7 +1380,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 		gfp_t gfp_mask)
 {
 	struct dentry *parent = dget_parent(dentry);
-	struct inode *dir = d_inode(parent);
+	struct ianalde *dir = d_ianalde(parent);
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	struct nfs4_label *label = (c != NULL) ? c->label : NULL;
@@ -1452,7 +1452,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	case NFS4_OPEN_CLAIM_FH:
 	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
-		p->o_arg.fh = NFS_FH(d_inode(dentry));
+		p->o_arg.fh = NFS_FH(d_ianalde(dentry));
 	}
 	p->c_arg.fh = &p->o_res.fh;
 	p->c_arg.stateid = &p->o_res.stateid;
@@ -1616,14 +1616,14 @@ static void nfs_test_and_clear_all_open_stateid(struct nfs4_state *state)
 	if (test_and_clear_bit(NFS_O_RDWR_STATE, &state->flags) && state->n_rdwr)
 		need_recover = true;
 	if (need_recover)
-		nfs4_state_mark_reclaim_nograce(clp, state);
+		nfs4_state_mark_reclaim_analgrace(clp, state);
 }
 
 /*
- * Check for whether or not the caller may update the open stateid
+ * Check for whether or analt the caller may update the open stateid
  * to the value passed in by stateid.
  *
- * Note: This function relies heavily on the server implementing
+ * Analte: This function relies heavily on the server implementing
  * RFC7530 Section 9.1.4.2, and RFC5661 Section 8.2.2
  * correctly.
  * i.e. The stateid seqids have to be initialised to 1, and
@@ -1687,7 +1687,7 @@ static void nfs_clear_open_stateid_locked(struct nfs4_state *state,
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
 		nfs4_stateid_copy(&state->stateid, stateid);
 	nfs4_stateid_copy(&state->open_stateid, stateid);
-	trace_nfs4_open_stateid_update(state->inode, stateid, 0);
+	trace_nfs4_open_stateid_update(state->ianalde, stateid, 0);
 out:
 	nfs_state_log_update_open_stateid(state);
 }
@@ -1697,11 +1697,11 @@ static void nfs_clear_open_stateid(struct nfs4_state *state,
 	nfs4_stateid *stateid, fmode_t fmode)
 {
 	write_seqlock(&state->seqlock);
-	/* Ignore, if the CLOSE argment doesn't match the current stateid */
+	/* Iganalre, if the CLOSE argment doesn't match the current stateid */
 	if (nfs4_state_match_open_stateid_other(state, arg_stateid))
 		nfs_clear_open_stateid_locked(state, stateid, fmode);
 	write_sequnlock(&state->seqlock);
-	if (test_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags))
+	if (test_bit(NFS_STATE_RECLAIM_ANALGRACE, &state->flags))
 		nfs4_schedule_state_manager(state->owner->so_server->nfs_client);
 }
 
@@ -1722,7 +1722,7 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 		if (status)
 			break;
 		/* Rely on seqids for serialisation with NFSv4.0 */
-		if (!nfs4_has_session(NFS_SERVER(state->inode)->nfs_client))
+		if (!nfs4_has_session(NFS_SERVER(state->ianalde)->nfs_client))
 			break;
 
 		set_bit(NFS_STATE_CHANGE_WAIT, &state->flags);
@@ -1735,7 +1735,7 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 		write_sequnlock(&state->seqlock);
 		spin_unlock(&state->owner->so_lock);
 		rcu_read_unlock();
-		trace_nfs4_open_stateid_update_wait(state->inode, stateid, 0);
+		trace_nfs4_open_stateid_update_wait(state->ianalde, stateid, 0);
 
 		if (!fatal_signal_pending(current)) {
 			if (schedule_timeout(5*HZ) == 0)
@@ -1759,7 +1759,7 @@ static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags) == 0)
 		nfs4_stateid_copy(&state->stateid, stateid);
 	nfs4_stateid_copy(&state->open_stateid, stateid);
-	trace_nfs4_open_stateid_update(state->inode, stateid, status);
+	trace_nfs4_open_stateid_update(state->ianalde, stateid, status);
 	nfs_state_log_update_open_stateid(state);
 }
 
@@ -1823,9 +1823,9 @@ int update_open_stateid(struct nfs4_state *state,
 		const nfs4_stateid *delegation,
 		fmode_t fmode)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs_client *clp = server->nfs_client;
-	struct nfs_inode *nfsi = NFS_I(state->inode);
+	struct nfs_ianalde *nfsi = NFS_I(state->ianalde);
 	struct nfs_delegation *deleg_cur;
 	nfs4_stateid freeme = { };
 	int ret = 0;
@@ -1839,33 +1839,33 @@ int update_open_stateid(struct nfs4_state *state,
 		ret = 1;
 	}
 
-	deleg_cur = nfs4_get_valid_delegation(state->inode);
+	deleg_cur = nfs4_get_valid_delegation(state->ianalde);
 	if (deleg_cur == NULL)
-		goto no_delegation;
+		goto anal_delegation;
 
 	spin_lock(&deleg_cur->lock);
 	if (rcu_dereference(nfsi->delegation) != deleg_cur ||
 	   test_bit(NFS_DELEGATION_RETURNING, &deleg_cur->flags) ||
 	    (deleg_cur->type & fmode) != fmode)
-		goto no_delegation_unlock;
+		goto anal_delegation_unlock;
 
 	if (delegation == NULL)
 		delegation = &deleg_cur->stateid;
 	else if (!nfs4_stateid_match_other(&deleg_cur->stateid, delegation))
-		goto no_delegation_unlock;
+		goto anal_delegation_unlock;
 
 	nfs_mark_delegation_referenced(deleg_cur);
 	nfs_state_set_delegation(state, &deleg_cur->stateid, fmode);
 	ret = 1;
-no_delegation_unlock:
+anal_delegation_unlock:
 	spin_unlock(&deleg_cur->lock);
-no_delegation:
+anal_delegation:
 	if (ret)
 		update_open_stateflags(state, fmode);
 	spin_unlock(&state->owner->so_lock);
 	rcu_read_unlock();
 
-	if (test_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags))
+	if (test_bit(NFS_STATE_RECLAIM_ANALGRACE, &state->flags))
 		nfs4_schedule_state_manager(clp);
 	if (freeme.type != 0)
 		nfs4_test_and_free_stateid(server, &freeme,
@@ -1882,29 +1882,29 @@ static bool nfs4_update_lock_stateid(struct nfs4_lock_state *lsp,
 
 	spin_lock(&state->state_lock);
 	if (!nfs4_stateid_match_other(stateid, &lsp->ls_stateid))
-		goto out_noupdate;
+		goto out_analupdate;
 	if (!nfs4_stateid_is_newer(stateid, &lsp->ls_stateid))
-		goto out_noupdate;
+		goto out_analupdate;
 	nfs4_stateid_copy(&lsp->ls_stateid, stateid);
 	ret = true;
-out_noupdate:
+out_analupdate:
 	spin_unlock(&state->state_lock);
 	return ret;
 }
 
-static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmode)
+static void nfs4_return_incompatible_delegation(struct ianalde *ianalde, fmode_t fmode)
 {
 	struct nfs_delegation *delegation;
 
 	fmode &= FMODE_READ|FMODE_WRITE;
 	rcu_read_lock();
-	delegation = nfs4_get_valid_delegation(inode);
+	delegation = nfs4_get_valid_delegation(ianalde);
 	if (delegation == NULL || (delegation->type & fmode) == fmode) {
 		rcu_read_unlock();
 		return;
 	}
 	rcu_read_unlock();
-	nfs4_inode_return_delegation(inode);
+	nfs4_ianalde_return_delegation(ianalde);
 }
 
 static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
@@ -1926,7 +1926,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		}
 		spin_unlock(&state->owner->so_lock);
 		rcu_read_lock();
-		delegation = nfs4_get_valid_delegation(state->inode);
+		delegation = nfs4_get_valid_delegation(state->ianalde);
 		if (!can_open_delegated(delegation, fmode, claim)) {
 			rcu_read_unlock();
 			break;
@@ -1936,7 +1936,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		rcu_read_unlock();
 		nfs_release_seqid(opendata->o_arg.seqid);
 		if (!opendata->is_recover) {
-			ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
+			ret = nfs_may_open(state->ianalde, state->owner->so_cred, open_mode);
 			if (ret != 0)
 				goto out;
 		}
@@ -1956,12 +1956,12 @@ out_return_state:
 static void
 nfs4_opendata_check_deleg(struct nfs4_opendata *data, struct nfs4_state *state)
 {
-	struct nfs_client *clp = NFS_SERVER(state->inode)->nfs_client;
+	struct nfs_client *clp = NFS_SERVER(state->ianalde)->nfs_client;
 	struct nfs_delegation *delegation;
 	int delegation_flags = 0;
 
 	rcu_read_lock();
-	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
+	delegation = rcu_dereference(NFS_I(state->ianalde)->delegation);
 	if (delegation)
 		delegation_flags = delegation->flags;
 	rcu_read_unlock();
@@ -1977,31 +1977,31 @@ nfs4_opendata_check_deleg(struct nfs4_opendata *data, struct nfs4_state *state)
 		return;
 	}
 	if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
-		nfs_inode_set_delegation(state->inode,
+		nfs_ianalde_set_delegation(state->ianalde,
 				data->owner->so_cred,
 				data->o_res.delegation_type,
 				&data->o_res.delegation,
 				data->o_res.pagemod_limit);
 	else
-		nfs_inode_reclaim_delegation(state->inode,
+		nfs_ianalde_reclaim_delegation(state->ianalde,
 				data->owner->so_cred,
 				data->o_res.delegation_type,
 				&data->o_res.delegation,
 				data->o_res.pagemod_limit);
 
 	if (data->o_res.do_recall)
-		nfs_async_inode_return_delegation(state->inode,
+		nfs_async_ianalde_return_delegation(state->ianalde,
 						  &data->o_res.delegation);
 }
 
 /*
- * Check the inode attributes against the CLAIM_PREVIOUS returned attributes
+ * Check the ianalde attributes against the CLAIM_PREVIOUS returned attributes
  * and update the nfs4_state.
  */
 static struct nfs4_state *
 _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 {
-	struct inode *inode = data->state->inode;
+	struct ianalde *ianalde = data->state->ianalde;
 	struct nfs4_state *state = data->state;
 	int ret;
 
@@ -2011,7 +2011,7 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 		return nfs4_try_open_cached(data);
 	}
 
-	ret = nfs_refresh_inode(inode, &data->f_attr);
+	ret = nfs_refresh_ianalde(ianalde, &data->f_attr);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -2026,10 +2026,10 @@ _nfs4_opendata_reclaim_to_nfs4_state(struct nfs4_opendata *data)
 	return state;
 }
 
-static struct inode *
-nfs4_opendata_get_inode(struct nfs4_opendata *data)
+static struct ianalde *
+nfs4_opendata_get_ianalde(struct nfs4_opendata *data)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	switch (data->o_arg.claim) {
 	case NFS4_OPEN_CLAIM_NULL:
@@ -2037,34 +2037,34 @@ nfs4_opendata_get_inode(struct nfs4_opendata *data)
 	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
 		if (!(data->f_attr.valid & NFS_ATTR_FATTR))
 			return ERR_PTR(-EAGAIN);
-		inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh,
+		ianalde = nfs_fhget(data->dir->d_sb, &data->o_res.fh,
 				&data->f_attr);
 		break;
 	default:
-		inode = d_inode(data->dentry);
-		ihold(inode);
-		nfs_refresh_inode(inode, &data->f_attr);
+		ianalde = d_ianalde(data->dentry);
+		ihold(ianalde);
+		nfs_refresh_ianalde(ianalde, &data->f_attr);
 	}
-	return inode;
+	return ianalde;
 }
 
 static struct nfs4_state *
 nfs4_opendata_find_nfs4_state(struct nfs4_opendata *data)
 {
 	struct nfs4_state *state;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = nfs4_opendata_get_inode(data);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	if (data->state != NULL && data->state->inode == inode) {
+	ianalde = nfs4_opendata_get_ianalde(data);
+	if (IS_ERR(ianalde))
+		return ERR_CAST(ianalde);
+	if (data->state != NULL && data->state->ianalde == ianalde) {
 		state = data->state;
 		refcount_inc(&state->count);
 	} else
-		state = nfs4_get_open_state(inode, data->owner);
-	iput(inode);
+		state = nfs4_get_open_state(ianalde, data->owner);
+	iput(ianalde);
 	if (state == NULL)
-		state = ERR_PTR(-ENOMEM);
+		state = ERR_PTR(-EANALMEM);
 	return state;
 }
 
@@ -2111,7 +2111,7 @@ nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 static struct nfs_open_context *
 nfs4_state_find_open_context_mode(struct nfs4_state *state, fmode_t mode)
 {
-	struct nfs_inode *nfsi = NFS_I(state->inode);
+	struct nfs_ianalde *nfsi = NFS_I(state->ianalde);
 	struct nfs_open_context *ctx;
 
 	rcu_read_lock();
@@ -2126,7 +2126,7 @@ nfs4_state_find_open_context_mode(struct nfs4_state *state, fmode_t mode)
 		return ctx;
 	}
 	rcu_read_unlock();
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static struct nfs_open_context *
@@ -2149,9 +2149,9 @@ static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context
 	struct nfs4_opendata *opendata;
 
 	opendata = nfs4_opendata_alloc(ctx->dentry, state->owner, 0, 0,
-			NULL, claim, GFP_NOFS);
+			NULL, claim, GFP_ANALFS);
 	if (opendata == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	opendata->state = state;
 	refcount_inc(&state->count);
 	return opendata;
@@ -2230,7 +2230,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	rcu_read_lock();
-	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
+	delegation = rcu_dereference(NFS_I(state->ianalde)->delegation);
 	if (delegation != NULL && test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) != 0)
 		delegation_type = delegation->type;
 	rcu_read_unlock();
@@ -2242,7 +2242,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 
 static int nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state *state)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs4_exception exception = { };
 	int err;
 	do {
@@ -2280,7 +2280,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 					"%d.\n", __func__, err);
 			fallthrough;
 		case 0:
-		case -ENOENT:
+		case -EANALENT:
 		case -EAGAIN:
 		case -ESTALE:
 		case -ETIMEDOUT:
@@ -2288,7 +2288,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
 		case -NFS4ERR_BAD_HIGH_SLOT:
-		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		case -NFS4ERR_CONN_ANALT_BOUND_TO_SESSION:
 		case -NFS4ERR_DEADSESSION:
 			return -EAGAIN;
 		case -NFS4ERR_STALE_CLIENTID:
@@ -2307,7 +2307,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 		case -NFS4ERR_EXPIRED:
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_OPENMODE:
-			nfs_inode_find_state_and_recover(state->inode,
+			nfs_ianalde_find_state_and_recover(state->ianalde,
 					stateid);
 			nfs4_schedule_stateid_recovery(server, state);
 			return -EAGAIN;
@@ -2315,7 +2315,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 		case -NFS4ERR_GRACE:
 			ssleep(1);
 			return -EAGAIN;
-		case -ENOMEM:
+		case -EANALMEM:
 		case -NFS4ERR_DENIED:
 			if (fl) {
 				struct nfs4_lock_state *lsp = fl->fl_u.nfs4_fl.owner;
@@ -2330,7 +2330,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 int nfs4_open_delegation_recall(struct nfs_open_context *ctx,
 		struct nfs4_state *state, const nfs4_stateid *stateid)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs4_opendata *opendata;
 	int err = 0;
 
@@ -2388,10 +2388,10 @@ static void nfs4_open_confirm_release(void *calldata)
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state *state = NULL;
 
-	/* If this request hasn't been cancelled, do nothing */
+	/* If this request hasn't been cancelled, do analthing */
 	if (!data->cancelled)
 		goto out_free;
-	/* In case of error, no cleanup! */
+	/* In case of error, anal cleanup! */
 	if (!data->rpc_done)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
@@ -2408,11 +2408,11 @@ static const struct rpc_call_ops nfs4_open_confirm_ops = {
 };
 
 /*
- * Note: On error, nfs4_proc_open_confirm will free the struct nfs4_opendata
+ * Analte: On error, nfs4_proc_open_confirm will free the struct nfs4_opendata
  */
 static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 {
-	struct nfs_server *server = NFS_SERVER(d_inode(data->dir));
+	struct nfs_server *server = NFS_SERVER(d_ianalde(data->dir));
 	struct rpc_task *task;
 	struct  rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_CONFIRM],
@@ -2426,7 +2426,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 		.callback_ops = &nfs4_open_confirm_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_ANALREF,
 	};
 	int status;
 
@@ -2467,11 +2467,11 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 
 		if (can_open_cached(data->state, data->o_arg.fmode,
 					data->o_arg.open_flags, claim))
-			goto out_no_action;
+			goto out_anal_action;
 		rcu_read_lock();
-		delegation = nfs4_get_valid_delegation(data->state->inode);
+		delegation = nfs4_get_valid_delegation(data->state->ianalde);
 		if (can_open_delegated(delegation, data->o_arg.fmode, claim))
-			goto unlock_no_action;
+			goto unlock_anal_action;
 		rcu_read_unlock();
 	}
 	/* Update client id. */
@@ -2482,10 +2482,10 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	case NFS4_OPEN_CLAIM_PREVIOUS:
 	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
-		data->o_arg.open_bitmap = &nfs4_open_noattr_bitmap[0];
+		data->o_arg.open_bitmap = &nfs4_open_analattr_bitmap[0];
 		fallthrough;
 	case NFS4_OPEN_CLAIM_FH:
-		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_ANALATTR];
 	}
 	data->timestamp = jiffies;
 	if (nfs4_setup_sequence(data->o_arg.server->nfs_client,
@@ -2494,11 +2494,11 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 				task) != 0)
 		nfs_release_seqid(data->o_arg.seqid);
 
-	/* Set the create mode (note dependency on the session type) */
+	/* Set the create mode (analte dependency on the session type) */
 	data->o_arg.createmode = NFS4_CREATE_UNCHECKED;
 	if (data->o_arg.open_flags & O_EXCL) {
 		data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE4_1;
-		if (clp->cl_mvops->minor_version == 0) {
+		if (clp->cl_mvops->mianalr_version == 0) {
 			data->o_arg.createmode = NFS4_CREATE_EXCLUSIVE;
 			/* don't put an ACCESS op in OPEN compound if O_EXCL,
 			 * because ACCESS will return permission denied for
@@ -2508,10 +2508,10 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 			data->o_arg.createmode = NFS4_CREATE_GUARDED;
 	}
 	return;
-unlock_no_action:
+unlock_anal_action:
 	trace_nfs4_cached_open(data->state);
 	rcu_read_unlock();
-out_no_action:
+out_anal_action:
 	task->tk_action = NULL;
 out_wait:
 	nfs4_sequence_done(task, &data->o_res.seq_res);
@@ -2538,7 +2538,7 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 				data->rpc_status = -EISDIR;
 				break;
 			default:
-				data->rpc_status = -ENOTDIR;
+				data->rpc_status = -EANALTDIR;
 			}
 		}
 		renew_lease(data->o_res.server, data->timestamp);
@@ -2553,13 +2553,13 @@ static void nfs4_open_release(void *calldata)
 	struct nfs4_opendata *data = calldata;
 	struct nfs4_state *state = NULL;
 
-	/* If this request hasn't been cancelled, do nothing */
+	/* If this request hasn't been cancelled, do analthing */
 	if (!data->cancelled)
 		goto out_free;
-	/* In case of error, no cleanup! */
+	/* In case of error, anal cleanup! */
 	if (data->rpc_status != 0 || !data->rpc_done)
 		goto out_free;
-	/* In case we need an open_confirm, no cleanup! */
+	/* In case we need an open_confirm, anal cleanup! */
 	if (data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
@@ -2578,7 +2578,7 @@ static const struct rpc_call_ops nfs4_open_ops = {
 static int nfs4_run_open_task(struct nfs4_opendata *data,
 			      struct nfs_open_context *ctx)
 {
-	struct inode *dir = d_inode(data->dir);
+	struct ianalde *dir = d_ianalde(data->dir);
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_openargs *o_arg = &data->o_arg;
 	struct nfs_openres *o_res = &data->o_res;
@@ -2595,7 +2595,7 @@ static int nfs4_run_open_task(struct nfs4_opendata *data,
 		.callback_ops = &nfs4_open_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_ANALREF,
 	};
 	int status;
 
@@ -2631,7 +2631,7 @@ static int nfs4_run_open_task(struct nfs4_opendata *data,
 
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
 {
-	struct inode *dir = d_inode(data->dir);
+	struct ianalde *dir = d_ianalde(data->dir);
 	struct nfs_openres *o_res = &data->o_res;
 	int status;
 
@@ -2652,7 +2652,7 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
  * open for read, and an open for execute. This works around the
  * fact that NFSv4 OPEN treats read and execute permissions as being
  * the same.
- * Note that in the non-execute case, we want to turn off permission
+ * Analte that in the analn-execute case, we want to turn off permission
  * checking if we just created a new file (POSIX open() semantics).
  */
 static int nfs4_opendata_access(const struct cred *cred,
@@ -2670,7 +2670,7 @@ static int nfs4_opendata_access(const struct cred *cred,
 	mask = 0;
 	if (fmode & FMODE_EXEC) {
 		/* ONLY check for exec rights */
-		if (S_ISDIR(state->inode->i_mode))
+		if (S_ISDIR(state->ianalde->i_mode))
 			mask = NFS4_ACCESS_LOOKUP;
 		else
 			mask = NFS4_ACCESS_EXECUTE;
@@ -2678,7 +2678,7 @@ static int nfs4_opendata_access(const struct cred *cred,
 		mask = NFS4_ACCESS_READ;
 
 	nfs_access_set_mask(&cache, opendata->o_res.access_result);
-	nfs_access_add_cache(state->inode, &cache, cred);
+	nfs_access_add_cache(state->ianalde, &cache, cred);
 
 	flags = NFS4_ACCESS_READ | NFS4_ACCESS_EXECUTE | NFS4_ACCESS_LOOKUP;
 	if ((mask & ~cache.mask & flags) == 0)
@@ -2688,12 +2688,12 @@ static int nfs4_opendata_access(const struct cred *cred,
 }
 
 /*
- * Note: On error, nfs4_proc_open will free the struct nfs4_opendata
+ * Analte: On error, nfs4_proc_open will free the struct nfs4_opendata
  */
 static int _nfs4_proc_open(struct nfs4_opendata *data,
 			   struct nfs_open_context *ctx)
 {
-	struct inode *dir = d_inode(data->dir);
+	struct ianalde *dir = d_ianalde(data->dir);
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_openargs *o_arg = &data->o_arg;
 	struct nfs_openres *o_res = &data->o_res;
@@ -2705,7 +2705,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data,
 	if (status != 0) {
 		if (status == -NFS4ERR_BADNAME &&
 				!(o_arg->open_flags & O_CREAT))
-			return -ENOENT;
+			return -EANALENT;
 		return status;
 	}
 
@@ -2717,10 +2717,10 @@ static int _nfs4_proc_open(struct nfs4_opendata *data,
 		else if (o_res->cinfo.before != o_res->cinfo.after)
 			data->file_created = true;
 		if (data->file_created ||
-		    inode_peek_iversion_raw(dir) != o_res->cinfo.after)
+		    ianalde_peek_iversion_raw(dir) != o_res->cinfo.after)
 			nfs4_update_changeattr(dir, &o_res->cinfo,
 					o_res->f_attr->time_start,
-					NFS_INO_INVALID_DATA);
+					NFS_IANAL_INVALID_DATA);
 	}
 	if ((o_res->rflags & NFS4_OPEN_RESULT_LOCKTYPE_POSIX) == 0)
 		server->caps &= ~NFS_CAP_POSIX_LOCK;
@@ -2734,7 +2734,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data,
 
 		nfs4_sequence_free_slot(&o_res->seq_res);
 		if (o_arg->claim == NFS4_OPEN_CLAIM_FH)
-			fh = NFS_FH(d_inode(data->dentry));
+			fh = NFS_FH(d_ianalde(data->dentry));
 		nfs4_proc_getattr(server, fh, o_res->f_attr, NULL);
 	}
 	return 0;
@@ -2754,7 +2754,7 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	/*
-	 * We're not recovering a delegation, so ask for no delegation.
+	 * We're analt recovering a delegation, so ask for anal delegation.
 	 * Otherwise the recovery thread could deadlock with an outstanding
 	 * delegation return.
 	 */
@@ -2768,7 +2768,7 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 
 static int nfs4_do_open_expired(struct nfs_open_context *ctx, struct nfs4_state *state)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs4_exception exception = { };
 	int err;
 
@@ -2806,13 +2806,13 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 static void nfs_finish_clear_delegation_stateid(struct nfs4_state *state,
 		const nfs4_stateid *stateid)
 {
-	nfs_remove_bad_delegation(state->inode, stateid);
+	nfs_remove_bad_delegation(state->ianalde, stateid);
 	nfs_state_clear_delegation(state);
 }
 
 static void nfs40_clear_delegation_stateid(struct nfs4_state *state)
 {
-	if (rcu_access_pointer(NFS_I(state->inode)->delegation) != NULL)
+	if (rcu_access_pointer(NFS_I(state->ianalde)->delegation) != NULL)
 		nfs_finish_clear_delegation_stateid(state, NULL);
 }
 
@@ -2865,7 +2865,7 @@ out_free:
 
 static int nfs41_check_delegation_stateid(struct nfs4_state *state)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	nfs4_stateid stateid;
 	struct nfs_delegation *delegation;
 	const struct cred *cred = NULL;
@@ -2873,7 +2873,7 @@ static int nfs41_check_delegation_stateid(struct nfs4_state *state)
 
 	/* Get the delegation credential for use by test/free_stateid */
 	rcu_read_lock();
-	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
+	delegation = rcu_dereference(NFS_I(state->ianalde)->delegation);
 	if (delegation == NULL) {
 		rcu_read_unlock();
 		nfs_state_clear_delegation(state);
@@ -2910,7 +2910,7 @@ static void nfs41_delegation_recover_stateid(struct nfs4_state *state)
 	nfs4_stateid tmp;
 
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags) &&
-	    nfs4_copy_delegation_stateid(state->inode, state->state,
+	    nfs4_copy_delegation_stateid(state->ianalde, state->state,
 				&tmp, NULL) &&
 	    nfs4_stateid_match_other(&state->stateid, &tmp))
 		nfs_state_set_delegation(state, &tmp, state->state);
@@ -2921,16 +2921,16 @@ static void nfs41_delegation_recover_stateid(struct nfs4_state *state)
 /**
  * nfs41_check_expired_locks - possibly free a lock stateid
  *
- * @state: NFSv4 state for an inode
+ * @state: NFSv4 state for an ianalde
  *
- * Returns NFS_OK if recovery for this stateid is now finished.
+ * Returns NFS_OK if recovery for this stateid is analw finished.
  * Otherwise a negative NFS4ERR value is returned.
  */
 static int nfs41_check_expired_locks(struct nfs4_state *state)
 {
 	int status, ret = NFS_OK;
 	struct nfs4_lock_state *lsp, *prev = NULL;
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 
 	if (!test_bit(LK_STATE_IN_USE, &state->flags))
 		goto out;
@@ -2973,14 +2973,14 @@ out:
 /**
  * nfs41_check_open_stateid - possibly free an open stateid
  *
- * @state: NFSv4 state for an inode
+ * @state: NFSv4 state for an ianalde
  *
- * Returns NFS_OK if recovery for this stateid is now finished.
+ * Returns NFS_OK if recovery for this stateid is analw finished.
  * Otherwise a negative NFS4ERR value is returned.
  */
 static int nfs41_check_open_stateid(struct nfs4_state *state)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	nfs4_stateid *stateid = &state->open_stateid;
 	const struct cred *cred = state->owner->so_cred;
 	int status;
@@ -3067,7 +3067,7 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	struct dentry *dentry;
 	struct nfs4_state *state;
 	fmode_t acc_mode = _nfs4_ctx_to_accessmode(ctx);
-	struct inode *dir = d_inode(opendata->dir);
+	struct ianalde *dir = d_ianalde(opendata->dir);
 	unsigned long dir_verifier;
 	unsigned int seq;
 	int ret;
@@ -3086,19 +3086,19 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	ctx->state = state;
 	if (server->caps & NFS_CAP_POSIX_LOCK)
 		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
-	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_MAY_NOTIFY_LOCK)
-		set_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags);
+	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_MAY_ANALTIFY_LOCK)
+		set_bit(NFS_STATE_MAY_ANALTIFY_LOCK, &state->flags);
 	if (opendata->o_res.rflags & NFS4_OPEN_RESULT_PRESERVE_UNLINKED)
-		set_bit(NFS_INO_PRESERVE_UNLINKED, &NFS_I(state->inode)->flags);
+		set_bit(NFS_IANAL_PRESERVE_UNLINKED, &NFS_I(state->ianalde)->flags);
 
 	dentry = opendata->dentry;
 	if (d_really_is_negative(dentry)) {
 		struct dentry *alias;
 		d_drop(dentry);
-		alias = d_exact_alias(dentry, state->inode);
+		alias = d_exact_alias(dentry, state->ianalde);
 		if (!alias)
-			alias = d_splice_alias(igrab(state->inode), dentry);
-		/* d_splice_alias() can't fail here - it's a non-directory */
+			alias = d_splice_alias(igrab(state->ianalde), dentry);
+		/* d_splice_alias() can't fail here - it's a analn-directory */
 		if (alias) {
 			dput(ctx->dentry);
 			ctx->dentry = dentry = alias;
@@ -3119,14 +3119,14 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	}
 
 	/* Parse layoutget results before we check for access */
-	pnfs_parse_lgopen(state->inode, opendata->lgp, ctx);
+	pnfs_parse_lgopen(state->ianalde, opendata->lgp, ctx);
 
 	ret = nfs4_opendata_access(sp->so_cred, opendata, state, acc_mode);
 	if (ret != 0)
 		goto out;
 
-	if (d_inode(dentry) == state->inode) {
-		nfs_inode_attach_open_context(ctx);
+	if (d_ianalde(dentry) == state->ianalde) {
+		nfs_ianalde_attach_open_context(ctx);
 		if (read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
 			nfs4_schedule_stateid_recovery(server, state);
 	}
@@ -3145,7 +3145,7 @@ out:
 /*
  * Returns a referenced nfs4_state
  */
-static int _nfs4_do_open(struct inode *dir,
+static int _nfs4_do_open(struct ianalde *dir,
 			struct nfs_open_context *ctx,
 			int flags,
 			const struct nfs4_open_createattrs *c,
@@ -3165,7 +3165,7 @@ static int _nfs4_do_open(struct inode *dir,
 	int status;
 
 	/* Protect against reboot recovery conflicts */
-	status = -ENOMEM;
+	status = -EANALMEM;
 	sp = nfs4_get_state_owner(server, cred, GFP_KERNEL);
 	if (sp == NULL) {
 		dprintk("nfs4_do_open: nfs4_get_state_owner failed!\n");
@@ -3175,8 +3175,8 @@ static int _nfs4_do_open(struct inode *dir,
 	if (status != 0)
 		goto err_put_state_owner;
 	if (d_really_is_positive(dentry))
-		nfs4_return_incompatible_delegation(d_inode(dentry), fmode);
-	status = -ENOMEM;
+		nfs4_return_incompatible_delegation(d_ianalde(dentry), fmode);
+	status = -EANALMEM;
 	if (d_really_is_positive(dentry))
 		claim = NFS4_OPEN_CLAIM_FH;
 	opendata = nfs4_opendata_alloc(dentry, sp, fmode, flags,
@@ -3193,7 +3193,7 @@ static int _nfs4_do_open(struct inode *dir,
 		opendata->o_arg.open_bitmap = &nfs4_pnfs_open_bitmap[0];
 	}
 	if (d_really_is_positive(dentry))
-		opendata->state = nfs4_get_open_state(d_inode(dentry), sp);
+		opendata->state = nfs4_get_open_state(d_ianalde(dentry), sp);
 
 	status = _nfs4_open_and_get_state(opendata, ctx);
 	if (status != 0)
@@ -3204,7 +3204,7 @@ static int _nfs4_do_open(struct inode *dir,
 	    (opendata->o_arg.createmode != NFS4_CREATE_GUARDED)) {
 		unsigned attrs = nfs4_exclusive_attrset(opendata, sattr, &label);
 		/*
-		 * send create attributes which was not set by open
+		 * send create attributes which was analt set by open
 		 * with an extra setattr.
 		 */
 		if (attrs || label) {
@@ -3212,13 +3212,13 @@ static int _nfs4_do_open(struct inode *dir,
 
 			sattr->ia_valid = attrs;
 			nfs_fattr_init(opendata->o_res.f_attr);
-			status = nfs4_do_setattr(state->inode, cred,
+			status = nfs4_do_setattr(state->ianalde, cred,
 					opendata->o_res.f_attr, sattr,
 					ctx, label);
 			if (status == 0) {
-				nfs_setattr_update_inode(state->inode, sattr,
+				nfs_setattr_update_ianalde(state->ianalde, sattr,
 						opendata->o_res.f_attr);
-				nfs_setsecurity(state->inode, opendata->o_res.f_attr);
+				nfs_setsecurity(state->ianalde, opendata->o_res.f_attr);
 			}
 			sattr->ia_valid = ia_old;
 		}
@@ -3243,7 +3243,7 @@ out_err:
 }
 
 
-static struct nfs4_state *nfs4_do_open(struct inode *dir,
+static struct nfs4_state *nfs4_do_open(struct ianalde *dir,
 					struct nfs_open_context *ctx,
 					int flags,
 					struct iattr *sattr,
@@ -3271,7 +3271,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 		trace_nfs4_open_file(ctx, flags, status);
 		if (status == 0)
 			break;
-		/* NOTE: BAD_SEQID means the server and client disagree about the
+		/* ANALTE: BAD_SEQID means the server and client disagree about the
 		 * book-keeping w.r.t. state-changing operations
 		 * (OPEN/CLOSE/LOCK/LOCKU...)
 		 * It is actually a sign of a bug on the client or on the server.
@@ -3317,13 +3317,13 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 	return res;
 }
 
-static int _nfs4_do_setattr(struct inode *inode,
+static int _nfs4_do_setattr(struct ianalde *ianalde,
 			    struct nfs_setattrargs *arg,
 			    struct nfs_setattrres *res,
 			    const struct cred *cred,
 			    struct nfs_open_context *ctx)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_SETATTR],
 		.rpc_argp	= arg,
@@ -3340,11 +3340,11 @@ static int _nfs4_do_setattr(struct inode *inode,
 	/* Servers should only apply open mode checks for file size changes */
 	truncate = (arg->iap->ia_valid & ATTR_SIZE) ? true : false;
 	if (!truncate) {
-		nfs4_inode_make_writeable(inode);
+		nfs4_ianalde_make_writeable(ianalde);
 		goto zero_stateid;
 	}
 
-	if (nfs4_copy_delegation_stateid(inode, FMODE_WRITE, &arg->stateid, &delegation_cred)) {
+	if (nfs4_copy_delegation_stateid(ianalde, FMODE_WRITE, &arg->stateid, &delegation_cred)) {
 		/* Use that stateid */
 	} else if (ctx != NULL && ctx->state) {
 		struct nfs_lock_context *l_ctx;
@@ -3372,19 +3372,19 @@ zero_stateid:
 	put_cred(delegation_cred);
 	if (status == 0 && ctx != NULL)
 		renew_lease(server, timestamp);
-	trace_nfs4_setattr(inode, &arg->stateid, status);
+	trace_nfs4_setattr(ianalde, &arg->stateid, status);
 	return status;
 }
 
-static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
+static int nfs4_do_setattr(struct ianalde *ianalde, const struct cred *cred,
 			   struct nfs_fattr *fattr, struct iattr *sattr,
 			   struct nfs_open_context *ctx, struct nfs4_label *ilabel)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	__u32 bitmask[NFS4_BITMASK_SZ];
 	struct nfs4_state *state = ctx ? ctx->state : NULL;
 	struct nfs_setattrargs	arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.iap		= sattr,
 		.server		= server,
 		.bitmask = bitmask,
@@ -3396,28 +3396,28 @@ static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 	};
 	struct nfs4_exception exception = {
 		.state = state,
-		.inode = inode,
+		.ianalde = ianalde,
 		.stateid = &arg.stateid,
 	};
-	unsigned long adjust_flags = NFS_INO_INVALID_CHANGE;
+	unsigned long adjust_flags = NFS_IANAL_INVALID_CHANGE;
 	int err;
 
 	if (sattr->ia_valid & (ATTR_MODE | ATTR_KILL_SUID | ATTR_KILL_SGID))
-		adjust_flags |= NFS_INO_INVALID_MODE;
+		adjust_flags |= NFS_IANAL_INVALID_MODE;
 	if (sattr->ia_valid & (ATTR_UID | ATTR_GID))
-		adjust_flags |= NFS_INO_INVALID_OTHER;
+		adjust_flags |= NFS_IANAL_INVALID_OTHER;
 
 	do {
 		nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, fattr->label),
-					inode, adjust_flags);
+					ianalde, adjust_flags);
 
-		err = _nfs4_do_setattr(inode, &arg, &res, cred, ctx);
+		err = _nfs4_do_setattr(ianalde, &arg, &res, cred, ctx);
 		switch (err) {
 		case -NFS4ERR_OPENMODE:
 			if (!(sattr->ia_valid & ATTR_SIZE)) {
 				pr_warn_once("NFSv4: server %s is incorrectly "
 						"applying open mode checks to "
-						"a SETATTR that is not "
+						"a SETATTR that is analt "
 						"changing file size.\n",
 						server->nfs_client->cl_hostname);
 			}
@@ -3435,12 +3435,12 @@ out:
 }
 
 static bool
-nfs4_wait_on_layoutreturn(struct inode *inode, struct rpc_task *task)
+nfs4_wait_on_layoutreturn(struct ianalde *ianalde, struct rpc_task *task)
 {
-	if (inode == NULL || !nfs_have_layout(inode))
+	if (ianalde == NULL || !nfs_have_layout(ianalde))
 		return false;
 
-	return pnfs_wait_on_layoutreturn(inode, task);
+	return pnfs_wait_on_layoutreturn(ianalde, task);
 }
 
 /*
@@ -3503,7 +3503,7 @@ static bool nfs4_refresh_open_old_stateid(nfs4_stateid *dst,
 
 		dst_seqid = be32_to_cpu(dst->seqid);
 
-		/* Did another OPEN bump the state's seqid?  try again: */
+		/* Did aanalther OPEN bump the state's seqid?  try again: */
 		if ((s32)(be32_to_cpu(seqid_open) - dst_seqid) > 0) {
 			dst->seqid = seqid_open;
 			write_sequnlock(&state->seqlock);
@@ -3515,7 +3515,7 @@ static bool nfs4_refresh_open_old_stateid(nfs4_stateid *dst,
 		set_bit(NFS_STATE_CHANGE_WAIT, &state->flags);
 		prepare_to_wait(&state->waitq, &wait, TASK_KILLABLE);
 		write_sequnlock(&state->seqlock);
-		trace_nfs4_close_stateid_update_wait(state->inode, dst, 0);
+		trace_nfs4_close_stateid_update_wait(state->ianalde, dst, 0);
 
 		if (fatal_signal_pending(current))
 			status = -EINTR;
@@ -3540,7 +3540,7 @@ static bool nfs4_refresh_open_old_stateid(nfs4_stateid *dst,
 }
 
 struct nfs4_closedata {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nfs4_state *state;
 	struct nfs_closeargs arg;
 	struct nfs_closeres res;
@@ -3559,7 +3559,7 @@ static void nfs4_free_closedata(void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state_owner *sp = calldata->state->owner;
-	struct super_block *sb = calldata->state->inode->i_sb;
+	struct super_block *sb = calldata->state->ianalde->i_sb;
 
 	if (calldata->lr.roc)
 		pnfs_roc_release(&calldata->lr.arg, &calldata->lr.res,
@@ -3575,11 +3575,11 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
-	struct nfs_server *server = NFS_SERVER(calldata->inode);
+	struct nfs_server *server = NFS_SERVER(calldata->ianalde);
 	nfs4_stateid *res_stateid = NULL;
 	struct nfs4_exception exception = {
 		.state = state,
-		.inode = calldata->inode,
+		.ianalde = calldata->ianalde,
 		.stateid = &calldata->arg.stateid,
 	};
 
@@ -3592,7 +3592,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			  &calldata->res.lr_ret) == -EAGAIN)
 		goto out_restart;
 
-	/* hmm. we are done with the inode, and in the process of freeing
+	/* hmm. we are done with the ianalde, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
 	 */
 	switch (task->tk_status) {
@@ -3636,7 +3636,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 out_release:
 	task->tk_status = 0;
 	nfs_release_seqid(calldata->arg.seqid);
-	nfs_refresh_inode(calldata->inode, &calldata->fattr);
+	nfs_refresh_ianalde(calldata->ianalde, &calldata->fattr);
 	dprintk("%s: ret = %d\n", __func__, task->tk_status);
 	return;
 out_restart:
@@ -3649,8 +3649,8 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
-	struct inode *inode = calldata->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = calldata->ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct pnfs_layout_hdr *lo;
 	bool is_rdonly, is_wronly, is_rdwr;
 	int call_close = 0;
@@ -3685,11 +3685,11 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	spin_unlock(&state->owner->so_lock);
 
 	if (!call_close) {
-		/* Note: exit _without_ calling nfs4_close_done */
-		goto out_no_action;
+		/* Analte: exit _without_ calling nfs4_close_done */
+		goto out_anal_action;
 	}
 
-	if (!calldata->lr.roc && nfs4_wait_on_layoutreturn(inode, task)) {
+	if (!calldata->lr.roc && nfs4_wait_on_layoutreturn(ianalde, task)) {
 		nfs_release_seqid(calldata->arg.seqid);
 		goto out_wait;
 	}
@@ -3705,17 +3705,17 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	if (calldata->arg.fmode == 0 || calldata->arg.fmode == FMODE_READ) {
 		/* Close-to-open cache consistency revalidation */
-		if (!nfs4_have_delegation(inode, FMODE_READ)) {
+		if (!nfs4_have_delegation(ianalde, FMODE_READ)) {
 			nfs4_bitmask_set(calldata->arg.bitmask_store,
 					 server->cache_consistency_bitmask,
-					 inode, 0);
+					 ianalde, 0);
 			calldata->arg.bitmask = calldata->arg.bitmask_store;
 		} else
 			calldata->arg.bitmask = NULL;
 	}
 
 	calldata->arg.share_access =
-		nfs4_map_atomic_open_share(NFS_SERVER(inode),
+		nfs4_map_atomic_open_share(NFS_SERVER(ianalde),
 				calldata->arg.fmode, 0);
 
 	if (calldata->res.fattr == NULL)
@@ -3723,13 +3723,13 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	else if (calldata->arg.bitmask == NULL)
 		calldata->res.fattr = NULL;
 	calldata->timestamp = jiffies;
-	if (nfs4_setup_sequence(NFS_SERVER(inode)->nfs_client,
+	if (nfs4_setup_sequence(NFS_SERVER(ianalde)->nfs_client,
 				&calldata->arg.seq_args,
 				&calldata->res.seq_res,
 				task) != 0)
 		nfs_release_seqid(calldata->arg.seqid);
 	return;
-out_no_action:
+out_anal_action:
 	task->tk_action = NULL;
 out_wait:
 	nfs4_sequence_done(task, &calldata->res.seq_res);
@@ -3745,16 +3745,16 @@ static const struct rpc_call_ops nfs4_close_ops = {
  * It is possible for data to be read/written from a mem-mapped file 
  * after the sys_close call (which hits the vfs layer as a flush).
  * This means that we can't safely call nfsv4 close on a file until 
- * the inode is cleared. This in turn means that we are not good
- * NFSv4 citizens - we do not indicate to the server to update the file's 
+ * the ianalde is cleared. This in turn means that we are analt good
+ * NFSv4 citizens - we do analt indicate to the server to update the file's 
  * share state even when we are done with one of the three share 
- * stateid's in the inode.
+ * stateid's in the ianalde.
  *
- * NOTE: Caller must be holding the sp->so_owner semaphore!
+ * ANALTE: Caller must be holding the sp->so_owner semaphore!
  */
 int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	struct nfs4_closedata *calldata;
 	struct nfs4_state_owner *sp = state->owner;
@@ -3768,11 +3768,11 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_close_ops,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_ANALREF,
 	};
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
-	if (nfs_server_capable(state->inode, NFS_CAP_MOVEABLE))
+	if (nfs_server_capable(state->ianalde, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
 	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_CLEANUP,
@@ -3782,9 +3782,9 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	if (calldata == NULL)
 		goto out;
 	nfs4_init_sequence(&calldata->arg.seq_args, &calldata->res.seq_res, 1, 0);
-	calldata->inode = state->inode;
+	calldata->ianalde = state->ianalde;
 	calldata->state = state;
-	calldata->arg.fh = NFS_FH(state->inode);
+	calldata->arg.fh = NFS_FH(state->ianalde);
 	if (!nfs4_copy_open_stateid(&calldata->arg.stateid, state))
 		goto out_free_calldata;
 	/* Serialization for the sequence id */
@@ -3798,14 +3798,14 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
-	calldata->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
-	calldata->lr.roc = pnfs_roc(state->inode,
+	calldata->res.lr_ret = -NFS4ERR_ANALMATCHING_LAYOUT;
+	calldata->lr.roc = pnfs_roc(state->ianalde,
 			&calldata->lr.arg, &calldata->lr.res, msg.rpc_cred);
 	if (calldata->lr.roc) {
 		calldata->arg.lr_args = &calldata->lr.arg;
 		calldata->res.lr_res = &calldata->lr.res;
 	}
-	nfs_sb_active(calldata->inode->i_sb);
+	nfs_sb_active(calldata->ianalde->i_sb);
 
 	msg.rpc_argp = &calldata->arg;
 	msg.rpc_resp = &calldata->res;
@@ -3826,8 +3826,8 @@ out:
 	return status;
 }
 
-static struct inode *
-nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx,
+static struct ianalde *
+nfs4_atomic_open(struct ianalde *dir, struct nfs_open_context *ctx,
 		int open_flags, struct iattr *attr, int *opened)
 {
 	struct nfs4_state *state;
@@ -3842,7 +3842,7 @@ nfs4_atomic_open(struct inode *dir, struct nfs_open_context *ctx,
 
 	if (IS_ERR(state))
 		return ERR_CAST(state);
-	return state->inode;
+	return state->ianalde;
 }
 
 static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
@@ -3861,7 +3861,7 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
-	u32 bitmask[3] = {}, minorversion = server->nfs_client->cl_minorversion;
+	u32 bitmask[3] = {}, mianalrversion = server->nfs_client->cl_mianalrversion;
 	struct nfs4_server_caps_arg args = {
 		.fhandle = fhandle,
 		.bitmask = bitmask,
@@ -3882,13 +3882,13 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 		     FATTR4_WORD0_ACLSUPPORT |
 		     FATTR4_WORD0_CASE_INSENSITIVE |
 		     FATTR4_WORD0_CASE_PRESERVING;
-	if (minorversion)
+	if (mianalrversion)
 		bitmask[2] = FATTR4_WORD2_SUPPATTR_EXCLCREAT;
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (status == 0) {
 		/* Sanity check the server answers */
-		switch (minorversion) {
+		switch (mianalrversion) {
 		case 0:
 			res.attr_bitmask[1] &= FATTR4_WORD1_NFS40_MASK;
 			res.attr_bitmask[2] = 0;
@@ -4037,13 +4037,13 @@ static int _nfs4_discover_trunking(struct nfs_server *server,
 	struct nfs_client *clp = server->nfs_client;
 	const struct nfs4_state_maintenance_ops *ops =
 		clp->cl_mvops->state_renewal_ops;
-	int status = -ENOMEM, i;
+	int status = -EANALMEM, i;
 
 	cred = ops->get_state_renewal_cred(clp);
 	if (cred == NULL) {
 		cred = nfs4_get_clid_cred(clp);
 		if (cred == NULL)
-			return -ENOKEY;
+			return -EANALKEY;
 	}
 
 	page = alloc_page(GFP_KERNEL);
@@ -4164,10 +4164,10 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
  * Retry pseudoroot lookup with various security flavors.  We do this when:
  *
  *   NFSv4.0: the PUTROOTFH operation returns NFS4ERR_WRONGSEC
- *   NFSv4.1: the server does not support the SECINFO_NO_NAME operation
+ *   NFSv4.1: the server does analt support the SECINFO_ANAL_NAME operation
  *
  * Returns zero on success, or a negative NFS4ERR value, or a
- * negative errno value.
+ * negative erranal value.
  */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
@@ -4193,7 +4193,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			break;
 		}
 	} else {
-		/* no flavors specified by user, try default list */
+		/* anal flavors specified by user, try default list */
 		for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
 			status = nfs4_lookup_root_sec(server, fhandle, info,
 						      flav_array[i]);
@@ -4222,7 +4222,7 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
  * @info: we fill in an FSINFO struct
  * @auth_probe: probe the auth flavours
  *
- * Returns zero on success, or a negative errno.
+ * Returns zero on success, or a negative erranal.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 			 struct nfs_fsinfo *info,
@@ -4273,14 +4273,14 @@ out:
 
 /*
  * Get locations and (maybe) other attributes of a referral.
- * Note that we'll actually follow the referral later when
- * we detect fsid mismatch in inode revalidation
+ * Analte that we'll actually follow the referral later when
+ * we detect fsid mismatch in ianalde revalidation
  */
-static int nfs4_get_referral(struct rpc_clnt *client, struct inode *dir,
+static int nfs4_get_referral(struct rpc_clnt *client, struct ianalde *dir,
 			     const struct qstr *name, struct nfs_fattr *fattr,
 			     struct nfs_fh *fhandle)
 {
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 	struct page *page = NULL;
 	struct nfs4_fs_locations *locations = NULL;
 
@@ -4298,12 +4298,12 @@ static int nfs4_get_referral(struct rpc_clnt *client, struct inode *dir,
 		goto out;
 
 	/*
-	 * If the fsid didn't change, this is a migration event, not a
+	 * If the fsid didn't change, this is a migration event, analt a
 	 * referral.  Cause us to drop into the exception handler, which
 	 * will kick off migration recovery.
 	 */
 	if (nfs_fsid_equal(&NFS_SERVER(dir)->fsid, &fattr->fsid)) {
-		dprintk("%s: server did not return a different fsid for"
+		dprintk("%s: server did analt return a different fsid for"
 			" a referral at %s\n", __func__, name->name);
 		status = -NFS4ERR_MOVED;
 		goto out;
@@ -4319,7 +4319,7 @@ out:
 }
 
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fattr *fattr, struct inode *inode)
+				struct nfs_fattr *fattr, struct ianalde *ianalde)
 {
 	__u32 bitmask[NFS4_BITMASK_SZ];
 	struct nfs4_getattr_arg args = {
@@ -4341,10 +4341,10 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 		task_flags = RPC_TASK_MOVEABLE;
 
 	/* Is this is an attribute revalidation, subject to softreval? */
-	if (inode && (server->flags & NFS_MOUNT_SOFTREVAL))
+	if (ianalde && (server->flags & NFS_MOUNT_SOFTREVAL))
 		task_flags |= RPC_TASK_TIMEOUT;
 
-	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, fattr->label), inode, 0);
+	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, fattr->label), ianalde, 0);
 	nfs_fattr_init(fattr);
 	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 0);
 	return nfs4_do_call_sync(server->client, server, &msg,
@@ -4352,14 +4352,14 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 }
 
 int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-				struct nfs_fattr *fattr, struct inode *inode)
+				struct nfs_fattr *fattr, struct ianalde *ianalde)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_getattr(server, fhandle, fattr, inode);
+		err = _nfs4_proc_getattr(server, fhandle, fattr, ianalde);
 		trace_nfs4_getattr(server, fhandle, fattr, err);
 		err = nfs4_handle_exception(server, err,
 				&exception);
@@ -4368,11 +4368,11 @@ int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 }
 
 /* 
- * The file is not closed if it is opened due to the a request to change
- * the size of the file. The open call will not be needed once the
+ * The file is analt closed if it is opened due to the a request to change
+ * the size of the file. The open call will analt be needed once the
  * VFS layer lookup-intents are implemented.
  *
- * Close is called when the inode is destroyed.
+ * Close is called when the ianalde is destroyed.
  * If we haven't opened the file for O_WRONLY, we
  * need to in the size_change case to obtain a stateid.
  *
@@ -4388,15 +4388,15 @@ static int
 nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		  struct iattr *sattr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	const struct cred *cred = NULL;
 	struct nfs_open_context *ctx = NULL;
 	int status;
 
-	if (pnfs_ld_layoutret_on_setattr(inode) &&
+	if (pnfs_ld_layoutret_on_setattr(ianalde) &&
 	    sattr->ia_valid & ATTR_SIZE &&
-	    sattr->ia_size < i_size_read(inode))
-		pnfs_commit_and_return_layout(inode);
+	    sattr->ia_size < i_size_read(ianalde))
+		pnfs_commit_and_return_layout(ianalde);
 
 	nfs_fattr_init(fattr);
 	
@@ -4404,7 +4404,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	if (sattr->ia_valid & ATTR_OPEN)
 		sattr->ia_valid &= ~(ATTR_MTIME|ATTR_CTIME);
 
-	/* Optimization: if the end result is no change, don't RPC */
+	/* Optimization: if the end result is anal change, don't RPC */
 	if ((sattr->ia_valid & ~(ATTR_FILE|ATTR_OPEN)) == 0)
 		return 0;
 
@@ -4418,17 +4418,17 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 
 	/* Return any delegations if we're going to change ACLs */
 	if ((sattr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
-		nfs4_inode_make_writeable(inode);
+		nfs4_ianalde_make_writeable(ianalde);
 
-	status = nfs4_do_setattr(inode, cred, fattr, sattr, ctx, NULL);
+	status = nfs4_do_setattr(ianalde, cred, fattr, sattr, ctx, NULL);
 	if (status == 0) {
-		nfs_setattr_update_inode(inode, sattr, fattr);
-		nfs_setsecurity(inode, fattr);
+		nfs_setattr_update_ianalde(ianalde, sattr, fattr);
+		nfs_setsecurity(ianalde, fattr);
 	}
 	return status;
 }
 
-static int _nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir,
+static int _nfs4_proc_lookup(struct rpc_clnt *clnt, struct ianalde *dir,
 		struct dentry *dentry, struct nfs_fh *fhandle,
 		struct nfs_fattr *fattr)
 {
@@ -4478,7 +4478,7 @@ static void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr)
 	fattr->nlink = 2;
 }
 
-static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
+static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct ianalde *dir,
 				   struct dentry *dentry, struct nfs_fh *fhandle,
 				   struct nfs_fattr *fattr)
 {
@@ -4493,7 +4493,7 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 		trace_nfs4_lookup(dir, name, err);
 		switch (err) {
 		case -NFS4ERR_BADNAME:
-			err = -ENOENT;
+			err = -EANALENT;
 			goto out;
 		case -NFS4ERR_MOVED:
 			err = nfs4_get_referral(client, dir, name, fattr, fhandle);
@@ -4524,7 +4524,7 @@ out:
 	return err;
 }
 
-static int nfs4_proc_lookup(struct inode *dir, struct dentry *dentry,
+static int nfs4_proc_lookup(struct ianalde *dir, struct dentry *dentry,
 			    struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	int status;
@@ -4539,7 +4539,7 @@ static int nfs4_proc_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 struct rpc_clnt *
-nfs4_proc_lookup_mountpoint(struct inode *dir, struct dentry *dentry,
+nfs4_proc_lookup_mountpoint(struct ianalde *dir, struct dentry *dentry,
 			    struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct rpc_clnt *client = NFS_CLIENT(dir);
@@ -4551,15 +4551,15 @@ nfs4_proc_lookup_mountpoint(struct inode *dir, struct dentry *dentry,
 	return (client == NFS_CLIENT(dir)) ? rpc_clone_client(client) : client;
 }
 
-static int _nfs4_proc_lookupp(struct inode *inode,
+static int _nfs4_proc_lookupp(struct ianalde *ianalde,
 		struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
-	struct rpc_clnt *clnt = NFS_CLIENT(inode);
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct rpc_clnt *clnt = NFS_CLIENT(ianalde);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	int		       status;
 	struct nfs4_lookupp_arg args = {
 		.bitmask = server->attr_bitmask,
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 	};
 	struct nfs4_lookupp_res res = {
 		.server = server,
@@ -4573,21 +4573,21 @@ static int _nfs4_proc_lookupp(struct inode *inode,
 	};
 	unsigned short task_flags = 0;
 
-	if (NFS_SERVER(inode)->flags & NFS_MOUNT_SOFTREVAL)
+	if (NFS_SERVER(ianalde)->flags & NFS_MOUNT_SOFTREVAL)
 		task_flags |= RPC_TASK_TIMEOUT;
 
 	args.bitmask = nfs4_bitmask(server, fattr->label);
 
 	nfs_fattr_init(fattr);
 
-	dprintk("NFS call  lookupp ino=0x%lx\n", inode->i_ino);
+	dprintk("NFS call  lookupp ianal=0x%lx\n", ianalde->i_ianal);
 	status = nfs4_call_sync(clnt, server, &msg, &args.seq_args,
 				&res.seq_res, task_flags);
 	dprintk("NFS reply lookupp: %d\n", status);
 	return status;
 }
 
-static int nfs4_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
+static int nfs4_proc_lookupp(struct ianalde *ianalde, struct nfs_fh *fhandle,
 			     struct nfs_fattr *fattr)
 {
 	struct nfs4_exception exception = {
@@ -4595,20 +4595,20 @@ static int nfs4_proc_lookupp(struct inode *inode, struct nfs_fh *fhandle,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_lookupp(inode, fhandle, fattr);
-		trace_nfs4_lookupp(inode, err);
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = _nfs4_proc_lookupp(ianalde, fhandle, fattr);
+		trace_nfs4_lookupp(ianalde, err);
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
 }
 
-static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry,
+static int _nfs4_proc_access(struct ianalde *ianalde, struct nfs_access_entry *entry,
 			     const struct cred *cred)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs4_accessargs args = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		.access = entry->mask,
 	};
 	struct nfs4_accessres res = {
@@ -4622,23 +4622,23 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	};
 	int status = 0;
 
-	if (!nfs4_have_delegation(inode, FMODE_READ)) {
+	if (!nfs4_have_delegation(ianalde, FMODE_READ)) {
 		res.fattr = nfs_alloc_fattr();
 		if (res.fattr == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		args.bitmask = server->cache_consistency_bitmask;
 	}
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (!status) {
 		nfs_access_set_mask(entry, res.access);
 		if (res.fattr)
-			nfs_refresh_inode(inode, res.fattr);
+			nfs_refresh_ianalde(ianalde, res.fattr);
 	}
 	nfs_free_fattr(res.fattr);
 	return status;
 }
 
-static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry,
+static int nfs4_proc_access(struct ianalde *ianalde, struct nfs_access_entry *entry,
 			    const struct cred *cred)
 {
 	struct nfs4_exception exception = {
@@ -4646,9 +4646,9 @@ static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_access(inode, entry, cred);
-		trace_nfs4_access(inode, err);
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = _nfs4_proc_access(ianalde, entry, cred);
+		trace_nfs4_access(ianalde, err);
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
@@ -4665,7 +4665,7 @@ static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry,
  * align the READ data correctly.  This means that the GETATTR
  * may end up partially falling into the page cache, and we should
  * shift it into the 'tail' of the xdr_buf before processing.
- * To do this efficiently, we need to know the total length
+ * To do this efficiently, we need to kanalw the total length
  * of data received, which doesn't seem to be available outside
  * of the RPC layer.
  *
@@ -4674,13 +4674,13 @@ static int nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry,
  * we get the post-operation mtime and size.
  *
  * Both of these changes to the XDR layer would in fact be quite
- * minor, but I decided to leave them for a subsequent patch.
+ * mianalr, but I decided to leave them for a subsequent patch.
  */
-static int _nfs4_proc_readlink(struct inode *inode, struct page *page,
+static int _nfs4_proc_readlink(struct ianalde *ianalde, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
 	struct nfs4_readlink args = {
-		.fh       = NFS_FH(inode),
+		.fh       = NFS_FH(ianalde),
 		.pgbase	  = pgbase,
 		.pglen    = pglen,
 		.pages    = &page,
@@ -4692,10 +4692,10 @@ static int _nfs4_proc_readlink(struct inode *inode, struct page *page,
 		.rpc_resp = &res,
 	};
 
-	return nfs4_call_sync(NFS_SERVER(inode)->client, NFS_SERVER(inode), &msg, &args.seq_args, &res.seq_res, 0);
+	return nfs4_call_sync(NFS_SERVER(ianalde)->client, NFS_SERVER(ianalde), &msg, &args.seq_args, &res.seq_res, 0);
 }
 
-static int nfs4_proc_readlink(struct inode *inode, struct page *page,
+static int nfs4_proc_readlink(struct ianalde *ianalde, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
 	struct nfs4_exception exception = {
@@ -4703,19 +4703,19 @@ static int nfs4_proc_readlink(struct inode *inode, struct page *page,
 	};
 	int err;
 	do {
-		err = _nfs4_proc_readlink(inode, page, pgbase, pglen);
-		trace_nfs4_readlink(inode, err);
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = _nfs4_proc_readlink(ianalde, page, pgbase, pglen);
+		trace_nfs4_readlink(ianalde, err);
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
 }
 
 /*
- * This is just for mknod.  open(O_CREAT) will always do ->open_context().
+ * This is just for mkanald.  open(O_CREAT) will always do ->open_context().
  */
 static int
-nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
+nfs4_proc_create(struct ianalde *dir, struct dentry *dentry, struct iattr *sattr,
 		 int flags)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -4744,7 +4744,7 @@ out:
 }
 
 static int
-_nfs4_proc_remove(struct inode *dir, const struct qstr *name, u32 ftype)
+_nfs4_proc_remove(struct ianalde *dir, const struct qstr *name, u32 ftype)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_removeargs args = {
@@ -4769,25 +4769,25 @@ _nfs4_proc_remove(struct inode *dir, const struct qstr *name, u32 ftype)
 		if (ftype == NF4DIR && dir->i_nlink > 2)
 			nfs4_dec_nlink_locked(dir);
 		nfs4_update_changeattr_locked(dir, &res.cinfo, timestamp,
-					      NFS_INO_INVALID_DATA);
+					      NFS_IANAL_INVALID_DATA);
 		spin_unlock(&dir->i_lock);
 	}
 	return status;
 }
 
-static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
+static int nfs4_proc_remove(struct ianalde *dir, struct dentry *dentry)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int err;
 
-	if (inode) {
-		if (inode->i_nlink == 1)
-			nfs4_inode_return_delegation(inode);
+	if (ianalde) {
+		if (ianalde->i_nlink == 1)
+			nfs4_ianalde_return_delegation(ianalde);
 		else
-			nfs4_inode_make_writeable(inode);
+			nfs4_ianalde_make_writeable(ianalde);
 	}
 	do {
 		err = _nfs4_proc_remove(dir, &dentry->d_name, NF4REG);
@@ -4798,7 +4798,7 @@ static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
 	return err;
 }
 
-static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
+static int nfs4_proc_rmdir(struct ianalde *dir, const struct qstr *name)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
@@ -4816,7 +4816,7 @@ static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 
 static void nfs4_proc_unlink_setup(struct rpc_message *msg,
 		struct dentry *dentry,
-		struct inode *inode)
+		struct ianalde *ianalde)
 {
 	struct nfs_removeargs *args = msg->rpc_argp;
 	struct nfs_removeres *res = msg->rpc_resp;
@@ -4827,9 +4827,9 @@ static void nfs4_proc_unlink_setup(struct rpc_message *msg,
 
 	nfs_fattr_init(res->dir_attr);
 
-	if (inode) {
-		nfs4_inode_return_delegation(inode);
-		nfs_d_prune_case_insensitive_aliases(inode);
+	if (ianalde) {
+		nfs4_ianalde_return_delegation(ianalde);
+		nfs_d_prune_case_insensitive_aliases(ianalde);
 	}
 }
 
@@ -4841,7 +4841,7 @@ static void nfs4_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlin
 			task);
 }
 
-static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
+static int nfs4_proc_unlink_done(struct rpc_task *task, struct ianalde *dir)
 {
 	struct nfs_unlinkdata *data = task->tk_calldata;
 	struct nfs_removeres *res = &data->res;
@@ -4854,7 +4854,7 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (task->tk_status == 0)
 		nfs4_update_changeattr(dir, &res->cinfo,
 				res->dir_attr->time_start,
-				NFS_INO_INVALID_DATA);
+				NFS_IANAL_INVALID_DATA);
 	return 1;
 }
 
@@ -4864,13 +4864,13 @@ static void nfs4_proc_rename_setup(struct rpc_message *msg,
 {
 	struct nfs_renameargs *arg = msg->rpc_argp;
 	struct nfs_renameres *res = msg->rpc_resp;
-	struct inode *old_inode = d_inode(old_dentry);
-	struct inode *new_inode = d_inode(new_dentry);
+	struct ianalde *old_ianalde = d_ianalde(old_dentry);
+	struct ianalde *new_ianalde = d_ianalde(new_dentry);
 
-	if (old_inode)
-		nfs4_inode_make_writeable(old_inode);
-	if (new_inode)
-		nfs4_inode_return_delegation(new_inode);
+	if (old_ianalde)
+		nfs4_ianalde_make_writeable(old_ianalde);
+	if (new_ianalde)
+		nfs4_ianalde_return_delegation(new_ianalde);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
 	res->server = NFS_SB(old_dentry->d_sb);
 	nfs4_init_sequence(&arg->seq_args, &res->seq_res, 1, 0);
@@ -4884,8 +4884,8 @@ static void nfs4_proc_rename_rpc_prepare(struct rpc_task *task, struct nfs_renam
 			task);
 }
 
-static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
-				 struct inode *new_dir)
+static int nfs4_proc_rename_done(struct rpc_task *task, struct ianalde *old_dir,
+				 struct ianalde *new_dir)
 {
 	struct nfs_renamedata *data = task->tk_calldata;
 	struct nfs_renameres *res = &data->res;
@@ -4896,31 +4896,31 @@ static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 		return 0;
 
 	if (task->tk_status == 0) {
-		nfs_d_prune_case_insensitive_aliases(d_inode(data->old_dentry));
+		nfs_d_prune_case_insensitive_aliases(d_ianalde(data->old_dentry));
 		if (new_dir != old_dir) {
-			/* Note: If we moved a directory, nlink will change */
+			/* Analte: If we moved a directory, nlink will change */
 			nfs4_update_changeattr(old_dir, &res->old_cinfo,
 					res->old_fattr->time_start,
-					NFS_INO_INVALID_NLINK |
-					    NFS_INO_INVALID_DATA);
+					NFS_IANAL_INVALID_NLINK |
+					    NFS_IANAL_INVALID_DATA);
 			nfs4_update_changeattr(new_dir, &res->new_cinfo,
 					res->new_fattr->time_start,
-					NFS_INO_INVALID_NLINK |
-					    NFS_INO_INVALID_DATA);
+					NFS_IANAL_INVALID_NLINK |
+					    NFS_IANAL_INVALID_DATA);
 		} else
 			nfs4_update_changeattr(old_dir, &res->old_cinfo,
 					res->old_fattr->time_start,
-					NFS_INO_INVALID_DATA);
+					NFS_IANAL_INVALID_DATA);
 	}
 	return 1;
 }
 
-static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
+static int _nfs4_proc_link(struct ianalde *ianalde, struct ianalde *dir, const struct qstr *name)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	__u32 bitmask[NFS4_BITMASK_SZ];
 	struct nfs4_link_arg arg = {
-		.fh     = NFS_FH(inode),
+		.fh     = NFS_FH(ianalde),
 		.dir_fh = NFS_FH(dir),
 		.name   = name,
 		.bitmask = bitmask,
@@ -4933,23 +4933,23 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 		.rpc_argp = &arg,
 		.rpc_resp = &res,
 	};
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	res.fattr = nfs_alloc_fattr_with_label(server);
 	if (res.fattr == NULL)
 		goto out;
 
-	nfs4_inode_make_writeable(inode);
-	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, res.fattr->label), inode,
-				NFS_INO_INVALID_CHANGE);
+	nfs4_ianalde_make_writeable(ianalde);
+	nfs4_bitmap_copy_adjust(bitmask, nfs4_bitmask(server, res.fattr->label), ianalde,
+				NFS_IANAL_INVALID_CHANGE);
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
 		nfs4_update_changeattr(dir, &res.cinfo, res.fattr->time_start,
-				       NFS_INO_INVALID_DATA);
-		nfs4_inc_nlink(inode);
-		status = nfs_post_op_update_inode(inode, res.fattr);
+				       NFS_IANAL_INVALID_DATA);
+		nfs4_inc_nlink(ianalde);
+		status = nfs_post_op_update_ianalde(ianalde, res.fattr);
 		if (!status)
-			nfs_setsecurity(inode, res.fattr);
+			nfs_setsecurity(ianalde, res.fattr);
 	}
 
 out:
@@ -4957,15 +4957,15 @@ out:
 	return status;
 }
 
-static int nfs4_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
+static int nfs4_proc_link(struct ianalde *ianalde, struct ianalde *dir, const struct qstr *name)
 {
 	struct nfs4_exception exception = {
 		.interruptible = true,
 	};
 	int err;
 	do {
-		err = nfs4_handle_exception(NFS_SERVER(inode),
-				_nfs4_proc_link(inode, dir, name),
+		err = nfs4_handle_exception(NFS_SERVER(ianalde),
+				_nfs4_proc_link(ianalde, dir, name),
 				&exception);
 	} while (exception.retry);
 	return err;
@@ -4979,7 +4979,7 @@ struct nfs4_createdata {
 	struct nfs_fattr fattr;
 };
 
-static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
+static struct nfs4_createdata *nfs4_alloc_createdata(struct ianalde *dir,
 		const struct qstr *name, struct iattr *sattr, u32 ftype)
 {
 	struct nfs4_createdata *data;
@@ -5013,7 +5013,7 @@ out_free:
 	return NULL;
 }
 
-static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_createdata *data)
+static int nfs4_do_create(struct ianalde *dir, struct dentry *dentry, struct nfs4_createdata *data)
 {
 	int status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &data->msg,
 				    &data->arg.seq_args, &data->res.seq_res, 1);
@@ -5024,7 +5024,7 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 			nfs4_inc_nlink_locked(dir);
 		nfs4_update_changeattr_locked(dir, &data->res.dir_cinfo,
 					      data->res.fattr->time_start,
-					      NFS_INO_INVALID_DATA);
+					      NFS_IANAL_INVALID_DATA);
 		spin_unlock(&dir->i_lock);
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
 	}
@@ -5037,7 +5037,7 @@ static void nfs4_free_createdata(struct nfs4_createdata *data)
 	kfree(data);
 }
 
-static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
+static int _nfs4_proc_symlink(struct ianalde *dir, struct dentry *dentry,
 		struct folio *folio, unsigned int len, struct iattr *sattr,
 		struct nfs4_label *label)
 {
@@ -5048,7 +5048,7 @@ static int _nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 	if (len > NFS4_MAXPATHLEN)
 		goto out;
 
-	status = -ENOMEM;
+	status = -EANALMEM;
 	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4LNK);
 	if (data == NULL)
 		goto out;
@@ -5065,7 +5065,7 @@ out:
 	return status;
 }
 
-static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
+static int nfs4_proc_symlink(struct ianalde *dir, struct dentry *dentry,
 		struct folio *folio, unsigned int len, struct iattr *sattr)
 {
 	struct nfs4_exception exception = {
@@ -5087,11 +5087,11 @@ static int nfs4_proc_symlink(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int _nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
+static int _nfs4_proc_mkdir(struct ianalde *dir, struct dentry *dentry,
 		struct iattr *sattr, struct nfs4_label *label)
 {
 	struct nfs4_createdata *data;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4DIR);
 	if (data == NULL)
@@ -5105,7 +5105,7 @@ out:
 	return status;
 }
 
-static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
+static int nfs4_proc_mkdir(struct ianalde *dir, struct dentry *dentry,
 		struct iattr *sattr)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -5133,7 +5133,7 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 static int _nfs4_proc_readdir(struct nfs_readdir_arg *nr_arg,
 			      struct nfs_readdir_res *nr_res)
 {
-	struct inode		*dir = d_inode(nr_arg->dentry);
+	struct ianalde		*dir = d_ianalde(nr_arg->dentry);
 	struct nfs_server	*server = NFS_SERVER(dir);
 	struct nfs4_readdir_arg args = {
 		.fh = NFS_FH(dir),
@@ -5182,19 +5182,19 @@ static int nfs4_proc_readdir(struct nfs_readdir_arg *arg,
 	int err;
 	do {
 		err = _nfs4_proc_readdir(arg, res);
-		trace_nfs4_readdir(d_inode(arg->dentry), err);
-		err = nfs4_handle_exception(NFS_SERVER(d_inode(arg->dentry)),
+		trace_nfs4_readdir(d_ianalde(arg->dentry), err);
+		err = nfs4_handle_exception(NFS_SERVER(d_ianalde(arg->dentry)),
 					    err, &exception);
 	} while (exception.retry);
 	return err;
 }
 
-static int _nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
+static int _nfs4_proc_mkanald(struct ianalde *dir, struct dentry *dentry,
 		struct iattr *sattr, struct nfs4_label *label, dev_t rdev)
 {
 	struct nfs4_createdata *data;
 	int mode = sattr->ia_mode;
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
 	data = nfs4_alloc_createdata(dir, &dentry->d_name, sattr, NF4SOCK);
 	if (data == NULL)
@@ -5205,12 +5205,12 @@ static int _nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 	else if (S_ISBLK(mode)) {
 		data->arg.ftype = NF4BLK;
 		data->arg.u.device.specdata1 = MAJOR(rdev);
-		data->arg.u.device.specdata2 = MINOR(rdev);
+		data->arg.u.device.specdata2 = MIANALR(rdev);
 	}
 	else if (S_ISCHR(mode)) {
 		data->arg.ftype = NF4CHR;
 		data->arg.u.device.specdata1 = MAJOR(rdev);
-		data->arg.u.device.specdata2 = MINOR(rdev);
+		data->arg.u.device.specdata2 = MIANALR(rdev);
 	} else if (!S_ISSOCK(mode)) {
 		status = -EINVAL;
 		goto out_free;
@@ -5224,7 +5224,7 @@ out:
 	return status;
 }
 
-static int nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
+static int nfs4_proc_mkanald(struct ianalde *dir, struct dentry *dentry,
 		struct iattr *sattr, dev_t rdev)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -5239,8 +5239,8 @@ static int nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 	if (!(server->attr_bitmask[2] & FATTR4_WORD2_MODE_UMASK))
 		sattr->ia_mode &= ~current_umask();
 	do {
-		err = _nfs4_proc_mknod(dir, dentry, sattr, label, rdev);
-		trace_nfs4_mknod(dir, &dentry->d_name, err);
+		err = _nfs4_proc_mkanald(dir, dentry, sattr, label, rdev);
+		trace_nfs4_mkanald(dir, &dentry->d_name, err);
 		err = nfs4_handle_exception(NFS_SERVER(dir), err,
 				&exception);
 	} while (exception.retry);
@@ -5353,7 +5353,7 @@ static int _nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle
 		.rpc_resp = &res,
 	};
 
-	/* None of the pathconf attributes are mandatory to implement */
+	/* Analne of the pathconf attributes are mandatory to implement */
 	if ((args.bitmask[0] & nfs4_pathconf_bitmap[0]) == 0) {
 		memset(pathconf, 0, sizeof(*pathconf));
 		return 0;
@@ -5418,12 +5418,12 @@ static bool nfs4_error_stateid_expired(int err)
 
 static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
-	struct nfs_server *server = NFS_SERVER(hdr->inode);
+	struct nfs_server *server = NFS_SERVER(hdr->ianalde);
 
 	trace_nfs4_read(hdr, task->tk_status);
 	if (task->tk_status < 0) {
 		struct nfs4_exception exception = {
-			.inode = hdr->inode,
+			.ianalde = hdr->ianalde,
 			.state = hdr->args.context->state,
 			.stateid = &hdr->args.stateid,
 		};
@@ -5454,14 +5454,14 @@ static bool nfs4_read_stateid_changed(struct rpc_task *task,
 	return true;
 }
 
-static bool nfs4_read_plus_not_supported(struct rpc_task *task,
+static bool nfs4_read_plus_analt_supported(struct rpc_task *task,
 					 struct nfs_pgio_header *hdr)
 {
-	struct nfs_server *server = NFS_SERVER(hdr->inode);
+	struct nfs_server *server = NFS_SERVER(hdr->ianalde);
 	struct rpc_message *msg = &task->tk_msg;
 
 	if (msg->rpc_proc == &nfs4_procedures[NFSPROC4_CLNT_READ_PLUS] &&
-	    server->caps & NFS_CAP_READ_PLUS && task->tk_status == -ENOTSUPP) {
+	    server->caps & NFS_CAP_READ_PLUS && task->tk_status == -EANALTSUPP) {
 		server->caps &= ~NFS_CAP_READ_PLUS;
 		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ];
 		rpc_restart_call_prepare(task);
@@ -5476,10 +5476,10 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 		return -EAGAIN;
 	if (nfs4_read_stateid_changed(task, &hdr->args))
 		return -EAGAIN;
-	if (nfs4_read_plus_not_supported(task, hdr))
+	if (nfs4_read_plus_analt_supported(task, hdr))
 		return -EAGAIN;
 	if (task->tk_status > 0)
-		nfs_invalidate_atime(hdr->inode);
+		nfs_invalidate_atime(hdr->ianalde);
 	return hdr->pgio_done_cb ? hdr->pgio_done_cb(task, hdr) :
 				    nfs4_read_done_cb(task, hdr);
 }
@@ -5488,8 +5488,8 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 static bool nfs42_read_plus_support(struct nfs_pgio_header *hdr,
 				    struct rpc_message *msg)
 {
-	/* Note: We don't use READ_PLUS with pNFS yet */
-	if (nfs_server_capable(hdr->inode, NFS_CAP_READ_PLUS) && !hdr->ds_clp) {
+	/* Analte: We don't use READ_PLUS with pNFS yet */
+	if (nfs_server_capable(hdr->ianalde, NFS_CAP_READ_PLUS) && !hdr->ds_clp) {
 		msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ_PLUS];
 		return nfs_read_alloc_scratch(hdr, READ_PLUS_SCRATCH_SIZE);
 	}
@@ -5517,7 +5517,7 @@ static void nfs4_proc_read_setup(struct nfs_pgio_header *hdr,
 static int nfs4_proc_pgio_rpc_prepare(struct rpc_task *task,
 				      struct nfs_pgio_header *hdr)
 {
-	if (nfs4_setup_sequence(NFS_SERVER(hdr->inode)->nfs_client,
+	if (nfs4_setup_sequence(NFS_SERVER(hdr->ianalde)->nfs_client,
 			&hdr->args.seq_args,
 			&hdr->res.seq_res,
 			task))
@@ -5534,17 +5534,17 @@ static int nfs4_proc_pgio_rpc_prepare(struct rpc_task *task,
 static int nfs4_write_done_cb(struct rpc_task *task,
 			      struct nfs_pgio_header *hdr)
 {
-	struct inode *inode = hdr->inode;
+	struct ianalde *ianalde = hdr->ianalde;
 
 	trace_nfs4_write(hdr, task->tk_status);
 	if (task->tk_status < 0) {
 		struct nfs4_exception exception = {
-			.inode = hdr->inode,
+			.ianalde = hdr->ianalde,
 			.state = hdr->args.context->state,
 			.stateid = &hdr->args.stateid,
 		};
 		task->tk_status = nfs4_async_handle_exception(task,
-				NFS_SERVER(inode), task->tk_status,
+				NFS_SERVER(ianalde), task->tk_status,
 				&exception);
 		if (exception.retry) {
 			rpc_restart_call_prepare(task);
@@ -5552,8 +5552,8 @@ static int nfs4_write_done_cb(struct rpc_task *task,
 		}
 	}
 	if (task->tk_status >= 0) {
-		renew_lease(NFS_SERVER(inode), hdr->timestamp);
-		nfs_writeback_update_inode(hdr);
+		renew_lease(NFS_SERVER(ianalde), hdr->timestamp);
+		nfs_writeback_update_ianalde(hdr);
 	}
 	return 0;
 }
@@ -5591,36 +5591,36 @@ bool nfs4_write_need_cache_consistency_data(struct nfs_pgio_header *hdr)
 	/* Otherwise, request attributes if and only if we don't hold
 	 * a delegation
 	 */
-	return nfs4_have_delegation(hdr->inode, FMODE_READ) == 0;
+	return nfs4_have_delegation(hdr->ianalde, FMODE_READ) == 0;
 }
 
 void nfs4_bitmask_set(__u32 bitmask[], const __u32 src[],
-		      struct inode *inode, unsigned long cache_validity)
+		      struct ianalde *ianalde, unsigned long cache_validity)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	unsigned int i;
 
 	memcpy(bitmask, src, sizeof(*bitmask) * NFS4_BITMASK_SZ);
-	cache_validity |= READ_ONCE(NFS_I(inode)->cache_validity);
+	cache_validity |= READ_ONCE(NFS_I(ianalde)->cache_validity);
 
-	if (cache_validity & NFS_INO_INVALID_CHANGE)
+	if (cache_validity & NFS_IANAL_INVALID_CHANGE)
 		bitmask[0] |= FATTR4_WORD0_CHANGE;
-	if (cache_validity & NFS_INO_INVALID_ATIME)
+	if (cache_validity & NFS_IANAL_INVALID_ATIME)
 		bitmask[1] |= FATTR4_WORD1_TIME_ACCESS;
-	if (cache_validity & NFS_INO_INVALID_MODE)
+	if (cache_validity & NFS_IANAL_INVALID_MODE)
 		bitmask[1] |= FATTR4_WORD1_MODE;
-	if (cache_validity & NFS_INO_INVALID_OTHER)
+	if (cache_validity & NFS_IANAL_INVALID_OTHER)
 		bitmask[1] |= FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP;
-	if (cache_validity & NFS_INO_INVALID_NLINK)
+	if (cache_validity & NFS_IANAL_INVALID_NLINK)
 		bitmask[1] |= FATTR4_WORD1_NUMLINKS;
-	if (cache_validity & NFS_INO_INVALID_CTIME)
+	if (cache_validity & NFS_IANAL_INVALID_CTIME)
 		bitmask[1] |= FATTR4_WORD1_TIME_METADATA;
-	if (cache_validity & NFS_INO_INVALID_MTIME)
+	if (cache_validity & NFS_IANAL_INVALID_MTIME)
 		bitmask[1] |= FATTR4_WORD1_TIME_MODIFY;
-	if (cache_validity & NFS_INO_INVALID_BLOCKS)
+	if (cache_validity & NFS_IANAL_INVALID_BLOCKS)
 		bitmask[1] |= FATTR4_WORD1_SPACE_USED;
 
-	if (cache_validity & NFS_INO_INVALID_SIZE)
+	if (cache_validity & NFS_IANAL_INVALID_SIZE)
 		bitmask[0] |= FATTR4_WORD0_SIZE;
 
 	for (i = 0; i < NFS4_BITMASK_SZ; i++)
@@ -5631,7 +5631,7 @@ static void nfs4_proc_write_setup(struct nfs_pgio_header *hdr,
 				  struct rpc_message *msg,
 				  struct rpc_clnt **clnt)
 {
-	struct nfs_server *server = NFS_SERVER(hdr->inode);
+	struct nfs_server *server = NFS_SERVER(hdr->ianalde);
 
 	if (!nfs4_write_need_cache_consistency_data(hdr)) {
 		hdr->args.bitmask = NULL;
@@ -5639,7 +5639,7 @@ static void nfs4_proc_write_setup(struct nfs_pgio_header *hdr,
 	} else {
 		nfs4_bitmask_set(hdr->args.bitmask_store,
 				 server->cache_consistency_bitmask,
-				 hdr->inode, NFS_INO_INVALID_BLOCKS);
+				 hdr->ianalde, NFS_IANAL_INVALID_BLOCKS);
 		hdr->args.bitmask = hdr->args.bitmask_store;
 	}
 
@@ -5655,7 +5655,7 @@ static void nfs4_proc_write_setup(struct nfs_pgio_header *hdr,
 
 static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
 {
-	nfs4_setup_sequence(NFS_SERVER(data->inode)->nfs_client,
+	nfs4_setup_sequence(NFS_SERVER(data->ianalde)->nfs_client,
 			&data->args.seq_args,
 			&data->res.seq_res,
 			task);
@@ -5663,10 +5663,10 @@ static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commi
 
 static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_commit_data *data)
 {
-	struct inode *inode = data->inode;
+	struct ianalde *ianalde = data->ianalde;
 
 	trace_nfs4_commit(data, task->tk_status);
-	if (nfs4_async_handle_error(task, NFS_SERVER(inode),
+	if (nfs4_async_handle_error(task, NFS_SERVER(ianalde),
 				    NULL, NULL) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
@@ -5684,7 +5684,7 @@ static int nfs4_commit_done(struct rpc_task *task, struct nfs_commit_data *data)
 static void nfs4_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
 				   struct rpc_clnt **clnt)
 {
-	struct nfs_server *server = NFS_SERVER(data->inode);
+	struct nfs_server *server = NFS_SERVER(data->ianalde);
 
 	if (data->commit_done_cb == NULL)
 		data->commit_done_cb = nfs4_commit_done_cb;
@@ -5698,15 +5698,15 @@ static void nfs4_proc_commit_setup(struct nfs_commit_data *data, struct rpc_mess
 static int _nfs4_proc_commit(struct file *dst, struct nfs_commitargs *args,
 				struct nfs_commitres *res)
 {
-	struct inode *dst_inode = file_inode(dst);
-	struct nfs_server *server = NFS_SERVER(dst_inode);
+	struct ianalde *dst_ianalde = file_ianalde(dst);
+	struct nfs_server *server = NFS_SERVER(dst_ianalde);
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COMMIT],
 		.rpc_argp = args,
 		.rpc_resp = res,
 	};
 
-	args->fh = NFS_FH(dst_inode);
+	args->fh = NFS_FH(dst_ianalde);
 	return nfs4_call_sync(server->client, server, &msg,
 			&args->seq_args, &res->seq_res, 1);
 }
@@ -5717,7 +5717,7 @@ int nfs4_proc_commit(struct file *dst, __u64 offset, __u32 count, struct nfs_com
 		.offset = offset,
 		.count = count,
 	};
-	struct nfs_server *dst_server = NFS_SERVER(file_inode(dst));
+	struct nfs_server *dst_server = NFS_SERVER(file_ianalde(dst));
 	struct nfs4_exception exception = { };
 	int status;
 
@@ -5735,8 +5735,8 @@ struct nfs4_renewdata {
 };
 
 /*
- * nfs4_proc_async_renew(): This is not one of the nfs_rpc_ops; it is a special
- * standalone procedure for queueing an asynchronous RENEW.
+ * nfs4_proc_async_renew(): This is analt one of the nfs_rpc_ops; it is a special
+ * standalone procedure for queueing an asynchroanalus RENEW.
  */
 static void nfs4_renew_release(void *calldata)
 {
@@ -5791,12 +5791,12 @@ static int nfs4_proc_async_renew(struct nfs_client *clp, const struct cred *cred
 
 	if (renew_flags == 0)
 		return 0;
-	if (!refcount_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_analt_zero(&clp->cl_count))
 		return -EIO;
-	data = kmalloc(sizeof(*data), GFP_NOFS);
+	data = kmalloc(sizeof(*data), GFP_ANALFS);
 	if (data == NULL) {
 		nfs_put_client(clp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	data->client = clp;
 	data->timestamp = jiffies;
@@ -5811,13 +5811,13 @@ static int nfs4_proc_renew(struct nfs_client *clp, const struct cred *cred)
 		.rpc_argp	= clp,
 		.rpc_cred	= cred,
 	};
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int status;
 
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (status < 0)
 		return status;
-	do_renew_lease(clp, now);
+	do_renew_lease(clp, analw);
 	return 0;
 }
 
@@ -5840,7 +5840,7 @@ static bool nfs4_server_supports_acls(const struct nfs_server *server,
  */
 #define NFS4ACL_MAXPAGES DIV_ROUND_UP(XATTR_SIZE_MAX, PAGE_SIZE)
 
-int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
+int nfs4_buf_to_pages_analslab(const void *buf, size_t buflen,
 		struct page **pages)
 {
 	struct page *newpage, **spages;
@@ -5866,7 +5866,7 @@ int nfs4_buf_to_pages_noslab(const void *buf, size_t buflen,
 unwind:
 	for(; rc > 0; rc--)
 		__free_page(spages[rc-1]);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 struct nfs4_cached_acl {
@@ -5876,29 +5876,29 @@ struct nfs4_cached_acl {
 	char data[];
 };
 
-static void nfs4_set_cached_acl(struct inode *inode, struct nfs4_cached_acl *acl)
+static void nfs4_set_cached_acl(struct ianalde *ianalde, struct nfs4_cached_acl *acl)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_ianalde *nfsi = NFS_I(ianalde);
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
 	kfree(nfsi->nfs4_acl);
 	nfsi->nfs4_acl = acl;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 }
 
-static void nfs4_zap_acl_attr(struct inode *inode)
+static void nfs4_zap_acl_attr(struct ianalde *ianalde)
 {
-	nfs4_set_cached_acl(inode, NULL);
+	nfs4_set_cached_acl(ianalde, NULL);
 }
 
-static ssize_t nfs4_read_cached_acl(struct inode *inode, char *buf,
+static ssize_t nfs4_read_cached_acl(struct ianalde *ianalde, char *buf,
 				    size_t buflen, enum nfs4_acl_type type)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_ianalde *nfsi = NFS_I(ianalde);
 	struct nfs4_cached_acl *acl;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ianalde->i_lock);
 	acl = nfsi->nfs4_acl;
 	if (acl == NULL)
 		goto out;
@@ -5915,11 +5915,11 @@ static ssize_t nfs4_read_cached_acl(struct inode *inode, char *buf,
 out_len:
 	ret = acl->len;
 out:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 	return ret;
 }
 
-static void nfs4_write_cached_acl(struct inode *inode, struct page **pages,
+static void nfs4_write_cached_acl(struct ianalde *ianalde, struct page **pages,
 				  size_t pgbase, size_t acl_len,
 				  enum nfs4_acl_type type)
 {
@@ -5941,7 +5941,7 @@ static void nfs4_write_cached_acl(struct inode *inode, struct page **pages,
 	acl->type = type;
 	acl->len = acl_len;
 out:
-	nfs4_set_cached_acl(inode, acl);
+	nfs4_set_cached_acl(ianalde, acl);
 }
 
 /*
@@ -5950,16 +5950,16 @@ out:
  * the required buf.  On a NULL buf, we send a page of data to the server
  * guessing that the ACL request can be serviced by a page. If so, we cache
  * up to the page of ACL data, and the 2nd call to getxattr is serviced by
- * the cache. If not so, we throw away the page, and cache the required
- * length. The next getxattr call will then produce another round trip to
+ * the cache. If analt so, we throw away the page, and cache the required
+ * length. The next getxattr call will then produce aanalther round trip to
  * the server, this time with the input buf of the required size.
  */
-static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
+static ssize_t __nfs4_get_acl_uncached(struct ianalde *ianalde, void *buf,
 				       size_t buflen, enum nfs4_acl_type type)
 {
 	struct page **pages;
 	struct nfs_getaclargs args = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		.acl_type = type,
 		.acl_len = buflen,
 	};
@@ -5973,8 +5973,8 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 		.rpc_resp = &res,
 	};
 	unsigned int npages;
-	int ret = -ENOMEM, i;
-	struct nfs_server *server = NFS_SERVER(inode);
+	int ret = -EANALMEM, i;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 
 	if (buflen == 0)
 		buflen = server->rsize;
@@ -5982,7 +5982,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 	npages = DIV_ROUND_UP(buflen, PAGE_SIZE) + 1;
 	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	args.acl_pages = pages;
 
@@ -6001,7 +6001,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 
 	dprintk("%s  buf %p buflen %zu npages %d args.acl_len %zu\n",
 		__func__, buf, buflen, npages, args.acl_len);
-	ret = nfs4_call_sync(NFS_SERVER(inode)->client, NFS_SERVER(inode),
+	ret = nfs4_call_sync(NFS_SERVER(ianalde)->client, NFS_SERVER(ianalde),
 			     &msg, &args.seq_args, &res.seq_res, 0);
 	if (ret)
 		goto out_free;
@@ -6014,7 +6014,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 		ret = -ERANGE;
 		goto out_free;
 	}
-	nfs4_write_cached_acl(inode, pages, res.acl_data_offset, res.acl_len,
+	nfs4_write_cached_acl(ianalde, pages, res.acl_data_offset, res.acl_len,
 			      type);
 	if (buf) {
 		if (res.acl_len > buflen) {
@@ -6034,7 +6034,7 @@ out_free:
 	return ret;
 }
 
-static ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf,
+static ssize_t nfs4_get_acl_uncached(struct ianalde *ianalde, void *buf,
 				     size_t buflen, enum nfs4_acl_type type)
 {
 	struct nfs4_exception exception = {
@@ -6042,43 +6042,43 @@ static ssize_t nfs4_get_acl_uncached(struct inode *inode, void *buf,
 	};
 	ssize_t ret;
 	do {
-		ret = __nfs4_get_acl_uncached(inode, buf, buflen, type);
-		trace_nfs4_get_acl(inode, ret);
+		ret = __nfs4_get_acl_uncached(ianalde, buf, buflen, type);
+		trace_nfs4_get_acl(ianalde, ret);
 		if (ret >= 0)
 			break;
-		ret = nfs4_handle_exception(NFS_SERVER(inode), ret, &exception);
+		ret = nfs4_handle_exception(NFS_SERVER(ianalde), ret, &exception);
 	} while (exception.retry);
 	return ret;
 }
 
-static ssize_t nfs4_proc_get_acl(struct inode *inode, void *buf, size_t buflen,
+static ssize_t nfs4_proc_get_acl(struct ianalde *ianalde, void *buf, size_t buflen,
 				 enum nfs4_acl_type type)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	int ret;
 
 	if (!nfs4_server_supports_acls(server, type))
-		return -EOPNOTSUPP;
-	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+		return -EOPANALTSUPP;
+	ret = nfs_revalidate_ianalde(ianalde, NFS_IANAL_INVALID_CHANGE);
 	if (ret < 0)
 		return ret;
-	if (NFS_I(inode)->cache_validity & NFS_INO_INVALID_ACL)
-		nfs_zap_acl_cache(inode);
-	ret = nfs4_read_cached_acl(inode, buf, buflen, type);
-	if (ret != -ENOENT)
-		/* -ENOENT is returned if there is no ACL or if there is an ACL
-		 * but no cached acl data, just the acl length */
+	if (NFS_I(ianalde)->cache_validity & NFS_IANAL_INVALID_ACL)
+		nfs_zap_acl_cache(ianalde);
+	ret = nfs4_read_cached_acl(ianalde, buf, buflen, type);
+	if (ret != -EANALENT)
+		/* -EANALENT is returned if there is anal ACL or if there is an ACL
+		 * but anal cached acl data, just the acl length */
 		return ret;
-	return nfs4_get_acl_uncached(inode, buf, buflen, type);
+	return nfs4_get_acl_uncached(ianalde, buf, buflen, type);
 }
 
-static int __nfs4_proc_set_acl(struct inode *inode, const void *buf,
+static int __nfs4_proc_set_acl(struct ianalde *ianalde, const void *buf,
 			       size_t buflen, enum nfs4_acl_type type)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct page *pages[NFS4ACL_MAXPAGES];
 	struct nfs_setaclargs arg = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		.acl_type = type,
 		.acl_len = buflen,
 		.acl_pages = pages,
@@ -6096,13 +6096,13 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf,
 	if (buflen == 0)
 		return -EINVAL;
 	if (!nfs4_server_supports_acls(server, type))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (npages > ARRAY_SIZE(pages))
 		return -ERANGE;
-	i = nfs4_buf_to_pages_noslab(buf, buflen, arg.acl_pages);
+	i = nfs4_buf_to_pages_analslab(buf, buflen, arg.acl_pages);
 	if (i < 0)
 		return i;
-	nfs4_inode_make_writeable(inode);
+	nfs4_ianalde_make_writeable(ianalde);
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 
 	/*
@@ -6113,46 +6113,46 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf,
 		put_page(pages[i-1]);
 
 	/*
-	 * Acl update can result in inode attribute update.
+	 * Acl update can result in ianalde attribute update.
 	 * so mark the attribute cache invalid.
 	 */
-	spin_lock(&inode->i_lock);
-	nfs_set_cache_invalid(inode, NFS_INO_INVALID_CHANGE |
-					     NFS_INO_INVALID_CTIME |
-					     NFS_INO_REVAL_FORCED);
-	spin_unlock(&inode->i_lock);
-	nfs_access_zap_cache(inode);
-	nfs_zap_acl_cache(inode);
+	spin_lock(&ianalde->i_lock);
+	nfs_set_cache_invalid(ianalde, NFS_IANAL_INVALID_CHANGE |
+					     NFS_IANAL_INVALID_CTIME |
+					     NFS_IANAL_REVAL_FORCED);
+	spin_unlock(&ianalde->i_lock);
+	nfs_access_zap_cache(ianalde);
+	nfs_zap_acl_cache(ianalde);
 	return ret;
 }
 
-static int nfs4_proc_set_acl(struct inode *inode, const void *buf,
+static int nfs4_proc_set_acl(struct ianalde *ianalde, const void *buf,
 			     size_t buflen, enum nfs4_acl_type type)
 {
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = __nfs4_proc_set_acl(inode, buf, buflen, type);
-		trace_nfs4_set_acl(inode, err);
+		err = __nfs4_proc_set_acl(ianalde, buf, buflen, type);
+		trace_nfs4_set_acl(ianalde, err);
 		if (err == -NFS4ERR_BADOWNER || err == -NFS4ERR_BADNAME) {
 			/*
-			 * no need to retry since the kernel
+			 * anal need to retry since the kernel
 			 * isn't involved in encoding the ACEs.
 			 */
 			err = -EINVAL;
 			break;
 		}
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
 }
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
-static int _nfs4_get_security_label(struct inode *inode, void *buf,
+static int _nfs4_get_security_label(struct ianalde *ianalde, void *buf,
 					size_t buflen)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs4_label label = {0, 0, buflen, buf};
 
 	u32 bitmask[3] = { 0, 0, FATTR4_WORD2_SECURITY_LABEL };
@@ -6160,7 +6160,7 @@ static int _nfs4_get_security_label(struct inode *inode, void *buf,
 		.label = &label,
 	};
 	struct nfs4_getattr_arg arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.bitmask	= bitmask,
 	};
 	struct nfs4_getattr_res res = {
@@ -6180,11 +6180,11 @@ static int _nfs4_get_security_label(struct inode *inode, void *buf,
 	if (ret)
 		return ret;
 	if (!(fattr.valid & NFS_ATTR_FATTR_V4_SECURITY_LABEL))
-		return -ENOENT;
+		return -EANALENT;
 	return label.len;
 }
 
-static int nfs4_get_security_label(struct inode *inode, void *buf,
+static int nfs4_get_security_label(struct ianalde *ianalde, void *buf,
 					size_t buflen)
 {
 	struct nfs4_exception exception = {
@@ -6192,28 +6192,28 @@ static int nfs4_get_security_label(struct inode *inode, void *buf,
 	};
 	int err;
 
-	if (!nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_SECURITY_LABEL))
+		return -EOPANALTSUPP;
 
 	do {
-		err = _nfs4_get_security_label(inode, buf, buflen);
-		trace_nfs4_get_security_label(inode, err);
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = _nfs4_get_security_label(ianalde, buf, buflen);
+		trace_nfs4_get_security_label(ianalde, err);
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
 }
 
-static int _nfs4_do_set_security_label(struct inode *inode,
+static int _nfs4_do_set_security_label(struct ianalde *ianalde,
 		struct nfs4_label *ilabel,
 		struct nfs_fattr *fattr)
 {
 
 	struct iattr sattr = {0};
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	const u32 bitmask[3] = { 0, 0, FATTR4_WORD2_SECURITY_LABEL };
 	struct nfs_setattrargs arg = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.iap		= &sattr,
 		.server		= server,
 		.bitmask	= bitmask,
@@ -6239,7 +6239,7 @@ static int _nfs4_do_set_security_label(struct inode *inode,
 	return status;
 }
 
-static int nfs4_do_set_security_label(struct inode *inode,
+static int nfs4_do_set_security_label(struct ianalde *ianalde,
 		struct nfs4_label *ilabel,
 		struct nfs_fattr *fattr)
 {
@@ -6247,31 +6247,31 @@ static int nfs4_do_set_security_label(struct inode *inode,
 	int err;
 
 	do {
-		err = _nfs4_do_set_security_label(inode, ilabel, fattr);
-		trace_nfs4_set_security_label(inode, err);
-		err = nfs4_handle_exception(NFS_SERVER(inode), err,
+		err = _nfs4_do_set_security_label(ianalde, ilabel, fattr);
+		trace_nfs4_set_security_label(ianalde, err);
+		err = nfs4_handle_exception(NFS_SERVER(ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
 }
 
 static int
-nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
+nfs4_set_security_label(struct ianalde *ianalde, const void *buf, size_t buflen)
 {
 	struct nfs4_label ilabel = {0, 0, buflen, (char *)buf };
 	struct nfs_fattr *fattr;
 	int status;
 
-	if (!nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_SECURITY_LABEL))
+		return -EOPANALTSUPP;
 
-	fattr = nfs_alloc_fattr_with_label(NFS_SERVER(inode));
+	fattr = nfs_alloc_fattr_with_label(NFS_SERVER(ianalde));
 	if (fattr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	status = nfs4_do_set_security_label(inode, &ilabel, fattr);
+	status = nfs4_do_set_security_label(ianalde, &ilabel, fattr);
 	if (status == 0)
-		nfs_setsecurity(inode, fattr);
+		nfs_setsecurity(ianalde, fattr);
 
 	return status;
 }
@@ -6322,7 +6322,7 @@ nfs4_get_uniquifier(struct nfs_client *clp, char *buf, size_t buflen)
 }
 
 static int
-nfs4_init_nonuniform_client_string(struct nfs_client *clp)
+nfs4_init_analnuniform_client_string(struct nfs_client *clp)
 {
 	char buf[NFS4_CLIENT_ID_UNIQ_LEN];
 	size_t buflen;
@@ -6334,7 +6334,7 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 
 	rcu_read_lock();
 	len = 14 +
-		strlen(clp->cl_rpcclient->cl_nodename) +
+		strlen(clp->cl_rpcclient->cl_analdename) +
 		1 +
 		strlen(rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR)) +
 		1;
@@ -6354,17 +6354,17 @@ nfs4_init_nonuniform_client_string(struct nfs_client *clp)
 	 */
 	str = kmalloc(len, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_read_lock();
 	if (buflen)
 		scnprintf(str, len, "Linux NFSv4.0 %s/%s/%s",
-			  clp->cl_rpcclient->cl_nodename, buf,
+			  clp->cl_rpcclient->cl_analdename, buf,
 			  rpc_peeraddr2str(clp->cl_rpcclient,
 					   RPC_DISPLAY_ADDR));
 	else
 		scnprintf(str, len, "Linux NFSv4.0 %s/%s",
-			  clp->cl_rpcclient->cl_nodename,
+			  clp->cl_rpcclient->cl_analdename,
 			  rpc_peeraddr2str(clp->cl_rpcclient,
 					   RPC_DISPLAY_ADDR));
 	rcu_read_unlock();
@@ -6385,7 +6385,7 @@ nfs4_init_uniform_client_string(struct nfs_client *clp)
 		return 0;
 
 	len = 10 + 10 + 1 + 10 + 1 +
-		strlen(clp->cl_rpcclient->cl_nodename) + 1;
+		strlen(clp->cl_rpcclient->cl_analdename) + 1;
 
 	buflen = nfs4_get_uniquifier(clp, buf, sizeof(buf));
 	if (buflen)
@@ -6401,16 +6401,16 @@ nfs4_init_uniform_client_string(struct nfs_client *clp)
 	 */
 	str = kmalloc(len, GFP_KERNEL);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buflen)
 		scnprintf(str, len, "Linux NFSv%u.%u %s/%s",
-			  clp->rpc_ops->version, clp->cl_minorversion,
-			  buf, clp->cl_rpcclient->cl_nodename);
+			  clp->rpc_ops->version, clp->cl_mianalrversion,
+			  buf, clp->cl_rpcclient->cl_analdename);
 	else
 		scnprintf(str, len, "Linux NFSv%u.%u %s",
-			  clp->rpc_ops->version, clp->cl_minorversion,
-			  clp->cl_rpcclient->cl_nodename);
+			  clp->rpc_ops->version, clp->cl_mianalrversion,
+			  clp->cl_rpcclient->cl_analdename);
 	clp->cl_owner_id = str;
 	return 0;
 }
@@ -6449,7 +6449,7 @@ static const struct rpc_call_ops nfs4_setclientid_ops = {
  * @cred: credential to use for this call
  * @res: where to place the result
  *
- * Returns zero, a negative errno, or a negative NFS4ERR status code.
+ * Returns zero, a negative erranal, or a negative NFS4ERR status code.
  */
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		unsigned short port, const struct cred *cred,
@@ -6472,9 +6472,9 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_setclientid_ops,
 		.callback_data = &setclientid,
-		.flags = RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN,
 	};
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int status;
 
 	/* nfs_client_id4 */
@@ -6483,7 +6483,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	if (test_bit(NFS_CS_MIGRATION, &clp->cl_flags))
 		status = nfs4_init_uniform_client_string(clp);
 	else
-		status = nfs4_init_nonuniform_client_string(clp);
+		status = nfs4_init_analnuniform_client_string(clp);
 
 	if (status)
 		goto out;
@@ -6509,7 +6509,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	}
 
 	if (status == 0)
-		do_renew_lease(clp, now);
+		do_renew_lease(clp, analw);
 out:
 	trace_nfs4_setclientid(clp, status);
 	dprintk("NFS reply setclientid: %d\n", status);
@@ -6522,7 +6522,7 @@ out:
  * @arg: result of a previous SETCLIENTID
  * @cred: credential to use for this call
  *
- * Returns zero, a negative errno, or a negative NFS4ERR status code.
+ * Returns zero, a negative erranal, or a negative NFS4ERR status code.
  */
 int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		struct nfs4_setclientid_res *arg,
@@ -6539,7 +6539,7 @@ int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		clp->cl_rpcclient->cl_auth->au_ops->au_name,
 		clp->cl_clientid);
 	status = rpc_call_sync(clp->cl_rpcclient, &msg,
-			       RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN);
+			       RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN);
 	trace_nfs4_setclientid_confirm(clp, status);
 	dprintk("NFS reply setclientid_confirm: %d\n", status);
 	return status;
@@ -6560,14 +6560,14 @@ struct nfs4_delegreturndata {
 	} lr;
 	struct nfs_fattr fattr;
 	int rpc_status;
-	struct inode *inode;
+	struct ianalde *ianalde;
 };
 
 static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
 	struct nfs4_exception exception = {
-		.inode = data->inode,
+		.ianalde = data->ianalde,
 		.stateid = &data->stateid,
 		.task_is_privileged = data->args.seq_args.sa_privileged,
 	};
@@ -6599,7 +6599,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		task->tk_status = 0;
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		if (!nfs4_refresh_delegation_stateid(&data->stateid, data->inode))
+		if (!nfs4_refresh_delegation_stateid(&data->stateid, data->ianalde))
 			nfs4_stateid_seqid_inc(&data->stateid);
 		if (data->args.bitmask) {
 			data->args.bitmask = NULL;
@@ -6620,7 +6620,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 		if (exception.retry)
 			goto out_restart;
 	}
-	nfs_delegation_mark_returned(data->inode, data->args.stateid);
+	nfs_delegation_mark_returned(data->ianalde, data->args.stateid);
 	data->rpc_status = task->tk_status;
 	return;
 out_restart:
@@ -6631,16 +6631,16 @@ out_restart:
 static void nfs4_delegreturn_release(void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
-	struct inode *inode = data->inode;
+	struct ianalde *ianalde = data->ianalde;
 
 	if (data->lr.roc)
 		pnfs_roc_release(&data->lr.arg, &data->lr.res,
 				 data->res.lr_ret);
-	if (inode) {
+	if (ianalde) {
 		nfs4_fattr_set_prechange(&data->fattr,
-					 inode_peek_iversion_raw(inode));
-		nfs_refresh_inode(inode, &data->fattr);
-		nfs_iput_and_deactive(inode);
+					 ianalde_peek_iversion_raw(ianalde));
+		nfs_refresh_ianalde(ianalde, &data->fattr);
+		nfs_iput_and_deactive(ianalde);
 	}
 	kfree(calldata);
 }
@@ -6652,7 +6652,7 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 
 	d_data = data;
 
-	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->inode, task)) {
+	if (!d_data->lr.roc && nfs4_wait_on_layoutreturn(d_data->ianalde, task)) {
 		nfs4_sequence_done(task, &d_data->res.seq_res);
 		return;
 	}
@@ -6675,10 +6675,10 @@ static const struct rpc_call_ops nfs4_delegreturn_ops = {
 	.rpc_release = nfs4_delegreturn_release,
 };
 
-static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nfs4_stateid *stateid, int issync)
+static int _nfs4_proc_delegreturn(struct ianalde *ianalde, const struct cred *cred, const nfs4_stateid *stateid, int issync)
 {
 	struct nfs4_delegreturndata *data;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DELEGRETURN],
@@ -6692,12 +6692,12 @@ static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, 
 	};
 	int status = 0;
 
-	if (nfs_server_capable(inode, NFS_CAP_MOVEABLE))
+	if (nfs_server_capable(ianalde, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfs4_state_protect(server->nfs_client,
 			NFS_SP4_MACH_CRED_CLEANUP,
@@ -6706,20 +6706,20 @@ static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, 
 	data->args.fhandle = &data->fh;
 	data->args.stateid = &data->stateid;
 	nfs4_bitmask_set(data->args.bitmask_store,
-			 server->cache_consistency_bitmask, inode, 0);
+			 server->cache_consistency_bitmask, ianalde, 0);
 	data->args.bitmask = data->args.bitmask_store;
-	nfs_copy_fh(&data->fh, NFS_FH(inode));
+	nfs_copy_fh(&data->fh, NFS_FH(ianalde));
 	nfs4_stateid_copy(&data->stateid, stateid);
 	data->res.fattr = &data->fattr;
 	data->res.server = server;
-	data->res.lr_ret = -NFS4ERR_NOMATCHING_LAYOUT;
+	data->res.lr_ret = -NFS4ERR_ANALMATCHING_LAYOUT;
 	data->lr.arg.ld_private = &data->lr.ld_private;
 	nfs_fattr_init(data->res.fattr);
 	data->timestamp = jiffies;
 	data->rpc_status = 0;
-	data->inode = nfs_igrab_and_active(inode);
-	if (data->inode || issync) {
-		data->lr.roc = pnfs_roc(inode, &data->lr.arg, &data->lr.res,
+	data->ianalde = nfs_igrab_and_active(ianalde);
+	if (data->ianalde || issync) {
+		data->lr.roc = pnfs_roc(ianalde, &data->lr.arg, &data->lr.res,
 					cred);
 		if (data->lr.roc) {
 			data->args.lr_args = &data->lr.arg;
@@ -6727,7 +6727,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, 
 		}
 	}
 
-	if (!data->inode)
+	if (!data->ianalde)
 		nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 1,
 				   1);
 	else
@@ -6750,14 +6750,14 @@ out:
 	return status;
 }
 
-int nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nfs4_stateid *stateid, int issync)
+int nfs4_proc_delegreturn(struct ianalde *ianalde, const struct cred *cred, const nfs4_stateid *stateid, int issync)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = _nfs4_proc_delegreturn(inode, cred, stateid, issync);
-		trace_nfs4_delegreturn(inode, stateid, err);
+		err = _nfs4_proc_delegreturn(ianalde, cred, stateid, issync);
+		trace_nfs4_delegreturn(ianalde, stateid, err);
 		switch (err) {
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
@@ -6771,11 +6771,11 @@ int nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nf
 
 static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct inode *inode = state->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = state->ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_lockt_args arg = {
-		.fh = NFS_FH(inode),
+		.fh = NFS_FH(ianalde),
 		.fl = request,
 	};
 	struct nfs_lockt_res res = {
@@ -6821,7 +6821,7 @@ static int nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock *
 	do {
 		err = _nfs4_proc_getlk(state, cmd, request);
 		trace_nfs4_get_lock(request, state, cmd, err);
-		err = nfs4_handle_exception(NFS_SERVER(state->inode), err,
+		err = nfs4_handle_exception(NFS_SERVER(state->ianalde), err,
 				&exception);
 	} while (exception.retry);
 	return err;
@@ -6881,12 +6881,12 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 {
 	struct nfs4_unlockdata *p;
 	struct nfs4_state *state = lsp->ls_state;
-	struct inode *inode = state->inode;
+	struct ianalde *ianalde = state->ianalde;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
 		return NULL;
-	p->arg.fh = NFS_FH(inode);
+	p->arg.fh = NFS_FH(ianalde);
 	p->arg.fl = &p->fl;
 	p->arg.seqid = seqid;
 	p->res.seqid = seqid;
@@ -6896,7 +6896,7 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	p->l_ctx = nfs_get_lock_context(ctx);
 	locks_init_lock(&p->fl);
 	locks_copy_lock(&p->fl, fl);
-	p->server = NFS_SERVER(inode);
+	p->server = NFS_SERVER(ianalde);
 	spin_lock(&state->state_lock);
 	nfs4_stateid_copy(&p->arg.stateid, &lsp->ls_stateid);
 	spin_unlock(&state->state_lock);
@@ -6917,7 +6917,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
 	struct nfs4_exception exception = {
-		.inode = calldata->lsp->ls_state->inode,
+		.ianalde = calldata->lsp->ls_state->ianalde,
 		.stateid = &calldata->arg.stateid,
 	};
 
@@ -6926,7 +6926,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 	switch (task->tk_status) {
 		case 0:
 			renew_lease(calldata->server, calldata->timestamp);
-			locks_lock_inode_wait(calldata->lsp->ls_state->inode, &calldata->fl);
+			locks_lock_ianalde_wait(calldata->lsp->ls_state->ianalde, &calldata->fl);
 			if (nfs4_update_lock_stateid(calldata->lsp,
 					&calldata->res.stateid))
 				break;
@@ -6969,8 +6969,8 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		goto out_wait;
 	if (test_bit(NFS_LOCK_INITIALIZED, &calldata->lsp->ls_flags) == 0) {
-		/* Note: exit _without_ running nfs4_locku_done */
-		goto out_no_action;
+		/* Analte: exit _without_ running nfs4_locku_done */
+		goto out_anal_action;
 	}
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence(calldata->server->nfs_client,
@@ -6979,7 +6979,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 				task) != 0)
 		nfs_release_seqid(calldata->arg.seqid);
 	return;
-out_no_action:
+out_anal_action:
 	task->tk_action = NULL;
 out_wait:
 	nfs4_sequence_done(task, &calldata->res.seq_res);
@@ -7002,17 +7002,17 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		.rpc_cred = ctx->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
-		.rpc_client = NFS_CLIENT(lsp->ls_state->inode),
+		.rpc_client = NFS_CLIENT(lsp->ls_state->ianalde),
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_locku_ops,
 		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC,
 	};
 
-	if (nfs_server_capable(lsp->ls_state->inode, NFS_CAP_MOVEABLE))
+	if (nfs_server_capable(lsp->ls_state->ianalde, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
-	nfs4_state_protect(NFS_SERVER(lsp->ls_state->inode)->nfs_client,
+	nfs4_state_protect(NFS_SERVER(lsp->ls_state->ianalde)->nfs_client,
 		NFS_SP4_MACH_CRED_CLEANUP, &task_setup_data.rpc_client, &msg);
 
 	/* Ensure this is an unlock - when canceling a lock, the
@@ -7025,7 +7025,7 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 	data = nfs4_alloc_unlockdata(fl, ctx, lsp, seqid);
 	if (data == NULL) {
 		nfs_free_seqid(seqid);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	nfs4_init_sequence(&data->arg.seq_args, &data->res.seq_res, 1, 0);
@@ -7037,9 +7037,9 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct inode *inode = state->inode;
+	struct ianalde *ianalde = state->ianalde;
 	struct nfs4_state_owner *sp = state->owner;
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_ianalde *nfsi = NFS_I(ianalde);
 	struct nfs_seqid *seqid;
 	struct nfs4_lock_state *lsp;
 	struct rpc_task *task;
@@ -7052,9 +7052,9 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	request->fl_flags |= FL_EXISTS;
 	/* Exclude nfs_delegation_claim_locks() */
 	mutex_lock(&sp->so_delegreturn_mutex);
-	/* Exclude nfs4_reclaim_open_stateid() - note nesting! */
+	/* Exclude nfs4_reclaim_open_stateid() - analte nesting! */
 	down_read(&nfsi->rwsem);
-	if (locks_lock_inode_wait(inode, request) == -ENOENT) {
+	if (locks_lock_ianalde_wait(ianalde, request) == -EANALENT) {
 		up_read(&nfsi->rwsem);
 		mutex_unlock(&sp->so_delegreturn_mutex);
 		goto out;
@@ -7068,9 +7068,9 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	/* Is this a delegated lock? */
 	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) == 0)
 		goto out;
-	alloc_seqid = NFS_SERVER(inode)->nfs_client->cl_mvops->alloc_seqid;
+	alloc_seqid = NFS_SERVER(ianalde)->nfs_client->cl_mvops->alloc_seqid;
 	seqid = alloc_seqid(&lsp->ls_seqid, GFP_KERNEL);
-	status = -ENOMEM;
+	status = -EANALMEM;
 	if (IS_ERR(seqid))
 		goto out;
 	task = nfs4_do_unlck(request, nfs_file_open_context(request->fl_file), lsp, seqid);
@@ -7102,15 +7102,15 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 		gfp_t gfp_mask)
 {
 	struct nfs4_lockdata *p;
-	struct inode *inode = lsp->ls_state->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = lsp->ls_state->ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 
 	p = kzalloc(sizeof(*p), gfp_mask);
 	if (p == NULL)
 		return NULL;
 
-	p->arg.fh = NFS_FH(inode);
+	p->arg.fh = NFS_FH(ianalde);
 	p->arg.fl = &p->fl;
 	p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid, gfp_mask);
 	if (IS_ERR(p->arg.open_seqid))
@@ -7188,11 +7188,11 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 	data->rpc_status = task->tk_status;
 	switch (task->tk_status) {
 	case 0:
-		renew_lease(NFS_SERVER(d_inode(data->ctx->dentry)),
+		renew_lease(NFS_SERVER(d_ianalde(data->ctx->dentry)),
 				data->timestamp);
 		if (data->arg.new_lock && !data->cancelled) {
 			data->fl.fl_flags &= ~(FL_SLEEP | FL_ACCESS);
-			if (locks_lock_inode_wait(lsp->ls_state->inode, &data->fl) < 0)
+			if (locks_lock_ianalde_wait(lsp->ls_state->ianalde, &data->fl) < 0)
 				goto out_restart;
 		}
 		if (data->arg.new_lock_owner != 0) {
@@ -7281,21 +7281,21 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		.rpc_cred = state->owner->so_cred,
 	};
 	struct rpc_task_setup task_setup_data = {
-		.rpc_client = NFS_CLIENT(state->inode),
+		.rpc_client = NFS_CLIENT(state->ianalde),
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_lock_ops,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF,
+		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_ANALREF,
 	};
 	int ret;
 
-	if (nfs_server_capable(state->inode, NFS_CAP_MOVEABLE))
+	if (nfs_server_capable(state->ianalde, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
 	data = nfs4_alloc_lockdata(fl, nfs_file_open_context(fl->fl_file),
 				   fl->fl_u.nfs4_fl.owner, GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (IS_SETLKW(cmd))
 		data->arg.block = 1;
 	nfs4_init_sequence(&data->arg.seq_args, &data->res.seq_res, 1,
@@ -7327,9 +7327,9 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 
 static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs4_exception exception = {
-		.inode = state->inode,
+		.ianalde = state->ianalde,
 	};
 	int err;
 
@@ -7347,9 +7347,9 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 
 static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs4_exception exception = {
-		.inode = state->inode,
+		.ianalde = state->ianalde,
 	};
 	int err;
 
@@ -7396,22 +7396,22 @@ static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *reques
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs_inode *nfsi = NFS_I(state->inode);
+	struct nfs_ianalde *nfsi = NFS_I(state->ianalde);
 	struct nfs4_state_owner *sp = state->owner;
 	unsigned char fl_flags = request->fl_flags;
 	int status;
 
 	request->fl_flags |= FL_ACCESS;
-	status = locks_lock_inode_wait(state->inode, request);
+	status = locks_lock_ianalde_wait(state->ianalde, request);
 	if (status < 0)
 		goto out;
 	mutex_lock(&sp->so_delegreturn_mutex);
 	down_read(&nfsi->rwsem);
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-		/* Yes: cache locks! */
+		/* Anal: cache locks! */
 		/* ...but avoid races with delegation recall... */
 		request->fl_flags = fl_flags & ~FL_SLEEP;
-		status = locks_lock_inode_wait(state->inode, request);
+		status = locks_lock_ianalde_wait(state->ianalde, request);
 		up_read(&nfsi->rwsem);
 		mutex_unlock(&sp->so_delegreturn_mutex);
 		goto out;
@@ -7428,7 +7428,7 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 {
 	struct nfs4_exception exception = {
 		.state = state,
-		.inode = state->inode,
+		.ianalde = state->ianalde,
 		.interruptible = true,
 	};
 	int err;
@@ -7437,7 +7437,7 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 		err = _nfs4_proc_setlk(state, cmd, request);
 		if (err == -NFS4ERR_DENIED)
 			err = -EAGAIN;
-		err = nfs4_handle_exception(NFS_SERVER(state->inode),
+		err = nfs4_handle_exception(NFS_SERVER(state->ianalde),
 				err, &exception);
 	} while (exception.retry);
 	return err;
@@ -7468,7 +7468,7 @@ nfs4_retry_setlk_simple(struct nfs4_state *state, int cmd,
 
 #ifdef CONFIG_NFS_V4_1
 struct nfs4_lock_waiter {
-	struct inode		*inode;
+	struct ianalde		*ianalde;
 	struct nfs_lowner	owner;
 	wait_queue_entry_t	wait;
 };
@@ -7481,7 +7481,7 @@ nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, vo
 
 	/* NULL key means to wake up everyone */
 	if (key) {
-		struct cb_notify_lock_args	*cbnl = key;
+		struct cb_analtify_lock_args	*cbnl = key;
 		struct nfs_lowner		*lowner = &cbnl->cbnl_owner,
 						*wowner = &waiter->owner;
 
@@ -7489,8 +7489,8 @@ nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, vo
 		if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
 			return 0;
 
-		/* Make sure it's for the right inode */
-		if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
+		/* Make sure it's for the right ianalde */
+		if (nfs_compare_fh(NFS_FH(waiter->ianalde), &cbnl->cbnl_fh))
 			return 0;
 	}
 
@@ -7501,11 +7501,11 @@ static int
 nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct nfs4_lock_state *lsp = request->fl_u.nfs4_fl.owner;
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	struct nfs_client *clp = server->nfs_client;
 	wait_queue_head_t *q = &clp->cl_lock_waitq;
 	struct nfs4_lock_waiter waiter = {
-		.inode = state->inode,
+		.ianalde = state->ianalde,
 		.owner = { .clientid = clp->cl_clientid,
 			   .id = lsp->ls_seqid.owner_id,
 			   .s_dev = server->s_dev },
@@ -7513,7 +7513,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 	int status;
 
 	/* Don't bother with waitqueue if we don't expect a callback */
-	if (!test_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags))
+	if (!test_bit(NFS_STATE_MAY_ANALTIFY_LOCK, &state->flags))
 		return nfs4_retry_setlk_simple(state, cmd, request);
 
 	init_wait(&waiter.wait);
@@ -7569,11 +7569,11 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	}
 
 	if (state == NULL)
-		return -ENOLCK;
+		return -EANALLCK;
 
 	if ((request->fl_flags & FL_POSIX) &&
 	    !test_bit(NFS_STATE_POSIX_LOCKS, &state->flags))
-		return -ENOLCK;
+		return -EANALLCK;
 
 	/*
 	 * Don't rely on the VFS having checked the file open mode,
@@ -7604,15 +7604,15 @@ static int nfs4_delete_lease(struct file *file, void **priv)
 static int nfs4_add_lease(struct file *file, int arg, struct file_lock **lease,
 			  void **priv)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	fmode_t type = arg == F_RDLCK ? FMODE_READ : FMODE_WRITE;
 	int ret;
 
-	/* No delegation, no lease */
-	if (!nfs4_have_delegation(inode, type))
+	/* Anal delegation, anal lease */
+	if (!nfs4_have_delegation(ianalde, type))
 		return -EAGAIN;
 	ret = generic_setlease(file, arg, lease, priv);
-	if (ret || nfs4_have_delegation(inode, type))
+	if (ret || nfs4_have_delegation(ianalde, type))
 		return ret;
 	/* We raced with a delegation return */
 	nfs4_delete_lease(file, priv);
@@ -7635,7 +7635,7 @@ int nfs4_proc_setlease(struct file *file, int arg, struct file_lock **lease,
 
 int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_server *server = NFS_SERVER(state->ianalde);
 	int err;
 
 	err = nfs4_set_lock_state(state, fl);
@@ -7712,7 +7712,7 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RELEASE_LOCKOWNER],
 	};
 
-	if (server->nfs_client->cl_mvops->minor_version != 0)
+	if (server->nfs_client->cl_mvops->mianalr_version != 0)
 		return;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
@@ -7734,18 +7734,18 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 
 static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
 				   struct mnt_idmap *idmap,
-				   struct dentry *unused, struct inode *inode,
+				   struct dentry *unused, struct ianalde *ianalde,
 				   const char *key, const void *buf,
 				   size_t buflen, int flags)
 {
-	return nfs4_proc_set_acl(inode, buf, buflen, NFS4ACL_ACL);
+	return nfs4_proc_set_acl(ianalde, buf, buflen, NFS4ACL_ACL);
 }
 
 static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
-				   struct dentry *unused, struct inode *inode,
+				   struct dentry *unused, struct ianalde *ianalde,
 				   const char *key, void *buf, size_t buflen)
 {
-	return nfs4_proc_get_acl(inode, buf, buflen, NFS4ACL_ACL);
+	return nfs4_proc_get_acl(ianalde, buf, buflen, NFS4ACL_ACL);
 }
 
 static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
@@ -7758,18 +7758,18 @@ static bool nfs4_xattr_list_nfs4_acl(struct dentry *dentry)
 
 static int nfs4_xattr_set_nfs4_dacl(const struct xattr_handler *handler,
 				    struct mnt_idmap *idmap,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, const void *buf,
 				    size_t buflen, int flags)
 {
-	return nfs4_proc_set_acl(inode, buf, buflen, NFS4ACL_DACL);
+	return nfs4_proc_set_acl(ianalde, buf, buflen, NFS4ACL_DACL);
 }
 
 static int nfs4_xattr_get_nfs4_dacl(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, void *buf, size_t buflen)
 {
-	return nfs4_proc_get_acl(inode, buf, buflen, NFS4ACL_DACL);
+	return nfs4_proc_get_acl(ianalde, buf, buflen, NFS4ACL_DACL);
 }
 
 static bool nfs4_xattr_list_nfs4_dacl(struct dentry *dentry)
@@ -7781,18 +7781,18 @@ static bool nfs4_xattr_list_nfs4_dacl(struct dentry *dentry)
 
 static int nfs4_xattr_set_nfs4_sacl(const struct xattr_handler *handler,
 				    struct mnt_idmap *idmap,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, const void *buf,
 				    size_t buflen, int flags)
 {
-	return nfs4_proc_set_acl(inode, buf, buflen, NFS4ACL_SACL);
+	return nfs4_proc_set_acl(ianalde, buf, buflen, NFS4ACL_SACL);
 }
 
 static int nfs4_xattr_get_nfs4_sacl(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, void *buf, size_t buflen)
 {
-	return nfs4_proc_get_acl(inode, buf, buflen, NFS4ACL_SACL);
+	return nfs4_proc_get_acl(ianalde, buf, buflen, NFS4ACL_SACL);
 }
 
 static bool nfs4_xattr_list_nfs4_sacl(struct dentry *dentry)
@@ -7806,32 +7806,32 @@ static bool nfs4_xattr_list_nfs4_sacl(struct dentry *dentry)
 
 static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
 				     struct mnt_idmap *idmap,
-				     struct dentry *unused, struct inode *inode,
+				     struct dentry *unused, struct ianalde *ianalde,
 				     const char *key, const void *buf,
 				     size_t buflen, int flags)
 {
 	if (security_ismaclabel(key))
-		return nfs4_set_security_label(inode, buf, buflen);
+		return nfs4_set_security_label(ianalde, buf, buflen);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler,
-				     struct dentry *unused, struct inode *inode,
+				     struct dentry *unused, struct ianalde *ianalde,
 				     const char *key, void *buf, size_t buflen)
 {
 	if (security_ismaclabel(key))
-		return nfs4_get_security_label(inode, buf, buflen);
-	return -EOPNOTSUPP;
+		return nfs4_get_security_label(ianalde, buf, buflen);
+	return -EOPANALTSUPP;
 }
 
 static ssize_t
-nfs4_listxattr_nfs4_label(struct inode *inode, char *list, size_t list_len)
+nfs4_listxattr_nfs4_label(struct ianalde *ianalde, char *list, size_t list_len)
 {
 	int len = 0;
 
-	if (nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL)) {
-		len = security_inode_listsecurity(inode, list, list_len);
+	if (nfs_server_capable(ianalde, NFS_CAP_SECURITY_LABEL)) {
+		len = security_ianalde_listsecurity(ianalde, list, list_len);
 		if (len >= 0 && list_len && len > list_len)
 			return -ERANGE;
 	}
@@ -7847,7 +7847,7 @@ static const struct xattr_handler nfs4_xattr_nfs4_label_handler = {
 #else
 
 static ssize_t
-nfs4_listxattr_nfs4_label(struct inode *inode, char *list, size_t list_len)
+nfs4_listxattr_nfs4_label(struct ianalde *ianalde, char *list, size_t list_len)
 {
 	return 0;
 }
@@ -7857,73 +7857,73 @@ nfs4_listxattr_nfs4_label(struct inode *inode, char *list, size_t list_len)
 #ifdef CONFIG_NFS_V4_2
 static int nfs4_xattr_set_nfs4_user(const struct xattr_handler *handler,
 				    struct mnt_idmap *idmap,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, const void *buf,
 				    size_t buflen, int flags)
 {
 	u32 mask;
 	int ret;
 
-	if (!nfs_server_capable(inode, NFS_CAP_XATTR))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_XATTR))
+		return -EOPANALTSUPP;
 
 	/*
-	 * There is no mapping from the MAY_* flags to the NFS_ACCESS_XA*
-	 * flags right now. Handling of xattr operations use the normal
+	 * There is anal mapping from the MAY_* flags to the NFS_ACCESS_XA*
+	 * flags right analw. Handling of xattr operations use the analrmal
 	 * file read/write permissions.
 	 *
 	 * Just in case the server has other ideas (which RFC 8276 allows),
 	 * do a cached access check for the XA* flags to possibly avoid
 	 * doing an RPC and getting EACCES back.
 	 */
-	if (!nfs_access_get_cached(inode, current_cred(), &mask, true)) {
+	if (!nfs_access_get_cached(ianalde, current_cred(), &mask, true)) {
 		if (!(mask & NFS_ACCESS_XAWRITE))
 			return -EACCES;
 	}
 
 	if (buf == NULL) {
-		ret = nfs42_proc_removexattr(inode, key);
+		ret = nfs42_proc_removexattr(ianalde, key);
 		if (!ret)
-			nfs4_xattr_cache_remove(inode, key);
+			nfs4_xattr_cache_remove(ianalde, key);
 	} else {
-		ret = nfs42_proc_setxattr(inode, key, buf, buflen, flags);
+		ret = nfs42_proc_setxattr(ianalde, key, buf, buflen, flags);
 		if (!ret)
-			nfs4_xattr_cache_add(inode, key, buf, NULL, buflen);
+			nfs4_xattr_cache_add(ianalde, key, buf, NULL, buflen);
 	}
 
 	return ret;
 }
 
 static int nfs4_xattr_get_nfs4_user(const struct xattr_handler *handler,
-				    struct dentry *unused, struct inode *inode,
+				    struct dentry *unused, struct ianalde *ianalde,
 				    const char *key, void *buf, size_t buflen)
 {
 	u32 mask;
 	ssize_t ret;
 
-	if (!nfs_server_capable(inode, NFS_CAP_XATTR))
-		return -EOPNOTSUPP;
+	if (!nfs_server_capable(ianalde, NFS_CAP_XATTR))
+		return -EOPANALTSUPP;
 
-	if (!nfs_access_get_cached(inode, current_cred(), &mask, true)) {
+	if (!nfs_access_get_cached(ianalde, current_cred(), &mask, true)) {
 		if (!(mask & NFS_ACCESS_XAREAD))
 			return -EACCES;
 	}
 
-	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+	ret = nfs_revalidate_ianalde(ianalde, NFS_IANAL_INVALID_CHANGE);
 	if (ret)
 		return ret;
 
-	ret = nfs4_xattr_cache_get(inode, key, buf, buflen);
-	if (ret >= 0 || (ret < 0 && ret != -ENOENT))
+	ret = nfs4_xattr_cache_get(ianalde, key, buf, buflen);
+	if (ret >= 0 || (ret < 0 && ret != -EANALENT))
 		return ret;
 
-	ret = nfs42_proc_getxattr(inode, key, buf, buflen);
+	ret = nfs42_proc_getxattr(ianalde, key, buf, buflen);
 
 	return ret;
 }
 
 static ssize_t
-nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
+nfs4_listxattr_nfs4_user(struct ianalde *ianalde, char *list, size_t list_len)
 {
 	u64 cookie;
 	bool eof;
@@ -7932,20 +7932,20 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 	size_t buflen;
 	u32 mask;
 
-	if (!nfs_server_capable(inode, NFS_CAP_XATTR))
+	if (!nfs_server_capable(ianalde, NFS_CAP_XATTR))
 		return 0;
 
-	if (!nfs_access_get_cached(inode, current_cred(), &mask, true)) {
+	if (!nfs_access_get_cached(ianalde, current_cred(), &mask, true)) {
 		if (!(mask & NFS_ACCESS_XALIST))
 			return 0;
 	}
 
-	ret = nfs_revalidate_inode(inode, NFS_INO_INVALID_CHANGE);
+	ret = nfs_revalidate_ianalde(ianalde, NFS_IANAL_INVALID_CHANGE);
 	if (ret)
 		return ret;
 
-	ret = nfs4_xattr_cache_list(inode, list, list_len);
-	if (ret >= 0 || (ret < 0 && ret != -ENOENT))
+	ret = nfs4_xattr_cache_list(ianalde, list, list_len);
+	if (ret >= 0 || (ret < 0 && ret != -EANALENT))
 		return ret;
 
 	cookie = 0;
@@ -7955,7 +7955,7 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 	size = 0;
 
 	while (!eof) {
-		ret = nfs42_proc_listxattrs(inode, buf, buflen,
+		ret = nfs42_proc_listxattrs(ianalde, buf, buflen,
 		    &cookie, &eof);
 		if (ret < 0)
 			return ret;
@@ -7968,7 +7968,7 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 	}
 
 	if (list_len)
-		nfs4_xattr_cache_set_list(inode, list, size);
+		nfs4_xattr_cache_set_list(ianalde, list, size);
 
 	return size;
 }
@@ -7976,7 +7976,7 @@ nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
 #else
 
 static ssize_t
-nfs4_listxattr_nfs4_user(struct inode *inode, char *list, size_t list_len)
+nfs4_listxattr_nfs4_user(struct ianalde *ianalde, char *list, size_t list_len)
 {
 	return 0;
 }
@@ -7999,7 +7999,7 @@ static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr)
 	fattr->nlink = 2;
 }
 
-static int _nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
+static int _nfs4_proc_fs_locations(struct rpc_clnt *client, struct ianalde *dir,
 				   const struct qstr *name,
 				   struct nfs4_fs_locations *fs_locations,
 				   struct page *page)
@@ -8028,7 +8028,7 @@ static int _nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
 	bitmask[1] = nfs4_fattr_bitmap[1];
 
 	/* Ask for the fileid of the absent filesystem if mounted_on_fileid
-	 * is not supported */
+	 * is analt supported */
 	if (NFS_SERVER(dir)->attr_bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
 		bitmask[0] &= ~FATTR4_WORD0_FILEID;
 	else
@@ -8042,7 +8042,7 @@ static int _nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
 	return status;
 }
 
-int nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
+int nfs4_proc_fs_locations(struct rpc_clnt *client, struct ianalde *dir,
 			   const struct qstr *name,
 			   struct nfs4_fs_locations *fs_locations,
 			   struct page *page)
@@ -8096,7 +8096,7 @@ static int _nfs40_proc_get_locations(struct nfs_server *server,
 		.rpc_resp	= &res,
 		.rpc_cred	= cred,
 	};
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int status;
 
 	nfs_fattr_init(locations->fattr);
@@ -8109,7 +8109,7 @@ static int _nfs40_proc_get_locations(struct nfs_server *server,
 	if (status)
 		return status;
 
-	renew_lease(server, now);
+	renew_lease(server, analw);
 	return 0;
 }
 
@@ -8160,7 +8160,7 @@ static int _nfs41_proc_get_locations(struct nfs_server *server,
 		.rpc_message = &msg,
 		.callback_ops = server->nfs_client->cl_mvops->call_sync_ops,
 		.callback_data = &data,
-		.flags = RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_ANAL_ROUND_ROBIN,
 	};
 	int status;
 
@@ -8187,10 +8187,10 @@ static int _nfs41_proc_get_locations(struct nfs_server *server,
  * @cred: credential to use for this operation
  *
  * Returns NFS4_OK on success, a negative NFS4ERR status code if the
- * operation failed, or a negative errno if a local error occurred.
+ * operation failed, or a negative erranal if a local error occurred.
  *
  * On success, "locations" is filled in, but if the server has
- * no locations information, NFS_ATTR_FATTR_V4_LOCATIONS is not
+ * anal locations information, NFS_ATTR_FATTR_V4_LOCATIONS is analt
  * asserted.
  *
  * -NFS4ERR_LEASE_MOVED is returned if the server still has leases
@@ -8211,7 +8211,7 @@ int nfs4_proc_get_locations(struct nfs_server *server,
 
 	dprintk("%s: FSID %llx:%llx on \"%s\"\n", __func__,
 		(unsigned long long)server->fsid.major,
-		(unsigned long long)server->fsid.minor,
+		(unsigned long long)server->fsid.mianalr,
 		clp->cl_hostname);
 	nfs_display_fhandle(fhandle, __func__);
 
@@ -8232,13 +8232,13 @@ int nfs4_proc_get_locations(struct nfs_server *server,
  * is appended to this compound to identify the client ID which is
  * performing recovery.
  */
-static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred)
+static int _nfs40_proc_fsid_present(struct ianalde *ianalde, const struct cred *cred)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_server *server = NFS_SERVER(ianalde);
+	struct nfs_client *clp = NFS_SERVER(ianalde)->nfs_client;
 	struct rpc_clnt *clnt = server->client;
 	struct nfs4_fsid_present_arg args = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 		.clientid	= clp->cl_clientid,
 		.renew		= 1,		/* append RENEW */
 	};
@@ -8251,12 +8251,12 @@ static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred
 		.rpc_resp	= &res,
 		.rpc_cred	= cred,
 	};
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int status;
 
 	res.fh = nfs_alloc_fhandle();
 	if (res.fh == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 1);
 	status = nfs4_call_sync_sequence(clnt, server, &msg,
@@ -8265,7 +8265,7 @@ static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred
 	if (status)
 		return status;
 
-	do_renew_lease(clp, now);
+	do_renew_lease(clp, analw);
 	return 0;
 }
 
@@ -8278,12 +8278,12 @@ static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred
  * this operation is identified in the SEQUENCE operation in this
  * compound.
  */
-static int _nfs41_proc_fsid_present(struct inode *inode, const struct cred *cred)
+static int _nfs41_proc_fsid_present(struct ianalde *ianalde, const struct cred *cred)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct rpc_clnt *clnt = server->client;
 	struct nfs4_fsid_present_arg args = {
-		.fh		= NFS_FH(inode),
+		.fh		= NFS_FH(ianalde),
 	};
 	struct nfs4_fsid_present_res res = {
 	};
@@ -8297,7 +8297,7 @@ static int _nfs41_proc_fsid_present(struct inode *inode, const struct cred *cred
 
 	res.fh = nfs_alloc_fhandle();
 	if (res.fh == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0, 1);
 	status = nfs4_call_sync_sequence(clnt, server, &msg,
@@ -8313,21 +8313,21 @@ static int _nfs41_proc_fsid_present(struct inode *inode, const struct cred *cred
 
 /**
  * nfs4_proc_fsid_present - Is this FSID present or absent on server?
- * @inode: inode on FSID to check
+ * @ianalde: ianalde on FSID to check
  * @cred: credential to use for this operation
  *
- * Server indicates whether the FSID is present, moved, or not
+ * Server indicates whether the FSID is present, moved, or analt
  * recognized.  This operation is necessary to clear a LEASE_MOVED
  * condition for this client ID.
  *
  * Returns NFS4_OK if the FSID is present on this server,
- * -NFS4ERR_MOVED if the FSID is no longer present, a negative
+ * -NFS4ERR_MOVED if the FSID is anal longer present, a negative
  *  NFS4ERR code if some error occurred on the server, or a
- *  negative errno if a local failure occurred.
+ *  negative erranal if a local failure occurred.
  */
-int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
+int nfs4_proc_fsid_present(struct ianalde *ianalde, const struct cred *cred)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct nfs_client *clp = server->nfs_client;
 	const struct nfs4_mig_recovery_ops *ops =
 					clp->cl_mvops->mig_recovery_ops;
@@ -8338,12 +8338,12 @@ int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
 
 	dprintk("%s: FSID %llx:%llx on \"%s\"\n", __func__,
 		(unsigned long long)server->fsid.major,
-		(unsigned long long)server->fsid.minor,
+		(unsigned long long)server->fsid.mianalr,
 		clp->cl_hostname);
-	nfs_display_fhandle(NFS_FH(inode), __func__);
+	nfs_display_fhandle(NFS_FH(ianalde), __func__);
 
 	do {
-		status = ops->fsid_present(inode, cred);
+		status = ops->fsid_present(ianalde, cred);
 		if (status != -NFS4ERR_DELAY)
 			break;
 		nfs4_handle_exception(server, status, &exception);
@@ -8358,7 +8358,7 @@ int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
  * Considerations sections. Otherwise, just use the user cred with the
  * filesystem's rpc_client.
  */
-static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors, bool use_integrity)
+static int _nfs4_proc_secinfo(struct ianalde *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors, bool use_integrity)
 {
 	int status;
 	struct rpc_clnt *clnt = NFS_SERVER(dir)->client;
@@ -8385,7 +8385,7 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 		.rpc_message = &msg,
 		.callback_ops = clp->cl_mvops->call_sync_ops,
 		.callback_data = &data,
-		.flags = RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_ANAL_ROUND_ROBIN,
 	};
 	const struct cred *cred = NULL;
 
@@ -8409,7 +8409,7 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 	return status;
 }
 
-int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
+int nfs4_proc_secinfo(struct ianalde *dir, const struct qstr *name,
 		      struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = {
@@ -8442,7 +8442,7 @@ int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
 #ifdef CONFIG_NFS_V4_1
 /*
  * Check the exchange flags returned by the server for invalid flags, having
- * both PNFS and NON_PNFS flags set, and not having one of NON_PNFS, PNFS, or
+ * both PNFS and ANALN_PNFS flags set, and analt having one of ANALN_PNFS, PNFS, or
  * DS flags set.
  */
 static int nfs4_check_cl_exchange_flags(u32 flags, u32 version)
@@ -8452,7 +8452,7 @@ static int nfs4_check_cl_exchange_flags(u32 flags, u32 version)
 	else if (version < 2 && (flags & ~EXCHGID4_FLAG_MASK_R))
 		goto out_inval;
 	if ((flags & EXCHGID4_FLAG_USE_PNFS_MDS) &&
-	    (flags & EXCHGID4_FLAG_USE_NON_PNFS))
+	    (flags & EXCHGID4_FLAG_USE_ANALN_PNFS))
 		goto out_inval;
 	if (!(flags & (EXCHGID4_FLAG_MASK_PNFS)))
 		goto out_inval;
@@ -8535,7 +8535,7 @@ int nfs4_proc_bind_one_conn_to_session(struct rpc_clnt *clnt,
 	if (!(clp->cl_session->flags & SESSION4_BACK_CHAN))
 		args.dir = NFS4_CDFC4_FORE;
 
-	/* Do not set the backchannel flag unless this is clnt->cl_xprt */
+	/* Do analt set the backchannel flag unless this is clnt->cl_xprt */
 	if (xprt != rcu_access_pointer(clnt->cl_xprt))
 		args.dir = NFS4_CDFC4_FORE;
 
@@ -8612,7 +8612,7 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 		      1 << (OP_DELEGRETURN) |
 		      1 << (OP_COMMIT),
 		[1] = 1 << (OP_SECINFO - 32) |
-		      1 << (OP_SECINFO_NO_NAME - 32) |
+		      1 << (OP_SECINFO_ANAL_NAME - 32) |
 		      1 << (OP_LAYOUTRETURN - 32) |
 		      1 << (OP_TEST_STATEID - 32) |
 		      1 << (OP_FREE_STATEID - 32) |
@@ -8624,7 +8624,7 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
  * Select the state protection mode for client `clp' given the server results
  * from exchange_id in `sp'.
  *
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  */
 static int nfs4_sp4_select_mode(struct nfs_client *clp,
 				 struct nfs41_state_protection *sp)
@@ -8650,7 +8650,7 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 				dfprintk(MOUNT, "  allow op %d\n", i);
 		}
 
-		/* make sure nothing is on enforce list that isn't supported */
+		/* make sure analthing is on enforce list that isn't supported */
 		for (i = 0; i < NFS4_OP_MAP_NUM_WORDS; i++) {
 			if (sp->enforce.u.words[i] & ~supported_enforce[i]) {
 				dfprintk(MOUNT, "sp4_mach_cred: disabled\n");
@@ -8661,10 +8661,10 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 
 		/*
 		 * Minimal mode - state operations are allowed to use machine
-		 * credential.  Note this already happens by default, so the
+		 * credential.  Analte this already happens by default, so the
 		 * client doesn't have to do anything more than the negotiation.
 		 *
-		 * NOTE: we don't care if EXCHANGE_ID is in the list -
+		 * ANALTE: we don't care if EXCHANGE_ID is in the list -
 		 *       we're already using the machine cred for exchange_id
 		 *       and will never use a different cred.
 		 */
@@ -8695,7 +8695,7 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 		}
 
 		if (test_bit(OP_SECINFO, sp->allow.u.longs) &&
-		    test_bit(OP_SECINFO_NO_NAME, sp->allow.u.longs)) {
+		    test_bit(OP_SECINFO_ANAL_NAME, sp->allow.u.longs)) {
 			dfprintk(MOUNT, "  secinfo mode enabled\n");
 			__set_bit(NFS_SP4_MACH_CRED_SECINFO, &flags);
 		}
@@ -8759,16 +8759,16 @@ nfs4_run_exchange_id(struct nfs_client *clp, const struct cred *cred,
 		.rpc_client = clp->cl_rpcclient,
 		.callback_ops = &nfs4_exchange_id_call_ops,
 		.rpc_message = &msg,
-		.flags = RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN,
 	};
 	struct nfs41_exchange_id_data *calldata;
 	int status;
 
-	if (!refcount_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_analt_zero(&clp->cl_count))
 		return ERR_PTR(-EIO);
 
-	status = -ENOMEM;
-	calldata = kzalloc(sizeof(*calldata), GFP_NOFS);
+	status = -EANALMEM;
+	calldata = kzalloc(sizeof(*calldata), GFP_ANALFS);
 	if (!calldata)
 		goto out;
 
@@ -8779,23 +8779,23 @@ nfs4_run_exchange_id(struct nfs_client *clp, const struct cred *cred,
 		goto out_calldata;
 
 	calldata->res.server_owner = kzalloc(sizeof(struct nfs41_server_owner),
-						GFP_NOFS);
-	status = -ENOMEM;
+						GFP_ANALFS);
+	status = -EANALMEM;
 	if (unlikely(calldata->res.server_owner == NULL))
 		goto out_calldata;
 
 	calldata->res.server_scope = kzalloc(sizeof(struct nfs41_server_scope),
-					GFP_NOFS);
+					GFP_ANALFS);
 	if (unlikely(calldata->res.server_scope == NULL))
 		goto out_server_owner;
 
-	calldata->res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_NOFS);
+	calldata->res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_ANALFS);
 	if (unlikely(calldata->res.impl_id == NULL))
 		goto out_server_scope;
 
 	switch (sp4_how) {
-	case SP4_NONE:
-		calldata->args.state_protect.how = SP4_NONE;
+	case SP4_ANALNE:
+		calldata->args.state_protect.how = SP4_ANALNE;
 		break;
 
 	case SP4_MACH_CRED:
@@ -8852,7 +8852,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cre
 	struct rpc_task *task;
 	struct nfs41_exchange_id_args *argp;
 	struct nfs41_exchange_id_res *resp;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int status;
 
 	task = nfs4_run_exchange_id(clp, cred, sp4_how, NULL);
@@ -8866,7 +8866,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cre
 		goto out;
 
 	status = nfs4_check_cl_exchange_flags(resp->flags,
-			clp->cl_mvops->minor_version);
+			clp->cl_mvops->mianalr_version);
 	if (status  != 0)
 		goto out;
 
@@ -8874,12 +8874,12 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cre
 	if (status != 0)
 		goto out;
 
-	do_renew_lease(clp, now);
+	do_renew_lease(clp, analw);
 
 	clp->cl_clientid = resp->clientid;
 	clp->cl_exchange_flags = resp->flags;
 	clp->cl_seqid = resp->seqid;
-	/* Client ID is not confirmed */
+	/* Client ID is analt confirmed */
 	if (!(resp->flags & EXCHGID4_FLAG_CONFIRMED_R))
 		clear_bit(NFS4_SESSION_ESTABLISHED,
 			  &clp->cl_session->session_state);
@@ -8908,7 +8908,7 @@ out:
 /*
  * nfs4_proc_exchange_id()
  *
- * Returns zero, a negative errno, or a negative NFS4ERR status code.
+ * Returns zero, a negative erranal, or a negative NFS4ERR status code.
  *
  * Since the clientid has expired, all compounds using sessions
  * associated with the stale clientid will be returning
@@ -8930,8 +8930,8 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cred)
 			return 0;
 	}
 
-	/* try SP4_NONE */
-	return _nfs4_proc_exchange_id(clp, cred, SP4_NONE);
+	/* try SP4_ANALNE */
+	return _nfs4_proc_exchange_id(clp, cred, SP4_ANALNE);
 }
 
 /**
@@ -8961,7 +8961,7 @@ void nfs4_test_session_trunk(struct rpc_clnt *clnt, struct rpc_xprt *xprt,
 	dprintk("--> %s try %s\n", __func__,
 		xprt->address_strings[RPC_DISPLAY_ADDR]);
 
-	sp4_how = (adata->clp->cl_sp4_flags == 0 ? SP4_NONE : SP4_MACH_CRED);
+	sp4_how = (adata->clp->cl_sp4_flags == 0 ? SP4_ANALNE : SP4_MACH_CRED);
 
 try_again:
 	/* Test connection for session trunking. Async exchange_id call */
@@ -8999,7 +8999,7 @@ static int _nfs4_proc_destroy_clientid(struct nfs_client *clp,
 	int status;
 
 	status = rpc_call_sync(clp->cl_rpcclient, &msg,
-			       RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN);
+			       RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN);
 	trace_nfs4_destroy_clientid(clp, status);
 	if (status)
 		dprintk("NFS: Got error %d from the server %s on "
@@ -9032,7 +9032,7 @@ int nfs4_destroy_clientid(struct nfs_client *clp)
 	const struct cred *cred;
 	int ret = 0;
 
-	if (clp->cl_mvops->minor_version < 1)
+	if (clp->cl_mvops->mianalr_version < 1)
 		goto out;
 	if (clp->cl_exchange_flags == 0)
 		goto out;
@@ -9064,7 +9064,7 @@ static void nfs4_get_lease_time_prepare(struct rpc_task *task,
 	struct nfs4_get_lease_time_data *data =
 			(struct nfs4_get_lease_time_data *)calldata;
 
-	/* just setup sequence, do not trigger session recovery
+	/* just setup sequence, do analt trigger session recovery
 	   since we're invoked within one */
 	nfs4_setup_sequence(data->clp,
 			&data->args->la_seq_args,
@@ -9187,9 +9187,9 @@ static int nfs4_verify_fore_channel_attrs(struct nfs41_create_session_args *args
 	if (rcvd->max_resp_sz > sent->max_resp_sz)
 		return -EINVAL;
 	/*
-	 * Our requested max_ops is the minimum we need; we're not
+	 * Our requested max_ops is the minimum we need; we're analt
 	 * prepared to break up compounds into smaller pieces than that.
-	 * So, no point even trying to continue if the server won't
+	 * So, anal point even trying to continue if the server won't
 	 * cooperate:
 	 */
 	if (rcvd->max_ops < sent->max_ops)
@@ -9272,7 +9272,7 @@ static int _nfs4_proc_create_session(struct nfs_client *clp,
 	args.flags = (SESSION4_PERSIST | SESSION4_BACK_CHAN);
 
 	status = rpc_call_sync(session->clp->cl_rpcclient, &msg,
-			       RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN);
+			       RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN);
 	trace_nfs4_create_session(clp, status);
 
 	switch (status) {
@@ -9354,7 +9354,7 @@ int nfs4_proc_destroy_session(struct nfs4_session *session,
 		return 0;
 
 	status = rpc_call_sync(session->clp->cl_rpcclient, &msg,
-			       RPC_TASK_TIMEOUT | RPC_TASK_NO_ROUND_ROBIN);
+			       RPC_TASK_TIMEOUT | RPC_TASK_ANAL_ROUND_ROBIN);
 	trace_nfs4_destroy_session(session->clp, status);
 
 	if (status)
@@ -9456,10 +9456,10 @@ static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
 	struct rpc_task *ret;
 
 	ret = ERR_PTR(-EIO);
-	if (!refcount_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_analt_zero(&clp->cl_count))
 		goto out_err;
 
-	ret = ERR_PTR(-ENOMEM);
+	ret = ERR_PTR(-EANALMEM);
 	calldata = kzalloc(sizeof(*calldata), GFP_KERNEL);
 	if (calldata == NULL)
 		goto out_put_clp;
@@ -9551,7 +9551,7 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 		return -EAGAIN;
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_DEADSESSION:
-	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+	case -NFS4ERR_CONN_ANALT_BOUND_TO_SESSION:
 		break;
 	default:
 		nfs4_schedule_lease_recovery(clp);
@@ -9603,11 +9603,11 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp,
 		.rpc_client = clp->cl_rpcclient,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_reclaim_complete_call_ops,
-		.flags = RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_ANAL_ROUND_ROBIN,
 	};
-	int status = -ENOMEM;
+	int status = -EANALMEM;
 
-	calldata = kzalloc(sizeof(*calldata), GFP_NOFS);
+	calldata = kzalloc(sizeof(*calldata), GFP_ANALFS);
 	if (calldata == NULL)
 		goto out;
 	calldata->clp = clp;
@@ -9627,7 +9627,7 @@ static void
 nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutget *lgp = calldata;
-	struct nfs_server *server = NFS_SERVER(lgp->args.inode);
+	struct nfs_server *server = NFS_SERVER(lgp->args.ianalde);
 
 	nfs4_setup_sequence(server->nfs_client, &lgp->args.seq_args,
 				&lgp->res.seq_res, task);
@@ -9644,8 +9644,8 @@ static int
 nfs4_layoutget_handle_exception(struct rpc_task *task,
 		struct nfs4_layoutget *lgp, struct nfs4_exception *exception)
 {
-	struct inode *inode = lgp->args.inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = lgp->args.ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct pnfs_layout_hdr *lo = lgp->lo;
 	int nfs4err = task->tk_status;
 	int err, status = 0;
@@ -9663,22 +9663,22 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		goto out;
 
 	/*
-	 * NFS4ERR_LAYOUTUNAVAILABLE means we are not supposed to use pnfs
-	 * on the file. set tk_status to -ENODATA to tell upper layer to
+	 * NFS4ERR_LAYOUTUNAVAILABLE means we are analt supposed to use pnfs
+	 * on the file. set tk_status to -EANALDATA to tell upper layer to
 	 * retry go inband.
 	 */
 	case -NFS4ERR_LAYOUTUNAVAILABLE:
-		status = -ENODATA;
+		status = -EANALDATA;
 		goto out;
 	/*
-	 * NFS4ERR_BADLAYOUT means the MDS cannot return a layout of
+	 * NFS4ERR_BADLAYOUT means the MDS cananalt return a layout of
 	 * length lgp->args.minlength != 0 (see RFC5661 section 18.43.3).
 	 */
 	case -NFS4ERR_BADLAYOUT:
 		status = -EOVERFLOW;
 		goto out;
 	/*
-	 * NFS4ERR_LAYOUTTRYLATER is a conflict with another client
+	 * NFS4ERR_LAYOUTTRYLATER is a conflict with aanalther client
 	 * (or clients) writing to the same RAID stripe except when
 	 * the minlength argument is 0 (see RFC5661 section 18.43.3).
 	 *
@@ -9701,11 +9701,11 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_BAD_STATEID:
 		exception->timeout = 0;
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		/* If the open stateid was bad, then recover it. */
 		if (!lo || test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags) ||
 		    !nfs4_stateid_match_other(&lgp->args.stateid, &lo->plh_stateid)) {
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			exception->state = lgp->args.ctx->state;
 			exception->stateid = &lgp->args.stateid;
 			break;
@@ -9715,8 +9715,8 @@ nfs4_layoutget_handle_exception(struct rpc_task *task,
 		 * Mark the bad layout state as invalid, then retry
 		 */
 		pnfs_mark_layout_stateid_invalid(lo, &head);
-		spin_unlock(&inode->i_lock);
-		nfs_commit_inode(inode, 0);
+		spin_unlock(&ianalde->i_lock);
+		nfs_commit_ianalde(ianalde, 0);
 		pnfs_free_lseg_list(&head);
 		status = -EAGAIN;
 		goto out;
@@ -9757,8 +9757,8 @@ struct pnfs_layout_segment *
 nfs4_proc_layoutget(struct nfs4_layoutget *lgp,
 		    struct nfs4_exception *exception)
 {
-	struct inode *inode = lgp->args.inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct ianalde *ianalde = lgp->args.ianalde;
+	struct nfs_server *server = NFS_SERVER(ianalde);
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTGET],
@@ -9771,7 +9771,7 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_layoutget_call_ops,
 		.callback_data = lgp,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF |
+		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_ANALREF |
 			 RPC_TASK_MOVEABLE,
 	};
 	struct pnfs_layout_segment *lseg = NULL;
@@ -9841,12 +9841,12 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		return;
 	}
 
-	server = NFS_SERVER(lrp->args.inode);
+	server = NFS_SERVER(lrp->args.ianalde);
 	switch (task->tk_status) {
 	case -NFS4ERR_OLD_STATEID:
 		if (nfs4_layout_refresh_old_stateid(&lrp->args.stateid,
 					&lrp->args.range,
-					lrp->args.inode))
+					lrp->args.ianalde))
 			goto out_restart;
 		fallthrough;
 	default:
@@ -9877,7 +9877,7 @@ static void nfs4_layoutreturn_release(void *calldata)
 	if (lrp->ld_private.ops && lrp->ld_private.ops->free)
 		lrp->ld_private.ops->free(&lrp->ld_private);
 	pnfs_put_layout_hdr(lrp->args.layout);
-	nfs_iput_and_deactive(lrp->inode);
+	nfs_iput_and_deactive(lrp->ianalde);
 	put_cred(lrp->cred);
 	kfree(calldata);
 }
@@ -9898,7 +9898,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 		.rpc_cred = lrp->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
-		.rpc_client = NFS_SERVER(lrp->args.inode)->client,
+		.rpc_client = NFS_SERVER(lrp->args.ianalde)->client,
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_layoutreturn_call_ops,
 		.callback_data = lrp,
@@ -9906,19 +9906,19 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 	};
 	int status = 0;
 
-	nfs4_state_protect(NFS_SERVER(lrp->args.inode)->nfs_client,
+	nfs4_state_protect(NFS_SERVER(lrp->args.ianalde)->nfs_client,
 			NFS_SP4_MACH_CRED_PNFS_CLEANUP,
 			&task_setup_data.rpc_client, &msg);
 
-	lrp->inode = nfs_igrab_and_active(lrp->args.inode);
+	lrp->ianalde = nfs_igrab_and_active(lrp->args.ianalde);
 	if (!sync) {
-		if (!lrp->inode) {
+		if (!lrp->ianalde) {
 			nfs4_layoutreturn_release(lrp);
 			return -EAGAIN;
 		}
 		task_setup_data.flags |= RPC_TASK_ASYNC;
 	}
-	if (!lrp->inode)
+	if (!lrp->ianalde)
 		nfs4_init_sequence(&lrp->args.seq_args, &lrp->res.seq_res, 1,
 				   1);
 	else
@@ -9929,7 +9929,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 		return PTR_ERR(task);
 	if (sync)
 		status = task->tk_status;
-	trace_nfs4_layoutreturn(lrp->args.inode, &lrp->args.stateid, status);
+	trace_nfs4_layoutreturn(lrp->args.ianalde, &lrp->args.stateid, status);
 	dprintk("<-- %s status=%d\n", __func__, status);
 	rpc_put_task(task);
 	return status;
@@ -9942,8 +9942,8 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 {
 	struct nfs4_getdeviceinfo_args args = {
 		.pdev = pdev,
-		.notify_types = NOTIFY_DEVICEID4_CHANGE |
-			NOTIFY_DEVICEID4_DELETE,
+		.analtify_types = ANALTIFY_DEVICEID4_CHANGE |
+			ANALTIFY_DEVICEID4_DELETE,
 	};
 	struct nfs4_getdeviceinfo_res res = {
 		.pdev = pdev,
@@ -9957,10 +9957,10 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 	int status;
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
-	if (res.notification & ~args.notify_types)
-		dprintk("%s: unsupported notification\n", __func__);
-	if (res.notification != args.notify_types)
-		pdev->nocache = 1;
+	if (res.analtification & ~args.analtify_types)
+		dprintk("%s: unsupported analtification\n", __func__);
+	if (res.analtification != args.analtify_types)
+		pdev->analcache = 1;
 
 	trace_nfs4_getdeviceinfo(server, &pdev->dev_id, status);
 
@@ -9988,7 +9988,7 @@ EXPORT_SYMBOL_GPL(nfs4_proc_getdeviceinfo);
 static void nfs4_layoutcommit_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutcommit_data *data = calldata;
-	struct nfs_server *server = NFS_SERVER(data->args.inode);
+	struct nfs_server *server = NFS_SERVER(data->args.ianalde);
 
 	nfs4_setup_sequence(server->nfs_client,
 			&data->args.seq_args,
@@ -10000,15 +10000,15 @@ static void
 nfs4_layoutcommit_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutcommit_data *data = calldata;
-	struct nfs_server *server = NFS_SERVER(data->args.inode);
+	struct nfs_server *server = NFS_SERVER(data->args.ianalde);
 
 	if (!nfs41_sequence_done(task, &data->res.seq_res))
 		return;
 
-	switch (task->tk_status) { /* Just ignore these failures */
+	switch (task->tk_status) { /* Just iganalre these failures */
 	case -NFS4ERR_DELEG_REVOKED: /* layout was recalled */
-	case -NFS4ERR_BADIOMODE:     /* no IOMODE_RW layout for range */
-	case -NFS4ERR_BADLAYOUT:     /* no layout */
+	case -NFS4ERR_BADIOMODE:     /* anal IOMODE_RW layout for range */
+	case -NFS4ERR_BADLAYOUT:     /* anal layout */
 	case -NFS4ERR_GRACE:	    /* loca_recalim always false */
 		task->tk_status = 0;
 		break;
@@ -10027,10 +10027,10 @@ static void nfs4_layoutcommit_release(void *calldata)
 	struct nfs4_layoutcommit_data *data = calldata;
 
 	pnfs_cleanup_layoutcommit(data);
-	nfs_post_op_update_inode_force_wcc(data->args.inode,
+	nfs_post_op_update_ianalde_force_wcc(data->args.ianalde,
 					   data->res.fattr);
 	put_cred(data->cred);
-	nfs_iput_and_deactive(data->inode);
+	nfs_iput_and_deactive(data->ianalde);
 	kfree(data);
 }
 
@@ -10051,7 +10051,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 	};
 	struct rpc_task_setup task_setup_data = {
 		.task = &data->task,
-		.rpc_client = NFS_CLIENT(data->args.inode),
+		.rpc_client = NFS_CLIENT(data->args.ianalde),
 		.rpc_message = &msg,
 		.callback_ops = &nfs4_layoutcommit_ops,
 		.callback_data = data,
@@ -10061,13 +10061,13 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 	int status = 0;
 
 	dprintk("NFS: initiating layoutcommit call. sync %d "
-		"lbw: %llu inode %lu\n", sync,
+		"lbw: %llu ianalde %lu\n", sync,
 		data->args.lastbytewritten,
-		data->args.inode->i_ino);
+		data->args.ianalde->i_ianal);
 
 	if (!sync) {
-		data->inode = nfs_igrab_and_active(data->args.inode);
-		if (data->inode == NULL) {
+		data->ianalde = nfs_igrab_and_active(data->args.ianalde);
+		if (data->ianalde == NULL) {
 			nfs4_layoutcommit_release(data);
 			return -EAGAIN;
 		}
@@ -10079,7 +10079,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 		return PTR_ERR(task);
 	if (sync)
 		status = task->tk_status;
-	trace_nfs4_layoutcommit(data->args.inode, &data->args.stateid, status);
+	trace_nfs4_layoutcommit(data->args.ianalde, &data->args.stateid, status);
 	dprintk("%s: status %d\n", __func__, status);
 	rpc_put_task(task);
 	return status;
@@ -10090,18 +10090,18 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
 static int
-_nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
+_nfs41_proc_secinfo_anal_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		    struct nfs_fsinfo *info,
 		    struct nfs4_secinfo_flavors *flavors, bool use_integrity)
 {
-	struct nfs41_secinfo_no_name_args args = {
+	struct nfs41_secinfo_anal_name_args args = {
 		.style = SECINFO_STYLE_CURRENT_FH,
 	};
 	struct nfs4_secinfo_res res = {
 		.flavors = flavors,
 	};
 	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SECINFO_NO_NAME],
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SECINFO_ANAL_NAME],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
@@ -10115,7 +10115,7 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_message = &msg,
 		.callback_ops = server->nfs_client->cl_mvops->call_sync_ops,
 		.callback_data = &data,
-		.flags = RPC_TASK_NO_ROUND_ROBIN,
+		.flags = RPC_TASK_ANAL_ROUND_ROBIN,
 	};
 	const struct cred *cred = NULL;
 	int status;
@@ -10137,7 +10137,7 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 }
 
 static int
-nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
+nfs41_proc_secinfo_anal_name(struct nfs_server *server, struct nfs_fh *fhandle,
 			   struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = {
@@ -10150,7 +10150,7 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 
 		/* try to use integrity protection with machine cred */
 		if (_nfs4_is_integrity_protected(server->nfs_client))
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_anal_name(server, fhandle, info,
 							  flavors, true);
 
 		/*
@@ -10160,13 +10160,13 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		 * the current filesystem's rpc_client and the user cred.
 		 */
 		if (err == -NFS4ERR_WRONGSEC)
-			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+			err = _nfs41_proc_secinfo_anal_name(server, fhandle, info,
 							  flavors, false);
 
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
-		case -ENOTSUPP:
+		case -EANALTSUPP:
 			goto out;
 		default:
 			err = nfs4_handle_exception(server, err, &exception);
@@ -10189,18 +10189,18 @@ nfs41_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
 	flavors = page_address(page);
-	err = nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+	err = nfs41_proc_secinfo_anal_name(server, fhandle, info, flavors);
 
 	/*
 	 * Fall back on "guess and check" method if
-	 * the server doesn't support SECINFO_NO_NAME
+	 * the server doesn't support SECINFO_ANAL_NAME
 	 */
-	if (err == -NFS4ERR_WRONGSEC || err == -ENOTSUPP) {
+	if (err == -NFS4ERR_WRONGSEC || err == -EANALTSUPP) {
 		err = nfs4_find_root_sec(server, fhandle, info);
 		goto out_freepage;
 	}
@@ -10288,7 +10288,7 @@ static void nfs4_handle_delay_or_session_error(struct nfs_server *server,
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_BADSLOT:
 	case -NFS4ERR_BAD_HIGH_SLOT:
-	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+	case -NFS4ERR_CONN_ANALT_BOUND_TO_SESSION:
 	case -NFS4ERR_DEADSESSION:
 		nfs4_do_handle_exception(server, err, exception);
 	}
@@ -10303,7 +10303,7 @@ static void nfs4_handle_delay_or_session_error(struct nfs_server *server,
  *
  * Returns NFS_OK if the server recognizes that "stateid" is valid.
  * Otherwise a negative NFS4ERR value is returned if the operation
- * failed or the state ID is not currently valid.
+ * failed or the state ID is analt currently valid.
  */
 static int nfs41_test_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
@@ -10371,7 +10371,7 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
  * @cred: credential
  * @privileged: set to true if this call needs to be privileged
  *
- * Note: this function is always asynchronous.
+ * Analte: this function is always asynchroanalus.
  */
 static int nfs41_free_stateid(struct nfs_server *server,
 		const nfs4_stateid *stateid,
@@ -10392,7 +10392,7 @@ static int nfs41_free_stateid(struct nfs_server *server,
 	struct rpc_task *task;
 	struct nfs_client *clp = server->nfs_client;
 
-	if (!refcount_inc_not_zero(&clp->cl_count))
+	if (!refcount_inc_analt_zero(&clp->cl_count))
 		return -EIO;
 
 	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_STATEID,
@@ -10401,7 +10401,7 @@ static int nfs41_free_stateid(struct nfs_server *server,
 	dprintk("NFS call  free_stateid %p\n", stateid);
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->server = server;
 	nfs4_stateid_copy(&data->args.stateid, stateid);
 
@@ -10471,18 +10471,18 @@ static const struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 };
 #endif /* CONFIG_NFS_V4_1 */
 
-static const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
-	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
-	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
+static const struct nfs4_state_recovery_ops nfs40_analgrace_recovery_ops = {
+	.owner_flag_bit = NFS_OWNER_RECLAIM_ANALGRACE,
+	.state_flag_bit	= NFS_STATE_RECLAIM_ANALGRACE,
 	.recover_open	= nfs40_open_expired,
 	.recover_lock	= nfs4_lock_expired,
 	.establish_clid = nfs4_init_clientid,
 };
 
 #if defined(CONFIG_NFS_V4_1)
-static const struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
-	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
-	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
+static const struct nfs4_state_recovery_ops nfs41_analgrace_recovery_ops = {
+	.owner_flag_bit = NFS_OWNER_RECLAIM_ANALGRACE,
+	.state_flag_bit	= NFS_STATE_RECLAIM_ANALGRACE,
 	.recover_open	= nfs41_open_expired,
 	.recover_lock	= nfs41_lock_expired,
 	.establish_clid = nfs41_init_clientid,
@@ -10515,8 +10515,8 @@ static const struct nfs4_mig_recovery_ops nfs41_mig_recovery_ops = {
 };
 #endif	/* CONFIG_NFS_V4_1 */
 
-static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
-	.minor_version = 0,
+static const struct nfs4_mianalr_version_ops nfs_v4_0_mianalr_ops = {
+	.mianalr_version = 0,
 	.init_caps = NFS_CAP_READDIRPLUS
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_POSIX_LOCK,
@@ -10529,20 +10529,20 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.alloc_seqid = nfs_alloc_seqid,
 	.call_sync_ops = &nfs40_call_sync_ops,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
-	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
+	.analgrace_recovery_ops = &nfs40_analgrace_recovery_ops,
 	.state_renewal_ops = &nfs40_state_renewal_ops,
 	.mig_recovery_ops = &nfs40_mig_recovery_ops,
 };
 
 #if defined(CONFIG_NFS_V4_1)
 static struct nfs_seqid *
-nfs_alloc_no_seqid(struct nfs_seqid_counter *arg1, gfp_t arg2)
+nfs_alloc_anal_seqid(struct nfs_seqid_counter *arg1, gfp_t arg2)
 {
 	return NULL;
 }
 
-static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
-	.minor_version = 1,
+static const struct nfs4_mianalr_version_ops nfs_v4_1_mianalr_ops = {
+	.mianalr_version = 1,
 	.init_caps = NFS_CAP_READDIRPLUS
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_POSIX_LOCK
@@ -10556,19 +10556,19 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
 	.test_and_free_expired = nfs41_test_and_free_expired_stateid,
-	.alloc_seqid = nfs_alloc_no_seqid,
+	.alloc_seqid = nfs_alloc_anal_seqid,
 	.session_trunk = nfs4_test_session_trunk,
 	.call_sync_ops = &nfs41_call_sync_ops,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
-	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
+	.analgrace_recovery_ops = &nfs41_analgrace_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
 	.mig_recovery_ops = &nfs41_mig_recovery_ops,
 };
 #endif
 
 #if defined(CONFIG_NFS_V4_2)
-static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
-	.minor_version = 2,
+static const struct nfs4_mianalr_version_ops nfs_v4_2_mianalr_ops = {
+	.mianalr_version = 2,
 	.init_caps = NFS_CAP_READDIRPLUS
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_POSIX_LOCK
@@ -10578,7 +10578,7 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 		| NFS_CAP_ALLOCATE
 		| NFS_CAP_COPY
 		| NFS_CAP_OFFLOAD_CANCEL
-		| NFS_CAP_COPY_NOTIFY
+		| NFS_CAP_COPY_ANALTIFY
 		| NFS_CAP_DEALLOCATE
 		| NFS_CAP_SEEK
 		| NFS_CAP_LAYOUTSTATS
@@ -10593,22 +10593,22 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 	.free_lock_state = nfs41_free_lock_state,
 	.call_sync_ops = &nfs41_call_sync_ops,
 	.test_and_free_expired = nfs41_test_and_free_expired_stateid,
-	.alloc_seqid = nfs_alloc_no_seqid,
+	.alloc_seqid = nfs_alloc_anal_seqid,
 	.session_trunk = nfs4_test_session_trunk,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
-	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
+	.analgrace_recovery_ops = &nfs41_analgrace_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
 	.mig_recovery_ops = &nfs41_mig_recovery_ops,
 };
 #endif
 
-const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
-	[0] = &nfs_v4_0_minor_ops,
+const struct nfs4_mianalr_version_ops *nfs_v4_mianalr_ops[] = {
+	[0] = &nfs_v4_0_mianalr_ops,
 #if defined(CONFIG_NFS_V4_1)
-	[1] = &nfs_v4_1_minor_ops,
+	[1] = &nfs_v4_1_mianalr_ops,
 #endif
 #if defined(CONFIG_NFS_V4_2)
-	[2] = &nfs_v4_2_minor_ops,
+	[2] = &nfs_v4_2_mianalr_ops,
 #endif
 };
 
@@ -10624,7 +10624,7 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		size -= error;
 	}
 
-	error2 = nfs4_listxattr_nfs4_label(d_inode(dentry), list, size);
+	error2 = nfs4_listxattr_nfs4_label(d_ianalde(dentry), list, size);
 	if (error2 < 0)
 		return error2;
 
@@ -10633,36 +10633,36 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		size -= error2;
 	}
 
-	error3 = nfs4_listxattr_nfs4_user(d_inode(dentry), list, size);
+	error3 = nfs4_listxattr_nfs4_user(d_ianalde(dentry), list, size);
 	if (error3 < 0)
 		return error3;
 
 	return error + error2 + error3;
 }
 
-static void nfs4_enable_swap(struct inode *inode)
+static void nfs4_enable_swap(struct ianalde *ianalde)
 {
 	/* The state manager thread must always be running.
-	 * It will notice the client is a swapper, and stay put.
+	 * It will analtice the client is a swapper, and stay put.
 	 */
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_client *clp = NFS_SERVER(ianalde)->nfs_client;
 
 	nfs4_schedule_state_manager(clp);
 }
 
-static void nfs4_disable_swap(struct inode *inode)
+static void nfs4_disable_swap(struct ianalde *ianalde)
 {
-	/* The state manager thread will now exit once it is
+	/* The state manager thread will analw exit once it is
 	 * woken.
 	 */
-	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_client *clp = NFS_SERVER(ianalde)->nfs_client;
 
 	set_bit(NFS4CLNT_RUN_MANAGER, &clp->cl_state);
 	clear_bit(NFS4CLNT_MANAGER_AVAILABLE, &clp->cl_state);
 	wake_up_var(&clp->cl_state);
 }
 
-static const struct inode_operations nfs4_dir_inode_operations = {
+static const struct ianalde_operations nfs4_dir_ianalde_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
 	.atomic_open	= nfs_atomic_open,
@@ -10671,7 +10671,7 @@ static const struct inode_operations nfs4_dir_inode_operations = {
 	.symlink	= nfs_symlink,
 	.mkdir		= nfs_mkdir,
 	.rmdir		= nfs_rmdir,
-	.mknod		= nfs_mknod,
+	.mkanald		= nfs_mkanald,
 	.rename		= nfs_rename,
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
@@ -10679,7 +10679,7 @@ static const struct inode_operations nfs4_dir_inode_operations = {
 	.listxattr	= nfs4_listxattr,
 };
 
-static const struct inode_operations nfs4_file_inode_operations = {
+static const struct ianalde_operations nfs4_file_ianalde_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
@@ -10689,8 +10689,8 @@ static const struct inode_operations nfs4_file_inode_operations = {
 const struct nfs_rpc_ops nfs_v4_clientops = {
 	.version	= 4,			/* protocol version */
 	.dentry_ops	= &nfs4_dentry_operations,
-	.dir_inode_ops	= &nfs4_dir_inode_operations,
-	.file_inode_ops	= &nfs4_file_inode_operations,
+	.dir_ianalde_ops	= &nfs4_dir_ianalde_operations,
+	.file_ianalde_ops	= &nfs4_file_ianalde_operations,
 	.file_ops	= &nfs4_file_operations,
 	.getroot	= nfs4_proc_get_root,
 	.submount	= nfs4_submount,
@@ -10714,7 +10714,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.mkdir		= nfs4_proc_mkdir,
 	.rmdir		= nfs4_proc_rmdir,
 	.readdir	= nfs4_proc_readdir,
-	.mknod		= nfs4_proc_mknod,
+	.mkanald		= nfs4_proc_mkanald,
 	.statfs		= nfs4_proc_statfs,
 	.fsinfo		= nfs4_proc_fsinfo,
 	.pathconf	= nfs4_proc_pathconf,

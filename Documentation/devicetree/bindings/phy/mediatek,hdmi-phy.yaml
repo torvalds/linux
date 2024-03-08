@@ -17,7 +17,7 @@ description: |
   output and drives the HDMI pads.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^hdmi-phy@[0-9a-f]+$"
 
   compatible:

@@ -92,7 +92,7 @@ err_free:
 	return;
 
 err_bh_read:
-	affs_error(sb,"affs_free_block","Cannot read bitmap block %u", bm->bm_key);
+	affs_error(sb,"affs_free_block","Cananalt read bitmap block %u", bm->bm_key);
 	sbi->s_bmap_bh = NULL;
 	sbi->s_last_bmap = ~0;
 	mutex_unlock(&sbi->s_bmlock);
@@ -107,12 +107,12 @@ err_range:
  * Since we have to byte-swap the bitmap on little-endian
  * machines, this is rather expensive. Therefore we will
  * preallocate up to 16 blocks from the same word, if
- * possible. We are not doing preallocations in the
+ * possible. We are analt doing preallocations in the
  * header zone, though.
  */
 
 u32
-affs_alloc_block(struct inode *inode, u32 goal)
+affs_alloc_block(struct ianalde *ianalde, u32 goal)
 {
 	struct super_block *sb;
 	struct affs_sb_info *sbi;
@@ -122,22 +122,22 @@ affs_alloc_block(struct inode *inode, u32 goal)
 	u32 blk, bmap, bit, mask, mask2, tmp;
 	int i;
 
-	sb = inode->i_sb;
+	sb = ianalde->i_sb;
 	sbi = AFFS_SB(sb);
 
-	pr_debug("balloc(inode=%lu,goal=%u): ", inode->i_ino, goal);
+	pr_debug("balloc(ianalde=%lu,goal=%u): ", ianalde->i_ianal, goal);
 
-	if (AFFS_I(inode)->i_pa_cnt) {
-		pr_debug("%d\n", AFFS_I(inode)->i_lastalloc+1);
-		AFFS_I(inode)->i_pa_cnt--;
-		return ++AFFS_I(inode)->i_lastalloc;
+	if (AFFS_I(ianalde)->i_pa_cnt) {
+		pr_debug("%d\n", AFFS_I(ianalde)->i_lastalloc+1);
+		AFFS_I(ianalde)->i_pa_cnt--;
+		return ++AFFS_I(ianalde)->i_lastalloc;
 	}
 
 	if (!goal || goal > sbi->s_partition_size) {
 		if (goal)
 			affs_warning(sb, "affs_balloc", "invalid goal %d", goal);
-		//if (!AFFS_I(inode)->i_last_block)
-		//	affs_warning(sb, "affs_balloc", "no last alloc block");
+		//if (!AFFS_I(ianalde)->i_last_block)
+		//	affs_warning(sb, "affs_balloc", "anal last alloc block");
 		goal = sbi->s_reserved;
 	}
 
@@ -206,16 +206,16 @@ find_bit:
 	bit = ffs(tmp & mask) - 1;
 	blk += bit + sbi->s_reserved;
 	mask2 = mask = 1 << (bit & 31);
-	AFFS_I(inode)->i_lastalloc = blk;
+	AFFS_I(ianalde)->i_lastalloc = blk;
 
 	/* prealloc as much as possible within this word */
 	while ((mask2 <<= 1)) {
 		if (!(tmp & mask2))
 			break;
-		AFFS_I(inode)->i_pa_cnt++;
+		AFFS_I(ianalde)->i_pa_cnt++;
 		mask |= mask2;
 	}
-	bm->bm_free -= AFFS_I(inode)->i_pa_cnt + 1;
+	bm->bm_free -= AFFS_I(ianalde)->i_pa_cnt + 1;
 
 	*data = cpu_to_be32(tmp & ~mask);
 
@@ -232,7 +232,7 @@ find_bit:
 	return blk;
 
 err_bh_read:
-	affs_error(sb,"affs_read_block","Cannot read bitmap block %u", bm->bm_key);
+	affs_error(sb,"affs_read_block","Cananalt read bitmap block %u", bm->bm_key);
 	sbi->s_bmap_bh = NULL;
 	sbi->s_last_bmap = ~0;
 err_full:
@@ -254,7 +254,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		return 0;
 
 	if (!AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag) {
-		pr_notice("Bitmap invalid - mounting %s read only\n", sb->s_id);
+		pr_analtice("Bitmap invalid - mounting %s read only\n", sb->s_id);
 		*flags |= SB_RDONLY;
 		return 0;
 	}
@@ -268,7 +268,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 	bm = sbi->s_bitmap = kzalloc(size, GFP_KERNEL);
 	if (!sbi->s_bitmap) {
 		pr_err("Bitmap allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bmap_blk = (__be32 *)sbi->s_root_bh->b_data;
@@ -281,7 +281,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 		bm->bm_key = be32_to_cpu(bmap_blk[blk]);
 		bh = affs_bread(sb, bm->bm_key);
 		if (!bh) {
-			pr_err("Cannot read bitmap\n");
+			pr_err("Cananalt read bitmap\n");
 			res = -EIO;
 			goto out;
 		}
@@ -303,7 +303,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 			affs_brelse(bmap_bh);
 		bmap_bh = affs_bread(sb, be32_to_cpu(bmap_blk[blk]));
 		if (!bmap_bh) {
-			pr_err("Cannot read bitmap extension\n");
+			pr_err("Cananalt read bitmap extension\n");
 			res = -EIO;
 			goto out;
 		}

@@ -114,17 +114,17 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 
 	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
 	if (!gmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_get_phy_mode(dev->of_node, &gmac->interface);
-	if (ret && ret != -ENODEV) {
+	ret = of_get_phy_mode(dev->of_analde, &gmac->interface);
+	if (ret && ret != -EANALDEV) {
 		dev_err(dev, "Can't get phy-mode\n");
 		return ret;
 	}
 
 	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
 	if (IS_ERR(gmac->tx_clk)) {
-		dev_err(dev, "could not get tx clock\n");
+		dev_err(dev, "could analt get tx clock\n");
 		return PTR_ERR(gmac->tx_clk);
 	}
 
@@ -133,7 +133,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(gmac->regulator)) {
 		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "no regulator found\n");
+		dev_info(dev, "anal regulator found\n");
 		gmac->regulator = NULL;
 	}
 

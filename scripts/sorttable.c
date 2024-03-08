@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <pthread.h>
 
 #include <tools/be_byteshift.h>
@@ -94,13 +94,13 @@ static void *mmap_file(char const *fname, size_t *size)
 		goto out;
 	}
 	if (!S_ISREG(sb.st_mode)) {
-		fprintf(stderr, "not a regular file: %s\n", fname);
+		fprintf(stderr, "analt a regular file: %s\n", fname);
 		goto out;
 	}
 
 	addr = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (addr == MAP_FAILED) {
-		fprintf(stderr, "Could not mmap file: %s\n", fname);
+		fprintf(stderr, "Could analt mmap file: %s\n", fname);
 		goto out;
 	}
 
@@ -217,7 +217,7 @@ static void sort_relative_table(char *extab_image, int image_size)
 	int i = 0;
 
 	/*
-	 * Do the same thing the runtime sort does, first normalize to
+	 * Do the same thing the runtime sort does, first analrmalize to
 	 * being relative to the start of the section.
 	 */
 	while (i < image_size) {
@@ -228,7 +228,7 @@ static void sort_relative_table(char *extab_image, int image_size)
 
 	qsort(extab_image, image_size / 8, 8, compare_relative_table);
 
-	/* Now denormalize. */
+	/* Analw deanalrmalize. */
 	i = 0;
 	while (i < image_size) {
 		uint32_t *loc = (uint32_t *)(extab_image + i);

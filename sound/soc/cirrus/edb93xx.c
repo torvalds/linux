@@ -7,7 +7,7 @@
  * This driver support CS4271 codec being master or slave, working
  * in control port mode, connected either via SPI or I2C.
  * The data format accepted is I2S or left-justified.
- * DAPM support not implemented.
+ * DAPM support analt implemented.
  */
 
 #include <linux/platform_device.h>

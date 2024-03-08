@@ -48,7 +48,7 @@ static struct ixgbe_mat_field ixgbe_ipv4_fields[] = {
 	  .type = IXGBE_ATR_FLOW_TYPE_IPV4},
 	{ .off = 16, .val = ixgbe_mat_prgm_dip,
 	  .type = IXGBE_ATR_FLOW_TYPE_IPV4},
-	{ .val = NULL } /* terminal node */
+	{ .val = NULL } /* terminal analde */
 };
 
 static inline int ixgbe_mat_prgm_ports(struct ixgbe_fdir_filter *input,
@@ -66,13 +66,13 @@ static inline int ixgbe_mat_prgm_ports(struct ixgbe_fdir_filter *input,
 static struct ixgbe_mat_field ixgbe_tcp_fields[] = {
 	{.off = 0, .val = ixgbe_mat_prgm_ports,
 	 .type = IXGBE_ATR_FLOW_TYPE_TCPV4},
-	{ .val = NULL } /* terminal node */
+	{ .val = NULL } /* terminal analde */
 };
 
 static struct ixgbe_mat_field ixgbe_udp_fields[] = {
 	{.off = 0, .val = ixgbe_mat_prgm_ports,
 	 .type = IXGBE_ATR_FLOW_TYPE_UDPV4},
-	{ .val = NULL } /* terminal node */
+	{ .val = NULL } /* terminal analde */
 };
 
 struct ixgbe_nexthdr {
@@ -93,6 +93,6 @@ static struct ixgbe_nexthdr ixgbe_ipv4_jumps[] = {
 	  .off = 8, .val = 0x600, .mask = 0xff00, .jump = ixgbe_tcp_fields},
 	{ .o = 0, .s = 6, .m = 0xf,
 	  .off = 8, .val = 0x1100, .mask = 0xff00, .jump = ixgbe_udp_fields},
-	{ .jump = NULL } /* terminal node */
+	{ .jump = NULL } /* terminal analde */
 };
 #endif /* _IXGBE_MODEL_H_ */

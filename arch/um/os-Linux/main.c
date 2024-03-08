@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/resource.h>
@@ -59,12 +59,12 @@ static void install_fatal_handler(int sig)
 	 * handler is hanging for some reason, the UML will just die
 	 * after this signal is sent a second time.
 	 */
-	action.sa_flags = SA_RESETHAND | SA_NODEFER;
+	action.sa_flags = SA_RESETHAND | SA_ANALDEFER;
 	action.sa_restorer = NULL;
 	action.sa_handler = last_ditch_exit;
 	if (sigaction(sig, &action, NULL) < 0) {
 		os_warn("failed to install handler for signal %d "
-			"- errno = %d\n", sig, errno);
+			"- erranal = %d\n", sig, erranal);
 		exit(1);
 	}
 }
@@ -79,7 +79,7 @@ static void setup_env_path(void)
 
 	old_path = getenv("PATH");
 	/*
-	 * if no PATH variable is set or it has an empty value
+	 * if anal PATH variable is set or it has an empty value
 	 * just use the default + /usr/lib/uml
 	 */
 	if (!old_path || (path_len = strlen(old_path)) == 0) {
@@ -144,7 +144,7 @@ int __init main(int argc, char **argv, char **envp)
 	ret = linux_main(argc, argv);
 
 	/*
-	 * Disable SIGPROF - I have no idea why libc doesn't do this or turn
+	 * Disable SIGPROF - I have anal idea why libc doesn't do this or turn
 	 * off the profiling time, but UML dies with a SIGPROF just before
 	 * exiting when profiling is active.
 	 */
@@ -157,18 +157,18 @@ int __init main(int argc, char **argv, char **envp)
 	 * some time) and cause a segfault.
 	 */
 
-	/* stop timers and set timer signal to be ignored */
+	/* stop timers and set timer signal to be iganalred */
 	os_timer_disable();
 
-	/* disable SIGIO for the fds and set SIGIO to be ignored */
+	/* disable SIGIO for the fds and set SIGIO to be iganalred */
 	err = deactivate_all_fds();
 	if (err)
-		os_warn("deactivate_all_fds failed, errno = %d\n", -err);
+		os_warn("deactivate_all_fds failed, erranal = %d\n", -err);
 
 	/*
-	 * Let any pending signals fire now.  This ensures
+	 * Let any pending signals fire analw.  This ensures
 	 * that they won't be delivered after the exec, when
-	 * they are definitely not expected.
+	 * they are definitely analt expected.
 	 */
 	unblock_signals();
 
@@ -196,11 +196,11 @@ void *__wrap_malloc(int size)
 	else ret = vmalloc(size);
 
 	/*
-	 * glibc people insist that if malloc fails, errno should be
+	 * glibc people insist that if malloc fails, erranal should be
 	 * set by malloc as well. So we do.
 	 */
 	if (ret == NULL)
-		errno = ENOMEM;
+		erranal = EANALMEM;
 
 	return ret;
 }
@@ -224,15 +224,15 @@ void __wrap_free(void *ptr)
 	unsigned long addr = (unsigned long) ptr;
 
 	/*
-	 * We need to know how the allocation happened, so it can be correctly
+	 * We need to kanalw how the allocation happened, so it can be correctly
 	 * freed.  This is done by seeing what region of memory the pointer is
 	 * in -
 	 * 	physical memory - kmalloc/kfree
 	 *	kernel virtual memory - vmalloc/vfree
 	 * 	anywhere else - malloc/free
-	 * If kmalloc is not yet possible, then either high_physmem and/or
+	 * If kmalloc is analt yet possible, then either high_physmem and/or
 	 * end_vm are still 0 (as at startup), in which case we call free, or
-	 * we have set them, but anyway addr has not been allocated from those
+	 * we have set them, but anyway addr has analt been allocated from those
 	 * areas. So, in both cases __real_free is called.
 	 *
 	 * CAN_KMALLOC is checked because it would be bad to free a buffer

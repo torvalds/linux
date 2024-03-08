@@ -37,7 +37,7 @@ static unsigned char sunkbd_keycode[128] = {
 #define SUNKBD_CMD_BELLON	0x2
 #define SUNKBD_CMD_BELLOFF	0x3
 #define SUNKBD_CMD_CLICK	0xa
-#define SUNKBD_CMD_NOCLICK	0xb
+#define SUNKBD_CMD_ANALCLICK	0xb
 #define SUNKBD_CMD_SETLED	0xe
 #define SUNKBD_CMD_LAYOUT	0xf
 
@@ -119,7 +119,7 @@ static irqreturn_t sunkbd_interrupt(struct serio *serio,
 			input_sync(sunkbd->dev);
 		} else {
 			printk(KERN_WARNING
-				"sunkbd.c: Unknown key (scancode %#x) %s.\n",
+				"sunkbd.c: Unkanalwn key (scancode %#x) %s.\n",
 				data & SUNKBD_KEY,
 				data & SUNKBD_RELEASE ? "released" : "pressed");
 		}
@@ -154,7 +154,7 @@ static int sunkbd_event(struct input_dev *dev,
 		switch (code) {
 
 		case SND_CLICK:
-			serio_write(sunkbd->serio, SUNKBD_CMD_NOCLICK - value);
+			serio_write(sunkbd->serio, SUNKBD_CMD_ANALCLICK - value);
 			return 0;
 
 		case SND_BELL:
@@ -211,7 +211,7 @@ static void sunkbd_set_leds_beeps(struct sunkbd *sunkbd)
 		(!!test_bit(LED_COMPOSE, sunkbd->dev->led) << 1) |
 		 !!test_bit(LED_NUML,    sunkbd->dev->led));
 	serio_write(sunkbd->serio,
-		SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev->snd));
+		SUNKBD_CMD_ANALCLICK - !!test_bit(SND_CLICK, sunkbd->dev->snd));
 	serio_write(sunkbd->serio,
 		SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev->snd));
 }
@@ -260,7 +260,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct sunkbd *sunkbd;
 	struct input_dev *input_dev;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	int i;
 
 	sunkbd = kzalloc(sizeof(struct sunkbd), GFP_KERNEL);
@@ -281,7 +281,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 		goto fail2;
 
 	if (sunkbd_initialize(sunkbd) < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto fail3;
 	}
 
@@ -354,7 +354,7 @@ static const struct serio_device_id sunkbd_serio_ids[] = {
 	},
 	{
 		.type	= SERIO_RS232,
-		.proto	= SERIO_UNKNOWN, /* sunkbd does probe */
+		.proto	= SERIO_UNKANALWN, /* sunkbd does probe */
 		.id	= SERIO_ANY,
 		.extra	= SERIO_ANY,
 	},

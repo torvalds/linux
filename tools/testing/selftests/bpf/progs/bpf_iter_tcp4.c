@@ -7,7 +7,7 @@
 
 char _license[] SEC("license") = "GPL";
 
-static int hlist_unhashed_lockless(const struct hlist_node *h)
+static int hlist_unhashed_lockless(const struct hlist_analde *h)
 {
         return !(h->pprev);
 }
@@ -46,18 +46,18 @@ static clock_t jiffies_delta_to_clock_t(long delta)
 	return jiffies_to_clock_t(delta);
 }
 
-static long sock_i_ino(const struct sock *sk)
+static long sock_i_ianal(const struct sock *sk)
 {
 	const struct socket *sk_socket = sk->sk_socket;
-	const struct inode *inode;
-	unsigned long ino;
+	const struct ianalde *ianalde;
+	unsigned long ianal;
 
 	if (!sk_socket)
 		return 0;
 
-	inode = &container_of(sk_socket, struct socket_alloc, socket)->vfs_inode;
-	bpf_probe_read_kernel(&ino, sizeof(ino), &inode->i_ino);
-	return ino;
+	ianalde = &container_of(sk_socket, struct socket_alloc, socket)->vfs_ianalde;
+	bpf_probe_read_kernel(&ianal, sizeof(ianal), &ianalde->i_ianal);
+	return ianal;
 }
 
 static bool
@@ -129,7 +129,7 @@ static int dump_tcp_sock(struct seq_file *seq, struct tcp_sock *tp,
 		       jiffies_delta_to_clock_t(timer_expires - bpf_jiffies64()),
 		       icsk->icsk_retransmits, uid,
 		       icsk->icsk_probes_out,
-		       sock_i_ino(sp),
+		       sock_i_ianal(sp),
 		       sp->sk_refcnt.refs.counter);
 	BPF_SEQ_PRINTF(seq, "%pK %lu %lu %u %u %d\n",
 		       tp,
@@ -212,7 +212,7 @@ int dump_tcp4(struct bpf_iter__tcp *ctx)
 				    "local_address "
 				    "rem_address   "
 				    "st tx_queue rx_queue tr tm->when retrnsmt"
-				    "   uid  timeout inode\n");
+				    "   uid  timeout ianalde\n");
 
 	if (sk_common->skc_family != AF_INET)
 		return 0;

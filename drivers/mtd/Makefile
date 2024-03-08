@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the memory technology device drivers.
+# Makefile for the memory techanallogy device drivers.
 #
 
 # Core functionality.
@@ -28,6 +28,6 @@ inftl-objs		:= inftlcore.o inftlmount.o
 
 obj-y		+= chips/ lpddr/ maps/ devices/ nand/ tests/
 
-obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor/
+obj-$(CONFIG_MTD_SPI_ANALR)	+= spi-analr/
 obj-$(CONFIG_MTD_UBI)		+= ubi/
 obj-$(CONFIG_MTD_HYPERBUS)	+= hyperbus/

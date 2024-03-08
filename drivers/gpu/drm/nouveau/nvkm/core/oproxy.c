@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -106,7 +106,7 @@ nvkm_oproxy_sclass(struct nvkm_object *object, int index,
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
 	oclass->parent = oproxy->object;
 	if (!oproxy->object->func->sclass)
-		return -ENODEV;
+		return -EANALDEV;
 	return oproxy->object->func->sclass(oproxy->object, index, oclass);
 }
 
@@ -117,7 +117,7 @@ nvkm_oproxy_uevent(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
 
 	if (!oproxy->object->func->uevent)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return oproxy->object->func->uevent(oproxy->object, argv, argc, uevent);
 }
@@ -221,7 +221,7 @@ nvkm_oproxy_new_(const struct nvkm_oproxy_func *func,
 		 const struct nvkm_oclass *oclass, struct nvkm_oproxy **poproxy)
 {
 	if (!(*poproxy = kzalloc(sizeof(**poproxy), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_oproxy_ctor(func, oclass, *poproxy);
 	return 0;
 }

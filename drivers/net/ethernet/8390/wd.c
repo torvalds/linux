@@ -18,7 +18,7 @@
 	Changelog:
 
 	Paul Gortmaker	: multiple card support for module users, support
-			  for non-standard memory sizes.
+			  for analn-standard memory sizes.
 
 
 */
@@ -28,7 +28,7 @@ static const char version[] =
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -121,7 +121,7 @@ static int __init do_wd_probe(struct net_device *dev)
 		dev->mem_end = mem_end;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifndef MODULE
@@ -131,7 +131,7 @@ struct net_device * __init wd_probe(int unit)
 	int err;
 
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
@@ -177,12 +177,12 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	if (inb(ioaddr + 8) == 0xff 	/* Extra check to avoid soundcard. */
 		|| inb(ioaddr + 9) == 0xff
 		|| (checksum & 0xff) != 0xFF)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check for semi-valid mem_start/end values if supplied. */
 	if ((dev->mem_start % 0x2000) || (dev->mem_end % 0x2000)) {
 		netdev_warn(dev,
-			    "wd.c: user supplied mem_start or mem_end not on 8kB boundary - ignored.\n");
+			    "wd.c: user supplied mem_start or mem_end analt on 8kB boundary - iganalred.\n");
 		dev->mem_start = 0;
 		dev->mem_end = 0;
 	}
@@ -219,7 +219,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		   I'm comparing the two method in alpha test to make certain they
 		   return the same result. */
 		/* Check for the old 8 bit board - it has register 0/8 aliasing.
-		   Do NOT check i>=6 here -- it hangs the old 8003 boards! */
+		   Do ANALT check i>=6 here -- it hangs the old 8003 boards! */
 		for (i = 0; i < 6; i++)
 			if (inb(ioaddr+i) != inb(ioaddr+8+i))
 				break;
@@ -280,14 +280,14 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 		static const int irqmap[] = {9, 3, 5, 7, 10, 11, 15, 4};
 		int reg1 = inb(ioaddr+1);
 		int reg4 = inb(ioaddr+4);
-		if (ancient || reg1 == 0xff) {	/* Ack!! No way to read the IRQ! */
+		if (ancient || reg1 == 0xff) {	/* Ack!! Anal way to read the IRQ! */
 			short nic_addr = ioaddr+WD_NIC_OFFSET;
 			unsigned long irq_mask;
 
 			/* We have an old-style ethercard that doesn't report its IRQ
-			   line.  Do autoirq to find the IRQ line. Note that this IS NOT
+			   line.  Do autoirq to find the IRQ line. Analte that this IS ANALT
 			   a reliable way to trigger an interrupt. */
-			outb_p(E8390_NODMA + E8390_STOP, nic_addr);
+			outb_p(E8390_ANALDMA + E8390_STOP, nic_addr);
 			outb(0x00, nic_addr+EN0_IMR);	/* Disable all intrs. */
 
 			irq_mask = probe_irq_on();
@@ -309,7 +309,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	} else if (dev->irq == 2)		/* Fixup bogosity: IRQ2 is really IRQ9 */
 		dev->irq = 9;
 
-	/* Snarf the interrupt now.  There's no point in waiting since we cannot
+	/* Snarf the interrupt analw.  There's anal point in waiting since we cananalt
 	   share and the board will usually be enabled. */
 	i = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
 	if (i) {
@@ -338,7 +338,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	ei_status.mem = ioremap(dev->mem_start, ei_status.priv);
 	if (!ei_status.mem) {
 		free_irq(dev->irq, dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pr_cont(" %s, IRQ %d, shared memory at %#lx-%#lx.\n",
@@ -431,7 +431,7 @@ wd_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page
 }
 
 /* Block input and output are easy on shared memory ethercards, and trivial
-   on the Western digital card where there is no choice of how to do it.
+   on the Western digital card where there is anal choice of how to do it.
    The only complications are that the ring buffer wraps, and need to map
    switch between 8- and 16-bit modes. */
 
@@ -502,7 +502,7 @@ static struct net_device *dev_wd[MAX_WD_CARDS];
 static int io[MAX_WD_CARDS];
 static int irq[MAX_WD_CARDS];
 static int mem[MAX_WD_CARDS];
-static int mem_end[MAX_WD_CARDS];	/* for non std. mem size */
+static int mem_end[MAX_WD_CARDS];	/* for analn std. mem size */
 
 module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
@@ -510,15 +510,15 @@ module_param_hw_array(mem, int, iomem, NULL, 0);
 module_param_hw_array(mem_end, int, iomem, NULL, 0);
 module_param_named(msg_enable, wd_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es)");
-MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
-MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");
+MODULE_PARM_DESC(irq, "IRQ number(s) (iganalred for PureData boards)");
+MODULE_PARM_DESC(mem, "memory base address(es)(iganalred for PureData boards)");
 MODULE_PARM_DESC(mem_end, "memory end address(es)");
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("ISA Western Digital wd8003/wd8013 ; SMC Elite, Elite16 ethernet driver");
 MODULE_LICENSE("GPL");
 
 /* This is set up so that only a single autoprobe takes place per call.
-ISA device autoprobes on a running machine are not recommended. */
+ISA device autoprobes on a running machine are analt recommended. */
 
 static int __init wd_init_module(void)
 {
@@ -528,7 +528,7 @@ static int __init wd_init_module(void)
 	for (this_dev = 0; this_dev < MAX_WD_CARDS; this_dev++) {
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) break; /* only autoprobe 1st one */
-			printk(KERN_NOTICE "wd.c: Presently autoprobing (not recommended) for a single card.\n");
+			printk(KERN_ANALTICE "wd.c: Presently autoprobing (analt recommended) for a single card.\n");
 		}
 		dev = alloc_ei_netdev();
 		if (!dev)
@@ -542,7 +542,7 @@ static int __init wd_init_module(void)
 			continue;
 		}
 		free_netdev(dev);
-		printk(KERN_WARNING "wd.c: No wd80x3 card found (i/o = 0x%x).\n", io[this_dev]);
+		printk(KERN_WARNING "wd.c: Anal wd80x3 card found (i/o = 0x%x).\n", io[this_dev]);
 		break;
 	}
 	if (found)

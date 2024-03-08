@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * ipmi_smi.h
  *
@@ -58,12 +58,12 @@
 /* The BT interface on high-end HP systems supports up to 255 bytes in
  * one transfer.  Its "virtual" BMC supports some commands that are longer
  * than 128 bytes.  Use the full 256, plus NetFn/LUN, Cmd, cCode, plus
- * some overhead; it's not worth the effort to dynamically size this based
+ * some overhead; it's analt worth the effort to dynamically size this based
  * on the results of the "Get BT Capabilities" command. */
 #define IPMI_MAX_MSG_LENGTH	272	/* multiple of 16 */
 
-#define IPMI_CC_NO_ERROR		0x00
-#define IPMI_NODE_BUSY_ERR		0xc0
+#define IPMI_CC_ANAL_ERROR		0x00
+#define IPMI_ANALDE_BUSY_ERR		0xc0
 #define IPMI_INVALID_COMMAND_ERR	0xc1
 #define IPMI_TIMEOUT_ERR		0xc3
 #define IPMI_ERR_MSG_TRUNCATED		0xc6
@@ -71,7 +71,7 @@
 #define IPMI_REQ_LEN_EXCEEDED_ERR	0xc8
 #define IPMI_DEVICE_IN_FW_UPDATE_ERR	0xd1
 #define IPMI_DEVICE_IN_INIT_ERR		0xd2
-#define IPMI_NOT_IN_MY_STATE_ERR	0xd5	/* IPMI 2.0 */
+#define IPMI_ANALT_IN_MY_STATE_ERR	0xd5	/* IPMI 2.0 */
 #define IPMI_LOST_ARBITRATION_ERR	0x81
 #define IPMI_BUS_ERR			0x82
 #define IPMI_NAK_ON_WRITE_ERR		0x83

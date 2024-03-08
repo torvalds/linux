@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ nvif_object_ioctl(struct nvif_object *object, void *data, u32 size, void **hack)
 			args->v0.object = 0;
 		args->v0.owner = NVIF_IOCTL_V0_OWNER_ANY;
 	} else
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return client->driver->ioctl(client->object.priv, data, size, hack);
 }
@@ -67,7 +67,7 @@ nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
 	while (1) {
 		size = sizeof(*args) + cnt * sizeof(args->sclass.oclass[0]);
 		if (!(args = kmalloc(size, GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		args->ioctl.version = 0;
 		args->ioctl.type = NVIF_IOCTL_V0_SCLASS;
 		args->sclass.version = 0;
@@ -91,7 +91,7 @@ nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
 		}
 		ret = args->sclass.count;
 	} else {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	kfree(args);
@@ -147,7 +147,7 @@ nvif_object_mthd(struct nvif_object *object, u32 mthd, void *data, u32 size)
 
 	if (sizeof(*args) + size > sizeof(stack)) {
 		if (!(args = kmalloc(sizeof(*args) + size, GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		args = (void *)stack;
 	}
@@ -189,7 +189,7 @@ nvif_object_map_handle(struct nvif_object *object, void *argv, u32 argc,
 	int ret, maptype;
 
 	if (!(args = kzalloc(argn, GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	args->ioctl.type = NVIF_IOCTL_V0_MAP;
 	memcpy(args->map.data, argv, argc);
 
@@ -227,7 +227,7 @@ nvif_object_map(struct nvif_object *object, void *argv, u32 argc)
 			object->map.ptr = client->driver->map(client,
 							      handle,
 							      length);
-			if (ret = -ENOMEM, object->map.ptr) {
+			if (ret = -EANALMEM, object->map.ptr) {
 				object->map.size = length;
 				return 0;
 			}
@@ -278,7 +278,7 @@ nvif_object_ctor(struct nvif_object *parent, const char *name, u32 handle,
 	if (parent) {
 		if (!(args = kmalloc(sizeof(*args) + size, GFP_KERNEL))) {
 			nvif_object_dtor(object);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		object->parent = parent->parent;

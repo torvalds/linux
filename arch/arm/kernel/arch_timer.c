@@ -7,7 +7,7 @@
  */
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include <asm/delay.h>
 #include <asm/arch_timer.h>

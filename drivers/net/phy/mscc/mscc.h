@@ -29,7 +29,7 @@ enum rgmii_clock_delay {
 #define DISABLE_HP_AUTO_MDIX_MASK	  0x0080
 #define DISABLE_PAIR_SWAP_CORR_MASK	  0x0020
 #define DISABLE_POLARITY_CORR_MASK	  0x0010
-#define PARALLEL_DET_IGNORE_ADVERTISED    0x0008
+#define PARALLEL_DET_IGANALRE_ADVERTISED    0x0008
 
 #define MSCC_PHY_EXT_CNTL_STATUS          22
 #define SMI_BROADCAST_WR_EN		  0x0001
@@ -244,9 +244,9 @@ enum rgmii_clock_delay {
 #define PROC_CMD_FIBER_1000BASE_X	  0x0000
 #define PROC_CMD_SGMII_MAC		  0x0030
 #define PROC_CMD_QSGMII_MAC		  0x0020
-#define PROC_CMD_NO_MAC_CONF		  0x0000
+#define PROC_CMD_ANAL_MAC_CONF		  0x0000
 #define PROC_CMD_1588_DEFAULT_INIT	  0x0010
-#define PROC_CMD_NOP			  0x000f
+#define PROC_CMD_ANALP			  0x000f
 #define PROC_CMD_PHY_INIT		  0x000a
 #define PROC_CMD_CRC16			  0x0008
 #define PROC_CMD_FIBER_MEDIA_CONF	  0x0001
@@ -466,14 +466,14 @@ static inline void vsc8584_config_macsec_intr(struct phy_device *phydev)
 #endif
 
 #if IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING)
-void vsc85xx_link_change_notify(struct phy_device *phydev);
+void vsc85xx_link_change_analtify(struct phy_device *phydev);
 void vsc8584_config_ts_intr(struct phy_device *phydev);
 int vsc8584_ptp_init(struct phy_device *phydev);
 int vsc8584_ptp_probe_once(struct phy_device *phydev);
 int vsc8584_ptp_probe(struct phy_device *phydev);
 irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev);
 #else
-static inline void vsc85xx_link_change_notify(struct phy_device *phydev)
+static inline void vsc85xx_link_change_analtify(struct phy_device *phydev)
 {
 }
 static inline void vsc8584_config_ts_intr(struct phy_device *phydev)
@@ -493,7 +493,7 @@ static inline int vsc8584_ptp_probe(struct phy_device *phydev)
 }
 static inline irqreturn_t vsc8584_handle_ts_interrupt(struct phy_device *phydev)
 {
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 #endif
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_RESOURCE_H
 #define _UAPI_LINUX_RESOURCE_H
 
@@ -10,7 +10,7 @@
  */
 
 /*
- * Definition of struct rusage taken from BSD 4.3 Reno
+ * Definition of struct rusage taken from BSD 4.3 Reanal
  * 
  * We don't support all of these yet, but we might as well have them....
  * Otherwise, each time we add new items, programs which depend on this

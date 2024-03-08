@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
 
@@ -103,7 +103,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 
 	val = mpi_read_raw_data(buffer + 2, nbytes);
 	if (!val)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*ret_nread = nbytes + 2;
 	return val;
@@ -211,7 +211,7 @@ MPI mpi_scanval(const char *string)
 		mpi_free(a);
 		return NULL;
 	}
-	mpi_normalize(a);
+	mpi_analrmalize(a);
 	return a;
 }
 EXPORT_SYMBOL_GPL(mpi_scanval);
@@ -243,7 +243,7 @@ static int count_lzeros(MPI a)
  * @nbytes:	receives the actual length of the data written on success and
  *		the data to-be-written on -EOVERFLOW in case buf_len was too
  *		small.
- * @sign:	if not NULL, it will be set to the sign of a.
+ * @sign:	if analt NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
  */
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(mpi_read_buffer);
  *
  * @a:		a multi precision integer.
  * @nbytes:	receives the length of this buffer.
- * @sign:	if not NULL, it will be set to the sign of the a.
+ * @sign:	if analt NULL, it will be set to the sign of the a.
  *
  * Return:	Pointer to MPI buffer or NULL on error
  */
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(mpi_get_buffer);
  *		mpi_get_size(a) long.
  * @nbytes:	the number of bytes to write.  Leading bytes will be
  *		filled with zero.
- * @sign:	if not NULL, it will be set to the sign of a.
+ * @sign:	if analt NULL, it will be set to the sign of a.
  *
  * Return:	0 on success or error code in case of error
  */
@@ -563,7 +563,7 @@ int mpi_print(enum gcry_mpi_format format, unsigned char *buffer,
 	if (!nwritten)
 		nwritten = &dummy_nwritten;
 
-	/* Libgcrypt does no always care to set clear the sign if the value
+	/* Libgcrypt does anal always care to set clear the sign if the value
 	 * is 0.  For printing this is a bit of a surprise, in particular
 	 * because if some of the formats don't support negative numbers but
 	 * should be able to print a zero.  Thus we need this extra test
@@ -621,7 +621,7 @@ int mpi_print(enum gcry_mpi_format format, unsigned char *buffer,
 	} else if (format == GCRYMPI_FMT_USG) {
 		unsigned int n = (nbits + 7)/8;
 
-		/* Note:  We ignore the sign for this format.  */
+		/* Analte:  We iganalre the sign for this format.  */
 		/* FIXME: for performance reasons we should put this into
 		 * mpi_aprint because we can then use the buffer directly.
 		 */

@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -90,10 +90,10 @@ static void zorro8390_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_analt_ be necessary, omit eventually. */
 	while ((z_readb(NE_BASE + NE_EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete\n", __func__);
+			netdev_warn(dev, "%s: did analt complete\n", __func__);
 			break;
 		}
 	z_writeb(ENISR_RESET, NE_BASE + NE_EN0_ISR);	/* Ack intr */
@@ -121,7 +121,7 @@ static void zorro8390_get_8390_hdr(struct net_device *dev,
 	}
 
 	ei_status.dmaing |= 0x01;
-	z_writeb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	z_writeb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);
 	z_writeb(sizeof(struct e8390_pkt_hdr), nic_base + NE_EN0_RCNTLO);
 	z_writeb(0, nic_base + NE_EN0_RCNTHI);
@@ -163,7 +163,7 @@ static void zorro8390_block_input(struct net_device *dev, int count,
 		return;
 	}
 	ei_status.dmaing |= 0x01;
-	z_writeb(E8390_NODMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
+	z_writeb(E8390_ANALDMA + E8390_PAGE0 + E8390_START, nic_base + NE_CMD);
 	z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);
 	z_writeb(count & 0xff, nic_base + NE_EN0_RCNTLO);
 	z_writeb(count >> 8, nic_base + NE_EN0_RCNTHI);
@@ -206,11 +206,11 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 	}
 	ei_status.dmaing |= 0x01;
 	/* We should already be in page 0, but to be safe... */
-	z_writeb(E8390_PAGE0+E8390_START+E8390_NODMA, nic_base + NE_CMD);
+	z_writeb(E8390_PAGE0+E8390_START+E8390_ANALDMA, nic_base + NE_CMD);
 
 	z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);
 
-	/* Now the normal output. */
+	/* Analw the analrmal output. */
 	z_writeb(count & 0xff, nic_base + NE_EN0_RCNTLO);
 	z_writeb(count >> 8,   nic_base + NE_EN0_RCNTHI);
 	z_writeb(0x00, nic_base + NE_EN0_RSARLO);
@@ -294,7 +294,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 		0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
 	};
 
-	/* Reset card. Who knows what dain-bramaged state it was left in. */
+	/* Reset card. Who kanalws what dain-bramaged state it was left in. */
 	{
 		unsigned long reset_start_time = jiffies;
 
@@ -303,8 +303,8 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 		while ((z_readb(ioaddr + NE_EN0_ISR) & ENISR_RESET) == 0)
 			if (time_after(jiffies,
 				       reset_start_time + 2 * HZ / 100)) {
-				netdev_warn(dev, "not found (no reset ack)\n");
-				return -ENODEV;
+				netdev_warn(dev, "analt found (anal reset ack)\n");
+				return -EANALDEV;
 			}
 
 		z_writeb(0xff, ioaddr + NE_EN0_ISR);	/* Ack all intr. */
@@ -321,7 +321,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 			u32 value;
 			u32 offset;
 		} program_seq[] = {
-			{E8390_NODMA + E8390_PAGE0 + E8390_STOP, NE_CMD},
+			{E8390_ANALDMA + E8390_PAGE0 + E8390_STOP, NE_CMD},
 						/* Select page 0 */
 			{0x48,	NE_EN0_DCFG},	/* 0x48: Set byte-wide access */
 			{0x00,	NE_EN0_RCNTLO},	/* Clear the count regs */
@@ -402,13 +402,13 @@ static int zorro8390_init_one(struct zorro_dev *z,
 		if (z->id == cards[i].id)
 			break;
 	if (i < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	board = z->resource.start;
 	ioaddr = board + cards[i].offset;
 	dev = ____alloc_ei_netdev(0);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!request_mem_region(ioaddr, NE_IO_EXTENT * 2, DRV_NAME)) {
 		free_netdev(dev);
 		return -EBUSY;

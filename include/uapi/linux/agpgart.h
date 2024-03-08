@@ -11,12 +11,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * JEFF HARTMANN, OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM, 
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
@@ -55,7 +55,7 @@
 
 struct agp_version {
 	__u16 major;
-	__u16 minor;
+	__u16 mianalr;
 };
 
 typedef struct _agp_info {
@@ -91,7 +91,7 @@ typedef struct _agp_region {
 typedef struct _agp_allocate {
 	int key;		/* tag of allocation            */
 	__kernel_size_t pg_count;/* number of pages             */
-	__u32 type;		/* 0 == normal, other devspec   */
+	__u32 type;		/* 0 == analrmal, other devspec   */
    	__u32 physical;         /* device specific (some devices  
 				 * need a phys address of the     
 				 * actual page behind the gatt    

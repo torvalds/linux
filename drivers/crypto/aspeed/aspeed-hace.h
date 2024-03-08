@@ -175,7 +175,7 @@ struct aspeed_sham_ctx {
 };
 
 struct aspeed_sham_reqctx {
-	unsigned long		flags;		/* final update flag should no use*/
+	unsigned long		flags;		/* final update flag should anal use*/
 	unsigned long		op;		/* final or update */
 	u32			cmd;		/* trigger cmd */
 

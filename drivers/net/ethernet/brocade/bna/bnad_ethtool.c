@@ -57,7 +57,7 @@ static const char *bnad_net_stats_strings[] = {
 	"tx_skb_mss_too_long",
 	"tx_skb_tso_too_short",
 	"tx_skb_tso_prepare",
-	"tx_skb_non_tso_too_long",
+	"tx_skb_analn_tso_too_long",
 	"tx_skb_tcp_hdr",
 	"tx_skb_udp_hdr",
 	"tx_skb_csum_err",
@@ -95,7 +95,7 @@ static const char *bnad_net_stats_strings[] = {
 	"mac_rx_broadcast",
 	"mac_rx_control_frames",
 	"mac_rx_pause",
-	"mac_rx_unknown_opcode",
+	"mac_rx_unkanalwn_opcode",
 	"mac_rx_alignment_error",
 	"mac_rx_frame_length_error",
 	"mac_rx_code_error",
@@ -118,7 +118,7 @@ static const char *bnad_net_stats_strings[] = {
 	"mac_tx_late_collision",
 	"mac_tx_excessive_collision",
 	"mac_tx_total_collision",
-	"mac_tx_pause_honored",
+	"mac_tx_pause_hoanalred",
 	"mac_tx_drop",
 	"mac_tx_jabber",
 	"mac_tx_fcs_error",
@@ -254,8 +254,8 @@ bnad_get_link_ksettings(struct net_device *netdev,
 		cmd->base.speed = SPEED_10000;
 		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		cmd->base.speed = SPEED_UNKNOWN;
-		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKANALWN;
+		cmd->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	return 0;
@@ -267,13 +267,13 @@ bnad_set_link_ksettings(struct net_device *netdev,
 {
 	/* 10G full duplex setting supported only */
 	if (cmd->base.autoneg == AUTONEG_ENABLE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((cmd->base.speed == SPEED_10000) &&
 	    (cmd->base.duplex == DUPLEX_FULL))
 		return 0;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void
@@ -351,7 +351,7 @@ static int bnad_set_coalesce(struct net_device *netdev,
 
 	mutex_lock(&bnad->conf_mutex);
 	/*
-	 * Do not need to store rx_coalesce_usecs here
+	 * Do analt need to store rx_coalesce_usecs here
 	 * Every time DIM is disabled, we can get it from the
 	 * stack.
 	 */
@@ -887,7 +887,7 @@ bnad_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return bnad_get_stats_count_locked(netdev);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

@@ -69,8 +69,8 @@ enum SUPPORTED_CODE {
 	CODE_TANG_PATCH,	/* 16 - TANG Patch firmware */
 	CODE_KONG_FW,		/* 17 - KONG firmware */
 	CODE_KONG_PATCH,	/* 18 - KONG Patch firmware */
-	CODE_BONO_FW,		/* 19 - BONO firmware */
-	CODE_BONO_PATCH,	/* 20 - BONO Patch firmware */
+	CODE_BOANAL_FW,		/* 19 - BOANAL firmware */
+	CODE_BOANAL_PATCH,	/* 20 - BOANAL Patch firmware */
 	CODE_CHIMP_PATCH,	/* 21 - ChiMP Patch firmware */
 
 	MAX_CODE_TYPE,
@@ -79,7 +79,7 @@ enum SUPPORTED_CODE {
 enum SUPPORTED_MEDIA {
 	MEDIA_COPPER,		/* 0 */
 	MEDIA_FIBER,		/* 1 */
-	MEDIA_NONE,		/* 2 */
+	MEDIA_ANALNE,		/* 2 */
 	MEDIA_COPPER_FIBER,	/* 3 */
 	MAX_MEDIA_TYPE,
 };
@@ -99,7 +99,7 @@ struct bnxt_fw_header {
 				 */
 	u8 build;
 	u8 revision;
-	u8 minor_ver;
+	u8 mianalr_ver;
 	u8 major_ver;
 };
 

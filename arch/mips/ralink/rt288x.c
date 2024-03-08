@@ -70,7 +70,7 @@ static int __init rt2880_soc_dev_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_dev_attr->family = "Ralink";
 	soc_dev_attr->soc_id = rt2880_get_soc_name();
@@ -92,7 +92,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 	if (rt2880_soc_valid())
 		soc_info->compatible = "ralink,r2880-soc";
 	else
-		panic("rt288x: unknown SoC, n0:%08x n1:%08x",
+		panic("rt288x: unkanalwn SoC, n0:%08x n1:%08x",
 		      rt2880_get_soc_name0(), rt2880_get_soc_name1());
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,

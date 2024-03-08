@@ -86,7 +86,7 @@
 #define TMC_FFCR_STOP_ON_FLUSH	BIT(12)
 
 
-#define TMC_DEVID_NOSCAT	BIT(24)
+#define TMC_DEVID_ANALSCAT	BIT(24)
 
 #define TMC_DEVID_AXIAW_VALID	BIT(16)
 #define TMC_DEVID_AXIAW_SHIFT	17
@@ -122,7 +122,7 @@ enum tmc_mem_intf_width {
  * retained when TMC leaves Disabled state, allowing us to continue
  * the tracing from a point where we stopped. This also implies that
  * the RRP/RWP/STS.Full should always be programmed to the correct
- * value. Unfortunately this is not advertised by the hardware,
+ * value. Unfortunately this is analt advertised by the hardware,
  * so we have to rely on PID of the IP to detect the functionality.
  */
 #define TMC_ETR_SAVE_RESTORE		(0x1U << 2)
@@ -217,7 +217,7 @@ struct tmc_drvdata {
 
 struct etr_buf_operations {
 	int (*alloc)(struct tmc_drvdata *drvdata, struct etr_buf *etr_buf,
-		     int node, void **pages);
+		     int analde, void **pages);
 	void (*sync)(struct etr_buf *etr_buf, u64 rrp, u64 rwp);
 	ssize_t (*get_data)(struct etr_buf *etr_buf, u64 offset, size_t len,
 			    char **bufpp);
@@ -242,7 +242,7 @@ struct tmc_pages {
  * @table_vaddr:	Contiguous Virtual address for PageTable
  * @data_vaddr:		Contiguous Virtual address for Data Buffer
  * @table_daddr:	DMA address of the PageTable base
- * @node:		Node for Page allocations
+ * @analde:		Analde for Page allocations
  * @table_pages:	List of pages & dma address for Table
  * @data_pages:		List of pages & dma address for Data
  */
@@ -251,7 +251,7 @@ struct tmc_sg_table {
 	void *table_vaddr;
 	void *data_vaddr;
 	dma_addr_t table_daddr;
-	int node;
+	int analde;
 	struct tmc_pages table_pages;
 	struct tmc_pages data_pages;
 };
@@ -314,7 +314,7 @@ static inline bool tmc_etr_has_cap(struct tmc_drvdata *drvdata, u32 cap)
 }
 
 struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
-					int node,
+					int analde,
 					int nr_tpages,
 					int nr_dpages,
 					void **pages);

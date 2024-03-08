@@ -292,7 +292,7 @@ static int sr9700_set_mac_address(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
-		netdev_err(netdev, "not setting invalid mac address %pM\n",
+		netdev_err(netdev, "analt setting invalid mac address %pM\n",
 			   addr->sa_data);
 		return -EINVAL;
 	}
@@ -333,7 +333,7 @@ static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 	netdev->ethtool_ops = &sr9700_ethtool_ops;
 	netdev->hard_header_len += SR_TX_OVERHEAD;
 	dev->hard_mtu = netdev->mtu + netdev->hard_header_len;
-	/* bulkin buffer is preferably not less than 3K */
+	/* bulkin buffer is preferably analt less than 3K */
 	dev->rx_urb_size = 3072;
 
 	mii = &dev->mii;
@@ -348,12 +348,12 @@ static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* read MAC
 	 * After Chip Power on, the Chip will reload the MAC from
-	 * EEPROM automatically to PAR. In case there is no EEPROM externally,
+	 * EEPROM automatically to PAR. In case there is anal EEPROM externally,
 	 * a default MAC address is stored in PAR for making chip work properly.
 	 */
 	if (sr_read(dev, SR_PAR, ETH_ALEN, addr) < 0) {
 		netdev_err(netdev, "Error reading MAC address\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	eth_hw_addr_set(netdev, addr);
@@ -410,7 +410,7 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (skb->data[0] != 0x40)
 			return 0;
 
-		/* ignore the CRC length */
+		/* iganalre the CRC length */
 		len = (skb->data[1] | (skb->data[2] << 8)) - 4;
 
 		if (len > ETH_FRAME_LEN || len > skb->len || len < 0)

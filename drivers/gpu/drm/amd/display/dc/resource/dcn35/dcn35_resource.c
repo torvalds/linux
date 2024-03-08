@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -610,10 +610,10 @@ static struct dce_hwseq_registers hwseq_reg;
 	HWS_SF(, DMU_CLK_CNTL, DTBCLK_ALLOW_DS_CLKSTOP, mask_sh),\
 	HWS_SF(, DMU_CLK_CNTL, DCFCLK_ALLOW_DS_CLKSTOP, mask_sh),\
 	HWS_SF(, DMU_CLK_CNTL, DPIACLK_ALLOW_DS_CLKSTOP, mask_sh),\
-	HWS_SF(, DMU_CLK_CNTL, LONO_FGCG_REP_DIS, mask_sh),\
-	HWS_SF(, DMU_CLK_CNTL, LONO_DISPCLK_GATE_DISABLE, mask_sh),\
-	HWS_SF(, DMU_CLK_CNTL, LONO_SOCCLK_GATE_DISABLE, mask_sh),\
-	HWS_SF(, DMU_CLK_CNTL, LONO_DMCUBCLK_GATE_DISABLE, mask_sh),\
+	HWS_SF(, DMU_CLK_CNTL, LOANAL_FGCG_REP_DIS, mask_sh),\
+	HWS_SF(, DMU_CLK_CNTL, LOANAL_DISPCLK_GATE_DISABLE, mask_sh),\
+	HWS_SF(, DMU_CLK_CNTL, LOANAL_SOCCLK_GATE_DISABLE, mask_sh),\
+	HWS_SF(, DMU_CLK_CNTL, LOANAL_DMCUBCLK_GATE_DISABLE, mask_sh),\
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKA_FE_GATE_DISABLE, mask_sh), \
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKB_FE_GATE_DISABLE, mask_sh), \
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKC_FE_GATE_DISABLE, mask_sh), \
@@ -629,7 +629,7 @@ static struct dce_hwseq_registers hwseq_reg;
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYBSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYCSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYDSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
-	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYESYMCLK_ROOT_GATE_DISABLE, mask_sh),\
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHANALYMCLK_ROOT_GATE_DISABLE, mask_sh),\
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL5, DTBCLK_P0_GATE_DISABLE, mask_sh),\
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL5, DTBCLK_P1_GATE_DISABLE, mask_sh),\
 	HWS_SF(, DCCG_GATE_DISABLE_CNTL5, DTBCLK_P2_GATE_DISABLE, mask_sh),\
@@ -739,7 +739,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.vga = false,
 			.i2c = true,
-			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
+			.dmcu = false, // This is previously kanalwn to cause hang on S3 cycles if enabled
 			.dscl = true,
 			.cm = true,
 			.mpc = true,
@@ -778,7 +778,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_double_buffered_dsc_pg_support = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
 	.disable_z10 = false,
-	.ignore_pg = true,
+	.iganalre_pg = true,
 	.psp_disabled_wa = true,
 	.ips2_eval_delay_us = 2000,
 	.ips2_entry_delay_us = 800,
@@ -1109,7 +1109,7 @@ static struct link_encoder *dcn35_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-/* Create a minimal link encoder object not associated with a particular
+/* Create a minimal link encoder object analt associated with a particular
  * physical connector.
  * resource_funcs.link_enc_create_minimal
  */
@@ -1228,7 +1228,7 @@ static struct afmt *dcn31_afmt_create(
 			&afmt_shift,
 			&afmt_mask);
 
-	// Light sleep by default, no need to power down here
+	// Light sleep by default, anal need to power down here
 
 	return &afmt31->base;
 }
@@ -1767,7 +1767,7 @@ static struct resource_funcs dcn35_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn30_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn35_update_bw_bounding_box_fpu,
-	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.patch_unkanalwn_plane_state = dcn20_patch_unkanalwn_plane_state,
 	.get_panel_config_defaults = dcn35_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn35_get_preferred_eng_id_dpia,
 };
@@ -1813,7 +1813,7 @@ static bool dcn35_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.mpcc_count = pool->base.res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
@@ -1857,8 +1857,8 @@ static bool dcn35_resource_construct(
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
-	dc->caps.color.dpp.ogam_ram = 0;  // no OGAM in DPP since DCN1
-	// no OGAM ROM on DCN301
+	dc->caps.color.dpp.ogam_ram = 0;  // anal OGAM in DPP since DCN1
+	// anal OGAM ROM on DCN301
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;
 	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
@@ -1880,7 +1880,7 @@ static bool dcn35_resource_construct(
 	 * to provide some margin.
 	 * It's expected for furture ASIC to have equal or higher value, in order to
 	 * have determinstic power improvement from generate to genration.
-	 * (i.e., we should not expect new ASIC generation with lower vmin rate)
+	 * (i.e., we should analt expect new ASIC generation with lower vmin rate)
 	 */
 	dc->caps.max_disp_clock_khz_at_vmin = 650000;
 
@@ -1938,7 +1938,7 @@ static bool dcn35_resource_construct(
 
 	pool->base.clk_src_count = DCN35_CLK_SRC_TOTAL;
 
-	/* todo: not reuse phy_pll registers */
+	/* todo: analt reuse phy_pll registers */
 	pool->base.dp_clock_source =
 			dcn35_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,

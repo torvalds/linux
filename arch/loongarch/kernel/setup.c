@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1995 Linus Torvalds
@@ -172,7 +172,7 @@ static int __init setup_writecombine(char *p)
 	else if (!strcmp(p, "off"))
 		wc_enabled = false;
 	else
-		pr_warn("Unknown writecombine setting \"%s\".\n", p);
+		pr_warn("Unkanalwn writecombine setting \"%s\".\n", p);
 
 	return 0;
 }
@@ -185,7 +185,7 @@ static int __init early_parse_mem(char *p)
 	phys_addr_t start, size;
 
 	if (!p) {
-		pr_err("mem parameter is empty, do nothing\n");
+		pr_err("mem parameter is empty, do analthing\n");
 		return -EINVAL;
 	}
 
@@ -211,7 +211,7 @@ static int __init early_parse_mem(char *p)
 	if (!IS_ENABLED(CONFIG_NUMA))
 		memblock_add(start, size);
 	else
-		memblock_add_node(start, size, pa_to_nid(start), MEMBLOCK_NONE);
+		memblock_add_analde(start, size, pa_to_nid(start), MEMBLOCK_ANALNE);
 
 	return 0;
 }
@@ -276,7 +276,7 @@ static void __init fdt_setup(void)
 #ifdef CONFIG_OF_EARLY_FLATTREE
 	void *fdt_pointer;
 
-	/* ACPI-based systems do not require parsing fdt */
+	/* ACPI-based systems do analt require parsing fdt */
 	if (acpi_os_get_root_pointer())
 		return;
 
@@ -377,7 +377,7 @@ static void __init check_kernel_sections_mem(void)
 	phys_addr_t size = __pa_symbol(&_end) - start;
 
 	if (!memblock_is_region_memory(start, size)) {
-		pr_info("Kernel sections are not in the memory maps\n");
+		pr_info("Kernel sections are analt in the memory maps\n");
 		memblock_add(start, size);
 	}
 }
@@ -407,8 +407,8 @@ static void __init arch_mem_init(char **cmdline_p)
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
 	/* Reserve for hibernation. */
-	register_nosave_region(PFN_DOWN(__pa_symbol(&__nosave_begin)),
-				   PFN_UP(__pa_symbol(&__nosave_end)));
+	register_analsave_region(PFN_DOWN(__pa_symbol(&__analsave_begin)),
+				   PFN_UP(__pa_symbol(&__analsave_end)));
 
 	memblock_dump_all();
 
@@ -435,7 +435,7 @@ static void __init resource_init(void)
 
 	for_each_mem_region(region) {
 		res = &standard_resources[i++];
-		if (!memblock_is_nomap(region)) {
+		if (!memblock_is_analmap(region)) {
 			res->name  = "System RAM";
 			res->flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 			res->start = __pfn_to_phys(memblock_region_memory_base_pfn(region));
@@ -450,7 +450,7 @@ static void __init resource_init(void)
 		request_resource(&iomem_resource, res);
 
 		/*
-		 *  We don't know which RAM region contains kernel data,
+		 *  We don't kanalw which RAM region contains kernel data,
 		 *  so we try it repeatedly and let the resource manager
 		 *  test it.
 		 */
@@ -460,7 +460,7 @@ static void __init resource_init(void)
 	}
 }
 
-static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
+static int __init add_legacy_isa_io(struct fwanalde_handle *fwanalde,
 				resource_size_t hw_start, resource_size_t size)
 {
 	int ret = 0;
@@ -469,9 +469,9 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
 
 	range = kzalloc(sizeof(*range), GFP_ATOMIC);
 	if (!range)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	range->fwnode = fwnode;
+	range->fwanalde = fwanalde;
 	range->size = size = round_up(size, PAGE_SIZE);
 	range->hw_start = hw_start;
 	range->flags = LOGIC_PIO_CPU_MMIO;
@@ -497,9 +497,9 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
 
 static __init int arch_reserve_pio_range(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	for_each_node_by_name(np, "isa") {
+	for_each_analde_by_name(np, "isa") {
 		struct of_range range;
 		struct of_range_parser parser;
 
@@ -507,7 +507,7 @@ static __init int arch_reserve_pio_range(void)
 
 		if (of_range_parser_init(&parser, np)) {
 			pr_info("Failed to parse resources.\n");
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -518,7 +518,7 @@ static __init int arch_reserve_pio_range(void)
 					range.cpu_addr,
 					range.cpu_addr + range.size - 1,
 					range.bus_addr);
-				if (add_legacy_isa_io(&np->fwnode, range.cpu_addr, range.size))
+				if (add_legacy_isa_io(&np->fwanalde, range.cpu_addr, range.size))
 					pr_warn("Failed to reserve legacy IO in Logic PIO\n");
 				break;
 			case IORESOURCE_MEM:

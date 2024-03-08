@@ -31,7 +31,7 @@ MODULE_DEVICE_TABLE(pci, ism_device_table);
 
 static debug_info_t *ism_debug_info;
 
-#define NO_CLIENT		0xff		/* must be >= MAX_CLIENTS */
+#define ANAL_CLIENT		0xff		/* must be >= MAX_CLIENTS */
 static struct ism_client *clients[MAX_CLIENTS];	/* use an array rather than */
 						/* a list for fast mapping  */
 static u8 max_client;
@@ -59,7 +59,7 @@ static void ism_setup_forwarding(struct ism_client *client, struct ism_dev *ism)
 int ism_register_client(struct ism_client *client)
 {
 	struct ism_dev *ism;
-	int i, rc = -ENOSPC;
+	int i, rc = -EANALSPC;
 
 	mutex_lock(&ism_dev_list.mutex);
 	mutex_lock(&clients_lock);
@@ -184,7 +184,7 @@ static int register_sba(struct ism_dev *ism)
 	sba = dma_alloc_coherent(&ism->pdev->dev, PAGE_SIZE, &dma_handle,
 				 GFP_KERNEL);
 	if (!sba)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.request.hdr.cmd = ISM_REG_SBA;
@@ -211,7 +211,7 @@ static int register_ieq(struct ism_dev *ism)
 	ieq = dma_alloc_coherent(&ism->pdev->dev, PAGE_SIZE, &dma_handle,
 				 GFP_KERNEL);
 	if (!ieq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.request.hdr.cmd = ISM_REG_IEQ;
@@ -307,7 +307,7 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 		bit = find_next_zero_bit(ism->sba_bitmap, ISM_NR_DMBS,
 					 ISM_DMB_BIT_OFFSET);
 		if (bit == ISM_NR_DMBS)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		dmb->sba_idx = bit;
 	}
@@ -317,12 +317,12 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 
 	dmb->cpu_addr = dma_alloc_coherent(&ism->pdev->dev, dmb->dmb_len,
 					   &dmb->dma_addr,
-					   GFP_KERNEL | __GFP_NOWARN |
-					   __GFP_NOMEMALLOC | __GFP_NORETRY);
+					   GFP_KERNEL | __GFP_ANALWARN |
+					   __GFP_ANALMEMALLOC | __GFP_ANALRETRY);
 	if (!dmb->cpu_addr)
 		clear_bit(dmb->sba_idx, ism->sba_bitmap);
 
-	return dmb->cpu_addr ? 0 : -ENOMEM;
+	return dmb->cpu_addr ? 0 : -EANALMEM;
 }
 
 int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
@@ -374,7 +374,7 @@ int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
 	spin_lock_irqsave(&ism->lock, flags);
-	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = NO_CLIENT;
+	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = ANAL_CLIENT;
 	spin_unlock_irqrestore(&ism->lock, flags);
 
 	ret = ism_cmd(ism, &cmd);
@@ -488,7 +488,7 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
 		client_id = ism->sba_client_arr[bit];
-		if (unlikely(client_id == NO_CLIENT || !ism->subs[client_id]))
+		if (unlikely(client_id == ANAL_CLIENT || !ism->subs[client_id]))
 			continue;
 		ism->subs[client_id]->handle_irq(ism, bit + ISM_DMB_BIT_OFFSET, dmbemask);
 	}
@@ -514,7 +514,7 @@ static int ism_dev_init(struct ism_dev *ism)
 	ism->sba_client_arr = kzalloc(ISM_NR_DMBS, GFP_KERNEL);
 	if (!ism->sba_client_arr)
 		goto free_vectors;
-	memset(ism->sba_client_arr, NO_CLIENT, ISM_NR_DMBS);
+	memset(ism->sba_client_arr, ANAL_CLIENT, ISM_NR_DMBS);
 
 	ret = request_irq(pci_irq_vector(pdev, 0), ism_handle_irq, 0,
 			  pci_name(pdev), ism);
@@ -576,7 +576,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ism = kzalloc(sizeof(*ism), GFP_KERNEL);
 	if (!ism)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ism->lock);
 	dev_set_drvdata(&pdev->dev, ism);
@@ -679,7 +679,7 @@ static int __init ism_init(void)
 
 	ism_debug_info = debug_register("ism", 2, 1, 16);
 	if (!ism_debug_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	memset(clients, 0, sizeof(clients));
 	max_client = 0;

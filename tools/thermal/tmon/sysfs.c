@@ -18,7 +18,7 @@
 #include <time.h>
 #include <syslog.h>
 #include <sys/time.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "tmon.h"
 
@@ -115,7 +115,7 @@ static int str_to_trip_type(char *name)
 			return i;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* scan and fill in trip point info for a thermal zone and trip point id */
@@ -132,8 +132,8 @@ static int get_trip_point_data(char *tz_path, int tzid, int tpid)
 	sysfs_get_string(tz_path, filename, temp_str);
 	trip_type = str_to_trip_type(temp_str);
 	if (trip_type < 0) {
-		syslog(LOG_ERR, "%s:%s no matching type\n", __func__, temp_str);
-		return -ENOENT;
+		syslog(LOG_ERR, "%s:%s anal matching type\n", __func__, temp_str);
+		return -EANALENT;
 	}
 	ptdata.tzi[tzid].tp[tpid].type = trip_type;
 	syslog(LOG_INFO, "%s:tz:%d tp:%d:type:%s type id %d\n", __func__, tzid,
@@ -171,15 +171,15 @@ static int find_tzone_tp(char *tz_name, char *d_name, struct tz_info *tzi,
 
 	if (strstr(d_name, "trip_point") &&
 		strstr(d_name, "temp")) {
-		/* check if trip point temp is non-zero
-		 * ignore 0/invalid trip points
+		/* check if trip point temp is analn-zero
+		 * iganalre 0/invalid trip points
 		 */
 		sysfs_get_ulong(tz_name, d_name, &temp_ulong);
 		if (temp_ulong < MAX_TEMP_KC) {
 			tzi->nr_trip_pts++;
 			/* found a valid trip point */
 			tp_id = get_instance_id(d_name, 2, 0);
-			syslog(LOG_DEBUG, "tzone %s trip %d temp %lu tpnode %s",
+			syslog(LOG_DEBUG, "tzone %s trip %d temp %lu tpanalde %s",
 				tz_name, tp_id, temp_ulong, d_name);
 			if (tp_id < 0 || tp_id >= MAX_NR_TRIP) {
 				syslog(LOG_ERR, "Failed to find TP inst %s\n",
@@ -248,7 +248,7 @@ static int find_tzone_cdev(struct dirent *nl, char *tz_name,
 		return 0;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 
@@ -343,7 +343,7 @@ static int scan_cdevs(void)
 	int i, n, k = 0;
 
 	if (!ptdata.nr_cooling_dev) {
-		fprintf(stderr, "No cooling devices found\n");
+		fprintf(stderr, "Anal cooling devices found\n");
 		return 0;
 	}
 	for (i = 0; i <= ptdata.max_cdev_instance; i++) {
@@ -388,7 +388,7 @@ int probe_thermal_sysfs(void)
 
 	dir = opendir(THERMAL_SYSFS);
 	if (!dir) {
-		fprintf(stderr, "\nNo thermal sysfs, exit\n");
+		fprintf(stderr, "\nAnal thermal sysfs, exit\n");
 		return -1;
 	}
 	n = scandir(THERMAL_SYSFS, &namelist, 0, alphasort);
@@ -435,7 +435,7 @@ int probe_thermal_sysfs(void)
 	closedir(dir);
 
 	if (!ptdata.nr_tz_sensor) {
-		fprintf(stderr, "\nNo thermal zones found, exit\n\n");
+		fprintf(stderr, "\nAnal thermal zones found, exit\n\n");
 		return -1;
 	}
 
@@ -445,7 +445,7 @@ int probe_thermal_sysfs(void)
 		return -1;
 	}
 
-	/* we still show thermal zone information if there is no cdev */
+	/* we still show thermal zone information if there is anal cdev */
 	if (ptdata.nr_cooling_dev) {
 		ptdata.cdi = calloc(ptdata.max_cdev_instance + 1,
 				sizeof(struct cdev_info));
@@ -456,7 +456,7 @@ int probe_thermal_sysfs(void)
 		}
 	}
 
-	/* now probe tzones */
+	/* analw probe tzones */
 	if (scan_tzones())
 		return -1;
 	if (scan_cdevs())
@@ -472,7 +472,7 @@ int zone_instance_to_index(int zone_inst)
 	for (i = 0; i < ptdata.nr_tz_sensor; i++)
 		if (ptdata.tzi[i].instance == zone_inst)
 			return i;
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* read temperature of all thermal zones */
@@ -484,7 +484,7 @@ int update_thermal_data()
 	static unsigned long samples;
 
 	if (!ptdata.nr_tz_sensor) {
-		syslog(LOG_ERR, "No thermal zones found!\n");
+		syslog(LOG_ERR, "Anal thermal zones found!\n");
 		return -1;
 	}
 
@@ -535,13 +535,13 @@ void set_ctrl_state(unsigned long state)
 	int i;
 	unsigned long cdev_state;
 
-	if (no_control)
+	if (anal_control)
 		return;
 	/* set all ctrl cdev to the same state */
 	for (i = 0; i < ptdata.nr_cooling_dev; i++) {
 		if (ptdata.cdi[i].flag & CDEV_FLAG_IN_CONTROL) {
 			if (ptdata.cdi[i].max_state < 10) {
-				strcpy(ctrl_cdev, "None.");
+				strcpy(ctrl_cdev, "Analne.");
 				return;
 			}
 			/* scale to percentage of max_state */
@@ -565,7 +565,7 @@ void get_ctrl_state(unsigned long *state)
 	int i;
 
 	/* TODO: take average of all ctrl types. also consider change based on
-	 * uevent. Take the first reading for now.
+	 * uevent. Take the first reading for analw.
 	 */
 	for (i = 0; i < ptdata.nr_cooling_dev; i++) {
 		if (ptdata.cdi[i].flag & CDEV_FLAG_IN_CONTROL) {

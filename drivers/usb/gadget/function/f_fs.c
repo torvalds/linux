@@ -5,9 +5,9 @@
  * Copyright (C) 2010 Samsung Electronics
  * Author: Michal Nazarewicz <mina86@mina86.com>
  *
- * Based on inode.c (GadgetFS) which was:
+ * Based on ianalde.c (GadgetFS) which was:
  * Copyright (C) 2003-2004 David Brownell
- * Copyright (C) 2003 Agilent Technologies
+ * Copyright (C) 2003 Agilent Techanallogies
  */
 
 
@@ -88,7 +88,7 @@ static inline enum ffs_setup_state
 ffs_setup_state_clear_cancelled(struct ffs_data *ffs)
 {
 	return (enum ffs_setup_state)
-		cmpxchg(&ffs->setup_state, FFS_SETUP_CANCELLED, FFS_NO_SETUP);
+		cmpxchg(&ffs->setup_state, FFS_SETUP_CANCELLED, FFS_ANAL_SETUP);
 }
 
 
@@ -140,12 +140,12 @@ struct ffs_epfile {
 	 * The pointer is initialised with NULL value and may be set by
 	 * __ffs_epfile_read_data function to point to a temporary buffer.
 	 *
-	 * In normal operation, calls to __ffs_epfile_read_buffered will consume
+	 * In analrmal operation, calls to __ffs_epfile_read_buffered will consume
 	 * data from said buffer and eventually free it.  Importantly, while the
 	 * function is using the buffer, it sets the pointer to NULL.  This is
 	 * all right since __ffs_epfile_read_data and __ffs_epfile_read_buffered
 	 * can never run concurrently (they are synchronised by epfile->mutex)
-	 * so the latter will not assign a new value to the pointer.
+	 * so the latter will analt assign a new value to the pointer.
 	 *
 	 * Meanwhile ffs_func_eps_disable frees the buffer (if the pointer is
 	 * valid) and sets the pointer to READ_BUFFER_DROP value.  This special
@@ -154,27 +154,27 @@ struct ffs_epfile {
 	 *
 	 * Once __ffs_epfile_read_data is about to finish it will try to set the
 	 * pointer back to its old value (as described above), but seeing as the
-	 * pointer is not-NULL (namely READ_BUFFER_DROP) it will instead free
+	 * pointer is analt-NULL (namely READ_BUFFER_DROP) it will instead free
 	 * the buffer.
 	 *
 	 * == State transitions ==
 	 *
 	 * • ptr == NULL:  (initial state)
 	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP
-	 *   ◦ __ffs_epfile_read_buffered:    nop
+	 *   ◦ __ffs_epfile_read_buffered:    analp
 	 *   ◦ __ffs_epfile_read_data allocates temp buffer: go to ptr == buf
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ reading finishes:              n/a, analt in ‘and reading’ state
 	 * • ptr == DROP:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffer_free: analp
 	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL
-	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, nop
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, analp
+	 *   ◦ reading finishes:              n/a, analt in ‘and reading’ state
 	 * • ptr == buf:
 	 *   ◦ __ffs_epfile_read_buffer_free: free buf, go to ptr == DROP
 	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL and reading
 	 *   ◦ __ffs_epfile_read_data:        n/a, __ffs_epfile_read_buffered
 	 *                                    is always called first
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ reading finishes:              n/a, analt in ‘and reading’ state
 	 * • ptr == NULL and reading:
 	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP and reading
 	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
@@ -183,7 +183,7 @@ struct ffs_epfile {
 	 *     … all data read:               free buf, go to ptr == NULL
 	 *     … otherwise:                   go to ptr == buf and reading
 	 * • ptr == DROP and reading:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffer_free: analp
 	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
 	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
 	 *   ◦ reading finishes:              free buf, go to ptr == DROP
@@ -258,10 +258,10 @@ static void ffs_closed(struct ffs_data *ffs);
 
 /* Misc helper functions ****************************************************/
 
-static int ffs_mutex_lock(struct mutex *mutex, unsigned nonblock)
-	__attribute__((warn_unused_result, nonnull));
+static int ffs_mutex_lock(struct mutex *mutex, unsigned analnblock)
+	__attribute__((warn_unused_result, analnnull));
 static char *ffs_prepare_buffer(const char __user *buf, size_t len)
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result, analnnull));
 
 
 /* Control file aka ep0 *****************************************************/
@@ -293,7 +293,7 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 
 	/*
 	 * UDC layer requires to provide a buffer even for ZLP, but should
-	 * not use it at all. Let's provide some poisoned pointer to catch
+	 * analt use it at all. Let's provide some poisoned pointer to catch
 	 * possible bug in the driver.
 	 */
 	if (req->buf == NULL)
@@ -311,7 +311,7 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 		return -EINTR;
 	}
 
-	ffs->setup_state = FFS_NO_SETUP;
+	ffs->setup_state = FFS_ANAL_SETUP;
 	return req->status ? req->status : req->actual;
 }
 
@@ -320,7 +320,7 @@ static int __ffs_ep0_stall(struct ffs_data *ffs)
 	if (ffs->ev.can_stall) {
 		pr_vdebug("ep0 stall\n");
 		usb_ep_set_halt(ffs->gadget->ep0);
-		ffs->setup_state = FFS_NO_SETUP;
+		ffs->setup_state = FFS_ANAL_SETUP;
 		return -EL2HLT;
 	} else {
 		pr_debug("bogus ep0 stall!\n");
@@ -340,7 +340,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		return -EIDRM;
 
 	/* Acquire mutex */
-	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_NONBLOCK);
+	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_ANALNBLOCK);
 	if (ret < 0)
 		return ret;
 
@@ -406,7 +406,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 			ret = -EIDRM;
 			goto done_spin;
 
-		case FFS_NO_SETUP:
+		case FFS_ANAL_SETUP:
 			ret = -ESRCH;
 			goto done_spin;
 
@@ -421,7 +421,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 			break;
 		}
 
-		/* FFS_SETUP_PENDING and not stall */
+		/* FFS_SETUP_PENDING and analt stall */
 		len = min(len, (size_t)le16_to_cpu(ffs->ev.setup.wLength));
 
 		spin_unlock_irq(&ffs->ev.waitq.lock);
@@ -441,8 +441,8 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 * to check for that.  If that happened we copied data
 		 * from user space in vain but it's unlikely.
 		 *
-		 * For sure we are not in FFS_NO_SETUP since this is
-		 * the only place FFS_SETUP_PENDING -> FFS_NO_SETUP
+		 * For sure we are analt in FFS_ANAL_SETUP since this is
+		 * the only place FFS_SETUP_PENDING -> FFS_ANAL_SETUP
 		 * transition can be performed and it's protected by
 		 * mutex.
 		 */
@@ -473,7 +473,7 @@ static ssize_t __ffs_ep0_read_events(struct ffs_data *ffs, char __user *buf,
 	__releases(&ffs->ev.waitq.lock)
 {
 	/*
-	 * n cannot be bigger than ffs->ev.count, which cannot be bigger than
+	 * n cananalt be bigger than ffs->ev.count, which cananalt be bigger than
 	 * size of ffs->ev.types array (which is four) so that's how much space
 	 * we reserve.
 	 */
@@ -515,7 +515,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		return -EIDRM;
 
 	/* Acquire mutex */
-	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_NONBLOCK);
+	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_ANALNBLOCK);
 	if (ret < 0)
 		return ret;
 
@@ -536,14 +536,14 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		ret = -EIDRM;
 		break;
 
-	case FFS_NO_SETUP:
+	case FFS_ANAL_SETUP:
 		n = len / sizeof(struct usb_functionfs_event);
 		if (!n) {
 			ret = -EINVAL;
 			break;
 		}
 
-		if ((file->f_flags & O_NONBLOCK) && !ffs->ev.count) {
+		if ((file->f_flags & O_ANALNBLOCK) && !ffs->ev.count) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -572,7 +572,7 @@ static ssize_t ffs_ep0_read(struct file *file, char __user *buf,
 		if (len) {
 			data = kmalloc(len, GFP_KERNEL);
 			if (!data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto done_mutex;
 			}
 		}
@@ -604,9 +604,9 @@ done_mutex:
 	return ret;
 }
 
-static int ffs_ep0_open(struct inode *inode, struct file *file)
+static int ffs_ep0_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ffs_data *ffs = inode->i_private;
+	struct ffs_data *ffs = ianalde->i_private;
 
 	if (ffs->state == FFS_CLOSING)
 		return -EBUSY;
@@ -614,10 +614,10 @@ static int ffs_ep0_open(struct inode *inode, struct file *file)
 	file->private_data = ffs;
 	ffs_data_opened(ffs);
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int ffs_ep0_release(struct inode *inode, struct file *file)
+static int ffs_ep0_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ffs_data *ffs = file->private_data;
 
@@ -634,11 +634,11 @@ static long ffs_ep0_ioctl(struct file *file, unsigned code, unsigned long value)
 
 	if (code == FUNCTIONFS_INTERFACE_REVMAP) {
 		struct ffs_function *func = ffs->func;
-		ret = func ? ffs_func_revmap_intf(func, value) : -ENODEV;
+		ret = func ? ffs_func_revmap_intf(func, value) : -EANALDEV;
 	} else if (gadget && gadget->ops->ioctl) {
 		ret = gadget->ops->ioctl(gadget, code, value);
 	} else {
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 
 	return ret;
@@ -647,12 +647,12 @@ static long ffs_ep0_ioctl(struct file *file, unsigned code, unsigned long value)
 static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 {
 	struct ffs_data *ffs = file->private_data;
-	__poll_t mask = EPOLLWRNORM;
+	__poll_t mask = EPOLLWRANALRM;
 	int ret;
 
 	poll_wait(file, &ffs->ev.waitq, wait);
 
-	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_NONBLOCK);
+	ret = ffs_mutex_lock(&ffs->mutex, file->f_flags & O_ANALNBLOCK);
 	if (ret < 0)
 		return mask;
 
@@ -664,7 +664,7 @@ static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 
 	case FFS_ACTIVE:
 		switch (ffs->setup_state) {
-		case FFS_NO_SETUP:
+		case FFS_ANAL_SETUP:
 			if (ffs->ev.count)
 				mask |= EPOLLIN;
 			break;
@@ -688,7 +688,7 @@ static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 }
 
 static const struct file_operations ffs_ep0_operations = {
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 
 	.open =		ffs_ep0_open,
 	.write =	ffs_ep0_write,
@@ -699,7 +699,7 @@ static const struct file_operations ffs_ep0_operations = {
 };
 
 
-/* "Normal" endpoints operations ********************************************/
+/* "Analrmal" endpoints operations ********************************************/
 
 static void ffs_epfile_io_complete(struct usb_ep *_ep, struct usb_request *req)
 {
@@ -734,19 +734,19 @@ static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
 	 * internally uses a larger, aligned buffer so that such UDCs are happy.
 	 *
 	 * Unfortunately, this means that host may send more data than was
-	 * requested in read(2) system call.  f_fs doesn’t know what to do with
+	 * requested in read(2) system call.  f_fs doesn’t kanalw what to do with
 	 * that excess data so it simply drops it.
 	 *
-	 * Was the buffer aligned in the first place, no such problem would
+	 * Was the buffer aligned in the first place, anal such problem would
 	 * happen.
 	 *
-	 * Data may be dropped only in AIO reads.  Synchronous reads are handled
+	 * Data may be dropped only in AIO reads.  Synchroanalus reads are handled
 	 * by splitting a request into multiple parts.  This splitting may still
 	 * be a problem though so it’s likely best to align the buffer
-	 * regardless of it being AIO or not..
+	 * regardless of it being AIO or analt..
 	 *
 	 * This only affects OUT endpoints, i.e. reading data with a read(2),
-	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is not
+	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is analt
 	 * affected.
 	 */
 	pr_err("functionfs read size %d > requested size %zd, dropping excess data. "
@@ -868,7 +868,7 @@ static ssize_t __ffs_epfile_read_buffered(struct ffs_epfile *epfile,
 					  struct iov_iter *iter)
 {
 	/*
-	 * Null out epfile->read_buffer so ffs_func_eps_disable does not free
+	 * Null out epfile->read_buffer so ffs_func_eps_disable does analt free
 	 * the buffer while we are using it.  See comment in struct ffs_epfile
 	 * for full read_buffer pointer synchronisation story.
 	 */
@@ -917,7 +917,7 @@ static ssize_t __ffs_epfile_read_data(struct ffs_epfile *epfile,
 	data_len -= ret;
 	buf = kmalloc(struct_size(buf, storage, data_len), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	buf->length = data_len;
 	buf->data = buf->storage;
 	memcpy(buf->storage, data + ret, flex_array_size(buf, storage, data_len));
@@ -945,12 +945,12 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 	/* Are we still active? */
 	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Wait for endpoint to be enabled */
 	ep = epfile->ep;
 	if (!ep) {
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(
@@ -965,7 +965,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		return -EINVAL;
 
 	/* We will be using request and read_buffer */
-	ret = ffs_mutex_lock(&epfile->mutex, file->f_flags & O_NONBLOCK);
+	ret = ffs_mutex_lock(&epfile->mutex, file->f_flags & O_ANALNBLOCK);
 	if (ret)
 		goto error;
 
@@ -975,8 +975,8 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		/*
 		 * Do we have buffered data from previous partial read?  Check
-		 * that for synchronous case only because we do not have
-		 * facility to ‘wake up’ a pending asynchronous read and push
+		 * that for synchroanalus case only because we do analt have
+		 * facility to ‘wake up’ a pending asynchroanalus read and push
 		 * buffered data to it which we would need to make things behave
 		 * consistently.
 		 */
@@ -988,7 +988,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		/*
 		 * if we _do_ wait above, the epfile->ffs->gadget might be NULL
-		 * before the waiting completes, so do not assign to 'gadget'
+		 * before the waiting completes, so do analt assign to 'gadget'
 		 * earlier
 		 */
 		gadget = epfile->ffs->gadget;
@@ -1012,7 +1012,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		data = ffs_alloc_buffer(io_data, data_len);
 		if (!data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error_mutex;
 		}
 		if (!io_data->read &&
@@ -1038,7 +1038,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		 * compilers complain about this situation.
 		 * In order to keep the code clean from warnings, data_len is
 		 * being initialized to -EINVAL during its declaration, which
-		 * means we can't rely on compiler anymore to warn no future
+		 * means we can't rely on compiler anymore to warn anal future
 		 * changes won't result in data_len being used uninitialized.
 		 * For such reason, we're adding this redundant sanity check
 		 * here.
@@ -1080,7 +1080,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			/*
 			 * To avoid race condition with ffs_epfile_io_complete,
 			 * dequeue the request first then check
-			 * status. usb_ep_dequeue API should guarantee no race
+			 * status. usb_ep_dequeue API should guarantee anal race
 			 * condition with req->complete callback.
 			 */
 			usb_ep_dequeue(ep->ep, req);
@@ -1098,7 +1098,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			ret = io_data->status;
 		goto error_mutex;
 	} else if (!(req = usb_ep_alloc_request(ep->ep, GFP_ATOMIC))) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	} else {
 		if (io_data->use_sg) {
 			req->buf = NULL;
@@ -1127,7 +1127,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		ret = -EIOCBQUEUED;
 		/*
-		 * Do not kfree the buffer in this function.  It will be freed
+		 * Do analt kfree the buffer in this function.  It will be freed
 		 * by ffs_user_copy_worker.
 		 */
 		data = NULL;
@@ -1144,17 +1144,17 @@ error:
 }
 
 static int
-ffs_epfile_open(struct inode *inode, struct file *file)
+ffs_epfile_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ffs_epfile *epfile = inode->i_private;
+	struct ffs_epfile *epfile = ianalde->i_private;
 
 	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	file->private_data = epfile;
 	ffs_data_opened(epfile->ffs);
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 static int ffs_aio_cancel(struct kiocb *kiocb)
@@ -1184,7 +1184,7 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	if (!is_sync_kiocb(kiocb)) {
 		p = kzalloc(sizeof(io_data), GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		p->aio = true;
 	} else {
 		memset(p, 0, sizeof(*p));
@@ -1219,7 +1219,7 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	if (!is_sync_kiocb(kiocb)) {
 		p = kzalloc(sizeof(io_data), GFP_KERNEL);
 		if (!p)
-			return -ENOMEM;
+			return -EANALMEM;
 		p->aio = true;
 	} else {
 		memset(p, 0, sizeof(*p));
@@ -1232,7 +1232,7 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		p->to_free = dup_iter(&p->data, to, GFP_KERNEL);
 		if (!iter_is_ubuf(&p->data) && !p->to_free) {
 			kfree(p);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		p->data = *to;
@@ -1259,9 +1259,9 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 }
 
 static int
-ffs_epfile_release(struct inode *inode, struct file *file)
+ffs_epfile_release(struct ianalde *ianalde, struct file *file)
 {
-	struct ffs_epfile *epfile = inode->i_private;
+	struct ffs_epfile *epfile = ianalde->i_private;
 
 	__ffs_epfile_read_buffer_free(epfile);
 	ffs_data_closed(epfile->ffs);
@@ -1277,12 +1277,12 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 	int ret;
 
 	if (WARN_ON(epfile->ffs->state != FFS_ACTIVE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Wait for endpoint to be enabled */
 	ep = epfile->ep;
 	if (!ep) {
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(
@@ -1340,7 +1340,7 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 		return ret;
 	}
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 	}
 	spin_unlock_irq(&epfile->ffs->eps_lock);
 
@@ -1348,7 +1348,7 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 }
 
 static const struct file_operations ffs_epfile_operations = {
-	.llseek =	no_llseek,
+	.llseek =	anal_llseek,
 
 	.open =		ffs_epfile_open,
 	.write_iter =	ffs_epfile_write_iter,
@@ -1366,33 +1366,33 @@ static const struct file_operations ffs_epfile_operations = {
  * function configuration then later for event monitoring.
  */
 
-static struct inode *__must_check
-ffs_sb_make_inode(struct super_block *sb, void *data,
+static struct ianalde *__must_check
+ffs_sb_make_ianalde(struct super_block *sb, void *data,
 		  const struct file_operations *fops,
-		  const struct inode_operations *iops,
+		  const struct ianalde_operations *iops,
 		  struct ffs_file_perms *perms)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = new_inode(sb);
+	ianalde = new_ianalde(sb);
 
-	if (inode) {
-		struct timespec64 ts = inode_set_ctime_current(inode);
+	if (ianalde) {
+		struct timespec64 ts = ianalde_set_ctime_current(ianalde);
 
-		inode->i_ino	 = get_next_ino();
-		inode->i_mode    = perms->mode;
-		inode->i_uid     = perms->uid;
-		inode->i_gid     = perms->gid;
-		inode_set_atime_to_ts(inode, ts);
-		inode_set_mtime_to_ts(inode, ts);
-		inode->i_private = data;
+		ianalde->i_ianal	 = get_next_ianal();
+		ianalde->i_mode    = perms->mode;
+		ianalde->i_uid     = perms->uid;
+		ianalde->i_gid     = perms->gid;
+		ianalde_set_atime_to_ts(ianalde, ts);
+		ianalde_set_mtime_to_ts(ianalde, ts);
+		ianalde->i_private = data;
 		if (fops)
-			inode->i_fop = fops;
+			ianalde->i_fop = fops;
 		if (iops)
-			inode->i_op  = iops;
+			ianalde->i_op  = iops;
 	}
 
-	return inode;
+	return ianalde;
 }
 
 /* Create "regular" file */
@@ -1402,40 +1402,40 @@ static struct dentry *ffs_sb_create_file(struct super_block *sb,
 {
 	struct ffs_data	*ffs = sb->s_fs_info;
 	struct dentry	*dentry;
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 
 	dentry = d_alloc_name(sb->s_root, name);
 	if (!dentry)
 		return NULL;
 
-	inode = ffs_sb_make_inode(sb, data, fops, NULL, &ffs->file_perms);
-	if (!inode) {
+	ianalde = ffs_sb_make_ianalde(sb, data, fops, NULL, &ffs->file_perms);
+	if (!ianalde) {
 		dput(dentry);
 		return NULL;
 	}
 
-	d_add(dentry, inode);
+	d_add(dentry, ianalde);
 	return dentry;
 }
 
 /* Super block */
 static const struct super_operations ffs_sb_operations = {
 	.statfs =	simple_statfs,
-	.drop_inode =	generic_delete_inode,
+	.drop_ianalde =	generic_delete_ianalde,
 };
 
 struct ffs_sb_fill_data {
 	struct ffs_file_perms perms;
 	umode_t root_mode;
 	const char *dev_name;
-	bool no_disconnect;
+	bool anal_disconnect;
 	struct ffs_data *ffs_data;
 };
 
 static int ffs_sb_fill(struct super_block *sb, struct fs_context *fc)
 {
 	struct ffs_sb_fill_data *data = fc->fs_private;
-	struct inode	*inode;
+	struct ianalde	*ianalde;
 	struct ffs_data	*ffs = data->ffs_data;
 
 	ffs->sb              = sb;
@@ -1447,25 +1447,25 @@ static int ffs_sb_fill(struct super_block *sb, struct fs_context *fc)
 	sb->s_op             = &ffs_sb_operations;
 	sb->s_time_gran      = 1;
 
-	/* Root inode */
+	/* Root ianalde */
 	data->perms.mode = data->root_mode;
-	inode = ffs_sb_make_inode(sb, NULL,
+	ianalde = ffs_sb_make_ianalde(sb, NULL,
 				  &simple_dir_operations,
-				  &simple_dir_inode_operations,
+				  &simple_dir_ianalde_operations,
 				  &data->perms);
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(ianalde);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* EP0 file */
 	if (!ffs_sb_create_file(sb, "ep0", ffs, &ffs_ep0_operations))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
 
 enum {
-	Opt_no_disconnect,
+	Opt_anal_disconnect,
 	Opt_rmode,
 	Opt_fmode,
 	Opt_mode,
@@ -1474,7 +1474,7 @@ enum {
 };
 
 static const struct fs_parameter_spec ffs_fs_fs_parameters[] = {
-	fsparam_bool	("no_disconnect",	Opt_no_disconnect),
+	fsparam_bool	("anal_disconnect",	Opt_anal_disconnect),
 	fsparam_u32	("rmode",		Opt_rmode),
 	fsparam_u32	("fmode",		Opt_fmode),
 	fsparam_u32	("mode",		Opt_mode),
@@ -1494,8 +1494,8 @@ static int ffs_fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		return opt;
 
 	switch (opt) {
-	case Opt_no_disconnect:
-		data->no_disconnect = result.boolean;
+	case Opt_anal_disconnect:
+		data->anal_disconnect = result.boolean;
 		break;
 	case Opt_rmode:
 		data->root_mode  = (result.uint_32 & 0555) | S_IFDIR;
@@ -1520,7 +1520,7 @@ static int ffs_fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 
 	default:
-		return -ENOPARAM;
+		return -EANALPARAM;
 	}
 
 	return 0;
@@ -1539,18 +1539,18 @@ static int ffs_fs_get_tree(struct fs_context *fc)
 	int ret;
 
 	if (!fc->source)
-		return invalf(fc, "No source specified");
+		return invalf(fc, "Anal source specified");
 
 	ffs = ffs_data_new(fc->source);
 	if (!ffs)
-		return -ENOMEM;
+		return -EANALMEM;
 	ffs->file_perms = ctx->perms;
-	ffs->no_disconnect = ctx->no_disconnect;
+	ffs->anal_disconnect = ctx->anal_disconnect;
 
 	ffs->dev_name = kstrdup(fc->source, GFP_KERNEL);
 	if (!ffs->dev_name) {
 		ffs_data_put(ffs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = ffs_acquire_dev(ffs->dev_name, ffs);
@@ -1560,7 +1560,7 @@ static int ffs_fs_get_tree(struct fs_context *fc)
 	}
 
 	ctx->ffs_data = ffs;
-	return get_tree_nodev(fc, ffs_sb_fill);
+	return get_tree_analdev(fc, ffs_sb_fill);
 }
 
 static void ffs_fs_free_fc(struct fs_context *fc)
@@ -1588,13 +1588,13 @@ static int ffs_fs_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct ffs_sb_fill_data), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->perms.mode = S_IFREG | 0600;
 	ctx->perms.uid = GLOBAL_ROOT_UID;
 	ctx->perms.gid = GLOBAL_ROOT_GID;
 	ctx->root_mode = S_IFDIR | 0500;
-	ctx->no_disconnect = false;
+	ctx->anal_disconnect = false;
 
 	fc->fs_private = ctx;
 	fc->ops = &ffs_fs_context_ops;
@@ -1682,7 +1682,7 @@ static void ffs_data_closed(struct ffs_data *ffs)
 	unsigned long flags;
 
 	if (atomic_dec_and_test(&ffs->opened)) {
-		if (ffs->no_disconnect) {
+		if (ffs->anal_disconnect) {
 			ffs->state = FFS_DEACTIVATED;
 			spin_lock_irqsave(&ffs->eps_lock, flags);
 			epfiles = ffs->epfiles;
@@ -1791,7 +1791,7 @@ static void ffs_data_reset(struct ffs_data *ffs)
 	ffs->ev.count = 0;
 
 	ffs->state = FFS_READ_DESCRIPTORS;
-	ffs->setup_state = FFS_NO_SETUP;
+	ffs->setup_state = FFS_ANAL_SETUP;
 	ffs->flags = 0;
 
 	ffs->ms_os_descs_ext_prop_count = 0;
@@ -1815,7 +1815,7 @@ static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 
 	ffs->ep0req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
 	if (!ffs->ep0req)
-		return -ENOMEM;
+		return -EANALMEM;
 	ffs->ep0req->complete = ffs_ep0_complete;
 	ffs->ep0req->context = ffs;
 
@@ -1857,7 +1857,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 	count = ffs->eps_count;
 	epfiles = kcalloc(count, sizeof(*epfiles), GFP_KERNEL);
 	if (!epfiles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	epfile = epfiles;
 	for (i = 1; i <= count; ++i, ++epfile) {
@@ -1872,7 +1872,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 						 &ffs_epfile_operations);
 		if (!epfile->dentry) {
 			ffs_epfiles_destroy(epfiles, i - 1);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -2076,7 +2076,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 				goto inv_length;
 			break;
 		} else {
-			pr_vdebug("unknown descriptor: %d for class %d\n",
+			pr_vdebug("unkanalwn descriptor: %d for class %d\n",
 			      _ds->bDescriptorType, *current_class);
 			return -EINVAL;
 		}
@@ -2113,7 +2113,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	default:
 		/* We should never be here */
-		pr_vdebug("unknown descriptor: %d\n", _ds->bDescriptorType);
+		pr_vdebug("unkanalwn descriptor: %d\n", _ds->bDescriptorType);
 		return -EINVAL;
 
 inv_length:
@@ -2353,7 +2353,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 		if (d->Reserved1 != 1) {
 			/*
 			 * According to the spec, Reserved1 must be set to 1
-			 * but older kernels incorrectly rejected non-zero
+			 * but older kernels incorrectly rejected analn-zero
 			 * values.  We fix it here to avoid returning EINVAL
 			 * in response to values we used to accept.
 			 */
@@ -2403,7 +2403,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vdebug("unkanalwn descriptor: %d\n", type);
 		return -EINVAL;
 	}
 	return length;
@@ -2437,7 +2437,7 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 			      FUNCTIONFS_EVENTFD |
 			      FUNCTIONFS_ALL_CTRL_RECIP |
 			      FUNCTIONFS_CONFIG0_SETUP)) {
-			ret = -ENOSYS;
+			ret = -EANALSYS;
 			goto error;
 		}
 		data += 12;
@@ -2586,7 +2586,7 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 
 		if (!vlabuf) {
 			kfree(_data);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* Initialize the VLA pointers */
@@ -2630,14 +2630,14 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 
 			/*
 			 * User may provide more strings then we need,
-			 * if that's the case we simply ignore the
+			 * if that's the case we simply iganalre the
 			 * rest
 			 */
 			if (needed) {
 				/*
 				 * s->id will be set while adding
 				 * function to configuration so for
-				 * now just leave garbage here.
+				 * analw just leave garbage here.
 				 */
 				s->s = data;
 				--needed;
@@ -2683,10 +2683,10 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	/*
 	 * Abort any unhandled setup
 	 *
-	 * We do not need to worry about some cmpxchg() changing value
+	 * We do analt need to worry about some cmpxchg() changing value
 	 * of ffs->setup_state without holding the lock because when
 	 * state is FFS_SETUP_PENDING cmpxchg() in several places in
-	 * the source does nothing.
+	 * the source does analthing.
 	 */
 	if (ffs->setup_state == FFS_SETUP_PENDING)
 		ffs->setup_state = FFS_SETUP_CANCELLED;
@@ -2719,7 +2719,7 @@ static void __ffs_event_add(struct ffs_data *ffs,
 		break;
 
 	default:
-		WARN(1, "%d: unknown event, this should not happen\n", type);
+		WARN(1, "%d: unkanalwn event, this should analt happen\n", type);
 		return;
 	}
 
@@ -2759,7 +2759,7 @@ static int ffs_ep_addr2idx(struct ffs_data *ffs, u8 endpoint_address)
 	for (i = 1; i < ARRAY_SIZE(ffs->eps_addrmap); ++i)
 		if (ffs->eps_addrmap[i] == endpoint_address)
 			return i;
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
@@ -2777,8 +2777,8 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		return 0;
 
 	/*
-	 * If ss_descriptors is not NULL, we are reading super speed
-	 * descriptors; if hs_descriptors is not NULL, we are reading high
+	 * If ss_descriptors is analt NULL, we are reading super speed
+	 * descriptors; if hs_descriptors is analt NULL, we are reading high
 	 * speed descriptors; otherwise, we are reading full speed
 	 * descriptors.
 	 */
@@ -2834,12 +2834,12 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		pr_vdebug("autoconfig\n");
 		ep = usb_ep_autoconfig(func->gadget, ds);
 		if (!ep)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		ep->driver_data = func->eps + idx;
 
 		req = usb_ep_alloc_request(ep, GFP_KERNEL);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ffs_ep->ep  = ep;
 		ffs_ep->req = req;
@@ -2989,7 +2989,7 @@ static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vdebug("unkanalwn descriptor: %d\n", type);
 	}
 
 	return length;
@@ -3011,11 +3011,11 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	 *
 	 * Configfs-enabled gadgets however do need ffs_dev_lock.
 	 */
-	if (!ffs_opts->no_configfs)
+	if (!ffs_opts->anal_configfs)
 		ffs_dev_lock();
-	ret = ffs_opts->dev->desc_ready ? 0 : -ENODEV;
+	ret = ffs_opts->dev->desc_ready ? 0 : -EANALDEV;
 	ffs_data = ffs_opts->dev->ffs_data;
-	if (!ffs_opts->no_configfs)
+	if (!ffs_opts->anal_configfs)
 		ffs_dev_unlock();
 	if (ret)
 		return ERR_PTR(ret);
@@ -3028,7 +3028,7 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume anal race condition
 	 * with regard to ffs_opts->bound access
 	 */
 	if (!ffs_opts->refcnt) {
@@ -3080,14 +3080,14 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	vla_item_with_sz(d, char, raw_descs, ffs->raw_descs_length);
 	char *vlabuf;
 
-	/* Has descriptors only for speeds gadget does not support */
+	/* Has descriptors only for speeds gadget does analt support */
 	if (!(full | high | super))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Allocate a single chunk, less management later on */
 	vlabuf = kzalloc(vla_group_size(d), GFP_KERNEL);
 	if (!vlabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ffs->ms_os_descs_ext_prop_avail = vla_ptr(vlabuf, d, ext_prop);
 	ffs->ms_os_descs_ext_prop_name_avail =
@@ -3159,9 +3159,9 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	}
 
 	/*
-	 * Now handle interface numbers allocation and interface and
+	 * Analw handle interface numbers allocation and interface and
 	 * endpoint numbers rewriting.  We can do that in one go
-	 * now.
+	 * analw.
 	 */
 	ret = ffs_do_descs(ffs->fs_descs_count +
 			   (high ? ffs->hs_descs_count : 0) +
@@ -3251,11 +3251,11 @@ static int ffs_func_set_alt(struct usb_function *f,
 		ffs->state = FFS_CLOSING;
 		INIT_WORK(&ffs->reset_work, ffs_reset_work);
 		schedule_work(&ffs->reset_work);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ffs->state != FFS_ACTIVE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (alt == (unsigned)-1) {
 		ffs->func = NULL;
@@ -3291,16 +3291,16 @@ static int ffs_func_setup(struct usb_function *f,
 
 	/*
 	 * Most requests directed to interface go through here
-	 * (notable exceptions are set/get interface) so we need to
+	 * (analtable exceptions are set/get interface) so we need to
 	 * handle them.  All other either handled by composite or
-	 * passed to usb_configuration->setup() (if one is set).  No
+	 * passed to usb_configuration->setup() (if one is set).  Anal
 	 * matter, we will handle requests directed to endpoint here
 	 * as well (as it's straightforward).  Other request recipient
 	 * types are only handled when the user flag FUNCTIONFS_ALL_CTRL_RECIP
 	 * is being used.
 	 */
 	if (ffs->state != FFS_ACTIVE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (creq->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_INTERFACE:
@@ -3321,7 +3321,7 @@ static int ffs_func_setup(struct usb_function *f,
 		if (func->ffs->user_flags & FUNCTIONFS_ALL_CTRL_RECIP)
 			ret = le16_to_cpu(creq->wIndex);
 		else
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	spin_lock_irqsave(&ffs->ev.waitq.lock, flags);
@@ -3490,7 +3490,7 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	opts->func_inst.set_inst_name = ffs_set_inst_name;
 	opts->func_inst.free_func_inst = ffs_free_inst;
@@ -3566,7 +3566,7 @@ static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
 
 	func = kzalloc(sizeof(*func), GFP_KERNEL);
 	if (!func)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	func->function.name    = "Function FS Gadget";
 
@@ -3596,7 +3596,7 @@ static struct ffs_dev *_ffs_alloc_dev(void)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (list_empty(&ffs_devices)) {
 		ret = functionfs_init();
@@ -3668,12 +3668,12 @@ static int ffs_acquire_dev(const char *dev_name, struct ffs_data *ffs_data)
 
 	ffs_dev = _ffs_find_dev(dev_name);
 	if (!ffs_dev) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else if (ffs_dev->mounted) {
 		ret = -EBUSY;
 	} else if (ffs_dev->ffs_acquire_dev_callback &&
 		   ffs_dev->ffs_acquire_dev_callback(ffs_dev)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 	} else {
 		ffs_dev->mounted = true;
 		ffs_dev->ffs_data = ffs_data;
@@ -3756,7 +3756,7 @@ static void ffs_closed(struct ffs_data *ffs)
 	else
 		goto done;
 
-	if (opts->no_configfs || !opts->func_inst.group.cg_item.ci_parent
+	if (opts->anal_configfs || !opts->func_inst.group.cg_item.ci_parent
 	    || !kref_read(&opts->func_inst.group.cg_item.ci_kref))
 		goto done;
 
@@ -3772,9 +3772,9 @@ done:
 
 /* Misc helper functions ****************************************************/
 
-static int ffs_mutex_lock(struct mutex *mutex, unsigned nonblock)
+static int ffs_mutex_lock(struct mutex *mutex, unsigned analnblock)
 {
-	return nonblock
+	return analnblock
 		? mutex_trylock(mutex) ? 0 : -EAGAIN
 		: mutex_lock_interruptible(mutex);
 }

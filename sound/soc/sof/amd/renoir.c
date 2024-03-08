@@ -8,7 +8,7 @@
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 
 /*
- * Hardware interface for Audio DSP on Renoir platform
+ * Hardware interface for Audio DSP on Reanalir platform
  */
 
 #include <linux/platform_device.h>
@@ -24,7 +24,7 @@
 #define PDM_DMIC_INSTANCE	2
 #define I2S_SP_VIRTUAL_INSTANCE	3
 
-static struct snd_soc_dai_driver renoir_sof_dai[] = {
+static struct snd_soc_dai_driver reanalir_sof_dai[] = {
 	[I2S_BT_INSTANCE] = {
 		.id = I2S_BT_INSTANCE,
 		.name = "acp-sof-bt",
@@ -101,21 +101,21 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 	},
 };
 
-/* Renoir ops */
-struct snd_sof_dsp_ops sof_renoir_ops;
-EXPORT_SYMBOL_NS(sof_renoir_ops, SND_SOC_SOF_AMD_COMMON);
+/* Reanalir ops */
+struct snd_sof_dsp_ops sof_reanalir_ops;
+EXPORT_SYMBOL_NS(sof_reanalir_ops, SND_SOC_SOF_AMD_COMMON);
 
-int sof_renoir_ops_init(struct snd_sof_dev *sdev)
+int sof_reanalir_ops_init(struct snd_sof_dev *sdev)
 {
 	/* common defaults */
-	memcpy(&sof_renoir_ops, &sof_acp_common_ops, sizeof(struct snd_sof_dsp_ops));
+	memcpy(&sof_reanalir_ops, &sof_acp_common_ops, sizeof(struct snd_sof_dsp_ops));
 
-	sof_renoir_ops.drv = renoir_sof_dai;
-	sof_renoir_ops.num_drv = ARRAY_SIZE(renoir_sof_dai);
+	sof_reanalir_ops.drv = reanalir_sof_dai;
+	sof_reanalir_ops.num_drv = ARRAY_SIZE(reanalir_sof_dai);
 
 	return 0;
 }
 
 MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
-MODULE_DESCRIPTION("RENOIR SOF Driver");
+MODULE_DESCRIPTION("REANALIR SOF Driver");
 MODULE_LICENSE("Dual BSD/GPL");

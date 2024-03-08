@@ -6,22 +6,22 @@
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
 
-  * Redistributions of source code must retain the above copyright notice,
+  * Redistributions of source code must retain the above copyright analtice,
     this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
+  * Redistributions in binary form must reproduce the above copyright analtice,
     this list of conditions and the following disclaimer in the documentation
 	and/or other materials provided with the distribution.
-  * Neither the name of Trident Microsystems nor Hauppauge Computer Works
-    nor the names of its contributors may be used to endorse or promote
+  * Neither the name of Trident Microsystems analr Hauppauge Computer Works
+    analr the names of its contributors may be used to endorse or promote
 	products derived from this software without specific prior written
 	permission.
 
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -43,13 +43,13 @@ INCLUDES
 #include "drx_dap_fasi.h"
 
 /* Check DRX-J specific dap condition */
-/* Multi master mode and short addr format only will not work.
+/* Multi master mode and short addr format only will analt work.
    RMW, CRC reset, broadcast and switching back to single master mode
-   cannot be done with short addr only in multi master mode. */
+   cananalt be done with short addr only in multi master mode. */
 #if ((DRXDAP_SINGLE_MASTER == 0) && (DRXDAPFASI_LONG_ADDR_ALLOWED == 0))
 #error "Multi master mode and short addressing only is an illegal combination"
 	*;			/* Generate a fatal compiler error to make sure it stops here,
-				   this is necessary because not all compilers stop after a #error. */
+				   this is necessary because analt all compilers stop after a #error. */
 #endif
 
 /*-------------------------------------------------------------------------
@@ -119,7 +119,7 @@ TYPEDEFS
 		DRXJ_CFG_RESET_PACKET_ERR,
 
 		/* ATV (FM) */
-		DRXJ_CFG_ATV_OUTPUT,	/* also for FM (SIF control) but not likely */
+		DRXJ_CFG_ATV_OUTPUT,	/* also for FM (SIF control) but analt likely */
 		DRXJ_CFG_ATV_MISC,
 		DRXJ_CFG_ATV_EQU_COEF,
 		DRXJ_CFG_ATV_AGC_STATUS,	/* also for FM ( IF,RF, audioAGC ) */
@@ -208,15 +208,15 @@ struct drxj_agc_status {
 */
 	struct drxjrs_errors {
 		u16 nr_bit_errors;
-				/*< no of pre RS bit errors          */
+				/*< anal of pre RS bit errors          */
 		u16 nr_symbol_errors;
-				/*< no of pre RS symbol errors       */
+				/*< anal of pre RS symbol errors       */
 		u16 nr_packet_errors;
-				/*< no of pre RS packet errors       */
+				/*< anal of pre RS packet errors       */
 		u16 nr_failures;
-				/*< no of post RS failures to decode */
+				/*< anal of post RS failures to decode */
 		u16 nr_snc_par_fail_count;
-				/*< no of post RS bit erros          */
+				/*< anal of post RS bit erros          */
 	};
 
 /*
@@ -254,7 +254,7 @@ struct drxj_agc_status {
 * set MPEG output clock rate
 */
 	struct drxj_cfg_mpeg_output_misc {
-		bool disable_tei_handling;	      /*< if true pass (not change) TEI bit */
+		bool disable_tei_handling;	      /*< if true pass (analt change) TEI bit */
 		bool bit_reverse_mpeg_outout;	      /*< if true, parallel: msb on MD0; serial: lsb out first */
 		enum drxj_mpeg_output_clock_rate mpeg_output_clock_rate;
 						      /*< set MPEG output clock rate that overwirtes the derived one from symbol rate */
@@ -291,7 +291,7 @@ struct drxj_agc_status {
  */
 	struct drxj_cfg_atv_misc {
 		s16 peak_filter;	/* -8 .. 15 */
-		u16 noise_filter;	/* 0 .. 15 */};
+		u16 analise_filter;	/* 0 .. 15 */};
 
 /*
  *  struct drxj_cfg_oob_misc */
@@ -377,7 +377,7 @@ struct drxj_cfg_atv_output {
 /*
    DRXJ_CFG_ATV_AGC_STATUS (get only)
 */
-/* TODO : AFE interface not yet finished, subject to change */
+/* TODO : AFE interface analt yet finished, subject to change */
 	struct drxj_cfg_atv_agc_status {
 		u16 rf_agc_gain;	/* 0 .. 877 uA */
 		u16 if_agc_gain;	/* 0 .. 877  uA */
@@ -393,7 +393,7 @@ struct drxj_cfg_atv_output {
 /*============================================================================*/
 /*============================================================================*/
 
-/* NONE */
+/* ANALNE */
 
 /*============================================================================*/
 /*============================================================================*/
@@ -432,7 +432,7 @@ struct drxj_cfg_atv_output {
 
 		/* signal quality information */
 		u32 fec_bits_desired;	  /*< BER accounting period                            */
-		u16 fec_vd_plen;	  /*< no of trellis symbols: VD SER measurement period */
+		u16 fec_vd_plen;	  /*< anal of trellis symbols: VD SER measurement period */
 		u16 qam_vd_prescale;	  /*< Viterbi Measurement Prescale                     */
 		u16 qam_vd_period;	  /*< Viterbi Measurement period                       */
 		u16 fec_rs_plen;	  /*< defines RS BER measurement period                */
@@ -468,7 +468,7 @@ struct drxj_cfg_atv_output {
 		s16 atv_top_equ3[DRXJ_COEF_IDX_MAX];	     /*< shadow of ATV_TOP_EQU3__A */
 		bool phase_correction_bypass;/*< flag: true=bypass */
 		s16 atv_top_vid_peak;	  /*< shadow of ATV_TOP_VID_PEAK__A */
-		u16 atv_top_noise_th;	  /*< shadow of ATV_TOP_NOISE_TH__A */
+		u16 atv_top_analise_th;	  /*< shadow of ATV_TOP_ANALISE_TH__A */
 		bool enable_cvbs_output;  /*< flag CVBS output enable */
 		bool enable_sif_output;	  /*< flag SIF output enable */
 		 enum drxjsif_attenuation sif_attenuation;
@@ -562,7 +562,7 @@ DEFINES
 * For NTSC standard.
 * NTSC channels are listed by their picture carrier frequency (Fpc).
 * The function DRX_CTRL_SET_CHANNEL requires the centre frequency as input.
-* In case the tuner module is not used the DRX-J requires that the tuner is
+* In case the tuner module is analt used the DRX-J requires that the tuner is
 * tuned to the centre frequency of the channel:
 *
 * Fcentre = Fpc + DRXJ_NTSC_CARRIER_FREQ_OFFSET
@@ -575,12 +575,12 @@ DEFINES
 * \brief Offset from picture carrier to centre frequency in kHz, in RF domain
 *
 * For PAL/SECAM - BG standard. This define is needed in case the tuner module
-* is NOT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
+* is ANALT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
 * The DRX-J requires that the tuner is tuned to:
 * Fpc + DRXJ_PAL_SECAM_BG_CARRIER_FREQ_OFFSET
 *
 * In case the tuner module is used the drxdriver takes care of this.
-* In case the tuner module is NOT used the application programmer must take
+* In case the tuner module is ANALT used the application programmer must take
 * care of this.
 *
 */
@@ -591,12 +591,12 @@ DEFINES
 * \brief Offset from picture carrier to centre frequency in kHz, in RF domain
 *
 * For PAL/SECAM - DK, I, L standards. This define is needed in case the tuner module
-* is NOT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
+* is ANALT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
 * The DRX-J requires that the tuner is tuned to:
 * Fpc + DRXJ_PAL_SECAM_DKIL_CARRIER_FREQ_OFFSET
 *
 * In case the tuner module is used the drxdriver takes care of this.
-* In case the tuner module is NOT used the application programmer must take
+* In case the tuner module is ANALT used the application programmer must take
 * care of this.
 *
 */
@@ -607,12 +607,12 @@ DEFINES
 * \brief Offset from picture carrier to centre frequency in kHz, in RF domain
 *
 * For PAL/SECAM - LP standard. This define is needed in case the tuner module
-* is NOT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
+* is ANALT used. PAL/SECAM channels are listed by their picture carrier frequency (Fpc).
 * The DRX-J requires that the tuner is tuned to:
 * Fpc + DRXJ_PAL_SECAM_LP_CARRIER_FREQ_OFFSET
 *
 * In case the tuner module is used the drxdriver takes care of this.
-* In case the tuner module is NOT used the application programmer must take
+* In case the tuner module is ANALT used the application programmer must take
 * care of this.
 */
 #define DRXJ_PAL_SECAM_LP_CARRIER_FREQ_OFFSET   ((s32)(-3255))
@@ -625,7 +625,7 @@ DEFINES
 * FM channels are listed by their sound carrier frequency (Fsc).
 * The function DRX_CTRL_SET_CHANNEL requires the Ffm frequency (see below) as
 * input.
-* In case the tuner module is not used the DRX-J requires that the tuner is
+* In case the tuner module is analt used the DRX-J requires that the tuner is
 * tuned to the Ffm frequency of the channel.
 *
 * Ffm = Fsc + DRXJ_FM_CARRIER_FREQ_OFFSET
@@ -642,7 +642,7 @@ DEFINES
 /* Convert OOB lock status to string */
 #define DRXJ_STR_OOB_LOCKSTATUS(x) ( \
 	(x == DRX_NEVER_LOCK) ? "Never" : \
-	(x == DRX_NOT_LOCKED) ? "No" : \
+	(x == DRX_ANALT_LOCKED) ? "Anal" : \
 	(x == DRX_LOCKED) ? "Locked" : \
 	(x == DRX_LOCK_STATE_1) ? "AGC lock" : \
 	(x == DRX_LOCK_STATE_2) ? "sync lock" : \

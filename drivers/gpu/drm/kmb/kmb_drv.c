@@ -100,7 +100,7 @@ static void __iomem *kmb_map_mmio(struct drm_device *drm,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (!res) {
 		drm_err(drm, "failed to get resource for %s", name);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	mem = devm_ioremap_resource(drm->dev, res);
 	if (IS_ERR(mem))
@@ -119,7 +119,7 @@ static int kmb_hw_init(struct drm_device *drm, unsigned long flags)
 	kmb->lcd_mmio = kmb_map_mmio(drm, pdev, "lcd");
 	if (IS_ERR(kmb->lcd_mmio)) {
 		drm_err(&kmb->drm, "failed to map LCD registers\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Map MIPI MMIO registers */
@@ -139,13 +139,13 @@ static int kmb_hw_init(struct drm_device *drm, unsigned long flags)
 	irq_lcd = platform_get_irq(pdev, 0);
 	if (irq_lcd < 0) {
 		ret = irq_lcd;
-		drm_err(&kmb->drm, "irq_lcd not found");
+		drm_err(&kmb->drm, "irq_lcd analt found");
 		goto setup_fail;
 	}
 
 	/* Get the optional framebuffer memory resource */
 	ret = of_reserved_mem_device_init(drm->dev);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
 	spin_lock_init(&kmb->irq_lock);
@@ -188,7 +188,7 @@ static int kmb_setup_mode_config(struct drm_device *drm)
 	}
 	ret = kmb_dsi_encoder_init(drm, kmb->kmb_dsi);
 	/* Set the CRTC's port so that the encoder component can find it */
-	kmb->crtc.port = of_graph_get_port_by_id(drm->dev->of_node, 0);
+	kmb->crtc.port = of_graph_get_port_by_id(drm->dev->of_analde, 0);
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		drm_err(drm, "failed to initialize vblank\n");
@@ -214,7 +214,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 		kmb_write_lcd(kmb, LCD_INT_CLEAR, LCD_INT_EOF);
 
 		/* When disabling/enabling LCD layers, the change takes effect
-		 * immediately and does not wait for EOF (end of frame).
+		 * immediately and does analt wait for EOF (end of frame).
 		 * When kmb_plane_atomic_disable is called, mark the plane as
 		 * disabled but actually disable the plane when EOF irq is
 		 * being handled.
@@ -235,7 +235,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 				    LCD_CTRL_VL2_ENABLE |
 				    LCD_CTRL_GL1_ENABLE |
 				    LCD_CTRL_GL2_ENABLE))) {
-					/* If no LCD layers are using DMA,
+					/* If anal LCD layers are using DMA,
 					 * then disable DMA pipelined AXI read
 					 * transactions.
 					 */
@@ -248,9 +248,9 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 		}
 		if (kmb->kmb_under_flow) {
 			/* DMA Recovery after underflow */
-			dma0_state = (kmb->layer_no == 0) ?
+			dma0_state = (kmb->layer_anal == 0) ?
 			    LCD_VIDEO0_DMA0_STATE : LCD_VIDEO1_DMA0_STATE;
-			dma1_state = (kmb->layer_no == 0) ?
+			dma1_state = (kmb->layer_anal == 0) ?
 			    LCD_VIDEO0_DMA1_STATE : LCD_VIDEO1_DMA1_STATE;
 
 			do {
@@ -262,7 +262,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 			} while ((val || val1));
 			/* disable dma */
 			kmb_clr_bitmask_lcd(kmb,
-					    LCD_LAYERn_DMA_CFG(kmb->layer_no),
+					    LCD_LAYERn_DMA_CFG(kmb->layer_anal),
 					    LCD_DMA_LAYER_ENABLE);
 			kmb_write_lcd(kmb, LCD_FIFO_FLUSH, 1);
 			kmb->kmb_flush_done = 1;
@@ -286,7 +286,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 			if (kmb->kmb_flush_done) {
 				kmb_set_bitmask_lcd(kmb,
 						    LCD_LAYERn_DMA_CFG
-						    (kmb->layer_no),
+						    (kmb->layer_anal),
 						    LCD_DMA_LAYER_ENABLE);
 				kmb->kmb_flush_done = 0;
 			}
@@ -324,7 +324,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 			kmb_clr_bitmask_lcd(kmb, LCD_LAYERn_DMA_CFG(0),
 					    LCD_DMA_LAYER_CONT_PING_PONG_UPDATE);
 
-			kmb->layer_no = 0;
+			kmb->layer_anal = 0;
 		}
 
 		if (val & LAYER0_DMA_FIFO_OVERFLOW)
@@ -357,7 +357,7 @@ static irqreturn_t handle_lcd_irq(struct drm_device *dev)
 			/* disable auto restart mode */
 			kmb_clr_bitmask_lcd(kmb, LCD_LAYERn_DMA_CFG(1),
 					    LCD_DMA_LAYER_CONT_PING_PONG_UPDATE);
-			kmb->layer_no = 1;
+			kmb->layer_anal = 1;
 		}
 
 		/* LAYER1 - VL1 */
@@ -417,8 +417,8 @@ static void kmb_irq_reset(struct drm_device *drm)
 
 static int kmb_irq_install(struct drm_device *drm, unsigned int irq)
 {
-	if (irq == IRQ_NOTCONNECTED)
-		return -ENOTCONN;
+	if (irq == IRQ_ANALTCONNECTED)
+		return -EANALTCONN;
 
 	kmb_irq_reset(drm);
 
@@ -445,7 +445,7 @@ static const struct drm_driver kmb_driver = {
 	.desc = "KEEMBAY DISPLAY DRIVER",
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 };
 
 static void kmb_remove(struct platform_device *pdev)
@@ -456,7 +456,7 @@ static void kmb_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);
-	of_node_put(kmb->crtc.port);
+	of_analde_put(kmb->crtc.port);
 	kmb->crtc.port = NULL;
 	pm_runtime_get_sync(drm->dev);
 	kmb_irq_uninstall(drm);
@@ -480,8 +480,8 @@ static int kmb_probe(struct platform_device *pdev)
 	struct device *dev = get_device(&pdev->dev);
 	struct kmb_drm_private *kmb;
 	int ret = 0;
-	struct device_node *dsi_in;
-	struct device_node *dsi_node;
+	struct device_analde *dsi_in;
+	struct device_analde *dsi_analde;
 	struct platform_device *dsi_pdev;
 
 	/* The bridge (ADV 7535) will return -EPROBE_DEFER until it
@@ -491,28 +491,28 @@ static int kmb_probe(struct platform_device *pdev)
 	 *  and then the rest of the driver initialization can proceed
 	 *  afterwards and the bridge can be successfully attached.
 	 */
-	dsi_in = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
+	dsi_in = of_graph_get_endpoint_by_regs(dev->of_analde, 0, 0);
 	if (!dsi_in) {
-		DRM_ERROR("Failed to get dsi_in node info from DT");
+		DRM_ERROR("Failed to get dsi_in analde info from DT");
 		return -EINVAL;
 	}
-	dsi_node = of_graph_get_remote_port_parent(dsi_in);
-	if (!dsi_node) {
-		of_node_put(dsi_in);
-		DRM_ERROR("Failed to get dsi node from DT\n");
+	dsi_analde = of_graph_get_remote_port_parent(dsi_in);
+	if (!dsi_analde) {
+		of_analde_put(dsi_in);
+		DRM_ERROR("Failed to get dsi analde from DT\n");
 		return -EINVAL;
 	}
 
-	dsi_pdev = of_find_device_by_node(dsi_node);
+	dsi_pdev = of_find_device_by_analde(dsi_analde);
 	if (!dsi_pdev) {
-		of_node_put(dsi_in);
-		of_node_put(dsi_node);
+		of_analde_put(dsi_in);
+		of_analde_put(dsi_analde);
 		DRM_ERROR("Failed to get dsi platform device\n");
 		return -EINVAL;
 	}
 
-	of_node_put(dsi_in);
-	of_node_put(dsi_node);
+	of_analde_put(dsi_in);
+	of_analde_put(dsi_analde);
 	ret = kmb_dsi_host_bridge_init(get_device(&dsi_pdev->dev));
 
 	if (ret == -EPROBE_DEFER) {

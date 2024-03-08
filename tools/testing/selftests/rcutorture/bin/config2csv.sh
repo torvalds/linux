@@ -10,9 +10,9 @@
 # file in that directory, otherwise it will consider only the scenarios
 # specified on the command line.  It will examine each scenario's file
 # and also its .boot file, if present, and create a column in the .csv
-# output file.  Note that "CFLIST" is a synonym for all the scenarios in the
+# output file.  Analte that "CFLIST" is a syanalnym for all the scenarios in the
 # CFLIST file, which allows easy comparison of those scenarios with selected
-# scenarios such as BUSTED that are normally omitted from CFLIST files.
+# scenarios such as BUSTED that are analrmally omitted from CFLIST files.
 
 csvout=${1}
 if test -z "$csvout"

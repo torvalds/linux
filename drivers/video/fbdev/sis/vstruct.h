@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,19 +28,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -163,8 +163,8 @@ struct SiS_Ext2 {
 	unsigned char  Ext_PDC;
 	unsigned char  Ext_FakeCRT2CRTC;
 	unsigned char  Ext_FakeCRT2Clk;
-	unsigned char  Ext_CRT1CRTC_NORM;
-	unsigned char  Ext_CRTVCLK_NORM;
+	unsigned char  Ext_CRT1CRTC_ANALRM;
+	unsigned char  Ext_CRTVCLK_ANALRM;
 	unsigned char  Ext_CRT1CRTC_WIDE;
 	unsigned char  Ext_CRTVCLK_WIDE;
 };
@@ -206,8 +206,8 @@ struct SiS_ModeResInfo_S {
 
 /* Defines for SiS_CustomT */
 /* Never change these for sisfb compatibility */
-#define CUT_NONE		 0
-#define CUT_FORCENONE		 1
+#define CUT_ANALNE		 0
+#define CUT_FORCEANALNE		 1
 #define CUT_BARCO1366		 2
 #define CUT_BARCO1024		 3
 #define CUT_COMPAQ1280		 4
@@ -225,7 +225,7 @@ struct SiS_ModeResInfo_S {
 #define CUT_COMPAL1400_2	16
 #define CUT_ASUSA2H_1		17
 #define CUT_ASUSA2H_2		18
-#define CUT_UNKNOWNLCD		19
+#define CUT_UNKANALWNLCD		19
 #define CUT_AOP8060		20
 #define CUT_PANEL856		21
 
@@ -385,7 +385,7 @@ struct SiS_Private
 	const struct SiS_LCDData	*SiS_StLCD1600x1200Data;
 	const struct SiS_LCDData	*SiS_ExtLCD1600x1200Data;
 	const struct SiS_LCDData	*SiS_LCD1680x1050Data;
-	const struct SiS_LCDData	*SiS_NoScaleData;
+	const struct SiS_LCDData	*SiS_AnalScaleData;
 	const struct SiS_TVData		*SiS_StPALData;
 	const struct SiS_TVData		*SiS_ExtPALData;
 	const struct SiS_TVData		*SiS_StNTSCData;

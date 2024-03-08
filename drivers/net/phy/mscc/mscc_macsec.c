@@ -34,7 +34,7 @@ static u32 vsc8584_macsec_phy_read(struct phy_device *phydev,
 		    MSCC_PHY_MACSEC_20_TARGET(bank >> 2));
 
 	if (bank >> 2 == 0x1)
-		/* non-MACsec access */
+		/* analn-MACsec access */
 		bank &= 0x3;
 	else
 		bank = 0;
@@ -161,8 +161,8 @@ static void vsc8584_macsec_integrity_checks(struct phy_device *phydev,
 	/* Set default rules to pass unmatched frames */
 	val = vsc8584_macsec_phy_read(phydev, bank,
 				      MSCC_MS_PARAMS2_IG_CC_CONTROL);
-	val |= MSCC_MS_PARAMS2_IG_CC_CONTROL_NON_MATCH_CTRL_ACT |
-	       MSCC_MS_PARAMS2_IG_CC_CONTROL_NON_MATCH_ACT;
+	val |= MSCC_MS_PARAMS2_IG_CC_CONTROL_ANALN_MATCH_CTRL_ACT |
+	       MSCC_MS_PARAMS2_IG_CC_CONTROL_ANALN_MATCH_ACT;
 	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_PARAMS2_IG_CC_CONTROL,
 				 val);
 
@@ -208,9 +208,9 @@ static void vsc8584_macsec_block_init(struct phy_device *phydev,
 	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_COUNT_CONTROL, val);
 
 	/* Set the MTU */
-	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_NON_VLAN_MTU_CHECK,
-				 MSCC_MS_NON_VLAN_MTU_CHECK_NV_MTU_COMPARE(32761) |
-				 MSCC_MS_NON_VLAN_MTU_CHECK_NV_MTU_COMP_DROP);
+	vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_ANALN_VLAN_MTU_CHECK,
+				 MSCC_MS_ANALN_VLAN_MTU_CHECK_NV_MTU_COMPARE(32761) |
+				 MSCC_MS_ANALN_VLAN_MTU_CHECK_NV_MTU_COMP_DROP);
 
 	for (i = 0; i < 8; i++)
 		vsc8584_macsec_phy_write(phydev, bank, MSCC_MS_VLAN_MTU_CHECK(i),
@@ -455,7 +455,7 @@ static struct macsec_flow *vsc8584_macsec_find_flow(struct macsec_context *ctx,
 		if (pos->assoc_num == ctx->sa.assoc_num && pos->bank == bank)
 			return pos;
 
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 
 static void vsc8584_macsec_flow_enable(struct phy_device *phydev,
@@ -608,11 +608,11 @@ static struct macsec_flow *vsc8584_macsec_alloc_flow(struct vsc8531_private *pri
 	index = find_first_zero_bit(bitmap, MSCC_MS_MAX_FLOWS);
 
 	if (index == MSCC_MS_MAX_FLOWS)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	flow = kzalloc(sizeof(*flow), GFP_KERNEL);
 	if (!flow)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	set_bit(index, bitmap);
 	flow->index = index;
@@ -802,13 +802,13 @@ static int vsc8584_macsec_upd_secy(struct macsec_context *ctx)
 
 static int vsc8584_macsec_add_rxsc(struct macsec_context *ctx)
 {
-	/* Nothing to do */
+	/* Analthing to do */
 	return 0;
 }
 
 static int vsc8584_macsec_upd_rxsc(struct macsec_context *ctx)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int vsc8584_macsec_del_rxsc(struct macsec_context *ctx)

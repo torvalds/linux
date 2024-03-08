@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_BITOPS_H
 
 /*
- * For the benefit of those who are trying to port Linux to another
+ * For the benefit of those who are trying to port Linux to aanalther
  * architecture, here are some C-language equivalents.  They should
  * generate reasonable code, so take a look at what your compiler spits
  * out before rolling your own buggy implementation in assembly language.
@@ -31,7 +31,7 @@
 #include <asm-generic/bitops/lock.h>
 
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/analn-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 

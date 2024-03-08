@@ -118,7 +118,7 @@ static const struct regmap_config adux1020_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0x6F,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static const struct reg_sequence adux1020_def_conf[] = {
@@ -743,7 +743,7 @@ static int adux1020_chip_init(struct adux1020_data *data)
 
 	if ((val & ADUX1020_CHIP_ID_MASK) != ADUX1020_CHIP_ID) {
 		dev_err(&client->dev, "invalid chip id 0x%04x\n", val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&client->dev, "Detected ADUX1020 with chip id: 0x%04x\n", val);
@@ -782,7 +782,7 @@ static int adux1020_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &adux1020_info;
 	indio_dev->name = ADUX1020_DRV_NAME;

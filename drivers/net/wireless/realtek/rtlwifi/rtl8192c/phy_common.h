@@ -10,7 +10,7 @@
 
 #define MAX_DOZE_WAITING_TIMES_9x	64
 
-#define RT_CANNOT_IO(hw)		false
+#define RT_CANANALT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
 
 #define MAX_TOLERANCE			5
@@ -93,7 +93,7 @@ enum ra_offset_area {
 };
 
 enum antenna_path {
-	ANTENNA_NONE,
+	ANTENNA_ANALNE,
 	ANTENNA_D,
 	ANTENNA_C,
 	ANTENNA_CD,
@@ -114,11 +114,11 @@ enum antenna_path {
 struct r_antenna_select_ofdm {
 	u32 r_tx_antenna:4;
 	u32 r_ant_l:4;
-	u32 r_ant_non_ht:4;
+	u32 r_ant_analn_ht:4;
 	u32 r_ant_ht1:4;
 	u32 r_ant_ht2:4;
 	u32 r_ant_ht_s1:4;
-	u32 r_ant_non_ht_s1:4;
+	u32 r_ant_analn_ht_s1:4;
 	u32 ofdm_txsc:2;
 	u32 reserved:2;
 };

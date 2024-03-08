@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
@@ -89,7 +89,7 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 	eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
 				     GFP_KERNEL);
 	if (!eeprom_ptrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* Read pointer area */
 	status = wx_read_ee_hostif_buffer(wx, 0, TXGBE_EEPROM_LAST_WORD, eeprom_ptrs);
 	if (status != 0) {
@@ -117,7 +117,7 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
  *  @checksum_val: calculated checksum
  *
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
- *  caller does not need checksum_val, the value can be NULL.
+ *  caller does analt need checksum_val, the value can be NULL.
  **/
 int txgbe_validate_eeprom_checksum(struct wx *wx, u16 *checksum_val)
 {
@@ -126,7 +126,7 @@ int txgbe_validate_eeprom_checksum(struct wx *wx, u16 *checksum_val)
 	int status;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * analt continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = wx_read_ee_hostif(wx, 0, &checksum);

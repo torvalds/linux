@@ -96,7 +96,7 @@
 		rs485-rts-active-low;
 	};
 
-	/delete-node/ touchscreen@0;
+	/delete-analde/ touchscreen@0;
 };
 
 &ecspi2 {

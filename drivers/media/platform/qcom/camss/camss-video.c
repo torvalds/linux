@@ -2,7 +2,7 @@
 /*
  * camss-video.c
  *
- * Qualcomm MSM Camera Subsystem - V4L2 device node
+ * Qualcomm MSM Camera Subsystem - V4L2 device analde
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2018 Linaro Ltd.
@@ -26,7 +26,7 @@
 
 struct fract {
 	u8 numerator;
-	u8 denominator;
+	u8 deanalminator;
 };
 
 /*
@@ -312,11 +312,11 @@ static int video_mbus_to_pix_mp(const struct v4l2_mbus_framefmt *mbus,
 	pix->num_planes = f->planes;
 	for (i = 0; i < pix->num_planes; i++) {
 		bytesperline = pix->width / f->hsub[i].numerator *
-			f->hsub[i].denominator * f->bpp[i] / 8;
+			f->hsub[i].deanalminator * f->bpp[i] / 8;
 		bytesperline = ALIGN(bytesperline, alignment);
 		pix->plane_fmt[i].bytesperline = bytesperline;
 		pix->plane_fmt[i].sizeimage = pix->height /
-				f->vsub[i].numerator * f->vsub[i].denominator *
+				f->vsub[i].numerator * f->vsub[i].deanalminator *
 				bytesperline;
 	}
 
@@ -448,7 +448,7 @@ static int video_buf_prepare(struct vb2_buffer *vb)
 		vb2_set_plane_payload(vb, i, format->plane_fmt[i].sizeimage);
 	}
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -518,7 +518,7 @@ static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 		subdev = media_entity_to_v4l2_subdev(entity);
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			goto error;
 	}
 
@@ -613,12 +613,12 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 	/*
 	 * Find index "i" of "k"th unique pixelformat in formats array.
 	 *
-	 * If f->mbus_code passed to video_enum_fmt() is not zero, a device
+	 * If f->mbus_code passed to video_enum_fmt() is analt zero, a device
 	 * with V4L2_CAP_IO_MC capability restricts enumeration to only the
 	 * pixel formats that can be produced from that media bus code.
 	 * This is implemented by skipping video->formats[] entries with
-	 * code != f->mbus_code (if f->mbus_code is not zero).
-	 * If the f->mbus_code passed to video_enum_fmt() is not supported,
+	 * code != f->mbus_code (if f->mbus_code is analt zero).
+	 * If the f->mbus_code passed to video_enum_fmt() is analt supported,
 	 * -EINVAL is returned.
 	 * If f->mbus_code is zero, all the pixel formats are enumerated.
 	 */
@@ -646,7 +646,7 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		/*
 		 * All the unique pixel formats matching the arguments
 		 * have been enumerated (k >= 0 and f->index > 0), or
-		 * no pixel formats match the non-zero f->mbus_code (k == -1).
+		 * anal pixel formats match the analn-zero f->mbus_code (k == -1).
 		 */
 		return -EINVAL;
 
@@ -736,14 +736,14 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 	pix_mp->num_planes = fi->planes;
 	for (i = 0; i < pix_mp->num_planes; i++) {
 		bpl = pix_mp->width / fi->hsub[i].numerator *
-			fi->hsub[i].denominator * fi->bpp[i] / 8;
+			fi->hsub[i].deanalminator * fi->bpp[i] / 8;
 		bpl = ALIGN(bpl, video->bpl_alignment);
 		pix_mp->plane_fmt[i].bytesperline = bpl;
 		pix_mp->plane_fmt[i].sizeimage = pix_mp->height /
-			fi->vsub[i].numerator * fi->vsub[i].denominator * bpl;
+			fi->vsub[i].numerator * fi->vsub[i].deanalminator * bpl;
 	}
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->colorspace = V4L2_COLORSPACE_SRGB;
 	pix_mp->flags = 0;
 	pix_mp->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix_mp->colorspace);
@@ -858,7 +858,7 @@ static int video_open(struct file *file)
 
 	vfh = kzalloc(sizeof(*vfh), GFP_KERNEL);
 	if (vfh == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_alloc;
 	}
 
@@ -957,12 +957,12 @@ static int msm_video_init_format(struct camss_video *video)
 }
 
 /*
- * msm_video_register - Register a video device node
+ * msm_video_register - Register a video device analde
  * @video: struct camss_video
  * @v4l2_dev: V4L2 device
- * @name: name to be used for the video device node
+ * @name: name to be used for the video device analde
  *
- * Initialize and register a video device node to a V4L2 device. Also
+ * Initialize and register a video device analde to a V4L2 device. Also
  * initialize the vb2 queue.
  *
  * Return 0 on success or a negative error code otherwise
@@ -986,7 +986,7 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	q->ops = &msm_video_vb2_q_ops;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	q->io_modes = VB2_DMABUF | VB2_MMAP | VB2_READ;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->buf_struct_size = sizeof(struct camss_buffer);
 	q->dev = video->camss->dev;
 	q->lock = &video->q_lock;

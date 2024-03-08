@@ -543,7 +543,7 @@ static int isight_create_mixer(struct isight *isight)
 	static const struct snd_kcontrol_new mute_control = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Mic Capture Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = isight_mute_get,
 		.put = isight_mute_put,
 	};
@@ -629,7 +629,7 @@ static int isight_probe(struct fw_unit *unit,
 	isight->device = fw_dev;
 	isight->audio_base = get_unit_base(unit);
 	if (!isight->audio_base) {
-		dev_err(&unit->device, "audio unit base not found\n");
+		dev_err(&unit->device, "audio unit base analt found\n");
 		err = -ENXIO;
 		goto error;
 	}

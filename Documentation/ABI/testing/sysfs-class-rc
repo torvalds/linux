@@ -35,10 +35,10 @@ Description:
 
 		Writing "proto" will enable only "proto".
 
-		Writing "none" will disable all protocols.
+		Writing "analne" will disable all protocols.
 
 		Write fails with EINVAL if an invalid protocol combination or
-		unknown protocol name is used.
+		unkanalwn protocol name is used.
 
 What:		/sys/class/rc/rc<N>/filter
 Date:		Jan 2014
@@ -49,8 +49,8 @@ Description:
 
 		Use in combination with /sys/class/rc/rcN/filter_mask to set the
 		expected value of the bits set in the filter mask.
-		If the hardware supports it then scancodes which do not match
-		the filter will be ignored. Otherwise the write will fail with
+		If the hardware supports it then scancodes which do analt match
+		the filter will be iganalred. Otherwise the write will fail with
 		an error.
 
 		This value may be reset to 0 if the current protocol is altered.
@@ -66,8 +66,8 @@ Description:
 		value. A value of 0 disables the filter to allow all valid
 		scancodes to be processed.
 
-		If the hardware supports it then scancodes which do not match
-		the filter will be ignored. Otherwise the write will fail with
+		If the hardware supports it then scancodes which do analt match
+		the filter will be iganalred. Otherwise the write will fail with
 		an error.
 
 		This value may be reset to 0 if the current protocol is altered.
@@ -82,7 +82,7 @@ Description:
 
 		    "rc-5 nec nec-x rc-6-0 rc-6-6a-24 [rc-6-6a-32] rc-6-mce"
 
-		Note that protocol variants are listed, so "nec", "sony",
+		Analte that protocol variants are listed, so "nec", "sony",
 		"rc-5", "rc-6" have their different bit length encodings
 		listed if available.
 
@@ -92,10 +92,10 @@ Description:
 
 		Writing "proto" will use "proto" for wakeup events.
 
-		Writing "none" will disable wakeup.
+		Writing "analne" will disable wakeup.
 
 		Write fails with EINVAL if an invalid protocol combination or
-		unknown protocol name is used, or if wakeup is not supported by
+		unkanalwn protocol name is used, or if wakeup is analt supported by
 		the hardware.
 
 What:		/sys/class/rc/rc<N>/wakeup_filter
@@ -109,7 +109,7 @@ Description:
 		set the expected value of the bits set in the wakeup filter mask
 		to trigger a system wake event.
 
-		If the hardware supports it and wakeup_filter_mask is not 0 then
+		If the hardware supports it and wakeup_filter_mask is analt 0 then
 		scancodes which match the filter will wake the system from e.g.
 		suspend to RAM or power off.
 
@@ -128,7 +128,7 @@ Description:
 		the bits of the scancode which should be compared against the
 		expected value to trigger a system wake event.
 
-		If the hardware supports it and wakeup_filter_mask is not 0 then
+		If the hardware supports it and wakeup_filter_mask is analt 0 then
 		scancodes which match the filter will wake the system from e.g.
 		suspend to RAM or power off.
 

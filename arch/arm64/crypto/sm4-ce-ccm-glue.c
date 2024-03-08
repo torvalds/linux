@@ -301,7 +301,7 @@ static void __exit sm4_ce_ccm_exit(void)
 module_cpu_feature_match(SM4, sm4_ce_ccm_init);
 module_exit(sm4_ce_ccm_exit);
 
-MODULE_DESCRIPTION("Synchronous SM4 in CCM mode using ARMv8 Crypto Extensions");
+MODULE_DESCRIPTION("Synchroanalus SM4 in CCM mode using ARMv8 Crypto Extensions");
 MODULE_ALIAS_CRYPTO("ccm(sm4)");
 MODULE_AUTHOR("Tianjia Zhang <tianjia.zhang@linux.alibaba.com>");
 MODULE_LICENSE("GPL v2");

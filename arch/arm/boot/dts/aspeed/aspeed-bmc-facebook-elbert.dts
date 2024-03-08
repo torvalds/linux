@@ -186,8 +186,8 @@
 
 /*
  * BMC's "mac3" controller is connected to BCM53134P's IMP_RGMII port
- * directly (fixed link, no PHY in between).
- * Note: BMC's "mdio0" controller is connected to BCM53134P's MDIO
+ * directly (fixed link, anal PHY in between).
+ * Analte: BMC's "mdio0" controller is connected to BCM53134P's MDIO
  * interface, and the MDIO channel will be enabled in dts later, when
  * BCM53134 is added to "bcm53xx" DSA driver.
  */

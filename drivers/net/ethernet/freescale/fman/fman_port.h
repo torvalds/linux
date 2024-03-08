@@ -23,17 +23,17 @@
 
 /* FM Frame error */
 /* Frame Descriptor errors */
-/* Not for Rx-Port! Unsupported Format */
+/* Analt for Rx-Port! Unsupported Format */
 #define FM_PORT_FRM_ERR_UNSUPPORTED_FORMAT	FM_FD_ERR_UNSUPPORTED_FORMAT
-/* Not for Rx-Port! Length Error */
+/* Analt for Rx-Port! Length Error */
 #define FM_PORT_FRM_ERR_LENGTH			FM_FD_ERR_LENGTH
 /* DMA Data error */
 #define FM_PORT_FRM_ERR_DMA			FM_FD_ERR_DMA
-/* non Frame-Manager error; probably come from SEC that was chained to FM */
-#define FM_PORT_FRM_ERR_NON_FM			FM_FD_RX_STATUS_ERR_NON_FM
+/* analn Frame-Manager error; probably come from SEC that was chained to FM */
+#define FM_PORT_FRM_ERR_ANALN_FM			FM_FD_RX_STATUS_ERR_ANALN_FM
  /* IPR error */
 #define FM_PORT_FRM_ERR_IPRE			(FM_FD_ERR_IPR & ~FM_FD_IPR)
-/* IPR non-consistent-sp */
+/* IPR analn-consistent-sp */
 #define FM_PORT_FRM_ERR_IPR_NCSP		(FM_FD_ERR_IPR_NCSP &	\
 						~FM_FD_IPR)
 
@@ -48,8 +48,8 @@
 #define FM_PORT_FRM_ERR_CLS_DISCARD             FM_FD_ERR_CLS_DISCARD
 /* Extract Out of Frame */
 #define FM_PORT_FRM_ERR_EXTRACTION              FM_FD_ERR_EXTRACTION
-/* No Scheme Selected */
-#define FM_PORT_FRM_ERR_NO_SCHEME               FM_FD_ERR_NO_SCHEME
+/* Anal Scheme Selected */
+#define FM_PORT_FRM_ERR_ANAL_SCHEME               FM_FD_ERR_ANAL_SCHEME
 /* Keysize Overflow */
 #define FM_PORT_FRM_ERR_KEYSIZE_OVERFLOW        FM_FD_ERR_KEYSIZE_OVERFLOW
 /* Frame color is red */
@@ -82,11 +82,11 @@ struct fman_port_rx_params {
 	struct fman_ext_pools ext_buf_pools;
 };
 
-/* A structure for additional non-Rx port parameters */
-struct fman_port_non_rx_params {
+/* A structure for additional analn-Rx port parameters */
+struct fman_port_analn_rx_params {
 	/* Error Queue Id. */
 	u32 err_fqid;
-	/* For Tx - Default Confirmation queue, 0 means no Tx confirmation
+	/* For Tx - Default Confirmation queue, 0 means anal Tx confirmation
 	 * for processed frames. For OP port - default Rx queue.
 	 */
 	u32 dflt_fqid;
@@ -96,8 +96,8 @@ struct fman_port_non_rx_params {
 union fman_port_specific_params {
 	/* Rx port parameters structure */
 	struct fman_port_rx_params rx_params;
-	/* Non-Rx port parameters structure */
-	struct fman_port_non_rx_params non_rx_params;
+	/* Analn-Rx port parameters structure */
+	struct fman_port_analn_rx_params analn_rx_params;
 };
 
 /* A structure representing FM initialization parameters */

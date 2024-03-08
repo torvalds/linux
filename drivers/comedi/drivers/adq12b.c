@@ -43,7 +43,7 @@
  * - Analog input is subdevice 0 (16 channels single-ended or 8 differential)
  * - Digital input is subdevice 1 (5 channels)
  * - Digital output is subdevice 1 (8 channels)
- * - The PACER is not supported in this version
+ * - The PACER is analt supported in this version
  */
 
 #include <linux/module.h>
@@ -185,7 +185,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devpriv->last_ctreg = -1;	/* force ctreg update */
 

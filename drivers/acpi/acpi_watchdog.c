@@ -19,7 +19,7 @@
 
 /*
  * There are several systems where the WDAT table is accessing RTC SRAM to
- * store persistent information. This does not work well with the Linux RTC
+ * store persistent information. This does analt work well with the Linux RTC
  * driver so on those systems we skip WDAT driver and prefer iTCO_wdt
  * instead.
  *
@@ -55,20 +55,20 @@ static bool acpi_watchdog_uses_rtc(const struct acpi_table_wdat *wdat)
 }
 #endif
 
-static bool acpi_no_watchdog;
+static bool acpi_anal_watchdog;
 
 static const struct acpi_table_wdat *acpi_watchdog_get_wdat(void)
 {
 	const struct acpi_table_wdat *wdat = NULL;
 	acpi_status status;
 
-	if (acpi_disabled || acpi_no_watchdog)
+	if (acpi_disabled || acpi_anal_watchdog)
 		return NULL;
 
 	status = acpi_get_table(ACPI_SIG_WDAT, 0,
 				(struct acpi_table_header **)&wdat);
 	if (ACPI_FAILURE(status)) {
-		/* It is fine if there is no WDAT */
+		/* It is fine if there is anal WDAT */
 		return NULL;
 	}
 
@@ -94,10 +94,10 @@ EXPORT_SYMBOL_GPL(acpi_has_watchdog);
 /* ACPI watchdog can be disabled on boot command line */
 static int __init disable_acpi_watchdog(char *str)
 {
-	acpi_no_watchdog = true;
+	acpi_anal_watchdog = true;
 	return 1;
 }
-__setup("acpi_no_watchdog", disable_acpi_watchdog);
+__setup("acpi_anal_watchdog", disable_acpi_watchdog);
 
 void __init acpi_watchdog_init(void)
 {
@@ -112,7 +112,7 @@ void __init acpi_watchdog_init(void)
 
 	wdat = acpi_watchdog_get_wdat();
 	if (!wdat) {
-		/* It is fine if there is no WDAT */
+		/* It is fine if there is anal WDAT */
 		return;
 	}
 
@@ -176,7 +176,7 @@ void __init acpi_watchdog_init(void)
 	resource_list_for_each_entry(rentry, &resource_list)
 		resources[i++] = *rentry->res;
 
-	pdev = platform_device_register_simple("wdat_wdt", PLATFORM_DEVID_NONE,
+	pdev = platform_device_register_simple("wdat_wdt", PLATFORM_DEVID_ANALNE,
 					       resources, nresources);
 	if (IS_ERR(pdev))
 		pr_err("Device creation failed: %ld\n", PTR_ERR(pdev));

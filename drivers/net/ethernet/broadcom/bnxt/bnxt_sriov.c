@@ -76,7 +76,7 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	int rc;
 
 	if (bp->hwrm_spec_code < 0x10701)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
@@ -254,10 +254,10 @@ int bnxt_set_vf_vlan(struct net_device *dev, int vf_id, u16 vlan_id, u8 qos,
 	int rc;
 
 	if (bp->hwrm_spec_code < 0x10201)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	if (vlan_proto != htons(ETH_P_8021Q))
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
@@ -426,7 +426,7 @@ static int bnxt_alloc_vf_resources(struct bnxt *bp, int num_vfs)
 
 	bp->pf.vf = kcalloc(num_vfs, sizeof(struct bnxt_vf_info), GFP_KERNEL);
 	if (!bp->pf.vf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bnxt_set_vf_attr(bp, num_vfs);
 
@@ -442,7 +442,7 @@ static int bnxt_alloc_vf_resources(struct bnxt *bp, int num_vfs)
 					   GFP_KERNEL);
 
 		if (!bp->pf.hwrm_cmd_req_addr[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (j = 0; j < BNXT_HWRM_REQS_PER_PAGE && k < num_vfs; j++) {
 			struct bnxt_vf_info *vf = &bp->pf.vf[k];
@@ -459,7 +459,7 @@ static int bnxt_alloc_vf_resources(struct bnxt *bp, int num_vfs)
 	/* Max 128 VF's */
 	bp->pf.vf_event_bmap = kzalloc(16, GFP_KERNEL);
 	if (!bp->pf.vf_event_bmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bp->pf.hwrm_cmd_req_pages = nr_pages;
 	return 0;
@@ -657,7 +657,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	if (rc)
 		return rc;
 
-	/* Remaining rings are distributed equally amongs VF's for now */
+	/* Remaining rings are distributed equally amongs VF's for analw */
 	vf_cp_rings = bnxt_get_avail_cp_rings_for_en(bp) / num_vfs;
 	vf_stat_ctx = bnxt_get_avail_stat_ctxs_for_en(bp) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
@@ -770,7 +770,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 
 	/* Check if we can enable requested num of vf's. At a mininum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
-	 * features like TPA will not be available.
+	 * features like TPA will analt be available.
 	 */
 	vfs_supported = *num_vfs;
 
@@ -811,7 +811,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	}
 
 	if (!vfs_supported) {
-		netdev_err(bp->dev, "Cannot enable VF's as all resources are used by PF\n");
+		netdev_err(bp->dev, "Cananalt enable VF's as all resources are used by PF\n");
 		return -EINVAL;
 	}
 
@@ -841,7 +841,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	rc = bnxt_vf_reps_create(bp);
 	devl_unlock(bp->dl);
 	if (rc) {
-		netdev_info(bp->dev, "Cannot enable VFS as representors cannot be created\n");
+		netdev_info(bp->dev, "Cananalt enable VFS as representors cananalt be created\n");
 		goto err_out3;
 	}
 
@@ -901,7 +901,7 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	struct bnxt *bp = netdev_priv(dev);
 
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX)) {
-		netdev_warn(dev, "Not allow SRIOV if the irq mode is not MSIX\n");
+		netdev_warn(dev, "Analt allow SRIOV if the irq mode is analt MSIX\n");
 		return 0;
 	}
 
@@ -1064,9 +1064,9 @@ static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 			mac_ok = true;
 	} else {
 		/* There are two cases:
-		 * 1.If firmware spec < 0x10202,VF MAC address is not forwarded
+		 * 1.If firmware spec < 0x10202,VF MAC address is analt forwarded
 		 *   to the PF and so it doesn't have to match
-		 * 2.Allow VF to modify it's own MAC when PF has not assigned a
+		 * 2.Allow VF to modify it's own MAC when PF has analt assigned a
 		 *   valid MAC address and firmware spec >= 0x10202
 		 */
 		mac_ok = true;
@@ -1116,7 +1116,7 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			}
 		} else {
 			/* force link down */
-			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_NO_LINK;
+			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_ANAL_LINK;
 			phy_qcfg_resp.link_speed = 0;
 			phy_qcfg_resp.duplex_state =
 				PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF;
@@ -1185,7 +1185,7 @@ int bnxt_approve_mac(struct bnxt *bp, const u8 *mac, bool strict)
 
 	if (bp->hwrm_spec_code < 0x10202) {
 		if (is_valid_ether_addr(bp->vf.mac_addr))
-			rc = -EADDRNOTAVAIL;
+			rc = -EADDRANALTAVAIL;
 		goto mac_done;
 	}
 
@@ -1200,8 +1200,8 @@ int bnxt_approve_mac(struct bnxt *bp, const u8 *mac, bool strict)
 	rc = hwrm_req_send(bp, req);
 mac_done:
 	if (rc && strict) {
-		rc = -EADDRNOTAVAIL;
-		netdev_warn(bp->dev, "VF MAC address %pM not approved by the PF\n",
+		rc = -EADDRANALTAVAIL;
+		netdev_warn(bp->dev, "VF MAC address %pM analt approved by the PF\n",
 			    mac);
 		return rc;
 	}
@@ -1232,8 +1232,8 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 	 */
 	if (!ether_addr_equal(resp->mac_address, bp->vf.mac_addr)) {
 		memcpy(bp->vf.mac_addr, resp->mac_address, ETH_ALEN);
-		/* This means we are now using our own MAC address, let
-		 * the PF know about this MAC address.
+		/* This means we are analw using our own MAC address, let
+		 * the PF kanalw about this MAC address.
 		 */
 		if (!is_valid_ether_addr(bp->vf.mac_addr))
 			inform_pf = true;
@@ -1253,7 +1253,7 @@ update_vf_mac_exit:
 int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 {
 	if (*num_vfs)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -1263,7 +1263,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 {
-	netdev_err(bp->dev, "Invalid VF message received when SRIOV is not enable\n");
+	netdev_err(bp->dev, "Invalid VF message received when SRIOV is analt enable\n");
 }
 
 void bnxt_update_vf_mac(struct bnxt *bp)

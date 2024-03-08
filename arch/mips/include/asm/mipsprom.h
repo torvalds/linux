@@ -66,8 +66,8 @@
 #define PROM_ENABLECMD		49	/* XXX */
 #define PROM_DISABLECMD		50	/* XXX */
 
-#define PROM_CLEARNOFAULT	51	/* XXX */
-#define PROM_NOTIMPLEMENT	52	/* XXX */
+#define PROM_CLEARANALFAULT	51	/* XXX */
+#define PROM_ANALTIMPLEMENT	52	/* XXX */
 
 #define PROM_NV_GET		53	/* XXX */
 #define PROM_NV_SET		54	/* XXX */

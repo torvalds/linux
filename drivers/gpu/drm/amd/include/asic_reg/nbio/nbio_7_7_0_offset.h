@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -14267,8 +14267,8 @@
 #define regBIFP0_0_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP0_0_PCIE_TX_VENDOR_SPECIFIC                                                              0x410194
 #define regBIFP0_0_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP0_0_PCIE_TX_NOP_DLLP                                                                     0x410195
-#define regBIFP0_0_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP0_0_PCIE_TX_ANALP_DLLP                                                                     0x410195
+#define regBIFP0_0_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP0_0_PCIE_TX_REQUEST_NUM_CNTL                                                             0x410198
 #define regBIFP0_0_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP0_0_PCIE_TX_CREDITS_ADVT_P                                                               0x4101a0
@@ -14435,8 +14435,8 @@
 #define regBIFP1_0_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP1_0_PCIE_TX_VENDOR_SPECIFIC                                                              0x410594
 #define regBIFP1_0_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP1_0_PCIE_TX_NOP_DLLP                                                                     0x410595
-#define regBIFP1_0_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP1_0_PCIE_TX_ANALP_DLLP                                                                     0x410595
+#define regBIFP1_0_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP1_0_PCIE_TX_REQUEST_NUM_CNTL                                                             0x410598
 #define regBIFP1_0_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP1_0_PCIE_TX_CREDITS_ADVT_P                                                               0x4105a0
@@ -14603,8 +14603,8 @@
 #define regBIFP2_0_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP2_0_PCIE_TX_VENDOR_SPECIFIC                                                              0x410994
 #define regBIFP2_0_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP2_0_PCIE_TX_NOP_DLLP                                                                     0x410995
-#define regBIFP2_0_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP2_0_PCIE_TX_ANALP_DLLP                                                                     0x410995
+#define regBIFP2_0_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP2_0_PCIE_TX_REQUEST_NUM_CNTL                                                             0x410998
 #define regBIFP2_0_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP2_0_PCIE_TX_CREDITS_ADVT_P                                                               0x4109a0
@@ -14771,8 +14771,8 @@
 #define regBIFP3_0_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP3_0_PCIE_TX_VENDOR_SPECIFIC                                                              0x410d94
 #define regBIFP3_0_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP3_0_PCIE_TX_NOP_DLLP                                                                     0x410d95
-#define regBIFP3_0_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP3_0_PCIE_TX_ANALP_DLLP                                                                     0x410d95
+#define regBIFP3_0_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP3_0_PCIE_TX_REQUEST_NUM_CNTL                                                             0x410d98
 #define regBIFP3_0_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP3_0_PCIE_TX_CREDITS_ADVT_P                                                               0x410da0
@@ -14939,8 +14939,8 @@
 #define regBIFP4_0_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP4_0_PCIE_TX_VENDOR_SPECIFIC                                                              0x411194
 #define regBIFP4_0_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP4_0_PCIE_TX_NOP_DLLP                                                                     0x411195
-#define regBIFP4_0_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP4_0_PCIE_TX_ANALP_DLLP                                                                     0x411195
+#define regBIFP4_0_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP4_0_PCIE_TX_REQUEST_NUM_CNTL                                                             0x411198
 #define regBIFP4_0_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP4_0_PCIE_TX_CREDITS_ADVT_P                                                               0x4111a0
@@ -18763,8 +18763,8 @@
 #define regBIFP0_1_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP0_1_PCIE_TX_VENDOR_SPECIFIC                                                              0x450194
 #define regBIFP0_1_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP0_1_PCIE_TX_NOP_DLLP                                                                     0x450195
-#define regBIFP0_1_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP0_1_PCIE_TX_ANALP_DLLP                                                                     0x450195
+#define regBIFP0_1_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP0_1_PCIE_TX_REQUEST_NUM_CNTL                                                             0x450198
 #define regBIFP0_1_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP0_1_PCIE_TX_CREDITS_ADVT_P                                                               0x4501a0
@@ -18931,8 +18931,8 @@
 #define regBIFP1_1_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP1_1_PCIE_TX_VENDOR_SPECIFIC                                                              0x450594
 #define regBIFP1_1_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP1_1_PCIE_TX_NOP_DLLP                                                                     0x450595
-#define regBIFP1_1_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP1_1_PCIE_TX_ANALP_DLLP                                                                     0x450595
+#define regBIFP1_1_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP1_1_PCIE_TX_REQUEST_NUM_CNTL                                                             0x450598
 #define regBIFP1_1_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP1_1_PCIE_TX_CREDITS_ADVT_P                                                               0x4505a0
@@ -19099,8 +19099,8 @@
 #define regBIFP2_1_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP2_1_PCIE_TX_VENDOR_SPECIFIC                                                              0x450994
 #define regBIFP2_1_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP2_1_PCIE_TX_NOP_DLLP                                                                     0x450995
-#define regBIFP2_1_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP2_1_PCIE_TX_ANALP_DLLP                                                                     0x450995
+#define regBIFP2_1_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP2_1_PCIE_TX_REQUEST_NUM_CNTL                                                             0x450998
 #define regBIFP2_1_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP2_1_PCIE_TX_CREDITS_ADVT_P                                                               0x4509a0
@@ -19267,8 +19267,8 @@
 #define regBIFP3_1_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP3_1_PCIE_TX_VENDOR_SPECIFIC                                                              0x450d94
 #define regBIFP3_1_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP3_1_PCIE_TX_NOP_DLLP                                                                     0x450d95
-#define regBIFP3_1_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP3_1_PCIE_TX_ANALP_DLLP                                                                     0x450d95
+#define regBIFP3_1_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP3_1_PCIE_TX_REQUEST_NUM_CNTL                                                             0x450d98
 #define regBIFP3_1_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP3_1_PCIE_TX_CREDITS_ADVT_P                                                               0x450da0
@@ -19435,8 +19435,8 @@
 #define regBIFP4_1_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                               5
 #define regBIFP4_1_PCIE_TX_VENDOR_SPECIFIC                                                              0x451194
 #define regBIFP4_1_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                     5
-#define regBIFP4_1_PCIE_TX_NOP_DLLP                                                                     0x451195
-#define regBIFP4_1_PCIE_TX_NOP_DLLP_BASE_IDX                                                            5
+#define regBIFP4_1_PCIE_TX_ANALP_DLLP                                                                     0x451195
+#define regBIFP4_1_PCIE_TX_ANALP_DLLP_BASE_IDX                                                            5
 #define regBIFP4_1_PCIE_TX_REQUEST_NUM_CNTL                                                             0x451198
 #define regBIFP4_1_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                    5
 #define regBIFP4_1_PCIE_TX_CREDITS_ADVT_P                                                               0x4511a0
@@ -19625,8 +19625,8 @@
 #define regBIFP5_PCIE_TX_CREDITS_FCU_THRESHOLD_BASE_IDX                                                 5
 #define regBIFP5_PCIE_TX_VENDOR_SPECIFIC                                                                0x451594
 #define regBIFP5_PCIE_TX_VENDOR_SPECIFIC_BASE_IDX                                                       5
-#define regBIFP5_PCIE_TX_NOP_DLLP                                                                       0x451595
-#define regBIFP5_PCIE_TX_NOP_DLLP_BASE_IDX                                                              5
+#define regBIFP5_PCIE_TX_ANALP_DLLP                                                                       0x451595
+#define regBIFP5_PCIE_TX_ANALP_DLLP_BASE_IDX                                                              5
 #define regBIFP5_PCIE_TX_REQUEST_NUM_CNTL                                                               0x451598
 #define regBIFP5_PCIE_TX_REQUEST_NUM_CNTL_BASE_IDX                                                      5
 #define regBIFP5_PCIE_TX_CREDITS_ADVT_P                                                                 0x4515a0
@@ -20111,8 +20111,8 @@
 #define regNP_DMA_DROPPED_LOG_LOWER_BASE_IDX                                                            5
 #define regNP_DMA_DROPPED_LOG_UPPER                                                                     0xe84063
 #define regNP_DMA_DROPPED_LOG_UPPER_BASE_IDX                                                            5
-#define regPCIE_VDM_NODE0_CTRL4                                                                         0xe84064
-#define regPCIE_VDM_NODE0_CTRL4_BASE_IDX                                                                5
+#define regPCIE_VDM_ANALDE0_CTRL4                                                                         0xe84064
+#define regPCIE_VDM_ANALDE0_CTRL4_BASE_IDX                                                                5
 #define regPCIE_VDM_CNTL2                                                                               0xe8408c
 #define regPCIE_VDM_CNTL2_BASE_IDX                                                                      5
 #define regPCIE_VDM_CNTL3                                                                               0xe8408d
@@ -20625,22 +20625,22 @@
 #define regParitySerr_ACTION_CONTROL_BASE_IDX                                                           5
 #define regParityFatal_ACTION_CONTROL                                                                   0xe88042
 #define regParityFatal_ACTION_CONTROL_BASE_IDX                                                          5
-#define regParityNonFatal_ACTION_CONTROL                                                                0xe88043
-#define regParityNonFatal_ACTION_CONTROL_BASE_IDX                                                       5
+#define regParityAnalnFatal_ACTION_CONTROL                                                                0xe88043
+#define regParityAnalnFatal_ACTION_CONTROL_BASE_IDX                                                       5
 #define regParityCorr_ACTION_CONTROL                                                                    0xe88044
 #define regParityCorr_ACTION_CONTROL_BASE_IDX                                                           5
 #define regPCIE0PortASerr_ACTION_CONTROL                                                                0xe88045
 #define regPCIE0PortASerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortAIntFatal_ACTION_CONTROL                                                            0xe88046
 #define regPCIE0PortAIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortAIntNonFatal_ACTION_CONTROL                                                         0xe88047
-#define regPCIE0PortAIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortAIntAnalnFatal_ACTION_CONTROL                                                         0xe88047
+#define regPCIE0PortAIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortAIntCorr_ACTION_CONTROL                                                             0xe88048
 #define regPCIE0PortAIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortAExtFatal_ACTION_CONTROL                                                            0xe88049
 #define regPCIE0PortAExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortAExtNonFatal_ACTION_CONTROL                                                         0xe8804a
-#define regPCIE0PortAExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortAExtAnalnFatal_ACTION_CONTROL                                                         0xe8804a
+#define regPCIE0PortAExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortAExtCorr_ACTION_CONTROL                                                             0xe8804b
 #define regPCIE0PortAExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortAParityErr_ACTION_CONTROL                                                           0xe8804c
@@ -20649,14 +20649,14 @@
 #define regPCIE0PortBSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortBIntFatal_ACTION_CONTROL                                                            0xe8804e
 #define regPCIE0PortBIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortBIntNonFatal_ACTION_CONTROL                                                         0xe8804f
-#define regPCIE0PortBIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortBIntAnalnFatal_ACTION_CONTROL                                                         0xe8804f
+#define regPCIE0PortBIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortBIntCorr_ACTION_CONTROL                                                             0xe88050
 #define regPCIE0PortBIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortBExtFatal_ACTION_CONTROL                                                            0xe88051
 #define regPCIE0PortBExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortBExtNonFatal_ACTION_CONTROL                                                         0xe88052
-#define regPCIE0PortBExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortBExtAnalnFatal_ACTION_CONTROL                                                         0xe88052
+#define regPCIE0PortBExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortBExtCorr_ACTION_CONTROL                                                             0xe88053
 #define regPCIE0PortBExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortBParityErr_ACTION_CONTROL                                                           0xe88054
@@ -20665,14 +20665,14 @@
 #define regPCIE0PortCSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortCIntFatal_ACTION_CONTROL                                                            0xe88056
 #define regPCIE0PortCIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortCIntNonFatal_ACTION_CONTROL                                                         0xe88057
-#define regPCIE0PortCIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortCIntAnalnFatal_ACTION_CONTROL                                                         0xe88057
+#define regPCIE0PortCIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortCIntCorr_ACTION_CONTROL                                                             0xe88058
 #define regPCIE0PortCIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortCExtFatal_ACTION_CONTROL                                                            0xe88059
 #define regPCIE0PortCExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortCExtNonFatal_ACTION_CONTROL                                                         0xe8805a
-#define regPCIE0PortCExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortCExtAnalnFatal_ACTION_CONTROL                                                         0xe8805a
+#define regPCIE0PortCExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortCExtCorr_ACTION_CONTROL                                                             0xe8805b
 #define regPCIE0PortCExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortCParityErr_ACTION_CONTROL                                                           0xe8805c
@@ -20681,14 +20681,14 @@
 #define regPCIE0PortDSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortDIntFatal_ACTION_CONTROL                                                            0xe8805e
 #define regPCIE0PortDIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortDIntNonFatal_ACTION_CONTROL                                                         0xe8805f
-#define regPCIE0PortDIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortDIntAnalnFatal_ACTION_CONTROL                                                         0xe8805f
+#define regPCIE0PortDIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortDIntCorr_ACTION_CONTROL                                                             0xe88060
 #define regPCIE0PortDIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortDExtFatal_ACTION_CONTROL                                                            0xe88061
 #define regPCIE0PortDExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortDExtNonFatal_ACTION_CONTROL                                                         0xe88062
-#define regPCIE0PortDExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortDExtAnalnFatal_ACTION_CONTROL                                                         0xe88062
+#define regPCIE0PortDExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortDExtCorr_ACTION_CONTROL                                                             0xe88063
 #define regPCIE0PortDExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortDParityErr_ACTION_CONTROL                                                           0xe88064
@@ -20697,14 +20697,14 @@
 #define regPCIE0PortESerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortEIntFatal_ACTION_CONTROL                                                            0xe88066
 #define regPCIE0PortEIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortEIntNonFatal_ACTION_CONTROL                                                         0xe88067
-#define regPCIE0PortEIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortEIntAnalnFatal_ACTION_CONTROL                                                         0xe88067
+#define regPCIE0PortEIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortEIntCorr_ACTION_CONTROL                                                             0xe88068
 #define regPCIE0PortEIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortEExtFatal_ACTION_CONTROL                                                            0xe88069
 #define regPCIE0PortEExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortEExtNonFatal_ACTION_CONTROL                                                         0xe8806a
-#define regPCIE0PortEExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortEExtAnalnFatal_ACTION_CONTROL                                                         0xe8806a
+#define regPCIE0PortEExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortEExtCorr_ACTION_CONTROL                                                             0xe8806b
 #define regPCIE0PortEExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortEParityErr_ACTION_CONTROL                                                           0xe8806c
@@ -20713,14 +20713,14 @@
 #define regPCIE0PortFSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regPCIE0PortFIntFatal_ACTION_CONTROL                                                            0xe8806e
 #define regPCIE0PortFIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortFIntNonFatal_ACTION_CONTROL                                                         0xe8806f
-#define regPCIE0PortFIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortFIntAnalnFatal_ACTION_CONTROL                                                         0xe8806f
+#define regPCIE0PortFIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortFIntCorr_ACTION_CONTROL                                                             0xe88070
 #define regPCIE0PortFIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortFExtFatal_ACTION_CONTROL                                                            0xe88071
 #define regPCIE0PortFExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regPCIE0PortFExtNonFatal_ACTION_CONTROL                                                         0xe88072
-#define regPCIE0PortFExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regPCIE0PortFExtAnalnFatal_ACTION_CONTROL                                                         0xe88072
+#define regPCIE0PortFExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regPCIE0PortFExtCorr_ACTION_CONTROL                                                             0xe88073
 #define regPCIE0PortFExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regPCIE0PortFParityErr_ACTION_CONTROL                                                           0xe88074
@@ -20729,14 +20729,14 @@
 #define regNBIF1PortASerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regNBIF1PortAIntFatal_ACTION_CONTROL                                                            0xe880ce
 #define regNBIF1PortAIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortAIntNonFatal_ACTION_CONTROL                                                         0xe880cf
-#define regNBIF1PortAIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortAIntAnalnFatal_ACTION_CONTROL                                                         0xe880cf
+#define regNBIF1PortAIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortAIntCorr_ACTION_CONTROL                                                             0xe880d0
 #define regNBIF1PortAIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortAExtFatal_ACTION_CONTROL                                                            0xe880d1
 #define regNBIF1PortAExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortAExtNonFatal_ACTION_CONTROL                                                         0xe880d2
-#define regNBIF1PortAExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortAExtAnalnFatal_ACTION_CONTROL                                                         0xe880d2
+#define regNBIF1PortAExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortAExtCorr_ACTION_CONTROL                                                             0xe880d3
 #define regNBIF1PortAExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortAParityErr_ACTION_CONTROL                                                           0xe880d4
@@ -20745,14 +20745,14 @@
 #define regNBIF1PortBSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regNBIF1PortBIntFatal_ACTION_CONTROL                                                            0xe880d6
 #define regNBIF1PortBIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortBIntNonFatal_ACTION_CONTROL                                                         0xe880d7
-#define regNBIF1PortBIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortBIntAnalnFatal_ACTION_CONTROL                                                         0xe880d7
+#define regNBIF1PortBIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortBIntCorr_ACTION_CONTROL                                                             0xe880d8
 #define regNBIF1PortBIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortBExtFatal_ACTION_CONTROL                                                            0xe880d9
 #define regNBIF1PortBExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortBExtNonFatal_ACTION_CONTROL                                                         0xe880da
-#define regNBIF1PortBExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortBExtAnalnFatal_ACTION_CONTROL                                                         0xe880da
+#define regNBIF1PortBExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortBExtCorr_ACTION_CONTROL                                                             0xe880db
 #define regNBIF1PortBExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortBParityErr_ACTION_CONTROL                                                           0xe880dc
@@ -20761,14 +20761,14 @@
 #define regNBIF1PortCSerr_ACTION_CONTROL_BASE_IDX                                                       5
 #define regNBIF1PortCIntFatal_ACTION_CONTROL                                                            0xe880de
 #define regNBIF1PortCIntFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortCIntNonFatal_ACTION_CONTROL                                                         0xe880df
-#define regNBIF1PortCIntNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortCIntAnalnFatal_ACTION_CONTROL                                                         0xe880df
+#define regNBIF1PortCIntAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortCIntCorr_ACTION_CONTROL                                                             0xe880e0
 #define regNBIF1PortCIntCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortCExtFatal_ACTION_CONTROL                                                            0xe880e1
 #define regNBIF1PortCExtFatal_ACTION_CONTROL_BASE_IDX                                                   5
-#define regNBIF1PortCExtNonFatal_ACTION_CONTROL                                                         0xe880e2
-#define regNBIF1PortCExtNonFatal_ACTION_CONTROL_BASE_IDX                                                5
+#define regNBIF1PortCExtAnalnFatal_ACTION_CONTROL                                                         0xe880e2
+#define regNBIF1PortCExtAnalnFatal_ACTION_CONTROL_BASE_IDX                                                5
 #define regNBIF1PortCExtCorr_ACTION_CONTROL                                                             0xe880e3
 #define regNBIF1PortCExtCorr_ACTION_CONTROL_BASE_IDX                                                    5
 #define regNBIF1PortCParityErr_ACTION_CONTROL                                                           0xe880e4

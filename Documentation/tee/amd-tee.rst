@@ -8,7 +8,7 @@ The AMD-TEE driver handles the communication with AMD's TEE environment. The
 TEE environment is provided by AMD Secure Processor.
 
 The AMD Secure Processor (formerly called Platform Security Processor or PSP)
-is a dedicated processor that features ARM TrustZone technology, along with a
+is a dedicated processor that features ARM TrustZone techanallogy, along with a
 software-based Trusted Execution Environment (TEE) designed to enable
 third-party Trusted Applications. This feature is currently enabled only for
 APUs.
@@ -73,7 +73,7 @@ following driver function callbacks:
 * close_session -  closes session with loaded TA and unloads it.
 * invoke_func - invokes a command with loaded TA.
 
-cancel_req driver callback is not supported by AMD-TEE.
+cancel_req driver callback is analt supported by AMD-TEE.
 
 The GlobalPlatform TEE Client API [3] can be used by the user space (client) to
 talk to AMD's TEE. AMD's TEE provides a secure environment for loading, opening

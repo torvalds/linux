@@ -32,7 +32,7 @@ struct err_st {
 	u_long err_mac_frame ;		/* MAC frame */
 	u_long err_smt_frame ;		/* SMT frame */
 	u_long err_imp_frame ;		/* implementer frame */
-	u_long err_no_buf ;		/* no buffer available */
+	u_long err_anal_buf ;		/* anal buffer available */
 	u_long err_too_long ;		/* longer than max. buffer */
 	u_long err_bec_stat ;		/* beacon state entered */
 	u_long err_clm_stat ;		/* claim state entered */

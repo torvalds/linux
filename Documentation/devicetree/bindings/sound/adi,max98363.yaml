@@ -10,7 +10,7 @@ maintainers:
   - Ryan Lee <ryans.lee@analog.com>
 
 description:
-  The MAX98363 is a SoundWire input Class D mono amplifier that
+  The MAX98363 is a SoundWire input Class D moanal amplifier that
   supports MIPI SoundWire v1.2-compatible digital interface for
   audio and control data.
   SoundWire peripheral device ID of MAX98363 is 0x3*019f836300

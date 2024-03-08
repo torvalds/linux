@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: handle WMAC/802.3/802.11 rx & tx functions
@@ -70,7 +70,7 @@ static struct vnt_usb_send_context
 	}
 
 	if (ii == priv->num_tx_context) {
-		dev_dbg(&priv->usb->dev, "%s No Free Tx Context\n", __func__);
+		dev_dbg(&priv->usb->dev, "%s Anal Free Tx Context\n", __func__);
 
 		ieee80211_stop_queues(priv->hw);
 	}
@@ -529,9 +529,9 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_context = vnt_get_free_context(priv);
 	if (!tx_context) {
-		dev_dbg(&priv->usb->dev, "%s No free context\n", __func__);
+		dev_dbg(&priv->usb->dev, "%s Anal free context\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_context->pkt_type = pkt_type;
@@ -543,7 +543,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	tx_context->skb = skb_clone(skb, GFP_ATOMIC);
 	if (!tx_context->skb) {
 		tx_context->in_use = false;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tx_buffer = skb_push(skb, vnt_get_hdr_size(info));
@@ -574,7 +574,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 			cpu_to_le16(DEFAULT_MSDU_LIFETIME_RES_64us);
 	}
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+	if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_NEEDACK);
 
 	if (ieee80211_has_retry(hdr->frame_control))
@@ -596,7 +596,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	vnt_generate_tx_parameter(tx_context);
 
-	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
+	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_ANALNFRAG);
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
 						IEEE80211_SCTL_SEQ) >> 4;
@@ -630,9 +630,9 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 
 	context = vnt_get_free_context(priv);
 	if (!context) {
-		dev_dbg(&priv->usb->dev, "%s No free context!\n", __func__);
+		dev_dbg(&priv->usb->dev, "%s Anal free context!\n", __func__);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	context->skb = skb;
@@ -701,11 +701,11 @@ int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif)
 
 	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (vnt_beacon_xmit(priv, beacon)) {
 		ieee80211_free_txskb(priv->hw, beacon);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

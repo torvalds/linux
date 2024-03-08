@@ -39,7 +39,7 @@ static inline bool should_patch_pac_into_scs(void)
 
 	/*
 	 * We only enable the shadow call stack dynamically if we are running
-	 * on a system that does not implement PAC or BTI. PAC and SCS provide
+	 * on a system that does analt implement PAC or BTI. PAC and SCS provide
 	 * roughly the same level of protection, and BTI relies on the PACIASP
 	 * instructions serving as landing pads, preventing us from patching
 	 * those instructions into something else.

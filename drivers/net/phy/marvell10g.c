@@ -17,7 +17,7 @@
  *
  *        XAUI PHYXS -- <appropriate PCS as above>
  *
- * and no switching of the host interface mode occurs.
+ * and anal switching of the host interface mode occurs.
  *
  * If both the fiber and copper ports are connected, the first to gain
  * link takes priority and the other port is completely locked out.
@@ -46,7 +46,7 @@ enum {
 	MV_PMA_2180_PORT_CTRL_MACTYPE_DXGMII			= 0x1,
 	MV_PMA_2180_PORT_CTRL_MACTYPE_QXGMII			= 0x2,
 	MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER			= 0x4,
-	MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER_NO_SGMII_AN	= 0x5,
+	MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER_ANAL_SGMII_AN	= 0x5,
 	MV_PMA_21X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH	= 0x6,
 	MV_PMA_BOOT		= 0xc050,
 	MV_PMA_BOOT_FATAL	= BIT(0),
@@ -115,11 +115,11 @@ enum {
 	MV_V2_33X0_PORT_CTRL_MACTYPE_MASK			= 0x7,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI			= 0x0,
 	MV_V2_3310_PORT_CTRL_MACTYPE_XAUI_RATE_MATCH		= 0x1,
-	MV_V2_3340_PORT_CTRL_MACTYPE_RXAUI_NO_SGMII_AN		= 0x1,
+	MV_V2_3340_PORT_CTRL_MACTYPE_RXAUI_ANAL_SGMII_AN		= 0x1,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_RXAUI_RATE_MATCH		= 0x2,
 	MV_V2_3310_PORT_CTRL_MACTYPE_XAUI			= 0x3,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER			= 0x4,
-	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_NO_SGMII_AN	= 0x5,
+	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_ANAL_SGMII_AN	= 0x5,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_RATE_MATCH	= 0x6,
 	MV_V2_33X0_PORT_CTRL_MACTYPE_USXGMII			= 0x7,
 	MV_V2_PORT_INTR_STS		= 0xf040,
@@ -138,7 +138,7 @@ enum {
 	MV_V2_TEMP_CTRL_SAMPLE	= 0x0000,
 	MV_V2_TEMP_CTRL_DISABLE	= 0xc000,
 	MV_V2_TEMP		= 0xf08c,
-	MV_V2_TEMP_UNKNOWN	= 0x9600, /* unknown function */
+	MV_V2_TEMP_UNKANALWN	= 0x9600, /* unkanalwn function */
 };
 
 struct mv3310_mactype {
@@ -222,7 +222,7 @@ static int mv3310_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops mv3310_hwmon_ops = {
@@ -270,7 +270,7 @@ static int mv3310_hwmon_config(struct phy_device *phydev, bool enable)
 		return 0;
 
 	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, MV_V2_TEMP,
-			    MV_V2_TEMP_UNKNOWN);
+			    MV_V2_TEMP_UNKANALWN);
 	if (ret < 0)
 		return ret;
 
@@ -288,7 +288,7 @@ static int mv3310_hwmon_probe(struct phy_device *phydev)
 
 	priv->hwmon_name = devm_kstrdup(dev, dev_name(dev), GFP_KERNEL);
 	if (!priv->hwmon_name)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = j = 0; priv->hwmon_name[i]; i++) {
 		if (isalnum(priv->hwmon_name[i])) {
@@ -336,7 +336,7 @@ static int mv3310_power_up(struct phy_device *phydev)
 				 MV_V2_PORT_CTRL_PWRDOWN);
 
 	/* Sometimes, the power down bit doesn't clear immediately, and
-	 * a read of this register causes the bit not to clear. Delay
+	 * a read of this register causes the bit analt to clear. Delay
 	 * 100us to allow the PHY to come out of power down mode before
 	 * the next access.
 	 */
@@ -371,7 +371,7 @@ static int mv3310_get_downshift(struct phy_device *phydev, u8 *ds)
 	int val;
 
 	if (!priv->has_downshift)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC1);
 	if (val < 0)
@@ -393,7 +393,7 @@ static int mv3310_set_downshift(struct phy_device *phydev, u8 ds)
 	int err;
 
 	if (!priv->has_downshift)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ds == DOWNSHIFT_DEV_DISABLE)
 		return phy_clear_bits_mmd(phydev, MDIO_MMD_PCS, MV_PCS_DSC1,
@@ -443,7 +443,7 @@ static int mv3310_get_edpd(struct phy_device *phydev, u16 *edpd)
 		*edpd = 1000;
 		break;
 	case MV_PCS_CSCR1_ED_RX:
-		*edpd = ETHTOOL_PHY_EDPD_NO_TX;
+		*edpd = ETHTOOL_PHY_EDPD_ANAL_TX;
 		break;
 	default:
 		*edpd = ETHTOOL_PHY_EDPD_DISABLE;
@@ -463,7 +463,7 @@ static int mv3310_set_edpd(struct phy_device *phydev, u16 edpd)
 		val = MV_PCS_CSCR1_ED_NLP;
 		break;
 
-	case ETHTOOL_PHY_EDPD_NO_TX:
+	case ETHTOOL_PHY_EDPD_ANAL_TX:
 		val = MV_PCS_CSCR1_ED_RX;
 		break;
 
@@ -515,7 +515,7 @@ static int mv3310_probe(struct phy_device *phydev)
 
 	if (!phydev->is_c45 ||
 	    (phydev->c45_ids.devices_in_package & mmd_mask) != mmd_mask)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MV_PMA_BOOT);
 	if (ret < 0)
@@ -524,12 +524,12 @@ static int mv3310_probe(struct phy_device *phydev)
 	if (ret & MV_PMA_BOOT_FATAL) {
 		dev_warn(&phydev->mdio.dev,
 			 "PHY failed to boot firmware, status=%04x\n", ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&phydev->mdio.dev, priv);
 
@@ -552,7 +552,7 @@ static int mv3310_probe(struct phy_device *phydev)
 	if (chip->has_downshift)
 		priv->has_downshift = chip->has_downshift(phydev);
 
-	/* Powering down the port when not in use saves about 600mW */
+	/* Powering down the port when analt in use saves about 600mW */
 	ret = mv3310_power_down(phydev);
 	if (ret)
 		return ret;
@@ -591,7 +591,7 @@ static int mv3310_resume(struct phy_device *phydev)
  * don't set bit 14 in PMA Extended Abilities (1.11), although they do
  * support 2.5GBASET and 5GBASET. For these models, we can still read their
  * 2.5G/5G extended abilities register (1.21). We detect these models based on
- * the PMA device identifier, with a mask matching models known to have this
+ * the PMA device identifier, with a mask matching models kanalwn to have this
  * issue
  */
 static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
@@ -719,7 +719,7 @@ static const struct mv3310_mactype mv2110_mactypes[] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_NA,
 	},
-	[MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER_NO_SGMII_AN] = {
+	[MV_PMA_21X0_PORT_CTRL_MACTYPE_5GBASER_ANAL_SGMII_AN] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_NA,
 	},
@@ -753,7 +753,7 @@ static const struct mv3310_mactype mv3310_mactypes[] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_10GBASER,
 	},
-	[MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_NO_SGMII_AN] = {
+	[MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_ANAL_SGMII_AN] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_10GBASER,
 	},
@@ -774,7 +774,7 @@ static const struct mv3310_mactype mv3340_mactypes[] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_RXAUI,
 	},
-	[MV_V2_3340_PORT_CTRL_MACTYPE_RXAUI_NO_SGMII_AN] = {
+	[MV_V2_3340_PORT_CTRL_MACTYPE_RXAUI_ANAL_SGMII_AN] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_RXAUI,
 	},
@@ -787,7 +787,7 @@ static const struct mv3310_mactype mv3340_mactypes[] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_10GBASER,
 	},
-	[MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_NO_SGMII_AN] = {
+	[MV_V2_33X0_PORT_CTRL_MACTYPE_10GBASER_ANAL_SGMII_AN] = {
 		.valid = true,
 		.interface_10g = PHY_INTERFACE_MODE_10GBASER,
 	},
@@ -827,7 +827,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 
 	/* Check that the PHY interface type is compatible */
 	if (!test_bit(phydev->interface, priv->supported_interfaces))
-		return -ENODEV;
+		return -EANALDEV;
 
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
@@ -870,7 +870,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 
 	/* Allow downshift */
 	err = mv3310_set_downshift(phydev, DOWNSHIFT_DEV_DEFAULT_COUNT);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	return 0;
@@ -948,7 +948,7 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	/* Clause 45 has no standardized support for 1000BaseT, therefore
+	/* Clause 45 has anal standardized support for 1000BaseT, therefore
 	 * use vendor registers for this mode.
 	 */
 	reg = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
@@ -1020,7 +1020,7 @@ static void mv3310_update_interface(struct phy_device *phydev)
 	}
 }
 
-/* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
+/* 10GBASE-ER,LR,LRM,SR do analt support autonegotiation. */
 static int mv3310_read_status_10gbaser(struct phy_device *phydev)
 {
 	phydev->link = 1;
@@ -1047,7 +1047,7 @@ static int mv3310_read_status_copper(struct phy_device *phydev)
 	if (cssr1 < 0)
 		return cssr1;
 
-	/* If the link settings are not resolved, mark the link down */
+	/* If the link settings are analt resolved, mark the link down */
 	if (!(cssr1 & MV_PCS_CSSR1_RESOLVED)) {
 		phydev->link = 0;
 		return 0;
@@ -1113,8 +1113,8 @@ static int mv3310_read_status(struct phy_device *phydev)
 {
 	int err, val;
 
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->speed = SPEED_UNKANALWN;
+	phydev->duplex = DUPLEX_UNKANALWN;
 	linkmode_zero(phydev->lp_advertising);
 	phydev->link = 0;
 	phydev->pause = 0;
@@ -1147,7 +1147,7 @@ static int mv3310_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return mv3310_get_edpd(phydev, data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1160,7 +1160,7 @@ static int mv3310_set_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_EDPD:
 		return mv3310_set_edpd(phydev, *(u16 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1393,7 +1393,7 @@ static int mv3110_set_wol(struct phy_device *phydev,
 			return ret;
 	}
 
-	/* Reset the clear WOL status bit as it does not self-clear */
+	/* Reset the clear WOL status bit as it does analt self-clear */
 	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
 				  MV_V2_WOL_CTRL,
 				  MV_V2_WOL_CTRL_CLEAR_STS);

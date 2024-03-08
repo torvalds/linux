@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_device_info.h"
 #include "pvr_rogue_fwif_client.h"
@@ -17,26 +17,26 @@
 	  .feature = (_feature) }
 
 #define PVR_STREAM_DEF(owner, member, member_size)  \
-	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ ## member_size, 0, PVR_FEATURE_NONE)
+	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ ## member_size, 0, PVR_FEATURE_ANALNE)
 
 #define PVR_STREAM_DEF_FEATURE(owner, member, member_size, feature) \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ ## member_size, 0, feature)
 
-#define PVR_STREAM_DEF_NOT_FEATURE(owner, member, member_size, feature)       \
+#define PVR_STREAM_DEF_ANALT_FEATURE(owner, member, member_size, feature)       \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ ## member_size, 0, \
-			   (feature) | PVR_FEATURE_NOT)
+			   (feature) | PVR_FEATURE_ANALT)
 
 #define PVR_STREAM_DEF_ARRAY(owner, member)                                       \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ARRAY,                  \
-			   sizeof(((struct owner *)0)->member), PVR_FEATURE_NONE)
+			   sizeof(((struct owner *)0)->member), PVR_FEATURE_ANALNE)
 
 #define PVR_STREAM_DEF_ARRAY_FEATURE(owner, member, feature)            \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ARRAY,         \
 			   sizeof(((struct owner *)0)->member), feature)
 
-#define PVR_STREAM_DEF_ARRAY_NOT_FEATURE(owner, member, feature)                             \
+#define PVR_STREAM_DEF_ARRAY_ANALT_FEATURE(owner, member, feature)                             \
 	PVR_STREAM_DEF_SET(owner, member, PVR_STREAM_SIZE_ARRAY,                             \
-			   sizeof(((struct owner *)0)->member), (feature) | PVR_FEATURE_NOT)
+			   sizeof(((struct owner *)0)->member), (feature) | PVR_FEATURE_ANALT)
 
 /*
  * When adding new parameters to the stream definition, the new parameters must go after the
@@ -182,7 +182,7 @@ static const struct pvr_stream_def rogue_fwif_cmd_compute_stream[] = {
 			       PVR_FEATURE_CDM_USER_MODE_QUEUE),
 	PVR_STREAM_DEF_FEATURE(rogue_fwif_cmd_compute, regs.cdm_cb, 64,
 			       PVR_FEATURE_CDM_USER_MODE_QUEUE),
-	PVR_STREAM_DEF_NOT_FEATURE(rogue_fwif_cmd_compute, regs.cdm_ctrl_stream_base, 64,
+	PVR_STREAM_DEF_ANALT_FEATURE(rogue_fwif_cmd_compute, regs.cdm_ctrl_stream_base, 64,
 				   PVR_FEATURE_CDM_USER_MODE_QUEUE),
 	PVR_STREAM_DEF(rogue_fwif_cmd_compute, regs.cdm_context_state_base_addr, 64),
 	PVR_STREAM_DEF(rogue_fwif_cmd_compute, regs.cdm_resume_pds1, 32),

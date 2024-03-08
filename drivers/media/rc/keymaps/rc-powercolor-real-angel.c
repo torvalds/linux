@@ -30,7 +30,7 @@ static struct rc_map_table powercolor_real_angel[] = {
 	{ 0x29, KEY_PREVIOUS },		/* previous channel */
 	{ 0x12, KEY_BRIGHTNESSUP },
 	{ 0x13, KEY_BRIGHTNESSDOWN },
-	{ 0x2b, KEY_MODE },		/* stereo/mono */
+	{ 0x2b, KEY_MODE },		/* stereo/moanal */
 	{ 0x2c, KEY_TEXT },		/* teletext */
 	{ 0x20, KEY_CHANNELUP },	/* channel up */
 	{ 0x21, KEY_CHANNELDOWN },	/* channel down */
@@ -55,7 +55,7 @@ static struct rc_map_list powercolor_real_angel_map = {
 	.map = {
 		.scan     = powercolor_real_angel,
 		.size     = ARRAY_SIZE(powercolor_real_angel),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_POWERCOLOR_REAL_ANGEL,
 	}
 };

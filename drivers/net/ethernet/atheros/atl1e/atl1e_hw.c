@@ -105,7 +105,7 @@ bool atl1e_read_eeprom(struct atl1e_hw *hw, u32 offset, u32 *p_value)
 	u32 control;
 
 	if (offset & 3)
-		return false; /* address do not align */
+		return false; /* address do analt align */
 
 	AT_WRITE_REG(hw, REG_VPD_DATA, 0);
 	control = (offset & VPD_CAP_VPD_ADDR_MASK) << VPD_CAP_VPD_ADDR_SHIFT;
@@ -520,7 +520,7 @@ int atl1e_reset_hw(struct atl1e_hw *hw)
 
 	/*
 	 * Issue Soft Reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA.  It will not effect
+	 * transmit, receive, DMA.  It will analt effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */

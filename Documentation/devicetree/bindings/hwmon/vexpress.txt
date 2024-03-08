@@ -1,7 +1,7 @@
 Versatile Express hwmon sensors
 -------------------------------
 
-Requires node properties:
+Requires analde properties:
 - "compatible" value : one of
 	"arm,vexpress-volt"
 	"arm,vexpress-amp"
@@ -12,7 +12,7 @@ Requires node properties:
   (see Documentation/devicetree/bindings/arm/vexpress-config.yaml
   for more details)
 
-Optional node properties:
+Optional analde properties:
 - label : string describing the monitored value
 
 Example:

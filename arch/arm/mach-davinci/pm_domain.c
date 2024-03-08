@@ -19,7 +19,7 @@ static struct dev_pm_domain davinci_pm_domain = {
 	},
 };
 
-static struct pm_clk_notifier_block platform_bus_notifier = {
+static struct pm_clk_analtifier_block platform_bus_analtifier = {
 	.pm_domain = &davinci_pm_domain,
 	.con_ids = { "fck", "master", "slave", NULL },
 };
@@ -29,8 +29,8 @@ static int __init davinci_pm_runtime_init(void)
 	if (of_have_populated_dt())
 		return 0;
 
-	/* Use pm_clk as fallback if we're not using genpd. */
-	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
+	/* Use pm_clk as fallback if we're analt using genpd. */
+	pm_clk_add_analtifier(&platform_bus_type, &platform_bus_analtifier);
 
 	return 0;
 }

@@ -307,7 +307,7 @@ typedef struct _MPI2_RAID_COMPATIBILITY_RESULT_STRUCT {
 
 /*defines for RAID Compatibility Result Structure State field */
 #define MPI2_RAID_COMPAT_STATE_COMPATIBLE           (0x00)
-#define MPI2_RAID_COMPAT_STATE_NOT_COMPATIBLE       (0x01)
+#define MPI2_RAID_COMPAT_STATE_ANALT_COMPATIBLE       (0x01)
 
 /*defines for RAID Compatibility Result Structure GenericAttributes field */
 #define MPI2_RAID_COMPAT_GENATTRIB_4K_SECTOR            (0x00000010)

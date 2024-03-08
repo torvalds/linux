@@ -4,7 +4,7 @@
  *
  * Author:
  *	Mark Ferrell <mferrell@mvista.com>
- *	Copyright 1999,2000 Nortel Networks
+ *	Copyright 1999,2000 Analrtel Networks
  *
  * Description:
  *	This driver is intended to support the PMC551 PCI Ram device
@@ -12,22 +12,22 @@
  *	cPCI embedded systems.  The device contains a single SROM
  *	that initially programs the V370PDC chipset onboard the
  *	device, and various banks of DRAM/SDRAM onboard.  This driver
- *	implements this PCI Ram device as an MTD (Memory Technology
+ *	implements this PCI Ram device as an MTD (Memory Techanallogy
  *	Device) so that it can be used to hold a file system, or for
  *	added swap space in embedded systems.  Since the memory on
- *	this board isn't as fast as main memory we do not try to hook
+ *	this board isn't as fast as main memory we do analt try to hook
  *	it into main memory as that would simply reduce performance
  *	on the system.  Using it as a block device allows us to use
  *	it as high speed swap or for a high speed disk device of some
  *	sort.  Which becomes very useful on diskless systems in the
  *	embedded market I might add.
  *
- * Notes:
+ * Analtes:
  *	Due to what I assume is more buggy SROM, the 64M PMC551 I
  *	have available claims that all 4 of its DRAM banks have 64MiB
  *	of ram configured (making a grand total of 256MiB onboard).
- *	This is slightly annoying since the BAR0 size reflects the
- *	aperture size, not the dram size, and the V370PDC supplies no
+ *	This is slightly ananalying since the BAR0 size reflects the
+ *	aperture size, analt the dram size, and the V370PDC supplies anal
  *	other method for memory size discovery.  This problem is
  *	mostly only relevant when compiled as a module, as the
  *	unloading of the module with an aperture size smaller than
@@ -38,7 +38,7 @@
  *	an asize option, to allow the specification of the aperture
  *	size.  The aperture must be equal to or less then the memory
  *	size, the driver will correct this if you screw it up.  This
- *	problem is not relevant for compiled in drivers as compiled
+ *	problem is analt relevant for compiled in drivers as compiled
  *	in drivers only init once.
  *
  * Credits:
@@ -56,7 +56,7 @@
  *	out the size via the PCI detection.o, later changes by Corey
  *	Minyard set up the card to utilize a 1M sliding apature.
  *
- *	Corey Minyard <minyard@nortelnetworks.com>
+ *	Corey Minyard <minyard@analrtelnetworks.com>
  *	* Modified driver to utilize a sliding aperture instead of
  *	 mapping all memory into kernel space which turned out to
  *	 be very wasteful.
@@ -65,8 +65,8 @@
  *	 the DRAM some.
  *
  * Bugs/FIXMEs:
- *	* MUST fix the init function to not spin on a register
- *	waiting for it to set .. this does not safely handle busted
+ *	* MUST fix the init function to analt spin on a register
+ *	waiting for it to set .. this does analt safely handle busted
  *	devices that never reset the register correctly which will
  *	cause the system to hang w/ a reboot being the only chance at
  *	recover. [sort of fixed, could be better]
@@ -93,7 +93,7 @@
 #include <linux/mtd/mtd.h>
 
 #define PMC551_VERSION \
-	"Ramix PMC551 PCI Mezzanine Ram Driver. (C) 1999,2000 Nortel Networks.\n"
+	"Ramix PMC551 PCI Mezzanine Ram Driver. (C) 1999,2000 Analrtel Networks.\n"
 
 #define PCI_VENDOR_ID_V3_SEMI 0x11b0
 #define PCI_DEVICE_ID_V3_SEMI_V370PDC 0x0200
@@ -355,7 +355,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 
 	/* Sanity Check */
 	if (!dev) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -399,7 +399,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	pci_write_config_dword(dev, PMC551_PCI_MEM_MAP0, dtmp);
 	/*
 	 * Grab old BAR0 config so that we can figure out memory size
-	 * This is another bit of kludge going on.  The reason for the
+	 * This is aanalther bit of kludge going on.  The reason for the
 	 * redundancy is I am hoping to retain the original configuration
 	 * previously assigned to the card by the BIOS or some previous
 	 * fixup routine in the kernel.  So we read the old config into cfg,
@@ -450,12 +450,12 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	 * Oops .. something went wrong
 	 */
 	if ((size &= PCI_BASE_ADDRESS_MEM_MASK) == 0) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #endif				/* CONFIG_MTD_PMC551_BUGFIX */
 
 	if ((cfg & PCI_BASE_ADDRESS_SPACE) != PCI_BASE_ADDRESS_SPACE_MEMORY) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -477,7 +477,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	/*
 	 * Turn on auto refresh
 	 * The loop is taken directly from Ramix's example code.  I assume that
-	 * this must be held high for some duration of time, but I can find no
+	 * this must be held high for some duration of time, but I can find anal
 	 * documentation refrencing the reasons why.
 	 */
 	for (i = 1; i <= 8; i++) {
@@ -514,7 +514,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	pci_write_config_dword(dev, PMC551_DRAM_CFG, dcmd);
 
 	/*
-	 * Check to make certain fast back-to-back, if not
+	 * Check to make certain fast back-to-back, if analt
 	 * then set it so
 	 */
 	pci_read_config_word(dev, PCI_STATUS, &cmd);
@@ -555,7 +555,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		"0x%llx\n", (size < 1024) ? size : (size < 1048576) ?
 		size >> 10 : size >> 20,
 		(size < 1024) ? "" : (size < 1048576) ? "Ki" : "Mi", size,
-		((dcmd & (0x1 << 3)) == 0) ? "non-" : "",
+		((dcmd & (0x1 << 3)) == 0) ? "analn-" : "",
 		(unsigned long long)pci_resource_start(dev, 0));
 
 	/*
@@ -614,7 +614,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		((PCI_STATUS_DEVSEL_MASK & cmd) == 0x400) ? "Slow" : "Invalid");
 
 	printk(KERN_DEBUG "pmc551: %sFast Back-to-Back\n",
-		((PCI_COMMAND_FAST_BACK & cmd) == 0) ? "Not " : "");
+		((PCI_COMMAND_FAST_BACK & cmd) == 0) ? "Analt " : "");
 
 	pci_read_config_byte(dev, PMC551_SYS_CTRL_REG, &bcmd);
 	printk(KERN_DEBUG "pmc551: EEPROM is under %s control\n"
@@ -635,7 +635,7 @@ MODULE_AUTHOR("Mark Ferrell <mferrell@mvista.com>");
 MODULE_DESCRIPTION(PMC551_VERSION);
 
 /*
- * Stuff these outside the ifdef so as to not bust compiled in driver support
+ * Stuff these outside the ifdef so as to analt bust compiled in driver support
  */
 static int msize = 0;
 static int asize = 0;
@@ -659,7 +659,7 @@ static int __init init_pmc551(void)
 	if (msize) {
 		msize = (1 << (ffs(msize) - 1)) << 20;
 		if (msize > (1 << 30)) {
-			printk(KERN_NOTICE "pmc551: Invalid memory size [%d]\n",
+			printk(KERN_ANALTICE "pmc551: Invalid memory size [%d]\n",
 				msize);
 			return -EINVAL;
 		}
@@ -668,7 +668,7 @@ static int __init init_pmc551(void)
 	if (asize) {
 		asize = (1 << (ffs(asize) - 1)) << 20;
 		if (asize > (1 << 30)) {
-			printk(KERN_NOTICE "pmc551: Invalid aperture size "
+			printk(KERN_ANALTICE "pmc551: Invalid aperture size "
 				"[%d]\n", asize);
 			return -EINVAL;
 		}
@@ -687,19 +687,19 @@ static int __init init_pmc551(void)
 			break;
 		}
 
-		printk(KERN_NOTICE "pmc551: Found PCI V370PDC at 0x%llx\n",
+		printk(KERN_ANALTICE "pmc551: Found PCI V370PDC at 0x%llx\n",
 			(unsigned long long)pci_resource_start(PCI_Device, 0));
 
 		/*
 		 * The PMC551 device acts VERY weird if you don't init it
-		 * first.  i.e. it will not correctly report devsel.  If for
+		 * first.  i.e. it will analt correctly report devsel.  If for
 		 * some reason the sdram is in a wrote-protected state the
 		 * device will DEVSEL when it is written to causing problems
 		 * with the oldproc.c driver in
 		 * some kernels (2.2.*)
 		 */
 		if ((length = fixup_pmc551(PCI_Device)) <= 0) {
-			printk(KERN_NOTICE "pmc551: Cannot init SDRAM\n");
+			printk(KERN_ANALTICE "pmc551: Cananalt init SDRAM\n");
 			break;
 		}
 
@@ -709,7 +709,7 @@ static int __init init_pmc551(void)
 		 */
 		if (msize) {
 			length = msize;
-			printk(KERN_NOTICE "pmc551: Using specified memory "
+			printk(KERN_ANALTICE "pmc551: Using specified memory "
 				"size 0x%x\n", length);
 		} else {
 			msize = length;
@@ -728,22 +728,22 @@ static int __init init_pmc551(void)
 		priv->dev = PCI_Device;
 
 		if (asize > length) {
-			printk(KERN_NOTICE "pmc551: reducing aperture size to "
+			printk(KERN_ANALTICE "pmc551: reducing aperture size to "
 				"fit %dM\n", length >> 20);
 			priv->asize = asize = length;
 		} else if (asize == 0 || asize == length) {
-			printk(KERN_NOTICE "pmc551: Using existing aperture "
+			printk(KERN_ANALTICE "pmc551: Using existing aperture "
 				"size %dM\n", length >> 20);
 			priv->asize = asize = length;
 		} else {
-			printk(KERN_NOTICE "pmc551: Using specified aperture "
+			printk(KERN_ANALTICE "pmc551: Using specified aperture "
 				"size %dM\n", asize >> 20);
 			priv->asize = asize;
 		}
 		priv->start = pci_iomap(PCI_Device, 0, priv->asize);
 
 		if (!priv->start) {
-			printk(KERN_NOTICE "pmc551: Unable to map IO space\n");
+			printk(KERN_ANALTICE "pmc551: Unable to map IO space\n");
 			kfree(mtd->priv);
 			kfree(mtd);
 			break;
@@ -779,7 +779,7 @@ static int __init init_pmc551(void)
 		mtd->owner = THIS_MODULE;
 
 		if (mtd_device_register(mtd, NULL, 0)) {
-			printk(KERN_NOTICE "pmc551: Failed to register new device\n");
+			printk(KERN_ANALTICE "pmc551: Failed to register new device\n");
 			pci_iounmap(PCI_Device, priv->start);
 			kfree(mtd->priv);
 			kfree(mtd);
@@ -789,11 +789,11 @@ static int __init init_pmc551(void)
 		/* Keep a reference as the mtd_device_register worked */
 		pci_dev_get(PCI_Device);
 
-		printk(KERN_NOTICE "Registered pmc551 memory device.\n");
-		printk(KERN_NOTICE "Mapped %dMiB of memory from 0x%p to 0x%p\n",
+		printk(KERN_ANALTICE "Registered pmc551 memory device.\n");
+		printk(KERN_ANALTICE "Mapped %dMiB of memory from 0x%p to 0x%p\n",
 			priv->asize >> 20,
 			priv->start, priv->start + priv->asize);
-		printk(KERN_NOTICE "Total memory is %d%sB\n",
+		printk(KERN_ANALTICE "Total memory is %d%sB\n",
 			(length < 1024) ? length :
 			(length < 1048576) ? length >> 10 : length >> 20,
 			(length < 1024) ? "" : (length < 1048576) ? "Ki" : "Mi");
@@ -806,10 +806,10 @@ static int __init init_pmc551(void)
 	pci_dev_put(PCI_Device);
 
 	if (!pmc551list) {
-		printk(KERN_NOTICE "pmc551: not detected\n");
-		return -ENODEV;
+		printk(KERN_ANALTICE "pmc551: analt detected\n");
+		return -EANALDEV;
 	} else {
-		printk(KERN_NOTICE "pmc551: %d pmc551 devices loaded\n", found);
+		printk(KERN_ANALTICE "pmc551: %d pmc551 devices loaded\n", found);
 		return 0;
 	}
 }
@@ -840,7 +840,7 @@ static void __exit cleanup_pmc551(void)
 		found++;
 	}
 
-	printk(KERN_NOTICE "pmc551: %d pmc551 devices unloaded\n", found);
+	printk(KERN_ANALTICE "pmc551: %d pmc551 devices unloaded\n", found);
 }
 
 module_init(init_pmc551);

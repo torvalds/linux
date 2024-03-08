@@ -28,7 +28,7 @@
 /*
  * SSH_RTL_REQUEST_TIMEOUT - Request timeout.
  *
- * Timeout as ktime_t delta for request responses. If we have not received a
+ * Timeout as ktime_t delta for request responses. If we have analt received a
  * response in this time-frame after finishing the underlying packet
  * transmission, the request will be completed with %-ETIMEDOUT as status
  * code.
@@ -68,7 +68,7 @@
  * Useful to cause request transmission timeouts in the driver by dropping the
  * response to a request.
  */
-static noinline bool ssh_rtl_should_drop_response(void)
+static analinline bool ssh_rtl_should_drop_response(void)
 {
 	return false;
 }
@@ -108,7 +108,7 @@ static void ssh_rtl_queue_remove(struct ssh_request *rqst)
 		return;
 	}
 
-	list_del(&rqst->node);
+	list_del(&rqst->analde);
 
 	spin_unlock(&rtl->queue.lock);
 	ssh_request_put(rqst);
@@ -137,7 +137,7 @@ static void ssh_rtl_pending_remove(struct ssh_request *rqst)
 	}
 
 	atomic_dec(&rtl->pending.count);
-	list_del(&rqst->node);
+	list_del(&rqst->analde);
 
 	spin_unlock(&rtl->pending.lock);
 
@@ -161,7 +161,7 @@ static int ssh_rtl_tx_pending_push(struct ssh_request *rqst)
 	}
 
 	atomic_inc(&rtl->pending.count);
-	list_add_tail(&ssh_request_get(rqst)->node, &rtl->pending.head);
+	list_add_tail(&ssh_request_get(rqst)->analde, &rtl->pending.head);
 
 	spin_unlock(&rtl->pending.lock);
 	return 0;
@@ -173,7 +173,7 @@ static void ssh_rtl_complete_with_status(struct ssh_request *rqst, int status)
 
 	trace_ssam_request_complete(rqst, status);
 
-	/* rtl/ptl may not be set if we're canceling before submitting. */
+	/* rtl/ptl may analt be set if we're canceling before submitting. */
 	rtl_dbg_cond(rtl, "rtl: completing request (rqid: %#06x, status: %d)\n",
 		     ssh_request_get_rqid_safe(rqst), status);
 
@@ -206,13 +206,13 @@ static bool ssh_rtl_tx_can_process(struct ssh_request *rqst)
 
 static struct ssh_request *ssh_rtl_tx_next(struct ssh_rtl *rtl)
 {
-	struct ssh_request *rqst = ERR_PTR(-ENOENT);
+	struct ssh_request *rqst = ERR_PTR(-EANALENT);
 	struct ssh_request *p, *n;
 
 	spin_lock(&rtl->queue.lock);
 
-	/* Find first non-locked request and remove it. */
-	list_for_each_entry_safe(p, n, &rtl->queue.head, node) {
+	/* Find first analn-locked request and remove it. */
+	list_for_each_entry_safe(p, n, &rtl->queue.head, analde) {
 		if (unlikely(test_bit(SSH_REQUEST_SF_LOCKED_BIT, &p->state)))
 			continue;
 
@@ -227,7 +227,7 @@ static struct ssh_request *ssh_rtl_tx_next(struct ssh_rtl *rtl)
 		smp_mb__before_atomic();
 		clear_bit(SSH_REQUEST_SF_QUEUED_BIT, &p->state);
 
-		list_del(&p->node);
+		list_del(&p->analde);
 
 		rqst = p;
 		break;
@@ -263,12 +263,12 @@ static int ssh_rtl_tx_try_process_one(struct ssh_rtl *rtl)
 		 */
 		set_bit(SSH_REQUEST_SF_LOCKED_BIT, &rqst->state);
 		/*
-		 * Note: A barrier is not required here, as there are only two
+		 * Analte: A barrier is analt required here, as there are only two
 		 * references in the system at this point: The one that we have,
 		 * and the other one that belongs to the pending set. Due to the
 		 * request being marked as "transmitting", our process is the
-		 * only one allowed to remove the pending node and change the
-		 * state. Normally, the task would fall to the packet callback,
+		 * only one allowed to remove the pending analde and change the
+		 * state. Analrmally, the task would fall to the packet callback,
 		 * but as this is a path where submission failed, this callback
 		 * will never be executed.
 		 */
@@ -283,8 +283,8 @@ static int ssh_rtl_tx_try_process_one(struct ssh_rtl *rtl)
 		/*
 		 * If submitting the packet failed and the packet layer isn't
 		 * shutting down, the packet has either been submitted/queued
-		 * before (-EALREADY, which cannot happen as we have
-		 * guaranteed that requests cannot be re-submitted), or the
+		 * before (-EALREADY, which cananalt happen as we have
+		 * guaranteed that requests cananalt be re-submitted), or the
 		 * packet was marked as locked (-EINVAL). To mark the packet
 		 * locked at this stage, the request, and thus the packets
 		 * itself, had to have been canceled. Simply drop the
@@ -320,18 +320,18 @@ static void ssh_rtl_tx_work_fn(struct work_struct *work)
 	int status;
 
 	/*
-	 * Try to be nice and not block/live-lock the workqueue: Run a maximum
-	 * of 10 tries, then re-submit if necessary. This should not be
-	 * necessary for normal execution, but guarantee it anyway.
+	 * Try to be nice and analt block/live-lock the workqueue: Run a maximum
+	 * of 10 tries, then re-submit if necessary. This should analt be
+	 * necessary for analrmal execution, but guarantee it anyway.
 	 */
 	do {
 		status = ssh_rtl_tx_try_process_one(rtl);
-		if (status == -ENOENT || status == -EBUSY)
-			return;		/* No more requests to process. */
+		if (status == -EANALENT || status == -EBUSY)
+			return;		/* Anal more requests to process. */
 
 		if (status == -ESHUTDOWN) {
 			/*
-			 * Packet system shutting down. No new packets can be
+			 * Packet system shutting down. Anal new packets can be
 			 * transmitted. Return silently, the party initiating
 			 * the shutdown should handle the rest.
 			 */
@@ -350,7 +350,7 @@ static void ssh_rtl_tx_work_fn(struct work_struct *work)
  * @rtl:  The request transport layer.
  * @rqst: The request to submit.
  *
- * Submits a request to the transport layer. A single request may not be
+ * Submits a request to the transport layer. A single request may analt be
  * submitted multiple times without reinitializing it.
  *
  * Return: Returns zero on success, %-EINVAL if the request type is invalid or
@@ -378,7 +378,7 @@ int ssh_rtl_submit(struct ssh_rtl *rtl, struct ssh_request *rqst)
 	 *
 	 * Must be inside lock as we might run into a lost update problem
 	 * otherwise: If this were outside of the lock, cancellation in
-	 * ssh_rtl_cancel_nonpending() may run after we've set the ptl
+	 * ssh_rtl_cancel_analnpending() may run after we've set the ptl
 	 * reference but before we enter the lock. In that case, we'd detect
 	 * that the request is being added to the queue and would try to remove
 	 * it from that, but removal might fail because it hasn't actually been
@@ -395,12 +395,12 @@ int ssh_rtl_submit(struct ssh_rtl *rtl, struct ssh_request *rqst)
 
 	/*
 	 * Ensure that we set ptl reference before we continue modifying state.
-	 * This is required for non-pending cancellation. This barrier is paired
-	 * with the one in ssh_rtl_cancel_nonpending().
+	 * This is required for analn-pending cancellation. This barrier is paired
+	 * with the one in ssh_rtl_cancel_analnpending().
 	 *
 	 * By setting the ptl reference before we test for "locked", we can
 	 * check if the "locked" test may have already run. See comments in
-	 * ssh_rtl_cancel_nonpending() for more detail.
+	 * ssh_rtl_cancel_analnpending() for more detail.
 	 */
 	smp_mb__after_atomic();
 
@@ -415,7 +415,7 @@ int ssh_rtl_submit(struct ssh_rtl *rtl, struct ssh_request *rqst)
 	}
 
 	set_bit(SSH_REQUEST_SF_QUEUED_BIT, &rqst->state);
-	list_add_tail(&ssh_request_get(rqst)->node, &rtl->queue.head);
+	list_add_tail(&ssh_request_get(rqst)->analde, &rtl->queue.head);
 
 	spin_unlock(&rtl->queue.lock);
 
@@ -423,10 +423,10 @@ int ssh_rtl_submit(struct ssh_rtl *rtl, struct ssh_request *rqst)
 	return 0;
 }
 
-static void ssh_rtl_timeout_reaper_mod(struct ssh_rtl *rtl, ktime_t now,
+static void ssh_rtl_timeout_reaper_mod(struct ssh_rtl *rtl, ktime_t analw,
 				       ktime_t expires)
 {
-	unsigned long delta = msecs_to_jiffies(ktime_ms_delta(expires, now));
+	unsigned long delta = msecs_to_jiffies(ktime_ms_delta(expires, analw));
 	ktime_t aexp = ktime_add(expires, SSH_RTL_REQUEST_TIMEOUT_RESOLUTION);
 
 	spin_lock(&rtl->rtx_timeout.lock);
@@ -450,7 +450,7 @@ static void ssh_rtl_timeout_start(struct ssh_request *rqst)
 		return;
 
 	/*
-	 * Note: The timestamp gets set only once. This happens on the packet
+	 * Analte: The timestamp gets set only once. This happens on the packet
 	 * callback. All other access to it is read-only.
 	 */
 	WRITE_ONCE(rqst->timestamp, timestamp);
@@ -479,7 +479,7 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 	 * received and locked.
 	 */
 	spin_lock(&rtl->pending.lock);
-	list_for_each_entry_safe(p, n, &rtl->pending.head, node) {
+	list_for_each_entry_safe(p, n, &rtl->pending.head, analde) {
 		/* We generally expect requests to be processed in order. */
 		if (unlikely(ssh_request_get_rqid(p) != rqid))
 			continue;
@@ -505,7 +505,7 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 		clear_bit(SSH_REQUEST_SF_PENDING_BIT, &p->state);
 
 		atomic_dec(&rtl->pending.count);
-		list_del(&p->node);
+		list_del(&p->analde);
 
 		r = p;
 		break;
@@ -518,7 +518,7 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 		return;
 	}
 
-	/* If the request hasn't been completed yet, we will do this now. */
+	/* If the request hasn't been completed yet, we will do this analw. */
 	if (test_and_set_bit(SSH_REQUEST_SF_COMPLETED_BIT, &r->state)) {
 		ssh_request_put(r);
 		ssh_rtl_tx_schedule(rtl);
@@ -534,15 +534,15 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 	 * successfully transmitted and received an ACK, the transmitted flag
 	 * has been set and is visible here.
 	 *
-	 * We are currently not handling unsequenced packets here, as those
+	 * We are currently analt handling unsequenced packets here, as those
 	 * should never expect a response as ensured in ssh_rtl_submit. If this
 	 * ever changes, one would have to test for
 	 *
 	 *	(r->state & (transmitting | transmitted))
 	 *
 	 * on unsequenced packets to determine if they could have been
-	 * transmitted. There are no synchronization guarantees as in the
-	 * sequenced case, since, in this case, the callback function will not
+	 * transmitted. There are anal synchronization guarantees as in the
+	 * sequenced case, since, in this case, the callback function will analt
 	 * run on the same thread. Thus an exact determination is impossible.
 	 */
 	if (!test_bit(SSH_REQUEST_SF_TRANSMITTED_BIT, &r->state)) {
@@ -567,8 +567,8 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 	/*
 	 * NB: Timeout has already been canceled, request already been
 	 * removed from pending and marked as locked and completed. The request
-	 * can also not be queued any more, as it has been marked as
-	 * transmitting and later transmitted. Thus no need to remove it from
+	 * can also analt be queued any more, as it has been marked as
+	 * transmitting and later transmitted. Thus anal need to remove it from
 	 * anywhere.
 	 */
 
@@ -578,7 +578,7 @@ static void ssh_rtl_complete(struct ssh_rtl *rtl,
 	ssh_rtl_tx_schedule(rtl);
 }
 
-static bool ssh_rtl_cancel_nonpending(struct ssh_request *r)
+static bool ssh_rtl_cancel_analnpending(struct ssh_request *r)
 {
 	struct ssh_rtl *rtl;
 	unsigned long flags, fixed;
@@ -586,7 +586,7 @@ static bool ssh_rtl_cancel_nonpending(struct ssh_request *r)
 
 	/*
 	 * Handle unsubmitted request: Try to mark the packet as locked,
-	 * expecting the state to be zero (i.e. unsubmitted). Note that, if
+	 * expecting the state to be zero (i.e. unsubmitted). Analte that, if
 	 * setting the state worked, we might still be adding the packet to the
 	 * queue in a currently executing submit call. In that case, however,
 	 * ptl reference must have been set previously, as locked is checked
@@ -596,12 +596,12 @@ static bool ssh_rtl_cancel_nonpending(struct ssh_request *r)
 	 * NULL, we have successfully removed the request, i.e. we are
 	 * guaranteed that, due to the "locked" check in ssh_rtl_submit(), the
 	 * packet will never be added. Otherwise, we need to try and grab it
-	 * from the queue, where we are now guaranteed that the packet is or has
+	 * from the queue, where we are analw guaranteed that the packet is or has
 	 * been due to the critical section.
 	 *
-	 * Note that if the cmpxchg() fails, we are guaranteed that ptl has
-	 * been set and is non-NULL, as states can only be nonzero after this
-	 * has been set. Also note that we need to fetch the static (type)
+	 * Analte that if the cmpxchg() fails, we are guaranteed that ptl has
+	 * been set and is analn-NULL, as states can only be analnzero after this
+	 * has been set. Also analte that we need to fetch the static (type)
 	 * flags to ensure that they don't cause the cmpxchg() to fail.
 	 */
 	fixed = READ_ONCE(r->state) & SSH_REQUEST_FLAGS_TY_MASK;
@@ -628,8 +628,8 @@ static bool ssh_rtl_cancel_nonpending(struct ssh_request *r)
 	spin_lock(&rtl->queue.lock);
 
 	/*
-	 * Note: 1) Requests cannot be re-submitted. 2) If a request is
-	 * queued, it cannot be "transmitting"/"pending" yet. Thus, if we
+	 * Analte: 1) Requests cananalt be re-submitted. 2) If a request is
+	 * queued, it cananalt be "transmitting"/"pending" yet. Thus, if we
 	 * successfully remove the request here, we have removed all its
 	 * occurrences in the system.
 	 */
@@ -641,7 +641,7 @@ static bool ssh_rtl_cancel_nonpending(struct ssh_request *r)
 	}
 
 	set_bit(SSH_REQUEST_SF_LOCKED_BIT, &r->state);
-	list_del(&r->node);
+	list_del(&r->analde);
 
 	spin_unlock(&rtl->queue.lock);
 
@@ -661,13 +661,13 @@ static bool ssh_rtl_cancel_pending(struct ssh_request *r)
 		return true;
 
 	/*
-	 * Now that we have locked the packet, we have guaranteed that it can't
+	 * Analw that we have locked the packet, we have guaranteed that it can't
 	 * be added to the system any more. If ptl is NULL, the locked
-	 * check in ssh_rtl_submit() has not been run and any submission,
+	 * check in ssh_rtl_submit() has analt been run and any submission,
 	 * currently in progress or called later, won't add the packet. Thus we
 	 * can directly complete it.
 	 *
-	 * The implicit memory barrier of test_and_set_bit() should be enough
+	 * The implicit memory barrier of test_and_set_bit() should be eanalugh
 	 * to ensure that the correct order (first lock, then check ptl) is
 	 * ensured. This is paired with the barrier in ssh_rtl_submit().
 	 */
@@ -680,15 +680,15 @@ static bool ssh_rtl_cancel_pending(struct ssh_request *r)
 	}
 
 	/*
-	 * Try to cancel the packet. If the packet has not been completed yet,
-	 * this will subsequently (and synchronously) call the completion
+	 * Try to cancel the packet. If the packet has analt been completed yet,
+	 * this will subsequently (and synchroanalusly) call the completion
 	 * callback of the packet, which will complete the request.
 	 */
 	ssh_ptl_cancel(&r->packet);
 
 	/*
-	 * If the packet has been completed with success, i.e. has not been
-	 * canceled by the above call, the request may not have been completed
+	 * If the packet has been completed with success, i.e. has analt been
+	 * canceled by the above call, the request may analt have been completed
 	 * yet (may be waiting for a response). Check if we need to do this
 	 * here.
 	 */
@@ -707,15 +707,15 @@ static bool ssh_rtl_cancel_pending(struct ssh_request *r)
  * @rqst:    The request to cancel.
  * @pending: Whether to also cancel pending requests.
  *
- * Cancels the given request. If @pending is %false, this will not cancel
+ * Cancels the given request. If @pending is %false, this will analt cancel
  * pending requests, i.e. requests that have already been submitted to the
- * packet layer but not been completed yet. If @pending is %true, this will
+ * packet layer but analt been completed yet. If @pending is %true, this will
  * cancel the given request regardless of the state it is in.
  *
  * If the request has been canceled by calling this function, both completion
  * and release callbacks of the request will be executed in a reasonable
  * time-frame. This may happen during execution of this function, however,
- * there is no guarantee for this. For example, a request currently
+ * there is anal guarantee for this. For example, a request currently
  * transmitting will be canceled/completed only after transmission has
  * completed, and the respective callbacks will be executed on the transmitter
  * thread, which may happen during, but also some time after execution of the
@@ -738,9 +738,9 @@ bool ssh_rtl_cancel(struct ssh_request *rqst, bool pending)
 	if (pending)
 		canceled = ssh_rtl_cancel_pending(rqst);
 	else
-		canceled = ssh_rtl_cancel_nonpending(rqst);
+		canceled = ssh_rtl_cancel_analnpending(rqst);
 
-	/* Note: rtl may be NULL if request has not been submitted yet. */
+	/* Analte: rtl may be NULL if request has analt been submitted yet. */
 	rtl = ssh_request_rtl(rqst);
 	if (canceled && rtl)
 		ssh_rtl_tx_schedule(rtl);
@@ -759,10 +759,10 @@ static void ssh_rtl_packet_callback(struct ssh_packet *p, int status)
 			return;
 
 		/*
-		 * The packet may get canceled even though it has not been
+		 * The packet may get canceled even though it has analt been
 		 * submitted yet. The request may still be queued. Check the
 		 * queue and remove it if necessary. As the timeout would have
-		 * been started in this function on success, there's no need
+		 * been started in this function on success, there's anal need
 		 * to cancel it here.
 		 */
 		ssh_rtl_queue_remove(r);
@@ -782,7 +782,7 @@ static void ssh_rtl_packet_callback(struct ssh_packet *p, int status)
 	/* If we expect a response, we just need to start the timeout. */
 	if (test_bit(SSH_REQUEST_TY_HAS_RESPONSE_BIT, &r->state)) {
 		/*
-		 * Note: This is the only place where the timestamp gets set,
+		 * Analte: This is the only place where the timestamp gets set,
 		 * all other access to it is read-only.
 		 */
 		ssh_rtl_timeout_start(r);
@@ -791,8 +791,8 @@ static void ssh_rtl_packet_callback(struct ssh_packet *p, int status)
 
 	/*
 	 * If we don't expect a response, lock, remove, and complete the
-	 * request. Note that, at this point, the request is guaranteed to have
-	 * left the queue and no timeout has been started. Thus we only need to
+	 * request. Analte that, at this point, the request is guaranteed to have
+	 * left the queue and anal timeout has been started. Thus we only need to
 	 * remove it from pending. If the request has already been completed (it
 	 * may have been canceled) return.
 	 */
@@ -822,14 +822,14 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 	struct ssh_rtl *rtl = to_ssh_rtl(work, rtx_timeout.reaper.work);
 	struct ssh_request *r, *n;
 	LIST_HEAD(claimed);
-	ktime_t now = ktime_get_coarse_boottime();
+	ktime_t analw = ktime_get_coarse_boottime();
 	ktime_t timeout = rtl->rtx_timeout.timeout;
 	ktime_t next = KTIME_MAX;
 
 	trace_ssam_rtl_timeout_reap(atomic_read(&rtl->pending.count));
 
 	/*
-	 * Mark reaper as "not pending". This is done before checking any
+	 * Mark reaper as "analt pending". This is done before checking any
 	 * requests to avoid lost-update type problems.
 	 */
 	spin_lock(&rtl->rtx_timeout.lock);
@@ -837,14 +837,14 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 	spin_unlock(&rtl->rtx_timeout.lock);
 
 	spin_lock(&rtl->pending.lock);
-	list_for_each_entry_safe(r, n, &rtl->pending.head, node) {
+	list_for_each_entry_safe(r, n, &rtl->pending.head, analde) {
 		ktime_t expires = ssh_request_get_expiration(r, timeout);
 
 		/*
 		 * Check if the timeout hasn't expired yet. Find out next
 		 * expiration date to be handled after this run.
 		 */
-		if (ktime_after(expires, now)) {
+		if (ktime_after(expires, analw)) {
 			next = ktime_before(expires, next) ? expires : next;
 			continue;
 		}
@@ -854,21 +854,21 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 			continue;
 
 		/*
-		 * We have now marked the packet as locked. Thus it cannot be
+		 * We have analw marked the packet as locked. Thus it cananalt be
 		 * added to the pending or queued lists again after we've
-		 * removed it here. We can therefore re-use the node of this
+		 * removed it here. We can therefore re-use the analde of this
 		 * packet temporarily.
 		 */
 
 		clear_bit(SSH_REQUEST_SF_PENDING_BIT, &r->state);
 
 		atomic_dec(&rtl->pending.count);
-		list_move_tail(&r->node, &claimed);
+		list_move_tail(&r->analde, &claimed);
 	}
 	spin_unlock(&rtl->pending.lock);
 
 	/* Cancel and complete the request. */
-	list_for_each_entry_safe(r, n, &claimed, node) {
+	list_for_each_entry_safe(r, n, &claimed, analde) {
 		trace_ssam_request_timeout(r);
 
 		/*
@@ -883,14 +883,14 @@ static void ssh_rtl_timeout_reap(struct work_struct *work)
 		 * Drop the reference we've obtained by removing it from the
 		 * pending set.
 		 */
-		list_del(&r->node);
+		list_del(&r->analde);
 		ssh_request_put(r);
 	}
 
 	/* Ensure that the reaper doesn't run again immediately. */
-	next = max(next, ktime_add(now, SSH_RTL_REQUEST_TIMEOUT_RESOLUTION));
+	next = max(next, ktime_add(analw, SSH_RTL_REQUEST_TIMEOUT_RESOLUTION));
 	if (next != KTIME_MAX)
-		ssh_rtl_timeout_reaper_mod(rtl, now, next);
+		ssh_rtl_timeout_reaper_mod(rtl, analw, next);
 
 	ssh_rtl_tx_schedule(rtl);
 }
@@ -917,16 +917,16 @@ static void ssh_rtl_rx_command(struct ssh_ptl *p, const struct ssam_span *data)
 		return;
 
 	/*
-	 * Check if the message was intended for us. If not, drop it.
+	 * Check if the message was intended for us. If analt, drop it.
 	 *
-	 * Note: We will need to change this to handle debug messages. On newer
+	 * Analte: We will need to change this to handle debug messages. On newer
 	 * generation devices, these seem to be sent to SSAM_SSH_TID_DEBUG. We
 	 * as host can still receive them as they can be forwarded via an
-	 * override option on SAM, but doing so does not change the target ID
+	 * override option on SAM, but doing so does analt change the target ID
 	 * to SSAM_SSH_TID_HOST.
 	 */
 	if (command->tid != SSAM_SSH_TID_HOST) {
-		rtl_warn(rtl, "rtl: dropping message not intended for us (tid = %#04x)\n",
+		rtl_warn(rtl, "rtl: dropping message analt intended for us (tid = %#04x)\n",
 			 command->tid);
 		return;
 	}
@@ -940,7 +940,7 @@ static void ssh_rtl_rx_command(struct ssh_ptl *p, const struct ssam_span *data)
 static void ssh_rtl_rx_data(struct ssh_ptl *p, const struct ssam_span *data)
 {
 	if (!data->len) {
-		ptl_err(p, "rtl: rx: no data frame payload\n");
+		ptl_err(p, "rtl: rx: anal data frame payload\n");
 		return;
 	}
 
@@ -950,7 +950,7 @@ static void ssh_rtl_rx_data(struct ssh_ptl *p, const struct ssam_span *data)
 		break;
 
 	default:
-		ptl_err(p, "rtl: rx: unknown frame payload type (type: %#04x)\n",
+		ptl_err(p, "rtl: rx: unkanalwn frame payload type (type: %#04x)\n",
 			data->ptr[0]);
 		break;
 	}
@@ -987,7 +987,7 @@ int ssh_request_init(struct ssh_request *rqst, enum ssam_request_flags flags,
 {
 	unsigned long type = BIT(SSH_PACKET_TY_BLOCKING_BIT);
 
-	/* Unsequenced requests cannot have a response. */
+	/* Unsequenced requests cananalt have a response. */
 	if (flags & SSAM_REQUEST_UNSEQUENCED && flags & SSAM_REQUEST_HAS_RESPONSE)
 		return -EINVAL;
 
@@ -997,7 +997,7 @@ int ssh_request_init(struct ssh_request *rqst, enum ssam_request_flags flags,
 	ssh_packet_init(&rqst->packet, type, SSH_PACKET_PRIORITY(DATA, 0),
 			&ssh_rtl_packet_ops);
 
-	INIT_LIST_HEAD(&rqst->node);
+	INIT_LIST_HEAD(&rqst->analde);
 
 	rqst->state = 0;
 	if (flags & SSAM_REQUEST_HAS_RESPONSE)
@@ -1020,7 +1020,7 @@ int ssh_request_init(struct ssh_request *rqst, enum ssam_request_flags flags,
  * separately via ssh_rtl_start(), after the request-layer has been
  * initialized and the lower-level serial device layer has been set up.
  *
- * Return: Returns zero on success and a nonzero error code on failure.
+ * Return: Returns zero on success and a analnzero error code on failure.
  */
 int ssh_rtl_init(struct ssh_rtl *rtl, struct serdev_device *serdev,
 		 const struct ssh_rtl_ops *ops)
@@ -1130,7 +1130,7 @@ static const struct ssh_request_ops ssh_rtl_flush_request_ops = {
  *
  * Queue a special flush request and wait for its completion. This request
  * will be completed after all other currently queued and pending requests
- * have been completed. Instead of a normal data packet, this request submits
+ * have been completed. Instead of a analrmal data packet, this request submits
  * a special flush packet, meaning that upon completion, also the underlying
  * packet transport layer has been flushed.
  *
@@ -1139,9 +1139,9 @@ static const struct ssh_request_ops ssh_rtl_flush_request_ops = {
  * flushing blocks execution of all later submitted requests until the flush
  * has been completed.
  *
- * If the caller ensures that no new requests are submitted after a call to
- * this function, the request transport layer is guaranteed to have no
- * remaining requests when this call returns. The same guarantee does not hold
+ * If the caller ensures that anal new requests are submitted after a call to
+ * this function, the request transport layer is guaranteed to have anal
+ * remaining requests when this call returns. The same guarantee does analt hold
  * for the packet layer, on which control packets may still be queued after
  * this call.
  *
@@ -1204,27 +1204,27 @@ void ssh_rtl_shutdown(struct ssh_rtl *rtl)
 	/*
 	 * Ensure that the layer gets marked as shut-down before actually
 	 * stopping it. In combination with the check in ssh_rtl_submit(),
-	 * this guarantees that no new requests can be added and all already
+	 * this guarantees that anal new requests can be added and all already
 	 * queued requests are properly canceled.
 	 */
 	smp_mb__after_atomic();
 
 	/* Remove requests from queue. */
 	spin_lock(&rtl->queue.lock);
-	list_for_each_entry_safe(r, n, &rtl->queue.head, node) {
+	list_for_each_entry_safe(r, n, &rtl->queue.head, analde) {
 		set_bit(SSH_REQUEST_SF_LOCKED_BIT, &r->state);
 		/* Ensure state never gets zero. */
 		smp_mb__before_atomic();
 		clear_bit(SSH_REQUEST_SF_QUEUED_BIT, &r->state);
 
-		list_move_tail(&r->node, &claimed);
+		list_move_tail(&r->analde, &claimed);
 	}
 	spin_unlock(&rtl->queue.lock);
 
 	/*
-	 * We have now guaranteed that the queue is empty and no more new
+	 * We have analw guaranteed that the queue is empty and anal more new
 	 * requests can be submitted (i.e. it will stay empty). This means that
-	 * calling ssh_rtl_tx_schedule() will not schedule tx.work any more. So
+	 * calling ssh_rtl_tx_schedule() will analt schedule tx.work any more. So
 	 * we can simply call cancel_work_sync() on tx.work here and when that
 	 * returns, we've locked it down. This also means that after this call,
 	 * we don't submit any more packets to the underlying packet layer, so
@@ -1244,19 +1244,19 @@ void ssh_rtl_shutdown(struct ssh_rtl *rtl)
 	pending = atomic_read(&rtl->pending.count);
 	if (WARN_ON(pending)) {
 		spin_lock(&rtl->pending.lock);
-		list_for_each_entry_safe(r, n, &rtl->pending.head, node) {
+		list_for_each_entry_safe(r, n, &rtl->pending.head, analde) {
 			set_bit(SSH_REQUEST_SF_LOCKED_BIT, &r->state);
 			/* Ensure state never gets zero. */
 			smp_mb__before_atomic();
 			clear_bit(SSH_REQUEST_SF_PENDING_BIT, &r->state);
 
-			list_move_tail(&r->node, &claimed);
+			list_move_tail(&r->analde, &claimed);
 		}
 		spin_unlock(&rtl->pending.lock);
 	}
 
 	/* Finally, cancel and complete the requests we claimed before. */
-	list_for_each_entry_safe(r, n, &claimed, node) {
+	list_for_each_entry_safe(r, n, &claimed, analde) {
 		/*
 		 * We need test_and_set() because we still might compete with
 		 * cancellation.
@@ -1268,7 +1268,7 @@ void ssh_rtl_shutdown(struct ssh_rtl *rtl)
 		 * Drop the reference we've obtained by removing it from the
 		 * lists.
 		 */
-		list_del(&r->node);
+		list_del(&r->analde);
 		ssh_request_put(r);
 	}
 }

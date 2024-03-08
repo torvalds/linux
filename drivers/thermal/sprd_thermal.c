@@ -118,7 +118,7 @@ static inline void sprd_thm_update_bits(void __iomem *reg, u32 mask, u32 val)
 	writel(tmp, reg);
 }
 
-static int sprd_thm_cal_read(struct device_node *np, const char *cell_id,
+static int sprd_thm_cal_read(struct device_analde *np, const char *cell_id,
 			     u32 *val)
 {
 	struct nvmem_cell *cell;
@@ -145,7 +145,7 @@ static int sprd_thm_cal_read(struct device_node *np, const char *cell_id,
 	return 0;
 }
 
-static int sprd_thm_sensor_calibration(struct device_node *np,
+static int sprd_thm_sensor_calibration(struct device_analde *np,
 				       struct sprd_thermal_data *thm,
 				       struct sprd_thermal_sensor *sen)
 {
@@ -267,9 +267,9 @@ static int sprd_thm_set_ready(struct sprd_thermal_data *thm)
 	 *
 	 * The SPRD thermal controller integrates a hardware interrupt signal,
 	 * which means if the temperature is overheat, it will generate an
-	 * interrupt and notify the event to PMIC automatically to shutdown the
+	 * interrupt and analtify the event to PMIC automatically to shutdown the
 	 * system. So here we should enable the interrupt bits, though we have
-	 * not registered an irq handler.
+	 * analt registered an irq handler.
 	 */
 	writel(SPRD_THM_INT_CLR_MASK, thm->base + SPRD_THM_INT_CLR);
 	sprd_thm_update_bits(thm->base + SPRD_THM_INT_EN,
@@ -330,8 +330,8 @@ static void sprd_thm_toggle_sensor(struct sprd_thermal_sensor *sen, bool on)
 
 static int sprd_thm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *sen_child;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *sen_child;
 	struct sprd_thermal_data *thm;
 	struct sprd_thermal_sensor *sen;
 	const struct sprd_thm_variant_data *pdata;
@@ -340,13 +340,13 @@ static int sprd_thm_probe(struct platform_device *pdev)
 
 	pdata = of_device_get_match_data(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "No matching driver data found\n");
+		dev_err(&pdev->dev, "Anal matching driver data found\n");
 		return -EINVAL;
 	}
 
 	thm = devm_kzalloc(&pdev->dev, sizeof(*thm), GFP_KERNEL);
 	if (!thm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	thm->var_data = pdata;
 	thm->base = devm_platform_ioremap_resource(pdev, 0);
@@ -384,10 +384,10 @@ static int sprd_thm_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
-	for_each_child_of_node(np, sen_child) {
+	for_each_child_of_analde(np, sen_child) {
 		sen = devm_kzalloc(&pdev->dev, sizeof(*sen), GFP_KERNEL);
 		if (!sen) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto of_put;
 		}
 
@@ -438,7 +438,7 @@ static int sprd_thm_probe(struct platform_device *pdev)
 	return 0;
 
 of_put:
-	of_node_put(sen_child);
+	of_analde_put(sen_child);
 disable_clk:
 	clk_disable_unprepare(thm->clk);
 	return ret;

@@ -20,11 +20,11 @@ For a full list of ACPI tables that can be upgraded/installed, take a look
 at the char `*table_sigs[MAX_ACPI_SIGNATURE];` definition in
 drivers/acpi/tables.c.
 
-All ACPI tables iasl (Intel's ACPI compiler and disassembler) knows should
+All ACPI tables iasl (Intel's ACPI compiler and disassembler) kanalws should
 be overridable, except:
 
   - ACPI_SIG_RSDP (has a signature of 6 bytes)
-  - ACPI_SIG_FACS (does not have an ordinary ACPI table header)
+  - ACPI_SIG_FACS (does analt have an ordinary ACPI table header)
 
 Both could get implemented as well.
 
@@ -33,7 +33,7 @@ What is this for
 ================
 
 Complain to your platform/BIOS vendor if you find a bug which is so severe
-that a workaround is not accepted in the Linux kernel. And this facility
+that a workaround is analt accepted in the Linux kernel. And this facility
 allows you to upgrade the buggy tables before your platform/BIOS vendor
 releases an upgraded BIOS binary.
 
@@ -44,8 +44,8 @@ This facility also provides a powerful feature to easily debug and test
 ACPI BIOS table compatibility with the Linux kernel by modifying old
 platform provided ACPI tables or inserting new ACPI tables.
 
-It can and should be enabled in any kernel because there is no functional
-change with not instrumented initrds.
+It can and should be enabled in any kernel because there is anal functional
+change with analt instrumented initrds.
 
 
 How does it work
@@ -68,7 +68,7 @@ How does it work
   iasl -sa dsdt.dsl
   # Add the raw ACPI tables to an uncompressed cpio archive.
   # They must be put into a /kernel/firmware/acpi directory inside the cpio
-  # archive. Note that if the table put here matches a platform table
+  # archive. Analte that if the table put here matches a platform table
   # (similar Table Signature, and similar OEMID, and similar OEM Table ID)
   # with a more recent OEM Revision, the platform table will be upgraded by
   # this table. If the table put here doesn't match a platform table

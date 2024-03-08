@@ -84,7 +84,7 @@ struct a6xx_crashdumper {
 };
 
 struct a6xx_state_memobj {
-	struct list_head node;
+	struct list_head analde;
 	unsigned long long data[];
 };
 
@@ -96,7 +96,7 @@ static void *state_kcalloc(struct a6xx_gpu_state *a6xx_state, int nr, size_t obj
 	if (!obj)
 		return NULL;
 
-	list_add_tail(&obj->node, &a6xx_state->objs);
+	list_add_tail(&obj->analde, &a6xx_state->objs);
 	return &obj->data;
 }
 
@@ -133,8 +133,8 @@ static int a6xx_crashdumper_init(struct msm_gpu *gpu,
 static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 		struct a6xx_crashdumper *dumper)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreanal_gpu);
 	u32 val;
 	int ret;
 
@@ -383,9 +383,9 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 	}
 
 	nr_debugbus_blocks = ARRAY_SIZE(a6xx_debugbus_blocks) +
-		(a6xx_has_gbif(to_adreno_gpu(gpu)) ? 1 : 0);
+		(a6xx_has_gbif(to_adreanal_gpu(gpu)) ? 1 : 0);
 
-	if (adreno_is_a650_family(to_adreno_gpu(gpu)))
+	if (adreanal_is_a650_family(to_adreanal_gpu(gpu)))
 		nr_debugbus_blocks += ARRAY_SIZE(a650_debugbus_blocks);
 
 	a6xx_state->debugbus = state_kcalloc(a6xx_state, nr_debugbus_blocks,
@@ -407,7 +407,7 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 		 * default path if GPU uses GBIF, also GBIF uses exactly same
 		 * ID as of VBIF.
 		 */
-		if (a6xx_has_gbif(to_adreno_gpu(gpu))) {
+		if (a6xx_has_gbif(to_adreanal_gpu(gpu))) {
 			a6xx_get_debugbus_block(gpu, a6xx_state,
 				&a6xx_gbif_debugbus_block,
 				&a6xx_state->debugbus[i]);
@@ -416,7 +416,7 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 		}
 
 
-		if (adreno_is_a650_family(to_adreno_gpu(gpu))) {
+		if (adreanal_is_a650_family(to_adreanal_gpu(gpu))) {
 			for (i = 0; i < ARRAY_SIZE(a650_debugbus_blocks); i++)
 				a6xx_get_debugbus_block(gpu,
 					a6xx_state,
@@ -426,7 +426,7 @@ static void a6xx_get_debugbus(struct msm_gpu *gpu,
 	}
 
 	/*  Dump the VBIF debugbus on applicable targets */
-	if (!a6xx_has_gbif(to_adreno_gpu(gpu))) {
+	if (!a6xx_has_gbif(to_adreanal_gpu(gpu))) {
 		a6xx_state->vbif_debugbus =
 			state_kcalloc(a6xx_state, 1,
 					sizeof(*a6xx_state->vbif_debugbus));
@@ -536,19 +536,19 @@ static void a6xx_get_cluster(struct msm_gpu *gpu,
 		struct a6xx_gpu_state_obj *obj,
 		struct a6xx_crashdumper *dumper)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 	u64 *in = dumper->ptr;
 	u64 out = dumper->iova + A6XX_CD_DATA_OFFSET;
 	size_t datasize;
 	int i, regcount = 0;
 	u32 id = cluster->id;
 
-	/* Skip registers that are not present on older generation */
-	if (!adreno_is_a660_family(adreno_gpu) &&
+	/* Skip registers that are analt present on older generation */
+	if (!adreanal_is_a660_family(adreanal_gpu) &&
 			cluster->registers == a660_fe_cluster)
 		return;
 
-	if (adreno_is_a650_family(adreno_gpu) &&
+	if (adreanal_is_a650_family(adreanal_gpu) &&
 			cluster->registers == a6xx_ps_cluster)
 		id = CLUSTER_VPC_PS;
 
@@ -711,7 +711,7 @@ static void a6xx_get_crashdumper_registers(struct msm_gpu *gpu,
 	int i, regcount = 0;
 
 	/* Skip unsupported registers on older generations */
-	if (!adreno_is_a660_family(to_adreno_gpu(gpu)) &&
+	if (!adreanal_is_a660_family(to_adreanal_gpu(gpu)) &&
 			(regs->registers == a660_registers))
 		return;
 
@@ -750,7 +750,7 @@ static void a6xx_get_ahb_gpu_registers(struct msm_gpu *gpu,
 	int i, regcount = 0, index = 0;
 
 	/* Skip unsupported registers on older generations */
-	if (!adreno_is_a660_family(to_adreno_gpu(gpu)) &&
+	if (!adreanal_is_a660_family(to_adreanal_gpu(gpu)) &&
 			(regs->registers == a660_registers))
 		return;
 
@@ -779,8 +779,8 @@ static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		struct a6xx_gpu_state_obj *obj,
 		bool rscc)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreanal_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	int i, regcount = 0, index = 0;
 
@@ -813,8 +813,8 @@ static void _a6xx_get_gmu_registers(struct msm_gpu *gpu,
 static void a6xx_get_gmu_registers(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreanal_gpu);
 
 	a6xx_state->gmu_registers = state_kcalloc(a6xx_state,
 		3, sizeof(*a6xx_state->gmu_registers));
@@ -866,8 +866,8 @@ static struct msm_gpu_state_bo *a6xx_snapshot_gmu_bo(
 static void a6xx_snapshot_gmu_hfi_history(struct msm_gpu *gpu,
 					  struct a6xx_gpu_state *a6xx_state)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreanal_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	unsigned i, j;
 
@@ -892,7 +892,7 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 		ARRAY_SIZE(a6xx_reglist) +
 		ARRAY_SIZE(a6xx_hlsq_reglist) + A6XX_GBIF_REGLIST_SIZE;
 	int index = 0;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
 
 	a6xx_state->registers = state_kcalloc(a6xx_state,
 		count, sizeof(*a6xx_state->registers));
@@ -902,7 +902,7 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 
 	a6xx_state->nr_registers = count;
 
-	if (adreno_is_a7xx(adreno_gpu))
+	if (adreanal_is_a7xx(adreanal_gpu))
 		a6xx_get_ahb_gpu_registers(gpu,
 			a6xx_state, &a7xx_ahb_reglist,
 			&a6xx_state->registers[index++]);
@@ -911,11 +911,11 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 			a6xx_state, &a6xx_ahb_reglist,
 			&a6xx_state->registers[index++]);
 
-	if (adreno_is_a7xx(adreno_gpu))
+	if (adreanal_is_a7xx(adreanal_gpu))
 		a6xx_get_ahb_gpu_registers(gpu,
 				a6xx_state, &a7xx_gbif_reglist,
 				&a6xx_state->registers[index++]);
-	else if (a6xx_has_gbif(adreno_gpu))
+	else if (a6xx_has_gbif(adreanal_gpu))
 		a6xx_get_ahb_gpu_registers(gpu,
 				a6xx_state, &a6xx_gbif_reglist,
 				&a6xx_state->registers[index++]);
@@ -926,7 +926,7 @@ static void a6xx_get_registers(struct msm_gpu *gpu,
 	if (!dumper) {
 		/*
 		 * We can't use the crashdumper when the SMMU is stalled,
-		 * because the GPU has no memory access until we resume
+		 * because the GPU has anal memory access until we resume
 		 * translation (but we don't want to do that until after
 		 * we have captured as much useful GPU state as possible).
 		 * So instead collect registers via the CPU:
@@ -961,7 +961,7 @@ static u32 a7xx_get_cp_roq_size(struct msm_gpu *gpu)
 {
 	/*
 	 * The value at CP_ROQ_THRESHOLDS_2[20:31] is in 4dword units.
-	 * That register however is not directly accessible from APSS on A7xx.
+	 * That register however is analt directly accessible from APSS on A7xx.
 	 * Program the SQE_UCODE_DBG_ADDR with offset=0x70d3 and read the value.
 	 */
 	gpu_write(gpu, REG_A6XX_CP_SQE_UCODE_DBG_ADDR, 0x70d3);
@@ -1009,7 +1009,7 @@ static void a6xx_get_indexed_registers(struct msm_gpu *gpu,
 		a6xx_get_indexed_regs(gpu, a6xx_state, &a6xx_indexed_reglist[i],
 			&a6xx_state->indexed_regs[i]);
 
-	if (adreno_is_a650_family(to_adreno_gpu(gpu))) {
+	if (adreanal_is_a650_family(to_adreanal_gpu(gpu))) {
 		u32 val;
 
 		val = gpu_read(gpu, REG_A6XX_CP_CHICKEN_DBG);
@@ -1079,22 +1079,22 @@ static void a7xx_get_indexed_registers(struct msm_gpu *gpu,
 struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 {
 	struct a6xx_crashdumper _dumper = { 0 }, *dumper = NULL;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreanal_gpu);
 	struct a6xx_gpu_state *a6xx_state = kzalloc(sizeof(*a6xx_state),
 		GFP_KERNEL);
 	bool stalled = !!(gpu_read(gpu, REG_A6XX_RBBM_STATUS3) &
 			A6XX_RBBM_STATUS3_SMMU_STALLED_ON_FAULT);
 
 	if (!a6xx_state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&a6xx_state->objs);
 
-	/* Get the generic state from the adreno core */
-	adreno_gpu_state_get(gpu, &a6xx_state->base);
+	/* Get the generic state from the adreanal core */
+	adreanal_gpu_state_get(gpu, &a6xx_state->base);
 
-	if (!adreno_has_gmu_wrapper(adreno_gpu)) {
+	if (!adreanal_has_gmu_wrapper(adreanal_gpu)) {
 		a6xx_get_gmu_registers(gpu, a6xx_state);
 
 		a6xx_state->gmu_log = a6xx_snapshot_gmu_bo(a6xx_state, &a6xx_gpu->gmu.log);
@@ -1105,11 +1105,11 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 	}
 
 	/* If GX isn't on the rest of the data isn't going to be accessible */
-	if (!adreno_has_gmu_wrapper(adreno_gpu) && !a6xx_gmu_gx_is_on(&a6xx_gpu->gmu))
+	if (!adreanal_has_gmu_wrapper(adreanal_gpu) && !a6xx_gmu_gx_is_on(&a6xx_gpu->gmu))
 		return &a6xx_state->base;
 
 	/* Get the banks of indexed registers */
-	if (adreno_is_a7xx(adreno_gpu)) {
+	if (adreanal_is_a7xx(adreanal_gpu)) {
 		a7xx_get_indexed_registers(gpu, a6xx_state);
 		/* Further codeflow is untested on A7xx. */
 		return &a6xx_state->base;
@@ -1118,7 +1118,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 	a6xx_get_indexed_registers(gpu, a6xx_state);
 
 	/*
-	 * Try to initialize the crashdumper, if we are not dumping state
+	 * Try to initialize the crashdumper, if we are analt dumping state
 	 * with the SMMU stalled.  The crashdumper needs memory access to
 	 * write out GPU state, so we need to skip this when the SMMU is
 	 * stalled in response to an iova fault
@@ -1163,12 +1163,12 @@ static void a6xx_gpu_state_destroy(struct kref *kref)
 	if (a6xx_state->gmu_debug)
 		kvfree(a6xx_state->gmu_debug->data);
 
-	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, node) {
-		list_del(&obj->node);
+	list_for_each_entry_safe(obj, tmp, &a6xx_state->objs, analde) {
+		list_del(&obj->analde);
 		kvfree(obj);
 	}
 
-	adreno_gpu_state_destroy(state);
+	adreanal_gpu_state_destroy(state);
 	kfree(a6xx_state);
 }
 
@@ -1378,7 +1378,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 	drm_printf(p, "gpu-initialized: %d\n", a6xx_state->gpu_initialized);
 
-	adreno_show(gpu, state, p);
+	adreanal_show(gpu, state, p);
 
 	drm_puts(p, "gmu-log:\n");
 	if (a6xx_state->gmu_log) {
@@ -1386,7 +1386,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 		drm_printf(p, "    iova: 0x%016llx\n", gmu_log->iova);
 		drm_printf(p, "    size: %zu\n", gmu_log->size);
-		adreno_show_object(p, &gmu_log->data, gmu_log->size,
+		adreanal_show_object(p, &gmu_log->data, gmu_log->size,
 				&gmu_log->encoded);
 	}
 
@@ -1404,7 +1404,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			}
 			drm_printf(p, "\n");
 		}
-		adreno_show_object(p, &gmu_hfi->data, gmu_hfi->size,
+		adreanal_show_object(p, &gmu_hfi->data, gmu_hfi->size,
 				&gmu_hfi->encoded);
 	}
 
@@ -1414,7 +1414,7 @@ void a6xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 		drm_printf(p, "    iova: 0x%016llx\n", gmu_debug->iova);
 		drm_printf(p, "    size: %zu\n", gmu_debug->size);
-		adreno_show_object(p, &gmu_debug->data, gmu_debug->size,
+		adreanal_show_object(p, &gmu_debug->data, gmu_debug->size,
 				&gmu_debug->encoded);
 	}
 

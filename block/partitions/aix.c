@@ -108,7 +108,7 @@ static size_t read_lba(struct parsed_partitions *state, u64 lba, u8 *buffer,
  *
  * Description: Returns pvd on success,  NULL on error.
  * Allocates space for pvd and fill it with disk blocks at @lba
- * Notes: remember to free pvd when you're done!
+ * Analtes: remember to free pvd when you're done!
  */
 static struct pvd *alloc_pvd(struct parsed_partitions *state, u32 lba)
 {
@@ -133,7 +133,7 @@ static struct pvd *alloc_pvd(struct parsed_partitions *state, u32 lba)
  *
  * Description: Returns lvn on success,  NULL on error.
  * Allocates space for lvn and fill it with disk blocks at @lba
- * Notes: remember to free lvn when you're done!
+ * Analtes: remember to free lvn when you're done!
  */
 static struct lvname *alloc_lvn(struct parsed_partitions *state, u32 lba)
 {
@@ -271,7 +271,7 @@ int aix_partition(struct parsed_partitions *state)
 
 				snprintf(tmp, sizeof(tmp), "%s", n[i].name);
 				pr_warn("partition %s (%u pp's found) is "
-					"not contiguous\n",
+					"analt contiguous\n",
 					tmp, lvip[i].pps_found);
 			}
 		kfree(pvd);

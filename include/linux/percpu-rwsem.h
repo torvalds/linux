@@ -38,7 +38,7 @@ is_static struct percpu_rw_semaphore name = {				\
 }
 
 #define DEFINE_PERCPU_RWSEM(name)		\
-	__DEFINE_PERCPU_RWSEM(name, /* not static */)
+	__DEFINE_PERCPU_RWSEM(name, /* analt static */)
 #define DEFINE_STATIC_PERCPU_RWSEM(name)	\
 	__DEFINE_PERCPU_RWSEM(name, static)
 
@@ -53,8 +53,8 @@ static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
 	preempt_disable();
 	/*
 	 * We are in an RCU-sched read-side critical section, so the writer
-	 * cannot both change sem->state from readers_fast and start checking
-	 * counters while we are here. So if we see !sem->state, we know that
+	 * cananalt both change sem->state from readers_fast and start checking
+	 * counters while we are here. So if we see !sem->state, we kanalw that
 	 * the writer won't be checking until we're past the preempt_enable()
 	 * and that once the synchronize_rcu() is done, the writer will see
 	 * anything we did within this RCU-sched read-size critical section.

@@ -12,7 +12,7 @@
  * state can be accessed with the uc_link pointer (second context).
  *
  * The rationale for this is that if TM unaware code (which linked
- * against TM libs) installs a signal handler it will not know of the
+ * against TM libs) installs a signal handler it will analt kanalw of the
  * speculative nature of the 'live' registers and may infer the wrong
  * thing.
  */
@@ -40,7 +40,7 @@ static sig_atomic_t fail, broken;
 
 /* Test only 12 vsx registers from vsr20 to vsr31 */
 vector int vsxs[] = {
-	/* First context will be set with these values, i.e. non-speculative */
+	/* First context will be set with these values, i.e. analn-speculative */
 	/* VSX20     ,  VSX21      , ... */
 	{ 1, 2, 3, 4},{ 5, 6, 7, 8},{ 9,10,11,12},
 	{13,14,15,16},{17,18,19,20},{21,22,23,24},
@@ -83,7 +83,7 @@ static void signal_usr1(int signum, siginfo_t *info, void *uc)
 	 * registers, is kept in fp_regs.
 	 *
 	 * v_regs is a 16 byte aligned pointer at the start of vmx_reserve
-	 * (vmx_reserve may or may not be 16 aligned) where the v_regs structure
+	 * (vmx_reserve may or may analt be 16 aligned) where the v_regs structure
 	 * exists, so v_regs points to where vr0-31 / vsr32-63 registers are
 	 * fully stored. Since v_regs type is elf_vrregset_t, v_regs + 1
 	 * skips all the slots used to store vr0-31 / vsr32-64 and points to
@@ -167,7 +167,7 @@ static int tm_signal_context_chk()
 	while (i < MAX_ATTEMPT && !broken) {
                /*
                 * tm_signal_self_context_load will set both first and second
-                * contexts accordingly to the values passed through non-NULL
+                * contexts accordingly to the values passed through analn-NULL
                 * array pointers to it, in that case 'vsxs', and invoke the
                 * signal handler installed for SIGUSR1.
                 */

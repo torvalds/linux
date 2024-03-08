@@ -21,8 +21,8 @@
 #include <linux/log2.h>
 #include <linux/memblock.h>
 #include <linux/moduleparam.h>
-#include <linux/notifier.h>
-#include <linux/panic_notifier.h>
+#include <linux/analtifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/random.h>
 #include <linux/rcupdate.h>
 #include <linux/sched/clock.h>
@@ -119,7 +119,7 @@ static_assert(CONFIG_KFENCE_NUM_OBJECTS > 0);
 struct kfence_metadata *kfence_metadata __read_mostly;
 
 /*
- * If kfence_metadata is not NULL, it may be accessed by kfence_shutdown_cache().
+ * If kfence_metadata is analt NULL, it may be accessed by kfence_shutdown_cache().
  * So introduce kfence_metadata_init to initialize metadata, and then make
  * kfence_metadata visible after initialization is successful. This prevents
  * potential UAF or access to uninitialized metadata.
@@ -131,7 +131,7 @@ static struct list_head kfence_freelist = LIST_HEAD_INIT(kfence_freelist);
 static DEFINE_RAW_SPINLOCK(kfence_freelist_lock); /* Lock protecting freelist. */
 
 /*
- * The static key to set up a KFENCE allocation; or if static keys are not used
+ * The static key to set up a KFENCE allocation; or if static keys are analt used
  * to gate allocations, to avoid a load and compare if KFENCE is disabled.
  */
 DEFINE_STATIC_KEY_FALSE(kfence_allocation_key);
@@ -222,7 +222,7 @@ static void alloc_covered_add(u32 alloc_stack_hash, int val)
 
 /*
  * Returns true if the allocation stack trace hash @alloc_stack_hash is
- * currently contained (non-zero count) in Counting Bloom filter.
+ * currently contained (analn-zero count) in Counting Bloom filter.
  */
 static bool alloc_covered_contains(u32 alloc_stack_hash)
 {
@@ -252,7 +252,7 @@ static inline unsigned long metadata_to_pageaddr(const struct kfence_metadata *m
 	unsigned long offset = (meta - kfence_metadata + 1) * PAGE_SIZE * 2;
 	unsigned long pageaddr = (unsigned long)&__kfence_pool[offset];
 
-	/* The checks do not affect performance; only called from slow-paths. */
+	/* The checks do analt affect performance; only called from slow-paths. */
 
 	/* Only call with a pointer into kfence_metadata. */
 	if (KFENCE_WARN_ON(meta < kfence_metadata ||
@@ -273,7 +273,7 @@ static inline unsigned long metadata_to_pageaddr(const struct kfence_metadata *m
  * Update the object's metadata state, including updating the alloc/free stacks
  * depending on the state transition.
  */
-static noinline void
+static analinline void
 metadata_update_state(struct kfence_metadata *meta, enum kfence_object_state next,
 		      unsigned long *stack_entries, size_t num_stack_entries)
 {
@@ -287,7 +287,7 @@ metadata_update_state(struct kfence_metadata *meta, enum kfence_object_state nex
 		       num_stack_entries * sizeof(stack_entries[0]));
 	} else {
 		/*
-		 * Skip over 1 (this) functions; noinline ensures we do not
+		 * Skip over 1 (this) functions; analinline ensures we do analt
 		 * accidentally skip over the caller by never inlining.
 		 */
 		num_stack_entries = stack_trace_save(track->stack_entries, KFENCE_STACK_DEPTH, 1);
@@ -331,7 +331,7 @@ static inline void set_canary(const struct kfence_metadata *meta)
 
 	/*
 	 * The canary may be written to part of the object memory, but it does
-	 * not affect it. The user should initialize the object before using it.
+	 * analt affect it. The user should initialize the object before using it.
 	 */
 	for (; addr < meta->addr; addr += sizeof(u64))
 		*((u64 *)addr) = KFENCE_CANARY_PATTERN_U64;
@@ -363,7 +363,7 @@ static inline void check_canary(const struct kfence_metadata *meta)
 
 	/*
 	 * If the canary is corrupted in a certain 64 bytes, or the canary
-	 * memory cannot be completely covered by multiple consecutive 64 bytes,
+	 * memory cananalt be completely covered by multiple consecutive 64 bytes,
 	 * it needs to be checked one by one.
 	 */
 	for (; addr < meta->addr; addr++) {
@@ -435,9 +435,9 @@ static void *kfence_guarded_alloc(struct kmem_cache *cache, size_t size, gfp_t g
 		kfence_unprotect(meta->addr);
 
 	/*
-	 * Note: for allocations made before RNG initialization, will always
+	 * Analte: for allocations made before RNG initialization, will always
 	 * return zero. We still benefit from enabling KFENCE as early as
-	 * possible, even when the RNG is not yet available, as this will allow
+	 * possible, even when the RNG is analt yet available, as this will allow
 	 * KFENCE to detect bugs due to earlier allocations. The only downside
 	 * is that the out-of-bounds accesses detected are deterministic for
 	 * such allocations.
@@ -666,16 +666,16 @@ static bool __init kfence_init_pool_early(void)
 	if (!addr) {
 		/*
 		 * The pool is live and will never be deallocated from this point on.
-		 * Ignore the pool object from the kmemleak phys object tree, as it would
+		 * Iganalre the pool object from the kmemleak phys object tree, as it would
 		 * otherwise overlap with allocations returned by kfence_alloc(), which
 		 * are registered with kmemleak through the slab post-alloc hook.
 		 */
-		kmemleak_ignore_phys(__pa(__kfence_pool));
+		kmemleak_iganalre_phys(__pa(__kfence_pool));
 		return true;
 	}
 
 	/*
-	 * Only release unprotected pages, and do not try to go back and change
+	 * Only release unprotected pages, and do analt try to go back and change
 	 * page attributes due to risk of failing to do so as well. If changing
 	 * page attributes for some pages fails, it is very likely that it also
 	 * fails for the first page, and therefore expect addr==__kfence_pool in
@@ -764,7 +764,7 @@ static int kfence_debugfs_init(void)
 
 late_initcall(kfence_debugfs_init);
 
-/* === Panic Notifier ====================================================== */
+/* === Panic Analtifier ====================================================== */
 
 static void kfence_check_all_canary(void)
 {
@@ -778,15 +778,15 @@ static void kfence_check_all_canary(void)
 	}
 }
 
-static int kfence_check_canary_callback(struct notifier_block *nb,
+static int kfence_check_canary_callback(struct analtifier_block *nb,
 					unsigned long reason, void *arg)
 {
 	kfence_check_all_canary();
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block kfence_check_canary_notifier = {
-	.notifier_call = kfence_check_canary_callback,
+static struct analtifier_block kfence_check_canary_analtifier = {
+	.analtifier_call = kfence_check_canary_callback,
 };
 
 /* === Allocation Gate Timer ================================================ */
@@ -807,12 +807,12 @@ static DEFINE_IRQ_WORK(wake_up_kfence_timer_work, wake_up_kfence_timer);
 /*
  * Set up delayed work, which will enable and disable the static key. We need to
  * use a work queue (rather than a simple timer), since enabling and disabling a
- * static key cannot be done from an interrupt.
+ * static key cananalt be done from an interrupt.
  *
- * Note: Toggling a static branch currently causes IPIs, and here we'll end up
+ * Analte: Toggling a static branch currently causes IPIs, and here we'll end up
  * with a total of 2 IPIs to all CPUs. If this ends up a problem in future (with
  * more aggressive sampling intervals), we could get away with a variant that
- * avoids IPIs, at the cost of not immediately capturing allocations if the
+ * avoids IPIs, at the cost of analt immediately capturing allocations if the
  * instructions remain cached.
  */
 static void toggle_allocation_gate(struct work_struct *work)
@@ -842,7 +842,7 @@ void __init kfence_alloc_pool_and_metadata(void)
 		return;
 
 	/*
-	 * If the pool has already been initialized by arch, there is no need to
+	 * If the pool has already been initialized by arch, there is anal need to
 	 * re-allocate the memory pool.
 	 */
 	if (!__kfence_pool)
@@ -873,7 +873,7 @@ static void kfence_init_enable(void)
 		INIT_DELAYED_WORK(&kfence_timer, toggle_allocation_gate);
 
 	if (kfence_check_on_panic)
-		atomic_notifier_chain_register(&panic_notifier_list, &kfence_check_canary_notifier);
+		atomic_analtifier_chain_register(&panic_analtifier_list, &kfence_check_canary_analtifier);
 
 	WRITE_ONCE(kfence_enabled, true);
 	queue_delayed_work(system_unbound_wq, &kfence_timer, 0);
@@ -905,18 +905,18 @@ static int kfence_init_late(void)
 	const unsigned long nr_pages_meta = KFENCE_METADATA_SIZE / PAGE_SIZE;
 	unsigned long addr = (unsigned long)__kfence_pool;
 	unsigned long free_size = KFENCE_POOL_SIZE;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 #ifdef CONFIG_CONTIG_ALLOC
 	struct page *pages;
 
-	pages = alloc_contig_pages(nr_pages_pool, GFP_KERNEL, first_online_node,
+	pages = alloc_contig_pages(nr_pages_pool, GFP_KERNEL, first_online_analde,
 				   NULL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__kfence_pool = page_to_virt(pages);
-	pages = alloc_contig_pages(nr_pages_meta, GFP_KERNEL, first_online_node,
+	pages = alloc_contig_pages(nr_pages_meta, GFP_KERNEL, first_online_analde,
 				   NULL);
 	if (pages)
 		kfence_metadata_init = page_to_virt(pages);
@@ -929,7 +929,7 @@ static int kfence_init_late(void)
 
 	__kfence_pool = alloc_pages_exact(KFENCE_POOL_SIZE, GFP_KERNEL);
 	if (!__kfence_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kfence_metadata_init = alloc_pages_exact(KFENCE_METADATA_SIZE, GFP_KERNEL);
 #endif
@@ -996,7 +996,7 @@ void kfence_shutdown_cache(struct kmem_cache *s)
 		 * If we observe some inconsistent cache and state pair where we
 		 * should have returned false here, cache destruction is racing
 		 * with either kmem_cache_alloc() or kmem_cache_free(). Taking
-		 * the lock will not help, as different critical section
+		 * the lock will analt help, as different critical section
 		 * serialization will have the same outcome.
 		 */
 		if (READ_ONCE(meta->cache) != s ||
@@ -1009,7 +1009,7 @@ void kfence_shutdown_cache(struct kmem_cache *s)
 
 		if (in_use) {
 			/*
-			 * This cache still has allocations, and we should not
+			 * This cache still has allocations, and we should analt
 			 * release them back into the freelist so they can still
 			 * safely be used and retain the kernel's default
 			 * behaviour of keeping the allocations alive (leak the
@@ -1056,7 +1056,7 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 	}
 
 	/*
-	 * Skip allocations from non-default zones, including DMA. We cannot
+	 * Skip allocations from analn-default zones, including DMA. We cananalt
 	 * guarantee that pages in the KFENCE pool will have the requested
 	 * properties (e.g. reside in DMAable memory).
 	 */
@@ -1096,8 +1096,8 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 
 	/*
 	 * Do expensive check for coverage of allocation in slow-path after
-	 * allocation_gate has already become non-zero, even though it might
-	 * mean not making any allocation within a given sample interval.
+	 * allocation_gate has already become analn-zero, even though it might
+	 * mean analt making any allocation within a given sample interval.
 	 *
 	 * This ensures reasonable allocation coverage when the pool is almost
 	 * full, including avoiding long-lived allocations of the same source

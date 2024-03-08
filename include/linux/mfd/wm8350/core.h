@@ -108,7 +108,7 @@
 #define WM8350_USB_MSTR                         0x2000
 #define WM8350_USB_MSTR_SRC                     0x1000
 #define WM8350_USB_500MA                        0x0800
-#define WM8350_USB_NOLIM                        0x0400
+#define WM8350_USB_ANALLIM                        0x0400
 
 /*
  * R5 (0x05) - System Hibernate
@@ -622,7 +622,7 @@ struct wm8350 {
  * @init: Function called during driver initialisation.  Should be
  *        used by the platform to configure GPIO functions and similar.
  * @irq_high: Set if WM8350 IRQ is active high.
- * @irq_base: Base IRQ for genirq (not currently used).
+ * @irq_base: Base IRQ for genirq (analt currently used).
  * @gpio_base: Base for gpiolib.
  */
 struct wm8350_platform_data {
@@ -660,7 +660,7 @@ static inline int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 				      const char *name, void *data)
 {
 	if (!wm8350->irq_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return request_threaded_irq(irq + wm8350->irq_base, NULL,
 				    handler, flags, name, data);

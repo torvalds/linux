@@ -385,7 +385,7 @@
 &pinctrl {
 	hym8563 {
 		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -397,19 +397,19 @@
 
 	ir-receiver {
 		ir_receiver_pin: ir-receiver-pin {
-			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sound {
 		hp_detect: hp-detect {
-			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_usb20_en: vcc5v0-usb20-en {
-			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -432,9 +432,9 @@
 
 &sdhci {
 	bus-width = <8>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
@@ -447,8 +447,8 @@
 	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	max-frequency = <150000000>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;
@@ -461,7 +461,7 @@
 	status = "okay";
 
 	spi_flash: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0x0>;
 		spi-max-frequency = <100000000>;
 		spi-rx-bus-width = <4>;

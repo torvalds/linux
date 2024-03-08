@@ -203,18 +203,18 @@ static const struct of_device_id timer_of_match[] __initconst = {
 
 void __init spear_setup_of_timer(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int irq, ret;
 
-	np = of_find_matching_node(NULL, timer_of_match);
+	np = of_find_matching_analde(NULL, timer_of_match);
 	if (!np) {
-		pr_err("%s: No timer passed via DT\n", __func__);
+		pr_err("%s: Anal timer passed via DT\n", __func__);
 		return;
 	}
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
-		pr_err("%s: No irq passed for timer via DT\n", __func__);
+		pr_err("%s: Anal irq passed for timer via DT\n", __func__);
 		goto err_put_np;
 	}
 
@@ -236,7 +236,7 @@ void __init spear_setup_of_timer(void)
 		goto err_prepare_enable_clk;
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	spear_clockevent_init(irq);
 	spear_clocksource_init();
@@ -248,5 +248,5 @@ err_prepare_enable_clk:
 err_iomap:
 	iounmap(gpt_base);
 err_put_np:
-	of_node_put(np);
+	of_analde_put(np);
 }

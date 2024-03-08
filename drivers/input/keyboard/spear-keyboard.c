@@ -11,7 +11,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -75,7 +75,7 @@ static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
 
 	sts = readl_relaxed(kbd->io_base + STATUS_REG);
 	if (!(sts & STATUS_DATA_AVAIL))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (kbd->last_key != KEY_RESERVED) {
 		input_report_key(input, kbd->last_key, 0);
@@ -148,7 +148,7 @@ static void spear_kbd_close(struct input_dev *dev)
 static int spear_kbd_parse_dt(struct platform_device *pdev,
                                         struct spear_kbd *kbd)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int error;
 	u32 val, suspended_rate;
 
@@ -176,7 +176,7 @@ static int spear_kbd_parse_dt(struct platform_device *pdev,
 static inline int spear_kbd_parse_dt(struct platform_device *pdev,
 				     struct spear_kbd *kbd)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 #endif
 
@@ -195,14 +195,14 @@ static int spear_kbd_probe(struct platform_device *pdev)
 
 	kbd = devm_kzalloc(&pdev->dev, sizeof(*kbd), GFP_KERNEL);
 	if (!kbd) {
-		dev_err(&pdev->dev, "not enough memory for driver data\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "analt eanalugh memory for driver data\n");
+		return -EANALMEM;
 	}
 
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kbd->input = input_dev;

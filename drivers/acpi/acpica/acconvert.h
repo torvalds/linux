@@ -22,7 +22,7 @@
 
 #define AML_COMMENT_STANDARD    1
 #define AMLCOMMENT_INLINE       2
-#define AML_COMMENT_END_NODE    3
+#define AML_COMMENT_END_ANALDE    3
 #define AML_NAMECOMMENT         4
 #define AML_COMMENT_CLOSE_BRACE 5
 #define AML_COMMENT_ENDBLK      6
@@ -52,7 +52,7 @@ void cv_place_comment(u8 type, char *comment_string);
 
 u32 cv_parse_op_block_type(union acpi_parse_object *op);
 
-struct acpi_comment_node *cv_comment_node_calloc(void);
+struct acpi_comment_analde *cv_comment_analde_calloc(void);
 
 void cg_write_aml_def_block_comment(union acpi_parse_object *op);
 
@@ -69,15 +69,15 @@ void cv_init_file_tree(struct acpi_table_header *table, FILE * root_file);
 
 void cv_clear_op_comments(union acpi_parse_object *op);
 
-struct acpi_file_node *cv_filename_exists(char *filename,
-					  struct acpi_file_node *head);
+struct acpi_file_analde *cv_filename_exists(char *filename,
+					  struct acpi_file_analde *head);
 
-void cv_label_file_node(union acpi_parse_object *op);
+void cv_label_file_analde(union acpi_parse_object *op);
 
 void
 cv_capture_list_comments(struct acpi_parse_state *parser_state,
-			 struct acpi_comment_node *list_head,
-			 struct acpi_comment_node *list_tail);
+			 struct acpi_comment_analde *list_head,
+			 struct acpi_comment_analde *list_tail);
 
 void cv_capture_comments_only(struct acpi_parse_state *parser_state);
 
@@ -97,7 +97,7 @@ void cv_close_paren_write_comment(union acpi_parse_object *op, u32 level);
 void cv_close_brace_write_comment(union acpi_parse_object *op, u32 level);
 
 void
-cv_print_one_comment_list(struct acpi_comment_node *comment_list, u32 level);
+cv_print_one_comment_list(struct acpi_comment_analde *comment_list, u32 level);
 
 void
 cv_print_one_comment_type(union acpi_parse_object *op,

@@ -216,7 +216,7 @@ static int ljca_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	case PIN_CONFIG_PERSIST_STATE:
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -291,7 +291,7 @@ static void ljca_gpio_event_cb(void *context, u8 cmd, const void *evt_data,
 				       packet->item[i].index);
 		if (!irq) {
 			dev_err(ljca_gpio->gc.parent,
-				"gpio_id %u does not mapped to IRQ yet\n",
+				"gpio_id %u does analt mapped to IRQ yet\n",
 				packet->item[i].index);
 			return;
 		}
@@ -409,7 +409,7 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 
 	ljca_gpio = devm_kzalloc(&auxdev->dev, sizeof(*ljca_gpio), GFP_KERNEL);
 	if (!ljca_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ljca_gpio->ljca = ljca;
 	ljca_gpio->gpio_info = dev_get_platdata(&auxdev->dev);
@@ -418,7 +418,7 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 					       sizeof(*ljca_gpio->connect_mode),
 					       GFP_KERNEL);
 	if (!ljca_gpio->connect_mode)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&ljca_gpio->irq_lock);
 	mutex_init(&ljca_gpio->trans_lock);
@@ -447,7 +447,7 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->init_valid_mask = ljca_gpio_irq_init_valid_mask;
 

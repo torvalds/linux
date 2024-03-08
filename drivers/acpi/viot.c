@@ -19,16 +19,16 @@
 #define pr_fmt(fmt) "ACPI: VIOT: " fmt
 
 #include <linux/acpi_viot.h>
-#include <linux/fwnode.h>
+#include <linux/fwanalde.h>
 #include <linux/iommu.h>
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
 struct viot_iommu {
-	/* Node offset within the table */
+	/* Analde offset within the table */
 	unsigned int			offset;
-	struct fwnode_handle		*fwnode;
+	struct fwanalde_handle		*fwanalde;
 	struct list_head		list;
 };
 
@@ -59,53 +59,53 @@ static int __init viot_check_bounds(const struct acpi_viot_header *hdr)
 	struct acpi_viot_header *start, *end, *hdr_end;
 
 	start = ACPI_ADD_PTR(struct acpi_viot_header, viot,
-			     max_t(size_t, sizeof(*viot), viot->node_offset));
+			     max_t(size_t, sizeof(*viot), viot->analde_offset));
 	end = ACPI_ADD_PTR(struct acpi_viot_header, viot, viot->header.length);
 	hdr_end = ACPI_ADD_PTR(struct acpi_viot_header, hdr, sizeof(*hdr));
 
 	if (hdr < start || hdr_end > end) {
-		pr_err(FW_BUG "Node pointer overflows\n");
+		pr_err(FW_BUG "Analde pointer overflows\n");
 		return -EOVERFLOW;
 	}
 	if (hdr->length < sizeof(*hdr)) {
-		pr_err(FW_BUG "Empty node\n");
+		pr_err(FW_BUG "Empty analde\n");
 		return -EINVAL;
 	}
 	return 0;
 }
 
-static int __init viot_get_pci_iommu_fwnode(struct viot_iommu *viommu,
+static int __init viot_get_pci_iommu_fwanalde(struct viot_iommu *viommu,
 					    u16 segment, u16 bdf)
 {
 	struct pci_dev *pdev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 
 	pdev = pci_get_domain_bus_and_slot(segment, PCI_BUS_NUM(bdf),
 					   bdf & 0xff);
 	if (!pdev) {
-		pr_err("Could not find PCI IOMMU\n");
-		return -ENODEV;
+		pr_err("Could analt find PCI IOMMU\n");
+		return -EANALDEV;
 	}
 
-	fwnode = dev_fwnode(&pdev->dev);
-	if (!fwnode) {
+	fwanalde = dev_fwanalde(&pdev->dev);
+	if (!fwanalde) {
 		/*
 		 * PCI devices aren't necessarily described by ACPI. Create a
-		 * fwnode so the IOMMU subsystem can identify this device.
+		 * fwanalde so the IOMMU subsystem can identify this device.
 		 */
-		fwnode = acpi_alloc_fwnode_static();
-		if (!fwnode) {
+		fwanalde = acpi_alloc_fwanalde_static();
+		if (!fwanalde) {
 			pci_dev_put(pdev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		set_primary_fwnode(&pdev->dev, fwnode);
+		set_primary_fwanalde(&pdev->dev, fwanalde);
 	}
-	viommu->fwnode = dev_fwnode(&pdev->dev);
+	viommu->fwanalde = dev_fwanalde(&pdev->dev);
 	pci_dev_put(pdev);
 	return 0;
 }
 
-static int __init viot_get_mmio_iommu_fwnode(struct viot_iommu *viommu,
+static int __init viot_get_mmio_iommu_fwanalde(struct viot_iommu *viommu,
 					     u64 address)
 {
 	struct acpi_device *adev;
@@ -117,10 +117,10 @@ static int __init viot_get_mmio_iommu_fwnode(struct viot_iommu *viommu,
 
 	adev = acpi_resource_consumer(&res);
 	if (!adev) {
-		pr_err("Could not find MMIO IOMMU\n");
+		pr_err("Could analt find MMIO IOMMU\n");
 		return -EINVAL;
 	}
-	viommu->fwnode = &adev->fwnode;
+	viommu->fwanalde = &adev->fwanalde;
 	return 0;
 }
 
@@ -133,7 +133,7 @@ static struct viot_iommu * __init viot_get_iommu(unsigned int offset)
 	union {
 		struct acpi_viot_virtio_iommu_pci pci;
 		struct acpi_viot_virtio_iommu_mmio mmio;
-	} *node = (void *)hdr;
+	} *analde = (void *)hdr;
 
 	list_for_each_entry(viommu, &viot_iommus, list)
 		if (viommu->offset == offset)
@@ -148,19 +148,19 @@ static struct viot_iommu * __init viot_get_iommu(unsigned int offset)
 
 	viommu->offset = offset;
 	switch (hdr->type) {
-	case ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI:
-		if (hdr->length < sizeof(node->pci))
+	case ACPI_VIOT_ANALDE_VIRTIO_IOMMU_PCI:
+		if (hdr->length < sizeof(analde->pci))
 			goto err_free;
 
-		ret = viot_get_pci_iommu_fwnode(viommu, node->pci.segment,
-						node->pci.bdf);
+		ret = viot_get_pci_iommu_fwanalde(viommu, analde->pci.segment,
+						analde->pci.bdf);
 		break;
-	case ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO:
-		if (hdr->length < sizeof(node->mmio))
+	case ACPI_VIOT_ANALDE_VIRTIO_IOMMU_MMIO:
+		if (hdr->length < sizeof(analde->mmio))
 			goto err_free;
 
-		ret = viot_get_mmio_iommu_fwnode(viommu,
-						 node->mmio.base_address);
+		ret = viot_get_mmio_iommu_fwanalde(viommu,
+						 analde->mmio.base_address);
 		break;
 	default:
 		ret = -EINVAL;
@@ -176,7 +176,7 @@ err_free:
 	return NULL;
 }
 
-static int __init viot_parse_node(const struct acpi_viot_header *hdr)
+static int __init viot_parse_analde(const struct acpi_viot_header *hdr)
 {
 	int ret = -EINVAL;
 	struct list_head *list;
@@ -184,55 +184,55 @@ static int __init viot_parse_node(const struct acpi_viot_header *hdr)
 	union {
 		struct acpi_viot_mmio mmio;
 		struct acpi_viot_pci_range pci;
-	} *node = (void *)hdr;
+	} *analde = (void *)hdr;
 
 	if (viot_check_bounds(hdr))
 		return -EINVAL;
 
-	if (hdr->type == ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI ||
-	    hdr->type == ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO)
+	if (hdr->type == ACPI_VIOT_ANALDE_VIRTIO_IOMMU_PCI ||
+	    hdr->type == ACPI_VIOT_ANALDE_VIRTIO_IOMMU_MMIO)
 		return 0;
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (hdr->type) {
-	case ACPI_VIOT_NODE_PCI_RANGE:
-		if (hdr->length < sizeof(node->pci)) {
-			pr_err(FW_BUG "Invalid PCI node size\n");
+	case ACPI_VIOT_ANALDE_PCI_RANGE:
+		if (hdr->length < sizeof(analde->pci)) {
+			pr_err(FW_BUG "Invalid PCI analde size\n");
 			goto err_free;
 		}
 
-		ep->segment_start = node->pci.segment_start;
-		ep->segment_end = node->pci.segment_end;
-		ep->bdf_start = node->pci.bdf_start;
-		ep->bdf_end = node->pci.bdf_end;
-		ep->endpoint_id = node->pci.endpoint_start;
-		ep->viommu = viot_get_iommu(node->pci.output_node);
+		ep->segment_start = analde->pci.segment_start;
+		ep->segment_end = analde->pci.segment_end;
+		ep->bdf_start = analde->pci.bdf_start;
+		ep->bdf_end = analde->pci.bdf_end;
+		ep->endpoint_id = analde->pci.endpoint_start;
+		ep->viommu = viot_get_iommu(analde->pci.output_analde);
 		list = &viot_pci_ranges;
 		break;
-	case ACPI_VIOT_NODE_MMIO:
-		if (hdr->length < sizeof(node->mmio)) {
-			pr_err(FW_BUG "Invalid MMIO node size\n");
+	case ACPI_VIOT_ANALDE_MMIO:
+		if (hdr->length < sizeof(analde->mmio)) {
+			pr_err(FW_BUG "Invalid MMIO analde size\n");
 			goto err_free;
 		}
 
-		ep->address = node->mmio.base_address;
-		ep->endpoint_id = node->mmio.endpoint;
-		ep->viommu = viot_get_iommu(node->mmio.output_node);
+		ep->address = analde->mmio.base_address;
+		ep->endpoint_id = analde->mmio.endpoint;
+		ep->viommu = viot_get_iommu(analde->mmio.output_analde);
 		list = &viot_mmio_endpoints;
 		break;
 	default:
-		pr_warn("Unsupported node %x\n", hdr->type);
+		pr_warn("Unsupported analde %x\n", hdr->type);
 		ret = 0;
 		goto err_free;
 	}
 
 	if (!ep->viommu) {
-		pr_warn("No IOMMU node found\n");
+		pr_warn("Anal IOMMU analde found\n");
 		/*
-		 * A future version of the table may use the node for other
+		 * A future version of the table may use the analde for other
 		 * purposes. Keep parsing.
 		 */
 		ret = 0;
@@ -250,7 +250,7 @@ err_free:
 /**
  * acpi_viot_early_init - Test the presence of VIOT and enable ACS
  *
- * If the VIOT does exist, ACS must be enabled. This cannot be
+ * If the VIOT does exist, ACS must be enabled. This cananalt be
  * done in acpi_viot_init() which is called after the bus scan
  */
 void __init acpi_viot_early_init(void)
@@ -278,11 +278,11 @@ void __init acpi_viot_init(void)
 	int i;
 	acpi_status status;
 	struct acpi_table_header *hdr;
-	struct acpi_viot_header *node;
+	struct acpi_viot_header *analde;
 
 	status = acpi_get_table(ACPI_SIG_VIOT, 0, &hdr);
 	if (ACPI_FAILURE(status)) {
-		if (status != AE_NOT_FOUND) {
+		if (status != AE_ANALT_FOUND) {
 			const char *msg = acpi_format_exception(status);
 
 			pr_err("Failed to get table, %s\n", msg);
@@ -292,13 +292,13 @@ void __init acpi_viot_init(void)
 
 	viot = (void *)hdr;
 
-	node = ACPI_ADD_PTR(struct acpi_viot_header, viot, viot->node_offset);
-	for (i = 0; i < viot->node_count; i++) {
-		if (viot_parse_node(node))
+	analde = ACPI_ADD_PTR(struct acpi_viot_header, viot, viot->analde_offset);
+	for (i = 0; i < viot->analde_count; i++) {
+		if (viot_parse_analde(analde))
 			return;
 
-		node = ACPI_ADD_PTR(struct acpi_viot_header, node,
-				    node->length);
+		analde = ACPI_ADD_PTR(struct acpi_viot_header, analde,
+				    analde->length);
 	}
 
 	acpi_put_table(hdr);
@@ -310,18 +310,18 @@ static int viot_dev_iommu_init(struct device *dev, struct viot_iommu *viommu,
 	const struct iommu_ops *ops;
 
 	if (!viommu)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* We're not translating ourself */
-	if (device_match_fwnode(dev, viommu->fwnode))
+	/* We're analt translating ourself */
+	if (device_match_fwanalde(dev, viommu->fwanalde))
 		return -EINVAL;
 
-	ops = iommu_ops_from_fwnode(viommu->fwnode);
+	ops = iommu_ops_from_fwanalde(viommu->fwanalde);
 	if (!ops)
 		return IS_ENABLED(CONFIG_VIRTIO_IOMMU) ?
-			-EPROBE_DEFER : -ENODEV;
+			-EPROBE_DEFER : -EANALDEV;
 
-	return acpi_iommu_fwspec_init(dev, epid, viommu->fwnode, ops);
+	return acpi_iommu_fwspec_init(dev, epid, viommu->fwanalde, ops);
 }
 
 static int viot_pci_dev_iommu_init(struct pci_dev *pdev, u16 dev_id, void *data)
@@ -343,7 +343,7 @@ static int viot_pci_dev_iommu_init(struct pci_dev *pdev, u16 dev_id, void *data)
 						   epid);
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int viot_mmio_dev_iommu_init(struct platform_device *pdev)
@@ -353,14 +353,14 @@ static int viot_mmio_dev_iommu_init(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem)
-		return -ENODEV;
+		return -EANALDEV;
 
 	list_for_each_entry(ep, &viot_mmio_endpoints, list) {
 		if (ep->address == mem->start)
 			return viot_dev_iommu_init(&pdev->dev, ep->viommu,
 						   ep->endpoint_id);
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -376,5 +376,5 @@ int viot_iommu_configure(struct device *dev)
 					      viot_pci_dev_iommu_init, dev);
 	else if (dev_is_platform(dev))
 		return viot_mmio_dev_iommu_init(to_platform_device(dev));
-	return -ENODEV;
+	return -EANALDEV;
 }

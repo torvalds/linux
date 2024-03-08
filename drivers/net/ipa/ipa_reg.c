@@ -150,13 +150,13 @@ int ipa_reg_init(struct ipa *ipa)
 					   "ipa-reg");
 	if (!res) {
 		dev_err(dev, "DT error getting \"ipa-reg\" memory property\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ipa->reg_virt = ioremap(res->start, resource_size(res));
 	if (!ipa->reg_virt) {
 		dev_err(dev, "unable to remap \"ipa-reg\" memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ipa->regs = regs;
 

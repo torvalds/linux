@@ -183,7 +183,7 @@ static void brcmf_btcoex_boost_wifi(struct brcmf_btcoex_info *btci,
 
 		btci->saved_regs_part2 = false;
 	} else {
-		brcmf_dbg(INFO, "attempted to restore not saved BTCOEX params\n");
+		brcmf_dbg(INFO, "attempted to restore analt saved BTCOEX params\n");
 	}
 }
 
@@ -315,7 +315,7 @@ static void brcmf_btcoex_handler(struct work_struct *work)
 			goto idle;
 		}
 
-		/* DHCP is not over yet, start lowering BT priority */
+		/* DHCP is analt over yet, start lowering BT priority */
 		brcmf_dbg(INFO, "DHCP T1:%d expired\n",
 			  jiffies_to_msecs(BRCMF_BTCOEX_OPPR_WIN_TIME));
 		brcmf_btcoex_boost_wifi(btci, true);
@@ -363,7 +363,7 @@ int brcmf_btcoex_attach(struct brcmf_cfg80211_info *cfg)
 
 	btci = kmalloc(sizeof(struct brcmf_btcoex_info), GFP_KERNEL);
 	if (!btci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	btci->bt_state = BRCMF_BT_DHCP_IDLE;
 
@@ -476,7 +476,7 @@ int brcmf_btcoex_set_mode(struct brcmf_cfg80211_vif *vif,
 		}
 		break;
 	default:
-		brcmf_dbg(INFO, "Unknown mode, ignored\n");
+		brcmf_dbg(INFO, "Unkanalwn mode, iganalred\n");
 	}
 	return 0;
 }

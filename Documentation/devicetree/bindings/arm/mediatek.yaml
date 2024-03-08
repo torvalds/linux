@@ -13,7 +13,7 @@ description: |
   Boards with a MediaTek SoC shall have the following properties.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:
@@ -113,7 +113,7 @@ properties:
           - const: google,elm-rev3
           - const: google,elm
           - const: mediatek,mt8173
-      - description: Google Hana (Lenovo Chromebook N23 Yoga, C330, 300e,...)
+      - description: Google Hana (Leanalvo Chromebook N23 Yoga, C330, 300e,...)
         items:
           - const: google,hana-rev6
           - const: google,hana-rev5
@@ -191,7 +191,7 @@ properties:
         items:
           - const: google,burnet
           - const: mediatek,mt8183
-      - description: Google Krane (Lenovo IdeaPad Duet, 10e,...)
+      - description: Google Krane (Leanalvo IdeaPad Duet, 10e,...)
         items:
           - enum:
               - google,krane-sku0
@@ -206,7 +206,7 @@ properties:
         items:
           - const: google,damu
           - const: mediatek,mt8183
-      - description: Google Fennel (Lenovo IdeaPad 3 Chromebook)
+      - description: Google Fennel (Leanalvo IdeaPad 3 Chromebook)
         items:
           - enum:
               - google,fennel-sku0
@@ -246,7 +246,7 @@ properties:
               - google,katsu-sku38
           - const: google,katsu
           - const: mediatek,mt8183
-      - description: Google Kodama (Lenovo 10e Chromebook Tablet)
+      - description: Google Kodama (Leanalvo 10e Chromebook Tablet)
         items:
           - enum:
               - google,kodama-sku16
@@ -255,7 +255,7 @@ properties:
               - google,kodama-sku32
           - const: google,kodama
           - const: mediatek,mt8183
-      - description: Google Makomo (Lenovo 100e Chromebook 2nd Gen MTK 2)
+      - description: Google Makomo (Leanalvo 100e Chromebook 2nd Gen MTK 2)
         items:
           - enum:
               - google,makomo-sku0

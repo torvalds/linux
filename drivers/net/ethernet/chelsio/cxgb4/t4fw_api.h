@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -37,26 +37,26 @@
 
 enum fw_retval {
 	FW_SUCCESS		= 0,	/* completed successfully */
-	FW_EPERM		= 1,	/* operation not permitted */
-	FW_ENOENT		= 2,	/* no such file or directory */
+	FW_EPERM		= 1,	/* operation analt permitted */
+	FW_EANALENT		= 2,	/* anal such file or directory */
 	FW_EIO			= 5,	/* input/output error; hw bad */
-	FW_ENOEXEC		= 8,	/* exec format error; inv microcode */
+	FW_EANALEXEC		= 8,	/* exec format error; inv microcode */
 	FW_EAGAIN		= 11,	/* try again */
-	FW_ENOMEM		= 12,	/* out of memory */
+	FW_EANALMEM		= 12,	/* out of memory */
 	FW_EFAULT		= 14,	/* bad address; fw bad */
 	FW_EBUSY		= 16,	/* resource busy */
 	FW_EEXIST		= 17,	/* file exists */
-	FW_ENODEV		= 19,	/* no such device */
+	FW_EANALDEV		= 19,	/* anal such device */
 	FW_EINVAL		= 22,	/* invalid argument */
-	FW_ENOSPC		= 28,	/* no space left on device */
-	FW_ENOSYS		= 38,	/* functionality not implemented */
-	FW_ENODATA		= 61,	/* no data available */
+	FW_EANALSPC		= 28,	/* anal space left on device */
+	FW_EANALSYS		= 38,	/* functionality analt implemented */
+	FW_EANALDATA		= 61,	/* anal data available */
 	FW_EPROTO		= 71,	/* protocol error */
 	FW_EADDRINUSE		= 98,	/* address already in use */
-	FW_EADDRNOTAVAIL	= 99,	/* cannot assigned requested address */
+	FW_EADDRANALTAVAIL	= 99,	/* cananalt assigned requested address */
 	FW_ENETDOWN		= 100,	/* network is down */
 	FW_ENETUNREACH		= 101,	/* network is unreachable */
-	FW_ENOBUFS		= 105,	/* no buffer space available */
+	FW_EANALBUFS		= 105,	/* anal buffer space available */
 	FW_ETIMEDOUT		= 110,	/* timeout */
 	FW_EINPROGRESS		= 115,	/* fw internal */
 	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
@@ -64,16 +64,16 @@ enum fw_retval {
 	FW_SCSI_ABORTED		= 130,	/* */
 	FW_SCSI_CLOSE_REQUESTED	= 131,	/* */
 	FW_ERR_LINK_DOWN	= 132,	/* */
-	FW_RDEV_NOT_READY	= 133,	/* */
+	FW_RDEV_ANALT_READY	= 133,	/* */
 	FW_ERR_RDEV_LOST	= 134,	/* */
 	FW_ERR_RDEV_LOGO	= 135,	/* */
-	FW_FCOE_NO_XCHG		= 136,	/* */
+	FW_FCOE_ANAL_XCHG		= 136,	/* */
 	FW_SCSI_RSP_ERR		= 137,	/* */
 	FW_ERR_RDEV_IMPL_LOGO	= 138,	/* */
 	FW_SCSI_UNDER_FLOW_ERR  = 139,	/* */
 	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
 	FW_SCSI_DDP_ERR		= 141,	/* DDP error*/
-	FW_SCSI_TASK_ERR	= 142,	/* No SCSI tasks available */
+	FW_SCSI_TASK_ERR	= 142,	/* Anal SCSI tasks available */
 };
 
 #define FW_T4VF_SGE_BASE_ADDR      0x0000
@@ -263,12 +263,12 @@ struct fw_filter2_wr {
 	(((x) >> FW_FILTER_WR_RQTYPE_S) & FW_FILTER_WR_RQTYPE_M)
 #define FW_FILTER_WR_RQTYPE_F   FW_FILTER_WR_RQTYPE_V(1U)
 
-#define FW_FILTER_WR_NOREPLY_S          10
-#define FW_FILTER_WR_NOREPLY_M          0x1
-#define FW_FILTER_WR_NOREPLY_V(x)       ((x) << FW_FILTER_WR_NOREPLY_S)
-#define FW_FILTER_WR_NOREPLY_G(x)       \
-	(((x) >> FW_FILTER_WR_NOREPLY_S) & FW_FILTER_WR_NOREPLY_M)
-#define FW_FILTER_WR_NOREPLY_F  FW_FILTER_WR_NOREPLY_V(1U)
+#define FW_FILTER_WR_ANALREPLY_S          10
+#define FW_FILTER_WR_ANALREPLY_M          0x1
+#define FW_FILTER_WR_ANALREPLY_V(x)       ((x) << FW_FILTER_WR_ANALREPLY_S)
+#define FW_FILTER_WR_ANALREPLY_G(x)       \
+	(((x) >> FW_FILTER_WR_ANALREPLY_S) & FW_FILTER_WR_ANALREPLY_M)
+#define FW_FILTER_WR_ANALREPLY_F  FW_FILTER_WR_ANALREPLY_V(1U)
 
 #define FW_FILTER_WR_IQ_S       0
 #define FW_FILTER_WR_IQ_M       0x3ff
@@ -699,7 +699,7 @@ enum fw_flowc_mnem_tcpstate {
 	FW_FLOWC_MNEM_TCPSTATE_FINWAIT2 = 9, /* sent FIN and got FIN + ACK,
 					      * waiting for FIN
 					      */
-	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* not expected */
+	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT = 10, /* analt expected */
 };
 
 enum fw_flowc_mnem_eostate {
@@ -1112,11 +1112,11 @@ struct fw_hello_cmd {
 #define FW_HELLO_CMD_MBMASTER_G(x)	\
 	(((x) >> FW_HELLO_CMD_MBMASTER_S) & FW_HELLO_CMD_MBMASTER_M)
 
-#define FW_HELLO_CMD_MBASYNCNOTINT_S    23
-#define FW_HELLO_CMD_MBASYNCNOTINT_V(x)	((x) << FW_HELLO_CMD_MBASYNCNOTINT_S)
+#define FW_HELLO_CMD_MBASYNCANALTINT_S    23
+#define FW_HELLO_CMD_MBASYNCANALTINT_V(x)	((x) << FW_HELLO_CMD_MBASYNCANALTINT_S)
 
-#define FW_HELLO_CMD_MBASYNCNOT_S       20
-#define FW_HELLO_CMD_MBASYNCNOT_V(x)	((x) << FW_HELLO_CMD_MBASYNCNOT_S)
+#define FW_HELLO_CMD_MBASYNCANALT_S       20
+#define FW_HELLO_CMD_MBASYNCANALT_V(x)	((x) << FW_HELLO_CMD_MBASYNCANALT_S)
 
 #define FW_HELLO_CMD_STAGE_S		17
 #define FW_HELLO_CMD_STAGE_V(x)		((x) << FW_HELLO_CMD_STAGE_S)
@@ -1571,7 +1571,7 @@ struct fw_pfvf_cmd {
 
 enum fw_iq_type {
 	FW_IQ_TYPE_FL_INT_CAP,
-	FW_IQ_TYPE_NO_FL_INT_CAP
+	FW_IQ_TYPE_ANAL_FL_INT_CAP
 };
 
 enum fw_iq_iqtype {
@@ -2272,7 +2272,7 @@ enum fw_vi_mac_smac {
 
 enum fw_vi_mac_result {
 	FW_VI_MAC_R_SUCCESS,
-	FW_VI_MAC_R_F_NONEXISTENT_NOMEM,
+	FW_VI_MAC_R_F_ANALNEXISTENT_ANALMEM,
 	FW_VI_MAC_R_SMAC_FAIL,
 	FW_VI_MAC_R_F_ACL_CHECK
 };
@@ -2389,7 +2389,7 @@ struct fw_vi_mac_cmd {
 #define FW_VI_MAC_CMD_VNI_MASK_G(x)	\
 	(((x) >> FW_VI_MAC_CMD_VNI_MASK_S) & FW_VI_MAC_CMD_VNI_MASK_M)
 
-#define FW_RXMODE_MTU_NO_CHG	65535
+#define FW_RXMODE_MTU_ANAL_CHG	65535
 
 struct fw_vi_rxmode_cmd {
 	__be32 op_to_viid;
@@ -2582,7 +2582,7 @@ struct fw_acl_vlan_cmd {
 	__be32 op_to_vfn;
 	__be32 en_to_len16;
 	u8 nvlan;
-	u8 dropnovlan_fm;
+	u8 dropanalvlan_fm;
 	u8 r3_lo[6];
 	__be16 vlanid[16];
 };
@@ -2600,9 +2600,9 @@ struct fw_acl_vlan_cmd {
 	(((x) >> S_FW_ACL_VLAN_CMD_EN_S) & FW_ACL_VLAN_CMD_EN_M)
 #define FW_ACL_VLAN_CMD_EN_F            FW_ACL_VLAN_CMD_EN_V(1U)
 
-#define FW_ACL_VLAN_CMD_DROPNOVLAN_S	7
-#define FW_ACL_VLAN_CMD_DROPNOVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPNOVLAN_S)
-#define FW_ACL_VLAN_CMD_DROPNOVLAN_F    FW_ACL_VLAN_CMD_DROPNOVLAN_V(1U)
+#define FW_ACL_VLAN_CMD_DROPANALVLAN_S	7
+#define FW_ACL_VLAN_CMD_DROPANALVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPANALVLAN_S)
+#define FW_ACL_VLAN_CMD_DROPANALVLAN_F    FW_ACL_VLAN_CMD_DROPANALVLAN_V(1U)
 
 #define FW_ACL_VLAN_CMD_FM_S		6
 #define FW_ACL_VLAN_CMD_FM_M		0x1
@@ -2737,10 +2737,10 @@ enum fw_port_action {
 	FW_PORT_ACTION_DCB_READ_DET	= 0x0008,
 	FW_PORT_ACTION_L1_CFG32		= 0x0009,
 	FW_PORT_ACTION_GET_PORT_INFO32	= 0x000a,
-	FW_PORT_ACTION_LOW_PWR_TO_NORMAL = 0x0010,
+	FW_PORT_ACTION_LOW_PWR_TO_ANALRMAL = 0x0010,
 	FW_PORT_ACTION_L1_LOW_PWR_EN	= 0x0011,
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
-	FW_PORT_ACTION_LPBK_TO_NORMAL	= 0x0020,
+	FW_PORT_ACTION_LPBK_TO_ANALRMAL	= 0x0020,
 	FW_PORT_ACTION_L1_LPBK		= 0x0021,
 	FW_PORT_ACTION_L1_PMA_LPBK	= 0x0022,
 	FW_PORT_ACTION_L1_PCS_LPBK	= 0x0023,
@@ -2764,7 +2764,7 @@ enum fw_port_l2cfg_ctlbf {
 };
 
 enum fw_port_dcb_versions {
-	FW_PORT_DCB_VER_UNKNOWN,
+	FW_PORT_DCB_VER_UNKANALWN,
 	FW_PORT_DCB_VER_CEE1D0,
 	FW_PORT_DCB_VER_CEE1D01,
 	FW_PORT_DCB_VER_IEEE,
@@ -3108,7 +3108,7 @@ enum fw_port_type {
 	FW_PORT_TYPE_KR_SFP28,
 	FW_PORT_TYPE_KR_XLAUI,
 
-	FW_PORT_TYPE_NONE = FW_PORT_CMD_PTYPE_M
+	FW_PORT_TYPE_ANALNE = FW_PORT_CMD_PTYPE_M
 };
 
 enum fw_port_module_type {
@@ -3120,10 +3120,10 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_TWINAX_ACTIVE,
 	FW_PORT_MOD_TYPE_LRM,
 	FW_PORT_MOD_TYPE_ERROR		= FW_PORT_CMD_MODTYPE_M - 3,
-	FW_PORT_MOD_TYPE_UNKNOWN	= FW_PORT_CMD_MODTYPE_M - 2,
-	FW_PORT_MOD_TYPE_NOTSUPPORTED	= FW_PORT_CMD_MODTYPE_M - 1,
+	FW_PORT_MOD_TYPE_UNKANALWN	= FW_PORT_CMD_MODTYPE_M - 2,
+	FW_PORT_MOD_TYPE_ANALTSUPPORTED	= FW_PORT_CMD_MODTYPE_M - 1,
 
-	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_M
+	FW_PORT_MOD_TYPE_ANALNE = FW_PORT_CMD_MODTYPE_M
 };
 
 enum fw_port_mod_sub_type {
@@ -3336,7 +3336,7 @@ struct fw_port_lb_stats_cmd {
 };
 
 enum fw_ptp_subop {
-	/* none */
+	/* analne */
 	FW_PTP_SC_INIT_TIMER            = 0x00,
 	FW_PTP_SC_TX_TYPE               = 0x01,
 	/* init */
@@ -3786,12 +3786,12 @@ enum fw_hdr_chip {
 #define FW_HDR_FW_VER_MAJOR_G(x) \
 	(((x) >> FW_HDR_FW_VER_MAJOR_S) & FW_HDR_FW_VER_MAJOR_M)
 
-#define FW_HDR_FW_VER_MINOR_S	16
-#define FW_HDR_FW_VER_MINOR_M	0xff
-#define FW_HDR_FW_VER_MINOR_V(x) \
-	((x) << FW_HDR_FW_VER_MINOR_S)
-#define FW_HDR_FW_VER_MINOR_G(x) \
-	(((x) >> FW_HDR_FW_VER_MINOR_S) & FW_HDR_FW_VER_MINOR_M)
+#define FW_HDR_FW_VER_MIANALR_S	16
+#define FW_HDR_FW_VER_MIANALR_M	0xff
+#define FW_HDR_FW_VER_MIANALR_V(x) \
+	((x) << FW_HDR_FW_VER_MIANALR_S)
+#define FW_HDR_FW_VER_MIANALR_G(x) \
+	(((x) >> FW_HDR_FW_VER_MIANALR_S) & FW_HDR_FW_VER_MIANALR_M)
 
 #define FW_HDR_FW_VER_MICRO_S	8
 #define FW_HDR_FW_VER_MICRO_M	0xff
@@ -3833,7 +3833,7 @@ enum fw_devlog_level {
 	FW_DEVLOG_LEVEL_EMERG	= 0x0,
 	FW_DEVLOG_LEVEL_CRIT	= 0x1,
 	FW_DEVLOG_LEVEL_ERR	= 0x2,
-	FW_DEVLOG_LEVEL_NOTICE	= 0x3,
+	FW_DEVLOG_LEVEL_ANALTICE	= 0x3,
 	FW_DEVLOG_LEVEL_INFO	= 0x4,
 	FW_DEVLOG_LEVEL_DEBUG	= 0x5,
 	FW_DEVLOG_LEVEL_MAX	= 0x5,
@@ -3872,7 +3872,7 @@ enum fw_devlog_facility {
 /* log message format */
 struct fw_devlog_e {
 	__be64	timestamp;
-	__be32	seqno;
+	__be32	seqanal;
 	__be16	reserved1;
 	__u8	level;
 	__u8	facility;

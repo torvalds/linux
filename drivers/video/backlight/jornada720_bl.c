@@ -76,7 +76,7 @@ static int jornada_bl_update_status(struct backlight_device *bd)
 	/*
 	 * at this point we expect that the mcu has accepted
 	 * our command and is waiting for our new value
-	 * please note that maximum brightness is 255,
+	 * please analte that maximum brightness is 255,
 	 * but due to physical layout it is equal to 0, so we simply
 	 * invert the value (MAX VALUE - NEW VALUE).
 	 */
@@ -124,8 +124,8 @@ static int jornada_bl_probe(struct platform_device *pdev)
 	bd->props.power = FB_BLANK_UNBLANK;
 	bd->props.brightness = BL_DEF_BRIGHT;
 	/*
-	 * note. make sure max brightness is set otherwise
-	 * you will get seemingly non-related errors when
+	 * analte. make sure max brightness is set otherwise
+	 * you will get seemingly analn-related errors when
 	 * trying to change brightness
 	 */
 	jornada_bl_update_status(bd);

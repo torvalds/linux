@@ -23,7 +23,7 @@ struct hw_info {
 	u32 max_size;
 	u64 bld_date;
 	u64 bld_time;
-/* may not used in product
+/* may analt used in product
 	u64 dbg_date;
 	u64 dbg_time;
 	u32 dbg_id;
@@ -156,7 +156,7 @@ proc_read_clock(struct snd_info_entry *entry,
 }
 
 static void
-add_node(struct snd_bebob *bebob, struct snd_info_entry *root, const char *name,
+add_analde(struct snd_bebob *bebob, struct snd_info_entry *root, const char *name,
 	 void (*op)(struct snd_info_entry *e, struct snd_info_buffer *b))
 {
 	struct snd_info_entry *entry;
@@ -171,7 +171,7 @@ void snd_bebob_proc_init(struct snd_bebob *bebob)
 	struct snd_info_entry *root;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All analdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(bebob->card, "firewire",
@@ -180,10 +180,10 @@ void snd_bebob_proc_init(struct snd_bebob *bebob)
 		return;
 	root->mode = S_IFDIR | 0555;
 
-	add_node(bebob, root, "clock", proc_read_clock);
-	add_node(bebob, root, "firmware", proc_read_hw_info);
-	add_node(bebob, root, "formation", proc_read_formation);
+	add_analde(bebob, root, "clock", proc_read_clock);
+	add_analde(bebob, root, "firmware", proc_read_hw_info);
+	add_analde(bebob, root, "formation", proc_read_formation);
 
 	if (bebob->spec->meter != NULL)
-		add_node(bebob, root, "meter", proc_read_meters);
+		add_analde(bebob, root, "meter", proc_read_meters);
 }

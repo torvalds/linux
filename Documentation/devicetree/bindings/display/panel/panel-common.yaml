@@ -38,10 +38,10 @@ properties:
       on the system (e.g. as an affixed label) or specified in the system's
       documentation (e.g. in the user's manual).
 
-      If no such name exists, and unless the property is mandatory according to
+      If anal such name exists, and unless the property is mandatory according to
       device tree bindings, it shall rather be omitted than constructed of
-      non-descriptive information. For instance an LCD panel in a system that
-      contains a single panel shall not be labelled "LCD" if that name is not
+      analn-descriptive information. For instance an LCD panel in a system that
+      contains a single panel shall analt be labelled "LCD" if that name is analt
       inscribed on the system or used in a descriptive fashion in system
       documentation.
 
@@ -55,7 +55,7 @@ properties:
   panel-timing:
     description:
       Most display panels are restricted to a single resolution and
-      require specific display timings. The panel-timing subnode expresses those
+      require specific display timings. The panel-timing subanalde expresses those
       timings.
     $ref: panel-timing.yaml#
 
@@ -77,7 +77,7 @@ properties:
       bus such as DDC2 or E-DDC. For such panels the ddc-i2c-bus contains a
       phandle to the system I2C controller connected to that bus.
 
-  no-hpd:
+  anal-hpd:
     type: boolean
     description:
       This panel is supposed to communicate that it's ready via HPD
@@ -107,7 +107,7 @@ properties:
       signals (or active high power down signals) can be supported by inverting
       the GPIO specifier polarity flag.
 
-      Note that the enable signal control panel operation only and must not be
+      Analte that the enable signal control panel operation only and must analt be
       confused with a backlight enable signal.
 
   reset-gpios:

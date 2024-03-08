@@ -10,7 +10,7 @@ maintainers:
   - Jerome Neanne <jerome.neanne@baylibre.com>
 
 description: |
-  Regulator nodes should be named to buck<number> and ldo<number>.
+  Regulator analdes should be named to buck<number> and ldo<number>.
 
 properties:
   compatible:

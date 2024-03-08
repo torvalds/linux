@@ -11,7 +11,7 @@ maintainers:
   - Michael Welling <mwelling@ieee.org>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^touchscreen(@.*)?$"
 
   compatible:
@@ -41,7 +41,7 @@ properties:
 
   ti,esd-recovery-timeout-ms:
     description: |
-        if the touchscreen does not respond after the configured time
+        if the touchscreen does analt respond after the configured time
         (in milli seconds), the driver will reset it. This is disabled
         by default.
 

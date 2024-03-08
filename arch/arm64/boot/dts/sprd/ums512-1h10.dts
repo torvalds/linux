@@ -40,8 +40,8 @@
 /* SD card */
 &sdio0 {
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	sprd,phy-delay-sd-uhs-sdr104 = <0x7f 0x73 0x72 0x72>;
 	sprd,phy-delay-sd-uhs-sdr50 = <0x6e 0x7f 0x01 0x01>;
 	sprd,phy-delay-sd-highspeed = <0x7f 0x1a 0x9a 0x9a>;
@@ -54,8 +54,8 @@
 &sdio3 {
 	status = "okay";
 	bus-width = <8>;
-	no-sdio;
-	no-sd;
-	non-removable;
+	anal-sdio;
+	anal-sd;
+	analn-removable;
 	cap-mmc-hw-reset;
 };

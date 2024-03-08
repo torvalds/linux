@@ -45,7 +45,7 @@ int nfs_mountpoint_expiry_timeout = 500 * HZ;
  * and in generating /proc/mounts and friends.
  *
  * Supported flags:
- * NFS_PATH_CANONICAL: ensure there is exactly one slash after
+ * NFS_PATH_CAANALNICAL: ensure there is exactly one slash after
  *		       the original device (export) name
  *		       (if unset, the original name is returned verbatim)
  */
@@ -87,7 +87,7 @@ rename_retry:
 		rcu_read_unlock();
 		goto rename_retry;
 	}
-	if ((flags & NFS_PATH_CANONICAL) && *end != '/') {
+	if ((flags & NFS_PATH_CAANALNICAL) && *end != '/') {
 		if (--buflen < 0) {
 			spin_unlock(&dentry->d_lock);
 			rcu_read_unlock();
@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(nfs_path);
  * @path - The mountpoint
  *
  * When we encounter a mountpoint on the server, we want to set up
- * a mountpoint on the client too, to prevent inode numbers from
+ * a mountpoint on the client too, to prevent ianalde numbers from
  * colliding, and to allow "df" to work properly.
  * On NFSv4, we also want to allow for the fact that different
  * filesystems may be migrated to different servers in a failover
@@ -146,7 +146,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 {
 	struct nfs_fs_context *ctx;
 	struct fs_context *fc;
-	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
+	struct vfsmount *mnt = ERR_PTR(-EANALMEM);
 	struct nfs_server *server = NFS_SB(path->dentry->d_sb);
 	struct nfs_client *client = server->nfs_client;
 	int timeout = READ_ONCE(nfs_mountpoint_expiry_timeout);
@@ -180,7 +180,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	ctx->nfs_server.port	= server->port;
 
 	ctx->version		= client->rpc_ops->version;
-	ctx->minorversion	= client->cl_minorversion;
+	ctx->mianalrversion	= client->cl_mianalrversion;
 	ctx->nfs_mod		= client->cl_nfs_mod;
 	__module_get(ctx->nfs_mod->owner);
 
@@ -212,10 +212,10 @@ nfs_namespace_getattr(struct mnt_idmap *idmap,
 		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
-	if (NFS_FH(d_inode(path->dentry))->size != 0)
+	if (NFS_FH(d_ianalde(path->dentry))->size != 0)
 		return nfs_getattr(idmap, path, stat, request_mask,
 				   query_flags);
-	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(path->dentry),
+	generic_fillattr(&analp_mnt_idmap, request_mask, d_ianalde(path->dentry),
 			 stat);
 	return 0;
 }
@@ -224,17 +224,17 @@ static int
 nfs_namespace_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
-	if (NFS_FH(d_inode(dentry))->size != 0)
+	if (NFS_FH(d_ianalde(dentry))->size != 0)
 		return nfs_setattr(idmap, dentry, attr);
 	return -EACCES;
 }
 
-const struct inode_operations nfs_mountpoint_inode_operations = {
+const struct ianalde_operations nfs_mountpoint_ianalde_operations = {
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
 };
 
-const struct inode_operations nfs_referral_inode_operations = {
+const struct ianalde_operations nfs_referral_ianalde_operations = {
 	.getattr	= nfs_namespace_getattr,
 	.setattr	= nfs_namespace_setattr,
 };
@@ -281,7 +281,7 @@ int nfs_do_submount(struct fs_context *fc)
 
 	buffer = kmalloc(4096, GFP_USER);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->internal		= true;
 	ctx->clone_data.inherited_bsize = ctx->clone_data.sb->s_blocksize_bits;
@@ -308,7 +308,7 @@ int nfs_submount(struct fs_context *fc, struct nfs_server *server)
 	int err;
 
 	/* Look it up again to get its attributes */
-	err = server->nfs_client->rpc_ops->lookup(d_inode(parent), dentry,
+	err = server->nfs_client->rpc_ops->lookup(d_ianalde(parent), dentry,
 						  ctx->mntfh, ctx->clone_data.fattr);
 	dput(parent);
 	if (err != 0)

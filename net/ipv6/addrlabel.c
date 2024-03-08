@@ -35,7 +35,7 @@ struct ip6addrlbl_entry {
 	int ifindex;
 	int addrtype;
 	u32 label;
-	struct hlist_node list;
+	struct hlist_analde list;
 	struct rcu_head rcu;
 };
 
@@ -56,8 +56,8 @@ struct ip6addrlbl_entry {
  *							(deprecated by RFC3879)
  * 3ffe::/16		N/A		12		6bone
  *
- * Note: 0xffffffff is used if we do not have any policies.
- * Note: Labels for ULA and 6to4 are different from labels listed in RFC6724.
+ * Analte: 0xffffffff is used if we do analt have any policies.
+ * Analte: Labels for ULA and 6to4 are different from labels listed in RFC6724.
  */
 
 #define IPV6_ADDR_LABEL_DEFAULT	0xffffffffUL
@@ -188,14 +188,14 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 
 	newp = kmalloc(sizeof(*newp), GFP_KERNEL);
 	if (!newp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ipv6_addr_prefix(&newp->prefix, prefix, prefixlen);
 	newp->prefixlen = prefixlen;
 	newp->ifindex = ifindex;
 	newp->addrtype = addrtype;
 	newp->label = label;
-	INIT_HLIST_NODE(&newp->list);
+	INIT_HLIST_ANALDE(&newp->list);
 	return newp;
 }
 
@@ -204,7 +204,7 @@ static int __ip6addrlbl_add(struct net *net, struct ip6addrlbl_entry *newp,
 			    int replace)
 {
 	struct ip6addrlbl_entry *last = NULL, *p = NULL;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(newp=%p, replace=%d)\n", __func__, newp,
@@ -267,7 +267,7 @@ static int __ip6addrlbl_del(struct net *net,
 			    int ifindex)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	int ret = -ESRCH;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n",
@@ -307,7 +307,7 @@ static int ip6addrlbl_del(struct net *net,
 static int __net_init ip6addrlbl_net_init(struct net *net)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	int err;
 	int i;
 
@@ -338,7 +338,7 @@ err_ip6addrlbl_add:
 static void __net_exit ip6addrlbl_net_exit(struct net *net)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	/* Remove all labels belonging to the exiting net */
 	spin_lock(&net->ipv6.ip6addrlbl_table.lock);
@@ -427,7 +427,7 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 				     ifal->ifal_index);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 	return err;
 }
@@ -608,7 +608,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	skb = nlmsg_new(ip6addrlbl_msgsize(), GFP_KERNEL);
 	if (!skb)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	err = -ESRCH;
 

@@ -55,7 +55,7 @@
 
 /* definitions to support mailbox API version negotiation */
 
-/* each element denotes a version of the API; existing numbers may not
+/* each element deanaltes a version of the API; existing numbers may analt
  * change; any additions must go at the end
  */
 enum ixgbe_pfvf_api_rev {
@@ -67,7 +67,7 @@ enum ixgbe_pfvf_api_rev {
 	ixgbe_mbox_api_14,	/* API version 1.4, linux/freebsd VF driver */
 	ixgbe_mbox_api_15,	/* API version 1.5, linux/freebsd VF driver */
 	/* This value should always be last */
-	ixgbe_mbox_api_unknown,	/* indicates that API version is not known */
+	ixgbe_mbox_api_unkanalwn,	/* indicates that API version is analt kanalwn */
 };
 
 /* mailbox API, legacy requests */

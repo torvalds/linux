@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_S390_SIE_H
 #define _UAPI_ASM_S390_SIE_H
 
-#define diagnose_codes						\
+#define diaganalse_codes						\
 	{ 0x10, "DIAG (0x10) release pages" },			\
 	{ 0x44, "DIAG (0x44) time slice end" },			\
 	{ 0x9c, "DIAG (0x9c) time slice end directed" },	\
@@ -220,7 +220,7 @@
  * This is the simple interceptable instructions decoder.
  *
  * It will be used as userspace interface and it can be used in places
- * that does not allow to use general decoder functions,
+ * that does analt allow to use general decoder functions,
  * such as trace events declarations.
  *
  * Some userspace tools may want to parse this code

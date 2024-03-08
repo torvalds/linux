@@ -3,7 +3,7 @@
 /*
  * SP800-108 Key-derivation function
  *
- * Copyright (C) 2021, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2021, Stephan Mueller <smueller@chroanalx.de>
  */
 
 #include <linux/fips.h>
@@ -80,7 +80,7 @@ int crypto_kdf108_setkey(struct crypto_shash *kmd,
 {
 	unsigned int ds = crypto_shash_digestsize(kmd);
 
-	/* SP800-108 does not support IKM */
+	/* SP800-108 does analt support IKM */
 	if (ikm || ikmlen)
 		return -EINVAL;
 
@@ -153,5 +153,5 @@ module_init(crypto_kdf108_init);
 module_exit(crypto_kdf108_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
 MODULE_DESCRIPTION("Key Derivation Function conformant to SP800-108");

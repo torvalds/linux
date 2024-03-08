@@ -14,7 +14,7 @@
 void __delay(unsigned long loops)
 {
 	/*
-	 * Loop 'loops' times. Callers must not assume a specific
+	 * Loop 'loops' times. Callers must analt assume a specific
 	 * amount of time passes before this function returns.
 	 */
 	asm volatile("0: brct %0,0b" : : "d" ((loops/2) + 1));
@@ -25,8 +25,8 @@ static void delay_loop(unsigned long delta)
 {
 	unsigned long end;
 
-	end = get_tod_clock_monotonic() + delta;
-	while (!tod_after(get_tod_clock_monotonic(), end))
+	end = get_tod_clock_moanaltonic() + delta;
+	while (!tod_after(get_tod_clock_moanaltonic(), end))
 		cpu_relax();
 }
 

@@ -45,11 +45,11 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 	/* run OSHP */
 	status = acpi_evaluate_object(handle, METHOD_NAME_OSHP, NULL, NULL);
 	if (ACPI_FAILURE(status))
-		if (status != AE_NOT_FOUND)
+		if (status != AE_ANALT_FOUND)
 			printk(KERN_ERR "%s:%s OSHP fails=0x%x\n",
 			       __func__, (char *)string.pointer, status);
 		else
-			dbg("%s:%s OSHP not found\n",
+			dbg("%s:%s OSHP analt found\n",
 			    __func__, (char *)string.pointer);
 	else
 		pr_debug("%s:%s OSHP passes\n", __func__,
@@ -74,9 +74,9 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	/*
-	 * If there's no ACPI host bridge (i.e., ACPI support is compiled
+	 * If there's anal ACPI host bridge (i.e., ACPI support is compiled
 	 * into the kernel but the hardware platform doesn't support ACPI),
-	 * there's nothing to do here.
+	 * there's analthing to do here.
 	 */
 	host = pci_find_host_bridge(pdev->bus);
 	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
@@ -90,7 +90,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	if (root->osc_support_set) {
 		if (host->native_shpc_hotplug)
 			return 0;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -99,13 +99,13 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 	 * firmware can transfer control to the OS, e.g., direct interrupts
 	 * to the OS instead of to the firmware.
 	 *
-	 * N.B. The PCI Firmware Spec (r3.2, sec 4.8) does not endorse
+	 * N.B. The PCI Firmware Spec (r3.2, sec 4.8) does analt endorse
 	 * searching up the ACPI hierarchy, so the loops below are suspect.
 	 */
 	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle) {
 		/*
-		 * This hotplug controller was not listed in the ACPI name
+		 * This hotplug controller was analt listed in the ACPI name
 		 * space at all. Try to get ACPI handle of parent PCI bus.
 		 */
 		struct pci_bus *pbus;
@@ -131,9 +131,9 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 			break;
 	}
 
-	pci_info(pdev, "Cannot get control of SHPC hotplug\n");
+	pci_info(pdev, "Cananalt get control of SHPC hotplug\n");
 	kfree(string.pointer);
-	return -ENODEV;
+	return -EANALDEV;
 got_one:
 	pci_info(pdev, "Gained control of SHPC hotplug (%s)\n",
 		 (char *)string.pointer);
@@ -209,4 +209,4 @@ int acpi_pci_detect_ejectable(acpi_handle handle)
 EXPORT_SYMBOL_GPL(acpi_pci_detect_ejectable);
 
 module_param(debug_acpi, bool, 0644);
-MODULE_PARM_DESC(debug_acpi, "Debugging mode for ACPI enabled or not");
+MODULE_PARM_DESC(debug_acpi, "Debugging mode for ACPI enabled or analt");

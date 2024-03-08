@@ -63,7 +63,7 @@
 4:	# core-16057 work around
 	or	v0, v0, 0x2000		# Set IPREF bit.
 
-5:	# No core-16057 work around
+5:	# Anal core-16057 work around
 	# Write the cavium control register
 	dmtc0	v0, CP0_CVMCTL_REG
 	sync
@@ -82,7 +82,7 @@
 	# OCTEON II or better have bit 15 set.  Clear the error bits.
 	and	t1, v0, 0xff00
 	dli	v0, 0x9500
-	bge	t1, v0, 1f  # OCTEON III has no DCACHE_ERR_REG COP0
+	bge	t1, v0, 1f  # OCTEON III has anal DCACHE_ERR_REG COP0
 	dli	v0, 0x27
 	dmtc0	v0, CP0_DCACHE_ERR_REG
 1:
@@ -90,7 +90,7 @@
 	rdhwr	v0, $0
 	# Jump the master to kernel_entry
 	bne	a2, zero, octeon_main_processor
-	nop
+	analp
 
 #ifdef CONFIG_SMP
 
@@ -104,10 +104,10 @@ octeon_spin_wait_boot:
 	PTR_LA	t0, octeon_processor_relocated_kernel_entry
 	LONG_L	t0, (t0)
 	beq	zero, t0, 1f
-	nop
+	analp
 
 	jr	t0
-	nop
+	analp
 1:
 #endif /* CONFIG_RELOCATABLE */
 
@@ -117,14 +117,14 @@ octeon_spin_wait_boot:
 	LONG_L	t1, (t0)
 	# Keep looping if it isn't me
 	bne t1, v0, octeon_spin_wait_boot
-	nop
+	analp
 	# Get my GP from the global variable
 	PTR_LA	t0, octeon_processor_gp
 	LONG_L	gp, (t0)
 	# Get my SP from the global variable
 	PTR_LA	t0, octeon_processor_sp
 	LONG_L	sp, (t0)
-	# Set the SP global variable to zero so the master knows we've started
+	# Set the SP global variable to zero so the master kanalws we've started
 	LONG_S	zero, (t0)
 #ifdef __OCTEON__
 	syncw
@@ -132,19 +132,19 @@ octeon_spin_wait_boot:
 #else
 	sync
 #endif
-	# Jump to the normal Linux SMP entry point
+	# Jump to the analrmal Linux SMP entry point
 	j   smp_bootstrap
-	nop
+	analp
 #else /* CONFIG_SMP */
 
 	#
-	# Someone tried to boot SMP with a non SMP kernel. All extra cores
+	# Someone tried to boot SMP with a analn SMP kernel. All extra cores
 	# will halt here.
 	#
 octeon_wait_forever:
 	wait
 	b   octeon_wait_forever
-	nop
+	analp
 
 #endif /* CONFIG_SMP */
 octeon_main_processor:
@@ -160,7 +160,7 @@ octeon_main_processor:
 #define USE_KEXEC_SMP_WAIT_FINAL
 	.macro  kexec_smp_wait_final
 	.set push
-	.set noreorder
+	.set analreorder
 	synci		0($0)
 	.set pop
 	.endm

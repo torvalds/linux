@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -87,7 +87,7 @@ nvkm_cstate_valid(struct nvkm_clk *clk, struct nvkm_cstate *cstate,
 		if (domain->flags & NVKM_CLK_DOM_FLAG_VPSTATE) {
 			u32 freq = cstate->domain[domain->name];
 			switch (clk->boost_mode) {
-			case NVKM_CLK_BOOST_NONE:
+			case NVKM_CLK_BOOST_ANALNE:
 				if (clk->base_khz && freq > clk->base_khz)
 					return false;
 				fallthrough;
@@ -177,7 +177,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 
 	if (therm) {
 		ret = nvkm_therm_cstate(therm, pstate->fanspeed, +1);
-		if (ret && ret != -ENODEV) {
+		if (ret && ret != -EANALDEV) {
 			nvkm_error(subdev, "failed to raise fan speed: %d\n", ret);
 			return ret;
 		}
@@ -186,7 +186,7 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	if (volt) {
 		ret = nvkm_volt_set_id(volt, cstate->voltage,
 				       pstate->base.voltage, clk->temp, +1);
-		if (ret && ret != -ENODEV) {
+		if (ret && ret != -EANALDEV) {
 			nvkm_error(subdev, "failed to raise voltage: %d\n", ret);
 			return ret;
 		}
@@ -201,13 +201,13 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	if (volt) {
 		ret = nvkm_volt_set_id(volt, cstate->voltage,
 				       pstate->base.voltage, clk->temp, -1);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			nvkm_error(subdev, "failed to lower voltage: %d\n", ret);
 	}
 
 	if (therm) {
 		ret = nvkm_therm_cstate(therm, pstate->fanspeed, -1);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			nvkm_error(subdev, "failed to lower fan speed: %d\n", ret);
 	}
 
@@ -234,14 +234,14 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 
 	data = nvbios_cstepXp(bios, idx, &ver, &hdr, &cstepX);
 	if (!data)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (volt && nvkm_volt_map_min(volt, cstepX.voltage) > volt->max_uv)
 		return -EINVAL;
 
 	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 	if (!cstate)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*cstate = pstate->base;
 	cstate->voltage = cstepX.voltage;
@@ -418,7 +418,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 
 	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
 	if (!pstate)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&pstate->list);
 
@@ -476,7 +476,7 @@ nvkm_clk_ustate_update(struct nvkm_clk *clk, int req)
 	int i = 0;
 
 	if (!clk->allow_reclock)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (req != -1 && req != -2) {
 		list_for_each_entry(pstate, &clk->states, head) {
@@ -600,7 +600,7 @@ nvkm_clk_init(struct nvkm_subdev *subdev)
 	while (clock->name != nv_clk_src_max) {
 		ret = nvkm_clk_read(clk, clock->name);
 		if (ret < 0) {
-			nvkm_error(subdev, "%02x freq unknown\n", clock->name);
+			nvkm_error(subdev, "%02x freq unkanalwn\n", clock->name);
 			return ret;
 		}
 		clk->bstate.base.domain[clock->name] = ret;
@@ -675,7 +675,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	init_waitqueue_head(&clk->wait);
 	atomic_set(&clk->waiting, 0);
 
-	/* If no pstates are provided, try and fetch them from the BIOS */
+	/* If anal pstates are provided, try and fetch them from the BIOS */
 	if (!func->pstates) {
 		idx = 0;
 		do {
@@ -702,7 +702,7 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 		clk->ustate_dc = nvkm_clk_nstate(clk, mode, arglen);
 
 	clk->boost_mode = nvkm_longopt(device->cfgopt, "NvBoost",
-				       NVKM_CLK_BOOST_NONE);
+				       NVKM_CLK_BOOST_ANALNE);
 	return 0;
 }
 
@@ -711,6 +711,6 @@ nvkm_clk_new_(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, bool allow_reclock, struct nvkm_clk **pclk)
 {
 	if (!(*pclk = kzalloc(sizeof(**pclk), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_clk_ctor(func, device, type, inst, allow_reclock, *pclk);
 }

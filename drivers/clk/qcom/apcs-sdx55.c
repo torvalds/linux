@@ -28,10 +28,10 @@ static const struct clk_parent_data pdata[] = {
 };
 
 /*
- * We use the notifier function for switching to a temporary safe configuration
+ * We use the analtifier function for switching to a temporary safe configuration
  * (mux and divider), while the A7 PLL is reconfigured.
  */
-static int a7cc_notifier_cb(struct notifier_block *nb, unsigned long event,
+static int a7cc_analtifier_cb(struct analtifier_block *nb, unsigned long event,
 			    void *data)
 {
 	int ret = 0;
@@ -42,7 +42,7 @@ static int a7cc_notifier_cb(struct notifier_block *nb, unsigned long event,
 		/* set the mux and divider to safe frequency (400mhz) */
 		ret = mux_div_set_src_div(md, 1, 2);
 
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
 static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
@@ -58,12 +58,12 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 	regmap = dev_get_regmap(parent, NULL);
 	if (!regmap) {
 		dev_err(dev, "Failed to get parent regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	a7cc = devm_kzalloc(dev, sizeof(*a7cc), GFP_KERNEL);
 	if (!a7cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.name = "a7mux";
 	init.parent_data = pdata;
@@ -84,11 +84,11 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(a7cc->pclk),
 				     "Failed to get PLL clk\n");
 
-	a7cc->clk_nb.notifier_call = a7cc_notifier_cb;
-	ret = clk_notifier_register(a7cc->pclk, &a7cc->clk_nb);
+	a7cc->clk_nb.analtifier_call = a7cc_analtifier_cb;
+	ret = clk_analtifier_register(a7cc->pclk, &a7cc->clk_nb);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Failed to register clock notifier\n");
+				     "Failed to register clock analtifier\n");
 
 	ret = devm_clk_register_regmap(dev, &a7cc->clkr);
 	if (ret) {
@@ -106,9 +106,9 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, a7cc);
 
 	/*
-	 * Attach the power domain to cpudev. Since there is no dedicated driver
+	 * Attach the power domain to cpudev. Since there is anal dedicated driver
 	 * for CPUs and the SDX55 platform lacks hardware specific CPUFreq
-	 * driver, there seems to be no better place to do this. So do it here!
+	 * driver, there seems to be anal better place to do this. So do it here!
 	 */
 	cpu_dev = get_cpu_device(0);
 	dev_pm_domain_attach(cpu_dev, true);
@@ -116,7 +116,7 @@ static int qcom_apcs_sdx55_clk_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	clk_notifier_unregister(a7cc->pclk, &a7cc->clk_nb);
+	clk_analtifier_unregister(a7cc->pclk, &a7cc->clk_nb);
 	return ret;
 }
 
@@ -125,7 +125,7 @@ static void qcom_apcs_sdx55_clk_remove(struct platform_device *pdev)
 	struct device *cpu_dev = get_cpu_device(0);
 	struct clk_regmap_mux_div *a7cc = platform_get_drvdata(pdev);
 
-	clk_notifier_unregister(a7cc->pclk, &a7cc->clk_nb);
+	clk_analtifier_unregister(a7cc->pclk, &a7cc->clk_nb);
 	dev_pm_domain_detach(cpu_dev, true);
 }
 

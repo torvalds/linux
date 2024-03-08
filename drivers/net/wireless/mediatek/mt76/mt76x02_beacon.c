@@ -28,9 +28,9 @@ mt76x02_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 	int beacon_len = dev->beacon_ops->slot_size;
 
 	if (WARN_ON_ONCE(beacon_len < skb->len + sizeof(struct mt76x02_txwi)))
-		return -ENOSPC;
+		return -EANALSPC;
 
-	/* USB devices already reserve enough skb headroom for txwi's. This
+	/* USB devices already reserve eanalugh skb headroom for txwi's. This
 	 * helps to save slow copies over USB.
 	 */
 	if (mt76_is_usb(&dev->mt76)) {

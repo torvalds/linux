@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -183,7 +183,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.dpms = evergreen_dp_enable,
 };
 
-static void radeon_audio_component_notify(struct radeon_device *rdev, int port);
+static void radeon_audio_component_analtify(struct radeon_device *rdev, int port);
 
 static void radeon_audio_enable(struct radeon_device *rdev,
 				struct r600_audio_pin *pin, u8 enable_mask)
@@ -213,7 +213,7 @@ static void radeon_audio_enable(struct radeon_device *rdev,
 	if (rdev->audio.funcs->enable)
 		rdev->audio.funcs->enable(rdev, pin, enable_mask);
 
-	radeon_audio_component_notify(rdev, pin->id);
+	radeon_audio_component_analtify(rdev, pin->id);
 }
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)
@@ -239,7 +239,7 @@ static void radeon_audio_interface_init(struct radeon_device *rdev)
 
 static int radeon_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return ASIC_IS_DCE2(rdev) && !ASIC_IS_NODCE(rdev);
+	return ASIC_IS_DCE2(rdev) && !ASIC_IS_ANALDCE(rdev);
 }
 
 int radeon_audio_init(struct radeon_device *rdev)
@@ -489,7 +489,7 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 }
 
 /*
- * calculate CTS and N values if they are not found in the table
+ * calculate CTS and N values if they are analt found in the table
  */
 static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq)
 {
@@ -515,7 +515,7 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 	n *= mul;
 	cts *= mul;
 
-	/* Check that we are in spec (not always possible) */
+	/* Check that we are in spec (analt always possible) */
 	if (n < (128*freq/1500))
 		pr_warn("Calculated ACR N value is too small. You may experience audio problems.\n");
 	if (n > (128*freq/300))
@@ -732,14 +732,14 @@ unsigned int radeon_audio_decode_dfs_div(unsigned int div)
 /*
  * Audio component support
  */
-static void radeon_audio_component_notify(struct radeon_device *rdev, int port)
+static void radeon_audio_component_analtify(struct radeon_device *rdev, int port)
 {
 	struct drm_audio_component *acomp;
 
 	mutex_lock(&rdev->audio.component_mutex);
 	acomp = rdev->audio.component;
-	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify)
-		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_analtify)
+		acomp->audio_ops->pin_eld_analtify(acomp->audio_ops->audio_ptr,
 						 port, -1);
 	mutex_unlock(&rdev->audio.component_mutex);
 }
@@ -791,7 +791,7 @@ static int radeon_audio_component_bind(struct device *kdev,
 	struct drm_audio_component *acomp = data;
 
 	if (WARN_ON(!device_link_add(hda_kdev, kdev, DL_FLAG_STATELESS)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&rdev->audio.component_mutex);
 	acomp->ops = &radeon_audio_component_ops;

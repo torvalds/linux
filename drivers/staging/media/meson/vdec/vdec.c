@@ -106,7 +106,7 @@ disable_dos_parser:
 
 static void vdec_wait_inactive(struct amvdec_session *sess)
 {
-	/* We consider 50ms with no IRQ to be inactive. */
+	/* We consider 50ms with anal IRQ to be inactive. */
 	while (time_is_after_jiffies64(sess->last_irq_jiffies +
 				       msecs_to_jiffies(50)))
 		msleep(25);
@@ -318,7 +318,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 				   &sess->vififo_paddr, GFP_KERNEL);
 	if (!sess->vififo_vaddr) {
 		dev_err(sess->core->dev, "Failed to request VIFIFO buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto bufs_done;
 	}
 
@@ -327,7 +327,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	sess->last_offset = 0;
 	sess->wrap_count = 0;
 	sess->pixelaspect.numerator = 1;
-	sess->pixelaspect.denominator = 1;
+	sess->pixelaspect.deanalminator = 1;
 	atomic_set(&sess->esparser_queued_bufs, 0);
 	v4l2_ctrl_s_ctrl(sess->ctrl_min_buf_capture, 1);
 
@@ -440,7 +440,7 @@ static int vdec_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -553,7 +553,7 @@ vdec_try_fmt_common(struct amvdec_session *sess, u32 size,
 	}
 
 	if (pixmp->field == V4L2_FIELD_ANY)
-		pixmp->field = V4L2_FIELD_NONE;
+		pixmp->field = V4L2_FIELD_ANALNE;
 
 	return fmt_out;
 }
@@ -734,7 +734,7 @@ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 		return 0;
 	}
 
-	/* Should not happen */
+	/* Should analt happen */
 	if (cmd->cmd != V4L2_DEC_CMD_STOP)
 		return -EINVAL;
 
@@ -878,7 +878,7 @@ static int vdec_open(struct file *file)
 
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sess->core = core;
 
@@ -905,7 +905,7 @@ static int vdec_open(struct file *file)
 	sess->width = 1280;
 	sess->height = 720;
 	sess->pixelaspect.numerator = 1;
-	sess->pixelaspect.denominator = 1;
+	sess->pixelaspect.deanalminator = 1;
 	sess->src_buffer_size = SZ_1M;
 
 	INIT_LIST_HEAD(&sess->timestamps);
@@ -1001,7 +1001,7 @@ static int vdec_probe(struct platform_device *pdev)
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->dev = dev;
 	platform_set_drvdata(pdev, core);
@@ -1015,7 +1015,7 @@ static int vdec_probe(struct platform_device *pdev)
 		return PTR_ERR(core->esparser_base);
 
 	core->regmap_ao =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_analde,
 						"amlogic,ao-sysctrl");
 	if (IS_ERR(core->regmap_ao)) {
 		dev_err(dev, "Couldn't regmap AO sysctrl\n");
@@ -1026,7 +1026,7 @@ static int vdec_probe(struct platform_device *pdev)
 	if (IS_ERR(core->canvas))
 		return PTR_ERR(core->canvas);
 
-	of_id = of_match_node(vdec_dt_match, dev->of_node);
+	of_id = of_match_analde(vdec_dt_match, dev->of_analde);
 	core->platform = of_id->data;
 
 	if (core->platform->revision == VDEC_REVISION_G12A ||
@@ -1069,12 +1069,12 @@ static int vdec_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret) {
 		dev_err(dev, "Couldn't register v4l2 device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	vdev = video_device_alloc();
 	if (!vdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_vdev_release;
 	}
 

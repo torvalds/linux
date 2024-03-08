@@ -9,7 +9,7 @@
 #include "rmi_2d_sensor.h"
 
 enum rmi_f12_object_type {
-	RMI_F12_OBJECT_NONE			= 0x00,
+	RMI_F12_OBJECT_ANALNE			= 0x00,
 	RMI_F12_OBJECT_FINGER			= 0x01,
 	RMI_F12_OBJECT_STYLUS			= 0x02,
 	RMI_F12_OBJECT_PALM			= 0x03,
@@ -77,17 +77,17 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	item = rmi_get_register_desc_item(&f12->control_reg_desc, 8);
 	if (!item) {
 		dev_err(&fn->dev,
-			"F12 does not have the sensor tuning control register\n");
-		return -ENODEV;
+			"F12 does analt have the sensor tuning control register\n");
+		return -EANALDEV;
 	}
 
 	offset = rmi_register_desc_calc_reg_offset(&f12->control_reg_desc, 8);
 
 	if (item->reg_size > sizeof(buf)) {
 		dev_err(&fn->dev,
-			"F12 control8 should be no bigger than %zd bytes, not: %ld\n",
+			"F12 control8 should be anal bigger than %zd bytes, analt: %ld\n",
 			sizeof(buf), item->reg_size);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = rmi_read_block(rmi_dev, fn->fd.control_base_addr + offset, buf,
@@ -153,7 +153,7 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1, int size)
 	for (i = 0; i < objects; i++) {
 		struct rmi_2d_sensor_abs_object *obj = &sensor->objs[i];
 
-		obj->type = RMI_2D_OBJECT_NONE;
+		obj->type = RMI_2D_OBJECT_ANALNE;
 		obj->mt_tool = MT_TOOL_FINGER;
 
 		switch (data1[0]) {
@@ -337,20 +337,20 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	if (ret < 0) {
 		dev_err(&fn->dev, "Failed to read general info register: %d\n",
 			ret);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	++query_addr;
 
 	if (!(buf & BIT(0))) {
 		dev_err(&fn->dev,
 			"Behavior of F12 without register descriptors is undefined.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	f12 = devm_kzalloc(&fn->dev, sizeof(struct f12_data) + mask_size * 2,
 			GFP_KERNEL);
 	if (!f12)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f12->abs_mask = (unsigned long *)((char *)f12
 			+ sizeof(struct f12_data));
@@ -362,7 +362,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 
 	f12->has_dribble = !!(buf & BIT(3));
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_analde) {
 		ret = rmi_2d_sensor_of_probe(&fn->dev, &f12->sensor_pdata);
 		if (ret)
 			return ret;
@@ -420,7 +420,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 		sensor->pkt_size);
 	sensor->data_pkt = devm_kzalloc(&fn->dev, sensor->pkt_size, GFP_KERNEL);
 	if (!sensor->data_pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&fn->dev, f12);
 
@@ -430,8 +430,8 @@ static int rmi_f12_probe(struct rmi_function *fn)
 
 	/*
 	 * Figure out what data is contained in the data registers. HID devices
-	 * may have registers defined, but their data is not reported in the
-	 * HID attention report. Registers which are not reported in the HID
+	 * may have registers defined, but their data is analt reported in the
+	 * HID attention report. Registers which are analt reported in the HID
 	 * attention report check to see if the device is receiving data from
 	 * HID attention reports.
 	 */
@@ -531,7 +531,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 			sizeof(struct rmi_2d_sensor_abs_object),
 			GFP_KERNEL);
 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rmi_2d_sensor_configure_input(fn, sensor);
 	if (ret)

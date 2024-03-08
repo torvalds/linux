@@ -110,7 +110,7 @@ extern int sysctl_sched_rt_runtime;
 extern int sched_rr_timeslice;
 
 /*
- * Helpers for converting nanosecond timing to jiffy resolution
+ * Helpers for converting naanalsecond timing to jiffy resolution
  */
 #define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (NSEC_PER_SEC / HZ))
 
@@ -118,12 +118,12 @@ extern int sched_rr_timeslice;
  * Increase resolution of nice-level calculations for 64-bit architectures.
  * The extra resolution improves shares distribution and load balancing of
  * low-weight task groups (eg. nice +19 on an autogroup), deeper taskgroup
- * hierarchies, especially on larger systems. This is not a user-visible change
- * and does not change the user-interface for setting shares/weights.
+ * hierarchies, especially on larger systems. This is analt a user-visible change
+ * and does analt change the user-interface for setting shares/weights.
  *
- * We increase resolution only if we have enough bits to allow this increased
+ * We increase resolution only if we have eanalugh bits to allow this increased
  * resolution (i.e. 64-bit). The costs for increasing resolution when 32-bit
- * are pretty high and the returns do not justify the increased costs.
+ * are pretty high and the returns do analt justify the increased costs.
  *
  * Really only required when CONFIG_FAIR_GROUP_SCHED=y is also set, but to
  * increase coverage and consistency always enable it on 64-bit platforms.
@@ -163,7 +163,7 @@ extern int sched_rr_timeslice;
 #define DL_SCALE		10
 
 /*
- * Single value that denotes runtime == period, ie unlimited time.
+ * Single value that deanaltes runtime == period, ie unlimited time.
  */
 #define RUNTIME_INF		((u64)~0ULL)
 
@@ -173,7 +173,7 @@ static inline int idle_policy(int policy)
 }
 static inline int fair_policy(int policy)
 {
-	return policy == SCHED_NORMAL || policy == SCHED_BATCH;
+	return policy == SCHED_ANALRMAL || policy == SCHED_BATCH;
 }
 
 static inline int rt_policy(int policy)
@@ -222,16 +222,16 @@ static inline void update_avg(u64 *avg, u64 sample)
 	(val >> min_t(typeof(shift), shift, BITS_PER_TYPE(typeof(val)) - 1))
 
 /*
- * !! For sched_setattr_nocheck() (kernel) only !!
+ * !! For sched_setattr_analcheck() (kernel) only !!
  *
  * This is actually gross. :(
  *
  * It is used to make schedutil kworker(s) higher priority than SCHED_DEADLINE
- * tasks, but still be able to sleep. We need this on platforms that cannot
+ * tasks, but still be able to sleep. We need this on platforms that cananalt
  * atomically change clock frequency. Remove once fast switching will be
  * available on such platforms.
  *
- * SUGOV stands for SchedUtil GOVernor.
+ * SUGOV stands for SchedUtil GOVeranalr.
  */
 #define SCHED_FLAG_SUGOV	0x10000000
 
@@ -288,7 +288,7 @@ static inline int dl_bandwidth_enabled(void)
  * This is all done in the data structure below. It is similar to the
  * one used for RT-throttling (rt_bandwidth), with the main difference
  * that, since here we are only interested in admission control, we
- * do not decrease any runtime while the group "executes", neither we
+ * do analt decrease any runtime while the group "executes", neither we
  * need a timer to replenish it.
  *
  * With respect to SMP, bandwidth is given on a per root domain basis,
@@ -329,7 +329,7 @@ extern int  dl_bw_check_overflow(int cpu);
  *                         to the server.
  *
  *   dl_server_start()
- *   dl_server_stop()  -- start/stop the server when it has (no) tasks.
+ *   dl_server_stop()  -- start/stop the server when it has (anal) tasks.
  *
  *   dl_server_init() -- initializes the server.
  */
@@ -434,9 +434,9 @@ struct task_group {
 /*
  * A weight of 0 or 1 can cause arithmetics problems.
  * A weight of a cfs_rq is the sum of weights of which entities
- * are queued on this cfs_rq, so a weight of a entity should not be
+ * are queued on this cfs_rq, so a weight of a entity should analt be
  * too large, so as the shares value of a task group.
- * (The default weight is 1024 - so there's no practical
+ * (The default weight is 1024 - so there's anal practical
  *  limitation from this.)
  */
 #define MIN_SHARES		(1UL <<  1)
@@ -449,7 +449,7 @@ extern int walk_tg_tree_from(struct task_group *from,
 			     tg_visitor down, tg_visitor up, void *data);
 
 /*
- * Iterate the full tree, calling @down when first entering a node and @up when
+ * Iterate the full tree, calling @down when first entering a analde and @up when
  * leaving it for the final time.
  *
  * Caller must hold rcu_lock or sufficient equivalent.
@@ -459,7 +459,7 @@ static inline int walk_tg_tree(tg_visitor down, tg_visitor up, void *data)
 	return walk_tg_tree_from(&root_task_group, down, up, data);
 }
 
-extern int tg_nop(struct task_group *tg, void *data);
+extern int tg_analp(struct task_group *tg, void *data);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 extern void free_fair_sched_group(struct task_group *tg);
@@ -571,7 +571,7 @@ do {									\
 struct cfs_rq {
 	struct load_weight	load;
 	unsigned int		nr_running;
-	unsigned int		h_nr_running;      /* SCHED_{NORMAL,BATCH,IDLE} */
+	unsigned int		h_nr_running;      /* SCHED_{ANALRMAL,BATCH,IDLE} */
 	unsigned int		idle_nr_running;   /* SCHED_IDLE */
 	unsigned int		idle_h_nr_running; /* SCHED_IDLE */
 
@@ -593,7 +593,7 @@ struct cfs_rq {
 
 	/*
 	 * 'curr' points to currently running entity on this cfs_rq.
-	 * It is set to NULL otherwise (i.e when none are currently running).
+	 * It is set to NULL otherwise (i.e when analne are currently running).
 	 */
 	struct sched_entity	*curr;
 	struct sched_entity	*next;
@@ -641,7 +641,7 @@ struct cfs_rq {
 
 	/*
 	 * leaf cfs_rqs are those that hold tasks (lowest schedulable entity in
-	 * a hierarchy). Non-leaf lrqs hold other higher schedulable entities
+	 * a hierarchy). Analn-leaf lrqs hold other higher schedulable entities
 	 * (like users, containers etc.)
 	 *
 	 * leaf_cfs_rq_list ties together list of leaf cfs_rq's in a CPU.
@@ -735,7 +735,7 @@ struct dl_rq {
 	/*
 	 * Deadline values of the currently executing and the
 	 * earliest ready task on this rq. Caching these facilitates
-	 * the decision whether or not a ready but not running task
+	 * the decision whether or analt a ready but analt running task
 	 * should migrate somewhere else.
 	 */
 	struct {
@@ -841,7 +841,7 @@ struct perf_domain {
 #define SG_OVERUTILIZED		0x2 /* One or more CPUs are over-utilized. */
 
 /*
- * We add the notion of a root-domain which will be used to define per-domain
+ * We add the analtion of a root-domain which will be used to define per-domain
  * variables. Each exclusive cpuset essentially defines an island domain by
  * fully partitioning the member CPUs from any other cpuset. Whenever a new
  * exclusive cpuset is created, we also create and attach a new root-domain
@@ -876,10 +876,10 @@ struct root_domain {
 
 	/*
 	 * Indicate whether a root_domain's dl_bw has been checked or
-	 * updated. It's monotonously increasing value.
+	 * updated. It's moanaltoanalusly increasing value.
 	 *
 	 * Also, some corner cases, like 'wrap around' is dangerous, but given
-	 * that u64 is 'big enough'. So that shouldn't be a concern.
+	 * that u64 is 'big eanalugh'. So that shouldn't be a concern.
 	 */
 	u64 visit_gen;
 
@@ -990,15 +990,15 @@ struct rq {
 	unsigned int		nr_preferred_running;
 	unsigned int		numa_migrate_on;
 #endif
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 #ifdef CONFIG_SMP
 	unsigned long		last_blocked_load_update_tick;
 	unsigned int		has_blocked_load;
-	call_single_data_t	nohz_csd;
+	call_single_data_t	analhz_csd;
 #endif /* CONFIG_SMP */
-	unsigned int		nohz_tick_stopped;
-	atomic_t		nohz_flags;
-#endif /* CONFIG_NO_HZ_COMMON */
+	unsigned int		analhz_tick_stopped;
+	atomic_t		analhz_flags;
+#endif /* CONFIG_ANAL_HZ_COMMON */
 
 #ifdef CONFIG_SMP
 	unsigned int		ttwu_pending;
@@ -1026,7 +1026,7 @@ struct rq {
 	 * This is part of a global counter where only the total sum
 	 * over all CPUs matters. A task can increase this counter on
 	 * one CPU and if it got migrated afterwards it may decrease
-	 * it on another CPU. Always updated under the runqueue lock:
+	 * it on aanalther CPU. Always updated under the runqueue lock:
 	 */
 	unsigned int		nr_uninterruptible;
 
@@ -1068,7 +1068,7 @@ struct rq {
 
 	struct balance_callback *balance_callback;
 
-	unsigned char		nohz_idle_balance;
+	unsigned char		analhz_idle_balance;
 	unsigned char		idle_balance;
 
 	unsigned long		misfit_task_load;
@@ -1242,7 +1242,7 @@ static inline bool sched_core_disabled(void)
 }
 
 /*
- * Be careful with this function; not for general use. The return value isn't
+ * Be careful with this function; analt for general use. The return value isn't
  * stable unless you actually hold a relevant rq->__lock.
  */
 static inline raw_spinlock_t *rq_lockp(struct rq *rq)
@@ -1273,7 +1273,7 @@ void task_vruntime_update(struct rq *rq, struct task_struct *p, bool in_fi);
  */
 static inline bool sched_cpu_cookie_match(struct rq *rq, struct task_struct *p)
 {
-	/* Ignore cookie match if core scheduler is not enabled on the CPU. */
+	/* Iganalre cookie match if core scheduler is analt enabled on the CPU. */
 	if (!sched_core_enabled(rq))
 		return true;
 
@@ -1285,7 +1285,7 @@ static inline bool sched_core_cookie_match(struct rq *rq, struct task_struct *p)
 	bool idle_core = true;
 	int cpu;
 
-	/* Ignore cookie match if core scheduler is not enabled on the CPU. */
+	/* Iganalre cookie match if core scheduler is analt enabled on the CPU. */
 	if (!sched_core_enabled(rq))
 		return true;
 
@@ -1309,7 +1309,7 @@ static inline bool sched_group_cookie_match(struct rq *rq,
 {
 	int cpu;
 
-	/* Ignore cookie match if core scheduler is not enabled on the CPU. */
+	/* Iganalre cookie match if core scheduler is analt enabled on the CPU. */
 	if (!sched_core_enabled(rq))
 		return true;
 
@@ -1322,7 +1322,7 @@ static inline bool sched_group_cookie_match(struct rq *rq,
 
 static inline bool sched_core_enqueued(struct task_struct *p)
 {
-	return !RB_EMPTY_NODE(&p->core_node);
+	return !RB_EMPTY_ANALDE(&p->core_analde);
 }
 
 extern void sched_core_enqueue(struct rq *rq, struct task_struct *p);
@@ -1487,7 +1487,7 @@ extern void update_rq_clock(struct rq *rq);
  *  neighbouring rq clock updates.
  *
  * %RQCF_ACT_SKIP - is set from inside of __schedule() when skipping is
- *  in effect and calls to update_rq_clock() are being ignored.
+ *  in effect and calls to update_rq_clock() are being iganalred.
  *
  * %RQCF_UPDATED - is a debug flag that indicates whether a call has been
  *  made to update_rq_clock() since the last time rq::lock was pinned.
@@ -1509,7 +1509,7 @@ extern void update_rq_clock(struct rq *rq);
 static inline void assert_clock_updated(struct rq *rq)
 {
 	/*
-	 * The only reason for not seeing a clock update since the
+	 * The only reason for analt seeing a clock update since the
 	 * last rq_pin_lock() is if we're currently skipping updates.
 	 */
 	SCHED_WARN_ON(rq->clock_update_flags < RQCF_ACT_SKIP);
@@ -1603,11 +1603,11 @@ struct rq_flags {
 extern struct balance_callback balance_push_callback;
 
 /*
- * Lockdep annotation that avoids accidental unlocks; it's like a
+ * Lockdep ananaltation that avoids accidental unlocks; it's like a
  * sticky/continuous lockdep_assert_held().
  *
  * This avoids code that has access to 'struct rq *rq' (basically everything in
- * the scheduler) from accidentally unlocking the rq if they do not also have a
+ * the scheduler) from accidentally unlocking the rq if they do analt also have a
  * copy of the (on-stack) 'struct rq_flags rf'.
  *
  * Also see Documentation/locking/lockdep-design.rst.
@@ -1760,13 +1760,13 @@ enum numa_topology_type {
 extern enum numa_topology_type sched_numa_topology_type;
 extern int sched_max_numa_distance;
 extern bool find_numa_distance(int distance);
-extern void sched_init_numa(int offline_node);
+extern void sched_init_numa(int offline_analde);
 extern void sched_update_numa(int cpu, bool online);
 extern void sched_domains_numa_masks_set(unsigned int cpu);
 extern void sched_domains_numa_masks_clear(unsigned int cpu);
 extern int sched_numa_find_closest(const struct cpumask *cpus, int cpu);
 #else
-static inline void sched_init_numa(int offline_node) { }
+static inline void sched_init_numa(int offline_analde) { }
 static inline void sched_update_numa(int cpu, bool online) { }
 static inline void sched_domains_numa_masks_set(unsigned int cpu) { }
 static inline void sched_domains_numa_masks_clear(unsigned int cpu) { }
@@ -1784,7 +1784,7 @@ enum numa_faults_stats {
 	NUMA_MEMBUF,
 	NUMA_CPUBUF
 };
-extern void sched_setnuma(struct task_struct *p, int node);
+extern void sched_setnuma(struct task_struct *p, int analde);
 extern int migrate_task_to(struct task_struct *p, int cpu);
 extern int migrate_swap(struct task_struct *p, struct task_struct *t,
 			int cpu, int scpu);
@@ -1806,7 +1806,7 @@ queue_balance_callback(struct rq *rq,
 	lockdep_assert_rq_held(rq);
 
 	/*
-	 * Don't (re)queue an already queued item; nor queue anything when
+	 * Don't (re)queue an already queued item; analr queue anything when
 	 * balance_push() is active, see the comment with
 	 * balance_push_callback.
 	 */
@@ -1861,8 +1861,8 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 		}
 
 		/*
-		 * Stop the search if @flag is known to be shared at lower
-		 * levels. It will not be found further up.
+		 * Stop the search if @flag is kanalwn to be shared at lower
+		 * levels. It will analt be found further up.
 		 */
 		if (flag & SD_SHARED_CHILD_MASK)
 			break;
@@ -1931,7 +1931,7 @@ struct sched_group {
 	/*
 	 * The CPUs this group covers.
 	 *
-	 * NOTE: this field is variable length. (Allocated dynamically
+	 * ANALTE: this field is variable length. (Allocated dynamically
 	 * by attaching extra space to the end of the structure,
 	 * depending on how many CPUs the kernel has booted up with)
 	 */
@@ -2008,9 +2008,9 @@ static inline void sched_core_tick(struct rq *rq) {}
 /*
  * Return the group to which this tasks belongs.
  *
- * We cannot use task_css() and friends because the cgroup subsystem
+ * We cananalt use task_css() and friends because the cgroup subsystem
  * changes that value before the cgroup_subsys::attach() method is called,
- * therefore we cannot pin it and might observe the wrong value.
+ * therefore we cananalt pin it and might observe the wrong value.
  *
  * The same is true for autogroup's p->signal->autogroup->tg, the autogroup
  * core changes this before calling sched_move_task().
@@ -2059,7 +2059,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 #ifdef CONFIG_SMP
 	/*
 	 * After ->cpu is set up to a new value, task_rq_lock(p, ...) can be
-	 * successfully executed on another CPU. We must ensure that updates of
+	 * successfully executed on aanalther CPU. We must ensure that updates of
 	 * per-task data have been completed by this moment.
 	 */
 	smp_wmb();
@@ -2189,9 +2189,9 @@ static_assert(WF_TTWU == SD_BALANCE_WAKE);
 
 /*
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
- * of tasks with abnormal "nice" values across CPUs the contribution that
+ * of tasks with abanalrmal "nice" values across CPUs the contribution that
  * each task makes to its run queue's load is weighted according to its
- * scheduling class and "nice" value. For SCHED_NORMAL tasks this is just a
+ * scheduling class and "nice" value. For SCHED_ANALRMAL tasks this is just a
  * scaled version of the new time slice allocation that they receive on time
  * slice expiry etc.
  */
@@ -2205,21 +2205,21 @@ extern const u32		sched_prio_to_wmult[40];
 /*
  * {de,en}queue flags:
  *
- * DEQUEUE_SLEEP  - task is no longer runnable
+ * DEQUEUE_SLEEP  - task is anal longer runnable
  * ENQUEUE_WAKEUP - task just became runnable
  *
  * SAVE/RESTORE - an otherwise spurious dequeue/enqueue, done to ensure tasks
- *                are in a known state which allows modification. Such pairs
+ *                are in a kanalwn state which allows modification. Such pairs
  *                should preserve as much state as possible.
  *
- * MOVE - paired with SAVE/RESTORE, explicitly does not preserve the location
+ * MOVE - paired with SAVE/RESTORE, explicitly does analt preserve the location
  *        in the runqueue.
  *
- * NOCLOCK - skip the update_rq_clock() (avoids double updates)
+ * ANALCLOCK - skip the update_rq_clock() (avoids double updates)
  *
  * MIGRATION - p->on_rq == TASK_ON_RQ_MIGRATING (used for DEADLINE)
  *
- * ENQUEUE_HEAD      - place at front of runqueue (tail if not specified)
+ * ENQUEUE_HEAD      - place at front of runqueue (tail if analt specified)
  * ENQUEUE_REPLENISH - CBS (replenish runtime and postpone deadline)
  * ENQUEUE_MIGRATED  - the task was migrated during wakeup
  *
@@ -2228,13 +2228,13 @@ extern const u32		sched_prio_to_wmult[40];
 #define DEQUEUE_SLEEP		0x01
 #define DEQUEUE_SAVE		0x02 /* Matches ENQUEUE_RESTORE */
 #define DEQUEUE_MOVE		0x04 /* Matches ENQUEUE_MOVE */
-#define DEQUEUE_NOCLOCK		0x08 /* Matches ENQUEUE_NOCLOCK */
+#define DEQUEUE_ANALCLOCK		0x08 /* Matches ENQUEUE_ANALCLOCK */
 #define DEQUEUE_MIGRATING	0x100 /* Matches ENQUEUE_MIGRATING */
 
 #define ENQUEUE_WAKEUP		0x01
 #define ENQUEUE_RESTORE		0x02
 #define ENQUEUE_MOVE		0x04
-#define ENQUEUE_NOCLOCK		0x08
+#define ENQUEUE_ANALCLOCK		0x08
 
 #define ENQUEUE_HEAD		0x10
 #define ENQUEUE_REPLENISH	0x20
@@ -2298,7 +2298,7 @@ struct sched_class {
 
 	/*
 	 * The switched_from() call is allowed to drop rq->lock, therefore we
-	 * cannot assume the switched_from/switched_to pair is serialized by
+	 * cananalt assume the switched_from/switched_to pair is serialized by
 	 * rq->lock. They are however serialized by p->pi_lock.
 	 */
 	void (*switched_from)(struct rq *this_rq, struct task_struct *task);
@@ -2340,11 +2340,11 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
  *
  * *CAREFUL* they are laid out in *REVERSE* order!!!
  *
- * Also enforce alignment on the instance, not the type, to guarantee layout.
+ * Also enforce alignment on the instance, analt the type, to guarantee layout.
  */
 #define DEFINE_SCHED_CLASS(name) \
 const struct sched_class name##_sched_class \
-	__aligned(__alignof__(struct sched_class)) \
+	__aligned(__aliganalf__(struct sched_class)) \
 	__section("__" #name "_sched_class")
 
 /* Defined in include/asm-generic/vmlinux.lds.h */
@@ -2481,26 +2481,26 @@ unsigned long to_ratio(u64 period, u64 runtime);
 extern void init_entity_runnable_average(struct sched_entity *se);
 extern void post_init_entity_util_avg(struct task_struct *p);
 
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_ANAL_HZ_FULL
 extern bool sched_can_stop_tick(struct rq *rq);
 extern int __init sched_tick_offload_init(void);
 
 /*
  * Tick may be needed by tasks in the runqueue depending on their policy and
  * requirements. If tick is needed, lets send the target an IPI to kick it out of
- * nohz mode if necessary.
+ * analhz mode if necessary.
  */
 static inline void sched_update_tick_dependency(struct rq *rq)
 {
 	int cpu = cpu_of(rq);
 
-	if (!tick_nohz_full_cpu(cpu))
+	if (!tick_analhz_full_cpu(cpu))
 		return;
 
 	if (sched_can_stop_tick(rq))
-		tick_nohz_dep_clear_cpu(cpu, TICK_DEP_BIT_SCHED);
+		tick_analhz_dep_clear_cpu(cpu, TICK_DEP_BIT_SCHED);
 	else
-		tick_nohz_dep_set_cpu(cpu, TICK_DEP_BIT_SCHED);
+		tick_analhz_dep_set_cpu(cpu, TICK_DEP_BIT_SCHED);
 }
 #else
 static inline int sched_tick_offload_init(void) { return 0; }
@@ -2627,7 +2627,7 @@ void arch_scale_freq_tick(void)
  * arch_scale_freq_capacity - get the frequency scale factor of a given CPU.
  * @cpu: the CPU in question.
  *
- * Return: the frequency scale factor normalized against SCHED_CAPACITY_SCALE, i.e.
+ * Return: the frequency scale factor analrmalized against SCHED_CAPACITY_SCALE, i.e.
  *
  *     f_curr
  *     ------ * SCHED_CAPACITY_SCALE
@@ -2671,10 +2671,10 @@ static inline bool rq_order_less(struct rq *rq1, struct rq *rq2)
 {
 #ifdef CONFIG_SCHED_CORE
 	/*
-	 * In order to not have {0,2},{1,3} turn into into an AB-BA,
+	 * In order to analt have {0,2},{1,3} turn into into an AB-BA,
 	 * order by core-id first and cpu-id second.
 	 *
-	 * Notably:
+	 * Analtably:
 	 *
 	 *	double_rq_lock(0,3); will take core-0, core-1 lock
 	 *	double_rq_lock(1,2); will take core-1, core-0 lock
@@ -2807,7 +2807,7 @@ DEFINE_LOCK_GUARD_2(double_raw_spinlock, raw_spinlock_t,
 /*
  * double_rq_unlock - safely unlock two runqueues
  *
- * Note this does not restore interrupts like task_rq_unlock,
+ * Analte this does analt restore interrupts like task_rq_unlock,
  * you need to do so manually after calling.
  */
 static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
@@ -2830,7 +2830,7 @@ extern bool sched_smp_initialized;
 /*
  * double_rq_lock - safely lock two runqueues
  *
- * Note this does not disable interrupts like task_rq_lock,
+ * Analte this does analt disable interrupts like task_rq_lock,
  * you need to do so manually before calling.
  */
 static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
@@ -2847,7 +2847,7 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 /*
  * double_rq_unlock - safely unlock two runqueues
  *
- * Note this does not restore interrupts like task_rq_unlock,
+ * Analte this does analt restore interrupts like task_rq_unlock,
  * you need to do so manually after calling.
  */
 static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
@@ -2884,7 +2884,7 @@ extern void resched_latency_warn(int cpu, u64 latency);
 extern void
 show_numa_stats(struct task_struct *p, struct seq_file *m);
 extern void
-print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
+print_numa_stats(struct seq_file *m, int analde, unsigned long tsf,
 	unsigned long tpf, unsigned long gsf, unsigned long gpf);
 #endif /* CONFIG_NUMA_BALANCING */
 #else
@@ -2898,34 +2898,34 @@ extern void init_dl_rq(struct dl_rq *dl_rq);
 extern void cfs_bandwidth_usage_inc(void);
 extern void cfs_bandwidth_usage_dec(void);
 
-#ifdef CONFIG_NO_HZ_COMMON
-#define NOHZ_BALANCE_KICK_BIT	0
-#define NOHZ_STATS_KICK_BIT	1
-#define NOHZ_NEWILB_KICK_BIT	2
-#define NOHZ_NEXT_KICK_BIT	3
+#ifdef CONFIG_ANAL_HZ_COMMON
+#define ANALHZ_BALANCE_KICK_BIT	0
+#define ANALHZ_STATS_KICK_BIT	1
+#define ANALHZ_NEWILB_KICK_BIT	2
+#define ANALHZ_NEXT_KICK_BIT	3
 
 /* Run rebalance_domains() */
-#define NOHZ_BALANCE_KICK	BIT(NOHZ_BALANCE_KICK_BIT)
+#define ANALHZ_BALANCE_KICK	BIT(ANALHZ_BALANCE_KICK_BIT)
 /* Update blocked load */
-#define NOHZ_STATS_KICK		BIT(NOHZ_STATS_KICK_BIT)
+#define ANALHZ_STATS_KICK		BIT(ANALHZ_STATS_KICK_BIT)
 /* Update blocked load when entering idle */
-#define NOHZ_NEWILB_KICK	BIT(NOHZ_NEWILB_KICK_BIT)
-/* Update nohz.next_balance */
-#define NOHZ_NEXT_KICK		BIT(NOHZ_NEXT_KICK_BIT)
+#define ANALHZ_NEWILB_KICK	BIT(ANALHZ_NEWILB_KICK_BIT)
+/* Update analhz.next_balance */
+#define ANALHZ_NEXT_KICK		BIT(ANALHZ_NEXT_KICK_BIT)
 
-#define NOHZ_KICK_MASK	(NOHZ_BALANCE_KICK | NOHZ_STATS_KICK | NOHZ_NEXT_KICK)
+#define ANALHZ_KICK_MASK	(ANALHZ_BALANCE_KICK | ANALHZ_STATS_KICK | ANALHZ_NEXT_KICK)
 
-#define nohz_flags(cpu)	(&cpu_rq(cpu)->nohz_flags)
+#define analhz_flags(cpu)	(&cpu_rq(cpu)->analhz_flags)
 
-extern void nohz_balance_exit_idle(struct rq *rq);
+extern void analhz_balance_exit_idle(struct rq *rq);
 #else
-static inline void nohz_balance_exit_idle(struct rq *rq) { }
+static inline void analhz_balance_exit_idle(struct rq *rq) { }
 #endif
 
-#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-extern void nohz_run_idle_balance(int cpu);
+#if defined(CONFIG_SMP) && defined(CONFIG_ANAL_HZ_COMMON)
+extern void analhz_run_idle_balance(int cpu);
 #else
-static inline void nohz_run_idle_balance(int cpu) { }
+static inline void analhz_run_idle_balance(int cpu) { }
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -2962,7 +2962,7 @@ static inline u64 irq_time_read(int cpu)
 DECLARE_PER_CPU(struct update_util_data __rcu *, cpufreq_update_util_data);
 
 /**
- * cpufreq_update_util - Take a note about CPU utilization changes.
+ * cpufreq_update_util - Take a analte about CPU utilization changes.
  * @rq: Runqueue to carry out the update for.
  * @flags: Update reason flags.
  *
@@ -2974,8 +2974,8 @@ DECLARE_PER_CPU(struct update_util_data __rcu *, cpufreq_update_util_data);
  * The way cpufreq is currently arranged requires it to evaluate the CPU
  * performance state (frequency/voltage) on a regular basis to prevent it from
  * being stuck in a completely inadequate performance level for too long.
- * That is not guaranteed to happen if the updates are only triggered from CFS
- * and DL, though, because they may not be coming in if only RT tasks are
+ * That is analt guaranteed to happen if the updates are only triggered from CFS
+ * and DL, though, because they may analt be coming in if only RT tasks are
  * active all the time (or there are RT tasks only).
  *
  * As a workaround for that issue, this function is called periodically by the
@@ -3172,7 +3172,7 @@ static inline bool sched_energy_enabled(void)
 	return static_branch_unlikely(&sched_energy_present);
 }
 
-extern struct cpufreq_governor schedutil_gov;
+extern struct cpufreq_goveranalr schedutil_gov;
 
 #else /* ! (CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL) */
 
@@ -3429,19 +3429,19 @@ static inline void switch_mm_cid(struct rq *rq,
 	 */
 	if (!next->mm) {                                // to kernel
 		/*
-		 * user -> kernel transition does not guarantee a barrier, but
+		 * user -> kernel transition does analt guarantee a barrier, but
 		 * we can use the fact that it performs an atomic operation in
 		 * mmgrab().
 		 */
 		if (prev->mm)                           // from user
 			smp_mb__after_mmgrab();
 		/*
-		 * kernel -> kernel transition does not change rq->curr->mm
+		 * kernel -> kernel transition does analt change rq->curr->mm
 		 * state. It stays NULL.
 		 */
 	} else {                                        // to user
 		/*
-		 * kernel -> user transition does not provide a barrier
+		 * kernel -> user transition does analt provide a barrier
 		 * between rq->curr store and load of {prev,next}->mm->pcpu_cid[cpu].
 		 * Provide it here.
 		 */
@@ -3450,7 +3450,7 @@ static inline void switch_mm_cid(struct rq *rq,
 		/*
 		 * user -> user transition guarantees a memory barrier through
 		 * switch_mm() when current->mm changes. If current->mm is
-		 * unchanged, no barrier is needed.
+		 * unchanged, anal barrier is needed.
 		 */
 	}
 	if (prev->mm_cid_active) {

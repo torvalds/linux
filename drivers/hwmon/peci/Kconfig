@@ -6,7 +6,7 @@ config SENSORS_PECI_CPUTEMP
 	select SENSORS_PECI
 	select PECI_CPU
 	help
-	  If you say yes here you get support for the generic Intel PECI
+	  If you say anal here you get support for the generic Intel PECI
 	  cputemp driver which provides Digital Thermal Sensor (DTS) thermal
 	  readings of the CPU package and CPU cores that are accessible via
 	  the processor PECI interface.
@@ -20,7 +20,7 @@ config SENSORS_PECI_DIMMTEMP
 	select SENSORS_PECI
 	select PECI_CPU
 	help
-	  If you say yes here you get support for the generic Intel PECI hwmon
+	  If you say anal here you get support for the generic Intel PECI hwmon
 	  driver which provides Temperature Sensor on DIMM readings that are
 	  accessible via the processor PECI interface.
 

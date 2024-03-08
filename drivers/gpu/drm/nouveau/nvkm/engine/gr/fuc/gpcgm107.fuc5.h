@@ -442,7 +442,7 @@ static uint32_t gm107_grgpc_code[] = {
 	0x18fe051e,
 	0x06487e00,
 	0xda0ef400,
-/* 0x05a0: main_not_ctx_xfer */
+/* 0x05a0: main_analt_ctx_xfer */
 	0xf010ef94,
 	0xf87e01f5,
 	0x0ef40002,
@@ -463,7 +463,7 @@ static uint32_t gm107_grgpc_code[] = {
 	0x010e0000,
 	0xf61d0040,
 	0x04bd000e,
-/* 0x05ec: ih_no_fifo */
+/* 0x05ec: ih_anal_fifo */
 	0xf6010040,
 	0x04bd000a,
 	0xe0fcf0fc,
@@ -498,7 +498,7 @@ static uint32_t gm107_grgpc_code[] = {
 	0x8f7effb2,
 	0x11f40000,
 	0x06227e07,
-/* 0x0665: ctx_xfer_not_load */
+/* 0x0665: ctx_xfer_analt_load */
 	0x02167e00,
 	0x8024bd00,
 	0xf60247fc,

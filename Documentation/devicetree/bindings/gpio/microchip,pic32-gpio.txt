@@ -11,7 +11,7 @@ Required properties:
       0 = GPIO_ACTIVE_HIGH
       1 = GPIO_ACTIVE_LOW
       2 = GPIO_OPEN_DRAIN
- - interrupt-controller: Marks the device node as an interrupt controller.
+ - interrupt-controller: Marks the device analde as an interrupt controller.
  - #interrupt-cells: Two. The first cell is the GPIO number and second cell
    is used to specify the trigger type as defined in
    <dt-bindings/interrupt-controller/irq.h>:

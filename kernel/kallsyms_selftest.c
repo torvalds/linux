@@ -2,7 +2,7 @@
 /*
  * Test the function and performance of kallsyms
  *
- * Copyright (C) Huawei Technologies Co., Ltd., 2022
+ * Copyright (C) Huawei Techanallogies Co., Ltd., 2022
  *
  * Authors: Zhen Lei <thunder.leizhen@huawei.com> Huawei
  */
@@ -110,7 +110,7 @@ static void test_kallsyms_compression_ratio(void)
 	kallsyms_on_each_symbol(stat_symbol_len, &total_len);
 
 	/*
-	 * A symbol name cannot start with a number. This stub name helps us
+	 * A symbol name cananalt start with a number. This stub name helps us
 	 * traverse the entire symbol table without finding a match. It's used
 	 * for subsequent performance tests, and its length is the average
 	 * length of all symbol names.
@@ -136,7 +136,7 @@ static void test_kallsyms_compression_ratio(void)
 	}
 
 	/*
-	 * 1. The length fields is not counted
+	 * 1. The length fields is analt counted
 	 * 2. The memory occupied by array kallsyms_token_table[] and
 	 *    kallsyms_token_index[] needs to be counted.
 	 */
@@ -287,7 +287,7 @@ static int test_kallsyms_basic_function(void)
 
 	stat = kmalloc(sizeof(*stat) * 2, GFP_KERNEL);
 	if (!stat)
-		return -ENOMEM;
+		return -EANALMEM;
 	stat2 = stat + 1;
 
 	prefix = "kallsyms_lookup_name() for";
@@ -390,7 +390,7 @@ static int test_kallsyms_basic_function(void)
 
 		/*
 		 * kallsyms_lookup_name() returns the address of the first
-		 * symbol found and cannot be NULL.
+		 * symbol found and cananalt be NULL.
 		 */
 		if (!lookup_addr) {
 			pr_info("%s: NULL lookup_addr?!\n", namebuf);

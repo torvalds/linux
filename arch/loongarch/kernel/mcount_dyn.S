@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <asm/ftrace.h>
@@ -9,7 +9,7 @@
 
 	.text
 /*
- * Due to -fpatchable-function-entry=2: the compiler inserted 2 NOPs before the
+ * Due to -fpatchable-function-entry=2: the compiler inserted 2 ANALPs before the
  * regular C function prologue. When PC arrived here, the last 2 instructions
  * are as follows:
  * 	move		t0, ra
@@ -83,14 +83,14 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	bl		ftrace_stub
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
-	nop				/* b ftrace_graph_caller */
+	analp				/* b ftrace_graph_caller */
 #endif
 
 /*
  * As we didn't use S series regs in this assmembly code and all calls
  * are C function which will save S series regs by themselves, there is
- * no need to restore S series regs. The T series is available and safe
- * at the callsite, so there is no need to restore the T series regs.
+ * anal need to restore S series regs. The T series is available and safe
+ * at the callsite, so there is anal need to restore the T series regs.
  */
 ftrace_common_return:
 	PTR_L		ra, sp, PT_R1

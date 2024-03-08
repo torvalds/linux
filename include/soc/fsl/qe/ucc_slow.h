@@ -33,7 +33,7 @@
 #define T_P	0x01000000	/* Preamble - send Preamble sequence before
 				   data */
 #define T_HB	0x01000000	/* heartbeat */
-#define T_NS	0x00800000	/* No Stop */
+#define T_NS	0x00800000	/* Anal Stop */
 #define T_LC	0x00800000	/* late collision */
 #define T_RL	0x00400000	/* retransmission limit */
 #define T_UN	0x00020000	/* underrun */
@@ -59,8 +59,8 @@
 #define R_DE	0x00800000	/* Address match */
 #define R_LG	0x00200000	/* Break received */
 #define R_BR	0x00200000	/* Frame length violation */
-#define R_NO	0x00100000	/* Rx Non Octet Aligned Packet */
-#define R_FR	0x00100000	/* Framing Error (no stop bit) character
+#define R_ANAL	0x00100000	/* Rx Analn Octet Aligned Packet */
+#define R_FR	0x00100000	/* Framing Error (anal stop bit) character
 				   received */
 #define R_PR	0x00080000	/* Parity Error character received */
 #define R_AB	0x00080000	/* Frame Aborted */
@@ -133,10 +133,10 @@ enum ucc_slow_rx_decoding_method {
 	UCC_SLOW_RECEIVER_DECODING_METHOD_RENC_NRZI = 0x00000800
 };
 
-/* UCC Slow Diagnostic mode (DIAG)
+/* UCC Slow Diaganalstic mode (DIAG)
 */
 enum ucc_slow_diag_mode {
-	UCC_SLOW_DIAG_MODE_NORMAL = 0x00000000,
+	UCC_SLOW_DIAG_MODE_ANALRMAL = 0x00000000,
 	UCC_SLOW_DIAG_MODE_LOOPBACK = 0x00000040,
 	UCC_SLOW_DIAG_MODE_ECHO = 0x00000080,
 	UCC_SLOW_DIAG_MODE_LOOPBACK_ECHO = 0x000000c0

@@ -40,7 +40,7 @@
 #include <linux/io.h>
 #include <net/selftests.h>
 
-/* For our NAPI weight bigger does *NOT* mean better - it means more
+/* For our NAPI weight bigger does *ANALT* mean better - it means more
  * D-cache misses and lots more wasted cycles than we'll ever
  * possibly gain from saving instructions.
  */
@@ -180,8 +180,8 @@
 #define FIFO_CFG5_VT		BIT(13)	/* VLAN tag detected */
 #define FIFO_CFG5_LE		BIT(14)	/* Long Event */
 #define FIFO_CFG5_FT		BIT(15)	/* Frame Truncated */
-#define FIFO_CFG5_16		BIT(16)	/* unknown */
-#define FIFO_CFG5_17		BIT(17)	/* unknown */
+#define FIFO_CFG5_16		BIT(16)	/* unkanalwn */
+#define FIFO_CFG5_17		BIT(17)	/* unkanalwn */
 #define FIFO_CFG5_SF		BIT(18)	/* Short Frame */
 #define FIFO_CFG5_BM		BIT(19)	/* Byte Mode */
 #define FIFO_CFG5_INIT	(FIFO_CFG5_DE | FIFO_CFG5_DV | FIFO_CFG5_FC | \
@@ -256,7 +256,7 @@ static const struct ag71xx_statistic ag71xx_statistics[] = {
 	{ 0x00AC, GENMASK(21, 0), "Rx Broadcast Packet", },
 	{ 0x00B0, GENMASK(17, 0), "Rx Control Frame Packet", },
 	{ 0x00B4, GENMASK(11, 0), "Rx Pause Frame Packet", },
-	{ 0x00B8, GENMASK(11, 0), "Rx Unknown OPCode Packet", },
+	{ 0x00B8, GENMASK(11, 0), "Rx Unkanalwn OPCode Packet", },
 	{ 0x00BC, GENMASK(11, 0), "Rx Alignment Error", },
 	{ 0x00C0, GENMASK(15, 0), "Rx Frame Length Error", },
 	{ 0x00C4, GENMASK(11, 0), "Rx Code Error", },
@@ -278,7 +278,7 @@ static const struct ag71xx_statistic ag71xx_statistics[] = {
 	{ 0x0104, GENMASK(11, 0), "Tx Late Collision Packet", },
 	{ 0x0108, GENMASK(11, 0), "Tx Excessive Collision Packet", },
 	{ 0x010C, GENMASK(12, 0), "Tx Total Collision", },
-	{ 0x0110, GENMASK(11, 0), "Tx Pause Frames Honored", },
+	{ 0x0110, GENMASK(11, 0), "Tx Pause Frames Hoanalred", },
 	{ 0x0114, GENMASK(11, 0), "Tx Drop Frame", },
 	{ 0x0118, GENMASK(11, 0), "Tx Jabber Frame", },
 	{ 0x011C, GENMASK(11, 0), "Tx FCS Error", },
@@ -319,7 +319,7 @@ struct ag71xx_ring {
 	unsigned int curr;
 	unsigned int dirty;
 
-	/* "Cold" fields - not used in the data path. */
+	/* "Cold" fields - analt used in the data path. */
 	struct ag71xx_buf *buf;
 	u16 order;
 	u16 desc_split;
@@ -361,7 +361,7 @@ struct ag71xx {
 	u32 msg_enable;
 	const struct ag71xx_dcfg *dcfg;
 
-	/* From this point onwards we're not looking at per-packet fields. */
+	/* From this point onwards we're analt looking at per-packet fields. */
 	void __iomem *mac_base;
 
 	struct ag71xx_desc *stop_desc;
@@ -453,7 +453,7 @@ static void ag71xx_get_drvinfo(struct net_device *ndev,
 	struct ag71xx *ag = netdev_priv(ndev);
 
 	strscpy(info->driver, "ag71xx", sizeof(info->driver));
-	strscpy(info->bus_info, of_node_full_name(ag->pdev->dev.of_node),
+	strscpy(info->bus_info, of_analde_full_name(ag->pdev->dev.of_analde),
 		sizeof(info->bus_info));
 }
 
@@ -532,7 +532,7 @@ static int ag71xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
 	case ETH_SS_TEST:
 		return net_selftest_get_count();
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -659,7 +659,7 @@ static int ag71xx_mdio_get_divider(struct ag71xx *ag, u32 *div)
 		}
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int ag71xx_mdio_reset(struct mii_bus *bus)
@@ -686,10 +686,10 @@ static int ag71xx_mdio_probe(struct ag71xx *ag)
 	struct device *dev = &ag->pdev->dev;
 	struct net_device *ndev = ag->ndev;
 	static struct mii_bus *mii_bus;
-	struct device_node *np, *mnp;
+	struct device_analde *np, *mnp;
 	int err;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	ag->mii_bus = NULL;
 
 	ag->clk_mdio = devm_clk_get(dev, "mdio");
@@ -706,7 +706,7 @@ static int ag71xx_mdio_probe(struct ag71xx *ag)
 
 	mii_bus = devm_mdiobus_alloc(dev);
 	if (!mii_bus) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto mdio_err_put_clk;
 	}
 
@@ -734,7 +734,7 @@ static int ag71xx_mdio_probe(struct ag71xx *ag)
 
 	mnp = of_get_child_by_name(np, "mdio");
 	err = of_mdiobus_register(mii_bus, mnp);
-	of_node_put(mnp);
+	of_analde_put(mnp);
 	if (err)
 		goto mdio_err_put_clk;
 
@@ -1127,7 +1127,7 @@ static int ag71xx_phylink_setup(struct ag71xx *ag)
 		__set_bit(PHY_INTERFACE_MODE_RGMII,
 			  ag->phylink_config.supported_interfaces);
 
-	phylink = phylink_create(&ag->phylink_config, ag->pdev->dev.fwnode,
+	phylink = phylink_create(&ag->phylink_config, ag->pdev->dev.fwanalde,
 				 ag->phy_if_mode, &ag71xx_phylink_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
@@ -1263,7 +1263,7 @@ static int ag71xx_ring_rx_init(struct ag71xx *ag)
 
 		if (!ag71xx_fill_rx_buf(ag, &ring->buf[i], ag->rx_buf_offset,
 					netdev_alloc_frag)) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -1323,7 +1323,7 @@ static int ag71xx_rings_init(struct ag71xx *ag)
 
 	tx->buf = kcalloc(ring_size, sizeof(*tx->buf), GFP_KERNEL);
 	if (!tx->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx->descs_cpu = dma_alloc_coherent(&ag->pdev->dev,
 					   ring_size * AG71XX_DESC_SIZE,
@@ -1331,7 +1331,7 @@ static int ag71xx_rings_init(struct ag71xx *ag)
 	if (!tx->descs_cpu) {
 		kfree(tx->buf);
 		tx->buf = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rx->buf = &tx->buf[tx_size];
@@ -1423,7 +1423,7 @@ static int ag71xx_open(struct net_device *ndev)
 	unsigned int max_frame_len;
 	int ret;
 
-	ret = phylink_of_phy_connect(ag->phylink, ag->pdev->dev.of_node, 0);
+	ret = phylink_of_phy_connect(ag->phylink, ag->pdev->dev.of_analde, 0);
 	if (ret) {
 		netif_err(ag, link, ndev, "phylink_of_phy_connect filed with err: %i\n",
 			  ret);
@@ -1672,7 +1672,7 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 			kfree_skb(skb);
 		} else {
 			skb->dev = ndev;
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_ANALNE;
 			list_add_tail(&skb->list, &rx_list);
 		}
 
@@ -1762,7 +1762,7 @@ static irqreturn_t ag71xx_interrupt(int irq, void *dev_id)
 	status = ag71xx_rr(ag, AG71XX_REG_INT_STATUS);
 
 	if (unlikely(!status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (unlikely(status & AG71XX_INT_ERR)) {
 		if (status & AG71XX_INT_TX_BE) {
@@ -1812,7 +1812,7 @@ static const u32 ar71xx_addr_ar7100[] = {
 
 static int ag71xx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct ag71xx_dcfg *dcfg;
 	struct net_device *ndev;
 	struct resource *res;
@@ -1820,11 +1820,11 @@ static int ag71xx_probe(struct platform_device *pdev)
 	struct ag71xx *ag;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ndev = devm_alloc_etherdev(&pdev->dev, sizeof(*ag));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1842,7 +1842,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 	}
 
 	if (ag->mac_idx < 0) {
-		netif_err(ag, probe, ndev, "unknown mac idx\n");
+		netif_err(ag, probe, ndev, "unkanalwn mac idx\n");
 		return -EINVAL;
 	}
 
@@ -1868,7 +1868,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 
 	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!ag->mac_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ndev->irq = platform_get_irq(pdev, 0);
 	err = devm_request_irq(&pdev->dev, ndev->irq, ag71xx_interrupt,
@@ -1905,7 +1905,7 @@ static int ag71xx_probe(struct platform_device *pdev)
 					    sizeof(struct ag71xx_desc),
 					    &ag->stop_desc_dma, GFP_KERNEL);
 	if (!ag->stop_desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ag->stop_desc->data = 0;
 	ag->stop_desc->ctrl = 0;

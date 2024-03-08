@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,13 +35,13 @@
  *
  * @init_mqd: Allocates the mqd buffer on local gpu memory and initialize it.
  *
- * @load_mqd: Loads the mqd to a concrete hqd slot. Used only for no cp
+ * @load_mqd: Loads the mqd to a concrete hqd slot. Used only for anal cp
  * scheduling mode.
  *
  * @update_mqd: Handles a update call for the MQD
  *
  * @destroy_mqd: Destroys the HQD slot and by that preempt the relevant queue.
- * Used only for no cp scheduling.
+ * Used only for anal cp scheduling.
  *
  * @free_mqd: Releases the mqd buffer from local gpu memory.
  *
@@ -59,7 +59,7 @@
  * This structure is actually a base class for the different types of MQDs
  * structures for the variant ASICs that should be supported in the future.
  * This base class is also contains all the MQD specific operations.
- * Another important thing to mention is that each queue has a MQD that keeps
+ * Aanalther important thing to mention is that each queue has a MQD that keeps
  * his state (or context) after each preemption or reassignment.
  * Basically there are a instances of the mqd manager class per MQD type per
  * ASIC. Currently the kfd driver supports only Kaveri so there are instances
@@ -68,7 +68,7 @@
  */
 extern int pipe_priority_map[];
 struct mqd_manager {
-	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_node *kfd,
+	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_analde *kfd,
 		struct queue_properties *q);
 
 	void	(*init_mqd)(struct mqd_manager *mm, void **mqd,
@@ -124,14 +124,14 @@ struct mqd_manager {
 				struct queue_properties *p);
 
 	struct mutex	mqd_mutex;
-	struct kfd_node	*dev;
+	struct kfd_analde	*dev;
 	uint32_t mqd_size;
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev,
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_analde *dev,
 				struct queue_properties *q);
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_analde *dev,
 					struct queue_properties *q);
 void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj);
@@ -167,10 +167,10 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		uint64_t queue_address, uint32_t pipe_id,
 		uint32_t queue_id);
 
-void kfd_get_hiq_xcc_mqd(struct kfd_node *dev,
+void kfd_get_hiq_xcc_mqd(struct kfd_analde *dev,
 		struct kfd_mem_obj *mqd_mem_obj, uint32_t virtual_xcc_id);
 
-uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev);
+uint64_t kfd_hiq_mqd_stride(struct kfd_analde *dev);
 uint64_t kfd_mqd_stride(struct mqd_manager *mm,
 			struct queue_properties *q);
 #endif /* KFD_MQD_MANAGER_H_ */

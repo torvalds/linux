@@ -15,7 +15,7 @@ are described in Documentation/admin-guide/sysctl/vm.rst and in `man 5 proc`_.
 
 .. _man 5 proc: http://man7.org/linux/man-pages/man5/proc.5.html
 
-Linux memory management has its own jargon and if you are not yet
+Linux memory management has its own jargon and if you are analt yet
 familiar with it, consider reading Documentation/admin-guide/mm/concepts.rst.
 
 Here we document in detail how to interact with various mechanisms in
@@ -32,7 +32,7 @@ the Linux memory management.
    ksm
    memory-hotplug
    multigen_lru
-   nommu-mmap
+   analmmu-mmap
    numa_memory_policy
    numaperf
    pagemap

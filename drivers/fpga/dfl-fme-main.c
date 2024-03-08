@@ -8,7 +8,7 @@
  *   Kang Luwei <luwei.kang@intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enanal Luebbers <enanal.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -172,7 +172,7 @@ static long fme_hdr_ioctl(struct platform_device *pdev,
 		return fme_hdr_ioctl_assign_port(pdata, arg);
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct dfl_feature_id fme_hdr_id_table[] = {
@@ -199,7 +199,7 @@ static const struct dfl_feature_ops fme_hdr_ops = {
 #define FPGA_TEMPERATURE	GENMASK_ULL(6, 0)
 
 #define FME_THERM_CAP		0x20
-#define THERM_NO_THROTTLE	BIT_ULL(0)
+#define THERM_ANAL_THROTTLE	BIT_ULL(0)
 
 #define MD_PRE_DEG
 
@@ -207,7 +207,7 @@ static bool fme_thermal_throttle_support(void __iomem *base)
 {
 	u64 v = readq(base + FME_THERM_CAP);
 
-	return FIELD_GET(THERM_NO_THROTTLE, v) ? false : true;
+	return FIELD_GET(THERM_ANAL_THROTTLE, v) ? false : true;
 }
 
 static umode_t thermal_hwmon_attrs_visible(const void *drvdata,
@@ -255,7 +255,7 @@ static int thermal_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = (long)FIELD_GET(TEMP_THRESHOLD2_STATUS, v);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -332,7 +332,7 @@ static int fme_thermal_mgmt_init(struct platform_device *pdev,
 	 * to understand the actual hardware throttling action (50% vs 90%).
 	 *
 	 * If hardware doesn't support automatic throttling per thresholds,
-	 * then all above sysfs interfaces are not visible except temp1_input
+	 * then all above sysfs interfaces are analt visible except temp1_input
 	 * for temperature.
 	 */
 	hwmon = devm_hwmon_device_register_with_info(&pdev->dev,
@@ -402,7 +402,7 @@ static int power_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = (long)FIELD_GET(PWR_THRESHOLD2_STATUS, v);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -434,7 +434,7 @@ static int power_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		writeq(v, feature->ioaddr + FME_PWR_THRESHOLD);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -592,18 +592,18 @@ static struct dfl_feature_driver fme_feature_drvs[] = {
 static long fme_ioctl_check_extension(struct dfl_feature_platform_data *pdata,
 				      unsigned long arg)
 {
-	/* No extension support for now */
+	/* Anal extension support for analw */
 	return 0;
 }
 
-static int fme_open(struct inode *inode, struct file *filp)
+static int fme_open(struct ianalde *ianalde, struct file *filp)
 {
-	struct platform_device *fdev = dfl_fpga_inode_to_feature_dev(inode);
+	struct platform_device *fdev = dfl_fpga_ianalde_to_feature_dev(ianalde);
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&fdev->dev);
 	int ret;
 
 	if (WARN_ON(!pdata))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&pdata->lock);
 	ret = dfl_feature_dev_use_begin(pdata, filp->f_flags & O_EXCL);
@@ -617,7 +617,7 @@ static int fme_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int fme_release(struct inode *inode, struct file *filp)
+static int fme_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct dfl_feature_platform_data *pdata = filp->private_data;
 	struct platform_device *pdev = pdata->dev;
@@ -654,14 +654,14 @@ static long fme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	default:
 		/*
 		 * Let sub-feature's ioctl function to handle the cmd.
-		 * Sub-feature's ioctl returns -ENODEV when cmd is not
+		 * Sub-feature's ioctl returns -EANALDEV when cmd is analt
 		 * handled in this sub feature, and returns 0 or other
 		 * error code if cmd is handled.
 		 */
 		dfl_fpga_dev_for_each_feature(pdata, f) {
 			if (f->ops && f->ops->ioctl) {
 				ret = f->ops->ioctl(pdev, f, cmd, arg);
-				if (ret != -ENODEV)
+				if (ret != -EANALDEV)
 					return ret;
 			}
 		}
@@ -677,7 +677,7 @@ static int fme_dev_init(struct platform_device *pdev)
 
 	fme = devm_kzalloc(&pdev->dev, sizeof(*fme), GFP_KERNEL);
 	if (!fme)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fme->pdata = pdata;
 

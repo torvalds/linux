@@ -3,7 +3,7 @@
  * Texas Instruments' Message Manager
  *
  * Copyright (C) 2015-2022 Texas Instruments Incorporated - https://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meanaln
  */
 
 #ifndef TI_MSGMGR_H

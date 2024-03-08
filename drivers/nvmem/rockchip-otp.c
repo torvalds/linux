@@ -59,7 +59,7 @@
 #define RK3588_OTPC_AUTO_EN		0x08
 #define RK3588_OTPC_INT_ST		0x84
 #define RK3588_OTPC_DOUT0		0x20
-#define RK3588_NO_SECURE_OFFSET		0x300
+#define RK3588_ANAL_SECURE_OFFSET		0x300
 #define RK3588_NBYTES			4
 #define RK3588_BURST_NUM		1
 #define RK3588_BURST_SHIFT		8
@@ -196,11 +196,11 @@ static int rk3588_otp_read(void *context, unsigned int offset,
 	addr_start = round_down(offset, RK3588_NBYTES) / RK3588_NBYTES;
 	addr_end = round_up(offset + bytes, RK3588_NBYTES) / RK3588_NBYTES;
 	addr_len = addr_end - addr_start;
-	addr_start += RK3588_NO_SECURE_OFFSET;
+	addr_start += RK3588_ANAL_SECURE_OFFSET;
 
 	buf = kzalloc(array_size(addr_len, RK3588_NBYTES), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (addr_len--) {
 		writel((addr_start << RK3588_ADDR_SHIFT) |
@@ -315,7 +315,7 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	otp = devm_kzalloc(&pdev->dev, sizeof(struct rockchip_otp),
 			   GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otp->data = data;
 	otp->dev = dev;
@@ -327,7 +327,7 @@ static int rockchip_otp_probe(struct platform_device *pdev)
 	otp->clks = devm_kcalloc(dev, data->num_clks, sizeof(*otp->clks),
 				 GFP_KERNEL);
 	if (!otp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < data->num_clks; ++i)
 		otp->clks[i].id = data->clks[i];

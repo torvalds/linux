@@ -166,10 +166,10 @@ static int amd_ec_write(struct amd_smbus *smbus, unsigned char address,
 #define AMD_SMB_STATUS_DNAK	0x10
 #define AMD_SMB_STATUS_DERR	0x11
 #define AMD_SMB_STATUS_CMD_DENY	0x12
-#define AMD_SMB_STATUS_UNKNOWN	0x13
+#define AMD_SMB_STATUS_UNKANALWN	0x13
 #define AMD_SMB_STATUS_ACC_DENY	0x17
 #define AMD_SMB_STATUS_TIMEOUT	0x18
-#define AMD_SMB_STATUS_NOTSUP	0x19
+#define AMD_SMB_STATUS_ANALTSUP	0x19
 #define AMD_SMB_STATUS_BUSY	0x1A
 #define AMD_SMB_STATUS_PEC	0x1F
 
@@ -322,7 +322,7 @@ static s32 amd8111_access(struct i2c_adapter *adap, u16 addr,
 
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	status = amd_ec_write(smbus, AMD_SMB_ADDR, addr << 1);
@@ -425,11 +425,11 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int error;
 
 	if (!(pci_resource_flags(dev, 0) & IORESOURCE_IO))
-		return -ENODEV;
+		return -EANALDEV;
 
 	smbus = kzalloc(sizeof(struct amd_smbus), GFP_KERNEL);
 	if (!smbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smbus->dev = dev;
 	smbus->base = pci_resource_start(dev, 0);
@@ -437,7 +437,7 @@ static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	error = acpi_check_resource_conflict(&dev->resource[0]);
 	if (error) {
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto out_kfree;
 	}
 

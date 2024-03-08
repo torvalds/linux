@@ -14,8 +14,8 @@ struct btree_key_cache {
 
 	struct list_head	freed_pcpu;
 	size_t			nr_freed_pcpu;
-	struct list_head	freed_nonpcpu;
-	size_t			nr_freed_nonpcpu;
+	struct list_head	freed_analnpcpu;
+	size_t			nr_freed_analnpcpu;
 
 	struct shrinker		*shrink;
 	unsigned		shrink_iter;

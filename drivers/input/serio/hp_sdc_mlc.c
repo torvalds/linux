@@ -8,34 +8,34 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may analt be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
  * GNU General Public License ("GPL").
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *
  * References:
- * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
+ * HP-HIL Technical Reference Manual.  Hewlett Packard Product Anal. 45918A
  * System Device Controller Microprocessor Firmware Theory of Operation
- *      for Part Number 1820-4784 Revision B.  Dwg No. A-1820-4784-2
+ *      for Part Number 1820-4784 Revision B.  Dwg Anal. A-1820-4784-2
  *
  */
 
 #include <linux/hil_mlc.h>
 #include <linux/hp_sdc.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -84,7 +84,7 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		}
 		goto check;
 	}
-	/* We know status is 5X */
+	/* We kanalw status is 5X */
 	if (data & HP_SDC_HIL_ISERR)
 		goto err;
 	mlc->ipacket[idx] =
@@ -125,11 +125,11 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		break;
 
 	default:
-		printk(KERN_WARNING PREFIX "Unknown HIL Error status (%x)!\n", data);
+		printk(KERN_WARNING PREFIX "Unkanalwn HIL Error status (%x)!\n", data);
 		break;
 	}
 
-	/* No more data will be coming due to an error. */
+	/* Anal more data will be coming due to an error. */
  done:
 	tasklet_schedule(mlc->tasklet);
 	up(&mlc->isem);
@@ -254,7 +254,7 @@ static int hp_sdc_mlc_out(hil_mlc *mlc)
 	priv->tseq[3] =
 		(mlc->opacket & HIL_PKT_DATA_MASK)
 		  >> HIL_PKT_DATA_SHIFT;
-	priv->tseq[4] = 0;  /* No timeout */
+	priv->tseq[4] = 0;  /* Anal timeout */
 	if (priv->tseq[3] == HIL_CMD_DHR)
 		priv->tseq[4] = 1;
 	priv->tseq[5] = HP_SDC_CMD_DO_HIL;
@@ -263,16 +263,16 @@ static int hp_sdc_mlc_out(hil_mlc *mlc)
  do_control:
 	priv->emtestmode = mlc->opacket & HIL_CTRL_TEST;
 
-	/* we cannot emulate this, it should not be used. */
+	/* we cananalt emulate this, it should analt be used. */
 	BUG_ON((mlc->opacket & (HIL_CTRL_APE | HIL_CTRL_IPF)) == HIL_CTRL_APE);
 
 	if ((mlc->opacket & HIL_CTRL_ONLY) == HIL_CTRL_ONLY)
 		goto control_only;
 
-	/* Should not send command/data after engaging APE */
+	/* Should analt send command/data after engaging APE */
 	BUG_ON(mlc->opacket & HIL_CTRL_APE);
 
-	/* Disengaging APE this way would not be valid either since
+	/* Disengaging APE this way would analt be valid either since
 	 * the loop must be allowed to idle.
 	 *
 	 * So, it works out that we really never actually send control
@@ -306,7 +306,7 @@ static int __init hp_sdc_mlc_init(void)
 
 #ifdef __mc68000__
 	if (!MACH_IS_HP300)
-		return -ENODEV;
+		return -EANALDEV;
 #endif
 
 	printk(KERN_INFO PREFIX "Registering the System Domain Controller's HIL MLC.\n");

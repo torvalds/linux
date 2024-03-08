@@ -20,7 +20,7 @@ static inline void set_bit(int nr, volatile unsigned long *addr)
 		"	l.or	%0,%0,%2	\n"
 		"	l.swa	0(%1),%0	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(tmp)
 		: "r"(p), "r"(mask)
 		: "cc", "memory");
@@ -37,7 +37,7 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
 		"	l.and	%0,%0,%2	\n"
 		"	l.swa	0(%1),%0	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(tmp)
 		: "r"(p), "r"(~mask)
 		: "cc", "memory");
@@ -54,7 +54,7 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 		"	l.xor	%0,%0,%2	\n"
 		"	l.swa	0(%1),%0	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(tmp)
 		: "r"(p), "r"(mask)
 		: "cc", "memory");
@@ -72,7 +72,7 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 		"	l.or	%1,%0,%3	\n"
 		"	l.swa	0(%2),%1	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(old), "=&r"(tmp)
 		: "r"(p), "r"(mask)
 		: "cc", "memory");
@@ -92,7 +92,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
 		"	l.and	%1,%0,%3	\n"
 		"	l.swa	0(%2),%1	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(old), "=&r"(tmp)
 		: "r"(p), "r"(~mask)
 		: "cc", "memory");
@@ -112,7 +112,7 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 		"	l.xor	%1,%0,%3	\n"
 		"	l.swa	0(%2),%1	\n"
 		"	l.bnf	1b		\n"
-		"	 l.nop			\n"
+		"	 l.analp			\n"
 		: "=&r"(old), "=&r"(tmp)
 		: "r"(p), "r"(mask)
 		: "cc", "memory");

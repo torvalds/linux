@@ -37,16 +37,16 @@ void vp_synchronize_vectors(struct virtio_device *vdev)
 		synchronize_irq(pci_irq_vector(vp_dev->pci_dev, i));
 }
 
-/* the notify function used when creating a virt queue */
-bool vp_notify(struct virtqueue *vq)
+/* the analtify function used when creating a virt queue */
+bool vp_analtify(struct virtqueue *vq)
 {
-	/* we write the queue's selector into the notification register to
+	/* we write the queue's selector into the analtification register to
 	 * signal the other end */
 	iowrite16(vq->index, (void __iomem *)vq->priv);
 	return true;
 }
 
-/* Handle a configuration change: Tell driver if it wants to know. */
+/* Handle a configuration change: Tell driver if it wants to kanalw. */
 static irqreturn_t vp_config_changed(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
@@ -55,16 +55,16 @@ static irqreturn_t vp_config_changed(int irq, void *opaque)
 	return IRQ_HANDLED;
 }
 
-/* Notify all virtqueues on an interrupt. */
+/* Analtify all virtqueues on an interrupt. */
 static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 {
 	struct virtio_pci_device *vp_dev = opaque;
 	struct virtio_pci_vq_info *info;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vp_dev->lock, flags);
-	list_for_each_entry(info, &vp_dev->virtqueues, node) {
+	list_for_each_entry(info, &vp_dev->virtqueues, analde) {
 		if (vring_interrupt(irq, info->vq) == IRQ_HANDLED)
 			ret = IRQ_HANDLED;
 	}
@@ -73,11 +73,11 @@ static irqreturn_t vp_vring_interrupt(int irq, void *opaque)
 	return ret;
 }
 
-/* A small wrapper to also acknowledge the interrupt when it's handled.
+/* A small wrapper to also ackanalwledge the interrupt when it's handled.
  * I really need an EIO hook for the vring so I can ack the interrupt once we
- * know that we'll be handling the IRQ but before we invoke the callback since
- * the callback may notify the host which results in the host attempting to
- * raise an interrupt that we would then mask once we acknowledged the
+ * kanalw that we'll be handling the IRQ but before we invoke the callback since
+ * the callback may analtify the host which results in the host attempting to
+ * raise an interrupt that we would then mask once we ackanalwledged the
  * interrupt. */
 static irqreturn_t vp_interrupt(int irq, void *opaque)
 {
@@ -88,11 +88,11 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
 	 * important to save off the value. */
 	isr = ioread8(vp_dev->isr);
 
-	/* It's definitely not us if the ISR was not high */
+	/* It's definitely analt us if the ISR was analt high */
 	if (!isr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Configuration change?  Tell driver if it wants to know. */
+	/* Configuration change?  Tell driver if it wants to kanalw. */
 	if (isr & VIRTIO_PCI_ISR_CONFIG)
 		vp_config_changed(irq, opaque);
 
@@ -106,7 +106,7 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	const char *name = dev_name(&vp_dev->vdev.dev);
 	unsigned int flags = PCI_IRQ_MSIX;
 	unsigned int i, v;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	vp_dev->msix_vectors = nvectors;
 
@@ -148,8 +148,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	++vp_dev->msix_used_vectors;
 
 	v = vp_dev->config_vector(vp_dev, v);
-	/* Verify we had enough resources to assign the vector */
-	if (v == VIRTIO_MSI_NO_VECTOR) {
+	/* Verify we had eanalugh resources to assign the vector */
+	if (v == VIRTIO_MSI_ANAL_VECTOR) {
 		err = -EBUSY;
 		goto error;
 	}
@@ -184,7 +184,7 @@ static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned int in
 
 	/* fill out our structure that represents an active queue */
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	vq = vp_dev->setup_vq(vp_dev, info, index, callback, name, ctx,
 			      msix_vec);
@@ -194,10 +194,10 @@ static struct virtqueue *vp_setup_vq(struct virtio_device *vdev, unsigned int in
 	info->vq = vq;
 	if (callback) {
 		spin_lock_irqsave(&vp_dev->lock, flags);
-		list_add(&info->node, &vp_dev->virtqueues);
+		list_add(&info->analde, &vp_dev->virtqueues);
 		spin_unlock_irqrestore(&vp_dev->lock, flags);
 	} else {
-		INIT_LIST_HEAD(&info->node);
+		INIT_LIST_HEAD(&info->analde);
 	}
 
 	vp_dev->vqs[index] = info;
@@ -216,11 +216,11 @@ static void vp_del_vq(struct virtqueue *vq)
 
 	/*
 	 * If it fails during re-enable reset vq. This way we won't rejoin
-	 * info->node to the queue. Prevent unexpected irqs.
+	 * info->analde to the queue. Prevent unexpected irqs.
 	 */
 	if (!vq->reset) {
 		spin_lock_irqsave(&vp_dev->lock, flags);
-		list_del(&info->node);
+		list_del(&info->analde);
 		spin_unlock_irqrestore(&vp_dev->lock, flags);
 	}
 
@@ -242,7 +242,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 		if (vp_dev->per_vq_vectors) {
 			int v = vp_dev->vqs[vq->index]->msix_vector;
 
-			if (v != VIRTIO_MSI_NO_VECTOR) {
+			if (v != VIRTIO_MSI_ANAL_VECTOR) {
 				int irq = pci_irq_vector(vp_dev->pci_dev, v);
 
 				irq_update_affinity_hint(irq, NULL);
@@ -268,7 +268,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 	if (vp_dev->msix_enabled) {
 		/* Disable the vector used for configuration */
-		vp_dev->config_vector(vp_dev, VIRTIO_MSI_NO_VECTOR);
+		vp_dev->config_vector(vp_dev, VIRTIO_MSI_ANAL_VECTOR);
 
 		pci_free_irq_vectors(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
@@ -296,7 +296,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 
 	vp_dev->vqs = kcalloc(nvqs, sizeof(*vp_dev->vqs), GFP_KERNEL);
 	if (!vp_dev->vqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (per_vq_vectors) {
 		/* Best option: one for change interrupt, one per vq. */
@@ -323,7 +323,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 		}
 
 		if (!callbacks[i])
-			msix_vec = VIRTIO_MSI_NO_VECTOR;
+			msix_vec = VIRTIO_MSI_ANAL_VECTOR;
 		else if (vp_dev->per_vq_vectors)
 			msix_vec = allocated_vectors++;
 		else
@@ -336,7 +336,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 			goto error_find;
 		}
 
-		if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_NO_VECTOR)
+		if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_ANAL_VECTOR)
 			continue;
 
 		/* allocate per-vq irq if available and necessary */
@@ -367,7 +367,7 @@ static int vp_find_vqs_intx(struct virtio_device *vdev, unsigned int nvqs,
 
 	vp_dev->vqs = kcalloc(nvqs, sizeof(*vp_dev->vqs), GFP_KERNEL);
 	if (!vp_dev->vqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = request_irq(vp_dev->pci_dev->irq, vp_interrupt, IRQF_SHARED,
 			dev_name(&vdev->dev), vp_dev);
@@ -383,7 +383,7 @@ static int vp_find_vqs_intx(struct virtio_device *vdev, unsigned int nvqs,
 		}
 		vqs[i] = vp_setup_vq(vdev, queue_idx++, callbacks[i], names[i],
 				     ctx ? ctx[i] : false,
-				     VIRTIO_MSI_NO_VECTOR);
+				     VIRTIO_MSI_ANAL_VECTOR);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
 			goto out_del_vqs;
@@ -412,7 +412,7 @@ int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	err = vp_find_vqs_msix(vdev, nvqs, vqs, callbacks, names, false, ctx, desc);
 	if (!err)
 		return 0;
-	/* Is there an interrupt? If not give up. */
+	/* Is there an interrupt? If analt give up. */
 	if (!(to_vp_device(vdev)->pci_dev->irq))
 		return err;
 	/* Finally fall back to regular interrupts. */
@@ -429,7 +429,7 @@ const char *vp_bus_name(struct virtio_device *vdev)
 /* Setup the affinity for a virtqueue:
  * - force the affinity for per vq vector
  * - OR over all affinities for shared MSI
- * - ignore the affinity request if we're using INTX
+ * - iganalre the affinity request if we're using INTX
  */
 int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask)
 {
@@ -460,7 +460,7 @@ const struct cpumask *vp_get_vq_affinity(struct virtio_device *vdev, int index)
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 
 	if (!vp_dev->per_vq_vectors ||
-	    vp_dev->vqs[index]->msix_vector == VIRTIO_MSI_NO_VECTOR)
+	    vp_dev->vqs[index]->msix_vector == VIRTIO_MSI_ANAL_VECTOR)
 		return NULL;
 
 	return pci_irq_get_affinity(vp_dev->pci_dev,
@@ -495,7 +495,7 @@ static int virtio_pci_restore(struct device *dev)
 	return virtio_device_restore(&vp_dev->vdev);
 }
 
-static bool vp_supports_pm_no_reset(struct device *dev)
+static bool vp_supports_pm_anal_reset(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	u16 pmcsr;
@@ -509,17 +509,17 @@ static bool vp_supports_pm_no_reset(struct device *dev)
 		return false;
 	}
 
-	return pmcsr & PCI_PM_CTRL_NO_SOFT_RESET;
+	return pmcsr & PCI_PM_CTRL_ANAL_SOFT_RESET;
 }
 
 static int virtio_pci_suspend(struct device *dev)
 {
-	return vp_supports_pm_no_reset(dev) ? 0 : virtio_pci_freeze(dev);
+	return vp_supports_pm_anal_reset(dev) ? 0 : virtio_pci_freeze(dev);
 }
 
 static int virtio_pci_resume(struct device *dev)
 {
-	return vp_supports_pm_no_reset(dev) ? 0 : virtio_pci_restore(dev);
+	return vp_supports_pm_anal_reset(dev) ? 0 : virtio_pci_restore(dev);
 }
 
 static const struct dev_pm_ops virtio_pci_pm_ops = {
@@ -546,7 +546,7 @@ static void virtio_pci_release_dev(struct device *_d)
 	struct virtio_device *vdev = dev_to_virtio(_d);
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 
-	/* As struct device is a kobject, it's not safe to
+	/* As struct device is a kobject, it's analt safe to
 	 * free the memory (including the reference counter itself)
 	 * until it's release callback. */
 	kfree(vp_dev);
@@ -561,7 +561,7 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	/* allocate our structure and fill it out */
 	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
 	if (!vp_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(pci_dev, vp_dev);
 	vp_dev->vdev.dev.parent = &pci_dev->dev;
@@ -577,14 +577,14 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 
 	if (force_legacy) {
 		rc = virtio_pci_legacy_probe(vp_dev);
-		/* Also try modern mode if we can't map BAR0 (no IO space). */
-		if (rc == -ENODEV || rc == -ENOMEM)
+		/* Also try modern mode if we can't map BAR0 (anal IO space). */
+		if (rc == -EANALDEV || rc == -EANALMEM)
 			rc = virtio_pci_modern_probe(vp_dev);
 		if (rc)
 			goto err_probe;
 	} else {
 		rc = virtio_pci_modern_probe(vp_dev);
-		if (rc == -ENODEV)
+		if (rc == -EANALDEV)
 			rc = virtio_pci_legacy_probe(vp_dev);
 		if (rc)
 			goto err_probe;

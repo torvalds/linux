@@ -147,19 +147,19 @@ static void pca9541_release_bus(struct i2c_client *client)
  * Bus	Ownership	Other master	Action
  * state		requested access
  * ----------------------------------------------------
- * off	-		yes		wait for arbitration timeout or
+ * off	-		anal		wait for arbitration timeout or
  *					for other master to drop request
- * off	no		no		take ownership
- * off	yes		no		turn on bus
- * on	yes		-		done
- * on	no		-		wait for arbitration timeout or
+ * off	anal		anal		take ownership
+ * off	anal		anal		turn on bus
+ * on	anal		-		done
+ * on	anal		-		wait for arbitration timeout or
  *					for other master to release bus
  *
  * The main contention point occurs if the slave bus is off and both masters
  * request ownership at the same time. In this case, one master will turn on
  * the slave bus, believing that it owns it. The other master will request
  * bus ownership. Result is that the bus is turned on, and master which did
- * _not_ own the slave bus before ends up owning it.
+ * _analt_ own the slave bus before ends up owning it.
  */
 
 /* Control commands per PCA9541 datasheet */
@@ -172,7 +172,7 @@ static const u8 pca9541_control[16] = {
  *
  * Return values:
  *  <0: error
- *  0 : bus not acquired
+ *  0 : bus analt acquired
  *  1 : bus acquired
  */
 static int pca9541_arbitrate(struct i2c_client *client)
@@ -195,7 +195,7 @@ static int pca9541_arbitrate(struct i2c_client *client)
 		if (!(istat & PCA9541_ISTAT_NMYTEST)
 		    || time_is_before_eq_jiffies(data->arb_timeout)) {
 			/*
-			 * Other master did not request ownership,
+			 * Other master did analt request ownership,
 			 * or arbitration timeout expired. Take the bus.
 			 */
 			pca9541_reg_write(client,
@@ -291,7 +291,7 @@ static int pca9541_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * I2C accesses are unprotected here.
@@ -307,7 +307,7 @@ static int pca9541_probe(struct i2c_client *client)
 			     I2C_MUX_ARBITRATOR,
 			     pca9541_select_chan, pca9541_release_chan);
 	if (!muxc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = i2c_mux_priv(muxc);
 	data->client = client;

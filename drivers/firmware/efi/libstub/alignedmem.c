@@ -11,14 +11,14 @@
  * @addr:	On return the address of the first allocated page. The first
  *		allocated page has alignment EFI_ALLOC_ALIGN which is an
  *		architecture dependent multiple of the page size.
- * @max:	the address that the last allocated memory page shall not
+ * @max:	the address that the last allocated memory page shall analt
  *		exceed
  * @align:	minimum alignment of the base of the allocation
  * @memory_type: the type of memory to allocate
  *
  * Allocate pages as EFI_LOADER_DATA. The allocated pages are aligned according
  * to @align, which should be >= EFI_ALLOC_ALIGN. The last allocated page will
- * not exceed the address given by @max.
+ * analt exceed the address given by @max.
  *
  * Return:	status code
  */

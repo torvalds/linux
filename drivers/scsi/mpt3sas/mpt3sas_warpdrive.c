@@ -1,8 +1,8 @@
 /*
- * Scsi Host Layer for MPT (Message Passing Technology) based controllers
+ * Scsi Host Layer for MPT (Message Passing Techanallogy) based controllers
  *
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2015 Avago Technologies
+ * Copyright (C) 2013-2015 Avago Techanallogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -15,19 +15,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
- * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+ * LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but analt limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
  * DISCLAIMER OF LIABILITY
- * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+ * NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -40,7 +40,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <asm/unaligned.h>
 
@@ -190,8 +190,8 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	/*
-	 * Assumption for WD: Direct I/O is not supported if the volume is
-	 * not RAID0
+	 * Assumption for WD: Direct I/O is analt supported if the volume is
+	 * analt RAID0
 	 */
 	if (raid_device->volume_type != MPI2_RAID_VOL_TYPE_RAID0) {
 		ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x): type=%d, s_sz=%uK, blk_size=%u\n",
@@ -225,7 +225,7 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	ioc_info(ioc, "WarpDrive : Direct IO is Enabled for the drive with handle(0x%04x)\n",
 		 raid_device->handle);
 	/*
-	 * WARPDRIVE: Though the following fields are not used for direct IO,
+	 * WARPDRIVE: Though the following fields are analt used for direct IO,
 	 * stored for future purpose:
 	 */
 	raid_device->max_lba = le64_to_cpu(vol_pg0->MaxLBA);

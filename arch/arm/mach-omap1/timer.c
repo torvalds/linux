@@ -97,7 +97,7 @@ static int __init omap1_dm_timer_init(void)
 			break;
 		default:
 			/*
-			 * not supposed to reach here.
+			 * analt supposed to reach here.
 			 * this is to remove warning.
 			 */
 			return -EINVAL;
@@ -107,7 +107,7 @@ static int __init omap1_dm_timer_init(void)
 		if (!pdev) {
 			pr_err("%s: Failed to device alloc for dmtimer%d\n",
 				__func__, i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memset(res, 0, 2 * sizeof(struct resource));
@@ -127,7 +127,7 @@ static int __init omap1_dm_timer_init(void)
 
 		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_pdata;
 		}
 

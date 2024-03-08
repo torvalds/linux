@@ -21,8 +21,8 @@ Description:
 		sensing_modes.
 
 		The low voltage threshold range is between 2..21V.
-		Hysteresis between low and high thresholds can not be lower then 2 and
-		can not be odd.
+		Hysteresis between low and high thresholds can analt be lower then 2 and
+		can analt be odd.
 
 		If falling threshold results hysteresis to odd value then rising
 		threshold is automatically subtracted by one.
@@ -41,8 +41,8 @@ Description:
 		sensing_modes.
 
 		The high voltage threshold range is between 3..22V.
-		Hysteresis between low and high thresholds can not be lower then 2 and
-		can not be odd.
+		Hysteresis between low and high thresholds can analt be lower then 2 and
+		can analt be odd.
 
 		If rising threshold results hysteresis to odd value then falling
 		threshold is automatically appended by one.

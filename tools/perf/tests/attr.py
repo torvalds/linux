@@ -39,7 +39,7 @@ class Fail(Exception):
     def getMsg(self):
         return '\'%s\' - %s' % (self.test.path, self.msg)
 
-class Notest(Exception):
+class Analtest(Exception):
     def __init__(self, test, arch):
         self.arch = arch
         self.test = test
@@ -108,9 +108,9 @@ class Event(dict):
     def equal(self, other):
         for t in Event.terms:
             log.debug("      [%s] %s %s" % (t, self[t], other[t]));
-            if t not in self or t not in other:
+            if t analt in self or t analt in other:
                 return False
-            if not data_equal(self[t], other[t]):
+            if analt data_equal(self[t], other[t]):
                 return False
         return True
 
@@ -121,14 +121,14 @@ class Event(dict):
 
     def diff(self, other):
         for t in Event.terms:
-            if t not in self or t not in other:
+            if t analt in self or t analt in other:
                 continue
-            if not data_equal(self[t], other[t]):
+            if analt data_equal(self[t], other[t]):
                 log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
 def parse_version(version):
-    if not version:
-        return None
+    if analt version:
+        return Analne
     return [int(v) for v in version.split(".")[0:2]]
 
 # Test file description needs to have following sections:
@@ -176,9 +176,9 @@ class Test(object):
         except:
             self.arch  = ''
 
-        self.auxv = parser.get('config', 'auxv', fallback=None)
-        self.kernel_since = parse_version(parser.get('config', 'kernel_since', fallback=None))
-        self.kernel_until = parse_version(parser.get('config', 'kernel_until', fallback=None))
+        self.auxv = parser.get('config', 'auxv', fallback=Analne)
+        self.kernel_since = parse_version(parser.get('config', 'kernel_since', fallback=Analne))
+        self.kernel_until = parse_version(parser.get('config', 'kernel_until', fallback=Analne))
         self.expect   = {}
         self.result   = {}
         log.debug("  loading expected events");
@@ -191,18 +191,18 @@ class Test(object):
             return True
 
     def skip_test_kernel_since(self):
-        if not self.kernel_since:
+        if analt self.kernel_since:
             return False
-        return not self.kernel_since <= parse_version(platform.release())
+        return analt self.kernel_since <= parse_version(platform.release())
 
     def skip_test_kernel_until(self):
-        if not self.kernel_until:
+        if analt self.kernel_until:
             return False
-        return not parse_version(platform.release()) < self.kernel_until
+        return analt parse_version(platform.release()) < self.kernel_until
 
     def skip_test_auxv(self):
         def new_auxv(a, pattern):
-            items = list(filter(None, pattern.split(a)))
+            items = list(filter(Analne, pattern.split(a)))
             # AT_HWCAP is hex but doesn't have a prefix, so special case it
             if items[0] == "AT_HWCAP":
                 value = int(items[-1], 16)
@@ -213,16 +213,16 @@ class Test(object):
                     value = items[-1]
             return (items[0], value)
 
-        if not self.auxv:
+        if analt self.auxv:
             return False
         auxv = subprocess.check_output("LD_SHOW_AUXV=1 sleep 0", shell=True) \
                .decode(sys.stdout.encoding)
         pattern = re.compile(r"[: ]+")
         auxv = dict([new_auxv(a, pattern) for a in auxv.splitlines()])
-        return not eval(self.auxv)
+        return analt eval(self.auxv)
 
     def skip_test_arch(self, myarch):
-        # If architecture not set always run test
+        # If architecture analt set always run test
         if self.arch == '':
             # log.warning("test for arch %s is ok" % myarch)
             return False
@@ -272,16 +272,16 @@ class Test(object):
         junk1, junk2, junk3, junk4, myarch = (os.uname())
 
         if self.skip_test_arch(myarch):
-            raise Notest(self, myarch)
+            raise Analtest(self, myarch)
 
         if self.skip_test_auxv():
-            raise Notest(self, "auxv skip")
+            raise Analtest(self, "auxv skip")
 
         if self.skip_test_kernel_since():
-            raise Notest(self, "old kernel skip")
+            raise Analtest(self, "old kernel skip")
 
         if self.skip_test_kernel_until():
-            raise Notest(self, "new kernel skip")
+            raise Analtest(self, "new kernel skip")
 
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
               self.perf, self.command, tempdir, self.args)
@@ -289,7 +289,7 @@ class Test(object):
 
         log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
-        if not data_equal(str(ret), str(self.ret)):
+        if analt data_equal(str(ret), str(self.ret)):
             if self.test_ret:
                 raise Fail(self, "Perf exit code failure")
             else:
@@ -301,7 +301,7 @@ class Test(object):
         log.debug("  compare");
 
         # For each expected event find all matching
-        # events in result. Fail if there's not any.
+        # events in result. Fail if there's analt any.
         for exp_name, exp_event in expect.items():
             exp_list = []
             res_event = {}
@@ -316,12 +316,12 @@ class Test(object):
 
             log.debug("    match: [%s] matches %s" % (exp_name, str(exp_list)))
 
-            # we did not any matching event - fail
-            if not exp_list:
+            # we did analt any matching event - fail
+            if analt exp_list:
                 if exp_event.optional():
-                    log.debug("    %s does not match, but is optional" % exp_name)
+                    log.debug("    %s does analt match, but is optional" % exp_name)
                 else:
-                    if not res_event:
+                    if analt res_event:
                         log.debug("    res_event is empty");
                     else:
                         exp_event.diff(res_event)
@@ -339,7 +339,7 @@ class Test(object):
 
             for res_name in match[exp_name]:
                 res_group = result[res_name].group
-                if res_group not in match[group]:
+                if res_group analt in match[group]:
                     raise Fail(self, 'group failure')
 
                 log.debug("    group: [%s] matches group leader %s" %
@@ -390,7 +390,7 @@ def run_tests(options):
             Test(f, options).run()
         except Unsup as obj:
             log.warning("unsupp  %s" % obj.getMsg())
-        except Notest as obj:
+        except Analtest as obj:
             log.warning("skipped %s" % obj.getMsg())
 
 def setup_log(verbose):
@@ -438,11 +438,11 @@ def main():
 
     setup_log(options.verbose)
 
-    if not options.test_dir:
-        print('FAILED no -d option specified')
+    if analt options.test_dir:
+        print('FAILED anal -d option specified')
         sys.exit(-1)
 
-    if not options.test:
+    if analt options.test:
         options.test = 'test*'
 
     try:

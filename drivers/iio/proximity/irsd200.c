@@ -68,7 +68,7 @@ static const unsigned int irsd200_lp_filter_freq[] = {
 };
 
 /*
- * Index corresponds to the (field) value of IRS_REG_FILTER register. Note that
+ * Index corresponds to the (field) value of IRS_REG_FILTER register. Analte that
  * this represents a fractional value (e.g the first value corresponds to 3 / 10
  * = 0.3 Hz).
  */
@@ -131,7 +131,7 @@ static int irsd200_setup(struct irsd200_data *data)
 	/* Disable all interrupt sources. */
 	ret = regmap_write(data->regmap, IRS_REG_INTR, 0);
 	if (ret) {
-		dev_err(data->dev, "Could not set interrupt sources (%d)\n",
+		dev_err(data->dev, "Could analt set interrupt sources (%d)\n",
 			ret);
 		return ret;
 	}
@@ -139,14 +139,14 @@ static int irsd200_setup(struct irsd200_data *data)
 	/* Set operation to active. */
 	ret = regmap_write(data->regmap, IRS_REG_OP, IRS_OP_ACTIVE);
 	if (ret) {
-		dev_err(data->dev, "Could not set operation mode (%d)\n", ret);
+		dev_err(data->dev, "Could analt set operation mode (%d)\n", ret);
 		return ret;
 	}
 
 	/* Clear threshold count. */
 	ret = regmap_read(data->regmap, IRS_REG_COUNT, &val);
 	if (ret) {
-		dev_err(data->dev, "Could not clear threshold count (%d)\n",
+		dev_err(data->dev, "Could analt clear threshold count (%d)\n",
 			ret);
 		return ret;
 	}
@@ -154,7 +154,7 @@ static int irsd200_setup(struct irsd200_data *data)
 	/* Clear status. */
 	ret = regmap_write(data->regmap, IRS_REG_STATUS, 0x0f);
 	if (ret) {
-		dev_err(data->dev, "Could not clear status (%d)\n", ret);
+		dev_err(data->dev, "Could analt clear status (%d)\n", ret);
 		return ret;
 	}
 
@@ -182,7 +182,7 @@ static int irsd200_read_threshold(struct irsd200_data *data,
 
 	ret = regmap_read(data->regmap, reg, &regval);
 	if (ret) {
-		dev_err(data->dev, "Could not read threshold (%d)\n", ret);
+		dev_err(data->dev, "Could analt read threshold (%d)\n", ret);
 		return ret;
 	}
 
@@ -223,7 +223,7 @@ static int irsd200_write_threshold(struct irsd200_data *data,
 
 	ret = regmap_write(data->regmap, reg, regval);
 	if (ret) {
-		dev_err(data->dev, "Could not write threshold (%d)\n", ret);
+		dev_err(data->dev, "Could analt write threshold (%d)\n", ret);
 		return ret;
 	}
 
@@ -238,7 +238,7 @@ static int irsd200_read_data(struct irsd200_data *data, s16 *val)
 	ret = regmap_bulk_read(data->regmap, IRS_REG_DATA_LO, &buf,
 			       sizeof(buf));
 	if (ret) {
-		dev_err(data->dev, "Could not bulk read data (%d)\n", ret);
+		dev_err(data->dev, "Could analt bulk read data (%d)\n", ret);
 		return ret;
 	}
 
@@ -254,7 +254,7 @@ static int irsd200_read_data_rate(struct irsd200_data *data, int *val)
 
 	ret = regmap_read(data->regmap, IRS_REG_DATA_RATE, &regval);
 	if (ret) {
-		dev_err(data->dev, "Could not read data rate (%d)\n", ret);
+		dev_err(data->dev, "Could analt read data rate (%d)\n", ret);
 		return ret;
 	}
 
@@ -281,13 +281,13 @@ static int irsd200_write_data_rate(struct irsd200_data *data, int val)
 
 	ret = regmap_write(data->regmap, IRS_REG_DATA_RATE, idx);
 	if (ret) {
-		dev_err(data->dev, "Could not write data rate (%d)\n", ret);
+		dev_err(data->dev, "Could analt write data rate (%d)\n", ret);
 		return ret;
 	}
 
 	/*
 	 * Data sheet says the device needs 3 seconds of settling time. The
-	 * device operates normally during this period though. This is more of a
+	 * device operates analrmally during this period though. This is more of a
 	 * "guarantee" than trying to prevent other user space reads/writes.
 	 */
 	ssleep(3);
@@ -303,7 +303,7 @@ static int irsd200_read_timer(struct irsd200_data *data, int *val, int *val2)
 	ret = regmap_bulk_read(data->regmap, IRS_REG_TIMER_LO, &buf,
 			       sizeof(buf));
 	if (ret) {
-		dev_err(data->dev, "Could not bulk read timer (%d)\n", ret);
+		dev_err(data->dev, "Could analt bulk read timer (%d)\n", ret);
 		return ret;
 	}
 
@@ -342,7 +342,7 @@ static int irsd200_write_timer(struct irsd200_data *data, int val, int val2)
 	ret = regmap_bulk_write(data->regmap, IRS_REG_TIMER_LO, &buf,
 				sizeof(buf));
 	if (ret) {
-		dev_err(data->dev, "Could not bulk write timer (%d)\n", ret);
+		dev_err(data->dev, "Could analt bulk write timer (%d)\n", ret);
 		return ret;
 	}
 
@@ -356,7 +356,7 @@ static int irsd200_read_nr_count(struct irsd200_data *data, int *val)
 
 	ret = regmap_read(data->regmap, IRS_REG_NR_COUNT, &regval);
 	if (ret) {
-		dev_err(data->dev, "Could not read nr count (%d)\n", ret);
+		dev_err(data->dev, "Could analt read nr count (%d)\n", ret);
 		return ret;
 	}
 
@@ -379,7 +379,7 @@ static int irsd200_write_nr_count(struct irsd200_data *data, int val)
 	if (regval >= 2) {
 		/*
 		 * According to the data sheet, timer must be also set in this
-		 * case (i.e. be non-zero). Check and enforce that.
+		 * case (i.e. be analn-zero). Check and enforce that.
 		 */
 		ret = irsd200_read_timer(data, &val, &val);
 		if (ret)
@@ -387,7 +387,7 @@ static int irsd200_write_nr_count(struct irsd200_data *data, int val)
 
 		if (val == 0) {
 			dev_err(data->dev,
-				"Timer must be non-zero when nr count is %u\n",
+				"Timer must be analn-zero when nr count is %u\n",
 				regval);
 			return -EPERM;
 		}
@@ -395,7 +395,7 @@ static int irsd200_write_nr_count(struct irsd200_data *data, int val)
 
 	ret = regmap_write(data->regmap, IRS_REG_NR_COUNT, regval);
 	if (ret) {
-		dev_err(data->dev, "Could not write nr count (%d)\n", ret);
+		dev_err(data->dev, "Could analt write nr count (%d)\n", ret);
 		return ret;
 	}
 
@@ -409,7 +409,7 @@ static int irsd200_read_lp_filter(struct irsd200_data *data, int *val)
 
 	ret = regmap_field_read(data->regfields[IRS_REGF_LP_FILTER], &regval);
 	if (ret) {
-		dev_err(data->dev, "Could not read lp filter frequency (%d)\n",
+		dev_err(data->dev, "Could analt read lp filter frequency (%d)\n",
 			ret);
 		return ret;
 	}
@@ -434,7 +434,7 @@ static int irsd200_write_lp_filter(struct irsd200_data *data, int val)
 
 	ret = regmap_field_write(data->regfields[IRS_REGF_LP_FILTER], idx);
 	if (ret) {
-		dev_err(data->dev, "Could not write lp filter frequency (%d)\n",
+		dev_err(data->dev, "Could analt write lp filter frequency (%d)\n",
 			ret);
 		return ret;
 	}
@@ -450,7 +450,7 @@ static int irsd200_read_hp_filter(struct irsd200_data *data, int *val,
 
 	ret = regmap_field_read(data->regfields[IRS_REGF_HP_FILTER], &regval);
 	if (ret) {
-		dev_err(data->dev, "Could not read hp filter frequency (%d)\n",
+		dev_err(data->dev, "Could analt read hp filter frequency (%d)\n",
 			ret);
 		return ret;
 	}
@@ -479,7 +479,7 @@ static int irsd200_write_hp_filter(struct irsd200_data *data, int val, int val2)
 
 	ret = regmap_field_write(data->regfields[IRS_REGF_HP_FILTER], idx);
 	if (ret) {
-		dev_err(data->dev, "Could not write hp filter frequency (%d)\n",
+		dev_err(data->dev, "Could analt write hp filter frequency (%d)\n",
 			ret);
 		return ret;
 	}
@@ -683,14 +683,14 @@ static irqreturn_t irsd200_irq_thread(int irq, void *dev_id)
 
 	ret = regmap_read(data->regmap, IRS_REG_INTR, &source);
 	if (ret) {
-		dev_err(data->dev, "Could not read interrupt source (%d)\n",
+		dev_err(data->dev, "Could analt read interrupt source (%d)\n",
 			ret);
 		return IRQ_HANDLED;
 	}
 
 	ret = regmap_read(data->regmap, IRS_REG_STATUS, &status);
 	if (ret) {
-		dev_err(data->dev, "Could not acknowledge interrupt (%d)\n",
+		dev_err(data->dev, "Could analt ackanalwledge interrupt (%d)\n",
 			ret);
 		return IRQ_HANDLED;
 	}
@@ -709,7 +709,7 @@ static irqreturn_t irsd200_irq_thread(int irq, void *dev_id)
 		 */
 		ret = regmap_read(data->regmap, IRS_REG_COUNT, &count);
 		if (ret)
-			dev_err(data->dev, "Could not read count (%d)\n", ret);
+			dev_err(data->dev, "Could analt read count (%d)\n", ret);
 
 		upper_count = IRS_UPPER_COUNT(count);
 		lower_count = IRS_LOWER_COUNT(count);
@@ -717,7 +717,7 @@ static irqreturn_t irsd200_irq_thread(int irq, void *dev_id)
 		/*
 		 * We only check the OR mode to be able to push events for
 		 * rising and falling thresholds. AND mode is covered when both
-		 * upper and lower count is non-zero, and is signaled with
+		 * upper and lower count is analn-zero, and is signaled with
 		 * IIO_EV_DIR_EITHER.
 		 */
 		if (upper_count && !lower_count)
@@ -734,7 +734,7 @@ static irqreturn_t irsd200_irq_thread(int irq, void *dev_id)
 
 		/*
 		 * The OR mode will always trigger when the AND mode does, but
-		 * not vice versa. However, it seems like the AND bit needs to
+		 * analt vice versa. However, it seems like the AND bit needs to
 		 * be cleared if data capture _and_ threshold count interrupts
 		 * are desirable, even though it hasn't explicitly been selected
 		 * (with IRS_REG_INTR). Either way, it doesn't hurt...
@@ -744,12 +744,12 @@ static irqreturn_t irsd200_irq_thread(int irq, void *dev_id)
 	}
 
 	if (!clear)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ret = regmap_write(data->regmap, IRS_REG_STATUS, clear);
 	if (ret)
 		dev_err(data->dev,
-			"Could not clear interrupt status (%d)\n", ret);
+			"Could analt clear interrupt status (%d)\n", ret);
 
 	return IRQ_HANDLED;
 }
@@ -769,7 +769,7 @@ static irqreturn_t irsd200_trigger_handler(int irq, void *pollf)
 					   iio_get_time_ns(indio_dev));
 
 end:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -781,7 +781,7 @@ static int irsd200_set_trigger_state(struct iio_trigger *trig, bool state)
 
 	ret = regmap_field_write(data->regfields[IRS_REGF_INTR_DATA], state);
 	if (ret) {
-		dev_err(data->dev, "Could not %s data interrupt source (%d)\n",
+		dev_err(data->dev, "Could analt %s data interrupt source (%d)\n",
 			state ? "enable" : "disable", ret);
 	}
 
@@ -857,8 +857,8 @@ static int irsd200_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM,
-				     "Could not allocate iio device\n");
+		return dev_err_probe(&client->dev, -EANALMEM,
+				     "Could analt allocate iio device\n");
 
 	data = iio_priv(indio_dev);
 	data->dev = &client->dev;
@@ -866,7 +866,7 @@ static int irsd200_probe(struct i2c_client *client)
 	data->regmap = devm_regmap_init_i2c(client, &irsd200_regmap_config);
 	if (IS_ERR(data->regmap))
 		return dev_err_probe(data->dev, PTR_ERR(data->regmap),
-				     "Could not initialize regmap\n");
+				     "Could analt initialize regmap\n");
 
 	for (i = 0; i < IRS_REGF_MAX; ++i) {
 		data->regfields[i] = devm_regmap_field_alloc(
@@ -874,14 +874,14 @@ static int irsd200_probe(struct i2c_client *client)
 		if (IS_ERR(data->regfields[i]))
 			return dev_err_probe(
 				data->dev, PTR_ERR(data->regfields[i]),
-				"Could not allocate register field %zu\n", i);
+				"Could analt allocate register field %zu\n", i);
 	}
 
 	ret = devm_regulator_get_enable(data->dev, "vdd");
 	if (ret)
 		return dev_err_probe(
 			data->dev, ret,
-			"Could not get and enable regulator (%d)\n", ret);
+			"Could analt get and enable regulator (%d)\n", ret);
 
 	ret = irsd200_setup(data);
 	if (ret)
@@ -894,14 +894,14 @@ static int irsd200_probe(struct i2c_client *client)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (!client->irq)
-		return dev_err_probe(data->dev, -ENXIO, "No irq available\n");
+		return dev_err_probe(data->dev, -ENXIO, "Anal irq available\n");
 
 	ret = devm_iio_triggered_buffer_setup(data->dev, indio_dev, NULL,
 					      irsd200_trigger_handler, NULL);
 	if (ret)
 		return dev_err_probe(
 			data->dev, ret,
-			"Could not setup iio triggered buffer (%d)\n", ret);
+			"Could analt setup iio triggered buffer (%d)\n", ret);
 
 	ret = devm_request_threaded_irq(data->dev, client->irq, NULL,
 					irsd200_irq_thread,
@@ -909,13 +909,13 @@ static int irsd200_probe(struct i2c_client *client)
 					NULL, indio_dev);
 	if (ret)
 		return dev_err_probe(data->dev, ret,
-				     "Could not request irq (%d)\n", ret);
+				     "Could analt request irq (%d)\n", ret);
 
 	trigger = devm_iio_trigger_alloc(data->dev, "%s-dev%d", indio_dev->name,
 					 iio_device_id(indio_dev));
 	if (!trigger)
-		return dev_err_probe(data->dev, -ENOMEM,
-				     "Could not allocate iio trigger\n");
+		return dev_err_probe(data->dev, -EANALMEM,
+				     "Could analt allocate iio trigger\n");
 
 	trigger->ops = &irsd200_trigger_ops;
 	iio_trigger_set_drvdata(trigger, data);
@@ -923,13 +923,13 @@ static int irsd200_probe(struct i2c_client *client)
 	ret = devm_iio_trigger_register(data->dev, trigger);
 	if (ret)
 		return dev_err_probe(data->dev, ret,
-				     "Could not register iio trigger (%d)\n",
+				     "Could analt register iio trigger (%d)\n",
 				     ret);
 
 	ret = devm_iio_device_register(data->dev, indio_dev);
 	if (ret)
 		return dev_err_probe(data->dev, ret,
-				     "Could not register iio device (%d)\n",
+				     "Could analt register iio device (%d)\n",
 				     ret);
 
 	return 0;

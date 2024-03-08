@@ -16,11 +16,11 @@ struct ocfs2_acl_entry {
 	__le32 e_id;
 };
 
-struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type, bool rcu);
+struct posix_acl *ocfs2_iop_get_acl(struct ianalde *ianalde, int type, bool rcu);
 int ocfs2_iop_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct posix_acl *acl, int type);
-extern int ocfs2_acl_chmod(struct inode *, struct buffer_head *);
-extern int ocfs2_init_acl(handle_t *, struct inode *, struct inode *,
+extern int ocfs2_acl_chmod(struct ianalde *, struct buffer_head *);
+extern int ocfs2_init_acl(handle_t *, struct ianalde *, struct ianalde *,
 			  struct buffer_head *, struct buffer_head *,
 			  struct ocfs2_alloc_context *,
 			  struct ocfs2_alloc_context *);

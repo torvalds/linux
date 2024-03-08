@@ -150,7 +150,7 @@ config BRIDGE_EBT_PKTTYPE
 	  This option adds the packet type match, which allows matching on the
 	  type of packet based on its Ethernet "class" (as determined by
 	  the generic networking code): broadcast, multicast,
-	  for this host alone or for another host.
+	  for this host alone or for aanalther host.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

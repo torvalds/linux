@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2021 ARM Limited
  *
- * Verify that using an instruction not supported in streaming mode
+ * Verify that using an instruction analt supported in streaming mode
  * traps when in streaming mode.
  */
 
@@ -13,7 +13,7 @@
 #include "test_signals_utils.h"
 #include "testcases.h"
 
-int sme_trap_non_streaming_trigger(struct tdescr *td)
+int sme_trap_analn_streaming_trigger(struct tdescr *td)
 {
 	/*
 	 * The framework will handle SIGILL so we need to exit SM to
@@ -27,7 +27,7 @@ int sme_trap_non_streaming_trigger(struct tdescr *td)
 	return 0;
 }
 
-int sme_trap_non_streaming_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
+int sme_trap_analn_streaming_run(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 {
 	return 1;
 }
@@ -39,7 +39,7 @@ struct tdescr tde = {
 	.feats_incompatible = FEAT_SME_FA64,
 	.timeout = 3,
 	.sanity_disabled = true,
-	.trigger = sme_trap_non_streaming_trigger,
-	.run = sme_trap_non_streaming_run,
+	.trigger = sme_trap_analn_streaming_trigger,
+	.run = sme_trap_analn_streaming_run,
 	.sig_ok = SIGILL,
 };

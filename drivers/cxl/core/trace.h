@@ -67,7 +67,7 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		__entry->first_error = fe;
 		/*
 		 * Embed the 512B headerlog data for user app retrieval and
-		 * parsing, but no need to print this in the trace buffer.
+		 * parsing, but anal need to print this in the trace buffer.
 		 */
 		memcpy(__entry->header_log, hl, CXL_HEADERLOG_SIZE);
 	),
@@ -181,7 +181,7 @@ TRACE_EVENT(cxl_overflow,
  *	1) Add CXL_EVT_TP_entry to TP_STRUCT__entry
  *	2) Use CXL_EVT_TP_fast_assign within TP_fast_assign;
  *	   pass the dev, log, and CXL event header
- *	   NOTE: The uuid must be assigned by the specific trace event
+ *	   ANALTE: The uuid must be assigned by the specific trace event
  *	3) Use CXL_EVT_TP_printk() instead of TP_printk()
  *
  * See the generic_event tracepoint as an example.
@@ -257,10 +257,10 @@ TRACE_EVENT(cxl_generic_event,
 #define CXL_DPA_MASK				(~CXL_DPA_FLAGS_MASK)
 
 #define CXL_DPA_VOLATILE			BIT(0)
-#define CXL_DPA_NOT_REPAIRABLE			BIT(1)
+#define CXL_DPA_ANALT_REPAIRABLE			BIT(1)
 #define show_dpa_flags(flags)	__print_flags(flags, "|",		   \
 	{ CXL_DPA_VOLATILE,			"VOLATILE"		}, \
-	{ CXL_DPA_NOT_REPAIRABLE,		"NOT_REPAIRABLE"	}  \
+	{ CXL_DPA_ANALT_REPAIRABLE,		"ANALT_REPAIRABLE"	}  \
 )
 
 /*
@@ -285,7 +285,7 @@ TRACE_EVENT(cxl_generic_event,
 	{ CXL_GMER_MEM_EVT_TYPE_DATA_PATH_ERROR,	"Data Path Error" }	\
 )
 
-#define CXL_GMER_TRANS_UNKNOWN				0x00
+#define CXL_GMER_TRANS_UNKANALWN				0x00
 #define CXL_GMER_TRANS_HOST_READ			0x01
 #define CXL_GMER_TRANS_HOST_WRITE			0x02
 #define CXL_GMER_TRANS_HOST_SCAN_MEDIA			0x03
@@ -293,7 +293,7 @@ TRACE_EVENT(cxl_generic_event,
 #define CXL_GMER_TRANS_INTERNAL_MEDIA_SCRUB		0x05
 #define CXL_GMER_TRANS_INTERNAL_MEDIA_MANAGEMENT	0x06
 #define show_trans_type(type)	__print_symbolic(type,					\
-	{ CXL_GMER_TRANS_UNKNOWN,			"Unknown" },			\
+	{ CXL_GMER_TRANS_UNKANALWN,			"Unkanalwn" },			\
 	{ CXL_GMER_TRANS_HOST_READ,			"Host Read" },			\
 	{ CXL_GMER_TRANS_HOST_WRITE,			"Host Write" },			\
 	{ CXL_GMER_TRANS_HOST_SCAN_MEDIA,		"Host Scan Media" },		\
@@ -496,8 +496,8 @@ TRACE_EVENT(cxl_dram,
 	{ CXL_DHI_HS_HW_REPLACEMENT_NEEDED,	"REPLACEMENT_NEEDED"	}  \
 )
 
-#define CXL_DHI_MS_NORMAL							0x00
-#define CXL_DHI_MS_NOT_READY							0x01
+#define CXL_DHI_MS_ANALRMAL							0x00
+#define CXL_DHI_MS_ANALT_READY							0x01
 #define CXL_DHI_MS_WRITE_PERSISTENCY_LOST					0x02
 #define CXL_DHI_MS_ALL_DATA_LOST						0x03
 #define CXL_DHI_MS_WRITE_PERSISTENCY_LOSS_EVENT_POWER_LOSS			0x04
@@ -507,10 +507,10 @@ TRACE_EVENT(cxl_dram,
 #define CXL_DHI_MS_WRITE_ALL_DATA_LOSS_EVENT_SHUTDOWN				0x08
 #define CXL_DHI_MS_WRITE_ALL_DATA_LOSS_IMMINENT					0x09
 #define show_media_status(ms)	__print_symbolic(ms,			   \
-	{ CXL_DHI_MS_NORMAL,						   \
-		"Normal"						}, \
-	{ CXL_DHI_MS_NOT_READY,						   \
-		"Not Ready"						}, \
+	{ CXL_DHI_MS_ANALRMAL,						   \
+		"Analrmal"						}, \
+	{ CXL_DHI_MS_ANALT_READY,						   \
+		"Analt Ready"						}, \
 	{ CXL_DHI_MS_WRITE_PERSISTENCY_LOST,				   \
 		"Write Persistency Lost"				}, \
 	{ CXL_DHI_MS_ALL_DATA_LOST,					   \
@@ -529,16 +529,16 @@ TRACE_EVENT(cxl_dram,
 		"All Data Loss Imminent"				}  \
 )
 
-#define CXL_DHI_AS_NORMAL		0x0
+#define CXL_DHI_AS_ANALRMAL		0x0
 #define CXL_DHI_AS_WARNING		0x1
 #define CXL_DHI_AS_CRITICAL		0x2
 #define show_two_bit_status(as) __print_symbolic(as,	   \
-	{ CXL_DHI_AS_NORMAL,		"Normal"	}, \
+	{ CXL_DHI_AS_ANALRMAL,		"Analrmal"	}, \
 	{ CXL_DHI_AS_WARNING,		"Warning"	}, \
 	{ CXL_DHI_AS_CRITICAL,		"Critical"	}  \
 )
 #define show_one_bit_status(as) __print_symbolic(as,	   \
-	{ CXL_DHI_AS_NORMAL,		"Normal"	}, \
+	{ CXL_DHI_AS_ANALRMAL,		"Analrmal"	}, \
 	{ CXL_DHI_AS_WARNING,		"Warning"	}  \
 )
 
@@ -614,7 +614,7 @@ TRACE_EVENT(cxl_memory_module,
 
 #define __show_poison_source(source)                          \
 	__print_symbolic(source,                              \
-		{ CXL_POISON_SOURCE_UNKNOWN,   "Unknown"  },  \
+		{ CXL_POISON_SOURCE_UNKANALWN,   "Unkanalwn"  },  \
 		{ CXL_POISON_SOURCE_EXTERNAL,  "External" },  \
 		{ CXL_POISON_SOURCE_INTERNAL,  "Internal" },  \
 		{ CXL_POISON_SOURCE_INJECTED,  "Injected" },  \

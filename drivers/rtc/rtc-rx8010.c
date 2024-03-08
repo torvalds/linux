@@ -78,7 +78,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	err = regmap_read(rx8010->regs, RX8010_FLAG, &flagreg);
 	if (err) {
 		rtc_unlock(rx8010->rtc);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (flagreg & RX8010_FLAG_VLF)
@@ -101,7 +101,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 
 	err = regmap_write(rx8010->regs, RX8010_FLAG, flagreg);
 	rtc_unlock(rx8010->rtc);
-	return err ? IRQ_NONE : IRQ_HANDLED;
+	return err ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 static int rx8010_get_time(struct device *dev, struct rtc_time *dt)
@@ -350,7 +350,7 @@ static int rx8010_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 		return put_user(tmp, (unsigned int __user *)arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -377,7 +377,7 @@ static int rx8010_probe(struct i2c_client *client)
 
 	rx8010 = devm_kzalloc(dev, sizeof(*rx8010), GFP_KERNEL);
 	if (!rx8010)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, rx8010);
 
@@ -396,7 +396,7 @@ static int rx8010_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		unsigned long irqflags = IRQF_TRIGGER_LOW;
 
-		if (dev_fwnode(&client->dev))
+		if (dev_fwanalde(&client->dev))
 			irqflags = 0;
 
 		err = devm_request_threaded_irq(dev, client->irq, NULL,

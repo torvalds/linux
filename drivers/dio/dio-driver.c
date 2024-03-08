@@ -22,7 +22,7 @@
  *
  *  Used by a driver to check whether a DIO device present in the
  *  system is in its list of supported devices. Returns the matching
- *  dio_device_id structure or %NULL if there is no match.
+ *  dio_device_id structure or %NULL if there is anal match.
  */
 
 static const struct dio_device_id *
@@ -107,7 +107,7 @@ void dio_unregister_driver(struct dio_driver *drv)
  *
  *  Used by the driver core to check whether a DIO device present in the
  *  system is in a driver's list of supported devices. Returns 1 if supported,
- *  and 0 if there is no match.
+ *  and 0 if there is anal match.
  */
 
 static int dio_bus_match(struct device *dev, struct device_driver *drv)

@@ -2,7 +2,7 @@
 /*
  * Setup code for SAM9X60.
  *
- * Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2019 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  */

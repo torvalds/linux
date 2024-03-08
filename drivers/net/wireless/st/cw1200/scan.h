@@ -3,7 +3,7 @@
  * Scan interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef SCAN_H_INCLUDED

@@ -4,7 +4,7 @@ Extended Attributes
 -------------------
 
 Extended attributes (xattrs) are typically stored in a separate data
-block on the disk and referenced from inodes via ``inode.i_file_acl*``.
+block on the disk and referenced from ianaldes via ``ianalde.i_file_acl*``.
 The first use of extended attributes seems to have been for storing file
 ACLs and other security data (selinux). With the ``user_xattr`` mount
 option it is possible for users to store extended attributes so long as
@@ -12,21 +12,21 @@ all attribute names begin with “user”; this restriction seems to have
 disappeared as of Linux 3.0.
 
 There are two places where extended attributes can be found. The first
-place is between the end of each inode entry and the beginning of the
-next inode entry. For example, if inode.i_extra_isize = 28 and
-sb.inode_size = 256, then there are 256 - (128 + 28) = 100 bytes
-available for in-inode extended attribute storage. The second place
+place is between the end of each ianalde entry and the beginning of the
+next ianalde entry. For example, if ianalde.i_extra_isize = 28 and
+sb.ianalde_size = 256, then there are 256 - (128 + 28) = 100 bytes
+available for in-ianalde extended attribute storage. The second place
 where extended attributes can be found is in the block pointed to by
-``inode.i_file_acl``. As of Linux 3.11, it is not possible for this
+``ianalde.i_file_acl``. As of Linux 3.11, it is analt possible for this
 block to contain a pointer to a second extended attribute block (or even
 the remaining blocks of a cluster). In theory it is possible for each
 attribute's value to be stored in a separate data block, though as of
-Linux 3.11 the code does not permit this.
+Linux 3.11 the code does analt permit this.
 
 Keys are generally assumed to be ASCIIZ strings, whereas values can be
 strings or binary data.
 
-Extended attributes, when stored after the inode, have a header
+Extended attributes, when stored after the ianalde, have a header
 ``ext4_xattr_ibody_header`` that is 4 bytes long:
 
 .. list-table::
@@ -89,7 +89,7 @@ Following the ``struct ext4_xattr_header`` or
 long. When stored in an external block, the ``struct ext4_xattr_entry``
 entries must be stored in sorted order. The sort order is
 ``e_name_index``, then ``e_name_len``, and finally ``e_name``.
-Attributes stored inside an inode do not need be stored in sorted order.
+Attributes stored inside an ianalde do analt need be stored in sorted order.
 
 .. list-table::
    :widths: 8 8 24 40
@@ -111,15 +111,15 @@ Attributes stored inside an inode do not need be stored in sorted order.
      - __le16
      - e_value_offs
      - Location of this attribute's value on the disk block where it is stored.
-       Multiple attributes can share the same value. For an inode attribute
+       Multiple attributes can share the same value. For an ianalde attribute
        this value is relative to the start of the first entry; for a block this
        value is relative to the start of the block (i.e. the header).
    * - 0x4
      - __le32
      - e_value_inum
-     - The inode where the value is stored. Zero indicates the value is in the
+     - The ianalde where the value is stored. Zero indicates the value is in the
        same block as this entry. This field is only used if the
-       INCOMPAT_EA_INODE feature is enabled.
+       INCOMPAT_EA_IANALDE feature is enabled.
    * - 0x8
      - __le32
      - e_value_size
@@ -128,20 +128,20 @@ Attributes stored inside an inode do not need be stored in sorted order.
      - __le32
      - e_hash
      - Hash value of attribute name and attribute value. The kernel doesn't
-       update the hash for in-inode attributes, so for that case this value
-       must be zero, because e2fsck validates any non-zero hash regardless of
+       update the hash for in-ianalde attributes, so for that case this value
+       must be zero, because e2fsck validates any analn-zero hash regardless of
        where the xattr lives.
    * - 0x10
      - char
      - e_name[e_name_len]
-     - Attribute name. Does not include trailing NULL.
+     - Attribute name. Does analt include trailing NULL.
 
 Attribute values can follow the end of the entry table. There appears to
 be a requirement that they be aligned to 4-byte boundaries. The values
 are stored starting at the end of the block and grow towards the
 xattr_header/xattr_entry table. When the two collide, the overflow is
 put into a separate disk block. If the disk block fills up, the
-filesystem returns -ENOSPC.
+filesystem returns -EANALSPC.
 
 The first four fields of the ``ext4_xattr_entry`` are set to zero to
 mark the end of the key list.
@@ -163,7 +163,7 @@ the key name. Here is a map of name index values to key prefixes:
    * - Name Index
      - Key Prefix
    * - 0
-     - (no prefix)
+     - (anal prefix)
    * - 1
      - “user.”
    * - 2

@@ -41,7 +41,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to TSA node
+          - description: phandle to TSA analde
           - enum: [1, 2, 3]
             description: |
               TSA serial interface (dt-bindings/soc/cpm1-fsl,tsa.h defines these
@@ -50,7 +50,7 @@ properties:
                - 2: SCC3
                - 3: SCC4
     description:
-      Should be a phandle/number pair. The phandle to TSA node and the TSA
+      Should be a phandle/number pair. The phandle to TSA analde and the TSA
       serial interface to use.
 
   '#address-cells':
@@ -112,7 +112,7 @@ patternProperties:
       fsl,framer:
         $ref: /schemas/types.yaml#/definitions/phandle
         description:
-          phandle to the framer node. The framer is in charge of an E1/T1 line
+          phandle to the framer analde. The framer is in charge of an E1/T1 line
           interface connected to the TDM bus. It can be used to get the E1/T1 line
           status such as link up/down.
 
@@ -120,7 +120,7 @@ patternProperties:
       - if:
           properties:
             compatible:
-              not:
+              analt:
                 contains:
                   const: fsl,qmc-hdlc
         then:

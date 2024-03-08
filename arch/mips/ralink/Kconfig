@@ -68,12 +68,12 @@ endchoice
 choice
 	prompt "Devicetree selection"
 	depends on !SOC_MT7621
-	default DTB_RT_NONE
+	default DTB_RT_ANALNE
 	help
 	  Select the devicetree.
 
-	config DTB_RT_NONE
-		bool "None"
+	config DTB_RT_ANALNE
+		bool "Analne"
 
 	config DTB_RT2880_EVAL
 		bool "RT2880 eval kit"

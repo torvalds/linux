@@ -11,7 +11,7 @@
 	(info)->read_exec_only	== 1	&& \
 	(info)->seg_32bit	== 0	&& \
 	(info)->limit_in_pages	== 0	&& \
-	(info)->seg_not_present	== 1	&& \
+	(info)->seg_analt_present	== 1	&& \
 	(info)->useable		== 0	)
 
 #endif

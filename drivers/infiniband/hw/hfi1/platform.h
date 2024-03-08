@@ -32,9 +32,9 @@ enum platform_config_table_type_encoding {
 
 enum platform_config_system_table_fields {
 	SYSTEM_TABLE_RESERVED,
-	SYSTEM_TABLE_NODE_STRING,
+	SYSTEM_TABLE_ANALDE_STRING,
 	SYSTEM_TABLE_SYSTEM_IMAGE_GUID,
-	SYSTEM_TABLE_NODE_GUID,
+	SYSTEM_TABLE_ANALDE_GUID,
 	SYSTEM_TABLE_REVISION,
 	SYSTEM_TABLE_VENDOR_OUI,
 	SYSTEM_TABLE_META_VERSION,
@@ -62,7 +62,7 @@ enum platform_config_port_table_fields {
 	PORT_TABLE_LOCAL_MAX_TIMEOUT,
 	PORT_TABLE_REMOTE_ATTEN_12G,
 	PORT_TABLE_REMOTE_ATTEN_25G,
-	PORT_TABLE_TX_PRESET_IDX_ACTIVE_NO_EQ,
+	PORT_TABLE_TX_PRESET_IDX_ACTIVE_ANAL_EQ,
 	PORT_TABLE_TX_PRESET_IDX_ACTIVE_EQ,
 	PORT_TABLE_RX_PRESET_IDX,
 	PORT_TABLE_CABLE_REACH_CLASS,
@@ -159,7 +159,7 @@ enum platform_config_qsfp_power_class_encoding {
  * ====================================================
  */
 enum platform_config_port_type_encoding {
-	PORT_TYPE_UNKNOWN,
+	PORT_TYPE_UNKANALWN,
 	PORT_TYPE_DISCONNECTED,
 	PORT_TYPE_FIXED,
 	PORT_TYPE_VARIABLE,
@@ -175,9 +175,9 @@ enum platform_config_link_speed_supported_encoding {
 };
 
 /*
- * This is a subset (not strict) of the link downgrades
+ * This is a subset (analt strict) of the link downgrades
  * supported. The link downgrades supported are expected
- * to be supplied to the driver by another entity such as
+ * to be supplied to the driver by aanalther entity such as
  * the fabric manager
  */
 enum platform_config_link_width_supported_encoding {
@@ -241,7 +241,7 @@ enum platform_config_local_max_timeout_encoding {
 enum link_tuning_encoding {
 	OPA_PASSIVE_TUNING,
 	OPA_ACTIVE_TUNING,
-	OPA_UNKNOWN_TUNING
+	OPA_UNKANALWN_TUNING
 };
 
 /*
@@ -287,18 +287,18 @@ enum link_tuning_encoding {
 					 PORT1_DEFAULT_ATTEN_SHIFT)
 
 #define QSFP_MAX_POWER_SHIFT		0
-#define TX_NO_EQ_SHIFT			4
+#define TX_ANAL_EQ_SHIFT			4
 #define TX_EQ_SHIFT			25
 #define RX_SHIFT			46
 
 #define QSFP_MAX_POWER_MASK		0xFUL
-#define TX_NO_EQ_MASK			0x1FFFFFUL
+#define TX_ANAL_EQ_MASK			0x1FFFFFUL
 #define TX_EQ_MASK			0x1FFFFFUL
 #define RX_MASK				0xFFFFUL
 
 #define QSFP_MAX_POWER_SMASK		(QSFP_MAX_POWER_MASK << \
 					 QSFP_MAX_POWER_SHIFT)
-#define TX_NO_EQ_SMASK			(TX_NO_EQ_MASK << TX_NO_EQ_SHIFT)
+#define TX_ANAL_EQ_SMASK			(TX_ANAL_EQ_MASK << TX_ANAL_EQ_SHIFT)
 #define TX_EQ_SMASK			(TX_EQ_MASK << TX_EQ_SHIFT)
 #define RX_SMASK			(RX_MASK << RX_SHIFT)
 

@@ -20,7 +20,7 @@ if [ "$(id -u)" != "0" ]; then
 	exit $ERR
 fi
 if ! which tcpdump > /dev/null 2>&1; then
-	echo "No tcpdump found. Required for this test."
+	echo "Anal tcpdump found. Required for this test."
 	exit $ERR
 fi
 
@@ -71,7 +71,7 @@ setup() {
 	local test_ttl="0"
 
 	# We don't want a test-tos of 0x00,
-	# because this is the value that we get when no tos is set.
+	# because this is the value that we get when anal tos is set.
 	expected_tos="$(get_random_tos)"
 	while [ "$expected_tos" = "0x00" ]; do
 		expected_tos="$(get_random_tos)"
@@ -85,7 +85,7 @@ setup() {
 	fi
 
 	# We don't want a test-ttl of 64 or 0,
-	# because 64 is when no ttl is set and 0 is not a valid ttl.
+	# because 64 is when anal ttl is set and 0 is analt a valid ttl.
 	expected_ttl="$(get_random_ttl)"
 	while [ "$expected_ttl" = "64" ] || [ "$expected_ttl" = "0" ]; do
 		expected_ttl="$(get_random_ttl)"
@@ -148,9 +148,9 @@ setup() {
 			type="ip6gretap"
 		fi
 		ip -netns "${NS0}" address add fdd1:ced0:5d88:3fce::1/64 \
-			dev veth0 nodad
+			dev veth0 analdad
 		ip -netns "${NS1}" address add fdd1:ced0:5d88:3fce::2/64 \
-			dev veth1 nodad
+			dev veth1 analdad
 		ip -netns "${NS0}" link add name tep0 type $type $local_addr1 \
 			remote fdd1:ced0:5d88:3fce::2 tos $test_tos           \
 			ttl $test_ttl $vxlan $geneve
@@ -185,9 +185,9 @@ setup() {
 		ip -netns "${NS1}" address add 198.19.0.2/24 brd + dev ${parent}1
 	elif [ "$inner" = "6" ]; then
 		ip -netns "${NS0}" address add fdd4:96cf:4eae:443b::1/64 \
-			dev ${parent}0 nodad
+			dev ${parent}0 analdad
 		ip -netns "${NS1}" address add fdd4:96cf:4eae:443b::2/64 \
-			dev ${parent}1 nodad
+			dev ${parent}1 analdad
 	fi
 }
 
@@ -205,7 +205,7 @@ verify() {
 	elif [ "$inner" = "6" ]; then
 		ping_dst="fdd4:96cf:4eae:443b::2"
 	elif [ "$inner" = "other" ]; then
-		ping_dst="198.19.0.3" # Generates ARPs which are not IPv4/IPv6
+		ping_dst="198.19.0.3" # Generates ARPs which are analt IPv4/IPv6
 	fi
 	if [ "$tos_ttl" = "inherit" ]; then
 		${RUN_NS0} ping -i 0.1 $ping_dst -Q "$expected_tos"          \

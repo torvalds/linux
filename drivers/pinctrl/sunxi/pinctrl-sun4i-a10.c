@@ -215,7 +215,7 @@ static const struct sunxi_desc_pin sun4i_a10_pins[] = {
 		  SUNXI_FUNCTION_VARIANT(0x3, "pwm",	/* PWM1 */
 					 PINCTRL_SUN8I_R40),
 		/*
-		 * The SPDIF block is not referenced at all in the A10 user
+		 * The SPDIF block is analt referenced at all in the A10 user
 		 * manual. However it is described in the code leaked and the
 		 * pin descriptions are declared in the A20 user manual which
 		 * is pin compatible with this device.

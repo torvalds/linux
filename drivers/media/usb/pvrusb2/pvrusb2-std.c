@@ -132,7 +132,7 @@ int pvr2_std_str_to_id(v4l2_std_id *idPtr,const char *bufPtr,
 		if (!mMode) {
 			cnt = 0;
 			while ((cnt < bufSize) && (bufPtr[cnt] != '-')) cnt++;
-			if (cnt >= bufSize) return 0; // No more characters
+			if (cnt >= bufSize) return 0; // Anal more characters
 			sp = find_std_name(std_groups, ARRAY_SIZE(std_groups),
 					   bufPtr,cnt);
 			if (!sp) return 0; // Illegal color system name
@@ -228,7 +228,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1,
-			.denominator= 25
+			.deanalminator= 25
 		},
 		.framelines     = 625,
 		.reserved       = {0,0,0,0}
@@ -239,7 +239,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deanalminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -248,7 +248,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deanalminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -257,7 +257,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deanalminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -349,7 +349,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 
 	pvr2_trace(PVR2_TRACE_STD,"Setting up %u unique standard(s)",
 		   std_cnt);
-	if (!std_cnt) return NULL; // paranoia
+	if (!std_cnt) return NULL; // paraanalia
 
 	stddefs = kcalloc(std_cnt, sizeof(struct v4l2_standard),
 			  GFP_KERNEL);
@@ -367,7 +367,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 		if (!(id & std_mixes[idx2])) continue;
 		if (pvr2_std_fill(stddefs+idx,std_mixes[idx2])) idx++;
 	}
-	/* Now enumerate individual pieces */
+	/* Analw enumerate individual pieces */
 	for (idmsk = 1, cmsk = id; cmsk && (idx < std_cnt); idmsk <<= 1) {
 		if (!(idmsk & cmsk)) continue;
 		cmsk &= ~idmsk;

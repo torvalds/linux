@@ -59,7 +59,7 @@ static void sth_iowrite(void __iomem *dest, const unsigned char *payload,
 	}
 }
 
-static ssize_t notrace sth_stm_packet(struct stm_data *stm_data,
+static ssize_t analtrace sth_stm_packet(struct stm_data *stm_data,
 				      unsigned int master,
 				      unsigned int channel,
 				      unsigned int packet,
@@ -132,7 +132,7 @@ static ssize_t notrace sth_stm_packet(struct stm_data *stm_data,
 		sth_iowrite(outp, payload, size);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return size;
@@ -193,23 +193,23 @@ static int intel_th_sth_probe(struct intel_th_device *thdev)
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = intel_th_device_get_resource(thdev, IORESOURCE_MEM, 1);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	channels = devm_ioremap(dev, res->start, resource_size(res));
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sth = devm_kzalloc(dev, sizeof(*sth), GFP_KERNEL);
 	if (!sth)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sth->dev = dev;
 	sth->base = base;

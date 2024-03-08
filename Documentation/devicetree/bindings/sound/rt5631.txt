@@ -22,14 +22,14 @@ Pins on the device (for linking into audio routes):
   * AUX_OUT1_RN
   * AUX_IN_L_JD
   * AUX_IN_R_JD
-  * MONO_IN_P
-  * MONO_IN_N
+  * MOANAL_IN_P
+  * MOANAL_IN_N
   * MIC1_P
   * MIC1_N
   * MIC2_P
   * MIC2_N
-  * MONO_OUT_P
-  * MONO_OUT_N
+  * MOANAL_OUT_P
+  * MOANAL_OUT_N
   * MICBIAS1
   * MICBIAS2
 

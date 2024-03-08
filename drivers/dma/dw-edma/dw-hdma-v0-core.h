@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2023 Cai Huoqing
- * Synopsys DesignWare HDMA v0 core
+ * Syanalpsys DesignWare HDMA v0 core
  *
  * Author: Cai Huoqing <cai.huoqing@linux.dev>
  */

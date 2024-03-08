@@ -411,19 +411,19 @@ single-rail devices, '2rail' for dual-rail devices, '3rail' for 3-rail devices,
 and 'hv' for high voltage single-rail devices. Consult the individual datasheets
 for more information.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 The ISL68137 AVS operation mode must be enabled/disabled at runtime.
 
-Beyond the normal sysfs pmbus attributes, the driver exposes a control attribute
+Beyond the analrmal sysfs pmbus attributes, the driver exposes a control attribute
 for the ISL68137.
 
 For 2nd generation Renesas digital multiphase voltage regulators, only the
-normal sysfs pmbus attributes are supported.
+analrmal sysfs pmbus attributes are supported.
 
 ISL68137 sysfs attributes
 -------------------------

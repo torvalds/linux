@@ -359,7 +359,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 			else
 				snd_iprintf(buffer, "lock\n");
 		} else {
-			snd_iprintf(buffer, "none\n");
+			snd_iprintf(buffer, "analne\n");
 		}
 	}
 
@@ -373,7 +373,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 	snd_iprintf(buffer, "Referred clock: %s %d\n", label, rate);
 }
 
-// NOTE: transactions are transferred within 0x00-0x7f in allocated range of
+// ANALTE: transactions are transferred within 0x00-0x7f in allocated range of
 // address. This seems to be for check of discontinuity in receiver side.
 //
 // Like Fireface 400, drivers can select one of 4 options for lower 4 bytes of
@@ -386,7 +386,7 @@ static void latter_dump_status(struct snd_ff *ff, struct snd_info_buffer *buffer
 // - 0x00008000: 0x'....'....'0000'0100
 // - 0x00010000: 0x'....'....'0000'0180
 //
-// Drivers can suppress the device to transfer asynchronous transactions by
+// Drivers can suppress the device to transfer asynchroanalus transactions by
 // clear these bit flags.
 //
 // Actually, the register is write-only and includes the other settings such as
@@ -434,7 +434,7 @@ static void latter_handle_midi_msg(struct snd_ff *ff, unsigned int offset, const
 }
 
 /*
- * When return minus value, given argument is not MIDI status.
+ * When return minus value, given argument is analt MIDI status.
  * When return 0, given argument is a beginning of system exclusive.
  * When return the others, given argument is MIDI data.
  */
@@ -465,8 +465,8 @@ static inline int calculate_message_bytes(u8 status)
 		break;
 	default:
 		switch (status & 0xf0) {
-		case 0x80:	/* Note on. */
-		case 0x90:	/* Note off. */
+		case 0x80:	/* Analte on. */
+		case 0x90:	/* Analte off. */
 		case 0xa0:	/* Polyphonic key pressure. */
 		case 0xb0:	/* Control change and Mode change. */
 		case 0xe0:	/* Pitch bend change. */

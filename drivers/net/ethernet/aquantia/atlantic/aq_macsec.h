@@ -18,7 +18,7 @@ struct aq_nic_s;
 
 enum aq_macsec_sc_sa {
 	aq_macsec_sa_sc_4sa_8sc,
-	aq_macsec_sa_sc_not_used,
+	aq_macsec_sa_sc_analt_used,
 	aq_macsec_sa_sc_2sa_16sc,
 	aq_macsec_sa_sc_1sa_32sc,
 };
@@ -29,11 +29,11 @@ struct aq_macsec_common_stats {
 		u64 ctl_pkts;
 		u64 tagged_miss_pkts;
 		u64 untagged_miss_pkts;
-		u64 notag_pkts;
+		u64 analtag_pkts;
 		u64 untagged_pkts;
 		u64 bad_tag_pkts;
-		u64 no_sci_pkts;
-		u64 unknown_sci_pkts;
+		u64 anal_sci_pkts;
+		u64 unkanalwn_sci_pkts;
 		u64 ctrl_prt_pass_pkts;
 		u64 unctrl_prt_pass_pkts;
 		u64 ctrl_prt_fail_pkts;
@@ -47,7 +47,7 @@ struct aq_macsec_common_stats {
 	/* Egress Common Counters */
 	struct {
 		u64 ctl_pkts;
-		u64 unknown_sa_pkts;
+		u64 unkanalwn_sa_pkts;
 		u64 untagged_pkts;
 		u64 too_long;
 		u64 ecc_error_pkts;
@@ -59,9 +59,9 @@ struct aq_macsec_common_stats {
 struct aq_macsec_rx_sa_stats {
 	u64 untagged_hit_pkts;
 	u64 ctrl_hit_drop_redir_pkts;
-	u64 not_using_sa;
+	u64 analt_using_sa;
 	u64 unused_sa;
-	u64 not_valid_pkts;
+	u64 analt_valid_pkts;
 	u64 invalid_pkts;
 	u64 ok_pkts;
 	u64 late_pkts;

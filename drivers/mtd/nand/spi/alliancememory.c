@@ -11,7 +11,7 @@
 
 #define AM_STATUS_ECC_BITMASK		(3 << 4)
 
-#define AM_STATUS_ECC_NONE_DETECTED	(0 << 4)
+#define AM_STATUS_ECC_ANALNE_DETECTED	(0 << 4)
 #define AM_STATUS_ECC_CORRECTED		(1 << 4)
 #define AM_STATUS_ECC_ERRORED		(2 << 4)
 #define AM_STATUS_ECC_MAX_CORRECTED	(3 << 4)
@@ -95,7 +95,7 @@ static const struct mtd_ooblayout_ops am_ooblayout = {
 static int am_ecc_get_status(struct spinand_device *spinand, u8 status)
 {
 	switch (status & AM_STATUS_ECC_BITMASK) {
-	case AM_STATUS_ECC_NONE_DETECTED:
+	case AM_STATUS_ECC_ANALNE_DETECTED:
 		return 0;
 
 	case AM_STATUS_ECC_CORRECTED:

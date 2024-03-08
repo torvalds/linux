@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Fixes for Lenovo Ideapad S740, to be included from codec driver */
+/* Fixes for Leanalvo Ideapad S740, to be included from codec driver */
 
 static const struct hda_verb alc285_ideapad_s740_coefs[] = {
 { 0x20, AC_VERB_SET_COEF_INDEX, 0x10 },

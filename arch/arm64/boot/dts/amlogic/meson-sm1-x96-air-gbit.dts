@@ -11,7 +11,7 @@
 
 / {
 	compatible = "amediatech,x96-air-gbit", "amlogic,sm1";
-	model = "Shenzhen Amediatech Technology Co., Ltd X96 Air";
+	model = "Shenzhen Amediatech Techanallogy Co., Ltd X96 Air";
 
 	sound {
 		compatible = "amlogic,axg-sound-card";

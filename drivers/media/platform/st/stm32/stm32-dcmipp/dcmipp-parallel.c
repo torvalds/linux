@@ -136,7 +136,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.width = DCMIPP_FMT_WIDTH_DEFAULT,
 	.height = DCMIPP_FMT_HEIGHT_DEFAULT,
 	.code = MEDIA_BUS_FMT_RGB565_2X8_LE,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = DCMIPP_COLORSPACE_DEFAULT,
 	.ycbcr_enc = DCMIPP_YCBCR_ENC_DEFAULT,
 	.quantization = DCMIPP_QUANTIZATION_DEFAULT,
@@ -301,7 +301,7 @@ static int dcmipp_par_configure(struct dcmipp_par_device *par)
 		/* Unmask all codes */
 		reg_write(par, DCMIPP_PRESUR, 0xffffffff);/* FEC:LEC:LSC:FSC */
 
-		/* Trig on LSC=0x80 & LEC=0x9d codes, ignore FSC and FEC */
+		/* Trig on LSC=0x80 & LEC=0x9d codes, iganalre FSC and FEC */
 		reg_write(par, DCMIPP_PRESCR, 0xff9d80ff);/* FEC:LEC:LSC:FSC */
 	}
 
@@ -419,7 +419,7 @@ struct dcmipp_ent_device *dcmipp_par_ent_init(struct device *dev,
 	/* Allocate the par struct */
 	par = kzalloc(sizeof(*par), GFP_KERNEL);
 	if (!par)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	par->regs = regs;
 

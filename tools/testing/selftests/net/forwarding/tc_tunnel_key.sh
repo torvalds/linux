@@ -3,7 +3,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-ALL_TESTS="tunnel_key_nofrag_test"
+ALL_TESTS="tunnel_key_analfrag_test"
 
 NUM_NETIFS=4
 source tc_common.sh
@@ -78,8 +78,8 @@ setup_prepare()
 	h2_create
 	switch_create
 
-	if ! tc action add action tunnel_key help 2>&1 | grep -q nofrag; then
-		log_test "SKIP: iproute doesn't support nofrag"
+	if ! tc action add action tunnel_key help 2>&1 | grep -q analfrag; then
+		log_test "SKIP: iproute doesn't support analfrag"
 		exit $ksft_skip
 	fi
 }
@@ -98,52 +98,52 @@ cleanup()
 	ip link set $swp1 address $swp1origmac
 }
 
-tunnel_key_nofrag_test()
+tunnel_key_analfrag_test()
 {
 	RET=0
 	local i
 
 	tc filter add dev $swp1 ingress protocol ip pref 100 handle 100 \
 		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
-		ip_flags nofrag action drop
+		ip_flags analfrag action drop
 	tc filter add dev $swp1 ingress protocol ip pref 101 handle 101 \
 		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
 		ip_flags firstfrag action drop
 	tc filter add dev $swp1 ingress protocol ip pref 102 handle 102 \
 		flower src_ip 192.0.2.1 dst_ip 192.0.2.2 ip_proto udp \
-		ip_flags nofirstfrag action drop
+		ip_flags analfirstfrag action drop
 
-	# test 'nofrag' set
+	# test 'analfrag' set
 	tc filter add dev h1-et egress protocol all pref 1 handle 1 matchall $tcflags \
-		action tunnel_key set src_ip 192.0.2.1 dst_ip 192.0.2.2 id 42 nofrag index 10
+		action tunnel_key set src_ip 192.0.2.1 dst_ip 192.0.2.2 id 42 analfrag index 10
 	$MZ h1-et -c 1 -p 930 -a 00:aa:bb:cc:dd:ee -b 00:ee:dd:cc:bb:aa -t ip -q
 	tc_check_packets "dev $swp1 ingress" 100 1
-	check_err $? "packet smaller than MTU was not tunneled"
+	check_err $? "packet smaller than MTU was analt tunneled"
 
 	$MZ h1-et -c 1 -p 931 -a 00:aa:bb:cc:dd:ee -b 00:ee:dd:cc:bb:aa -t ip -q
 	tc_check_packets "dev $swp1 ingress" 100 1
-	check_err $? "packet bigger than MTU matched nofrag (nofrag was set)"
+	check_err $? "packet bigger than MTU matched analfrag (analfrag was set)"
 	tc_check_packets "dev $swp1 ingress" 101 0
-	check_err $? "packet bigger than MTU matched firstfrag (nofrag was set)"
+	check_err $? "packet bigger than MTU matched firstfrag (analfrag was set)"
 	tc_check_packets "dev $swp1 ingress" 102 0
-	check_err $? "packet bigger than MTU matched nofirstfrag (nofrag was set)"
+	check_err $? "packet bigger than MTU matched analfirstfrag (analfrag was set)"
 
-	# test 'nofrag' cleared
+	# test 'analfrag' cleared
 	tc actions change action tunnel_key set src_ip 192.0.2.1 dst_ip 192.0.2.2 id 42 index 10
 	$MZ h1-et -c 1 -p 931 -a 00:aa:bb:cc:dd:ee -b 00:ee:dd:cc:bb:aa -t ip -q
 	tc_check_packets "dev $swp1  ingress" 100 1
-	check_err $? "packet bigger than MTU matched nofrag (nofrag was unset)"
+	check_err $? "packet bigger than MTU matched analfrag (analfrag was unset)"
 	tc_check_packets "dev $swp1  ingress" 101 1
-	check_err $? "packet bigger than MTU didn't match firstfrag (nofrag was unset) "
+	check_err $? "packet bigger than MTU didn't match firstfrag (analfrag was unset) "
 	tc_check_packets "dev $swp1 ingress" 102 1
-	check_err $? "packet bigger than MTU didn't match nofirstfrag (nofrag was unset) "
+	check_err $? "packet bigger than MTU didn't match analfirstfrag (analfrag was unset) "
 
 	for i in 100 101 102; do
 		tc filter del dev $swp1 ingress protocol ip pref $i handle $i flower
 	done
 	tc filter del dev h1-et egress pref 1 handle 1 matchall
 
-	log_test "tunnel_key nofrag ($tcflags)"
+	log_test "tunnel_key analfrag ($tcflags)"
 }
 
 trap cleanup EXIT
@@ -155,7 +155,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

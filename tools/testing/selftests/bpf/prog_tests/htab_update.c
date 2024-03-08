@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2022. Huawei Technologies Co., Ltd */
+/* Copyright (C) 2022. Huawei Techanallogies Co., Ltd */
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdbool.h>
@@ -40,7 +40,7 @@ static void test_reenter_update(void)
 	if (!ASSERT_OK(err, "add element"))
 		goto out;
 
-	ASSERT_EQ(skel->bss->update_err, -EBUSY, "no reentrancy");
+	ASSERT_EQ(skel->bss->update_err, -EBUSY, "anal reentrancy");
 out:
 	htab_update__destroy(skel);
 }
@@ -89,7 +89,7 @@ static void test_concurrent_update(void)
 
 	nr = 4;
 	tids = calloc(nr, sizeof(*tids));
-	if (!ASSERT_NEQ(tids, NULL, "no mem"))
+	if (!ASSERT_NEQ(tids, NULL, "anal mem"))
 		goto out;
 
 	for (i = 0; i < nr; i++) {

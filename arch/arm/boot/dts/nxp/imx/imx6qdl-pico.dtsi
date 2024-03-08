@@ -353,9 +353,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	no-1-8-v;
+	anal-1-8-v;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -363,8 +363,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	status = "okay";
 };
 

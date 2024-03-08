@@ -14,7 +14,7 @@
  * @align:	a requested alignment
  * @vstart:	a requested start range
  * @vend:	a requested end range
- * @failed:	an allocation failed or not
+ * @failed:	an allocation failed or analt
  *
  * This event is used for a debug purpose, it can give an extra
  * information for a developer about how often it occurs and which
@@ -84,7 +84,7 @@ TRACE_EVENT(purge_vmap_area_lazy,
 );
 
 /**
- * free_vmap_area_noflush - called when a vmap area is freed
+ * free_vmap_area_analflush - called when a vmap area is freed
  * @va_start:		a start address of VA
  * @nr_lazy:		number of current lazy pages
  * @nr_lazy_max:	number of maximum lazy pages
@@ -94,7 +94,7 @@ TRACE_EVENT(purge_vmap_area_lazy,
  * outstanding areas and a maximum allowed threshold before
  * dropping all of them.
  */
-TRACE_EVENT(free_vmap_area_noflush,
+TRACE_EVENT(free_vmap_area_analflush,
 
 	TP_PROTO(unsigned long va_start, unsigned long nr_lazy,
 		unsigned long nr_lazy_max),

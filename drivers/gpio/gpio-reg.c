@@ -8,7 +8,7 @@
 #include <linux/container_of.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
@@ -44,7 +44,7 @@ static int gpio_reg_direction_output(struct gpio_chip *gc, unsigned offset,
 	struct gpio_reg *r = to_gpio_reg(gc);
 
 	if (r->direction & BIT(offset))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	gc->set(gc, offset, value);
 	return 0;
@@ -54,7 +54,7 @@ static int gpio_reg_direction_input(struct gpio_chip *gc, unsigned offset)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 
-	return r->direction & BIT(offset) ? 0 : -ENOTSUPP;
+	return r->direction & BIT(offset) ? 0 : -EANALTSUPP;
 }
 
 static void gpio_reg_set(struct gpio_chip *gc, unsigned offset, int value)
@@ -133,7 +133,7 @@ static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
  * Add a single-register GPIO device containing up to 32 GPIO signals,
  * where each GPIO has a fixed input or output configuration.  Only
  * input GPIOs are assumed to be readable from the register, and only
- * then after a double-read.  Output values are assumed not to be
+ * then after a double-read.  Output values are assumed analt to be
  * readable.
  */
 struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
@@ -149,7 +149,7 @@ struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
 
 	if (!r)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&r->lock);
 

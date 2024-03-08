@@ -43,7 +43,7 @@ enum iqs62x_ui_sel {
 };
 
 enum iqs62x_event_reg {
-	IQS62X_EVENT_NONE,
+	IQS62X_EVENT_ANALNE,
 	IQS62X_EVENT_SYS,
 	IQS62X_EVENT_PROX,
 	IQS62X_EVENT_HYST,
@@ -128,7 +128,7 @@ struct iqs62x_core {
 	const struct iqs62x_dev_desc *dev_desc;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct blocking_notifier_head nh;
+	struct blocking_analtifier_head nh;
 	struct list_head fw_blk_head;
 	struct completion ati_done;
 	struct completion fw_done;

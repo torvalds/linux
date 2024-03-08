@@ -18,14 +18,14 @@
 /*#define DBG_EMERG			0 */
 
 /*
- *Abnormal, rare, or unexpeted cases.
+ *Abanalrmal, rare, or unexpeted cases.
  *For example, Packet/IO Ctl canceled,
  *device suprisely unremoved and so on.
  */
 #define	DBG_WARNING			2
 
 /*
- *Normal case driver developer should
+ *Analrmal case driver developer should
  *open, we can see link status like
  *assoc/AddBA/DHCP/adapter start and
  *so on basic and useful infromations.
@@ -33,7 +33,7 @@
 #define DBG_DMESG			3
 
 /*
- *Normal case with useful information
+ *Analrmal case with useful information
  *about current SW or HW state.
  *For example, Tx/Rx descriptor to fill,
  *Tx/Rx descriptor completed status,
@@ -43,7 +43,7 @@
 #define DBG_LOUD			4
 
 /*
- *Normal case with detail execution
+ *Analrmal case with detail execution
  *flow or information.
  */
 #define	DBG_TRACE			5

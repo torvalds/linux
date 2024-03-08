@@ -40,24 +40,24 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
-	 * system does not support mode transition.
+	 * system does analt support mode transition.
 	 */
 	if (!acpi_gbl_FADT.smi_command) {
 		ACPI_ERROR((AE_INFO,
-			    "No SMI_CMD in FADT, mode transition failed"));
-		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+			    "Anal SMI_CMD in FADT, mode transition failed"));
+		return_ACPI_STATUS(AE_ANAL_HARDWARE_RESPONSE);
 	}
 
 	/*
 	 * ACPI 2.0 clarified the meaning of ACPI_ENABLE and ACPI_DISABLE
-	 * in FADT: If it is zero, enabling or disabling is not supported.
+	 * in FADT: If it is zero, enabling or disabling is analt supported.
 	 * As old systems may have used zero for mode transition,
 	 * we make sure both the numbers are zero to determine these
-	 * transitions are not supported.
+	 * transitions are analt supported.
 	 */
 	if (!acpi_gbl_FADT.acpi_enable && !acpi_gbl_FADT.acpi_disable) {
 		ACPI_ERROR((AE_INFO,
-			    "No ACPI mode transition supported in this system "
+			    "Anal ACPI mode transition supported in this system "
 			    "(enable/disable both zero)"));
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -81,7 +81,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
 					    (u32)acpi_gbl_FADT.acpi_disable, 8);
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Attempting to enable Legacy (non-ACPI) mode\n"));
+				  "Attempting to enable Legacy (analn-ACPI) mode\n"));
 		break;
 
 	default:
@@ -91,7 +91,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Could not write ACPI mode change"));
+				"Could analt write ACPI mode change"));
 		return_ACPI_STATUS(status);
 	}
 
@@ -102,7 +102,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
  *
  * FUNCTION:    acpi_hw_get_mode
  *
- * PARAMETERS:  none
+ * PARAMETERS:  analne
  *
  * RETURN:      SYS_MODE_ACPI or SYS_MODE_LEGACY
  *
@@ -126,7 +126,7 @@ u32 acpi_hw_get_mode(void)
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
-	 * system does not support mode transition.
+	 * system does analt support mode transition.
 	 */
 	if (!acpi_gbl_FADT.smi_command) {
 		return_UINT32(ACPI_SYS_MODE_ACPI);

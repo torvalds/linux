@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Linker script variables to be set after section resolution, as
- * ld.lld does not like variables assigned before SECTIONS is processed.
+ * ld.lld does analt like variables assigned before SECTIONS is processed.
  */
 #ifndef __ARM64_KERNEL_IMAGE_VARS_H
 #define __ARM64_KERNEL_IMAGE_VARS_H
@@ -17,7 +17,7 @@ PROVIDE(__efistub_primary_entry		= primary_entry);
  * isolate it from the kernel proper. The following symbols are legally
  * accessed by the stub, so provide some aliases to make them accessible.
  * Only include data symbols here, or text symbols of functions that are
- * guaranteed to be safe when executed at another offset than they were
+ * guaranteed to be safe when executed at aanalther offset than they were
  * linked at. The routines below are all implemented in assembler in a
  * position independent manner
  */
@@ -42,7 +42,7 @@ PROVIDE(__pi___memset			= __pi_memset);
  * KVM nVHE code has its own symbol namespace prefixed with __kvm_nvhe_, to
  * separate it from the kernel proper. The following symbols are legally
  * accessed by it, therefore provide aliases to make them linkable.
- * Do not include symbols which may not be safely accessed under hypervisor
+ * Do analt include symbols which may analt be safely accessed under hypervisor
  * memory mappings.
  */
 
@@ -55,7 +55,7 @@ KVM_NVHE_ALIAS(spectre_bhb_patch_loop_iter);
 KVM_NVHE_ALIAS(spectre_bhb_patch_loop_mitigation_enable);
 KVM_NVHE_ALIAS(spectre_bhb_patch_wa3);
 KVM_NVHE_ALIAS(spectre_bhb_patch_clearbhb);
-KVM_NVHE_ALIAS(alt_cb_patch_nops);
+KVM_NVHE_ALIAS(alt_cb_patch_analps);
 
 /* Global kernel state accessed by nVHE hyp code. */
 KVM_NVHE_ALIAS(kvm_vgic_global_state);
@@ -72,7 +72,7 @@ KVM_NVHE_ALIAS(vgic_v3_cpuif_trap);
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 /* Static key checked in GIC_PRIO_IRQOFF. */
-KVM_NVHE_ALIAS(gic_nonsecure_priorities);
+KVM_NVHE_ALIAS(gic_analnsecure_priorities);
 #endif
 
 /* EL2 exception handling */

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -148,7 +148,7 @@ struct drm_vmw_getparam_arg {
  * DRM_VMW_CREATE_CONTEXT - Create a host context.
  *
  * Allocates a device unique context id, and queues a create context command
- * for the host. Does not wait for host completion.
+ * for the host. Does analt wait for host completion.
  */
 
 /**
@@ -170,7 +170,7 @@ struct drm_vmw_context_arg {
  * DRM_VMW_UNREF_CONTEXT - Create a host context.
  *
  * Frees a global context id, and queues a destroy host command for the host.
- * Does not wait for host completion. The context ID can be used directly
+ * Does analt wait for host completion. The context ID can be used directly
  * in the command stream and shows up as the same context ID on the host.
  */
 
@@ -179,7 +179,7 @@ struct drm_vmw_context_arg {
  * DRM_VMW_CREATE_SURFACE - Create a host suface.
  *
  * Allocates a device unique surface id, and queues a create surface command
- * for the host. Does not wait for host completion. The surface ID can be
+ * for the host. Does analt wait for host completion. The surface ID can be
  * used directly in the command stream and shows up as the same surface
  * ID on the host.
  */
@@ -196,8 +196,8 @@ struct drm_vmw_context_arg {
  * The size of the array should equal the total number of mipmap levels.
  * @shareable: Boolean whether other clients (as identified by file descriptors)
  * may reference this surface.
- * @scanout: Boolean whether the surface is intended to be used as a
- * scanout.
+ * @scaanalut: Boolean whether the surface is intended to be used as a
+ * scaanalut.
  *
  * Input data to the DRM_VMW_CREATE_SURFACE Ioctl.
  * Output data from the DRM_VMW_REF_SURFACE Ioctl.
@@ -209,7 +209,7 @@ struct drm_vmw_surface_create_req {
 	__u32 mip_levels[DRM_VMW_MAX_SURFACE_FACES];
 	__u64 size_addr;
 	__s32 shareable;
-	__s32 scanout;
+	__s32 scaanalut;
 };
 
 /**
@@ -296,7 +296,7 @@ union drm_vmw_surface_reference_arg {
  * When all references are gone, including the one implicitly placed
  * on creation,
  * a destroy surface command will be queued for the host.
- * Does not wait for completion.
+ * Does analt wait for completion.
  */
 
 /*************************************************************************/
@@ -304,7 +304,7 @@ union drm_vmw_surface_reference_arg {
  * DRM_VMW_EXECBUF
  *
  * Submit a command buffer for execution on the host, and return a
- * fence seqno that when signaled, indicates that the command buffer has
+ * fence seqanal that when signaled, indicates that the command buffer has
  * executed.
  */
 
@@ -322,7 +322,7 @@ union drm_vmw_surface_reference_arg {
  * backwards compatibility, since user-space will always tell the kernel
  * which version it uses.
  * @flags: Execbuf flags.
- * @imported_fence_fd:  FD for a fence imported from another device
+ * @imported_fence_fd:  FD for a fence imported from aanalther device
  *
  * Argument to the DRM_VMW_EXECBUF Ioctl.
  */
@@ -348,22 +348,22 @@ struct drm_vmw_execbuf_arg {
  *
  * @handle: Fence object handle for fence associated with a command submission.
  * @mask: Fence flags relevant for this fence object.
- * @seqno: Fence sequence number in fifo. A fence object with a lower
- * seqno will signal the EXEC flag before a fence object with a higher
- * seqno. This can be used by user-space to avoid kernel calls to determine
- * whether a fence has signaled the EXEC flag. Note that @seqno will
+ * @seqanal: Fence sequence number in fifo. A fence object with a lower
+ * seqanal will signal the EXEC flag before a fence object with a higher
+ * seqanal. This can be used by user-space to avoid kernel calls to determine
+ * whether a fence has signaled the EXEC flag. Analte that @seqanal will
  * wrap at 32-bit.
- * @passed_seqno: The highest seqno number processed by the hardware
+ * @passed_seqanal: The highest seqanal number processed by the hardware
  * so far. This can be used to mark user-space fence objects as signaled, and
- * to determine whether a fence seqno might be stale.
- * @fd: FD associated with the fence, -1 if not exported
+ * to determine whether a fence seqanal might be stale.
+ * @fd: FD associated with the fence, -1 if analt exported
  * @error: This member should've been set to -EFAULT on submission.
  * The following actions should be take on completion:
  * error == -EFAULT: Fence communication failed. The host is synchronized.
  * Use the last fence id read from the FIFO fence register.
  * error != 0 && error != -EFAULT:
  * Fence submission failed. The host is synchronized. Use the fence_seq member.
- * error == 0: All is OK, The host may not be synchronized.
+ * error == 0: All is OK, The host may analt be synchronized.
  * Use the fence_seq member.
  *
  * Input / Output data to the DRM_VMW_EXECBUF Ioctl.
@@ -372,8 +372,8 @@ struct drm_vmw_execbuf_arg {
 struct drm_vmw_fence_rep {
 	__u32 handle;
 	__u32 mask;
-	__u32 seqno;
-	__u32 passed_seqno;
+	__u32 seqanal;
+	__u32 passed_seqanal;
 	__s32 fd;
 	__s32 error;
 };
@@ -383,7 +383,7 @@ struct drm_vmw_fence_rep {
  * DRM_VMW_ALLOC_BO
  *
  * Allocate a buffer object that is visible also to the host.
- * NOTE: The buffer is
+ * ANALTE: The buffer is
  * identified by a handle and an offset, which are private to the guest, but
  * useable in the command stream. The guest kernel may translate these
  * and patch up the command stream accordingly. In the future, the offset may
@@ -416,9 +416,9 @@ struct drm_vmw_alloc_bo_req {
  * @map_handle: Offset to use in the mmap() call used to map the buffer.
  * @handle: Handle unique to this buffer. Used for unreferencing.
  * @cur_gmr_id: GMR id to use in the command stream when this buffer is
- * referenced. See not above.
+ * referenced. See analt above.
  * @cur_gmr_offset: Offset to use in the command stream when this buffer is
- * referenced. See note above.
+ * referenced. See analte above.
  *
  * Output data from the DRM_VMW_ALLOC_BO Ioctl.
  */
@@ -452,8 +452,8 @@ union drm_vmw_alloc_bo_arg {
  * DRM_VMW_CONTROL_STREAM - Control overlays, aka streams.
  *
  * This IOCTL controls the overlay units of the svga device.
- * The SVGA overlay units does not work like regular hardware units in
- * that they do not automaticaly read back the contents of the given dma
+ * The SVGA overlay units does analt work like regular hardware units in
+ * that they do analt automaticaly read back the contents of the given dma
  * buffer. But instead only read back for each call to this ioctl, and
  * at any point between this call being made and a following call that
  * either changes the buffer or disables the stream.
@@ -477,7 +477,7 @@ struct drm_vmw_rect {
  * struct drm_vmw_control_stream_arg
  *
  * @stream_id: Stearm to control
- * @enabled: If false all following arguments are ignored.
+ * @enabled: If false all following arguments are iganalred.
  * @handle: Handle to buffer for getting data from.
  * @format: Format of the overlay as understood by the host.
  * @width: Width of the overlay.
@@ -630,7 +630,7 @@ struct drm_vmw_get_3d_cap_arg {
  * @cookie_valid: Must be reset to 0 on first call. Left alone on restart.
  * @kernel_cookie: Set to 0 on first call. Left alone on restart.
  * @timeout_us: Wait timeout in microseconds. 0 for indefinite timeout.
- * @lazy: Set to 1 if timing is not critical. Allow more than a kernel tick
+ * @lazy: Set to 1 if timing is analt critical. Allow more than a kernel tick
  * before returning.
  * @flags: Fence flags to wait on.
  * @wait_options: Options that control the behaviour of the wait ioctl.
@@ -673,7 +673,7 @@ struct drm_vmw_fence_signaled_arg {
 	 __u32 handle;
 	 __u32 flags;
 	 __s32 signaled;
-	 __u32 passed_seqno;
+	 __u32 passed_seqanal;
 	 __u32 signaled_flags;
 	 __u32 pad64;
 };
@@ -682,7 +682,7 @@ struct drm_vmw_fence_signaled_arg {
 /**
  * DRM_VMW_FENCE_UNREF
  *
- * Unreferences a fence object, and causes it to be destroyed if there are no
+ * Unreferences a fence object, and causes it to be destroyed if there are anal
  * other references to it.
  *
  */
@@ -733,7 +733,7 @@ struct drm_vmw_event_fence {
  * struct drm_vmw_fence_event_arg
  *
  * @fence_rep: Pointer to fence_rep structure cast to __u64 or 0 if
- * the fence is not supposed to be referenced by user-space.
+ * the fence is analt supposed to be referenced by user-space.
  * @user_info: Info to be delivered with the event.
  * @handle: Attach the event to this fence only.
  * @flags: A set of flags as defined above.
@@ -786,7 +786,7 @@ struct drm_vmw_present_arg {
  * DRM_VMW_PRESENT_READBACK
  *
  * Executes an SVGA present readback from a given fb to the dma buffer
- * currently bound as the fb. If there is no dma buffer bound to the fb,
+ * currently bound as the fb. If there is anal dma buffer bound to the fb,
  * an error will be returned.
  *
  */
@@ -797,7 +797,7 @@ struct drm_vmw_present_arg {
  * @num_clips: Number of cliprects.
  * @clips_ptr: Pointer to an array of clip rects cast to an __u64.
  * @fence_rep: Pointer to a struct drm_vmw_fence_rep, cast to an __u64.
- * If this member is NULL, then the ioctl should not return a fence.
+ * If this member is NULL, then the ioctl should analt return a fence.
  */
 
 struct drm_vmw_present_readback_arg {
@@ -903,15 +903,15 @@ struct drm_vmw_shader_arg {
  * enum drm_vmw_surface_flags
  *
  * @drm_vmw_surface_flag_shareable:     Whether the surface is shareable
- * @drm_vmw_surface_flag_scanout:       Whether the surface is a scanout
+ * @drm_vmw_surface_flag_scaanalut:       Whether the surface is a scaanalut
  *                                      surface.
- * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is
+ * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if analne is
  *                                      given.
  * @drm_vmw_surface_flag_coherent:      Back surface with coherent memory.
  */
 enum drm_vmw_surface_flags {
 	drm_vmw_surface_flag_shareable = (1 << 0),
-	drm_vmw_surface_flag_scanout = (1 << 1),
+	drm_vmw_surface_flag_scaanalut = (1 << 1),
 	drm_vmw_surface_flag_create_buffer = (1 << 2),
 	drm_vmw_surface_flag_coherent = (1 << 3),
 };
@@ -926,9 +926,9 @@ enum drm_vmw_surface_flags {
  * @multisample_count Future use. Set to 0.
  * @autogen_filter    Future use. Set to 0.
  * @buffer_handle     Buffer handle of backup buffer. SVGA3D_INVALID_ID
- *                    if none.
+ *                    if analne.
  * @base_size         Size of the base mip level for all faces.
- * @array_size        Must be zero for non-DX hardware, and if non-zero
+ * @array_size        Must be zero for analn-DX hardware, and if analn-zero
  *                    svga3d_flags must have proper bind flags setup.
  *
  * Input argument to the  DRM_VMW_GB_SURFACE_CREATE Ioctl.
@@ -951,7 +951,7 @@ struct drm_vmw_gb_surface_create_req {
  *
  * @handle:            Surface handle.
  * @backup_size:       Size of backup buffers for this surface.
- * @buffer_handle:     Handle of backup buffer. SVGA3D_INVALID_ID if none.
+ * @buffer_handle:     Handle of backup buffer. SVGA3D_INVALID_ID if analne.
  * @buffer_size:       Actual size of the buffer identified by
  *                     @buffer_handle
  * @buffer_map_handle: Offset into device address space for the buffer
@@ -1087,7 +1087,7 @@ struct drm_vmw_synccpu_arg {
  * DRM_VMW_CREATE_EXTENDED_CONTEXT - Create a host context.
  *
  * Allocates a device unique context id, and queues a create context command
- * for the host. Does not wait for host completion.
+ * for the host. Does analt wait for host completion.
  */
 enum drm_vmw_extended_context {
 	drm_vmw_context_legacy,
@@ -1112,7 +1112,7 @@ union drm_vmw_extended_context_arg {
  * DRM_VMW_HANDLE_CLOSE - Close a user-space handle and release its
  * underlying resource.
  *
- * Note that this ioctl is overlaid on the deprecated DRM_VMW_UNREF_DMABUF
+ * Analte that this ioctl is overlaid on the deprecated DRM_VMW_UNREF_DMABUF
  * Ioctl.
  */
 

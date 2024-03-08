@@ -26,7 +26,7 @@ static const struct property_entry fg_bq24190_supply_props[] = {
 	{ }
 };
 
-const struct software_node fg_bq24190_supply_node = {
+const struct software_analde fg_bq24190_supply_analde = {
 	.properties = fg_bq24190_supply_props,
 };
 
@@ -35,7 +35,7 @@ static const struct property_entry fg_bq25890_supply_props[] = {
 	{ }
 };
 
-const struct software_node fg_bq25890_supply_node = {
+const struct software_analde fg_bq25890_supply_analde = {
 	.properties = fg_bq25890_supply_props,
 };
 
@@ -51,7 +51,7 @@ static const struct property_entry generic_lipo_hv_4v35_battery_props[] = {
 	{ }
 };
 
-const struct software_node generic_lipo_hv_4v35_battery_node = {
+const struct software_analde generic_lipo_hv_4v35_battery_analde = {
 	.properties = generic_lipo_hv_4v35_battery_props,
 };
 
@@ -85,7 +85,7 @@ const struct platform_device_info int3496_pdevs[] __initconst = {
 	{
 		/* For micro USB ID pin handling */
 		.name = "intel-int3496",
-		.id = PLATFORM_DEVID_NONE,
+		.id = PLATFORM_DEVID_ANALNE,
 	},
 };
 

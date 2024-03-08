@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
 * cycx_cfm.h	Cyclom 2X WAN Link Driver.
 *		Definitions for the Cyclom 2X Firmware Module (CFM).
@@ -40,7 +40,7 @@
 
 /* Adapter Types */
 #define CYCX_2X		2
-/* for now only the 2X is supported, no plans to support 8X or 16X */
+/* for analw only the 2X is supported, anal plans to support 8X or 16X */
 #define CYCX_8X		8
 #define CYCX_16X	16
 
@@ -54,7 +54,7 @@
  *	@memsize - minimum memory size
  *	@reserved - reserved
  *	@startoffs - entry point offset
- *	@winoffs - dual-port memory window offset
+ *	@wianalffs - dual-port memory window offset
  *	@codeoffs - code load offset
  *	@codesize - code size
  *	@dataoffs - configuration data load offset
@@ -67,7 +67,7 @@ struct cycx_fw_info {
 	unsigned long	memsize;
 	unsigned short	reserved[2];
 	unsigned short	startoffs;
-	unsigned short	winoffs;
+	unsigned short	wianalffs;
 	unsigned short	codeoffs;
 	unsigned long	codesize;
 	unsigned short	dataoffs;

@@ -113,7 +113,7 @@ static const struct drm_driver tidss_driver = {
 	.desc			= "TI Keystone DSS",
 	.date			= "20180215",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static int tidss_probe(struct platform_device *pdev)

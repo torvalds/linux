@@ -9,7 +9,7 @@ title: RISC-V ISA extensions
 maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@sifive.com>
-  - Conor Dooley <conor@kernel.org>
+  - Coanalr Dooley <coanalr@kernel.org>
 
 description: |
   RISC-V has a large number of extensions, some of which are "standard"
@@ -18,7 +18,7 @@ description: |
   This document defines properties that indicate whether a hart supports a
   given extension.
 
-  Once a standard extension has been ratified, no changes in behaviour can be
+  Once a standard extension has been ratified, anal changes in behaviour can be
   made without the creation of a new extension.
   The properties for standard extensions therefore map to their originally
   ratified states, with the exception of the I, Zicntr & Zihpm extensions.
@@ -40,7 +40,7 @@ properties:
 
       Due to revisions of the ISA specification, some deviations
       have arisen over time.
-      Notably, riscv,isa was defined prior to the creation of the
+      Analtably, riscv,isa was defined prior to the creation of the
       Zicntr, Zicsr, Zifencei and Zihpm extensions and thus "i"
       implies "zicntr_zicsr_zifencei_zihpm".
 
@@ -65,13 +65,13 @@ properties:
     description: Extensions supported by the hart.
     items:
       anyOf:
-        # single letter extensions, in canonical order
+        # single letter extensions, in caanalnical order
         - const: i
           description: |
             The base integer instruction set, as ratified in the 20191213
             version of the unprivileged ISA specification.
 
-            This does not include Chapter 10, "Counters", which was moved into
+            This does analt include Chapter 10, "Counters", which was moved into
             the Zicntr and Zihpm extensions after the ratification of the
             20191213 version of the unprivileged specification.
 
@@ -327,7 +327,7 @@ properties:
           description:
             The standard Zicond extension for conditional arithmetic and
             conditional-select/move operations as ratified in commit 95cf1f9
-            ("Add changes requested by Ved during signoff") of riscv-zicond.
+            ("Add changes requested by Ved during siganalff") of riscv-zicond.
 
         - const: zicsr
           description: |
@@ -335,7 +335,7 @@ properties:
             instructions, as ratified in the 20191213 version of the
             unprivileged ISA specification.
 
-            This does not include Chapter 10, "Counters", which documents
+            This does analt include Chapter 10, "Counters", which documents
             special case read-only CSRs, that were moved into the Zicntr and
             Zihpm extensions after the ratification of the 20191213 version of
             the unprivileged specification.
@@ -353,7 +353,7 @@ properties:
 
         - const: zihintntl
           description:
-            The standard Zihintntl extension for non-temporal locality hints, as
+            The standard Zihintntl extension for analn-temporal locality hints, as
             ratified in commit 0dc91f5 ("Zihintntl is ratified") of the
             riscv-isa-manual.
 
@@ -366,7 +366,7 @@ properties:
         - const: ztso
           description:
             The standard Ztso extension for total store ordering, as ratified
-            in commit 2e5236 ("Ztso is now ratified.") of the
+            in commit 2e5236 ("Ztso is analw ratified.") of the
             riscv-isa-manual.
 
         - const: zvbb

@@ -17,7 +17,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #else /* ! __KERNEL__ */
 /* Used for testing in user space */
 
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <stddef.h>
 #include <string.h>
@@ -25,7 +25,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #include <sys/time.h>
 #include <sys/types.h>
 
-/* Not standard, but glibc defines it */
+/* Analt standard, but glibc defines it */
 #define BITS_PER_LONG __WORDSIZE
 
 typedef uint8_t  u8;
@@ -46,7 +46,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #ifndef __attribute_const__
 # define __attribute_const__ __attribute__((const))
 #endif
-#define noinline __attribute__((noinline))
+#define analinline __attribute__((analinline))
 
 #define preempt_enable()
 #define preempt_disable()
@@ -73,7 +73,7 @@ struct raid6_calls {
 	void (*xor_syndrome)(int, int, int, size_t, void **);
 	int  (*valid)(void);	/* Returns 1 if this routine set is usable */
 	const char *name;	/* Name of this routine set */
-	int priority;		/* Relative priority ranking if non-zero */
+	int priority;		/* Relative priority ranking if analn-zero */
 };
 
 /* Selected algorithm */
@@ -168,13 +168,13 @@ void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
 # define GFP_KERNEL	0
 # define __get_free_pages(x, y)	((unsigned long)mmap(NULL, PAGE_SIZE << (y), \
 						     PROT_READ|PROT_WRITE,   \
-						     MAP_PRIVATE|MAP_ANONYMOUS,\
+						     MAP_PRIVATE|MAP_AANALNYMOUS,\
 						     0, 0))
 # define free_pages(x, y)	munmap((void *)(x), PAGE_SIZE << (y))
 
 static inline void cpu_relax(void)
 {
-	/* Nothing */
+	/* Analthing */
 }
 
 #undef  HZ

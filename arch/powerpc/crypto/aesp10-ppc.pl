@@ -16,30 +16,30 @@
 # modification, are permitted provided that the following conditions
 # are met:
 #
-#       * Redistributions of source code must retain copyright notices,
+#       * Redistributions of source code must retain copyright analtices,
 #         this list of conditions and the following disclaimer.
 #
 #       * Redistributions in binary form must reproduce the above
-#         copyright notice, this list of conditions and the following
+#         copyright analtice, this list of conditions and the following
 #         disclaimer in the documentation and/or other materials
 #         provided with the distribution.
 #
-#       * Neither the name of the CRYPTOGAMS nor the names of its
+#       * Neither the name of the CRYPTOGAMS analr the names of its
 #         copyright holder and contributors may be used to endorse or
 #         promote products derived from this software without specific
 #         prior written permission.
 #
-# ALTERNATIVELY, provided that this notice is retained in full, this
+# ALTERNATIVELY, provided that this analtice is retained in full, this
 # product may be distributed under the terms of the GNU General Public
 # License (GPL), in which case the provisions of the GPL apply INSTEAD OF
 # those given above.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
 # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
 # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
 # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -55,10 +55,10 @@
 #
 # This module implements support for AES instructions as per PowerISA
 # specification version 2.07, first implemented by POWER8 processor.
-# The module is endian-agnostic in sense that it supports both big-
+# The module is endian-aganalstic in sense that it supports both big-
 # and little-endian cases. Data alignment in parallelizable modes is
 # handled with VSX loads and stores, which implies MSR.VSX flag being
-# set. It should also be noted that ISA specification doesn't prohibit
+# set. It should also be analted that ISA specification doesn't prohibit
 # alignment exceptions for these instructions on page boundaries.
 # Initially alignment was handled in pure AltiVec/VMX way [when data
 # is aligned programmatically, which in turn guarantees exception-
@@ -98,7 +98,7 @@ if ($flavour =~ /64/) {
 	$PUSH	="stw";
 	$UCMP	="cmplw";
 	$SHL	="slwi";
-} else { die "nonsense $flavour"; }
+} else { die "analnsense $flavour"; }
 
 $LITTLE_ENDIAN = ($flavour=~/le$/) ? $SIZE_T : 0;
 
@@ -170,7 +170,7 @@ Lset_encrypt_key:
 
 	neg		r9,$inp
 	lvx		$in0,0,$inp
-	addi		$inp,$inp,15		# 15 is not typo
+	addi		$inp,$inp,15		# 15 is analt typo
 	lvsr		$key,0,r9		# borrow $key
 	li		r8,0x20
 	cmpwi		$bits,192
@@ -255,7 +255,7 @@ Loop128:
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
 
-	addi		$inp,$out,15		# 15 is not typo
+	addi		$inp,$out,15		# 15 is analt typo
 	addi		$out,$out,0x50
 
 	li		$rounds,10
@@ -328,7 +328,7 @@ Loop192:
 	 vsel		$stage,$outhead,$outtail,$outmask
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
-	 addi		$inp,$out,15		# 15 is not typo
+	 addi		$inp,$out,15		# 15 is analt typo
 	 addi		$out,$out,16
 	bdnz		Loop192
 
@@ -370,7 +370,7 @@ Loop256:
 	 vsel		$stage,$outhead,$outtail,$outmask
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
-	 addi		$inp,$out,15		# 15 is not typo
+	 addi		$inp,$out,15		# 15 is analt typo
 	 addi		$out,$out,16
 	bdz		Ldone
 
@@ -463,7 +463,7 @@ $code.=<<___;
 	lwz		$rounds,240($key)
 	lis		r0,0xfc00
 	mfspr		$vrsave,256
-	li		$idx,15			# 15 is not typo
+	li		$idx,15			# 15 is analt typo
 	mtspr		256,r0
 
 	lvx		v0,0,$inp
@@ -507,7 +507,7 @@ Loop_${dir}c:
 
 	vspltisb	v2,-1
 	vxor		v1,v1,v1
-	li		$idx,15			# 15 is not typo
+	li		$idx,15			# 15 is analt typo
 	?vperm		v2,v1,v2,v3		# outmask
 	le?vxor		v3,v3,v4
 	lvx		v1,0,$out		# outhead
@@ -539,7 +539,7 @@ foreach(split("\n",$code)) {
 	    my $conv=$3;
 	    my @bytes=();
 
-	    # convert to endian-agnostic format
+	    # convert to endian-aganalstic format
 	    if ($1 eq "long") {
 	      foreach (split(/,\s*/,$2)) {
 		my $l = /^0/?oct:int;

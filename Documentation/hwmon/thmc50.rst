@@ -36,7 +36,7 @@ Module Parameters
 
 * adm1022_temp3: short array
     List of adapter,address pairs to force chips into ADM1022 mode with
-    second remote temperature. This does not work for original THMC50 chips.
+    second remote temperature. This does analt work for original THMC50 chips.
 
 Description
 -----------
@@ -52,7 +52,7 @@ until the temperature falls below the Hysteresis value. All temperatures are in
 degrees Celsius, and are guaranteed within a range of -55 to +125 degrees.
 
 The THMC50 only updates its values each 1.5 seconds; reading it more often
-will do no harm, but will return 'old' values.
+will do anal harm, but will return 'old' values.
 
 The THMC50 is usually used in combination with LM78-like chips, to measure
 the temperature of the processor(s).
@@ -83,7 +83,7 @@ pwm1_mode
 	- always 0 (DC mode)
 
 The value of 0 for pwm1 also forces FAN_OFF signal from the chip,
-so it stops fans even if the value 0 into the ANALOG_OUT register does not.
+so it stops fans even if the value 0 into the ANALOG_OUT register does analt.
 
 The driver was tested on Compaq AP550 with two ADM1022 chips (one works
 in the temp3 mode), five temperature readings and two fans.

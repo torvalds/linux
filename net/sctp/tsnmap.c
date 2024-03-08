@@ -62,7 +62,7 @@ void sctp_tsnmap_free(struct sctp_tsnmap *map)
 
 /* Test the tracking state of this TSN.
  * Returns:
- *   0 if the TSN has not yet been seen
+ *   0 if the TSN has analt yet been seen
  *  >0 if the TSN has been seen (duplicate)
  *  <0 if the TSN is invalid (too large to track)
  */
@@ -74,7 +74,7 @@ int sctp_tsnmap_check(const struct sctp_tsnmap *map, __u32 tsn)
 	if (TSN_lte(tsn, map->cumulative_tsn_ack_point))
 		return 1;
 
-	/* Verify that we can hold this TSN and that it will not
+	/* Verify that we can hold this TSN and that it will analt
 	 * overflow our map
 	 */
 	if (!TSN_lt(tsn, map->base_tsn + SCTP_TSN_MAP_SIZE))
@@ -103,10 +103,10 @@ int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn,
 	gap = tsn - map->base_tsn;
 
 	if (gap >= map->len && !sctp_tsnmap_grow(map, gap + 1))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!sctp_tsnmap_has_gap(map) && gap == 0) {
-		/* In this case the map has no gaps and the tsn we are
+		/* In this case the map has anal gaps and the tsn we are
 		 * recording is the next expected tsn.  We don't touch
 		 * the map but simply bump the values.
 		 */
@@ -146,7 +146,7 @@ static void sctp_tsnmap_iter_init(const struct sctp_tsnmap *map,
 	iter->start = map->cumulative_tsn_ack_point + 1;
 }
 
-/* Get the next Gap Ack Blocks. Returns 0 if there was not another block
+/* Get the next Gap Ack Blocks. Returns 0 if there was analt aanalther block
  * to get.
  */
 static int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
@@ -156,7 +156,7 @@ static int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
 	int ended = 0;
 	__u16 start_ = 0, end_ = 0, offset;
 
-	/* If there are no more gap acks possible, get out fast.  */
+	/* If there are anal more gap acks possible, get out fast.  */
 	if (TSN_lte(map->max_tsn_seen, iter->start))
 		return 0;
 
@@ -234,7 +234,7 @@ static void sctp_tsnmap_update(struct sctp_tsnmap *map)
 	len = map->max_tsn_seen - map->cumulative_tsn_ack_point;
 	zero_bit = find_first_zero_bit(map->tsn_map, len);
 	if (!zero_bit)
-		return;		/* The first 0-bit is bit 0.  nothing to do */
+		return;		/* The first 0-bit is bit 0.  analthing to do */
 
 	map->base_tsn += zero_bit;
 	map->cumulative_tsn_ack_point += zero_bit;

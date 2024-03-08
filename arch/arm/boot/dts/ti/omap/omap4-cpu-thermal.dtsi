@@ -35,7 +35,7 @@ cpu_thermal: cpu_thermal {
 		map0 {
 			trip = <&cpu_alert0>;
 			cooling-device =
-				<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				<&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 		};
 	};
 };

@@ -11,9 +11,9 @@ Required properties:
 
 Optional properties:
 - clock-latency: Specify the possible maximum transition latency for clock, in
-  unit of nanoseconds.
+  unit of naanalseconds.
 
-Both required and optional properties listed above must be defined under node
+Both required and optional properties listed above must be defined under analde
 /cpus/cpu@0.
 
 Examples:

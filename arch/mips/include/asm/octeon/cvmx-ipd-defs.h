@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -46,7 +46,7 @@
 #define CVMX_IPD_INT_SUM (CVMX_ADD_IO_SEG(0x00014F0000000168ull))
 #define CVMX_IPD_NEXT_PKT_PTR (CVMX_ADD_IO_SEG(0x00014F00000007A0ull))
 #define CVMX_IPD_NEXT_WQE_PTR (CVMX_ADD_IO_SEG(0x00014F00000007A8ull))
-#define CVMX_IPD_NOT_1ST_MBUFF_SKIP (CVMX_ADD_IO_SEG(0x00014F0000000008ull))
+#define CVMX_IPD_ANALT_1ST_MBUFF_SKIP (CVMX_ADD_IO_SEG(0x00014F0000000008ull))
 #define CVMX_IPD_ON_BP_DROP_PKTX(block_id) (CVMX_ADD_IO_SEG(0x00014F0000004100ull))
 #define CVMX_IPD_PACKET_MBUFF_SIZE (CVMX_ADD_IO_SEG(0x00014F0000000010ull))
 #define CVMX_IPD_PKT_ERR (CVMX_ADD_IO_SEG(0x00014F00000003F0ull))
@@ -377,7 +377,7 @@ union cvmx_ipd_ctl_status {
 		uint64_t use_sop:1;
 		uint64_t rst_done:1;
 		uint64_t clken:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -405,7 +405,7 @@ union cvmx_ipd_ctl_status {
 		uint64_t ipd_full:1;
 		uint64_t pq_nabuf:1;
 		uint64_t pq_apkt:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t clken:1;
 		uint64_t rst_done:1;
 		uint64_t use_sop:1;
@@ -463,7 +463,7 @@ union cvmx_ipd_ctl_status {
 	struct cvmx_ipd_ctl_status_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_15_63:49;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -491,7 +491,7 @@ union cvmx_ipd_ctl_status {
 		uint64_t ipd_full:1;
 		uint64_t pq_nabuf:1;
 		uint64_t pq_apkt:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t reserved_15_63:49;
 #endif
 	} cn50xx;
@@ -528,7 +528,7 @@ union cvmx_ipd_ctl_status {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_16_63:48;
 		uint64_t clken:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t pq_apkt:1;
 		uint64_t pq_nabuf:1;
 		uint64_t ipd_full:1;
@@ -556,7 +556,7 @@ union cvmx_ipd_ctl_status {
 		uint64_t ipd_full:1;
 		uint64_t pq_nabuf:1;
 		uint64_t pq_apkt:1;
-		uint64_t no_wptr:1;
+		uint64_t anal_wptr:1;
 		uint64_t clken:1;
 		uint64_t reserved_16_63:48;
 #endif
@@ -927,9 +927,9 @@ union cvmx_ipd_next_wqe_ptr {
 	} s;
 };
 
-union cvmx_ipd_not_1st_mbuff_skip {
+union cvmx_ipd_analt_1st_mbuff_skip {
 	uint64_t u64;
-	struct cvmx_ipd_not_1st_mbuff_skip_s {
+	struct cvmx_ipd_analt_1st_mbuff_skip_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_6_63:58;
 		uint64_t skip_sz:6;

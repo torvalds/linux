@@ -63,12 +63,12 @@ properties:
   regulators:
     $ref: ../regulator/rohm,bd71815-regulator.yaml
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   gpio-reserved-ranges:
     description: |
       Usage of BD71828 GPIO pins can be changed via OTP. This property can be
-      used to mark the pins which should not be configured for GPIO. Please see
+      used to mark the pins which should analt be configured for GPIO. Please see
       the ../gpio/gpio.txt for more information.
 
   rohm,enable-hidden-gpo:

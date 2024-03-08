@@ -18,12 +18,12 @@
 
 /**
  * struct sensor_hub_data - Hold a instance data for a HID hub device
- * @mutex:		Mutex to serialize synchronous request.
+ * @mutex:		Mutex to serialize synchroanalus request.
  * @lock:		Spin lock to protect pending request structure.
  * @dyn_callback_list:	Holds callback function
  * @dyn_callback_lock:	spin lock to protect callback list
  * @hid_sensor_hub_client_devs:	Stores all MFD cells for a hub instance.
- * @hid_sensor_client_cnt: Number of MFD cells, (no of sensors attached).
+ * @hid_sensor_client_cnt: Number of MFD cells, (anal of sensors attached).
  * @ref_cnt:		Number of MFD clients have opened this device
  */
 struct sensor_hub_data {
@@ -61,7 +61,7 @@ static struct hid_report *sensor_hub_report(int id, struct hid_device *hdev,
 		if (report->id == id)
 			return report;
 	}
-	hid_warn(hdev, "No report with id 0x%x found\n", id);
+	hid_warn(hdev, "Anal report with id 0x%x found\n", id);
 
 	return NULL;
 }
@@ -142,7 +142,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
 	if (!callback) {
 		spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	callback->hsdev = hsdev;
 	callback->usage_callback = usage_callback;
@@ -587,7 +587,7 @@ static __u8 *sensor_hub_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	 * Checks if the report descriptor of Thinkpad Helix 2 has a logical
 	 * minimum for magnetic flux axis greater than the maximum.
 	 */
-	if (hdev->product == USB_DEVICE_ID_TEXAS_INSTRUMENTS_LENOVO_YOGA &&
+	if (hdev->product == USB_DEVICE_ID_TEXAS_INSTRUMENTS_LEANALVO_YOGA &&
 		*rsize == 2558 && rdesc[913] == 0x17 && rdesc[914] == 0x40 &&
 		rdesc[915] == 0x81 && rdesc[916] == 0x08 &&
 		rdesc[917] == 0x00 && rdesc[918] == 0x27 &&
@@ -616,8 +616,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 
 	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
 	if (!sd) {
-		hid_err(hdev, "cannot allocate Sensor data\n");
-		return -ENOMEM;
+		hid_err(hdev, "cananalt allocate Sensor data\n");
+		return -EANALMEM;
 	}
 
 	hid_set_drvdata(hdev, sd);
@@ -652,7 +652,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 						      GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_stop_hw;
 	}
 
@@ -665,8 +665,8 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			hsdev = devm_kzalloc(&hdev->dev, sizeof(*hsdev),
 					     GFP_KERNEL);
 			if (!hsdev) {
-				hid_err(hdev, "cannot allocate hid_sensor_hub_device\n");
-				ret = -ENOMEM;
+				hid_err(hdev, "cananalt allocate hid_sensor_hub_device\n");
+				ret = -EANALMEM;
 				goto err_stop_hw;
 			}
 			hsdev->hdev = hdev;
@@ -677,7 +677,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 							sizeof(struct mutex),
 							GFP_KERNEL);
 			if (!hsdev->mutex_ptr) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_stop_hw;
 			}
 			mutex_init(hsdev->mutex_ptr);
@@ -690,7 +690,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 					      collection->usage);
 			if (name == NULL) {
 				hid_err(hdev, "Failed MFD device name\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_stop_hw;
 			}
 			sd->hid_sensor_hub_client_devs[

@@ -12,7 +12,7 @@
  *
  * @bp:         pointer to boot_params
  *
- * Return: EFI_TYPE_{32,64} for valid EFI environments, EFI_TYPE_NONE otherwise.
+ * Return: EFI_TYPE_{32,64} for valid EFI environments, EFI_TYPE_ANALNE otherwise.
  */
 enum efi_type efi_get_type(struct boot_params *bp)
 {
@@ -28,19 +28,19 @@ enum efi_type efi_get_type(struct boot_params *bp)
 	} else if (!strncmp(sig, EFI32_LOADER_SIGNATURE, 4)) {
 		et = EFI_TYPE_32;
 	} else {
-		debug_putstr("No EFI environment detected.\n");
-		et = EFI_TYPE_NONE;
+		debug_putstr("Anal EFI environment detected.\n");
+		et = EFI_TYPE_ANALNE;
 	}
 
 #ifndef CONFIG_X86_64
 	/*
 	 * Existing callers like acpi.c treat this case as an indicator to
-	 * fall-through to non-EFI, rather than an error, so maintain that
+	 * fall-through to analn-EFI, rather than an error, so maintain that
 	 * functionality here as well.
 	 */
 	if (ei->efi_systab_hi || ei->efi_memmap_hi) {
-		debug_putstr("EFI system table is located above 4GB and cannot be accessed.\n");
-		et = EFI_TYPE_NONE;
+		debug_putstr("EFI system table is located above 4GB and cananalt be accessed.\n");
+		et = EFI_TYPE_ANALNE;
 	}
 #endif
 
@@ -69,7 +69,7 @@ unsigned long efi_get_system_table(struct boot_params *bp)
 	sys_tbl_pa = ei->efi_systab;
 #endif
 	if (!sys_tbl_pa) {
-		debug_putstr("EFI system table not found.");
+		debug_putstr("EFI system table analt found.");
 		return 0;
 	}
 
@@ -78,7 +78,7 @@ unsigned long efi_get_system_table(struct boot_params *bp)
 
 /*
  * EFI config table address changes to virtual address after boot, which may
- * not be accessible for the kexec'd kernel. To address this, kexec provides
+ * analt be accessible for the kexec'd kernel. To address this, kexec provides
  * the initial physical address via a struct setup_data entry, which is
  * checked for here, along with some sanity checks.
  */
@@ -102,8 +102,8 @@ static struct efi_setup_data *get_kexec_setup_data(struct boot_params *bp,
 	}
 
 	/*
-	 * Original ACPI code falls back to attempting normal EFI boot in these
-	 * cases, so maintain existing behavior by indicating non-kexec
+	 * Original ACPI code falls back to attempting analrmal EFI boot in these
+	 * cases, so maintain existing behavior by indicating analn-kexec
 	 * environment to the caller, but print them for debugging.
 	 */
 	if (esd && !esd->tables) {
@@ -212,7 +212,7 @@ unsigned long efi_find_vendor_table(struct boot_params *bp,
 	unsigned int i;
 
 	et = efi_get_type(bp);
-	if (et == EFI_TYPE_NONE)
+	if (et == EFI_TYPE_ANALNE)
 		return 0;
 
 	for (i = 0; i < cfg_tbl_len; i++) {

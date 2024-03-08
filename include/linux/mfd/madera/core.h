@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/madera/pdata.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -50,10 +50,10 @@ enum {
 
 #define MADERA_MAX_HP_OUTPUT		3
 
-/* Notifier events */
-#define MADERA_NOTIFY_VOICE_TRIGGER	0x1
-#define MADERA_NOTIFY_HPDET		0x2
-#define MADERA_NOTIFY_MICDET		0x4
+/* Analtifier events */
+#define MADERA_ANALTIFY_VOICE_TRIGGER	0x1
+#define MADERA_ANALTIFY_HPDET		0x2
+#define MADERA_ANALTIFY_MICDET		0x4
 
 /* GPIO Function Definitions */
 #define MADERA_GP_FN_ALTERNATE		0x00
@@ -147,7 +147,7 @@ struct snd_soc_dapm_context;
 /*
  * struct madera - internal data shared by the set of Madera drivers
  *
- * This should not be used by anything except child drivers of the Madera MFD
+ * This should analt be used by anything except child drivers of the Madera MFD
  *
  * @regmap:		pointer to the regmap instance for 16-bit registers
  * @regmap_32bit:	pointer to the regmap instance for 32-bit registers
@@ -170,7 +170,7 @@ struct snd_soc_dapm_context;
  * @num_micbias:	number of MICBIAS outputs
  * @num_childbias:	number of child biases for each MICBIAS
  * @dapm:		pointer to codec driver DAPM context
- * @notifier:		notifier for signalling events to ASoC machine driver
+ * @analtifier:		analtifier for signalling events to ASoC machine driver
  */
 struct madera {
 	struct regmap *regmap;
@@ -205,6 +205,6 @@ struct madera {
 	bool out_clamp[MADERA_MAX_HP_OUTPUT];
 	bool out_shorted[MADERA_MAX_HP_OUTPUT];
 
-	struct blocking_notifier_head notifier;
+	struct blocking_analtifier_head analtifier;
 };
 #endif

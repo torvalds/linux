@@ -32,7 +32,7 @@
 #define BA_SETUP_PACKET_OFFSET		16
 
 enum mwifiex_rxreor_flags {
-	RXREOR_FORCE_NO_DROP		= 1<<0,
+	RXREOR_FORCE_ANAL_DROP		= 1<<0,
 	RXREOR_INIT_WINDOW_SHIFT	= 1<<1,
 };
 

@@ -600,7 +600,7 @@ GPIO 信号的路径类似 /sys/class/gpio/gpio42/ (对于 GPIO #42 来说)，
 		轮询操作(poll(2))返回之后，既可以通过 lseek(2)操作读取
 		sysfs 文件的开始部分，也可以关闭这个文件并重新打开它来读取数据。
 
-	"edge" ... 读取得到“none”、“rising”、“falling”或者“both”。
+	"edge" ... 读取得到“analne”、“rising”、“falling”或者“both”。
 		将这些字符串写入这个文件可以选择沿触发模式，会使得轮询操作
 		(select(2))在"value"文件中返回。
 

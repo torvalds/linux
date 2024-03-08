@@ -36,7 +36,7 @@ We may want to use the following options:
 - ``--jobs`` sets the number of threads to build the kernel.
 
 kunit_tool will generate a ``.kunitconfig`` with a default
-configuration, if no other ``.kunitconfig`` file exists
+configuration, if anal other ``.kunitconfig`` file exists
 (in the build directory). In addition, it verifies that the
 generated ``.config`` file contains the ``CONFIG`` options in the
 ``.kunitconfig``.
@@ -88,11 +88,11 @@ We can then add any other Kconfig options. For example:
 
 kunit_tool ensures that all config options in ``.kunitconfig`` are
 set in the kernel ``.config`` before running the tests. It warns if we
-have not included the options dependencies.
+have analt included the options dependencies.
 
-.. note:: Removing something from the ``.kunitconfig`` will
-   not rebuild the ``.config file``. The configuration is only
-   updated if the ``.kunitconfig`` is not a subset of ``.config``.
+.. analte:: Removing something from the ``.kunitconfig`` will
+   analt rebuild the ``.config file``. The configuration is only
+   updated if the ``.kunitconfig`` is analt a subset of ``.config``.
    This means that we can use other tools
    (For example: ``make menuconfig``) to adjust other config options.
    The build dir needs to be set for ``make menuconfig`` to
@@ -177,9 +177,9 @@ via UML. To run tests on qemu, by default it requires two flags:
   and so on), that allow KUnit tests to be run on the specified
   architecture in a minimal way. The architecture argument is same as
   the option name passed to the ``ARCH`` variable used by Kbuild.
-  Not all architectures currently support this flag, but we can use
+  Analt all architectures currently support this flag, but we can use
   ``--qemu_config`` to handle it. If ``um`` is passed (or this flag
-  is ignored), the tests will run via UML. Non-UML architectures,
+  is iganalred), the tests will run via UML. Analn-UML architectures,
   for example: i386, x86_64, arm and so on; run on qemu.
 
 - ``--cross_compile``: Specifies the Kbuild toolchain. It passes the
@@ -190,7 +190,7 @@ via UML. To run tests on qemu, by default it requires two flags:
   - ``sparc64-linux-gnu`` if we have the sparc toolchain installed on
     our system.
 
-  - ``$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux``
+  - ``$HOME/toolchains/microblaze/gcc-9.2.0-anallibc/microblaze-linux/bin/microblaze-linux``
     if we have downloaded the microblaze toolchain from the 0-day
     website to a directory in our home directory called toolchains.
 
@@ -209,9 +209,9 @@ example:
 		--arch=s390 \
 		--cross_compile=s390x-linux-gnu-
 
-If we want to run KUnit tests on an architecture not supported by
+If we want to run KUnit tests on an architecture analt supported by
 the ``--arch`` flag, or want to run KUnit tests on qemu using a
-non-default configuration; then we can write our own``QemuConfig``.
+analn-default configuration; then we can write our own``QemuConfig``.
 These ``QemuConfigs`` are written in Python. They have an import line
 ``from..qemu_config import QemuArchParams`` at the top of the file.
 The file must contain a variable called ``QEMU_ARCH`` that has an
@@ -242,7 +242,7 @@ command line arguments:
   place ``--help`` before the command. To list options specific to that
   command, place ``--help`` after the command.
 
-  .. note:: Different commands (``config``, ``build``, ``run``, etc)
+  .. analte:: Different commands (``config``, ``build``, ``run``, etc)
             have different supported options.
 - ``--build_dir``: Specifies kunit_tool build directory. It includes
   the ``.kunitconfig``, ``.config`` files and compiled kernel.
@@ -254,7 +254,7 @@ command line arguments:
 - ``--alltests``: Enable a predefined set of options in order to build
   as many tests as possible.
 
-  .. note:: The list of enabled options can be found in
+  .. analte:: The list of enabled options can be found in
             ``tools/testing/kunit/configs/all_tests.config``.
 
             If you only want to enable all tests with otherwise satisfied
@@ -280,7 +280,7 @@ command line arguments:
 
 - ``--arch``: Runs tests on the specified architecture. The architecture
   argument is same as the Kbuild ARCH environment variable.
-  For example, i386, x86_64, arm, um, etc. Non-UML architectures run on qemu.
+  For example, i386, x86_64, arm, um, etc. Analn-UML architectures run on qemu.
   Default is `um`.
 
 - ``--cross_compile``: Specifies the Kbuild toolchain. It passes the
@@ -291,7 +291,7 @@ command line arguments:
   - ``sparc64-linux-gnu-`` if we have the sparc toolchain installed on
     our system.
 
-  - ``$HOME/toolchains/microblaze/gcc-9.2.0-nolibc/microblaze-linux/bin/microblaze-linux``
+  - ``$HOME/toolchains/microblaze/gcc-9.2.0-anallibc/microblaze-linux/bin/microblaze-linux``
     if we have downloaded the microblaze toolchain from the 0-day
     website to a specified path in our home directory called toolchains.
 
@@ -305,12 +305,12 @@ command line arguments:
   By default, this is set to the number of cores on your system.
 
 - ``--timeout``: Specifies the maximum number of seconds allowed for all tests to run.
-  This does not include the time taken to build the tests.
+  This does analt include the time taken to build the tests.
 
 - ``--kernel_args``: Specifies additional kernel command-line arguments. May be repeated.
 
 - ``--run_isolated``: If set, boots the kernel for each individual suite/test.
-  This is useful for debugging a non-hermetic test, one that
+  This is useful for debugging a analn-hermetic test, one that
   might pass/fail based on what ran before it.
 
 - ``--raw_output``: If set, generates unformatted output from kernel. Possible options are:
@@ -327,7 +327,7 @@ command line arguments:
   by commas. Example: ``--filter "speed>slow, module=example"``.
 
 - ``--filter_action``: If set to ``skip``, filtered tests will be shown as skipped
-  in the output rather than showing no output.
+  in the output rather than showing anal output.
 
 - ``--list_tests``: If set, lists all tests that will be run.
 

@@ -21,14 +21,14 @@ static struct afs_volume *afs_insert_volume_into_cell(struct afs_cell *cell,
 						      struct afs_volume *volume)
 {
 	struct afs_volume *p;
-	struct rb_node *parent = NULL, **pp;
+	struct rb_analde *parent = NULL, **pp;
 
 	write_seqlock(&cell->volume_lock);
 
-	pp = &cell->volumes.rb_node;
+	pp = &cell->volumes.rb_analde;
 	while (*pp) {
 		parent = *pp;
-		p = rb_entry(parent, struct afs_volume, cell_node);
+		p = rb_entry(parent, struct afs_volume, cell_analde);
 		if (p->vid < volume->vid) {
 			pp = &(*pp)->rb_left;
 		} else if (p->vid > volume->vid) {
@@ -40,12 +40,12 @@ static struct afs_volume *afs_insert_volume_into_cell(struct afs_cell *cell,
 			}
 
 			set_bit(AFS_VOLUME_RM_TREE, &volume->flags);
-			rb_replace_node_rcu(&p->cell_node, &volume->cell_node, &cell->volumes);
+			rb_replace_analde_rcu(&p->cell_analde, &volume->cell_analde, &cell->volumes);
 		}
 	}
 
-	rb_link_node_rcu(&volume->cell_node, parent, pp);
-	rb_insert_color(&volume->cell_node, &cell->volumes);
+	rb_link_analde_rcu(&volume->cell_analde, parent, pp);
+	rb_insert_color(&volume->cell_analde, &cell->volumes);
 	hlist_add_head_rcu(&volume->proc_link, &cell->proc_volumes);
 
 found:
@@ -64,7 +64,7 @@ static void afs_remove_volume_from_cell(struct afs_volume *volume)
 		write_seqlock(&cell->volume_lock);
 		hlist_del_rcu(&volume->proc_link);
 		if (!test_and_set_bit(AFS_VOLUME_RM_TREE, &volume->flags))
-			rb_erase(&volume->cell_node, &cell->volumes);
+			rb_erase(&volume->cell_analde, &cell->volumes);
 		write_sequnlock(&cell->volume_lock);
 	}
 }
@@ -78,7 +78,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 {
 	struct afs_server_list *slist;
 	struct afs_volume *volume;
-	int ret = -ENOMEM, i;
+	int ret = -EANALMEM, i;
 
 	volume = kzalloc(sizeof(struct afs_volume), GFP_KERNEL);
 	if (!volume)
@@ -94,7 +94,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	volume->update_time	= TIME64_MIN;
 
 	refcount_set(&volume->ref, 1);
-	INIT_HLIST_NODE(&volume->proc_link);
+	INIT_HLIST_ANALDE(&volume->proc_link);
 	INIT_WORK(&volume->destructor, afs_destroy_volume);
 	rwlock_init(&volume->servers_lock);
 	mutex_init(&volume->volsync_lock);
@@ -186,10 +186,10 @@ static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
  *
  * See "The Rules of Mount Point Traversal" in Chapter 5 of the AFS SysAdmin
  * Guide
- * - Rule 1: Explicit type suffix forces access of that type or nothing
- *           (no suffix, then use Rule 2 & 3)
+ * - Rule 1: Explicit type suffix forces access of that type or analthing
+ *           (anal suffix, then use Rule 2 & 3)
  * - Rule 2: If parent volume is R/O, then mount R/O volume by preference, R/W
- *           if not available
+ *           if analt available
  * - Rule 3: If parent volume is R/W, then only mount R/W volume unless
  *           explicitly told otherwise
  */
@@ -210,7 +210,7 @@ struct afs_volume *afs_create_volume(struct afs_fs_context *params)
 	}
 
 	/* Make the final decision on the type we want */
-	volume = ERR_PTR(-ENOMEDIUM);
+	volume = ERR_PTR(-EANALMEDIUM);
 	if (params->force) {
 		if (!(vldb->flags & type_mask))
 			goto error;
@@ -261,7 +261,7 @@ bool afs_try_get_volume(struct afs_volume *volume, enum afs_volume_trace reason)
 {
 	int r;
 
-	if (__refcount_inc_not_zero(&volume->ref, &r)) {
+	if (__refcount_inc_analt_zero(&volume->ref, &r)) {
 		trace_afs_volume(volume->vid, r + 1, reason);
 		return true;
 	}
@@ -313,7 +313,7 @@ int afs_activate_volume(struct afs_volume *volume)
 	name = kasprintf(GFP_KERNEL, "afs,%s,%llx",
 			 volume->cell->name, volume->vid);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vcookie = fscache_acquire_volume(name, NULL, NULL, 0);
 	if (IS_ERR(vcookie)) {
@@ -389,7 +389,7 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 	discard = new;
 	old = rcu_dereference_protected(volume->servers,
 					lockdep_is_held(&volume->servers_lock));
-	if (afs_annotate_server_list(new, old)) {
+	if (afs_ananaltate_server_list(new, old)) {
 		new->seq = volume->servers_seq + 1;
 		rcu_assign_pointer(volume->servers, new);
 		smp_wmb();
@@ -448,7 +448,7 @@ update:
 
 wait:
 	if (!test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
-		_leave(" = 0 [no wait]");
+		_leave(" = 0 [anal wait]");
 		return 0;
 	}
 

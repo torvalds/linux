@@ -3,7 +3,7 @@
  *	linux/arch/alpha/kernel/console.c
  *
  * Architecture-specific specific support for VGA device on 
- * non-0 I/O hose
+ * analn-0 I/O hose
  */
 
 #include <linux/pci.h>

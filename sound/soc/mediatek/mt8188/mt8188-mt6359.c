@@ -306,10 +306,10 @@ static const struct snd_soc_dapm_widget mt8188_mt6359_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_SINK("HDMI"),
 	SND_SOC_DAPM_SINK("DP"),
-	SND_SOC_DAPM_MIXER(SOF_DMA_DL2, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_DL3, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_UL4, SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER(SOF_DMA_UL5, SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_DL2, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_DL3, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_UL4, SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER(SOF_DMA_UL5, SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	/* dynamic pinctrl */
 	SND_SOC_DAPM_PINCTRL("ETDM_SPK_PIN", "aud_etdm_spk_on", "aud_etdm_spk_off"),
@@ -384,7 +384,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	if (IS_ERR(afe_priv->topckgen)) {
-		dev_info(afe->dev, "%s() Cannot find topckgen controller\n",
+		dev_info(afe->dev, "%s() Cananalt find topckgen controller\n",
 			 __func__);
 		return 0;
 	}
@@ -399,7 +399,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	if (pin_w)
 		dapm_pinctrl_event(pin_w, NULL, SND_SOC_DAPM_PRE_PMU);
 	else
-		dev_dbg(afe->dev, "%s(), no pinmux widget, please check if default on\n", __func__);
+		dev_dbg(afe->dev, "%s(), anal pinmux widget, please check if default on\n", __func__);
 
 	pm_runtime_get_sync(afe->dev);
 	mt6359_mtkaif_calibration_enable(cmpnt_codec);
@@ -884,7 +884,7 @@ static int mt8188_sof_be_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (cmpnt_afe && !pm_runtime_active(cmpnt_afe->dev)) {
-		dev_err(rtd->dev, "afe pm runtime is not active!!\n");
+		dev_err(rtd->dev, "afe pm runtime is analt active!!\n");
 		return -EINVAL;
 	}
 
@@ -1115,7 +1115,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	/* BE */
 	[DAI_LINK_DL_SRC_BE] = {
 		.name = "DL_SRC_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(dl_src),
 	},
@@ -1123,23 +1123,23 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 		.name = "DPTX_BE",
 		.ops = &mt8188_dptx_ops,
 		.be_hw_params_fixup = mt8188_dptx_hw_params_fixup,
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(dptx),
 	},
 	[DAI_LINK_ETDM1_IN_BE] = {
 		.name = "ETDM1_IN_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBP_CFP,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(etdm1_in),
 	},
 	[DAI_LINK_ETDM2_IN_BE] = {
 		.name = "ETDM2_IN_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBP_CFP,
@@ -1148,7 +1148,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 	[DAI_LINK_ETDM1_OUT_BE] = {
 		.name = "ETDM1_OUT_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
@@ -1157,7 +1157,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 	[DAI_LINK_ETDM2_OUT_BE] = {
 		.name = "ETDM2_OUT_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
@@ -1166,7 +1166,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 	[DAI_LINK_ETDM3_OUT_BE] = {
 		.name = "ETDM3_OUT_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
@@ -1175,7 +1175,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 	[DAI_LINK_PCM1_BE] = {
 		.name = "PCM1_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBC_CFC,
@@ -1185,7 +1185,7 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	},
 	[DAI_LINK_UL_SRC_BE] = {
 		.name = "UL_SRC_BE",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(ul_src),
 	},
@@ -1193,28 +1193,28 @@ static struct snd_soc_dai_link mt8188_mt6359_dai_links[] = {
 	/* SOF BE */
 	[DAI_LINK_SOF_DL2_BE] = {
 		.name = "AFE_SOF_DL2",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.ops = &mt8188_sof_be_ops,
 		SND_SOC_DAILINK_REG(AFE_SOF_DL2),
 	},
 	[DAI_LINK_SOF_DL3_BE] = {
 		.name = "AFE_SOF_DL3",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_playback = 1,
 		.ops = &mt8188_sof_be_ops,
 		SND_SOC_DAILINK_REG(AFE_SOF_DL3),
 	},
 	[DAI_LINK_SOF_UL4_BE] = {
 		.name = "AFE_SOF_UL4",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
 		.ops = &mt8188_sof_be_ops,
 		SND_SOC_DAILINK_REG(AFE_SOF_UL4),
 	},
 	[DAI_LINK_SOF_UL5_BE] = {
 		.name = "AFE_SOF_UL5",
-		.no_pcm = 1,
+		.anal_pcm = 1,
 		.dpcm_capture = 1,
 		.ops = &mt8188_sof_be_ops,
 		SND_SOC_DAILINK_REG(AFE_SOF_UL5),
@@ -1242,7 +1242,7 @@ static void mt8188_fixup_controls(struct snd_soc_card *card)
 		if (kctl)
 			snd_ctl_remove(card->snd_card, kctl);
 		else
-			dev_warn(card->dev, "Cannot find ctl : Headphone Switch\n");
+			dev_warn(card->dev, "Cananalt find ctl : Headphone Switch\n");
 	}
 }
 
@@ -1262,8 +1262,8 @@ static struct snd_soc_card mt8188_mt6359_soc_card = {
 static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8188_mt6359_soc_card;
-	struct device_node *platform_node;
-	struct device_node *adsp_node;
+	struct device_analde *platform_analde;
+	struct device_analde *adsp_analde;
 	struct mtk_soc_card_data *soc_card_data;
 	struct mt8188_mt6359_priv *priv;
 	struct mt8188_card_data *card_data;
@@ -1287,7 +1287,7 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 	if (!card->name)
 		card->name = card_data->name;
 
-	if (of_property_read_bool(pdev->dev.of_node, "audio-routing")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 		if (ret)
 			return ret;
@@ -1295,22 +1295,22 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_card_data = devm_kzalloc(&pdev->dev, sizeof(*card_data), GFP_KERNEL);
 	if (!soc_card_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	soc_card_data->mach_priv = priv;
 
-	adsp_node = of_parse_phandle(pdev->dev.of_node, "mediatek,adsp", 0);
-	if (adsp_node) {
+	adsp_analde = of_parse_phandle(pdev->dev.of_analde, "mediatek,adsp", 0);
+	if (adsp_analde) {
 		struct mtk_sof_priv *sof_priv;
 
 		sof_priv = devm_kzalloc(&pdev->dev, sizeof(*sof_priv), GFP_KERNEL);
 		if (!sof_priv) {
-			ret = -ENOMEM;
-			goto err_adsp_node;
+			ret = -EANALMEM;
+			goto err_adsp_analde;
 		}
 		sof_priv->conn_streams = g_sof_conn_streams;
 		sof_priv->num_streams = ARRAY_SIZE(g_sof_conn_streams);
@@ -1324,26 +1324,26 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 		card->name = card->topology_shortname;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "mediatek,dai-link")) {
-		ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_node,
+	if (of_property_read_bool(pdev->dev.of_analde, "mediatek,dai-link")) {
+		ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_analde,
 					       "mediatek,dai-link",
 					       mt8188_mt6359_dai_links,
 					       ARRAY_SIZE(mt8188_mt6359_dai_links));
 		if (ret) {
 			dev_err_probe(&pdev->dev, ret, "Parse dai-link fail\n");
-			goto err_adsp_node;
+			goto err_adsp_analde;
 		}
 	} else {
-		if (!adsp_node)
+		if (!adsp_analde)
 			card->num_links = DAI_LINK_REGULAR_NUM;
 	}
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_analde = of_parse_phandle(pdev->dev.of_analde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_analde) {
 		ret = dev_err_probe(&pdev->dev, -EINVAL,
 				    "Property 'platform' missing or invalid\n");
-		goto err_adsp_node;
+		goto err_adsp_analde;
 
 	}
 
@@ -1353,10 +1353,10 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 
 	for_each_card_prelinks(card, i, dai_link) {
 		if (!dai_link->platforms->name) {
-			if (!strncmp(dai_link->name, "AFE_SOF", strlen("AFE_SOF")) && adsp_node)
-				dai_link->platforms->of_node = adsp_node;
+			if (!strncmp(dai_link->name, "AFE_SOF", strlen("AFE_SOF")) && adsp_analde)
+				dai_link->platforms->of_analde = adsp_analde;
 			else
-				dai_link->platforms->of_node = platform_node;
+				dai_link->platforms->of_analde = platform_analde;
 		}
 
 		if (strcmp(dai_link->name, "DPTX_BE") == 0) {
@@ -1428,11 +1428,11 @@ static int mt8188_mt6359_dev_probe(struct platform_device *pdev)
 		dev_err_probe(&pdev->dev, ret, "%s snd_soc_register_card fail\n",
 			      __func__);
 err:
-	of_node_put(platform_node);
+	of_analde_put(platform_analde);
 	clean_card_reference(card);
 
-err_adsp_node:
-	of_node_put(adsp_node);
+err_adsp_analde:
+	of_analde_put(adsp_analde);
 
 	return ret;
 }

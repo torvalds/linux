@@ -43,8 +43,8 @@
 #ifndef __KSELFTEST_H
 #define __KSELFTEST_H
 
-#ifndef NOLIBC
-#include <errno.h>
+#ifndef ANALLIBC
+#include <erranal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -61,7 +61,7 @@
  * Clang/LLVM cpuid.h provides  __cpuid_count() since v3.4.0.
  *
  * Provide local define for tests needing __cpuid_count() because
- * selftests need to work in older environments that do not yet
+ * selftests need to work in older environments that do analt yet
  * have __cpuid_count().
  */
 #ifndef __cpuid_count
@@ -117,7 +117,7 @@ static inline int ksft_get_error_cnt(void) { return ksft_cnt.ksft_error; }
 static inline void ksft_print_header(void)
 {
 	/*
-	 * Force line buffering; If stdout is not connected to a terminal, it
+	 * Force line buffering; If stdout is analt connected to a terminal, it
 	 * will otherwise default to fully buffered, which can cause output
 	 * duplication if there is content in the buffer when fork()ing. If
 	 * there is a crash, line buffering also means the most recent output
@@ -148,53 +148,53 @@ static inline void ksft_print_cnts(void)
 
 static inline __printf(1, 2) void ksft_print_msg(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	va_start(args, msg);
 	printf("# ");
-	errno = saved_errno;
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
 
 static inline void ksft_perror(const char *msg)
 {
-#ifndef NOLIBC
-	ksft_print_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
+#ifndef ANALLIBC
+	ksft_print_msg("%s: %s (%d)\n", msg, strerror(erranal), erranal);
 #else
 	/*
-	 * nolibc doesn't provide strerror() and it seems
-	 * inappropriate to add one, just print the errno.
+	 * anallibc doesn't provide strerror() and it seems
+	 * inappropriate to add one, just print the erranal.
 	 */
-	ksft_print_msg("%s: %d)\n", msg, errno);
+	ksft_print_msg("%s: %d)\n", msg, erranal);
 #endif
 }
 
 static inline __printf(1, 2) void ksft_test_result_pass(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	ksft_cnt.ksft_pass++;
 
 	va_start(args, msg);
 	printf("ok %u ", ksft_test_num());
-	errno = saved_errno;
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
 
 static inline __printf(1, 2) void ksft_test_result_fail(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	ksft_cnt.ksft_fail++;
 
 	va_start(args, msg);
-	printf("not ok %u ", ksft_test_num());
-	errno = saved_errno;
+	printf("analt ok %u ", ksft_test_num());
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
@@ -213,28 +213,28 @@ static inline __printf(1, 2) void ksft_test_result_fail(const char *msg, ...)
 
 static inline __printf(1, 2) void ksft_test_result_xfail(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	ksft_cnt.ksft_xfail++;
 
 	va_start(args, msg);
 	printf("ok %u # XFAIL ", ksft_test_num());
-	errno = saved_errno;
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
 
 static inline __printf(1, 2) void ksft_test_result_skip(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	ksft_cnt.ksft_xskip++;
 
 	va_start(args, msg);
 	printf("ok %u # SKIP ", ksft_test_num());
-	errno = saved_errno;
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
@@ -242,14 +242,14 @@ static inline __printf(1, 2) void ksft_test_result_skip(const char *msg, ...)
 /* TODO: how does "error" differ from "fail" or "skip"? */
 static inline __printf(1, 2) void ksft_test_result_error(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	ksft_cnt.ksft_error++;
 
 	va_start(args, msg);
-	printf("not ok %u # error ", ksft_test_num());
-	errno = saved_errno;
+	printf("analt ok %u # error ", ksft_test_num());
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 }
@@ -289,12 +289,12 @@ static inline int ksft_exit_fail(void)
 
 static inline __printf(1, 2) int ksft_exit_fail_msg(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	va_start(args, msg);
 	printf("Bail out! ");
-	errno = saved_errno;
+	erranal = saved_erranal;
 	vprintf(msg, args);
 	va_end(args);
 
@@ -316,7 +316,7 @@ static inline int ksft_exit_xpass(void)
 
 static inline __printf(1, 2) int ksft_exit_skip(const char *msg, ...)
 {
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 	va_list args;
 
 	va_start(args, msg);
@@ -334,7 +334,7 @@ static inline __printf(1, 2) int ksft_exit_skip(const char *msg, ...)
 		printf("1..0 # SKIP ");
 	}
 	if (msg) {
-		errno = saved_errno;
+		erranal = saved_erranal;
 		vprintf(msg, args);
 		va_end(args);
 	}

@@ -39,7 +39,7 @@ void test_btf_split() {
 	ASSERT_EQ(btf__pointer_size(btf2), 8, "inherit_ptr_sz");
 
 	str_off = btf__find_str(btf2, "int");
-	ASSERT_NEQ(str_off, -ENOENT, "str_int_missing");
+	ASSERT_NEQ(str_off, -EANALENT, "str_int_missing");
 
 	t = btf__type_by_id(btf2, 1);
 	if (!ASSERT_OK_PTR(t, "int_type"))

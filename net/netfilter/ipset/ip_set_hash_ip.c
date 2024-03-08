@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -41,7 +41,7 @@ MODULE_ALIAS("ip_set_hash:ip");
 
 /* Member elements */
 struct hash_ip4_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses cananalt be stored */
 	__be32 ip;
 };
 
@@ -98,7 +98,7 @@ hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	struct hash_ip4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -107,8 +107,8 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	u32 ip = 0, ip_to = 0, hosts, i = 0;
 	int ret = 0;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
@@ -232,7 +232,7 @@ hash_ip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineanal, u32 flags, bool retried)
 {
 	const struct hash_ip6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -240,8 +240,8 @@ hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	int ret;
 
-	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+	if (tb[IPSET_ATTR_LINEANAL])
+		*lineanal = nla_get_u32(tb[IPSET_ATTR_LINEANAL]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
@@ -297,7 +297,7 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
-		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_LINEANAL]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,

@@ -29,7 +29,7 @@
  * @param[in]	env		Environment, provides functions to access the
  *				environment in which the CSS code runs. This is
  *				used for host side memory access and message
- *				printing. May not be NULL.
+ *				printing. May analt be NULL.
  * @param[in]	fw		Firmware package containing the firmware for all
  *				predefined ISP binaries.
  *				if fw is NULL the firmware must be loaded before
@@ -53,13 +53,13 @@ int ia_css_init(struct device           *dev,
 			    enum ia_css_irq_type    irq_type);
 
 /* @brief Un-initialize the CSS API.
- * @return	None
+ * @return	Analne
  *
  * This function deallocates all memory that has been allocated by the CSS API
  * Exception: if you explicitly loaded firmware through ia_css_load_firmware
  * you need to call ia_css_unload_firmware to deallocate the memory reserved
  * for the firmware.
- * After this function is called, no other CSS functions should be called
+ * After this function is called, anal other CSS functions should be called
  * with the exception of ia_css_init which will re-initialize the CSS code,
  * ia_css_unload_firmware to unload the firmware or ia_css_load_firmware
  * to load new firmware
@@ -75,7 +75,7 @@ ia_css_uninit(void);
  * @deprecated{This is a temporary function that allows drivers to migrate to
  * the use of the separate ISYS event queue. Once all drivers supports this, it
  * will be made the default and this function will be removed.
- * This function should only be called when the SP is not running, calling it
+ * This function should only be called when the SP is analt running, calling it
  * when the SP is running will result in an error value being returned. }
  */
 int

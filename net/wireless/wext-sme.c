@@ -46,7 +46,7 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (i = 0; i < 4; i++)
 			ck->params[i].key = ck->data[i];
 	}
@@ -118,7 +118,7 @@ int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
 		return -EINVAL;
 
 	if (wdev->valid_links)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wdev->links[0].client.current_bss)
 		chan = wdev->links[0].client.current_bss->pub.channel;
@@ -131,7 +131,7 @@ int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
 		return 0;
 	}
 
-	/* no channel if not joining */
+	/* anal channel if analt joining */
 	return -EINVAL;
 }
 
@@ -163,7 +163,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 		    memcmp(wdev->wext.connect.ssid, ssid, len) == 0)
 			return 0;
 
-		/* if SSID set now, we'll try to connect, avoid event */
+		/* if SSID set analw, we'll try to connect, avoid event */
 		if (len)
 			event = false;
 		err = cfg80211_disconnect(rdev, dev,
@@ -250,7 +250,7 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 		if (!bssid && !wdev->wext.connect.bssid)
 			return 0;
 
-		/* fixed already - and no change */
+		/* fixed already - and anal change */
 		if (wdev->wext.connect.bssid && bssid &&
 		    ether_addr_equal(bssid, wdev->wext.connect.bssid))
 			return 0;
@@ -283,7 +283,7 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 	ap_addr->sa_family = ARPHRD_ETHER;
 
 	if (wdev->valid_links)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (wdev->links[0].client.current_bss)
 		memcpy(ap_addr->sa_data,
@@ -306,14 +306,14 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	int ie_len = data->length, err;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!ie_len)
 		ie = NULL;
 
 	wiphy_lock(wdev->wiphy);
 
-	/* no change */
+	/* anal change */
 	err = 0;
 	if (wdev->wext.ie_len == ie_len &&
 	    memcmp(wdev->wext.ie, ie, ie_len) == 0)
@@ -322,7 +322,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	if (ie_len) {
 		ie = kmemdup(extra, ie_len, GFP_KERNEL);
 		if (!ie) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	} else
@@ -339,7 +339,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 			goto out;
 	}
 
-	/* userspace better not think we'll reconnect */
+	/* userspace better analt think we'll reconnect */
 	err = 0;
  out:
 	wiphy_unlock(wdev->wiphy);
@@ -356,7 +356,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 	int err;
 
 	if (!wdev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rdev = wiphy_to_rdev(wdev->wiphy);
 
@@ -373,7 +373,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 		err = cfg80211_disconnect(rdev, dev, mlme->reason_code, true);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 	wiphy_unlock(&rdev->wiphy);

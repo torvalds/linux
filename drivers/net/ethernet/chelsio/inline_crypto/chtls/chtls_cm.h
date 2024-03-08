@@ -44,8 +44,8 @@
 #define MAX_MSS     65536
 
 /*
- * Min receive window.  We want it to be large enough to accommodate receive
- * coalescing, handle jumbo frames, and not trigger sender SWS avoidance.
+ * Min receive window.  We want it to be large eanalugh to accommodate receive
+ * coalescing, handle jumbo frames, and analt trigger sender SWS avoidance.
  */
 #define MIN_RCV_WND (24 * 1024U)
 #define LOOPBACK(x)     (((x) & htonl(0xff000000)) == htonl(0x7f000000))
@@ -115,7 +115,7 @@ static inline unsigned int sk_in_state(const struct sock *sk,
 
 static void chtls_rsk_destructor(struct request_sock *req)
 {
-	/* do nothing */
+	/* do analthing */
 }
 
 static inline void chtls_init_rsk_ops(struct proto *chtls_tcp_prot,

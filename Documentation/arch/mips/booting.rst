@@ -5,7 +5,7 @@ BMIPS DeviceTree Booting
 
   Some bootloaders only support a single entry point, at the start of the
   kernel image.  Other bootloaders will jump to the ELF start address.
-  Both schemes are supported; CONFIG_BOOT_RAW=y and CONFIG_NO_EXCEPT_FILL=y,
+  Both schemes are supported; CONFIG_BOOT_RAW=y and CONFIG_ANAL_EXCEPT_FILL=y,
   so the first instruction immediately jumps to kernel_entry().
 
   Similar to the arch/arm case (b), a DT-aware bootloader is expected to
@@ -20,9 +20,9 @@ BMIPS DeviceTree Booting
          512MB of the physical address space (0x00000000 - 0x1fffffff),
          aligned on a 64 bit boundary.
 
-  Legacy bootloaders do not use this convention, and they do not pass in a
+  Legacy bootloaders do analt use this convention, and they do analt pass in a
   DT block.  In this case, Linux will look for a builtin DTB, selected via
   CONFIG_DT_*.
 
-  This convention is defined for 32-bit systems only, as there are not
+  This convention is defined for 32-bit systems only, as there are analt
   currently any 64-bit BMIPS implementations.

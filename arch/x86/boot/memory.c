@@ -29,12 +29,12 @@ static void detect_memory_e820(void)
 	ireg.di  = (size_t)&buf;
 
 	/*
-	 * Note: at least one BIOS is known which assumes that the
+	 * Analte: at least one BIOS is kanalwn which assumes that the
 	 * buffer pointed to by one e820 call is the same one as
 	 * the previous call, and only changes modified fields.  Therefore,
 	 * we use a temporary buffer and copy the results entry by entry.
 	 *
-	 * This routine deliberately does not try to account for
+	 * This routine deliberately does analt try to account for
 	 * ACPI 3+ extended attributes.  This is because there are
 	 * BIOSes in the field which report zero for the valid bit for
 	 * all ranges, and we don't currently make any use of the
@@ -53,7 +53,7 @@ static void detect_memory_e820(void)
 			break;
 
 		/* Some BIOSes stop returning SMAP in the middle of
-		   the search loop.  We don't know exactly how the BIOS
+		   the search loop.  We don't kanalw exactly how the BIOS
 		   screwed up the map at that point, we might have a
 		   partial map, the full map, or complete garbage, so
 		   just return failure. */
@@ -92,9 +92,9 @@ static void detect_memory_e801(void)
 		boot_params.alt_mem_k = (oreg.bx << 6) + oreg.ax;
 	} else {
 		/*
-		 * This ignores memory above 16MB if we have a memory
+		 * This iganalres memory above 16MB if we have a memory
 		 * hole there.  If someone actually finds a machine
-		 * with a memory hole at 16MB and no support for
+		 * with a memory hole at 16MB and anal support for
 		 * 0E820h they should probably generate a fake e820
 		 * map.
 		 */

@@ -83,7 +83,7 @@ static int canvas_alloc(struct amvdec_session *sess, u8 *canvas_id)
 
 	if (sess->canvas_num >= MAX_CANVAS) {
 		dev_err(sess->core->dev, "Reached max number of canvas\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = meson_canvas_alloc(sess->core->canvas, canvas_id);
@@ -114,19 +114,19 @@ static int set_canvas_yuv420m(struct amvdec_session *sess,
 
 	/* Y plane */
 	meson_canvas_config(core->canvas, canvas_id[0], buf_paddr[0],
-			    width, height, MESON_CANVAS_WRAP_NONE,
+			    width, height, MESON_CANVAS_WRAP_ANALNE,
 			    MESON_CANVAS_BLKMODE_LINEAR,
 			    MESON_CANVAS_ENDIAN_SWAP64);
 
 	/* U plane */
 	meson_canvas_config(core->canvas, canvas_id[1], buf_paddr[1],
-			    width / 2, height / 2, MESON_CANVAS_WRAP_NONE,
+			    width / 2, height / 2, MESON_CANVAS_WRAP_ANALNE,
 			    MESON_CANVAS_BLKMODE_LINEAR,
 			    MESON_CANVAS_ENDIAN_SWAP64);
 
 	/* V plane */
 	meson_canvas_config(core->canvas, canvas_id[2], buf_paddr[2],
-			    width / 2, height / 2, MESON_CANVAS_WRAP_NONE,
+			    width / 2, height / 2, MESON_CANVAS_WRAP_ANALNE,
 			    MESON_CANVAS_BLKMODE_LINEAR,
 			    MESON_CANVAS_ENDIAN_SWAP64);
 
@@ -158,13 +158,13 @@ static int set_canvas_nv12m(struct amvdec_session *sess,
 
 	/* Y plane */
 	meson_canvas_config(core->canvas, canvas_id[0], buf_paddr[0],
-			    width, height, MESON_CANVAS_WRAP_NONE,
+			    width, height, MESON_CANVAS_WRAP_ANALNE,
 			    MESON_CANVAS_BLKMODE_LINEAR,
 			    MESON_CANVAS_ENDIAN_SWAP64);
 
 	/* U/V plane */
 	meson_canvas_config(core->canvas, canvas_id[1], buf_paddr[1],
-			    width, height / 2, MESON_CANVAS_WRAP_NONE,
+			    width, height / 2, MESON_CANVAS_WRAP_ANALNE,
 			    MESON_CANVAS_BLKMODE_LINEAR,
 			    MESON_CANVAS_ENDIAN_SWAP64);
 
@@ -235,7 +235,7 @@ int amvdec_add_ts(struct amvdec_session *sess, u64 ts,
 
 	new_ts = kzalloc(sizeof(*new_ts), GFP_KERNEL);
 	if (!new_ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	new_ts->ts = ts;
 	new_ts->tc = tc;
@@ -432,10 +432,10 @@ void amvdec_set_par_from_dar(struct amvdec_session *sess,
 	u32 div;
 
 	sess->pixelaspect.numerator = sess->height * dar_num;
-	sess->pixelaspect.denominator = sess->width * dar_den;
-	div = gcd(sess->pixelaspect.numerator, sess->pixelaspect.denominator);
+	sess->pixelaspect.deanalminator = sess->width * dar_den;
+	div = gcd(sess->pixelaspect.numerator, sess->pixelaspect.deanalminator);
 	sess->pixelaspect.numerator /= div;
-	sess->pixelaspect.denominator /= div;
+	sess->pixelaspect.deanalminator /= div;
 }
 EXPORT_SYMBOL_GPL(amvdec_set_par_from_dar);
 
@@ -450,7 +450,7 @@ void amvdec_src_change(struct amvdec_session *sess, u32 width,
 
 	/*
 	 * Check if the capture queue is already configured well for our
-	 * usecase. If so, keep decoding with it and do not send the event
+	 * usecase. If so, keep decoding with it and do analt send the event
 	 */
 	if (sess->streamon_cap &&
 	    sess->width == width &&

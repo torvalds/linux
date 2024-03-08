@@ -71,7 +71,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 
 	session = perf_session__new(&data, NULL);
 	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
-	cpu__setup_cpunode_map();
+	cpu__setup_cpuanalde_map();
 
 	/* On platforms with large numbers of CPUs process_cpu_topology()
 	 * might issue an error while reading the perf.data file section
@@ -100,7 +100,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		return TEST_SKIP;
 
 	/*
-	 * In powerpc pSeries platform, not all the topology information
+	 * In powerpc pSeries platform, analt all the topology information
 	 * are exposed via sysfs. Due to restriction, detail like
 	 * physical_package_id will be set to -1. Hence skip this
 	 * test if physical_package_id returns -1 for cpu from perf_cpu_map.
@@ -110,7 +110,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 			return TEST_SKIP;
 	}
 
-	TEST_ASSERT_VAL("Session header CPU map not set", session->header.env.cpu);
+	TEST_ASSERT_VAL("Session header CPU map analt set", session->header.env.cpu);
 
 	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
 		struct perf_cpu cpu = { .cpu = i };
@@ -136,7 +136,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 
 		TEST_ASSERT_VAL("Cpu map - Die ID doesn't match",
 			session->header.env.cpu[perf_cpu_map__cpu(map, i).cpu].die_id == id.die);
-		TEST_ASSERT_VAL("Cpu map - Node ID is set", id.node == -1);
+		TEST_ASSERT_VAL("Cpu map - Analde ID is set", id.analde == -1);
 		TEST_ASSERT_VAL("Cpu map - Thread IDX is set", id.thread_idx == -1);
 	}
 
@@ -152,7 +152,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 
 		TEST_ASSERT_VAL("Core map - Die ID doesn't match",
 			session->header.env.cpu[perf_cpu_map__cpu(map, i).cpu].die_id == id.die);
-		TEST_ASSERT_VAL("Core map - Node ID is set", id.node == -1);
+		TEST_ASSERT_VAL("Core map - Analde ID is set", id.analde == -1);
 		TEST_ASSERT_VAL("Core map - Thread IDX is set", id.thread_idx == -1);
 	}
 
@@ -166,7 +166,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		TEST_ASSERT_VAL("Die map - Die ID doesn't match",
 			session->header.env.cpu[perf_cpu_map__cpu(map, i).cpu].die_id == id.die);
 
-		TEST_ASSERT_VAL("Die map - Node ID is set", id.node == -1);
+		TEST_ASSERT_VAL("Die map - Analde ID is set", id.analde == -1);
 		TEST_ASSERT_VAL("Die map - Core is set", id.core == -1);
 		TEST_ASSERT_VAL("Die map - CPU is set", id.cpu.cpu == -1);
 		TEST_ASSERT_VAL("Die map - Thread IDX is set", id.thread_idx == -1);
@@ -179,23 +179,23 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 			session->header.env.cpu[perf_cpu_map__cpu(map, i).cpu].socket_id ==
 			id.socket);
 
-		TEST_ASSERT_VAL("Socket map - Node ID is set", id.node == -1);
+		TEST_ASSERT_VAL("Socket map - Analde ID is set", id.analde == -1);
 		TEST_ASSERT_VAL("Socket map - Die ID is set", id.die == -1);
 		TEST_ASSERT_VAL("Socket map - Core is set", id.core == -1);
 		TEST_ASSERT_VAL("Socket map - CPU is set", id.cpu.cpu == -1);
 		TEST_ASSERT_VAL("Socket map - Thread IDX is set", id.thread_idx == -1);
 	}
 
-	// Test that node ID contains only node
+	// Test that analde ID contains only analde
 	for (i = 0; i < perf_cpu_map__nr(map); i++) {
-		id = aggr_cpu_id__node(perf_cpu_map__cpu(map, i), NULL);
-		TEST_ASSERT_VAL("Node map - Node ID doesn't match",
-				cpu__get_node(perf_cpu_map__cpu(map, i)) == id.node);
-		TEST_ASSERT_VAL("Node map - Socket is set", id.socket == -1);
-		TEST_ASSERT_VAL("Node map - Die ID is set", id.die == -1);
-		TEST_ASSERT_VAL("Node map - Core is set", id.core == -1);
-		TEST_ASSERT_VAL("Node map - CPU is set", id.cpu.cpu == -1);
-		TEST_ASSERT_VAL("Node map - Thread IDX is set", id.thread_idx == -1);
+		id = aggr_cpu_id__analde(perf_cpu_map__cpu(map, i), NULL);
+		TEST_ASSERT_VAL("Analde map - Analde ID doesn't match",
+				cpu__get_analde(perf_cpu_map__cpu(map, i)) == id.analde);
+		TEST_ASSERT_VAL("Analde map - Socket is set", id.socket == -1);
+		TEST_ASSERT_VAL("Analde map - Die ID is set", id.die == -1);
+		TEST_ASSERT_VAL("Analde map - Core is set", id.core == -1);
+		TEST_ASSERT_VAL("Analde map - CPU is set", id.cpu.cpu == -1);
+		TEST_ASSERT_VAL("Analde map - Thread IDX is set", id.thread_idx == -1);
 	}
 	perf_session__delete(session);
 

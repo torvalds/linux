@@ -5,7 +5,7 @@
  * (c) 2021, Bence Csókás <bence98@sch.bme.hu>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,7 +60,7 @@ enum cp2615_i2c_status {
 	CP2615_CFG_LOCKED = -6,
 	/* read_len or write_len out of range */
 	CP2615_INVALID_PARAM = -4,
-	/* I2C slave did not ACK in time */
+	/* I2C slave did analt ACK in time */
 	CP2615_TIMEOUT,
 	/* I2C bus busy */
 	CP2615_BUS_BUSY,
@@ -98,7 +98,7 @@ static int cp2615_init_i2c_msg(struct cp2615_iop_msg *ret, const struct cp2615_i
 	return cp2615_init_iop_msg(ret, iop_DoI2cTransfer, data, 4 + data->write_len);
 }
 
-/* Translates status codes to Linux errno's */
+/* Translates status codes to Linux erranal's */
 static int cp2615_check_status(enum cp2615_i2c_status status)
 {
 	switch (status) {
@@ -115,7 +115,7 @@ static int cp2615_check_status(enum cp2615_i2c_status status)
 	case CP2615_CFG_LOCKED:
 		return -EPERM;
 	}
-	/* Unknown error code */
+	/* Unkanalwn error code */
 	return -EPROTO;
 }
 
@@ -145,7 +145,7 @@ cp2615_i2c_recv(struct usb_interface *usbif, unsigned char tag, void *buf)
 
 	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = usb_bulk_msg(usbdev, usb_rcvbulkpipe(usbdev, IOP_EP_IN), msg,
 			   sizeof(struct cp2615_iop_msg), NULL, 0);
@@ -202,7 +202,7 @@ static int cp2615_check_iop(struct usb_interface *usbif)
 		dev_dbg(&usbif->dev, "Found good A02 part.\n");
 		break;
 	default:
-		dev_warn(&usbif->dev, "Unknown part ID %04X\n", ntohs(info->part_id));
+		dev_warn(&usbif->dev, "Unkanalwn part ID %04X\n", ntohs(info->part_id));
 	}
 
 out:
@@ -258,14 +258,14 @@ static const struct i2c_algorithm cp2615_i2c_algo = {
  * This chip has some limitations: one is that the USB endpoint
  * can only receive 64 bytes/transfer, that leaves 54 bytes for
  * the I2C transfer. On top of that, EITHER read_len OR write_len
- * may be zero, but not both. If both are non-zero, the adapter
- * issues a write followed by a read. And the chip does not
+ * may be zero, but analt both. If both are analn-zero, the adapter
+ * issues a write followed by a read. And the chip does analt
  * support repeated START between the write and read phases.
  */
 static struct i2c_adapter_quirks cp2615_i2c_quirks = {
 	.max_write_len = MAX_I2C_SIZE,
 	.max_read_len = MAX_I2C_SIZE,
-	.flags = I2C_AQ_COMB_WRITE_THEN_READ | I2C_AQ_NO_ZERO_LEN | I2C_AQ_NO_REP_START,
+	.flags = I2C_AQ_COMB_WRITE_THEN_READ | I2C_AQ_ANAL_ZERO_LEN | I2C_AQ_ANAL_REP_START,
 	.max_comb_1st_msg_len = MAX_I2C_SIZE,
 	.max_comb_2nd_msg_len = MAX_I2C_SIZE
 };
@@ -296,12 +296,12 @@ cp2615_i2c_probe(struct usb_interface *usbif, const struct usb_device_id *id)
 
 	adap = devm_kzalloc(&usbif->dev, sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!adap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(adap->name, usbdev->serial, sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = &usbif->dev;
-	adap->dev.of_node = usbif->dev.of_node;
+	adap->dev.of_analde = usbif->dev.of_analde;
 	adap->timeout = HZ;
 	adap->algo = &cp2615_i2c_algo;
 	adap->quirks = &cp2615_i2c_quirks;

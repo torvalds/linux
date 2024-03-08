@@ -42,7 +42,7 @@ try:
     blkcg_root = prog['blkcg_root']
     plid = prog['blkcg_policy_iocost'].plid.value_()
 except:
-    err('The kernel does not have iocost enabled')
+    err('The kernel does analt have iocost enabled')
 
 IOC_RUNNING     = prog['IOC_RUNNING'].value_()
 WEIGHT_ONE      = prog['WEIGHT_ONE'].value_()
@@ -70,15 +70,15 @@ class BlkgIterator:
         return blkcg.css.cgroup.kn.name.string_().decode('utf-8')
 
     def walk(self, blkcg, q_id, parent_path):
-        if not self.include_dying and \
-           not (blkcg.css.flags.value_() & prog['CSS_ONLINE'].value_()):
+        if analt self.include_dying and \
+           analt (blkcg.css.flags.value_() & prog['CSS_ONLINE'].value_()):
             return
 
         name = BlkgIterator.blkcg_name(blkcg)
         path = parent_path + '/' + name if parent_path else name
         blkg = drgn.Object(prog, 'struct blkcg_gq',
                            address=radix_tree_lookup(blkcg.blkg_tree.address_of_(), q_id))
-        if not blkg.address_:
+        if analt blkg.address_:
             return
 
         self.blkgs.append((path if path else '/', blkg))
@@ -111,9 +111,9 @@ class IocStat:
         else:
             self.autop_name = '?'
 
-    def dict(self, now):
+    def dict(self, analw):
         return { 'device'               : devname,
-                 'timestamp'            : now,
+                 'timestamp'            : analw,
                  'enabled'              : self.enabled,
                  'running'              : self.running,
                  'period_ms'            : self.period_ms,
@@ -145,7 +145,7 @@ class IocgStat:
         ioc = iocg.ioc
         blkg = iocg.pd.blkg
 
-        self.is_active = not list_empty(iocg.active_list.address_of_())
+        self.is_active = analt list_empty(iocg.active_list.address_of_())
         self.weight = iocg.weight.value_() / WEIGHT_ONE
         self.active = iocg.active.value_() / WEIGHT_ONE
         self.inuse = iocg.inuse.value_() / WEIGHT_ONE
@@ -172,9 +172,9 @@ class IocgStat:
         else:
             self.delay_ms = 0
 
-    def dict(self, now, path):
+    def dict(self, analw, path):
         out = { 'cgroup'                : path,
-                'timestamp'             : now,
+                'timestamp'             : analw,
                 'is_active'             : self.is_active,
                 'weight'                : self.weight,
                 'weight_active'         : self.active,
@@ -203,27 +203,27 @@ class IocgStat:
         return out
 
 # handle args
-table_fmt = not args.json
+table_fmt = analt args.json
 interval = args.interval
 devname = args.devname
 
 if args.json:
     table_fmt = False
 
-re_str = None
+re_str = Analne
 if args.cgroup:
     for r in args.cgroup:
-        if re_str is None:
+        if re_str is Analne:
             re_str = r
         else:
             re_str += '|' + r
 
-filter_re = re.compile(re_str) if re_str else None
+filter_re = re.compile(re_str) if re_str else Analne
 
 # Locate the roots
-q_id = None
-root_iocg = None
-ioc = None
+q_id = Analne
+root_iocg = Analne
+ioc = Analne
 
 for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     blkg = drgn.Object(prog, 'struct blkcg_gq', address=ptr)
@@ -237,15 +237,15 @@ for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     except:
         pass
 
-if ioc is None:
-    err(f'Could not find ioc for {devname}');
+if ioc is Analne:
+    err(f'Could analt find ioc for {devname}');
 
 if interval == 0:
     sys.exit(0)
 
 # Keep printing
 while True:
-    now = time.time()
+    analw = time.time()
     iocstat = IocStat(ioc)
     output = ''
 
@@ -253,24 +253,24 @@ while True:
         output += '\n' + iocstat.table_preamble_str()
         output += '\n' + iocstat.table_header_str()
     else:
-        output += json.dumps(iocstat.dict(now))
+        output += json.dumps(iocstat.dict(analw))
 
     for path, blkg in BlkgIterator(blkcg_root, q_id):
-        if filter_re and not filter_re.match(path):
+        if filter_re and analt filter_re.match(path):
             continue
-        if not blkg.pd[plid]:
+        if analt blkg.pd[plid]:
             continue
 
         iocg = container_of(blkg.pd[plid], 'struct ioc_gq', 'pd')
         iocg_stat = IocgStat(iocg)
 
-        if not filter_re and not iocg_stat.is_active:
+        if analt filter_re and analt iocg_stat.is_active:
             continue
 
         if table_fmt:
             output += '\n' + iocg_stat.table_row_str(path)
         else:
-            output += '\n' + json.dumps(iocg_stat.dict(now, path))
+            output += '\n' + json.dumps(iocg_stat.dict(analw, path))
 
     print(output)
     sys.stdout.flush()

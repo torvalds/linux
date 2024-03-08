@@ -4,7 +4,7 @@
  */
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -15,7 +15,7 @@
 
 #include "qcom_common.h"
 
-static BLOCKING_NOTIFIER_HEAD(sysmon_notifiers);
+static BLOCKING_ANALTIFIER_HEAD(sysmon_analtifiers);
 
 struct qcom_sysmon {
 	struct rproc_subdev subdev;
@@ -24,7 +24,7 @@ struct qcom_sysmon {
 	int state;
 	struct mutex state_lock;
 
-	struct list_head node;
+	struct list_head analde;
 
 	const char *name;
 
@@ -32,7 +32,7 @@ struct qcom_sysmon {
 	int ssctl_version;
 	int ssctl_instance;
 
-	struct notifier_block nb;
+	struct analtifier_block nb;
 
 	struct device *dev;
 
@@ -73,7 +73,7 @@ static DEFINE_MUTEX(sysmon_lock);
 static LIST_HEAD(sysmon_list);
 
 /**
- * sysmon_send_event() - send notification of other remote's SSR event
+ * sysmon_send_event() - send analtification of other remote's SSR event
  * @sysmon:	sysmon context
  * @event:	sysmon event context
  */
@@ -194,7 +194,7 @@ static const struct qmi_elem_info ssctl_shutdown_resp_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct ssctl_shutdown_resp, resp),
 		.ei_array	= qmi_response_type_v01_ei,
@@ -215,7 +215,7 @@ static const struct qmi_elem_info ssctl_subsys_event_req_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(uint8_t),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct ssctl_subsys_event_req,
 					   subsys_name_len),
@@ -235,7 +235,7 @@ static const struct qmi_elem_info ssctl_subsys_event_req_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(uint32_t),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct ssctl_subsys_event_req,
 					   event),
@@ -245,7 +245,7 @@ static const struct qmi_elem_info ssctl_subsys_event_req_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(uint8_t),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct ssctl_subsys_event_req,
 					   evt_driven_valid),
@@ -255,7 +255,7 @@ static const struct qmi_elem_info ssctl_subsys_event_req_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(uint32_t),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct ssctl_subsys_event_req,
 					   evt_driven),
@@ -273,7 +273,7 @@ static const struct qmi_elem_info ssctl_subsys_event_resp_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct ssctl_subsys_event_resp,
 					   resp),
@@ -367,7 +367,7 @@ static bool ssctl_request_shutdown(struct qcom_sysmon *sysmon)
 }
 
 /**
- * ssctl_send_event() - send notification of other remote's SSR event
+ * ssctl_send_event() - send analtification of other remote's SSR event
  * @sysmon:	sysmon context
  * @event:	sysmon event context
  */
@@ -440,7 +440,7 @@ static int ssctl_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 	sysmon->ssctl_version = svc->version;
 
 	sysmon->ssctl.sq_family = AF_QIPCRTR;
-	sysmon->ssctl.sq_node = svc->node;
+	sysmon->ssctl.sq_analde = svc->analde;
 	sysmon->ssctl.sq_port = svc->port;
 
 	svc->priv = sysmon;
@@ -478,7 +478,7 @@ static int sysmon_prepare(struct rproc_subdev *subdev)
 
 	mutex_lock(&sysmon->state_lock);
 	sysmon->state = SSCTL_SSR_EVENT_BEFORE_POWERUP;
-	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)&event);
+	blocking_analtifier_call_chain(&sysmon_analtifiers, 0, (void *)&event);
 	mutex_unlock(&sysmon->state_lock);
 
 	return 0;
@@ -488,9 +488,9 @@ static int sysmon_prepare(struct rproc_subdev *subdev)
  * sysmon_start() - start callback for the sysmon remoteproc subdevice
  * @subdev:	instance of the sysmon subdevice
  *
- * Inform all the listners of sysmon notifications that the rproc associated
- * to @subdev has booted up. The rproc that booted up also needs to know
- * which rprocs are already up and running, so send start notifications
+ * Inform all the listners of sysmon analtifications that the rproc associated
+ * to @subdev has booted up. The rproc that booted up also needs to kanalw
+ * which rprocs are already up and running, so send start analtifications
  * on behalf of all the online rprocs.
  */
 static int sysmon_start(struct rproc_subdev *subdev)
@@ -506,11 +506,11 @@ static int sysmon_start(struct rproc_subdev *subdev)
 	reinit_completion(&sysmon->ssctl_comp);
 	mutex_lock(&sysmon->state_lock);
 	sysmon->state = SSCTL_SSR_EVENT_AFTER_POWERUP;
-	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)&event);
+	blocking_analtifier_call_chain(&sysmon_analtifiers, 0, (void *)&event);
 	mutex_unlock(&sysmon->state_lock);
 
 	mutex_lock(&sysmon_lock);
-	list_for_each_entry(target, &sysmon_list, node) {
+	list_for_each_entry(target, &sysmon_list, analde) {
 		mutex_lock(&target->state_lock);
 		if (target == sysmon || target->state != SSCTL_SSR_EVENT_AFTER_POWERUP) {
 			mutex_unlock(&target->state_lock);
@@ -543,7 +543,7 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 
 	mutex_lock(&sysmon->state_lock);
 	sysmon->state = SSCTL_SSR_EVENT_BEFORE_SHUTDOWN;
-	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)&event);
+	blocking_analtifier_call_chain(&sysmon_analtifiers, 0, (void *)&event);
 	mutex_unlock(&sysmon->state_lock);
 
 	/* Don't request graceful shutdown if we've crashed */
@@ -572,27 +572,27 @@ static void sysmon_unprepare(struct rproc_subdev *subdev)
 
 	mutex_lock(&sysmon->state_lock);
 	sysmon->state = SSCTL_SSR_EVENT_AFTER_SHUTDOWN;
-	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)&event);
+	blocking_analtifier_call_chain(&sysmon_analtifiers, 0, (void *)&event);
 	mutex_unlock(&sysmon->state_lock);
 }
 
 /**
- * sysmon_notify() - notify sysmon target of another's SSR
- * @nb:		notifier_block associated with sysmon instance
+ * sysmon_analtify() - analtify sysmon target of aanalther's SSR
+ * @nb:		analtifier_block associated with sysmon instance
  * @event:	unused
  * @data:	SSR identifier of the remote that is going down
  */
-static int sysmon_notify(struct notifier_block *nb, unsigned long event,
+static int sysmon_analtify(struct analtifier_block *nb, unsigned long event,
 			 void *data)
 {
 	struct qcom_sysmon *sysmon = container_of(nb, struct qcom_sysmon, nb);
 	struct sysmon_event *sysmon_event = data;
 
-	/* Skip non-running rprocs and the originating instance */
+	/* Skip analn-running rprocs and the originating instance */
 	if (sysmon->state != SSCTL_SSR_EVENT_AFTER_POWERUP ||
 	    !strcmp(sysmon_event->subsys_name, sysmon->name)) {
-		dev_dbg(sysmon->dev, "not notifying %s\n", sysmon->name);
-		return NOTIFY_DONE;
+		dev_dbg(sysmon->dev, "analt analtifying %s\n", sysmon->name);
+		return ANALTIFY_DONE;
 	}
 
 	/* Only SSCTL version 2 supports SSR events */
@@ -601,7 +601,7 @@ static int sysmon_notify(struct notifier_block *nb, unsigned long event,
 	else if (sysmon->ept)
 		sysmon_send_event(sysmon, sysmon_event);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static irqreturn_t sysmon_shutdown_interrupt(int irq, void *data)
@@ -630,7 +630,7 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 
 	sysmon = kzalloc(sizeof(*sysmon), GFP_KERNEL);
 	if (!sysmon)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sysmon->dev = rproc->dev.parent;
 	sysmon->rproc = rproc;
@@ -645,10 +645,10 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 	mutex_init(&sysmon->lock);
 	mutex_init(&sysmon->state_lock);
 
-	sysmon->shutdown_irq = of_irq_get_byname(sysmon->dev->of_node,
+	sysmon->shutdown_irq = of_irq_get_byname(sysmon->dev->of_analde,
 						 "shutdown-ack");
 	if (sysmon->shutdown_irq < 0) {
-		if (sysmon->shutdown_irq != -ENODATA) {
+		if (sysmon->shutdown_irq != -EANALDATA) {
 			dev_err(sysmon->dev,
 				"failed to retrieve shutdown-ack IRQ\n");
 			ret = sysmon->shutdown_irq;
@@ -686,11 +686,11 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 
 	rproc_add_subdev(rproc, &sysmon->subdev);
 
-	sysmon->nb.notifier_call = sysmon_notify;
-	blocking_notifier_chain_register(&sysmon_notifiers, &sysmon->nb);
+	sysmon->nb.analtifier_call = sysmon_analtify;
+	blocking_analtifier_chain_register(&sysmon_analtifiers, &sysmon->nb);
 
 	mutex_lock(&sysmon_lock);
-	list_add(&sysmon->node, &sysmon_list);
+	list_add(&sysmon->analde, &sysmon_list);
 	mutex_unlock(&sysmon_lock);
 
 	return sysmon;
@@ -707,10 +707,10 @@ void qcom_remove_sysmon_subdev(struct qcom_sysmon *sysmon)
 		return;
 
 	mutex_lock(&sysmon_lock);
-	list_del(&sysmon->node);
+	list_del(&sysmon->analde);
 	mutex_unlock(&sysmon_lock);
 
-	blocking_notifier_chain_unregister(&sysmon_notifiers, &sysmon->nb);
+	blocking_analtifier_chain_unregister(&sysmon_analtifiers, &sysmon->nb);
 
 	rproc_remove_subdev(sysmon->rproc, &sysmon->subdev);
 
@@ -726,7 +726,7 @@ EXPORT_SYMBOL_GPL(qcom_remove_sysmon_subdev);
  *
  * When sysmon is used to request a graceful shutdown of the remote processor
  * this can be used by the remoteproc driver to query the success, in order to
- * know if it should fall back to other means of requesting a shutdown.
+ * kanalw if it should fall back to other means of requesting a shutdown.
  *
  * Return: boolean indicator of the success of the last shutdown request
  */
@@ -743,7 +743,7 @@ EXPORT_SYMBOL_GPL(qcom_sysmon_shutdown_acked);
  * Find the sysmon context associated with the ancestor remoteproc and assign
  * this rpmsg device with said sysmon context.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erranal on failure.
  */
 static int sysmon_probe(struct rpmsg_device *rpdev)
 {
@@ -752,18 +752,18 @@ static int sysmon_probe(struct rpmsg_device *rpdev)
 
 	rproc = rproc_get_by_child(&rpdev->dev);
 	if (!rproc) {
-		dev_err(&rpdev->dev, "sysmon device not child of rproc\n");
+		dev_err(&rpdev->dev, "sysmon device analt child of rproc\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&sysmon_lock);
-	list_for_each_entry(sysmon, &sysmon_list, node) {
+	list_for_each_entry(sysmon, &sysmon_list, analde) {
 		if (sysmon->rproc == rproc)
 			goto found;
 	}
 	mutex_unlock(&sysmon_lock);
 
-	dev_err(&rpdev->dev, "no sysmon associated with parent rproc\n");
+	dev_err(&rpdev->dev, "anal sysmon associated with parent rproc\n");
 
 	return -EINVAL;
 

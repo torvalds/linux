@@ -93,7 +93,7 @@ static int adxl367_spi_probe(struct spi_device *spi)
 
 	st = devm_kzalloc(&spi->dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st->spi = spi;
 

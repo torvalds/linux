@@ -18,19 +18,19 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
 *
-* NO WARRANTY
+* ANAL WARRANTY
 * THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
 * CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+* LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
 * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
 * solely responsible for determining the appropriateness of using and
 * distributing the Program and assumes all risks associated with its
-* exercise of rights under this Agreement, including but not limited to
+* exercise of rights under this Agreement, including but analt limited to
 * the risks and costs of program errors, damage to or loss of data,
 * programs or equipment, and unavailability or interruption of operations.
 *
 * DISCLAIMER OF LIABILITY
-* NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+* NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
 * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -39,7 +39,7 @@
 * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 *
 * You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
+* along with this program; if analt, write to the Free Software
 * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 *
@@ -72,18 +72,18 @@ typedef struct _MW_READWRITE {
 	void __user *pBuf;		/* Input:variable sized buffer */
 } MW_READWRITE, *pMW_READWRITE;
 
-#define IOCTL_MW_RESET           _IO(MWAVE_MINOR,1)
-#define IOCTL_MW_RUN             _IO(MWAVE_MINOR,2)
-#define IOCTL_MW_DSP_ABILITIES   _IOR(MWAVE_MINOR,3,MW_ABILITIES)
-#define IOCTL_MW_READ_DATA       _IOR(MWAVE_MINOR,4,MW_READWRITE)
-#define IOCTL_MW_READCLEAR_DATA  _IOR(MWAVE_MINOR,5,MW_READWRITE)
-#define IOCTL_MW_READ_INST       _IOR(MWAVE_MINOR,6,MW_READWRITE)
-#define IOCTL_MW_WRITE_DATA      _IOW(MWAVE_MINOR,7,MW_READWRITE)
-#define IOCTL_MW_WRITE_INST      _IOW(MWAVE_MINOR,8,MW_READWRITE)
-#define IOCTL_MW_REGISTER_IPC    _IOW(MWAVE_MINOR,9,int)
-#define IOCTL_MW_UNREGISTER_IPC  _IOW(MWAVE_MINOR,10,int)
-#define IOCTL_MW_GET_IPC         _IOW(MWAVE_MINOR,11,int)
-#define IOCTL_MW_TRACE           _IOR(MWAVE_MINOR,12,MW_READWRITE)
+#define IOCTL_MW_RESET           _IO(MWAVE_MIANALR,1)
+#define IOCTL_MW_RUN             _IO(MWAVE_MIANALR,2)
+#define IOCTL_MW_DSP_ABILITIES   _IOR(MWAVE_MIANALR,3,MW_ABILITIES)
+#define IOCTL_MW_READ_DATA       _IOR(MWAVE_MIANALR,4,MW_READWRITE)
+#define IOCTL_MW_READCLEAR_DATA  _IOR(MWAVE_MIANALR,5,MW_READWRITE)
+#define IOCTL_MW_READ_INST       _IOR(MWAVE_MIANALR,6,MW_READWRITE)
+#define IOCTL_MW_WRITE_DATA      _IOW(MWAVE_MIANALR,7,MW_READWRITE)
+#define IOCTL_MW_WRITE_INST      _IOW(MWAVE_MIANALR,8,MW_READWRITE)
+#define IOCTL_MW_REGISTER_IPC    _IOW(MWAVE_MIANALR,9,int)
+#define IOCTL_MW_UNREGISTER_IPC  _IOW(MWAVE_MIANALR,10,int)
+#define IOCTL_MW_GET_IPC         _IOW(MWAVE_MIANALR,11,int)
+#define IOCTL_MW_TRACE           _IOR(MWAVE_MIANALR,12,MW_READWRITE)
 
 
 #endif

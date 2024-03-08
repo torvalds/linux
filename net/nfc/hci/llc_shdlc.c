@@ -53,7 +53,7 @@ struct llc_shdlc {
 	struct sk_buff_head rcv_q;
 
 	struct sk_buff_head send_q;
-	bool rnr;			/* other side is not ready to receive */
+	bool rnr;			/* other side is analt ready to receive */
 
 	struct sk_buff_head ack_pending_q;
 
@@ -147,7 +147,7 @@ static int llc_shdlc_send_s_frame(const struct llc_shdlc *shdlc,
 
 	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*(u8 *)skb_push(skb, 1) = SHDLC_CONTROL_HEAD_S | (sframe_type << 3) | nr;
 
@@ -365,7 +365,7 @@ static int llc_shdlc_connect_initiate(const struct llc_shdlc *shdlc)
 
 	skb = llc_shdlc_alloc_skb(shdlc, 2);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, SHDLC_MAX_WINDOW);
 	skb_put_u8(skb, SHDLC_SREJ_SUPPORT ? 1 : 0);
@@ -379,7 +379,7 @@ static int llc_shdlc_connect_send_ua(const struct llc_shdlc *shdlc)
 
 	skb = llc_shdlc_alloc_skb(shdlc, 0);
 	if (skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return llc_shdlc_send_u_frame(shdlc, skb, U_FRAME_UA);
 }
@@ -420,7 +420,7 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 			break;
 		case SHDLC_HALF_CONNECTED:
 			/*
-			 * Chip resent RSET due to its timeout - Ignote it
+			 * Chip resent RSET due to its timeout - Iganalte it
 			 * as we already sent UA.
 			 */
 			break;
@@ -489,7 +489,7 @@ static void llc_shdlc_handle_rcv_queue(struct llc_shdlc *shdlc)
 			llc_shdlc_rcv_u_frame(shdlc, skb, u_frame_modifier);
 			break;
 		default:
-			pr_err("UNKNOWN Control=%d\n", control);
+			pr_err("UNKANALWN Control=%d\n", control);
 			kfree_skb(skb);
 			break;
 		}
@@ -638,7 +638,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 		llc_shdlc_handle_send_queue(shdlc);
 
 		if (shdlc->t1_active && timer_pending(&shdlc->t1_timer) == 0) {
-			pr_debug("Handle T1(send ack) elapsed (T1 now inactive)\n");
+			pr_debug("Handle T1(send ack) elapsed (T1 analw inactive)\n");
 
 			shdlc->t1_active = false;
 			r = llc_shdlc_send_s_frame(shdlc, S_FRAME_RR,
@@ -703,7 +703,7 @@ static void llc_shdlc_disconnect(struct llc_shdlc *shdlc)
 /*
  * Receive an incoming shdlc frame. Frame has already been crc-validated.
  * skb contains only LLC header and payload.
- * If skb == NULL, it is a notification that the link below is dead.
+ * If skb == NULL, it is a analtification that the link below is dead.
  */
 static void llc_shdlc_recv_frame(struct llc_shdlc *shdlc, struct sk_buff *skb)
 {

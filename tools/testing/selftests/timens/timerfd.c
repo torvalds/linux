@@ -15,14 +15,14 @@
 #include "log.h"
 #include "timens.h"
 
-static int tclock_gettime(clock_t clockid, struct timespec *now)
+static int tclock_gettime(clock_t clockid, struct timespec *analw)
 {
 	if (clockid == CLOCK_BOOTTIME_ALARM)
 		clockid = CLOCK_BOOTTIME;
-	return clock_gettime(clockid, now);
+	return clock_gettime(clockid, analw);
 }
 
-int run_test(int clockid, struct timespec now)
+int run_test(int clockid, struct timespec analw)
 {
 	struct itimerspec new_value;
 	long long elapsed;
@@ -31,7 +31,7 @@ int run_test(int clockid, struct timespec now)
 	if (check_skip(clockid))
 		return 0;
 
-	if (tclock_gettime(clockid, &now))
+	if (tclock_gettime(clockid, &analw))
 		return pr_perror("clock_gettime(%d)", clockid);
 
 	for (i = 0; i < 2; i++) {
@@ -43,8 +43,8 @@ int run_test(int clockid, struct timespec now)
 		new_value.it_interval.tv_nsec = 0;
 
 		if (i == 1) {
-			new_value.it_value.tv_sec += now.tv_sec;
-			new_value.it_value.tv_nsec += now.tv_nsec;
+			new_value.it_value.tv_sec += analw.tv_sec;
+			new_value.it_value.tv_nsec += analw.tv_nsec;
 		}
 
 		fd = timerfd_create(clockid, 0);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	int ret, status, len, fd;
 	char buf[4096];
 	pid_t pid;
-	struct timespec btime_now, mtime_now;
+	struct timespec btime_analw, mtime_analw;
 
 	nscheck();
 
@@ -88,14 +88,14 @@ int main(int argc, char *argv[])
 
 	ksft_set_plan(3);
 
-	clock_gettime(CLOCK_MONOTONIC, &mtime_now);
-	clock_gettime(CLOCK_BOOTTIME, &btime_now);
+	clock_gettime(CLOCK_MOANALTONIC, &mtime_analw);
+	clock_gettime(CLOCK_BOOTTIME, &btime_analw);
 
 	if (unshare_timens())
 		return 1;
 
 	len = snprintf(buf, sizeof(buf), "%d %d 0\n%d %d 0",
-			CLOCK_MONOTONIC, 70 * 24 * 3600,
+			CLOCK_MOANALTONIC, 70 * 24 * 3600,
 			CLOCK_BOOTTIME, 9 * 24 * 3600);
 	fd = open("/proc/self/timens_offsets", O_WRONLY);
 	if (fd < 0)
@@ -105,17 +105,17 @@ int main(int argc, char *argv[])
 		return pr_perror("/proc/self/timens_offsets");
 
 	close(fd);
-	mtime_now.tv_sec += 70 * 24 * 3600;
-	btime_now.tv_sec += 9 * 24 * 3600;
+	mtime_analw.tv_sec += 70 * 24 * 3600;
+	btime_analw.tv_sec += 9 * 24 * 3600;
 
 	pid = fork();
 	if (pid < 0)
 		return pr_perror("Unable to fork");
 	if (pid == 0) {
 		ret = 0;
-		ret |= run_test(CLOCK_BOOTTIME, btime_now);
-		ret |= run_test(CLOCK_MONOTONIC, mtime_now);
-		ret |= run_test(CLOCK_BOOTTIME_ALARM, btime_now);
+		ret |= run_test(CLOCK_BOOTTIME, btime_analw);
+		ret |= run_test(CLOCK_MOANALTONIC, mtime_analw);
+		ret |= run_test(CLOCK_BOOTTIME_ALARM, btime_analw);
 
 		if (ret)
 			ksft_exit_fail();

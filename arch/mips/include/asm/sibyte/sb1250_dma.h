@@ -94,7 +94,7 @@
 #define M_DMA_ASIC_XFR_EN	    _SB_MAKEMASK1(1)
 #define M_DMA_PRE_ADDR_EN	    _SB_MAKEMASK1(2)
 #define M_DMA_FLOW_CTL_EN	    _SB_MAKEMASK1(3)
-#define M_DMA_NO_DSCR_UPDT	    _SB_MAKEMASK1(4)
+#define M_DMA_ANAL_DSCR_UPDT	    _SB_MAKEMASK1(4)
 #define M_DMA_L2CA		    _SB_MAKEMASK1(5)
 
 #if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
@@ -139,7 +139,7 @@
  * DMA Descriptor Count Registers (Table 7-8)
  */
 
-/* No bitfields */
+/* Anal bitfields */
 
 
 /*
@@ -181,7 +181,7 @@
 #define V_DMA_DSCRA_OFFSET(x)	    _SB_MAKEVALUE(x, S_DMA_DSCRA_OFFSET)
 #define G_DMA_DSCRA_OFFSET(x)	    _SB_GETVALUE(x, S_DMA_DSCRA_OFFSET, M_DMA_DSCRA_OFFSET)
 
-/* Note: Don't shift the address over, just mask it with the mask below */
+/* Analte: Don't shift the address over, just mask it with the mask below */
 #define S_DMA_DSCRA_A_ADDR	    _SB_MAKE64(5)
 #define M_DMA_DSCRA_A_ADDR	    _SB_MAKEMASK(35, S_DMA_DSCRA_A_ADDR)
 
@@ -230,7 +230,7 @@
 
 #define R_DMA_DSCRB_ADDR	    _SB_MAKE64(0x10)
 
-/* Note: Don't shift the address over, just mask it with the mask below */
+/* Analte: Don't shift the address over, just mask it with the mask below */
 #define S_DMA_DSCRB_B_ADDR	    _SB_MAKE64(5)
 #define M_DMA_DSCRB_B_ADDR	    _SB_MAKEMASK(35, S_DMA_DSCRB_B_ADDR)
 
@@ -269,12 +269,12 @@
 #define M_DMA_ETHRX_DSCRERR	    _SB_MAKEMASK1(52)
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
-/* Note: This bit is in the DSCR_B options field */
+/* Analte: This bit is in the DSCR_B options field */
 #define M_DMA_ETHRX_BADTCPCS	_SB_MAKEMASK1(0)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 #if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
-/* Note: These bits are in the DSCR_B options field */
+/* Analte: These bits are in the DSCR_B options field */
 #define M_DMA_ETH_VLAN_FLAG	_SB_MAKEMASK1(1)
 #define M_DMA_ETH_CRC_FLAG	_SB_MAKEMASK1(2)
 #endif /* 1250 PASS3 || 112x PASS1 || 1480 */
@@ -315,14 +315,14 @@
  * Ethernet Transmit Options (Table 7-17)
  */
 
-#define K_DMA_ETHTX_NOTSOP	    _SB_MAKE64(0x00)
+#define K_DMA_ETHTX_ANALTSOP	    _SB_MAKE64(0x00)
 #define K_DMA_ETHTX_APPENDCRC	    _SB_MAKE64(0x01)
 #define K_DMA_ETHTX_REPLACECRC	    _SB_MAKE64(0x02)
 #define K_DMA_ETHTX_APPENDCRC_APPENDPAD _SB_MAKE64(0x03)
 #define K_DMA_ETHTX_APPENDVLAN_REPLACECRC _SB_MAKE64(0x04)
 #define K_DMA_ETHTX_REMOVEVLAN_REPLACECRC _SB_MAKE64(0x05)
 #define K_DMA_ETHTX_REPLACEVLAN_REPLACECRC _SB_MAKE64(0x6)
-#define K_DMA_ETHTX_NOMODS	    _SB_MAKE64(0x07)
+#define K_DMA_ETHTX_ANALMODS	    _SB_MAKE64(0x07)
 #define K_DMA_ETHTX_RESERVED1	    _SB_MAKE64(0x08)
 #define K_DMA_ETHTX_REPLACESADDR_APPENDCRC _SB_MAKE64(0x09)
 #define K_DMA_ETHTX_REPLACESADDR_REPLACECRC _SB_MAKE64(0x0A)
@@ -374,7 +374,7 @@
 
 #define M_DM_DSCR_BASE_MBZ	    _SB_MAKEMASK(4, 0)
 
-/*  Note: Just mask the base address and then OR it in. */
+/*  Analte: Just mask the base address and then OR it in. */
 #define S_DM_DSCR_BASE_ADDR	    _SB_MAKE64(4)
 #define M_DM_DSCR_BASE_ADDR	    _SB_MAKEMASK(36, S_DM_DSCR_BASE_ADDR)
 
@@ -405,7 +405,7 @@
  * Data Mover Descriptor Count Register (Table 7-25)
  */
 
-/* no bitfields */
+/* anal bitfields */
 
 /*
  * Data Mover Current Descriptor Address (Table 7-24)

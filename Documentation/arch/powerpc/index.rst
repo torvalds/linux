@@ -19,7 +19,7 @@ powerpc
     dscr
     eeh-pci-error-recovery
     elf_hwcaps
-    elfnote
+    elfanalte
     firmware-assisted-dump
     hvcs
     imc

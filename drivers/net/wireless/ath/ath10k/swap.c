@@ -27,7 +27,7 @@ static int ath10k_swap_code_seg_fill(struct ath10k *ar,
 
 	/* Parse swap bin and copy the content to host allocated memory.
 	 * The format is Address, length and value. The last 4-bytes is
-	 * target write address. Currently address field is not used.
+	 * target write address. Currently address field is analt used.
 	 */
 	seg_info->target_addr = -1;
 	while (size_left >= sizeof(*swap_item)) {
@@ -176,7 +176,7 @@ int ath10k_swap_code_seg_init(struct ath10k *ar, struct ath10k_fw_file *fw_file)
 	seg_info = ath10k_swap_code_seg_alloc(ar, codeswap_len);
 	if (!seg_info) {
 		ath10k_err(ar, "failed to allocate fw code swap segment\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = ath10k_swap_code_seg_fill(ar, seg_info,

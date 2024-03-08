@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -250,8 +250,8 @@ static void output_pgtable_bits_defines(void)
 	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
 	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
 	pr_define("_PAGE_WRITE_SHIFT %d\n", _PAGE_WRITE_SHIFT);
-	pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
-	pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
+	pr_define("_PAGE_ANAL_READ_SHIFT %d\n", _PAGE_ANAL_READ_SHIFT);
+	pr_define("_PAGE_ANAL_EXEC_SHIFT %d\n", _PAGE_ANAL_EXEC_SHIFT);
 	pr_define("PFN_PTE_SHIFT %d\n", PFN_PTE_SHIFT);
 	pr_debug("\n");
 }
@@ -298,7 +298,7 @@ static void setup_tlb_handler(int cpu)
 		if (pcpu_handlers[cpu])
 			return;
 
-		page = alloc_pages_node(cpu_to_node(cpu), GFP_ATOMIC, get_order(vec_sz));
+		page = alloc_pages_analde(cpu_to_analde(cpu), GFP_ATOMIC, get_order(vec_sz));
 		if (!page)
 			return;
 

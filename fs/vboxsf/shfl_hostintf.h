@@ -34,7 +34,7 @@ enum {
 	SHFL_FN_LOCK = 7,		/* Lock/unlock a range in the object. */
 	SHFL_FN_LIST = 8,		/* List object content. */
 	SHFL_FN_INFORMATION = 9,	/* Query/set object information. */
-	/* Note function number 10 is not used! */
+	/* Analte function number 10 is analt used! */
 	SHFL_FN_REMOVE = 11,		/* Remove object */
 	SHFL_FN_MAP_FOLDER_OLD = 12,	/* Map folder (legacy) */
 	SHFL_FN_UNMAP_FOLDER = 13,	/* Unmap folder */
@@ -138,8 +138,8 @@ static inline u32 shfl_string_buf_size(const struct shfl_string *string)
 
 /** The available additional information in a shfl_fsobjattr object. */
 enum shfl_fsobjattr_add {
-	/** No additional information is available / requested. */
-	SHFLFSOBJATTRADD_NOTHING = 1,
+	/** Anal additional information is available / requested. */
+	SHFLFSOBJATTRADD_ANALTHING = 1,
 	/**
 	 * The additional unix attributes (shfl_fsobjattr::u::unix_attr) are
 	 *  available / requested.
@@ -152,7 +152,7 @@ enum shfl_fsobjattr_add {
 	SHFLFSOBJATTRADD_EASIZE,
 	/**
 	 * The last valid item (inclusive).
-	 * The valid range is SHFLFSOBJATTRADD_NOTHING thru
+	 * The valid range is SHFLFSOBJATTRADD_ANALTHING thru
 	 * SHFLFSOBJATTRADD_LAST.
 	 */
 	SHFLFSOBJATTRADD_LAST = SHFLFSOBJATTRADD_EASIZE,
@@ -168,13 +168,13 @@ enum shfl_fsobjattr_add {
 struct shfl_fsobjattr_unix {
 	/**
 	 * The user owning the filesystem object (st_uid).
-	 * This field is ~0U if not supported.
+	 * This field is ~0U if analt supported.
 	 */
 	u32 uid;
 
 	/**
 	 * The group the filesystem object is assigned (st_gid).
-	 * This field is ~0U if not supported.
+	 * This field is ~0U if analt supported.
 	 */
 	u32 gid;
 
@@ -187,34 +187,34 @@ struct shfl_fsobjattr_unix {
 
 	/**
 	 * The device number of the device which this filesystem object resides
-	 * on (st_dev). This field is 0 if this information is not available.
+	 * on (st_dev). This field is 0 if this information is analt available.
 	 */
-	u32 inode_id_device;
+	u32 ianalde_id_device;
 
 	/**
 	 * The unique identifier (within the filesystem) of this filesystem
-	 * object (st_ino). Together with inode_id_device, this field can be
-	 * used as a OS wide unique id, when both their values are not 0.
-	 * This field is 0 if the information is not available.
+	 * object (st_ianal). Together with ianalde_id_device, this field can be
+	 * used as a OS wide unique id, when both their values are analt 0.
+	 * This field is 0 if the information is analt available.
 	 */
-	u64 inode_id;
+	u64 ianalde_id;
 
 	/**
 	 * User flags (st_flags).
-	 * This field is 0 if this information is not available.
+	 * This field is 0 if this information is analt available.
 	 */
 	u32 flags;
 
 	/**
 	 * The current generation number (st_gen).
-	 * This field is 0 if this information is not available.
+	 * This field is 0 if this information is analt available.
 	 */
 	u32 generation_id;
 
 	/**
 	 * The device number of a char. or block device type object (st_rdev).
 	 * This field is 0 if the file isn't a char. or block device or when
-	 * the OS doesn't use the major+minor device idenfication scheme.
+	 * the OS doesn't use the major+mianalr device idenfication scheme.
 	 */
 	u32 device;
 } __packed;
@@ -254,7 +254,7 @@ struct shfl_timespec {
 struct shfl_fsobjinfo {
 	/**
 	 * Logical size (st_size).
-	 * For normal files this is the size of the file.
+	 * For analrmal files this is the size of the file.
 	 * For symbolic links, this is the length of the path name contained
 	 * in the symbolic link.
 	 * For other objects this fields needs to be specified.
@@ -272,13 +272,13 @@ struct shfl_fsobjinfo {
 
 	/**
 	 * Time of last status change (st_ctime).
-	 * If not available this is set to modification_time.
+	 * If analt available this is set to modification_time.
 	 */
 	struct shfl_timespec change_time;
 
 	/**
 	 * Time of file birth (st_birthtime).
-	 * If not available this is set to change_time.
+	 * If analt available this is set to change_time.
 	 */
 	struct shfl_timespec birth_time;
 
@@ -295,12 +295,12 @@ VMMDEV_ASSERT_SIZE(shfl_fsobjinfo, 92);
  * trying to open the object.
  */
 enum shfl_create_result {
-	SHFL_NO_RESULT,
-	/** Specified path does not exist. */
-	SHFL_PATH_NOT_FOUND,
-	/** Path to file exists, but the last component does not. */
-	SHFL_FILE_NOT_FOUND,
-	/** File already exists and either has been opened or not. */
+	SHFL_ANAL_RESULT,
+	/** Specified path does analt exist. */
+	SHFL_PATH_ANALT_FOUND,
+	/** Path to file exists, but the last component does analt. */
+	SHFL_FILE_ANALT_FOUND,
+	/** File already exists and either has been opened or analt. */
 	SHFL_FILE_EXISTS,
 	/** New file was created. */
 	SHFL_FILE_CREATED,
@@ -308,12 +308,12 @@ enum shfl_create_result {
 	SHFL_FILE_REPLACED
 };
 
-/* No flags. Initialization value. */
-#define SHFL_CF_NONE                  (0x00000000)
+/* Anal flags. Initialization value. */
+#define SHFL_CF_ANALNE                  (0x00000000)
 
 /*
- * Only lookup the object, do not return a handle. When this is set all other
- * flags are ignored.
+ * Only lookup the object, do analt return a handle. When this is set all other
+ * flags are iganalred.
  */
 #define SHFL_CF_LOOKUP                (0x00000001)
 
@@ -329,7 +329,7 @@ enum shfl_create_result {
 
 /*
  *  Open/create action to do if object exists
- *  and if the object does not exists.
+ *  and if the object does analt exists.
  *  REPLACE file means atomically DELETE and CREATE.
  *  OVERWRITE file means truncating the file to 0 and
  *  setting new size.
@@ -346,15 +346,15 @@ enum shfl_create_result {
 #define SHFL_CF_ACT_REPLACE_IF_EXISTS   (0x00000020)
 #define SHFL_CF_ACT_OVERWRITE_IF_EXISTS (0x00000030)
 
-/* What to do if object does not exist. */
+/* What to do if object does analt exist. */
 #define SHFL_CF_ACT_CREATE_IF_NEW       (0x00000000)
 #define SHFL_CF_ACT_FAIL_IF_NEW         (0x00000100)
 
 /* Read/write requested access for the object. */
 #define SHFL_CF_ACCESS_MASK_RW          (0x00003000)
 
-/* No access requested. */
-#define SHFL_CF_ACCESS_NONE             (0x00000000)
+/* Anal access requested. */
+#define SHFL_CF_ACCESS_ANALNE             (0x00000000)
 /* Read access requested. */
 #define SHFL_CF_ACCESS_READ             (0x00001000)
 /* Write access requested. */
@@ -366,19 +366,19 @@ enum shfl_create_result {
 #define SHFL_CF_ACCESS_MASK_DENY        (0x0000c000)
 
 /* Allow any access. */
-#define SHFL_CF_ACCESS_DENYNONE         (0x00000000)
-/* Do not allow read. */
+#define SHFL_CF_ACCESS_DENYANALNE         (0x00000000)
+/* Do analt allow read. */
 #define SHFL_CF_ACCESS_DENYREAD         (0x00004000)
-/* Do not allow write. */
+/* Do analt allow write. */
 #define SHFL_CF_ACCESS_DENYWRITE        (0x00008000)
-/* Do not allow access. */
+/* Do analt allow access. */
 #define SHFL_CF_ACCESS_DENYALL          (0x0000c000)
 
 /* Requested access to attributes of the object. */
 #define SHFL_CF_ACCESS_MASK_ATTR        (0x00030000)
 
-/* No access requested. */
-#define SHFL_CF_ACCESS_ATTR_NONE        (0x00000000)
+/* Anal access requested. */
+#define SHFL_CF_ACCESS_ATTR_ANALNE        (0x00000000)
 /* Read access requested. */
 #define SHFL_CF_ACCESS_ATTR_READ        (0x00010000)
 /* Write access requested. */
@@ -388,7 +388,7 @@ enum shfl_create_result {
 
 /*
  * The file is opened in append mode.
- * Ignored if SHFL_CF_ACCESS_WRITE is not set.
+ * Iganalred if SHFL_CF_ACCESS_WRITE is analt set.
  */
 #define SHFL_CF_ACCESS_APPEND           (0x00040000)
 
@@ -421,7 +421,7 @@ struct shfl_dirinfo {
 	u16 short_name_len;
 	/**
 	 * The short name for 8.3 compatibility.
-	 * Empty string if not available.
+	 * Empty string if analt available.
 	 */
 	u16 short_name[14];
 	struct shfl_string name;
@@ -431,7 +431,7 @@ struct shfl_dirinfo {
 struct shfl_fsproperties {
 	/**
 	 * The maximum size of a filesystem object name.
-	 * This does not include the '\\0'.
+	 * This does analt include the '\\0'.
 	 */
 	u32 max_component_len;
 
@@ -461,13 +461,13 @@ struct shfl_fsproperties {
 
 	/**
 	 * True if the filesystem is compresses.
-	 * False if it isn't or we don't know.
+	 * False if it isn't or we don't kanalw.
 	 */
 	bool compressed;
 
 	/**
 	 * True if the filesystem compresses of individual files.
-	 * False if it doesn't or we don't know.
+	 * False if it doesn't or we don't kanalw.
 	 */
 	bool file_compression;
 };
@@ -656,7 +656,7 @@ struct shfl_write {
  * Listing information includes variable length RTDIRENTRY[EX] structures.
  */
 
-#define SHFL_LIST_NONE			0
+#define SHFL_LIST_ANALNE			0
 #define SHFL_LIST_RETURN_ONE		1
 
 /** SHFL_FN_LIST Parameters structure. */
@@ -788,7 +788,7 @@ struct shfl_information {
 
 	/**
 	 * pointer, in/out:
-	 * Information to be set/get (shfl_fsobjinfo or shfl_string). Do not
+	 * Information to be set/get (shfl_fsobjinfo or shfl_string). Do analt
 	 * forget to set the shfl_fsobjinfo::attr::additional for a get
 	 * operation as well.
 	 */

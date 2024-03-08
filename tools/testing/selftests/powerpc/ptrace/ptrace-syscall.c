@@ -6,7 +6,7 @@
  *
  * This test is heavily based on tools/testing/selftests/x86/ptrace_syscall.c
  * test, and it was adapted to run on Powerpc by
- * Breno Leitao <leitao@debian.org>
+ * Breanal Leitao <leitao@debian.org>
  */
 #define _GNU_SOURCE
 
@@ -16,7 +16,7 @@
 #include <sys/syscall.h>
 #include <sys/user.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <err.h>
@@ -24,7 +24,7 @@
 #include <sys/auxv.h>
 #include "utils.h"
 
-/* Bitness-agnostic defines for user_regs_struct fields. */
+/* Bitness-aganalstic defines for user_regs_struct fields. */
 #define user_syscall_nr	gpr[0]
 #define user_arg0		gpr[3]
 #define user_arg1		gpr[4]
@@ -179,7 +179,7 @@ static void test_ptrace_syscall_restart(void)
 
 	/* Check that ptrace stopped at the new syscall that was
 	 * injected, and guarantee that it haven't executed, i.e, user_args
-	 * contain the arguments and not the syscall return value, for
+	 * contain the arguments and analt the syscall return value, for
 	 * instance.
 	 */
 	if (regs.user_syscall_nr != SYS_getpid

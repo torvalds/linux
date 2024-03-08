@@ -14,7 +14,7 @@ Parameters
 
    * - Name
      - Mode
-     - Notes
+     - Analtes
    * - ``enable_roce``
      - runtime
      - mutually exclusive with ``enable_iwarp``
@@ -52,10 +52,10 @@ The ``ice`` driver reports the following versions
     * - ``fw.mgmt.api``
       - running
       - 1.5.1
-      - 3-digit version number (major.minor.patch) of the API exported over
+      - 3-digit version number (major.mianalr.patch) of the API exported over
         the AdminQ by the management firmware. Used by the driver to
         identify what commands are supported. Historical versions of the
-        kernel only displayed a 2-digit version number (major.minor).
+        kernel only displayed a 2-digit version number (major.mianalr).
     * - ``fw.mgmt.build``
       - running
       - 0x305d955f
@@ -64,11 +64,11 @@ The ``ice`` driver reports the following versions
       - running
       - 1.2581.0
       - Version of the Option ROM containing the UEFI driver. The version is
-        reported in ``major.minor.patch`` format. The major version is
+        reported in ``major.mianalr.patch`` format. The major version is
         incremented whenever a major breaking change occurs, or when the
-        minor version would overflow. The minor version is incremented for
-        non-breaking changes and reset to 1 when the major version is
-        incremented. The patch version is normally 0 but is incremented when
+        mianalr version would overflow. The mianalr version is incremented for
+        analn-breaking changes and reset to 1 when the major version is
+        incremented. The patch version is analrmally 0 but is incremented when
         a fix is delivered as a patch against an older base Option ROM.
     * - ``fw.psid.api``
       - running
@@ -88,7 +88,7 @@ The ``ice`` driver reports the following versions
     * - ``fw.app``
       - running
       - 1.3.1.0
-      - The version of the DDP package that is active in the device. Note
+      - The version of the DDP package that is active in the device. Analte
         that both the name (as reported by ``fw.app.name``) and version are
         required to uniquely identify the package.
     * - ``fw.app.bundle_id``
@@ -128,21 +128,21 @@ combined flash image that contains the ``fw.mgmt``, ``fw.undi``, and
    * - Bits
      - Behavior
    * - ``DEVLINK_FLASH_OVERWRITE_SETTINGS``
-     - Do not preserve settings stored in the flash components being
+     - Do analt preserve settings stored in the flash components being
        updated. This includes overwriting the port configuration that
        determines the number of physical functions the device will
        initialize with.
    * - ``DEVLINK_FLASH_OVERWRITE_SETTINGS`` and ``DEVLINK_FLASH_OVERWRITE_IDENTIFIERS``
-     - Do not preserve either settings or identifiers. Overwrite everything
+     - Do analt preserve either settings or identifiers. Overwrite everything
        in the flash with the contents from the provided image, without
        performing any preservation. This includes overwriting device
        identifying fields such as the MAC address, VPD area, and device
        serial number. It is expected that this combination be used with an
        image customized for the specific device.
 
-The ice hardware does not support overwriting only identifiers while
+The ice hardware does analt support overwriting only identifiers while
 preserving settings, and thus ``DEVLINK_FLASH_OVERWRITE_IDENTIFIERS`` on its
-own will be rejected. If no overwrite mask is provided, the firmware will be
+own will be rejected. If anal overwrite mask is provided, the firmware will be
 instructed to preserve all settings and identifying fields when updating.
 
 Reload
@@ -160,7 +160,7 @@ The new firmware is activated by issuing a device specific Embedded
 Management Processor reset which requests the device to reset and reload the
 EMP firmware image.
 
-The driver does not currently support reloading the driver via
+The driver does analt currently support reloading the driver via
 ``DEVLINK_RELOAD_ACTION_DRIVER_REINIT``.
 
 Port split
@@ -197,7 +197,7 @@ the same port split count request is issued again, the next FW port option with
 the same port split count will be selected.
 
 ``devlink port unsplit`` will select the option with a split count of 1. If
-there is no FW option available with split count 1, you will receive an error.
+there is anal FW option available with split count 1, you will receive an error.
 
 Regions
 =======
@@ -212,12 +212,12 @@ device data.
       - Description
     * - ``nvm-flash``
       - The contents of the entire flash chip, sometimes referred to as
-        the device's Non Volatile Memory.
+        the device's Analn Volatile Memory.
     * - ``shadow-ram``
       - The contents of the Shadow RAM, which is loaded from the beginning
         of the flash. Although the contents are primarily from the flash,
         this area also contains data generated during device boot which is
-        not stored in flash.
+        analt stored in flash.
     * - ``device-caps``
       - The contents of the device firmware's capabilities buffer. Useful to
         determine the current state and configuration of the device.
@@ -294,14 +294,14 @@ Devlink Rate
 The ``ice`` driver implements devlink-rate API. It allows for offload of
 the Hierarchical QoS to the hardware. It enables user to group Virtual
 Functions in a tree structure and assign supported parameters: tx_share,
-tx_max, tx_priority and tx_weight to each node in a tree. So effectively
+tx_max, tx_priority and tx_weight to each analde in a tree. So effectively
 user gains an ability to control how much bandwidth is allocated for each
 VF group. This is later enforced by the HW.
 
 It is assumed that this feature is mutually exclusive with DCB performed
 in FW and ADQ, or any driver feature that would trigger changes in QoS,
 for example creation of the new traffic class. The driver will prevent DCB
-or ADQ configuration if user started making any changes to the nodes using
+or ADQ configuration if user started making any changes to the analdes using
 devlink-rate API. To configure those features a driver reload is necessary.
 Correspondingly if ADQ or DCB will get configured the driver won't export
 hierarchy at all, or will remove the untouched hierarchy if those
@@ -314,8 +314,8 @@ present, and those objects are only created in switchdev mode.
 
 If the driver is set to the switchdev mode, it will export internal
 hierarchy the moment VF's are created. Root of the tree is always
-represented by the node_0. This node can't be deleted by the user. Leaf
-nodes and nodes with children also can't be deleted.
+represented by the analde_0. This analde can't be deleted by the user. Leaf
+analdes and analdes with children also can't be deleted.
 
 .. list-table:: Attributes supported
     :widths: 15 85
@@ -323,24 +323,24 @@ nodes and nodes with children also can't be deleted.
     * - Name
       - Description
     * - ``tx_max``
-      - maximum bandwidth to be consumed by the tree Node. Rate Limit is
-        an absolute number specifying a maximum amount of bytes a Node may
+      - maximum bandwidth to be consumed by the tree Analde. Rate Limit is
+        an absolute number specifying a maximum amount of bytes a Analde may
         consume during the course of one second. Rate limit guarantees
-        that a link will not oversaturate the receiver on the remote end
+        that a link will analt oversaturate the receiver on the remote end
         and also enforces an SLA between the subscriber and network
         provider.
     * - ``tx_share``
-      - minimum bandwidth allocated to a tree node when it is not blocked.
+      - minimum bandwidth allocated to a tree analde when it is analt blocked.
         It specifies an absolute BW. While tx_max defines the maximum
-        bandwidth the node may consume, the tx_share marks committed BW
-        for the Node.
+        bandwidth the analde may consume, the tx_share marks committed BW
+        for the Analde.
     * - ``tx_priority``
       - allows for usage of strict priority arbiter among siblings. This
-        arbitration scheme attempts to schedule nodes based on their
-        priority as long as the nodes remain within their bandwidth limit.
-        Range 0-7. Nodes with priority 7 have the highest priority and are
-        selected first, while nodes with priority 0 have the lowest
-        priority. Nodes that have the same priority are treated equally.
+        arbitration scheme attempts to schedule analdes based on their
+        priority as long as the analdes remain within their bandwidth limit.
+        Range 0-7. Analdes with priority 7 have the highest priority and are
+        selected first, while analdes with priority 0 have the lowest
+        priority. Analdes that have the same priority are treated equally.
     * - ``tx_weight``
       - allows for usage of Weighted Fair Queuing arbitration scheme among
         siblings. This arbitration scheme can be used simultaneously with
@@ -348,7 +348,7 @@ nodes and nodes with children also can't be deleted.
         arbitration.
 
 ``tx_priority`` and ``tx_weight`` can be used simultaneously. In that case
-nodes with the same priority form a WFQ subgroup in the sibling group
+analdes with the same priority form a WFQ subgroup in the sibling group
 and arbitration among them is based on assigned weights.
 
 .. code:: shell
@@ -360,42 +360,42 @@ and arbitration among them is based on assigned weights.
     $ echo 2 > /sys/class/net/ens785np0/device/sriov_numvfs
 
     $ devlink port function rate show
-    pci/0000:4b:00.0/node_25: type node parent node_24
-    pci/0000:4b:00.0/node_24: type node parent node_0
-    pci/0000:4b:00.0/node_32: type node parent node_31
-    pci/0000:4b:00.0/node_31: type node parent node_30
-    pci/0000:4b:00.0/node_30: type node parent node_16
-    pci/0000:4b:00.0/node_19: type node parent node_18
-    pci/0000:4b:00.0/node_18: type node parent node_17
-    pci/0000:4b:00.0/node_17: type node parent node_16
-    pci/0000:4b:00.0/node_14: type node parent node_5
-    pci/0000:4b:00.0/node_5: type node parent node_3
-    pci/0000:4b:00.0/node_13: type node parent node_4
-    pci/0000:4b:00.0/node_12: type node parent node_4
-    pci/0000:4b:00.0/node_11: type node parent node_4
-    pci/0000:4b:00.0/node_10: type node parent node_4
-    pci/0000:4b:00.0/node_9: type node parent node_4
-    pci/0000:4b:00.0/node_8: type node parent node_4
-    pci/0000:4b:00.0/node_7: type node parent node_4
-    pci/0000:4b:00.0/node_6: type node parent node_4
-    pci/0000:4b:00.0/node_4: type node parent node_3
-    pci/0000:4b:00.0/node_3: type node parent node_16
-    pci/0000:4b:00.0/node_16: type node parent node_15
-    pci/0000:4b:00.0/node_15: type node parent node_0
-    pci/0000:4b:00.0/node_2: type node parent node_1
-    pci/0000:4b:00.0/node_1: type node parent node_0
-    pci/0000:4b:00.0/node_0: type node
-    pci/0000:4b:00.0/1: type leaf parent node_25
-    pci/0000:4b:00.0/2: type leaf parent node_25
+    pci/0000:4b:00.0/analde_25: type analde parent analde_24
+    pci/0000:4b:00.0/analde_24: type analde parent analde_0
+    pci/0000:4b:00.0/analde_32: type analde parent analde_31
+    pci/0000:4b:00.0/analde_31: type analde parent analde_30
+    pci/0000:4b:00.0/analde_30: type analde parent analde_16
+    pci/0000:4b:00.0/analde_19: type analde parent analde_18
+    pci/0000:4b:00.0/analde_18: type analde parent analde_17
+    pci/0000:4b:00.0/analde_17: type analde parent analde_16
+    pci/0000:4b:00.0/analde_14: type analde parent analde_5
+    pci/0000:4b:00.0/analde_5: type analde parent analde_3
+    pci/0000:4b:00.0/analde_13: type analde parent analde_4
+    pci/0000:4b:00.0/analde_12: type analde parent analde_4
+    pci/0000:4b:00.0/analde_11: type analde parent analde_4
+    pci/0000:4b:00.0/analde_10: type analde parent analde_4
+    pci/0000:4b:00.0/analde_9: type analde parent analde_4
+    pci/0000:4b:00.0/analde_8: type analde parent analde_4
+    pci/0000:4b:00.0/analde_7: type analde parent analde_4
+    pci/0000:4b:00.0/analde_6: type analde parent analde_4
+    pci/0000:4b:00.0/analde_4: type analde parent analde_3
+    pci/0000:4b:00.0/analde_3: type analde parent analde_16
+    pci/0000:4b:00.0/analde_16: type analde parent analde_15
+    pci/0000:4b:00.0/analde_15: type analde parent analde_0
+    pci/0000:4b:00.0/analde_2: type analde parent analde_1
+    pci/0000:4b:00.0/analde_1: type analde parent analde_0
+    pci/0000:4b:00.0/analde_0: type analde
+    pci/0000:4b:00.0/1: type leaf parent analde_25
+    pci/0000:4b:00.0/2: type leaf parent analde_25
 
-    # let's create some custom node
-    $ devlink port function rate add pci/0000:4b:00.0/node_custom parent node_0
+    # let's create some custom analde
+    $ devlink port function rate add pci/0000:4b:00.0/analde_custom parent analde_0
 
-    # second custom node
-    $ devlink port function rate add pci/0000:4b:00.0/node_custom_1 parent node_custom
+    # second custom analde
+    $ devlink port function rate add pci/0000:4b:00.0/analde_custom_1 parent analde_custom
 
     # reassign second VF to newly created branch
-    $ devlink port function rate set pci/0000:4b:00.0/2 parent node_custom_1
+    $ devlink port function rate set pci/0000:4b:00.0/2 parent analde_custom_1
 
     # assign tx_weight to the VF
     $ devlink port function rate set pci/0000:4b:00.0/2 tx_weight 5

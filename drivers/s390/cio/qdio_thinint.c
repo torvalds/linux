@@ -26,14 +26,14 @@
  * Restriction: only 63 iqdio subchannels would have its own indicator,
  * after that, subsequent subchannels share one indicator
  */
-#define TIQDIO_NR_NONSHARED_IND		63
-#define TIQDIO_NR_INDICATORS		(TIQDIO_NR_NONSHARED_IND + 1)
+#define TIQDIO_NR_ANALNSHARED_IND		63
+#define TIQDIO_NR_INDICATORS		(TIQDIO_NR_ANALNSHARED_IND + 1)
 #define TIQDIO_SHARED_IND		63
 
 /* device state change indicators */
 struct indicator_t {
 	u32 ind;	/* u32 because of compare-and-swap performance */
-	atomic_t count; /* use count, 0 or 1 for non-shared indicators */
+	atomic_t count; /* use count, 0 or 1 for analn-shared indicators */
 };
 
 /* list of thin interrupt input queues */
@@ -49,7 +49,7 @@ static u32 *get_indicator(void)
 {
 	int i;
 
-	for (i = 0; i < TIQDIO_NR_NONSHARED_IND; i++)
+	for (i = 0; i < TIQDIO_NR_ANALNSHARED_IND; i++)
 		if (!atomic_cmpxchg(&q_indicators[i].count, 0, 1))
 			return &q_indicators[i].ind;
 
@@ -72,7 +72,7 @@ static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
-int test_nonshared_ind(struct qdio_irq *irq_ptr)
+int test_analnshared_ind(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
@@ -151,7 +151,7 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 	rc = chsc_sadc(irq_ptr->schid, scssc, summary_indicator_addr,
 		       subchannel_indicator_addr, tiqdio_airq.isc);
 	if (rc) {
-		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_no,
+		DBF_ERROR("%4x SSI r:%4x", irq_ptr->schid.sch_anal,
 			  scssc->response.code);
 		goto out;
 	}
@@ -207,7 +207,7 @@ int __init qdio_thinint_init(void)
 	q_indicators = kcalloc(TIQDIO_NR_INDICATORS, sizeof(struct indicator_t),
 			       GFP_KERNEL);
 	if (!q_indicators)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = register_adapter_interrupt(&tiqdio_airq);
 	if (rc) {

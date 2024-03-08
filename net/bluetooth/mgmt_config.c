@@ -76,7 +76,7 @@ int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		HDEV_PARAM_U16(le_supv_timeout);
 		HDEV_PARAM_U16(def_le_autoconnect_timeout);
 		HDEV_PARAM_U16(advmon_allowlist_duration);
-		HDEV_PARAM_U16(advmon_no_filter_duration);
+		HDEV_PARAM_U16(advmon_anal_filter_duration);
 		HDEV_PARAM_U8(enable_advmon_interleave_scan);
 	} __packed rp = {
 		TLV_SET_U16(0x0000, def_page_scan_type),
@@ -109,7 +109,7 @@ int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 		TLV_SET_U16_JIFFIES_TO_MSECS(0x001b,
 					     def_le_autoconnect_timeout),
 		TLV_SET_U16(0x001d, advmon_allowlist_duration),
-		TLV_SET_U16(0x001e, advmon_no_filter_duration),
+		TLV_SET_U16(0x001e, advmon_anal_filter_duration),
 		TLV_SET_U8(0x001f, enable_advmon_interleave_scan),
 	};
 
@@ -309,7 +309,7 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 			hdev->advmon_allowlist_duration = TLV_GET_LE16(buffer);
 			break;
 		case 0x0001e:
-			hdev->advmon_no_filter_duration = TLV_GET_LE16(buffer);
+			hdev->advmon_anal_filter_duration = TLV_GET_LE16(buffer);
 			break;
 		case 0x0001f:
 			hdev->enable_advmon_interleave_scan = TLV_GET_U8(buffer);

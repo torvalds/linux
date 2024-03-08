@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # Test routing after VXLAN decapsulation and verify that the order of
-# configuration does not impact switch behavior. Verify that RIF is added
+# configuration does analt impact switch behavior. Verify that RIF is added
 # correctly for existing mapping and that new mapping uses the correct RIF.
 
 # +---------------------------+
@@ -76,8 +76,8 @@ h1_destroy()
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 0
-	# Make sure the bridge uses the MAC address of the local port and not
+		mcast_sanaloping 0
+	# Make sure the bridge uses the MAC address of the local port and analt
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)
 	ip link set dev br1 up
@@ -93,7 +93,7 @@ switch_create()
 
 	ip link add name vx4001 type vxlan id 104001 \
 		local 192.0.2.17 dstport $VXPORT \
-		nolearning noudpcsum tos inherit ttl 100
+		anallearning analudpcsum tos inherit ttl 100
 	ip link set dev vx4001 up
 
 	ip link set dev vx4001 master br1
@@ -135,9 +135,9 @@ switch_destroy()
 
 	bridge vlan del vid 10 dev $swp1
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 analmaster
 
-	ip link set dev vx4001 nomaster
+	ip link set dev vx4001 analmaster
 
 	ip link set dev vx4001 down
 	ip link del dev vx4001
@@ -260,7 +260,7 @@ vni_fid_map_rif()
 		-t udp sp=12345,dp=$VXPORT,p=$payload -q
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add RIF for existing VNI->FID mapping"
 
@@ -291,7 +291,7 @@ rif_vni_fid_map()
 		-t udp sp=12345,dp=$VXPORT,p=$payload -q
 
 	tc_check_at_least_x_packets "dev $swp1 egress" 101 10
-	check_err $? "Packets were not routed in hardware"
+	check_err $? "Packets were analt routed in hardware"
 
 	log_test "Add VNI->FID mapping for FID with a RIF"
 

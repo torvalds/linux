@@ -121,7 +121,7 @@ static int __init n64_platform_init(void)
 	/* The framebuffer needs 64-byte alignment */
 	orig = kzalloc(W * H * 2 + 63, GFP_DMA | GFP_KERNEL);
 	if (!orig)
-		return -ENOMEM;
+		return -EANALMEM;
 	phys = virt_to_phys(orig);
 	phys += 63;
 	phys &= ~63;

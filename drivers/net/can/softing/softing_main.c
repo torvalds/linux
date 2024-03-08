@@ -16,7 +16,7 @@
 
 /*
  * test is a specific CAN netdev
- * is online (ie. up 'n running, not sleeping, not busoff
+ * is online (ie. up 'n running, analt sleeping, analt busoff
  */
 static inline int canif_is_active(struct net_device *netdev)
 {
@@ -92,7 +92,7 @@ static netdev_tx_t softing_netdev_start_xmit(struct sk_buff *skb,
 		*ptr++ = (cf->can_id >> 16);
 		*ptr++ = (cf->can_id >> 24);
 	} else {
-		/* increment 1, not 2 as you might think */
+		/* increment 1, analt 2 as you might think */
 		ptr += 1;
 	}
 	if (!(cf->can_id & CAN_RTR_FLAG))
@@ -137,7 +137,7 @@ int softing_netdev_rx(struct net_device *netdev, const struct can_frame *msg,
 
 	skb = alloc_can_skb(netdev, &cf);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(cf, msg, sizeof(*msg));
 	skb->tstamp = ktime;
 	return netif_rx(skb);
@@ -171,7 +171,7 @@ static int softing_handle_1(struct softing *card)
 		msg.len = CAN_ERR_DLC;
 		msg.data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		/*
-		 * service to all buses, we don't know which it was applicable
+		 * service to all buses, we don't kanalw which it was applicable
 		 * but only service buses that are online
 		 */
 		for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
@@ -179,7 +179,7 @@ static int softing_handle_1(struct softing *card)
 			if (!netdev)
 				continue;
 			if (!canif_is_active(netdev))
-				/* a dead bus has no overflows */
+				/* a dead bus has anal overflows */
 				continue;
 			++netdev->stats.rx_over_errors;
 			softing_netdev_rx(netdev, &msg, 0);
@@ -206,7 +206,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite useful, probably the card has got out */
+		/* analt quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)
@@ -278,7 +278,7 @@ static int softing_handle_1(struct softing *card)
 			memcpy(&msg.data[0], ptr, 8);
 		/* update socket */
 		if (cmd & CMD_ACK) {
-			/* acknowledge, was tx msg */
+			/* ackanalwledge, was tx msg */
 			struct sk_buff *skb;
 			skb = priv->can.echo_skb[priv->tx.echo_get];
 			if (skb)
@@ -338,14 +338,14 @@ static irqreturn_t softing_irq_thread(int irq, void *dev_id)
 			continue;
 		priv = netdev_priv(netdev);
 		if (!canif_is_active(netdev))
-			/* it makes no sense to wake dead buses */
+			/* it makes anal sense to wake dead buses */
 			continue;
 		if (priv->tx.pending >= TX_ECHO_SKB_MAX)
 			continue;
 		++work_done;
 		netif_wake_queue(netdev);
 	}
-	return work_done ? IRQ_HANDLED : IRQ_NONE;
+	return work_done ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /*
@@ -359,7 +359,7 @@ static irqreturn_t softing_irq_v2(int irq, void *dev_id)
 
 	ir = ioread8(&card->dpram[DPRAM_V2_IRQ_TOHOST]);
 	iowrite8(0, &card->dpram[DPRAM_V2_IRQ_TOHOST]);
-	return (1 == ir) ? IRQ_WAKE_THREAD : IRQ_NONE;
+	return (1 == ir) ? IRQ_WAKE_THREAD : IRQ_ANALNE;
 }
 
 static irqreturn_t softing_irq_v1(int irq, void *dev_id)
@@ -369,7 +369,7 @@ static irqreturn_t softing_irq_v1(int irq, void *dev_id)
 
 	ir = ioread8(&card->dpram[DPRAM_IRQ_TOHOST]);
 	iowrite8(0, &card->dpram[DPRAM_IRQ_TOHOST]);
-	return ir ? IRQ_WAKE_THREAD : IRQ_NONE;
+	return ir ? IRQ_WAKE_THREAD : IRQ_ANALNE;
 }
 
 /*
@@ -410,7 +410,7 @@ static int softing_candev_set_mode(struct net_device *ndev, enum can_mode mode)
 		return ret;
 	case CAN_MODE_STOP:
 	case CAN_MODE_SLEEP:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -498,7 +498,7 @@ static int softing_card_boot(struct softing *card)
 
 		if (!memcmp(back, stream, sizeof(stream)))
 			continue;
-		/* memory is not equal */
+		/* memory is analt equal */
 		dev_alert(&card->pdev->dev, "dpram failed at 0x%04x\n", j);
 		ret = -EIO;
 		goto failed;
@@ -760,7 +760,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 	int j;
 
 	if (!pdat) {
-		dev_warn(&pdev->dev, "no platform data\n");
+		dev_warn(&pdev->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 	if (pdat->nbus > ARRAY_SIZE(card->net)) {
@@ -770,7 +770,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 	card->pdat = pdat;
 	card->pdev = pdev;
 	platform_set_drvdata(pdev, card);
@@ -800,7 +800,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 		goto boot_failed;
 	}
 
-	/* only now, the chip's are known */
+	/* only analw, the chip's are kanalwn */
 	card->id.freq = card->pdat->freq;
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &softing_pdev_group);
@@ -814,7 +814,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 			softing_netdev_create(card, card->id.chip[j]);
 		if (!netdev) {
 			dev_alert(&pdev->dev, "failed to make can[%i]", j);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto netdev_failed;
 		}
 		netdev->dev_id = j;

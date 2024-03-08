@@ -47,7 +47,7 @@ void vchiq_driver_unregister(struct vchiq_driver *vchiq_drv);
  * module_vchiq_driver() - Helper macro for registering a vchiq driver
  * @__vchiq_driver: vchiq driver struct
  *
- * Helper macro for vchiq drivers which do not do anything special in
+ * Helper macro for vchiq drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

@@ -17,21 +17,21 @@
 #define _isp_capture_defs_h
 
 #define _ISP_CAPTURE_REG_ALIGN                    4  /* assuming 32 bit control bus width */
-#define _ISP_CAPTURE_BITS_PER_ELEM                32  /* only for data, not SOP */
+#define _ISP_CAPTURE_BITS_PER_ELEM                32  /* only for data, analt SOP */
 #define _ISP_CAPTURE_BYTES_PER_ELEM               (_ISP_CAPTURE_BITS_PER_ELEM / 8)
 #define _ISP_CAPTURE_BYTES_PER_WORD               32		/* 256/8 */
 #define _ISP_CAPTURE_ELEM_PER_WORD                _ISP_CAPTURE_BYTES_PER_WORD / _ISP_CAPTURE_BYTES_PER_ELEM
 
 /* --------------------------------------------------*/
 
-#define NOF_IRQS                                  2
+#define ANALF_IRQS                                  2
 
 /* --------------------------------------------------*/
 /* REGISTER INFO */
 /* --------------------------------------------------*/
 
 // Number of registers
-#define CAPT_NOF_REGS                             16
+#define CAPT_ANALF_REGS                             16
 
 // Register id's of MMIO slave accessible registers
 #define CAPT_START_MODE_REG_ID                    0
@@ -48,8 +48,8 @@
 #define CAPT_RECEIVED_LONG_PACKETS_REG_ID         10
 #define CAPT_LAST_COMMAND_REG_ID                  11
 #define CAPT_NEXT_COMMAND_REG_ID                  12
-#define CAPT_LAST_ACKNOWLEDGE_REG_ID              13
-#define CAPT_NEXT_ACKNOWLEDGE_REG_ID              14
+#define CAPT_LAST_ACKANALWLEDGE_REG_ID              13
+#define CAPT_NEXT_ACKANALWLEDGE_REG_ID              14
 #define CAPT_FSM_STATE_INFO_REG_ID                15
 
 // Register width
@@ -69,8 +69,8 @@
 #define CAPT_RECEIVED_SHORT_PACKETS_REG_WIDTH     32
 #define CAPT_RECEIVED_LONG_PACKETS_REG_WIDTH      32
 #define CAPT_LAST_COMMAND_REG_WIDTH               32
-#define CAPT_LAST_ACKNOWLEDGE_REG_WIDTH           32
-#define CAPT_NEXT_ACKNOWLEDGE_REG_WIDTH           32
+#define CAPT_LAST_ACKANALWLEDGE_REG_WIDTH           32
+#define CAPT_NEXT_ACKANALWLEDGE_REG_WIDTH           32
 #define CAPT_FSM_STATE_INFO_REG_WIDTH             ((CAPT_WRITE2MEM_FSM_STATE_BITS * 3) + (CAPT_SYNCHRONIZER_FSM_STATE_BITS * 3))
 
 /* register reset value */
@@ -89,8 +89,8 @@
 #define CAPT_RECEIVED_LONG_PACKETS_REG_RSTVAL     0
 #define CAPT_LAST_COMMAND_REG_RSTVAL              0
 #define CAPT_NEXT_COMMAND_REG_RSTVAL              0
-#define CAPT_LAST_ACKNOWLEDGE_REG_RSTVAL          0
-#define CAPT_NEXT_ACKNOWLEDGE_REG_RSTVAL          0
+#define CAPT_LAST_ACKANALWLEDGE_REG_RSTVAL          0
+#define CAPT_NEXT_ACKANALWLEDGE_REG_RSTVAL          0
 #define CAPT_FSM_STATE_INFO_REG_RSTVAL            0
 
 /* bit definitions */
@@ -130,7 +130,7 @@
 #define CAPT_RESUME_TOKEN_BIT                     0
 #define CAPT_INIT_TOKEN_BIT                       0
 
-/* Acknowledge token IDs */
+/* Ackanalwledge token IDs */
 #define CAPT_END_OF_PACKET_RECEIVED_TOKEN_ID      0 /* 0000b */
 #define CAPT_END_OF_PACKET_WRITTEN_TOKEN_ID       1 /* 0001b */
 #define CAPT_END_OF_REGION_WRITTEN_TOKEN_ID       2 /* 0010b */
@@ -193,7 +193,7 @@
 
 #define CAPT_WORD_COUNT_WIDTH                     16
 #define CAPT_PKT_CODE_WIDTH                       6
-#define CAPT_CHN_NO_WIDTH                         2
+#define CAPT_CHN_ANAL_WIDTH                         2
 #define CAPT_ERROR_INFO_WIDTH                     8
 
 #define LONG_PKTCODE_MAX                          63
@@ -238,7 +238,7 @@
 #define CAPT_USR_DEF_6_DATA						 53   /* 11 0101    User Defined 8-bit Data Type 6                   */
 #define CAPT_USR_DEF_7_DATA						 54   /* 11 0110    User Defined 8-bit Data Type 7                   */
 #define CAPT_USR_DEF_8_DATA						 55   /* 11 0111    User Defined 8-bit Data Type 8                   */
-#define CAPT_Emb_DATA							 18   /* 01 0010    embedded eight bit non image data                */
+#define CAPT_Emb_DATA							 18   /* 01 0010    embedded eight bit analn image data                */
 #define CAPT_SOF_DATA							 0   /* 00 0000    frame start                                      */
 #define CAPT_EOF_DATA							 1   /* 00 0001    frame end                                        */
 #define CAPT_SOL_DATA							 2   /* 00 0010    line start                                       */
@@ -267,7 +267,7 @@
 /* Capture Unit State */
 /* --------------------------------------------------*/
 #define CAPT_FREE_RUN                             0
-#define CAPT_NO_SYNC                              1
+#define CAPT_ANAL_SYNC                              1
 #define CAPT_SYNC_SWP                             2
 #define CAPT_SYNC_MWP                             3
 #define CAPT_SYNC_WAIT                            4

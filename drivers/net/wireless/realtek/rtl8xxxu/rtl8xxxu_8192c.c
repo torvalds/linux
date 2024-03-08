@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -336,7 +336,7 @@ static int rtl8192cu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -375,10 +375,10 @@ static int rtl8192cu_identify_chip(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_config_endpoints_sie(priv);
 
 	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 * Fallback for devices that do analt provide REG_ANALRMAL_SIE_EP_TX
 	 */
 	if (!priv->ep_tx_count)
-		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+		ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 out:
 	return ret;
@@ -447,7 +447,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 		strscpy(priv->chip_name, "8188RU", sizeof(priv->chip_name));
 		priv->rtl_chip = RTL8188R;
 		priv->hi_pa = 1;
-		priv->no_pape = 1;
+		priv->anal_pape = 1;
 		priv->power_base = &rtl8188r_power_base;
 	}
 
@@ -493,7 +493,7 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 
 	if (!i) {
 		pr_info("%s: Poll failed\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -624,6 +624,6 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ,
 };
 #endif

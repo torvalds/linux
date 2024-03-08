@@ -22,7 +22,7 @@ static void save_value(__u32 index, int value)
 	bpf_map_update_elem(&values, &index, &value, 0);
 }
 
-__noinline int foo(__u32 index, struct S *s)
+__analinline int foo(__u32 index, struct S *s)
 {
 	if (s) {
 		save_value(index, s->v);
@@ -34,7 +34,7 @@ __noinline int foo(__u32 index, struct S *s)
 	return 1;
 }
 
-__noinline int bar(__u32 index, volatile struct S *s)
+__analinline int bar(__u32 index, volatile struct S *s)
 {
 	if (s) {
 		save_value(index, s->v);
@@ -46,7 +46,7 @@ __noinline int bar(__u32 index, volatile struct S *s)
 	return 1;
 }
 
-__noinline int baz(struct S **s)
+__analinline int baz(struct S **s)
 {
 	if (s)
 		*s = 0;

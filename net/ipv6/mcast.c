@@ -16,14 +16,14 @@
  *		Fixed source address for MLD message based on
  *		<draft-ietf-magma-mld-source-05.txt>.
  *	YOSHIFUJI Hideaki @USAGI:
- *		- Ignore Queries for invalid addresses.
+ *		- Iganalre Queries for invalid addresses.
  *		- MLD for link-local addresses.
  *	David L Stevens <dlstevens@us.ibm.com>:
  *		- MLDv2 support
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -189,7 +189,7 @@ static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
 	mc_lst = sock_kmalloc(sk, sizeof(struct ipv6_mc_socklist), GFP_KERNEL);
 
 	if (!mc_lst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mc_lst->next = NULL;
 	mc_lst->addr = *addr;
@@ -206,7 +206,7 @@ static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
 
 	if (!dev) {
 		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mc_lst->ifindex = dev->ifindex;
@@ -214,7 +214,7 @@ static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
 	RCU_INIT_POINTER(mc_lst->sflist, NULL);
 
 	/*
-	 *	now add/increase the group membership on the device
+	 *	analw add/increase the group membership on the device
 	 */
 
 	err = __ipv6_dev_mc_inc(dev, addr, mode);
@@ -283,7 +283,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		}
 	}
 
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 EXPORT_SYMBOL(ipv6_sock_mc_drop);
 
@@ -379,9 +379,9 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 
 	idev = ip6_mc_find_dev_rtnl(net, group, pgsr->gsr_interface);
 	if (!idev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	err = -EADDRNOTAVAIL;
+	err = -EADDRANALTAVAIL;
 
 	mutex_lock(&idev->mc_lock);
 	for_each_pmc_socklock(inet6, sk, pmc) {
@@ -410,15 +410,15 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	psl = sock_dereference(pmc->sflist, sk);
 	if (!add) {
 		if (!psl)
-			goto done;	/* err = -EADDRNOTAVAIL */
+			goto done;	/* err = -EADDRANALTAVAIL */
 		rv = !0;
 		for (i = 0; i < psl->sl_count; i++) {
 			rv = !ipv6_addr_equal(&psl->sl_addr[i], source);
 			if (rv == 0)
 				break;
 		}
-		if (rv)		/* source not found */
-			goto done;	/* err = -EADDRNOTAVAIL */
+		if (rv)		/* source analt found */
+			goto done;	/* err = -EADDRANALTAVAIL */
 
 		/* special case - (INCLUDE, empty) == LEAVE_GROUP */
 		if (psl->sl_count == 1 && omode == MCAST_INCLUDE) {
@@ -438,7 +438,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	/* else, add a new source to the filter */
 
 	if (psl && psl->sl_count >= sysctl_mld_max_msf) {
-		err = -ENOBUFS;
+		err = -EANALBUFS;
 		goto done;
 	}
 	if (!psl || psl->sl_count == psl->sl_max) {
@@ -450,7 +450,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 		newpsl = sock_kmalloc(sk, struct_size(newpsl, sl_addr, count),
 				      GFP_KERNEL);
 		if (!newpsl) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto done;
 		}
 		newpsl->sl_max = count;
@@ -507,7 +507,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf,
 
 	idev = ip6_mc_find_dev_rtnl(net, group, gsf->gf_interface);
 	if (!idev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = 0;
 
@@ -531,7 +531,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf,
 						      gsf->gf_numsrc),
 				      GFP_KERNEL);
 		if (!newpsl) {
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 			goto done;
 		}
 		newpsl->sl_max = newpsl->sl_count = gsf->gf_numsrc;
@@ -604,7 +604,7 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			break;
 	}
 	if (!pmc)		/* must have a prior join */
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	gsf->gf_fmode = pmc->sfmode;
 	psl = sock_dereference(pmc->sflist, sk);
@@ -680,7 +680,7 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 			dev_mc_add(dev, buf);
 	}
 
-	if (!(dev->flags & IFF_UP) || (mc->mca_flags & MAF_NOREPORT))
+	if (!(dev->flags & IFF_UP) || (mc->mca_flags & MAF_ANALREPORT))
 		return;
 
 	if (mld_in_v1_mode(mc->idev)) {
@@ -690,7 +690,7 @@ static void igmp6_group_added(struct ifmcaddr6 *mc)
 	/* else v2 */
 
 	/* Based on RFC3810 6.1, for newly added INCLUDE SSM, we
-	 * should not send filter-mode change record as the mode
+	 * should analt send filter-mode change record as the mode
 	 * should be from IN() to IN(A).
 	 */
 	if (mc->mca_sfmode == MCAST_EXCLUDE)
@@ -715,7 +715,7 @@ static void igmp6_group_dropped(struct ifmcaddr6 *mc)
 			dev_mc_del(dev, buf);
 	}
 
-	if (mc->mca_flags & MAF_NOREPORT)
+	if (mc->mca_flags & MAF_ANALREPORT)
 		return;
 
 	if (!mc->idev->dead)
@@ -734,10 +734,10 @@ static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	struct ifmcaddr6 *pmc;
 
 	/* this is an "ifmcaddr6" for convenience; only the fields below
-	 * are actually used. In particular, the refcnt and users are not
+	 * are actually used. In particular, the refcnt and users are analt
 	 * used for management of the delete list. Using the same structure
 	 * for deleted items allows change reports to use common code with
-	 * non-deleted or query-response MCA's.
+	 * analn-deleted or query-response MCA's.
 	 */
 	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
@@ -893,15 +893,15 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 	mc->mca_sfmode = mode;
 	mc->mca_sfcount[mode] = 1;
 
-	if (ipv6_addr_is_ll_all_nodes(&mc->mca_addr) ||
+	if (ipv6_addr_is_ll_all_analdes(&mc->mca_addr) ||
 	    IPV6_ADDR_MC_SCOPE(&mc->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
-		mc->mca_flags |= MAF_NOREPORT;
+		mc->mca_flags |= MAF_ANALREPORT;
 
 	return mc;
 }
 
 /*
- *	device multicast group inc (add if not found)
+ *	device multicast group inc (add if analt found)
  */
 static int __ipv6_dev_mc_inc(struct net_device *dev,
 			     const struct in6_addr *addr, unsigned int mode)
@@ -919,7 +919,7 @@ static int __ipv6_dev_mc_inc(struct net_device *dev,
 
 	if (idev->dead) {
 		in6_dev_put(idev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&idev->mc_lock);
@@ -937,7 +937,7 @@ static int __ipv6_dev_mc_inc(struct net_device *dev,
 	if (!mc) {
 		mutex_unlock(&idev->mc_lock);
 		in6_dev_put(idev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rcu_assign_pointer(mc->next, idev->mc_list);
@@ -988,7 +988,7 @@ int __ipv6_dev_mc_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 
 	mutex_unlock(&idev->mc_lock);
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
@@ -1000,7 +1000,7 @@ int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 
 	idev = __in6_dev_get(dev);
 	if (!idev)
-		err = -ENODEV;
+		err = -EANALDEV;
 	else
 		err = __ipv6_dev_mc_dec(idev, addr);
 
@@ -1119,8 +1119,8 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 {
 	unsigned long delay = resptime;
 
-	/* Do not start work for these addresses */
-	if (ipv6_addr_is_ll_all_nodes(&ma->mca_addr) ||
+	/* Do analt start work for these addresses */
+	if (ipv6_addr_is_ll_all_analdes(&ma->mca_addr) ||
 	    IPV6_ADDR_MC_SCOPE(&ma->mca_addr) < IPV6_ADDR_SCOPE_LINKLOCAL)
 		return;
 
@@ -1202,7 +1202,7 @@ static bool mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
 
 static int mld_force_mld_version(const struct inet6_dev *idev)
 {
-	/* Normally, both are 0 here. If enforcement to a particular is
+	/* Analrmally, both are 0 here. If enforcement to a particular is
 	 * being used, individual device enforcement will have a lower
 	 * precedence over 'all' device (.../conf/all/force_mld_version).
 	 */
@@ -1258,8 +1258,8 @@ static void mld_update_qrv(struct inet6_dev *idev,
 	 *  - 9.1. Robustness Variable
 	 */
 
-	/* The value of the Robustness Variable MUST NOT be zero,
-	 * and SHOULD NOT be one. Catch this here if we ever run
+	/* The value of the Robustness Variable MUST ANALT be zero,
+	 * and SHOULD ANALT be one. Catch this here if we ever run
 	 * into such a case in future.
 	 */
 	const int min_qrv = min(MLD_QRV_DEFAULT, sysctl_mld_qrv);
@@ -1315,7 +1315,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 {
 	unsigned long mldv1_md;
 
-	/* Ignore v1 queries */
+	/* Iganalre v1 queries */
 	if (mld_in_v2_mode_only(idev))
 		return -EINVAL;
 
@@ -1323,7 +1323,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 
 	/* When in MLDv1 fallback and a MLDv2 router start-up being
 	 * unaware of current MLDv1 operation, the MRC == MRD mapping
-	 * only works when the exponential algorithm is not being
+	 * only works when the exponential algorithm is analt being
 	 * used (as MLDv1 is unaware of such things).
 	 *
 	 * According to the RFC author, the MLDv2 implementations
@@ -1340,7 +1340,7 @@ static int mld_process_v1(struct inet6_dev *idev, struct mld_msg *mld,
 
 	/* MLDv1 router present: we need to go into v1 mode *only*
 	 * when an MLDv1 query is received as per section 9.12. of
-	 * RFC3810! And we know from RFC2710 section 3.7 that MLDv1
+	 * RFC3810! And we kanalw from RFC2710 section 3.7 that MLDv1
 	 * queries MUST be of exactly 24 octets.
 	 */
 	if (v1_query)
@@ -1410,7 +1410,7 @@ static void __mld_query_work(struct sk_buff *skb)
 	len -= skb_network_header_len(skb);
 
 	/* RFC3810 6.2
-	 * Upon reception of an MLD message that contains a Query, the node
+	 * Upon reception of an MLD message that contains a Query, the analde
 	 * checks if the source address of the message is a valid link-local
 	 * address, if the Hop Limit is set to 1, and if the Router Alert
 	 * option is present in the Hop-By-Hop Options header of the IPv6
@@ -1454,7 +1454,7 @@ static void __mld_query_work(struct sk_buff *skb)
 
 		if (group_type == IPV6_ADDR_ANY) { /* general query */
 			if (mlh2->mld2q_nsrcs)
-				goto out; /* no sources allowed */
+				goto out; /* anal sources allowed */
 
 			mld_gq_start_work(idev);
 			goto out;
@@ -1565,11 +1565,11 @@ static void __mld_report_work(struct sk_buff *skb)
 	struct mld_msg *mld;
 	int addr_type;
 
-	/* Our own report looped back. Ignore it. */
+	/* Our own report looped back. Iganalre it. */
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto kfree_skb;
 
-	/* send our report if the MC router may not have heard this report */
+	/* send our report if the MC router may analt have heard this report */
 	if (skb->pkt_type != PACKET_MULTICAST &&
 	    skb->pkt_type != PACKET_BROADCAST)
 		goto kfree_skb;
@@ -1579,7 +1579,7 @@ static void __mld_report_work(struct sk_buff *skb)
 
 	mld = (struct mld_msg *)icmp6_hdr(skb);
 
-	/* Drop reports with not link local source */
+	/* Drop reports with analt link local source */
 	addr_type = ipv6_addr_type(&ipv6_hdr(skb)->saddr);
 	if (addr_type != IPV6_ADDR_ANY &&
 	    !(addr_type&IPV6_ADDR_LINKLOCAL))
@@ -1740,7 +1740,7 @@ static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 
 	sk = net->ipv6.igmp_sk;
 	/* we assume size > sizeof(ra) here
-	 * Also try to not allocate high-order pages for big MTU
+	 * Also try to analt allocate high-order pages for big MTU
 	 */
 	size = min_t(int, mtu, PAGE_SIZE / 2) + hlen + tlen;
 	skb = sock_alloc_send_skb(sk, size, 1, &err);
@@ -1754,7 +1754,7 @@ static struct sk_buff *mld_newpack(struct inet6_dev *idev, unsigned int mtu)
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
 		 * use unspecified address as the source address
-		 * when a valid link-local address is not available.
+		 * when a valid link-local address is analt available.
 		 */
 		saddr = &in6addr_any;
 	} else
@@ -1877,7 +1877,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	struct mld2_report *pmr;
 	unsigned int mtu;
 
-	if (pmc->mca_flags & MAF_NOREPORT)
+	if (pmc->mca_flags & MAF_ANALREPORT)
 		return skb;
 
 	mtu = READ_ONCE(dev->mtu);
@@ -1921,7 +1921,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 			continue;
 		}
 
-		/* Based on RFC3810 6.1. Should not send source-list change
+		/* Based on RFC3810 6.1. Should analt send source-list change
 		 * records when there is a filter mode change.
 		 */
 		if (((gdeleted && pmc->mca_sfmode == MCAST_EXCLUDE) ||
@@ -2003,7 +2003,7 @@ static void mld_send_report(struct inet6_dev *idev, struct ifmcaddr6 *pmc)
 
 	if (!pmc) {
 		for_each_mc_mclock(idev, pmc) {
-			if (pmc->mca_flags & MAF_NOREPORT)
+			if (pmc->mca_flags & MAF_ANALREPORT)
 				continue;
 			if (pmc->mca_sfcount[MCAST_EXCLUDE])
 				type = MLD2_MODE_IS_EXCLUDE;
@@ -2165,7 +2165,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
 		 * use unspecified address as the source address
-		 * when a valid link-local address is not available.
+		 * when a valid link-local address is analt available.
 		 */
 		saddr = &in6addr_any;
 	} else
@@ -2281,14 +2281,14 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf || psf->sf_count[sfmode] == 0) {
-		/* source filter not found, or count wrong =>  bug */
+		/* source filter analt found, or count wrong =>  bug */
 		return -ESRCH;
 	}
 	psf->sf_count[sfmode]--;
 	if (!psf->sf_count[MCAST_INCLUDE] && !psf->sf_count[MCAST_EXCLUDE]) {
 		struct inet6_dev *idev = pmc->idev;
 
-		/* no more filters for this source */
+		/* anal more filters for this source */
 		if (psf_prev)
 			rcu_assign_pointer(psf_prev->sf_next,
 					   mc_dereference(psf->sf_next, idev));
@@ -2296,7 +2296,7 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 			rcu_assign_pointer(pmc->mca_sources,
 					   mc_dereference(psf->sf_next, idev));
 
-		if (psf->sf_oldin && !(pmc->mca_flags & MAF_NOREPORT) &&
+		if (psf->sf_oldin && !(pmc->mca_flags & MAF_ANALREPORT) &&
 		    !mld_in_v1_mode(idev)) {
 			psf->sf_crcount = idev->mc_qrv;
 			rcu_assign_pointer(psf->sf_next,
@@ -2320,7 +2320,7 @@ static int ip6_mc_del_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 	int	i, err;
 
 	if (!idev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_mc_mclock(idev, pmc) {
 		if (ipv6_addr_equal(pmca, &pmc->mca_addr))
@@ -2381,7 +2381,7 @@ static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
 	if (!psf) {
 		psf = kzalloc(sizeof(*psf), GFP_KERNEL);
 		if (!psf)
-			return -ENOBUFS;
+			return -EANALBUFS;
 
 		psf->sf_addr = *psfsrc;
 		if (psf_prev) {
@@ -2454,7 +2454,7 @@ static int sf_setstate(struct ifmcaddr6 *pmc)
 			psf->sf_crcount = 0;
 			/*
 			 * add or update "delete" records if an active filter
-			 * is now inactive
+			 * is analw inactive
 			 */
 
 			for_each_psf_tomb(pmc, dpsf)
@@ -2490,7 +2490,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 	int	i, err;
 
 	if (!idev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_mc_mclock(idev, pmc) {
 		if (ipv6_addr_equal(pmca, &pmc->mca_addr))
@@ -2524,7 +2524,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 			pmc->mca_sfmode = MCAST_EXCLUDE;
 		else if (pmc->mca_sfcount[MCAST_INCLUDE])
 			pmc->mca_sfmode = MCAST_INCLUDE;
-		/* else no filters; keep old mode for reports */
+		/* else anal filters; keep old mode for reports */
 
 		pmc->mca_crcount = idev->mc_qrv;
 		idev->mc_ifc_count = pmc->mca_crcount;
@@ -2566,7 +2566,7 @@ static void igmp6_join_group(struct ifmcaddr6 *ma)
 {
 	unsigned long delay;
 
-	if (ma->mca_flags & MAF_NOREPORT)
+	if (ma->mca_flags & MAF_ANALREPORT)
 		return;
 
 	igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
@@ -2692,7 +2692,7 @@ void ipv6_mc_unmap(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
 
-	/* Install multicast list, except for all-nodes (already installed) */
+	/* Install multicast list, except for all-analdes (already installed) */
 
 	mutex_lock(&idev->mc_lock);
 	for_each_mc_mclock(idev, i)
@@ -2746,7 +2746,7 @@ void ipv6_mc_up(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
 
-	/* Install multicast list, except for all-nodes (already installed) */
+	/* Install multicast list, except for all-analdes (already installed) */
 
 	ipv6_mc_reset(idev);
 	mutex_lock(&idev->mc_lock);
@@ -2793,12 +2793,12 @@ void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 	mld_clear_query(idev);
 	mld_clear_report(idev);
 
-	/* Delete all-nodes address. */
-	/* We cannot call ipv6_dev_mc_dec() directly, our caller in
+	/* Delete all-analdes address. */
+	/* We cananalt call ipv6_dev_mc_dec() directly, our caller in
 	 * addrconf.c has NULL'd out dev->ip6_ptr so in6_dev_get() will
 	 * fail.
 	 */
-	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allnodes);
+	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allanaldes);
 
 	if (idev->cnf.forwarding)
 		__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allrouters);
@@ -2829,11 +2829,11 @@ static void ipv6_mc_rejoin_groups(struct inet6_dev *idev)
 	mutex_unlock(&idev->mc_lock);
 }
 
-static int ipv6_mc_netdev_event(struct notifier_block *this,
+static int ipv6_mc_netdev_event(struct analtifier_block *this,
 				unsigned long event,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct inet6_dev *idev = __in6_dev_get(dev);
 
 	switch (event) {
@@ -2845,11 +2845,11 @@ static int ipv6_mc_netdev_event(struct notifier_block *this,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block igmp6_netdev_notifier = {
-	.notifier_call = ipv6_mc_netdev_event,
+static struct analtifier_block igmp6_netdev_analtifier = {
+	.analtifier_call = ipv6_mc_netdev_event,
 };
 
 #ifdef CONFIG_PROC_FS
@@ -3091,7 +3091,7 @@ static int __net_init igmp6_proc_init(struct net *net)
 {
 	int err;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!proc_create_net("igmp6", 0444, net->proc_net, &igmp6_mc_seq_ops,
 			sizeof(struct igmp6_mc_iter_state)))
 		goto out;
@@ -3184,7 +3184,7 @@ int __init igmp6_init(void)
 	mld_wq = create_workqueue("mld");
 	if (!mld_wq) {
 		unregister_pernet_subsys(&igmp6_net_ops);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return err;
@@ -3192,7 +3192,7 @@ int __init igmp6_init(void)
 
 int __init igmp6_late_init(void)
 {
-	return register_netdevice_notifier(&igmp6_netdev_notifier);
+	return register_netdevice_analtifier(&igmp6_netdev_analtifier);
 }
 
 void igmp6_cleanup(void)
@@ -3203,5 +3203,5 @@ void igmp6_cleanup(void)
 
 void igmp6_late_cleanup(void)
 {
-	unregister_netdevice_notifier(&igmp6_netdev_notifier);
+	unregister_netdevice_analtifier(&igmp6_netdev_analtifier);
 }

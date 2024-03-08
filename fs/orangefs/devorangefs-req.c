@@ -17,7 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
-/* this file implements the /dev/pvfs2-req device node */
+/* this file implements the /dev/pvfs2-req device analde */
 
 uint32_t orangefs_userspace_version;
 
@@ -28,9 +28,9 @@ static DEFINE_MUTEX(devreq_mutex);
 #define DUMP_DEVICE_ERROR()                                                   \
 do {                                                                          \
 	gossip_err("*****************************************************\n");\
-	gossip_err("ORANGEFS Device Error:  You cannot open the device file ");  \
+	gossip_err("ORANGEFS Device Error:  You cananalt open the device file ");  \
 	gossip_err("\n/dev/%s more than once.  Please make sure that\nthere " \
-		   "are no ", ORANGEFS_REQDEVICE_NAME);                          \
+		   "are anal ", ORANGEFS_REQDEVICE_NAME);                          \
 	gossip_err("instances of a program using this device\ncurrently "     \
 		   "running. (You must verify this!)\n");                     \
 	gossip_err("For example, you can use the lsof program as follows:\n");\
@@ -97,7 +97,7 @@ static int mark_all_pending_mounts(void)
 }
 
 /*
- * Determine if a given file system needs to be remounted or not
+ * Determine if a given file system needs to be remounted or analt
  *  Returns -1 on error
  *           0 if already mounted
  *           1 if needs remount
@@ -118,19 +118,19 @@ static int fs_mount_pending(__s32 fsid)
 	return mount_pending;
 }
 
-static int orangefs_devreq_open(struct inode *inode, struct file *file)
+static int orangefs_devreq_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret = -EINVAL;
 
 	/* in order to ensure that the filesystem driver sees correct UIDs */
 	if (file->f_cred->user_ns != &init_user_ns) {
-		gossip_err("%s: device cannot be opened outside init_user_ns\n",
+		gossip_err("%s: device cananalt be opened outside init_user_ns\n",
 			   __func__);
 		goto out;
 	}
 
-	if (!(file->f_flags & O_NONBLOCK)) {
-		gossip_err("%s: device cannot be opened in blocking mode\n",
+	if (!(file->f_flags & O_ANALNBLOCK)) {
+		gossip_err("%s: device cananalt be opened in blocking mode\n",
 			   __func__);
 		goto out;
 	}
@@ -165,8 +165,8 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	struct orangefs_kernel_op_s *cur_op;
 	unsigned long ret;
 
-	/* We do not support blocking IO. */
-	if (!(file->f_flags & O_NONBLOCK)) {
+	/* We do analt support blocking IO. */
+	if (!(file->f_flags & O_ANALNBLOCK)) {
 		gossip_err("%s: blocking read from client-core.\n",
 			   __func__);
 		return -EINVAL;
@@ -213,9 +213,9 @@ restart:
 				spin_unlock(&op->lock);
 				continue;
 			/*
-			 * Skip ops whose filesystem we don't know about unless
+			 * Skip ops whose filesystem we don't kanalw about unless
 			 * it is being mounted or unmounted.  It is possible for
-			 * a filesystem we don't know about to be unmounted if
+			 * a filesystem we don't kanalw about to be unmounted if
 			 * it fails to mount in the kernel after userspace has
 			 * been sent the mount request.
 			 */
@@ -238,7 +238,7 @@ restart:
 			}
 		}
 		/*
-		 * Either this op does not pertain to a filesystem, is mounting
+		 * Either this op does analt pertain to a filesystem, is mounting
 		 * a filesystem, or pertains to a mounted filesystem. Let it
 		 * through.
 		 */
@@ -247,7 +247,7 @@ restart:
 	}
 
 	/*
-	 * At this point we either have a valid op and can continue or have not
+	 * At this point we either have a valid op and can continue or have analt
 	 * found an op and must ask the client to try again later.
 	 */
 	if (!cur_op) {
@@ -400,7 +400,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	}
 
 	if (head.magic != ORANGEFS_DEVREQ_MAGIC) {
-		gossip_err("Error: Device magic number does not match.\n");
+		gossip_err("Error: Device magic number does analt match.\n");
 		return -EPROTO;
 	}
 
@@ -415,7 +415,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	op = orangefs_devreq_remove_op(head.tag);
 	if (!op) {
 		gossip_debug(GOSSIP_DEV_DEBUG,
-			     "%s: No one's waiting for tag %llu\n",
+			     "%s: Anal one's waiting for tag %llu\n",
 			     __func__, llu(head.tag));
 		return ret;
 	}
@@ -457,7 +457,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 	/* READDIR operations should always have trailers. */
 	if ((op->downcall.type == ORANGEFS_VFS_OP_READDIR) &&
 	    (op->downcall.trailer_size == 0)) {
-		gossip_err("%s: %x operation with no trailer.",
+		gossip_err("%s: %x operation with anal trailer.",
 			   __func__,
 			   op->downcall.type);
 		goto Efault;
@@ -468,7 +468,7 @@ static ssize_t orangefs_devreq_write_iter(struct kiocb *iocb,
 
 	op->downcall.trailer_buf = vzalloc(op->downcall.trailer_size);
 	if (!op->downcall.trailer_buf)
-		goto Enomem;
+		goto Eanalmem;
 
 	if (!copy_from_iter_full(op->downcall.trailer_buf,
 			         op->downcall.trailer_size, iter)) {
@@ -506,21 +506,21 @@ Efault:
 	ret = -EFAULT;
 	goto wakeup;
 
-Enomem:
+Eanalmem:
 	op->downcall.status = -(ORANGEFS_ERROR_BIT | 8);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	goto wakeup;
 }
 
 /*
- * NOTE: gets called when the last reference to this device is dropped.
+ * ANALTE: gets called when the last reference to this device is dropped.
  * Using the open_access_count variable, we enforce a reference count
  * on this file so that it can be opened by only one process at a time.
  * the devreq_mutex is used to make sure all i/o has completed
  * before we call orangefs_bufmap_finalize, and similar such tricky
  * situations
  */
-static int orangefs_devreq_release(struct inode *inode, struct file *file)
+static int orangefs_devreq_release(struct ianalde *ianalde, struct file *file)
 {
 	int unmounted = 0;
 
@@ -583,7 +583,7 @@ static inline long check_ioctl_command(unsigned int command)
 	if (_IOC_NR(command) >= ORANGEFS_DEV_MAXNR || _IOC_NR(command) <= 0) {
 		gossip_err("Invalid ioctl command number [%d >= %d]\n",
 			   _IOC_NR(command), ORANGEFS_DEV_MAXNR);
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return 0;
 }
@@ -620,7 +620,7 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 				     (struct ORANGEFS_dev_map_desc __user *)
 				     arg,
 				     sizeof(struct ORANGEFS_dev_map_desc));
-		/* WTF -EIO and not -EFAULT? */
+		/* WTF -EIO and analt -EFAULT? */
 		return ret ? -EIO : orangefs_bufmap_initialize(&user_desc);
 	case ORANGEFS_DEV_REMOUNT_ALL:
 		gossip_debug(GOSSIP_DEV_DEBUG,
@@ -629,10 +629,10 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 
 		/*
 		 * remount all mounted orangefs volumes to regain the lost
-		 * dynamic mount tables (if any) -- NOTE: this is done
+		 * dynamic mount tables (if any) -- ANALTE: this is done
 		 * without keeping the superblock list locked due to the
 		 * upcall/downcall waiting.  also, the request mutex is
-		 * used to ensure that no operations will be serviced until
+		 * used to ensure that anal operations will be serviced until
 		 * all of the remounts are serviced (to avoid ops between
 		 * mounts to fail)
 		 */
@@ -691,9 +691,9 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 	case ORANGEFS_DEV_DEBUG:
 		return orangefs_debugfs_new_debug((void __user *)arg);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static long orangefs_devreq_ioctl(struct file *file,
@@ -745,7 +745,7 @@ static long orangefs_devreq_compat_ioctl(struct file *filp, unsigned int cmd,
 		desc.count = d32.count;
 		return orangefs_bufmap_initialize(&desc);
 	}
-	/* no other ioctl requires translation */
+	/* anal other ioctl requires translation */
 	return dispatch_ioctl_command(cmd, args);
 }
 
@@ -800,7 +800,7 @@ int orangefs_dev_init(void)
 	gossip_debug(GOSSIP_DEV_DEBUG,
 		     "*** /dev/%s character device registered ***\n",
 		     ORANGEFS_REQDEVICE_NAME);
-	gossip_debug(GOSSIP_DEV_DEBUG, "'mknod /dev/%s c %d 0'.\n",
+	gossip_debug(GOSSIP_DEV_DEBUG, "'mkanald /dev/%s c %d 0'.\n",
 		     ORANGEFS_REQDEVICE_NAME, orangefs_dev_major);
 	return 0;
 }

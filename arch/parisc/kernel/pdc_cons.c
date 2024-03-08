@@ -26,12 +26,12 @@ static int kgdb_pdc_read_char(void)
 {
 	int c = pdc_iodc_getc();
 
-	return (c <= 0) ? NO_POLL_CHAR : c;
+	return (c <= 0) ? ANAL_POLL_CHAR : c;
 }
 
 static void kgdb_pdc_write_char(u8 chr)
 {
-	/* no need to print char as it's shown on standard console */
+	/* anal need to print char as it's shown on standard console */
 	/* pdc_iodc_print(&chr, 1); */
 }
 

@@ -40,7 +40,7 @@ test_LAG_cleanup()
 		ip link set dev "$name" up
 	else
 		check_err 1
-		log_test test_LAG_cleanup ": unknown driver \"$driver\""
+		log_test test_LAG_cleanup ": unkanalwn driver \"$driver\""
 		return
 	fi
 
@@ -52,32 +52,32 @@ test_LAG_cleanup()
 	# Check that addresses were added as expected
 	(grep_bridge_fdb "$ucaddr" bridge fdb show dev dummy1 ||
 		grep_bridge_fdb "$ucaddr" bridge fdb show dev dummy2) >/dev/null
-	check_err $? "macvlan unicast address not found on a slave"
+	check_err $? "macvlan unicast address analt found on a slave"
 
-	# mcaddr is added asynchronously by addrconf_dad_work(), use busywait
+	# mcaddr is added asynchroanalusly by addrconf_dad_work(), use busywait
 	(busywait 10000 grep_bridge_fdb "$mcaddr" bridge fdb show dev dummy1 ||
 		grep_bridge_fdb "$mcaddr" bridge fdb show dev dummy2) >/dev/null
-	check_err $? "IPv6 solicited-node multicast mac address not found on a slave"
+	check_err $? "IPv6 solicited-analde multicast mac address analt found on a slave"
 
 	ip link set dev "$name" down
 	ip link del "$name"
 
-	not grep_bridge_fdb "$ucaddr" bridge fdb show >/dev/null
+	analt grep_bridge_fdb "$ucaddr" bridge fdb show >/dev/null
 	check_err $? "macvlan unicast address still present on a slave"
 
-	not grep_bridge_fdb "$mcaddr" bridge fdb show >/dev/null
-	check_err $? "IPv6 solicited-node multicast mac address still present on a slave"
+	analt grep_bridge_fdb "$mcaddr" bridge fdb show >/dev/null
+	check_err $? "IPv6 solicited-analde multicast mac address still present on a slave"
 
 	cleanup
 
 	log_test "$driver cleanup mode $mode"
 }
 
-# Build a generic 2 node net namespace with 2 connections
+# Build a generic 2 analde net namespace with 2 connections
 # between the namespaces
 #
 #  +-----------+       +-----------+
-#  | node1     |       | node2     |
+#  | analde1     |       | analde2     |
 #  |           |       |           |
 #  |           |       |           |
 #  |      eth0 +-------+ eth0      |
@@ -88,7 +88,7 @@ test_LAG_cleanup()
 lag_setup2x2()
 {
 	local state=${1:-down}
-	local namespaces="lag_node1 lag_node2"
+	local namespaces="lag_analde1 lag_analde2"
 
 	# create namespaces
 	for n in ${namespaces}; do
@@ -97,12 +97,12 @@ lag_setup2x2()
 
 	# wire up namespaces
 	ip link add name lag1 type veth peer name lag1-end
-	ip link set dev lag1 netns lag_node1 $state name eth0
-	ip link set dev lag1-end netns lag_node2 $state name eth0
+	ip link set dev lag1 netns lag_analde1 $state name eth0
+	ip link set dev lag1-end netns lag_analde2 $state name eth0
 
 	ip link add name lag1 type veth peer name lag1-end
-	ip link set dev lag1 netns lag_node1 $state name eth1
-	ip link set dev lag1-end netns lag_node2 $state name eth1
+	ip link set dev lag1 netns lag_analde1 $state name eth1
+	ip link set dev lag1-end netns lag_analde2 $state name eth1
 
 	NAMESPACES="${namespaces}"
 }
@@ -116,8 +116,8 @@ lag_cleanup()
 	modprobe -r bonding
 }
 
-SWITCH="lag_node1"
-CLIENT="lag_node2"
+SWITCH="lag_analde1"
+CLIENT="lag_analde2"
 CLIENTIP="172.20.2.1"
 SWITCHIP="172.20.2.2"
 
@@ -160,7 +160,7 @@ test_bond_recovery()
 
 	# verify connectivity
 	ip netns exec ${CLIENT} ping ${SWITCHIP} -c 2 >/dev/null 2>&1
-	check_err $? "No connectivity"
+	check_err $? "Anal connectivity"
 
 	# force the links of the bond down
 	ip netns exec ${SWITCH} ip link set eth0 down

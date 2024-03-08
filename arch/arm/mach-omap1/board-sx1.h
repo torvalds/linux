@@ -32,8 +32,8 @@ int sx1_getbacklight(u8 *backlight);
 int sx1_setkeylight(u8 keylight);
 int sx1_getkeylight(u8 *keylight);
 
-int sx1_setmmipower(u8 onoff);
-int sx1_setusbpower(u8 onoff);
+int sx1_setmmipower(u8 oanalff);
+int sx1_setusbpower(u8 oanalff);
 int sx1_i2c_read_byte(u8 devaddr, u8 regoffset, u8 *value);
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value);
 

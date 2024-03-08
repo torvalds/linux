@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefaanal Brivio <stefaanal.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -213,7 +213,7 @@ static void b43legacy_synth_pu_workaround(struct b43legacy_wldev *dev,
 	might_sleep();
 
 	if (phy->radio_ver != 0x2050 || phy->radio_rev >= 6)
-		/* We do not need the workaround. */
+		/* We do analt need the workaround. */
 		return;
 
 	if (channel <= 10)
@@ -856,7 +856,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 						    0x048A) & 0xF000) | 0x0AED);
 		} else {
 			if (phy->interfmode ==
-			    B43legacy_RADIO_INTERFMODE_NONWLAN) {
+			    B43legacy_RADIO_INTERFMODE_ANALNWLAN) {
 				a = 0xE;
 				b = 0xA;
 			} else if (!phy->aci_wlan_automatic &&
@@ -980,7 +980,7 @@ b43legacy_radio_interference_mitigation_enable(struct b43legacy_wldev *dev,
 	u32 *stack = phy->interfstack;
 
 	switch (mode) {
-	case B43legacy_RADIO_INTERFMODE_NONWLAN:
+	case B43legacy_RADIO_INTERFMODE_ANALNWLAN:
 		if (phy->rev != 1) {
 			b43legacy_phy_write(dev, 0x042B,
 					    b43legacy_phy_read(dev, 0x042B)
@@ -1223,7 +1223,7 @@ b43legacy_radio_interference_mitigation_disable(struct b43legacy_wldev *dev,
 	u32 *stack = phy->interfstack;
 
 	switch (mode) {
-	case B43legacy_RADIO_INTERFMODE_NONWLAN:
+	case B43legacy_RADIO_INTERFMODE_ANALNWLAN:
 		if (phy->rev != 1) {
 			b43legacy_phy_write(dev, 0x042B,
 					    b43legacy_phy_read(dev, 0x042B)
@@ -1327,7 +1327,7 @@ int b43legacy_radio_set_interference_mitigation(struct b43legacy_wldev *dev,
 
 	if ((phy->type != B43legacy_PHYTYPE_G) ||
 	    (phy->rev == 0) || (!phy->gmode))
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy->aci_wlan_automatic = false;
 	switch (mode) {
@@ -1336,10 +1336,10 @@ int b43legacy_radio_set_interference_mitigation(struct b43legacy_wldev *dev,
 		if (phy->aci_enable)
 			mode = B43legacy_RADIO_INTERFMODE_MANUALWLAN;
 		else
-			mode = B43legacy_RADIO_INTERFMODE_NONE;
+			mode = B43legacy_RADIO_INTERFMODE_ANALNE;
 		break;
-	case B43legacy_RADIO_INTERFMODE_NONE:
-	case B43legacy_RADIO_INTERFMODE_NONWLAN:
+	case B43legacy_RADIO_INTERFMODE_ANALNE:
+	case B43legacy_RADIO_INTERFMODE_ANALNWLAN:
 	case B43legacy_RADIO_INTERFMODE_MANUALWLAN:
 		break;
 	default:
@@ -1349,11 +1349,11 @@ int b43legacy_radio_set_interference_mitigation(struct b43legacy_wldev *dev,
 	currentmode = phy->interfmode;
 	if (currentmode == mode)
 		return 0;
-	if (currentmode != B43legacy_RADIO_INTERFMODE_NONE)
+	if (currentmode != B43legacy_RADIO_INTERFMODE_ANALNE)
 		b43legacy_radio_interference_mitigation_disable(dev,
 								currentmode);
 
-	if (mode == B43legacy_RADIO_INTERFMODE_NONE) {
+	if (mode == B43legacy_RADIO_INTERFMODE_ANALNE) {
 		phy->aci_enable = false;
 		phy->aci_hw_rssi = false;
 	} else
@@ -1726,7 +1726,7 @@ int b43legacy_radio_selectchannel(struct b43legacy_wldev *dev,
 		}
 	}
 
-/* TODO: Check if channel is valid - return -EINVAL if not */
+/* TODO: Check if channel is valid - return -EINVAL if analt */
 	if (synthetic_pu_workaround)
 		b43legacy_synth_pu_workaround(dev, channel);
 

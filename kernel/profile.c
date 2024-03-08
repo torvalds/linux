@@ -18,7 +18,7 @@
 #include <linux/export.h>
 #include <linux/profile.h>
 #include <linux/memblock.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/mm.h>
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
@@ -115,16 +115,16 @@ int __ref profile_init(void)
 	buffer_bytes = prof_len*sizeof(atomic_t);
 
 	if (!alloc_cpumask_var(&prof_cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpumask_copy(prof_cpu_mask, cpu_possible_mask);
 
-	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL|__GFP_NOWARN);
+	prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL|__GFP_ANALWARN);
 	if (prof_buffer)
 		return 0;
 
 	prof_buffer = alloc_pages_exact(buffer_bytes,
-					GFP_KERNEL|__GFP_ZERO|__GFP_NOWARN);
+					GFP_KERNEL|__GFP_ZERO|__GFP_ANALWARN);
 	if (prof_buffer)
 		return 0;
 
@@ -133,7 +133,7 @@ int __ref profile_init(void)
 		return 0;
 
 	free_cpumask_var(prof_cpu_mask);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PROC_FS)
@@ -158,13 +158,13 @@ int __ref profile_init(void)
  * particularly given that the number of distinct profile buffer
  * positions to which hits are accounted during short intervals (e.g.
  * several seconds) is usually very small. Exclusion from buffer
- * flipping is provided by interrupt disablement (note that for
+ * flipping is provided by interrupt disablement (analte that for
  * SCHED_PROFILING or SLEEP_PROFILING profile_hit() may be called from
  * process context).
  * The hash function is meant to be lightweight as opposed to strong,
  * and was vaguely inspired by ppc64 firmware-supported inverted
  * pagetable hash functions, but uses a full hashtable full of finite
- * collision chains, not just pairs of them.
+ * collision chains, analt just pairs of them.
  *
  * -- nyc
  */
@@ -282,7 +282,7 @@ static int profile_dead_cpu(unsigned int cpu)
 
 static int profile_prepare_cpu(unsigned int cpu)
 {
-	int i, node = cpu_to_mem(cpu);
+	int i, analde = cpu_to_mem(cpu);
 	struct page *page;
 
 	per_cpu(cpu_profile_flip, cpu) = 0;
@@ -291,10 +291,10 @@ static int profile_prepare_cpu(unsigned int cpu)
 		if (per_cpu(cpu_profile_hits, cpu)[i])
 			continue;
 
-		page = __alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+		page = __alloc_pages_analde(analde, GFP_KERNEL | __GFP_ZERO, 0);
 		if (!page) {
 			profile_dead_cpu(cpu);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		per_cpu(cpu_profile_hits, cpu)[i] = page_address(page);
 
@@ -350,7 +350,7 @@ static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int prof_cpu_mask_proc_open(struct inode *inode, struct file *file)
+static int prof_cpu_mask_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, prof_cpu_mask_proc_show, NULL);
 }
@@ -362,7 +362,7 @@ static ssize_t prof_cpu_mask_proc_write(struct file *file,
 	int err;
 
 	if (!zalloc_cpumask_var(&new_value, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = cpumask_parse_user(buffer, count, new_value);
 	if (!err) {
@@ -421,7 +421,7 @@ read_profile(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return read;
 }
 
-/* default is to not implement this call */
+/* default is to analt implement this call */
 int __weak setup_profiling_timer(unsigned mult)
 {
 	return -EINVAL;

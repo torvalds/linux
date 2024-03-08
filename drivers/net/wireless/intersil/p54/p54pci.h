@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Analte <jbanalte@gmail.com>, et al.
  */
 
 /* Device Interrupt register bits */
@@ -25,7 +25,7 @@
 #define ISL38XX_DEV_INT_PCIUART_CTS             0x4000
 #define ISL38XX_DEV_INT_PCIUART_DR              0x8000
 
-/* Interrupt Identification/Acknowledge/Enable register bits */
+/* Interrupt Identification/Ackanalwledge/Enable register bits */
 #define ISL38XX_INT_IDENT_UPDATE		0x0002
 #define ISL38XX_INT_IDENT_INIT			0x0004
 #define ISL38XX_INT_IDENT_WAKEUP		0x0008

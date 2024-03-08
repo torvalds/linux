@@ -9,23 +9,23 @@
 
 #include <linux/list_lru.h>
 
-struct gfs2_inode;
+struct gfs2_ianalde;
 struct gfs2_sbd;
 
-#define NO_UID_QUOTA_CHANGE INVALID_UID
-#define NO_GID_QUOTA_CHANGE INVALID_GID
+#define ANAL_UID_QUOTA_CHANGE INVALID_UID
+#define ANAL_GID_QUOTA_CHANGE INVALID_GID
 
-int gfs2_qa_get(struct gfs2_inode *ip);
-void gfs2_qa_put(struct gfs2_inode *ip);
-int gfs2_quota_hold(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
-void gfs2_quota_unhold(struct gfs2_inode *ip);
+int gfs2_qa_get(struct gfs2_ianalde *ip);
+void gfs2_qa_put(struct gfs2_ianalde *ip);
+int gfs2_quota_hold(struct gfs2_ianalde *ip, kuid_t uid, kgid_t gid);
+void gfs2_quota_unhold(struct gfs2_ianalde *ip);
 
-int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
-void gfs2_quota_unlock(struct gfs2_inode *ip);
+int gfs2_quota_lock(struct gfs2_ianalde *ip, kuid_t uid, kgid_t gid);
+void gfs2_quota_unlock(struct gfs2_ianalde *ip);
 
-int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
+int gfs2_quota_check(struct gfs2_ianalde *ip, kuid_t uid, kgid_t gid,
 		     struct gfs2_alloc_parms *ap);
-void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
+void gfs2_quota_change(struct gfs2_ianalde *ip, s64 change,
 		       kuid_t uid, kgid_t gid);
 
 int gfs2_quota_sync(struct super_block *sb, int type);
@@ -37,22 +37,22 @@ int gfs2_quotad(void *data);
 
 void gfs2_wake_up_statfs(struct gfs2_sbd *sdp);
 
-static inline int gfs2_quota_lock_check(struct gfs2_inode *ip,
+static inline int gfs2_quota_lock_check(struct gfs2_ianalde *ip,
 					struct gfs2_alloc_parms *ap)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	int ret;
 
 	ap->allowed = UINT_MAX; /* Assume we are permitted a whole lot */
 	if (capable(CAP_SYS_RESOURCE) ||
 	    sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
-	ret = gfs2_quota_lock(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
+	ret = gfs2_quota_lock(ip, ANAL_UID_QUOTA_CHANGE, ANAL_GID_QUOTA_CHANGE);
 	if (ret)
 		return ret;
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_ACCOUNT)
 		return 0;
-	ret = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid, ap);
+	ret = gfs2_quota_check(ip, ip->i_ianalde.i_uid, ip->i_ianalde.i_gid, ap);
 	if (ret)
 		gfs2_quota_unlock(ip);
 	return ret;

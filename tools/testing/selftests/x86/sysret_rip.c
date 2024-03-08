@@ -31,7 +31,7 @@ asm (
 	"test_syscall_insn:\n\t"
 	"syscall\n\t"
 	".ifne . - test_page - 4096\n\t"
-	".error \"test page is not one page long\"\n\t"
+	".error \"test page is analt one page long\"\n\t"
 	".endif\n\t"
 	".popsection"
     );
@@ -163,7 +163,7 @@ int main()
 	/*
 	 * When the kernel returns from a slow-path syscall, it will
 	 * detect whether SYSRET is appropriate.  If it incorrectly
-	 * thinks that SYSRET is appropriate when RIP is noncanonical,
+	 * thinks that SYSRET is appropriate when RIP is analncaanalnical,
 	 * it'll crash on Intel CPUs.
 	 */
 	sethandler(SIGUSR1, sigusr1, 0);

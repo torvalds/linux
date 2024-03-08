@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
- *  entry.S -- non-mmu 68000 interrupt and exception entry points
+ *  entry.S -- analn-mmu 68000 interrupt and exception entry points
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -10,7 +10,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 #include <asm/asm-offsets.h>
@@ -32,11 +32,11 @@
 .globl inthandler7
 
 badsys:
-	movel	#-ENOSYS,%sp@(PT_OFF_D0)
+	movel	#-EANALSYS,%sp@(PT_OFF_D0)
 	jra	ret_from_exception
 
 do_trace:
-	movel	#-ENOSYS,%sp@(PT_OFF_D0) /* needed for strace*/
+	movel	#-EANALSYS,%sp@(PT_OFF_D0) /* needed for strace*/
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace_enter
@@ -45,7 +45,7 @@ do_trace:
 	addql	#1,%d0
 	jeq	ret_from_exception
 	movel	%sp@(PT_OFF_ORIG_D0),%d1
-	movel	#-ENOSYS,%d0
+	movel	#-EANALSYS,%d0
 	cmpl	#NR_syscalls,%d1
 	jcc	1f
 	lsl	#2,%d1
@@ -113,7 +113,7 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address*/
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	bsrw	do_notify_resume
+	bsrw	do_analtify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -220,7 +220,7 @@ ENTRY(bad_interrupt)
 /*
  * Beware - when entering resume, prev (the current task) is
  * in a0, next (the new task) is in a1, so don't change these
- * registers until their contents are no longer needed.
+ * registers until their contents are anal longer needed.
  */
 ENTRY(resume)
 	movel	%a0,%d1				/* save prev thread in d1 */

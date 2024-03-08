@@ -7,21 +7,21 @@
 
 /* MIDI 1.0 / 2.0 Status Code (4bit) */
 enum {
-	UMP_MSG_STATUS_PER_NOTE_RCC = 0x0,
-	UMP_MSG_STATUS_PER_NOTE_ACC = 0x1,
+	UMP_MSG_STATUS_PER_ANALTE_RCC = 0x0,
+	UMP_MSG_STATUS_PER_ANALTE_ACC = 0x1,
 	UMP_MSG_STATUS_RPN = 0x2,
 	UMP_MSG_STATUS_NRPN = 0x3,
 	UMP_MSG_STATUS_RELATIVE_RPN = 0x4,
 	UMP_MSG_STATUS_RELATIVE_NRPN = 0x5,
-	UMP_MSG_STATUS_PER_NOTE_PITCH_BEND = 0x6,
-	UMP_MSG_STATUS_NOTE_OFF = 0x8,
-	UMP_MSG_STATUS_NOTE_ON = 0x9,
+	UMP_MSG_STATUS_PER_ANALTE_PITCH_BEND = 0x6,
+	UMP_MSG_STATUS_ANALTE_OFF = 0x8,
+	UMP_MSG_STATUS_ANALTE_ON = 0x9,
 	UMP_MSG_STATUS_POLY_PRESSURE = 0xa,
 	UMP_MSG_STATUS_CC = 0xb,
 	UMP_MSG_STATUS_PROGRAM = 0xc,
 	UMP_MSG_STATUS_CHANNEL_PRESSURE = 0xd,
 	UMP_MSG_STATUS_PITCH_BEND = 0xe,
-	UMP_MSG_STATUS_PER_NOTE_MGMT = 0xf,
+	UMP_MSG_STATUS_PER_ANALTE_MGMT = 0xf,
 };
 
 /* MIDI 1.0 Channel Control (7bit) */
@@ -93,7 +93,7 @@ enum {
 	UMP_CC_ALL_SOUND_OFF = 120,
 	UMP_CC_RESET_ALL = 121,
 	UMP_CC_LOCAL_CONTROL = 122,
-	UMP_CC_ALL_NOTES_OFF = 123,
+	UMP_CC_ALL_ANALTES_OFF = 123,
 	UMP_CC_OMNI_OFF = 124,
 	UMP_CC_OMNI_ON = 125,
 	UMP_CC_POLY_OFF = 126,
@@ -125,18 +125,18 @@ enum {
  * UMP Message Definitions
  */
 
-/* MIDI 1.0 Note Off / Note On (32bit) */
-struct snd_ump_midi1_msg_note {
+/* MIDI 1.0 Analte Off / Analte On (32bit) */
+struct snd_ump_midi1_msg_analte {
 #ifdef __BIG_ENDIAN_BITFIELD
 	u32 type:4;
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 velocity:8;
 #else
 	u32 velocity:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -151,11 +151,11 @@ struct snd_ump_midi1_msg_paf {
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 data:8;
 #else
 	u32 data:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -239,7 +239,7 @@ struct snd_ump_midi1_msg_pitchbend {
 #endif
 } __packed;
 
-/* System Common and Real Time messages (32bit); no channel field */
+/* System Common and Real Time messages (32bit); anal channel field */
 struct snd_ump_system_msg {
 #ifdef __BIG_ENDIAN_BITFIELD
 	u32 type:4;
@@ -258,7 +258,7 @@ struct snd_ump_system_msg {
 
 /* MIDI 1.0 UMP CVM (32bit) */
 union snd_ump_midi1_msg {
-	struct snd_ump_midi1_msg_note note;
+	struct snd_ump_midi1_msg_analte analte;
 	struct snd_ump_midi1_msg_paf paf;
 	struct snd_ump_midi1_msg_cc cc;
 	struct snd_ump_midi1_msg_program pg;
@@ -268,15 +268,15 @@ union snd_ump_midi1_msg {
 	u32 raw;
 };
 
-/* MIDI 2.0 Note Off / Note On (64bit) */
-struct snd_ump_midi2_msg_note {
+/* MIDI 2.0 Analte Off / Analte On (64bit) */
+struct snd_ump_midi2_msg_analte {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
 	u32 type:4;
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 attribute_type:8;
 	/* 1 */
 	u32 velocity:16;
@@ -284,7 +284,7 @@ struct snd_ump_midi2_msg_note {
 #else
 	/* 0 */
 	u32 attribute_type:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -303,14 +303,14 @@ struct snd_ump_midi2_msg_paf {
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 reserved:8;
 	/* 1 */
 	u32 data;
 #else
 	/* 0 */
 	u32 reserved:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -320,22 +320,22 @@ struct snd_ump_midi2_msg_paf {
 #endif
 } __packed;
 
-/* MIDI 2.0 Per-Note Controller (64bit) */
-struct snd_ump_midi2_msg_pernote_cc {
+/* MIDI 2.0 Per-Analte Controller (64bit) */
+struct snd_ump_midi2_msg_peranalte_cc {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
 	u32 type:4;
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 index:8;
 	/* 1 */
 	u32 data;
 #else
 	/* 0 */
 	u32 index:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -345,22 +345,22 @@ struct snd_ump_midi2_msg_pernote_cc {
 #endif
 } __packed;
 
-/* MIDI 2.0 Per-Note Management (64bit) */
-struct snd_ump_midi2_msg_pernote_mgmt {
+/* MIDI 2.0 Per-Analte Management (64bit) */
+struct snd_ump_midi2_msg_peranalte_mgmt {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
 	u32 type:4;
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 flags:8;
 	/* 1 */
 	u32 reserved;
 #else
 	/* 0 */
 	u32 flags:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -497,22 +497,22 @@ struct snd_ump_midi2_msg_pitchbend {
 #endif
 } __packed;
 
-/* MIDI 2.0 Per-Note Pitch Bend (64bit) */
-struct snd_ump_midi2_msg_pernote_pitchbend {
+/* MIDI 2.0 Per-Analte Pitch Bend (64bit) */
+struct snd_ump_midi2_msg_peranalte_pitchbend {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
 	u32 type:4;
 	u32 group:4;
 	u32 status:4;
 	u32 channel:4;
-	u32 note:8;
+	u32 analte:8;
 	u32 reserved:8;
 	/* 1 */
 	u32 data;
 #else
 	/* 0 */
 	u32 reserved:8;
-	u32 note:8;
+	u32 analte:8;
 	u32 channel:4;
 	u32 status:4;
 	u32 group:4;
@@ -524,16 +524,16 @@ struct snd_ump_midi2_msg_pernote_pitchbend {
 
 /* MIDI 2.0 UMP CVM (64bit) */
 union snd_ump_midi2_msg {
-	struct snd_ump_midi2_msg_note note;
+	struct snd_ump_midi2_msg_analte analte;
 	struct snd_ump_midi2_msg_paf paf;
-	struct snd_ump_midi2_msg_pernote_cc pernote_cc;
-	struct snd_ump_midi2_msg_pernote_mgmt pernote_mgmt;
+	struct snd_ump_midi2_msg_peranalte_cc peranalte_cc;
+	struct snd_ump_midi2_msg_peranalte_mgmt peranalte_mgmt;
 	struct snd_ump_midi2_msg_cc cc;
 	struct snd_ump_midi2_msg_rpn rpn;
 	struct snd_ump_midi2_msg_program pg;
 	struct snd_ump_midi2_msg_caf caf;
 	struct snd_ump_midi2_msg_pitchbend pb;
-	struct snd_ump_midi2_msg_pernote_pitchbend pernote_pb;
+	struct snd_ump_midi2_msg_peranalte_pitchbend peranalte_pb;
 	u32 raw[2];
 };
 
@@ -545,7 +545,7 @@ struct snd_ump_stream_msg_ep_discovery {
 	u32 format:2;
 	u32 status:10;
 	u32 ump_version_major:8;
-	u32 ump_version_minor:8;
+	u32 ump_version_mianalr:8;
 	/* 1 */
 	u32 reserved:24;
 	u32 filter_bitmap:8;
@@ -553,7 +553,7 @@ struct snd_ump_stream_msg_ep_discovery {
 	u32 reserved2[2];
 #else
 	/* 0 */
-	u32 ump_version_minor:8;
+	u32 ump_version_mianalr:8;
 	u32 ump_version_major:8;
 	u32 status:10;
 	u32 format:2;
@@ -566,7 +566,7 @@ struct snd_ump_stream_msg_ep_discovery {
 #endif
 } __packed;
 
-/* UMP Stream Message: Endpoint Info Notification (128bit) */
+/* UMP Stream Message: Endpoint Info Analtification (128bit) */
 struct snd_ump_stream_msg_ep_info {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
@@ -574,7 +574,7 @@ struct snd_ump_stream_msg_ep_info {
 	u32 format:2;
 	u32 status:10;
 	u32 ump_version_major:8;
-	u32 ump_version_minor:8;
+	u32 ump_version_mianalr:8;
 	/* 1 */
 	u32 static_function_block:1;
 	u32 num_function_blocks:7;
@@ -586,7 +586,7 @@ struct snd_ump_stream_msg_ep_info {
 	u32 reserved3[2];
 #else
 	/* 0 */
-	u32 ump_version_minor:8;
+	u32 ump_version_mianalr:8;
 	u32 ump_version_major:8;
 	u32 status:10;
 	u32 format:2;
@@ -603,7 +603,7 @@ struct snd_ump_stream_msg_ep_info {
 #endif
 } __packed;
 
-/* UMP Stream Message: Device Info Notification (128bit) */
+/* UMP Stream Message: Device Info Analtification (128bit) */
 struct snd_ump_stream_msg_devince_info {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
@@ -638,7 +638,7 @@ struct snd_ump_stream_msg_devince_info {
 #endif
 } __packed;
 
-/* UMP Stream Message: Stream Config Request / Notification (128bit) */
+/* UMP Stream Message: Stream Config Request / Analtification (128bit) */
 struct snd_ump_stream_msg_stream_cfg {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
@@ -686,7 +686,7 @@ struct snd_ump_stream_msg_fb_discovery {
 #endif
 } __packed;
 
-/* UMP Stream Message: Function Block Info Notification (128bit) */
+/* UMP Stream Message: Function Block Info Analtification (128bit) */
 struct snd_ump_stream_msg_fb_info {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */
@@ -727,7 +727,7 @@ struct snd_ump_stream_msg_fb_info {
 #endif
 } __packed;
 
-/* UMP Stream Message: Function Block Name Notification (128bit) */
+/* UMP Stream Message: Function Block Name Analtification (128bit) */
 struct snd_ump_stream_msg_fb_name {
 #ifdef __BIG_ENDIAN_BITFIELD
 	/* 0 */

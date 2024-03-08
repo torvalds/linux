@@ -188,7 +188,7 @@ setup_err:
 	return rc;
 }
 
-/* Provides a way for both kernel and bpf-prog to know
+/* Provides a way for both kernel and bpf-prog to kanalw
  * more about the RX-queue a given XDP frame arrived on.
  */
 int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
@@ -336,12 +336,12 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 		NL_SET_ERR_MSG_MOD(bpf->extack,
 				   "Failed to set xdp program, the current MTU is larger than the maximum allowed MTU. Check the dmesg for more info");
 		return -EINVAL;
-	} else if (rc == ENA_XDP_NO_ENOUGH_QUEUES) {
+	} else if (rc == ENA_XDP_ANAL_EANALUGH_QUEUES) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Failed to set xdp program, the Rx/Tx channel count should be at most half of the maximum allowed channel count. The current queue count (%d), the maximal queue count (%d)\n",
 			  adapter->num_io_queues, adapter->max_num_io_queues);
 		NL_SET_ERR_MSG_MOD(bpf->extack,
-				   "Failed to set xdp program, there is no enough space for allocating XDP queues, Check the dmesg for more info");
+				   "Failed to set xdp program, there is anal eanalugh space for allocating XDP queues, Check the dmesg for more info");
 		return -EINVAL;
 	}
 
@@ -453,7 +453,7 @@ int ena_xdp_io_poll(struct napi_struct *napi, int budget)
 		if (napi_complete_done(napi, work_done))
 			ena_unmask_interrupt(tx_ring, NULL);
 
-		ena_update_ring_numa_node(tx_ring, NULL);
+		ena_update_ring_numa_analde(tx_ring, NULL);
 		ret = work_done;
 	} else {
 		ret = budget;

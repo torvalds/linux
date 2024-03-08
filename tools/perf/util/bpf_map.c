@@ -38,7 +38,7 @@ int bpf_map__fprintf(struct bpf_map *map, FILE *fp)
 	if (!map)
 		return PTR_ERR(map);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	key = malloc(bpf_map__key_size(map));
 	if (key == NULL)
 		goto out;
@@ -61,7 +61,7 @@ int bpf_map__fprintf(struct bpf_map *map, FILE *fp)
 		prev_key = key;
 	}
 
-	if (err == ENOENT)
+	if (err == EANALENT)
 		err = printed;
 
 	free(value);

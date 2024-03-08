@@ -227,7 +227,7 @@ static int input_fujitsu_setup(struct device *parent, const char *name,
 
 	idev = input_allocate_device();
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->dev.parent = parent;
 	idev->phys = phys;
@@ -275,7 +275,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	int i;
 
 	if (unlikely(!(fujitsu_status() & 0x01)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fujitsu_send_state();
 
@@ -409,7 +409,7 @@ static const struct dmi_system_id dmi_ids[] __initconst = {
 	},
 	{
 		.callback = fujitsu_dmi_lifebook,
-		.ident = "Unknown (using defaults)",
+		.ident = "Unkanalwn (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
 			DMI_MATCH(DMI_PRODUCT_NAME, "")
@@ -435,7 +435,7 @@ static acpi_status fujitsu_walk_resources(struct acpi_resource *res, void *data)
 		if (fujitsu.irq && fujitsu.io_base)
 			return AE_OK;
 		else
-			return AE_NOT_FOUND;
+			return AE_ANALT_FOUND;
 
 	default:
 		return AE_ERROR;
@@ -453,7 +453,7 @@ static int acpi_fujitsu_add(struct acpi_device *adev)
 	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
 			fujitsu_walk_resources, NULL);
 	if (ACPI_FAILURE(status) || !fujitsu.irq || !fujitsu.io_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sprintf(acpi_device_name(adev), "Fujitsu %s", acpi_device_hid(adev));
 	sprintf(acpi_device_class(adev), "%s", ACPI_FUJITSU_CLASS);

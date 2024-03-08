@@ -49,7 +49,7 @@
 #define DADFSEL					BIT(5)	/* 0: in SRC Bypass mode, 1: in SRC mode */
 #define DASL					BIT(6)
 #define DASD					BIT(7)
-#define AK4375_07_DAC_MONO_MIXING		0x07
+#define AK4375_07_DAC_MOANAL_MIXING		0x07
 #define DACMUTE_MASK				(GENMASK(5, 4) | GENMASK(1, 0)) /* Clear to mute */
 #define AK4375_08_JITTER_CLEANER_SETTING1	0x08
 #define AK4375_09_JITTER_CLEANER_SETTING2	0x09
@@ -151,10 +151,10 @@ static const struct soc_enum ak4375_ovolcn_enum =
 	SOC_ENUM_SINGLE(AK4375_0B_LCH_OUTPUT_VOLUME, 7,
 			ARRAY_SIZE(ak4375_ovolcn_select_texts), ak4375_ovolcn_select_texts);
 static const struct soc_enum ak4375_mdacl_enum =
-	SOC_ENUM_SINGLE(AK4375_07_DAC_MONO_MIXING, 2,
+	SOC_ENUM_SINGLE(AK4375_07_DAC_MOANAL_MIXING, 2,
 			ARRAY_SIZE(ak4375_mdac_select_texts), ak4375_mdac_select_texts);
 static const struct soc_enum ak4375_mdacr_enum =
-	SOC_ENUM_SINGLE(AK4375_07_DAC_MONO_MIXING, 6,
+	SOC_ENUM_SINGLE(AK4375_07_DAC_MOANAL_MIXING, 6,
 			ARRAY_SIZE(ak4375_mdac_select_texts), ak4375_mdac_select_texts);
 static const struct soc_enum ak4375_cpmode_enum =
 	SOC_ENUM_SINGLE(AK4375_03_POWER_MANAGEMENT4, 2,
@@ -169,7 +169,7 @@ static const struct snd_kcontrol_new ak4375_snd_controls[] = {
 	SOC_SINGLE_TLV("HP-Amp Analog Volume",
 		       AK4375_0D_HP_VOLUME_CONTROL, 0, 0x1f, 0, hpg_tlv),
 
-	SOC_DOUBLE("DAC Signal Invert Switch", AK4375_07_DAC_MONO_MIXING, 3, 7, 1, 0),
+	SOC_DOUBLE("DAC Signal Invert Switch", AK4375_07_DAC_MOANAL_MIXING, 3, 7, 1, 0),
 
 	SOC_ENUM("Digital Volume Control", ak4375_ovolcn_enum),
 	SOC_ENUM("DACL Signal Level", ak4375_mdacl_enum),
@@ -179,13 +179,13 @@ static const struct snd_kcontrol_new ak4375_snd_controls[] = {
 };
 
 static const struct snd_kcontrol_new ak4375_hpl_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LDACL Switch", AK4375_07_DAC_MONO_MIXING, 0, 1, 0),
-	SOC_DAPM_SINGLE("RDACL Switch", AK4375_07_DAC_MONO_MIXING, 1, 1, 0),
+	SOC_DAPM_SINGLE("LDACL Switch", AK4375_07_DAC_MOANAL_MIXING, 0, 1, 0),
+	SOC_DAPM_SINGLE("RDACL Switch", AK4375_07_DAC_MOANAL_MIXING, 1, 1, 0),
 };
 
 static const struct snd_kcontrol_new ak4375_hpr_mixer_controls[] = {
-	SOC_DAPM_SINGLE("LDACR Switch", AK4375_07_DAC_MONO_MIXING, 4, 1, 0),
-	SOC_DAPM_SINGLE("RDACR Switch", AK4375_07_DAC_MONO_MIXING, 5, 1, 0),
+	SOC_DAPM_SINGLE("LDACR Switch", AK4375_07_DAC_MOANAL_MIXING, 4, 1, 0),
+	SOC_DAPM_SINGLE("RDACR Switch", AK4375_07_DAC_MOANAL_MIXING, 5, 1, 0),
 };
 
 static int ak4375_dac_event(struct snd_soc_dapm_widget *w,
@@ -223,7 +223,7 @@ static const struct snd_soc_dapm_widget ak4375_dapm_widgets[] = {
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_AIF_IN("SDTI", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("SDTI", "HiFi Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
@@ -368,7 +368,7 @@ static int ak4375_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct ak4375_priv *ak4375 = snd_soc_component_get_drvdata(component);
-	u8 val = snd_soc_component_read(component, AK4375_07_DAC_MONO_MIXING);
+	u8 val = snd_soc_component_read(component, AK4375_07_DAC_MOANAL_MIXING);
 
 	dev_dbg(ak4375->dev, "mute=%d val=%d\n", mute, val);
 
@@ -379,7 +379,7 @@ static int ak4375_mute(struct snd_soc_dai *dai, int mute, int direction)
 		val |= ak4375->mute_save;
 	}
 
-	snd_soc_component_write(component, AK4375_07_DAC_MONO_MIXING, val);
+	snd_soc_component_write(component, AK4375_07_DAC_MOANAL_MIXING, val);
 
 	return 0;
 }
@@ -504,7 +504,7 @@ static int ak4375_i2c_probe(struct i2c_client *i2c)
 
 	ak4375 = devm_kzalloc(&i2c->dev, sizeof(*ak4375), GFP_KERNEL);
 	if (!ak4375)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ak4375->regmap = devm_regmap_init_i2c(i2c, &ak4375_regmap);
 	if (IS_ERR(ak4375->regmap))

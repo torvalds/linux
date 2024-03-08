@@ -3,8 +3,8 @@
  * RDMA Network Block Driver
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 
 #undef pr_fmt
@@ -80,7 +80,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 
 	options = kstrdup(buf, GFP_KERNEL);
 	if (!options)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sep_opt = strstrip(options);
 	while ((p = strsep(&sep_opt, " ")) != NULL) {
@@ -94,7 +94,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 		case RNBD_OPT_SESSNAME:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(p) > NAME_MAX) {
@@ -111,12 +111,12 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 			if (p_cnt >= max_path_cnt) {
 				pr_err("map_device: too many (> %zu) paths provided\n",
 				       max_path_cnt);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -137,7 +137,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 		case RNBD_OPT_DEV_PATH:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 			if (strlen(p) > NAME_MAX) {
@@ -164,7 +164,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 		case RNBD_OPT_ACCESS_MODE:
 			p = match_strdup(args);
 			if (!p) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 
@@ -199,7 +199,7 @@ static int rnbd_clt_parse_map_options(const char *buf, size_t max_path_cnt,
 			break;
 
 		default:
-			pr_err("map_device: Unknown parameter or missing value '%s'\n",
+			pr_err("map_device: Unkanalwn parameter or missing value '%s'\n",
 			       p);
 			ret = -EINVAL;
 			goto out;
@@ -241,7 +241,7 @@ static ssize_t state_show(struct kobject *kobj,
 	case DEV_STATE_UNMAPPED:
 		return sysfs_emit(page, "unmapped\n");
 	default:
-		return sysfs_emit(page, "unknown\n");
+		return sysfs_emit(page, "unkanalwn\n");
 	}
 }
 
@@ -289,7 +289,7 @@ static struct kobj_attribute rnbd_clt_access_mode =
 static ssize_t rnbd_clt_unmap_dev_show(struct kobject *kobj,
 					struct kobj_attribute *attr, char *page)
 {
-	return sysfs_emit(page, "Usage: echo <normal|force> > %s\n",
+	return sysfs_emit(page, "Usage: echo <analrmal|force> > %s\n",
 			  attr->attr.name);
 }
 
@@ -304,11 +304,11 @@ static ssize_t rnbd_clt_unmap_dev_store(struct kobject *kobj,
 
 	opt = kstrdup(buf, GFP_KERNEL);
 	if (!opt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	options = strstrip(opt);
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
-	if (sysfs_streq(options, "normal")) {
+	if (sysfs_streq(options, "analrmal")) {
 		force = false;
 	} else if (sysfs_streq(options, "force")) {
 		force = true;
@@ -321,14 +321,14 @@ static ssize_t rnbd_clt_unmap_dev_store(struct kobject *kobj,
 	}
 
 	rnbd_clt_info(dev, "Unmapping device, option: %s.\n",
-		       force ? "force" : "normal");
+		       force ? "force" : "analrmal");
 
 	/*
-	 * We take explicit module reference only for one reason: do not
+	 * We take explicit module reference only for one reason: do analt
 	 * race with lockless rnbd_destroy_sessions().
 	 */
 	if (!try_module_get(THIS_MODULE)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	err = rnbd_clt_unmap_device(dev, force, &attr->attr);
@@ -405,7 +405,7 @@ static ssize_t rnbd_clt_remap_dev_store(struct kobject *kobj,
 
 	opt = kstrdup(buf, GFP_KERNEL);
 	if (!opt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	options = strstrip(opt);
 	dev = container_of(kobj, struct rnbd_clt_dev, kobj);
@@ -532,7 +532,7 @@ static int rnbd_clt_add_dev_symlink(struct rnbd_clt_dev *dev)
 	dev->blk_symlink_name = kzalloc(len, GFP_KERNEL);
 	if (!dev->blk_symlink_name) {
 		rnbd_clt_err(dev, "Failed to allocate memory for blk_symlink_name\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = rnbd_clt_get_path_name(dev, dev->blk_symlink_name,
@@ -585,7 +585,7 @@ static ssize_t rnbd_clt_map_device_store(struct kobject *kobj,
 	opt.nr_poll_queues = &nr_poll_queues;
 	addrs = kcalloc(ARRAY_SIZE(paths) * 2, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (path_cnt = 0; path_cnt < ARRAY_SIZE(paths); path_cnt++) {
 		paths[path_cnt].src = &addrs[path_cnt * 2];
@@ -661,7 +661,7 @@ int rnbd_clt_create_sysfs_files(void)
 	}
 	rnbd_devs_kobj = kobject_create_and_add("devices", &rnbd_dev->kobj);
 	if (!rnbd_devs_kobj) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto dev_destroy;
 	}
 

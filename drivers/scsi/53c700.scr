@@ -14,7 +14,7 @@
 ;;  GNU General Public License for more details.
 ;;
 ;;  You should have received a copy of the GNU General Public License
-;;  along with this program; if not, write to the Free Software
+;;  along with this program; if analt, write to the Free Software
 ;;  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 ;;-----------------------------------------------------------------------------
@@ -51,9 +51,9 @@ ABSOLUTE	AFTER_DATA_OUT		= 0x600
 ABSOLUTE	DURING_DATA_IN		= 0x700
 
 ; R:
-ABSOLUTE	NOT_MSG_OUT 		= 0x10
+ABSOLUTE	ANALT_MSG_OUT 		= 0x10
 ABSOLUTE	UNEXPECTED_PHASE 	= 0x20
-ABSOLUTE	NOT_MSG_IN 		= 0x30
+ABSOLUTE	ANALT_MSG_IN 		= 0x30
 ABSOLUTE	UNEXPECTED_MSG		= 0x40
 ABSOLUTE	MSG_IN			= 0x50
 ABSOLUTE	SDTR_MSG_R		= 0x60
@@ -66,10 +66,10 @@ ABSOLUTE	WDTR_MSG_R		= 0xA0
 ABSOLUTE	GOOD_STATUS 		= 0x1
 
 ; Combinations, since the script assembler can't process |
-ABSOLUTE	NOT_MSG_OUT_AFTER_SELECTION = 0x110
+ABSOLUTE	ANALT_MSG_OUT_AFTER_SELECTION = 0x110
 ABSOLUTE	UNEXPECTED_PHASE_BEFORE_CMD = 0x220
 ABSOLUTE	UNEXPECTED_PHASE_AFTER_CMD = 0x320
-ABSOLUTE	NOT_MSG_IN_AFTER_STATUS = 0x430
+ABSOLUTE	ANALT_MSG_IN_AFTER_STATUS = 0x430
 ABSOLUTE	GOOD_STATUS_AFTER_STATUS = 0x401
 ABSOLUTE	UNEXPECTED_PHASE_AFTER_DATA_IN = 0x520
 ABSOLUTE	UNEXPECTED_PHASE_AFTER_DATA_OUT = 0x620
@@ -103,7 +103,7 @@ ABSOLUTE	RESELECTION_IDENTIFIED = 0x1003
 ABSOLUTE	FATAL = 0x2000
 ABSOLUTE	FATAL_UNEXPECTED_RESELECTION_MSG = 0x2000
 ABSOLUTE	FATAL_SEND_MSG = 0x2001
-ABSOLUTE	FATAL_NOT_MSG_IN_AFTER_SELECTION = 0x2002
+ABSOLUTE	FATAL_ANALT_MSG_IN_AFTER_SELECTION = 0x2002
 ABSOLUTE	FATAL_ILLEGAL_MSG_LENGTH = 0x2003
 
 ABSOLUTE	DEBUG_INTERRUPT	= 0x3000
@@ -141,12 +141,12 @@ StartUp:
 	SELECT	ATN Device_ID, Reselect
 	JUMP	Finish, WHEN STATUS
 	JUMP	SendIdentifyMsg, IF MSG_OUT
-	INT	NOT_MSG_OUT_AFTER_SELECTION
+	INT	ANALT_MSG_OUT_AFTER_SELECTION
 
 Reselect:
 	WAIT	RESELECT SelectedAsTarget
 	INT	RESELECTED_DURING_SELECTION, WHEN MSG_IN
-	INT	FATAL_NOT_MSG_IN_AFTER_SELECTION
+	INT	FATAL_ANALT_MSG_IN_AFTER_SELECTION
 
 	ENTRY	GetReselectionData
 GetReselectionData:
@@ -160,7 +160,7 @@ GetReselectionWithTag:
 	
 	ENTRY	SelectedAsTarget
 SelectedAsTarget:
-; Basically tell the selecting device that there's nothing here
+; Basically tell the selecting device that there's analthing here
 	SET	TARGET
 	DISCONNECT
 	CLEAR	TARGET
@@ -173,7 +173,7 @@ SelectedAsTarget:
 SendMessage:
 	MOVE	MessageCount, MessageLocation, WHEN MSG_OUT
 ResumeSendMessage:
-	RETURN,	WHEN NOT MSG_OUT
+	RETURN,	WHEN ANALT MSG_OUT
 	INT	FATAL_SEND_MSG
 
 	ENTRY	SendMessagePhaseMismatch
@@ -191,7 +191,7 @@ ReceiveMessage:
 ; of the message and want to process it further
 ProcessReceiveMessage:
 	JUMP	ReceiveExtendedMessage, IF EXTENDED_MSG
-	RETURN,	IF NOT TWO_BYTE_MSG, AND MASK TWO_BYTE_MSG_MASK
+	RETURN,	IF ANALT TWO_BYTE_MSG, AND MASK TWO_BYTE_MSG_MASK
 	CLEAR	ACK
 	MOVE	1, ReceiveMsgAddress + 1, WHEN MSG_IN
 	RETURN
@@ -225,10 +225,10 @@ Receive5Byte:
 	MOVE	5, ReceiveMsgAddress + 2, WHEN MSG_IN
 	RETURN
 ;
-; Come here from the message processor to ignore the message
+; Come here from the message processor to iganalre the message
 ;
-	ENTRY	IgnoreMessage
-IgnoreMessage:
+	ENTRY	IganalreMessage
+IganalreMessage:
 	CLEAR	ACK
 	RETURN
 ;
@@ -244,13 +244,13 @@ SendIdentifyMsg:
 	CALL	SendMessage
 	CLEAR	ATN
 
-IgnoreMsgBeforeCommand:
+IganalreMsgBeforeCommand:
 	CLEAR	ACK
 	ENTRY	SendCommand
 SendCommand:
 	JUMP	Finish, WHEN STATUS
 	JUMP	MsgInBeforeCommand, IF MSG_IN
-	INT	UNEXPECTED_PHASE_BEFORE_CMD, IF NOT CMD
+	INT	UNEXPECTED_PHASE_BEFORE_CMD, IF ANALT CMD
 	MOVE	CommandCount, CommandAddress, WHEN CMD
 ResumeSendCommand:
 	JUMP	Finish, WHEN STATUS
@@ -259,33 +259,33 @@ ResumeSendCommand:
 	JUMP	DataOut, IF DATA_OUT
 	INT	UNEXPECTED_PHASE_AFTER_CMD
 
-IgnoreMsgDuringData:
+IganalreMsgDuringData:
 	CLEAR	ACK
 	; fall through to MsgInDuringData
 
 Entry MsgInDuringData
 MsgInDuringData:
 ;
-; Could be we have nothing more to transfer
+; Could be we have analthing more to transfer
 ;
 	JUMP	Finish, WHEN STATUS
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectDuringDataIn, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgDuringData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgDuringData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IganalreMsgDuringData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IganalreMsgDuringData, IF RESTORE_DATA_PTRS_MSG
 	INT	MSG_IN_DURING_DATA_IN
 
 MsgInAfterCmd:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterCmd, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgInAfterCmd, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgInAfterCmd, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IganalreMsgInAfterCmd, IF SAVE_DATA_PTRS_MSG
+	JUMP	IganalreMsgInAfterCmd, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_CMD
 	CLEAR	ACK
 	JUMP	ResumeSendCommand
 
-IgnoreMsgInAfterCmd:
+IganalreMsgInAfterCmd:
 	CLEAR	ACK
 	JUMP	ResumeSendCommand
 
@@ -303,8 +303,8 @@ Disconnect2:
 
 MsgInBeforeCommand:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
-	JUMP	IgnoreMsgBeforeCommand, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgBeforeCommand, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IganalreMsgBeforeCommand, IF SAVE_DATA_PTRS_MSG
+	JUMP	IganalreMsgBeforeCommand, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_BEFORE_CMD
 	CLEAR	ACK
@@ -333,8 +333,8 @@ ResumeDataOut:
 MsgInAfterDataIn:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterDataIn, IF DISCONNECT_MSG
-	JUMP	IgnoreMsgAfterData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IganalreMsgAfterData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IganalreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_DATA_IN
 	CLEAR	ACK
@@ -368,14 +368,14 @@ Disconnect6:
 MsgInAfterDataOut:
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	DisconnectAfterDataOut, if DISCONNECT_MSG
-	JUMP	IgnoreMsgAfterData, IF SAVE_DATA_PTRS_MSG
-	JUMP	IgnoreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
+	JUMP	IganalreMsgAfterData, IF SAVE_DATA_PTRS_MSG
+	JUMP	IganalreMsgAfterData, IF RESTORE_DATA_PTRS_MSG
 	CALL	ProcessReceiveMessage
 	INT	MSG_IN_AFTER_DATA_OUT
 	CLEAR	ACK
 	JUMP	ResumeDataOut
 
-IgnoreMsgAfterData:
+IganalreMsgAfterData:
 	CLEAR	ACK
 ; Data in and out do the same thing on resume, so pick one
 	JUMP	ResumeDataIn
@@ -394,7 +394,7 @@ Disconnect8:
 
 Finish:
 	MOVE	1, StatusAddress, WHEN STATUS
-	INT	NOT_MSG_IN_AFTER_STATUS, WHEN NOT MSG_IN
+	INT	ANALT_MSG_IN_AFTER_STATUS, WHEN ANALT MSG_IN
 	MOVE	1, ReceiveMsgAddress, WHEN MSG_IN
 	JUMP	FinishCommandComplete, IF COMMAND_COMPLETE_MSG
 	CALL	ProcessReceiveMessage

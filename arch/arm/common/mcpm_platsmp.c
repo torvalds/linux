@@ -2,7 +2,7 @@
 /*
  * linux/arch/arm/mach-vexpress/mcpm_platsmp.c
  *
- * Created by:  Nicolas Pitre, November 2012
+ * Created by:  Nicolas Pitre, Analvember 2012
  * Copyright:   (C) 2012-2013  Linaro Limited
  *
  * Code to handle secondary CPU bringup and hotplug for the cluster power API.

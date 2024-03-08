@@ -520,7 +520,7 @@ static void rtl88e_dm_dig(struct ieee80211_hw *hw)
 	} else {
 		dm_dig->rx_gain_max = dm_dig_max;
 		dig_dynamic_min = dm_dig_min;
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "anal link\n");
 	}
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
@@ -603,8 +603,8 @@ static void rtl88e_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
 
 	rtlpriv->dm.dynamic_txpower_enable = false;
 
-	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
+	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 }
 
 static void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
@@ -618,18 +618,18 @@ static void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		return;
 
 	if (rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 
-		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 
@@ -669,9 +669,9 @@ static void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw)
 			"TXHIGHPWRLEVEL_LEVEL1 (TxPwr = 0x10)\n");
 	} else if (undec_sm_pwdb <
 		   (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-			"TXHIGHPWRLEVEL_NORMAL\n");
+			"TXHIGHPWRLEVEL_ANALRMAL\n");
 	}
 
 	if ((rtlpriv->dm.dynamic_txhighpower_lvl !=
@@ -768,7 +768,7 @@ void rtl88e_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -808,7 +808,7 @@ static void rtl88e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		return;
 	}
 	if ((bt_change_edca) ||
-	    ((!rtlpriv->dm.is_any_nonbepkts) &&
+	    ((!rtlpriv->dm.is_any_analnbepkts) &&
 	     (!rtlpriv->dm.disable_framebursting))) {
 
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
@@ -843,7 +843,7 @@ static void rtl88e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -1145,7 +1145,7 @@ static void rtl88e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
-			"driver does not control rate adaptive mask\n");
+			"driver does analt control rate adaptive mask\n");
 		return;
 	}
 
@@ -1348,7 +1348,7 @@ static void rtl88e_dm_fast_training_init(struct ieee80211_hw *hw)
 		pfat_table->ant_ave[i] = 0;
 	}
 	pfat_table->train_idx = 0;
-	pfat_table->fat_state = FAT_NORMAL_STATE;
+	pfat_table->fat_state = FAT_ANALRMAL_STATE;
 
 	/*MAC Setting*/
 	value32 = rtl_get_bbreg(hw, DM_REG_ANTSEL_PIN_11N, MASKDWORD);
@@ -1665,11 +1665,11 @@ static void rtl88e_dm_fast_ant_training(struct ieee80211_hw *hw)
 			pfat_table->ant_cnt[i] = 0;
 		}
 
-		pfat_table->fat_state = FAT_NORMAL_STATE;
+		pfat_table->fat_state = FAT_ANALRMAL_STATE;
 		return;
 	}
 
-	if (pfat_table->fat_state == FAT_NORMAL_STATE) {
+	if (pfat_table->fat_state == FAT_ANALRMAL_STATE) {
 		rtl88e_set_next_mac_address_target(hw);
 
 		pfat_table->fat_state = FAT_TRAINING_STATE;
@@ -1699,7 +1699,7 @@ static void rtl88e_dm_antenna_diversity(struct ieee80211_hw *hw)
 	struct fast_ant_training *pfat_table = &rtldm->fat_table;
 
 	if (mac->link_state < MAC80211_LINKED) {
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "No Link\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "Anal Link\n");
 		if (pfat_table->becomelinked) {
 			rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
 				"need to turn off HW AntDiv\n");

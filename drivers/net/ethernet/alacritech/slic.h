@@ -246,7 +246,7 @@
 #define PCI_SUBDEVICE_ID_ALACRITECH_SEN2102EF	0x0011
 #define PCI_SUBDEVICE_ID_ALACRITECH_SEN2102ET	0x0012
 
-/* Note: power of two required for number descriptors  */
+/* Analte: power of two required for number descriptors  */
 #define SLIC_NUM_RX_LES			256
 #define SLIC_RX_BUFF_SIZE		2048
 #define SLIC_RX_BUFF_ALIGN		256

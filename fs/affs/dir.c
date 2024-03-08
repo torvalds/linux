@@ -29,7 +29,7 @@ const struct file_operations affs_dir_operations = {
 /*
  * directories can handle most operations...
  */
-const struct inode_operations affs_dir_inode_operations = {
+const struct ianalde_operations affs_dir_ianalde_operations = {
 	.create		= affs_create,
 	.lookup		= affs_lookup,
 	.link		= affs_link,
@@ -38,14 +38,14 @@ const struct inode_operations affs_dir_inode_operations = {
 	.mkdir		= affs_mkdir,
 	.rmdir		= affs_rmdir,
 	.rename		= affs_rename2,
-	.setattr	= affs_notify_change,
+	.setattr	= affs_analtify_change,
 };
 
 static int
 affs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode		*inode = file_inode(file);
-	struct super_block	*sb = inode->i_sb;
+	struct ianalde		*ianalde = file_ianalde(file);
+	struct super_block	*sb = ianalde->i_sb;
 	struct buffer_head	*dir_bh = NULL;
 	struct buffer_head	*fh_bh = NULL;
 	unsigned char		*name;
@@ -53,10 +53,10 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 	u32			 i;
 	int			 hash_pos;
 	int			 chain_pos;
-	u32			 ino;
+	u32			 ianal;
 	int			 error = 0;
 
-	pr_debug("%s(ino=%lu,f_pos=%llx)\n", __func__, inode->i_ino, ctx->pos);
+	pr_debug("%s(ianal=%lu,f_pos=%llx)\n", __func__, ianalde->i_ianal, ctx->pos);
 
 	if (ctx->pos < 2) {
 		file->private_data = (void *)0;
@@ -64,7 +64,7 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 			return 0;
 	}
 
-	affs_lock_dir(inode);
+	affs_lock_dir(ianalde);
 	chain_pos = (ctx->pos - 2) & 0xffff;
 	hash_pos  = (ctx->pos - 2) >> 16;
 	if (chain_pos == 0xffff) {
@@ -73,72 +73,72 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 		hash_pos++;
 		ctx->pos = ((hash_pos << 16) | chain_pos) + 2;
 	}
-	dir_bh = affs_bread(sb, inode->i_ino);
+	dir_bh = affs_bread(sb, ianalde->i_ianal);
 	if (!dir_bh)
 		goto out_unlock_dir;
 
 	/* If the directory hasn't changed since the last call to readdir(),
 	 * we can jump directly to where we left off.
 	 */
-	ino = (u32)(long)file->private_data;
-	if (ino && inode_eq_iversion(inode, file->f_version)) {
-		pr_debug("readdir() left off=%d\n", ino);
+	ianal = (u32)(long)file->private_data;
+	if (ianal && ianalde_eq_iversion(ianalde, file->f_version)) {
+		pr_debug("readdir() left off=%d\n", ianal);
 		goto inside;
 	}
 
-	ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
-	for (i = 0; ino && i < chain_pos; i++) {
-		fh_bh = affs_bread(sb, ino);
+	ianal = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
+	for (i = 0; ianal && i < chain_pos; i++) {
+		fh_bh = affs_bread(sb, ianal);
 		if (!fh_bh) {
-			affs_error(sb, "readdir","Cannot read block %d", i);
+			affs_error(sb, "readdir","Cananalt read block %d", i);
 			error = -EIO;
 			goto out_brelse_dir;
 		}
-		ino = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
+		ianal = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
 		affs_brelse(fh_bh);
 		fh_bh = NULL;
 	}
-	if (ino)
+	if (ianal)
 		goto inside;
 	hash_pos++;
 
 	for (; hash_pos < AFFS_SB(sb)->s_hashsize; hash_pos++) {
-		ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
-		if (!ino)
+		ianal = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
+		if (!ianal)
 			continue;
 		ctx->pos = (hash_pos << 16) + 2;
 inside:
 		do {
-			fh_bh = affs_bread(sb, ino);
+			fh_bh = affs_bread(sb, ianal);
 			if (!fh_bh) {
 				affs_error(sb, "readdir",
-					   "Cannot read block %d", ino);
+					   "Cananalt read block %d", ianal);
 				break;
 			}
 
 			namelen = min(AFFS_TAIL(sb, fh_bh)->name[0],
 				      (u8)AFFSNAMEMAX);
 			name = AFFS_TAIL(sb, fh_bh)->name + 1;
-			pr_debug("readdir(): dir_emit(\"%.*s\", ino=%u), hash=%d, f_pos=%llx\n",
-				 namelen, name, ino, hash_pos, ctx->pos);
+			pr_debug("readdir(): dir_emit(\"%.*s\", ianal=%u), hash=%d, f_pos=%llx\n",
+				 namelen, name, ianal, hash_pos, ctx->pos);
 
-			if (!dir_emit(ctx, name, namelen, ino, DT_UNKNOWN))
+			if (!dir_emit(ctx, name, namelen, ianal, DT_UNKANALWN))
 				goto done;
 			ctx->pos++;
-			ino = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
+			ianal = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
 			affs_brelse(fh_bh);
 			fh_bh = NULL;
-		} while (ino);
+		} while (ianal);
 	}
 done:
-	file->f_version = inode_query_iversion(inode);
-	file->private_data = (void *)(long)ino;
+	file->f_version = ianalde_query_iversion(ianalde);
+	file->private_data = (void *)(long)ianal;
 	affs_brelse(fh_bh);
 
 out_brelse_dir:
 	affs_brelse(dir_bh);
 
 out_unlock_dir:
-	affs_unlock_dir(inode);
+	affs_unlock_dir(ianalde);
 	return error;
 }

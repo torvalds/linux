@@ -4,18 +4,18 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define __UNDEF_NO_VERSION__
+#define __UNDEF_ANAL_VERSION__
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/etherdevice.h>
@@ -111,94 +111,94 @@ module_param_named(debug, brcm_msg_level, uint, 0644);
 #endif
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {
-	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(2, 2417, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(3, 2422, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN2GHZ(4, 2427, IEEE80211_CHAN_NO_HT40MINUS),
+	CHAN2GHZ(1, 2412, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN2GHZ(2, 2417, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN2GHZ(3, 2422, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN2GHZ(4, 2427, IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN2GHZ(5, 2432, 0),
 	CHAN2GHZ(6, 2437, 0),
 	CHAN2GHZ(7, 2442, 0),
-	CHAN2GHZ(8, 2447, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(9, 2452, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(10, 2457, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN2GHZ(11, 2462, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN2GHZ(8, 2447, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN2GHZ(9, 2452, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN2GHZ(10, 2457, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN2GHZ(11, 2462, IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN2GHZ(12, 2467,
-		 IEEE80211_CHAN_NO_IR |
-		 IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR |
+		 IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN2GHZ(13, 2472,
-		 IEEE80211_CHAN_NO_IR |
-		 IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR |
+		 IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN2GHZ(14, 2484,
-		 IEEE80211_CHAN_NO_IR |
-		 IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS |
-		 IEEE80211_CHAN_NO_OFDM)
+		 IEEE80211_CHAN_ANAL_IR |
+		 IEEE80211_CHAN_ANAL_HT40PLUS | IEEE80211_CHAN_ANAL_HT40MINUS |
+		 IEEE80211_CHAN_ANAL_OFDM)
 };
 
 static struct ieee80211_channel brcms_5ghz_nphy_chantable[] = {
 	/* UNII-1 */
-	CHAN5GHZ(36, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(40, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(44, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(48, IEEE80211_CHAN_NO_HT40PLUS),
+	CHAN5GHZ(36, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN5GHZ(40, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN5GHZ(44, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN5GHZ(48, IEEE80211_CHAN_ANAL_HT40PLUS),
 	/* UNII-2 */
 	CHAN5GHZ(52,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(56,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(60,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(64,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	/* MID */
 	CHAN5GHZ(100,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(104,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(108,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(112,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(116,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(120,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(124,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(128,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(132,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40MINUS),
 	CHAN5GHZ(136,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS),
 	CHAN5GHZ(140,
 		 IEEE80211_CHAN_RADAR |
-		 IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_NO_HT40PLUS |
-		 IEEE80211_CHAN_NO_HT40MINUS),
+		 IEEE80211_CHAN_ANAL_IR | IEEE80211_CHAN_ANAL_HT40PLUS |
+		 IEEE80211_CHAN_ANAL_HT40MINUS),
 	/* UNII-3 */
-	CHAN5GHZ(149, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(153, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(157, IEEE80211_CHAN_NO_HT40MINUS),
-	CHAN5GHZ(161, IEEE80211_CHAN_NO_HT40PLUS),
-	CHAN5GHZ(165, IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
+	CHAN5GHZ(149, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN5GHZ(153, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN5GHZ(157, IEEE80211_CHAN_ANAL_HT40MINUS),
+	CHAN5GHZ(161, IEEE80211_CHAN_ANAL_HT40PLUS),
+	CHAN5GHZ(165, IEEE80211_CHAN_ANAL_HT40PLUS | IEEE80211_CHAN_ANAL_HT40MINUS)
 };
 
 /*
  * The rate table is used for both 2.4G and 5G rates. The
- * latter being a subset as it does not support CCK rates.
+ * latter being a subset as it does analt support CCK rates.
  */
 static struct ieee80211_rate legacy_ratetable[] = {
 	RATE(10, 0),
@@ -229,7 +229,7 @@ static const struct ieee80211_supported_band brcms_band_2GHz_nphy_template = {
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
-			   /* placeholders for now */
+			   /* placeholders for analw */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
 			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
@@ -250,7 +250,7 @@ static const struct ieee80211_supported_band brcms_band_5GHz_nphy_template = {
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
-			   /* placeholders for now */
+			   /* placeholders for analw */
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
 			   .rx_highest = cpu_to_le16(500),
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
@@ -307,7 +307,7 @@ static void brcms_free(struct brcms_info *wl)
 		wl->pub = NULL;
 	}
 
-	/* virtual interface deletion is deferred so we cannot spinwait */
+	/* virtual interface deletion is deferred so we cananalt spinwait */
 
 	/* wait for all pending callbacks to complete */
 	while (atomic_read(&wl->callbacks) > 0)
@@ -325,7 +325,7 @@ static void brcms_free(struct brcms_info *wl)
 
 /*
 * called from both kernel as from this kernel module (error flow on attach)
-* precondition: perimeter lock is not acquired.
+* precondition: perimeter lock is analt acquired.
 */
 static void brcms_remove(struct bcma_device *pdev)
 {
@@ -347,7 +347,7 @@ static void brcms_remove(struct bcma_device *pdev)
 
 /*
  * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
+ * anal locking is required.
  */
 static void brcms_release_fw(struct brcms_info *wl)
 {
@@ -360,7 +360,7 @@ static void brcms_release_fw(struct brcms_info *wl)
 
 /*
  * Precondition: Since this function is called in brcms_pci_probe() context,
- * no locking is required.
+ * anal locking is required.
  */
 static int brcms_request_fw(struct brcms_info *wl, struct bcma_device *pdev)
 {
@@ -423,10 +423,10 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	bool blocked;
 	int err;
 
-	if (!wl->ucode.bcm43xx_bomminor) {
+	if (!wl->ucode.bcm43xx_bommianalr) {
 		err = brcms_request_fw(wl, wl->wlc->hw->d11core);
 		if (err)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	ieee80211_wake_queues(hw);
@@ -437,7 +437,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
 	spin_lock_bh(&wl->lock);
-	/* avoid acknowledging frames before a non-monitor device is added */
+	/* avoid ackanalwledging frames before a analn-monitor device is added */
 	wl->mute_tx = true;
 
 	if (!wl->pub->up)
@@ -446,7 +446,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 		else
 			err = -ERFKILL;
 	else
-		err = -ENODEV;
+		err = -EANALDEV;
 	spin_unlock_bh(&wl->lock);
 
 	if (err != 0)
@@ -489,14 +489,14 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 
-	/* Just STA, AP and ADHOC for now */
+	/* Just STA, AP and ADHOC for analw */
 	if (vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC) {
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Attempt to add type %d, only STA, AP and AdHoc for now\n",
+			  "%s: Attempt to add type %d, only STA, AP and AdHoc for analw\n",
 			  __func__, vif->type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	spin_lock_bh(&wl->lock);
@@ -563,11 +563,11 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		if (conf->chandef.width == NL80211_CHAN_WIDTH_20 ||
-		    conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+		    conf->chandef.width == NL80211_CHAN_WIDTH_20_ANALHT)
 			err = brcms_c_set_channel(wl->wlc,
 						  conf->chandef.chan->hw_value);
 		else
-			err = -ENOTSUPP;
+			err = -EANALTSUPP;
 	}
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		err = brcms_c_set_rate_limit(wl->wlc,
@@ -617,10 +617,10 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		spin_lock_bh(&wl->lock);
 		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_CFG,
 			mode & IEEE80211_HT_OP_MODE_PROTECTION);
-		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_NONGF,
-			mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_ANALNGF,
+			mode & IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_OBSS,
-			mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
+			mode & IEEE80211_HT_OP_MODE_ANALN_HT_STA_PRSNT);
 		spin_unlock_bh(&wl->lock);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
@@ -727,7 +727,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_QOS) {
 		/*
 		 * QoS for this association was enabled/disabled.
-		 * Note that it is only ever disabled for station mode.
+		 * Analte that it is only ever disabled for station mode.
 		 */
 		brcms_err(core, "%s: qos enabled: %s (implement)\n",
 			  __func__, info->qos ? "true" : "false");
@@ -844,7 +844,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		spin_unlock_bh(&wl->lock);
 		if (!status) {
 			brcms_dbg_ht(wl->wlc->hw->d11core,
-				     "START: tid %d is not agg\'able\n", tid);
+				     "START: tid %d is analt agg\'able\n", tid);
 			return -EINVAL;
 		}
 		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
@@ -873,7 +873,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	default:
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Invalid command, ignoring\n", __func__);
+			  "%s: Invalid command, iganalring\n", __func__);
 	}
 
 	return 0;
@@ -907,7 +907,7 @@ static void brcms_ops_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct brcms_info *wl = hw->priv;
 	int ret;
 
-	no_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
+	anal_printk("%s: drop = %s\n", __func__, drop ? "true" : "false");
 
 	ret = wait_event_timeout(wl->tx_flush_wq,
 				 brcms_tx_flush_completed(wl),
@@ -1020,7 +1020,7 @@ void brcms_dpc(struct tasklet_struct *t)
 static irqreturn_t brcms_isr(int irq, void *dev_id)
 {
 	struct brcms_info *wl;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	wl = (struct brcms_info *) dev_id;
 
@@ -1039,7 +1039,7 @@ static irqreturn_t brcms_isr(int irq, void *dev_id)
 }
 
 /*
- * is called in brcms_pci_probe() context, therefore no locking required.
+ * is called in brcms_pci_probe() context, therefore anal locking required.
  */
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
@@ -1079,7 +1079,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 }
 
 /*
- * is called in brcms_pci_probe() context, therefore no locking required.
+ * is called in brcms_pci_probe() context, therefore anal locking required.
  */
 static int ieee_hw_init(struct ieee80211_hw *hw)
 {
@@ -1117,7 +1117,7 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
  * Attach to the WL device identified by vendor and device parameters.
  * regs is a host accessible memory address pointing to WL device registers.
  *
- * is called in brcms_bcma_probe() context, therefore no locking required.
+ * is called in brcms_bcma_probe() context, therefore anal locking required.
  */
 static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 {
@@ -1226,12 +1226,12 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 
 	if ((pdev->id.manuf != BCMA_MANUF_BCM) ||
 	    (pdev->id.id != BCMA_CORE_80211))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hw = ieee80211_alloc_hw(sizeof(struct brcms_info), &brcms_ops);
 	if (!hw) {
 		pr_err("%s: ieee80211_alloc_hw failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -1243,7 +1243,7 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 	wl = brcms_attach(pdev);
 	if (!wl) {
 		pr_err("%s: brcms_attach failed!\n", __func__);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_free_ieee80211;
 	}
 	brcms_led_register(wl);
@@ -1263,9 +1263,9 @@ static int brcms_suspend(struct bcma_device *pdev)
 	hw = bcma_get_drvdata(pdev);
 	wl = hw->priv;
 	if (!wl) {
-		pr_err("%s: %s: no driver private struct!\n", KBUILD_MODNAME,
+		pr_err("%s: %s: anal driver private struct!\n", KBUILD_MODNAME,
 		       __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* only need to flag hw is down for proper resume */
@@ -1364,7 +1364,7 @@ uint brcms_reset(struct brcms_info *wl)
 	brcms_dbg_info(wl->wlc->hw->d11core, "Resetting wl%d\n", wl->pub->unit);
 	brcms_c_reset(wl->wlc);
 
-	/* dpc will not be rescheduled */
+	/* dpc will analt be rescheduled */
 	wl->resched = false;
 
 	/* inform publicly that interface is down */
@@ -1445,7 +1445,7 @@ void brcms_down(struct brcms_info *wl)
 	spin_unlock_bh(&wl->lock);
 
 	/* For HIGH_only driver, it's important to actually schedule other work,
-	 * not just spin wait since everything runs at schedule level
+	 * analt just spin wait since everything runs at schedule level
 	 */
 	SPINWAIT((atomic_read(&wl->callbacks) > callbacks), 100 * 1000);
 
@@ -1453,7 +1453,7 @@ void brcms_down(struct brcms_info *wl)
 }
 
 /*
-* precondition: perimeter lock is not acquired
+* precondition: perimeter lock is analt acquired
  */
 static void _brcms_timer(struct work_struct *work)
 {
@@ -1591,7 +1591,7 @@ void brcms_free_timer(struct brcms_timer *t)
 }
 
 /*
- * precondition: no locking required
+ * precondition: anal locking required
  */
 int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 {
@@ -1615,15 +1615,15 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 		}
 	}
 	brcms_err(wl->wlc->hw->d11core,
-		  "ERROR: ucode buf tag:%d can not be found!\n", idx);
+		  "ERROR: ucode buf tag:%d can analt be found!\n", idx);
 	*pbuf = NULL;
 fail:
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 /*
  * Precondition: Since this function is called in brcms_bcma_probe() context,
- * no locking is required.
+ * anal locking is required.
  */
 int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 {
@@ -1640,7 +1640,7 @@ int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 				if (le32_to_cpu(hdr->len) != 4) {
 					brcms_err(wl->wlc->hw->d11core,
 						  "ERROR: fw hdr len\n");
-					return -ENOMSG;
+					return -EANALMSG;
 				}
 				*n_bytes = le32_to_cpu(*((__le32 *) pdata));
 				return 0;
@@ -1648,8 +1648,8 @@ int brcms_ucode_init_uint(struct brcms_info *wl, size_t *n_bytes, u32 idx)
 		}
 	}
 	brcms_err(wl->wlc->hw->d11core,
-		  "ERROR: ucode tag:%d can not be found!\n", idx);
-	return -ENOMSG;
+		  "ERROR: ucode tag:%d can analt be found!\n", idx);
+	return -EANALMSG;
 }
 
 /*
@@ -1664,7 +1664,7 @@ void brcms_ucode_free_buf(void *p)
  * checks validity of all firmware images loaded from user space
  *
  * Precondition: Since this function is called in brcms_bcma_probe() context,
- * no locking is required.
+ * anal locking is required.
  */
 int brcms_check_firmwares(struct brcms_info *wl)
 {
@@ -1684,7 +1684,7 @@ int brcms_check_firmwares(struct brcms_info *wl)
 				  __func__);
 			rc = -EBADF;
 		} else if (fw_hdr->size % sizeof(struct firmware_hdr)) {
-			wiphy_err(wl->wiphy, "%s: non integral fw hdr file "
+			wiphy_err(wl->wiphy, "%s: analn integral fw hdr file "
 				"size %zu/%zu\n", __func__, fw_hdr->size,
 				sizeof(struct firmware_hdr));
 			rc = -EBADF;

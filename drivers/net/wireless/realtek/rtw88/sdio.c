@@ -45,7 +45,7 @@ static u32 rtw_sdio_to_bus_offset(struct rtw_dev *rtwdev, u32 addr)
 				   REG_SDIO_CMD_ADDR_SDIO_REG);
 		break;
 	default:
-		rtw_warn(rtwdev, "Cannot convert addr 0x%08x to bus offset",
+		rtw_warn(rtwdev, "Cananalt convert addr 0x%08x to bus offset",
 			 addr);
 	}
 
@@ -475,7 +475,7 @@ static u32 rtw_sdio_get_tx_addr(struct rtw_dev *rtwdev, size_t size,
 	case RTW_TX_QUEUE_VI:
 	case RTW_TX_QUEUE_VO:
 		txaddr = FIELD_PREP(REG_SDIO_CMD_ADDR_MSK,
-				    REG_SDIO_CMD_ADDR_TXFF_NORMAL);
+				    REG_SDIO_CMD_ADDR_TXFF_ANALRMAL);
 		break;
 	case RTW_TX_QUEUE_BE:
 	case RTW_TX_QUEUE_BK:
@@ -520,7 +520,7 @@ static int rtw_sdio_read_port(struct rtw_dev *rtwdev, u8 *buf, size_t count)
 				 "Failed to read %zu byte(s) from SDIO port 0x%08x: %d",
 				 bytes, rxaddr, err);
 
-			 /* Signal to the caller that reading did not work and
+			 /* Signal to the caller that reading did analt work and
 			  * that the data in the buffer is short/corrupted.
 			  */
 			ret = err;
@@ -561,7 +561,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 			break;
 		case RTW_TX_QUEUE_VI:
 		case RTW_TX_QUEUE_VO:
-			/* normal */
+			/* analrmal */
 			pages_free = (free_txpg >> 8) & 0xff;
 			break;
 		case RTW_TX_QUEUE_BE:
@@ -570,7 +570,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 			pages_free = (free_txpg >> 16) & 0xff;
 			break;
 		default:
-			rtw_warn(rtwdev, "Unknown mapping for queue %u\n", queue);
+			rtw_warn(rtwdev, "Unkanalwn mapping for queue %u\n", queue);
 			return -EINVAL;
 		}
 
@@ -592,7 +592,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 			break;
 		case RTW_TX_QUEUE_VI:
 		case RTW_TX_QUEUE_VO:
-			/* normal */
+			/* analrmal */
 			pages_free = (free_txpg[0] >> 16) & 0xfff;
 			break;
 		case RTW_TX_QUEUE_BE:
@@ -605,7 +605,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 			pages_free = free_txpg[2] & 0xfff;
 			break;
 		default:
-			rtw_warn(rtwdev, "Unknown mapping for queue %u\n", queue);
+			rtw_warn(rtwdev, "Unkanalwn mapping for queue %u\n", queue);
 			return -EINVAL;
 		}
 
@@ -617,7 +617,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 
 	if (pages_needed > pages_free) {
 		rtw_dbg(rtwdev, RTW_DBG_SDIO,
-			"Not enough free pages (%u needed, %u free) in queue %u for %zu bytes\n",
+			"Analt eanalugh free pages (%u needed, %u free) in queue %u for %zu bytes\n",
 			pages_needed, pages_free, queue, count);
 		return -EBUSY;
 	}
@@ -685,7 +685,7 @@ static void rtw_sdio_enable_rx_aggregation(struct rtw_dev *rtwdev)
 		timeout = 0x1;
 	}
 
-	/* Make the firmware honor the size limit configured below */
+	/* Make the firmware hoanalr the size limit configured below */
 	rtw_write32_set(rtwdev, REG_RXDMA_AGG_PG_TH, BIT_EN_PRE_CALC);
 
 	rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_AGG_EN);
@@ -731,7 +731,7 @@ static u8 rtw_sdio_get_tx_qsel(struct rtw_dev *rtwdev, struct sk_buff *skb,
 
 static int rtw_sdio_setup(struct rtw_dev *rtwdev)
 {
-	/* nothing to do */
+	/* analthing to do */
 	return 0;
 }
 
@@ -755,9 +755,9 @@ static void rtw_sdio_deep_ps_enter(struct rtw_dev *rtwdev)
 	u8 queue;
 
 	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_TX_WAKE)) {
-		/* Deep PS state is not allowed to TX-DMA */
+		/* Deep PS state is analt allowed to TX-DMA */
 		for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
-			/* BCN queue is rsvd page, does not have DMA interrupt
+			/* BCN queue is rsvd page, does analt have DMA interrupt
 			 * H2C queue is managed by firmware
 			 */
 			if (queue == RTW_TX_QUEUE_BCN ||
@@ -774,7 +774,7 @@ static void rtw_sdio_deep_ps_enter(struct rtw_dev *rtwdev)
 
 	if (!tx_empty) {
 		rtw_dbg(rtwdev, RTW_DBG_PS,
-			"TX path not empty, cannot enter deep power save state\n");
+			"TX path analt empty, cananalt enter deep power save state\n");
 		return;
 	}
 
@@ -806,7 +806,7 @@ static void rtw_sdio_tx_kick_off(struct rtw_dev *rtwdev)
 
 static void rtw_sdio_link_ps(struct rtw_dev *rtwdev, bool enter)
 {
-	/* nothing to do */
+	/* analthing to do */
 }
 
 static void rtw_sdio_interface_cfg(struct rtw_dev *rtwdev)
@@ -855,7 +855,7 @@ static void rtw_sdio_tx_skb_prepare(struct rtw_dev *rtwdev,
 
 		/* By inserting padding to align the start of the pkt_desc we
 		 * need to inform the firmware that the actual data starts at
-		 * a different offset than normal.
+		 * a different offset than analrmal.
 		 */
 		pkt_info->offset += offset;
 	}
@@ -891,7 +891,7 @@ static int rtw_sdio_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 
 	skb = rtw_tx_write_data_rsvd_page_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return rtw_sdio_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_BCN);
 }
@@ -903,7 +903,7 @@ static int rtw_sdio_write_data_h2c(struct rtw_dev *rtwdev, u8 *buf, u32 size)
 
 	skb = rtw_tx_write_data_h2c_get(rtwdev, &pkt_info, buf, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return rtw_sdio_write_data(rtwdev, &pkt_info, skb, RTW_TX_QUEUE_H2C);
 }
@@ -1035,10 +1035,10 @@ static void rtw_sdio_rx_isr(struct rtw_dev *rtwdev)
 		total_rx_bytes += rx_len;
 
 		if (rtw_chip_wcpu_11n(rtwdev)) {
-			/* Stop if no more RX requests are pending, even if
+			/* Stop if anal more RX requests are pending, even if
 			 * rx_len could be greater than zero in the next
 			 * iteration. This is needed because the RX buffer may
-			 * already contain data while either HW or FW are not
+			 * already contain data while either HW or FW are analt
 			 * done filling that buffer yet. Still reading the
 			 * buffer can result in packets where
 			 * rtw_rx_pkt_stat.pkt_len is zero or points beyond the
@@ -1199,8 +1199,8 @@ static void rtw_sdio_indicate_tx_status(struct rtw_dev *rtwdev,
 
 	/* always ACK for others, then they won't be marked as drop */
 	ieee80211_tx_info_clear_status(info);
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 	else
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
@@ -1270,7 +1270,7 @@ static int rtw_sdio_init_tx(struct rtw_dev *rtwdev)
 	rtwsdio->txwq = create_singlethread_workqueue("rtw88_sdio: tx wq");
 	if (!rtwsdio->txwq) {
 		rtw_err(rtwdev, "failed to create TX work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < RTK_MAX_TX_QUEUE_NUM; i++)
@@ -1287,7 +1287,7 @@ static int rtw_sdio_init_tx(struct rtw_dev *rtwdev)
 
 err_destroy_wq:
 	destroy_workqueue(rtwsdio->txwq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rtw_sdio_deinit_tx(struct rtw_dev *rtwdev)
@@ -1315,7 +1315,7 @@ int rtw_sdio_probe(struct sdio_func *sdio_func,
 	hw = ieee80211_alloc_hw(drv_data_size, &rtw_ops);
 	if (!hw) {
 		dev_err(&sdio_func->dev, "failed to allocate hw");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rtwdev = hw->priv;

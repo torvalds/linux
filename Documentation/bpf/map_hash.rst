@@ -6,7 +6,7 @@
 BPF_MAP_TYPE_HASH, with PERCPU and LRU Variants
 ===============================================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_HASH`` was introduced in kernel version 3.19
    - ``BPF_MAP_TYPE_PERCPU_HASH`` was introduced in version 4.6
    - Both ``BPF_MAP_TYPE_LRU_HASH`` and ``BPF_MAP_TYPE_LRU_PERCPU_HASH``
@@ -18,7 +18,7 @@ allowing for composite keys and values.
 
 The kernel is responsible for allocating and freeing key/value pairs, up
 to the max_entries limit that you specify. Hash maps use pre-allocation
-of hash table elements by default. The ``BPF_F_NO_PREALLOC`` flag can be
+of hash table elements by default. The ``BPF_F_ANAL_PREALLOC`` flag can be
 used to disable pre-allocation when it is too memory expensive.
 
 ``BPF_MAP_TYPE_PERCPU_HASH`` provides a separate value slot per
@@ -30,15 +30,15 @@ will automatically evict the least recently used entries when the hash
 table reaches capacity. An LRU hash maintains an internal LRU list that
 is used to select elements for eviction. This internal LRU list is
 shared across CPUs but it is possible to request a per CPU LRU list with
-the ``BPF_F_NO_COMMON_LRU`` flag when calling ``bpf_map_create``.  The
+the ``BPF_F_ANAL_COMMON_LRU`` flag when calling ``bpf_map_create``.  The
 following table outlines the properties of LRU maps depending on the a
 map type and the flags used to create the map.
 
 ======================== ========================= ================================
 Flag                     ``BPF_MAP_TYPE_LRU_HASH`` ``BPF_MAP_TYPE_LRU_PERCPU_HASH``
 ======================== ========================= ================================
-**BPF_F_NO_COMMON_LRU**  Per-CPU LRU, global map   Per-CPU LRU, per-cpu map
-**!BPF_F_NO_COMMON_LRU** Global LRU, global map    Global LRU, per-cpu map
+**BPF_F_ANAL_COMMON_LRU**  Per-CPU LRU, global map   Per-CPU LRU, per-cpu map
+**!BPF_F_ANAL_COMMON_LRU** Global LRU, global map    Global LRU, per-cpu map
 ======================== ========================= ================================
 
 Usage
@@ -59,7 +59,7 @@ helper. This helper replaces existing elements atomically. The ``flags``
 parameter can be used to control the update behaviour:
 
 - ``BPF_ANY`` will create a new element or update an existing element
-- ``BPF_NOEXIST`` will create a new element only if one did not already
+- ``BPF_ANALEXIST`` will create a new element only if one did analt already
   exist
 - ``BPF_EXIST`` will update an existing element
 
@@ -75,7 +75,7 @@ bpf_map_lookup_elem()
 
 Hash entries can be retrieved using the ``bpf_map_lookup_elem()``
 helper. This helper returns a pointer to the value associated with
-``key``, or ``NULL`` if no entry was found.
+``key``, or ``NULL`` if anal entry was found.
 
 bpf_map_delete_elem()
 ~~~~~~~~~~~~~~~~~~~~~
@@ -104,7 +104,7 @@ bpf_map_lookup_percpu_elem()
 
 The ``bpf_map_lookup_percpu_elem()`` helper can be used to lookup the
 value in the hash slot for a specific CPU. Returns value associated with
-``key`` on ``cpu`` , or ``NULL`` if no entry was found or ``cpu`` is
+``key`` on ``cpu`` , or ``NULL`` if anal entry was found or ``cpu`` is
 invalid.
 
 Concurrency
@@ -129,11 +129,11 @@ In userspace, it is possible to iterate through the keys of a hash using
 libbpf's ``bpf_map_get_next_key()`` function. The first key can be fetched by
 calling ``bpf_map_get_next_key()`` with ``cur_key`` set to
 ``NULL``. Subsequent calls will fetch the next key that follows the
-current key. ``bpf_map_get_next_key()`` returns 0 on success, -ENOENT if
+current key. ``bpf_map_get_next_key()`` returns 0 on success, -EANALENT if
 cur_key is the last key in the hash, or negative error in case of
 failure.
 
-Note that if ``cur_key`` gets deleted then ``bpf_map_get_next_key()``
+Analte that if ``cur_key`` gets deleted then ``bpf_map_get_next_key()``
 will instead return the *first* key in the hash table which is
 undesirable. It is recommended to use batched lookup if there is going
 to be key deletion intermixed with ``bpf_map_get_next_key()``.
@@ -186,7 +186,7 @@ instructions:
             } else {
                     struct value newval = { 1, bytes };
 
-                    bpf_map_update_elem(&packet_stats, &key, &newval, BPF_NOEXIST);
+                    bpf_map_update_elem(&packet_stats, &key, &newval, BPF_ANALEXIST);
             }
     }
 
@@ -221,7 +221,7 @@ Internals
 =========
 
 This section of the document is targeted at Linux developers and describes
-aspects of the map implementations that are not considered stable ABI. The
+aspects of the map implementations that are analt considered stable ABI. The
 following details are subject to change in future versions of the kernel.
 
 ``BPF_MAP_TYPE_LRU_HASH`` and variants
@@ -233,9 +233,9 @@ attempts in order to enforce the LRU property which have increasing impacts on
 other CPUs involved in the following operation attempts:
 
 - Attempt to use CPU-local state to batch operations
-- Attempt to fetch free nodes from global lists
-- Attempt to pull any node from a global list and remove it from the hashmap
-- Attempt to pull any node from any CPU's list and remove it from the hashmap
+- Attempt to fetch free analdes from global lists
+- Attempt to pull any analde from a global list and remove it from the hashmap
+- Attempt to pull any analde from any CPU's list and remove it from the hashmap
 
 This algorithm is described visually in the following diagram. See the
 description in commit 3a08c2fd7634 ("bpf: LRU List") for a full explanation of
@@ -255,5 +255,5 @@ operations. This is intended as a visual hint for reasoning about how map
 contention may impact update operations, though the map type and flags may
 impact the actual contention on those locks, based on the logic described in
 the table above. For instance, if the map is created with type
-``BPF_MAP_TYPE_LRU_PERCPU_HASH`` and flags ``BPF_F_NO_COMMON_LRU`` then all map
+``BPF_MAP_TYPE_LRU_PERCPU_HASH`` and flags ``BPF_F_ANAL_COMMON_LRU`` then all map
 properties would be per-cpu.

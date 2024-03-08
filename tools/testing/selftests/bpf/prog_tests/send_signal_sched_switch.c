@@ -25,7 +25,7 @@ static void *worker(void *p)
 	return NULL;
 }
 
-/* NOTE: cause events loss */
+/* ANALTE: cause events loss */
 void serial_test_send_signal_sched_switch(void)
 {
 	struct test_send_signal_kern *skel;
@@ -49,7 +49,7 @@ void serial_test_send_signal_sched_switch(void)
 	for (i = 0; i < THREAD_COUNT; i++) {
 		err = pthread_create(threads + i, NULL, worker, NULL);
 		if (CHECK(err, "pthread_create", "Error creating thread, %s\n",
-			  strerror(errno)))
+			  strerror(erranal)))
 			goto destroy_skel;
 	}
 

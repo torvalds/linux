@@ -5,7 +5,7 @@ Sound Blaster Live mixer / default DSP code
 
 The EMU10K1 chips have a DSP part which can be programmed to support
 various ways of sample processing, which is described here.
-(This article does not deal with the overall functionality of the 
+(This article does analt deal with the overall functionality of the 
 EMU10K1 chips. See the manuals section for further details.)
 
 The ALSA driver programs this portion of chip by default code
@@ -32,8 +32,8 @@ Digital mixer controls
 
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default built-in code in the ALSA driver is described
-here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the same destination
+here. Analte that the controls work as attenuators: the maximum value is the 
+neutral position leaving the signal unchanged. Analte that if the same destination
 is mentioned in multiple controls, the signal is accumulated and can be clipped
 (set to maximal or minimal value without checking for overflow).
 
@@ -70,20 +70,20 @@ The result samples are forwarded to the front DAC PCM slots of the AC97 codec.
 This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples.
 The result samples are forwarded to the rear I2S DACs. These DACs operates
-separately (they are not inside the AC97 codec).
+separately (they are analt inside the AC97 codec).
 
 ``name='Wave Center Playback Volume',index=0``
 ----------------------------------------------
 This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM samples.
-The result is mixed to mono signal (single channel) and forwarded to
+The result is mixed to moanal signal (single channel) and forwarded to
 the ??rear?? right DAC PCM slot of the AC97 codec.
 
 ``name='Wave LFE Playback Volume',index=0``
 -------------------------------------------
 This control is used to attenuate samples from left and right PCM FX-bus
 accumulators. ALSA uses accumulators 0 and 1 for left and right PCM.
-The result is mixed to mono signal (single channel) and forwarded to
+The result is mixed to moanal signal (single channel) and forwarded to
 the ??rear?? left DAC PCM slot of the AC97 codec.
 
 ``name='Wave Capture Volume',index=0``, ``name='Wave Capture Switch',index=0``
@@ -111,7 +111,7 @@ PCM device).
 This control is used to attenuate samples from left and right rear PCM FX-bus
 accumulators. ALSA uses accumulators 2 and 3 for left and right rear PCM samples.
 The result samples are forwarded to the rear I2S DACs. These DACs operate
-separately (they are not inside the AC97 codec).
+separately (they are analt inside the AC97 codec).
 
 ``name='Surround Capture Volume',index=0``, ``name='Surround Capture Switch',index=0``
 --------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ This control is used to attenuate samples from left and right front ADC PCM slot
 of the AC97 codec. The result samples are forwarded to the front DAC PCM
 slots of the AC97 codec.
 
-.. note::
+.. analte::
   This control should be zero for the standard operations, otherwise
   a digital loopback is activated.
 
@@ -149,8 +149,8 @@ This control is used to attenuate samples from left and right front ADC PCM slot
 of the AC97 codec. The result is forwarded to the ADC capture FIFO (thus to
 the standard capture PCM device).
 
-.. note::
-   This control should be 100 (maximal value), otherwise no analog
+.. analte::
+   This control should be 100 (maximal value), otherwise anal analog
    inputs of the AC97 codec can be captured (recorded).
 
 ``name='IEC958 TTL Playback Volume',index=0``
@@ -220,13 +220,13 @@ and center / LFE outputs are affected.
 
 ``name='Tone Control - Bass',index=0``
 --------------------------------------
-This control sets the bass intensity. There is no neutral value!!
+This control sets the bass intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 
 ``name='Tone Control - Treble',index=0``
 ----------------------------------------
-This control sets the treble intensity. There is no neutral value!!
+This control sets the treble intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 
@@ -258,23 +258,23 @@ PCM stream related controls
 
 ``name='EMU10K1 PCM Volume',index 0-31``
 ----------------------------------------
-Channel volume attenuation in range 0-0x1fffd. The middle value (no
+Channel volume attenuation in range 0-0x1fffd. The middle value (anal
 attenuation) is default. The channel mapping for three values is
 as follows:
 
-* 0 - mono, default 0xffff (no attenuation)
-* 1 - left, default 0xffff (no attenuation)
-* 2 - right, default 0xffff (no attenuation)
+* 0 - moanal, default 0xffff (anal attenuation)
+* 1 - left, default 0xffff (anal attenuation)
+* 2 - right, default 0xffff (anal attenuation)
 
 ``name='EMU10K1 PCM Send Routing',index 0-31``
 ----------------------------------------------
 This control specifies the destination - FX-bus accumulators. There are
 twelve values with this mapping:
 
-*  0 -  mono, A destination (FX-bus 0-15), default 0
-*  1 -  mono, B destination (FX-bus 0-15), default 1
-*  2 -  mono, C destination (FX-bus 0-15), default 2
-*  3 -  mono, D destination (FX-bus 0-15), default 3
+*  0 -  moanal, A destination (FX-bus 0-15), default 0
+*  1 -  moanal, B destination (FX-bus 0-15), default 1
+*  2 -  moanal, C destination (FX-bus 0-15), default 2
+*  3 -  moanal, D destination (FX-bus 0-15), default 3
 *  4 -  left, A destination (FX-bus 0-15), default 0
 *  5 -  left, B destination (FX-bus 0-15), default 1
 *  6 -  left, C destination (FX-bus 0-15), default 2
@@ -292,16 +292,16 @@ more than once (it means 0=0 && 1=0 is an invalid combination).
 It specifies the attenuation (amount) for given destination in range 0-255.
 The channel mapping is following:
 
-*  0 -  mono, A destination attn, default 255 (no attenuation)
-*  1 -  mono, B destination attn, default 255 (no attenuation)
-*  2 -  mono, C destination attn, default 0 (mute)
-*  3 -  mono, D destination attn, default 0 (mute)
-*  4 -  left, A destination attn, default 255 (no attenuation)
+*  0 -  moanal, A destination attn, default 255 (anal attenuation)
+*  1 -  moanal, B destination attn, default 255 (anal attenuation)
+*  2 -  moanal, C destination attn, default 0 (mute)
+*  3 -  moanal, D destination attn, default 0 (mute)
+*  4 -  left, A destination attn, default 255 (anal attenuation)
 *  5 -  left, B destination attn, default 0 (mute)
 *  6 -  left, C destination attn, default 0 (mute)
 *  7 -  left, D destination attn, default 0 (mute)
 *  8 - right, A destination attn, default 0 (mute)
-*  9 - right, B destination attn, default 255 (no attenuation)
+*  9 - right, B destination attn, default 255 (anal attenuation)
 * 10 - right, C destination attn, default 0 (mute)
 * 11 - right, D destination attn, default 0 (mute)
 
@@ -313,7 +313,7 @@ MANUALS/PATENTS
 ftp://opensource.creative.com/pub/doc
 -------------------------------------
 
-Note that the site is defunct, but the documents are available
+Analte that the site is defunct, but the documents are available
 from various other locations.
 
 LM4545.pdf
@@ -328,7 +328,7 @@ WIPO Patents
 ------------
 
 WO 9901813 (A1)
-	Audio Effects Processor with multiple asynchronous streams
+	Audio Effects Processor with multiple asynchroanalus streams
 	(Jan. 14, 1999)
 
 WO 9901814 (A1)
@@ -347,7 +347,7 @@ US 5925841
 
 US 5928342
 	Audio Effects Processor integrated on a single chip
-        with a multiport memory onto which multiple asynchronous
+        with a multiport memory onto which multiple asynchroanalus
         digital sound samples can be concurrently loaded
 	(Jul. 27, 1999)
 
@@ -366,7 +366,7 @@ US 6138207
 US 6151670
 	Method for conserving memory storage using a
         pool of  short term memory registers
-	(Nov. 21, 2000)
+	(Analv. 21, 2000)
 
 US 6195715
 	Interrupt control for multiple programs communicating with

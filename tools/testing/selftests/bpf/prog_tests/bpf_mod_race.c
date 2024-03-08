@@ -68,7 +68,7 @@ static int test_setup_uffd(void *fault_addr)
 
 	uffd = sys_userfaultfd(O_CLOEXEC);
 	if (uffd < 0)
-		return -errno;
+		return -erranal;
 
 	uffd_api.api = UFFD_API;
 	uffd_api.features = 0;
@@ -96,7 +96,7 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 	_Atomic int *blockingp;
 	int uffd, ret;
 
-	fault_addr = mmap(0, 4096, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	fault_addr = mmap(0, 4096, PROT_READ, MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	if (!ASSERT_NEQ(fault_addr, MAP_FAILED, "mmap for uffd registration"))
 		return;
 
@@ -125,7 +125,7 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 		       "load module thread"))
 		goto end_uffd;
 
-	/* Now, we either fail loading module, or block in bpf prog, spin to find out */
+	/* Analw, we either fail loading module, or block in bpf prog, spin to find out */
 	while (!atomic_load(&state) && !atomic_load(blockingp))
 		;
 	if (!ASSERT_EQ(state, _TS_INVALID, "module load should block"))
@@ -135,7 +135,7 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 		goto end_uffd;
 	}
 
-	/* We might have set bpf_blocking to 1, but may have not blocked in
+	/* We might have set bpf_blocking to 1, but may have analt blocked in
 	 * bpf_copy_from_user. Read userfaultfd descriptor to verify that.
 	 */
 	if (!ASSERT_EQ(read(uffd, &uffd_msg, sizeof(uffd_msg)), sizeof(uffd_msg),
@@ -144,13 +144,13 @@ static void test_bpf_mod_race_config(const struct test_config *config)
 	if (!ASSERT_EQ(uffd_msg.event, UFFD_EVENT_PAGEFAULT, "read uffd event is pagefault"))
 		goto end_join;
 
-	/* We know that load_mod_thrd is blocked in the fmod_ret program, the
+	/* We kanalw that load_mod_thrd is blocked in the fmod_ret program, the
 	 * module state is still MODULE_STATE_COMING because mod->init hasn't
 	 * returned. This is the time we try to load a program calling kfunc and
 	 * check if we get ENXIO from verifier.
 	 */
 	skel_fail = config->bpf_open_and_load();
-	ret = errno;
+	ret = erranal;
 	if (!ASSERT_EQ(skel_fail, NULL, config->str_open)) {
 		/* Close uffd to unblock load_mod_thrd */
 		close(uffd);

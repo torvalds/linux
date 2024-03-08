@@ -31,7 +31,7 @@
 #define DRIVER_DESC	"DRM driver for simple-framebuffer platform devices"
 #define DRIVER_DATE	"20200625"
 #define DRIVER_MAJOR	1
-#define DRIVER_MINOR	0
+#define DRIVER_MIANALR	0
 
 /*
  * Helpers for simplefb
@@ -84,7 +84,7 @@ simplefb_get_validated_format(struct drm_device *dev, const char *format_name)
 		++fmt;
 	}
 
-	drm_err(dev, "simplefb: unknown framebuffer format %s\n",
+	drm_err(dev, "simplefb: unkanalwn framebuffer format %s\n",
 		format_name);
 
 	return ERR_PTR(-EINVAL);
@@ -119,34 +119,34 @@ simplefb_get_format_pd(struct drm_device *dev,
 }
 
 static int
-simplefb_read_u32_of(struct drm_device *dev, struct device_node *of_node,
+simplefb_read_u32_of(struct drm_device *dev, struct device_analde *of_analde,
 		     const char *name, u32 *value)
 {
-	int ret = of_property_read_u32(of_node, name, value);
+	int ret = of_property_read_u32(of_analde, name, value);
 
 	if (ret)
-		drm_err(dev, "simplefb: cannot parse framebuffer %s: error %d\n",
+		drm_err(dev, "simplefb: cananalt parse framebuffer %s: error %d\n",
 			name, ret);
 	return ret;
 }
 
 static int
-simplefb_read_string_of(struct drm_device *dev, struct device_node *of_node,
+simplefb_read_string_of(struct drm_device *dev, struct device_analde *of_analde,
 			const char *name, const char **value)
 {
-	int ret = of_property_read_string(of_node, name, value);
+	int ret = of_property_read_string(of_analde, name, value);
 
 	if (ret)
-		drm_err(dev, "simplefb: cannot parse framebuffer %s: error %d\n",
+		drm_err(dev, "simplefb: cananalt parse framebuffer %s: error %d\n",
 			name, ret);
 	return ret;
 }
 
 static int
-simplefb_get_width_of(struct drm_device *dev, struct device_node *of_node)
+simplefb_get_width_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 width;
-	int ret = simplefb_read_u32_of(dev, of_node, "width", &width);
+	int ret = simplefb_read_u32_of(dev, of_analde, "width", &width);
 
 	if (ret)
 		return ret;
@@ -154,10 +154,10 @@ simplefb_get_width_of(struct drm_device *dev, struct device_node *of_node)
 }
 
 static int
-simplefb_get_height_of(struct drm_device *dev, struct device_node *of_node)
+simplefb_get_height_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 height;
-	int ret = simplefb_read_u32_of(dev, of_node, "height", &height);
+	int ret = simplefb_read_u32_of(dev, of_analde, "height", &height);
 
 	if (ret)
 		return ret;
@@ -165,10 +165,10 @@ simplefb_get_height_of(struct drm_device *dev, struct device_node *of_node)
 }
 
 static int
-simplefb_get_stride_of(struct drm_device *dev, struct device_node *of_node)
+simplefb_get_stride_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	u32 stride;
-	int ret = simplefb_read_u32_of(dev, of_node, "stride", &stride);
+	int ret = simplefb_read_u32_of(dev, of_analde, "stride", &stride);
 
 	if (ret)
 		return ret;
@@ -176,10 +176,10 @@ simplefb_get_stride_of(struct drm_device *dev, struct device_node *of_node)
 }
 
 static const struct drm_format_info *
-simplefb_get_format_of(struct drm_device *dev, struct device_node *of_node)
+simplefb_get_format_of(struct drm_device *dev, struct device_analde *of_analde)
 {
 	const char *format;
-	int ret = simplefb_read_string_of(dev, of_node, "format", &format);
+	int ret = simplefb_read_string_of(dev, of_analde, "format", &format);
 
 	if (ret)
 		return ERR_PTR(ret);
@@ -187,25 +187,25 @@ simplefb_get_format_of(struct drm_device *dev, struct device_node *of_node)
 }
 
 static struct resource *
-simplefb_get_memory_of(struct drm_device *dev, struct device_node *of_node)
+simplefb_get_memory_of(struct drm_device *dev, struct device_analde *of_analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource *res;
 	int err;
 
-	np = of_parse_phandle(of_node, "memory-region", 0);
+	np = of_parse_phandle(of_analde, "memory-region", 0);
 	if (!np)
 		return NULL;
 
 	res = devm_kzalloc(dev->dev, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = of_address_to_resource(np, 0, res);
 	if (err)
 		return ERR_PTR(err);
 
-	if (of_property_present(of_node, "reg"))
+	if (of_property_present(of_analde, "reg"))
 		drm_warn(dev, "preferring \"memory-region\" over \"reg\" property\n");
 
 	return res;
@@ -265,19 +265,19 @@ static struct simpledrm_device *simpledrm_device_of_dev(struct drm_device *dev)
 /*
  * Clock handling code.
  *
- * Here we handle the clocks property of our "simple-framebuffer" dt node.
+ * Here we handle the clocks property of our "simple-framebuffer" dt analde.
  * This is necessary so that we can make sure that any clocks needed by
  * the display engine that the bootloader set up for us (and for which it
- * provided a simplefb dt node), stay up, for the life of the simplefb
+ * provided a simplefb dt analde), stay up, for the life of the simplefb
  * driver.
  *
  * When the driver unloads, we cleanly disable, and then release the clocks.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, anal action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the clock definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are anal adverse effects, and if there are, a clean teardown of
+ * the fb probe will analt help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 
@@ -298,30 +298,30 @@ static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
 {
 	struct drm_device *dev = &sdev->dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	struct clk *clock;
 	unsigned int i;
 	int ret;
 
-	if (dev_get_platdata(&pdev->dev) || !of_node)
+	if (dev_get_platdata(&pdev->dev) || !of_analde)
 		return 0;
 
-	sdev->clk_count = of_clk_get_parent_count(of_node);
+	sdev->clk_count = of_clk_get_parent_count(of_analde);
 	if (!sdev->clk_count)
 		return 0;
 
 	sdev->clks = drmm_kzalloc(dev, sdev->clk_count * sizeof(sdev->clks[0]),
 				  GFP_KERNEL);
 	if (!sdev->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sdev->clk_count; ++i) {
-		clock = of_clk_get(of_node, i);
+		clock = of_clk_get(of_analde, i);
 		if (IS_ERR(clock)) {
 			ret = PTR_ERR(clock);
 			if (ret == -EPROBE_DEFER)
 				goto err;
-			drm_err(dev, "clock %u not found: %d\n", i, ret);
+			drm_err(dev, "clock %u analt found: %d\n", i, ret);
 			continue;
 		}
 		ret = clk_prepare_enable(clock);
@@ -363,19 +363,19 @@ static int simpledrm_device_init_clocks(struct simpledrm_device *sdev)
  * Regulator handling code.
  *
  * Here we handle the num-supplies and vin*-supply properties of our
- * "simple-framebuffer" dt node. This is necessary so that we can make sure
+ * "simple-framebuffer" dt analde. This is necessary so that we can make sure
  * that any regulators needed by the display hardware that the bootloader
- * set up for us (and for which it provided a simplefb dt node), stay up,
+ * set up for us (and for which it provided a simplefb dt analde), stay up,
  * for the life of the simplefb driver.
  *
  * When the driver unloads, we cleanly disable, and then release the
  * regulators.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, anal action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
  * up simplefb, and the regulator definitions in the device tree. Chances are
- * that there are no adverse effects, and if there are, a clean teardown of
- * the fb probe will not help us much either. So just complain and carry on,
+ * that there are anal adverse effects, and if there are, a clean teardown of
+ * the fb probe will analt help us much either. So just complain and carry on,
  * and hope that the user actually gets a working fb at the end of things.
  */
 
@@ -396,18 +396,18 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 {
 	struct drm_device *dev = &sdev->dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	struct property *prop;
 	struct regulator *regulator;
 	const char *p;
 	unsigned int count = 0, i = 0;
 	int ret;
 
-	if (dev_get_platdata(&pdev->dev) || !of_node)
+	if (dev_get_platdata(&pdev->dev) || !of_analde)
 		return 0;
 
 	/* Count the number of regulator supplies */
-	for_each_property_of_node(of_node, prop) {
+	for_each_property_of_analde(of_analde, prop) {
 		p = strstr(prop->name, SUPPLY_SUFFIX);
 		if (p && p != prop->name)
 			++count;
@@ -420,9 +420,9 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 					count * sizeof(sdev->regulators[0]),
 					GFP_KERNEL);
 	if (!sdev->regulators)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for_each_property_of_node(of_node, prop) {
+	for_each_property_of_analde(of_analde, prop) {
 		char name[32]; /* 32 is max size of property name */
 		size_t len;
 
@@ -437,7 +437,7 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 			ret = PTR_ERR(regulator);
 			if (ret == -EPROBE_DEFER)
 				goto err;
-			drm_err(dev, "regulator %s not found: %d\n",
+			drm_err(dev, "regulator %s analt found: %d\n",
 				name, ret);
 			continue;
 		}
@@ -480,20 +480,20 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
  * Generic power domain handling code.
  *
  * Here we handle the power-domains properties of our "simple-framebuffer"
- * dt node. This is only necessary if there is more than one power-domain.
+ * dt analde. This is only necessary if there is more than one power-domain.
  * A single power-domains is handled automatically by the driver core. Multiple
- * power-domains have to be handled by drivers since the driver core can't know
- * the correct power sequencing. Power sequencing is not an issue for simpledrm
+ * power-domains have to be handled by drivers since the driver core can't kanalw
+ * the correct power sequencing. Power sequencing is analt an issue for simpledrm
  * since the bootloader has put the power domains already in the correct state.
  * simpledrm has only to ensure they remain active for its lifetime.
  *
  * When the driver unloads, we detach from the power-domains.
  *
- * We only complain about errors here, no action is taken as the most likely
+ * We only complain about errors here, anal action is taken as the most likely
  * error can only happen due to a mismatch between the bootloader which set
- * up the "simple-framebuffer" dt node, and the PM domain providers in the
- * device tree. Chances are that there are no adverse effects, and if there are,
- * a clean teardown of the fb probe will not help us much either. So just
+ * up the "simple-framebuffer" dt analde, and the PM domain providers in the
+ * device tree. Chances are that there are anal adverse effects, and if there are,
+ * a clean teardown of the fb probe will analt help us much either. So just
  * complain and carry on, and hope that the user actually gets a working fb at
  * the end of things.
  */
@@ -518,11 +518,11 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 	struct device *dev = sdev->dev.dev;
 	int i;
 
-	sdev->pwr_dom_count = of_count_phandle_with_args(dev->of_node, "power-domains",
+	sdev->pwr_dom_count = of_count_phandle_with_args(dev->of_analde, "power-domains",
 							 "#power-domain-cells");
 	/*
-	 * Single power-domain devices are handled by driver core nothing to do
-	 * here. The same for device nodes without "power-domains" property.
+	 * Single power-domain devices are handled by driver core analthing to do
+	 * here. The same for device analdes without "power-domains" property.
 	 */
 	if (sdev->pwr_dom_count <= 1)
 		return 0;
@@ -531,13 +531,13 @@ static int simpledrm_device_attach_genpd(struct simpledrm_device *sdev)
 					       sizeof(*sdev->pwr_dom_devs),
 					       GFP_KERNEL);
 	if (!sdev->pwr_dom_devs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->pwr_dom_links = devm_kcalloc(dev, sdev->pwr_dom_count,
 						sizeof(*sdev->pwr_dom_links),
 						GFP_KERNEL);
 	if (!sdev->pwr_dom_links)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sdev->pwr_dom_count; i++) {
 		sdev->pwr_dom_devs[i] = dev_pm_domain_attach_by_id(dev, i);
@@ -596,8 +596,8 @@ static int simpledrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -611,7 +611,7 @@ static int simpledrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
 						    sdev->pitch, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -761,12 +761,12 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 							struct platform_device *pdev)
 {
 	const struct simplefb_platform_data *pd = dev_get_platdata(&pdev->dev);
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_analde *of_analde = pdev->dev.of_analde;
 	struct simpledrm_device *sdev;
 	struct drm_device *dev;
 	int width, height, stride;
 	int width_mm = 0, height_mm = 0;
-	struct device_node *panel_node;
+	struct device_analde *panel_analde;
 	const struct drm_format_info *format;
 	struct resource *res, *mem = NULL;
 	struct drm_plane *primary_plane;
@@ -810,31 +810,31 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 		format = simplefb_get_format_pd(dev, pd);
 		if (IS_ERR(format))
 			return ERR_CAST(format);
-	} else if (of_node) {
-		width = simplefb_get_width_of(dev, of_node);
+	} else if (of_analde) {
+		width = simplefb_get_width_of(dev, of_analde);
 		if (width < 0)
 			return ERR_PTR(width);
-		height = simplefb_get_height_of(dev, of_node);
+		height = simplefb_get_height_of(dev, of_analde);
 		if (height < 0)
 			return ERR_PTR(height);
-		stride = simplefb_get_stride_of(dev, of_node);
+		stride = simplefb_get_stride_of(dev, of_analde);
 		if (stride < 0)
 			return ERR_PTR(stride);
-		format = simplefb_get_format_of(dev, of_node);
+		format = simplefb_get_format_of(dev, of_analde);
 		if (IS_ERR(format))
 			return ERR_CAST(format);
-		mem = simplefb_get_memory_of(dev, of_node);
+		mem = simplefb_get_memory_of(dev, of_analde);
 		if (IS_ERR(mem))
 			return ERR_CAST(mem);
-		panel_node = of_parse_phandle(of_node, "panel", 0);
-		if (panel_node) {
-			simplefb_read_u32_of(dev, panel_node, "width-mm", &width_mm);
-			simplefb_read_u32_of(dev, panel_node, "height-mm", &height_mm);
-			of_node_put(panel_node);
+		panel_analde = of_parse_phandle(of_analde, "panel", 0);
+		if (panel_analde) {
+			simplefb_read_u32_of(dev, panel_analde, "width-mm", &width_mm);
+			simplefb_read_u32_of(dev, panel_analde, "height-mm", &height_mm);
+			of_analde_put(panel_analde);
 		}
 	} else {
-		drm_err(dev, "no simplefb configuration found\n");
-		return ERR_PTR(-ENODEV);
+		drm_err(dev, "anal simplefb configuration found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 	if (!stride) {
 		stride = drm_format_info_min_pitch(format, 0, width);
@@ -844,7 +844,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 	/*
 	 * Assume a monitor resolution of 96 dpi if physical dimensions
-	 * are not specified to get a somewhat reasonable screen size.
+	 * are analt specified to get a somewhat reasonable screen size.
 	 */
 	if (!width_mm)
 		width_mm = DRM_MODE_RES_MM(width, 96ul);
@@ -868,7 +868,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 		ret = devm_aperture_acquire_from_firmware(dev, mem->start, resource_size(mem));
 		if (ret) {
-			drm_err(dev, "could not acquire memory range %pr: %d\n", mem, ret);
+			drm_err(dev, "could analt acquire memory range %pr: %d\n", mem, ret);
 			return ERR_PTR(ret);
 		}
 
@@ -888,7 +888,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 		ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
 		if (ret) {
-			drm_err(dev, "could not acquire memory range %pr: %d\n", res, ret);
+			drm_err(dev, "could analt acquire memory range %pr: %d\n", res, ret);
 			return ERR_PTR(ret);
 		}
 
@@ -898,17 +898,17 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 					      drv->name);
 		if (!mem) {
 			/*
-			 * We cannot make this fatal. Sometimes this comes from magic
-			 * spaces our resource handlers simply don't know about. Use
+			 * We cananalt make this fatal. Sometimes this comes from magic
+			 * spaces our resource handlers simply don't kanalw about. Use
 			 * the I/O-memory resource as-is and try to map that instead.
 			 */
-			drm_warn(dev, "could not acquire memory region %pr\n", res);
+			drm_warn(dev, "could analt acquire memory region %pr\n", res);
 			mem = res;
 		}
 
 		screen_base = devm_ioremap_wc(&pdev->dev, mem->start, resource_size(mem));
 		if (!screen_base)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		iosys_map_set_vaddr_iomem(&sdev->screen_base, screen_base);
 	}
@@ -959,7 +959,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 	encoder = &sdev->encoder;
 	ret = drm_encoder_init(dev, encoder, &simpledrm_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+			       DRM_MODE_ENCODER_ANALNE, NULL);
 	if (ret)
 		return ERR_PTR(ret);
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
@@ -968,12 +968,12 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 	connector = &sdev->connector;
 	ret = drm_connector_init(dev, connector, &simpledrm_connector_funcs,
-				 DRM_MODE_CONNECTOR_Unknown);
+				 DRM_MODE_CONNECTOR_Unkanalwn);
 	if (ret)
 		return ERR_PTR(ret);
 	drm_connector_helper_add(connector, &simpledrm_connector_helper_funcs);
 	drm_connector_set_panel_orientation_with_quirk(connector,
-						       DRM_MODE_PANEL_ORIENTATION_UNKNOWN,
+						       DRM_MODE_PANEL_ORIENTATION_UNKANALWN,
 						       width, height);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
@@ -997,7 +997,7 @@ static struct drm_driver simpledrm_driver = {
 	.desc			= DRIVER_DESC,
 	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
-	.minor			= DRIVER_MINOR,
+	.mianalr			= DRIVER_MIANALR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops			= &simpledrm_fops,
 };

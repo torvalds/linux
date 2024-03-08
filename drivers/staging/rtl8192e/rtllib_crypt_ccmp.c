@@ -58,7 +58,7 @@ static void *rtllib_ccmp_init(int key_idx)
 
 	priv->tfm = crypto_alloc_aead("ccm(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		pr_debug("Could not allocate crypto API aes\n");
+		pr_debug("Could analt allocate crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}
@@ -107,7 +107,7 @@ static int ccmp_init_iv_and_aad(struct ieee80211_hdr *hdr,
 		aad_len += 2;
 	}
 	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
-	 * mode authentication are not allowed to collide, yet both are derived
+	 * mode authentication are analt allowed to collide, yet both are derived
 	 * from the same vector. We only set L := 1 here to indicate that the
 	 * data size can be represented in (L+1) bytes. The CCM layer will take
 	 * care of storing the data length in the top (L+1) bytes and setting
@@ -115,7 +115,7 @@ static int ccmp_init_iv_and_aad(struct ieee80211_hdr *hdr,
 	 */
 	iv[0] = 0x1;
 
-	/* Nonce: QC | A2 | PN */
+	/* Analnce: QC | A2 | PN */
 	iv[1] = qc;
 	memcpy(iv + 2, hdr->addr2, ETH_ALEN);
 	memcpy(iv + 8, pn, CCMP_PN_LEN);
@@ -192,7 +192,7 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		req = aead_request_alloc(key->tfm, GFP_ATOMIC);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		aad_len = ccmp_init_iv_and_aad(hdr, key->tx_pn, iv, aad);
 
@@ -248,7 +248,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			pr_debug("CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+			pr_debug("CCMP: received packet from %pM with keyid=%d that does analt have a configured key\n",
 				 hdr->addr2, keyidx);
 		}
 		return -3;
@@ -275,7 +275,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		req = aead_request_alloc(key->tfm, GFP_ATOMIC);
 		if (!req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		aad_len = ccmp_init_iv_and_aad(hdr, pn, iv, aad);
 

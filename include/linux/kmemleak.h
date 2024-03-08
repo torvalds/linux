@@ -25,26 +25,26 @@ extern void kmemleak_free(const void *ptr) __ref;
 extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
 extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
 extern void kmemleak_update_trace(const void *ptr) __ref;
-extern void kmemleak_not_leak(const void *ptr) __ref;
-extern void kmemleak_ignore(const void *ptr) __ref;
+extern void kmemleak_analt_leak(const void *ptr) __ref;
+extern void kmemleak_iganalre(const void *ptr) __ref;
 extern void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp) __ref;
-extern void kmemleak_no_scan(const void *ptr) __ref;
+extern void kmemleak_anal_scan(const void *ptr) __ref;
 extern void kmemleak_alloc_phys(phys_addr_t phys, size_t size,
 				gfp_t gfp) __ref;
 extern void kmemleak_free_part_phys(phys_addr_t phys, size_t size) __ref;
-extern void kmemleak_ignore_phys(phys_addr_t phys) __ref;
+extern void kmemleak_iganalre_phys(phys_addr_t phys) __ref;
 
 static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
 					    int min_count, slab_flags_t flags,
 					    gfp_t gfp)
 {
-	if (!(flags & SLAB_NOLEAKTRACE))
+	if (!(flags & SLAB_ANALLEAKTRACE))
 		kmemleak_alloc(ptr, size, min_count, gfp);
 }
 
 static inline void kmemleak_free_recursive(const void *ptr, slab_flags_t flags)
 {
-	if (!(flags & SLAB_NOLEAKTRACE))
+	if (!(flags & SLAB_ANALLEAKTRACE))
 		kmemleak_free(ptr);
 }
 
@@ -90,10 +90,10 @@ static inline void kmemleak_free_percpu(const void __percpu *ptr)
 static inline void kmemleak_update_trace(const void *ptr)
 {
 }
-static inline void kmemleak_not_leak(const void *ptr)
+static inline void kmemleak_analt_leak(const void *ptr)
 {
 }
-static inline void kmemleak_ignore(const void *ptr)
+static inline void kmemleak_iganalre(const void *ptr)
 {
 }
 static inline void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp)
@@ -102,7 +102,7 @@ static inline void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp)
 static inline void kmemleak_erase(void **ptr)
 {
 }
-static inline void kmemleak_no_scan(const void *ptr)
+static inline void kmemleak_anal_scan(const void *ptr)
 {
 }
 static inline void kmemleak_alloc_phys(phys_addr_t phys, size_t size,
@@ -112,7 +112,7 @@ static inline void kmemleak_alloc_phys(phys_addr_t phys, size_t size,
 static inline void kmemleak_free_part_phys(phys_addr_t phys, size_t size)
 {
 }
-static inline void kmemleak_ignore_phys(phys_addr_t phys)
+static inline void kmemleak_iganalre_phys(phys_addr_t phys)
 {
 }
 

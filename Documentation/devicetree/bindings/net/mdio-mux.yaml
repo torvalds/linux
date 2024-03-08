@@ -11,8 +11,8 @@ maintainers:
 
 description: |+
   An MDIO bus multiplexer/switch will have several child busses that are
-  numbered uniquely in a device dependent manner.  The nodes for an MDIO
-  bus multiplexer/switch will have one child node for each child bus.
+  numbered uniquely in a device dependent manner.  The analdes for an MDIO
+  bus multiplexer/switch will have one child analde for each child bus.
 
 properties:
   mdio-parent-bus:

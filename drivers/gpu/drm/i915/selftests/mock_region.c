@@ -77,7 +77,7 @@ static int mock_object_init(struct intel_memory_region *mem,
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 
-	i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_ANALNE);
 
 	i915_gem_object_init_memory_region(obj, mem);
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@ static int gfx_v11_0_3_rlc_gc_fed_irq(struct amdgpu_device *adev,
 		ras_if = adev->gfx.ras_if;
 
 	if (!ras_if) {
-		dev_err(adev->dev, "Gfx or sdma ras block not initialized, rlc_status0:0x%x.\n",
+		dev_err(adev->dev, "Gfx or sdma ras block analt initialized, rlc_status0:0x%x.\n",
 				rlc_status0);
 		return -EINVAL;
 	}
@@ -72,7 +72,7 @@ static int gfx_v11_0_3_rlc_gc_fed_irq(struct amdgpu_device *adev,
 			adev->virt.ops->ras_poison_handler(adev);
 		else
 			dev_warn(adev->dev,
-				"No ras_poison_handler interface in SRIOV for %s!\n", ras_if->name);
+				"Anal ras_poison_handler interface in SRIOV for %s!\n", ras_if->name);
 	}
 
 	return 0;

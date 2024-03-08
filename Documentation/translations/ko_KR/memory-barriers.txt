@@ -1,11 +1,11 @@
-NOTE:
+ANALTE:
 This is a version of Documentation/memory-barriers.txt translated into Korean.
 This document is maintained by SeongJae Park <sj@kernel.org>.
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
 
-Please also note that the purpose of this file is to be easier to
-read for non English (read: Korean) speakers and is not intended as
+Please also analte that the purpose of this file is to be easier to
+read for analn English (read: Korean) speakers and is analt intended as
 a fork.  So if you have any comments or updates for this file please
 update the original English file first.  The English version is
 definitive, and readers should look there if they have any doubt.
@@ -57,7 +57,7 @@ Documentation/memory-barriers.txt
 알아두시기 바랍니다.
 
 또한, 특정 아키텍쳐에서 일부 배리어는 해당 아키텍쳐의 특수한 동작 방식으로 인해
-해당 배리어의 명시적 사용이 불필요해서 no-op 이 될수도 있음을 알아두시기
+해당 배리어의 명시적 사용이 불필요해서 anal-op 이 될수도 있음을 알아두시기
 바랍니다.
 
 역자: 본 번역 역시 완벽하지 않은데, 이 역시 부분적으로는 의도된 것이기도
@@ -336,7 +336,7 @@ CPU 에게 기대할 수 있는 최소한의 보장사항 몇가지가 있습니
 그리고 보장사항에 반대되는 것들(anti-guarantees)이 있습니다:
 
  (*) 이 보장사항들은 bitfield 에는 적용되지 않는데, 컴파일러들은 bitfield 를
-     수정하는 코드를 생성할 때 원자성 없는(non-atomic) 읽고-수정하고-쓰는
+     수정하는 코드를 생성할 때 원자성 없는(analn-atomic) 읽고-수정하고-쓰는
      인스트럭션들의 조합을 만드는 경우가 많기 때문입니다.  병렬 알고리즘의
      동기화에 bitfield 를 사용하려 하지 마십시오.
 
@@ -360,21 +360,21 @@ CPU 에게 기대할 수 있는 최소한의 보장사항 몇가지가 있습니
 
 	memory location
 		either an object of scalar type, or a maximal sequence
-		of adjacent bit-fields all having nonzero width
+		of adjacent bit-fields all having analnzero width
 
-		NOTE 1: Two threads of execution can update and access
+		ANALTE 1: Two threads of execution can update and access
 		separate memory locations without interfering with
 		each other.
 
-		NOTE 2: A bit-field and an adjacent non-bit-field member
+		ANALTE 2: A bit-field and an adjacent analn-bit-field member
 		are in separate memory locations. The same applies
 		to two bit-fields, if one is declared inside a nested
-		structure declaration and the other is not, or if the two
+		structure declaration and the other is analt, or if the two
 		are separated by a zero-length bit-field declaration,
-		or if they are separated by a non-bit-field member
-		declaration. It is not safe to concurrently update two
+		or if they are separated by a analn-bit-field member
+		declaration. It is analt safe to concurrently update two
 		bit-fields in the same structure if all members declared
-		between them are also bit-fields, no matter what the
+		between them are also bit-fields, anal matter what the
 		sizes of those intervening bit-fields happen to be.
 
 
@@ -701,7 +701,7 @@ include/linux/rcupdate.h 의 rcu_assign_pointer() 와 rcu_dereference() 를
 	q = READ_ONCE(a);
 	<묵시적 주소 의존성 배리어>
 	if (q) {
-		/* BUG: No address dependency!!! */
+		/* BUG: Anal address dependency!!! */
 		p = READ_ONCE(b);
 	}
 
@@ -760,7 +760,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 
 	q = READ_ONCE(a);
 	barrier();
-	WRITE_ONCE(b, 1);  /* BUG: No ordering vs. load from a!!! */
+	WRITE_ONCE(b, 1);  /* BUG: Anal ordering vs. load from a!!! */
 	if (q) {
 		/* WRITE_ONCE(b, 1); -- moved up, BUG!!! */
 		do_something();
@@ -867,7 +867,7 @@ CPU 는 b 로부터의 로드 오퍼레이션이 a 로부터의 로드 오퍼레
 	} else {
 		WRITE_ONCE(b, 2);
 	}
-	WRITE_ONCE(c, 1);  /* BUG: No ordering against the read from 'a'. */
+	WRITE_ONCE(c, 1);  /* BUG: Anal ordering against the read from 'a'. */
 
 컴파일러는 volatile 타입에 대한 액세스를 재배치 할 수 없고 이 조건 하의 'b'
 로의 쓰기를 재배치 할 수 없기 때문에 여기에 순서 규칙이 존재한다고 주장하고
@@ -1398,7 +1398,7 @@ CPU 3 의 X 로드가 CPU 2 의 로드보다 뒤에 이루어졌으므로, CPU 3
 앞의 예에서, CPU 2 의 X 로부터의 로드가 1 을 리턴했고 CPU 3 의 Y 로부터의
 로드가 1 을 리턴했다면, CPU 3 의 X 로부터의 로드는 1을 리턴해야만 합니다.
 
-하지만, 의존성, 읽기 배리어, 쓰기 배리어는 항상 non-multicopy 원자성을 보상해
+하지만, 의존성, 읽기 배리어, 쓰기 배리어는 항상 analn-multicopy 원자성을 보상해
 주지는 않습니다.  예를 들어, CPU 2 의 범용 배리어가 앞의 예에서 사라져서
 아래처럼 데이터 의존성만 남게 되었다고 해봅시다:
 
@@ -1409,7 +1409,7 @@ CPU 3 의 X 로드가 CPU 2 의 로드보다 뒤에 이루어졌으므로, CPU 3
 				<데이터 의존성>		<읽기 배리어>
 				STORE Y=r1		LOAD X (reads 0)
 
-이 변화는 non-multicopy 원자성이 만연하게 합니다: 이 예에서, CPU 2 의 X
+이 변화는 analn-multicopy 원자성이 만연하게 합니다: 이 예에서, CPU 2 의 X
 로부터의 로드가 1을 리턴하고, CPU 3 의 Y 로부터의 로드가 1 을 리턴하는데, CPU 3
 의 X 로부터의 로드가 0 을 리턴하는게 완전히 합법적입니다.
 
@@ -1420,7 +1420,7 @@ CPU 2 가 스토어 버퍼나 한 수준의 캐시를 공유하는, multicopy �
 있습니다.  따라서, 모든 CPU 들이 여러 접근들의 조합된 순서에 대해서 동의하게
 하기 위해서는 범용 배리어가 필요합니다.
 
-범용 배리어는 non-multicopy 원자성만 보상할 수 있는게 아니라, -모든- CPU 들이
+범용 배리어는 analn-multicopy 원자성만 보상할 수 있는게 아니라, -모든- CPU 들이
 -모든- 오퍼레이션들의 순서를 동일하게 인식하게 하는 추가적인 순서 보장을
 만들어냅니다.  반대로, release-acquire 짝의 연결은 이런 추가적인 순서는
 제공하지 않는데, 해당 연결에 들어있는 CPU 들만이 메모리 접근의 조합된 순서에
@@ -1900,7 +1900,7 @@ Mandatory 배리어들은 SMP 시스템에서도 UP 시스템에서도 SMP 효�
 		desc->status = DEVICE_OWN;
 
 		/* 업데이트된 디스크립터의 디바이스에 공지 */
-		writel(DESC_NOTIFY, doorbell);
+		writel(DESC_ANALTIFY, doorbell);
 	}
 
      dma_rmb() 는 디스크립터로부터 데이터를 읽어오기 전에 디바이스가 소유권을
@@ -2173,7 +2173,7 @@ wake_up() 이 무언가를 깨우게 되면, 이 함수는 범용 메모리 배�
 	  smp_store_mb();		wake_up();
 	    STORE current->state	  ...
 	    <범용 배리어>		  <범용 배리어>
-	LOAD event_indicated		  if ((LOAD task->state) & TASK_NORMAL)
+	LOAD event_indicated		  if ((LOAD task->state) & TASK_ANALRMAL)
 					    STORE task->state
 
 여기서 "task" 는 깨어나지는 쓰레드이고 CPU 1 의 "current" 와 같습니다.

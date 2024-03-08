@@ -2,7 +2,7 @@
 /*
  * Common time service routines for LoongArch machines.
  *
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/clockchips.h>
 #include <linux/delay.h>
@@ -110,7 +110,7 @@ static unsigned long __init get_loops_per_jiffy(void)
 	return lpj;
 }
 
-static long init_offset __nosavedata;
+static long init_offset __analsavedata;
 
 void save_counter(void)
 {
@@ -125,7 +125,7 @@ void sync_counter(void)
 
 static int get_timer_irq(void)
 {
-	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
+	struct irq_domain *d = irq_find_matching_fwanalde(cpuintc_handle, DOMAIN_BUS_ANY);
 
 	if (d)
 		return irq_create_mapping(d, INT_TI);
@@ -185,7 +185,7 @@ static u64 read_const_counter(struct clocksource *clk)
 	return drdtime();
 }
 
-static noinstr u64 sched_clock_read(void)
+static analinstr u64 sched_clock_read(void)
 {
 	return drdtime();
 }

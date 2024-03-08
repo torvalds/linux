@@ -255,8 +255,8 @@ struct bfa_iocfc_s {
 
 #define BFA_MEM_IOC_DMA(_bfa)		(&((_bfa)->iocfc.ioc_dma))
 #define BFA_MEM_IOCFC_DMA(_bfa)		(&((_bfa)->iocfc.iocfc_dma))
-#define BFA_MEM_REQQ_DMA(_bfa, _qno)	(&((_bfa)->iocfc.reqq_dma[(_qno)]))
-#define BFA_MEM_RSPQ_DMA(_bfa, _qno)	(&((_bfa)->iocfc.rspq_dma[(_qno)]))
+#define BFA_MEM_REQQ_DMA(_bfa, _qanal)	(&((_bfa)->iocfc.reqq_dma[(_qanal)]))
+#define BFA_MEM_RSPQ_DMA(_bfa, _qanal)	(&((_bfa)->iocfc.rspq_dma[(_qanal)]))
 #define BFA_MEM_IOCFC_KVA(_bfa)		(&((_bfa)->iocfc.kva_seg))
 
 #define bfa_fn_lpu(__bfa)	\
@@ -300,7 +300,7 @@ void bfa_iocfc_init(struct bfa_s *bfa);
 void bfa_iocfc_start(struct bfa_s *bfa);
 void bfa_iocfc_stop(struct bfa_s *bfa);
 void bfa_iocfc_isr(void *bfa, struct bfi_mbmsg_s *msg);
-void bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_no, u64 snsbase_pa);
+void bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_anal, u64 snsbase_pa);
 bfa_boolean_t bfa_iocfc_is_operational(struct bfa_s *bfa);
 void bfa_iocfc_reset_queues(struct bfa_s *bfa);
 
@@ -376,7 +376,7 @@ int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 
 /*
  * lun mask macros return NULL when min cfg is enabled and there is
- * no memory allocated for lunmask.
+ * anal memory allocated for lunmask.
  */
 #define bfa_get_lun_mask(__bfa)					\
 	((&(__bfa)->modules.dconf_mod)->min_cfg) ? NULL :	\

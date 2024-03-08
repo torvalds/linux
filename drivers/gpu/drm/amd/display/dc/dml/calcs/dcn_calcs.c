@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,7 +46,7 @@
 #define WM_D 3
 
 /*
- * NOTE:
+ * ANALTE:
  *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
  *
  * It doesn't adhere to Linux kernel style and sometimes will do things in odd
@@ -73,37 +73,37 @@ const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		 * part don't have correct value fused */
 		/* default DCF CLK DPM on RV*/
 		.dcfclkv_max0p9 = 655,	/* MHz, = 3600/5.5 */
-		.dcfclkv_nom0p8 = 626,	/* MHz, = 3600/5.75 */
+		.dcfclkv_analm0p8 = 626,	/* MHz, = 3600/5.75 */
 		.dcfclkv_mid0p72 = 600,	/* MHz, = 3600/6, bypass */
 		.dcfclkv_min0p65 = 300,	/* MHz, = 3600/12, bypass */
 
 		/* default DISP CLK voltage state on RV */
 		.max_dispclk_vmax0p9 = 1108,	/* MHz, = 3600/3.25 */
-		.max_dispclk_vnom0p8 = 1029,	/* MHz, = 3600/3.5 */
+		.max_dispclk_vanalm0p8 = 1029,	/* MHz, = 3600/3.5 */
 		.max_dispclk_vmid0p72 = 960,	/* MHz, = 3600/3.75 */
 		.max_dispclk_vmin0p65 = 626,	/* MHz, = 3600/5.75 */
 
 		/* default DPP CLK voltage state on RV */
 		.max_dppclk_vmax0p9 = 720,	/* MHz, = 3600/5 */
-		.max_dppclk_vnom0p8 = 686,	/* MHz, = 3600/5.25 */
+		.max_dppclk_vanalm0p8 = 686,	/* MHz, = 3600/5.25 */
 		.max_dppclk_vmid0p72 = 626,	/* MHz, = 3600/5.75 */
 		.max_dppclk_vmin0p65 = 400,	/* MHz, = 3600/9 */
 
 		/* default PHY CLK voltage state on RV */
 		.phyclkv_max0p9 = 900, /*MHz*/
-		.phyclkv_nom0p8 = 847, /*MHz*/
+		.phyclkv_analm0p8 = 847, /*MHz*/
 		.phyclkv_mid0p72 = 800, /*MHz*/
 		.phyclkv_min0p65 = 600, /*MHz*/
 
 		/* BW depend on FCLK, MCLK, # of channels */
 		/* dual channel BW */
 		.fabric_and_dram_bandwidth_vmax0p9 = 38.4f, /*GB/s*/
-		.fabric_and_dram_bandwidth_vnom0p8 = 34.133f, /*GB/s*/
+		.fabric_and_dram_bandwidth_vanalm0p8 = 34.133f, /*GB/s*/
 		.fabric_and_dram_bandwidth_vmid0p72 = 29.866f, /*GB/s*/
 		.fabric_and_dram_bandwidth_vmin0p65 = 12.8f, /*GB/s*/
 		/* single channel BW
 		.fabric_and_dram_bandwidth_vmax0p9 = 19.2f,
-		.fabric_and_dram_bandwidth_vnom0p8 = 17.066f,
+		.fabric_and_dram_bandwidth_vanalm0p8 = 17.066f,
 		.fabric_and_dram_bandwidth_vmid0p72 = 14.933f,
 		.fabric_and_dram_bandwidth_vmin0p65 = 12.8f,
 		*/
@@ -128,15 +128,15 @@ const struct dcn_ip_params dcn10_ip_defaults = {
 		.dpp_output_buffer_pixels = 2560,
 		.opp_output_buffer_lines = 1,
 		.pixel_chunk_size_in_kbyte = 8,
-		.pte_enable = dcn_bw_yes,
+		.pte_enable = dcn_bw_anal,
 		.pte_chunk_size = 2, /*kbytes*/
 		.meta_chunk_size = 2, /*kbytes*/
 		.writeback_chunk_size = 2, /*kbytes*/
-		.odm_capability = dcn_bw_no,
-		.dsc_capability = dcn_bw_no,
+		.odm_capability = dcn_bw_anal,
+		.dsc_capability = dcn_bw_anal,
 		.line_buffer_size = 589824, /*bit*/
 		.max_line_buffer_lines = 12,
-		.is_line_buffer_bpp_fixed = dcn_bw_no,
+		.is_line_buffer_bpp_fixed = dcn_bw_anal,
 		.line_buffer_fixed_bpp = dcn_bw_na,
 		.writeback_luma_buffer_size = 12, /*kbytes*/
 		.writeback_chroma_buffer_size = 8, /*kbytes*/
@@ -154,8 +154,8 @@ const struct dcn_ip_params dcn10_ip_defaults = {
 		.dispclk_ramping_margin = 1, /*%*/
 		.under_scan_factor = 1.11f,
 		.max_inter_dcn_tile_repeaters = 8,
-		.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one = dcn_bw_no,
-		.bug_forcing_luma_and_chroma_request_to_same_size_fixed = dcn_bw_no,
+		.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one = dcn_bw_anal,
+		.bug_forcing_luma_and_chroma_request_to_same_size_fixed = dcn_bw_anal,
 		.dcfclk_cstate_latency = 10 /*TODO clone of something else? sr_enter_plus_exit_time?*/
 };
 
@@ -202,7 +202,7 @@ static enum dcn_bw_defs tl_sw_mode_to_bw_defs(enum swizzle_mode_values sw_mode)
 	case DC_SW_64KB_R_X:
 	case DC_SW_VAR_R_X:
 	default:
-		BREAK_TO_DEBUGGER(); /*not in formula*/
+		BREAK_TO_DEBUGGER(); /*analt in formula*/
 		return dcn_bw_sw_4_kb_s;
 	}
 }
@@ -293,7 +293,7 @@ enum source_macro_tile_size swizzle_mode_to_macro_tile_size(enum swizzle_mode_va
 	/* Unsupported swizzle modes for dcn */
 	case DC_SW_256B_S:
 	default:
-		ASSERT(0); /* Not supported */
+		ASSERT(0); /* Analt supported */
 		return 0;
 	}
 }
@@ -342,7 +342,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	input->src.viewport_height     = pipe->plane_res.scl_data.viewport.height;
 	input->src.data_pitch          = pipe->plane_res.scl_data.viewport.width;
 	input->src.data_pitch_c        = pipe->plane_res.scl_data.viewport.width;
-	input->src.cur0_src_width      = 128; /* TODO: Cursor calcs, not curently stored */
+	input->src.cur0_src_width      = 128; /* TODO: Cursor calcs, analt curently stored */
 	input->src.cur0_bpp            = 32;
 
 	input->src.macro_tile_size = swizzle_mode_to_macro_tile_size(pipe->plane_state->tiling_info.gfx9.swizzle);
@@ -357,7 +357,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		input->src.source_scan = dm_vert;
 		break;
 	default:
-		ASSERT(0); /* Not supported */
+		ASSERT(0); /* Analt supported */
 		break;
 	}
 
@@ -515,7 +515,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 			input,
 			true,
 			true,
-			v->pte_enable == dcn_bw_yes,
+			v->pte_enable == dcn_bw_anal,
 			pipe->plane_state->flip_immediate);
 }
 
@@ -558,9 +558,9 @@ static void calc_wm_sets_and_perf_params(
 {
 	/* Calculate set A last to keep internal var state consistent for required config */
 	if (v->voltage_level < 2) {
-		v->fabric_and_dram_bandwidth_per_state[1] = v->fabric_and_dram_bandwidth_vnom0p8;
-		v->fabric_and_dram_bandwidth_per_state[0] = v->fabric_and_dram_bandwidth_vnom0p8;
-		v->fabric_and_dram_bandwidth = v->fabric_and_dram_bandwidth_vnom0p8;
+		v->fabric_and_dram_bandwidth_per_state[1] = v->fabric_and_dram_bandwidth_vanalm0p8;
+		v->fabric_and_dram_bandwidth_per_state[0] = v->fabric_and_dram_bandwidth_vanalm0p8;
+		v->fabric_and_dram_bandwidth = v->fabric_and_dram_bandwidth_vanalm0p8;
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
 		context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.cstate_exit_ns =
@@ -572,9 +572,9 @@ static void calc_wm_sets_and_perf_params(
 		context->bw_ctx.bw.dcn.watermarks.b.pte_meta_urgent_ns = v->ptemeta_urgent_watermark * 1000;
 		context->bw_ctx.bw.dcn.watermarks.b.urgent_ns = v->urgent_watermark * 1000;
 
-		v->dcfclk_per_state[1] = v->dcfclkv_nom0p8;
-		v->dcfclk_per_state[0] = v->dcfclkv_nom0p8;
-		v->dcfclk = v->dcfclkv_nom0p8;
+		v->dcfclk_per_state[1] = v->dcfclkv_analm0p8;
+		v->dcfclk_per_state[0] = v->dcfclkv_analm0p8;
+		v->dcfclk = v->dcfclkv_analm0p8;
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
 
 		context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.cstate_exit_ns =
@@ -608,11 +608,11 @@ static void calc_wm_sets_and_perf_params(
 		context->bw_ctx.bw.dcn.watermarks.d.urgent_ns = v->urgent_watermark * 1000;
 	}
 
-	v->fabric_and_dram_bandwidth_per_state[2] = v->fabric_and_dram_bandwidth_vnom0p8;
+	v->fabric_and_dram_bandwidth_per_state[2] = v->fabric_and_dram_bandwidth_vanalm0p8;
 	v->fabric_and_dram_bandwidth_per_state[1] = v->fabric_and_dram_bandwidth_vmid0p72;
 	v->fabric_and_dram_bandwidth_per_state[0] = v->fabric_and_dram_bandwidth_vmin0p65;
 	v->fabric_and_dram_bandwidth = v->fabric_and_dram_bandwidth_per_state[v->voltage_level];
-	v->dcfclk_per_state[2] = v->dcfclkv_nom0p8;
+	v->dcfclk_per_state[2] = v->dcfclkv_analm0p8;
 	v->dcfclk_per_state[1] = v->dcfclkv_mid0p72;
 	v->dcfclk_per_state[0] = v->dcfclkv_min0p65;
 	v->dcfclk = v->dcfclk_per_state[v->voltage_level];
@@ -781,29 +781,29 @@ bool dcn_validate_bandwidth(
 
 	v->dcfclkv_min0p65 = dc->dcn_soc->dcfclkv_min0p65;
 	v->dcfclkv_mid0p72 = dc->dcn_soc->dcfclkv_mid0p72;
-	v->dcfclkv_nom0p8 = dc->dcn_soc->dcfclkv_nom0p8;
+	v->dcfclkv_analm0p8 = dc->dcn_soc->dcfclkv_analm0p8;
 	v->dcfclkv_max0p9 = dc->dcn_soc->dcfclkv_max0p9;
 
 	v->max_dispclk_vmin0p65 = dc->dcn_soc->max_dispclk_vmin0p65;
 	v->max_dispclk_vmid0p72 = dc->dcn_soc->max_dispclk_vmid0p72;
-	v->max_dispclk_vnom0p8 = dc->dcn_soc->max_dispclk_vnom0p8;
+	v->max_dispclk_vanalm0p8 = dc->dcn_soc->max_dispclk_vanalm0p8;
 	v->max_dispclk_vmax0p9 = dc->dcn_soc->max_dispclk_vmax0p9;
 
 	v->max_dppclk_vmin0p65 = dc->dcn_soc->max_dppclk_vmin0p65;
 	v->max_dppclk_vmid0p72 = dc->dcn_soc->max_dppclk_vmid0p72;
-	v->max_dppclk_vnom0p8 = dc->dcn_soc->max_dppclk_vnom0p8;
+	v->max_dppclk_vanalm0p8 = dc->dcn_soc->max_dppclk_vanalm0p8;
 	v->max_dppclk_vmax0p9 = dc->dcn_soc->max_dppclk_vmax0p9;
 
 	v->socclk = dc->dcn_soc->socclk;
 
 	v->fabric_and_dram_bandwidth_vmin0p65 = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65;
 	v->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72;
-	v->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8;
+	v->fabric_and_dram_bandwidth_vanalm0p8 = dc->dcn_soc->fabric_and_dram_bandwidth_vanalm0p8;
 	v->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9;
 
 	v->phyclkv_min0p65 = dc->dcn_soc->phyclkv_min0p65;
 	v->phyclkv_mid0p72 = dc->dcn_soc->phyclkv_mid0p72;
-	v->phyclkv_nom0p8 = dc->dcn_soc->phyclkv_nom0p8;
+	v->phyclkv_analm0p8 = dc->dcn_soc->phyclkv_analm0p8;
 	v->phyclkv_max0p9 = dc->dcn_soc->phyclkv_max0p9;
 
 	v->downspreading = dc->dcn_soc->downspreading;
@@ -850,45 +850,45 @@ bool dcn_validate_bandwidth(
 	v->bug_forcing_luma_and_chroma_request_to_same_size_fixed =
 			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed;
 
-	v->voltage[5] = dcn_bw_no_support;
+	v->voltage[5] = dcn_bw_anal_support;
 	v->voltage[4] = dcn_bw_v_max0p9;
 	v->voltage[3] = dcn_bw_v_max0p9;
-	v->voltage[2] = dcn_bw_v_nom0p8;
+	v->voltage[2] = dcn_bw_v_analm0p8;
 	v->voltage[1] = dcn_bw_v_mid0p72;
 	v->voltage[0] = dcn_bw_v_min0p65;
 	v->fabric_and_dram_bandwidth_per_state[5] = v->fabric_and_dram_bandwidth_vmax0p9;
 	v->fabric_and_dram_bandwidth_per_state[4] = v->fabric_and_dram_bandwidth_vmax0p9;
 	v->fabric_and_dram_bandwidth_per_state[3] = v->fabric_and_dram_bandwidth_vmax0p9;
-	v->fabric_and_dram_bandwidth_per_state[2] = v->fabric_and_dram_bandwidth_vnom0p8;
+	v->fabric_and_dram_bandwidth_per_state[2] = v->fabric_and_dram_bandwidth_vanalm0p8;
 	v->fabric_and_dram_bandwidth_per_state[1] = v->fabric_and_dram_bandwidth_vmid0p72;
 	v->fabric_and_dram_bandwidth_per_state[0] = v->fabric_and_dram_bandwidth_vmin0p65;
 	v->dcfclk_per_state[5] = v->dcfclkv_max0p9;
 	v->dcfclk_per_state[4] = v->dcfclkv_max0p9;
 	v->dcfclk_per_state[3] = v->dcfclkv_max0p9;
-	v->dcfclk_per_state[2] = v->dcfclkv_nom0p8;
+	v->dcfclk_per_state[2] = v->dcfclkv_analm0p8;
 	v->dcfclk_per_state[1] = v->dcfclkv_mid0p72;
 	v->dcfclk_per_state[0] = v->dcfclkv_min0p65;
 	v->max_dispclk[5] = v->max_dispclk_vmax0p9;
 	v->max_dispclk[4] = v->max_dispclk_vmax0p9;
 	v->max_dispclk[3] = v->max_dispclk_vmax0p9;
-	v->max_dispclk[2] = v->max_dispclk_vnom0p8;
+	v->max_dispclk[2] = v->max_dispclk_vanalm0p8;
 	v->max_dispclk[1] = v->max_dispclk_vmid0p72;
 	v->max_dispclk[0] = v->max_dispclk_vmin0p65;
 	v->max_dppclk[5] = v->max_dppclk_vmax0p9;
 	v->max_dppclk[4] = v->max_dppclk_vmax0p9;
 	v->max_dppclk[3] = v->max_dppclk_vmax0p9;
-	v->max_dppclk[2] = v->max_dppclk_vnom0p8;
+	v->max_dppclk[2] = v->max_dppclk_vanalm0p8;
 	v->max_dppclk[1] = v->max_dppclk_vmid0p72;
 	v->max_dppclk[0] = v->max_dppclk_vmin0p65;
 	v->phyclk_per_state[5] = v->phyclkv_max0p9;
 	v->phyclk_per_state[4] = v->phyclkv_max0p9;
 	v->phyclk_per_state[3] = v->phyclkv_max0p9;
-	v->phyclk_per_state[2] = v->phyclkv_nom0p8;
+	v->phyclk_per_state[2] = v->phyclkv_analm0p8;
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
-	v->synchronized_vblank = dcn_bw_no;
+	v->synchronized_vblank = dcn_bw_anal;
 	v->ta_pscalculation = dcn_bw_override;
-	v->allow_different_hratio_vratio = dcn_bw_yes;
+	v->allow_different_hratio_vratio = dcn_bw_anal;
 
 	for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -913,16 +913,16 @@ bool dcn_validate_bandwidth(
 		if (pipe->stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			v->pixel_clock[input_idx] *= 2;
 		if (!pipe->plane_state) {
-			v->dcc_enable[input_idx] = dcn_bw_yes;
+			v->dcc_enable[input_idx] = dcn_bw_anal;
 			v->source_pixel_format[input_idx] = dcn_bw_rgb_sub_32;
 			v->source_surface_mode[input_idx] = dcn_bw_sw_4_kb_s;
 			v->lb_bit_per_pixel[input_idx] = 30;
 			v->viewport_width[input_idx] = pipe->stream->timing.h_addressable;
 			v->viewport_height[input_idx] = pipe->stream->timing.v_addressable;
 			/*
-			 * for cases where we have no plane, we want to validate up to 1080p
+			 * for cases where we have anal plane, we want to validate up to 1080p
 			 * source size because here we are only interested in if the output
-			 * timing is supported or not. if we cannot support native resolution
+			 * timing is supported or analt. if we cananalt support native resolution
 			 * of the high res display, we still want to support lower res up scale
 			 * to native
 			 */
@@ -990,7 +990,7 @@ bool dcn_validate_bandwidth(
 				 * this method requires us to always re-calculate watermark when dcc change
 				 * between flip.
 				 */
-				v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
+				v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_anal : dcn_bw_anal;
 			} else {
 				/*
 				 * allow us to disable dcc on the fly without re-calculating WM
@@ -1001,7 +1001,7 @@ bool dcn_validate_bandwidth(
 				unsigned int bpe;
 
 				v->dcc_enable[input_idx] = dc->res_pool->hubbub->funcs->dcc_support_pixel_format(
-						pipe->plane_state->format, &bpe) ? dcn_bw_yes : dcn_bw_no;
+						pipe->plane_state->format, &bpe) ? dcn_bw_anal : dcn_bw_anal;
 			}
 
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
@@ -1024,7 +1024,7 @@ bool dcn_validate_bandwidth(
 				v->override_vta_pschroma[input_idx] = 2;
 			v->source_scan[input_idx] = (pipe->plane_state->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
-		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
+		if (v->is_line_buffer_bpp_fixed == dcn_bw_anal)
 			v->lb_bit_per_pixel[input_idx] = v->line_buffer_fixed_bpp;
 		v->dcc_rate[input_idx] = 1; /*TODO: Worst case? does this change?*/
 		v->output_format[input_idx] = pipe->stream->timing.pixel_encoding ==
@@ -1058,7 +1058,7 @@ bool dcn_validate_bandwidth(
 
 	mode_support_and_system_configuration(v);
 
-	/* Unhack dppclk: dont bother with trying to pipe split if we cannot maintain dpm0 */
+	/* Unhack dppclk: dont bother with trying to pipe split if we cananalt maintain dpm0 */
 	if (v->voltage_level != 0
 			&& context->stream_count == 1
 			&& dc->debug.force_single_disp_pipe_split) {
@@ -1126,8 +1126,8 @@ bool dcn_validate_bandwidth(
 			bw_consumed = v->fabric_and_dram_bandwidth_vmin0p65;
 		else if (bw_consumed < v->fabric_and_dram_bandwidth_vmid0p72)
 			bw_consumed = v->fabric_and_dram_bandwidth_vmid0p72;
-		else if (bw_consumed < v->fabric_and_dram_bandwidth_vnom0p8)
-			bw_consumed = v->fabric_and_dram_bandwidth_vnom0p8;
+		else if (bw_consumed < v->fabric_and_dram_bandwidth_vanalm0p8)
+			bw_consumed = v->fabric_and_dram_bandwidth_vanalm0p8;
 		else
 			bw_consumed = v->fabric_and_dram_bandwidth_vmax0p9;
 
@@ -1137,7 +1137,7 @@ bool dcn_validate_bandwidth(
 
 		display_pipe_configuration(v);
 		/*calc_wm_sets_and_perf_params(context, v);*/
-		/* Only 1 set is used by dcn since no noticeable
+		/* Only 1 set is used by dcn since anal analticeable
 		 * performance improvement was measured and due to hw bug DEGVIDCN10-254
 		 */
 		dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performance_calculation(v);
@@ -1186,7 +1186,7 @@ bool dcn_validate_bandwidth(
 			break;
 		case 2:
 			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
-					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
+					(int)(dc->dcn_soc->max_dppclk_vanalm0p8 * 1000);
 			break;
 		default:
 			context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz =
@@ -1257,7 +1257,7 @@ bool dcn_validate_bandwidth(
 						hsplit_pipe->pipe_dlg_param.vblank_start = pipe->pipe_dlg_param.vblank_start;
 						hsplit_pipe->pipe_dlg_param.vblank_end = pipe->pipe_dlg_param.vblank_end;
 					} else {
-						/* pipe not split previously needs split */
+						/* pipe analt split previously needs split */
 						hsplit_pipe = resource_find_free_secondary_pipe_legacy(&context->res_ctx, pool, pipe);
 						ASSERT(hsplit_pipe);
 						split_stream_across_pipes(&context->res_ctx, pool, pipe, hsplit_pipe);
@@ -1278,7 +1278,7 @@ bool dcn_validate_bandwidth(
 					memset(&hsplit_pipe->stream_res, 0, sizeof(hsplit_pipe->stream_res));
 					resource_build_scaling_params(pipe);
 				}
-				/* for now important to do this after pipe split for building e2e params */
+				/* for analw important to do this after pipe split for building e2e params */
 				dcn_bw_calc_rq_dlg_ttu(dc, v, pipe, input_idx);
 			}
 
@@ -1312,14 +1312,14 @@ bool dcn_validate_bandwidth(
 		return false;
 }
 
-static unsigned int dcn_find_normalized_clock_vdd_Level(
+static unsigned int dcn_find_analrmalized_clock_vdd_Level(
 	const struct dc *dc,
 	enum dm_pp_clock_type clocks_type,
 	int clocks_in_khz)
 {
 	int vdd_level = dcn_bw_v_min0p65;
 
-	if (clocks_in_khz == 0)/*todo some clock not in the considerations*/
+	if (clocks_in_khz == 0)/*todo some clock analt in the considerations*/
 		return vdd_level;
 
 	switch (clocks_type) {
@@ -1327,10 +1327,10 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 		if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vnom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vanalm0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmid0p72*1000) {
-			vdd_level = dcn_bw_v_nom0p8;
+			vdd_level = dcn_bw_v_analm0p8;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmin0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
@@ -1340,10 +1340,10 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 		if (clocks_in_khz > dc->dcn_soc->phyclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_nom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_analm0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_mid0p72*1000) {
-			vdd_level = dcn_bw_v_nom0p8;
+			vdd_level = dcn_bw_v_analm0p8;
 		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_min0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
@@ -1354,10 +1354,10 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 		if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vnom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vanalm0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmid0p72*1000) {
-			vdd_level = dcn_bw_v_nom0p8;
+			vdd_level = dcn_bw_v_analm0p8;
 		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmin0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
@@ -1371,10 +1371,10 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 			if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p91;
 				BREAK_TO_DEBUGGER();
-			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8*1000000/factor) {
+			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vanalm0p8*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p9;
 			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72*1000000/factor) {
-				vdd_level = dcn_bw_v_nom0p8;
+				vdd_level = dcn_bw_v_analm0p8;
 			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65*1000000/factor) {
 				vdd_level = dcn_bw_v_mid0p72;
 			} else
@@ -1386,10 +1386,10 @@ static unsigned int dcn_find_normalized_clock_vdd_Level(
 		if (clocks_in_khz > dc->dcn_soc->dcfclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_nom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_analm0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
 		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_mid0p72*1000) {
-			vdd_level = dcn_bw_v_nom0p8;
+			vdd_level = dcn_bw_v_analm0p8;
 		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_min0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
@@ -1410,20 +1410,20 @@ unsigned int dcn_find_dcfclk_suits_all(
 	unsigned dcf_clk;
 
 	/*find a common supported voltage level*/
-	vdd_level = dcn_find_normalized_clock_vdd_Level(
+	vdd_level = dcn_find_analrmalized_clock_vdd_Level(
 		dc, DM_PP_CLOCK_TYPE_DISPLAY_CLK, clocks->dispclk_khz);
-	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
+	vdd_level_temp = dcn_find_analrmalized_clock_vdd_Level(
 		dc, DM_PP_CLOCK_TYPE_DISPLAYPHYCLK, clocks->phyclk_khz);
 
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
-	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
+	vdd_level_temp = dcn_find_analrmalized_clock_vdd_Level(
 		dc, DM_PP_CLOCK_TYPE_DPPCLK, clocks->dppclk_khz);
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 
-	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
+	vdd_level_temp = dcn_find_analrmalized_clock_vdd_Level(
 		dc, DM_PP_CLOCK_TYPE_MEMORY_CLK, clocks->fclk_khz);
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
-	vdd_level_temp = dcn_find_normalized_clock_vdd_Level(
+	vdd_level_temp = dcn_find_analrmalized_clock_vdd_Level(
 		dc, DM_PP_CLOCK_TYPE_DCFCLK, clocks->dcfclk_khz);
 
 	/*find that level conresponding dcfclk*/
@@ -1433,8 +1433,8 @@ unsigned int dcn_find_dcfclk_suits_all(
 		dcf_clk = dc->dcn_soc->dcfclkv_max0p9*1000;
 	} else if (vdd_level == dcn_bw_v_max0p9)
 		dcf_clk =  dc->dcn_soc->dcfclkv_max0p9*1000;
-	else if (vdd_level == dcn_bw_v_nom0p8)
-		dcf_clk =  dc->dcn_soc->dcfclkv_nom0p8*1000;
+	else if (vdd_level == dcn_bw_v_analm0p8)
+		dcf_clk =  dc->dcn_soc->dcfclkv_analm0p8*1000;
 	else if (vdd_level == dcn_bw_v_mid0p72)
 		dcf_clk =  dc->dcn_soc->dcfclkv_mid0p72*1000;
 	else
@@ -1448,14 +1448,14 @@ void dcn_bw_update_from_pplib_fclks(
 	struct dc *dc,
 	struct dm_pp_clock_levels_with_voltage *fclks)
 {
-	unsigned vmin0p65_idx, vmid0p72_idx, vnom0p8_idx, vmax0p9_idx;
+	unsigned vmin0p65_idx, vmid0p72_idx, vanalm0p8_idx, vmax0p9_idx;
 
 	ASSERT(fclks->num_levels);
 
 	vmin0p65_idx = 0;
 	vmid0p72_idx = fclks->num_levels -
 		(fclks->num_levels > 2 ? 3 : (fclks->num_levels > 1 ? 2 : 1));
-	vnom0p8_idx = fclks->num_levels - (fclks->num_levels > 1 ? 2 : 1);
+	vanalm0p8_idx = fclks->num_levels - (fclks->num_levels > 1 ? 2 : 1);
 	vmax0p9_idx = fclks->num_levels - 1;
 
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 =
@@ -1464,9 +1464,9 @@ void dcn_bw_update_from_pplib_fclks(
 		dc->dcn_soc->number_of_channels *
 		(fclks->data[vmid0p72_idx].clocks_in_khz / 1000.0)
 		* ddr4_dram_factor_single_Channel / 1000.0;
-	dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 =
+	dc->dcn_soc->fabric_and_dram_bandwidth_vanalm0p8 =
 		dc->dcn_soc->number_of_channels *
-		(fclks->data[vnom0p8_idx].clocks_in_khz / 1000.0)
+		(fclks->data[vanalm0p8_idx].clocks_in_khz / 1000.0)
 		* ddr4_dram_factor_single_Channel / 1000.0;
 	dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 =
 		dc->dcn_soc->number_of_channels *
@@ -1481,7 +1481,7 @@ void dcn_bw_update_from_pplib_dcfclks(
 	if (dcfclks->num_levels >= 3) {
 		dc->dcn_soc->dcfclkv_min0p65 = dcfclks->data[0].clocks_in_khz / 1000.0;
 		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks->data[dcfclks->num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks->data[dcfclks->num_levels - 2].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_analm0p8 = dcfclks->data[dcfclks->num_levels - 2].clocks_in_khz / 1000.0;
 		dc->dcn_soc->dcfclkv_max0p9 = dcfclks->data[dcfclks->num_levels - 1].clocks_in_khz / 1000.0;
 	}
 }
@@ -1497,7 +1497,7 @@ void dcn_get_soc_clks(
 	*socclk_khz = dc->dcn_soc->socclk * 1000;
 }
 
-void dcn_bw_notify_pplib_of_wm_ranges(
+void dcn_bw_analtify_pplib_of_wm_ranges(
 	struct dc *dc,
 	int min_fclk_khz,
 	int min_dcfclk_khz,
@@ -1512,12 +1512,12 @@ void dcn_bw_notify_pplib_of_wm_ranges(
 	if (!pp || !pp->set_wm_ranges)
 		return;
 
-	/* Now notify PPLib/SMU about which Watermarks sets they should select
+	/* Analw analtify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
 	 * Memory clock member variables for Watermarks calculations for each
 	 * Watermark Set. Only one watermark set for dcn1 due to hw bug DEGVIDCN10-254.
 	 */
-	/* SOCCLK does not affect anytihng but writeback for DCN so for now we dont
+	/* SOCCLK does analt affect anytihng but writeback for DCN so for analw we dont
 	 * care what the value is, hence min to overdrive level
 	 */
 	ranges.num_reader_wm_sets = WM_SET_COUNT;
@@ -1555,7 +1555,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(
 	ranges.reader_wm_sets[3] = ranges.writer_wm_sets[0];
 	ranges.reader_wm_sets[3].wm_inst = WM_D;
 
-	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
+	/* Analtify PP Lib/SMU which Watermarks to use for which clock ranges */
 	pp->set_wm_ranges(&pp->pp_smu, &ranges);
 }
 
@@ -1568,24 +1568,24 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			"percent_of_ideal_drambw_received_after_urg_latency: %f %%\n"
 			"max_request_size: %d bytes\n"
 			"dcfclkv_max0p9: %f kHz\n"
-			"dcfclkv_nom0p8: %f kHz\n"
+			"dcfclkv_analm0p8: %f kHz\n"
 			"dcfclkv_mid0p72: %f kHz\n"
 			"dcfclkv_min0p65: %f kHz\n"
 			"max_dispclk_vmax0p9: %f kHz\n"
-			"max_dispclk_vnom0p8: %f kHz\n"
+			"max_dispclk_vanalm0p8: %f kHz\n"
 			"max_dispclk_vmid0p72: %f kHz\n"
 			"max_dispclk_vmin0p65: %f kHz\n"
 			"max_dppclk_vmax0p9: %f kHz\n"
-			"max_dppclk_vnom0p8: %f kHz\n"
+			"max_dppclk_vanalm0p8: %f kHz\n"
 			"max_dppclk_vmid0p72: %f kHz\n"
 			"max_dppclk_vmin0p65: %f kHz\n"
 			"socclk: %f kHz\n"
 			"fabric_and_dram_bandwidth_vmax0p9: %f MB/s\n"
-			"fabric_and_dram_bandwidth_vnom0p8: %f MB/s\n"
+			"fabric_and_dram_bandwidth_vanalm0p8: %f MB/s\n"
 			"fabric_and_dram_bandwidth_vmid0p72: %f MB/s\n"
 			"fabric_and_dram_bandwidth_vmin0p65: %f MB/s\n"
 			"phyclkv_max0p9: %f kHz\n"
-			"phyclkv_nom0p8: %f kHz\n"
+			"phyclkv_analm0p8: %f kHz\n"
 			"phyclkv_mid0p72: %f kHz\n"
 			"phyclkv_min0p65: %f kHz\n"
 			"downspreading: %f %%\n"
@@ -1602,24 +1602,24 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency,
 			dc->dcn_soc->max_request_size,
 			dc->dcn_soc->dcfclkv_max0p9 * 1000,
-			dc->dcn_soc->dcfclkv_nom0p8 * 1000,
+			dc->dcn_soc->dcfclkv_analm0p8 * 1000,
 			dc->dcn_soc->dcfclkv_mid0p72 * 1000,
 			dc->dcn_soc->dcfclkv_min0p65 * 1000,
 			dc->dcn_soc->max_dispclk_vmax0p9 * 1000,
-			dc->dcn_soc->max_dispclk_vnom0p8 * 1000,
+			dc->dcn_soc->max_dispclk_vanalm0p8 * 1000,
 			dc->dcn_soc->max_dispclk_vmid0p72 * 1000,
 			dc->dcn_soc->max_dispclk_vmin0p65 * 1000,
 			dc->dcn_soc->max_dppclk_vmax0p9 * 1000,
-			dc->dcn_soc->max_dppclk_vnom0p8 * 1000,
+			dc->dcn_soc->max_dppclk_vanalm0p8 * 1000,
 			dc->dcn_soc->max_dppclk_vmid0p72 * 1000,
 			dc->dcn_soc->max_dppclk_vmin0p65 * 1000,
 			dc->dcn_soc->socclk * 1000,
 			dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 * 1000,
-			dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 * 1000,
+			dc->dcn_soc->fabric_and_dram_bandwidth_vanalm0p8 * 1000,
 			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 * 1000,
 			dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000,
 			dc->dcn_soc->phyclkv_max0p9 * 1000,
-			dc->dcn_soc->phyclkv_nom0p8 * 1000,
+			dc->dcn_soc->phyclkv_analm0p8 * 1000,
 			dc->dcn_soc->phyclkv_mid0p72 * 1000,
 			dc->dcn_soc->phyclkv_min0p65 * 1000,
 			dc->dcn_soc->downspreading * 100,
@@ -1720,13 +1720,13 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 	dc->dml.ip.dpp_output_buffer_pixels = dc->dcn_ip->dpp_output_buffer_pixels;
 	dc->dml.ip.opp_output_buffer_lines = dc->dcn_ip->opp_output_buffer_lines;
 	dc->dml.ip.pixel_chunk_size_kbytes = dc->dcn_ip->pixel_chunk_size_in_kbyte;
-	dc->dml.ip.pte_enable = dc->dcn_ip->pte_enable == dcn_bw_yes;
+	dc->dml.ip.pte_enable = dc->dcn_ip->pte_enable == dcn_bw_anal;
 	dc->dml.ip.pte_chunk_size_kbytes = dc->dcn_ip->pte_chunk_size;
 	dc->dml.ip.meta_chunk_size_kbytes = dc->dcn_ip->meta_chunk_size;
 	dc->dml.ip.writeback_chunk_size_kbytes = dc->dcn_ip->writeback_chunk_size;
 	dc->dml.ip.line_buffer_size_bits = dc->dcn_ip->line_buffer_size;
 	dc->dml.ip.max_line_buffer_lines = dc->dcn_ip->max_line_buffer_lines;
-	dc->dml.ip.IsLineBufferBppFixed = dc->dcn_ip->is_line_buffer_bpp_fixed == dcn_bw_yes;
+	dc->dml.ip.IsLineBufferBppFixed = dc->dcn_ip->is_line_buffer_bpp_fixed == dcn_bw_anal;
 	dc->dml.ip.LineBufferFixedBpp = dc->dcn_ip->line_buffer_fixed_bpp;
 	dc->dml.ip.writeback_luma_buffer_size_kbytes = dc->dcn_ip->writeback_luma_buffer_size;
 	dc->dml.ip.writeback_chroma_buffer_size_kbytes = dc->dcn_ip->writeback_chroma_buffer_size;
@@ -1745,8 +1745,8 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 	dc->dml.ip.underscan_factor = dc->dcn_ip->under_scan_factor;
 	dc->dml.ip.max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	dc->dml.ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
-		dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes;
+		dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_anal;
 	dc->dml.ip.bug_forcing_LC_req_same_size_fixed =
-		dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
+		dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_anal;
 	dc->dml.ip.dcfclk_cstate_latency = dc->dcn_ip->dcfclk_cstate_latency;
 }

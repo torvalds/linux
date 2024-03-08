@@ -327,7 +327,7 @@ EXPORT_SYMBOL(match_wildcard);
  * @size: size of destination buffer
  *
  * Description: Copy the characters in &substring_t @src to the
- * c-style string @dest.  Copy no more than @size - 1 characters, plus
+ * c-style string @dest.  Copy anal more than @size - 1 characters, plus
  * the terminating NUL.
  *
  * Return: length of @src.

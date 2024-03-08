@@ -134,7 +134,7 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 	prop->paging_support = true;
 
 	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x00; /* BITMAP: 00010100 (not enable yet) */
+	prop->source_ports = 0x00; /* BITMAP: 00010100 (analt enable yet) */
 	prop->sink_ports = 0x2; /* BITMAP:  00000010 */
 
 	/* for sink */
@@ -143,7 +143,7 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 						sizeof(*prop->sink_dpn_prop),
 						GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->sink_dpn_prop;
@@ -230,7 +230,7 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-	pm_runtime_get_noresume(&slave->dev);
+	pm_runtime_get_analresume(&slave->dev);
 
 	regmap_read(rt1308->regmap, 0xcf01, &hibernation_flag);
 	if ((hibernation_flag != 0x00) && rt1308->first_hw_init)
@@ -402,7 +402,7 @@ static const struct snd_kcontrol_new rt1308_sto_dac_r =
 
 static const struct snd_soc_dapm_widget rt1308_dapm_widgets[] = {
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "DP1 Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "DP1 Playback", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Supply Widgets */
 	SND_SOC_DAPM_SUPPLY("MBIAS20U",
@@ -445,12 +445,12 @@ static const struct snd_soc_dapm_widget rt1308_dapm_widgets[] = {
 		RT1308_SDW_OFFSET_BYTE2 | (RT1308_POWER << 4), 0, 0, NULL, 0),
 
 	/* Digital Interface */
-	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_NOPM, 0, 0, &rt1308_sto_dac_l),
-	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_NOPM, 0, 0, &rt1308_sto_dac_r),
+	SND_SOC_DAPM_DAC("DAC", NULL, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_SWITCH("DAC L", SND_SOC_ANALPM, 0, 0, &rt1308_sto_dac_l),
+	SND_SOC_DAPM_SWITCH("DAC R", SND_SOC_ANALPM, 0, 0, &rt1308_sto_dac_r),
 
 	/* Output Lines */
-	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("CLASS D", SND_SOC_ANALPM, 0, 0, NULL, 0,
 		rt1308_classd_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPOL"),
@@ -521,7 +521,7 @@ static int rt1308_sdw_set_tdm_slot(struct snd_soc_dai *dai,
 
 	rt1308->rx_mask = rx_mask;
 	rt1308->slots = slots;
-	/* slot_width is not used since it's irrelevant for SoundWire */
+	/* slot_width is analt used since it's irrelevant for SoundWire */
 
 	return 0;
 }
@@ -588,7 +588,7 @@ static int rt1308_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 
 /*
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
- * port_prep are not defined for now
+ * port_prep are analt defined for analw
  */
 static const struct sdw_slave_ops rt1308_slave_ops = {
 	.read_prop = rt1308_read_prop,
@@ -605,12 +605,12 @@ static int rt1308_sdw_parse_dt(struct rt1308_sdw_priv *rt1308, struct device *de
 	if (rt1308->bq_params_cnt) {
 		rt1308->bq_params = devm_kzalloc(dev, rt1308->bq_params_cnt, GFP_KERNEL);
 		if (!rt1308->bq_params) {
-			dev_err(dev, "Could not allocate bq_params memory\n");
-			ret = -ENOMEM;
+			dev_err(dev, "Could analt allocate bq_params memory\n");
+			ret = -EANALMEM;
 		} else {
 			ret = device_property_read_u8_array(dev, "realtek,bq-params", rt1308->bq_params, rt1308->bq_params_cnt);
 			if (ret < 0)
-				dev_err(dev, "Could not read list of realtek,bq-params\n");
+				dev_err(dev, "Could analt read list of realtek,bq-params\n");
 		}
 	}
 
@@ -685,7 +685,7 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 
 	rt1308 = devm_kzalloc(dev, sizeof(*rt1308), GFP_KERNEL);
 	if (!rt1308)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, rt1308);
 	rt1308->sdw_slave = slave;
@@ -711,14 +711,14 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 
@@ -782,7 +782,7 @@ static int __maybe_unused rt1308_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT1308_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

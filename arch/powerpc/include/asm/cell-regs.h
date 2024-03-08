@@ -7,7 +7,7 @@
  *
  * (C) Copyright IBM Corporation 2001,2006
  *
- * Authors: Maximino Aguilar (maguilar@us.ibm.com)
+ * Authors: Maximianal Aguilar (maguilar@us.ibm.com)
  *          David J. Erb (djerb@us.ibm.com)
  *
  * (c) 2006 Benjamin Herrenschmidt <benh@kernel.crashing.org>, IBM Corp.
@@ -124,7 +124,7 @@ struct cbe_pmd_regs {
 	u8	pad_0x0cb0_0x1000 [0x1000 - 0x0cb0];		/* 0x0cb0 */
 };
 
-extern struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_node *np);
+extern struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_analde *np);
 extern struct cbe_pmd_regs __iomem *cbe_get_cpu_pmd_regs(int cpu);
 
 /*
@@ -156,7 +156,7 @@ struct cbe_pmd_shadow_regs {
 	u32 counter_value_in_latch;
 };
 
-extern struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_node *np);
+extern struct cbe_pmd_shadow_regs *cbe_get_pmd_shadow_regs(struct device_analde *np);
 extern struct cbe_pmd_shadow_regs *cbe_get_cpu_pmd_shadow_regs(int cpu);
 
 /*
@@ -191,7 +191,7 @@ struct cbe_iic_regs {
 
 	u64	iic_ir;						/* 0x0440 */
 #define CBE_IIC_IR_PRIO(x)      (((x) & 0xf) << 12)
-#define CBE_IIC_IR_DEST_NODE(x) (((x) & 0xf) << 4)
+#define CBE_IIC_IR_DEST_ANALDE(x) (((x) & 0xf) << 4)
 #define CBE_IIC_IR_DEST_UNIT(x) ((x) & 0xf)
 #define CBE_IIC_IR_IOC_0        0x0
 #define CBE_IIC_IR_IOC_1S       0xb
@@ -214,7 +214,7 @@ struct cbe_iic_regs {
 	u8	pad_0x0530_0x1000[0x1000 - 0x0530];		/* 0x0530 */
 };
 
-extern struct cbe_iic_regs __iomem *cbe_get_iic_regs(struct device_node *np);
+extern struct cbe_iic_regs __iomem *cbe_get_iic_regs(struct device_analde *np);
 extern struct cbe_iic_regs __iomem *cbe_get_cpu_iic_regs(int cpu);
 
 
@@ -301,7 +301,7 @@ struct cbe_mic_tm_regs {
 	u8	pad_0x0240_0x1000[0x1000 - 0x0240];		/* 0x0240 */
 };
 
-extern struct cbe_mic_tm_regs __iomem *cbe_get_mic_tm_regs(struct device_node *np);
+extern struct cbe_mic_tm_regs __iomem *cbe_get_mic_tm_regs(struct device_analde *np);
 extern struct cbe_mic_tm_regs __iomem *cbe_get_cpu_mic_tm_regs(int cpu);
 
 
@@ -317,8 +317,8 @@ extern struct cbe_mic_tm_regs __iomem *cbe_get_cpu_mic_tm_regs(int cpu);
 
 /* some utility functions to deal with SMT */
 extern u32 cbe_get_hw_thread_id(int cpu);
-extern u32 cbe_cpu_to_node(int cpu);
-extern u32 cbe_node_to_cpu(int node);
+extern u32 cbe_cpu_to_analde(int cpu);
+extern u32 cbe_analde_to_cpu(int analde);
 
 /* Init this module early */
 extern void cbe_regs_init(void);

@@ -38,7 +38,7 @@ typedef struct scsi_cd {
 	unsigned writeable : 1;
 	unsigned use:1;		/* is this device still supportable     */
 	unsigned xa_flag:1;	/* CD has XA sectors ? */
-	unsigned readcd_known:1;	/* drive supports READ_CD (0xbe) */
+	unsigned readcd_kanalwn:1;	/* drive supports READ_CD (0xbe) */
 	unsigned readcd_cdda:1;	/* reading audio data using READ_CD */
 	unsigned media_present:1;	/* media is present */
 
@@ -46,7 +46,7 @@ typedef struct scsi_cd {
 	int tur_mismatch;		/* nr of get_event TUR mismatches */
 	bool tur_changed:1;		/* changed according to TUR */
 	bool get_event_changed:1;	/* changed according to GET_EVENT */
-	bool ignore_get_event:1;	/* GET_EVENT is unreliable, use TUR */
+	bool iganalre_get_event:1;	/* GET_EVENT is unreliable, use TUR */
 
 	struct cdrom_device_info cdi;
 	struct mutex lock;

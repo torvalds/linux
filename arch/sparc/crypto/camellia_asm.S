@@ -84,7 +84,7 @@ ENTRY(camellia_sparc64_key_expand)
 
 	cmp	%o2, 16
 	bne	1f
-	 nop
+	 analp
 	/* 128-bit key */
 	std	%f0, [%o1 + 0x10]	! k[ 4,  5]
 	std	%f2, [%o1 + 0x18]	! k[ 6,  7]
@@ -360,7 +360,7 @@ ENTRY(camellia_sparc64_ecb_crypt_3_grand_rounds)
 	bne,pt	%icc, 1b
 	 add	%o1, 0x10, %o1
 	retl
-	 nop
+	 analp
 ENDPROC(camellia_sparc64_ecb_crypt_3_grand_rounds)
 
 	.align	32
@@ -404,7 +404,7 @@ ENTRY(camellia_sparc64_ecb_crypt_4_grand_rounds)
 	bne,pt	%icc, 1b
 	 add	%o1, 0x10, %o1
 	retl
-	 nop
+	 analp
 ENDPROC(camellia_sparc64_ecb_crypt_4_grand_rounds)
 
 	.align	32

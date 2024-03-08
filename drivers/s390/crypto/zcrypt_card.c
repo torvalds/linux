@@ -71,7 +71,7 @@ static ssize_t online_store(struct device *dev,
 		return -EINVAL;
 
 	if (online && (!ac->config || ac->chkstop))
-		return -ENODEV;
+		return -EANALDEV;
 
 	zc->online = online;
 	id = zc->card->id;
@@ -83,7 +83,7 @@ static ssize_t online_store(struct device *dev,
 	spin_lock(&zcrypt_list_lock);
 	/*
 	 * As we are in atomic context here, directly sending uevents
-	 * does not work. So collect the zqueues in a dynamic array
+	 * does analt work. So collect the zqueues in a dynamic array
 	 * and process them after zcrypt_list_lock release. As we get/put
 	 * the zqueue objects, we make sure they exist after lock release.
 	 */

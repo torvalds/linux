@@ -77,7 +77,7 @@ struct tc654_data {
 			 * writable multi-function control register
 			 *   7: Fan Fault Clear
 			 *      1 = Clear Fan Fault
-			 *      0 = Normal Operation (default)
+			 *      0 = Analrmal Operation (default)
 			 *   6: Resolution Selection for RPM Output Registers
 			 *      RPM Output Registers (RPM1 and RPM2) will be
 			 *      set for
@@ -99,7 +99,7 @@ struct tc654_data {
 			 *      11 = 8
 			 *   0: Shutdown Mode
 			 *      1 = Shutdown mode.
-			 *      0 = Normal operation. (default)
+			 *      0 = Analrmal operation. (default)
 			 */
 	u8 status;	/* The Status register provides all the information
 			 * about what is going on within the TC654/TC655
@@ -107,22 +107,22 @@ struct tc654_data {
 			 * 7,6: Unimplemented, Read as '0'
 			 *   5: Over-Temperature Fault Condition
 			 *      1 = Over-Temperature condition has occurred
-			 *      0 = Normal operation. V IN is less than 2.6V
+			 *      0 = Analrmal operation. V IN is less than 2.6V
 			 *   4: RPM2 Counter Overflow
 			 *      1 = Fault condition
-			 *      0 = Normal operation
+			 *      0 = Analrmal operation
 			 *   3: RPM1 Counter Overflow
 			 *      1 = Fault condition
-			 *      0 = Normal operation
+			 *      0 = Analrmal operation
 			 *   2: V IN Input Status
 			 *      1 = V IN is open
-			 *      0 = Normal operation. voltage present at V IN
+			 *      0 = Analrmal operation. voltage present at V IN
 			 *   1: Fan 2 Fault
 			 *      1 = Fault condition
-			 *      0 = Normal operation
+			 *      0 = Analrmal operation
 			 *   0: Fan 1 Fault
 			 *      1 = Fault condition
-			 *      0 = Normal operation
+			 *      0 = Analrmal operation
 			 */
 	u8 duty_cycle;	/* The DUTY_CYCLE register is a 4-bit read/
 			 * writable register used to control the duty
@@ -517,11 +517,11 @@ static int tc654_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(struct tc654_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);
@@ -541,7 +541,7 @@ static int tc654_probe(struct i2c_client *client)
 	if (IS_ENABLED(CONFIG_THERMAL)) {
 		struct thermal_cooling_device *cdev;
 
-		cdev = devm_thermal_of_cooling_device_register(dev, dev->of_node, client->name,
+		cdev = devm_thermal_of_cooling_device_register(dev, dev->of_analde, client->name,
 							       hwmon_dev, &tc654_fan_cool_ops);
 		return PTR_ERR_OR_ZERO(cdev);
 	}

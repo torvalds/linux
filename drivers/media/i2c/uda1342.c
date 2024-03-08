@@ -31,7 +31,7 @@ static int uda1342_s_routing(struct v4l2_subdev *sd,
 		write_reg(client, 0x00, 0x1441); /* select input 2 */
 		break;
 	default:
-		v4l2_err(sd, "input %d not supported\n", input);
+		v4l2_err(sd, "input %d analt supported\n", input);
 		break;
 	}
 	return 0;
@@ -51,14 +51,14 @@ static int uda1342_probe(struct i2c_client *client)
 	struct v4l2_subdev *sd;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(&client->dev, "initializing UDA1342 at address %d on %s\n",
 		client->addr, adapter->name);
 
 	sd = devm_kzalloc(&client->dev, sizeof(*sd), GFP_KERNEL);
 	if (sd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_i2c_subdev_init(sd, client, &uda1342_ops);
 

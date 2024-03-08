@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* drivers/media/platform/s5p-cec/exynos_hdmi_cecctrl.c
+/* drivers/media/platform/s5p-cec/exyanals_hdmi_cecctrl.c
  *
  * Copyright (c) 2009, 2014 Samsung Electronics
  *		http://www.samsung.com/
@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 
-#include "exynos_hdmi_cec.h"
+#include "exyanals_hdmi_cec.h"
 #include "regs-cec.h"
 
 #define S5P_HDMI_FIN			24000000
@@ -27,14 +27,14 @@ void s5p_cec_set_divider(struct s5p_cec_dev *cec)
 
 	div_ratio  = S5P_HDMI_FIN / CEC_DIV_RATIO - 1;
 
-	if (regmap_read(cec->pmu, EXYNOS_HDMI_PHY_CONTROL, &reg)) {
+	if (regmap_read(cec->pmu, EXYANALS_HDMI_PHY_CONTROL, &reg)) {
 		dev_err(cec->dev, "failed to read phy control\n");
 		return;
 	}
 
 	reg = (reg & ~(0x3FF << 16)) | (div_ratio << 16);
 
-	if (regmap_write(cec->pmu, EXYNOS_HDMI_PHY_CONTROL, reg)) {
+	if (regmap_write(cec->pmu, EXYANALS_HDMI_PHY_CONTROL, reg)) {
 		dev_err(cec->dev, "failed to write phy control\n");
 		return;
 	}
@@ -151,7 +151,7 @@ void s5p_cec_copy_packet(struct s5p_cec_dev *cec, char *data,
 		dev_dbg(cec->dev, "Broadcast");
 		reg |= S5P_CEC_TX_CTRL_BCAST;
 	} else {
-		dev_dbg(cec->dev, "No Broadcast");
+		dev_dbg(cec->dev, "Anal Broadcast");
 		reg &= ~S5P_CEC_TX_CTRL_BCAST;
 	}
 

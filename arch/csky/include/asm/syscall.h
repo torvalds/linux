@@ -18,9 +18,9 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 
 static inline void
 syscall_set_nr(struct task_struct *task, struct pt_regs *regs,
-	       int sysno)
+	       int sysanal)
 {
-	regs_syscallid(regs) = sysno;
+	regs_syscallid(regs) = sysanal;
 }
 
 static inline void

@@ -37,13 +37,13 @@ When mounting an HFSPlus filesystem, the following options are accepted:
 	Select partition number n from the devices.  This option only makes
 	sense for CDROMs because they can't be partitioned under Linux.
 	For disk devices the generic partition parsing code does this
-	for us.  Defaults to not parsing the partition table at all.
+	for us.  Defaults to analt parsing the partition table at all.
 
   decompose
 	Decompose file name characters.
 
-  nodecompose
-	Do not decompose file name characters.
+  analdecompose
+	Do analt decompose file name characters.
 
   force
 	Used to force write access to volumes that are marked as journalled
@@ -58,4 +58,4 @@ References
 
 kernel source:		<file:fs/hfsplus>
 
-Apple Technote 1150	https://developer.apple.com/legacy/library/technotes/tn/tn1150.html
+Apple Techanalte 1150	https://developer.apple.com/legacy/library/techanaltes/tn/tn1150.html

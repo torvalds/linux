@@ -5,7 +5,7 @@
  * Author: MontaVista Software, Inc.
  *	source@mvista.com
  *
- * Copyright (c) 2010 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2010 Secret Lab Techanallogies, Ltd.
  * Copyright (c) 2009 Intel Corporation
  * 2002-2007 (c) MontaVista Software, Inc.
 
@@ -207,8 +207,8 @@ static void xilinx_spi_chipselect(struct spi_device *spi, int is_on)
 		cr |= XSPI_CR_LOOP;
 	xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
 
-	/* We do not check spi->max_speed_hz here as the SPI clock
-	 * frequency is not software programmable (the IP block design
+	/* We do analt check spi->max_speed_hz here as the SPI clock
+	 * frequency is analt software programmable (the IP block design
 	 * parameter)
 	 */
 
@@ -278,7 +278,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		while (tx_words--)
 			xilinx_spi_tx(xspi);
 
-		/* Start the transfer by not inhibiting the transmitter any
+		/* Start the transfer by analt inhibiting the transmitter any
 		 * longer
 		 */
 
@@ -338,7 +338,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 /* This driver supports single host mode only. Hence Tx FIFO Empty
  * is the only interrupt we care about.
  * Receive FIFO Overrun, Transmit FIFO Underrun, Mode Fault, and Target Mode
- * Fault are not to happen.
+ * Fault are analt to happen.
  */
 static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 {
@@ -354,7 +354,7 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
@@ -404,9 +404,9 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		bits_per_word = pdata->bits_per_word;
 		force_irq = pdata->force_irq;
 	} else {
-		of_property_read_u32(pdev->dev.of_node, "xlnx,num-ss-bits",
+		of_property_read_u32(pdev->dev.of_analde, "xlnx,num-ss-bits",
 					  &num_cs);
-		ret = of_property_read_u32(pdev->dev.of_node,
+		ret = of_property_read_u32(pdev->dev.of_analde,
 					   "xlnx,num-transfer-bits",
 					   &bits_per_word);
 		if (ret)
@@ -426,7 +426,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct xilinx_spi));
 	if (!host)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* the spi->mode bits understood by this driver: */
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST | SPI_LOOP |
@@ -446,14 +446,14 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 
 	host->bus_num = pdev->id;
 	host->num_chipselect = num_cs;
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	/*
 	 * Detect endianess on the IP via loop bit in CR. Detection
 	 * must be done before reset is sent because incorrect reset
 	 * value generates error interrupt.
 	 * Setup little endian helper functions first and try to use them
-	 * and check if bit was correctly setup or not.
+	 * and check if bit was correctly setup or analt.
 	 */
 	xspi->read_fn = xspi_read32;
 	xspi->write_fn = xspi_write32;

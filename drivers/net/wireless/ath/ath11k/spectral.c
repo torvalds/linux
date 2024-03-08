@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/relay.h>
@@ -180,7 +180,7 @@ static int ath11k_spectral_scan_trigger(struct ath11k *ar)
 
 	arvif = ath11k_spectral_get_vdev(ar);
 	if (!arvif)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (ar->spectral.mode == ATH11K_SPECTRAL_DISABLED)
 		return 0;
@@ -213,7 +213,7 @@ static int ath11k_spectral_scan_config(struct ath11k *ar,
 
 	arvif = ath11k_spectral_get_vdev(ar);
 	if (!arvif)
-		return -ENODEV;
+		return -EANALDEV;
 
 	arvif->spectral_enabled = (mode != ATH11K_SPECTRAL_DISABLED);
 
@@ -244,7 +244,7 @@ static int ath11k_spectral_scan_config(struct ath11k *ar,
 	param.scan_priority = ATH11K_WMI_SPECTRAL_PRIORITY_DEFAULT;
 	param.scan_gc_ena = ATH11K_WMI_SPECTRAL_GC_ENA_DEFAULT;
 	param.scan_restart_ena = ATH11K_WMI_SPECTRAL_RESTART_ENA_DEFAULT;
-	param.scan_noise_floor_ref = ATH11K_WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT;
+	param.scan_analise_floor_ref = ATH11K_WMI_SPECTRAL_ANALISE_FLOOR_REF_DEFAULT;
 	param.scan_init_delay = ATH11K_WMI_SPECTRAL_INIT_DELAY_DEFAULT;
 	param.scan_nb_tone_thr = ATH11K_WMI_SPECTRAL_NB_TONE_THR_DEFAULT;
 	param.scan_str_bin_thr = ATH11K_WMI_SPECTRAL_STR_BIN_THR_DEFAULT;
@@ -543,7 +543,7 @@ static u8 ath11k_spectral_get_max_exp(s8 max_index, u8 max_magnitude,
 			break;
 	}
 
-	/* max_exp not found */
+	/* max_exp analt found */
 	if (bins[dc_pos + max_index] != (max_magnitude >> max_exp))
 		return 0;
 
@@ -657,7 +657,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 
 	summary->inb_pwr_db >>= 1;
 	fft_sample->rssi = __cpu_to_be16(summary->inb_pwr_db);
-	fft_sample->noise = __cpu_to_be32(summary->meta.noise_floor[search.chain_idx]);
+	fft_sample->analise = __cpu_to_be32(summary->meta.analise_floor[search.chain_idx]);
 
 	freq = summary->meta.freq1;
 	fft_sample->freq1 = __cpu_to_be16(freq);
@@ -716,7 +716,7 @@ static int ath11k_spectral_process_data(struct ath11k *ar,
 	sample_sz = sizeof(*fft_sample) + ATH11K_SPECTRAL_MAX_IB_BINS(ab);
 	fft_sample = kmalloc(sample_sz, GFP_ATOMIC);
 	if (!fft_sample) {
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto unlock;
 	}
 

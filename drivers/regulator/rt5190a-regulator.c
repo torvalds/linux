@@ -86,7 +86,7 @@ static int rt5190a_fixed_buck_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = mask;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	default:
@@ -112,7 +112,7 @@ static unsigned int rt5190a_fixed_buck_get_mode(struct regulator_dev *rdev)
 	if (val & RT5190A_RID_BITMASK(rid))
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static const struct regulator_ops rt5190a_ranged_buck_ops = {
@@ -162,7 +162,7 @@ static irqreturn_t rt5190a_irq_handler(int irq, void *data)
 			      sizeof(raws));
 	if (ret) {
 		dev_err(priv->dev, "Failed to read events\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	events = le32_to_cpu(raws);
@@ -181,7 +181,7 @@ static irqreturn_t rt5190a_irq_handler(int irq, void *data)
 			if (!(fields & RT5190A_RID_BITMASK(j)))
 				continue;
 
-			regulator_notifier_call_chain(priv->rdev[j],
+			regulator_analtifier_call_chain(priv->rdev[j],
 						      event_tbl[i].report,
 						      NULL);
 		}
@@ -190,7 +190,7 @@ static irqreturn_t rt5190a_irq_handler(int irq, void *data)
 	/* Handle CH234 OT event */
 	if (events & RT5190A_CH234OT_MASK) {
 		for (j = RT5190A_IDX_BUCK2; j < RT5190A_IDX_LDO; j++) {
-			regulator_notifier_call_chain(priv->rdev[j],
+			regulator_analtifier_call_chain(priv->rdev[j],
 						      REGULATOR_ERROR_OVER_TEMP,
 						      NULL);
 		}
@@ -207,7 +207,7 @@ static unsigned int rt5190a_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RT5190A_OPMODE_AUTO:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT5190A_OPMODE_FPWM:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -220,7 +220,7 @@ static int rt5190a_of_parse_cb(struct rt5190a_priv *priv, int rid,
 {
 	struct regulator_desc *desc = priv->rdesc + rid;
 	struct regulator_init_data *init_data = match->init_data;
-	struct device_node *np = match->of_node;
+	struct device_analde *np = match->of_analde;
 	bool latchup_enable;
 	unsigned int mask = RT5190A_RID_BITMASK(rid), val;
 
@@ -319,7 +319,7 @@ static struct of_regulator_match rt5190a_regulator_match[] = {
 
 static int rt5190a_parse_regulator_dt_data(struct rt5190a_priv *priv)
 {
-	struct device_node *regulator_np;
+	struct device_analde *regulator_np;
 	struct regulator_desc *reg_desc;
 	struct of_regulator_match *match;
 	int i, ret;
@@ -333,17 +333,17 @@ static int rt5190a_parse_regulator_dt_data(struct rt5190a_priv *priv)
 		match->desc = reg_desc;
 	}
 
-	regulator_np = of_get_child_by_name(priv->dev->of_node, "regulators");
+	regulator_np = of_get_child_by_name(priv->dev->of_analde, "regulators");
 	if (!regulator_np) {
-		dev_err(priv->dev, "Could not find 'regulators' node\n");
-		return -ENODEV;
+		dev_err(priv->dev, "Could analt find 'regulators' analde\n");
+		return -EANALDEV;
 	}
 
 	ret = of_regulator_match(priv->dev, regulator_np,
 				 rt5190a_regulator_match,
 				 ARRAY_SIZE(rt5190a_regulator_match));
 
-	of_node_put(regulator_np);
+	of_analde_put(regulator_np);
 
 	if (ret < 0) {
 		dev_err(priv->dev,
@@ -416,7 +416,7 @@ static int rt5190a_device_check(struct rt5190a_priv *priv)
 
 	if (devid) {
 		dev_err(priv->dev, "Incorrect device id 0x%04x\n", devid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -436,7 +436,7 @@ static int rt5190a_probe(struct i2c_client *i2c)
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &i2c->dev;
 
@@ -472,7 +472,7 @@ static int rt5190a_probe(struct i2c_client *i2c)
 		struct of_regulator_match *match = rt5190a_regulator_match + i;
 
 		cfg.init_data = match->init_data;
-		cfg.of_node = match->of_node;
+		cfg.of_analde = match->of_analde;
 
 		priv->rdev[i] = devm_regulator_register(&i2c->dev, desc, &cfg);
 		if (IS_ERR(priv->rdev[i])) {
@@ -505,7 +505,7 @@ MODULE_DEVICE_TABLE(of, rt5190a_device_table);
 static struct i2c_driver rt5190a_driver = {
 	.driver = {
 		.name = "rt5190a",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = rt5190a_device_table,
 	},
 	.probe = rt5190a_probe,

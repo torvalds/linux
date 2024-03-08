@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -14,7 +14,7 @@
 #elif defined(__MIPSEL__)
 #include <linux/byteorder/little_endian.h>
 #else
-# error "MIPS, but neither __MIPSEB__, nor __MIPSEL__???"
+# error "MIPS, but neither __MIPSEB__, analr __MIPSEL__???"
 #endif
 
 #endif /* _ASM_BYTEORDER_H */

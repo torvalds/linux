@@ -17,7 +17,7 @@
 #include <linux/console.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
@@ -351,7 +351,7 @@ static int tty3270_required_length(struct tty3270 *tp, struct tty3270_line *line
 }
 
 static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_line *line,
-					  char *cp, struct tty3270_attribute *attr, int lineno)
+					  char *cp, struct tty3270_attribute *attr, int lineanal)
 {
 	if (attr->highlight)
 		cp = tty3270_add_sa(tp, cp, TAT_EXTHI, TAX_RESET);
@@ -360,7 +360,7 @@ static char *tty3270_add_reset_attributes(struct tty3270 *tp, struct tty3270_lin
 	if (attr->b_color != TAC_RESET)
 		cp = tty3270_add_sa(tp, cp, TAT_BGCOLOR, TAX_RESET);
 	if (line->len < tp->view.cols)
-		cp = tty3270_add_ra(tp, cp, 0, lineno + 1, 0);
+		cp = tty3270_add_ra(tp, cp, 0, lineanal + 1, 0);
 	return cp;
 }
 
@@ -395,7 +395,7 @@ static char tty3270_graphics_translate(struct tty3270 *tp, char ch)
 }
 
 static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *line,
-				    struct tty3270_attribute *attr, char *cp, int lineno)
+				    struct tty3270_attribute *attr, char *cp, int lineanal)
 {
 	const unsigned char colors[16] = {
 		[0] = TAC_DEFAULT,
@@ -418,7 +418,7 @@ static char *tty3270_add_attributes(struct tty3270 *tp, struct tty3270_line *lin
 	struct tty3270_cell *cell;
 	int c, i;
 
-	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, lineno);
+	cp = tty3270_add_ba(tp, cp, TO_SBA, 0, lineanal);
 
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != attr->highlight) {
@@ -452,7 +452,7 @@ static void tty3270_reset_attributes(struct tty3270_attribute *attr)
 /*
  * Convert a tty3270_line to a 3270 data fragment usable for output.
  */
-static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line *line, int lineno)
+static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line *line, int lineanal)
 {
 	struct tty3270_attribute attr;
 	int flen;
@@ -464,8 +464,8 @@ static unsigned int tty3270_convert_line(struct tty3270 *tp, struct tty3270_line
 		return 0;
 	/* Write 3270 data fragment. */
 	tty3270_reset_attributes(&attr);
-	cp = tty3270_add_attributes(tp, line, &attr, tp->converted_line, lineno);
-	cp = tty3270_add_reset_attributes(tp, line, cp, &attr, lineno);
+	cp = tty3270_add_attributes(tp, line, &attr, tp->converted_line, lineanal);
+	cp = tty3270_add_reset_attributes(tp, line, cp, &attr, lineanal);
 	return cp - (char *)tp->converted_line;
 }
 
@@ -540,7 +540,7 @@ static void tty3270_update(struct timer_list *t)
 
 	raw3270_request_set_cmd(wrq, cmd);
 	raw3270_request_add_data(wrq, &tp->wcc, 1);
-	tp->wcc = TW_NONE;
+	tp->wcc = TW_ANALNE;
 
 	/*
 	 * Update status line.
@@ -811,7 +811,7 @@ static void tty3270_irq(struct tty3270 *tp, struct raw3270_request *rq, struct i
 			raw3270_get_view(&tp->view);
 			tasklet_schedule(&tp->hanglet);
 		} else {
-			/* Normal end. Copy residual count. */
+			/* Analrmal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
 		}
 	} else if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
@@ -867,7 +867,7 @@ out_write:
 out_tp:
 	kfree(tp);
 out_err:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /*
@@ -909,7 +909,7 @@ out_screen:
 		kfree(screen[lines].cells);
 	kfree(screen);
 out_err:
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static char **tty3270_alloc_recall(int cols)
@@ -1074,7 +1074,7 @@ static void tty3270_del_views(void)
 {
 	int i;
 
-	for (i = RAW3270_FIRSTMINOR; i <= tty3270_max_index; i++) {
+	for (i = RAW3270_FIRSTMIANALR; i <= tty3270_max_index; i++) {
 		struct raw3270_view *view = raw3270_find_view(&tty3270_fn, i);
 
 		if (!IS_ERR(view))
@@ -1106,7 +1106,7 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 		return PTR_ERR(tp);
 
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
-			      index + RAW3270_FIRSTMINOR,
+			      index + RAW3270_FIRSTMIANALR,
 			      RAW3270_VIEW_LOCK_IRQ);
 	if (rc)
 		goto out_free_view;
@@ -1120,25 +1120,25 @@ tty3270_create_view(int index, struct tty3270 **newtp)
 
 	tp->converted_line = (void *)__get_free_page(GFP_KERNEL);
 	if (!tp->converted_line) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_screen;
 	}
 
 	tp->input = kzalloc(tty3270_input_size(tp->view.cols), GFP_KERNEL | GFP_DMA);
 	if (!tp->input) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_converted_line;
 	}
 
 	tp->prompt = kzalloc(tty3270_input_size(tp->view.cols), GFP_KERNEL);
 	if (!tp->prompt) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_input;
 	}
 
 	tp->rcl_lines = tty3270_alloc_recall(tp->view.cols);
 	if (!tp->rcl_lines) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_prompt;
 	}
 
@@ -1184,7 +1184,7 @@ tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 	int rc;
 
 	/* Check if the tty3270 is already there. */
-	view = raw3270_find_view(&tty3270_fn, tty->index + RAW3270_FIRSTMINOR);
+	view = raw3270_find_view(&tty3270_fn, tty->index + RAW3270_FIRSTMIANALR);
 	if (IS_ERR(view)) {
 		rc = tty3270_create_view(tty->index, &tp);
 		if (rc)
@@ -1253,7 +1253,7 @@ static unsigned int tty3270_write_room(struct tty_struct *tty)
 
 /*
  * Insert character into the screen at the current position with the
- * current color and highlight. This function does NOT do cursor movement.
+ * current color and highlight. This function does ANALT do cursor movement.
  */
 static void tty3270_put_character(struct tty3270 *tp, u8 ch)
 {
@@ -1542,7 +1542,7 @@ static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 }
 
 /*
- * Process escape sequences. Known sequences:
+ * Process escape sequences. Kanalwn sequences:
  *  Esc 7			Save Cursor Position
  *  Esc 8			Restore Cursor Position
  *  Esc [ Pn ; Pn ; .. m	Set attributes
@@ -1563,16 +1563,16 @@ static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
  */
 static void tty3270_escape_sequence(struct tty3270 *tp, u8 ch)
 {
-	enum { ES_NORMAL, ES_ESC, ES_SQUARE, ES_PAREN, ES_GETPARS };
+	enum { ES_ANALRMAL, ES_ESC, ES_SQUARE, ES_PAREN, ES_GETPARS };
 
-	if (tp->esc_state == ES_NORMAL) {
+	if (tp->esc_state == ES_ANALRMAL) {
 		if (ch == 0x1b)
 			/* Starting new escape sequence. */
 			tp->esc_state = ES_ESC;
 		return;
 	}
 	if (tp->esc_state == ES_ESC) {
-		tp->esc_state = ES_NORMAL;
+		tp->esc_state = ES_ANALRMAL;
 		switch (ch) {
 		case '[':
 			tp->esc_state = ES_SQUARE;
@@ -1617,7 +1617,7 @@ static void tty3270_escape_sequence(struct tty3270 *tp, u8 ch)
 
 	switch (tp->esc_state) {
 	case ES_PAREN:
-		tp->esc_state = ES_NORMAL;
+		tp->esc_state = ES_ANALRMAL;
 		switch (ch) {
 		case 'B':
 			tp->attributes.alternate_charset = 0;
@@ -1649,7 +1649,7 @@ static void tty3270_escape_sequence(struct tty3270 *tp, u8 ch)
 	default:
 		break;
 	}
-	tp->esc_state = ES_NORMAL;
+	tp->esc_state = ES_ANALRMAL;
 	if (ch == 'n' && !tp->esc_ques) {
 		if (tp->esc_par[0] == 5)		/* Status report. */
 			kbd_puts_queue(&tp->port, "\033[0n");
@@ -1782,7 +1782,7 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 		case 0x1b:		/* Start escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);
 			break;
-		default:		/* Insert normal character. */
+		default:		/* Insert analrmal character. */
 			if (tp->cx >= tp->view.cols) {
 				tty3270_cr(tp);
 				tty3270_lf(tp);
@@ -1862,7 +1862,7 @@ static void tty3270_set_termios(struct tty_struct *tty, const struct ktermios *o
 	if (!tp)
 		return;
 	spin_lock_irq(&tp->view.lock);
-	if (L_ICANON(tty)) {
+	if (L_ICAANALN(tty)) {
 		new = L_ECHO(tty) ? TF_INPUT : TF_INPUTN;
 		if (new != tp->inattr) {
 			tp->inattr = new;
@@ -1935,7 +1935,7 @@ static int tty3270_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	tp = tty->driver_data;
 	if (!tp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (tty_io_error(tty))
 		return -EIO;
 	return kbd_ioctl(tp->kbd, cmd, arg);
@@ -1949,7 +1949,7 @@ static long tty3270_compat_ioctl(struct tty_struct *tty,
 
 	tp = tty->driver_data;
 	if (!tp)
-		return -ENODEV;
+		return -EANALDEV;
 	if (tty_io_error(tty))
 		return -EIO;
 	return kbd_ioctl(tp->kbd, cmd, (unsigned long)compat_ptr(arg));
@@ -1976,17 +1976,17 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-static void tty3270_create_cb(int minor)
+static void tty3270_create_cb(int mianalr)
 {
-	tty_register_device(tty3270_driver, minor - RAW3270_FIRSTMINOR, NULL);
+	tty_register_device(tty3270_driver, mianalr - RAW3270_FIRSTMIANALR, NULL);
 }
 
-static void tty3270_destroy_cb(int minor)
+static void tty3270_destroy_cb(int mianalr)
 {
-	tty_unregister_device(tty3270_driver, minor - RAW3270_FIRSTMINOR);
+	tty_unregister_device(tty3270_driver, mianalr - RAW3270_FIRSTMIANALR);
 }
 
-static struct raw3270_notifier tty3270_notifier = {
+static struct raw3270_analtifier tty3270_analtifier = {
 	.create = tty3270_create_cb,
 	.destroy = tty3270_destroy_cb,
 };
@@ -2009,14 +2009,14 @@ static int __init tty3270_init(void)
 
 	/*
 	 * Initialize the tty_driver structure
-	 * Entries in tty3270_driver that are NOT initialized:
+	 * Entries in tty3270_driver that are ANALT initialized:
 	 * proc_entry, set_termios, flush_buffer, set_ldisc, write_proc
 	 */
 	driver->driver_name = "tty3270";
 	driver->name = "3270/tty";
 	driver->major = IBM_TTY3270_MAJOR;
-	driver->minor_start = RAW3270_FIRSTMINOR;
-	driver->name_base = RAW3270_FIRSTMINOR;
+	driver->mianalr_start = RAW3270_FIRSTMIANALR;
+	driver->name_base = RAW3270_FIRSTMIANALR;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
@@ -2027,7 +2027,7 @@ static int __init tty3270_init(void)
 		return ret;
 	}
 	tty3270_driver = driver;
-	raw3270_register_notifier(&tty3270_notifier);
+	raw3270_register_analtifier(&tty3270_analtifier);
 	return 0;
 }
 
@@ -2035,7 +2035,7 @@ static void __exit tty3270_exit(void)
 {
 	struct tty_driver *driver;
 
-	raw3270_unregister_notifier(&tty3270_notifier);
+	raw3270_unregister_analtifier(&tty3270_analtifier);
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
@@ -2089,14 +2089,14 @@ con3270_wait_write(struct tty3270 *tp)
 }
 
 /*
- * The below function is called as a panic/reboot notifier before the
+ * The below function is called as a panic/reboot analtifier before the
  * system enters a disabled, endless loop.
  *
- * Notice we must use the spin_trylock() alternative, to prevent lockups
+ * Analtice we must use the spin_trylock() alternative, to prevent lockups
  * in atomic context (panic routine runs with secondary CPUs, local IRQs
  * and preemption disabled).
  */
-static int con3270_notify(struct notifier_block *self,
+static int con3270_analtify(struct analtifier_block *self,
 			  unsigned long event, void *data)
 {
 	struct tty3270 *tp;
@@ -2105,14 +2105,14 @@ static int con3270_notify(struct notifier_block *self,
 
 	tp = condev;
 	if (!tp->view.dev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	if (!raw3270_view_lock_unavailable(&tp->view)) {
 		rc = raw3270_activate_view(&tp->view);
 		if (rc)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 	}
 	if (!spin_trylock_irqsave(&tp->view.lock, flags))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	con3270_wait_write(tp);
 	tp->nr_up = 0;
 	tp->update_flags = TTY_UPDATE_ALL;
@@ -2123,16 +2123,16 @@ static int con3270_notify(struct notifier_block *self,
 		con3270_wait_write(tp);
 	}
 	spin_unlock_irqrestore(&tp->view.lock, flags);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = con3270_notify,
+static struct analtifier_block on_panic_nb = {
+	.analtifier_call = con3270_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = con3270_notify,
+static struct analtifier_block on_reboot_nb = {
+	.analtifier_call = con3270_analtify,
 	.priority = INT_MIN + 1, /* run the callback late */
 };
 
@@ -2153,7 +2153,7 @@ con3270_init(void)
 
 	/* Check if 3270 is to be the console */
 	if (!CONSOLE_IS_3270)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Set the console mode for VM */
 	if (MACHINE_IS_VM) {
@@ -2166,7 +2166,7 @@ con3270_init(void)
 		return PTR_ERR(rp);
 
 	/* Check if the tty3270 is already there. */
-	view = raw3270_find_view(&tty3270_fn, RAW3270_FIRSTMINOR);
+	view = raw3270_find_view(&tty3270_fn, RAW3270_FIRSTMIANALR);
 	if (IS_ERR(view)) {
 		rc = tty3270_create_view(0, &tp);
 		if (rc)
@@ -2177,8 +2177,8 @@ con3270_init(void)
 	}
 	con3270.data = tp;
 	condev = tp;
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &on_panic_nb);
+	register_reboot_analtifier(&on_reboot_nb);
 	register_console(&con3270);
 	return 0;
 }

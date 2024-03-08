@@ -76,7 +76,7 @@ static int cache_debugfs_show(struct seq_file *file, void *iter)
 		     addr += cache->linesz, line++) {
 			unsigned long data = __raw_readl(addr);
 
-			/* Check the V bit, ignore invalid cachelines */
+			/* Check the V bit, iganalre invalid cachelines */
 			if ((data & 1) == 0)
 				continue;
 

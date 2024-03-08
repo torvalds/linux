@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2002-2006 Novell, Inc.
- *	Jan Beulich <jbeulich@novell.com>
+ * Copyright (C) 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
+ * Copyright (C) 2002-2006 Analvell, Inc.
+ *	Jan Beulich <jbeulich@analvell.com>
  *
  * A simple API for unwinding kernel stacks.  This is used for
  * debugging and error reporting purposes.  The kernel doesn't need
  * full-blown stack unwinding with all the bells and whistles, so there
- * is not much point in implementing the full Dwarf2 unwind API.
+ * is analt much point in implementing the full Dwarf2 unwind API.
  */
 
 #include <linux/sched.h>
@@ -62,7 +62,7 @@ UNW_REGISTER_INFO};
 #define REG_INVALID(r) (reg_info[r].width == 0)
 #endif
 
-#define DW_CFA_nop                          0x00
+#define DW_CFA_analp                          0x00
 #define DW_CFA_set_loc                      0x01
 #define DW_CFA_advance_loc1                 0x02
 #define DW_CFA_advance_loc2                 0x03
@@ -128,7 +128,7 @@ static struct unwind_table {
 
 struct unwind_item {
 	enum item_location {
-		Nowhere,
+		Analwhere,
 		Memory,
 		Register,
 		Value
@@ -224,7 +224,7 @@ void __init arc_unwind_init(void)
 	init_unwind_hdr(&root_table, unw_hdr_alloc_early);
 }
 
-static const u32 bad_cie, not_fde;
+static const u32 bad_cie, analt_fde;
 static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *);
 static const u32 *__cie_for_fde(const u32 *fde);
 static signed fde_pointer_type(const u32 *cie);
@@ -283,7 +283,7 @@ static void init_unwind_hdr(struct unwind_table *table,
 		const u32 *cie = cie_for_fde(fde, table);
 		signed ptrType;
 
-		if (cie == &not_fde)
+		if (cie == &analt_fde)
 			continue;
 		if (cie == NULL || cie == &bad_cie)
 			goto ret_err;
@@ -320,11 +320,11 @@ static void init_unwind_hdr(struct unwind_table *table,
 	header->table_enc = DW_EH_PE_abs | DW_EH_PE_native;
 	put_unaligned((unsigned long)table->address, &header->eh_frame_ptr);
 	BUILD_BUG_ON(offsetof(typeof(*header), fde_count)
-		     % __alignof(typeof(header->fde_count)));
+		     % __aliganalf(typeof(header->fde_count)));
 	header->fde_count = n;
 
 	BUILD_BUG_ON(offsetof(typeof(*header), table)
-		     % __alignof(typeof(*header->table)));
+		     % __aliganalf(typeof(*header->table)));
 	for (fde = table->address, tableSize = table->size, n = 0;
 	     tableSize;
 	     tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
@@ -516,18 +516,18 @@ static const u32 *cie_for_fde(const u32 *fde, const struct unwind_table *table)
 		return &bad_cie;
 
 	if (fde[1] == CIE_ID)
-		return &not_fde;	/* this is a CIE */
+		return &analt_fde;	/* this is a CIE */
 
 	if ((fde[1] & (sizeof(*fde) - 1)))
 /* || fde[1] > (unsigned long)(fde + 1) - (unsigned long)table->address) */
-		return NULL;	/* this is not a valid FDE */
+		return NULL;	/* this is analt a valid FDE */
 
 	cie = __cie_for_fde(fde);
 
 	if (*cie <= sizeof(*cie) + 4 || *cie >= fde[1] - sizeof(*fde)
 	    || (*cie & (sizeof(*cie) - 1))
 	    || (cie[1] != CIE_ID))
-		return NULL;	/* this is not a (valid) CIE */
+		return NULL;	/* this is analt a (valid) CIE */
 	return cie;
 }
 
@@ -680,7 +680,7 @@ static void set_rule(uleb128_t reg, enum item_location where, uleb128_t value,
 #ifdef UNWIND_DEBUG
 		unw_debug("r%lu: ", reg);
 		switch (where) {
-		case Nowhere:
+		case Analwhere:
 			unw_debug("s ");
 			break;
 		case Memory:
@@ -726,8 +726,8 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 			opcode = *ptr.p8++;
 
 			switch (opcode) {
-			case DW_CFA_nop:
-				unw_debug("cfa nop ");
+			case DW_CFA_analp:
+				unw_debug("cfa analp ");
 				break;
 			case DW_CFA_set_loc:
 				state->loc = read_pointer(&ptr.p8, end,
@@ -781,7 +781,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				unw_debug("cfa_undefined: ");
 			case DW_CFA_same_value:
 				unw_debug("cfa_same_value: ");
-				set_rule(get_uleb128(&ptr.p8, end), Nowhere, 0,
+				set_rule(get_uleb128(&ptr.p8, end), Analwhere, 0,
 					 state);
 				break;
 			case DW_CFA_register:
@@ -858,7 +858,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				break;
 			case DW_CFA_GNU_window_save:
 			default:
-				unw_debug("UNKNOWN OPCODE 0x%x\n", opcode);
+				unw_debug("UNKANALWN OPCODE 0x%x\n", opcode);
 				result = 0;
 				break;
 			}
@@ -875,7 +875,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 			break;
 		case 3:
 			unw_debug("cfa_restore: ");
-			set_rule(*ptr.p8++ & 0x3f, Nowhere, 0, state);
+			set_rule(*ptr.p8++ & 0x3f, Analwhere, 0, state);
 			break;
 		}
 
@@ -990,7 +990,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			ptr = (const u8 *)(fde + 2);
 			if (cie != NULL
 			    && cie != &bad_cie
-			    && cie != &not_fde
+			    && cie != &analt_fde
 			    && (ptrType = fde_pointer_type(cie)) >= 0
 			    && read_pointer(&ptr,
 					    (const u8 *)(fde + 1) + *fde,
@@ -1024,7 +1024,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			if (*ptr == 'z') {
 				while (++ptr < end && *ptr) {
 					switch (*ptr) {
-					/* chk for ignorable or already handled
+					/* chk for iganalrable or already handled
 					 * nul-terminated augmentation string */
 					case 'L':
 					case 'P':
@@ -1137,12 +1137,12 @@ int arc_unwind(struct unwind_frame_info *frame)
 
 	/* process instructions
 	 * For ARC, we optimize by having blink(retAddrReg) with
-	 * the sameValue in the leaf function, so we should not check
-	 * state.regs[retAddrReg].where == Nowhere
+	 * the sameValue in the leaf function, so we should analt check
+	 * state.regs[retAddrReg].where == Analwhere
 	 */
 	if (!processCFI(ptr, end, pc, ptrType, &state)
 	    || state.loc > endLoc
-/*	   || state.regs[retAddrReg].where == Nowhere */
+/*	   || state.regs[retAddrReg].where == Analwhere */
 	    || state.cfa.reg >= ARRAY_SIZE(reg_info)
 	    || reg_info[state.cfa.reg].width != sizeof(unsigned long)
 	    || state.cfa.offs % sizeof(unsigned long))
@@ -1158,7 +1158,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 			continue;
 
 		switch (state.regs[i].where) {
-		case Nowhere:
+		case Analwhere:
 			break;
 		case Memory:
 			unw_debug(" r%d: c(%lu),", i, state.regs[i].value);
@@ -1192,7 +1192,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 
 	for (i = 0; i < ARRAY_SIZE(state.regs); ++i) {
 		if (REG_INVALID(i)) {
-			if (state.regs[i].where == Nowhere)
+			if (state.regs[i].where == Analwhere)
 				continue;
 			return -EIO;
 		}
@@ -1238,7 +1238,7 @@ int arc_unwind(struct unwind_frame_info *frame)
 		if (REG_INVALID(i))
 			continue;
 		switch (state.regs[i].where) {
-		case Nowhere:
+		case Analwhere:
 			if (reg_info[i].width != sizeof(UNW_SP(frame))
 			    || &FRAME_REG(i, __typeof__(UNW_SP(frame)))
 			    != &UNW_SP(frame))

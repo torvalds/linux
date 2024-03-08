@@ -9,7 +9,7 @@ readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 
 BPF_FILE="xdp_dummy.o"
 
-# set global exit status, but never reset nonzero one.
+# set global exit status, but never reset analnzero one.
 check_err()
 {
 	if [ $ret -eq 0 ]; then
@@ -32,11 +32,11 @@ cfg_veth() {
 	ip link add type veth
 	ip link set dev veth0 up
 	ip addr add dev veth0 192.168.1.2/24
-	ip addr add dev veth0 2001:db8::2/64 nodad
+	ip addr add dev veth0 2001:db8::2/64 analdad
 
 	ip link set dev veth1 netns "${PEER_NS}"
 	ip -netns "${PEER_NS}" addr add dev veth1 192.168.1.1/24
-	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 nodad
+	ip -netns "${PEER_NS}" addr add dev veth1 2001:db8::1/64 analdad
 	ip -netns "${PEER_NS}" link set dev veth1 up
 	ip -n "${PEER_NS}" link set veth1 xdp object ${BPF_FILE} section xdp
 }
@@ -81,7 +81,7 @@ run_one_nat() {
 		addr2=192.168.1.3/24
 	else
 		addr1=2001:db8::1
-		addr2="2001:db8::3/64 nodad"
+		addr2="2001:db8::3/64 analdad"
 	fi
 
 	cfg_veth
@@ -149,12 +149,12 @@ run_all() {
 	ret=0
 
 	echo "ipv4"
-	run_test "no GRO" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400"
+	run_test "anal GRO" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400"
 	check_err $?
 
-	# explicitly check we are not receiving UDP_SEGMENT cmsg (-S -1)
-	# when GRO does not take place
-	run_test "no GRO chk cmsg" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400 -S -1"
+	# explicitly check we are analt receiving UDP_SEGMENT cmsg (-S -1)
+	# when GRO does analt take place
+	run_test "anal GRO chk cmsg" "${ipv4_args} -M 10 -s 1400" "-4 -n 10 -l 1400 -S -1"
 	check_err $?
 
 	# the GSO packets are aggregated because:
@@ -176,9 +176,9 @@ run_all() {
 	check_err $?
 
 	echo "ipv6"
-	run_test "no GRO" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400"
+	run_test "anal GRO" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400"
 	check_err $?
-	run_test "no GRO chk cmsg" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400 -S -1"
+	run_test "anal GRO chk cmsg" "${ipv6_args} -M 10 -s 1400" "-n 10 -l 1400 -S -1"
 	check_err $?
 	run_test "GRO" "${ipv6_args} -M 1 -s 14520 -S 0" "-n 1 -l 14520"
 	check_err $?

@@ -8,7 +8,7 @@ This document describes ``BPF_PROG_TYPE_CGROUP_SYSCTL`` program type that
 provides cgroup-bpf hook for sysctl.
 
 The hook has to be attached to a cgroup and will be called every time a
-process inside that cgroup tries to read from or write to sysctl knob in proc.
+process inside that cgroup tries to read from or write to sysctl kanalb in proc.
 
 1. Attach type
 **************
@@ -35,9 +35,9 @@ BPF program::
   position in sysctl proc file ``read(2)`` will be reading from or ``write(2)``
   will be writing to. Writing zero to the field can be used e.g. to override
   whole sysctl value by ``bpf_sysctl_set_new_value()`` on ``write(2)`` even
-  when it's called by user space on ``file_pos > 0``. Writing non-zero
+  when it's called by user space on ``file_pos > 0``. Writing analn-zero
   value to the field can be used to access part of sysctl value starting from
-  specified ``file_pos``. Not all sysctl support access with ``file_pos !=
+  specified ``file_pos``. Analt all sysctl support access with ``file_pos !=
   0``, e.g. writes to numeric sysctl entries must always be at file position
   ``0``. See also ``kernel.sysctl_writes_strict`` sysctl.
 
@@ -53,12 +53,12 @@ return codes:
 * ``1`` means "proceed with access".
 
 If program returns ``0`` user space will get ``-1`` from ``read(2)`` or
-``write(2)`` and ``errno`` will be set to ``EPERM``.
+``write(2)`` and ``erranal`` will be set to ``EPERM``.
 
 4. Helpers
 **********
 
-Since sysctl knob is represented by a name and a value, sysctl specific BPF
+Since sysctl kanalb is represented by a name and a value, sysctl specific BPF
 helpers focus on providing access to these properties:
 
 * ``bpf_sysctl_get_name()`` to get sysctl name as it is visible in
@@ -99,7 +99,7 @@ See `test_sysctl_prog.c`_ for an example of BPF program in C that access
 sysctl name and value, parses string value to get vector of integers and uses
 the result to make decision whether to allow or deny access to sysctl.
 
-6. Notes
+6. Analtes
 ********
 
 ``BPF_PROG_TYPE_CGROUP_SYSCTL`` is intended to be used in **trusted** root
@@ -110,11 +110,11 @@ Since `task_dfl_cgroup(current)` is called at `sys_read` / `sys_write` time it
 may return results different from that at `sys_open` time, i.e. process that
 opened sysctl file in proc filesystem may differ from process that is trying
 to read from / write to it and two such processes may run in different
-cgroups, what means ``BPF_PROG_TYPE_CGROUP_SYSCTL`` should not be used as a
+cgroups, what means ``BPF_PROG_TYPE_CGROUP_SYSCTL`` should analt be used as a
 security mechanism to limit sysctl usage.
 
 As with any cgroup-bpf program additional care should be taken if an
-application running as root in a cgroup should not be allowed to
+application running as root in a cgroup should analt be allowed to
 detach/replace BPF program attached by administrator.
 
 .. Links

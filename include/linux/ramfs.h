@@ -4,19 +4,19 @@
 
 #include <linux/fs_parser.h> // bleh...
 
-struct inode *ramfs_get_inode(struct super_block *sb, const struct inode *dir,
+struct ianalde *ramfs_get_ianalde(struct super_block *sb, const struct ianalde *dir,
 	 umode_t mode, dev_t dev);
 extern int ramfs_init_fs_context(struct fs_context *fc);
 extern void ramfs_kill_sb(struct super_block *sb);
 
 #ifdef CONFIG_MMU
 static inline int
-ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ramfs_analmmu_expand_for_mapping(struct ianalde *ianalde, size_t newsize)
 {
 	return 0;
 }
 #else
-extern int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize);
+extern int ramfs_analmmu_expand_for_mapping(struct ianalde *ianalde, size_t newsize);
 #endif
 
 extern const struct fs_parameter_spec ramfs_fs_parameters[];

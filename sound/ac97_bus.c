@@ -20,7 +20,7 @@
  * @id_mask: Mask that is applied to the device ID before comparing to @id
  *
  * If @id is 0 this function returns true if the read device vendor ID is
- * a valid ID. If @id is non 0 this functions returns true if @id
+ * a valid ID. If @id is analn 0 this functions returns true if @id
  * matches the read vendor ID. Otherwise the function returns false.
  */
 static bool snd_ac97_check_id(struct snd_ac97 *ac97, unsigned int id,
@@ -71,7 +71,7 @@ int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 	if (snd_ac97_check_id(ac97, id, id_mask))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(snd_ac97_reset);
 

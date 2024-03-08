@@ -18,8 +18,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
-#include <linux/node.h>
-#include <linux/nodemask.h>
+#include <linux/analde.h>
+#include <linux/analdemask.h>
 #include <linux/of.h>
 #include <linux/sched.h>
 #include <linux/sched/topology.h>
@@ -37,7 +37,7 @@
 /*
  * cpu capacity table
  * This per cpu data structure describes the relative capacity of each core.
- * On a heteregenous system, cores don't have the same computation capacity
+ * On a heteregeanalus system, cores don't have the same computation capacity
  * and we reflect that difference in the cpu_capacity field so the scheduler
  * can take this difference into account during load balance. A per cpu
  * structure is preferred because each CPU updates its own cpu_capacity field
@@ -59,7 +59,7 @@ struct cpu_efficiency {
  *   0 < cpu_scale < 3*SCHED_CAPACITY_SCALE/2
  * in order to return at most 1 when DIV_ROUND_CLOSEST
  * is used to compute the capacity of a CPU.
- * Processors that are not defined in the table,
+ * Processors that are analt defined in the table,
  * use the default SCHED_CAPACITY_SCALE value for cpu_scale.
  */
 static const struct cpu_efficiency table_efficiency[] = {
@@ -85,28 +85,28 @@ static bool cap_from_dt = true;
 static void __init parse_dt_topology(void)
 {
 	const struct cpu_efficiency *cpu_eff;
-	struct device_node *cn = NULL;
+	struct device_analde *cn = NULL;
 	unsigned long min_capacity = ULONG_MAX;
 	unsigned long max_capacity = 0;
 	unsigned long capacity = 0;
 	int cpu = 0;
 
 	__cpu_capacity = kcalloc(nr_cpu_ids, sizeof(*__cpu_capacity),
-				 GFP_NOWAIT);
+				 GFP_ANALWAIT);
 
 	for_each_possible_cpu(cpu) {
 		const __be32 *rate;
 		int len;
 
-		/* too early to use cpu->of_node */
-		cn = of_get_cpu_node(cpu, NULL);
+		/* too early to use cpu->of_analde */
+		cn = of_get_cpu_analde(cpu, NULL);
 		if (!cn) {
-			pr_err("missing device node for CPU %d\n", cpu);
+			pr_err("missing device analde for CPU %d\n", cpu);
 			continue;
 		}
 
 		if (topology_parse_cpu_capacity(cn, cpu)) {
-			of_node_put(cn);
+			of_analde_put(cn);
 			continue;
 		}
 
@@ -153,7 +153,7 @@ static void __init parse_dt_topology(void)
 				>> (SCHED_CAPACITY_SHIFT-1)) + 1;
 
 	if (cap_from_dt)
-		topology_normalize_cpu_scale();
+		topology_analrmalize_cpu_scale();
 }
 
 /*

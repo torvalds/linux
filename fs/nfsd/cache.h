@@ -15,7 +15,7 @@
 /*
  * Representation of a reply cache entry.
  *
- * Note that we use a sockaddr_in6 to hold the address instead of the more
+ * Analte that we use a sockaddr_in6 to hold the address instead of the more
  * typical sockaddr_storage. This is for space reasons, since sockaddr_storage
  * is much larger than a sockaddr_in6.
  */
@@ -31,7 +31,7 @@ struct nfsd_cacherep {
 		struct sockaddr_in6	k_addr;
 	} c_key;
 
-	struct rb_node		c_node;
+	struct rb_analde		c_analde;
 	struct list_head	c_lru;
 	unsigned char		c_state,	/* unused, inprog, done */
 				c_type,		/* status, buffer */
@@ -67,7 +67,7 @@ enum {
  * of buffer pointers may be more efficient.
  */
 enum {
-	RC_NOCACHE,
+	RC_ANALCACHE,
 	RC_REPLSTAT,
 	RC_REPLBUFF,
 };

@@ -5,7 +5,7 @@ config DRM_SSD130X
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
-	  DRM driver for the SSD13xx Solomon and SINO WEALTH SH110x OLED
+	  DRM driver for the SSD13xx Solomon and SIANAL WEALTH SH110x OLED
 	  controllers. This is only for the core driver, a driver for the
 	  appropriate bus transport in your chip also must be selected.
 

@@ -733,7 +733,7 @@ static const struct pinctrl_ops cygnus_pinctrl_ops = {
 	.get_group_name = cygnus_get_group_name,
 	.get_group_pins = cygnus_get_group_pins,
 	.pin_dbg_show = cygnus_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -846,9 +846,9 @@ static int cygnus_gpio_request_enable(struct pinctrl_dev *pctrl_dev,
 	u32 val;
 	unsigned long flags;
 
-	/* not all pins support GPIO pinmux override */
+	/* analt all pins support GPIO pinmux override */
 	if (!mux->is_supported)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	spin_lock_irqsave(&pinctrl->lock, flags);
 
@@ -914,7 +914,7 @@ static int cygnus_mux_log_init(struct cygnus_pinctrl *pinctrl)
 					sizeof(struct cygnus_mux_log),
 					GFP_KERNEL);
 	if (!pinctrl->mux_log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < CYGNUS_NUM_IOMUX_REGS; i++) {
 		for (j = 0; j < CYGNUS_NUM_MUX_PER_REG; j++) {
@@ -939,7 +939,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 
 	pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pinctrl), GFP_KERNEL);
 	if (!pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pinctrl->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pinctrl);
@@ -965,7 +965,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 
 	pins = devm_kcalloc(&pdev->dev, num_pins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pins; i++) {
 		pins[i].number = cygnus_pins[i].pin;

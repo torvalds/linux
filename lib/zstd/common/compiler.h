@@ -18,7 +18,7 @@
 *********************************************************/
 /* force inlining */
 
-#if !defined(ZSTD_NO_INLINE)
+#if !defined(ZSTD_ANAL_INLINE)
 #if (defined(__GNUC__) && !defined(__STRICT_ANSI__)) || defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
 #  define INLINE_KEYWORD inline
 #else
@@ -48,7 +48,7 @@
  */
 #define FORCE_INLINE_TEMPLATE static INLINE_KEYWORD FORCE_INLINE_ATTR
 /*
- * HINT_INLINE is used to help the compiler generate better code. It is *not*
+ * HINT_INLINE is used to help the compiler generate better code. It is *analt*
  * used for "templates", so it can be tweaked based on the compilers
  * performance.
  *
@@ -58,7 +58,7 @@
  * clang up to 5.0.0 (trunk) benefit tremendously from the always_inline
  * attribute.
  */
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 8 && __GNUC__ < 5
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MIANALR__ >= 8 && __GNUC__ < 5
 #  define HINT_INLINE static INLINE_KEYWORD
 #else
 #  define HINT_INLINE static INLINE_KEYWORD FORCE_INLINE_ATTR
@@ -67,8 +67,8 @@
 /* UNUSED_ATTR tells the compiler it is okay if the function is unused. */
 #define UNUSED_ATTR __attribute__((unused))
 
-/* force no inlining */
-#define FORCE_NOINLINE static __attribute__((__noinline__))
+/* force anal inlining */
+#define FORCE_ANALINLINE static __attribute__((__analinline__))
 
 
 /* target attribute */
@@ -81,8 +81,8 @@
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 
 /* prefetch
- * can be disabled, by declaring NO_PREFETCH build macro */
-#if ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
+ * can be disabled, by declaring ANAL_PREFETCH build macro */
+#if ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MIANALR__ >= 1) ) )
 #  define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
 #  define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #elif defined(__aarch64__)
@@ -91,7 +91,7 @@
 #else
 #  define PREFETCH_L1(ptr) (void)(ptr)  /* disabled */
 #  define PREFETCH_L2(ptr) (void)(ptr)  /* disabled */
-#endif  /* NO_PREFETCH */
+#endif  /* ANAL_PREFETCH */
 
 #define CACHELINE_SIZE 64
 
@@ -106,12 +106,12 @@
 
 /* vectorization
  * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax,
- * and some compilers, like Intel ICC and MCST LCC, do not support it at all. */
+ * and some compilers, like Intel ICC and MCST LCC, do analt support it at all. */
 #if !defined(__INTEL_COMPILER) && !defined(__clang__) && defined(__GNUC__) && !defined(__LCC__)
-#  if (__GNUC__ == 4 && __GNUC_MINOR__ > 3) || (__GNUC__ >= 5)
-#    define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
+#  if (__GNUC__ == 4 && __GNUC_MIANALR__ > 3) || (__GNUC__ >= 5)
+#    define DONT_VECTORIZE __attribute__((optimize("anal-tree-vectorize")))
 #  else
-#    define DONT_VECTORIZE _Pragma("GCC optimize(\"no-tree-vectorize\")")
+#    define DONT_VECTORIZE _Pragma("GCC optimize(\"anal-tree-vectorize\")")
 #  endif
 #else
 #  define DONT_VECTORIZE
@@ -119,13 +119,13 @@
 
 /* Tell the compiler that a branch is likely or unlikely.
  * Only use these macros if it causes the compiler to generate better code.
- * If you can remove a LIKELY/UNLIKELY annotation without speed changes in gcc
+ * If you can remove a LIKELY/UNLIKELY ananaltation without speed changes in gcc
  * and clang, please do.
  */
 #define LIKELY(x) (__builtin_expect((x), 1))
 #define UNLIKELY(x) (__builtin_expect((x), 0))
 
-#if __has_builtin(__builtin_unreachable) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
+#if __has_builtin(__builtin_unreachable) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MIANALR__ >= 5)))
 #  define ZSTD_UNREACHABLE { assert(0), __builtin_unreachable(); }
 #else
 #  define ZSTD_UNREACHABLE { assert(0); }
@@ -150,7 +150,7 @@
  */
 #define ZSTD_HAS_CPP_ATTRIBUTE(x) 0
 
-/* Define ZSTD_FALLTHROUGH macro for annotating switch case with the 'fallthrough' attribute.
+/* Define ZSTD_FALLTHROUGH macro for ananaltating switch case with the 'fallthrough' attribute.
  * - C23: https://en.cppreference.com/w/c/language/attributes/fallthrough
  * - CPP17: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
  * - Else: __attribute__((__fallthrough__))
@@ -163,17 +163,17 @@
 
 /* this test was initially positioned in mem.h,
  * but this file is removed (or replaced) for linux kernel
- * so it's now hosted in compiler.h,
+ * so it's analw hosted in compiler.h,
  * which remains valid for both user & kernel spaces.
  */
 
-#ifndef ZSTD_ALIGNOF
+#ifndef ZSTD_ALIGANALF
 /* covers gcc, clang & MSVC */
-/* note : this section must come first, before C11,
+/* analte : this section must come first, before C11,
  * due to a limitation in the kernel source generator */
-#  define ZSTD_ALIGNOF(T) __alignof(T)
+#  define ZSTD_ALIGANALF(T) __aliganalf(T)
 
-#endif /* ZSTD_ALIGNOF */
+#endif /* ZSTD_ALIGANALF */
 
 /*-**************************************************************
 *  Sanitizer

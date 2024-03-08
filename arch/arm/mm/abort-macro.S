@@ -12,16 +12,16 @@
 
 	.macro	do_thumb_abort, fsr, pc, psr, tmp
 	tst	\psr, #PSR_T_BIT
-	beq	not_thumb
+	beq	analt_thumb
 	ldrh	\tmp, [\pc]			@ Read aborted Thumb instruction
 	uaccess_disable ip			@ disable userspace access
 	and	\tmp, \tmp, # 0xfe00		@ Mask opcode field
 	cmp	\tmp, # 0x5600			@ Is it ldrsb?
-	orreq	\tmp, \tmp, #1 << 11		@ Set L-bit if yes
+	orreq	\tmp, \tmp, #1 << 11		@ Set L-bit if anal
 	tst	\tmp, #1 << 11			@ L = 0 -> write
-	orreq	\fsr, \fsr, #1 << 11		@ yes.
+	orreq	\fsr, \fsr, #1 << 11		@ anal.
 	b	do_DataAbort
-not_thumb:
+analt_thumb:
 	.endm
 
 /*

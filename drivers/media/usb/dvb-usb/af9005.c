@@ -16,7 +16,7 @@ module_param_named(debug, dvb_usb_af9005_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		 "set debugging level (1=info,xfer=2,rc=4,reg=8,i2c=16,fw=32 (or-able))."
 		 DVB_USB_DEBUG_STATUS);
-/* enable obnoxious led */
+/* enable obanalxious led */
 bool dvb_usb_af9005_led = true;
 module_param_named(led, dvb_usb_af9005_led, bool, 0644);
 MODULE_PARM_DESC(led, "enable led (default: 1).");
@@ -50,11 +50,11 @@ static int af9005_generic_read_write(struct dvb_usb_device *d, u16 reg,
 	int i, ret;
 
 	if (len < 1) {
-		err("generic read/write, less than 1 byte. Makes no sense.");
+		err("generic read/write, less than 1 byte. Makes anal sense.");
 		return -EINVAL;
 	}
 	if (len > 8) {
-		err("generic read/write, more than 8 bytes. Not supported.");
+		err("generic read/write, more than 8 bytes. Analt supported.");
 		return -EINVAL;
 	}
 
@@ -400,7 +400,7 @@ static int af9005_i2c_read(struct dvb_usb_device *d, u8 i2caddr, u8 reg,
 static int af9005_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			   int num)
 {
-	/* only implements what the mt2060 module does, don't know how
+	/* only implements what the mt2060 module does, don't kanalw how
 	   to make it really generic */
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int ret;
@@ -411,7 +411,7 @@ static int af9005_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is analt handled yet. TODO.");
 
 	if (num == 2) {
 		/* reads a single register */
@@ -423,7 +423,7 @@ static int af9005_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			ret = 2;
 	} else {
 		if (msg[0].len < 2) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto unlock;
 		}
 		/* write one or more registers */
@@ -459,15 +459,15 @@ int af9005_send_command(struct dvb_usb_device *d, u8 command, u8 * wbuf,
 	u8 seq;
 
 	if (wlen < 0) {
-		err("send command, wlen less than 0 bytes. Makes no sense.");
+		err("send command, wlen less than 0 bytes. Makes anal sense.");
 		return -EINVAL;
 	}
 	if (wlen > 54) {
-		err("send command, wlen more than 54 bytes. Not supported.");
+		err("send command, wlen more than 54 bytes. Analt supported.");
 		return -EINVAL;
 	}
 	if (rlen > 54) {
-		err("send command, rlen more than 54 bytes. Not supported.");
+		err("send command, rlen more than 54 bytes. Analt supported.");
 		return -EINVAL;
 	}
 	packet_len = wlen + 5;
@@ -719,7 +719,7 @@ static int af9005_download_firmware(struct usb_device *udev, const struct firmwa
 
 	buf = kmalloc(FW_BULKOUT_SIZE + 2, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = af9005_boot_packet(udev, FW_CONFIG, &reply, buf,
 				 FW_BULKOUT_SIZE + 2);
@@ -775,12 +775,12 @@ err:
 
 }
 
-int af9005_led_control(struct dvb_usb_device *d, int onoff)
+int af9005_led_control(struct dvb_usb_device *d, int oanalff)
 {
 	struct af9005_device_state *st = d->priv;
 	int temp, ret;
 
-	if (onoff && dvb_usb_af9005_led)
+	if (oanalff && dvb_usb_af9005_led)
 		temp = 1;
 	else
 		temp = 0;
@@ -831,7 +831,7 @@ static int af9005_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	int ret, len;
 	u8 seq;
 
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 	if (rc_decode == NULL) {
 		/* it shouldn't never come here */
 		return 0;
@@ -884,17 +884,17 @@ ret:
 	return ret;
 }
 
-static int af9005_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int af9005_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 
 	return 0;
 }
 
-static int af9005_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
+static int af9005_pid_filter_control(struct dvb_usb_adapter *adap, int oanalff)
 {
 	int ret;
-	deb_info("pid filter control  onoff %d\n", onoff);
-	if (onoff) {
+	deb_info("pid filter control  oanalff %d\n", oanalff);
+	if (oanalff) {
 		ret =
 		    af9005_write_ofdm_register(adap->dev, XD_MP2IF_DMX_CTRL, 1);
 		if (ret)
@@ -916,18 +916,18 @@ static int af9005_pid_filter_control(struct dvb_usb_adapter *adap, int onoff)
 }
 
 static int af9005_pid_filter(struct dvb_usb_adapter *adap, int index,
-			     u16 pid, int onoff)
+			     u16 pid, int oanalff)
 {
 	u8 cmd = index & 0x1f;
 	int ret;
-	deb_info("set pid filter, index %d, pid %x, onoff %d\n", index,
-		 pid, onoff);
-	if (onoff) {
-		/* cannot use it as pid_filter_ctrl since it has to be done
+	deb_info("set pid filter, index %d, pid %x, oanalff %d\n", index,
+		 pid, oanalff);
+	if (oanalff) {
+		/* cananalt use it as pid_filter_ctrl since it has to be done
 		   before setting the first pid */
 		if (adap->feedcount == 1) {
 			deb_info("first pid set, enable pid table\n");
-			ret = af9005_pid_filter_control(adap, onoff);
+			ret = af9005_pid_filter_control(adap, oanalff);
 			if (ret)
 				return ret;
 		}
@@ -947,7 +947,7 @@ static int af9005_pid_filter(struct dvb_usb_adapter *adap, int index,
 	} else {
 		if (adap->feedcount == 0) {
 			deb_info("last pid unset, disable pid table\n");
-			ret = af9005_pid_filter_control(adap, onoff);
+			ret = af9005_pid_filter_control(adap, oanalff);
 			if (ret)
 				return ret;
 		}
@@ -969,7 +969,7 @@ static int af9005_identify_state(struct usb_device *udev,
 
 	buf = kmalloc(FW_BULKOUT_SIZE + 2, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = af9005_boot_packet(udev, FW_CONFIG, &reply,
 				 buf, FW_BULKOUT_SIZE + 2);
@@ -1020,7 +1020,7 @@ static struct dvb_usb_device_properties af9005_properties = {
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "af9005.fw",
 	.download_firmware = af9005_download_firmware,
-	.no_reconnect = 1,
+	.anal_reconnect = 1,
 
 	.size_of_priv = sizeof(struct af9005_device_state),
 
@@ -1107,7 +1107,7 @@ static int __init af9005_usb_module_init(void)
 	rc_keys_size = symbol_request(rc_map_af9005_table_size);
 #endif
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
-		err("af9005_rc_decode function not found, disabling remote");
+		err("af9005_rc_decode function analt found, disabling remote");
 		af9005_properties.rc.legacy.rc_query = NULL;
 	} else {
 		af9005_properties.rc.legacy.rc_map_table = rc_keys;

@@ -33,7 +33,7 @@
 	};
 
 	/*
-	 * Labelled VCC3V0_SD in schematic to not conflict with PMIC
+	 * Labelled VCC3V0_SD in schematic to analt conflict with PMIC
 	 * regulator, it's 3.3v in actuality
 	 */
 	vcc3v0_sd: vcc3v0-sd-regulator {

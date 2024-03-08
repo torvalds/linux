@@ -20,28 +20,28 @@
 #include "dcache.h"
 #include "dlmglue.h"
 #include "file.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "ocfs2_trace.h"
 
 void ocfs2_dentry_attach_gen(struct dentry *dentry)
 {
 	unsigned long gen =
-		OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
-	BUG_ON(d_inode(dentry));
+		OCFS2_I(d_ianalde(dentry->d_parent))->ip_dir_lock_gen;
+	BUG_ON(d_ianalde(dentry));
 	dentry->d_fsdata = (void *)gen;
 }
 
 
 static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret = 0;    /* if all else fails, just return false */
 	struct ocfs2_super *osb;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(dentry);
+	ianalde = d_ianalde(dentry);
 	osb = OCFS2_SB(dentry->d_sb);
 
 	trace_ocfs2_dentry_revalidate(dentry, dentry->d_name.len,
@@ -49,13 +49,13 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/* For a negative dentry -
 	 * check the generation number of the parent and compare with the
-	 * one stored in the inode.
+	 * one stored in the ianalde.
 	 */
-	if (inode == NULL) {
+	if (ianalde == NULL) {
 		unsigned long gen = (unsigned long) dentry->d_fsdata;
 		unsigned long pgen;
 		spin_lock(&dentry->d_lock);
-		pgen = OCFS2_I(d_inode(dentry->d_parent))->ip_dir_lock_gen;
+		pgen = OCFS2_I(d_ianalde(dentry->d_parent))->ip_dir_lock_gen;
 		spin_unlock(&dentry->d_lock);
 		trace_ocfs2_dentry_revalidate_negative(dentry->d_name.len,
 						       dentry->d_name.name,
@@ -67,27 +67,27 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 
 	BUG_ON(!osb);
 
-	if (inode == osb->root_inode || is_bad_inode(inode))
+	if (ianalde == osb->root_ianalde || is_bad_ianalde(ianalde))
 		goto bail;
 
-	spin_lock(&OCFS2_I(inode)->ip_lock);
-	/* did we or someone else delete this inode? */
-	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
-		spin_unlock(&OCFS2_I(inode)->ip_lock);
+	spin_lock(&OCFS2_I(ianalde)->ip_lock);
+	/* did we or someone else delete this ianalde? */
+	if (OCFS2_I(ianalde)->ip_flags & OCFS2_IANALDE_DELETED) {
+		spin_unlock(&OCFS2_I(ianalde)->ip_lock);
 		trace_ocfs2_dentry_revalidate_delete(
-				(unsigned long long)OCFS2_I(inode)->ip_blkno);
+				(unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 		goto bail;
 	}
-	spin_unlock(&OCFS2_I(inode)->ip_lock);
+	spin_unlock(&OCFS2_I(ianalde)->ip_lock);
 
 	/*
 	 * We don't need a cluster lock to test this because once an
-	 * inode nlink hits zero, it never goes back.
+	 * ianalde nlink hits zero, it never goes back.
 	 */
-	if (inode->i_nlink == 0) {
+	if (ianalde->i_nlink == 0) {
 		trace_ocfs2_dentry_revalidate_orphaned(
-			(unsigned long long)OCFS2_I(inode)->ip_blkno,
-			S_ISDIR(inode->i_mode));
+			(unsigned long long)OCFS2_I(ianalde)->ip_blkanal,
+			S_ISDIR(ianalde->i_mode));
 		goto bail;
 	}
 
@@ -96,8 +96,8 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 	 * redo it.
 	 */
 	if (!dentry->d_fsdata) {
-		trace_ocfs2_dentry_revalidate_nofsdata(
-				(unsigned long long)OCFS2_I(inode)->ip_blkno);
+		trace_ocfs2_dentry_revalidate_analfsdata(
+				(unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 		goto bail;
 	}
 
@@ -110,10 +110,10 @@ bail:
 }
 
 static int ocfs2_match_dentry(struct dentry *dentry,
-			      u64 parent_blkno,
+			      u64 parent_blkanal,
 			      int skip_unhashed)
 {
-	struct inode *parent;
+	struct ianalde *parent;
 
 	/*
 	 * ocfs2_lookup() does a d_splice_alias() _before_ attaching
@@ -127,42 +127,42 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 	if (skip_unhashed && d_unhashed(dentry))
 		return 0;
 
-	parent = d_inode(dentry->d_parent);
+	parent = d_ianalde(dentry->d_parent);
 	/* Name is in a different directory. */
-	if (OCFS2_I(parent)->ip_blkno != parent_blkno)
+	if (OCFS2_I(parent)->ip_blkanal != parent_blkanal)
 		return 0;
 
 	return 1;
 }
 
 /*
- * Walk the inode alias list, and find a dentry which has a given
+ * Walk the ianalde alias list, and find a dentry which has a given
  * parent. ocfs2_dentry_attach_lock() wants to find _any_ alias as it
  * is looking for a dentry_lock reference. The downconvert thread is
  * looking to unhash aliases, so we allow it to skip any that already
  * have that property.
  */
-struct dentry *ocfs2_find_local_alias(struct inode *inode,
-				      u64 parent_blkno,
+struct dentry *ocfs2_find_local_alias(struct ianalde *ianalde,
+				      u64 parent_blkanal,
 				      int skip_unhashed)
 {
 	struct dentry *dentry;
 
-	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
+	spin_lock(&ianalde->i_lock);
+	hlist_for_each_entry(dentry, &ianalde->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
-		if (ocfs2_match_dentry(dentry, parent_blkno, skip_unhashed)) {
+		if (ocfs2_match_dentry(dentry, parent_blkanal, skip_unhashed)) {
 			trace_ocfs2_find_local_alias(dentry->d_name.len,
 						     dentry->d_name.name);
 
 			dget_dlock(dentry);
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			return dentry;
 		}
 		spin_unlock(&dentry->d_lock);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 	return NULL;
 }
 
@@ -172,8 +172,8 @@ DEFINE_SPINLOCK(dentry_attach_lock);
  * Attach this dentry to a cluster lock.
  *
  * Dentry locks cover all links in a given directory to a particular
- * inode. We do this so that ocfs2 can build a lock name which all
- * nodes in the cluster can agree on at all times. Shoving full names
+ * ianalde. We do this so that ocfs2 can build a lock name which all
+ * analdes in the cluster can agree on at all times. Shoving full names
  * in the cluster lock won't work due to size restrictions. Covering
  * links inside of a directory is a good compromise because it still
  * allows us to use the parent directory lock to synchronize
@@ -183,41 +183,41 @@ DEFINE_SPINLOCK(dentry_attach_lock);
  * cluster lock held.
  *
  * The dir semaphore will protect us from having to worry about
- * concurrent processes on our node trying to attach a lock at the
+ * concurrent processes on our analde trying to attach a lock at the
  * same time.
  *
  * The dir cluster lock (held at either PR or EX mode) protects us
- * from unlink and rename on other nodes.
+ * from unlink and rename on other analdes.
  *
- * A dput() can happen asynchronously due to pruning, so we cover
+ * A dput() can happen asynchroanalusly due to pruning, so we cover
  * attaching and detaching the dentry lock with a
  * dentry_attach_lock.
  *
- * A node which has done lookup on a name retains a protected read
+ * A analde which has done lookup on a name retains a protected read
  * lock until final dput. If the user requests and unlink or rename,
- * the protected read is upgraded to an exclusive lock. Other nodes
+ * the protected read is upgraded to an exclusive lock. Other analdes
  * who have seen the dentry will then be informed that they need to
  * downgrade their lock, which will involve d_delete on the
  * dentry. This happens in ocfs2_dentry_convert_worker().
  */
 int ocfs2_dentry_attach_lock(struct dentry *dentry,
-			     struct inode *inode,
-			     u64 parent_blkno)
+			     struct ianalde *ianalde,
+			     u64 parent_blkanal)
 {
 	int ret;
 	struct dentry *alias;
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
 	trace_ocfs2_dentry_attach_lock(dentry->d_name.len, dentry->d_name.name,
-				       (unsigned long long)parent_blkno, dl);
+				       (unsigned long long)parent_blkanal, dl);
 
 	/*
-	 * Negative dentry. We ignore these for now.
+	 * Negative dentry. We iganalre these for analw.
 	 *
 	 * XXX: Could we can improve ocfs2_dentry_revalidate() by
 	 * tracking these?
 	 */
-	if (!inode)
+	if (!ianalde)
 		return 0;
 
 	if (d_really_is_negative(dentry) && dentry->d_fsdata) {
@@ -227,15 +227,15 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	}
 
 	if (dl) {
-		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
+		mlog_bug_on_msg(dl->dl_parent_blkanal != parent_blkanal,
 				" \"%pd\": old parent: %llu, new: %llu\n",
 				dentry,
-				(unsigned long long)parent_blkno,
-				(unsigned long long)dl->dl_parent_blkno);
+				(unsigned long long)parent_blkanal,
+				(unsigned long long)dl->dl_parent_blkanal);
 		return 0;
 	}
 
-	alias = ocfs2_find_local_alias(inode, parent_blkno, 0);
+	alias = ocfs2_find_local_alias(ianalde, parent_blkanal, 0);
 	if (alias) {
 		/*
 		 * Great, an alias exists, which means we must have a
@@ -245,45 +245,45 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 		 * We're depending here on the fact that this dentry
 		 * was found and exists in the dcache and so must have
 		 * a reference to the dentry_lock because we can't
-		 * race creates. Final dput() cannot happen on it
+		 * race creates. Final dput() cananalt happen on it
 		 * since we have it pinned, so our reference is safe.
 		 */
 		dl = alias->d_fsdata;
-		mlog_bug_on_msg(!dl, "parent %llu, ino %llu\n",
-				(unsigned long long)parent_blkno,
-				(unsigned long long)OCFS2_I(inode)->ip_blkno);
+		mlog_bug_on_msg(!dl, "parent %llu, ianal %llu\n",
+				(unsigned long long)parent_blkanal,
+				(unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 
-		mlog_bug_on_msg(dl->dl_parent_blkno != parent_blkno,
+		mlog_bug_on_msg(dl->dl_parent_blkanal != parent_blkanal,
 				" \"%pd\": old parent: %llu, new: %llu\n",
 				dentry,
-				(unsigned long long)parent_blkno,
-				(unsigned long long)dl->dl_parent_blkno);
+				(unsigned long long)parent_blkanal,
+				(unsigned long long)dl->dl_parent_blkanal);
 
 		trace_ocfs2_dentry_attach_lock_found(dl->dl_lockres.l_name,
-				(unsigned long long)parent_blkno,
-				(unsigned long long)OCFS2_I(inode)->ip_blkno);
+				(unsigned long long)parent_blkanal,
+				(unsigned long long)OCFS2_I(ianalde)->ip_blkanal);
 
 		goto out_attach;
 	}
 
 	/*
-	 * There are no other aliases
+	 * There are anal other aliases
 	 */
-	dl = kmalloc(sizeof(*dl), GFP_NOFS);
+	dl = kmalloc(sizeof(*dl), GFP_ANALFS);
 	if (!dl) {
-		ret = -ENOMEM;
-		mlog_errno(ret);
+		ret = -EANALMEM;
+		mlog_erranal(ret);
 		return ret;
 	}
 
 	dl->dl_count = 0;
 	/*
 	 * Does this have to happen below, for all attaches, in case
-	 * the struct inode gets blown away by the downconvert thread?
+	 * the struct ianalde gets blown away by the downconvert thread?
 	 */
-	dl->dl_inode = igrab(inode);
-	dl->dl_parent_blkno = parent_blkno;
-	ocfs2_dentry_lock_res_init(dl, parent_blkno, inode);
+	dl->dl_ianalde = igrab(ianalde);
+	dl->dl_parent_blkanal = parent_blkanal;
+	ocfs2_dentry_lock_res_init(dl, parent_blkanal, ianalde);
 
 out_attach:
 	spin_lock(&dentry_attach_lock);
@@ -293,7 +293,7 @@ out_attach:
 		 * thread going ahead and we return here.
 		 */
 		spin_unlock(&dentry_attach_lock);
-		iput(dl->dl_inode);
+		iput(dl->dl_ianalde);
 		ocfs2_lock_res_free(&dl->dl_lockres);
 		kfree(dl);
 		return 0;
@@ -304,20 +304,20 @@ out_attach:
 	spin_unlock(&dentry_attach_lock);
 
 	/*
-	 * This actually gets us our PRMODE level lock. From now on,
-	 * we'll have a notification if one of these names is
-	 * destroyed on another node.
+	 * This actually gets us our PRMODE level lock. From analw on,
+	 * we'll have a analtification if one of these names is
+	 * destroyed on aanalther analde.
 	 */
 	ret = ocfs2_dentry_lock(dentry, 0);
 	if (!ret)
 		ocfs2_dentry_unlock(dentry, 0);
 	else
-		mlog_errno(ret);
+		mlog_erranal(ret);
 
 	/*
 	 * In case of error, manually free the allocation and do the iput().
-	 * We need to do this because error here means no d_instantiate(),
-	 * which means iput() will not be called during dput(dentry).
+	 * We need to do this because error here means anal d_instantiate(),
+	 * which means iput() will analt be called during dput(dentry).
 	 */
 	if (ret < 0 && !alias) {
 		ocfs2_lock_res_free(&dl->dl_lockres);
@@ -326,7 +326,7 @@ out_attach:
 		dentry->d_fsdata = NULL;
 		spin_unlock(&dentry_attach_lock);
 		kfree(dl);
-		iput(inode);
+		iput(ianalde);
 	}
 
 	dput(alias);
@@ -337,8 +337,8 @@ out_attach:
 /*
  * ocfs2_dentry_iput() and friends.
  *
- * At this point, our particular dentry is detached from the inodes
- * alias list, so there's no way that the locking code can find it.
+ * At this point, our particular dentry is detached from the ianaldes
+ * alias list, so there's anal way that the locking code can find it.
  *
  * The interesting stuff happens when we determine that our lock needs
  * to go away because this is the last subdir alias in the
@@ -349,16 +349,16 @@ out_attach:
  *    called in ocfs2_release_dentry_lock()
  *
  * 2) A race may occur when we're doing our lock shutdown and
- *    another process wants to create a new dentry lock. Right now we
+ *    aanalther process wants to create a new dentry lock. Right analw we
  *    let them race, which means that for a very short while, this
- *    node might have two locks on a lock resource. This should be a
+ *    analde might have two locks on a lock resource. This should be a
  *    problem though because one of them is in the process of being
  *    thrown out.
  */
 static void ocfs2_drop_dentry_lock(struct ocfs2_super *osb,
 				   struct ocfs2_dentry_lock *dl)
 {
-	iput(dl->dl_inode);
+	iput(dl->dl_ianalde);
 	ocfs2_simple_drop_lockres(osb, &dl->dl_lockres);
 	ocfs2_lock_res_free(&dl->dl_lockres);
 	kfree(dl);
@@ -380,23 +380,23 @@ void ocfs2_dentry_lock_put(struct ocfs2_super *osb,
 		ocfs2_drop_dentry_lock(osb, dl);
 }
 
-static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
+static void ocfs2_dentry_iput(struct dentry *dentry, struct ianalde *ianalde)
 {
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
 	if (!dl) {
 		/*
-		 * No dentry lock is ok if we're disconnected or
+		 * Anal dentry lock is ok if we're disconnected or
 		 * unhashed.
 		 */
 		if (!(dentry->d_flags & DCACHE_DISCONNECTED) &&
 		    !d_unhashed(dentry)) {
-			unsigned long long ino = 0ULL;
-			if (inode)
-				ino = (unsigned long long)OCFS2_I(inode)->ip_blkno;
+			unsigned long long ianal = 0ULL;
+			if (ianalde)
+				ianal = (unsigned long long)OCFS2_I(ianalde)->ip_blkanal;
 			mlog(ML_ERROR, "Dentry is missing cluster lock. "
-			     "inode: %llu, d_flags: 0x%x, d_name: %pd\n",
-			     ino, dentry->d_flags, dentry);
+			     "ianalde: %llu, d_flags: 0x%x, d_name: %pd\n",
+			     ianal, dentry->d_flags, dentry);
 		}
 
 		goto out;
@@ -408,7 +408,7 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 	ocfs2_dentry_lock_put(OCFS2_SB(dentry->d_sb), dl);
 
 out:
-	iput(inode);
+	iput(ianalde);
 }
 
 /*
@@ -424,18 +424,18 @@ out:
  *
  * This is called during ocfs2_rename(), while holding parent
  * directory locks. The dentries have already been deleted on other
- * nodes via ocfs2_remote_dentry_delete().
+ * analdes via ocfs2_remote_dentry_delete().
  *
- * Normally, the VFS handles the d_move() for the file system, after
+ * Analrmally, the VFS handles the d_move() for the file system, after
  * the ->rename() callback. OCFS2 wants to handle this internally, so
  * the new lock can be created atomically with respect to the cluster.
  */
 void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
-		       struct inode *old_dir, struct inode *new_dir)
+		       struct ianalde *old_dir, struct ianalde *new_dir)
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(old_dir->i_sb);
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
 	/*
 	 * Move within the same directory, so the actual lock info won't
@@ -449,9 +449,9 @@ void ocfs2_dentry_move(struct dentry *dentry, struct dentry *target,
 	ocfs2_dentry_lock_put(osb, dentry->d_fsdata);
 
 	dentry->d_fsdata = NULL;
-	ret = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(new_dir)->ip_blkno);
+	ret = ocfs2_dentry_attach_lock(dentry, ianalde, OCFS2_I(new_dir)->ip_blkanal);
 	if (ret)
-		mlog_errno(ret);
+		mlog_erranal(ret);
 
 out_move:
 	d_move(dentry, target);

@@ -17,7 +17,7 @@ more details.
 #define _IA_CSS_TNR3_TYPES_H
 
 /* @file
-* CSS-API header file for Temporal Noise Reduction v3 (TNR3) kernel
+* CSS-API header file for Temporal Analise Reduction v3 (TNR3) kernel
 */
 
 /**
@@ -27,7 +27,7 @@ more details.
  */
 #define TNR3_NUM_SEGMENTS    3
 
-/* Temporal Noise Reduction v3 (TNR3) configuration.
+/* Temporal Analise Reduction v3 (TNR3) configuration.
  * The parameter to this kernel is fourfold
  * 1. Three piecewise linear graphs (one for each plane) with three segments
  * each. Each line graph has Luma values on the x axis and sigma values for
@@ -41,7 +41,7 @@ more details.
  * the per plane sigma axis are also specified at the interface.
  * 2. One rounding adjustment parameter for each plane
  * 3. One maximum feedback threshold value for each plane
- * 4. Selection of the reference frame buffer to be used for noise reduction.
+ * 4. Selection of the reference frame buffer to be used for analise reduction.
  */
 struct ia_css_tnr3_kernel_config {
 	unsigned int maxfb_y;                        /** Maximum Feedback Gain for Y */

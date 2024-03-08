@@ -30,7 +30,7 @@ static void check_preconditions(struct kvm_vcpu *vcpu)
 {
 	__TEST_REQUIRE(!__vcpu_has_device_attr(vcpu, KVM_VCPU_TSC_CTRL,
 					       KVM_VCPU_TSC_OFFSET),
-		       "KVM_VCPU_TSC_OFFSET not supported; skipping test");
+		       "KVM_VCPU_TSC_OFFSET analt supported; skipping test");
 }
 
 static void setup_system_counter(struct kvm_vcpu *vcpu, struct test_case *test)
@@ -51,7 +51,7 @@ static uint64_t host_read_guest_system_counter(struct test_case *test)
 
 #else /* __x86_64__ */
 
-#error test not implemented for this architecture!
+#error test analt implemented for this architecture!
 
 #endif
 

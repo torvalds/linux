@@ -43,54 +43,54 @@ static struct {
 	char *extra_modules[SIMATIC_IPC_MAX_EXTRA_MODULES];
 } device_modes[] = {
 	{SIMATIC_IPC_IPC127E,
-		SIMATIC_IPC_DEVICE_127E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_127E,
+		SIMATIC_IPC_DEVICE_127E, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_127E,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC227D,
-		SIMATIC_IPC_DEVICE_227D, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE,
+		SIMATIC_IPC_DEVICE_227D, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_ANALNE,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC227E,
 		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC227G,
-		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G,
+		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_227G,
 		{ "nct6775", "w83627hf_wdt" }},
 	{SIMATIC_IPC_IPC277G,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G,
+		SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_227G,
 		{ "nct6775", "w83627hf_wdt" }},
 	{SIMATIC_IPC_IPC277E,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E,
+		SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC427D,
-		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE,
+		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_ANALNE,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC427E,
-		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE,
+		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_ANALNE,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPC477E,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE,
+		SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_ANALNE,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPCBX_39A,
-		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_39A,
+		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_BX_39A,
 		{ "nct6775", "w83627hf_wdt" }},
 	{SIMATIC_IPC_IPCPX_39A,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_39A,
+		SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_BX_39A,
 		{ "nct6775", "w83627hf_wdt" }},
 	{SIMATIC_IPC_IPCBX_21A,
-		SIMATIC_IPC_DEVICE_BX_21A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_21A,
+		SIMATIC_IPC_DEVICE_BX_21A, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_BX_21A,
 		{ "emc1403", NULL }},
 	{SIMATIC_IPC_IPCBX_56A,
-		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_59A,
+		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_BX_59A,
 		{ "emc1403", "w83627hf_wdt" }},
 	{SIMATIC_IPC_IPCBX_59A,
-		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_59A,
+		SIMATIC_IPC_DEVICE_BX_59A, SIMATIC_IPC_DEVICE_ANALNE, SIMATIC_IPC_DEVICE_BX_59A,
 		{ "emc1403", "w83627hf_wdt" }},
 };
 
 static int register_platform_devices(u32 station_id)
 {
-	u8 ledmode = SIMATIC_IPC_DEVICE_NONE;
-	u8 wdtmode = SIMATIC_IPC_DEVICE_NONE;
-	u8 battmode = SIMATIC_IPC_DEVICE_NONE;
+	u8 ledmode = SIMATIC_IPC_DEVICE_ANALNE;
+	u8 wdtmode = SIMATIC_IPC_DEVICE_ANALNE;
+	u8 battmode = SIMATIC_IPC_DEVICE_ANALNE;
 	char *pdevname;
 	int i;
 
@@ -103,7 +103,7 @@ static int register_platform_devices(u32 station_id)
 		}
 	}
 
-	if (battmode != SIMATIC_IPC_DEVICE_NONE) {
+	if (battmode != SIMATIC_IPC_DEVICE_ANALNE) {
 		pdevname = KBUILD_MODNAME "_batt";
 		if (battmode == SIMATIC_IPC_DEVICE_127E)
 			pdevname = KBUILD_MODNAME "_batt_apollolake";
@@ -116,7 +116,7 @@ static int register_platform_devices(u32 station_id)
 		platform_data.devmode = battmode;
 		ipc_batt_platform_device =
 			platform_device_register_data(NULL, pdevname,
-				PLATFORM_DEVID_NONE, &platform_data,
+				PLATFORM_DEVID_ANALNE, &platform_data,
 				sizeof(struct simatic_ipc_platform));
 		if (IS_ERR(ipc_batt_platform_device))
 			return PTR_ERR(ipc_batt_platform_device);
@@ -125,7 +125,7 @@ static int register_platform_devices(u32 station_id)
 			 ipc_batt_platform_device->name);
 	}
 
-	if (ledmode != SIMATIC_IPC_DEVICE_NONE) {
+	if (ledmode != SIMATIC_IPC_DEVICE_ANALNE) {
 		pdevname = KBUILD_MODNAME "_leds";
 		if (ledmode == SIMATIC_IPC_DEVICE_127E)
 			pdevname = KBUILD_MODNAME "_leds_gpio_apollolake";
@@ -136,7 +136,7 @@ static int register_platform_devices(u32 station_id)
 		platform_data.devmode = ledmode;
 		ipc_led_platform_device =
 			platform_device_register_data(NULL,
-				pdevname, PLATFORM_DEVID_NONE,
+				pdevname, PLATFORM_DEVID_ANALNE,
 				&platform_data,
 				sizeof(struct simatic_ipc_platform));
 		if (IS_ERR(ipc_led_platform_device))
@@ -146,11 +146,11 @@ static int register_platform_devices(u32 station_id)
 			 ipc_led_platform_device->name);
 	}
 
-	if (wdtmode != SIMATIC_IPC_DEVICE_NONE) {
+	if (wdtmode != SIMATIC_IPC_DEVICE_ANALNE) {
 		platform_data.devmode = wdtmode;
 		ipc_wdt_platform_device =
 			platform_device_register_data(NULL,
-				KBUILD_MODNAME "_wdt", PLATFORM_DEVID_NONE,
+				KBUILD_MODNAME "_wdt", PLATFORM_DEVID_ANALNE,
 				&platform_data,
 				sizeof(struct simatic_ipc_platform));
 		if (IS_ERR(ipc_wdt_platform_device))
@@ -160,9 +160,9 @@ static int register_platform_devices(u32 station_id)
 			 ipc_wdt_platform_device->name);
 	}
 
-	if (ledmode == SIMATIC_IPC_DEVICE_NONE &&
-	    wdtmode == SIMATIC_IPC_DEVICE_NONE &&
-	    battmode == SIMATIC_IPC_DEVICE_NONE) {
+	if (ledmode == SIMATIC_IPC_DEVICE_ANALNE &&
+	    wdtmode == SIMATIC_IPC_DEVICE_ANALNE &&
+	    battmode == SIMATIC_IPC_DEVICE_ANALNE) {
 		pr_warn("unsupported IPC detected, station id=%08x\n",
 			station_id);
 		return -EINVAL;
@@ -207,7 +207,7 @@ static int __init simatic_ipc_init_module(void)
 	err = dmi_walk(simatic_ipc_find_dmi_entry_helper, &station_id);
 
 	if (err || station_id == SIMATIC_IPC_INVALID_STATION_ID) {
-		pr_warn("DMI entry %d not found\n", SIMATIC_IPC_DMI_ENTRY_OEM);
+		pr_warn("DMI entry %d analt found\n", SIMATIC_IPC_DMI_ENTRY_OEM);
 		return 0;
 	}
 

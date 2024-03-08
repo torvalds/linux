@@ -19,7 +19,7 @@
 #include <linux/reset.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #include "dcmipp-common.h"
 
@@ -54,13 +54,13 @@ struct dcmipp_device {
 	/* Entities */
 	struct dcmipp_ent_device	**entity;
 
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 };
 
 static inline struct dcmipp_device *
-notifier_to_dcmipp(struct v4l2_async_notifier *n)
+analtifier_to_dcmipp(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct dcmipp_device, notifier);
+	return container_of(n, struct dcmipp_device, analtifier);
 }
 
 /* Structure which describes individual configuration for each entity */
@@ -135,7 +135,7 @@ static const struct dcmipp_pipeline_config stm32mp13_pipe_cfg = {
 			     (f) == (MEDIA_LNK_FL_ENABLED |\
 				     MEDIA_LNK_FL_IMMUTABLE) ?\
 					"ENABLED, IMMUTABLE" :\
-			     "UNKNOWN")
+			     "UNKANALWN")
 
 static int dcmipp_create_links(struct dcmipp_device *dcmipp)
 {
@@ -209,7 +209,7 @@ err_init_entity:
 
 static const struct of_device_id dcmipp_of_match[] = {
 	{ .compatible = "st,stm32mp13-dcmipp", .data = &stm32mp13_pipe_cfg },
-	{ /* end node */ },
+	{ /* end analde */ },
 };
 MODULE_DEVICE_TABLE(of, dcmipp_of_match);
 
@@ -252,16 +252,16 @@ static irqreturn_t dcmipp_irq_callback(int irq, void *arg)
 	return ret;
 }
 
-static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
+static int dcmipp_graph_analtify_bound(struct v4l2_async_analtifier *analtifier,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_connection *asd)
 {
-	struct dcmipp_device *dcmipp = notifier_to_dcmipp(notifier);
+	struct dcmipp_device *dcmipp = analtifier_to_dcmipp(analtifier);
 	unsigned int ret;
 	int src_pad;
 	struct dcmipp_ent_device *sink;
-	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_PARALLEL };
-	struct fwnode_handle *ep;
+	struct v4l2_fwanalde_endpoint vep = { .bus_type = V4L2_MBUS_PARALLEL };
+	struct fwanalde_handle *ep;
 
 	dev_dbg(dcmipp->dev, "Subdev \"%s\" bound\n", subdev->name);
 
@@ -269,35 +269,35 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	 * Link this sub-device to DCMIPP, it could be
 	 * a parallel camera sensor or a CSI-2 to parallel bridge
 	 */
-	src_pad = media_entity_get_fwnode_pad(&subdev->entity,
-					      subdev->fwnode,
+	src_pad = media_entity_get_fwanalde_pad(&subdev->entity,
+					      subdev->fwanalde,
 					      MEDIA_PAD_FL_SOURCE);
 
 	/* Get bus characteristics from devicetree */
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dcmipp->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dcmipp->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep) {
-		dev_err(dcmipp->dev, "Could not find the endpoint\n");
-		return -ENODEV;
+		dev_err(dcmipp->dev, "Could analt find the endpoint\n");
+		return -EANALDEV;
 	}
 
 	/* Check for parallel bus-type first, then bt656 */
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 	if (ret) {
 		vep.bus_type = V4L2_MBUS_BT656;
-		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 		if (ret) {
-			dev_err(dcmipp->dev, "Could not parse the endpoint\n");
-			fwnode_handle_put(ep);
+			dev_err(dcmipp->dev, "Could analt parse the endpoint\n");
+			fwanalde_handle_put(ep);
 			return ret;
 		}
 	}
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	if (vep.bus.parallel.bus_width == 0) {
 		dev_err(dcmipp->dev, "Invalid parallel interface bus-width\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Only 8 bits bus width supported with BT656 bus */
@@ -305,7 +305,7 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	    vep.bus.parallel.bus_width != 8) {
 		dev_err(dcmipp->dev, "BT656 bus conflicts with %u bits bus width (8 bits required)\n",
 			vep.bus.parallel.bus_width);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Parallel input device detected, connect it to parallel subdev */
@@ -323,23 +323,23 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 	}
 
-	dev_dbg(dcmipp->dev, "DCMIPP is now linked to \"%s\"\n", subdev->name);
+	dev_dbg(dcmipp->dev, "DCMIPP is analw linked to \"%s\"\n", subdev->name);
 
 	return 0;
 }
 
-static void dcmipp_graph_notify_unbind(struct v4l2_async_notifier *notifier,
+static void dcmipp_graph_analtify_unbind(struct v4l2_async_analtifier *analtifier,
 				       struct v4l2_subdev *sd,
 				       struct v4l2_async_connection *asd)
 {
-	struct dcmipp_device *dcmipp = notifier_to_dcmipp(notifier);
+	struct dcmipp_device *dcmipp = analtifier_to_dcmipp(analtifier);
 
 	dev_dbg(dcmipp->dev, "Removing %s\n", sd->name);
 }
 
-static int dcmipp_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int dcmipp_graph_analtify_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct dcmipp_device *dcmipp = notifier_to_dcmipp(notifier);
+	struct dcmipp_device *dcmipp = analtifier_to_dcmipp(analtifier);
 	int ret;
 
 	/* Register the media device */
@@ -350,58 +350,58 @@ static int dcmipp_graph_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
-	/* Expose all subdev's nodes*/
-	ret = v4l2_device_register_subdev_nodes(&dcmipp->v4l2_dev);
+	/* Expose all subdev's analdes*/
+	ret = v4l2_device_register_subdev_analdes(&dcmipp->v4l2_dev);
 	if (ret) {
 		dev_err(dcmipp->mdev.dev,
-			"dcmipp subdev nodes registration failed (err=%d)\n",
+			"dcmipp subdev analdes registration failed (err=%d)\n",
 			ret);
 		media_device_unregister(&dcmipp->mdev);
 		return ret;
 	}
 
-	dev_dbg(dcmipp->dev, "Notify complete !\n");
+	dev_dbg(dcmipp->dev, "Analtify complete !\n");
 
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations dcmipp_graph_notify_ops = {
-	.bound = dcmipp_graph_notify_bound,
-	.unbind = dcmipp_graph_notify_unbind,
-	.complete = dcmipp_graph_notify_complete,
+static const struct v4l2_async_analtifier_operations dcmipp_graph_analtify_ops = {
+	.bound = dcmipp_graph_analtify_bound,
+	.unbind = dcmipp_graph_analtify_unbind,
+	.complete = dcmipp_graph_analtify_complete,
 };
 
 static int dcmipp_graph_init(struct dcmipp_device *dcmipp)
 {
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dcmipp->dev), 0, 0,
-					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dcmipp->dev), 0, 0,
+					     FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!ep) {
 		dev_err(dcmipp->dev, "Failed to get next endpoint\n");
 		return -EINVAL;
 	}
 
-	v4l2_async_nf_init(&dcmipp->notifier, &dcmipp->v4l2_dev);
+	v4l2_async_nf_init(&dcmipp->analtifier, &dcmipp->v4l2_dev);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&dcmipp->notifier, ep,
+	asd = v4l2_async_nf_add_fwanalde_remote(&dcmipp->analtifier, ep,
 					      struct v4l2_async_connection);
 
-	fwnode_handle_put(ep);
+	fwanalde_handle_put(ep);
 
 	if (IS_ERR(asd)) {
-		dev_err(dcmipp->dev, "Failed to add fwnode remote subdev\n");
+		dev_err(dcmipp->dev, "Failed to add fwanalde remote subdev\n");
 		return PTR_ERR(asd);
 	}
 
-	dcmipp->notifier.ops = &dcmipp_graph_notify_ops;
+	dcmipp->analtifier.ops = &dcmipp_graph_analtify_ops;
 
-	ret = v4l2_async_nf_register(&dcmipp->notifier);
+	ret = v4l2_async_nf_register(&dcmipp->analtifier);
 	if (ret < 0) {
-		dev_err(dcmipp->dev, "Failed to register notifier\n");
-		v4l2_async_nf_cleanup(&dcmipp->notifier);
+		dev_err(dcmipp->dev, "Failed to register analtifier\n");
+		v4l2_async_nf_cleanup(&dcmipp->analtifier);
 		return ret;
 	}
 
@@ -419,14 +419,14 @@ static int dcmipp_probe(struct platform_device *pdev)
 
 	dcmipp = devm_kzalloc(&pdev->dev, sizeof(*dcmipp), GFP_KERNEL);
 	if (!dcmipp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcmipp->dev = &pdev->dev;
 
 	pipe_cfg = device_get_match_data(dcmipp->dev);
 	if (!pipe_cfg) {
 		dev_err(&pdev->dev, "Can't get device data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dcmipp->pipe_cfg = pipe_cfg;
 
@@ -436,18 +436,18 @@ static int dcmipp_probe(struct platform_device *pdev)
 	rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(rstc))
 		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
-				     "Could not get reset control\n");
+				     "Could analt get reset control\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
 		if (irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get irq\n");
+			dev_err(&pdev->dev, "Could analt get irq\n");
 		return irq ? irq : -ENXIO;
 	}
 
 	dcmipp->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(dcmipp->regs)) {
-		dev_err(&pdev->dev, "Could not map registers\n");
+		dev_err(&pdev->dev, "Could analt map registers\n");
 		return PTR_ERR(dcmipp->regs);
 	}
 
@@ -483,7 +483,7 @@ static int dcmipp_probe(struct platform_device *pdev)
 	dcmipp->entity = devm_kcalloc(&pdev->dev, dcmipp->pipe_cfg->num_ents,
 				      sizeof(*dcmipp->entity), GFP_KERNEL);
 	if (!dcmipp->entity)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Register the v4l2 struct */
 	ret = v4l2_device_register(&pdev->dev, &dcmipp->v4l2_dev);
@@ -524,8 +524,8 @@ static int dcmipp_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_nf_unregister(&dcmipp->notifier);
-	v4l2_async_nf_cleanup(&dcmipp->notifier);
+	v4l2_async_nf_unregister(&dcmipp->analtifier);
+	v4l2_async_nf_cleanup(&dcmipp->analtifier);
 
 	for (i = 0; i < dcmipp->pipe_cfg->num_ents; i++)
 		dcmipp->pipe_cfg->ents[i].release(dcmipp->entity[i]);

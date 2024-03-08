@@ -23,7 +23,7 @@
  * @cdns: pointer to context structure
  * @mode: selected mode from cdns_role
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 static int cdns_set_mode(struct cdns *cdns, enum usb_dr_mode mode)
 {
@@ -174,7 +174,7 @@ static void cdns_otg_enable_irq(struct cdns *cdns)
  * cdns_drd_host_on - start host.
  * @cdns: Pointer to controller context structure.
  *
- * Returns 0 on success otherwise negative errno.
+ * Returns 0 on success otherwise negative erranal.
  */
 int cdns_drd_host_on(struct cdns *cdns)
 {
@@ -226,7 +226,7 @@ void cdns_drd_host_off(struct cdns *cdns)
  * cdns_drd_gadget_on - start gadget.
  * @cdns: Pointer to controller context structure.
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 int cdns_drd_gadget_on(struct cdns *cdns)
 {
@@ -286,7 +286,7 @@ EXPORT_SYMBOL_GPL(cdns_drd_gadget_off);
  * cdns_init_otg_mode - initialize drd controller
  * @cdns: Pointer to controller context structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 static int cdns_init_otg_mode(struct cdns *cdns)
 {
@@ -309,7 +309,7 @@ static int cdns_init_otg_mode(struct cdns *cdns)
  * cdns_drd_update_mode - initialize mode of operation
  * @cdns: Pointer to controller context structure
  *
- * Returns 0 on success otherwise negative errno
+ * Returns 0 on success otherwise negative erranal
  */
 int cdns_drd_update_mode(struct cdns *cdns)
 {
@@ -349,16 +349,16 @@ static irqreturn_t cdns_drd_thread_irq(int irq, void *data)
  * @irq: irq number for cdns core device
  * @data: structure of cdns
  *
- * Returns IRQ_HANDLED or IRQ_NONE
+ * Returns IRQ_HANDLED or IRQ_ANALNE
  */
 static irqreturn_t cdns_drd_irq(int irq, void *data)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct cdns *cdns = data;
 	u32 reg;
 
 	if (cdns->dr_mode != USB_DR_MODE_OTG)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (cdns->in_lpm)
 		return ret;
@@ -366,7 +366,7 @@ static irqreturn_t cdns_drd_irq(int irq, void *data)
 	reg = readl(&cdns->otg_irq_regs->ivect);
 
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & OTGIEN_ID_CHANGE_INT) {
 		dev_dbg(cdns->dev, "OTG IRQ: new ID: %d\n",
@@ -401,7 +401,7 @@ int cdns_drd_init(struct cdns *cdns)
 	 * but they have same changes in register maps.
 	 * The first register in oldest version is command register and it's
 	 * read only. Driver should read 0 from it. On the other hand, in v1
-	 * and v2 the first register contains device ID number which is not
+	 * and v2 the first register contains device ID number which is analt
 	 * set to 0. Driver uses this fact to detect the proper version of
 	 * controller.
 	 */
@@ -435,7 +435,7 @@ int cdns_drd_init(struct cdns *cdns)
 			writel(1, &cdns->otg_v1_regs->simulate);
 			cdns->version  = CDNS3_CONTROLLER_V1;
 		} else {
-			dev_err(cdns->dev, "not supporte DID=0x%08x\n", state);
+			dev_err(cdns->dev, "analt supporte DID=0x%08x\n", state);
 			return -EINVAL;
 		}
 
@@ -475,8 +475,8 @@ int cdns_drd_init(struct cdns *cdns)
 
 	state = readl(&cdns->otg_regs->sts);
 	if (OTGSTS_OTG_NRDY(state)) {
-		dev_err(cdns->dev, "Cadence USB3 OTG device not ready\n");
-		return -ENODEV;
+		dev_err(cdns->dev, "Cadence USB3 OTG device analt ready\n");
+		return -EANALDEV;
 	}
 
 	return 0;

@@ -10,9 +10,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -50,13 +50,13 @@
 #define HCI_DEV_CLOSE			8
 #define HCI_DEV_SETUP			9
 
-/* HCI notify events */
-#define HCI_NOTIFY_CONN_ADD		1
-#define HCI_NOTIFY_CONN_DEL		2
-#define HCI_NOTIFY_VOICE_SETTING	3
-#define HCI_NOTIFY_ENABLE_SCO_CVSD	4
-#define HCI_NOTIFY_ENABLE_SCO_TRANSP	5
-#define HCI_NOTIFY_DISABLE_SCO		6
+/* HCI analtify events */
+#define HCI_ANALTIFY_CONN_ADD		1
+#define HCI_ANALTIFY_CONN_DEL		2
+#define HCI_ANALTIFY_VOICE_SETTING	3
+#define HCI_ANALTIFY_ENABLE_SCO_CVSD	4
+#define HCI_ANALTIFY_ENABLE_SCO_TRANSP	5
+#define HCI_ANALTIFY_DISABLE_SCO		6
 
 /* HCI bus types */
 #define HCI_VIRTUAL	0
@@ -85,7 +85,7 @@
 /* AMP controller status */
 #define AMP_STATUS_POWERED_DOWN			0x00
 #define AMP_STATUS_BLUETOOTH_ONLY		0x01
-#define AMP_STATUS_NO_CAPACITY			0x02
+#define AMP_STATUS_ANAL_CAPACITY			0x02
 #define AMP_STATUS_LOW_CAPACITY			0x03
 #define AMP_STATUS_MEDIUM_CAPACITY		0x04
 #define AMP_STATUS_HIGH_CAPACITY		0x05
@@ -114,7 +114,7 @@ enum {
 	 */
 	HCI_QUIRK_FIXUP_BUFFER_SIZE,
 
-	/* When this quirk is set, then a controller that does not
+	/* When this quirk is set, then a controller that does analt
 	 * indicate support for Inquiry Result with RSSI is assumed to
 	 * support it anyway. Some early Bluetooth 1.2 controllers had
 	 * wrongly configured local features that will require forcing
@@ -127,19 +127,19 @@ enum {
 	HCI_QUIRK_FIXUP_INQUIRY_MODE,
 
 	/* When this quirk is set, then the HCI Read Local Supported
-	 * Commands command is not supported. In general Bluetooth 1.2
+	 * Commands command is analt supported. In general Bluetooth 1.2
 	 * and later controllers should support this command. However
 	 * some controllers indicate Bluetooth 1.2 support, but do
-	 * not support this command.
+	 * analt support this command.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
 	HCI_QUIRK_BROKEN_LOCAL_COMMANDS,
 
-	/* When this quirk is set, then no stored link key handling
+	/* When this quirk is set, then anal stored link key handling
 	 * is performed. This is mainly due to the fact that the
 	 * HCI Delete Stored Link Key command is advertised, but
-	 * not supported.
+	 * analt supported.
 	 *
 	 * This quirk must be set before hci_register_dev is called.
 	 */
@@ -167,8 +167,8 @@ enum {
 	/* When this quirk is set, the public Bluetooth address
 	 * initially reported by HCI Read BD Address command
 	 * is considered invalid. The public BD Address can be
-	 * specified in the fwnode property 'local-bd-address'.
-	 * If this property does not exist or is invalid controller
+	 * specified in the fwanalde property 'local-bd-address'.
+	 * If this property does analt exist or is invalid controller
 	 * configuration is required before this device can be used.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
@@ -193,26 +193,26 @@ enum {
 	 */
 	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
 
-	/* When this quirk is set, the enabling of diagnostic mode is
-	 * not persistent over HCI Reset. Every time the controller
+	/* When this quirk is set, the enabling of diaganalstic mode is
+	 * analt persistent over HCI Reset. Every time the controller
 	 * is brought up it needs to be reprogrammed.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
 	 * during the hdev->setup vendor callback.
 	 */
-	HCI_QUIRK_NON_PERSISTENT_DIAG,
+	HCI_QUIRK_ANALN_PERSISTENT_DIAG,
 
 	/* When this quirk is set, setup() would be run after every
-	 * open() and not just after the first open().
+	 * open() and analt just after the first open().
 	 *
 	 * This quirk can be set before hci_register_dev is called or
 	 * during the hdev->setup vendor callback.
 	 *
 	 */
-	HCI_QUIRK_NON_PERSISTENT_SETUP,
+	HCI_QUIRK_ANALN_PERSISTENT_SETUP,
 
 	/* When this quirk is set, wide band speech is supported by
-	 * the driver since no reliable mechanism exist to report
+	 * the driver since anal reliable mechanism exist to report
 	 * this from the hardware, a driver flag is use to convey
 	 * this support
 	 *
@@ -230,9 +230,9 @@ enum {
 	HCI_QUIRK_VALID_LE_STATES,
 
 	/* When this quirk is set, then erroneous data reporting
-	 * is ignored. This is mainly due to the fact that the HCI
+	 * is iganalred. This is mainly due to the fact that the HCI
 	 * Read Default Erroneous Data Reporting command is advertised,
-	 * but not supported; these controllers often reply with unknown
+	 * but analt supported; these controllers often reply with unkanalwn
 	 * command and tend to lock up randomly. Needing a hard reset.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
@@ -241,15 +241,15 @@ enum {
 	HCI_QUIRK_BROKEN_ERR_DATA_REPORTING,
 
 	/*
-	 * When this quirk is set, then the hci_suspend_notifier is not
+	 * When this quirk is set, then the hci_suspend_analtifier is analt
 	 * registered. This is intended for devices which drop completely
 	 * from the bus on system-suspend and which will show up as a new
 	 * HCI after resume.
 	 */
-	HCI_QUIRK_NO_SUSPEND_NOTIFIER,
+	HCI_QUIRK_ANAL_SUSPEND_ANALTIFIER,
 
 	/*
-	 * When this quirk is set, LE tx power is not queried on startup
+	 * When this quirk is set, LE tx power is analt queried on startup
 	 * and the min/max tx power values default to HCI_TX_POWER_INVALID.
 	 *
 	 * This quirk can be set before hci_register_dev is called or
@@ -258,11 +258,11 @@ enum {
 	HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER,
 
 	/* When this quirk is set, HCI_OP_SET_EVENT_FLT requests with
-	 * HCI_FLT_CLEAR_ALL are ignored and event filtering is
+	 * HCI_FLT_CLEAR_ALL are iganalred and event filtering is
 	 * completely avoided. A subset of the CSR controller
 	 * clones struggle with this and instantly lock up.
 	 *
-	 * Note that devices using this must (separately) disable
+	 * Analte that devices using this must (separately) disable
 	 * runtime suspend, because event filtering takes place there.
 	 */
 	HCI_QUIRK_BROKEN_FILTER_CLEAR_ALL,
@@ -322,7 +322,7 @@ enum {
 	HCI_QUIRK_USE_MSFT_EXT_ADDRESS_FILTER,
 
 	/*
-	 * When this quirk is set, LE Coded PHY shall not be used. This is
+	 * When this quirk is set, LE Coded PHY shall analt be used. This is
 	 * required for some Intel controllers which erroneously claim to
 	 * support it but it causes problems with extended scanning.
 	 *
@@ -416,7 +416,7 @@ enum {
 	HCI_LL_RPA_RESOLUTION,
 	HCI_ENABLE_LL_PRIVACY,
 	HCI_CMD_PENDING,
-	HCI_FORCE_NO_MITM,
+	HCI_FORCE_ANAL_MITM,
 	HCI_QUALITY_REPORT,
 	HCI_OFFLOAD_CODECS_ENABLED,
 	HCI_LE_SIMULTANEOUS_ROLES,
@@ -489,7 +489,7 @@ enum {
 #define EDR_ESCO_MASK  (ESCO_2EV3 | ESCO_3EV3 | ESCO_2EV5 | ESCO_3EV5)
 
 /* ACL flags */
-#define ACL_START_NO_FLUSH	0x00
+#define ACL_START_ANAL_FLUSH	0x00
 #define ACL_CONT		0x01
 #define ACL_START		0x02
 #define ACL_COMPLETE		0x03
@@ -509,7 +509,7 @@ enum {
 #define SCO_LINK	0x00
 #define ACL_LINK	0x01
 #define ESCO_LINK	0x02
-/* Low Energy links do not have defined link type. Use invented one */
+/* Low Energy links do analt have defined link type. Use invented one */
 #define LE_LINK		0x80
 #define AMP_LINK	0x81
 #define ISO_LINK	0x82
@@ -546,7 +546,7 @@ enum {
 
 #define LMP_EV4		0x01
 #define LMP_EV5		0x02
-#define LMP_NO_BREDR	0x20
+#define LMP_ANAL_BREDR	0x20
 #define LMP_LE		0x40
 #define LMP_EDR_3SLOT	0x80
 
@@ -561,7 +561,7 @@ enum {
 #define LMP_SIMUL_LE_BR	0x02
 #define LMP_SIMPLE_PAIR	0x08
 #define LMP_ERR_DATA_REPORTING 0x20
-#define LMP_NO_FLUSH	0x40
+#define LMP_ANAL_FLUSH	0x40
 
 #define LMP_LSTO	0x01
 #define LMP_INQ_TX_PWR	0x02
@@ -623,8 +623,8 @@ enum {
 #define HCI_LM_FIPS	0x0040
 
 /* Authentication types */
-#define HCI_AT_NO_BONDING		0x00
-#define HCI_AT_NO_BONDING_MITM		0x01
+#define HCI_AT_ANAL_BONDING		0x00
+#define HCI_AT_ANAL_BONDING_MITM		0x01
 #define HCI_AT_DEDICATED_BONDING	0x02
 #define HCI_AT_DEDICATED_BONDING_MITM	0x03
 #define HCI_AT_GENERAL_BONDING		0x04
@@ -632,9 +632,9 @@ enum {
 
 /* I/O capabilities */
 #define HCI_IO_DISPLAY_ONLY	0x00
-#define HCI_IO_DISPLAY_YESNO	0x01
+#define HCI_IO_DISPLAY_ANALANAL	0x01
 #define HCI_IO_KEYBOARD_ONLY	0x02
-#define HCI_IO_NO_INPUT_OUTPUT	0x03
+#define HCI_IO_ANAL_INPUT_OUTPUT	0x03
 
 /* Link Key types */
 #define HCI_LK_COMBINATION		0x00
@@ -648,7 +648,7 @@ enum {
 #define HCI_LK_AUTH_COMBINATION_P256	0x08
 
 /* ---- HCI Error Codes ---- */
-#define HCI_ERROR_UNKNOWN_CONN_ID	0x02
+#define HCI_ERROR_UNKANALWN_CONN_ID	0x02
 #define HCI_ERROR_AUTH_FAILURE		0x05
 #define HCI_ERROR_PIN_OR_KEY_MISSING	0x06
 #define HCI_ERROR_MEMORY_EXCEEDED	0x07
@@ -660,7 +660,7 @@ enum {
 #define HCI_ERROR_REMOTE_LOW_RESOURCES	0x14
 #define HCI_ERROR_REMOTE_POWER_OFF	0x15
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
-#define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
+#define HCI_ERROR_PAIRING_ANALT_ALLOWED	0x18
 #define HCI_ERROR_INVALID_LL_PARAMS	0x1e
 #define HCI_ERROR_UNSPECIFIED		0x1f
 #define HCI_ERROR_ADVERTISING_TIMEOUT	0x3c
@@ -670,7 +670,7 @@ enum {
 #define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
 #define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
 
-/* The core spec defines 127 as the "not available" value */
+/* The core spec defines 127 as the "analt available" value */
 #define HCI_TX_POWER_INVALID	127
 #define HCI_RSSI_INVALID	127
 
@@ -706,12 +706,12 @@ enum {
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */
 #define LE_AD_GENERAL		0x02 /* General Discoverable */
-#define LE_AD_NO_BREDR		0x04 /* BR/EDR not supported */
+#define LE_AD_ANAL_BREDR		0x04 /* BR/EDR analt supported */
 #define LE_AD_SIM_LE_BREDR_CTRL	0x08 /* Simultaneous LE & BR/EDR Controller */
 #define LE_AD_SIM_LE_BREDR_HOST	0x10 /* Simultaneous LE & BR/EDR Host */
 
 /* -----  HCI Commands ---- */
-#define HCI_OP_NOP			0x0000
+#define HCI_OP_ANALP			0x0000
 
 #define HCI_OP_INQUIRY			0x0401
 struct hci_cp_inquiry {
@@ -1981,7 +1981,7 @@ struct hci_cp_le_set_ext_adv_params {
 	__u8      secondary_max_skip;
 	__u8      secondary_phy;
 	__u8      sid;
-	__u8      notif_enable;
+	__u8      analtif_enable;
 } __packed;
 
 #define HCI_ADV_PHY_1M		0X01
@@ -2052,7 +2052,7 @@ struct hci_cp_le_set_per_adv_enable {
 
 #define LE_SET_ADV_DATA_OP_COMPLETE	0x03
 
-#define LE_SET_ADV_DATA_NO_FRAG		0x01
+#define LE_SET_ADV_DATA_ANAL_FRAG		0x01
 
 #define HCI_OP_LE_REMOVE_ADV_SET	0x203c
 
@@ -2383,8 +2383,8 @@ struct hci_ev_link_key_req {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define HCI_EV_LINK_KEY_NOTIFY		0x18
-struct hci_ev_link_key_notify {
+#define HCI_EV_LINK_KEY_ANALTIFY		0x18
+struct hci_ev_link_key_analtify {
 	bdaddr_t bdaddr;
 	__u8     link_key[HCI_LINK_KEY_SIZE];
 	__u8     key_type;
@@ -2532,8 +2532,8 @@ struct hci_ev_simple_pair_complete {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define HCI_EV_USER_PASSKEY_NOTIFY	0x3b
-struct hci_ev_user_passkey_notify {
+#define HCI_EV_USER_PASSKEY_ANALTIFY	0x3b
+struct hci_ev_user_passkey_analtify {
 	bdaddr_t	bdaddr;
 	__le32		passkey;
 } __packed;
@@ -2544,8 +2544,8 @@ struct hci_ev_user_passkey_notify {
 #define HCI_KEYPRESS_CLEARED		3
 #define HCI_KEYPRESS_COMPLETED		4
 
-#define HCI_EV_KEYPRESS_NOTIFY		0x3c
-struct hci_ev_keypress_notify {
+#define HCI_EV_KEYPRESS_ANALTIFY		0x3c
+struct hci_ev_keypress_analtify {
 	bdaddr_t	bdaddr;
 	__u8		type;
 } __packed;
@@ -2631,7 +2631,7 @@ struct hci_ev_le_conn_complete {
 #define LE_ADV_IND		0x00
 #define LE_ADV_DIRECT_IND	0x01
 #define LE_ADV_SCAN_IND		0x02
-#define LE_ADV_NONCONN_IND	0x03
+#define LE_ADV_ANALNCONN_IND	0x03
 #define LE_ADV_SCAN_RSP		0x04
 #define LE_ADV_INVALID		0x05
 
@@ -2639,12 +2639,12 @@ struct hci_ev_le_conn_complete {
 #define LE_LEGACY_ADV_IND		0x0013
 #define LE_LEGACY_ADV_DIRECT_IND 	0x0015
 #define LE_LEGACY_ADV_SCAN_IND		0x0012
-#define LE_LEGACY_NONCONN_IND		0x0010
+#define LE_LEGACY_ANALNCONN_IND		0x0010
 #define LE_LEGACY_SCAN_RSP_ADV		0x001b
 #define LE_LEGACY_SCAN_RSP_ADV_SCAN	0x001a
 
 /* Extended Advertising event types */
-#define LE_EXT_ADV_NON_CONN_IND		0x0000
+#define LE_EXT_ADV_ANALN_CONN_IND		0x0000
 #define LE_EXT_ADV_CONN_IND		0x0001
 #define LE_EXT_ADV_SCAN_IND		0x0002
 #define LE_EXT_ADV_DIRECT_IND		0x0004
@@ -2939,7 +2939,7 @@ struct hci_iso_hdr {
 /* ISO data packet status flags */
 #define HCI_ISO_STATUS_VALID	0x00
 #define HCI_ISO_STATUS_INVALID	0x01
-#define HCI_ISO_STATUS_NOP	0x02
+#define HCI_ISO_STATUS_ANALP	0x02
 
 #define HCI_ISO_DATA_HDR_SIZE	4
 struct hci_iso_data_hdr {

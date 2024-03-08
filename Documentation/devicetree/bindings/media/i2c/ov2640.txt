@@ -13,7 +13,7 @@ Optional Properties:
 - resetb-gpios: reference to the GPIO connected to the resetb pin, if any.
 - pwdn-gpios: reference to the GPIO connected to the pwdn pin, if any.
 
-The device node must contain one 'port' child node for its digital output
+The device analde must contain one 'port' child analde for its digital output
 video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 

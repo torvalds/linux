@@ -87,7 +87,7 @@ __acquires(r8a66597->lock)
 	r8a66597_bclr(r8a66597, BEMPE | BRDYE, INTENB0);
 	r8a66597_bclr(r8a66597, DPRPU, SYSCFG0);
 
-	r8a66597->gadget.speed = USB_SPEED_UNKNOWN;
+	r8a66597->gadget.speed = USB_SPEED_UNKANALWN;
 	spin_unlock(&r8a66597->lock);
 	r8a66597->driver->disconnect(&r8a66597->gadget);
 	spin_lock(&r8a66597->lock);
@@ -334,7 +334,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 		buf_bsize = 0;
 		break;
 	case R8A66597_BULK:
-		/* isochronous pipes may be used as bulk pipes */
+		/* isochroanalus pipes may be used as bulk pipes */
 		if (info->pipe >= R8A66597_BASE_PIPENUM_BULK)
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_BULK;
 		else
@@ -355,7 +355,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 
 	if (buf_bsize && ((bufnum + 16) >= R8A66597_MAX_BUFNUM)) {
 		pr_err("r8a66597 pipe memory is insufficient\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	r8a66597_write(r8a66597, pipecfg, PIPECFG);
@@ -379,7 +379,7 @@ static void pipe_buffer_release(struct r8a66597 *r8a66597,
 	} else if (is_interrupt_pipe(info->pipe)) {
 		r8a66597->interrupt--;
 	} else if (is_isoc_pipe(info->pipe)) {
-		r8a66597->isochronous--;
+		r8a66597->isochroanalus--;
 		if (info->type == R8A66597_BULK)
 			r8a66597->bulk--;
 	} else {
@@ -464,14 +464,14 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (r8a66597->bulk >= R8A66597_MAX_NUM_BULK) {
-			if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
+			if (r8a66597->isochroanalus >= R8A66597_MAX_NUM_ISOC) {
 				dev_err(r8a66597_to_dev(r8a66597),
 					"bulk pipe is insufficient\n");
-				return -ENODEV;
+				return -EANALDEV;
 			} else {
 				info.pipe = R8A66597_BASE_PIPENUM_ISOC
-						+ r8a66597->isochronous;
-				counter = &r8a66597->isochronous;
+						+ r8a66597->isochroanalus;
+				counter = &r8a66597->isochroanalus;
 			}
 		} else {
 			info.pipe = R8A66597_BASE_PIPENUM_BULK + r8a66597->bulk;
@@ -484,21 +484,21 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 		if (r8a66597->interrupt >= R8A66597_MAX_NUM_INT) {
 			dev_err(r8a66597_to_dev(r8a66597),
 				"interrupt pipe is insufficient\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 		info.pipe = R8A66597_BASE_PIPENUM_INT + r8a66597->interrupt;
 		info.type = R8A66597_INT;
 		counter = &r8a66597->interrupt;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
+		if (r8a66597->isochroanalus >= R8A66597_MAX_NUM_ISOC) {
 			dev_err(r8a66597_to_dev(r8a66597),
-				"isochronous pipe is insufficient\n");
-			return -ENODEV;
+				"isochroanalus pipe is insufficient\n");
+			return -EANALDEV;
 		}
-		info.pipe = R8A66597_BASE_PIPENUM_ISOC + r8a66597->isochronous;
+		info.pipe = R8A66597_BASE_PIPENUM_ISOC + r8a66597->isochroanalus;
 		info.type = R8A66597_ISO;
-		counter = &r8a66597->isochronous;
+		counter = &r8a66597->isochroanalus;
 		break;
 	default:
 		dev_err(r8a66597_to_dev(r8a66597), "unexpect xfer type\n");
@@ -522,7 +522,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	}
 
 	(*counter)++;
-	if ((counter == &r8a66597->isochronous) && info.type == R8A66597_BULK)
+	if ((counter == &r8a66597->isochroanalus) && info.type == R8A66597_BULK)
 		r8a66597->bulk++;
 
 	r8a66597_ep_setting(r8a66597, ep, desc, info.pipe, dma);
@@ -557,7 +557,7 @@ static void pipe_irq_disable(struct r8a66597 *r8a66597, u16 pipenum)
 	disable_irq_nrdy(r8a66597, pipenum);
 }
 
-/* if complete is true, gadget driver complete function is not call */
+/* if complete is true, gadget driver complete function is analt call */
 static void control_end(struct r8a66597 *r8a66597, unsigned ccpl)
 {
 	r8a66597->ep[0].internal_ccpl = ccpl;
@@ -633,7 +633,7 @@ static int sudmac_alloc_channel(struct r8a66597 *r8a66597,
 	struct r8a66597_dma *dma;
 
 	if (!r8a66597_is_sudmac(r8a66597))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check transfer type */
 	if (!is_bulk_pipe(ep->pipenum))
@@ -910,7 +910,7 @@ __acquires(r8a66597->lock)
 	}
 
 	list_del_init(&req->queue);
-	if (ep->r8a66597->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->r8a66597->gadget.speed == USB_SPEED_UNKANALWN)
 		req->req.status = -ESHUTDOWN;
 	else
 		req->req.status = status;
@@ -1002,7 +1002,7 @@ static void irq_packet_write(struct r8a66597_ep *ep,
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
 		dev_err(r8a66597_to_dev(r8a66597),
-			"write fifo not ready. pipnum=%d\n", pipenum);
+			"write fifo analt ready. pipnum=%d\n", pipenum);
 		return;
 	}
 
@@ -1052,7 +1052,7 @@ static void irq_packet_read(struct r8a66597_ep *ep,
 		req->req.status = -EPIPE;
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
-		dev_err(r8a66597_to_dev(r8a66597), "read fifo not ready");
+		dev_err(r8a66597_to_dev(r8a66597), "read fifo analt ready");
 		return;
 	}
 
@@ -1327,8 +1327,8 @@ static void r8a66597_update_usb_speed(struct r8a66597 *r8a66597)
 		r8a66597->gadget.speed = USB_SPEED_FULL;
 		break;
 	default:
-		r8a66597->gadget.speed = USB_SPEED_UNKNOWN;
-		dev_err(r8a66597_to_dev(r8a66597), "USB speed unknown\n");
+		r8a66597->gadget.speed = USB_SPEED_UNKANALWN;
+		dev_err(r8a66597_to_dev(r8a66597), "USB speed unkanalwn\n");
 	}
 }
 
@@ -1349,7 +1349,7 @@ static void irq_device_state(struct r8a66597 *r8a66597)
 	if (r8a66597->old_dvsq == DS_CNFG && dvsq != DS_CNFG)
 		r8a66597_update_usb_speed(r8a66597);
 	if ((dvsq == DS_CNFG || dvsq == DS_ADDS)
-			&& r8a66597->gadget.speed == USB_SPEED_UNKNOWN)
+			&& r8a66597->gadget.speed == USB_SPEED_UNKANALWN)
 		r8a66597_update_usb_speed(r8a66597);
 
 	r8a66597->old_dvsq = dvsq;
@@ -1411,7 +1411,7 @@ static void sudmac_finish(struct r8a66597 *r8a66597, struct r8a66597_ep *ep)
 		udelay(1);
 		if (unlikely(i++ >= 10000)) {	/* timeout = 10 msec */
 			dev_err(r8a66597_to_dev(r8a66597),
-				"%s: FRDY was not set (%d)\n",
+				"%s: FRDY was analt set (%d)\n",
 				__func__, pipenum);
 			return;
 		}
@@ -1608,7 +1608,7 @@ static int r8a66597_queue(struct usb_ep *_ep, struct usb_request *_req,
 	ep = container_of(_ep, struct r8a66597_ep, ep);
 	req = container_of(_req, struct r8a66597_request, req);
 
-	if (ep->r8a66597->gadget.speed == USB_SPEED_UNKNOWN)
+	if (ep->r8a66597->gadget.speed == USB_SPEED_UNKANALWN)
 		return -ESHUTDOWN;
 
 	spin_lock_irqsave(&ep->r8a66597->lock, flags);
@@ -1729,7 +1729,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* hook up the driver */
 	r8a66597->driver = driver;
@@ -1818,7 +1818,7 @@ static void r8a66597_remove(struct platform_device *pdev)
 	}
 }
 
-static void nop_completion(struct usb_ep *ep, struct usb_request *r)
+static void analp_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
@@ -1854,13 +1854,13 @@ static int r8a66597_probe(struct platform_device *pdev)
 
 	if (irq < 0) {
 		dev_err(dev, "platform_get_irq error.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* initialize ucd */
 	r8a66597 = devm_kzalloc(dev, sizeof(struct r8a66597), GFP_KERNEL);
 	if (r8a66597 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&r8a66597->lock);
 	platform_set_drvdata(pdev, r8a66597);
@@ -1878,7 +1878,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR(r8a66597->clk)) {
-			dev_err(dev, "cannot get clock \"%s\"\n", clk_name);
+			dev_err(dev, "cananalt get clock \"%s\"\n", clk_name);
 			return PTR_ERR(r8a66597->clk);
 		}
 		clk_prepare_enable(r8a66597->clk);
@@ -1938,10 +1938,10 @@ static int r8a66597_probe(struct platform_device *pdev)
 	r8a66597->ep0_req = r8a66597_alloc_request(&r8a66597->ep[0].ep,
 							GFP_KERNEL);
 	if (r8a66597->ep0_req == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clean_up2;
 	}
-	r8a66597->ep0_req->complete = nop_completion;
+	r8a66597->ep0_req->complete = analp_completion;
 
 	ret = usb_add_gadget_udc(dev, &r8a66597->gadget);
 	if (ret)

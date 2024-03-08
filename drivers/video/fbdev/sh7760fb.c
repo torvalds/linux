@@ -3,8 +3,8 @@
  * SH7760/SH7763 LCDC Framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
- *             Manuel Lauss <mano@roarinelk.homelinux.net>
- * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ *             Manuel Lauss <maanal@roarinelk.homelinux.net>
+ * (c) 2008 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  *
  * PLEASE HAVE A LOOK AT Documentation/fb/sh7760fb.rst!
  *
@@ -94,13 +94,13 @@ static int sh7760fb_blank(int blank, struct fb_info *info)
 	return wait_for_lps(par, lps);
 }
 
-static int sh7760_setcolreg (u_int regno,
+static int sh7760_setcolreg (u_int reganal,
 	u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info)
 {
 	u32 *palette = info->pseudo_palette;
 
-	if (regno >= 16)
+	if (reganal >= 16)
 		return -EINVAL;
 
 	/* only FB_VISUAL_TRUECOLOR supported */
@@ -110,7 +110,7 @@ static int sh7760_setcolreg (u_int regno,
 	blue >>= 16 - info->var.blue.length;
 	transp >>= 16 - info->var.transp.length;
 
-	palette[regno] = (red << info->var.red.offset) |
+	palette[reganal] = (red << info->var.red.offset) |
 		(green << info->var.green.offset) |
 		(blue << info->var.blue.offset) |
 		(transp << info->var.transp.offset);
@@ -126,21 +126,21 @@ static int sh7760fb_get_color_info(struct fb_info *info,
 	lgray = lbpp = 0;
 
 	switch (lddfr & LDDFR_COLOR_MASK) {
-	case LDDFR_1BPP_MONO:
+	case LDDFR_1BPP_MOANAL:
 		lgray = 1;
 		lbpp = 1;
 		break;
-	case LDDFR_2BPP_MONO:
+	case LDDFR_2BPP_MOANAL:
 		lgray = 1;
 		lbpp = 2;
 		break;
-	case LDDFR_4BPP_MONO:
+	case LDDFR_4BPP_MOANAL:
 		lgray = 1;
 		fallthrough;
 	case LDDFR_4BPP:
 		lbpp = 4;
 		break;
-	case LDDFR_6BPP_MONO:
+	case LDDFR_6BPP_MOANAL:
 		lgray = 1;
 		fallthrough;
 	case LDDFR_8BPP:
@@ -179,7 +179,7 @@ static int sh7760fb_check_var(struct fb_var_screeninfo *var,
 	var->bits_per_pixel = bpp;
 
 	if ((var->grayscale) && (var->bits_per_pixel == 1))
-		fix->visual = FB_VISUAL_MONO10;
+		fix->visual = FB_VISUAL_MOANAL10;
 	else if (var->bits_per_pixel >= 15)
 		fix->visual = FB_VISUAL_TRUECOLOR;
 	else
@@ -192,7 +192,7 @@ static int sh7760fb_check_var(struct fb_var_screeninfo *var,
 /*
  * sh7760fb_set_par - set videomode.
  *
- * NOTE: The rotation, grayscale and DSTN codepaths are
+ * ANALTE: The rotation, grayscale and DSTN codepaths are
  *     totally untested!
  */
 static int sh7760fb_set_par(struct fb_info *info)
@@ -230,7 +230,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 
 	fb_dbg(info, "%dx%d %dbpp %s (orientation %s)\n", hdcn,
 		vdln, bpp, gray ? "grayscale" : "color",
-		par->rot ? "rotated" : "normal");
+		par->rot ? "rotated" : "analrmal");
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 	lddfr = par->pd->lddfr | (1 << 8);
@@ -289,7 +289,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 			bit >>= 1;
 		}
 		if (stride & ~bit)
-			stride = bit << 1;	/* not P-o-2, round up */
+			stride = bit << 1;	/* analt P-o-2, round up */
 	}
 	iowrite16(stride, par->base + LDLAOR);
 
@@ -302,10 +302,10 @@ static int sh7760fb_set_par(struct fb_info *info)
 
 	/*
 	 * for DSTN need to set address for lower half.
-	 * I (mlau) don't know which address to set it to,
+	 * I (mlau) don't kanalw which address to set it to,
 	 * so I guessed at (stride * yres/2).
 	 */
-	if (((ldmtr & 0x003f) >= LDMTR_DSTN_MONO_8) &&
+	if (((ldmtr & 0x003f) >= LDMTR_DSTN_MOANAL_8) &&
 	    ((ldmtr & 0x003f) <= LDMTR_DSTN_COLOR_16)) {
 
 		fb_dbg(info, " ***** DSTN untested! *****\n");
@@ -402,7 +402,7 @@ static int sh7760fb_alloc_mem(struct fb_info *info)
 		vram *= 2;
 	if ((vram < 1) || (vram > 1024 * 2048)) {
 		fb_dbg(info, "too much VRAM required. Check settings\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (vram < PAGE_SIZE)
@@ -411,13 +411,13 @@ static int sh7760fb_alloc_mem(struct fb_info *info)
 	fbmem = dma_alloc_coherent(info->device, vram, &par->fbdma, GFP_KERNEL);
 
 	if (!fbmem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((par->fbdma & SH7760FB_DMA_MASK) != SH7760FB_DMA_MASK) {
 		sh7760fb_free_mem(info);
 		dev_err(info->device, "kernel gave me memory at 0x%08lx, which is"
 			"unusable for the LCDC\n", (unsigned long)par->fbdma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->screen_base = fbmem;
@@ -443,15 +443,15 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	info = framebuffer_alloc(sizeof(struct sh7760fb_par), &pdev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->dev = pdev;
 
 	par->pd = pdev->dev.platform_data;
 	if (!par->pd) {
-		dev_dbg(&pdev->dev, "no display setup data!\n");
-		ret = -ENODEV;
+		dev_dbg(&pdev->dev, "anal display setup data!\n");
+		ret = -EANALDEV;
 		goto out_fb;
 	}
 
@@ -465,8 +465,8 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	par->base = ioremap(res->start, resource_size(res));
 	if (!par->base) {
-		dev_err(&pdev->dev, "cannot remap\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "cananalt remap\n");
+		ret = -EANALDEV;
 		goto out_res;
 	}
 
@@ -476,10 +476,10 @@ static int sh7760fb_probe(struct platform_device *pdev)
 		ret = request_irq(par->irq, sh7760fb_irq, 0,
 				  "sh7760-lcdc", &par->vsync);
 		if (ret) {
-			dev_err(&pdev->dev, "cannot grab IRQ\n");
+			dev_err(&pdev->dev, "cananalt grab IRQ\n");
 			par->irq = -ENXIO;
 		} else
-			disable_irq_nosync(par->irq);
+			disable_irq_analsync(par->irq);
 	}
 
 	fb_videomode_to_var(&info->var, par->pd->def_mode);
@@ -511,7 +511,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	strcpy(info->fix.id, "sh7760-lcdc");
 
-	/* set the DON2 bit now, before cmap allocation, as it will randomize
+	/* set the DON2 bit analw, before cmap allocation, as it will randomize
 	 * palette memory.
 	 */
 	iowrite16(LDCNTR_DON2, par->base + LDCNTR);
@@ -525,7 +525,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	ret = register_framebuffer(info);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "cannot register fb!\n");
+		dev_dbg(&pdev->dev, "cananalt register fb!\n");
 		goto out_cmap;
 	}
 	platform_set_drvdata(pdev, info);
@@ -580,6 +580,6 @@ static struct platform_driver sh7760_lcdc_driver = {
 
 module_platform_driver(sh7760_lcdc_driver);
 
-MODULE_AUTHOR("Nobuhiro Iwamatsu, Manuel Lauss");
+MODULE_AUTHOR("Analbuhiro Iwamatsu, Manuel Lauss");
 MODULE_DESCRIPTION("FBdev for SH7760/63 integrated LCD Controller");
 MODULE_LICENSE("GPL v2");

@@ -10,7 +10,7 @@
 
 /*
  * FIXME:  four LAYOUTSTATS calls per compound at most! Do we need to support
- * more? Need to consider not to pre-alloc too much for a compound.
+ * more? Need to consider analt to pre-alloc too much for a compound.
  */
 #define PNFS_LAYOUTSTATS_MAXDEV (4)
 #define READ_PLUS_SCRATCH_SIZE (16)
@@ -28,25 +28,25 @@ int nfs42_proc_clone(struct file *, struct file *, loff_t, loff_t, loff_t);
 int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 			   const struct nfs42_layout_error *errors,
 			   size_t n);
-int nfs42_proc_copy_notify(struct file *, struct file *,
-			   struct nfs42_copy_notify_res *);
+int nfs42_proc_copy_analtify(struct file *, struct file *,
+			   struct nfs42_copy_analtify_res *);
 static inline bool nfs42_files_from_same_server(struct file *in,
 						struct file *out)
 {
-	struct nfs_client *c_in = (NFS_SERVER(file_inode(in)))->nfs_client;
-	struct nfs_client *c_out = (NFS_SERVER(file_inode(out)))->nfs_client;
+	struct nfs_client *c_in = (NFS_SERVER(file_ianalde(in)))->nfs_client;
+	struct nfs_client *c_out = (NFS_SERVER(file_ianalde(out)))->nfs_client;
 
 	return nfs4_check_serverowner_major_id(c_in->cl_serverowner,
 					       c_out->cl_serverowner);
 }
 
-ssize_t nfs42_proc_getxattr(struct inode *inode, const char *name,
+ssize_t nfs42_proc_getxattr(struct ianalde *ianalde, const char *name,
 			    void *buf, size_t buflen);
-int nfs42_proc_setxattr(struct inode *inode, const char *name,
+int nfs42_proc_setxattr(struct ianalde *ianalde, const char *name,
 			const void *buf, size_t buflen, int flags);
-ssize_t nfs42_proc_listxattrs(struct inode *inode, void *buf,
+ssize_t nfs42_proc_listxattrs(struct ianalde *ianalde, void *buf,
 			       size_t buflen, u64 *cookiep, bool *eofp);
-int nfs42_proc_removexattr(struct inode *inode, const char *name);
+int nfs42_proc_removexattr(struct ianalde *ianalde, const char *name);
 
 /*
  * Maximum XDR buffer size needed for a listxattr buffer of buflen size.

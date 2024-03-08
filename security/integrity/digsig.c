@@ -49,7 +49,7 @@ static struct key *integrity_keyring_from_id(const unsigned int id)
 			request_key(&key_type_keyring, keyring_name[id], NULL);
 		if (IS_ERR(keyring[id])) {
 			int err = PTR_ERR(keyring[id]);
-			pr_err("no %s keyring: %d\n", keyring_name[id], err);
+			pr_err("anal %s keyring: %d\n", keyring_name[id], err);
 			keyring[id] = NULL;
 			return ERR_PTR(err);
 		}
@@ -81,7 +81,7 @@ int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 					 digestlen);
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 int integrity_modsig_verify(const unsigned int id, const struct modsig *modsig)
@@ -104,7 +104,7 @@ static int __init __integrity_init_keyring(const unsigned int id,
 
 	keyring[id] = keyring_alloc(keyring_name[id], KUIDT_INIT(0),
 				    KGIDT_INIT(0), cred, perm,
-				    KEY_ALLOC_NOT_IN_QUOTA, restriction, NULL);
+				    KEY_ALLOC_ANALT_IN_QUOTA, restriction, NULL);
 	if (IS_ERR(keyring[id])) {
 		err = PTR_ERR(keyring[id]);
 		pr_info("Can't allocate %s keyring (%d)\n",
@@ -143,7 +143,7 @@ int __init integrity_init_keyring(const unsigned int id)
 
 	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
 	if (!restriction)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (id == INTEGRITY_KEYRING_MACHINE)
 		restriction->check = restrict_link_by_ca;
@@ -152,7 +152,7 @@ int __init integrity_init_keyring(const unsigned int id)
 
 	/*
 	 * MOK keys can only be added through a read-only runtime services
-	 * UEFI variable during boot. No additional keys shall be allowed to
+	 * UEFI variable during boot. Anal additional keys shall be allowed to
 	 * load into the machine keyring following init from userspace.
 	 */
 	if (id != INTEGRITY_KEYRING_MACHINE)
@@ -176,13 +176,13 @@ static int __init integrity_add_key(const unsigned int id, const void *data,
 
 	key = key_create_or_update(make_key_ref(keyring[id], 1), "asymmetric",
 				   NULL, data, size, perm,
-				   KEY_ALLOC_NOT_IN_QUOTA);
+				   KEY_ALLOC_ANALT_IN_QUOTA);
 	if (IS_ERR(key)) {
 		rc = PTR_ERR(key);
 		if (id != INTEGRITY_KEYRING_MACHINE)
 			pr_err("Problem loading X.509 certificate %d\n", rc);
 	} else {
-		pr_notice("Loaded X.509 cert '%s'\n",
+		pr_analtice("Loaded X.509 cert '%s'\n",
 			  key_ref_to_ptr(key)->description);
 		key_ref_put(key);
 	}

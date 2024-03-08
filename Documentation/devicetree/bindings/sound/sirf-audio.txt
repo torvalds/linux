@@ -2,8 +2,8 @@
 
 Required properties:
 - compatible: "sirf,sirf-audio-card"
-- sirf,audio-platform: phandle for the platform node
-- sirf,audio-codec: phandle for the SiRF internal codec node
+- sirf,audio-platform: phandle for the platform analde
+- sirf,audio-codec: phandle for the SiRF internal codec analde
 
 Optional properties:
 - hp-pa-gpios: Need to be present if the board need control external

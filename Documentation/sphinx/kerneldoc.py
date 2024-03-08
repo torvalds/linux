@@ -9,13 +9,13 @@
 # and/or sell copies of the Software, and to permit persons to whom the
 # Software is furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice (including the next
+# The above copyright analtice and this permission analtice (including the next
 # paragraph) shall be included in all copies or substantial portions of the
 # Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -34,7 +34,7 @@ import sys
 import re
 import glob
 
-from docutils import nodes, statemachine
+from docutils import analdes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 import sphinx
@@ -52,14 +52,14 @@ class KernelDocDirective(Directive):
         'export': directives.unchanged,
         'internal': directives.unchanged,
         'identifiers': directives.unchanged,
-        'no-identifiers': directives.unchanged,
+        'anal-identifiers': directives.unchanged,
         'functions': directives.unchanged,
     }
     has_content = False
 
     def run(self):
         env = self.state.document.settings.env
-        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
+        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineanal']
 
 	# Pass the version string to kernel-doc, as it needs to use a different
 	# dialect, depending what the C domain supports for each specific
@@ -70,7 +70,7 @@ class KernelDocDirective(Directive):
         export_file_patterns = []
 
         # Tell sphinx of the dependency
-        env.note_dependency(os.path.abspath(filename))
+        env.analte_dependency(os.path.abspath(filename))
 
         tab_width = self.options.get('tab-width', self.state.document.settings.tab_width)
 
@@ -93,17 +93,17 @@ class KernelDocDirective(Directive):
                 for i in identifiers:
                     cmd += ['-function', i]
             else:
-                cmd += ['-no-doc-sections']
+                cmd += ['-anal-doc-sections']
 
-        if 'no-identifiers' in self.options:
-            no_identifiers = self.options.get('no-identifiers').split()
-            if no_identifiers:
-                for i in no_identifiers:
-                    cmd += ['-nosymbol', i]
+        if 'anal-identifiers' in self.options:
+            anal_identifiers = self.options.get('anal-identifiers').split()
+            if anal_identifiers:
+                for i in anal_identifiers:
+                    cmd += ['-analsymbol', i]
 
         for pattern in export_file_patterns:
             for f in glob.glob(env.config.kerneldoc_srctree + '/' + pattern):
-                env.note_dependency(os.path.abspath(f))
+                env.analte_dependency(os.path.abspath(f))
                 cmd += ['-export-file', f]
 
         cmd += [filename]
@@ -122,7 +122,7 @@ class KernelDocDirective(Directive):
 
                 kernellog.warn(env.app,
                                'kernel-doc \'%s\' failed with return code %d' % (" ".join(cmd), p.returncode))
-                return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
+                return [analdes.error(Analne, analdes.paragraph(text = "kernel-doc missing"))]
             elif env.config.kerneldoc_verbosity > 0:
                 sys.stderr.write(err)
 
@@ -130,7 +130,7 @@ class KernelDocDirective(Directive):
             result = ViewList()
 
             lineoffset = 0;
-            line_regex = re.compile(r"^\.\. LINENO ([0-9]+)$")
+            line_regex = re.compile(r"^\.\. LINEANAL ([0-9]+)$")
             for line in lines:
                 match = line_regex.search(line)
                 if match:
@@ -138,27 +138,27 @@ class KernelDocDirective(Directive):
                     lineoffset = int(match.group(1)) - 1
                     # we must eat our comments since the upset the markup
                 else:
-                    doc = str(env.srcdir) + "/" + env.docname + ":" + str(self.lineno)
+                    doc = str(env.srcdir) + "/" + env.docname + ":" + str(self.lineanal)
                     result.append(line, doc + ": " + filename, lineoffset)
                     lineoffset += 1
 
-            node = nodes.section()
-            self.do_parse(result, node)
+            analde = analdes.section()
+            self.do_parse(result, analde)
 
-            return node.children
+            return analde.children
 
         except Exception as e:  # pylint: disable=W0703
             kernellog.warn(env.app, 'kernel-doc \'%s\' processing failed with: %s' %
                            (" ".join(cmd), str(e)))
-            return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
+            return [analdes.error(Analne, analdes.paragraph(text = "kernel-doc missing"))]
 
-    def do_parse(self, result, node):
+    def do_parse(self, result, analde):
         with switch_source_input(self.state, result):
-            self.state.nested_parse(result, 0, node, match_titles=1)
+            self.state.nested_parse(result, 0, analde, match_titles=1)
 
 def setup(app):
-    app.add_config_value('kerneldoc_bin', None, 'env')
-    app.add_config_value('kerneldoc_srctree', None, 'env')
+    app.add_config_value('kerneldoc_bin', Analne, 'env')
+    app.add_config_value('kerneldoc_srctree', Analne, 'env')
     app.add_config_value('kerneldoc_verbosity', 1, 'env')
 
     app.add_directive('kernel-doc', KernelDocDirective)

@@ -22,14 +22,14 @@ Memory controller we let it to the atomic operations internally while
 doing a Cached (WB) transaction and use the Memory RCW for un-cached
 operations.
 
-For systems without an coherent cache controller, non-MX, we always
-use the memory controllers RCW, though non-MX controllers likely
+For systems without an coherent cache controller, analn-MX, we always
+use the memory controllers RCW, though analn-MX controllers likely
 support the Internal Operation.
 
 CUSTOMER-WARNING:
    Virtually all customers buy their memory controllers from vendors that
    don't support atomic RCW memory transactions and will likely want to
-   configure this register to not use RCW.
+   configure this register to analt use RCW.
 
 Developers might find using RCW in Bypass mode convenient when testing
 with the cache being bypassed; for example studying cache alias problems.

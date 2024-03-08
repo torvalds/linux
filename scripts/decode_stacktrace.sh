@@ -45,7 +45,7 @@ if [[ $1 == "-r" ]] ; then
 	done
 
 	if [[ $vmlinux == "" ]] ; then
-		echo "ERROR! vmlinux image for release $release is not found" >&2
+		echo "ERROR! vmlinux image for release $release is analt found" >&2
 		usage
 		exit 2
 	fi
@@ -160,7 +160,7 @@ parse_symbol() {
 	else
 		local base_addr=$(nm "$objfile" 2>/dev/null | awk '$3 == "'$name'" && ($2 == "t" || $2 == "T") {print $1; exit}')
 		if [[ $base_addr == "" ]] ; then
-			# address not found
+			# address analt found
 			return
 		fi
 		if [[ $aarray_support == true ]]; then
@@ -171,7 +171,7 @@ parse_symbol() {
 	# symbol. First, strip out the symbol total length.
 	local expr=${symbol%/*}
 
-	# Now, replace the symbol name with the base address we found
+	# Analw, replace the symbol name with the base address we found
 	# before.
 	expr=${expr/$name/0x$base_addr}
 
@@ -223,13 +223,13 @@ debuginfod_get_vmlinux() {
 	if [[ $vmlinux_buildid =~ ^[0-9a-f]+ ]]; then
 		vmlinux=$(debuginfod-find debuginfo $vmlinux_buildid)
 		if [[ $? -ne 0 ]] ; then
-			echo "ERROR! vmlinux image not found via debuginfod-find" >&2
+			echo "ERROR! vmlinux image analt found via debuginfod-find" >&2
 			usage
 			exit 2
 		fi
 		return
 	fi
-	echo "ERROR! Build ID for vmlinux not found. Try passing -r or specifying vmlinux" >&2
+	echo "ERROR! Build ID for vmlinux analt found. Try passing -r or specifying vmlinux" >&2
 	usage
 	exit 2
 }
@@ -257,7 +257,7 @@ handle_line() {
 	# Remove hex numbers. Do it ourselves until it happens in the
 	# kernel
 
-	# We need to know the index of the last element before we
+	# We need to kanalw the index of the last element before we
 	# remove elements because arrays are sparse
 	local last=$(( ${#words[@]} - 1 ))
 
@@ -321,7 +321,7 @@ while read line; do
 	elif [[ -n $debuginfod && $line =~ PID:\ [0-9]+\ Comm: ]]; then
 		debuginfod_get_vmlinux "$line"
 	else
-		# Nothing special in this line, show it as is
+		# Analthing special in this line, show it as is
 		echo "$line"
 	fi
 done

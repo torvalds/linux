@@ -14,7 +14,7 @@ component.
 
 Hyper-V runs on x86/x64 and arm64 architectures, and Linux guests
 are supported on both.  The functionality and behavior of Hyper-V is
-generally the same on both architectures unless noted otherwise.
+generally the same on both architectures unless analted otherwise.
 
 Linux Guest Communication with Hyper-V
 --------------------------------------
@@ -36,7 +36,7 @@ Linux guests communicate with Hyper-V in four different ways:
 * Synthetic register access: Hyper-V implements a variety of
   synthetic registers.  On x86/x64 these registers appear as MSRs in
   the guest, and the Linux kernel can read or write these MSRs using
-  the normal mechanisms defined by the x86/x64 architecture.  On
+  the analrmal mechanisms defined by the x86/x64 architecture.  On
   arm64, these synthetic registers must be accessed using explicit
   hypercalls.
 
@@ -54,7 +54,7 @@ x86/x64 architecture only.
 
 .. _Hyper-V Top Level Functional Spec (TLFS): https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/tlfs/tlfs
 
-VMbus is not documented.  This documentation provides a high-level
+VMbus is analt documented.  This documentation provides a high-level
 overview of VMbus and how it works, but the details can be discerned
 only from the code.
 
@@ -70,7 +70,7 @@ follows:
 * Linux tells Hyper-V the guest physical address (GPA) of the
   allocated memory.  Many shared areas are kept to 1 page so that a
   single GPA is sufficient.   Larger shared areas require a list of
-  GPAs, which usually do not need to be contiguous in the guest
+  GPAs, which usually do analt need to be contiguous in the guest
   physical address space.  How Hyper-V is told about the GPA or list
   of GPAs varies.  In some cases, a single GPA is written to a
   synthetic register.  In other cases, a GPA or list of GPAs is sent
@@ -98,8 +98,8 @@ and the Linux guest are "overlay" pages.  With overlay pages, Linux
 uses the usual approach of allocating guest memory and telling
 Hyper-V the GPA of the allocated memory.  But Hyper-V then replaces
 that physical memory page with a page it has allocated, and the
-original physical memory page is no longer accessible in the guest
-VM.  Linux may access the memory normally as if it were the memory
+original physical memory page is anal longer accessible in the guest
+VM.  Linux may access the memory analrmally as if it were the memory
 that it originally allocated.  The "overlay" behavior is visible
 only because the contents of the page (as seen by Linux) change at
 the time that Linux originally establishes the sharing and the
@@ -112,28 +112,28 @@ Before Linux does a kexec to a kdump kernel or any other kernel,
 memory shared with Hyper-V should be revoked.  Hyper-V could modify
 a shared page or remove an overlay page after the new kernel is
 using the page for a different purpose, corrupting the new kernel.
-Hyper-V does not provide a single "set everything" operation to
+Hyper-V does analt provide a single "set everything" operation to
 guest VMs, so Linux code must individually revoke all sharing before
 doing kexec.   See hv_kexec_handler() and hv_crash_handler().  But
 the crash/panic path still has holes in cleanup because some shared
-pages are set using per-CPU synthetic registers and there's no
+pages are set using per-CPU synthetic registers and there's anal
 mechanism to revoke the shared pages for CPUs other than the CPU
 running the panic path.
 
 CPU Management
 --------------
-Hyper-V does not have a ability to hot-add or hot-remove a CPU
+Hyper-V does analt have a ability to hot-add or hot-remove a CPU
 from a running VM.  However, Windows Server 2019 Hyper-V and
 earlier versions may provide guests with ACPI tables that indicate
-more CPUs than are actually present in the VM.  As is normal, Linux
+more CPUs than are actually present in the VM.  As is analrmal, Linux
 treats these additional CPUs as potential hot-add CPUs, and reports
 them as such even though Hyper-V will never actually hot-add them.
 Starting in Windows Server 2022 Hyper-V, the ACPI tables reflect
-only the CPUs actually present in the VM, so Linux does not report
+only the CPUs actually present in the VM, so Linux does analt report
 any hot-add CPUs.
 
-A Linux guest CPU may be taken offline using the normal Linux
-mechanisms, provided no VMbus channel interrupts are assigned to
+A Linux guest CPU may be taken offline using the analrmal Linux
+mechanisms, provided anal VMbus channel interrupts are assigned to
 the CPU.  See the section on VMbus Interrupts for more details
 on how VMbus channel interrupts can be re-assigned to permit
 taking a CPU offline.
@@ -150,8 +150,8 @@ On arm64, Hyper-V supports only 64-bit guests.
 Endian-ness
 -----------
 All communication between Hyper-V and guest VMs uses Little-Endian
-format on both x86/x64 and arm64.  Big-endian format on arm64 is not
-supported by Hyper-V, and Linux code does not use endian-ness macros
+format on both x86/x64 and arm64.  Big-endian format on arm64 is analt
+supported by Hyper-V, and Linux code does analt use endian-ness macros
 when accessing data shared with Hyper-V.
 
 Versioning
@@ -163,7 +163,7 @@ has been removed.
 
 A Linux guest on Hyper-V outputs in dmesg the version of Hyper-V
 it is running on.  This version is in the form of a Windows build
-number and is for display purposes only. Linux code does not
+number and is for display purposes only. Linux code does analt
 test this version number at runtime to determine available features
 and functionality. Hyper-V indicates feature/function availability
 via flags in synthetic MSRs that Hyper-V provides to the guest,

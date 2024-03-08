@@ -93,7 +93,7 @@ lgm_clk_register_mux(struct lgm_clk_provider *ctx,
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = list->name;
 	init.ops = &lgm_clk_mux_ops;
@@ -164,7 +164,7 @@ static int lgm_clk_divider_enable_disable(struct clk_hw *hw, int enable)
 {
 	struct lgm_clk_divider *div = to_lgm_clk_divider(hw);
 
-	if (div->flags != DIV_CLK_NO_MASK)
+	if (div->flags != DIV_CLK_ANAL_MASK)
 		lgm_set_clk_val(div->membase, div->reg, div->shift_gate,
 				div->width_gate, enable);
 	return 0;
@@ -206,7 +206,7 @@ lgm_clk_register_divider(struct lgm_clk_provider *ctx,
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = list->name;
 	init.ops = &lgm_clk_divider_ops;
@@ -307,7 +307,7 @@ lgm_clk_register_gate(struct lgm_clk_provider *ctx,
 
 	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
 	if (!gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = list->name;
 	init.ops = &lgm_clk_gate_ops;
@@ -546,7 +546,7 @@ int lgm_clk_register_ddiv(struct lgm_clk_provider *ctx,
 
 		ddiv = devm_kzalloc(dev, sizeof(*ddiv), GFP_KERNEL);
 		if (!ddiv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		init.name = list->name;
 		init.ops = &lgm_clk_ddiv_ops;

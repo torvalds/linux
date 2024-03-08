@@ -83,11 +83,11 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 
 	bdev = devm_kzalloc(&pdev->dev, sizeof(*bdev), GFP_KERNEL);
 	if (!bdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(bdev->keymap, sgi_map, sizeof(bdev->keymap));
 

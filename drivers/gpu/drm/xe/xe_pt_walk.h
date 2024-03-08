@@ -69,13 +69,13 @@ struct xe_pt_walk_ops {
 	/**
 	 * @pt_entry: Callback to be called for each page table entry prior
 	 * to descending to the next level. The returned value of the action
-	 * function parameter is honored.
+	 * function parameter is hoanalred.
 	 */
 	xe_pt_entry_fn pt_entry;
 	/**
 	 * @pt_post_descend: Callback to be called for each page table entry
 	 * after return from descending to the next level. The returned value
-	 * of the action function parameter is ignored.
+	 * of the action function parameter is iganalred.
 	 */
 	xe_pt_entry_fn pt_post_descend;
 };

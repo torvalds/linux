@@ -35,7 +35,7 @@ void pds_vdpa_debugfs_destroy(void)
 static void print_status_bits(struct seq_file *seq, u8 status)
 {
 	seq_puts(seq, "status:");
-	PRINT_SBIT_NAME(seq, status, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+	PRINT_SBIT_NAME(seq, status, VIRTIO_CONFIG_S_ACKANALWLEDGE);
 	PRINT_SBIT_NAME(seq, status, VIRTIO_CONFIG_S_DRIVER);
 	PRINT_SBIT_NAME(seq, status, VIRTIO_CONFIG_S_DRIVER_OK);
 	PRINT_SBIT_NAME(seq, status, VIRTIO_CONFIG_S_FEATURES_OK);
@@ -111,8 +111,8 @@ static void print_feature_bits_all(struct seq_file *seq, u64 features)
 		case BIT_ULL(VIRTIO_NET_F_CTRL_RX_EXTRA):
 			seq_puts(seq, " VIRTIO_NET_F_CTRL_RX_EXTRA");
 			break;
-		case BIT_ULL(VIRTIO_NET_F_GUEST_ANNOUNCE):
-			seq_puts(seq, " VIRTIO_NET_F_GUEST_ANNOUNCE");
+		case BIT_ULL(VIRTIO_NET_F_GUEST_ANANALUNCE):
+			seq_puts(seq, " VIRTIO_NET_F_GUEST_ANANALUNCE");
 			break;
 		case BIT_ULL(VIRTIO_NET_F_MQ):
 			seq_puts(seq, " VIRTIO_NET_F_MQ");
@@ -135,8 +135,8 @@ static void print_feature_bits_all(struct seq_file *seq, u64 features)
 		case BIT_ULL(VIRTIO_NET_F_SPEED_DUPLEX):
 			seq_puts(seq, " VIRTIO_NET_F_SPEED_DUPLEX");
 			break;
-		case BIT_ULL(VIRTIO_F_NOTIFY_ON_EMPTY):
-			seq_puts(seq, " VIRTIO_F_NOTIFY_ON_EMPTY");
+		case BIT_ULL(VIRTIO_F_ANALTIFY_ON_EMPTY):
+			seq_puts(seq, " VIRTIO_F_ANALTIFY_ON_EMPTY");
 			break;
 		case BIT_ULL(VIRTIO_F_ANY_LAYOUT):
 			seq_puts(seq, " VIRTIO_F_ANY_LAYOUT");

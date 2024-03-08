@@ -51,22 +51,22 @@ struct orangefs_dir {
  * part list.  Data is parsed from the current position as it is needed.
  * When data is determined to be corrupt, it is either because the
  * userspace component has sent back corrupt data or because the file
- * pointer has been moved to an invalid location.  Since the two cannot
+ * pointer has been moved to an invalid location.  Since the two cananalt
  * be differentiated, return EIO.
  *
  * Part zero is synthesized to contains `.' and `..'.  Part one is the
  * first part of the part list.
  */
 
-static int do_readdir(struct orangefs_dir *od, struct inode *inode,
+static int do_readdir(struct orangefs_dir *od, struct ianalde *ianalde,
     struct orangefs_kernel_op_s *op)
 {
-	struct orangefs_inode_s *oi = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *oi = ORANGEFS_I(ianalde);
 	struct orangefs_readdir_response_s *resp;
 	int bufi, r;
 
 	/*
-	 * Despite the badly named field, readdir does not use shared
+	 * Despite the badly named field, readdir does analt use shared
 	 * memory.  However, there are a limited number of readdir
 	 * slots, which must be allocated here.  This flag simply tells
 	 * the op scheduler to return the op here for retry.
@@ -87,7 +87,7 @@ again:
 	op->upcall.req.readdir.buf_index = bufi;
 
 	r = service_operation(op, "orangefs_readdir",
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(ianalde));
 
 	orangefs_readdir_index_put(bufi);
 
@@ -158,17 +158,17 @@ static int parse_readdir(struct orangefs_dir *od,
 	return 0;
 }
 
-static int orangefs_dir_more(struct orangefs_dir *od, struct inode *inode)
+static int orangefs_dir_more(struct orangefs_dir *od, struct ianalde *ianalde)
 {
 	struct orangefs_kernel_op_s *op;
 	int r;
 
 	op = op_alloc(ORANGEFS_VFS_OP_READDIR);
 	if (!op) {
-		od->error = -ENOMEM;
-		return -ENOMEM;
+		od->error = -EANALMEM;
+		return -EANALMEM;
 	}
-	r = do_readdir(od, inode, op);
+	r = do_readdir(od, ianalde, op);
 	if (r) {
 		od->error = r;
 		goto out;
@@ -223,8 +223,8 @@ static int fill_from_part(struct orangefs_dir_part *part,
 			goto next;
 		khandle = (void *)part + offset + i + padlen;
 		if (!dir_emit(ctx, s, *len,
-		    orangefs_khandle_to_ino(khandle),
-		    DT_UNKNOWN))
+		    orangefs_khandle_to_ianal(khandle),
+		    DT_UNKANALWN))
 			return 0;
 		i += padlen + sizeof *khandle;
 		i = i + (8 - i%8)%8;
@@ -302,7 +302,7 @@ static int orangefs_dir_iterate(struct file *file,
     struct dir_context *ctx)
 {
 	struct orangefs_dir *od = file->private_data;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	int r;
 
 	if (od->error)
@@ -320,7 +320,7 @@ static int orangefs_dir_iterate(struct file *file,
 	}
 
 	/*
-	 * The seek position is in the first synthesized part but is not
+	 * The seek position is in the first synthesized part but is analt
 	 * valid.
 	 */
 	if ((ctx->pos & PART_MASK) == 0)
@@ -334,7 +334,7 @@ static int orangefs_dir_iterate(struct file *file,
 	 */
 	while (od->token != ORANGEFS_ITERATE_END &&
 	    ctx->pos > od->end) {
-		r = orangefs_dir_more(od, inode);
+		r = orangefs_dir_more(od, ianalde);
 		if (r)
 			return r;
 	}
@@ -350,7 +350,7 @@ static int orangefs_dir_iterate(struct file *file,
 
 	/* Finally get some more and try to fill. */
 	if (od->token != ORANGEFS_ITERATE_END) {
-		r = orangefs_dir_more(od, inode);
+		r = orangefs_dir_more(od, ianalde);
 		if (r)
 			return r;
 		r = orangefs_dir_fill(od, ctx);
@@ -359,13 +359,13 @@ static int orangefs_dir_iterate(struct file *file,
 	return r;
 }
 
-static int orangefs_dir_open(struct inode *inode, struct file *file)
+static int orangefs_dir_open(struct ianalde *ianalde, struct file *file)
 {
 	struct orangefs_dir *od;
 	file->private_data = kmalloc(sizeof(struct orangefs_dir),
 	    GFP_KERNEL);
 	if (!file->private_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	od = file->private_data;
 	od->token = ORANGEFS_ITERATE_START;
 	od->part = NULL;
@@ -374,7 +374,7 @@ static int orangefs_dir_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int orangefs_dir_release(struct inode *inode, struct file *file)
+static int orangefs_dir_release(struct ianalde *ianalde, struct file *file)
 {
 	struct orangefs_dir *od = file->private_data;
 	struct orangefs_dir_part *part = od->part;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,7 +36,7 @@
 static uint32_t dsc_policy_max_target_bpp_limit = 16;
 
 /* default DSC policy enables DSC only when needed */
-static bool dsc_policy_enable_dsc_when_not_needed;
+static bool dsc_policy_enable_dsc_when_analt_needed;
 
 static bool dsc_policy_disable_dsc_stream_overhead;
 
@@ -195,7 +195,7 @@ static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_bl
 		*buff_block_size = 64 * 1024;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC buffer size not recognized.\n", __func__);
+			dm_error("%s: DPCD DSC buffer size analt recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -211,7 +211,7 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 	else if (dpcd_line_buff_bit_depth == 8)
 		*line_buff_bit_depth = 8;
 	else {
-		dm_error("%s: DPCD DSC buffer depth not recognized.\n", __func__);
+		dm_error("%s: DPCD DSC buffer depth analt recognized.\n", __func__);
 		return false;
 	}
 
@@ -271,7 +271,7 @@ static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 		*throughput = 1000;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC throughput mode not recognized.\n", __func__);
+			dm_error("%s: DPCD DSC throughput mode analt recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -302,7 +302,7 @@ static bool dsc_bpp_increment_div_from_dpcd(uint8_t bpp_increment_dpcd, uint32_t
 		*bpp_increment_div = 1;
 		break;
 	default: {
-		dm_error("%s: DPCD DSC bits-per-pixel increment not recognized.\n", __func__);
+		dm_error("%s: DPCD DSC bits-per-pixel increment analt recognized.\n", __func__);
 		return false;
 	}
 	}
@@ -383,7 +383,7 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 	if (dc->debug.dsc_bpp_increment_div) {
 		/* dsc_bpp_increment_div should onl be 1, 2, 4, 8 or 16, but rather than rejecting invalid values,
 		 * we'll accept all and get it into range. This also makes the above check against 0 redundant,
-		 * but that one stresses out the override will be only used if it's not 0.
+		 * but that one stresses out the override will be only used if it's analt 0.
 		 */
 		if (dc->debug.dsc_bpp_increment_div >= 1)
 			dsc_sink_caps->bpp_increment_div = 1;
@@ -398,7 +398,7 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 	}
 
 	/* Extended caps */
-	if (dpcd_dsc_branch_decoder_caps == NULL) { // branch decoder DPCD DSC data can be null for non branch device
+	if (dpcd_dsc_branch_decoder_caps == NULL) { // branch decoder DPCD DSC data can be null for analn branch device
 		dsc_sink_caps->branch_overall_throughput_0_mps = 0;
 		dsc_sink_caps->branch_overall_throughput_1_mps = 0;
 		dsc_sink_caps->branch_max_line_width = 0;
@@ -438,7 +438,7 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 
 /* If DSC is possbile, get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range and
  * timing's pixel clock and uncompressed bandwidth.
- * If DSC is not possible, leave '*range' untouched.
+ * If DSC is analt possible, leave '*range' untouched.
  */
 bool dc_dsc_compute_bandwidth_range(
 		const struct display_stream_compressor *dsc,
@@ -492,7 +492,7 @@ static void get_dsc_enc_caps(
 	}
 }
 
-/* Returns 'false' if no intersection was found for at least one capability.
+/* Returns 'false' if anal intersection was found for at least one capability.
  * It also implicitly validates some sink caps against invalid value of zero.
  */
 static bool intersect_dsc_caps(
@@ -604,7 +604,7 @@ static uint32_t compute_bpp_x16_from_target_bandwidth(
 /* Decide DSC bandwidth range based on signal, timing, specs specific and input min and max
  * requirements.
  * The range output includes decided min/max target bpp, the respective bandwidth requirements
- * and native timing bandwidth requirement when DSC is not used.
+ * and native timing bandwidth requirement when DSC is analt used.
  */
 static bool decide_dsc_bandwidth_range(
 		const uint32_t min_bpp_x16,
@@ -660,7 +660,7 @@ static bool decide_dsc_bandwidth_range(
  *
  * Returns:
  *     - 'true' if target bpp is decided
- *     - 'false' if target bpp cannot be decided (e.g. cannot fit even with min DSC bpp),
+ *     - 'false' if target bpp cananalt be decided (e.g. cananalt fit even with min DSC bpp),
  */
 static bool decide_dsc_target_bpp_x16(
 		const struct dc_dsc_policy *policy,
@@ -678,8 +678,8 @@ static bool decide_dsc_target_bpp_x16(
 	if (decide_dsc_bandwidth_range(policy->min_target_bpp * 16, policy->max_target_bpp * 16,
 			num_slices_h, dsc_common_caps, timing, link_encoding, &range)) {
 		if (target_bandwidth_kbps >= range.stream_kbps) {
-			if (policy->enable_dsc_when_not_needed)
-				/* enable max bpp even dsc is not needed */
+			if (policy->enable_dsc_when_analt_needed)
+				/* enable max bpp even dsc is analt needed */
 				*target_bpp_x16 = range.max_target_bpp_x16;
 		} else if (target_bandwidth_kbps >= range.max_kbps) {
 			/* use max target bpp allowed */
@@ -737,7 +737,7 @@ static int get_max_dsc_slices(union dsc_enc_slice_caps slice_caps)
 }
 
 
-// Increment slice number in available slice numbers stops if possible, or just increment if not
+// Increment slice number in available slice numbers stops if possible, or just increment if analt
 static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -748,7 +748,7 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 
 	end_idx = get_available_dsc_slices(slice_caps, &available_slices[0]);
 	if (end_idx == 0) {
-		// No available slices found
+		// Anal available slices found
 		new_num_slices++;
 		return new_num_slices;
 	}
@@ -761,14 +761,14 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 		}
 	}
 
-	if (new_num_slices == num_slices) // No bigger number of slices found
+	if (new_num_slices == num_slices) // Anal bigger number of slices found
 		new_num_slices++;
 
 	return new_num_slices;
 }
 
 
-// Decrement slice number in available slice numbers stops if possible, or just decrement if not. Stop at zero.
+// Decrement slice number in available slice numbers stops if possible, or just decrement if analt. Stop at zero.
 static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -779,7 +779,7 @@ static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 
 	end_idx = get_available_dsc_slices(slice_caps, &available_slices[0]);
 	if (end_idx == 0 && new_num_slices > 0) {
-		// No numbers of slices found
+		// Anal numbers of slices found
 		new_num_slices++;
 		return new_num_slices;
 	}
@@ -793,7 +793,7 @@ static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 	}
 
 	if (new_num_slices == num_slices) {
-		// No smaller number of slices found
+		// Anal smaller number of slices found
 		new_num_slices--;
 		if (new_num_slices < 0)
 			new_num_slices = 0;
@@ -803,7 +803,7 @@ static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 }
 
 
-// Choose next bigger number of slices if the requested number of slices is not available
+// Choose next bigger number of slices if the requested number of slices is analt available
 static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -814,7 +814,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
 
 	end_idx = get_available_dsc_slices(slice_caps, &available_slices[0]);
 	if (end_idx == 0) {
-		// No available slices found
+		// Anal available slices found
 		new_num_slices++;
 		return new_num_slices;
 	}
@@ -832,7 +832,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
 
 
 /* Attempts to set DSC configuration for the stream, applying DSC policy.
- * Returns 'true' if successful or 'false' if not.
+ * Returns 'true' if successful or 'false' if analt.
  *
  * Parameters:
  *
@@ -841,7 +841,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
  * dsc_enc_caps        - DSC encoder capabilities
  *
  * target_bandwidth_kbps  - Target bandwidth to fit the stream into.
- *                          If 0, do not calculate target bpp.
+ *                          If 0, do analt calculate target bpp.
  *
  * timing              - The stream timing to fit into 'target_bandwidth_kbps' or apply
  *                       maximum compression to, if 'target_badwidth == 0'
@@ -996,7 +996,7 @@ static bool setup_dsc_config(
 	if (policy.use_min_slices_h) {
 		if (min_slices_h > 0)
 			num_slices_h = min_slices_h;
-		else if (max_slices_h > 0) { // Fall back to max slices if min slices is not working out
+		else if (max_slices_h > 0) { // Fall back to max slices if min slices is analt working out
 			if (policy.max_slices_h)
 				num_slices_h = min(policy.max_slices_h, max_slices_h);
 			else
@@ -1009,7 +1009,7 @@ static bool setup_dsc_config(
 				num_slices_h = min(policy.max_slices_h, max_slices_h);
 			else
 				num_slices_h = max_slices_h;
-		} else if (min_slices_h > 0) // Fall back to min slices if max slices is not possible
+		} else if (min_slices_h > 0) // Fall back to min slices if max slices is analt possible
 			num_slices_h = min_slices_h;
 		else
 			is_dsc_possible = false;
@@ -1066,12 +1066,12 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	// Final decission: can we do DSC or not?
+	// Final decission: can we do DSC or analt?
 	if (is_dsc_possible) {
 		// Fill out the rest of DSC settings
 		dsc_cfg->block_pred_enable = dsc_common_caps.is_block_pred_supported;
 		dsc_cfg->linebuf_depth = dsc_common_caps.lb_bit_depth;
-		dsc_cfg->version_minor = (dsc_common_caps.dsc_version & 0xf0) >> 4;
+		dsc_cfg->version_mianalr = (dsc_common_caps.dsc_version & 0xf0) >> 4;
 		dsc_cfg->is_dp = dsc_sink_caps->is_dp;
 	}
 
@@ -1185,7 +1185,7 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 	switch (timing->pixel_encoding) {
 	case PIXEL_ENCODING_RGB:
 	case PIXEL_ENCODING_YCBCR444:
-	case PIXEL_ENCODING_YCBCR422: /* assume no YCbCr422 native support */
+	case PIXEL_ENCODING_YCBCR422: /* assume anal YCbCr422 native support */
 		/* DP specs limits to 8 */
 		policy->min_target_bpp = 8;
 		/* DP specs limits to 3 x bpc */
@@ -1209,11 +1209,11 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 	if (max_target_bpp_limit_override_x16 && policy->max_target_bpp > max_target_bpp_limit_override_x16 / 16)
 		policy->max_target_bpp = max_target_bpp_limit_override_x16 / 16;
 
-	/* enable DSC when not needed, default false */
-	if (dsc_policy_enable_dsc_when_not_needed)
-		policy->enable_dsc_when_not_needed = dsc_policy_enable_dsc_when_not_needed;
+	/* enable DSC when analt needed, default false */
+	if (dsc_policy_enable_dsc_when_analt_needed)
+		policy->enable_dsc_when_analt_needed = dsc_policy_enable_dsc_when_analt_needed;
 	else
-		policy->enable_dsc_when_not_needed = false;
+		policy->enable_dsc_when_analt_needed = false;
 }
 
 void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit)
@@ -1221,9 +1221,9 @@ void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit)
 	dsc_policy_max_target_bpp_limit = limit;
 }
 
-void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable)
+void dc_dsc_policy_set_enable_dsc_when_analt_needed(bool enable)
 {
-	dsc_policy_enable_dsc_when_not_needed = enable;
+	dsc_policy_enable_dsc_when_analt_needed = enable;
 }
 
 void dc_dsc_policy_set_disable_dsc_stream_overhead(bool disable)

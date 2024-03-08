@@ -78,7 +78,7 @@ struct s5m_rtc_reg_config {
 	unsigned int autoclear_udr_mask;
 	/*
 	 * Masks in UDR field for time and alarm operations.
-	 * The read time mask can be 0. Rest should not.
+	 * The read time mask can be 0. Rest should analt.
 	 */
 	unsigned int read_time_udr_mask;
 	unsigned int write_time_udr_mask;
@@ -94,7 +94,7 @@ static const struct s5m_rtc_reg_config s5m_rtc_regs = {
 	.alarm1			= S5M_ALARM1_SEC,
 	.udr_update		= S5M_RTC_UDR_CON,
 	.autoclear_udr_mask	= S5M_RTC_UDR_MASK,
-	.read_time_udr_mask	= 0, /* Not needed */
+	.read_time_udr_mask	= 0, /* Analt needed */
 	.write_time_udr_mask	= S5M_RTC_UDR_MASK | S5M_RTC_TIME_EN_MASK,
 	.write_alarm_udr_mask	= S5M_RTC_UDR_MASK,
 };
@@ -304,7 +304,7 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 	case S2MPS15X:
 	case S2MPS14X:
 	case S2MPS13X:
-		/* No exceptions needed */
+		/* Anal exceptions needed */
 		break;
 	default:
 		return -EINVAL;
@@ -319,7 +319,7 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 
 	ret = s5m8767_wait_for_udr_update(info);
 
-	/* On S2MPS13 the AUDR is not auto-cleared */
+	/* On S2MPS13 the AUDR is analt auto-cleared */
 	if (info->device_type == S2MPS13X)
 		regmap_update_bits(info->regmap, info->regs->udr_update,
 				   S2MPS13_RTC_AUDR_MASK, 0);
@@ -645,7 +645,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (platform_get_device_id(pdev)->driver_data) {
 	case S2MPS15X:
@@ -670,9 +670,9 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev,
-				"Device type %lu is not supported by RTC driver\n",
+				"Device type %lu is analt supported by RTC driver\n",
 				platform_get_device_id(pdev)->driver_data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	info->i2c = devm_i2c_new_dummy_device(&pdev->dev, s5m87xx->i2c->adapter,

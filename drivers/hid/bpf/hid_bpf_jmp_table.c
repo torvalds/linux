@@ -99,7 +99,7 @@ static int hid_bpf_program_count(struct hid_device *hdev,
 	return n;
 }
 
-__weak noinline int __hid_bpf_tail_call(struct hid_bpf_ctx *ctx)
+__weak analinline int __hid_bpf_tail_call(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
@@ -172,7 +172,7 @@ static int hid_bpf_populate_hdev(struct hid_device *hdev, enum hid_bpf_prog_type
 
 	new_list = kzalloc(sizeof(*new_list), GFP_KERNEL);
 	if (!new_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	FOR_ENTRIES(i, jmp_table.tail, jmp_table.head) {
 		struct hid_bpf_prog_entry *entry = &jmp_table.entries[i];
@@ -250,7 +250,7 @@ static void hid_bpf_release_progs(struct work_struct *work)
 				}
 			}
 
-			/* if type was rdesc fixup and the device is not gone, reconnect device */
+			/* if type was rdesc fixup and the device is analt gone, reconnect device */
 			if (type == HID_BPF_PROG_TYPE_RDESC_FIXUP && !hdev_destroyed)
 				hid_bpf_reconnect(hdev);
 		}
@@ -327,7 +327,7 @@ static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 		}
 	}
 	if (index < 0) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -393,7 +393,7 @@ static const struct bpf_link_ops hid_bpf_link_lops = {
 };
 
 /* called from syscall */
-noinline int
+analinline int
 __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
 		      int prog_fd, struct bpf_prog *prog, __u32 flags)
 {
@@ -406,14 +406,14 @@ __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unlock;
 	}
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_UNSPEC,
 		      &hid_bpf_link_lops, prog);
 
-	/* do not attach too many programs to a given HID device */
+	/* do analt attach too many programs to a given HID device */
 	cnt = hid_bpf_program_count(hdev, NULL, prog_type);
 	if (cnt < 0) {
 		err = cnt;
@@ -508,7 +508,7 @@ void hid_bpf_free_links_and_skel(void)
 {
 	int i;
 
-	/* the following is enough to release all programs attached to hid */
+	/* the following is eanalugh to release all programs attached to hid */
 	if (jmp_table.map)
 		bpf_map_put_with_uref(jmp_table.map);
 
@@ -531,7 +531,7 @@ void hid_bpf_free_links_and_skel(void)
 	}									\
 										\
 	/* Avoid taking over stdin/stdout/stderr of init process. Zeroing out	\
-	 * makes skel_closenz() a no-op later in iterators_bpf__destroy().	\
+	 * makes skel_closenz() a anal-op later in iterators_bpf__destroy().	\
 	 */									\
 	close_fd(skel->links.__name##_fd);					\
 	skel->links.__name##_fd = 0;						\
@@ -544,7 +544,7 @@ int hid_bpf_preload_skel(void)
 
 	skel = entrypoints_bpf__open();
 	if (!skel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = entrypoints_bpf__load(skel);
 	if (err)

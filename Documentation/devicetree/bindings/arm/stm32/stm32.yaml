@@ -10,7 +10,7 @@ maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     oneOf:

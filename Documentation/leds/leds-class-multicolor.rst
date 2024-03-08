@@ -6,7 +6,7 @@ Multicolor LED handling under Linux
 
 Description
 ===========
-The multicolor class groups monochrome LEDs and allows controlling two
+The multicolor class groups moanalchrome LEDs and allows controlling two
 aspects of the final combined color: hue and lightness. The former is
 controlled via the multi_intensity array file and the latter is controlled
 via brightness file.
@@ -14,7 +14,7 @@ via brightness file.
 Multicolor Class Control
 ========================
 The multicolor class presents files that groups the colors as indexes in an
-array.  These files are children under the LED parent node created by the
+array.  These files are children under the LED parent analde created by the
 led_class framework.  The led_class framework is documented in led-class.rst
 within this documentation directory.
 

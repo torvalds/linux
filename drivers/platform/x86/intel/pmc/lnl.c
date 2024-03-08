@@ -64,7 +64,7 @@ const struct pmc_bit_map lnl_ltr_show_map[] = {
 	{"DMI3",		ARL_PMC_LTR_DMI3},
 	{"OSSE",		LNL_PMC_LTR_OSSE},
 
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two cananalt be used for LTR_IGANALRE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -91,7 +91,7 @@ const struct pmc_bit_map lnl_power_gating_status_0_map[] = {
 	{"ISH_PGD0_PG_STS",			BIT(17)},
 	{"SBR8B2_PGD0_PG_STS",			BIT(18)},
 	{"NPK_PGD0_PG_STS",			BIT(19)},
-	{"D2D_NOC_PGD0_PG_STS",			BIT(20)},
+	{"D2D_ANALC_PGD0_PG_STS",			BIT(20)},
 	{"SAFSS_PGD0_PG_STS",			BIT(21)},
 	{"FUSE_PGD0_PG_STS",			BIT(22)},
 	{"D2D_DISP_PGD1_PG_STS",		BIT(23)},
@@ -134,7 +134,7 @@ const struct pmc_bit_map lnl_power_gating_status_1_map[] = {
 	{"SBR8B0_PGD0_PG_STS",			BIT(24)},
 	{"NPK_PGD1_PG_STS",			BIT(25)},
 	{"OSSE_HOTHAM_PGD0_PG_STS",		BIT(26)},
-	{"D2D_NOC_PGD2_PG_STS",			BIT(27)},
+	{"D2D_ANALC_PGD2_PG_STS",			BIT(27)},
 	{"SBR8B1_PGD0_PG_STS",			BIT(28)},
 	{"PSF6_PGD0_PG_STS",			BIT(29)},
 	{"PSF7_PGD0_PG_STS",			BIT(30)},
@@ -148,7 +148,7 @@ const struct pmc_bit_map lnl_power_gating_status_2_map[] = {
 	{"D2D_IPU_PGD0_PG_STS",			BIT(2)},
 	{"FIACPCB_U_PGD0_PG_STS",		BIT(3)},
 	{"TAM_PGD0_PG_STS",			BIT(4)},
-	{"D2D_NOC_PGD1_PG_STS",			BIT(5)},
+	{"D2D_ANALC_PGD1_PG_STS",			BIT(5)},
 	{"TBTLSX_PGD0_PG_STS",			BIT(6)},
 	{"THC0_PGD0_PG_STS",			BIT(7)},
 	{"THC1_PGD0_PG_STS",			BIT(8)},
@@ -280,9 +280,9 @@ const struct pmc_bit_map lnl_vnn_misc_status_map[] = {
 	{"NPK_VNNAON_REQ_STS",			BIT(5)},
 	{"VNN_SOC_REQ_STS",			BIT(6)},
 	{"ISH_VNNAON_REQ_STS",			BIT(7)},
-	{"D2D_NOC_CFI_QACTIVE_REQ_STS",		BIT(8)},
-	{"D2D_NOC_GPSB_QACTIVE_REQ_STS",	BIT(9)},
-	{"D2D_NOC_IPU_QACTIVE_REQ_STS",		BIT(10)},
+	{"D2D_ANALC_CFI_QACTIVE_REQ_STS",		BIT(8)},
+	{"D2D_ANALC_GPSB_QACTIVE_REQ_STS",	BIT(9)},
+	{"D2D_ANALC_IPU_QACTIVE_REQ_STS",		BIT(10)},
 	{"PLT_GREATER_REQ_STS",			BIT(11)},
 	{"PCIE_CLKREQ_REQ_STS",			BIT(12)},
 	{"PMC_IDLE_FB_OCP_REQ_STS",		BIT(13)},
@@ -298,12 +298,12 @@ const struct pmc_bit_map lnl_vnn_misc_status_map[] = {
 	{"FIA_DEEP_PM_REQ_STS",			BIT(23)},
 	{"UXD_CONNECTED_REQ_STS",		BIT(24)},
 	{"ARC_INTERRUPT_WAKE_REQ_STS",	BIT(25)},
-	{"D2D_NOC_DISP_DDI_QACTIVE_REQ_STS",	BIT(26)},
+	{"D2D_ANALC_DISP_DDI_QACTIVE_REQ_STS",	BIT(26)},
 	{"PRE_WAKE0_REQ_STS",			BIT(27)},
 	{"PRE_WAKE1_REQ_STS",			BIT(28)},
 	{"PRE_WAKE2_EN_REQ_STS",		BIT(29)},
 	{"WOV_REQ_STS",				BIT(30)},
-	{"D2D_NOC_DISP_EDP_QACTIVE_REQ_STS_31",	BIT(31)},
+	{"D2D_ANALC_DISP_EDP_QACTIVE_REQ_STS_31",	BIT(31)},
 	{}
 };
 
@@ -374,7 +374,7 @@ const struct pmc_bit_map lnl_pfear_map[] = {
 	{"ISH",				BIT(1)},
 	{"SBR8B2",			BIT(2)},
 	{"NPK_0",			BIT(3)},
-	{"D2D_NOC_0",			BIT(4)},
+	{"D2D_ANALC_0",			BIT(4)},
 	{"SAFSS",			BIT(5)},
 	{"FUSE",			BIT(6)},
 	{"D2D_DISP_1",			BIT(7)},
@@ -418,7 +418,7 @@ const struct pmc_bit_map lnl_pfear_map[] = {
 	{"SBR8B0",			BIT(0)},
 	{"NPK_1",			BIT(1)},
 	{"OSSE_HOTHAM",			BIT(2)},
-	{"D2D_NOC_2",			BIT(3)},
+	{"D2D_ANALC_2",			BIT(3)},
 	{"SBR8B1",			BIT(4)},
 	{"PSF6",			BIT(5)},
 	{"PSF7",			BIT(6)},
@@ -429,7 +429,7 @@ const struct pmc_bit_map lnl_pfear_map[] = {
 	{"D2D_IPU",			BIT(2)},
 	{"FIACPCB_U",			BIT(3)},
 	{"TAM",				BIT(4)},
-	{"D2D_NOC_1",			BIT(5)},
+	{"D2D_ANALC_1",			BIT(5)},
 	{"TBTLSX",			BIT(6)},
 	{"THC0",			BIT(7)},
 
@@ -473,13 +473,13 @@ const struct pmc_reg_map lnl_socm_reg_map = {
 	.slp_s0_res_counter_step = TGL_PMC_SLP_S0_RES_COUNTER_STEP,
 	.ltr_show_sts = lnl_ltr_show_map,
 	.msr_sts = msr_map,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_iganalre_offset = CNP_PMC_LTR_IGANALRE_OFFSET,
 	.regmap_length = LNL_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = LNL_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = LNL_NUM_IP_IGN_ALLOWED,
+	.ltr_iganalre_max = LNL_NUM_IP_IGN_ALLOWED,
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
 	.lpm_res_counter_step_x2 = TGL_PMC_LPM_RES_COUNTER_STEP_X2,
 	.etr3_offset = ETR3_OFFSET,
@@ -497,8 +497,8 @@ const struct pmc_reg_map lnl_socm_reg_map = {
 #define LNL_IPU_PCI_DEV		0x645d
 
 /*
- * Set power state of select devices that do not have drivers to D3
- * so that they do not block Package C entry.
+ * Set power state of select devices that do analt have drivers to D3
+ * so that they do analt block Package C entry.
  */
 static void lnl_d3_fixup(void)
 {
@@ -509,7 +509,7 @@ static void lnl_d3_fixup(void)
 static int lnl_resume(struct pmc_dev *pmcdev)
 {
 	lnl_d3_fixup();
-	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+	pmc_core_send_ltr_iganalre(pmcdev, 3, 0);
 
 	return pmc_core_resume_common(pmcdev);
 }
@@ -528,7 +528,7 @@ int lnl_core_init(struct pmc_dev *pmcdev)
 	pmcdev->regmap_list = lnl_pmc_info_list;
 	ret = pmc_core_ssram_init(pmcdev, func);
 
-	/* If regbase not assigned, set map and discover using legacy method */
+	/* If regbase analt assigned, set map and discover using legacy method */
 	if (ret) {
 		ssram_init = false;
 		pmc->map = &lnl_socm_reg_map;

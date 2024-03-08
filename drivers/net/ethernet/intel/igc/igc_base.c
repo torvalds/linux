@@ -13,7 +13,7 @@
  * igc_reset_hw_base - Reset hardware
  * @hw: pointer to the HW structure
  *
- * This resets the hardware into a known state.  This is a
+ * This resets the hardware into a kanalwn state.  This is a
  * function pointer entry point called by the api module.
  */
 static s32 igc_reset_hw_base(struct igc_hw *hw)
@@ -21,7 +21,7 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	s32 ret_val;
 	u32 ctrl;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is anal TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = igc_disable_pcie_master(hw);
@@ -44,11 +44,11 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 
 	ret_val = igc_get_auto_rd_done(hw);
 	if (ret_val) {
-		/* When auto config read does not complete, do not
+		/* When auto config read does analt complete, do analt
 		 * return with an error. This can happen in situations
-		 * where there is no eeprom and prevents getting link.
+		 * where there is anal eeprom and prevents getting link.
 		 */
-		hw_dbg("Auto Read Done did not complete\n");
+		hw_dbg("Auto Read Done did analt complete\n");
 	}
 
 	/* Clear any pending interrupt events. */
@@ -297,7 +297,7 @@ static s32 igc_init_hw_base(struct igc_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is anal link.
 	 */
 	igc_clear_hw_cntrs_base(hw);
 
@@ -309,11 +309,11 @@ static s32 igc_init_hw_base(struct igc_hw *hw)
  * @hw: pointer to the HW structure
  *
  * In the case of a PHY power down to save power, or to turn off link during a
- * driver unload, or wake on lan is not enabled, remove the link.
+ * driver unload, or wake on lan is analt enabled, remove the link.
  */
 void igc_power_down_phy_copper_base(struct igc_hw *hw)
 {
-	/* If the management interface is not enabled, then power down */
+	/* If the management interface is analt enabled, then power down */
 	if (!(igc_enable_mng_pass_thru(hw) || igc_check_reset_block(hw)))
 		igc_power_down_phy_copper(hw);
 }

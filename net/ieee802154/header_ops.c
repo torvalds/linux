@@ -17,7 +17,7 @@ ieee802154_hdr_push_addr(u8 *buf, const struct ieee802154_addr *addr,
 {
 	int pos = 0;
 
-	if (addr->mode == IEEE802154_ADDR_NONE)
+	if (addr->mode == IEEE802154_ADDR_ANALNE)
 		return 0;
 
 	if (!omit_pan) {
@@ -94,7 +94,7 @@ ieee802154_hdr_push(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 	fc->source_addr_mode = hdr->source.mode;
 
 	if (hdr->source.pan_id == hdr->dest.pan_id &&
-	    hdr->dest.mode != IEEE802154_ADDR_NONE)
+	    hdr->dest.mode != IEEE802154_ADDR_ANALNE)
 		fc->intra_pan = true;
 
 	rc = ieee802154_hdr_push_addr(buf + pos, &hdr->source, fc->intra_pan);
@@ -161,7 +161,7 @@ int ieee802154_beacon_push(struct sk_buff *skb,
 	skb_put_data(skb, mac_pl, sizeof(*mac_pl));
 
 	if (mac_pl->pend_short_addr_count || mac_pl->pend_ext_addr_count)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -175,7 +175,7 @@ ieee802154_hdr_get_addr(const u8 *buf, int mode, bool omit_pan,
 
 	addr->mode = mode;
 
-	if (mode == IEEE802154_ADDR_NONE)
+	if (mode == IEEE802154_ADDR_ANALNE)
 		return 0;
 
 	if (!omit_pan) {
@@ -197,7 +197,7 @@ static int ieee802154_hdr_addr_len(int mode, bool omit_pan)
 	int pan_len = omit_pan ? 0 : 2;
 
 	switch (mode) {
-	case IEEE802154_ADDR_NONE: return 0;
+	case IEEE802154_ADDR_ANALNE: return 0;
 	case IEEE802154_ADDR_SHORT: return 2 + pan_len;
 	case IEEE802154_ADDR_LONG: return IEEE802154_ADDR_LEN + pan_len;
 	default: return -EINVAL;

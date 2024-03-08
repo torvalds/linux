@@ -245,12 +245,12 @@ static int sst_acpi_probe(struct platform_device *pdev)
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
 	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SST) {
-		dev_dbg(dev, "SST ACPI driver not selected, aborting probe\n");
-		return -ENODEV;
+		dev_dbg(dev, "SST ACPI driver analt selected, aborting probe\n");
+		return -EANALDEV;
 	}
 
 	dev_dbg(dev, "for %s\n", id->id);
@@ -258,8 +258,8 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	mach = (struct snd_soc_acpi_mach *)id->driver_data;
 	mach = snd_soc_acpi_find_machine(mach);
 	if (mach == NULL) {
-		dev_err(dev, "No matching machine driver found\n");
-		return -ENODEV;
+		dev_err(dev, "Anal matching machine driver found\n");
+		return -EANALDEV;
 	}
 
 	if (soc_intel_is_byt())

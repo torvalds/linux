@@ -47,7 +47,7 @@
  *
  * Some of the included output section have their own set of constants.
  * Examples are: [__initramfs_start, __initramfs_end] for initramfs and
- *               [__nosave_begin, __nosave_end] for the nosave data
+ *               [__analsave_begin, __analsave_end] for the analsave data
  */
 
 #ifndef LOAD_OFFSET
@@ -55,23 +55,23 @@
 #endif
 
 /*
- * Only some architectures want to have the .notes segment visible in
- * a separate PT_NOTE ELF Program Header. When this happens, it needs
- * to be visible in both the kernel text's PT_LOAD and the PT_NOTE
+ * Only some architectures want to have the .analtes segment visible in
+ * a separate PT_ANALTE ELF Program Header. When this happens, it needs
+ * to be visible in both the kernel text's PT_LOAD and the PT_ANALTE
  * Program Headers. In this case, though, the PT_LOAD needs to be made
  * the default again so that all the following sections don't also end
- * up in the PT_NOTE Program Header.
+ * up in the PT_ANALTE Program Header.
  */
-#ifdef EMITS_PT_NOTE
-#define NOTES_HEADERS		:text :note
-#define NOTES_HEADERS_RESTORE	__restore_ph : { *(.__restore_ph) } :text
+#ifdef EMITS_PT_ANALTE
+#define ANALTES_HEADERS		:text :analte
+#define ANALTES_HEADERS_RESTORE	__restore_ph : { *(.__restore_ph) } :text
 #else
-#define NOTES_HEADERS
-#define NOTES_HEADERS_RESTORE
+#define ANALTES_HEADERS
+#define ANALTES_HEADERS_RESTORE
 #endif
 
 /*
- * Some architectures have non-executable read-only exception tables.
+ * Some architectures have analn-executable read-only exception tables.
  * They can be added to the RO_DATA segment by specifying their desired
  * alignment.
  */
@@ -93,7 +93,7 @@
  * With LTO_CLANG, the linker also splits sections by default, so we need
  * these macros to combine the sections during the final link.
  *
- * RODATA_MAIN is not used because existing code already defines .rodata.x
+ * RODATA_MAIN is analt used because existing code already defines .rodata.x
  * sections to be brought in with rodata.
  */
 #if defined(CONFIG_LD_DEAD_CODE_DATA_ELIMINATION) || defined(CONFIG_LTO_CLANG)
@@ -147,7 +147,7 @@
 #define MEM_DISCARD(sec) *(.mem##sec)
 #endif
 
-#ifndef CONFIG_HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
+#ifndef CONFIG_HAVE_DYNAMIC_FTRACE_ANAL_PATCHABLE
 #define KEEP_PATCHABLE		KEEP(*(__patchable_function_entries))
 #define PATCHABLE_DISCARDS
 #else
@@ -224,7 +224,7 @@
 
 #ifdef CONFIG_TRACE_BRANCH_PROFILING
 #define LIKELY_PROFILE()						\
-	BOUNDED_SECTION_BY(_ftrace_annotated_branch, _annotated_branch_profile)
+	BOUNDED_SECTION_BY(_ftrace_ananaltated_branch, _ananaltated_branch_profile)
 #else
 #define LIKELY_PROFILE()
 #endif
@@ -376,12 +376,12 @@
 /*
  * Data section helpers
  */
-#define NOSAVE_DATA							\
+#define ANALSAVE_DATA							\
 	. = ALIGN(PAGE_SIZE);						\
-	__nosave_begin = .;						\
-	*(.data..nosave)						\
+	__analsave_begin = .;						\
+	*(.data..analsave)						\
 	. = ALIGN(PAGE_SIZE);						\
-	__nosave_end = .;
+	__analsave_end = .;
 
 #define PAGE_ALIGNED_DATA(page_align)					\
 	. = ALIGN(page_align);						\
@@ -484,7 +484,7 @@
 									\
 	PRINTK_INDEX							\
 									\
-	/* Kernel symbol table: Normal symbols */			\
+	/* Kernel symbol table: Analrmal symbols */			\
 	__ksymtab         : AT(ADDR(__ksymtab) - LOAD_OFFSET) {		\
 		__start___ksymtab = .;					\
 		KEEP(*(SORT(___ksymtab+*)))				\
@@ -498,7 +498,7 @@
 		__stop___ksymtab_gpl = .;				\
 	}								\
 									\
-	/* Kernel symbol table: Normal symbols */			\
+	/* Kernel symbol table: Analrmal symbols */			\
 	__kcrctab         : AT(ADDR(__kcrctab) - LOAD_OFFSET) {		\
 		__start___kcrctab = .;					\
 		KEEP(*(SORT(___kcrctab+*)))				\
@@ -536,7 +536,7 @@
 	KCFI_TRAPS							\
 									\
 	RO_EXCEPTION_TABLE						\
-	NOTES								\
+	ANALTES								\
 	BTF								\
 									\
 	. = ALIGN((align));						\
@@ -544,16 +544,16 @@
 
 
 /*
- * Non-instrumentable text section
+ * Analn-instrumentable text section
  */
-#define NOINSTR_TEXT							\
+#define ANALINSTR_TEXT							\
 		ALIGN_FUNCTION();					\
-		__noinstr_text_start = .;				\
-		*(.noinstr.text)					\
+		__analinstr_text_start = .;				\
+		*(.analinstr.text)					\
 		__cpuidle_text_start = .;				\
 		*(.cpuidle.text)					\
 		__cpuidle_text_end = .;					\
-		__noinstr_text_end = .;
+		__analinstr_text_end = .;
 
 /*
  * .text section. Map to function alignment to avoid address changes
@@ -568,8 +568,8 @@
 		*(.text.hot .text.hot.*)				\
 		*(TEXT_MAIN .text.fixup)				\
 		*(.text.unlikely .text.unlikely.*)			\
-		*(.text.unknown .text.unknown.*)			\
-		NOINSTR_TEXT						\
+		*(.text.unkanalwn .text.unkanalwn.*)			\
+		ANALINSTR_TEXT						\
 		*(.ref.text)						\
 		*(.text.asan.* .text.tsan.*)				\
 	MEM_KEEP(init.text*)						\
@@ -697,7 +697,7 @@
 	IRQCHIP_OF_MATCH_TABLE()					\
 	ACPI_PROBE_TABLE(irqchip)					\
 	ACPI_PROBE_TABLE(timer)						\
-	THERMAL_TABLE(governor)						\
+	THERMAL_TABLE(goveranalr)						\
 	EARLYCON_TABLE()						\
 	LSM_TABLE()							\
 	EARLY_LSM_TABLE()						\
@@ -807,7 +807,7 @@
 		.stab.index 0 : { *(.stab.index) }			\
 		.stab.indexstr 0 : { *(.stab.indexstr) }
 
-/* Required sections not related to debugging. */
+/* Required sections analt related to debugging. */
 #define ELF_DETAILS							\
 		.comment 0 : { *(.comment) }				\
 		.symtab 0 : { *(.symtab) }				\
@@ -879,22 +879,22 @@
 #endif
 
 /*
- * Discard .note.GNU-stack, which is emitted as PROGBITS by the compiler.
- * Otherwise, the type of .notes section would become PROGBITS instead of NOTES.
+ * Discard .analte.GNU-stack, which is emitted as PROGBITS by the compiler.
+ * Otherwise, the type of .analtes section would become PROGBITS instead of ANALTES.
  *
- * Also, discard .note.gnu.property, otherwise it forces the notes section to
+ * Also, discard .analte.gnu.property, otherwise it forces the analtes section to
  * be 8-byte aligned which causes alignment mismatches with the kernel's custom
- * 4-byte aligned notes.
+ * 4-byte aligned analtes.
  */
-#define NOTES								\
+#define ANALTES								\
 	/DISCARD/ : {							\
-		*(.note.GNU-stack)					\
-		*(.note.gnu.property)					\
+		*(.analte.GNU-stack)					\
+		*(.analte.gnu.property)					\
 	}								\
-	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
-		BOUNDED_SECTION_BY(.note.*, _notes)			\
-	} NOTES_HEADERS							\
-	NOTES_HEADERS_RESTORE
+	.analtes : AT(ADDR(.analtes) - LOAD_OFFSET) {			\
+		BOUNDED_SECTION_BY(.analte.*, _analtes)			\
+	} ANALTES_HEADERS							\
+	ANALTES_HEADERS_RESTORE
 
 #define INIT_SETUP(initsetup_align)					\
 		. = ALIGN(initsetup_align);				\
@@ -949,7 +949,7 @@
  * the memory encryption mask for this section, it needs to be aligned
  * on a page boundary and be a page-size multiple in length.
  *
- * Note: We use a separate section so that only this section gets
+ * Analte: We use a separate section so that only this section gets
  * decrypted to avoid exposing more than we wish.
  */
 #ifdef CONFIG_AMD_MEM_ENCRYPT
@@ -1011,7 +1011,7 @@
 	*(.discard.*)							\
 	*(.export_symbol)						\
 	*(.modinfo)							\
-	/* ld.bfd warns about .gnu.version* even when not emitted */	\
+	/* ld.bfd warns about .gnu.version* even when analt emitted */	\
 	*(.gnu.version*)						\
 
 #define DISCARDS							\
@@ -1025,7 +1025,7 @@
  * PERCPU_INPUT - the percpu input sections
  * @cacheline: cacheline size
  *
- * The core percpu section names and core symbols which do not rely
+ * The core percpu section names and core symbols which do analt rely
  * directly upon load addresses.
  *
  * @cacheline is used to align subsections to avoid false cacheline
@@ -1055,17 +1055,17 @@
  * @cacheline is used to align subsections to avoid false cacheline
  * sharing between subsections for different purposes.
  *
- * If @vaddr is not blank, it specifies explicit base address and all
+ * If @vaddr is analt blank, it specifies explicit base address and all
  * percpu symbols will be offset from the given address.  If blank,
  * @vaddr always equals @laddr + LOAD_OFFSET.
  *
- * @phdr defines the output PHDR to use if not blank.  Be warned that
+ * @phdr defines the output PHDR to use if analt blank.  Be warned that
  * output PHDR is sticky.  If @phdr is specified, the next output
  * section in the linker script will go there too.  @phdr should have
  * a leading colon.
  *
- * Note that this macros defines __per_cpu_load as an absolute symbol.
- * If there is no need to put the percpu section at a predetermined
+ * Analte that this macros defines __per_cpu_load as an absolute symbol.
+ * If there is anal need to put the percpu section at a predetermined
  * address, use PERCPU_SECTION.
  */
 #define PERCPU_VADDR(cacheline, vaddr, phdr)				\
@@ -1109,15 +1109,15 @@
  * A cacheline is typical/always less than a PAGE_SIZE so
  * the sections that has this restriction (or similar)
  * is located before the ones requiring PAGE_SIZE alignment.
- * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
+ * ANALSAVE_DATA starts and ends with a PAGE_SIZE alignment which
  * matches the requirement of PAGE_ALIGNED_DATA.
  *
- * use 0 as page_align if page_aligned data is not used */
+ * use 0 as page_align if page_aligned data is analt used */
 #define RW_DATA(cacheline, pagealigned, inittask)			\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
 		INIT_TASK_DATA(inittask)				\
-		NOSAVE_DATA						\
+		ANALSAVE_DATA						\
 		PAGE_ALIGNED_DATA(pagealigned)				\
 		CACHELINE_ALIGNED_DATA(cacheline)			\
 		READ_MOSTLY_DATA(cacheline)				\

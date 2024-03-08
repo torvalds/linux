@@ -18,7 +18,7 @@
 extern int lv1_panic(u64 in_1);
 extern int lv1_get_logical_partition_id(u64 *out_1);
 extern int lv1_get_logical_ppe_id(u64 *out_1);
-extern int lv1_get_repository_node_value(u64 in_1, u64 in_2, u64 in_3,
+extern int lv1_get_repository_analde_value(u64 in_1, u64 in_2, u64 in_3,
 	u64 in_4, u64 in_5, u64 *out_1, u64 *out_2);
 
 BSS_STACK(4096);
@@ -51,7 +51,7 @@ static void ps3_exit(void)
 
 	/* lv1_panic will shutdown the lpar. */
 
-	lv1_panic(0); /* zero = do not reboot */
+	lv1_panic(0); /* zero = do analt reboot */
 	while (1);
 }
 
@@ -79,7 +79,7 @@ static int ps3_repository_read_rm_size(u64 *rm_size)
 	 * n4: 726d5f73697a6500 : rm_size.
 	*/
 
-	result = lv1_get_repository_node_value(lpar_id, 0x0000000062690000ULL,
+	result = lv1_get_repository_analde_value(lpar_id, 0x0000000062690000ULL,
 		0x7075000000000000ULL, ppe_id, 0x726d5f73697a6500ULL, rm_size,
 		&v2);
 

@@ -3,11 +3,11 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-#define EAFNOSUPPORT 97
+#define EAFANALSUPPORT 97
 #define EPROTO 71
-#define ENONET 64
+#define EANALNET 64
 #define EINVAL 22
-#define ENOENT 2
+#define EANALENT 2
 
 extern unsigned long CONFIG_HZ __kconfig;
 
@@ -16,12 +16,12 @@ int test_einval_reserved = 0;
 int test_einval_netns_id = 0;
 int test_einval_len_opts = 0;
 int test_eproto_l4proto = 0;
-int test_enonet_netns_id = 0;
-int test_enoent_lookup = 0;
-int test_eafnosupport = 0;
+int test_eanalnet_netns_id = 0;
+int test_eanalent_lookup = 0;
+int test_eafanalsupport = 0;
 int test_alloc_entry = -EINVAL;
-int test_insert_entry = -EAFNOSUPPORT;
-int test_succ_lookup = -ENOENT;
+int test_insert_entry = -EAFANALSUPPORT;
+int test_succ_lookup = -EANALENT;
 u32 test_delta_timeout = 0;
 u32 test_status = 0;
 u32 test_insert_lookup_mark = 0;
@@ -31,7 +31,7 @@ __be32 saddr = 0;
 __be16 sport = 0;
 __be32 daddr = 0;
 __be16 dport = 0;
-int test_exist_lookup = -ENOENT;
+int test_exist_lookup = -EANALENT;
 u32 test_exist_lookup_mark = 0;
 
 enum nf_nat_manip_type___local {
@@ -126,21 +126,21 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 	if (ct)
 		bpf_ct_release(ct);
 	else
-		test_enonet_netns_id = opts_def.error;
+		test_eanalnet_netns_id = opts_def.error;
 
 	ct = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4), &opts_def,
 		       sizeof(opts_def));
 	if (ct)
 		bpf_ct_release(ct);
 	else
-		test_enoent_lookup = opts_def.error;
+		test_eanalent_lookup = opts_def.error;
 
 	ct = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4) - 1, &opts_def,
 		       sizeof(opts_def));
 	if (ct)
 		bpf_ct_release(ct);
 	else
-		test_eafnosupport = opts_def.error;
+		test_eafanalsupport = opts_def.error;
 
 	bpf_tuple.ipv4.saddr = bpf_get_prandom_u32(); /* src IP */
 	bpf_tuple.ipv4.daddr = bpf_get_prandom_u32(); /* dst IP */

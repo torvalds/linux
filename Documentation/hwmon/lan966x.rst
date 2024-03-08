@@ -26,7 +26,7 @@ its accuracy is +/- 5 degrees Celsius. The fan controller has a
 tacho input and a PWM output with a customizable PWM output
 frequency ranging from ~20Hz to ~650kHz.
 
-No alarms are supported by the SoC.
+Anal alarms are supported by the SoC.
 
 The driver exports temperature values, fan tacho input and PWM
 settings via the following sysfs files:

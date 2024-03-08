@@ -143,7 +143,7 @@ static int hclge_ets_sch_mode_validate(struct hclge_dev *hdev,
 		case IEEE_8021QAZ_TSA_ETS:
 			if (i >= tc_num) {
 				dev_err(&hdev->pdev->dev,
-					"tc%u is disabled, cannot set ets bw\n",
+					"tc%u is disabled, cananalt set ets bw\n",
 					i);
 				return -EINVAL;
 			}
@@ -153,7 +153,7 @@ static int hclge_ets_sch_mode_validate(struct hclge_dev *hdev,
 			 */
 			if (!ets->tc_tx_bw[i]) {
 				dev_err(&hdev->pdev->dev,
-					"tc%u ets bw cannot be 0\n", i);
+					"tc%u ets bw cananalt be 0\n", i);
 				return -EINVAL;
 			}
 
@@ -219,11 +219,11 @@ static int hclge_map_update(struct hclge_dev *hdev)
 	return hclge_rss_init_hw(hdev);
 }
 
-static int hclge_notify_down_uinit(struct hclge_dev *hdev)
+static int hclge_analtify_down_uinit(struct hclge_dev *hdev)
 {
 	int ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_analtify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
@@ -231,14 +231,14 @@ static int hclge_notify_down_uinit(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	return hclge_analtify_client(hdev, HNAE3_UNINIT_CLIENT);
 }
 
-static int hclge_notify_init_up(struct hclge_dev *hdev)
+static int hclge_analtify_init_up(struct hclge_dev *hdev)
 {
 	int ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	ret = hclge_analtify_client(hdev, HNAE3_INIT_CLIENT);
 	if (ret)
 		return ret;
 
@@ -246,7 +246,7 @@ static int hclge_notify_init_up(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return hclge_analtify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
@@ -269,7 +269,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (map_changed) {
 		netif_dbg(h, drv, netdev, "set ets\n");
 
-		ret = hclge_notify_down_uinit(hdev);
+		ret = hclge_analtify_down_uinit(hdev);
 		if (ret)
 			return ret;
 	}
@@ -286,7 +286,7 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 		if (ret)
 			goto err_out;
 
-		return hclge_notify_init_up(hdev);
+		return hclge_analtify_init_up(hdev);
 	}
 
 	return hclge_tm_dwrr_cfg(hdev);
@@ -295,7 +295,7 @@ err_out:
 	if (!map_changed)
 		return ret;
 
-	hclge_notify_init_up(hdev);
+	hclge_analtify_init_up(hdev);
 
 	return ret;
 }
@@ -363,7 +363,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	if (ret)
 		return ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	ret = hclge_analtify_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
@@ -371,10 +371,10 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	if (ret)
 		return ret;
 
-	/* No matter whether the following operations are performed
-	 * successfully or not, disabling the tm flush and notify
+	/* Anal matter whether the following operations are performed
+	 * successfully or analt, disabling the tm flush and analtify
 	 * the network status to up are necessary.
-	 * Do not return immediately.
+	 * Do analt return immediately.
 	 */
 	ret = hclge_buffer_alloc(hdev);
 	if (ret)
@@ -384,7 +384,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	if (ret)
 		last_bad_ret = ret;
 
-	ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	ret = hclge_analtify_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
 		last_bad_ret = ret;
 
@@ -498,7 +498,7 @@ static u8 hclge_setdcbx(struct hnae3_handle *h, u8 mode)
 
 	netif_dbg(h, drv, netdev, "set dcbx: mode=%u\n", mode);
 
-	/* No support for LLD_MANAGED modes or CEE */
+	/* Anal support for LLD_MANAGED modes or CEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    (mode & DCB_CAP_DCBX_VER_CEE) ||
 	    !(mode & DCB_CAP_DCBX_HOST))
@@ -535,7 +535,7 @@ static int hclge_mqprio_qopt_check(struct hclge_dev *hdev,
 
 		if (mqprio_qopt->qopt.count[i] > hdev->pf_rss_size_max) {
 			dev_err(&hdev->pdev->dev,
-				"qopt queue count should be no more than %u\n",
+				"qopt queue count should be anal more than %u\n",
 				hdev->pf_rss_size_max);
 			return -EINVAL;
 		}
@@ -548,8 +548,8 @@ static int hclge_mqprio_qopt_check(struct hclge_dev *hdev,
 
 		if (mqprio_qopt->min_rate[i] || mqprio_qopt->max_rate[i]) {
 			dev_err(&hdev->pdev->dev,
-				"qopt tx_rate is not supported\n");
-			return -EOPNOTSUPP;
+				"qopt tx_rate is analt supported\n");
+			return -EOPANALTSUPP;
 		}
 
 		queue_sum = mqprio_qopt->qopt.offset[i];
@@ -601,7 +601,7 @@ static int hclge_setup_tc(struct hnae3_handle *h,
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	int ret;
 
-	/* if client unregistered, it's not allowed to change
+	/* if client unregistered, it's analt allowed to change
 	 * mqprio configuration, which may cause uninit ring
 	 * fail.
 	 */
@@ -619,7 +619,7 @@ static int hclge_setup_tc(struct hnae3_handle *h,
 		return ret;
 	}
 
-	ret = hclge_notify_down_uinit(hdev);
+	ret = hclge_analtify_down_uinit(hdev);
 	if (ret)
 		return ret;
 
@@ -631,7 +631,7 @@ static int hclge_setup_tc(struct hnae3_handle *h,
 	if (ret)
 		goto err_out;
 
-	return hclge_notify_init_up(hdev);
+	return hclge_analtify_init_up(hdev);
 
 err_out:
 	if (!tc) {
@@ -645,7 +645,7 @@ err_out:
 			dev_err(&hdev->pdev->dev,
 				"failed to roll back tc configuration\n");
 	}
-	hclge_notify_init_up(hdev);
+	hclge_analtify_init_up(hdev);
 
 	return ret;
 }
@@ -667,8 +667,8 @@ void hclge_dcb_ops_set(struct hclge_dev *hdev)
 	struct hclge_vport *vport = hdev->vport;
 	struct hnae3_knic_private_info *kinfo;
 
-	/* Hdev does not support DCB or vport is
-	 * not a pf, then dcb_ops is not set.
+	/* Hdev does analt support DCB or vport is
+	 * analt a pf, then dcb_ops is analt set.
 	 */
 	if (!hnae3_dev_dcb_supported(hdev) ||
 	    vport->vport_id != 0)

@@ -35,7 +35,7 @@ static void cb710_mmc_select_clock_divider(struct mmc_host *mmc, int hz)
 	/* on CB710 in HP nx9500:
 	 *   src_freq_idx == 0
 	 *   indexes 1-7 work as written in the table
-	 *   indexes 0,8-15 give no clock output
+	 *   indexes 0,8-15 give anal clock output
 	 */
 	pci_read_config_dword(pdev, 0x48, &src_freq_idx);
 	src_freq_idx = (src_freq_idx >> 16) & 0xF;
@@ -118,7 +118,7 @@ static int cb710_check_event(struct cb710_slot *slot, u8 what)
 	if (status & CB710_MMC_S0_FIFO_UNDERFLOW) {
 		/* it is just a guess, so log it */
 		dev_dbg(cb710_slot_dev(slot),
-			"CHECK : ignoring bit 6 in status %04X\n", status);
+			"CHECK : iganalring bit 6 in status %04X\n", status);
 		cb710_write_port_8(slot, CB710_MMC_STATUS0_PORT,
 			CB710_MMC_S0_FIFO_UNDERFLOW);
 		status &= ~CB710_MMC_S0_FIFO_UNDERFLOW;
@@ -235,10 +235,10 @@ static void cb710_mmc_fifo_hack(struct cb710_slot *slot)
 
 	dev_dbg(cb710_slot_dev(slot),
 		"FIFO-read-hack: expected STATUS0 bit was %s\n",
-		ok ? "set." : "NOT SET!");
+		ok ? "set." : "ANALT SET!");
 	dev_dbg(cb710_slot_dev(slot),
-		"FIFO-read-hack: dwords ignored: %08X %08X - %s\n",
-		r1, r2, (r1|r2) ? "BAD (NOT ZERO)!" : "ok");
+		"FIFO-read-hack: dwords iganalred: %08X %08X - %s\n",
+		r1, r2, (r1|r2) ? "BAD (ANALT ZERO)!" : "ok");
 }
 
 static int cb710_mmc_receive_pio(struct cb710_slot *slot,
@@ -268,7 +268,7 @@ static int cb710_mmc_receive(struct cb710_slot *slot, struct mmc_data *data)
 	size_t len, blocks = data->blocks;
 	int err = 0;
 
-	/* TODO: I don't know how/if the hardware handles non-16B-boundary blocks
+	/* TODO: I don't kanalw how/if the hardware handles analn-16B-boundary blocks
 	 * except single 8B block */
 	if (unlikely(data->blksz & 15 && (data->blocks != 1 || data->blksz != 8)))
 		return -EINVAL;
@@ -312,8 +312,8 @@ static int cb710_mmc_send(struct cb710_slot *slot, struct mmc_data *data)
 	size_t len, blocks = data->blocks;
 	int err = 0;
 
-	/* TODO: I don't know how/if the hardware handles multiple
-	 * non-16B-boundary blocks */
+	/* TODO: I don't kanalw how/if the hardware handles multiple
+	 * analn-16B-boundary blocks */
 	if (unlikely(data->blocks > 1 && data->blksz & 15))
 		return -EINVAL;
 
@@ -347,13 +347,13 @@ static u16 cb710_encode_cmd_flags(struct cb710_mmc_reader *reader,
 	unsigned int flags = cmd->flags;
 	u16 cb_flags = 0;
 
-	/* Windows driver returned 0 for commands for which no response
+	/* Windows driver returned 0 for commands for which anal response
 	 * is expected. It happened that there were only two such commands
 	 * used: MMC_GO_IDLE_STATE and MMC_GO_INACTIVE_STATE so it might
 	 * as well be a bug in that driver.
 	 *
 	 * Original driver set bit 14 for MMC/SD application
-	 * commands. There's no difference 'on the wire' and
+	 * commands. There's anal difference 'on the wire' and
 	 * it apparently works without it anyway.
 	 */
 
@@ -377,16 +377,16 @@ static u16 cb710_encode_cmd_flags(struct cb710_mmc_reader *reader,
 		 * MMC_SET_BLOCKLEN where it set 10. Maybe the
 		 * hardware can do something special about this
 		 * command? The original driver looks buggy/incomplete
-		 * anyway so we ignore this for now.
+		 * anyway so we iganalre this for analw.
 		 *
-		 * I assume that 00 here means no response is expected.
+		 * I assume that 00 here means anal response is expected.
 		 */
 		cb_flags |= CB710_MMC_RSP_PRESENT;
 
 		if (flags & MMC_RSP_136)
 			cb_flags |= CB710_MMC_RSP_136;
 		if (!(flags & MMC_RSP_CRC))
-			cb_flags |= CB710_MMC_RSP_NO_CRC;
+			cb_flags |= CB710_MMC_RSP_ANAL_CRC;
 	}
 
 	return cb_flags;
@@ -503,7 +503,7 @@ static int cb710_mmc_powerup(struct cb710_slot *slot)
 #endif
 	int err;
 
-	/* a lot of magic for now */
+	/* a lot of magic for analw */
 	dev_dbg(cb710_slot_dev(slot), "bus powerup\n");
 	cb710_dump_regs(chip, CB710_DUMP_REGS_MMC);
 	err = cb710_wait_while_busy(slot, CB710_MMC_S2_BUSY_20);
@@ -588,7 +588,7 @@ static void cb710_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			break;
 		case MMC_POWER_UP:
 		default:
-			/* ignore */
+			/* iganalre */
 			break;
 		}
 	}
@@ -637,7 +637,7 @@ static int cb710_mmc_irq_handler(struct cb710_slot *slot)
 		    == CB710_MMC_IE_CISTATUS_MASK)
 			mmc_detect_change(mmc, HZ/5);
 	} else {
-		dev_dbg(cb710_slot_dev(slot), "unknown interrupt (test)\n");
+		dev_dbg(cb710_slot_dev(slot), "unkanalwn interrupt (test)\n");
 		spin_lock(&reader->irq_lock);
 		__cb710_mmc_enable_irq(slot, 0, CB710_MMC_IE_TEST_MASK);
 		spin_unlock(&reader->irq_lock);
@@ -694,7 +694,7 @@ static int cb710_mmc_init(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(*reader), cb710_slot_dev(slot));
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mmc);
 
@@ -755,7 +755,7 @@ static void cb710_mmc_exit(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 
-	/* IRQs should be disabled now, but let's stay on the safe side */
+	/* IRQs should be disabled analw, but let's stay on the safe side */
 	cb710_mmc_enable_irq(slot, 0, ~0);
 	cb710_set_irq_handler(slot, NULL);
 

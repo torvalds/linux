@@ -114,11 +114,11 @@ static void __init ls_uart_init(void)
 
 static int __init ls_uarts_init(void)
 {
-	struct device_node *avr;
+	struct device_analde *avr;
 	struct resource res;
 	int len, ret;
 
-	avr = of_find_node_by_path("/soc10x/serial@80004500");
+	avr = of_find_analde_by_path("/soc10x/serial@80004500");
 	if (!avr)
 		return -EINVAL;
 
@@ -130,7 +130,7 @@ static int __init ls_uarts_init(void)
 	if (ret)
 		return ret;
 
-	of_node_put(avr);
+	of_analde_put(avr);
 
 	avr_addr = ioremap(res.start, 32);
 	if (!avr_addr)

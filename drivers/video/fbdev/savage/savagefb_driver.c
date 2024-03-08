@@ -44,7 +44,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -81,7 +81,7 @@ MODULE_DESCRIPTION("FBDev driver for S3 Savage PCI/AGP Chips");
 static void vgaHWSeqReset(struct savagefb_par *par, int start)
 {
 	if (start)
-		VGAwSEQ(0x00, 0x01, par);	/* Synchronous Reset */
+		VGAwSEQ(0x00, 0x01, par);	/* Synchroanalus Reset */
 	else
 		VGAwSEQ(0x00, 0x03, par);	/* End Reset */
 }
@@ -96,7 +96,7 @@ static void vgaHWProtect(struct savagefb_par *par, int on)
 		 */
 		tmp = VGArSEQ(0x01, par);
 
-		vgaHWSeqReset(par, 1);	        /* start synchronous reset */
+		vgaHWSeqReset(par, 1);	        /* start synchroanalus reset */
 		VGAwSEQ(0x01, tmp | 0x20, par);/* disable the display */
 
 		VGAenablePalette(par);
@@ -108,7 +108,7 @@ static void vgaHWProtect(struct savagefb_par *par, int on)
 		tmp = VGArSEQ(0x01, par);
 
 		VGAwSEQ(0x01, tmp & ~0x20, par);/* reenable display */
-		vgaHWSeqReset(par, 0);	        /* clear synchronous reset */
+		vgaHWSeqReset(par, 0);	        /* clear synchroanalus reset */
 
 		VGAdisablePalette(par);
 	}
@@ -363,8 +363,8 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 	vga_out8(0x3d4, 0x40, par);
 	vga_out8(0x3d5, 0x01, par);
 
-	savage_out32(MONO_PAT_0, ~0, par);
-	savage_out32(MONO_PAT_1, ~0, par);
+	savage_out32(MOANAL_PAT_0, ~0, par);
+	savage_out32(MOANAL_PAT_1, ~0, par);
 
 	/* Setup plane masks */
 	savage_out32(0x8128, ~0, par); /* enable all write planes */
@@ -372,7 +372,7 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 	savage_out16(0x8134, 0x27, par);
 	savage_out16(0x8136, 0x07, par);
 
-	/* Now set the GBD */
+	/* Analw set the GBD */
 	par->bci_ptr = 0;
 	par->SavageWaitFifo(par, 4);
 
@@ -382,7 +382,7 @@ SavageSetup2DEngine(struct savagefb_par  *par)
 	BCI_SEND(GlobalBitmapDescriptor);
 
 	/*
-	 * I don't know why, sending this twice fixes the initial black screen,
+	 * I don't kanalw why, sending this twice fixes the initial black screen,
 	 * prevents X from crashing at least in Toshiba laptops with SavageIX.
 	 * --Tony
 	 */
@@ -400,7 +400,7 @@ static void savagefb_set_clip(struct fb_info *info)
 	struct savagefb_par *par = info->par;
 	int cmd;
 
-	cmd = BCI_CMD_NOP | BCI_CMD_CLIP_NEW;
+	cmd = BCI_CMD_ANALP | BCI_CMD_CLIP_NEW;
 	par->bci_ptr = 0;
 	par->SavageWaitFifo(par,3);
 	BCI_SEND(cmd);
@@ -570,7 +570,7 @@ static void savage_get_default_par(struct savagefb_par *par, struct savage_reg *
 	reg->SR08 = vga_in8(0x3c5, par);
 	vga_out8(0x3c5, 0x06, par);
 
-	/* now save all the extended regs we need */
+	/* analw save all the extended regs we need */
 	vga_out8(0x3d4, 0x31, par);
 	reg->CR31 = vga_in8(0x3d5, par);
 	vga_out8(0x3d4, 0x32, par);
@@ -675,7 +675,7 @@ static void savage_get_default_par(struct savagefb_par *par, struct savage_reg *
 	cr3a = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr3a | 0x80, par);
 
-	/* now save MIU regs */
+	/* analw save MIU regs */
 	if (par->chip != S3_SAVAGE_MX) {
 		reg->MMPR0 = savage_in32(FIFO_CONTROL_REG, par);
 		reg->MMPR1 = savage_in32(MIU_CONTROL_REG, par);
@@ -723,7 +723,7 @@ static void savage_set_default_par(struct savagefb_par *par,
 	vga_out8(0x3c5, reg->SR08, par);
 	vga_out8(0x3c5, 0x06, par);
 
-	/* now restore all the extended regs we need */
+	/* analw restore all the extended regs we need */
 	vga_out8(0x3d4, 0x31, par);
 	vga_out8(0x3d5, reg->CR31, par);
 	vga_out8(0x3d4, 0x32, par);
@@ -828,7 +828,7 @@ static void savage_set_default_par(struct savagefb_par *par,
 	cr3a = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr3a | 0x80, par);
 
-	/* now save MIU regs */
+	/* analw save MIU regs */
 	if (par->chip != S3_SAVAGE_MX) {
 		savage_out32(FIFO_CONTROL_REG, reg->MMPR0, par);
 		savage_out32(MIU_CONTROL_REG, reg->MMPR1, par);
@@ -1015,7 +1015,7 @@ static int savagefb_decode_var(struct fb_var_screeninfo   *var,
 	 */
 	vgaHWInit(var, par, &timings, reg);
 
-	/* We need to set CR67 whether or not we use the BIOS. */
+	/* We need to set CR67 whether or analt we use the BIOS. */
 
 	dclk = timings.Clock;
 	reg->CR67 = 0x00;
@@ -1198,9 +1198,9 @@ static int savagefb_decode_var(struct fb_var_screeninfo   *var,
 /* --------------------------------------------------------------------- */
 
 /*
- *    Set a single color register. Return != 0 for invalid regno.
+ *    Set a single color register. Return != 0 for invalid reganal.
  */
-static int savagefb_setcolreg(unsigned        regno,
+static int savagefb_setcolreg(unsigned        reganal,
 			      unsigned        red,
 			      unsigned        green,
 			      unsigned        blue,
@@ -1209,17 +1209,17 @@ static int savagefb_setcolreg(unsigned        regno,
 {
 	struct savagefb_par *par = info->par;
 
-	if (regno >= NR_PALETTE)
+	if (reganal >= NR_PALETTE)
 		return -EINVAL;
 
-	par->palette[regno].red    = red;
-	par->palette[regno].green  = green;
-	par->palette[regno].blue   = blue;
-	par->palette[regno].transp = transp;
+	par->palette[reganal].red    = red;
+	par->palette[reganal].green  = green;
+	par->palette[reganal].blue   = blue;
+	par->palette[reganal].transp = transp;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		vga_out8(0x3c8, regno, par);
+		vga_out8(0x3c8, reganal, par);
 
 		vga_out8(0x3c9, red   >> 10, par);
 		vga_out8(0x3c9, green >> 10, par);
@@ -1227,23 +1227,23 @@ static int savagefb_setcolreg(unsigned        regno,
 		break;
 
 	case 16:
-		if (regno < 16)
-			((u32 *)info->pseudo_palette)[regno] =
+		if (reganal < 16)
+			((u32 *)info->pseudo_palette)[reganal] =
 				((red   & 0xf800)      ) |
 				((green & 0xfc00) >>  5) |
 				((blue  & 0xf800) >> 11);
 		break;
 
 	case 24:
-		if (regno < 16)
-			((u32 *)info->pseudo_palette)[regno] =
+		if (reganal < 16)
+			((u32 *)info->pseudo_palette)[reganal] =
 				((red    & 0xff00) <<  8) |
 				((green  & 0xff00)      ) |
 				((blue   & 0xff00) >>  8);
 		break;
 	case 32:
-		if (regno < 16)
-			((u32 *)info->pseudo_palette)[regno] =
+		if (reganal < 16)
+			((u32 *)info->pseudo_palette)[reganal] =
 				((transp & 0xff00) << 16) |
 				((red    & 0xff00) <<  8) |
 				((green  & 0xff00)      ) |
@@ -1276,14 +1276,14 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	/*
 	 * Some Savage/MX and /IX systems go nuts when trying to exit the
 	 * server after WindowMaker has displayed a gradient background.  I
-	 * haven't been able to find what causes it, but a non-destructive
+	 * haven't been able to find what causes it, but a analn-destructive
 	 * switch to mode 3 here seems to eliminate the issue.
 	 */
 
 	VerticalRetraceWait(par);
 	vga_out8(0x3d4, 0x67, par);
 	cr67 = vga_in8(0x3d5, par);
-	vga_out8(0x3d5, cr67/*par->CR67*/ & ~0x0c, par); /* no STREAMS yet */
+	vga_out8(0x3d5, cr67/*par->CR67*/ & ~0x0c, par); /* anal STREAMS yet */
 
 	vga_out8(0x3d4, 0x23, par);
 	vga_out8(0x3d5, 0x00, par);
@@ -1347,7 +1347,7 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 
 	/* restore the desired video mode with cr67 */
 	vga_out8(0x3d4, 0x67, par);
-	/* following part not present in X11 driver */
+	/* following part analt present in X11 driver */
 	cr67 = vga_in8(0x3d5, par) & 0xf;
 	vga_out8(0x3d5, 0x50 | cr67, par);
 	mdelay(10);
@@ -1443,7 +1443,7 @@ static void savagefb_set_par_int(struct savagefb_par  *par, struct savage_reg *r
 	vga_out8(0x3c4, 0x08, par);
 	vga_out8(0x3c5, reg->SR08, par);
 
-	/* now write out cr67 in full, possibly starting STREAMS */
+	/* analw write out cr67 in full, possibly starting STREAMS */
 	VerticalRetraceWait(par);
 	vga_out8(0x3d4, 0x67, par);
 	vga_out8(0x3d5, reg->CR67, par);
@@ -1567,7 +1567,7 @@ static int savagefb_blank(int blank, struct fb_info *info)
 
 		switch (blank) {
 		case FB_BLANK_UNBLANK:
-		case FB_BLANK_NORMAL:
+		case FB_BLANK_ANALRMAL:
 			break;
 		case FB_BLANK_VSYNC_SUSPEND:
 			srd |= 0x10;
@@ -1588,7 +1588,7 @@ static int savagefb_blank(int blank, struct fb_info *info)
 	    par->display_type == DISP_DFP) {
 		switch(blank) {
 		case FB_BLANK_UNBLANK:
-		case FB_BLANK_NORMAL:
+		case FB_BLANK_ANALRMAL:
 			vga_out8(0x3c4, 0x31, par); /* SR31 bit 4 - FP enable */
 			vga_out8(0x3c5, vga_in8(0x3c5, par) | 0x10, par);
 			break;
@@ -1601,7 +1601,7 @@ static int savagefb_blank(int blank, struct fb_info *info)
 		}
 	}
 
-	return (blank == FB_BLANK_NORMAL) ? 1 : 0;
+	return (blank == FB_BLANK_ANALRMAL) ? 1 : 0;
 }
 
 static int savagefb_open(struct fb_info *info, int user)
@@ -1678,7 +1678,7 @@ static const struct fb_var_screeninfo savagefb_var800x600x8 = {
 	.hsync_len =	128,
 	.vsync_len =	4,
 	.sync =		FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	.vmode =	FB_VMODE_NONINTERLACED
+	.vmode =	FB_VMODE_ANALNINTERLACED
 };
 
 static void savage_enable_mmio(struct savagefb_par *par)
@@ -1731,7 +1731,7 @@ static int savage_map_mmio(struct fb_info *info)
 	par->mmio.vbase = ioremap(par->mmio.pbase, par->mmio.len);
 	if (!par->mmio.vbase) {
 		printk("savagefb: unable to map memory mapped IO\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	} else
 		printk(KERN_INFO "savagefb: mapped io at %p\n",
 			par->mmio.vbase);
@@ -1778,7 +1778,7 @@ static int savage_map_video(struct fb_info *info, int video_len)
 
 	if (!par->video.vbase) {
 		printk("savagefb: unable to map screen memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	} else
 		printk(KERN_INFO "savagefb: mapped framebuffer at %p, "
 		       "pbase == %x\n", par->video.vbase, par->video.pbase);
@@ -1972,9 +1972,9 @@ static int savage_init_hw(struct savagefb_par *par)
 		int panelY = (VGArSEQ(0x69, par) +
 			      ((VGArSEQ(0x6e, par) & 0x70) << 4) + 1);
 
-		char * sTechnology = "Unknown";
+		char * sTechanallogy = "Unkanalwn";
 
-		/* OK, I admit it.  I don't know how to limit the max dot clock
+		/* OK, I admit it.  I don't kanalw how to limit the max dot clock
 		 * for LCD panels of various sizes.  I thought I copied the
 		 * formula from the BIOS, but many users have parrmed me of
 		 * my folly.
@@ -1993,16 +1993,16 @@ static int savage_init_hw(struct savagefb_par *par)
 		};
 
 		if ((VGArSEQ(0x39, par) & 0x03) == 0) {
-			sTechnology = "TFT";
+			sTechanallogy = "TFT";
 		} else if ((VGArSEQ(0x30, par) & 0x01) == 0) {
-			sTechnology = "DSTN";
+			sTechanallogy = "DSTN";
 		} else 	{
-			sTechnology = "STN";
+			sTechanallogy = "STN";
 		}
 
 		printk(KERN_INFO "savagefb: %dx%d %s LCD panel detected %s\n",
-		       panelX, panelY, sTechnology,
-		       cr6b & ActiveLCD ? "and active" : "but not active");
+		       panelX, panelY, sTechanallogy,
+		       cr6b & ActiveLCD ? "and active" : "but analt active");
 
 		if (cr6b & ActiveLCD) 	{
 			/*
@@ -2131,8 +2131,8 @@ static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
 		par->SavageWaitFifo = savage2000_waitfifo;
 	}
 
-	info->var.nonstd      = 0;
-	info->var.activate    = FB_ACTIVATE_NOW;
+	info->var.analnstd      = 0;
+	info->var.activate    = FB_ACTIVATE_ANALW;
 	info->var.width       = -1;
 	info->var.height      = -1;
 	info->var.accel_flags = 0;
@@ -2147,7 +2147,7 @@ static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
 	/* FIFO size + padding for commands */
 	info->pixmap.addr = kcalloc(8, 1024, GFP_KERNEL);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (info->pixmap.addr) {
 		info->pixmap.size = 8*1024;
 		info->pixmap.scan_align = 4;
@@ -2185,7 +2185,7 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	info = framebuffer_alloc(sizeof(struct savagefb_par), &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	par = info->par;
 	mutex_init(&par->open_lock);
 	err = pci_enable_device(dev);
@@ -2193,11 +2193,11 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_enable;
 
 	if ((err = pci_request_regions(dev, "savagefb"))) {
-		printk(KERN_ERR "cannot request PCI regions\n");
+		printk(KERN_ERR "cananalt request PCI regions\n");
 		goto failed_enable;
 	}
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 
 	if ((err = savage_init_fb_info(info, dev, id)))
 		goto failed_init;
@@ -2236,10 +2236,10 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		cvt_mode.xres = par->SavagePanelWidth;
 		cvt_mode.yres = par->SavagePanelHeight;
 		cvt_mode.refresh = 60;
-		/* FIXME: if we know there is only the panel
+		/* FIXME: if we kanalw there is only the panel
 		 * we can enable reduced blanking as well */
 		if (fb_find_mode_cvt(&cvt_mode, 0, 0))
-			printk(KERN_WARNING "No CVT mode found for panel\n");
+			printk(KERN_WARNING "Anal CVT mode found for panel\n");
 		else if (fb_find_mode(&info->var, info, NULL, NULL, 0,
 				      &cvt_mode, 0) != 3)
 			info->var = savagefb_var800x600x8;
@@ -2261,7 +2261,7 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->var.yres_virtual = info->fix.smem_len/lpitch;
 
 	if (info->var.yres_virtual < info->var.yres) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto failed;
 	}
 
@@ -2280,7 +2280,7 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	savagefb_set_fix(info);
 
 	/*
-	 * Calculate the hsync and vsync frequencies.  Note that
+	 * Calculate the hsync and vsync frequencies.  Analte that
 	 * we split the 1e12 constant up so that we can preserve
 	 * the precision and fit the results into 32-bit registers.
 	 *  (1953125000 * 512 = 1e12)
@@ -2368,7 +2368,7 @@ static int savagefb_suspend_late(struct device *dev, pm_message_t mesg)
 	dev->power.power_state = mesg;
 
 	/*
-	 * For PM_EVENT_FREEZE, do not power down so the console
+	 * For PM_EVENT_FREEZE, do analt power down so the console
 	 * can remain active.
 	 */
 	if (mesg.event == PM_EVENT_FREEZE)
@@ -2414,7 +2414,7 @@ static int __maybe_unused savagefb_resume(struct device *dev)
 	par->pm_state = PM_EVENT_ON;
 
 	/*
-	 * The adapter was not powered down coming back from a
+	 * The adapter was analt powered down coming back from a
 	 * PM_EVENT_FREEZE.
 	 */
 	if (cur_state == PM_EVENT_FREEZE)
@@ -2559,10 +2559,10 @@ static int __init savagefb_init(void)
 	DBG("savagefb_init");
 
 	if (fb_modesetting_disabled("savagefb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("savagefb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 
 	savagefb_setup(option);
 	return pci_register_driver(&savagefb_driver);

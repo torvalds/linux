@@ -8,7 +8,7 @@
  *
  * we set continuous mode but reading/writing more bytes than
  * pagesize seems to bring chip into state where readden values
- * are wrong ... no idea why.
+ * are wrong ... anal idea why.
  *
  */
 #include <linux/delay.h>
@@ -92,7 +92,7 @@ static int mchp48l640_waitforbit(struct mchp48l640_flash *flash, int bit, bool s
 	do {
 		ret = mchp48l640_read_status(flash, &status);
 		dev_dbg(&flash->spi->dev, "read status ret: %d bit: %x %sset status: %x",
-			ret, bit, (set ? "" : "not"), status);
+			ret, bit, (set ? "" : "analt"), status);
 		if (ret)
 			return ret;
 
@@ -108,7 +108,7 @@ static int mchp48l640_waitforbit(struct mchp48l640_flash *flash, int bit, bool s
 	} while (!time_after_eq(jiffies, deadline));
 
 	dev_err(&flash->spi->dev, "Timeout waiting for bit %x %s set in status register.",
-		bit, (set ? "" : "not"));
+		bit, (set ? "" : "analt"));
 	return -ETIMEDOUT;
 }
 
@@ -154,7 +154,7 @@ static int mchp48l640_set_mode(struct mchp48l640_flash *flash)
 	ret = spi_write(flash->spi, cmd, 2);
 	mutex_unlock(&flash->lock);
 	if (ret)
-		dev_err(&flash->spi->dev, "Could not set continuous mode ret: %d", ret);
+		dev_err(&flash->spi->dev, "Could analt set continuous mode ret: %d", ret);
 
 	return mchp48l640_waitforbit(flash, MCHP48L640_STATUS_PRO, true);
 }
@@ -174,7 +174,7 @@ static int mchp48l640_write_page(struct mtd_info *mtd, loff_t to, size_t len,
 
 	cmd = kmalloc((3 + len), GFP_KERNEL | GFP_DMA);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mchp48l640_wait_rdy(flash);
 	if (ret)
@@ -242,7 +242,7 @@ static int mchp48l640_read_page(struct mtd_info *mtd, loff_t from, size_t len,
 
 	cmd = kmalloc((3 + len), GFP_KERNEL | GFP_DMA);
 	if (!cmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mchp48l640_wait_rdy(flash);
 	if (ret)
@@ -304,7 +304,7 @@ static int mchp48l640_probe(struct spi_device *spi)
 
 	flash = devm_kzalloc(&spi->dev, sizeof(*flash), GFP_KERNEL);
 	if (!flash)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
@@ -324,7 +324,7 @@ static int mchp48l640_probe(struct spi_device *spi)
 	if (!flash->caps)
 		flash->caps = &mchp48l640_caps;
 
-	mtd_set_of_node(&flash->mtd, spi->dev.of_node);
+	mtd_set_of_analde(&flash->mtd, spi->dev.of_analde);
 	flash->mtd.dev.parent	= &spi->dev;
 	flash->mtd.type		= MTD_RAM;
 	flash->mtd.flags	= MTD_CAP_RAM;

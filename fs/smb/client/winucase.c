@@ -619,7 +619,7 @@ static const wchar_t *const toplevel[256] = {
  * @in: character to convert from lower to uppercase
  *
  * This function consults the static tables above to convert a wchar_t from
- * lower to uppercase. In the event that there is no mapping, the original
+ * lower to uppercase. In the event that there is anal mapping, the original
  * "in" character is returned.
  */
 wchar_t

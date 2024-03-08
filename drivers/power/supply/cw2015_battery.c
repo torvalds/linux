@@ -37,7 +37,7 @@
 
 #define CW2015_MODE_SLEEP_MASK		GENMASK(7, 6)
 #define CW2015_MODE_SLEEP		(0x03 << 6)
-#define CW2015_MODE_NORMAL		(0x00 << 6)
+#define CW2015_MODE_ANALRMAL		(0x00 << 6)
 #define CW2015_MODE_QUICK_START		(0x03 << 4)
 #define CW2015_MODE_RESTART		(0x0f << 0)
 
@@ -46,7 +46,7 @@
 #define CW2015_MASK_ATHD		GENMASK(7, 3)
 #define CW2015_MASK_SOC			GENMASK(12, 0)
 
-/* reset gauge of no valid state of charge could be polled for 40s */
+/* reset gauge of anal valid state of charge could be polled for 40s */
 #define CW2015_BAT_SOC_ERROR_MS		(40 * MSEC_PER_SEC)
 /* reset gauge if state of charge stuck for half an hour during charging */
 #define CW2015_BAT_CHARGING_STUCK_MS	(1800 * MSEC_PER_SEC)
@@ -100,7 +100,7 @@ static int cw_update_profile(struct cw_battery *cw_bat)
 	unsigned int reg_val;
 	u8 reset_val;
 
-	/* make sure gauge is not in sleep mode */
+	/* make sure gauge is analt in sleep mode */
 	ret = regmap_read(cw_bat->regmap, CW2015_REG_MODE, &reg_val);
 	if (ret)
 		return ret;
@@ -148,7 +148,7 @@ static int cw_update_profile(struct cw_battery *cw_bat)
 				       10 * USEC_PER_MSEC, 10 * USEC_PER_SEC);
 	if (ret)
 		dev_err(cw_bat->dev,
-			"Gauge did not become ready after profile upload\n");
+			"Gauge did analt become ready after profile upload\n");
 	else
 		dev_dbg(cw_bat->dev, "Battery profile updated\n");
 
@@ -161,7 +161,7 @@ static int cw_init(struct cw_battery *cw_bat)
 	unsigned int reg_val = CW2015_MODE_SLEEP;
 
 	if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
-		reg_val = CW2015_MODE_NORMAL;
+		reg_val = CW2015_MODE_ANALRMAL;
 		ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reg_val);
 		if (ret)
 			return ret;
@@ -186,7 +186,7 @@ static int cw_init(struct cw_battery *cw_bat)
 
 	if (!(reg_val & CW2015_CONFIG_UPDATE_FLG)) {
 		dev_dbg(cw_bat->dev,
-			"Battery profile not present, uploading battery profile\n");
+			"Battery profile analt present, uploading battery profile\n");
 		if (cw_bat->bat_profile) {
 			ret = cw_update_profile(cw_bat);
 			if (ret) {
@@ -196,7 +196,7 @@ static int cw_init(struct cw_battery *cw_bat)
 			}
 		} else {
 			dev_warn(cw_bat->dev,
-				 "No profile specified, continuing without profile\n");
+				 "Anal profile specified, continuing without profile\n");
 		}
 	} else if (cw_bat->bat_profile) {
 		u8 bat_info[CW2015_SIZE_BATINFO];
@@ -217,7 +217,7 @@ static int cw_init(struct cw_battery *cw_bat)
 		}
 	} else {
 		dev_warn(cw_bat->dev,
-			 "Can't check current battery profile, no profile provided\n");
+			 "Can't check current battery profile, anal profile provided\n");
 	}
 
 	dev_dbg(cw_bat->dev, "Battery profile configured\n");
@@ -237,7 +237,7 @@ static int cw_power_on_reset(struct cw_battery *cw_bat)
 	/* wait for gauge to enter sleep */
 	msleep(20);
 
-	reset_val = CW2015_MODE_NORMAL;
+	reset_val = CW2015_MODE_ANALRMAL;
 	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
 	if (ret)
 		return ret;
@@ -292,11 +292,11 @@ static int cw_get_soc(struct cw_battery *cw_bat)
 		cw_bat->charge_stuck_cnt = 0;
 	}
 
-	/* Ignore voltage dips during charge */
+	/* Iganalre voltage dips during charge */
 	if (cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 0, 3))
 		soc = cw_bat->soc;
 
-	/* Ignore voltage spikes during discharge */
+	/* Iganalre voltage spikes during discharge */
 	if (!cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 3, 0))
 		soc = cw_bat->soc;
 
@@ -485,19 +485,19 @@ static int cw_battery_get_property(struct power_supply *psy,
 		val->intval = !!cw_bat->voltage_mv;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = cw_bat->voltage_mv * 1000;
 		break;
 
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		if (cw_battery_valid_time_to_empty(cw_bat))
 			val->intval = cw_bat->time_to_empty * 60;
 		else
 			val->intval = 0;
 		break;
 
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
@@ -512,12 +512,12 @@ static int cw_battery_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		val->intval = cw_bat->battery->charge_full_design_uah;
 		val->intval = val->intval * cw_bat->soc / 100;
 		break;
 
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
 		if (cw_battery_valid_time_to_empty(cw_bat) &&
 		    cw_bat->battery->charge_full_design_uah > 0) {
 			/* calculate remaining capacity */
@@ -542,14 +542,14 @@ static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 };
 
 static const struct power_supply_desc cw2015_bat_desc = {
@@ -569,7 +569,7 @@ static int cw2015_parse_properties(struct cw_battery *cw_bat)
 	length = device_property_count_u8(dev, "cellwise,battery-profile");
 	if (length < 0) {
 		dev_warn(cw_bat->dev,
-			 "No battery-profile found, using current flash contents\n");
+			 "Anal battery-profile found, using current flash contents\n");
 	} else if (length != CW2015_SIZE_BATINFO) {
 		dev_err(cw_bat->dev, "battery-profile must be %d bytes\n",
 			CW2015_SIZE_BATINFO);
@@ -577,7 +577,7 @@ static int cw2015_parse_properties(struct cw_battery *cw_bat)
 	} else {
 		cw_bat->bat_profile = devm_kzalloc(dev, length, GFP_KERNEL);
 		if (!cw_bat->bat_profile)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = device_property_read_u8_array(dev,
 						"cellwise,battery-profile",
@@ -597,7 +597,7 @@ static int cw2015_parse_properties(struct cw_battery *cw_bat)
 	return 0;
 }
 
-static const struct regmap_range regmap_ranges_rd_yes[] = {
+static const struct regmap_range regmap_ranges_rd_anal[] = {
 	regmap_reg_range(CW2015_REG_VERSION, CW2015_REG_VERSION),
 	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_CONFIG),
 	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
@@ -606,11 +606,11 @@ static const struct regmap_range regmap_ranges_rd_yes[] = {
 };
 
 static const struct regmap_access_table regmap_rd_table = {
-	.yes_ranges = regmap_ranges_rd_yes,
-	.n_yes_ranges = 4,
+	.anal_ranges = regmap_ranges_rd_anal,
+	.n_anal_ranges = 4,
 };
 
-static const struct regmap_range regmap_ranges_wr_yes[] = {
+static const struct regmap_range regmap_ranges_wr_anal[] = {
 	regmap_reg_range(CW2015_REG_RRT_ALERT, CW2015_REG_CONFIG),
 	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
 	regmap_reg_range(CW2015_REG_BATINFO,
@@ -618,17 +618,17 @@ static const struct regmap_range regmap_ranges_wr_yes[] = {
 };
 
 static const struct regmap_access_table regmap_wr_table = {
-	.yes_ranges = regmap_ranges_wr_yes,
-	.n_yes_ranges = 3,
+	.anal_ranges = regmap_ranges_wr_anal,
+	.n_anal_ranges = 3,
 };
 
-static const struct regmap_range regmap_ranges_vol_yes[] = {
+static const struct regmap_range regmap_ranges_vol_anal[] = {
 	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_SOC + 1),
 };
 
 static const struct regmap_access_table regmap_vol_table = {
-	.yes_ranges = regmap_ranges_vol_yes,
-	.n_yes_ranges = 1,
+	.anal_ranges = regmap_ranges_vol_anal,
+	.n_anal_ranges = 1,
 };
 
 static const struct regmap_config cw2015_regmap_config = {
@@ -648,7 +648,7 @@ static int cw_bat_probe(struct i2c_client *client)
 
 	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
 	if (!cw_bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, cw_bat);
 	cw_bat->dev = &client->dev;
@@ -674,7 +674,7 @@ static int cw_bat_probe(struct i2c_client *client)
 	}
 
 	psy_cfg.drv_data = cw_bat;
-	psy_cfg.fwnode = dev_fwnode(cw_bat->dev);
+	psy_cfg.fwanalde = dev_fwanalde(cw_bat->dev);
 
 	cw_bat->rk_bat = devm_power_supply_register(&client->dev,
 						    &cw2015_bat_desc,
@@ -693,14 +693,14 @@ static int cw_bat_probe(struct i2c_client *client)
 					       sizeof(*cw_bat->battery),
 					       GFP_KERNEL);
 		if (!cw_bat->battery)
-			return -ENOMEM;
+			return -EANALMEM;
 		dev_warn(cw_bat->dev,
-			 "No monitored battery, some properties will be missing\n");
+			 "Anal monitored battery, some properties will be missing\n");
 	}
 
 	cw_bat->battery_workqueue = create_singlethread_workqueue("rk_battery");
 	if (!cw_bat->battery_workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devm_delayed_work_autocancel(&client->dev,
 							  &cw_bat->battery_delay_work, cw_bat_work);

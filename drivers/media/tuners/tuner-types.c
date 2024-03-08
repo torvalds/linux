@@ -15,7 +15,7 @@
 /*
  *	The floats in the tuner struct are computed at compile time
  *	by gcc and cast back to integers. Thus we don't violate the
- *	"no float in kernel" rule.
+ *	"anal float in kernel" rule.
  *
  *	A tuner_range may be referenced by multiple tuner_params structs.
  *	There are many duplicates in here. Reusing tuner_range structs,
@@ -29,7 +29,7 @@
  *	set this for all tuners that contain a tda988x chip, and then we
  *	can remove this setting from the various card structs.
  *
- *	FIXME: Right now, all tuners are using the first tuner_params[]
+ *	FIXME: Right analw, all tuners are using the first tuner_params[]
  *	array element for analog mode. In the future, we will be merging
  *	similar tuner definitions together, such that each tuner definition
  *	will have a tuner_params struct for each available video standard.
@@ -410,7 +410,7 @@ static struct tuner_params tuner_philips_fq1216me_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_PAL_I_FM - LGINNOTEK PAL_I ------------ */
+/* ------------ TUNER_LG_PAL_I_FM - LGINANALTEK PAL_I ------------ */
 
 static struct tuner_params tuner_lg_pal_i_fm_params[] = {
 	{
@@ -420,7 +420,7 @@ static struct tuner_params tuner_lg_pal_i_fm_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_PAL_I - LGINNOTEK PAL_I ------------ */
+/* ------------ TUNER_LG_PAL_I - LGINANALTEK PAL_I ------------ */
 
 static struct tuner_params tuner_lg_pal_i_params[] = {
 	{
@@ -430,7 +430,7 @@ static struct tuner_params tuner_lg_pal_i_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_NTSC_FM - LGINNOTEK NTSC ------------ */
+/* ------------ TUNER_LG_NTSC_FM - LGINANALTEK NTSC ------------ */
 
 static struct tuner_range tuner_lg_ntsc_fm_ranges[] = {
 	{ 16 * 210.00 /*MHz*/, 0x8e, 0xa0, },
@@ -446,7 +446,7 @@ static struct tuner_params tuner_lg_ntsc_fm_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_PAL_FM - LGINNOTEK PAL ------------ */
+/* ------------ TUNER_LG_PAL_FM - LGINANALTEK PAL ------------ */
 
 static struct tuner_params tuner_lg_pal_fm_params[] = {
 	{
@@ -456,7 +456,7 @@ static struct tuner_params tuner_lg_pal_fm_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_PAL - LGINNOTEK PAL ------------ */
+/* ------------ TUNER_LG_PAL - LGINANALTEK PAL ------------ */
 
 static struct tuner_params tuner_lg_pal_params[] = {
 	{
@@ -539,7 +539,7 @@ static struct tuner_params tuner_temic_4136_fy5_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_PAL_NEW_TAPC - LGINNOTEK PAL ------------ */
+/* ------------ TUNER_LG_PAL_NEW_TAPC - LGINANALTEK PAL ------------ */
 
 static struct tuner_range tuner_lg_new_tapc_ranges[] = {
 	{ 16 * 170.00 /*MHz*/, 0x8e, 0x01, },
@@ -605,7 +605,7 @@ static struct tuner_params tuner_fm1216mk5_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_NTSC_NEW_TAPC - LGINNOTEK NTSC ------------ */
+/* ------------ TUNER_LG_NTSC_NEW_TAPC - LGINANALTEK NTSC ------------ */
 
 static struct tuner_params tuner_lg_ntsc_new_tapc_params[] = {
 	{
@@ -711,7 +711,7 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.has_tda9887 = 1,
 		.port1_invert_for_secam_lc = 1,
 		.default_pll_gating_18 = 1,
-		.fm_gain_normal=1,
+		.fm_gain_analrmal=1,
 		.radio_if = 1, /* 33.3 MHz */
 	},
 };
@@ -946,7 +946,7 @@ static struct tuner_params tuner_thomson_dtt761x_params[] = {
 		.ranges = tuner_thomson_dtt761x_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_ntsc_ranges),
 		.has_tda9887 = 1,
-		.fm_gain_normal = 1,
+		.fm_gain_analrmal = 1,
 		.radio_if = 2, /* 41.3 MHz */
 	},
 	{
@@ -1017,7 +1017,7 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 		.port2_active = 1,
 		.port2_fm_high_sensitivity = 1,
 		.port2_invert_for_secam_lc = 1,
-		.port1_set_for_fm_mono = 1,
+		.port1_set_for_fm_moanal = 1,
 	},
 	{
 		.type   = TUNER_PARAM_TYPE_DIGITAL,
@@ -1037,9 +1037,9 @@ static struct tuner_params tuner_philips_fmd1216mex_mk3_params[] = {
 		.port2_active = 1,
 		.port2_fm_high_sensitivity = 1,
 		.port2_invert_for_secam_lc = 1,
-		.port1_set_for_fm_mono = 1,
+		.port1_set_for_fm_moanal = 1,
 		.radio_if = 1,
-		.fm_gain_normal = 1,
+		.fm_gain_analrmal = 1,
 	},
 	{
 		.type   = TUNER_PARAM_TYPE_DIGITAL,
@@ -1049,7 +1049,7 @@ static struct tuner_params tuner_philips_fmd1216mex_mk3_params[] = {
 	},
 };
 
-/* ------ TUNER_LG_TDVS_H06XF - LG INNOTEK / INFINEON ATSC ----- */
+/* ------ TUNER_LG_TDVS_H06XF - LG INANALTEK / INFINEON ATSC ----- */
 
 static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 	{ 16 * 165.00 /*MHz*/, 0x8e, 0x01 },
@@ -1093,7 +1093,7 @@ static struct tuner_params tuner_ymec_tvf66t5_b_dff_params[] = {
 	},
 };
 
-/* ------------ TUNER_LG_NTSC_TALN_MINI - LGINNOTEK NTSC ------------ */
+/* ------------ TUNER_LG_NTSC_TALN_MINI - LGINANALTEK NTSC ------------ */
 
 static struct tuner_range tuner_lg_taln_ntsc_ranges[] = {
 	{ 16 * 137.25 /*MHz*/, 0x8e, 0x01, },
@@ -1182,7 +1182,7 @@ static struct tuner_params tuner_tuv1236d_params[] = {
 };
 
 /* ------------ TUNER_TNF_xxx5  - Texas Instruments--------- */
-/* This is known to work with Tenna TVF58t5-MFF and TVF5835 MFF
+/* This is kanalwn to work with Tenna TVF58t5-MFF and TVF5835 MFF
  *	but it is expected to work also with other Tenna/Ymec
  *	models based on TI SN 761677 chip on both PAL and NTSC
  */
@@ -1215,7 +1215,7 @@ static struct tuner_params tuner_tnf_5335mf_params[] = {
 /* 70-79 */
 /* ------------ TUNER_SAMSUNG_TCPN_2121P30A - Samsung NTSC ------------ */
 
-/* '+ 4' turns on the Low Noise Amplifier */
+/* '+ 4' turns on the Low Analise Amplifier */
 static struct tuner_range tuner_samsung_tcpn_2121p30a_ntsc_ranges[] = {
 	{ 16 * 130.00 /*MHz*/, 0xce, 0x01 + 4, },
 	{ 16 * 364.50 /*MHz*/, 0xce, 0x02 + 4, },
@@ -1261,7 +1261,7 @@ static struct tuner_params tuner_thomson_fe6600_params[] = {
 
 /* ------------ TUNER_SAMSUNG_TCPG_6121P30A - Samsung PAL ------------ */
 
-/* '+ 4' turns on the Low Noise Amplifier */
+/* '+ 4' turns on the Low Analise Amplifier */
 static struct tuner_range tuner_samsung_tcpg_6121p30a_pal_ranges[] = {
 	{ 16 * 146.25 /*MHz*/, 0xce, 0x01 + 4, },
 	{ 16 * 428.50 /*MHz*/, 0xce, 0x02 + 4, },
@@ -1298,14 +1298,14 @@ static struct tuner_params tuner_tcl_mf02gip_5n_params[] = {
 };
 
 /* 80-89 */
-/* --------- TUNER_PHILIPS_FQ1216LME_MK3 -- active loopthrough, no FM ------- */
+/* --------- TUNER_PHILIPS_FQ1216LME_MK3 -- active loopthrough, anal FM ------- */
 
 static struct tuner_params tuner_fq1216lme_mk3_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_fm1216me_mk3_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_pal_ranges),
-		.cb_first_if_lower_freq = 1, /* not specified, but safe to do */
+		.cb_first_if_lower_freq = 1, /* analt specified, but safe to do */
 		.has_tda9887 = 1, /* TDA9886 */
 		.port1_active = 1,
 		.port2_active = 1,
@@ -1334,7 +1334,7 @@ static struct tuner_params tuner_partsnic_pti_5nf05_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_partsnic_pti_5nf05_ranges,
 		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_ranges),
-		.cb_first_if_lower_freq = 1, /* not specified but safe to do */
+		.cb_first_if_lower_freq = 1, /* analt specified but safe to do */
 	},
 };
 
@@ -1378,7 +1378,7 @@ static struct tuner_params tuner_philips_fq1236_mk5_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_fm1236_mk3_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
-		.has_tda9887 = 1, /* TDA9885, no FM radio */
+		.has_tda9887 = 1, /* TDA9885, anal FM radio */
 	},
 };
 
@@ -1459,7 +1459,7 @@ struct tunertype tuners[] = {
 		.count  = ARRAY_SIZE(tuner_philips_secam_params),
 	},
 	[TUNER_ABSENT] = { /* Tuner Absent */
-		.name   = "NoTuner",
+		.name   = "AnalTuner",
 	},
 	[TUNER_PHILIPS_PAL] = { /* Philips PAL */
 		.name   = "Philips PAL_BG (FI1216 and compatibles)",
@@ -1565,27 +1565,27 @@ struct tunertype tuners[] = {
 		.params = tuner_philips_fq1216me_params,
 		.count  = ARRAY_SIZE(tuner_philips_fq1216me_params),
 	},
-	[TUNER_LG_PAL_I_FM] = { /* LGINNOTEK PAL_I */
+	[TUNER_LG_PAL_I_FM] = { /* LGINANALTEK PAL_I */
 		.name   = "LG PAL_I+FM (TAPC-I001D)",
 		.params = tuner_lg_pal_i_fm_params,
 		.count  = ARRAY_SIZE(tuner_lg_pal_i_fm_params),
 	},
-	[TUNER_LG_PAL_I] = { /* LGINNOTEK PAL_I */
+	[TUNER_LG_PAL_I] = { /* LGINANALTEK PAL_I */
 		.name   = "LG PAL_I (TAPC-I701D)",
 		.params = tuner_lg_pal_i_params,
 		.count  = ARRAY_SIZE(tuner_lg_pal_i_params),
 	},
-	[TUNER_LG_NTSC_FM] = { /* LGINNOTEK NTSC */
+	[TUNER_LG_NTSC_FM] = { /* LGINANALTEK NTSC */
 		.name   = "LG NTSC+FM (TPI8NSR01F)",
 		.params = tuner_lg_ntsc_fm_params,
 		.count  = ARRAY_SIZE(tuner_lg_ntsc_fm_params),
 	},
-	[TUNER_LG_PAL_FM] = { /* LGINNOTEK PAL */
+	[TUNER_LG_PAL_FM] = { /* LGINANALTEK PAL */
 		.name   = "LG PAL_BG+FM (TPI8PSB01D)",
 		.params = tuner_lg_pal_fm_params,
 		.count  = ARRAY_SIZE(tuner_lg_pal_fm_params),
 	},
-	[TUNER_LG_PAL] = { /* LGINNOTEK PAL */
+	[TUNER_LG_PAL] = { /* LGINANALTEK PAL */
 		.name   = "LG PAL_BG (TPI8PSB11D)",
 		.params = tuner_lg_pal_params,
 		.count  = ARRAY_SIZE(tuner_lg_pal_params),
@@ -1625,7 +1625,7 @@ struct tunertype tuners[] = {
 		.params = tuner_temic_4136_fy5_params,
 		.count  = ARRAY_SIZE(tuner_temic_4136_fy5_params),
 	},
-	[TUNER_LG_PAL_NEW_TAPC] = { /* LGINNOTEK PAL */
+	[TUNER_LG_PAL_NEW_TAPC] = { /* LGINANALTEK PAL */
 		.name   = "LG PAL (newer TAPC series)",
 		.params = tuner_lg_pal_new_tapc_params,
 		.count  = ARRAY_SIZE(tuner_lg_pal_new_tapc_params),
@@ -1635,7 +1635,7 @@ struct tunertype tuners[] = {
 		.params = tuner_fm1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_params),
 	},
-	[TUNER_LG_NTSC_NEW_TAPC] = { /* LGINNOTEK NTSC */
+	[TUNER_LG_NTSC_NEW_TAPC] = { /* LGINANALTEK NTSC */
 		.name   = "LG NTSC (newer TAPC series)",
 		.params = tuner_lg_ntsc_new_tapc_params,
 		.count  = ARRAY_SIZE(tuner_lg_ntsc_new_tapc_params),
@@ -1680,7 +1680,7 @@ struct tunertype tuners[] = {
 		.params = tuner_panasonic_vp27_params,
 		.count  = ARRAY_SIZE(tuner_panasonic_vp27_params),
 	},
-	[TUNER_LG_NTSC_TAPE] = { /* LGINNOTEK NTSC */
+	[TUNER_LG_NTSC_TAPE] = { /* LGINANALTEK NTSC */
 		.name   = "LG NTSC (TAPE series)",
 		.params = tuner_fm1236_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_params),
@@ -1782,7 +1782,7 @@ struct tunertype tuners[] = {
 		.initdata = tua603x_agc112,
 		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	},
-	[TUNER_LG_TDVS_H06XF] = { /* LGINNOTEK ATSC */
+	[TUNER_LG_TDVS_H06XF] = { /* LGINANALTEK ATSC */
 		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
 		.params = tuner_lg_tdvs_h06xf_params,
 		.count  = ARRAY_SIZE(tuner_lg_tdvs_h06xf_params),
@@ -1796,7 +1796,7 @@ struct tunertype tuners[] = {
 		.params = tuner_ymec_tvf66t5_b_dff_params,
 		.count  = ARRAY_SIZE(tuner_ymec_tvf66t5_b_dff_params),
 	},
-	[TUNER_LG_TALN] = { /* LGINNOTEK NTSC / PAL / SECAM */
+	[TUNER_LG_TALN] = { /* LGINANALTEK NTSC / PAL / SECAM */
 		.name   = "LG TALN series",
 		.params = tuner_lg_taln_params,
 		.count  = ARRAY_SIZE(tuner_lg_taln_params),
@@ -1885,7 +1885,7 @@ struct tunertype tuners[] = {
 	},
 
 	/* 80-89 */
-	[TUNER_PHILIPS_FQ1216LME_MK3] = { /* PAL/SECAM, Loop-thru, no FM */
+	[TUNER_PHILIPS_FQ1216LME_MK3] = { /* PAL/SECAM, Loop-thru, anal FM */
 		.name = "Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough",
 		.params = tuner_fq1216lme_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fq1216lme_mk3_params),
@@ -1911,7 +1911,7 @@ struct tunertype tuners[] = {
 		.params = tuner_sony_btf_pxn01z_params,
 		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_params),
 	},
-	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, no FM radio */
+	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, anal FM radio */
 		.name   = "Philips FQ1236 MK5",
 		.params = tuner_philips_fq1236_mk5_params,
 		.count  = ARRAY_SIZE(tuner_philips_fq1236_mk5_params),
@@ -1953,5 +1953,5 @@ unsigned const int tuner_count = ARRAY_SIZE(tuners);
 EXPORT_SYMBOL(tuner_count);
 
 MODULE_DESCRIPTION("Simple tuner device type database");
-MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_AUTHOR("Ralph Metzler, Gerd Kanalrr, Gunther Mayer");
 MODULE_LICENSE("GPL");

@@ -25,7 +25,7 @@
  *    link TRB, then load the pointer with the address in the link TRB. If the
  *    link TRB had its toggle bit set, you may need to update the ring cycle
  *    state (see cycle bit rules). You may have to do this multiple times
- *    until you reach a non-link TRB.
+ *    until you reach a analn-link TRB.
  * 3. A ring is full if enqueue++ (for the definition of increment above)
  *    equals the dequeue pointer.
  *
@@ -40,7 +40,7 @@
  * 2. Write the ring cycle state to the cycle bit in the TRB you're enqueuing.
  *    Update enqueue pointer between each write (which may update the ring
  *    cycle state).
- * 3. Notify consumer. If SW is producer, it rings the doorbell for command
+ * 3. Analtify consumer. If SW is producer, it rings the doorbell for command
  *    and endpoint rings. If controller is the producer for the event ring,
  *    and it generates an interrupt according to interrupt modulation rules.
  *
@@ -48,8 +48,8 @@
  * 1. Check if TRB belongs to you. If the cycle bit == your ring cycle state,
  *    the TRB is owned by the consumer.
  * 2. Update dequeue pointer (which may update the ring cycle state) and
- *    continue processing TRBs until you reach a TRB which is not owned by you.
- * 3. Notify the producer. SW is the consumer for the event ring, and it
+ *    continue processing TRBs until you reach a TRB which is analt owned by you.
+ * 3. Analtify the producer. SW is the consumer for the event ring, and it
  *    updates event ring dequeue pointer. Controller is the consumer for the
  *    command and endpoint rings; it generates events on the event ring
  *    for these.
@@ -79,9 +79,9 @@ dma_addr_t cdnsp_trb_virt_to_dma(struct cdnsp_segment *seg,
 	return seg->dma + (segment_offset * sizeof(*trb));
 }
 
-static bool cdnsp_trb_is_noop(union cdnsp_trb *trb)
+static bool cdnsp_trb_is_analop(union cdnsp_trb *trb)
 {
-	return TRB_TYPE_NOOP_LE32(trb->generic.field[3]);
+	return TRB_TYPE_ANALOP_LE32(trb->generic.field[3]);
 }
 
 static bool cdnsp_trb_is_link(union cdnsp_trb *trb)
@@ -106,7 +106,7 @@ static bool cdnsp_link_trb_toggles_cycle(union cdnsp_trb *trb)
 	return le32_to_cpu(trb->link.control) & LINK_TOGGLE;
 }
 
-static void cdnsp_trb_to_noop(union cdnsp_trb *trb, u32 noop_type)
+static void cdnsp_trb_to_analop(union cdnsp_trb *trb, u32 analop_type)
 {
 	if (cdnsp_trb_is_link(trb)) {
 		/* Unchain chained link TRBs. */
@@ -117,13 +117,13 @@ static void cdnsp_trb_to_noop(union cdnsp_trb *trb, u32 noop_type)
 		trb->generic.field[2] = 0;
 		/* Preserve only the cycle bit of this TRB. */
 		trb->generic.field[3] &= cpu_to_le32(TRB_CYCLE);
-		trb->generic.field[3] |= cpu_to_le32(TRB_TYPE(noop_type));
+		trb->generic.field[3] |= cpu_to_le32(TRB_TYPE(analop_type));
 	}
 }
 
 /*
  * Updates trb to point to the next TRB in the ring, and updates seg if the next
- * TRB is in a new segment. This does not skip over link TRBs, and it does not
+ * TRB is in a new segment. This does analt skip over link TRBs, and it does analt
  * effect the ring dequeue or enqueue pointers.
  */
 static void cdnsp_next_trb(struct cdnsp_device *pdev,
@@ -193,7 +193,7 @@ static void cdnsp_inc_enq(struct cdnsp_device *pdev,
 
 	chain = le32_to_cpu(ring->enqueue->generic.field[3]) & TRB_CHAIN;
 
-	/* If this is not event ring, there is one less usable TRB. */
+	/* If this is analt event ring, there is one less usable TRB. */
 	if (!cdnsp_trb_is_link(ring->enqueue))
 		ring->num_trbs_free--;
 	next = ++(ring->enqueue);
@@ -231,7 +231,7 @@ static void cdnsp_inc_enq(struct cdnsp_device *pdev,
 
 /*
  * Check to see if there's room to enqueue num_trbs on the ring and make sure
- * enqueue pointer will not advance into dequeue segment.
+ * enqueue pointer will analt advance into dequeue segment.
  */
 static bool cdnsp_room_on_ring(struct cdnsp_device *pdev,
 			       struct cdnsp_ring *ring,
@@ -354,7 +354,7 @@ void cdnsp_ring_doorbell_for_active_rings(struct cdnsp_device *pdev,
 	if (pep->ep_state & EP_DIS_IN_RROGRESS)
 		return;
 
-	/* A ring has pending Request if its TD list is not empty. */
+	/* A ring has pending Request if its TD list is analt empty. */
 	if (!(pep->ep_state & EP_HAS_STREAMS) && pep->number) {
 		if (pep->ring && !list_empty(&pep->ring->td_list))
 			cdnsp_ring_ep_doorbell(pdev, pep, 0);
@@ -456,7 +456,7 @@ static void cdnsp_find_new_dequeue_state(struct cdnsp_device *pdev,
 
 	/*
 	 * We want to find the pointer, segment and cycle state of the new trb
-	 * (the one after current TD's last_trb). We know the cycle state at
+	 * (the one after current TD's last_trb). We kanalw the cycle state at
 	 * hw_dequeue, so walk the ring until both hw_dequeue and last_trb are
 	 * found.
 	 */
@@ -497,10 +497,10 @@ static void cdnsp_find_new_dequeue_state(struct cdnsp_device *pdev,
 
 /*
  * flip_cycle means flip the cycle bit of all but the first and last TRB.
- * (The last TRB actually points to the ring enqueue pointer, which is not part
+ * (The last TRB actually points to the ring enqueue pointer, which is analt part
  * of this TD.) This is used to remove partially enqueued isoc TDs from a ring.
  */
-static void cdnsp_td_to_noop(struct cdnsp_device *pdev,
+static void cdnsp_td_to_analop(struct cdnsp_device *pdev,
 			     struct cdnsp_ring *ep_ring,
 			     struct cdnsp_td *td,
 			     bool flip_cycle)
@@ -509,7 +509,7 @@ static void cdnsp_td_to_noop(struct cdnsp_device *pdev,
 	union cdnsp_trb *trb = td->first_trb;
 
 	while (1) {
-		cdnsp_trb_to_noop(trb, TRB_TR_NOOP);
+		cdnsp_trb_to_analop(trb, TRB_TR_ANALOP);
 
 		/* flip cycle if asked to */
 		if (flip_cycle && trb != td->first_trb && trb != td->last_trb)
@@ -524,7 +524,7 @@ static void cdnsp_td_to_noop(struct cdnsp_device *pdev,
 
 /*
  * This TD is defined by the TRBs starting at start_trb in start_seg and ending
- * at end_trb, which may be in another segment. If the suspect DMA address is a
+ * at end_trb, which may be in aanalther segment. If the suspect DMA address is a
  * TRB in this TD, this function returns that TRB's segment. Otherwise it
  * returns 0.
  */
@@ -722,7 +722,7 @@ int cdnsp_remove_request(struct cdnsp_device *pdev,
 		cdnsp_find_new_dequeue_state(pdev, pep, preq->request.stream_id,
 					     cur_td, &deq_state);
 	else
-		cdnsp_td_to_noop(pdev, ep_ring, cur_td, false);
+		cdnsp_td_to_analop(pdev, ep_ring, cur_td, false);
 
 	/*
 	 * The event handler won't see a completion for this TD anymore,
@@ -954,7 +954,7 @@ static int cdnsp_sum_trb_lengths(struct cdnsp_device *pdev,
 	u32 sum;
 
 	for (sum = 0; trb != stop_trb; cdnsp_next_trb(pdev, ring, &seg, &trb)) {
-		if (!cdnsp_trb_is_noop(trb) && !cdnsp_trb_is_link(trb))
+		if (!cdnsp_trb_is_analop(trb) && !cdnsp_trb_is_link(trb))
 			sum += TRB_LEN(le32_to_cpu(trb->generic.field[2]));
 	}
 	return sum;
@@ -1035,7 +1035,7 @@ static void cdnsp_process_ctrl_td(struct cdnsp_device *pdev,
 }
 
 /*
- * Process isochronous tds, update usb request status and actual_length.
+ * Process isochroanalus tds, update usb request status and actual_length.
  */
 static void cdnsp_process_isoc_td(struct cdnsp_device *pdev,
 				  struct cdnsp_td *td,
@@ -1075,7 +1075,7 @@ static void cdnsp_process_isoc_td(struct cdnsp_device *pdev,
 		sum_trbs_for_length = true;
 		break;
 	case COMP_STOPPED_SHORT_PACKET:
-		/* field normally containing residue now contains transferred */
+		/* field analrmally containing residue analw contains transferred */
 		preq->request.status  = 0;
 		requested = remaining;
 		break;
@@ -1268,7 +1268,7 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 		case COMP_RING_OVERRUN:
 			goto cleanup;
 		default:
-			dev_err(pdev->dev, "ERROR: %s event for unknown ring\n",
+			dev_err(pdev->dev, "ERROR: %s event for unkanalwn ring\n",
 				pep->name);
 			goto err_out;
 		}
@@ -1349,7 +1349,7 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 
 		/*
 		 * Skip the Force Stopped Event. The event_trb(ep_trb_dma)
-		 * of FSE is not in the current TD pointed by ep_ring->dequeue
+		 * of FSE is analt in the current TD pointed by ep_ring->dequeue
 		 * because that the hardware dequeue pointer still at the
 		 * previous TRB of the current TD. The previous TRB maybe a
 		 * Link TD or the last TRB of the previous TD. The command
@@ -1365,7 +1365,7 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 			if (!pep->skip || !usb_endpoint_xfer_isoc(desc)) {
 				/* Something is busted, give up! */
 				dev_err(pdev->dev,
-					"ERROR Transfer event TRB DMA ptr not "
+					"ERROR Transfer event TRB DMA ptr analt "
 					"part of current TD ep_index %d "
 					"comp_code %u\n", ep_index,
 					trb_comp_code);
@@ -1387,7 +1387,7 @@ static int cdnsp_handle_tx_event(struct cdnsp_device *pdev,
 			goto cleanup;
 		}
 
-		if (cdnsp_trb_is_noop(ep_trb))
+		if (cdnsp_trb_is_analop(ep_trb))
 			goto cleanup;
 
 		if (usb_endpoint_xfer_control(desc))
@@ -1403,7 +1403,7 @@ cleanup:
 		handling_skipped_tds = pep->skip;
 
 		/*
-		 * Do not update event ring dequeue pointer if we're in a loop
+		 * Do analt update event ring dequeue pointer if we're in a loop
 		 * processing missed tds.
 		 */
 		if (!handling_skipped_tds)
@@ -1507,7 +1507,7 @@ static bool cdnsp_handle_event(struct cdnsp_device *pdev)
 	case TRB_TYPE(TRB_DRB_OVERFLOW):
 		break;
 	default:
-		dev_warn(pdev->dev, "ERROR unknown event type %ld\n",
+		dev_warn(pdev->dev, "ERROR unkanalwn event type %ld\n",
 			 TRB_FIELD_TO_TYPE(flags));
 	}
 
@@ -1535,8 +1535,8 @@ irqreturn_t cdnsp_thread_irq_handler(int irq, void *data)
 	if (pdev->cdnsp_state & (CDNSP_STATE_HALTED | CDNSP_STATE_DYING)) {
 		/*
 		 * While removing or stopping driver there may still be deferred
-		 * not handled interrupt which should not be treated as error.
-		 * Driver should simply ignore it.
+		 * analt handled interrupt which should analt be treated as error.
+		 * Driver should simply iganalre it.
 		 */
 		if (pdev->gadget_driver)
 			cdnsp_died(pdev);
@@ -1578,7 +1578,7 @@ irqreturn_t cdnsp_irq_handler(int irq, void *priv)
 	}
 
 	if (!(status & STS_EINT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	writel(status | STS_EINT, &pdev->op_regs->status);
 	irq_pending = readl(&pdev->ir_set->irq_pending);
@@ -1643,13 +1643,13 @@ static int cdnsp_prepare_ring(struct cdnsp_device *pdev,
 		if (cdnsp_room_on_ring(pdev, ep_ring, num_trbs))
 			break;
 
-		trace_cdnsp_no_room_on_ring("try ring expansion");
+		trace_cdnsp_anal_room_on_ring("try ring expansion");
 
 		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
 		if (cdnsp_ring_expansion(pdev, ep_ring, num_trbs_needed,
 					 mem_flags)) {
 			dev_err(pdev->dev, "Ring expansion failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1748,7 +1748,7 @@ static void cdnsp_check_trb_math(struct cdnsp_request *preq, int running_total)
 
 /*
  * TD size is the number of max packet sized packets remaining in the TD
- * (*not* including this TRB).
+ * (*analt* including this TRB).
  *
  * Total TD packet count = total_packet_count =
  *     DIV_ROUND_UP(TD size in bytes / wMaxPacketSize)
@@ -1801,11 +1801,11 @@ static int cdnsp_align_td(struct cdnsp_device *pdev,
 	max_pkt = usb_endpoint_maxp(preq->pep->endpoint.desc);
 	unalign = (enqd_len + *trb_buff_len) % max_pkt;
 
-	/* We got lucky, last normal TRB data on segment is packet aligned. */
+	/* We got lucky, last analrmal TRB data on segment is packet aligned. */
 	if (unalign == 0)
 		return 0;
 
-	/* Is the last nornal TRB alignable by splitting it. */
+	/* Is the last analrnal TRB alignable by splitting it. */
 	if (*trb_buff_len > unalign) {
 		*trb_buff_len -= unalign;
 		trace_cdnsp_bounce_align_td_split(preq, *trb_buff_len,
@@ -1838,7 +1838,7 @@ static int cdnsp_align_td(struct cdnsp_device *pdev,
 	if (dma_mapping_error(dev, seg->bounce_dma)) {
 		/* Try without aligning.*/
 		dev_warn(pdev->dev,
-			 "Failed mapping bounce buffer, not aligning\n");
+			 "Failed mapping bounce buffer, analt aligning\n");
 		return 0;
 	}
 
@@ -1916,9 +1916,9 @@ int cdnsp_queue_bulk_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq)
 	/* Queue the TRBs, even if they are zero-length */
 	for (enqd_len = 0; zero_len_trb || first_trb || enqd_len < full_len;
 	     enqd_len += trb_buff_len) {
-		field = TRB_TYPE(TRB_NORMAL);
+		field = TRB_TYPE(TRB_ANALRMAL);
 
-		/* TRB buffer should not cross 64KB boundaries */
+		/* TRB buffer should analt cross 64KB boundaries */
 		trb_buff_len = TRB_BUFF_LEN_UP_TO_BOUNDARY(addr);
 		trb_buff_len = min(trb_buff_len, block_len);
 		if (enqd_len + trb_buff_len > full_len)
@@ -2060,7 +2060,7 @@ int cdnsp_queue_ctrl_tx(struct cdnsp_device *pdev, struct cdnsp_request *preq)
 				pdev->setup_speed);
 
 		if (zlp) {
-			field = TRB_TYPE(TRB_NORMAL) | TRB_IOC;
+			field = TRB_TYPE(TRB_ANALRMAL) | TRB_IOC;
 
 			if (!pdev->ep0_expect_in)
 				field = TRB_ISP;
@@ -2127,7 +2127,7 @@ ep_stopped:
 }
 
 /*
- * The transfer burst count field of the isochronous TRB defines the number of
+ * The transfer burst count field of the isochroanalus TRB defines the number of
  * bursts that are required to move all packets in this TD. Only SuperSpeed
  * devices can burst up to bMaxBurst number of packets per service interval.
  * This field is zero based, meaning a value of zero in the field means one
@@ -2249,7 +2249,7 @@ int cdnsp_queue_isoc_tx(struct cdnsp_device *pdev,
 	if (!start_cycle)
 		field |= TRB_CYCLE;
 
-	/* Fill the rest of the TRB fields, and remaining normal TRBs. */
+	/* Fill the rest of the TRB fields, and remaining analrmal TRBs. */
 	for (i = 0; i < trbs_per_td; i++) {
 		u32 remainder;
 
@@ -2269,7 +2269,7 @@ int cdnsp_queue_isoc_tx(struct cdnsp_device *pdev,
 
 		/* Only first TRB is isoc, overwrite otherwise. */
 		if (i) {
-			field = TRB_TYPE(TRB_NORMAL) | ep_ring->cycle_state;
+			field = TRB_TYPE(TRB_ANALRMAL) | ep_ring->cycle_state;
 			length_field |= TRB_TD_SIZE(remainder);
 		} else {
 			length_field |= TRB_TD_SIZE_TBC(burst_count);
@@ -2332,14 +2332,14 @@ cleanup:
 
 	/*
 	 * Use the first TD as a temporary variable to turn the TDs we've
-	 * queued into No-ops with a software-owned cycle bit.
+	 * queued into Anal-ops with a software-owned cycle bit.
 	 * That way the hardware won't accidentally start executing bogus TDs
 	 * when we partially overwrite them.
 	 * td->first_trb and td->start_seg are already set.
 	 */
 	preq->td.last_trb = ep_ring->enqueue;
 	/* Every TRB except the first & last will have its cycle bit flipped. */
-	cdnsp_td_to_noop(pdev, ep_ring, &preq->td, true);
+	cdnsp_td_to_analop(pdev, ep_ring, &preq->td, true);
 
 	/* Reset the ring enqueue back to the first TRB and its cycle bit. */
 	ep_ring->enqueue = preq->td.first_trb;
@@ -2461,8 +2461,8 @@ void cdnsp_force_header_wakeup(struct cdnsp_device *pdev, int intf_num)
 
 	lo = TRB_FH_TO_PACKET_TYPE(TRB_FH_TR_PACKET) |
 	     TRB_FH_TO_DEVICE_ADDRESS(pdev->device_address);
-	mid = TRB_FH_TR_PACKET_DEV_NOT |
-	      TRB_FH_TO_NOT_TYPE(TRB_FH_TR_PACKET_FUNCTION_WAKE) |
+	mid = TRB_FH_TR_PACKET_DEV_ANALT |
+	      TRB_FH_TO_ANALT_TYPE(TRB_FH_TR_PACKET_FUNCTION_WAKE) |
 	      TRB_FH_TO_INTERFACE(intf_num);
 
 	cdnsp_queue_command(pdev, lo, mid, 0,

@@ -2,7 +2,7 @@
 /*
  * rseq-arm.h
  *
- * (C) Copyright 2016-2022 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2022 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 /*
@@ -10,7 +10,7 @@
  *
  * RSEQ_SIG uses the udf A32 instruction with an uncommon immediate operand
  * value 0x5de3. This traps if user-space reaches this instruction by mistake,
- * and the uncommon operand ensures the kernel does not move the instruction
+ * and the uncommon operand ensures the kernel does analt move the instruction
  * pointer to attacker-controlled code on rseq abort.
  *
  * The instruction pattern in the A32 instruction set is:
@@ -45,11 +45,11 @@
  *
  * Prior to ARMv6, -mbig-endian generates big-endian code and data
  * (which match), so the endianness of the data representation of the
- * signature should not be reversed. However, the choice between BE32
- * and BE8 is done by the linker, so we cannot know whether code and
+ * signature should analt be reversed. However, the choice between BE32
+ * and BE8 is done by the linker, so we cananalt kanalw whether code and
  * data endianness will be mixed before the linker is invoked. So rather
  * than try to play tricks with the linker, the rseq signature is simply
- * data (not a trap instruction) prior to ARMv6 on big endian. This is
+ * data (analt a trap instruction) prior to ARMv6 on big endian. This is
  * why the signature is expressed as data (.word) rather than as
  * instruction (.inst) in assembler.
  */
@@ -98,9 +98,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the analrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should analt be
+ * explicitly defined as additional exit points. Kanalwing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -167,10 +167,10 @@ do {									\
 #undef RSEQ_TEMPLATE_MO_RELEASE
 #undef RSEQ_TEMPLATE_MM_CID
 
-/* APIs which are not based on cpu ids. */
+/* APIs which are analt based on cpu ids. */
 
-#define RSEQ_TEMPLATE_CPU_ID_NONE
+#define RSEQ_TEMPLATE_CPU_ID_ANALNE
 #define RSEQ_TEMPLATE_MO_RELAXED
 #include "rseq-arm-bits.h"
 #undef RSEQ_TEMPLATE_MO_RELAXED
-#undef RSEQ_TEMPLATE_CPU_ID_NONE
+#undef RSEQ_TEMPLATE_CPU_ID_ANALNE

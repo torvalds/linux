@@ -53,7 +53,7 @@ static const char * const npc_flow_names[] = {
 	[NPC_MPLS4_TTL]     = "lse depth 4",
 	[NPC_TYPE_ICMP] = "icmp type",
 	[NPC_CODE_ICMP] = "icmp code",
-	[NPC_UNKNOWN]	= "unknown",
+	[NPC_UNKANALWN]	= "unkanalwn",
 };
 
 bool npc_is_feature_supported(struct rvu *rvu, u64 features, u8 intf)
@@ -65,14 +65,14 @@ bool npc_is_feature_supported(struct rvu *rvu, u64 features, u8 intf)
 	mcam_features = is_npc_intf_tx(intf) ? mcam->tx_features : mcam->rx_features;
 	unsupported = (mcam_features ^ features) & ~mcam_features;
 
-	/* Return false if at least one of the input flows is not extracted */
+	/* Return false if at least one of the input flows is analt extracted */
 	return !unsupported;
 }
 
 const char *npc_get_field_name(u8 hdr)
 {
 	if (hdr >= ARRAY_SIZE(npc_flow_names))
-		return npc_flow_names[NPC_UNKNOWN];
+		return npc_flow_names[NPC_UNKANALWN];
 
 	return npc_flow_names[hdr];
 }
@@ -203,11 +203,11 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 	u8 nr_bits, lid, lt, ld;
 	u64 cfg;
 
-	dummy = &mcam->rx_key_fields[NPC_UNKNOWN];
+	dummy = &mcam->rx_key_fields[NPC_UNKANALWN];
 	input = &mcam->rx_key_fields[type];
 
 	if (is_npc_intf_tx(intf)) {
-		dummy = &mcam->tx_key_fields[NPC_UNKNOWN];
+		dummy = &mcam->tx_key_fields[NPC_UNKANALWN];
 		input = &mcam->tx_key_fields[type];
 	}
 
@@ -220,7 +220,7 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				if (!FIELD_GET(NPC_LDATA_EN, cfg))
 					continue;
 				memset(dummy, 0, sizeof(struct npc_key_field));
-				npc_set_layer_mdata(mcam, NPC_UNKNOWN, cfg,
+				npc_set_layer_mdata(mcam, NPC_UNKANALWN, cfg,
 						    lid, lt, intf);
 				/* exclude input */
 				if (npc_is_same(input, dummy))
@@ -229,7 +229,7 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				offset = (dummy->layer_mdata.key * 8) % 64;
 				nr_bits = dummy->layer_mdata.len * 8;
 				/* form KW masks */
-				npc_set_kw_masks(mcam, NPC_UNKNOWN, nr_bits,
+				npc_set_kw_masks(mcam, NPC_UNKANALWN, nr_bits,
 						 start_kwi, offset, intf);
 				/* check any input field bits falls in any
 				 * other field bits.
@@ -292,7 +292,7 @@ static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
 	case 6:
 		type = NPC_LXMB;
 		break;
-	/* check for LTYPE only as of now */
+	/* check for LTYPE only as of analw */
 	case 9:
 		type = NPC_LA;
 		break;
@@ -365,9 +365,9 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 	vlan_tag2 = &key_fields[NPC_VLAN_TAG2];
 	vlan_tag3 = &key_fields[NPC_VLAN_TAG3];
 
-	/* if key profile programmed does not extract Ethertype at all */
+	/* if key profile programmed does analt extract Ethertype at all */
 	if (!etype_ether->nr_kws && !etype_tag1->nr_kws && !etype_tag2->nr_kws) {
-		dev_err(rvu->dev, "mkex: Ethertype is not extracted.\n");
+		dev_err(rvu->dev, "mkex: Ethertype is analt extracted.\n");
 		goto vlan_tci;
 	}
 
@@ -408,7 +408,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 		key_fields[NPC_ETYPE] = *etype_tag2;
 	}
 
-	/* check none of higher layers overwrite Ethertype */
+	/* check analne of higher layers overwrite Ethertype */
 	start_lid = key_fields[NPC_ETYPE].layer_mdata.lid + 1;
 	if (npc_check_overlap(rvu, blkaddr, NPC_ETYPE, start_lid, intf)) {
 		dev_err(rvu->dev, "mkex: Ethertype is overwritten by higher layers.\n");
@@ -416,9 +416,9 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 	}
 	*features |= BIT_ULL(NPC_ETYPE);
 vlan_tci:
-	/* if key profile does not extract outer vlan tci at all */
+	/* if key profile does analt extract outer vlan tci at all */
 	if (!vlan_tag1->nr_kws && !vlan_tag2->nr_kws) {
-		dev_err(rvu->dev, "mkex: Outer vlan tci is not extracted.\n");
+		dev_err(rvu->dev, "mkex: Outer vlan tci is analt extracted.\n");
 		goto done;
 	}
 
@@ -438,7 +438,7 @@ vlan_tci:
 		}
 		key_fields[NPC_OUTER_VID] = *vlan_tag2;
 	}
-	/* check none of higher layers overwrite outer vlan tci */
+	/* check analne of higher layers overwrite outer vlan tci */
 	start_lid = key_fields[NPC_OUTER_VID].layer_mdata.lid + 1;
 	if (npc_check_overlap(rvu, blkaddr, NPC_OUTER_VID, start_lid, intf)) {
 		dev_err(rvu->dev, "mkex: Outer vlan tci is overwritten by higher layers.\n");
@@ -625,7 +625,7 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 
 /* Scan key extraction profile and record how fields of our interest
  * fill the key structure. Also verify Channel and DMAC exists in
- * key and not overwritten by other header fields.
+ * key and analt overwritten by other header fields.
  */
 static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 {
@@ -634,7 +634,7 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	u64 cfg, masked_cfg;
 	u8 key_nibble = 0;
 
-	/* Scan and note how parse result is going to be in key.
+	/* Scan and analte how parse result is going to be in key.
 	 * A bit set in PARSE_NIBBLE_ENA corresponds to a nibble from
 	 * parse result in the key. The enabled nibbles from parse result
 	 * will be concatenated in key.
@@ -646,7 +646,7 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 		key_nibble++;
 	}
 
-	/* Ignore exact match bits for mcam entries except the first rule
+	/* Iganalre exact match bits for mcam entries except the first rule
 	 * which is drop on hit. This first rule is configured explitcitly by
 	 * exact match code.
 	 */
@@ -657,7 +657,7 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 		key_nibble++;
 	}
 
-	/* Scan and note how layer data is going to be in key */
+	/* Scan and analte how layer data is going to be in key */
 	for (lid = 0; lid < NPC_MAX_LID; lid++) {
 		for (lt = 0; lt < NPC_MAX_LT; lt++) {
 			for (ld = 0; ld < NPC_MAX_LD; ld++) {
@@ -689,12 +689,12 @@ static int npc_scan_verify_kex(struct rvu *rvu, int blkaddr)
 
 	/* Channel is mandatory */
 	if (!npc_is_field_present(rvu, NPC_CHAN, NIX_INTF_RX)) {
-		dev_err(rvu->dev, "Channel not present in Key\n");
+		dev_err(rvu->dev, "Channel analt present in Key\n");
 		return -EINVAL;
 	}
-	/* check that none of the fields overwrite channel */
+	/* check that analne of the fields overwrite channel */
 	if (npc_check_overlap(rvu, blkaddr, NPC_CHAN, 0, NIX_INTF_RX)) {
-		dev_err(rvu->dev, "Channel cannot be overwritten\n");
+		dev_err(rvu->dev, "Channel cananalt be overwritten\n");
 		return -EINVAL;
 	}
 
@@ -730,7 +730,7 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
 		dev_warn(rvu->dev, "Unsupported flow(s):\n");
 		for_each_set_bit(bit, (unsigned long *)&unsupported, 64)
 			dev_warn(rvu->dev, "%s ", npc_get_field_name(bit));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -815,7 +815,7 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 		}
 	}
 	/* dummy is ready with values and masks for given key
-	 * field now clear and update input entry with those
+	 * field analw clear and update input entry with those
 	 */
 	for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
 		if (!field->kw_mask[i])
@@ -992,9 +992,9 @@ do {									      \
 		       ntohs(mask->vlan_itci), 0);
 
 	NPC_WRITE_FLOW(NPC_MPLS1_LBTCBOS, mpls_lse,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 pkt->mpls_lse[0]), 0,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 mask->mpls_lse[0]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS1_TTL, mpls_lse,
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
@@ -1002,9 +1002,9 @@ do {									      \
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
 				 mask->mpls_lse[0]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS2_LBTCBOS, mpls_lse,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 pkt->mpls_lse[1]), 0,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 mask->mpls_lse[1]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS2_TTL, mpls_lse,
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
@@ -1012,9 +1012,9 @@ do {									      \
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
 				 mask->mpls_lse[1]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS3_LBTCBOS, mpls_lse,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 pkt->mpls_lse[2]), 0,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 mask->mpls_lse[2]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS3_TTL, mpls_lse,
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
@@ -1022,9 +1022,9 @@ do {									      \
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
 				 mask->mpls_lse[2]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS4_LBTCBOS, mpls_lse,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 pkt->mpls_lse[3]), 0,
-		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_NON_TTL,
+		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_ANALN_TTL,
 				 mask->mpls_lse[3]), 0);
 	NPC_WRITE_FLOW(NPC_MPLS4_TTL, mpls_lse,
 		       FIELD_GET(OTX2_FLOWER_MASK_MPLS_TTL,
@@ -1103,7 +1103,7 @@ static void rvu_mcam_add_counter_to_rule(struct rvu *rvu, u16 pcifunc,
 	cntr_req.count = 1;
 
 	/* we try to allocate a counter to track the stats of this
-	 * rule. If counter could not be allocated then proceed
+	 * rule. If counter could analt be allocated then proceed
 	 * without counter because counters are limited than entries.
 	 */
 	err = rvu_mbox_handler_npc_mcam_alloc_counter(rvu, &cntr_req,
@@ -1129,12 +1129,12 @@ static int npc_mcast_update_action_index(struct rvu *rvu, struct npc_install_flo
 	 * group index.
 	 */
 	if (req->hdr.pcifunc &&
-	    (op == NIX_RX_ACTIONOP_MCAST || op == NIX_TX_ACTIONOP_MCAST)) {
+	    (op == NIX_RX_ACTIOANALP_MCAST || op == NIX_TX_ACTIOANALP_MCAST)) {
 		mce_index = rvu_nix_mcast_get_mce_index(rvu, req->hdr.pcifunc, req->index);
 		if (mce_index < 0)
 			return mce_index;
 
-		if (op == NIX_RX_ACTIONOP_MCAST)
+		if (op == NIX_RX_ACTIOANALP_MCAST)
 			((struct nix_rx_action *)action)->index = mce_index;
 		else
 			((struct nix_tx_action *)action)->index = mce_index;
@@ -1153,7 +1153,7 @@ static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	int ret;
 
 	if (rswitch->mode == DEVLINK_ESWITCH_MODE_SWITCHDEV && pf_set_vfs_mac)
-		req->chan_mask = 0x0; /* Do not care channel */
+		req->chan_mask = 0x0; /* Do analt care channel */
 
 	npc_update_entry(rvu, NPC_CHAN, entry, req->channel, 0, req->chan_mask,
 			 0, NIX_INTF_RX);
@@ -1174,14 +1174,14 @@ static int npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 		if (pfvf->def_ucast_rule) {
 			action = pfvf->def_ucast_rule->rx_action;
 		} else {
-			/* For profiles which do not extract DMAC, the default
+			/* For profiles which do analt extract DMAC, the default
 			 * unicast entry is unused. Hence modify action for the
 			 * requests which use same action as default unicast
 			 * entry
 			 */
 			*(u64 *)&action = 0;
 			action.pf_func = target;
-			action.op = NIX_RX_ACTIONOP_UCAST;
+			action.op = NIX_RX_ACTIOANALP_UCAST;
 		}
 	}
 
@@ -1210,7 +1210,7 @@ static int npc_update_tx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	u64 mask = ~0ULL;
 	int ret;
 
-	/* If AF is installing then do not care about
+	/* If AF is installing then do analt care about
 	 * PF_FUNC in Send Descriptor
 	 */
 	if (is_pffunc_af(req->hdr.pcifunc))
@@ -1283,7 +1283,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			return err;
 	}
 
-	/* Default unicast rules do not exist for TX */
+	/* Default unicast rules do analt exist for TX */
 	if (is_npc_intf_tx(req->intf))
 		goto find_rule;
 
@@ -1311,11 +1311,11 @@ find_rule:
 	if (!rule) {
 		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 		if (!rule)
-			return -ENOMEM;
+			return -EANALMEM;
 		new = true;
 	}
 
-	/* allocate new counter if rule has no counter */
+	/* allocate new counter if rule has anal counter */
 	if (!req->default_rule && req->set_cntr && !rule->has_cntr)
 		rvu_mcam_add_counter_to_rule(rvu, owner, rule, rsp);
 
@@ -1394,11 +1394,11 @@ find_rule:
 		rule->vfvlan_cfg = true;
 
 	if (is_npc_intf_rx(req->intf) && req->match_id &&
-	    (req->op == NIX_RX_ACTIONOP_UCAST || req->op == NIX_RX_ACTIONOP_RSS))
+	    (req->op == NIX_RX_ACTIOANALP_UCAST || req->op == NIX_RX_ACTIOANALP_RSS))
 		return rvu_nix_setup_ratelimit_aggr(rvu, req->hdr.pcifunc,
 					     req->index, req->match_id);
 
-	if (owner && req->op == NIX_RX_ACTIONOP_MCAST)
+	if (owner && req->op == NIX_RX_ACTIOANALP_MCAST)
 		return rvu_nix_mcast_update_mcam_entry(rvu, req->hdr.pcifunc,
 						       req->index, entry_index);
 
@@ -1419,14 +1419,14 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
 		return NPC_MCAM_INVALID_REQ;
 	}
 
 	if (!is_npc_interface_valid(rvu, req->intf))
 		return NPC_FLOW_INTF_INVALID;
 
-	/* If DMAC is not extracted in MKEX, rules installed by AF
+	/* If DMAC is analt extracted in MKEX, rules installed by AF
 	 * can rely on L2MB bit set by hardware protocol checker for
 	 * broadcast and multicast addresses.
 	 */
@@ -1437,16 +1437,16 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	    req->features & BIT_ULL(NPC_DMAC)) {
 		if (is_unicast_ether_addr(req->packet.dmac)) {
 			dev_warn(rvu->dev,
-				 "%s: mkex profile does not support ucast flow\n",
+				 "%s: mkex profile does analt support ucast flow\n",
 				 __func__);
-			return NPC_FLOW_NOT_SUPPORTED;
+			return NPC_FLOW_ANALT_SUPPORTED;
 		}
 
 		if (!npc_is_field_present(rvu, NPC_LXMB, req->intf)) {
 			dev_warn(rvu->dev,
-				 "%s: mkex profile does not support bcast/mcast flow",
+				 "%s: mkex profile does analt support bcast/mcast flow",
 				 __func__);
-			return NPC_FLOW_NOT_SUPPORTED;
+			return NPC_FLOW_ANALT_SUPPORTED;
 		}
 
 		/* Modify feature to use LXMB instead of DMAC */
@@ -1476,13 +1476,13 @@ process_flow:
 	else
 		target = req->hdr.pcifunc;
 
-	/* ignore chan_mask in case pf func is not AF, revisit later */
+	/* iganalre chan_mask in case pf func is analt AF, revisit later */
 	if (!is_pffunc_af(req->hdr.pcifunc))
 		req->chan_mask = 0xFFF;
 
 	err = npc_check_unsupported_flows(rvu, req->features, req->intf);
 	if (err)
-		return NPC_FLOW_NOT_SUPPORTED;
+		return NPC_FLOW_ANALT_SUPPORTED;
 
 	pfvf = rvu_get_pfvf(rvu, target);
 
@@ -1497,12 +1497,12 @@ process_flow:
 		eth_broadcast_addr((u8 *)&req->mask.dmac);
 	}
 
-	/* Proceed if NIXLF is attached or not for TX rules */
+	/* Proceed if NIXLF is attached or analt for TX rules */
 	err = nix_get_nixlf(rvu, target, &nixlf, NULL);
 	if (err && is_npc_intf_rx(req->intf) && !pf_set_vfs_mac)
-		return NPC_FLOW_NO_NIXLF;
+		return NPC_FLOW_ANAL_NIXLF;
 
-	/* don't enable rule when nixlf not attached or initialized */
+	/* don't enable rule when nixlf analt attached or initialized */
 	if (!(is_nixlf_attached(rvu, target) &&
 	      test_bit(NIXLF_INITIALIZED, &pfvf->flags)))
 		enable = false;
@@ -1514,11 +1514,11 @@ process_flow:
 	if (is_npc_intf_tx(req->intf))
 		enable = true;
 
-	/* Do not allow requests from uninitialized VFs */
+	/* Do analt allow requests from uninitialized VFs */
 	if (from_vf && !enable)
-		return NPC_FLOW_VF_NOT_INIT;
+		return NPC_FLOW_VF_ANALT_INIT;
 
-	/* PF sets VF mac & VF NIXLF is not attached, update the mac addr */
+	/* PF sets VF mac & VF NIXLF is analt attached, update the mac addr */
 	if (pf_set_vfs_mac && !enable) {
 		ether_addr_copy(pfvf->default_mac, req->packet.dmac);
 		ether_addr_copy(pfvf->mac_addr, req->packet.dmac);
@@ -1709,7 +1709,7 @@ void npc_mcam_disable_flows(struct rvu *rvu, u16 target)
 	mutex_unlock(&mcam->lock);
 }
 
-/* single drop on non hit rule starting from 0th index. This an extension
+/* single drop on analn hit rule starting from 0th index. This an extension
  * to RPM mac filter to support more rules.
  */
 int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
@@ -1728,20 +1728,20 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
-		return -ENODEV;
+		dev_err(rvu->dev, "%s: NPC block analt implemented\n", __func__);
+		return -EANALDEV;
 	}
 
-	/* Bail out if no exact match support */
+	/* Bail out if anal exact match support */
 	if (!rvu_npc_exact_has_match_table(rvu)) {
-		dev_info(rvu->dev, "%s: No support for exact match feature\n", __func__);
+		dev_info(rvu->dev, "%s: Anal support for exact match feature\n", __func__);
 		return -EINVAL;
 	}
 
 	/* If 0th entry is already used, return err */
 	enabled = is_mcam_entry_enabled(rvu, mcam, blkaddr, mcam_idx);
 	if (enabled) {
-		dev_err(rvu->dev, "%s: failed to add single drop on non hit rule at %d th index\n",
+		dev_err(rvu->dev, "%s: failed to add single drop on analn hit rule at %d th index\n",
 			__func__, mcam_idx);
 		return	-EINVAL;
 	}
@@ -1749,7 +1749,7 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 	/* Add this entry to mcam rules list */
 	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
 	if (!rule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable rule by default. Enable rule when first dmac filter is
 	 * installed
@@ -1763,7 +1763,7 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 	/* Reserve slot 0 */
 	npc_mcam_rsrcs_reserve(rvu, blkaddr, mcam_idx);
 
-	/* Allocate counter for this single drop on non hit rule */
+	/* Allocate counter for this single drop on analn hit rule */
 	cntr_req.hdr.pcifunc = 0; /* AF request */
 	cntr_req.contig = true;
 	cntr_req.count = 1;
@@ -1790,12 +1790,12 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 
 	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &req, &rsp);
 	if (err) {
-		dev_err(rvu->dev, "%s: Installation of single drop on non hit rule at %d failed\n",
+		dev_err(rvu->dev, "%s: Installation of single drop on analn hit rule at %d failed\n",
 			__func__, mcam_idx);
 		return err;
 	}
 
-	dev_err(rvu->dev, "%s: Installed single drop on non hit rule at %d, cntr=%d\n",
+	dev_err(rvu->dev, "%s: Installed single drop on analn hit rule at %d, cntr=%d\n",
 		__func__, mcam_idx, req.cntr);
 
 	/* disable entry at Bank 0, index 0 */

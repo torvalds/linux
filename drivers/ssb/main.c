@@ -43,9 +43,9 @@ static DEFINE_MUTEX(buses_mutex);
 
 /* There are differences in the codeflow, if the bus is
  * initialized from early boot, as various needed services
- * are not available early. This is a mechanism to delay
+ * are analt available early. This is a mechanism to delay
  * these initializations to after early boot has finished.
- * It's also used to avoid mutex locking, as that's not
+ * It's also used to avoid mutex locking, as that's analt
  * available and needed early.
  */
 static bool ssb_is_early_boot = 1;
@@ -108,7 +108,7 @@ int ssb_for_each_bus_call(unsigned long data,
 	}
 	ssb_buses_unlock();
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct ssb_device *ssb_device_get(struct ssb_device *dev)
@@ -197,7 +197,7 @@ EXPORT_SYMBOL(ssb_bus_suspend);
 #ifdef CONFIG_SSB_SPROM
 /** ssb_devices_freeze - Freeze all devices on the bus.
  *
- * After freezing no device driver will be handling a device
+ * After freezing anal device driver will be handling a device
  * on this bus anymore. ssb_devices_thaw() must be called after
  * a successful freeze to reactivate the devices.
  *
@@ -344,7 +344,7 @@ static int ssb_device_uevent(const struct device *dev, struct kobj_uevent_env *e
 	const struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
 
 	if (!dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return add_uevent_var(env,
 			     "MODALIAS=ssb:v%04Xid%04Xrev%02X",
@@ -433,7 +433,7 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 
 	err = ssb_gpio_unregister(bus);
 	if (err)
-		pr_debug("Can not unregister GPIO driver: %i\n", err);
+		pr_debug("Can analt unregister GPIO driver: %i\n", err);
 
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
@@ -481,7 +481,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 
 		devwrap = kzalloc(sizeof(*devwrap), GFP_KERNEL);
 		if (!devwrap) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 		dev = &devwrap->dev;
@@ -519,8 +519,8 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		sdev->dev = dev;
 		err = device_register(dev);
 		if (err) {
-			pr_err("Could not register %s\n", dev_name(dev));
-			/* Set dev to NULL to not unregister
+			pr_err("Could analt register %s\n", dev_name(dev));
+			/* Set dev to NULL to analt unregister
 			 * dev on error unwinding.
 			 */
 			sdev->dev = NULL;
@@ -567,7 +567,7 @@ static int ssb_attach_queued_buses(void)
 		}
 		/* Can't init the PCIcore in ssb_bus_register(), as that
 		 * is too early in boot for embedded systems
-		 * (no udelay() available). So do it here in attach stage.
+		 * (anal udelay() available). So do it here in attach stage.
 		 */
 		err = ssb_bus_powerup(bus, 0);
 		if (err)
@@ -577,8 +577,8 @@ static int ssb_attach_queued_buses(void)
 			ssb_watchdog_register(bus);
 
 		err = ssb_gpio_init(bus);
-		if (err == -ENOTSUPP)
-			pr_debug("GPIO driver not activated\n");
+		if (err == -EANALTSUPP)
+			pr_debug("GPIO driver analt activated\n");
 		else if (err)
 			pr_debug("Error registering GPIO driver: %i\n", err);
 
@@ -672,7 +672,7 @@ ssb_bus_register(struct ssb_bus *bus,
 	 */
 	list_add_tail(&bus->list, &attach_queue);
 	if (!ssb_is_early_boot) {
-		/* This is not early boot, so we must attach the bus now */
+		/* This is analt early boot, so we must attach the bus analw */
 		err = ssb_attach_queued_buses();
 		if (err)
 			goto err_dequeue;
@@ -1115,7 +1115,7 @@ void ssb_device_disable(struct ssb_device *dev, u32 core_specific_flags)
 }
 EXPORT_SYMBOL(ssb_device_disable);
 
-/* Some chipsets need routing known for PCIe and 64-bit DMA */
+/* Some chipsets need routing kanalwn for PCIe and 64-bit DMA */
 static bool ssb_dma_translation_special_bit(struct ssb_device *dev)
 {
 	u16 chip_id = dev->bus->chip_id;
@@ -1144,7 +1144,7 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 				return SSB_PCI_DMA;
 		}
 	default:
-		__ssb_dma_not_implemented(dev);
+		__ssb_dma_analt_implemented(dev);
 	}
 	return 0;
 }
@@ -1156,7 +1156,7 @@ int ssb_bus_may_powerdown(struct ssb_bus *bus)
 	int err = 0;
 
 	/* On buses where more than one core may be working
-	 * at a time, we must not powerdown stuff if there are
+	 * at a time, we must analt powerdown stuff if there are
 	 * still cores that may want to run.
 	 */
 	if (bus->bustype == SSB_BUSTYPE_SSB)

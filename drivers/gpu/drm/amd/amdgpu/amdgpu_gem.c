@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -57,7 +57,7 @@ static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 		return ret;
 
 	if (drm_dev_enter(ddev, &idx)) {
-		ret = amdgpu_bo_fault_reserve_notify(bo);
+		ret = amdgpu_bo_fault_reserve_analtify(bo);
 		if (ret) {
 			drm_dev_exit(idx);
 			goto unlock;
@@ -70,7 +70,7 @@ static vm_fault_t amdgpu_gem_fault(struct vm_fault *vmf)
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		return ret;
 
 unlock:
@@ -203,7 +203,7 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct drm_exec exec;
 	long r;
 
-	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
+	drm_exec_init(&exec, DRM_EXEC_IGANALRE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
 		r = drm_exec_prepare_obj(&exec, &bo->tbo.base, 1);
 		drm_exec_retry_on_contention(&exec);
@@ -246,10 +246,10 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return -EPERM;
-	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+	if (bo->flags & AMDGPU_GEM_CREATE_ANAL_CPU_ACCESS)
 		return -EPERM;
 
-	/* Workaround for Thunk bug creating PROT_NONE,MAP_PRIVATE mappings
+	/* Workaround for Thunk bug creating PROT_ANALNE,MAP_PRIVATE mappings
 	 * for debugger access to invisible VRAM. Should have used MAP_SHARED
 	 * instead. Clearing VM_MAYWRITE prevents the mapping from ever
 	 * becoming writable and makes is_cow_mapping(vm_flags) false.
@@ -295,7 +295,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	/* reject invalid gem flags */
 	if (flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-		      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+		      AMDGPU_GEM_CREATE_ANAL_CPU_ACCESS |
 		      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
 		      AMDGPU_GEM_CREATE_VRAM_CLEARED |
 		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID |
@@ -309,7 +309,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (!amdgpu_is_tmz(adev) && (flags & AMDGPU_GEM_CREATE_ENCRYPTED)) {
-		DRM_NOTE_ONCE("Cannot allocate secure buffer since TMZ is disabled\n");
+		DRM_ANALTE_ONCE("Cananalt allocate secure buffer since TMZ is disabled\n");
 		return -EINVAL;
 	}
 
@@ -320,10 +320,10 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 			/* if gds bo is created from user space, it must be
 			 * passed to bo list
 			 */
-			DRM_ERROR("GDS bo cannot be per-vm-bo\n");
+			DRM_ERROR("GDS bo cananalt be per-vm-bo\n");
 			return -EINVAL;
 		}
-		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+		flags |= AMDGPU_GEM_CREATE_ANAL_CPU_ACCESS;
 	}
 
 	if (flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID) {
@@ -365,7 +365,7 @@ retry:
 		return r;
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (r)
 		return r;
@@ -393,16 +393,16 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	if (offset_in_page(args->addr | args->size))
 		return -EINVAL;
 
-	/* reject unknown flag values */
+	/* reject unkanalwn flag values */
 	if (args->flags & ~(AMDGPU_GEM_USERPTR_READONLY |
-	    AMDGPU_GEM_USERPTR_ANONONLY | AMDGPU_GEM_USERPTR_VALIDATE |
+	    AMDGPU_GEM_USERPTR_AANALANALNLY | AMDGPU_GEM_USERPTR_VALIDATE |
 	    AMDGPU_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
 	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) &&
 	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
 
-		/* if we want to write to it we must install a MMU notifier */
+		/* if we want to write to it we must install a MMU analtifier */
 		return -EACCES;
 	}
 
@@ -465,11 +465,11 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 
 	gobj = drm_gem_object_lookup(filp, handle);
 	if (!gobj)
-		return -ENOENT;
+		return -EANALENT;
 
 	robj = gem_to_amdgpu_bo(gobj);
 	if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm) ||
-	    (robj->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
+	    (robj->flags & AMDGPU_GEM_CREATE_ANAL_CPU_ACCESS)) {
 		drm_gem_object_put(gobj);
 		return -EPERM;
 	}
@@ -529,13 +529,13 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(filp, handle);
 	if (!gobj)
-		return -ENOENT;
+		return -EANALENT;
 
 	robj = gem_to_amdgpu_bo(gobj);
 	ret = dma_resv_wait_timeout(robj->tbo.base.resv, DMA_RESV_USAGE_READ,
 				    true, timeout);
 
-	/* ret == 0 means not signaled,
+	/* ret == 0 means analt signaled,
 	 * ret > 0 means signaled
 	 * ret < 0 means interrupted before timeout
 	 */
@@ -560,7 +560,7 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 	DRM_DEBUG("%d\n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
-		return -ENOENT;
+		return -EANALENT;
 	robj = gem_to_amdgpu_bo(gobj);
 
 	r = amdgpu_bo_reserve(robj, false);
@@ -600,8 +600,8 @@ out:
  * @bo_va: bo_va to update
  * @operation: map, unmap or clear
  *
- * Update the bo_va directly after setting its address. Errors are not
- * vital here, so they are not reported back to userspace.
+ * Update the bo_va directly after setting its address. Errors are analt
+ * vital here, so they are analt reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm,
@@ -651,8 +651,8 @@ uint64_t amdgpu_gem_va_map_flags(struct amdgpu_device *adev, uint32_t flags)
 		pte_flag |= AMDGPU_PTE_WRITEABLE;
 	if (flags & AMDGPU_VM_PAGE_PRT)
 		pte_flag |= AMDGPU_PTE_PRT;
-	if (flags & AMDGPU_VM_PAGE_NOALLOC)
-		pte_flag |= AMDGPU_PTE_NOALLOC;
+	if (flags & AMDGPU_VM_PAGE_ANALALLOC)
+		pte_flag |= AMDGPU_PTE_ANALALLOC;
 
 	if (adev->gmc.gmc_funcs->map_mtype)
 		pte_flag |= amdgpu_gmc_map_mtype(adev,
@@ -667,7 +667,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	const uint32_t valid_flags = AMDGPU_VM_DELAY_UPDATE |
 		AMDGPU_VM_PAGE_READABLE | AMDGPU_VM_PAGE_WRITEABLE |
 		AMDGPU_VM_PAGE_EXECUTABLE | AMDGPU_VM_MTYPE_MASK |
-		AMDGPU_VM_PAGE_NOALLOC;
+		AMDGPU_VM_PAGE_ANALALLOC;
 	const uint32_t prt_flags = AMDGPU_VM_DELAY_UPDATE |
 		AMDGPU_VM_PAGE_PRT;
 
@@ -731,7 +731,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	    !(args->flags & AMDGPU_VM_PAGE_PRT)) {
 		gobj = drm_gem_object_lookup(filp, args->handle);
 		if (gobj == NULL)
-			return -ENOENT;
+			return -EANALENT;
 		abo = gem_to_amdgpu_bo(gobj);
 	} else {
 		gobj = NULL;
@@ -739,7 +739,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
-		      DRM_EXEC_IGNORE_DUPLICATES, 0);
+		      DRM_EXEC_IGANALRE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
 		if (gobj) {
 			r = drm_exec_lock_obj(&exec, gobj);
@@ -757,7 +757,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	if (abo) {
 		bo_va = amdgpu_vm_bo_find(&fpriv->vm, abo);
 		if (!bo_va) {
-			r = -ENOENT;
+			r = -EANALENT;
 			goto error;
 		}
 	} else if (args->operation != AMDGPU_VA_OP_CLEAR) {
@@ -813,7 +813,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (!gobj)
-		return -ENOENT;
+		return -EANALENT;
 
 	robj = gem_to_amdgpu_bo(gobj);
 
@@ -935,10 +935,10 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	r = amdgpu_gem_object_create(adev, args->size, 0, domain, flags,
 				     ttm_bo_type_device, NULL, &gobj, fpriv->xcp_id + 1);
 	if (r)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(gobj);
 	if (r)
 		return r;
@@ -967,7 +967,7 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
 
 		/*
 		 * Although we have a valid reference on file->pid, that does
-		 * not guarantee that the task_struct who called get_pid() is
+		 * analt guarantee that the task_struct who called get_pid() is
 		 * still alive (e.g. get_pid(current) => fork() => exit()).
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
@@ -975,7 +975,7 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		pid = rcu_dereference(file->pid);
 		task = pid_task(pid, PIDTYPE_TGID);
 		seq_printf(m, "pid %8d command %s:\n", pid_nr(pid),
-			   task ? task->comm : "<unknown>");
+			   task ? task->comm : "<unkanalwn>");
 		rcu_read_unlock();
 
 		spin_lock(&file->table_lock);
@@ -998,8 +998,8 @@ DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_gem_info);
 void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 
 	debugfs_create_file("amdgpu_gem_info", 0444, root, adev,
 			    &amdgpu_debugfs_gem_info_fops);

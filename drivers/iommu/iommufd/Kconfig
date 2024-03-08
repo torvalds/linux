@@ -9,7 +9,7 @@ config IOMMUFD
 	  Provides /dev/iommu, the user API to control the IOMMU subsystem as
 	  it relates to managing IO page tables that point at user space memory.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.
 
 if IOMMUFD
 config IOMMUFD_VFIO_CONTAINER
@@ -22,7 +22,7 @@ config IOMMUFD_VFIO_CONTAINER
 	  It provides an option to build a kernel with legacy VFIO components
 	  removed.
 
-	  IOMMUFD VFIO container emulation is known to lack certain features
+	  IOMMUFD VFIO container emulation is kanalwn to lack certain features
 	  of the native VFIO container, such as peer-to-peer
 	  DMA mapping, PPC IOMMU support, as well as other potentially
 	  undiscovered gaps.  This option is currently intended for the
@@ -39,6 +39,6 @@ config IOMMUFD_TEST
 	depends on RUNTIME_TESTING_MENU
 	default n
 	help
-	  This is dangerous, do not enable unless running
+	  This is dangerous, do analt enable unless running
 	  tools/testing/selftests/iommu
 endif

@@ -15,7 +15,7 @@
 #include <media/videobuf2-v4l2.h>
 
 /*
- * Create our own symbols for the supported buffer modes, but, for now,
+ * Create our own symbols for the supported buffer modes, but, for analw,
  * base them entirely on which videobuf2 options have been selected.
  */
 #if IS_ENABLED(CONFIG_VIDEOBUF2_VMALLOC)
@@ -37,11 +37,11 @@
 
 
 enum mcam_state {
-	S_NOTREADY,	/* Not yet initialized */
+	S_ANALTREADY,	/* Analt yet initialized */
 	S_IDLE,		/* Just hanging around */
 	S_FLAKED,	/* Some sort of problem */
 	S_STREAMING,	/* Streaming data */
-	S_BUFWAIT	/* streaming requested but no buffers yet */
+	S_BUFWAIT	/* streaming requested but anal buffers yet */
 };
 #define MAX_DMA_BUFS 3
 
@@ -138,7 +138,7 @@ struct mcam_camera {
 
 	/*
 	 * Everything below here is private to the mcam core and
-	 * should not be touched by the platform code.
+	 * should analt be touched by the platform code.
 	 */
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -150,7 +150,7 @@ struct mcam_camera {
 	 * Subsystem structures.
 	 */
 	struct video_device vdev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *sensor;
 
 	/* Videobuf2 stuff */
@@ -325,7 +325,7 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_YUVE_YVYU	  0x00010000	/* Y1CrY0Cb		*/
 #define	  C0_YUVE_VYUY	  0x00020000	/* CrY1CbY0		*/
 #define	  C0_YUVE_UYVY	  0x00030000	/* CbY1CrY0		*/
-#define	  C0_YUVE_NOSWAP  0x00000000	/* no bytes swapping	*/
+#define	  C0_YUVE_ANALSWAP  0x00000000	/* anal bytes swapping	*/
 #define	  C0_YUVE_SWAP13  0x00010000	/* swap byte 1 and 3	*/
 #define	  C0_YUVE_SWAP24  0x00020000	/* swap byte 2 and 4	*/
 #define	  C0_YUVE_SWAP1324 0x00030000	/* swap bytes 1&3 and 2&4 */
@@ -338,10 +338,10 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_DOWNSCALE	  0x08000000	/* Enable downscaler */
 /* SIFMODE */
 #define	  C0_SIF_HVSYNC	  0x00000000	/* Use H/VSYNC */
-#define	  C0_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
+#define	  C0_SOF_ANALSYNC	  0x40000000	/* Use inband active signaling */
 #define	  C0_SIFM_MASK	  0xc0000000	/* SIF mode bits */
 
-/* Bits below C1_444ALPHA are not present in Cafe */
+/* Bits below C1_444ALPHA are analt present in Cafe */
 #define REG_CTRL1	0x40	/* Control 1 */
 #define	  C1_CLKGATE	  0x00000001	/* Sensor clock gate */
 #define   C1_DESC_ENA	  0x00000100	/* DMA descriptor enable */

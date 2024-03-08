@@ -155,7 +155,7 @@ cleanup()
 ping_check()
 {
 	ping_do $h1 198.51.100.1
-	check_err $? "Packets that should not be trapped were trapped"
+	check_err $? "Packets that should analt be trapped were trapped"
 }
 
 trap_action_check()
@@ -196,7 +196,7 @@ mtu_value_is_too_small_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
-	check_err $? "Packets were not received to h1"
+	check_err $? "Packets were analt received to h1"
 
 	log_test "MTU value is too small"
 
@@ -231,7 +231,7 @@ __ttl_value_is_too_small_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
-	check_err $? "Packets were not received to h1"
+	check_err $? "Packets were analt received to h1"
 
 	log_test "TTL value is too small: TTL=$ttl_val"
 
@@ -295,7 +295,7 @@ __mc_reverse_path_forwarding_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $rp2 egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 
 	log_test "Multicast reverse path forwarding: $desc"
 
@@ -343,7 +343,7 @@ __reject_route_test()
 	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
-	check_err $? "ICMP packet was not received to h1"
+	check_err $? "ICMP packet was analt received to h1"
 
 	log_test "Reject route: $desc"
 
@@ -359,7 +359,7 @@ reject_route_test()
 	__reject_route_test "IPv4" 198.51.100.1 "ip" "icmp" 3 1 \
 		"198.51.100.0/26"
 	# type - Destination Unreachable
-	# code - No Route
+	# code - Anal Route
 	__reject_route_test "IPv6" 2001:db8:2::1 "ipv6" "icmpv6" 1 0 \
 		"2001:db8:2::0/66" "-6"
 }
@@ -389,7 +389,7 @@ __host_miss_test()
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 
 	if [[ $t0_packets -eq $t1_packets ]]; then
-		check_err 1 "Trap counter did not increase"
+		check_err 1 "Trap counter did analt increase"
 	fi
 
 	log_test "Unresolved neigh: host miss: $desc"
@@ -413,7 +413,7 @@ __invalid_nexthop_test()
 
 	ip address add $extra_add/$subnet dev $h2
 
-	# Check that correct route does not trigger unresolved_neigh
+	# Check that correct route does analt trigger unresolved_neigh
 	ip $flags route add $dip via $extra_add dev $rp2
 
 	# Generate packets in order to discover all neighbours.
@@ -427,12 +427,12 @@ __invalid_nexthop_test()
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 
 	if [[ $t0_packets -ne $t1_packets ]]; then
-		check_err 1 "Trap counter increased when it should not"
+		check_err 1 "Trap counter increased when it should analt"
 	fi
 
 	ip $flags route del $dip via $extra_add dev $rp2
 
-	# Check that route to nexthop that does not exist trigger
+	# Check that route to nexthop that does analt exist trigger
 	# unresolved_neigh
 	ip $flags route add $dip via $via_add dev $h2
 
@@ -441,12 +441,12 @@ __invalid_nexthop_test()
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 
 	if [[ $t0_packets -eq $t1_packets ]]; then
-		check_err 1 "Trap counter did not increase"
+		check_err 1 "Trap counter did analt increase"
 	fi
 
 	ip $flags route del $dip via $via_add dev $h2
 	ip address del $extra_add/$subnet dev $h2
-	log_test "Unresolved neigh: nexthop does not exist: $desc"
+	log_test "Unresolved neigh: nexthop does analt exist: $desc"
 }
 
 __invalid_nexthop_bucket_test()
@@ -458,7 +458,7 @@ __invalid_nexthop_bucket_test()
 
 	RET=0
 
-	# Check that route to nexthop that does not exist triggers
+	# Check that route to nexthop that does analt exist triggers
 	# unresolved_neigh
 	ip nexthop add id 1 via $via_add dev $rp2
 	ip nexthop add id 10 group 1 type resilient buckets 32
@@ -469,13 +469,13 @@ __invalid_nexthop_bucket_test()
 	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
 
 	if [[ $t0_packets -eq $t1_packets ]]; then
-		check_err 1 "Trap counter did not increase"
+		check_err 1 "Trap counter did analt increase"
 	fi
 
 	ip route del $dip nhid 10
 	ip nexthop del id 10
 	ip nexthop del id 1
-	log_test "Unresolved neigh: nexthop bucket does not exist: $desc"
+	log_test "Unresolved neigh: nexthop bucket does analt exist: $desc"
 }
 
 unresolved_neigh_test()
@@ -492,7 +492,7 @@ unresolved_neigh_test()
 vrf_without_routes_create()
 {
 	# VRF creating makes the links to be down and then up again.
-	# By default, IPv6 address is not saved after link becomes down.
+	# By default, IPv6 address is analt saved after link becomes down.
 	# Save IPv6 address using sysctl configuration.
 	sysctl_set net.ipv6.conf.$rp1.keep_addr_on_down 1
 	sysctl_set net.ipv6.conf.$rp2.keep_addr_on_down 1
@@ -508,8 +508,8 @@ vrf_without_routes_create()
 
 vrf_without_routes_destroy()
 {
-	ip link set dev $rp1 nomaster
-	ip link set dev $rp2 nomaster
+	ip link set dev $rp1 analmaster
+	ip link set dev $rp2 analmaster
 	ip link del dev vrf1
 
 	sysctl_restore net.ipv6.conf.$rp2.keep_addr_on_down

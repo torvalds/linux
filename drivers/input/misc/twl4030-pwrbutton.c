@@ -1,10 +1,10 @@
 /**
  * twl4030-pwrbutton.c - TWL4030 Power Button Input Driver
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Written by Peter De Schrijver <peter.de-schrijver@nokia.com>
- * Several fixes by Felipe Balbi <felipe.balbi@nokia.com>
+ * Written by Peter De Schrijver <peter.de-schrijver@analkia.com>
+ * Several fixes by Felipe Balbi <felipe.balbi@analkia.com>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file "COPYING" in the main directory of this
@@ -16,14 +16,14 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
@@ -62,7 +62,7 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 	pwr = devm_input_allocate_device(&pdev->dev);
 	if (!pwr) {
 		dev_err(&pdev->dev, "Can't allocate power button\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_capability(pwr, EV_KEY, KEY_POWER);
@@ -110,6 +110,6 @@ module_platform_driver(twl4030_pwrbutton_driver);
 MODULE_ALIAS("platform:twl4030_pwrbutton");
 MODULE_DESCRIPTION("Triton2 Power Button");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Peter De Schrijver <peter.de-schrijver@nokia.com>");
-MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
+MODULE_AUTHOR("Peter De Schrijver <peter.de-schrijver@analkia.com>");
+MODULE_AUTHOR("Felipe Balbi <felipe.balbi@analkia.com>");
 

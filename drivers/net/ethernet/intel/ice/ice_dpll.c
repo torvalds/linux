@@ -38,7 +38,7 @@ static const char * const pin_type_name[] = {
  * If reset is in progress, fill extack with error.
  *
  * Return:
- * * false - no reset in progress
+ * * false - anal reset in progress
  * * true - reset in progress
  */
 static bool ice_dpll_is_reset(struct ice_pf *pf, struct netlink_ext_ack *extack)
@@ -115,7 +115,7 @@ ice_dpll_pin_freq_set(struct ice_pf *pf, struct ice_dpll_pin *pin,
  * Context: Acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't set in hw
+ * * negative - error pin analt found or couldn't set in hw
  */
 static int
 ice_dpll_frequency_set(const struct dpll_pin *pin, void *pin_priv,
@@ -153,7 +153,7 @@ ice_dpll_frequency_set(const struct dpll_pin *pin, void *pin_priv,
  * Context: Calls a function which acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't set in hw
+ * * negative - error pin analt found or couldn't set in hw
  */
 static int
 ice_dpll_input_frequency_set(const struct dpll_pin *pin, void *pin_priv,
@@ -178,7 +178,7 @@ ice_dpll_input_frequency_set(const struct dpll_pin *pin, void *pin_priv,
  * Context: Calls a function which acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't set in hw
+ * * negative - error pin analt found or couldn't set in hw
  */
 static int
 ice_dpll_output_frequency_set(const struct dpll_pin *pin, void *pin_priv,
@@ -204,7 +204,7 @@ ice_dpll_output_frequency_set(const struct dpll_pin *pin, void *pin_priv,
  * Context: Acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't get from hw
+ * * negative - error pin analt found or couldn't get from hw
  */
 static int
 ice_dpll_frequency_get(const struct dpll_pin *pin, void *pin_priv,
@@ -237,7 +237,7 @@ ice_dpll_frequency_get(const struct dpll_pin *pin, void *pin_priv,
  * Context: Calls a function which acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't get from hw
+ * * negative - error pin analt found or couldn't get from hw
  */
 static int
 ice_dpll_input_frequency_get(const struct dpll_pin *pin, void *pin_priv,
@@ -262,7 +262,7 @@ ice_dpll_input_frequency_get(const struct dpll_pin *pin, void *pin_priv,
  * Context: Calls a function which acquires pf->dplls.lock
  * Return:
  * * 0 - success
- * * negative - error pin not found or couldn't get from hw
+ * * negative - error pin analt found or couldn't get from hw
  */
 static int
 ice_dpll_output_frequency_get(const struct dpll_pin *pin, void *pin_priv,
@@ -593,7 +593,7 @@ static int ice_dpll_mode_get(const struct dpll_device *dpll, void *dpll_priv,
  *
  * Context: Acquires pf->dplls.lock
  * Return:
- * * 0 - OK or no change required
+ * * 0 - OK or anal change required
  * * negative - error
  */
 static int
@@ -1252,14 +1252,14 @@ static u64 ice_generate_clock_id(struct ice_pf *pf)
 }
 
 /**
- * ice_dpll_notify_changes - notify dpll subsystem about changes
+ * ice_dpll_analtify_changes - analtify dpll subsystem about changes
  * @d: pointer do dpll
  *
  * Once change detected appropriate event is submitted to the dpll subsystem.
  */
-static void ice_dpll_notify_changes(struct ice_dpll *d)
+static void ice_dpll_analtify_changes(struct ice_dpll *d)
 {
-	bool pin_notified = false;
+	bool pin_analtified = false;
 
 	if (d->prev_dpll_state != d->dpll_state) {
 		d->prev_dpll_state = d->dpll_state;
@@ -1271,12 +1271,12 @@ static void ice_dpll_notify_changes(struct ice_dpll *d)
 		d->prev_input = d->active_input;
 		if (d->active_input) {
 			dpll_pin_change_ntf(d->active_input);
-			pin_notified = true;
+			pin_analtified = true;
 		}
 	}
 	if (d->prev_phase_offset != d->phase_offset) {
 		d->prev_phase_offset = d->phase_offset;
-		if (!pin_notified && d->active_input)
+		if (!pin_analtified && d->active_input)
 			dpll_pin_change_ntf(d->active_input);
 	}
 }
@@ -1387,8 +1387,8 @@ static void ice_dpll_periodic_work(struct kthread_work *work)
 		}
 	}
 	mutex_unlock(&pf->dplls.lock);
-	ice_dpll_notify_changes(de);
-	ice_dpll_notify_changes(dp);
+	ice_dpll_analtify_changes(de);
+	ice_dpll_analtify_changes(dp);
 
 resched:
 	/* Run twice a second or reschedule if update failed */
@@ -1631,7 +1631,7 @@ ice_dpll_init_rclk_pins(struct ice_pf *pf, struct ice_dpll_pin *pin,
 	for (i = 0; i < pf->dplls.rclk.num_parents; i++) {
 		parent = pf->dplls.inputs[pf->dplls.rclk.parent_idx[i]].pin;
 		if (!parent) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto unregister_pins;
 		}
 		ret = dpll_pin_on_pin_register(parent, pf->dplls.rclk.pin,
@@ -2023,16 +2023,16 @@ static int ice_dpll_init_info(struct ice_pf *pf, bool cgu)
 	alloc_size = sizeof(*d->inputs) * d->num_inputs;
 	d->inputs = kzalloc(alloc_size, GFP_KERNEL);
 	if (!d->inputs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alloc_size = sizeof(*de->input_prio) * d->num_inputs;
 	de->input_prio = kzalloc(alloc_size, GFP_KERNEL);
 	if (!de->input_prio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dp->input_prio = kzalloc(alloc_size, GFP_KERNEL);
 	if (!dp->input_prio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ice_dpll_init_pins_info(pf, ICE_DPLL_PIN_TYPE_INPUT);
 	if (ret)
@@ -2042,7 +2042,7 @@ static int ice_dpll_init_info(struct ice_pf *pf, bool cgu)
 		alloc_size = sizeof(*d->outputs) * d->num_outputs;
 		d->outputs = kzalloc(alloc_size, GFP_KERNEL);
 		if (!d->outputs) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto deinit_info;
 		}
 

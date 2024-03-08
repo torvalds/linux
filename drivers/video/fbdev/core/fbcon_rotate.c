@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/console/fbcon_rotate.c -- Software Rotation
  *
- *      Copyright (C) 2005 Antonino Daplas <adaplas @pol.net>
+ *      Copyright (C) 2005 Antonianal Daplas <adaplas @pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -49,7 +49,7 @@ static int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 		dst = kmalloc_array(len, d_cellsize, GFP_KERNEL);
 
 		if (dst == NULL) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto finished;
 		}
 

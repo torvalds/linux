@@ -61,7 +61,7 @@ static int komeda_platform_probe(struct platform_device *pdev)
 
 	mdrv = devm_kzalloc(dev, sizeof(*mdrv), GFP_KERNEL);
 	if (!mdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdrv->mdev = komeda_dev_create(dev);
 	if (IS_ERR(mdrv->mdev)) {

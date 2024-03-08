@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -89,7 +89,7 @@
 
 #define R600_D1GRPH_SWAP_CONTROL                     0x610C
 #       define R600_D1GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
-#       define R600_D1GRPH_SWAP_ENDIAN_NONE          0
+#       define R600_D1GRPH_SWAP_ENDIAN_ANALNE          0
 #       define R600_D1GRPH_SWAP_ENDIAN_16BIT         1
 #       define R600_D1GRPH_SWAP_ENDIAN_32BIT         2
 #       define R600_D1GRPH_SWAP_ENDIAN_64BIT         3
@@ -114,7 +114,7 @@
 #       define R600_D1GRPH_ALPHA_SEL_G               2
 #       define R600_D1GRPH_ALPHA_SEL_B               3
 
-#define R600_HDP_NONSURFACE_BASE                                0x2c04
+#define R600_HDP_ANALNSURFACE_BASE                                0x2c04
 
 #define R600_BUS_CNTL                                           0x5420
 #       define R600_BIOS_ROM_DIS                                (1 << 1)
@@ -169,8 +169,8 @@
 /* Audio params */
 #define R600_AUDIO_VENDOR_ID              0x7380
 #define R600_AUDIO_REVISION_ID            0x7384
-#define R600_AUDIO_ROOT_NODE_COUNT        0x7388
-#define R600_AUDIO_NID1_NODE_COUNT        0x738c
+#define R600_AUDIO_ROOT_ANALDE_COUNT        0x7388
+#define R600_AUDIO_NID1_ANALDE_COUNT        0x738c
 #define R600_AUDIO_NID1_TYPE              0x7390
 #define R600_AUDIO_SUPPORTED_SIZE_RATE    0x7394
 #define R600_AUDIO_SUPPORTED_CODEC        0x7398

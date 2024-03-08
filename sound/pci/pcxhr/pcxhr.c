@@ -39,7 +39,7 @@ MODULE_LICENSE("GPL");
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
-static bool mono[SNDRV_CARDS];				/* capture  mono only */
+static bool moanal[SNDRV_CARDS];				/* capture  moanal only */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Digigram " DRIVER_NAME " soundcard");
@@ -47,8 +47,8 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Digigram " DRIVER_NAME " soundcard");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Digigram " DRIVER_NAME " soundcard");
-module_param_array(mono, bool, NULL, 0444);
-MODULE_PARM_DESC(mono, "Mono capture mode (default is stereo)");
+module_param_array(moanal, bool, NULL, 0444);
+MODULE_PARM_DESC(moanal, "Moanal capture mode (default is stereo)");
 
 enum {
 	PCI_ID_VX882HR,
@@ -175,8 +175,8 @@ static const struct board_parameters pcxhr_board_params[] = {
 /* boards without hw AES1 and SRC onboard are all using fw_file_set==4 */
 /* VX222HR, VX222e, PCX22HR and PCX22e */
 #define PCXHR_BOARD_HAS_AES1(x) (x->fw_file_set != 4)
-/* some boards do not support 192kHz on digital AES input plugs */
-#define PCXHR_BOARD_AESIN_NO_192K(x) ((x->capture_chips == 0) || \
+/* some boards do analt support 192kHz on digital AES input plugs */
+#define PCXHR_BOARD_AESIN_ANAL_192K(x) ((x->capture_chips == 0) || \
 				      (x->fw_file_set == 0)   || \
 				      (x->fw_file_set == 2))
 
@@ -382,7 +382,7 @@ int pcxhr_set_clock(struct pcxhr_mgr *mgr, unsigned int rate)
 	int err, changed;
 
 	if (rate == 0)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
 	if (mgr->is_hr_stereo)
 		err = hr222_sub_set_clock(mgr, rate, &changed);
@@ -499,7 +499,7 @@ static int pcxhr_set_stream_state(struct snd_pcxhr *chip,
 	else {
 		if (stream->status != PCXHR_STREAM_STATUS_SCHEDULE_STOP) {
 			dev_err(chip->card->dev,
-				"%s CANNOT be stopped\n", __func__);
+				"%s CANANALT be stopped\n", __func__);
 			return -EINVAL;
 		}
 		start = 0;
@@ -537,7 +537,7 @@ static int pcxhr_set_stream_state(struct snd_pcxhr *chip,
 #define HEADER_FMT_16BITS		0x00002000
 #define HEADER_FMT_UPTO11		0x00000200
 #define HEADER_FMT_UPTO32		0x00000100
-#define HEADER_FMT_MONO			0x00000080
+#define HEADER_FMT_MOANAL			0x00000080
 
 static int pcxhr_set_format(struct pcxhr_stream *stream)
 {
@@ -570,7 +570,7 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"error %s() : unknown format\n", __func__);
+			"error %s() : unkanalwn format\n", __func__);
 		return -EINVAL;
 	}
 
@@ -582,7 +582,7 @@ static int pcxhr_set_format(struct pcxhr_stream *stream)
 			header |= HEADER_FMT_UPTO32;
 	}
 	if (stream->channels == 1)
-		header |= HEADER_FMT_MONO;
+		header |= HEADER_FMT_MOANAL;
 
 	is_capture = stream->pipe->is_capture;
 	stream_num = is_capture ? 0 : stream->substream->number;
@@ -721,14 +721,14 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	}
 	if (capture_mask == 0 && playback_mask == 0) {
 		mutex_unlock(&mgr->setup_mutex);
-		dev_err(&mgr->pci->dev, "%s : no pipes\n", __func__);
+		dev_err(&mgr->pci->dev, "%s : anal pipes\n", __func__);
 		return;
 	}
 
 	dev_dbg(&mgr->pci->dev, "%s : playback_mask=%x capture_mask=%x\n",
 		    __func__, playback_mask, capture_mask);
 
-	/* synchronous stop of all the pipes concerned */
+	/* synchroanalus stop of all the pipes concerned */
 	err = pcxhr_set_pipe_state(mgr,  playback_mask, capture_mask, 0);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
@@ -773,7 +773,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 		}
 	}
 
-	/* synchronous start of all the pipes concerned */
+	/* synchroanalus start of all the pipes concerned */
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 1);
 	if (err) {
 		mutex_unlock(&mgr->setup_mutex);
@@ -783,7 +783,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 		return;
 	}
 
-	/* put the streams into the running state now
+	/* put the streams into the running state analw
 	 * (increment pointer by interrupt)
 	 */
 	mutex_lock(&mgr->lock);
@@ -953,7 +953,7 @@ static int pcxhr_hw_params(struct snd_pcm_substream *subs,
 
 
 /*
- *  CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
+ *  CONFIGURATION SPACE for all pcms, moanal pcm must update channels_max
  */
 static const struct snd_pcm_hardware pcxhr_caps =
 {
@@ -974,7 +974,7 @@ static const struct snd_pcm_hardware pcxhr_caps =
 	.channels_min     = 1,
 	.channels_max     = 2,
 	.buffer_bytes_max = (32*1024),
-	/* 1 byte == 1 frame U8 mono (PCXHR_GRANULARITY is frames!) */
+	/* 1 byte == 1 frame U8 moanal (PCXHR_GRANULARITY is frames!) */
 	.period_bytes_min = (2*PCXHR_GRANULARITY),
 	.period_bytes_max = (16*1024),
 	.periods_min      = 2,
@@ -1002,7 +1002,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	} else {
 		dev_dbg(chip->card->dev, "%s capture chip%d subs%d\n",
 			    __func__, chip->chip_idx, subs->number);
-		if (mgr->mono_capture)
+		if (mgr->moanal_capture)
 			runtime->hw.channels_max = 1;
 		else
 			runtime->hw.channels_min = 2;
@@ -1029,7 +1029,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	}
 
 	/* if a sample rate is already used or fixed by external clock,
-	 * the stream cannot change
+	 * the stream cananalt change
 	 */
 	if (mgr->sample_rate)
 		runtime->hw.rate_min = runtime->hw.rate_max = mgr->sample_rate;
@@ -1039,7 +1039,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 			if (pcxhr_get_external_clock(mgr, mgr->use_clock_type,
 						     &external_rate) ||
 			    external_rate == 0) {
-				/* cannot detect the external clock rate */
+				/* cananalt detect the external clock rate */
 				mutex_unlock(&mgr->setup_mutex);
 				return -EBUSY;
 			}
@@ -1050,7 +1050,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 
 	stream->status      = PCXHR_STREAM_STATUS_OPEN;
 	stream->substream   = subs;
-	stream->channels    = 0; /* not configured yet */
+	stream->channels    = 0; /* analt configured yet */
 
 	runtime->private_data = stream;
 
@@ -1081,7 +1081,7 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 
 	/* sample rate released */
 	if (--mgr->ref_count_rate == 0) {
-		mgr->sample_rate = 0;	/* the sample rate is no more locked */
+		mgr->sample_rate = 0;	/* the sample rate is anal more locked */
 		pcxhr_hardware_timer(mgr, 0);	/* stop the DSP-timer */
 	}
 
@@ -1137,7 +1137,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 			  chip->nb_streams_play,
 			  chip->nb_streams_capt, &pcm);
 	if (err < 0) {
-		dev_err(chip->card->dev, "cannot create pcm %s\n", name);
+		dev_err(chip->card->dev, "cananalt create pcm %s\n", name);
 		return err;
 	}
 	pcm->private_data = chip;
@@ -1148,7 +1148,7 @@ int pcxhr_create_pcm(struct snd_pcxhr *chip)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pcxhr_ops);
 
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->analnatomic = true;
 	strcpy(pcm->name, name);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1184,7 +1184,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->card = card;
 	chip->chip_idx = idx;
@@ -1192,12 +1192,12 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 	card->sync_irq = mgr->irq;
 
 	if (idx < mgr->playback_chips)
-		/* stereo or mono streams */
+		/* stereo or moanal streams */
 		chip->nb_streams_play = PCXHR_PLAYBACK_STREAMS;
 
 	if (idx < mgr->capture_chips) {
-		if (mgr->mono_capture)
-			chip->nb_streams_capt = 2;	/* 2 mono streams */
+		if (mgr->moanal_capture)
+			chip->nb_streams_capt = 2;	/* 2 moanal streams */
 		else
 			chip->nb_streams_capt = 1;	/* or 1 stereo stream */
 	}
@@ -1282,7 +1282,7 @@ static void pcxhr_proc_info(struct snd_info_entry *entry,
 					    i,  rmh.stat[i]);
 		}
 	} else
-		snd_iprintf(buffer, "no firmware loaded\n");
+		snd_iprintf(buffer, "anal firmware loaded\n");
 	snd_iprintf(buffer, "\n");
 }
 static void pcxhr_proc_sync(struct snd_info_entry *entry,
@@ -1323,7 +1323,7 @@ static void pcxhr_proc_sync(struct snd_info_entry *entry,
 				    texts[i], sample_rate);
 		}
 	} else
-		snd_iprintf(buffer, "no firmware loaded\n");
+		snd_iprintf(buffer, "anal firmware loaded\n");
 	snd_iprintf(buffer, "\n");
 }
 
@@ -1341,7 +1341,7 @@ static void pcxhr_proc_gpio_read(struct snd_info_entry *entry,
 		hr222_read_gpio(mgr, 0, &value);	/* GP0 */
 		snd_iprintf(buffer, "GPO: 0x%x\n", value);
 	} else
-		snd_iprintf(buffer, "no firmware loaded\n");
+		snd_iprintf(buffer, "anal firmware loaded\n");
 	snd_iprintf(buffer, "\n");
 }
 static void pcxhr_proc_gpo_write(struct snd_info_entry *entry,
@@ -1382,7 +1382,7 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 	int err;
 	/* commands available when embedded DSP is running */
 	if (!(mgr->dsp_loaded & (1 << PCXHR_FIRMWARE_DSP_MAIN_INDEX))) {
-		snd_iprintf(buffer, "no firmware loaded\n");
+		snd_iprintf(buffer, "anal firmware loaded\n");
 		return;
 	}
 	if (!mgr->capture_ltc) {
@@ -1390,7 +1390,7 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 		rmh.cmd[0] |= MANAGE_SIGNAL_TIME_CODE;
 		err = pcxhr_send_msg(mgr, &rmh);
 		if (err) {
-			snd_iprintf(buffer, "ltc not activated (%d)\n", err);
+			snd_iprintf(buffer, "ltc analt activated (%d)\n", err);
 			return;
 		}
 		if (mgr->is_hr_stereo)
@@ -1418,7 +1418,7 @@ static void pcxhr_proc_ltc(struct snd_info_entry *entry,
 	/*snd_iprintf(buffer, "dsp ref time: 0x%06x%06x\n",
 			    rmh.stat[3] & 0xffffff, rmh.stat[4] & 0xffffff);*/
 	if (!(rmh.stat[0] & TIME_CODE_VALID_MASK)) {
-		snd_iprintf(buffer, "warning: linear timecode not valid\n");
+		snd_iprintf(buffer, "warning: linear timecode analt valid\n");
 	}
 }
 
@@ -1486,10 +1486,10 @@ static int pcxhr_probe(struct pci_dev *pci,
 	char *card_name;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (! enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* enable PCI device */
@@ -1501,7 +1501,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 	/* check if we can restrict PCI DMA transfers to 32 bits */
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(&pci->dev,
-			"architecture does not support 32bit PCI busmaster DMA\n");
+			"architecture does analt support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -1510,13 +1510,13 @@ static int pcxhr_probe(struct pci_dev *pci,
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (! mgr) {
 		pci_disable_device(pci);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (snd_BUG_ON(pci_id->driver_data >= PCI_ID_LAST)) {
 		kfree(mgr);
 		pci_disable_device(pci);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	card_name =
 		pcxhr_board_params[pci_id->driver_data].board_name;
@@ -1528,10 +1528,10 @@ static int pcxhr_probe(struct pci_dev *pci,
 		pcxhr_board_params[pci_id->driver_data].fw_file_set;
 	mgr->firmware_num  =
 		pcxhr_board_params[pci_id->driver_data].firmware_num;
-	mgr->mono_capture = mono[dev];
+	mgr->moanal_capture = moanal[dev];
 	mgr->is_hr_stereo = (mgr->playback_chips == 1);
 	mgr->board_has_aes1 = PCXHR_BOARD_HAS_AES1(mgr);
-	mgr->board_aes_in_192k = !PCXHR_BOARD_AESIN_NO_192K(mgr);
+	mgr->board_aes_in_192k = !PCXHR_BOARD_AESIN_ANAL_192K(mgr);
 
 	if (mgr->is_hr_stereo)
 		mgr->granularity = PCXHR_GRANULARITY_HR22;
@@ -1577,7 +1577,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 			    GFP_KERNEL);
 	if (! mgr->prmh) {
 		pcxhr_free(mgr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i=0; i < PCXHR_MAX_CARDS; i++) {
@@ -1600,7 +1600,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 				   0, &card);
 
 		if (err < 0) {
-			dev_err(&pci->dev, "cannot allocate the card %d\n", i);
+			dev_err(&pci->dev, "cananalt allocate the card %d\n", i);
 			pcxhr_free(mgr);
 			return err;
 		}
@@ -1634,7 +1634,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				size, &mgr->hostport) < 0) {
 		pcxhr_free(mgr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* init purgebuffer */
 	memset(mgr->hostport.area, 0, size);

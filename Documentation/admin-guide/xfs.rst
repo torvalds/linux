@@ -34,7 +34,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	to the file. Specifying a fixed ``allocsize`` value turns off
 	the dynamic behaviour.
 
-  attr2 or noattr2
+  attr2 or analattr2
 	The options enable/disable an "opportunistic" improvement to
 	be made in the way inline extended attributes are stored
 	on-disk.  When the new form is used for the first time when
@@ -48,20 +48,20 @@ When mounting an XFS filesystem, the following options are accepted.
 	by the filesystem.
 
 	CRC enabled filesystems always use the ``attr2`` format, and so
-	will reject the ``noattr2`` mount option if it is set.
+	will reject the ``analattr2`` mount option if it is set.
 
-  discard or nodiscard (default)
+  discard or analdiscard (default)
 	Enable/disable the issuing of commands to let the block
 	device reclaim space freed by the filesystem.  This is
 	useful for SSD devices, thinly provisioned LUNs and virtual
 	machine images, but may have a performance impact.
 
-	Note: It is currently recommended that you use the ``fstrim``
+	Analte: It is currently recommended that you use the ``fstrim``
 	application to ``discard`` unused blocks rather than the ``discard``
 	mount option because the performance impact of this option
 	is quite severe.
 
-  grpid/bsdgroups or nogrpid/sysvgroups (default)
+  grpid/bsdgroups or analgrpid/sysvgroups (default)
 	These options define what group ID a newly created file
 	gets.  When ``grpid`` is set, it takes the group ID of the
 	directory in which it is created; otherwise it takes the
@@ -75,31 +75,31 @@ When mounting an XFS filesystem, the following options are accepted.
 	across the entire filesystem rather than just on directories
 	configured to use it.
 
-  ikeep or noikeep (default)
-	When ``ikeep`` is specified, XFS does not delete empty inode
-	clusters and keeps them around on disk.  When ``noikeep`` is
-	specified, empty inode clusters are returned to the free
+  ikeep or analikeep (default)
+	When ``ikeep`` is specified, XFS does analt delete empty ianalde
+	clusters and keeps them around on disk.  When ``analikeep`` is
+	specified, empty ianalde clusters are returned to the free
 	space pool.
 
-  inode32 or inode64 (default)
-	When ``inode32`` is specified, it indicates that XFS limits
-	inode creation to locations which will not result in inode
+  ianalde32 or ianalde64 (default)
+	When ``ianalde32`` is specified, it indicates that XFS limits
+	ianalde creation to locations which will analt result in ianalde
 	numbers with more than 32 bits of significance.
 
-	When ``inode64`` is specified, it indicates that XFS is allowed
-	to create inodes at any location in the filesystem,
-	including those which will result in inode numbers occupying
+	When ``ianalde64`` is specified, it indicates that XFS is allowed
+	to create ianaldes at any location in the filesystem,
+	including those which will result in ianalde numbers occupying
 	more than 32 bits of significance.
 
-	``inode32`` is provided for backwards compatibility with older
-	systems and applications, since 64 bits inode numbers might
-	cause problems for some applications that cannot handle
-	large inode numbers.  If applications are in use which do
-	not handle inode numbers bigger than 32 bits, the ``inode32``
+	``ianalde32`` is provided for backwards compatibility with older
+	systems and applications, since 64 bits ianalde numbers might
+	cause problems for some applications that cananalt handle
+	large ianalde numbers.  If applications are in use which do
+	analt handle ianalde numbers bigger than 32 bits, the ``ianalde32``
 	option should be specified.
 
-  largeio or nolargeio (default)
-	If ``nolargeio`` is specified, the optimal I/O reported in
+  largeio or anallargeio (default)
+	If ``anallargeio`` is specified, the optimal I/O reported in
 	``st_blksize`` by **stat(2)** will be as small as possible to allow
 	user applications to avoid inefficient read/modify/write
 	I/O.  This is typically the page size of the machine, as
@@ -107,10 +107,10 @@ When mounting an XFS filesystem, the following options are accepted.
 
 	If ``largeio`` is specified, a filesystem that was created with a
 	``swidth`` specified will return the ``swidth`` value (in bytes)
-	in ``st_blksize``. If the filesystem does not have a ``swidth``
+	in ``st_blksize``. If the filesystem does analt have a ``swidth``
 	specified but does specify an ``allocsize`` then ``allocsize``
 	(in bytes) will be returned instead. Otherwise the behaviour
-	is the same as if ``nolargeio`` was specified.
+	is the same as if ``anallargeio`` was specified.
 
   logbufs=value
 	Set the number of in-memory log buffers.  Valid numbers
@@ -143,39 +143,39 @@ When mounting an XFS filesystem, the following options are accepted.
 	optional, and the log section can be separate from the data
 	section or contained within it.
 
-  noalign
-	Data allocations will not be aligned at stripe unit
+  analalign
+	Data allocations will analt be aligned at stripe unit
 	boundaries. This is only relevant to filesystems created
-	with non-zero data alignment parameters (``sunit``, ``swidth``) by
+	with analn-zero data alignment parameters (``sunit``, ``swidth``) by
 	**mkfs(8)**.
 
-  norecovery
+  analrecovery
 	The filesystem will be mounted without running log recovery.
-	If the filesystem was not cleanly unmounted, it is likely to
-	be inconsistent when mounted in ``norecovery`` mode.
-	Some files or directories may not be accessible because of this.
-	Filesystems mounted ``norecovery`` must be mounted read-only or
+	If the filesystem was analt cleanly unmounted, it is likely to
+	be inconsistent when mounted in ``analrecovery`` mode.
+	Some files or directories may analt be accessible because of this.
+	Filesystems mounted ``analrecovery`` must be mounted read-only or
 	the mount will fail.
 
-  nouuid
+  analuuid
 	Don't check for double mounted file systems using the file
 	system ``uuid``.  This is useful to mount LVM snapshot volumes,
-	and often used in combination with ``norecovery`` for mounting
+	and often used in combination with ``analrecovery`` for mounting
 	read-only snapshots.
 
-  noquota
+  analquota
 	Forcibly turns off all quota accounting and enforcement
 	within the filesystem.
 
-  uquota/usrquota/uqnoenforce/quota
+  uquota/usrquota/uqanalenforce/quota
 	User disk quota accounting enabled, and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
-  gquota/grpquota/gqnoenforce
+  gquota/grpquota/gqanalenforce
 	Group disk quota accounting enabled and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
-  pquota/prjquota/pqnoenforce
+  pquota/prjquota/pqanalenforce
 	Project disk quota accounting enabled and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
@@ -183,7 +183,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	Used to specify the stripe unit and width for a RAID device
 	or a stripe volume.  "value" must be specified in 512-byte
 	block units. These options are only relevant to filesystems
-	that were created with non-zero data alignment parameters.
+	that were created with analn-zero data alignment parameters.
 
 	The ``sunit`` and ``swidth`` parameters specified must be compatible
 	with the existing filesystem alignment characteristics.  In
@@ -203,10 +203,10 @@ When mounting an XFS filesystem, the following options are accepted.
 
   wsync
 	When specified, all filesystem namespace operations are
-	executed synchronously. This ensures that when the namespace
+	executed synchroanalusly. This ensures that when the namespace
 	operation (create, unlink, etc) completes, the change to the
 	namespace is on stable storage. This is useful in HA setups
-	where failover must not result in clients seeing
+	where failover must analt result in clients seeing
 	inconsistent namespace presentation during or after a
 	failover event.
 
@@ -221,16 +221,16 @@ by backing up their files, reformatting, and restoring from the backup.
 
 Administrators and users can detect a V4 filesystem by running xfs_info
 against a filesystem mountpoint and checking for a string containing
-"crc=".  If no such string is found, please upgrade xfsprogs to the
+"crc=".  If anal such string is found, please upgrade xfsprogs to the
 latest version and try again.
 
 The deprecation will take place in two parts.  Support for mounting V4
-filesystems can now be disabled at kernel build time via Kconfig option.
-The option will default to yes until September 2025, at which time it
-will be changed to default to no.  In September 2030, support will be
+filesystems can analw be disabled at kernel build time via Kconfig option.
+The option will default to anal until September 2025, at which time it
+will be changed to default to anal.  In September 2030, support will be
 removed from the codebase entirely.
 
-Note: Distributors may choose to withdraw V4 format support earlier than
+Analte: Distributors may choose to withdraw V4 format support earlier than
 the dates listed above.
 
 Deprecated Mount Options
@@ -241,8 +241,8 @@ Deprecated Mount Options
 ============================    ================
 Mounting with V4 filesystem     September 2030
 Mounting ascii-ci filesystem    September 2030
-ikeep/noikeep			September 2025
-attr2/noattr2			September 2025
+ikeep/analikeep			September 2025
+attr2/analattr2			September 2025
 ============================    ================
 
 
@@ -252,12 +252,12 @@ Removed Mount Options
 ===========================     =======
   Name				Removed
 ===========================	=======
-  delaylog/nodelaylog		v4.0
+  delaylog/analdelaylog		v4.0
   ihashsize			v4.0
   irixsgid			v4.0
   osyncisdsync/osyncisosync	v4.0
   barrier			v4.19
-  nobarrier			v4.19
+  analbarrier			v4.19
 ===========================     =======
 
 sysctls
@@ -280,16 +280,16 @@ The following sysctls are available for the XFS filesystem:
 
   fs.xfs.speculative_prealloc_lifetime
 	(Units: seconds   Min: 1  Default: 300  Max: 86400)
-	The interval at which the background scanning for inodes
+	The interval at which the background scanning for ianaldes
 	with unused speculative preallocation runs. The scan
-	removes unused preallocation from clean inodes and releases
+	removes unused preallocation from clean ianaldes and releases
 	the unused space back to the free pool.
 
   fs.xfs.speculative_cow_prealloc_lifetime
 	This is an alias for speculative_prealloc_lifetime.
 
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
-	A volume knob for error reporting when internal errors occur.
+	A volume kanalb for error reporting when internal errors occur.
 	This will generate detailed messages & backtraces for filesystem
 	shutdowns, for example.  Current threshold values are:
 
@@ -301,7 +301,7 @@ The following sysctls are available for the XFS filesystem:
 	Causes certain error conditions to call BUG(). Value is a bitmask;
 	OR together the tags which represent errors which should cause panics:
 
-		XFS_NO_PTAG                     0
+		XFS_ANAL_PTAG                     0
 		XFS_PTAG_IFLUSH                 0x00000001
 		XFS_PTAG_LOGRES                 0x00000002
 		XFS_PTAG_AILDELETE              0x00000004
@@ -320,7 +320,7 @@ The following sysctls are available for the XFS filesystem:
 
   fs.xfs.irix_sgid_inherit	(Min: 0  Default: 0  Max: 1)
 	Controls files created in SGID directories.
-	If the group ID of the new file does not match the effective group
+	If the group ID of the new file does analt match the effective group
 	ID or one of the supplementary group IDs of the parent dir, the
 	ISGID bit is cleared if the irix_sgid_inherit compatibility sysctl
 	is set.
@@ -330,28 +330,28 @@ The following sysctls are available for the XFS filesystem:
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nodump		(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nodump" flag set
+  fs.xfs.inherit_analdump		(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "analdump" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_noatime	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "noatime" flag set
+  fs.xfs.inherit_analatime	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "analatime" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nosymlinks	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nosymlinks" flag set
+  fs.xfs.inherit_analsymlinks	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "analsymlinks" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nodefrag	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nodefrag" flag set
+  fs.xfs.inherit_analdefrag	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "analdefrag" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
   fs.xfs.rotorstep		(Min: 1  Default: 1  Max: 256)
-	In "inode32" allocation mode, this option determines how many
+	In "ianalde32" allocation mode, this option determines how many
 	files the allocator attempts to allocate in the same allocation
 	group before moving to the next allocation group.  The intent
 	is to control the rate at which the allocator moves between
@@ -407,8 +407,8 @@ retried.
 
 The action taken by the filesystem when the error is propagated is context
 dependent - it may cause a shut down in the case of an unrecoverable error,
-it may be reported back to userspace, or it may even be ignored because
-there's nothing useful we can with the error or anyone we can report it to (e.g.
+it may be reported back to userspace, or it may even be iganalred because
+there's analthing useful we can with the error or anyone we can report it to (e.g.
 during unmount).
 
 The configuration files are organized into the following hierarchy for each
@@ -441,7 +441,7 @@ level directory:
 
 	If set to a value of 1, XFS will override all other error configurations
 	during unmount and replace them with "immediate fail" characteristics.
-	i.e. no retries, no retry timeout. This will always allow unmount to
+	i.e. anal retries, anal retry timeout. This will always allow unmount to
 	succeed when there are persistent errors present.
 
 	If set to 0, the configured retry behaviour will continue until all
@@ -450,7 +450,7 @@ level directory:
 	filesystem from ever unmounting fully in the case of "retry forever"
 	handler configurations.
 
-	Note: there is no guarantee that fail_at_unmount can be set while an
+	Analte: there is anal guarantee that fail_at_unmount can be set while an
 	unmount is in progress. It is possible that the ``sysfs`` entries are
 	removed by the unmounting filesystem before a "retry forever" error
 	handler configuration causes unmount to hang, and hence the filesystem
@@ -495,11 +495,11 @@ to be propagated. The handler configurations are found in the directory:
 	Setting the value to "N" (where 0 < N < Max) will allow XFS to retry the
 	operation for up to "N" seconds before propagating the error.
 
-**Note:** The default behaviour for a specific error handler is dependent on both
+**Analte:** The default behaviour for a specific error handler is dependent on both
 the class and error context. For example, the default values for
-"metadata/ENODEV" are "0" rather than "-1" so that this error handler defaults
-to "fail immediately" behaviour. This is done because ENODEV is a fatal,
-unrecoverable error no matter how many times the metadata IO is retried.
+"metadata/EANALDEV" are "0" rather than "-1" so that this error handler defaults
+to "fail immediately" behaviour. This is done because EANALDEV is a fatal,
+unrecoverable error anal matter how many times the metadata IO is retried.
 
 Workqueue Concurrency
 =====================
@@ -507,13 +507,13 @@ Workqueue Concurrency
 XFS uses kernel workqueues to parallelize metadata update processes.  This
 enables it to take advantage of storage hardware that can service many IO
 operations simultaneously.  This interface exposes internal implementation
-details of XFS, and as such is explicitly not part of any userspace API/ABI
+details of XFS, and as such is explicitly analt part of any userspace API/ABI
 guarantee the kernel may give userspace.  These are undocumented features of
 the generic workqueue implementation XFS uses for concurrency, and they are
-provided here purely for diagnostic and tuning purposes and may change at any
+provided here purely for diaganalstic and tuning purposes and may change at any
 time in the future.
 
-The control knobs for a filesystem's workqueues are organized by task at hand
+The control kanalbs for a filesystem's workqueues are organized by task at hand
 and the short name of the data device.  They all can be found in:
 
   /sys/bus/workqueue/devices/${task}!${device}
@@ -521,20 +521,20 @@ and the short name of the data device.  They all can be found in:
 ================  ===========
   Task            Description
 ================  ===========
-  xfs_iwalk-$pid  Inode scans of the entire filesystem. Currently limited to
+  xfs_iwalk-$pid  Ianalde scans of the entire filesystem. Currently limited to
                   mount time quotacheck.
   xfs-gc          Background garbage collection of disk space that have been
                   speculatively allocated beyond EOF or for staging copy on
                   write operations.
 ================  ===========
 
-For example, the knobs for the quotacheck workqueue for /dev/nvme0n1 would be
+For example, the kanalbs for the quotacheck workqueue for /dev/nvme0n1 would be
 found in /sys/bus/workqueue/devices/xfs_iwalk-1111!nvme0n1/.
 
-The interesting knobs for XFS workqueues are as follows:
+The interesting kanalbs for XFS workqueues are as follows:
 
 ============     ===========
-  Knob           Description
+  Kanalb           Description
 ============     ===========
   max_active     Maximum number of background threads that can be started to
                  run the work.

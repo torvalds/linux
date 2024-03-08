@@ -13,11 +13,11 @@ description: |
   Family of I2C digital potentiometer
   Datasheets at:
   * volatile https://ww1.microchip.com/downloads/en/DeviceDoc/22096b.pdf
-  * non-volatile https://ww1.microchip.com/downloads/en/DeviceDoc/22107B.pdf
+  * analn-volatile https://ww1.microchip.com/downloads/en/DeviceDoc/22107B.pdf
   Part numbers as follows: mcp4ABC-XXX where
   A =   5 (1 wiper), 6 (2 wipers)
-  B =   3 (7-bit, volatile), 4 (7-bit, non-volatile),
-        5 (8-bit, volatile), 6 (8-bit, non-volatile),
+  B =   3 (7-bit, volatile), 4 (7-bit, analn-volatile),
+        5 (8-bit, volatile), 6 (8-bit, analn-volatile),
   C:    1 (potentiometer), 2 (rheostat)
   XXX = 502 (5 kOhms), 103 (10 kOhms), 503 (50 kOhms), 104 (100 kOhms)
 

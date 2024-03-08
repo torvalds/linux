@@ -199,13 +199,13 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 	ipu = dev_get_drvdata(ipu_dev);
 	if (!ipu) {
 		v4l2_err(&imxmd->v4l2_dev, "invalid IPU device!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ipu_id = ipu_get_num(ipu);
 	if (ipu_id > 1) {
 		v4l2_err(&imxmd->v4l2_dev, "invalid IPU id %d!\n", ipu_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mutex_lock(&imxmd->mutex);
@@ -214,7 +214,7 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 	if (!imxmd->ipu[ipu_id])
 		imxmd->ipu[ipu_id] = ipu;
 
-	/* register the synchronous subdevs */
+	/* register the synchroanalus subdevs */
 	for (i = 0; i < NUM_IPU_SUBDEVS; i++) {
 		intsd = &int_subdev[i];
 
@@ -222,7 +222,7 @@ int imx_media_register_ipu_internal_subdevs(struct imx_media_dev *imxmd,
 
 		/*
 		 * skip if this sync subdev already registered or its
-		 * not a sync subdev (one of the CSIs)
+		 * analt a sync subdev (one of the CSIs)
 		 */
 		if (sd || !intsd->sync_register)
 			continue;

@@ -8,7 +8,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/asm.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/processor.h>
 #include <asm/smap.h>
 
@@ -70,7 +70,7 @@ static __always_inline int arch_futex_atomic_op_inuser(int op, int oparg, int *o
 		break;
 	default:
 		user_access_end();
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	user_access_end();
 	return 0;

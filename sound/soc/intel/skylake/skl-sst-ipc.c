@@ -44,21 +44,21 @@
 #define IPC_MSG_DIR_MASK		0x1
 #define IPC_MSG_DIR(x)			(((x) & IPC_MSG_DIR_MASK) \
 					<< IPC_MSG_DIR_SHIFT)
-/* Global Notification Message */
-#define IPC_GLB_NOTIFY_TYPE_SHIFT	16
-#define IPC_GLB_NOTIFY_TYPE_MASK	0xFF
-#define IPC_GLB_NOTIFY_TYPE(x)		(((x) >> IPC_GLB_NOTIFY_TYPE_SHIFT) \
-					& IPC_GLB_NOTIFY_TYPE_MASK)
+/* Global Analtification Message */
+#define IPC_GLB_ANALTIFY_TYPE_SHIFT	16
+#define IPC_GLB_ANALTIFY_TYPE_MASK	0xFF
+#define IPC_GLB_ANALTIFY_TYPE(x)		(((x) >> IPC_GLB_ANALTIFY_TYPE_SHIFT) \
+					& IPC_GLB_ANALTIFY_TYPE_MASK)
 
-#define IPC_GLB_NOTIFY_MSG_TYPE_SHIFT	24
-#define IPC_GLB_NOTIFY_MSG_TYPE_MASK	0x1F
-#define IPC_GLB_NOTIFY_MSG_TYPE(x)	(((x) >> IPC_GLB_NOTIFY_MSG_TYPE_SHIFT)	\
-						& IPC_GLB_NOTIFY_MSG_TYPE_MASK)
+#define IPC_GLB_ANALTIFY_MSG_TYPE_SHIFT	24
+#define IPC_GLB_ANALTIFY_MSG_TYPE_MASK	0x1F
+#define IPC_GLB_ANALTIFY_MSG_TYPE(x)	(((x) >> IPC_GLB_ANALTIFY_MSG_TYPE_SHIFT)	\
+						& IPC_GLB_ANALTIFY_MSG_TYPE_MASK)
 
-#define IPC_GLB_NOTIFY_RSP_SHIFT	29
-#define IPC_GLB_NOTIFY_RSP_MASK		0x1
-#define IPC_GLB_NOTIFY_RSP_TYPE(x)	(((x) >> IPC_GLB_NOTIFY_RSP_SHIFT) \
-					& IPC_GLB_NOTIFY_RSP_MASK)
+#define IPC_GLB_ANALTIFY_RSP_SHIFT	29
+#define IPC_GLB_ANALTIFY_RSP_MASK		0x1
+#define IPC_GLB_ANALTIFY_RSP_TYPE(x)	(((x) >> IPC_GLB_ANALTIFY_RSP_SHIFT) \
+					& IPC_GLB_ANALTIFY_RSP_MASK)
 
 /* Pipeline operations */
 
@@ -209,14 +209,14 @@ enum skl_ipc_glb_type {
 	IPC_GLB_SAVE_PPL = 22,
 	IPC_GLB_RESTORE_PPL = 23,
 	IPC_GLB_LOAD_LIBRARY = 24,
-	IPC_GLB_NOTIFY = 26,
+	IPC_GLB_ANALTIFY = 26,
 	IPC_GLB_MAX_IPC_MSG_NUMBER = 31 /* Maximum message number */
 };
 
 enum skl_ipc_glb_reply {
 	IPC_GLB_REPLY_SUCCESS = 0,
 
-	IPC_GLB_REPLY_UNKNOWN_MSG_TYPE = 1,
+	IPC_GLB_REPLY_UNKANALWN_MSG_TYPE = 1,
 	IPC_GLB_REPLY_ERROR_INVALID_PARAM = 2,
 
 	IPC_GLB_REPLY_BUSY = 3,
@@ -235,33 +235,33 @@ enum skl_ipc_glb_reply {
 	IPC_GLB_REPLY_MOD_LOAD_INVALID_HASH = 102,
 
 	IPC_GLB_REPLY_MOD_UNLOAD_INST_EXIST = 103,
-	IPC_GLB_REPLY_MOD_NOT_INITIALIZED = 104,
+	IPC_GLB_REPLY_MOD_ANALT_INITIALIZED = 104,
 
 	IPC_GLB_REPLY_INVALID_CONFIG_PARAM_ID = 120,
 	IPC_GLB_REPLY_INVALID_CONFIG_DATA_LEN = 121,
-	IPC_GLB_REPLY_GATEWAY_NOT_INITIALIZED = 140,
-	IPC_GLB_REPLY_GATEWAY_NOT_EXIST = 141,
+	IPC_GLB_REPLY_GATEWAY_ANALT_INITIALIZED = 140,
+	IPC_GLB_REPLY_GATEWAY_ANALT_EXIST = 141,
 	IPC_GLB_REPLY_SCLK_ALREADY_RUNNING = 150,
 	IPC_GLB_REPLY_MCLK_ALREADY_RUNNING = 151,
 
-	IPC_GLB_REPLY_PPL_NOT_INITIALIZED = 160,
-	IPC_GLB_REPLY_PPL_NOT_EXIST = 161,
+	IPC_GLB_REPLY_PPL_ANALT_INITIALIZED = 160,
+	IPC_GLB_REPLY_PPL_ANALT_EXIST = 161,
 	IPC_GLB_REPLY_PPL_SAVE_FAILED = 162,
 	IPC_GLB_REPLY_PPL_RESTORE_FAILED = 163,
 
 	IPC_MAX_STATUS = ((1<<IPC_IXC_STATUS_BITS)-1)
 };
 
-enum skl_ipc_notification_type {
-	IPC_GLB_NOTIFY_GLITCH = 0,
-	IPC_GLB_NOTIFY_OVERRUN = 1,
-	IPC_GLB_NOTIFY_UNDERRUN = 2,
-	IPC_GLB_NOTIFY_END_STREAM = 3,
-	IPC_GLB_NOTIFY_PHRASE_DETECTED = 4,
-	IPC_GLB_NOTIFY_RESOURCE_EVENT = 5,
-	IPC_GLB_NOTIFY_LOG_BUFFER_STATUS = 6,
-	IPC_GLB_NOTIFY_TIMESTAMP_CAPTURED = 7,
-	IPC_GLB_NOTIFY_FW_READY = 8
+enum skl_ipc_analtification_type {
+	IPC_GLB_ANALTIFY_GLITCH = 0,
+	IPC_GLB_ANALTIFY_OVERRUN = 1,
+	IPC_GLB_ANALTIFY_UNDERRUN = 2,
+	IPC_GLB_ANALTIFY_END_STREAM = 3,
+	IPC_GLB_ANALTIFY_PHRASE_DETECTED = 4,
+	IPC_GLB_ANALTIFY_RESOURCE_EVENT = 5,
+	IPC_GLB_ANALTIFY_LOG_BUFFER_STATUS = 6,
+	IPC_GLB_ANALTIFY_TIMESTAMP_CAPTURED = 7,
+	IPC_GLB_ANALTIFY_FW_READY = 8
 };
 
 /* Module Message Types */
@@ -342,29 +342,29 @@ out:
 
 }
 
-int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+int skl_ipc_process_analtification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct skl_dev *skl = container_of(ipc, struct skl_dev, ipc);
 
-	if (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
-		switch (IPC_GLB_NOTIFY_TYPE(header.primary)) {
+	if (IPC_GLB_ANALTIFY_MSG_TYPE(header.primary)) {
+		switch (IPC_GLB_ANALTIFY_TYPE(header.primary)) {
 
-		case IPC_GLB_NOTIFY_UNDERRUN:
+		case IPC_GLB_ANALTIFY_UNDERRUN:
 			dev_err(ipc->dev, "FW Underrun %x\n", header.primary);
 			break;
 
-		case IPC_GLB_NOTIFY_RESOURCE_EVENT:
+		case IPC_GLB_ANALTIFY_RESOURCE_EVENT:
 			dev_err(ipc->dev, "MCPS Budget Violation: %x\n",
 						header.primary);
 			break;
 
-		case IPC_GLB_NOTIFY_FW_READY:
+		case IPC_GLB_ANALTIFY_FW_READY:
 			skl->boot_complete = true;
 			wake_up(&skl->boot_wait);
 			break;
 
-		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
+		case IPC_GLB_ANALTIFY_PHRASE_DETECTED:
 			dev_dbg(ipc->dev, "***** Phrase Detected **********\n");
 
 			/*
@@ -394,7 +394,7 @@ struct skl_ipc_err_map {
 };
 
 static struct skl_ipc_err_map skl_err_map[] = {
-	{"DSP out of memory", IPC_GLB_REPLY_OUT_OF_MEMORY, -ENOMEM},
+	{"DSP out of memory", IPC_GLB_REPLY_OUT_OF_MEMORY, -EANALMEM},
 	{"DSP busy", IPC_GLB_REPLY_BUSY, -EBUSY},
 	{"SCLK already running", IPC_GLB_REPLY_SCLK_ALREADY_RUNNING,
 			IPC_GLB_REPLY_SCLK_ALREADY_RUNNING},
@@ -453,7 +453,7 @@ void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		dev_dbg(ipc->dev, "ipc FW reply %x: success\n", header.primary);
 		/* copy the rx data from the mailbox */
 		sst_dsp_inbox_read(ipc->dsp, msg->rx.data, msg->rx.size);
-		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
+		switch (IPC_GLB_ANALTIFY_MSG_TYPE(header.primary)) {
 		case IPC_GLB_LOAD_MULTIPLE_MODS:
 		case IPC_GLB_LOAD_LIBRARY:
 			skl->mod_load_complete = true;
@@ -466,8 +466,8 @@ void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 
 		}
 	} else {
-		msg->errno = skl_ipc_set_reply_error_code(ipc, reply);
-		switch (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
+		msg->erranal = skl_ipc_set_reply_error_code(ipc, reply);
+		switch (IPC_GLB_ANALTIFY_MSG_TYPE(header.primary)) {
 		case IPC_GLB_LOAD_MULTIPLE_MODS:
 		case IPC_GLB_LOAD_LIBRARY:
 			skl->mod_load_complete = true;
@@ -500,7 +500,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 
 	/* Here we handle IPC interrupts only */
 	if (!(dsp->intr_status & SKL_ADSPIS_IPC))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hipcie = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCIE);
 	hipct = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCT);
@@ -531,12 +531,12 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x\n",
 						header.extension);
 
-		if (IPC_GLB_NOTIFY_RSP_TYPE(header.primary)) {
+		if (IPC_GLB_ANALTIFY_RSP_TYPE(header.primary)) {
 			/* Handle Immediate reply from DSP Core */
 			skl_ipc_process_reply(ipc, header);
 		} else {
-			dev_dbg(dsp->dev, "IPC irq: Notification from firmware\n");
-			skl_ipc_process_notification(ipc, header);
+			dev_dbg(dsp->dev, "IPC irq: Analtification from firmware\n");
+			skl_ipc_process_analtification(ipc, header);
 		}
 		/* clear  busy interrupt */
 		sst_dsp_shim_update_bits_forced(dsp, SKL_ADSP_REG_HIPCT,
@@ -545,7 +545,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 	}
 
 	if (ipc_irq == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	skl_ipc_int_enable(dsp);
 
@@ -795,7 +795,7 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 	 /* param_block_size must be in dwords */
 	u16 param_block_size = msg->param_data_size / sizeof(u32);
 
-	print_hex_dump_debug("Param data:", DUMP_PREFIX_NONE,
+	print_hex_dump_debug("Param data:", DUMP_PREFIX_ANALNE,
 		16, 4, buffer, param_block_size, false);
 
 	header.primary = IPC_MSG_TARGET(IPC_MOD_MSG);
@@ -880,7 +880,7 @@ int skl_ipc_load_modules(struct sst_generic_ipc *ipc,
 	request.data = data;
 	request.size = sizeof(u16) * module_cnt;
 
-	ret = sst_ipc_tx_message_nowait(ipc, request);
+	ret = sst_ipc_tx_message_analwait(ipc, request);
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load modules failed :%d\n", ret);
 
@@ -979,7 +979,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 
 	reply.data = kzalloc(SKL_ADSP_W1_SZ, GFP_KERNEL);
 	if (!reply.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	header.primary = IPC_MSG_TARGET(IPC_MOD_MSG);
 	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
@@ -1005,7 +1005,7 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 	buf = krealloc(reply.data, reply.size, GFP_KERNEL);
 	if (!buf) {
 		kfree(reply.data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	*payload = buf;
 	*bytes = reply.size;
@@ -1031,7 +1031,7 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	if (wait)
 		ret = sst_ipc_tx_message_wait(ipc, request, NULL);
 	else
-		ret = sst_ipc_tx_message_nowait(ipc, request);
+		ret = sst_ipc_tx_message_analwait(ipc, request);
 
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load lib failed\n");
@@ -1060,9 +1060,9 @@ int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc, struct skl_ipc_d0ix_msg *msg)
 			header.primary,	header.extension);
 
 	/*
-	 * Use the nopm IPC here as we dont want it checking for D0iX
+	 * Use the analpm IPC here as we dont want it checking for D0iX
 	 */
-	ret = sst_ipc_tx_message_nopm(ipc, request, NULL);
+	ret = sst_ipc_tx_message_analpm(ipc, request, NULL);
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: set d0ix failed, err %d\n", ret);
 

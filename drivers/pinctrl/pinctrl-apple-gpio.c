@@ -6,7 +6,7 @@
  * Copyright (C) 2020 Corellium LLC
  *
  * Based on: pinctrl-pistachio.c
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -77,7 +77,7 @@ struct regmap_config regmap_config = {
 	.use_raw_spinlock = true,
 };
 
-/* No locking needed to mask/unmask IRQs as the interrupt mode is per pin-register. */
+/* Anal locking needed to mask/unmask IRQs as the interrupt mode is per pin-register. */
 static void apple_gpio_set_reg(struct apple_gpio_pinctrl *pctl,
                                unsigned int pin, u32 mask, u32 value)
 {
@@ -99,8 +99,8 @@ static u32 apple_gpio_get_reg(struct apple_gpio_pinctrl *pctl,
 
 /* Pin controller functions */
 
-static int apple_gpio_dt_node_to_map(struct pinctrl_dev *pctldev,
-                                     struct device_node *node,
+static int apple_gpio_dt_analde_to_map(struct pinctrl_dev *pctldev,
+                                     struct device_analde *analde,
                                      struct pinctrl_map **map,
                                      unsigned *num_maps)
 {
@@ -117,11 +117,11 @@ static int apple_gpio_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	pctl = pinctrl_dev_get_drvdata(pctldev);
 
-	ret = of_property_count_u32_elems(node, "pinmux");
+	ret = of_property_count_u32_elems(analde, "pinmux");
 	if (ret <= 0) {
 		dev_err(pctl->dev,
-			"missing or empty pinmux property in node %pOFn.\n",
-			node);
+			"missing or empty pinmux property in analde %pOFn.\n",
+			analde);
 		return ret ? ret : -EINVAL;
 	}
 
@@ -132,7 +132,7 @@ static int apple_gpio_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return ret;
 
 	for (i = 0; i < num_pins; i++) {
-		ret = of_property_read_u32_index(node, "pinmux", i, &pinfunc);
+		ret = of_property_read_u32_index(analde, "pinmux", i, &pinfunc);
 		if (ret)
 			goto free_map;
 
@@ -164,7 +164,7 @@ static const struct pinctrl_ops apple_gpio_pinctrl_ops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = apple_gpio_dt_node_to_map,
+	.dt_analde_to_map = apple_gpio_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -208,7 +208,7 @@ static int apple_gpio_get(struct gpio_chip *chip, unsigned offset)
 	unsigned int reg = apple_gpio_get_reg(pctl, offset);
 
 	/*
-	 * If this is an input GPIO, read the actual value (not the
+	 * If this is an input GPIO, read the actual value (analt the
 	 * cached regmap value)
 	 */
 	if (FIELD_GET(REG_GPIOx_MODE, reg) != REG_GPIOx_OUT)
@@ -393,7 +393,7 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 		irq_data = kmalloc_array(girq->num_parents, sizeof(*irq_data),
 					 GFP_KERNEL);
 		if (!girq->parents || !irq_data) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free_irq_data;
 		}
 
@@ -409,7 +409,7 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 
 		girq->parent_handler_data_array = irq_data;
 		girq->per_parent_data = true;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_level_irq;
 	}
 
@@ -435,7 +435,7 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 	unsigned int i, nirqs = 0;
 	int res;
 
-	if (of_property_read_bool(pdev->dev.of_node, "interrupt-controller")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "interrupt-controller")) {
 		res = platform_irq_count(pdev);
 		if (res > 0)
 			nirqs = res;
@@ -444,14 +444,14 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 	pctl = devm_kzalloc(&pdev->dev, struct_size(pctl, irqgrps, nirqs),
 			    GFP_KERNEL);
 	if (!pctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctl->dev = &pdev->dev;
 	pctl->gpio_chip.irq.num_parents = nirqs;
 	dev_set_drvdata(&pdev->dev, pctl);
 
-	if (of_property_read_u32(pdev->dev.of_node, "apple,npins", &npins))
+	if (of_property_read_u32(pdev->dev.of_analde, "apple,npins", &npins))
 		return dev_err_probe(&pdev->dev, -EINVAL,
-				     "apple,npins property not found\n");
+				     "apple,npins property analt found\n");
 
 	pins = devm_kmalloc_array(&pdev->dev, npins, sizeof(pins[0]),
 				  GFP_KERNEL);
@@ -460,7 +460,7 @@ static int apple_gpio_pinctrl_probe(struct platform_device *pdev)
 	pin_nums = devm_kmalloc_array(&pdev->dev, npins, sizeof(pin_nums[0]),
 				      GFP_KERNEL);
 	if (!pins || !pin_names || !pin_nums)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->base))

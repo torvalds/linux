@@ -19,7 +19,7 @@ static inline void update_ack_queue(struct rvt_qp *qp, unsigned int n)
 		next = 0;
 	qp->s_tail_ack_queue = next;
 	qp->s_acked_ack_queue = next;
-	qp->s_ack_state = OP(ACKNOWLEDGE);
+	qp->s_ack_state = OP(ACKANALWLEDGE);
 }
 
 static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,

@@ -283,8 +283,8 @@ snd_pcm_uframes_t acp_pcm_pointer(struct snd_sof_dev *sdev,
 
 extern struct snd_sof_dsp_ops sof_acp_common_ops;
 
-extern struct snd_sof_dsp_ops sof_renoir_ops;
-int sof_renoir_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_reanalir_ops;
+int sof_reanalir_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_vangogh_ops;
 int sof_vangogh_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_rembrandt_ops;

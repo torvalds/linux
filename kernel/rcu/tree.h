@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update mechanism for mutual exclusion (tree-based version)
- * Internal non-public definitions.
+ * Internal analn-public definitions.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -17,7 +17,7 @@
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 #include <linux/swait.h>
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_analde_tree.h>
 
 #include "rcu_segcblist.h"
 
@@ -40,20 +40,20 @@ struct rcu_exp_work {
 #define RCU_KTHREAD_MAX      4
 
 /*
- * Definition for node within the RCU grace-period-detection hierarchy.
+ * Definition for analde within the RCU grace-period-detection hierarchy.
  */
-struct rcu_node {
-	raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
+struct rcu_analde {
+	raw_spinlock_t __private lock;	/* Root rcu_analde's lock protects */
 					/*  some rcu_state fields as well as */
 					/*  following. */
 	unsigned long gp_seq;	/* Track rsp->gp_seq. */
 	unsigned long gp_seq_needed; /* Track furthest future GP request. */
-	unsigned long completedqs; /* All QSes done for this node. */
+	unsigned long completedqs; /* All QSes done for this analde. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
-				/*  In leaf rcu_node, each bit corresponds to */
+				/*  In leaf rcu_analde, each bit corresponds to */
 				/*  an rcu_data structure, otherwise, each */
-				/*  bit corresponds to a child rcu_node */
+				/*  bit corresponds to a child rcu_analde */
 				/*  structure. */
 	unsigned long rcu_gp_init_mask;	/* Mask of offline CPUs at GP init. */
 	unsigned long qsmaskinit;
@@ -84,8 +84,8 @@ struct rcu_node {
 	bool	wait_blkd_tasks;/* Necessary to wait for blocked tasks to */
 				/*  exit RCU read-side critical sections */
 				/*  before propagating offline up the */
-				/*  rcu_node tree? */
-	struct rcu_node *parent;
+				/*  rcu_analde tree? */
+	struct rcu_analde *parent;
 	struct list_head blkd_tasks;
 				/* Tasks blocked in RCU read-side critical */
 				/*  section.  Tasks are placed at the head */
@@ -93,24 +93,24 @@ struct rcu_node {
 	struct list_head *gp_tasks;
 				/* Pointer to the first task blocking the */
 				/*  current grace period, or NULL if there */
-				/*  is no such task. */
+				/*  is anal such task. */
 	struct list_head *exp_tasks;
 				/* Pointer to the first task blocking the */
 				/*  current expedited grace period, or NULL */
-				/*  if there is no such task.  If there */
-				/*  is no current expedited grace period, */
-				/*  then there can cannot be any such task. */
+				/*  if there is anal such task.  If there */
+				/*  is anal current expedited grace period, */
+				/*  then there can cananalt be any such task. */
 	struct list_head *boost_tasks;
 				/* Pointer to first task that needs to be */
-				/*  priority boosted, or NULL if no priority */
-				/*  boosting is needed for this rcu_node */
-				/*  structure.  If there are no tasks */
-				/*  queued on this rcu_node structure that */
+				/*  priority boosted, or NULL if anal priority */
+				/*  boosting is needed for this rcu_analde */
+				/*  structure.  If there are anal tasks */
+				/*  queued on this rcu_analde structure that */
 				/*  are blocking the current grace period, */
-				/*  there can be no such task. */
+				/*  there can be anal such task. */
 	struct rt_mutex boost_mtx;
 				/* Used only for the priority-boosting */
-				/*  side effect, not as a lock. */
+				/*  side effect, analt as a lock. */
 	unsigned long boost_time;
 				/* When to start boosting (jiffies). */
 	struct mutex boost_kthread_mutex;
@@ -118,17 +118,17 @@ struct rcu_node {
 				/*  manipulation. */
 	struct task_struct *boost_kthread_task;
 				/* kthread that takes care of priority */
-				/*  boosting for this rcu_node structure. */
+				/*  boosting for this rcu_analde structure. */
 	unsigned int boost_kthread_status;
 				/* State of boost_kthread_task for tracing. */
-	unsigned long n_boosts;	/* Number of boosts for this rcu_node structure. */
-#ifdef CONFIG_RCU_NOCB_CPU
-	struct swait_queue_head nocb_gp_wq[2];
-				/* Place for rcu_nocb_kthread() to wait GP. */
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
+	unsigned long n_boosts;	/* Number of boosts for this rcu_analde structure. */
+#ifdef CONFIG_RCU_ANALCB_CPU
+	struct swait_queue_head analcb_gp_wq[2];
+				/* Place for rcu_analcb_kthread() to wait GP. */
+#endif /* #ifdef CONFIG_RCU_ANALCB_CPU */
+	raw_spinlock_t fqslock ____cacheline_interanaldealigned_in_smp;
 
-	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
+	spinlock_t exp_lock ____cacheline_interanaldealigned_in_smp;
 	unsigned long exp_seq_rq;
 	wait_queue_head_t exp_wq[4];
 	struct rcu_exp_work rew;
@@ -137,22 +137,22 @@ struct rcu_node {
 				/* Lock and data for polled expedited grace periods. */
 	unsigned long exp_seq_poll_rq;
 	struct work_struct exp_poll_wq;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /*
- * Bitmasks in an rcu_node cover the interval [grplo, grphi] of CPU IDs, and
+ * Bitmasks in an rcu_analde cover the interval [grplo, grphi] of CPU IDs, and
  * are indexed relative to this interval rather than the global CPU ID space.
- * This generates the bit for a CPU in node-local masks.
+ * This generates the bit for a CPU in analde-local masks.
  */
-#define leaf_node_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
+#define leaf_analde_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
 
 /*
  * Union to allow "aggregate OR" operation on the need for a quiescent
- * state by the normal and expedited grace periods.
+ * state by the analrmal and expedited grace periods.
  */
-union rcu_noqs {
+union rcu_analqs {
 	struct {
-		u8 norm;
+		u8 analrm;
 		u8 exp;
 	} b; /* Bits. */
 	u16 s; /* Set of bits, aggregate OR here. */
@@ -161,7 +161,7 @@ union rcu_noqs {
 /*
  * Record the snapshot of the core stats at half of the first RCU stall timeout.
  * The member gp_seq is used to ensure that all members are updated only once
- * during the sampling period. The snapshot is taken only if this gp_seq is not
+ * during the sampling period. The snapshot is taken only if this gp_seq is analt
  * equal to rdp->gp_seq.
  */
 struct rcu_snap_record {
@@ -180,12 +180,12 @@ struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->gp_seq counter. */
 	unsigned long	gp_seq_needed;	/* Track furthest future GP request. */
-	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
+	union rcu_analqs	cpu_anal_qs;	/* Anal QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiescent state. */
-	bool		beenonline;	/* CPU online at least once. */
+	bool		beeanalnline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible ->gp_seq wrap. */
 	bool		cpu_started;	/* RCU watching this onlining CPU. */
-	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
+	struct rcu_analde *myanalde;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
 					/*  ticks this CPU has handled */
@@ -219,46 +219,46 @@ struct rcu_data {
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
 	/* 5) Callback offloading. */
-#ifdef CONFIG_RCU_NOCB_CPU
-	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
-	struct swait_queue_head nocb_state_wq; /* For offloading state changes */
-	struct task_struct *nocb_gp_kthread;
-	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */
-	atomic_t nocb_lock_contended;	/* Contention experienced. */
-	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
-	struct timer_list nocb_timer;	/* Enforce finite deferral. */
-	unsigned long nocb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
-	struct mutex nocb_gp_kthread_mutex; /* Exclusion for nocb gp kthread */
+#ifdef CONFIG_RCU_ANALCB_CPU
+	struct swait_queue_head analcb_cb_wq; /* For analcb kthreads to sleep on. */
+	struct swait_queue_head analcb_state_wq; /* For offloading state changes */
+	struct task_struct *analcb_gp_kthread;
+	raw_spinlock_t analcb_lock;	/* Guard following pair of fields. */
+	atomic_t analcb_lock_contended;	/* Contention experienced. */
+	int analcb_defer_wakeup;		/* Defer wakeup of analcb_kthread. */
+	struct timer_list analcb_timer;	/* Enforce finite deferral. */
+	unsigned long analcb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
+	struct mutex analcb_gp_kthread_mutex; /* Exclusion for analcb gp kthread */
 					    /* spawning */
 
 	/* The following fields are used by call_rcu, hence own cacheline. */
-	raw_spinlock_t nocb_bypass_lock ____cacheline_internodealigned_in_smp;
-	struct rcu_cblist nocb_bypass;	/* Lock-contention-bypass CB list. */
-	unsigned long nocb_bypass_first; /* Time (jiffies) of first enqueue. */
-	unsigned long nocb_nobypass_last; /* Last ->cblist enqueue (jiffies). */
-	int nocb_nobypass_count;	/* # ->cblist enqueues at ^^^ time. */
+	raw_spinlock_t analcb_bypass_lock ____cacheline_interanaldealigned_in_smp;
+	struct rcu_cblist analcb_bypass;	/* Lock-contention-bypass CB list. */
+	unsigned long analcb_bypass_first; /* Time (jiffies) of first enqueue. */
+	unsigned long analcb_analbypass_last; /* Last ->cblist enqueue (jiffies). */
+	int analcb_analbypass_count;	/* # ->cblist enqueues at ^^^ time. */
 
 	/* The following fields are used by GP kthread, hence own cacheline. */
-	raw_spinlock_t nocb_gp_lock ____cacheline_internodealigned_in_smp;
-	u8 nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
-	u8 nocb_gp_bypass;		/* Found a bypass on last scan? */
-	u8 nocb_gp_gp;			/* GP to wait for on last scan? */
-	unsigned long nocb_gp_seq;	/*  If so, ->gp_seq to wait for. */
-	unsigned long nocb_gp_loops;	/* # passes through wait code. */
-	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
-	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
-	struct task_struct *nocb_cb_kthread;
-	struct list_head nocb_head_rdp; /*
+	raw_spinlock_t analcb_gp_lock ____cacheline_interanaldealigned_in_smp;
+	u8 analcb_gp_sleep;		/* Is the analcb GP thread asleep? */
+	u8 analcb_gp_bypass;		/* Found a bypass on last scan? */
+	u8 analcb_gp_gp;			/* GP to wait for on last scan? */
+	unsigned long analcb_gp_seq;	/*  If so, ->gp_seq to wait for. */
+	unsigned long analcb_gp_loops;	/* # passes through wait code. */
+	struct swait_queue_head analcb_gp_wq; /* For analcb kthreads to sleep on. */
+	bool analcb_cb_sleep;		/* Is the analcb CB thread asleep? */
+	struct task_struct *analcb_cb_kthread;
+	struct list_head analcb_head_rdp; /*
 					 * Head of rcu_data list in wakeup chain,
 					 * if rdp_gp.
 					 */
-	struct list_head nocb_entry_rdp; /* rcu_data node in wakeup chain. */
-	struct rcu_data *nocb_toggling_rdp; /* rdp queued for (de-)offloading */
+	struct list_head analcb_entry_rdp; /* rcu_data analde in wakeup chain. */
+	struct rcu_data *analcb_toggling_rdp; /* rdp queued for (de-)offloading */
 
 	/* The following fields are used by CB kthread, hence new cacheline. */
-	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
+	struct rcu_data *analcb_gp_rdp ____cacheline_interanaldealigned_in_smp;
 					/* GP rdp takes GP-end wakeups. */
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
+#endif /* #ifdef CONFIG_RCU_ANALCB_CPU */
 
 	/* 6) RCU priority boosting. */
 	struct task_struct *rcu_cpu_kthread_task;
@@ -267,10 +267,10 @@ struct rcu_data {
 	char rcu_cpu_has_work;
 	unsigned long rcuc_activity;
 
-	/* 7) Diagnostic data, including RCU CPU stall warnings. */
+	/* 7) Diaganalstic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
-	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
-	struct irq_work rcu_iw;		/* Check for non-irq activity. */
+	/* ->rcu_iw* fields protected by leaf rcu_analde ->lock. */
+	struct irq_work rcu_iw;		/* Check for analn-irq activity. */
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
 	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
 	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
@@ -286,12 +286,12 @@ struct rcu_data {
 	int cpu;
 };
 
-/* Values for nocb_defer_wakeup field in struct rcu_data. */
-#define RCU_NOCB_WAKE_NOT	0
-#define RCU_NOCB_WAKE_BYPASS	1
-#define RCU_NOCB_WAKE_LAZY	2
-#define RCU_NOCB_WAKE		3
-#define RCU_NOCB_WAKE_FORCE	4
+/* Values for analcb_defer_wakeup field in struct rcu_data. */
+#define RCU_ANALCB_WAKE_ANALT	0
+#define RCU_ANALCB_WAKE_BYPASS	1
+#define RCU_ANALCB_WAKE_LAZY	2
+#define RCU_ANALCB_WAKE		3
+#define RCU_ANALCB_WAKE_FORCE	4
 
 #define RCU_JIFFIES_TILL_FORCE_QS (1 + (HZ > 250) + (HZ > 500))
 					/* For jiffies_till_first_fqs and */
@@ -317,26 +317,26 @@ do {									\
 } while (0)
 
 /*
- * RCU global state, including node hierarchy.  This hierarchy is
+ * RCU global state, including analde hierarchy.  This hierarchy is
  * represented in "heap" form in a dense array.  The root (first level)
- * of the hierarchy is in ->node[0] (referenced by ->level[0]), the second
- * level in ->node[1] through ->node[m] (->node[1] referenced by ->level[1]),
- * and the third level in ->node[m+1] and following (->node[m+1] referenced
+ * of the hierarchy is in ->analde[0] (referenced by ->level[0]), the second
+ * level in ->analde[1] through ->analde[m] (->analde[1] referenced by ->level[1]),
+ * and the third level in ->analde[m+1] and following (->analde[m+1] referenced
  * by ->level[2]).  The number of levels is determined by the number of
- * CPUs and by CONFIG_RCU_FANOUT.  Small systems will have a "hierarchy"
- * consisting of a single rcu_node.
+ * CPUs and by CONFIG_RCU_FAANALUT.  Small systems will have a "hierarchy"
+ * consisting of a single rcu_analde.
  */
 struct rcu_state {
-	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
-	struct rcu_node *level[RCU_NUM_LVLS + 1];
+	struct rcu_analde analde[NUM_RCU_ANALDES];	/* Hierarchy. */
+	struct rcu_analde *level[RCU_NUM_LVLS + 1];
 						/* Hierarchy levels (+1 to */
 						/*  shut bogus gcc warning) */
 	int ncpus;				/* # CPUs seen so far. */
 	int n_online_cpus;			/* # CPUs online for RCU. */
 
-	/* The following fields are guarded by the root rcu_node's lock. */
+	/* The following fields are guarded by the root rcu_analde's lock. */
 
-	unsigned long gp_seq ____cacheline_internodealigned_in_smp;
+	unsigned long gp_seq ____cacheline_interanaldealigned_in_smp;
 						/* Grace-period sequence #. */
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
@@ -347,10 +347,10 @@ struct rcu_state {
 	unsigned long gp_wake_time;		/* Last GP kthread wake. */
 	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
 	unsigned long gp_seq_polled;		/* GP seq for polled API. */
-	unsigned long gp_seq_polled_snap;	/* ->gp_seq_polled at normal GP start. */
+	unsigned long gp_seq_polled_snap;	/* ->gp_seq_polled at analrmal GP start. */
 	unsigned long gp_seq_polled_exp_snap;	/* ->gp_seq_polled at expedited GP start. */
 
-	/* End of fields guarded by root rcu_node's lock. */
+	/* End of fields guarded by root rcu_analde's lock. */
 
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
@@ -367,7 +367,7 @@ struct rcu_state {
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
 	struct swait_queue_head expedited_wq;	/* Wait for check-ins. */
 	int ncpus_snap;				/* # CPUs seen last time. */
-	u8 cbovld;				/* Callback overload now? */
+	u8 cbovld;				/* Callback overload analw? */
 	u8 cbovldnext;				/* ^        ^  next time? */
 
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
@@ -397,10 +397,10 @@ struct rcu_state {
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
 
-	arch_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
+	arch_spinlock_t ofl_lock ____cacheline_interanaldealigned_in_smp;
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
-	int nocb_is_setup;			/* nocb is setup from boot */
+	int analcb_is_setup;			/* analcb is setup from boot */
 };
 
 /* Values for rcu_state structure's gp_flags field. */
@@ -409,10 +409,10 @@ struct rcu_state {
 #define RCU_GP_FLAG_OVLD 0x4	/* Experiencing callback overload. */
 
 /* Values for rcu_state structure's gp_state field. */
-#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
+#define RCU_GP_IDLE	 0	/* Initial state and anal GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
-#define RCU_GP_ONOFF     3	/* Grace-period initialization hotplug. */
+#define RCU_GP_OANALFF     3	/* Grace-period initialization hotplug. */
 #define RCU_GP_INIT      4	/* Grace-period initialization. */
 #define RCU_GP_WAIT_FQS  5	/* Wait for force-quiescent-state time. */
 #define RCU_GP_DOING_FQS 6	/* Wait done for force-quiescent-state time. */
@@ -443,70 +443,70 @@ static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 #endif /* #else #ifdef CONFIG_TRACING */
 
 /* Forward declarations for tree_plugin.h */
-static void rcu_bootup_announce(void);
+static void rcu_bootup_ananalunce(void);
 static void rcu_qs(void);
-static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
+static int rcu_preempt_blocked_readers_cgp(struct rcu_analde *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+static bool rcu_preempt_has_tasks(struct rcu_analde *rnp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static int rcu_print_task_exp_stall(struct rcu_node *rnp);
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+static int rcu_print_task_exp_stall(struct rcu_analde *rnp);
+static void rcu_preempt_check_blocked_tasks(struct rcu_analde *rnp);
 static void rcu_flavor_sched_clock_irq(int user);
-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
-static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
-static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
+static void dump_blkd_tasks(struct rcu_analde *rnp, int ncheck);
+static void rcu_initiate_boost(struct rcu_analde *rnp, unsigned long flags);
+static void rcu_preempt_boost_start_gp(struct rcu_analde *rnp);
 static bool rcu_is_callbacks_kthread(struct rcu_data *rdp);
 static void rcu_cpu_kthread_setup(unsigned int cpu);
-static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp);
-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+static void rcu_spawn_one_boost_kthread(struct rcu_analde *rnp);
+static bool rcu_preempt_has_tasks(struct rcu_analde *rnp);
 static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
-static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
-static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
-static void rcu_init_one_nocb(struct rcu_node *rnp);
-static bool wake_nocb_gp(struct rcu_data *rdp, bool force);
-static bool rcu_nocb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+static struct swait_queue_head *rcu_analcb_gp_get(struct rcu_analde *rnp);
+static void rcu_analcb_gp_cleanup(struct swait_queue_head *sq);
+static void rcu_init_one_analcb(struct rcu_analde *rnp);
+static bool wake_analcb_gp(struct rcu_data *rdp, bool force);
+static bool rcu_analcb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 				  unsigned long j, bool lazy);
-static bool rcu_nocb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+static bool rcu_analcb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 				bool *was_alldone, unsigned long flags,
 				bool lazy);
-static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_empty,
+static void __call_rcu_analcb_wake(struct rcu_data *rdp, bool was_empty,
 				 unsigned long flags);
-static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp, int level);
-static bool do_nocb_deferred_wakeup(struct rcu_data *rdp);
-static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
-static void rcu_spawn_cpu_nocb_kthread(int cpu);
-static void show_rcu_nocb_state(struct rcu_data *rdp);
-static void rcu_nocb_lock(struct rcu_data *rdp);
-static void rcu_nocb_unlock(struct rcu_data *rdp);
-static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
+static int rcu_analcb_need_deferred_wakeup(struct rcu_data *rdp, int level);
+static bool do_analcb_deferred_wakeup(struct rcu_data *rdp);
+static void rcu_boot_init_analcb_percpu_data(struct rcu_data *rdp);
+static void rcu_spawn_cpu_analcb_kthread(int cpu);
+static void show_rcu_analcb_state(struct rcu_data *rdp);
+static void rcu_analcb_lock(struct rcu_data *rdp);
+static void rcu_analcb_unlock(struct rcu_data *rdp);
+static void rcu_analcb_unlock_irqrestore(struct rcu_data *rdp,
 				       unsigned long flags);
 static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp);
-#ifdef CONFIG_RCU_NOCB_CPU
-static void __init rcu_organize_nocb_kthreads(void);
+#ifdef CONFIG_RCU_ANALCB_CPU
+static void __init rcu_organize_analcb_kthreads(void);
 
 /*
  * Disable IRQs before checking offloaded state so that local
  * locking is safe against concurrent de-offloading.
  */
-#define rcu_nocb_lock_irqsave(rdp, flags)			\
+#define rcu_analcb_lock_irqsave(rdp, flags)			\
 do {								\
 	local_irq_save(flags);					\
 	if (rcu_segcblist_is_offloaded(&(rdp)->cblist))	\
-		raw_spin_lock(&(rdp)->nocb_lock);		\
+		raw_spin_lock(&(rdp)->analcb_lock);		\
 } while (0)
-#else /* #ifdef CONFIG_RCU_NOCB_CPU */
-#define rcu_nocb_lock_irqsave(rdp, flags) local_irq_save(flags)
-#endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+#else /* #ifdef CONFIG_RCU_ANALCB_CPU */
+#define rcu_analcb_lock_irqsave(rdp, flags) local_irq_save(flags)
+#endif /* #else #ifdef CONFIG_RCU_ANALCB_CPU */
 
 static void rcu_bind_gp_kthread(void);
-static bool rcu_nohz_full_cpu(void);
+static bool rcu_analhz_full_cpu(void);
 
 /* Forward declarations for tree_stall.h */
 static void record_gp_stall_check_time(void);
 static void rcu_iw_handler(struct irq_work *iwp);
 static void check_cpu_stall(struct rcu_data *rdp);
-static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+static void rcu_check_gp_start_stall(struct rcu_analde *rnp, struct rcu_data *rdp,
 				     const unsigned long gpssdelay);
 
 /* Forward declarations for tree_exp.h. */

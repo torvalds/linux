@@ -13,7 +13,7 @@
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 enum ipi_message_type {
-	IPI_NOP = 0,
+	IPI_ANALP = 0,
 	IPI_RESCHEDULE = 1,
 	IPI_CALL_FUNC,
 	IPI_CPU_STOP,

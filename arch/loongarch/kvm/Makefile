@@ -19,4 +19,4 @@ kvm-y += tlb.o
 kvm-y += vcpu.o
 kvm-y += vm.o
 
-CFLAGS_exit.o	+= $(call cc-option,-Wno-override-init,)
+CFLAGS_exit.o	+= $(call cc-option,-Wanal-override-init,)

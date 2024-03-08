@@ -15,8 +15,8 @@ Required properties:
   See ../interrupt-controller/interrupts.txt for details.
 - interrupt-names: Must include the following entries:
   - stall
-  - nonstall
-- vdd-supply: regulator for supply voltage. Only required for GPUs not using
+  - analnstall
+- vdd-supply: regulator for supply voltage. Only required for GPUs analt using
   power domains.
 - clocks: Must contain an entry for each entry in clock-names.
   See ../clocks/clock-bindings.txt for details.
@@ -47,7 +47,7 @@ Example for GK20A:
 		      <0x0 0x58000000 0x0 0x01000000>;
 		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "stall", "nonstall";
+		interrupt-names = "stall", "analnstall";
 		vdd-supply = <&vdd_gpu>;
 		clocks = <&tegra_car TEGRA124_CLK_GPU>,
 			 <&tegra_car TEGRA124_CLK_PLL_P_OUT5>;
@@ -65,7 +65,7 @@ Example for GM20B:
 		      <0x0 0x58000000 0x0 0x01000000>;
 		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "stall", "nonstall";
+		interrupt-names = "stall", "analnstall";
 		clocks = <&tegra_car TEGRA210_CLK_GPU>,
 			 <&tegra_car TEGRA210_CLK_PLL_P_OUT5>,
 			 <&tegra_car TEGRA210_CLK_PLL_G_REF>;
@@ -83,7 +83,7 @@ Example for GP10B:
 		      <0x0 0x18000000 0x0 0x1000000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
 			      GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "stall", "nonstall";
+		interrupt-names = "stall", "analnstall";
 		clocks = <&bpmp TEGRA186_CLK_GPCCLK>,
 			 <&bpmp TEGRA186_CLK_GPU>;
 		clock-names = "gpu", "pwr";
@@ -101,7 +101,7 @@ Example for GV11B:
 		      <0x18000000 0x1000000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "stall", "nonstall";
+		interrupt-names = "stall", "analnstall";
 		clocks = <&bpmp TEGRA194_CLK_GPCCLK>,
 			 <&bpmp TEGRA194_CLK_GPU_PWR>,
 			 <&bpmp TEGRA194_CLK_FUSE>;

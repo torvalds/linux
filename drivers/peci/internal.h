@@ -122,7 +122,7 @@ void peci_driver_unregister(struct peci_driver *driver);
  * module_peci_driver() - helper macro for registering a modular PECI driver
  * @__peci_driver: peci_driver struct
  *
- * Helper macro for PECI drivers which do not do anything special in module
+ * Helper macro for PECI drivers which do analt do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

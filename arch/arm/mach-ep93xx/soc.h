@@ -15,21 +15,21 @@
 /*
  * EP93xx Physical Memory Map:
  *
- * The ASDO pin is sampled at system reset to select a synchronous or
- * asynchronous boot configuration.  When ASDO is "1" (i.e. pulled-up)
- * the synchronous boot mode is selected.  When ASDO is "0" (i.e
- * pulled-down) the asynchronous boot mode is selected.
+ * The ASDO pin is sampled at system reset to select a synchroanalus or
+ * asynchroanalus boot configuration.  When ASDO is "1" (i.e. pulled-up)
+ * the synchroanalus boot mode is selected.  When ASDO is "0" (i.e
+ * pulled-down) the asynchroanalus boot mode is selected.
  *
- * In synchronous boot mode nSDCE3 is decoded starting at physical address
- * 0x00000000 and nCS0 is decoded starting at 0xf0000000.  For asynchronous
+ * In synchroanalus boot mode nSDCE3 is decoded starting at physical address
+ * 0x00000000 and nCS0 is decoded starting at 0xf0000000.  For asynchroanalus
  * boot mode they are swapped with nCS0 decoded at 0x00000000 ann nSDCE3
  * decoded at 0xf0000000.
  *
- * There is known errata for the EP93xx dealing with External Memory
+ * There is kanalwn errata for the EP93xx dealing with External Memory
  * Configurations.  Please refer to "AN273: EP93xx Silicon Rev E Design
  * Guidelines" for more information.  This document can be found at:
  *
- *	http://www.cirrus.com/en/pubs/appNote/AN273REV4.pdf
+ *	http://www.cirrus.com/en/pubs/appAnalte/AN273REV4.pdf
  */
 
 #define EP93XX_CS0_PHYS_BASE_ASYNC	0x00000000	/* ASDO Pin = 0 */

@@ -60,10 +60,10 @@ static void event_tasklet(struct tasklet_struct *t)
 		dev->EventQueueReadIndex =
 			(dev->EventQueueReadIndex + 1) & (EVENT_QUEUE_SIZE - 1);
 
-		if ((Event.UARTStatus & 0x01) && (dev->TxEventNotify))
-			dev->TxEventNotify(dev, Event.TimeStamp);
-		if ((Event.UARTStatus & 0x02) && (dev->RxEventNotify))
-			dev->RxEventNotify(dev, Event.TimeStamp,
+		if ((Event.UARTStatus & 0x01) && (dev->TxEventAnaltify))
+			dev->TxEventAnaltify(dev, Event.TimeStamp);
+		if ((Event.UARTStatus & 0x02) && (dev->RxEventAnaltify))
+			dev->RxEventAnaltify(dev, Event.TimeStamp,
 					   Event.RXCharacter);
 	}
 }
@@ -160,7 +160,7 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 	struct ngene *dev = (struct ngene *)dev_id;
 	struct device *pdev = &dev->pci_dev->dev;
 	u32 icounts = 0;
-	irqreturn_t rc = IRQ_NONE;
+	irqreturn_t rc = IRQ_ANALNE;
 	u32 i = MAX_STREAM;
 	u8 *tmpCmdDoneByte;
 
@@ -294,7 +294,7 @@ static int ngene_command_mutex(struct ngene *dev, struct ngene_command *com)
 	dev->CmdDoneByte = tmpCmdDoneByte;
 	spin_unlock_irq(&dev->cmd_lock);
 
-	/* Notify 8051. */
+	/* Analtify 8051. */
 	ngwritel(1, FORCE_INT);
 
 	ret = wait_event_timeout(dev->cmd_wq, dev->cmd_done == 1, 2 * HZ);
@@ -412,7 +412,7 @@ int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
 /*
  02000640 is sample on rising edge.
  02000740 is sample on falling edge.
- 02000040 is ignore "valid" signal
+ 02000040 is iganalre "valid" signal
 
  0: FD_CTL1 Bit 7,6 must be 0,1
     7   disable(fw controlled)
@@ -420,7 +420,7 @@ int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
     5   0-par,1-ser
     4   0-lsb/1-msb
     3,2 reserved
-    1,0 0-no sync, 1-use ext. start, 2-use 0x47, 3-both
+    1,0 0-anal sync, 1-use ext. start, 2-use 0x47, 3-both
  1: FD_CTL2 has 3-valid must be hi, 2-use valid, 1-edge
  2: FD_STA is read-only. 0-sync
  3: FD_INSYNC is number of 47s to trigger "in sync".
@@ -849,7 +849,7 @@ static int create_ring_buffer(struct pci_dev *pci_dev,
 	PARingBufferHead = tmp;
 
 	if (!Head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	PARingBufferCur = PARingBufferHead;
 	Cur = Head;
@@ -901,7 +901,7 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 
 	PASCListMem = tmp;
 	if (SCListMem == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pRingBuffer->SCListMem = SCListMem;
 	pRingBuffer->PASCListMem = PASCListMem;
@@ -921,7 +921,7 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 		PABuffer = tmp;
 
 		if (Buffer == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		Cur->Buffer1 = Buffer;
 
@@ -954,7 +954,7 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 		PABuffer = tmp;
 
 		if (Buffer == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		Cur->Buffer2 = Buffer;
 
@@ -1043,7 +1043,7 @@ static int AllocCommonBuffers(struct ngene *dev)
 						    &dev->PAFWInterfaceBuffer,
 						    GFP_KERNEL);
 	if (!dev->FWInterfaceBuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->hosttongene = dev->FWInterfaceBuffer;
 	dev->ngenetohost = dev->FWInterfaceBuffer + 256;
 	dev->EventBuffer = dev->FWInterfaceBuffer + 512;
@@ -1052,7 +1052,7 @@ static int AllocCommonBuffers(struct ngene *dev)
 						 OVERFLOW_BUFFER_SIZE,
 						 &dev->PAOverflowBuffer, GFP_KERNEL);
 	if (!dev->OverflowBuffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = STREAM_VIDEOIN1; i < MAX_STREAM; i++) {
 		int type = dev->card_info->io_type[i];
@@ -1141,37 +1141,37 @@ static void ngene_release_buffers(struct ngene *dev)
 static int ngene_get_buffers(struct ngene *dev)
 {
 	if (AllocCommonBuffers(dev))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (dev->card_info->io_type[4] & NGENE_IO_TSOUT) {
 		dev->tsout_buf = vmalloc(TSOUT_BUF_SIZE);
 		if (!dev->tsout_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		dvb_ringbuffer_init(&dev->tsout_rbuf,
 				    dev->tsout_buf, TSOUT_BUF_SIZE);
 	}
 	if (dev->card_info->io_type[2]&NGENE_IO_TSIN) {
 		dev->tsin_buf = vmalloc(TSIN_BUF_SIZE);
 		if (!dev->tsin_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		dvb_ringbuffer_init(&dev->tsin_rbuf,
 				    dev->tsin_buf, TSIN_BUF_SIZE);
 	}
 	if (dev->card_info->io_type[2] & NGENE_IO_AIN) {
 		dev->ain_buf = vmalloc(AIN_BUF_SIZE);
 		if (!dev->ain_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		dvb_ringbuffer_init(&dev->ain_rbuf, dev->ain_buf, AIN_BUF_SIZE);
 	}
 	if (dev->card_info->io_type[0] & NGENE_IO_HDTV) {
 		dev->vin_buf = vmalloc(VIN_BUF_SIZE);
 		if (!dev->vin_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		dvb_ringbuffer_init(&dev->vin_rbuf, dev->vin_buf, VIN_BUF_SIZE);
 	}
 	dev->iomem = ioremap(pci_resource_start(dev->pci_dev, 0),
 			     pci_resource_len(dev->pci_dev, 0));
 	if (!dev->iomem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1237,7 +1237,7 @@ static int ngene_load_firm(struct ngene *dev)
 	}
 
 	if (request_firmware(&fw, fw_name, &dev->pci_dev->dev) < 0) {
-		dev_err(pdev, "Could not load firmware file %s.\n", fw_name);
+		dev_err(pdev, "Could analt load firmware file %s.\n", fw_name);
 		dev_info(pdev, "Copy %s to your hotplug directory!\n",
 			 fw_name);
 		return -1;
@@ -1348,7 +1348,7 @@ static int ngene_start(struct ngene *dev)
 		free_irq(dev->pci_dev->irq, dev);
 		stat = pci_enable_msi(dev->pci_dev);
 		if (stat) {
-			dev_info(pdev, "MSI not available\n");
+			dev_info(pdev, "MSI analt available\n");
 			flags = IRQF_SHARED;
 		} else {
 			flags = 0;
@@ -1448,7 +1448,7 @@ static int init_channel(struct ngene_channel *chan)
 	tasklet_setup(&chan->demux_tasklet, demux_tasklet);
 	chan->users = 0;
 	chan->type = io;
-	chan->mode = chan->type;	/* for now only one mode */
+	chan->mode = chan->type;	/* for analw only one mode */
 	chan->i2c_client_fe = 0;	/* be sure this is set to zero */
 
 	if (io & NGENE_IO_TSIN) {
@@ -1569,7 +1569,7 @@ static void cxd_attach(struct ngene *dev)
 	/* check for CXD2099AR presence before attaching */
 	ret = ngene_port_has_cxd2099(&dev->channel[0].i2c_adapter, &type);
 	if (!ret) {
-		dev_dbg(pdev, "No CXD2099AR found\n");
+		dev_dbg(pdev, "Anal CXD2099AR found\n");
 		return;
 	}
 
@@ -1663,11 +1663,11 @@ int ngene_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	int stat = 0;
 
 	if (pci_enable_device(pci_dev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = vzalloc(sizeof(struct ngene));
 	if (dev == NULL) {
-		stat = -ENOMEM;
+		stat = -EANALMEM;
 		goto fail0;
 	}
 

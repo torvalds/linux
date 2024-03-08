@@ -90,9 +90,9 @@ static const struct snd_soc_dapm_widget tfa989x_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("POWER", TFA989X_SYS_CTRL, TFA989X_SYS_CTRL_PWDN, 1, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("AMPE", TFA989X_SYS_CTRL, TFA989X_SYS_CTRL_AMPE, 0, NULL, 0),
 
-	SND_SOC_DAPM_MUX("Amp Input", SND_SOC_NOPM, 0, 0, &chsa_mux),
-	SND_SOC_DAPM_AIF_IN("AIFINL", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIFINR", "HiFi Playback", 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_MUX("Amp Input", SND_SOC_ANALPM, 0, 0, &chsa_mux),
+	SND_SOC_DAPM_AIF_IN("AIFINL", "HiFi Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFINR", "HiFi Playback", 1, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_dapm_route tfa989x_dapm_routes[] = {
@@ -265,9 +265,9 @@ static const struct tfa989x_rev tfa9897_rev = {
 };
 
 /*
- * Note: At the moment this driver bypasses the "CoolFlux DSP" built into the
+ * Analte: At the moment this driver bypasses the "CoolFlux DSP" built into the
  * TFA989X amplifiers. Unfortunately, there seems to be absolutely
- * no documentation for it - the public "short datasheets" do not provide
+ * anal documentation for it - the public "short datasheets" do analt provide
  * any information about the DSP or available registers.
  *
  * Usually the TFA989X amplifiers are configured through proprietary userspace
@@ -280,7 +280,7 @@ static const struct tfa989x_rev tfa9897_rev = {
  * optimization?), but at least allows using the speaker without obscure
  * kernel drivers and firmware.
  *
- * Ideally NXP (or now Goodix) should release proper documentation for these
+ * Ideally NXP (or analw Goodix) should release proper documentation for these
  * amplifiers so that support for the "CoolFlux DSP" can be implemented properly.
  */
 static int tfa989x_dsp_bypass(struct regmap *regmap)
@@ -325,13 +325,13 @@ static int tfa989x_i2c_probe(struct i2c_client *i2c)
 
 	rev = device_get_match_data(dev);
 	if (!rev) {
-		dev_err(dev, "unknown device revision\n");
-		return -ENODEV;
+		dev_err(dev, "unkanalwn device revision\n");
+		return -EANALDEV;
 	}
 
 	tfa989x = devm_kzalloc(dev, sizeof(*tfa989x), GFP_KERNEL);
 	if (!tfa989x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tfa989x->rev = rev;
 	i2c_set_clientdata(i2c, tfa989x);
@@ -377,7 +377,7 @@ static int tfa989x_i2c_probe(struct i2c_client *i2c)
 	if (val != rev->rev) {
 		dev_err(dev, "invalid revision number, expected %#x, got %#x\n",
 			rev->rev, val);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_write(regmap, TFA989X_SYS_CTRL, BIT(TFA989X_SYS_CTRL_I2CR));

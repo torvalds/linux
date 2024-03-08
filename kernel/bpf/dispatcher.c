@@ -88,7 +88,7 @@ static bool bpf_dispatcher_remove_prog(struct bpf_dispatcher *d,
 
 int __weak arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_funcs)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int bpf_dispatcher_prepare(struct bpf_dispatcher *d, void *image, void *buf)
@@ -106,13 +106,13 @@ static int bpf_dispatcher_prepare(struct bpf_dispatcher *d, void *image, void *b
 static void bpf_dispatcher_update(struct bpf_dispatcher *d, int prev_num_progs)
 {
 	void *new, *tmp;
-	u32 noff = 0;
+	u32 analff = 0;
 
 	if (prev_num_progs)
-		noff = d->image_off ^ (PAGE_SIZE / 2);
+		analff = d->image_off ^ (PAGE_SIZE / 2);
 
-	new = d->num_progs ? d->image + noff : NULL;
-	tmp = d->num_progs ? d->rw_image + noff : NULL;
+	new = d->num_progs ? d->image + analff : NULL;
+	tmp = d->num_progs ? d->rw_image + analff : NULL;
 	if (new) {
 		/* Prepare the dispatcher in d->rw_image. Then use
 		 * bpf_arch_text_copy to update d->image, which is RO+X.
@@ -123,7 +123,7 @@ static void bpf_dispatcher_update(struct bpf_dispatcher *d, int prev_num_progs)
 			return;
 	}
 
-	__BPF_DISPATCHER_UPDATE(d, new ?: (void *)&bpf_dispatcher_nop_func);
+	__BPF_DISPATCHER_UPDATE(d, new ?: (void *)&bpf_dispatcher_analp_func);
 
 	/* Make sure all the callers executing the previous/old half of the
 	 * image leave it, so following update call can modify it safely.
@@ -131,7 +131,7 @@ static void bpf_dispatcher_update(struct bpf_dispatcher *d, int prev_num_progs)
 	synchronize_rcu();
 
 	if (new)
-		d->image_off = noff;
+		d->image_off = analff;
 }
 
 void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,

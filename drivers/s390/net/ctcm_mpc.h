@@ -17,7 +17,7 @@
 
 /*
  * MPC external interface
- * Note that ctc_mpc_xyz are called with a lock on ................
+ * Analte that ctc_mpc_xyz are called with a lock on ................
  */
 
 /*  port_number is the mpc device 0, 1, 2 etc mpc2 is port_number 2 */
@@ -193,7 +193,7 @@ struct mpc_group {
 	void 		(*estconnfunc)(int, int, int);
 	int		estconn_callback_retries;
 	int		estconn_called;
-	int		xidnogood;
+	int		xidanalgood;
 	int		send_qllc_disc;
 	fsm_timer	timer;
 	fsm_instance	*fsm; /* group xid fsm */

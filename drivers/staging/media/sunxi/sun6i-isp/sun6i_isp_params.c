@@ -490,7 +490,7 @@ int sun6i_isp_params_setup(struct sun6i_isp_device *isp_dev)
 	queue->ops = &sun6i_isp_params_queue_ops;
 	queue->mem_ops = &vb2_vmalloc_memops;
 	queue->min_queued_buffers = 1;
-	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	queue->lock = &params->lock;
 	queue->dev = isp_dev->dev;
 	queue->drv_priv = isp_dev;

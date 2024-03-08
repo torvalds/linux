@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_CTRL:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_CTRL - VIDIOC_S_CTRL - Get or set the value of a control
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_CTRL
@@ -45,7 +45,7 @@ fields of a struct :c:type:`v4l2_control` and call the
 When the ``id`` is invalid drivers return an ``EINVAL`` error code. When the
 ``value`` is out of bounds drivers can choose to take the closest valid
 value or return an ``ERANGE`` error code, whatever seems more appropriate.
-However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does not return the
+However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does analt return the
 actual new value. If the ``value`` is inappropriate for the control
 (e.g. if it refers to an unsupported menu index of a menu control), then
 EINVAL error code is returned as well.
@@ -74,14 +74,14 @@ These ioctls work only with user controls. For other control classes the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_control` ``id`` is invalid
     or the ``value`` is inappropriate for the given control (i.e. if a
-    menu item is selected that is not supported by the driver according
+    menu item is selected that is analt supported by the driver according
     to :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`).
 
 ERANGE
@@ -89,7 +89,7 @@ ERANGE
     bounds.
 
 EBUSY
-    The control is temporarily not changeable, possibly because another
+    The control is temporarily analt changeable, possibly because aanalther
     applications took over control of the device function this control
     belongs to.
 
@@ -97,4 +97,4 @@ EACCES
     Attempt to set a read-only control or to get a write-only control.
 
     Or if there is an attempt to set an inactive control and the driver is
-    not capable of caching the new value until the control is active again.
+    analt capable of caching the new value until the control is active again.

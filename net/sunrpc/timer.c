@@ -11,7 +11,7 @@
  *
  * This RTT estimator is used only for RPC over datagram protocols.
  *
- * Copyright (C) 2002 Trond Myklebust <trond.myklebust@fys.uio.no>
+ * Copyright (C) 2002 Trond Myklebust <trond.myklebust@fys.uio.anal>
  */
 
 #include <asm/param.h>
@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(rpc_init_rtt);
  * @m: recent actual RTT, in jiffies
  *
  * NB: When computing the smoothed RTT and standard deviation,
- *     be careful not to produce negative intermediate results.
+ *     be careful analt to produce negative intermediate results.
  */
 void rpc_update_rtt(struct rpc_rtt *rt, unsigned int timer, long m)
 {
@@ -65,7 +65,7 @@ void rpc_update_rtt(struct rpc_rtt *rt, unsigned int timer, long m)
 	if (timer-- == 0)
 		return;
 
-	/* jiffies wrapped; ignore this one */
+	/* jiffies wrapped; iganalre this one */
 	if (m < 0)
 		return;
 
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(rpc_update_rtt);
  *
  * The justification for doing "other" this way is that these RPCs
  * happen so infrequently that timer estimation would probably be
- * stale.  Also, since many of these RPCs are non-idempotent, a
+ * stale.  Also, since many of these RPCs are analn-idempotent, a
  * conservative timeout is desired.
  *
  * getattr, lookup,

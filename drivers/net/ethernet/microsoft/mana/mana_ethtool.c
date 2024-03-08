@@ -13,8 +13,8 @@ static const struct {
 } mana_eth_stats[] = {
 	{"stop_queue", offsetof(struct mana_ethtool_stats, stop_queue)},
 	{"wake_queue", offsetof(struct mana_ethtool_stats, wake_queue)},
-	{"hc_rx_discards_no_wqe", offsetof(struct mana_ethtool_stats,
-					   hc_rx_discards_no_wqe)},
+	{"hc_rx_discards_anal_wqe", offsetof(struct mana_ethtool_stats,
+					   hc_rx_discards_anal_wqe)},
 	{"hc_rx_err_vport_disabled", offsetof(struct mana_ethtool_stats,
 					      hc_rx_err_vport_disabled)},
 	{"hc_rx_bytes", offsetof(struct mana_ethtool_stats, hc_rx_bytes)},
@@ -67,12 +67,12 @@ static const struct {
 	{"hc_tx_mcast_bytes", offsetof(struct mana_ethtool_stats,
 					hc_tx_mcast_bytes)},
 	{"tx_cq_err", offsetof(struct mana_ethtool_stats, tx_cqe_err)},
-	{"tx_cqe_unknown_type", offsetof(struct mana_ethtool_stats,
-					tx_cqe_unknown_type)},
+	{"tx_cqe_unkanalwn_type", offsetof(struct mana_ethtool_stats,
+					tx_cqe_unkanalwn_type)},
 	{"rx_coalesced_err", offsetof(struct mana_ethtool_stats,
 					rx_coalesced_err)},
-	{"rx_cqe_unknown_type", offsetof(struct mana_ethtool_stats,
-					rx_cqe_unknown_type)},
+	{"rx_cqe_unkanalwn_type", offsetof(struct mana_ethtool_stats,
+					rx_cqe_unkanalwn_type)},
 };
 
 static int mana_get_sset_count(struct net_device *ndev, int stringset)
@@ -235,7 +235,7 @@ static int mana_get_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *cmd,
 		return 0;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 mana_get_rxfh_key_size(struct net_device *ndev)
@@ -278,11 +278,11 @@ static int mana_set_rxfh(struct net_device *ndev,
 	int i, err;
 
 	if (!apc->port_is_up)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	if (rxfh->hfunc != ETH_RSS_HASH_ANAL_CHANGE &&
 	    rxfh->hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->indir) {
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++)

@@ -22,7 +22,7 @@ static u32 jsm_offset_table[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x8
 /*
  * This function allows calls to ensure that all outstanding
  * PCI writes have been completed, by doing a PCI read against
- * a non-destructive, read-only location on the Neo card.
+ * a analn-destructive, read-only location on the Neo card.
  *
  * In this case, we are reading the DVID (Read-only Device Identification)
  * value of the Neo card.
@@ -178,7 +178,7 @@ static void neo_set_ixoff_flow_control(struct jsm_channel *ch)
 	writeb(ier, &ch->ch_neo_uart->ier);
 }
 
-static void neo_set_no_input_flow_control(struct jsm_channel *ch)
+static void neo_set_anal_input_flow_control(struct jsm_channel *ch)
 {
 	u8 ier, efr;
 	ier = readb(&ch->ch_neo_uart->ier);
@@ -217,7 +217,7 @@ static void neo_set_no_input_flow_control(struct jsm_channel *ch)
 	writeb(ier, &ch->ch_neo_uart->ier);
 }
 
-static void neo_set_no_output_flow_control(struct jsm_channel *ch)
+static void neo_set_anal_output_flow_control(struct jsm_channel *ch)
 {
 	u8 ier, efr;
 	ier = readb(&ch->ch_neo_uart->ier);
@@ -296,8 +296,8 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		qleft += RQUEUEMASK + 1;
 
 	/*
-	 * If the UART is not in FIFO mode, force the FIFO copy to
-	 * NOT be run, by setting total to 0.
+	 * If the UART is analt in FIFO mode, force the FIFO copy to
+	 * ANALT be run, by setting total to 0.
 	 *
 	 * On the other hand, if the UART IS in FIFO mode, then ask
 	 * the UART to give us an approximation of data it has RX'ed.
@@ -386,7 +386,7 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		error_mask |= UART_LSR_BI;
 
 	/*
-	 * Now cleanup any leftover bytes still in the UART.
+	 * Analw cleanup any leftover bytes still in the UART.
 	 * Also deal with any possible queue overflow here as well.
 	 */
 	while (1) {
@@ -398,7 +398,7 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		linestatus |= readb(&ch->ch_neo_uart->lsr);
 
 		/*
-		 * If the chip tells us there is no more data pending to
+		 * If the chip tells us there is anal more data pending to
 		 * be read, we can then leave.
 		 * But before we do, cache the linestatus, just in case.
 		 */
@@ -407,7 +407,7 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 			break;
 		}
 
-		/* No need to store this bit */
+		/* Anal need to store this bit */
 		linestatus &= ~UART_LSR_DR;
 
 		/*
@@ -421,7 +421,7 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		}
 
 		/*
-		 * Discard character if we are ignoring the error mask.
+		 * Discard character if we are iganalring the error mask.
 		 */
 		if (linestatus & error_mask) {
 			u8 discard;
@@ -431,12 +431,12 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		}
 
 		/*
-		 * If our queue is full, we have no choice but to drop some data.
+		 * If our queue is full, we have anal choice but to drop some data.
 		 * The assumption is that HWFLOW or SWFLOW should have stopped
 		 * things way way before we got to this point.
 		 *
 		 * I decided that I wanted to ditch the oldest data first,
-		 * I hope thats okay with everyone? Yes? Good.
+		 * I hope thats okay with everyone? Anal? Good.
 		 */
 		while (qleft < 1) {
 			jsm_dbg(READ, &ch->ch_bd->pci_dev,
@@ -487,7 +487,7 @@ static void neo_copy_data_from_queue_to_uart(struct jsm_channel *ch)
 
 	circ = &ch->uart_port.state->xmit;
 
-	/* No data to write to the UART */
+	/* Anal data to write to the UART */
 	if (uart_circ_empty(circ))
 		return;
 
@@ -617,7 +617,7 @@ static void neo_assert_modem_signals(struct jsm_channel *ch)
 /*
  * Flush the WRITE FIFO on the Neo.
  *
- * NOTE: Channel lock MUST be held before calling this function!
+ * ANALTE: Channel lock MUST be held before calling this function!
  */
 static void neo_flush_uart_write(struct jsm_channel *ch)
 {
@@ -649,7 +649,7 @@ static void neo_flush_uart_write(struct jsm_channel *ch)
 /*
  * Flush the READ FIFO on the Neo.
  *
- * NOTE: Channel lock MUST be held before calling this function!
+ * ANALTE: Channel lock MUST be held before calling this function!
  */
 static void neo_flush_uart_read(struct jsm_channel *ch)
 {
@@ -676,7 +676,7 @@ static void neo_flush_uart_read(struct jsm_channel *ch)
 }
 
 /*
- * No locks are assumed to be held when calling this function.
+ * Anal locks are assumed to be held when calling this function.
  */
 static void neo_clear_break(struct jsm_channel *ch)
 {
@@ -725,8 +725,8 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 
 		isr = readb(&ch->ch_neo_uart->isr_fcr);
 
-		/* Bail if no pending interrupt */
-		if (isr & UART_IIR_NO_INT)
+		/* Bail if anal pending interrupt */
+		if (isr & UART_IIR_ANAL_INT)
 			break;
 
 		/*
@@ -769,7 +769,7 @@ static void neo_parse_isr(struct jsm_board *brd, u32 port)
 			 */
 			spin_lock_irqsave(&ch->ch_lock, lock_flags);
 			if (cause == UART_17158_XON_DETECT) {
-				/* Is output stopped right now, if so, resume it */
+				/* Is output stopped right analw, if so, resume it */
 				if (brd->channels[port]->ch_flags & CH_STOP) {
 					ch->ch_flags &= ~(CH_STOP);
 				}
@@ -865,7 +865,7 @@ static inline void neo_parse_lsr(struct jsm_board *brd, u32 port)
 			__FILE__, __LINE__, port);
 
 	/*
-	 * The next 3 tests should *NOT* happen, as the above test
+	 * The next 3 tests should *ANALT* happen, as the above test
 	 * should encapsulate all 3... At least, thats what Exar says.
 	 */
 
@@ -890,9 +890,9 @@ static inline void neo_parse_lsr(struct jsm_board *brd, u32 port)
 
 	if (linestatus & UART_LSR_OE) {
 		/*
-		 * Rx Oruns. Exar says that an orun will NOT corrupt
+		 * Rx Oruns. Exar says that an orun will ANALT corrupt
 		 * the FIFO. It will just replace the holding register
-		 * with this new data byte. So basically just ignore this.
+		 * with this new data byte. So basically just iganalre this.
 		 * Probably we should eventually have an orun stat in our driver...
 		 */
 		ch->ch_err_overrun++;
@@ -1035,27 +1035,27 @@ static void neo_param(struct jsm_channel *ch)
 	else if (ch->ch_c_iflag & IXON) {
 		/* If start/stop is set to disable, then we should disable flow control */
 		if ((ch->ch_startc == __DISABLED_CHAR) || (ch->ch_stopc == __DISABLED_CHAR))
-			neo_set_no_output_flow_control(ch);
+			neo_set_anal_output_flow_control(ch);
 		else
 			neo_set_ixon_flow_control(ch);
 	}
 	else
-		neo_set_no_output_flow_control(ch);
+		neo_set_anal_output_flow_control(ch);
 
 	if (ch->ch_c_cflag & CRTSCTS)
 		neo_set_rts_flow_control(ch);
 	else if (ch->ch_c_iflag & IXOFF) {
 		/* If start/stop is set to disable, then we should disable flow control */
 		if ((ch->ch_startc == __DISABLED_CHAR) || (ch->ch_stopc == __DISABLED_CHAR))
-			neo_set_no_input_flow_control(ch);
+			neo_set_anal_input_flow_control(ch);
 		else
 			neo_set_ixoff_flow_control(ch);
 	}
 	else
-		neo_set_no_input_flow_control(ch);
+		neo_set_anal_input_flow_control(ch);
 	/*
 	 * Adjust the RX FIFO Trigger level if baud is less than 9600.
-	 * Not exactly elegant, but this is needed because of the Exar chip's
+	 * Analt exactly elegant, but this is needed because of the Exar chip's
 	 * delay on firing off the RX FIFO interrupt on slower baud rates.
 	 */
 	if (baud < 9600) {
@@ -1065,7 +1065,7 @@ static void neo_param(struct jsm_channel *ch)
 
 	neo_assert_modem_signals(ch);
 
-	/* Get current status of the modem signals now */
+	/* Get current status of the modem signals analw */
 	neo_parse_modem(ch, readb(&ch->ch_neo_uart->msr));
 	return;
 }
@@ -1103,9 +1103,9 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 
 	if (!uart_poll) {
 		jsm_dbg(INTR, &brd->pci_dev,
-			"Kernel interrupted to me, but no pending interrupts...\n");
+			"Kernel interrupted to me, but anal pending interrupts...\n");
 		spin_unlock_irqrestore(&brd->bd_intr_lock, lock_flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* At this point, we have at least SOMETHING to service, dig further... */
@@ -1135,9 +1135,9 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 		uart_poll &= ~(jsm_offset_table[port]);
 
 		if (!type) {
-			/* If no type, just ignore it, and move onto next port */
+			/* If anal type, just iganalre it, and move onto next port */
 			jsm_dbg(INTR, &brd->pci_dev,
-				"Interrupt with no type! port: %d\n", port);
+				"Interrupt with anal type! port: %d\n", port);
 			continue;
 		}
 
@@ -1180,9 +1180,9 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 */
 
 			/*
-			 * Yes, this is odd...
+			 * Anal, this is odd...
 			 * Why would I check EVERY possibility of type of
-			 * interrupt, when we know its TXRDY???
+			 * interrupt, when we kanalw its TXRDY???
 			 * Becuz for some reason, even tho we got triggered for TXRDY,
 			 * it seems to be occasionally wrong. Instead of TX, which
 			 * it should be, I was getting things like RXDY too. Weird.
@@ -1202,10 +1202,10 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * The UART triggered us with a bogus interrupt type.
 			 * It appears the Exar chip, when REALLY bogged down, will throw
 			 * these once and awhile.
-			 * Its harmless, just ignore it and move on.
+			 * Its harmless, just iganalre it and move on.
 			 */
 			jsm_dbg(INTR, &brd->pci_dev,
-				"%s:%d Unknown Interrupt type: %x\n",
+				"%s:%d Unkanalwn Interrupt type: %x\n",
 				__FILE__, __LINE__, type);
 			continue;
 		}

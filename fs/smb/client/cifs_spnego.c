@@ -27,7 +27,7 @@ cifs_spnego_key_instantiate(struct key *key, struct key_preparsed_payload *prep)
 	char *payload;
 	int ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	payload = kmemdup(prep->data, prep->datalen, GFP_KERNEL);
 	if (!payload)
 		goto error;
@@ -108,7 +108,7 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 	if (sesInfo->user_name)
 		desc_len += USER_KEY_LEN + strlen(sesInfo->user_name);
 
-	spnego_key = ERR_PTR(-ENOMEM);
+	spnego_key = ERR_PTR(-EANALMEM);
 	description = kzalloc(desc_len, GFP_KERNEL);
 	if (description == NULL)
 		goto out;
@@ -130,13 +130,13 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 
 	dp = description + strlen(description);
 
-	/* for now, only sec=krb5 and sec=mskrb5 are valid */
+	/* for analw, only sec=krb5 and sec=mskrb5 are valid */
 	if (server->sec_kerberos)
 		sprintf(dp, ";sec=krb5");
 	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
 	else {
-		cifs_dbg(VFS, "unknown or missing server auth type, use krb5\n");
+		cifs_dbg(VFS, "unkanalwn or missing server auth type, use krb5\n");
 		sprintf(dp, ";sec=krb5");
 	}
 
@@ -191,13 +191,13 @@ init_cifs_spnego(void)
 
 	cred = prepare_kernel_cred(&init_task);
 	if (!cred)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keyring = keyring_alloc(".cifs_spnego",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
 				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				KEY_USR_VIEW | KEY_USR_READ,
-				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+				KEY_ALLOC_ANALT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto failed_put_cred;

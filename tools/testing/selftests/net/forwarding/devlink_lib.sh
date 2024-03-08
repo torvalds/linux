@@ -8,14 +8,14 @@ ksft_skip=4
 # Defines
 
 if [[ ! -v DEVLINK_DEV ]]; then
-	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]:-$NETIF_NO_CABLE}" -j \
+	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]:-$NETIF_ANAL_CABLE}" -j \
 			     | jq -r '.port | keys[]' | cut -d/ -f-2)
 	if [ -z "$DEVLINK_DEV" ]; then
-		echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
+		echo "SKIP: ${NETIFS[p1]} has anal devlink device registered for it"
 		exit $ksft_skip
 	fi
 	if [[ "$(echo $DEVLINK_DEV | grep -c pci)" -eq 0 ]]; then
-		echo "SKIP: devlink device's bus is not PCI"
+		echo "SKIP: devlink device's bus is analt PCI"
 		exit $ksft_skip
 	fi
 
@@ -24,7 +24,7 @@ if [[ ! -v DEVLINK_DEV ]]; then
 elif [[ ! -z "$DEVLINK_DEV" ]]; then
 	devlink dev show $DEVLINK_DEV &> /dev/null
 	if [ $? -ne 0 ]; then
-		echo "SKIP: devlink device \"$DEVLINK_DEV\" not found"
+		echo "SKIP: devlink device \"$DEVLINK_DEV\" analt found"
 		exit $ksft_skip
 	fi
 fi
@@ -466,13 +466,13 @@ devlink_trap_drop_test()
 	group_name=$(devlink_trap_group_get $trap_name)
 
 	# This is the common part of all the tests. It checks that stats are
-	# initially idle, then non-idle after changing the trap action and
+	# initially idle, then analn-idle after changing the trap action and
 	# finally idle again. It also makes sure the packets are dropped and
 	# never forwarded.
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle with initial drop action"
+	check_err $? "Trap stats analt idle with initial drop action"
 	devlink_trap_group_stats_idle_test $group_name
-	check_err $? "Trap group stats not idle with initial drop action"
+	check_err $? "Trap group stats analt idle with initial drop action"
 
 	devlink_trap_action_set $trap_name "trap"
 	devlink_trap_stats_idle_test $trap_name
@@ -483,12 +483,12 @@ devlink_trap_drop_test()
 	devlink_trap_action_set $trap_name "drop"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle after setting action to drop"
+	check_err $? "Trap stats analt idle after setting action to drop"
 	devlink_trap_group_stats_idle_test $group_name
-	check_err $? "Trap group stats not idle after setting action to drop"
+	check_err $? "Trap group stats analt idle after setting action to drop"
 
 	tc_check_packets "dev $dev egress" $handle 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were analt dropped"
 }
 
 devlink_trap_drop_cleanup()
@@ -526,7 +526,7 @@ devlink_trap_stats_test()
 	RET=0
 
 	devlink_trap_stats_check "$@"
-	check_err $? "Trap stats did not increase"
+	check_err $? "Trap stats did analt increase"
 
 	log_test "$test_name"
 }

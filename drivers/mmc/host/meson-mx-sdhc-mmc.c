@@ -161,10 +161,10 @@ static void meson_mx_sdhc_start_cmd(struct mmc_host *mmc,
 			send |= MESON_SDHC_SEND_DATA_DIR;
 
 		/*
-		 * If command with no data, just wait response done
+		 * If command with anal data, just wait response done
 		 * interrupt(int[0]), and if command with data transfer, just
 		 * wait dma done interrupt(int[11]), don't need care about
-		 * dat0 busy or not.
+		 * dat0 busy or analt.
 		 */
 		if (host->platform->hardware_flush_all_cmds ||
 		    cmd->data->flags & MMC_DATA_WRITE)
@@ -180,7 +180,7 @@ static void meson_mx_sdhc_start_cmd(struct mmc_host *mmc,
 		 * MESON_SDHC_MISC_MANUAL_STOP bit. This fixes the firmware
 		 * download in the brcmfmac driver for a BCM43362/1 card.
 		 * Without this sdio_memcpy_toio() (with a size of 219557
-		 * bytes) times out if MESON_SDHC_MISC_MANUAL_STOP is not set.
+		 * bytes) times out if MESON_SDHC_MISC_MANUAL_STOP is analt set.
 		 */
 		manual_stop = cmd->data->blocks > 1 &&
 			      cmd->opcode == SD_IO_RW_EXTENDED;
@@ -202,11 +202,11 @@ static void meson_mx_sdhc_start_cmd(struct mmc_host *mmc,
 
 	if (cmd->flags & MMC_RSP_136) {
 		send |= MESON_SDHC_SEND_RESP_LEN;
-		send |= MESON_SDHC_SEND_RESP_NO_CRC;
+		send |= MESON_SDHC_SEND_RESP_ANAL_CRC;
 	}
 
 	if (!(cmd->flags & MMC_RSP_CRC))
-		send |= MESON_SDHC_SEND_RESP_NO_CRC;
+		send |= MESON_SDHC_SEND_RESP_ANAL_CRC;
 
 	if (cmd->flags & MMC_RSP_BUSY)
 		send |= MESON_SDHC_SEND_R1B;
@@ -374,7 +374,7 @@ static int meson_mx_sdhc_map_dma(struct mmc_host *mmc, struct mmc_request *mrq)
 			     mmc_get_dma_dir(data));
 	if (!dma_len) {
 		dev_err(mmc_dev(mmc), "dma_map_sg failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -478,7 +478,7 @@ static int meson_mx_sdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		/* there was a better window than the last */
 		new_phase = best_start + (best_len / 2);
 	else
-		/* no window was found at all, reset to the original phase */
+		/* anal window was found at all, reset to the original phase */
 		new_phase = old_phase;
 
 	regmap_update_bits(host->regmap, MESON_SDHC_CLK2,
@@ -547,7 +547,7 @@ static irqreturn_t meson_mx_sdhc_irq(int irq, void *data)
 	regmap_read(host->regmap, MESON_SDHC_ISTA, &ista);
 
 	if (!(ictl & ista))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (ista & MESON_SDHC_ISTA_RXFIFO_FULL ||
 	    ista & MESON_SDHC_ISTA_TXFIFO_EMPTY)
@@ -591,7 +591,7 @@ static irqreturn_t meson_mx_sdhc_irq_thread(int irq, void *irq_data)
 			 * previously 0x1 then it has to be set to 0x3. If it
 			 * was 0x0 before then it has to be set to 0x2. Without
 			 * this reading SD cards sometimes transfers garbage,
-			 * which results in cards not being detected due to:
+			 * which results in cards analt being detected due to:
 			 *   unrecognised SCR structure version <random number>
 			 */
 			val = FIELD_PREP(MESON_SDHC_PDMA_RXFIFO_MANUAL_FLUSH,
@@ -622,7 +622,7 @@ static irqreturn_t meson_mx_sdhc_irq_thread(int irq, void *irq_data)
 	else if (cmd->data)
 		/*
 		 * Clear the FIFOs after completing data transfers to prevent
-		 * corrupting data on write access. It's not clear why this is
+		 * corrupting data on write access. It's analt clear why this is
 		 * needed (for reads and writes), but it mimics what the BSP
 		 * kernel did.
 		 */
@@ -775,7 +775,7 @@ static int meson_mx_sdhc_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(*host), dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = devm_add_action_or_reset(dev, meason_mx_mmc_free_host, mmc);
 	if (ret) {
@@ -910,7 +910,7 @@ static struct platform_driver meson_mx_sdhc_driver = {
 	.remove_new = meson_mx_sdhc_remove,
 	.driver  = {
 		.name = "meson-mx-sdhc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(meson_mx_sdhc_of_match),
 	},
 };

@@ -34,7 +34,7 @@
 
 /*
  * Enable the CORE interrupt.
- * The interrupt will be asserted when there is non-STAT_IDLE state in the
+ * The interrupt will be asserted when there is analn-STAT_IDLE state in the
  * SW_TWSI_EOP_TWSI_STAT register.
  */
 static void thunder_i2c_int_enable(struct octeon_i2c *i2c)
@@ -116,14 +116,14 @@ static void thunder_i2c_clock_disable(struct device *dev, struct clk *clk)
 }
 
 static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
-				      struct device_node *node)
+				      struct device_analde *analde)
 {
 	struct i2c_client *ara;
 
-	if (!node)
+	if (!analde)
 		return -EINVAL;
 
-	i2c->alert_data.irq = irq_of_parse_and_map(node, 0);
+	i2c->alert_data.irq = irq_of_parse_and_map(analde, 0);
 	if (!i2c->alert_data.irq)
 		return -EINVAL;
 
@@ -137,13 +137,13 @@ static int thunder_i2c_smbus_setup_of(struct octeon_i2c *i2c,
 }
 
 static int thunder_i2c_smbus_setup(struct octeon_i2c *i2c,
-				   struct device_node *node)
+				   struct device_analde *analde)
 {
 	/* TODO: ACPI support */
 	if (!acpi_disabled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	return thunder_i2c_smbus_setup_of(i2c, node);
+	return thunder_i2c_smbus_setup_of(i2c, analde);
 }
 
 static void thunder_i2c_smbus_remove(struct octeon_i2c *i2c)
@@ -160,7 +160,7 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 
 	i2c = devm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c->roff.sw_twsi = 0x1000;
 	i2c->roff.twsi_int = 0x1010;
@@ -212,8 +212,8 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	i2c->adap.class = I2C_CLASS_HWMON;
 	i2c->adap.bus_recovery_info = &octeon_i2c_recovery_info;
 	i2c->adap.dev.parent = dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
-	i2c->adap.dev.fwnode = dev->fwnode;
+	i2c->adap.dev.of_analde = pdev->dev.of_analde;
+	i2c->adap.dev.fwanalde = dev->fwanalde;
 	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
 		 "Cavium ThunderX i2c adapter at %s", dev_name(dev));
 	i2c_set_adapdata(&i2c->adap, i2c);
@@ -224,9 +224,9 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 
 	dev_info(i2c->dev, "Probed. Set system clock to %u\n", i2c->sys_freq);
 
-	ret = thunder_i2c_smbus_setup(i2c, pdev->dev.of_node);
+	ret = thunder_i2c_smbus_setup(i2c, pdev->dev.of_analde);
 	if (ret)
-		dev_info(dev, "SMBUS alert not active on this bus\n");
+		dev_info(dev, "SMBUS alert analt active on this bus\n");
 
 	return 0;
 

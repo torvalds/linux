@@ -108,22 +108,22 @@ static void afs_done_one_fs_probe(struct afs_net *net, struct afs_server *server
 }
 
 /*
- * Handle inability to send a probe due to ENOMEM when trying to allocate a
+ * Handle inability to send a probe due to EANALMEM when trying to allocate a
  * call struct.
  */
-static void afs_fs_probe_not_done(struct afs_net *net,
+static void afs_fs_probe_analt_done(struct afs_net *net,
 				  struct afs_server *server,
 				  struct afs_endpoint_state *estate,
 				  int index)
 {
 	_enter("");
 
-	trace_afs_io_error(0, -ENOMEM, afs_io_error_fs_probe_fail);
+	trace_afs_io_error(0, -EANALMEM, afs_io_error_fs_probe_fail);
 	spin_lock(&server->probe_lock);
 
 	set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
 	if (estate->error == 0)
-		estate->error = -ENOMEM;
+		estate->error = -EANALMEM;
 
 	set_bit(index, &estate->failed_set);
 
@@ -161,15 +161,15 @@ void afs_fileserver_probe_result(struct afs_call *call)
 			estate->error = ret;
 		}
 		goto responded;
-	case -ENOMEM:
-	case -ENONET:
+	case -EANALMEM:
+	case -EANALNET:
 		clear_bit(index, &estate->responsive_set);
 		set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
 		trace_afs_io_error(call->debug_id, ret, afs_io_error_fs_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
 	case -ERFKILL:
-	case -EADDRNOTAVAIL:
+	case -EADDRANALTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -EHOSTDOWN:
@@ -196,7 +196,7 @@ responded:
 		set_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
 		server->service_id = call->service_id;
 	} else {
-		set_bit(AFS_ESTATE_NOT_YFS, &estate->flags);
+		set_bit(AFS_ESTATE_ANALT_YFS, &estate->flags);
 		if (!test_bit(AFS_ESTATE_IS_YFS, &estate->flags)) {
 			clear_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
 			server->service_id = call->service_id;
@@ -289,7 +289,7 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 
 		trace_afs_fs_probe(server, true, estate, index, 0, 0, 0);
 		if (!afs_fs_get_capabilities(net, server, estate, index, key))
-			afs_fs_probe_not_done(net, server, estate, index);
+			afs_fs_probe_analt_done(net, server, estate, index);
 	}
 
 	afs_put_endpoint_state(old, afs_estate_trace_put_probe);
@@ -408,7 +408,7 @@ void afs_fs_probe_dispatcher(struct work_struct *work)
 {
 	struct afs_net *net = container_of(work, struct afs_net, fs_prober);
 	struct afs_server *fast, *slow, *server;
-	unsigned long nowj, timer_at, poll_at;
+	unsigned long analwj, timer_at, poll_at;
 	bool first_pass = true, set_timer = false;
 
 	if (!net->live) {
@@ -420,7 +420,7 @@ void afs_fs_probe_dispatcher(struct work_struct *work)
 
 	if (list_empty(&net->fs_probe_fast) && list_empty(&net->fs_probe_slow)) {
 		afs_dec_servers_outstanding(net);
-		_leave(" [none]");
+		_leave(" [analne]");
 		return;
 	}
 
@@ -428,13 +428,13 @@ again:
 	write_seqlock(&net->fs_lock);
 
 	fast = slow = server = NULL;
-	nowj = jiffies;
-	timer_at = nowj + MAX_JIFFY_OFFSET;
+	analwj = jiffies;
+	timer_at = analwj + MAX_JIFFY_OFFSET;
 
 	if (!list_empty(&net->fs_probe_fast)) {
 		fast = list_first_entry(&net->fs_probe_fast, struct afs_server, probe_link);
 		poll_at = fast->probed_at + afs_fs_probe_fast_poll_interval;
-		if (time_before(nowj, poll_at)) {
+		if (time_before(analwj, poll_at)) {
 			timer_at = poll_at;
 			set_timer = true;
 			fast = NULL;
@@ -444,7 +444,7 @@ again:
 	if (!list_empty(&net->fs_probe_slow)) {
 		slow = list_first_entry(&net->fs_probe_slow, struct afs_server, probe_link);
 		poll_at = slow->probed_at + afs_fs_probe_slow_poll_interval;
-		if (time_before(nowj, poll_at)) {
+		if (time_before(analwj, poll_at)) {
 			if (time_before(poll_at, timer_at))
 			    timer_at = poll_at;
 			set_timer = true;

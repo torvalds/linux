@@ -31,7 +31,7 @@ int pinctrl_utils_reserve_map(struct pinctrl_dev *pctldev,
 	new_map = krealloc_array(*map, new_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map) {
 		dev_err(pctldev->dev, "krealloc(map) failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(new_map + old_num, 0, (new_num - old_num) * sizeof(*new_map));
@@ -48,7 +48,7 @@ int pinctrl_utils_add_map_mux(struct pinctrl_dev *pctldev,
 		const char *function)
 {
 	if (WARN_ON(*num_maps == *reserved_maps))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	(*map)[*num_maps].type = PIN_MAP_TYPE_MUX_GROUP;
 	(*map)[*num_maps].data.mux.group = group;
@@ -68,12 +68,12 @@ int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
 	unsigned long *dup_configs;
 
 	if (WARN_ON(*num_maps == *reserved_maps))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dup_configs = kmemdup(configs, num_configs * sizeof(*dup_configs),
 			      GFP_KERNEL);
 	if (!dup_configs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	(*map)[*num_maps].type = type;
 	(*map)[*num_maps].data.configs.group_or_pin = group;
@@ -97,7 +97,7 @@ int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
 			       GFP_KERNEL);
 	if (!new_configs) {
 		dev_err(pctldev->dev, "krealloc(configs) failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new_configs[old_num] = config;

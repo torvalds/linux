@@ -39,16 +39,16 @@
 #define   HORIZ_B_MASK				GENMASK(7, 4)
 #define   HORIZ_C_POS				8
 #define   HORIZ_C_MASK				GENMASK(11, 8)
-#define   HORIZ_H_NORM_POS			12
-#define   HORIZ_H_NORM_MASK			GENMASK(14, 12)
+#define   HORIZ_H_ANALRM_POS			12
+#define   HORIZ_H_ANALRM_MASK			GENMASK(14, 12)
 #define   VERT_A_POS				16
 #define   VERT_A_MASK				GENMASK(19, 16)
 #define   VERT_B_POS				20
 #define   VERT_B_MASK				GENMASK(23, 20)
 #define   VERT_C_POS				24
 #define   VERT_C_MASK				GENMASK(27, 24)
-#define   VERT_H_NORM_POS			28
-#define   VERT_H_NORM_MASK			GENMASK(30, 28)
+#define   VERT_H_ANALRM_POS			28
+#define   VERT_H_ANALRM_MASK			GENMASK(30, 28)
 #define DCSS_SS_CLIP_CB				0x80
 #define DCSS_SS_CLIP_CR				0x90
 #define   CLIP_MIN_POS				0
@@ -85,7 +85,7 @@ int dcss_ss_init(struct dcss_dev *dcss, unsigned long ss_base)
 
 	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
 	if (!ss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dcss->ss = ss;
 	ss->dev = dcss->dev;
@@ -95,7 +95,7 @@ int dcss_ss_init(struct dcss_dev *dcss, unsigned long ss_base)
 	if (!ss->base_reg) {
 		dev_err(dcss->dev, "ss: unable to remap ss base\n");
 		kfree(ss);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ss->base_ofs = ss_base;

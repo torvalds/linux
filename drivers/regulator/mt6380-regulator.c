@@ -187,7 +187,7 @@ static int mt6380_regulator_set_mode(struct regulator_dev *rdev,
 	struct mt6380_regulator_info *info = rdev_get_drvdata(rdev);
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = MT6380_REGULATOR_MODE_AUTO;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -219,7 +219,7 @@ static unsigned int mt6380_regulator_get_mode(struct regulator_dev *rdev)
 
 	switch (val) {
 	case MT6380_REGULATOR_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case MT6380_REGULATOR_MODE_FORCE_PWM:
 		mode = REGULATOR_MODE_FAST;
@@ -328,7 +328,7 @@ MODULE_DEVICE_TABLE(of, mt6380_of_match);
 static struct platform_driver mt6380_regulator_driver = {
 	.driver = {
 		.name = "mt6380-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(mt6380_of_match),
 	},
 	.probe = mt6380_regulator_probe,

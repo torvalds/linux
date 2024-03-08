@@ -44,7 +44,7 @@ static inline uint64_t timer_get_cntct(enum arch_timer timer)
 		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
-	/* We should not reach here */
+	/* We should analt reach here */
 	return 0;
 }
 
@@ -75,7 +75,7 @@ static inline uint64_t timer_get_cval(enum arch_timer timer)
 		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
-	/* We should not reach here */
+	/* We should analt reach here */
 	return 0;
 }
 
@@ -122,14 +122,14 @@ static inline uint32_t timer_get_ctl(enum arch_timer timer)
 		GUEST_FAIL("Unexpected timer type = %u", timer);
 	}
 
-	/* We should not reach here */
+	/* We should analt reach here */
 	return 0;
 }
 
 static inline void timer_set_next_cval_ms(enum arch_timer timer, uint32_t msec)
 {
-	uint64_t now_ct = timer_get_cntct(timer);
-	uint64_t next_ct = now_ct + msec_to_cycles(msec);
+	uint64_t analw_ct = timer_get_cntct(timer);
+	uint64_t next_ct = analw_ct + msec_to_cycles(msec);
 
 	timer_set_cval(timer, next_ct);
 }

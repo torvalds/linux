@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroanalme Systems, Inc. */
 
 #ifndef NFP_FLOWER_CMSG_H
 #define NFP_FLOWER_CMSG_H
@@ -116,7 +116,7 @@
 	} while (0)
 
 enum nfp_flower_tun_type {
-	NFP_FL_TUNNEL_NONE =	0,
+	NFP_FL_TUNNEL_ANALNE =	0,
 	NFP_FL_TUNNEL_GRE =	1,
 	NFP_FL_TUNNEL_VXLAN =	2,
 	NFP_FL_TUNNEL_GENEVE =	4,
@@ -273,7 +273,7 @@ struct nfp_fl_meter {
  * |    key_type   |    mask_id    | PCP |p|   vlan outermost VID  |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *                                 ^                               ^
- *                           NOTE: |             TCI               |
+ *                           ANALTE: |             TCI               |
  *                                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 struct nfp_flower_meta_tci {
@@ -582,7 +582,7 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_MAC_REPR =		7,
 	NFP_FLOWER_CMSG_TYPE_PORT_MOD =		8,
 	NFP_FLOWER_CMSG_TYPE_MERGE_HINT =	9,
-	NFP_FLOWER_CMSG_TYPE_NO_NEIGH =		10,
+	NFP_FLOWER_CMSG_TYPE_ANAL_NEIGH =		10,
 	NFP_FLOWER_CMSG_TYPE_TUN_MAC =		11,
 	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS =	12,
 	NFP_FLOWER_CMSG_TYPE_TUN_NEIGH =	13,
@@ -594,7 +594,7 @@ enum nfp_flower_cmsg_type_port {
 	NFP_FLOWER_CMSG_TYPE_QOS_STATS =	20,
 	NFP_FLOWER_CMSG_TYPE_PRE_TUN_RULE =	21,
 	NFP_FLOWER_CMSG_TYPE_TUN_IPS_V6 =	22,
-	NFP_FLOWER_CMSG_TYPE_NO_NEIGH_V6 =	23,
+	NFP_FLOWER_CMSG_TYPE_ANAL_NEIGH_V6 =	23,
 	NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 =	24,
 	NFP_FLOWER_CMSG_TYPE_ACTIVE_TUNS_V6 =	25,
 	NFP_FLOWER_CMSG_TYPE_MAX =		32,

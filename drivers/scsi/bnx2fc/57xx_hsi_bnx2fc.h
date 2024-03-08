@@ -363,7 +363,7 @@ struct fcoe_kwqe_init1 {
  */
 struct fcoe_kwqe_init2 {
 	u8 hsi_major_version;
-	u8 hsi_minor_version;
+	u8 hsi_mianalr_version;
 	struct fcoe_kwqe_header hdr;
 	__le32 hash_tbl_pbl_addr_lo;
 	__le32 hash_tbl_pbl_addr_hi;

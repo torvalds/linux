@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
 /*
  * vboxguest vmm-req and hgcm-call code, VBoxGuestR0LibHGCMInternal.cpp,
- * VBoxGuestR0LibGenericRequest.cpp and RTErrConvertToErrno.cpp in vbox svn.
+ * VBoxGuestR0LibGenericRequest.cpp and RTErrConvertToErranal.cpp in vbox svn.
  *
  * Copyright (C) 2006-2016 Oracle Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -94,7 +94,7 @@ void vbg_req_free(void *req, size_t len)
 	free_pages((unsigned long)req, get_order(PAGE_ALIGN(len)));
 }
 
-/* Note this function returns a VBox status code, not a negative errno!! */
+/* Analte this function returns a VBox status code, analt a negative erranal!! */
 int vbg_req_perform(struct vbg_dev *gdev, void *req)
 {
 	unsigned long phys_req = virt_to_phys(req);
@@ -132,7 +132,7 @@ int vbg_hgcm_connect(struct vbg_dev *gdev, u32 requestor,
 	hgcm_connect = vbg_req_alloc(sizeof(*hgcm_connect),
 				     VMMDEVREQ_HGCM_CONNECT, requestor);
 	if (!hgcm_connect)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hgcm_connect->header.flags = 0;
 	memcpy(&hgcm_connect->loc, loc, sizeof(*loc));
@@ -166,7 +166,7 @@ int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 requestor,
 					VMMDEVREQ_HGCM_DISCONNECT,
 					requestor);
 	if (!hgcm_disconnect)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hgcm_disconnect->header.flags = 0;
 	hgcm_disconnect->client_id = client_id;
@@ -220,7 +220,7 @@ static int hgcm_call_preprocess_linaddr(
 
 	bounce_buf = kvmalloc(len, GFP_KERNEL);
 	if (!bounce_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*bounce_buf_ret = bounce_buf;
 
@@ -246,7 +246,7 @@ static int hgcm_call_preprocess_linaddr(
  * @extra:            Where to return the extra request space needed for
  *                    physical page lists.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int hgcm_call_preprocess(
 	const struct vmmdev_hgcm_function_parameter *src_parm,
@@ -270,7 +270,7 @@ static int hgcm_call_preprocess(
 						      sizeof(void *),
 						      GFP_KERNEL);
 				if (!bounce_bufs)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				*bounce_bufs_ret = bounce_bufs;
 			}
@@ -449,13 +449,13 @@ static int hgcm_cancel_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call)
 	rc = vbg_req_perform(gdev, gdev->cancel_req);
 	mutex_unlock(&gdev->cancel_req_mutex);
 
-	if (rc == VERR_NOT_IMPLEMENTED) {
+	if (rc == VERR_ANALT_IMPLEMENTED) {
 		call->header.flags |= VMMDEV_HGCM_REQ_CANCELLED;
 		call->header.header.request_type = VMMDEVREQ_HGCM_CANCEL;
 
 		rc = vbg_req_perform(gdev, call);
 		if (rc == VERR_INVALID_PARAMETER)
-			rc = VERR_NOT_FOUND;
+			rc = VERR_ANALT_FOUND;
 	}
 
 	if (rc >= 0)
@@ -473,7 +473,7 @@ static int hgcm_cancel_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call)
  * @leak_it:     Where to return the leak it / free it, indicator.
  *               Cancellation fun.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 			    u32 timeout_ms, bool interruptible, bool *leak_it)
@@ -497,7 +497,7 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 	if (rc != VINF_HGCM_ASYNC_EXECUTE)
 		return 0;
 
-	/* Host decided to process the request asynchronously, wait for it */
+	/* Host decided to process the request asynchroanalusly, wait for it */
 	if (timeout_ms == U32_MAX)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 	else
@@ -529,9 +529,9 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 
 	/*
 	 * Failed to cancel, this should mean that the cancel has lost the
-	 * race with normal completion, wait while the host completes it.
+	 * race with analrmal completion, wait while the host completes it.
 	 */
-	if (cancel_rc == VERR_NOT_FOUND || cancel_rc == VERR_SEM_DESTROYED)
+	if (cancel_rc == VERR_ANALT_FOUND || cancel_rc == VERR_SEM_DESTROYED)
 		timeout = msecs_to_jiffies(500);
 	else
 		timeout = msecs_to_jiffies(2000);
@@ -548,7 +548,7 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 		return ret;
 	}
 
-	/* The call has completed normally after all */
+	/* The call has completed analrmally after all */
 	return 0;
 }
 
@@ -560,7 +560,7 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
  * @parm_count:      Number of function call parameters.
  * @bounce_bufs:     The bouncebuffer array.
  *
- * Return: %0 or negative errno value.
+ * Return: %0 or negative erranal value.
  */
 static int hgcm_call_copy_back_result(
 	const struct vmmdev_hgcm_call *call,
@@ -638,7 +638,7 @@ int vbg_hgcm_call(struct vbg_dev *gdev, u32 requestor, u32 client_id,
 
 	call = vbg_req_alloc(size, VMMDEVREQ_HGCM_CALL, requestor);
 	if (!call) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_bounce_bufs;
 	}
 
@@ -681,7 +681,7 @@ int vbg_hgcm_call32(
 	size = parm_count * sizeof(struct vmmdev_hgcm_function_parameter);
 	parm64 = kzalloc(size, GFP_KERNEL);
 	if (!parm64)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < parm_count; i++) {
 		switch (parm32[i].type) {
@@ -745,66 +745,66 @@ out_free:
 }
 #endif
 
-static const int vbg_status_code_to_errno_table[] = {
+static const int vbg_status_code_to_erranal_table[] = {
 	[-VERR_ACCESS_DENIED]                            = -EPERM,
-	[-VERR_FILE_NOT_FOUND]                           = -ENOENT,
-	[-VERR_PROCESS_NOT_FOUND]                        = -ESRCH,
+	[-VERR_FILE_ANALT_FOUND]                           = -EANALENT,
+	[-VERR_PROCESS_ANALT_FOUND]                        = -ESRCH,
 	[-VERR_INTERRUPTED]                              = -EINTR,
 	[-VERR_DEV_IO_ERROR]                             = -EIO,
 	[-VERR_TOO_MUCH_DATA]                            = -E2BIG,
-	[-VERR_BAD_EXE_FORMAT]                           = -ENOEXEC,
+	[-VERR_BAD_EXE_FORMAT]                           = -EANALEXEC,
 	[-VERR_INVALID_HANDLE]                           = -EBADF,
 	[-VERR_TRY_AGAIN]                                = -EAGAIN,
-	[-VERR_NO_MEMORY]                                = -ENOMEM,
+	[-VERR_ANAL_MEMORY]                                = -EANALMEM,
 	[-VERR_INVALID_POINTER]                          = -EFAULT,
 	[-VERR_RESOURCE_BUSY]                            = -EBUSY,
 	[-VERR_ALREADY_EXISTS]                           = -EEXIST,
-	[-VERR_NOT_SAME_DEVICE]                          = -EXDEV,
-	[-VERR_NOT_A_DIRECTORY]                          = -ENOTDIR,
-	[-VERR_PATH_NOT_FOUND]                           = -ENOTDIR,
-	[-VERR_INVALID_NAME]                             = -ENOENT,
+	[-VERR_ANALT_SAME_DEVICE]                          = -EXDEV,
+	[-VERR_ANALT_A_DIRECTORY]                          = -EANALTDIR,
+	[-VERR_PATH_ANALT_FOUND]                           = -EANALTDIR,
+	[-VERR_INVALID_NAME]                             = -EANALENT,
 	[-VERR_IS_A_DIRECTORY]                           = -EISDIR,
 	[-VERR_INVALID_PARAMETER]                        = -EINVAL,
 	[-VERR_TOO_MANY_OPEN_FILES]                      = -ENFILE,
-	[-VERR_INVALID_FUNCTION]                         = -ENOTTY,
+	[-VERR_INVALID_FUNCTION]                         = -EANALTTY,
 	[-VERR_SHARING_VIOLATION]                        = -ETXTBSY,
 	[-VERR_FILE_TOO_BIG]                             = -EFBIG,
-	[-VERR_DISK_FULL]                                = -ENOSPC,
+	[-VERR_DISK_FULL]                                = -EANALSPC,
 	[-VERR_SEEK_ON_DEVICE]                           = -ESPIPE,
 	[-VERR_WRITE_PROTECT]                            = -EROFS,
 	[-VERR_BROKEN_PIPE]                              = -EPIPE,
 	[-VERR_DEADLOCK]                                 = -EDEADLK,
 	[-VERR_FILENAME_TOO_LONG]                        = -ENAMETOOLONG,
-	[-VERR_FILE_LOCK_FAILED]                         = -ENOLCK,
-	[-VERR_NOT_IMPLEMENTED]                          = -ENOSYS,
-	[-VERR_NOT_SUPPORTED]                            = -ENOSYS,
-	[-VERR_DIR_NOT_EMPTY]                            = -ENOTEMPTY,
+	[-VERR_FILE_LOCK_FAILED]                         = -EANALLCK,
+	[-VERR_ANALT_IMPLEMENTED]                          = -EANALSYS,
+	[-VERR_ANALT_SUPPORTED]                            = -EANALSYS,
+	[-VERR_DIR_ANALT_EMPTY]                            = -EANALTEMPTY,
 	[-VERR_TOO_MANY_SYMLINKS]                        = -ELOOP,
-	[-VERR_NO_MORE_FILES]				 = -ENODATA,
-	[-VERR_NO_DATA]                                  = -ENODATA,
-	[-VERR_NET_NO_NETWORK]                           = -ENONET,
-	[-VERR_NET_NOT_UNIQUE_NAME]                      = -ENOTUNIQ,
-	[-VERR_NO_TRANSLATION]                           = -EILSEQ,
-	[-VERR_NET_NOT_SOCKET]                           = -ENOTSOCK,
+	[-VERR_ANAL_MORE_FILES]				 = -EANALDATA,
+	[-VERR_ANAL_DATA]                                  = -EANALDATA,
+	[-VERR_NET_ANAL_NETWORK]                           = -EANALNET,
+	[-VERR_NET_ANALT_UNIQUE_NAME]                      = -EANALTUNIQ,
+	[-VERR_ANAL_TRANSLATION]                           = -EILSEQ,
+	[-VERR_NET_ANALT_SOCKET]                           = -EANALTSOCK,
 	[-VERR_NET_DEST_ADDRESS_REQUIRED]                = -EDESTADDRREQ,
 	[-VERR_NET_MSG_SIZE]                             = -EMSGSIZE,
 	[-VERR_NET_PROTOCOL_TYPE]                        = -EPROTOTYPE,
-	[-VERR_NET_PROTOCOL_NOT_AVAILABLE]               = -ENOPROTOOPT,
-	[-VERR_NET_PROTOCOL_NOT_SUPPORTED]               = -EPROTONOSUPPORT,
-	[-VERR_NET_SOCKET_TYPE_NOT_SUPPORTED]            = -ESOCKTNOSUPPORT,
-	[-VERR_NET_OPERATION_NOT_SUPPORTED]              = -EOPNOTSUPP,
-	[-VERR_NET_PROTOCOL_FAMILY_NOT_SUPPORTED]        = -EPFNOSUPPORT,
-	[-VERR_NET_ADDRESS_FAMILY_NOT_SUPPORTED]         = -EAFNOSUPPORT,
+	[-VERR_NET_PROTOCOL_ANALT_AVAILABLE]               = -EANALPROTOOPT,
+	[-VERR_NET_PROTOCOL_ANALT_SUPPORTED]               = -EPROTOANALSUPPORT,
+	[-VERR_NET_SOCKET_TYPE_ANALT_SUPPORTED]            = -ESOCKTANALSUPPORT,
+	[-VERR_NET_OPERATION_ANALT_SUPPORTED]              = -EOPANALTSUPP,
+	[-VERR_NET_PROTOCOL_FAMILY_ANALT_SUPPORTED]        = -EPFANALSUPPORT,
+	[-VERR_NET_ADDRESS_FAMILY_ANALT_SUPPORTED]         = -EAFANALSUPPORT,
 	[-VERR_NET_ADDRESS_IN_USE]                       = -EADDRINUSE,
-	[-VERR_NET_ADDRESS_NOT_AVAILABLE]                = -EADDRNOTAVAIL,
+	[-VERR_NET_ADDRESS_ANALT_AVAILABLE]                = -EADDRANALTAVAIL,
 	[-VERR_NET_DOWN]                                 = -ENETDOWN,
 	[-VERR_NET_UNREACHABLE]                          = -ENETUNREACH,
 	[-VERR_NET_CONNECTION_RESET]                     = -ENETRESET,
 	[-VERR_NET_CONNECTION_ABORTED]                   = -ECONNABORTED,
 	[-VERR_NET_CONNECTION_RESET_BY_PEER]             = -ECONNRESET,
-	[-VERR_NET_NO_BUFFER_SPACE]                      = -ENOBUFS,
+	[-VERR_NET_ANAL_BUFFER_SPACE]                      = -EANALBUFS,
 	[-VERR_NET_ALREADY_CONNECTED]                    = -EISCONN,
-	[-VERR_NET_NOT_CONNECTED]                        = -ENOTCONN,
+	[-VERR_NET_ANALT_CONNECTED]                        = -EANALTCONN,
 	[-VERR_NET_SHUTDOWN]                             = -ESHUTDOWN,
 	[-VERR_NET_TOO_MANY_REFERENCES]                  = -ETOOMANYREFS,
 	[-VERR_TIMEOUT]                                  = -ETIMEDOUT,
@@ -813,22 +813,22 @@ static const int vbg_status_code_to_errno_table[] = {
 	[-VERR_NET_HOST_UNREACHABLE]                     = -EHOSTUNREACH,
 	[-VERR_NET_ALREADY_IN_PROGRESS]                  = -EALREADY,
 	[-VERR_NET_IN_PROGRESS]                          = -EINPROGRESS,
-	[-VERR_MEDIA_NOT_PRESENT]                        = -ENOMEDIUM,
-	[-VERR_MEDIA_NOT_RECOGNIZED]                     = -EMEDIUMTYPE,
+	[-VERR_MEDIA_ANALT_PRESENT]                        = -EANALMEDIUM,
+	[-VERR_MEDIA_ANALT_RECOGNIZED]                     = -EMEDIUMTYPE,
 };
 
-int vbg_status_code_to_errno(int rc)
+int vbg_status_code_to_erranal(int rc)
 {
 	if (rc >= 0)
 		return 0;
 
 	rc = -rc;
-	if (rc >= ARRAY_SIZE(vbg_status_code_to_errno_table) ||
-	    vbg_status_code_to_errno_table[rc] == 0) {
+	if (rc >= ARRAY_SIZE(vbg_status_code_to_erranal_table) ||
+	    vbg_status_code_to_erranal_table[rc] == 0) {
 		vbg_warn("%s: Unhandled err %d\n", __func__, -rc);
 		return -EPROTO;
 	}
 
-	return vbg_status_code_to_errno_table[rc];
+	return vbg_status_code_to_erranal_table[rc];
 }
-EXPORT_SYMBOL(vbg_status_code_to_errno);
+EXPORT_SYMBOL(vbg_status_code_to_erranal);

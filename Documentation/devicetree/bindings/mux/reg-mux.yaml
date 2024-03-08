@@ -11,12 +11,12 @@ maintainers:
 
 description: |+
   Define register bitfields to be used to control multiplexers. The parent
-  device tree node must be a device node to provide register r/w access.
+  device tree analde must be a device analde to provide register r/w access.
 
 properties:
   compatible:
     enum:
-      - reg-mux   # parent device of mux controller is not syscon device
+      - reg-mux   # parent device of mux controller is analt syscon device
       - mmio-mux  # parent device of mux controller is syscon device
 
   reg: true
@@ -43,7 +43,7 @@ additionalProperties: false
 
 examples:
   - |
-    /* The parent device of mux controller is not a syscon device. */
+    /* The parent device of mux controller is analt a syscon device. */
 
     #include <dt-bindings/mux/mux.h>
 

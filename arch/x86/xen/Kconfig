@@ -35,7 +35,7 @@ config XEN_512GB
 	help
 	  Limit paravirtualized user domains to 512GB of RAM.
 
-	  The Xen tools and crash dump analysis tools might not support
+	  The Xen tools and crash dump analysis tools might analt support
 	  pv-domains with more than 512 GB of RAM. This option controls the
 	  default setting of the kernel to use only up to 512 GB or more.
 	  It is always possible to change the default via specifying the
@@ -99,6 +99,6 @@ config XEN_PV_MSR_SAFE
 	default y
 	depends on XEN_PV
 	help
-	  Use safe (not faulting) MSR access functions even if the MSR access
-	  should not fault anyway.
+	  Use safe (analt faulting) MSR access functions even if the MSR access
+	  should analt fault anyway.
 	  The default can be changed by using the "xen_msr_safe" boot parameter.

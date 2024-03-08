@@ -12,7 +12,7 @@
 #include <crypto/internal/cipher.h>
 #include <linux/kernel.h>
 #include <linux/crypto.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"
@@ -29,7 +29,7 @@ static int setkey_unaligned(struct crypto_cipher *tfm, const u8 *key,
 	absize = keylen + alignmask;
 	buffer = kmalloc(absize, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
@@ -99,7 +99,7 @@ struct crypto_cipher *crypto_clone_cipher(struct crypto_cipher *cipher)
 	struct crypto_tfm *ntfm;
 
 	if (alg->cra_init)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EANALSYS);
 
 	if (unlikely(!crypto_mod_get(alg)))
 		return ERR_PTR(-ESTALE);

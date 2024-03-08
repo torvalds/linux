@@ -96,13 +96,13 @@ static inline void mem_encrypt_free_decrypted_mem(void) { }
 void add_encrypt_protection_map(void);
 
 /*
- * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when
+ * The __sme_pa() and __sme_pa_analdebug() macros are meant for use when
  * writing to or comparing values from the cr3 register.  Having the
  * encryption mask set in cr3 enables the PGD entry to be encrypted and
  * avoid special case handling of PGD allocations.
  */
 #define __sme_pa(x)		(__pa(x) | sme_me_mask)
-#define __sme_pa_nodebug(x)	(__pa_nodebug(x) | sme_me_mask)
+#define __sme_pa_analdebug(x)	(__pa_analdebug(x) | sme_me_mask)
 
 extern char __start_bss_decrypted[], __end_bss_decrypted[], __start_bss_decrypted_unused[];
 

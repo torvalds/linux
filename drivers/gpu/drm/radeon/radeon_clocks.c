@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -99,12 +99,12 @@ uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 #ifdef CONFIG_OF
 /*
  * Read XTAL (ref clock), SCLK and MCLK from Open Firmware device
- * tree. Hopefully, ATI OF driver is kind enough to fill these
+ * tree. Hopefully, ATI OF driver is kind eanalugh to fill these
  */
 static bool radeon_read_clocks_OF(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	struct device_node *dp = rdev->pdev->dev.of_node;
+	struct device_analde *dp = rdev->pdev->dev.of_analde;
 	const u32 *val;
 	struct radeon_pll *p1pll = &rdev->clock.p1pll;
 	struct radeon_pll *p2pll = &rdev->clock.p2pll;
@@ -115,7 +115,7 @@ static bool radeon_read_clocks_OF(struct drm_device *dev)
 		return false;
 	val = of_get_property(dp, "ATY,RefCLK", NULL);
 	if (!val || !*val) {
-		pr_warn("radeonfb: No ATY,RefCLK property !\n");
+		pr_warn("radeonfb: Anal ATY,RefCLK property !\n");
 		return false;
 	}
 	p1pll->reference_freq = p2pll->reference_freq = (*val) / 10;
@@ -144,7 +144,7 @@ static bool radeon_read_clocks_OF(struct drm_device *dev)
 		p2pll->pll_out_min = 12500;
 		p2pll->pll_out_max = 35000;
 	}
-	/* not sure what the max should be in all cases */
+	/* analt sure what the max should be in all cases */
 	rdev->clock.max_pixel_clock = 35000;
 
 	spll->reference_freq = mpll->reference_freq = p1pll->reference_freq;
@@ -788,7 +788,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF);
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
 		} else if (rdev->family >= CHIP_RV350) {
-			/* for RV350/M10, no delays are required. */
+			/* for RV350/M10, anal delays are required. */
 			tmp = RREG32_PLL(R300_SCLK_CNTL2);
 			tmp |= (R300_SCLK_FORCE_TCL |
 				R300_SCLK_FORCE_GA | R300_SCLK_FORCE_CBA);

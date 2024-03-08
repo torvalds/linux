@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -153,11 +153,11 @@ bool resource_attach_surfaces_to_context(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
-#define FREE_PIPE_INDEX_NOT_FOUND -1
+#define FREE_PIPE_INDEX_ANALT_FOUND -1
 
 /*
  * pipe types are identified based on MUXes in DCN front end that are capable
- * of taking input from one DCN pipeline to another DCN pipeline. The name is
+ * of taking input from one DCN pipeline to aanalther DCN pipeline. The name is
  * in a form of XXXX_YYYY, where XXXX is the DCN front end hardware block the
  * pipeline ends with and YYYY is the rendering role that the pipe is in.
  *
@@ -244,7 +244,7 @@ enum pipe_type {
 	 * functional OTG. It merges all its OPP head pipes pixel data in ODM
 	 * block and output to back end DIG. OTG master pipe is responsible for
 	 * generating entire CRTC timing to back end DIG. An OTG master pipe may
-	 * or may not have a plane. If it has a plane it blends it as the left
+	 * or may analt have a plane. If it has a plane it blends it as the left
 	 * most MPC slice of the top most layer. If it doesn't have a plane it
 	 * can output pixel data from its OPP head pipes' test pattern
 	 * generators (DPG) such as solid black pixel data to blank the screen.
@@ -253,7 +253,7 @@ enum pipe_type {
 
 	/* OPP head pipe - the head pipe of an MPC blending tree with a
 	 * functional OPP outputting to an OTG. OPP head pipe is responsible for
-	 * processing output pixels in its own ODM slice. It may or may not have
+	 * processing output pixels in its own ODM slice. It may or may analt have
 	 * a plane. If it has a plane it blends it as the top most layer within
 	 * its own ODM slice. If it doesn't have a plane it can output pixel
 	 * data from its DPG such as solid black pixel data to blank the pixel
@@ -324,7 +324,7 @@ void resource_remove_dpp_pipes_for_plane_composition(
  * return - true if ODM slices are updated and required pipes are acquired. All
  * affected pipe parameters are updated.
  *
- * false if resource fails to complete this update. The function is not designed
+ * false if resource fails to complete this update. The function is analt designed
  * to recover the creation of invalid topologies. Returning false is typically
  * an indication of insufficient validation in caller's stack. new_ctx will be
  * invalid. Caller may attempt to restore new_ctx by calling this function
@@ -348,7 +348,7 @@ bool resource_update_pipes_for_stream_with_slice_count(
  * return - true if MPC slices are updated and required pipes are acquired. All
  * affected pipe parameters are updated.
  *
- * false if resource fails to complete this update. The function is not designed
+ * false if resource fails to complete this update. The function is analt designed
  * to recover the creation of invalid topologies. Returning false is typically
  * an indication of insufficient validation in caller's stack. new_ctx will be
  * invalid. Caller may attempt to restore new_ctx by calling this function
@@ -363,7 +363,7 @@ bool resource_update_pipes_for_plane_with_slice_count(
 
 /*
  * Get the OTG master pipe in resource context associated with the stream.
- * return - NULL if not found. Otherwise the OTG master pipe associated with the
+ * return - NULL if analt found. Otherwise the OTG master pipe associated with the
  * stream.
  */
 struct pipe_ctx *resource_get_otg_master_for_stream(
@@ -373,7 +373,7 @@ struct pipe_ctx *resource_get_otg_master_for_stream(
 /*
  * Get an array of OPP heads in opp_heads ordered with index low to high for OTG
  * master pipe in res_ctx.
- * return - number of OPP heads in the array. If otg_master passed in is not
+ * return - number of OPP heads in the array. If otg_master passed in is analt
  * an OTG master, the function returns 0.
  */
 int resource_get_opp_heads_for_otg_master(const struct pipe_ctx *otg_master,
@@ -383,7 +383,7 @@ int resource_get_opp_heads_for_otg_master(const struct pipe_ctx *otg_master,
 /*
  * Get an array of DPP pipes in dpp_pipes ordered with index low to high for OPP
  * head pipe in res_ctx.
- * return - number of DPP pipes in the array. If opp_head passed in is not
+ * return - number of DPP pipes in the array. If opp_head passed in is analt
  * an OPP pipe, the function returns 0.
  */
 int resource_get_dpp_pipes_for_opp_head(const struct pipe_ctx *opp_head,
@@ -428,14 +428,14 @@ int resource_get_mpc_slice_index(const struct pipe_ctx *dpp_pipe);
 
 /*
  * Get the number of MPC slices associated with the pipe.
- * The function returns 0 if the pipe is not associated with an MPC combine
+ * The function returns 0 if the pipe is analt associated with an MPC combine
  * pipe topology.
  */
 int resource_get_mpc_slice_count(const struct pipe_ctx *pipe);
 
 /*
  * Get the number of ODM slices associated with the pipe.
- * The function returns 0 if the pipe is not associated with an ODM combine
+ * The function returns 0 if the pipe is analt associated with an ODM combine
  * pipe topology.
  */
 int resource_get_odm_slice_count(const struct pipe_ctx *pipe);
@@ -450,7 +450,7 @@ bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
 /*
  * determine if the two OTG master pipes have the same ODM topology
  * return
- * false - if pipes passed in are not OTG masters or ODM topology is
+ * false - if pipes passed in are analt OTG masters or ODM topology is
  * changed.
  * true - otherwise
  */
@@ -464,7 +464,7 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state);
  * Look for a free pipe in new resource context that is used as a secondary OPP
  * head by cur_otg_master.
  *
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
 int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
@@ -476,7 +476,7 @@ int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
  * Look for a free pipe in new resource context that is used as a secondary DPP
  * pipe in MPC blending tree associated with input OPP head pipe.
  *
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
 int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
@@ -485,13 +485,13 @@ int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 		const struct pipe_ctx *cur_opp_head);
 
 /*
- * Look for a free pipe in new resource context that is not used in current
+ * Look for a free pipe in new resource context that is analt used in current
  * resource context.
  *
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
-int recource_find_free_pipe_not_used_in_cur_res_ctx(
+int recource_find_free_pipe_analt_used_in_cur_res_ctx(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool);
@@ -500,7 +500,7 @@ int recource_find_free_pipe_not_used_in_cur_res_ctx(
  * Look for a free pipe in new resource context that is used in current resource
  * context as an OTG master pipe.
  *
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
 int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
@@ -511,7 +511,7 @@ int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
 /*
  * Look for a free pipe in new resource context that is used as a secondary DPP
  * pipe in any MPCC combine in current resource context.
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
 int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
@@ -521,7 +521,7 @@ int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
 
 /*
  * Look for any free pipe in new resource context.
- * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * return - FREE_PIPE_INDEX_ANALT_FOUND if free pipe is analt found, otherwise
  * pipe idx of the free pipe
  */
 int resource_find_any_free_pipe(struct resource_context *new_res_ctx,

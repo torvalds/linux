@@ -147,7 +147,7 @@ static int am654_hbmc_request_mmap_dma(struct am654_hbmc_device_priv *priv)
 	if (IS_ERR(rx_chan)) {
 		if (PTR_ERR(rx_chan) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(priv->ctlr->dev, "No DMA channel available\n");
+		dev_dbg(priv->ctlr->dev, "Anal DMA channel available\n");
 		return 0;
 	}
 	priv->rx_chan = rx_chan;
@@ -158,7 +158,7 @@ static int am654_hbmc_request_mmap_dma(struct am654_hbmc_device_priv *priv)
 
 static int am654_hbmc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct am654_hbmc_device_priv *dev_priv;
 	struct device *dev = &pdev->dev;
 	struct am654_hbmc_priv *priv;
@@ -167,7 +167,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 
@@ -176,7 +176,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_property_read_bool(dev->of_node, "mux-controls")) {
+	if (of_property_read_bool(dev->of_analde, "mux-controls")) {
 		struct mux_control *control = devm_mux_control_get(dev, NULL);
 
 		if (IS_ERR(control))
@@ -201,7 +201,7 @@ static int am654_hbmc_probe(struct platform_device *pdev)
 
 	dev_priv = devm_kzalloc(dev, sizeof(*dev_priv), GFP_KERNEL);
 	if (!dev_priv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto disable_mux;
 	}
 

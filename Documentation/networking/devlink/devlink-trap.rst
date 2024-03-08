@@ -16,7 +16,7 @@ IGMP membership reports to the kernel for processing by the bridge module.
 Without processing such packets, the bridge module could never populate its
 MDB.
 
-As another example, consider a device acting as router which has received an IP
+As aanalther example, consider a device acting as router which has received an IP
 packet with a TTL of 1. Upon routing the packet the device must send it to the
 kernel so that it will route it as well and generate an ICMP Time Exceeded
 error datagram. Without letting the kernel route such packets itself, utilities
@@ -55,11 +55,11 @@ The following diagram provides a general overview of ``devlink-trap``::
                           |                |
                           +-------^--------+
                                   |
-                                  | Non-control traps
+                                  | Analn-control traps
                                   |
                              +----+----+
                              |         |      Kernel's Rx path
-                             | devlink |      (non-drop traps)
+                             | devlink |      (analn-drop traps)
                              |         |
                              +----^----+      ^
                                   |           |
@@ -89,19 +89,19 @@ Trap Types
 The ``devlink-trap`` mechanism supports the following packet trap types:
 
   * ``drop``: Trapped packets were dropped by the underlying device. Packets
-    are only processed by ``devlink`` and not injected to the kernel's Rx path.
+    are only processed by ``devlink`` and analt injected to the kernel's Rx path.
     The trap action (see :ref:`Trap-Actions`) can be changed.
-  * ``exception``: Trapped packets were not forwarded as intended by the
+  * ``exception``: Trapped packets were analt forwarded as intended by the
     underlying device due to an exception (e.g., TTL error, missing neighbour
     entry) and trapped to the control plane for resolution. Packets are
     processed by ``devlink`` and injected to the kernel's Rx path. Changing the
-    action of such traps is not allowed, as it can easily break the control
+    action of such traps is analt allowed, as it can easily break the control
     plane.
   * ``control``: Trapped packets were trapped by the device because these are
     control packets required for the correct functioning of the control plane.
     For example, ARP request and IGMP query packets. Packets are injected to
-    the kernel's Rx path, but not reported to the kernel's drop monitor.
-    Changing the action of such traps is not allowed, as it can easily break
+    the kernel's Rx path, but analt reported to the kernel's drop monitor.
+    Changing the action of such traps is analt allowed, as it can easily break
     the control plane.
 
 .. _Trap-Actions:
@@ -112,7 +112,7 @@ Trap Actions
 The ``devlink-trap`` mechanism supports the following packet trap actions:
 
   * ``trap``: The sole copy of the packet is sent to the CPU.
-  * ``drop``: The packet is dropped by the underlying device and a copy is not
+  * ``drop``: The packet is dropped by the underlying device and a copy is analt
     sent to the CPU.
   * ``mirror``: The packet is forwarded by the underlying device and a copy is
     sent to the CPU.
@@ -138,21 +138,21 @@ be added to the following table:
    * - ``vlan_tag_mismatch``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case of VLAN
-       tag mismatch: The ingress bridge port is not configured with a PVID and
+       tag mismatch: The ingress bridge port is analt configured with a PVID and
        the packet is untagged or prio-tagged
    * - ``ingress_vlan_filter``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case they are
-       tagged with a VLAN that is not configured on the ingress bridge port
+       tagged with a VLAN that is analt configured on the ingress bridge port
    * - ``ingress_spanning_tree_filter``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case the STP
-       state of the ingress bridge port is not "forwarding"
+       state of the ingress bridge port is analt "forwarding"
    * - ``port_list_is_empty``
      - ``drop``
      - Traps packets that the device decided to drop in case they need to be
-       flooded (e.g., unknown unicast, unregistered multicast) and there are
-       no ports the packets should be flooded to
+       flooded (e.g., unkanalwn unicast, unregistered multicast) and there are
+       anal ports the packets should be flooded to
    * - ``port_loopback_filter``
      - ``drop``
      - Traps packets that the device decided to drop in case after layer 2
@@ -168,12 +168,12 @@ be added to the following table:
        was decremented to 0 or less
    * - ``tail_drop``
      - ``drop``
-     - Traps packets that the device decided to drop because they could not be
+     - Traps packets that the device decided to drop because they could analt be
        enqueued to a transmission queue which is full
-   * - ``non_ip``
+   * - ``analn_ip``
      - ``drop``
      - Traps packets that the device decided to drop because they need to
-       undergo a layer 3 lookup, but are not IP or MPLS packets
+       undergo a layer 3 lookup, but are analt IP or MPLS packets
    * - ``uc_dip_over_mc_dmac``
      - ``drop``
      - Traps packets that the device decided to drop because they need to be
@@ -217,7 +217,7 @@ be added to the following table:
        than the MTU of the egress interface
    * - ``unresolved_neigh``
      - ``exception``
-     - Traps packets that did not have a matching IP neighbour after routing
+     - Traps packets that did analt have a matching IP neighbour after routing
    * - ``mc_reverse_path_forwarding``
      - ``exception``
      - Traps multicast IP packets that failed reverse-path forwarding (RPF)
@@ -227,15 +227,15 @@ be added to the following table:
      - Traps packets that hit reject routes (i.e., "unreachable", "prohibit")
    * - ``ipv4_lpm_miss``
      - ``exception``
-     - Traps unicast IPv4 packets that did not match any route
+     - Traps unicast IPv4 packets that did analt match any route
    * - ``ipv6_lpm_miss``
      - ``exception``
-     - Traps unicast IPv6 packets that did not match any route
-   * - ``non_routable_packet``
+     - Traps unicast IPv6 packets that did analt match any route
+   * - ``analn_routable_packet``
      - ``drop``
-     - Traps packets that the device decided to drop because they are not
+     - Traps packets that the device decided to drop because they are analt
        supposed to be routed. For example, IGMP queries can be flooded by the
-       device in layer 2 and reach the router. Such packets should not be
+       device in layer 2 and reach the router. Such packets should analt be
        routed and instead dropped
    * - ``decap_error``
      - ``exception``
@@ -353,7 +353,7 @@ be added to the following table:
    * - ``external_route``
      - ``control``
      - Traps packets that should be routed through an external interface (e.g.,
-       management interface) that does not belong to the same device (e.g.,
+       management interface) that does analt belong to the same device (e.g.,
        switch ASIC) as the ingress interface
    * - ``ipv6_uc_dip_link_local_scope``
      - ``control``
@@ -361,9 +361,9 @@ be added to the following table:
        IP address with a link-local scope (i.e., fe80::/10). The trap allows
        device drivers to avoid programming link-local routes, but still receive
        packets for local delivery
-   * - ``ipv6_dip_all_nodes``
+   * - ``ipv6_dip_all_analdes``
      - ``control``
-     - Traps IPv6 packets that their destination IP address is the "All Nodes
+     - Traps IPv6 packets that their destination IP address is the "All Analdes
        Address" (i.e., ff02::1)
    * - ``ipv6_dip_all_routers``
      - ``control``
@@ -395,7 +395,7 @@ be added to the following table:
        Pdelay_Resp)
    * - ``ptp_general``
      - ``control``
-     - Traps PTP general messages (Announce, Follow_Up, Delay_Resp,
+     - Traps PTP general messages (Ananalunce, Follow_Up, Delay_Resp,
        Pdelay_Resp_Follow_Up, management and signaling)
    * - ``flow_action_sample``
      - ``control``
@@ -412,7 +412,7 @@ be added to the following table:
    * - ``vxlan_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the VXLAN header parsing which
-       might be because of packet truncation or the I flag is not set.
+       might be because of packet truncation or the I flag is analt set.
    * - ``llc_snap_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the LLC+SNAP header parsing
@@ -424,7 +424,7 @@ be added to the following table:
      - ``drop``
      - Traps packets dropped due to an error in the PPPoE+PPP header parsing.
        This could include finding a session ID of 0xFFFF (which is reserved and
-       not for use), a PPPoE length which is larger than the frame received or
+       analt for use), a PPPoE length which is larger than the frame received or
        any common error on this type of header
    * - ``mpls_parsing``
      - ``drop``
@@ -436,7 +436,7 @@ be added to the following table:
    * - ``ip_1_parsing``
      - ``drop``
      - Traps packets dropped due to an error in the first IP header parsing.
-       This packet trap could include packets which do not pass an IP checksum
+       This packet trap could include packets which do analt pass an IP checksum
        check, a header length check (a minimum of 20 bytes), which might suffer
        from packet truncation thus the total length field exceeds the received
        packet length etc
@@ -483,8 +483,8 @@ be added to the following table:
    * - ``dmac_filter``
      - ``drop``
      - Traps incoming packets that the device decided to drop because
-       the destination MAC is not configured in the MAC table and
-       the interface is not in promiscuous mode
+       the destination MAC is analt configured in the MAC table and
+       the interface is analt in promiscuous mode
    * - ``eapol``
      - ``control``
      - Traps "Extensible Authentication Protocol over LAN" (EAPOL) packets
@@ -493,7 +493,7 @@ be added to the following table:
      - ``drop``
      - Traps packets that the device decided to drop because they failed the
        locked bridge port check. That is, packets that were received via a
-       locked port and whose {SMAC, VID} does not correspond to an FDB entry
+       locked port and whose {SMAC, VID} does analt correspond to an FDB entry
        pointing to the port
 
 Driver-specific Packet Traps
@@ -549,9 +549,9 @@ narrow. The description of these groups must be added to the following table:
      - Contains packet traps for LACP packets
    * - ``lldp``
      - Contains packet traps for LLDP packets
-   * - ``mc_snooping``
+   * - ``mc_sanaloping``
      - Contains packet traps for IGMP and MLD packets required for multicast
-       snooping
+       sanaloping
    * - ``dhcp``
      - Contains packet traps for DHCP packets
    * - ``neigh_discovery``
@@ -575,11 +575,11 @@ narrow. The description of these groups must be added to the following table:
        group without affecting other traps
    * - ``local_delivery``
      - Contains packet traps for packets that should be locally delivered after
-       routing, but do not match more specific packet traps (e.g.,
+       routing, but do analt match more specific packet traps (e.g.,
        ``ipv4_bgp``)
    * - ``external_delivery``
      - Contains packet traps for packets that should be routed through an
-       external interface (e.g., management interface) that does not belong to
+       external interface (e.g., management interface) that does analt belong to
        the same device (e.g., switch ASIC) as the ingress interface
    * - ``ipv6``
      - Contains packet traps for various IPv6 control packets (e.g., Router
@@ -588,7 +588,7 @@ narrow. The description of these groups must be added to the following table:
      - Contains packet traps for PTP time-critical event messages (Sync,
        Delay_req, Pdelay_Req and Pdelay_Resp)
    * - ``ptp_general``
-     - Contains packet traps for PTP general messages (Announce, Follow_Up,
+     - Contains packet traps for PTP general messages (Ananalunce, Follow_Up,
        Delay_Resp, Pdelay_Resp_Follow_Up, management and signaling)
    * - ``acl_sample``
      - Contains packet traps for packets that were sampled by the device during

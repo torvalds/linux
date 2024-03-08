@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -54,7 +54,7 @@ static void die(char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
+static void vmaybe_write_file(bool eanalent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
@@ -64,7 +64,7 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (buf_len < 0) {
 		die("vsnprintf failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	}
 	if (buf_len >= sizeof(buf)) {
 		die("vsnprintf output truncated\n");
@@ -72,10 +72,10 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
-		if ((errno == ENOENT) && enoent_ok)
+		if ((erranal == EANALENT) && eanalent_ok)
 			return;
 		die("open of %s failed: %s\n",
-		    filename, strerror(errno));
+		    filename, strerror(erranal));
 	}
 	written = write(fd, buf, buf_len);
 	if (written != buf_len) {
@@ -83,12 +83,12 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 			die("short write to %s\n", filename);
 		} else {
 			die("write to %s failed: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erranal));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erranal));
 	}
 }
 
@@ -121,30 +121,30 @@ static int read_mnt_flags(const char *path)
 	ret = statvfs(path, &stat);
 	if (ret != 0) {
 		die("statvfs of %s failed: %s\n",
-			path, strerror(errno));
+			path, strerror(erranal));
 	}
-	if (stat.f_flag & ~(ST_RDONLY | ST_NOSUID | ST_NODEV | \
-			ST_NOEXEC | ST_NOATIME | ST_NODIRATIME | ST_RELATIME | \
-			ST_SYNCHRONOUS | ST_MANDLOCK)) {
+	if (stat.f_flag & ~(ST_RDONLY | ST_ANALSUID | ST_ANALDEV | \
+			ST_ANALEXEC | ST_ANALATIME | ST_ANALDIRATIME | ST_RELATIME | \
+			ST_SYNCHROANALUS | ST_MANDLOCK)) {
 		die("Unrecognized mount flags\n");
 	}
 	mnt_flags = 0;
 	if (stat.f_flag & ST_RDONLY)
 		mnt_flags |= MS_RDONLY;
-	if (stat.f_flag & ST_NOSUID)
-		mnt_flags |= MS_NOSUID;
-	if (stat.f_flag & ST_NODEV)
-		mnt_flags |= MS_NODEV;
-	if (stat.f_flag & ST_NOEXEC)
-		mnt_flags |= MS_NOEXEC;
-	if (stat.f_flag & ST_NOATIME)
-		mnt_flags |= MS_NOATIME;
-	if (stat.f_flag & ST_NODIRATIME)
-		mnt_flags |= MS_NODIRATIME;
+	if (stat.f_flag & ST_ANALSUID)
+		mnt_flags |= MS_ANALSUID;
+	if (stat.f_flag & ST_ANALDEV)
+		mnt_flags |= MS_ANALDEV;
+	if (stat.f_flag & ST_ANALEXEC)
+		mnt_flags |= MS_ANALEXEC;
+	if (stat.f_flag & ST_ANALATIME)
+		mnt_flags |= MS_ANALATIME;
+	if (stat.f_flag & ST_ANALDIRATIME)
+		mnt_flags |= MS_ANALDIRATIME;
 	if (stat.f_flag & ST_RELATIME)
 		mnt_flags |= MS_RELATIME;
-	if (stat.f_flag & ST_SYNCHRONOUS)
-		mnt_flags |= MS_SYNCHRONOUS;
+	if (stat.f_flag & ST_SYNCHROANALUS)
+		mnt_flags |= MS_SYNCHROANALUS;
 	if (stat.f_flag & ST_MANDLOCK)
 		mnt_flags |= ST_MANDLOCK;
 
@@ -161,7 +161,7 @@ static void create_and_enter_userns(void)
 
 	if (unshare(CLONE_NEWUSER) !=0) {
 		die("unshare(CLONE_NEWUSER) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	maybe_write_file("/proc/self/setgroups", "deny");
@@ -170,11 +170,11 @@ static void create_and_enter_userns(void)
 
 	if (setgid(0) != 0) {
 		die ("setgid(0) failed %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 	if (setuid(0) != 0) {
 		die("setuid(0) failed %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 }
 
@@ -187,7 +187,7 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 	child = fork();
 	if (child == -1) {
 		die("fork failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 	if (child != 0) { /* parent */
 		pid_t pid;
@@ -195,14 +195,14 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 		pid = waitpid(child, &status, 0);
 		if (pid == -1) {
 			die("waitpid failed: %s\n",
-				strerror(errno));
+				strerror(erranal));
 		}
 		if (pid != child) {
 			die("waited for %d got %d\n",
 				child, pid);
 		}
 		if (!WIFEXITED(status)) {
-			die("child did not terminate cleanly\n");
+			die("child did analt terminate cleanly\n");
 		}
 		return WEXITSTATUS(status) == EXIT_SUCCESS;
 	}
@@ -210,31 +210,31 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 	create_and_enter_userns();
 	if (unshare(CLONE_NEWNS) != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	if (mount("testing", "/tmp", fstype, mount_flags, mount_options) != 0) {
 		die("mount of %s with options '%s' on /tmp failed: %s\n",
 		    fstype,
 		    mount_options? mount_options : "",
-		    strerror(errno));
+		    strerror(erranal));
 	}
 
 	create_and_enter_userns();
 
 	if (unshare(CLONE_NEWNS) != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 
-	if (mount("/tmp", "/tmp", "none",
+	if (mount("/tmp", "/tmp", "analne",
 		  MS_REMOUNT | MS_BIND | remount_flags, NULL) != 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	}
 
-	if (mount("/tmp", "/tmp", "none",
+	if (mount("/tmp", "/tmp", "analne",
 		  MS_REMOUNT | MS_BIND | invalid_flags, NULL) == 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp with invalid flags "
@@ -265,7 +265,7 @@ static bool test_priv_mount_unpriv_remount(void)
 	child = fork();
 	if (child == -1) {
 		die("fork failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 	if (child != 0) { /* parent */
 		pid_t pid;
@@ -273,14 +273,14 @@ static bool test_priv_mount_unpriv_remount(void)
 		pid = waitpid(child, &status, 0);
 		if (pid == -1) {
 			die("waitpid failed: %s\n",
-				strerror(errno));
+				strerror(erranal));
 		}
 		if (pid != child) {
 			die("waited for %d got %d\n",
 				child, pid);
 		}
 		if (!WIFEXITED(status)) {
-			die("child did not terminate cleanly\n");
+			die("child did analt terminate cleanly\n");
 		}
 		return WEXITSTATUS(status) == EXIT_SUCCESS;
 	}
@@ -291,21 +291,21 @@ static bool test_priv_mount_unpriv_remount(void)
 	ret = unshare(CLONE_NEWNS);
 	if (ret != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erranal));
 	}
 
 	ret = mount(orig_path, dest_path, "bind", MS_BIND | MS_REC, NULL);
 	if (ret != 0) {
 		die("recursive bind mount of %s onto %s failed: %s\n",
-			orig_path, dest_path, strerror(errno));
+			orig_path, dest_path, strerror(erranal));
 	}
 
-	ret = mount(dest_path, dest_path, "none",
+	ret = mount(dest_path, dest_path, "analne",
 		    MS_REMOUNT | MS_BIND | orig_mnt_flags , NULL);
 	if (ret != 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp failed: %s\n",
-		    strerror(errno));
+		    strerror(erranal));
 	}
 
 	remount_mnt_flags = read_mnt_flags(dest_path);
@@ -321,46 +321,46 @@ int main(int argc, char **argv)
 	if (!test_unpriv_remount_simple(MS_RDONLY)) {
 		die("MS_RDONLY malfunctions\n");
 	}
-	if (!test_unpriv_remount("devpts", "newinstance", MS_NODEV, MS_NODEV, 0)) {
-		die("MS_NODEV malfunctions\n");
+	if (!test_unpriv_remount("devpts", "newinstance", MS_ANALDEV, MS_ANALDEV, 0)) {
+		die("MS_ANALDEV malfunctions\n");
 	}
-	if (!test_unpriv_remount_simple(MS_NOSUID)) {
-		die("MS_NOSUID malfunctions\n");
+	if (!test_unpriv_remount_simple(MS_ANALSUID)) {
+		die("MS_ANALSUID malfunctions\n");
 	}
-	if (!test_unpriv_remount_simple(MS_NOEXEC)) {
-		die("MS_NOEXEC malfunctions\n");
+	if (!test_unpriv_remount_simple(MS_ANALEXEC)) {
+		die("MS_ANALEXEC malfunctions\n");
 	}
 	if (!test_unpriv_remount_atime(MS_RELATIME,
-				       MS_NOATIME))
+				       MS_ANALATIME))
 	{
 		die("MS_RELATIME malfunctions\n");
 	}
 	if (!test_unpriv_remount_atime(MS_STRICTATIME,
-				       MS_NOATIME))
+				       MS_ANALATIME))
 	{
 		die("MS_STRICTATIME malfunctions\n");
 	}
-	if (!test_unpriv_remount_atime(MS_NOATIME,
+	if (!test_unpriv_remount_atime(MS_ANALATIME,
 				       MS_STRICTATIME))
 	{
-		die("MS_NOATIME malfunctions\n");
+		die("MS_ANALATIME malfunctions\n");
 	}
-	if (!test_unpriv_remount_atime(MS_RELATIME|MS_NODIRATIME,
-				       MS_NOATIME))
+	if (!test_unpriv_remount_atime(MS_RELATIME|MS_ANALDIRATIME,
+				       MS_ANALATIME))
 	{
-		die("MS_RELATIME|MS_NODIRATIME malfunctions\n");
+		die("MS_RELATIME|MS_ANALDIRATIME malfunctions\n");
 	}
-	if (!test_unpriv_remount_atime(MS_STRICTATIME|MS_NODIRATIME,
-				       MS_NOATIME))
+	if (!test_unpriv_remount_atime(MS_STRICTATIME|MS_ANALDIRATIME,
+				       MS_ANALATIME))
 	{
-		die("MS_STRICTATIME|MS_NODIRATIME malfunctions\n");
+		die("MS_STRICTATIME|MS_ANALDIRATIME malfunctions\n");
 	}
-	if (!test_unpriv_remount_atime(MS_NOATIME|MS_NODIRATIME,
+	if (!test_unpriv_remount_atime(MS_ANALATIME|MS_ANALDIRATIME,
 				       MS_STRICTATIME))
 	{
-		die("MS_NOATIME|MS_DIRATIME malfunctions\n");
+		die("MS_ANALATIME|MS_DIRATIME malfunctions\n");
 	}
-	if (!test_unpriv_remount("ramfs", NULL, MS_STRICTATIME, 0, MS_NOATIME))
+	if (!test_unpriv_remount("ramfs", NULL, MS_STRICTATIME, 0, MS_ANALATIME))
 	{
 		die("Default atime malfunctions\n");
 	}

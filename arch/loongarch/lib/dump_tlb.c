@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994, 1995 by Waldorf Electronics, written by Ralf Baechle.

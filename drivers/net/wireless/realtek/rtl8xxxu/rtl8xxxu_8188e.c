@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2016 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, analtably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -313,7 +313,7 @@ static const u8 retry_penalty[PERENTRY][RETRYSIZE + 1] = {
 
 static const u8 pt_penalty[RETRYSIZE + 1] = {34, 31, 30, 24, 0, 32};
 
-static const u8 retry_penalty_idx_normal[2][RATESIZE] = {
+static const u8 retry_penalty_idx_analrmal[2][RATESIZE] = {
 	{ /* RSSI>TH */
 		4, 4, 4, 5,
 		4, 4, 5, 7, 7, 7, 8, 0x0a,
@@ -343,7 +343,7 @@ static const u8 retry_penalty_idx_cut_i[2][RATESIZE] = {
 	}
 };
 
-static const u8 retry_penalty_up_idx_normal[RATESIZE] = {
+static const u8 retry_penalty_up_idx_analrmal[RATESIZE] = {
 	0x0c, 0x0d, 0x0d, 0x0f,
 	0x0d, 0x0e, 0x0f, 0x0f, 0x10, 0x12, 0x13, 0x14,
 	0x0f, 0x10, 0x10, 0x12, 0x12, 0x13, 0x14, 0x15,
@@ -414,24 +414,24 @@ static int rtl8188eu_identify_chip(struct rtl8xxxu_priv *priv)
 	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
 	 * TODO: At a glance, I cut requires a different firmware,
-	 * different initialisation tables, and no software rate
-	 * control. The vendor driver is not configured to handle
+	 * different initialisation tables, and anal software rate
+	 * control. The vendor driver is analt configured to handle
 	 * I cut chips by default. Are there any in the wild?
 	 */
 	if (priv->chip_cut == 8) {
-		dev_info(dev, "RTL8188EU cut I is not supported. Please complain about it at linux-wireless@vger.kernel.org.\n");
-		return -EOPNOTSUPP;
+		dev_info(dev, "RTL8188EU cut I is analt supported. Please complain about it at linux-wireless@vger.kernel.org.\n");
+		return -EOPANALTSUPP;
 	}
 
 	vendor = sys_cfg & SYS_CFG_VENDOR_ID;
 	rtl8xxxu_identify_vendor_1bit(priv, vendor);
 
-	ret = rtl8xxxu_config_endpoints_no_sie(priv);
+	ret = rtl8xxxu_config_endpoints_anal_sie(priv);
 
 	return ret;
 }
@@ -449,7 +449,7 @@ static void rtl8188eu_config_channel(struct ieee80211_hw *hw)
 	channel = hw->conf.chandef.chan->hw_value;
 
 	switch (hw->conf.chandef.width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		opmode |= BW_OPMODE_20MHZ;
 		rtl8xxxu_write8(priv, REG_BW_OPMODE, opmode);
@@ -792,7 +792,7 @@ static void rtl8188eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	};
 
 	/*
-	 * Note: IQ calibration must be performed after loading
+	 * Analte: IQ calibration must be performed after loading
 	 *       PHY_REG.txt , and radio_a, radio_b.txt
 	 */
 
@@ -829,7 +829,7 @@ static void rtl8188eu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_write32(priv, REG_OFDM0_TR_MUX_PAR, 0x000800e4);
 	rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_SW_CTRL, 0x22204000);
 
-	if (!priv->no_pape) {
+	if (!priv->anal_pape) {
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XAB_RF_SW_CTRL);
 		val32 |= (FPGA0_RF_PAPE |
 			  (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
@@ -1075,7 +1075,7 @@ static int rtl8188e_emu_to_active(struct rtl8xxxu_priv *priv)
 		goto exit;
 	}
 
-	/* LDO normal mode*/
+	/* LDO analrmal mode*/
 	val8 = rtl8xxxu_read8(priv, REG_LPLDO_CTRL);
 	val8 &= ~BIT(4);
 	rtl8xxxu_write8(priv, REG_LPLDO_CTRL, val8);
@@ -1142,7 +1142,7 @@ static int rtl8188eu_active_to_lps(struct rtl8xxxu_priv *priv)
 
 	retry = 100;
 	retval = -EBUSY;
-	/* Poll 32 bit wide REG_SCH_TX_CMD for 0 to ensure no TX is pending. */
+	/* Poll 32 bit wide REG_SCH_TX_CMD for 0 to ensure anal TX is pending. */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
 		if (!val32) {
@@ -1192,9 +1192,9 @@ static int rtl8188eu_power_on(struct rtl8xxxu_priv *priv)
 	/*
 	 * Enable MAC DMA/WMAC/SCHEDULE/SEC block
 	 * Set CR bit10 to enable 32k calibration.
-	 * We do not set CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE here
+	 * We do analt set CR_MAC_TX_ENABLE | CR_MAC_RX_ENABLE here
 	 * due to a hardware bug in the 88E, requiring those to be
-	 * set after REG_TRXFF_BNDY is set. If not the RXFF bundary
+	 * set after REG_TRXFF_BNDY is set. If analt the RXFF bundary
 	 * will get set to a larger buffer size than the real buffer
 	 * size.
 	 */
@@ -1308,7 +1308,7 @@ static void rtl8188e_usb_quirks(struct rtl8xxxu_priv *priv)
 	u16 val16;
 
 	/*
-	 * Technically this is not a USB quirk, but a chip quirk.
+	 * Technically this is analt a USB quirk, but a chip quirk.
 	 * This has to be done after REG_TRXFF_BNDY is set, see
 	 * rtl8188eu_power_on() for details.
 	 */
@@ -1509,9 +1509,9 @@ static void rtl8188e_rate_decision(struct rtl8xxxu_ra_info *ra)
 		retry_penalty_idx_1 = retry_penalty_idx_cut_i[1];
 		retry_penalty_up_idx = retry_penalty_up_idx_cut_i;
 	} else {
-		retry_penalty_idx_0 = retry_penalty_idx_normal[0];
-		retry_penalty_idx_1 = retry_penalty_idx_normal[1];
-		retry_penalty_up_idx = retry_penalty_up_idx_normal;
+		retry_penalty_idx_0 = retry_penalty_idx_analrmal[0];
+		retry_penalty_idx_1 = retry_penalty_idx_analrmal[1];
+		retry_penalty_up_idx = retry_penalty_up_idx_analrmal;
 	}
 
 	if (ra->rssi_sta_ra < (ra->pre_rssi_sta_ra - 3) ||
@@ -1633,7 +1633,7 @@ static void rtl8188e_power_training_try_state(struct rtl8xxxu_ra_info *ra)
 	ra->pt_pre_rate = ra->decision_rate;
 
 	/* TODO: implement the "false alarm" statistics for this */
-	/* Disable power training when noisy environment */
+	/* Disable power training when analisy environment */
 	/* if (p_dm_odm->is_disable_power_training) { */
 	if (1) {
 		ra->pt_stage = 0;
@@ -1732,7 +1732,7 @@ void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *s
 					ra->ra_stage = 0;
 			}
 		} else if (macid == 0) {
-			dev_warn(dev, "%s: TX report item 0 not valid\n", __func__);
+			dev_warn(dev, "%s: TX report item 0 analt valid\n", __func__);
 		}
 
 		dev_dbg(dev, "%s:  valid: %d retry: %d %d %d %d %d drop: %d\n",
@@ -1885,7 +1885,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.adda_1t_init = 0x0b1b25a0,
 	.adda_1t_path_on = 0x0bdb25a0,
 	/*
-	 * Use 9K for 8188e normal chip
+	 * Use 9K for 8188e analrmal chip
 	 * Max RX buffer = 10K - max(TxReportSize(64*8), WOLPattern(16*24))
 	 */
 	.trxff_boundary = 0x25ff,
@@ -1895,6 +1895,6 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8188E,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8188E,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8188E,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8188E,
+	.page_num_analrm = TX_PAGE_NUM_ANALRM_PQ_8188E,
 	.last_llt_entry = 175,
 };

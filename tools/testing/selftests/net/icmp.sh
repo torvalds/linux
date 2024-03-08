@@ -14,7 +14,7 @@
 # +----------------------+                          +--------------------+
 #
 # And then tries to ping 172.16.1.1 from ns1. This results in a "net
-# unreachable" message being sent from ns2, but there is no IPv4 address set in
+# unreachable" message being sent from ns2, but there is anal IPv4 address set in
 # that address space, so the kernel should substitute the dummy address
 # 192.0.0.8 defined in RFC7600.
 
@@ -45,8 +45,8 @@ ip -netns $NS1 link add veth0 type veth peer name veth0 netns $NS2
 ip -netns $NS1 link set dev veth0 up
 ip -netns $NS2 link set dev veth0 up
 ip -netns $NS1 addr add $H1_IP dev veth0
-ip -netns $NS1 addr add $H1_IP6/64 dev veth0 nodad
-ip -netns $NS2 addr add $H2_IP6/64 dev veth0 nodad
+ip -netns $NS1 addr add $H1_IP6/64 dev veth0 analdad
+ip -netns $NS2 addr add $H2_IP6/64 dev veth0 analdad
 ip -netns $NS1 route add $RT1 via inet6 $H2_IP6
 ip -netns $NS2 route add $RT2 via inet6 $H1_IP6
 

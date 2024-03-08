@@ -2,7 +2,7 @@
 /*
  * Copyright 2021 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  * The devfreq device combined with the energy model and the load can
  * give an estimation of the power consumption as well as limiting the
@@ -68,7 +68,7 @@ static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 	return power_limit;
 }
 
-static void _normalize_load(struct devfreq_dev_status *status)
+static void _analrmalize_load(struct devfreq_dev_status *status)
 {
 	if (status->total_time > 0xfffff) {
 		status->total_time >>= 10;
@@ -98,7 +98,7 @@ static u64 get_pd_power_uw(struct dtpm *dtpm)
 	mutex_unlock(&devfreq->lock);
 
 	freq = DIV_ROUND_UP(status.current_frequency, HZ_PER_KHZ);
-	_normalize_load(&status);
+	_analrmalize_load(&status);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 
@@ -137,20 +137,20 @@ static int __dtpm_devfreq_setup(struct devfreq *devfreq, struct dtpm *parent)
 	struct device *dev = devfreq->dev.parent;
 	struct dtpm_devfreq *dtpm_devfreq;
 	struct em_perf_domain *pd;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pd = em_pd_get(dev);
 	if (!pd) {
 		ret = dev_pm_opp_of_register_em(dev, NULL);
 		if (ret) {
-			pr_err("No energy model available for '%s'\n", dev_name(dev));
+			pr_err("Anal energy model available for '%s'\n", dev_name(dev));
 			return -EINVAL;
 		}
 	}
 
 	dtpm_devfreq = kzalloc(sizeof(*dtpm_devfreq), GFP_KERNEL);
 	if (!dtpm_devfreq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dtpm_init(&dtpm_devfreq->dtpm, &dtpm_ops);
 
@@ -181,11 +181,11 @@ out_dtpm_unregister:
 	return ret;
 }
 
-static int dtpm_devfreq_setup(struct dtpm *dtpm, struct device_node *np)
+static int dtpm_devfreq_setup(struct dtpm *dtpm, struct device_analde *np)
 {
 	struct devfreq *devfreq;
 
-	devfreq = devfreq_get_devfreq_by_node(np);
+	devfreq = devfreq_get_devfreq_by_analde(np);
 	if (IS_ERR(devfreq))
 		return 0;
 

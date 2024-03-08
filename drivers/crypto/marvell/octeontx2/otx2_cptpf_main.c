@@ -337,7 +337,7 @@ static int cptpf_flr_wq_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 
 	cptpf->flr_wq = alloc_ordered_workqueue("cptpf_flr_wq", 0);
 	if (!cptpf->flr_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cptpf->flr_work = kcalloc(num_vfs, sizeof(struct cptpf_flr_work),
 				  GFP_KERNEL);
@@ -352,7 +352,7 @@ static int cptpf_flr_wq_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 
 destroy_wq:
 	destroy_workqueue(cptpf->flr_wq);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int cptpf_vfpf_mbox_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
@@ -365,7 +365,7 @@ static int cptpf_vfpf_mbox_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 		alloc_ordered_workqueue("cpt_vfpf_mailbox",
 					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->vfpf_mbox_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Map VF-PF mailbox memory */
 	if (test_bit(CN10K_MBOX, &cptpf->cap_flag))
@@ -374,15 +374,15 @@ static int cptpf_vfpf_mbox_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 		vfpf_mbox_base = readq(cptpf->reg_base + RVU_PF_VF_BAR4_ADDR);
 
 	if (!vfpf_mbox_base) {
-		dev_err(dev, "VF-PF mailbox address not configured\n");
-		err = -ENOMEM;
+		dev_err(dev, "VF-PF mailbox address analt configured\n");
+		err = -EANALMEM;
 		goto free_wqe;
 	}
 	cptpf->vfpf_mbox_base = devm_ioremap_wc(dev, vfpf_mbox_base,
 						MBOX_SIZE * cptpf->max_vfs);
 	if (!cptpf->vfpf_mbox_base) {
 		dev_err(dev, "Mapping of VF-PF mailbox address failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_wqe;
 	}
 	err = otx2_mbox_init(&cptpf->vfpf_mbox, cptpf->vfpf_mbox_base,
@@ -444,7 +444,7 @@ static int cptpf_register_afpf_mbox_intr(struct otx2_cptpf_dev *cptpf)
 	ret = otx2_cpt_send_ready_msg(&cptpf->afpf_mbox, cptpf->pdev);
 	if (ret) {
 		dev_warn(dev,
-			 "AF not responding to mailbox, deferring probe\n");
+			 "AF analt responding to mailbox, deferring probe\n");
 		cptpf_disable_afpf_mbox_intr(cptpf);
 		return -EPROBE_DEFER;
 	}
@@ -461,14 +461,14 @@ static int cptpf_afpf_mbox_init(struct otx2_cptpf_dev *cptpf)
 		alloc_ordered_workqueue("cpt_afpf_mailbox",
 					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->afpf_mbox_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	offset = pci_resource_start(pdev, PCI_MBOX_BAR_NUM);
 	/* Map AF-PF mailbox memory */
 	cptpf->afpf_mbox_base = devm_ioremap_wc(&pdev->dev, offset, MBOX_SIZE);
 	if (!cptpf->afpf_mbox_base) {
 		dev_err(&pdev->dev, "Unable to map BAR4\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -583,7 +583,7 @@ static int cpt_is_pf_usable(struct otx2_cptpf_dev *cptpf)
 	 */
 	if (!rev) {
 		dev_warn(&cptpf->pdev->dev,
-			 "AF is not initialized, deferring probe\n");
+			 "AF is analt initialized, deferring probe\n");
 		return -EPROBE_DEFER;
 	}
 	return 0;
@@ -693,7 +693,7 @@ static int cptpf_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	if (ret)
 		goto disable_intr;
 
-	dev_notice(&cptpf->pdev->dev, "VFs enabled: %d\n", num_vfs);
+	dev_analtice(&cptpf->pdev->dev, "VFs enabled: %d\n", num_vfs);
 
 	try_module_get(THIS_MODULE);
 	return num_vfs;
@@ -726,7 +726,7 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 
 	cptpf = devm_kzalloc(dev, sizeof(*cptpf), GFP_KERNEL);
 	if (!cptpf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = pcim_enable_device(pdev);
 	if (err) {

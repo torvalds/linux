@@ -20,21 +20,21 @@ static struct pending_entry *get_free_pending_entry(struct pending_queue *q,
 	ent = &q->head[q->rear];
 	if (unlikely(ent->busy)) {
 		ent = NULL;
-		goto no_free_entry;
+		goto anal_free_entry;
 	}
 
 	q->rear++;
 	if (unlikely(q->rear == qlen))
 		q->rear = 0;
 
-no_free_entry:
+anal_free_entry:
 	return ent;
 }
 
 static inline void pending_queue_inc_front(struct pending_qinfo *pqinfo,
-					   int qno)
+					   int qanal)
 {
-	struct pending_queue *queue = &pqinfo->queue[qno];
+	struct pending_queue *queue = &pqinfo->queue[qanal];
 
 	queue->front++;
 	if (unlikely(queue->front == pqinfo->qlen))
@@ -136,7 +136,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 	g_sz_bytes = ((req->incnt + 3) / 4) * sizeof(struct sglist_component);
 	info->gather_components = kzalloc(g_sz_bytes, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->gather_components) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto  scatter_gather_clean;
 	}
 
@@ -153,7 +153,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 	s_sz_bytes = ((req->outcnt + 3) / 4) * sizeof(struct sglist_component);
 	info->scatter_components = kzalloc(s_sz_bytes, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->scatter_components) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto  scatter_gather_clean;
 	}
 
@@ -170,7 +170,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 	info->dlen = g_sz_bytes + s_sz_bytes + SG_LIST_HDR_SIZE;
 	info->in_buffer = kzalloc(info->dlen, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->in_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto  scatter_gather_clean;
 	}
 
@@ -197,7 +197,7 @@ static inline int setup_sgio_list(struct cpt_vf *cptvf,
 	/* Create and initialize RPTR */
 	info->out_buffer = kzalloc(COMPLETION_CODE_SIZE, req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!info->out_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto scatter_gather_clean;
 	}
 
@@ -221,7 +221,7 @@ scatter_gather_clean:
 }
 
 static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
-		     u32 qno)
+		     u32 qanal)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 	struct command_qinfo *qinfo = NULL;
@@ -230,14 +230,14 @@ static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	u8 *ent;
 	int ret = 0;
 
-	if (unlikely(qno >= cptvf->nr_queues)) {
-		dev_err(&pdev->dev, "Invalid queue (qno: %d, nr_queues: %d)\n",
-			qno, cptvf->nr_queues);
+	if (unlikely(qanal >= cptvf->nr_queues)) {
+		dev_err(&pdev->dev, "Invalid queue (qanal: %d, nr_queues: %d)\n",
+			qanal, cptvf->nr_queues);
 		return -EINVAL;
 	}
 
 	qinfo = &cptvf->cqinfo;
-	queue = &qinfo->queue[qno];
+	queue = &qinfo->queue[qanal];
 	/* lock commad queue */
 	spin_lock(&queue->lock);
 	ent = &queue->qhead->head[queue->idx * qinfo->cmd_size];
@@ -323,10 +323,10 @@ static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
 
 static inline void process_pending_queue(struct cpt_vf *cptvf,
 					 struct pending_qinfo *pqinfo,
-					 int qno)
+					 int qanal)
 {
 	struct pci_dev *pdev = cptvf->pdev;
-	struct pending_queue *pqueue = &pqinfo->queue[qno];
+	struct pending_queue *pqueue = &pqinfo->queue[qanal];
 	struct pending_entry *pentry = NULL;
 	struct cpt_info_buffer *info = NULL;
 	union cpt_res_s *status = NULL;
@@ -343,7 +343,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 		info = (struct cpt_info_buffer *)pentry->post_arg;
 		if (unlikely(!info)) {
 			dev_err(&pdev->dev, "Pending Entry post arg NULL\n");
-			pending_queue_inc_front(pqinfo, qno);
+			pending_queue_inc_front(pqinfo, qanal);
 			spin_unlock_bh(&pqueue->lock);
 			continue;
 		}
@@ -359,7 +359,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 			pentry->busy = false;
 			atomic64_dec((&pqueue->pending_count));
 			pentry->post_arg = NULL;
-			pending_queue_inc_front(pqinfo, qno);
+			pending_queue_inc_front(pqinfo, qanal);
 			do_request_cleanup(cptvf, info);
 			spin_unlock_bh(&pqueue->lock);
 			break;
@@ -373,7 +373,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 				pentry->busy = false;
 				atomic64_dec((&pqueue->pending_count));
 				pentry->post_arg = NULL;
-				pending_queue_inc_front(pqinfo, qno);
+				pending_queue_inc_front(pqinfo, qanal);
 				do_request_cleanup(cptvf, info);
 				spin_unlock_bh(&pqueue->lock);
 				break;
@@ -391,7 +391,7 @@ static inline void process_pending_queue(struct cpt_vf *cptvf,
 		pentry->busy = false;
 		pentry->post_arg = NULL;
 		atomic64_dec((&pqueue->pending_count));
-		pending_queue_inc_front(pqinfo, qno);
+		pending_queue_inc_front(pqinfo, qanal);
 		spin_unlock_bh(&pqueue->lock);
 
 		do_post_process(info->cptvf, info);
@@ -420,7 +420,7 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	info = kzalloc(sizeof(*info), req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!info)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for info_buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cpt_req = (struct cptvf_request *)&req->req;
@@ -442,7 +442,7 @@ int process_request(struct cpt_vf *cptvf, struct cpt_request_info *req)
 	info->completion_addr = kzalloc(sizeof(union cpt_res_s), req->may_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (unlikely(!info->completion_addr)) {
 		dev_err(&pdev->dev, "Unable to allocate memory for completion_addr\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto request_cleanup;
 	}
 
@@ -538,17 +538,17 @@ request_cleanup:
 	return ret;
 }
 
-void vq_post_process(struct cpt_vf *cptvf, u32 qno)
+void vq_post_process(struct cpt_vf *cptvf, u32 qanal)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 
-	if (unlikely(qno > cptvf->nr_queues)) {
+	if (unlikely(qanal > cptvf->nr_queues)) {
 		dev_err(&pdev->dev, "Request for post processing on invalid pending queue: %u\n",
-			qno);
+			qanal);
 		return;
 	}
 
-	process_pending_queue(cptvf, &cptvf->pqinfo, qno);
+	process_pending_queue(cptvf, &cptvf->pqinfo, qanal);
 }
 
 int cptvf_do_request(void *vfdev, struct cpt_request_info *req)
@@ -557,8 +557,8 @@ int cptvf_do_request(void *vfdev, struct cpt_request_info *req)
 	struct pci_dev *pdev = cptvf->pdev;
 
 	if (!cpt_device_ready(cptvf)) {
-		dev_err(&pdev->dev, "CPT Device is not ready");
-		return -ENODEV;
+		dev_err(&pdev->dev, "CPT Device is analt ready");
+		return -EANALDEV;
 	}
 
 	if ((cptvf->vftype == SE_TYPES) && (!req->ctrl.s.se_req)) {

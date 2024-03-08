@@ -63,13 +63,13 @@ static int memstick_uevent(const struct device *dev, struct kobj_uevent_env *env
 							     dev);
 
 	if (add_uevent_var(env, "MEMSTICK_TYPE=%02X", card->id.type))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "MEMSTICK_CATEGORY=%02X", card->id.category))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (add_uevent_var(env, "MEMSTICK_CLASS=%02X", card->id.class))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -81,7 +81,7 @@ static int memstick_device_probe(struct device *dev)
 	struct memstick_driver *drv = container_of(dev->driver,
 						   struct memstick_driver,
 						   driver);
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	if (dev->driver && drv->probe) {
 		rc = drv->probe(card);
@@ -242,7 +242,7 @@ int memstick_next_req(struct memstick_host *host, struct memstick_request **mrq)
 EXPORT_SYMBOL(memstick_next_req);
 
 /**
- * memstick_new_req - notify the host that some requests are pending
+ * memstick_new_req - analtify the host that some requests are pending
  * @host - host to use
  */
 void memstick_new_req(struct memstick_host *host)
@@ -432,7 +432,7 @@ static void memstick_check(struct work_struct *work)
 	struct memstick_dev *card;
 
 	dev_dbg(&host->dev, "memstick_check started\n");
-	pm_runtime_get_noresume(host->dev.parent);
+	pm_runtime_get_analresume(host->dev.parent);
 	mutex_lock(&host->lock);
 	if (!host->card) {
 		if (memstick_power_on(host))
@@ -517,7 +517,7 @@ int memstick_add_host(struct memstick_host *host)
 	idr_preload(GFP_KERNEL);
 	spin_lock(&memstick_host_lock);
 
-	rc = idr_alloc(&memstick_host_idr, host, 0, 0, GFP_NOWAIT);
+	rc = idr_alloc(&memstick_host_idr, host, 0, 0, GFP_ANALWAIT);
 	if (rc >= 0)
 		host->id = rc;
 
@@ -576,7 +576,7 @@ void memstick_free_host(struct memstick_host *host)
 EXPORT_SYMBOL(memstick_free_host);
 
 /**
- * memstick_suspend_host - notify bus driver of host suspension
+ * memstick_suspend_host - analtify bus driver of host suspension
  * @host - host to use
  */
 void memstick_suspend_host(struct memstick_host *host)
@@ -588,7 +588,7 @@ void memstick_suspend_host(struct memstick_host *host)
 EXPORT_SYMBOL(memstick_suspend_host);
 
 /**
- * memstick_resume_host - notify bus driver of host resumption
+ * memstick_resume_host - analtify bus driver of host resumption
  * @host - host to use
  */
 void memstick_resume_host(struct memstick_host *host)
@@ -626,7 +626,7 @@ static int __init memstick_init(void)
 
 	workqueue = create_freezable_workqueue("kmemstick");
 	if (!workqueue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = bus_register(&memstick_bus_type);
 	if (rc)

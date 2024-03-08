@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2017 Netroanalme Systems, Inc. */
 
-/* Authors: David Brunecz <david.brunecz@netronome.com>
- *          Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason Mcmullan <jason.mcmullan@netronome.com>
+/* Authors: David Brunecz <david.brunecz@netroanalme.com>
+ *          Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason Mcmullan <jason.mcmullan@netroanalme.com>
  */
 
 #include <linux/bitfield.h>
@@ -160,13 +160,13 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 	dst->label_port = FIELD_GET(NSP_ETH_PORT_PHYLABEL, port);
 	dst->label_subport = FIELD_GET(NSP_ETH_PORT_LABEL, port);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 17)
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 17)
 		return;
 
 	dst->override_changed = FIELD_GET(NSP_ETH_STATE_OVRD_CHNG, state);
 	dst->aneg = FIELD_GET(NSP_ETH_STATE_ANEG, state);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 22)
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 22)
 		return;
 
 	fec = FIELD_GET(NSP_ETH_PORT_FEC_SUPP_BASER, port);
@@ -179,13 +179,13 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 	dst->fec = FIELD_GET(NSP_ETH_STATE_FEC, state);
 	dst->act_fec = dst->fec;
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 33)
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 33)
 		return;
 
 	dst->act_fec = FIELD_GET(NSP_ETH_STATE_ACT_FEC, state);
 	dst->supp_aneg = FIELD_GET(NSP_ETH_PORT_SUPP_ANEG, port);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 37) {
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 37) {
 		dst->tx_pause = true;
 		dst->rx_pause = true;
 		return;
@@ -226,8 +226,8 @@ nfp_eth_calc_port_geometry(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 static void
 nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
 {
-	if (entry->interface == NFP_INTERFACE_NONE) {
-		entry->port_type = PORT_NONE;
+	if (entry->interface == NFP_INTERFACE_ANALNE) {
+		entry->port_type = PORT_ANALNE;
 		return;
 	} else if (entry->interface == NFP_INTERFACE_RJ45) {
 		entry->port_type = PORT_TP;
@@ -269,7 +269,7 @@ nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_nsp *nsp, struct nfp_eth_tabl
  * @cpp:	NFP CPP handle
  *
  * Read the port information from the device.  Returned structure should
- * be freed with kfree() once no longer needed.
+ * be freed with kfree() once anal longer needed.
  *
  * Return: populated ETH table or NULL on error.
  */
@@ -314,7 +314,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 	 * calculated above.
 	 */
 	if (ret && ret != cnt) {
-		nfp_err(cpp, "table entry count reported (%d) does not match entries present (%d)\n",
+		nfp_err(cpp, "table entry count reported (%d) does analt match entries present (%d)\n",
 			ret, cnt);
 		goto err;
 	}
@@ -352,7 +352,7 @@ struct nfp_nsp *nfp_eth_config_start(struct nfp_cpp *cpp, unsigned int idx)
 
 	entries = kzalloc(NSP_ETH_TABLE_SIZE, GFP_KERNEL);
 	if (!entries)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	nsp = nfp_nsp_open(cpp);
 	if (IS_ERR(nsp)) {
@@ -397,13 +397,13 @@ void nfp_eth_config_cleanup_end(struct nfp_nsp *nsp)
  *
  * Perform the configuration which was requested with __nfp_eth_set_*()
  * helpers and recorded in @nsp state.  If device was already configured
- * as requested or no __nfp_eth_set_*() operations were made no NSP command
+ * as requested or anal __nfp_eth_set_*() operations were made anal NSP command
  * will be performed.
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
- * -ERRNO - configuration failed.
+ * 1 - anal changes were needed;
+ * -ERRANAL - configuration failed.
  */
 int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
 {
@@ -431,8 +431,8 @@ int nfp_eth_config_commit_end(struct nfp_nsp *nsp)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
- * -ERRNO - configuration failed.
+ * 1 - anal changes were needed;
+ * -ERRANAL - configuration failed.
  */
 int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
 {
@@ -470,8 +470,8 @@ int nfp_eth_set_mod_enable(struct nfp_cpp *cpp, unsigned int idx, bool enable)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
- * -ERRNO - configuration failed.
+ * 1 - anal changes were needed;
+ * -ERRANAL - configuration failed.
  */
 int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 {
@@ -486,9 +486,9 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 	/* Older ABI versions did support this feature, however this has only
 	 * been reliable since ABI 20.
 	 */
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 20) {
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 20) {
 		nfp_eth_config_cleanup_end(nsp);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	entries = nfp_nsp_config_entries(nsp);
@@ -516,13 +516,13 @@ nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
 	unsigned int idx = nfp_nsp_config_idx(nsp);
 	u64 reg;
 
-	/* Note: set features were added in ABI 0.14 but the error
-	 *	 codes were initially not populated correctly.
+	/* Analte: set features were added in ABI 0.14 but the error
+	 *	 codes were initially analt populated correctly.
 	 */
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 17) {
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 17) {
 		nfp_err(nfp_nsp_cpp(nsp),
-			"set operations not supported, please update flash\n");
-		return -EOPNOTSUPP;
+			"set operations analt supported, please update flash\n");
+		return -EOPANALTSUPP;
 	}
 
 	/* Check if we are already in requested state */
@@ -552,11 +552,11 @@ int nfp_eth_set_idmode(struct nfp_cpp *cpp, unsigned int idx, bool state)
 		return PTR_ERR(nsp);
 
 	/* Set this features were added in ABI 0.32 */
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 32) {
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 32) {
 		nfp_err(nfp_nsp_cpp(nsp),
-			"set id mode operation not supported, please update flash\n");
+			"set id mode operation analt supported, please update flash\n");
 		nfp_eth_config_cleanup_end(nsp);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	entries = nfp_nsp_config_entries(nsp);
@@ -586,7 +586,7 @@ int nfp_eth_set_idmode(struct nfp_cpp *cpp, unsigned int idx, bool state)
  * Allow/disallow PHY module to advertise/perform autonegotiation.
  * Will write to hwinfo overrides in the flash (persistent config).
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 int __nfp_eth_set_aneg(struct nfp_nsp *nsp, enum nfp_eth_aneg mode)
 {
@@ -603,7 +603,7 @@ int __nfp_eth_set_aneg(struct nfp_nsp *nsp, enum nfp_eth_aneg mode)
  * Set the PHY module forward error correction mode.
  * Will write to hwinfo overrides in the flash (persistent config).
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 static int __nfp_eth_set_fec(struct nfp_nsp *nsp, enum nfp_eth_fec mode)
 {
@@ -620,8 +620,8 @@ static int __nfp_eth_set_fec(struct nfp_nsp *nsp, enum nfp_eth_fec mode)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
- * -ERRNO - configuration failed.
+ * 1 - anal changes were needed;
+ * -ERRANAL - configuration failed.
  */
 int
 nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode)
@@ -649,7 +649,7 @@ nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode)
  *
  * Set TX pause switch.
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 static int __nfp_eth_set_txpause(struct nfp_nsp *nsp, unsigned int tx_pause)
 {
@@ -664,7 +664,7 @@ static int __nfp_eth_set_txpause(struct nfp_nsp *nsp, unsigned int tx_pause)
  *
  * Set RX pause switch.
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 static int __nfp_eth_set_rxpause(struct nfp_nsp *nsp, unsigned int rx_pause)
 {
@@ -681,8 +681,8 @@ static int __nfp_eth_set_rxpause(struct nfp_nsp *nsp, unsigned int rx_pause)
  *
  * Return:
  * 0 - configuration successful;
- * 1 - no changes were needed;
- * -ERRNO - configuration failed.
+ * 1 - anal changes were needed;
+ * -ERRANAL - configuration failed.
  */
 int
 nfp_eth_set_pauseparam(struct nfp_cpp *cpp, unsigned int idx,
@@ -695,11 +695,11 @@ nfp_eth_set_pauseparam(struct nfp_cpp *cpp, unsigned int idx,
 	if (IS_ERR(nsp))
 		return PTR_ERR(nsp);
 
-	if (nfp_nsp_get_abi_ver_minor(nsp) < 37) {
+	if (nfp_nsp_get_abi_ver_mianalr(nsp) < 37) {
 		nfp_err(nfp_nsp_cpp(nsp),
-			"set pause parameter operation not supported, please update flash\n");
+			"set pause parameter operation analt supported, please update flash\n");
 		nfp_eth_config_cleanup_end(nsp);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	err = __nfp_eth_set_txpause(nsp, tx_pause);
@@ -727,7 +727,7 @@ nfp_eth_set_pauseparam(struct nfp_cpp *cpp, unsigned int idx,
  * 50G, etc.)
  * Will write to hwinfo overrides in the flash (persistent config).
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
 {
@@ -736,7 +736,7 @@ int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
 	rate = nfp_eth_speed2rate(speed);
 	if (rate == RATE_INVALID) {
 		nfp_warn(nfp_nsp_cpp(nsp),
-			 "could not find matching lane rate for speed %u\n",
+			 "could analt find matching lane rate for speed %u\n",
 			 speed);
 		return -EINVAL;
 	}
@@ -754,7 +754,7 @@ int __nfp_eth_set_speed(struct nfp_nsp *nsp, unsigned int speed)
  * Set number of lanes in the port.
  * Will write to hwinfo overrides in the flash (persistent config).
  *
- * Return: 0 or -ERRNO.
+ * Return: 0 or -ERRANAL.
  */
 int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes)
 {

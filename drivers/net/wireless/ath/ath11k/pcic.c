@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -348,7 +348,7 @@ static void ath11k_pcic_ce_irq_disable(struct ath11k_base *ab, u16 ce_id)
 		return;
 
 	irq_idx = ATH11K_PCI_IRQ_CE0_OFFSET + ce_id;
-	disable_irq_nosync(ab->irq_num[irq_idx]);
+	disable_irq_analsync(ab->irq_num[irq_idx]);
 }
 
 static void ath11k_pcic_ce_irqs_disable(struct ath11k_base *ab)
@@ -400,7 +400,7 @@ static irqreturn_t ath11k_pcic_ce_interrupt_handler(int irq, void *arg)
 	/* last interrupt received for this CE */
 	ce_pipe->timestamp = jiffies;
 
-	disable_irq_nosync(ab->irq_num[irq_idx]);
+	disable_irq_analsync(ab->irq_num[irq_idx]);
 
 	tasklet_schedule(&ce_pipe->intr_tq);
 
@@ -419,7 +419,7 @@ static void ath11k_pcic_ext_grp_disable(struct ath11k_ext_irq_grp *irq_grp)
 		return;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
-		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
+		disable_irq_analsync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 }
 
 static void __ath11k_pcic_ext_irq_disable(struct ath11k_base *ab)
@@ -532,7 +532,7 @@ static irqreturn_t ath11k_pcic_ext_interrupt_handler(int irq, void *arg)
 	irq_grp->timestamp = jiffies;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
-		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
+		disable_irq_analsync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 
 	napi_schedule(&irq_grp->napi);
 
@@ -559,7 +559,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 
 	irq_flags = IRQF_SHARED;
 	if (!test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
-		irq_flags |= IRQF_NOBALANCING;
+		irq_flags |= IRQF_ANALBALANCING;
 
 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
@@ -630,7 +630,7 @@ int ath11k_pcic_config_irq(struct ath11k_base *ab)
 
 	irq_flags = IRQF_SHARED;
 	if (!test_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags))
-		irq_flags |= IRQF_NOBALANCING;
+		irq_flags |= IRQF_ANALBALANCING;
 
 	/* Configure CE irqs */
 	for (i = 0, msi_data_idx = 0; i < ab->hw_params.ce_count; i++) {
@@ -738,7 +738,7 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 			continue;
 
 		switch (__le32_to_cpu(entry->pipedir)) {
-		case PIPEDIR_NONE:
+		case PIPEDIR_ANALNE:
 			break;
 		case PIPEDIR_IN:
 			WARN_ON(dl_set);
@@ -750,7 +750,7 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 			*ul_pipe = __le32_to_cpu(entry->pipenum);
 			ul_set = true;
 			break;
-		case PIPEDIR_INOUT:
+		case PIPEDIR_IANALUT:
 			WARN_ON(dl_set);
 			WARN_ON(ul_set);
 			*dl_pipe = __le32_to_cpu(entry->pipenum);
@@ -762,7 +762,7 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 	}
 
 	if (WARN_ON(!ul_set || !dl_set))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -811,7 +811,7 @@ void ath11k_pci_disable_ce_irqs_except_wake_irq(struct ath11k_base *ab)
 		    i == ATH11K_PCI_CE_WAKE_IRQ)
 			continue;
 
-		disable_irq_nosync(ab->irq_num[irq_idx]);
+		disable_irq_analsync(ab->irq_num[irq_idx]);
 		synchronize_irq(ab->irq_num[irq_idx]);
 		tasklet_kill(&ce_pipe->intr_tq);
 	}

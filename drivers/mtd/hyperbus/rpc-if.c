@@ -122,7 +122,7 @@ static int rpcif_hb_probe(struct platform_device *pdev)
 
 	hyperbus = devm_kzalloc(dev, sizeof(*hyperbus), GFP_KERNEL);
 	if (!hyperbus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = rpcif_sw_init(&hyperbus->rpc, pdev->dev.parent);
 	if (error)
@@ -142,7 +142,7 @@ static int rpcif_hb_probe(struct platform_device *pdev)
 	hyperbus->ctlr.dev = dev;
 	hyperbus->ctlr.ops = &rpcif_hb_ops;
 	hyperbus->hbdev.ctlr = &hyperbus->ctlr;
-	hyperbus->hbdev.np = of_get_next_child(pdev->dev.parent->of_node, NULL);
+	hyperbus->hbdev.np = of_get_next_child(pdev->dev.parent->of_analde, NULL);
 	error = hyperbus_register_device(&hyperbus->hbdev);
 	if (error)
 		goto out_disable_rpm;

@@ -30,21 +30,21 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 	int nid;
 
 	/*
-	 * boot_cpuid paca is allocated very early before cpu_to_node is up.
-	 * Set bottom-up mode, because the boot CPU should be on node-0,
+	 * boot_cpuid paca is allocated very early before cpu_to_analde is up.
+	 * Set bottom-up mode, because the boot CPU should be on analde-0,
 	 * which will put its paca in the right place.
 	 */
 	if (cpu == boot_cpuid) {
-		nid = NUMA_NO_NODE;
+		nid = NUMA_ANAL_ANALDE;
 		memblock_set_bottom_up(true);
 	} else {
-		nid = early_cpu_to_node(cpu);
+		nid = early_cpu_to_analde(cpu);
 	}
 
 	ptr = memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				     limit, nid);
 	if (!ptr)
-		panic("cannot allocate paca data");
+		panic("cananalt allocate paca data");
 
 	if (cpu == boot_cpuid)
 		memblock_set_bottom_up(false);
@@ -77,9 +77,9 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
 		shared_lppaca =
 			memblock_alloc_try_nid(shared_lppaca_total_size,
 					       PAGE_SIZE, MEMBLOCK_LOW_LIMIT,
-					       limit, NUMA_NO_NODE);
+					       limit, NUMA_ANAL_ANALDE);
 		if (!shared_lppaca)
-			panic("cannot allocate shared data");
+			panic("cananalt allocate shared data");
 
 		memblock_set_bottom_up(false);
 		uv_share_page(PHYS_PFN(__pa(shared_lppaca)),
@@ -90,7 +90,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
 	shared_lppaca_size += size;
 
 	/*
-	 * This is very early in boot, so no harm done if the kernel crashes at
+	 * This is very early in boot, so anal harm done if the kernel crashes at
 	 * this point.
 	 */
 	BUG_ON(shared_lppaca_size > shared_lppaca_total_size);
@@ -102,7 +102,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
  * See asm/lppaca.h for more detail.
  *
  * lppaca structures must must be 1kB in size, L1 cache line aligned,
- * and not cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
+ * and analt cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
  * these requirements.
  */
 static inline void init_lppaca(struct lppaca *lppaca)
@@ -176,7 +176,7 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
  * per processor.  The Paca array must contain an entry for each thread.
  * The VPD Areas will give a max logical processors = 2 * max physical
  * processors.  The processor VPD array needs one entry per physical
- * processor (not thread).
+ * processor (analt thread).
  */
 struct paca_struct **paca_ptrs __read_mostly;
 EXPORT_SYMBOL(paca_ptrs);
@@ -198,7 +198,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	/* Only set MSR:IR/DR when MMU is initialized */
 	new_paca->kernel_msr = MSR_KERNEL & ~(MSR_IR | MSR_DR);
 	new_paca->hw_cpu_id = 0xffff;
-	new_paca->kexec_state = KEXEC_STATE_NONE;
+	new_paca->kexec_state = KEXEC_STATE_ANALNE;
 	new_paca->__current = &init_task;
 	new_paca->data_offset = 0xfeeeeeeeeeeeeeeeULL;
 #ifdef CONFIG_PPC_64S_HASH_MMU
@@ -206,7 +206,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E_64
-	/* For now -- if we have threads this will be adjusted later */
+	/* For analw -- if we have threads this will be adjusted later */
 	new_paca->tcd_ptr = &new_paca->tcd;
 #endif
 }
@@ -226,8 +226,8 @@ void setup_paca(struct paca_struct *new_paca)
 	 * if we do a GET_PACA() before the feature fixups have been
 	 * applied.
 	 *
-	 * Normally you should test against CPU_FTR_HVMODE, but CPU features
-	 * are not yet set up when we first reach here.
+	 * Analrmally you should test against CPU_FTR_HVMODE, but CPU features
+	 * are analt yet set up when we first reach here.
 	 */
 	if (mfmsr() & MSR_HV)
 		mtspr(SPRN_SPRG_HPACA, local_paca);
@@ -262,7 +262,7 @@ void __init allocate_paca(int cpu)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
-	 * We access pacas in real mode, and cannot take SLB faults
+	 * We access pacas in real mode, and cananalt take SLB faults
 	 * on them when in virtual mode, so allocate them accordingly.
 	 */
 	limit = min(ppc64_bolted_size(), ppc64_rma_size);

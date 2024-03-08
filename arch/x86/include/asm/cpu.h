@@ -5,7 +5,7 @@
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/topology.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/percpu.h>
 #include <asm/ibt.h>
 
@@ -65,7 +65,7 @@ void init_ia32_feat_ctl(struct cpuinfo_x86 *c);
 static inline void init_ia32_feat_ctl(struct cpuinfo_x86 *c) {}
 #endif
 
-extern __noendbr void cet_disable(void);
+extern __analendbr void cet_disable(void);
 
 struct cpu_signature;
 

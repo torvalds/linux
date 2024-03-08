@@ -78,10 +78,10 @@ typedef struct { /* tbd */
 
 typedef struct { /* rfd */
 	unsigned short rfd_status;
-#define RFD_NOEOF	(1 << 6)
+#define RFD_ANALEOF	(1 << 6)
 #define RFD_FRAMESHORT	(1 << 7)
 #define RFD_DMAOVRN	(1 << 8)
-#define RFD_NORESOURCES	(1 << 9)
+#define RFD_ANALRESOURCES	(1 << 9)
 #define RFD_ALIGNERROR	(1 << 10)
 #define RFD_CRCERROR	(1 << 11)
 #define RFD_OK		(1 << 13)
@@ -108,11 +108,11 @@ typedef struct { /* rbd */
 	unsigned short rbd_len;
 } rbd_t;
 
-typedef struct { /* nop */
-	unsigned short nop_status;
-	unsigned short nop_command;
-	unsigned short nop_link;
-} nop_t;
+typedef struct { /* analp */
+	unsigned short analp_status;
+	unsigned short analp_command;
+	unsigned short analp_link;
+} analp_t;
 
 typedef struct { /* set multicast */
 	unsigned short mc_status;
@@ -161,7 +161,7 @@ typedef struct { /* config command */
 #define CFG14_DISBRD	(1 << 1)
 #define CFG14_MANCH	(1 << 2)
 #define CFG14_TNCRS	(1 << 3)
-#define CFG14_NOCRC	(1 << 4)
+#define CFG14_ANALCRC	(1 << 4)
 #define CFG14_CRC16	(1 << 5)
 #define CFG14_BTSTF	(1 << 6)
 #define CFG14_FLGPAD	(1 << 7)
@@ -178,14 +178,14 @@ typedef struct { /* scb */
 #define SCB_STRXMASK		(7 << 4)	/* Receive unit status		*/
 #define SCB_STRXIDLE		(0 << 4)	/* Idle				*/
 #define SCB_STRXSUSP		(1 << 4)	/* Suspended			*/
-#define SCB_STRXNRES		(2 << 4)	/* No resources			*/
+#define SCB_STRXNRES		(2 << 4)	/* Anal resources			*/
 #define SCB_STRXRDY		(4 << 4)	/* Ready			*/
 #define SCB_STCUMASK		(7 << 8)	/* Command unit status		*/
 #define SCB_STCUIDLE		(0 << 8)	/* Idle				*/
 #define SCB_STCUSUSP		(1 << 8)	/* Suspended			*/
 #define SCB_STCUACTV		(2 << 8)	/* Active			*/
-#define SCB_STRNR		(1 << 12)	/* Receive unit not ready	*/
-#define SCB_STCNA		(1 << 13)	/* Command unit not ready	*/
+#define SCB_STRNR		(1 << 12)	/* Receive unit analt ready	*/
+#define SCB_STCNA		(1 << 13)	/* Command unit analt ready	*/
 #define SCB_STFR		(1 << 14)	/* Frame received		*/
 #define SCB_STCX		(1 << 15)	/* Command completed		*/
 	unsigned short scb_command;	/* Next command				*/
@@ -197,15 +197,15 @@ typedef struct { /* scb */
 #define SCB_CMDCUCRESUME	(2 << 8)	/* Resume execution		*/
 #define SCB_CMDCUCSUSPEND	(3 << 8)	/* Suspend execution		*/
 #define SCB_CMDCUCABORT		(4 << 8)	/* Abort execution		*/
-#define SCB_CMDACKRNR		(1 << 12)	/* Ack RU not ready		*/
-#define SCB_CMDACKCNA		(1 << 13)	/* Ack CU not ready		*/
+#define SCB_CMDACKRNR		(1 << 12)	/* Ack RU analt ready		*/
+#define SCB_CMDACKCNA		(1 << 13)	/* Ack CU analt ready		*/
 #define SCB_CMDACKFR		(1 << 14)	/* Ack Frame received		*/
 #define SCB_CMDACKCX		(1 << 15)	/* Ack Command complete		*/
 	unsigned short scb_cbl_offset;	/* Offset of first command unit		*/
 	unsigned short scb_rfa_offset;	/* Offset of first receive frame area	*/
 	unsigned short scb_crc_errors;	/* Properly aligned frame with CRC error*/
 	unsigned short scb_aln_errors;	/* Misaligned frames			*/
-	unsigned short scb_rsc_errors;	/* Frames lost due to no space		*/
+	unsigned short scb_rsc_errors;	/* Frames lost due to anal space		*/
 	unsigned short scb_ovn_errors;	/* Frames lost due to slow bus		*/
 } scb_t;
 
@@ -227,14 +227,14 @@ typedef struct { /* scp */
 } scp_t;
 
 /* commands */
-#define CMD_NOP			0
+#define CMD_ANALP			0
 #define CMD_SETADDRESS		1
 #define CMD_CONFIG		2
 #define CMD_SETMULTICAST	3
 #define CMD_TX			4
 #define CMD_TDR			5
 #define CMD_DUMP		6
-#define CMD_DIAGNOSE		7
+#define CMD_DIAGANALSE		7
 
 #define CMD_MASK		7
 
@@ -248,7 +248,7 @@ typedef struct { /* scp */
 #define STAT_TXDEFERRED		(1 << 7)
 #define STAT_TXSLOWDMA		(1 << 8)
 #define STAT_TXLOSTCTS		(1 << 9)
-#define STAT_NOCARRIER		(1 << 10)
+#define STAT_ANALCARRIER		(1 << 10)
 #define STAT_FAIL		(1 << 11)
 #define STAT_ABORTED		(1 << 12)
 #define STAT_OK			(1 << 13)

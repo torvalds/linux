@@ -33,7 +33,7 @@ static inline u64 mb_per_tick(int mbps)
 /*
  * Status flags for nullb_device.
  *
- * CONFIGURED:	Device has been configured and turned on. Cannot reconfigure.
+ * CONFIGURED:	Device has been configured and turned on. Cananalt reconfigure.
  * UP:		Device is currently on and visible in userspace.
  * THROTTLED:	Device is being throttled.
  * CACHE:	Device is using a write-back cache.
@@ -72,7 +72,7 @@ static DEFINE_IDA(nullb_indexes);
 static struct blk_mq_tag_set tag_set;
 
 enum {
-	NULL_IRQ_NONE		= 0,
+	NULL_IRQ_ANALNE		= 0,
 	NULL_IRQ_SOFTIRQ	= 1,
 	NULL_IRQ_TIMER		= 2,
 };
@@ -81,9 +81,9 @@ static bool g_virt_boundary = false;
 module_param_named(virt_boundary, g_virt_boundary, bool, 0444);
 MODULE_PARM_DESC(virt_boundary, "Require a virtual boundary for the device. Default: False");
 
-static int g_no_sched;
-module_param_named(no_sched, g_no_sched, int, 0444);
-MODULE_PARM_DESC(no_sched, "No io scheduler");
+static int g_anal_sched;
+module_param_named(anal_sched, g_anal_sched, int, 0444);
+MODULE_PARM_DESC(anal_sched, "Anal io scheduler");
 
 static int g_submit_queues = 1;
 module_param_named(submit_queues, g_submit_queues, int, 0444);
@@ -93,9 +93,9 @@ static int g_poll_queues = 1;
 module_param_named(poll_queues, g_poll_queues, int, 0444);
 MODULE_PARM_DESC(poll_queues, "Number of IOPOLL submission queues");
 
-static int g_home_node = NUMA_NO_NODE;
-module_param_named(home_node, g_home_node, int, 0444);
-MODULE_PARM_DESC(home_node, "Home node for the device");
+static int g_home_analde = NUMA_ANAL_ANALDE;
+module_param_named(home_analde, g_home_analde, int, 0444);
+MODULE_PARM_DESC(home_analde, "Home analde for the device");
 
 #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
 /*
@@ -177,7 +177,7 @@ static int g_irqmode = NULL_IRQ_SOFTIRQ;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 {
-	return null_param_store_val(str, &g_irqmode, NULL_IRQ_NONE,
+	return null_param_store_val(str, &g_irqmode, NULL_IRQ_ANALNE,
 					NULL_IRQ_TIMER);
 }
 
@@ -187,7 +187,7 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 };
 
 device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
-MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
+MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-analne, 1-softirq, 2-timer");
 
 static unsigned long g_completion_nsec = 10000;
 module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
@@ -197,9 +197,9 @@ static int g_hw_queue_depth = 64;
 module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
 MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
 
-static bool g_use_per_node_hctx;
-module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
-MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
+static bool g_use_per_analde_hctx;
+module_param_named(use_per_analde_hctx, g_use_per_analde_hctx, bool, 0444);
+MODULE_PARM_DESC(use_per_analde_hctx, "Use per-analde allocation for hardware context queues. Default: false");
 
 static bool g_memory_backed;
 module_param_named(memory_backed, g_memory_backed, bool, 0444);
@@ -211,11 +211,11 @@ MODULE_PARM_DESC(discard, "Support discard operations (requires memory-backed nu
 
 static unsigned long g_cache_size;
 module_param_named(cache_size, g_cache_size, ulong, 0444);
-MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (none)");
+MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (analne)");
 
 static unsigned int g_mbps;
 module_param_named(mbps, g_mbps, uint, 0444);
-MODULE_PARM_DESC(mbps, "Limit maximum bandwidth (in MiB/s). Default: 0 (no limit)");
+MODULE_PARM_DESC(mbps, "Limit maximum bandwidth (in MiB/s). Default: 0 (anal limit)");
 
 static bool g_zoned;
 module_param_named(zoned, g_zoned, bool, S_IRUGO);
@@ -235,11 +235,11 @@ MODULE_PARM_DESC(zone_nr_conv, "Number of conventional zones when block device i
 
 static unsigned int g_zone_max_open;
 module_param_named(zone_max_open, g_zone_max_open, uint, 0444);
-MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones when block device is zoned. Default: 0 (no limit)");
+MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones when block device is zoned. Default: 0 (anal limit)");
 
 static unsigned int g_zone_max_active;
 module_param_named(zone_max_active, g_zone_max_active, uint, 0444);
-MODULE_PARM_DESC(zone_max_active, "Maximum number of active zones when block device is zoned. Default: 0 (no limit)");
+MODULE_PARM_DESC(zone_max_active, "Maximum number of active zones when block device is zoned. Default: 0 (anal limit)");
 
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
@@ -360,7 +360,7 @@ static int nullb_update_nr_hw_queues(struct nullb_device *dev,
 		return -EINVAL;
 
 	/*
-	 * Make sure that null_init_hctx() does not access nullb->queues[] past
+	 * Make sure that null_init_hctx() does analt access nullb->queues[] past
 	 * the end of that array.
 	 */
 	if (submit_queues > nr_cpu_ids || poll_queues > g_poll_queues)
@@ -378,7 +378,7 @@ static int nullb_update_nr_hw_queues(struct nullb_device *dev,
 	set = dev->nullb->tag_set;
 	nr_hw_queues = submit_queues + poll_queues;
 	blk_mq_update_nr_hw_queues(set, nr_hw_queues);
-	ret = set->nr_hw_queues == nr_hw_queues ? 0 : -ENOMEM;
+	ret = set->nr_hw_queues == nr_hw_queues ? 0 : -EANALMEM;
 
 	if (ret) {
 		/* on error, revert the queue numbers */
@@ -405,7 +405,7 @@ NULLB_DEVICE_ATTR(size, ulong, NULL);
 NULLB_DEVICE_ATTR(completion_nsec, ulong, NULL);
 NULLB_DEVICE_ATTR(submit_queues, uint, nullb_apply_submit_queues);
 NULLB_DEVICE_ATTR(poll_queues, uint, nullb_apply_poll_queues);
-NULLB_DEVICE_ATTR(home_node, uint, NULL);
+NULLB_DEVICE_ATTR(home_analde, uint, NULL);
 NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
 NULLB_DEVICE_ATTR(blocksize, uint, NULL);
 NULLB_DEVICE_ATTR(max_sectors, uint, NULL);
@@ -413,7 +413,7 @@ NULLB_DEVICE_ATTR(irqmode, uint, NULL);
 NULLB_DEVICE_ATTR(hw_queue_depth, uint, NULL);
 NULLB_DEVICE_ATTR(index, uint, NULL);
 NULLB_DEVICE_ATTR(blocking, bool, NULL);
-NULLB_DEVICE_ATTR(use_per_node_hctx, bool, NULL);
+NULLB_DEVICE_ATTR(use_per_analde_hctx, bool, NULL);
 NULLB_DEVICE_ATTR(memory_backed, bool, NULL);
 NULLB_DEVICE_ATTR(discard, bool, NULL);
 NULLB_DEVICE_ATTR(mbps, uint, NULL);
@@ -425,7 +425,7 @@ NULLB_DEVICE_ATTR(zone_nr_conv, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_open, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_active, uint, NULL);
 NULLB_DEVICE_ATTR(virt_boundary, bool, NULL);
-NULLB_DEVICE_ATTR(no_sched, bool, NULL);
+NULLB_DEVICE_ATTR(anal_sched, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tag_bitmap, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
@@ -487,7 +487,7 @@ static ssize_t nullb_device_badblocks_store(struct config_item *item,
 
 	orig = kstrndup(page, count, GFP_KERNEL);
 	if (!orig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = strstrip(orig);
 
@@ -546,7 +546,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_completion_nsec,
 	&nullb_device_attr_submit_queues,
 	&nullb_device_attr_poll_queues,
-	&nullb_device_attr_home_node,
+	&nullb_device_attr_home_analde,
 	&nullb_device_attr_queue_mode,
 	&nullb_device_attr_blocksize,
 	&nullb_device_attr_max_sectors,
@@ -554,7 +554,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_hw_queue_depth,
 	&nullb_device_attr_index,
 	&nullb_device_attr_blocking,
-	&nullb_device_attr_use_per_node_hctx,
+	&nullb_device_attr_use_per_analde_hctx,
 	&nullb_device_attr_power,
 	&nullb_device_attr_memory_backed,
 	&nullb_device_attr_discard,
@@ -570,7 +570,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_zone_readonly,
 	&nullb_device_attr_zone_offline,
 	&nullb_device_attr_virt_boundary,
-	&nullb_device_attr_no_sched,
+	&nullb_device_attr_anal_sched,
 	&nullb_device_attr_shared_tag_bitmap,
 	NULL,
 };
@@ -624,7 +624,7 @@ config_group *nullb_group_make_group(struct config_group *group, const char *nam
 
 	dev = null_alloc_dev();
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_group_init_type_name(&dev->group, name, &nullb_device_type);
 	nullb_add_fault_config(dev);
@@ -651,10 +651,10 @@ static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
 			"badblocks,blocking,blocksize,cache_size,"
-			"completion_nsec,discard,home_node,hw_queue_depth,"
-			"irqmode,max_sectors,mbps,memory_backed,no_sched,"
+			"completion_nsec,discard,home_analde,hw_queue_depth,"
+			"irqmode,max_sectors,mbps,memory_backed,anal_sched,"
 			"poll_queues,power,queue_mode,shared_tag_bitmap,size,"
-			"submit_queues,use_per_node_hctx,virt_boundary,zoned,"
+			"submit_queues,use_per_analde_hctx,virt_boundary,zoned,"
 			"zone_capacity,zone_max_active,zone_max_open,"
 			"zone_nr_conv,zone_offline,zone_readonly,zone_size\n");
 }
@@ -718,7 +718,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->prev_submit_queues = g_submit_queues;
 	dev->poll_queues = g_poll_queues;
 	dev->prev_poll_queues = g_poll_queues;
-	dev->home_node = g_home_node;
+	dev->home_analde = g_home_analde;
 	dev->queue_mode = g_queue_mode;
 	dev->blocksize = g_bs;
 	dev->max_sectors = g_max_sectors;
@@ -729,7 +729,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->discard = g_discard;
 	dev->cache_size = g_cache_size;
 	dev->mbps = g_mbps;
-	dev->use_per_node_hctx = g_use_per_node_hctx;
+	dev->use_per_analde_hctx = g_use_per_analde_hctx;
 	dev->zoned = g_zoned;
 	dev->zone_size = g_zone_size;
 	dev->zone_capacity = g_zone_capacity;
@@ -737,7 +737,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->zone_max_open = g_zone_max_open;
 	dev->zone_max_active = g_zone_max_active;
 	dev->virt_boundary = g_virt_boundary;
-	dev->no_sched = g_no_sched;
+	dev->anal_sched = g_anal_sched;
 	dev->shared_tag_bitmap = g_shared_tag_bitmap;
 	return dev;
 }
@@ -792,7 +792,7 @@ static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 		cmd->error = BLK_STS_OK;
 		cmd->nq = nq;
 		if (nq->dev->irqmode == NULL_IRQ_TIMER) {
-			hrtimer_init(&cmd->timer, CLOCK_MONOTONIC,
+			hrtimer_init(&cmd->timer, CLOCK_MOANALTONIC,
 				     HRTIMER_MODE_REL);
 			cmd->timer.function = null_cmd_timer_expired;
 		}
@@ -844,7 +844,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
 	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
@@ -863,11 +863,11 @@ static struct nullb_page *null_alloc_page(void)
 {
 	struct nullb_page *t_page;
 
-	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
+	t_page = kmalloc(sizeof(struct nullb_page), GFP_ANALIO);
 	if (!t_page)
 		return NULL;
 
-	t_page->page = alloc_pages(GFP_NOIO, 0);
+	t_page->page = alloc_pages(GFP_ANALIO, 0);
 	if (!t_page->page) {
 		kfree(t_page);
 		return NULL;
@@ -987,11 +987,11 @@ static struct nullb_page *__null_lookup_page(struct nullb *nullb,
 }
 
 static struct nullb_page *null_lookup_page(struct nullb *nullb,
-	sector_t sector, bool for_write, bool ignore_cache)
+	sector_t sector, bool for_write, bool iganalre_cache)
 {
 	struct nullb_page *page = NULL;
 
-	if (!ignore_cache)
+	if (!iganalre_cache)
 		page = __null_lookup_page(nullb, sector, for_write, true);
 	if (page)
 		return page;
@@ -999,14 +999,14 @@ static struct nullb_page *null_lookup_page(struct nullb *nullb,
 }
 
 static struct nullb_page *null_insert_page(struct nullb *nullb,
-					   sector_t sector, bool ignore_cache)
+					   sector_t sector, bool iganalre_cache)
 	__releases(&nullb->lock)
 	__acquires(&nullb->lock)
 {
 	u64 idx;
 	struct nullb_page *t_page;
 
-	t_page = null_lookup_page(nullb, sector, true, ignore_cache);
+	t_page = null_lookup_page(nullb, sector, true, iganalre_cache);
 	if (t_page)
 		return t_page;
 
@@ -1016,13 +1016,13 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 	if (!t_page)
 		goto out_lock;
 
-	if (radix_tree_preload(GFP_NOIO))
+	if (radix_tree_preload(GFP_ANALIO))
 		goto out_freepage;
 
 	spin_lock_irq(&nullb->lock);
 	idx = sector >> PAGE_SECTORS_SHIFT;
 	t_page->page->index = idx;
-	t_page = null_radix_tree_insert(nullb, idx, t_page, !ignore_cache);
+	t_page = null_radix_tree_insert(nullb, idx, t_page, !iganalre_cache);
 	radix_tree_preload_end();
 
 	return t_page;
@@ -1030,7 +1030,7 @@ out_freepage:
 	null_free_page(t_page);
 out_lock:
 	spin_lock_irq(&nullb->lock);
-	return null_lookup_page(nullb, sector, true, ignore_cache);
+	return null_lookup_page(nullb, sector, true, iganalre_cache);
 }
 
 static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
@@ -1057,7 +1057,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 	}
 
 	if (!t_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	src = kmap_local_page(c_page->page);
 	dst = kmap_local_page(t_page->page);
@@ -1152,7 +1152,7 @@ static int copy_to_nullb(struct nullb *nullb, struct page *source,
 		t_page = null_insert_page(nullb, sector,
 			!null_cache_active(nullb) || is_fua);
 		if (!t_page)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		memcpy_page(t_page->page, offset, source, off + count, temp);
 
@@ -1391,7 +1391,7 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 	else
 		err = null_handle_rq(cmd);
 
-	return errno_to_blk_status(err);
+	return erranal_to_blk_status(err);
 }
 
 static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
@@ -1414,10 +1414,10 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 {
 	/*
 	 * Since root privileges are required to configure the null_blk
-	 * driver, it is fine that this driver does not initialize the
+	 * driver, it is fine that this driver does analt initialize the
 	 * data buffers of read commands. Zero-initialize these buffers
 	 * anyway if KMSAN is enabled to prevent that KMSAN complains
-	 * about null_blk not initializing read data buffers.
+	 * about null_blk analt initializing read data buffers.
 	 */
 	if (IS_ENABLED(CONFIG_KMSAN))
 		nullb_zero_read_cmd_buffer(cmd);
@@ -1431,13 +1431,13 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 			break;
 		case NULL_Q_BIO:
 			/*
-			 * XXX: no proper submitting cpu information available.
+			 * XXX: anal proper submitting cpu information available.
 			 */
 			end_cmd(cmd);
 			break;
 		}
 		break;
-	case NULL_IRQ_NONE:
+	case NULL_IRQ_ANALNE:
 		end_cmd(cmd);
 		break;
 	case NULL_IRQ_TIMER:
@@ -1472,7 +1472,7 @@ static void null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 	blk_status_t sts;
 
 	if (op == REQ_OP_FLUSH) {
-		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
+		cmd->error = erranal_to_blk_status(null_handle_flush(nullb));
 		goto out;
 	}
 
@@ -1481,7 +1481,7 @@ static void null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 	else
 		sts = null_process_cmd(cmd, op, sector, nr_sectors);
 
-	/* Do not overwrite errors (e.g. timeout errors) */
+	/* Do analt overwrite errors (e.g. timeout errors) */
 	if (cmd->error == BLK_STS_OK)
 		cmd->error = sts;
 
@@ -1496,12 +1496,12 @@ static enum hrtimer_restart nullb_bwtimer_fn(struct hrtimer *timer)
 	unsigned int mbps = nullb->dev->mbps;
 
 	if (atomic_long_read(&nullb->cur_bytes) == mb_per_tick(mbps))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	atomic_long_set(&nullb->cur_bytes, mb_per_tick(mbps));
 	null_restart_queue_async(nullb);
 
-	hrtimer_forward_now(&nullb->bw_timer, timer_interval);
+	hrtimer_forward_analw(&nullb->bw_timer, timer_interval);
 
 	return HRTIMER_RESTART;
 }
@@ -1510,7 +1510,7 @@ static void nullb_setup_bwtimer(struct nullb *nullb)
 {
 	ktime_t timer_interval = ktime_set(0, TIMER_INTERVAL);
 
-	hrtimer_init(&nullb->bw_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&nullb->bw_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	nullb->bw_timer.function = nullb_bwtimer_fn;
 	atomic_long_set(&nullb->cur_bytes, mb_per_tick(nullb->dev->mbps));
 	hrtimer_start(&nullb->bw_timer, timer_interval, HRTIMER_MODE_REL);
@@ -1708,7 +1708,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
 	if (!is_poll && nq->dev->irqmode == NULL_IRQ_TIMER) {
-		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&cmd->timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
 	}
 	cmd->rq = rq;
@@ -1870,13 +1870,13 @@ static void null_config_discard(struct nullb *nullb)
 
 	if (!nullb->dev->memory_backed) {
 		nullb->dev->discard = false;
-		pr_info("discard option is ignored without memory backing\n");
+		pr_info("discard option is iganalred without memory backing\n");
 		return;
 	}
 
 	if (nullb->dev->zoned) {
 		nullb->dev->discard = false;
-		pr_info("discard option is ignored in zoned mode\n");
+		pr_info("discard option is iganalred in zoned mode\n");
 		return;
 	}
 
@@ -1901,12 +1901,12 @@ static int setup_commands(struct nullb_queue *nq)
 
 	nq->cmds = kcalloc(nq->queue_depth, sizeof(*cmd), GFP_KERNEL);
 	if (!nq->cmds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nq->tag_map = bitmap_zalloc(nq->queue_depth, GFP_KERNEL);
 	if (!nq->tag_map) {
 		kfree(nq->cmds);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < nq->queue_depth; i++) {
@@ -1927,7 +1927,7 @@ static int setup_queues(struct nullb *nullb)
 	nullb->queues = kcalloc(nqueues, sizeof(struct nullb_queue),
 				GFP_KERNEL);
 	if (!nullb->queues)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nullb->queue_depth = nullb->dev->hw_queue_depth;
 	return 0;
@@ -1959,8 +1959,8 @@ static int null_gendisk_register(struct nullb *nullb)
 	set_capacity(disk, size);
 
 	disk->major		= null_major;
-	disk->first_minor	= nullb->index;
-	disk->minors		= 1;
+	disk->first_mianalr	= nullb->index;
+	disk->mianalrs		= 1;
 	if (queue_is_mq(nullb->q))
 		disk->fops		= &null_rq_ops;
 	else
@@ -1981,7 +1981,7 @@ static int null_gendisk_register(struct nullb *nullb)
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 {
 	unsigned int flags = BLK_MQ_F_SHOULD_MERGE;
-	int hw_queues, numa_node;
+	int hw_queues, numa_analde;
 	unsigned int queue_depth;
 	int poll_queues;
 
@@ -1989,9 +1989,9 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 		hw_queues = nullb->dev->submit_queues;
 		poll_queues = nullb->dev->poll_queues;
 		queue_depth = nullb->dev->hw_queue_depth;
-		numa_node = nullb->dev->home_node;
-		if (nullb->dev->no_sched)
-			flags |= BLK_MQ_F_NO_SCHED;
+		numa_analde = nullb->dev->home_analde;
+		if (nullb->dev->anal_sched)
+			flags |= BLK_MQ_F_ANAL_SCHED;
 		if (nullb->dev->shared_tag_bitmap)
 			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 		if (nullb->dev->blocking)
@@ -2000,9 +2000,9 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 		hw_queues = g_submit_queues;
 		poll_queues = g_poll_queues;
 		queue_depth = g_hw_queue_depth;
-		numa_node = g_home_node;
-		if (g_no_sched)
-			flags |= BLK_MQ_F_NO_SCHED;
+		numa_analde = g_home_analde;
+		if (g_anal_sched)
+			flags |= BLK_MQ_F_ANAL_SCHED;
 		if (g_shared_tag_bitmap)
 			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 		if (g_blocking)
@@ -2015,7 +2015,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->driver_data = nullb;
 	set->nr_hw_queues = hw_queues;
 	set->queue_depth = queue_depth;
-	set->numa_node = numa_node;
+	set->numa_analde = numa_analde;
 	if (poll_queues) {
 		set->nr_hw_queues += poll_queues;
 		set->nr_maps = 3;
@@ -2029,16 +2029,16 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 static int null_validate_conf(struct nullb_device *dev)
 {
 	if (dev->queue_mode == NULL_Q_RQ) {
-		pr_err("legacy IO path is no longer available\n");
+		pr_err("legacy IO path is anal longer available\n");
 		return -EINVAL;
 	}
 
 	dev->blocksize = round_down(dev->blocksize, 512);
 	dev->blocksize = clamp_t(unsigned int, dev->blocksize, 512, 4096);
 
-	if (dev->queue_mode == NULL_Q_MQ && dev->use_per_node_hctx) {
-		if (dev->submit_queues != nr_online_nodes)
-			dev->submit_queues = nr_online_nodes;
+	if (dev->queue_mode == NULL_Q_MQ && dev->use_per_analde_hctx) {
+		if (dev->submit_queues != nr_online_analdes)
+			dev->submit_queues = nr_online_analdes;
 	} else if (dev->submit_queues > nr_cpu_ids)
 		dev->submit_queues = nr_cpu_ids;
 	else if (dev->submit_queues == 0)
@@ -2060,7 +2060,7 @@ static int null_validate_conf(struct nullb_device *dev)
 	dev->cache_size = min_t(unsigned long, ULONG_MAX / 1024 / 1024,
 						dev->cache_size);
 	dev->mbps = min_t(unsigned int, 1024 * 40, dev->mbps);
-	/* can not stop a queue */
+	/* can analt stop a queue */
 	if (dev->queue_mode == NULL_Q_BIO)
 		dev->mbps = 0;
 
@@ -2109,9 +2109,9 @@ static int null_add_dev(struct nullb_device *dev)
 	if (rv)
 		return rv;
 
-	nullb = kzalloc_node(sizeof(*nullb), GFP_KERNEL, dev->home_node);
+	nullb = kzalloc_analde(sizeof(*nullb), GFP_KERNEL, dev->home_analde);
 	if (!nullb) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto out;
 	}
 	nullb->dev = dev;
@@ -2143,8 +2143,8 @@ static int null_add_dev(struct nullb_device *dev)
 		}
 		nullb->q = nullb->disk->queue;
 	} else if (dev->queue_mode == NULL_Q_BIO) {
-		rv = -ENOMEM;
-		nullb->disk = blk_alloc_disk(nullb->dev->home_node);
+		rv = -EANALMEM;
+		nullb->disk = blk_alloc_disk(nullb->dev->home_analde);
 		if (!nullb->disk)
 			goto out_cleanup_queues;
 
@@ -2171,7 +2171,7 @@ static int null_add_dev(struct nullb_device *dev)
 	}
 
 	nullb->q->queuedata = nullb;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, nullb->q);
+	blk_queue_flag_set(QUEUE_FLAG_ANALNROT, nullb->q);
 
 	mutex_lock(&lock);
 	rv = ida_alloc(&nullb_indexes, GFP_KERNEL);
@@ -2254,7 +2254,7 @@ static int null_create_dev(void)
 
 	dev = null_alloc_dev();
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = null_add_dev(dev);
 	if (ret) {
@@ -2286,24 +2286,24 @@ static int __init null_init(void)
 		g_bs = PAGE_SIZE;
 	}
 
-	if (g_home_node != NUMA_NO_NODE && g_home_node >= nr_online_nodes) {
-		pr_err("invalid home_node value\n");
-		g_home_node = NUMA_NO_NODE;
+	if (g_home_analde != NUMA_ANAL_ANALDE && g_home_analde >= nr_online_analdes) {
+		pr_err("invalid home_analde value\n");
+		g_home_analde = NUMA_ANAL_ANALDE;
 	}
 
 	if (!null_setup_fault())
 		return -EINVAL;
 
 	if (g_queue_mode == NULL_Q_RQ) {
-		pr_err("legacy IO path is no longer available\n");
+		pr_err("legacy IO path is anal longer available\n");
 		return -EINVAL;
 	}
 
-	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
-		if (g_submit_queues != nr_online_nodes) {
+	if (g_queue_mode == NULL_Q_MQ && g_use_per_analde_hctx) {
+		if (g_submit_queues != nr_online_analdes) {
 			pr_warn("submit_queues param is set to %u.\n",
-				nr_online_nodes);
-			g_submit_queues = nr_online_nodes;
+				nr_online_analdes);
+			g_submit_queues = nr_online_analdes;
 		}
 	} else if (g_submit_queues > nr_cpu_ids) {
 		g_submit_queues = nr_cpu_ids;

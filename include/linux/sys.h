@@ -3,7 +3,7 @@
 #define _LINUX_SYS_H
 
 /*
- * This file is no longer used or needed
+ * This file is anal longer used or needed
  */
 
 /*
@@ -11,7 +11,7 @@
  * due to newer versions existing..
  * (please be careful - ibcs2 may need some of these).
  */
-#ifdef notdef
+#ifdef analtdef
 #define _sys_waitpid	_sys_old_syscall	/* _sys_wait4 */
 #define _sys_olduname	_sys_old_syscall	/* _sys_newuname */
 #define _sys_uname	_sys_old_syscall	/* _sys_newuname */

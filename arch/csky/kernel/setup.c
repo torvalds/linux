@@ -40,7 +40,7 @@ static void __init csky_memblock_init(void)
 		max_low_pfn = min_low_pfn + sseg_size;
 	}
 
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfn[ZONE_ANALRMAL] = max_low_pfn;
 
 	mmu_init(min_low_pfn, max_low_pfn);
 

@@ -123,14 +123,14 @@ static int __init inport_init(void)
 	c = inb(INPORT_SIGNATURE_PORT);
 	if (a == b || a != c) {
 		printk(KERN_INFO "inport.c: Didn't find InPort mouse at %#x\n", INPORT_BASE);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_release_region;
 	}
 
 	inport_dev = input_allocate_device();
 	if (!inport_dev) {
-		printk(KERN_ERR "inport.c: Not enough memory for input device\n");
-		err = -ENOMEM;
+		printk(KERN_ERR "inport.c: Analt eanalugh memory for input device\n");
+		err = -EANALMEM;
 		goto err_release_region;
 	}
 

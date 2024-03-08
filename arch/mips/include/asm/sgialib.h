@@ -55,7 +55,7 @@ extern LONG ArcRead(ULONG fd, PVOID buf, ULONG num, PULONG cnt);
 extern LONG ArcWrite(ULONG fd, PVOID buf, ULONG num, PULONG cnt);
 
 /* Misc. routines. */
-extern VOID ArcEnterInteractiveMode(VOID) __noreturn;
+extern VOID ArcEnterInteractiveMode(VOID) __analreturn;
 extern DISPLAY_STATUS *ArcGetDisplayStatus(ULONG FileID);
 
 #endif /* _ASM_SGIALIB_H */

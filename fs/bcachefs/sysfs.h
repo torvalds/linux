@@ -4,7 +4,7 @@
 
 #include <linux/sysfs.h>
 
-#ifndef NO_BCACHEFS_SYSFS
+#ifndef ANAL_BCACHEFS_SYSFS
 
 struct attribute;
 struct sysfs_ops;
@@ -43,6 +43,6 @@ static const struct sysfs_ops bch2_dev_sysfs_ops;
 
 static inline int bch2_opts_create_sysfs_files(struct kobject *kobj) { return 0; }
 
-#endif /* NO_BCACHEFS_SYSFS */
+#endif /* ANAL_BCACHEFS_SYSFS */
 
 #endif  /* _BCACHEFS_SYSFS_H_ */

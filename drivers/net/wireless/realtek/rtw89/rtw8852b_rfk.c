@@ -47,7 +47,7 @@ enum rtw8852b_dpk_id {
 	D_SYNC		= 0x2b,
 	D_GAIN_LOSS	= 0x2c,
 	D_MDPK_IDL	= 0x2d,
-	D_GAIN_NORM	= 0x2f,
+	D_GAIN_ANALRM	= 0x2f,
 	D_KIP_THERMAL	= 0x30,
 	D_KIP_RESTORE	= 0x31
 };
@@ -116,7 +116,7 @@ static const u32 rtw8852b_backup_rf_regs[] = {
 #define BACKUP_BB_REGS_NR ARRAY_SIZE(rtw8852b_backup_bb_regs)
 #define BACKUP_RF_REGS_NR ARRAY_SIZE(rtw8852b_backup_rf_regs)
 
-static const struct rtw89_reg3_def rtw8852b_set_nondbcc_path01[] = {
+static const struct rtw89_reg3_def rtw8852b_set_analndbcc_path01[] = {
 	{0x20fc, 0xffff0000, 0x0303},
 	{0x5864, 0x18000000, 0x3},
 	{0x7864, 0x18000000, 0x3},
@@ -151,7 +151,7 @@ static const struct rtw89_reg3_def rtw8852b_set_nondbcc_path01[] = {
 	{0x20fc, 0xffff0000, 0x3333},
 };
 
-static const struct rtw89_reg3_def rtw8852b_restore_nondbcc_path01[] = {
+static const struct rtw89_reg3_def rtw8852b_restore_analndbcc_path01[] = {
 	{0x20fc, 0xffff0000, 0x0303},
 	{0x12b8, 0x40000000, 0x0},
 	{0x32b8, 0x40000000, 0x0},
@@ -1493,8 +1493,8 @@ static void _iqk_afebb_restore(struct rtw89_dev *rtwdev,
 	case RF_B:
 		return;
 	default:
-		size = ARRAY_SIZE(rtw8852b_restore_nondbcc_path01);
-		def = rtw8852b_restore_nondbcc_path01;
+		size = ARRAY_SIZE(rtw8852b_restore_analndbcc_path01);
+		def = rtw8852b_restore_analndbcc_path01;
 		break;
 	}
 
@@ -1539,8 +1539,8 @@ static void _iqk_macbb_setting(struct rtw89_dev *rtwdev,
 	case RF_B:
 		return;
 	default:
-		size = ARRAY_SIZE(rtw8852b_set_nondbcc_path01);
-		def = rtw8852b_set_nondbcc_path01;
+		size = ARRAY_SIZE(rtw8852b_set_analndbcc_path01);
+		def = rtw8852b_set_analndbcc_path01;
 		break;
 	}
 
@@ -1688,7 +1688,7 @@ static u8 _dpk_order_convert(struct rtw89_dev *rtwdev)
 	u8 order;
 	u8 val;
 
-	order = rtw89_phy_read32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP);
+	order = rtw89_phy_read32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP);
 	val = 0x3 >> order;
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] convert MDPD order to 0x%x\n", val);
@@ -1696,7 +1696,7 @@ static u8 _dpk_order_convert(struct rtw89_dev *rtwdev)
 	return val;
 }
 
-static void _dpk_onoff(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, bool off)
+static void _dpk_oanalff(struct rtw89_dev *rtwdev, enum rtw89_rf_path path, bool off)
 {
 	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
 	u8 val, kidx = dpk->cur_idx[path];
@@ -2337,18 +2337,18 @@ static void _dpk_set_mdpd_para(struct rtw89_dev *rtwdev, u8 order)
 {
 	switch (order) {
 	case 0:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_PN, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN, 0x3);
 		rtw89_phy_write32_mask(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN, 0x1);
 		break;
 	case 1:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_clr(rtwdev, R_LDL_NORM, B_LDL_NORM_PN);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_clr(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN);
 		rtw89_phy_write32_clr(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN);
 		break;
 	case 2:
-		rtw89_phy_write32_mask(rtwdev, R_LDL_NORM, B_LDL_NORM_OP, order);
-		rtw89_phy_write32_clr(rtwdev, R_LDL_NORM, B_LDL_NORM_PN);
+		rtw89_phy_write32_mask(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_OP, order);
+		rtw89_phy_write32_clr(rtwdev, R_LDL_ANALRM, B_LDL_ANALRM_PN);
 		rtw89_phy_write32_clr(rtwdev, R_MDPK_SYNC, B_MDPK_SYNC_MAN);
 		break;
 	default:
@@ -2506,7 +2506,7 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 			if (!reloaded[path] && dpk->bp[path][0].ch)
 				dpk->cur_idx[path] = !dpk->cur_idx[path];
 			else
-				_dpk_onoff(rtwdev, path, false);
+				_dpk_oanalff(rtwdev, path, false);
 		}
 	} else {
 		for (path = 0; path < RTW8852B_DPK_RF_PATH; path++)
@@ -2527,7 +2527,7 @@ static void _dpk_cal_select(struct rtw89_dev *rtwdev, bool force,
 
 	for (path = 0; path < RTW8852B_DPK_RF_PATH; path++) {
 		is_fail = _dpk_main(rtwdev, phy, path, 1);
-		_dpk_onoff(rtwdev, path, is_fail);
+		_dpk_oanalff(rtwdev, path, is_fail);
 	}
 
 	_dpk_bb_afe_restore(rtwdev, phy, path, kpath);
@@ -2572,7 +2572,7 @@ static void _dpk_force_bypass(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 
 	for (path = 0; path < RTW8852B_DPK_RF_PATH; path++) {
 		if (kpath & BIT(path))
-			_dpk_onoff(rtwdev, path, true);
+			_dpk_oanalff(rtwdev, path, true);
 	}
 }
 
@@ -2610,7 +2610,7 @@ static void _dpk_track(struct rtw89_dev *rtwdev)
 		cur_ther = ewma_thermal_read(&rtwdev->phystat.avg_thermal[path]);
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
-			    "[DPK_TRK] thermal now = %d\n", cur_ther);
+			    "[DPK_TRK] thermal analw = %d\n", cur_ther);
 
 		if (dpk->bp[path][kidx].ch && cur_ther)
 			delta_ther[path] = dpk->bp[path][kidx].ther_dpk - cur_ther;
@@ -3542,7 +3542,7 @@ static bool _tssi_get_cw_report(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy
 
 		if (k >= retry) {
 			rtw89_debug(rtwdev, RTW89_DBG_RFK,
-				    "[TSSI PA K] TSSI finish bit k > %d mp:100ms normal:30us path=%d\n",
+				    "[TSSI PA K] TSSI finish bit k > %d mp:100ms analrmal:30us path=%d\n",
 				    k, path);
 
 			_tssi_hw_tx(rtwdev, phy, path, 100, 5000, power[j], false);
@@ -3933,7 +3933,7 @@ static void rtw8852b_tssi_default_txagc(struct rtw89_dev *rtwdev,
 		    "======> %s   SCAN_END\n", __func__);
 }
 
-void rtw8852b_wifi_scan_notify(struct rtw89_dev *rtwdev, bool scan_start,
+void rtw8852b_wifi_scan_analtify(struct rtw89_dev *rtwdev, bool scan_start,
 			       enum rtw89_phy_idx phy_idx)
 {
 	if (scan_start)

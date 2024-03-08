@@ -174,7 +174,7 @@ static int snd_ad1816a_trigger(struct snd_ad1816a *chip, unsigned char what,
 		spin_lock(&chip->lock);
 		cmd = (cmd == SNDRV_PCM_TRIGGER_START) ? 0xff: 0x00;
 		/* if (what & AD1816A_PLAYBACK_ENABLE) */
-		/* That is not valid, because playback and capture enable
+		/* That is analt valid, because playback and capture enable
 		 * are the same bit pattern, just to different addresses
 		 */
 		if (! iscapture)
@@ -485,7 +485,7 @@ static void snd_ad1816a_init(struct snd_ad1816a *chip)
 		AD1816A_CAPTURE_ENABLE | AD1816A_CAPTURE_PIO, 0x00);
 	snd_ad1816a_write(chip, AD1816A_INTERRUPT_ENABLE, 0x0000);
 	snd_ad1816a_write_mask(chip, AD1816A_CHIP_CONFIG,
-		AD1816A_CAPTURE_NOT_EQUAL | AD1816A_WSS_ENABLE, 0xffff);
+		AD1816A_CAPTURE_ANALT_EQUAL | AD1816A_WSS_ENABLE, 0xffff);
 	snd_ad1816a_write(chip, AD1816A_DSP_CONFIG, 0x0000);
 	snd_ad1816a_write(chip, AD1816A_POWERDOWN_CTRL, 0x0000);
 
@@ -548,9 +548,9 @@ static const char *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 	case AD1816A_HW_AD1815:	return "AD1815";
 	case AD1816A_HW_AD18MAX10: return "AD18max10";
 	default:
-		snd_printk(KERN_WARNING "Unknown chip version %d:%d.\n",
+		snd_printk(KERN_WARNING "Unkanalwn chip version %d:%d.\n",
 			chip->version, chip->hardware);
-		return "AD1816A - unknown";
+		return "AD1816A - unkanalwn";
 	}
 }
 
@@ -648,7 +648,7 @@ int snd_ad1816a_timer(struct snd_ad1816a *chip, int device)
 	int error;
 
 	tid.dev_class = SNDRV_TIMER_CLASS_CARD;
-	tid.dev_sclass = SNDRV_TIMER_SCLASS_NONE;
+	tid.dev_sclass = SNDRV_TIMER_SCLASS_ANALNE;
 	tid.card = chip->card->number;
 	tid.device = device;
 	tid.subdevice = 0;

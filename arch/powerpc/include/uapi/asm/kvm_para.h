@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
@@ -26,7 +26,7 @@
 /*
  * Additions to this struct must only occur at the end, and should be
  * accompanied by a KVM_MAGIC_FEAT flag to advertise that they are present
- * (albeit not necessarily relevant to the current target hardware platform).
+ * (albeit analt necessarily relevant to the current target hardware platform).
  *
  * Struct fields are always 32 or 64 bit aligned, depending on them being 32
  * or 64 bit wide respectively.
@@ -37,7 +37,7 @@ struct kvm_vcpu_arch_shared {
 	__u64 scratch1;
 	__u64 scratch2;
 	__u64 scratch3;
-	__u64 critical;		/* Guest may not get interrupts if == r1 */
+	__u64 critical;		/* Guest may analt get interrupts if == r1 */
 	__u64 sprg0;
 	__u64 sprg1;
 	__u64 sprg2;
@@ -92,7 +92,7 @@ struct kvm_vcpu_arch_shared {
 
 /* Magic page flags from guest to host */
 
-#define MAGIC_PAGE_FLAG_NOT_MAPPED_NX	(1 << 0)
+#define MAGIC_PAGE_FLAG_ANALT_MAPPED_NX	(1 << 0)
 
 
 #endif /* _UAPI__POWERPC_KVM_PARA_H__ */

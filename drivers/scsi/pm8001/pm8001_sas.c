@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    analtice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    substantially similar to the "ANAL WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -59,7 +59,7 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
 }
 
 /**
-  * pm8001_tag_free - free the no more needed tag
+  * pm8001_tag_free - free the anal more needed tag
   * @pm8001_ha: our hba struct
   * @tag: the found tag associated with the task
   */
@@ -124,7 +124,7 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	mem_virt_alloc = dma_alloc_coherent(&pdev->dev, mem_size + align,
 					    &mem_dma_handle, GFP_KERNEL);
 	if (!mem_virt_alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 	*pphys_addr = mem_dma_handle;
 	phys_align = (*pphys_addr + align_offset) & ~align_offset;
 	*virt_addr = (void *)mem_virt_alloc + phys_align - *pphys_addr;
@@ -148,7 +148,7 @@ struct pm8001_hba_info *pm8001_find_ha_by_dev(struct domain_device *dev)
 
 /**
   * pm8001_phy_control - this function should be registered to
-  * sas_domain_function_template to provide libsas used, note: this is just
+  * sas_domain_function_template to provide libsas used, analte: this is just
   * control the HBA phy rather than other expander phy if you want control
   * other phy, you should use SMP command.
   * @sas_phy: which phy in HBA phys.
@@ -171,7 +171,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
 		/*
 		 * If the controller is in fatal error state,
-		 * we will not get a response from the controller
+		 * we will analt get a response from the controller
 		 */
 		pm8001_dbg(pm8001_ha, FAIL,
 			   "Phy control failed due to fatal errors\n");
@@ -221,7 +221,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			if (pm8001_ha->phy[phy_id].phy_state ==
 				PHY_STATE_LINK_UP_SPCV) {
 				sas_phy_disconnected(&phy->sas_phy);
-				sas_notify_phy_event(&phy->sas_phy,
+				sas_analtify_phy_event(&phy->sas_phy,
 					PHYE_LOSS_OF_SIGNAL, GFP_KERNEL);
 				phy->phy_attached = 0;
 			}
@@ -229,7 +229,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			if (pm8001_ha->phy[phy_id].phy_state ==
 				PHY_STATE_LINK_UP_SPC) {
 				sas_phy_disconnected(&phy->sas_phy);
-				sas_notify_phy_event(&phy->sas_phy,
+				sas_analtify_phy_event(&phy->sas_phy,
 					PHYE_LOSS_OF_SIGNAL, GFP_KERNEL);
 				phy->phy_attached = 0;
 			}
@@ -261,7 +261,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		return 0;
 	default:
 		pm8001_dbg(pm8001_ha, DEVIO, "func 0x%x\n", func);
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 	}
 	msleep(300);
 	return rc;
@@ -279,7 +279,7 @@ void pm8001_scan_start(struct Scsi_Host *shost)
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	pm8001_ha = sha->lldd_ha;
-	/* SAS_RE_INITIALIZATION not available in SPCv/ve */
+	/* SAS_RE_INITIALIZATION analt available in SPCv/ve */
 	if (pm8001_ha->chip_id == chip_8001)
 		PM8001_CHIP_DISP->sas_re_init_req(pm8001_ha);
 	for (i = 0; i < pm8001_ha->chip->n_phy; ++i) {
@@ -414,7 +414,7 @@ static int pm8001_deliver_command(struct pm8001_hba_info *pm8001_ha,
 	case SAS_PROTOCOL_INTERNAL_ABORT:
 		return pm8001_task_prep_internal_abort(pm8001_ha, ccb);
 	default:
-		dev_err(pm8001_ha->dev, "unknown sas_task proto: 0x%x\n",
+		dev_err(pm8001_ha->dev, "unkanalwn sas_task proto: 0x%x\n",
 			task_proto);
 	}
 
@@ -474,7 +474,7 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		} else {
 			task->task_done(task);
 		}
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_out;
 	}
 
@@ -489,7 +489,7 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 			n_elem = dma_map_sg(pm8001_ha->dev, task->scatter,
 					    task->num_scatter, task->data_dir);
 			if (!n_elem) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto err_out_ccb;
 			}
 		}
@@ -551,7 +551,7 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SSP:
 	default:
-		/* do nothing */
+		/* do analthing */
 		break;
 	}
 
@@ -561,7 +561,7 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 		pm8001_dev = ccb->device;
 		trace_pm80xx_request_complete(pm8001_ha->id,
 			pm8001_dev ? pm8001_dev->attached_phy : PM8001_MAX_PHYS,
-			ccb->ccb_tag, 0 /* ctlr_opcode not known */,
+			ccb->ccb_tag, 0 /* ctlr_opcode analt kanalwn */,
 			qc ? qc->tf.command : 0, // ata opcode
 			pm8001_dev ? atomic_read(&pm8001_dev->running_req) : -1);
 	}
@@ -585,7 +585,7 @@ static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 	}
 	if (dev == PM8001_MAX_DEVICES) {
 		pm8001_dbg(pm8001_ha, FAIL,
-			   "max support %d devices, ignore ..\n",
+			   "max support %d devices, iganalre ..\n",
 			   PM8001_MAX_DEVICES);
 	}
 	return NULL;
@@ -604,7 +604,7 @@ struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
 			return &pm8001_ha->devices[dev];
 	}
 	if (dev == PM8001_MAX_DEVICES) {
-		pm8001_dbg(pm8001_ha, FAIL, "NO MATCHING DEVICE FOUND !!!\n");
+		pm8001_dbg(pm8001_ha, FAIL, "ANAL MATCHING DEVICE FOUND !!!\n");
 	}
 	return NULL;
 }
@@ -620,18 +620,18 @@ void pm8001_free_dev(struct pm8001_device *pm8001_dev)
 }
 
 /**
-  * pm8001_dev_found_notify - libsas notify a device is found.
+  * pm8001_dev_found_analtify - libsas analtify a device is found.
   * @dev: the device structure which sas layer used.
   *
   * when libsas find a sas domain device, it should tell the LLDD that
   * device is found, and then LLDD register this device to HBA firmware
   * by the command "OPC_INB_REG_DEV", after that the HBA will assign a
   * device ID(according to device's sas address) and returned it to LLDD. From
-  * now on, we communicate with HBA FW with the device ID which HBA assigned
+  * analw on, we communicate with HBA FW with the device ID which HBA assigned
   * rather than sas address. it is the necessary step for our HBA but it is
   * the optional for other HBA driver.
   */
-static int pm8001_dev_found_notify(struct domain_device *dev)
+static int pm8001_dev_found_analtify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	int res = 0;
@@ -658,7 +658,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 		phy_id = sas_find_attached_phy_id(&parent_dev->ex_dev, dev);
 		if (phy_id < 0) {
 			pm8001_dbg(pm8001_ha, FAIL,
-				   "Error: no attached dev:%016llx at ex:%016llx.\n",
+				   "Error: anal attached dev:%016llx at ex:%016llx.\n",
 				   SAS_ADDR(dev->sas_addr),
 				   SAS_ADDR(parent_dev->sas_addr));
 			res = phy_id;
@@ -687,16 +687,16 @@ found_out:
 
 int pm8001_dev_found(struct domain_device *dev)
 {
-	return pm8001_dev_found_notify(dev);
+	return pm8001_dev_found_analtify(dev);
 }
 
 #define PM8001_TASK_TIMEOUT 20
 
 /**
-  * pm8001_dev_gone_notify - see the comments for "pm8001_dev_found_notify"
+  * pm8001_dev_gone_analtify - see the comments for "pm8001_dev_found_analtify"
   * @dev: the device structure which sas layer used.
   */
-static void pm8001_dev_gone_notify(struct domain_device *dev)
+static void pm8001_dev_gone_analtify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	struct pm8001_hba_info *pm8001_ha;
@@ -727,7 +727,7 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 
 void pm8001_dev_gone(struct domain_device *dev)
 {
-	pm8001_dev_gone_notify(dev);
+	pm8001_dev_gone_analtify(dev);
 }
 
 /* retry commands by ha, by task and/or by device */
@@ -814,7 +814,7 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 	struct sas_phy *phy;
 
 	if (!dev || !dev->lldd_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
@@ -883,7 +883,7 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 		msleep(100);
 
 		/* deregister the target device */
-		pm8001_dev_gone_notify(dev);
+		pm8001_dev_gone_analtify(dev);
 		msleep(200);
 
 		/*send phy reset to hard reset target */
@@ -898,7 +898,7 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 		msleep(100);
 
 		/* deregister the target device */
-		pm8001_dev_gone_notify(dev);
+		pm8001_dev_gone_analtify(dev);
 		msleep(200);
 
 		/*send phy reset to hard reset target */
@@ -923,7 +923,7 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
 		/*
 		 * If the controller is in fatal error state,
-		 * we will not get a response from the controller
+		 * we will analt get a response from the controller
 		 */
 		pm8001_dbg(pm8001_ha, FAIL,
 			   "LUN reset failed due to fatal errors\n");
@@ -976,11 +976,11 @@ int pm8001_query_task(struct sas_task *task)
 			pm8001_dbg(pm8001_ha, EH,
 				   "The task is still in Lun\n");
 			break;
-		/* The task is not in Lun or failed, reset the phy */
+		/* The task is analt in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			pm8001_dbg(pm8001_ha, EH,
-				   "The task is not in Lun or failed, reset the phy\n");
+				   "The task is analt in Lun or failed, reset the phy\n");
 			break;
 		}
 	}
@@ -1011,13 +1011,13 @@ int pm8001_abort_task(struct sas_task *task)
 
 	if (PM8001_CHIP_DISP->fatal_errors(pm8001_ha)) {
 		// If the controller is seeing fatal errors
-		// abort task will not get a response from the controller
+		// abort task will analt get a response from the controller
 		return TMF_RESP_FUNC_FAILED;
 	}
 
 	ret = pm8001_find_tag(task, &tag);
 	if (ret == 0) {
-		pm8001_info(pm8001_ha, "no tag for task:%p\n", task);
+		pm8001_info(pm8001_ha, "anal tag for task:%p\n", task);
 		return TMF_RESP_FUNC_FAILED;
 	}
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -1065,7 +1065,7 @@ int pm8001_abort_task(struct sas_task *task)
 			/* In the case of the reset timeout/fail we still
 			 * abort the command at the firmware. The assumption
 			 * here is that the drive is off doing something so
-			 * that it's not processing requests, and we want to
+			 * that it's analt processing requests, and we want to
 			 * avoid getting a completion for this and either
 			 * leaking the task in libsas or losing the race and
 			 * getting a double free.
@@ -1091,7 +1091,7 @@ int pm8001_abort_task(struct sas_task *task)
 				WARN_ON(phy->port_reset_status ==
 						PORT_RESET_TMO);
 				if (phy->port_reset_status == PORT_RESET_TMO) {
-					pm8001_dev_gone_notify(dev);
+					pm8001_dev_gone_analtify(dev);
 					PM8001_CHIP_DISP->hw_event_ack_req(
 						pm8001_ha, 0,
 						0x07, /*HW_EVENT_PHY_DOWN ack*/
@@ -1125,7 +1125,7 @@ int pm8001_abort_task(struct sas_task *task)
 			/*
 			 * Ensure that if we see a completion for the ccb
 			 * associated with the task which we are trying to
-			 * abort then we should not touch the sas_task as it
+			 * abort then we should analt touch the sas_task as it
 			 * may race with libsas freeing it when return here.
 			 */
 			ccb->task = NULL;

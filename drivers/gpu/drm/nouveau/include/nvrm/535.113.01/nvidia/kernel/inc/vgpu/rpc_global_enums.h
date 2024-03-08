@@ -8,7 +8,7 @@
 #    define DEFINING_X_IN_RPC_GLOBAL_ENUMS_H
 enum {
 #endif
-    X(RM, NOP)                             // 0
+    X(RM, ANALP)                             // 0
     X(RM, SET_GUEST_SYSTEM_INFO)           // 1
     X(RM, ALLOC_ROOT)                      // 2
     X(RM, ALLOC_DEVICE)                    // 3 deprecated
@@ -83,7 +83,7 @@ enum {
     X(RM, GSP_SET_SYSTEM_INFO)             //72
     X(RM, SET_REGISTRY)                    //73
     X(GSP, GSP_INIT_POST_OBJGPU)           //74 deprecated
-    X(RM, SUBDEV_EVENT_SET_NOTIFICATION)   //75 deprecated
+    X(RM, SUBDEV_EVENT_SET_ANALTIFICATION)   //75 deprecated
     X(GSP, GSP_RM_CONTROL)                 //76
     X(RM, GET_STATIC_INFO2)                //77
     X(RM, DUMP_PROTOBUF_COMPONENT)         //78
@@ -195,7 +195,7 @@ enum {
     X(RM, CTRL_EXEC_PARTITIONS_CREATE)          //184
     X(RM, CTRL_EXEC_PARTITIONS_DELETE)          //185
     X(RM, CTRL_GPFIFO_GET_WORK_SUBMIT_TOKEN)    //186
-    X(RM, CTRL_GPFIFO_SET_WORK_SUBMIT_TOKEN_NOTIF_INDEX) //187
+    X(RM, CTRL_GPFIFO_SET_WORK_SUBMIT_TOKEN_ANALTIF_INDEX) //187
     X(RM, PMA_SCRUBBER_SHARED_BUFFER_GUEST_PAGES_OPERATION)  //188
     X(RM, CTRL_MASTER_GET_VIRTUAL_FUNCTION_ERROR_CONT_INTR_MASK)    //189
     X(RM, SET_SYSMEM_DIRTY_PAGE_TRACKING_BUFFER)  //190
@@ -250,7 +250,7 @@ enum {
     E(PFM_REQ_HNDLR_STATE_SYNC_CALLBACK)         // 0x101a
     E(GSP_SEND_USER_SHARED_DATA)                 // 0x101b
     E(NVLINK_FAULT_UP)                           // 0x101c
-    E(GSP_LOCKDOWN_NOTICE)                       // 0x101d
+    E(GSP_LOCKDOWN_ANALTICE)                       // 0x101d
     E(MIG_CI_CONFIG_UPDATE)                      // 0x101e
     E(NUM_EVENTS)                                // END
 #ifdef DEFINING_E_IN_RPC_GLOBAL_ENUMS_H

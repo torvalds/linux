@@ -42,7 +42,7 @@ static int open_cgroup(const char *name)
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
-		fprintf(stderr, "no access to cgroup %s\n", path);
+		fprintf(stderr, "anal access to cgroup %s\n", path);
 
 	return fd;
 }
@@ -263,7 +263,7 @@ static int list_cgroups(const char *str)
 	struct cgroup_name *cn;
 	char *s;
 
-	/* use given name as is when no regex is given */
+	/* use given name as is when anal regex is given */
 	for (;;) {
 		p = strchr(str, ',');
 		e = p ? p : eos;
@@ -326,7 +326,7 @@ static int match_cgroups(const char *str)
 			s = strndup(str, e - str);
 			if (!s)
 				return -1;
-			if (regcomp(&reg, s, REG_NOSUB)) {
+			if (regcomp(&reg, s, REG_ANALSUB)) {
 				free(s);
 				return -1;
 			}
@@ -433,7 +433,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 	tmp_list = evlist__new();
 	if (orig_list == NULL || tmp_list == NULL) {
 		fprintf(stderr, "memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* save original events and init evlist */
@@ -500,7 +500,7 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 	}
 
 	if (list_empty(&evlist->core.entries)) {
-		fprintf(stderr, "no cgroup matched: %s\n", str);
+		fprintf(stderr, "anal cgroup matched: %s\n", str);
 		goto out_err;
 	}
 
@@ -519,13 +519,13 @@ out_err:
 static struct cgroup *__cgroup__findnew(struct rb_root *root, uint64_t id,
 					bool create, const char *path)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct cgroup *cgrp;
 
 	while (*p != NULL) {
 		parent = *p;
-		cgrp = rb_entry(parent, struct cgroup, node);
+		cgrp = rb_entry(parent, struct cgroup, analde);
 
 		if (cgrp->id == id)
 			return cgrp;
@@ -553,8 +553,8 @@ static struct cgroup *__cgroup__findnew(struct rb_root *root, uint64_t id,
 	cgrp->id = id;
 	refcount_set(&cgrp->refcnt, 1);
 
-	rb_link_node(&cgrp->node, parent, p);
-	rb_insert_color(&cgrp->node, root);
+	rb_link_analde(&cgrp->analde, parent, p);
+	rb_insert_color(&cgrp->analde, root);
 
 	return cgrp;
 }
@@ -587,15 +587,15 @@ struct cgroup *cgroup__find(struct perf_env *env, uint64_t id)
 
 void perf_env__purge_cgroups(struct perf_env *env)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct cgroup *cgrp;
 
 	down_write(&env->cgroups.lock);
 	while (!RB_EMPTY_ROOT(&env->cgroups.tree)) {
-		node = rb_first(&env->cgroups.tree);
-		cgrp = rb_entry(node, struct cgroup, node);
+		analde = rb_first(&env->cgroups.tree);
+		cgrp = rb_entry(analde, struct cgroup, analde);
 
-		rb_erase(node, &env->cgroups.tree);
+		rb_erase(analde, &env->cgroups.tree);
 		cgroup__put(cgrp);
 	}
 	up_write(&env->cgroups.lock);

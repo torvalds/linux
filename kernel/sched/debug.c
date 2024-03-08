@@ -59,7 +59,7 @@ static int sched_feat_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < __SCHED_FEAT_NR; i++) {
 		if (!(sysctl_sched_features & (1UL << i)))
-			seq_puts(m, "NO_");
+			seq_puts(m, "ANAL_");
 		seq_printf(m, "%s ", sched_feat_names[i]);
 	}
 	seq_puts(m, "\n");
@@ -100,7 +100,7 @@ static int sched_feat_set(char *cmp)
 	int i;
 	int neg = 0;
 
-	if (strncmp(cmp, "NO_", 3) == 0) {
+	if (strncmp(cmp, "ANAL_", 3) == 0) {
 		neg = 1;
 		cmp += 3;
 	}
@@ -127,7 +127,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	char buf[64];
 	char *cmp;
 	int ret;
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (cnt > 63)
 		cnt = 63;
@@ -139,11 +139,11 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	cmp = strstrip(buf);
 
 	/* Ensure the static_key remains in a consistent state */
-	inode = file_inode(filp);
+	ianalde = file_ianalde(filp);
 	cpus_read_lock();
-	inode_lock(inode);
+	ianalde_lock(ianalde);
 	ret = sched_feat_set(cmp);
-	inode_unlock(inode);
+	ianalde_unlock(ianalde);
 	cpus_read_unlock();
 	if (ret < 0)
 		return ret;
@@ -153,7 +153,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static int sched_feat_open(struct inode *inode, struct file *filp)
+static int sched_feat_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, sched_feat_show, NULL);
 }
@@ -201,7 +201,7 @@ static int sched_scaling_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sched_scaling_open(struct inode *inode, struct file *filp)
+static int sched_scaling_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, sched_scaling_show, NULL);
 }
@@ -245,7 +245,7 @@ static ssize_t sched_dynamic_write(struct file *filp, const char __user *ubuf,
 static int sched_dynamic_show(struct seq_file *m, void *v)
 {
 	static const char * preempt_modes[] = {
-		"none", "voluntary", "full"
+		"analne", "voluntary", "full"
 	};
 	int i;
 
@@ -263,7 +263,7 @@ static int sched_dynamic_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sched_dynamic_open(struct inode *inode, struct file *filp)
+static int sched_dynamic_open(struct ianalde *ianalde, struct file *filp)
 {
 	return single_open(filp, sched_dynamic_show, NULL);
 }
@@ -321,7 +321,7 @@ static const struct file_operations sched_verbose_fops = {
 
 static const struct seq_operations sched_debug_sops;
 
-static int sched_debug_open(struct inode *inode, struct file *filp)
+static int sched_debug_open(struct ianalde *ianalde, struct file *filp)
 {
 	return seq_open(filp, &sched_debug_sops);
 }
@@ -396,9 +396,9 @@ static int sd_flags_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sd_flags_open(struct inode *inode, struct file *file)
+static int sd_flags_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, sd_flags_show, inode->i_private);
+	return single_open(file, sd_flags_show, ianalde->i_private);
 }
 
 static const struct file_operations sd_flags_fops = {
@@ -596,7 +596,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		SPLIT_NS(schedstat_val_or_zero(p->stats.sum_block_runtime)));
 
 #ifdef CONFIG_NUMA_BALANCING
-	SEQ_printf(m, " %d %d", task_node(p), task_numa_group_id(p));
+	SEQ_printf(m, " %d %d", task_analde(p), task_numa_group_id(p));
 #endif
 #ifdef CONFIG_CGROUP_SCHED
 	SEQ_printf_task_group_path(m, task_group(p), " %s")
@@ -822,7 +822,7 @@ do {									\
 }
 
 static const char *sched_tunable_scaling_names[] = {
-	"none",
+	"analne",
 	"logarithmic",
 	"linear"
 };
@@ -896,7 +896,7 @@ void sysrq_sched_debug_show(void)
 	for_each_online_cpu(cpu) {
 		/*
 		 * Need to reset softlockup watchdogs on all CPUs, because
-		 * another CPU might be blocked waiting for us to process
+		 * aanalther CPU might be blocked waiting for us to process
 		 * an IPI or stop_machine.
 		 */
 		touch_nmi_watchdog();
@@ -961,10 +961,10 @@ static const struct seq_operations sched_debug_sops = {
 
 
 #ifdef CONFIG_NUMA_BALANCING
-void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
+void print_numa_stats(struct seq_file *m, int analde, unsigned long tsf,
 		unsigned long tpf, unsigned long gsf, unsigned long gpf)
 {
-	SEQ_printf(m, "numa_faults node=%d ", node);
+	SEQ_printf(m, "numa_faults analde=%d ", analde);
 	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tpf, tsf);
 	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gpf, gsf);
 }
@@ -980,8 +980,8 @@ static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 	P(numa_pages_migrated);
 	P(numa_preferred_nid);
 	P(total_numa_faults);
-	SEQ_printf(m, "current_node=%d, numa_group_id=%d\n",
-			task_node(p), task_numa_group_id(p));
+	SEQ_printf(m, "current_analde=%d, numa_group_id=%d\n",
+			task_analde(p), task_numa_group_id(p));
 	show_numa_stats(p, m);
 #endif
 }

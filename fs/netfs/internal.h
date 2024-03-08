@@ -151,7 +151,7 @@ static inline void netfs_stat_d(atomic_t *stat)
 /*
  * Miscellaneous functions.
  */
-static inline bool netfs_is_cache_enabled(struct netfs_inode *ctx)
+static inline bool netfs_is_cache_enabled(struct netfs_ianalde *ctx)
 {
 #if IS_ENABLED(CONFIG_FSCACHE)
 	struct fscache_cookie *cookie = ctx->cache;
@@ -275,7 +275,7 @@ extern void fscache_proc_cleanup(void);
 #ifdef CONFIG_FSCACHE_STATS
 extern atomic_t fscache_n_volumes;
 extern atomic_t fscache_n_volumes_collision;
-extern atomic_t fscache_n_volumes_nomem;
+extern atomic_t fscache_n_volumes_analmem;
 extern atomic_t fscache_n_cookies;
 extern atomic_t fscache_n_cookies_lru;
 extern atomic_t fscache_n_cookies_lru_expired;
@@ -369,9 +369,9 @@ do {						\
 } while (0)
 
 #else
-#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) anal_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) anal_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) anal_printk(FMT, ##__VA_ARGS__)
 #endif
 
 /*
@@ -426,4 +426,4 @@ do {									\
 #define ASSERTIF(C, X)			do {} while (0)
 #define ASSERTIFCMP(C, X, OP, Y)	do {} while (0)
 
-#endif /* assert or not */
+#endif /* assert or analt */

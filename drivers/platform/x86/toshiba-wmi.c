@@ -32,7 +32,7 @@ static const struct key_entry toshiba_wmi_keymap[] __initconst = {
 	{ KE_END, 0 }
 };
 
-static void toshiba_wmi_notify(u32 value, void *context)
+static void toshiba_wmi_analtify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -49,7 +49,7 @@ static void toshiba_wmi_notify(u32 value, void *context)
 		return;
 
 	/* TODO: Add proper checks once we have data */
-	pr_debug("Unknown event received, obj type %x\n", obj->type);
+	pr_debug("Unkanalwn event received, obj type %x\n", obj->type);
 
 	kfree(response.pointer);
 }
@@ -71,7 +71,7 @@ static int __init toshiba_wmi_input_setup(void)
 
 	toshiba_wmi_input_dev = input_allocate_device();
 	if (!toshiba_wmi_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	toshiba_wmi_input_dev->name = "Toshiba WMI hotkeys";
 	toshiba_wmi_input_dev->phys = "wmi/input0";
@@ -82,8 +82,8 @@ static int __init toshiba_wmi_input_setup(void)
 	if (err)
 		goto err_free_dev;
 
-	status = wmi_install_notify_handler(WMI_EVENT_GUID,
-					    toshiba_wmi_notify, NULL);
+	status = wmi_install_analtify_handler(WMI_EVENT_GUID,
+					    toshiba_wmi_analtify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
 		goto err_free_dev;
@@ -91,12 +91,12 @@ static int __init toshiba_wmi_input_setup(void)
 
 	err = input_register_device(toshiba_wmi_input_dev);
 	if (err)
-		goto err_remove_notifier;
+		goto err_remove_analtifier;
 
 	return 0;
 
- err_remove_notifier:
-	wmi_remove_notify_handler(WMI_EVENT_GUID);
+ err_remove_analtifier:
+	wmi_remove_analtify_handler(WMI_EVENT_GUID);
  err_free_dev:
 	input_free_device(toshiba_wmi_input_dev);
 	return err;
@@ -104,7 +104,7 @@ static int __init toshiba_wmi_input_setup(void)
 
 static void toshiba_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(WMI_EVENT_GUID);
+	wmi_remove_analtify_handler(WMI_EVENT_GUID);
 	input_unregister_device(toshiba_wmi_input_dev);
 }
 
@@ -114,7 +114,7 @@ static int __init toshiba_wmi_init(void)
 
 	if (!wmi_has_guid(WMI_EVENT_GUID) ||
 	    !dmi_check_system(toshiba_wmi_dmi_table))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = toshiba_wmi_input_setup();
 	if (ret) {

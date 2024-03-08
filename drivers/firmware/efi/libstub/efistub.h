@@ -11,12 +11,12 @@
 #include <asm/efi.h>
 
 /*
- * __init annotations should not be used in the EFI stub, since the code is
- * either included in the decompressor (x86, ARM) where they have no effect,
- * or the whole stub is __init annotated at the section level (arm64), by
- * renaming the sections, in which case the __init annotation will be
+ * __init ananaltations should analt be used in the EFI stub, since the code is
+ * either included in the decompressor (x86, ARM) where they have anal effect,
+ * or the whole stub is __init ananaltated at the section level (arm64), by
+ * renaming the sections, in which case the __init ananaltation will be
  * redundant, and will result in section names like .init.init.text, and our
- * linker script does not expect that.
+ * linker script does analt expect that.
  */
 #undef __init
 
@@ -33,11 +33,11 @@
 #define EFI_ALLOC_LIMIT		ULONG_MAX
 #endif
 
-extern bool efi_no5lvl;
-extern bool efi_nochunk;
-extern bool efi_nokaslr;
+extern bool efi_anal5lvl;
+extern bool efi_analchunk;
+extern bool efi_analkaslr;
 extern int efi_loglevel;
-extern bool efi_novamap;
+extern bool efi_analvamap;
 
 extern const efi_system_table_t *efi_system_table;
 
@@ -98,13 +98,13 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var
-#define fdt_setprop_inplace_var(fdt, node_offset, name, var) \
-	fdt_setprop_inplace((fdt), (node_offset), (name), &(var), sizeof(var))
+#define fdt_setprop_inplace_var(fdt, analde_offset, name, var) \
+	fdt_setprop_inplace((fdt), (analde_offset), (name), &(var), sizeof(var))
 #endif
 
 #ifndef fdt_setprop_var
-#define fdt_setprop_var(fdt, node_offset, name, var) \
-	fdt_setprop((fdt), (node_offset), (name), &(var), sizeof(var))
+#define fdt_setprop_var(fdt, analde_offset, name, var) \
+	fdt_setprop((fdt), (analde_offset), (name), &(var), sizeof(var))
 #endif
 
 #define get_efi_var(name, vendor, ...)				\
@@ -147,7 +147,7 @@ void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
  * The type of search to perform when calling boottime->locate_handle
  */
 #define EFI_LOCATE_ALL_HANDLES			0
-#define EFI_LOCATE_BY_REGISTER_NOTIFY		1
+#define EFI_LOCATE_BY_REGISTER_ANALTIFY		1
 #define EFI_LOCATE_BY_PROTOCOL			2
 
 /*
@@ -177,7 +177,7 @@ typedef struct efi_generic_dev_path efi_device_path_protocol_t;
 
 union efi_device_path_to_text_protocol {
 	struct {
-		efi_char16_t *(__efiapi *convert_device_node_to_text)(
+		efi_char16_t *(__efiapi *convert_device_analde_to_text)(
 					const efi_device_path_protocol_t *,
 					bool, bool);
 		efi_char16_t *(__efiapi *convert_device_path_to_text)(
@@ -185,7 +185,7 @@ union efi_device_path_to_text_protocol {
 					bool, bool);
 	};
 	struct {
-		u32 convert_device_node_to_text;
+		u32 convert_device_analde_to_text;
 		u32 convert_device_path_to_text;
 	} mixed_mode;
 };
@@ -195,12 +195,12 @@ typedef union efi_device_path_to_text_protocol efi_device_path_to_text_protocol_
 union efi_device_path_from_text_protocol {
 	struct {
 		efi_device_path_protocol_t *
-			(__efiapi *convert_text_to_device_node)(const efi_char16_t *);
+			(__efiapi *convert_text_to_device_analde)(const efi_char16_t *);
 		efi_device_path_protocol_t *
 			(__efiapi *convert_text_to_device_path)(const efi_char16_t *);
 	};
 	struct {
-		u32 convert_text_to_device_node;
+		u32 convert_text_to_device_analde;
 		u32 convert_text_to_device_path;
 	} mixed_mode;
 };
@@ -208,13 +208,13 @@ union efi_device_path_from_text_protocol {
 typedef union efi_device_path_from_text_protocol efi_device_path_from_text_protocol_t;
 
 typedef void *efi_event_t;
-/* Note that notifications won't work in mixed mode */
-typedef void (__efiapi *efi_event_notify_t)(efi_event_t, void *);
+/* Analte that analtifications won't work in mixed mode */
+typedef void (__efiapi *efi_event_analtify_t)(efi_event_t, void *);
 
 #define EFI_EVT_TIMER		0x80000000U
 #define EFI_EVT_RUNTIME		0x40000000U
-#define EFI_EVT_NOTIFY_WAIT	0x00000100U
-#define EFI_EVT_NOTIFY_SIGNAL	0x00000200U
+#define EFI_EVT_ANALTIFY_WAIT	0x00000100U
+#define EFI_EVT_ANALTIFY_SIGNAL	0x00000200U
 
 /**
  * efi_set_event_at() - add event to events array
@@ -237,7 +237,7 @@ void efi_set_event_at(efi_event_t *events, size_t idx, efi_event_t event)
 
 #define EFI_TPL_APPLICATION	4
 #define EFI_TPL_CALLBACK	8
-#define EFI_TPL_NOTIFY		16
+#define EFI_TPL_ANALTIFY		16
 #define EFI_TPL_HIGH_LEVEL	31
 
 typedef enum {
@@ -265,7 +265,7 @@ union efi_boot_services {
 						       void **);
 		efi_status_t (__efiapi *free_pool)(void *);
 		efi_status_t (__efiapi *create_event)(u32, unsigned long,
-						      efi_event_notify_t, void *,
+						      efi_event_analtify_t, void *,
 						      efi_event_t *);
 		efi_status_t (__efiapi *set_timer)(efi_event_t,
 						  EFI_TIMER_DELAY, u64);
@@ -281,7 +281,7 @@ union efi_boot_services {
 		efi_status_t (__efiapi *handle_protocol)(efi_handle_t,
 							 efi_guid_t *, void **);
 		void *__reserved;
-		void *register_protocol_notify;
+		void *register_protocol_analtify;
 		efi_status_t (__efiapi *locate_handle)(int, efi_guid_t *,
 						       void *, unsigned long *,
 						       efi_handle_t *);
@@ -296,14 +296,14 @@ union efi_boot_services {
 						    efi_handle_t *);
 		efi_status_t (__efiapi *start_image)(efi_handle_t, unsigned long *,
 						     efi_char16_t **);
-		efi_status_t __noreturn (__efiapi *exit)(efi_handle_t,
+		efi_status_t __analreturn (__efiapi *exit)(efi_handle_t,
 							 efi_status_t,
 							 unsigned long,
 							 efi_char16_t *);
 		efi_status_t (__efiapi *unload_image)(efi_handle_t);
 		efi_status_t (__efiapi *exit_boot_services)(efi_handle_t,
 							    unsigned long);
-		void *get_next_monotonic_count;
+		void *get_next_moanaltonic_count;
 		efi_status_t (__efiapi *stall)(unsigned long);
 		void *set_watchdog_timer;
 		void *connect_controller;
@@ -344,7 +344,7 @@ union efi_boot_services {
 		u32 uninstall_protocol_interface;
 		u32 handle_protocol;
 		u32 __reserved;
-		u32 register_protocol_notify;
+		u32 register_protocol_analtify;
 		u32 locate_handle;
 		u32 locate_device_path;
 		u32 install_configuration_table;
@@ -353,7 +353,7 @@ union efi_boot_services {
 		u32 exit;
 		u32 unload_image;
 		u32 exit_boot_services;
-		u32 get_next_monotonic_count;
+		u32 get_next_moanaltonic_count;
 		u32 stall;
 		u32 set_watchdog_timer;
 		u32 connect_controller;
@@ -374,7 +374,7 @@ union efi_boot_services {
 };
 
 typedef enum {
-	EfiGcdMemoryTypeNonExistent,
+	EfiGcdMemoryTypeAnalnExistent,
 	EfiGcdMemoryTypeReserved,
 	EfiGcdMemoryTypeSystemMemory,
 	EfiGcdMemoryTypeMemoryMappedIo,
@@ -965,7 +965,7 @@ efi_status_t check_platform_features(void);
 
 void *get_efi_config_table(efi_guid_t guid);
 
-/* NOTE: These functions do not print a trailing newline after the string */
+/* ANALTE: These functions do analt print a trailing newline after the string */
 void efi_char16_puts(efi_char16_t *);
 void efi_puts(const char *str);
 
@@ -1038,7 +1038,7 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 efi_loaded_image_t *image,
 				 efi_handle_t image_handle);
 
-/* shared entrypoint between the normal stub and the zboot stub */
+/* shared entrypoint between the analrmal stub and the zboot stub */
 efi_status_t efi_stub_common(efi_handle_t handle,
 			     efi_loaded_image_t *image,
 			     unsigned long image_addr,
@@ -1046,7 +1046,7 @@ efi_status_t efi_stub_common(efi_handle_t handle,
 
 efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr);
 
-asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
+asmlinkage void __analreturn efi_enter_kernel(unsigned long entrypoint,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size);
 

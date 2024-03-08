@@ -47,8 +47,8 @@
 
 /* MCR20A CCA Type */
 enum {
-	MCR20A_CCA_ED,	  // energy detect - CCA bit not active,
-			  // not to be used for T and CCCA sequences
+	MCR20A_CCA_ED,	  // energy detect - CCA bit analt active,
+			  // analt to be used for T and CCCA sequences
 	MCR20A_CCA_MODE1, // energy detect - CCA bit ACTIVE
 	MCR20A_CCA_MODE2, // 802.15.4 compliant signal detect - CCA bit ACTIVE
 	MCR20A_CCA_MODE3
@@ -177,7 +177,7 @@ mcr20a_dar_writeable(struct device *dev, unsigned int reg)
 	case DAR_PLL_FRAC0_LSB:
 	case DAR_PLL_FRAC0_MSB:
 	case DAR_PA_PWR:
-	/* no DAR_ACM */
+	/* anal DAR_ACM */
 	case DAR_OVERWRITE_VER:
 	case DAR_CLK_OUT_CTRL:
 	case DAR_PWR_MODES:
@@ -520,8 +520,8 @@ mcr20a_start(struct ieee802154_hw *hw)
 
 	dev_dbg(printdev(lp), "%s\n", __func__);
 
-	/* No slotted operation */
-	dev_dbg(printdev(lp), "no slotted operation\n");
+	/* Anal slotted operation */
+	dev_dbg(printdev(lp), "anal slotted operation\n");
 	ret = regmap_update_bits(lp->regmap_dar, DAR_PHY_CTRL1,
 				 DAR_PHY_CTRL1_SLOTTED, 0x0);
 	if (ret < 0)
@@ -678,12 +678,12 @@ mcr20a_set_cca_mode(struct ieee802154_hw *hw,
 	if (cca_mode == MCR20A_CCA_MODE3) {
 		if (cca_mode_and) {
 			ret = regmap_update_bits(lp->regmap_iar, IAR_CCA_CTRL,
-						 IAR_CCA_CTRL_CCA3_AND_NOT_OR,
+						 IAR_CCA_CTRL_CCA3_AND_ANALT_OR,
 						 0x08);
 		} else {
 			ret = regmap_update_bits(lp->regmap_iar,
 						 IAR_CCA_CTRL,
-						 IAR_CCA_CTRL_CCA3_AND_NOT_OR,
+						 IAR_CCA_CTRL_CCA3_AND_ANALT_OR,
 						 0x00);
 		}
 		if (ret < 0)
@@ -897,7 +897,7 @@ mcr20a_irq_clean_complete(void *context)
 	case (DAR_IRQSTS1_TXIRQ | DAR_IRQSTS1_SEQIRQ):
 		if (lp->is_tx) {
 			lp->is_tx = 0;
-			dev_dbg(printdev(lp), "TX is done. No ACK\n");
+			dev_dbg(printdev(lp), "TX is done. Anal ACK\n");
 			mcr20a_handle_tx_complete(lp);
 		}
 		break;
@@ -954,14 +954,14 @@ static irqreturn_t mcr20a_irq_isr(int irq, void *data)
 	struct mcr20a_local *lp = data;
 	int ret;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	lp->irq_header[0] = MCR20A_READ_REG(DAR_IRQ_STS1);
 	/* read IRQSTSx */
 	ret = spi_async(lp->spi, &lp->irq_msg);
 	if (ret) {
 		enable_irq(irq);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -1125,7 +1125,7 @@ mcr20a_phy_init(struct mcr20a_local *lp)
 	if (ret)
 		goto err_ret;
 
-	/* SRC_CTRL : enable Acknowledge Frame Pending and
+	/* SRC_CTRL : enable Ackanalwledge Frame Pending and
 	 * Source Address Matching Enable
 	 */
 	ret = regmap_write(lp->regmap_dar, DAR_SRC_CTRL,
@@ -1223,12 +1223,12 @@ mcr20a_probe(struct spi_device *spi)
 	struct mcr20a_local *lp;
 	struct gpio_desc *rst_b;
 	int irq_type;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ specified\n");
+		dev_err(&spi->dev, "anal IRQ specified\n");
 		return -EINVAL;
 	}
 
@@ -1264,7 +1264,7 @@ mcr20a_probe(struct spi_device *spi)
 	lp->buf = devm_kzalloc(&spi->dev, SPI_COMMAND_BUFFER, GFP_KERNEL);
 
 	if (!lp->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_dev;
 	}
 
@@ -1305,8 +1305,8 @@ mcr20a_probe(struct spi_device *spi)
 	ret = devm_request_irq(&spi->dev, spi->irq, mcr20a_irq_isr,
 			       irq_type, dev_name(&spi->dev), lp);
 	if (ret) {
-		dev_err(&spi->dev, "could not request_irq for mcr20a\n");
-		ret = -ENODEV;
+		dev_err(&spi->dev, "could analt request_irq for mcr20a\n");
+		ret = -EANALDEV;
 		goto free_dev;
 	}
 

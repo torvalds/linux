@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_DP_MON_H
@@ -28,17 +28,17 @@ enum dp_mon_tx_tlv_status {
 	DP_MON_TX_MSDU_START,
 	DP_MON_TX_BUFFER_ADDR,
 	DP_MON_TX_DATA,
-	DP_MON_TX_STATUS_PPDU_NOT_DONE,
+	DP_MON_TX_STATUS_PPDU_ANALT_DONE,
 };
 
 enum dp_mon_tx_medium_protection_type {
-	DP_MON_TX_MEDIUM_NO_PROTECTION,
+	DP_MON_TX_MEDIUM_ANAL_PROTECTION,
 	DP_MON_TX_MEDIUM_RTS_LEGACY,
 	DP_MON_TX_MEDIUM_RTS_11AC_STATIC_BW,
 	DP_MON_TX_MEDIUM_RTS_11AC_DYNAMIC_BW,
 	DP_MON_TX_MEDIUM_CTS2SELF,
-	DP_MON_TX_MEDIUM_QOS_NULL_NO_ACK_3ADDR,
-	DP_MON_TX_MEDIUM_QOS_NULL_NO_ACK_4ADDR
+	DP_MON_TX_MEDIUM_QOS_NULL_ANAL_ACK_3ADDR,
+	DP_MON_TX_MEDIUM_QOS_NULL_ANAL_ACK_4ADDR
 };
 
 struct dp_mon_qosframe_addr4 {

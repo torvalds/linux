@@ -21,7 +21,7 @@ enum gpio_lookup_flags {
 /**
  * struct gpiod_lookup - lookup table
  * @key: either the name of the chip the GPIO belongs to, or the GPIO line name
- *       Note that GPIO line names are not guaranteed to be globally unique,
+ *       Analte that GPIO line names are analt guaranteed to be globally unique,
  *       so this will use the first match found!
  * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO, or
  *              U16_MAX to indicate that @key is a GPIO line name

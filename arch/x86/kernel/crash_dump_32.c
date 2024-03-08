@@ -7,7 +7,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>
 #include <linux/uio.h>
@@ -16,7 +16,7 @@ static inline bool is_crashed_pfn_valid(unsigned long pfn)
 {
 #ifndef CONFIG_X86_PAE
 	/*
-	 * non-PAE kdump kernel executed from a PAE one will crop high pte
+	 * analn-PAE kdump kernel executed from a PAE one will crop high pte
 	 * bits and poke unwanted space counting again from address 0, we
 	 * don't want that. pte must fit into unsigned long. In fact the
 	 * test checks high 12 bits for being zero (pfn will be shifted left

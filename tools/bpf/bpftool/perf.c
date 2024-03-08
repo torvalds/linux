@@ -6,7 +6,7 @@
 #define _GNU_SOURCE
 #endif
 #include <ctype.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +19,7 @@
 
 #include "main.h"
 
-/* 0: undecided, 1: supported, 2: not supported */
+/* 0: undecided, 1: supported, 2: analt supported */
 static int perf_query_supported;
 static bool has_perf_query_support(void)
 {
@@ -33,28 +33,28 @@ static bool has_perf_query_support(void)
 
 	fd = open("/", O_RDONLY);
 	if (fd < 0) {
-		p_err("perf_query_support: cannot open directory \"/\" (%s)",
-		      strerror(errno));
+		p_err("perf_query_support: cananalt open directory \"/\" (%s)",
+		      strerror(erranal));
 		goto out;
 	}
 
-	/* the following query will fail as no bpf attachment,
-	 * the expected errno is ENOTSUPP
+	/* the following query will fail as anal bpf attachment,
+	 * the expected erranal is EANALTSUPP
 	 */
-	errno = 0;
+	erranal = 0;
 	len = sizeof(buf);
 	bpf_task_fd_query(getpid(), fd, 0, buf, &len, &prog_id,
 			  &fd_type, &probe_offset, &probe_addr);
 
-	if (errno == 524 /* ENOTSUPP */) {
+	if (erranal == 524 /* EANALTSUPP */) {
 		perf_query_supported = 1;
 		goto close_fd;
 	}
 
 	perf_query_supported = 2;
-	p_err("perf_query_support: %s", strerror(errno));
+	p_err("perf_query_support: %s", strerror(erranal));
 	fprintf(stderr,
-		"HINT: non root or kernel doesn't support TASK_FD_QUERY\n");
+		"HINT: analn root or kernel doesn't support TASK_FD_QUERY\n");
 
 close_fd:
 	close(fd);

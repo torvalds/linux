@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -86,7 +86,7 @@ static void mlx4_add_cq_to_tasklet(struct mlx4_cq *cq)
 	bool kick;
 
 	spin_lock_irqsave(&tasklet_ctx->lock, flags);
-	/* When migrating CQs between EQs will be implemented, please note
+	/* When migrating CQs between EQs will be implemented, please analte
 	 * that you need to sync this point. It is possible that
 	 * while migrating a CQ, completions on the old EQs could
 	 * still arrive.
@@ -222,7 +222,7 @@ int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 
 	*cqn = mlx4_bitmap_alloc(&cq_table->bitmap);
 	if (*cqn == -1)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx4_table_get(dev, &cq_table->table, *cqn);
 	if (err)
@@ -237,7 +237,7 @@ err_put:
 	mlx4_table_put(dev, &cq_table->table, *cqn);
 
 err_out:
-	mlx4_bitmap_free(&cq_table->bitmap, *cqn, MLX4_NO_RR);
+	mlx4_bitmap_free(&cq_table->bitmap, *cqn, MLX4_ANAL_RR);
 	return err;
 }
 
@@ -268,7 +268,7 @@ void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 
 	mlx4_table_put(dev, &cq_table->cmpt_table, cqn);
 	mlx4_table_put(dev, &cq_table->table, cqn);
-	mlx4_bitmap_free(&cq_table->bitmap, cqn, MLX4_NO_RR);
+	mlx4_bitmap_free(&cq_table->bitmap, cqn, MLX4_ANAL_RR);
 }
 
 static void mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
@@ -296,7 +296,7 @@ static int mlx4_init_user_cqes(void *buf, int entries, int cqe_size)
 
 	init_ents = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!init_ents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Populate a list of CQ entries to reduce the number of
 	 * copy_to_user calls. 0xcc is the initialization value
@@ -477,6 +477,6 @@ void mlx4_cleanup_cq_table(struct mlx4_dev *dev)
 {
 	if (mlx4_is_slave(dev))
 		return;
-	/* Nothing to do to clean up radix_tree */
+	/* Analthing to do to clean up radix_tree */
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->cq_table.bitmap);
 }

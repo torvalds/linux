@@ -21,7 +21,7 @@ static int sigmadsp_write_i2c(void *control_data,
 
 	buf = kzalloc(2 + len, GFP_KERNEL | GFP_DMA);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	put_unaligned_be16(addr, buf);
 	memcpy(buf + 2, data, len);

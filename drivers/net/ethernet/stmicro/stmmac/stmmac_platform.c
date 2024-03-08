@@ -28,7 +28,7 @@
  * @mcast_bins: Multicast filtering bins
  * Description:
  * this function validates the number of Multicast filtering bins specified
- * by the configuration through the device tree. The Synopsys GMAC supports
+ * by the configuration through the device tree. The Syanalpsys GMAC supports
  * 64 bins, 128 bins, or 256 bins. "bins" refer to the division of CRC
  * number space. 64 bins correspond to 6 bits of the CRC, 128 corresponds
  * to 7 bits, and 256 refers to 8 bits of the CRC. Any other setting is
@@ -59,7 +59,7 @@ static int dwmac1000_validate_mcast_bins(struct device *dev, int mcast_bins)
  * @ucast_entries: number of Unicast address entries
  * Description:
  * This function validates the number of Unicast address entries supported
- * by a particular Synopsys 10/100/1000 controller. The Synopsys controller
+ * by a particular Syanalpsys 10/100/1000 controller. The Syanalpsys controller
  * supports 1..32, 64, or 128 Unicast filter entries for it's Unicast filter
  * logic. This function validates a valid, supported configuration is
  * selected, and defaults to 1 Unicast address if an unsupported
@@ -93,17 +93,17 @@ static int dwmac1000_validate_ucast_entries(struct device *dev,
  */
 static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct stmmac_axi *axi;
 
-	np = of_parse_phandle(pdev->dev.of_node, "snps,axi-config", 0);
+	np = of_parse_phandle(pdev->dev.of_analde, "snps,axi-config", 0);
 	if (!np)
 		return NULL;
 
 	axi = devm_kzalloc(&pdev->dev, sizeof(*axi), GFP_KERNEL);
 	if (!axi) {
-		of_node_put(np);
-		return ERR_PTR(-ENOMEM);
+		of_analde_put(np);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	axi->axi_lpi_en = of_property_read_bool(np, "snps,lpi_en");
@@ -118,7 +118,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	if (of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt))
 		axi->axi_rd_osr_lmt = 1;
 	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
-	of_node_put(np);
+	of_analde_put(np);
 
 	return axi;
 }
@@ -131,9 +131,9 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 static int stmmac_mtl_setup(struct platform_device *pdev,
 			    struct plat_stmmacenet_data *plat)
 {
-	struct device_node *q_node;
-	struct device_node *rx_node;
-	struct device_node *tx_node;
+	struct device_analde *q_analde;
+	struct device_analde *rx_analde;
+	struct device_analde *tx_analde;
 	u8 queue = 0;
 	int ret = 0;
 
@@ -151,46 +151,46 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	plat->rx_queues_cfg[0].mode_to_use = MTL_QUEUE_DCB;
 	plat->tx_queues_cfg[0].mode_to_use = MTL_QUEUE_DCB;
 
-	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
-	if (!rx_node)
+	rx_analde = of_parse_phandle(pdev->dev.of_analde, "snps,mtl-rx-config", 0);
+	if (!rx_analde)
 		return ret;
 
-	tx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-tx-config", 0);
-	if (!tx_node) {
-		of_node_put(rx_node);
+	tx_analde = of_parse_phandle(pdev->dev.of_analde, "snps,mtl-tx-config", 0);
+	if (!tx_analde) {
+		of_analde_put(rx_analde);
 		return ret;
 	}
 
 	/* Processing RX queues common config */
-	if (of_property_read_u32(rx_node, "snps,rx-queues-to-use",
+	if (of_property_read_u32(rx_analde, "snps,rx-queues-to-use",
 				 &plat->rx_queues_to_use))
 		plat->rx_queues_to_use = 1;
 
-	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
+	if (of_property_read_bool(rx_analde, "snps,rx-sched-sp"))
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
-	else if (of_property_read_bool(rx_node, "snps,rx-sched-wsp"))
+	else if (of_property_read_bool(rx_analde, "snps,rx-sched-wsp"))
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_WSP;
 	else
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
 
 	/* Processing individual RX queue config */
-	for_each_child_of_node(rx_node, q_node) {
+	for_each_child_of_analde(rx_analde, q_analde) {
 		if (queue >= plat->rx_queues_to_use)
 			break;
 
-		if (of_property_read_bool(q_node, "snps,dcb-algorithm"))
+		if (of_property_read_bool(q_analde, "snps,dcb-algorithm"))
 			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
-		else if (of_property_read_bool(q_node, "snps,avb-algorithm"))
+		else if (of_property_read_bool(q_analde, "snps,avb-algorithm"))
 			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
 		else
 			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 
-		if (of_property_read_u32(q_node, "snps,map-to-dma-channel",
+		if (of_property_read_u32(q_analde, "snps,map-to-dma-channel",
 					 &plat->rx_queues_cfg[queue].chan))
 			plat->rx_queues_cfg[queue].chan = queue;
 		/* TODO: Dynamic mapping to be included in the future */
 
-		if (of_property_read_u32(q_node, "snps,priority",
+		if (of_property_read_u32(q_analde, "snps,priority",
 					&plat->rx_queues_cfg[queue].prio)) {
 			plat->rx_queues_cfg[queue].prio = 0;
 			plat->rx_queues_cfg[queue].use_prio = false;
@@ -199,15 +199,15 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 		}
 
 		/* RX queue specific packet type routing */
-		if (of_property_read_bool(q_node, "snps,route-avcp"))
+		if (of_property_read_bool(q_analde, "snps,route-avcp"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_AVCPQ;
-		else if (of_property_read_bool(q_node, "snps,route-ptp"))
+		else if (of_property_read_bool(q_analde, "snps,route-ptp"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_PTPQ;
-		else if (of_property_read_bool(q_node, "snps,route-dcbcp"))
+		else if (of_property_read_bool(q_analde, "snps,route-dcbcp"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_DCBCPQ;
-		else if (of_property_read_bool(q_node, "snps,route-up"))
+		else if (of_property_read_bool(q_analde, "snps,route-up"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
-		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
+		else if (of_property_read_bool(q_analde, "snps,route-multi-broad"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
 		else
 			plat->rx_queues_cfg[queue].pkt_route = 0x0;
@@ -216,20 +216,20 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 	if (queue != plat->rx_queues_to_use) {
 		ret = -EINVAL;
-		dev_err(&pdev->dev, "Not all RX queues were configured\n");
+		dev_err(&pdev->dev, "Analt all RX queues were configured\n");
 		goto out;
 	}
 
 	/* Processing TX queues common config */
-	if (of_property_read_u32(tx_node, "snps,tx-queues-to-use",
+	if (of_property_read_u32(tx_analde, "snps,tx-queues-to-use",
 				 &plat->tx_queues_to_use))
 		plat->tx_queues_to_use = 1;
 
-	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
+	if (of_property_read_bool(tx_analde, "snps,tx-sched-wrr"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
-	else if (of_property_read_bool(tx_node, "snps,tx-sched-wfq"))
+	else if (of_property_read_bool(tx_analde, "snps,tx-sched-wfq"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WFQ;
-	else if (of_property_read_bool(tx_node, "snps,tx-sched-dwrr"))
+	else if (of_property_read_bool(tx_analde, "snps,tx-sched-dwrr"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_DWRR;
 	else
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_SP;
@@ -237,38 +237,38 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	queue = 0;
 
 	/* Processing individual TX queue config */
-	for_each_child_of_node(tx_node, q_node) {
+	for_each_child_of_analde(tx_analde, q_analde) {
 		if (queue >= plat->tx_queues_to_use)
 			break;
 
-		if (of_property_read_u32(q_node, "snps,weight",
+		if (of_property_read_u32(q_analde, "snps,weight",
 					 &plat->tx_queues_cfg[queue].weight))
 			plat->tx_queues_cfg[queue].weight = 0x10 + queue;
 
-		if (of_property_read_bool(q_node, "snps,dcb-algorithm")) {
+		if (of_property_read_bool(q_analde, "snps,dcb-algorithm")) {
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
-		} else if (of_property_read_bool(q_node,
+		} else if (of_property_read_bool(q_analde,
 						 "snps,avb-algorithm")) {
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_AVB;
 
 			/* Credit Base Shaper parameters used by AVB */
-			if (of_property_read_u32(q_node, "snps,send_slope",
+			if (of_property_read_u32(q_analde, "snps,send_slope",
 				&plat->tx_queues_cfg[queue].send_slope))
 				plat->tx_queues_cfg[queue].send_slope = 0x0;
-			if (of_property_read_u32(q_node, "snps,idle_slope",
+			if (of_property_read_u32(q_analde, "snps,idle_slope",
 				&plat->tx_queues_cfg[queue].idle_slope))
 				plat->tx_queues_cfg[queue].idle_slope = 0x0;
-			if (of_property_read_u32(q_node, "snps,high_credit",
+			if (of_property_read_u32(q_analde, "snps,high_credit",
 				&plat->tx_queues_cfg[queue].high_credit))
 				plat->tx_queues_cfg[queue].high_credit = 0x0;
-			if (of_property_read_u32(q_node, "snps,low_credit",
+			if (of_property_read_u32(q_analde, "snps,low_credit",
 				&plat->tx_queues_cfg[queue].low_credit))
 				plat->tx_queues_cfg[queue].low_credit = 0x0;
 		} else {
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 		}
 
-		if (of_property_read_u32(q_node, "snps,priority",
+		if (of_property_read_u32(q_analde, "snps,priority",
 					&plat->tx_queues_cfg[queue].prio)) {
 			plat->tx_queues_cfg[queue].prio = 0;
 			plat->tx_queues_cfg[queue].use_prio = false;
@@ -277,101 +277,101 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 		}
 
 		plat->tx_queues_cfg[queue].coe_unsupported =
-			of_property_read_bool(q_node, "snps,coe-unsupported");
+			of_property_read_bool(q_analde, "snps,coe-unsupported");
 
 		queue++;
 	}
 	if (queue != plat->tx_queues_to_use) {
 		ret = -EINVAL;
-		dev_err(&pdev->dev, "Not all TX queues were configured\n");
+		dev_err(&pdev->dev, "Analt all TX queues were configured\n");
 		goto out;
 	}
 
 out:
-	of_node_put(rx_node);
-	of_node_put(tx_node);
-	of_node_put(q_node);
+	of_analde_put(rx_analde);
+	of_analde_put(tx_analde);
+	of_analde_put(q_analde);
 
 	return ret;
 }
 
 /**
  * stmmac_of_get_mdio() - Gets the MDIO bus from the devicetree.
- * @np: devicetree node
+ * @np: devicetree analde
  *
  * The MDIO bus will be searched for in the following ways:
  * 1. The compatible is "snps,dwc-qos-ethernet-4.10" && a "mdio" named
- *    child node exists
- * 2. A child node with the "snps,dwmac-mdio" compatible is present
+ *    child analde exists
+ * 2. A child analde with the "snps,dwmac-mdio" compatible is present
  *
- * Return: The MDIO node if present otherwise NULL
+ * Return: The MDIO analde if present otherwise NULL
  */
-static struct device_node *stmmac_of_get_mdio(struct device_node *np)
+static struct device_analde *stmmac_of_get_mdio(struct device_analde *np)
 {
 	static const struct of_device_id need_mdio_ids[] = {
 		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
 		{},
 	};
-	struct device_node *mdio_node = NULL;
+	struct device_analde *mdio_analde = NULL;
 
-	if (of_match_node(need_mdio_ids, np)) {
-		mdio_node = of_get_child_by_name(np, "mdio");
+	if (of_match_analde(need_mdio_ids, np)) {
+		mdio_analde = of_get_child_by_name(np, "mdio");
 	} else {
 		/**
 		 * If snps,dwmac-mdio is passed from DT, always register
 		 * the MDIO
 		 */
-		for_each_child_of_node(np, mdio_node) {
-			if (of_device_is_compatible(mdio_node,
+		for_each_child_of_analde(np, mdio_analde) {
+			if (of_device_is_compatible(mdio_analde,
 						    "snps,dwmac-mdio"))
 				break;
 		}
 	}
 
-	return mdio_node;
+	return mdio_analde;
 }
 
 /**
  * stmmac_mdio_setup() - Populate platform related MDIO structures.
  * @plat: driver data platform structure
- * @np: devicetree node
+ * @np: devicetree analde
  * @dev: device pointer
  *
  * This searches for MDIO information from the devicetree.
- * If an MDIO node is found, it's assigned to plat->mdio_node and
+ * If an MDIO analde is found, it's assigned to plat->mdio_analde and
  * plat->mdio_bus_data is allocated.
- * If no connection can be determined, just plat->mdio_bus_data is allocated
+ * If anal connection can be determined, just plat->mdio_bus_data is allocated
  * to indicate a bus should be created and scanned for a phy.
- * If it's determined there's no MDIO bus needed, both are left NULL.
+ * If it's determined there's anal MDIO bus needed, both are left NULL.
  *
- * This expects that plat->phy_node has already been searched for.
+ * This expects that plat->phy_analde has already been searched for.
  *
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erranal otherwise.
  */
 static int stmmac_mdio_setup(struct plat_stmmacenet_data *plat,
-			     struct device_node *np, struct device *dev)
+			     struct device_analde *np, struct device *dev)
 {
 	bool legacy_mdio;
 
-	plat->mdio_node = stmmac_of_get_mdio(np);
-	if (plat->mdio_node)
-		dev_dbg(dev, "Found MDIO subnode\n");
+	plat->mdio_analde = stmmac_of_get_mdio(np);
+	if (plat->mdio_analde)
+		dev_dbg(dev, "Found MDIO subanalde\n");
 
-	/* Legacy devicetrees allowed for no MDIO bus description and expect
-	 * the bus to be scanned for devices. If there's no phy or fixed-link
+	/* Legacy devicetrees allowed for anal MDIO bus description and expect
+	 * the bus to be scanned for devices. If there's anal phy or fixed-link
 	 * described assume this is the case since there must be something
 	 * connected to the MAC.
 	 */
-	legacy_mdio = !of_phy_is_fixed_link(np) && !plat->phy_node;
+	legacy_mdio = !of_phy_is_fixed_link(np) && !plat->phy_analde;
 	if (legacy_mdio)
 		dev_info(dev, "Deprecated MDIO bus assumption used\n");
 
-	if (plat->mdio_node || legacy_mdio) {
+	if (plat->mdio_analde || legacy_mdio) {
 		plat->mdio_bus_data = devm_kzalloc(dev,
 						   sizeof(*plat->mdio_bus_data),
 						   GFP_KERNEL);
 		if (!plat->mdio_bus_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		plat->mdio_bus_data->needs_reset = true;
 	}
@@ -381,14 +381,14 @@ static int stmmac_mdio_setup(struct plat_stmmacenet_data *plat,
 
 /**
  * stmmac_of_get_mac_mode - retrieves the interface of the MAC
- * @np: - device-tree node
+ * @np: - device-tree analde
  * Description:
  * Similar to `of_get_phy_mode()`, this function will retrieve (from
  * the device-tree) the interface mode on the MAC side. This assumes
  * that there is mode converter in-between the MAC & PHY
  * (e.g. GMII-to-RGMII).
  */
-static int stmmac_of_get_mac_mode(struct device_node *np)
+static int stmmac_of_get_mac_mode(struct device_analde *np)
 {
 	const char *pm;
 	int err, i;
@@ -402,7 +402,7 @@ static int stmmac_of_get_mac_mode(struct device_node *np)
 			return i;
 	}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -417,8 +417,8 @@ static void stmmac_remove_config_dt(struct platform_device *pdev,
 {
 	clk_disable_unprepare(plat->stmmac_clk);
 	clk_disable_unprepare(plat->pclk);
-	of_node_put(plat->phy_node);
-	of_node_put(plat->mdio_node);
+	of_analde_put(plat->phy_analde);
+	of_analde_put(plat->mdio_analde);
 }
 
 /**
@@ -432,7 +432,7 @@ static void stmmac_remove_config_dt(struct platform_device *pdev,
 static struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
 	int phy_mode;
@@ -441,7 +441,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = of_get_mac_address(np, mac);
 	if (rc) {
@@ -459,12 +459,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	rc = stmmac_of_get_mac_mode(np);
 	plat->mac_interface = rc < 0 ? plat->phy_interface : rc;
 
-	/* Some wrapper drivers still rely on phy_node. Let's save it while
-	 * they are not converted to phylink. */
-	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	/* Some wrapper drivers still rely on phy_analde. Let's save it while
+	 * they are analt converted to phylink. */
+	plat->phy_analde = of_parse_phandle(np, "phy-handle", 0);
 
 	/* PHYLINK automatically parses the phy-handle property */
-	plat->port_node = of_fwnode_handle(np);
+	plat->port_analde = of_fwanalde_handle(np);
 
 	/* Get max speed of operation from device tree */
 	of_property_read_u32(np, "max-speed", &plat->max_speed);
@@ -483,8 +483,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (of_property_read_u32(np, "snps,clk-csr", &plat->clk_csr))
 		of_property_read_u32(np, "clk_csr", &plat->clk_csr);
 
-	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
-	 * and warn of its use. Remove this when phy node support is added.
+	/* "snps,phy-addr" is analt a standard property. Mark it as deprecated
+	 * and warn of its use. Remove this when phy analde support is added.
 	 */
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
@@ -504,7 +504,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->flags |= STMMAC_FLAG_EN_TX_LPI_CLOCKGATING;
 
 	/* Set the maxmtu to a default of JUMBO_LEN in case the
-	 * parameter is not present in the device tree.
+	 * parameter is analt present in the device tree.
 	 */
 	plat->maxmtu = JUMBO_LEN;
 
@@ -523,7 +523,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		of_device_is_compatible(np, "snps,dwmac-3.50a") ||
 		of_device_is_compatible(np, "snps,dwmac-3.70a") ||
 		of_device_is_compatible(np, "snps,dwmac")) {
-		/* Note that the max-frame-size parameter as defined in the
+		/* Analte that the max-frame-size parameter as defined in the
 		 * ePAPR v1.1 spec is defined as max-frame-size, it's
 		 * actually used as the IEEE definition of MAC Client
 		 * data, or MTU. The ePAPR specification is confusing as
@@ -581,7 +581,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 			       GFP_KERNEL);
 	if (!dma_cfg) {
 		stmmac_remove_config_dt(pdev, plat);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 	plat->dma_cfg = dma_cfg;
 
@@ -590,7 +590,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		dma_cfg->pbl = DEFAULT_DMA_PBL;
 	of_property_read_u32(np, "snps,txpbl", &dma_cfg->txpbl);
 	of_property_read_u32(np, "snps,rxpbl", &dma_cfg->rxpbl);
-	dma_cfg->pblx8 = !of_property_read_bool(np, "snps,no-pbl-x8");
+	dma_cfg->pblx8 = !of_property_read_bool(np, "snps,anal-pbl-x8");
 
 	dma_cfg->aal = of_property_read_bool(np, "snps,aal");
 	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");
@@ -600,7 +600,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (plat->force_thresh_dma_mode && plat->force_sf_dma_mode) {
 		plat->force_sf_dma_mode = 0;
 		dev_warn(&pdev->dev,
-			 "force_sf_dma_mode is ignored if force_thresh_dma_mode is set.\n");
+			 "force_sf_dma_mode is iganalred if force_thresh_dma_mode is set.\n");
 	}
 
 	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
@@ -618,7 +618,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->stmmac_clk = devm_clk_get(&pdev->dev,
 						STMMAC_RESOURCE_NAME);
 		if (IS_ERR(plat->stmmac_clk)) {
-			dev_warn(&pdev->dev, "Cannot get CSR clock\n");
+			dev_warn(&pdev->dev, "Cananalt get CSR clock\n");
 			plat->stmmac_clk = NULL;
 		}
 		clk_prepare_enable(plat->stmmac_clk);
@@ -631,7 +631,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	}
 	clk_prepare_enable(plat->pclk);
 
-	/* Fall-back to main clock in case of no PTP ref is passed */
+	/* Fall-back to main clock in case of anal PTP ref is passed */
 	plat->clk_ptp_ref = devm_clk_get(&pdev->dev, "ptp_ref");
 	if (IS_ERR(plat->clk_ptp_ref)) {
 		plat->clk_ptp_rate = clk_get_rate(plat->stmmac_clk);
@@ -678,7 +678,7 @@ static void devm_stmmac_remove_config_dt(void *data)
  * devm_stmmac_probe_config_dt
  * @pdev: platform_device structure
  * @mac: MAC address to use
- * Description: Devres variant of stmmac_probe_config_dt(). Does not require
+ * Description: Devres variant of stmmac_probe_config_dt(). Does analt require
  * the user to call stmmac_remove_config_dt() at driver detach.
  */
 struct plat_stmmacenet_data *
@@ -723,7 +723,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	 * The external wake up irq can be passed through the platform code
 	 * named as "eth_wake_irq"
 	 *
-	 * In case the wake up interrupt is not passed from the platform
+	 * In case the wake up interrupt is analt passed from the platform
 	 * so the driver will continue to use the mac irq (ndev->irq)
 	 */
 	stmmac_res->wol_irq =
@@ -731,7 +731,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	if (stmmac_res->wol_irq < 0) {
 		if (stmmac_res->wol_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_wake_irq not found\n");
+		dev_info(&pdev->dev, "IRQ eth_wake_irq analt found\n");
 		stmmac_res->wol_irq = stmmac_res->irq;
 	}
 
@@ -740,7 +740,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	if (stmmac_res->lpi_irq < 0) {
 		if (stmmac_res->lpi_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_lpi not found\n");
+		dev_info(&pdev->dev, "IRQ eth_lpi analt found\n");
 	}
 
 	stmmac_res->addr = devm_platform_ioremap_resource(pdev, 0);
@@ -916,7 +916,7 @@ static int __maybe_unused stmmac_runtime_resume(struct device *dev)
 	return stmmac_bus_clks_config(priv, true);
 }
 
-static int __maybe_unused stmmac_pltfr_noirq_suspend(struct device *dev)
+static int __maybe_unused stmmac_pltfr_analirq_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -937,7 +937,7 @@ static int __maybe_unused stmmac_pltfr_noirq_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
+static int __maybe_unused stmmac_pltfr_analirq_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -967,7 +967,7 @@ static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
 const struct dev_pm_ops stmmac_pltfr_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_suspend, stmmac_pltfr_resume)
 	SET_RUNTIME_PM_OPS(stmmac_runtime_suspend, stmmac_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_noirq_suspend, stmmac_pltfr_noirq_resume)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(stmmac_pltfr_analirq_suspend, stmmac_pltfr_analirq_resume)
 };
 EXPORT_SYMBOL_GPL(stmmac_pltfr_pm_ops);
 

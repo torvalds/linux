@@ -3,9 +3,9 @@
  *		(C) Copyright IBM 2012
  *		Licensed under the GPLv2
  *
- *  NOTE: This is a meta-test which sets the time to edge cases then
+ *  ANALTE: This is a meta-test which sets the time to edge cases then
  *  uses other tests to detect problems. Thus this test requires that
- *  the inconsistency-check and nanosleep tests be present in the same
+ *  the inconsistency-check and naanalsleep tests be present in the same
  *  directory it is run from.
  *
  *  To build:
@@ -47,13 +47,13 @@ int is32bits(void)
 
 int settime(long long time)
 {
-	struct timeval now;
+	struct timeval analw;
 	int ret;
 
-	now.tv_sec = (time_t)time;
-	now.tv_usec  = 0;
+	analw.tv_sec = (time_t)time;
+	analw.tv_usec  = 0;
 
-	ret = settimeofday(&now, NULL);
+	ret = settimeofday(&analw, NULL);
 
 	printf("Setting time to 0x%lx: %d\n", (long)time, ret);
 	return ret;
@@ -65,7 +65,7 @@ int do_tests(void)
 
 	ret = system("date");
 	ret = system("./inconsistency-check -c 0 -t 20");
-	ret |= system("./nanosleep");
+	ret |= system("./naanalsleep");
 	ret |= system("./nsleep-lat");
 	return ret;
 
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	/* Now test behavior near edges */
+	/* Analw test behavior near edges */
 	settime(YEAR_1970);
 	ret = do_tests();
 	if (ret)

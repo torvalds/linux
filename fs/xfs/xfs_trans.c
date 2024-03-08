@@ -20,7 +20,7 @@
 #include "xfs_trace.h"
 #include "xfs_error.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_icache.h"
@@ -71,7 +71,7 @@ xfs_trans_free(
 
 	trace_xfs_trans_free(tp, _RET_IP_);
 	xfs_trans_clear_context(tp);
-	if (!(tp->t_flags & XFS_TRANS_NO_WRITECOUNT))
+	if (!(tp->t_flags & XFS_TRANS_ANAL_WRITECOUNT))
 		sb_end_intwrite(tp->t_mountp->m_super);
 	xfs_trans_free_dqinfo(tp);
 	kmem_cache_free(xfs_trans_cache, tp);
@@ -81,8 +81,8 @@ xfs_trans_free(
  * This is called to create a new transaction which will share the
  * permanent log reservation of the given transaction.  The remaining
  * unused block and rt extent reservations are also inherited.  This
- * implies that the original transaction is no longer allowed to allocate
- * blocks.  Locks and log items, however, are no inherited.  They must
+ * implies that the original transaction is anal longer allowed to allocate
+ * blocks.  Locks and log items, however, are anal inherited.  They must
  * be added to the new transaction explicitly.
  */
 STATIC struct xfs_trans *
@@ -93,7 +93,7 @@ xfs_trans_dup(
 
 	trace_xfs_trans_dup(tp, _RET_IP_);
 
-	ntp = kmem_cache_zalloc(xfs_trans_cache, GFP_KERNEL | __GFP_NOFAIL);
+	ntp = kmem_cache_zalloc(xfs_trans_cache, GFP_KERNEL | __GFP_ANALFAIL);
 
 	/*
 	 * Initialize the new transaction structure.
@@ -103,17 +103,17 @@ xfs_trans_dup(
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
 	INIT_LIST_HEAD(&ntp->t_dfops);
-	ntp->t_highest_agno = NULLAGNUMBER;
+	ntp->t_highest_aganal = NULLAGNUMBER;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(tp->t_ticket != NULL);
 
 	ntp->t_flags = XFS_TRANS_PERM_LOG_RES |
 		       (tp->t_flags & XFS_TRANS_RESERVE) |
-		       (tp->t_flags & XFS_TRANS_NO_WRITECOUNT) |
+		       (tp->t_flags & XFS_TRANS_ANAL_WRITECOUNT) |
 		       (tp->t_flags & XFS_TRANS_RES_FDBLKS);
 	/* We gave our writer reference to the new transaction */
-	tp->t_flags |= XFS_TRANS_NO_WRITECOUNT;
+	tp->t_flags |= XFS_TRANS_ANAL_WRITECOUNT;
 	ntp->t_ticket = xfs_log_ticket_get(tp->t_ticket);
 
 	ASSERT(tp->t_blk_res >= tp->t_blk_res_used);
@@ -137,13 +137,13 @@ xfs_trans_dup(
  * given transaction.  This must be done before allocating any resources
  * within the transaction.
  *
- * This will return ENOSPC if there are not enough blocks available.
+ * This will return EANALSPC if there are analt eanalugh blocks available.
  * It will sleep waiting for available log space.
  * The only valid value for the flags parameter is XFS_RES_LOG_PERM, which
  * is used by long running transactions.  If any one of the reservations
  * fails then they will all be backed out.
  *
- * This does not do quota reservations. That typically is done by the
+ * This does analt do quota reservations. That typically is done by the
  * caller afterwards.
  */
 static int
@@ -165,7 +165,7 @@ xfs_trans_reserve(
 	if (blocks > 0) {
 		error = xfs_mod_fdblocks(mp, -((int64_t)blocks), rsvd);
 		if (error != 0)
-			return -ENOSPC;
+			return -EANALSPC;
 		tp->t_blk_res += blocks;
 	}
 
@@ -212,7 +212,7 @@ xfs_trans_reserve(
 	if (rtextents > 0) {
 		error = xfs_mod_frextents(mp, -((int64_t)rtextents));
 		if (error) {
-			error = -ENOSPC;
+			error = -EANALSPC;
 			goto undo_log;
 		}
 		tp->t_rtx_res += rtextents;
@@ -255,12 +255,12 @@ xfs_trans_alloc(
 
 	/*
 	 * Allocate the handle before we do our freeze accounting and setting up
-	 * GFP_NOFS allocation context so that we avoid lockdep false positives
+	 * GFP_ANALFS allocation context so that we avoid lockdep false positives
 	 * by doing GFP_KERNEL allocations inside sb_start_intwrite().
 	 */
 retry:
-	tp = kmem_cache_zalloc(xfs_trans_cache, GFP_KERNEL | __GFP_NOFAIL);
-	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
+	tp = kmem_cache_zalloc(xfs_trans_cache, GFP_KERNEL | __GFP_ANALFAIL);
+	if (!(flags & XFS_TRANS_ANAL_WRITECOUNT))
 		sb_start_intwrite(mp->m_super);
 	xfs_trans_set_context(tp);
 
@@ -279,16 +279,16 @@ retry:
 	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
 	INIT_LIST_HEAD(&tp->t_dfops);
-	tp->t_highest_agno = NULLAGNUMBER;
+	tp->t_highest_aganal = NULLAGNUMBER;
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
-	if (error == -ENOSPC && want_retry) {
+	if (error == -EANALSPC && want_retry) {
 		xfs_trans_cancel(tp);
 
 		/*
-		 * We weren't able to reserve enough space for the transaction.
+		 * We weren't able to reserve eanalugh space for the transaction.
 		 * Flush the other speculative space allocations to free space.
-		 * Do not perform a synchronous scan because callers can hold
+		 * Do analt perform a synchroanalus scan because callers can hold
 		 * other locks.
 		 */
 		error = xfs_blockgc_flush_all(mp);
@@ -309,15 +309,15 @@ retry:
 }
 
 /*
- * Create an empty transaction with no reservation.  This is a defensive
+ * Create an empty transaction with anal reservation.  This is a defensive
  * mechanism for routines that query metadata without actually modifying them --
  * if the metadata being queried is somehow cross-linked (think a btree block
  * pointer that points higher in the tree), we risk deadlock.  However, blocks
  * grabbed as part of a transaction can be re-grabbed.  The verifiers will
- * notice the corrupt block and the operation will fail back to userspace
+ * analtice the corrupt block and the operation will fail back to userspace
  * without deadlocking.
  *
- * Note the zero-length reservation; this transaction MUST be cancelled without
+ * Analte the zero-length reservation; this transaction MUST be cancelled without
  * any dirty data.
  *
  * Callers should obtain freeze protection to avoid a conflict with fs freezing
@@ -331,19 +331,19 @@ xfs_trans_alloc_empty(
 {
 	struct xfs_trans_res		resv = {0};
 
-	return xfs_trans_alloc(mp, &resv, 0, 0, XFS_TRANS_NO_WRITECOUNT, tpp);
+	return xfs_trans_alloc(mp, &resv, 0, 0, XFS_TRANS_ANAL_WRITECOUNT, tpp);
 }
 
 /*
  * Record the indicated change to the given field for application
  * to the file system's superblock when the transaction commits.
- * For now, just store the change in the transaction structure.
+ * For analw, just store the change in the transaction structure.
  *
  * Mark the transaction structure to indicate that the superblock
  * needs to be updated before committing.
  *
- * Because we may not be keeping track of allocated/free inodes and
- * used filesystem blocks in the superblock, we do not mark the
+ * Because we may analt be keeping track of allocated/free ianaldes and
+ * used filesystem blocks in the superblock, we do analt mark the
  * superblock dirty in this transaction if we modify these fields.
  * We still need to update the transaction deltas so that they get
  * applied to the incore superblock, but we don't want them to
@@ -373,7 +373,7 @@ xfs_trans_mod_sb(
 	case XFS_TRANS_SB_FDBLOCKS:
 		/*
 		 * Track the number of blocks allocated in the transaction.
-		 * Make sure it does not exceed the number reserved. If so,
+		 * Make sure it does analt exceed the number reserved. If so,
 		 * shutdown as this can lead to accounting inconsistency.
 		 */
 		if (delta < 0) {
@@ -385,7 +385,7 @@ xfs_trans_mod_sb(
 
 			/*
 			 * Return freed blocks directly to the reservation
-			 * instead of the global pool, being careful not to
+			 * instead of the global pool, being careful analt to
 			 * overflow the trans counter. This is used to preserve
 			 * reservation across chains of transaction rolls that
 			 * repeatedly free and allocate blocks.
@@ -412,7 +412,7 @@ xfs_trans_mod_sb(
 	case XFS_TRANS_SB_FREXTENTS:
 		/*
 		 * Track the number of blocks allocated in the
-		 * transaction.  Make sure it does not exceed the
+		 * transaction.  Make sure it does analt exceed the
 		 * number reserved.
 		 */
 		if (delta < 0) {
@@ -468,7 +468,7 @@ xfs_trans_mod_sb(
  * to bring the superblock buffer into the current transaction
  * and modify it as requested by earlier calls to xfs_trans_mod_sb().
  *
- * For now we just look at each field allowed to change and change
+ * For analw we just look at each field allowed to change and change
  * it if necessary.
  */
 STATIC void
@@ -497,8 +497,8 @@ xfs_trans_apply_sb_deltas(
 	}
 
 	/*
-	 * Updating frextents requires careful handling because it does not
-	 * behave like the lazysb counters because we cannot rely on log
+	 * Updating frextents requires careful handling because it does analt
+	 * behave like the lazysb counters because we cananalt rely on log
 	 * recovery in older kenels to recompute the value from the rtbitmap.
 	 * This means that the ondisk frextents must be consistent with the
 	 * rtbitmap.
@@ -558,7 +558,7 @@ xfs_trans_apply_sb_deltas(
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
 	if (whole)
 		/*
-		 * Log the whole thing, the fields are noncontiguous.
+		 * Log the whole thing, the fields are analncontiguous.
 		 */
 		xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsb) - 1);
 	else
@@ -574,16 +574,16 @@ xfs_trans_apply_sb_deltas(
 /*
  * xfs_trans_unreserve_and_mod_sb() is called to release unused reservations and
  * apply superblock counter changes to the in-core superblock.  The
- * t_res_fdblocks_delta and t_res_frextents_delta fields are explicitly NOT
+ * t_res_fdblocks_delta and t_res_frextents_delta fields are explicitly ANALT
  * applied to the in-core superblock.  The idea is that that has already been
  * done.
  *
- * If we are not logging superblock counters, then the inode allocated/free and
- * used block counts are not updated in the on disk superblock. In this case,
- * XFS_TRANS_SB_DIRTY will not be set when the transaction is updated but we
+ * If we are analt logging superblock counters, then the ianalde allocated/free and
+ * used block counts are analt updated in the on disk superblock. In this case,
+ * XFS_TRANS_SB_DIRTY will analt be set when the transaction is updated but we
  * still need to update the incore superblock with the changes.
  *
- * Deltas for the inode count are +/-64, hence we use a large batch size of 128
+ * Deltas for the ianalde count are +/-64, hence we use a large batch size of 128
  * so we don't need to take the counter lock on every update.
  */
 #define XFS_ICOUNT_BATCH	128
@@ -647,8 +647,8 @@ xfs_trans_unreserve_and_mod_sb(
 	mp->m_sb.sb_icount += idelta;
 	mp->m_sb.sb_ifree += ifreedelta;
 	/*
-	 * Do not touch sb_frextents here because we are dealing with incore
-	 * reservation.  sb_frextents is not part of the lazy sb counters so it
+	 * Do analt touch sb_frextents here because we are dealing with incore
+	 * reservation.  sb_frextents is analt part of the lazy sb counters so it
 	 * must be consistent with the ondisk rtbitmap and must never include
 	 * incore reservations.
 	 */
@@ -691,7 +691,7 @@ xfs_trans_add_item(
 }
 
 /*
- * Unlink the log item from the transaction. the log item is no longer
+ * Unlink the log item from the transaction. the log item is anal longer
  * considered dirty in this transaction, as the linked transaction has
  * finished, either by abort or commit completion.
  */
@@ -757,7 +757,7 @@ xfs_log_item_batch_insert(
  * this case all we need to do is iop_committed processing, followed by an
  * iop_unpin(aborted) call.
  *
- * The AIL cursor is used to optimise the insert process. If commit_lsn is not
+ * The AIL cursor is used to optimise the insert process. If commit_lsn is analt
  * at the end of the AIL, the insert cursor avoids the need to walk
  * the AIL to find the insertion point on every xfs_log_item_batch_insert()
  * call. This saves a lot of needless list walking and is a net win, even
@@ -799,12 +799,12 @@ xfs_trans_committed_bulk(
 		else
 			item_lsn = commit_lsn;
 
-		/* item_lsn of -1 means the item needs no further processing */
+		/* item_lsn of -1 means the item needs anal further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
 			continue;
 
 		/*
-		 * if we are aborting the operation, no point in inserting the
+		 * if we are aborting the operation, anal point in inserting the
 		 * object into the AIL as we are in a shutdown situation.
 		 */
 		if (aborted) {
@@ -817,10 +817,10 @@ xfs_trans_committed_bulk(
 		if (item_lsn != commit_lsn) {
 
 			/*
-			 * Not a bulk update option due to unusual item_lsn.
+			 * Analt a bulk update option due to unusual item_lsn.
 			 * Push into AIL immediately, rechecking the lsn once
 			 * we have the ail lock. Then unpin the item. This does
-			 * not affect the AIL cursor the bulk insert path is
+			 * analt affect the AIL cursor the bulk insert path is
 			 * using.
 			 */
 			spin_lock(&ailp->ail_lock);
@@ -854,7 +854,7 @@ xfs_trans_committed_bulk(
 /*
  * Sort transaction items prior to running precommit operations. This will
  * attempt to order the items such that they will always be locked in the same
- * order. Items that have no sort function are moved to the end of the list
+ * order. Items that have anal sort function are moved to the end of the list
  * and so are locked last.
  *
  * This may need refinement as different types of objects add sort functions.
@@ -875,8 +875,8 @@ xfs_trans_precommit_sort(
 	int64_t			diff;
 
 	/*
-	 * If both items are non-sortable, leave them alone. If only one is
-	 * sortable, move the non-sortable item towards the end of the list.
+	 * If both items are analn-sortable, leave them alone. If only one is
+	 * sortable, move the analn-sortable item towards the end of the list.
 	 */
 	if (!lia->li_ops->iop_sort && !lib->li_ops->iop_sort)
 		return 0;
@@ -897,7 +897,7 @@ xfs_trans_precommit_sort(
  * Run transaction precommit functions.
  *
  * If there is an error in any of the callouts, then stop immediately and
- * trigger a shutdown to abort the transaction. There is no recovery possible
+ * trigger a shutdown to abort the transaction. There is anal recovery possible
  * from errors at this point as the transaction is dirty....
  */
 static int
@@ -911,7 +911,7 @@ xfs_trans_run_precommits(
 	/*
 	 * Sort the item list to avoid ABBA deadlocks with other transactions
 	 * running precommit operations that lock multiple shared items such as
-	 * inode cluster buffers.
+	 * ianalde cluster buffers.
 	 */
 	list_sort(NULL, &tp->t_items, xfs_trans_precommit_sort);
 
@@ -938,14 +938,14 @@ xfs_trans_run_precommits(
 /*
  * Commit the given transaction to the log.
  *
- * XFS disk error handling mechanism is not based on a typical
+ * XFS disk error handling mechanism is analt based on a typical
  * transaction abort mechanism. Logically after the filesystem
  * gets marked 'SHUTDOWN', we can't let any new transactions
  * be durable - ie. committed to disk - because some metadata might
  * be inconsistent. In such cases, this returns an error, and the
  * caller may assume that all locked objects joined to the transaction
  * have already been unlocked as if the commit had succeeded.
- * Do not reference the transaction structure after this call.
+ * Do analt reference the transaction structure after this call.
  */
 static int
 __xfs_trans_commit(
@@ -974,7 +974,7 @@ __xfs_trans_commit(
 	WARN_ON_ONCE(!list_empty(&tp->t_dfops) &&
 		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
 	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
-		error = xfs_defer_finish_noroll(&tp);
+		error = xfs_defer_finish_analroll(&tp);
 		if (error)
 			goto out_unreserve;
 
@@ -985,7 +985,7 @@ __xfs_trans_commit(
 	}
 
 	/*
-	 * If there is nothing to be logged by the transaction,
+	 * If there is analthing to be logged by the transaction,
 	 * then unlock all of the items associated with the
 	 * transaction and free the transaction structure.
 	 * Also make sure to return any reserved blocks to
@@ -995,7 +995,7 @@ __xfs_trans_commit(
 		goto out_unreserve;
 
 	/*
-	 * We must check against log shutdown here because we cannot abort log
+	 * We must check against log shutdown here because we cananalt abort log
 	 * items and leave them dirty, inconsistent and unpinned in memory while
 	 * the log is active. This leaves them open to being written back to
 	 * disk, and that will lead to on-disk corruption.
@@ -1008,7 +1008,7 @@ __xfs_trans_commit(
 	ASSERT(tp->t_ticket != NULL);
 
 	/*
-	 * If we need to update the superblock, then do it now.
+	 * If we need to update the superblock, then do it analw.
 	 */
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
 		xfs_trans_apply_sb_deltas(tp);
@@ -1019,8 +1019,8 @@ __xfs_trans_commit(
 	xfs_trans_free(tp);
 
 	/*
-	 * If the transaction needs to be synchronous, then force the
-	 * log out now and wait for it.
+	 * If the transaction needs to be synchroanalus, then force the
+	 * log out analw and wait for it.
 	 */
 	if (sync) {
 		error = xfs_log_force_seq(mp, commit_seq, XFS_LOG_SYNC, NULL);
@@ -1035,9 +1035,9 @@ out_unreserve:
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
-	 * It is indeed possible for the transaction to be not dirty but
+	 * It is indeed possible for the transaction to be analt dirty but
 	 * the dqinfo portion to be.  All that means is that we have some
-	 * (non-persistent) quota reservations that need to be unreserved.
+	 * (analn-persistent) quota reservations that need to be unreserved.
 	 */
 	xfs_trans_unreserve_and_mod_dquots(tp);
 	if (tp->t_ticket) {
@@ -1063,7 +1063,7 @@ xfs_trans_commit(
 
 /*
  * Unlock all of the transaction's items and free the transaction.  If the
- * transaction is dirty, we must shut down the filesystem because there is no
+ * transaction is dirty, we must shut down the filesystem because there is anal
  * way to restore them to their previous state.
  *
  * If the transaction has made a log reservation, make sure to release it as
@@ -1071,7 +1071,7 @@ xfs_trans_commit(
  *
  * This is a high level function (equivalent to xfs_trans_commit()) and so can
  * be called after the transaction has effectively been aborted due to the mount
- * being shut down. However, if the mount has not been shut down and the
+ * being shut down. However, if the mount has analt been shut down and the
  * transaction is dirty we will shut the mount down and, in doing so, that
  * guarantees that the log is shut down, too. Hence we don't need to be as
  * careful with shutdown state and dirty items here as we need to be in
@@ -1158,7 +1158,7 @@ xfs_trans_roll(
 	/*
 	 * Commit the current transaction.
 	 * If this commit failed, then it'd just unlock those items that
-	 * are not marked ihold. That also means that a filesystem shutdown
+	 * are analt marked ihold. That also means that a filesystem shutdown
 	 * is in progress. The caller takes the responsibility to cancel
 	 * the duplicate transaction that gets returned.
 	 */
@@ -1170,7 +1170,7 @@ xfs_trans_roll(
 	 * Reserve space in the log for the next transaction.
 	 * This also pushes items in the "AIL", the list of logged items,
 	 * out to disk if they are taking up space at the tail of the log
-	 * that we want to use.  This requires that either nothing be locked
+	 * that we want to use.  This requires that either analthing be locked
 	 * across this call, or that anything that is locked be logged in
 	 * the prior and the next transactions.
 	 */
@@ -1179,15 +1179,15 @@ xfs_trans_roll(
 }
 
 /*
- * Allocate an transaction, lock and join the inode to it, and reserve quota.
+ * Allocate an transaction, lock and join the ianalde to it, and reserve quota.
  *
- * The caller must ensure that the on-disk dquots attached to this inode have
+ * The caller must ensure that the on-disk dquots attached to this ianalde have
  * already been allocated and initialized.  The caller is responsible for
  * releasing ILOCK_EXCL if a new transaction is returned.
  */
 int
-xfs_trans_alloc_inode(
-	struct xfs_inode	*ip,
+xfs_trans_alloc_ianalde(
+	struct xfs_ianalde	*ip,
 	struct xfs_trans_res	*resv,
 	unsigned int		dblocks,
 	unsigned int		rblocks,
@@ -1212,12 +1212,12 @@ retry:
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
-		ASSERT(error != -ENOENT);
+		ASSERT(error != -EANALENT);
 		goto out_cancel;
 	}
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, dblocks, rblocks, force);
-	if ((error == -EDQUOT || error == -ENOSPC) && !retried) {
+	if ((error == -EDQUOT || error == -EANALSPC) && !retried) {
 		xfs_trans_cancel(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		xfs_blockgc_free_quota(ip, 0);
@@ -1242,7 +1242,7 @@ out_cancel:
  * This is for callers that need to attach resources to a transaction, scan
  * those resources to determine the space reservation requirements, and then
  * modify the attached resources.  In other words, online repair.  This can
- * fail due to ENOSPC, so the caller must be able to cancel the transaction
+ * fail due to EANALSPC, so the caller must be able to cancel the transaction
  * without shutting down the fs.
  */
 int
@@ -1261,9 +1261,9 @@ xfs_trans_reserve_more(
  * conditions of usage as xfs_trans_reserve_more.
  */
 int
-xfs_trans_reserve_more_inode(
+xfs_trans_reserve_more_ianalde(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	unsigned int		dblocks,
 	unsigned int		rblocks,
 	bool			force_quota)
@@ -1279,7 +1279,7 @@ xfs_trans_reserve_more_inode(
 	if (error)
 		return error;
 
-	if (!XFS_IS_QUOTA_ON(mp) || xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+	if (!XFS_IS_QUOTA_ON(mp) || xfs_is_quota_ianalde(&mp->m_sb, ip->i_ianal))
 		return 0;
 
 	if (tp->t_flags & XFS_TRANS_RESERVE)
@@ -1299,8 +1299,8 @@ xfs_trans_reserve_more_inode(
 }
 
 /*
- * Allocate an transaction in preparation for inode creation by reserving quota
- * against the given dquots.  Callers are not required to hold any inode locks.
+ * Allocate an transaction in preparation for ianalde creation by reserving quota
+ * against the given dquots.  Callers are analt required to hold any ianalde locks.
  */
 int
 xfs_trans_alloc_icreate(
@@ -1322,7 +1322,7 @@ retry:
 		return error;
 
 	error = xfs_trans_reserve_quota_icreate(tp, udqp, gdqp, pdqp, dblocks);
-	if ((error == -EDQUOT || error == -ENOSPC) && !retried) {
+	if ((error == -EDQUOT || error == -EANALSPC) && !retried) {
 		xfs_trans_cancel(tp);
 		xfs_blockgc_free_dquots(mp, udqp, gdqp, pdqp, 0);
 		retried = true;
@@ -1338,17 +1338,17 @@ retry:
 }
 
 /*
- * Allocate an transaction, lock and join the inode to it, and reserve quota
- * in preparation for inode attribute changes that include uid, gid, or prid
+ * Allocate an transaction, lock and join the ianalde to it, and reserve quota
+ * in preparation for ianalde attribute changes that include uid, gid, or prid
  * changes.
  *
- * The caller must ensure that the on-disk dquots attached to this inode have
+ * The caller must ensure that the on-disk dquots attached to this ianalde have
  * already been allocated and initialized.  The ILOCK will be dropped when the
  * transaction is committed or cancelled.
  */
 int
 xfs_trans_alloc_ichange(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_dquot	*new_udqp,
 	struct xfs_dquot	*new_gdqp,
 	struct xfs_dquot	*new_pdqp,
@@ -1374,14 +1374,14 @@ retry:
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
-		ASSERT(error != -ENOENT);
+		ASSERT(error != -EANALENT);
 		goto out_cancel;
 	}
 
 	/*
-	 * For each quota type, skip quota reservations if the inode's dquots
-	 * now match the ones that came from the caller, or the caller didn't
-	 * pass one in.  The inode's dquots can change if we drop the ILOCK to
+	 * For each quota type, skip quota reservations if the ianalde's dquots
+	 * analw match the ones that came from the caller, or the caller didn't
+	 * pass one in.  The ianalde's dquots can change if we drop the ILOCK to
 	 * perform a blockgc scan, so we must preserve the caller's arguments.
 	 */
 	udqp = (new_udqp != ip->i_udquot) ? new_udqp : NULL;
@@ -1394,7 +1394,7 @@ retry:
 			qflags |= XFS_QMOPT_FORCE_RES;
 
 		/*
-		 * Reserve enough quota to handle blocks on disk and reserved
+		 * Reserve eanalugh quota to handle blocks on disk and reserved
 		 * for a delayed allocation.  We'll actually transfer the
 		 * delalloc reservation between dquots at chown time, even
 		 * though that part is only semi-transactional.
@@ -1402,7 +1402,7 @@ retry:
 		error = xfs_trans_reserve_quota_bydquots(tp, mp, udqp, gdqp,
 				pdqp, ip->i_nblocks + ip->i_delayed_blks,
 				1, qflags);
-		if ((error == -EDQUOT || error == -ENOSPC) && !retried) {
+		if ((error == -EDQUOT || error == -EANALSPC) && !retried) {
 			xfs_trans_cancel(tp);
 			xfs_blockgc_free_dquots(mp, udqp, gdqp, pdqp, 0);
 			retried = true;
@@ -1421,24 +1421,24 @@ out_cancel:
 }
 
 /*
- * Allocate an transaction, lock and join the directory and child inodes to it,
+ * Allocate an transaction, lock and join the directory and child ianaldes to it,
  * and reserve quota for a directory update.  If there isn't sufficient space,
  * @dblocks will be set to zero for a reservationless directory update and
- * @nospace_error will be set to a negative errno describing the space
+ * @analspace_error will be set to a negative erranal describing the space
  * constraint we hit.
  *
- * The caller must ensure that the on-disk dquots attached to this inode have
+ * The caller must ensure that the on-disk dquots attached to this ianalde have
  * already been allocated and initialized.  The ILOCKs will be dropped when the
  * transaction is committed or cancelled.
  */
 int
 xfs_trans_alloc_dir(
-	struct xfs_inode	*dp,
+	struct xfs_ianalde	*dp,
 	struct xfs_trans_res	*resv,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	unsigned int		*dblocks,
 	struct xfs_trans	**tpp,
-	int			*nospace_error)
+	int			*analspace_error)
 {
 	struct xfs_trans	*tp;
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1447,18 +1447,18 @@ xfs_trans_alloc_dir(
 	int			error;
 
 retry:
-	*nospace_error = 0;
+	*analspace_error = 0;
 	resblks = *dblocks;
 	error = xfs_trans_alloc(mp, resv, resblks, 0, 0, &tp);
-	if (error == -ENOSPC) {
-		*nospace_error = error;
+	if (error == -EANALSPC) {
+		*analspace_error = error;
 		resblks = 0;
 		error = xfs_trans_alloc(mp, resv, resblks, 0, 0, &tp);
 	}
 	if (error)
 		return error;
 
-	xfs_lock_two_inodes(dp, XFS_ILOCK_EXCL, ip, XFS_ILOCK_EXCL);
+	xfs_lock_two_ianaldes(dp, XFS_ILOCK_EXCL, ip, XFS_ILOCK_EXCL);
 
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
@@ -1466,14 +1466,14 @@ retry:
 	error = xfs_qm_dqattach_locked(dp, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
-		ASSERT(error != -ENOENT);
+		ASSERT(error != -EANALENT);
 		goto out_cancel;
 	}
 
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
-		ASSERT(error != -ENOENT);
+		ASSERT(error != -EANALENT);
 		goto out_cancel;
 	}
 
@@ -1481,7 +1481,7 @@ retry:
 		goto done;
 
 	error = xfs_trans_reserve_quota_nblks(tp, dp, resblks, 0, false);
-	if (error == -EDQUOT || error == -ENOSPC) {
+	if (error == -EDQUOT || error == -EANALSPC) {
 		if (!retried) {
 			xfs_trans_cancel(tp);
 			xfs_blockgc_free_quota(dp, 0);
@@ -1489,7 +1489,7 @@ retry:
 			goto retry;
 		}
 
-		*nospace_error = error;
+		*analspace_error = error;
 		resblks = 0;
 		error = 0;
 	}

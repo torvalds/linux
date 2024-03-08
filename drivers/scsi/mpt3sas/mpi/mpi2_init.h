@@ -9,9 +9,9 @@
  *
  * mpi2_init.h Version:  02.00.21
  *
- * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ * ANALTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
+ *       prefix are for use only on MPI v2.5 products, and must analt be used
+ *       with MPI v2.0 products. Unless otherwise analted, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -25,12 +25,12 @@
  * 02-29-08  02.00.03  Added Query Task Set and Query Unit Attention.
  * 03-03-08  02.00.04  Fixed name of struct _MPI2_SCSI_TASK_MANAGE_REPLY.
  * 05-21-08  02.00.05  Fixed typo in name of Mpi2SepRequest_t.
- * 10-02-08  02.00.06  Removed Untagged and No Disconnect values from SCSI IO
+ * 10-02-08  02.00.06  Removed Untagged and Anal Disconnect values from SCSI IO
  *                     Control field Task Attribute flags.
  *                     Moved LUN field defines to mpi2.h becasue they are
  *                     common to many structures.
  * 05-06-09  02.00.07  Changed task management type of Query Unit Attention to
- *                     Query Asynchronous Event.
+ *                     Query Asynchroanalus Event.
  *                     Defined two new bits in the SlotStatus field of the SCSI
  *                     Enclosure Processor Request and Reply.
  * 10-28-09  02.00.08  Added defines for decoding the ResponseInfo bytes for
@@ -194,7 +194,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST {
 #define MPI2_SCSIIO_EEDPFLAGS_PASSTHRU_REFTAG       (0x0008)
 
 #define MPI2_SCSIIO_EEDPFLAGS_MASK_OP               (0x0007)
-#define MPI2_SCSIIO_EEDPFLAGS_NOOP_OP               (0x0000)
+#define MPI2_SCSIIO_EEDPFLAGS_ANALOP_OP               (0x0000)
 #define MPI2_SCSIIO_EEDPFLAGS_CHECK_OP              (0x0001)
 #define MPI2_SCSIIO_EEDPFLAGS_STRIP_OP              (0x0002)
 #define MPI2_SCSIIO_EEDPFLAGS_CHECK_REMOVE_OP       (0x0003)
@@ -210,7 +210,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST {
 
 #define MPI2_SCSIIO_CONTROL_DATADIRECTION_MASK  (0x03000000)
 #define MPI2_SCSIIO_CONTROL_SHIFT_DATADIRECTION (24)
-#define MPI2_SCSIIO_CONTROL_NODATATRANSFER      (0x00000000)
+#define MPI2_SCSIIO_CONTROL_ANALDATATRANSFER      (0x00000000)
 #define MPI2_SCSIIO_CONTROL_WRITE               (0x01000000)
 #define MPI2_SCSIIO_CONTROL_READ                (0x02000000)
 #define MPI2_SCSIIO_CONTROL_BIDIRECTIONAL       (0x03000000)
@@ -228,7 +228,7 @@ typedef struct _MPI2_SCSI_IO_REQUEST {
 #define MPI2_SCSIIO_CONTROL_ACAQ                (0x00000400)
 
 #define MPI2_SCSIIO_CONTROL_TLR_MASK            (0x000000C0)
-#define MPI2_SCSIIO_CONTROL_NO_TLR              (0x00000000)
+#define MPI2_SCSIIO_CONTROL_ANAL_TLR              (0x00000000)
 #define MPI2_SCSIIO_CONTROL_TLR_ON              (0x00000040)
 #define MPI2_SCSIIO_CONTROL_TLR_OFF             (0x00000080)
 
@@ -315,7 +315,7 @@ typedef struct _MPI25_SCSI_IO_REQUEST {
 
 /*defines for the IoFlags field */
 #define MPI25_SCSIIO_IOFLAGS_IO_PATH_MASK               (0xC000)
-#define MPI25_SCSIIO_IOFLAGS_NORMAL_PATH                (0x0000)
+#define MPI25_SCSIIO_IOFLAGS_ANALRMAL_PATH                (0x0000)
 #define MPI25_SCSIIO_IOFLAGS_FAST_PATH                  (0x4000)
 
 #define MPI26_SCSIIO_IOFLAGS_ESCAPE_PASSTHROUGH         (0x2000)
@@ -328,7 +328,7 @@ typedef struct _MPI25_SCSI_IO_REQUEST {
 /*use MPI2_SCSIIO_EEDPFLAGS_ defines for the other EEDPFlags bits */
 #define MPI25_SCSIIO_EEDPFLAGS_ESCAPE_MODE_MASK             (0x00C0)
 #define MPI25_SCSIIO_EEDPFLAGS_COMPATIBLE_MODE              (0x0000)
-#define MPI25_SCSIIO_EEDPFLAGS_DO_NOT_DISABLE_MODE          (0x0040)
+#define MPI25_SCSIIO_EEDPFLAGS_DO_ANALT_DISABLE_MODE          (0x0040)
 #define MPI25_SCSIIO_EEDPFLAGS_APPTAG_DISABLE_MODE          (0x0080)
 #define MPI25_SCSIIO_EEDPFLAGS_APPTAG_REFTAG_DISABLE_MODE   (0x00C0)
 
@@ -340,7 +340,7 @@ typedef struct _MPI25_SCSI_IO_REQUEST {
 
 /*use MPI2_SCSIIO_CONTROL_ defines for the Control field */
 
-/*NOTE: The SCSI IO Reply is nearly the same for MPI 2.0 and MPI 2.5, so
+/*ANALTE: The SCSI IO Reply is nearly the same for MPI 2.0 and MPI 2.5, so
  *      MPI2_SCSI_IO_REPLY is used for both.
  */
 
@@ -399,7 +399,7 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 
 #define MPI2_SCSI_STATE_RESPONSE_INFO_VALID     (0x10)
 #define MPI2_SCSI_STATE_TERMINATED              (0x08)
-#define MPI2_SCSI_STATE_NO_SCSI_STATUS          (0x04)
+#define MPI2_SCSI_STATE_ANAL_SCSI_STATUS          (0x04)
 #define MPI2_SCSI_STATE_AUTOSENSE_FAILED        (0x02)
 #define MPI2_SCSI_STATE_AUTOSENSE_VALID         (0x01)
 
@@ -408,7 +408,7 @@ typedef struct _MPI2_SCSI_IO_REPLY {
 #define MPI2_SCSI_RI_MASK_REASONCODE            (0x000000FF)
 #define MPI2_SCSI_RI_SHIFT_REASONCODE           (0)
 
-#define MPI2_SCSI_TASKTAG_UNKNOWN               (0xFFFF)
+#define MPI2_SCSI_TASKTAG_UNKANALWN               (0xFFFF)
 
 /****************************************************************************
 * SCSI Task Management messages
@@ -459,7 +459,7 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST {
 #define MPI2_SCSITASKMGMT_MSGFLAGS_NEXUS_RESET_SRST     (0x08)
 #define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET  (0x10)
 
-#define MPI2_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU  (0x01)
+#define MPI2_SCSITASKMGMT_MSGFLAGS_DO_ANALT_SEND_TASK_IU  (0x01)
 #define MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE (0x18)
 
 /*SCSI Task Management Reply Message */
@@ -487,7 +487,7 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY {
 
 #define MPI2_SCSITASKMGMT_RSP_TM_COMPLETE               (0x00)
 #define MPI2_SCSITASKMGMT_RSP_INVALID_FRAME             (0x02)
-#define MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED          (0x04)
+#define MPI2_SCSITASKMGMT_RSP_TM_ANALT_SUPPORTED          (0x04)
 #define MPI2_SCSITASKMGMT_RSP_TM_FAILED                 (0x05)
 #define MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED              (0x08)
 #define MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN            (0x09)
@@ -550,7 +550,7 @@ typedef struct _MPI2_SEP_REQUEST {
 #define MPI2_SEP_REQ_SLOTSTATUS_IN_FAILED_ARRAY         (0x00000008)
 #define MPI2_SEP_REQ_SLOTSTATUS_DEV_REBUILDING          (0x00000004)
 #define MPI2_SEP_REQ_SLOTSTATUS_DEV_FAULTY              (0x00000002)
-#define MPI2_SEP_REQ_SLOTSTATUS_NO_ERROR                (0x00000001)
+#define MPI2_SEP_REQ_SLOTSTATUS_ANAL_ERROR                (0x00000001)
 
 /*SCSI Enclosure Processor Reply Message */
 typedef struct _MPI2_SEP_REPLY {
@@ -586,6 +586,6 @@ typedef struct _MPI2_SEP_REPLY {
 #define MPI2_SEP_REPLY_SLOTSTATUS_IN_FAILED_ARRAY       (0x00000008)
 #define MPI2_SEP_REPLY_SLOTSTATUS_DEV_REBUILDING        (0x00000004)
 #define MPI2_SEP_REPLY_SLOTSTATUS_DEV_FAULTY            (0x00000002)
-#define MPI2_SEP_REPLY_SLOTSTATUS_NO_ERROR              (0x00000001)
+#define MPI2_SEP_REPLY_SLOTSTATUS_ANAL_ERROR              (0x00000001)
 
 #endif

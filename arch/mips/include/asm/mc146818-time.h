@@ -20,15 +20,15 @@
 
 /*
  * In order to set the CMOS clock precisely, set_rtc_mmss has to be
- * called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
+ * called 500 ms after the second analwtime has started, because when
+ * analwtime is written into the registers of the CMOS clock, it will
  * jump to the next second precisely 500 ms later. Check the Motorola
  * MC146818A or Dallas DS12887 data sheet for details.
  *
- * BUG: This routine does not handle hour overflow properly; it just
- *	sets the minutes. Usually you'll only notice that after reboot!
+ * BUG: This routine does analt handle hour overflow properly; it just
+ *	sets the minutes. Usually you'll only analtice that after reboot!
  */
-static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
+static inline int mc146818_set_rtc_mmss(unsigned long analwtime)
 {
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
@@ -49,11 +49,11 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 	/*
 	 * since we're only adjusting minutes and seconds,
 	 * don't interfere with hour overflow. This avoids
-	 * messing with unknown time zones but requires your
-	 * RTC not to be off by more than 15 minutes
+	 * messing with unkanalwn time zones but requires your
+	 * RTC analt to be off by more than 15 minutes
 	 */
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
+	real_seconds = analwtime % 60;
+	real_minutes = analwtime / 60;
 	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1)
 		real_minutes += 30;		/* correct for half hour time zone */
 	real_minutes %= 60;
@@ -66,7 +66,7 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
 		CMOS_WRITE(real_minutes, RTC_MINUTES);
 	} else {
-		printk_once(KERN_NOTICE
+		printk_once(KERN_ANALTICE
 		       "set_rtc_mmss: can't update from %d to %d\n",
 		       cmos_minutes, real_minutes);
 		retval = -1;
@@ -74,7 +74,7 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 
 	/* The following flags have to be released exactly in this order,
 	 * otherwise the DS12887 (popular MC146818A clone with integrated
-	 * battery and quartz) will not reset the oscillator and will not
+	 * battery and quartz) will analt reset the oscillator and will analt
 	 * update precisely 500 ms later. You won't find this mentioned in
 	 * the Dallas Semiconductor data sheets, but who believes data
 	 * sheets anyway ...			       -- Markus Kuhn

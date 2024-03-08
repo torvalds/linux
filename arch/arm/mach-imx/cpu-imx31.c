@@ -34,12 +34,12 @@ static struct {
 static int mx31_read_cpu_rev(void)
 {
 	void __iomem *iim_base;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 i, srev;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-iim");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx31-iim");
 	iim_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	BUG_ON(!iim_base);
 
 	/* read SREV register from IIM module */
@@ -53,8 +53,8 @@ static int mx31_read_cpu_rev(void)
 			return mx31_cpu_type[i].rev;
 		}
 
-	imx_print_silicon_rev("i.MX31", IMX_CHIP_REVISION_UNKNOWN);
-	return IMX_CHIP_REVISION_UNKNOWN;
+	imx_print_silicon_rev("i.MX31", IMX_CHIP_REVISION_UNKANALWN);
+	return IMX_CHIP_REVISION_UNKANALWN;
 }
 
 int mx31_revision(void)

@@ -62,10 +62,10 @@ static struct file_system_type **find_filesystem(const char *name, unsigned len)
  *
  *	Adds the file system passed to the list of file systems the kernel
  *	is aware of for mount and other syscalls. Returns 0 on success,
- *	or a negative errno code on an error.
+ *	or a negative erranal code on an error.
  *
  *	The &struct file_system_type that is passed is linked into the kernel 
- *	structures and must not be freed until the file system has been
+ *	structures and must analt be freed until the file system has been
  *	unregistered.
  */
  
@@ -98,7 +98,7 @@ EXPORT_SYMBOL(register_filesystem);
  *	@fs: filesystem to unregister
  *
  *	Remove a file system that was previously successfully registered
- *	with the kernel. An error is returned if the file system is not found.
+ *	with the kernel. An error is returned if the file system is analt found.
  *	Zero is returned on a success.
  *	
  *	Once this function has returned the &struct file_system_type structure
@@ -242,7 +242,7 @@ static int filesystems_proc_show(struct seq_file *m, void *v)
 	tmp = file_systems;
 	while (tmp) {
 		seq_printf(m, "%s\t%s\n",
-			(tmp->fs_flags & FS_REQUIRES_DEV) ? "" : "nodev",
+			(tmp->fs_flags & FS_REQUIRES_DEV) ? "" : "analdev",
 			tmp->name);
 		tmp = tmp->next;
 	}
@@ -280,7 +280,7 @@ struct file_system_type *get_fs_type(const char *name)
 	if (!fs && (request_module("fs-%.*s", len, name) == 0)) {
 		fs = __get_fs_type(name, len);
 		if (!fs)
-			pr_warn_once("request_module fs-%.*s succeeded, but still no fs?\n",
+			pr_warn_once("request_module fs-%.*s succeeded, but still anal fs?\n",
 				     len, name);
 	}
 

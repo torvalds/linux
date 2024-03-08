@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -126,7 +126,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	rdev->vce.fw_version = (start << 24) | (mid << 16) | (end << 8);
 
-	/* we can only work with this fw version for now */
+	/* we can only work with this fw version for analw */
 	if ((rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8))) &&
 	    (rdev->vce.fw_version != ((50 << 24) | (0 << 16) | (1 << 8))) &&
 	    (rdev->vce.fw_version != ((50 << 24) | (1 << 16) | (2 << 8))))
@@ -256,7 +256,7 @@ int radeon_vce_resume(struct radeon_device *rdev)
  *
  * @work: pointer to work structure
  *
- * power of VCE when it's not used any more
+ * power of VCE when it's analt used any more
  */
 static void radeon_vce_idle_work_handler(struct work_struct *work)
 {
@@ -277,13 +277,13 @@ static void radeon_vce_idle_work_handler(struct work_struct *work)
 }
 
 /**
- * radeon_vce_note_usage - power up VCE
+ * radeon_vce_analte_usage - power up VCE
  *
  * @rdev: radeon_device pointer
  *
  * Make sure VCE is powerd up when we want to use it
  */
-void radeon_vce_note_usage(struct radeon_device *rdev)
+void radeon_vce_analte_usage(struct radeon_device *rdev)
 {
 	bool streams_changed = false;
 	bool set_clocks = !cancel_delayed_work_sync(&rdev->vce.idle_work);
@@ -320,7 +320,7 @@ void radeon_vce_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 		if (!handle || rdev->vce.filp[i] != filp)
 			continue;
 
-		radeon_vce_note_usage(rdev);
+		radeon_vce_analte_usage(rdev);
 
 		r = radeon_vce_get_destroy_msg(rdev, TN_RING_TYPE_VCE1_INDEX,
 					       handle, NULL);
@@ -513,7 +513,7 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
  * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
- * we don't have another free session index.
+ * we don't have aanalther free session index.
  */
 static int radeon_vce_validate_handle(struct radeon_cs_parser *p,
 				      uint32_t handle, bool *allocated)
@@ -533,7 +533,7 @@ static int radeon_vce_validate_handle(struct radeon_cs_parser *p,
 		}
 	}
 
-	/* handle not found try to alloc a new one */
+	/* handle analt found try to alloc a new one */
 	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
 		if (!atomic_cmpxchg(&p->rdev->vce.handles[i], 0, handle)) {
 			p->rdev->vce.filp[i] = p->filp;
@@ -543,7 +543,7 @@ static int radeon_vce_validate_handle(struct radeon_cs_parser *p,
 		}
 	}
 
-	DRM_ERROR("No more free VCE handles!\n");
+	DRM_ERROR("Anal more free VCE handles!\n");
 	return -EINVAL;
 }
 
@@ -572,7 +572,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 		}
 
 		if (destroyed) {
-			DRM_ERROR("No other command allowed after destroy!\n");
+			DRM_ERROR("Anal other command allowed after destroy!\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -656,7 +656,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 		}
 
 		if (session_idx == -1) {
-			DRM_ERROR("no session command at start of IB\n");
+			DRM_ERROR("anal session command at start of IB\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -666,7 +666,7 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 
 	if (allocated && !created) {
 		DRM_ERROR("New session without create command!\n");
-		r = -ENOENT;
+		r = -EANALENT;
 	}
 
 out:

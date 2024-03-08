@@ -15,7 +15,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -68,16 +68,16 @@
 
 /*
  * dmc620_pmu_irqs_lock: protects dmc620_pmu_irqs list
- * dmc620_pmu_node_lock: protects pmus_node lists in all dmc620_pmu instances
+ * dmc620_pmu_analde_lock: protects pmus_analde lists in all dmc620_pmu instances
  */
 static DEFINE_MUTEX(dmc620_pmu_irqs_lock);
-static DEFINE_MUTEX(dmc620_pmu_node_lock);
+static DEFINE_MUTEX(dmc620_pmu_analde_lock);
 static LIST_HEAD(dmc620_pmu_irqs);
 
 struct dmc620_pmu_irq {
-	struct hlist_node node;
-	struct list_head pmus_node;
-	struct list_head irqs_node;
+	struct hlist_analde analde;
+	struct list_head pmus_analde;
+	struct list_head irqs_analde;
 	refcount_t refcount;
 	unsigned int irq_num;
 	unsigned int cpu;
@@ -88,7 +88,7 @@ struct dmc620_pmu {
 
 	void __iomem *base;
 	struct dmc620_pmu_irq *irq;
-	struct list_head pmus_node;
+	struct list_head pmus_analde;
 
 	/*
 	 * We put all clkdiv2 and clk counters to a same array.
@@ -367,10 +367,10 @@ static irqreturn_t dmc620_pmu_handle_irq(int irq_num, void *data)
 {
 	struct dmc620_pmu_irq *irq = data;
 	struct dmc620_pmu *dmc620_pmu;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(dmc620_pmu, &irq->pmus_node, pmus_node) {
+	list_for_each_entry_rcu(dmc620_pmu, &irq->pmus_analde, pmus_analde) {
 		unsigned long status;
 		struct perf_event *event;
 		unsigned int idx;
@@ -428,22 +428,22 @@ static struct dmc620_pmu_irq *__dmc620_pmu_get_irq(int irq_num)
 	struct dmc620_pmu_irq *irq;
 	int ret;
 
-	list_for_each_entry(irq, &dmc620_pmu_irqs, irqs_node)
-		if (irq->irq_num == irq_num && refcount_inc_not_zero(&irq->refcount))
+	list_for_each_entry(irq, &dmc620_pmu_irqs, irqs_analde)
+		if (irq->irq_num == irq_num && refcount_inc_analt_zero(&irq->refcount))
 			return irq;
 
 	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
 	if (!irq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	INIT_LIST_HEAD(&irq->pmus_node);
+	INIT_LIST_HEAD(&irq->pmus_analde);
 
 	/* Pick one CPU to be the preferred one to use */
 	irq->cpu = raw_smp_processor_id();
 	refcount_set(&irq->refcount, 1);
 
 	ret = request_irq(irq_num, dmc620_pmu_handle_irq,
-			  IRQF_NOBALANCING | IRQF_NO_THREAD,
+			  IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 			  "dmc620-pmu", irq);
 	if (ret)
 		goto out_free_aff;
@@ -452,12 +452,12 @@ static struct dmc620_pmu_irq *__dmc620_pmu_get_irq(int irq_num)
 	if (ret)
 		goto out_free_irq;
 
-	ret = cpuhp_state_add_instance_nocalls(cpuhp_state_num, &irq->node);
+	ret = cpuhp_state_add_instance_analcalls(cpuhp_state_num, &irq->analde);
 	if (ret)
 		goto out_free_irq;
 
 	irq->irq_num = irq_num;
-	list_add(&irq->irqs_node, &dmc620_pmu_irqs);
+	list_add(&irq->irqs_analde, &dmc620_pmu_irqs);
 
 	return irq;
 
@@ -480,9 +480,9 @@ static int dmc620_pmu_get_irq(struct dmc620_pmu *dmc620_pmu, int irq_num)
 		return PTR_ERR(irq);
 
 	dmc620_pmu->irq = irq;
-	mutex_lock(&dmc620_pmu_node_lock);
-	list_add_rcu(&dmc620_pmu->pmus_node, &irq->pmus_node);
-	mutex_unlock(&dmc620_pmu_node_lock);
+	mutex_lock(&dmc620_pmu_analde_lock);
+	list_add_rcu(&dmc620_pmu->pmus_analde, &irq->pmus_analde);
+	mutex_unlock(&dmc620_pmu_analde_lock);
 
 	return 0;
 }
@@ -491,9 +491,9 @@ static void dmc620_pmu_put_irq(struct dmc620_pmu *dmc620_pmu)
 {
 	struct dmc620_pmu_irq *irq = dmc620_pmu->irq;
 
-	mutex_lock(&dmc620_pmu_node_lock);
-	list_del_rcu(&dmc620_pmu->pmus_node);
-	mutex_unlock(&dmc620_pmu_node_lock);
+	mutex_lock(&dmc620_pmu_analde_lock);
+	list_del_rcu(&dmc620_pmu->pmus_analde);
+	mutex_unlock(&dmc620_pmu_analde_lock);
 
 	mutex_lock(&dmc620_pmu_irqs_lock);
 	if (!refcount_dec_and_test(&irq->refcount)) {
@@ -501,11 +501,11 @@ static void dmc620_pmu_put_irq(struct dmc620_pmu *dmc620_pmu)
 		return;
 	}
 
-	list_del(&irq->irqs_node);
+	list_del(&irq->irqs_analde);
 	mutex_unlock(&dmc620_pmu_irqs_lock);
 
 	free_irq(irq->irq_num, irq);
-	cpuhp_state_remove_instance_nocalls(cpuhp_state_num, &irq->node);
+	cpuhp_state_remove_instance_analcalls(cpuhp_state_num, &irq->analde);
 	kfree(irq);
 }
 
@@ -516,17 +516,17 @@ static int dmc620_pmu_event_init(struct perf_event *event)
 	struct perf_event *sibling;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * DMC 620 PMUs are shared across all cpus and cannot
+	 * DMC 620 PMUs are shared across all cpus and cananalt
 	 * support task bound and sampling events.
 	 */
 	if (is_sampling_event(event) ||
 		event->attach_state & PERF_ATTACH_TASK) {
 		dev_dbg(dmc620_pmu->pmu.dev,
 			"Can't support per-task counters\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
@@ -630,13 +630,13 @@ static void dmc620_pmu_del(struct perf_event *event, int flags)
 }
 
 static int dmc620_pmu_cpu_teardown(unsigned int cpu,
-				   struct hlist_node *node)
+				   struct hlist_analde *analde)
 {
 	struct dmc620_pmu_irq *irq;
 	struct dmc620_pmu *dmc620_pmu;
 	unsigned int target;
 
-	irq = hlist_entry_safe(node, struct dmc620_pmu_irq, node);
+	irq = hlist_entry_safe(analde, struct dmc620_pmu_irq, analde);
 	if (cpu != irq->cpu)
 		return 0;
 
@@ -645,10 +645,10 @@ static int dmc620_pmu_cpu_teardown(unsigned int cpu,
 		return 0;
 
 	/* We're only reading, but this isn't the place to be involving RCU */
-	mutex_lock(&dmc620_pmu_node_lock);
-	list_for_each_entry(dmc620_pmu, &irq->pmus_node, pmus_node)
+	mutex_lock(&dmc620_pmu_analde_lock);
+	list_for_each_entry(dmc620_pmu, &irq->pmus_analde, pmus_analde)
 		perf_pmu_migrate_context(&dmc620_pmu->pmu, irq->cpu, target);
-	mutex_unlock(&dmc620_pmu_node_lock);
+	mutex_unlock(&dmc620_pmu_analde_lock);
 
 	WARN_ON(irq_set_affinity(irq->irq_num, cpumask_of(target)));
 	irq->cpu = target;
@@ -667,13 +667,13 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 	dmc620_pmu = devm_kzalloc(&pdev->dev,
 			sizeof(struct dmc620_pmu), GFP_KERNEL);
 	if (!dmc620_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, dmc620_pmu);
 
 	dmc620_pmu->pmu = (struct pmu) {
 		.module = THIS_MODULE,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= dmc620_pmu_event_init,
 		.add		= dmc620_pmu_add,
@@ -708,7 +708,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 	if (!name) {
 		dev_err(&pdev->dev,
 			  "Create name failed, PMU @%pa\n", &res->start);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_teardown_dev;
 	}
 

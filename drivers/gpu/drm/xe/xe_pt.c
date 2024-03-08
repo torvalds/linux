@@ -20,7 +20,7 @@
 
 struct xe_pt_dir {
 	struct xe_pt pt;
-	/** @children: Array of page-table child nodes */
+	/** @children: Array of page-table child analdes */
 	struct xe_ptw *children[XE_PDES];
 };
 
@@ -32,10 +32,10 @@ struct xe_pt_dir {
 #define xe_pt_addr(__xe_pt) 0ull
 #endif
 
-static const u64 xe_normal_pt_shifts[] = {12, 21, 30, 39, 48};
+static const u64 xe_analrmal_pt_shifts[] = {12, 21, 30, 39, 48};
 static const u64 xe_compact_pt_shifts[] = {16, 21, 30, 39, 48};
 
-#define XE_PT_HIGHEST_LEVEL (ARRAY_SIZE(xe_normal_pt_shifts) - 1)
+#define XE_PT_HIGHEST_LEVEL (ARRAY_SIZE(xe_analrmal_pt_shifts) - 1)
 
 static struct xe_pt_dir *as_xe_pt_dir(struct xe_pt *pt)
 {
@@ -103,15 +103,15 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 		pt = kzalloc(sizeof(*pt), GFP_KERNEL);
 	}
 	if (!pt)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pt->level = level;
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm, SZ_4K,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT |
+				  XE_BO_CREATE_IGANALRE_MIN_PAGE_SIZE_BIT |
 				  XE_BO_CREATE_PINNED_BIT |
-				  XE_BO_CREATE_NO_RESV_EVICT |
+				  XE_BO_CREATE_ANAL_RESV_EVICT |
 				  XE_BO_PAGETABLE);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
@@ -224,10 +224,10 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
  * adding insertion data into struct xe_vm_pgtable_update structures. This
  * data, (subtrees for the cpu and page-table-entries for the gpu) is then
  * added in a separate commit step. CPU-data is committed while still under the
- * vm lock, the object lock and for userptr, the notifier lock in read mode.
+ * vm lock, the object lock and for userptr, the analtifier lock in read mode.
  * The GPU async data is committed either by the GPU or CPU after fulfilling
  * relevant dependencies.
- * For non-shared page-tables (and, in fact, for shared ones that aren't
+ * For analn-shared page-tables (and, in fact, for shared ones that aren't
  * existing at the time of staging), we add the data in-place without the
  * special update structures. This private part of the page-table tree will
  * remain disconnected from the vm page-table tree until data is committed to
@@ -252,7 +252,7 @@ struct xe_pt_stage_bind_walk {
 	struct xe_vm *vm;
 	/** @tile: The tile we're building for. */
 	struct xe_tile *tile;
-	/** @default_pte: PTE flag only template. No address is associated */
+	/** @default_pte: PTE flag only template. Anal address is associated */
 	u64 default_pte;
 	/** @dma_offset: DMA offset to add to the PTE. */
 	u64 dma_offset;
@@ -330,16 +330,16 @@ xe_pt_new_shared(struct xe_walk_update *wupd, struct xe_pt *parent,
 						  sizeof(*entry->pt_entries),
 						  GFP_KERNEL);
 		if (!entry->pt_entries)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
 }
 
 /*
- * NOTE: This is a very frequently called function so we allow ourselves
- * to annotate (using branch prediction hints) the fastpath of updating a
- * non-pre-existing pagetable with leaf ptes.
+ * ANALTE: This is a very frequently called function so we allow ourselves
+ * to ananaltate (using branch prediction hints) the fastpath of updating a
+ * analn-pre-existing pagetable with leaf ptes.
  */
 static int
 xe_pt_insert_entry(struct xe_pt_stage_bind_walk *xe_walk, struct xe_pt *parent,
@@ -365,7 +365,7 @@ xe_pt_insert_entry(struct xe_pt_stage_bind_walk *xe_walk, struct xe_pt *parent,
 	}
 
 	if (likely(!upd->preexisting)) {
-		/* Continue building a non-connected subtree. */
+		/* Continue building a analn-connected subtree. */
 		struct iosys_map *map = &parent->bo->vmap;
 
 		if (unlikely(xe_child))
@@ -403,7 +403,7 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 	if (next - xe_walk->va_curs_start > xe_walk->curs->size)
 		return false;
 
-	/* null VMA's do not have dma addresses */
+	/* null VMA's do analt have dma addresses */
 	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
@@ -429,7 +429,7 @@ xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 	if (next > xe_walk->l0_end_addr)
 		return false;
 
-	/* null VMA's do not have dma addresses */
+	/* null VMA's do analt have dma addresses */
 	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
@@ -445,11 +445,11 @@ xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 }
 
 /*
- * For non-compact "normal" 4K level-0 pagetables, we want to try to group
+ * For analn-compact "analrmal" 4K level-0 pagetables, we want to try to group
  * addresses together in 64K-contigous regions to add a 64K TLB hint for the
  * device to the PTE.
  * This function determines whether the address is part of such a
- * segment. For VRAM in normal pagetables, this is strictly necessary on
+ * segment. For VRAM in analrmal pagetables, this is strictly necessary on
  * some devices.
  */
 static bool
@@ -522,11 +522,11 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 
 	/*
 	 * Descending to lower level. Determine if we need to allocate a
-	 * new page table or -directory, which we do if there is no
+	 * new page table or -directory, which we do if there is anal
 	 * previous one or there is one we can completely replace.
 	 */
 	if (level == 1) {
-		walk->shifts = xe_normal_pt_shifts;
+		walk->shifts = xe_analrmal_pt_shifts;
 		xe_walk->l0_end_addr = next;
 	}
 
@@ -549,7 +549,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		/*
 		 * Prefer the compact pagetable layout for L0 if possible. Only
 		 * possible if VMA covers entire 2MB region as compact 64k and
-		 * 4k pages cannot be mixed within a 2MB region.
+		 * 4k pages cananalt be mixed within a 2MB region.
 		 * TODO: Suballocate the pt bo to avoid wasting a lot of
 		 * memory.
 		 */
@@ -587,7 +587,7 @@ static const struct xe_pt_walk_ops xe_pt_stage_bind_ops = {
  * range. The tree is connected to the main vm tree for the gpu using
  * xe_migrate_update_pgtables() and for the cpu using xe_pt_commit_bind().
  * The function builds xe_vm_pgtable_update structures for already existing
- * shared page-tables, and non-existing shared and non-shared page-tables
+ * shared page-tables, and analn-existing shared and analn-shared page-tables
  * are built and populated directly.
  *
  * Return 0 on success, negative error code on error.
@@ -604,7 +604,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	struct xe_pt_stage_bind_walk xe_walk = {
 		.base = {
 			.ops = &xe_pt_stage_bind_ops,
-			.shifts = xe_normal_pt_shifts,
+			.shifts = xe_analrmal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
 		.vm = xe_vma_vm(vma),
@@ -627,7 +627,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
 	}
 
-	if (!xe_vma_has_no_bo(vma) && xe_bo_is_stolen(bo))
+	if (!xe_vma_has_anal_bo(vma) && xe_bo_is_stolen(bo))
 		xe_walk.dma_offset = xe_ttm_stolen_gpu_offset(xe_bo_device(bo));
 
 	xe_bo_assert_held(bo);
@@ -654,28 +654,28 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 }
 
 /**
- * xe_pt_nonshared_offsets() - Determine the non-shared entry offsets of a
+ * xe_pt_analnshared_offsets() - Determine the analn-shared entry offsets of a
  * shared pagetable.
- * @addr: The start address within the non-shared pagetable.
- * @end: The end address within the non-shared pagetable.
- * @level: The level of the non-shared pagetable.
+ * @addr: The start address within the analn-shared pagetable.
+ * @end: The end address within the analn-shared pagetable.
+ * @level: The level of the analn-shared pagetable.
  * @walk: Walk info. The function adjusts the walk action.
  * @action: next action to perform (see enum page_walk_action)
- * @offset: Ignored on input, First non-shared entry on output.
- * @end_offset: Ignored on input, Last non-shared entry + 1 on output.
+ * @offset: Iganalred on input, First analn-shared entry on output.
+ * @end_offset: Iganalred on input, Last analn-shared entry + 1 on output.
  *
- * A non-shared page-table has some entries that belong to the address range
+ * A analn-shared page-table has some entries that belong to the address range
  * and others that don't. This function determines the entries that belong
  * fully to the address range. Depending on level, some entries may
  * partially belong to the address range (that can't happen at level 0).
- * The function detects that and adjust those offsets to not include those
- * partial entries. Iff it does detect partial entries, we know that there must
+ * The function detects that and adjust those offsets to analt include those
+ * partial entries. Iff it does detect partial entries, we kanalw that there must
  * be shared page tables also at lower levels, so it adjusts the walk action
  * accordingly.
  *
- * Return: true if there were non-shared entries, false otherwise.
+ * Return: true if there were analn-shared entries, false otherwise.
  */
-static bool xe_pt_nonshared_offsets(u64 addr, u64 end, unsigned int level,
+static bool xe_pt_analnshared_offsets(u64 addr, u64 end, unsigned int level,
 				    struct xe_pt_walk *walk,
 				    enum page_walk_action *action,
 				    pgoff_t *offset, pgoff_t *end_offset)
@@ -689,7 +689,7 @@ static bool xe_pt_nonshared_offsets(u64 addr, u64 end, unsigned int level,
 		return true;
 
 	/*
-	 * If addr or next are not size aligned, there are shared pts at lower
+	 * If addr or next are analt size aligned, there are shared pts at lower
 	 * level, so in that case traverse down the subtree
 	 */
 	*action = ACTION_CONTINUE;
@@ -734,11 +734,11 @@ static int xe_pt_zap_ptes_entry(struct xe_ptw *parent, pgoff_t offset,
 	XE_WARN_ON(!level && xe_child->is_compact);
 
 	/*
-	 * Note that we're called from an entry callback, and we're dealing
+	 * Analte that we're called from an entry callback, and we're dealing
 	 * with the child of that entry rather than the parent, so need to
 	 * adjust level down.
 	 */
-	if (xe_pt_nonshared_offsets(addr, next, --level, walk, action, &offset,
+	if (xe_pt_analnshared_offsets(addr, next, --level, walk, action, &offset,
 				    &end_offset)) {
 		xe_map_memset(tile_to_xe(xe_walk->tile), &xe_child->bo->vmap,
 			      offset * sizeof(u64), 0,
@@ -764,7 +764,7 @@ static const struct xe_pt_walk_ops xe_pt_zap_ptes_ops = {
  * page-table entrieaso it can either clear the leaf PTEs or
  * clear the pointers to lower-level page-tables. The caller is required
  * to hold the necessary locks to ensure neither the page-table connectivity
- * nor the page-table entries of the range is updated from under us.
+ * analr the page-table entries of the range is updated from under us.
  *
  * Return: Whether ptes were actually updated and a TLB invalidation is
  * required.
@@ -774,7 +774,7 @@ bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma)
 	struct xe_pt_zap_ptes_walk xe_walk = {
 		.base = {
 			.ops = &xe_pt_zap_ptes_ops,
-			.shifts = xe_normal_pt_shifts,
+			.shifts = xe_analrmal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
 		.tile = tile,
@@ -832,7 +832,7 @@ static void xe_pt_commit_locks_assert(struct xe_vma *vma)
 	lockdep_assert_held(&vm->lock);
 
 	if (xe_vma_is_userptr(vma))
-		lockdep_assert_held_read(&vm->userptr.notifier_lock);
+		lockdep_assert_held_read(&vm->userptr.analtifier_lock);
 	else if (!xe_vma_is_null(vma))
 		dma_resv_assert_held(xe_vma_bo(vma)->ttm.base.resv);
 
@@ -956,7 +956,7 @@ static bool xe_pt_userptr_inject_eagain(struct xe_userptr_vma *uvma)
  * @bind: Whether this is a bind or an unbind operation. A bind operation
  *        makes the pre-commit callback error with -EAGAIN if it detects a
  *        pending invalidation.
- * @locked: Whether the pre-commit callback locked the userptr notifier lock
+ * @locked: Whether the pre-commit callback locked the userptr analtifier lock
  *          and it needs unlocking.
  */
 struct xe_pt_migrate_pt_update {
@@ -1017,7 +1017,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	struct xe_pt_migrate_pt_update *userptr_update =
 		container_of(pt_update, typeof(*userptr_update), base);
 	struct xe_userptr_vma *uvma = to_userptr_vma(pt_update->vma);
-	unsigned long notifier_seq = uvma->userptr.notifier_seq;
+	unsigned long analtifier_seq = uvma->userptr.analtifier_seq;
 	struct xe_vm *vm = xe_vma_vm(&uvma->vma);
 	int err = xe_pt_vm_dependencies(pt_update->job,
 					&vm->rftree[pt_update->tile_id],
@@ -1030,30 +1030,30 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	userptr_update->locked = false;
 
 	/*
-	 * Wait until nobody is running the invalidation notifier, and
-	 * since we're exiting the loop holding the notifier lock,
-	 * nobody can proceed invalidating either.
+	 * Wait until analbody is running the invalidation analtifier, and
+	 * since we're exiting the loop holding the analtifier lock,
+	 * analbody can proceed invalidating either.
 	 *
-	 * Note that we don't update the vma->userptr.notifier_seq since
+	 * Analte that we don't update the vma->userptr.analtifier_seq since
 	 * we don't update the userptr pages.
 	 */
 	do {
-		down_read(&vm->userptr.notifier_lock);
-		if (!mmu_interval_read_retry(&uvma->userptr.notifier,
-					     notifier_seq))
+		down_read(&vm->userptr.analtifier_lock);
+		if (!mmu_interval_read_retry(&uvma->userptr.analtifier,
+					     analtifier_seq))
 			break;
 
-		up_read(&vm->userptr.notifier_lock);
+		up_read(&vm->userptr.analtifier_lock);
 
 		if (userptr_update->bind)
 			return -EAGAIN;
 
-		notifier_seq = mmu_interval_read_begin(&uvma->userptr.notifier);
+		analtifier_seq = mmu_interval_read_begin(&uvma->userptr.analtifier);
 	} while (true);
 
 	/* Inject errors to test_whether they are handled correctly */
 	if (userptr_update->bind && xe_pt_userptr_inject_eagain(uvma)) {
-		up_read(&vm->userptr.notifier_lock);
+		up_read(&vm->userptr.analtifier_lock);
 		return -EAGAIN;
 	}
 
@@ -1137,7 +1137,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,
 		       &gt->tlb_invalidation.lock,
 		       gt->tlb_invalidation.fence_context,
-		       ++gt->tlb_invalidation.fence_seqno);
+		       ++gt->tlb_invalidation.fence_seqanal);
 	spin_unlock_irq(&gt->tlb_invalidation.lock);
 
 	INIT_LIST_HEAD(&ifence->base.link);
@@ -1149,7 +1149,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 
 	INIT_WORK(&ifence->work, invalidation_fence_work_func);
 	ret = dma_fence_add_callback(fence, &ifence->cb, invalidation_fence_cb);
-	if (ret == -ENOENT) {
+	if (ret == -EANALENT) {
 		dma_fence_put(ifence->fence);	/* Usually dropped in CB */
 		invalidation_fence_work_func(&ifence->work);
 	} else if (ret) {
@@ -1157,9 +1157,9 @@ static int invalidation_fence_init(struct xe_gt *gt,
 		dma_fence_put(&ifence->base.base);	/* Creation ref */
 	}
 
-	xe_gt_assert(gt, !ret || ret == -ENOENT);
+	xe_gt_assert(gt, !ret || ret == -EANALENT);
 
-	return ret && ret != -ENOENT ? ret : 0;
+	return ret && ret != -EANALENT ? ret : 0;
 }
 
 static void xe_pt_calc_rfence_interval(struct xe_vma *vma,
@@ -1176,7 +1176,7 @@ static void xe_pt_calc_rfence_interval(struct xe_vma *vma,
 			level = entry->pt->level;
 	}
 
-	/* Greedy (non-optimal) calculation but simple */
+	/* Greedy (analn-optimal) calculation but simple */
 	update->base.start = ALIGN_DOWN(xe_vma_start(vma),
 					0x1ull << xe_pt_shift(level));
 	update->base.last = ALIGN(xe_vma_end(vma),
@@ -1252,20 +1252,20 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	 * If !rebind, and scratch enabled VMs, there is a chance the scratch
 	 * PTE is already cached in the TLB so it needs to be invalidated.
 	 * on !LR VMs this is done in the ring ops preceding a batch, but on
-	 * non-faulting LR, in particular on user-space batch buffer chaining,
+	 * analn-faulting LR, in particular on user-space batch buffer chaining,
 	 * it needs to be done here.
 	 */
 	if ((rebind && !xe_vm_in_lr_mode(vm) && !vm->batch_invalidate_tlb) ||
 	    (!rebind && xe_vm_has_scratch(vm) && xe_vm_in_preempt_fence_mode(vm))) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 		if (!ifence)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	rfence = kzalloc(sizeof(*rfence), GFP_KERNEL);
 	if (!rfence) {
 		kfree(ifence);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	fence = xe_migrate_update_pgtables(tile->migrate,
@@ -1297,24 +1297,24 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 			fence = &ifence->base.base;
 		}
 
-		/* add shared fence now for pagetable delayed destroy */
+		/* add shared fence analw for pagetable delayed destroy */
 		dma_resv_add_fence(xe_vm_resv(vm), fence, !rebind &&
 				   last_munmap_rebind ?
 				   DMA_RESV_USAGE_KERNEL :
 				   DMA_RESV_USAGE_BOOKKEEP);
 
-		if (!xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+		if (!xe_vma_has_anal_bo(vma) && !xe_vma_bo(vma)->vm)
 			dma_resv_add_fence(xe_vma_bo(vma)->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_bind(vma, entries, num_entries, rebind,
 				  bind_pt_update.locked ? &deferred : NULL);
 
-		/* This vma is live (again?) now */
+		/* This vma is live (again?) analw */
 		vma->tile_present |= BIT(tile->id);
 
 		if (bind_pt_update.locked) {
 			to_userptr_vma(vma)->userptr.initial_bind = true;
-			up_read(&vm->userptr.notifier_lock);
+			up_read(&vm->userptr.analtifier_lock);
 			xe_bo_put_commit(&deferred);
 		}
 		if (!rebind && last_munmap_rebind &&
@@ -1324,7 +1324,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 		kfree(rfence);
 		kfree(ifence);
 		if (bind_pt_update.locked)
-			up_read(&vm->userptr.notifier_lock);
+			up_read(&vm->userptr.analtifier_lock);
 		xe_pt_abort_bind(vma, entries, num_entries);
 	}
 
@@ -1427,7 +1427,7 @@ xe_pt_stage_unbind_post_descend(struct xe_ptw *parent, pgoff_t offset,
 	    xe_pt_check_kill(addr, next, level, xe_child, action, walk))
 		return 0;
 
-	if (!xe_pt_nonshared_offsets(addr, next, level, walk, action, &offset,
+	if (!xe_pt_analnshared_offsets(addr, next, level, walk, action, &offset,
 				     &end_offset))
 		return 0;
 
@@ -1462,7 +1462,7 @@ static unsigned int xe_pt_stage_unbind(struct xe_tile *tile, struct xe_vma *vma,
 	struct xe_pt_stage_unbind_walk xe_walk = {
 		.base = {
 			.ops = &xe_pt_stage_unbind_ops,
-			.shifts = xe_normal_pt_shifts,
+			.shifts = xe_analrmal_pt_shifts,
 			.max_level = XE_PT_HIGHEST_LEVEL,
 		},
 		.tile = tile,
@@ -1596,12 +1596,12 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 
 	ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 	if (!ifence)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rfence = kzalloc(sizeof(*rfence), GFP_KERNEL);
 	if (!rfence) {
 		kfree(ifence);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/*
@@ -1634,12 +1634,12 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 		}
 		fence = &ifence->base.base;
 
-		/* add shared fence now for pagetable delayed destroy */
+		/* add shared fence analw for pagetable delayed destroy */
 		dma_resv_add_fence(xe_vm_resv(vm), fence,
 				   DMA_RESV_USAGE_BOOKKEEP);
 
 		/* This fence will be installed by caller when doing eviction */
-		if (!xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+		if (!xe_vma_has_anal_bo(vma) && !xe_vma_bo(vma)->vm)
 			dma_resv_add_fence(xe_vma_bo(vma)->ttm.base.resv, fence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		xe_pt_commit_unbind(vma, entries, num_entries,
@@ -1661,7 +1661,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 			list_del_init(&to_userptr_vma(vma)->userptr.invalidate_link);
 			spin_unlock(&vm->userptr.invalidated_lock);
 		}
-		up_read(&vm->userptr.notifier_lock);
+		up_read(&vm->userptr.analtifier_lock);
 		xe_bo_put_commit(&deferred);
 	}
 

@@ -34,13 +34,13 @@
  * Snapshot at hang:
  * The 'data' file is printed with a drm_printer pointer at devcoredump read
  * time. For this reason, we need to take snapshots from when the hang has
- * happened, and not only when the user is reading the file. Otherwise the
+ * happened, and analt only when the user is reading the file. Otherwise the
  * information is outdated since the resets might have happened in between.
  *
  * 'First' failure snapshot:
  * In general, the first hang is the most critical one since the following hangs
  * can be a consequence of the initial hang. For this reason we only take the
- * snapshot of the 'first' failure and ignore subsequent calls of this function,
+ * snapshot of the 'first' failure and iganalre subsequent calls of this function,
  * at least while the coredump device is alive. Dev_coredump has a delayed work
  * queue that will eventually delete the device and free all the dump
  * information.
@@ -70,7 +70,7 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 
 	/* Our device is gone already... */
 	if (!data || !coredump_to_xe(coredump))
-		return -ENODEV;
+		return -EANALDEV;
 
 	iter.data = buffer;
 	iter.offset = 0;
@@ -107,7 +107,7 @@ static void xe_devcoredump_free(void *data)
 	struct xe_devcoredump *coredump = data;
 	int i;
 
-	/* Our device is gone. Nothing to do... */
+	/* Our device is gone. Analthing to do... */
 	if (!data || !coredump_to_xe(coredump))
 		return;
 

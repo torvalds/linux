@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -85,7 +85,7 @@ static struct pll_limit vx855_pll_limits[] = {
 	{141, 176, 5, 4}
 };
 
-/* according to VIA Technologies these values are based on experiment */
+/* according to VIA Techanallogies these values are based on experiment */
 static struct io_reg scaling_parameters[] = {
 	{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1 */
 	{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2 */
@@ -1582,7 +1582,7 @@ static void init_tmds_chip_info(void)
 {
 	viafb_tmds_trasmitter_identify();
 
-	if (INTERFACE_NONE == viaparinfo->chip_info->tmds_chip_info.
+	if (INTERFACE_ANALNE == viaparinfo->chip_info->tmds_chip_info.
 		output_interface) {
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CX700:
@@ -1597,7 +1597,7 @@ static void init_tmds_chip_info(void)
 				} else {
 					viaparinfo->chip_info->tmds_chip_info.
 						output_interface =
-						INTERFACE_NONE;
+						INTERFACE_ANALNE;
 				}
 				break;
 			}
@@ -1882,7 +1882,7 @@ int viafb_setmode(void)
 				(viaparinfo->shared->iga1_devices & VIA_CRT)
 				? IGA1 : IGA2);
 
-		/* Patch if set_hres is not 8 alignment (1366) to viafb_setmode
+		/* Patch if set_hres is analt 8 alignment (1366) to viafb_setmode
 		to 8 alignment (1368),there is several pixels (2 pixels)
 		on right side of screen. */
 		if (viafbinfo->var.xres % 8) {
@@ -1941,7 +1941,7 @@ int viafb_setmode(void)
 	    && (viafb_LCD_ON || viafb_DVI_ON))
 		set_display_channel();
 
-	/* If set mode normally, save resolution information for hot-plug . */
+	/* If set mode analrmally, save resolution information for hot-plug . */
 	if (!viafb_hotplug) {
 		viafb_hotplug_Xres = viafbinfo->var.xres;
 		viafb_hotplug_Yres = viafbinfo->var.yres;

@@ -51,7 +51,7 @@ endif
 
 ifdef cross_compiling
   ifeq ($(CROSS_COMPILE),)
-    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unkanalwn-linux-gnu-)
   endif
 endif
 
@@ -62,7 +62,7 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
     endif
   endif
 endif
-cflags-y += $(call cc-option, -mno-check-zero-division)
+cflags-y += $(call cc-option, -manal-check-zero-division)
 
 ifdef CONFIG_32BIT
 ld-emul			= $(32bit-emul)
@@ -94,9 +94,9 @@ all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 # machines may also.  Since BFD is incredibly buggy with respect to
 # crossformat linking we rely on the elf2ecoff tool for format conversion.
 #
-cflags-y			+= -G 0 -mno-abicalls -fno-pic -pipe
+cflags-y			+= -G 0 -manal-abicalls -fanal-pic -pipe
 cflags-y			+= -msoft-float -Wa,-msoft-float
-LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
+LDFLAGS_vmlinux			+= -G 0 -static -n -analstdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
@@ -109,14 +109,14 @@ cflags-y += -ffreestanding
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -EB
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -EL
 
-cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
-				   -fno-omit-frame-pointer
+cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-manal-sched-prolog) \
+				   -fanal-omit-frame-pointer
 
 # Some distribution-specific toolchains might pass the -fstack-check
 # option during the build, which adds a simple stack-probe at the beginning
-# of every function.  This stack probe is to ensure that there is enough
-# stack space, else a SEGV is generated.  This is not desirable for MIPS
-# as kernel stacks are small, placed in unmapped virtual memory, and do not
+# of every function.  This stack probe is to ensure that there is eanalugh
+# stack space, else a SEGV is generated.  This is analt desirable for MIPS
+# as kernel stacks are small, placed in unmapped virtual memory, and do analt
 # grow when overflowed.  Especially on SGI IP27 platforms, this check will
 # lead to a NULL pointer dereference in _raw_spin_lock_irq.
 #
@@ -124,9 +124,9 @@ cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 #    sd		zero,<offset>(sp)
 # Where <offset> is a negative value.
 #
-cflags-y += -fno-stack-check
+cflags-y += -fanal-stack-check
 
-# binutils from v2.35 when built with --enable-mips-fix-loongson3-llsc=yes,
+# binutils from v2.35 when built with --enable-mips-fix-loongson3-llsc=anal,
 # supports an -mfix-loongson3-llsc flag which emits a sync prior to each ll
 # instruction to work around a CPU bug (see __SYNC_loongson3_war in asm/sync.h
 # for a description).
@@ -138,12 +138,12 @@ cflags-y += -fno-stack-check
 #
 # ...then with the assembler fix applied the label may actually point at a sync
 # instruction inserted by the assembler, and if we were using the label in an
-# exception table the table would no longer contain the address of the ll
+# exception table the table would anal longer contain the address of the ll
 # instruction.
 #
 # Avoid this by explicitly disabling that assembler behaviour.
 #
-cflags-y += $(call cc-option,-Wa$(comma)-mno-fix-loongson3-llsc,)
+cflags-y += $(call cc-option,-Wa$(comma)-manal-fix-loongson3-llsc,)
 
 #
 # CPU-dependent compiler/assembler options for optimization.
@@ -170,8 +170,8 @@ cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1,-march=r5000) \
 			-Wa,--trap
-cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-mno-mdmx)
-cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-mno-mips3d)
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-manal-mdmx)
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-manal-mips3d)
 cflags-$(CONFIG_CPU_R10000)	+= $(call cc-option,-march=r10000,-march=r8000) \
 			-Wa,--trap
 cflags-$(CONFIG_CPU_CAVIUM_OCTEON) += $(call cc-option,-march=octeon) -Wa,--trap
@@ -185,24 +185,24 @@ cflags-$(CONFIG_CPU_LOONGSON2E) += -march=loongson2e -Wa,--trap
 cflags-$(CONFIG_CPU_LOONGSON2F) += -march=loongson2f -Wa,--trap
 # Some -march= flags enable MMI instructions, and GCC complains about that
 # support being enabled alongside -msoft-float. Thus explicitly disable MMI.
-cflags-$(CONFIG_CPU_LOONGSON2EF) += $(call cc-option,-mno-loongson-mmi)
+cflags-$(CONFIG_CPU_LOONGSON2EF) += $(call cc-option,-manal-loongson-mmi)
 ifdef CONFIG_CPU_LOONGSON64
 cflags-$(CONFIG_CPU_LOONGSON64)	+= -Wa,--trap
 cflags-$(CONFIG_CC_IS_GCC) += -march=loongson3a
 cflags-$(CONFIG_CC_IS_CLANG) += -march=mips64r2
 endif
-cflags-$(CONFIG_CPU_LOONGSON64) += $(call cc-option,-mno-loongson-mmi)
+cflags-$(CONFIG_CPU_LOONGSON64) += $(call cc-option,-manal-loongson-mmi)
 
 cflags-$(CONFIG_CPU_R4000_WORKAROUNDS)	+= $(call cc-option,-mfix-r4000,)
 cflags-$(CONFIG_CPU_R4400_WORKAROUNDS)	+= $(call cc-option,-mfix-r4400,)
-cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-mno-daddi,)
+cflags-$(CONFIG_CPU_DADDI_WORKAROUNDS)	+= $(call cc-option,-manal-daddi,)
 ifdef CONFIG_CPU_LOONGSON2F_WORKAROUNDS
-cflags-$(CONFIG_CPU_NOP_WORKAROUNDS) += -Wa,-mfix-loongson2f-nop
+cflags-$(CONFIG_CPU_ANALP_WORKAROUNDS) += -Wa,-mfix-loongson2f-analp
 cflags-$(CONFIG_CPU_JUMP_WORKAROUNDS) += -Wa,-mfix-loongson2f-jump
 endif
 
 #
-# Some versions of binutils, not currently mainline as of 2019/02/04, support
+# Some versions of binutils, analt currently mainline as of 2019/02/04, support
 # an -mfix-loongson3-llsc flag which emits a sync prior to each ll instruction
 # to work around a CPU bug (see __SYNC_loongson3_war in asm/sync.h for a
 # description).
@@ -214,28 +214,28 @@ endif
 #
 # ...then with the assembler fix applied the label may actually point at a sync
 # instruction inserted by the assembler, and if we were using the label in an
-# exception table the table would no longer contain the address of the ll
+# exception table the table would anal longer contain the address of the ll
 # instruction.
 #
 # Avoid this by explicitly disabling that assembler behaviour. If upstream
-# binutils does not merge support for the flag then we can revisit & remove
-# this later - for now it ensures vendor toolchains don't cause problems.
+# binutils does analt merge support for the flag then we can revisit & remove
+# this later - for analw it ensures vendor toolchains don't cause problems.
 #
-cflags-$(CONFIG_CPU_LOONGSON64)	+= $(call as-option,-Wa$(comma)-mno-fix-loongson3-llsc,)
+cflags-$(CONFIG_CPU_LOONGSON64)	+= $(call as-option,-Wa$(comma)-manal-fix-loongson3-llsc,)
 
 # For smartmips configurations, there are hundreds of warnings due to ISA overrides
 # in assembly and header files. smartmips is only supported for MIPS32r1 onwards
-# and there is no support for 64-bit. Various '.set mips2' or '.set mips3' or
+# and there is anal support for 64-bit. Various '.set mips2' or '.set mips3' or
 # similar directives in the kernel will spam the build logs with the following warnings:
 # Warning: the `smartmips' extension requires MIPS32 revision 1 or greater
 # or
-# Warning: the 64-bit MIPS architecture does not support the `smartmips' extension
-# Pass -Wa,--no-warn to disable all assembler warnings until the kernel code has
+# Warning: the 64-bit MIPS architecture does analt support the `smartmips' extension
+# Pass -Wa,--anal-warn to disable all assembler warnings until the kernel code has
 # been fixed properly.
 mips-cflags				:= $(cflags-y)
 ifeq ($(CONFIG_CPU_HAS_SMARTMIPS),y)
 smartmips-ase				:= $(call cc-option-yn,$(mips-cflags) -msmartmips)
-cflags-$(smartmips-ase)			+= -msmartmips -Wa,--no-warn
+cflags-$(smartmips-ase)			+= -msmartmips -Wa,--anal-warn
 endif
 ifeq ($(CONFIG_CPU_MICROMIPS),y)
 micromips-ase				:= $(call cc-option-yn,$(mips-cflags) -mmicromips)
@@ -294,7 +294,7 @@ drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 # Automatically detect the build format. By default we choose
 # the elf format according to the load address.
 # We can always force a build with a 64-bits symbol format by
-# passing 'KBUILD_SYM32=no' option to the make's command line.
+# passing 'KBUILD_SYM32=anal' option to the make's command line.
 #
 ifdef CONFIG_64BIT
   ifndef KBUILD_SYM32
@@ -312,7 +312,7 @@ ifdef CONFIG_64BIT
   endif
 endif
 
-# When linking a 32-bit executable the LLVM linker cannot cope with a
+# When linking a 32-bit executable the LLVM linker cananalt cope with a
 # 32-bit load address that has been sign-extended to 64 bits.  Simply
 # remove the upper 32 bits then, as it is safe to do so with other
 # linkers.
@@ -341,13 +341,13 @@ endif
 
 # This is required to get dwarf unwinding tables into .debug_frame
 # instead of .eh_frame so we don't discard them.
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS += -fanal-asynchroanalus-unwind-tables
 
 KBUILD_LDFLAGS		+= -m $(ld-emul)
 
 ifdef need-compiler
 CHECKFLAGS += $(shell $(CC) $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) -dM -E -x c /dev/null | \
-	grep -E -vw '__GNUC_(MINOR_|PATCHLEVEL_)?_' | \
+	grep -E -vw '__GNUC_(MIANALR_|PATCHLEVEL_)?_' | \
 	sed -e "s/^\#define /-D'/" -e "s/ /'='/" -e "s/$$/'/" -e 's/\$$/&&/g')
 endif
 
@@ -418,7 +418,7 @@ $(bootz-y): $(vmlinux-32) FORCE
 		$(bootvars-y) 32bit-bfd=$(32bit-bfd) arch/mips/boot/$@
 else
 vmlinuz: FORCE
-	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is not enabled'
+	@echo '   CONFIG_SYS_SUPPORTS_ZBOOT is analt enabled'
 	/bin/false
 endif
 
@@ -501,7 +501,7 @@ generic_defconfigs :=
 # available board config fragments.
 #
 ifeq ($(BOARDS),)
-BOARDS = $(patsubst board-%.config,%,$(notdir $(wildcard $(generic_config_dir)/board-*.config)))
+BOARDS = $(patsubst board-%.config,%,$(analtdir $(wildcard $(generic_config_dir)/board-*.config)))
 endif
 
 #
@@ -551,7 +551,7 @@ $(generic_config_dir)/%.config: ;
 #
 .PHONY: generic_defconfig
 generic_defconfig:
-	$(Q)echo "generic_defconfig is not intended for direct use, but should instead be"
+	$(Q)echo "generic_defconfig is analt intended for direct use, but should instead be"
 	$(Q)echo "used via an ISA-specific target from the following list:"
 	$(Q)echo
 	$(Q)for cfg in $(generic_defconfigs); do echo "  $${cfg}"; done
@@ -560,7 +560,7 @@ generic_defconfig:
 
 #
 # Legacy defconfig compatibility - these targets used to be real defconfigs but
-# now that the boards have been converted to use the generic kernel they are
+# analw that the boards have been converted to use the generic kernel they are
 # wrappers around the generic rules above.
 #
 legacy_defconfigs		+= ocelot_defconfig

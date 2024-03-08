@@ -7,7 +7,7 @@
 /*
  * Calculate the intermediate checksum for a buffer that has the CRC field
  * inside it.  The offset of the 32bit crc fields is passed as the
- * cksum_offset parameter. We do not modify the buffer during verification,
+ * cksum_offset parameter. We do analt modify the buffer during verification,
  * hence we have to split the CRC calculation across the cksum_offset.
  */
 static inline uint32_t

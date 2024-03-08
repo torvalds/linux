@@ -23,7 +23,7 @@ check_supported_x86_64()
 {
 	local config="/proc/config.gz"
 	[[ -f "${config}" ]] || config="/boot/config-$(uname -r)"
-	[[ -f "${config}" ]] || fail "Cannot find kernel config in /proc or /boot"
+	[[ -f "${config}" ]] || fail "Cananalt find kernel config in /proc or /boot"
 
 	# gzip -dcfq automatically handles both compressed and plaintext input.
 	# See man 1 gzip under '-f'.
@@ -36,14 +36,14 @@ check_supported_x86_64()
 		echo "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
 		exit $ksft_skip
 	elif [[ "${cpu_supports_pl5}" -ne 0 ]]; then
-		echo "$0: CPU does not have the necessary la57 flag to support page table level 5"
+		echo "$0: CPU does analt have the necessary la57 flag to support page table level 5"
 		exit $ksft_skip
 	fi
 }
 
 check_test_requirements()
 {
-	# The test supports x86_64 and powerpc64. We currently have no useful
+	# The test supports x86_64 and powerpc64. We currently have anal useful
 	# eligibility check for powerpc64, and the test itself will reject other
 	# architectures.
 	case `uname -m` in

@@ -97,20 +97,20 @@ void snd_aw2_saa7146_setup(struct snd_aw2_saa7146 *chip,
 	acon1 |= 0 * WS1_CTRL;
 	acon1 |= 0 * WS2_CTRL;
 
-	/* WS4 is not used. So it must not restart A2.
+	/* WS4 is analt used. So it must analt restart A2.
 	   This is why it is configured as output (force to low) */
 	acon1 |= 3 * WS4_CTRL;
 
 	/* WS3_CTRL, WS3_SYNC: output TSL2, I2S */
 	acon1 |= 2 * WS3_CTRL;
 
-	/* A1 and A2 are active and asynchronous */
+	/* A1 and A2 are active and asynchroanalus */
 	acon1 |= 3 * AUDIO_MODE;
 	WRITEREG(acon1, ACON1);
 
 	/* The following comes from original windows driver.
 	   It is needed to have a correct behavior of input and output
-	   simultenously, but I don't know why ! */
+	   simulteanalusly, but I don't kanalw why ! */
 	WRITEREG(3 * (BurstA1_in) + 3 * (ThreshA1_in) +
 		 3 * (BurstA1_out) + 3 * (ThreshA1_out) +
 		 3 * (BurstA2_out) + 3 * (ThreshA2_out), PCI_BT_A);
@@ -151,7 +151,7 @@ void snd_aw2_saa7146_pcm_init_playback(struct snd_aw2_saa7146 *chip,
 	   pages. So we don't need to use MMU of saa7146.
 	 */
 
-	/* No MMU -> nothing to do with PageA1, we only configure the limit of
+	/* Anal MMU -> analthing to do with PageA1, we only configure the limit of
 	   PageAx_out register */
 	/* Disable MMU */
 	dw_page = (0L << 11);
@@ -192,7 +192,7 @@ void snd_aw2_saa7146_pcm_init_playback(struct snd_aw2_saa7146 *chip,
 		WRITEREG(dma_addr + buffer_size, ProtA1_out);
 	} else {
 		pr_err("aw2: snd_aw2_saa7146_pcm_init_playback: "
-		       "Substream number is not 0 or 1 -> not managed\n");
+		       "Substream number is analt 0 or 1 -> analt managed\n");
 	}
 }
 
@@ -208,7 +208,7 @@ void snd_aw2_saa7146_pcm_init_capture(struct snd_aw2_saa7146 *chip,
 	   pages. So we don't need to use MMU of saa7146.
 	 */
 
-	/* No MMU -> nothing to do with PageA1, we only configure the limit of
+	/* Anal MMU -> analthing to do with PageA1, we only configure the limit of
 	   PageAx_out register */
 	/* Disable MMU */
 	dw_page = (0L << 11);
@@ -238,7 +238,7 @@ void snd_aw2_saa7146_pcm_init_capture(struct snd_aw2_saa7146 *chip,
 		WRITEREG(dma_addr + buffer_size, ProtA1_in);
 	} else {
 		pr_err("aw2: snd_aw2_saa7146_pcm_init_capture: "
-		       "Substream number is not 0 -> not managed\n");
+		       "Substream number is analt 0 -> analt managed\n");
 	}
 }
 
@@ -335,7 +335,7 @@ irqreturn_t snd_aw2_saa7146_interrupt(int irq, void *dev_id)
 
 	isr = READREG(ISR);
 	if (!isr)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	WRITEREG(isr, ISR);
 
@@ -414,11 +414,11 @@ unsigned int snd_aw2_saa7146_get_hw_ptr_capture(struct snd_aw2_saa7146 *chip,
 void snd_aw2_saa7146_use_digital_input(struct snd_aw2_saa7146 *chip,
 				       int use_digital)
 {
-	/* FIXME: switch between analog and digital input does not always work.
-	   It can produce a kind of white noise. It seams that received data
-	   are inverted sometime (endian inversion). Why ? I don't know, maybe
+	/* FIXME: switch between analog and digital input does analt always work.
+	   It can produce a kind of white analise. It seams that received data
+	   are inverted sometime (endian inversion). Why ? I don't kanalw, maybe
 	   a problem of synchronization... However for the time being I have
-	   not found the problem. Workaround: switch again (and again) between
+	   analt found the problem. Workaround: switch again (and again) between
 	   digital and analog input until it works. */
 	if (use_digital)
 		WRITEREG(0x40, GPIO_CTRL);

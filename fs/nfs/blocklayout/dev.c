@@ -40,13 +40,13 @@ bl_free_device(struct pnfs_block_dev *dev)
 }
 
 void
-bl_free_deviceid_node(struct nfs4_deviceid_node *d)
+bl_free_deviceid_analde(struct nfs4_deviceid_analde *d)
 {
 	struct pnfs_block_dev *dev =
-		container_of(d, struct pnfs_block_dev, node);
+		container_of(d, struct pnfs_block_dev, analde);
 
 	bl_free_device(dev);
-	kfree_rcu(dev, node.rcu);
+	kfree_rcu(dev, analde.rcu);
 }
 
 static int
@@ -156,7 +156,7 @@ nfs4_block_decode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 		p = xdr_decode_hyper(p, &b->scsi.pr_key);
 		break;
 	default:
-		dprintk("unknown volume type!\n");
+		dprintk("unkanalwn volume type!\n");
 		return -EIO;
 	}
 
@@ -207,7 +207,7 @@ static bool bl_map_stripe(struct pnfs_block_dev *dev, u64 offset,
 	if (chunk_idx >= dev->nr_children) {
 		dprintk("%s: invalid chunk idx %d (%lld/%lld)\n",
 			__func__, chunk_idx, offset, dev->chunk_size);
-		/* error, should not happen */
+		/* error, should analt happen */
 		return false;
 	}
 
@@ -247,7 +247,7 @@ bl_parse_simple(struct nfs_server *server, struct pnfs_block_dev *d,
 				       NULL, NULL);
 	if (IS_ERR(bdev_handle)) {
 		printk(KERN_WARNING "pNFS: failed to open device %d:%d (%ld)\n",
-			MAJOR(dev), MINOR(dev), PTR_ERR(bdev_handle));
+			MAJOR(dev), MIANALR(dev), PTR_ERR(bdev_handle));
 		return PTR_ERR(bdev_handle);
 	}
 	d->bdev_handle = bdev_handle;
@@ -309,7 +309,7 @@ bl_open_path(struct pnfs_block_volume *v, const char *prefix)
 	devname = kasprintf(GFP_KERNEL, "/dev/disk/by-id/%s%*phN",
 			prefix, v->scsi.designator_len, v->scsi.designator);
 	if (!devname)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bdev_handle = bdev_open_by_path(devname, BLK_OPEN_READ | BLK_OPEN_WRITE,
 					NULL, NULL);
@@ -352,14 +352,14 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->pr_key = v->scsi.pr_key;
 
 	if (d->len == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("pNFS: using block device %s (reservation key 0x%llx)\n",
 		d->bdev_handle->bdev->bd_disk->disk_name, d->pr_key);
 
 	ops = d->bdev_handle->bdev->bd_disk->fops->pr_ops;
 	if (!ops) {
-		pr_err("pNFS: block device %s does not support reservations.",
+		pr_err("pNFS: block device %s does analt support reservations.",
 				d->bdev_handle->bdev->bd_disk->disk_name);
 		error = -EINVAL;
 		goto out_blkdev_put;
@@ -407,7 +407,7 @@ bl_parse_concat(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->children = kcalloc(v->concat.volumes_count,
 			sizeof(struct pnfs_block_dev), gfp_mask);
 	if (!d->children)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < v->concat.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
@@ -436,7 +436,7 @@ bl_parse_stripe(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->children = kcalloc(v->stripe.volumes_count,
 			sizeof(struct pnfs_block_dev), gfp_mask);
 	if (!d->children)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < v->stripe.volumes_count; i++) {
 		ret = bl_parse_deviceid(server, &d->children[i],
@@ -475,11 +475,11 @@ bl_parse_deviceid(struct nfs_server *server, struct pnfs_block_dev *d,
 	}
 }
 
-struct nfs4_deviceid_node *
-bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+struct nfs4_deviceid_analde *
+bl_alloc_deviceid_analde(struct nfs_server *server, struct pnfs_device *pdev,
 		gfp_t gfp_mask)
 {
-	struct nfs4_deviceid_node *node = NULL;
+	struct nfs4_deviceid_analde *analde = NULL;
 	struct pnfs_block_volume *volumes;
 	struct pnfs_block_dev *top;
 	struct xdr_stream xdr;
@@ -517,15 +517,15 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 
 	ret = bl_parse_deviceid(server, top, volumes, nr_volumes - 1, gfp_mask);
 
-	node = &top->node;
-	nfs4_init_deviceid_node(node, server, &pdev->dev_id);
+	analde = &top->analde;
+	nfs4_init_deviceid_analde(analde, server, &pdev->dev_id);
 	if (ret)
-		nfs4_mark_deviceid_unavailable(node);
+		nfs4_mark_deviceid_unavailable(analde);
 
 out_free_volumes:
 	kfree(volumes);
 out_free_scratch:
 	__free_page(scratch);
 out:
-	return node;
+	return analde;
 }

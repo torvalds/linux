@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -157,12 +157,12 @@ void rds_tcp_reset_callbacks(struct socket *sock,
 	 * However an incoming syn-ack at this point would end up
 	 * marking the conn as RDS_CONN_UP, and would again permit
 	 * rds_send_xmi() threads through, so ideally we would
-	 * synchronize on RDS_CONN_UP after lock_sock(), but cannot
+	 * synchronize on RDS_CONN_UP after lock_sock(), but cananalt
 	 * do that: waiting on !RDS_IN_XMIT after lock_sock() may
 	 * end up deadlocking with tcp_sendmsg(), and the RDS_IN_XMIT
-	 * would not get set. As a result, we set c_state to
+	 * would analt get set. As a result, we set c_state to
 	 * RDS_CONN_RESETTTING, to ensure that rds_tcp_state_change
-	 * cannot mark rds_conn_path_up() in the window before lock_sock()
+	 * cananalt mark rds_conn_path_up() in the window before lock_sock()
 	 */
 	atomic_set(&cp->cp_state, RDS_CONN_RESETTING);
 	wait_event(cp->cp_waitq, !test_bit(RDS_IN_XMIT, &cp->cp_flags));
@@ -187,7 +187,7 @@ newsock:
 }
 
 /* Add tc to rds_tcp_tc_list and set tc->t_sock. See comments
- * above rds_tcp_reset_callbacks for notes about synchronization
+ * above rds_tcp_reset_callbacks for analtes about synchronization
  * with data path
  */
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp)
@@ -324,7 +324,7 @@ int rds_tcp_laddr_check(struct net *net, const struct in6_addr *addr,
 	if (ipv6_addr_v4mapped(addr)) {
 		if (inet_addr_type(net, addr->s6_addr32[3]) == RTN_LOCAL)
 			return 0;
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 	/* If the scope_id is specified, check only those addresses
@@ -333,10 +333,10 @@ int rds_tcp_laddr_check(struct net *net, const struct in6_addr *addr,
 	if (scope_id != 0) {
 		rcu_read_lock();
 		dev = dev_get_by_index_rcu(net, scope_id);
-		/* scope_id is not valid... */
+		/* scope_id is analt valid... */
 		if (!dev) {
 			rcu_read_unlock();
-			return -EADDRNOTAVAIL;
+			return -EADDRANALTAVAIL;
 		}
 		rcu_read_unlock();
 	}
@@ -345,7 +345,7 @@ int rds_tcp_laddr_check(struct net *net, const struct in6_addr *addr,
 	if (ret)
 		return 0;
 #endif
-	return -EADDRNOTAVAIL;
+	return -EADDRANALTAVAIL;
 }
 
 static void rds_tcp_conn_free(void *arg)
@@ -356,8 +356,8 @@ static void rds_tcp_conn_free(void *arg)
 	rdsdebug("freeing tc %p\n", tc);
 
 	spin_lock_irqsave(&rds_tcp_conn_lock, flags);
-	if (!tc->t_tcp_node_detached)
-		list_del(&tc->t_tcp_node);
+	if (!tc->t_tcp_analde_detached)
+		list_del(&tc->t_tcp_analde);
 	spin_unlock_irqrestore(&rds_tcp_conn_lock, flags);
 
 	kmem_cache_free(rds_tcp_conn_slab, tc);
@@ -372,7 +372,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
 		tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
 		if (!tc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 		mutex_init(&tc->t_conn_path_lock);
@@ -383,7 +383,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 
 		conn->c_path[i].cp_transport_data = tc;
 		tc->t_cpath = &conn->c_path[i];
-		tc->t_tcp_node_detached = true;
+		tc->t_tcp_analde_detached = true;
 
 		rdsdebug("rds_conn_path [%d] tc %p\n", i,
 			 conn->c_path[i].cp_transport_data);
@@ -391,8 +391,8 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	spin_lock_irq(&rds_tcp_conn_lock);
 	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
 		tc = conn->c_path[i].cp_transport_data;
-		tc->t_tcp_node_detached = false;
-		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
+		tc->t_tcp_analde_detached = false;
+		list_add_tail(&tc->t_tcp_analde, &rds_tcp_conn_list);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 fail:
@@ -407,7 +407,7 @@ static bool list_has_conn(struct list_head *list, struct rds_connection *conn)
 {
 	struct rds_tcp_connection *tc, *_tc;
 
-	list_for_each_entry_safe(tc, _tc, list, t_tcp_node) {
+	list_for_each_entry_safe(tc, _tc, list, t_tcp_analde) {
 		if (tc->t_cpath->cp_conn == conn)
 			return true;
 	}
@@ -431,13 +431,13 @@ static void rds_tcp_destroy_conns(void)
 
 	/* avoid calling conn_destroy with irqs off */
 	spin_lock_irq(&rds_tcp_conn_lock);
-	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_analde) {
 		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn))
-			list_move_tail(&tc->t_tcp_node, &tmp_list);
+			list_move_tail(&tc->t_tcp_analde, &tmp_list);
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
 
-	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_analde)
 		rds_conn_destroy(tc->t_cpath->cp_conn);
 }
 
@@ -493,7 +493,7 @@ bool rds_tcp_tune(struct socket *sock)
 	struct net *net = sock_net(sk);
 	struct rds_tcp_net *rtn;
 
-	tcp_sock_set_nodelay(sock->sk);
+	tcp_sock_set_analdelay(sock->sk);
 	lock_sock(sk);
 	/* TCP timer functions might access net namespace even after
 	 * a process which created this net namespace terminated.
@@ -558,8 +558,8 @@ static __net_init int rds_tcp_init_net(struct net *net)
 		tbl = kmemdup(rds_tcp_sysctl_table,
 			      sizeof(rds_tcp_sysctl_table), GFP_KERNEL);
 		if (!tbl) {
-			pr_warn("could not set allocate sysctl table\n");
-			return -ENOMEM;
+			pr_warn("could analt set allocate sysctl table\n");
+			return -EANALMEM;
 		}
 		rtn->ctl_table = tbl;
 	}
@@ -568,8 +568,8 @@ static __net_init int rds_tcp_init_net(struct net *net)
 	rtn->rds_tcp_sysctl = register_net_sysctl_sz(net, "net/rds/tcp", tbl,
 						     ARRAY_SIZE(rds_tcp_sysctl_table));
 	if (!rtn->rds_tcp_sysctl) {
-		pr_warn("could not register sysctl\n");
-		err = -ENOMEM;
+		pr_warn("could analt register sysctl\n");
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -579,7 +579,7 @@ static __net_init int rds_tcp_init_net(struct net *net)
 	rtn->rds_tcp_listen_sock = rds_tcp_listen_init(net, false);
 #endif
 	if (!rtn->rds_tcp_listen_sock) {
-		pr_warn("could not set up IPv6 listen sock\n");
+		pr_warn("could analt set up IPv6 listen sock\n");
 
 #if IS_ENABLED(CONFIG_IPV6)
 		/* Try IPv4 as some systems disable IPv6 */
@@ -588,7 +588,7 @@ static __net_init int rds_tcp_init_net(struct net *net)
 #endif
 			unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
 			rtn->rds_tcp_sysctl = NULL;
-			err = -EAFNOSUPPORT;
+			err = -EAFANALSUPPORT;
 			goto fail;
 #if IS_ENABLED(CONFIG_IPV6)
 		}
@@ -613,20 +613,20 @@ static void rds_tcp_kill_sock(struct net *net)
 	rtn->rds_tcp_listen_sock = NULL;
 	rds_tcp_listen_stop(lsock, &rtn->rds_tcp_accept_w);
 	spin_lock_irq(&rds_tcp_conn_lock);
-	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_analde) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net)
 			continue;
 		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn)) {
-			list_move_tail(&tc->t_tcp_node, &tmp_list);
+			list_move_tail(&tc->t_tcp_analde, &tmp_list);
 		} else {
-			list_del(&tc->t_tcp_node);
-			tc->t_tcp_node_detached = true;
+			list_del(&tc->t_tcp_analde);
+			tc->t_tcp_analde_detached = true;
 		}
 	}
 	spin_unlock_irq(&rds_tcp_conn_lock);
-	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
+	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_analde)
 		rds_conn_destroy(tc->t_cpath->cp_conn);
 }
 
@@ -671,7 +671,7 @@ static void rds_tcp_sysctl_reset(struct net *net)
 	struct rds_tcp_connection *tc, *_tc;
 
 	spin_lock_irq(&rds_tcp_conn_lock);
-	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
+	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_analde) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
@@ -724,7 +724,7 @@ static int __init rds_tcp_init(void)
 					      sizeof(struct rds_tcp_connection),
 					      0, 0, NULL);
 	if (!rds_tcp_conn_slab) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 

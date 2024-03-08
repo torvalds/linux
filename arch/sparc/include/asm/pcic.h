@@ -2,7 +2,7 @@
 /*
  * pcic.h: JavaEngine 1 specific PCI definitions.
  *
- * Copyright (C) 1998 V. Roganov and G. Raiko
+ * Copyright (C) 1998 V. Rogaanalv and G. Raiko
  */
 
 #ifndef __SPARC_PCIC_H
@@ -47,7 +47,7 @@ static inline void sun4m_pci_init_IRQ(void) {}
 #define PCI_SPACE_SIZE                  0x1000000       /* 16 MB */
 
 /* PCIC Register Set. */
-#define PCI_DIAGNOSTIC_0                0x40    /* 32 bits */
+#define PCI_DIAGANALSTIC_0                0x40    /* 32 bits */
 #define PCI_SIZE_0                      0x44    /* 32 bits */
 #define PCI_SIZE_1                      0x48    /* 32 bits */
 #define PCI_SIZE_2                      0x4c    /* 32 bits */
@@ -62,7 +62,7 @@ static inline void sun4m_pci_init_IRQ(void) {}
 #define  PCI_DVMA_CONTROL_INACTIVITY_ACK        (1<<4)
 #define PCI_INTERRUPT_CONTROL           0x63    /* 8  bits */
 #define PCI_CPU_INTERRUPT_PENDING       0x64    /* 32 bits */
-#define PCI_DIAGNOSTIC_1                0x68    /* 16 bits */
+#define PCI_DIAGANALSTIC_1                0x68    /* 16 bits */
 #define PCI_SOFTWARE_INT_CLEAR          0x6a    /* 16 bits */
 #define PCI_SOFTWARE_INT_SET            0x6e    /* 16 bits */
 #define PCI_SYS_INT_PENDING             0x70    /* 32 bits */

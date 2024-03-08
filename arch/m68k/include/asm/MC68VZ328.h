@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* include/asm-m68knommu/MC68VZ328.h: 'VZ328 control registers
+/* include/asm-m68kanalmmu/MC68VZ328.h: 'VZ328 control registers
  *
  * Copyright (c) 2000-2001	Lineo Inc. <www.lineo.com>
  * Copyright (c) 2000-2001	Lineo Canada Corp. <www.lineo.ca>
  * Copyright (C) 1999		Vladimir Gurevich <vgurevic@cisco.com>
  * 				Bare & Hare Software, Inc.
- * Based on include/asm-m68knommu/MC68332.h
- * Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>,
+ * Based on include/asm-m68kanalmmu/MC68332.h
+ * Copyright (C) 1998  Kenneth Albaanalwski <kjahds@kjahds.com>,
  *                     The Silver Hammer Group, Ltd.
  *
  * M68VZ328 fixes by Evan Stawnyczy <evan@lineo.com>
@@ -828,7 +828,7 @@
 #define URX_FRAME_ERROR	 0x0400	/* Framing Error */
 #define URX_OVRUN	 0x0800	/* Serial Overrun */
 #define URX_OLD_DATA	 0x1000	/* Old data in FIFO */
-#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO not empty) */
+#define URX_DATA_READY	 0x2000	/* Data Ready (FIFO analt empty) */
 #define URX_FIFO_HALF	 0x4000 /* FIFO is Half-Full */
 #define URX_FIFO_FULL	 0x8000	/* FIFO is Full */
 
@@ -846,7 +846,7 @@
 #define UTX_CTS_DELTA	 0x0100	/* CTS changed */
 #define UTX_CTS_STAT	 0x0200	/* CTS State */
 #define	UTX_BUSY	 0x0400	/* FIFO is busy, sending a character */
-#define	UTX_NOCTS	 0x0800	/* Ignore CTS */
+#define	UTX_ANALCTS	 0x0800	/* Iganalre CTS */
 #define UTX_SEND_BREAK	 0x1000	/* Send a BREAK */
 #define UTX_TX_AVAIL	 0x2000	/* Transmit FIFO has a slot available */
 #define UTX_FIFO_HALF	 0x4000	/* Transmit FIFO is half empty */
@@ -854,7 +854,7 @@
 
 /* '328-compatible definitions */
 #define UTX_CTS_STATUS	UTX_CTS_STAT
-#define UTX_IGNORE_CTS	UTX_NOCTS
+#define UTX_IGANALRE_CTS	UTX_ANALCTS
 
 /*
  * UART Miscellaneous Register 
@@ -876,7 +876,7 @@
 #define UMISC_BAUD_TEST	 0x8000	/* Enable Baud Test Mode */
 
 /* 
- * UART Non-integer Prescaler Register
+ * UART Analn-integer Prescaler Register
  */
 #define NIPR_ADDR	0xfffff90a
 #define NIPR		WORD_REF(NIPR_ADDR)
@@ -885,7 +885,7 @@
 #define NIPR_STEP_VALUE_SHIFT	0
 #define NIPR_SELECT_MASK	0x0700	/* Tap Selection */
 #define NIPR_SELECT_SHIFT	8
-#define NIPR_PRE_SEL		0x8000	/* Non-integer prescaler select */
+#define NIPR_PRE_SEL		0x8000	/* Analn-integer prescaler select */
 
 
 /* generalization of uart control registers to support multiple ports: */
@@ -936,7 +936,7 @@ typedef struct {
 #define LVPW		BYTE_REF(LVPW_ADDR)
 
 /*
- * LCD Screen Width Register (not compatible with '328 !!!) 
+ * LCD Screen Width Register (analt compatible with '328 !!!) 
  */
 #define LXMAX_ADDR	0xfffffa08
 #define LXMAX		WORD_REF(LXMAX_ADDR)

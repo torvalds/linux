@@ -59,7 +59,7 @@
         "BriefDescription": "Number of times an HLE execution started.",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an HLE region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an HLE region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -67,7 +67,7 @@
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
+        "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may analt conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -168,7 +168,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -177,7 +177,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand data reads that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -186,7 +186,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -195,7 +195,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -204,7 +204,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -213,7 +213,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -222,7 +222,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -231,7 +231,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts streaming stores that was not supplied by the L3 cache.",
+        "BriefDescription": "Counts streaming stores that was analt supplied by the L3 cache.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.STREAMING_WR.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -247,11 +247,11 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Cycles where at least one demand data read request known to have missed the L3 cache is pending.",
+        "BriefDescription": "Cycles where at least one demand data read request kanalwn to have missed the L3 cache is pending.",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_L3_MISS_DEMAND_DATA_RD",
-        "PublicDescription": "Cycles where at least one demand data read request known to have missed the L3 cache is pending.  Note that this does not capture all elapsed cycles while requests are outstanding - only cycles from when the requests were known to have missed the L3 cache.",
+        "PublicDescription": "Cycles where at least one demand data read request kanalwn to have missed the L3 cache is pending.  Analte that this does analt capture all elapsed cycles while requests are outstanding - only cycles from when the requests were kanalwn to have missed the L3 cache.",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -264,10 +264,10 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt)",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Counts the number of times an RTM execution aborted due to analne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -307,7 +307,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Counts the number of times we entered an RTM region. Does analt count nested transactions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -352,7 +352,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock analt satisfying the address and value requirements in the elision buffer",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "PublicDescription": "Counts the number of times a TSX Abort was triggered due to release/commit but data and address mismatch.",
@@ -360,10 +360,10 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to AnalAllocatedElisionBuffer being analn-zero.",
         "EventCode": "0x54",
-        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
-        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
+        "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_ANALT_EMPTY",
+        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to commit but Lock Buffer analt empty.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -376,18 +376,18 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
+        "BriefDescription": "Number of times a HLE transactional region aborted due to a analn XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
-        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
+        "PublicDescription": "Counts the number of times a TSX Abort was triggered due to a analn-release/commit store to lock.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "BriefDescription": "Number of times HLE lock could analt be elided due to ElisionBufferAvailable being zero.",
         "EventCode": "0x54",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
-        "PublicDescription": "Counts the number of times we could not allocate Lock Buffer.",
+        "PublicDescription": "Counts the number of times we could analt allocate Lock Buffer.",
         "SampleAfterValue": "100003",
         "UMask": "0x40"
     }

@@ -2,7 +2,7 @@
 /*
  * Raspberry Pi voltage sensor driver
  *
- * Based on firmware/raspberrypi.c by Noralf Trønnes
+ * Based on firmware/raspberrypi.c by Analralf Trønnes
  *
  * Copyright (C) 2018 Stefan Wahren <stefan.wahren@i2se.com>
  */
@@ -51,9 +51,9 @@ static void rpi_firmware_get_throttled(struct rpi_hwmon_data *data)
 	if (new_uv)
 		dev_crit(data->hwmon_dev, "Undervoltage detected!\n");
 	else
-		dev_info(data->hwmon_dev, "Voltage normalised\n");
+		dev_info(data->hwmon_dev, "Voltage analrmalised\n");
 
-	hwmon_notify_event(data->hwmon_dev, hwmon_in, hwmon_in_lcrit_alarm, 0);
+	hwmon_analtify_event(data->hwmon_dev, hwmon_in, hwmon_in_lcrit_alarm, 0);
 }
 
 static void get_values_poll(struct work_struct *work)
@@ -111,7 +111,7 @@ static int rpi_hwmon_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Parent driver assure that firmware is correct */
 	data->fw = dev_get_drvdata(dev->parent);

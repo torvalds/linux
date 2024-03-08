@@ -269,7 +269,7 @@ struct config_group *pci_ep_cfs_add_epc_group(const char *name)
 
 	epc_group = kzalloc(sizeof(*epc_group), GFP_KERNEL);
 	if (!epc_group) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -522,8 +522,8 @@ static const struct config_item_type pci_epf_type = {
  * Invoke to expose function specific attributes in configfs.
  *
  * Return: A pointer to a config_group structure or NULL if the function driver
- * does not have anything to expose (attributes configured by user) or if
- * the function driver does not implement the add_cfs() method.
+ * does analt have anything to expose (attributes configured by user) or if
+ * the function driver does analt implement the add_cfs() method.
  *
  * Returns an error pointer if this function is called for an unbound EPF device
  * or if the EPF driver add_cfs() method fails.
@@ -534,8 +534,8 @@ static struct config_group *pci_epf_type_add_cfs(struct pci_epf *epf,
 	struct config_group *epf_type_group;
 
 	if (!epf->driver) {
-		dev_err(&epf->dev, "epf device not bound to driver\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(&epf->dev, "epf device analt bound to driver\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	if (!epf->driver->ops->add_cfs)
@@ -596,7 +596,7 @@ static struct config_group *pci_epf_make(struct config_group *group,
 
 	epf_group = kzalloc(sizeof(*epf_group), GFP_KERNEL);
 	if (!epf_group)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_lock(&functions_mutex);
 	index = idr_alloc(&functions_idr, epf_group, 0, 0, GFP_KERNEL);
@@ -613,7 +613,7 @@ static struct config_group *pci_epf_make(struct config_group *group,
 	epf_name = kasprintf(GFP_KERNEL, "%s.%d",
 			     group->cg_item.ci_name, epf_group->index);
 	if (!epf_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto remove_idr;
 	}
 

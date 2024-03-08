@@ -39,13 +39,13 @@ static int force_tjmax;
 module_param_named(tjmax, force_tjmax, int, 0444);
 MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
-#define PKG_SYSFS_ATTR_NO	1	/* Sysfs attribute for package temp */
-#define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr no for coretemp */
+#define PKG_SYSFS_ATTR_ANAL	1	/* Sysfs attribute for package temp */
+#define BASE_SYSFS_ATTR_ANAL	2	/* Sysfs Base attr anal for coretemp */
 #define NUM_REAL_CORES		512	/* Number of Real cores per cpu */
 #define CORETEMP_NAME_LENGTH	28	/* String Length of attrs */
-#define MAX_CORE_ATTRS		4	/* Maximum no of basic attrs */
+#define MAX_CORE_ATTRS		4	/* Maximum anal of basic attrs */
 #define TOTAL_ATTRS		(MAX_CORE_ATTRS + 1)
-#define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
+#define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_ANAL)
 
 #ifdef CONFIG_SMP
 #define for_each_sibling(i, cpu) \
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
 /*
  * Per-Core Temperature Data
- * @tjmax: The static tjmax value when tjmax cannot be retrieved from
+ * @tjmax: The static tjmax value when tjmax cananalt be retrieved from
  *		IA32_TEMPERATURE_TARGET MSR.
  * @last_updated: The time when the current temperature value was updated
  *		earlier (in jiffies).
@@ -128,11 +128,11 @@ struct tjmax_model {
 static const struct tjmax_model tjmax_model_table[] = {
 	{ 0x1c, 10, 100000 },	/* D4xx, K4xx, N4xx, D5xx, K5xx, N5xx */
 	{ 0x1c, ANY, 90000 },	/* Z5xx, N2xx, possibly others
-				 * Note: Also matches 230 and 330,
+				 * Analte: Also matches 230 and 330,
 				 * which are covered by tjmax_table
 				 */
 	{ 0x26, ANY, 90000 },	/* Atom Tunnel Creek (Exx), Lincroft (Z6xx)
-				 * Note: TjMax for E6xxT is 110C, but CPU type
+				 * Analte: TjMax for E6xxT is 110C, but CPU type
 				 * is undetectable by software
 				 */
 	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
@@ -145,7 +145,7 @@ static const struct tjmax_model tjmax_model_table[] = {
 
 static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 {
-	/* The 100C is default for both mobile and non mobile CPUs */
+	/* The 100C is default for both mobile and analn mobile CPUs */
 
 	int tjmax = 100000;
 	int tjmax_ee = 85000;
@@ -183,7 +183,7 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			return tm->tjmax;
 	}
 
-	/* Early chips have no MSR for TjMax */
+	/* Early chips have anal MSR for TjMax */
 
 	if (c->x86_model == 0xf && c->x86_stepping < 4)
 		usemsr_ee = 0;
@@ -192,7 +192,7 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		u8 platform_id;
 
 		/*
-		 * Now we can detect the mobile CPU using Intel provided table
+		 * Analw we can detect the mobile CPU using Intel provided table
 		 * http://softwarecommunity.intel.com/Wiki/Mobility/720.htm
 		 * For Core2 cores, check MSR 0x17, bit 28 1 = Mobile CPU
 		 */
@@ -204,8 +204,8 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			usemsr_ee = 0;
 		} else if (c->x86_model < 0x17 && !(eax & 0x10000000)) {
 			/*
-			 * Trust bit 28 up to Penryn, I could not find any
-			 * documentation on that; if you happen to know
+			 * Trust bit 28 up to Penryn, I could analt find any
+			 * documentation on that; if you happen to kanalw
 			 * someone at Intel please ask
 			 */
 			usemsr_ee = 0;
@@ -287,13 +287,13 @@ static int get_tjmax(struct temp_data *tdata, struct device *dev)
 	}
 
 	if (force_tjmax) {
-		dev_notice(dev, "TjMax forced to %d degrees C by user\n",
+		dev_analtice(dev, "TjMax forced to %d degrees C by user\n",
 			   force_tjmax);
 		tdata->tjmax = force_tjmax * 1000;
 	} else {
 		/*
 		 * An assumption is made for early CPUs and unreadable MSR.
-		 * NOTE: the calculated value may not be correct.
+		 * ANALTE: the calculated value may analt be correct.
 		 */
 		tdata->tjmax = adjust_tjmax(c, tdata->cpu, dev);
 	}
@@ -310,7 +310,7 @@ static int get_ttarget(struct temp_data *tdata, struct device *dev)
 	 * MSR_IA32_TEMPERATURE_TARGET
 	 */
 	if (tdata->tjmax)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (ret)
@@ -405,7 +405,7 @@ static ssize_t show_temp(struct device *dev,
 	if (time_after(jiffies, tdata->last_updated + HZ)) {
 		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
 		/*
-		 * Ignore the valid bit. In all observed cases the register
+		 * Iganalre the valid bit. In all observed cases the register
 		 * value is either low or zero if the valid bit is 0.
 		 * Return it instead of reporting an error which doesn't
 		 * really help at all.
@@ -436,10 +436,10 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 		 * The attr number is always core id + 2
 		 * The Pkgtemp will always show up as temp1_*, if available
 		 */
-		int attr_no = tdata->is_pkg_data ? 1 : tdata->cpu_core_id + 2;
+		int attr_anal = tdata->is_pkg_data ? 1 : tdata->cpu_core_id + 2;
 
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH,
-			 "temp%d_%s", attr_no, suffixes[i]);
+			 "temp%d_%s", attr_anal, suffixes[i]);
 		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = 0444;
@@ -462,8 +462,8 @@ static int chk_ucode_version(unsigned int cpu)
 	 * fixed for stepping D0 (6EC).
 	 */
 	if (c->x86_model == 0xe && c->x86_stepping < 0xc && c->microcode < 0x39) {
-		pr_err("Errata AE18 not fixed, update BIOS or microcode of the CPU!\n");
-		return -ENODEV;
+		pr_err("Errata AE18 analt fixed, update BIOS or microcode of the CPU!\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -513,19 +513,19 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	 * tdata for core: pdata->core_data[2] .. pdata->core_data[NUM_REAL_CORES + 1]
 	 */
 	if (pkg_flag) {
-		index = PKG_SYSFS_ATTR_NO;
+		index = PKG_SYSFS_ATTR_ANAL;
 	} else {
 		index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
 		if (index < 0)
 			return index;
 
 		pdata->cpu_map[index] = topology_core_id(cpu);
-		index += BASE_SYSFS_ATTR_NO;
+		index += BASE_SYSFS_ATTR_ANAL;
 	}
 
 	tdata = init_temp_data(cpu, pkg_flag);
 	if (!tdata) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ida_free;
 	}
 
@@ -538,7 +538,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	get_tjmax(tdata, &pdev->dev);
 
 	/*
-	 * The target temperature is available on older CPUs but not in the
+	 * The target temperature is available on older CPUs but analt in the
 	 * MSR_IA32_TEMPERATURE_TARGET register. Atoms don't have the register
 	 * at all.
 	 */
@@ -559,7 +559,7 @@ exit_free:
 	kfree(tdata);
 ida_free:
 	if (!pkg_flag)
-		ida_free(&pdata->ida, index - BASE_SYSFS_ATTR_NO);
+		ida_free(&pdata->ida, index - BASE_SYSFS_ATTR_ANAL);
 	return err;
 }
 
@@ -584,8 +584,8 @@ static void coretemp_remove_core(struct platform_data *pdata, int indx)
 	kfree(pdata->core_data[indx]);
 	pdata->core_data[indx] = NULL;
 
-	if (indx >= BASE_SYSFS_ATTR_NO)
-		ida_free(&pdata->ida, indx - BASE_SYSFS_ATTR_NO);
+	if (indx >= BASE_SYSFS_ATTR_ANAL)
+		ida_free(&pdata->ida, indx - BASE_SYSFS_ATTR_ANAL);
 }
 
 static int coretemp_device_add(int zoneid)
@@ -597,14 +597,14 @@ static int coretemp_device_add(int zoneid)
 	/* Initialize the per-zone data structures */
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->pkg_id = zoneid;
 	ida_init(&pdata->ida);
 
 	pdev = platform_device_alloc(DRVNAME, zoneid);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_pdata;
 	}
 
@@ -641,7 +641,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 
 	/*
 	 * Don't execute this on resume as the offline callback did
-	 * not get executed on suspend.
+	 * analt get executed on suspend.
 	 */
 	if (cpuhp_tasks_frozen)
 		return 0;
@@ -652,7 +652,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 	 * without thermal sensors will be filtered out.
 	 */
 	if (!cpu_has(c, X86_FEATURE_DTHERM))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdata = platform_get_drvdata(pdev);
 	if (!pdata->hwmon_dev) {
@@ -683,7 +683,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 	}
 
 	/*
-	 * Check whether a thread sibling is already online. If not add the
+	 * Check whether a thread sibling is already online. If analt add the
 	 * interface for this CPU core.
 	 */
 	if (!cpumask_intersects(&pdata->cpumask, topology_sibling_cpumask(cpu)))
@@ -700,23 +700,23 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	struct temp_data *tdata;
 	int i, indx = -1, target;
 
-	/* No need to tear down any interfaces for suspend */
+	/* Anal need to tear down any interfaces for suspend */
 	if (cpuhp_tasks_frozen)
 		return 0;
 
-	/* If the physical CPU device does not exist, just return */
+	/* If the physical CPU device does analt exist, just return */
 	pd = platform_get_drvdata(pdev);
 	if (!pd->hwmon_dev)
 		return 0;
 
 	for (i = 0; i < NUM_REAL_CORES; i++) {
 		if (pd->cpu_map[i] == topology_core_id(cpu)) {
-			indx = i + BASE_SYSFS_ATTR_NO;
+			indx = i + BASE_SYSFS_ATTR_ANAL;
 			break;
 		}
 	}
 
-	/* Too many cores and this core is not populated, just return */
+	/* Too many cores and this core is analt populated, just return */
 	if (indx < 0)
 		return 0;
 
@@ -741,10 +741,10 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	/*
 	 * If all cores in this pkg are offline, remove the interface.
 	 */
-	tdata = pd->core_data[PKG_SYSFS_ATTR_NO];
+	tdata = pd->core_data[PKG_SYSFS_ATTR_ANAL];
 	if (cpumask_empty(&pd->cpumask)) {
 		if (tdata)
-			coretemp_remove_core(pd, PKG_SYSFS_ATTR_NO);
+			coretemp_remove_core(pd, PKG_SYSFS_ATTR_ANAL);
 		hwmon_device_unregister(pd->hwmon_dev);
 		pd->hwmon_dev = NULL;
 		return 0;
@@ -780,13 +780,13 @@ static int __init coretemp_init(void)
 	 * without thermal sensors will be filtered out.
 	 */
 	if (!x86_match_cpu(coretemp_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	max_zones = topology_max_packages() * topology_max_die_per_package();
 	zone_devices = kcalloc(max_zones, sizeof(struct platform_device *),
 			      GFP_KERNEL);
 	if (!zone_devices)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < max_zones; i++) {
 		err = coretemp_device_add(i);

@@ -25,7 +25,7 @@
  * The IPA hardware is enabled when the IPA core clock and all the
  * interconnects (buses) it depends on are enabled.  Runtime power
  * management is used to determine whether the core clock and
- * interconnects are enabled, and if not in use to be suspended
+ * interconnects are enabled, and if analt in use to be suspended
  * automatically.
  *
  * The core clock currently runs at a fixed clock rate when enabled,
@@ -37,7 +37,7 @@
 /**
  * enum ipa_power_flag - IPA power flags
  * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
- * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
+ * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (analt runtime) suspended
  * @IPA_POWER_FLAG_STOPPED:	Modem TX is disabled by ipa_start_xmit()
  * @IPA_POWER_FLAG_STARTED:	Modem TX was enabled by ipa_runtime_resume()
  * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
@@ -47,7 +47,7 @@ enum ipa_power_flag {
 	IPA_POWER_FLAG_SYSTEM,
 	IPA_POWER_FLAG_STOPPED,
 	IPA_POWER_FLAG_STARTED,
-	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
+	IPA_POWER_FLAG_COUNT,		/* Last; analt a flag */
 };
 
 /**
@@ -186,7 +186,7 @@ static int ipa_suspend(struct device *dev)
 	 * ipa_resume(). We do this to ensure that the interrupt
 	 * handler won't run whilst PM runtime is disabled.
 	 *
-	 * Note that disabling the IRQ is NOT the same as disabling
+	 * Analte that disabling the IRQ is ANALT the same as disabling
 	 * irq wake. If wakeup is enabled for the IPA then the IRQ
 	 * will still cause the system to wake up, see irq_set_irq_wake().
 	 */
@@ -204,7 +204,7 @@ static int ipa_resume(struct device *dev)
 
 	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
 
-	/* Now that PM runtime is enabled again it's safe
+	/* Analw that PM runtime is enabled again it's safe
 	 * to turn the IRQ back on and process any data
 	 * that was received during suspend.
 	 */
@@ -229,7 +229,7 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 		if (test_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags))
 			pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
 
-	/* Acknowledge/clear the suspend interrupt on all endpoints */
+	/* Ackanalwledge/clear the suspend interrupt on all endpoints */
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
@@ -246,13 +246,13 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
  * Two flags and a spinlock are used.  If the queue is stopped, the STOPPED
  * power flag is set.  And if the queue is started, the STARTED flag is set.
  * The queue is only started on resume if the STOPPED flag is set.  And the
- * queue is only started in ipa_start_xmit() if the STARTED flag is *not*
+ * queue is only started in ipa_start_xmit() if the STARTED flag is *analt*
  * set.  As a result, the queue remains operational if the two activites
  * happen concurrently regardless of the order they complete.  The spinlock
  * ensures the flag and TX queue operations are done atomically.
  *
  * The first function stops the modem netdev transmit queue, but only if
- * the STARTED flag is *not* set.  That flag is cleared if it was set.
+ * the STARTED flag is *analt* set.  That flag is cleared if it was set.
  * If the queue is stopped, the STOPPED flag is set.  This is called only
  * from the power ->runtime_resume operation.
  */
@@ -305,7 +305,7 @@ static int ipa_power_retention_init(struct ipa_power *power)
 		if (PTR_ERR(qmp) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		/* We assume any other error means it's not defined/needed */
+		/* We assume any other error means it's analt defined/needed */
 		qmp = NULL;
 	}
 	power->qmp = qmp;
@@ -327,7 +327,7 @@ void ipa_power_retention(struct ipa *ipa, bool enable)
 	int ret;
 
 	if (!power->qmp)
-		return;		/* Not needed on this platform */
+		return;		/* Analt needed on this platform */
 
 	ret = qmp_send(power->qmp, fmt, enable ? '1' : '0');
 	if (ret)
@@ -380,7 +380,7 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 	size = struct_size(power, interconnect, data->interconnect_count);
 	power = kzalloc(size, GFP_KERNEL);
 	if (!power) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_clk_put;
 	}
 	power->dev = dev;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -170,7 +170,7 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			     __field(uint64_t, sched_job_id)
 			     __string(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job))
 			     __field(unsigned int, context)
-			     __field(unsigned int, seqno)
+			     __field(unsigned int, seqanal)
 			     __field(struct dma_fence *, fence)
 			     __string(ring, to_amdgpu_ring(job->base.sched)->name)
 			     __field(u32, num_ibs)
@@ -180,13 +180,13 @@ TRACE_EVENT(amdgpu_cs_ioctl,
 			   __entry->sched_job_id = job->base.id;
 			   __assign_str(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job));
 			   __entry->context = job->base.s_fence->finished.context;
-			   __entry->seqno = job->base.s_fence->finished.seqno;
+			   __entry->seqanal = job->base.s_fence->finished.seqanal;
 			   __assign_str(ring, to_amdgpu_ring(job->base.sched)->name);
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqno=%u, ring_name=%s, num_ibs=%u",
+	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqanal=%u, ring_name=%s, num_ibs=%u",
 		      __entry->sched_job_id, __get_str(timeline), __entry->context,
-		      __entry->seqno, __get_str(ring), __entry->num_ibs)
+		      __entry->seqanal, __get_str(ring), __entry->num_ibs)
 );
 
 TRACE_EVENT(amdgpu_sched_run_job,
@@ -196,7 +196,7 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			     __field(uint64_t, sched_job_id)
 			     __string(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job))
 			     __field(unsigned int, context)
-			     __field(unsigned int, seqno)
+			     __field(unsigned int, seqanal)
 			     __string(ring, to_amdgpu_ring(job->base.sched)->name)
 			     __field(u32, num_ibs)
 			     ),
@@ -205,13 +205,13 @@ TRACE_EVENT(amdgpu_sched_run_job,
 			   __entry->sched_job_id = job->base.id;
 			   __assign_str(timeline, AMDGPU_JOB_GET_TIMELINE_NAME(job));
 			   __entry->context = job->base.s_fence->finished.context;
-			   __entry->seqno = job->base.s_fence->finished.seqno;
+			   __entry->seqanal = job->base.s_fence->finished.seqanal;
 			   __assign_str(ring, to_amdgpu_ring(job->base.sched)->name);
 			   __entry->num_ibs = job->num_ibs;
 			   ),
-	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqno=%u, ring_name=%s, num_ibs=%u",
+	    TP_printk("sched_job=%llu, timeline=%s, context=%u, seqanal=%u, ring_name=%s, num_ibs=%u",
 		      __entry->sched_job_id, __get_str(timeline), __entry->context,
-		      __entry->seqno, __get_str(ring), __entry->num_ibs)
+		      __entry->seqanal, __get_str(ring), __entry->num_ibs)
 );
 
 
@@ -522,7 +522,7 @@ TRACE_EVENT(amdgpu_ib_pipe_sync,
 			     __field(uint64_t, id)
 			     __field(struct dma_fence *, fence)
 			     __field(uint64_t, ctx)
-			     __field(unsigned, seqno)
+			     __field(unsigned, seqanal)
 			     ),
 
 	    TP_fast_assign(
@@ -530,12 +530,12 @@ TRACE_EVENT(amdgpu_ib_pipe_sync,
 			   __entry->id = sched_job->base.id;
 			   __entry->fence = fence;
 			   __entry->ctx = fence->context;
-			   __entry->seqno = fence->seqno;
+			   __entry->seqanal = fence->seqanal;
 			   ),
 	    TP_printk("job ring=%s, id=%llu, need pipe sync to fence=%p, context=%llu, seq=%u",
 		      __get_str(ring), __entry->id,
 		      __entry->fence, __entry->ctx,
-		      __entry->seqno)
+		      __entry->seqanal)
 );
 
 TRACE_EVENT(amdgpu_reset_reg_dumps,

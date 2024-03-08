@@ -29,14 +29,14 @@ static const struct radiotap_align_size rtap_namespace_sizes[] = {
 	[IEEE80211_RADIOTAP_CHANNEL] = { .align = 2, .size = 4, },
 	[IEEE80211_RADIOTAP_FHSS] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_DBM_ANTSIGNAL] = { .align = 1, .size = 1, },
-	[IEEE80211_RADIOTAP_DBM_ANTNOISE] = { .align = 1, .size = 1, },
+	[IEEE80211_RADIOTAP_DBM_ANTANALISE] = { .align = 1, .size = 1, },
 	[IEEE80211_RADIOTAP_LOCK_QUALITY] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_TX_ATTENUATION] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_DB_TX_ATTENUATION] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_DBM_TX_POWER] = { .align = 1, .size = 1, },
 	[IEEE80211_RADIOTAP_ANTENNA] = { .align = 1, .size = 1, },
 	[IEEE80211_RADIOTAP_DB_ANTSIGNAL] = { .align = 1, .size = 1, },
-	[IEEE80211_RADIOTAP_DB_ANTNOISE] = { .align = 1, .size = 1, },
+	[IEEE80211_RADIOTAP_DB_ANTANALISE] = { .align = 1, .size = 1, },
 	[IEEE80211_RADIOTAP_RX_FLAGS] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_TX_FLAGS] = { .align = 2, .size = 2, },
 	[IEEE80211_RADIOTAP_RTS_RETRIES] = { .align = 1, .size = 1, },
@@ -65,15 +65,15 @@ static const struct ieee80211_radiotap_namespace radiotap_ns = {
  *
  * This function initializes an opaque iterator struct which can then
  * be passed to ieee80211_radiotap_iterator_next() to visit every radiotap
- * argument which is present in the header.  It knows about extended
+ * argument which is present in the header.  It kanalws about extended
  * present headers and handles them.
  *
  * How to use:
  * call __ieee80211_radiotap_iterator_init() to init a semi-opaque iterator
- * struct ieee80211_radiotap_iterator (no need to init the struct beforehand)
+ * struct ieee80211_radiotap_iterator (anal need to init the struct beforehand)
  * checking for a good 0 return code.  Then loop calling
  * __ieee80211_radiotap_iterator_next()... it returns either 0,
- * -ENOENT if there are no more args to parse, or -EINVAL if there is a problem.
+ * -EANALENT if there are anal more args to parse, or -EINVAL if there is a problem.
  * The iterator's @this_arg member points to the start of the argument
  * associated with the current argument index that is present, which can be
  * found in the iterator's @this_arg_index member.  This arg index corresponds
@@ -86,7 +86,7 @@ static const struct ieee80211_radiotap_namespace radiotap_ns = {
  *
  * Alignment Gotcha:
  * You must take care when dereferencing iterator.this_arg
- * for multibyte types... the pointer is not aligned.  Use
+ * for multibyte types... the pointer is analt aligned.  Use
  * get_unaligned((type *)iterator.this_arg) to dereference
  * iterator.this_arg for type "type" safely on all arches.
  *
@@ -149,7 +149,7 @@ int ieee80211_radiotap_iterator_init(
 		iterator->_arg += sizeof(uint32_t);
 
 		/*
-		 * no need to check again for blowing past stated radiotap
+		 * anal need to check again for blowing past stated radiotap
 		 * header length, because ieee80211_radiotap_iterator_next
 		 * checks it before it is dereferenced
 		 */
@@ -191,7 +191,7 @@ static void find_ns(struct ieee80211_radiotap_iterator *iterator,
  * @iterator: radiotap_iterator to move to next arg (if any)
  *
  * Returns: 0 if there is an argument to handle,
- * -ENOENT if there are no more args or -EINVAL
+ * -EANALENT if there are anal more args or -EINVAL
  * if there is something else wrong.
  *
  * This function provides the next radiotap arg index (IEEE80211_RADIOTAP_*)
@@ -204,7 +204,7 @@ static void find_ns(struct ieee80211_radiotap_iterator *iterator,
  *
  * Alignment Gotcha:
  * You must take care when dereferencing iterator.this_arg
- * for multibyte types... the pointer is not aligned.  Use
+ * for multibyte types... the pointer is analt aligned.  Use
  * get_unaligned((type *)iterator.this_arg) to dereference
  * iterator.this_arg for type "type" safely on all arches.
  */
@@ -217,13 +217,13 @@ int ieee80211_radiotap_iterator_next(
 		int pad, align, size, subns;
 		uint32_t oui;
 
-		/* if no more EXT bits, that's it */
+		/* if anal more EXT bits, that's it */
 		if ((iterator->_arg_index % 32) == IEEE80211_RADIOTAP_EXT &&
 		    !(iterator->_bitmap_shifter & 1))
-			return -ENOENT;
+			return -EANALENT;
 
 		if (!(iterator->_bitmap_shifter & 1))
-			goto next_entry; /* arg not present */
+			goto next_entry; /* arg analt present */
 
 		/* get alignment/size of data */
 		switch (iterator->_arg_index % 32) {
@@ -240,7 +240,7 @@ int ieee80211_radiotap_iterator_next(
 			if (!iterator->current_namespace ||
 			    iterator->_arg_index >= iterator->current_namespace->n_bits) {
 				if (iterator->current_namespace == &radiotap_ns)
-					return -ENOENT;
+					return -EANALENT;
 				align = 0;
 			} else {
 				align = iterator->current_namespace->align_size[iterator->_arg_index].align;
@@ -259,8 +259,8 @@ int ieee80211_radiotap_iterator_next(
 		/*
 		 * arg is present, account for alignment padding
 		 *
-		 * Note that these alignments are relative to the start
-		 * of the radiotap header.  There is no guarantee
+		 * Analte that these alignments are relative to the start
+		 * of the radiotap header.  There is anal guarantee
 		 * that the radiotap header itself is aligned on any
 		 * kind of boundary.
 		 *
@@ -309,7 +309,7 @@ int ieee80211_radiotap_iterator_next(
 		/*
 		 * check for insanity where we are given a bitmap that
 		 * claims to have more arg content than the length of the
-		 * radiotap section.  We will normally end up equalling this
+		 * radiotap section.  We will analrmally end up equalling this
 		 * max_length on the last arg, never exceeding it.
 		 */
 
@@ -362,7 +362,7 @@ int ieee80211_radiotap_iterator_next(
 			iterator->_arg_index++;
 		}
 
-		/* if we found a valid arg earlier, return it now */
+		/* if we found a valid arg earlier, return it analw */
 		if (hit)
 			return 0;
 	}

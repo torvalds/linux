@@ -167,7 +167,7 @@ struct nvkm_gsp {
 		enum nvkm_subdev_type type;
 		int inst;
 		u32 stall;
-		u32 nonstall;
+		u32 analnstall;
 	} intr[32];
 	int intr_nr;
 
@@ -376,7 +376,7 @@ static inline int
 nvkm_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
 {
 	if (WARN_ON(!gsp->rm))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	return gsp->rm->client_ctor(gsp, client);
 }
@@ -443,7 +443,7 @@ nvkm_gsp_event_dtor(struct nvkm_gsp_event *event)
 }
 
 int nvkm_gsp_intr_stall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
-int nvkm_gsp_intr_nonstall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
+int nvkm_gsp_intr_analnstall(struct nvkm_gsp *, enum nvkm_subdev_type, int);
 
 int gv100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 int tu102_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);

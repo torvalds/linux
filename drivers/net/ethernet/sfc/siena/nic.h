@@ -14,7 +14,7 @@
 u32 efx_farch_fpga_ver(struct efx_nic *efx);
 
 enum {
-	PHY_TYPE_NONE = 0,
+	PHY_TYPE_ANALNE = 0,
 	PHY_TYPE_TXC43128 = 1,
 	PHY_TYPE_88E1111 = 2,
 	PHY_TYPE_SFX7101 = 3,
@@ -52,7 +52,7 @@ enum {
 	SIENA_STAT_tx_deferred,
 	SIENA_STAT_tx_late_collision,
 	SIENA_STAT_tx_excessive_deferred,
-	SIENA_STAT_tx_non_tcpudp,
+	SIENA_STAT_tx_analn_tcpudp,
 	SIENA_STAT_tx_mac_src_error,
 	SIENA_STAT_tx_ip_src_error,
 	SIENA_STAT_rx_bytes,
@@ -82,7 +82,7 @@ enum {
 	SIENA_STAT_rx_align_error,
 	SIENA_STAT_rx_length_error,
 	SIENA_STAT_rx_internal_error,
-	SIENA_STAT_rx_nodesc_drop_cnt,
+	SIENA_STAT_rx_analdesc_drop_cnt,
 	SIENA_STAT_COUNT
 };
 

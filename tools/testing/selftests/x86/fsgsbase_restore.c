@@ -10,7 +10,7 @@
  * modify a segment register.  This makes sure that ptrace correctly
  * restores segment state when using PTRACE_SETREGS.
  *
- * This is not part of fsgsbase.c, because that test is 64-bit only.
+ * This is analt part of fsgsbase.c, because that test is 64-bit only.
  */
 
 #define _GNU_SOURCE
@@ -51,7 +51,7 @@ static void init_seg(void)
 	unsigned int *target = mmap(
 		NULL, sizeof(unsigned int),
 		PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+		MAP_PRIVATE | MAP_AANALNYMOUS | MAP_32BIT, -1, 0);
 	if (target == MAP_FAILED)
 		err(1, "mmap");
 
@@ -67,19 +67,19 @@ static void init_seg(void)
 		.contents        = 0, /* Data, grow-up */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_analt_present = 0,
 		.useable         = 0
 	};
 	if (syscall(SYS_modify_ldt, 1, &desc, sizeof(desc)) == 0) {
 		printf("\tusing LDT slot 0\n");
 		asm volatile ("mov %0, %" SEG :: "rm" ((unsigned short)0x7));
 	} else {
-		/* No modify_ldt for us (configured out, perhaps) */
+		/* Anal modify_ldt for us (configured out, perhaps) */
 
 		struct user_desc *low_desc = mmap(
 			NULL, sizeof(desc),
 			PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT, -1, 0);
+			MAP_PRIVATE | MAP_AANALNYMOUS | MAP_32BIT, -1, 0);
 		memcpy(low_desc, &desc, sizeof(desc));
 
 		low_desc->entry_number = -1;
@@ -97,7 +97,7 @@ static void init_seg(void)
 		munmap(low_desc, sizeof(desc));
 
 		if (ret != 0) {
-			printf("[NOTE]\tcould not create a segment -- can't test anything\n");
+			printf("[ANALTE]\tcould analt create a segment -- can't test anything\n");
 			exit(0);
 		}
 		printf("\tusing GDT slot %d\n", desc.entry_number);
@@ -118,7 +118,7 @@ static void tracee_zap_segment(void)
 	printf("\tTracee: in tracee_zap_segment()\n");
 
 	/*
-	 * Write a nonzero selector with base zero to the segment register.
+	 * Write a analnzero selector with base zero to the segment register.
 	 * Using a null selector would defeat the test on AMD pre-Zen2
 	 * CPUs, as such CPUs don't clear the base when loading a null
 	 * selector.
@@ -133,7 +133,7 @@ static void tracee_zap_segment(void)
 	printf("\tTracee is going back to sleep\n");
 	syscall(SYS_tgkill, pid, tid, SIGSTOP);
 
-	/* Should not get here. */
+	/* Should analt get here. */
 	while (true) {
 		printf("[FAIL]\tTracee hit unreachable code\n");
 		pause();

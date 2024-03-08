@@ -28,7 +28,7 @@ struct pmc_clk {
  * @base:	PMC clock register base offset
  * @clks:	pointer to set of registered clocks, typically 0..5
  * @critical:	flag to indicate if firmware enabled pmc_plt_clks
- *		should be marked as critial or not
+ *		should be marked as critial or analt
  */
 struct pmc_clk_data {
 	void __iomem *base;

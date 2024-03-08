@@ -31,7 +31,7 @@
 #define PCI_SUBSYS_DEVID_CNF10K_A_PTP		0xBA00
 #define PCI_SUBSYS_DEVID_CNF10K_B_PTP		0xBC00
 
-#define PCI_PTP_BAR_NO				0
+#define PCI_PTP_BAR_ANAL				0
 
 #define PTP_CLOCK_CFG				0xF00ULL
 #define PTP_CLOCK_CFG_PTP_EN			BIT_ULL(0)
@@ -59,7 +59,7 @@
 #define PTP_FRNS_TIMESTAMP			0xFE0ULL
 #define PTP_NXT_ROLLOVER_SET			0xFE8ULL
 #define PTP_CURR_ROLLOVER_SET			0xFF0ULL
-#define PTP_NANO_TIMESTAMP			0xFF8ULL
+#define PTP_NAANAL_TIMESTAMP			0xFF8ULL
 #define PTP_SEC_TIMESTAMP			0x1000ULL
 
 #define CYCLE_MULT				1000
@@ -104,7 +104,7 @@ static bool is_tstmp_atomic_update_supported(struct rvu *rvu)
 		return false;
 
 	/* On older silicon variants of CN10K, atomic update feature
-	 * is not available.
+	 * is analt available.
 	 */
 	if ((is_ptp_dev_cn10ka(ptp) || is_ptp_dev_cnf10ka(ptp)) &&
 	    (is_rev_A0(ptp) || is_rev_A1(ptp)))
@@ -135,7 +135,7 @@ static enum hrtimer_restart ptp_reset_thresh(struct hrtimer *hrtimer)
 		period_ns = ktime_set(0, (NSEC_PER_SEC + 100 - delta_ns));
 	}
 
-	hrtimer_forward_now(hrtimer, period_ns);
+	hrtimer_forward_analw(hrtimer, period_ns);
 	ptp->last_ts = curr_ts;
 
 	return HRTIMER_RESTART;
@@ -181,11 +181,11 @@ static u64 ptp_calc_adjusted_comp(u64 ptp_clock_freq)
 	int cycle;
 
 	/* Errata:
-	 * Issue #1: At the time of 1 sec rollover of the nano-second counter,
-	 * the nano-second counter is set to 0. However, it should be set to
+	 * Issue #1: At the time of 1 sec rollover of the naanal-second counter,
+	 * the naanal-second counter is set to 0. However, it should be set to
 	 * (existing counter_value - 10^9).
 	 *
-	 * Issue #2: The nano-second counter rolls over at 0x3B9A_C9FF.
+	 * Issue #2: The naanal-second counter rolls over at 0x3B9A_C9FF.
 	 * It should roll over at 0x3B9A_CA00.
 	 */
 
@@ -196,7 +196,7 @@ static u64 ptp_calc_adjusted_comp(u64 ptp_clock_freq)
 	/* cycles per sec */
 	cycles_per_sec = ptp_clock_freq;
 
-	/* check whether ptp nanosecond counter rolls over early */
+	/* check whether ptp naanalsecond counter rolls over early */
 	cycle = cycles_per_sec - 1;
 	ptp_clock_nsec = (cycle * comp) >> 32;
 	while (ptp_clock_nsec < NSEC_PER_SEC) {
@@ -205,19 +205,19 @@ static u64 ptp_calc_adjusted_comp(u64 ptp_clock_freq)
 		cycle++;
 		ptp_clock_nsec = (cycle * comp) >> 32;
 	}
-	/* compute nanoseconds lost per second when nsec counter rolls over */
+	/* compute naanalseconds lost per second when nsec counter rolls over */
 	ns_drift = ptp_clock_nsec - NSEC_PER_SEC;
 	/* calculate ptp_clock_comp adjustment */
 	if (ns_drift > 0) {
 		adj = comp * ns_drift;
 		adj = adj / 1000000000ULL;
 	}
-	/* speed up the ptp clock to account for nanoseconds lost */
+	/* speed up the ptp clock to account for naanalseconds lost */
 	comp += adj;
 	return comp;
 
 calc_adj_comp:
-	/* slow down the ptp clock to not rollover early */
+	/* slow down the ptp clock to analt rollover early */
 	adj = comp * cycle_time;
 	adj = adj / 1000000000ULL;
 	adj = adj / CYCLE_MULT;
@@ -232,7 +232,7 @@ struct ptp *ptp_get(void)
 
 	/* Check PTP block is present in hardware */
 	if (!pci_dev_present(ptp_id_table))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	/* Check driver is bound to PTP block */
 	if (!ptp)
 		ptp = ERR_PTR(-EPROBE_DEFER);
@@ -255,7 +255,7 @@ static void ptp_atomic_update(struct ptp *ptp, u64 timestamp)
 	u64 regval, curr_rollover_set, nxt_rollover_set;
 
 	/* First setup NSECs and SECs */
-	writeq(timestamp, ptp->reg_base + PTP_NANO_TIMESTAMP);
+	writeq(timestamp, ptp->reg_base + PTP_NAANAL_TIMESTAMP);
 	writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
 	writeq(timestamp / NSEC_PER_SEC,
 	       ptp->reg_base + PTP_SEC_TIMESTAMP);
@@ -265,7 +265,7 @@ static void ptp_atomic_update(struct ptp *ptp, u64 timestamp)
 	writeq(nxt_rollover_set, ptp->reg_base + PTP_NXT_ROLLOVER_SET);
 	writeq(curr_rollover_set, ptp->reg_base + PTP_CURR_ROLLOVER_SET);
 
-	/* Now, initiate atomic update */
+	/* Analw, initiate atomic update */
 	regval = readq(ptp->reg_base + PTP_CLOCK_CFG);
 	regval &= ~PTP_CLOCK_CFG_ATOMIC_OP_MASK;
 	regval |= (ATOMIC_SET << 26);
@@ -298,7 +298,7 @@ static void ptp_atomic_adjtime(struct ptp *ptp, s64 delta)
 		}
 		ptp_atomic_update(ptp, ptp_clock_hi);
 	} else {
-		writeq(delta, ptp->reg_base + PTP_NANO_TIMESTAMP);
+		writeq(delta, ptp->reg_base + PTP_NAANAL_TIMESTAMP);
 		writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
 
 		/* initiate atomic inc/dec */
@@ -323,10 +323,10 @@ static int ptp_adjfine(struct ptp *ptp, long scaled_ppm)
 
 	/* The hardware adds the clock compensation value to the PTP clock
 	 * on every coprocessor clock cycle. Typical convention is that it
-	 * represent number of nanosecond betwen each cycle. In this
+	 * represent number of naanalsecond betwen each cycle. In this
 	 * convention compensation value is in 64 bit fixed-point
-	 * representation where upper 32 bits are number of nanoseconds
-	 * and lower is fractions of nanosecond.
+	 * representation where upper 32 bits are number of naanalseconds
+	 * and lower is fractions of naanalsecond.
 	 * The scaled_ppm represent the ratio in "parts per million" by which
 	 * the compensation value should be corrected.
 	 * To calculate new compenstation value we use 64bit fixed point
@@ -377,7 +377,7 @@ void ptp_start(struct rvu *rvu, u64 sclk, u32 ext_clk_freq, u32 extts)
 	pdev = ptp->pdev;
 
 	if (!sclk) {
-		dev_err(&pdev->dev, "PTP input clock cannot be zero\n");
+		dev_err(&pdev->dev, "PTP input clock cananalt be zero\n");
 		return;
 	}
 
@@ -386,7 +386,7 @@ void ptp_start(struct rvu *rvu, u64 sclk, u32 ext_clk_freq, u32 extts)
 
 	/* Program the seconds rollover value to 1 second */
 	if (is_tstmp_atomic_update_supported(rvu)) {
-		writeq(0, ptp->reg_base + PTP_NANO_TIMESTAMP);
+		writeq(0, ptp->reg_base + PTP_NAANAL_TIMESTAMP);
 		writeq(0, ptp->reg_base + PTP_FRNS_TIMESTAMP);
 		writeq(0, ptp->reg_base + PTP_SEC_TIMESTAMP);
 		writeq(0, ptp->reg_base + PTP_CURR_ROLLOVER_SET);
@@ -423,7 +423,7 @@ void ptp_start(struct rvu *rvu, u64 sclk, u32 ext_clk_freq, u32 extts)
 	else
 		clock_comp = ((u64)1000000000ull << 32) / ptp->clock_rate;
 
-	/* Initial compensation value to start the nanosecs counter */
+	/* Initial compensation value to start the naanalsecs counter */
 	writeq(clock_comp, ptp->reg_base + PTP_CLOCK_COMP);
 }
 
@@ -522,7 +522,7 @@ static int ptp_probe(struct pci_dev *pdev,
 
 	ptp = kzalloc(sizeof(*ptp), GFP_KERNEL);
 	if (!ptp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error;
 	}
 
@@ -532,11 +532,11 @@ static int ptp_probe(struct pci_dev *pdev,
 	if (err)
 		goto error_free;
 
-	err = pcim_iomap_regions(pdev, 1 << PCI_PTP_BAR_NO, pci_name(pdev));
+	err = pcim_iomap_regions(pdev, 1 << PCI_PTP_BAR_ANAL, pci_name(pdev));
 	if (err)
 		goto error_free;
 
-	ptp->reg_base = pcim_iomap_table(pdev)[PCI_PTP_BAR_NO];
+	ptp->reg_base = pcim_iomap_table(pdev)[PCI_PTP_BAR_ANAL];
 
 	pci_set_drvdata(pdev, ptp);
 	if (!first_ptp_block)
@@ -545,7 +545,7 @@ static int ptp_probe(struct pci_dev *pdev,
 	spin_lock_init(&ptp->ptp_lock);
 	if (cn10k_ptp_errata(ptp)) {
 		ptp->read_ptp_tstmp = &read_ptp_tstmp_sec_nsec;
-		hrtimer_init(&ptp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&ptp->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 		ptp->hrtimer.function = ptp_reset_thresh;
 	} else {
 		ptp->read_ptp_tstmp = &read_ptp_tstmp_nsec;
@@ -558,7 +558,7 @@ error_free:
 
 error:
 	/* For `ptp_get()` we need to differentiate between the case
-	 * when the core has not tried to probe this device and the case when
+	 * when the core has analt tried to probe this device and the case when
 	 * the probe failed.  In the later case we keep the error in
 	 * `dev->driver_data`.
 	 */
@@ -626,11 +626,11 @@ int rvu_mbox_handler_ptp_op(struct rvu *rvu, struct ptp_req *req,
 	 * called by AF consumers/netdev drivers via mailbox mechanism.
 	 * It is used by netdev driver to get the PTP clock and to set
 	 * frequency adjustments. Since mailbox can be called without
-	 * notion of whether the driver is bound to ptp device below
+	 * analtion of whether the driver is bound to ptp device below
 	 * validation is needed as first step.
 	 */
 	if (!rvu->ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (req->op) {
 	case PTP_OP_ADJFINE:
@@ -666,7 +666,7 @@ int rvu_mbox_handler_ptp_get_cap(struct rvu *rvu, struct msg_req *req,
 				 struct ptp_get_cap_rsp *rsp)
 {
 	if (!rvu->ptp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (is_tstmp_atomic_update_supported(rvu))
 		rsp->cap |= PTP_CAP_HW_ATOMIC_UPDATE;

@@ -85,7 +85,7 @@
 };
 
 &usdhc2 {
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 &iomuxc {

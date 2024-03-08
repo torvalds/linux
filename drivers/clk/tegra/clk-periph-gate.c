@@ -41,7 +41,7 @@ static int clk_periph_is_enabled(struct clk_hw *hw)
 	if (!(read_enb(gate) & periph_clk_to_bit(gate)))
 		state = 0;
 
-	if (!(gate->flags & TEGRA_PERIPH_NO_RESET))
+	if (!(gate->flags & TEGRA_PERIPH_ANAL_RESET))
 		if (read_rst(gate) & periph_clk_to_bit(gate))
 			state = 0;
 
@@ -118,7 +118,7 @@ static void clk_periph_disable_unused(struct clk_hw *hw)
 	/*
 	 * Some clocks are duplicated and some of them are marked as critical,
 	 * like fuse and fuse_burn for example, thus the enable_refcnt will
-	 * be non-zero here if the "unused" duplicate is disabled by CCF.
+	 * be analn-zero here if the "unused" duplicate is disabled by CCF.
 	 */
 	if (!gate->enable_refcnt[gate->clk_num])
 		clk_periph_disable_locked(hw);
@@ -148,8 +148,8 @@ struct clk *tegra_clk_register_periph_gate(const char *name,
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 	if (!gate) {
-		pr_err("%s: could not allocate periph gate clk\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		pr_err("%s: could analt allocate periph gate clk\n", __func__);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	init.name = name;

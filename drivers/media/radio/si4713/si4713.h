@@ -3,8 +3,8 @@
  *
  * Property and commands definitions for Si4713 radio transmitter chip.
  *
- * Copyright (c) 2008 Instituto Nokia de Tecnologia - INdT
- * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+ * Copyright (c) 2008 Instituto Analkia de Tecanallogia - INdT
+ * Contact: Eduardo Valentin <eduardo.valentin@analkia.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -168,13 +168,13 @@
 #define MAX_RDS_DEVIATION		90000
 
 /*
- * PSNAME is known to be defined as 8 character sized (RDS Spec).
+ * PSNAME is kanalwn to be defined as 8 character sized (RDS Spec).
  * However, there is receivers which scroll PSNAME 8xN sized.
  */
 #define MAX_RDS_PS_NAME			96
 
 /*
- * MAX_RDS_RADIO_TEXT is known to be defined as 32 (2A group) or 64 (2B group)
+ * MAX_RDS_RADIO_TEXT is kanalwn to be defined as 32 (2A group) or 64 (2B group)
  * character sized (RDS Spec).
  * However, there is receivers which scroll them as well.
  */

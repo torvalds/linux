@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -64,7 +64,7 @@ static bool dwb2_get_caps(struct dwbc *dwbc, struct dwb_caps *caps)
 		DC_LOG_DWB("%s SUPPORTED! inst = %d", __func__, dwbc20->base.inst);
 		return true;
 	} else {
-		DC_LOG_DWB("%s NOT SUPPORTED! inst = %d", __func__, dwbc20->base.inst);
+		DC_LOG_DWB("%s ANALT SUPPORTED! inst = %d", __func__, dwbc20->base.inst);
 		return false;
 	}
 }
@@ -78,7 +78,7 @@ void dwb2_config_dwb_cnv(struct dwbc *dwbc, struct dc_dwb_params *params)
 	REG_UPDATE_2(CNV_SOURCE_SIZE, CNV_SOURCE_WIDTH, params->cnv_params.src_width,
 			CNV_SOURCE_HEIGHT, params->cnv_params.src_height);
 
-	/* source size is not equal the source size, then enable cropping. */
+	/* source size is analt equal the source size, then enable cropping. */
 	if (params->cnv_params.crop_en) {
 		REG_UPDATE(CNV_MODE, CNV_WINDOW_CROP_EN, 1);
 		REG_UPDATE(CNV_WINDOW_START, CNV_WINDOW_START_X, params->cnv_params.crop_x);
@@ -104,7 +104,7 @@ static bool dwb2_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 	if ((params->cnv_params.src_width  != params->dest_width) ||
 	    (params->cnv_params.src_height != params->dest_height)) {
 
-		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING NOT SUPPORTED", __func__, dwbc20->base.inst);
+		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING ANALT SUPPORTED", __func__, dwbc20->base.inst);
 		return false;
 	}
 	DC_LOG_DWB("%s inst = %d, ENABLED", __func__, dwbc20->base.inst);
@@ -114,7 +114,7 @@ static bool dwb2_enable(struct dwbc *dwbc, struct dc_dwb_params *params)
 	//			 DISPCLK_G_WB_GATE_DIS, 1, DISPCLK_G_WBSCL_GATE_DIS, 1,
 	//			 WB_LB_LS_DIS, 1, WB_LUT_LS_DIS, 1);
 
-	/* Set WB_ENABLE (not double buffered; capture not enabled) */
+	/* Set WB_ENABLE (analt double buffered; capture analt enabled) */
 	REG_UPDATE(WB_ENABLE, WB_ENABLE, 1);
 
 	/* Set CNV parameters */
@@ -163,7 +163,7 @@ static bool dwb2_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	/* Only chroma scaling (sub-sampling) is supported in DCN2 */
 	if ((params->cnv_params.src_width != params->dest_width) ||
 			(params->cnv_params.src_height != params->dest_height)) {
-		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING NOT SUPPORTED", __func__, dwbc20->base.inst);
+		DC_LOG_DWB("%s inst = %d, FAILED!LUMA SCALING ANALT SUPPORTED", __func__, dwbc20->base.inst);
 		return false;
 	}
 	DC_LOG_DWB("%s inst = %d, scaling", __func__, dwbc20->base.inst);
@@ -171,7 +171,7 @@ static bool dwb2_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 	/*
 	 * Check if the caller has already locked CNV registers.
 	 * If so: assume the caller will unlock, so don't touch the lock.
-	 * If not: lock them for this update, then unlock after the
+	 * If analt: lock them for this update, then unlock after the
 	 * update is complete.
 	 */
 	REG_GET(CNV_UPDATE, CNV_UPDATE_LOCK, &pre_locked);

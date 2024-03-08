@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _radio:
 
@@ -11,7 +11,7 @@ transmitters.
 
 Conventionally V4L2 radio devices are accessed through character device
 special files named ``/dev/radio`` and ``/dev/radio0`` to
-``/dev/radio63`` with major number 81 and minor numbers 64 to 127.
+``/dev/radio63`` with major number 81 and mianalr numbers 64 to 127.
 
 
 Querying Capabilities
@@ -31,7 +31,7 @@ Supplemental Functions
 Radio devices can support :ref:`controls <control>`, and must support
 the :ref:`tuner or modulator <tuner>` ioctls.
 
-They do not support the video input or output, audio input or output,
+They do analt support the video input or output, audio input or output,
 video standard, cropping and scaling, compression and streaming
 parameter, or overlay ioctls. All other ioctls and I/O methods are
 reserved for future extensions.

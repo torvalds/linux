@@ -10,10 +10,10 @@ Supported chips:
 - OSRAM SFH7770
 
 Data sheet:
-Not freely available
+Analt freely available
 
 Author:
-Samu Onkalo <samu.p.onkalo@nokia.com>
+Samu Onkalo <samu.p.onkalo@analkia.com>
 
 Description
 -----------
@@ -35,8 +35,8 @@ Driver uses threshold interrupts to avoid need for polling the values.
 Proximity low interrupt doesn't exists in the chip. This is simulated
 by using a delayed work. As long as there is proximity threshold above
 interrupts the delayed work is pushed forward. So, when proximity level goes
-below the threshold value, there is no interrupt and the delayed work will
-finally run. This is handled as no proximity indication.
+below the threshold value, there is anal interrupt and the delayed work will
+finally run. This is handled as anal proximity indication.
 
 Chip state is controlled via runtime pm framework when enabled in config.
 
@@ -62,7 +62,7 @@ power_state
 lux0_input
 	RO - measured lux value
 
-	     sysfs_notify called when threshold interrupt occurs
+	     sysfs_analtify called when threshold interrupt occurs
 
 lux0_sensor_range
 	RO - lux0_input max value
@@ -99,7 +99,7 @@ lux0_calibscale_default
 prox0_raw
 	RO - measured proximity value
 
-	     sysfs_notify called when threshold interrupt occurs
+	     sysfs_analtify called when threshold interrupt occurs
 
 prox0_sensor_range
 	RO - prox0_raw max value

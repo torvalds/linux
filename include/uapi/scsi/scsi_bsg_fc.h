@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  *  FC Transport BSG Interface
  *
@@ -34,7 +34,7 @@
 	/* fc_host Message Codes */
 #define FC_BSG_HST_ADD_RPORT		(FC_BSG_HST_MASK | 0x00000001)
 #define FC_BSG_HST_DEL_RPORT		(FC_BSG_HST_MASK | 0x00000002)
-#define FC_BSG_HST_ELS_NOLOGIN		(FC_BSG_HST_MASK | 0x00000003)
+#define FC_BSG_HST_ELS_ANALLOGIN		(FC_BSG_HST_MASK | 0x00000003)
 #define FC_BSG_HST_CT			(FC_BSG_HST_MASK | 0x00000004)
 #define FC_BSG_HST_VENDOR		(FC_BSG_HST_MASK | 0x000000FF)
 
@@ -75,7 +75,7 @@ struct fc_bsg_host_add_rport {
 };
 
 /* Response:
- * There is no additional response data - fc_bsg_reply->result is sufficient
+ * There is anal additional response data - fc_bsg_reply->result is sufficient
  */
 
 
@@ -85,7 +85,7 @@ struct fc_bsg_host_add_rport {
  * This message requests the FC host to remove an enumerated
  * remote port and to terminate the login to it.
  *
- * Note: The driver is free to reject this request if it desires to
+ * Analte: The driver is free to reject this request if it desires to
  * remain logged in with the remote port.
  */
 struct fc_bsg_host_del_rport {
@@ -96,16 +96,16 @@ struct fc_bsg_host_del_rport {
 };
 
 /* Response:
- * There is no additional response data - fc_bsg_reply->result is sufficient
+ * There is anal additional response data - fc_bsg_reply->result is sufficient
  */
 
 
-/* FC_BSG_HST_ELS_NOLOGIN : */
+/* FC_BSG_HST_ELS_ANALLOGIN : */
 
 /* Request:
  * This message requests the FC_Host to send an ELS to a specific
- * N_Port_ID. The host does not need to log into the remote port,
- * nor does it need to enumerate the rport for further traffic
+ * N_Port_ID. The host does analt need to log into the remote port,
+ * analr does it need to enumerate the rport for further traffic
  * (although, the FC host is free to do so if it desires).
  */
 struct fc_bsg_host_els {
@@ -130,7 +130,7 @@ struct fc_bsg_host_els {
 #define FC_CTELS_STATUS_F_BSY	0x00000006
 struct fc_bsg_ctels_reply {
 	/*
-	 * Note: An ELS LS_RJT may be reported in 2 ways:
+	 * Analte: An ELS LS_RJT may be reported in 2 ways:
 	 *  a) A status of FC_CTELS_STATUS_OK is returned. The caller
 	 *     is to look into the ELS receive payload to determine
 	 *     LS_ACC or LS_RJT (by contents of word 0). The reject
@@ -138,11 +138,11 @@ struct fc_bsg_ctels_reply {
 	 *  b) A status of FC_CTELS_STATUS_REJECT is returned, The
 	 *     rjt_data field will contain valid data.
 	 *
-	 * Note: ELS LS_ACC is determined by an FC_CTELS_STATUS_OK, and
+	 * Analte: ELS LS_ACC is determined by an FC_CTELS_STATUS_OK, and
 	 *   the receive payload word 0 indicates LS_ACC
 	 *   (e.g. value is 0x02xxxxxx).
 	 *
-	 * Note: Similarly, a CT Reject may be reported in 2 ways:
+	 * Analte: Similarly, a CT Reject may be reported in 2 ways:
 	 *  a) A status of FC_CTELS_STATUS_OK is returned. The caller
 	 *     is to look into the CT receive payload to determine
 	 *     Accept or Reject (by contents of word 2). The reject
@@ -150,12 +150,12 @@ struct fc_bsg_ctels_reply {
 	 *  b) A status of FC_CTELS_STATUS_REJECT is returned, The
 	 *     rjt_data field will contain valid data.
 	 *
-	 * Note: x_RJT/BSY status will indicae that the rjt_data field
+	 * Analte: x_RJT/BSY status will indicae that the rjt_data field
 	 *   is valid and contains the reason/explanation values.
 	 */
 	__u32	status;		/* See FC_CTELS_STATUS_xxx */
 
-	/* valid if status is not FC_CTELS_STATUS_OK */
+	/* valid if status is analt FC_CTELS_STATUS_OK */
 	struct	{
 		__u8	action;		/* fragment_id for CT REJECT */
 		__u8	reason_code;
@@ -171,7 +171,7 @@ struct fc_bsg_ctels_reply {
  * This message requests that a CT Request be performed with the
  * indicated N_Port_ID. The driver is responsible for logging in with
  * the fabric and/or N_Port_ID, etc as per FC rules. This request does
- * not mandate that the driver must enumerate the destination in the
+ * analt mandate that the driver must enumerate the destination in the
  * transport. The driver is allowed to decide whether to enumerate it,
  * and whether to tear it down after the request.
  */
@@ -198,7 +198,7 @@ struct fc_bsg_host_ct {
 /* FC_BSG_HST_VENDOR : */
 
 /* Request:
- * Note: When specifying vendor_id, be sure to read the Vendor Type and ID
+ * Analte: When specifying vendor_id, be sure to read the Vendor Type and ID
  *   formatting requirements specified in scsi_netlink.h
  */
 struct fc_bsg_host_vendor {
@@ -285,8 +285,8 @@ struct fc_bsg_request {
 struct fc_bsg_reply {
 	/*
 	 * The completion result. Result exists in two forms:
-	 *  if negative, it is an -Exxx system errno value. There will
-	 *    be no further reply information supplied.
+	 *  if negative, it is an -Exxx system erranal value. There will
+	 *    be anal further reply information supplied.
 	 *  else, it's the 4-byte scsi error result, with driver, host,
 	 *    msg and status fields. The per-msgcode reply structure
 	 *    will contain valid data.

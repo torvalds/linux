@@ -222,7 +222,7 @@ static void rtl92d_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 	    (rtlpriv->dm.UNDEC_SM_PWDB == 0)) {
 		de_digtable->min_undec_pwdb_for_dm = 0;
 		rtl_dbg(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
-			"Not connected to any\n");
+			"Analt connected to any\n");
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -368,11 +368,11 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 	/* if (rtlpriv->mac80211.act_scanning)
 	 *      return; */
 
-	/* Not STA mode return tmp */
+	/* Analt STA mode return tmp */
 	if (rtlpriv->mac80211.opmode != NL80211_IFTYPE_STATION)
 		return;
 	rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "progress\n");
-	/* Decide the current status and if modify initial gain or not */
+	/* Decide the current status and if modify initial gain or analt */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED)
 		de_digtable->cursta_cstate = DIG_STA_CONNECT;
 	else
@@ -394,10 +394,10 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		"dm_DIG() Before: Recover_cnt=%d, rx_gain_min=%x\n",
 		de_digtable->recover_cnt, de_digtable->rx_gain_min);
 
-	/* deal with abnormally large false alarm */
+	/* deal with abanalrmally large false alarm */
 	if (falsealm_cnt->cnt_all > 10000) {
 		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
-			"dm_DIG(): Abnormally false alarm case\n");
+			"dm_DIG(): Abanalrmally false alarm case\n");
 
 		de_digtable->large_fa_hit++;
 		if (de_digtable->forbidden_igi < de_digtable->cur_igvalue) {
@@ -458,8 +458,8 @@ static void rtl92d_dm_init_dynamic_txpower(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.dynamic_txpower_enable = true;
-	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
-	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+	rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
+	rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 }
 
 static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
@@ -472,15 +472,15 @@ static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
 
 	if ((!rtlpriv->dm.dynamic_txpower_enable)
 	    || rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) {
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.UNDEC_SM_PWDB == 0)) {
 		rtl_dbg(rtlpriv, COMP_POWER, DBG_TRACE,
-			"Not connected to any\n");
-		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_NORMAL;
-		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_NORMAL;
+			"Analt connected to any\n");
+		rtlpriv->dm.dynamic_txhighpower_lvl = TXHIGHPWRLEVEL_ANALRMAL;
+		rtlpriv->dm.last_dtp_lvl = TXHIGHPWRLEVEL_ANALRMAL;
 		return;
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
@@ -519,9 +519,9 @@ static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
 				"5G:TxHighPwrLevel_Level1 (TxPwr=0x10)\n");
 		} else if (undec_sm_pwdb < 0x2b) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
-						 TXHIGHPWRLEVEL_NORMAL;
+						 TXHIGHPWRLEVEL_ANALRMAL;
 			rtl_dbg(rtlpriv, COMP_HIPWR, DBG_LOUD,
-				"5G:TxHighPwrLevel_Normal\n");
+				"5G:TxHighPwrLevel_Analrmal\n");
 		}
 	} else {
 		if (undec_sm_pwdb >=
@@ -543,9 +543,9 @@ static void rtl92d_dm_dynamic_txpower(struct ieee80211_hw *hw)
 		} else if (undec_sm_pwdb <
 			   (TX_POWER_NEAR_FIELD_THRESH_LVL1 - 5)) {
 			rtlpriv->dm.dynamic_txhighpower_lvl =
-						 TXHIGHPWRLEVEL_NORMAL;
+						 TXHIGHPWRLEVEL_ANALRMAL;
 			rtl_dbg(rtlpriv, COMP_POWER, DBG_LOUD,
-				"TXHIGHPWRLEVEL_NORMAL\n");
+				"TXHIGHPWRLEVEL_ANALRMAL\n");
 		}
 	}
 	if ((rtlpriv->dm.dynamic_txhighpower_lvl != rtlpriv->dm.last_dtp_lvl)) {
@@ -584,7 +584,7 @@ void rtl92d_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -604,7 +604,7 @@ static void rtl92d_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		goto exit;
 	}
 
-	if ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((!rtlpriv->dm.is_any_analnbepkts) &&
 	    (!rtlpriv->dm.disable_framebursting)) {
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 		cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
@@ -634,7 +634,7 @@ static void rtl92d_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -1218,7 +1218,7 @@ void rtl92d_dm_watchdog(struct ieee80211_hw *hw)
 	bool fw_current_inpsmode = false;
 	bool fwps_awake = true;
 
-	/* 1. RF is OFF. (No need to do DM.)
+	/* 1. RF is OFF. (Anal need to do DM.)
 	 * 2. Fw is under power saving mode for FwLPS.
 	 *    (Prevent from SW/FW I/O racing.)
 	 * 3. IPS workitem is scheduled. (Prevent from IPS sequence

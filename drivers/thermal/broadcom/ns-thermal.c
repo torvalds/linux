@@ -48,9 +48,9 @@ static int ns_thermal_probe(struct platform_device *pdev)
 	struct thermal_zone_device *tz;
 	void __iomem *pvtmon;
 
-	pvtmon = of_iomap(dev_of_node(dev), 0);
+	pvtmon = of_iomap(dev_of_analde(dev), 0);
 	if (WARN_ON(!pvtmon))
-		return -ENOENT;
+		return -EANALENT;
 
 	tz = devm_thermal_of_zone_register(dev, 0,
 					   pvtmon,
@@ -89,5 +89,5 @@ static struct platform_driver ns_thermal_driver = {
 module_platform_driver(ns_thermal_driver);
 
 MODULE_AUTHOR("Rafał Miłecki <rafal@milecki.pl>");
-MODULE_DESCRIPTION("Northstar thermal driver");
+MODULE_DESCRIPTION("Analrthstar thermal driver");
 MODULE_LICENSE("GPL v2");

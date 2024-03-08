@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
+ * Copyright (C) 2009 Sunplus Core Techanallogy Co., Ltd.
  *  Chen Liqin <liqin.chen@sunplusct.com>
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ *  Lenanalx Wu <lenanalx.wu@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  */
 
@@ -236,7 +236,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	size_t frame_size = get_rt_frame_size(false);
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)regs->sp;
 
@@ -298,7 +298,7 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	struct pt_regs *regs, size_t framesize)
 {
 	unsigned long sp;
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->sp;
 
 	/*
@@ -346,7 +346,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		current->mm->context.vdso, rt_sigreturn);
 #else
 	/*
-	 * For the nommu case we don't have a VDSO.  Instead we push two
+	 * For the analmmu case we don't have a VDSO.  Instead we push two
 	 * instructions to call the rt_sigreturn syscall onto the user stack.
 	 */
 	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
@@ -419,9 +419,9 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 		 * debugger will see the already changed PC.
 		 */
 		switch (retval) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 		case -ERESTART_RESTARTBLOCK:
 			regs->a0 = regs->orig_a0;
 			regs->epc = restart_addr;
@@ -440,7 +440,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 		 * debugger has chosen to restart at a different PC.
 		 */
 		if (regs->epc == restart_addr &&
-		    (retval == -ERESTARTNOHAND ||
+		    (retval == -ERESTARTANALHAND ||
 		     retval == -ERESTART_RESTARTBLOCK ||
 		     (retval == -ERESTARTSYS &&
 		      !(ksig.ka.sa.sa_flags & SA_RESTART)))) {
@@ -455,13 +455,13 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 
 	/*
 	 * Handle restarting a different system call. As above, if a debugger
-	 * has chosen to restart at a different PC, ignore the restart.
+	 * has chosen to restart at a different PC, iganalre the restart.
 	 */
 	if (syscall && regs->epc == restart_addr && retval == -ERESTART_RESTARTBLOCK)
 		regs->a7 = __NR_restart_syscall;
 
 	/*
-	 * If there is no signal to deliver, we just put the saved
+	 * If there is anal signal to deliver, we just put the saved
 	 * sigmask back.
 	 */
 	restore_saved_sigmask();

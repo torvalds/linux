@@ -25,19 +25,19 @@ struct etnaviv_chip_identity {
 	/* Supported feature fields. */
 	u32 features;
 
-	/* Supported minor feature fields. */
-	u32 minor_features0;
-	u32 minor_features1;
-	u32 minor_features2;
-	u32 minor_features3;
-	u32 minor_features4;
-	u32 minor_features5;
-	u32 minor_features6;
-	u32 minor_features7;
-	u32 minor_features8;
-	u32 minor_features9;
-	u32 minor_features10;
-	u32 minor_features11;
+	/* Supported mianalr feature fields. */
+	u32 mianalr_features0;
+	u32 mianalr_features1;
+	u32 mianalr_features2;
+	u32 mianalr_features3;
+	u32 mianalr_features4;
+	u32 mianalr_features5;
+	u32 mianalr_features6;
+	u32 mianalr_features7;
+	u32 mianalr_features8;
+	u32 mianalr_features9;
+	u32 mianalr_features10;
+	u32 mianalr_features11;
 
 	/* Number of streams supported. */
 	u32 stream_count;
@@ -77,7 +77,7 @@ struct etnaviv_chip_identity {
 };
 
 enum etnaviv_sec_mode {
-	ETNA_SEC_NONE = 0,
+	ETNA_SEC_ANALNE = 0,
 	ETNA_SEC_KERNEL,
 	ETNA_SEC_TZ
 };
@@ -96,7 +96,7 @@ struct clk;
 #define ETNA_NR_EVENTS 30
 
 enum etnaviv_gpu_state {
-	ETNA_GPU_STATE_UNKNOWN = 0,
+	ETNA_GPU_STATE_UNKANALWN = 0,
 	ETNA_GPU_STATE_IDENTIFIED,
 	ETNA_GPU_STATE_RESET,
 	ETNA_GPU_STATE_INITIALIZED,

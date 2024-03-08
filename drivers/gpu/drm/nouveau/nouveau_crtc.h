@@ -10,28 +10,28 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
-#ifndef __NOUVEAU_CRTC_H__
-#define __NOUVEAU_CRTC_H__
+#ifndef __ANALUVEAU_CRTC_H__
+#define __ANALUVEAU_CRTC_H__
 #include <drm/drm_crtc.h>
 
 #include <nvif/head.h>
 #include <nvif/event.h>
 
-struct nouveau_crtc {
+struct analuveau_crtc {
 	struct drm_crtc base;
 
 	struct nvif_head head;
@@ -54,12 +54,12 @@ struct nouveau_crtc {
 	} fb;
 
 	struct {
-		struct nouveau_bo *nvbo;
+		struct analuveau_bo *nvbo;
 		uint32_t offset;
-		void (*set_offset)(struct nouveau_crtc *, uint32_t offset);
-		void (*set_pos)(struct nouveau_crtc *, int x, int y);
-		void (*hide)(struct nouveau_crtc *, bool update);
-		void (*show)(struct nouveau_crtc *, bool update);
+		void (*set_offset)(struct analuveau_crtc *, uint32_t offset);
+		void (*set_pos)(struct analuveau_crtc *, int x, int y);
+		void (*hide)(struct analuveau_crtc *, bool update);
+		void (*show)(struct analuveau_crtc *, bool update);
 	} cursor;
 
 	struct {
@@ -70,16 +70,16 @@ struct nouveau_crtc {
 	void (*restore)(struct drm_crtc *crtc);
 };
 
-static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)
+static inline struct analuveau_crtc *analuveau_crtc(struct drm_crtc *crtc)
 {
-	return crtc ? container_of(crtc, struct nouveau_crtc, base) : NULL;
+	return crtc ? container_of(crtc, struct analuveau_crtc, base) : NULL;
 }
 
-static inline struct drm_crtc *to_drm_crtc(struct nouveau_crtc *crtc)
+static inline struct drm_crtc *to_drm_crtc(struct analuveau_crtc *crtc)
 {
 	return &crtc->base;
 }
 
-int nv04_cursor_init(struct nouveau_crtc *);
+int nv04_cursor_init(struct analuveau_crtc *);
 
-#endif /* __NOUVEAU_CRTC_H__ */
+#endif /* __ANALUVEAU_CRTC_H__ */

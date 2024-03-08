@@ -179,7 +179,7 @@ void skl_nhlt_remove_sysfs(struct skl_dev *skl);
 void skl_get_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks);
 struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id);
 int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
-				u32 caps_size, u32 node_id);
+				u32 caps_size, u32 analde_id);
 
 struct skl_module_cfg;
 

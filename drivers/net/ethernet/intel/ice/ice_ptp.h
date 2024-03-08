@@ -38,11 +38,11 @@ struct ice_perout_channel {
  * this buffer might be shared across multiple PHY ports.
  *
  * On transmit of a packet to be timestamped, software is responsible for
- * selecting an open index. Hardware makes no attempt to lock or prevent
+ * selecting an open index. Hardware makes anal attempt to lock or prevent
  * re-use of an index for multiple packets.
  *
  * To handle this, timestamp indexes must be tracked by software to ensure
- * that an index is not re-used for multiple transmitted packets. The
+ * that an index is analt re-used for multiple transmitted packets. The
  * structures and functions declared in this file track the available Tx
  * register indexes, as well as provide storage for the SKB pointers.
  *
@@ -90,12 +90,12 @@ struct ice_perout_channel {
  *
  * This structure tracks a single timestamp request. The SKB pointer is
  * provided when initiating a request. The start time is used to ensure that
- * we discard old requests that were not fulfilled within a 2 second time
+ * we discard old requests that were analt fulfilled within a 2 second time
  * window.
- * Timestamp values in the PHY are read only and do not get cleared except at
+ * Timestamp values in the PHY are read only and do analt get cleared except at
  * hardware reset or when a new timestamp value is captured.
  *
- * Some PHY types do not provide a "ready" bitmap indicating which timestamp
+ * Some PHY types do analt provide a "ready" bitmap indicating which timestamp
  * indexes are valid. In these cases, we use a cached_tstamp to keep track of
  * the last timestamp we read for a given index. If the current timestamp
  * value is the same as the cached value, we assume a new timestamp hasn't
@@ -180,7 +180,7 @@ struct ice_ptp_port {
 };
 
 enum ice_ptp_tx_interrupt {
-	ICE_PTP_TX_INTERRUPT_NONE = 0,
+	ICE_PTP_TX_INTERRUPT_ANALNE = 0,
 	ICE_PTP_TX_INTERRUPT_SELF,
 	ICE_PTP_TX_INTERRUPT_ALL,
 };
@@ -220,7 +220,7 @@ struct ice_ptp_port_owner {
  * @tstamp_config: hardware timestamping configuration
  * @reset_time: kernel time after clock stop on reset
  * @tx_hwtstamp_skipped: number of Tx time stamp requests skipped
- * @tx_hwtstamp_timeouts: number of Tx skbs discarded with no time stamp
+ * @tx_hwtstamp_timeouts: number of Tx skbs discarded with anal time stamp
  * @tx_hwtstamp_flushed: number of Tx skbs flushed due to interface closed
  * @tx_hwtstamp_discarded: number of Tx skbs discarded due to cached PHC time
  *                         being too old to correctly extend timestamp
@@ -285,8 +285,8 @@ struct ice_ptp {
 #define N_EXT_TS_E810			3
 #define N_PER_OUT_E810			4
 #define N_PER_OUT_E810T			3
-#define N_PER_OUT_NO_SMA_E810T		2
-#define N_EXT_TS_NO_SMA_E810T		2
+#define N_PER_OUT_ANAL_SMA_E810T		2
+#define N_EXT_TS_ANAL_SMA_E810T		2
 #define ETH_GLTSYN_ENA(_i)		(0x03000348 + ((_i) * 4))
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
@@ -312,12 +312,12 @@ void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup);
 #else /* IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
 static inline int ice_ptp_set_ts_config(struct ice_pf *pf, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int ice_ptp_get_ts_config(struct ice_pf *pf, struct ifreq *ifr)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void ice_ptp_restore_timestamp_mode(struct ice_pf *pf) { }

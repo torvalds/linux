@@ -7,7 +7,7 @@
  * This is a new system as from Linux 1.2.3
  *
  * Changelog:
- *  11-12-1996	RMK	Further minor improvements
+ *  11-12-1996	RMK	Further mianalr improvements
  *  12-09-1997	RMK	Added interrupt enable/disable for card level
  *
  * Reference: Acorns Risc OS 3 Programmers Reference Manuals.
@@ -17,7 +17,7 @@
 #define __ASM_ECARD_H
 
 /*
- * Currently understood cards (but not necessarily
+ * Currently understood cards (but analt necessarily
  * supported):
  *                        Manufacturer  Product ID
  */
@@ -154,7 +154,7 @@ struct expansion_card {
 	void			*fiq_data;	/* Data for use for FIQ by card	*/
 	const expansioncard_ops_t *ops;		/* Enable/Disable Ops for card	*/
 
-	CONST unsigned int	slot_no;	/* Slot number			*/
+	CONST unsigned int	slot_anal;	/* Slot number			*/
 	CONST unsigned int	dma;		/* DMA number (for request_dma)	*/
 	CONST unsigned int	irq;		/* IRQ number (for request_irq)	*/
 	CONST unsigned int	fiq;		/* FIQ number (for request_irq)	*/

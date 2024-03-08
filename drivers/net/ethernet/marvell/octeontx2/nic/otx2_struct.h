@@ -27,14 +27,14 @@ enum nix_send_ldtype {
 
 /* CSUM offload */
 enum nix_sendl3type {
-	NIX_SENDL3TYPE_NONE = 0x0,
+	NIX_SENDL3TYPE_ANALNE = 0x0,
 	NIX_SENDL3TYPE_IP4 = 0x2,
 	NIX_SENDL3TYPE_IP4_CKSUM = 0x3,
 	NIX_SENDL3TYPE_IP6 = 0x4,
 };
 
 enum nix_sendl4type {
-	NIX_SENDL4TYPE_NONE,
+	NIX_SENDL4TYPE_ANALNE,
 	NIX_SENDL4TYPE_TCP_CKSUM,
 	NIX_SENDL4TYPE_SCTP_CKSUM,
 	NIX_SENDL4TYPE_UDP_CKSUM,
@@ -52,7 +52,7 @@ enum nix_xqe_type {
 
 /* NIX CQE/SQE subdescriptor types */
 enum nix_subdc {
-	NIX_SUBDC_NOP  = 0x0,
+	NIX_SUBDC_ANALP  = 0x0,
 	NIX_SUBDC_EXT  = 0x1,
 	NIX_SUBDC_CRC  = 0x2,
 	NIX_SUBDC_IMM  = 0x3,
@@ -82,7 +82,7 @@ struct nix_cqe_hdr_s {
 	u64 flow_tag              : 32;
 	u64 q                     : 20;
 	u64 reserved_52_57        : 6;
-	u64 node                  : 2;
+	u64 analde                  : 2;
 	u64 cqe_type              : 4;
 };
 

@@ -49,7 +49,7 @@
 #define OMAP_TLL_CHANNEL_CONF_FSLSMODE_SHIFT		24
 #define OMAP_TLL_CHANNEL_CONF_DRVVBUS			(1 << 16)
 #define OMAP_TLL_CHANNEL_CONF_CHRGVBUS			(1 << 15)
-#define	OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF		(1 << 11)
+#define	OMAP_TLL_CHANNEL_CONF_ULPIANALBITSTUFF		(1 << 11)
 #define	OMAP_TLL_CHANNEL_CONF_ULPI_ULPIAUTOIDLE		(1 << 10)
 #define	OMAP_TLL_CHANNEL_CONF_UTMIAUTOIDLE		(1 << 9)
 #define	OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE		(1 << 8)
@@ -84,7 +84,7 @@
 #define OMAP_TLL_CHANNEL_2_EN_MASK			(1 << 1)
 #define OMAP_TLL_CHANNEL_3_EN_MASK			(1 << 2)
 
-/* Values of USBTLL_REVISION - Note: these are not given in the TRM */
+/* Values of USBTLL_REVISION - Analte: these are analt given in the TRM */
 #define OMAP_USBTLL_REV1		0x00000015	/* OMAP3 */
 #define OMAP_USBTLL_REV2		0x00000018	/* OMAP 3630 */
 #define OMAP_USBTLL_REV3		0x00000004	/* OMAP4 */
@@ -225,7 +225,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		break;
 	default:
 		nch = OMAP_TLL_CHANNEL_COUNT;
-		dev_dbg(dev, "rev 0x%x not recognized, assuming %d channels\n",
+		dev_dbg(dev, "rev 0x%x analt recognized, assuming %d channels\n",
 			ver, nch);
 		break;
 	}
@@ -235,7 +235,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	if (!tll) {
 		pm_runtime_put_sync(dev);
 		pm_runtime_disable(dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tll->base = base;
@@ -313,7 +313,7 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 	struct usbtll_omap *tll;
 
 	if (!tll_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_get_sync(tll_dev);
 
@@ -335,7 +335,7 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 
 		usbtll_write(base, OMAP_TLL_SHARED_CONF, reg);
 
-		/* Enable channels now */
+		/* Enable channels analw */
 		for (i = 0; i < tll->nch; i++) {
 			reg = usbtll_read(base,	OMAP_TLL_CHANNEL_CONF(i));
 
@@ -351,7 +351,7 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 				 */
 				reg &= ~(OMAP_TLL_CHANNEL_CONF_UTMIAUTOIDLE
 					| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
-				reg |= OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF;
+				reg |= OMAP_TLL_CHANNEL_CONF_ULPIANALBITSTUFF;
 				reg |= OMAP_TLL_CHANNEL_CONF_ULPI_ULPIAUTOIDLE;
 			} else if (pdata->port_mode[i] ==
 					OMAP_EHCI_PORT_MODE_HSIC) {
@@ -361,7 +361,7 @@ int omap_tll_init(struct usbhs_omap_platform_data *pdata)
 				reg |= OMAP_TLL_CHANNEL_CONF_DRVVBUS
 				 | OMAP_TLL_CHANNEL_CONF_CHRGVBUS
 				 | OMAP_TLL_CHANNEL_CONF_MODE_TRANSPARENT_UTMI
-				 | OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF;
+				 | OMAP_TLL_CHANNEL_CONF_ULPIANALBITSTUFF;
 			} else {
 				continue;
 			}
@@ -387,7 +387,7 @@ int omap_tll_enable(struct usbhs_omap_platform_data *pdata)
 	struct usbtll_omap *tll;
 
 	if (!tll_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_get_sync(tll_dev);
 
@@ -421,7 +421,7 @@ int omap_tll_disable(struct usbhs_omap_platform_data *pdata)
 	struct usbtll_omap *tll;
 
 	if (!tll_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock(&tll_lock);
 	tll = dev_get_drvdata(tll_dev);

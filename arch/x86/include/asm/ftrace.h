@@ -4,12 +4,12 @@
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifndef CC_USING_FENTRY
-# error Compiler does not support fentry?
+# error Compiler does analt support fentry?
 #endif
 # define MCOUNT_ADDR		((unsigned long)(__fentry__))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */
 
-/* Ignore unused weak functions which will have non zero offsets */
+/* Iganalre unused weak functions which will have analn zero offsets */
 #ifdef CONFIG_HAVE_FENTRY
 # include <asm/ibt.h>
 /* Add offset for endbr64 if IBT enabled */
@@ -42,7 +42,7 @@ struct ftrace_regs {
 static __always_inline struct pt_regs *
 arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
-	/* Only when FL_SAVE_REGS is set, cs will be non zero */
+	/* Only when FL_SAVE_REGS is set, cs will be analn zero */
 	if (!fregs->regs.cs)
 		return NULL;
 	return &fregs->regs;
@@ -96,7 +96,7 @@ __arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 struct dyn_arch_ftrace {
-	/* No extra data needed for x86 */
+	/* Anal extra data needed for x86 */
 };
 
 #endif /*  CONFIG_DYNAMIC_FTRACE */
@@ -134,14 +134,14 @@ static inline bool arch_syscall_match_sym_name(const char *sym, const char *name
 #include <linux/compat.h>
 
 /*
- * Because ia32 syscalls do not map to x86_64 syscall numbers
+ * Because ia32 syscalls do analt map to x86_64 syscall numbers
  * this screws up the trace output when tracing a ia32 task.
- * Instead of reporting bogus syscalls, just do not trace them.
+ * Instead of reporting bogus syscalls, just do analt trace them.
  *
  * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.
  */
-#define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS 1
+#define ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS 1
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return in_32bit_syscall();

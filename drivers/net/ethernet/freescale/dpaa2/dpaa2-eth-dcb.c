@@ -24,10 +24,10 @@ static inline bool dpaa2_eth_is_prio_enabled(u8 pfc_en, u8 tc)
 
 static int dpaa2_eth_set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
 {
-	struct dpni_congestion_notification_cfg cfg = {0};
+	struct dpni_congestion_analtification_cfg cfg = {0};
 	int i, err;
 
-	cfg.notification_mode = DPNI_CONG_OPT_FLOW_CONTROL;
+	cfg.analtification_mode = DPNI_CONG_OPT_FLOW_CONTROL;
 	cfg.units = DPNI_CONGESTION_UNIT_FRAMES;
 	cfg.message_iova = 0ULL;
 	cfg.message_ctx = 0ULL;
@@ -37,7 +37,7 @@ static int dpaa2_eth_set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
 			cfg.threshold_entry = DPAA2_ETH_CN_THRESH_ENTRY(priv);
 			cfg.threshold_exit = DPAA2_ETH_CN_THRESH_EXIT(priv);
 		} else {
-			/* For priorities not set in the pfc_en mask, we leave
+			/* For priorities analt set in the pfc_en mask, we leave
 			 * the congestion thresholds at zero, which effectively
 			 * disables generation of PFC frames for them
 			 */
@@ -45,12 +45,12 @@ static int dpaa2_eth_set_pfc_cn(struct dpaa2_eth_priv *priv, u8 pfc_en)
 			cfg.threshold_exit = 0;
 		}
 
-		err = dpni_set_congestion_notification(priv->mc_io, 0,
+		err = dpni_set_congestion_analtification(priv->mc_io, 0,
 						       priv->mc_token,
 						       DPNI_QUEUE_RX, i, &cfg);
 		if (err) {
 			netdev_err(priv->net_dev,
-				   "dpni_set_congestion_notification failed\n");
+				   "dpni_set_congestion_analtification failed\n");
 			return err;
 		}
 	}
@@ -67,9 +67,9 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 	int err;
 
 	if (pfc->mbc || pfc->delay)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* If same PFC enabled mask, nothing to do */
+	/* If same PFC enabled mask, analthing to do */
 	if (priv->pfc.pfc_en == pfc->pfc_en)
 		return 0;
 
@@ -92,7 +92,7 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 		return err;
 	}
 
-	/* Configure congestion notifications for the enabled priorities */
+	/* Configure congestion analtifications for the enabled priorities */
 	err = dpaa2_eth_set_pfc_cn(priv, pfc->pfc_en);
 	if (err)
 		return err;

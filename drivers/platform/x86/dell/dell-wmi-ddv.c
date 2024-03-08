@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux driver for WMI sensor information on Dell notebooks.
+ * Linux driver for WMI sensor information on Dell analtebooks.
  *
  * Copyright (C) 2022 Armin Wolf <W_Armin@gmx.de>
  */
@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/device/driver.h>
 #include <linux/dev_printk.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/hwmon.h>
@@ -78,10 +78,10 @@ struct fan_sensor_entry {
 
 struct thermal_sensor_entry {
 	u8 type;
-	s8 now;
+	s8 analw;
 	s8 min;
 	s8 max;
-	u8 unknown;
+	u8 unkanalwn;
 } __packed;
 
 struct combined_channel_info {
@@ -146,11 +146,11 @@ static int dell_wmi_ddv_query_type(struct wmi_device *wdev, enum dell_ddv_method
 
 	obj = out.pointer;
 	if (!obj)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (obj->type != type) {
 		kfree(obj);
-		return -ENOMSG;
+		return -EANALMSG;
 	}
 
 	*result = obj;
@@ -192,7 +192,7 @@ static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_meth
 	if (obj->package.count != 2 ||
 	    obj->package.elements[0].type != ACPI_TYPE_INTEGER ||
 	    obj->package.elements[1].type != ACPI_TYPE_BUFFER) {
-		ret = -ENOMSG;
+		ret = -EANALMSG;
 
 		goto err_free;
 	}
@@ -200,7 +200,7 @@ static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_meth
 	buffer_size = obj->package.elements[0].integer.value;
 
 	if (!buffer_size) {
-		ret = -ENODATA;
+		ret = -EANALDATA;
 
 		goto err_free;
 	}
@@ -258,12 +258,12 @@ static int dell_wmi_ddv_update_sensors(struct wmi_device *wdev, enum dell_ddv_me
 	buffer = obj->package.elements[1].buffer.pointer;
 	entries = div64_u64_rem(buffer_size, entry_size, &rem);
 	if (rem != 1 || buffer[buffer_size - 1] != 0xff) {
-		ret = -ENOMSG;
+		ret = -EANALMSG;
 		goto err_free;
 	}
 
 	if (!entries) {
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		goto err_free;
 	}
 
@@ -308,7 +308,7 @@ static int dell_wmi_ddv_fan_read_channel(struct dell_wmi_ddv_data *data, u32 att
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dell_wmi_ddv_temp_read_channel(struct dell_wmi_ddv_data *data, u32 attr, int channel,
@@ -328,7 +328,7 @@ static int dell_wmi_ddv_temp_read_channel(struct dell_wmi_ddv_data *data, u32 at
 	entry = (struct thermal_sensor_entry *)data->temps.obj->package.elements[1].buffer.pointer;
 	switch (attr) {
 	case hwmon_temp_input:
-		*val = entry[channel].now * 1000;
+		*val = entry[channel].analw * 1000;
 		return 0;
 	case hwmon_temp_min:
 		*val = entry[channel].min * 1000;
@@ -340,7 +340,7 @@ static int dell_wmi_ddv_temp_read_channel(struct dell_wmi_ddv_data *data, u32 at
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dell_wmi_ddv_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
@@ -364,7 +364,7 @@ static int dell_wmi_ddv_read(struct device *dev, enum hwmon_sensor_types type, u
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int dell_wmi_ddv_fan_read_string(struct dell_wmi_ddv_data *data, int channel,
@@ -392,7 +392,7 @@ static int dell_wmi_ddv_fan_read_string(struct dell_wmi_ddv_data *data, int chan
 		*str = fan_dock_labels[type - 0x11];
 		break;
 	default:
-		*str = "Unknown Fan";
+		*str = "Unkanalwn Fan";
 		break;
 	}
 
@@ -449,7 +449,7 @@ static int dell_wmi_ddv_temp_read_string(struct dell_wmi_ddv_data *data, int cha
 		*str = "Memory 3";
 		break;
 	default:
-		*str = "Unknown";
+		*str = "Unkanalwn";
 		break;
 	}
 
@@ -489,7 +489,7 @@ static int dell_wmi_ddv_read_string(struct device *dev, enum hwmon_sensor_types 
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops dell_wmi_ddv_ops = {
@@ -507,7 +507,7 @@ static struct hwmon_channel_info *dell_wmi_ddv_channel_create(struct device *dev
 
 	cinfo = devm_kzalloc(dev, struct_size(cinfo, config, count + 1), GFP_KERNEL);
 	if (!cinfo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cinfo->info.type = type;
 	cinfo->info.config = cinfo->config;
@@ -576,11 +576,11 @@ static int dell_wmi_ddv_hwmon_add(struct dell_wmi_ddv_data *data)
 	int ret;
 
 	if (!devres_open_group(&wdev->dev, dell_wmi_ddv_hwmon_add, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cinfo = devm_kzalloc(&wdev->dev, struct_size(cinfo, info, 4), GFP_KERNEL);
 	if (!cinfo) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		goto err_release;
 	}
@@ -616,7 +616,7 @@ static int dell_wmi_ddv_hwmon_add(struct dell_wmi_ddv_data *data)
 	}
 
 	if (index < 2) {
-		/* Finding no available sensors is not an error */
+		/* Finding anal available sensors is analt an error */
 		ret = 0;
 
 		goto err_release;
@@ -646,7 +646,7 @@ static int dell_wmi_ddv_battery_index(struct acpi_device *acpi_dev, u32 *index)
 
 	uid_str = acpi_device_uid(acpi_dev);
 	if (!uid_str)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return kstrtou32(uid_str, 10, index);
 }
@@ -825,7 +825,7 @@ static int dell_wmi_ddv_probe(struct wmi_device *wdev, const void *context)
 	dev_dbg(&wdev->dev, "WMI interface version: %d\n", version);
 	if (version < DELL_DDV_SUPPORTED_VERSION_MIN || version > DELL_DDV_SUPPORTED_VERSION_MAX) {
 		if (!force)
-			return -ENODEV;
+			return -EANALDEV;
 
 		dev_warn(&wdev->dev, "Loading despite unsupported WMI interface version (%u)\n",
 			 version);
@@ -833,7 +833,7 @@ static int dell_wmi_ddv_probe(struct wmi_device *wdev, const void *context)
 
 	data = devm_kzalloc(&wdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&wdev->dev, data);
 	data->wdev = wdev;
@@ -877,7 +877,7 @@ MODULE_DEVICE_TABLE(wmi, dell_wmi_ddv_id_table);
 static struct wmi_driver dell_wmi_ddv_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm = pm_sleep_ptr(&dell_wmi_ddv_dev_pm_ops),
 	},
 	.id_table = dell_wmi_ddv_id_table,

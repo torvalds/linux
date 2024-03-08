@@ -516,7 +516,7 @@ int tegra210_plle_hw_sequence_start(void)
 	if (tegra210_plle_hw_sequence_is_enabled())
 		return 0;
 
-	/* skip if PLLE is not enabled yet */
+	/* skip if PLLE is analt enabled yet */
 	value = readl_relaxed(clk_base + PLLE_MISC0);
 	if (!(value & PLLE_MISC_LOCK))
 		return -EIO;
@@ -825,7 +825,7 @@ static void _plla1_set_defaults(struct tegra_clk_pll *pllcx)
 
 /*
  * PLLA
- * PLL with dynamic ramp and fractional SDM. Dynamic ramp is not used.
+ * PLL with dynamic ramp and fractional SDM. Dynamic ramp is analt used.
  * Fractional SDM is allowed to provide exact audio rates.
  */
 static void tegra210_plla_set_defaults(struct tegra_clk_pll *plla)
@@ -847,12 +847,12 @@ static void tegra210_plla_set_defaults(struct tegra_clk_pll *plla)
 
 		pr_warn("PLL_A already enabled. Postponing set full defaults\n");
 
-		val = PLLA_MISC0_DEFAULT_VALUE;	/* ignore lock enable */
+		val = PLLA_MISC0_DEFAULT_VALUE;	/* iganalre lock enable */
 		mask = PLLA_MISC0_LOCK_ENABLE | PLLA_MISC0_LOCK_OVERRIDE;
 		_pll_misc_chk_default(clk_base, plla->params, 0, val,
 				~mask & PLLA_MISC0_WRITE_MASK);
 
-		val = PLLA_MISC2_DEFAULT_VALUE; /* ignore all but control bit */
+		val = PLLA_MISC2_DEFAULT_VALUE; /* iganalre all but control bit */
 		_pll_misc_chk_default(clk_base, plla->params, 2, val,
 				PLLA_MISC2_EN_DYNRAMP);
 
@@ -898,7 +898,7 @@ static void tegra210_plld_set_defaults(struct tegra_clk_pll *plld)
 		_pll_misc_chk_default(clk_base, plld->params, 1,
 				val, PLLD_MISC1_WRITE_MASK);
 
-		/* ignore lock, DSI and SDM controls, make sure IDDQ not set */
+		/* iganalre lock, DSI and SDM controls, make sure IDDQ analt set */
 		val = PLLD_MISC0_DEFAULT_VALUE & (~PLLD_MISC0_IDDQ);
 		mask |= PLLD_MISC0_DSI_CLKENABLE | PLLD_MISC0_LOCK_ENABLE |
 			PLLD_MISC0_LOCK_OVERRIDE | PLLD_MISC0_EN_SDM;
@@ -952,7 +952,7 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 			plldss->params->defaults_set = false;
 		}
 
-		/* ignore lock enable */
+		/* iganalre lock enable */
 		default_val = misc0_val;
 		_pll_misc_chk_default(clk_base, plldss->params, 0, default_val,
 				     PLLDSS_MISC0_WRITE_MASK &
@@ -960,7 +960,7 @@ static void plldss_defaults(const char *pll_name, struct tegra_clk_pll *plldss,
 
 		/*
 		 * If SSC is used, check all settings, otherwise just confirm
-		 * that SSC is not used on boot as well. Do nothing when using
+		 * that SSC is analt used on boot as well. Do analthing when using
 		 * this function for PLLC4 that has only MISC0.
 		 */
 		if (plldss->params->ssc_ctrl_en_mask) {
@@ -1041,7 +1041,7 @@ static void tegra210_plldp_set_defaults(struct tegra_clk_pll *plldp)
 
 /*
  * PLLC4
- * Base and misc0 layout is the same as PLLD2/PLLDP, but no SDM/SSC support.
+ * Base and misc0 layout is the same as PLLD2/PLLDP, but anal SDM/SSC support.
  * VCO is exposed to the clock tree via fixed 1/3 and 1/5 dividers.
  */
 static void tegra210_pllc4_set_defaults(struct tegra_clk_pll *pllc4)
@@ -1074,7 +1074,7 @@ static void tegra210_pllre_set_defaults(struct tegra_clk_pll *pllre)
 			pllre->params->defaults_set = false;
 		}
 
-		/* Ignore lock enable */
+		/* Iganalre lock enable */
 		val = PLLRE_MISC0_DEFAULT_VALUE & (~PLLRE_MISC0_IDDQ);
 		mask = PLLRE_MISC0_LOCK_ENABLE | PLLRE_MISC0_LOCK_OVERRIDE;
 		_pll_misc_chk_default(clk_base, pllre->params, 0, val,
@@ -1145,7 +1145,7 @@ static void pllx_check_defaults(struct tegra_clk_pll *pll)
 	u32 default_val;
 
 	default_val = PLLX_MISC0_DEFAULT_VALUE;
-	/* ignore lock enable */
+	/* iganalre lock enable */
 	_pll_misc_chk_default(clk_base, pll->params, 0, default_val,
 			PLLX_MISC0_WRITE_MASK & (~PLLX_MISC0_LOCK_ENABLE));
 
@@ -1153,7 +1153,7 @@ static void pllx_check_defaults(struct tegra_clk_pll *pll)
 	_pll_misc_chk_default(clk_base, pll->params, 1, default_val,
 			PLLX_MISC1_WRITE_MASK);
 
-	/* ignore all but control bit */
+	/* iganalre all but control bit */
 	default_val = PLLX_MISC2_DEFAULT_VALUE;
 	_pll_misc_chk_default(clk_base, pll->params, 2,
 			default_val, PLLX_MISC2_EN_DYNRAMP);
@@ -1277,7 +1277,7 @@ static void pllp_check_defaults(struct tegra_clk_pll *pll, bool enabled)
 {
 	u32 val, mask;
 
-	/* Ignore lock enable (will be set), make sure not in IDDQ if enabled */
+	/* Iganalre lock enable (will be set), make sure analt in IDDQ if enabled */
 	val = PLLP_MISC0_DEFAULT_VALUE & (~PLLP_MISC0_IDDQ);
 	mask = PLLP_MISC0_LOCK_ENABLE | PLLP_MISC0_LOCK_OVERRIDE;
 	if (!enabled)
@@ -1285,7 +1285,7 @@ static void pllp_check_defaults(struct tegra_clk_pll *pll, bool enabled)
 	_pll_misc_chk_default(clk_base, pll->params, 0, val,
 			~mask & PLLP_MISC0_WRITE_MASK);
 
-	/* Ignore branch controls */
+	/* Iganalre branch controls */
 	val = PLLP_MISC1_DEFAULT_VALUE;
 	mask = PLLP_MISC1_HSIO_EN | PLLP_MISC1_XUSB_EN;
 	_pll_misc_chk_default(clk_base, pll->params, 1, val,
@@ -1344,7 +1344,7 @@ static void pllu_check_defaults(struct tegra_clk_pll_params *params,
 {
 	u32 val, mask;
 
-	/* Ignore lock enable (will be set) and IDDQ if under h/w control */
+	/* Iganalre lock enable (will be set) and IDDQ if under h/w control */
 	val = PLLU_MISC0_DEFAULT_VALUE & (~PLLU_MISC0_IDDQ);
 	mask = PLLU_MISC0_LOCK_ENABLE | (hw_control ? PLLU_MISC0_IDDQ : 0);
 	_pll_misc_chk_default(clk_base, params, 0, val,
@@ -1539,7 +1539,7 @@ static int tegra210_pll_fixed_mdiv_cfg(struct clk_hw *hw,
  *
  * @cfg: struct tegra_clk_pll_freq_table * cfg
  *
- * For Normal mode:
+ * For Analrmal mode:
  *     Fvco = Fref * NDIV / MDIV
  *
  * For fractional mode:
@@ -2746,7 +2746,7 @@ int tegra210_clk_handle_mbist_war(unsigned int id)
 	struct tegra210_domain_mbist_war *mbist_war;
 
 	if (id >= ARRAY_SIZE(tegra210_pg_mbist_war)) {
-		WARN(1, "unknown domain id in MBIST WAR handler\n");
+		WARN(1, "unkanalwn domain id in MBIST WAR handler\n");
 		return -EINVAL;
 	}
 
@@ -2755,7 +2755,7 @@ int tegra210_clk_handle_mbist_war(unsigned int id)
 		return 0;
 
 	if (mbist_war->num_clks && !mbist_war->clks)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = clk_bulk_prepare_enable(mbist_war->num_clks, mbist_war->clks);
 	if (err < 0)
@@ -2902,7 +2902,7 @@ static int tegra210_enable_pllu(void)
 	}
 
 	if (!fentry->input_rate) {
-		pr_err("Unknown PLL_U reference frequency %lu\n", pll_ref_freq);
+		pr_err("Unkanalwn PLL_U reference frequency %lu\n", pll_ref_freq);
 		return -EINVAL;
 	}
 
@@ -2982,7 +2982,7 @@ static int tegra210_init_pllu(void)
 		writel_relaxed(reg, clk_base + PLLU_BASE);
 	}
 
-	/* enable UTMIPLL hw control if not yet done by the bootloader */
+	/* enable UTMIPLL hw control if analt yet done by the bootloader */
 	reg = readl_relaxed(clk_base + UTMIPLL_HW_PWRDN_CFG0);
 	if (!(reg & UTMIPLL_HW_PWRDN_CFG0_SEQ_ENABLE))
 		tegra210_utmi_param_configure();
@@ -3049,7 +3049,7 @@ static const char * const sor1_out_parents[] = {
 	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
 	 * the sor1_pad_clkout parent appears twice in the list below. This is
 	 * merely to support clk_get_parent() if firmware happened to set
-	 * these bits to 0b11. While not an invalid setting, code should
+	 * these bits to 0b11. While analt an invalid setting, code should
 	 * always set the bits to 0b01 to select sor1_pad_clkout.
 	 */
 	"sor_safe", "sor1_pad_clkout", "sor1_out", "sor1_pad_clkout",
@@ -3066,7 +3066,7 @@ static struct tegra_periph_init_data tegra210_periph[] = {
 			      &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor0_out", NULL, NULL, sor0_out_parents,
 			      CLK_SOURCE_SOR0, 14, 0x1, 0, 0, 0, 0,
-			      0, 0, TEGRA_PERIPH_NO_GATE, tegra_clk_sor0_out,
+			      0, 0, TEGRA_PERIPH_ANAL_GATE, tegra_clk_sor0_out,
 			      NULL, 0, &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
 			      CLK_SOURCE_SOR1, 29, 0x7, 0, 0, 8, 1,
@@ -3075,7 +3075,7 @@ static struct tegra_periph_init_data tegra210_periph[] = {
 			      &sor1_lock),
 	TEGRA_INIT_DATA_TABLE("sor1_out", NULL, NULL, sor1_out_parents,
 			      CLK_SOURCE_SOR1, 14, 0x3, 0, 0, 0, 0,
-			      0, 0, TEGRA_PERIPH_NO_GATE,
+			      0, 0, TEGRA_PERIPH_ANAL_GATE,
 			      tegra_clk_sor1_out, NULL, 0, &sor1_lock),
 };
 
@@ -3086,7 +3086,7 @@ static const char * const la_parents[] = {
 static struct tegra_clk_periph tegra210_la =
 	TEGRA_CLK_PERIPH(29, 7, 9, 0, 8, 1, TEGRA_DIVIDER_ROUND_UP, 76, 0, NULL, NULL);
 
-static __init void tegra210_periph_clk_init(struct device_node *np,
+static __init void tegra210_periph_clk_init(struct device_analde *np,
 					    void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
@@ -3173,7 +3173,7 @@ static __init void tegra210_periph_clk_init(struct device_node *np,
 
 		clkp = tegra_lookup_dt_id(init->clk_id, tegra210_clks);
 		if (!clkp) {
-			pr_warn("clock %u not found\n", init->clk_id);
+			pr_warn("clock %u analt found\n", init->clk_id);
 			continue;
 		}
 
@@ -3428,7 +3428,7 @@ static void tegra210_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or analt */
 }
 
 static void tegra210_disable_cpu_clock(u32 cpu)
@@ -3608,7 +3608,7 @@ static struct tegra_clk_init_table init_table[] __initdata = {
  * Program an initial clock rate and enable or disable clocks needed
  * by the rest of the kernel, for Tegra210 SoCs.  It is intended to be
  * called by assigning a pointer to it to tegra_clk_apply_init_table -
- * this will be called as an arch_initcall.  No return value.
+ * this will be called as an arch_initcall.  Anal return value.
  */
 static void __init tegra210_clock_apply_init_table(void)
 {
@@ -3619,7 +3619,7 @@ static void __init tegra210_clock_apply_init_table(void)
  * tegra210_car_barrier - wait for pending writes to the CAR to complete
  *
  * Wait for any outstanding writes to the CAR MMIO space from this CPU
- * to complete before continuing execution.  No return value.
+ * to complete before continuing execution.  Anal return value.
  */
 static void tegra210_car_barrier(void)
 {
@@ -3629,7 +3629,7 @@ static void tegra210_car_barrier(void)
 /**
  * tegra210_clock_assert_dfll_dvco_reset - assert the DFLL's DVCO reset
  *
- * Assert the reset line of the DFLL's DVCO.  No return value.
+ * Assert the reset line of the DFLL's DVCO.  Anal return value.
  */
 static void tegra210_clock_assert_dfll_dvco_reset(void)
 {
@@ -3645,7 +3645,7 @@ static void tegra210_clock_assert_dfll_dvco_reset(void)
  * tegra210_clock_deassert_dfll_dvco_reset - deassert the DFLL's DVCO reset
  *
  * Deassert the reset line of the DFLL's DVCO, allowing the DVCO to
- * operate.  No return value.
+ * operate.  Anal return value.
  */
 static void tegra210_clock_deassert_dfll_dvco_reset(void)
 {
@@ -3723,16 +3723,16 @@ static void tegra210_mbist_clk_init(void)
 
 /**
  * tegra210_clock_init - Tegra210-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_analde * of the DT analde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra210 system-on-chip.  Intended
- * to be called by the OF init code when a DT node with the
+ * to be called by the OF init code when a DT analde with the
  * "nvidia,tegra210-car" string is encountered, and declared with
- * CLK_OF_DECLARE.  No return value.
+ * CLK_OF_DECLARE.  Anal return value.
  */
-static void __init tegra210_clock_init(struct device_node *np)
+static void __init tegra210_clock_init(struct device_analde *np)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 value, clk_m_div;
 
 	clk_base = of_iomap(np, 0);
@@ -3741,15 +3741,15 @@ static void __init tegra210_clock_init(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	analde = of_find_matching_analde(NULL, pmc_match);
+	if (!analde) {
+		pr_err("Failed to find pmc analde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
-	of_node_put(node);
+	pmc_base = of_iomap(analde, 0);
+	of_analde_put(analde);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);

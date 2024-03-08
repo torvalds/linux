@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Handle USB control endpoint
@@ -46,7 +46,7 @@ int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
 
 	usb_buffer = kmemdup(buffer, length, GFP_KERNEL);
 	if (!usb_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end_unlock;
 	}
 
@@ -106,7 +106,7 @@ int vnt_control_in(struct vnt_private *priv, u8 request, u16 value,
 
 	usb_buffer = kmalloc(length, GFP_KERNEL);
 	if (!usb_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end_unlock;
 	}
 
@@ -137,17 +137,17 @@ int vnt_control_in_u8(struct vnt_private *priv, u8 reg, u8 reg_off, u8 *data)
 			      reg_off, reg, sizeof(u8), data);
 }
 
-static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
+static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_anal, u8 tsr)
 {
 	struct vnt_usb_send_context *context;
 	struct ieee80211_tx_info *info;
 	u8 tx_retry = (tsr & 0xf0) >> 4;
 	s8 idx;
 
-	if (pkt_no >= priv->num_tx_context)
+	if (pkt_anal >= priv->num_tx_context)
 		return -EINVAL;
 
-	context = priv->tx_context[pkt_no];
+	context = priv->tx_context[pkt_anal];
 
 	if (!context->skb)
 		return -EINVAL;
@@ -162,7 +162,7 @@ static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
 	if (!(tsr & TSR_TMO)) {
 		info->status.rates[0].idx = idx;
 
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		if (!(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
 			info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
@@ -218,7 +218,7 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	case -ETIMEDOUT:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	default:
@@ -277,7 +277,7 @@ static int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	skb = ptr_rcb->skb;
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
-	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
+	/* [31:16]RcvByteCount ( analt include 4-byte Status ) */
 	head = (struct vnt_rx_header *)skb->data;
 	frame_size = head->wbk_status >> 16;
 	frame_size += 4;
@@ -296,7 +296,7 @@ static int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
-	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
+	/* if SQ3 the range is 24~27, if anal SQ3 the range is 20~23 */
 
 	/*Fix hardware bug => PLCP_Length error */
 	if (((bytes_received - head->pay_load_len) > 27) ||
@@ -368,7 +368,7 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		return;
 	case -ETIMEDOUT:
@@ -432,7 +432,7 @@ static void vnt_tx_context_complete(struct urb *urb)
 			"Write %d bytes\n", urb->actual_length);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		context->in_use = false;
 		return;
@@ -464,12 +464,12 @@ int vnt_tx_context(struct vnt_private *priv,
 
 	usb = skb_push(skb, sizeof(*usb));
 	usb->tx_byte_count = cpu_to_le16(count);
-	usb->pkt_no = context->pkt_no;
+	usb->pkt_anal = context->pkt_anal;
 	usb->type = context->type;
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (skb->len > MAX_TOTAL_SIZE_WITH_ALL_HEADERS) {
@@ -480,7 +480,7 @@ int vnt_tx_context(struct vnt_private *priv,
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		context->in_use = false;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	usb_fill_bulk_urb(urb,

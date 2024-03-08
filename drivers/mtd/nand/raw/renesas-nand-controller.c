@@ -197,7 +197,7 @@ struct rnand_chip_sel {
 
 struct rnand_chip {
 	struct nand_chip chip;
-	struct list_head node;
+	struct list_head analde;
 	int selected_die;
 	u32 ctrl;
 	unsigned int nsels;
@@ -473,7 +473,7 @@ static int rnandc_read_page_hw_ecc(struct nand_chip *chip, u8 *buf,
 		bf = ECC_CNT(cs, readl_relaxed(rnandc->regs + ECC_CNT_REG));
 		/*
 		 * The number of bitflips is an approximation given the fact
-		 * that this controller does not provide per-chunk details but
+		 * that this controller does analt provide per-chunk details but
 		 * only gives statistics on the entire page.
 		 */
 		mtd->ecc_stats.corrected += bf;
@@ -567,7 +567,7 @@ static int rnandc_read_subpage_hw_ecc(struct nand_chip *chip, u32 req_offset,
 		bf = ECC_CNT(cs, readl_relaxed(rnandc->regs + ECC_CNT_REG));
 		/*
 		 * The number of bitflips is an approximation given the fact
-		 * that this controller does not provide per-chunk details but
+		 * that this controller does analt provide per-chunk details but
 		 * only gives statistics on the entire page.
 		 */
 		mtd->ecc_stats.corrected += bf;
@@ -676,7 +676,7 @@ static int rnandc_write_subpage_hw_ecc(struct nand_chip *chip, u32 req_offset,
 }
 
 /*
- * This controller is simple enough and thus does not need to use the parser
+ * This controller is simple eanalugh and thus does analt need to use the parser
  * provided by the core, instead, handle every situation here.
  */
 static int rnandc_exec_op(struct nand_chip *chip,
@@ -733,7 +733,7 @@ static int rnandc_exec_op(struct nand_chip *chip,
 					data_phase = 1;
 				break;
 			default:
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			break;
 
@@ -741,7 +741,7 @@ static int rnandc_exec_op(struct nand_chip *chip,
 			addrs = instr->ctx.addr.addrs;
 			naddrs = instr->ctx.addr.naddrs;
 			if (naddrs > 5)
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 
 			col_addrs = min(2U, naddrs);
 			row_addrs = naddrs > 2 ? naddrs - col_addrs : 0;
@@ -772,7 +772,7 @@ static int rnandc_exec_op(struct nand_chip *chip,
 					cmd_phase = 2;
 				break;
 			default:
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			break;
 
@@ -795,7 +795,7 @@ static int rnandc_exec_op(struct nand_chip *chip,
 					delay_phase = 1;
 				break;
 			default:
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			break;
 
@@ -816,7 +816,7 @@ static int rnandc_exec_op(struct nand_chip *chip,
 					data_phase = 1;
 				break;
 			default:
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			break;
 		}
@@ -832,8 +832,8 @@ static int rnandc_exec_op(struct nand_chip *chip,
 		rop.command |= COMMAND_SEQ_GEN_IN;
 
 	if (delays > 1) {
-		dev_err(rnandc->dev, "Cannot handle more than one wait delay\n");
-		return -EOPNOTSUPP;
+		dev_err(rnandc->dev, "Cananalt handle more than one wait delay\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (check_only)
@@ -1080,13 +1080,13 @@ static int rnandc_ecc_init(struct nand_chip *chip)
 	struct rnandc *rnandc = to_rnandc(chip->controller);
 	int ret;
 
-	if (ecc->engine_type != NAND_ECC_ENGINE_TYPE_NONE &&
+	if (ecc->engine_type != NAND_ECC_ENGINE_TYPE_ANALNE &&
 	    (!ecc->size || !ecc->strength)) {
 		if (requirements->step_size && requirements->strength) {
 			ecc->size = requirements->step_size;
 			ecc->strength = requirements->strength;
 		} else {
-			dev_err(rnandc->dev, "No minimum ECC strength\n");
+			dev_err(rnandc->dev, "Anal minimum ECC strength\n");
 			return -EINVAL;
 		}
 	}
@@ -1097,7 +1097,7 @@ static int rnandc_ecc_init(struct nand_chip *chip)
 		if (ret)
 			return ret;
 		break;
-	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_ANALNE:
 	case NAND_ECC_ENGINE_TYPE_SOFT:
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 		break;
@@ -1116,12 +1116,12 @@ static int rnandc_attach_chip(struct nand_chip *chip)
 	struct nand_memory_organization *memorg = nanddev_get_memorg(&chip->base);
 	int ret;
 
-	/* Do not store BBT bits in the OOB section as it is not protected */
+	/* Do analt store BBT bits in the OOB section as it is analt protected */
 	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		chip->bbt_options |= NAND_BBT_NO_OOB;
+		chip->bbt_options |= NAND_BBT_ANAL_OOB;
 
 	if (mtd->writesize <= 512) {
-		dev_err(rnandc->dev, "Small page devices not supported\n");
+		dev_err(rnandc->dev, "Small page devices analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1173,7 +1173,7 @@ static int rnandc_alloc_dma_buf(struct rnandc *rnandc,
 	struct nand_chip *chip;
 	struct mtd_info *mtd;
 
-	list_for_each_entry_safe(entry, temp, &rnandc->chips, node) {
+	list_for_each_entry_safe(entry, temp, &rnandc->chips, analde) {
 		chip = &entry->chip;
 		mtd = nand_to_mtd(chip);
 		max_len = max(max_len, mtd->writesize + mtd->oobsize);
@@ -1189,13 +1189,13 @@ static int rnandc_alloc_dma_buf(struct rnandc *rnandc,
 		rnandc->buf = devm_kmalloc(rnandc->dev, max_len,
 					   GFP_KERNEL | GFP_DMA);
 		if (!rnandc->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
 }
 
-static int rnandc_chip_init(struct rnandc *rnandc, struct device_node *np)
+static int rnandc_chip_init(struct rnandc *rnandc, struct device_analde *np)
 {
 	struct rnand_chip *rnand;
 	struct mtd_info *mtd;
@@ -1214,7 +1214,7 @@ static int rnandc_chip_init(struct rnandc *rnandc, struct device_node *np)
 	rnand = devm_kzalloc(rnandc->dev, struct_size(rnand, sels, nsels),
 			     GFP_KERNEL);
 	if (!rnand)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rnand->nsels = nsels;
 	rnand->selected_die = -1;
@@ -1237,7 +1237,7 @@ static int rnandc_chip_init(struct rnandc *rnandc, struct device_node *np)
 		}
 
 		/*
-		 * No need to check for RB or WP properties, there is a 1:1
+		 * Anal need to check for RB or WP properties, there is a 1:1
 		 * mandatory mapping with the CS.
 		 */
 		rnand->sels[i].cs = cs;
@@ -1245,7 +1245,7 @@ static int rnandc_chip_init(struct rnandc *rnandc, struct device_node *np)
 
 	chip = &rnand->chip;
 	chip->controller = &rnandc->controller;
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 
 	mtd = nand_to_mtd(chip);
 	mtd->dev.parent = rnandc->dev;
@@ -1270,7 +1270,7 @@ static int rnandc_chip_init(struct rnandc *rnandc, struct device_node *np)
 		goto cleanup_nand;
 	}
 
-	list_add_tail(&rnand->node, &rnandc->chips);
+	list_add_tail(&rnand->analde, &rnandc->chips);
 
 	return 0;
 
@@ -1286,24 +1286,24 @@ static void rnandc_chips_cleanup(struct rnandc *rnandc)
 	struct nand_chip *chip;
 	int ret;
 
-	list_for_each_entry_safe(entry, temp, &rnandc->chips, node) {
+	list_for_each_entry_safe(entry, temp, &rnandc->chips, analde) {
 		chip = &entry->chip;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&entry->node);
+		list_del(&entry->analde);
 	}
 }
 
 static int rnandc_chips_init(struct rnandc *rnandc)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
-	for_each_child_of_node(rnandc->dev->of_node, np) {
+	for_each_child_of_analde(rnandc->dev->of_analde, np) {
 		ret = rnandc_chip_init(rnandc, np);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto cleanup_chips;
 		}
 	}
@@ -1324,7 +1324,7 @@ static int rnandc_probe(struct platform_device *pdev)
 
 	rnandc = devm_kzalloc(&pdev->dev, sizeof(*rnandc), GFP_KERNEL);
 	if (!rnandc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rnandc->dev = &pdev->dev;
 	nand_controller_init(&rnandc->controller);
@@ -1357,7 +1357,7 @@ static int rnandc_probe(struct platform_device *pdev)
 		ret = irq;
 		goto dis_runtime_pm;
 	} else if (irq < 0) {
-		dev_info(&pdev->dev, "No IRQ found, fallback to polling\n");
+		dev_info(&pdev->dev, "Anal IRQ found, fallback to polling\n");
 		rnandc->use_polling = true;
 	} else {
 		ret = devm_request_irq(&pdev->dev, irq, rnandc_irq_handler, 0,

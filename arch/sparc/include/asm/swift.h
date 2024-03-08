@@ -24,14 +24,14 @@
 #define SWIFT_IE       0x00000200   /* Instruction cache enable */
 #define SWIFT_DE       0x00000100   /* Data cache enable */
 #define SWIFT_SA       0x00000080   /* Store Allocate */
-#define SWIFT_NF       0x00000002   /* No fault mode */
+#define SWIFT_NF       0x00000002   /* Anal fault mode */
 #define SWIFT_EN       0x00000001   /* MMU enable */
 
 /* Bits [13:5] select one of 512 instruction cache tags */
 static inline void swift_inv_insn_tag(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (addr), "i" (ASI_M_TXTC_TAG)
 			     : "memory");
 }
@@ -40,7 +40,7 @@ static inline void swift_inv_insn_tag(unsigned long addr)
 static inline void swift_inv_data_tag(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (addr), "i" (ASI_M_DATAC_TAG)
 			     : "memory");
 }
@@ -75,7 +75,7 @@ static inline void swift_idflash_clear(void)
 static inline void swift_flush_page(unsigned long page)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (page), "i" (ASI_M_FLUSH_PAGE)
 			     : "memory");
 }
@@ -83,7 +83,7 @@ static inline void swift_flush_page(unsigned long page)
 static inline void swift_flush_segment(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (addr), "i" (ASI_M_FLUSH_SEG)
 			     : "memory");
 }
@@ -91,7 +91,7 @@ static inline void swift_flush_segment(unsigned long addr)
 static inline void swift_flush_region(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "r" (addr), "i" (ASI_M_FLUSH_REGION)
 			     : "memory");
 }
@@ -99,7 +99,7 @@ static inline void swift_flush_region(unsigned long addr)
 static inline void swift_flush_context(void)
 {
 	__asm__ __volatile__("sta %%g0, [%%g0] %0\n\t"
-			     : /* no outputs */
+			     : /* anal outputs */
 			     : "i" (ASI_M_FLUSH_CTX)
 			     : "memory");
 }

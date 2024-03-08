@@ -2,7 +2,7 @@
 /*
  * rseq-ppc-bits.h
  *
- * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2018 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  * (C) Copyright 2016-2018 - Boqun Feng <boqun.feng@gmail.com>
  */
 
@@ -41,7 +41,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_storev)(intptr_t *v, intptr_t expect, i
 		RSEQ_ASM_OP_FINAL_STORE(newv, v, 2)
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -76,7 +76,7 @@ error2:
 }
 
 static inline __attribute__((always_inline))
-int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectnot,
+int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t expectanalt,
 			       long voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -93,14 +93,14 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 		/* cmp cpuid */
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
-		/* cmp @v not equal to @expectnot */
-		RSEQ_ASM_OP_CMPNE(v, expectnot, %l[cmpfail])
+		/* cmp @v analt equal to @expectanalt */
+		RSEQ_ASM_OP_CMPNE(v, expectanalt, %l[cmpfail])
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		/* cmp cpuid */
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
-		/* cmp @v not equal to @expectnot */
-		RSEQ_ASM_OP_CMPNE(v, expectnot, %l[error2])
+		/* cmp @v analt equal to @expectanalt */
+		RSEQ_ASM_OP_CMPNE(v, expectanalt, %l[error2])
 #endif
 		/* load the value of @v */
 		RSEQ_ASM_OP_R_LOAD(v)
@@ -112,13 +112,13 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpnev_storeoffp_load)(intptr_t *v, intptr_t e
 		RSEQ_ASM_OP_R_FINAL_STORE(v, 2)
 		RSEQ_INJECT_ASM(5)
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
 		  /* final store input */
 		  [v]			"m" (*v),
-		  [expectnot]		"r" (expectnot),
+		  [expectanalt]		"r" (expectanalt),
 		  [voffp]		"b" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
@@ -175,7 +175,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_addv)(intptr_t *v, intptr_t count, int cpu)
 		RSEQ_ASM_OP_R_FINAL_STORE(v, 2)
 		RSEQ_INJECT_ASM(4)
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -241,7 +241,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_cmpeqv_storev)(intptr_t *v, intptr_t ex
 		RSEQ_ASM_OP_FINAL_STORE(newv, v, 2)
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -327,7 +327,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trystorev_storev)(intptr_t *v, intptr_t
 		RSEQ_ASM_OP_FINAL_STORE(newv, v, 2)
 		RSEQ_INJECT_ASM(6)
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),
@@ -409,7 +409,7 @@ int RSEQ_TEMPLATE_IDENTIFIER(rseq_cmpeqv_trymemcpy_storev)(intptr_t *v, intptr_t
 		RSEQ_INJECT_ASM(6)
 		/* teardown */
 		RSEQ_ASM_DEFINE_ABORT(4, abort)
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does analt allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (rseq_get_abi()->RSEQ_TEMPLATE_CPU_ID_FIELD),
 		  [rseq_cs]		"m" (rseq_get_abi()->rseq_cs.arch.ptr),

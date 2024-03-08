@@ -20,7 +20,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -46,7 +46,7 @@ static int h4_open(struct hci_uart *hu)
 
 	h4 = kzalloc(sizeof(*h4), GFP_KERNEL);
 	if (!h4)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&h4->txq);
 
@@ -181,7 +181,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				skb = bt_skb_alloc((&pkts[i])->maxlen,
 						   GFP_ATOMIC);
 				if (!skb)
-					return ERR_PTR(-ENOMEM);
+					return ERR_PTR(-EANALMEM);
 
 				hci_skb_pkt_type(skb) = (&pkts[i])->type;
 				hci_skb_expect(skb) = (&pkts[i])->hlen;
@@ -221,7 +221,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 
 			switch ((&pkts[i])->lsize) {
 			case 0:
-				/* No variable data length */
+				/* Anal variable data length */
 				dlen = 0;
 				break;
 			case 1:
@@ -255,7 +255,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 				hu->padding = (skb->len + 1) % alignment;
 				hu->padding = (alignment - hu->padding) % alignment;
 
-				/* No more data, complete frame */
+				/* Anal more data, complete frame */
 				(&pkts[i])->recv(hdev, skb);
 				skb = NULL;
 			}

@@ -47,7 +47,7 @@
 
 #define mtctl(gr, cr) \
 	__asm__ __volatile__("mtctl %0,%1" \
-		: /* no outputs */ \
+		: /* anal outputs */ \
 		: "r" (gr), "i" (cr) : "memory")
 
 #define get_eiem()	mfctl(CR_EIEM)
@@ -67,7 +67,7 @@
 	 __asm__ __volatile__("mtsp %%r0,%0" : : "i" (cr) : "memory"); \
 	else \
 	 __asm__ __volatile__("mtsp %0,%1" \
-		: /* no outputs */ \
+		: /* anal outputs */ \
 		: "r" (val), "i" (cr) : "memory"); }
 
 #endif /* __PARISC_SPECIAL_INSNS_H */

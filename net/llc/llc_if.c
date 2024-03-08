@@ -1,7 +1,7 @@
 /*
  * llc_if.c - Defines LLC interface to upper layer
  *
- * Copyright (c) 1997 by Procom Technology, Inc.
+ * Copyright (c) 1997 by Procom Techanallogy, Inc.
  * 		 2001-2003 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/llc_if.h>
 #include <net/llc_sap.h>
 #include <net/llc_s_ev.h>
@@ -35,7 +35,7 @@
  *	connection oriented communication mode. During sending data, connection
  *	will be locked and received frames and expired timers will be queued.
  *	Returns 0 for success, -ECONNABORTED when the connection already
- *	closed and -EBUSY when sending data is not permitted in this state or
+ *	closed and -EBUSY when sending data is analt permitted in this state or
  *	LLC has send an I pdu with p bit set to 1 and is waiting for it's
  *	response.
  *
@@ -101,7 +101,7 @@ int llc_establish_connection(struct sock *sk, const u8 *lmac, u8 *dmac, u8 dsap)
 			sock_put(existing);
 	}
 	sock_hold(sk);
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	skb = alloc_skb(0, GFP_ATOMIC);
 	if (skb) {
 		struct llc_conn_state_ev *ev = llc_conn_ev(skb);

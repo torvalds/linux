@@ -39,7 +39,7 @@ void otx_cpt_dump_sg_list(struct pci_dev *pdev, struct otx_cpt_req_info *req)
 			 (void *) req->in[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n",
 			 req->in[i].size);
-		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("", DUMP_PREFIX_ANALNE, 16, 1,
 				     req->in[i].vptr, req->in[i].size, false);
 	}
 
@@ -49,7 +49,7 @@ void otx_cpt_dump_sg_list(struct pci_dev *pdev, struct otx_cpt_req_info *req)
 			 req->out[i].size, req->out[i].vptr,
 			 (void *) req->out[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n", req->out[i].size);
-		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("", DUMP_PREFIX_ANALNE, 16, 1,
 				     req->out[i].vptr, req->out[i].size, false);
 	}
 }
@@ -196,7 +196,7 @@ static inline int setup_sgio_list(struct pci_dev *pdev,
 	info = kzalloc(total_mem_len, gfp);
 	if (unlikely(!info)) {
 		dev_err(&pdev->dev, "Memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	*pinfo = info;
 	info->dlen = dlen;
@@ -262,7 +262,7 @@ static void cpt_fill_inst(union otx_cpt_inst_s *inst,
 /*
  * On OcteonTX platform the parameter db_count is used as a count for ringing
  * door bell. The valid values for db_count are:
- * 0 - 1 CPT instruction will be enqueued however CPT will not be informed
+ * 0 - 1 CPT instruction will be enqueued however CPT will analt be informed
  * 1 - 1 CPT instruction will be enqueued and CPT will be informed
  */
 static void cpt_send_cmd(union otx_cpt_inst_s *cptinst, struct otx_cptvf *cptvf)
@@ -275,7 +275,7 @@ static void cpt_send_cmd(union otx_cpt_inst_s *cptinst, struct otx_cptvf *cptvf)
 	queue = &qinfo->queue[0];
 	/*
 	 * cpt_send_cmd is currently called only from critical section
-	 * therefore no locking is required for accessing instruction queue
+	 * therefore anal locking is required for accessing instruction queue
 	 */
 	ent = &queue->qhead->head[queue->idx * OTX_CPT_INST_SIZE];
 	memcpy(ent, (void *) cptinst, OTX_CPT_INST_SIZE);
@@ -332,7 +332,7 @@ static int process_request(struct pci_dev *pdev, struct otx_cpt_req_info *req,
 	}
 
 	if (unlikely(!pentry)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		spin_unlock_bh(&pqueue->lock);
 		goto request_cleanup;
 	}
@@ -407,8 +407,8 @@ int otx_cpt_do_request(struct pci_dev *pdev, struct otx_cpt_req_info *req,
 	struct otx_cptvf *cptvf = pci_get_drvdata(pdev);
 
 	if (!otx_cpt_device_ready(cptvf)) {
-		dev_err(&pdev->dev, "CPT Device is not ready\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "CPT Device is analt ready\n");
+		return -EANALDEV;
 	}
 
 	if ((cptvf->vftype == OTX_CPT_SE_TYPES) && (!req->ctrl.s.se_req)) {

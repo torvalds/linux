@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is analw implemented as a module
  *              over the Netfilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
@@ -120,7 +120,7 @@ struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name)
 	sched = ip_vs_sched_getbyname(sched_name);
 
 	/*
-	 *  If scheduler not found, load the module and search again
+	 *  If scheduler analt found, load the module and search again
 	 */
 	if (sched == NULL) {
 		request_module("ip_vs_%s", sched_name);
@@ -143,7 +143,7 @@ void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler)
 void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg)
 {
 	struct ip_vs_scheduler *sched = rcu_dereference(svc->scheduler);
-	char *sched_name = sched ? sched->name : "none";
+	char *sched_name = sched ? sched->name : "analne";
 
 	if (svc->fwmark) {
 		IP_VS_ERR_RL("%s: FWM %u 0x%08X - %s\n",
@@ -180,7 +180,7 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc())
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&ip_vs_sched_mutex);
 
@@ -230,7 +230,7 @@ int unregister_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	mutex_lock(&ip_vs_sched_mutex);
 	if (list_empty(&scheduler->n_list)) {
 		mutex_unlock(&ip_vs_sched_mutex);
-		pr_err("%s(): [%s] scheduler is not in the list. failed\n",
+		pr_err("%s(): [%s] scheduler is analt in the list. failed\n",
 		       __func__, scheduler->name);
 		return -EINVAL;
 	}

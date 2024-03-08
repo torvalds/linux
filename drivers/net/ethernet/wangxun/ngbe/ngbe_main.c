@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2019 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/types.h>
 #include <linux/module.h>
@@ -24,7 +24,7 @@ char ngbe_driver_name[] = "ngbe";
 /* ngbe_pci_tbl - PCI Device ID Table
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (analt used) }
  */
 static const struct pci_device_id ngbe_pci_tbl[] = {
 	{ PCI_VDEVICE(WANGXUN, NGBE_DEV_ID_EM_WX1860AL_W), 0},
@@ -109,7 +109,7 @@ static int ngbe_sw_init(struct wx *wx)
 	wx->max_q_vectors = NGBE_MAX_MSIX_VECTORS;
 	err = wx_get_pcie_msix_counts(wx, &msix_count, NGBE_MAX_MSIX_VECTORS);
 	if (err)
-		dev_err(&pdev->dev, "Do not support MSI-X\n");
+		dev_err(&pdev->dev, "Do analt support MSI-X\n");
 	wx->mac.max_msix_vectors = msix_count;
 
 	wx->ring_feature[RING_F_RSS].limit = min_t(int, NGBE_MAX_RSS_INDICES,
@@ -179,7 +179,7 @@ static irqreturn_t ngbe_intr(int __always_unused irq, void *data)
 		 */
 		if (netif_running(wx->netdev))
 			ngbe_irq_enable(wx, true);
-		return IRQ_NONE;        /* Not our interrupt */
+		return IRQ_ANALNE;        /* Analt our interrupt */
 	}
 	wx->isb_mem[WX_ISB_VEC0] = 0;
 	if (!(pdev->msi_enabled))
@@ -199,7 +199,7 @@ static irqreturn_t ngbe_msix_other(int __always_unused irq, void *data)
 {
 	struct wx *wx = data;
 
-	/* re-enable the original interrupt state, no lsc, no queues */
+	/* re-enable the original interrupt state, anal lsc, anal queues */
 	if (netif_running(wx->netdev))
 		ngbe_irq_enable(wx, false);
 
@@ -303,7 +303,7 @@ static void ngbe_disable_device(struct wx *wx)
 	if (wx->gpio_ctrl)
 		ngbe_sfp_modules_txrx_powerctl(wx, false);
 	wx_irq_disable(wx);
-	/* disable transmits in the hardware now that interrupts are off */
+	/* disable transmits in the hardware analw that interrupts are off */
 	for (i = 0; i < wx->num_tx_queues; i++) {
 		u8 reg_idx = wx->tx_ring[i]->reg_idx;
 
@@ -395,7 +395,7 @@ err_free_resources:
  * ngbe_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is analt allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -472,7 +472,7 @@ int ngbe_setup_tc(struct net_device *dev, u8 tc)
 
 	/* Hardware has to reinitialize queues and interrupts to
 	 * match packet buffer alignment. Unfortunately, the
-	 * hardware is not flexible enough to do this dynamically.
+	 * hardware is analt flexible eanalugh to do this dynamically.
 	 */
 	if (netif_running(dev))
 		ngbe_close(dev);
@@ -536,7 +536,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
 		dev_err(&pdev->dev,
-			"No usable DMA configuration, aborting\n");
+			"Anal usable DMA configuration, aborting\n");
 		goto err_pci_disable_dev;
 	}
 
@@ -556,7 +556,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 					 NGBE_MAX_TX_QUEUES,
 					 NGBE_MAX_RX_QUEUES);
 	if (!netdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pci_release_regions;
 	}
 
@@ -593,7 +593,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_GRO;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
-	netdev->priv_flags |= IFF_SUPP_NOFCS;
+	netdev->priv_flags |= IFF_SUPP_ANALFCS;
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -616,7 +616,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 	err = wx_mng_present(wx);
 	if (err) {
-		dev_err(&pdev->dev, "Management capability is not present\n");
+		dev_err(&pdev->dev, "Management capability is analt present\n");
 		goto err_free_mac_table;
 	}
 
@@ -639,7 +639,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 		/* make sure the EEPROM is ready */
 		err = ngbe_eeprom_chksum_hostif(wx);
 		if (err) {
-			dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
+			dev_err(&pdev->dev, "The EEPROM Checksum Is Analt Valid\n");
 			err = -EIO;
 			goto err_free_mac_table;
 		}
@@ -755,7 +755,7 @@ static int ngbe_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		wx_err(wx, "Cannot enable PCI device from suspend\n");
+		wx_err(wx, "Cananalt enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -786,6 +786,6 @@ static struct pci_driver ngbe_driver = {
 module_pci_driver(ngbe_driver);
 
 MODULE_DEVICE_TABLE(pci, ngbe_pci_tbl);
-MODULE_AUTHOR("Beijing WangXun Technology Co., Ltd, <software@net-swift.com>");
+MODULE_AUTHOR("Beijing WangXun Techanallogy Co., Ltd, <software@net-swift.com>");
 MODULE_DESCRIPTION("WangXun(R) Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL");

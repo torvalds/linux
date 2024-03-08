@@ -33,11 +33,11 @@
  *  +---+-------+--------------------------------------------------------------+
  *  | 2 |  31:0 | **STATUS** - status of the CTB                               |
  *  |   |       |                                                              |
- *  |   |       |   - _`GUC_CTB_STATUS_NO_ERROR` = 0 (normal operation)        |
+ *  |   |       |   - _`GUC_CTB_STATUS_ANAL_ERROR` = 0 (analrmal operation)        |
  *  |   |       |   - _`GUC_CTB_STATUS_OVERFLOW` = 1 (head/tail too large)     |
  *  |   |       |   - _`GUC_CTB_STATUS_UNDERFLOW` = 2 (truncated message)      |
  *  |   |       |   - _`GUC_CTB_STATUS_MISMATCH` = 4 (head/tail modified)      |
- *  |   |       |   - _`GUC_CTB_STATUS_UNUSED` = 8 (CTB is not in use)         |
+ *  |   |       |   - _`GUC_CTB_STATUS_UNUSED` = 8 (CTB is analt in use)         |
  *  +---+-------+--------------------------------------------------------------+
  *  |...|       | RESERVED = MBZ                                               |
  *  +---+-------+--------------------------------------------------------------+
@@ -49,7 +49,7 @@ struct guc_ct_buffer_desc {
 	u32 head;
 	u32 tail;
 	u32 status;
-#define GUC_CTB_STATUS_NO_ERROR				0
+#define GUC_CTB_STATUS_ANAL_ERROR				0
 #define GUC_CTB_STATUS_OVERFLOW				BIT(0)
 #define GUC_CTB_STATUS_UNDERFLOW			BIT(1)
 #define GUC_CTB_STATUS_MISMATCH				BIT(2)

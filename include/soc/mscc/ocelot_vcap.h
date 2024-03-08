@@ -60,7 +60,7 @@ struct vcap_props {
 };
 
 /* VCAP Type-Group values */
-#define VCAP_TG_NONE 0 /* Entry is invalid */
+#define VCAP_TG_ANALNE 0 /* Entry is invalid */
 #define VCAP_TG_FULL 1 /* Full entry */
 #define VCAP_TG_HALF 2 /* Half entry */
 #define VCAP_TG_QUARTER 3 /* Quarter entry */
@@ -141,19 +141,19 @@ struct vcap_props {
 #define IS2_TYPE_MASK_IP_ANY 0xe
 
 enum {
-	IS2_ACTION_TYPE_NORMAL,
+	IS2_ACTION_TYPE_ANALRMAL,
 	IS2_ACTION_TYPE_SMAC_SIP,
 	IS2_ACTION_TYPE_MAX,
 };
 
 /* IS2 MASK_MODE values */
-#define IS2_ACT_MASK_MODE_NONE 0
+#define IS2_ACT_MASK_MODE_ANALNE 0
 #define IS2_ACT_MASK_MODE_FILTER 1
 #define IS2_ACT_MASK_MODE_POLICY 2
 #define IS2_ACT_MASK_MODE_REDIR 3
 
 /* IS2 REW_OP values */
-#define IS2_ACT_REW_OP_NONE 0
+#define IS2_ACT_REW_OP_ANALNE 0
 #define IS2_ACT_REW_OP_PTP_ONE 2
 #define IS2_ACT_REW_OP_PTP_TWO 3
 #define IS2_ACT_REW_OP_SPECIAL 8
@@ -211,7 +211,7 @@ enum vcap_is2_half_key_field {
 	VCAP_IS2_HK_MAC_ARP_LEN_OK,
 	VCAP_IS2_HK_MAC_ARP_TARGET_MATCH,
 	VCAP_IS2_HK_MAC_ARP_SENDER_MATCH,
-	VCAP_IS2_HK_MAC_ARP_OPCODE_UNKNOWN,
+	VCAP_IS2_HK_MAC_ARP_OPCODE_UNKANALWN,
 	VCAP_IS2_HK_MAC_ARP_OPCODE,
 	VCAP_IS2_HK_MAC_ARP_L3_IP4_DIP,
 	VCAP_IS2_HK_MAC_ARP_L3_IP4_SIP,
@@ -287,16 +287,16 @@ enum vcap_is2_action_field {
  */
 
 /* IS1 half key types */
-#define IS1_TYPE_S1_NORMAL 0
+#define IS1_TYPE_S1_ANALRMAL 0
 #define IS1_TYPE_S1_5TUPLE_IP4 1
 
 /* IS1 full key types */
-#define IS1_TYPE_S1_NORMAL_IP6 0
+#define IS1_TYPE_S1_ANALRMAL_IP6 0
 #define IS1_TYPE_S1_7TUPLE 1
 #define IS2_TYPE_S1_5TUPLE_IP6 2
 
 enum {
-	IS1_ACTION_TYPE_NORMAL,
+	IS1_ACTION_TYPE_ANALRMAL,
 	IS1_ACTION_TYPE_MAX,
 };
 
@@ -315,7 +315,7 @@ enum vcap_is1_half_key_field {
 	VCAP_IS1_HK_VID,
 	VCAP_IS1_HK_DEI,
 	VCAP_IS1_HK_PCP,
-	/* Specific Fields for IS1 Half Key S1_NORMAL */
+	/* Specific Fields for IS1 Half Key S1_ANALRMAL */
 	VCAP_IS1_HK_L2_SMAC,
 	VCAP_IS1_HK_ETYPE_LEN,
 	VCAP_IS1_HK_ETYPE,
@@ -378,7 +378,7 @@ enum vcap_is1_action_field {
  */
 
 enum {
-	ES0_ACTION_TYPE_NORMAL,
+	ES0_ACTION_TYPE_ANALRMAL,
 	ES0_ACTION_TYPE_MAX,
 };
 
@@ -528,7 +528,7 @@ struct ocelot_vcap_key_arp {
 	struct ocelot_vcap_u48 smac;
 	enum ocelot_vcap_bit arp;	/* Opcode ARP/RARP */
 	enum ocelot_vcap_bit req;	/* Opcode request/reply */
-	enum ocelot_vcap_bit unknown;    /* Opcode unknown */
+	enum ocelot_vcap_bit unkanalwn;    /* Opcode unkanalwn */
 	enum ocelot_vcap_bit smac_match; /* Sender MAC matches SMAC */
 	enum ocelot_vcap_bit dmac_match; /* Target MAC matches DMAC */
 
@@ -549,7 +549,7 @@ struct ocelot_vcap_key_ipv4 {
 	struct ocelot_vcap_u8 proto;      /* Protocol */
 	struct ocelot_vcap_ipv4 sip;      /* Source IP address */
 	struct ocelot_vcap_ipv4 dip;      /* Destination IP address */
-	struct ocelot_vcap_u48 data;      /* Not UDP/TCP: IP data */
+	struct ocelot_vcap_u48 data;      /* Analt UDP/TCP: IP data */
 	struct ocelot_vcap_udp_tcp sport; /* UDP/TCP: Source port */
 	struct ocelot_vcap_udp_tcp dport; /* UDP/TCP: Destination port */
 	enum ocelot_vcap_bit tcp_fin;
@@ -565,11 +565,11 @@ struct ocelot_vcap_key_ipv4 {
 
 struct ocelot_vcap_key_ipv6 {
 	struct ocelot_vcap_u8 proto; /* IPv6 protocol */
-	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 ignored) */
-	struct ocelot_vcap_u128 dip; /* IPv6 destination (byte 0-7 ignored) */
+	struct ocelot_vcap_u128 sip; /* IPv6 source (byte 0-7 iganalred) */
+	struct ocelot_vcap_u128 dip; /* IPv6 destination (byte 0-7 iganalred) */
 	enum ocelot_vcap_bit ttl;  /* TTL zero */
 	struct ocelot_vcap_u8 ds;
-	struct ocelot_vcap_u48 data; /* Not UDP/TCP: IP data */
+	struct ocelot_vcap_u48 data; /* Analt UDP/TCP: IP data */
 	struct ocelot_vcap_udp_tcp sport;
 	struct ocelot_vcap_udp_tcp dport;
 	enum ocelot_vcap_bit tcp_fin;
@@ -584,7 +584,7 @@ struct ocelot_vcap_key_ipv6 {
 };
 
 enum ocelot_mask_mode {
-	OCELOT_MASK_MODE_NONE,
+	OCELOT_MASK_MODE_ANALNE,
 	OCELOT_MASK_MODE_PERMIT_DENY,
 	OCELOT_MASK_MODE_POLICY,
 	OCELOT_MASK_MODE_REDIRECT,
@@ -601,7 +601,7 @@ enum ocelot_es0_pcp_sel {
 };
 
 enum ocelot_es0_tag {
-	OCELOT_NO_ES0_TAG,
+	OCELOT_ANAL_ES0_TAG,
 	OCELOT_ES0_TAG,
 	OCELOT_FORCE_PORT_TAG,
 	OCELOT_FORCE_UNTAG,
@@ -707,7 +707,7 @@ struct ocelot_vcap_filter {
 
 	enum ocelot_vcap_key_type key_type;
 	union {
-		/* OCELOT_VCAP_KEY_ANY: No specific fields */
+		/* OCELOT_VCAP_KEY_ANY: Anal specific fields */
 		struct ocelot_vcap_key_etype etype;
 		struct ocelot_vcap_key_llc llc;
 		struct ocelot_vcap_key_snap snap;

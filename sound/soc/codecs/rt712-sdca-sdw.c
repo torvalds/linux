@@ -151,9 +151,9 @@ static int rt712_sdca_update_status(struct sdw_slave *slave,
 			 * It could avoid losing the jack detection interrupt.
 			 * This also could sync with the cache value as the rt712_sdca_jack_init set.
 			 */
-			sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INTMASK1,
+			sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INTMASK1,
 				SDW_SCP_SDCA_INTMASK_SDCA_0);
-			sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INTMASK2,
+			sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8);
 		}
 	}
@@ -191,7 +191,7 @@ static int rt712_sdca_read_prop(struct sdw_slave *slave)
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->src_dpn_prop), GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->src_dpn_prop;
@@ -204,12 +204,12 @@ static int rt712_sdca_read_prop(struct sdw_slave *slave)
 		i++;
 	}
 
-	/* do this again for sink now */
+	/* do this again for sink analw */
 	nval = hweight32(prop->sink_ports);
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 		sizeof(*prop->sink_dpn_prop), GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	dpn = prop->sink_dpn_prop;
@@ -259,11 +259,11 @@ static int rt712_sdca_interrupt_callback(struct sdw_slave *slave,
 	 */
 	mutex_lock(&rt712->disable_irq_lock);
 
-	ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT1);
+	ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT1);
 	if (ret < 0)
 		goto io_error;
 	rt712->scp_sdca_stat1 = ret;
-	ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT2);
+	ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT2);
 	if (ret < 0)
 		goto io_error;
 	rt712->scp_sdca_stat2 = ret;
@@ -272,37 +272,37 @@ static int rt712_sdca_interrupt_callback(struct sdw_slave *slave,
 
 	do {
 		/* clear flag */
-		ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT1);
+		ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT1);
 		if (ret < 0)
 			goto io_error;
 		if (ret & SDW_SCP_SDCA_INTMASK_SDCA_0) {
-			ret = sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INT1,
+			ret = sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INT1,
 						SDW_SCP_SDCA_INTMASK_SDCA_0);
 			if (ret < 0)
 				goto io_error;
 		}
-		ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT2);
+		ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT2);
 		if (ret < 0)
 			goto io_error;
 		if (ret & SDW_SCP_SDCA_INTMASK_SDCA_8) {
-			ret = sdw_write_no_pm(rt712->slave, SDW_SCP_SDCA_INT2,
+			ret = sdw_write_anal_pm(rt712->slave, SDW_SCP_SDCA_INT2,
 						SDW_SCP_SDCA_INTMASK_SDCA_8);
 			if (ret < 0)
 				goto io_error;
 		}
 
-		/* check if flag clear or not */
-		ret = sdw_read_no_pm(rt712->slave, SDW_DP0_INT);
+		/* check if flag clear or analt */
+		ret = sdw_read_anal_pm(rt712->slave, SDW_DP0_INT);
 		if (ret < 0)
 			goto io_error;
 		sdca_cascade = ret & SDW_DP0_SDCA_CASCADE;
 
-		ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT1);
+		ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT1);
 		if (ret < 0)
 			goto io_error;
 		scp_sdca_stat1 = ret & SDW_SCP_SDCA_INTMASK_SDCA_0;
 
-		ret = sdw_read_no_pm(rt712->slave, SDW_SCP_SDCA_INT2);
+		ret = sdw_read_anal_pm(rt712->slave, SDW_SCP_SDCA_INT2);
 		if (ret < 0)
 			goto io_error;
 		scp_sdca_stat2 = ret & SDW_SCP_SDCA_INTMASK_SDCA_8;
@@ -412,15 +412,15 @@ static int __maybe_unused rt712_sdca_dev_system_suspend(struct device *dev)
 	 */
 	mutex_lock(&rt712_sdca->disable_irq_lock);
 	rt712_sdca->disable_irq = true;
-	ret1 = sdw_update_no_pm(slave, SDW_SCP_SDCA_INTMASK1,
+	ret1 = sdw_update_anal_pm(slave, SDW_SCP_SDCA_INTMASK1,
 				SDW_SCP_SDCA_INTMASK_SDCA_0, 0);
-	ret2 = sdw_update_no_pm(slave, SDW_SCP_SDCA_INTMASK2,
+	ret2 = sdw_update_anal_pm(slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8, 0);
 	mutex_unlock(&rt712_sdca->disable_irq_lock);
 
 	if (ret1 < 0 || ret2 < 0) {
 		/* log but don't prevent suspend from happening */
-		dev_dbg(&slave->dev, "%s: could not disable SDCA interrupts\n:", __func__);
+		dev_dbg(&slave->dev, "%s: could analt disable SDCA interrupts\n:", __func__);
 	}
 
 	return rt712_sdca_dev_suspend(dev);
@@ -440,8 +440,8 @@ static int __maybe_unused rt712_sdca_dev_resume(struct device *dev)
 	if (!slave->unattach_request) {
 		if (rt712->disable_irq == true) {
 			mutex_lock(&rt712->disable_irq_lock);
-			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
-			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
+			sdw_write_anal_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
+			sdw_write_anal_pm(slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
 			rt712->disable_irq = false;
 			mutex_unlock(&rt712->disable_irq_lock);
 		}
@@ -451,7 +451,7 @@ static int __maybe_unused rt712_sdca_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT712_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

@@ -37,7 +37,7 @@ properties:
   io-channels:
     maxItems: 1
     description: |
-      Channel node of a voltage io-channel.
+      Channel analde of a voltage io-channel.
 
   output-ohms:
     description:

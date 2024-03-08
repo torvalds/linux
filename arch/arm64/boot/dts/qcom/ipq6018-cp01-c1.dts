@@ -10,7 +10,7 @@
 #include "ipq6018.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C1";
+	model = "Qualcomm Techanallogies, Inc. IPQ6018/AP-CP01-C1";
 	compatible = "qcom,ipq6018-cp01", "qcom,ipq6018";
 
 	aliases {
@@ -43,7 +43,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
-		compatible = "micron,n25q128a11", "jedec,spi-nor";
+		compatible = "micron,n25q128a11", "jedec,spi-analr";
 		spi-max-frequency = <50000000>;
 	};
 };

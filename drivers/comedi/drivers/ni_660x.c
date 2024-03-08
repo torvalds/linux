@@ -17,7 +17,7 @@
  * Status: experimental
  *
  * Encoders work.  PulseGeneration (both single pulse and pulse train)
- * works.  Buffered commands work for input but not output.
+ * works.  Buffered commands work for input but analt output.
  *
  * References:
  * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
@@ -80,7 +80,7 @@ enum ni_660x_register {
 
 #define NI660X_DMA_CFG_SEL(_c, _s)	(((_s) & 0x1f) << (8 * (_c)))
 #define NI660X_DMA_CFG_SEL_MASK(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
-#define NI660X_DMA_CFG_SEL_NONE(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
+#define NI660X_DMA_CFG_SEL_ANALNE(_c)	NI660X_DMA_CFG_SEL((_c), 0x1f)
 #define NI660X_DMA_CFG_RESET(_c)	NI660X_DMA_CFG_SEL((_c), 0x80)
 
 #define NI660X_IO_CFG(x)		(NI660X_IO_CFG_0_1 + ((x) / 2))
@@ -329,7 +329,7 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 	unsigned int chip = counter->chip_index;
 
 	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
-	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(mite_channel);
+	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_ANALNE(mite_channel);
 	ni_660x_write(dev, chip, devpriv->dma_cfg[chip], NI660X_DMA_CFG);
 }
 
@@ -383,10 +383,10 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
 		dev_err(dev->class_dev,
-			"no dma channel available for use by counter\n");
+			"anal dma channel available for use by counter\n");
 		return retval;
 	}
-	ni_tio_acknowledge(counter);
+	ni_tio_ackanalwledge(counter);
 
 	return ni_tio_cmd(dev, s);
 }
@@ -435,7 +435,7 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	unsigned long flags;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	/* make sure dev->attached is checked before doing anything else */
 	smp_mb();
 
@@ -487,7 +487,7 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 	spin_lock_init(&devpriv->interrupt_lock);
@@ -508,7 +508,7 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 		for (j = 0; j < NI660X_COUNTERS_PER_CHIP; ++j) {
 			devpriv->ring[i][j] = mite_alloc_ring(devpriv->mite);
 			if (!devpriv->ring[i][j])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	return 0;
@@ -540,7 +540,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	 * There are 40 channels in this subdevice but only 32 are usable
 	 * as DIO. The shift adjusts the mask/bits to account for the base
 	 * channel in insn->chanspec. The state update can then be handled
-	 * normally for the 32 usable channels.
+	 * analrmally for the 32 usable channels.
 	 */
 	if (mask) {
 		s->state &= ~mask;
@@ -616,7 +616,7 @@ static void ni_660x_set_pfi_direction(struct comedi_device *dev,
 		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
 	} else {
 		devpriv->io_dir &= ~bit;
-		/* set pin to high-z; do not change currently assigned route */
+		/* set pin to high-z; do analt change currently assigned route */
 		ni_660x_select_pfi_output(dev, chan, 0);
 	}
 }
@@ -744,11 +744,11 @@ static unsigned int _ni_get_valid_routes(struct comedi_device *dev,
 
 /*
  * Retrieves the current source of the output selector for the given
- * destination.  If the terminal for the destination is not already configured
+ * destination.  If the terminal for the destination is analt already configured
  * as an output, this function returns -EINVAL as error.
  *
  * Return: The register value of the destination output selector;
- *	   -EINVAL if terminal is not configured for output.
+ *	   -EINVAL if terminal is analt configured for output.
  */
 static inline int get_output_select_source(int dest, struct comedi_device *dev)
 {
@@ -764,7 +764,7 @@ static inline int get_output_select_source(int dest, struct comedi_device *dev)
 			__func__, dest);
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (analt currently documented):
 		 * if (ni_get_rtsi_direction(dev, dest) == COMEDI_OUTPUT) {
 		 *	reg = ni_get_rtsi_routing(dev, dest);
 
@@ -797,8 +797,8 @@ static inline int get_output_select_source(int dest, struct comedi_device *dev)
 /*
  * Test a route:
  *
- * Return: -1 if not connectible;
- *	    0 if connectible and not connected;
+ * Return: -1 if analt connectible;
+ *	    0 if connectible and analt connected;
  *	    1 if connectible and connected.
  */
 static inline int test_route(unsigned int src, unsigned int dest,
@@ -825,7 +825,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 	s8 current_src;
 
 	if (reg < 0)
-		/* route is not valid */
+		/* route is analt valid */
 		return -EINVAL;
 
 	current_src = get_output_select_source(dest, dev);
@@ -835,10 +835,10 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 		/* destination mux is already busy. complain, don't overwrite */
 		return -EBUSY;
 
-	/* The route is valid and available. Now connect... */
+	/* The route is valid and available. Analw connect... */
 	if (channel_is_pfi(CR_CHAN(dest))) {
 		/*
-		 * set routing and then direction so that the output does not
+		 * set routing and then direction so that the output does analt
 		 * first get generated with the wrong pin
 		 */
 		ni_660x_set_pfi_routing(dev, dest, reg);
@@ -849,7 +849,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 		return -EINVAL;
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (analt currently documented):
 		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
 		 *	int ret = incr_rgout0_src_use(src, dev);
 
@@ -862,7 +862,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 		 *	if (brd < 0)
 		 *		return brd;
 
-		 *	** Now lookup the register value for (brd->dest) **
+		 *	** Analw lookup the register value for (brd->dest) **
 		 *	reg = ni_lookup_route_register(brd, CR_CHAN(dest),
 		 *				       &devpriv->routing_tables);
 		 * }
@@ -891,13 +891,13 @@ static inline int disconnect_route(unsigned int src, unsigned int dest,
 				      &devpriv->routing_tables);
 
 	if (reg < 0)
-		/* route is not valid */
+		/* route is analt valid */
 		return -EINVAL;
 	if (get_output_select_source(dest, dev) != CR_CHAN(src))
-		/* cannot disconnect something not connected */
+		/* cananalt disconnect something analt connected */
 		return -EINVAL;
 
-	/* The route is valid and is connected.  Now disconnect... */
+	/* The route is valid and is connected.  Analw disconnect... */
 	if (channel_is_pfi(CR_CHAN(dest))) {
 		unsigned int source = ((CR_CHAN(dest) - NI_PFI(0)) < 8)
 					? NI_660X_PFI_OUTPUT_DIO
@@ -912,7 +912,7 @@ static inline int disconnect_route(unsigned int src, unsigned int dest,
 		return -EINVAL;
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (analt currently documented):
 		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
 		 *	int ret = decr_rgout0_src_use(src, dev);
 
@@ -983,7 +983,7 @@ static void ni_660x_init_tio_chips(struct comedi_device *dev,
 		/* init dma configuration register */
 		devpriv->dma_cfg[chip] = 0;
 		for (chan = 0; chan < NI660X_MAX_DMA_CHANNEL; ++chan)
-			devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(chan);
+			devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_ANALNE(chan);
 		ni_660x_write(dev, chip, devpriv->dma_cfg[chip],
 			      NI660X_DMA_CFG);
 
@@ -1010,7 +1010,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(ni_660x_boards))
 		board = &ni_660x_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
@@ -1025,7 +1025,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 
 	devpriv->mite = mite_attach(dev, true);		/* use win1 */
 	if (!devpriv->mite)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ni_660x_alloc_mite_rings(dev);
 	if (ret < 0)
@@ -1036,9 +1036,9 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	/* prepare the device for globally-named routes. */
 	if (ni_assign_device_routes("ni_660x", board->name, NULL,
 				    &devpriv->routing_tables) < 0) {
-		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
+		dev_warn(dev->class_dev, "%s: %s device has anal signal routing table.\n",
 			 __func__, board->name);
-		dev_warn(dev->class_dev, "%s: High level NI signal names will not be available for this %s board.\n",
+		dev_warn(dev->class_dev, "%s: High level NI signal names will analt be available for this %s board.\n",
 			 __func__, board->name);
 	} else {
 		/*
@@ -1058,7 +1058,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 					    NI660X_COUNTERS_PER_CHIP,
 					    &devpriv->routing_tables);
 	if (!gpct_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	devpriv->counter_dev = gpct_dev;
 
 	ret = comedi_alloc_subdevices(dev, 2 + NI660X_MAX_COUNTERS);
@@ -1068,7 +1068,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	subdev = 0;
 
 	s = &dev->subdevices[subdev++];
-	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
+	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, anal longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
 	/*
@@ -1185,7 +1185,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ret = request_irq(pcidev->irq, ni_660x_interrupt, IRQF_SHARED,
 			  dev->board_name, dev);
 	if (ret < 0) {
-		dev_warn(dev->class_dev, " irq not available\n");
+		dev_warn(dev->class_dev, " irq analt available\n");
 		return ret;
 	}
 	dev->irq = pcidev->irq;

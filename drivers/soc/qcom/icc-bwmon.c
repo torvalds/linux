@@ -28,7 +28,7 @@
  * Zone 2: THRES_MED < byte count < THRES_HIGH
  * Zone 3: THRES_HIGH < byte count
  *
- * Zones 0 and 2 are not used by this driver.
+ * Zones 0 and 2 are analt used by this driver.
  */
 
 /* Internal sampling clock frequency */
@@ -112,11 +112,11 @@
 						 BWMON_ZONE_ACTIONS_CLEAR(0))
 
 /*
- * There is no clear documentation/explanation of BWMON_V4_THRESHOLD_COUNT
+ * There is anal clear documentation/explanation of BWMON_V4_THRESHOLD_COUNT
  * register. Based on observations, this is number of times one threshold has to
  * be reached, to trigger interrupt in given zone.
  *
- * 0xff are maximum values meant to ignore the zones 0 and 2.
+ * 0xff are maximum values meant to iganalre the zones 0 and 2.
  */
 #define BWMON_V4_THRESHOLD_COUNT		0x2bc
 #define BWMON_V5_THRESHOLD_COUNT		0x034
@@ -218,14 +218,14 @@ static const struct reg_field msm8998_bwmon_reg_fields[] = {
 	[F_ZONE3_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(3), 0, 11),
 };
 
-static const struct regmap_range msm8998_bwmon_reg_noread_ranges[] = {
+static const struct regmap_range msm8998_bwmon_reg_analread_ranges[] = {
 	regmap_reg_range(BWMON_V4_IRQ_CLEAR, BWMON_V4_IRQ_CLEAR),
 	regmap_reg_range(BWMON_V4_CLEAR, BWMON_V4_CLEAR),
 };
 
 static const struct regmap_access_table msm8998_bwmon_reg_read_table = {
-	.no_ranges	= msm8998_bwmon_reg_noread_ranges,
-	.n_no_ranges	= ARRAY_SIZE(msm8998_bwmon_reg_noread_ranges),
+	.anal_ranges	= msm8998_bwmon_reg_analread_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(msm8998_bwmon_reg_analread_ranges),
 };
 
 static const struct regmap_range msm8998_bwmon_reg_volatile_ranges[] = {
@@ -234,8 +234,8 @@ static const struct regmap_range msm8998_bwmon_reg_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table msm8998_bwmon_reg_volatile_table = {
-	.yes_ranges	= msm8998_bwmon_reg_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(msm8998_bwmon_reg_volatile_ranges),
+	.anal_ranges	= msm8998_bwmon_reg_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(msm8998_bwmon_reg_volatile_ranges),
 };
 
 static const struct reg_field msm8998_bwmon_global_reg_fields[] = {
@@ -243,17 +243,17 @@ static const struct reg_field msm8998_bwmon_global_reg_fields[] = {
 	[F_GLOBAL_IRQ_ENABLE]	= REG_FIELD(BWMON_V4_GLOBAL_IRQ_ENABLE, 0, 0),
 };
 
-static const struct regmap_range msm8998_bwmon_global_reg_noread_ranges[] = {
+static const struct regmap_range msm8998_bwmon_global_reg_analread_ranges[] = {
 	regmap_reg_range(BWMON_V4_GLOBAL_IRQ_CLEAR, BWMON_V4_GLOBAL_IRQ_CLEAR),
 };
 
 static const struct regmap_access_table msm8998_bwmon_global_reg_read_table = {
-	.no_ranges	= msm8998_bwmon_global_reg_noread_ranges,
-	.n_no_ranges	= ARRAY_SIZE(msm8998_bwmon_global_reg_noread_ranges),
+	.anal_ranges	= msm8998_bwmon_global_reg_analread_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(msm8998_bwmon_global_reg_analread_ranges),
 };
 
 /*
- * Fill the cache for non-readable registers only as rest does not really
+ * Fill the cache for analn-readable registers only as rest does analt really
  * matter and can be read from the device.
  */
 static const struct reg_default msm8998_bwmon_reg_defaults[] = {
@@ -270,8 +270,8 @@ static const struct regmap_config msm8998_bwmon_regmap_cfg = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	/*
-	 * No concurrent access expected - driver has one interrupt handler,
-	 * regmap is not shared, no driver or user-space API.
+	 * Anal concurrent access expected - driver has one interrupt handler,
+	 * regmap is analt shared, anal driver or user-space API.
 	 */
 	.disable_locking	= true,
 	.rd_table		= &msm8998_bwmon_reg_read_table,
@@ -279,7 +279,7 @@ static const struct regmap_config msm8998_bwmon_regmap_cfg = {
 	.reg_defaults		= msm8998_bwmon_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(msm8998_bwmon_reg_defaults),
 	/*
-	 * Cache is necessary for using regmap fields with non-readable
+	 * Cache is necessary for using regmap fields with analn-readable
 	 * registers.
 	 */
 	.cache_type		= REGCACHE_RBTREE,
@@ -290,15 +290,15 @@ static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	/*
-	 * No concurrent access expected - driver has one interrupt handler,
-	 * regmap is not shared, no driver or user-space API.
+	 * Anal concurrent access expected - driver has one interrupt handler,
+	 * regmap is analt shared, anal driver or user-space API.
 	 */
 	.disable_locking	= true,
 	.rd_table		= &msm8998_bwmon_global_reg_read_table,
 	.reg_defaults		= msm8998_bwmon_global_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(msm8998_bwmon_global_reg_defaults),
 	/*
-	 * Cache is necessary for using regmap fields with non-readable
+	 * Cache is necessary for using regmap fields with analn-readable
 	 * registers.
 	 */
 	.cache_type		= REGCACHE_RBTREE,
@@ -331,19 +331,19 @@ static const struct reg_field sdm845_cpu_bwmon_reg_fields[] = {
 	[F_ZONE3_MAX]		= REG_FIELD(BWMON_V4_ZONE_MAX(3), 0, 11),
 };
 
-static const struct regmap_range sdm845_cpu_bwmon_reg_noread_ranges[] = {
+static const struct regmap_range sdm845_cpu_bwmon_reg_analread_ranges[] = {
 	regmap_reg_range(BWMON_V4_GLOBAL_IRQ_CLEAR_845, BWMON_V4_GLOBAL_IRQ_CLEAR_845),
 	regmap_reg_range(BWMON_V4_IRQ_CLEAR, BWMON_V4_IRQ_CLEAR),
 	regmap_reg_range(BWMON_V4_CLEAR, BWMON_V4_CLEAR),
 };
 
 static const struct regmap_access_table sdm845_cpu_bwmon_reg_read_table = {
-	.no_ranges	= sdm845_cpu_bwmon_reg_noread_ranges,
-	.n_no_ranges	= ARRAY_SIZE(sdm845_cpu_bwmon_reg_noread_ranges),
+	.anal_ranges	= sdm845_cpu_bwmon_reg_analread_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(sdm845_cpu_bwmon_reg_analread_ranges),
 };
 
 /*
- * Fill the cache for non-readable registers only as rest does not really
+ * Fill the cache for analn-readable registers only as rest does analt really
  * matter and can be read from the device.
  */
 static const struct reg_default sdm845_cpu_bwmon_reg_defaults[] = {
@@ -357,8 +357,8 @@ static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	/*
-	 * No concurrent access expected - driver has one interrupt handler,
-	 * regmap is not shared, no driver or user-space API.
+	 * Anal concurrent access expected - driver has one interrupt handler,
+	 * regmap is analt shared, anal driver or user-space API.
 	 */
 	.disable_locking	= true,
 	.rd_table		= &sdm845_cpu_bwmon_reg_read_table,
@@ -366,7 +366,7 @@ static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
 	.reg_defaults		= sdm845_cpu_bwmon_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(sdm845_cpu_bwmon_reg_defaults),
 	/*
-	 * Cache is necessary for using regmap fields with non-readable
+	 * Cache is necessary for using regmap fields with analn-readable
 	 * registers.
 	 */
 	.cache_type		= REGCACHE_RBTREE,
@@ -400,14 +400,14 @@ static const struct reg_field sdm845_llcc_bwmon_reg_fields[] = {
 	[F_ZONE3_MAX]		= REG_FIELD(BWMON_V5_ZONE_MAX(3), 0, 11),
 };
 
-static const struct regmap_range sdm845_llcc_bwmon_reg_noread_ranges[] = {
+static const struct regmap_range sdm845_llcc_bwmon_reg_analread_ranges[] = {
 	regmap_reg_range(BWMON_V5_IRQ_CLEAR, BWMON_V5_IRQ_CLEAR),
 	regmap_reg_range(BWMON_V5_CLEAR, BWMON_V5_CLEAR),
 };
 
 static const struct regmap_access_table sdm845_llcc_bwmon_reg_read_table = {
-	.no_ranges	= sdm845_llcc_bwmon_reg_noread_ranges,
-	.n_no_ranges	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_noread_ranges),
+	.anal_ranges	= sdm845_llcc_bwmon_reg_analread_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_analread_ranges),
 };
 
 static const struct regmap_range sdm845_llcc_bwmon_reg_volatile_ranges[] = {
@@ -416,12 +416,12 @@ static const struct regmap_range sdm845_llcc_bwmon_reg_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table sdm845_llcc_bwmon_reg_volatile_table = {
-	.yes_ranges	= sdm845_llcc_bwmon_reg_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_volatile_ranges),
+	.anal_ranges	= sdm845_llcc_bwmon_reg_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_volatile_ranges),
 };
 
 /*
- * Fill the cache for non-readable registers only as rest does not really
+ * Fill the cache for analn-readable registers only as rest does analt really
  * matter and can be read from the device.
  */
 static const struct reg_default sdm845_llcc_bwmon_reg_defaults[] = {
@@ -434,8 +434,8 @@ static const struct regmap_config sdm845_llcc_bwmon_regmap_cfg = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	/*
-	 * No concurrent access expected - driver has one interrupt handler,
-	 * regmap is not shared, no driver or user-space API.
+	 * Anal concurrent access expected - driver has one interrupt handler,
+	 * regmap is analt shared, anal driver or user-space API.
 	 */
 	.disable_locking	= true,
 	.rd_table		= &sdm845_llcc_bwmon_reg_read_table,
@@ -443,7 +443,7 @@ static const struct regmap_config sdm845_llcc_bwmon_regmap_cfg = {
 	.reg_defaults		= sdm845_llcc_bwmon_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(sdm845_llcc_bwmon_reg_defaults),
 	/*
-	 * Cache is necessary for using regmap fields with non-readable
+	 * Cache is necessary for using regmap fields with analn-readable
 	 * registers.
 	 */
 	.cache_type		= REGCACHE_RBTREE,
@@ -459,7 +459,7 @@ static void bwmon_clear_counters(struct icc_bwmon *bwmon, bool clear_all)
 	 * Clear counters. The order and barriers are
 	 * important. Quoting downstream Qualcomm msm-4.9 tree:
 	 *
-	 * The counter clear and IRQ clear bits are not in the same 4KB
+	 * The counter clear and IRQ clear bits are analt in the same 4KB
 	 * region. So, we need to make sure the counter clear is completed
 	 * before we try to clear the IRQ or do any other counter operations.
 	 */
@@ -564,7 +564,7 @@ static void bwmon_start(struct icc_bwmon *bwmon)
 	u32 bw_low = 0;
 	int window;
 
-	/* No need to check for errors, as this must have succeeded before. */
+	/* Anal need to check for errors, as this must have succeeded before. */
 	dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_low, 0);
 
 	bwmon_clear_counters(bwmon, true);
@@ -606,20 +606,20 @@ static irqreturn_t bwmon_intr(int irq, void *dev_id)
 	int zone;
 
 	if (regmap_field_read(bwmon->regs[F_IRQ_STATUS], &status))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	status &= BWMON_IRQ_ENABLE_MASK;
 	if (!status) {
 		/*
 		 * Only zone 1 and zone 3 interrupts are enabled but zone 2
-		 * threshold could be hit and trigger interrupt even if not
+		 * threshold could be hit and trigger interrupt even if analt
 		 * enabled.
 		 * Such spurious interrupt might come with valuable max count or
-		 * not, so solution would be to always check all
+		 * analt, so solution would be to always check all
 		 * BWMON_ZONE_MAX() registers to find the highest value.
-		 * Such case is currently ignored.
+		 * Such case is currently iganalred.
 		 */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	bwmon_disable(bwmon);
@@ -631,7 +631,7 @@ static irqreturn_t bwmon_intr(int irq, void *dev_id)
 	 * downstream) always increments the max bytes count by one.
 	 */
 	if (regmap_field_read(bwmon->regs[F_ZONE0_MAX + zone], &max))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	max += 1;
 	max *= bwmon->data->count_unit_kb;
@@ -752,7 +752,7 @@ static int bwmon_probe(struct platform_device *pdev)
 
 	bwmon = devm_kzalloc(dev, sizeof(*bwmon), GFP_KERNEL);
 	if (!bwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bwmon->data = of_device_get_match_data(dev);
 

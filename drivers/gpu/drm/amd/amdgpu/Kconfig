@@ -65,7 +65,7 @@ config DRM_AMDGPU_USERPTR
 	depends on DRM_AMDGPU
 	depends on MMU
 	select HMM_MIRROR
-	select MMU_NOTIFIER
+	select MMU_ANALTIFIER
 	help
 	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
 	  isn't already selected to enabled full userptr support.

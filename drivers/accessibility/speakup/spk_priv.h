@@ -39,7 +39,7 @@ void spk_ttyio_release(struct spk_synth *synth);
 void spk_ttyio_register_ldisc(void);
 void spk_ttyio_unregister_ldisc(void);
 
-void synth_buffer_skip_nonlatin1(void);
+void synth_buffer_skip_analnlatin1(void);
 u16 synth_buffer_getc(void);
 u16 synth_buffer_peek(void);
 int synth_buffer_empty(void);
@@ -59,7 +59,7 @@ void spk_do_catch_up(struct spk_synth *synth);
 void spk_do_catch_up_unicode(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
 unsigned char spk_synth_get_index(struct spk_synth *synth);
-int spk_synth_is_alive_nop(struct spk_synth *synth);
+int spk_synth_is_alive_analp(struct spk_synth *synth);
 int spk_synth_is_alive_restart(struct spk_synth *synth);
 __printf(1, 2)
 void synth_printf(const char *buf, ...);

@@ -78,7 +78,7 @@ found:
 }
 
 /* When processing receive frames, there are two cases to
- * consider. Data frames consist of a non-zero session-id and an
+ * consider. Data frames consist of a analn-zero session-id and an
  * optional cookie. Control frames consist of a regular L2TP header
  * preceded by 32-bits of zeros.
  *
@@ -200,7 +200,7 @@ static int l2tp_ip_hash(struct sock *sk)
 {
 	if (sk_unhashed(sk)) {
 		write_lock_bh(&l2tp_ip_lock);
-		sk_add_node(sk, &l2tp_ip_table);
+		sk_add_analde(sk, &l2tp_ip_table);
 		write_unlock_bh(&l2tp_ip_lock);
 	}
 	return 0;
@@ -211,7 +211,7 @@ static void l2tp_ip_unhash(struct sock *sk)
 	if (sk_unhashed(sk))
 		return;
 	write_lock_bh(&l2tp_ip_lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip_lock);
 }
 
@@ -227,8 +227,8 @@ static int l2tp_ip_open(struct sock *sk)
 static void l2tp_ip_close(struct sock *sk, long timeout)
 {
 	write_lock_bh(&l2tp_ip_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_del_node_init(sk);
+	hlist_del_init(&sk->sk_bind_analde);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip_lock);
 	sk_common_release(sk);
 }
@@ -268,7 +268,7 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto out;
 
 	chk_addr_ret = inet_addr_type(net, addr->l2tp_addr.s_addr);
-	ret = -EADDRNOTAVAIL;
+	ret = -EADDRANALTAVAIL;
 	if (addr->l2tp_addr.s_addr && chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST && chk_addr_ret != RTN_BROADCAST)
 		goto out;
@@ -291,8 +291,8 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk_dst_reset(sk);
 	l2tp_ip_sk(sk)->conn_id = addr->l2tp_conn_id;
 
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
-	sk_del_node_init(sk);
+	sk_add_bind_analde(sk, &l2tp_ip_bind_table);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip_lock);
 
 	ret = 0;
@@ -317,7 +317,7 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 
 	lock_sock(sk);
 
-	/* Must bind first - autobinding does not work */
+	/* Must bind first - autobinding does analt work */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
 		rc = -EINVAL;
 		goto out_sk;
@@ -330,8 +330,8 @@ static int l2tp_ip_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len
 	l2tp_ip_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
 	write_lock_bh(&l2tp_ip_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_add_bind_node(sk, &l2tp_ip_bind_table);
+	hlist_del_init(&sk->sk_bind_analde);
+	sk_add_bind_analde(sk, &l2tp_ip_bind_table);
 	write_unlock_bh(&l2tp_ip_lock);
 
 out_sk:
@@ -360,7 +360,7 @@ static int l2tp_ip_getname(struct socket *sock, struct sockaddr *uaddr,
 	lsa->l2tp_family = AF_INET;
 	if (peer) {
 		if (!inet->inet_dport)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		lsa->l2tp_conn_id = lsk->peer_conn_id;
 		lsa->l2tp_addr.s_addr = inet->inet_daddr;
 	} else {
@@ -406,7 +406,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	lock_sock(sk);
 
-	rc = -ENOTCONN;
+	rc = -EANALTCONN;
 	if (sock_flag(sk, SOCK_DEAD))
 		goto out;
 
@@ -419,7 +419,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			goto out;
 
 		if (lip->l2tp_family != AF_INET) {
-			rc = -EAFNOSUPPORT;
+			rc = -EAFANALSUPPORT;
 			if (lip->l2tp_family != AF_UNSPEC)
 				goto out;
 		}
@@ -435,7 +435,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	}
 
 	/* Allocate a socket buffer */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	skb = sock_wmalloc(sk, 2 + NET_SKB_PAD + sizeof(struct iphdr) +
 			   4 + len, 0, GFP_KERNEL);
 	if (!skb)
@@ -481,7 +481,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 					   sk->sk_protocol, RT_CONN_FLAGS(sk),
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
-			goto no_route;
+			goto anal_route;
 		if (connected) {
 			sk_setup_caps(sk, &rt->dst);
 		} else {
@@ -490,10 +490,10 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		}
 	}
 
-	/* We don't need to clone dst here, it is guaranteed to not disappear.
+	/* We don't need to clone dst here, it is guaranteed to analt disappear.
 	 *  __dev_xmit_skb() might force a refcount if needed.
 	 */
-	skb_dst_set_noref(skb, &rt->dst);
+	skb_dst_set_analref(skb, &rt->dst);
 
 xmit:
 	/* Queue the packet to IP for output */
@@ -508,9 +508,9 @@ out:
 	release_sock(sk);
 	return rc;
 
-no_route:
+anal_route:
 	rcu_read_unlock();
-	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
+	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTANALROUTES);
 	kfree_skb(skb);
 	rc = -EHOSTUNREACH;
 	goto out;
@@ -521,7 +521,7 @@ static int l2tp_ip_recvmsg(struct sock *sk, struct msghdr *msg,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
 	struct sk_buff *skb;
 
@@ -578,7 +578,7 @@ int l2tp_ioctl(struct sock *sk, int cmd, int *karg)
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -611,19 +611,19 @@ static const struct proto_ops l2tp_ip_ops = {
 	.release	   = inet_release,
 	.bind		   = inet_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
 	.getname	   = l2tp_ip_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_anal_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 };
 
 static struct inet_protosw l2tp_ip_protosw = {

@@ -91,8 +91,8 @@ int otx2_update_sq_stats(struct otx2_nic *pfvf, int qidx)
 	if (!pfvf->qset.sq)
 		return 0;
 
-	if (qidx >= pfvf->hw.non_qos_queues) {
-		if (!test_bit(qidx - pfvf->hw.non_qos_queues, pfvf->qos.qos_sq_bmap))
+	if (qidx >= pfvf->hw.analn_qos_queues) {
+		if (!test_bit(qidx - pfvf->hw.analn_qos_queues, pfvf->qos.qos_sq_bmap))
 			return 0;
 	}
 
@@ -153,7 +153,7 @@ static int otx2_hw_set_mac_addr(struct otx2_nic *pfvf, u8 *mac)
 	req = otx2_mbox_alloc_msg_nix_set_mac_addr(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ether_addr_copy(req->mac_addr, mac);
@@ -175,7 +175,7 @@ static int otx2_hw_get_mac_addr(struct otx2_nic *pfvf,
 	req = otx2_mbox_alloc_msg_nix_get_mac_addr(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
@@ -202,7 +202,7 @@ int otx2_set_mac_address(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (!otx2_hw_set_mac_addr(pfvf, addr->sa_data)) {
 		eth_hw_addr_set(netdev, addr->sa_data);
@@ -233,7 +233,7 @@ int otx2_hw_set_mtu(struct otx2_nic *pfvf, int mtu)
 	req = otx2_mbox_alloc_msg_nix_set_hw_frs(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->maxlen = pfvf->netdev->mtu + OTX2_ETH_HLEN + OTX2_HW_TIMESTAMP_LEN;
@@ -258,7 +258,7 @@ int otx2_config_pause_frm(struct otx2_nic *pfvf)
 	mutex_lock(&pfvf->mbox.lock);
 	req = otx2_mbox_alloc_msg_cgx_cfg_pause_frm(&pfvf->mbox);
 	if (!req) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -284,7 +284,7 @@ int otx2_set_flowkey_cfg(struct otx2_nic *pfvf)
 	req = otx2_mbox_alloc_msg_nix_rss_flowkey_cfg(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	req->mcam_index = -1; /* Default or reserved index */
 	req->flowkey_cfg = rss->flowkey_cfg;
@@ -333,7 +333,7 @@ int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id)
 			aq = otx2_mbox_alloc_msg_nix_aq_enq(mbox);
 			if (!aq) {
 				mutex_unlock(&mbox->lock);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -380,7 +380,7 @@ int otx2_rss_init(struct otx2_nic *pfvf)
 
 	rss->rss_size = sizeof(*rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP]);
 
-	/* Init RSS key if it is not setup already */
+	/* Init RSS key if it is analt setup already */
 	if (!rss->enable)
 		netdev_rss_key_fill(rss->key, sizeof(rss->key));
 	otx2_set_rss_key(pfvf);
@@ -390,7 +390,7 @@ int otx2_rss_init(struct otx2_nic *pfvf)
 		rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP] = kzalloc(rss->rss_size,
 								  GFP_KERNEL);
 		if (!rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		rss_ctx = rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP];
 		for (idx = 0; idx < rss->rss_size; idx++)
@@ -433,7 +433,7 @@ static void otx2_setup_udp_segmentation(struct nix_lso_format_cfg *lso, bool v4)
 	field->alg = NIX_LSOALG_ADD_PAYLEN;
 	field++;
 
-	/* No ID field in IPv6 header */
+	/* Anal ID field in IPv6 header */
 	if (v4) {
 		/* Increment IPID */
 		field->layer = NIX_TXLAYER_OL3;
@@ -532,7 +532,7 @@ static int otx2_alloc_pool_buf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 
 	page = page_pool_alloc_frag(pool->page_pool, &offset, sz, GFP_ATOMIC);
 	if (unlikely(!page))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*dma = page_pool_get_dma_addr(page) + offset;
 	return 0;
@@ -548,13 +548,13 @@ static int __otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 
 	buf = napi_alloc_frag_align(pool->rbsize, OTX2_ALIGN);
 	if (unlikely(!buf))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*dma = dma_map_single_attrs(pfvf->dev, buf, pool->rbsize,
 				    DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 	if (unlikely(dma_mapping_error(pfvf->dev, *dma))) {
 		page_frag_free(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -575,7 +575,7 @@ int otx2_alloc_buffer(struct otx2_nic *pfvf, struct otx2_cq_queue *cq,
 		      dma_addr_t *dma)
 {
 	if (unlikely(__otx2_alloc_rbuf(pfvf, cq->rbpool, dma)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -614,7 +614,7 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl, int prio, bool txschq_for
 
 	req = otx2_mbox_alloc_msg_nix_txschq_cfg(&pfvf->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->lvl = lvl;
 	req->num_regs = 1;
@@ -686,7 +686,7 @@ int otx2_txschq_config(struct otx2_nic *pfvf, int lvl, int prio, bool txschq_for
 		}
 	} else if (lvl == NIX_TXSCH_LVL_TL1) {
 		/* Default config for TL1.
-		 * For VF this is always ignored.
+		 * For VF this is always iganalred.
 		 */
 
 		/* On CN10K, if RR_WEIGHT is greater than 16384, HW will
@@ -719,7 +719,7 @@ int otx2_smq_flush(struct otx2_nic *pfvf, int smq)
 	req = otx2_mbox_alloc_msg_nix_txschq_cfg(&pfvf->mbox);
 	if (!req) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	req->lvl = NIX_TXSCH_LVL_SMQ;
@@ -742,7 +742,7 @@ int otx2_txsch_alloc(struct otx2_nic *pfvf)
 	/* Get memory to put this msg */
 	req = otx2_mbox_alloc_msg_nix_txsch_alloc(&pfvf->mbox);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Request one schq per level */
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++)
@@ -800,7 +800,7 @@ void otx2_txschq_stop(struct otx2_nic *pfvf)
 {
 	int lvl, schq;
 
-	/* free non QOS TLx nodes */
+	/* free analn QOS TLx analdes */
 	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++)
 		otx2_txschq_free_one(pfvf, lvl,
 				     pfvf->hw.txschq_list[lvl][0]);
@@ -858,14 +858,14 @@ static int otx2_rq_init(struct otx2_nic *pfvf, u16 qidx, u16 lpb_aura)
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aq->rq.cq = qidx;
 	aq->rq.ena = 1;
 	aq->rq.pb_caching = 1;
 	aq->rq.lpb_aura = lpb_aura; /* Use large packet buffer aura */
 	aq->rq.lpb_sizem1 = (DMA_BUFFER_LEN(pfvf->rbsize) / 8) - 1;
-	aq->rq.xqe_imm_size = 0; /* Copying of packet to CQE not needed */
+	aq->rq.xqe_imm_size = 0; /* Copying of packet to CQE analt needed */
 	aq->rq.flow_tagw = 32; /* Copy full 32bit flow_tag to CQE header */
 	aq->rq.qint_idx = 0;
 	aq->rq.lpb_drop_ena = 1; /* Enable RED dropping for AURA */
@@ -894,7 +894,7 @@ int otx2_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aq->sq.cq = pfvf->hw.rx_queues + qidx;
 	aq->sq.max_sqe_size = NIX_MAXSQESZ_W16; /* 128 byte */
@@ -946,7 +946,7 @@ int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	sq->sqe_base = sq->sqe->base;
 	sq->sg = kcalloc(qset->sqe_cnt, sizeof(struct sg_list), GFP_KERNEL);
 	if (!sq->sg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pfvf->ptp && qidx < pfvf->hw.tx_queues) {
 		err = qmem_alloc(pfvf->dev, &sq->timestamps, qset->sqe_cnt,
@@ -985,32 +985,32 @@ int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 {
 	struct otx2_qset *qset = &pfvf->qset;
-	int err, pool_id, non_xdp_queues;
+	int err, pool_id, analn_xdp_queues;
 	struct nix_aq_enq_req *aq;
 	struct otx2_cq_queue *cq;
 
 	cq = &qset->cq[qidx];
 	cq->cq_idx = qidx;
-	non_xdp_queues = pfvf->hw.rx_queues + pfvf->hw.tx_queues;
+	analn_xdp_queues = pfvf->hw.rx_queues + pfvf->hw.tx_queues;
 	if (qidx < pfvf->hw.rx_queues) {
 		cq->cq_type = CQ_RX;
 		cq->cint_idx = qidx;
 		cq->cqe_cnt = qset->rqe_cnt;
 		if (pfvf->xdp_prog)
 			xdp_rxq_info_reg(&cq->xdp_rxq, pfvf->netdev, qidx, 0);
-	} else if (qidx < non_xdp_queues) {
+	} else if (qidx < analn_xdp_queues) {
 		cq->cq_type = CQ_TX;
 		cq->cint_idx = qidx - pfvf->hw.rx_queues;
 		cq->cqe_cnt = qset->sqe_cnt;
 	} else {
 		if (pfvf->hw.xdp_queues &&
-		    qidx < non_xdp_queues + pfvf->hw.xdp_queues) {
+		    qidx < analn_xdp_queues + pfvf->hw.xdp_queues) {
 			cq->cq_type = CQ_XDP;
-			cq->cint_idx = qidx - non_xdp_queues;
+			cq->cint_idx = qidx - analn_xdp_queues;
 			cq->cqe_cnt = qset->sqe_cnt;
 		} else {
 			cq->cq_type = CQ_QOS;
-			cq->cint_idx = qidx - non_xdp_queues -
+			cq->cint_idx = qidx - analn_xdp_queues -
 				       pfvf->hw.xdp_queues;
 			cq->cqe_cnt = qset->sqe_cnt;
 		}
@@ -1035,7 +1035,7 @@ static int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx)
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 	if (!aq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aq->cq.ena = 1;
 	aq->cq.qsize = Q_SIZE(cq->cqe_cnt, 4);
@@ -1105,7 +1105,7 @@ int otx2_config_nix_queues(struct otx2_nic *pfvf)
 	}
 
 	/* Initialize TX queues */
-	for (qidx = 0; qidx < pfvf->hw.non_qos_queues; qidx++) {
+	for (qidx = 0; qidx < pfvf->hw.analn_qos_queues; qidx++) {
 		u16 sqb_aura = otx2_get_pool_idx(pfvf, AURA_NIX_SQ, qidx);
 
 		err = otx2_sq_init(pfvf, qidx, sqb_aura);
@@ -1127,7 +1127,7 @@ int otx2_config_nix_queues(struct otx2_nic *pfvf)
 	pfvf->refill_wrk = devm_kcalloc(pfvf->dev, pfvf->qset.cq_cnt,
 					sizeof(struct refill_work), GFP_KERNEL);
 	if (!pfvf->refill_wrk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (qidx = 0; qidx < pfvf->qset.cq_cnt; qidx++) {
 		pfvf->refill_wrk[qidx].pf = pfvf;
@@ -1148,7 +1148,7 @@ int otx2_config_nix(struct otx2_nic *pfvf)
 	/* Get memory to put this msg */
 	nixlf = otx2_mbox_alloc_msg_nix_lf_alloc(&pfvf->mbox);
 	if (!nixlf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set RQ/SQ/CQ counts */
 	nixlf->rq_cnt = pfvf->hw.rx_queues;
@@ -1157,7 +1157,7 @@ int otx2_config_nix(struct otx2_nic *pfvf)
 	nixlf->rss_sz = MAX_RSS_INDIR_TBL_SIZE;
 	nixlf->rss_grps = MAX_RSS_GROUPS;
 	nixlf->xqe_sz = pfvf->hw.xqe_size == 128 ? NIX_XQESZ_W16 : NIX_XQESZ_W64;
-	/* We don't know absolute NPA LF idx attached.
+	/* We don't kanalw absolute NPA LF idx attached.
 	 * AF will replace 'RVU_DEFAULT_PF_FUNC' with
 	 * NPA LF attached to this RVU PF/VF.
 	 */
@@ -1306,7 +1306,7 @@ int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 			return err;
 		aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 		if (!aq)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	aq->aura_id = aura_id;
@@ -1385,7 +1385,7 @@ int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 		aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 		if (!aq) {
 			qmem_free(pfvf->dev, pool->stack);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -1411,7 +1411,7 @@ int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 	pp_params.order = get_order(buf_size);
 	pp_params.flags = PP_FLAG_DMA_MAP;
 	pp_params.pool_size = min(OTX2_PAGE_POOL_SZ, numptrs);
-	pp_params.nid = NUMA_NO_NODE;
+	pp_params.nid = NUMA_ANAL_ANALDE;
 	pp_params.dev = pfvf->dev;
 	pp_params.dma_dir = DMA_FROM_DEVICE;
 	pool->page_pool = page_pool_create(&pp_params);
@@ -1441,11 +1441,11 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 	num_sqbs = (hw->sqb_size / 128) - 1;
 	num_sqbs = (qset->sqe_cnt + num_sqbs) / num_sqbs;
 
-	/* Get no of stack pages needed */
+	/* Get anal of stack pages needed */
 	stack_pages =
 		(num_sqbs + hw->stack_pg_ptrs - 1) / hw->stack_pg_ptrs;
 
-	for (qidx = 0; qidx < hw->non_qos_queues; qidx++) {
+	for (qidx = 0; qidx < hw->analn_qos_queues; qidx++) {
 		pool_id = otx2_get_pool_idx(pfvf, AURA_NIX_SQ, qidx);
 		/* Initialize aura context */
 		err = otx2_aura_init(pfvf, pool_id, pool_id, num_sqbs);
@@ -1465,7 +1465,7 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 		goto fail;
 
 	/* Allocate pointers and free them to aura/pool */
-	for (qidx = 0; qidx < hw->non_qos_queues; qidx++) {
+	for (qidx = 0; qidx < hw->analn_qos_queues; qidx++) {
 		pool_id = otx2_get_pool_idx(pfvf, AURA_NIX_SQ, qidx);
 		pool = &pfvf->qset.pool[pool_id];
 
@@ -1473,7 +1473,7 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 		sq->sqb_count = 0;
 		sq->sqb_ptrs = kcalloc(num_sqbs, sizeof(*sq->sqb_ptrs), GFP_KERNEL);
 		if (!sq->sqb_ptrs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_mem;
 		}
 
@@ -1487,7 +1487,7 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 	}
 
 err_mem:
-	return err ? -ENOMEM : 0;
+	return err ? -EANALMEM : 0;
 
 fail:
 	otx2_mbox_reset(&pfvf->mbox.mbox, 0);
@@ -1533,7 +1533,7 @@ int otx2_rq_aura_pool_init(struct otx2_nic *pfvf)
 		for (ptr = 0; ptr < num_ptrs; ptr++) {
 			err = otx2_alloc_rbuf(pfvf, pool, &bufptr);
 			if (err)
-				return -ENOMEM;
+				return -EANALMEM;
 			pfvf->hw_ops->aura_freeptr(pfvf, pool_id,
 						   bufptr + OTX2_HEAD_ROOM);
 		}
@@ -1562,12 +1562,12 @@ int otx2_config_npa(struct otx2_nic *pfvf)
 	qset->pool = devm_kcalloc(pfvf->dev, hw->pool_cnt,
 				  sizeof(struct otx2_pool), GFP_KERNEL);
 	if (!qset->pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Get memory to put this msg */
 	npalf = otx2_mbox_alloc_msg_npa_lf_alloc(&pfvf->mbox);
 	if (!npalf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Set aura and pool counts */
 	npalf->nr_pools = hw->pool_cnt;
@@ -1585,7 +1585,7 @@ int otx2_detach_resources(struct mbox *mbox)
 	detach = otx2_mbox_alloc_msg_detach_resources(mbox);
 	if (!detach) {
 		mutex_unlock(&mbox->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* detach all */
@@ -1609,7 +1609,7 @@ int otx2_attach_npa_nix(struct otx2_nic *pfvf)
 	attach = otx2_mbox_alloc_msg_attach_resources(&pfvf->mbox);
 	if (!attach) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	attach->npalf = true;
@@ -1634,7 +1634,7 @@ int otx2_attach_npa_nix(struct otx2_nic *pfvf)
 	msix = otx2_mbox_alloc_msg_msix_offset(&pfvf->mbox);
 	if (!msix) {
 		mutex_unlock(&pfvf->mbox.lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = otx2_sync_mbox_msg(&pfvf->mbox);
@@ -1690,7 +1690,7 @@ int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable)
 		req = otx2_mbox_alloc_msg_nix_bp_disable(&pfvf->mbox);
 
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->chan_base = 0;
 #ifdef CONFIG_DCB
@@ -1829,7 +1829,7 @@ u16 otx2_get_max_mtu(struct otx2_nic *pfvf)
 
 	req = otx2_mbox_alloc_msg_nix_get_hw_info(&pfvf->mbox);
 	if (!req) {
-		rc =  -ENOMEM;
+		rc =  -EANALMEM;
 		goto out;
 	}
 
@@ -1840,7 +1840,7 @@ u16 otx2_get_max_mtu(struct otx2_nic *pfvf)
 
 		/* HW counts VLAN insertion bytes (8 for double tag)
 		 * irrespective of whether SQE is requesting to insert VLAN
-		 * in the packet or not. Hence these 8 bytes have to be
+		 * in the packet or analt. Hence these 8 bytes have to be
 		 * discounted from max packet size otherwise HW will throw
 		 * SMQ errors
 		 */
@@ -1876,7 +1876,7 @@ int otx2_handle_ntuple_tc_features(struct net_device *netdev, netdev_features_t 
 	if ((changed & NETIF_F_NTUPLE) && ntuple) {
 		if (!pfvf->flow_cfg->max_flows) {
 			netdev_err(netdev,
-				   "Can't enable NTUPLE, MCAM entries not allocated\n");
+				   "Can't enable NTUPLE, MCAM entries analt allocated\n");
 			return -EINVAL;
 		}
 	}
@@ -1904,7 +1904,7 @@ otx2_mbox_up_handler_ ## _fn_name(struct otx2_nic *pfvf,		\
 				struct _req_type *req,			\
 				struct _rsp_type *rsp)			\
 {									\
-	/* Nothing to do here */					\
+	/* Analthing to do here */					\
 	return 0;							\
 }									\
 EXPORT_SYMBOL(otx2_mbox_up_handler_ ## _fn_name);

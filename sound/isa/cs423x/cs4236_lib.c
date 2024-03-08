@@ -3,7 +3,7 @@
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of CS4235/4236B/4237B/4238B/4239 chips
  *
- *  Note:
+ *  Analte:
  *     -----
  *
  *  Bugs:
@@ -31,7 +31,7 @@
  * 
  *  C3
  *     D7: 3D Enable (CS4237B)
- *     D6: 3D Mono Enable (CS4237B)
+ *     D6: 3D Moanal Enable (CS4237B)
  *     D5: 3D Serial Output (CS4237B,CS4238B)
  *     D4: 3D Enable (CS4235,CS4238B,CS4239)
  *
@@ -44,13 +44,13 @@
  *  C5  lower channel status (digital serial data description) (CS4237B,CS4238B)
  *     D7-D6: first two bits of category code
  *     D5: lock
- *     D4-D3: pre-emphasis (0 = none, 1 = 50/15us)
+ *     D4-D3: pre-emphasis (0 = analne, 1 = 50/15us)
  *     D2: copy/copyright (0 = copy inhibited)
- *     D1: 0 = digital audio / 1 = non-digital audio
+ *     D1: 0 = digital audio / 1 = analn-digital audio
  *     
  *  C6  upper channel status (digital serial data description) (CS4237B,CS4238B)
  *     D7-D6: sample frequency (0 = 44.1kHz)
- *     D5: generation status (0 = no indication, 1 = original/commercially precaptureed data)
+ *     D5: generation status (0 = anal indication, 1 = original/commercially precaptureed data)
  *     D4-D0: category code (upper bits)
  *
  *  C7  reserved (must write 0)
@@ -253,7 +253,7 @@ static void snd_cs4236_resume(struct snd_wss *chip)
 
 #endif /* CONFIG_PM */
 /*
- * This function does no fail if the chip is not CS4236B or compatible.
+ * This function does anal fail if the chip is analt CS4236B or compatible.
  * It just an equivalent to the snd_wss_create() then.
  */
 int snd_cs4236_create(struct snd_card *card,
@@ -279,7 +279,7 @@ int snd_cs4236_create(struct snd_card *card,
 		return err;
 
 	if ((chip->hardware & WSS_HW_CS4236B_MASK) == 0) {
-		snd_printd("chip is not CS4236+, hardware=0x%x\n",
+		snd_printd("chip is analt CS4236+, hardware=0x%x\n",
 			   chip->hardware);
 		*rchip = chip;
 		return 0;
@@ -298,7 +298,7 @@ int snd_cs4236_create(struct snd_card *card,
 	if (cport < 0x100 || cport == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR "please, specify control port "
 			   "for CS4236+ chips\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ver1 = snd_cs4236_ctrl_in(chip, 1);
 	ver2 = snd_cs4236_ext_in(chip, CS4236_VERSION);
@@ -306,15 +306,15 @@ int snd_cs4236_create(struct snd_card *card,
 			cport, ver1, ver2);
 	if (ver1 != ver2) {
 		snd_printk(KERN_ERR "CS4236+ chip detected, but "
-			   "control port 0x%lx is not valid\n", cport);
-		return -ENODEV;
+			   "control port 0x%lx is analt valid\n", cport);
+		return -EANALDEV;
 	}
 	snd_cs4236_ctrl_out(chip, 0, 0x00);
 	snd_cs4236_ctrl_out(chip, 2, 0xff);
 	snd_cs4236_ctrl_out(chip, 3, 0x00);
 	snd_cs4236_ctrl_out(chip, 4, 0x80);
 	reg = ((IEC958_AES1_CON_PCM_CODER & 3) << 6) |
-	      IEC958_AES0_CON_EMPHASIS_NONE;
+	      IEC958_AES0_CON_EMPHASIS_ANALNE;
 	snd_cs4236_ctrl_out(chip, 5, reg);
 	snd_cs4236_ctrl_out(chip, 6, IEC958_AES1_CON_PCM_CODER >> 2);
 	snd_cs4236_ctrl_out(chip, 7, 0x00);
@@ -829,13 +829,13 @@ WSS_DOUBLE_TLV("CD Volume", 0,
 WSS_DOUBLE("CD Capture Switch", 0,
 		CS4231_AUX2_LEFT_INPUT, CS4231_AUX2_RIGHT_INPUT, 6, 6, 1, 1),
 
-CS4236_DOUBLE1("Mono Output Playback Switch", 0,
-		CS4231_MONO_CTRL, CS4236_RIGHT_MIX_CTRL, 6, 7, 1, 1),
+CS4236_DOUBLE1("Moanal Output Playback Switch", 0,
+		CS4231_MOANAL_CTRL, CS4236_RIGHT_MIX_CTRL, 6, 7, 1, 1),
 CS4236_DOUBLE1("Beep Playback Switch", 0,
-		CS4231_MONO_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
-WSS_SINGLE_TLV("Beep Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1,
+		CS4231_MOANAL_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
+WSS_SINGLE_TLV("Beep Playback Volume", 0, CS4231_MOANAL_CTRL, 0, 15, 1,
 		db_scale_4bit),
-WSS_SINGLE("Beep Bypass Playback Switch", 0, CS4231_MONO_CTRL, 5, 1, 0),
+WSS_SINGLE("Beep Bypass Playback Switch", 0, CS4231_MOANAL_CTRL, 5, 1, 0),
 
 WSS_DOUBLE_TLV("Capture Volume", 0, CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT,
 		0, 0, 15, 0, db_scale_rec_gain),
@@ -913,8 +913,8 @@ WSS_DOUBLE_TLV("CD Volume", 1,
 		db_scale_5bit_12db_max),
 
 CS4236_DOUBLE1("Beep Playback Switch", 0,
-		CS4231_MONO_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
-WSS_SINGLE("Beep Playback Volume", 0, CS4231_MONO_CTRL, 0, 15, 1),
+		CS4231_MOANAL_CTRL, CS4236_LEFT_MIX_CTRL, 7, 7, 1, 1),
+WSS_SINGLE("Beep Playback Volume", 0, CS4231_MOANAL_CTRL, 0, 15, 1),
 
 WSS_DOUBLE("Analog Loopback Switch", 0,
 		CS4231_LEFT_INPUT, CS4231_RIGHT_INPUT, 7, 7, 1, 0),
@@ -1002,7 +1002,7 @@ static const struct snd_kcontrol_new snd_cs4236_3d_controls_cs4237[] = {
 CS4236_SINGLEC("3D Control - Switch", 0, 3, 7, 1, 0),
 CS4236_SINGLEC("3D Control - Space", 0, 2, 4, 15, 1),
 CS4236_SINGLEC("3D Control - Center", 0, 2, 0, 15, 1),
-CS4236_SINGLEC("3D Control - Mono", 0, 3, 6, 1, 0),
+CS4236_SINGLEC("3D Control - Moanal", 0, 3, 6, 1, 0),
 CS4236_SINGLEC("3D Control - IEC958", 0, 3, 5, 1, 0)
 };
 

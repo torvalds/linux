@@ -3,7 +3,7 @@
 #include "btree_update.h"
 #include "errcode.h"
 #include "error.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "quota.h"
 #include "snapshot.h"
 #include "super-io.h"
@@ -16,7 +16,7 @@ static const char * const bch2_quota_types[] = {
 
 static const char * const bch2_quota_counters[] = {
 	"space",
-	"inodes",
+	"ianaldes",
 };
 
 static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
@@ -65,10 +65,10 @@ int bch2_quota_invalid(struct bch_fs *c, struct bkey_s_c k,
 {
 	int ret = 0;
 
-	bkey_fsck_err_on(k.k->p.inode >= QTYP_NR, c, err,
+	bkey_fsck_err_on(k.k->p.ianalde >= QTYP_NR, c, err,
 			 quota_type_invalid,
 			 "invalid quota type (%llu >= %u)",
-			 k.k->p.inode, QTYP_NR);
+			 k.k->p.ianalde, QTYP_NR);
 fsck_err:
 	return ret;
 }
@@ -112,9 +112,9 @@ static void qc_info_to_text(struct printbuf *out, struct qc_info *i)
 	prt_printf(out, "%u", i->i_spc_timelimit);
 	prt_newline(out);
 
-	prt_str(out, "i_ino_timelimit");
+	prt_str(out, "i_ianal_timelimit");
 	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_timelimit);
+	prt_printf(out, "%u", i->i_ianal_timelimit);
 	prt_newline(out);
 
 	prt_str(out, "i_rt_spc_timelimit");
@@ -127,9 +127,9 @@ static void qc_info_to_text(struct printbuf *out, struct qc_info *i)
 	prt_printf(out, "%u", i->i_spc_warnlimit);
 	prt_newline(out);
 
-	prt_str(out, "i_ino_warnlimit");
+	prt_str(out, "i_ianal_warnlimit");
 	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_warnlimit);
+	prt_printf(out, "%u", i->i_ianal_warnlimit);
 	prt_newline(out);
 
 	prt_str(out, "i_rt_spc_warnlimit");
@@ -158,14 +158,14 @@ static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
 	prt_printf(out, "%llu", q->d_spc_softlimit);
 	prt_newline(out);
 
-	prt_str(out, "d_ino_hardlimit");
+	prt_str(out, "d_ianal_hardlimit");
 	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_hardlimit);
+	prt_printf(out, "%llu", q->d_ianal_hardlimit);
 	prt_newline(out);
 
-	prt_str(out, "d_ino_softlimit");
+	prt_str(out, "d_ianal_softlimit");
 	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_softlimit);
+	prt_printf(out, "%llu", q->d_ianal_softlimit);
 	prt_newline(out);
 
 	prt_str(out, "d_space");
@@ -173,14 +173,14 @@ static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
 	prt_printf(out, "%llu", q->d_space);
 	prt_newline(out);
 
-	prt_str(out, "d_ino_count");
+	prt_str(out, "d_ianal_count");
 	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_count);
+	prt_printf(out, "%llu", q->d_ianal_count);
 	prt_newline(out);
 
-	prt_str(out, "d_ino_timer");
+	prt_str(out, "d_ianal_timer");
 	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_timer);
+	prt_printf(out, "%llu", q->d_ianal_timer);
 	prt_newline(out);
 
 	prt_str(out, "d_spc_timer");
@@ -188,9 +188,9 @@ static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
 	prt_printf(out, "%llu", q->d_spc_timer);
 	prt_newline(out);
 
-	prt_str(out, "d_ino_warns");
+	prt_str(out, "d_ianal_warns");
 	prt_tab(out);
-	prt_printf(out, "%i", q->d_ino_warns);
+	prt_printf(out, "%i", q->d_ianal_warns);
 	prt_newline(out);
 
 	prt_str(out, "d_spc_warns");
@@ -212,7 +212,7 @@ static inline unsigned __next_qtype(unsigned i, unsigned qtypes)
 	      _i < QTYP_NR);						\
 	     _i++)
 
-static bool ignore_hardlimit(struct bch_memquota_type *q)
+static bool iganalre_hardlimit(struct bch_memquota_type *q)
 {
 	if (capable(CAP_SYS_RESOURCE))
 		return true;
@@ -231,8 +231,8 @@ enum quota_msg {
 	SOFTLONGWARN,	/* Grace time expired */
 	HARDWARN,	/* Hardlimit reached */
 
-	HARDBELOW,	/* Usage got below inode hardlimit */
-	SOFTBELOW,	/* Usage got below inode softlimit */
+	HARDBELOW,	/* Usage got below ianalde hardlimit */
+	SOFTBELOW,	/* Usage got below ianalde softlimit */
 };
 
 static int quota_nl[][Q_COUNTERS] = {
@@ -242,11 +242,11 @@ static int quota_nl[][Q_COUNTERS] = {
 	[HARDBELOW][Q_SPC]	= QUOTA_NL_BHARDBELOW,
 	[SOFTBELOW][Q_SPC]	= QUOTA_NL_BSOFTBELOW,
 
-	[HARDWARN][Q_INO]	= QUOTA_NL_IHARDWARN,
-	[SOFTLONGWARN][Q_INO]	= QUOTA_NL_ISOFTLONGWARN,
-	[SOFTWARN][Q_INO]	= QUOTA_NL_ISOFTWARN,
-	[HARDBELOW][Q_INO]	= QUOTA_NL_IHARDBELOW,
-	[SOFTBELOW][Q_INO]	= QUOTA_NL_ISOFTBELOW,
+	[HARDWARN][Q_IANAL]	= QUOTA_NL_IHARDWARN,
+	[SOFTLONGWARN][Q_IANAL]	= QUOTA_NL_ISOFTLONGWARN,
+	[SOFTWARN][Q_IANAL]	= QUOTA_NL_ISOFTWARN,
+	[HARDBELOW][Q_IANAL]	= QUOTA_NL_IHARDBELOW,
+	[SOFTBELOW][Q_IANAL]	= QUOTA_NL_ISOFTBELOW,
 };
 
 struct quota_msgs {
@@ -306,7 +306,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 
 	BUG_ON((s64) n < 0);
 
-	if (mode == KEY_TYPE_QUOTA_NOCHECK)
+	if (mode == KEY_TYPE_QUOTA_ANALCHECK)
 		return 0;
 
 	if (v <= 0) {
@@ -328,7 +328,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 
 	if (qc->hardlimit &&
 	    qc->hardlimit < n &&
-	    !ignore_hardlimit(q)) {
+	    !iganalre_hardlimit(q)) {
 		prepare_warning(qc, qtype, counter, msgs, HARDWARN);
 		return -EDQUOT;
 	}
@@ -339,7 +339,7 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 			qc->timer = ktime_get_real_seconds() + q->limits[counter].timelimit;
 			prepare_warning(qc, qtype, counter, msgs, SOFTWARN);
 		} else if (ktime_get_real_seconds() >= qc->timer &&
-			   !ignore_hardlimit(q)) {
+			   !iganalre_hardlimit(q)) {
 			prepare_warning(qc, qtype, counter, msgs, SOFTLONGWARN);
 			return -EDQUOT;
 		}
@@ -364,7 +364,7 @@ int bch2_quota_acct(struct bch_fs *c, struct bch_qid qid,
 	for_each_set_qtype(c, i, q, qtypes) {
 		mq[i] = genradix_ptr_alloc(&q->table, qid.q[i], GFP_KERNEL);
 		if (!mq[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for_each_set_qtype(c, i, q, qtypes)
@@ -417,7 +417,7 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 		src_q[i] = genradix_ptr_alloc(&q->table, src.q[i], GFP_KERNEL);
 		dst_q[i] = genradix_ptr_alloc(&q->table, dst.q[i], GFP_KERNEL);
 		if (!src_q[i] || !dst_q[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for_each_set_qtype(c, i, q, qtypes)
@@ -430,8 +430,8 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 		if (ret)
 			goto err;
 
-		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_INO,
-					     dst_q[i]->c[Q_INO].v + 1,
+		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_IANAL,
+					     dst_q[i]->c[Q_IANAL].v + 1,
 					     mode);
 		if (ret)
 			goto err;
@@ -439,7 +439,7 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 
 	for_each_set_qtype(c, i, q, qtypes) {
 		__bch2_quota_transfer(src_q[i], dst_q[i], Q_SPC, space);
-		__bch2_quota_transfer(src_q[i], dst_q[i], Q_INO, 1);
+		__bch2_quota_transfer(src_q[i], dst_q[i], Q_IANAL, 1);
 	}
 
 err:
@@ -459,21 +459,21 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k,
 	struct bch_memquota *mq;
 	unsigned i;
 
-	BUG_ON(k.k->p.inode >= QTYP_NR);
+	BUG_ON(k.k->p.ianalde >= QTYP_NR);
 
-	if (!((1U << k.k->p.inode) & enabled_qtypes(c)))
+	if (!((1U << k.k->p.ianalde) & enabled_qtypes(c)))
 		return 0;
 
 	switch (k.k->type) {
 	case KEY_TYPE_quota:
 		dq = bkey_s_c_to_quota(k);
-		q = &c->quotas[k.k->p.inode];
+		q = &c->quotas[k.k->p.ianalde];
 
 		mutex_lock(&q->lock);
 		mq = genradix_ptr_alloc(&q->table, k.k->p.offset, GFP_KERNEL);
 		if (!mq) {
 			mutex_unlock(&q->lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		for (i = 0; i < Q_COUNTERS; i++) {
@@ -485,10 +485,10 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k,
 			mq->c[Q_SPC].timer	= qdq->d_spc_timer;
 		if (qdq && qdq->d_fieldmask & QC_SPC_WARNS)
 			mq->c[Q_SPC].warns	= qdq->d_spc_warns;
-		if (qdq && qdq->d_fieldmask & QC_INO_TIMER)
-			mq->c[Q_INO].timer	= qdq->d_ino_timer;
-		if (qdq && qdq->d_fieldmask & QC_INO_WARNS)
-			mq->c[Q_INO].warns	= qdq->d_ino_warns;
+		if (qdq && qdq->d_fieldmask & QC_IANAL_TIMER)
+			mq->c[Q_IANAL].timer	= qdq->d_ianal_timer;
+		if (qdq && qdq->d_fieldmask & QC_IANAL_WARNS)
+			mq->c[Q_IANAL].warns	= qdq->d_ianal_warns;
 
 		mutex_unlock(&q->lock);
 	}
@@ -553,19 +553,19 @@ static void bch2_sb_quota_read(struct bch_fs *c)
 	}
 }
 
-static int bch2_fs_quota_read_inode(struct btree_trans *trans,
+static int bch2_fs_quota_read_ianalde(struct btree_trans *trans,
 				    struct btree_iter *iter,
 				    struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_inode_unpacked u;
+	struct bch_ianalde_unpacked u;
 	struct bch_snapshot_tree s_t;
 	int ret;
 
 	ret = bch2_snapshot_tree_lookup(trans,
 			bch2_snapshot_tree(c, k.k->p.snapshot), &s_t);
-	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
-			"%s: snapshot tree %u not found", __func__,
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, EANALENT), c,
+			"%s: snapshot tree %u analt found", __func__,
 			snapshot_t(c, k.k->p.snapshot)->tree);
 	if (ret)
 		return ret;
@@ -573,27 +573,27 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 	if (!s_t.master_subvol)
 		goto advance;
 
-	ret = bch2_inode_find_by_inum_nowarn_trans(trans,
+	ret = bch2_ianalde_find_by_inum_analwarn_trans(trans,
 				(subvol_inum) {
 					le32_to_cpu(s_t.master_subvol),
 					k.k->p.offset,
 				}, &u);
 	/*
-	 * Inode might be deleted in this snapshot - the easiest way to handle
+	 * Ianalde might be deleted in this snapshot - the easiest way to handle
 	 * that is to just skip it here:
 	 */
-	if (bch2_err_matches(ret, ENOENT))
+	if (bch2_err_matches(ret, EANALENT))
 		goto advance;
 
 	if (ret)
 		return ret;
 
 	bch2_quota_acct(c, bch_qid(&u), Q_SPC, u.bi_sectors,
-			KEY_TYPE_QUOTA_NOCHECK);
-	bch2_quota_acct(c, bch_qid(&u), Q_INO, 1,
-			KEY_TYPE_QUOTA_NOCHECK);
+			KEY_TYPE_QUOTA_ANALCHECK);
+	bch2_quota_acct(c, bch_qid(&u), Q_IANAL, 1,
+			KEY_TYPE_QUOTA_ANALCHECK);
 advance:
-	bch2_btree_iter_set_pos(iter, bpos_nosnap_successor(iter->pos));
+	bch2_btree_iter_set_pos(iter, bpos_analsnap_successor(iter->pos));
 	return 0;
 }
 
@@ -604,7 +604,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	struct bch_sb_field_quota *sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
 		mutex_unlock(&c->sb_lock);
-		return -BCH_ERR_ENOSPC_sb_quota;
+		return -BCH_ERR_EANALSPC_sb_quota;
 	}
 
 	bch2_sb_quota_read(c);
@@ -614,9 +614,9 @@ int bch2_fs_quota_read(struct bch_fs *c)
 		for_each_btree_key(trans, iter, BTREE_ID_quotas, POS_MIN,
 				   BTREE_ITER_PREFETCH, k,
 			__bch2_quota_set(c, k, NULL)) ?:
-		for_each_btree_key(trans, iter, BTREE_ID_inodes, POS_MIN,
+		for_each_btree_key(trans, iter, BTREE_ID_ianaldes, POS_MIN,
 				   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			bch2_fs_quota_read_inode(trans, &iter, k)));
+			bch2_fs_quota_read_ianalde(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -649,7 +649,7 @@ static int bch2_quota_enable(struct super_block	*sb, unsigned uflags)
 	mutex_lock(&c->sb_lock);
 	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
-		ret = -BCH_ERR_ENOSPC_sb_quota;
+		ret = -BCH_ERR_EANALSPC_sb_quota;
 		goto unlock;
 	}
 
@@ -740,7 +740,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 }
 
 /*
- * Return quota status information, such as enforcements, quota file inode
+ * Return quota status information, such as enforcements, quota file ianalde
  * numbers etc.
  */
 static int bch2_quota_get_state(struct super_block *sb, struct qc_state *state)
@@ -762,8 +762,8 @@ static int bch2_quota_get_state(struct super_block *sb, struct qc_state *state)
 		state->s_state[i].spc_timelimit = c->quotas[i].limits[Q_SPC].timelimit;
 		state->s_state[i].spc_warnlimit = c->quotas[i].limits[Q_SPC].warnlimit;
 
-		state->s_state[i].ino_timelimit = c->quotas[i].limits[Q_INO].timelimit;
-		state->s_state[i].ino_warnlimit = c->quotas[i].limits[Q_INO].warnlimit;
+		state->s_state[i].ianal_timelimit = c->quotas[i].limits[Q_IANAL].timelimit;
+		state->s_state[i].ianal_warnlimit = c->quotas[i].limits[Q_IANAL].warnlimit;
 	}
 
 	return 0;
@@ -797,13 +797,13 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 		return -ESRCH;
 
 	if (info->i_fieldmask &
-	    ~(QC_SPC_TIMER|QC_INO_TIMER|QC_SPC_WARNS|QC_INO_WARNS))
+	    ~(QC_SPC_TIMER|QC_IANAL_TIMER|QC_SPC_WARNS|QC_IANAL_WARNS))
 		return -EINVAL;
 
 	mutex_lock(&c->sb_lock);
 	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
-		ret = -BCH_ERR_ENOSPC_sb_quota;
+		ret = -BCH_ERR_EANALSPC_sb_quota;
 		goto unlock;
 	}
 
@@ -815,13 +815,13 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 		sb_quota->q[type].c[Q_SPC].warnlimit =
 			cpu_to_le32(info->i_spc_warnlimit);
 
-	if (info->i_fieldmask & QC_INO_TIMER)
-		sb_quota->q[type].c[Q_INO].timelimit =
-			cpu_to_le32(info->i_ino_timelimit);
+	if (info->i_fieldmask & QC_IANAL_TIMER)
+		sb_quota->q[type].c[Q_IANAL].timelimit =
+			cpu_to_le32(info->i_ianal_timelimit);
 
-	if (info->i_fieldmask & QC_INO_WARNS)
-		sb_quota->q[type].c[Q_INO].warnlimit =
-			cpu_to_le32(info->i_ino_warnlimit);
+	if (info->i_fieldmask & QC_IANAL_WARNS)
+		sb_quota->q[type].c[Q_IANAL].warnlimit =
+			cpu_to_le32(info->i_ianal_warnlimit);
 
 	bch2_sb_quota_read(c);
 
@@ -842,11 +842,11 @@ static void __bch2_quota_get(struct qc_dqblk *dst, struct bch_memquota *src)
 	dst->d_spc_timer	= src->c[Q_SPC].timer;
 	dst->d_spc_warns	= src->c[Q_SPC].warns;
 
-	dst->d_ino_count	= src->c[Q_INO].v;
-	dst->d_ino_hardlimit	= src->c[Q_INO].hardlimit;
-	dst->d_ino_softlimit	= src->c[Q_INO].softlimit;
-	dst->d_ino_timer	= src->c[Q_INO].timer;
-	dst->d_ino_warns	= src->c[Q_INO].warns;
+	dst->d_ianal_count	= src->c[Q_IANAL].v;
+	dst->d_ianal_hardlimit	= src->c[Q_IANAL].hardlimit;
+	dst->d_ianal_softlimit	= src->c[Q_IANAL].softlimit;
+	dst->d_ianal_timer	= src->c[Q_IANAL].timer;
+	dst->d_ianal_warns	= src->c[Q_IANAL].warns;
 }
 
 static int bch2_get_quota(struct super_block *sb, struct kqid kqid,
@@ -887,7 +887,7 @@ static int bch2_get_next_quota(struct super_block *sb, struct kqid *kqid,
 			goto found;
 		}
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 found:
 	mutex_unlock(&q->lock);
 	return bch2_err_class(ret);
@@ -915,10 +915,10 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	if (qdq->d_fieldmask & QC_SPC_HARD)
 		new_quota->v.c[Q_SPC].hardlimit = cpu_to_le64(qdq->d_spc_hardlimit >> 9);
 
-	if (qdq->d_fieldmask & QC_INO_SOFT)
-		new_quota->v.c[Q_INO].softlimit = cpu_to_le64(qdq->d_ino_softlimit);
-	if (qdq->d_fieldmask & QC_INO_HARD)
-		new_quota->v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
+	if (qdq->d_fieldmask & QC_IANAL_SOFT)
+		new_quota->v.c[Q_IANAL].softlimit = cpu_to_le64(qdq->d_ianal_softlimit);
+	if (qdq->d_fieldmask & QC_IANAL_HARD)
+		new_quota->v.c[Q_IANAL].hardlimit = cpu_to_le64(qdq->d_ianal_hardlimit);
 
 	ret = bch2_trans_update(trans, &iter, &new_quota->k_i, 0);
 	bch2_trans_iter_exit(trans, &iter);

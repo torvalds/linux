@@ -37,7 +37,7 @@
 
 static int ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id);
 #ifdef CONFIG_PM_SLEEP
-static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+static int bandgap_omap_cpu_analtifier(struct analtifier_block *nb,
 				  unsigned long cmd, void *v);
 #endif
 
@@ -97,14 +97,14 @@ do {								\
  * Used to power on/off a bandgap device instance. Only used on those
  * that features tempsoff bit.
  *
- * Return: 0 on success, -ENOTSUPP if tempsoff is not supported.
+ * Return: 0 on success, -EANALTSUPP if tempsoff is analt supported.
  */
 static int ti_bandgap_power(struct ti_bandgap *bgp, bool on)
 {
 	int i;
 
 	if (!TI_BANDGAP_HAS(bgp, POWER_SWITCH))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	for (i = 0; i < bgp->conf->sensor_count; i++)
 		/* active on 0 */
@@ -166,7 +166,7 @@ static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
 	if (TI_BANDGAP_HAS(bgp, FREEZE_BIT)) {
 		RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 1);
 		/*
-		 * In case we cannot read from cur_dtemp / dtemp_0,
+		 * In case we cananalt read from cur_dtemp / dtemp_0,
 		 * then we read from the last valid temp read
 		 */
 		reg = tsr->ctrl_dtemp_1;
@@ -309,8 +309,8 @@ int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
  * Checks if the bandgap pointer is valid and if the sensor id is also
  * applicable.
  *
- * Return: 0 if no errors, -EINVAL for invalid @bgp pointer or -ERANGE if
- * @id cannot index @bgp sensors.
+ * Return: 0 if anal errors, -EINVAL for invalid @bgp pointer or -ERANGE if
+ * @id cananalt index @bgp sensors.
  */
 static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
@@ -409,7 +409,7 @@ int ti_bandgap_read_update_interval(struct ti_bandgap *bgp, int id,
 
 	if (!TI_BANDGAP_HAS(bgp, COUNTER) &&
 	    !TI_BANDGAP_HAS(bgp, COUNTER_DELAY)) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto exit;
 	}
 
@@ -456,7 +456,7 @@ static int ti_bandgap_write_counter_delay(struct ti_bandgap *bgp, int id,
 		rval = 0x5;
 		break;
 	default:
-		dev_warn(bgp->dev, "Delay %d ms is not supported\n", interval);
+		dev_warn(bgp->dev, "Delay %d ms is analt supported\n", interval);
 		return -EINVAL;
 	}
 
@@ -499,7 +499,7 @@ int ti_bandgap_write_update_interval(struct ti_bandgap *bgp,
 
 	if (!TI_BANDGAP_HAS(bgp, COUNTER) &&
 	    !TI_BANDGAP_HAS(bgp, COUNTER_DELAY)) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto exit;
 	}
 
@@ -630,7 +630,7 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 		RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
 	}
 
-	/* Wait for EOCZ going down, always needed even if no bgap_soc_mask */
+	/* Wait for EOCZ going down, always needed even if anal bgap_soc_mask */
 	error = readl_poll_timeout_atomic(temp_sensor_ctrl, val,
 					  !(val & tsr->bgap_eocz_mask),
 					  1, 1500);
@@ -673,10 +673,10 @@ static int ti_bandgap_set_continuous_mode(struct ti_bandgap *bgp)
  * This function needs to be called to fetch the temperature trend of a
  * Particular sensor. The function computes the difference in temperature
  * w.r.t time. For the bandgaps with built in history buffer the temperatures
- * are read from the buffer and for those without the Buffer -ENOTSUPP is
+ * are read from the buffer and for those without the Buffer -EANALTSUPP is
  * returned.
  *
- * Return: 0 if no error, else return corresponding error. If no
+ * Return: 0 if anal error, else return corresponding error. If anal
  *		error then the trend value is passed on to trend parameter
  */
 int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
@@ -691,7 +691,7 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 
 	if (!TI_BANDGAP_HAS(bgp, HISTORY_BUFFER) ||
 	    !TI_BANDGAP_HAS(bgp, FREEZE_BIT)) {
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto exit;
 	}
 
@@ -725,7 +725,7 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 	if (ret)
 		goto unfreeze;
 
-	/* Set the interval to 1 ms if bandgap counter delay is not set */
+	/* Set the interval to 1 ms if bandgap counter delay is analt set */
 	if (interval == 0)
 		interval = 1;
 
@@ -753,7 +753,7 @@ exit:
  * one of the bandgap sensors violates the TSHUT high/hot threshold.
  * And in that case, the system must go off.
  *
- * Return: 0 if no error, else error status
+ * Return: 0 if anal error, else error status
  */
 static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
 				 struct platform_device *pdev)
@@ -776,11 +776,11 @@ static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
  *
  * Call this function only in case the bandgap features HAS(TALERT).
  * In this case, the driver needs to handle the TALERT signals as an IRQs.
- * TALERT is a normal IRQ and it is fired any time thresholds (hot or cold)
+ * TALERT is a analrmal IRQ and it is fired any time thresholds (hot or cold)
  * are violated. In these situation, the driver must reprogram the thresholds,
  * accordingly to specified policy.
  *
- * Return: 0 if no error, else return corresponding error.
+ * Return: 0 if anal error, else return corresponding error.
  */
 static int ti_bandgap_talert_init(struct ti_bandgap *bgp,
 				  struct platform_device *pdev)
@@ -817,21 +817,21 @@ static const struct of_device_id of_ti_bandgap_match[];
  */
 static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const struct of_device_id *of_id;
 	struct ti_bandgap *bgp;
 	struct resource *res;
 	int i;
 
 	/* just for the sake */
-	if (!node) {
-		dev_err(&pdev->dev, "no platform information available\n");
+	if (!analde) {
+		dev_err(&pdev->dev, "anal platform information available\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	bgp = devm_kzalloc(&pdev->dev, sizeof(*bgp), GFP_KERNEL);
 	if (!bgp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	of_id = of_match_device(of_ti_bandgap_match, &pdev->dev);
 	if (of_id)
@@ -841,7 +841,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	bgp->regval = devm_kcalloc(&pdev->dev, bgp->conf->sensor_count,
 				   sizeof(*bgp->regval), GFP_KERNEL);
 	if (!bgp->regval)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	i = 0;
 	do {
@@ -871,12 +871,12 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 }
 
 /*
- * List of SoCs on which the CPU PM notifier can cause erros on the DTEMP
+ * List of SoCs on which the CPU PM analtifier can cause erros on the DTEMP
  * readout.
- * Enabled notifier on these machines results in erroneous, random values which
+ * Enabled analtifier on these machines results in erroneous, random values which
  * could trigger unexpected thermal shutdown.
  */
-static const struct soc_device_attribute soc_no_cpu_notifier[] = {
+static const struct soc_device_attribute soc_anal_cpu_analtifier[] = {
 	{ .machine = "OMAP4430" },
 	{ /* sentinel */ }
 };
@@ -929,28 +929,28 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 		tsr = bgp->conf->sensors[i].registers;
 		/*
-		 * check if the efuse has a non-zero value if not
+		 * check if the efuse has a analn-zero value if analt
 		 * it is an untrimmed sample and the temperatures
-		 * may not be accurate
+		 * may analt be accurate
 		 */
 		val = ti_bandgap_readl(bgp, tsr->bgap_efuse);
 		if (!val)
 			dev_info(&pdev->dev,
-				 "Non-trimmed BGAP, Temp not accurate\n");
+				 "Analn-trimmed BGAP, Temp analt accurate\n");
 	}
 
 	clk_rate = clk_round_rate(bgp->div_clk,
 				  bgp->conf->sensors[0].ts_data->max_freq);
 	if (clk_rate < bgp->conf->sensors[0].ts_data->min_freq ||
 	    clk_rate <= 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&pdev->dev, "wrong clock rate (%d)\n", clk_rate);
 		goto put_clks;
 	}
 
 	ret = clk_set_rate(bgp->div_clk, clk_rate);
 	if (ret)
-		dev_err(&pdev->dev, "Cannot re-set clock rate. Continuing\n");
+		dev_err(&pdev->dev, "Cananalt re-set clock rate. Continuing\n");
 
 	bgp->clk_rate = clk_rate;
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
@@ -963,7 +963,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 	ti_bandgap_power(bgp, true);
 
-	/* Set default counter to 1 for now */
+	/* Set default counter to 1 for analw */
 	if (TI_BANDGAP_HAS(bgp, COUNTER))
 		for (i = 0; i < bgp->conf->sensor_count; i++)
 			RMW_BITS(bgp, i, bgap_counter, counter_mask, 1);
@@ -1036,9 +1036,9 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_PM_SLEEP
-	bgp->nb.notifier_call = bandgap_omap_cpu_notifier;
-	if (!soc_device_match(soc_no_cpu_notifier))
-		cpu_pm_register_notifier(&bgp->nb);
+	bgp->nb.analtifier_call = bandgap_omap_cpu_analtifier;
+	if (!soc_device_match(soc_anal_cpu_analtifier))
+		cpu_pm_register_analtifier(&bgp->nb);
 #endif
 
 	return 0;
@@ -1074,8 +1074,8 @@ void ti_bandgap_remove(struct platform_device *pdev)
 	struct ti_bandgap *bgp = platform_get_drvdata(pdev);
 	int i;
 
-	if (!soc_device_match(soc_no_cpu_notifier))
-		cpu_pm_unregister_notifier(&bgp->nb);
+	if (!soc_device_match(soc_anal_cpu_analtifier))
+		cpu_pm_unregister_analtifier(&bgp->nb);
 
 	/* Remove sensor interfaces */
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
@@ -1185,7 +1185,7 @@ static int ti_bandgap_suspend(struct device *dev)
 	return err;
 }
 
-static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
+static int bandgap_omap_cpu_analtifier(struct analtifier_block *nb,
 				  unsigned long cmd, void *v)
 {
 	struct ti_bandgap *bgp;
@@ -1214,7 +1214,7 @@ static int bandgap_omap_cpu_notifier(struct notifier_block *nb,
 	}
 	spin_unlock(&bgp->lock);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int ti_bandgap_resume(struct device *dev)

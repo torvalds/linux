@@ -122,7 +122,7 @@ struct tpm_chip {
 	struct cdev cdev;
 	struct cdev cdevs;
 
-	/* A driver callback under ops cannot be run unless ops_sem is held
+	/* A driver callback under ops cananalt be run unless ops_sem is held
 	 * (sometimes implicitly, eg for the sysfs code). ops becomes null
 	 * when the driver is unregistered, see tpm_try_get_ops.
 	 */
@@ -192,7 +192,7 @@ enum tpm2_timeouts {
 };
 
 enum tpm2_structures {
-	TPM2_ST_NO_SESSIONS	= 0x8001,
+	TPM2_ST_ANAL_SESSIONS	= 0x8001,
 	TPM2_ST_SESSIONS	= 0x8002,
 };
 
@@ -339,7 +339,7 @@ static inline int tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
 {
 	buf->data = (u8 *)__get_free_page(GFP_KERNEL);
 	if (!buf->data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->flags = 0;
 	tpm_buf_reset(buf, tag, ordinal);
@@ -436,27 +436,27 @@ void tpm2_flush_context(struct tpm_chip *chip, u32 handle);
 #else
 static inline int tpm_is_tpm2(struct tpm_chip *chip)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int tpm_pcr_read(struct tpm_chip *chip, int pcr_idx,
 			       struct tpm_digest *digest)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 				 struct tpm_digest *digests)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline int tpm_get_random(struct tpm_chip *chip, u8 *data, size_t max)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct tpm_chip *tpm_default_chip(void)

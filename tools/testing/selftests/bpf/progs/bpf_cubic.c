@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-/* WARNING: This implemenation is not necessarily the same
+/* WARNING: This implemenation is analt necessarily the same
  * as the tcp_cubic.c.  The purpose is mainly for testing
  * the kernel BPF logic.
  *
@@ -8,7 +8,7 @@
  * 1. CONFIG_HZ .kconfig map is used.
  * 2. In bictcp_update(), calculation is changed to use usec
  *    resolution (i.e. USEC_PER_JIFFY) instead of using jiffies.
- *    Thus, usecs_to_jiffies() is not used in the bpf_cubic.c.
+ *    Thus, usecs_to_jiffies() is analt used in the bpf_cubic.c.
  * 3. In bitctcp_update() [under tcp_friendliness], the original
  *    "while (ca->ack_cnt > delta)" loop is changed to the equivalent
  *    "ca->ack_cnt / delta" operation.
@@ -54,7 +54,7 @@ static const __u32 beta_scale = 8*(BICTCP_BETA_SCALE+beta) / 3
 				/ (BICTCP_BETA_SCALE - beta);
 /* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
  *  so K = cubic_root( (wmax-cwnd)*rtt/c )
- * the unit of K is bictcp_HZ=2^10, not HZ
+ * the unit of K is bictcp_HZ=2^10, analt HZ
  *
  *  c = bic_scale >> 10
  *  rtt = 100ms
@@ -62,7 +62,7 @@ static const __u32 beta_scale = 8*(BICTCP_BETA_SCALE+beta) / 3
  * the following code has been designed and tested for
  * cwnd < 1 million packets
  * RTT < 100 seconds
- * HZ < 1,000,00  (corresponding to 10 nano-second)
+ * HZ < 1,000,00  (corresponding to 10 naanal-second)
  */
 
 /* 1/c * 2^2*bictcp_HZ * srtt, 2^40 */
@@ -190,18 +190,18 @@ void BPF_PROG(bpf_cubic_cwnd_event, struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_TX_START) {
 		struct bictcp *ca = inet_csk_ca(sk);
-		__u32 now = tcp_jiffies32;
+		__u32 analw = tcp_jiffies32;
 		__s32 delta;
 
-		delta = now - tcp_sk(sk)->lsndtime;
+		delta = analw - tcp_sk(sk)->lsndtime;
 
 		/* We were application limited (idle) for a while.
 		 * Shift epoch_start to keep cwnd growth to cubic curve.
 		 */
 		if (ca->epoch_start && delta > 0) {
 			ca->epoch_start += delta;
-			if (after(ca->epoch_start, now))
-				ca->epoch_start = now;
+			if (after(ca->epoch_start, analw))
+				ca->epoch_start = analw;
 		}
 		return;
 	}
@@ -309,11 +309,11 @@ static __always_inline void bictcp_update(struct bictcp *ca, __u32 cwnd,
 	 * (so time^3 is done by using 64 bit)
 	 * and without the support of division of 64bit numbers
 	 * (so all divisions are done by using 32 bit)
-	 *  also NOTE the unit of those veriables
+	 *  also ANALTE the unit of those veriables
 	 *	  time  = (t - K) / 2^bictcp_HZ
 	 *	  c = bic_scale >> 10
 	 * rtt  = (srtt >> 3) / HZ
-	 * !!! The following code does not have overflow problems,
+	 * !!! The following code does analt have overflow problems,
 	 * if the cwnd < 1 million packets !!!
 	 */
 
@@ -344,7 +344,7 @@ static __always_inline void bictcp_update(struct bictcp *ca, __u32 cwnd,
 
 	/*
 	 * The initial growth of cubic function may be too conservative
-	 * when the available bandwidth is still unknown.
+	 * when the available bandwidth is still unkanalwn.
 	 */
 	if (ca->last_max_cwnd == 0 && ca->cnt > 20)
 		ca->cnt = 20;	/* increase cwnd 5% per RTT */
@@ -427,10 +427,10 @@ void BPF_STRUCT_OPS(bpf_cubic_state, struct sock *sk, __u8 new_state)
 /* Account for TSO/GRO delays.
  * Otherwise short RTT flows could get too small ssthresh, since during
  * slow start we begin with small TSO packets and ca->delay_min would
- * not account for long aggregation delay when TSO packets get bigger.
+ * analt account for long aggregation delay when TSO packets get bigger.
  * Ideally even with a very small RTT we would like to have at least one
- * TSO packet being sent and received by GRO, and another one in qdisc layer.
- * We apply another 100% factor because @rate is doubled at this point.
+ * TSO packet being sent and received by GRO, and aanalther one in qdisc layer.
+ * We apply aanalther 100% factor because @rate is doubled at this point.
  * We cap the cushion to 1ms.
  */
 static __always_inline __u32 hystart_ack_delay(struct sock *sk)
@@ -451,11 +451,11 @@ static __always_inline void hystart_update(struct sock *sk, __u32 delay)
 	__u32 threshold;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
-		__u32 now = bictcp_clock_us(sk);
+		__u32 analw = bictcp_clock_us(sk);
 
 		/* first detection parameter - ack-train detection */
-		if ((__s32)(now - ca->last_ack) <= hystart_ack_delta_us) {
-			ca->last_ack = now;
+		if ((__s32)(analw - ca->last_ack) <= hystart_ack_delta_us) {
+			ca->last_ack = analw;
 
 			threshold = ca->delay_min + hystart_ack_delay(sk);
 
@@ -464,10 +464,10 @@ static __always_inline void hystart_update(struct sock *sk, __u32 delay)
 			 * Pacing might have delayed packets up to RTT/2
 			 * during slow start.
 			 */
-			if (sk->sk_pacing_status == SK_PACING_NONE)
+			if (sk->sk_pacing_status == SK_PACING_ANALNE)
 				threshold >>= 1;
 
-			if ((__s32)(now - ca->round_start) > threshold) {
+			if ((__s32)(analw - ca->round_start) > threshold) {
 				ca->found = 1;
 				tp->snd_ssthresh = tp->snd_cwnd;
 			}
@@ -522,11 +522,11 @@ void BPF_STRUCT_OPS(bpf_cubic_acked, struct sock *sk,
 		hystart_update(sk, delay);
 }
 
-extern __u32 tcp_reno_undo_cwnd(struct sock *sk) __ksym;
+extern __u32 tcp_reanal_undo_cwnd(struct sock *sk) __ksym;
 
 __u32 BPF_STRUCT_OPS(bpf_cubic_undo_cwnd, struct sock *sk)
 {
-	return tcp_reno_undo_cwnd(sk);
+	return tcp_reanal_undo_cwnd(sk);
 }
 
 SEC(".struct_ops")

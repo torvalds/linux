@@ -98,11 +98,11 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (pkt->hard.dest == 0) {
 		skb->pkt_type = PACKET_BROADCAST;
 	} else if (dev->flags & IFF_PROMISC) {
-		/* if we're not sending to ourselves :) */
+		/* if we're analt sending to ourselves :) */
 		if (pkt->hard.dest != dev->dev_addr[0])
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	/* now return the protocol number */
+	/* analw return the protocol number */
 	switch (soft->proto) {
 	case ARC_P_IP_RFC1051:
 		return htons(ETH_P_IP);
@@ -175,7 +175,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 		soft->proto = ARC_P_ARP_RFC1051;
 		break;
 	default:
-		arc_printk(D_NORMAL, dev, "RFC1051: I don't understand protocol %d (%Xh)\n",
+		arc_printk(D_ANALRMAL, dev, "RFC1051: I don't understand protocol %d (%Xh)\n",
 			   type, type);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
@@ -185,16 +185,16 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address
+	 * debugging.  ARCnet does analt allow us to change the source address
 	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
 
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
-	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
+	if (dev->flags & (IFF_LOOPBACK | IFF_ANALARP)) {
 		/* FIXME: fill in the last byte of the dest ipaddr here to
-		 * better comply with RFC1051 in "noarp" mode.
+		 * better comply with RFC1051 in "analarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;
@@ -215,12 +215,12 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	/* hard header is not included in packet length */
+	/* hard header is analt included in packet length */
 	length -= ARC_HDR_SIZE;
 
 	if (length > XMTU) {
 		/* should never happen! other people already check for this. */
-		arc_printk(D_NORMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
+		arc_printk(D_ANALRMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
 			   length, XMTU);
 		length = XMTU;
 	}

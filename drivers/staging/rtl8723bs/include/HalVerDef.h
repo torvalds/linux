@@ -15,7 +15,7 @@ enum hal_ic_type_e { /* tag_HAL_IC_Type_Definition */
 /* hal_chip_type_e */
 enum hal_chip_type_e { /* tag_HAL_CHIP_Type_Definition */
 	TEST_CHIP		=	0,
-	NORMAL_CHIP	=	1,
+	ANALRMAL_CHIP	=	1,
 	FPGA			=	2,
 };
 
@@ -65,7 +65,7 @@ struct hal_version { /* tag_HAL_VERSION */
 
 /* hal_chip_type_e */
 #define IS_TEST_CHIP(version)			((GET_CVID_CHIP_TYPE(version) == TEST_CHIP) ? true : false)
-#define IS_NORMAL_CHIP(version)			((GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP) ? true : false)
+#define IS_ANALRMAL_CHIP(version)			((GET_CVID_CHIP_TYPE(version) == ANALRMAL_CHIP) ? true : false)
 
 /* hal_cut_version_e */
 #define IS_A_CUT(version)				((GET_CVID_CUT_VERSION(version) == A_CUT_VERSION) ? true : false)

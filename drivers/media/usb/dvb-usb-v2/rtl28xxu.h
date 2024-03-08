@@ -71,7 +71,7 @@ struct rtl28xxu_dev {
 	struct i2c_client *i2c_client_tuner;
 	struct i2c_client *i2c_client_slave_demod;
 	struct platform_device *platform_device_sdr;
-	#define SLAVE_DEMOD_NONE           0
+	#define SLAVE_DEMOD_ANALNE           0
 	#define SLAVE_DEMOD_MN88472        1
 	#define SLAVE_DEMOD_MN88473        2
 	#define SLAVE_DEMOD_SI2168         3
@@ -84,14 +84,14 @@ struct rtl28xxu_dev {
 };
 
 enum rtl28xxu_chip_id {
-	CHIP_ID_NONE,
+	CHIP_ID_ANALNE,
 	CHIP_ID_RTL2831U,
 	CHIP_ID_RTL2832U,
 };
 
 /* XXX: Hack. This must be keep sync with rtl2832 demod driver. */
 enum rtl28xxu_tuner {
-	TUNER_NONE,
+	TUNER_ANALNE,
 
 	TUNER_RTL2830_QT1010          = 0x10,
 	TUNER_RTL2830_MT2060,
@@ -136,7 +136,7 @@ struct rtl28xxu_reg_val_mask {
  * 0x0000 DEMOD : demodulator
  * 0x2000 USB   : SIE, USB endpoint, debug, DMA
  * 0x3000 SYS   : system
- * 0xfc00 RC    : remote controller (not RTL2831U)
+ * 0xfc00 RC    : remote controller (analt RTL2831U)
  */
 
 /*

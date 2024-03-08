@@ -60,7 +60,7 @@ properties:
 patternProperties:
   "^rom-[0-9a-f]{2}h$":
     type: object
-    description: Nodes containing the values of configuration registers.
+    description: Analdes containing the values of configuration registers.
     additionalProperties: false
     properties:
       rom-addr:

@@ -10,7 +10,7 @@ description: |
   The Tegra ACONNECT bus is an AXI switch which is used to connect various
   components inside the Audio Processing Engine (APE). All CPU accesses to
   the APE subsystem go through the ACONNECT via an APB to AXI wrapper. All
-  devices accessed via the ACONNECT are described by child-nodes.
+  devices accessed via the ACONNECT are described by child-analdes.
 
 maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
@@ -77,7 +77,7 @@ examples:
         #size-cells = <1>;
         ranges = <0x702c0000 0x702c0000 0x00040000>;
 
-        // Child device nodes follow ...
+        // Child device analdes follow ...
     };
 
 ...

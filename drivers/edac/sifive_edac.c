@@ -15,29 +15,29 @@
 #define DRVNAME "sifive_edac"
 
 struct sifive_edac_priv {
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct edac_device_ctl_info *dci;
 };
 
 /*
  * EDAC error callback
  *
- * @event: non-zero if unrecoverable.
+ * @event: analn-zero if unrecoverable.
  */
 static
-int ecc_err_event(struct notifier_block *this, unsigned long event, void *ptr)
+int ecc_err_event(struct analtifier_block *this, unsigned long event, void *ptr)
 {
 	const char *msg = (char *)ptr;
 	struct sifive_edac_priv *p;
 
-	p = container_of(this, struct sifive_edac_priv, notifier);
+	p = container_of(this, struct sifive_edac_priv, analtifier);
 
 	if (event == SIFIVE_CCACHE_ERR_TYPE_UE)
 		edac_device_handle_ue(p->dci, 0, 0, msg);
 	else if (event == SIFIVE_CCACHE_ERR_TYPE_CE)
 		edac_device_handle_ce(p->dci, 0, 0, msg);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int ecc_register(struct platform_device *pdev)
@@ -46,16 +46,16 @@ static int ecc_register(struct platform_device *pdev)
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	p->notifier.notifier_call = ecc_err_event;
+	p->analtifier.analtifier_call = ecc_err_event;
 	platform_set_drvdata(pdev, p);
 
 	p->dci = edac_device_alloc_ctl_info(0, "sifive_ecc", 1, "sifive_ecc",
 					    1, 1, NULL, 0,
 					    edac_device_alloc_index());
 	if (!p->dci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->dci->dev = &pdev->dev;
 	p->dci->mod_name = "Sifive ECC Manager";
@@ -67,7 +67,7 @@ static int ecc_register(struct platform_device *pdev)
 		goto err;
 	}
 
-	register_sifive_ccache_error_notifier(&p->notifier);
+	register_sifive_ccache_error_analtifier(&p->analtifier);
 
 	return 0;
 
@@ -81,7 +81,7 @@ static int ecc_unregister(struct platform_device *pdev)
 {
 	struct sifive_edac_priv *p = platform_get_drvdata(pdev);
 
-	unregister_sifive_ccache_error_notifier(&p->notifier);
+	unregister_sifive_ccache_error_analtifier(&p->analtifier);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(p->dci);
 

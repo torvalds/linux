@@ -241,7 +241,7 @@ void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
-	int lane = -ENODEV;
+	int lane = -EANALDEV;
 
 	switch (port) {
 	case 5:
@@ -258,7 +258,7 @@ int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
-	int lane = -ENODEV;
+	int lane = -EANALDEV;
 
 	switch (port) {
 	case 9:
@@ -283,7 +283,7 @@ int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 	u8 cmode_port = chip->ports[port].cmode;
 	u8 cmode_port10 = chip->ports[10].cmode;
 	u8 cmode_port9 = chip->ports[9].cmode;
-	int lane = -ENODEV;
+	int lane = -EANALDEV;
 
 	switch (port) {
 	case 2:
@@ -354,15 +354,15 @@ int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 }
 
 /* Only Ports 0, 9 and 10 have SERDES lanes. Return the SERDES lane address
- * a port is using else Returns -ENODEV.
+ * a port is using else Returns -EANALDEV.
  */
 int mv88e6393x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
-	int lane = -ENODEV;
+	int lane = -EANALDEV;
 
 	if (port != 0 && port != 9 && port != 10)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 	    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||

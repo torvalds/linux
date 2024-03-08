@@ -32,7 +32,7 @@
 
 /**
  * enum rzg2l_cru_dma_state - DMA states
- * @RZG2L_CRU_DMA_STOPPED:   No operation in progress
+ * @RZG2L_CRU_DMA_STOPPED:   Anal operation in progress
  * @RZG2L_CRU_DMA_STARTING:  Capture starting up
  * @RZG2L_CRU_DMA_RUNNING:   Operation in progress have buffers
  * @RZG2L_CRU_DMA_STOPPING:  Stopping operation
@@ -53,7 +53,7 @@ struct rzg2l_cru_csi {
 struct rzg2l_cru_ip {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[2];
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct v4l2_subdev *remote;
 };
 
@@ -73,12 +73,12 @@ struct rzg2l_cru_ip {
  * @vdev:		V4L2 video device associated with CRU
  * @v4l2_dev:		V4L2 device
  * @num_buf:		Holds the current number of buffers enabled
- * @notifier:		V4L2 asynchronous subdevs notifier
+ * @analtifier:		V4L2 asynchroanalus subdevs analtifier
  *
  * @ip:			Image processing subdev info
  * @csi:		CSI info
  * @mdev:		media device
- * @mdev_lock:		protects the count, notifier and csi members
+ * @mdev_lock:		protects the count, analtifier and csi members
  * @pad:		media pad for the video device entity
  *
  * @lock:		protects @queue
@@ -111,7 +111,7 @@ struct rzg2l_cru_dev {
 	struct v4l2_device v4l2_dev;
 	u8 num_buf;
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 
 	struct rzg2l_cru_ip ip;
 	struct rzg2l_cru_csi csi;

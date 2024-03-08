@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/compat.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/mianalrs.h>
 #include <sound/initval.h>
 #include "seq_oss_device.h"
 #include "seq_oss_synth.h"
@@ -24,8 +24,8 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("OSS-compatible sequencer module");
 MODULE_LICENSE("GPL");
 /* Takashi says this is really only for sound-service-0-, but this is OK. */
-MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_SEQUENCER);
-MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_MUSIC);
+MODULE_ALIAS_SNDRV_MIANALR(SNDRV_MIANALR_OSS_SEQUENCER);
+MODULE_ALIAS_SNDRV_MIANALR(SNDRV_MIANALR_OSS_MUSIC);
 
 
 /*
@@ -41,8 +41,8 @@ static inline int register_proc(void) { return 0; }
 static inline void unregister_proc(void) {}
 #endif
 
-static int odev_open(struct inode *inode, struct file *file);
-static int odev_release(struct inode *inode, struct file *file);
+static int odev_open(struct ianalde *ianalde, struct file *file);
+static int odev_release(struct ianalde *ianalde, struct file *file);
 static ssize_t odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset);
 static ssize_t odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
 static long odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
@@ -109,17 +109,17 @@ module_init(alsa_seq_oss_init)
 module_exit(alsa_seq_oss_exit)
 
 /*
- * ALSA minor device interface
+ * ALSA mianalr device interface
  */
 
 static DEFINE_MUTEX(register_mutex);
 
 static int
-odev_open(struct inode *inode, struct file *file)
+odev_open(struct ianalde *ianalde, struct file *file)
 {
 	int level, rc;
 
-	if (iminor(inode) == SNDRV_MINOR_OSS_MUSIC)
+	if (imianalr(ianalde) == SNDRV_MIANALR_OSS_MUSIC)
 		level = SNDRV_SEQ_OSS_MODE_MUSIC;
 	else
 		level = SNDRV_SEQ_OSS_MODE_SYNTH;
@@ -132,7 +132,7 @@ odev_open(struct inode *inode, struct file *file)
 }
 
 static int
-odev_release(struct inode *inode, struct file *file)
+odev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct seq_oss_devinfo *dp;
 
@@ -208,7 +208,7 @@ odev_poll(struct file *file, poll_table * wait)
 }
 
 /*
- * registration of sequencer minor device
+ * registration of sequencer mianalr device
  */
 
 static const struct file_operations seq_oss_f_ops =
@@ -221,7 +221,7 @@ static const struct file_operations seq_oss_f_ops =
 	.poll =		odev_poll,
 	.unlocked_ioctl =	odev_ioctl,
 	.compat_ioctl =	odev_ioctl_compat,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 static int __init
@@ -289,14 +289,14 @@ register_proc(void)
 
 	entry = snd_info_create_module_entry(THIS_MODULE, SNDRV_SEQ_OSS_PROCNAME, snd_seq_root);
 	if (entry == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->content = SNDRV_INFO_CONTENT_TEXT;
 	entry->private_data = NULL;
 	entry->c.text.read = info_read;
 	if (snd_info_register(entry) < 0) {
 		snd_info_free_entry(entry);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	info_entry = entry;
 	return 0;

@@ -15,7 +15,7 @@ void test_enable_stats(void)
 		return;
 
 	stats_fd = bpf_enable_stats(BPF_STATS_RUN_TIME);
-	if (CHECK(stats_fd < 0, "get_stats_fd", "failed %d\n", errno)) {
+	if (CHECK(stats_fd < 0, "get_stats_fd", "failed %d\n", erranal)) {
 		test_enable_stats__destroy(skel);
 		return;
 	}

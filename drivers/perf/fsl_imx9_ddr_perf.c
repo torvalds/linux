@@ -57,7 +57,7 @@ struct ddr_pmu {
 	struct pmu pmu;
 	void __iomem *base;
 	unsigned int cpu;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct device *dev;
 	struct perf_event *events[NUM_COUNTERS];
 	int active_events;
@@ -137,7 +137,7 @@ static struct attribute *ddr_perf_events_attrs[] = {
 	/* counter0 cycles event */
 	IMX9_DDR_PMU_EVENT_ATTR(cycles, 0),
 
-	/* reference events for all normal counters, need assert DEBUG19[21] bit */
+	/* reference events for all analrmal counters, need assert DEBUG19[21] bit */
 	IMX9_DDR_PMU_EVENT_ATTR(ddrc_ddrc1_rmw_for_ecc, 12),
 	IMX9_DDR_PMU_EVENT_ATTR(eddrtq_pmon_rreorder, 13),
 	IMX9_DDR_PMU_EVENT_ATTR(eddrtq_pmon_wreorder, 14),
@@ -417,18 +417,18 @@ static int ddr_perf_event_init(struct perf_event *event)
 	struct perf_event *sibling;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->cpu < 0) {
 		dev_warn(pmu->dev, "Can't provide per-task data!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
-	 * We must NOT create groups containing mixed PMUs, although software
+	 * We must ANALT create groups containing mixed PMUs, although software
 	 * events are acceptable (for example to create a CCN group
 	 * periodically read when a hrtimer aka cpu-clock leader triggers).
 	 */
@@ -528,7 +528,7 @@ static void ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 	*pmu = (struct ddr_pmu) {
 		.pmu = (struct pmu) {
 			.module       = THIS_MODULE,
-			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
+			.capabilities = PERF_PMU_CAP_ANAL_EXCLUDE,
 			.task_ctx_nr  = perf_invalid_context,
 			.attr_groups  = attr_groups,
 			.event_init   = ddr_perf_event_init,
@@ -576,9 +576,9 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct ddr_pmu *pmu = hlist_entry_safe(node, struct ddr_pmu, node);
+	struct ddr_pmu *pmu = hlist_entry_safe(analde, struct ddr_pmu, analde);
 	int target;
 
 	if (cpu != pmu->cpu)
@@ -609,7 +609,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddr_perf_init(pmu, base, &pdev->dev);
 
@@ -620,7 +620,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	pmu->id = ida_alloc(&ddr_ida, GFP_KERNEL);
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, DDR_PERF_DEV_NAME "%d", pmu->id);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto format_string_err;
 	}
 
@@ -634,7 +634,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	pmu->cpuhp_state = ret;
 
 	/* Register the pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	ret = cpuhp_state_add_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		goto cpuhp_instance_err;
@@ -648,7 +648,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, ddr_perf_irq_handler,
-			       IRQF_NOBALANCING | IRQF_NO_THREAD,
+			       IRQF_ANALBALANCING | IRQF_ANAL_THREAD,
 			       DDR_CPUHP_CB_NAME, pmu);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Request irq failed: %d", ret);
@@ -669,7 +669,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	return 0;
 
 ddr_perf_err:
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 cpuhp_instance_err:
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
 cpuhp_state_err:
@@ -683,7 +683,7 @@ static int ddr_perf_remove(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
 
 	perf_pmu_unregister(&pmu->pmu);

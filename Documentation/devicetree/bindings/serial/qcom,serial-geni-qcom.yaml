@@ -80,7 +80,7 @@ examples:
         pinctrl-0 = <&qup_uart0_default>;
         pinctrl-names = "default";
         interconnects = <&qup_virt MASTER_QUP_CORE_0 0 &qup_virt SLAVE_QUP_CORE_0 0>,
-                        <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_QUP_0 0>;
+                        <&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_QUP_0 0>;
         interconnect-names = "qup-core", "qup-config";
     };
 ...

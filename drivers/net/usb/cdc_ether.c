@@ -42,7 +42,7 @@ static int is_wireless_rndis(struct usb_interface_descriptor *desc)
 		desc->bInterfaceProtocol == 3);
 }
 
-static int is_novatel_rndis(struct usb_interface_descriptor *desc)
+static int is_analvatel_rndis(struct usb_interface_descriptor *desc)
 {
 	return (desc->bInterfaceClass == USB_CLASS_MISC &&
 		desc->bInterfaceSubClass == 4 &&
@@ -54,7 +54,7 @@ static int is_novatel_rndis(struct usb_interface_descriptor *desc)
 #define is_rndis(desc)		0
 #define is_activesync(desc)	0
 #define is_wireless_rndis(desc)	0
-#define is_novatel_rndis(desc)	0
+#define is_analvatel_rndis(desc)	0
 
 #endif
 
@@ -70,8 +70,8 @@ void usbnet_cdc_update_filter(struct usbnet *dev)
 	u16 cdc_filter = USB_CDC_PACKET_TYPE_DIRECTED
 			| USB_CDC_PACKET_TYPE_BROADCAST;
 
-	/* filtering on the device is an optional feature and not worth
-	 * the hassle so we just roughly care about snooping and if any
+	/* filtering on the device is an optional feature and analt worth
+	 * the hassle so we just roughly care about sanaloping and if any
 	 * multicast is requested, we take every multicast
 	 */
 	if (net->flags & IFF_PROMISC)
@@ -106,7 +106,7 @@ static const struct ethtool_ops cdc_ether_ethtool_ops = {
 
 /* probes control interface, claims data interface, collects the bulk
  * endpoints, activates data interface (if needed), maybe sets MTU.
- * all pure cdc, except for certain firmware workarounds, and knowing
+ * all pure cdc, except for certain firmware workarounds, and kanalwing
  * that rndis uses one different rule.
  */
 int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -152,13 +152,13 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				"CDC descriptors on endpoint\n");
 	}
 
-	/* this assumes that if there's a non-RNDIS vendor variant
+	/* this assumes that if there's a analn-RNDIS vendor variant
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
 	rndis = (is_rndis(&intf->cur_altsetting->desc) ||
 		 is_activesync(&intf->cur_altsetting->desc) ||
 		 is_wireless_rndis(&intf->cur_altsetting->desc) ||
-		 is_novatel_rndis(&intf->cur_altsetting->desc));
+		 is_analvatel_rndis(&intf->cur_altsetting->desc));
 
 	memset(info, 0, sizeof(*info));
 	info->control = intf;
@@ -217,7 +217,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto bad_desc;
 	}
 skip:
-	/* Communication class functions with bmCapabilities are not
+	/* Communication class functions with bmCapabilities are analt
 	 * RNDIS.  But some Wireless class RNDIS functions use
 	 * bmCapabilities for their own purpose. The failsafe is
 	 * therefore applied only to Communication class RNDIS
@@ -228,14 +228,14 @@ skip:
 	    header.usb_cdc_acm_descriptor &&
 	    header.usb_cdc_acm_descriptor->bmCapabilities) {
 		dev_dbg(&intf->dev,
-			"ACM capabilities %02x, not really RNDIS?\n",
+			"ACM capabilities %02x, analt really RNDIS?\n",
 			header.usb_cdc_acm_descriptor->bmCapabilities);
 		goto bad_desc;
 	}
 
 	if (header.usb_cdc_ether_desc && info->ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
-		/* because of Zaurus, we may be ignoring the host
+		/* because of Zaurus, we may be iganalring the host
 		 * side link address we were given.
 		 */
 	}
@@ -256,11 +256,11 @@ skip:
 
 
 	/* Microsoft ActiveSync based and some regular RNDIS devices lack the
-	 * CDC descriptors, so we'll hard-wire the interfaces and not check
+	 * CDC descriptors, so we'll hard-wire the interfaces and analt check
 	 * for descriptors.
 	 *
 	 * Some Android RNDIS devices have a CDC Union descriptor pointing
-	 * to non-existing interfaces.  Ignore that and attempt the same
+	 * to analn-existing interfaces.  Iganalre that and attempt the same
 	 * hard-wired 0 and 1 interfaces.
 	 */
 	if (rndis && (!info->u || android_rndis_quirk)) {
@@ -299,7 +299,7 @@ skip:
 		return status;
 	}
 
-	/* status endpoint: optional for CDC Ethernet, not RNDIS (or ACM) */
+	/* status endpoint: optional for CDC Ethernet, analt RNDIS (or ACM) */
 	if (info->data != info->control)
 		dev->status = NULL;
 	if (info->control->cur_altsetting->desc.bNumEndpoints == 1) {
@@ -309,9 +309,9 @@ skip:
 		desc = &dev->status->desc;
 		if (!usb_endpoint_is_int_in(desc) ||
 		    (le16_to_cpu(desc->wMaxPacketSize)
-		     < sizeof(struct usb_cdc_notification)) ||
+		     < sizeof(struct usb_cdc_analtification)) ||
 		    !desc->bInterval) {
-			dev_dbg(&intf->dev, "bad notification endpoint\n");
+			dev_dbg(&intf->dev, "bad analtification endpoint\n");
 			dev->status = NULL;
 		}
 	}
@@ -319,7 +319,7 @@ skip:
 		dev_dbg(&intf->dev, "missing RNDIS status endpoint\n");
 		usb_set_intfdata(info->data, NULL);
 		usb_driver_release_interface(driver, info->data);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* override ethtool_ops */
@@ -329,7 +329,7 @@ skip:
 
 bad_desc:
 	dev_info(&dev->udev->dev, "bad CDC descriptors\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(usbnet_generic_cdc_bind);
 
@@ -346,7 +346,7 @@ int usbnet_ether_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto bail_out;
 
 	/* Some devices don't initialise properly. In particular
-	 * the packet filter is not reset. There are devices that
+	 * the packet filter is analt reset. There are devices that
 	 * don't do reset all the way. So the packet filter should
 	 * be set to a sane initial value.
 	 */
@@ -362,7 +362,7 @@ void usbnet_cdc_unbind(struct usbnet *dev, struct usb_interface *intf)
 	struct cdc_state		*info = (void *) &dev->data;
 	struct usb_driver		*driver = driver_of(intf);
 
-	/* combined interface - nothing  to do */
+	/* combined interface - analthing  to do */
 	if (info->data == info->control)
 		return;
 
@@ -402,7 +402,7 @@ static void speed_change(struct usbnet *dev, __le32 *speeds)
 
 void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 {
-	struct usb_cdc_notification	*event;
+	struct usb_cdc_analtification	*event;
 
 	if (urb->actual_length < sizeof(*event))
 		return;
@@ -414,13 +414,13 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 	}
 
 	event = urb->transfer_buffer;
-	switch (event->bNotificationType) {
-	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
+	switch (event->bAnaltificationType) {
+	case USB_CDC_ANALTIFY_NETWORK_CONNECTION:
 		netif_dbg(dev, timer, dev->net, "CDC: carrier %s\n",
 			  event->wValue ? "on" : "off");
 		usbnet_link_change(dev, !!event->wValue, 0);
 		break;
-	case USB_CDC_NOTIFY_SPEED_CHANGE:	/* tx/rx rates */
+	case USB_CDC_ANALTIFY_SPEED_CHANGE:	/* tx/rx rates */
 		netif_dbg(dev, timer, dev->net, "CDC: speed change (len %d)\n",
 			  urb->actual_length);
 		if (urb->actual_length != (sizeof(*event) + 8))
@@ -428,12 +428,12 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 		else
 			speed_change(dev, (__le32 *) &event[1]);
 		break;
-	/* USB_CDC_NOTIFY_RESPONSE_AVAILABLE can happen too (e.g. RNDIS),
-	 * but there are no standard formats for the response data.
+	/* USB_CDC_ANALTIFY_RESPONSE_AVAILABLE can happen too (e.g. RNDIS),
+	 * but there are anal standard formats for the response data.
 	 */
 	default:
-		netdev_err(dev->net, "CDC: unexpected notification %02x!\n",
-			   event->bNotificationType);
+		netdev_err(dev->net, "CDC: unexpected analtification %02x!\n",
+			   event->bAnaltificationType);
 		break;
 	}
 }
@@ -493,20 +493,20 @@ EXPORT_SYMBOL_GPL(usbnet_cdc_zte_rx_fixup);
 
 /* Ensure correct link state
  *
- * Some devices (ZTE MF823/831/910) export two carrier on notifications when
+ * Some devices (ZTE MF823/831/910) export two carrier on analtifications when
  * connected. This causes the link state to be incorrect. Work around this by
  * always setting the state to off, then on.
  */
 static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 {
-	struct usb_cdc_notification *event;
+	struct usb_cdc_analtification *event;
 
 	if (urb->actual_length < sizeof(*event))
 		return;
 
 	event = urb->transfer_buffer;
 
-	if (event->bNotificationType != USB_CDC_NOTIFY_NETWORK_CONNECTION) {
+	if (event->bAnaltificationType != USB_CDC_ANALTIFY_NETWORK_CONNECTION) {
 		usbnet_cdc_status(dev, urb);
 		return;
 	}
@@ -555,12 +555,12 @@ static const struct driver_info wwan_info = {
 /*-------------------------------------------------------------------------*/
 
 #define HUAWEI_VENDOR_ID	0x12D1
-#define NOVATEL_VENDOR_ID	0x1410
+#define ANALVATEL_VENDOR_ID	0x1410
 #define ZTE_VENDOR_ID		0x19D2
 #define DELL_VENDOR_ID		0x413C
 #define REALTEK_VENDOR_ID	0x0bda
 #define SAMSUNG_VENDOR_ID	0x04e8
-#define LENOVO_VENDOR_ID	0x17ef
+#define LEANALVO_VENDOR_ID	0x17ef
 #define LINKSYS_VENDOR_ID	0x13b1
 #define NVIDIA_VENDOR_ID	0x0955
 #define HP_VENDOR_ID		0x03f0
@@ -573,21 +573,21 @@ static const struct driver_info wwan_info = {
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
  *
- * First blacklist any products that are egregiously nonconformant
- * with the CDC Ethernet specs.  Minor braindamage we cope with; when
- * they're not even trying, needing a separate driver is only the first
+ * First blacklist any products that are egregiously analnconformant
+ * with the CDC Ethernet specs.  Mianalr braindamage we cope with; when
+ * they're analt even trying, needing a separate driver is only the first
  * of the differences to show up.
  */
 
 #define	ZAURUS_MASTER_INTERFACE \
 	.bInterfaceClass	= USB_CLASS_COMM, \
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET, \
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE
+	.bInterfaceProtocol	= USB_CDC_PROTO_ANALNE
 
 #define ZAURUS_FAKE_INTERFACE \
 	.bInterfaceClass	= USB_CLASS_COMM, \
 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_MDLM, \
-	.bInterfaceProtocol	= USB_CDC_PROTO_NONE
+	.bInterfaceProtocol	= USB_CDC_PROTO_ANALNE
 
 /* SA-1100 based Sharp Zaurus ("collie"), or compatible;
  * wire-incompatible with true CDC Ethernet implementations.
@@ -602,10 +602,10 @@ static const struct usb_device_id	products[] = {
 	.driver_info		= 0,
 },
 
-/* PXA-25x based Sharp Zaurii.  Note that it seems some of these
+/* PXA-25x based Sharp Zaurii.  Analte that it seems some of these
  * (later models especially) may have shipped only with firmware
- * advertising false "CDC MDLM" compatibility ... but we're not
- * clear which models did that, so for now let's assume the worst.
+ * advertising false "CDC MDLM" compatibility ... but we're analt
+ * clear which models did that, so for analw let's assume the worst.
  */
 {
 	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO
@@ -695,70 +695,70 @@ static const struct usb_device_id	products[] = {
 /* LG Electronics VL600 wants additional headers on every frame */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(0x1004, 0x61aa, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
 /* Logitech Harmony 900 - uses the pseudo-MDLM (BLAN) driver */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(0x046d, 0xc11f, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_ANALNE),
 	.driver_info		= 0,
 },
 
-/* Novatel USB551L and MC551 - handled by qmi_wwan */
+/* Analvatel USB551L and MC551 - handled by qmi_wwan */
 {
-	USB_DEVICE_AND_INTERFACE_INFO(NOVATEL_VENDOR_ID, 0xB001, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	USB_DEVICE_AND_INTERFACE_INFO(ANALVATEL_VENDOR_ID, 0xB001, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Novatel E362 - handled by qmi_wwan */
+/* Analvatel E362 - handled by qmi_wwan */
 {
-	USB_DEVICE_AND_INTERFACE_INFO(NOVATEL_VENDOR_ID, 0x9010, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	USB_DEVICE_AND_INTERFACE_INFO(ANALVATEL_VENDOR_ID, 0x9010, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Dell Wireless 5800 (Novatel E362) - handled by qmi_wwan */
+/* Dell Wireless 5800 (Analvatel E362) - handled by qmi_wwan */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x8195, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Dell Wireless 5800 (Novatel E362) - handled by qmi_wwan */
+/* Dell Wireless 5800 (Analvatel E362) - handled by qmi_wwan */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x8196, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Dell Wireless 5804 (Novatel E371) - handled by qmi_wwan */
+/* Dell Wireless 5804 (Analvatel E371) - handled by qmi_wwan */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x819b, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Novatel Expedite E371 - handled by qmi_wwan */
+/* Analvatel Expedite E371 - handled by qmi_wwan */
 {
-	USB_DEVICE_AND_INTERFACE_INFO(NOVATEL_VENDOR_ID, 0x9011, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	USB_DEVICE_AND_INTERFACE_INFO(ANALVATEL_VENDOR_ID, 0x9011, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* HP lt2523 (Novatel E371) - handled by qmi_wwan */
+/* HP lt2523 (Analvatel E371) - handled by qmi_wwan */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(HP_VENDOR_ID, 0x421d, USB_CLASS_COMM,
-				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+				      USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
 /* AnyDATA ADU960S - handled by qmi_wwan */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(0x16d5, 0x650a, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -771,14 +771,14 @@ static const struct usb_device_id	products[] = {
 /* Realtek RTL8153 Based USB 3.0 Ethernet Adapters */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(REALTEK_VENDOR_ID, 0x8153, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
-/* Lenovo Powered USB-C Travel Hub (4X90S92381, based on Realtek RTL8153) */
+/* Leanalvo Powered USB-C Travel Hub (4X90S92381, based on Realtek RTL8153) */
 {
-	USB_DEVICE_AND_INTERFACE_INFO(LENOVO_VENDOR_ID, 0x721e, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	USB_DEVICE_AND_INTERFACE_INFO(LEANALVO_VENDOR_ID, 0x721e, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -786,7 +786,7 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(AQUANTIA_VENDOR_ID, 0xc101,
 				      USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -794,7 +794,7 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(ASIX_VENDOR_ID, 0x2790, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -802,7 +802,7 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(ASIX_VENDOR_ID, 0x2791, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -810,7 +810,7 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0xe05a, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
@@ -818,127 +818,127 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(0x1c04, 0x0015, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = 0,
 },
 
 /* WHITELIST!!!
  *
- * CDC Ether uses two interfaces, not necessarily consecutive.
- * We match the main interface, ignoring the optional device
+ * CDC Ether uses two interfaces, analt necessarily consecutive.
+ * We match the main interface, iganalring the optional device
  * class so we could handle devices that aren't exclusively
  * CDC ether.
  *
- * NOTE:  this match must come AFTER entries blacklisting devices
+ * ANALTE:  this match must come AFTER entries blacklisting devices
  * because of bugs/quirks in a given product (like Zaurus, above).
  */
 {
 	/* ZTE (Vodafone) K3805-Z */
 	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1003, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3806-Z */
 	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1015, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K4510-Z */
 	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1173, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3770-Z */
 	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1177, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE (Vodafone) K3772-Z */
 	USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x1181, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* Telit modules */
 	USB_VENDOR_AND_INTERFACE_INFO(0x1bc7, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = (kernel_ulong_t) &wwan_info,
 }, {
 	/* Dell DW5580 modules */
 	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x81ba, USB_CLASS_COMM,
-			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_ANALNE),
 	.driver_info = (kernel_ulong_t)&wwan_info,
 }, {
 	/* Huawei ME906 and ME909 */
 	USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0x15c1, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* ZTE modules */
 	USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&zte_cdc_info,
 }, {
 	/* U-blox TOBY-L2 */
 	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1143, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* U-blox SARA-U2 */
 	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1104, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* U-blox LARA-R6 01B */
 	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1313, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* U-blox LARA-L6 */
 	USB_DEVICE_AND_INTERFACE_INFO(UBLOX_VENDOR_ID, 0x1343, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* Cinterion PLS8 modem by GEMALTO */
 	USB_DEVICE_AND_INTERFACE_INFO(0x1e2d, 0x0061, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* Cinterion AHS3 modem by GEMALTO */
 	USB_DEVICE_AND_INTERFACE_INFO(0x1e2d, 0x0055, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* Cinterion PLS62-W modem by GEMALTO/THALES */
 	USB_DEVICE_AND_INTERFACE_INFO(0x1e2d, 0x005b, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	/* Cinterion PLS83/PLS63 modem by GEMALTO/THALES */
 	USB_DEVICE_AND_INTERFACE_INFO(0x1e2d, 0x0069, USB_CLASS_COMM,
 				      USB_CDC_SUBCLASS_ETHERNET,
-				      USB_CDC_PROTO_NONE),
+				      USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
-			USB_CDC_PROTO_NONE),
+			USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long) &cdc_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MDLM,
-			USB_CDC_PROTO_NONE),
+			USB_CDC_PROTO_ANALNE),
 	.driver_info = (unsigned long)&wwan_info,
 
 }, {

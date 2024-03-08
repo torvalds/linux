@@ -2,13 +2,13 @@
 /*
  * et8ek8_driver.c
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  *
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *          Tuukka Toivonen <tuukkat76@gmail.com>
  *          Pavel Machek <pavel@ucw.cz>
  *
- * Based on code from Toni Leinonen <toni.leinonen@offcode.fi>.
+ * Based on code from Toni Leianalnen <toni.leianalnen@offcode.fi>.
  *
  * This driver is based on the Micron MT9T012 camera imager driver
  * (C) Texas Instruments.
@@ -136,7 +136,7 @@ static struct et8ek8_gain {
  * Register access helpers
  *
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int et8ek8_i2c_read_reg(struct i2c_client *client, u16 data_length,
 			       u16 reg, u32 *val)
@@ -146,7 +146,7 @@ static int et8ek8_i2c_read_reg(struct i2c_client *client, u16 data_length,
 	unsigned char data[4];
 
 	if (!client->adapter)
-		return -ENODEV;
+		return -EANALDEV;
 	if (data_length != ET8EK8_REG_8BIT && data_length != ET8EK8_REG_16BIT)
 		return -EINVAL;
 
@@ -259,7 +259,7 @@ static int et8ek8_i2c_buffered_write_regs(struct i2c_client *client,
  * Write a list of registers to i2c device.
  *
  * The list of registers is terminated by ET8EK8_REG_TERM.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int et8ek8_i2c_write_regs(struct i2c_client *client,
 				 const struct et8ek8_reg *regs)
@@ -268,7 +268,7 @@ static int et8ek8_i2c_write_regs(struct i2c_client *client,
 	const struct et8ek8_reg *next;
 
 	if (!client->adapter)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!regs)
 		return -EINVAL;
@@ -300,7 +300,7 @@ static int et8ek8_i2c_write_regs(struct i2c_client *client,
 			next++;
 		}
 
-		/* Now we start writing ... */
+		/* Analw we start writing ... */
 		r = et8ek8_i2c_buffered_write_regs(client, regs, cnt);
 
 		/* ... and then check that everything was OK */
@@ -311,7 +311,7 @@ static int et8ek8_i2c_write_regs(struct i2c_client *client,
 
 		/*
 		 * If we ran into a sleep statement when going through
-		 * the list, this is where we snooze for the required time
+		 * the list, this is where we sanaloze for the required time
 		 */
 		if (next->type == ET8EK8_REG_DELAY) {
 			msleep(next->val);
@@ -330,7 +330,7 @@ static int et8ek8_i2c_write_regs(struct i2c_client *client,
 
 /*
  * Write to a 8/16-bit register.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or analn-zero otherwise.
  */
 static int et8ek8_i2c_write_reg(struct i2c_client *client, u16 data_length,
 				u16 reg, u32 val)
@@ -340,7 +340,7 @@ static int et8ek8_i2c_write_reg(struct i2c_client *client, u16 data_length,
 	unsigned char data[6];
 
 	if (!client->adapter)
-		return -ENODEV;
+		return -EANALDEV;
 	if (data_length != ET8EK8_REG_8BIT && data_length != ET8EK8_REG_16BIT)
 		return -EINVAL;
 
@@ -412,12 +412,12 @@ static struct et8ek8_reglist *et8ek8_reglist_find_mode_fmt(
 
 	/*
 	 * Find the mode with the closest image size. The distance between
-	 * image sizes is the size in pixels of the non-overlapping regions
+	 * image sizes is the size in pixels of the analn-overlapping regions
 	 * between the requested size and the frame-specified size.
 	 *
 	 * Store both the closest mode that matches the requested format, and
 	 * the closest mode for all other formats. The best match is returned
-	 * if found, otherwise the best mode with a non-matching format is
+	 * if found, otherwise the best mode with a analn-matching format is
 	 * returned.
 	 */
 	for (; *list; list++) {
@@ -451,7 +451,7 @@ static struct et8ek8_reglist *et8ek8_reglist_find_mode_fmt(
 }
 
 #define TIMEPERFRAME_AVG_FPS(t)						\
-	(((t).denominator + ((t).numerator >> 1)) / (t).numerator)
+	(((t).deanalminator + ((t).numerator >> 1)) / (t).numerator)
 
 static struct et8ek8_reglist *et8ek8_reglist_find_mode_ival(
 		struct et8ek8_meta_reglist *meta,
@@ -537,7 +537,7 @@ static int et8ek8_reglist_import(struct i2c_client *client,
 		       list->mode.window_width, list->mode.window_height,
 		       list->mode.bus_format,
 		       list->mode.timeperframe.numerator,
-		       list->mode.timeperframe.denominator,
+		       list->mode.timeperframe.deanalminator,
 		       (void *)meta->reglist[nlists].ptr);
 
 		nlists++;
@@ -584,7 +584,7 @@ static int et8ek8_set_test_pattern(struct et8ek8_sensor *sensor, s32 mode)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);
 	int cbh_mode, cbv_mode, tp_mode, din_sw, r1420, rval;
 
-	/* Values for normal mode */
+	/* Values for analrmal mode */
 	cbh_mode = 0;
 	cbv_mode = 0;
 	tp_mode  = 0;
@@ -667,7 +667,7 @@ static const struct v4l2_ctrl_ops et8ek8_ctrl_ops = {
 };
 
 static const char * const et8ek8_test_pattern_menu[] = {
-	"Normal",
+	"Analrmal",
 	"Vertical colorbar",
 	"Horizontal colorbar",
 	"Scale",
@@ -734,7 +734,7 @@ static void et8ek8_update_controls(struct et8ek8_sensor *sensor)
 	/*
 	 * Calculate average pixel clock per line. Assume buffers can spread
 	 * the data over horizontal blanking time. Rounding upwards.
-	 * Formula taken from stock Nokia N900 kernel.
+	 * Formula taken from stock Analkia N900 kernel.
 	 */
 	pixel_rate = ((mode->pixel_clock + (1 << S) - 1) >> S) + mode->width;
 	pixel_rate = mode->window_width * (pixel_rate - 1) / mode->width;
@@ -754,7 +754,7 @@ static int et8ek8_configure(struct et8ek8_sensor *sensor)
 		goto fail;
 
 	/* Controls set while the power to the sensor is turned off are saved
-	 * but not applied to the hardware. Now that we're about to start
+	 * but analt applied to the hardware. Analw that we're about to start
 	 * streaming apply all the current values to the hardware.
 	 */
 	rval = v4l2_ctrl_handler_setup(&sensor->ctrl_handler);
@@ -1177,7 +1177,7 @@ static int et8ek8_dev_init(struct v4l2_subdev *subdev)
 
 	rval = et8ek8_power_on(sensor);
 	if (rval) {
-		dev_err(&client->dev, "could not power on\n");
+		dev_err(&client->dev, "could analt power on\n");
 		return rval;
 	}
 
@@ -1187,14 +1187,14 @@ static int et8ek8_dev_init(struct v4l2_subdev *subdev)
 		rval = et8ek8_i2c_read_reg(client, ET8EK8_REG_8BIT,
 					   REG_REVISION_NUMBER_H, &rev_h);
 	if (rval) {
-		dev_err(&client->dev, "no et8ek8 sensor detected\n");
+		dev_err(&client->dev, "anal et8ek8 sensor detected\n");
 		goto out_poweroff;
 	}
 
 	sensor->version = (rev_h << 8) + rev_l;
 	if (sensor->version != ET8EK8_REV_1 && sensor->version != ET8EK8_REV_2)
 		dev_info(&client->dev,
-			 "unknown version 0x%x detected, continuing anyway\n",
+			 "unkanalwn version 0x%x detected, continuing anyway\n",
 			 sensor->version);
 
 	rval = et8ek8_reglist_import(client, &meta_reglist);
@@ -1209,9 +1209,9 @@ static int et8ek8_dev_init(struct v4l2_subdev *subdev)
 							   ET8EK8_REGLIST_MODE);
 	if (!sensor->current_reglist) {
 		dev_err(&client->dev,
-			"invalid register list %s, no mode found\n",
+			"invalid register list %s, anal mode found\n",
 			ET8EK8_NAME);
-		rval = -ENODEV;
+		rval = -EANALDEV;
 		goto out_poweroff;
 	}
 
@@ -1221,7 +1221,7 @@ static int et8ek8_dev_init(struct v4l2_subdev *subdev)
 					     ET8EK8_REGLIST_POWERON);
 	if (rval) {
 		dev_err(&client->dev,
-			"invalid register list %s, no POWERON mode found\n",
+			"invalid register list %s, anal POWERON mode found\n",
 			ET8EK8_NAME);
 		goto out_poweroff;
 	}
@@ -1231,7 +1231,7 @@ static int et8ek8_dev_init(struct v4l2_subdev *subdev)
 	rval = et8ek8_g_priv_mem(subdev);
 	if (rval)
 		dev_warn(&client->dev,
-			"can not read OTP (EEPROM) memory from sensor\n");
+			"can analt read OTP (EEPROM) memory from sensor\n");
 	rval = et8ek8_stream_off(sensor);
 	if (rval)
 		goto out_poweroff;
@@ -1282,7 +1282,7 @@ et8ek8_registered(struct v4l2_subdev *subdev)
 
 	rval = device_create_file(&client->dev, &dev_attr_priv_mem);
 	if (rval) {
-		dev_err(&client->dev, "could not register sysfs entry\n");
+		dev_err(&client->dev, "could analt register sysfs entry\n");
 		return rval;
 	}
 
@@ -1419,27 +1419,27 @@ static int et8ek8_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(sensor->reset)) {
-		dev_dbg(&client->dev, "could not request reset gpio\n");
+		dev_dbg(&client->dev, "could analt request reset gpio\n");
 		return PTR_ERR(sensor->reset);
 	}
 
 	sensor->vana = devm_regulator_get(dev, "vana");
 	if (IS_ERR(sensor->vana)) {
-		dev_err(&client->dev, "could not get regulator for vana\n");
+		dev_err(&client->dev, "could analt get regulator for vana\n");
 		return PTR_ERR(sensor->vana);
 	}
 
 	sensor->ext_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(sensor->ext_clk)) {
-		dev_err(&client->dev, "could not get clock\n");
+		dev_err(&client->dev, "could analt get clock\n");
 		return PTR_ERR(sensor->ext_clk);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "clock-frequency",
+	ret = of_property_read_u32(dev->of_analde, "clock-frequency",
 				   &sensor->xclk_freq);
 	if (ret) {
 		dev_warn(dev, "can't get clock-frequency\n");
@@ -1449,7 +1449,7 @@ static int et8ek8_probe(struct i2c_client *client)
 	mutex_init(&sensor->power_lock);
 
 	v4l2_i2c_subdev_init(&sensor->subdev, client, &et8ek8_ops);
-	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	sensor->subdev.internal_ops = &et8ek8_internal_ops;
 
 	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;

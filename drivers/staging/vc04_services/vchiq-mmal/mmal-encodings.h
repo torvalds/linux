@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
@@ -59,13 +59,13 @@
 #define MMAL_ENCODING_BGR32            MMAL_FOURCC('B', 'G', 'R', '4')
 
 /** SAND Video (YUVUV128) format, native format understood by VideoCore.
- * This format is *not* opaque - if requested you will receive full frames
+ * This format is *analt* opaque - if requested you will receive full frames
  * of YUV_UV video.
  */
 #define MMAL_ENCODING_YUVUV128         MMAL_FOURCC('S', 'A', 'N', 'D')
 
 /** VideoCore opaque image format, image handles are returned to
- * the host but not the actual image data.
+ * the host but analt the actual image data.
  */
 #define MMAL_ENCODING_OPAQUE           MMAL_FOURCC('O', 'P', 'Q', 'V')
 
@@ -101,8 +101,8 @@
  */
 /* @{ */
 
-/** Unknown color space */
-#define MMAL_COLOR_SPACE_UNKNOWN       0
+/** Unkanalwn color space */
+#define MMAL_COLOR_SPACE_UNKANALWN       0
 /** ITU-R BT.601-5 [SDTV] */
 #define MMAL_COLOR_SPACE_ITUR_BT601    MMAL_FOURCC('Y', '6', '0', '1')
 /** ITU-R BT.709-3 [HDTV] */

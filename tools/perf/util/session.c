@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <inttypes.h>
 #include <linux/err.h>
@@ -56,7 +56,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 
 	mmap_len = sizeof(struct decomp) + decomp_len;
 	decomp = mmap(NULL, mmap_len, PROT_READ|PROT_WRITE,
-		      MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+		      MAP_AANALNYMOUS|MAP_PRIVATE, -1, 0);
 	if (decomp == MAP_FAILED) {
 		pr_err("Couldn't allocate memory for decompression\n");
 		return -1;
@@ -127,17 +127,17 @@ static int perf_session__open(struct perf_session *session, int repipe_fd)
 		return 0;
 
 	if (!evlist__valid_sample_type(session->evlist)) {
-		pr_err("non matching sample_type\n");
+		pr_err("analn matching sample_type\n");
 		return -1;
 	}
 
 	if (!evlist__valid_sample_id_all(session->evlist)) {
-		pr_err("non matching sample_id_all\n");
+		pr_err("analn matching sample_id_all\n");
 		return -1;
 	}
 
 	if (!evlist__valid_read_format(session->evlist)) {
-		pr_err("non matching read_format\n");
+		pr_err("analn matching read_format\n");
 		return -1;
 	}
 
@@ -199,7 +199,7 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 					 bool repipe, int repipe_fd,
 					 struct perf_tool *tool)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct perf_session *session = zalloc(sizeof(*session));
 
 	if (!session)
@@ -229,7 +229,7 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 
 			/*
 			 * set session attributes that are present in perf.data
-			 * but not in pipe-mode.
+			 * but analt in pipe-mode.
 			 */
 			if (!data->is_pipe) {
 				perf_session__set_id_hdr_size(session);
@@ -262,16 +262,16 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 		 * kernel MMAP event, in perf_event__process_mmap().
 		 */
 		if (perf_session__create_kernel_maps(session) < 0)
-			pr_warning("Cannot read kernel map\n");
+			pr_warning("Cananalt read kernel map\n");
 	}
 
 	/*
 	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
-	 * processed, so evlist__sample_id_all is not meaningful here.
+	 * processed, so evlist__sample_id_all is analt meaningful here.
 	 */
 	if ((!data || !data->is_pipe) && tool && tool->ordering_requires_timestamps &&
 	    tool->ordered_events && !evlist__sample_id_all(session->evlist)) {
-		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
+		dump_printf("WARNING: Anal sample_id_all support, falling back to uanalrdered processing\n");
 		tool->ordered_events = false;
 	}
 
@@ -622,8 +622,8 @@ static void perf_event__mmap2_swap(union perf_event *event,
 	if (!(event->header.misc & PERF_RECORD_MISC_MMAP_BUILD_ID)) {
 		event->mmap2.maj   = bswap_32(event->mmap2.maj);
 		event->mmap2.min   = bswap_32(event->mmap2.min);
-		event->mmap2.ino   = bswap_64(event->mmap2.ino);
-		event->mmap2.ino_generation = bswap_64(event->mmap2.ino_generation);
+		event->mmap2.ianal   = bswap_64(event->mmap2.ianal);
+		event->mmap2.ianal_generation = bswap_64(event->mmap2.ianal_generation);
 	}
 
 	if (sample_id_all) {
@@ -733,7 +733,7 @@ static void perf_event__namespaces_swap(union perf_event *event,
 		struct perf_ns_link_info *ns = &event->namespaces.link_info[i];
 
 		ns->dev = bswap_64(ns->dev);
-		ns->ino = bswap_64(ns->ino);
+		ns->ianal = bswap_64(ns->ianal);
 	}
 
 	if (sample_id_all)
@@ -772,7 +772,7 @@ static u8 revbyte(u8 b)
  * byte of the bitfield. 'Internet' also says this might be implementation
  * specific and we probably need proper fix and carry perf_event_attr
  * bitfield flags in separate data file FEAT_ section. Thought this seems
- * to work for now.
+ * to work for analw.
  */
 static void swap_bitfield(u8 *p, unsigned len)
 {
@@ -1041,7 +1041,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
  * When perf record finishes a pass on every buffers, it records this pseudo
  * event.
  * We record the max timestamp t found in the pass n.
- * Assuming these timestamps are monotonic across cpus, we know that if
+ * Assuming these timestamps are moanaltonic across cpus, we kanalw that if
  * a buffer still has events with timestamps below t, they will be all
  * available and then read in the pass n + 1.
  * Hence when we start to read the pass n + 2, we can safely flush every
@@ -1225,7 +1225,7 @@ static void regs_dump__printf(u64 mask, u64 *regs, const char *arch)
 }
 
 static const char *regs_abi[] = {
-	[PERF_SAMPLE_REGS_ABI_NONE] = "none",
+	[PERF_SAMPLE_REGS_ABI_ANALNE] = "analne",
 	[PERF_SAMPLE_REGS_ABI_32] = "32-bit",
 	[PERF_SAMPLE_REGS_ABI_64] = "64-bit",
 };
@@ -1233,7 +1233,7 @@ static const char *regs_abi[] = {
 static inline const char *regs_dump_abi(struct regs_dump *d)
 {
 	if (d->abi > PERF_SAMPLE_REGS_ABI_64)
-		return "unknown";
+		return "unkanalwn";
 
 	return regs_abi[d->abi];
 }
@@ -1457,7 +1457,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 			pid = sample->pid;
 
 		/*
-		 * Guest code machine is created as needed and does not use
+		 * Guest code machine is created as needed and does analt use
 		 * DEFAULT_GUEST_KERNEL_ID.
 		 */
 		if (symbol_conf.guest_code)
@@ -1486,12 +1486,12 @@ static int deliver_sample_value(struct evlist *evlist,
 	}
 
 	if (!sid || sid->evsel == NULL) {
-		++evlist->stats.nr_unknown_id;
+		++evlist->stats.nr_unkanalwn_id;
 		return 0;
 	}
 
 	/*
-	 * There's no reason to deliver sample
+	 * There's anal reason to deliver sample
 	 * for zero period, bail out.
 	 */
 	if (!sample->period)
@@ -1525,7 +1525,7 @@ static int evlist__deliver_sample(struct evlist *evlist, struct perf_tool *tool,
 				  union  perf_event *event, struct perf_sample *sample,
 				  struct evsel *evsel, struct machine *machine)
 {
-	/* We know evsel != NULL. */
+	/* We kanalw evsel != NULL. */
 	u64 sample_type = evsel->core.attr.sample_type;
 	u64 read_format = evsel->core.attr.read_format;
 
@@ -1561,7 +1561,7 @@ static int machines__deliver_event(struct machines *machines,
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		if (evsel == NULL) {
-			++evlist->stats.nr_unknown_id;
+			++evlist->stats.nr_unkanalwn_id;
 			return 0;
 		}
 		if (machine == NULL) {
@@ -1627,7 +1627,7 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_AUX_OUTPUT_HW_ID:
 		return tool->aux_output_hw_id(tool, event, sample, machine);
 	default:
-		++evlist->stats.nr_unknown_events;
+		++evlist->stats.nr_unkanalwn_events;
 		return -1;
 	}
 }
@@ -1926,8 +1926,8 @@ perf_session__warn_order(const struct perf_session *session)
 
 	if (!should_warn)
 		return;
-	if (oe->nr_unordered_events != 0)
-		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
+	if (oe->nr_uanalrdered_events != 0)
+		ui__warning("%u out of order events recorded.\n", oe->nr_uanalrdered_events);
 }
 
 static void perf_session__warn_about_errors(const struct perf_session *session)
@@ -1985,18 +1985,18 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    stats->nr_events[PERF_RECORD_AUX]);
 	}
 
-	if (stats->nr_unknown_events != 0) {
-		ui__warning("Found %u unknown events!\n\n"
+	if (stats->nr_unkanalwn_events != 0) {
+		ui__warning("Found %u unkanalwn events!\n\n"
 			    "Is this an older tool processing a perf.data "
 			    "file generated by a more recent tool?\n\n"
-			    "If that is not the case, consider "
+			    "If that is analt the case, consider "
 			    "reporting to linux-kernel@vger.kernel.org.\n\n",
-			    stats->nr_unknown_events);
+			    stats->nr_unkanalwn_events);
 	}
 
-	if (stats->nr_unknown_id != 0) {
-		ui__warning("%u samples with id not present in the header\n",
-			    stats->nr_unknown_id);
+	if (stats->nr_unkanalwn_id != 0) {
+		ui__warning("%u samples with id analt present in the header\n",
+			    stats->nr_unkanalwn_id);
 	}
 
 	if (stats->nr_invalid_chains != 0) {
@@ -2009,7 +2009,7 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (stats->nr_unprocessable_samples != 0) {
 		ui__warning("%u unprocessable samples recorded.\n"
-			    "Do you have a KVM guest running and not using 'perf kvm'?\n",
+			    "Do you have a KVM guest running and analt using 'perf kvm'?\n",
 			    stats->nr_unprocessable_samples);
 	}
 
@@ -2019,8 +2019,8 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (stats->nr_proc_map_timeout != 0) {
 		ui__warning("%d map information files for pre-existing threads were\n"
-			    "not processed, if there are samples for addresses they\n"
-			    "will not be resolved, you may find out which are these\n"
+			    "analt processed, if there are samples for addresses they\n"
+			    "will analt be resolved, you may find out which are these\n"
 			    "threads by running with -v and redirecting the output\n"
 			    "to a file.\n"
 			    "The time limit to process proc map is too short?\n"
@@ -2065,7 +2065,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 
 	buf = malloc(cur_size);
 	if (!buf)
-		return -errno;
+		return -erranal;
 	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
@@ -2144,7 +2144,7 @@ done:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
-	if (!tool->no_warn)
+	if (!tool->anal_warn)
 		perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
 	auxtrace__free_events(session);
@@ -2159,7 +2159,7 @@ prefetch_event(char *buf, u64 head, size_t mmap_size,
 	u16 event_size;
 
 	/*
-	 * Ensure we have enough space remaining to read
+	 * Ensure we have eanalugh space remaining to read
 	 * the size of the event in the headers.
 	 */
 	if (head + sizeof(event->header) > mmap_size)
@@ -2173,7 +2173,7 @@ prefetch_event(char *buf, u64 head, size_t mmap_size,
 	if (head + event_size <= mmap_size)
 		return event;
 
-	/* We're not fetching the event so swap back again */
+	/* We're analt fetching the event so swap back again */
 	if (needs_swap)
 		perf_event_header__bswap(&event->header);
 
@@ -2238,7 +2238,7 @@ static int __perf_session__process_decomp_events(struct perf_session *session)
 }
 
 /*
- * On 64bit we can mmap the data file in one go. No need for tiny mmap
+ * On 64bit we can mmap the data file in one go. Anal need for tiny mmap
  * slices. On 32bit we use 32MB.
  */
 #if BITS_PER_LONG == 64
@@ -2338,7 +2338,7 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 		   rd->file_offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
-		return -errno;
+		return -erranal;
 	}
 	mmaps[rd->mmap_idx] = rd->mmap_cur = buf;
 	rd->mmap_idx = (rd->mmap_idx + 1) & (ARRAY_SIZE(rd->mmaps) - 1);
@@ -2353,7 +2353,7 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 
 enum {
 	READER_OK,
-	READER_NODATA,
+	READER_ANALDATA,
 };
 
 static int
@@ -2371,7 +2371,7 @@ reader__read_event(struct reader *rd, struct perf_session *session,
 		return PTR_ERR(event);
 
 	if (!event)
-		return READER_NODATA;
+		return READER_ANALDATA;
 
 	size = event->header.size;
 
@@ -2430,7 +2430,7 @@ more:
 	err = reader__read_event(rd, session, prog);
 	if (err < 0)
 		goto out;
-	else if (err == READER_NODATA)
+	else if (err == READER_ANALDATA)
 		goto remap;
 
 	if (session_done())
@@ -2487,7 +2487,7 @@ static int __perf_session__process_events(struct perf_session *session)
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
-	if (!tool->no_warn)
+	if (!tool->anal_warn)
 		perf_session__warn_about_errors(session);
 	/*
 	 * We may switching perf.data output, make ordered_events
@@ -2533,7 +2533,7 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 
 	rd = zalloc(nr_readers * sizeof(struct reader));
 	if (!rd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd[0] = (struct reader) {
 		.fd		 = perf_data__fd(session->data),
@@ -2590,7 +2590,7 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 		ret = reader__read_event(&rd[i], session, &prog);
 		if (ret < 0) {
 			goto out_err;
-		} else if (ret == READER_NODATA) {
+		} else if (ret == READER_ANALDATA) {
 			ret = reader__mmap(&rd[i], session);
 			if (ret)
 				goto out_err;
@@ -2610,7 +2610,7 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 out_err:
 	ui_progress__finish();
 
-	if (!tool->no_warn)
+	if (!tool->anal_warn)
 		perf_session__warn_about_errors(session);
 
 	/*
@@ -2632,7 +2632,7 @@ out_err:
 int perf_session__process_events(struct perf_session *session)
 {
 	if (perf_session__register_idle_thread(session) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (perf_data__is_pipe(session->data))
 		return __perf_session__process_pipe_events(session);
@@ -2652,7 +2652,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 			return true;
 	}
 
-	pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
+	pr_err("Anal trace sample to read. Did you call 'perf %s'?\n", msg);
 	return false;
 }
 
@@ -2664,12 +2664,12 @@ int map__set_kallsyms_ref_reloc_sym(struct map *map, const char *symbol_name, u6
 
 	ref = zalloc(sizeof(struct ref_reloc_sym));
 	if (ref == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ref->name = strdup(symbol_name);
 	if (ref->name == NULL) {
 		free(ref);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bracket = strchr(ref->name, ']');
@@ -2715,7 +2715,7 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 {
 	/*
 	 * FIXME: Here we have to actually print all the machines in this
-	 * session, not just the host...
+	 * session, analt just the host...
 	 */
 	return machine__fprintf(&session->machines.host, fp);
 }
@@ -2747,7 +2747,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 			continue;
 
 		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_CPU)) {
-			pr_err("File does not contain CPU events. "
+			pr_err("File does analt contain CPU events. "
 			       "Remove -C option to proceed.\n");
 			return -1;
 		}
@@ -2795,13 +2795,13 @@ static int perf_session__register_guest(struct perf_session *session, pid_t mach
 	struct thread *thread;
 
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	machine->single_address_space = session->machines.host.single_address_space;
 
 	thread = machine__idle_thread(machine);
 	if (!thread)
-		return -ENOMEM;
+		return -EANALMEM;
 	thread__put(thread);
 
 	machine->kallsyms_filename = perf_data__guest_kallsyms_name(session->data, machine_pid);
@@ -2816,7 +2816,7 @@ static int perf_session__set_guest_cpu(struct perf_session *session, pid_t pid,
 	struct thread *thread = machine__findnew_thread(machine, pid, tid);
 
 	if (!thread)
-		return -ENOMEM;
+		return -EANALMEM;
 	thread__set_guest_cpu(thread, guest_cpu);
 	thread__put(thread);
 
@@ -2877,7 +2877,7 @@ int perf_event__process_id_index(struct perf_session *session,
 
 		sid = evlist__id2sid(evlist, e->id);
 		if (!sid)
-			return -ENOENT;
+			return -EANALENT;
 
 		sid->idx = e->idx;
 		sid->cpu.cpu = e->cpu;

@@ -82,13 +82,13 @@ static irqreturn_t dwc3_keystone_interrupt(int irq, void *_kdwc)
 static int kdwc3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_analde	*analde = pdev->dev.of_analde;
 	struct dwc3_keystone	*kdwc;
 	int			error, irq;
 
 	kdwc = devm_kzalloc(dev, sizeof(*kdwc), GFP_KERNEL);
 	if (!kdwc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, kdwc);
 
@@ -132,8 +132,8 @@ static int kdwc3_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	/* IRQ processing not required currently for AM65 */
-	if (of_device_is_compatible(node, "ti,am654-dwc3"))
+	/* IRQ processing analt required currently for AM65 */
+	if (of_device_is_compatible(analde, "ti,am654-dwc3"))
 		goto skip_irq;
 
 	irq = platform_get_irq(pdev, 0);
@@ -153,7 +153,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 	kdwc3_enable_irqs(kdwc);
 
 skip_irq:
-	error = of_platform_populate(node, NULL, NULL, dev);
+	error = of_platform_populate(analde, NULL, NULL, dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
 		goto err_core;
@@ -185,9 +185,9 @@ static int kdwc3_remove_core(struct device *dev, void *c)
 static void kdwc3_remove(struct platform_device *pdev)
 {
 	struct dwc3_keystone *kdwc = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 
-	if (!of_device_is_compatible(node, "ti,am654-dwc3"))
+	if (!of_device_is_compatible(analde, "ti,am654-dwc3"))
 		kdwc3_disable_irqs(kdwc);
 
 	device_for_each_child(&pdev->dev, NULL, kdwc3_remove_core);

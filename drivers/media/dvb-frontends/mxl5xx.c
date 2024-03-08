@@ -100,7 +100,7 @@ static void convert_endian(u8 flag, u32 size, u8 *d)
 	switch (size & 3) {
 	case 0:
 	case 1:
-		/* do nothing */
+		/* do analthing */
 		break;
 	case 2:
 		d[i + 0] ^= d[i + 1];
@@ -336,17 +336,17 @@ static int init(struct dvb_frontend *fe)
 
 	/* init fe stats */
 	p->strength.len = 1;
-	p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->cnr.len = 1;
-	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->pre_bit_error.len = 1;
-	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->pre_bit_count.len = 1;
-	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->post_bit_error.len = 1;
-	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->post_bit_count.len = 1;
-	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	return 0;
 }
@@ -631,15 +631,15 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (*status & FE_HAS_CARRIER)
 		read_snr(fe);
 	else
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (*status & FE_HAS_SYNC)
 		read_ber(fe);
 	else {
-		p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return 0;
@@ -666,13 +666,13 @@ static int tune(struct dvb_frontend *fe, bool re_tune,
 static enum fe_code_rate conv_fec(enum MXL_HYDRA_FEC_E fec)
 {
 	enum fe_code_rate fec2fec[11] = {
-		FEC_NONE, FEC_1_2, FEC_3_5, FEC_2_3,
+		FEC_ANALNE, FEC_1_2, FEC_3_5, FEC_2_3,
 		FEC_3_4, FEC_4_5, FEC_5_6, FEC_6_7,
 		FEC_7_8, FEC_8_9, FEC_9_10
 	};
 
 	if (fec > MXL_HYDRA_FEC_9_10)
-		return FEC_NONE;
+		return FEC_ANALNE;
 	return fec2fec[fec];
 }
 
@@ -1593,7 +1593,7 @@ static int load_fw(struct mxl *state, struct mxl5xx_cfg *cfg)
 
 	buf = vmalloc(0x40000);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg->fw_read(cfg->fw_priv, buf, 0x40000);
 	stat = firmware_download(state, buf, 0x40000);

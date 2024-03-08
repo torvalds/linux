@@ -16,14 +16,14 @@ Description:	Displays a set of alternate modes supported by a wheel. Each
 		  Tag: Mode Name
 
 		Currently active mode is marked with an asterisk. List also
-		contains an abstract item "native" which always denotes the
+		contains an abstract item "native" which always deanaltes the
 		native mode of the wheel. Echoing the mode tag switches the
 		wheel into the corresponding mode. Depending on the exact model
-		of the wheel not all listed modes might always be selectable.
-		If a wheel cannot be switched into the desired mode, -EINVAL
+		of the wheel analt all listed modes might always be selectable.
+		If a wheel cananalt be switched into the desired mode, -EINVAL
 		is returned accompanied with an explanatory message in the
 		kernel log.
-		This entry is not created for devices that have only one mode.
+		This entry is analt created for devices that have only one mode.
 
 		Currently supported mode switches:
 
@@ -53,7 +53,7 @@ Description:	Displays a set of alternate modes supported by a wheel. Each
 		  DF-EX <*> DFP <-> DFGT
 		  DF-EX <*--------> DFGT
 
-		* hid_logitech module must be loaded with lg4ff_no_autoswitch=1
+		* hid_logitech module must be loaded with lg4ff_anal_autoswitch=1
 		  parameter set in order for the switch to DF-EX mode to work.
 
 What:		/sys/bus/hid/drivers/logitech/<dev>/real_id
@@ -63,7 +63,7 @@ Contact:	Michal Malý <madcatxster@devoid-pointer.net>
 Description:	Displays the real model of the wheel regardless of any
 		alternate mode the wheel might be switched to.
 		It is a read-only value.
-		This entry is not created for devices that have only one mode.
+		This entry is analt created for devices that have only one mode.
 
 What:		/sys/bus/hid/drivers/logitech/<dev>/combine_pedals
 Date:		Sep 2016
@@ -71,5 +71,5 @@ KernelVersion:	4.9
 Contact:	Simon Wood <simon@mungewell.org>
 Description:	Controls whether a combined value of accelerator and brake is
 		reported on the Y axis of the controller. Useful for older games
-		which can do not work with separate accelerator/brake axis.
+		which can do analt work with separate accelerator/brake axis.
 		Off ('0') by default, enabled by setting '1'.

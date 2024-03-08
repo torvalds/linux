@@ -18,7 +18,7 @@ description: |+
   There is a viriant of Arm SP804: Hisilicon 64-bit SP804 timer. Some Hisilicon
   SoCs, such as Hi1212, should use the dedicated compatible: "hisilicon,sp804".
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of analdes
 select:
   properties:
     compatible:
@@ -65,7 +65,7 @@ properties:
           - description: unified clock for both timers and the bus
 
   clock-names: true
-    # The original binding did not specify any clock names, and there is no
+    # The original binding did analt specify any clock names, and there is anal
     # consistent naming used in the existing DTs. The primecell binding
     # requires the "apb_pclk" name, so we need this property.
     # Use "timer0clk", "timer1clk", "apb_pclk" for new DTs.

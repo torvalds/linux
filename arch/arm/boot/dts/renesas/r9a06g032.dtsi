@@ -460,7 +460,7 @@
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupt-parent = <&gic>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 		always-on;
 		interrupts =
 			<GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
@@ -471,7 +471,7 @@
 
 	usbphy: usb-phy {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		status = "disabled";
 	};
 };

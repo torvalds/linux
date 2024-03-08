@@ -4,10 +4,10 @@
  *
  * Copyright (c) 2008 Nissin Systems Co., Ltd.,  Yoshio Kashiwagi
  * Copyright (c) 2005-2008 DLA Systems,  David H. Lynch Jr. <dhlii@dlasys.net>
- * Copyright (c) 2008-2009 Secret Lab Technologies Ltd.
+ * Copyright (c) 2008-2009 Secret Lab Techanallogies Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
- * Copyright (c) 2019 - 2022 Calian Advanced Technologies
+ * Copyright (c) 2019 - 2022 Calian Advanced Techanallogies
  * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  *
  * This is a driver for the Xilinx Axi Ethernet which is used in the Virtex6
@@ -198,7 +198,7 @@ static void axienet_dma_bd_release(struct net_device *ndev)
 	for (i = 0; i < lp->rx_bd_num; i++) {
 		dma_addr_t phys;
 
-		/* A NULL skb means this descriptor has not been initialised
+		/* A NULL skb means this descriptor has analt been initialised
 		 * at all.
 		 */
 		if (!lp->rx_bd_v[i].skb)
@@ -206,9 +206,9 @@ static void axienet_dma_bd_release(struct net_device *ndev)
 
 		dev_kfree_skb(lp->rx_bd_v[i].skb);
 
-		/* For each descriptor, we programmed cntrl with the (non-zero)
+		/* For each descriptor, we programmed cntrl with the (analn-zero)
 		 * descriptor size, after it had been successfully allocated.
-		 * So a non-zero value in there means we need to unmap it.
+		 * So a analn-zero value in there means we need to unmap it.
 		 */
 		if (lp->rx_bd_v[i].cntrl) {
 			phys = desc_get_phys_addr(lp, &lp->rx_bd_v[i]);
@@ -231,7 +231,7 @@ static void axienet_dma_bd_release(struct net_device *ndev)
 static u32 axienet_usec_to_timer(struct axienet_local *lp, u32 coalesce_usec)
 {
 	u32 result;
-	u64 clk_rate = 125000000; /* arbitrary guess if no clock rate set */
+	u64 clk_rate = 125000000; /* arbitrary guess if anal clock rate set */
 
 	if (lp->axi_clk)
 		clk_rate = clk_get_rate(lp->axi_clk);
@@ -254,7 +254,7 @@ static void axienet_dma_start(struct axienet_local *lp)
 	/* Start updating the Rx channel control register */
 	lp->rx_dma_cr = (lp->coalesce_count_rx << XAXIDMA_COALESCE_SHIFT) |
 			XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK;
-	/* Only set interrupt delay timer if not generating an interrupt on
+	/* Only set interrupt delay timer if analt generating an interrupt on
 	 * the first RX packet. Otherwise leave at 0 to disable delay interrupt.
 	 */
 	if (lp->coalesce_count_rx > 1)
@@ -266,7 +266,7 @@ static void axienet_dma_start(struct axienet_local *lp)
 	/* Start updating the Tx channel control register */
 	lp->tx_dma_cr = (lp->coalesce_count_tx << XAXIDMA_COALESCE_SHIFT) |
 			XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK;
-	/* Only set interrupt delay timer if not generating an interrupt on
+	/* Only set interrupt delay timer if analt generating an interrupt on
 	 * the first TX packet. Otherwise leave at 0 to disable delay interrupt.
 	 */
 	if (lp->coalesce_count_tx > 1)
@@ -285,7 +285,7 @@ static void axienet_dma_start(struct axienet_local *lp)
 			     (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is analw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting.
 	 */
 	axienet_dma_out_addr(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
@@ -297,7 +297,7 @@ static void axienet_dma_start(struct axienet_local *lp)
  * axienet_dma_bd_init - Setup buffer descriptor rings for Axi DMA
  * @ndev:	Pointer to the net_device structure
  *
- * Return: 0, on success -ENOMEM, on failure
+ * Return: 0, on success -EANALMEM, on failure
  *
  * This function is called to initialize the Rx and Tx DMA descriptor
  * rings. This initializes the descriptors with required default values
@@ -319,7 +319,7 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 					 sizeof(*lp->tx_bd_v) * lp->tx_bd_num,
 					 &lp->tx_bd_p, GFP_KERNEL);
 	if (!lp->tx_bd_v)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp->rx_bd_v = dma_alloc_coherent(lp->dev,
 					 sizeof(*lp->rx_bd_v) * lp->rx_bd_num,
@@ -367,7 +367,7 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	return 0;
 out:
 	axienet_dma_bd_release(ndev);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /**
@@ -406,7 +406,7 @@ static void axienet_set_mac_address(struct net_device *ndev,
  * @ndev:	Pointer to the net_device structure
  * @p:		6 byte Address to be written as MAC address
  *
- * Return: 0 for all conditions. Presently, there is no failure case.
+ * Return: 0 for all conditions. Presently, there is anal failure case.
  *
  * This function is called to initialize the MAC address of the Axi Ethernet
  * core. It calls the core specific axienet_set_mac_address. This is the
@@ -440,7 +440,7 @@ static void axienet_set_multicast_list(struct net_device *ndev)
 	    netdev_mc_count(ndev) > XAE_MULTICAST_CAM_TABLE_NUM) {
 		/* We must make the kernel realize we had to move into
 		 * promiscuous mode. If it was a promiscuous mode request
-		 * the flag is already set. If not we set it.
+		 * the flag is already set. If analt we set it.
 		 */
 		ndev->flags |= IFF_PROMISC;
 		reg = axienet_ior(lp, XAE_FMI_OFFSET);
@@ -527,7 +527,7 @@ static int __axienet_device_reset(struct axienet_local *lp)
 	 * process of Axi DMA takes a while to complete as all pending
 	 * commands/transfers will be flushed or completed during this
 	 * reset process.
-	 * Note that even though both TX and RX have their own reset register,
+	 * Analte that even though both TX and RX have their own reset register,
 	 * they both reset the entire DMA core, so only one needs to be used.
 	 */
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, XAXIDMA_CR_RESET_MASK);
@@ -599,7 +599,7 @@ static void axienet_dma_stop(struct axienet_local *lp)
  * is typically called during initialization. It does a reset of the Axi DMA
  * Rx/Tx channels and initializes the Axi DMA BDs. Since Axi DMA reset lines
  * are connected to Axi Ethernet reset lines, this in turn resets the Axi
- * Ethernet core. No separate hardware reset is done for the Axi Ethernet
+ * Ethernet core. Anal separate hardware reset is done for the Axi Ethernet
  * core.
  * Returns 0 on success or a negative error number otherwise.
  */
@@ -666,10 +666,10 @@ static int axienet_device_reset(struct net_device *ndev)
  * @lp:		Pointer to the axienet_local structure
  * @first_bd:	Index of first descriptor to clean up
  * @nr_bds:	Max number of descriptors to clean up
- * @force:	Whether to clean descriptors even if not complete
+ * @force:	Whether to clean descriptors even if analt complete
  * @sizep:	Pointer to a u32 filled with the total sum of all bytes
- *		in all cleaned-up descriptors. Ignored if NULL.
- * @budget:	NAPI budget (use 0 when not called from NAPI poll)
+ *		in all cleaned-up descriptors. Iganalred if NULL.
+ * @budget:	NAPI budget (use 0 when analt called from NAPI poll)
  *
  * Would either be called after a successful transmit operation, or after
  * there was an error when setting up the chain.
@@ -687,7 +687,7 @@ static int axienet_free_tx_chain(struct axienet_local *lp, u32 first_bd,
 		cur_p = &lp->tx_bd_v[(first_bd + i) % lp->tx_bd_num];
 		status = cur_p->status;
 
-		/* If force is not specified, clean up only descriptors
+		/* If force is analt specified, clean up only descriptors
 		 * that have been completed by the MAC.
 		 */
 		if (!force && !(status & XAXIDMA_BD_STS_COMPLETE_MASK))
@@ -726,11 +726,11 @@ static int axienet_free_tx_chain(struct axienet_local *lp, u32 first_bd,
  * @num_frag:	The number of BDs to check for
  *
  * Return: 0, on success
- *	    NETDEV_TX_BUSY, if any of the descriptors are not free
+ *	    NETDEV_TX_BUSY, if any of the descriptors are analt free
  *
  * This function is invoked before BDs are allocated and transmission starts.
  * This function returns 0 if a BD or group of BDs can be allocated for
- * transmission. If the BD or any of the BDs are not free the function
+ * transmission. If the BD or any of the BDs are analt free the function
  * returns a busy status.
  */
 static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
@@ -751,7 +751,7 @@ static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
  * axienet_dma_tx_cb - DMA engine callback for TX channel.
  * @data:       Pointer to the axienet_local structure.
  * @result:     error reporting through dmaengine_result.
- * This function is called by dmaengine driver for TX channel to notify
+ * This function is called by dmaengine driver for TX channel to analtify
  * that the transmit is done.
  */
 static void axienet_dma_tx_cb(void *data, const struct dmaengine_result *result)
@@ -780,9 +780,9 @@ static void axienet_dma_tx_cb(void *data, const struct dmaengine_result *result)
  * @skb:        sk_buff pointer that contains data to be Txed.
  * @ndev:       Pointer to net_device structure.
  *
- * Return: NETDEV_TX_OK on success or any non space errors.
+ * Return: NETDEV_TX_OK on success or any analn space errors.
  *         NETDEV_TX_BUSY when free element in TX skb ring buffer
- *         is not available.
+ *         is analt available.
  *
  * This function is invoked to initiate transmission. The
  * function sets the skbs, register dma callback API and submit
@@ -877,7 +877,7 @@ xmit_error_drop_skb:
  *
  * Return: Number of TX packets processed.
  *
- * This function is invoked from the NAPI processing to notify the completion
+ * This function is invoked from the NAPI processing to analtify the completion
  * of transmit operation. It clears fields in the corresponding Tx BDs and
  * unmaps the corresponding buffer so that CPU can regain ownership of the
  * buffer. It finally invokes "netif_wake_queue" to restart transmission if
@@ -925,7 +925,7 @@ static int axienet_tx_poll(struct napi_struct *napi, int budget)
  * @ndev:	Pointer to net_device structure.
  *
  * Return: NETDEV_TX_OK, on success
- *	    NETDEV_TX_BUSY, if any of the descriptors are not free
+ *	    NETDEV_TX_BUSY, if any of the descriptors are analt free
  *
  * This function is invoked from upper layers to initiate transmission. The
  * function uses the next available free BDs and populates their fields to
@@ -952,7 +952,7 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	cur_p = &lp->tx_bd_v[orig_tail_ptr];
 
 	if (axienet_check_tx_bd_space(lp, num_frag + 1)) {
-		/* Should not happen as last start_xmit call should have
+		/* Should analt happen as last start_xmit call should have
 		 * checked for sufficient space and queue should only be
 		 * woken when sufficient space is available.
 		 */
@@ -1020,7 +1020,7 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Start the transfer */
 	axienet_dma_out_addr(lp, XAXIDMA_TX_TDESC_OFFSET, tail_p);
 
-	/* Stop queue if next transmit may not have space */
+	/* Stop queue if next transmit may analt have space */
 	if (axienet_check_tx_bd_space(lp, MAX_SKB_FRAGS + 1)) {
 		netif_stop_queue(ndev);
 
@@ -1039,7 +1039,7 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
  * axienet_dma_rx_cb - DMA engine callback for RX channel.
  * @data:       Pointer to the skbuf_dma_descriptor structure.
  * @result:     error reporting through dmaengine_result.
- * This function is called by dmaengine driver for RX channel to notify
+ * This function is called by dmaengine driver for RX channel to analtify
  * that the packet is received.
  */
 static void axienet_dma_rx_cb(void *data, const struct dmaengine_result *result)
@@ -1060,7 +1060,7 @@ static void axienet_dma_rx_cb(void *data, const struct dmaengine_result *result)
 	rx_len = (app_metadata[LEN_APP] & 0xFFFF);
 	skb_put(skb, rx_len);
 	skb->protocol = eth_type_trans(skb, lp->ndev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_ANALNE;
 
 	__netif_rx(skb);
 	u64_stats_update_begin(&lp->rx_stat_sync);
@@ -1114,8 +1114,8 @@ static int axienet_rx_poll(struct napi_struct *napi, int budget)
 
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, lp->ndev);
-			/*skb_checksum_none_assert(skb);*/
-			skb->ip_summed = CHECKSUM_NONE;
+			/*skb_checksum_analne_assert(skb);*/
+			skb->ip_summed = CHECKSUM_ANALNE;
 
 			/* if we're doing Rx csum offload, set it up */
 			if (lp->features & XAE_FEATURE_FULL_RX_CSUM) {
@@ -1190,7 +1190,7 @@ static int axienet_rx_poll(struct napi_struct *napi, int budget)
  * @irq:	irq number
  * @_ndev:	net_device pointer
  *
- * Return: IRQ_HANDLED if device generated a TX interrupt, IRQ_NONE otherwise.
+ * Return: IRQ_HANDLED if device generated a TX interrupt, IRQ_ANALNE otherwise.
  *
  * This is the Axi DMA Tx done Isr. It invokes NAPI polling to complete the
  * TX BD processing.
@@ -1204,7 +1204,7 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
 	status = axienet_dma_in32(lp, XAXIDMA_TX_SR_OFFSET);
 
 	if (!(status & XAXIDMA_IRQ_ALL_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	axienet_dma_out32(lp, XAXIDMA_TX_SR_OFFSET, status);
 
@@ -1234,7 +1234,7 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
  * @irq:	irq number
  * @_ndev:	net_device pointer
  *
- * Return: IRQ_HANDLED if device generated a RX interrupt, IRQ_NONE otherwise.
+ * Return: IRQ_HANDLED if device generated a RX interrupt, IRQ_ANALNE otherwise.
  *
  * This is the Axi DMA Rx Isr. It invokes NAPI polling to complete the RX BD
  * processing.
@@ -1248,7 +1248,7 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 	status = axienet_dma_in32(lp, XAXIDMA_RX_SR_OFFSET);
 
 	if (!(status & XAXIDMA_IRQ_ALL_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	axienet_dma_out32(lp, XAXIDMA_RX_SR_OFFSET, status);
 
@@ -1278,7 +1278,7 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
  * @irq:	irq number
  * @_ndev:	net_device pointer
  *
- * Return: IRQ_HANDLED if device generated a core interrupt, IRQ_NONE otherwise.
+ * Return: IRQ_HANDLED if device generated a core interrupt, IRQ_ANALNE otherwise.
  *
  * Handle miscellaneous conditions indicated by Ethernet core IRQ.
  */
@@ -1290,7 +1290,7 @@ static irqreturn_t axienet_eth_irq(int irq, void *_ndev)
 
 	pending = axienet_ior(lp, XAE_IP_OFFSET);
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (pending & XAE_INT_RXFIFOOVR_MASK)
 		ndev->stats.rx_missed_errors++;
@@ -1364,7 +1364,7 @@ rx_submit_err_free_skb:
  * @ndev:       Pointer to net_device structure
  *
  * Return: 0, on success.
- *          non-zero error value on failure
+ *          analn-zero error value on failure
  *
  * This is the dmaengine initialization code.
  */
@@ -1376,14 +1376,14 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 
 	lp->tx_chan = dma_request_chan(lp->dev, "tx_chan0");
 	if (IS_ERR(lp->tx_chan)) {
-		dev_err(lp->dev, "No Ethernet DMA (TX) channel found\n");
+		dev_err(lp->dev, "Anal Ethernet DMA (TX) channel found\n");
 		return PTR_ERR(lp->tx_chan);
 	}
 
 	lp->rx_chan = dma_request_chan(lp->dev, "rx_chan0");
 	if (IS_ERR(lp->rx_chan)) {
 		ret = PTR_ERR(lp->rx_chan);
-		dev_err(lp->dev, "No Ethernet DMA (RX) channel found\n");
+		dev_err(lp->dev, "Anal Ethernet DMA (RX) channel found\n");
 		goto err_dma_release_tx;
 	}
 
@@ -1394,13 +1394,13 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 	lp->tx_skb_ring = kcalloc(TX_BD_NUM_MAX, sizeof(*lp->tx_skb_ring),
 				  GFP_KERNEL);
 	if (!lp->tx_skb_ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dma_release_rx;
 	}
 	for (i = 0; i < TX_BD_NUM_MAX; i++) {
 		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
 		if (!skbuf_dma) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_tx_skb_ring;
 		}
 		lp->tx_skb_ring[i] = skbuf_dma;
@@ -1409,13 +1409,13 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 	lp->rx_skb_ring = kcalloc(RX_BUF_NUM_DEFAULT, sizeof(*lp->rx_skb_ring),
 				  GFP_KERNEL);
 	if (!lp->rx_skb_ring) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_tx_skb_ring;
 	}
 	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++) {
 		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
 		if (!skbuf_dma) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_rx_skb_ring;
 		}
 		lp->rx_skb_ring[i] = skbuf_dma;
@@ -1447,7 +1447,7 @@ err_dma_release_tx:
  * @ndev:       Pointer to net_device structure
  *
  * Return: 0, on success.
- *          non-zero error value on failure
+ *          analn-zero error value on failure
  *
  * This is the dma  initialization code. It also allocates interrupt
  * service routines, enables the interrupt lines and ISR handling.
@@ -1501,7 +1501,7 @@ err_tx_irq:
  * @ndev:	Pointer to net_device structure
  *
  * Return: 0, on success.
- *	    non-zero error value on failure
+ *	    analn-zero error value on failure
  *
  * This is the driver open routine. It calls phylink_start to start the
  * PHY device.
@@ -1524,7 +1524,7 @@ static int axienet_open(struct net_device *ndev)
 	ret = axienet_device_reset(ndev);
 	axienet_unlock_mii(lp);
 
-	ret = phylink_of_phy_connect(lp->phylink, lp->dev->of_node, 0);
+	ret = phylink_of_phy_connect(lp->phylink, lp->dev->of_analde, 0);
 	if (ret) {
 		dev_err(lp->dev, "phylink_of_phy_connect() failed: %d\n", ret);
 		return ret;
@@ -1628,7 +1628,7 @@ static int axienet_stop(struct net_device *ndev)
  *
  * This is the change mtu driver routine. It checks if the Axi Ethernet
  * hardware supports jumbo frames before changing the mtu. This can be
- * called only when the device is not up.
+ * called only when the device is analt up.
  */
 static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 {
@@ -1934,7 +1934,7 @@ axienet_ethtools_get_coalesce(struct net_device *ndev,
  * count on Tx and Rx paths. Issue "ethtool -C ethX rx-frames 5" under linux
  * prompt to execute this function.
  *
- * Return: 0, on success, Non-zero error value on failure.
+ * Return: 0, on success, Analn-zero error value on failure.
  */
 static int
 axienet_ethtools_set_coalesce(struct net_device *ndev,
@@ -2077,14 +2077,14 @@ static struct phylink_pcs *axienet_mac_select_pcs(struct phylink_config *config,
 static void axienet_mac_config(struct phylink_config *config, unsigned int mode,
 			       const struct phylink_link_state *state)
 {
-	/* nothing meaningful to do */
+	/* analthing meaningful to do */
 }
 
 static void axienet_mac_link_down(struct phylink_config *config,
 				  unsigned int mode,
 				  phy_interface_t interface)
 {
-	/* nothing meaningful to do */
+	/* analthing meaningful to do */
 }
 
 static void axienet_mac_link_up(struct phylink_config *config,
@@ -2112,7 +2112,7 @@ static void axienet_mac_link_up(struct phylink_config *config,
 		break;
 	default:
 		dev_err(&ndev->dev,
-			"Speed other than 10, 100 or 1Gbps is not supported\n");
+			"Speed other than 10, 100 or 1Gbps is analt supported\n");
 		break;
 	}
 
@@ -2229,7 +2229,7 @@ static void axienet_dma_err_handler(struct work_struct *work)
  * @pdev:	Pointer to platform device structure.
  *
  * Return: 0, on success
- *	    Non-zero error value on failure.
+ *	    Analn-zero error value on failure.
  *
  * This is the probe routine for Axi Ethernet driver. This is called before
  * any other driver routines are invoked. It allocates and sets up the Ethernet
@@ -2239,7 +2239,7 @@ static void axienet_dma_err_handler(struct work_struct *work)
 static int axienet_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *np;
+	struct device_analde *np;
 	struct axienet_local *lp;
 	struct net_device *ndev;
 	struct resource *ethres;
@@ -2249,7 +2249,7 @@ static int axienet_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(*lp));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -2274,7 +2274,7 @@ static int axienet_probe(struct platform_device *pdev)
 
 	lp->axi_clk = devm_clk_get_optional(&pdev->dev, "s_axi_lite_clk");
 	if (!lp->axi_clk) {
-		/* For backward compatibility, if named AXI clock is not present,
+		/* For backward compatibility, if named AXI clock is analt present,
 		 * treat the first clock specified as the AXI clock.
 		 */
 		lp->axi_clk = devm_clk_get_optional(&pdev->dev, NULL);
@@ -2309,10 +2309,10 @@ static int axienet_probe(struct platform_device *pdev)
 	}
 	lp->regs_start = ethres->start;
 
-	/* Setup checksum offload, but default to off if not specified */
+	/* Setup checksum offload, but default to off if analt specified */
 	lp->features = 0;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,txcsum", &value);
+	ret = of_property_read_u32(pdev->dev.of_analde, "xlnx,txcsum", &value);
 	if (!ret) {
 		switch (value) {
 		case 1:
@@ -2330,10 +2330,10 @@ static int axienet_probe(struct platform_device *pdev)
 			ndev->features |= NETIF_F_IP_CSUM;
 			break;
 		default:
-			lp->csum_offload_on_tx_path = XAE_NO_CSUM_OFFLOAD;
+			lp->csum_offload_on_tx_path = XAE_ANAL_CSUM_OFFLOAD;
 		}
 	}
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,rxcsum", &value);
+	ret = of_property_read_u32(pdev->dev.of_analde, "xlnx,rxcsum", &value);
 	if (!ret) {
 		switch (value) {
 		case 1:
@@ -2347,7 +2347,7 @@ static int axienet_probe(struct platform_device *pdev)
 			lp->features |= XAE_FEATURE_FULL_RX_CSUM;
 			break;
 		default:
-			lp->csum_offload_on_rx_path = XAE_NO_CSUM_OFFLOAD;
+			lp->csum_offload_on_rx_path = XAE_ANAL_CSUM_OFFLOAD;
 		}
 	}
 	/* For supporting jumbo frames, the Axi Ethernet hardware must have
@@ -2356,13 +2356,13 @@ static int axienet_probe(struct platform_device *pdev)
 	 * Here we check for memory allocated for Rx/Tx in the hardware from
 	 * the device-tree and accordingly set flags.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "xlnx,rxmem", &lp->rxmem);
+	of_property_read_u32(pdev->dev.of_analde, "xlnx,rxmem", &lp->rxmem);
 
-	lp->switch_x_sgmii = of_property_read_bool(pdev->dev.of_node,
+	lp->switch_x_sgmii = of_property_read_bool(pdev->dev.of_analde,
 						   "xlnx,switch-x-sgmii");
 
 	/* Start with the proprietary, and broken phy_type */
-	ret = of_property_read_u32(pdev->dev.of_node, "xlnx,phy-type", &value);
+	ret = of_property_read_u32(pdev->dev.of_analde, "xlnx,phy-type", &value);
 	if (!ret) {
 		netdev_warn(ndev, "Please upgrade your device tree binary blob to use phy-mode");
 		switch (value) {
@@ -2386,7 +2386,7 @@ static int axienet_probe(struct platform_device *pdev)
 			goto cleanup_clk;
 		}
 	} else {
-		ret = of_get_phy_mode(pdev->dev.of_node, &lp->phy_mode);
+		ret = of_get_phy_mode(pdev->dev.of_analde, &lp->phy_mode);
 		if (ret)
 			goto cleanup_clk;
 	}
@@ -2397,9 +2397,9 @@ static int axienet_probe(struct platform_device *pdev)
 		goto cleanup_clk;
 	}
 
-	if (!of_find_property(pdev->dev.of_node, "dmas", NULL)) {
-		/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
-		np = of_parse_phandle(pdev->dev.of_node, "axistream-connected", 0);
+	if (!of_find_property(pdev->dev.of_analde, "dmas", NULL)) {
+		/* Find the DMA analde, map the DMA registers, and decode the DMA IRQs */
+		np = of_parse_phandle(pdev->dev.of_analde, "axistream-connected", 0);
 
 		if (np) {
 			struct resource dmares;
@@ -2408,34 +2408,34 @@ static int axienet_probe(struct platform_device *pdev)
 			if (ret) {
 				dev_err(&pdev->dev,
 					"unable to get DMA resource\n");
-				of_node_put(np);
+				of_analde_put(np);
 				goto cleanup_clk;
 			}
 			lp->dma_regs = devm_ioremap_resource(&pdev->dev,
 							     &dmares);
 			lp->rx_irq = irq_of_parse_and_map(np, 1);
 			lp->tx_irq = irq_of_parse_and_map(np, 0);
-			of_node_put(np);
+			of_analde_put(np);
 			lp->eth_irq = platform_get_irq_optional(pdev, 0);
 		} else {
-			/* Check for these resources directly on the Ethernet node. */
+			/* Check for these resources directly on the Ethernet analde. */
 			lp->dma_regs = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 			lp->rx_irq = platform_get_irq(pdev, 1);
 			lp->tx_irq = platform_get_irq(pdev, 0);
 			lp->eth_irq = platform_get_irq_optional(pdev, 2);
 		}
 		if (IS_ERR(lp->dma_regs)) {
-			dev_err(&pdev->dev, "could not map DMA regs\n");
+			dev_err(&pdev->dev, "could analt map DMA regs\n");
 			ret = PTR_ERR(lp->dma_regs);
 			goto cleanup_clk;
 		}
 		if (lp->rx_irq <= 0 || lp->tx_irq <= 0) {
-			dev_err(&pdev->dev, "could not determine irqs\n");
-			ret = -ENOMEM;
+			dev_err(&pdev->dev, "could analt determine irqs\n");
+			ret = -EANALMEM;
 			goto cleanup_clk;
 		}
 
-		/* Reset core now that clocks are enabled, prior to accessing MDIO */
+		/* Reset core analw that clocks are enabled, prior to accessing MDIO */
 		ret = __axienet_device_reset(lp);
 		if (ret)
 			goto cleanup_clk;
@@ -2464,14 +2464,14 @@ static int axienet_probe(struct platform_device *pdev)
 			}
 		}
 		if (!IS_ENABLED(CONFIG_64BIT) && lp->features & XAE_FEATURE_DMA_64BIT) {
-			dev_err(&pdev->dev, "64-bit addressable DMA is not compatible with 32-bit archecture\n");
+			dev_err(&pdev->dev, "64-bit addressable DMA is analt compatible with 32-bit archecture\n");
 			ret = -EINVAL;
 			goto cleanup_clk;
 		}
 
 		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(addr_width));
 		if (ret) {
-			dev_err(&pdev->dev, "No suitable DMA available\n");
+			dev_err(&pdev->dev, "Anal suitable DMA available\n");
 			goto cleanup_clk;
 		}
 		netif_napi_add(ndev, &lp->napi_rx, axienet_rx_poll);
@@ -2488,7 +2488,7 @@ static int axienet_probe(struct platform_device *pdev)
 		tx_chan = dma_request_chan(lp->dev, "tx_chan0");
 		if (IS_ERR(tx_chan)) {
 			ret = PTR_ERR(tx_chan);
-			dev_err_probe(lp->dev, ret, "No Ethernet DMA (TX) channel found\n");
+			dev_err_probe(lp->dev, ret, "Anal Ethernet DMA (TX) channel found\n");
 			goto cleanup_clk;
 		}
 
@@ -2511,14 +2511,14 @@ static int axienet_probe(struct platform_device *pdev)
 		ndev->netdev_ops = &axienet_netdev_ops;
 	/* Check for Ethernet core IRQ (optional) */
 	if (lp->eth_irq <= 0)
-		dev_info(&pdev->dev, "Ethernet core IRQ not defined\n");
+		dev_info(&pdev->dev, "Ethernet core IRQ analt defined\n");
 
 	/* Retrieve the MAC address */
-	ret = of_get_mac_address(pdev->dev.of_node, mac_addr);
+	ret = of_get_mac_address(pdev->dev.of_analde, mac_addr);
 	if (!ret) {
 		axienet_set_mac_address(ndev, mac_addr);
 	} else {
-		dev_warn(&pdev->dev, "could not find MAC address property: %d\n",
+		dev_warn(&pdev->dev, "could analt find MAC address property: %d\n",
 			 ret);
 		axienet_set_mac_address(ndev, NULL);
 	}
@@ -2535,13 +2535,13 @@ static int axienet_probe(struct platform_device *pdev)
 
 	if (lp->phy_mode == PHY_INTERFACE_MODE_SGMII ||
 	    lp->phy_mode == PHY_INTERFACE_MODE_1000BASEX) {
-		np = of_parse_phandle(pdev->dev.of_node, "pcs-handle", 0);
+		np = of_parse_phandle(pdev->dev.of_analde, "pcs-handle", 0);
 		if (!np) {
 			/* Deprecated: Always use "pcs-handle" for pcs_phy.
 			 * Falling back to "phy-handle" here is only for
 			 * backward compatibility with old device trees.
 			 */
-			np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+			np = of_parse_phandle(pdev->dev.of_analde, "phy-handle", 0);
 		}
 		if (!np) {
 			dev_err(&pdev->dev, "pcs-handle (preferred) or phy-handle required for 1000BaseX/SGMII\n");
@@ -2551,10 +2551,10 @@ static int axienet_probe(struct platform_device *pdev)
 		lp->pcs_phy = of_mdio_find_device(np);
 		if (!lp->pcs_phy) {
 			ret = -EPROBE_DEFER;
-			of_node_put(np);
+			of_analde_put(np);
 			goto cleanup_mdio;
 		}
-		of_node_put(np);
+		of_analde_put(np);
 		lp->pcs.ops = &axienet_pcs_ops;
 		lp->pcs.neg_mode = true;
 		lp->pcs.poll = true;
@@ -2573,7 +2573,7 @@ static int axienet_probe(struct platform_device *pdev)
 			  lp->phylink_config.supported_interfaces);
 	}
 
-	lp->phylink = phylink_create(&lp->phylink_config, pdev->dev.fwnode,
+	lp->phylink = phylink_create(&lp->phylink_config, pdev->dev.fwanalde,
 				     lp->phy_mode,
 				     &axienet_phylink_ops);
 	if (IS_ERR(lp->phylink)) {

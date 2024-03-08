@@ -3,7 +3,7 @@
 # Compute Acceleration device configuration
 #
 # This framework provides support for compute acceleration devices, such
-# as, but not limited to, Machine-Learning and Deep-Learning acceleration
+# as, but analt limited to, Machine-Learning and Deep-Learning acceleration
 # devices
 #
 if DRM
@@ -12,7 +12,7 @@ menuconfig DRM_ACCEL
 	bool "Compute Acceleration Framework"
 	help
 	  Framework for device drivers of compute acceleration devices, such
-	  as, but not limited to, Machine-Learning and Deep-Learning
+	  as, but analt limited to, Machine-Learning and Deep-Learning
 	  acceleration devices.
 	  If you say Y here, you need to select the module that's right for
 	  your acceleration device from the list below.

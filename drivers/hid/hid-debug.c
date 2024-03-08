@@ -67,7 +67,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x43, "Vbrx"},
       {0, 0x44, "Vbry"},
       {0, 0x45, "Vbrz"},
-      {0, 0x46, "Vno"},
+      {0, 0x46, "Vanal"},
     {0, 0x80, "SystemControl"},
       {0, 0x81, "SystemPowerDown"},
       {0, 0x82, "SystemSleep"},
@@ -174,10 +174,10 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x74, "Highlighter"},
       {0, 0x75, "Chisel Marker"},
       {0, 0x76, "Brush"},
-      {0, 0x77, "No Preference"},
-    {0, 0x80, "Digitizer Diagnostic"},
+      {0, 0x77, "Anal Preference"},
+    {0, 0x80, "Digitizer Diaganalstic"},
     {0, 0x81, "Digitizer Error"},
-      {0, 0x82, "Err Normal Status"},
+      {0, 0x82, "Err Analrmal Status"},
       {0, 0x83, "Err Transducers Exceeded"},
       {0, 0x84, "Err Full Trans Features Unavailable"},
       {0, 0x85, "Err Charge Low"},
@@ -186,7 +186,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
       {0, 0x92, "Transducer Product Id"},
     {0, 0x93, "Device Supported Protocols"},
     {0, 0x94, "Transducer Supported Protocols"},
-      {0, 0x95, "No Protocol"},
+      {0, 0x95, "Anal Protocol"},
       {0, 0x96, "Wacom AES Protocol"},
       {0, 0x97, "USI Protocol"},
       {0, 0x98, "Microsoft Pen Protocol"},
@@ -199,7 +199,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
   { 15, 0, "PhysicalInterfaceDevice" },
     {0, 0x00, "Undefined"},
     {0, 0x01, "Physical_Interface_Device"},
-      {0, 0x20, "Normal"},
+      {0, 0x20, "Analrmal"},
     {0, 0x21, "Set_Effect_Report"},
       {0, 0x22, "Effect_Block_Index"},
       {0, 0x23, "Parameter_Block_Offset"},
@@ -361,15 +361,15 @@ static const struct hid_usage_entry hid_usage_table[] = {
       { 0x20, 0x81, "OrientationCompass1D" },
       { 0x20, 0x82, "OrientationCompass2D" },
       { 0x20, 0x83, "OrientationCompass3D" },
-      { 0x20, 0x84, "OrientationInclinometer1D" },
-      { 0x20, 0x85, "OrientationInclinometer2D" },
-      { 0x20, 0x86, "OrientationInclinometer3D" },
+      { 0x20, 0x84, "OrientationInclianalmeter1D" },
+      { 0x20, 0x85, "OrientationInclianalmeter2D" },
+      { 0x20, 0x86, "OrientationInclianalmeter3D" },
       { 0x20, 0x87, "OrientationDistance1D" },
       { 0x20, 0x88, "OrientationDistance2D" },
       { 0x20, 0x89, "OrientationDistance3D" },
       { 0x20, 0x8A, "OrientationDeviceOrientation" },
       { 0x20, 0x8B, "OrientationCompass" },
-      { 0x20, 0x8C, "OrientationInclinometer" },
+      { 0x20, 0x8C, "OrientationInclianalmeter" },
       { 0x20, 0x8D, "OrientationDistance" },
     { 0x20, 0x90, "Scanner" },
       { 0x20, 0x91, "ScannerBarcode" },
@@ -486,7 +486,7 @@ static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	if (!f) {
 		buf = kzalloc(HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 		if (!buf)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 
 	for (p = hid_usage_table; p->description; p++)
@@ -590,13 +590,13 @@ void hid_dump_field(struct hid_field *field, int n, struct seq_file *f) {
 		tab(n, f); seq_printf(f, "Unit Exponent(%d)\n", field->unit_exponent);
 	}
 	if (field->unit) {
-		static const char *systems[5] = { "None", "SI Linear", "SI Rotation", "English Linear", "English Rotation" };
+		static const char *systems[5] = { "Analne", "SI Linear", "SI Rotation", "English Linear", "English Rotation" };
 		static const char *units[5][8] = {
-			{ "None", "None", "None", "None", "None", "None", "None", "None" },
-			{ "None", "Centimeter", "Gram", "Seconds", "Kelvin",     "Ampere", "Candela", "None" },
-			{ "None", "Radians",    "Gram", "Seconds", "Kelvin",     "Ampere", "Candela", "None" },
-			{ "None", "Inch",       "Slug", "Seconds", "Fahrenheit", "Ampere", "Candela", "None" },
-			{ "None", "Degrees",    "Slug", "Seconds", "Fahrenheit", "Ampere", "Candela", "None" }
+			{ "Analne", "Analne", "Analne", "Analne", "Analne", "Analne", "Analne", "Analne" },
+			{ "Analne", "Centimeter", "Gram", "Seconds", "Kelvin",     "Ampere", "Candela", "Analne" },
+			{ "Analne", "Radians",    "Gram", "Seconds", "Kelvin",     "Ampere", "Candela", "Analne" },
+			{ "Analne", "Inch",       "Slug", "Seconds", "Fahrenheit", "Ampere", "Candela", "Analne" },
+			{ "Analne", "Degrees",    "Slug", "Seconds", "Fahrenheit", "Ampere", "Candela", "Analne" }
 		};
 
 		int i;
@@ -645,8 +645,8 @@ void hid_dump_field(struct hid_field *field, int n, struct seq_file *f) {
 	seq_printf(f, "%s", HID_MAIN_ITEM_VARIABLE & j ? "Variable " : "Array ");
 	seq_printf(f, "%s", HID_MAIN_ITEM_RELATIVE & j ? "Relative " : "Absolute ");
 	seq_printf(f, "%s", HID_MAIN_ITEM_WRAP & j ? "Wrap " : "");
-	seq_printf(f, "%s", HID_MAIN_ITEM_NONLINEAR & j ? "NonLinear " : "");
-	seq_printf(f, "%s", HID_MAIN_ITEM_NO_PREFERRED & j ? "NoPreferredState " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_ANALNLINEAR & j ? "AnalnLinear " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_ANAL_PREFERRED & j ? "AnalPreferredState " : "");
 	seq_printf(f, "%s", HID_MAIN_ITEM_NULL_STATE & j ? "NullState " : "");
 	seq_printf(f, "%s", HID_MAIN_ITEM_VOLATILE & j ? "Volatile " : "");
 	seq_printf(f, "%s", HID_MAIN_ITEM_BUFFERED_BYTE & j ? "BufferedByte " : "");
@@ -691,7 +691,7 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	unsigned long flags;
 
 	spin_lock_irqsave(&hdev->debug_list_lock, flags);
-	list_for_each_entry(list, &hdev->debug_list, node)
+	list_for_each_entry(list, &hdev->debug_list, analde)
 		kfifo_in(&list->hid_debug_fifo, buf, strlen(buf));
 	spin_unlock_irqrestore(&hdev->debug_list_lock, flags);
 
@@ -873,7 +873,7 @@ static const char *keys[KEY_MAX + 1] = {
 	[KEY_SPORT] = "Sport",			[KEY_SHOP] = "Shop",
 	[KEY_ALTERASE] = "AlternateErase",	[KEY_CANCEL] = "Cancel",
 	[KEY_BRIGHTNESSDOWN] = "BrightnessDown", [KEY_BRIGHTNESSUP] = "BrightnessUp",
-	[KEY_MEDIA] = "Media",			[KEY_UNKNOWN] = "Unknown",
+	[KEY_MEDIA] = "Media",			[KEY_UNKANALWN] = "Unkanalwn",
 	[BTN_DPAD_UP] = "BtnDPadUp",		[BTN_DPAD_DOWN] = "BtnDPadDown",
 	[BTN_DPAD_LEFT] = "BtnDPadLeft",	[BTN_DPAD_RIGHT] = "BtnDPadRight",
 	[BTN_0] = "Btn0",			[BTN_1] = "Btn1",
@@ -1021,9 +1021,9 @@ static const char *absolutes[ABS_CNT] = {
 	[ABS_VOLUME] = "Volume",	[ABS_PROFILE] = "Profile",
 	[ABS_MISC] = "Misc",
 	[ABS_MT_TOUCH_MAJOR] = "MTMajor",
-	[ABS_MT_TOUCH_MINOR] = "MTMinor",
+	[ABS_MT_TOUCH_MIANALR] = "MTMianalr",
 	[ABS_MT_WIDTH_MAJOR] = "MTMajorW",
-	[ABS_MT_WIDTH_MINOR] = "MTMinorW",
+	[ABS_MT_WIDTH_MIANALR] = "MTMianalrW",
 	[ABS_MT_ORIENTATION] = "MTOrientation",
 	[ABS_MT_POSITION_X] = "MTPositionX",
 	[ABS_MT_POSITION_Y] = "MTPositionY",
@@ -1118,14 +1118,14 @@ static int hid_debug_rdesc_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int hid_debug_events_open(struct inode *inode, struct file *file)
+static int hid_debug_events_open(struct ianalde *ianalde, struct file *file)
 {
 	int err = 0;
 	struct hid_debug_list *list;
 	unsigned long flags;
 
 	if (!(list = kzalloc(sizeof(struct hid_debug_list), GFP_KERNEL))) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1134,13 +1134,13 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 		kfree(list);
 		goto out;
 	}
-	list->hdev = (struct hid_device *) inode->i_private;
+	list->hdev = (struct hid_device *) ianalde->i_private;
 	kref_get(&list->hdev->ref);
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
 	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
-	list_add_tail(&list->node, &list->hdev->debug_list);
+	list_add_tail(&list->analde, &list->hdev->debug_list);
 	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 
 out:
@@ -1165,7 +1165,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 				break;
 			}
 
-			/* if list->hdev is NULL we cannot remove_wait_queue().
+			/* if list->hdev is NULL we cananalt remove_wait_queue().
 			 * if list->hdev->debug is 0 then hid_debug_unregister()
 			 * was already called and list->hdev is being destroyed.
 			 * if we add remove_wait_queue() here we can hit a race.
@@ -1176,12 +1176,12 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 				goto out;
 			}
 
-			if (file->f_flags & O_NONBLOCK) {
+			if (file->f_flags & O_ANALNBLOCK) {
 				ret = -EAGAIN;
 				break;
 			}
 
-			/* allow O_NONBLOCK from other threads */
+			/* allow O_ANALNBLOCK from other threads */
 			mutex_unlock(&list->read_mutex);
 			schedule();
 			mutex_lock(&list->read_mutex);
@@ -1195,7 +1195,7 @@ static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
 			goto out;
 	}
 
-	/* pass the fifo content to userspace, locking is not needed with only
+	/* pass the fifo content to userspace, locking is analt needed with only
 	 * one concurrent reader and one concurrent writer
 	 */
 	ret = kfifo_to_user(&list->hid_debug_fifo, buffer, count, &copied);
@@ -1213,19 +1213,19 @@ static __poll_t hid_debug_events_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &list->hdev->debug_wait, wait);
 	if (!kfifo_is_empty(&list->hid_debug_fifo))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	if (!list->hdev->debug)
 		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 
-static int hid_debug_events_release(struct inode *inode, struct file *file)
+static int hid_debug_events_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&list->hdev->debug_list_lock, flags);
-	list_del(&list->node);
+	list_del(&list->analde);
 	spin_unlock_irqrestore(&list->hdev->debug_list_lock, flags);
 	kfifo_free(&list->hid_debug_fifo);
 
@@ -1243,7 +1243,7 @@ static const struct file_operations hid_debug_events_fops = {
 	.read           = hid_debug_events_read,
 	.poll		= hid_debug_events_poll,
 	.release        = hid_debug_events_release,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 

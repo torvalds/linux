@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2021 Aspeed Technology Inc.
+ * Copyright 2021 Aspeed Techanallogy Inc.
  */
 #include <crypto/engine.h>
 #include <crypto/internal/akcipher.h>
@@ -257,7 +257,7 @@ static int aspeed_acry_rsa_ctx_copy(struct aspeed_acry_dev *acry_dev, void *buf,
 	ACRY_DBG(acry_dev, "nbytes:%zu, mode:%d\n", nbytes, mode);
 
 	if (nbytes > ASPEED_ACRY_RSA_MAX_KEY_LEN)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Remove the leading zeros */
 	while (nbytes > 0 && src[0] == 0) {
@@ -352,7 +352,7 @@ static int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 	int ne, nm;
 
 	if (!ctx->n || !ctx->n_sz) {
-		dev_err(acry_dev->dev, "%s: key n is not set\n", __func__);
+		dev_err(acry_dev->dev, "%s: key n is analt set\n", __func__);
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 				      ctx->n_sz, ASPEED_RSA_MOD_MODE);
 	if (ctx->enc) {
 		if (!ctx->e || !ctx->e_sz) {
-			dev_err(acry_dev->dev, "%s: key e is not set\n",
+			dev_err(acry_dev->dev, "%s: key e is analt set\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -376,7 +376,7 @@ static int aspeed_acry_rsa_trigger(struct aspeed_acry_dev *acry_dev)
 					      ASPEED_RSA_EXP_MODE);
 	} else {
 		if (!ctx->d || !ctx->d_sz) {
-			dev_err(acry_dev->dev, "%s: key d is not set\n",
+			dev_err(acry_dev->dev, "%s: key d is analt set\n",
 				__func__);
 			return -EINVAL;
 		}
@@ -445,7 +445,7 @@ static int aspeed_rsa_set_n(struct aspeed_acry_ctx *ctx, u8 *value,
 	ctx->n_sz = len;
 	ctx->n = aspeed_rsa_key_copy(value, len);
 	if (!ctx->n)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -456,7 +456,7 @@ static int aspeed_rsa_set_e(struct aspeed_acry_ctx *ctx, u8 *value,
 	ctx->e_sz = len;
 	ctx->e = aspeed_rsa_key_copy(value, len);
 	if (!ctx->e)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -467,7 +467,7 @@ static int aspeed_rsa_set_d(struct aspeed_acry_ctx *ctx, u8 *value,
 	ctx->d_sz = len;
 	ctx->d = aspeed_rsa_key_copy(value, len);
 	if (!ctx->d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -581,7 +581,7 @@ static int aspeed_acry_rsa_init_tfm(struct crypto_akcipher *tfm)
 	ctx->fallback_tfm = crypto_alloc_akcipher(name, 0, CRYPTO_ALG_ASYNC |
 						  CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
-		dev_err(ctx->acry_dev->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(ctx->acry_dev->dev, "ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(ctx->fallback_tfm));
 		return PTR_ERR(ctx->fallback_tfm);
 	}
@@ -666,7 +666,7 @@ static irqreturn_t aspeed_acry_irq(int irq, void *dev)
 		if (acry_dev->flags & CRYPTO_FLAGS_BUSY)
 			tasklet_schedule(&acry_dev->done_task);
 		else
-			dev_err(acry_dev->dev, "RSA no active requests.\n");
+			dev_err(acry_dev->dev, "RSA anal active requests.\n");
 	}
 
 	return IRQ_HANDLED;
@@ -713,7 +713,7 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	acry_dev = devm_kzalloc(dev, sizeof(struct aspeed_acry_dev),
 				GFP_KERNEL);
 	if (!acry_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	acry_dev->dev = dev;
 
@@ -745,17 +745,17 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 		return PTR_ERR(acry_dev->clk);
 	}
 
-	acry_dev->ahbc = syscon_regmap_lookup_by_phandle(dev->of_node,
+	acry_dev->ahbc = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							 "aspeed,ahbc");
 	if (IS_ERR(acry_dev->ahbc)) {
 		dev_err(dev, "Failed to get AHBC regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Initialize crypto hardware engine structure for RSA */
 	acry_dev->crypt_engine_rsa = crypto_engine_alloc_init(dev, true);
 	if (!acry_dev->crypt_engine_rsa) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto clk_exit;
 	}
 
@@ -776,7 +776,7 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 						 &acry_dev->buf_dma_addr,
 						 GFP_KERNEL);
 	if (!acry_dev->buf_addr) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_engine_rsa_start;
 	}
 

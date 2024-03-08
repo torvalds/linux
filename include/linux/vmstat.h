@@ -28,7 +28,7 @@ struct reclaim_stat {
 	unsigned nr_writeback;
 	unsigned nr_immediate;
 	unsigned nr_pageout;
-	unsigned nr_activate[ANON_AND_FILE];
+	unsigned nr_activate[AANALN_AND_FILE];
 	unsigned nr_ref_keep;
 	unsigned nr_unmap_fail;
 	unsigned nr_lazyfree_fail;
@@ -44,7 +44,7 @@ enum writeback_stat_item {
 /*
  * Light weight per cpu counter implementation.
  *
- * Counters should only be incremented and no critical kernel component
+ * Counters should only be incremented and anal critical kernel component
  * should rely on the counter values.
  *
  * Counters are handled completely inline. On many platforms the code
@@ -132,13 +132,13 @@ static inline void vm_events_fold_cpu(int cpu)
 #endif
 
 #define __count_zid_vm_events(item, zid, delta) \
-	__count_vm_events(item##_NORMAL - ZONE_NORMAL + zid, delta)
+	__count_vm_events(item##_ANALRMAL - ZONE_ANALRMAL + zid, delta)
 
 /*
- * Zone and node-based page accounting with per cpu differentials.
+ * Zone and analde-based page accounting with per cpu differentials.
  */
 extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];
-extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];
+extern atomic_long_t vm_analde_stat[NR_VM_ANALDE_STAT_ITEMS];
 extern atomic_long_t vm_numa_event[NR_VM_NUMA_EVENT_ITEMS];
 
 #ifdef CONFIG_NUMA
@@ -169,11 +169,11 @@ static inline void zone_page_state_add(long x, struct zone *zone,
 	atomic_long_add(x, &vm_zone_stat[item]);
 }
 
-static inline void node_page_state_add(long x, struct pglist_data *pgdat,
-				 enum node_stat_item item)
+static inline void analde_page_state_add(long x, struct pglist_data *pgdat,
+				 enum analde_stat_item item)
 {
 	atomic_long_add(x, &pgdat->vm_stat[item]);
-	atomic_long_add(x, &vm_node_stat[item]);
+	atomic_long_add(x, &vm_analde_stat[item]);
 }
 
 static inline unsigned long global_zone_page_state(enum zone_stat_item item)
@@ -187,9 +187,9 @@ static inline unsigned long global_zone_page_state(enum zone_stat_item item)
 }
 
 static inline
-unsigned long global_node_page_state_pages(enum node_stat_item item)
+unsigned long global_analde_page_state_pages(enum analde_stat_item item)
 {
-	long x = atomic_long_read(&vm_node_stat[item]);
+	long x = atomic_long_read(&vm_analde_stat[item]);
 #ifdef CONFIG_SMP
 	if (x < 0)
 		x = 0;
@@ -197,11 +197,11 @@ unsigned long global_node_page_state_pages(enum node_stat_item item)
 	return x;
 }
 
-static inline unsigned long global_node_page_state(enum node_stat_item item)
+static inline unsigned long global_analde_page_state(enum analde_stat_item item)
 {
 	VM_WARN_ON_ONCE(vmstat_item_in_bytes(item));
 
-	return global_node_page_state_pages(item);
+	return global_analde_page_state_pages(item);
 }
 
 static inline unsigned long zone_page_state(struct zone *zone,
@@ -218,7 +218,7 @@ static inline unsigned long zone_page_state(struct zone *zone,
 /*
  * More accurate version that also considers the currently pending
  * deltas. For that we need to loop over all cpus to find the current
- * deltas. There is no synchronization so the result cannot be
+ * deltas. There is anal synchronization so the result cananalt be
  * exactly accurate either.
  */
 static inline unsigned long zone_page_state_snapshot(struct zone *zone,
@@ -255,18 +255,18 @@ __count_numa_events(struct zone *zone, enum numa_stat_item item, long delta)
 	raw_cpu_add(pzstats->vm_numa_event[item], delta);
 }
 
-extern unsigned long sum_zone_node_page_state(int node,
+extern unsigned long sum_zone_analde_page_state(int analde,
 					      enum zone_stat_item item);
-extern unsigned long sum_zone_numa_event_state(int node, enum numa_stat_item item);
-extern unsigned long node_page_state(struct pglist_data *pgdat,
-						enum node_stat_item item);
-extern unsigned long node_page_state_pages(struct pglist_data *pgdat,
-					   enum node_stat_item item);
+extern unsigned long sum_zone_numa_event_state(int analde, enum numa_stat_item item);
+extern unsigned long analde_page_state(struct pglist_data *pgdat,
+						enum analde_stat_item item);
+extern unsigned long analde_page_state_pages(struct pglist_data *pgdat,
+					   enum analde_stat_item item);
 extern void fold_vm_numa_events(void);
 #else
-#define sum_zone_node_page_state(node, item) global_zone_page_state(item)
-#define node_page_state(node, item) global_node_page_state(item)
-#define node_page_state_pages(node, item) global_node_page_state_pages(item)
+#define sum_zone_analde_page_state(analde, item) global_zone_page_state(item)
+#define analde_page_state(analde, item) global_analde_page_state(item)
+#define analde_page_state_pages(analde, item) global_analde_page_state_pages(item)
 static inline void fold_vm_numa_events(void)
 {
 }
@@ -277,24 +277,24 @@ void __mod_zone_page_state(struct zone *, enum zone_stat_item item, long);
 void __inc_zone_page_state(struct page *, enum zone_stat_item);
 void __dec_zone_page_state(struct page *, enum zone_stat_item);
 
-void __mod_node_page_state(struct pglist_data *, enum node_stat_item item, long);
-void __inc_node_page_state(struct page *, enum node_stat_item);
-void __dec_node_page_state(struct page *, enum node_stat_item);
+void __mod_analde_page_state(struct pglist_data *, enum analde_stat_item item, long);
+void __inc_analde_page_state(struct page *, enum analde_stat_item);
+void __dec_analde_page_state(struct page *, enum analde_stat_item);
 
 void mod_zone_page_state(struct zone *, enum zone_stat_item, long);
 void inc_zone_page_state(struct page *, enum zone_stat_item);
 void dec_zone_page_state(struct page *, enum zone_stat_item);
 
-void mod_node_page_state(struct pglist_data *, enum node_stat_item, long);
-void inc_node_page_state(struct page *, enum node_stat_item);
-void dec_node_page_state(struct page *, enum node_stat_item);
+void mod_analde_page_state(struct pglist_data *, enum analde_stat_item, long);
+void inc_analde_page_state(struct page *, enum analde_stat_item);
+void dec_analde_page_state(struct page *, enum analde_stat_item);
 
-extern void inc_node_state(struct pglist_data *, enum node_stat_item);
+extern void inc_analde_state(struct pglist_data *, enum analde_stat_item);
 extern void __inc_zone_state(struct zone *, enum zone_stat_item);
-extern void __inc_node_state(struct pglist_data *, enum node_stat_item);
+extern void __inc_analde_state(struct pglist_data *, enum analde_stat_item);
 extern void dec_zone_state(struct zone *, enum zone_stat_item);
 extern void __dec_zone_state(struct zone *, enum zone_stat_item);
-extern void __dec_node_state(struct pglist_data *, enum node_stat_item);
+extern void __dec_analde_state(struct pglist_data *, enum analde_stat_item);
 
 void quiet_vmstat(void);
 void cpu_vm_stats_fold(int cpu);
@@ -307,13 +307,13 @@ int vmstat_refresh(struct ctl_table *, int write, void *buffer, size_t *lenp,
 void drain_zonestat(struct zone *zone, struct per_cpu_zonestat *);
 
 int calculate_pressure_threshold(struct zone *zone);
-int calculate_normal_threshold(struct zone *zone);
+int calculate_analrmal_threshold(struct zone *zone);
 void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 				int (*calculate_pressure)(struct zone *));
 #else /* CONFIG_SMP */
 
 /*
- * We do not maintain differentials in a single processor configuration.
+ * We do analt maintain differentials in a single processor configuration.
  * The functions directly modify the zone and global counters.
  */
 static inline void __mod_zone_page_state(struct zone *zone,
@@ -322,12 +322,12 @@ static inline void __mod_zone_page_state(struct zone *zone,
 	zone_page_state_add(delta, zone, item);
 }
 
-static inline void __mod_node_page_state(struct pglist_data *pgdat,
-			enum node_stat_item item, int delta)
+static inline void __mod_analde_page_state(struct pglist_data *pgdat,
+			enum analde_stat_item item, int delta)
 {
 	if (vmstat_item_in_bytes(item)) {
 		/*
-		 * Only cgroups use subpage accounting right now; at
+		 * Only cgroups use subpage accounting right analw; at
 		 * the global level, these items still change in
 		 * multiples of whole pages. Store them as pages
 		 * internally to keep the per-cpu counters compact.
@@ -336,7 +336,7 @@ static inline void __mod_node_page_state(struct pglist_data *pgdat,
 		delta >>= PAGE_SHIFT;
 	}
 
-	node_page_state_add(delta, pgdat, item);
+	analde_page_state_add(delta, pgdat, item);
 }
 
 static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
@@ -345,10 +345,10 @@ static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
 	atomic_long_inc(&vm_zone_stat[item]);
 }
 
-static inline void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+static inline void __inc_analde_state(struct pglist_data *pgdat, enum analde_stat_item item)
 {
 	atomic_long_inc(&pgdat->vm_stat[item]);
-	atomic_long_inc(&vm_node_stat[item]);
+	atomic_long_inc(&vm_analde_stat[item]);
 }
 
 static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
@@ -357,10 +357,10 @@ static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 	atomic_long_dec(&vm_zone_stat[item]);
 }
 
-static inline void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+static inline void __dec_analde_state(struct pglist_data *pgdat, enum analde_stat_item item)
 {
 	atomic_long_dec(&pgdat->vm_stat[item]);
-	atomic_long_dec(&vm_node_stat[item]);
+	atomic_long_dec(&vm_analde_stat[item]);
 }
 
 static inline void __inc_zone_page_state(struct page *page,
@@ -369,10 +369,10 @@ static inline void __inc_zone_page_state(struct page *page,
 	__inc_zone_state(page_zone(page), item);
 }
 
-static inline void __inc_node_page_state(struct page *page,
-			enum node_stat_item item)
+static inline void __inc_analde_page_state(struct page *page,
+			enum analde_stat_item item)
 {
-	__inc_node_state(page_pgdat(page), item);
+	__inc_analde_state(page_pgdat(page), item);
 }
 
 
@@ -382,27 +382,27 @@ static inline void __dec_zone_page_state(struct page *page,
 	__dec_zone_state(page_zone(page), item);
 }
 
-static inline void __dec_node_page_state(struct page *page,
-			enum node_stat_item item)
+static inline void __dec_analde_page_state(struct page *page,
+			enum analde_stat_item item)
 {
-	__dec_node_state(page_pgdat(page), item);
+	__dec_analde_state(page_pgdat(page), item);
 }
 
 
 /*
- * We only use atomic operations to update counters. So there is no need to
+ * We only use atomic operations to update counters. So there is anal need to
  * disable interrupts.
  */
 #define inc_zone_page_state __inc_zone_page_state
 #define dec_zone_page_state __dec_zone_page_state
 #define mod_zone_page_state __mod_zone_page_state
 
-#define inc_node_page_state __inc_node_page_state
-#define dec_node_page_state __dec_node_page_state
-#define mod_node_page_state __mod_node_page_state
+#define inc_analde_page_state __inc_analde_page_state
+#define dec_analde_page_state __dec_analde_page_state
+#define mod_analde_page_state __mod_analde_page_state
 
 #define inc_zone_state __inc_zone_state
-#define inc_node_state __inc_node_state
+#define inc_analde_state __inc_analde_state
 #define dec_zone_state __dec_zone_state
 
 #define set_pgdat_percpu_threshold(pgdat, callback) { }
@@ -451,40 +451,40 @@ static inline void zone_stat_sub_folio(struct folio *folio,
 	mod_zone_page_state(folio_zone(folio), item, -folio_nr_pages(folio));
 }
 
-static inline void __node_stat_mod_folio(struct folio *folio,
-		enum node_stat_item item, long nr)
+static inline void __analde_stat_mod_folio(struct folio *folio,
+		enum analde_stat_item item, long nr)
 {
-	__mod_node_page_state(folio_pgdat(folio), item, nr);
+	__mod_analde_page_state(folio_pgdat(folio), item, nr);
 }
 
-static inline void __node_stat_add_folio(struct folio *folio,
-		enum node_stat_item item)
+static inline void __analde_stat_add_folio(struct folio *folio,
+		enum analde_stat_item item)
 {
-	__mod_node_page_state(folio_pgdat(folio), item, folio_nr_pages(folio));
+	__mod_analde_page_state(folio_pgdat(folio), item, folio_nr_pages(folio));
 }
 
-static inline void __node_stat_sub_folio(struct folio *folio,
-		enum node_stat_item item)
+static inline void __analde_stat_sub_folio(struct folio *folio,
+		enum analde_stat_item item)
 {
-	__mod_node_page_state(folio_pgdat(folio), item, -folio_nr_pages(folio));
+	__mod_analde_page_state(folio_pgdat(folio), item, -folio_nr_pages(folio));
 }
 
-static inline void node_stat_mod_folio(struct folio *folio,
-		enum node_stat_item item, long nr)
+static inline void analde_stat_mod_folio(struct folio *folio,
+		enum analde_stat_item item, long nr)
 {
-	mod_node_page_state(folio_pgdat(folio), item, nr);
+	mod_analde_page_state(folio_pgdat(folio), item, nr);
 }
 
-static inline void node_stat_add_folio(struct folio *folio,
-		enum node_stat_item item)
+static inline void analde_stat_add_folio(struct folio *folio,
+		enum analde_stat_item item)
 {
-	mod_node_page_state(folio_pgdat(folio), item, folio_nr_pages(folio));
+	mod_analde_page_state(folio_pgdat(folio), item, folio_nr_pages(folio));
 }
 
-static inline void node_stat_sub_folio(struct folio *folio,
-		enum node_stat_item item)
+static inline void analde_stat_sub_folio(struct folio *folio,
+		enum analde_stat_item item)
 {
-	mod_node_page_state(folio_pgdat(folio), item, -folio_nr_pages(folio));
+	mod_analde_page_state(folio_pgdat(folio), item, -folio_nr_pages(folio));
 }
 
 static inline void __mod_zone_freepage_state(struct zone *zone, int nr_pages,
@@ -510,7 +510,7 @@ static inline const char *numa_stat_name(enum numa_stat_item item)
 }
 #endif /* CONFIG_NUMA */
 
-static inline const char *node_stat_name(enum node_stat_item item)
+static inline const char *analde_stat_name(enum analde_stat_item item)
 {
 	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
 			   NR_VM_NUMA_EVENT_ITEMS +
@@ -519,14 +519,14 @@ static inline const char *node_stat_name(enum node_stat_item item)
 
 static inline const char *lru_list_name(enum lru_list lru)
 {
-	return node_stat_name(NR_LRU_BASE + lru) + 3; // skip "nr_"
+	return analde_stat_name(NR_LRU_BASE + lru) + 3; // skip "nr_"
 }
 
 static inline const char *writeback_stat_name(enum writeback_stat_item item)
 {
 	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
 			   NR_VM_NUMA_EVENT_ITEMS +
-			   NR_VM_NODE_STAT_ITEMS +
+			   NR_VM_ANALDE_STAT_ITEMS +
 			   item];
 }
 
@@ -535,7 +535,7 @@ static inline const char *vm_event_name(enum vm_event_item item)
 {
 	return vmstat_text[NR_VM_ZONE_STAT_ITEMS +
 			   NR_VM_NUMA_EVENT_ITEMS +
-			   NR_VM_NODE_STAT_ITEMS +
+			   NR_VM_ANALDE_STAT_ITEMS +
 			   NR_VM_WRITEBACK_STAT_ITEMS +
 			   item];
 }
@@ -543,11 +543,11 @@ static inline const char *vm_event_name(enum vm_event_item item)
 
 #ifdef CONFIG_MEMCG
 
-void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+void __mod_lruvec_state(struct lruvec *lruvec, enum analde_stat_item idx,
 			int val);
 
 static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
+				    enum analde_stat_item idx, int val)
 {
 	unsigned long flags;
 
@@ -557,10 +557,10 @@ static inline void mod_lruvec_state(struct lruvec *lruvec,
 }
 
 void __lruvec_stat_mod_folio(struct folio *folio,
-			     enum node_stat_item idx, int val);
+			     enum analde_stat_item idx, int val);
 
 static inline void lruvec_stat_mod_folio(struct folio *folio,
-					 enum node_stat_item idx, int val)
+					 enum analde_stat_item idx, int val)
 {
 	unsigned long flags;
 
@@ -570,7 +570,7 @@ static inline void lruvec_stat_mod_folio(struct folio *folio,
 }
 
 static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
+					 enum analde_stat_item idx, int val)
 {
 	lruvec_stat_mod_folio(page_folio(page), idx, val);
 }
@@ -578,57 +578,57 @@ static inline void mod_lruvec_page_state(struct page *page,
 #else
 
 static inline void __mod_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx, int val)
+				      enum analde_stat_item idx, int val)
 {
-	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
+	__mod_analde_page_state(lruvec_pgdat(lruvec), idx, val);
 }
 
 static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
+				    enum analde_stat_item idx, int val)
 {
-	mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
+	mod_analde_page_state(lruvec_pgdat(lruvec), idx, val);
 }
 
 static inline void __lruvec_stat_mod_folio(struct folio *folio,
-					 enum node_stat_item idx, int val)
+					 enum analde_stat_item idx, int val)
 {
-	__mod_node_page_state(folio_pgdat(folio), idx, val);
+	__mod_analde_page_state(folio_pgdat(folio), idx, val);
 }
 
 static inline void lruvec_stat_mod_folio(struct folio *folio,
-					 enum node_stat_item idx, int val)
+					 enum analde_stat_item idx, int val)
 {
-	mod_node_page_state(folio_pgdat(folio), idx, val);
+	mod_analde_page_state(folio_pgdat(folio), idx, val);
 }
 
 static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
+					 enum analde_stat_item idx, int val)
 {
-	mod_node_page_state(page_pgdat(page), idx, val);
+	mod_analde_page_state(page_pgdat(page), idx, val);
 }
 
 #endif /* CONFIG_MEMCG */
 
 static inline void __lruvec_stat_add_folio(struct folio *folio,
-					   enum node_stat_item idx)
+					   enum analde_stat_item idx)
 {
 	__lruvec_stat_mod_folio(folio, idx, folio_nr_pages(folio));
 }
 
 static inline void __lruvec_stat_sub_folio(struct folio *folio,
-					   enum node_stat_item idx)
+					   enum analde_stat_item idx)
 {
 	__lruvec_stat_mod_folio(folio, idx, -folio_nr_pages(folio));
 }
 
 static inline void lruvec_stat_add_folio(struct folio *folio,
-					 enum node_stat_item idx)
+					 enum analde_stat_item idx)
 {
 	lruvec_stat_mod_folio(folio, idx, folio_nr_pages(folio));
 }
 
 static inline void lruvec_stat_sub_folio(struct folio *folio,
-					 enum node_stat_item idx)
+					 enum analde_stat_item idx)
 {
 	lruvec_stat_mod_folio(folio, idx, -folio_nr_pages(folio));
 }

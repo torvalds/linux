@@ -88,7 +88,7 @@ static void walk_rcec(int (*cb)(struct pci_dev *dev, void *data),
 		return;
 
 	for (bnr = nextbusn; bnr <= lastbusn; bnr++) {
-		/* No association indicated (PCIe 5.0-1, 7.9.10.3) */
+		/* Anal association indicated (PCIe 5.0-1, 7.9.10.3) */
 		if (bnr == rcec->bus->number)
 			continue;
 

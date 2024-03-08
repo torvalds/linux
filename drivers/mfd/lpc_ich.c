@@ -40,7 +40,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -121,14 +121,14 @@ static struct mfd_cell lpc_ich_wdt_cell = {
 	.name = "iTCO_wdt",
 	.num_resources = ARRAY_SIZE(wdt_ich_res),
 	.resources = wdt_ich_res,
-	.ignore_resource_conflicts = true,
+	.iganalre_resource_conflicts = true,
 };
 
 static struct mfd_cell lpc_ich_gpio_cell = {
 	.name = "gpio_ich",
 	.num_resources = ARRAY_SIZE(gpio_ich_res),
 	.resources = gpio_ich_res,
-	.ignore_resource_conflicts = true,
+	.iganalre_resource_conflicts = true,
 };
 
 #define INTEL_GPIO_RESOURCE_SIZE	0x1000
@@ -142,8 +142,8 @@ struct lpc_ich_gpio_info {
 	const resource_size_t *offsets;
 };
 
-#define APL_GPIO_NORTH		0
-#define APL_GPIO_NORTHWEST	1
+#define APL_GPIO_ANALRTH		0
+#define APL_GPIO_ANALRTHWEST	1
 #define APL_GPIO_WEST		2
 #define APL_GPIO_SOUTHWEST	3
 
@@ -152,8 +152,8 @@ struct lpc_ich_gpio_info {
 
 /* Offset data for Apollo Lake GPIO controllers */
 static const resource_size_t apl_gpio_offsets[APL_GPIO_NR_RESOURCES] = {
-	[APL_GPIO_NORTH]	= 0xc50000,
-	[APL_GPIO_NORTHWEST]	= 0xc40000,
+	[APL_GPIO_ANALRTH]	= 0xc50000,
+	[APL_GPIO_ANALRTHWEST]	= 0xc40000,
 	[APL_GPIO_WEST]		= 0xc70000,
 	[APL_GPIO_SOUTHWEST]	= 0xc00000,
 };
@@ -161,11 +161,11 @@ static const resource_size_t apl_gpio_offsets[APL_GPIO_NR_RESOURCES] = {
 #define APL_GPIO_IRQ			14
 
 static struct resource apl_gpio_resources[APL_GPIO_NR_DEVICES][2] = {
-	[APL_GPIO_NORTH] = {
+	[APL_GPIO_ANALRTH] = {
 		DEFINE_RES_MEM(0, 0),
 		DEFINE_RES_IRQ(APL_GPIO_IRQ),
 	},
-	[APL_GPIO_NORTHWEST] = {
+	[APL_GPIO_ANALRTHWEST] = {
 		DEFINE_RES_MEM(0, 0),
 		DEFINE_RES_IRQ(APL_GPIO_IRQ),
 	},
@@ -180,40 +180,40 @@ static struct resource apl_gpio_resources[APL_GPIO_NR_DEVICES][2] = {
 };
 
 static struct resource *apl_gpio_mem_resources[APL_GPIO_NR_RESOURCES] = {
-	[APL_GPIO_NORTH] = &apl_gpio_resources[APL_GPIO_NORTH][0],
-	[APL_GPIO_NORTHWEST] = &apl_gpio_resources[APL_GPIO_NORTHWEST][0],
+	[APL_GPIO_ANALRTH] = &apl_gpio_resources[APL_GPIO_ANALRTH][0],
+	[APL_GPIO_ANALRTHWEST] = &apl_gpio_resources[APL_GPIO_ANALRTHWEST][0],
 	[APL_GPIO_WEST] = &apl_gpio_resources[APL_GPIO_WEST][0],
 	[APL_GPIO_SOUTHWEST] = &apl_gpio_resources[APL_GPIO_SOUTHWEST][0],
 };
 
 static const struct mfd_cell apl_gpio_devices[APL_GPIO_NR_DEVICES] = {
-	[APL_GPIO_NORTH] = {
+	[APL_GPIO_ANALRTH] = {
 		.name = "apollolake-pinctrl",
-		.id = APL_GPIO_NORTH,
-		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_NORTH]),
-		.resources = apl_gpio_resources[APL_GPIO_NORTH],
-		.ignore_resource_conflicts = true,
+		.id = APL_GPIO_ANALRTH,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_ANALRTH]),
+		.resources = apl_gpio_resources[APL_GPIO_ANALRTH],
+		.iganalre_resource_conflicts = true,
 	},
-	[APL_GPIO_NORTHWEST] = {
+	[APL_GPIO_ANALRTHWEST] = {
 		.name = "apollolake-pinctrl",
-		.id = APL_GPIO_NORTHWEST,
-		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_NORTHWEST]),
-		.resources = apl_gpio_resources[APL_GPIO_NORTHWEST],
-		.ignore_resource_conflicts = true,
+		.id = APL_GPIO_ANALRTHWEST,
+		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_ANALRTHWEST]),
+		.resources = apl_gpio_resources[APL_GPIO_ANALRTHWEST],
+		.iganalre_resource_conflicts = true,
 	},
 	[APL_GPIO_WEST] = {
 		.name = "apollolake-pinctrl",
 		.id = APL_GPIO_WEST,
 		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_WEST]),
 		.resources = apl_gpio_resources[APL_GPIO_WEST],
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 	[APL_GPIO_SOUTHWEST] = {
 		.name = "apollolake-pinctrl",
 		.id = APL_GPIO_SOUTHWEST,
 		.num_resources = ARRAY_SIZE(apl_gpio_resources[APL_GPIO_SOUTHWEST]),
 		.resources = apl_gpio_resources[APL_GPIO_SOUTHWEST],
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 };
 
@@ -226,7 +226,7 @@ static const struct lpc_ich_gpio_info apl_gpio_info = {
 	.offsets = apl_gpio_offsets,
 };
 
-#define DNV_GPIO_NORTH		0
+#define DNV_GPIO_ANALRTH		0
 #define DNV_GPIO_SOUTH		1
 
 #define DNV_GPIO_NR_DEVICES	1
@@ -234,20 +234,20 @@ static const struct lpc_ich_gpio_info apl_gpio_info = {
 
 /* Offset data for Denverton GPIO controllers */
 static const resource_size_t dnv_gpio_offsets[DNV_GPIO_NR_RESOURCES] = {
-	[DNV_GPIO_NORTH]	= 0xc20000,
+	[DNV_GPIO_ANALRTH]	= 0xc20000,
 	[DNV_GPIO_SOUTH]	= 0xc50000,
 };
 
 #define DNV_GPIO_IRQ			14
 
 static struct resource dnv_gpio_resources[DNV_GPIO_NR_RESOURCES + 1] = {
-	[DNV_GPIO_NORTH] = DEFINE_RES_MEM(0, 0),
+	[DNV_GPIO_ANALRTH] = DEFINE_RES_MEM(0, 0),
 	[DNV_GPIO_SOUTH] = DEFINE_RES_MEM(0, 0),
 	DEFINE_RES_IRQ(DNV_GPIO_IRQ),
 };
 
 static struct resource *dnv_gpio_mem_resources[DNV_GPIO_NR_RESOURCES] = {
-	[DNV_GPIO_NORTH] = &dnv_gpio_resources[DNV_GPIO_NORTH],
+	[DNV_GPIO_ANALRTH] = &dnv_gpio_resources[DNV_GPIO_ANALRTH],
 	[DNV_GPIO_SOUTH] = &dnv_gpio_resources[DNV_GPIO_SOUTH],
 };
 
@@ -256,7 +256,7 @@ static const struct mfd_cell dnv_gpio_devices[DNV_GPIO_NR_DEVICES] = {
 		.name = "denverton-pinctrl",
 		.num_resources = ARRAY_SIZE(dnv_gpio_resources),
 		.resources = dnv_gpio_resources,
-		.ignore_resource_conflicts = true,
+		.iganalre_resource_conflicts = true,
 	},
 };
 
@@ -273,7 +273,7 @@ static struct mfd_cell lpc_ich_spi_cell = {
 	.name = "intel-spi",
 	.num_resources = ARRAY_SIZE(intel_spi_res),
 	.resources = intel_spi_res,
-	.ignore_resource_conflicts = true,
+	.iganalre_resource_conflicts = true,
 };
 
 /* chipset related info */
@@ -708,7 +708,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 
 /*
  * This data only exists for exporting the supported PCI ids
- * via MODULE_DEVICE_TABLE.  We do not actually register a
+ * via MODULE_DEVICE_TABLE.  We do analt actually register a
  * pci_driver, because the I/O Controller Hub has also other
  * functions that probably will be registered by other drivers.
  */
@@ -1031,7 +1031,7 @@ static int lpc_ich_finalize_wdt_cell(struct pci_dev *dev)
 
 	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = &lpc_chipset_info[priv->chipset];
 
@@ -1054,7 +1054,7 @@ static void lpc_ich_finalize_gpio_cell(struct pci_dev *dev)
 
 /*
  * We don't check for resource conflict globally. There are 2 or 3 independent
- * GPIO groups and it's enough to have access to one of these to instantiate
+ * GPIO groups and it's eanalugh to have access to one of these to instantiate
  * the device.
  */
 static int lpc_ich_check_conflict_gpio(struct resource *res)
@@ -1089,7 +1089,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
+		dev_analtice(&dev->dev, "I/O space for ACPI uninitialized\n");
 		lpc_ich_gpio_cell.num_resources--;
 		goto gpe0_done;
 	}
@@ -1115,8 +1115,8 @@ gpe0_done:
 	pci_read_config_dword(dev, priv->gbase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for GPIO uninitialized\n");
-		ret = -ENODEV;
+		dev_analtice(&dev->dev, "I/O space for GPIO uninitialized\n");
+		ret = -EANALDEV;
 		goto gpio_done;
 	}
 
@@ -1163,14 +1163,14 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 
 	/* If we have ACPI based watchdog use that instead */
 	if (acpi_has_watchdog())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Setup power management base register */
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
-		ret = -ENODEV;
+		dev_analtice(&dev->dev, "I/O space for ACPI uninitialized\n");
+		ret = -EANALDEV;
 		goto wdt_done;
 	}
 
@@ -1202,9 +1202,9 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
-			dev_notice(&dev->dev, "RCBA is disabled by "
+			dev_analtice(&dev->dev, "RCBA is disabled by "
 					"hardware/BIOS, device disabled\n");
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto wdt_done;
 		}
 		res = wdt_mem_res(ICH_RES_MEM_GCS_PMC);
@@ -1313,7 +1313,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->type = lpc_chipset_info[priv->chipset].spi_type;
 
@@ -1359,12 +1359,12 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 	}
 
 	if (!res->start)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lpc_ich_spi_cell.platform_data = info;
 	lpc_ich_spi_cell.pdata_size = sizeof(*info);
 
-	return mfd_add_devices(&dev->dev, PLATFORM_DEVID_NONE,
+	return mfd_add_devices(&dev->dev, PLATFORM_DEVID_ANALNE,
 			       &lpc_ich_spi_cell, 1, NULL, 0, NULL);
 }
 
@@ -1378,7 +1378,7 @@ static int lpc_ich_probe(struct pci_dev *dev,
 	priv = devm_kzalloc(&dev->dev,
 			    sizeof(struct lpc_ich_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->chipset = id->driver_data;
 
@@ -1424,13 +1424,13 @@ static int lpc_ich_probe(struct pci_dev *dev,
 	}
 
 	/*
-	 * We only care if at least one or none of the cells registered
+	 * We only care if at least one or analne of the cells registered
 	 * successfully.
 	 */
 	if (!cell_added) {
-		dev_warn(&dev->dev, "No MFD cells added\n");
+		dev_warn(&dev->dev, "Anal MFD cells added\n");
 		lpc_ich_restore_config_space(dev);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

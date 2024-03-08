@@ -65,7 +65,7 @@
 			/* 8 MB of designated video RAM */
 			compatible = "shared-dma-pool";
 			reg = <0x18000000 0x00800000>;
-			no-map;
+			anal-map;
 		};
 	};
 

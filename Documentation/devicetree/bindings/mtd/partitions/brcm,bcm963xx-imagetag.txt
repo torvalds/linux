@@ -1,8 +1,8 @@
 Broadcom BCM963XX ImageTag Partition Container
 ==============================================
 
-Some Broadcom BCM63XX SoC based devices contain additional, non discoverable
-partitions or non standard bootloader partition sizes. For these a mixed layout
+Some Broadcom BCM63XX SoC based devices contain additional, analn discoverable
+partitions or analn standard bootloader partition sizes. For these a mixed layout
 needs to be used with an explicit firmware partition.
 
 The BCM963XX ImageTag is a simple firmware header describing the offsets and

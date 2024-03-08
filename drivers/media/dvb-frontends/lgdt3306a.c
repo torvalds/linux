@@ -25,7 +25,7 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
  * Older drivers treated QAM64 and QAM256 the same; that is the HW always
  * used "Auto" mode during detection.  Setting "forced_manual"=1 allows
  * the user to treat these modes as separate.  For backwards compatibility,
- * it's off by default.  QAM_AUTO can now be specified to achive that
+ * it's off by default.  QAM_AUTO can analw be specified to achive that
  * effect even if "forced_manual"=1
  */
 static int forced_manual;
@@ -75,7 +75,7 @@ struct lgdt3306a_state {
 
 /*
  * LG3306A Register Usage
- *  (LG does not really name the registers, so this code does not either)
+ *  (LG does analt really name the registers, so this code does analt either)
  *
  * 0000 -> 00FF Common control and status
  * 1000 -> 10FF Synchronizer control and status
@@ -88,7 +88,7 @@ struct lgdt3306a_state {
 enum lgdt3306a_lock_status {
 	LG3306_UNLOCK       = 0x00,
 	LG3306_LOCK         = 0x01,
-	LG3306_UNKNOWN_LOCK = 0xff
+	LG3306_UNKANALWN_LOCK = 0xff
 };
 
 enum lgdt3306a_neverlock_status {
@@ -96,14 +96,14 @@ enum lgdt3306a_neverlock_status {
 	LG3306_NL_PROCESS = 0x01,
 	LG3306_NL_LOCK    = 0x02,
 	LG3306_NL_FAIL    = 0x03,
-	LG3306_NL_UNKNOWN = 0xff
+	LG3306_NL_UNKANALWN = 0xff
 };
 
 enum lgdt3306a_modulation {
 	LG3306_VSB          = 0x00,
 	LG3306_QAM64        = 0x01,
 	LG3306_QAM256       = 0x02,
-	LG3306_UNKNOWN_MODE = 0xff
+	LG3306_UNKANALWN_MODE = 0xff
 };
 
 enum lgdt3306a_lock_check {
@@ -180,19 +180,19 @@ static int lgdt3306a_read_reg(struct lgdt3306a_state *state, u16 reg, u8 *val)
 })
 
 static int lgdt3306a_set_reg_bit(struct lgdt3306a_state *state,
-				u16 reg, int bit, int onoff)
+				u16 reg, int bit, int oanalff)
 {
 	u8 val;
 	int ret;
 
-	dbg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, onoff);
+	dbg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, oanalff);
 
 	ret = lgdt3306a_read_reg(state, reg, &val);
 	if (lg_chkerr(ret))
 		goto fail;
 
 	val &= ~(1 << bit);
-	val |= (onoff & 1) << bit;
+	val |= (oanalff & 1) << bit;
 
 	ret = lgdt3306a_write_reg(state, reg, val);
 	lg_chkerr(ret);
@@ -406,7 +406,7 @@ static int lgdt3306a_set_vsb(struct lgdt3306a_state *state)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	/* 3. QAM mode detection mode(None) */
+	/* 3. QAM mode detection mode(Analne) */
 	ret = lgdt3306a_read_reg(state, 0x0009, &val);
 	val &= 0xfc; /* STDOPDETCMODE[1:0]=0 */
 	ret = lgdt3306a_write_reg(state, 0x0009, val);
@@ -598,7 +598,7 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	/* 5. No AICC operation in QAM mode */
+	/* 5. Anal AICC operation in QAM mode */
 	ret = lgdt3306a_read_reg(state, 0x0024, &val);
 	val &= 0x00;
 	ret = lgdt3306a_write_reg(state, 0x0024, val);
@@ -613,7 +613,7 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	/* 5.2 V0.36 Control of "no signal" detector function */
+	/* 5.2 V0.36 Control of "anal signal" detector function */
 	ret = lgdt3306a_read_reg(state, 0x2849, &val);
 	val &= 0xdf;
 	ret = lgdt3306a_write_reg(state, 0x2849, val);
@@ -733,7 +733,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 
 	switch (if_freq_khz) {
 	default:
-		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
+		pr_warn("IF=%d KHz is analt supported, 3250 assumed\n",
 			if_freq_khz);
 		fallthrough;
 	case 3250: /* 3.25Mhz */
@@ -819,12 +819,12 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 
 	dbg_info("\n");
 
-	/* 1. Normal operation mode */
+	/* 1. Analrmal operation mode */
 	ret = lgdt3306a_set_reg_bit(state, 0x0001, 0, 1); /* SIMFASTENB=0x01 */
 	if (lg_chkerr(ret))
 		goto fail;
 
-	/* 2. Spectrum inversion auto detection (Not valid for VSB) */
+	/* 2. Spectrum inversion auto detection (Analt valid for VSB) */
 	ret = lgdt3306a_set_inversion_auto(state, 0);
 	if (lg_chkerr(ret))
 		goto fail;
@@ -850,7 +850,7 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 
 	/* 5a. ADC sampling clock source */
 
-	/* ADCCLKPLLSEL=0x08; 0=use ext clock, not PLL */
+	/* ADCCLKPLLSEL=0x08; 0=use ext clock, analt PLL */
 	ret = lgdt3306a_set_reg_bit(state, 0x0004, 3, 0);
 	if (lg_chkerr(ret))
 		goto fail;
@@ -944,15 +944,15 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 
 	/* 11. Using the imaginary part of CIR in CIR loading */
 	ret = lgdt3306a_read_reg(state, 0x211f, &val);
-	val &= 0xef; /* do not use imaginary of CIR */
+	val &= 0xef; /* do analt use imaginary of CIR */
 	ret = lgdt3306a_write_reg(state, 0x211f, val);
 
-	/* 12. Control of no signal detector function */
+	/* 12. Control of anal signal detector function */
 	ret = lgdt3306a_read_reg(state, 0x2849, &val);
-	val &= 0xef; /* NOUSENOSIGDET=0, enable no signal detector */
+	val &= 0xef; /* ANALUSEANALSIGDET=0, enable anal signal detector */
 	ret = lgdt3306a_write_reg(state, 0x2849, val);
 
-	/* FGR - put demod in some known mode */
+	/* FGR - put demod in some kanalwn mode */
 	ret = lgdt3306a_set_vsb(state);
 
 	/* 13. TP stream format */
@@ -966,7 +966,7 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 	lg_chkerr(ret);
 
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 fail:
 	return ret;
@@ -1108,7 +1108,7 @@ static int lgdt3306a_monitor_vsb(struct lgdt3306a_state *state)
 	if ((snrRef > 18) && (maxPowerMan > 0x68)
 	    && (nCombDet == 0x01)
 	    && ((fbDlyCir == 0x03FF) || (fbDlyCir < 0x6C))) {
-		/* SNR is over 18dB and no ghosting */
+		/* SNR is over 18dB and anal ghosting */
 		val |= 0x00; /* final bandwidth = 0 */
 	} else {
 		val |= 0x04; /* final bandwidth = 4 */
@@ -1117,19 +1117,19 @@ static int lgdt3306a_monitor_vsb(struct lgdt3306a_state *state)
 	if (ret)
 		return ret;
 
-	/* Adjust Notch Filter */
+	/* Adjust Analtch Filter */
 	ret = lgdt3306a_read_reg(state, 0x0024, &val);
 	if (ret)
 		return ret;
 	val &= 0x0f;
-	if (nCombDet == 0) { /* Turn on the Notch Filter */
+	if (nCombDet == 0) { /* Turn on the Analtch Filter */
 		val |= 0x50;
 	}
 	ret = lgdt3306a_write_reg(state, 0x0024, val);
 	if (ret)
 		return ret;
 
-	/* VSB Timing Recovery output normalization */
+	/* VSB Timing Recovery output analrmalization */
 	ret = lgdt3306a_read_reg(state, 0x103d, &val);
 	if (ret)
 		return ret;
@@ -1167,8 +1167,8 @@ lgdt3306a_check_oper_mode(struct lgdt3306a_state *state)
 		return LG3306_QAM64;
 	}
 err:
-	pr_warn("UNKNOWN\n");
-	return LG3306_UNKNOWN_MODE;
+	pr_warn("UNKANALWN\n");
+	return LG3306_UNKANALWN_MODE;
 }
 
 static enum lgdt3306a_lock_status
@@ -1180,7 +1180,7 @@ lgdt3306a_check_lock_status(struct lgdt3306a_state *state,
 	enum lgdt3306a_modulation	modeOper;
 	enum lgdt3306a_lock_status lockStatus;
 
-	modeOper = LG3306_UNKNOWN_MODE;
+	modeOper = LG3306_UNKANALWN_MODE;
 
 	switch (whatLock) {
 	case LG3306_SYNC_LOCK:
@@ -1224,7 +1224,7 @@ lgdt3306a_check_lock_status(struct lgdt3306a_state *state,
 			else
 				lockStatus = LG3306_UNLOCK;
 		} else
-			lockStatus = LG3306_UNKNOWN_LOCK;
+			lockStatus = LG3306_UNKANALWN_LOCK;
 
 		dbg_info("TR_LOCK=%x\n", lockStatus);
 		break;
@@ -1242,15 +1242,15 @@ lgdt3306a_check_lock_status(struct lgdt3306a_state *state,
 			else
 				lockStatus = LG3306_UNLOCK;
 		} else
-			lockStatus = LG3306_UNKNOWN_LOCK;
+			lockStatus = LG3306_UNKANALWN_LOCK;
 
 		dbg_info("FEC_LOCK=%x\n", lockStatus);
 		break;
 	}
 
 	default:
-		lockStatus = LG3306_UNKNOWN_LOCK;
-		pr_warn("UNKNOWN whatLock=%d\n", whatLock);
+		lockStatus = LG3306_UNKANALWN_LOCK;
+		pr_warn("UNKANALWN whatLock=%d\n", whatLock);
 		break;
 	}
 
@@ -1374,7 +1374,7 @@ lgdt3306a_sync_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 		}
 	}
-	dbg_info("not locked\n");
+	dbg_info("analt locked\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1395,7 +1395,7 @@ lgdt3306a_fec_lock_poll(struct lgdt3306a_state *state)
 			return FECLockStatus;
 		}
 	}
-	dbg_info("not locked\n");
+	dbg_info("analt locked\n");
 	return FECLockStatus;
 }
 
@@ -1494,7 +1494,7 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 	pwr = (read_reg(state, 0x00e8) << 8) |
 	      (read_reg(state, 0x00e9));
 
-	if (mse == 0) /* no signal */
+	if (mse == 0) /* anal signal */
 		return 0;
 
 	snr_x100 = log10_x1000((pwr * 10000) / mse) - 3000;
@@ -1513,7 +1513,7 @@ lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 
 	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_sync_lock_poll(state) == LG3306_UNLOCK) {
-			dbg_info("no sync lock!\n");
+			dbg_info("anal sync lock!\n");
 			return LG3306_UNLOCK;
 		}
 
@@ -1530,7 +1530,7 @@ lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 	}
 
-	dbg_info("not locked!\n");
+	dbg_info("analt locked!\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1543,7 +1543,7 @@ lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 
 	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_fec_lock_poll(state) == LG3306_UNLOCK) {
-			dbg_info("no fec lock!\n");
+			dbg_info("anal fec lock!\n");
 			return LG3306_UNLOCK;
 		}
 
@@ -1557,7 +1557,7 @@ lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 	}
 
-	dbg_info("not locked!\n");
+	dbg_info("analt locked!\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1613,7 +1613,7 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 			c->cnr.stat[0].svalue = lgdt3306a_calculate_snr_x100(state) * 10;
 		} else {
 			c->cnr.len = 1;
-			c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		}
 	}
 	return ret;
@@ -1653,7 +1653,7 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 	case QAM_64:
 	case QAM_256:
 	case QAM_AUTO:
-		/* need to know actual modulation to set proper SNR baseline */
+		/* need to kanalw actual modulation to set proper SNR baseline */
 		ret = lgdt3306a_read_reg(state, 0x00a6, &val);
 		if (lg_chkerr(ret))
 			goto fail;
@@ -1699,7 +1699,7 @@ static int lgdt3306a_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 	*ber = 0;
 #if 1
-	/* FGR - FIXME - I don't know what value is expected by dvb_core
+	/* FGR - FIXME - I don't kanalw what value is expected by dvb_core
 	 * what is the scale of the value?? */
 	tmp =              read_reg(state, 0x00fc); /* NBERVALUE[24-31] */
 	tmp = (tmp << 8) | read_reg(state, 0x00fd); /* NBERVALUE[16-23] */
@@ -1717,7 +1717,7 @@ static int lgdt3306a_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	*ucblocks = 0;
 #if 1
-	/* FGR - FIXME - I don't know what value is expected by dvb_core
+	/* FGR - FIXME - I don't kanalw what value is expected by dvb_core
 	 * what happens when value wraps? */
 	*ucblocks = read_reg(state, 0x00f4); /* TPIFTPERRCNT[0-7] */
 	dbg_info("ucblocks=%u\n", *ucblocks);
@@ -1814,15 +1814,15 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	state->frontend.demodulator_priv = state;
 
 	/* verify that we're talking to a lg3306a */
-	/* FGR - NOTE - there is no obvious ChipId to check; we check
-	 * some "known" bits after reset, but it's still just a guess */
+	/* FGR - ANALTE - there is anal obvious ChipId to check; we check
+	 * some "kanalwn" bits after reset, but it's still just a guess */
 	ret = lgdt3306a_read_reg(state, 0x0000, &val);
 	if (lg_chkerr(ret))
 		goto fail;
 	if ((val & 0x74) != 0x74) {
 		pr_warn("expected 0x74, got 0x%x\n", (val & 0x74));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kanalw this is right */
 		goto fail;
 #endif
 	}
@@ -1832,7 +1832,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	if ((val & 0xf6) != 0xc6) {
 		pr_warn("expected 0xc6, got 0x%x\n", (val & 0xf6));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kanalw this is right */
 		goto fail;
 #endif
 	}
@@ -1842,7 +1842,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	if ((val & 0x73) != 0x03) {
 		pr_warn("expected 0x03, got 0x%x\n", (val & 0x73));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kanalw this is right */
 		goto fail;
 #endif
 	}
@@ -1988,7 +1988,7 @@ static const short regtab[] = {
 	0x101a, /* x 1'b1 1'b0 1'b0 x QMDQAMMODE[2:0] x100x010 */
 	0x1036, /* 1'b0 1'b1 1'b0 1'b0 SAMGSEND_CQS[3:0] 01001110 */
 	0x103c, /* SAMGSAUTOSTL_V[3:0] SAMGSAUTOEDL_V[3:0] 01000110 */
-	0x103d, /* 1'b1 1'b1 SAMCNORMBP_V[1:0] 1'b0 1'b0 SAMMODESEL_V[1:0] 11100001 */
+	0x103d, /* 1'b1 1'b1 SAMCANALRMBP_V[1:0] 1'b0 1'b0 SAMMODESEL_V[1:0] 11100001 */
 	0x103f, /* SAMZTEDSE */
 	0x105d, /* EQSTATUSE */
 	0x105f, /* x PMAPG2_V[2:0] x DMAPG2_V[2:0] x001x011 */
@@ -2037,8 +2037,8 @@ static const short regtab[] = {
 	0x1f21, /* SNRTHD[7:0] 10000101 */
 	0x1f80, /* IRQFLG x x SFSDRFLG MODEBFLG SAVEFLG SCANFLG TRACKFLG */
 	0x1f81, /* x SYNCCON SNRCON FECCON x STDBUSY SYNCRST AGCFZCO */
-	0x1f82, /* x x x SCANOPCD[4:0] */
-	0x1f83, /* x x x x MAINOPCD[3:0] */
+	0x1f82, /* x x x SCAANALPCD[4:0] */
+	0x1f83, /* x x x x MAIANALPCD[3:0] */
 	0x1f84, /* x x RXDATA[13:8] */
 	0x1f85, /* RXDATA[7:0] */
 	0x1f86, /* x x SDTDATA[13:8] */
@@ -2080,8 +2080,8 @@ static const short regtab[] = {
 	0x21a1, /* x x SNRREF[5:0] */
 	0x2845, /* 1'b0 1'b1 x x FFFSTEP_CQS[1:0] FFFCENTERTAP[1:0] 01xx1110 */
 	0x2846, /* 1'b0 x 1'b0 1'b1 FBFSTEP_CQS[1:0] 1'b1 1'b0 0x011110 */
-	0x2847, /* ENNOSIGDE */
-	0x2849, /* 1'b1 1'b1 NOUSENOSI */
+	0x2847, /* ENANALSIGDE */
+	0x2849, /* 1'b1 1'b1 ANALUSEANALSI */
 	0x284a, /* EQINITWAITTIME[7:0] 01100100 */
 	0x3000, /* 1'b1 1'b1 1'b1 x x x 1'b0 RPTRSTM */
 	0x3001, /* RPTRSTWAITTIME[7:0] (100msec) 00110010 */
@@ -2179,14 +2179,14 @@ static int lgdt3306a_probe(struct i2c_client *client)
 	config = kmemdup(client->dev.platform_data,
 			 sizeof(struct lgdt3306a_config), GFP_KERNEL);
 	if (config == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	config->i2c_addr = client->addr;
 	fe = lgdt3306a_attach(config, client->adapter);
 	if (fe == NULL) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_fe;
 	}
 
@@ -2199,7 +2199,7 @@ static int lgdt3306a_probe(struct i2c_client *client)
 				  1, 0, I2C_MUX_LOCKED,
 				  lgdt3306a_select, lgdt3306a_deselect);
 	if (!state->muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kfree;
 	}
 	state->muxc->priv = client;

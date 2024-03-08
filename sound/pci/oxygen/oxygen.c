@@ -119,7 +119,7 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 
 
 #define GPIO_AK5385_DFS_MASK	0x0003
-#define GPIO_AK5385_DFS_NORMAL	0x0000
+#define GPIO_AK5385_DFS_ANALRMAL	0x0000
 #define GPIO_AK5385_DFS_DOUBLE	0x0001
 #define GPIO_AK5385_DFS_QUAD	0x0002
 
@@ -202,7 +202,7 @@ static void ak4396_init(struct oxygen *chip)
 
 	data->dacs = chip->model.dac_channels_pcm / 2;
 	data->ak4396_regs[0][AK4396_CONTROL_2] =
-		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_ANALRMAL;
 	ak4396_registers_init(chip);
 	snd_component_add(chip->card, "AK4396");
 }
@@ -336,7 +336,7 @@ static void set_ak4396_params(struct oxygen *chip,
 
 	value = data->ak4396_regs[0][AK4396_CONTROL_2] & ~AK4396_DFS_MASK;
 	if (params_rate(params) <= 54000)
-		value |= AK4396_DFS_NORMAL;
+		value |= AK4396_DFS_ANALRMAL;
 	else if (params_rate(params) <= 108000)
 		value |= AK4396_DFS_DOUBLE;
 	else
@@ -407,7 +407,7 @@ static void set_ak5385_params(struct oxygen *chip,
 	unsigned int value;
 
 	if (params_rate(params) <= 54000)
-		value = GPIO_AK5385_DFS_NORMAL;
+		value = GPIO_AK5385_DFS_ANALRMAL;
 	else if (params_rate(params) <= 108000)
 		value = GPIO_AK5385_DFS_DOUBLE;
 	else
@@ -416,7 +416,7 @@ static void set_ak5385_params(struct oxygen *chip,
 			      value, GPIO_AK5385_DFS_MASK);
 }
 
-static void set_no_params(struct oxygen *chip, struct snd_pcm_hw_params *params)
+static void set_anal_params(struct oxygen *chip, struct snd_pcm_hw_params *params)
 {
 }
 
@@ -476,7 +476,7 @@ static const struct snd_kcontrol_new rolloff_control = {
 static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[2] = {
-		"None", "High-pass Filter"
+		"Analne", "High-pass Filter"
 	};
 
 	return snd_ctl_enum_info(info, 1, 2, names);
@@ -804,7 +804,7 @@ static int get_oxygen_model(struct oxygen *chip,
 			chip->model.init = stereo_output_init;
 		chip->model.resume = stereo_resume;
 		chip->model.mixer_init = generic_mixer_init;
-		chip->model.set_adc_params = set_no_params;
+		chip->model.set_adc_params = set_anal_params;
 		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF;
@@ -838,10 +838,10 @@ static int generic_oxygen_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!enable[dev]) {
 		++dev;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
 			       oxygen_ids, get_oxygen_model);

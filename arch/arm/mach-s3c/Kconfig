@@ -7,7 +7,7 @@ source "arch/arm/mach-s3c/Kconfig.s3c64xx"
 config PLAT_SAMSUNG
 	def_bool ARCH_S3C64XX
 	select GENERIC_IRQ_CHIP
-	select NO_IOPORT_MAP
+	select ANAL_IOPORT_MAP
 	select SOC_SAMSUNG
 	help
 	  Base platform code for all Samsung SoC based systems
@@ -43,7 +43,7 @@ config SAMSUNG_ATAGS
 	  Samsung platforms, including static platform devices, legacy
 	  clock, timer and interrupt initialization, etc.
 
-	  Platforms that support only DT based boot need not to select
+	  Platforms that support only DT based boot need analt to select
 	  this option.
 
 if SAMSUNG_ATAGS
@@ -54,7 +54,7 @@ config S3C_GPIO_SPACE
 	help
 	  Add a number of spare GPIO entries between each bank for debugging
 	  purposes. This allows any problems where an counter overflows from
-	  one bank to another to be caught, at the expense of using a little
+	  one bank to aanalther to be caught, at the expense of using a little
 	  more memory.
 
 config S3C_GPIO_TRACK
@@ -128,7 +128,7 @@ config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
 	help
-	  Include legacy GPIO power management code for platforms not using
+	  Include legacy GPIO power management code for platforms analt using
 	  pinctrl-samsung driver.
 endif
 

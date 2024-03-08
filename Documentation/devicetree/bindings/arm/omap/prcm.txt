@@ -3,7 +3,7 @@ OMAP PRCM bindings
 Power Reset and Clock Manager lists the device clocks and clockdomains under
 a DT hierarchy. Each TI SoC can have multiple PRCM entities listed for it,
 each describing one module and the clock hierarchy under it. see [1] for
-documentation about the individual clock/clockdomain nodes.
+documentation about the individual clock/clockdomain analdes.
 
 [1] Documentation/devicetree/bindings/clock/ti/*
 

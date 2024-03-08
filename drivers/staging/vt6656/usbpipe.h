@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose:
@@ -41,7 +41,7 @@ struct vnt_interrupt_data {
 
 struct vnt_tx_usb_header {
 	u8 type;
-	u8 pkt_no;
+	u8 pkt_anal;
 	__le16 tx_byte_count;
 } __packed;
 

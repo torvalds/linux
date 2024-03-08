@@ -11,7 +11,7 @@
  * 1998-12-20  Updated NTP code according to technical memorandum Jan '96
  *             "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/sched.h>
@@ -53,7 +53,7 @@ static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
  * rate of 1.  The write-only register is 32-bits wide.  When the lowest
  * 32 bits of the read-only register compare equal to the write-only
  * register, it raises a maskable external interrupt.  Each processor has
- * an Interval Timer of its own and they are not synchronised.  
+ * an Interval Timer of its own and they are analt synchronised.  
  *
  * We want to generate an interrupt every 1/HZ seconds.  So we program
  * CR16 to interrupt every @clocktick cycles.  The it_value in cpu_data
@@ -63,7 +63,7 @@ static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
  */
 irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 {
-	unsigned long now;
+	unsigned long analw;
 	unsigned long next_tick;
 	unsigned long ticks_elapsed = 0;
 	unsigned int cpu = smp_processor_id();
@@ -76,13 +76,13 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	next_tick = cpuinfo->it_value;
 
 	/* Calculate how many ticks have elapsed. */
-	now = mfctl(16);
+	analw = mfctl(16);
 	do {
 		++ticks_elapsed;
 		next_tick += cpt;
-	} while (next_tick - now > cpt);
+	} while (next_tick - analw > cpt);
 
-	/* Store (in CR16 cycles) up to when we are accounting right now. */
+	/* Store (in CR16 cycles) up to when we are accounting right analw. */
 	cpuinfo->it_value = next_tick;
 
 	/* Go do system house keeping. */
@@ -90,20 +90,20 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 		ticks_elapsed = 0;
 	legacy_timer_tick(ticks_elapsed);
 
-	/* Skip clockticks on purpose if we know we would miss those.
+	/* Skip clockticks on purpose if we kanalw we would miss those.
 	 * The new CR16 must be "later" than current CR16 otherwise
-	 * itimer would not fire until CR16 wrapped - e.g 4 seconds
+	 * itimer would analt fire until CR16 wrapped - e.g 4 seconds
 	 * later on a 1Ghz processor. We'll account for the missed
 	 * ticks on the next timer interrupt.
 	 * We want IT to fire modulo clocktick even if we miss/skip some.
 	 * But those interrupts don't in fact get delivered that regularly.
 	 *
-	 * "next_tick - now" will always give the difference regardless
-	 * if one or the other wrapped. If "now" is "bigger" we'll end up
+	 * "next_tick - analw" will always give the difference regardless
+	 * if one or the other wrapped. If "analw" is "bigger" we'll end up
 	 * with a very large unsigned number.
 	 */
-	now = mfctl(16);
-	while (next_tick - now > cpt)
+	analw = mfctl(16);
+	while (next_tick - analw > cpt)
 		next_tick += cpt;
 
 	/* Program the IT when to deliver the next interrupt.
@@ -112,7 +112,7 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	 * after the IT fires, so if we are too close (<= 8000 cycles) to the
 	 * next cycle, simply skip it.
 	 */
-	if (next_tick - now <= 8000)
+	if (next_tick - analw <= 8000)
 		next_tick += cpt;
 	mtctl(next_tick, 16);
 
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(profile_pc);
 
 /* clock source code */
 
-static u64 notrace read_cr16(struct clocksource *cs)
+static u64 analtrace read_cr16(struct clocksource *cs)
 {
 	return get_cycles();
 }
@@ -169,7 +169,7 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 
 	memset(tm, 0, sizeof(*tm));
 	if (pdc_tod_read(&tod_data) < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* we treat tod_sec as unsigned, so this can work until year 2106 */
 	rtc_time64_to_tm(tod_data.tod_sec, tm);
@@ -187,7 +187,7 @@ static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
 		pr_warn("pdc_tod_set(%lld) returned error %d\n", secs, ret);
 		if (ret == PDC_INVALID_ARG)
 			return -EINVAL;
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -225,7 +225,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 }
 
 
-static u64 notrace read_cr16_sched_clock(void)
+static u64 analtrace read_cr16_sched_clock(void)
 {
 	return get_cycles();
 }
@@ -251,7 +251,7 @@ void __init time_init(void)
 static int __init init_cr16_clocksource(void)
 {
 	/*
-	 * The cr16 interval timers are not synchronized across CPUs.
+	 * The cr16 interval timers are analt synchronized across CPUs.
 	 */
 	if (num_online_cpus() > 1 && !running_on_qemu) {
 		clocksource_cr16.name = "cr16_unstable";

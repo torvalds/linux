@@ -33,7 +33,7 @@
 #define HV_UTIL_NEGO_TIMEOUT 55
 
 
-/* Definitions for the monitored notification facility */
+/* Definitions for the monitored analtification facility */
 union hv_monitor_trigger_group {
 	u64 as_uint64;
 	struct {
@@ -151,8 +151,8 @@ struct hv_context {
 	struct hv_per_cpu_context __percpu *cpu_context;
 
 	/*
-	 * To manage allocations in a NUMA node.
-	 * Array indexed by numa node ID.
+	 * To manage allocations in a NUMA analde.
+	 * Array indexed by numa analde ID.
 	 */
 	struct cpumask *hv_numa_map;
 };
@@ -244,8 +244,8 @@ struct vmbus_connection {
 	void *recv_int_page;
 
 	/*
-	 * 2 pages - 1st page for parent->child notification and 2nd
-	 * is child->parent notification
+	 * 2 pages - 1st page for parent->child analtification and 2nd
+	 * is child->parent analtification
 	 */
 	struct hv_monitor_page *monitor_pages[2];
 	struct list_head chn_msg_list;
@@ -272,12 +272,12 @@ struct vmbus_connection {
 	 * On suspension of the vmbus, the accumulated offer messages
 	 * must be dropped.
 	 */
-	bool ignore_any_offer_msg;
+	bool iganalre_any_offer_msg;
 
 	/*
 	 * The number of sub-channels and hv_sock channels that should be
 	 * cleaned up upon suspend: sub-channels will be re-created upon
-	 * resume, and hv_sock channels should not survive suspend.
+	 * resume, and hv_sock channels should analt survive suspend.
 	 */
 	atomic_t nr_chan_close_on_suspend;
 	/*
@@ -324,8 +324,8 @@ enum vmbus_message_handler_type {
 	/* The related handler can sleep. */
 	VMHT_BLOCKING = 0,
 
-	/* The related handler must NOT sleep. */
-	VMHT_NON_BLOCKING = 1,
+	/* The related handler must ANALT sleep. */
+	VMHT_ANALN_BLOCKING = 1,
 };
 
 struct vmbus_channel_message_table_entry {
@@ -441,14 +441,14 @@ static inline bool hv_is_allocated_cpu(unsigned int cpu)
 
 static inline void hv_set_allocated_cpu(unsigned int cpu)
 {
-	cpumask_set_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
+	cpumask_set_cpu(cpu, &hv_context.hv_numa_map[cpu_to_analde(cpu)]);
 }
 
 static inline void hv_clear_allocated_cpu(unsigned int cpu)
 {
 	if (hv_is_allocated_cpu(cpu))
 		return;
-	cpumask_clear_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
+	cpumask_clear_cpu(cpu, &hv_context.hv_numa_map[cpu_to_analde(cpu)]);
 }
 
 static inline void hv_update_allocated_cpus(unsigned int old_cpu,

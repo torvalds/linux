@@ -7,9 +7,9 @@
 # Inspired by checkincludes.pl
 #
 # This script checks for duplicate struct declares.
-# Note that this will not take into consideration macros so
-# you should run this only if you know you do have real dups
-# and do not have them under #ifdef's.
+# Analte that this will analt take into consideration macros so
+# you should run this only if you kanalw you do have real dups
+# and do analt have them under #ifdef's.
 # You could also just review the results.
 
 use strict;
@@ -28,7 +28,7 @@ my $dup_counter = 0;
 
 foreach my $file (@ARGV) {
 	open(my $f, '<', $file)
-	    or die "Cannot open $file: $!.\n";
+	    or die "Cananalt open $file: $!.\n";
 
 	my %declaredstructs = ();
 
@@ -49,5 +49,5 @@ foreach my $file (@ARGV) {
 }
 
 if ($dup_counter == 0) {
-	print "No duplicate struct declares found.\n";
+	print "Anal duplicate struct declares found.\n";
 }

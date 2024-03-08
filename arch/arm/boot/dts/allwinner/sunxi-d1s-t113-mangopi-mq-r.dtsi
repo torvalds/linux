@@ -90,7 +90,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	pinctrl-names = "default";
 	vmmc-supply = <&reg_3v3>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	status = "okay";

@@ -61,8 +61,8 @@ properties:
   regulators:
     type: object
     description:
-      List of child nodes that specify the regulator initialization data.
-      Child nodes must be named after their hardware counterparts.
+      List of child analdes that specify the regulator initialization data.
+      Child analdes must be named after their hardware counterparts.
 
     patternProperties:
       "^(vd09|vd18|vd25|vd33|dvfs)$":

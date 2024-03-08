@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/spi/cdns,qspi-nor-peripheral-props.yaml#
+$id: http://devicetree.org/schemas/spi/cdns,qspi-analr-peripheral-props.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Peripheral-specific properties for the Cadence QSPI controller.
@@ -13,7 +13,7 @@ maintainers:
   - Vaishnav Achath <vaishnav.a@ti.com>
 
 properties:
-  # cdns,qspi-nor.yaml
+  # cdns,qspi-analr.yaml
   cdns,read-delay:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -21,22 +21,22 @@ properties:
 
   cdns,tshsl-ns:
     description:
-      Delay in nanoseconds for the length that the master mode chip select
+      Delay in naanalseconds for the length that the master mode chip select
       outputs are de-asserted between transactions.
 
   cdns,tsd2d-ns:
     description:
-      Delay in nanoseconds between one chip select being de-activated
-      and the activation of another.
+      Delay in naanalseconds between one chip select being de-activated
+      and the activation of aanalther.
 
   cdns,tchsh-ns:
     description:
-      Delay in nanoseconds between last bit of current transaction and
+      Delay in naanalseconds between last bit of current transaction and
       deasserting the device chip select (qspi_n_ss_out).
 
   cdns,tslch-ns:
     description:
-      Delay in nanoseconds between setting qspi_n_ss_out low and
+      Delay in naanalseconds between setting qspi_n_ss_out low and
       first bit transfer.
 
 additionalProperties: true

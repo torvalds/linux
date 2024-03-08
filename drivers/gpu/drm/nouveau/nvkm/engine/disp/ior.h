@@ -29,7 +29,7 @@ struct nvkm_ior {
 			TMDS,
 			LVDS,
 			DP,
-			UNKNOWN
+			UNKANALWN
 		} proto:3;
 		unsigned link:2;
 		unsigned head:8;
@@ -56,7 +56,7 @@ struct nvkm_ior_func {
 	} route;
 
 	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
-	void (*power)(struct nvkm_ior *, bool normal, bool pu,
+	void (*power)(struct nvkm_ior *, bool analrmal, bool pu,
 		      bool data, bool vsync, bool hsync);
 	int (*sense)(struct nvkm_ior *, u32 loadval);
 	void (*clock)(struct nvkm_ior *);

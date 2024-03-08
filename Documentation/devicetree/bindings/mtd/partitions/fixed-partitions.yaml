@@ -11,8 +11,8 @@ description: |
   which portions of a flash are used for what purposes, but which don't use an
   on-flash partition table such as RedBoot.
 
-  The partition table should be a node named "partitions". Partitions are then
-  defined as subnodes.
+  The partition table should be a analde named "partitions". Partitions are then
+  defined as subanaldes.
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
@@ -33,12 +33,12 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     description: |
       Compression algorithm used to store the data in this partition, chosen
-      from a list of well-known algorithms.
+      from a list of well-kanalwn algorithms.
 
       The contents are compressed using this algorithm.
 
     enum:
-      - none
+      - analne
       - bzip2
       - gzip
       - lzop

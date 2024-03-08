@@ -64,7 +64,7 @@ void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
 int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
 			       struct hwtstamp_config *config);
 
-/* Return either ring is belong to PTP or not*/
+/* Return either ring is belong to PTP or analt*/
 bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring);
 
 u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct skb_shared_hwtstamps *shhwtstamps, u8 *p,
@@ -125,7 +125,7 @@ static inline void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic,
 static inline void aq_ptp_clock_init(struct aq_nic_s *aq_nic) {}
 static inline int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp) {}

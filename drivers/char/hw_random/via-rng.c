@@ -44,8 +44,8 @@ enum {
 	VIA_STRFILT_ENABLE	= (1 << 14),
 	VIA_RAWBITS_ENABLE	= (1 << 13),
 	VIA_RNG_ENABLE		= (1 << 6),
-	VIA_NOISESRC1		= (1 << 8),
-	VIA_NOISESRC2		= (1 << 9),
+	VIA_ANALISESRC1		= (1 << 8),
+	VIA_ANALISESRC2		= (1 << 9),
 	VIA_XSTORE_CNT_MASK	= 0x0F,
 
 	VIA_RNG_CHUNK_8		= 0x00,	/* 64 rand bits, 64 stored bits */
@@ -60,13 +60,13 @@ enum {
 /*
  * Investigate using the 'rep' prefix to obtain 32 bits of random data
  * in one insn.  The upside is potentially better performance.  The
- * downside is that the instruction becomes no longer atomic.  Due to
+ * downside is that the instruction becomes anal longer atomic.  Due to
  * this, just like familiar issues with /dev/random itself, the worst
  * case of a 'rep xstore' could potentially pause a cpu for an
  * unreasonably long time.  In practice, this condition would likely
  * only occur when the hardware is failing.  (or so we hope :))
  *
- * Another possible performance boost may come from simply buffering
+ * Aanalther possible performance boost may come from simply buffering
  * until we have 4 bytes, thus returning a u32 at a time,
  * instead of the current u8-at-a-time.
  *
@@ -97,7 +97,7 @@ static int via_rng_data_present(struct hwrng *rng, int wait)
 	 * values 2, 4, or 8 bytes-per-instruction yield greater
 	 * speed at lesser randomness.
 	 *
-	 * If you change this to another VIA_CHUNK_n, you must also
+	 * If you change this to aanalther VIA_CHUNK_n, you must also
 	 * change the ->n_bytes values in rng_vendor_ops[] tables.
 	 * VIA_CHUNK_8 requires further code changes.
 	 *
@@ -106,7 +106,7 @@ static int via_rng_data_present(struct hwrng *rng, int wait)
 	 */
 
 	for (i = 0; i < 20; i++) {
-		*via_rng_datum = 0; /* paranoia, not really necessary */
+		*via_rng_datum = 0; /* paraanalia, analt really necessary */
 		bytes_out = xstore(via_rng_datum, VIA_RNG_CHUNK_1);
 		bytes_out &= VIA_XSTORE_CNT_MASK;
 		if (bytes_out || !wait)
@@ -131,15 +131,15 @@ static int via_rng_init(struct hwrng *rng)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 lo, hi, old_lo;
 
-	/* VIA Nano CPUs don't have the MSR_VIA_RNG anymore.  The RNG
-	 * is always enabled if CPUID rng_en is set.  There is no
+	/* VIA Naanal CPUs don't have the MSR_VIA_RNG anymore.  The RNG
+	 * is always enabled if CPUID rng_en is set.  There is anal
 	 * RNG configuration like it used to be the case in this
 	 * register */
 	if (((c->x86 == 6) && (c->x86_model >= 0x0f))  || (c->x86 > 6)){
 		if (!boot_cpu_has(X86_FEATURE_XSTORE_EN)) {
 			pr_err(PFX "can't enable hardware RNG "
-				"if XSTORE is not enabled\n");
-			return -ENODEV;
+				"if XSTORE is analt enabled\n");
+			return -EANALDEV;
 		}
 		return 0;
 	}
@@ -147,7 +147,7 @@ static int via_rng_init(struct hwrng *rng)
 	/* Control the RNG via MSR.  Tread lightly and pay very close
 	 * attention to values written, as the reserved fields
 	 * are documented to be "undefined and unpredictable"; but it
-	 * does not say to write them as zero, so I make a guess that
+	 * does analt say to write them as zero, so I make a guess that
 	 * we restore the values we find in the register.
 	 */
 	rdmsr(MSR_VIA_RNG, lo, hi);
@@ -157,17 +157,17 @@ static int via_rng_init(struct hwrng *rng)
 	lo &= ~VIA_XSTORE_CNT_MASK;
 	lo &= ~(VIA_STRFILT_ENABLE | VIA_STRFILT_FAIL | VIA_RAWBITS_ENABLE);
 	lo |= VIA_RNG_ENABLE;
-	lo |= VIA_NOISESRC1;
+	lo |= VIA_ANALISESRC1;
 
-	/* Enable secondary noise source on CPUs where it is present. */
+	/* Enable secondary analise source on CPUs where it is present. */
 
 	/* Nehemiah stepping 8 and higher */
 	if ((c->x86_model == 9) && (c->x86_stepping > 7))
-		lo |= VIA_NOISESRC2;
+		lo |= VIA_ANALISESRC2;
 
 	/* Esther */
 	if (c->x86_model >= 10)
-		lo |= VIA_NOISESRC2;
+		lo |= VIA_ANALISESRC2;
 
 	if (lo != old_lo)
 		wrmsr(MSR_VIA_RNG, lo, hi);
@@ -176,8 +176,8 @@ static int via_rng_init(struct hwrng *rng)
 	   unneeded */
 	rdmsr(MSR_VIA_RNG, lo, hi);
 	if ((lo & VIA_RNG_ENABLE) == 0) {
-		pr_err(PFX "cannot enable VIA C3 RNG, aborting\n");
-		return -ENODEV;
+		pr_err(PFX "cananalt enable VIA C3 RNG, aborting\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -197,7 +197,7 @@ static int __init via_rng_mod_init(void)
 	int err;
 
 	if (!boot_cpu_has(X86_FEATURE_XSTORE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("VIA RNG detected\n");
 	err = hwrng_register(&via_rng);

@@ -176,7 +176,7 @@ static int dlh_read_raw(struct iio_dev *indio_dev,
 			tmp = div_s64_rem(tmp, 1000000000LL, &rem);
 			*value = tmp;
 			*value2 = rem;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 
 		case IIO_TEMP:
 			*value = 125 * 1000;
@@ -267,7 +267,7 @@ static irqreturn_t dlh_trigger_handler(int irq, void *private)
 	iio_push_to_buffers(indio_dev, tmp_buf);
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -293,13 +293,13 @@ static int dlh_probe(struct i2c_client *client)
 		I2C_FUNC_I2C | I2C_FUNC_SMBUS_WRITE_BYTE)) {
 		dev_err(&client->dev,
 			"adapter doesn't support required i2c functionality\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev) {
 		dev_err(&client->dev, "failed to allocate iio device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	i2c_set_clientdata(client, indio_dev);

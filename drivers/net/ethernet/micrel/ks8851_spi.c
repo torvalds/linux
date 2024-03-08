@@ -30,7 +30,7 @@ static int msg_enable;
 
 /**
  * struct ks8851_net_spi - KS8851 SPI driver private data
- * @lock: Lock to ensure that the device is not accessed when busy.
+ * @lock: Lock to ensure that the device is analt accessed when busy.
  * @tx_work: Work queue for tx packets
  * @ks8851: KS8851 driver common private data
  * @spidev: The spi device we're bound to.
@@ -41,7 +41,7 @@ static int msg_enable;
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
- * of the chip registers are not ccessible until the transfer is finished and
+ * of the chip registers are analt ccessible until the transfer is finished and
  * the DMA has been de-asserted.
  */
 struct ks8851_net_spi {
@@ -421,7 +421,7 @@ static int ks8851_probe_spi(struct spi_device *spi)
 
 	netdev = devm_alloc_etherdev(dev, sizeof(struct ks8851_net_spi));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi->bits_per_word = 8;
 
@@ -490,5 +490,5 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_LICENSE("GPL");
 
 module_param_named(message, msg_enable, int, 0);
-MODULE_PARM_DESC(message, "Message verbosity level (0=none, 31=all)");
+MODULE_PARM_DESC(message, "Message verbosity level (0=analne, 31=all)");
 MODULE_ALIAS("spi:ks8851");

@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*****************************************************************************
- *Copyright(c) 2009,  RealTEK Technology Inc. All Right Reserved.
+ *Copyright(c) 2009,  RealTEK Techanallogy Inc. All Right Reserved.
  *
  * Module:	__INC_HAL8723BREG_H
  *
  *
- * Note:	1. Define Mac register address and corresponding bit mask map
+ * Analte:	1. Define Mac register address and corresponding bit mask map
  *
  *
- * Export:	Constants, macro, functions(API), global variables(None).
+ * Export:	Constants, macro, functions(API), global variables(Analne).
  *
  * Abbrev:
  *
@@ -108,7 +108,7 @@
 #define REG_TC4_CTRL_8723B			0x0160
 #define REG_TCUNIT_BASE_8723B			0x0164
 #define REG_RSVD3_8723B				0x0168
-#define REG_C2HEVT_MSG_NORMAL_8723B		0x01A0
+#define REG_C2HEVT_MSG_ANALRMAL_8723B		0x01A0
 #define REG_C2HEVT_CMD_SEQ_88XX			0x01A1
 #define REG_C2HEVT_CMD_CONTENT_88XX		0x01A2
 #define REG_C2HEVT_CMD_LEN_88XX			0x01AE
@@ -269,7 +269,7 @@
 /* 	--------------|---------------------- */
 /*                 | */
 /*                TBTT */
-/*  Note: We cannot update beacon content to HW or send any AC packets during the time between Setup and Hold. */
+/*  Analte: We cananalt update beacon content to HW or send any AC packets during the time between Setup and Hold. */
 /*  Described by Designer Tim and Bruce, 2011-01-14. */
 /*  */
 #define REG_TBTT_PROHIBIT_8723B			0x0540
@@ -354,7 +354,7 @@
 /*	Redifine 8192C register definition for compatibility */
 
 /*  TODO: use these definition when using REG_xxx naming rule. */
-/*  NOTE: DO NOT Remove these definition. Use later. */
+/*  ANALTE: DO ANALT Remove these definition. Use later. */
 #define	EFUSE_CTRL_8723B	REG_EFUSE_CTRL_8723B	/*  E-Fuse Control. */
 #define	EFUSE_TEST_8723B	REG_EFUSE_TEST_8723B	/*  E-Fuse Test. */
 #define	MSR_8723B		(REG_CR_8723B + 2)	/*  Media Status register */
@@ -389,7 +389,7 @@
 #define	IMR_BCNDERR0_8723B		BIT16	/*  Beacon Queue DMA OK0 */
 #define	IMR_HSISR_IND_ON_INT_8723B	BIT15	/*  HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
 #define	IMR_BCNDMAINT_E_8723B		BIT14	/*  Beacon DMA Interrupt Extension for Win7 */
-#define	IMR_ATIMEND_8723B		BIT12	/*  CTWidnow End or ATIM Window End */
+#define	IMR_ATIMEND_8723B		BIT12	/*  CTWidanalw End or ATIM Window End */
 #define	IMR_C2HCMD_8723B		BIT10	/*  CPU to Host Command INT Status, Write 1 clear */
 #define	IMR_CPWM2_8723B			BIT9	/*  CPU power Mode exchange INT Status, Write 1 clear */
 #define	IMR_CPWM_8723B			BIT8	/*  CPU power Mode exchange INT Status, Write 1 clear */

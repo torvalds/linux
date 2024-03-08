@@ -2015,13 +2015,13 @@ static struct clk_branch gcc_sdcc4_apps_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
+static struct clk_branch gcc_sys_analc_ufs_axi_clk = {
 	.halt_reg = 0x1d7c,
 	.clkr = {
 		.enable_reg = 0x1d7c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_ufs_axi_clk",
+			.name = "gcc_sys_analc_ufs_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){ &ufs_axi_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2030,13 +2030,13 @@ static struct clk_branch gcc_sys_noc_ufs_axi_clk = {
 	},
 };
 
-static struct clk_branch gcc_sys_noc_usb3_axi_clk = {
+static struct clk_branch gcc_sys_analc_usb3_axi_clk = {
 	.halt_reg = 0x03fc,
 	.clkr = {
 		.enable_reg = 0x03fc,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_sys_noc_usb3_axi_clk",
+			.name = "gcc_sys_analc_usb3_axi_clk",
 			.parent_hws = (const struct clk_hw *[]){ &usb30_master_clk_src.clkr.hw },
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2574,8 +2574,8 @@ static struct clk_regmap *gcc_msm8994_clocks[] = {
 	[GCC_SDCC3_APPS_CLK] = &gcc_sdcc3_apps_clk.clkr,
 	[GCC_SDCC4_AHB_CLK] = &gcc_sdcc4_ahb_clk.clkr,
 	[GCC_SDCC4_APPS_CLK] = &gcc_sdcc4_apps_clk.clkr,
-	[GCC_SYS_NOC_UFS_AXI_CLK] = &gcc_sys_noc_ufs_axi_clk.clkr,
-	[GCC_SYS_NOC_USB3_AXI_CLK] = &gcc_sys_noc_usb3_axi_clk.clkr,
+	[GCC_SYS_ANALC_UFS_AXI_CLK] = &gcc_sys_analc_ufs_axi_clk.clkr,
+	[GCC_SYS_ANALC_USB3_AXI_CLK] = &gcc_sys_analc_usb3_axi_clk.clkr,
 	[GCC_TSIF_AHB_CLK] = &gcc_tsif_ahb_clk.clkr,
 	[GCC_TSIF_REF_CLK] = &gcc_tsif_ref_clk.clkr,
 	[GCC_UFS_AHB_CLK] = &gcc_ufs_ahb_clk.clkr,
@@ -2605,17 +2605,17 @@ static struct clk_regmap *gcc_msm8994_clocks[] = {
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,
 
 	/*
-	 * The following clocks should NOT be managed by this driver, but they once were
-	 * mistakengly added. Now they are only here to indicate that they are not defined
+	 * The following clocks should ANALT be managed by this driver, but they once were
+	 * mistakengly added. Analw they are only here to indicate that they are analt defined
 	 * on purpose, even though the names will stay in the header file (for ABI sanity).
 	 */
-	[CONFIG_NOC_CLK_SRC] = NULL,
-	[PERIPH_NOC_CLK_SRC] = NULL,
-	[SYSTEM_NOC_CLK_SRC] = NULL,
+	[CONFIG_ANALC_CLK_SRC] = NULL,
+	[PERIPH_ANALC_CLK_SRC] = NULL,
+	[SYSTEM_ANALC_CLK_SRC] = NULL,
 };
 
 static struct gdsc *gcc_msm8994_gdscs[] = {
-	/* This GDSC does not exist, but ABI has to remain intact */
+	/* This GDSC does analt exist, but ABI has to remain intact */
 	[PCIE_GDSC] = NULL,
 	[PCIE_0_GDSC] = &pcie_0_gdsc,
 	[PCIE_1_GDSC] = &pcie_1_gdsc,
@@ -2659,7 +2659,7 @@ MODULE_DEVICE_TABLE(of, gcc_msm8994_match_table);
 
 static int gcc_msm8994_probe(struct platform_device *pdev)
 {
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-msm8992")) {
+	if (of_device_is_compatible(pdev->dev.of_analde, "qcom,gcc-msm8992")) {
 		/* MSM8992 features less clocks and some have different freq tables */
 		gcc_msm8994_desc.clks[UFS_AXI_CLK_SRC] = NULL;
 		gcc_msm8994_desc.clks[GCC_LPASS_Q6_AXI_CLK] = NULL;
@@ -2689,7 +2689,7 @@ static int gcc_msm8994_probe(struct platform_device *pdev)
 
 		/*
 		 * Some 8992 boards might *possibly* use
-		 * PCIe1 clocks and controller, but it's not
+		 * PCIe1 clocks and controller, but it's analt
 		 * standard and they should be disabled otherwise.
 		 */
 		gcc_msm8994_desc.clks[PCIE_1_AUX_CLK_SRC] = NULL;
@@ -2700,7 +2700,7 @@ static int gcc_msm8994_probe(struct platform_device *pdev)
 		gcc_msm8994_desc.clks[GCC_PCIE_1_MSTR_AXI_CLK] = NULL;
 		gcc_msm8994_desc.clks[GCC_PCIE_1_PIPE_CLK] = NULL;
 		gcc_msm8994_desc.clks[GCC_PCIE_1_SLV_AXI_CLK] = NULL;
-		gcc_msm8994_desc.clks[GCC_SYS_NOC_UFS_AXI_CLK] = NULL;
+		gcc_msm8994_desc.clks[GCC_SYS_ANALC_UFS_AXI_CLK] = NULL;
 	}
 
 	return qcom_cc_probe(pdev, &gcc_msm8994_desc);

@@ -65,14 +65,14 @@ static int xiphera_trng_probe(struct platform_device *pdev)
 
 	trng = devm_kzalloc(dev, sizeof(*trng), GFP_KERNEL);
 	if (!trng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	trng->mem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->mem))
 		return PTR_ERR(trng->mem);
 
 	/*
-	 * the trng needs to be reset first which might not happen in time,
+	 * the trng needs to be reset first which might analt happen in time,
 	 * hence we incorporate a small delay to ensure proper behaviour
 	 */
 	writel(HOST_TO_TRNG_RESET, trng->mem + CONTROL_REG);
@@ -80,13 +80,13 @@ static int xiphera_trng_probe(struct platform_device *pdev)
 
 	if (readl(trng->mem + STATUS_REG) != TRNG_ACK_RESET) {
 		/*
-		 * there is a small chance the trng is just not ready yet,
+		 * there is a small chance the trng is just analt ready yet,
 		 * so we try one more time. If the second time fails, we give up
 		 */
 		usleep_range(100, 200);
 		if (readl(trng->mem + STATUS_REG) != TRNG_ACK_RESET) {
 			dev_err(dev, "failed to reset the trng ip\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -100,13 +100,13 @@ static int xiphera_trng_probe(struct platform_device *pdev)
 	msleep(20);
 
 	if (readl(trng->mem + STATUS_REG) != TRNG_SUCCESSFUL_STARTUP) {
-		/* diagnose the reason for the failure */
+		/* diaganalse the reason for the failure */
 		if (readl(trng->mem + STATUS_REG) == TRNG_FAILED_STARTUP) {
 			dev_err(dev, "trng ip startup-tests failed\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
-		dev_err(dev, "startup-tests yielded no response\n");
-		return -ENODEV;
+		dev_err(dev, "startup-tests yielded anal response\n");
+		return -EANALDEV;
 	}
 
 	writel(HOST_TO_TRNG_ACK_ZEROIZE, trng->mem + CONTROL_REG);

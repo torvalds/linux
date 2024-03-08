@@ -3,13 +3,13 @@
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung EXYNOS5 SoC series G-Scaler driver
+ * Samsung EXYANALS5 SoC series G-Scaler driver
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -616,7 +616,7 @@ static int gsc_m2m_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -740,7 +740,7 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	int ret;
 
 	if (!gsc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = gsc->pdev;
 

@@ -31,7 +31,7 @@ struct input_dev;
  *
  * These values are used as a bitmask.
  *
- * Note that this must be kept in sync with the lookup table in
+ * Analte that this must be kept in sync with the lookup table in
  * sound/core/jack.c.
  */
 enum snd_jack_types {

@@ -34,7 +34,7 @@ TRACE_DEFINE_ENUM(SOCK_PACKET);
 		{ SOCK_DCCP,		"DCCP" },		\
 		{ SOCK_PACKET,		"PACKET" })
 
-/* This list is known to be incomplete, add new enums as needed. */
+/* This list is kanalwn to be incomplete, add new enums as needed. */
 TRACE_DEFINE_ENUM(AF_UNSPEC);
 TRACE_DEFINE_ENUM(AF_UNIX);
 TRACE_DEFINE_ENUM(AF_LOCAL);
@@ -139,29 +139,29 @@ DEFINE_RPC_CLNT_EVENT(release);
 DEFINE_RPC_CLNT_EVENT(replace_xprt);
 DEFINE_RPC_CLNT_EVENT(replace_xprt_err);
 
-TRACE_DEFINE_ENUM(RPC_XPRTSEC_NONE);
+TRACE_DEFINE_ENUM(RPC_XPRTSEC_ANALNE);
 TRACE_DEFINE_ENUM(RPC_XPRTSEC_TLS_X509);
 
 #define rpc_show_xprtsec_policy(policy)					\
 	__print_symbolic(policy,					\
-		{ RPC_XPRTSEC_NONE,		"none" },		\
-		{ RPC_XPRTSEC_TLS_ANON,		"tls-anon" },		\
+		{ RPC_XPRTSEC_ANALNE,		"analne" },		\
+		{ RPC_XPRTSEC_TLS_AANALN,		"tls-aanaln" },		\
 		{ RPC_XPRTSEC_TLS_X509,		"tls-x509" })
 
 #define rpc_show_create_flags(flags)					\
 	__print_flags(flags, "|",					\
 		{ RPC_CLNT_CREATE_HARDRTRY,	"HARDRTRY" },		\
 		{ RPC_CLNT_CREATE_AUTOBIND,	"AUTOBIND" },		\
-		{ RPC_CLNT_CREATE_NONPRIVPORT,	"NONPRIVPORT" },	\
-		{ RPC_CLNT_CREATE_NOPING,	"NOPING" },		\
+		{ RPC_CLNT_CREATE_ANALNPRIVPORT,	"ANALNPRIVPORT" },	\
+		{ RPC_CLNT_CREATE_ANALPING,	"ANALPING" },		\
 		{ RPC_CLNT_CREATE_DISCRTRY,	"DISCRTRY" },		\
 		{ RPC_CLNT_CREATE_QUIET,	"QUIET" },		\
 		{ RPC_CLNT_CREATE_INFINITE_SLOTS,			\
 						"INFINITE_SLOTS" },	\
-		{ RPC_CLNT_CREATE_NO_IDLE_TIMEOUT,			\
-						"NO_IDLE_TIMEOUT" },	\
-		{ RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT,			\
-						"NO_RETRANS_TIMEOUT" },	\
+		{ RPC_CLNT_CREATE_ANAL_IDLE_TIMEOUT,			\
+						"ANAL_IDLE_TIMEOUT" },	\
+		{ RPC_CLNT_CREATE_ANAL_RETRANS_TIMEOUT,			\
+						"ANAL_RETRANS_TIMEOUT" },	\
 		{ RPC_CLNT_CREATE_SOFTERR,	"SOFTERR" },		\
 		{ RPC_CLNT_CREATE_REUSEPORT,	"REUSEPORT" })
 
@@ -344,14 +344,14 @@ TRACE_EVENT(rpc_request,
 		{ RPC_TASK_NULLCREDS, "NULLCREDS" },			\
 		{ RPC_CALL_MAJORSEEN, "MAJORSEEN" },			\
 		{ RPC_TASK_DYNAMIC, "DYNAMIC" },			\
-		{ RPC_TASK_NO_ROUND_ROBIN, "NO_ROUND_ROBIN" },		\
+		{ RPC_TASK_ANAL_ROUND_ROBIN, "ANAL_ROUND_ROBIN" },		\
 		{ RPC_TASK_SOFT, "SOFT" },				\
 		{ RPC_TASK_SOFTCONN, "SOFTCONN" },			\
 		{ RPC_TASK_SENT, "SENT" },				\
 		{ RPC_TASK_TIMEOUT, "TIMEOUT" },			\
-		{ RPC_TASK_NOCONNECT, "NOCONNECT" },			\
-		{ RPC_TASK_NO_RETRANS_TIMEOUT, "NORTO" },		\
-		{ RPC_TASK_CRED_NOREF, "CRED_NOREF" })
+		{ RPC_TASK_ANALCONNECT, "ANALCONNECT" },			\
+		{ RPC_TASK_ANAL_RETRANS_TIMEOUT, "ANALRTO" },		\
+		{ RPC_TASK_CRED_ANALREF, "CRED_ANALREF" })
 
 #define rpc_show_runstate(flags)					\
 	__print_flags(flags, "|",					\
@@ -682,9 +682,9 @@ TRACE_EVENT(rpc_xdr_overflow,
 		__field(unsigned int, page_len)
 		__field(unsigned int, len)
 		__string(progname, xdr->rqst ?
-			 xdr->rqst->rq_task->tk_client->cl_program->name : "unknown")
+			 xdr->rqst->rq_task->tk_client->cl_program->name : "unkanalwn")
 		__string(procedure, xdr->rqst ?
-			 xdr->rqst->rq_task->tk_msg.rpc_proc->p_name : "unknown")
+			 xdr->rqst->rq_task->tk_msg.rpc_proc->p_name : "unkanalwn")
 	),
 
 	TP_fast_assign(
@@ -700,9 +700,9 @@ TRACE_EVENT(rpc_xdr_overflow,
 		} else {
 			__entry->task_id = -1;
 			__entry->client_id = -1;
-			__assign_str(progname, "unknown");
+			__assign_str(progname, "unkanalwn");
 			__entry->version = 0;
-			__assign_str(procedure, "unknown");
+			__assign_str(procedure, "unkanalwn");
 		}
 		__entry->requested = requested;
 		__entry->end = xdr->end;
@@ -829,7 +829,7 @@ RPC_SHOW_SOCK
 #include <trace/events/net_probe_common.h>
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM
@@ -849,13 +849,13 @@ DECLARE_EVENT_CLASS(xs_socket_event,
 		TP_STRUCT__entry(
 			__field(unsigned int, socket_state)
 			__field(unsigned int, sock_state)
-			__field(unsigned long long, ino)
+			__field(unsigned long long, ianal)
 			__array(__u8, saddr, sizeof(struct sockaddr_in6))
 			__array(__u8, daddr, sizeof(struct sockaddr_in6))
 		),
 
 		TP_fast_assign(
-			struct inode *inode = SOCK_INODE(socket);
+			struct ianalde *ianalde = SOCK_IANALDE(socket);
 			const struct sock *sk = socket->sk;
 			const struct inet_sock *inet = inet_sk(sk);
 
@@ -866,14 +866,14 @@ DECLARE_EVENT_CLASS(xs_socket_event,
 
 			__entry->socket_state = socket->state;
 			__entry->sock_state = socket->sk->sk_state;
-			__entry->ino = (unsigned long long)inode->i_ino;
+			__entry->ianal = (unsigned long long)ianalde->i_ianal;
 
 		),
 
 		TP_printk(
 			"socket:[%llu] srcaddr=%pISpc dstaddr=%pISpc "
 			"state=%u (%s) sk_state=%u (%s)",
-			__entry->ino,
+			__entry->ianal,
 			__entry->saddr,
 			__entry->daddr,
 			__entry->socket_state,
@@ -904,13 +904,13 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 			__field(int, error)
 			__field(unsigned int, socket_state)
 			__field(unsigned int, sock_state)
-			__field(unsigned long long, ino)
+			__field(unsigned long long, ianal)
 			__array(__u8, saddr, sizeof(struct sockaddr_in6))
 			__array(__u8, daddr, sizeof(struct sockaddr_in6))
 		),
 
 		TP_fast_assign(
-			struct inode *inode = SOCK_INODE(socket);
+			struct ianalde *ianalde = SOCK_IANALDE(socket);
 			const struct sock *sk = socket->sk;
 			const struct inet_sock *inet = inet_sk(sk);
 
@@ -921,7 +921,7 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 
 			__entry->socket_state = socket->state;
 			__entry->sock_state = socket->sk->sk_state;
-			__entry->ino = (unsigned long long)inode->i_ino;
+			__entry->ianal = (unsigned long long)ianalde->i_ianal;
 			__entry->error = error;
 		),
 
@@ -929,7 +929,7 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 			"error=%d socket:[%llu] srcaddr=%pISpc dstaddr=%pISpc "
 			"state=%u (%s) sk_state=%u (%s)",
 			__entry->error,
-			__entry->ino,
+			__entry->ianal,
 			__entry->saddr,
 			__entry->daddr,
 			__entry->socket_state,
@@ -954,7 +954,7 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
-TRACE_EVENT(rpc_socket_nospace,
+TRACE_EVENT(rpc_socket_analspace,
 	TP_PROTO(
 		const struct rpc_rqst *rqst,
 		const struct sock_xprt *transport
@@ -1089,7 +1089,7 @@ TRACE_EVENT(xprt_transmit,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(u32, xid)
-		__field(u32, seqno)
+		__field(u32, seqanal)
 		__field(int, status)
 	),
 
@@ -1098,14 +1098,14 @@ TRACE_EVENT(xprt_transmit,
 		__entry->client_id = rqst->rq_task->tk_client ?
 			rqst->rq_task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->seqno = rqst->rq_seqno;
+		__entry->seqanal = rqst->rq_seqanal;
 		__entry->status = status;
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " xid=0x%08x seqno=%u status=%d",
+		  " xid=0x%08x seqanal=%u status=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->seqno, __entry->status)
+		__entry->seqanal, __entry->status)
 );
 
 TRACE_EVENT(xprt_retransmit,
@@ -1566,7 +1566,7 @@ DECLARE_EVENT_CLASS(rpc_tls_class,
 			TP_ARGS(clnt, xprt))
 
 DEFINE_RPC_TLS_EVENT(unavailable);
-DEFINE_RPC_TLS_EVENT(not_started);
+DEFINE_RPC_TLS_EVENT(analt_started);
 
 
 /* Record an xdr_buf containing a fully-formed RPC message */
@@ -1720,7 +1720,7 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 #define SVC_RQST_ENDPOINT_FIELDS(r) \
 		__sockaddr(server, (r)->rq_xprt->xpt_locallen) \
 		__sockaddr(client, (r)->rq_xprt->xpt_remotelen) \
-		__field(unsigned int, netns_ino) \
+		__field(unsigned int, netns_ianal) \
 		__field(u32, xid)
 
 #define SVC_RQST_ENDPOINT_ASSIGNMENTS(r) \
@@ -1730,7 +1730,7 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 					  xprt->xpt_locallen); \
 			__assign_sockaddr(client, &xprt->xpt_remote, \
 					  xprt->xpt_remotelen); \
-			__entry->netns_ino = xprt->xpt_net->ns.inum; \
+			__entry->netns_ianal = xprt->xpt_net->ns.inum; \
 			__entry->xid = be32_to_cpu((r)->rq_xid); \
 		} while (0)
 
@@ -1990,7 +1990,7 @@ TRACE_EVENT(svc_xprt_create_err,
 		__sockaddr(server, (x)->xpt_locallen) \
 		__sockaddr(client, (x)->xpt_remotelen) \
 		__field(unsigned long, flags) \
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 
 #define SVC_XPRT_ENDPOINT_ASSIGNMENTS(x) \
 		do { \
@@ -1999,7 +1999,7 @@ TRACE_EVENT(svc_xprt_create_err,
 			__assign_sockaddr(client, &(x)->xpt_remote, \
 					  (x)->xpt_remotelen); \
 			__entry->flags = (x)->xpt_flags; \
-			__entry->netns_ino = (x)->xpt_net->ns.inum; \
+			__entry->netns_ianal = (x)->xpt_net->ns.inum; \
 		} while (0)
 
 #define SVC_XPRT_ENDPOINT_FORMAT \
@@ -2027,7 +2027,7 @@ TRACE_EVENT(svc_xprt_enqueue,
 		__assign_sockaddr(client, &xprt->xpt_remote,
 				  xprt->xpt_remotelen);
 		__entry->flags = flags;
-		__entry->netns_ino = xprt->xpt_net->ns.inum;
+		__entry->netns_ianal = xprt->xpt_net->ns.inum;
 	),
 
 	TP_printk(SVC_XPRT_ENDPOINT_FORMAT, SVC_XPRT_ENDPOINT_VARARGS)
@@ -2082,7 +2082,7 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 			), \
 			TP_ARGS(xprt))
 
-DEFINE_SVC_XPRT_EVENT(no_write_space);
+DEFINE_SVC_XPRT_EVENT(anal_write_space);
 DEFINE_SVC_XPRT_EVENT(close);
 DEFINE_SVC_XPRT_EVENT(detach);
 DEFINE_SVC_XPRT_EVENT(free);
@@ -2095,7 +2095,7 @@ DEFINE_SVC_XPRT_EVENT(free);
 DEFINE_SVC_TLS_EVENT(start);
 DEFINE_SVC_TLS_EVENT(upcall);
 DEFINE_SVC_TLS_EVENT(unavailable);
-DEFINE_SVC_TLS_EVENT(not_started);
+DEFINE_SVC_TLS_EVENT(analt_started);
 DEFINE_SVC_TLS_EVENT(timed_out);
 
 TRACE_EVENT(svc_xprt_accept,
@@ -2205,7 +2205,7 @@ DECLARE_EVENT_CLASS(svcsock_lifetime_class,
 	),
 	TP_ARGS(svsk, socket),
 	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 		__field(const void *, svsk)
 		__field(const void *, sk)
 		__field(unsigned long, type)
@@ -2215,7 +2215,7 @@ DECLARE_EVENT_CLASS(svcsock_lifetime_class,
 	TP_fast_assign(
 		struct sock *sk = socket->sk;
 
-		__entry->netns_ino = sock_net(sk)->ns.inum;
+		__entry->netns_ianal = sock_net(sk)->ns.inum;
 		__entry->svsk = svsk;
 		__entry->sk = sk;
 		__entry->type = socket->type;
@@ -2376,13 +2376,13 @@ DECLARE_EVENT_CLASS(svcsock_accept_class,
 	TP_STRUCT__entry(
 		__field(long, status)
 		__string(service, service)
-		__field(unsigned int, netns_ino)
+		__field(unsigned int, netns_ianal)
 	),
 
 	TP_fast_assign(
 		__entry->status = status;
 		__assign_str(service, service);
-		__entry->netns_ino = xprt->xpt_net->ns.inum;
+		__entry->netns_ianal = xprt->xpt_net->ns.inum;
 	),
 
 	TP_printk("addr=listener service=%s status=%ld",
@@ -2433,7 +2433,7 @@ DEFINE_CACHE_EVENT(cache_entry_expired);
 DEFINE_CACHE_EVENT(cache_entry_upcall);
 DEFINE_CACHE_EVENT(cache_entry_update);
 DEFINE_CACHE_EVENT(cache_entry_make_negative);
-DEFINE_CACHE_EVENT(cache_entry_no_listener);
+DEFINE_CACHE_EVENT(cache_entry_anal_listener);
 
 DECLARE_EVENT_CLASS(register_class,
 	TP_PROTO(
@@ -2487,7 +2487,7 @@ DECLARE_EVENT_CLASS(register_class,
 				port, error))
 
 DEFINE_REGISTER_EVENT(register);
-DEFINE_REGISTER_EVENT(noregister);
+DEFINE_REGISTER_EVENT(analregister);
 
 TRACE_EVENT(svc_unregister,
 	TP_PROTO(

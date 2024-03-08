@@ -157,7 +157,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev, patch);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
-	 * internal inverter may not allow the first MDIO transaction to pass
+	 * internal inverter may analt allow the first MDIO transaction to pass
 	 * the MDIO management controller and make us return 0xffff for such
 	 * reads.
 	 */
@@ -213,7 +213,7 @@ static int bcm7xxx_28nm_resume(struct phy_device *phydev)
 		return ret;
 
 	/* 28nm Gigabit PHYs come out of reset without any half-duplex
-	 * or "hub" compliant advertised mode, fix that. This does not
+	 * or "hub" compliant advertised mode, fix that. This does analt
 	 * cause any problems with the PHY library since genphy_config_aneg()
 	 * gracefully handles auto-negotiated and forced modes.
 	 */
@@ -296,7 +296,7 @@ reset_shadow_mode:
 	return 0;
 }
 
-/* The 28nm EPHY does not support Clause 45 (MMD) used by bcm-phy-lib */
+/* The 28nm EPHY does analt support Clause 45 (MMD) used by bcm-phy-lib */
 static int bcm7xxx_28nm_ephy_apd_enable(struct phy_device *phydev)
 {
 	int ret;
@@ -394,7 +394,7 @@ static int bcm7xxx_28nm_ephy_config_init(struct phy_device *phydev)
 		     phydev_name(phydev), phydev->drv->name, rev);
 
 	/* Dummy read to a register to workaround a possible issue upon reset
-	 * where the internal inverter may not allow the first MDIO transaction
+	 * where the internal inverter may analt allow the first MDIO transaction
 	 * to pass the MDIO management controller and make us return 0xffff for
 	 * such reads.
 	 */
@@ -467,7 +467,7 @@ static int bcm7xxx_16nm_ephy_afe_config(struct phy_device *phydev)
 
 	/* AFE_CAL_CONFIG_0, Vref=1000, Target=10, averaging enabled */
 	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x1c82);
-	/* AFE_CAL_CONFIG_0, no reset and analog powerup */
+	/* AFE_CAL_CONFIG_0, anal reset and analog powerup */
 	bcm_phy_write_misc(phydev, 0x0039, 0x0001, 0x9e82);
 	udelay(2);
 	/* AFE_CAL_CONFIG_0, start calibration */
@@ -514,7 +514,7 @@ static int bcm7xxx_16nm_ephy_afe_config(struct phy_device *phydev)
 	 * sequence 1 + 10BT imp adjust bits
 	 */
 	bcm_phy_write_misc(phydev, 0x003d, 0x0000, 0x3201);
-	/* Non-overlap fix */
+	/* Analn-overlap fix */
 	bcm_phy_write_misc(phydev, 0x003a, 0x0002, 0x0c00);
 
 	/* pwdb override (rxconfig<5>) to turn on RX LDO indpendent of
@@ -633,7 +633,7 @@ static int bcm7xxx_28nm_ephy_read_mmd(struct phy_device *phydev,
 
 	if (!bcm7xxx_28nm_ephy_dev_valid(devnum) ||
 	    shd == MII_BCM7XXX_REG_INVALID)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* set shadow mode 2 */
 	ret = __phy_set_clr_bits(phydev, MII_BCM7XXX_TEST,
@@ -663,7 +663,7 @@ static int bcm7xxx_28nm_ephy_write_mmd(struct phy_device *phydev,
 
 	if (!bcm7xxx_28nm_ephy_dev_valid(devnum) ||
 	    shd == MII_BCM7XXX_REG_INVALID)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* set shadow mode 2 */
 	ret = __phy_set_clr_bits(phydev, MII_BCM7XXX_TEST,
@@ -766,7 +766,7 @@ static int bcm7xxx_28nm_get_tunable(struct phy_device *phydev,
 	case ETHTOOL_PHY_DOWNSHIFT:
 		return bcm_phy_downshift_get(phydev, (u8 *)data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -782,7 +782,7 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 		ret = bcm_phy_downshift_set(phydev, count);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (ret)
@@ -815,7 +815,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phydev->priv = priv;
 
@@ -823,14 +823,14 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 				   bcm_phy_get_sset_count(phydev), sizeof(u64),
 				   GFP_KERNEL);
 	if (!priv->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = devm_clk_get_optional_enabled(&phydev->mdio.dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
 	/* Dummy read to a register to workaround an issue upon reset where the
-	 * internal inverter may not allow the first MDIO transaction to pass
+	 * internal inverter may analt allow the first MDIO transaction to pass
 	 * the MDIO management controller and make us return 0xffff for such
 	 * reads. This is needed to ensure that any subsequent reads to the
 	 * PHY will succeed.

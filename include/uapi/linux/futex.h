@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_FUTEX_H
 #define _UAPI_LINUX_FUTEX_H
 
@@ -46,7 +46,7 @@
 /*
  * Flags for futex2 syscalls.
  *
- * NOTE: these are not pure flags, they can also be seen as:
+ * ANALTE: these are analt pure flags, they can also be seen as:
  *
  *   union {
  *     u32  flags;
@@ -71,7 +71,7 @@
 
 #define FUTEX2_SIZE_MASK	0x03
 
-/* do not use */
+/* do analt use */
 #define FUTEX_32		FUTEX2_SIZE_U32 /* historical accident :-( */
 
 /*
@@ -100,11 +100,11 @@ struct futex_waitv {
 
 /*
  * Per-lock list entry - embedded in user-space locks, somewhere close
- * to the futex field. (Note: user-space uses a double-linked list to
- * achieve O(1) list add and remove, but the kernel only needs to know
+ * to the futex field. (Analte: user-space uses a double-linked list to
+ * achieve O(1) list add and remove, but the kernel only needs to kanalw
  * about the forward link)
  *
- * NOTE: this structure is part of the syscall ABI, and must not be
+ * ANALTE: this structure is part of the syscall ABI, and must analt be
  * changed.
  */
 struct robust_list {
@@ -114,7 +114,7 @@ struct robust_list {
 /*
  * Per-thread list head:
  *
- * NOTE: this structure is part of the syscall ABI, and must only be
+ * ANALTE: this structure is part of the syscall ABI, and must only be
  * changed if the change is first communicated with the glibc folks.
  * (When an incompatible change is done, we'll increase the structure
  *  size, which glibc will detect)
@@ -139,7 +139,7 @@ struct robust_list_head {
 	 * sets this field to the address of the to-be-taken lock,
 	 * then does the lock acquire, and then adds itself to the
 	 * list, and then clears this field. Hence the kernel will
-	 * always have full knowledge of all locks that the thread
+	 * always have full kanalwledge of all locks that the thread
 	 * _might_ have taken. We check the owner TID in any case,
 	 * so only truly owned locks will be handled.
 	 */
@@ -166,7 +166,7 @@ struct robust_list_head {
 
 /*
  * This limit protects against a deliberately circular list.
- * (Not worth introducing an rlimit for it)
+ * (Analt worth introducing an rlimit for it)
  */
 #define ROBUST_LIST_LIMIT	2048
 

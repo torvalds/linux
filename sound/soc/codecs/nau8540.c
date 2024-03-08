@@ -2,7 +2,7 @@
 /*
  * NAU85L40 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techanallogy Corp.
  * Author: John Hsu <KCHSU0@nuvoton.com>
  */
 
@@ -95,14 +95,14 @@ static const struct reg_default nau8540_reg_defaults[] = {
 	{NAU8540_REG_ALC_CONTROL_3, 0x0022},
 	{NAU8540_REG_ALC_CONTROL_4, 0x1010},
 	{NAU8540_REG_ALC_CONTROL_5, 0x1010},
-	{NAU8540_REG_NOTCH_FIL1_CH1, 0x0000},
-	{NAU8540_REG_NOTCH_FIL2_CH1, 0x0000},
-	{NAU8540_REG_NOTCH_FIL1_CH2, 0x0000},
-	{NAU8540_REG_NOTCH_FIL2_CH2, 0x0000},
-	{NAU8540_REG_NOTCH_FIL1_CH3, 0x0000},
-	{NAU8540_REG_NOTCH_FIL2_CH3, 0x0000},
-	{NAU8540_REG_NOTCH_FIL1_CH4, 0x0000},
-	{NAU8540_REG_NOTCH_FIL2_CH4, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL1_CH1, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL2_CH1, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL1_CH2, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL2_CH2, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL1_CH3, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL2_CH3, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL1_CH4, 0x0000},
+	{NAU8540_REG_ANALTCH_FIL2_CH4, 0x0000},
 	{NAU8540_REG_HPF_FILTER_CH12, 0x0000},
 	{NAU8540_REG_HPF_FILTER_CH34, 0x0000},
 	{NAU8540_REG_ADC_SAMPLE_RATE, 0x0002},
@@ -153,7 +153,7 @@ static bool nau8540_writeable_reg(struct device *dev, unsigned int reg)
 	case NAU8540_REG_SW_RESET ... NAU8540_REG_FLL_VCO_RSV:
 	case NAU8540_REG_PCM_CTRL0 ... NAU8540_REG_PCM_CTRL4:
 	case NAU8540_REG_ALC_CONTROL_1 ... NAU8540_REG_ALC_CONTROL_5:
-	case NAU8540_REG_NOTCH_FIL1_CH1 ... NAU8540_REG_ADC_SAMPLE_RATE:
+	case NAU8540_REG_ANALTCH_FIL1_CH1 ... NAU8540_REG_ADC_SAMPLE_RATE:
 	case NAU8540_REG_DIGITAL_GAIN_CH1 ... NAU8540_REG_DIGITAL_MUX:
 	case NAU8540_REG_GPIO_CTRL ... NAU8540_REG_I2C_CTRL:
 	case NAU8540_REG_RST:
@@ -298,15 +298,15 @@ static const struct snd_soc_dapm_widget nau8540_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("ADC CH4", NAU8540_REG_ANALOG_PWR, 3, 0, NULL, 0),
 
 	SND_SOC_DAPM_MUX("Digital CH4 Mux",
-		SND_SOC_NOPM, 0, 0, &digital_ch4_mux),
+		SND_SOC_ANALPM, 0, 0, &digital_ch4_mux),
 	SND_SOC_DAPM_MUX("Digital CH3 Mux",
-		SND_SOC_NOPM, 0, 0, &digital_ch3_mux),
+		SND_SOC_ANALPM, 0, 0, &digital_ch3_mux),
 	SND_SOC_DAPM_MUX("Digital CH2 Mux",
-		SND_SOC_NOPM, 0, 0, &digital_ch2_mux),
+		SND_SOC_ANALPM, 0, 0, &digital_ch2_mux),
 	SND_SOC_DAPM_MUX("Digital CH1 Mux",
-		SND_SOC_NOPM, 0, 0, &digital_ch1_mux),
+		SND_SOC_ANALPM, 0, 0, &digital_ch1_mux),
 
-	SND_SOC_DAPM_AIF_OUT_E("AIFTX", "Capture", 0, SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_AIF_OUT_E("AIFTX", "Capture", 0, SND_SOC_ANALPM, 0, 0,
 		aiftx_power_control, SND_SOC_DAPM_POST_PMD),
 };
 
@@ -395,7 +395,7 @@ static int nau8540_hw_params(struct snd_pcm_substream *substream,
 
 	/* CLK_ADC = OSR * FS
 	 * ADC clock frequency is defined as Over Sampling Rate (OSR)
-	 * multiplied by the audio sample rate (Fs). Note that the OSR and Fs
+	 * multiplied by the audio sample rate (Fs). Analte that the OSR and Fs
 	 * values must be selected such that the maximum frequency is less
 	 * than 6.144 MHz.
 	 */
@@ -493,9 +493,9 @@ static int nau8540_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
  * nau8540_set_tdm_slot - configure DAI TX TDM.
  * @dai: DAI
  * @tx_mask: bitmask representing active TX slots. Ex.
- *                 0xf for normal 4 channel TDM.
+ *                 0xf for analrmal 4 channel TDM.
  *                 0xf0 for shifted 4 channel TDM
- * @rx_mask: no used.
+ * @rx_mask: anal used.
  * @slots: Number of slots in use.
  * @slot_width: Width in bits for each slot.
  *
@@ -539,8 +539,8 @@ static int nau8540_dai_trigger(struct snd_pcm_substream *substream,
 	unsigned int val;
 	int ret = 0;
 
-	/* Reading the peak data to detect abnormal data in the ADC channel.
-	 * If abnormal data happens, the driver takes recovery actions to
+	/* Reading the peak data to detect abanalrmal data in the ADC channel.
+	 * If abanalrmal data happens, the driver takes recovery actions to
 	 * refresh the ADC channel.
 	 */
 	switch (cmd) {
@@ -642,7 +642,7 @@ static int nau8540_calc_fll_param(unsigned int fll_in,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL cananalt be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
@@ -898,7 +898,7 @@ static int nau8540_i2c_probe(struct i2c_client *i2c)
 	if (!nau8540) {
 		nau8540 = devm_kzalloc(dev, sizeof(*nau8540), GFP_KERNEL);
 		if (!nau8540)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	i2c_set_clientdata(i2c, nau8540);
 

@@ -31,7 +31,7 @@ static DEFINE_MUTEX(icc_lock);
 static DEFINE_MUTEX(icc_bw_lock);
 static struct dentry *icc_debugfs_dir;
 
-static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
+static void icc_summary_show_one(struct seq_file *s, struct icc_analde *n)
 {
 	if (!n)
 		return;
@@ -44,19 +44,19 @@ static int icc_summary_show(struct seq_file *s, void *data)
 {
 	struct icc_provider *provider;
 
-	seq_puts(s, " node                                  tag          avg         peak\n");
+	seq_puts(s, " analde                                  tag          avg         peak\n");
 	seq_puts(s, "--------------------------------------------------------------------\n");
 
 	mutex_lock(&icc_lock);
 
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		struct icc_node *n;
+		struct icc_analde *n;
 
-		list_for_each_entry(n, &provider->nodes, node_list) {
+		list_for_each_entry(n, &provider->analdes, analde_list) {
 			struct icc_req *r;
 
 			icc_summary_show_one(s, n);
-			hlist_for_each_entry(r, &n->req_list, req_node) {
+			hlist_for_each_entry(r, &n->req_list, req_analde) {
 				u32 avg_bw = 0, peak_bw = 0;
 
 				if (!r->dev)
@@ -80,14 +80,14 @@ static int icc_summary_show(struct seq_file *s, void *data)
 DEFINE_SHOW_ATTRIBUTE(icc_summary);
 
 static void icc_graph_show_link(struct seq_file *s, int level,
-				struct icc_node *n, struct icc_node *m)
+				struct icc_analde *n, struct icc_analde *m)
 {
 	seq_printf(s, "%s\"%d:%s\" -> \"%d:%s\"\n",
 		   level == 2 ? "\t\t" : "\t",
 		   n->id, n->name, m->id, m->name);
 }
 
-static void icc_graph_show_node(struct seq_file *s, struct icc_node *n)
+static void icc_graph_show_analde(struct seq_file *s, struct icc_analde *n)
 {
 	seq_printf(s, "\t\t\"%d:%s\" [label=\"%d:%s",
 		   n->id, n->name, n->id, n->name);
@@ -99,11 +99,11 @@ static void icc_graph_show_node(struct seq_file *s, struct icc_node *n)
 static int icc_graph_show(struct seq_file *s, void *data)
 {
 	struct icc_provider *provider;
-	struct icc_node *n;
+	struct icc_analde *n;
 	int cluster_index = 0;
 	int i;
 
-	seq_puts(s, "digraph {\n\trankdir = LR\n\tnode [shape = record]\n");
+	seq_puts(s, "digraph {\n\trankdir = LR\n\tanalde [shape = record]\n");
 	mutex_lock(&icc_lock);
 
 	/* draw providers as cluster subgraphs */
@@ -114,12 +114,12 @@ static int icc_graph_show(struct seq_file *s, void *data)
 			seq_printf(s, "\t\tlabel = \"%s\"\n",
 				   dev_name(provider->dev));
 
-		/* draw nodes */
-		list_for_each_entry(n, &provider->nodes, node_list)
-			icc_graph_show_node(s, n);
+		/* draw analdes */
+		list_for_each_entry(n, &provider->analdes, analde_list)
+			icc_graph_show_analde(s, n);
 
 		/* draw internal links */
-		list_for_each_entry(n, &provider->nodes, node_list)
+		list_for_each_entry(n, &provider->analdes, analde_list)
 			for (i = 0; i < n->num_links; ++i)
 				if (n->provider == n->links[i]->provider)
 					icc_graph_show_link(s, 2, n,
@@ -130,7 +130,7 @@ static int icc_graph_show(struct seq_file *s, void *data)
 
 	/* draw external links */
 	list_for_each_entry(provider, &icc_providers, provider_list)
-		list_for_each_entry(n, &provider->nodes, node_list)
+		list_for_each_entry(n, &provider->analdes, analde_list)
 			for (i = 0; i < n->num_links; ++i)
 				if (n->provider != n->links[i]->provider)
 					icc_graph_show_link(s, 1, n,
@@ -143,18 +143,18 @@ static int icc_graph_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(icc_graph);
 
-static struct icc_node *node_find(const int id)
+static struct icc_analde *analde_find(const int id)
 {
 	return idr_find(&icc_idr, id);
 }
 
-static struct icc_node *node_find_by_name(const char *name)
+static struct icc_analde *analde_find_by_name(const char *name)
 {
 	struct icc_provider *provider;
-	struct icc_node *n;
+	struct icc_analde *n;
 
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		list_for_each_entry(n, &provider->nodes, node_list) {
+		list_for_each_entry(n, &provider->analdes, analde_list) {
 			if (!strcmp(n->name, name))
 				return n;
 		}
@@ -163,37 +163,37 @@ static struct icc_node *node_find_by_name(const char *name)
 	return NULL;
 }
 
-static struct icc_path *path_init(struct device *dev, struct icc_node *dst,
-				  ssize_t num_nodes)
+static struct icc_path *path_init(struct device *dev, struct icc_analde *dst,
+				  ssize_t num_analdes)
 {
-	struct icc_node *node = dst;
+	struct icc_analde *analde = dst;
 	struct icc_path *path;
 	int i;
 
-	path = kzalloc(struct_size(path, reqs, num_nodes), GFP_KERNEL);
+	path = kzalloc(struct_size(path, reqs, num_analdes), GFP_KERNEL);
 	if (!path)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	path->num_nodes = num_nodes;
+	path->num_analdes = num_analdes;
 
-	for (i = num_nodes - 1; i >= 0; i--) {
-		node->provider->users++;
-		hlist_add_head(&path->reqs[i].req_node, &node->req_list);
-		path->reqs[i].node = node;
+	for (i = num_analdes - 1; i >= 0; i--) {
+		analde->provider->users++;
+		hlist_add_head(&path->reqs[i].req_analde, &analde->req_list);
+		path->reqs[i].analde = analde;
 		path->reqs[i].dev = dev;
 		path->reqs[i].enabled = true;
-		/* reference to previous node was saved during path traversal */
-		node = node->reverse;
+		/* reference to previous analde was saved during path traversal */
+		analde = analde->reverse;
 	}
 
 	return path;
 }
 
-static struct icc_path *path_find(struct device *dev, struct icc_node *src,
-				  struct icc_node *dst)
+static struct icc_path *path_find(struct device *dev, struct icc_analde *src,
+				  struct icc_analde *dst)
 {
 	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
-	struct icc_node *n, *node = NULL;
+	struct icc_analde *n, *analde = NULL;
 	struct list_head traverse_list;
 	struct list_head edge_list;
 	struct list_head visited_list;
@@ -208,18 +208,18 @@ static struct icc_path *path_find(struct device *dev, struct icc_node *src,
 	src->reverse = NULL;
 
 	do {
-		list_for_each_entry_safe(node, n, &traverse_list, search_list) {
-			if (node == dst) {
+		list_for_each_entry_safe(analde, n, &traverse_list, search_list) {
+			if (analde == dst) {
 				found = true;
 				list_splice_init(&edge_list, &visited_list);
 				list_splice_init(&traverse_list, &visited_list);
 				break;
 			}
-			for (i = 0; i < node->num_links; i++) {
-				struct icc_node *tmp = node->links[i];
+			for (i = 0; i < analde->num_links; i++) {
+				struct icc_analde *tmp = analde->links[i];
 
 				if (!tmp) {
-					path = ERR_PTR(-ENOENT);
+					path = ERR_PTR(-EANALENT);
 					goto out;
 				}
 
@@ -227,7 +227,7 @@ static struct icc_path *path_find(struct device *dev, struct icc_node *src,
 					continue;
 
 				tmp->is_traversed = true;
-				tmp->reverse = node;
+				tmp->reverse = analde;
 				list_add_tail(&tmp->search_list, &edge_list);
 			}
 		}
@@ -256,25 +256,25 @@ out:
 }
 
 /*
- * We want the path to honor all bandwidth requests, so the average and peak
- * bandwidth requirements from each consumer are aggregated at each node.
+ * We want the path to hoanalr all bandwidth requests, so the average and peak
+ * bandwidth requirements from each consumer are aggregated at each analde.
  * The aggregation is platform specific, so each platform can customize it by
  * implementing its own aggregate() function.
  */
 
-static int aggregate_requests(struct icc_node *node)
+static int aggregate_requests(struct icc_analde *analde)
 {
-	struct icc_provider *p = node->provider;
+	struct icc_provider *p = analde->provider;
 	struct icc_req *r;
 	u32 avg_bw, peak_bw;
 
-	node->avg_bw = 0;
-	node->peak_bw = 0;
+	analde->avg_bw = 0;
+	analde->peak_bw = 0;
 
 	if (p->pre_aggregate)
-		p->pre_aggregate(node);
+		p->pre_aggregate(analde);
 
-	hlist_for_each_entry(r, &node->req_list, req_node) {
+	hlist_for_each_entry(r, &analde->req_list, req_analde) {
 		if (r->enabled) {
 			avg_bw = r->avg_bw;
 			peak_bw = r->peak_bw;
@@ -282,13 +282,13 @@ static int aggregate_requests(struct icc_node *node)
 			avg_bw = 0;
 			peak_bw = 0;
 		}
-		p->aggregate(node, r->tag, avg_bw, peak_bw,
-			     &node->avg_bw, &node->peak_bw);
+		p->aggregate(analde, r->tag, avg_bw, peak_bw,
+			     &analde->avg_bw, &analde->peak_bw);
 
 		/* during boot use the initial bandwidth as a floor value */
 		if (!synced_state) {
-			node->avg_bw = max(node->avg_bw, node->init_avg);
-			node->peak_bw = max(node->peak_bw, node->init_peak);
+			analde->avg_bw = max(analde->avg_bw, analde->init_avg);
+			analde->peak_bw = max(analde->peak_bw, analde->init_peak);
 		}
 	}
 
@@ -297,13 +297,13 @@ static int aggregate_requests(struct icc_node *node)
 
 static int apply_constraints(struct icc_path *path)
 {
-	struct icc_node *next, *prev = NULL;
+	struct icc_analde *next, *prev = NULL;
 	struct icc_provider *p;
 	int ret = -EINVAL;
 	int i;
 
-	for (i = 0; i < path->num_nodes; i++) {
-		next = path->reqs[i].node;
+	for (i = 0; i < path->num_analdes; i++) {
+		next = path->reqs[i].analde;
 		p = next->provider;
 
 		/* both endpoints should be valid master-slave pairs */
@@ -323,7 +323,7 @@ out:
 	return ret;
 }
 
-int icc_std_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+int icc_std_aggregate(struct icc_analde *analde, u32 tag, u32 avg_bw,
 		      u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
 {
 	*agg_avg += avg_bw;
@@ -334,44 +334,44 @@ int icc_std_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
 EXPORT_SYMBOL_GPL(icc_std_aggregate);
 
 /* of_icc_xlate_onecell() - Translate function using a single index.
- * @spec: OF phandle args to map into an interconnect node.
+ * @spec: OF phandle args to map into an interconnect analde.
  * @data: private data (pointer to struct icc_onecell_data)
  *
  * This is a generic translate function that can be used to model simple
- * interconnect providers that have one device tree node and provide
- * multiple interconnect nodes. A single cell is used as an index into
- * an array of icc nodes specified in the icc_onecell_data struct when
+ * interconnect providers that have one device tree analde and provide
+ * multiple interconnect analdes. A single cell is used as an index into
+ * an array of icc analdes specified in the icc_onecell_data struct when
  * registering the provider.
  */
-struct icc_node *of_icc_xlate_onecell(struct of_phandle_args *spec,
+struct icc_analde *of_icc_xlate_onecell(struct of_phandle_args *spec,
 				      void *data)
 {
 	struct icc_onecell_data *icc_data = data;
 	unsigned int idx = spec->args[0];
 
-	if (idx >= icc_data->num_nodes) {
+	if (idx >= icc_data->num_analdes) {
 		pr_err("%s: invalid index %u\n", __func__, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return icc_data->nodes[idx];
+	return icc_data->analdes[idx];
 }
 EXPORT_SYMBOL_GPL(of_icc_xlate_onecell);
 
 /**
- * of_icc_get_from_provider() - Look-up interconnect node
+ * of_icc_get_from_provider() - Look-up interconnect analde
  * @spec: OF phandle args to use for look-up
  *
- * Looks for interconnect provider under the node specified by @spec and if
- * found, uses xlate function of the provider to map phandle args to node.
+ * Looks for interconnect provider under the analde specified by @spec and if
+ * found, uses xlate function of the provider to map phandle args to analde.
  *
- * Returns a valid pointer to struct icc_node_data on success or ERR_PTR()
+ * Returns a valid pointer to struct icc_analde_data on success or ERR_PTR()
  * on failure.
  */
-struct icc_node_data *of_icc_get_from_provider(struct of_phandle_args *spec)
+struct icc_analde_data *of_icc_get_from_provider(struct of_phandle_args *spec)
 {
-	struct icc_node *node = ERR_PTR(-EPROBE_DEFER);
-	struct icc_node_data *data = NULL;
+	struct icc_analde *analde = ERR_PTR(-EPROBE_DEFER);
+	struct icc_analde_data *data = NULL;
 	struct icc_provider *provider;
 
 	if (!spec)
@@ -379,33 +379,33 @@ struct icc_node_data *of_icc_get_from_provider(struct of_phandle_args *spec)
 
 	mutex_lock(&icc_lock);
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		if (provider->dev->of_node == spec->np) {
+		if (provider->dev->of_analde == spec->np) {
 			if (provider->xlate_extended) {
 				data = provider->xlate_extended(spec, provider->data);
 				if (!IS_ERR(data)) {
-					node = data->node;
+					analde = data->analde;
 					break;
 				}
 			} else {
-				node = provider->xlate(spec, provider->data);
-				if (!IS_ERR(node))
+				analde = provider->xlate(spec, provider->data);
+				if (!IS_ERR(analde))
 					break;
 			}
 		}
 	}
 	mutex_unlock(&icc_lock);
 
-	if (!node)
+	if (!analde)
 		return ERR_PTR(-EINVAL);
 
-	if (IS_ERR(node))
-		return ERR_CAST(node);
+	if (IS_ERR(analde))
+		return ERR_CAST(analde);
 
 	if (!data) {
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
-			return ERR_PTR(-ENOMEM);
-		data->node = node;
+			return ERR_PTR(-EANALMEM);
+		data->analde = analde;
 	}
 
 	return data;
@@ -423,7 +423,7 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 
 	ptr = devres_alloc(devm_icc_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	path = of_icc_get(dev, name);
 	if (!IS_ERR(path)) {
@@ -438,13 +438,13 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 EXPORT_SYMBOL_GPL(devm_of_icc_get);
 
 /**
- * of_icc_get_by_index() - get a path handle from a DT node based on index
+ * of_icc_get_by_index() - get a path handle from a DT analde based on index
  * @dev: device pointer for the consumer device
  * @idx: interconnect path index
  *
  * This function will search for a path between two endpoints and return an
  * icc_path handle on success. Use icc_put() to release constraints when they
- * are not needed anymore.
+ * are analt needed anymore.
  * If the interconnect API is disabled, NULL is returned and the consumer
  * drivers will still build. Drivers are free to handle this specifically,
  * but they don't have to.
@@ -455,25 +455,25 @@ EXPORT_SYMBOL_GPL(devm_of_icc_get);
 struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 {
 	struct icc_path *path;
-	struct icc_node_data *src_data, *dst_data;
-	struct device_node *np;
+	struct icc_analde_data *src_data, *dst_data;
+	struct device_analde *np;
 	struct of_phandle_args src_args, dst_args;
 	int ret;
 
-	if (!dev || !dev->of_node)
-		return ERR_PTR(-ENODEV);
+	if (!dev || !dev->of_analde)
+		return ERR_PTR(-EANALDEV);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	/*
-	 * When the consumer DT node do not have "interconnects" property
+	 * When the consumer DT analde do analt have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
 	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
-	 * We use a combination of phandle and specifier for endpoint. For now
+	 * We use a combination of phandle and specifier for endpoint. For analw
 	 * lets support only global ids and extend this in the future if needed
 	 * without breaking DT compatibility.
 	 */
@@ -483,7 +483,7 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 	if (ret)
 		return ERR_PTR(ret);
 
-	of_node_put(src_args.np);
+	of_analde_put(src_args.np);
 
 	ret = of_parse_phandle_with_args(np, "interconnects",
 					 "#interconnect-cells", idx * 2 + 1,
@@ -491,25 +491,25 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 	if (ret)
 		return ERR_PTR(ret);
 
-	of_node_put(dst_args.np);
+	of_analde_put(dst_args.np);
 
 	src_data = of_icc_get_from_provider(&src_args);
 
 	if (IS_ERR(src_data)) {
-		dev_err_probe(dev, PTR_ERR(src_data), "error finding src node\n");
+		dev_err_probe(dev, PTR_ERR(src_data), "error finding src analde\n");
 		return ERR_CAST(src_data);
 	}
 
 	dst_data = of_icc_get_from_provider(&dst_args);
 
 	if (IS_ERR(dst_data)) {
-		dev_err_probe(dev, PTR_ERR(dst_data), "error finding dst node\n");
+		dev_err_probe(dev, PTR_ERR(dst_data), "error finding dst analde\n");
 		kfree(src_data);
 		return ERR_CAST(dst_data);
 	}
 
 	mutex_lock(&icc_lock);
-	path = path_find(dev, src_data->node, dst_data->node);
+	path = path_find(dev, src_data->analde, dst_data->analde);
 	mutex_unlock(&icc_lock);
 	if (IS_ERR(path)) {
 		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
@@ -520,10 +520,10 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 		icc_set_tag(path, src_data->tag);
 
 	path->name = kasprintf(GFP_KERNEL, "%s-%s",
-			       src_data->node->name, dst_data->node->name);
+			       src_data->analde->name, dst_data->analde->name);
 	if (!path->name) {
 		kfree(path);
-		path = ERR_PTR(-ENOMEM);
+		path = ERR_PTR(-EANALMEM);
 	}
 
 free_icc_data:
@@ -534,13 +534,13 @@ free_icc_data:
 EXPORT_SYMBOL_GPL(of_icc_get_by_index);
 
 /**
- * of_icc_get() - get a path handle from a DT node based on name
+ * of_icc_get() - get a path handle from a DT analde based on name
  * @dev: device pointer for the consumer device
  * @name: interconnect path name
  *
  * This function will search for a path between two endpoints and return an
  * icc_path handle on success. Use icc_put() to release constraints when they
- * are not needed anymore.
+ * are analt needed anymore.
  * If the interconnect API is disabled, NULL is returned and the consumer
  * drivers will still build. Drivers are free to handle this specifically,
  * but they don't have to.
@@ -550,23 +550,23 @@ EXPORT_SYMBOL_GPL(of_icc_get_by_index);
  */
 struct icc_path *of_icc_get(struct device *dev, const char *name)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int idx = 0;
 
-	if (!dev || !dev->of_node)
-		return ERR_PTR(-ENODEV);
+	if (!dev || !dev->of_analde)
+		return ERR_PTR(-EANALDEV);
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	/*
-	 * When the consumer DT node do not have "interconnects" property
+	 * When the consumer DT analde do analt have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
 	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
-	 * We use a combination of phandle and specifier for endpoint. For now
+	 * We use a combination of phandle and specifier for endpoint. For analw
 	 * lets support only global ids and extend this in the future if needed
 	 * without breaking DT compatibility.
 	 */
@@ -583,45 +583,45 @@ EXPORT_SYMBOL_GPL(of_icc_get);
 /**
  * icc_get() - get a path handle between two endpoints
  * @dev: device pointer for the consumer device
- * @src: source node name
- * @dst: destination node name
+ * @src: source analde name
+ * @dst: destination analde name
  *
  * This function will search for a path between two endpoints and return an
  * icc_path handle on success. Use icc_put() to release constraints when they
- * are not needed anymore.
+ * are analt needed anymore.
  *
  * Return: icc_path pointer on success or ERR_PTR() on error. NULL is returned
  * when the API is disabled.
  */
 struct icc_path *icc_get(struct device *dev, const char *src, const char *dst)
 {
-	struct icc_node *src_node, *dst_node;
+	struct icc_analde *src_analde, *dst_analde;
 	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
 
 	mutex_lock(&icc_lock);
 
-	src_node = node_find_by_name(src);
-	if (!src_node) {
+	src_analde = analde_find_by_name(src);
+	if (!src_analde) {
 		dev_err(dev, "%s: invalid src=%s\n", __func__, src);
 		goto out;
 	}
 
-	dst_node = node_find_by_name(dst);
-	if (!dst_node) {
+	dst_analde = analde_find_by_name(dst);
+	if (!dst_analde) {
 		dev_err(dev, "%s: invalid dst=%s\n", __func__, dst);
 		goto out;
 	}
 
-	path = path_find(dev, src_node, dst_node);
+	path = path_find(dev, src_analde, dst_analde);
 	if (IS_ERR(path)) {
 		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
 		goto out;
 	}
 
-	path->name = kasprintf(GFP_KERNEL, "%s-%s", src_node->name, dst_node->name);
+	path->name = kasprintf(GFP_KERNEL, "%s-%s", src_analde->name, dst_analde->name);
 	if (!path->name) {
 		kfree(path);
-		path = ERR_PTR(-ENOMEM);
+		path = ERR_PTR(-EANALMEM);
 	}
 out:
 	mutex_unlock(&icc_lock);
@@ -645,7 +645,7 @@ void icc_set_tag(struct icc_path *path, u32 tag)
 
 	mutex_lock(&icc_lock);
 
-	for (i = 0; i < path->num_nodes; i++)
+	for (i = 0; i < path->num_analdes; i++)
 		path->reqs[i].tag = tag;
 
 	mutex_unlock(&icc_lock);
@@ -678,16 +678,16 @@ EXPORT_SYMBOL_GPL(icc_get_name);
  *
  * This function is used by an interconnect consumer to express its own needs
  * in terms of bandwidth for a previously requested path between two endpoints.
- * The requests are aggregated and each node is updated accordingly. The entire
+ * The requests are aggregated and each analde is updated accordingly. The entire
  * path is locked by a mutex to ensure that the set() is completed.
  * The @path can be NULL when the "interconnects" DT properties is missing,
- * which will mean that no constraints will be set.
+ * which will mean that anal constraints will be set.
  *
  * Returns 0 on success, or an appropriate error code otherwise.
  */
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 	u32 old_avg, old_peak;
 	size_t i;
 	int ret;
@@ -695,7 +695,7 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	if (!path)
 		return 0;
 
-	if (WARN_ON(IS_ERR(path) || !path->num_nodes))
+	if (WARN_ON(IS_ERR(path) || !path->num_analdes))
 		return -EINVAL;
 
 	mutex_lock(&icc_bw_lock);
@@ -703,17 +703,17 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	old_avg = path->reqs[0].avg_bw;
 	old_peak = path->reqs[0].peak_bw;
 
-	for (i = 0; i < path->num_nodes; i++) {
-		node = path->reqs[i].node;
+	for (i = 0; i < path->num_analdes; i++) {
+		analde = path->reqs[i].analde;
 
 		/* update the consumer request for this path */
 		path->reqs[i].avg_bw = avg_bw;
 		path->reqs[i].peak_bw = peak_bw;
 
-		/* aggregate requests for this node */
-		aggregate_requests(node);
+		/* aggregate requests for this analde */
+		aggregate_requests(analde);
 
-		trace_icc_set_bw(path, node, i, avg_bw, peak_bw);
+		trace_icc_set_bw(path, analde, i, avg_bw, peak_bw);
 	}
 
 	ret = apply_constraints(path);
@@ -721,11 +721,11 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 		pr_debug("interconnect: error applying constraints (%d)\n",
 			 ret);
 
-		for (i = 0; i < path->num_nodes; i++) {
-			node = path->reqs[i].node;
+		for (i = 0; i < path->num_analdes; i++) {
+			analde = path->reqs[i].analde;
 			path->reqs[i].avg_bw = old_avg;
 			path->reqs[i].peak_bw = old_peak;
-			aggregate_requests(node);
+			aggregate_requests(analde);
 		}
 		apply_constraints(path);
 	}
@@ -745,12 +745,12 @@ static int __icc_enable(struct icc_path *path, bool enable)
 	if (!path)
 		return 0;
 
-	if (WARN_ON(IS_ERR(path) || !path->num_nodes))
+	if (WARN_ON(IS_ERR(path) || !path->num_analdes))
 		return -EINVAL;
 
 	mutex_lock(&icc_lock);
 
-	for (i = 0; i < path->num_nodes; i++)
+	for (i = 0; i < path->num_analdes; i++)
 		path->reqs[i].enabled = enable;
 
 	mutex_unlock(&icc_lock);
@@ -776,11 +776,11 @@ EXPORT_SYMBOL_GPL(icc_disable);
  * @path: interconnect path
  *
  * Use this function to release the constraints on a path when the path is
- * no longer needed. The constraints will be re-aggregated.
+ * anal longer needed. The constraints will be re-aggregated.
  */
 void icc_put(struct icc_path *path)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 	size_t i;
 	int ret;
 
@@ -792,11 +792,11 @@ void icc_put(struct icc_path *path)
 		pr_err("%s: error (%d)\n", __func__, ret);
 
 	mutex_lock(&icc_lock);
-	for (i = 0; i < path->num_nodes; i++) {
-		node = path->reqs[i].node;
-		hlist_del(&path->reqs[i].req_node);
-		if (!WARN_ON(!node->provider->users))
-			node->provider->users--;
+	for (i = 0; i < path->num_analdes; i++) {
+		analde = path->reqs[i].analde;
+		hlist_del(&path->reqs[i].req_analde);
+		if (!WARN_ON(!analde->provider->users))
+			analde->provider->users--;
 	}
 	mutex_unlock(&icc_lock);
 
@@ -805,104 +805,104 @@ void icc_put(struct icc_path *path)
 }
 EXPORT_SYMBOL_GPL(icc_put);
 
-static struct icc_node *icc_node_create_nolock(int id)
+static struct icc_analde *icc_analde_create_anallock(int id)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 
-	/* check if node already exists */
-	node = node_find(id);
-	if (node)
-		return node;
+	/* check if analde already exists */
+	analde = analde_find(id);
+	if (analde)
+		return analde;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return ERR_PTR(-ENOMEM);
+	analde = kzalloc(sizeof(*analde), GFP_KERNEL);
+	if (!analde)
+		return ERR_PTR(-EANALMEM);
 
-	id = idr_alloc(&icc_idr, node, id, id + 1, GFP_KERNEL);
+	id = idr_alloc(&icc_idr, analde, id, id + 1, GFP_KERNEL);
 	if (id < 0) {
 		WARN(1, "%s: couldn't get idr\n", __func__);
-		kfree(node);
+		kfree(analde);
 		return ERR_PTR(id);
 	}
 
-	node->id = id;
+	analde->id = id;
 
-	return node;
+	return analde;
 }
 
 /**
- * icc_node_create() - create a node
- * @id: node id
+ * icc_analde_create() - create a analde
+ * @id: analde id
  *
- * Return: icc_node pointer on success, or ERR_PTR() on error
+ * Return: icc_analde pointer on success, or ERR_PTR() on error
  */
-struct icc_node *icc_node_create(int id)
+struct icc_analde *icc_analde_create(int id)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 
 	mutex_lock(&icc_lock);
 
-	node = icc_node_create_nolock(id);
+	analde = icc_analde_create_anallock(id);
 
 	mutex_unlock(&icc_lock);
 
-	return node;
+	return analde;
 }
-EXPORT_SYMBOL_GPL(icc_node_create);
+EXPORT_SYMBOL_GPL(icc_analde_create);
 
 /**
- * icc_node_destroy() - destroy a node
- * @id: node id
+ * icc_analde_destroy() - destroy a analde
+ * @id: analde id
  */
-void icc_node_destroy(int id)
+void icc_analde_destroy(int id)
 {
-	struct icc_node *node;
+	struct icc_analde *analde;
 
 	mutex_lock(&icc_lock);
 
-	node = node_find(id);
-	if (node) {
-		idr_remove(&icc_idr, node->id);
-		WARN_ON(!hlist_empty(&node->req_list));
+	analde = analde_find(id);
+	if (analde) {
+		idr_remove(&icc_idr, analde->id);
+		WARN_ON(!hlist_empty(&analde->req_list));
 	}
 
 	mutex_unlock(&icc_lock);
 
-	if (!node)
+	if (!analde)
 		return;
 
-	kfree(node->links);
-	kfree(node);
+	kfree(analde->links);
+	kfree(analde);
 }
-EXPORT_SYMBOL_GPL(icc_node_destroy);
+EXPORT_SYMBOL_GPL(icc_analde_destroy);
 
 /**
- * icc_link_create() - create a link between two nodes
- * @node: source node id
- * @dst_id: destination node id
+ * icc_link_create() - create a link between two analdes
+ * @analde: source analde id
+ * @dst_id: destination analde id
  *
- * Create a link between two nodes. The nodes might belong to different
- * interconnect providers and the @dst_id node might not exist (if the
- * provider driver has not probed yet). So just create the @dst_id node
- * and when the actual provider driver is probed, the rest of the node
+ * Create a link between two analdes. The analdes might belong to different
+ * interconnect providers and the @dst_id analde might analt exist (if the
+ * provider driver has analt probed yet). So just create the @dst_id analde
+ * and when the actual provider driver is probed, the rest of the analde
  * data is filled.
  *
  * Return: 0 on success, or an error code otherwise
  */
-int icc_link_create(struct icc_node *node, const int dst_id)
+int icc_link_create(struct icc_analde *analde, const int dst_id)
 {
-	struct icc_node *dst;
-	struct icc_node **new;
+	struct icc_analde *dst;
+	struct icc_analde **new;
 	int ret = 0;
 
-	if (!node->provider)
+	if (!analde->provider)
 		return -EINVAL;
 
 	mutex_lock(&icc_lock);
 
-	dst = node_find(dst_id);
+	dst = analde_find(dst_id);
 	if (!dst) {
-		dst = icc_node_create_nolock(dst_id);
+		dst = icc_analde_create_anallock(dst_id);
 
 		if (IS_ERR(dst)) {
 			ret = PTR_ERR(dst);
@@ -910,16 +910,16 @@ int icc_link_create(struct icc_node *node, const int dst_id)
 		}
 	}
 
-	new = krealloc(node->links,
-		       (node->num_links + 1) * sizeof(*node->links),
+	new = krealloc(analde->links,
+		       (analde->num_links + 1) * sizeof(*analde->links),
 		       GFP_KERNEL);
 	if (!new) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
-	node->links = new;
-	node->links[node->num_links++] = dst;
+	analde->links = new;
+	analde->links[analde->num_links++] = dst;
 
 out:
 	mutex_unlock(&icc_lock);
@@ -929,97 +929,97 @@ out:
 EXPORT_SYMBOL_GPL(icc_link_create);
 
 /**
- * icc_node_add() - add interconnect node to interconnect provider
- * @node: pointer to the interconnect node
+ * icc_analde_add() - add interconnect analde to interconnect provider
+ * @analde: pointer to the interconnect analde
  * @provider: pointer to the interconnect provider
  */
-void icc_node_add(struct icc_node *node, struct icc_provider *provider)
+void icc_analde_add(struct icc_analde *analde, struct icc_provider *provider)
 {
-	if (WARN_ON(node->provider))
+	if (WARN_ON(analde->provider))
 		return;
 
 	mutex_lock(&icc_lock);
 	mutex_lock(&icc_bw_lock);
 
-	node->provider = provider;
-	list_add_tail(&node->node_list, &provider->nodes);
+	analde->provider = provider;
+	list_add_tail(&analde->analde_list, &provider->analdes);
 
 	/* get the initial bandwidth values and sync them with hardware */
 	if (provider->get_bw) {
-		provider->get_bw(node, &node->init_avg, &node->init_peak);
+		provider->get_bw(analde, &analde->init_avg, &analde->init_peak);
 	} else {
-		node->init_avg = INT_MAX;
-		node->init_peak = INT_MAX;
+		analde->init_avg = INT_MAX;
+		analde->init_peak = INT_MAX;
 	}
-	node->avg_bw = node->init_avg;
-	node->peak_bw = node->init_peak;
+	analde->avg_bw = analde->init_avg;
+	analde->peak_bw = analde->init_peak;
 
-	if (node->avg_bw || node->peak_bw) {
+	if (analde->avg_bw || analde->peak_bw) {
 		if (provider->pre_aggregate)
-			provider->pre_aggregate(node);
+			provider->pre_aggregate(analde);
 
 		if (provider->aggregate)
-			provider->aggregate(node, 0, node->init_avg, node->init_peak,
-					    &node->avg_bw, &node->peak_bw);
+			provider->aggregate(analde, 0, analde->init_avg, analde->init_peak,
+					    &analde->avg_bw, &analde->peak_bw);
 		if (provider->set)
-			provider->set(node, node);
+			provider->set(analde, analde);
 	}
 
-	node->avg_bw = 0;
-	node->peak_bw = 0;
+	analde->avg_bw = 0;
+	analde->peak_bw = 0;
 
 	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
 }
-EXPORT_SYMBOL_GPL(icc_node_add);
+EXPORT_SYMBOL_GPL(icc_analde_add);
 
 /**
- * icc_node_del() - delete interconnect node from interconnect provider
- * @node: pointer to the interconnect node
+ * icc_analde_del() - delete interconnect analde from interconnect provider
+ * @analde: pointer to the interconnect analde
  */
-void icc_node_del(struct icc_node *node)
+void icc_analde_del(struct icc_analde *analde)
 {
 	mutex_lock(&icc_lock);
 
-	list_del(&node->node_list);
+	list_del(&analde->analde_list);
 
 	mutex_unlock(&icc_lock);
 }
-EXPORT_SYMBOL_GPL(icc_node_del);
+EXPORT_SYMBOL_GPL(icc_analde_del);
 
 /**
- * icc_nodes_remove() - remove all previously added nodes from provider
- * @provider: the interconnect provider we are removing nodes from
+ * icc_analdes_remove() - remove all previously added analdes from provider
+ * @provider: the interconnect provider we are removing analdes from
  *
  * Return: 0 on success, or an error code otherwise
  */
-int icc_nodes_remove(struct icc_provider *provider)
+int icc_analdes_remove(struct icc_provider *provider)
 {
-	struct icc_node *n, *tmp;
+	struct icc_analde *n, *tmp;
 
 	if (WARN_ON(IS_ERR_OR_NULL(provider)))
 		return -EINVAL;
 
-	list_for_each_entry_safe_reverse(n, tmp, &provider->nodes, node_list) {
-		icc_node_del(n);
-		icc_node_destroy(n->id);
+	list_for_each_entry_safe_reverse(n, tmp, &provider->analdes, analde_list) {
+		icc_analde_del(n);
+		icc_analde_destroy(n->id);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(icc_nodes_remove);
+EXPORT_SYMBOL_GPL(icc_analdes_remove);
 
 /**
  * icc_provider_init() - initialize a new interconnect provider
  * @provider: the interconnect provider to initialize
  *
- * Must be called before adding nodes to the provider.
+ * Must be called before adding analdes to the provider.
  */
 void icc_provider_init(struct icc_provider *provider)
 {
 	WARN_ON(!provider->set);
 
-	INIT_LIST_HEAD(&provider->nodes);
+	INIT_LIST_HEAD(&provider->analdes);
 }
 EXPORT_SYMBOL_GPL(icc_provider_init);
 
@@ -1058,7 +1058,7 @@ void icc_provider_deregister(struct icc_provider *provider)
 }
 EXPORT_SYMBOL_GPL(icc_provider_deregister);
 
-static const struct of_device_id __maybe_unused ignore_list[] = {
+static const struct of_device_id __maybe_unused iganalre_list[] = {
 	{ .compatible = "qcom,sc7180-ipa-virt" },
 	{ .compatible = "qcom,sc8180x-ipa-virt" },
 	{ .compatible = "qcom,sdx55-ipa-virt" },
@@ -1067,14 +1067,14 @@ static const struct of_device_id __maybe_unused ignore_list[] = {
 	{}
 };
 
-static int of_count_icc_providers(struct device_node *np)
+static int of_count_icc_providers(struct device_analde *np)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	int count = 0;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		if (of_property_read_bool(child, "#interconnect-cells") &&
-		    likely(!of_match_node(ignore_list, child)))
+		    likely(!of_match_analde(iganalre_list, child)))
 			count++;
 		count += of_count_icc_providers(child);
 	}
@@ -1085,7 +1085,7 @@ static int of_count_icc_providers(struct device_node *np)
 void icc_sync_state(struct device *dev)
 {
 	struct icc_provider *p;
-	struct icc_node *n;
+	struct icc_analde *n;
 	static int count;
 
 	count++;
@@ -1098,7 +1098,7 @@ void icc_sync_state(struct device *dev)
 	synced_state = true;
 	list_for_each_entry(p, &icc_providers, provider_list) {
 		dev_dbg(p->dev, "interconnect provider is in synced state\n");
-		list_for_each_entry(n, &p->nodes, node_list) {
+		list_for_each_entry(n, &p->analdes, analde_list) {
 			if (n->init_avg || n->init_peak) {
 				n->init_avg = 0;
 				n->init_peak = 0;
@@ -1114,17 +1114,17 @@ EXPORT_SYMBOL_GPL(icc_sync_state);
 
 static int __init icc_init(void)
 {
-	struct device_node *root;
+	struct device_analde *root;
 
 	/* Teach lockdep about lock ordering wrt. shrinker: */
 	fs_reclaim_acquire(GFP_KERNEL);
 	might_lock(&icc_bw_lock);
 	fs_reclaim_release(GFP_KERNEL);
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 
 	providers_count = of_count_icc_providers(root);
-	of_node_put(root);
+	of_analde_put(root);
 
 	icc_debugfs_dir = debugfs_create_dir("interconnect", NULL);
 	debugfs_create_file("interconnect_summary", 0444,

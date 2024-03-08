@@ -8,7 +8,7 @@
  * Based on Omnivision OV7670 Camera Driver
  * Copyright (C) 2006-7 Jonathan Corbet <corbet@lwn.net>
  *
- * Copyright (C) 2016, Synopsys, Inc.
+ * Copyright (C) 2016, Syanalpsys, Inc.
  */
 
 #include <linux/clk.h>
@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
 
@@ -509,7 +509,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 		.format = {
 			.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 			.colorspace	= V4L2_COLORSPACE_SRGB,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.width		= 2592,
 			.height		= 1944
 		},
@@ -530,7 +530,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 		.format = {
 			.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 			.colorspace	= V4L2_COLORSPACE_SRGB,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.width		= 1920,
 			.height		= 1080
 		},
@@ -551,7 +551,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 		.format = {
 			.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 			.colorspace	= V4L2_COLORSPACE_SRGB,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.width		= 1296,
 			.height		= 972
 		},
@@ -572,7 +572,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 		.format = {
 			.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 			.colorspace	= V4L2_COLORSPACE_SRGB,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.width		= 640,
 			.height		= 480
 		},
@@ -798,7 +798,7 @@ static int ov5647_power_on(struct device *dev)
 	/* Stream off to coax lanes into LP-11 state. */
 	ret = ov5647_stream_off(&sensor->sd);
 	if (ret < 0) {
-		dev_err(dev, "camera not available, check power\n");
+		dev_err(dev, "camera analt available, check power\n");
 		goto error_clk_disable;
 	}
 
@@ -1103,7 +1103,7 @@ static int ov5647_detect(struct v4l2_subdev *sd)
 
 	if (read != 0x56) {
 		dev_err(&client->dev, "ID High expected 0x56 got %x", read);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = ov5647_read(sd, OV5647_REG_CHIPID_L, &read);
@@ -1112,7 +1112,7 @@ static int ov5647_detect(struct v4l2_subdev *sd)
 
 	if (read != 0x47) {
 		dev_err(&client->dev, "ID Low expected 0x47 got %x", read);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return ov5647_write(sd, OV5647_SW_RESET, 0x00);
@@ -1148,7 +1148,7 @@ static int ov5647_s_autogain(struct v4l2_subdev *sd, u32 val)
 	int ret;
 	u8 reg;
 
-	/* Non-zero turns on AGC by clearing bit 1.*/
+	/* Analn-zero turns on AGC by clearing bit 1.*/
 	ret = ov5647_read(sd, OV5647_REG_AEC_AGC, &reg);
 	if (ret)
 		return ret;
@@ -1230,7 +1230,7 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/*
-	 * If the device is not powered up do not apply any controls
+	 * If the device is analt powered up do analt apply any controls
 	 * to H/W at this time. Instead the controls will be restored
 	 * at s_stream(1) time.
 	 */
@@ -1270,7 +1270,7 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	default:
 		dev_info(&client->dev,
-			 "Control (id:0x%x, val:0x%x) not supported\n",
+			 "Control (id:0x%x, val:0x%x) analt supported\n",
 			 ctrl->id, ctrl->val);
 		return -EINVAL;
 	}
@@ -1355,34 +1355,34 @@ handler_free:
 	return sensor->ctrls.error;
 }
 
-static int ov5647_parse_dt(struct ov5647 *sensor, struct device_node *np)
+static int ov5647_parse_dt(struct ov5647 *sensor, struct device_analde *np)
 {
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct device_node *ep;
+	struct device_analde *ep;
 	int ret;
 
 	ep = of_graph_get_next_endpoint(np, NULL);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep), &bus_cfg);
 	if (ret)
 		goto out;
 
 	sensor->clock_ncont = bus_cfg.bus.mipi_csi2.flags &
-			      V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+			      V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK;
 
 out:
-	of_node_put(ep);
+	of_analde_put(ep);
 
 	return ret;
 }
 
 static int ov5647_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct device *dev = &client->dev;
 	struct ov5647 *sensor;
 	struct v4l2_subdev *sd;
@@ -1391,7 +1391,7 @@ static int ov5647_probe(struct i2c_client *client)
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		ret = ov5647_parse_dt(sensor, np);
@@ -1403,7 +1403,7 @@ static int ov5647_probe(struct i2c_client *client)
 
 	sensor->xclk = devm_clk_get(dev, NULL);
 	if (IS_ERR(sensor->xclk)) {
-		dev_err(dev, "could not get xclk");
+		dev_err(dev, "could analt get xclk");
 		return PTR_ERR(sensor->xclk);
 	}
 
@@ -1431,7 +1431,7 @@ static int ov5647_probe(struct i2c_client *client)
 	sd = &sensor->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov5647_subdev_ops);
 	sd->internal_ops = &ov5647_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -1516,6 +1516,6 @@ static struct i2c_driver ov5647_driver = {
 
 module_i2c_driver(ov5647_driver);
 
-MODULE_AUTHOR("Ramiro Oliveira <roliveir@synopsys.com>");
+MODULE_AUTHOR("Ramiro Oliveira <roliveir@syanalpsys.com>");
 MODULE_DESCRIPTION("A low-level driver for OmniVision ov5647 sensors");
 MODULE_LICENSE("GPL v2");

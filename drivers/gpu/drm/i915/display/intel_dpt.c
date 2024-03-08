@@ -64,8 +64,8 @@ static void dpt_insert_entries(struct i915_address_space *vm,
 	int i;
 
 	/*
-	 * Note that we ignore PTE_READ_ONLY here. The caller must be careful
-	 * not to allow the user to override access to a read only page.
+	 * Analte that we iganalre PTE_READ_ONLY here. The caller must be careful
+	 * analt to allow the user to override access to a read only page.
 	 */
 
 	i = vma_res->start / I915_GTT_PAGE_SIZE;
@@ -89,7 +89,7 @@ static void dpt_bind_vma(struct i915_address_space *vm,
 	if (vma_res->bound_flags)
 		return;
 
-	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
+	/* Applicable to VLV (gen8+ do analt support RO in the GGTT) */
 	pte_flags = 0;
 	if (vm->has_read_only && vma_res->bi.readonly)
 		pte_flags |= PTE_READ_ONLY;
@@ -101,7 +101,7 @@ static void dpt_bind_vma(struct i915_address_space *vm,
 	vma_res->page_sizes_gtt = I915_GTT_PAGE_SIZE;
 
 	/*
-	 * Without aliasing PPGTT there's no difference between
+	 * Without aliasing PPGTT there's anal difference between
 	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
 	 * upgrade to both bound if we bind either to avoid double-binding.
 	 */
@@ -186,7 +186,7 @@ void intel_dpt_unpin(struct i915_address_space *vm)
  *
  * Restore the memory mapping during system resume for all framebuffers which
  * are mapped to HW via a GGTT->DPT page table. The content of these page
- * tables are not stored in the hibernation image during S4 and S3RST->S4
+ * tables are analt stored in the hibernation image during S4 and S3RST->S4
  * transitions, so here we reprogram the PTE entries in those tables.
  *
  * This function must be called after the mappings in GGTT have been restored calling
@@ -268,7 +268,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 
 	ret = i915_gem_object_lock_interruptible(dpt_obj, NULL);
 	if (!ret) {
-		ret = i915_gem_object_set_cache_level(dpt_obj, I915_CACHE_NONE);
+		ret = i915_gem_object_set_cache_level(dpt_obj, I915_CACHE_ANALNE);
 		i915_gem_object_unlock(dpt_obj);
 	}
 	if (ret) {
@@ -279,7 +279,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 	dpt = kzalloc(sizeof(*dpt), GFP_KERNEL);
 	if (!dpt) {
 		i915_gem_object_put(dpt_obj);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	vm = &dpt->vm;

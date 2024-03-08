@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _dmx_fwrite:
@@ -12,7 +12,7 @@ Name
 
 Digital TV demux write()
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:function:: ssize_t write(int fd, const void *buf, size_t count)
@@ -44,7 +44,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -55,9 +55,9 @@ appropriately.
     :widths: 1 16
 
     -  -  ``EWOULDBLOCK``
-       -  No data was written. This might happen if ``O_NONBLOCK`` was
-	  specified and there is no more buffer space available (if
-	  ``O_NONBLOCK`` is not specified the function will block until buffer
+       -  Anal data was written. This might happen if ``O_ANALNBLOCK`` was
+	  specified and there is anal more buffer space available (if
+	  ``O_ANALNBLOCK`` is analt specified the function will block until buffer
 	  space is available).
 
     -  -  ``EBUSY``

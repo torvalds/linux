@@ -14,7 +14,7 @@
  * struct sprd_mux_ssel - Mux clock's source select bits in its register
  * @shift: Bit offset of the divider in its register
  * @width: Width of the divider field in its register
- * @table: For some mux clocks, not all sources are used on some special
+ * @table: For some mux clocks, analt all sources are used on some special
  *	   chips, this matches the value of mux clock's register and the
  *	   sources which are used for this mux clock
  */

@@ -23,7 +23,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* min/typical/max system clock (xclk) frequencies */
@@ -37,7 +37,7 @@
 #define OV5640_PIXEL_ARRAY_WIDTH	2592
 #define OV5640_PIXEL_ARRAY_HEIGHT	1944
 
-/* FIXME: not documented. */
+/* FIXME: analt documented. */
 #define OV5640_MIN_VBLANK	24
 #define OV5640_MAX_VTS		3375
 
@@ -437,7 +437,7 @@ struct ov5640_dev {
 	struct i2c_client *i2c_client;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep; /* the parsed DT endpoint info */
+	struct v4l2_fwanalde_endpoint ep; /* the parsed DT endpoint info */
 	struct clk *xclk; /* system clock to OV5640 */
 	u32 xclk_freq;
 
@@ -515,7 +515,7 @@ static u32 ov5640_code_to_bpp(struct ov5640_dev *sensor, u32 code)
 /*
  * FIXME: all of these register tables are likely filled with
  * entries that set the register to their power-on default values,
- * and which are otherwise not touched by this driver. Those entries
+ * and which are otherwise analt touched by this driver. Those entries
  * should be identified and removed to speed register load time
  * over i2c.
  */
@@ -529,7 +529,7 @@ static const struct v4l2_mbus_framefmt ov5640_csi2_default_fmt = {
 	.ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB),
 	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
 	.xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SRGB),
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 };
 
 static const struct v4l2_mbus_framefmt ov5640_dvp_default_fmt = {
@@ -540,7 +540,7 @@ static const struct v4l2_mbus_framefmt ov5640_dvp_default_fmt = {
 	.ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB),
 	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
 	.xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SRGB),
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 };
 
 static const struct reg_value ov5640_init_setting[] = {
@@ -1379,7 +1379,7 @@ static unsigned long ov5640_compute_sys_clk(struct ov5640_dev *sensor,
 {
 	unsigned long sysclk = sensor->xclk_freq / pll_prediv * pll_mult;
 
-	/* PLL1 output cannot exceed 1GHz. */
+	/* PLL1 output cananalt exceed 1GHz. */
 	if (sysclk / 1000000 > 1000)
 		return 0;
 
@@ -1404,7 +1404,7 @@ static unsigned long ov5640_calc_sys_clk(struct ov5640_dev *sensor,
 			unsigned long _rate;
 
 			/*
-			 * The PLL multiplier cannot be odd if above
+			 * The PLL multiplier cananalt be odd if above
 			 * 127.
 			 */
 			if (_pll_mult > 127 && (_pll_mult % 2))
@@ -1469,7 +1469,7 @@ static int ov5640_set_mipi_pclk(struct ov5640_dev *sensor)
 	 * - mipi_div - Additional divider for the MIPI lane clock.
 	 *
 	 * Higher link frequencies would make sysclk > 1GHz.
-	 * Keep the sysclk low and do not divide in the MIPI domain.
+	 * Keep the sysclk low and do analt divide in the MIPI domain.
 	 */
 	if (link_freq > OV5640_LINK_RATE_MAX)
 		mipi_div = 1;
@@ -1630,7 +1630,7 @@ static int ov5640_set_jpeg_timings(struct ov5640_dev *sensor,
 	 * compression mode 3 timing
 	 *
 	 * Data is transmitted with programmable width (VFIFO_HSIZE).
-	 * No padding done. Last line may have less data. Varying
+	 * Anal padding done. Last line may have less data. Varying
 	 * number of lines per frame, depending on amount of data.
 	 */
 	ret = ov5640_mod_reg(sensor, OV5640_REG_JPG_MODE_SELECT, 0x7, 0x3);
@@ -1837,7 +1837,7 @@ static int ov5640_set_stream_mipi(struct ov5640_dev *sensor, bool on)
 	 * FIXME: the sensor manual (version 2.03) reports
 	 * [7:5] = 000  : 1 data lane mode
 	 * [7:5] = 001  : 2 data lanes mode
-	 * But this settings do not work, while the following ones
+	 * But this settings do analt work, while the following ones
 	 * have been validated for 2 data lanes mode.
 	 *
 	 * [7:5] = 010	: 2 data lanes mode
@@ -2422,7 +2422,7 @@ static int ov5640_restore_mode(struct ov5640_dev *sensor)
 	if (ret)
 		return ret;
 
-	/* now restore the last capture mode */
+	/* analw restore the last capture mode */
 	ret = ov5640_set_mode(sensor);
 	if (ret < 0)
 		return ret;
@@ -2447,7 +2447,7 @@ static void ov5640_power(struct ov5640_dev *sensor, bool enable)
  *
  * In such cases, this gpio should be mapped to pwdn_gpio in the driver, and we
  * should still toggle the pwdn_gpio below with the appropriate delays, while
- * the calls to reset_gpio will be ignored.
+ * the calls to reset_gpio will be iganalred.
  */
 static void ov5640_powerup_sequence(struct ov5640_dev *sensor)
 {
@@ -2535,7 +2535,7 @@ static int ov5640_set_power_mipi(struct ov5640_dev *sensor, bool on)
 	 * Power up MIPI HS Tx and LS Rx; 2 data lanes mode
 	 *
 	 * 0x300e = 0x40
-	 * [7:5] = 010	: 2 data lanes mode (see FIXME note in
+	 * [7:5] = 010	: 2 data lanes mode (see FIXME analte in
 	 *		  "ov5640_set_stream_mipi()")
 	 * [4] = 0	: Power up MIPI HS Tx
 	 * [3] = 0	: Power up MIPI LS Rx
@@ -2546,11 +2546,11 @@ static int ov5640_set_power_mipi(struct ov5640_dev *sensor, bool on)
 		return ret;
 
 	/*
-	 * Gate clock and set LP11 in 'no packets mode' (idle)
+	 * Gate clock and set LP11 in 'anal packets mode' (idle)
 	 *
 	 * 0x4800 = 0x24
-	 * [5] = 1	: Gate clock when 'no packets'
-	 * [2] = 1	: MIPI bus in LP11 when 'no packets'
+	 * [5] = 1	: Gate clock when 'anal packets'
+	 * [2] = 1	: MIPI bus in LP11 when 'anal packets'
 	 */
 	ret = ov5640_write_reg(sensor, OV5640_REG_MIPI_CTRL00, 0x24);
 	if (ret)
@@ -2592,7 +2592,7 @@ static int ov5640_set_power_dvp(struct ov5640_dev *sensor, bool on)
 	}
 
 	/*
-	 * Note about parallel port configuration.
+	 * Analte about parallel port configuration.
 	 *
 	 * When configured in parallel mode, the OV5640 will
 	 * output 10 bits data on DVP data lines [9:0].
@@ -2602,13 +2602,13 @@ static int ov5640_set_power_dvp(struct ov5640_dev *sensor, bool on)
 	 *
 	 * Control lines polarity can be configured through
 	 * devicetree endpoint control lines properties.
-	 * If no endpoint control lines properties are set,
+	 * If anal endpoint control lines properties are set,
 	 * polarity will be as below:
 	 * - VSYNC:	active high
 	 * - HREF:	active low
 	 * - PCLK:	active low
 	 *
-	 * VSYNC & HREF are not configured if BT656 bus mode is selected
+	 * VSYNC & HREF are analt configured if BT656 bus mode is selected
 	 */
 
 	/*
@@ -2757,13 +2757,13 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	maxfps = ov5640_framerates[mode->max_fps];
 
 	if (fi->numerator == 0) {
-		fi->denominator = maxfps;
+		fi->deanalminator = maxfps;
 		fi->numerator = 1;
 		rate = mode->max_fps;
 		goto find_mode;
 	}
 
-	fps = clamp_val(DIV_ROUND_CLOSEST(fi->denominator, fi->numerator),
+	fps = clamp_val(DIV_ROUND_CLOSEST(fi->deanalminator, fi->numerator),
 			minfps, maxfps);
 
 	best_fps = minfps;
@@ -2777,7 +2777,7 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	}
 
 	fi->numerator = 1;
-	fi->denominator = best_fps;
+	fi->deanalminator = best_fps;
 
 find_mode:
 	mode = ov5640_find_mode(sensor, mode->width, mode->height, false);
@@ -3370,8 +3370,8 @@ static int ov5640_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is analt powered up by the host driver do
+	 * analt apply any controls to H/W at this time. Instead
 	 * the controls will be restored at start streaming time.
 	 */
 	if (!pm_runtime_get_if_in_use(&sensor->i2c_client->dev))
@@ -3433,7 +3433,7 @@ static int ov5640_init_controls(struct ov5640_dev *sensor)
 	const struct v4l2_ctrl_ops *ops = &ov5640_ctrl_ops;
 	struct ov5640_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	const struct ov5640_timings *timings;
 	unsigned int max_vblank;
 	unsigned int hblank;
@@ -3513,14 +3513,14 @@ static int ov5640_init_controls(struct ov5640_dev *sensor)
 		goto free_ctrls;
 	}
 
-	ret = v4l2_fwnode_device_parse(&sensor->i2c_client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&sensor->i2c_client->dev, &props);
 	if (ret)
 		goto free_ctrls;
 
 	if (props.rotation == 180)
 		sensor->upside_down = true;
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(hdl, ops, &props);
 	if (ret)
 		goto free_ctrls;
 
@@ -3594,7 +3594,7 @@ static int ov5640_enum_frame_interval(
 		return -EINVAL;
 
 	tpf.numerator = 1;
-	tpf.denominator = ov5640_framerates[fie->index];
+	tpf.deanalminator = ov5640_framerates[fie->index];
 
 	ret = ov5640_try_frame_interval(sensor, &tpf, mode);
 	if (ret < 0)
@@ -3847,13 +3847,13 @@ static int ov5640_check_chip_id(struct ov5640_dev *sensor)
 static int ov5640_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	struct ov5640_dev *sensor;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->i2c_client = client;
 
@@ -3862,7 +3862,7 @@ static int ov5640_probe(struct i2c_client *client)
 	 * YUV422 UYVY VGA(30FPS in parallel mode, 60 in MIPI CSI-2 mode)
 	 */
 	sensor->frame_interval.numerator = 1;
-	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
+	sensor->frame_interval.deanalminator = ov5640_framerates[OV5640_30_FPS];
 	sensor->current_fr = OV5640_30_FPS;
 	sensor->current_mode =
 		&ov5640_mode_data[OV5640_MODE_VGA_640_480];
@@ -3872,17 +3872,17 @@ static int ov5640_probe(struct i2c_client *client)
 
 	sensor->ae_target = 52;
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev),
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(&client->dev),
 						  NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(endpoint, &sensor->ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_parse(endpoint, &sensor->ep);
+	fwanalde_handle_put(endpoint);
 	if (ret) {
-		dev_err(dev, "Could not parse endpoint\n");
+		dev_err(dev, "Could analt parse endpoint\n");
 		return ret;
 	}
 
@@ -3926,7 +3926,7 @@ static int ov5640_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov5640_subdev_ops);
 	sensor->sd.internal_ops = &ov5640_internal_ops;
 
-	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -3951,7 +3951,7 @@ static int ov5640_probe(struct i2c_client *client)
 	}
 
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 
 	ret = ov5640_check_chip_id(sensor);
@@ -3970,7 +3970,7 @@ static int ov5640_probe(struct i2c_client *client)
 	return 0;
 
 err_pm_runtime:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_disable(dev);
 	ov5640_sensor_suspend(dev);
 free_ctrls:

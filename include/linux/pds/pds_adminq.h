@@ -12,10 +12,10 @@ enum pds_core_adminq_flags {
 
 /*
  * enum pds_core_adminq_opcode - AdminQ command opcodes
- * These commands are only processed on AdminQ, not available in devcmd
+ * These commands are only processed on AdminQ, analt available in devcmd
  */
 enum pds_core_adminq_opcode {
-	PDS_AQ_CMD_NOP			= 0,
+	PDS_AQ_CMD_ANALP			= 0,
 
 	/* Client control */
 	PDS_AQ_CMD_CLIENT_REG		= 6,
@@ -45,9 +45,9 @@ enum pds_core_adminq_opcode {
 };
 
 /*
- * enum pds_core_notifyq_opcode - NotifyQ event codes
+ * enum pds_core_analtifyq_opcode - AnaltifyQ event codes
  */
-enum pds_core_notifyq_opcode {
+enum pds_core_analtifyq_opcode {
 	PDS_EVENT_LINK_CHANGE		= 1,
 	PDS_EVENT_RESET			= 2,
 	PDS_EVENT_XCVR			= 5,
@@ -57,20 +57,20 @@ enum pds_core_notifyq_opcode {
 #define PDS_COMP_COLOR_MASK  0x80
 
 /**
- * struct pds_core_notifyq_event - Generic event reporting structure
+ * struct pds_core_analtifyq_event - Generic event reporting structure
  * @eid:   event number
  * @ecode: event code
  *
  * This is the generic event report struct from which the other
  * actual events will be formed.
  */
-struct pds_core_notifyq_event {
+struct pds_core_analtifyq_event {
 	__le64 eid;
 	__le16 ecode;
 };
 
 /**
- * struct pds_core_link_change_event - Link change event notification
+ * struct pds_core_link_change_event - Link change event analtification
  * @eid:		event number
  * @ecode:		event code = PDS_EVENT_LINK_CHANGE
  * @link_status:	link up/down, with error bits
@@ -86,7 +86,7 @@ struct pds_core_link_change_event {
 };
 
 /**
- * struct pds_core_reset_event - Reset event notification
+ * struct pds_core_reset_event - Reset event analtification
  * @eid:		event number
  * @ecode:		event code = PDS_EVENT_RESET
  * @reset_code:		reset type
@@ -103,7 +103,7 @@ struct pds_core_reset_event {
 };
 
 /**
- * struct pds_core_client_event - Client event notification
+ * struct pds_core_client_event - Client event analtification
  * @eid:		event number
  * @ecode:		event code = PDS_EVENT_CLIENT
  * @client_id:          client to sent event to
@@ -119,22 +119,22 @@ struct pds_core_client_event {
 };
 
 /**
- * struct pds_core_notifyq_cmd - Placeholder for building qcq
- * @data:      anonymous field for building the qcq
+ * struct pds_core_analtifyq_cmd - Placeholder for building qcq
+ * @data:      aanalnymous field for building the qcq
  */
-struct pds_core_notifyq_cmd {
-	__le32 data;	/* Not used but needed for qcq structure */
+struct pds_core_analtifyq_cmd {
+	__le32 data;	/* Analt used but needed for qcq structure */
 };
 
 /*
- * union pds_core_notifyq_comp - Overlay of notifyq event structures
+ * union pds_core_analtifyq_comp - Overlay of analtifyq event structures
  */
-union pds_core_notifyq_comp {
+union pds_core_analtifyq_comp {
 	struct {
 		__le64 eid;
 		__le16 ecode;
 	};
-	struct pds_core_notifyq_event     event;
+	struct pds_core_analtifyq_event     event;
 	struct pds_core_link_change_event link_change;
 	struct pds_core_reset_event       reset;
 	u8     data[64];
@@ -214,7 +214,7 @@ struct pds_core_client_request_cmd {
 #define PDS_CORE_QCQ_F_INTR		BIT(2)
 #define PDS_CORE_QCQ_F_TX_STATS		BIT(3)
 #define PDS_CORE_QCQ_F_RX_STATS		BIT(4)
-#define PDS_CORE_QCQ_F_NOTIFYQ		BIT(5)
+#define PDS_CORE_QCQ_F_ANALTIFYQ		BIT(5)
 #define PDS_CORE_QCQ_F_CMB_RINGS	BIT(6)
 #define PDS_CORE_QCQ_F_CORE		BIT(7)
 
@@ -227,7 +227,7 @@ enum pds_core_lif_type {
 /**
  * enum pds_core_logical_qtype - Logical Queue Types
  * @PDS_CORE_QTYPE_ADMINQ:    Administrative Queue
- * @PDS_CORE_QTYPE_NOTIFYQ:   Notify Queue
+ * @PDS_CORE_QTYPE_ANALTIFYQ:   Analtify Queue
  * @PDS_CORE_QTYPE_RXQ:       Receive Queue
  * @PDS_CORE_QTYPE_TXQ:       Transmit Queue
  * @PDS_CORE_QTYPE_EQ:        Event Queue
@@ -235,7 +235,7 @@ enum pds_core_lif_type {
  */
 enum pds_core_logical_qtype {
 	PDS_CORE_QTYPE_ADMINQ  = 0,
-	PDS_CORE_QTYPE_NOTIFYQ = 1,
+	PDS_CORE_QTYPE_ANALTIFYQ = 1,
 	PDS_CORE_QTYPE_RXQ     = 2,
 	PDS_CORE_QTYPE_TXQ     = 3,
 	PDS_CORE_QTYPE_EQ      = 4,
@@ -267,7 +267,7 @@ union pds_core_lif_config {
 
 /**
  * struct pds_core_lif_status - LIF status register
- * @eid:	     most recent NotifyQ event id
+ * @eid:	     most recent AnaltifyQ event id
  * @rsvd:            full struct size
  */
 struct pds_core_lif_status {
@@ -994,7 +994,7 @@ union pds_lm_dev_state {
 };
 
 enum pds_lm_host_vf_status {
-	PDS_LM_STA_NONE = 0,
+	PDS_LM_STA_ANALNE = 0,
 	PDS_LM_STA_IN_PROGRESS,
 	PDS_LM_STA_MAX,
 };
@@ -1026,7 +1026,7 @@ struct pds_lm_dirty_region_info {
  * completion) of struct pds_lm_dirty_region_info will be written to
  * regions_dma.
  *
- * The max_regions may be zero, in which case regions_dma is ignored.  In that
+ * The max_regions may be zero, in which case regions_dma is iganalred.  In that
  * case, the completion will only report the maximum number of regions
  * supported by the device, and the number of regions currently enabled.
  */
@@ -1041,11 +1041,11 @@ struct pds_lm_dirty_status_cmd {
 
 /**
  * enum pds_lm_dirty_bmp_type - Type of dirty page bitmap
- * @PDS_LM_DIRTY_BMP_TYPE_NONE: No bitmap / disabled
+ * @PDS_LM_DIRTY_BMP_TYPE_ANALNE: Anal bitmap / disabled
  * @PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK: Seq/Ack bitmap representation
  */
 enum pds_lm_dirty_bmp_type {
-	PDS_LM_DIRTY_BMP_TYPE_NONE     = 0,
+	PDS_LM_DIRTY_BMP_TYPE_ANALNE     = 0,
 	PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK  = 1,
 };
 
@@ -1087,10 +1087,10 @@ struct pds_lm_dirty_status_comp {
  * @rsvd2:		Word boundary padding
  * @regions_dma:	DMA address of the region info buffer
  *
- * The num_regions must be nonzero, and less than or equal to the maximum
+ * The num_regions must be analnzero, and less than or equal to the maximum
  * number of regions supported by the device.
  *
- * The memory regions should not overlap.
+ * The memory regions should analt overlap.
  *
  * The information should be initialized by the driver.  The device may modify
  * the information on successful completion, such as by size-aligning the
@@ -1099,7 +1099,7 @@ struct pds_lm_dirty_status_comp {
  * The modified number of pages will be greater than or equal to the page count
  * given in the enable command, and at least as coarsly aligned as the given
  * value.  For example, the count might be aligned to a multiple of 64, but
- * if the value is already a multiple of 128 or higher, it will not change.
+ * if the value is already a multiple of 128 or higher, it will analt change.
  * If the driver requires its own minimum alignment of the number of pages, the
  * driver should account for that already in the region info of this command.
  *
@@ -1147,7 +1147,7 @@ struct pds_lm_dirty_disable_cmd {
  *
  * Read bytes from the SEQ bitmap, or write bytes into the ACK bitmap.
  *
- * This command treats the entire bitmap as a byte buffer.  It does not
+ * This command treats the entire bitmap as a byte buffer.  It does analt
  * distinguish between guest memory regions.  The driver should refer to the
  * number of pages in each region, according to PDS_LM_CMD_DIRTY_STATUS, to
  * determine the region boundaries in the bitmap.  Each region will be
@@ -1248,7 +1248,7 @@ union pds_core_adminq_comp {
 #ifndef __CHECKER__
 static_assert(sizeof(union pds_core_adminq_cmd) == 64);
 static_assert(sizeof(union pds_core_adminq_comp) == 16);
-static_assert(sizeof(union pds_core_notifyq_comp) == 64);
+static_assert(sizeof(union pds_core_analtifyq_comp) == 64);
 #endif /* __CHECKER__ */
 
 /* The color bit is a 'done' bit for the completion descriptors

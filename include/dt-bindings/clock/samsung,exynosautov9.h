@@ -3,11 +3,11 @@
  * Copyright (c) 2022 Samsung Electronics Co., Ltd.
  * Author: Chanho Park <chanho61.park@samsung.com>
  *
- * Device Tree binding constants for Exynos Auto V9 clock controller.
+ * Device Tree binding constants for Exyanals Auto V9 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOSAUTOV9_H
-#define _DT_BINDINGS_CLOCK_EXYNOSAUTOV9_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALSAUTOV9_H
+#define _DT_BINDINGS_CLOCK_EXYANALSAUTOV9_H
 
 /* CMU_TOP */
 #define FOUT_SHARED0_PLL		1
@@ -346,4 +346,4 @@
 #define CLK_GOUT_WDT_CLUSTER0		3
 #define CLK_GOUT_WDT_CLUSTER1		4
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOSAUTOV9_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALSAUTOV9_H */

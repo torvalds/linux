@@ -28,13 +28,13 @@ MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 static int ir_mode[PVR_NUM] = { [0 ... PVR_NUM-1] = 1 };
 module_param_array(ir_mode, int, NULL, 0444);
-MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=normal IR");
+MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=analrmal IR");
 
 static int pvr2_disable_ir_video;
 module_param_named(disable_autoload_ir_video, pvr2_disable_ir_video,
 		   int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(disable_autoload_ir_video,
-		 "1=do not try to autoload ir_video IR receiver");
+		 "1=do analt try to autoload ir_video IR receiver");
 
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
@@ -51,12 +51,12 @@ static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			   "Killing an I2C write to %u that is too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   length,(unsigned int)(sizeof(hdw->cmd_buffer) - 3));
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	/* Clear the command buffer (likely to be paranoia) */
+	/* Clear the command buffer (likely to be paraanalia) */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write */
@@ -103,19 +103,19 @@ static int pvr2_i2c_read(struct pvr2_hdw *hdw, /* Context */
 			   "Killing an I2C read to %u that has wlen too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   dlen,(unsigned int)(sizeof(hdw->cmd_buffer) - 4));
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 	if (res && (rlen > (sizeof(hdw->cmd_buffer) - 1))) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Killing an I2C read to %u that has rlen too large (desired=%u limit=%u)",
 			   i2c_addr,
 			   rlen,(unsigned int)(sizeof(hdw->cmd_buffer) - 1));
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	LOCK_TAKE(hdw->ctl_lock);
 
-	/* Clear the command buffer (likely to be paranoia) */
+	/* Clear the command buffer (likely to be paraanalia) */
 	memset(hdw->cmd_buffer, 0, sizeof(hdw->cmd_buffer));
 
 	/* Set up command buffer for an I2C write followed by a read */
@@ -228,13 +228,13 @@ static int i2c_24xxx_ir(struct pvr2_hdw *hdw,
 	   receiver. */
 	rdata[2] = 0xc1;
 	if (dat[0] != 1) {
-		/* No code received. */
+		/* Anal code received. */
 		rdata[0] = 0;
 		rdata[1] = 0;
 	} else {
 		u16 val;
 		/* Mash the FX2 firmware-provided IR code into something
-		   that the normal i2c chip-level driver expects. */
+		   that the analrmal i2c chip-level driver expects. */
 		val = dat[1];
 		val <<= 8;
 		val |= dat[2];
@@ -250,7 +250,7 @@ static int i2c_24xxx_ir(struct pvr2_hdw *hdw,
 
 /* This is a special entry point that is entered if an I2C operation is
    attempted to a wm8775 chip on model 24xxx hardware.  Autodetect of this
-   part doesn't work, but we know it is really there.  So let's look for
+   part doesn't work, but we kanalw it is really there.  So let's look for
    the autodetect attempt and just return success if we see that. */
 static int i2c_hack_wm8775(struct pvr2_hdw *hdw,
 			   u8 i2c_addr,u8 *wdata,u16 wlen,u8 *rdata,u16 rlen)
@@ -263,7 +263,7 @@ static int i2c_hack_wm8775(struct pvr2_hdw *hdw,
 }
 
 /* This is an entry point designed to always fail any attempt to perform a
-   transfer.  We use this to cause certain I2C addresses to not be
+   transfer.  We use this to cause certain I2C addresses to analt be
    probed. */
 static int i2c_black_hole(struct pvr2_hdw *hdw,
 			   u8 i2c_addr,u8 *wdata,u16 wlen,u8 *rdata,u16 rlen)
@@ -276,7 +276,7 @@ static int i2c_black_hole(struct pvr2_hdw *hdw,
    sometimes wedge itself.  Worse still, when this happens msp3400 can
    falsely detect this part and then the system gets hosed up after msp3400
    gets confused and dies.  What we want to do here is try to keep msp3400
-   away and also try to notice if the chip is wedged and send a warning to
+   away and also try to analtice if the chip is wedged and send a warning to
    the system log. */
 static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 			    u8 i2c_addr,u8 *wdata,u16 wlen,u8 *rdata,u16 rlen)
@@ -301,7 +301,7 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 	   is being read.  The cx25840 module will always look at the
 	   revision register first.  Any other pattern of access therefore
 	   has to be a probe attempt from somebody else so we'll reject it.
-	   Normally we could just let each client just probe the part
+	   Analrmally we could just let each client just probe the part
 	   anyway, but when the cx25840 is wedged, msp3400 will get a false
 	   positive and that just screws things up... */
 
@@ -333,7 +333,7 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 
 	if ((ret != 0) || (*rdata == 0x04) || (*rdata == 0x0a)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "***WARNING*** Detected a wedged cx25840 chip; the device will not work.");
+			   "***WARNING*** Detected a wedged cx25840 chip; the device will analt work.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "***WARNING*** Try power cycling the pvrusb2 device.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -358,12 +358,12 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 }
 
 /* This is a very, very limited I2C adapter implementation.  We can only
-   support what we actually know will work on the device... */
+   support what we actually kanalw will work on the device... */
 static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			 struct i2c_msg msgs[],
 			 int num)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 	pvr2_i2c_func funcp = NULL;
 	struct pvr2_hdw *hdw = (struct pvr2_hdw *)(i2c_adap->algo_data);
 
@@ -392,8 +392,8 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 				ret = 1;
 				goto done;
 			}
-			/* If the read is short enough we'll do the whole
-			   thing atomically.  Otherwise we have no choice
+			/* If the read is short eanalugh we'll do the whole
+			   thing atomically.  Otherwise we have anal choice
 			   but to break apart the reads. */
 			tcnt = msgs[0].len;
 			offs = 0;
@@ -424,15 +424,15 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 	} else if (num == 2) {
 		if (msgs[0].addr != msgs[1].addr) {
 			trace_i2c("i2c refusing 2 phase transfer with conflicting target addresses");
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			goto done;
 		}
 		if ((!((msgs[0].flags & I2C_M_RD))) &&
 		    (msgs[1].flags & I2C_M_RD)) {
 			u16 tcnt,bcnt,wcnt,offs;
 			/* Write followed by atomic read.  If the read
-			   portion is short enough we'll do the whole thing
-			   atomically.  Otherwise we have no choice but to
+			   portion is short eanalugh we'll do the whole thing
+			   atomically.  Otherwise we have anal choice but to
 			   break apart the reads. */
 			tcnt = msgs[1].len;
 			wcnt = msgs[0].len;
@@ -583,7 +583,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		break;
 	default:
 		/* The device either doesn't support I2C-based IR or we
-		   don't know (yet) how to operate IR on the device. */
+		   don't kanalw (yet) how to operate IR on the device. */
 		break;
 	}
 }
@@ -593,7 +593,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	unsigned int idx;
 
 	/* The default action for all possible I2C addresses is just to do
-	   the transfer normally. */
+	   the transfer analrmally. */
 	for (idx = 0; idx < PVR2_I2C_FUNC_CNT; idx++) {
 		hdw->i2c_func[idx] = pvr2_i2c_basic_op;
 	}

@@ -18,7 +18,7 @@
 #include <linux/mfd/da9055/pdata.h>
 #include <linux/mfd/da9055/reg.h>
 
-#define DA9055_IRQ_NONKEY_MASK		0x01
+#define DA9055_IRQ_ANALNKEY_MASK		0x01
 #define DA9055_IRQ_ALM_MASK		0x02
 #define DA9055_IRQ_TICK_MASK		0x04
 #define DA9055_IRQ_ADC_MASK		0x08
@@ -219,9 +219,9 @@ static bool da9055_register_volatile(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_irq da9055_irqs[] = {
-	[DA9055_IRQ_NONKEY] = {
+	[DA9055_IRQ_ANALNKEY] = {
 		.reg_offset = 0,
-		.mask = DA9055_IRQ_NONKEY_MASK,
+		.mask = DA9055_IRQ_ANALNKEY_MASK,
 	},
 	[DA9055_IRQ_ALARM] = {
 		.reg_offset = 0,
@@ -255,7 +255,7 @@ const struct regmap_config da9055_regmap_config = {
 EXPORT_SYMBOL_GPL(da9055_regmap_config);
 
 static const struct resource da9055_onkey_resource =
-	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_NONKEY, "ONKEY");
+	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_ANALNKEY, "ONKEY");
 
 static const struct resource da9055_rtc_resource[] = {
 	DEFINE_RES_IRQ_NAMED(DA9055_IRQ_ALARM, "ALM"),

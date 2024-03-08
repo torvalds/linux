@@ -18,7 +18,7 @@ enum monitor_mwait_testcases {
 
 /*
  * If both MWAIT and its quirk are disabled, MONITOR/MWAIT should #UD, in all
- * other scenarios KVM should emulate them as nops.
+ * other scenarios KVM should emulate them as analps.
  */
 #define GUEST_ASSERT_MONITOR_MWAIT(insn, testcase, vector)		\
 do {									\
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 			goto done;
 		}
 
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 		if (testcase & MWAIT_QUIRK_DISABLED)
 			disabled_quirks |= KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS;
 		if (testcase & MISC_ENABLES_QUIRK_DISABLED)
-			disabled_quirks |= KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT;
+			disabled_quirks |= KVM_X86_QUIRK_MISC_ENABLE_ANAL_MWAIT;
 		vm_enable_cap(vm, KVM_CAP_DISABLE_QUIRKS2, disabled_quirks);
 
 		/*

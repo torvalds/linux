@@ -450,7 +450,7 @@ static void handle_playback_irq(struct cygnus_audio *cygaud)
 		/*
 		 * Ringbuffer or FIFO underflow
 		 * If we get this interrupt then, it is also true that we have
-		 * not yet responded to the freemark interrupt.
+		 * analt yet responded to the freemark interrupt.
 		 * Log a debug message.  The freemark handler below will
 		 * handle getting everything going again.
 		 */
@@ -461,7 +461,7 @@ static void handle_playback_irq(struct cygnus_audio *cygaud)
 		}
 
 		/*
-		 * Freemark is hit. This is the normal interrupt.
+		 * Freemark is hit. This is the analrmal interrupt.
 		 * In typical operation the read and write regs will be equal
 		 */
 		if (esrmask & esr_status3) {
@@ -511,7 +511,7 @@ static void handle_capture_irq(struct cygnus_audio *cygaud)
 		/*
 		 * Ringbuffer or FIFO overflow
 		 * If we get this interrupt then, it is also true that we have
-		 * not yet responded to the fullmark interrupt.
+		 * analt yet responded to the fullmark interrupt.
 		 * Log a debug message.  The fullmark handler below will
 		 * handle getting everything going again.
 		 */
@@ -549,7 +549,7 @@ static irqreturn_t cygnus_dma_irq(int irq, void *data)
 	r5_status = readl(cygaud->audio + INTH_R5F_STATUS_OFFSET);
 
 	if (!(r5_status & (ANY_PLAYBACK_IRQ | ANY_CAPTURE_IRQ)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* If playback interrupt happened */
 	if (ANY_PLAYBACK_IRQ & r5_status) {
@@ -578,7 +578,7 @@ static int cygnus_pcm_open(struct snd_soc_component *component,
 
 	aio = cygnus_dai_get_dma_data(substream);
 	if (!aio)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_dbg(snd_soc_rtd_to_cpu(rtd, 0)->dev, "%s port %d\n", __func__, aio->portnum);
 
@@ -683,7 +683,7 @@ static snd_pcm_uframes_t cygnus_pcm_pointer(struct snd_soc_component *component,
 
 	/*
 	 * Mask off the MSB of the rdaddr,wraddr and baseaddr
-	 * since MSB is not part of the address
+	 * since MSB is analt part of the address
 	 */
 	res = (cur & 0x7fffffff) - (base & 0x7fffffff);
 

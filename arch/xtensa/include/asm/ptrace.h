@@ -39,7 +39,7 @@
  *		+-----------------------+ --------
  */
 
-#define NO_SYSCALL (-1)
+#define ANAL_SYSCALL (-1)
 
 #ifndef __ASSEMBLY__
 
@@ -76,7 +76,7 @@ struct pt_regs {
 	int align[0] __attribute__ ((aligned(16)));
 
 	/* current register frame.
-	 * Note: The ESF for kernel exceptions ends after 16 registers!
+	 * Analte: The ESF for kernel exceptions ends after 16 registers!
 	 */
 	unsigned long areg[XCHAL_NUM_AREGS];
 };

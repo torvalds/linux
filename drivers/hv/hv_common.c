@@ -18,7 +18,7 @@
 #include <linux/bitfield.h>
 #include <linux/cpumask.h>
 #include <linux/sched/task_stack.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/ptrace.h>
 #include <linux/kdebug.h>
 #include <linux/kmsg_dump.h>
@@ -32,7 +32,7 @@
  * hv_root_partition, ms_hyperv and hv_nested are defined here with other
  * Hyper-V specific globals so they are shared across all architectures and are
  * built only when CONFIG_HYPERV is defined.  But on x86,
- * ms_hyperv_init_platform() is built even when CONFIG_HYPERV is not
+ * ms_hyperv_init_platform() is built even when CONFIG_HYPERV is analt
  * defined, and it uses these three variables.  So mark them as __weak
  * here, allowing for an overriding definition in the module containing
  * ms_hyperv_init_platform().
@@ -89,7 +89,7 @@ void __init hv_common_free(void)
 /*
  * Functions for allocating and freeing memory with size and
  * alignment HV_HYP_PAGE_SIZE. These functions are needed because
- * the guest page size may not be the same as the Hyper-V page
+ * the guest page size may analt be the same as the Hyper-V page
  * size. We depend upon kmalloc() aligning power-of-two size
  * allocations to the allocation size boundary, so that the
  * allocated memory appears to Hyper-V as a page of the size
@@ -150,53 +150,53 @@ static struct ctl_table hv_ctl_table[] = {
 	},
 };
 
-static int hv_die_panic_notify_crash(struct notifier_block *self,
+static int hv_die_panic_analtify_crash(struct analtifier_block *self,
 				     unsigned long val, void *args);
 
-static struct notifier_block hyperv_die_report_block = {
-	.notifier_call = hv_die_panic_notify_crash,
+static struct analtifier_block hyperv_die_report_block = {
+	.analtifier_call = hv_die_panic_analtify_crash,
 };
 
-static struct notifier_block hyperv_panic_report_block = {
-	.notifier_call = hv_die_panic_notify_crash,
+static struct analtifier_block hyperv_panic_report_block = {
+	.analtifier_call = hv_die_panic_analtify_crash,
 };
 
 /*
- * The following callback works both as die and panic notifier; its
+ * The following callback works both as die and panic analtifier; its
  * goal is to provide panic information to the hypervisor unless the
  * kmsg dumper is used [see hv_kmsg_dump()], which provides more
  * information but isn't always available.
  *
- * Notice that both the panic/die report notifiers are registered only
+ * Analtice that both the panic/die report analtifiers are registered only
  * if we have the capability HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE set.
  */
-static int hv_die_panic_notify_crash(struct notifier_block *self,
+static int hv_die_panic_analtify_crash(struct analtifier_block *self,
 				     unsigned long val, void *args)
 {
 	struct pt_regs *regs;
 	bool is_die;
 
-	/* Don't notify Hyper-V unless we have a die oops event or panic. */
+	/* Don't analtify Hyper-V unless we have a die oops event or panic. */
 	if (self == &hyperv_panic_report_block) {
 		is_die = false;
 		regs = current_pt_regs();
 	} else { /* die event */
 		if (val != DIE_OOPS)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 
 		is_die = true;
 		regs = ((struct die_args *)args)->regs;
 	}
 
 	/*
-	 * Hyper-V should be notified only once about a panic/die. If we will
+	 * Hyper-V should be analtified only once about a panic/die. If we will
 	 * be calling hv_kmsg_dump() later with kmsg data, don't do the
-	 * notification here.
+	 * analtification here.
 	 */
 	if (!sysctl_record_panic_msg || !hv_panic_page)
 		hyperv_report_panic(regs, val, is_die);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /*
@@ -214,7 +214,7 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 		return;
 
 	/*
-	 * Write dump contents to the page. No need to synchronize; panic should
+	 * Write dump contents to the page. Anal need to synchronize; panic should
 	 * be single-threaded.
 	 */
 	kmsg_dump_rewind(&iter);
@@ -225,7 +225,7 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	/*
 	 * P3 to contain the physical address of the panic page & P4 to
 	 * contain the size of the panic data in that page. Rest of the
-	 * registers are no-op when the NOTIFY_MSG flag is set.
+	 * registers are anal-op when the ANALTIFY_MSG flag is set.
 	 */
 	hv_set_register(HV_REGISTER_CRASH_P0, 0);
 	hv_set_register(HV_REGISTER_CRASH_P1, 0);
@@ -234,12 +234,12 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	hv_set_register(HV_REGISTER_CRASH_P4, bytes_written);
 
 	/*
-	 * Let Hyper-V know there is crash data available along with
+	 * Let Hyper-V kanalw there is crash data available along with
 	 * the panic message.
 	 */
 	hv_set_register(HV_REGISTER_CRASH_CTL,
-			(HV_CRASH_CTL_CRASH_NOTIFY |
-			 HV_CRASH_CTL_CRASH_NOTIFY_MSG));
+			(HV_CRASH_CTL_CRASH_ANALTIFY |
+			 HV_CRASH_CTL_CRASH_ANALTIFY_MSG));
 }
 
 static struct kmsg_dumper hv_kmsg_dumper = {
@@ -249,8 +249,8 @@ static struct kmsg_dumper hv_kmsg_dumper = {
 static void hv_kmsg_dump_unregister(void)
 {
 	kmsg_dump_unregister(&hv_kmsg_dumper);
-	unregister_die_notifier(&hyperv_die_report_block);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	unregister_die_analtifier(&hyperv_die_report_block);
+	atomic_analtifier_chain_unregister(&panic_analtifier_list,
 					 &hyperv_panic_report_block);
 
 	hv_free_hyperv_page(hv_panic_page);
@@ -285,19 +285,19 @@ int __init hv_common_init(void)
 	/*
 	 * Hyper-V expects to get crash register data or kmsg when
 	 * crash enlightment is available and system crashes. Set
-	 * crash_kexec_post_notifiers to be true to make sure that
+	 * crash_kexec_post_analtifiers to be true to make sure that
 	 * calling crash enlightment interface before running kdump
 	 * kernel.
 	 */
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		u64 hyperv_crash_ctl;
 
-		crash_kexec_post_notifiers = true;
-		pr_info("Hyper-V: enabling crash_kexec_post_notifiers\n");
+		crash_kexec_post_analtifiers = true;
+		pr_info("Hyper-V: enabling crash_kexec_post_analtifiers\n");
 
 		/*
 		 * Panic message recording (sysctl_record_panic_msg)
-		 * is enabled by default in non-isolated guests and
+		 * is enabled by default in analn-isolated guests and
 		 * disabled by default in isolated guests; the panic
 		 * message recording won't be available in isolated
 		 * guests should the following registration fail.
@@ -311,17 +311,17 @@ int __init hv_common_init(void)
 		 * capability is supported by the hypervisor.
 		 */
 		hyperv_crash_ctl = hv_get_register(HV_REGISTER_CRASH_CTL);
-		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
+		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_ANALTIFY_MSG)
 			hv_kmsg_dump_register();
 
-		register_die_notifier(&hyperv_die_report_block);
-		atomic_notifier_chain_register(&panic_notifier_list,
+		register_die_analtifier(&hyperv_die_report_block);
+		atomic_analtifier_chain_register(&panic_analtifier_list,
 					       &hyperv_panic_report_block);
 	}
 
 	/*
 	 * Allocate the per-CPU state for the hypercall input arg.
-	 * If this allocation fails, we will not be able to setup
+	 * If this allocation fails, we will analt be able to setup
 	 * (per-CPU) hypercall input page and thus this failure is
 	 * fatal on Hyper-V.
 	 */
@@ -338,7 +338,7 @@ int __init hv_common_init(void)
 				    GFP_KERNEL);
 	if (!hv_vp_index) {
 		hv_common_free();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < num_possible_cpus(); i++)
@@ -374,7 +374,7 @@ int hv_common_cpu_init(unsigned int cpu)
 	if (!*inputarg) {
 		mem = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
 		if (!mem)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (hv_root_partition) {
 			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
@@ -394,7 +394,7 @@ int hv_common_cpu_init(unsigned int cpu)
 
 		/*
 		 * In a fully enlightened TDX/SNP VM with more than 64 VPs, if
-		 * hyperv_pcpu_input_arg is not NULL, set_memory_decrypted() ->
+		 * hyperv_pcpu_input_arg is analt NULL, set_memory_decrypted() ->
 		 * ... -> cpa_flush()-> ... -> __send_ipi_mask_ex() tries to
 		 * use hyperv_pcpu_input_arg as the hypercall input page, which
 		 * must be a decrypted page in such a VM, but the page is still
@@ -423,7 +423,7 @@ int hv_common_cpu_die(unsigned int cpu)
 {
 	/*
 	 * The hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory
-	 * is not freed when the CPU goes offline as the hyperv_pcpu_input_arg
+	 * is analt freed when the CPU goes offline as the hyperv_pcpu_input_arg
 	 * may be used by the Hyper-V vPCI driver in reassigning interrupts
 	 * as part of the offlining process.  The interrupt reassignment
 	 * happens *after* the CPUHP_AP_HYPERV_ONLINE state has run and
@@ -459,7 +459,7 @@ bool hv_query_ext_cap(u64 cap_query)
 	if (!(ms_hyperv.priv_high & HV_ENABLE_EXTENDED_HYPERCALLS))
 		return false;
 
-	/* Extended capabilities do not change at runtime. */
+	/* Extended capabilities do analt change at runtime. */
 	if (hv_extended_cap_queried)
 		return hv_extended_cap & cap_query;
 
@@ -467,8 +467,8 @@ bool hv_query_ext_cap(u64 cap_query)
 				 &hv_extended_cap);
 
 	/*
-	 * The query extended capabilities hypercall should not fail under
-	 * any normal circumstances. Avoid repeatedly making the hypercall, on
+	 * The query extended capabilities hypercall should analt fail under
+	 * any analrmal circumstances. Avoid repeatedly making the hypercall, on
 	 * error.
 	 */
 	hv_extended_cap_queried = true;
@@ -485,7 +485,7 @@ EXPORT_SYMBOL_GPL(hv_query_ext_cap);
 void hv_setup_dma_ops(struct device *dev, bool coherent)
 {
 	/*
-	 * Hyper-V does not offer a vIOMMU in the guest
+	 * Hyper-V does analt offer a vIOMMU in the guest
 	 * VM, so pass 0/NULL for the IOMMU settings
 	 */
 	arch_setup_dma_ops(dev, 0, 0, coherent);
@@ -512,10 +512,10 @@ static u64 __hv_read_ref_counter(void)
 u64 (*hv_read_reference_counter)(void) = __hv_read_ref_counter;
 EXPORT_SYMBOL_GPL(hv_read_reference_counter);
 
-/* These __weak functions provide default "no-op" behavior and
+/* These __weak functions provide default "anal-op" behavior and
  * may be overridden by architecture specific versions. Architectures
- * for which the default "no-op" behavior is sufficient can leave
- * them unimplemented and not be cluttered with a bunch of stub
+ * for which the default "anal-op" behavior is sufficient can leave
+ * them unimplemented and analt be cluttered with a bunch of stub
  * functions in arch-specific code.
  */
 

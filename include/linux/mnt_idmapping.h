@@ -8,7 +8,7 @@
 struct mnt_idmap;
 struct user_namespace;
 
-extern struct mnt_idmap nop_mnt_idmap;
+extern struct mnt_idmap analp_mnt_idmap;
 extern struct user_namespace init_user_ns;
 
 typedef struct {
@@ -73,7 +73,7 @@ static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
  *
  * Check whether @vfsuid and @kuid have the same values.
  *
- * Return: true if @vfsuid and @kuid have the same value, false if not.
+ * Return: true if @vfsuid and @kuid have the same value, false if analt.
  * Comparison between two invalid uids returns false.
  */
 static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
@@ -88,7 +88,7 @@ static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
  *
  * Check whether @vfsgid and @kgid have the same values.
  *
- * Return: true if @vfsgid and @kgid have the same value, false if not.
+ * Return: true if @vfsgid and @kgid have the same value, false if analt.
  * Comparison between two invalid gids returns false.
  */
 static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
@@ -140,7 +140,7 @@ kgid_t from_vfsgid(struct mnt_idmap *idmap,
  * function to check whether the filesystem idmapping has a mapping for
  * @vfsuid.
  *
- * Return: true if @vfsuid has a mapping in the filesystem, false if not.
+ * Return: true if @vfsuid has a mapping in the filesystem, false if analt.
  */
 static inline bool vfsuid_has_fsmapping(struct mnt_idmap *idmap,
 					struct user_namespace *fs_userns,
@@ -178,7 +178,7 @@ static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
  * function to check whether the filesystem idmapping has a mapping for
  * @vfsgid.
  *
- * Return: true if @vfsgid has a mapping in the filesystem, false if not.
+ * Return: true if @vfsgid has a mapping in the filesystem, false if analt.
  */
 static inline bool vfsgid_has_fsmapping(struct mnt_idmap *idmap,
 					struct user_namespace *fs_userns,
@@ -213,7 +213,7 @@ static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
  *
  * Use this helper to initialize a new vfs or filesystem object based on
  * the caller's fsuid. A common example is initializing the i_uid field of
- * a newly allocated inode triggered by a creation event such as mkdir or
+ * a newly allocated ianalde triggered by a creation event such as mkdir or
  * O_CREAT. Other examples include the allocation of quotas for a specific
  * user.
  *
@@ -232,7 +232,7 @@ static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
  *
  * Use this helper to initialize a new vfs or filesystem object based on
  * the caller's fsgid. A common example is initializing the i_gid field of
- * a newly allocated inode triggered by a creation event such as mkdir or
+ * a newly allocated ianalde triggered by a creation event such as mkdir or
  * O_CREAT. Other examples include the allocation of quotas for a specific
  * user.
  *

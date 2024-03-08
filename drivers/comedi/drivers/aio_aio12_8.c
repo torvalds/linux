@@ -2,13 +2,13 @@
 /*
  * aio_aio12_8.c
  * Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
- * Copyright (C) 2006 C&C Technologies, Inc.
+ * Copyright (C) 2006 C&C Techanallogies, Inc.
  */
 
 /*
  * Driver: aio_aio12_8
  * Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
- * Author: Pablo Mejia <pablo.mejia@cctechnol.com>
+ * Author: Pablo Mejia <pablo.mejia@cctechanall.com>
  * Devices: [Access I/O] PC-104 AIO12-8 (aio_aio12_8),
  *   [Access I/O] PC-104 AI12-8 (aio_ai12_8),
  *   [Access I/O] PC-104 AO12-4 (aio_ao12_4)
@@ -17,8 +17,8 @@
  * Configuration Options:
  *   [0] - I/O port base address
  *
- * Notes:
- * Only synchronous operations are supported.
+ * Analtes:
+ * Only synchroanalus operations are supported.
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@
 #define AIO12_8_INTERRUPT_ENA		BIT(2)
 #define AIO12_8_ADC_REG			0x02
 #define AIO12_8_ADC_MODE(x)		(((x) & 0x3) << 6)
-#define AIO12_8_ADC_MODE_NORMAL		AIO12_8_ADC_MODE(0)
+#define AIO12_8_ADC_MODE_ANALRMAL		AIO12_8_ADC_MODE(0)
 #define AIO12_8_ADC_MODE_INT_CLK	AIO12_8_ADC_MODE(1)
 #define AIO12_8_ADC_MODE_STANDBY	AIO12_8_ADC_MODE(2)
 #define AIO12_8_ADC_MODE_POWERDOWN	AIO12_8_ADC_MODE(3)
@@ -124,7 +124,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 	 * Setup the control byte for internal 2MHz clock, 3uS conversion,
 	 * at the desired range of the requested channel.
 	 */
-	control = AIO12_8_ADC_MODE_NORMAL | AIO12_8_ADC_ACQ_3USEC |
+	control = AIO12_8_ADC_MODE_ANALRMAL | AIO12_8_ADC_ACQ_3USEC |
 		  AIO12_8_ADC_RANGE(range) | AIO12_8_ADC_CHAN(chan);
 
 	/* Read status to clear EOC latch */

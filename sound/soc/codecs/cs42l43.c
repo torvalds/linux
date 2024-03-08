@@ -7,7 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gcd.h>
 #include <linux/irq.h>
 #include <linux/jiffies.h>
@@ -41,14 +41,14 @@ static const struct snd_kcontrol_new cs42l43_##name##_mux = \
 	CS42L43_DECL_MUX(name##_in4, reg + 0xC)
 
 #define CS42L43_DAPM_MUX(name_str, name) \
-	SND_SOC_DAPM_MUX(name_str " Input", SND_SOC_NOPM, 0, 0, &cs42l43_##name##_mux)
+	SND_SOC_DAPM_MUX(name_str " Input", SND_SOC_ANALPM, 0, 0, &cs42l43_##name##_mux)
 
 #define CS42L43_DAPM_MIXER(name_str, name) \
-	SND_SOC_DAPM_MUX(name_str " Input 1", SND_SOC_NOPM, 0, 0, &cs42l43_##name##_in1_mux), \
-	SND_SOC_DAPM_MUX(name_str " Input 2", SND_SOC_NOPM, 0, 0, &cs42l43_##name##_in2_mux), \
-	SND_SOC_DAPM_MUX(name_str " Input 3", SND_SOC_NOPM, 0, 0, &cs42l43_##name##_in3_mux), \
-	SND_SOC_DAPM_MUX(name_str " Input 4", SND_SOC_NOPM, 0, 0, &cs42l43_##name##_in4_mux), \
-	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_NOPM, 0, 0, NULL, 0)
+	SND_SOC_DAPM_MUX(name_str " Input 1", SND_SOC_ANALPM, 0, 0, &cs42l43_##name##_in1_mux), \
+	SND_SOC_DAPM_MUX(name_str " Input 2", SND_SOC_ANALPM, 0, 0, &cs42l43_##name##_in2_mux), \
+	SND_SOC_DAPM_MUX(name_str " Input 3", SND_SOC_ANALPM, 0, 0, &cs42l43_##name##_in3_mux), \
+	SND_SOC_DAPM_MUX(name_str " Input 4", SND_SOC_ANALPM, 0, 0, &cs42l43_##name##_in4_mux), \
+	SND_SOC_DAPM_MIXER(name_str " Mixer", SND_SOC_ANALPM, 0, 0, NULL, 0)
 
 #define CS42L43_BASE_ROUTES(name_str) \
 	{ name_str,		"Tone Generator 1",	"Tone 1" }, \
@@ -180,7 +180,7 @@ static void cs42l43_hp_ilimit_work(struct work_struct *work)
 
 	priv->hp_ilimited = true;
 
-	// No need to wait for disable, as just disabling for a period of time
+	// Anal need to wait for disable, as just disabling for a period of time
 	regmap_update_bits(cs42l43->regmap, CS42L43_BLOCK_EN8,
 			   CS42L43_HP_EN_MASK, 0);
 
@@ -253,13 +253,13 @@ static irqreturn_t cs42l43_mic_shutter(int irq, void *data)
 	dev_dbg(priv->dev, "Microphone shutter changed\n");
 
 	if (!priv->component)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < ARRAY_SIZE(controls); i++) {
-		ret = snd_soc_component_notify_control(priv->component,
+		ret = snd_soc_component_analtify_control(priv->component,
 						       controls[i]);
 		if (ret)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -273,12 +273,12 @@ static irqreturn_t cs42l43_spk_shutter(int irq, void *data)
 	dev_dbg(priv->dev, "Speaker shutter changed\n");
 
 	if (!priv->component)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	ret = snd_soc_component_notify_control(priv->component,
+	ret = snd_soc_component_analtify_control(priv->component,
 					       "Speaker Digital Switch");
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	return IRQ_HANDLED;
 }
@@ -351,7 +351,7 @@ static int cs42l43_set_sample_rate(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	//FIXME: For now lets just set sample rate 1, this needs expanded in the future
+	//FIXME: For analw lets just set sample rate 1, this needs expanded in the future
 	regmap_update_bits(cs42l43->regmap, CS42L43_SAMPLE_RATE1,
 			   CS42L43_SAMPLE_RATE_MASK, ret);
 
@@ -501,7 +501,7 @@ static int cs42l43_asp_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		clk_config |= CS42L43_ASP_BCLK_INV_MASK; /* Yes BCLK_INV = NB */
+		clk_config |= CS42L43_ASP_BCLK_INV_MASK; /* Anal BCLK_INV = NB */
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		break;
@@ -618,14 +618,14 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "ASP Capture",
 			.channels_min	= 1,
 			.channels_max	= CS42L43_ASP_MAX_CHANNELS,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_ASP_FORMATS,
 		},
 		.playback = {
 			.stream_name	= "ASP Playback",
 			.channels_min	= 1,
 			.channels_max	= CS42L43_ASP_MAX_CHANNELS,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_ASP_FORMATS,
 		},
 	},
@@ -637,7 +637,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP1 Capture",
 			.channels_min	= 1,
 			.channels_max	= 4,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -649,7 +649,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP2 Capture",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -661,7 +661,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP3 Capture",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -673,7 +673,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP4 Capture",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -685,7 +685,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP5 Playback",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -697,7 +697,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP6 Playback",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -709,7 +709,7 @@ static struct snd_soc_dai_driver cs42l43_dais[] = {
 			.stream_name	= "DP7 Playback",
 			.channels_min	= 1,
 			.channels_max	= 2,
-			.rates		= SNDRV_PCM_RATE_KNOT,
+			.rates		= SNDRV_PCM_RATE_KANALT,
 			.formats	= CS42L43_SDW_FORMATS,
 		},
 	},
@@ -826,7 +826,7 @@ static SOC_ENUM_SINGLE_DECL(cs42l43_tone2_freq, CS42L43_TONE_CH2_CTRL,
 			    CS42L43_TONE_FREQ_SHIFT, cs42l43_tone_freq_text);
 
 static const char * const cs42l43_mixer_texts[] = {
-	"None",
+	"Analne",
 	"Tone Generator 1", "Tone Generator 2",
 	"Decimator 1", "Decimator 2", "Decimator 3", "Decimator 4",
 	"ASPRX1", "ASPRX2", "ASPRX3", "ASPRX4", "ASPRX5", "ASPRX6",
@@ -841,7 +841,7 @@ static const char * const cs42l43_mixer_texts[] = {
 };
 
 static const unsigned int cs42l43_mixer_values[] = {
-	0x00, // None
+	0x00, // Analne
 	0x04, 0x05, // Tone Generator 1, 2
 	0x10, 0x11, 0x12, 0x13, // Decimator 1, 2, 3, 4
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, // ASPRX1,2,3,4,5,6
@@ -1013,8 +1013,8 @@ static int cs42l43_shutter_get(struct cs42l43_codec *priv, unsigned int shift)
 	}
 
 	/*
-	 * SHUTTER_CONTROL is a mix of volatile and non-volatile bits, so must
-	 * be cached for the non-volatiles, so drop it from the cache here so
+	 * SHUTTER_CONTROL is a mix of volatile and analn-volatile bits, so must
+	 * be cached for the analn-volatiles, so drop it from the cache here so
 	 * we force a read.
 	 */
 	ret = regcache_drop_region(cs42l43->regmap, CS42L43_SHUTTER_CONTROL,
@@ -1348,7 +1348,7 @@ static int cs42l43_enable_pll(struct cs42l43_codec *priv)
 	}
 
 	if (!config) {
-		dev_err(priv->dev, "No suitable PLL config: 0x%x, %uHz\n", div, freq);
+		dev_err(priv->dev, "Anal suitable PLL config: 0x%x, %uHz\n", div, freq);
 		return -EINVAL;
 	}
 
@@ -1389,8 +1389,8 @@ static int cs42l43_enable_pll(struct cs42l43_codec *priv)
 	dev_dbg(priv->dev, "PLL locked in %ums\n", 200 - jiffies_to_msecs(time_left));
 
 	/*
-	 * Reads are not allowed over Soundwire without OSC_DIV2_EN or the PLL,
-	 * but you can not change to PLL with OSC_DIV2_EN set. So ensure the whole
+	 * Reads are analt allowed over Soundwire without OSC_DIV2_EN or the PLL,
+	 * but you can analt change to PLL with OSC_DIV2_EN set. So ensure the whole
 	 * change over happens under the regmap lock to prevent any reads.
 	 */
 	regmap_multi_reg_write(cs42l43->regmap, enable_seq, ARRAY_SIZE(enable_seq));
@@ -1650,7 +1650,7 @@ static int cs42l43_adc_ev(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget cs42l43_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("PLL", SND_SOC_NOPM, 0, 0, cs42l43_pll_ev,
+	SND_SOC_DAPM_SUPPLY("PLL", SND_SOC_ANALPM, 0, 0, cs42l43_pll_ev,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_INPUT("ADC1_IN1_P"),
@@ -1663,12 +1663,12 @@ static const struct snd_soc_dapm_widget cs42l43_widgets[] = {
 	SND_SOC_DAPM_INPUT("PDM1_DIN"),
 	SND_SOC_DAPM_INPUT("PDM2_DIN"),
 
-	SND_SOC_DAPM_MUX("ADC1 Input", SND_SOC_NOPM, 0, 0, &cs42l43_adc1_input_ctl),
+	SND_SOC_DAPM_MUX("ADC1 Input", SND_SOC_ANALPM, 0, 0, &cs42l43_adc1_input_ctl),
 
-	SND_SOC_DAPM_PGA_E("ADC1", SND_SOC_NOPM, CS42L43_ADC1_EN_SHIFT, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("ADC1", SND_SOC_ANALPM, CS42L43_ADC1_EN_SHIFT, 0, NULL, 0,
 			   cs42l43_adc_ev, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_PGA_E("ADC2", SND_SOC_NOPM, CS42L43_ADC2_EN_SHIFT, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("ADC2", SND_SOC_ANALPM, CS42L43_ADC2_EN_SHIFT, 0, NULL, 0,
 			   cs42l43_adc_ev, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD),
 
@@ -1685,15 +1685,15 @@ static const struct snd_soc_dapm_widget cs42l43_widgets[] = {
 			   0, NULL, 0, cs42l43_mic_ev,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_MUX("Decimator 1 Mode", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Decimator 1 Mode", SND_SOC_ANALPM, 0, 0,
 			 &cs42l43_dec_mode_ctl[0]),
-	SND_SOC_DAPM_MUX("Decimator 2 Mode", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Decimator 2 Mode", SND_SOC_ANALPM, 0, 0,
 			 &cs42l43_dec_mode_ctl[1]),
 
-	SND_SOC_DAPM_PGA("Decimator 1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Decimator 2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Decimator 3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Decimator 4", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Decimator 1", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Decimator 2", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Decimator 3", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Decimator 4", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY_S("FSYNC", 0, CS42L43_ASP_CTRL, CS42L43_ASP_FSYNC_EN_SHIFT,
 			      0, NULL, 0),
@@ -1726,28 +1726,28 @@ static const struct snd_soc_dapm_widget cs42l43_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASPRX6", NULL, 5,
 			    CS42L43_ASP_RX_EN, CS42L43_ASP_RX_CH6_EN_SHIFT, 0),
 
-	SND_SOC_DAPM_AIF_OUT("DP1TX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP1TX2", NULL, 1, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP1TX3", NULL, 2, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP1TX4", NULL, 3, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP1TX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP1TX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP1TX3", NULL, 2, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP1TX4", NULL, 3, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("DP2TX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP2TX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP2TX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("DP3TX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP3TX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP3TX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP3TX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("DP4TX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("DP4TX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP4TX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_IN("DP5RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DP5RX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP5RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP5RX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_IN("DP6RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DP6RX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP6RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP6RX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_IN("DP7RX1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("DP7RX2", NULL, 1, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP7RX1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("DP7RX2", NULL, 1, SND_SOC_ANALPM, 0, 0),
 
 	SND_SOC_DAPM_REGULATOR_SUPPLY("vdd-amp", 0, 0),
 
@@ -1767,7 +1767,7 @@ static const struct snd_soc_dapm_widget cs42l43_widgets[] = {
 			 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("SPDIF_TX"),
 
-	SND_SOC_DAPM_PGA_E("HP", SND_SOC_NOPM, CS42L43_HP_EN_SHIFT, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("HP", SND_SOC_ANALPM, CS42L43_HP_EN_SHIFT, 0, NULL, 0,
 			   cs42l43_hp_ev, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("AMP3_OUT"),
@@ -2187,7 +2187,7 @@ static int cs42l43_shutter_irq(struct cs42l43_codec *priv,
 
 	switch (shutter) {
 	case 0x1:
-		dev_warn(priv->dev, "Manual shutters, notifications not available\n");
+		dev_warn(priv->dev, "Manual shutters, analtifications analt available\n");
 		return 0;
 	case 0x2:
 		open_irq = CS42L43_GPIO1_RISE;
@@ -2220,13 +2220,13 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 	unsigned int val;
 	int i, ret;
 
-	dom = irq_find_matching_fwnode(dev_fwnode(cs42l43->dev), DOMAIN_BUS_ANY);
+	dom = irq_find_matching_fwanalde(dev_fwanalde(cs42l43->dev), DOMAIN_BUS_ANY);
 	if (!dom)
 		return -EPROBE_DEFER;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->core = cs42l43;
@@ -2256,7 +2256,7 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(priv->dev, 100);
 	pm_runtime_use_autosuspend(priv->dev);
 	pm_runtime_set_active(priv->dev);
-	pm_runtime_get_noresume(priv->dev);
+	pm_runtime_get_analresume(priv->dev);
 
 	ret = devm_pm_runtime_enable(priv->dev);
 	if (ret)
@@ -2345,7 +2345,7 @@ static int cs42l43_codec_suspend(struct device *dev)
 	return 0;
 }
 
-static int cs42l43_codec_suspend_noirq(struct device *dev)
+static int cs42l43_codec_suspend_analirq(struct device *dev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
 
@@ -2363,7 +2363,7 @@ static int cs42l43_codec_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l43_codec_resume_noirq(struct device *dev)
+static int cs42l43_codec_resume_analirq(struct device *dev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
 
@@ -2374,7 +2374,7 @@ static int cs42l43_codec_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops cs42l43_codec_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend, cs42l43_codec_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend_noirq, cs42l43_codec_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend_analirq, cs42l43_codec_resume_analirq)
 	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
 };
 

@@ -10,11 +10,11 @@ maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 description: |
-  Qualcomm Technologies Inc. SoCs based on the RPM Hardened architecture have a
+  Qualcomm Techanallogies Inc. SoCs based on the RPM Hardened architecture have a
   Power Domain Controller (PDC) that is on always-on domain. In addition to
   providing power control for the power domains, the hardware also has an
   interrupt controller that can be used to help detect edge low interrupts as
-  well detect interrupts when the GIC is non-operational.
+  well detect interrupts when the GIC is analn-operational.
 
   GIC is parent interrupt controller at the highest level. Platform interrupt
   controller PDC is next in hierarchy, followed by others. Drivers requiring
@@ -61,7 +61,7 @@ properties:
   qcom,pdc-ranges:
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
     minItems: 1
-    maxItems: 128 # no hard limit
+    maxItems: 128 # anal hard limit
     items:
       items:
         - description: starting PDC port

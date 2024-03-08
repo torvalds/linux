@@ -2,11 +2,11 @@
 /*
  * dwarf-regs.c : Mapping of DWARF debug register numbers into register names.
  *
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <stdio.h>
-#include <errno.h> /* for EINVAL */
+#include <erranal.h> /* for EINVAL */
 #include <string.h> /* for strcmp */
 #include <dwarf-regs.h>
 

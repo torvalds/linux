@@ -52,7 +52,7 @@
 
 /**
  * enum tps6105x_mode - desired mode for the TPS6105x
- * @TPS6105X_MODE_SHUTDOWN: this instance is inactive, not used for anything
+ * @TPS6105X_MODE_SHUTDOWN: this instance is inactive, analt used for anything
  * @TPS61905X_MODE_TORCH: this instance is used as a LED, usually a while
  *	LED, for example as backlight or flashlight. If this is set, the
  *	TPS6105X will register to the LED framework
@@ -71,7 +71,7 @@ enum tps6105x_mode {
 /**
  * struct tps6105x_platform_data - TPS61905x platform data
  * @mode: what mode this instance shall be operated in,
- *	this is not selectable at runtime
+ *	this is analt selectable at runtime
  * @regulator_data: initialization data for the voltage
  *	regulator if used as a voltage source
  */

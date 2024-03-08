@@ -125,12 +125,12 @@ struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 
 static int vgadget_get_frame(struct usb_gadget *_gadget)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 	struct vudc *udc = usb_gadget_to_vudc(_gadget);
 
-	ktime_get_ts64(&now);
-	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
-		(now.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
+	ktime_get_ts64(&analw);
+	return ((analw.tv_sec - udc->start_time.tv_sec) * 1000 +
+		(analw.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
 			& 0x7FF;
 }
 
@@ -520,7 +520,7 @@ static int init_vudc_hw(struct vudc *udc)
 
 	udc->ep = kcalloc(VIRTUAL_ENDPOINTS, sizeof(*udc->ep), GFP_KERNEL);
 	if (!udc->ep)
-		goto nomem_ep;
+		goto analmem_ep;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
@@ -582,8 +582,8 @@ static int init_vudc_hw(struct vudc *udc)
 	v_init_timer(udc);
 	return 0;
 
-nomem_ep:
-		return -ENOMEM;
+analmem_ep:
+		return -EANALMEM;
 }
 
 static void cleanup_vudc_hw(struct vudc *udc)
@@ -596,7 +596,7 @@ static void cleanup_vudc_hw(struct vudc *udc)
 int vudc_probe(struct platform_device *pdev)
 {
 	struct vudc *udc;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc)

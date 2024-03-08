@@ -20,13 +20,13 @@ static DEFINE_MUTEX(page_pools_lock);
 /* Page pools are only reachable from user space (via netlink) if they are
  * linked to a netdev at creation time. Following page pool "visibility"
  * states are possible:
- *  - normal
+ *  - analrmal
  *    - user.list: linked to real netdev, netdev: real netdev
  *  - orphaned - real netdev has disappeared
  *    - user.list: linked to lo, netdev: lo
  *  - invisible - either (a) created without netdev linking, (b) unlisted due
  *      to error, or (c) the entire namespace which owned this pool disappeared
- *    - user.list: unhashed, netdev: unknown
+ *    - user.list: unhashed, netdev: unkanalwn
  */
 
 typedef int (*pp_nl_fill_cb)(struct sk_buff *rsp, const struct page_pool *pool,
@@ -43,13 +43,13 @@ netdev_nl_page_pool_get_do(struct genl_info *info, u32 id, pp_nl_fill_cb fill)
 	pool = xa_load(&page_pools, id);
 	if (!pool || hlist_unhashed(&pool->user.list) ||
 	    !net_eq(dev_net(pool->slow.netdev), genl_info_net(info))) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_unlock;
 	}
 
 	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!rsp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -168,7 +168,7 @@ err_cancel_msg:
 	return -EMSGSIZE;
 #else
 	GENL_SET_ERR_MSG(info, "kernel built without CONFIG_PAGE_POOL_STATS");
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 #endif
 }
 
@@ -195,7 +195,7 @@ int netdev_nl_page_pool_stats_get_doit(struct sk_buff *skb,
 	if (tb[NETDEV_A_PAGE_POOL_IFINDEX]) {
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NETDEV_A_PAGE_POOL_IFINDEX],
-				    "selecting by ifindex not supported");
+				    "selecting by ifindex analt supported");
 		return -EINVAL;
 	}
 
@@ -311,7 +311,7 @@ int page_pool_list(struct page_pool *pool)
 	if (err < 0)
 		goto err_unlock;
 
-	INIT_HLIST_NODE(&pool->user.list);
+	INIT_HLIST_ANALDE(&pool->user.list);
 	if (pool->slow.netdev) {
 		hlist_add_head(&pool->user.list,
 			       &pool->slow.netdev->page_pools);
@@ -349,7 +349,7 @@ void page_pool_unlist(struct page_pool *pool)
 static void page_pool_unreg_netdev_wipe(struct net_device *netdev)
 {
 	struct page_pool *pool;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
 	mutex_lock(&page_pools_lock);
 	hlist_for_each_entry_safe(pool, n, &netdev->page_pools, user.list) {
@@ -381,31 +381,31 @@ static void page_pool_unreg_netdev(struct net_device *netdev)
 }
 
 static int
-page_pool_netdevice_event(struct notifier_block *nb,
+page_pool_netdevice_event(struct analtifier_block *nb,
 			  unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_analtifier_info_to_dev(ptr);
 
 	if (event != NETDEV_UNREGISTER)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (hlist_empty(&netdev->page_pools))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	if (netdev->ifindex != LOOPBACK_IFINDEX)
 		page_pool_unreg_netdev(netdev);
 	else
 		page_pool_unreg_netdev_wipe(netdev);
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block page_pool_netdevice_nb = {
-	.notifier_call = page_pool_netdevice_event,
+static struct analtifier_block page_pool_netdevice_nb = {
+	.analtifier_call = page_pool_netdevice_event,
 };
 
 static int __init page_pool_user_init(void)
 {
-	return register_netdevice_notifier(&page_pool_netdevice_nb);
+	return register_netdevice_analtifier(&page_pool_netdevice_nb);
 }
 
 subsys_initcall(page_pool_user_init);

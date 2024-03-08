@@ -48,12 +48,12 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 	opencores_kbd = devm_kzalloc(&pdev->dev, sizeof(*opencores_kbd),
 				     GFP_KERNEL);
 	if (!opencores_kbd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	opencores_kbd->input = input;

@@ -21,51 +21,51 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     void *xattr_value,
 					     size_t xattr_value_len,
 					     struct integrity_iint_cache *iint);
-extern int evm_inode_setattr(struct mnt_idmap *idmap,
+extern int evm_ianalde_setattr(struct mnt_idmap *idmap,
 			     struct dentry *dentry, struct iattr *attr);
-extern void evm_inode_post_setattr(struct dentry *dentry, int ia_valid);
-extern int evm_inode_setxattr(struct mnt_idmap *idmap,
+extern void evm_ianalde_post_setattr(struct dentry *dentry, int ia_valid);
+extern int evm_ianalde_setxattr(struct mnt_idmap *idmap,
 			      struct dentry *dentry, const char *name,
 			      const void *value, size_t size);
-extern void evm_inode_post_setxattr(struct dentry *dentry,
+extern void evm_ianalde_post_setxattr(struct dentry *dentry,
 				    const char *xattr_name,
 				    const void *xattr_value,
 				    size_t xattr_value_len);
-extern int evm_inode_copy_up_xattr(const char *name);
-extern int evm_inode_removexattr(struct mnt_idmap *idmap,
+extern int evm_ianalde_copy_up_xattr(const char *name);
+extern int evm_ianalde_removexattr(struct mnt_idmap *idmap,
 				 struct dentry *dentry, const char *xattr_name);
-extern void evm_inode_post_removexattr(struct dentry *dentry,
+extern void evm_ianalde_post_removexattr(struct dentry *dentry,
 				       const char *xattr_name);
-static inline void evm_inode_post_remove_acl(struct mnt_idmap *idmap,
+static inline void evm_ianalde_post_remove_acl(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *acl_name)
 {
-	evm_inode_post_removexattr(dentry, acl_name);
+	evm_ianalde_post_removexattr(dentry, acl_name);
 }
-extern int evm_inode_set_acl(struct mnt_idmap *idmap,
+extern int evm_ianalde_set_acl(struct mnt_idmap *idmap,
 			     struct dentry *dentry, const char *acl_name,
 			     struct posix_acl *kacl);
-static inline int evm_inode_remove_acl(struct mnt_idmap *idmap,
+static inline int evm_ianalde_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {
-	return evm_inode_set_acl(idmap, dentry, acl_name, NULL);
+	return evm_ianalde_set_acl(idmap, dentry, acl_name, NULL);
 }
-static inline void evm_inode_post_set_acl(struct dentry *dentry,
+static inline void evm_ianalde_post_set_acl(struct dentry *dentry,
 					  const char *acl_name,
 					  struct posix_acl *kacl)
 {
-	return evm_inode_post_setxattr(dentry, acl_name, NULL, 0);
+	return evm_ianalde_post_setxattr(dentry, acl_name, NULL, 0);
 }
 
-int evm_inode_init_security(struct inode *inode, struct inode *dir,
+int evm_ianalde_init_security(struct ianalde *ianalde, struct ianalde *dir,
 			    const struct qstr *qstr, struct xattr *xattrs,
 			    int *xattr_count);
 extern bool evm_revalidate_status(const char *xattr_name);
 extern int evm_protected_xattr_if_enabled(const char *req_xattr_name);
 extern int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
 				     int buffer_size, char type,
-				     bool canonical_fmt);
+				     bool caanalnical_fmt);
 #ifdef CONFIG_FS_POSIX_ACL
 extern int posix_xattr_acl(const char *xattrname);
 #else
@@ -78,7 +78,7 @@ static inline int posix_xattr_acl(const char *xattrname)
 
 static inline int evm_set_key(void *key, size_t keylen)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #ifdef CONFIG_INTEGRITY
@@ -88,29 +88,29 @@ static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 						    size_t xattr_value_len,
 					struct integrity_iint_cache *iint)
 {
-	return INTEGRITY_UNKNOWN;
+	return INTEGRITY_UNKANALWN;
 }
 #endif
 
-static inline int evm_inode_setattr(struct mnt_idmap *idmap,
+static inline int evm_ianalde_setattr(struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct iattr *attr)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
+static inline void evm_ianalde_post_setattr(struct dentry *dentry, int ia_valid)
 {
 	return;
 }
 
-static inline int evm_inode_setxattr(struct mnt_idmap *idmap,
+static inline int evm_ianalde_setxattr(struct mnt_idmap *idmap,
 				     struct dentry *dentry, const char *name,
 				     const void *value, size_t size)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_setxattr(struct dentry *dentry,
+static inline void evm_ianalde_post_setxattr(struct dentry *dentry,
 					   const char *xattr_name,
 					   const void *xattr_value,
 					   size_t xattr_value_len)
@@ -118,53 +118,53 @@ static inline void evm_inode_post_setxattr(struct dentry *dentry,
 	return;
 }
 
-static inline int  evm_inode_copy_up_xattr(const char *name)
+static inline int  evm_ianalde_copy_up_xattr(const char *name)
 {
 	return 0;
 }
 
-static inline int evm_inode_removexattr(struct mnt_idmap *idmap,
+static inline int evm_ianalde_removexattr(struct mnt_idmap *idmap,
 					struct dentry *dentry,
 					const char *xattr_name)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_removexattr(struct dentry *dentry,
+static inline void evm_ianalde_post_removexattr(struct dentry *dentry,
 					      const char *xattr_name)
 {
 	return;
 }
 
-static inline void evm_inode_post_remove_acl(struct mnt_idmap *idmap,
+static inline void evm_ianalde_post_remove_acl(struct mnt_idmap *idmap,
 					     struct dentry *dentry,
 					     const char *acl_name)
 {
 	return;
 }
 
-static inline int evm_inode_set_acl(struct mnt_idmap *idmap,
+static inline int evm_ianalde_set_acl(struct mnt_idmap *idmap,
 				    struct dentry *dentry, const char *acl_name,
 				    struct posix_acl *kacl)
 {
 	return 0;
 }
 
-static inline int evm_inode_remove_acl(struct mnt_idmap *idmap,
+static inline int evm_ianalde_remove_acl(struct mnt_idmap *idmap,
 				       struct dentry *dentry,
 				       const char *acl_name)
 {
 	return 0;
 }
 
-static inline void evm_inode_post_set_acl(struct dentry *dentry,
+static inline void evm_ianalde_post_set_acl(struct dentry *dentry,
 					  const char *acl_name,
 					  struct posix_acl *kacl)
 {
 	return;
 }
 
-static inline int evm_inode_init_security(struct inode *inode, struct inode *dir,
+static inline int evm_ianalde_init_security(struct ianalde *ianalde, struct ianalde *dir,
 					  const struct qstr *qstr,
 					  struct xattr *xattrs,
 					  int *xattr_count)
@@ -184,9 +184,9 @@ static inline int evm_protected_xattr_if_enabled(const char *req_xattr_name)
 
 static inline int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
 					    int buffer_size, char type,
-					    bool canonical_fmt)
+					    bool caanalnical_fmt)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif /* CONFIG_EVM */

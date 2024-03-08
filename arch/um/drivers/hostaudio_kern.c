@@ -80,7 +80,7 @@ static ssize_t hostaudio_read(struct file *file, char __user *buffer,
 
 	kbuf = kmalloc(count, GFP_KERNEL);
 	if (kbuf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = os_read_file(state->fd, kbuf, count);
 	if (err < 0)
@@ -172,7 +172,7 @@ static long hostaudio_ioctl(struct file *file,
 	return err;
 }
 
-static int hostaudio_open(struct inode *inode, struct file *file)
+static int hostaudio_open(struct ianalde *ianalde, struct file *file)
 {
 	struct hostaudio_state *state;
 	int r = 0, w = 0;
@@ -186,7 +186,7 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 
 	state = kmalloc(sizeof(struct hostaudio_state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (file->f_mode & FMODE_READ)
 		r = 1;
@@ -208,7 +208,7 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hostaudio_release(struct inode *inode, struct file *file)
+static int hostaudio_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hostaudio_state *state = file->private_data;
 
@@ -235,7 +235,7 @@ static long hostmixer_ioctl_mixdev(struct file *file,
 	return os_ioctl_generic(state->fd, cmd, arg);
 }
 
-static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
+static int hostmixer_open_mixdev(struct ianalde *ianalde, struct file *file)
 {
 	struct hostmixer_state *state;
 	int r = 0, w = 0;
@@ -247,7 +247,7 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 
 	state = kmalloc(sizeof(struct hostmixer_state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (file->f_mode & FMODE_READ)
 		r = 1;
@@ -273,7 +273,7 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hostmixer_release(struct inode *inode, struct file *file)
+static int hostmixer_release(struct ianalde *ianalde, struct file *file)
 {
 	struct hostmixer_state *state = file->private_data;
 
@@ -291,7 +291,7 @@ static int hostmixer_release(struct inode *inode, struct file *file)
 
 static const struct file_operations hostaudio_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = anal_llseek,
 	.read           = hostaudio_read,
 	.write          = hostaudio_write,
 	.poll           = hostaudio_poll,
@@ -304,7 +304,7 @@ static const struct file_operations hostaudio_fops = {
 
 static const struct file_operations hostmixer_fops = {
 	.owner          = THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = anal_llseek,
 	.unlocked_ioctl	= hostmixer_ioctl_mixdev,
 	.open           = hostmixer_open_mixdev,
 	.release        = hostmixer_release,
@@ -329,7 +329,7 @@ static int __init hostaudio_init_module(void)
 	module_data.dev_audio = register_sound_dsp(&hostaudio_fops, -1);
 	if (module_data.dev_audio < 0) {
 		printk(KERN_ERR "hostaudio: couldn't register DSP device!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	module_data.dev_mixer = register_sound_mixer(&hostmixer_fops, -1);
@@ -337,7 +337,7 @@ static int __init hostaudio_init_module(void)
 		printk(KERN_ERR "hostmixer: couldn't register mixer "
 		       "device!\n");
 		unregister_sound_dsp(module_data.dev_audio);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

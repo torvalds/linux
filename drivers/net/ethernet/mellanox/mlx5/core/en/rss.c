@@ -91,7 +91,7 @@ int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir, struct mlx
 {
 	indir->table = kvmalloc_array(max_table_size, sizeof(*indir->table), GFP_KERNEL);
 	if (!indir->table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indir->max_table_size = max_table_size;
 	indir->actual_table_size = actual_table_size;
@@ -132,7 +132,7 @@ static struct mlx5e_rss *mlx5e_rss_init_copy(const struct mlx5e_rss *from)
 
 	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
 	if (!rss)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlx5e_rss_params_indir_init(&rss->indir, from->mdev, from->indir.actual_table_size,
 					  from->indir.max_table_size);
@@ -200,7 +200,7 @@ static int mlx5e_rss_create_tir(struct mlx5e_rss *rss,
 
 	if (inner && !rss->inner_ft_support) {
 		mlx5e_rss_warn(rss->mdev,
-			       "Cannot create inner indirect TIR[%d], RSS inner FT is not supported.\n",
+			       "Cananalt create inner indirect TIR[%d], RSS inner FT is analt supported.\n",
 			       tt);
 		return -EINVAL;
 	}
@@ -211,11 +211,11 @@ static int mlx5e_rss_create_tir(struct mlx5e_rss *rss,
 
 	tir = kvzalloc(sizeof(*tir), GFP_KERNEL);
 	if (!tir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_tir;
 	}
 
@@ -302,7 +302,7 @@ static int mlx5e_rss_update_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types t
 
 	builder = mlx5e_tir_builder_alloc(true);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rss_tt = mlx5e_rss_get_tt_config(rss, tt);
 
@@ -343,7 +343,7 @@ static int mlx5e_rss_update_tirs(struct mlx5e_rss *rss)
 	return retval;
 }
 
-static int mlx5e_rss_init_no_tirs(struct mlx5e_rss *rss)
+static int mlx5e_rss_init_anal_tirs(struct mlx5e_rss *rss)
 {
 	mlx5e_rss_params_init(rss);
 	refcount_set(&rss->refcnt, 1);
@@ -362,7 +362,7 @@ struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_suppo
 
 	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
 	if (!rss)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = mlx5e_rss_params_indir_init(&rss->indir, mdev,
 					  mlx5e_rqt_size(mdev, nch),
@@ -374,11 +374,11 @@ struct mlx5e_rss *mlx5e_rss_init(struct mlx5_core_dev *mdev, bool inner_ft_suppo
 	rss->inner_ft_support = inner_ft_support;
 	rss->drop_rqn = drop_rqn;
 
-	err = mlx5e_rss_init_no_tirs(rss);
+	err = mlx5e_rss_init_anal_tirs(rss);
 	if (err)
 		goto err_free_indir;
 
-	if (type == MLX5E_RSS_INIT_NO_TIRS)
+	if (type == MLX5E_RSS_INIT_ANAL_TIRS)
 		goto out;
 
 	err = mlx5e_rss_create_tirs(rss, init_pkt_merge_param, false);
@@ -510,7 +510,7 @@ int mlx5e_rss_packet_merge_set_param(struct mlx5e_rss *rss,
 
 	builder = mlx5e_tir_builder_alloc(true);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5e_tir_builder_build_packet_merge(builder, pkt_merge_param);
 
@@ -663,7 +663,7 @@ int mlx5e_rss_set_hash_fields(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	err = mlx5e_rss_update_tir(rss, tt, true);
 	if (err) {
 		/* Partial update happened. Try to revert - it may fail too, but
-		 * there is nothing more we can do.
+		 * there is analthing more we can do.
 		 */
 		rss->rx_hash_fields[tt] = old_rx_hash_fields;
 		mlx5e_rss_warn(rss->mdev,

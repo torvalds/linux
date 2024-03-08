@@ -125,7 +125,7 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
  * register set was from protected mode with RPL-3 CS value.  This
  * tricky test checks that with one comparison.
  *
- * On x86_64, vm86 mode is mercifully nonexistent, and we don't need
+ * On x86_64, vm86 mode is mercifully analnexistent, and we don't need
  * the extra check.
  */
 static __always_inline int user_mode(struct pt_regs *regs)
@@ -142,7 +142,7 @@ static __always_inline int v8086_mode(struct pt_regs *regs)
 #ifdef CONFIG_X86_32
 	return (regs->flags & X86_VM_MASK);
 #else
-	return 0;	/* No V86 mode support in long mode */
+	return 0;	/* Anal V86 mode support in long mode */
 #endif
 }
 
@@ -151,8 +151,8 @@ static inline bool user_64bit_mode(struct pt_regs *regs)
 #ifdef CONFIG_X86_64
 #ifndef CONFIG_PARAVIRT_XXL
 	/*
-	 * On non-paravirt systems, this is the only long mode CPL 3
-	 * selector.  We do not allow long mode selectors in the LDT.
+	 * On analn-paravirt systems, this is the only long mode CPL 3
+	 * selector.  We do analt allow long mode selectors in the LDT.
 	 */
 	return regs->cs == __USER_CS;
 #else
@@ -276,7 +276,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:	address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If analt, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
 					   unsigned long addr)
@@ -290,7 +290,7 @@ static inline int regs_within_kernel_stack(struct pt_regs *regs,
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns the address of the @n th entry of the
- * kernel stack which is specified by @regs. If the @n th entry is NOT in
+ * kernel stack which is specified by @regs. If the @n th entry is ANALT in
  * the kernel stack, this returns NULL.
  */
 static inline unsigned long *regs_get_kernel_stack_nth_addr(struct pt_regs *regs, unsigned int n)
@@ -305,7 +305,7 @@ static inline unsigned long *regs_get_kernel_stack_nth_addr(struct pt_regs *regs
 }
 
 /* To avoid include hell, we can't include uaccess.h */
-extern long copy_from_kernel_nofault(void *dst, const void *src, size_t size);
+extern long copy_from_kernel_analfault(void *dst, const void *src, size_t size);
 
 /**
  * regs_get_kernel_stack_nth() - get Nth entry of the stack
@@ -313,7 +313,7 @@ extern long copy_from_kernel_nofault(void *dst, const void *src, size_t size);
  * @n:		stack entry number.
  *
  * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
- * is specified by @regs. If the @n th entry is NOT in the kernel stack
+ * is specified by @regs. If the @n th entry is ANALT in the kernel stack
  * this returns 0.
  */
 static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
@@ -325,7 +325,7 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 
 	addr = regs_get_kernel_stack_nth_addr(regs, n);
 	if (addr) {
-		ret = copy_from_kernel_nofault(&val, addr, sizeof(val));
+		ret = copy_from_kernel_analfault(&val, addr, sizeof(val));
 		if (!ret)
 			return val;
 	}
@@ -338,7 +338,7 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
  * @n:		function argument number (start from 0)
  *
  * regs_get_argument() returns @n th argument of the function call.
- * Note that this chooses most probably assignment, in some case
+ * Analte that this chooses most probably assignment, in some case
  * it can be incorrect.
  * This is expected to be called from kprobes or ftrace with regs
  * where the top of stack is the return address.

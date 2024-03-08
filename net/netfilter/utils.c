@@ -26,11 +26,11 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 			break;
 		}
 		fallthrough;
-	case CHECKSUM_NONE:
+	case CHECKSUM_ANALNE:
 		if (protocol != IPPROTO_TCP && protocol != IPPROTO_UDP)
 			skb->csum = 0;
 		else
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
+			skb->csum = csum_tcpudp_analfold(iph->saddr, iph->daddr,
 						       skb->len - dataoff,
 						       protocol, 0);
 		csum = __skb_checksum_complete(skb);
@@ -52,10 +52,10 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 		if (len == skb->len - dataoff)
 			return nf_ip_checksum(skb, hook, dataoff, protocol);
 		fallthrough;
-	case CHECKSUM_NONE:
-		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
+	case CHECKSUM_ANALNE:
+		skb->csum = csum_tcpudp_analfold(iph->saddr, iph->daddr, protocol,
 					       skb->len - dataoff, 0);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		return __skb_checksum_complete_head(skb, dataoff + len);
 	}
 	return csum;
@@ -80,7 +80,7 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			break;
 		}
 		fallthrough;
-	case CHECKSUM_NONE:
+	case CHECKSUM_ANALNE:
 		skb->csum = ~csum_unfold(
 				csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
 					     skb->len - dataoff,
@@ -107,14 +107,14 @@ static __sum16 nf_ip6_checksum_partial(struct sk_buff *skb, unsigned int hook,
 		if (len == skb->len - dataoff)
 			return nf_ip6_checksum(skb, hook, dataoff, protocol);
 		fallthrough;
-	case CHECKSUM_NONE:
+	case CHECKSUM_ANALNE:
 		hsum = skb_checksum(skb, 0, dataoff, 0);
 		skb->csum = ~csum_unfold(csum_ipv6_magic(&ip6h->saddr,
 							 &ip6h->daddr,
 							 skb->len - dataoff,
 							 protocol,
 							 csum_sub(0, hsum)));
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 		return __skb_checksum_complete_head(skb, dataoff + len);
 	}
 	return csum;
@@ -216,19 +216,19 @@ int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
 	return ret;
 }
 
-/* Only get and check the lengths, not do any hop-by-hop stuff. */
+/* Only get and check the lengths, analt do any hop-by-hop stuff. */
 int nf_ip6_check_hbh_len(struct sk_buff *skb, u32 *plen)
 {
 	int len, off = sizeof(struct ipv6hdr);
 	unsigned char *nh;
 
 	if (!pskb_may_pull(skb, off + 8))
-		return -ENOMEM;
+		return -EANALMEM;
 	nh = (unsigned char *)(ipv6_hdr(skb) + 1);
 	len = (nh[1] + 1) << 3;
 
 	if (!pskb_may_pull(skb, off + len))
-		return -ENOMEM;
+		return -EANALMEM;
 	nh = skb_network_header(skb);
 
 	off += 2;

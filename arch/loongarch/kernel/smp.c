@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
- * Copyright (C) 2000, 2001 Kanoj Sarcar
+ * Copyright (C) 2000, 2001 Kaanalj Sarcar
  * Copyright (C) 2000, 2001 Ralf Baechle
  * Copyright (C) 2000, 2001 Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2003 Broadcom Corporation
@@ -151,7 +151,7 @@ void calculate_cpu_foreign_map(void)
 	}
 
 	for_each_online_cpu(i)
-		cpumask_andnot(&cpu_foreign_map[i],
+		cpumask_andanalt(&cpu_foreign_map[i],
 			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
@@ -216,8 +216,8 @@ void loongson_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 }
 
 /*
- * This function sends a 'reschedule' IPI to another CPU.
- * it goes straight through and wastes no time serializing
+ * This function sends a 'reschedule' IPI to aanalther CPU.
+ * it goes straight through and wastes anal time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
 void arch_smp_send_reschedule(int cpu)
@@ -250,13 +250,13 @@ static void __init fdt_smp_setup(void)
 {
 #ifdef CONFIG_OF
 	unsigned int cpu, cpuid;
-	struct device_node *node = NULL;
+	struct device_analde *analde = NULL;
 
-	for_each_of_cpu_node(node) {
-		if (!of_device_is_available(node))
+	for_each_of_cpu_analde(analde) {
+		if (!of_device_is_available(analde))
 			continue;
 
-		cpuid = of_get_cpu_hwid(node, 0);
+		cpuid = of_get_cpu_hwid(analde, 0);
 		if (cpuid >= nr_cpu_ids)
 			continue;
 
@@ -389,7 +389,7 @@ void loongson_cpu_die(unsigned int cpu)
 	mb();
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	register uint64_t addr;
 	register void (*init_fn)(void);
@@ -436,7 +436,7 @@ static struct syscore_ops loongson_ipi_syscore_ops = {
 };
 
 /*
- * Enable boot cpu ipi before enabling nonboot cpus
+ * Enable boot cpu ipi before enabling analnboot cpus
  * during syscore_resume.
  */
 static int __init ipi_pm_init(void)
@@ -451,34 +451,34 @@ core_initcall(ipi_pm_init);
 /* Preload SMP state for boot cpu */
 void smp_prepare_boot_cpu(void)
 {
-	unsigned int cpu, node, rr_node;
+	unsigned int cpu, analde, rr_analde;
 
 	set_cpu_possible(0, true);
 	set_cpu_online(0, true);
 	set_my_cpu_offset(per_cpu_offset(0));
 
-	rr_node = first_node(node_online_map);
+	rr_analde = first_analde(analde_online_map);
 	for_each_possible_cpu(cpu) {
-		node = early_cpu_to_node(cpu);
+		analde = early_cpu_to_analde(cpu);
 
 		/*
-		 * The mapping between present cpus and nodes has been
+		 * The mapping between present cpus and analdes has been
 		 * built during MADT and SRAT parsing.
 		 *
-		 * If possible cpus = present cpus here, early_cpu_to_node
-		 * will return valid node.
+		 * If possible cpus = present cpus here, early_cpu_to_analde
+		 * will return valid analde.
 		 *
 		 * If possible cpus > present cpus here (e.g. some possible
 		 * cpus will be added by cpu-hotplug later), for possible but
-		 * not present cpus, early_cpu_to_node will return NUMA_NO_NODE,
-		 * and we just map them to online nodes in round-robin way.
+		 * analt present cpus, early_cpu_to_analde will return NUMA_ANAL_ANALDE,
+		 * and we just map them to online analdes in round-robin way.
 		 * Once hotplugged, new correct mapping will be built for them.
 		 */
-		if (node != NUMA_NO_NODE)
-			set_cpu_numa_node(cpu, node);
+		if (analde != NUMA_ANAL_ANALDE)
+			set_cpu_numa_analde(cpu, analde);
 		else {
-			set_cpu_numa_node(cpu, rr_node);
-			rr_node = next_node_in(rr_node, node_online_map);
+			set_cpu_numa_analde(cpu, rr_analde);
+			rr_analde = next_analde_in(rr_analde, analde_online_map);
 		}
 	}
 }
@@ -533,18 +533,18 @@ asmlinkage void start_secondary(void)
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
-	notify_cpu_starting(cpu);
+	analtify_cpu_starting(cpu);
 
-	/* Notify boot CPU that we're starting */
+	/* Analtify boot CPU that we're starting */
 	complete(&cpu_starting);
 
-	/* The CPU is running, now mark it online */
+	/* The CPU is running, analw mark it online */
 	set_cpu_online(cpu, true);
 
 	calculate_cpu_foreign_map();
 
 	/*
-	 * Notify boot CPU that we're up & online and it can safely return
+	 * Analtify boot CPU that we're up & online and it can safely return
 	 * from __cpu_up()
 	 */
 	complete(&cpu_running);

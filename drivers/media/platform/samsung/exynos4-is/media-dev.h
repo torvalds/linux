@@ -15,16 +15,16 @@
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
 #include "mipi-csis.h"
 
-#define FIMC_OF_NODE_NAME	"fimc"
-#define FIMC_LITE_OF_NODE_NAME	"fimc-lite"
-#define FIMC_IS_OF_NODE_NAME	"fimc-is"
-#define CSIS_OF_NODE_NAME	"csis"
+#define FIMC_OF_ANALDE_NAME	"fimc"
+#define FIMC_LITE_OF_ANALDE_NAME	"fimc-lite"
+#define FIMC_IS_OF_ANALDE_NAME	"fimc-is"
+#define CSIS_OF_ANALDE_NAME	"csis"
 
 #define FIMC_MAX_SENSORS	4
 #define FIMC_MAX_CAMCLKS	2
@@ -49,10 +49,10 @@ enum fimc_subdev_index {
 /*
  * This structure represents a chain of media entities, including a data
  * source entity (e.g. an image sensor subdevice), a data capture entity
- * - a video capture device node and any remaining entities.
+ * - a video capture device analde and any remaining entities.
  */
 struct fimc_pipeline {
-	struct exynos_media_pipeline ep;
+	struct exyanals_media_pipeline ep;
 	struct list_head list;
 	struct media_entity *vdev_entity;
 	struct v4l2_subdev *subdevs[IDX_MAX];
@@ -74,7 +74,7 @@ struct fimc_camclk_info {
 /**
  * struct fimc_sensor_info - image data source subdev information
  * @pdata: sensor's attributes passed as media device's platform data
- * @asd: asynchronous subdev registration data structure
+ * @asd: asynchroanalus subdev registration data structure
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
  *
@@ -109,8 +109,8 @@ struct cam_clk {
  * @v4l2_dev: top level v4l2_device holding up the subdevs
  * @pdev: platform device this media device is hooked up into
  * @clk_provider: CAMCLK clock provider structure
- * @subdev_notifier: notifier for the subdevs
- * @user_subdev_api: true if subdevs are not configured by the host driver
+ * @subdev_analtifier: analtifier for the subdevs
+ * @user_subdev_api: true if subdevs are analt configured by the host driver
  * @slock: spinlock protecting @sensor array
  * @pipelines: list of pipelines
  * @link_setup_graph: graph iterator
@@ -133,12 +133,12 @@ struct fimc_md {
 	struct cam_clk_provider {
 		struct clk *clks[FIMC_MAX_CAMCLKS];
 		struct clk_onecell_data clk_data;
-		struct device_node *of_node;
+		struct device_analde *of_analde;
 		struct cam_clk camclk[FIMC_MAX_CAMCLKS];
 		int num_clocks;
 	} clk_provider;
 
-	struct v4l2_async_notifier subdev_notifier;
+	struct v4l2_async_analtifier subdev_analtifier;
 
 	bool user_subdev_api;
 	spinlock_t slock;
@@ -158,17 +158,17 @@ static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 		container_of(me->graph_obj.mdev, struct fimc_md, media_dev);
 }
 
-static inline struct fimc_md *notifier_to_fimc_md(struct v4l2_async_notifier *n)
+static inline struct fimc_md *analtifier_to_fimc_md(struct v4l2_async_analtifier *n)
 {
-	return container_of(n, struct fimc_md, subdev_notifier);
+	return container_of(n, struct fimc_md, subdev_analtifier);
 }
 
-static inline void fimc_md_graph_lock(struct exynos_video_entity *ve)
+static inline void fimc_md_graph_lock(struct exyanals_video_entity *ve)
 {
 	mutex_lock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
 
-static inline void fimc_md_graph_unlock(struct exynos_video_entity *ve)
+static inline void fimc_md_graph_unlock(struct exyanals_video_entity *ve)
 {
 	mutex_unlock(&ve->vdev.entity.graph_obj.mdev->graph_mutex);
 }
@@ -176,17 +176,17 @@ static inline void fimc_md_graph_unlock(struct exynos_video_entity *ve)
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);
 
 #ifdef CONFIG_OF
-static inline bool fimc_md_is_isp_available(struct device_node *node)
+static inline bool fimc_md_is_isp_available(struct device_analde *analde)
 {
-	node = of_get_child_by_name(node, FIMC_IS_OF_NODE_NAME);
-	return node ? of_device_is_available(node) : false;
+	analde = of_get_child_by_name(analde, FIMC_IS_OF_ANALDE_NAME);
+	return analde ? of_device_is_available(analde) : false;
 }
 #else
-#define fimc_md_is_isp_available(node) (false)
+#define fimc_md_is_isp_available(analde) (false)
 #endif /* CONFIG_OF */
 
 static inline struct v4l2_subdev *__fimc_md_get_subdev(
-				struct exynos_media_pipeline *ep,
+				struct exyanals_media_pipeline *ep,
 				unsigned int index)
 {
 	struct fimc_pipeline *p = to_fimc_pipeline(ep);

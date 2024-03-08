@@ -10,7 +10,7 @@ You will need policy routing too, so be sure to enable that as well.
 
 From Linux 4.18 transparent proxy support is also available in nf_tables.
 
-1. Making non-local sockets work
+1. Making analn-local sockets work
 ================================
 
 The idea is that you identify packets with destination address matching a local
@@ -34,7 +34,7 @@ delivered locally::
     # ip route add local 0.0.0.0/0 dev lo table 100
 
 Because of certain restrictions in the IPv4 routing output code you'll have to
-modify your application to allow it to send datagrams _from_ non-local IP
+modify your application to allow it to send datagrams _from_ analn-local IP
 addresses. All you have to do is enable the (SOL_IP, IP_TRANSPARENT) socket
 option before calling bind::
 
@@ -58,7 +58,7 @@ http://people.netfilter.org/hidden/tproxy/netcat-ip_transparent-support.patch
 Transparent proxying often involves "intercepting" traffic on a router. This is
 usually done with the iptables REDIRECT target; however, there are serious
 limitations of that method. One of the major issues is that it actually
-modifies the packets to change the destination address -- which might not be
+modifies the packets to change the destination address -- which might analt be
 acceptable in certain situations. (Think of proxying UDP for example: you won't
 be able to find out the original destination address. Even in case of TCP
 getting the original destination address is racy.)
@@ -73,7 +73,7 @@ Or the following rule to nft:
 
 # nft add rule filter divert tcp dport 80 tproxy to :50080 meta mark set 1 accept
 
-Note that for this to work you'll have to modify the proxy to enable (SOL_IP,
+Analte that for this to work you'll have to modify the proxy to enable (SOL_IP,
 IP_TRANSPARENT) for the listening socket.
 
 As an example implementation, tcprdr is available here:

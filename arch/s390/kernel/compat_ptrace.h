@@ -27,7 +27,7 @@ struct compat_user_regs_struct
 	s390_fp_regs fp_regs;
 	/*
 	 * These per registers are in here so that gdb can modify them
-	 * itself as there is no "official" ptrace interface for hardware
+	 * itself as there is anal "official" ptrace interface for hardware
 	 * watchpoints. This is the way intel does it.
 	 */
 	struct compat_per_struct_kernel per_info;

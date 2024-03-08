@@ -11,7 +11,7 @@
 
 struct pt_regs;
 struct pci_bus;
-struct device_node;
+struct device_analde;
 struct iommu_table;
 struct rtc_time;
 struct file;
@@ -42,7 +42,7 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 
-	/* Return an irq, or 0 to indicate there are none pending. */
+	/* Return an irq, or 0 to indicate there are analne pending. */
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */
@@ -58,8 +58,8 @@ struct machdep_calls {
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
-	void __noreturn	(*restart)(char *cmd);
-	void __noreturn (*halt)(void);
+	void __analreturn	(*restart)(char *cmd);
+	void __analreturn (*halt)(void);
 	void		(*panic)(char *str);
 
 	long		(*time_init)(void); /* Optional, may be NULL */
@@ -128,7 +128,7 @@ struct machdep_calls {
 	int		(*set_dawr)(int nr, unsigned long dawr,
 				    unsigned long dawrx);
 
-#ifdef CONFIG_PPC32	/* XXX for now */
+#ifdef CONFIG_PPC32	/* XXX for analw */
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */
 	void		(*init)(void);
@@ -164,12 +164,12 @@ struct machdep_calls {
 
 #ifdef CONFIG_PCI_IOV
 	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
-	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resanal);
 	int (*pcibios_sriov_enable)(struct pci_dev *pdev, u16 num_vfs);
 	int (*pcibios_sriov_disable)(struct pci_dev *pdev);
 #endif /* CONFIG_PCI_IOV */
 
-	/* Called to shutdown machine specific hardware not already controlled
+	/* Called to shutdown machine specific hardware analt already controlled
 	 * by other drivers.
 	 */
 	void (*machine_shutdown)(void);
@@ -178,8 +178,8 @@ struct machdep_calls {
 	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
 
 	/* Called to perform the _real_ kexec.
-	 * Do NOT allocate memory or fail here. We are past the point of
-	 * no return.
+	 * Do ANALT allocate memory or fail here. We are past the point of
+	 * anal return.
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC_CORE */

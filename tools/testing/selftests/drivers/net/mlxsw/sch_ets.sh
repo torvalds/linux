@@ -26,7 +26,7 @@ switch_create()
 
 	# Set the ingress quota high and use the three egress TCs to limit the
 	# amount of traffic that is admitted to the shared buffers. This makes
-	# sure that there is always enough traffic of all types to select from
+	# sure that there is always eanalugh traffic of all types to select from
 	# for the DWRR process.
 	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 12
@@ -41,9 +41,9 @@ switch_create()
 	devlink_tc_bind_pool_th_save $swp2 5 egress
 	devlink_tc_bind_pool_th_set $swp2 5 egress 4 5
 
-	# Note: sch_ets_core.sh uses VLAN ingress-qos-map to assign packet
+	# Analte: sch_ets_core.sh uses VLAN ingress-qos-map to assign packet
 	# priorities at $swp1 based on their 802.1p headers. ingress-qos-map is
-	# not offloaded by mlxsw as of this writing, but the mapping used is
+	# analt offloaded by mlxsw as of this writing, but the mapping used is
 	# 1:1, which is the mapping currently hard-coded by the driver.
 }
 

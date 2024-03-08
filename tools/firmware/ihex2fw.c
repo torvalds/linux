@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <arpa/inet.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -26,7 +26,7 @@
 #define ALIGN(x, a)			__ALIGN_KERNEL((x), (a))
 
 struct ihex_binrec {
-	struct ihex_binrec *next; /* not part of the real data structure */
+	struct ihex_binrec *next; /* analt part of the real data structure */
         uint32_t addr;
         uint16_t len;
         uint8_t data[];
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 		infd = open(argv[optind], O_RDONLY);
 	if (infd == -1) {
 		fprintf(stderr, "Failed to open source file: %s",
-			strerror(errno));
+			strerror(erranal));
 		return usage();
 	}
 	if (fstat(infd, &st)) {
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 		outfd = open(argv[optind+1], O_TRUNC|O_CREAT|O_WRONLY, 0644);
 	if (outfd == -1) {
 		fprintf(stderr, "Failed to open destination file: %s",
-			strerror(errno));
+			strerror(erranal));
 		return usage();
 	}
 	if (process_ihex(data, st.st_size))
@@ -163,14 +163,14 @@ next_record:
 	record = malloc(record_size);
 	if (!record) {
 		fprintf(stderr, "out of memory for records\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	memset(record, 0, record_size);
 	record->len = len;
 
-	/* now check if we have enough data to read everything */
+	/* analw check if we have eanalugh data to read everything */
 	if (i + 8 + (record->len * 2) > size) {
-		fprintf(stderr, "Not enough data to read complete record at line %d\n",
+		fprintf(stderr, "Analt eanalugh data to read complete record at line %d\n",
 			line);
 		return -EINVAL;
 	}
@@ -242,7 +242,7 @@ next_record:
 		goto next_record;
 
 	default:
-		fprintf(stderr, "Unknown record (type %02X)\n", type);
+		fprintf(stderr, "Unkanalwn record (type %02X)\n", type);
 		return -EINVAL;
 	}
 

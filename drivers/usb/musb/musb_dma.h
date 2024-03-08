@@ -4,7 +4,7 @@
  *
  * Copyright 2005 Mentor Graphics Corporation
  * Copyright (C) 2005-2006 by Texas Instruments
- * Copyright (C) 2006-2007 Nokia Corporation
+ * Copyright (C) 2006-2007 Analkia Corporation
  */
 
 #ifndef __MUSB_DMA_H__
@@ -26,7 +26,7 @@ struct musb_hw_ep;
  *    the correct RX side treatment of short packets and buffer-full
  *    states (both of which terminate transfers).
  *
- *  - Knowing the correlation between dma channels and the
+ *  - Kanalwing the correlation between dma channels and the
  *    Inventra core's local endpoint resources and data direction.
  *
  *  - Maintaining a list of allocated/available channels.
@@ -85,8 +85,8 @@ struct musb_hw_ep;
  */
 enum dma_channel_status {
 	/* unallocated */
-	MUSB_DMA_STATUS_UNKNOWN,
-	/* allocated ... but not busy, no errors */
+	MUSB_DMA_STATUS_UNKANALWN,
+	/* allocated ... but analt busy, anal errors */
 	MUSB_DMA_STATUS_FREE,
 	/* busy ... transactions are active */
 	MUSB_DMA_STATUS_BUSY,
@@ -112,7 +112,7 @@ struct dma_controller;
  */
 struct dma_channel {
 	void			*private_data;
-	/* FIXME not void* private_data, but a dma_controller * */
+	/* FIXME analt void* private_data, but a dma_controller * */
 	size_t			max_len;
 	size_t			actual_len;
 	enum dma_channel_status	status;
@@ -131,22 +131,22 @@ struct dma_channel {
 static inline enum dma_channel_status
 dma_channel_status(struct dma_channel *c)
 {
-	return (is_dma_capable() && c) ? c->status : MUSB_DMA_STATUS_UNKNOWN;
+	return (is_dma_capable() && c) ? c->status : MUSB_DMA_STATUS_UNKANALWN;
 }
 
 /**
  * struct dma_controller - A DMA Controller.
  * @musb: the usb controller
  * @start: call this to start a DMA controller;
- *	return 0 on success, else negative errno
+ *	return 0 on success, else negative erranal
  * @stop: call this to stop a DMA controller
- *	return 0 on success, else negative errno
+ *	return 0 on success, else negative erranal
  * @channel_alloc: call this to allocate a DMA channel
  * @channel_release: call this to release a DMA channel
  * @channel_abort: call this to abort a pending DMA transaction,
  *	returning it to FREE (but allocated) state
  * @dma_callback: invoked on DMA completion, useful to run platform
- *	code such IRQ acknowledgment.
+ *	code such IRQ ackanalwledgment.
  *
  * Controllers manage dma channels.
  */
@@ -191,7 +191,7 @@ extern struct dma_controller *
 musbhs_dma_controller_create(struct musb *musb, void __iomem *base);
 extern void musbhs_dma_controller_destroy(struct dma_controller *c);
 extern struct dma_controller *
-musbhs_dma_controller_create_noirq(struct musb *musb, void __iomem *base);
+musbhs_dma_controller_create_analirq(struct musb *musb, void __iomem *base);
 extern irqreturn_t dma_controller_irq(int irq, void *private_data);
 
 extern struct dma_controller *

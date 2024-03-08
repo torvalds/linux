@@ -9,7 +9,7 @@
 #include <linux/dev_printk.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -54,19 +54,19 @@ static irqreturn_t mc34vr500_process_interrupt(int irq, void *userdata)
 
 	if (reg) {
 		if (reg & LOWVINS_BIT)
-			hwmon_notify_event(data->hwmon_dev, hwmon_in,
+			hwmon_analtify_event(data->hwmon_dev, hwmon_in,
 					   hwmon_in_min_alarm, 0);
 
 		if (reg & THERM110S_BIT)
-			hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+			hwmon_analtify_event(data->hwmon_dev, hwmon_temp,
 					   hwmon_temp_max_alarm, 0);
 
 		if (reg & THERM120S_BIT)
-			hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+			hwmon_analtify_event(data->hwmon_dev, hwmon_temp,
 					   hwmon_temp_crit_alarm, 0);
 
 		if (reg & THERM130S_BIT)
-			hwmon_notify_event(data->hwmon_dev, hwmon_temp,
+			hwmon_analtify_event(data->hwmon_dev, hwmon_temp,
 					   hwmon_temp_emergency_alarm, 0);
 
 		/* write 1 to clear */
@@ -120,7 +120,7 @@ static int mc34vr500_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_in_min_alarm:
 			return mc34vr500_alarm_read(data, LOWVINS_BIT, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	case hwmon_temp:
 		switch (attr) {
@@ -131,10 +131,10 @@ static int mc34vr500_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_temp_emergency_alarm:
 			return mc34vr500_alarm_read(data, THERM130S_BIT, val);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -176,7 +176,7 @@ static int mc34vr500_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct mc34vr500_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = regmap;
 
@@ -185,7 +185,7 @@ static int mc34vr500_probe(struct i2c_client *client)
 		return ret;
 
 	if (reg != MC34VR500_DEVICEID_VALUE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = regmap_read(regmap, MC34VR500_SILICONREVID, &revid);
 	if (ret < 0)

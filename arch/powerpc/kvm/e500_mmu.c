@@ -419,7 +419,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	if (tlbsel == 1) {
 		/*
 		 * If a valid tlb1 entry is overwritten then recalculate the
-		 * min/max TLB1 map address range otherwise no need to look
+		 * min/max TLB1 map address range otherwise anal need to look
 		 * in tlb1 array.
 		 */
 		if (recal)
@@ -741,7 +741,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	u32 sets;
 	int num_pages, ret, i;
 
-	if (cfg->mmu_type != KVM_MMU_FSL_BOOKE_NOHV)
+	if (cfg->mmu_type != KVM_MMU_FSL_BOOKE_ANALHV)
 		return -EINVAL;
 
 	if (copy_from_user(&params, (void __user *)(uintptr_t)cfg->params,
@@ -774,7 +774,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 		    cfg->array / PAGE_SIZE;
 	pages = kmalloc_array(num_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = get_user_pages_fast(cfg->array, num_pages, FOLL_WRITE, pages);
 	if (ret < 0)
@@ -788,19 +788,19 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 
 	virt = vmap(pages, num_pages, VM_MAP, PAGE_KERNEL);
 	if (!virt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_pages;
 	}
 
 	privs[0] = kcalloc(params.tlb_sizes[0], sizeof(*privs[0]), GFP_KERNEL);
 	if (!privs[0]) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_pages;
 	}
 
 	privs[1] = kcalloc(params.tlb_sizes[1], sizeof(*privs[1]), GFP_KERNEL);
 	if (!privs[1]) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_privs_first;
 	}
 
@@ -808,7 +808,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			     sizeof(*g2h_bitmap),
 			     GFP_KERNEL);
 	if (!g2h_bitmap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_privs_second;
 	}
 
@@ -917,7 +917,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 					     sizeof(*vcpu_e500->gtlb_arch),
 					     GFP_KERNEL);
 	if (!vcpu_e500->gtlb_arch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vcpu_e500->gtlb_offset[0] = 0;
 	vcpu_e500->gtlb_offset[1] = KVM_E500_TLB0_SIZE;

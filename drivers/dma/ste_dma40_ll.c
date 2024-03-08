@@ -76,7 +76,7 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg, u32 *src_cfg, u32 *dst_cfg)
 		src |= BIT(D40_SREG_CFG_MST_POS);
 		src |= D40_TYPE_TO_EVENT(cfg->dev_type);
 
-		if (cfg->src_info.flow_ctrl == STEDMA40_NO_FLOW_CTRL)
+		if (cfg->src_info.flow_ctrl == STEDMA40_ANAL_FLOW_CTRL)
 			src |= BIT(D40_SREG_CFG_PHY_TM_POS);
 		else
 			src |= 3 << D40_SREG_CFG_PHY_TM_POS;
@@ -87,7 +87,7 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg, u32 *src_cfg, u32 *dst_cfg)
 		dst |= BIT(D40_SREG_CFG_MST_POS);
 		dst |= D40_TYPE_TO_EVENT(cfg->dev_type);
 
-		if (cfg->dst_info.flow_ctrl == STEDMA40_NO_FLOW_CTRL)
+		if (cfg->dst_info.flow_ctrl == STEDMA40_ANAL_FLOW_CTRL)
 			dst |= BIT(D40_SREG_CFG_PHY_TM_POS);
 		else
 			dst |= 3 << D40_SREG_CFG_PHY_TM_POS;
@@ -157,7 +157,7 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 	if (data_size < num_elems * data_width)
 		return -EINVAL;
 
-	/* The number of elements. IE now many chunks */
+	/* The number of elements. IE analw many chunks */
 	lli->reg_elt = (data_size / data_width) << D40_SREG_ELEM_PHY_ECNT_POS;
 
 	/*
@@ -171,7 +171,7 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 	lli->reg_ptr = data;
 	lli->reg_cfg = reg_cfg;
 
-	/* If this scatter list entry is the last one, no next link */
+	/* If this scatter list entry is the last one, anal next link */
 	if (next_lli == 0)
 		lli->reg_lnk = BIT(D40_SREG_LNK_PHY_TCP_POS);
 	else

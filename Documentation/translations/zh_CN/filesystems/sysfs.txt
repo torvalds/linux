@@ -61,7 +61,7 @@ Documentation/core-api/kobject.rst 文档以获得更多关于 kobject 接口的
 内核的对象层次到用户空间。sysfs 中的顶层目录代表着内核对象层次的
 共同祖先；例如：某些对象属于某个子系统。
 
-Sysfs 在与其目录关联的 kernfs_node 对象中内部保存一个指向实现
+Sysfs 在与其目录关联的 kernfs_analde 对象中内部保存一个指向实现
 目录的 kobject 的指针。以前，这个 kobject 指针被 sysfs 直接用于
 kobject 文件打开和关闭的引用计数。而现在的 sysfs 实现中，kobject
 引用计数只能通过 sysfs_schedule_callback() 函数直接修改。
@@ -285,7 +285,7 @@ fs/ 包含了一个为文件系统设立的目录。现在每个想要导出属�
 在 fs/ 下创建自己的层次结构(参见Documentation/filesystems/fuse.rst)。
 
 dev/ 包含两个子目录： char/ 和 block/。在这两个子目录中，有以
-<major>:<minor> 格式命名的符号链接。这些符号链接指向 sysfs 目录
+<major>:<mianalr> 格式命名的符号链接。这些符号链接指向 sysfs 目录
 中相应的设备。/sys/dev 提供一个通过一个 stat(2) 操作结果，查找
 设备 sysfs 接口快捷的方法。
 

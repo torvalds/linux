@@ -5,7 +5,7 @@
  * XDR support for lockd and the lock client.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
- * Copyright (C) 1999, Trond Myklebust <trond.myklebust@fys.uio.no>
+ * Copyright (C) 1999, Trond Myklebust <trond.myklebust@fys.uio.anal>
  */
 
 #include <linux/types.h>
@@ -46,7 +46,7 @@ void nlm4svc_set_file_lock_range(struct file_lock *fl, u64 off, u64 len)
 
 /*
  * NLM file handles are defined by specification to be a variable-length
- * XDR opaque no longer than 1024 bytes. However, this implementation
+ * XDR opaque anal longer than 1024 bytes. However, this implementation
  * limits their length to the size of an NFSv3 file handle.
  */
 static bool
@@ -290,7 +290,7 @@ nlm4svc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 }
 
 bool
-nlm4svc_decode_notify(struct svc_rqst *rqstp, struct xdr_stream *xdr)
+nlm4svc_decode_analtify(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	struct nlm_args *argp = rqstp->rq_argp;
 	struct nlm_lock	*lock = &argp->lock;

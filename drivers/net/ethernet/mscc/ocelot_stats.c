@@ -256,7 +256,7 @@ struct ocelot_stat_layout {
 	OCELOT_STAT_ETHTOOL(DROP_GREEN_PRIO_7, "drop_green_prio_7")
 
 struct ocelot_stats_region {
-	struct list_head node;
+	struct list_head analde;
 	enum ocelot_reg base;
 	enum ocelot_stat first_stat;
 	int count;
@@ -328,7 +328,7 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 	/* Configure the port to read the stats from */
 	ocelot_write(ocelot, SYS_STAT_CFG_STAT_VIEW(port), SYS_STAT_CFG);
 
-	list_for_each_entry(region, &ocelot->stats_regions, node) {
+	list_for_each_entry(region, &ocelot->stats_regions, analde) {
 		err = ocelot_bulk_read(ocelot, region->base, region->buf,
 				       region->count);
 		if (err)
@@ -346,7 +346,7 @@ static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
 	struct ocelot_stats_region *region;
 	int j;
 
-	list_for_each_entry(region, &ocelot->stats_regions, node) {
+	list_for_each_entry(region, &ocelot->stats_regions, analde) {
 		unsigned int idx = port * OCELOT_NUM_STATS + region->first_stat;
 
 		for (j = 0; j < region->count; j++) {
@@ -446,7 +446,7 @@ int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 	int num_stats = 0;
 
 	if (sset != ETH_SS_STATS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	layout = ocelot_get_stats_layout(ocelot);
 
@@ -717,7 +717,7 @@ static void ocelot_port_mac_stats_cb(struct ocelot *ocelot, int port, void *priv
 	mac_stats->MulticastFramesReceivedOK = s[OCELOT_STAT_RX_MULTICAST];
 	mac_stats->BroadcastFramesReceivedOK = s[OCELOT_STAT_RX_BROADCAST];
 	mac_stats->FrameTooLongErrors = s[OCELOT_STAT_RX_LONGS];
-	/* Sadly, C_RX_CRC is the sum of FCS and alignment errors, they are not
+	/* Sadly, C_RX_CRC is the sum of FCS and alignment errors, they are analt
 	 * counted individually.
 	 */
 	mac_stats->FrameCheckSequenceErrors = s[OCELOT_STAT_RX_CRC_ALIGN_ERRS];
@@ -751,7 +751,7 @@ static void ocelot_port_pmac_mac_stats_cb(struct ocelot *ocelot, int port,
 	mac_stats->MulticastFramesReceivedOK = s[OCELOT_STAT_RX_PMAC_MULTICAST];
 	mac_stats->BroadcastFramesReceivedOK = s[OCELOT_STAT_RX_PMAC_BROADCAST];
 	mac_stats->FrameTooLongErrors = s[OCELOT_STAT_RX_PMAC_LONGS];
-	/* Sadly, C_RX_CRC is the sum of FCS and alignment errors, they are not
+	/* Sadly, C_RX_CRC is the sum of FCS and alignment errors, they are analt
 	 * counted individually.
 	 */
 	mac_stats->FrameCheckSequenceErrors = s[OCELOT_STAT_RX_PMAC_CRC_ALIGN_ERRS];
@@ -919,18 +919,18 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
 					      GFP_KERNEL);
 			if (!region)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			region->base = layout[i].reg;
 			region->first_stat = i;
 			region->count = 1;
-			list_add_tail(&region->node, &ocelot->stats_regions);
+			list_add_tail(&region->analde, &ocelot->stats_regions);
 		}
 
 		last = layout[i].reg;
 	}
 
-	list_for_each_entry(region, &ocelot->stats_regions, node) {
+	list_for_each_entry(region, &ocelot->stats_regions, analde) {
 		enum ocelot_target target;
 		u32 addr;
 
@@ -943,7 +943,7 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 		region->buf = devm_kcalloc(ocelot->dev, region->count,
 					   sizeof(*region->buf), GFP_KERNEL);
 		if (!region->buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -958,13 +958,13 @@ int ocelot_stats_init(struct ocelot *ocelot)
 				     ocelot->num_phys_ports * OCELOT_NUM_STATS,
 				     sizeof(u64), GFP_KERNEL);
 	if (!ocelot->stats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(queue_name, sizeof(queue_name), "%s-stats",
 		 dev_name(ocelot->dev));
 	ocelot->stats_queue = create_singlethread_workqueue(queue_name);
 	if (!ocelot->stats_queue)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ocelot->stats_lock);
 	mutex_init(&ocelot->stat_view_lock);

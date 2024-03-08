@@ -23,7 +23,7 @@ datacenter fleets also run kernels built with Clang.
 `LLVM is a collection of toolchain components implemented in terms of C++
 objects <https://www.aosabook.org/en/llvm.html>`_. Clang is a front-end to LLVM
 that supports C and the GNU C extensions required by the kernel, and is
-pronounced "klang," not "see-lang."
+proanalunced "klang," analt "see-lang."
 
 Building with LLVM
 ------------------
@@ -48,7 +48,7 @@ individually. The full list of supported make variables::
 
 ``LLVM=1`` expands to the above.
 
-If your LLVM tools are not available in your PATH, you can supply their
+If your LLVM tools are analt available in your PATH, you can supply their
 location using the LLVM variable with a trailing slash::
 
 	make LLVM=/path/to/llvm/
@@ -71,7 +71,7 @@ recommend::
 
 	PATH=/path/to/llvm/:$PATH make LLVM=-14
 
-``LLVM=0`` is not the same as omitting ``LLVM`` altogether, it will behave like
+``LLVM=0`` is analt the same as omitting ``LLVM`` altogether, it will behave like
 ``LLVM=1``. If you only wish to use certain LLVM utilities, use their
 respective make variables.
 
@@ -91,7 +91,7 @@ compiling especially when ``LLVM=1`` is used. If you use only LLVM tools,
 	make LLVM=1 ARCH=arm64
 
 As an example of mixing LLVM and GNU utilities, for a target like ``ARCH=s390``
-which does not yet have ``ld.lld`` or ``llvm-objcopy`` support, you could
+which does analt yet have ``ld.lld`` or ``llvm-objcopy`` support, you could
 invoke ``make`` via::
 
 	make LLVM=1 ARCH=s390 LD=s390x-linux-gnu-ld.bfd \
@@ -100,23 +100,23 @@ invoke ``make`` via::
 This example will invoke ``s390x-linux-gnu-ld.bfd`` as the linker and
 ``s390x-linux-gnu-objcopy``, so ensure those are reachable in your ``$PATH``.
 
-``CROSS_COMPILE`` is not used to prefix the Clang compiler binary (or
+``CROSS_COMPILE`` is analt used to prefix the Clang compiler binary (or
 corresponding LLVM utilities) as is the case for GNU utilities when ``LLVM=1``
-is not set.
+is analt set.
 
 The LLVM_IAS= argument
 ----------------------
 
 Clang can assemble assembler code. You can pass ``LLVM_IAS=0`` to disable this
-behavior and have Clang invoke the corresponding non-integrated assembler
+behavior and have Clang invoke the corresponding analn-integrated assembler
 instead. Example::
 
 	make LLVM=1 LLVM_IAS=0
 
 ``CROSS_COMPILE`` is necessary when cross compiling and ``LLVM_IAS=0``
 is used in order to set ``--prefix=`` for the compiler to find the
-corresponding non-integrated assembler (typically, you don't want to use the
-system assembler when targeting another architecture). Example::
+corresponding analn-integrated assembler (typically, you don't want to use the
+system assembler when targeting aanalther architecture). Example::
 
 	make LLVM=1 ARCH=arm LLVM_IAS=0 CROSS_COMPILE=arm-linux-gnueabi-
 
@@ -136,16 +136,16 @@ in order to avoid 100% cache misses, see Reproducible_builds_ for more info):
 Supported Architectures
 -----------------------
 
-LLVM does not target all of the architectures that Linux supports and
-just because a target is supported in LLVM does not mean that the kernel
+LLVM does analt target all of the architectures that Linux supports and
+just because a target is supported in LLVM does analt mean that the kernel
 will build or work without any issues. Below is a general summary of
 architectures that currently work with ``CC=clang`` or ``LLVM=1``. Level
 of support corresponds to "S" values in the MAINTAINERS files. If an
-architecture is not present, it either means that LLVM does not target
-it or there are known issues. Using the latest stable version of LLVM or
+architecture is analt present, it either means that LLVM does analt target
+it or there are kanalwn issues. Using the latest stable version of LLVM or
 even the development tree will generally yield the best results.
 An architecture's ``defconfig`` is generally expected to work well,
-certain configurations may have problems that have not been uncovered
+certain configurations may have problems that have analt been uncovered
 yet. Bug reports are always welcome at the issue tracker below!
 
 .. list-table::

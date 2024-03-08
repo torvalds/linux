@@ -21,7 +21,7 @@ struct vfio_container {
 	struct rw_semaphore		group_lock;
 	struct vfio_iommu_driver	*iommu_driver;
 	void				*iommu_data;
-	bool				noiommu;
+	bool				analiommu;
 };
 
 static struct vfio {
@@ -29,9 +29,9 @@ static struct vfio {
 	struct mutex			iommu_drivers_lock;
 } vfio;
 
-static void *vfio_noiommu_open(unsigned long arg)
+static void *vfio_analiommu_open(unsigned long arg)
 {
-	if (arg != VFIO_NOIOMMU_IOMMU)
+	if (arg != VFIO_ANALIOMMU_IOMMU)
 		return ERR_PTR(-EINVAL);
 	if (!capable(CAP_SYS_RAWIO))
 		return ERR_PTR(-EPERM);
@@ -39,50 +39,50 @@ static void *vfio_noiommu_open(unsigned long arg)
 	return NULL;
 }
 
-static void vfio_noiommu_release(void *iommu_data)
+static void vfio_analiommu_release(void *iommu_data)
 {
 }
 
-static long vfio_noiommu_ioctl(void *iommu_data,
+static long vfio_analiommu_ioctl(void *iommu_data,
 			       unsigned int cmd, unsigned long arg)
 {
 	if (cmd == VFIO_CHECK_EXTENSION)
-		return vfio_noiommu && (arg == VFIO_NOIOMMU_IOMMU) ? 1 : 0;
+		return vfio_analiommu && (arg == VFIO_ANALIOMMU_IOMMU) ? 1 : 0;
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
-static int vfio_noiommu_attach_group(void *iommu_data,
+static int vfio_analiommu_attach_group(void *iommu_data,
 		struct iommu_group *iommu_group, enum vfio_group_type type)
 {
 	return 0;
 }
 
-static void vfio_noiommu_detach_group(void *iommu_data,
+static void vfio_analiommu_detach_group(void *iommu_data,
 				      struct iommu_group *iommu_group)
 {
 }
 
-static const struct vfio_iommu_driver_ops vfio_noiommu_ops = {
-	.name = "vfio-noiommu",
+static const struct vfio_iommu_driver_ops vfio_analiommu_ops = {
+	.name = "vfio-analiommu",
 	.owner = THIS_MODULE,
-	.open = vfio_noiommu_open,
-	.release = vfio_noiommu_release,
-	.ioctl = vfio_noiommu_ioctl,
-	.attach_group = vfio_noiommu_attach_group,
-	.detach_group = vfio_noiommu_detach_group,
+	.open = vfio_analiommu_open,
+	.release = vfio_analiommu_release,
+	.ioctl = vfio_analiommu_ioctl,
+	.attach_group = vfio_analiommu_attach_group,
+	.detach_group = vfio_analiommu_detach_group,
 };
 
 /*
- * Only noiommu containers can use vfio-noiommu and noiommu containers can only
- * use vfio-noiommu.
+ * Only analiommu containers can use vfio-analiommu and analiommu containers can only
+ * use vfio-analiommu.
  */
 static bool vfio_iommu_driver_allowed(struct vfio_container *container,
 				      const struct vfio_iommu_driver *driver)
 {
-	if (!IS_ENABLED(CONFIG_VFIO_NOIOMMU))
+	if (!IS_ENABLED(CONFIG_VFIO_ANALIOMMU))
 		return true;
-	return container->noiommu == (driver->ops == &vfio_noiommu_ops);
+	return container->analiommu == (driver->ops == &vfio_analiommu_ops);
 }
 
 /*
@@ -97,7 +97,7 @@ int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops)
 
 	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	driver->ops = ops;
 
@@ -193,10 +193,10 @@ vfio_container_ioctl_check_extension(struct vfio_container *container,
 	driver = container->iommu_driver;
 
 	switch (arg) {
-		/* No base extensions yet */
+		/* Anal base extensions yet */
 	default:
 		/*
-		 * If no driver is set, poll all registered drivers for
+		 * If anal driver is set, poll all registered drivers for
 		 * extensions and return the first positive result.  If
 		 * a driver is already set, further queries will be passed
 		 * only to that driver.
@@ -237,7 +237,7 @@ static int __vfio_container_attach_groups(struct vfio_container *container,
 					  void *data)
 {
 	struct vfio_group *group;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	list_for_each_entry(group, &container->group_list, container_next) {
 		ret = driver->ops->attach_group(data, group->iommu_group,
@@ -261,7 +261,7 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 				 unsigned long arg)
 {
 	struct vfio_iommu_driver *driver;
-	long ret = -ENODEV;
+	long ret = -EANALDEV;
 
 	down_write(&container->group_lock);
 
@@ -270,7 +270,7 @@ static long vfio_ioctl_set_iommu(struct vfio_container *container,
 	 * the group can be assigned to specific users.  Therefore, only by
 	 * adding a group to a container does the user get the privilege of
 	 * enabling the iommu, which may allocate finite resources.  There
-	 * is no unset_iommu, but by removing all the groups from a container,
+	 * is anal unset_iommu, but by removing all the groups from a container,
 	 * the container is deprivileged and returns to an unset state.
 	 */
 	if (list_empty(&container->group_list) || container->iommu_driver) {
@@ -356,13 +356,13 @@ static long vfio_fops_unl_ioctl(struct file *filep,
 	return ret;
 }
 
-static int vfio_fops_open(struct inode *inode, struct file *filep)
+static int vfio_fops_open(struct ianalde *ianalde, struct file *filep)
 {
 	struct vfio_container *container;
 
 	container = kzalloc(sizeof(*container), GFP_KERNEL_ACCOUNT);
 	if (!container)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&container->group_list);
 	init_rwsem(&container->group_lock);
@@ -373,7 +373,7 @@ static int vfio_fops_open(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-static int vfio_fops_release(struct inode *inode, struct file *filep)
+static int vfio_fops_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct vfio_container *container = filep->private_data;
 
@@ -406,10 +406,10 @@ struct vfio_container *vfio_container_from_file(struct file *file)
 }
 
 static struct miscdevice vfio_dev = {
-	.minor = VFIO_MINOR,
+	.mianalr = VFIO_MIANALR,
 	.name = "vfio",
 	.fops = &vfio_fops,
-	.nodename = "vfio/vfio",
+	.analdename = "vfio/vfio",
 	.mode = S_IRUGO | S_IWUGO,
 };
 
@@ -421,14 +421,14 @@ int vfio_container_attach_group(struct vfio_container *container,
 
 	lockdep_assert_held(&group->group_lock);
 
-	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
+	if (group->type == VFIO_ANAL_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	down_write(&container->group_lock);
 
-	/* Real groups and fake groups cannot mix */
+	/* Real groups and fake groups cananalt mix */
 	if (!list_empty(&container->group_list) &&
-	    container->noiommu != (group->type == VFIO_NO_IOMMU)) {
+	    container->analiommu != (group->type == VFIO_ANAL_IOMMU)) {
 		ret = -EPERM;
 		goto out_unlock_container;
 	}
@@ -454,7 +454,7 @@ int vfio_container_attach_group(struct vfio_container *container,
 
 	group->container = container;
 	group->container_users = 1;
-	container->noiommu = (group->type == VFIO_NO_IOMMU);
+	container->analiommu = (group->type == VFIO_ANAL_IOMMU);
 	list_add(&group->container_next, &container->group_list);
 
 	/* Get a reference on the container and mark a user within the group */
@@ -511,7 +511,7 @@ int vfio_group_use_container(struct vfio_group *group)
 	if (!group->container->iommu_driver)
 		return -EINVAL;
 
-	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
+	if (group->type == VFIO_ANAL_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	get_file(group->opened_file);
@@ -540,7 +540,7 @@ int vfio_device_container_pin_pages(struct vfio_device *device,
 		return -E2BIG;
 
 	if (unlikely(!driver || !driver->ops->pin_pages))
-		return -ENOTTY;
+		return -EANALTTY;
 	return driver->ops->pin_pages(container->iommu_data, iommu_group, iova,
 				      npage, prot, pages);
 }
@@ -565,7 +565,7 @@ int vfio_device_container_dma_rw(struct vfio_device *device,
 	struct vfio_iommu_driver *driver = container->iommu_driver;
 
 	if (unlikely(!driver || !driver->ops->dma_rw))
-		return -ENOTTY;
+		return -EANALTTY;
 	return driver->ops->dma_rw(container->iommu_data, iova, data, len,
 				   write);
 }
@@ -583,8 +583,8 @@ int __init vfio_container_init(void)
 		return ret;
 	}
 
-	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU)) {
-		ret = vfio_register_iommu_driver(&vfio_noiommu_ops);
+	if (IS_ENABLED(CONFIG_VFIO_ANALIOMMU)) {
+		ret = vfio_register_iommu_driver(&vfio_analiommu_ops);
 		if (ret)
 			goto err_misc;
 	}
@@ -597,11 +597,11 @@ err_misc:
 
 void vfio_container_cleanup(void)
 {
-	if (IS_ENABLED(CONFIG_VFIO_NOIOMMU))
-		vfio_unregister_iommu_driver(&vfio_noiommu_ops);
+	if (IS_ENABLED(CONFIG_VFIO_ANALIOMMU))
+		vfio_unregister_iommu_driver(&vfio_analiommu_ops);
 	misc_deregister(&vfio_dev);
 	mutex_destroy(&vfio.iommu_drivers_lock);
 }
 
-MODULE_ALIAS_MISCDEV(VFIO_MINOR);
+MODULE_ALIAS_MISCDEV(VFIO_MIANALR);
 MODULE_ALIAS("devname:vfio/vfio");

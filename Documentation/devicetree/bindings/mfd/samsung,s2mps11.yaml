@@ -29,7 +29,7 @@ properties:
   clocks:
     $ref: ../clock/samsung,s2mps11.yaml
     description:
-      Child node describing clock provider.
+      Child analde describing clock provider.
 
   interrupts:
     maxItems: 1
@@ -40,7 +40,7 @@ properties:
   regulators:
     type: object
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
   samsung,s2mps11-acokb-ground:
     description: |

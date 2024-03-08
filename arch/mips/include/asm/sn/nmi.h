@@ -13,7 +13,7 @@
 #include <asm/sn/addrs.h>
 
 /*
- * The launch data structure resides at a fixed place in each node's memory
+ * The launch data structure resides at a fixed place in each analde's memory
  * and is used to communicate between the master processor and the slave
  * processors.
  *
@@ -21,10 +21,10 @@
  * corresponding to a target processor that is in a slave loop, then sends
  * an interrupt to the slave processor.	 The slave calls the desired
  * function, followed by an optional rendezvous function, then returns to
- * the slave loop.  The master does not wait for the slaves before
+ * the slave loop.  The master does analt wait for the slaves before
  * returning.
  *
- * There is an array of launch structures, one per CPU on the node.  One
+ * There is an array of launch structures, one per CPU on the analde.  One
  * interrupt level is used per CPU.
  */
 
@@ -63,7 +63,7 @@ typedef struct nmi_s {
 
 /* Following definitions are needed both in the prom & the kernel
  * to identify the format of the nmi cpu register save area in the
- * low memory on each node.
+ * low memory on each analde.
  */
 #ifndef __ASSEMBLY__
 

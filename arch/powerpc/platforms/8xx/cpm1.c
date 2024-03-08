@@ -11,17 +11,17 @@
  * Buffer descriptors must be allocated from the dual ported memory
  * space.  The allocator for that is here.  When the communication
  * process is reset, we reclaim the memory available.  There is
- * currently no deallocator for this memory.
+ * currently anal deallocator for this memory.
  * The amount of space available is platform dependent.  On the
  * MBX, the EPPC software loads additional microcode into the
  * communication processor, and uses some of the DP ram for this
  * purpose.  Current, the first 512 bytes and the last 256 bytes of
- * memory are used.  Right now I am conservative and only use the
+ * memory are used.  Right analw I am conservative and only use the
  * memory that can never be used for microcode.  If there are
  * applications that require more DP ram, we can expand the boundaries
  * but then we have to be careful of any downloaded microcode.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
@@ -71,7 +71,7 @@ void __init cpm_reset(void)
 
 	/*
 	 * Set SDMA Bus Request priority 5.
-	 * On 860T, this also enables FEC priority 6.  I am not sure
+	 * On 860T, this also enables FEC priority 6.  I am analt sure
 	 * this is what we really want for some applications, but the
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
@@ -102,7 +102,7 @@ int cpm_command(u32 command, u8 opcode)
 		if ((in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
 			goto out;
 
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __func__);
+	printk(KERN_ERR "%s(): Analt able to issue CPM command\n", __func__);
 	ret = -EIO;
 out:
 	spin_unlock_irqrestore(&cmd_lock, flags);
@@ -125,7 +125,7 @@ cpm_setbrg(uint brg, uint rate)
 {
 	u32 __iomem *bp;
 
-	/* This is good enough to get SMCs running..... */
+	/* This is good eanalugh to get SMCs running..... */
 	bp = &cpmp->cp_brgc1;
 	bp += brg;
 	/*
@@ -479,7 +479,7 @@ static int cpm1_gpio16_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 int cpm1_gpiochip_add16(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cpm1_gpio16_chip *cpm1_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
@@ -487,7 +487,7 @@ int cpm1_gpiochip_add16(struct device *dev)
 
 	cpm1_gc = kzalloc(sizeof(*cpm1_gc), GFP_KERNEL);
 	if (!cpm1_gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cpm1_gc->lock);
 
@@ -608,14 +608,14 @@ static int cpm1_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 
 int cpm1_gpiochip_add32(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct cpm1_gpio32_chip *cpm1_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
 
 	cpm1_gc = kzalloc(sizeof(*cpm1_gc), GFP_KERNEL);
 	if (!cpm1_gc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&cpm1_gc->lock);
 

@@ -45,7 +45,7 @@ static void __init fix_hypertransport_config(int num, int slot, int func)
 		if ((htcfg & (1 << 17)) == 0) {
 			printk(KERN_INFO "Enabling hypertransport extended "
 					 "apic interrupt broadcast\n");
-			printk(KERN_INFO "Note this is a bios bug, "
+			printk(KERN_INFO "Analte this is a bios bug, "
 					 "please contact your hw vendor\n");
 			htcfg |= (1 << 17);
 			write_pci_config(num, slot, func, 0x68, htcfg);
@@ -83,7 +83,7 @@ static void __init nvidia_bugs(int num, int slot, int func)
 #ifdef CONFIG_ACPI
 #ifdef CONFIG_X86_IO_APIC
 	/*
-	 * Only applies to Nvidia root ports (bus 0) and not to
+	 * Only applies to Nvidia root ports (bus 0) and analt to
 	 * Nvidia graphics cards with PCI ports on secondary buses.
 	 */
 	if (num)
@@ -92,8 +92,8 @@ static void __init nvidia_bugs(int num, int slot, int func)
 	/*
 	 * All timer overrides on Nvidia are
 	 * wrong unless HPET is enabled.
-	 * Unfortunately that's not true on many Asus boards.
-	 * We don't know yet how to detect this automatically, but
+	 * Unfortunately that's analt true on many Asus boards.
+	 * We don't kanalw yet how to detect this automatically, but
 	 * at least allow a command line override.
 	 */
 	if (acpi_use_timer_override)
@@ -102,7 +102,7 @@ static void __init nvidia_bugs(int num, int slot, int func)
 	if (acpi_table_parse(ACPI_SIG_HPET, nvidia_hpet_check)) {
 		acpi_skip_timer_override = 1;
 		printk(KERN_INFO "Nvidia board "
-		       "detected. Ignoring ACPI "
+		       "detected. Iganalring ACPI "
 		       "timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 			"try acpi_use_timer_override\n");
@@ -152,7 +152,7 @@ static void __init ati_bugs(int num, int slot, int func)
 
 	if (acpi_skip_timer_override) {
 		printk(KERN_INFO "SB4X0 revision 0x%x\n", d);
-		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "Iganalring ACPI timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
@@ -194,7 +194,7 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 
 	if (acpi_skip_timer_override) {
 		printk(KERN_INFO "SB600 revision 0x%x\n", rev);
-		printk(KERN_INFO "Ignoring ACPI timer override.\n");
+		printk(KERN_INFO "Iganalring ACPI timer override.\n");
 		printk(KERN_INFO "If you got timer trouble "
 		       "try acpi_use_timer_override\n");
 	}
@@ -231,12 +231,12 @@ static void __init intel_remapping_check(int num, int slot, int func)
 
 /*
  * Systems with Intel graphics controllers set aside memory exclusively
- * for gfx driver use.  This memory is not marked in the E820 as reserved
+ * for gfx driver use.  This memory is analt marked in the E820 as reserved
  * or as RAM, and so is subject to overlap from E820 manipulation later
  * in the boot process.  On some systems, MMIO space is allocated on top,
  * despite the efforts of the "RAM buffer" approach, which simply rounds
  * memory boundaries up to 64M to try to catch space that may decode
- * as RAM and so is not suitable for MMIO.
+ * as RAM and so is analt suitable for MMIO.
  */
 
 #define KB(x)	((x) * 1024UL)
@@ -267,7 +267,7 @@ static resource_size_t __init i845_tseg_size(void)
 	case I845_TSEG_SIZE_512K:	return KB(512);
 	case I845_TSEG_SIZE_1M:		return MB(1);
 	default:
-		WARN(1, "Unknown ESMRAMC value: %x!\n", esmramc);
+		WARN(1, "Unkanalwn ESMRAMC value: %x!\n", esmramc);
 	}
 	return 0;
 }
@@ -363,10 +363,10 @@ static resource_size_t __init i830_stolen_size(int num, int slot, int func)
 	case I830_GMCH_GMS_STOLEN_512:	return KB(512);
 	case I830_GMCH_GMS_STOLEN_1024:	return MB(1);
 	case I830_GMCH_GMS_STOLEN_8192:	return MB(8);
-	/* local memory isn't part of the normal address space */
+	/* local memory isn't part of the analrmal address space */
 	case I830_GMCH_GMS_LOCAL:	return 0;
 	default:
-		WARN(1, "Unknown GMCH_CTRL value: %x!\n", gmch_ctrl);
+		WARN(1, "Unkanalwn GMCH_CTRL value: %x!\n", gmch_ctrl);
 	}
 
 	return 0;
@@ -395,7 +395,7 @@ static resource_size_t __init gen3_stolen_size(int num, int slot, int func)
 	case INTEL_GMCH_GMS_STOLEN_224M:return MB(224);
 	case INTEL_GMCH_GMS_STOLEN_352M:return MB(352);
 	default:
-		WARN(1, "Unknown GMCH_CTRL value: %x!\n", gmch_ctrl);
+		WARN(1, "Unkanalwn GMCH_CTRL value: %x!\n", gmch_ctrl);
 	}
 
 	return 0;
@@ -598,7 +598,7 @@ static void __init intel_graphics_quirks(int num, int slot, int func)
 
 	/*
 	 * Reserve "stolen memory" for an integrated GPU.  If we've already
-	 * found one, there's nothing to do for other (discrete) GPUs.
+	 * found one, there's analthing to do for other (discrete) GPUs.
 	 */
 	if (resource_size(&intel_graphics_stolen_res))
 		return;
@@ -623,7 +623,7 @@ static void __init force_disable_hpet(int num, int slot, int func)
 {
 #ifdef CONFIG_HPET_TIMER
 	boot_hpet_disable = true;
-	pr_info("x86/hpet: Will disable the HPET for this platform because it's not reliable\n");
+	pr_info("x86/hpet: Will disable the HPET for this platform because it's analt reliable\n");
 #endif
 }
 
@@ -652,7 +652,7 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 		pmcsr = read_pci_config_16(bus, slot, func, BCM4331_PM_CAP + PCI_PM_CTRL);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0) {
-			pr_err("pci 0000:%02x:%02x.%d: Cannot power up Apple AirPort card\n",
+			pr_err("pci 0000:%02x:%02x.%d: Cananalt power up Apple AirPort card\n",
 			       bus, slot, func);
 			return;
 		}
@@ -664,7 +664,7 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 	mmio = early_ioremap(addr, BCM4331_MMIO_SIZE);
 	if (!mmio) {
-		pr_err("pci 0000:%02x:%02x.%d: Cannot iomap Apple AirPort card\n",
+		pr_err("pci 0000:%02x:%02x.%d: Cananalt iomap Apple AirPort card\n",
 		       bus, slot, func);
 		return;
 	}
@@ -741,7 +741,7 @@ static void __init early_pci_scan_bus(int bus);
  *
  * Check the vendor & device ID against the early quirks table.
  *
- * If the device is single function, let early_pci_scan_bus() know so we don't
+ * If the device is single function, let early_pci_scan_bus() kanalw so we don't
  * poke at this device again.
  */
 static int __init check_dev_quirk(int num, int slot, int func)
@@ -756,7 +756,7 @@ static int __init check_dev_quirk(int num, int slot, int func)
 	class = read_pci_config_16(num, slot, func, PCI_CLASS_DEVICE);
 
 	if (class == 0xffff)
-		return -1; /* no class, treat as single function */
+		return -1; /* anal class, treat as single function */
 
 	vendor = read_pci_config_16(num, slot, func, PCI_VENDOR_ID);
 

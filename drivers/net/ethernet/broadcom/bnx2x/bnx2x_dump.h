@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.

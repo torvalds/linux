@@ -149,18 +149,18 @@ static int zd1301_frontend_attach(struct dvb_usb_adapter *adap)
 		goto err;
 	}
 	if (!pdev->dev.driver) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_platform_device_unregister;
 	}
 	if (!try_module_get(pdev->dev.driver->owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_platform_device_unregister;
 	}
 
 	adapter = zd1301_demod_get_i2c_adapter(pdev);
 	frontend = zd1301_demod_get_dvb_frontend(pdev);
 	if (!adapter || !frontend) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_module_put_demod;
 	}
 
@@ -174,11 +174,11 @@ static int zd1301_frontend_attach(struct dvb_usb_adapter *adap)
 	request_module("%s", "mt2060");
 	client = i2c_new_client_device(adapter, &board_info);
 	if (!i2c_client_has_driver(client)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_module_put_demod;
 	}
 	if (!try_module_get(client->dev.driver->owner)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_i2c_unregister_device;
 	}
 
@@ -226,14 +226,14 @@ static int zd1301_frontend_detach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int zd1301_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int zd1301_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct usb_interface *intf = d->intf;
 	int ret;
-	u8 buf[3] = {0x03, 0x00, onoff ? 0x07 : 0x08};
+	u8 buf[3] = {0x03, 0x00, oanalff ? 0x07 : 0x08};
 
-	dev_dbg(&intf->dev, "onoff=%d\n", onoff);
+	dev_dbg(&intf->dev, "oanalff=%d\n", oanalff);
 
 	ret = zd1301_ctrl_msg(d, buf, 3, NULL, 0);
 	if (ret)
@@ -279,7 +279,7 @@ static struct usb_driver zd1301_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 module_usb_driver(zd1301_usb_driver);

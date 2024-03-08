@@ -9,7 +9,7 @@
 
 #include <asm/desc_defs.h>
 #include <asm/pgtable_types.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 
 struct page;
 struct thread_struct;
@@ -24,7 +24,7 @@ struct mmu_gather;
 struct vm_area_struct;
 
 /*
- * Wrapper type for pointers to code which uses the non-standard
+ * Wrapper type for pointers to code which uses the analn-standard
  * calling convention.  See PV_CALL_SAVE_REGS_THUNK below.
  */
 struct paravirt_callee_save {
@@ -34,7 +34,7 @@ struct paravirt_callee_save {
 /* general info */
 struct pv_info {
 #ifdef CONFIG_PARAVIRT_XXL
-	u16 extra_user_64bit_cs;  /* __USER_CS if none */
+	u16 extra_user_64bit_cs;  /* __USER_CS if analne */
 #endif
 
 	const char *name;
@@ -46,7 +46,7 @@ struct pv_lazy_ops {
 	void (*enter)(void);
 	void (*leave)(void);
 	void (*flush)(void);
-} __no_randomize_layout;
+} __anal_randomize_layout;
 #endif
 
 struct pv_cpu_ops {
@@ -54,8 +54,8 @@ struct pv_cpu_ops {
 	void (*io_delay)(void);
 
 #ifdef CONFIG_PARAVIRT_XXL
-	unsigned long (*get_debugreg)(int regno);
-	void (*set_debugreg)(int regno, unsigned long value);
+	unsigned long (*get_debugreg)(int reganal);
+	void (*set_debugreg)(int reganal, unsigned long value);
 
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
@@ -108,7 +108,7 @@ struct pv_cpu_ops {
 	void (*start_context_switch)(struct task_struct *prev);
 	void (*end_context_switch)(struct task_struct *next);
 #endif
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 struct pv_irq_ops {
 #ifdef CONFIG_PARAVIRT_XXL
@@ -116,7 +116,7 @@ struct pv_irq_ops {
 	 * Get/set interrupt state.  save_fl is expected to use X86_EFLAGS_IF;
 	 * all other bits returned from save_fl are undefined.
 	 *
-	 * NOTE: These functions callers expect the callee to preserve
+	 * ANALTE: These functions callers expect the callee to preserve
 	 * more registers than the standard C calling convention.
 	 */
 	struct paravirt_callee_save save_fl;
@@ -126,7 +126,7 @@ struct pv_irq_ops {
 	void (*safe_halt)(void);
 	void (*halt)(void);
 #endif
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 struct pv_mmu_ops {
 	/* TLB operations */
@@ -140,7 +140,7 @@ struct pv_mmu_ops {
 
 	/* Hook for intercepting the destruction of an mm_struct. */
 	void (*exit_mmap)(struct mm_struct *mm);
-	void (*notify_page_enc_status_changed)(unsigned long pfn, int npages, bool enc);
+	void (*analtify_page_enc_status_changed)(unsigned long pfn, int npages, bool enc);
 
 #ifdef CONFIG_PARAVIRT_XXL
 	struct paravirt_callee_save read_cr2;
@@ -210,7 +210,7 @@ struct pv_mmu_ops {
 	void (*set_fixmap)(unsigned /* enum fixed_addresses */ idx,
 			   phys_addr_t phys, pgprot_t flags);
 #endif
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 struct arch_spinlock;
 #ifdef CONFIG_SMP
@@ -227,7 +227,7 @@ struct pv_lock_ops {
 	void (*kick)(int cpu);
 
 	struct paravirt_callee_save vcpu_is_preempted;
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 /* This contains all the paravirt structures: we get a convenient
  * number for each function using the offset which we use to indicate
@@ -237,7 +237,7 @@ struct paravirt_patch_template {
 	struct pv_irq_ops	irq;
 	struct pv_mmu_ops	mmu;
 	struct pv_lock_ops	lock;
-} __no_randomize_layout;
+} __anal_randomize_layout;
 
 extern struct pv_info pv_info;
 extern struct paravirt_patch_template pv_ops;
@@ -248,7 +248,7 @@ int paravirt_disable_iospace(void);
 
 /* This generates an indirect call based on the operation type number. */
 #define PARAVIRT_CALL					\
-	ANNOTATE_RETPOLINE_SAFE				\
+	ANANALTATE_RETPOLINE_SAFE				\
 	"call *%[paravirt_opptr];"
 
 /*
@@ -256,11 +256,11 @@ int paravirt_disable_iospace(void);
  * ops structs, so that they can be later identified and patched at
  * runtime.
  *
- * Normally, a call to a pv_op function is a simple indirect call:
+ * Analrmally, a call to a pv_op function is a simple indirect call:
  * (pv_op_struct.operations)(args...).
  *
  * Unfortunately, this is a relatively slow operation for modern CPUs,
- * because it cannot necessarily determine what the destination
+ * because it cananalt necessarily determine what the destination
  * address is.  In this case, the address is a runtime constant, so at
  * the very least we can patch the call to a simple direct call, or,
  * ideally, patch an inline implementation into the callsite.  (Direct
@@ -274,12 +274,12 @@ int paravirt_disable_iospace(void);
  * to be modified (either clobbered or used for return values).
  * X86_64, on the other hand, already specifies a register-based calling
  * conventions, returning at %rax, with parameters going in %rdi, %rsi,
- * %rdx, and %rcx. Note that for this reason, x86_64 does not need any
+ * %rdx, and %rcx. Analte that for this reason, x86_64 does analt need any
  * special handling for dealing with 4 arguments, unlike i386.
  * However, x86_64 also has to clobber all caller saved registers, which
  * unfortunately, are quite a bit (r8 - r11)
  *
- * Unfortunately there's no way to get gcc to generate the args setup
+ * Unfortunately there's anal way to get gcc to generate the args setup
  * for the call, and then allow the call itself to be generated by an
  * inline asm.  Because of this, we must do the complete arg setup and
  * return value handling from within these macros.  This is fairly
@@ -288,7 +288,7 @@ int paravirt_disable_iospace(void);
  * There are 5 sets of PVOP_* macros for dealing with 0-4 arguments.
  * It could be extended to more arguments, but there would be little
  * to be gained from that.  For each number of arguments, there are
- * two VCALL and CALL variants for void and non-void functions.
+ * two VCALL and CALL variants for void and analn-void functions.
  *
  * When there is a return value, the invoker of the macro must specify
  * the return type.  The macro then uses sizeof() on that type to
@@ -379,7 +379,7 @@ int paravirt_disable_iospace(void);
 
 /*
  * Use alternative patching for paravirt calls:
- * - For replacing an indirect call with a direct one, use the "normal"
+ * - For replacing an indirect call with a direct one, use the "analrmal"
  *   ALTERNATIVE() macro with the indirect call as the initial code sequence,
  *   which will be replaced with the related direct call by using the
  *   ALT_FLAG_DIRECT_CALL special case and the "always on" feature.
@@ -387,7 +387,7 @@ int paravirt_disable_iospace(void);
  *   depending on a feature bit, the ALTERNATIVE_2() macro is being used.
  *   The indirect call is the initial code sequence again, while the special
  *   code sequence is selected with the specified feature bit. In case the
- *   feature is not active, the direct call is used as above via the
+ *   feature is analt active, the direct call is used as above via the
  *   ALT_FLAG_DIRECT_CALL special case and the "always on" feature.
  */
 #define ____PVOP_CALL(ret, op, call_clbr, extra_clbr, ...)	\
@@ -519,11 +519,11 @@ void pv_native_irq_enable(void);
 unsigned long pv_native_read_cr2(void);
 #endif
 
-#define paravirt_nop	((void *)nop_func)
+#define paravirt_analp	((void *)analp_func)
 
 #endif	/* __ASSEMBLY__ */
 
-#define ALT_NOT_XEN	ALT_NOT(X86_FEATURE_XENPV)
+#define ALT_ANALT_XEN	ALT_ANALT(X86_FEATURE_XENPV)
 
 #endif  /* CONFIG_PARAVIRT */
 #endif	/* _ASM_X86_PARAVIRT_TYPES_H */

@@ -2,7 +2,7 @@
 // Copyright 2010 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 
@@ -42,7 +42,7 @@ int vic_provinfo_add_tlv(struct vic_provinfo *vp, u16 type, u16 length,
 
 	if (ntohl(vp->length) + offsetof(struct vic_provinfo_tlv, value) +
 		length > VIC_PROVINFO_MAX_TLV_DATA)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tlv = (struct vic_provinfo_tlv *)((u8 *)vp->tlv +
 		ntohl(vp->length) - sizeof(vp->num_tlvs));

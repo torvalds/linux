@@ -23,35 +23,35 @@ static const struct regmap_range max77714_readable_ranges[] = {
 	regmap_reg_range(MAX77714_INT_TOP,     MAX77714_INT_TOP),
 	regmap_reg_range(MAX77714_INT_TOPM,    MAX77714_INT_TOPM),
 	regmap_reg_range(MAX77714_32K_STATUS,  MAX77714_32K_CONFIG),
-	regmap_reg_range(MAX77714_CNFG_GLBL2,  MAX77714_CNFG2_ONOFF),
+	regmap_reg_range(MAX77714_CNFG_GLBL2,  MAX77714_CNFG2_OANALFF),
 };
 
 static const struct regmap_range max77714_writable_ranges[] = {
 	regmap_reg_range(MAX77714_INT_TOPM,    MAX77714_INT_TOPM),
 	regmap_reg_range(MAX77714_32K_CONFIG,  MAX77714_32K_CONFIG),
-	regmap_reg_range(MAX77714_CNFG_GLBL2,  MAX77714_CNFG2_ONOFF),
+	regmap_reg_range(MAX77714_CNFG_GLBL2,  MAX77714_CNFG2_OANALFF),
 };
 
 static const struct regmap_access_table max77714_readable_table = {
-	.yes_ranges = max77714_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77714_readable_ranges),
+	.anal_ranges = max77714_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77714_readable_ranges),
 };
 
 static const struct regmap_access_table max77714_writable_table = {
-	.yes_ranges = max77714_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77714_writable_ranges),
+	.anal_ranges = max77714_writable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(max77714_writable_ranges),
 };
 
 static const struct regmap_config max77714_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = MAX77714_CNFG2_ONOFF,
+	.max_register = MAX77714_CNFG2_OANALFF,
 	.rd_table = &max77714_readable_table,
 	.wr_table = &max77714_writable_table,
 };
 
 static const struct regmap_irq max77714_top_irqs[] = {
-	REGMAP_IRQ_REG(MAX77714_IRQ_TOP_ONOFF,   0, MAX77714_INT_TOP_ONOFF),
+	REGMAP_IRQ_REG(MAX77714_IRQ_TOP_OANALFF,   0, MAX77714_INT_TOP_OANALFF),
 	REGMAP_IRQ_REG(MAX77714_IRQ_TOP_RTC,     0, MAX77714_INT_TOP_RTC),
 	REGMAP_IRQ_REG(MAX77714_IRQ_TOP_GPIO,    0, MAX77714_INT_TOP_GPIO),
 	REGMAP_IRQ_REG(MAX77714_IRQ_TOP_LDO,     0, MAX77714_INT_TOP_LDO),
@@ -71,7 +71,7 @@ static const struct regmap_irq_chip max77714_irq_chip = {
 /*
  * MAX77714 initially uses the internal, low precision oscillator. Enable
  * the external oscillator by setting the XOSC_RETRY bit. If the external
- * oscillator is not OK (probably not installed) this has no effect.
+ * oscillator is analt OK (probably analt installed) this has anal effect.
  */
 static int max77714_setup_xosc(struct device *dev, struct regmap *regmap)
 {
@@ -123,7 +123,7 @@ static int max77714_probe(struct i2c_client *client)
 	if (err)
 		return dev_err_probe(dev, err, "Failed to add PMIC IRQ chip\n");
 
-	err =  devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+	err =  devm_mfd_add_devices(dev, PLATFORM_DEVID_ANALNE,
 				    max77714_cells, ARRAY_SIZE(max77714_cells),
 				    NULL, 0, NULL);
 	if (err)

@@ -61,7 +61,7 @@ static bool __init amd_brs_detect(void)
 	case 0x19: /* AMD Fam19h (Zen3) */
 		x86_pmu.lbr_nr = 16;
 
-		/* No hardware filtering supported */
+		/* Anal hardware filtering supported */
 		x86_pmu.lbr_sel_map = NULL;
 		x86_pmu.lbr_sel_mask = 0;
 		break;
@@ -73,20 +73,20 @@ static bool __init amd_brs_detect(void)
 }
 
 /*
- * Current BRS implementation does not support branch type or privilege level
- * filtering. Therefore, this function simply enforces these limitations. No need for
- * a br_sel_map. Software filtering is not supported because it would not correlate well
+ * Current BRS implementation does analt support branch type or privilege level
+ * filtering. Therefore, this function simply enforces these limitations. Anal need for
+ * a br_sel_map. Software filtering is analt supported because it would analt correlate well
  * with a sampling period.
  */
 static int amd_brs_setup_filter(struct perf_event *event)
 {
 	u64 type = event->attr.branch_sample_type;
 
-	/* No BRS support */
+	/* Anal BRS support */
 	if (!x86_pmu.lbr_nr)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* Can only capture all branches, i.e., no filtering */
+	/* Can only capture all branches, i.e., anal filtering */
 	if ((type & ~PERF_SAMPLE_BRANCH_PLM_ALL) != PERF_SAMPLE_BRANCH_ANY)
 		return -EINVAL;
 
@@ -103,7 +103,7 @@ int amd_brs_hw_config(struct perf_event *event)
 	int ret = 0;
 
 	/*
-	 * Due to interrupt holding, BRS is not recommended in
+	 * Due to interrupt holding, BRS is analt recommended in
 	 * counting mode.
 	 */
 	if (!is_sampling_event(event))
@@ -111,8 +111,8 @@ int amd_brs_hw_config(struct perf_event *event)
 
 	/*
 	 * Due to the way BRS operates by holding the interrupt until
-	 * lbr_nr entries have been captured, it does not make sense
-	 * to allow sampling on BRS with an event that does not match
+	 * lbr_nr entries have been captured, it does analt make sense
+	 * to allow sampling on BRS with an event that does analt match
 	 * what BRS is capturing, i.e., retired taken branches.
 	 * Otherwise the correlation with the event's period is even
 	 * more loose:
@@ -129,21 +129,21 @@ int amd_brs_hw_config(struct perf_event *event)
 	 * capturing the lbr_nr entries.
 	 *
 	 * By using retired taken branches, we limit the impact on the
-	 * Y variable. We know it cannot be more than the depth of
+	 * Y variable. We kanalw it cananalt be more than the depth of
 	 * BRS.
 	 */
 	if (!amd_is_brs_event(event))
 		return -EINVAL;
 
 	/*
-	 * BRS implementation does not work with frequency mode
+	 * BRS implementation does analt work with frequency mode
 	 * reprogramming of the period.
 	 */
 	if (event->attr.freq)
 		return -EINVAL;
 	/*
 	 * The kernel subtracts BRS depth from period, so it must
-	 * be big enough.
+	 * be big eanalugh.
 	 */
 	if (event->attr.sample_period <= x86_pmu.lbr_nr)
 		return -EINVAL;
@@ -193,7 +193,7 @@ void amd_brs_reset(void)
 int __init amd_brs_init(void)
 {
 	if (!amd_brs_detect())
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pr_cont("%d-deep BRS, ", x86_pmu.lbr_nr);
 
@@ -244,7 +244,7 @@ void amd_brs_disable(void)
 
 	/*
 	 * When coming in on interrupt and BRS is full, then hw will have
-	 * already stopped BRS, no need to issue wrmsr again
+	 * already stopped BRS, anal need to issue wrmsr again
 	 */
 	if (cfg.brsmen) {
 		cfg.brsmen = 0;
@@ -291,7 +291,7 @@ void amd_brs_drain(void)
 	 * BRS event forced on PMC0,
 	 * so check if there is an event.
 	 * It is possible to have lbr_users > 0 but the event
-	 * not yet scheduled due to long latency PMU irq
+	 * analt yet scheduled due to long latency PMU irq
 	 */
 	if (!event)
 		goto empty;
@@ -302,14 +302,14 @@ void amd_brs_drain(void)
 	if (WARN_ON_ONCE(cfg.msroff >= x86_pmu.lbr_nr))
 		goto empty;
 
-	/* No valid branch */
+	/* Anal valid branch */
 	if (cfg.vb == 0)
 		goto empty;
 
 	/*
 	 * msr.off points to next entry to be written
 	 * tos = most recent entry index = msr.off - 1
-	 * BRS register buffer saturates, so we know we have
+	 * BRS register buffer saturates, so we kanalw we have
 	 * start < tos and that we have to read from start to tos
 	 */
 	start = 0;
@@ -327,7 +327,7 @@ void amd_brs_drain(void)
 
 		rdmsrl(brs_to(brs_idx), to);
 
-		/* Entry does not belong to us (as marked by kernel) */
+		/* Entry does analt belong to us (as marked by kernel) */
 		if (to == BRS_POISON)
 			break;
 
@@ -357,7 +357,7 @@ empty:
 
 /*
  * Poison most recent entry to prevent reuse by next task
- * required because BRS entry are not tagged by PID
+ * required because BRS entry are analt tagged by PID
  */
 static void amd_brs_poison_buffer(void)
 {
@@ -375,7 +375,7 @@ static void amd_brs_poison_buffer(void)
 }
 
 /*
- * On context switch in, we need to make sure no samples from previous user
+ * On context switch in, we need to make sure anal samples from previous user
  * are left in the BRS.
  *
  * On ctxswin, sched_in = true, called after the PMU has started
@@ -385,12 +385,12 @@ void amd_pmu_brs_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_i
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	/* no active users */
+	/* anal active users */
 	if (!cpuc->lbr_users)
 		return;
 
 	/*
-	 * On context switch in, we need to ensure we do not use entries
+	 * On context switch in, we need to ensure we do analt use entries
 	 * from previous BRS user on that CPU, so we poison the buffer as
 	 * a faster way compared to resetting all entries.
 	 */
@@ -402,13 +402,13 @@ void amd_pmu_brs_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_i
  * called from ACPI processor_idle.c or acpi_pad.c
  * with interrupts disabled
  */
-void noinstr perf_amd_brs_lopwr_cb(bool lopwr_in)
+void analinstr perf_amd_brs_lopwr_cb(bool lopwr_in)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	union amd_debug_extn_cfg cfg;
 
 	/*
-	 * on mwait in, we may end up in non C0 state.
+	 * on mwait in, we may end up in analn C0 state.
 	 * we must disable branch sampling to avoid holding the NMI
 	 * for too long. We disable it in hardware but we
 	 * keep the state in cpuc, so we can re-enable.

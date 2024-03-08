@@ -42,7 +42,7 @@ in include/linux/platform_data/ads7828.h). The structure fields are:
     otherwise it will default to the internal value (2500mV). This value will be
     bounded with limits accepted by the chip, described in the datasheet.
 
- If no structure is provided, the configuration defaults to single ended
+ If anal structure is provided, the configuration defaults to single ended
  operation and internal voltage reference (2.5V).
 
 Description
@@ -60,6 +60,6 @@ The chip also has the facility to use an external voltage reference.  This
 may be required if your hardware supplies the ADS7828 from a 5V supply, see
 the datasheet for more details.
 
-There is no reliable way to identify this chip, so the driver will not scan
+There is anal reliable way to identify this chip, so the driver will analt scan
 some addresses to try to auto-detect it. That means that you will have to
 statically declare the device in the platform support code.

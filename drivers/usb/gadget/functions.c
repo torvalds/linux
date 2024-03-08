@@ -14,7 +14,7 @@ static struct usb_function_instance *try_get_usb_function_instance(const char *n
 	struct usb_function_driver *fd;
 	struct usb_function_instance *fi;
 
-	fi = ERR_PTR(-ENOENT);
+	fi = ERR_PTR(-EANALENT);
 	mutex_lock(&func_lock);
 	list_for_each_entry(fd, &func_list, list) {
 
@@ -45,7 +45,7 @@ struct usb_function_instance *usb_get_function_instance(const char *name)
 	if (!IS_ERR(fi))
 		return fi;
 	ret = PTR_ERR(fi);
-	if (ret != -ENOENT)
+	if (ret != -EANALENT)
 		return fi;
 	ret = request_module("usbfunc:%s", name);
 	if (ret < 0)

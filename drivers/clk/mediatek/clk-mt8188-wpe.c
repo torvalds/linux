@@ -32,13 +32,13 @@ static const struct mtk_gate_regs wpe_vpp0_1_cg_regs = {
 };
 
 #define GATE_WPE_TOP(_id, _name, _parent, _shift)			\
-	GATE_MTK(_id, _name, _parent, &wpe_top_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &wpe_top_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_WPE_VPP0_0(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &wpe_vpp0_0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &wpe_vpp0_0_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 #define GATE_WPE_VPP0_1(_id, _name, _parent, _shift)		\
-	GATE_MTK(_id, _name, _parent, &wpe_vpp0_1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
+	GATE_MTK(_id, _name, _parent, &wpe_vpp0_1_cg_regs, _shift, &mtk_clk_gate_ops_anal_setclr_inv)
 
 static const struct mtk_gate wpe_top_clks[] = {
 	GATE_WPE_TOP(CLK_WPE_TOP_WPE_VPP0, "wpe_wpe_vpp0", "top_wpe_vpp", 16),

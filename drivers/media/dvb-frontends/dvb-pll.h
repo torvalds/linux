@@ -13,7 +13,7 @@
 #define DVB_PLL_THOMSON_DTT7579         1
 #define DVB_PLL_THOMSON_DTT759X         2
 #define DVB_PLL_LG_Z201                 3
-#define DVB_PLL_UNKNOWN_1               4
+#define DVB_PLL_UNKANALWN_1               4
 #define DVB_PLL_TUA6010XS               5
 #define DVB_PLL_ENV57H1XD5              6
 #define DVB_PLL_TUA6034                 7
@@ -42,7 +42,7 @@ struct dvb_pll_config {
  *
  * @fe: Frontend to attach to.
  * @pll_addr: i2c address of the PLL (if used).
- * @i2c: i2c adapter to use (set to NULL if not used).
+ * @i2c: i2c adapter to use (set to NULL if analt used).
  * @pll_desc_id: dvb_pll_desc to use.
  *
  * return: Frontend pointer on success, NULL on failure

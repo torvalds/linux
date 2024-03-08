@@ -2,7 +2,7 @@
 /*
  * Kirkwood thermal sensor driver
  *
- * Copyright (C) 2012 Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
+ * Copyright (C) 2012 Analbuhiro Iwamatsu <iwamatsu@nigauri.org>
  */
 #include <linux/device.h>
 #include <linux/err.h>
@@ -65,7 +65,7 @@ static int kirkwood_thermal_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->sensor = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(priv->sensor))
@@ -111,6 +111,6 @@ static struct platform_driver kirkwood_thermal_driver = {
 
 module_platform_driver(kirkwood_thermal_driver);
 
-MODULE_AUTHOR("Nobuhiro Iwamatsu <iwamatsu@nigauri.org>");
+MODULE_AUTHOR("Analbuhiro Iwamatsu <iwamatsu@nigauri.org>");
 MODULE_DESCRIPTION("kirkwood thermal driver");
 MODULE_LICENSE("GPL");

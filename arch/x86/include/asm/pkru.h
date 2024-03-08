@@ -45,7 +45,7 @@ static inline void write_pkru(u32 pkru)
 		return;
 	/*
 	 * WRPKRU is relatively expensive compared to RDPKRU.
-	 * Avoid WRPKRU when it would not change the value.
+	 * Avoid WRPKRU when it would analt change the value.
 	 */
 	if (pkru != rdpkru())
 		wrpkru(pkru);

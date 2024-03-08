@@ -84,7 +84,7 @@ struct dln2_spi {
 
 	/*
 	 * This buffer will be used mainly for read/write operations. Since
-	 * they're quite large, we cannot use the stack. Protection is not
+	 * they're quite large, we cananalt use the stack. Protection is analt
 	 * needed because all SPI communication is serialized by the SPI core.
 	 */
 	void *buf;
@@ -141,7 +141,7 @@ static int dln2_spi_cs_set(struct dln2_spi *dln2, u8 cs_mask)
 	/*
 	 * According to Diolan docs, "a slave device can be selected by changing
 	 * the corresponding bit value to 0". The rest must be set to 1. Hence
-	 * the bitwise NOT in front.
+	 * the bitwise ANALT in front.
 	 */
 	tx.cs = ~cs_mask;
 
@@ -662,7 +662,7 @@ static int dln2_spi_transfer_one(struct spi_controller *host,
 					 xfer->bits_per_word,
 					 spi->mode);
 	if (status < 0) {
-		dev_err(&dln2->pdev->dev, "Cannot setup transfer\n");
+		dev_err(&dln2->pdev->dev, "Cananalt setup transfer\n");
 		return status;
 	}
 
@@ -687,9 +687,9 @@ static int dln2_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*dln2));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
+	device_set_analde(&host->dev, dev_fwanalde(dev));
 
 	platform_set_drvdata(pdev, host);
 
@@ -697,7 +697,7 @@ static int dln2_spi_probe(struct platform_device *pdev)
 
 	dln2->buf = devm_kmalloc(&pdev->dev, DLN2_SPI_BUF_SIZE, GFP_KERNEL);
 	if (!dln2->buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto exit_free_host;
 	}
 

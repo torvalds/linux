@@ -12,12 +12,12 @@
 #include <linux/radix-tree.h>
 #include <linux/refcount.h>
 
-/* Generic bits for GMAP notification on DAT table entry changes. */
-#define GMAP_NOTIFY_SHADOW	0x2
-#define GMAP_NOTIFY_MPROT	0x1
+/* Generic bits for GMAP analtification on DAT table entry changes. */
+#define GMAP_ANALTIFY_SHADOW	0x2
+#define GMAP_ANALTIFY_MPROT	0x1
 
 /* Status bits only for huge segment entries */
-#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation analtify bit */
 #define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
 
 /**
@@ -87,13 +87,13 @@ struct gmap_rmap {
 	for (pos = (head); n = pos ? pos->next : NULL, pos; pos = n)
 
 /**
- * struct gmap_notifier - notify function block for page invalidation
- * @notifier_call: address of callback function
+ * struct gmap_analtifier - analtify function block for page invalidation
+ * @analtifier_call: address of callback function
  */
-struct gmap_notifier {
+struct gmap_analtifier {
 	struct list_head list;
 	struct rcu_head rcu;
-	void (*notifier_call)(struct gmap *gmap, unsigned long start,
+	void (*analtifier_call)(struct gmap *gmap, unsigned long start,
 			      unsigned long end);
 };
 
@@ -138,10 +138,10 @@ int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
 			   unsigned long *pgt, int *dat_protection, int *fake);
 int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte);
 
-void gmap_register_pte_notifier(struct gmap_notifier *);
-void gmap_unregister_pte_notifier(struct gmap_notifier *);
+void gmap_register_pte_analtifier(struct gmap_analtifier *);
+void gmap_unregister_pte_analtifier(struct gmap_analtifier *);
 
-int gmap_mprotect_notify(struct gmap *, unsigned long start,
+int gmap_mprotect_analtify(struct gmap *, unsigned long start,
 			 unsigned long len, int prot);
 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
@@ -159,7 +159,7 @@ int __s390_uv_destroy_range(struct mm_struct *mm, unsigned long start,
  * @start: the start of the range
  * @end: the end of the range
  *
- * This function will call cond_sched, so it should not generate stalls, but
+ * This function will call cond_sched, so it should analt generate stalls, but
  * it will otherwise only return when it completed.
  */
 static inline void s390_uv_destroy_range(struct mm_struct *mm, unsigned long start,
@@ -175,7 +175,7 @@ static inline void s390_uv_destroy_range(struct mm_struct *mm, unsigned long sta
  * @start: the start of the range
  * @end: the end of the range
  *
- * This function will call cond_sched, so it should not generate stalls. If
+ * This function will call cond_sched, so it should analt generate stalls. If
  * a fatal signal is received, it will return with -EINTR immediately,
  * without finishing destroying the whole range. Upon successful
  * completion, 0 is returned.

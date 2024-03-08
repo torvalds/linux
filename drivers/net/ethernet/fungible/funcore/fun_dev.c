@@ -4,7 +4,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/nvme.h>
@@ -31,7 +31,7 @@ struct fun_cmd_ctx {
 	int cpu;                  /* CPU where the cmd's tag was allocated */
 };
 
-/* Context for synchronous admin commands. */
+/* Context for synchroanalus admin commands. */
 struct fun_sync_cmd_ctx {
 	struct completion compl;
 	u8 *rsp_buf;              /* caller provided response buffer */
@@ -136,7 +136,7 @@ static int fun_map_bars(struct fun_dev *fdev, const char *name)
 	if (!fdev->bar) {
 		dev_err(&pdev->dev, "Couldn't map BAR 0\n");
 		pci_release_mem_regions(pdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -167,7 +167,7 @@ static irqreturn_t fun_admin_irq(int irq, void *data)
 {
 	struct fun_queue *funq = data;
 
-	return fun_process_cq(funq, 0) ? IRQ_HANDLED : IRQ_NONE;
+	return fun_process_cq(funq, 0) ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void fun_complete_admin_cmd(struct fun_queue *funq, void *data,
@@ -193,7 +193,7 @@ static void fun_complete_admin_cmd(struct fun_queue *funq, void *data,
 	cmd_ctx = &fdev->cmd_ctx[cid];
 	if (cmd_ctx->cpu < 0) {
 		dev_err(fdev->dev,
-			"admin CQE with CID=%u, op=%u does not match a pending command\n",
+			"admin CQE with CID=%u, op=%u does analt match a pending command\n",
 			cid, rsp_common->op);
 		return;
 	}
@@ -212,7 +212,7 @@ static int fun_init_cmd_ctx(struct fun_dev *fdev, unsigned int ntags)
 
 	fdev->cmd_ctx = kvcalloc(ntags, sizeof(*fdev->cmd_ctx), GFP_KERNEL);
 	if (!fdev->cmd_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ntags; i++)
 		fdev->cmd_ctx[i].cpu = -1;
@@ -246,14 +246,14 @@ static int fun_enable_admin_queue(struct fun_dev *fdev,
 
 	fdev->admin_q = fun_alloc_queue(fdev, 0, &qreq);
 	if (!fdev->admin_q)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = fun_init_cmd_ctx(fdev, ntags);
 	if (rc)
 		goto free_q;
 
-	rc = sbitmap_queue_init_node(&fdev->admin_sbq, ntags, -1, false,
-				     GFP_KERNEL, dev_to_node(fdev->dev));
+	rc = sbitmap_queue_init_analde(&fdev->admin_sbq, ntags, -1, false,
+				     GFP_KERNEL, dev_to_analde(fdev->dev));
 	if (rc)
 		goto free_cmd_ctx;
 
@@ -357,7 +357,7 @@ static int fun_wait_for_tag(struct fun_dev *fdev, int *cpup)
 	return tag;
 }
 
-/* Submit an asynchronous admin command. Caller is responsible for implementing
+/* Submit an asynchroanalus admin command. Caller is responsible for implementing
  * any waiting or timeout. Upon command completion the callback @cb is called.
  */
 int fun_submit_admin_cmd(struct fun_dev *fdev, struct fun_admin_req_common *cmd,
@@ -431,7 +431,7 @@ static void fun_admin_stop(struct fun_dev *fdev)
 	sbitmap_queue_wake_all(&fdev->admin_sbq);
 }
 
-/* The callback for synchronous execution of admin commands. It copies the
+/* The callback for synchroanalus execution of admin commands. It copies the
  * command response to the caller's buffer and signals completion.
  */
 static void fun_admin_cmd_sync_cb(struct fun_dev *fd, void *rsp, void *cb_data)
@@ -456,7 +456,7 @@ static void fun_admin_cmd_sync_cb(struct fun_dev *fd, void *rsp, void *cb_data)
 	complete(&ctx->compl);
 }
 
-/* Submit a synchronous admin command. */
+/* Submit a synchroanalus admin command. */
 int fun_submit_admin_sync_cmd(struct fun_dev *fdev,
 			      struct fun_admin_req_common *cmd, void *rsp,
 			      size_t rspsize, unsigned int timeout)
@@ -492,7 +492,7 @@ int fun_submit_admin_sync_cmd(struct fun_dev *fdev,
 			/* see if the timeout was due to a queue failure */
 			if (fun_adminq_stopped(fdev))
 				dev_err(fdev->dev,
-					"device does not accept admin commands\n");
+					"device does analt accept admin commands\n");
 
 			return -ETIMEDOUT;
 		}
@@ -620,7 +620,7 @@ static int fun_alloc_irq_mgr(struct fun_dev *fdev)
 {
 	fdev->irq_map = bitmap_zalloc(fdev->num_irqs, GFP_KERNEL);
 	if (!fdev->irq_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&fdev->irqmgr_lock);
 	/* mark IRQ 0 allocated, it is used by the admin queue */
@@ -633,7 +633,7 @@ static int fun_alloc_irq_mgr(struct fun_dev *fdev)
 int fun_reserve_irqs(struct fun_dev *fdev, unsigned int nirqs, u16 *irq_indices)
 {
 	unsigned int b, n = 0;
-	int err = -ENOSPC;
+	int err = -EANALSPC;
 
 	if (!nirqs)
 		return 0;

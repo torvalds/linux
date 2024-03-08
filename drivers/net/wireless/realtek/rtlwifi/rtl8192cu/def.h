@@ -6,7 +6,7 @@
 /*-------------------------------------------------------------------------
  *	Chip specific
  *-------------------------------------------------------------------------*/
-#define NORMAL_CHIP			BIT(4)
+#define ANALRMAL_CHIP			BIT(4)
 #define CHIP_VENDOR_UMC			BIT(5)
 #define CHIP_VENDOR_UMC_B_CUT		BIT(6)
 

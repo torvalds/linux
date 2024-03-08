@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -189,7 +189,7 @@ static int tng_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		debounce = pinconf_to_config_argument(config);
 		return tng_gpio_set_debounce(chip, offset, debounce);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -416,7 +416,7 @@ int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 
 	gpio->ctx = devm_kcalloc(dev, nctx, sizeof(*gpio->ctx), GFP_KERNEL);
 	if (!gpio->ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->chip.label = dev_name(dev);
 	gpio->chip.parent = dev;
@@ -443,11 +443,11 @@ int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 	girq->parents = devm_kcalloc(dev, girq->num_parents,
 				     sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	girq->parents[0] = gpio->irq;
 	girq->first = info->first;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_bad_irq;
 
 	ret = devm_gpiochip_add_data(dev, &gpio->chip, gpio);

@@ -82,14 +82,14 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
  *
  * @buf: destination xdr_buf to contain XDR encoded ACL
  * @base: byte offset in xdr_buf where XDR'd ACL begins
- * @inode: inode of file whose ACL this is
+ * @ianalde: ianalde of file whose ACL this is
  * @acl: posix_acl to encode
  * @encode_entries: whether to encode ACEs as well
  * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
  *
- * Returns size of encoded ACL in bytes or a negative errno value.
+ * Returns size of encoded ACL in bytes or a negative erranal value.
  */
-int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct ianalde *ianalde,
 		  struct posix_acl *acl, int encode_entries, int typeflag)
 {
 	int entries = (acl && acl->a_count) ? max_t(int, acl->a_count, 4) : 0;
@@ -101,8 +101,8 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		},
 		.acl = acl,
 		.typeflag = typeflag,
-		.uid = inode->i_uid,
-		.gid = inode->i_gid,
+		.uid = ianalde->i_uid,
+		.gid = ianalde->i_gid,
 	};
 	struct nfsacl_simple_acl aclbuf;
 	int err;
@@ -115,11 +115,11 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 
 		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
 		 * invoked in contexts where a memory allocation failure is
-		 * fatal.  Fortunately this fake ACL is small enough to
+		 * fatal.  Fortunately this fake ACL is small eanalugh to
 		 * construct on the stack. */
 		posix_acl_init(acl2, 4);
 
-		/* Insert entries in canonical order: other orders seem
+		/* Insert entries in caanalnical order: other orders seem
 		 to confuse Solaris VxFS. */
 		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
 		acl2->a_entries[1] = acl->a_entries[1];  /* ACL_GROUP_OBJ */
@@ -140,16 +140,16 @@ EXPORT_SYMBOL_GPL(nfsacl_encode);
  * nfs_stream_encode_acl - Encode an NFSv3 ACL
  *
  * @xdr: an xdr_stream positioned to receive an encoded ACL
- * @inode: inode of file whose ACL this is
+ * @ianalde: ianalde of file whose ACL this is
  * @acl: posix_acl to encode
  * @encode_entries: whether to encode ACEs as well
  * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
  *
  * Return values:
- *   %false: The ACL could not be encoded
+ *   %false: The ACL could analt be encoded
  *   %true: @xdr is advanced to the next available position
  */
-bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
+bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct ianalde *ianalde,
 			   struct posix_acl *acl, int encode_entries,
 			   int typeflag)
 {
@@ -163,8 +163,8 @@ bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
 		},
 		.acl = acl,
 		.typeflag = typeflag,
-		.uid = inode->i_uid,
-		.gid = inode->i_gid,
+		.uid = ianalde->i_uid,
+		.gid = ianalde->i_gid,
 	};
 	struct nfsacl_simple_acl aclbuf;
 	unsigned int base;
@@ -180,11 +180,11 @@ bool nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
 
 		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
 		 * invoked in contexts where a memory allocation failure is
-		 * fatal.  Fortunately this fake ACL is small enough to
+		 * fatal.  Fortunately this fake ACL is small eanalugh to
 		 * construct on the stack. */
 		posix_acl_init(acl2, 4);
 
-		/* Insert entries in canonical order: other orders seem
+		/* Insert entries in caanalnical order: other orders seem
 		 to confuse Solaris VxFS. */
 		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
 		acl2->a_entries[1] = acl->a_entries[1];  /* ACL_GROUP_OBJ */
@@ -227,7 +227,7 @@ xdr_nfsace_decode(struct xdr_array2_desc *desc, void *elem)
 			return -EINVAL;
 		nfsacl_desc->acl = posix_acl_alloc(desc->array_len, GFP_KERNEL);
 		if (!nfsacl_desc->acl)
-			return -ENOMEM;
+			return -EANALMEM;
 		nfsacl_desc->count = 0;
 	}
 
@@ -331,7 +331,7 @@ posix_acl_from_nfsacl(struct posix_acl *acl)
  * @aclcnt: count of ACEs in decoded posix_acl
  * @pacl: buffer in which to place decoded posix_acl
  *
- * Returns the length of the decoded ACL in bytes, or a negative errno value.
+ * Returns the length of the decoded ACL in bytes, or a negative erranal value.
  */
 int nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
 		  struct posix_acl **pacl)
@@ -375,7 +375,7 @@ EXPORT_SYMBOL_GPL(nfsacl_decode);
  * @pacl: OUT: a dynamically-allocated buffer containing the decoded posix_acl
  *
  * Return values:
- *   %false: The encoded ACL is not valid
+ *   %false: The encoded ACL is analt valid
  *   %true: @pacl contains a decoded ACL, and @xdr is advanced
  *
  * On a successful return, caller must release *pacl using posix_acl_release().

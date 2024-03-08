@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "imx6ull-colibri-nonwifi.dtsi"
+#include "imx6ull-colibri-analnwifi.dtsi"
 #include "imx6ull-colibri-eval-v3.dtsi"
 
 / {

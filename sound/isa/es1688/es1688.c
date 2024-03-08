@@ -141,7 +141,7 @@ static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 		if (snd_opl3_create(card, fm_port[n], fm_port[n] + 2,
 				OPL3_HW_OPL3, 0, &opl3) < 0)
 			dev_warn(card->dev,
-				 "opl3 not detected at 0x%lx\n", fm_port[n]);
+				 "opl3 analt detected at 0x%lx\n", fm_port[n]);
 		else {
 			error =	snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 			if (error < 0)
@@ -209,7 +209,7 @@ static int snd_card_es968_pnp(struct snd_card *card, unsigned int n,
 
 	pdev = pnp_request_card_device(pcard, pid->devs[0].id, NULL);
 	if (pdev == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = pnp_activate_dev(pdev);
 	if (error < 0) {
@@ -238,7 +238,7 @@ static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
 			break;
 	}
 	if (dev == SNDRV_CARDS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	error = snd_devm_card_new(&pcard->card->dev,
 				  index[dev], id[dev], THIS_MODULE,

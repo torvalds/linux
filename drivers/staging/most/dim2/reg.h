@@ -3,7 +3,7 @@
  * reg.h - Definitions for registers of DIM2
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techanallogy Germany II GmbH & Co. KG
  */
 
 #ifndef DIM2_OS62420_H

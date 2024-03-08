@@ -18,8 +18,8 @@ int adf_send_admin_rl_init(struct adf_accel_dev *accel_dev,
 			   struct icp_qat_fw_init_admin_slice_cnt *slices);
 int adf_send_admin_rl_add_update(struct adf_accel_dev *accel_dev,
 				 struct icp_qat_fw_init_admin_req *req);
-int adf_send_admin_rl_delete(struct adf_accel_dev *accel_dev, u16 node_id,
-			     u8 node_type);
+int adf_send_admin_rl_delete(struct adf_accel_dev *accel_dev, u16 analde_id,
+			     u8 analde_type);
 int adf_get_fw_timestamp(struct adf_accel_dev *accel_dev, u64 *timestamp);
 int adf_get_pm_info(struct adf_accel_dev *accel_dev, dma_addr_t p_state_addr, size_t buff_size);
 int adf_get_cnv_stats(struct adf_accel_dev *accel_dev, u16 ae, u16 *err_cnt, u16 *latest_err);

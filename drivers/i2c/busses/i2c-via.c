@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    i2c Support for Via Technologies 82C586B South Bridge
+    i2c Support for Via Techanallogies 82C586B South Bridge
 
     Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>
 
@@ -32,7 +32,7 @@ static struct pci_driver vt586b_driver;
 static u16 pm_io_base;
 
 /*
-   It does not appear from the datasheet that the GPIO pins are
+   It does analt appear from the datasheet that the GPIO pins are
    open drain. So a we set a low value by setting the direction to
    output and a high value by setting the direction to input and
    relying on the required I2C pullup. The data value is initialized
@@ -91,7 +91,7 @@ static int vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (pm_io_base) {
 		dev_err(&dev->dev, "i2c-via: Will only support one host\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_read_config_byte(dev, PM_CFG_REVID, &rev);
@@ -115,7 +115,7 @@ static int vt586b_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (!request_region(I2C_DIR, IOSPACE, vt586b_driver.name)) {
 		dev_err(&dev->dev, "IO 0x%x-0x%x already in use\n", I2C_DIR, I2C_DIR + IOSPACE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	outb(inb(I2C_DIR) & ~(I2C_SDA | I2C_SCL), I2C_DIR);

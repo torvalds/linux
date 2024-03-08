@@ -9,7 +9,7 @@
  */
 
 /*
- * This file implements code to map the 32-bit xattr id stored in the inode
+ * This file implements code to map the 32-bit xattr id stored in the ianalde
  * into the on disk location of the xattr data.
  */
 

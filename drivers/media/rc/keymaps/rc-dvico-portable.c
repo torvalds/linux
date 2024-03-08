@@ -43,8 +43,8 @@ static struct rc_map_table rc_map_dvico_portable_table[] = {
 	{ 0x0304, KEY_STOP },
 	{ 0x0356, KEY_RECORD },
 	{ 0x0357, KEY_POWER },
-	{ 0x0341, KEY_UNKNOWN },    /* INPUT */
-	{ 0x0300, KEY_UNKNOWN },    /* HD */
+	{ 0x0341, KEY_UNKANALWN },    /* INPUT */
+	{ 0x0300, KEY_UNKANALWN },    /* HD */
 };
 
 static struct rc_map_list dvico_portable_map = {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2020, Mellaanalx Techanallogies inc. All rights reserved.
  *
  * This file is IBTA volume 1, chapter 12 declarations:
  *  CHAPTER 12: COMMUNICATION MANAGEMENT

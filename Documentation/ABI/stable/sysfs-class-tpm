@@ -88,7 +88,7 @@ Date:		April 2005
 KernelVersion:	2.6.12
 Contact:	linux-integrity@vger.kernel.org
 Description:	The "pcrs" property will dump the current value of all Platform
-		Configuration Registers in the TPM. Note that since these
+		Configuration Registers in the TPM. Analte that since these
 		values may be constantly changing, the output is only valid
 		for a snapshot in time.
 
@@ -112,7 +112,7 @@ KernelVersion:	2.6.12
 Contact:	linux-integrity@vger.kernel.org
 Description:	The "pubek" property will return the TPM's public endorsement
 		key if possible. If the TPM has had ownership established and
-		is version 1.2, the pubek will not be available without the
+		is version 1.2, the pubek will analt be available without the
 		owner's authorization. Since the TPM driver doesn't store any
 		secrets, it can't authorize its own request for the pubek,
 		making it unaccessible. The public endorsement key is gener-
@@ -149,7 +149,7 @@ Description:	The "pubek" property will return the TPM's public endorsement
 		  Algorithm:	TPM_ALG_RSA			(1)
 		  Encscheme:	TPM_ES_RSAESPKCSv15		(2)
 				TPM_ES_RSAESOAEP_SHA1_MGF1	(3)
-		  Sigscheme:	TPM_SS_NONE			(1)
+		  Sigscheme:	TPM_SS_ANALNE			(1)
 		  Parameters, a byte string of 3 u32 values:
 			Key Length (bits):	00 00 08 00	(2048)
 			Num primes:		00 00 00 02	(2)

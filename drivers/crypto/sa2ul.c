@@ -5,7 +5,7 @@
  * Copyright (C) 2018-2020 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors:	Keerthy
- *		Vitaly Andrianov
+ *		Vitaly Andriaanalv
  *		Tero Kristo
  */
 #include <linux/bitfield.h>
@@ -273,7 +273,7 @@ static u8 mci_cbc_dec_array[3][MODE_CONTROL_BYTES] = {
  * Mode Control Instructions for various Key lengths 128, 192, 256
  * For CBC (Cipher Block Chaining) mode for encryption
  */
-static u8 mci_cbc_enc_no_iv_array[3][MODE_CONTROL_BYTES] = {
+static u8 mci_cbc_enc_anal_iv_array[3][MODE_CONTROL_BYTES] = {
 	{	0x21, 0x00, 0x00, 0x18, 0x88, 0x0a, 0xaa, 0x4b, 0x7e, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	},
@@ -289,7 +289,7 @@ static u8 mci_cbc_enc_no_iv_array[3][MODE_CONTROL_BYTES] = {
  * Mode Control Instructions for various Key lengths 128, 192, 256
  * For CBC (Cipher Block Chaining) mode for decryption
  */
-static u8 mci_cbc_dec_no_iv_array[3][MODE_CONTROL_BYTES] = {
+static u8 mci_cbc_dec_anal_iv_array[3][MODE_CONTROL_BYTES] = {
 	{	0x31, 0x00, 0x00, 0x80, 0x8a, 0xca, 0x98, 0xf4, 0x40, 0xc0,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	},
@@ -815,7 +815,7 @@ static int sa_init_ctx_info(struct sa_ctx_info *ctx,
 	ctx->sc = dma_pool_alloc(data->sc_pool, GFP_KERNEL, &ctx->sc_phys);
 	if (!ctx->sc) {
 		dev_err(&data->pdev->dev, "Failed to allocate SC memory\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto scid_rollback;
 	}
 
@@ -1101,7 +1101,7 @@ static int sa_run(struct sa_req *req)
 
 	rxd = kzalloc(sizeof(*rxd), gfp_flags);
 	if (!rxd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (req->src != req->dst) {
 		diff_dst = true;
@@ -1144,7 +1144,7 @@ static int sa_run(struct sa_req *req)
 
 	/*
 	 * Map the packets, first we check if the data fits into a single
-	 * sg entry and use that if possible. If it does not fit, we check
+	 * sg entry and use that if possible. If it does analt fit, we check
 	 * if we need to do sg_split to align the scatterlist data on the
 	 * actual data size being processed by the crypto engine.
 	 */
@@ -1307,7 +1307,7 @@ static int sa_cipher_run(struct skcipher_request *req, u8 *iv, int enc)
 	if (req->cryptlen % alg->cra_blocksize)
 		return -EINVAL;
 
-	/* Use SW fallback if the data size is not supported */
+	/* Use SW fallback if the data size is analt supported */
 	if (req->cryptlen > SA_MAX_DATA_SZ ||
 	    (req->cryptlen >= SA_UNSAFE_DATA_SZ_MIN &&
 	     req->cryptlen <= SA_UNSAFE_DATA_SZ_MAX)) {
@@ -1515,7 +1515,7 @@ static int sa_sha_cra_init_alg(struct crypto_tfm *tfm, const char *alg_base)
 					   CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(ctx->fallback.ahash)) {
 			dev_err(ctx->dev_data->dev,
-				"Could not load fallback driver\n");
+				"Could analt load fallback driver\n");
 			return PTR_ERR(ctx->fallback.ahash);
 		}
 	}
@@ -1820,8 +1820,8 @@ static int sa_aead_setkey(struct crypto_aead *authenc,
 	ad->enc_eng.sc_size = SA_CTX_ENC_TYPE1_SZ;
 	ad->auth_eng.eng_id = SA_ENG_ID_AM1;
 	ad->auth_eng.sc_size = SA_CTX_AUTH_TYPE2_SZ;
-	ad->mci_enc = mci_cbc_enc_no_iv_array[key_idx];
-	ad->mci_dec = mci_cbc_dec_no_iv_array[key_idx];
+	ad->mci_enc = mci_cbc_enc_anal_iv_array[key_idx];
+	ad->mci_dec = mci_cbc_dec_anal_iv_array[key_idx];
 	ad->inv_key = true;
 	ad->keyed_mac = true;
 	ad->ealg_id = SA_EALG_ID_AES_CBC;
@@ -2270,7 +2270,7 @@ static int sa_init_mem(struct sa_crypto_data *dev_data)
 					    SA_CTX_MAX_SZ, 64, 0);
 	if (!dev_data->sc_pool) {
 		dev_err(dev, "Failed to create dma pool");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2393,7 +2393,7 @@ MODULE_DEVICE_TABLE(of, of_match);
 static int sa_ul_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	static void __iomem *saul_base;
 	struct sa_crypto_data *dev_data;
 	u32 status, val;
@@ -2401,11 +2401,11 @@ static int sa_ul_probe(struct platform_device *pdev)
 
 	dev_data = devm_kzalloc(dev, sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_data->match_data = of_device_get_match_data(dev);
 	if (!dev_data->match_data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	saul_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(saul_base))
@@ -2437,13 +2437,13 @@ static int sa_ul_probe(struct platform_device *pdev)
 	      SA_EEC_CPPI_PORT_IN_EN | SA_EEC_CPPI_PORT_OUT_EN |
 	      SA_EEC_TRNG_EN;
 	status = readl_relaxed(saul_base + SA_ENGINE_STATUS);
-	/* Only enable engines if all are not already enabled */
+	/* Only enable engines if all are analt already enabled */
 	if (val & ~status)
 		writel_relaxed(val, saul_base + SA_ENGINE_ENABLE_CONTROL);
 
 	sa_register_algos(dev_data);
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(analde, NULL, NULL, dev);
 	if (ret)
 		goto release_dma;
 

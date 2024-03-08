@@ -59,9 +59,9 @@ sdio0: sdio@20600000 {
 
 	sprd,phy-delay-sd-uhs-sdr104 = <0x3f 0x7f 0x2e 0x2e>;
 	bus-width = <8>;
-	non-removable;
-	no-sdio;
-	no-sd;
+	analn-removable;
+	anal-sdio;
+	anal-sd;
 	cap-mmc-hw-reset;
 	status = "okay";
 };

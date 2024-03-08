@@ -11,19 +11,19 @@ maintainers:
 
 description: |
   The Qualcomm MSM8996 interconnect providers support adjusting the
-  bandwidth requirements between the various NoC fabrics.
+  bandwidth requirements between the various AnalC fabrics.
 
 properties:
   compatible:
     enum:
-      - qcom,msm8996-a0noc
-      - qcom,msm8996-a1noc
-      - qcom,msm8996-a2noc
+      - qcom,msm8996-a0analc
+      - qcom,msm8996-a1analc
+      - qcom,msm8996-a2analc
       - qcom,msm8996-bimc
-      - qcom,msm8996-cnoc
-      - qcom,msm8996-mnoc
-      - qcom,msm8996-pnoc
-      - qcom,msm8996-snoc
+      - qcom,msm8996-canalc
+      - qcom,msm8996-manalc
+      - qcom,msm8996-panalc
+      - qcom,msm8996-sanalc
 
   reg:
     maxItems: 1
@@ -50,21 +50,21 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,msm8996-a0noc
+          const: qcom,msm8996-a0analc
 
     then:
       properties:
         clocks:
           items:
-            - description: Aggregate0 System NoC AXI Clock.
-            - description: Aggregate0 Config NoC AHB Clock.
-            - description: Aggregate0 NoC MPU Clock.
+            - description: Aggregate0 System AnalC AXI Clock.
+            - description: Aggregate0 Config AnalC AHB Clock.
+            - description: Aggregate0 AnalC MPU Clock.
 
         clock-names:
           items:
-            - const: aggre0_snoc_axi
-            - const: aggre0_cnoc_ahb
-            - const: aggre0_noc_mpu_cfg
+            - const: aggre0_sanalc_axi
+            - const: aggre0_canalc_ahb
+            - const: aggre0_analc_mpu_cfg
 
       required:
         - power-domains
@@ -72,13 +72,13 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,msm8996-mnoc
+          const: qcom,msm8996-manalc
 
     then:
       properties:
         clocks:
           items:
-            - description: CPU-NoC High-performance Bus Clock.
+            - description: CPU-AnalC High-performance Bus Clock.
 
         clock-names:
           const: iface
@@ -86,13 +86,13 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,msm8996-a2noc
+          const: qcom,msm8996-a2analc
 
     then:
       properties:
         clocks:
           items:
-            - description: Aggregate2 NoC UFS AXI Clock
+            - description: Aggregate2 AnalC UFS AXI Clock
             - description: UFS AXI Clock
 
         clock-names:
@@ -112,15 +112,15 @@ examples:
         #interconnect-cells = <1>;
     };
 
-    a0noc: interconnect@543000 {
-        compatible = "qcom,msm8996-a0noc";
+    a0analc: interconnect@543000 {
+        compatible = "qcom,msm8996-a0analc";
         reg = <0x00543000 0x6000>;
         #interconnect-cells = <1>;
-        clocks = <&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
-                 <&gcc GCC_AGGRE0_CNOC_AHB_CLK>,
-                 <&gcc GCC_AGGRE0_NOC_MPU_CFG_AHB_CLK>;
-        clock-names = "aggre0_snoc_axi",
-                      "aggre0_cnoc_ahb",
-                      "aggre0_noc_mpu_cfg";
-        power-domains = <&gcc AGGRE0_NOC_GDSC>;
+        clocks = <&gcc GCC_AGGRE0_SANALC_AXI_CLK>,
+                 <&gcc GCC_AGGRE0_CANALC_AHB_CLK>,
+                 <&gcc GCC_AGGRE0_ANALC_MPU_CFG_AHB_CLK>;
+        clock-names = "aggre0_sanalc_axi",
+                      "aggre0_canalc_ahb",
+                      "aggre0_analc_mpu_cfg";
+        power-domains = <&gcc AGGRE0_ANALC_GDSC>;
     };

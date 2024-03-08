@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2016 Marvell Techanallogy Group Ltd.
  *
  * Device Tree file for Marvell Armada CP11x.
  */
@@ -14,7 +14,7 @@
 
 / {
 	/*
-	 * The contents of the node are defined below, in order to
+	 * The contents of the analde are defined below, in order to
 	 * save one indentation level
 	 */
 	CP11X_NAME: CP11X_NAME { };
@@ -22,10 +22,10 @@
 	/*
 	 * CPs only have one sensor in the thermal IC.
 	 *
-	 * The cooling maps are empty as there are no cooling devices.
+	 * The cooling maps are empty as there are anal cooling devices.
 	 */
 	thermal-zones {
-		CP11X_LABEL(thermal_ic): CP11X_NODE_NAME(ic-thermal) {
+		CP11X_LABEL(thermal_ic): CP11X_ANALDE_NAME(ic-thermal) {
 			polling-delay-passive = <0>; /* Interrupt driven */
 			polling-delay = <0>; /* Interrupt driven */
 
@@ -539,7 +539,7 @@
 		msi-parent = <&gic_v2m0>;
 
 		bus-range = <0 0xff>;
-		/* non-prefetchable memory */
+		/* analn-prefetchable memory */
 		ranges = <0x82000000 0 CP11X_PCIEx_MEM_BASE(0) 0  CP11X_PCIEx_MEM_BASE(0) 0 CP11X_PCIEx_MEM_SIZE(0)>;
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &CP11X_LABEL(icu_nsr) 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -563,7 +563,7 @@
 		msi-parent = <&gic_v2m0>;
 
 		bus-range = <0 0xff>;
-		/* non-prefetchable memory */
+		/* analn-prefetchable memory */
 		ranges = <0x82000000 0 CP11X_PCIEx_MEM_BASE(1) 0  CP11X_PCIEx_MEM_BASE(1) 0 CP11X_PCIEx_MEM_SIZE(1)>;
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &CP11X_LABEL(icu_nsr) 24 IRQ_TYPE_LEVEL_HIGH>;
@@ -588,7 +588,7 @@
 		msi-parent = <&gic_v2m0>;
 
 		bus-range = <0 0xff>;
-		/* non-prefetchable memory */
+		/* analn-prefetchable memory */
 		ranges = <0x82000000 0 CP11X_PCIEx_MEM_BASE(2) 0  CP11X_PCIEx_MEM_BASE(2) 0 CP11X_PCIEx_MEM_SIZE(2)>;
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0 0 0 0 &CP11X_LABEL(icu_nsr) 23 IRQ_TYPE_LEVEL_HIGH>;

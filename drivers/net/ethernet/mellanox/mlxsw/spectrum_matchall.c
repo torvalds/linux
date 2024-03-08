@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2020 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2020 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <net/flow_offload.h>
 
@@ -34,7 +34,7 @@ mlxsw_sp_mall_port_mirror_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (!mall_entry->mirror.to_dev) {
-		NL_SET_ERR_MSG(extack, "Could not find requested device");
+		NL_SET_ERR_MSG(extack, "Could analt find requested device");
 		return -EINVAL;
 	}
 
@@ -212,40 +212,40 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 
 	if (!flow_offload_has_one_action(&f->rule->action)) {
 		NL_SET_ERR_MSG(f->common.extack, "Only singular actions are supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (f->common.chain_index) {
 		NL_SET_ERR_MSG(f->common.extack, "Only chain 0 is supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (mlxsw_sp_flow_block_is_mixed_bound(block)) {
-		NL_SET_ERR_MSG(f->common.extack, "Only not mixed bound blocks are supported");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(f->common.extack, "Only analt mixed bound blocks are supported");
+		return -EOPANALTSUPP;
 	}
 
 	err = mlxsw_sp_flower_prio_get(mlxsw_sp, block, f->common.chain_index,
 				       &flower_min_prio, &flower_max_prio);
 	if (err) {
-		if (err != -ENOENT) {
+		if (err != -EANALENT) {
 			NL_SET_ERR_MSG(f->common.extack, "Failed to get flower priorities");
 			return err;
 		}
 		flower_prio_valid = false;
-		/* No flower filters are installed in specified chain. */
+		/* Anal flower filters are installed in specified chain. */
 	} else {
 		flower_prio_valid = true;
 	}
 
 	if (protocol != htons(ETH_P_ALL)) {
 		NL_SET_ERR_MSG(f->common.extack, "matchall rules only supported with 'all' protocol");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
 	if (!mall_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	mall_entry->cookie = f->cookie;
 	mall_entry->priority = f->common.prio;
 	mall_entry->ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
@@ -253,13 +253,13 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 	if (flower_prio_valid && mall_entry->ingress &&
 	    mall_entry->priority >= flower_min_prio) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind existing flower rules");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto errout;
 	}
 	if (flower_prio_valid && !mall_entry->ingress &&
 	    mall_entry->priority <= flower_max_prio) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto errout;
 	}
 
@@ -278,7 +278,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		mall_entry->sample.params.rate = act->sample.rate;
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto errout;
 	}
 
@@ -315,7 +315,7 @@ void mlxsw_sp_mall_destroy(struct mlxsw_sp_flow_block *block,
 
 	mall_entry = mlxsw_sp_mall_entry_find(block, f->cookie);
 	if (!mall_entry) {
-		NL_SET_ERR_MSG(f->common.extack, "Entry not found");
+		NL_SET_ERR_MSG(f->common.extack, "Entry analt found");
 		return;
 	}
 
@@ -366,11 +366,11 @@ int mlxsw_sp_mall_prio_get(struct mlxsw_sp_flow_block *block, u32 chain_index,
 			   unsigned int *p_min_prio, unsigned int *p_max_prio)
 {
 	if (chain_index || list_empty(&block->mall.list))
-		/* In case there are no matchall rules, the caller
-		 * receives -ENOENT to indicate there is no need
+		/* In case there are anal matchall rules, the caller
+		 * receives -EANALENT to indicate there is anal need
 		 * to check the priorities.
 		 */
-		return -ENOENT;
+		return -EANALENT;
 	*p_min_prio = block->mall.min_prio;
 	*p_max_prio = block->mall.max_prio;
 	return 0;
@@ -384,13 +384,13 @@ static int mlxsw_sp1_mall_sample_add(struct mlxsw_sp *mlxsw_sp,
 	u32 rate = mall_entry->sample.params.rate;
 
 	if (!mall_entry->ingress) {
-		NL_SET_ERR_MSG(extack, "Sampling is not supported on egress");
-		return -EOPNOTSUPP;
+		NL_SET_ERR_MSG(extack, "Sampling is analt supported on egress");
+		return -EOPANALTSUPP;
 	}
 
 	if (rate > MLXSW_REG_MPSC_RATE_MAX) {
 		NL_SET_ERR_MSG(extack, "Unsupported sampling rate");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return mlxsw_sp_mall_port_sample_set(mlxsw_sp_port, true, rate);

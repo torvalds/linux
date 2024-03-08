@@ -17,24 +17,24 @@
 #include <linux/filelock.h>
 #include <linux/pagemap.h>
 
-static int flush_racache(struct inode *inode)
+static int flush_racache(struct ianalde *ianalde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 	    "%s: %pU: Handle is %pU | fs_id %d\n", __func__,
-	    get_khandle_from_ino(inode), &orangefs_inode->refn.khandle,
-	    orangefs_inode->refn.fs_id);
+	    get_khandle_from_ianal(ianalde), &orangefs_ianalde->refn.khandle,
+	    orangefs_ianalde->refn.fs_id);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RA_FLUSH);
 	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.ra_cache_flush.refn = orangefs_inode->refn;
+		return -EANALMEM;
+	new_op->upcall.req.ra_cache_flush.refn = orangefs_ianalde->refn;
 
 	ret = service_operation(new_op, "orangefs_flush_racache",
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(ianalde));
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: got return value of %d\n",
 	    __func__, ret);
@@ -46,13 +46,13 @@ static int flush_racache(struct inode *inode)
 /*
  * Post and wait for the I/O upcall to finish
  */
-ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct ianalde *ianalde,
 	loff_t *offset, struct iov_iter *iter, size_t total_size,
 	loff_t readahead_size, struct orangefs_write_range *wr,
 	int *index_return, struct file *file)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
+	struct orangefs_khandle *handle = &orangefs_ianalde->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index;
 	ssize_t ret;
@@ -62,12 +62,12 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FILE_IO);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* synchronous I/O */
+	/* synchroanalus I/O */
 	new_op->upcall.req.io.readahead_size = readahead_size;
 	new_op->upcall.req.io.io_type = type;
-	new_op->upcall.req.io.refn = orangefs_inode->refn;
+	new_op->upcall.req.io.refn = orangefs_ianalde->refn;
 
 populate_shared_memory:
 	/* get a shared buffer index */
@@ -95,16 +95,16 @@ populate_shared_memory:
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
 	/*
-	 * Orangefs has no open, and orangefs checks file permissions
+	 * Orangefs has anal open, and orangefs checks file permissions
 	 * on each file access. Posix requires that file permissions
-	 * be checked on open and nowhere else. Orangefs-through-the-kernel
+	 * be checked on open and analwhere else. Orangefs-through-the-kernel
 	 * needs to seem posix compliant.
 	 *
-	 * The VFS opens files, even if the filesystem provides no
+	 * The VFS opens files, even if the filesystem provides anal
 	 * method. We can see if a file was successfully opened for
 	 * read and or for write by looking at file->f_mode.
 	 *
-	 * When writes are flowing from the page cache, file is no
+	 * When writes are flowing from the page cache, file is anal
 	 * longer available. We can trust the VFS to have checked
 	 * file->f_mode before writing to the page cache.
 	 *
@@ -120,7 +120,7 @@ populate_shared_memory:
 		open_for_read = file->f_mode & FMODE_READ;
 	} else {
 		open_for_write = 1;
-		open_for_read = 0; /* not relevant? */
+		open_for_read = 0; /* analt relevant? */
 	}
 	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
 		new_op->upcall.uid = 0;
@@ -157,12 +157,12 @@ populate_shared_memory:
 				type == ORANGEFS_IO_WRITE ?
 					"file_write" :
 					"file_read",
-				get_interruptible_flag(inode));
+				get_interruptible_flag(ianalde));
 
 	/*
 	 * If service_operation() returns -EAGAIN #and# the operation was
 	 * purged from orangefs_request_list or htable_ops_in_progress, then
-	 * we know that the client was restarted, causing the shared memory
+	 * we kanalw that the client was restarted, causing the shared memory
 	 * area to be wiped clean.  To restart a  write operation in this
 	 * case, we must re-copy the data from the user's iovec to a NEW
 	 * shared memory location. To restart a read operation, we must get
@@ -182,19 +182,19 @@ populate_shared_memory:
 		if (ret == -EINTR) {
 			/*
 			 * We can't return EINTR if any data was written,
-			 * it's not POSIX. It is minimally acceptable
+			 * it's analt POSIX. It is minimally acceptable
 			 * to give a partial write, the way NFS does.
 			 *
-			 * It would be optimal to return all or nothing,
+			 * It would be optimal to return all or analthing,
 			 * but if a userspace write is bigger than
 			 * an IO buffer, and the interrupt occurs
-			 * between buffer writes, that would not be
+			 * between buffer writes, that would analt be
 			 * possible.
 			 */
 			switch (new_op->op_state - OP_VFS_STATE_GIVEN_UP) {
 			/*
 			 * If the op was waiting when the interrupt
-			 * occurred, then the client-core did not
+			 * occurred, then the client-core did analt
 			 * trigger the write.
 			 */
 			case OP_VFS_STATE_WAITING:
@@ -244,7 +244,7 @@ populate_shared_memory:
 	 */
 	if (type == ORANGEFS_IO_READ && new_op->downcall.resp.io.amt_complete) {
 		/*
-		 * NOTE: the iovector can either contain addresses which
+		 * ANALTE: the iovector can either contain addresses which
 		 *       can futher be kernel-space or user-space addresses.
 		 *       or it can pointers to struct page's
 		 */
@@ -279,38 +279,38 @@ out:
 	return ret;
 }
 
-int orangefs_revalidate_mapping(struct inode *inode)
+int orangefs_revalidate_mapping(struct ianalde *ianalde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long *bitlock = &orangefs_inode->bitlock;
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
+	struct address_space *mapping = ianalde->i_mapping;
+	unsigned long *bitlock = &orangefs_ianalde->bitlock;
 	int ret;
 
 	while (1) {
 		ret = wait_on_bit(bitlock, 1, TASK_KILLABLE);
 		if (ret)
 			return ret;
-		spin_lock(&inode->i_lock);
+		spin_lock(&ianalde->i_lock);
 		if (test_bit(1, bitlock)) {
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ianalde->i_lock);
 			continue;
 		}
-		if (!time_before(jiffies, orangefs_inode->mapping_time))
+		if (!time_before(jiffies, orangefs_ianalde->mapping_time))
 			break;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ianalde->i_lock);
 		return 0;
 	}
 
 	set_bit(1, bitlock);
 	smp_wmb();
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ianalde->i_lock);
 
 	unmap_mapping_range(mapping, 0, 0, 0);
 	ret = filemap_write_and_wait(mapping);
 	if (!ret)
-		ret = invalidate_inode_pages2(mapping);
+		ret = invalidate_ianalde_pages2(mapping);
 
-	orangefs_inode->mapping_time = jiffies +
+	orangefs_ianalde->mapping_time = jiffies +
 	    orangefs_cache_timeout_msecs*HZ/1000;
 
 	clear_bit(1, bitlock);
@@ -326,34 +326,34 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 	int ret;
 	orangefs_stats.reads++;
 
-	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
-	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	down_read(&file_ianalde(iocb->ki_filp)->i_rwsem);
+	ret = orangefs_revalidate_mapping(file_ianalde(iocb->ki_filp));
 	if (ret)
 		goto out;
 
 	ret = generic_file_read_iter(iocb, iter);
 out:
-	up_read(&file_inode(iocb->ki_filp)->i_rwsem);
+	up_read(&file_ianalde(iocb->ki_filp)->i_rwsem);
 	return ret;
 }
 
 static ssize_t orangefs_file_splice_read(struct file *in, loff_t *ppos,
-					 struct pipe_inode_info *pipe,
+					 struct pipe_ianalde_info *pipe,
 					 size_t len, unsigned int flags)
 {
-	struct inode *inode = file_inode(in);
+	struct ianalde *ianalde = file_ianalde(in);
 	ssize_t ret;
 
 	orangefs_stats.reads++;
 
-	down_read(&inode->i_rwsem);
-	ret = orangefs_revalidate_mapping(inode);
+	down_read(&ianalde->i_rwsem);
+	ret = orangefs_revalidate_mapping(ianalde);
 	if (ret)
 		goto out;
 
 	ret = filemap_splice_read(in, ppos, pipe, len, flags);
 out:
-	up_read(&inode->i_rwsem);
+	up_read(&ianalde->i_rwsem);
 	return ret;
 }
 
@@ -363,8 +363,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	int ret;
 	orangefs_stats.writes++;
 
-	if (iocb->ki_pos > i_size_read(file_inode(iocb->ki_filp))) {
-		ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	if (iocb->ki_pos > i_size_read(file_ianalde(iocb->ki_filp))) {
+		ret = orangefs_revalidate_mapping(file_ianalde(iocb->ki_filp));
 		if (ret)
 			return ret;
 	}
@@ -377,12 +377,12 @@ static vm_fault_t orangefs_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	int ret;
-	ret = orangefs_inode_getattr(file->f_mapping->host,
+	ret = orangefs_ianalde_getattr(file->f_mapping->host,
 	    ORANGEFS_GETATTR_SIZE);
 	if (ret == -ESTALE)
 		ret = -EIO;
 	if (ret) {
-		gossip_err("%s: orangefs_inode_getattr failed, "
+		gossip_err("%s: orangefs_ianalde_getattr failed, "
 		    "ret:%d:.\n", __func__, ret);
 		return VM_FAULT_SIGBUS;
 	}
@@ -402,7 +402,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret;
 
-	ret = orangefs_revalidate_mapping(file_inode(file));
+	ret = orangefs_revalidate_mapping(file_ianalde(file));
 	if (ret)
 		return ret;
 
@@ -420,29 +420,29 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 #define mapping_nrpages(idata) ((idata)->nrpages)
 
 /*
- * Called to notify the module that there are no more references to
- * this file (i.e. no processes have it open).
+ * Called to analtify the module that there are anal more references to
+ * this file (i.e. anal processes have it open).
  *
- * \note Not called when each file is closed.
+ * \analte Analt called when each file is closed.
  */
-static int orangefs_file_release(struct inode *inode, struct file *file)
+static int orangefs_file_release(struct ianalde *ianalde, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
 	/*
-	 * remove all associated inode pages from the page cache and
+	 * remove all associated ianalde pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
 	if (mapping_nrpages(file->f_mapping)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
-			gossip_debug(GOSSIP_INODE_DEBUG,
+			gossip_debug(GOSSIP_IANALDE_DEBUG,
 			    "calling flush_racache on %pU\n",
-			    get_khandle_from_ino(inode));
-			flush_racache(inode);
-			gossip_debug(GOSSIP_INODE_DEBUG,
+			    get_khandle_from_ianal(ianalde));
+			flush_racache(ianalde);
+			gossip_debug(GOSSIP_IANALDE_DEBUG,
 			    "flush_racache finished\n");
 		}
 
@@ -459,23 +459,23 @@ static int orangefs_fsync(struct file *file,
 		       int datasync)
 {
 	int ret;
-	struct orangefs_inode_s *orangefs_inode =
-		ORANGEFS_I(file_inode(file));
+	struct orangefs_ianalde_s *orangefs_ianalde =
+		ORANGEFS_I(file_ianalde(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
 
-	ret = filemap_write_and_wait_range(file_inode(file)->i_mapping,
+	ret = filemap_write_and_wait_range(file_ianalde(file)->i_mapping,
 	    start, end);
 	if (ret < 0)
 		return ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.fsync.refn = orangefs_inode->refn;
+		return -EANALMEM;
+	new_op->upcall.req.fsync.refn = orangefs_ianalde->refn;
 
 	ret = service_operation(new_op,
 			"orangefs_fsync",
-			get_interruptible_flag(file_inode(file)));
+			get_interruptible_flag(file_ianalde(file)));
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_fsync got return value of %d\n",
@@ -488,7 +488,7 @@ static int orangefs_fsync(struct file *file,
 /*
  * Change the file pointer position for an instance of an open file.
  *
- * \note If .llseek is overriden, we must acquire lock as described in
+ * \analte If .llseek is overriden, we must acquire lock as described in
  *       Documentation/filesystems/locking.rst.
  *
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
@@ -497,21 +497,21 @@ static int orangefs_fsync(struct file *file,
 static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 
 	if (origin == SEEK_END) {
 		/*
-		 * revalidate the inode's file size.
-		 * NOTE: We are only interested in file size here,
+		 * revalidate the ianalde's file size.
+		 * ANALTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = orangefs_inode_getattr(file->f_mapping->host,
+		ret = orangefs_ianalde_getattr(file->f_mapping->host,
 		    ORANGEFS_GETATTR_SIZE);
 		if (ret == -ESTALE)
 			ret = -EIO;
 		if (ret) {
 			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s:%s:%d calling make bad inode\n",
+				     "%s:%s:%d calling make bad ianalde\n",
 				     __FILE__,
 				     __func__,
 				     __LINE__);
@@ -521,23 +521,23 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_llseek: offset is %ld | origin is %d"
-		     " | inode size is %lu\n",
+		     " | ianalde size is %lu\n",
 		     (long)offset,
 		     origin,
-		     (unsigned long)i_size_read(inode));
+		     (unsigned long)i_size_read(ianalde));
 
 	return generic_file_llseek(file, offset, origin);
 }
 
 /*
- * Support local locks (locks that only this kernel knows about)
+ * Support local locks (locks that only this kernel kanalws about)
  * if Orangefs was mounted -o local_lock.
  */
 static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -EINVAL;
 
-	if (ORANGEFS_SB(file_inode(filp)->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
+	if (ORANGEFS_SB(file_ianalde(filp)->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {
 			rc = 0;
 			posix_test_lock(filp, fl);
@@ -555,7 +555,7 @@ static int orangefs_flush(struct file *file, fl_owner_t id)
 	 * This is vfs_fsync_range(file, 0, LLONG_MAX, 0) without the
 	 * service_operation in orangefs_fsync.
 	 *
-	 * Do not send fsync to OrangeFS server on a close.  Do send fsync
+	 * Do analt send fsync to OrangeFS server on a close.  Do send fsync
 	 * on an explicit fsync call.  This duplicates historical OrangeFS
 	 * behavior.
 	 */

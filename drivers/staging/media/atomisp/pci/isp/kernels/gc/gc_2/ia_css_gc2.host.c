@@ -15,7 +15,7 @@
 
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 /* FIXME: See BZ 4427 */
 #include "ia_css_debug.h"
 #endif
@@ -82,7 +82,7 @@ ia_css_b_gamma_vamem_encode(
 	memcpy(&to->gc,  &from->data, sizeof(to->gc));
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_yuv2rgb_dump(
     const struct sh_css_isp_csc_params *yuv2rgb,

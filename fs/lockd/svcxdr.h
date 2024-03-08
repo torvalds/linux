@@ -2,7 +2,7 @@
 /*
  * Encode/decode NLM basic data types
  *
- * Basic NLMv3 XDR data types are not defined in an IETF standards
+ * Basic NLMv3 XDR data types are analt defined in an IETF standards
  * document.  X/Open has a description of these data types that
  * is useful.  See Chapter 10 of "Protocols for Interworking:
  * XNFS, Version 3W".
@@ -65,7 +65,7 @@ svcxdr_decode_string(struct xdr_stream *xdr, char **data, unsigned int *data_len
 
 /*
  * NLM cookies are defined by specification to be a variable-length
- * XDR opaque no longer than 1024 bytes. However, this implementation
+ * XDR opaque anal longer than 1024 bytes. However, this implementation
  * limits their length to 32 bytes, and treats zero-length cookies
  * specially.
  */

@@ -13,7 +13,7 @@
 #include <sound/pcm_iec958.h>
 
 /*
- * NOTE:
+ * ANALTE:
  * The meaning of bits SPDIFOUT_CTRL0_XXX_SEL is actually the opposite
  * of what the documentation says. Manual control on V, U and C bits is
  * applied when the related sel bits are cleared
@@ -289,7 +289,7 @@ static const struct snd_soc_dai_ops axg_spdifout_ops = {
 	.hw_params	= axg_spdifout_hw_params,
 	.startup	= axg_spdifout_startup,
 	.shutdown	= axg_spdifout_shutdown,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver axg_spdifout_dai_drv[] = {
@@ -326,10 +326,10 @@ static const struct snd_kcontrol_new axg_spdifout_in_mux =
 	SOC_DAPM_ENUM("Input Source", axg_spdifout_sel_enum);
 
 static const struct snd_soc_dapm_widget axg_spdifout_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_NOPM, 0, 0, &axg_spdifout_in_mux),
+	SND_SOC_DAPM_AIF_IN("IN 0", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 1", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("IN 2", NULL, 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("SRC SEL", SND_SOC_ANALPM, 0, 0, &axg_spdifout_in_mux),
 };
 
 static const struct snd_soc_dapm_route axg_spdifout_dapm_routes[] = {
@@ -352,18 +352,18 @@ static int axg_spdifout_set_bias_level(struct snd_soc_component *component,
 				       enum snd_soc_bias_level level)
 {
 	struct axg_spdifout *priv = snd_soc_component_get_drvdata(component);
-	enum snd_soc_bias_level now =
+	enum snd_soc_bias_level analw =
 		snd_soc_component_get_bias_level(component);
 	int ret = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (now == SND_SOC_BIAS_STANDBY)
+		if (analw == SND_SOC_BIAS_STANDBY)
 			ret = clk_prepare_enable(priv->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (now == SND_SOC_BIAS_PREPARE)
+		if (analw == SND_SOC_BIAS_PREPARE)
 			clk_disable_unprepare(priv->mclk);
 		break;
 
@@ -407,7 +407,7 @@ static int axg_spdifout_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	regs = devm_platform_ioremap_resource(pdev, 0);

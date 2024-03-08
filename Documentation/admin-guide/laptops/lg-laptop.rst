@@ -10,7 +10,7 @@ By Matan Ziv-Av <matan@svgalib.org>
 Hotkeys
 -------
 
-The following FN keys are ignored by the kernel without this driver:
+The following FN keys are iganalred by the kernel without this driver:
 
 - FN-F1 (LG control panel)   - Generates F15
 - FN-F5 (Touchpad toggle)    - Generates F21
@@ -56,7 +56,7 @@ USB charge
 ----------
 
 Writing 0/1 to /sys/devices/platform/lg-laptop/usb_charge disables/enables
-charging another device from the USB port while the device is turned off.
+charging aanalther device from the USB port while the device is turned off.
 
 This value is reset to 0 when the kernel boots.
 

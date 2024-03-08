@@ -62,7 +62,7 @@
 		pinctrl-0 = <&pinctrl_edt_ft5x06>;
 		reg = <0x38>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <2 IRQ_TYPE_NONE>;
+		interrupts = <2 IRQ_TYPE_ANALNE>;
 		status = "disabled";
 	};
 };

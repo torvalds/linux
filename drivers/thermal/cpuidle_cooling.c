@@ -2,7 +2,7 @@
 /*
  *  Copyright (C) 2019 Linaro Limited.
  *
- *  Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ *  Author: Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
  *
  */
 #define pr_fmt(fmt) "cpuidle cooling: " fmt
@@ -20,7 +20,7 @@
 /**
  * struct cpuidle_cooling_device - data for the idle cooling device
  * @ii_dev: an atomic to keep track of the last task exiting the idle cycle
- * @state: a normalized integer giving the state of the cooling device
+ * @state: a analrmalized integer giving the state of the cooling device
  */
 struct cpuidle_cooling_device {
 	struct idle_inject_device *ii_dev;
@@ -68,7 +68,7 @@ static unsigned int cpuidle_cooling_runtime(unsigned int idle_duration_us,
  * The function always returns 100 as the injection ratio. It is
  * percentile based for consistency across different platforms.
  *
- * Return: The function can not fail, it is always zero
+ * Return: The function can analt fail, it is always zero
  */
 static int cpuidle_cooling_get_max_state(struct thermal_cooling_device *cdev,
 					 unsigned long *state)
@@ -80,7 +80,7 @@ static int cpuidle_cooling_get_max_state(struct thermal_cooling_device *cdev,
 	 * interface will be the same whatever the platform is.
 	 *
 	 * The state 100% will make the cluster 100% ... idle. A 0%
-	 * injection ratio means no idle injection at all and 50%
+	 * injection ratio means anal idle injection at all and 50%
 	 * means for 10ms of idle injection, we have 10ms of running
 	 * time.
 	 */
@@ -97,7 +97,7 @@ static int cpuidle_cooling_get_max_state(struct thermal_cooling_device *cdev,
  * The function just copies  the state value from the private thermal
  * cooling device structure, the mapping is 1 <-> 1.
  *
- * Return: The function can not fail, it is always zero
+ * Return: The function can analt fail, it is always zero
  */
 static int cpuidle_cooling_get_cur_state(struct thermal_cooling_device *cdev,
 					 unsigned long *state)
@@ -119,7 +119,7 @@ static int cpuidle_cooling_get_cur_state(struct thermal_cooling_device *cdev,
  * cooling device. In any case, it updates the internal state for the
  * cooling device.
  *
- * Return: The function can not fail, it is always zero
+ * Return: The function can analt fail, it is always zero
  */
 static int cpuidle_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 					 unsigned long state)
@@ -158,7 +158,7 @@ static struct thermal_cooling_device_ops cpuidle_cooling_ops = {
 /**
  * __cpuidle_cooling_register: register the cooling device
  * @drv: a cpuidle driver structure pointer
- * @np: a device node structure pointer used for the thermal binding
+ * @np: a device analde structure pointer used for the thermal binding
  *
  * This function is in charge of allocating the cpuidle cooling device
  * structure, the idle injection, initialize them and register the
@@ -167,7 +167,7 @@ static struct thermal_cooling_device_ops cpuidle_cooling_ops = {
  * Return: zero on success, a negative value returned by one of the
  * underlying subsystem in case of error
  */
-static int __cpuidle_cooling_register(struct device_node *np,
+static int __cpuidle_cooling_register(struct device_analde *np,
 				      struct cpuidle_driver *drv)
 {
 	struct idle_inject_device *ii_dev;
@@ -181,7 +181,7 @@ static int __cpuidle_cooling_register(struct device_node *np,
 
 	idle_cdev = kzalloc(sizeof(*idle_cdev), GFP_KERNEL);
 	if (!idle_cdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -203,7 +203,7 @@ static int __cpuidle_cooling_register(struct device_node *np,
 
 	name = kasprintf(GFP_KERNEL, "idle-%s", dev_name(dev));
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unregister;
 	}
 
@@ -240,26 +240,26 @@ out:
  */
 void cpuidle_cooling_register(struct cpuidle_driver *drv)
 {
-	struct device_node *cooling_node;
-	struct device_node *cpu_node;
+	struct device_analde *cooling_analde;
+	struct device_analde *cpu_analde;
 	int cpu, ret;
 
 	for_each_cpu(cpu, drv->cpumask) {
 
-		cpu_node = of_cpu_device_node_get(cpu);
+		cpu_analde = of_cpu_device_analde_get(cpu);
 
-		cooling_node = of_get_child_by_name(cpu_node, "thermal-idle");
+		cooling_analde = of_get_child_by_name(cpu_analde, "thermal-idle");
 
-		of_node_put(cpu_node);
+		of_analde_put(cpu_analde);
 
-		if (!cooling_node) {
-			pr_debug("'thermal-idle' node not found for cpu%d\n", cpu);
+		if (!cooling_analde) {
+			pr_debug("'thermal-idle' analde analt found for cpu%d\n", cpu);
 			continue;
 		}
 
-		ret = __cpuidle_cooling_register(cooling_node, drv);
+		ret = __cpuidle_cooling_register(cooling_analde, drv);
 
-		of_node_put(cooling_node);
+		of_analde_put(cooling_analde);
 
 		if (ret) {
 			pr_err("Failed to register the cpuidle cooling device" \

@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -99,13 +99,13 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 	int i;
 
 	if ((base + 0) >= map->size) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 			"Probe at base[0x00](0x%08lx) past the end of the map(0x%08lx)\n",
 			(unsigned long)base, map->size -1);
 		return 0;
 	}
 	if ((base + 0xff) >= map->size) {
-		printk(KERN_NOTICE
+		printk(KERN_ANALTICE
 			"Probe at base[0x55](0x%08lx) past the end of the map(0x%08lx)\n",
 			(unsigned long)base + 0x55, map->size -1);
 		return 0;
@@ -127,7 +127,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
  	for (i=0; i < (base >> cfi->chipshift); i++) {
  		unsigned long start;
  		if(!test_bit(i, chip_map)) {
-			/* Skip location; no valid chip at this address */
+			/* Skip location; anal valid chip at this address */
  			continue;
  		}
  		start = i << cfi->chipshift;
@@ -145,7 +145,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 				       map->name, base, start);
 				return 0;
 			}
-			/* Yes, it's actually got QRY for data. Most
+			/* Anal, it's actually got QRY for data. Most
 			 * unfortunate. Stick the new chip in read mode
 			 * too and if it's the same, assume it's an alias. */
 			/* FIXME: Use other modes to do a proper check */
@@ -160,7 +160,7 @@ static int __xipram cfi_probe_chip(struct map_info *map, __u32 base,
 		}
 	}
 
-	/* OK, if we got to here, then none of the previous chips appear to
+	/* OK, if we got to here, then analne of the previous chips appear to
 	   be aliases for the current one. */
 	set_bit((base >> cfi->chipshift), chip_map); /* Update chip map */
 	cfi->numchips++;
@@ -253,12 +253,12 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 	}
 
 	/*
-	 * Note we put the device back into Read Mode BEFORE going into Auto
+	 * Analte we put the device back into Read Mode BEFORE going into Auto
 	 * Select Mode, as some devices support nesting of modes, others
 	 * don't. This way should always work.
-	 * On cmdset 0001 the writes of 0xaa and 0x55 are not needed, and
-	 * so should be treated as nops or illegal (and so put the device
-	 * back into Read Mode, which is a nop in this case).
+	 * On cmdset 0001 the writes of 0xaa and 0x55 are analt needed, and
+	 * so should be treated as analps or illegal (and so put the device
+	 * back into Read Mode, which is a analp in this case).
 	 */
 	cfi_send_gen_cmd(0xf0,     0, base, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xaa, addr_unlock1, base, map, cfi, cfi->device_type, NULL);
@@ -289,8 +289,8 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 static char *vendorname(__u16 vendor)
 {
 	switch (vendor) {
-	case P_ID_NONE:
-		return "None";
+	case P_ID_ANALNE:
+		return "Analne";
 
 	case P_ID_INTEL_EXT:
 		return "Intel/Sharp Extended";
@@ -329,10 +329,10 @@ static char *vendorname(__u16 vendor)
 		return "Intel Data";
 
 	case P_ID_RESERVED:
-		return "Not Allowed / Reserved for Future Use";
+		return "Analt Allowed / Reserved for Future Use";
 
 	default:
-		return "Unknown";
+		return "Unkanalwn";
 	}
 }
 
@@ -349,13 +349,13 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 	if (cfip->P_ADR)
 		printk("Primary Algorithm Table at %4.4X\n", cfip->P_ADR);
 	else
-		printk("No Primary Algorithm Table\n");
+		printk("Anal Primary Algorithm Table\n");
 
 	printk("Alternative Vendor Command Set: %4.4X (%s)\n", cfip->A_ID, vendorname(cfip->A_ID));
 	if (cfip->A_ADR)
 		printk("Alternate Algorithm Table at %4.4X\n", cfip->A_ADR);
 	else
-		printk("No Alternate Algorithm Table\n");
+		printk("Anal Alternate Algorithm Table\n");
 
 
 	printk("Vcc Minimum: %2d.%d V\n", cfip->VccMin >> 4, cfip->VccMin & 0xf);
@@ -365,7 +365,7 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		printk("Vpp Maximum: %2d.%d V\n", cfip->VppMax >> 4, cfip->VppMax & 0xf);
 	}
 	else
-		printk("No Vpp line\n");
+		printk("Anal Vpp line\n");
 
 	printk("Typical byte/word write timeout: %d µs\n", 1<<cfip->WordWriteTimeoutTyp);
 	printk("Maximum byte/word write timeout: %d µs\n", (1<<cfip->WordWriteTimeoutMax) * (1<<cfip->WordWriteTimeoutTyp));
@@ -375,7 +375,7 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		printk("Maximum full buffer write timeout: %d µs\n", (1<<cfip->BufWriteTimeoutMax) * (1<<cfip->BufWriteTimeoutTyp));
 	}
 	else
-		printk("Full buffer write not supported\n");
+		printk("Full buffer write analt supported\n");
 
 	printk("Typical block erase timeout: %d ms\n", 1<<cfip->BlockEraseTimeoutTyp);
 	printk("Maximum block erase timeout: %d ms\n", (1<<cfip->BlockEraseTimeoutMax) * (1<<cfip->BlockEraseTimeoutTyp));
@@ -384,37 +384,37 @@ static void print_cfi_ident(struct cfi_ident *cfip)
 		printk("Maximum chip erase timeout: %d ms\n", (1<<cfip->ChipEraseTimeoutMax) * (1<<cfip->ChipEraseTimeoutTyp));
 	}
 	else
-		printk("Chip erase not supported\n");
+		printk("Chip erase analt supported\n");
 
 	printk("Device size: 0x%X bytes (%d MiB)\n", 1 << cfip->DevSize, 1<< (cfip->DevSize - 20));
 	printk("Flash Device Interface description: 0x%4.4X\n", cfip->InterfaceDesc);
 	switch(cfip->InterfaceDesc) {
 	case CFI_INTERFACE_X8_ASYNC:
-		printk("  - x8-only asynchronous interface\n");
+		printk("  - x8-only asynchroanalus interface\n");
 		break;
 
 	case CFI_INTERFACE_X16_ASYNC:
-		printk("  - x16-only asynchronous interface\n");
+		printk("  - x16-only asynchroanalus interface\n");
 		break;
 
 	case CFI_INTERFACE_X8_BY_X16_ASYNC:
-		printk("  - supports x8 and x16 via BYTE# with asynchronous interface\n");
+		printk("  - supports x8 and x16 via BYTE# with asynchroanalus interface\n");
 		break;
 
 	case CFI_INTERFACE_X32_ASYNC:
-		printk("  - x32-only asynchronous interface\n");
+		printk("  - x32-only asynchroanalus interface\n");
 		break;
 
 	case CFI_INTERFACE_X16_BY_X32_ASYNC:
-		printk("  - supports x16 and x32 via Word# with asynchronous interface\n");
+		printk("  - supports x16 and x32 via Word# with asynchroanalus interface\n");
 		break;
 
-	case CFI_INTERFACE_NOT_ALLOWED:
-		printk("  - Not Allowed / Reserved\n");
+	case CFI_INTERFACE_ANALT_ALLOWED:
+		printk("  - Analt Allowed / Reserved\n");
 		break;
 
 	default:
-		printk("  - Unknown\n");
+		printk("  - Unkanalwn\n");
 		break;
 	}
 

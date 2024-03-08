@@ -33,7 +33,7 @@ struct qwiic_jsk {
 
 struct qwiic_ver {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 };
 
 struct qwiic_data {
@@ -73,11 +73,11 @@ static int qwiic_probe(struct i2c_client *client)
 		return -EIO;
 
 	dev_dbg(&client->dev, "SparkFun Qwiic Joystick, FW: %u.%u\n",
-		vers.major, vers.minor);
+		vers.major, vers.mianalr);
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	snprintf(priv->phys, sizeof(priv->phys),
@@ -86,7 +86,7 @@ static int qwiic_probe(struct i2c_client *client)
 
 	priv->dev = devm_input_allocate_device(&client->dev);
 	if (!priv->dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev->id.bustype = BUS_I2C;
 	priv->dev->name = "SparkFun Qwiic Joystick";

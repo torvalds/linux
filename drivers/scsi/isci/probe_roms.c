@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -91,7 +91,7 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 				continue;
 			}
 
-			/* keep going if that's not the oem param table */
+			/* keep going if that's analt the oem param table */
 			if (memcmp(rom->hdr.signature,
 				   ISCI_ROM_SIG,
 				   ISCI_ROM_SIG_SIZE) != 0)
@@ -192,7 +192,7 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 						 &data_len,
 						 efi_data);
 	else
-		status = EFI_NOT_FOUND;
+		status = EFI_ANALT_FOUND;
 
 	if (status != EFI_SUCCESS) {
 		dev_warn(&pdev->dev,

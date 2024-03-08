@@ -45,13 +45,13 @@ bfad_im_get_starget_port_id(struct scsi_target *starget)
  * FC transport template entry, get SCSI target nwwn.
  */
 static void
-bfad_im_get_starget_node_name(struct scsi_target *starget)
+bfad_im_get_starget_analde_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
 	struct bfad_im_port_s *im_port;
 	struct bfad_s         *bfad;
 	struct bfad_itnim_s   *itnim = NULL;
-	u64             node_name = 0;
+	u64             analde_name = 0;
 	unsigned long   flags;
 
 	shost = dev_to_shost(starget->dev.parent);
@@ -61,9 +61,9 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 
 	itnim = bfad_get_itnim(im_port, starget->id);
 	if (itnim)
-		node_name = bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim);
+		analde_name = bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim);
 
-	fc_starget_node_name(starget) = cpu_to_be64(node_name);
+	fc_starget_analde_name(starget) = cpu_to_be64(analde_name);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
@@ -134,7 +134,7 @@ bfad_im_get_host_port_type(struct Scsi_Host *shost)
 		fc_host_port_type(shost) = FC_PORTTYPE_LPORT;
 		break;
 	default:
-		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
+		fc_host_port_type(shost) = FC_PORTTYPE_UNKANALWN;
 		break;
 	}
 }
@@ -171,7 +171,7 @@ bfad_im_get_host_port_state(struct Scsi_Host *shost)
 	case BFA_PORT_ST_DISABLING_QWAIT:
 	case BFA_PORT_ST_DISABLING:
 	default:
-		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKANALWN;
 		break;
 	}
 }
@@ -227,7 +227,7 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
 		break;
 	default:
-		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
+		fc_host_speed(shost) = FC_PORTSPEED_UNKANALWN;
 		break;
 	}
 }
@@ -289,7 +289,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	hstats->rx_frames = fcstats->fc.rx_frames;
 	hstats->rx_words  = fcstats->fc.rx_words;
 	hstats->lip_count = fcstats->fc.lip_count;
-	hstats->nos_count = fcstats->fc.nos_count;
+	hstats->anals_count = fcstats->fc.anals_count;
 	hstats->error_frames = fcstats->fc.error_frames;
 	hstats->dumped_frames = fcstats->fc.dropped_frames;
 	hstats->link_failure_count = fcstats->fc.link_failures;
@@ -362,7 +362,7 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 	unsigned long flags;
 
 	memset(&port_cfg, 0, sizeof(port_cfg));
-	u64_to_wwn(fc_vport->node_name, (u8 *)&port_cfg.nwwn);
+	u64_to_wwn(fc_vport->analde_name, (u8 *)&port_cfg.nwwn);
 	u64_to_wwn(fc_vport->port_name, (u8 *)&port_cfg.pwwn);
 	if (strlen(vname) > 0)
 		strcpy((char *)&port_cfg.sym_name, vname);
@@ -402,7 +402,7 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 
 		vport = fcs_vport->vport_drv;
 		vshost = vport->drv_port.im_port->shost;
-		fc_host_node_name(vshost) = wwn_to_u64((u8 *)&port_cfg.nwwn);
+		fc_host_analde_name(vshost) = wwn_to_u64((u8 *)&port_cfg.nwwn);
 		fc_host_port_name(vshost) = wwn_to_u64((u8 *)&port_cfg.pwwn);
 		fc_host_supported_classes(vshost) = FC_COS_CLASS3;
 
@@ -428,7 +428,7 @@ bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
 	else if (rc == BFA_STATUS_VPORT_EXISTS)
 		return VPCERR_BAD_WWN;
 	else if (rc == BFA_STATUS_VPORT_MAX)
-		return VPCERR_NO_FABRIC_SUPP;
+		return VPCERR_ANAL_FABRIC_SUPP;
 	else if (rc == BFA_STATUS_VPORT_WWN_BP)
 		return VPCERR_BAD_WWN;
 	else
@@ -595,8 +595,8 @@ struct fc_function_template bfad_im_fc_function_template = {
 	/* Target dynamic attributes */
 	.get_starget_port_id = bfad_im_get_starget_port_id,
 	.show_starget_port_id = 1,
-	.get_starget_node_name = bfad_im_get_starget_node_name,
-	.show_starget_node_name = 1,
+	.get_starget_analde_name = bfad_im_get_starget_analde_name,
+	.show_starget_analde_name = 1,
 	.get_starget_port_name = bfad_im_get_starget_port_name,
 	.show_starget_port_name = 1,
 
@@ -605,7 +605,7 @@ struct fc_function_template bfad_im_fc_function_template = {
 	.show_host_port_id = 1,
 
 	/* Host fixed attributes */
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -652,8 +652,8 @@ struct fc_function_template bfad_im_vport_fc_function_template = {
 	/* Target dynamic attributes */
 	.get_starget_port_id = bfad_im_get_starget_port_id,
 	.show_starget_port_id = 1,
-	.get_starget_node_name = bfad_im_get_starget_node_name,
-	.show_starget_node_name = 1,
+	.get_starget_analde_name = bfad_im_get_starget_analde_name,
+	.show_starget_analde_name = 1,
 	.get_starget_port_name = bfad_im_get_starget_port_name,
 	.show_starget_port_name = 1,
 
@@ -662,7 +662,7 @@ struct fc_function_template bfad_im_vport_fc_function_template = {
 	.show_host_port_id = 1,
 
 	/* Host fixed attributes */
-	.show_host_node_name = 1,
+	.show_host_analde_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
 	.show_host_supported_fc4s = 1,
@@ -809,7 +809,7 @@ bfad_im_model_desc_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-bfad_im_node_name_show(struct device *dev, struct device_attribute *attr,
+bfad_im_analde_name_show(struct device *dev, struct device_attribute *attr,
 				 char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(dev);
@@ -939,7 +939,7 @@ static          DEVICE_ATTR(serial_number, S_IRUGO,
 static          DEVICE_ATTR(model, S_IRUGO, bfad_im_model_show, NULL);
 static          DEVICE_ATTR(model_description, S_IRUGO,
 				bfad_im_model_desc_show, NULL);
-static          DEVICE_ATTR(node_name, S_IRUGO, bfad_im_node_name_show, NULL);
+static          DEVICE_ATTR(analde_name, S_IRUGO, bfad_im_analde_name_show, NULL);
 static          DEVICE_ATTR(symbolic_name, S_IRUGO,
 				bfad_im_symbolic_name_show, NULL);
 static          DEVICE_ATTR(hardware_version, S_IRUGO,
@@ -960,7 +960,7 @@ static struct attribute *bfad_im_host_attrs[] = {
 	&dev_attr_serial_number.attr,
 	&dev_attr_model.attr,
 	&dev_attr_model_description.attr,
-	&dev_attr_node_name.attr,
+	&dev_attr_analde_name.attr,
 	&dev_attr_symbolic_name.attr,
 	&dev_attr_hardware_version.attr,
 	&dev_attr_driver_version.attr,
@@ -985,7 +985,7 @@ static struct attribute *bfad_im_vport_attrs[] = {
 	&dev_attr_serial_number.attr,
 	&dev_attr_model.attr,
 	&dev_attr_model_description.attr,
-	&dev_attr_node_name.attr,
+	&dev_attr_analde_name.attr,
 	&dev_attr_symbolic_name.attr,
 	&dev_attr_hardware_version.attr,
 	&dev_attr_driver_version.attr,

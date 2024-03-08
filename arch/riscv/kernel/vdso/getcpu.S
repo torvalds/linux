@@ -7,10 +7,10 @@
 #include <asm/unistd.h>
 
 	.text
-/* int __vdso_getcpu(unsigned *cpu, unsigned *node, void *unused); */
+/* int __vdso_getcpu(unsigned *cpu, unsigned *analde, void *unused); */
 SYM_FUNC_START(__vdso_getcpu)
 	.cfi_startproc
-	/* For now, just do the syscall. */
+	/* For analw, just do the syscall. */
 	li a7, __NR_getcpu
 	ecall
 	ret

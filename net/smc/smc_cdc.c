@@ -65,7 +65,7 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 	}
 	WARN_ON(atomic_read(&conn->cdc_pend_tx_wr) < 0);
 
-	smc_tx_sndbuf_nonfull(smc);
+	smc_tx_sndbuf_analnfull(smc);
 	bh_unlock_sock(&smc->sk);
 }
 
@@ -81,7 +81,7 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 				     wr_rdma_buf,
 				     (struct smc_wr_tx_pend_priv **)pend);
 	if (conn->killed) {
-		/* abnormal termination */
+		/* abanalrmal termination */
 		if (!rc)
 			smc_wr_tx_put_slot(link,
 					   (struct smc_wr_tx_pend_priv *)(*pend));
@@ -98,7 +98,7 @@ static inline void smc_cdc_add_pending_send(struct smc_connection *conn,
 		"must increase SMC_WR_BUF_SIZE to at least sizeof(struct smc_cdc_msg)");
 	BUILD_BUG_ON_MSG(
 		offsetofend(struct smc_cdc_msg, reserved) > SMC_WR_TX_SIZE,
-		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_cdc_msg); if not all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
+		"must adapt SMC_WR_TX_SIZE to sizeof(struct smc_cdc_msg); if analt all smc_wr upper layer protocols use the same message size any more, must start to set link->wr_tx_sges[i].length on each individual smc_wr_tx_send()");
 	BUILD_BUG_ON_MSG(
 		sizeof(struct smc_cdc_tx_pend) > SMC_WR_TX_PEND_PRIV_SIZE,
 		"must increase SMC_WR_TX_PEND_PRIV_SIZE to at least sizeof(struct smc_cdc_tx_pend)");
@@ -119,7 +119,7 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 	smc_cdc_add_pending_send(conn, pend);
 
 	conn->tx_cdc_seq++;
-	conn->local_tx_ctrl.seqno = conn->tx_cdc_seq;
+	conn->local_tx_ctrl.seqanal = conn->tx_cdc_seq;
 	smc_host_msg_to_cdc((struct smc_cdc_msg *)wr_buf, conn, &cfed);
 
 	atomic_inc(&conn->cdc_pend_tx_wr);
@@ -131,7 +131,7 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
 	} else {
 		conn->tx_cdc_seq--;
-		conn->local_tx_ctrl.seqno = conn->tx_cdc_seq;
+		conn->local_tx_ctrl.seqanal = conn->tx_cdc_seq;
 		atomic_dec(&conn->cdc_pend_tx_wr);
 	}
 
@@ -151,7 +151,7 @@ int smcr_cdc_msg_send_validation(struct smc_connection *conn,
 	peer = (struct smc_cdc_msg *)wr_buf;
 	peer->common.type = local->common.type;
 	peer->len = local->len;
-	peer->seqno = htons(conn->tx_cdc_seq_fin); /* seqno last compl. tx */
+	peer->seqanal = htons(conn->tx_cdc_seq_fin); /* seqanal last compl. tx */
 	peer->token = htonl(local->token);
 	peer->prod_flags.failover_validation = 1;
 
@@ -181,7 +181,7 @@ static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 again:
 	link = conn->lnk;
 	if (!smc_wr_tx_link_hold(link))
-		return -ENOLINK;
+		return -EANALLINK;
 	rc = smc_cdc_get_free_slot(conn, link, &wr_buf, NULL, &pend);
 	if (rc)
 		goto put_out;
@@ -194,7 +194,7 @@ again:
 				   (struct smc_wr_tx_pend_priv *)pend);
 		smc_wr_tx_link_put(link);
 		if (again)
-			return -ENOLINK;
+			return -EANALLINK;
 		again = true;
 		goto again;
 	}
@@ -265,7 +265,7 @@ int smcd_cdc_msg_send(struct smc_connection *conn)
 	smp_mb__after_atomic();
 	smc_curs_copy(&conn->tx_curs_fin, &conn->tx_curs_sent, conn);
 
-	smc_tx_sndbuf_nonfull(smc);
+	smc_tx_sndbuf_analnfull(smc);
 	return rc;
 }
 
@@ -300,11 +300,11 @@ static void smc_cdc_msg_validate(struct smc_sock *smc, struct smc_cdc_msg *cdc,
 				 struct smc_link *link)
 {
 	struct smc_connection *conn = &smc->conn;
-	u16 recv_seq = ntohs(cdc->seqno);
+	u16 recv_seq = ntohs(cdc->seqanal);
 	s16 diff;
 
 	/* check that seqnum was seen before */
-	diff = conn->local_rx_ctrl.seqno - recv_seq;
+	diff = conn->local_rx_ctrl.seqanal - recv_seq;
 	if (diff < 0) { /* diff larger than 0x7fff */
 		/* drop connection */
 		conn->out_of_sync = 1;	/* prevent any further receives */
@@ -356,7 +356,7 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		if (conn->local_rx_ctrl.prod_flags.write_blocked)
 			smc->sk.sk_data_ready(&smc->sk);
 		if (conn->local_rx_ctrl.prod_flags.urg_data_pending)
-			conn->urg_state = SMC_URG_NOTYET;
+			conn->urg_state = SMC_URG_ANALTYET;
 	}
 
 	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
@@ -398,7 +398,7 @@ static void smc_cdc_msg_recv(struct smc_sock *smc, struct smc_cdc_msg *cdc)
 	bh_lock_sock(&smc->sk);
 	smc_cdc_msg_recv_action(smc, cdc);
 	bh_unlock_sock(&smc->sk);
-	sock_put(&smc->sk); /* no free sk in softirq-context */
+	sock_put(&smc->sk); /* anal free sk in softirq-context */
 }
 
 /* Schedule a tasklet for this connection. Triggered from the ISM device IRQ
@@ -460,9 +460,9 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 		smc_cdc_msg_validate(smc, cdc, link);
 		return;
 	}
-	if (smc_cdc_before(ntohs(cdc->seqno),
-			   conn->local_rx_ctrl.seqno))
-		/* received seqno is old */
+	if (smc_cdc_before(ntohs(cdc->seqanal),
+			   conn->local_rx_ctrl.seqanal))
+		/* received seqanal is old */
 		return;
 
 	smc_cdc_msg_recv(smc, cdc);
@@ -484,7 +484,7 @@ int __init smc_cdc_init(void)
 	int rc = 0;
 
 	for (handler = smc_cdc_rx_handlers; handler->handler; handler++) {
-		INIT_HLIST_NODE(&handler->list);
+		INIT_HLIST_ANALDE(&handler->list);
 		rc = smc_wr_rx_register_handler(handler);
 		if (rc)
 			break;

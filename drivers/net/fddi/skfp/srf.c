@@ -48,7 +48,7 @@ static const struct evc_init evc_inits[] = {
 
 	{ SMT_COND_MAC_DUP_ADDR,		INDEX_MAC, NUMMACS,SMT_P208C } ,
 	{ SMT_COND_MAC_FRAME_ERROR,		INDEX_MAC, NUMMACS,SMT_P208D } ,
-	{ SMT_COND_MAC_NOT_COPIED,		INDEX_MAC, NUMMACS,SMT_P208E } ,
+	{ SMT_COND_MAC_ANALT_COPIED,		INDEX_MAC, NUMMACS,SMT_P208E } ,
 	{ SMT_EVENT_MAC_NEIGHBOR_CHANGE,	INDEX_MAC, NUMMACS,SMT_P208F } ,
 	{ SMT_EVENT_MAC_PATH_CHANGE,		INDEX_MAC, NUMMACS,SMT_P2090 } ,
 
@@ -102,7 +102,7 @@ void smt_init_evc(struct s_smc *smc)
 	smc->evcs[2].evc_cond_state =
 		&smc->mib.m[MAC0].fddiMACFrameErrorFlag ;
 	smc->evcs[3].evc_cond_state =
-		&smc->mib.m[MAC0].fddiMACNotCopiedFlag ;
+		&smc->mib.m[MAC0].fddiMACAnaltCopiedFlag ;
 
 	/*
 	 * events
@@ -165,11 +165,11 @@ static struct s_srf_evc *smt_get_evc(struct s_smc *smc, int code, int index)
 #define THRESHOLD_32	(32*TICKS_PER_SECOND)
 
 static const char * const srf_names[] = {
-	"None","MACPathChangeEvent",	"MACNeighborChangeEvent",
+	"Analne","MACPathChangeEvent",	"MACNeighborChangeEvent",
 	"PORTPathChangeEvent",		"PORTUndesiredConnectionAttemptEvent",
 	"SMTPeerWrapCondition",		"SMTHoldCondition",
 	"MACFrameErrorCondition",	"MACDuplicateAddressCondition",
-	"MACNotCopiedCondition",	"PORTEBErrorCondition",
+	"MACAnaltCopiedCondition",	"PORTEBErrorCondition",
 	"PORTLerCondition"
 } ;
 
@@ -194,7 +194,7 @@ void smt_srf_event(struct s_smc *smc, int code, int index, int cond)
 			return ;
 		}
 		/*
-		 * ignore condition if no change
+		 * iganalre condition if anal change
 		 */
 		if (SMT_IS_CONDITION(code)) {
 			if (*evc->evc_cond_state == cond)
@@ -375,7 +375,7 @@ static void smt_send_srf(struct s_smc *smc)
 	 */
 	if (!smc->r.sm_ma_avail)
 		return ;
-	if (!(mb = smt_build_frame(smc,SMT_SRF,SMT_ANNOUNCE,0)))
+	if (!(mb = smt_build_frame(smc,SMT_SRF,SMT_ANANALUNCE,0)))
 		return ;
 
 	RS_SET(smc,RS_SOFTERROR) ;
@@ -387,8 +387,8 @@ static void smt_send_srf(struct s_smc *smc)
 	 * setup parameter status
 	 */
 	pcon.pc_len = SMT_MAX_INFO_LEN ;	/* max para length */
-	pcon.pc_err = 0 ;			/* no error */
-	pcon.pc_badset = 0 ;			/* no bad set count */
+	pcon.pc_err = 0 ;			/* anal error */
+	pcon.pc_badset = 0 ;			/* anal bad set count */
 	pcon.pc_p = (void *) (smt + 1) ;	/* paras start here */
 
 	smt_add_para(smc,&pcon,(u_short) SMT_P1033,0,0) ;
@@ -413,6 +413,6 @@ static void smt_send_srf(struct s_smc *smc)
 	clear_reported(smc) ;
 }
 
-#endif	/* no BOOT */
-#endif	/* no SLIM_SMT */
+#endif	/* anal BOOT */
+#endif	/* anal SLIM_SMT */
 

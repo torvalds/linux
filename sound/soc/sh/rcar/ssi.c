@@ -3,17 +3,17 @@
 // Renesas R-Car SSIU/SSI support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 //
 // Based on fsi.c
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
 
 /*
  * you can enable below define if you don't need
  * SSI interrupt status debug message when debugging
  * see rsnd_print_irq_status()
  *
- * #define RSND_DEBUG_NO_IRQ_STATUS 1
+ * #define RSND_DEBUG_ANAL_IRQ_STATUS 1
  */
 
 #include <sound/simple_card_utils.h>
@@ -100,7 +100,7 @@ struct rsnd_ssi {
 
 /* flags */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 0)
-#define RSND_SSI_NO_BUSIF		(1 << 1) /* SSI+DMA without BUSIF */
+#define RSND_SSI_ANAL_BUSIF		(1 << 1) /* SSI+DMA without BUSIF */
 #define RSND_SSI_PROBED			(1 << 2)
 
 #define for_each_rsnd_ssi(pos, priv, i)					\
@@ -128,7 +128,7 @@ int rsnd_ssi_use_busif(struct rsnd_dai_stream *io)
 	if (!rsnd_ssi_is_dma_mode(mod))
 		return 0;
 
-	if (!(rsnd_flags_has(ssi, RSND_SSI_NO_BUSIF)))
+	if (!(rsnd_flags_has(ssi, RSND_SSI_ANAL_BUSIF)))
 		use_busif = 1;
 	if (rsnd_io_to_mod_src(io))
 		use_busif = 1;
@@ -241,8 +241,8 @@ unsigned int rsnd_ssi_clk_query(struct rsnd_dai *rdai,
 
 		/*
 		 * It will set SSIWSR.CONT here, but SSICR.CKDV = 000
-		 * with it is not allowed. (SSIWSR.WS_MODE with
-		 * SSICR.CKDV = 000 is not allowed either).
+		 * with it is analt allowed. (SSIWSR.WS_MODE with
+		 * SSICR.CKDV = 000 is analt allowed either).
 		 * Skip it. See SSICR.CKDV
 		 */
 		if (j == 0)
@@ -289,7 +289,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	if (rsnd_runtime_is_tdm_split(io))
 		chan = rsnd_io_converted_chan(io);
 
-	chan = rsnd_channel_normalization(chan);
+	chan = rsnd_channel_analrmalization(chan);
 
 	if (ssi->usrcnt > 0) {
 		if (ssi->rate != rate) {
@@ -566,7 +566,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 
 	/*
 	 * EN is for data output.
-	 * SSI parent EN is not needed.
+	 * SSI parent EN is analt needed.
 	 */
 	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
@@ -600,7 +600,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	/*
 	 * disable all IRQ,
 	 * Playback: Wait all data was sent
-	 * Capture:  It might not receave data. Do nothing
+	 * Capture:  It might analt receave data. Do analthing
 	 */
 	if (rsnd_io_is_play(io)) {
 		rsnd_mod_write(mod, SSICR, cr | ssi->cr_en);
@@ -608,7 +608,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	}
 
 	/* In multi-SSI mode, stop is performed by setting ssi0129 in
-	 * SSI_CONTROL to 0 (in rsnd_ssio_stop_gen2). Do nothing here.
+	 * SSI_CONTROL to 0 (in rsnd_ssio_stop_gen2). Do analthing here.
 	 */
 	if (rsnd_ssi_multi_secondaries_runtime(io))
 		return 0;
@@ -681,7 +681,7 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 
 	spin_lock(&priv->lock);
 
-	/* ignore all cases if not working */
+	/* iganalre all cases if analt working */
 	if (!rsnd_io_is_working(io))
 		goto rsnd_ssi_interrupt_out;
 
@@ -730,8 +730,8 @@ static u32 *rsnd_ssi_get_status(struct rsnd_mod *mod,
 	 * SSIP (= SSI parent) needs to be special, otherwise,
 	 * 2nd SSI might doesn't start. see also rsnd_mod_call()
 	 *
-	 * We can't include parent SSI status on SSI, because we don't know
-	 * how many SSI requests parent SSI. Thus, it is localed on "io" now.
+	 * We can't include parent SSI status on SSI, because we don't kanalw
+	 * how many SSI requests parent SSI. Thus, it is localed on "io" analw.
 	 * ex) trouble case
 	 *	Playback: SSI0
 	 *	Capture : SSI1 (needs SSI0)
@@ -813,7 +813,7 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	int ret = 0;
 
 	/*
-	 * SSIP/SSIU/IRQ are not needed on
+	 * SSIP/SSIU/IRQ are analt needed on
 	 * SSI Multi secondaries
 	 */
 	if (rsnd_ssi_is_multi_secondary(mod, io))
@@ -854,7 +854,7 @@ static int rsnd_ssi_common_remove(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_mod *pure_ssi_mod = rsnd_io_to_mod_ssi(io);
 
-	/* Do nothing if non SSI (= SSI parent, multi SSI) mod */
+	/* Do analthing if analn SSI (= SSI parent, multi SSI) mod */
 	if (pure_ssi_mod != mod)
 		return 0;
 
@@ -966,7 +966,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 	int ret;
 
 	/*
-	 * SSIP/SSIU/IRQ/DMA are not needed on
+	 * SSIP/SSIU/IRQ/DMA are analt needed on
 	 * SSI Multi secondaries
 	 */
 	if (rsnd_ssi_is_multi_secondary(mod, io))
@@ -1014,7 +1014,7 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 	 * But, we need to keep compatibility for old version.
 	 *
 	 * If it has "rcar_sound.ssiu", it will be used.
-	 * If not, "rcar_sound.ssi" will be used.
+	 * If analt, "rcar_sound.ssi" will be used.
 	 * see
 	 *	rsnd_ssiu_dma_req()
 	 *	rsnd_dma_of_path()
@@ -1025,7 +1025,7 @@ static struct dma_chan *rsnd_ssi_dma_req(struct rsnd_dai_stream *io,
 	else
 		name = is_play ? "rx" : "tx";
 
-	return rsnd_dma_request_channel(rsnd_ssi_of_node(priv),
+	return rsnd_dma_request_channel(rsnd_ssi_of_analde(priv),
 					SSI_NAME, mod, name);
 }
 
@@ -1108,26 +1108,26 @@ static void rsnd_ssi_connect(struct rsnd_mod *mod,
 }
 
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
-			    struct device_node *playback,
-			    struct device_node *capture)
+			    struct device_analde *playback,
+			    struct device_analde *capture)
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *node;
-	struct device_node *np;
+	struct device_analde *analde;
+	struct device_analde *np;
 	int i;
 
-	node = rsnd_ssi_of_node(priv);
-	if (!node)
+	analde = rsnd_ssi_of_analde(priv);
+	if (!analde)
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		struct rsnd_mod *mod;
 
-		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
+		i = rsnd_analde_fixed_index(dev, np, SSI_NAME, i);
 		if (i < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -1140,7 +1140,7 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 		i++;
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 }
 
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
@@ -1161,8 +1161,8 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 
 int rsnd_ssi_probe(struct rsnd_priv *priv)
 {
-	struct device_node *node;
-	struct device_node *np;
+	struct device_analde *analde;
+	struct device_analde *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
@@ -1170,11 +1170,11 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	char name[RSND_SSI_NAME_SIZE];
 	int i, nr, ret;
 
-	node = rsnd_ssi_of_node(priv);
-	if (!node)
+	analde = rsnd_ssi_of_analde(priv);
+	if (!analde)
 		return -EINVAL;
 
-	nr = rsnd_node_count(priv, node, SSI_NAME);
+	nr = rsnd_analde_count(priv, analde, SSI_NAME);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_ssi_probe_done;
@@ -1182,7 +1182,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 	ssi	= devm_kcalloc(dev, nr, sizeof(*ssi), GFP_KERNEL);
 	if (!ssi) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto rsnd_ssi_probe_done;
 	}
 
@@ -1190,14 +1190,14 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	priv->ssi_nr	= nr;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_analde(analde, np) {
 		if (!of_device_is_available(np))
 			goto skip;
 
-		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
+		i = rsnd_analde_fixed_index(dev, np, SSI_NAME, i);
 		if (i < 0) {
 			ret = -EINVAL;
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1209,20 +1209,20 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
 		if (of_property_read_bool(np, "shared-pin"))
 			rsnd_flags_set(ssi, RSND_SSI_CLK_PIN_SHARE);
 
-		if (of_property_read_bool(np, "no-busif"))
-			rsnd_flags_set(ssi, RSND_SSI_NO_BUSIF);
+		if (of_property_read_bool(np, "anal-busif"))
+			rsnd_flags_set(ssi, RSND_SSI_ANAL_BUSIF);
 
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
 			ret = -EINVAL;
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1234,7 +1234,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssi), ops, clk,
 				    RSND_MOD_SSI, i);
 		if (ret) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 skip:
@@ -1244,7 +1244,7 @@ skip:
 	ret = 0;
 
 rsnd_ssi_probe_done:
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return ret;
 }

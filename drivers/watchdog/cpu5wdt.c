@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
@@ -101,7 +101,7 @@ static void cpu5wdt_start(void)
 		outb(0, port + CPU5WDT_ENABLE_REG);
 		mod_timer(&cpu5wdt_device.timer, jiffies + CPU5WDT_INTERVAL);
 	}
-	/* if process dies, counter is not decremented */
+	/* if process dies, counter is analt decremented */
 	cpu5wdt_device.running++;
 	spin_unlock_irqrestore(&cpu5wdt_lock, flags);
 }
@@ -116,20 +116,20 @@ static int cpu5wdt_stop(void)
 	ticks = cpu5wdt_device.default_ticks;
 	spin_unlock_irqrestore(&cpu5wdt_lock, flags);
 	if (verbose)
-		pr_crit("stop not possible\n");
+		pr_crit("stop analt possible\n");
 	return -EIO;
 }
 
 /* filesystem operations */
 
-static int cpu5wdt_open(struct inode *inode, struct file *file)
+static int cpu5wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &cpu5wdt_device.inuse))
 		return -EBUSY;
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
-static int cpu5wdt_release(struct inode *inode, struct file *file)
+static int cpu5wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	clear_bit(0, &cpu5wdt_device.inuse);
 	return 0;
@@ -169,7 +169,7 @@ static long cpu5wdt_ioctl(struct file *file, unsigned int cmd,
 		cpu5wdt_reset();
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
@@ -185,7 +185,7 @@ static ssize_t cpu5wdt_write(struct file *file, const char __user *buf,
 
 static const struct file_operations cpu5wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl	= cpu5wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= cpu5wdt_open,
@@ -194,7 +194,7 @@ static const struct file_operations cpu5wdt_fops = {
 };
 
 static struct miscdevice cpu5wdt_misc = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &cpu5wdt_fops,
 };
@@ -217,7 +217,7 @@ static int cpu5wdt_init(void)
 	if (!request_region(port, CPU5WDT_EXTENT, PFX)) {
 		pr_err("request_region failed\n");
 		err = -EBUSY;
-		goto no_port;
+		goto anal_port;
 	}
 
 	/* watchdog reboot? */
@@ -229,16 +229,16 @@ static int cpu5wdt_init(void)
 	err = misc_register(&cpu5wdt_misc);
 	if (err < 0) {
 		pr_err("misc_register failed\n");
-		goto no_misc;
+		goto anal_misc;
 	}
 
 
 	pr_info("init success\n");
 	return 0;
 
-no_misc:
+anal_misc:
 	release_region(port, CPU5WDT_EXTENT);
-no_port:
+anal_port:
 	return err;
 }
 
@@ -279,7 +279,7 @@ module_param_hw(port, int, ioport, 0);
 MODULE_PARM_DESC(port, "base address of watchdog card, default is 0x91");
 
 module_param(verbose, int, 0);
-MODULE_PARM_DESC(verbose, "be verbose, default is 0 (no)");
+MODULE_PARM_DESC(verbose, "be verbose, default is 0 (anal)");
 
 module_param(ticks, int, 0);
 MODULE_PARM_DESC(ticks, "count down ticks, default is 10000");

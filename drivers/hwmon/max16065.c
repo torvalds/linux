@@ -2,11 +2,11 @@
 /*
  * Driver for
  *  Maxim MAX16065/MAX16066 12-Channel/8-Channel, Flash-Configurable
- *  System Managers with Nonvolatile Fault Registers
+ *  System Managers with Analnvolatile Fault Registers
  *  Maxim MAX16067/MAX16068 6-Channel, Flash-Configurable System Managers
- *  with Nonvolatile Fault Registers
+ *  with Analnvolatile Fault Registers
  *  Maxim MAX16070/MAX16071 12-Channel/8-Channel, Flash-Configurable System
- *  Monitors with Nonvolatile Fault Registers
+ *  Monitors with Analnvolatile Fault Registers
  *
  * Copyright (C) 2011 Ericsson AB.
  */
@@ -509,11 +509,11 @@ static int max16065_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (unlikely(!data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->update_lock);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 /*
@@ -121,7 +121,7 @@
 	 * DT "invisible" DW APB GPIO block, configured to simply pass thru
 	 * interrupts - setup accordinly in platform init (plat-axs10x/ax10x.c)
 	 *
-	 * So here we mimic a direct connection betwen them, ignoring the
+	 * So here we mimic a direct connection betwen them, iganalring the
 	 * ABPG GPIO. Thus set "interrupts = <24>" (DW APB GPIO to core)
 	 * instead of "interrupts = <12>" (DW APB ICTL to DW APB GPIO)
 	 *
@@ -155,7 +155,7 @@
 		frame_buffer: frame_buffer@be000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0xbe000000 0x0 0x2000000>;
-			no-map;
+			anal-map;
 		};
 	};
 };

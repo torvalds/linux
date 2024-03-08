@@ -4,7 +4,7 @@
  */
 
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <net_user.h>
@@ -57,7 +57,7 @@ static int slirp_open(void *data)
 
 	err = slirp_tramp(pri->argw.argv, fds[1]);
 	if (err < 0) {
-		printk(UM_KERN_ERR "slirp_tramp failed - errno = %d\n", -err);
+		printk(UM_KERN_ERR "slirp_tramp failed - erranal = %d\n", -err);
 		goto out;
 	}
 	pid = err;
@@ -85,7 +85,7 @@ static void slirp_close(int fd, void *data)
 	pri->slave = -1;
 
 	if (pri->pid<1) {
-		printk(UM_KERN_ERR "slirp_close: no child process to shut "
+		printk(UM_KERN_ERR "slirp_close: anal child process to shut "
 		       "down\n");
 		return;
 	}
@@ -93,7 +93,7 @@ static void slirp_close(int fd, void *data)
 #if 0
 	if (kill(pri->pid, SIGHUP)<0) {
 		printk(UM_KERN_ERR "slirp_close: sending hangup to %d failed "
-		       "(%d)\n", pri->pid, errno);
+		       "(%d)\n", pri->pid, erranal);
 	}
 #endif
 	err = helper_wait(pri->pid);

@@ -9,7 +9,7 @@
  * under the terms of the GNU General Public License version 2, available
  * at http://www.gnu.org/licenses/old-licenses/gpl-2.0.html (the "GPL").
  *
- * Notwithstanding the above, under no circumstances may you combine this
+ * Analtwithstanding the above, under anal circumstances may you combine this
  * software in any way with any other QLogic software provided under a
  * license other than the GPL, without QLogic's express prior written
  * consent.
@@ -57,7 +57,7 @@ struct bnx2x_dcbx_pg_params {
 
 struct bnx2x_dcbx_pfc_params {
 	u32 enabled;
-	u32 priority_non_pauseable_mask;
+	u32 priority_analn_pauseable_mask;
 };
 
 struct bnx2x_dcbx_port_params {
@@ -130,7 +130,7 @@ enum {
 #define TCP_PORT_ISCSI		(0xCBC)
 
 #define PFC_VALUE_FRAME_SIZE				(512)
-#define PFC_QUANTA_IN_NANOSEC_FROM_SPEED_MEGA(mega_speed)  \
+#define PFC_QUANTA_IN_NAANALSEC_FROM_SPEED_MEGA(mega_speed)  \
 				((1000 * PFC_VALUE_FRAME_SIZE)/(mega_speed))
 
 #define PFC_BRB1_REG_HIGH_LLFC_LOW_THRESHOLD			130
@@ -152,22 +152,22 @@ struct cos_help_data {
 #define DCBX_PFC_PRI_MASK			(0xFF)
 #define DCBX_STRICT_PRIORITY			(15)
 #define DCBX_INVALID_COS_BW			(0xFFFFFFFF)
-#define DCBX_PFC_PRI_NON_PAUSE_MASK(bp)		\
-			((bp)->dcbx_port_params.pfc.priority_non_pauseable_mask)
+#define DCBX_PFC_PRI_ANALN_PAUSE_MASK(bp)		\
+			((bp)->dcbx_port_params.pfc.priority_analn_pauseable_mask)
 #define DCBX_PFC_PRI_PAUSE_MASK(bp)		\
-					((u8)~DCBX_PFC_PRI_NON_PAUSE_MASK(bp))
+					((u8)~DCBX_PFC_PRI_ANALN_PAUSE_MASK(bp))
 #define DCBX_PFC_PRI_GET_PAUSE(bp, pg_pri)	\
 				((pg_pri) & (DCBX_PFC_PRI_PAUSE_MASK(bp)))
-#define DCBX_PFC_PRI_GET_NON_PAUSE(bp, pg_pri)	\
-			(DCBX_PFC_PRI_NON_PAUSE_MASK(bp) & (pg_pri))
+#define DCBX_PFC_PRI_GET_ANALN_PAUSE(bp, pg_pri)	\
+			(DCBX_PFC_PRI_ANALN_PAUSE_MASK(bp) & (pg_pri))
 #define DCBX_IS_PFC_PRI_SOME_PAUSE(bp, pg_pri)	\
 			(0 != DCBX_PFC_PRI_GET_PAUSE(bp, pg_pri))
 #define IS_DCBX_PFC_PRI_ONLY_PAUSE(bp, pg_pri)	\
 			(pg_pri == DCBX_PFC_PRI_GET_PAUSE((bp), (pg_pri)))
-#define IS_DCBX_PFC_PRI_ONLY_NON_PAUSE(bp, pg_pri)\
-			((pg_pri) == DCBX_PFC_PRI_GET_NON_PAUSE((bp), (pg_pri)))
+#define IS_DCBX_PFC_PRI_ONLY_ANALN_PAUSE(bp, pg_pri)\
+			((pg_pri) == DCBX_PFC_PRI_GET_ANALN_PAUSE((bp), (pg_pri)))
 #define IS_DCBX_PFC_PRI_MIX_PAUSE(bp, pg_pri)	\
-			(!(IS_DCBX_PFC_PRI_ONLY_NON_PAUSE((bp), (pg_pri)) || \
+			(!(IS_DCBX_PFC_PRI_ONLY_ANALN_PAUSE((bp), (pg_pri)) || \
 			 IS_DCBX_PFC_PRI_ONLY_PAUSE((bp), (pg_pri))))
 
 struct pg_entry_help_data {

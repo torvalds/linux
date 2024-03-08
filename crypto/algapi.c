@@ -8,7 +8,7 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/simd.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fips.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -150,7 +150,7 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 
 /*
  * Given an algorithm alg, remove all algorithms that depend on it
- * through spawns.  If nalg is not null, then exempt any algorithms
+ * through spawns.  If nalg is analt null, then exempt any algorithms
  * that is depended on by nalg.  This is useful when nalg itself
  * depends on alg.
  */
@@ -211,7 +211,7 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			 * being registered.  An unregistered instance will have
 			 * NULL ->cra_users.next, since ->cra_users isn't
 			 * properly initialized until registration.  But an
-			 * unregistered instance cannot have any users, so treat
+			 * unregistered instance cananalt have any users, so treat
 			 * it the same as ->cra_users being empty.
 			 */
 			if (spawns->next == NULL)
@@ -282,7 +282,7 @@ static void crypto_alg_finish_registration(struct crypto_alg *alg,
 		crypto_remove_spawns(q, algs_to_put, alg);
 	}
 
-	crypto_notify(CRYPTO_MSG_ALG_LOADED, alg);
+	crypto_analtify(CRYPTO_MSG_ALG_LOADED, alg);
 }
 
 static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
@@ -292,7 +292,7 @@ static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
 	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER) ||
 	    IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) ||
 	    (alg->cra_flags & CRYPTO_ALG_INTERNAL))
-		return NULL; /* No self-test needed */
+		return NULL; /* Anal self-test needed */
 
 	larval = crypto_larval_alloc(alg->cra_name,
 				     alg->cra_flags | CRYPTO_ALG_TESTED, 0);
@@ -302,7 +302,7 @@ static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
 	larval->adult = crypto_mod_get(alg);
 	if (!larval->adult) {
 		kfree(larval);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	refcount_set(&larval->alg.cra_refcnt, 1);
@@ -353,7 +353,7 @@ __crypto_register_alg(struct crypto_alg *alg, struct list_head *algs_to_put)
 	list_add(&alg->cra_list, &crypto_alg_list);
 
 	if (larval) {
-		/* No cheating! */
+		/* Anal cheating! */
 		alg->cra_flags &= ~CRYPTO_ALG_TESTED;
 
 		list_add(&larval->alg.cra_list, &crypto_alg_list);
@@ -482,7 +482,7 @@ EXPORT_SYMBOL_GPL(crypto_register_alg);
 static int crypto_remove_alg(struct crypto_alg *alg, struct list_head *list)
 {
 	if (unlikely(list_empty(&alg->cra_list)))
-		return -ENOENT;
+		return -EANALENT;
 
 	alg->cra_flags |= CRYPTO_ALG_DEAD;
 
@@ -501,7 +501,7 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	ret = crypto_remove_alg(alg, &list);
 	up_write(&crypto_alg_sem);
 
-	if (WARN(ret, "Algorithm %s is not registered", alg->cra_driver_name))
+	if (WARN(ret, "Algorithm %s is analt registered", alg->cra_driver_name))
 		return;
 
 	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
@@ -586,7 +586,7 @@ EXPORT_SYMBOL_GPL(crypto_register_templates);
 void crypto_unregister_template(struct crypto_template *tmpl)
 {
 	struct crypto_instance *inst;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	struct hlist_head *list;
 	LIST_HEAD(users);
 
@@ -759,7 +759,7 @@ EXPORT_SYMBOL_GPL(crypto_grab_spawn);
 
 void crypto_drop_spawn(struct crypto_spawn *spawn)
 {
-	if (!spawn->alg) /* not yet initialized? */
+	if (!spawn->alg) /* analt yet initialized? */
 		return;
 
 	down_write(&crypto_alg_sem);
@@ -844,17 +844,17 @@ out_put_alg:
 }
 EXPORT_SYMBOL_GPL(crypto_spawn_tfm2);
 
-int crypto_register_notifier(struct notifier_block *nb)
+int crypto_register_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&crypto_chain, nb);
+	return blocking_analtifier_chain_register(&crypto_chain, nb);
 }
-EXPORT_SYMBOL_GPL(crypto_register_notifier);
+EXPORT_SYMBOL_GPL(crypto_register_analtifier);
 
-int crypto_unregister_notifier(struct notifier_block *nb)
+int crypto_unregister_analtifier(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&crypto_chain, nb);
+	return blocking_analtifier_chain_unregister(&crypto_chain, nb);
 }
-EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
+EXPORT_SYMBOL_GPL(crypto_unregister_analtifier);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 {
@@ -862,7 +862,7 @@ struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 	struct crypto_attr_type *algt;
 
 	if (!rta)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*algt))
 		return ERR_PTR(-EINVAL);
 	if (rta->rta_type != CRYPTOA_TYPE)
@@ -884,11 +884,11 @@ EXPORT_SYMBOL_GPL(crypto_get_attr_type);
  * Validate that the algorithm type the user requested is compatible with the
  * one the template would actually be instantiated as.  E.g., if the user is
  * doing crypto_alloc_shash("cbc(aes)", ...), this would return an error because
- * the "cbc" template creates an "skcipher" algorithm, not an "shash" algorithm.
+ * the "cbc" template creates an "skcipher" algorithm, analt an "shash" algorithm.
  *
  * Also compute the mask to use to restrict the flags of any inner algorithms.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
 int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret)
 {
@@ -911,7 +911,7 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 	struct crypto_attr_alg *alga;
 
 	if (!rta)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*alga))
 		return ERR_PTR(-EINVAL);
 	if (rta->rta_type != CRYPTOA_ALG)
@@ -955,7 +955,7 @@ int crypto_enqueue_request(struct crypto_queue *queue,
 
 	if (unlikely(queue->qlen >= queue->max_qlen)) {
 		if (!(request->flags & CRYPTO_TFM_REQ_MAY_BACKLOG)) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out;
 		}
 		err = -EBUSY;
@@ -1020,7 +1020,7 @@ void crypto_inc(u8 *a, unsigned int size)
 	u32 c;
 
 	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||
-	    IS_ALIGNED((unsigned long)b, __alignof__(*b)))
+	    IS_ALIGNED((unsigned long)b, __aliganalf__(*b)))
 		for (; size >= 4; size -= 4) {
 			c = be32_to_cpu(*--b) + 1;
 			*b = cpu_to_be32(c);

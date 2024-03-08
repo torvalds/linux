@@ -16,7 +16,7 @@
 #include "base.h"
 #include "trace.h"
 
-struct devres_node {
+struct devres_analde {
 	struct list_head		entry;
 	dr_release_t			release;
 	const char			*name;
@@ -24,7 +24,7 @@ struct devres_node {
 };
 
 struct devres {
-	struct devres_node		node;
+	struct devres_analde		analde;
 	/*
 	 * Some archs want to perform DMA into kmalloc caches
 	 * and need a guaranteed alignment larger than
@@ -36,39 +36,39 @@ struct devres {
 };
 
 struct devres_group {
-	struct devres_node		node[2];
+	struct devres_analde		analde[2];
 	void				*id;
 	int				color;
 	/* -- 8 pointers */
 };
 
-static void set_node_dbginfo(struct devres_node *node, const char *name,
+static void set_analde_dbginfo(struct devres_analde *analde, const char *name,
 			     size_t size)
 {
-	node->name = name;
-	node->size = size;
+	analde->name = name;
+	analde->size = size;
 }
 
 #ifdef CONFIG_DEBUG_DEVRES
 static int log_devres = 0;
 module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
 
-static void devres_dbg(struct device *dev, struct devres_node *node,
+static void devres_dbg(struct device *dev, struct devres_analde *analde,
 		       const char *op)
 {
 	if (unlikely(log_devres))
 		dev_err(dev, "DEVRES %3s %p %s (%zu bytes)\n",
-			op, node, node->name, node->size);
+			op, analde, analde->name, analde->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
-#define devres_dbg(dev, node, op)	do {} while (0)
+#define devres_dbg(dev, analde, op)	do {} while (0)
 #endif /* CONFIG_DEBUG_DEVRES */
 
-static void devres_log(struct device *dev, struct devres_node *node,
+static void devres_log(struct device *dev, struct devres_analde *analde,
 		       const char *op)
 {
-	trace_devres_log(dev, op, node, node->name, node->size);
-	devres_dbg(dev, node, op);
+	trace_devres_log(dev, op, analde, analde->name, analde->size);
+	devres_dbg(dev, analde, op);
 }
 
 /*
@@ -77,20 +77,20 @@ static void devres_log(struct device *dev, struct devres_node *node,
  */
 static void group_open_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* analop */
 }
 
 static void group_close_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* analop */
 }
 
-static struct devres_group * node_to_group(struct devres_node *node)
+static struct devres_group * analde_to_group(struct devres_analde *analde)
 {
-	if (node->release == &group_open_release)
-		return container_of(node, struct devres_group, node[0]);
-	if (node->release == &group_close_release)
-		return container_of(node, struct devres_group, node[1]);
+	if (analde->release == &group_open_release)
+		return container_of(analde, struct devres_group, analde[0]);
+	if (analde->release == &group_close_release)
+		return container_of(analde, struct devres_group, analde[1]);
 	return NULL;
 }
 
@@ -116,28 +116,28 @@ static __always_inline struct devres * alloc_dr(dr_release_t release,
 	if (!check_dr_size(size, &tot_size))
 		return NULL;
 
-	dr = kmalloc_node_track_caller(tot_size, gfp, nid);
+	dr = kmalloc_analde_track_caller(tot_size, gfp, nid);
 	if (unlikely(!dr))
 		return NULL;
 
-	/* No need to clear memory twice */
+	/* Anal need to clear memory twice */
 	if (!(gfp & __GFP_ZERO))
 		memset(dr, 0, offsetof(struct devres, data));
 
-	INIT_LIST_HEAD(&dr->node.entry);
-	dr->node.release = release;
+	INIT_LIST_HEAD(&dr->analde.entry);
+	dr->analde.release = release;
 	return dr;
 }
 
-static void add_dr(struct device *dev, struct devres_node *node)
+static void add_dr(struct device *dev, struct devres_analde *analde)
 {
-	devres_log(dev, node, "ADD");
-	BUG_ON(!list_empty(&node->entry));
-	list_add_tail(&node->entry, &dev->devres_head);
+	devres_log(dev, analde, "ADD");
+	BUG_ON(!list_empty(&analde->entry));
+	list_add_tail(&analde->entry, &dev->devres_head);
 }
 
 static void replace_dr(struct device *dev,
-		       struct devres_node *old, struct devres_node *new)
+		       struct devres_analde *old, struct devres_analde *new)
 {
 	devres_log(dev, old, "REPLACE");
 	BUG_ON(!list_empty(&new->entry));
@@ -145,11 +145,11 @@ static void replace_dr(struct device *dev,
 }
 
 /**
- * __devres_alloc_node - Allocate device resource data
+ * __devres_alloc_analde - Allocate device resource data
  * @release: Release function devres will be associated with
  * @size: Allocation size
  * @gfp: Allocation flags
- * @nid: NUMA node
+ * @nid: NUMA analde
  * @name: Name of the resource
  *
  * Allocate devres of @size bytes.  The allocated area is zeroed, then
@@ -159,7 +159,7 @@ static void replace_dr(struct device *dev,
  * RETURNS:
  * Pointer to allocated devres on success, NULL on failure.
  */
-void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
+void *__devres_alloc_analde(dr_release_t release, size_t size, gfp_t gfp, int nid,
 			  const char *name)
 {
 	struct devres *dr;
@@ -167,10 +167,10 @@ void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
 	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
 	if (unlikely(!dr))
 		return NULL;
-	set_node_dbginfo(&dr->node, name, size);
+	set_analde_dbginfo(&dr->analde, name, size);
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(__devres_alloc_node);
+EXPORT_SYMBOL_GPL(__devres_alloc_analde);
 
 /**
  * devres_for_each_res - Resource iterator
@@ -192,19 +192,19 @@ void devres_for_each_res(struct device *dev, dr_release_t release,
 			void (*fn)(struct device *, void *, void *),
 			void *data)
 {
-	struct devres_node *node;
-	struct devres_node *tmp;
+	struct devres_analde *analde;
+	struct devres_analde *tmp;
 	unsigned long flags;
 
 	if (!fn)
 		return;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	list_for_each_entry_safe_reverse(node, tmp,
+	list_for_each_entry_safe_reverse(analde, tmp,
 			&dev->devres_head, entry) {
-		struct devres *dr = container_of(node, struct devres, node);
+		struct devres *dr = container_of(analde, struct devres, analde);
 
-		if (node->release != release)
+		if (analde->release != release)
 			continue;
 		if (match && !match(dev, dr->data, match_data))
 			continue;
@@ -225,7 +225,7 @@ void devres_free(void *res)
 	if (res) {
 		struct devres *dr = container_of(res, struct devres, data);
 
-		BUG_ON(!list_empty(&dr->node.entry));
+		BUG_ON(!list_empty(&dr->analde.entry));
 		kfree(dr);
 	}
 }
@@ -246,7 +246,7 @@ void devres_add(struct device *dev, void *res)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &dr->node);
+	add_dr(dev, &dr->analde);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 }
 EXPORT_SYMBOL_GPL(devres_add);
@@ -254,12 +254,12 @@ EXPORT_SYMBOL_GPL(devres_add);
 static struct devres *find_dr(struct device *dev, dr_release_t release,
 			      dr_match_t match, void *match_data)
 {
-	struct devres_node *node;
+	struct devres_analde *analde;
 
-	list_for_each_entry_reverse(node, &dev->devres_head, entry) {
-		struct devres *dr = container_of(node, struct devres, node);
+	list_for_each_entry_reverse(analde, &dev->devres_head, entry) {
+		struct devres *dr = container_of(analde, struct devres, analde);
 
-		if (node->release != release)
+		if (analde->release != release)
 			continue;
 		if (match && !match(dev, dr->data, match_data))
 			continue;
@@ -281,7 +281,7 @@ static struct devres *find_dr(struct device *dev, dr_release_t release,
  * to match all.
  *
  * RETURNS:
- * Pointer to found devres, NULL if not found.
+ * Pointer to found devres, NULL if analt found.
  */
 void * devres_find(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -300,9 +300,9 @@ void * devres_find(struct device *dev, dr_release_t release,
 EXPORT_SYMBOL_GPL(devres_find);
 
 /**
- * devres_get - Find devres, if non-existent, add one atomically
+ * devres_get - Find devres, if analn-existent, add one atomically
  * @dev: Device to lookup or add devres for
- * @new_res: Pointer to new initialized devres to add if not found
+ * @new_res: Pointer to new initialized devres to add if analt found
  * @match: Match function (optional)
  * @match_data: Data for the match function
  *
@@ -321,9 +321,9 @@ void * devres_get(struct device *dev, void *new_res,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	dr = find_dr(dev, new_dr->node.release, match, match_data);
+	dr = find_dr(dev, new_dr->analde.release, match, match_data);
 	if (!dr) {
-		add_dr(dev, &new_dr->node);
+		add_dr(dev, &new_dr->analde);
 		dr = new_dr;
 		new_res = NULL;
 	}
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(devres_get);
  * returned.
  *
  * RETURNS:
- * Pointer to removed devres on success, NULL if not found.
+ * Pointer to removed devres on success, NULL if analt found.
  */
 void * devres_remove(struct device *dev, dr_release_t release,
 		     dr_match_t match, void *match_data)
@@ -358,8 +358,8 @@ void * devres_remove(struct device *dev, dr_release_t release,
 	spin_lock_irqsave(&dev->devres_lock, flags);
 	dr = find_dr(dev, release, match, match_data);
 	if (dr) {
-		list_del_init(&dr->node.entry);
-		devres_log(dev, &dr->node, "REM");
+		list_del_init(&dr->analde.entry);
+		devres_log(dev, &dr->analde, "REM");
 	}
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
@@ -380,12 +380,12 @@ EXPORT_SYMBOL_GPL(devres_remove);
  * which @match returns 1.  If @match is NULL, it's considered to
  * match all.  If found, the resource is removed atomically and freed.
  *
- * Note that the release function for the resource will not be called,
+ * Analte that the release function for the resource will analt be called,
  * only the devres-allocated data will be freed.  The caller becomes
  * responsible for freeing any other data.
  *
  * RETURNS:
- * 0 if devres is found and freed, -ENOENT if not found.
+ * 0 if devres is found and freed, -EANALENT if analt found.
  */
 int devres_destroy(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -394,7 +394,7 @@ int devres_destroy(struct device *dev, dr_release_t release,
 
 	res = devres_remove(dev, release, match, match_data);
 	if (unlikely(!res))
-		return -ENOENT;
+		return -EANALENT;
 
 	devres_free(res);
 	return 0;
@@ -415,7 +415,7 @@ EXPORT_SYMBOL_GPL(devres_destroy);
  * release function called and the resource freed.
  *
  * RETURNS:
- * 0 if devres is found and freed, -ENOENT if not found.
+ * 0 if devres is found and freed, -EANALENT if analt found.
  */
 int devres_release(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -424,7 +424,7 @@ int devres_release(struct device *dev, dr_release_t release,
 
 	res = devres_remove(dev, release, match, match_data);
 	if (unlikely(!res))
-		return -ENOENT;
+		return -EANALENT;
 
 	(*release)(dev, res);
 	devres_free(res);
@@ -432,30 +432,30 @@ int devres_release(struct device *dev, dr_release_t release,
 }
 EXPORT_SYMBOL_GPL(devres_release);
 
-static int remove_nodes(struct device *dev,
+static int remove_analdes(struct device *dev,
 			struct list_head *first, struct list_head *end,
 			struct list_head *todo)
 {
-	struct devres_node *node, *n;
+	struct devres_analde *analde, *n;
 	int cnt = 0, nr_groups = 0;
 
-	/* First pass - move normal devres entries to @todo and clear
+	/* First pass - move analrmal devres entries to @todo and clear
 	 * devres_group colors.
 	 */
-	node = list_entry(first, struct devres_node, entry);
-	list_for_each_entry_safe_from(node, n, end, entry) {
+	analde = list_entry(first, struct devres_analde, entry);
+	list_for_each_entry_safe_from(analde, n, end, entry) {
 		struct devres_group *grp;
 
-		grp = node_to_group(node);
+		grp = analde_to_group(analde);
 		if (grp) {
 			/* clear color of group markers in the first pass */
 			grp->color = 0;
 			nr_groups++;
 		} else {
 			/* regular devres entry */
-			if (&node->entry == first)
+			if (&analde->entry == first)
 				first = first->next;
-			list_move_tail(&node->entry, todo);
+			list_move_tail(&analde->entry, todo);
 			cnt++;
 		}
 	}
@@ -465,44 +465,44 @@ static int remove_nodes(struct device *dev,
 
 	/* Second pass - Scan groups and color them.  A group gets
 	 * color value of two iff the group is wholly contained in
-	 * [current node, end). That is, for a closed group, both opening
+	 * [current analde, end). That is, for a closed group, both opening
 	 * and closing markers should be in the range, while just the
-	 * opening marker is enough for an open group.
+	 * opening marker is eanalugh for an open group.
 	 */
-	node = list_entry(first, struct devres_node, entry);
-	list_for_each_entry_safe_from(node, n, end, entry) {
+	analde = list_entry(first, struct devres_analde, entry);
+	list_for_each_entry_safe_from(analde, n, end, entry) {
 		struct devres_group *grp;
 
-		grp = node_to_group(node);
-		BUG_ON(!grp || list_empty(&grp->node[0].entry));
+		grp = analde_to_group(analde);
+		BUG_ON(!grp || list_empty(&grp->analde[0].entry));
 
 		grp->color++;
-		if (list_empty(&grp->node[1].entry))
+		if (list_empty(&grp->analde[1].entry))
 			grp->color++;
 
 		BUG_ON(grp->color <= 0 || grp->color > 2);
 		if (grp->color == 2) {
-			/* No need to update current node or end. The removed
-			 * nodes are always before both.
+			/* Anal need to update current analde or end. The removed
+			 * analdes are always before both.
 			 */
-			list_move_tail(&grp->node[0].entry, todo);
-			list_del_init(&grp->node[1].entry);
+			list_move_tail(&grp->analde[0].entry, todo);
+			list_del_init(&grp->analde[1].entry);
 		}
 	}
 
 	return cnt;
 }
 
-static void release_nodes(struct device *dev, struct list_head *todo)
+static void release_analdes(struct device *dev, struct list_head *todo)
 {
 	struct devres *dr, *tmp;
 
-	/* Release.  Note that both devres and devres_group are
+	/* Release.  Analte that both devres and devres_group are
 	 * handled as devres in the following loop.  This is safe.
 	 */
-	list_for_each_entry_safe_reverse(dr, tmp, todo, node.entry) {
-		devres_log(dev, &dr->node, "REL");
-		dr->node.release(dev, dr->data);
+	list_for_each_entry_safe_reverse(dr, tmp, todo, analde.entry) {
+		devres_log(dev, &dr->analde, "REL");
+		dr->analde.release(dev, dr->data);
 		kfree(dr);
 	}
 }
@@ -522,17 +522,17 @@ int devres_release_all(struct device *dev)
 
 	/* Looks like an uninitialized device structure */
 	if (WARN_ON(dev->devres_head.next == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* Nothing to release if list is empty */
+	/* Analthing to release if list is empty */
 	if (list_empty(&dev->devres_head))
 		return 0;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	cnt = remove_nodes(dev, dev->devres_head.next, &dev->devres_head, &todo);
+	cnt = remove_analdes(dev, dev->devres_head.next, &dev->devres_head, &todo);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
-	release_nodes(dev, &todo);
+	release_analdes(dev, &todo);
 	return cnt;
 }
 
@@ -543,7 +543,7 @@ int devres_release_all(struct device *dev)
  * @gfp: Allocation flags
  *
  * Open a new devres group for @dev with @id.  For @id, using a
- * pointer to an object which won't be used for another group is
+ * pointer to an object which won't be used for aanalther group is
  * recommended.  If @id is NULL, address-wise unique ID is created.
  *
  * RETURNS:
@@ -558,18 +558,18 @@ void * devres_open_group(struct device *dev, void *id, gfp_t gfp)
 	if (unlikely(!grp))
 		return NULL;
 
-	grp->node[0].release = &group_open_release;
-	grp->node[1].release = &group_close_release;
-	INIT_LIST_HEAD(&grp->node[0].entry);
-	INIT_LIST_HEAD(&grp->node[1].entry);
-	set_node_dbginfo(&grp->node[0], "grp<", 0);
-	set_node_dbginfo(&grp->node[1], "grp>", 0);
+	grp->analde[0].release = &group_open_release;
+	grp->analde[1].release = &group_close_release;
+	INIT_LIST_HEAD(&grp->analde[0].entry);
+	INIT_LIST_HEAD(&grp->analde[1].entry);
+	set_analde_dbginfo(&grp->analde[0], "grp<", 0);
+	set_analde_dbginfo(&grp->analde[1], "grp>", 0);
 	grp->id = grp;
 	if (id)
 		grp->id = id;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &grp->node[0]);
+	add_dr(dev, &grp->analde[0]);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 	return grp->id;
 }
@@ -578,20 +578,20 @@ EXPORT_SYMBOL_GPL(devres_open_group);
 /* Find devres group with ID @id.  If @id is NULL, look for the latest. */
 static struct devres_group * find_group(struct device *dev, void *id)
 {
-	struct devres_node *node;
+	struct devres_analde *analde;
 
-	list_for_each_entry_reverse(node, &dev->devres_head, entry) {
+	list_for_each_entry_reverse(analde, &dev->devres_head, entry) {
 		struct devres_group *grp;
 
-		if (node->release != &group_open_release)
+		if (analde->release != &group_open_release)
 			continue;
 
-		grp = container_of(node, struct devres_group, node[0]);
+		grp = container_of(analde, struct devres_group, analde[0]);
 
 		if (id) {
 			if (grp->id == id)
 				return grp;
-		} else if (list_empty(&grp->node[1].entry))
+		} else if (list_empty(&grp->analde[1].entry))
 			return grp;
 	}
 
@@ -615,7 +615,7 @@ void devres_close_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp)
-		add_dr(dev, &grp->node[1]);
+		add_dr(dev, &grp->analde[1]);
 	else
 		WARN_ON(1);
 
@@ -629,7 +629,7 @@ EXPORT_SYMBOL_GPL(devres_close_group);
  * @id: ID of target group, can be NULL
  *
  * Remove the group identified by @id.  If @id is NULL, the latest
- * open group is selected.  Note that removing a group doesn't affect
+ * open group is selected.  Analte that removing a group doesn't affect
  * any other resources.
  */
 void devres_remove_group(struct device *dev, void *id)
@@ -641,9 +641,9 @@ void devres_remove_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp) {
-		list_del_init(&grp->node[0].entry);
-		list_del_init(&grp->node[1].entry);
-		devres_log(dev, &grp->node[0], "REM");
+		list_del_init(&grp->analde[0].entry);
+		list_del_init(&grp->analde[1].entry);
+		devres_log(dev, &grp->analde[0], "REM");
 	} else
 		WARN_ON(1);
 
@@ -663,7 +663,7 @@ EXPORT_SYMBOL_GPL(devres_remove_group);
  * groups properly nested inside the selected group are removed.
  *
  * RETURNS:
- * The number of released non-group resources.
+ * The number of released analn-group resources.
  */
 int devres_release_group(struct device *dev, void *id)
 {
@@ -676,16 +676,16 @@ int devres_release_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp) {
-		struct list_head *first = &grp->node[0].entry;
+		struct list_head *first = &grp->analde[0].entry;
 		struct list_head *end = &dev->devres_head;
 
-		if (!list_empty(&grp->node[1].entry))
-			end = grp->node[1].entry.next;
+		if (!list_empty(&grp->analde[1].entry))
+			end = grp->analde[1].entry.next;
 
-		cnt = remove_nodes(dev, first, end, &todo);
+		cnt = remove_analdes(dev, first, end, &todo);
 		spin_unlock_irqrestore(&dev->devres_lock, flags);
 
-		release_nodes(dev, &todo);
+		release_analdes(dev, &todo);
 	} else {
 		WARN_ON(1);
 		spin_unlock_irqrestore(&dev->devres_lock, flags);
@@ -735,10 +735,10 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 {
 	struct action_devres *devres;
 
-	devres = __devres_alloc_node(devm_action_release, sizeof(struct action_devres),
-				     GFP_KERNEL, NUMA_NO_NODE, name);
+	devres = __devres_alloc_analde(devm_action_release, sizeof(struct action_devres),
+				     GFP_KERNEL, NUMA_ANAL_ANALDE, name);
 	if (!devres)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devres->data = data;
 	devres->action = action;
@@ -797,7 +797,7 @@ EXPORT_SYMBOL_GPL(devm_release_action);
  */
 static void devm_kmalloc_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* analop */
 }
 
 static int devm_kmalloc_match(struct device *dev, void *res, void *data)
@@ -826,15 +826,15 @@ void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 		return ZERO_SIZE_PTR;
 
 	/* use raw alloc_dr for kmalloc caller tracing */
-	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_node(dev));
+	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_analde(dev));
 	if (unlikely(!dr))
 		return NULL;
 
 	/*
 	 * This is named devm_kzalloc_release for historical reasons
-	 * The initial implementation did not support kmalloc, only kzalloc
+	 * The initial implementation did analt support kmalloc, only kzalloc
 	 */
-	set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
+	set_analde_dbginfo(&dr->analde, "devm_kzalloc_release", size);
 	devres_add(dev, dr->data);
 	return dr->data;
 }
@@ -872,7 +872,7 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 
 	if (WARN_ON(is_kernel_rodata((unsigned long)ptr)))
 		/*
-		 * We cannot reliably realloc a const string returned by
+		 * We cananalt reliably realloc a const string returned by
 		 * devm_kstrdup_const().
 		 */
 		return NULL;
@@ -898,13 +898,13 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 	 * taking the lock as most probably the caller uses GFP_KERNEL.
 	 */
 	new_dr = alloc_dr(devm_kmalloc_release,
-			  total_new_size, gfp, dev_to_node(dev));
+			  total_new_size, gfp, dev_to_analde(dev));
 	if (!new_dr)
 		return NULL;
 
 	/*
 	 * The spinlock protects the linked list against concurrent
-	 * modifications but not the resource itself.
+	 * modifications but analt the resource itself.
 	 */
 	spin_lock_irqsave(&dev->devres_lock, flags);
 
@@ -912,24 +912,24 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 	if (!old_dr) {
 		spin_unlock_irqrestore(&dev->devres_lock, flags);
 		kfree(new_dr);
-		WARN(1, "Memory chunk not managed or managed by a different device.");
+		WARN(1, "Memory chunk analt managed or managed by a different device.");
 		return NULL;
 	}
 
-	replace_dr(dev, &old_dr->node, &new_dr->node);
+	replace_dr(dev, &old_dr->analde, &new_dr->analde);
 
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
 	/*
 	 * We can copy the memory contents after releasing the lock as we're
-	 * no longer modifying the list links.
+	 * anal longer modifying the list links.
 	 */
 	memcpy(new_dr->data, old_dr->data,
 	       total_old_size - offsetof(struct devres, data));
 	/*
-	 * Same for releasing the old devres - it's now been removed from the
-	 * list. This is also the reason why we must not use devm_kfree() - the
-	 * links are no longer valid.
+	 * Same for releasing the old devres - it's analw been removed from the
+	 * list. This is also the reason why we must analt use devm_kfree() - the
+	 * links are anal longer valid.
 	 */
 	kfree(old_dr);
 
@@ -1151,7 +1151,7 @@ EXPORT_SYMBOL_GPL(devm_get_free_pages);
  * @addr: Memory to free
  *
  * Free memory allocated with devm_get_free_pages(). Unlike free_pages,
- * there is no need to supply the @order.
+ * there is anal need to supply the @order.
  */
 void devm_free_pages(struct device *dev, unsigned long addr)
 {

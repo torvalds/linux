@@ -125,7 +125,7 @@ static u32 add_dword(u32 **p_buffer, u32 value, u32 *used, u32 *avail)
  *
  * this routine verifies that the ROM OEM string is 'COMPAQ'
  *
- * returns 0 for non-Compaq ROM, 1 for Compaq ROM
+ * returns 0 for analn-Compaq ROM, 1 for Compaq ROM
  */
 static int check_for_compaq_ROM(void __iomem *rom_start)
 {
@@ -158,7 +158,7 @@ static u32 access_EV(u16 operation, u8 *ev_name, u8 *buffer, u32 *buf_size)
 	int ret_val;
 
 	if (!compaq_int15_entry_point)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&int15_lock, flags);
 	__asm__ (
@@ -191,11 +191,11 @@ static int load_HRT(void __iomem *rom_start)
 	u32 rc;
 
 	if (!check_for_compaq_ROM(rom_start))
-		return -ENODEV;
+		return -EANALDEV;
 
 	available = 1024;
 
-	/* Now load the EV */
+	/* Analw load the EV */
 	temp_dword = available;
 
 	rc = access_EV(READ_EV, "CQTHPS", evbuffer, &temp_dword);
@@ -229,7 +229,7 @@ static u32 store_HRT(void __iomem *rom_start)
 	u8 loop;
 	u8 numCtrl = 0;
 	struct controller *ctrl;
-	struct pci_resource *resNode;
+	struct pci_resource *resAnalde;
 	struct ev_hrt_header *p_EV_header;
 	struct ev_hrt_ctrl *p_ev_ctrl;
 
@@ -287,24 +287,24 @@ static u32 store_HRT(void __iomem *rom_start)
 
 		/* Figure out memory Available */
 
-		resNode = ctrl->mem_head;
+		resAnalde = ctrl->mem_head;
 
 		loop = 0;
 
-		while (resNode) {
+		while (resAnalde) {
 			loop++;
 
 			/* base */
-			rc = add_dword(&pFill, resNode->base, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
 			/* length */
-			rc = add_dword(&pFill, resNode->length, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			resNode = resNode->next;
+			resAnalde = resAnalde->next;
 		}
 
 		/* Fill in the number of entries */
@@ -312,24 +312,24 @@ static u32 store_HRT(void __iomem *rom_start)
 
 		/* Figure out prefetchable memory Available */
 
-		resNode = ctrl->p_mem_head;
+		resAnalde = ctrl->p_mem_head;
 
 		loop = 0;
 
-		while (resNode) {
+		while (resAnalde) {
 			loop++;
 
 			/* base */
-			rc = add_dword(&pFill, resNode->base, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
 			/* length */
-			rc = add_dword(&pFill, resNode->length, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			resNode = resNode->next;
+			resAnalde = resAnalde->next;
 		}
 
 		/* Fill in the number of entries */
@@ -337,24 +337,24 @@ static u32 store_HRT(void __iomem *rom_start)
 
 		/* Figure out IO Available */
 
-		resNode = ctrl->io_head;
+		resAnalde = ctrl->io_head;
 
 		loop = 0;
 
-		while (resNode) {
+		while (resAnalde) {
 			loop++;
 
 			/* base */
-			rc = add_dword(&pFill, resNode->base, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
 			/* length */
-			rc = add_dword(&pFill, resNode->length, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			resNode = resNode->next;
+			resAnalde = resAnalde->next;
 		}
 
 		/* Fill in the number of entries */
@@ -362,24 +362,24 @@ static u32 store_HRT(void __iomem *rom_start)
 
 		/* Figure out bus Available */
 
-		resNode = ctrl->bus_head;
+		resAnalde = ctrl->bus_head;
 
 		loop = 0;
 
-		while (resNode) {
+		while (resAnalde) {
 			loop++;
 
 			/* base */
-			rc = add_dword(&pFill, resNode->base, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
 			/* length */
-			rc = add_dword(&pFill, resNode->length, &usedbytes, &available);
+			rc = add_dword(&pFill, resAnalde->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			resNode = resNode->next;
+			resAnalde = resAnalde->next;
 		}
 
 		/* Fill in the number of entries */
@@ -390,7 +390,7 @@ static u32 store_HRT(void __iomem *rom_start)
 
 	p_EV_header->num_of_ctrl = numCtrl;
 
-	/* Now store the EV */
+	/* Analw store the EV */
 
 	temp_dword = usedbytes;
 
@@ -424,10 +424,10 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 	u8 nummem, numpmem, numio, numbus;
 	u32 rc;
 	u8 *p_byte;
-	struct pci_resource *mem_node;
-	struct pci_resource *p_mem_node;
-	struct pci_resource *io_node;
-	struct pci_resource *bus_node;
+	struct pci_resource *mem_analde;
+	struct pci_resource *p_mem_analde;
+	struct pci_resource *io_analde;
+	struct pci_resource *bus_analde;
 	struct ev_hrt_ctrl *p_ev_ctrl;
 	struct ev_hrt_header *p_EV_header;
 
@@ -439,7 +439,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		evbuffer_init = 1;
 	}
 
-	/* If we saved information in NVRAM, use it now */
+	/* If we saved information in NVRAM, use it analw */
 	p_EV_header = (struct ev_hrt_header *) evbuffer;
 
 	/* The following code is for systems where version 1.0 of this
@@ -504,113 +504,113 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 			return 2;
 
 		while (nummem--) {
-			mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			mem_analde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!mem_node)
+			if (!mem_analde)
 				break;
 
-			mem_node->base = *(u32 *)p_byte;
-			dbg("mem base = %8.8x\n", mem_node->base);
+			mem_analde->base = *(u32 *)p_byte;
+			dbg("mem base = %8.8x\n", mem_analde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(mem_node);
+				kfree(mem_analde);
 				return 2;
 			}
 
-			mem_node->length = *(u32 *)p_byte;
-			dbg("mem length = %8.8x\n", mem_node->length);
+			mem_analde->length = *(u32 *)p_byte;
+			dbg("mem length = %8.8x\n", mem_analde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(mem_node);
+				kfree(mem_analde);
 				return 2;
 			}
 
-			mem_node->next = ctrl->mem_head;
-			ctrl->mem_head = mem_node;
+			mem_analde->next = ctrl->mem_head;
+			ctrl->mem_head = mem_analde;
 		}
 
 		while (numpmem--) {
-			p_mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			p_mem_analde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!p_mem_node)
+			if (!p_mem_analde)
 				break;
 
-			p_mem_node->base = *(u32 *)p_byte;
-			dbg("pre-mem base = %8.8x\n", p_mem_node->base);
+			p_mem_analde->base = *(u32 *)p_byte;
+			dbg("pre-mem base = %8.8x\n", p_mem_analde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(p_mem_node);
+				kfree(p_mem_analde);
 				return 2;
 			}
 
-			p_mem_node->length = *(u32 *)p_byte;
-			dbg("pre-mem length = %8.8x\n", p_mem_node->length);
+			p_mem_analde->length = *(u32 *)p_byte;
+			dbg("pre-mem length = %8.8x\n", p_mem_analde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(p_mem_node);
+				kfree(p_mem_analde);
 				return 2;
 			}
 
-			p_mem_node->next = ctrl->p_mem_head;
-			ctrl->p_mem_head = p_mem_node;
+			p_mem_analde->next = ctrl->p_mem_head;
+			ctrl->p_mem_head = p_mem_analde;
 		}
 
 		while (numio--) {
-			io_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			io_analde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!io_node)
+			if (!io_analde)
 				break;
 
-			io_node->base = *(u32 *)p_byte;
-			dbg("io base = %8.8x\n", io_node->base);
+			io_analde->base = *(u32 *)p_byte;
+			dbg("io base = %8.8x\n", io_analde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(io_node);
+				kfree(io_analde);
 				return 2;
 			}
 
-			io_node->length = *(u32 *)p_byte;
-			dbg("io length = %8.8x\n", io_node->length);
+			io_analde->length = *(u32 *)p_byte;
+			dbg("io length = %8.8x\n", io_analde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(io_node);
+				kfree(io_analde);
 				return 2;
 			}
 
-			io_node->next = ctrl->io_head;
-			ctrl->io_head = io_node;
+			io_analde->next = ctrl->io_head;
+			ctrl->io_head = io_analde;
 		}
 
 		while (numbus--) {
-			bus_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			bus_analde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!bus_node)
+			if (!bus_analde)
 				break;
 
-			bus_node->base = *(u32 *)p_byte;
+			bus_analde->base = *(u32 *)p_byte;
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(bus_node);
+				kfree(bus_analde);
 				return 2;
 			}
 
-			bus_node->length = *(u32 *)p_byte;
+			bus_analde->length = *(u32 *)p_byte;
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(bus_node);
+				kfree(bus_analde);
 				return 2;
 			}
 
-			bus_node->next = ctrl->bus_head;
-			ctrl->bus_head = bus_node;
+			bus_analde->next = ctrl->bus_head;
+			ctrl->bus_head = bus_analde;
 		}
 
 		/* If all of the following fail, we don't have any resources for
@@ -638,7 +638,7 @@ int compaq_nvram_store(void __iomem *rom_start)
 	int rc = 1;
 
 	if (rom_start == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (evbuffer_init) {
 		rc = store_HRT(rom_start);

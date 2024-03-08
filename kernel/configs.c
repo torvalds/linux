@@ -4,7 +4,7 @@
  * Echo the kernel .config file used to build the kernel
  *
  * Copyright (C) 2002 Khalid Aziz <khalid_aziz@hp.com>
- * Copyright (C) 2002 Randy Dunlap <rdunlap@xenotime.net>
+ * Copyright (C) 2002 Randy Dunlap <rdunlap@xeanaltime.net>
  * Copyright (C) 2002 Al Stone <ahs3@fc.hp.com>
  * Copyright (C) 2002 Hewlett-Packard Company
  */
@@ -60,7 +60,7 @@ static int __init ikconfig_init(void)
 	entry = proc_create("config.gz", S_IFREG | S_IRUGO, NULL,
 			    &config_gz_proc_ops);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	proc_set_size(entry, &kernel_config_data_end - &kernel_config_data);
 

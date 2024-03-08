@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Device Tree file for the GARDENA smart Gateway (Article No. 19000)
+ * Device Tree file for the GARDENA smart Gateway (Article Anal. 19000)
  *
  *  Copyright (C) 2020 GARDENA GmbH
  */
@@ -12,7 +12,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "GARDENA smart Gateway (Article No. 19000)";
+	model = "GARDENA smart Gateway (Article Anal. 19000)";
 	compatible = "gardena,smart-gateway-at91sam", "atmel,at91sam9g25", "atmel,at91sam9x5",
 		"atmel,at91sam9";
 

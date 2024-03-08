@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-/* Do not edit directly, auto-generated from: */
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/handshake.yaml */
 /* YNL-GEN kernel source */
 
@@ -41,7 +41,7 @@ static const struct genl_split_ops handshake_nl_ops[] = {
 };
 
 static const struct genl_multicast_group handshake_nl_mcgrps[] = {
-	[HANDSHAKE_NLGRP_NONE] = { "none", },
+	[HANDSHAKE_NLGRP_ANALNE] = { "analne", },
 	[HANDSHAKE_NLGRP_TLSHD] = { "tlshd", },
 };
 

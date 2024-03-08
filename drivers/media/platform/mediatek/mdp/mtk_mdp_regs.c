@@ -17,7 +17,7 @@
 	((SWAP) << 5) | ((ID) << 0))
 
 enum MDP_COLOR_ENUM {
-	MDP_COLOR_UNKNOWN = 0,
+	MDP_COLOR_UNKANALWN = 0,
 	MDP_COLOR_NV12 = MDP_COLORFMT_PACK(0, 2, 1, 1, 1, 8, 1, 0, 12),
 	MDP_COLOR_I420 = MDP_COLORFMT_PACK(0, 3, 0, 1, 1, 8, 1, 0, 8),
 	MDP_COLOR_YV12 = MDP_COLORFMT_PACK(0, 3, 0, 1, 1, 8, 1, 1, 8),
@@ -40,9 +40,9 @@ static int32_t mtk_mdp_map_color_format(int v4l2_format)
 		return MDP_COLOR_YV12;
 	}
 
-	mtk_mdp_err("Unknown format 0x%x", v4l2_format);
+	mtk_mdp_err("Unkanalwn format 0x%x", v4l2_format);
 
-	return MDP_COLOR_UNKNOWN;
+	return MDP_COLOR_UNKANALWN;
 }
 
 void mtk_mdp_hw_set_input_addr(struct mtk_mdp_ctx *ctx,

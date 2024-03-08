@@ -11,7 +11,7 @@ config IIO_SCMI
         select IIO_BUFFER
         select IIO_KFIFO_BUF
 	help
-          Say yes here to build support for IIO SCMI Driver.
+          Say anal here to build support for IIO SCMI Driver.
           This provides ARM SCMI Protocol based IIO device.
           This driver provides support for accelerometer and gyroscope
           sensors available on SCMI based platforms.

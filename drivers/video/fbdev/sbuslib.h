@@ -3,7 +3,7 @@
 #ifndef _SBUSLIB_H
 #define _SBUSLIB_H
 
-struct device_node;
+struct device_analde;
 struct fb_info;
 struct fb_var_screeninfo;
 struct vm_area_struct;
@@ -18,7 +18,7 @@ struct sbus_mmap_map {
 #define SBUS_MMAP_EMPTY	0x80000000
 
 extern void sbusfb_fill_var(struct fb_var_screeninfo *var,
-			    struct device_node *dp, int bpp);
+			    struct device_analde *dp, int bpp);
 extern int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 			      unsigned long physbase, unsigned long fbsize,
 			      unsigned long iospace,

@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/module_signature.h>
 #include <linux/string.h>
@@ -69,15 +69,15 @@ int mod_verify_sig(const void *mod, struct load_info *info)
 
 int module_sig_check(struct load_info *info, int flags)
 {
-	int err = -ENODATA;
+	int err = -EANALDATA;
 	const unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
 	const char *reason;
 	const void *mod = info->hdr;
-	bool mangled_module = flags & (MODULE_INIT_IGNORE_MODVERSIONS |
-				       MODULE_INIT_IGNORE_VERMAGIC);
+	bool mangled_module = flags & (MODULE_INIT_IGANALRE_MODVERSIONS |
+				       MODULE_INIT_IGANALRE_VERMAGIC);
 	/*
-	 * Do not allow mangled modules as a module with version information
-	 * removed is no longer the module that was signed.
+	 * Do analt allow mangled modules as a module with version information
+	 * removed is anal longer the module that was signed.
 	 */
 	if (!mangled_module &&
 	    info->len > markerlen &&
@@ -93,17 +93,17 @@ int module_sig_check(struct load_info *info, int flags)
 
 	/*
 	 * We don't permit modules to be loaded into the trusted kernels
-	 * without a valid signature on them, but if we're not enforcing,
-	 * certain errors are non-fatal.
+	 * without a valid signature on them, but if we're analt enforcing,
+	 * certain errors are analn-fatal.
 	 */
 	switch (err) {
-	case -ENODATA:
+	case -EANALDATA:
 		reason = "unsigned module";
 		break;
-	case -ENOPKG:
+	case -EANALPKG:
 		reason = "module with unsupported crypto";
 		break;
-	case -ENOKEY:
+	case -EANALKEY:
 		reason = "module with unavailable key";
 		break;
 
@@ -117,7 +117,7 @@ int module_sig_check(struct load_info *info, int flags)
 	}
 
 	if (is_module_sig_enforced()) {
-		pr_notice("Loading of %s is rejected\n", reason);
+		pr_analtice("Loading of %s is rejected\n", reason);
 		return -EKEYREJECTED;
 	}
 

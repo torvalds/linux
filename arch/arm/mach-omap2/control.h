@@ -4,7 +4,7 @@
  * OMAP2/3/4 System Control Module definitions
  *
  * Copyright (C) 2007-2010 Texas Instruments, Inc.
- * Copyright (C) 2007-2008, 2010 Nokia Corporation
+ * Copyright (C) 2007-2008, 2010 Analkia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -79,7 +79,7 @@
 #define OMAP242X_CONTROL_OCM_RAM_PERM	(OMAP2_CONTROL_GENERAL + 0x0068)
 
 /* 243x-only CONTROL_GENERAL register offsets */
-/* CONTROL_IVA2_BOOT{ADDR,MOD} are at the same place on 343x - noted below */
+/* CONTROL_IVA2_BOOT{ADDR,MOD} are at the same place on 343x - analted below */
 #define OMAP243X_CONTROL_DEVCONF1	(OMAP2_CONTROL_GENERAL + 0x0078)
 #define OMAP243X_CONTROL_CSIRXFE	(OMAP2_CONTROL_GENERAL + 0x007c)
 #define OMAP243X_CONTROL_IVA2_BOOTADDR	(OMAP2_CONTROL_GENERAL + 0x0190)
@@ -299,7 +299,7 @@
 #define DRA7_SPEEDSELECT_MASK		(0x3 << 8)
 
 /*
- * REVISIT: This list of registers is not comprehensive - there are more
+ * REVISIT: This list of registers is analt comprehensive - there are more
  * that should be added.
  */
 
@@ -307,7 +307,7 @@
  * Control module register bit defines - these should eventually go into
  * their own regbits file.  Some of these will be complicated, depending
  * on the device type (general-purpose, emulator, test, secure, bad, other)
- * and the security mode (secure, non-secure, don't care)
+ * and the security mode (secure, analn-secure, don't care)
  */
 /* CONTROL_DEVCONF0 bits */
 #define OMAP2_MMCSDIO1ADPCLKISEL	(1 << 24) /* MMC1 loop back clock */
@@ -478,16 +478,16 @@
 #define OMAP3_SGX_MASK			(3 << OMAP3_SGX_SHIFT)
 #define		FEAT_SGX_FULL		0
 #define		FEAT_SGX_HALF		1
-#define		FEAT_SGX_NONE		2
+#define		FEAT_SGX_ANALNE		2
 
 #define OMAP3_IVA_SHIFT			12
 #define OMAP3_IVA_MASK			(1 << OMAP3_IVA_SHIFT)
 #define		FEAT_IVA		0
-#define		FEAT_IVA_NONE		1
+#define		FEAT_IVA_ANALNE		1
 
 #define OMAP3_L2CACHE_SHIFT		10
 #define OMAP3_L2CACHE_MASK		(3 << OMAP3_L2CACHE_SHIFT)
-#define		FEAT_L2CACHE_NONE	0
+#define		FEAT_L2CACHE_ANALNE	0
 #define		FEAT_L2CACHE_64KB	1
 #define		FEAT_L2CACHE_128KB	2
 #define		FEAT_L2CACHE_256KB	3
@@ -495,12 +495,12 @@
 #define OMAP3_ISP_SHIFT			5
 #define OMAP3_ISP_MASK			(1 << OMAP3_ISP_SHIFT)
 #define		FEAT_ISP		0
-#define		FEAT_ISP_NONE		1
+#define		FEAT_ISP_ANALNE		1
 
 #define OMAP3_NEON_SHIFT		4
 #define OMAP3_NEON_MASK			(1 << OMAP3_NEON_SHIFT)
 #define		FEAT_NEON		0
-#define		FEAT_NEON_NONE		1
+#define		FEAT_NEON_ANALNE		1
 
 
 #ifndef __ASSEMBLY__

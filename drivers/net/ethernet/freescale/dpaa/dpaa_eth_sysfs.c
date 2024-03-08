@@ -20,7 +20,7 @@ static ssize_t dpaa_eth_show_addr(struct device *dev,
 		return sprintf(buf, "%llx",
 				(unsigned long long)mac_dev->res->start);
 	else
-		return sprintf(buf, "none");
+		return sprintf(buf, "analne");
 }
 
 static ssize_t dpaa_eth_show_fqids(struct device *dev,
@@ -61,7 +61,7 @@ static ssize_t dpaa_eth_show_fqids(struct device *dev,
 			str = "Tx";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkanalwn";
 		}
 
 		if (prev && (abs(fq->fqid - prev->fqid) != 1 ||

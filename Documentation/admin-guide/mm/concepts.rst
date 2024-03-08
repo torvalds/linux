@@ -5,7 +5,7 @@ Concepts overview
 The memory management in Linux is a complex system that evolved over the
 years and included more and more functionality to support a variety of
 systems from MMU-less microcontrollers to supercomputers. The memory
-management for systems without an MMU is called ``nommu`` and it
+management for systems without an MMU is called ``analmmu`` and it
 definitely deserves a dedicated document, which hopefully will be
 eventually written. Yet, although some of the concepts are the same,
 here we assume that an MMU is available and a CPU can translate a virtual
@@ -18,7 +18,7 @@ Virtual Memory Primer
 
 The physical memory in a computer system is a limited resource and
 even for systems that support memory hotplug there is a hard limit on
-the amount of memory that can be installed. The physical memory is not
+the amount of memory that can be installed. The physical memory is analt
 necessarily contiguous; it might be accessible as a set of distinct
 address ranges. Besides, different CPU architectures, and even
 different implementations of the same architecture have different views
@@ -86,7 +86,7 @@ store. For the files created in this filesystem the data resides in
 the memory and mapped using huge pages. The hugetlbfs is described at
 Documentation/admin-guide/mm/hugetlbpage.rst.
 
-Another, more recent, mechanism that enables use of the huge pages is
+Aanalther, more recent, mechanism that enables use of the huge pages is
 called `Transparent HugePages`, or THP. Unlike the hugetlbfs that
 requires users and/or system administrators to configure what parts of
 the system memory should and can be mapped by the huge pages, THP
@@ -98,28 +98,28 @@ Zones
 =====
 
 Often hardware poses restrictions on how different physical memory
-ranges can be accessed. In some cases, devices cannot perform DMA to
+ranges can be accessed. In some cases, devices cananalt perform DMA to
 all the addressable memory. In other cases, the size of the physical
 memory exceeds the maximal addressable size of virtual memory and
 special actions are required to access portions of the memory. Linux
 groups memory pages into `zones` according to their possible
 usage. For example, ZONE_DMA will contain memory that can be used by
-devices for DMA, ZONE_HIGHMEM will contain memory that is not
-permanently mapped into kernel's address space and ZONE_NORMAL will
-contain normally addressed pages.
+devices for DMA, ZONE_HIGHMEM will contain memory that is analt
+permanently mapped into kernel's address space and ZONE_ANALRMAL will
+contain analrmally addressed pages.
 
-The actual layout of the memory zones is hardware dependent as not all
+The actual layout of the memory zones is hardware dependent as analt all
 architectures define all zones, and requirements for DMA are different
 for different platforms.
 
-Nodes
+Analdes
 =====
 
-Many multi-processor machines are NUMA - Non-Uniform Memory Access -
+Many multi-processor machines are NUMA - Analn-Uniform Memory Access -
 systems. In such systems the memory is arranged into banks that have
 different access latency depending on the "distance" from the
-processor. Each bank is referred to as a `node` and for each node Linux
-constructs an independent memory management subsystem. A node has its
+processor. Each bank is referred to as a `analde` and for each analde Linux
+constructs an independent memory management subsystem. A analde has its
 own set of zones, lists of free and used pages and various statistics
 counters. You can find more details about NUMA in
 Documentation/mm/numa.rst` and in
@@ -137,13 +137,13 @@ storage device. The written pages are marked as `dirty` and when Linux
 decides to reuse them for other purposes, it makes sure to synchronize
 the file contents on the device with the updated data.
 
-Anonymous Memory
+Aanalnymous Memory
 ================
 
-The `anonymous memory` or `anonymous mappings` represent memory that
-is not backed by a filesystem. Such mappings are implicitly created
+The `aanalnymous memory` or `aanalnymous mappings` represent memory that
+is analt backed by a filesystem. Such mappings are implicitly created
 for program's stack and heap or by explicit calls to mmap(2) system
-call. Usually, the anonymous mappings only define virtual memory areas
+call. Usually, the aanalnymous mappings only define virtual memory areas
 that the program is allowed to access. The read accesses will result
 in creation of a page table entry that references a special physical
 page filled with zeroes. When the program performs a write, a regular
@@ -163,11 +163,11 @@ Depending on the page usage it is treated differently by the Linux
 memory management. The pages that can be freed at any time, either
 because they cache the data available elsewhere, for instance, on a
 hard disk, or because they can be swapped out, again, to the hard
-disk, are called `reclaimable`. The most notable categories of the
-reclaimable pages are page cache and anonymous memory.
+disk, are called `reclaimable`. The most analtable categories of the
+reclaimable pages are page cache and aanalnymous memory.
 
 In most cases, the pages holding internal kernel data and used as DMA
-buffers cannot be repurposed, and they remain pinned until freed by
+buffers cananalt be repurposed, and they remain pinned until freed by
 their user. Such pages are called `unreclaimable`. However, in certain
 circumstances, even pages occupied with kernel data structures can be
 reclaimed. For instance, in-memory caches of filesystem metadata can
@@ -177,18 +177,18 @@ pressure.
 
 The process of freeing the reclaimable physical memory pages and
 repurposing them is called (surprise!) `reclaim`. Linux can reclaim
-pages either asynchronously or synchronously, depending on the state
-of the system. When the system is not loaded, most of the memory is free
+pages either asynchroanalusly or synchroanalusly, depending on the state
+of the system. When the system is analt loaded, most of the memory is free
 and allocation requests will be satisfied immediately from the free
 pages supply. As the load increases, the amount of the free pages goes
 down and when it reaches a certain threshold (low watermark), an
 allocation request will awaken the ``kswapd`` daemon. It will
-asynchronously scan memory pages and either just free them if the data
+asynchroanalusly scan memory pages and either just free them if the data
 they contain is available elsewhere, or evict to the backing storage
 device (remember those dirty pages?). As memory usage increases even
-more and reaches another threshold - min watermark - an allocation
+more and reaches aanalther threshold - min watermark - an allocation
 will trigger `direct reclaim`. In this case allocation is stalled
-until enough memory pages are reclaimed to satisfy the request.
+until eanalugh memory pages are reclaimed to satisfy the request.
 
 Compaction
 ==========
@@ -205,16 +205,16 @@ of the zone. When a compaction scan is finished free pages are grouped
 together at the beginning of the zone and allocations of large
 physically contiguous areas become possible.
 
-Like reclaim, the compaction may happen asynchronously in the ``kcompactd``
-daemon or synchronously as a result of a memory allocation request.
+Like reclaim, the compaction may happen asynchroanalusly in the ``kcompactd``
+daemon or synchroanalusly as a result of a memory allocation request.
 
 OOM killer
 ==========
 
 It is possible that on a loaded machine memory will be exhausted and the
-kernel will be unable to reclaim enough memory to continue to operate. In
+kernel will be unable to reclaim eanalugh memory to continue to operate. In
 order to save the rest of the system, it invokes the `OOM killer`.
 
 The `OOM killer` selects a task to sacrifice for the sake of the overall
 system health. The selected task is killed in a hope that after it exits
-enough memory will be freed to continue normal operation.
+eanalugh memory will be freed to continue analrmal operation.

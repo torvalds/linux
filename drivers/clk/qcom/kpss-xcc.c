@@ -41,10 +41,10 @@ static int kpss_xcc_driver_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	if (device_get_match_data(&pdev->dev)) {
-		if (of_property_read_string_index(dev->of_node,
+		if (of_property_read_string_index(dev->of_analde,
 						  "clock-output-names",
 						  0, &name))
-			return -ENODEV;
+			return -EANALDEV;
 		base += 0x14;
 	} else {
 		name = "acpu_l2_aux";
@@ -58,7 +58,7 @@ static int kpss_xcc_driver_probe(struct platform_device *pdev)
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
-	of_clk_add_hw_provider(dev->of_node, of_clk_hw_simple_get, hw);
+	of_clk_add_hw_provider(dev->of_analde, of_clk_hw_simple_get, hw);
 
 	return 0;
 }

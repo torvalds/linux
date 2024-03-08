@@ -4,7 +4,7 @@
  *
  * i.MX7 System Reset Controller (SRC) driver
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #include <linux/mfd/syscon.h>
@@ -78,7 +78,7 @@ static const struct imx7_src_signal imx7_src_signals[IMX7_RESET_NUM] = {
 	[IMX7_RESET_PCIEPHY]		= { SRC_PCIEPHY_RCR, BIT(2) | BIT(1) },
 	[IMX7_RESET_PCIEPHY_PERST]	= { SRC_PCIEPHY_RCR, BIT(3) },
 	[IMX7_RESET_PCIE_CTRL_APPS_EN]	= { SRC_PCIEPHY_RCR, BIT(6) },
-	[IMX7_RESET_PCIE_CTRL_APPS_TURNOFF] = { SRC_PCIEPHY_RCR, BIT(11) },
+	[IMX7_RESET_PCIE_CTRL_APPS_TURANALFF] = { SRC_PCIEPHY_RCR, BIT(11) },
 	[IMX7_RESET_DDRC_PRST]		= { SRC_DDRC_RCR, BIT(0) },
 	[IMX7_RESET_DDRC_CORE_RST]	= { SRC_DDRC_RCR, BIT(1) },
 };
@@ -155,7 +155,7 @@ enum imx8mp_src_registers {
 	SRC_VPU_G1_RCR		= 0x0048,
 	SRC_VPU_G2_RCR		= 0x004c,
 	SRC_VPUVC8KE_RCR	= 0x0050,
-	SRC_NOC_RCR		= 0x0054,
+	SRC_ANALC_RCR		= 0x0054,
 };
 
 static const struct imx7_src_signal imx8mq_src_signals[IMX8MQ_RESET_NUM] = {
@@ -177,7 +177,7 @@ static const struct imx7_src_signal imx8mq_src_signals[IMX8MQ_RESET_NUM] = {
 	[IMX8MQ_RESET_A53_ETM_RESET3]		= { SRC_A53RCR0, BIT(15) },
 	[IMX8MQ_RESET_A53_SOC_DBG_RESET]	= { SRC_A53RCR0, BIT(20) },
 	[IMX8MQ_RESET_A53_L2RESET]		= { SRC_A53RCR0, BIT(21) },
-	[IMX8MQ_RESET_SW_NON_SCLR_M4C_RST]	= { SRC_M4RCR, BIT(0) },
+	[IMX8MQ_RESET_SW_ANALN_SCLR_M4C_RST]	= { SRC_M4RCR, BIT(0) },
 	[IMX8MQ_RESET_SW_M4C_RST]		= { SRC_M4RCR, BIT(1) },
 	[IMX8MQ_RESET_SW_M4P_RST]		= { SRC_M4RCR, BIT(2) },
 	[IMX8MQ_RESET_M4_ENABLE]		= { SRC_M4RCR, BIT(3) },
@@ -192,7 +192,7 @@ static const struct imx7_src_signal imx8mq_src_signals[IMX8MQ_RESET_NUM] = {
 						    BIT(2) | BIT(1) },
 	[IMX8MQ_RESET_PCIEPHY_PERST]		= { SRC_PCIEPHY_RCR, BIT(3) },
 	[IMX8MQ_RESET_PCIE_CTRL_APPS_EN]	= { SRC_PCIEPHY_RCR, BIT(6) },
-	[IMX8MQ_RESET_PCIE_CTRL_APPS_TURNOFF]	= { SRC_PCIEPHY_RCR, BIT(11) },
+	[IMX8MQ_RESET_PCIE_CTRL_APPS_TURANALFF]	= { SRC_PCIEPHY_RCR, BIT(11) },
 	[IMX8MQ_RESET_HDMI_PHY_APB_RESET]	= { SRC_HDMI_RCR, BIT(0) },
 	[IMX8MQ_RESET_DISP_RESET]		= { SRC_DISP_RCR, BIT(0) },
 	[IMX8MQ_RESET_GPU_RESET]		= { SRC_GPU_RCR, BIT(0) },
@@ -201,7 +201,7 @@ static const struct imx7_src_signal imx8mq_src_signals[IMX8MQ_RESET_NUM] = {
 						    BIT(2) | BIT(1) },
 	[IMX8MQ_RESET_PCIEPHY2_PERST]		= { SRC_PCIE2_RCR, BIT(3) },
 	[IMX8MQ_RESET_PCIE2_CTRL_APPS_EN]	= { SRC_PCIE2_RCR, BIT(6) },
-	[IMX8MQ_RESET_PCIE2_CTRL_APPS_TURNOFF]	= { SRC_PCIE2_RCR, BIT(11) },
+	[IMX8MQ_RESET_PCIE2_CTRL_APPS_TURANALFF]	= { SRC_PCIE2_RCR, BIT(11) },
 	[IMX8MQ_RESET_MIPI_CSI1_CORE_RESET]	= { SRC_MIPIPHY1_RCR, BIT(0) },
 	[IMX8MQ_RESET_MIPI_CSI1_PHY_REF_RESET]	= { SRC_MIPIPHY1_RCR, BIT(1) },
 	[IMX8MQ_RESET_MIPI_CSI1_ESC_RESET]	= { SRC_MIPIPHY1_RCR, BIT(2) },
@@ -289,7 +289,7 @@ static const struct imx7_src_signal imx8mp_src_signals[IMX8MP_RESET_NUM] = {
 	[IMX8MP_RESET_A53_ETM_RESET3]		= { SRC_A53RCR0, BIT(15) },
 	[IMX8MP_RESET_A53_SOC_DBG_RESET]	= { SRC_A53RCR0, BIT(20) },
 	[IMX8MP_RESET_A53_L2RESET]		= { SRC_A53RCR0, BIT(21) },
-	[IMX8MP_RESET_SW_NON_SCLR_M7C_RST]	= { SRC_M4RCR, BIT(0) },
+	[IMX8MP_RESET_SW_ANALN_SCLR_M7C_RST]	= { SRC_M4RCR, BIT(0) },
 	[IMX8MP_RESET_OTG1_PHY_RESET]		= { SRC_USBOPHY1_RCR, BIT(0) },
 	[IMX8MP_RESET_OTG2_PHY_RESET]		= { SRC_USBOPHY2_RCR, BIT(0) },
 	[IMX8MP_RESET_SUPERMIX_RESET]		= { SRC_SUPERMIX_RCR, BIT(0) },
@@ -298,7 +298,7 @@ static const struct imx7_src_signal imx8mp_src_signals[IMX8MP_RESET_NUM] = {
 	[IMX8MP_RESET_PCIEPHY]			= { SRC_PCIEPHY_RCR, BIT(2) },
 	[IMX8MP_RESET_PCIEPHY_PERST]		= { SRC_PCIEPHY_RCR, BIT(3) },
 	[IMX8MP_RESET_PCIE_CTRL_APPS_EN]	= { SRC_PCIEPHY_RCR, BIT(6) },
-	[IMX8MP_RESET_PCIE_CTRL_APPS_TURNOFF]	= { SRC_PCIEPHY_RCR, BIT(11) },
+	[IMX8MP_RESET_PCIE_CTRL_APPS_TURANALFF]	= { SRC_PCIEPHY_RCR, BIT(11) },
 	[IMX8MP_RESET_HDMI_PHY_APB_RESET]	= { SRC_HDMI_RCR, BIT(0) },
 	[IMX8MP_RESET_MEDIA_RESET]		= { SRC_DISP_RCR, BIT(0) },
 	[IMX8MP_RESET_GPU2D_RESET]		= { SRC_GPU2D_RCR, BIT(0) },
@@ -308,7 +308,7 @@ static const struct imx7_src_signal imx8mp_src_signals[IMX8MP_RESET_NUM] = {
 	[IMX8MP_RESET_VPU_G1_RESET]		= { SRC_VPU_G1_RCR, BIT(0) },
 	[IMX8MP_RESET_VPU_G2_RESET]		= { SRC_VPU_G2_RCR, BIT(0) },
 	[IMX8MP_RESET_VPUVC8KE_RESET]		= { SRC_VPUVC8KE_RCR, BIT(0) },
-	[IMX8MP_RESET_NOC_RESET]		= { SRC_NOC_RCR, BIT(0) },
+	[IMX8MP_RESET_ANALC_RESET]		= { SRC_ANALC_RCR, BIT(0) },
 };
 
 static int imx8mp_reset_set(struct reset_controller_dev *rcdev,
@@ -367,10 +367,10 @@ static int imx7_reset_probe(struct platform_device *pdev)
 
 	imx7src = devm_kzalloc(dev, sizeof(*imx7src), GFP_KERNEL);
 	if (!imx7src)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx7src->signals = variant->signals;
-	imx7src->regmap = syscon_node_to_regmap(dev->of_node);
+	imx7src->regmap = syscon_analde_to_regmap(dev->of_analde);
 	if (IS_ERR(imx7src->regmap)) {
 		dev_err(dev, "Unable to get imx7-src regmap");
 		return PTR_ERR(imx7src->regmap);
@@ -380,7 +380,7 @@ static int imx7_reset_probe(struct platform_device *pdev)
 	imx7src->rcdev.owner     = THIS_MODULE;
 	imx7src->rcdev.nr_resets = variant->signals_num;
 	imx7src->rcdev.ops       = &variant->ops;
-	imx7src->rcdev.of_node   = dev->of_node;
+	imx7src->rcdev.of_analde   = dev->of_analde;
 
 	return devm_reset_controller_register(dev, &imx7src->rcdev);
 }
@@ -402,6 +402,6 @@ static struct platform_driver imx7_reset_driver = {
 };
 module_platform_driver(imx7_reset_driver);
 
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("NXP i.MX7 reset driver");
 MODULE_LICENSE("GPL v2");

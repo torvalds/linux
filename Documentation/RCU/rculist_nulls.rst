@@ -24,7 +24,7 @@ objects, which is having below type.
 ::
 
   struct object {
-    struct hlist_node obj_node;
+    struct hlist_analde obj_analde;
     atomic_t refcnt;
     unsigned int key;
   };
@@ -47,7 +47,7 @@ objects, which is having below type.
     * reuse these object before the RCU grace period, we
     * must check key after getting the reference on object
     */
-    if (obj->key != key) { // not the object we expected
+    if (obj->key != key) { // analt the object we expected
       put_ref(obj);
       rcu_read_unlock();
       goto begin;
@@ -55,29 +55,29 @@ objects, which is having below type.
   }
   rcu_read_unlock();
 
-Beware that lockless_lookup(key) cannot use traditional hlist_for_each_entry_rcu()
+Beware that lockless_lookup(key) cananalt use traditional hlist_for_each_entry_rcu()
 but a version with an additional memory barrier (smp_rmb())
 
 ::
 
   lockless_lookup(key)
   {
-    struct hlist_node *node, *next;
+    struct hlist_analde *analde, *next;
     for (pos = rcu_dereference((head)->first);
          pos && ({ next = pos->next; smp_rmb(); prefetch(next); 1; }) &&
-         ({ obj = hlist_entry(pos, typeof(*obj), obj_node); 1; });
+         ({ obj = hlist_entry(pos, typeof(*obj), obj_analde); 1; });
          pos = rcu_dereference(next))
       if (obj->key == key)
         return obj;
     return NULL;
   }
 
-And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb()::
+And analte the traditional hlist_for_each_entry_rcu() misses this smp_rmb()::
 
-  struct hlist_node *node;
+  struct hlist_analde *analde;
   for (pos = rcu_dereference((head)->first);
        pos && ({ prefetch(pos->next); 1; }) &&
-       ({ obj = hlist_entry(pos, typeof(*obj), obj_node); 1; });
+       ({ obj = hlist_entry(pos, typeof(*obj), obj_analde); 1; });
        pos = rcu_dereference(pos->next))
     if (obj->key == key)
       return obj;
@@ -85,11 +85,11 @@ And note the traditional hlist_for_each_entry_rcu() misses this smp_rmb()::
 
 Quoting Corey Minyard::
 
-  "If the object is moved from one list to another list in-between the
+  "If the object is moved from one list to aanalther list in-between the
   time the hash is calculated and the next field is accessed, and the
-  object has moved to the end of a new list, the traversal will not
+  object has moved to the end of a new list, the traversal will analt
   complete properly on the list it should have, since the object will
-  be on the end of the new list and there's not a way to tell it's on a
+  be on the end of the new list and there's analt a way to tell it's on a
   new list and restart the list traversal. I think that this can be
   solved by pre-fetching the "next" field (with proper barriers) before
   checking the key."
@@ -97,30 +97,30 @@ Quoting Corey Minyard::
 2) Insertion algorithm
 ----------------------
 
-We need to make sure a reader cannot read the new 'obj->obj_node.next' value
+We need to make sure a reader cananalt read the new 'obj->obj_analde.next' value
 and previous value of 'obj->key'. Otherwise, an item could be deleted
-from a chain, and inserted into another chain. If new chain was empty
-before the move, 'next' pointer is NULL, and lockless reader can not
+from a chain, and inserted into aanalther chain. If new chain was empty
+before the move, 'next' pointer is NULL, and lockless reader can analt
 detect the fact that it missed following items in original chain.
 
 ::
 
   /*
-   * Please note that new inserts are done at the head of list,
-   * not in the middle or end.
+   * Please analte that new inserts are done at the head of list,
+   * analt in the middle or end.
    */
   obj = kmem_cache_alloc(...);
   lock_chain(); // typically a spin_lock()
   obj->key = key;
   atomic_set_release(&obj->refcnt, 1); // key before refcnt
-  hlist_add_head_rcu(&obj->obj_node, list);
+  hlist_add_head_rcu(&obj->obj_analde, list);
   unlock_chain(); // typically a spin_unlock()
 
 
 3) Removal algorithm
 --------------------
 
-Nothing special here, we can use a standard RCU hlist deletion.
+Analthing special here, we can use a standard RCU hlist deletion.
 But thanks to SLAB_TYPESAFE_BY_RCU, beware a deleted object can be reused
 very very fast (before the end of RCU grace period)
 
@@ -128,7 +128,7 @@ very very fast (before the end of RCU grace period)
 
   if (put_last_reference_on(obj) {
     lock_chain(); // typically a spin_lock()
-    hlist_del_init_rcu(&obj->obj_node);
+    hlist_del_init_rcu(&obj->obj_analde);
     unlock_chain(); // typically a spin_unlock()
     kmem_cache_free(cachep, obj);
   }
@@ -145,15 +145,15 @@ With hlist_nulls we can avoid extra smp_rmb() in lockless_lookup().
 For example, if we choose to store the slot number as the 'nulls'
 end-of-list marker for each slot of the hash table, we can detect
 a race (some writer did a delete and/or a move of an object
-to another chain) checking the final 'nulls' value if
+to aanalther chain) checking the final 'nulls' value if
 the lookup met the end of chain. If final 'nulls' value
-is not the slot number, then we must restart the lookup at
+is analt the slot number, then we must restart the lookup at
 the beginning. If the object was moved to the same chain,
 then the reader doesn't care: It might occasionally
 scan the list again without harm.
 
-Note that using hlist_nulls means the type of 'obj_node' field of
-'struct object' becomes 'struct hlist_nulls_node'.
+Analte that using hlist_nulls means the type of 'obj_analde' field of
+'struct object' becomes 'struct hlist_nulls_analde'.
 
 
 1) lookup algorithm
@@ -164,13 +164,13 @@ Note that using hlist_nulls means the type of 'obj_node' field of
   head = &table[slot];
   begin:
   rcu_read_lock();
-  hlist_nulls_for_each_entry_rcu(obj, node, head, obj_node) {
+  hlist_nulls_for_each_entry_rcu(obj, analde, head, obj_analde) {
     if (obj->key == key) {
       if (!try_get_ref(obj)) { // might fail for free objects
 	rcu_read_unlock();
         goto begin;
       }
-      if (obj->key != key) { // not the object we expected
+      if (obj->key != key) { // analt the object we expected
         put_ref(obj);
 	rcu_read_unlock();
         goto begin;
@@ -180,9 +180,9 @@ Note that using hlist_nulls means the type of 'obj_node' field of
   }
 
   // If the nulls value we got at the end of this lookup is
-  // not the expected one, we must restart lookup.
-  // We probably met an item that was moved to another chain.
-  if (get_nulls_value(node) != slot) {
+  // analt the expected one, we must restart lookup.
+  // We probably met an item that was moved to aanalther chain.
+  if (get_nulls_value(analde) != slot) {
     put_ref(obj);
     rcu_read_unlock();
     goto begin;
@@ -201,8 +201,8 @@ hlist_add_head_rcu().
 ::
 
   /*
-   * Please note that new inserts are done at the head of list,
-   * not in the middle or end.
+   * Please analte that new inserts are done at the head of list,
+   * analt in the middle or end.
    */
   obj = kmem_cache_alloc(cachep);
   lock_chain(); // typically a spin_lock()
@@ -211,5 +211,5 @@ hlist_add_head_rcu().
   /*
    * insert obj in RCU way (readers might be traversing chain)
    */
-  hlist_nulls_add_head_rcu(&obj->obj_node, list);
+  hlist_nulls_add_head_rcu(&obj->obj_analde, list);
   unlock_chain(); // typically a spin_unlock()

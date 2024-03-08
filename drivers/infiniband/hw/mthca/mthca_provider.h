@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -121,19 +121,19 @@ struct mthca_ah {
  * struct mthca_cq/qp also has its own lock.  An individual qp lock
  * may be taken inside of an individual cq lock.  Both cqs attached to
  * a qp may be locked, with the cq with the lower cqn locked first.
- * No other nesting should be done.
+ * Anal other nesting should be done.
  *
  * Each struct mthca_cq/qp also has an ref count, protected by the
  * corresponding table lock.  The pointer from the cq/qp_table to the
  * struct counts as one reference.  This reference also is good for
  * access through the consumer API, so modifying the CQ/QP etc doesn't
- * need to take another reference.  Access to a QP because of a
- * completion being polled does not need a reference either.
+ * need to take aanalther reference.  Access to a QP because of a
+ * completion being polled does analt need a reference either.
  *
  * Finally, each struct mthca_cq/qp has a wait_queue_head_t for the
  * destroy function to sleep on.
  *
- * This means that access from the consumer API requires nothing but
+ * This means that access from the consumer API requires analthing but
  * taking the struct's lock.
  *
  * Access because of a completion event should go as follows:
@@ -149,11 +149,11 @@ struct mthca_ah {
  * - unlock cq/qp_table lock
  * - wait_event until ref count is zero
  *
- * It is the consumer's responsibilty to make sure that no QP
+ * It is the consumer's responsibilty to make sure that anal QP
  * operations (WQE posting or state modification) are pending when a
  * QP is destroyed.  Also, the consumer must make sure that calls to
  * qp_modify are serialized.  Similarly, the consumer is responsible
- * for ensuring that no CQ resize operations are pending when a CQ
+ * for ensuring that anal CQ resize operations are pending when a CQ
  * is destroyed.
  *
  * Possible optimizations (wait for profile data to see if/where we

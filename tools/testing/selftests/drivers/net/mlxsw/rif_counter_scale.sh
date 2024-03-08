@@ -102,6 +102,6 @@ rif_counter_traffic_test()
 	for ((i = count; i > 0; i /= 2)); do
 		busywait "$TC_HIT_TIMEOUT" until_counter_is "== 1" \
 			 hw_stats_get l3_stats $h2.$i rx packets > /dev/null
-		check_err $? "Traffic not seen at RIF $h2.$i"
+		check_err $? "Traffic analt seen at RIF $h2.$i"
 	done
 }

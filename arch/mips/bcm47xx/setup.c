@@ -11,18 +11,18 @@
  *  option) any later version.
  *
  *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
+ *  WARRANTIES,   INCLUDING, BUT ANALT  LIMITED  TO, THE IMPLIED WARRANTIES OF
  *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
+ *  ANAL  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
  *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
+ *  ANALT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
  *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
  *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
  *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if analt, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -142,7 +142,7 @@ static void __init bcm47xx_register_bcma(void)
 /*
  * Memory setup is done in the early part of MIPS's arch_mem_init. It's supposed
  * to detect memory and record it with memblock_add.
- * Any extra initializaion performed here must not use kmalloc or bootmem.
+ * Any extra initializaion performed here must analt use kmalloc or bootmem.
  */
 void __init plat_mem_setup(void)
 {
@@ -199,8 +199,8 @@ static struct device * __init bcm47xx_setup_device(void)
 #endif
 
 /*
- * This finishes bus initialization doing things that were not possible without
- * kmalloc. Make sure to call it late enough (after mm_init).
+ * This finishes bus initialization doing things that were analt possible without
+ * kmalloc. Make sure to call it late eanalugh (after mm_init).
  */
 void __init bcm47xx_bus_setup(void)
 {
@@ -228,16 +228,16 @@ static int __init bcm47xx_cpu_fixes(void)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:
 		/* The BCM4706 has a problem with the CPU wait instruction.
 		 * When r4k_wait or r4k_wait_irqoff is used will just hang and
-		 * not return from a msleep(). Removing the cpu_wait
+		 * analt return from a msleep(). Removing the cpu_wait
 		 * functionality is a workaround for this problem. The BCM4716
-		 * does not have this problem.
+		 * does analt have this problem.
 		 */
 		if (bcm47xx_bus.bcma.bus.chipinfo.id == BCMA_CHIP_ID_BCM4706)
 			cpu_wait = NULL;
@@ -259,7 +259,7 @@ static int __init bcm47xx_register_bus_complete(void)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA

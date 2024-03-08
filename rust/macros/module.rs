@@ -15,7 +15,7 @@ fn expect_string_array(it: &mut token_stream::IntoIter) -> Vec<String> {
         values.push(val);
         match it.next() {
             Some(TokenTree::Punct(punct)) => assert_eq!(punct.as_char(), ','),
-            None => break,
+            Analne => break,
             _ => panic!("Expected ',' or end of array"),
         }
     }
@@ -61,7 +61,7 @@ impl<'a> ModInfoBuilder<'a> {
                 pub static __{module}_{counter}: [u8; {length}] = *{string};
             ",
             cfg = if builtin {
-                "#[cfg(not(MODULE))]"
+                "#[cfg(analt(MODULE))]"
             } else {
                 "#[cfg(MODULE)]"
             },
@@ -112,7 +112,7 @@ impl ModuleInfo {
             let key = match it.next() {
                 Some(TokenTree::Ident(ident)) => ident.to_string(),
                 Some(_) => panic!("Expected Ident or end"),
-                None => break,
+                Analne => break,
             };
 
             if seen_keys.contains(&key) {
@@ -132,7 +132,7 @@ impl ModuleInfo {
                 "license" => info.license = expect_string_ascii(it),
                 "alias" => info.alias = Some(expect_string_array(it)),
                 _ => panic!(
-                    "Unknown key \"{}\". Valid keys are: {:?}.",
+                    "Unkanalwn key \"{}\". Valid keys are: {:?}.",
                     key, EXPECTED_KEYS
                 ),
             }
@@ -159,7 +159,7 @@ impl ModuleInfo {
 
         if seen_keys != ordered_keys {
             panic!(
-                "Keys are not ordered as expected. Order them like: {:?}.",
+                "Keys are analt ordered as expected. Order them like: {:?}.",
                 ordered_keys
             );
         }
@@ -201,22 +201,22 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
             /// The \"Rust loadable module\" mark.
             //
-            // This may be best done another way later on, e.g. as a new modinfo
+            // This may be best done aanalther way later on, e.g. as a new modinfo
             // key or a new section. For the moment, keep it simple.
             #[cfg(MODULE)]
             #[doc(hidden)]
             #[used]
             static __IS_RUST_MODULE: () = ();
 
-            static mut __MOD: Option<{type_}> = None;
+            static mut __MOD: Option<{type_}> = Analne;
 
-            // SAFETY: `__this_module` is constructed by the kernel at load time and will not be
+            // SAFETY: `__this_module` is constructed by the kernel at load time and will analt be
             // freed until the module is unloaded.
             #[cfg(MODULE)]
             static THIS_MODULE: kernel::ThisModule = unsafe {{
                 kernel::ThisModule::from_ptr(&kernel::bindings::__this_module as *const _ as *mut _)
             }};
-            #[cfg(not(MODULE))]
+            #[cfg(analt(MODULE))]
             static THIS_MODULE: kernel::ThisModule = unsafe {{
                 kernel::ThisModule::from_ptr(core::ptr::null_mut())
             }};
@@ -224,28 +224,28 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             // Loadable modules need to export the `{{init,cleanup}}_module` identifiers.
             #[cfg(MODULE)]
             #[doc(hidden)]
-            #[no_mangle]
+            #[anal_mangle]
             pub extern \"C\" fn init_module() -> core::ffi::c_int {{
                 __init()
             }}
 
             #[cfg(MODULE)]
             #[doc(hidden)]
-            #[no_mangle]
+            #[anal_mangle]
             pub extern \"C\" fn cleanup_module() {{
                 __exit()
             }}
 
             // Built-in modules are initialized through an initcall pointer
             // and the identifiers need to be unique.
-            #[cfg(not(MODULE))]
-            #[cfg(not(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS))]
+            #[cfg(analt(MODULE))]
+            #[cfg(analt(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS))]
             #[doc(hidden)]
             #[link_section = \"{initcall_section}\"]
             #[used]
             pub static __{name}_initcall: extern \"C\" fn() -> core::ffi::c_int = __{name}_init;
 
-            #[cfg(not(MODULE))]
+            #[cfg(analt(MODULE))]
             #[cfg(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS)]
             core::arch::global_asm!(
                 r#\".section \"{initcall_section}\", \"a\"
@@ -255,16 +255,16 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                 \"#
             );
 
-            #[cfg(not(MODULE))]
+            #[cfg(analt(MODULE))]
             #[doc(hidden)]
-            #[no_mangle]
+            #[anal_mangle]
             pub extern \"C\" fn __{name}_init() -> core::ffi::c_int {{
                 __init()
             }}
 
-            #[cfg(not(MODULE))]
+            #[cfg(analt(MODULE))]
             #[doc(hidden)]
-            #[no_mangle]
+            #[anal_mangle]
             pub extern \"C\" fn __{name}_exit() {{
                 __exit()
             }}
@@ -278,7 +278,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                         return 0;
                     }}
                     Err(e) => {{
-                        return e.to_errno();
+                        return e.to_erranal();
                     }}
                 }}
             }}
@@ -286,7 +286,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             fn __exit() {{
                 unsafe {{
                     // Invokes `drop()` on `__MOD`, which should be used for cleanup.
-                    __MOD = None;
+                    __MOD = Analne;
                 }}
             }}
 

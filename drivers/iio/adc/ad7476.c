@@ -46,7 +46,7 @@ struct ad7476_state {
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * Make the buffer large enough for one 16 bit sample and one 64 bit
+	 * Make the buffer large eanalugh for one 16 bit sample and one 64 bit
 	 * aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(2, sizeof(s64)) + sizeof(s64)] __aligned(IIO_DMA_MINALIGN);
@@ -102,7 +102,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 		iio_get_time_ns(indio_dev));
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -309,7 +309,7 @@ static int ad7476_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	st->chip_info =
@@ -336,7 +336,7 @@ static int ad7476_probe(struct spi_device *spi)
 		/* If a device has an internal reference vref is optional */
 		if (st->chip_info->int_vref_uv) {
 			reg = devm_regulator_get_optional(&spi->dev, "vref");
-			if (IS_ERR(reg) && (PTR_ERR(reg) != -ENODEV))
+			if (IS_ERR(reg) && (PTR_ERR(reg) != -EANALDEV))
 				return PTR_ERR(reg);
 		} else {
 			reg = devm_regulator_get(&spi->dev, "vref");
@@ -359,7 +359,7 @@ static int ad7476_probe(struct spi_device *spi)
 			/*
 			 * Can only get here if device supports both internal
 			 * and external reference, but the regulator connected
-			 * to the external reference is not connected.
+			 * to the external reference is analt connected.
 			 * Set the reference regulator pointer to NULL to
 			 * indicate this.
 			 */

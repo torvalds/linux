@@ -12,16 +12,16 @@
  *
  * This chip is a bit nasty because it is a write-only device. Thus, the driver
  * uses shadow registers to keep track of its values. The main problem appears
- * to be the initialization: When Linux boots up, we cannot know if the chip is
- * in the default state or not, so we would have to pass such information in
+ * to be the initialization: When Linux boots up, we cananalt kanalw if the chip is
+ * in the default state or analt, so we would have to pass such information in
  * platform_data. As this adds a bit of complexity to the driver, this is left
- * out for now until it is really needed.
+ * out for analw until it is really needed.
  *
- * [A|S|M]DTV1 registers are currently not used, but [A|S|M]DTV2.
+ * [A|S|M]DTV1 registers are currently analt used, but [A|S|M]DTV2.
  *
  * If the driver is feature complete, it might be worth to check if one set of
  * functions for V3-V7 is sufficient. For maximum flexibility during
- * development, they are separated for now.
+ * development, they are separated for analw.
  */
 
 #include <linux/module.h>
@@ -62,7 +62,7 @@ enum {
 	MAX8660_MDTV2,
 	MAX8660_L12VCR,
 	MAX8660_FPWM,
-	MAX8660_N_REGS,	/* not a real register */
+	MAX8660_N_REGS,	/* analt a real register */
 };
 
 struct max8660 {
@@ -316,17 +316,17 @@ static const struct of_device_id max8660_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, max8660_dt_ids);
 
 static int max8660_pdata_from_dt(struct device *dev,
-				 struct device_node **of_node,
+				 struct device_analde **of_analde,
 				 struct max8660_platform_data *pdata)
 {
 	int matched, i;
-	struct device_node *np;
+	struct device_analde *np;
 	struct max8660_subdev_data *sub;
 	struct of_regulator_match rmatch[ARRAY_SIZE(max8660_reg)] = { };
 
-	np = of_get_child_by_name(dev->of_node, "regulators");
+	np = of_get_child_by_name(dev->of_analde, "regulators");
 	if (!np) {
-		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		dev_err(dev, "missing 'regulators' subanalde in DT\n");
 		return -EINVAL;
 	}
 
@@ -334,7 +334,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 		rmatch[i].name = max8660_reg[i].name;
 
 	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(rmatch));
-	of_node_put(np);
+	of_analde_put(np);
 	if (matched <= 0)
 		return matched;
 
@@ -343,7 +343,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 				      sizeof(struct max8660_subdev_data),
 				      GFP_KERNEL);
 	if (!pdata->subdevs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->num_subdevs = matched;
 	sub = pdata->subdevs;
@@ -352,7 +352,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 		sub->id = i;
 		sub->name = rmatch[i].name;
 		sub->platform_data = rmatch[i].init_data;
-		of_node[i] = rmatch[i].of_node;
+		of_analde[i] = rmatch[i].of_analde;
 		sub++;
 	}
 
@@ -360,7 +360,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 }
 #else
 static inline int max8660_pdata_from_dt(struct device *dev,
-					struct device_node **of_node,
+					struct device_analde **of_analde,
 					struct max8660_platform_data *pdata)
 {
 	return 0;
@@ -375,17 +375,17 @@ static int max8660_probe(struct i2c_client *client)
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
-	struct device_node *of_node[MAX8660_V_END];
+	struct device_analde *of_analde[MAX8660_V_END];
 	unsigned long type;
 
-	if (dev->of_node && !pdata) {
+	if (dev->of_analde && !pdata) {
 		const struct of_device_id *id;
 
 		id = of_match_device(of_match_ptr(max8660_dt_ids), dev);
 		if (!id)
-			return -ENODEV;
+			return -EANALDEV;
 
-		ret = max8660_pdata_from_dt(dev, of_node, &pdata_of);
+		ret = max8660_pdata_from_dt(dev, of_analde, &pdata_of);
 		if (ret < 0)
 			return ret;
 
@@ -393,7 +393,7 @@ static int max8660_probe(struct i2c_client *client)
 		type = (unsigned long) id->data;
 	} else {
 		type = i2c_id->driver_data;
-		memset(of_node, 0, sizeof(of_node));
+		memset(of_analde, 0, sizeof(of_analde));
 	}
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
@@ -403,7 +403,7 @@ static int max8660_probe(struct i2c_client *client)
 
 	max8660 = devm_kzalloc(dev, sizeof(struct max8660), GFP_KERNEL);
 	if (!max8660)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max8660->client = client;
 
@@ -456,7 +456,7 @@ static int max8660_probe(struct i2c_client *client)
 
 		case MAX8660_V7:
 			if (type == MAX8661) {
-				dev_err(dev, "Regulator not on this chip!\n");
+				dev_err(dev, "Regulator analt on this chip!\n");
 				return -EINVAL;
 			}
 
@@ -479,7 +479,7 @@ static int max8660_probe(struct i2c_client *client)
 
 		config.dev = dev;
 		config.init_data = pdata->subdevs[i].platform_data;
-		config.of_node = of_node[i];
+		config.of_analde = of_analde[i];
 		config.driver_data = max8660;
 
 		rdev = devm_regulator_register(&client->dev,
@@ -506,7 +506,7 @@ static struct i2c_driver max8660_driver = {
 	.probe = max8660_probe,
 	.driver		= {
 		.name	= "max8660",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table	= max8660_id,
 };

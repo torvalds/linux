@@ -23,7 +23,7 @@
 #define W1_FAMILY_DS28E04	0x1C
 
 /* Allow the strong pullup to be disabled, but default to enabled.
- * If it was disabled a parasite powered device might not get the required
+ * If it was disabled a parasite powered device might analt get the required
  * current to copy the data from the scratchpad to EEPROM.  If it is enabled
  * parasite powered devices have a better chance of getting the current
  * required.
@@ -55,7 +55,7 @@ struct w1_f1C_data {
 
 /*
  * Check the file size bounds and adjusts count as needed.
- * This would not be needed if the file size didn't reset to 0 after a write.
+ * This would analt be needed if the file size didn't reset to 0 after a write.
  */
 static inline size_t w1_f1C_fix_count(loff_t off, size_t count, size_t size)
 {
@@ -216,7 +216,7 @@ static int w1_f1C_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 		f1C->validcrc &= ~(1 << (addr >> W1_PAGE_BITS));
 	}
 
-	/* Reset the bus to wake up the EEPROM (this may not be needed) */
+	/* Reset the bus to wake up the EEPROM (this may analt be needed) */
 	w1_reset_bus(sl->master);
 
 	return 0;
@@ -330,7 +330,7 @@ static ssize_t pio_write(struct file *filp, struct kobject *kobj,
 
 	mutex_unlock(&sl->master->mutex);
 
-	/* check for acknowledgement */
+	/* check for ackanalwledgement */
 	if (ack != 0xAA)
 		return -EIO;
 
@@ -386,7 +386,7 @@ static int w1_f1C_add_slave(struct w1_slave *sl)
 	if (w1_enable_crccheck) {
 		data = kzalloc(sizeof(struct w1_f1C_data), GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			return -EANALMEM;
 		sl->family_data = data;
 	}
 

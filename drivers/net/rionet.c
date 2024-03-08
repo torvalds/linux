@@ -63,7 +63,7 @@ struct rionet_private {
 };
 
 struct rionet_peer {
-	struct list_head node;
+	struct list_head analde;
 	struct rio_dev *rdev;
 	struct resource *res;
 };
@@ -238,7 +238,7 @@ static void rionet_dbell_event(struct rio_mport *mport, void *dev_id, u16 sid, u
 	if (info == RIONET_DOORBELL_JOIN) {
 		if (!nets[netid].active[sid]) {
 			spin_lock(&nets[netid].lock);
-			list_for_each_entry(peer, &nets[netid].peers, node) {
+			list_for_each_entry(peer, &nets[netid].peers, analde) {
 				if (peer->rdev->destid == sid) {
 					nets[netid].active[sid] = peer->rdev;
 					nets[netid].nact++;
@@ -352,7 +352,7 @@ static int rionet_open(struct net_device *ndev)
 	netif_start_queue(ndev);
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, analde) {
 		/* Send a join message */
 		rio_send_doorbell(peer->rdev, RIONET_DOORBELL_JOIN);
 	}
@@ -382,7 +382,7 @@ static int rionet_close(struct net_device *ndev)
 		kfree_skb(rnet->rx_skb[i]);
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, analde) {
 		if (nets[netid].active[peer->rdev->destid]) {
 			rio_send_doorbell(peer->rdev, RIONET_DOORBELL_LEAVE);
 			nets[netid].active[peer->rdev->destid] = NULL;
@@ -412,9 +412,9 @@ static void rionet_remove_dev(struct device *dev, struct subsys_interface *sif)
 		return;
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, analde) {
 		if (peer->rdev == rdev) {
-			list_del(&peer->node);
+			list_del(&peer->analde);
 			if (nets[netid].active[rdev->destid]) {
 				state = atomic_read(&rdev->state);
 				if (state != RIO_DEVICE_GONE &&
@@ -490,7 +490,7 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 	nets[mport->id].active = (struct rio_dev **)__get_free_pages(GFP_KERNEL,
 						get_order(rionet_active_bytes));
 	if (!nets[mport->id].active) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	memset((void *)nets[mport->id].active, 0, rionet_active_bytes);
@@ -545,7 +545,7 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 
 static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 	u32 lsrc_ops, ldst_ops;
 	struct rionet_peer *peer;
 	struct net_device *ndev = NULL;
@@ -567,7 +567,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 					 &ldst_ops);
 		if (!is_rionet_capable(lsrc_ops, ldst_ops)) {
 			printk(KERN_ERR
-			       "%s: local device %s is not network capable\n",
+			       "%s: local device %s is analt network capable\n",
 			       DRV_NAME, rdev->net->hport->name);
 			goto out;
 		}
@@ -575,7 +575,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 		/* Allocate our net_device structure */
 		ndev = alloc_etherdev(sizeof(struct rionet_private));
 		if (ndev == NULL) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
@@ -605,7 +605,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 
 		peer = kzalloc(sizeof(*peer), GFP_KERNEL);
 		if (!peer) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 		peer->rdev = rdev;
@@ -615,12 +615,12 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 		if (!peer->res) {
 			pr_err("%s: error requesting doorbells\n", DRV_NAME);
 			kfree(peer);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out;
 		}
 
 		spin_lock_irqsave(&nets[netid].lock, flags);
-		list_add_tail(&peer->node, &nets[netid].peers);
+		list_add_tail(&peer->analde, &nets[netid].peers);
 		spin_unlock_irqrestore(&nets[netid].lock, flags);
 		pr_debug("%s: %s add peer %s\n",
 			 DRV_NAME, __func__, rio_name(rdev));
@@ -635,7 +635,7 @@ out:
 	return rc;
 }
 
-static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
+static int rionet_shutdown(struct analtifier_block *nb, unsigned long code,
 			   void *unused)
 {
 	struct rionet_peer *peer;
@@ -649,7 +649,7 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 			continue;
 
 		spin_lock_irqsave(&nets[i].lock, flags);
-		list_for_each_entry(peer, &nets[i].peers, node) {
+		list_for_each_entry(peer, &nets[i].peers, analde) {
 			if (nets[i].active[peer->rdev->destid]) {
 				rio_send_doorbell(peer->rdev,
 						  RIONET_DOORBELL_LEAVE);
@@ -659,7 +659,7 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 		spin_unlock_irqrestore(&nets[i].lock, flags);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static void rionet_remove_mport(struct device *dev)
@@ -705,8 +705,8 @@ static struct subsys_interface rionet_interface = {
 	.remove_dev	= rionet_remove_dev,
 };
 
-static struct notifier_block rionet_notifier = {
-	.notifier_call = rionet_shutdown,
+static struct analtifier_block rionet_analtifier = {
+	.analtifier_call = rionet_shutdown,
 };
 
 /* the rio_mport_interface is used to handle local mport devices */
@@ -720,9 +720,9 @@ static int __init rionet_init(void)
 {
 	int ret;
 
-	ret = register_reboot_notifier(&rionet_notifier);
+	ret = register_reboot_analtifier(&rionet_analtifier);
 	if (ret) {
-		pr_err("%s: failed to register reboot notifier (err=%d)\n",
+		pr_err("%s: failed to register reboot analtifier (err=%d)\n",
 		       DRV_NAME, ret);
 		return ret;
 	}
@@ -739,7 +739,7 @@ static int __init rionet_init(void)
 
 static void __exit rionet_exit(void)
 {
-	unregister_reboot_notifier(&rionet_notifier);
+	unregister_reboot_analtifier(&rionet_analtifier);
 	subsys_interface_unregister(&rionet_interface);
 	class_interface_unregister(&rio_mport_interface);
 }

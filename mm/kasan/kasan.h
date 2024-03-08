@@ -118,8 +118,8 @@ static inline bool kasan_requires_meta(void)
 #else /* CONFIG_KASAN_GENERIC */
 
 /*
- * Tag-based KASAN modes do not use per-object metadata: they use the stack
- * ring to store alloc and free stack traces and do not use qurantine.
+ * Tag-based KASAN modes do analt use per-object metadata: they use the stack
+ * ring to store alloc and free stack traces and do analt use qurantine.
  */
 static inline bool kasan_requires_meta(void)
 {
@@ -158,7 +158,7 @@ static inline bool kasan_requires_meta(void)
 #define KASAN_SLAB_FREE_META	0xFA  /* freed slab object with free meta */
 #define KASAN_GLOBAL_REDZONE	0xF9  /* redzone for global variable */
 
-/* Stack redzone shadow values. Compiler ABI, do not change. */
+/* Stack redzone shadow values. Compiler ABI, do analt change. */
 #define KASAN_STACK_LEFT	0xF1
 #define KASAN_STACK_MID		0xF2
 #define KASAN_STACK_RIGHT	0xF3
@@ -168,10 +168,10 @@ static inline bool kasan_requires_meta(void)
 #define KASAN_ALLOCA_LEFT	0xCA
 #define KASAN_ALLOCA_RIGHT	0xCB
 
-/* alloca redzone size. Compiler ABI, do not change. */
+/* alloca redzone size. Compiler ABI, do analt change. */
 #define KASAN_ALLOCA_REDZONE_SIZE	32
 
-/* Stack frame marker. Compiler ABI, do not change. */
+/* Stack frame marker. Compiler ABI, do analt change. */
 #define KASAN_CURRENT_STACK_FRAME_MAGIC 0x41B58AB3
 
 /* Dummy value to avoid breaking randconfig/all*config builds. */
@@ -225,14 +225,14 @@ struct kasan_report_info {
 	struct kasan_track free_track;
 };
 
-/* Do not change the struct layout: compiler ABI. */
+/* Do analt change the struct layout: compiler ABI. */
 struct kasan_source_location {
 	const char *filename;
-	int line_no;
-	int column_no;
+	int line_anal;
+	int column_anal;
 };
 
-/* Do not change the struct layout: compiler ABI. */
+/* Do analt change the struct layout: compiler ABI. */
 struct kasan_global {
 	const void *beg;		/* Address of the beginning of the global variable. */
 	size_t size;			/* Size of the global variable. */
@@ -256,10 +256,10 @@ struct kasan_global {
  * Alloc meta contains the allocation-related information about a slab object.
  * Alloc meta is saved when an object is allocated and is kept until either the
  * object returns to the slab freelist (leaves quarantine for quarantined
- * objects or gets freed for the non-quarantined ones) or reallocated via
+ * objects or gets freed for the analn-quarantined ones) or reallocated via
  * krealloc or through a mempool.
  * Alloc meta is stored inside of the object's redzone.
- * Alloc meta is considered valid whenever it contains non-zero data.
+ * Alloc meta is considered valid whenever it contains analn-zero data.
  */
 struct kasan_alloc_meta {
 	struct kasan_track alloc_track;
@@ -267,16 +267,16 @@ struct kasan_alloc_meta {
 	depot_stack_handle_t aux_stack[2];
 };
 
-struct qlist_node {
-	struct qlist_node *next;
+struct qlist_analde {
+	struct qlist_analde *next;
 };
 
 /*
  * Free meta is stored either in the object itself or in the redzone after the
  * object. In the former case, free meta offset is 0. In the latter case, the
- * offset is between 0 and INT_MAX. INT_MAX marks that free meta is not present.
+ * offset is between 0 and INT_MAX. INT_MAX marks that free meta is analt present.
  */
-#define KASAN_NO_FREE_META INT_MAX
+#define KASAN_ANAL_FREE_META INT_MAX
 
 /*
  * Free meta contains the freeing-related information about a slab object.
@@ -287,7 +287,7 @@ struct qlist_node {
  * corresponds to the first 8 bytes of the object is KASAN_SLAB_FREE_META.
  */
 struct kasan_free_meta {
-	struct qlist_node quarantine_link;
+	struct qlist_analde quarantine_link;
 	struct kasan_track free_track;
 };
 
@@ -576,7 +576,7 @@ void kasan_restore_multi_shot(bool enabled);
 
 void __asan_register_globals(void *globals, ssize_t size);
 void __asan_unregister_globals(void *globals, ssize_t size);
-void __asan_handle_no_return(void);
+void __asan_handle_anal_return(void);
 void __asan_alloca_poison(void *, ssize_t size);
 void __asan_allocas_unpoison(void *stack_top, ssize_t stack_bottom);
 
@@ -593,31 +593,31 @@ void __asan_store16(void *);
 void __asan_loadN(void *, ssize_t size);
 void __asan_storeN(void *, ssize_t size);
 
-void __asan_load1_noabort(void *);
-void __asan_store1_noabort(void *);
-void __asan_load2_noabort(void *);
-void __asan_store2_noabort(void *);
-void __asan_load4_noabort(void *);
-void __asan_store4_noabort(void *);
-void __asan_load8_noabort(void *);
-void __asan_store8_noabort(void *);
-void __asan_load16_noabort(void *);
-void __asan_store16_noabort(void *);
-void __asan_loadN_noabort(void *, ssize_t size);
-void __asan_storeN_noabort(void *, ssize_t size);
+void __asan_load1_analabort(void *);
+void __asan_store1_analabort(void *);
+void __asan_load2_analabort(void *);
+void __asan_store2_analabort(void *);
+void __asan_load4_analabort(void *);
+void __asan_store4_analabort(void *);
+void __asan_load8_analabort(void *);
+void __asan_store8_analabort(void *);
+void __asan_load16_analabort(void *);
+void __asan_store16_analabort(void *);
+void __asan_loadN_analabort(void *, ssize_t size);
+void __asan_storeN_analabort(void *, ssize_t size);
 
-void __asan_report_load1_noabort(void *);
-void __asan_report_store1_noabort(void *);
-void __asan_report_load2_noabort(void *);
-void __asan_report_store2_noabort(void *);
-void __asan_report_load4_noabort(void *);
-void __asan_report_store4_noabort(void *);
-void __asan_report_load8_noabort(void *);
-void __asan_report_store8_noabort(void *);
-void __asan_report_load16_noabort(void *);
-void __asan_report_store16_noabort(void *);
-void __asan_report_load_n_noabort(void *, ssize_t size);
-void __asan_report_store_n_noabort(void *, ssize_t size);
+void __asan_report_load1_analabort(void *);
+void __asan_report_store1_analabort(void *);
+void __asan_report_load2_analabort(void *);
+void __asan_report_store2_analabort(void *);
+void __asan_report_load4_analabort(void *);
+void __asan_report_store4_analabort(void *);
+void __asan_report_load8_analabort(void *);
+void __asan_report_store8_analabort(void *);
+void __asan_report_load16_analabort(void *);
+void __asan_report_store16_analabort(void *);
+void __asan_report_load_n_analabort(void *, ssize_t size);
+void __asan_report_store_n_analabort(void *, ssize_t size);
 
 void __asan_set_shadow_00(const void *addr, ssize_t size);
 void __asan_set_shadow_f1(const void *addr, ssize_t size);
@@ -630,18 +630,18 @@ void *__asan_memset(void *addr, int c, ssize_t len);
 void *__asan_memmove(void *dest, const void *src, ssize_t len);
 void *__asan_memcpy(void *dest, const void *src, ssize_t len);
 
-void __hwasan_load1_noabort(void *);
-void __hwasan_store1_noabort(void *);
-void __hwasan_load2_noabort(void *);
-void __hwasan_store2_noabort(void *);
-void __hwasan_load4_noabort(void *);
-void __hwasan_store4_noabort(void *);
-void __hwasan_load8_noabort(void *);
-void __hwasan_store8_noabort(void *);
-void __hwasan_load16_noabort(void *);
-void __hwasan_store16_noabort(void *);
-void __hwasan_loadN_noabort(void *, ssize_t size);
-void __hwasan_storeN_noabort(void *, ssize_t size);
+void __hwasan_load1_analabort(void *);
+void __hwasan_store1_analabort(void *);
+void __hwasan_load2_analabort(void *);
+void __hwasan_store2_analabort(void *);
+void __hwasan_load4_analabort(void *);
+void __hwasan_store4_analabort(void *);
+void __hwasan_load8_analabort(void *);
+void __hwasan_store8_analabort(void *);
+void __hwasan_load16_analabort(void *);
+void __hwasan_store16_analabort(void *);
+void __hwasan_loadN_analabort(void *, ssize_t size);
+void __hwasan_storeN_analabort(void *, ssize_t size);
 
 void __hwasan_tag_memory(void *, u8 tag, ssize_t size);
 

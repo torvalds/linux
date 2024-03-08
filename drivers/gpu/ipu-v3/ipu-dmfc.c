@@ -5,7 +5,7 @@
  */
 #include <linux/export.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 
 #include <video/imx-ipu-v3.h>
@@ -160,7 +160,7 @@ struct dmfc_channel *ipu_dmfc_get(struct ipu_soc *ipu, int ipu_channel)
 	for (i = 0; i < DMFC_NUM_CHANNELS; i++)
 		if (dmfcdata[i].ipu_channel == ipu_channel)
 			return &priv->channels[i];
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_get);
 
@@ -177,11 +177,11 @@ int ipu_dmfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base,
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_ioremap(dev, base, PAGE_SIZE);
 	if (!priv->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->ipu = ipu;

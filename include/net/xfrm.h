@@ -92,11 +92,11 @@
    Template contains:
    1. ->mode		Mode: transport or tunnel
    2. ->id.proto	Protocol: AH/ESP/IPCOMP
-   3. ->id.daddr	Remote tunnel endpoint, ignored for transport mode.
+   3. ->id.daddr	Remote tunnel endpoint, iganalred for transport mode.
       Q: allow to resolve security gateway?
-   4. ->id.spi          If not zero, static SPI.
-   5. ->saddr		Local tunnel endpoint, ignored for transport mode.
-   6. ->algos		List of allowed algos. Plain bitmask now.
+   4. ->id.spi          If analt zero, static SPI.
+   5. ->saddr		Local tunnel endpoint, iganalred for transport mode.
+   6. ->algos		List of allowed algos. Plain bitmask analw.
       Q: ealgos, aalgos, calgos. What a mess...
    7. ->share		Sharing mode.
       Q: how to implement private sharing mode? To add struct sock* to
@@ -104,13 +104,13 @@
 
    Having this template we search through SAD searching for entries
    with appropriate mode/proto/algo, permitted by selector.
-   If no appropriate entry found, it is requested from key manager.
+   If anal appropriate entry found, it is requested from key manager.
 
    PROBLEMS:
    Q: How to find all the bundles referring to a physical path for
       PMTU discovery? Seems, dst should contain list of all parents...
       and enter to infinite locking hierarchy disaster.
-      No! It is easier, we will not search for them, let them find us.
+      Anal! It is easier, we will analt search for them, let them find us.
       We add genid to each dst plus pointer to genid of raw IP route,
       pmtu disc will update pmtu on raw IP route and increase its genid.
       dst_check() will see this for top level and trigger resyncing
@@ -173,12 +173,12 @@ enum xfrm_replay_mode {
 struct xfrm_state {
 	possible_net_t		xs_net;
 	union {
-		struct hlist_node	gclist;
-		struct hlist_node	bydst;
+		struct hlist_analde	gclist;
+		struct hlist_analde	bydst;
 	};
-	struct hlist_node	bysrc;
-	struct hlist_node	byspi;
-	struct hlist_node	byseq;
+	struct hlist_analde	bysrc;
+	struct hlist_analde	byspi;
+	struct hlist_analde	byseq;
 
 	refcount_t		refcnt;
 	spinlock_t		lock;
@@ -240,7 +240,7 @@ struct xfrm_state {
 	struct xfrm_replay_state replay;
 	struct xfrm_replay_state_esn *replay_esn;
 
-	/* Replay detection state at the time we sent the last notification */
+	/* Replay detection state at the time we sent the last analtification */
 	struct xfrm_replay_state preplay;
 	struct xfrm_replay_state_esn *preplay_esn;
 
@@ -251,11 +251,11 @@ struct xfrm_state {
 	*/
 	u32			xflags;
 
-	/* Replay detection notification settings */
+	/* Replay detection analtification settings */
 	u32			replay_maxage;
 	u32			replay_maxdiff;
 
-	/* Replay detection notification timer */
+	/* Replay detection analtification timer */
 	struct timer_list	rtimer;
 
 	/* Statistics */
@@ -361,9 +361,9 @@ struct xfrm_policy_afinfo {
 
 int xfrm_policy_register_afinfo(const struct xfrm_policy_afinfo *afinfo, int family);
 void xfrm_policy_unregister_afinfo(const struct xfrm_policy_afinfo *afinfo);
-void km_policy_notify(struct xfrm_policy *xp, int dir,
+void km_policy_analtify(struct xfrm_policy *xp, int dir,
 		      const struct km_event *c);
-void km_state_notify(struct xfrm_state *x, const struct km_event *c);
+void km_state_analtify(struct xfrm_state *x, const struct km_event *c);
 
 struct xfrm_tmpl;
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t,
@@ -413,7 +413,7 @@ struct xfrm_type {
 	struct module		*owner;
 	u8			proto;
 	u8			flags;
-#define XFRM_TYPE_NON_FRAGMENT	1
+#define XFRM_TYPE_ANALN_FRAGMENT	1
 #define XFRM_TYPE_REPLAY_PROT	2
 #define XFRM_TYPE_LOCAL_COADDR	4
 #define XFRM_TYPE_REMOTE_COADDR	8
@@ -465,13 +465,13 @@ static inline const struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, i
 struct xfrm_tmpl {
 /* id in template is interpreted as:
  * daddr - destination of tunnel, may be zero for transport mode.
- * spi   - zero to acquire spi. Not zero if spi is static, then
+ * spi   - zero to acquire spi. Analt zero if spi is static, then
  *	   daddr must be fixed too.
  * proto - AH/ESP/IPCOMP
  */
 	struct xfrm_id		id;
 
-/* Source address of tunnel. Ignored, if it is not a tunnel. */
+/* Source address of tunnel. Iganalred, if it is analt a tunnel. */
 	xfrm_address_t		saddr;
 
 	unsigned short		encap_family;
@@ -484,7 +484,7 @@ struct xfrm_tmpl {
 /* Sharing mode: unique, this session only, this user only etc. */
 	u8			share;
 
-/* May skip this transfomration if no SA is found */
+/* May skip this transfomration if anal SA is found */
 	u8			optional;
 
 /* Skip aalgos/ealgos/calgos checks. */
@@ -518,8 +518,8 @@ struct xfrm_policy_queue {
 
 struct xfrm_policy {
 	possible_net_t		xp_net;
-	struct hlist_node	bydst;
-	struct hlist_node	byidx;
+	struct hlist_analde	bydst;
+	struct hlist_analde	byidx;
 
 	/* This lock only affects elements except for entry. */
 	rwlock_t		lock;
@@ -545,7 +545,7 @@ struct xfrm_policy {
 	u16			family;
 	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
-	struct hlist_node	bydst_inexact_list;
+	struct hlist_analde	bydst_inexact_list;
 	struct rcu_head		rcu;
 
 	struct xfrm_dev_offload xdo;
@@ -590,11 +590,11 @@ struct xfrm_migrate {
 
 struct xfrm_mgr {
 	struct list_head	list;
-	int			(*notify)(struct xfrm_state *x, const struct km_event *c);
+	int			(*analtify)(struct xfrm_state *x, const struct km_event *c);
 	int			(*acquire)(struct xfrm_state *x, struct xfrm_tmpl *, struct xfrm_policy *xp);
 	struct xfrm_policy	*(*compile_policy)(struct sock *sk, int opt, u8 *data, int len, int *dir);
 	int			(*new_mapping)(struct xfrm_state *x, xfrm_address_t *ipaddr, __be16 sport);
-	int			(*notify_policy)(struct xfrm_policy *x, int dir, const struct km_event *c);
+	int			(*analtify_policy)(struct xfrm_policy *x, int dir, const struct km_event *c);
 	int			(*report)(struct net *net, u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr);
 	int			(*migrate)(const struct xfrm_selector *sel,
 					   u8 dir, u8 type,
@@ -728,8 +728,8 @@ void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
 				      struct sk_buff *skb);
 void xfrm_audit_state_replay(struct xfrm_state *x, struct sk_buff *skb,
 			     __be32 net_seq);
-void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family);
-void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family, __be32 net_spi,
+void xfrm_audit_state_analtfound_simple(struct sk_buff *skb, u16 family);
+void xfrm_audit_state_analtfound(struct sk_buff *skb, u16 family, __be32 net_spi,
 			       __be32 net_seq);
 void xfrm_audit_state_icvfail(struct xfrm_state *x, struct sk_buff *skb,
 			      u8 proto);
@@ -765,12 +765,12 @@ static inline void xfrm_audit_state_replay(struct xfrm_state *x,
 {
 }
 
-static inline void xfrm_audit_state_notfound_simple(struct sk_buff *skb,
+static inline void xfrm_audit_state_analtfound_simple(struct sk_buff *skb,
 				      u16 family)
 {
 }
 
-static inline void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
+static inline void xfrm_audit_state_analtfound(struct sk_buff *skb, u16 family,
 				      __be32 net_spi, __be32 net_seq)
 {
 }
@@ -940,7 +940,7 @@ static inline bool xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_c
  * dst->xfrm  points to an instanse of transformer.
  *
  * Due to unfortunate limitations of current routing cache, which we
- * have no time to fix, it mirrors struct rtable and bound to the same
+ * have anal time to fix, it mirrors struct rtable and bound to the same
  * routing key, including saddr,daddr. However, we can have many of
  * bundles differing by session id. All the bundles grow from a parent
  * policy rule.
@@ -1135,7 +1135,7 @@ static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 int __xfrm_policy_check(struct sock *, int dir, struct sk_buff *skb,
 			unsigned short family);
 
-static inline bool __xfrm_check_nopolicy(struct net *net, struct sk_buff *skb,
+static inline bool __xfrm_check_analpolicy(struct net *net, struct sk_buff *skb,
 					 int dir)
 {
 	if (!net->xfrm.policy_count[dir] && !secpath_exists(skb))
@@ -1144,16 +1144,16 @@ static inline bool __xfrm_check_nopolicy(struct net *net, struct sk_buff *skb,
 	return false;
 }
 
-static inline bool __xfrm_check_dev_nopolicy(struct sk_buff *skb,
+static inline bool __xfrm_check_dev_analpolicy(struct sk_buff *skb,
 					     int dir, unsigned short family)
 {
 	if (dir != XFRM_POLICY_OUT && family == AF_INET) {
 		/* same dst may be used for traffic originating from
 		 * devices with different policy settings.
 		 */
-		return IPCB(skb)->flags & IPSKB_NOPOLICY;
+		return IPCB(skb)->flags & IPSKB_ANALPOLICY;
 	}
-	return skb_dst(skb) && (skb_dst(skb)->flags & DST_NOPOLICY);
+	return skb_dst(skb) && (skb_dst(skb)->flags & DST_ANALPOLICY);
 }
 
 static inline int __xfrm_policy_check2(struct sock *sk, int dir,
@@ -1175,8 +1175,8 @@ static inline int __xfrm_policy_check2(struct sock *sk, int dir,
 			       (xo->status & CRYPTO_SUCCESS);
 	}
 
-	return __xfrm_check_nopolicy(net, skb, dir) ||
-	       __xfrm_check_dev_nopolicy(skb, dir, family) ||
+	return __xfrm_check_analpolicy(net, skb, dir) ||
+	       __xfrm_check_dev_analpolicy(skb, dir, family) ||
 	       __xfrm_policy_check(sk, ndir, skb, family);
 }
 
@@ -1233,7 +1233,7 @@ static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	    net->xfrm.policy_default[XFRM_POLICY_OUT] == XFRM_USERPOLICY_ACCEPT)
 		return true;
 
-	return (skb_dst(skb)->flags & DST_NOXFRM) ||
+	return (skb_dst(skb)->flags & DST_ANALXFRM) ||
 	       __xfrm_route_forward(skb, family);
 }
 
@@ -1300,7 +1300,7 @@ static inline int xfrm_decode_session_reverse(struct net *net, struct sk_buff *s
 					      struct flowi *fl,
 					      unsigned int family)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 static inline int xfrm4_policy_check_reverse(struct sock *sk, int dir,
 					     struct sk_buff *skb)
@@ -1720,7 +1720,7 @@ int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval,
 static inline int xfrm_user_policy(struct sock *sk, int optname,
 				   sockptr_t optval, int optlen)
 {
- 	return -ENOPROTOOPT;
+ 	return -EANALPROTOOPT;
 }
 #endif
 
@@ -1827,7 +1827,7 @@ static inline int xfrm_policy_id2dir(u32 index)
 #ifdef CONFIG_XFRM
 void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq);
 int xfrm_replay_check(struct xfrm_state *x, struct sk_buff *skb, __be32 net_seq);
-void xfrm_replay_notify(struct xfrm_state *x, int event);
+void xfrm_replay_analtify(struct xfrm_state *x, int event);
 int xfrm_replay_overflow(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm_replay_recheck(struct xfrm_state *x, struct sk_buff *skb, __be32 net_seq);
 
@@ -1888,12 +1888,12 @@ static inline int xfrm_replay_clone(struct xfrm_state *x,
 				xfrm_replay_state_esn_len(orig->replay_esn),
 				GFP_KERNEL);
 	if (!x->replay_esn)
-		return -ENOMEM;
+		return -EANALMEM;
 	x->preplay_esn = kmemdup(orig->preplay_esn,
 				 xfrm_replay_state_esn_len(orig->preplay_esn),
 				 GFP_KERNEL);
 	if (!x->preplay_esn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

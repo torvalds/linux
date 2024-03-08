@@ -42,8 +42,8 @@ static int __init smccc_soc_init(void)
 		return 0;
 
 	soc_id_version = arm_smccc_get_soc_id_version();
-	if (soc_id_version == SMCCC_RET_NOT_SUPPORTED) {
-		pr_info("ARCH_SOC_ID not implemented, skipping ....\n");
+	if (soc_id_version == SMCCC_RET_ANALT_SUPPORTED) {
+		pr_info("ARCH_SOC_ID analt implemented, skipping ....\n");
 		return 0;
 	}
 
@@ -60,7 +60,7 @@ static int __init smccc_soc_init(void)
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sprintf(soc_id_rev_str, "0x%08x", soc_id_rev);
 	sprintf(soc_id_jep106_id_str, "jep106:%02x%02x",

@@ -13,14 +13,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
- * IN NO EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT.
+ * IN ANAL EVENT SHALL TUNGSTEN GRAPHICS AND/OR ITS SUPPLIERS BE LIABLE FOR
  * ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -122,7 +122,7 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	 * idle-timers and recording error state.
 	 *
 	 * All tasks on the workqueue are expected to acquire the dev mutex
-	 * so there is no point in running more than one instance of the
+	 * so there is anal point in running more than one instance of the
 	 * workqueue at any time.  Use an ordered one.
 	 */
 	dev_priv->wq = alloc_ordered_workqueue("i915", 0);
@@ -134,13 +134,13 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 		goto out_free_wq;
 
 	/*
-	 * The unordered i915 workqueue should be used for all work
-	 * scheduling that do not require running in order, which used
+	 * The uanalrdered i915 workqueue should be used for all work
+	 * scheduling that do analt require running in order, which used
 	 * to be scheduled on the system_wq before moving to a driver
 	 * instance due deprecation of flush_scheduled_work().
 	 */
-	dev_priv->unordered_wq = alloc_workqueue("i915-unordered", 0, 0);
-	if (dev_priv->unordered_wq == NULL)
+	dev_priv->uanalrdered_wq = alloc_workqueue("i915-uanalrdered", 0, 0);
+	if (dev_priv->uanalrdered_wq == NULL)
 		goto out_free_dp_wq;
 
 	return 0;
@@ -152,19 +152,19 @@ out_free_wq:
 out_err:
 	drm_err(&dev_priv->drm, "Failed to allocate workqueues.\n");
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
-	destroy_workqueue(dev_priv->unordered_wq);
+	destroy_workqueue(dev_priv->uanalrdered_wq);
 	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
 
 /*
  * We don't keep the workarounds for pre-production hardware, so we expect our
- * driver to fail on these machines in one way or another. A little warning on
+ * driver to fail on these machines in one way or aanalther. A little warning on
  * dmesg may help both the user and the bug triagers.
  *
  * Our policy for removing pre-production workarounds is to keep the
@@ -190,7 +190,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 
 	if (pre) {
 		drm_err(&dev_priv->drm, "This is a pre-production stepping. "
-			  "It may not be fully functional.\n");
+			  "It may analt be fully functional.\n");
 		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_STILL_OK);
 	}
 }
@@ -207,21 +207,21 @@ static void sanitize_gpu(struct drm_i915_private *i915)
 }
 
 /**
- * i915_driver_early_probe - setup state not requiring device access
+ * i915_driver_early_probe - setup state analt requiring device access
  * @dev_priv: device private
  *
- * Initialize everything that is a "SW-only" state, that is state not
+ * Initialize everything that is a "SW-only" state, that is state analt
  * requiring accessing the device or exposing the driver via kernel internal
  * or userspace interfaces. Example steps belonging here: lock initialization,
  * system memory allocation, setting up device specific attributes and
- * function hooks not requiring accessing the device.
+ * function hooks analt requiring accessing the device.
  */
 static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
 	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	intel_device_info_runtime_init_early(dev_priv);
 
@@ -312,7 +312,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 	int ret, i;
 
 	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = intel_gmch_bridge_setup(dev_priv);
 	if (ret < 0)
@@ -445,7 +445,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	int ret;
 
 	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
@@ -459,7 +459,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	if (HAS_EXECLISTS(dev_priv)) {
 		/*
 		 * Older GVT emulation depends upon intercepting CSB mmio,
-		 * which we no longer use, preferring to use the HWSP cache
+		 * which we anal longer use, preferring to use the HWSP cache
 		 * instead.
 		 */
 		if (intel_vgpu_active(dev_priv) &&
@@ -528,7 +528,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 *
 	 * dp aux and gmbus irq on gen4 seems to be able to generate legacy
 	 * interrupts even when in MSI mode. This results in spurious
-	 * interrupt warnings if the legacy irq no. is shared with another
+	 * interrupt warnings if the legacy irq anal. is shared with aanalther
 	 * device. The kernel then disables that interrupt source and so
 	 * prevents the other device from working properly.
 	 */
@@ -782,7 +782,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = intel_display_driver_probe_noirq(i915);
+	ret = intel_display_driver_probe_analirq(i915);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
@@ -790,7 +790,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_cleanup_modeset;
 
-	ret = intel_display_driver_probe_nogem(i915);
+	ret = intel_display_driver_probe_analgem(i915);
 	if (ret)
 		goto out_cleanup_irq;
 
@@ -799,7 +799,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_cleanup_modeset2;
 
 	ret = intel_pxp_init(i915);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		drm_dbg(&i915->drm, "pxp init failed with %d\n", ret);
 
 	ret = intel_display_driver_probe(i915);
@@ -824,12 +824,12 @@ out_cleanup_modeset2:
 	/* FIXME clean up the error path */
 	intel_display_driver_remove(i915);
 	intel_irq_uninstall(i915);
-	intel_display_driver_remove_noirq(i915);
+	intel_display_driver_remove_analirq(i915);
 	goto out_cleanup_modeset;
 out_cleanup_irq:
 	intel_irq_uninstall(i915);
 out_cleanup_modeset:
-	intel_display_driver_remove_nogem(i915);
+	intel_display_driver_remove_analgem(i915);
 out_cleanup_hw:
 	i915_driver_hw_remove(i915);
 	intel_memory_regions_driver_release(i915);
@@ -866,12 +866,12 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	intel_irq_uninstall(i915);
 
-	intel_display_driver_remove_noirq(i915);
+	intel_display_driver_remove_analirq(i915);
 
 	i915_reset_error_state(i915);
 	i915_gem_driver_remove(i915);
 
-	intel_display_driver_remove_nogem(i915);
+	intel_display_driver_remove_analgem(i915);
 
 	i915_driver_hw_remove(i915);
 
@@ -927,7 +927,7 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  * mode setting case, we want to restore the kernel's initial mode (just
  * in case the last client left us in a bad state).
  *
- * Additionally, in the non-mode setting case, we'll tear down the GTT
+ * Additionally, in the analn-mode setting case, we'll tear down the GTT
  * and DMA structures, since the kernel won't be using them, and clea
  * up any GEM state.
  */
@@ -961,7 +961,7 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 		return;
 
 	/*
-	 * TODO: check and remove holding the modeset locks if none of
+	 * TODO: check and remove holding the modeset locks if analne of
 	 * the encoders depends on this.
 	 */
 	drm_modeset_lock_all(&dev_priv->drm);
@@ -983,7 +983,7 @@ static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 		return;
 
 	/*
-	 * TODO: check and remove holding the modeset locks if none of
+	 * TODO: check and remove holding the modeset locks if analne of
 	 * the encoders depends on this.
 	 */
 	drm_modeset_lock_all(&dev_priv->drm);
@@ -1023,7 +1023,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	/*
 	 * The only requirement is to reboot with display DC states disabled,
-	 * for now leaving all display power wells in the INIT power domain
+	 * for analw leaving all display power wells in the INIT power domain
 	 * enabled.
 	 *
 	 * TODO:
@@ -1064,7 +1064,7 @@ static int i915_drm_prepare(struct drm_device *dev)
 	 * NB intel_display_driver_suspend() may issue new requests after we've
 	 * ostensibly marked the GPU as ready-to-sleep here. We need to
 	 * split out that work and pull it forward so that after point,
-	 * the GPU is not woken again.
+	 * the GPU is analt woken again.
 	 */
 	return i915_gem_backup_suspend(i915);
 }
@@ -1155,7 +1155,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	 * GENs with different BIOS vendors, so having an explicit blacklist
 	 * is inpractical; apply the workaround on everything pre GEN6. The
 	 * platforms where the issue was seen:
-	 * Lenovo Thinkpad X301, X61s, X60, T60, X41
+	 * Leanalvo Thinkpad X301, X61s, X60, T60, X41
 	 * Fujitsu FSC S7110
 	 * Acer Aspire 1830T
 	 */
@@ -1224,7 +1224,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_init_pch_refclk(dev_priv);
 
 	/*
-	 * Interrupts have to be enabled before any batches are run. If not the
+	 * Interrupts have to be enabled before any batches are run. If analt the
 	 * GPU will hang. i915_gem_init_hw() will initiate batches to
 	 * update/restore the context.
 	 *
@@ -1284,10 +1284,10 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 */
 
 	/*
-	 * Note that we need to set the power state explicitly, since we
+	 * Analte that we need to set the power state explicitly, since we
 	 * powered off the device during freeze and the PCI core won't power
 	 * it back up for us during thaw. Powering off the device during
-	 * freeze is not a hard requirement though, and during the
+	 * freeze is analt a hard requirement though, and during the
 	 * suspend/resume phases the PCI core makes sure we get here with the
 	 * device powered on. So in case we change our freeze logic and keep
 	 * the device powered we can also remove the following set power state
@@ -1301,9 +1301,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	}
 
 	/*
-	 * Note that pci_enable_device() first enables any parent bridge
+	 * Analte that pci_enable_device() first enables any parent bridge
 	 * device and only then sets the power state for this device. The
-	 * bridge enabling is a nop though, since bridge devices are resumed
+	 * bridge enabling is a analp though, since bridge devices are resumed
 	 * first. The order of enabling power and enabling the device is
 	 * imposed by the PCI core as described above, so here we preserve the
 	 * same order for the freeze/thaw phases.
@@ -1356,8 +1356,8 @@ static int i915_pm_prepare(struct device *kdev)
 	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
 	if (!i915) {
-		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
+		dev_err(kdev, "DRM analt initialized, aborting suspend.\n");
+		return -EANALDEV;
 	}
 
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -1371,8 +1371,8 @@ static int i915_pm_suspend(struct device *kdev)
 	struct drm_i915_private *i915 = kdev_to_i915(kdev);
 
 	if (!i915) {
-		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
+		dev_err(kdev, "DRM analt initialized, aborting suspend.\n");
+		return -EANALDEV;
 	}
 
 	if (i915->drm.switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -1509,7 +1509,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	int ret, i;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_dbg(&dev_priv->drm, "Suspending device\n");
 
@@ -1576,16 +1576,16 @@ static int intel_runtime_suspend(struct device *kdev)
 		 * won't be able to restore them. Since PCI_D3hot matches the
 		 * actual specification and appears to be working, use it.
 		 */
-		intel_opregion_notify_adapter(dev_priv, PCI_D3hot);
+		intel_opregion_analtify_adapter(dev_priv, PCI_D3hot);
 	} else {
 		/*
 		 * current versions of firmware which depend on this opregion
-		 * notification have repurposed the D1 definition to mean
-		 * "runtime suspended" vs. what you would normally expect (D3)
-		 * to distinguish it from notifications that might be sent via
+		 * analtification have repurposed the D1 definition to mean
+		 * "runtime suspended" vs. what you would analrmally expect (D3)
+		 * to distinguish it from analtifications that might be sent via
 		 * the suspend path.
 		 */
-		intel_opregion_notify_adapter(dev_priv, PCI_D1);
+		intel_opregion_analtify_adapter(dev_priv, PCI_D1);
 	}
 
 	assert_forcewakes_inactive(&dev_priv->uncore);
@@ -1607,14 +1607,14 @@ static int intel_runtime_resume(struct device *kdev)
 	int ret, i;
 
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_RUNTIME_PM(dev_priv)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm_dbg(&dev_priv->drm, "Resuming device\n");
 
 	drm_WARN_ON_ONCE(&dev_priv->drm, atomic_read(&rpm->wakeref_count));
 	disable_rpm_wakeref_asserts(rpm);
 
-	intel_opregion_notify_adapter(dev_priv, PCI_D0);
+	intel_opregion_analtify_adapter(dev_priv, PCI_D0);
 
 	root_pdev = pcie_find_root_port(pdev);
 	if (root_pdev)
@@ -1634,7 +1634,7 @@ static int intel_runtime_resume(struct device *kdev)
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
 	/*
-	 * No point of rolling back things in case of an error, as the best
+	 * Anal point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
 	for_each_gt(gt, dev_priv, i)
@@ -1709,13 +1709,13 @@ const struct dev_pm_ops i915_pm_ops = {
 static const struct file_operations i915_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
-	.release = drm_release_noglobal,
+	.release = drm_release_analglobal,
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = i915_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 	.compat_ioctl = i915_ioc32_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = analop_llseek,
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = drm_show_fdinfo,
 #endif
@@ -1725,28 +1725,28 @@ static int
 i915_gem_reject_pin_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct drm_ioctl_desc i915_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(I915_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_FLUSH, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_FLIP, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_BATCHBUFFER, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_IRQ_EMIT, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_IRQ_WAIT, drm_noop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_INIT, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_FLUSH, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_FLIP, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_BATCHBUFFER, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_IRQ_EMIT, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_IRQ_WAIT, drm_analop, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_GETPARAM, i915_getparam_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_SETPARAM, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_ALLOC, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_FREE, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, drm_noop, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_GEM_INIT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SETPARAM, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_ALLOC, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_FREE, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, drm_analop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_GEM_INIT, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER, drm_invalid_op, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_GEM_EXECBUFFER2_WR, i915_gem_execbuffer2_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_PIN, i915_gem_reject_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
@@ -1755,8 +1755,8 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_SET_CACHING, i915_gem_set_caching_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_GET_CACHING, i915_gem_get_caching_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_THROTTLE, i915_gem_throttle_ioctl, DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(I915_GEM_ENTERVT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_GEM_LEAVEVT, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_GEM_ENTERVT, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_GEM_LEAVEVT, drm_analop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CREATE, i915_gem_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CREATE_EXT, i915_gem_create_ext_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_PREAD, i915_gem_pread_ioctl, DRM_RENDER_ALLOW),
@@ -1773,7 +1773,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_OVERLAY_PUT_IMAGE, intel_overlay_put_image_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_OVERLAY_ATTRS, intel_overlay_attrs_ioctl, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_SET_SPRITE_COLORKEY, intel_sprite_set_colorkey_ioctl, DRM_MASTER),
-	DRM_IOCTL_DEF_DRV(I915_GET_SPRITE_COLORKEY, drm_noop, DRM_MASTER),
+	DRM_IOCTL_DEF_DRV(I915_GET_SPRITE_COLORKEY, drm_analop, DRM_MASTER),
 	DRM_IOCTL_DEF_DRV(I915_GEM_WAIT, i915_gem_wait_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_CREATE_EXT, i915_gem_context_create_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_DESTROY, i915_gem_context_destroy_ioctl, DRM_RENDER_ALLOW),
@@ -1802,7 +1802,7 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
  *      - Support vertical blank on secondary display pipe
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		6
+#define DRIVER_MIANALR		6
 #define DRIVER_PATCHLEVEL	0
 
 static const struct drm_driver i915_drm_driver = {
@@ -1831,6 +1831,6 @@ static const struct drm_driver i915_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.mianalr = DRIVER_MIANALR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };

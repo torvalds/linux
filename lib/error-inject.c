@@ -131,8 +131,8 @@ static void module_unload_ei_list(struct module *mod)
 	mutex_unlock(&ei_mutex);
 }
 
-/* Module notifier call back, checking error injection table on the module */
-static int ei_module_callback(struct notifier_block *nb,
+/* Module analtifier call back, checking error injection table on the module */
+static int ei_module_callback(struct analtifier_block *nb,
 			      unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -142,17 +142,17 @@ static int ei_module_callback(struct notifier_block *nb,
 	else if (val == MODULE_STATE_GOING)
 		module_unload_ei_list(mod);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ei_module_nb = {
-	.notifier_call = ei_module_callback,
+static struct analtifier_block ei_module_nb = {
+	.analtifier_call = ei_module_callback,
 	.priority = 0
 };
 
 static __init int module_ei_init(void)
 {
-	return register_module_notifier(&ei_module_nb);
+	return register_module_analtifier(&ei_module_nb);
 }
 #else /* !CONFIG_MODULES */
 #define module_ei_init()	(0)
@@ -183,14 +183,14 @@ static const char *error_type_string(int etype)
 	switch (etype) {
 	case EI_ETYPE_NULL:
 		return "NULL";
-	case EI_ETYPE_ERRNO:
-		return "ERRNO";
-	case EI_ETYPE_ERRNO_NULL:
-		return "ERRNO_NULL";
+	case EI_ETYPE_ERRANAL:
+		return "ERRANAL";
+	case EI_ETYPE_ERRANAL_NULL:
+		return "ERRANAL_NULL";
 	case EI_ETYPE_TRUE:
 		return "TRUE";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
@@ -221,7 +221,7 @@ static int __init ei_debugfs_init(void)
 	file = debugfs_create_file("list", 0444, dir, NULL, &ei_fops);
 	if (!file) {
 		debugfs_remove(dir);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;

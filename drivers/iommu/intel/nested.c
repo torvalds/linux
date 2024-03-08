@@ -31,18 +31,18 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 		device_block_translation(dev);
 
 	if (iommu->agaw < dmar_domain->s2_domain->agaw) {
-		dev_err_ratelimited(dev, "Adjusted guest address width not compatible\n");
-		return -ENODEV;
+		dev_err_ratelimited(dev, "Adjusted guest address width analt compatible\n");
+		return -EANALDEV;
 	}
 
 	/*
-	 * Stage-1 domain cannot work alone, it is nested on a s2_domain.
+	 * Stage-1 domain cananalt work alone, it is nested on a s2_domain.
 	 * The s2_domain will be used in nested translation, hence needs
 	 * to ensure the s2_domain is compatible with this IOMMU.
 	 */
 	ret = prepare_domain_attach_device(&dmar_domain->s2_domain->domain, dev);
 	if (ret) {
-		dev_err_ratelimited(dev, "s2 domain is not compatible\n");
+		dev_err_ratelimited(dev, "s2 domain is analt compatible\n");
 		return ret;
 	}
 
@@ -53,7 +53,7 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	}
 
 	ret = intel_pasid_setup_nested(iommu, dev,
-				       IOMMU_NO_PASID, dmar_domain);
+				       IOMMU_ANAL_PASID, dmar_domain);
 	if (ret) {
 		domain_detach_iommu(dmar_domain, iommu);
 		dev_err_ratelimited(dev, "Failed to setup pasid entry\n");
@@ -97,7 +97,7 @@ static void nested_flush_dev_iotlb(struct dmar_domain *domain, u64 addr,
 		qi_flush_dev_iotlb(info->iommu, sid, info->pfsid,
 				   qdep, addr, mask);
 		quirk_extra_dev_tlb_flush(info, addr, mask,
-					  IOMMU_NO_PASID, qdep);
+					  IOMMU_ANAL_PASID, qdep);
 	}
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
@@ -112,7 +112,7 @@ static void intel_nested_flush_cache(struct dmar_domain *domain, u64 addr,
 	xa_for_each(&domain->iommu_array, i, info)
 		qi_flush_piotlb(info->iommu,
 				domain_id_iommu(domain, info->iommu),
-				IOMMU_NO_PASID, addr, npages, ih);
+				IOMMU_ANAL_PASID, addr, npages, ih);
 
 	if (!domain->has_iotlb_device)
 		return;
@@ -147,7 +147,7 @@ static int intel_nested_cache_invalidate_user(struct iommu_domain *domain,
 
 		if ((inv_entry.flags & ~IOMMU_VTD_INV_FLAGS_LEAF) ||
 		    inv_entry.__reserved) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			break;
 		}
 
@@ -184,7 +184,7 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 
 	/* Must be nested domain */
 	if (user_data->type != IOMMU_HWPT_DATA_VTD_S1)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	if (parent->ops != intel_iommu_ops.default_domain_ops ||
 	    !s2_domain->nested_parent)
 		return ERR_PTR(-EINVAL);
@@ -196,7 +196,7 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL_ACCOUNT);
 	if (!domain)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	domain->use_first_level = true;
 	domain->s2_domain = s2_domain;

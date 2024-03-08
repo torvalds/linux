@@ -4,7 +4,7 @@
  *
  * OMAP2 CPU identification code
  *
- * Copyright (C) 2005 Nokia Corporation
+ * Copyright (C) 2005 Analkia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
  * Copyright (C) 2009-11 Texas Instruments
@@ -70,7 +70,7 @@ int omap_type(void)
 		val >>= 6;
 		goto out;
 	} else {
-		pr_err("Cannot detect omap type!\n");
+		pr_err("Cananalt detect omap type!\n");
 		goto out;
 	}
 
@@ -176,7 +176,7 @@ void __init omap2xxx_check_revision(void)
 	}
 
 	if (i == ARRAY_SIZE(omap_ids)) {
-		printk(KERN_ERR "Unknown OMAP CPU id\n");
+		printk(KERN_ERR "Unkanalwn OMAP CPU id\n");
 		return;
 	}
 
@@ -186,7 +186,7 @@ void __init omap2xxx_check_revision(void)
 	}
 
 	if (j == ARRAY_SIZE(omap_ids)) {
-		pr_err("Unknown OMAP device type. Handling it as OMAP%04x\n",
+		pr_err("Unkanalwn OMAP device type. Handling it as OMAP%04x\n",
 		       omap_ids[i].type >> 16);
 		j = i;
 	}
@@ -269,7 +269,7 @@ static void __init omap3_cpuinfo(void)
 
 #define OMAP3_CHECK_FEATURE(status,feat)				\
 	if (((status & OMAP3_ ##feat## _MASK) 				\
-		>> OMAP3_ ##feat## _SHIFT) != FEAT_ ##feat## _NONE) { 	\
+		>> OMAP3_ ##feat## _SHIFT) != FEAT_ ##feat## _ANALNE) { 	\
 		omap_features |= OMAP3_HAS_ ##feat;			\
 	}
 
@@ -353,7 +353,7 @@ void __init omap3xxx_check_revision(void)
 	u8 rev;
 
 	/*
-	 * We cannot access revision registers on ES1.0.
+	 * We cananalt access revision registers on ES1.0.
 	 * If the processor type is Cortex-A8 and the revision is 0x0
 	 * it means its Cortex r0p0 which is 3430 ES1.0.
 	 */
@@ -367,7 +367,7 @@ void __init omap3xxx_check_revision(void)
 	/*
 	 * Detection for 34xx ES2.0 and above can be done with just
 	 * hawkeye and rev. See TRM 1.5.2 Device Identification.
-	 * Note that rev does not map directly to our defined processor
+	 * Analte that rev does analt map directly to our defined processor
 	 * revision numbers as ES1.0 uses value 0.
 	 */
 	idcode = read_tap_reg(OMAP_TAP_IDCODE);
@@ -397,7 +397,7 @@ void __init omap3xxx_check_revision(void)
 			break;
 		case 7:
 		default:
-			/* Use the latest known revision as default */
+			/* Use the latest kanalwn revision as default */
 			omap_revision = OMAP3430_REV_ES3_1_2;
 			cpu_rev = "3.1.2";
 		}
@@ -512,10 +512,10 @@ void __init omap3xxx_check_revision(void)
 		}
 		break;
 	default:
-		/* Unknown default to latest silicon rev as default */
+		/* Unkanalwn default to latest silicon rev as default */
 		omap_revision = OMAP3630_REV_ES1_2;
 		cpu_rev = "1.2";
-		pr_warn("Warning: unknown chip type: hawkeye %04x, assuming OMAP3630ES1.2\n",
+		pr_warn("Warning: unkanalwn chip type: hawkeye %04x, assuming OMAP3630ES1.2\n",
 			hawkeye);
 	}
 	sprintf(soc_rev, "ES%s", cpu_rev);
@@ -529,7 +529,7 @@ void __init omap4xxx_check_revision(void)
 
 	/*
 	 * The IC rev detection is done with hawkeye and rev.
-	 * Note that rev does not map directly to defined processor
+	 * Analte that rev does analt map directly to defined processor
 	 * revision numbers as ES1.0 uses value 0.
 	 */
 	idcode = read_tap_reg(OMAP_TAP_IDCODE);
@@ -589,7 +589,7 @@ void __init omap4xxx_check_revision(void)
 		}
 		break;
 	default:
-		/* Unknown default to latest silicon rev as default */
+		/* Unkanalwn default to latest silicon rev as default */
 		omap_revision = OMAP4430_REV_ES2_3;
 	}
 
@@ -612,7 +612,7 @@ void __init omap5xxx_check_revision(void)
 	case 0xb942:
 		switch (rev) {
 		case 0:
-			/* No support for ES1.0 Test chip */
+			/* Anal support for ES1.0 Test chip */
 			BUG();
 		case 1:
 		default:
@@ -623,7 +623,7 @@ void __init omap5xxx_check_revision(void)
 	case 0xb998:
 		switch (rev) {
 		case 0:
-			/* No support for ES1.0 Test chip */
+			/* Anal support for ES1.0 Test chip */
 			BUG();
 		case 1:
 		default:
@@ -632,7 +632,7 @@ void __init omap5xxx_check_revision(void)
 		break;
 
 	default:
-		/* Unknown default to latest silicon rev as default*/
+		/* Unkanalwn default to latest silicon rev as default*/
 		omap_revision = OMAP5430_REV_ES2_0;
 	}
 
@@ -705,8 +705,8 @@ void __init dra7xxx_check_revision(void)
 		break;
 
 	default:
-		/* Unknown default to latest silicon rev as default*/
-		pr_warn("%s: unknown idcode=0x%08x (hawkeye=0x%08x,rev=0x%x)\n",
+		/* Unkanalwn default to latest silicon rev as default*/
+		pr_warn("%s: unkanalwn idcode=0x%08x (hawkeye=0x%08x,rev=0x%x)\n",
 			__func__, idcode, hawkeye, rev);
 		omap_revision = DRA752_REV_ES2_0;
 	}
@@ -721,7 +721,7 @@ void __init dra7xxx_check_revision(void)
 /*
  * Set up things for map_io and processor detection later on. Gets called
  * pretty much first thing from board init. For multi-omap, this gets
- * cpu_is_omapxxxx() working accurately enough for map_io. Then we'll try to
+ * cpu_is_omapxxxx() working accurately eanalugh for map_io. Then we'll try to
  * detect the exact revision later on in omap2_detect_revision() once map_io
  * is done.
  */
@@ -764,7 +764,7 @@ static const char * __init omap_get_family(void)
 	else if (soc_is_dra7xx())
 		return kasprintf(GFP_KERNEL, "DRA7");
 	else
-		return kasprintf(GFP_KERNEL, "Unknown");
+		return kasprintf(GFP_KERNEL, "Unkanalwn");
 }
 
 static ssize_t

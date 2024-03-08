@@ -19,7 +19,7 @@ static void print_audio_widget(struct snd_info_buffer *buffer,
 	unsigned int val;
 
 	lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
-	snd_iprintf(buffer, "Node 0x%02x %s wcaps 0x%x\n", nid, name, val);
+	snd_iprintf(buffer, "Analde 0x%02x %s wcaps 0x%x\n", nid, name, val);
 	lola_read_param(chip, nid, LOLA_PAR_STREAM_FORMATS, &val);
 	snd_iprintf(buffer, "  Formats: 0x%x\n", val);
 }
@@ -31,7 +31,7 @@ static void print_pin_widget(struct snd_info_buffer *buffer,
 	unsigned int val;
 
 	lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
-	snd_iprintf(buffer, "Node 0x%02x %s wcaps 0x%x\n", nid, name, val);
+	snd_iprintf(buffer, "Analde 0x%02x %s wcaps 0x%x\n", nid, name, val);
 	if (val == 0x00400200)
 		return;
 	lola_read_param(chip, nid, ampcap, &val);
@@ -52,7 +52,7 @@ static void print_clock_widget(struct snd_info_buffer *buffer,
 	unsigned int val;
 
 	lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
-	snd_iprintf(buffer, "Node 0x%02x [Clock] wcaps 0x%x\n", nid, val);
+	snd_iprintf(buffer, "Analde 0x%02x [Clock] wcaps 0x%x\n", nid, val);
 	num_clocks = val & 0xff;
 	for (i = 0; i < num_clocks; i += 4) {
 		unsigned int res_ex;
@@ -91,7 +91,7 @@ static void print_mixer_widget(struct snd_info_buffer *buffer,
 	unsigned int val;
 
 	lola_read_param(chip, nid, LOLA_PAR_AUDIO_WIDGET_CAP, &val);
-	snd_iprintf(buffer, "Node 0x%02x [Mixer] wcaps 0x%x\n", nid, val);
+	snd_iprintf(buffer, "Analde 0x%02x [Mixer] wcaps 0x%x\n", nid, val);
 }
 
 static void lola_proc_codec_read(struct snd_info_entry *entry,

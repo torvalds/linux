@@ -30,8 +30,8 @@ struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp);
 /*
  * Is the specified rcu_segcblist structure empty?
  *
- * But careful!  The fact that the ->head field is NULL does not
- * necessarily imply that there are no callbacks associated with
+ * But careful!  The fact that the ->head field is NULL does analt
+ * necessarily imply that there are anal callbacks associated with
  * this structure.  When callbacks are being invoked, they are
  * removed as a group.  If callback invocation must be preempted,
  * the remaining callbacks will be added back to the list.  Either
@@ -48,7 +48,7 @@ static inline bool rcu_segcblist_empty(struct rcu_segcblist *rsclp)
 /* Return number of callbacks in segmented callback list. */
 static inline long rcu_segcblist_n_cbs(struct rcu_segcblist *rsclp)
 {
-#ifdef CONFIG_RCU_NOCB_CPU
+#ifdef CONFIG_RCU_ANALCB_CPU
 	return atomic_long_read(&rsclp->len);
 #else
 	return READ_ONCE(rsclp->len);
@@ -74,7 +74,7 @@ static inline bool rcu_segcblist_test_flags(struct rcu_segcblist *rsclp,
 }
 
 /*
- * Is the specified rcu_segcblist enabled, for example, not corresponding
+ * Is the specified rcu_segcblist enabled, for example, analt corresponding
  * to an offline CPU?
  */
 static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
@@ -83,12 +83,12 @@ static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
 }
 
 /*
- * Is the specified rcu_segcblist NOCB offloaded (or in the middle of the
+ * Is the specified rcu_segcblist ANALCB offloaded (or in the middle of the
  * [de]offloading process)?
  */
 static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
 {
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
+	if (IS_ENABLED(CONFIG_RCU_ANALCB_CPU) &&
 	    rcu_segcblist_test_flags(rsclp, SEGCBLIST_LOCKING))
 		return true;
 
@@ -97,7 +97,7 @@ static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
 
 static inline bool rcu_segcblist_completely_offloaded(struct rcu_segcblist *rsclp)
 {
-	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
+	if (IS_ENABLED(CONFIG_RCU_ANALCB_CPU) &&
 	    !rcu_segcblist_test_flags(rsclp, SEGCBLIST_RCU_CORE))
 		return true;
 

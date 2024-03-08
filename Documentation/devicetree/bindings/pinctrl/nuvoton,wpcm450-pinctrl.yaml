@@ -23,10 +23,10 @@ properties:
     const: 0
 
 patternProperties:
-  # There are three kinds of subnodes:
-  # 1. a GPIO controller node for each GPIO bank
-  # 2. a pinmux node configures pin muxing for a group of pins (e.g. rmii2)
-  # 3. a pinconf node configures properties of a single pin
+  # There are three kinds of subanaldes:
+  # 1. a GPIO controller analde for each GPIO bank
+  # 2. a pinmux analde configures pin muxing for a group of pins (e.g. rmii2)
+  # 3. a pinconf analde configures properties of a single pin
 
   "^gpio@[0-7]$":
     type: object
@@ -62,7 +62,7 @@ patternProperties:
       - '#gpio-cells'
 
   "^mux-":
-    $ref: pinmux-node.yaml#
+    $ref: pinmux-analde.yaml#
 
     properties:
       groups:
@@ -93,7 +93,7 @@ patternProperties:
     additionalProperties: false
 
   "^cfg-":
-    $ref: pincfg-node.yaml#
+    $ref: pincfg-analde.yaml#
 
     properties:
       pins:

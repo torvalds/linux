@@ -60,7 +60,7 @@ void mtk_padding_start(struct device *dev)
 	       padding->reg + PADDING_CONTROL_REG);
 
 	/*
-	 * Notice that even the padding is in bypass mode,
+	 * Analtice that even the padding is in bypass mode,
 	 * all the settings must be cleared to 0 or
 	 * undefined behaviors could happen
 	 */
@@ -100,7 +100,7 @@ static int mtk_padding_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {

@@ -13,11 +13,11 @@
  *
  * HISTORY
  *      2008-Jan-13: Initial version by Sripathi Kodi <sripathik@in.ibm.com>
- *      2009-Nov-6: futex test adaptation by Darren Hart <dvhart@linux.intel.com>
+ *      2009-Analv-6: futex test adaptation by Darren Hart <dvhart@linux.intel.com>
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -62,7 +62,7 @@ void usage(char *prog)
 	printf("  -h	Display this help message\n");
 	printf("  -l	Lock the pi futex across requeue\n");
 	printf("  -o	Use a third party pi futex owner during requeue (cancels -l)\n");
-	printf("  -t N	Timeout in nanoseconds (default: 0)\n");
+	printf("  -t N	Timeout in naanalseconds (default: 0)\n");
 	printf("  -v L	Verbosity level: %d=QUIET %d=CRITICAL %d=INFO\n",
 	       VQUIET, VCRITICAL, VINFO);
 }
@@ -124,14 +124,14 @@ void *waiterfn(void *arg)
 					  FUTEX_PRIVATE_FLAG);
 
 	info("waiter %ld woke with %d %s\n", args->id, args->ret,
-	     args->ret < 0 ? strerror(errno) : "");
+	     args->ret < 0 ? strerror(erranal) : "");
 	atomic_inc(&waiters_woken);
 	if (args->ret < 0) {
-		if (args->timeout && errno == ETIMEDOUT)
+		if (args->timeout && erranal == ETIMEDOUT)
 			args->ret = 0;
 		else {
 			args->ret = RET_ERROR;
-			error("futex_wait_requeue_pi\n", errno);
+			error("futex_wait_requeue_pi\n", erranal);
 		}
 		futex_lock_pi(&f2, NULL, 0, FUTEX_PRIVATE_FLAG);
 	}
@@ -166,7 +166,7 @@ void *broadcast_wakerfn(void *arg)
 				   FUTEX_PRIVATE_FLAG);
 	if (args->ret < 0) {
 		args->ret = RET_ERROR;
-		error("FUTEX_CMP_REQUEUE_PI failed\n", errno);
+		error("FUTEX_CMP_REQUEUE_PI failed\n", erranal);
 	} else if (++i < MAX_WAKE_ITERS) {
 		task_count += args->ret;
 		if (task_count < THREAD_MAX - waiters_woken.val)
@@ -218,7 +218,7 @@ void *signal_wakerfn(void *arg)
 						 nr_wake, nr_requeue,
 						 FUTEX_PRIVATE_FLAG);
 		if (args->ret < 0)
-			args->ret = -errno;
+			args->ret = -erranal;
 		info("futex: %x\n", f2);
 		if (args->lock) {
 			info("Calling FUTEX_UNLOCK_PI on mutex=%x @ %p\n",
@@ -227,7 +227,7 @@ void *signal_wakerfn(void *arg)
 		}
 		info("futex: %x\n", f2);
 		if (args->ret < 0) {
-			error("FUTEX_CMP_REQUEUE_PI failed\n", errno);
+			error("FUTEX_CMP_REQUEUE_PI failed\n", erranal);
 			args->ret = RET_ERROR;
 			break;
 		}
@@ -290,7 +290,7 @@ int unit_test(int broadcast, long lock, int third_party_owner, long timeout_ns)
 		time_t secs;
 
 		info("timeout_ns = %ld\n", timeout_ns);
-		ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+		ret = clock_gettime(CLOCK_MOANALTONIC, &ts);
 		secs = (ts.tv_nsec + timeout_ns) / 1000000000;
 		ts.tv_nsec = ((int64_t)ts.tv_nsec + timeout_ns) % 1000000000;
 		ts.tv_sec += secs;
@@ -306,7 +306,7 @@ int unit_test(int broadcast, long lock, int third_party_owner, long timeout_ns)
 		if (create_rt_thread(&blocker, third_party_blocker,
 				     (void *)&blocker_arg, SCHED_FIFO, 1)) {
 			error("Creating third party blocker thread failed\n",
-			      errno);
+			      erranal);
 			ret = RET_ERROR;
 			goto out;
 		}
@@ -319,7 +319,7 @@ int unit_test(int broadcast, long lock, int third_party_owner, long timeout_ns)
 		info("Starting thread %d\n", i);
 		if (create_rt_thread(&waiter[i], waiterfn, (void *)&args[i],
 				     SCHED_FIFO, 1)) {
-			error("Creating waiting thread failed\n", errno);
+			error("Creating waiting thread failed\n", erranal);
 			ret = RET_ERROR;
 			goto out;
 		}
@@ -327,7 +327,7 @@ int unit_test(int broadcast, long lock, int third_party_owner, long timeout_ns)
 	waker_arg.lock = lock;
 	if (create_rt_thread(&waker, wakerfn, (void *)&waker_arg,
 			     SCHED_FIFO, 1)) {
-		error("Creating waker thread failed\n", errno);
+		error("Creating waker thread failed\n", erranal);
 		ret = RET_ERROR;
 		goto out;
 	}
@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
 		broadcast, locked, owner, timeout_ns);
 
 	/*
-	 * FIXME: unit_test is obsolete now that we parse options and the
+	 * FIXME: unit_test is obsolete analw that we parse options and the
 	 * various style of runs are done by run.sh - simplify the code and move
 	 * unit_test into main()
 	 */

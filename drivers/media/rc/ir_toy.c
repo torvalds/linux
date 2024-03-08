@@ -48,7 +48,7 @@ static const u8 COMMAND_TXSTART[] = { 0x26, 0x24, 0x25, 0x03 };
 
 enum state {
 	STATE_IRDATA,
-	STATE_COMMAND_NO_RESP,
+	STATE_COMMAND_ANAL_RESP,
 	STATE_COMMAND,
 	STATE_TX,
 };
@@ -123,7 +123,7 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 				len, irtoy->in);
 		}
 		break;
-	case STATE_COMMAND_NO_RESP:
+	case STATE_COMMAND_ANAL_RESP:
 	case STATE_IRDATA: {
 		struct ir_raw_event rawir = { .pulse = irtoy->pulse };
 		__be16 *in = (__be16 *)irtoy->in;
@@ -202,7 +202,7 @@ static void irtoy_out_callback(struct urb *urb)
 	struct irtoy *irtoy = urb->context;
 
 	if (urb->status == 0) {
-		if (irtoy->state == STATE_COMMAND_NO_RESP)
+		if (irtoy->state == STATE_COMMAND_ANAL_RESP)
 			complete(&irtoy->command_done);
 	} else {
 		dev_warn(irtoy->dev, "out urb status: %d\n", urb->status);
@@ -219,7 +219,7 @@ static void irtoy_in_callback(struct urb *urb)
 		irtoy_response(irtoy, urb->actual_length);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EPROTO:
 	case -EPIPE:
@@ -230,7 +230,7 @@ static void irtoy_in_callback(struct urb *urb)
 	}
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		dev_warn(irtoy->dev, "failed to resubmit urb: %d\n", ret);
 }
 
@@ -264,9 +264,9 @@ static int irtoy_setup(struct irtoy *irtoy)
 	int err;
 
 	err = irtoy_command(irtoy, COMMAND_RESET, sizeof(COMMAND_RESET),
-			    STATE_COMMAND_NO_RESP);
+			    STATE_COMMAND_ANAL_RESP);
 	if (err != 0) {
-		dev_err(irtoy->dev, "could not write reset command: %d\n",
+		dev_err(irtoy->dev, "could analt write reset command: %d\n",
 			err);
 		return err;
 	}
@@ -277,7 +277,7 @@ static int irtoy_setup(struct irtoy *irtoy)
 	err = irtoy_command(irtoy, COMMAND_VERSION, sizeof(COMMAND_VERSION),
 			    STATE_COMMAND);
 	if (err) {
-		dev_err(irtoy->dev, "could not write version command: %d\n",
+		dev_err(irtoy->dev, "could analt write version command: %d\n",
 			err);
 		return err;
 	}
@@ -286,7 +286,7 @@ static int irtoy_setup(struct irtoy *irtoy)
 	err = irtoy_command(irtoy, COMMAND_SMODE_ENTER,
 			    sizeof(COMMAND_SMODE_ENTER), STATE_COMMAND);
 	if (err)
-		dev_err(irtoy->dev, "could not write sample command: %d\n",
+		dev_err(irtoy->dev, "could analt write sample command: %d\n",
 			err);
 
 	return err;
@@ -294,7 +294,7 @@ static int irtoy_setup(struct irtoy *irtoy)
 
 /*
  * When sending IR, it is imperative that we send the IR data as quickly
- * as possible to the device, so it does not run out of IR data and
+ * as possible to the device, so it does analt run out of IR data and
  * introduce gaps. Allocate the buffer here, and then feed the data from
  * the urb callback handler.
  */
@@ -308,7 +308,7 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	size = sizeof(u16) * (count + 1);
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		u16 v = DIV_ROUND_CLOSEST(txbuf[i], UNIT_US);
@@ -326,10 +326,10 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 
 	// There is an issue where if the unit is receiving IR while the
 	// first TXSTART command is sent, the device might end up hanging
-	// with its led on. It does not respond to any command when this
+	// with its led on. It does analt respond to any command when this
 	// happens. To work around this, re-enter sample mode.
 	err = irtoy_command(irtoy, COMMAND_SMODE_EXIT,
-			    sizeof(COMMAND_SMODE_EXIT), STATE_COMMAND_NO_RESP);
+			    sizeof(COMMAND_SMODE_EXIT), STATE_COMMAND_ANAL_RESP);
 	if (err) {
 		dev_err(irtoy->dev, "exit sample mode: %d\n", err);
 		kfree(buf);
@@ -351,7 +351,7 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	if (err) {
 		dev_err(irtoy->dev, "failed to send tx start command: %d\n",
 			err);
-		// not sure what state the device is in, reset it
+		// analt sure what state the device is in, reset it
 		irtoy_setup(irtoy);
 		return err;
 	}
@@ -359,7 +359,7 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 	if (size != irtoy->emitted) {
 		dev_err(irtoy->dev, "expected %u emitted, got %u\n", size,
 			irtoy->emitted);
-		// not sure what state the device is in, reset it
+		// analt sure what state the device is in, reset it
 		irtoy_setup(irtoy);
 		return -EINVAL;
 	}
@@ -380,9 +380,9 @@ static int irtoy_tx_carrier(struct rc_dev *rc, uint32_t carrier)
 	buf[1] = DIV_ROUND_CLOSEST(48000000, 16 * carrier) - 1;
 	buf[2] = 0;
 
-	err = irtoy_command(irtoy, buf, sizeof(buf), STATE_COMMAND_NO_RESP);
+	err = irtoy_command(irtoy, buf, sizeof(buf), STATE_COMMAND_ANAL_RESP);
 	if (err)
-		dev_err(irtoy->dev, "could not write carrier command: %d\n",
+		dev_err(irtoy->dev, "could analt write carrier command: %d\n",
 			err);
 
 	return err;
@@ -399,7 +399,7 @@ static int irtoy_probe(struct usb_interface *intf,
 	struct irtoy *irtoy;
 	struct rc_dev *rc;
 	struct urb *urb;
-	int i, pipe, err = -ENOMEM;
+	int i, pipe, err = -EANALMEM;
 
 	for (i = 0; i < idesc->desc.bNumEndpoints; i++) {
 		ep = &idesc->endpoint[i].desc;
@@ -414,13 +414,13 @@ static int irtoy_probe(struct usb_interface *intf,
 	}
 
 	if (!ep_in || !ep_out) {
-		dev_err(&intf->dev, "required endpoints not found\n");
-		return -ENODEV;
+		dev_err(&intf->dev, "required endpoints analt found\n");
+		return -EANALDEV;
 	}
 
 	irtoy = kzalloc(sizeof(*irtoy), GFP_KERNEL);
 	if (!irtoy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irtoy->in = kmalloc(MAX_PACKET,  GFP_KERNEL);
 	if (!irtoy->in)
@@ -474,7 +474,7 @@ static int irtoy_probe(struct usb_interface *intf,
 	if (irtoy->sw_version < MIN_FW_VERSION) {
 		dev_err(irtoy->dev, "need firmware V%02u or higher",
 			MIN_FW_VERSION);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto free_rcdev;
 	}
 

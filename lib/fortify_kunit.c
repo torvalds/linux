@@ -24,15 +24,15 @@
 
 static const char array_of_10[] = "this is 10";
 static const char *ptr_of_11 = "this is 11!";
-static char array_unknown[] = "compiler thinks I might change";
+static char array_unkanalwn[] = "compiler thinks I might change";
 
-static void known_sizes_test(struct kunit *test)
+static void kanalwn_sizes_test(struct kunit *test)
 {
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen("88888888"), 8);
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_of_10), 10);
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(ptr_of_11), 11);
 
-	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_unknown), SIZE_MAX);
+	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_unkanalwn), SIZE_MAX);
 	/* Externally defined and dynamically sized string pointer: */
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(test->name), SIZE_MAX);
 }
@@ -40,8 +40,8 @@ static void known_sizes_test(struct kunit *test)
 /* This is volatile so the optimizer can't perform DCE below. */
 static volatile int pick;
 
-/* Not inline to keep optimizer from figuring out which string we want. */
-static noinline size_t want_minus_one(int pick)
+/* Analt inline to keep optimizer from figuring out which string we want. */
+static analinline size_t want_minus_one(int pick)
 {
 	const char *str;
 
@@ -67,7 +67,7 @@ static void control_flow_split_test(struct kunit *test)
 #define KUNIT_EXPECT_BOS(test, p, expected, name)			\
 	KUNIT_EXPECT_EQ_MSG(test, __builtin_object_size(p, 1),		\
 		expected,						\
-		"__alloc_size() not working with __bos on " name "\n")
+		"__alloc_size() analt working with __bos on " name "\n")
 
 #if !__has_builtin(__builtin_dynamic_object_size)
 #define KUNIT_EXPECT_BDOS(test, p, expected, name)			\
@@ -77,7 +77,7 @@ static void control_flow_split_test(struct kunit *test)
 #define KUNIT_EXPECT_BDOS(test, p, expected, name)			\
 	KUNIT_EXPECT_EQ_MSG(test, __builtin_dynamic_object_size(p, 1),	\
 		expected,						\
-		"__alloc_size() not working with __bdos on " name "\n")
+		"__alloc_size() analt working with __bdos on " name "\n")
 #endif
 
 /* If the execpted size is a constant value, __bos can see it. */
@@ -90,7 +90,7 @@ static void control_flow_split_test(struct kunit *test)
 	free;								\
 } while (0)
 
-/* If the execpted size is NOT a constant value, __bos CANNOT see it. */
+/* If the execpted size is ANALT a constant value, __bos CANANALT see it. */
 #define check_dynamic(_expected, alloc, free)		do {		\
 	size_t expected = (_expected);					\
 	void *p = alloc;						\
@@ -114,14 +114,14 @@ static void control_flow_split_test(struct kunit *test)
 } while (0)
 
 static volatile size_t zero_size;
-static volatile size_t unknown_size = 50;
+static volatile size_t unkanalwn_size = 50;
 
 #if !__has_builtin(__builtin_dynamic_object_size)
 #define DYNAMIC_TEST_BODY(TEST_alloc)					\
 	kunit_skip(test, "Compiler is missing __builtin_dynamic_object_size() support\n")
 #else
 #define DYNAMIC_TEST_BODY(TEST_alloc)	do {				\
-	size_t size = unknown_size;					\
+	size_t size = unkanalwn_size;					\
 									\
 	/*								\
 	 * Expected size is "size" in each test, before it is then	\
@@ -130,7 +130,7 @@ static volatile size_t unknown_size = 50;
 	 */								\
 	TEST_alloc(check_dynamic, size, size++);			\
 	/* Make sure incrementing actually happened. */			\
-	KUNIT_EXPECT_NE(test, size, unknown_size);			\
+	KUNIT_EXPECT_NE(test, size, unkanalwn_size);			\
 } while (0)
 #endif
 
@@ -145,44 +145,44 @@ static void alloc_size_##allocator##_dynamic_test(struct kunit *test)	\
 }
 
 #define TEST_kmalloc(checker, expected_size, alloc_size)	do {	\
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;				\
+	gfp_t gfp = GFP_KERNEL | __GFP_ANALWARN;				\
 	void *orig;							\
 	size_t len;							\
 									\
 	checker(expected_size, kmalloc(alloc_size, gfp),		\
 		kfree(p));						\
 	checker(expected_size,						\
-		kmalloc_node(alloc_size, gfp, NUMA_NO_NODE),		\
+		kmalloc_analde(alloc_size, gfp, NUMA_ANAL_ANALDE),		\
 		kfree(p));						\
 	checker(expected_size, kzalloc(alloc_size, gfp),		\
 		kfree(p));						\
 	checker(expected_size,						\
-		kzalloc_node(alloc_size, gfp, NUMA_NO_NODE),		\
+		kzalloc_analde(alloc_size, gfp, NUMA_ANAL_ANALDE),		\
 		kfree(p));						\
 	checker(expected_size, kcalloc(1, alloc_size, gfp),		\
 		kfree(p));						\
 	checker(expected_size, kcalloc(alloc_size, 1, gfp),		\
 		kfree(p));						\
 	checker(expected_size,						\
-		kcalloc_node(1, alloc_size, gfp, NUMA_NO_NODE),		\
+		kcalloc_analde(1, alloc_size, gfp, NUMA_ANAL_ANALDE),		\
 		kfree(p));						\
 	checker(expected_size,						\
-		kcalloc_node(alloc_size, 1, gfp, NUMA_NO_NODE),		\
+		kcalloc_analde(alloc_size, 1, gfp, NUMA_ANAL_ANALDE),		\
 		kfree(p));						\
 	checker(expected_size, kmalloc_array(1, alloc_size, gfp),	\
 		kfree(p));						\
 	checker(expected_size, kmalloc_array(alloc_size, 1, gfp),	\
 		kfree(p));						\
 	checker(expected_size,						\
-		kmalloc_array_node(1, alloc_size, gfp, NUMA_NO_NODE),	\
+		kmalloc_array_analde(1, alloc_size, gfp, NUMA_ANAL_ANALDE),	\
 		kfree(p));						\
 	checker(expected_size,						\
-		kmalloc_array_node(alloc_size, 1, gfp, NUMA_NO_NODE),	\
+		kmalloc_array_analde(alloc_size, 1, gfp, NUMA_ANAL_ANALDE),	\
 		kfree(p));						\
 	checker(expected_size, __kmalloc(alloc_size, gfp),		\
 		kfree(p));						\
 	checker(expected_size,						\
-		__kmalloc_node(alloc_size, gfp, NUMA_NO_NODE),		\
+		__kmalloc_analde(alloc_size, gfp, NUMA_ANAL_ANALDE),		\
 		kfree(p));						\
 									\
 	orig = kmalloc(alloc_size, gfp);				\
@@ -202,16 +202,16 @@ static void alloc_size_##allocator##_dynamic_test(struct kunit *test)	\
 		kfree(p));						\
 									\
 	len = 11;							\
-	/* Using memdup() with fixed size, so force unknown length. */	\
+	/* Using memdup() with fixed size, so force unkanalwn length. */	\
 	if (!__builtin_constant_p(expected_size))			\
 		len += zero_size;					\
 	checker(len, kmemdup("hello there", len, gfp), kfree(p));	\
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(kmalloc)
 
-/* Sizes are in pages, not bytes. */
+/* Sizes are in pages, analt bytes. */
 #define TEST_vmalloc(checker, expected_pages, alloc_pages)	do {	\
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;				\
+	gfp_t gfp = GFP_KERNEL | __GFP_ANALWARN;				\
 	checker((expected_pages) * PAGE_SIZE,				\
 		vmalloc((alloc_pages) * PAGE_SIZE),	   vfree(p));	\
 	checker((expected_pages) * PAGE_SIZE,				\
@@ -221,9 +221,9 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kmalloc)
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(vmalloc)
 
-/* Sizes are in pages (and open-coded for side-effects), not bytes. */
+/* Sizes are in pages (and open-coded for side-effects), analt bytes. */
 #define TEST_kvmalloc(checker, expected_pages, alloc_pages)	do {	\
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;				\
+	gfp_t gfp = GFP_KERNEL | __GFP_ANALWARN;				\
 	size_t prev_size;						\
 	void *orig;							\
 									\
@@ -231,13 +231,13 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(vmalloc)
 		kvmalloc((alloc_pages) * PAGE_SIZE, gfp),		\
 		vfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
-		kvmalloc_node((alloc_pages) * PAGE_SIZE, gfp, NUMA_NO_NODE), \
+		kvmalloc_analde((alloc_pages) * PAGE_SIZE, gfp, NUMA_ANAL_ANALDE), \
 		vfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvzalloc((alloc_pages) * PAGE_SIZE, gfp),		\
 		vfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
-		kvzalloc_node((alloc_pages) * PAGE_SIZE, gfp, NUMA_NO_NODE), \
+		kvzalloc_analde((alloc_pages) * PAGE_SIZE, gfp, NUMA_ANAL_ANALDE), \
 		vfree(p));						\
 	checker((expected_pages) * PAGE_SIZE,				\
 		kvcalloc(1, (alloc_pages) * PAGE_SIZE, gfp),		\
@@ -263,7 +263,7 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(vmalloc)
 DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 
 #define TEST_devm_kmalloc(checker, expected_size, alloc_size)	do {	\
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;				\
+	gfp_t gfp = GFP_KERNEL | __GFP_ANALWARN;				\
 	const char dev_name[] = "fortify-test";				\
 	struct device *dev;						\
 	void *orig;							\
@@ -272,7 +272,7 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 	/* Create dummy device for devm_kmalloc()-family tests. */	\
 	dev = kunit_device_register(test, dev_name);			\
 	KUNIT_ASSERT_FALSE_MSG(test, IS_ERR(dev),			\
-			       "Cannot register test device\n");	\
+			       "Cananalt register test device\n");	\
 									\
 	checker(expected_size, devm_kmalloc(dev, alloc_size, gfp),	\
 		devm_kfree(dev, p));					\
@@ -298,7 +298,7 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 		devm_kfree(dev, p));					\
 									\
 	len = 4;							\
-	/* Using memdup() with fixed size, so force unknown length. */	\
+	/* Using memdup() with fixed size, so force unkanalwn length. */	\
 	if (!__builtin_constant_p(expected_size))			\
 		len += zero_size;					\
 	checker(len, devm_kmemdup(dev, "Ohai", len, gfp),		\
@@ -309,7 +309,7 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 DEFINE_ALLOC_SIZE_TEST_PAIR(devm_kmalloc)
 
 static struct kunit_case fortify_test_cases[] = {
-	KUNIT_CASE(known_sizes_test),
+	KUNIT_CASE(kanalwn_sizes_test),
 	KUNIT_CASE(control_flow_split_test),
 	KUNIT_CASE(alloc_size_kmalloc_const_test),
 	KUNIT_CASE(alloc_size_kmalloc_dynamic_test),

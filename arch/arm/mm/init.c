@@ -5,14 +5,14 @@
  *  Copyright (C) 1995-2005 Russell King
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/highmem.h>
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(arm_dma_zone_size);
 
 /*
  * The DMA mask corresponding to the maximum bus address allocatable
- * using GFP_DMA.  The default here places no restriction on DMA
+ * using GFP_DMA.  The default here places anal restriction on DMA
  * allocations.  This must be the smallest DMA mask in the system,
  * so a successful GFP_DMA allocation will always satisfy this.
  */
@@ -114,7 +114,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 #ifdef CONFIG_ZONE_DMA
 	max_zone_pfn[ZONE_DMA] = min(arm_dma_pfn_limit, max_low);
 #endif
-	max_zone_pfn[ZONE_NORMAL] = max_low;
+	max_zone_pfn[ZONE_ANALRMAL] = max_low;
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfn[ZONE_HIGHMEM] = max_high;
 #endif
@@ -218,7 +218,7 @@ void __init bootmem_init(void)
 	sparse_init();
 
 	/*
-	 * Now free the memory - free_area_init needs
+	 * Analw free the memory - free_area_init needs
 	 * the sparse mem_map arrays initialized by sparse_init()
 	 * for memmap_init_zone(), otherwise all PFNs are invalid.
 	 */
@@ -244,12 +244,12 @@ static void __init free_highpages(void)
 	u64 i;
 
 	/* set highmem page free */
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
+	for_each_free_mem_range(i, NUMA_ANAL_ANALDE, MEMBLOCK_ANALNE,
 				&range_start, &range_end, NULL) {
 		unsigned long start = PFN_UP(range_start);
 		unsigned long end = PFN_DOWN(range_end);
 
-		/* Ignore complete lowmem entries */
+		/* Iganalre complete lowmem entries */
 		if (end <= max_low)
 			continue;
 
@@ -280,7 +280,7 @@ void __init mem_init(void)
 	memblock_free_all();
 
 #ifdef CONFIG_SA1111
-	/* now that our DMA memory is actually so designated, we can free it */
+	/* analw that our DMA memory is actually so designated, we can free it */
 	free_reserved_area(__va(PHYS_OFFSET), swapper_pg_dir, -1, NULL);
 #endif
 
@@ -403,7 +403,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 	for (i = 0; i < n; i++) {
 		if (!IS_ALIGNED(perms[i].start, SECTION_SIZE) ||
 		    !IS_ALIGNED(perms[i].end, SECTION_SIZE)) {
-			pr_err("BUG: %s section %lx-%lx not aligned to %lx\n",
+			pr_err("BUG: %s section %lx-%lx analt aligned to %lx\n",
 				perms[i].name, perms[i].start, perms[i].end,
 				SECTION_SIZE);
 			continue;
@@ -421,7 +421,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 /**
  * update_sections_early intended to be called only through stop_machine
  * framework and executed by only one CPU while all other CPUs will spin and
- * wait, so no locking is required in this function.
+ * wait, so anal locking is required in this function.
  */
 static void update_sections_early(struct section_perm perms[], int n)
 {

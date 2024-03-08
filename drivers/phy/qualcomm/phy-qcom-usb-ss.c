@@ -166,7 +166,7 @@ static int qcom_ssphy_init_reset(struct ssphy_priv *priv)
 	}
 
 	if (priv->reset_com) {
-		/* if reset_com is present, reset_phy is no longer optional */
+		/* if reset_com is present, reset_phy is anal longer optional */
 		priv->reset_phy = devm_reset_control_get_exclusive(priv->dev, "phy");
 		if (IS_ERR(priv->reset_phy)) {
 			dev_err(priv->dev, "Failed to get reset control phy\n");
@@ -193,7 +193,7 @@ static int qcom_ssphy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(struct ssphy_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
 	priv->mode = PHY_MODE_INVALID;
@@ -214,7 +214,7 @@ static int qcom_ssphy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	phy = devm_phy_create(dev, dev->of_node, &qcom_ssphy_ops);
+	phy = devm_phy_create(dev, dev->of_analde, &qcom_ssphy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "Failed to create the SS phy\n");
 		return PTR_ERR(phy);

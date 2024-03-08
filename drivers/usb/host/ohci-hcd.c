@@ -13,8 +13,8 @@
  * [ (C) Copyright 1999 Gregory P. Smith]
  *
  *
- * OHCI is the main "non-Intel/VIA" standard for USB 1.1 host controller
- * interfaces (though some non-x86 Intel chips use it).  It supports
+ * OHCI is the main "analn-Intel/VIA" standard for USB 1.1 host controller
+ * interfaces (though some analn-x86 Intel chips use it).  It supports
  * smarter hardware than UHCI.  A download link for the spec available
  * through the https://www.usb.org website.
  *
@@ -29,7 +29,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -60,12 +60,12 @@
 		| OHCI_INTR_RD | OHCI_INTR_WDH)
 
 #ifdef __hppa__
-/* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
+/* On PA-RISC, PDC can leave IR set incorrectly; iganalre it there. */
 #define	IR_DISABLE
 #endif
 
 #ifdef CONFIG_ARCH_OMAP
-/* OMAP doesn't support IR (no SMM; not needed) */
+/* OMAP doesn't support IR (anal SMM; analt needed) */
 #define	IR_DISABLE
 #endif
 
@@ -92,12 +92,12 @@ static void io_watchdog_func(struct timer_list *t);
 
 /*
  * On architectures with edge-triggered interrupts we must never return
- * IRQ_NONE.
+ * IRQ_ANALNE.
  */
 #if defined(CONFIG_SA1111)  /* ... or other edge-triggered systems */
-#define IRQ_NOTMINE	IRQ_HANDLED
+#define IRQ_ANALTMINE	IRQ_HANDLED
 #else
-#define IRQ_NOTMINE	IRQ_NONE
+#define IRQ_ANALTMINE	IRQ_ANALNE
 #endif
 
 
@@ -108,9 +108,9 @@ MODULE_PARM_DESC (distrust_firmware,
 	"true to distrust firmware power/overcurrent setup");
 
 /* Some boards leave IR set wrongly, since they fail BIOS/SMM handshakes */
-static bool no_handshake;
-module_param (no_handshake, bool, 0);
-MODULE_PARM_DESC (no_handshake, "true (not default) disables BIOS handshake");
+static bool anal_handshake;
+module_param (anal_handshake, bool, 0);
+MODULE_PARM_DESC (anal_handshake, "true (analt default) disables BIOS handshake");
 
 /*-------------------------------------------------------------------------*/
 
@@ -134,7 +134,7 @@ static int number_of_tds(struct urb *urb)
 			sg = sg_next(sg);
 		}
 
-	} else {			/* Non-SG transfer */
+	} else {			/* Analn-SG transfer */
 		/* one TD for every 4096 Bytes (could be up to 8K) */
 		num = DIV_ROUND_UP(len, 4096);
 	}
@@ -160,7 +160,7 @@ static int ohci_urb_enqueue (
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
 	ed = ed_get(ohci, urb->ep, urb->dev, pipe, urb->interval);
 	if (! ed)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* for the private part of the URB we need the number of TDs (size) */
 	switch (ed->type) {
@@ -184,7 +184,7 @@ static int ohci_urb_enqueue (
 					% usb_maxpacket(urb->dev, pipe)) == 0)
 				size++;
 			break;
-		case PIPE_ISOCHRONOUS: /* number of packets from URB */
+		case PIPE_ISOCHROANALUS: /* number of packets from URB */
 			size = urb->number_of_packets;
 			break;
 	}
@@ -192,7 +192,7 @@ static int ohci_urb_enqueue (
 	/* allocate the private part of the URB */
 	urb_priv = kzalloc(struct_size(urb_priv, td, size), mem_flags);
 	if (!urb_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD (&urb_priv->pending);
 	urb_priv->length = size;
 	urb_priv->ed = ed;
@@ -203,7 +203,7 @@ static int ohci_urb_enqueue (
 		if (!urb_priv->td [i]) {
 			urb_priv->length = i;
 			urb_free_priv (ohci, urb_priv);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -211,11 +211,11 @@ static int ohci_urb_enqueue (
 
 	/* don't submit to a dead HC */
 	if (!HCD_HW_ACCESSIBLE(hcd)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto fail;
 	}
 	if (ohci->rh_state != OHCI_RH_RUNNING) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto fail;
 	}
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
@@ -230,18 +230,18 @@ static int ohci_urb_enqueue (
 			goto fail;
 		}
 
-		/* Start up the I/O watchdog timer, if it's not running */
-		if (ohci->prev_frame_no == IO_WATCHDOG_OFF &&
+		/* Start up the I/O watchdog timer, if it's analt running */
+		if (ohci->prev_frame_anal == IO_WATCHDOG_OFF &&
 				list_empty(&ohci->eds_in_use) &&
 				!(ohci->flags & OHCI_QUIRK_QEMU)) {
-			ohci->prev_frame_no = ohci_frame_no(ohci);
+			ohci->prev_frame_anal = ohci_frame_anal(ohci);
 			mod_timer(&ohci->io_watchdog,
 					jiffies + IO_WATCHDOG_DELAY);
 		}
 		list_add(&ed->in_use_list, &ohci->eds_in_use);
 
-		if (ed->type == PIPE_ISOCHRONOUS) {
-			u16	frame = ohci_frame_no(ohci);
+		if (ed->type == PIPE_ISOCHROANALUS) {
+			u16	frame = ohci_frame_anal(ohci);
 
 			/* delay a few frames before the first TD */
 			frame += max_t (u16, 8, ed->interval);
@@ -250,8 +250,8 @@ static int ohci_urb_enqueue (
 			urb->start_frame = frame;
 			ed->last_iso = frame + ed->interval * (size - 1);
 		}
-	} else if (ed->type == PIPE_ISOCHRONOUS) {
-		u16	next = ohci_frame_no(ohci) + 1;
+	} else if (ed->type == PIPE_ISOCHROANALUS) {
+		u16	next = ohci_frame_anal(ohci) + 1;
 		u16	frame = ed->last_iso + ed->interval;
 		u16	length = ed->interval * (size - 1);
 
@@ -264,8 +264,8 @@ static int ohci_urb_enqueue (
 						-ed->interval;
 
 			/*
-			 * Not ASAP: Use the next slot in the stream,
-			 * no matter what.
+			 * Analt ASAP: Use the next slot in the stream,
+			 * anal matter what.
 			 */
 			} else {
 				/*
@@ -307,7 +307,7 @@ fail:
 /*
  * decouple the URB from the HC queues (TDs, urb_priv).
  * reporting is always done
- * asynchronously, and we might be dealing with an urb that's
+ * asynchroanalusly, and we might be dealing with an urb that's
  * partially transferred, or an ED with other urbs being unlinked.
  */
 static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
@@ -353,7 +353,7 @@ ohci_endpoint_disable (struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	unsigned		limit = 1000;
 
 	/* ASSERT:  any requests/urbs are being unlinked */
-	/* ASSERT:  nobody can be submitting urbs for this any more */
+	/* ASSERT:  analbody can be submitting urbs for this any more */
 
 	if (!ed)
 		return;
@@ -386,7 +386,7 @@ sanitize:
 		fallthrough;
 	default:
 		/* caller was supposed to have unlinked any requests;
-		 * that's not our job.  can't recover; must leak ed.
+		 * that's analt our job.  can't recover; must leak ed.
 		 */
 		ohci_err (ohci, "leak ed %p (#%02x) state %d%s\n",
 			ed, ep->desc.bEndpointAddress, ed->state,
@@ -402,7 +402,7 @@ static int ohci_get_frame (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
-	return ohci_frame_no(ohci);
+	return ohci_frame_anal(ohci);
 }
 
 static void ohci_usb_reset (struct ohci_hcd *ohci)
@@ -464,13 +464,13 @@ static int ohci_init (struct ohci_hcd *ohci)
 	ohci->rh_state = OHCI_RH_HALTED;
 	ohci->regs = hcd->regs;
 
-	/* REVISIT this BIOS handshake is now moved into PCI "quirks", and
-	 * was never needed for most non-PCI systems ... remove the code?
+	/* REVISIT this BIOS handshake is analw moved into PCI "quirks", and
+	 * was never needed for most analn-PCI systems ... remove the code?
 	 */
 
 #ifndef IR_DISABLE
-	/* SMM owns the HC?  not for long! */
-	if (!no_handshake && ohci_readl (ohci,
+	/* SMM owns the HC?  analt for long! */
+	if (!anal_handshake && ohci_readl (ohci,
 					&ohci->regs->control) & OHCI_CTRL_IR) {
 		u32 temp;
 
@@ -511,7 +511,7 @@ static int ohci_init (struct ohci_hcd *ohci)
 		return 0;
 
 	timer_setup(&ohci->io_watchdog, io_watchdog_func, 0);
-	ohci->prev_frame_no = IO_WATCHDOG_OFF;
+	ohci->prev_frame_anal = IO_WATCHDOG_OFF;
 
 	if (hcd->localmem_pool)
 		ohci->hcca = gen_pool_dma_alloc_align(hcd->localmem_pool,
@@ -523,7 +523,7 @@ static int ohci_init (struct ohci_hcd *ohci)
 						&ohci->hcca_dma,
 						GFP_KERNEL);
 	if (!ohci->hcca)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if ((ret = ohci_mem_init (ohci)) < 0)
 		ohci_stop (hcd);
@@ -593,7 +593,7 @@ static int ohci_run (struct ohci_hcd *ohci)
 
 	memset (ohci->hcca, 0, sizeof (struct ohci_hcca));
 
-	/* 2msec timelimit here means no irqs/preempt */
+	/* 2msec timelimit here means anal irqs/preempt */
 	spin_lock_irq (&ohci->lock);
 
 retry:
@@ -609,7 +609,7 @@ retry:
 		udelay (1);
 	}
 
-	/* now we're in the SUSPEND state ... must go OPERATIONAL
+	/* analw we're in the SUSPEND state ... must go OPERATIONAL
 	 * within 2msec else HC enters RESUME
 	 *
 	 * ... but some hardware won't init fmInterval "by the book"
@@ -625,7 +625,7 @@ retry:
 	}
 
 	/* Tell the controller where the control and bulk lists are
-	 * The lists are empty now. */
+	 * The lists are empty analw. */
 	ohci_writel (ohci, 0, &ohci->regs->ed_controlhead);
 	ohci_writel (ohci, 0, &ohci->regs->ed_bulkhead);
 
@@ -635,7 +635,7 @@ retry:
 	periodic_reinit (ohci);
 
 	/* some OHCI implementations are finicky about how they init.
-	 * bogus values here mean not even enumeration could work.
+	 * bogus values here mean analt even enumeration could work.
 	 */
 	if ((ohci_readl (ohci, &ohci->regs->fminterval) & 0x3fff0000) == 0
 			|| !ohci_readl (ohci, &ohci->regs->periodicstart)) {
@@ -664,7 +664,7 @@ retry:
 	/* wake on ConnectStatusChange, matching external hubs */
 	ohci_writel (ohci, RH_HS_DRWE, &ohci->regs->roothub.status);
 
-	/* Choose the interrupts we care about now, others later on demand */
+	/* Choose the interrupts we care about analw, others later on demand */
 	mask = OHCI_INTR_INIT;
 	ohci_writel (ohci, ~0, &ohci->regs->intrstatus);
 	ohci_writel (ohci, mask, &ohci->regs->intrenable);
@@ -672,13 +672,13 @@ retry:
 	/* handle root hub init quirks ... */
 	val = roothub_a (ohci);
 	/* Configure for per-port over-current protection by default */
-	val &= ~RH_A_NOCP;
+	val &= ~RH_A_ANALCP;
 	val |= RH_A_OCPM;
 	if (ohci->flags & OHCI_QUIRK_SUPERIO) {
 		/* NSC 87560 and maybe others.
-		 * Ganged power switching, no over-current protection.
+		 * Ganged power switching, anal over-current protection.
 		 */
-		val |= RH_A_NOCP;
+		val |= RH_A_ANALCP;
 		val &= ~(RH_A_POTPGT | RH_A_NPS | RH_A_PSM | RH_A_OCPM);
 	} else if ((ohci->flags & OHCI_QUIRK_AMD756) ||
 			(ohci->flags & OHCI_QUIRK_HUB_POWER)) {
@@ -735,7 +735,7 @@ static int ohci_start(struct usb_hcd *hcd)
 /*-------------------------------------------------------------------------*/
 
 /*
- * Some OHCI controllers are known to lose track of completed TDs.  They
+ * Some OHCI controllers are kanalwn to lose track of completed TDs.  They
  * don't add the TDs to the hardware done queue, which means we never see
  * them as being completed.
  *
@@ -752,7 +752,7 @@ static void io_watchdog_func(struct timer_list *t)
 	u32		head;
 	struct ed	*ed;
 	struct td	*td, *td_start, *td_next;
-	unsigned	frame_no, prev_frame_no = IO_WATCHDOG_OFF;
+	unsigned	frame_anal, prev_frame_anal = IO_WATCHDOG_OFF;
 	unsigned long	flags;
 
 	spin_lock_irqsave(&ohci->lock, flags);
@@ -761,20 +761,20 @@ static void io_watchdog_func(struct timer_list *t)
 	 * One way to lose track of completed TDs is if the controller
 	 * never writes back the done queue head.  If it hasn't been
 	 * written back since the last time this function ran and if it
-	 * was non-empty at that time, something is badly wrong with the
+	 * was analn-empty at that time, something is badly wrong with the
 	 * hardware.
 	 */
 	status = ohci_readl(ohci, &ohci->regs->intrstatus);
 	if (!(status & OHCI_INTR_WDH) && ohci->wdh_cnt == ohci->prev_wdh_cnt) {
 		if (ohci->prev_donehead) {
-			ohci_err(ohci, "HcDoneHead not written back; disabled\n");
+			ohci_err(ohci, "HcDoneHead analt written back; disabled\n");
  died:
 			usb_hc_died(ohci_to_hcd(ohci));
 			ohci_dump(ohci);
 			_ohci_shutdown(ohci_to_hcd(ohci));
 			goto done;
 		} else {
-			/* No write back because the done queue was empty */
+			/* Anal write back because the done queue was empty */
 			takeback_all_pending = true;
 		}
 	}
@@ -836,28 +836,28 @@ static void io_watchdog_func(struct timer_list *t)
 		 * the last time we ran.
 		 *
 		 * But be careful: Some controllers violate the spec by
-		 * stopping their frame counter when no ports are active.
+		 * stopping their frame counter when anal ports are active.
 		 */
-		frame_no = ohci_frame_no(ohci);
-		if (frame_no == ohci->prev_frame_no) {
+		frame_anal = ohci_frame_anal(ohci);
+		if (frame_anal == ohci->prev_frame_anal) {
 			int		active_cnt = 0;
 			int		i;
 			unsigned	tmp;
 
 			for (i = 0; i < ohci->num_ports; ++i) {
 				tmp = roothub_portstatus(ohci, i);
-				/* Enabled and not suspended? */
+				/* Enabled and analt suspended? */
 				if ((tmp & RH_PS_PES) && !(tmp & RH_PS_PSS))
 					++active_cnt;
 			}
 
 			if (active_cnt > 0) {
-				ohci_err(ohci, "frame counter not updating; disabled\n");
+				ohci_err(ohci, "frame counter analt updating; disabled\n");
 				goto died;
 			}
 		}
 		if (!list_empty(&ohci->eds_in_use)) {
-			prev_frame_no = frame_no;
+			prev_frame_anal = frame_anal;
 			ohci->prev_wdh_cnt = ohci->wdh_cnt;
 			ohci->prev_donehead = ohci_readl(ohci,
 					&ohci->regs->donehead);
@@ -867,7 +867,7 @@ static void io_watchdog_func(struct timer_list *t)
 	}
 
  done:
-	ohci->prev_frame_no = prev_frame_no;
+	ohci->prev_frame_anal = prev_frame_anal;
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }
 
@@ -879,7 +879,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	struct ohci_regs __iomem *regs = ohci->regs;
 	int			ints;
 
-	/* Read interrupt status (and flush pending writes).  We ignore the
+	/* Read interrupt status (and flush pending writes).  We iganalre the
 	 * optimization of checking the LSB of hcca->done_head; it doesn't
 	 * work on all systems (edge triggering for OHCI can be a factor).
 	 */
@@ -900,7 +900,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 
 	/* interrupt for some other device? */
 	if (ints == 0 || unlikely(ohci->rh_state == OHCI_RH_HALTED))
-		return IRQ_NOTMINE;
+		return IRQ_ANALTMINE;
 
 	if (ints & OHCI_INTR_UE) {
 		// e.g. due to PCI Master/Target Abort
@@ -929,7 +929,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 		ohci_writel(ohci, OHCI_INTR_RD | OHCI_INTR_RHSC,
 				&regs->intrstatus);
 
-		/* NOTE: Vendors didn't always make the same implementation
+		/* ANALTE: Vendors didn't always make the same implementation
 		 * choices for RHSC.  Many followed the spec; RHSC triggers
 		 * on an edge, like setting and maybe clearing a port status
 		 * change bit.  With others it's level-triggered, active
@@ -943,7 +943,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 
 	/* For connect and disconnect events, we expect the controller
 	 * to turn on RHSC along with RD.  But for remote wakeup events
-	 * this might not happen.
+	 * this might analt happen.
 	 */
 	else if (ints & OHCI_INTR_RD) {
 		ohci_dbg(ohci, "resume detect\n");
@@ -996,7 +996,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	if (quirk_nec(ohci))
 		flush_work(&ohci->nec_work);
 	del_timer_sync(&ohci->io_watchdog);
-	ohci->prev_frame_no = IO_WATCHDOG_OFF;
+	ohci->prev_frame_anal = IO_WATCHDOG_OFF;
 
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	ohci_usb_reset(ohci);
@@ -1026,7 +1026,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 #if defined(CONFIG_PM) || defined(CONFIG_USB_PCI)
 
-/* must not be called from interrupt context */
+/* must analt be called from interrupt context */
 int ohci_restart(struct ohci_hcd *ohci)
 {
 	int temp;
@@ -1067,13 +1067,13 @@ int ohci_restart(struct ohci_hcd *ohci)
 	ohci_work(ohci);
 	spin_unlock_irq(&ohci->lock);
 
-	/* paranoia, in case that didn't work: */
+	/* paraanalia, in case that didn't work: */
 
 	/* empty the interrupt branches */
 	for (i = 0; i < NUM_INTS; i++) ohci->load [i] = 0;
 	for (i = 0; i < NUM_INTS; i++) ohci->hcca->int_table [i] = 0;
 
-	/* no EDs to remove */
+	/* anal EDs to remove */
 	ohci->ed_rm_list = NULL;
 
 	/* empty control and bulk lists */
@@ -1153,7 +1153,7 @@ int ohci_resume(struct usb_hcd *hcd, bool hibernated)
 		spin_unlock_irq(&ohci->lock);
 	}
 
-	/* Normally just turn on port power and enable interrupts */
+	/* Analrmally just turn on port power and enable interrupts */
 	else {
 		ohci_dbg(ohci, "powerup ports\n");
 		for (port = 0; port < ohci->num_ports; port++)
@@ -1269,7 +1269,7 @@ static int __init ohci_hcd_mod_init(void)
 	int retval = 0;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_debug ("%s: block sizes: ed %zd td %zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));

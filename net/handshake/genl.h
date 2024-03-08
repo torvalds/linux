@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
-/* Do not edit directly, auto-generated from: */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
+/* Do analt edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/handshake.yaml */
 /* YNL-GEN kernel header */
 
@@ -15,7 +15,7 @@ int handshake_nl_accept_doit(struct sk_buff *skb, struct genl_info *info);
 int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info);
 
 enum {
-	HANDSHAKE_NLGRP_NONE,
+	HANDSHAKE_NLGRP_ANALNE,
 	HANDSHAKE_NLGRP_TLSHD,
 };
 

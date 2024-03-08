@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2001-2004 Aurelien Jarno <aurelien@aurel32.net>
- * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
+ * Copyright (C) 2001-2004 Aurelien Jaranal <aurelien@aurel32.net>
+ * Ported to Linux 2.6 by Aurelien Jaranal <aurelien@aurel32.net> with
  * the help of Jean Delvare <jdelvare@suse.de>
  */
 
@@ -188,7 +188,7 @@ static int pcf8591_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct pcf8591_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -201,7 +201,7 @@ static int pcf8591_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	/* Register input2 if not in "two differential inputs" mode */
+	/* Register input2 if analt in "two differential inputs" mode */
 	if (input_mode != 3) {
 		err = device_create_file(&client->dev, &dev_attr_in2_input);
 		if (err)
@@ -313,7 +313,7 @@ static void __exit pcf8591_exit(void)
 	i2c_del_driver(&pcf8591_driver);
 }
 
-MODULE_AUTHOR("Aurelien Jarno <aurelien@aurel32.net>");
+MODULE_AUTHOR("Aurelien Jaranal <aurelien@aurel32.net>");
 MODULE_DESCRIPTION("PCF8591 driver");
 MODULE_LICENSE("GPL");
 

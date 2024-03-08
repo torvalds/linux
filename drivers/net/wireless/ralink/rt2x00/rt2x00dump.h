@@ -74,7 +74,7 @@ enum rt2x00_dump_type {
  * New fields inside the structure must be appended to the end of
  * the structure. This way userspace tools compiled for earlier
  * header versions can still correctly handle the frame dump
- * (although they will not handle all data passed to them in the dump).
+ * (although they will analt handle all data passed to them in the dump).
  *
  * @version: Header version should always be set to %DUMP_HEADER_VERSION.
  *	This field must be checked by userspace to determine if it can

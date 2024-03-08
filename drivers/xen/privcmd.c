@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/uaccess.h>
@@ -128,7 +128,7 @@ static int gather_array(struct list_head *pagelist,
 		if (pageidx > PAGE_SIZE-size) {
 			struct page *page = alloc_page(GFP_KERNEL);
 
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			if (page == NULL)
 				goto fail;
 
@@ -232,7 +232,7 @@ static int mmap_gfn_range(void *data, void *state)
 	struct vm_area_struct *vma = st->vma;
 	int rc;
 
-	/* Do not allow range to wrap the address space. */
+	/* Do analt allow range to wrap the address space. */
 	if ((msg->npages > (LONG_MAX >> PAGE_SHIFT)) ||
 	    ((unsigned long)(msg->npages << PAGE_SHIFT) >= -st->va))
 		return -EINVAL;
@@ -265,9 +265,9 @@ static long privcmd_ioctl_mmap(struct file *file, void __user *udata)
 	LIST_HEAD(pagelist);
 	struct mmap_gfn_state state;
 
-	/* We only support privcmd_ioctl_mmap_batch for non-auto-translated. */
+	/* We only support privcmd_ioctl_mmap_batch for analn-auto-translated. */
 	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (copy_from_user(&mmapcmd, udata, sizeof(mmapcmd)))
 		return -EFAULT;
@@ -322,10 +322,10 @@ struct mmap_batch_state {
 	struct vm_area_struct *vma;
 	int index;
 	/* A tristate:
-	 *      0 for no errors
-	 *      1 if at least one error has happened (and no
-	 *          -ENOENT errors have happened)
-	 *      -ENOENT if at least 1 -ENOENT has happened.
+	 *      0 for anal errors
+	 *      1 if at least one error has happened (and anal
+	 *          -EANALENT errors have happened)
+	 *      -EANALENT if at least 1 -EANALENT has happened.
 	 */
 	int global_error;
 	int version;
@@ -336,7 +336,7 @@ struct mmap_batch_state {
 	int __user *user_err;
 };
 
-/* auto translated dom0 note: if domU being created is PV, then gfn is
+/* auto translated dom0 analte: if domU being created is PV, then gfn is
  * mfn(addr on bus). If it's auto xlated, then gfn is pfn (input to HAP).
  */
 static int mmap_batch_fn(void *data, int nr, void *state)
@@ -358,8 +358,8 @@ static int mmap_batch_fn(void *data, int nr, void *state)
 
 	/* Adjust the global_error? */
 	if (ret != nr) {
-		if (ret == -ENOENT)
-			st->global_error = -ENOENT;
+		if (ret == -EANALENT)
+			st->global_error = -EANALENT;
 		else {
 			/* Record that at least one error has happened. */
 			if (st->global_error == 0)
@@ -385,10 +385,10 @@ static int mmap_return_error(int err, struct mmap_batch_state *st)
 				return ret;
 			/*
 			 * V1 encodes the error codes in the 32bit top
-			 * nibble of the gfn (with its known
+			 * nibble of the gfn (with its kanalwn
 			 * limitations vis-a-vis 64 bit callers).
 			 */
-			gfn |= (err == -ENOENT) ?
+			gfn |= (err == -EANALENT) ?
 				PRIVCMD_MMAPBATCH_PAGED_ERROR :
 				PRIVCMD_MMAPBATCH_MFN_ERROR;
 			return __put_user(gfn, st->user_gfn++);
@@ -421,7 +421,7 @@ static int mmap_return_errors(void *data, int nr, void *state)
 
 /* Allocate pfns that are then mapped with gfns from foreign domid. Update
  * the vma with the page info to use later.
- * Returns: 0 if success, otherwise -errno
+ * Returns: 0 if success, otherwise -erranal
  */
 static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 {
@@ -430,14 +430,14 @@ static int alloc_empty_pages(struct vm_area_struct *vma, int numpgs)
 
 	pages = kvcalloc(numpgs, sizeof(pages[0]), GFP_KERNEL);
 	if (pages == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = xen_alloc_unpopulated_pages(numpgs, pages);
 	if (rc != 0) {
-		pr_warn("%s Could not alloc %d pfns rc:%d\n", __func__,
+		pr_warn("%s Could analt alloc %d pfns rc:%d\n", __func__,
 			numpgs, rc);
 		kvfree(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	BUG_ON(vma->vm_private_data != NULL);
 	vma->vm_private_data = pages;
@@ -497,7 +497,7 @@ static long privcmd_ioctl_mmap_batch(
 	}
 
 	if (version == 2) {
-		/* Zero error array now to only copy back actual errors. */
+		/* Zero error array analw to only copy back actual errors. */
 		if (clear_user(m.err, sizeof(int) * m.num)) {
 			ret = -EFAULT;
 			goto out;
@@ -571,10 +571,10 @@ static long privcmd_ioctl_mmap_batch(
 	} else
 		ret = 0;
 
-	/* If we have not had any EFAULT-like global errors then set the global
-	 * error to -ENOENT if necessary. */
-	if ((ret == 0) && (state.global_error == -ENOENT))
-		ret = -ENOENT;
+	/* If we have analt had any EFAULT-like global errors then set the global
+	 * error to -EANALENT if necessary. */
+	if ((ret == 0) && (state.global_error == -EANALENT))
+		ret = -EANALENT;
 
 out:
 	free_page_list(&pagelist);
@@ -599,7 +599,7 @@ static int lock_pages(
 			offset_in_page(kbufs[i].uptr) + kbufs[i].size,
 			PAGE_SIZE) - off;
 		if (requested > nr_pages)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		page_count = pin_user_pages_fast(
 			(unsigned long)kbufs[i].uptr + off * PAGE_SIZE,
@@ -650,7 +650,7 @@ static long privcmd_ioctl_dm_op(struct file *file, void __user *udata)
 
 	kbufs = kcalloc(kdata.num, sizeof(*kbufs), GFP_KERNEL);
 	if (!kbufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(kbufs, kdata.ubufs,
 			   sizeof(*kbufs) * kdata.num)) {
@@ -677,13 +677,13 @@ static long privcmd_ioctl_dm_op(struct file *file, void __user *udata)
 
 	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
 	xbufs = kcalloc(kdata.num, sizeof(*xbufs), GFP_KERNEL);
 	if (!xbufs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -768,9 +768,9 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 		goto out;
 	}
 
-	pfns = kcalloc(kdata.num, sizeof(*pfns), GFP_KERNEL | __GFP_NOWARN);
+	pfns = kcalloc(kdata.num, sizeof(*pfns), GFP_KERNEL | __GFP_ANALWARN);
 	if (!pfns) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 
@@ -936,7 +936,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 
 	kirqfd = kzalloc(sizeof(*kirqfd) + irqfd->size, GFP_KERNEL);
 	if (!kirqfd)
-		return -ENOMEM;
+		return -EANALMEM;
 	dm_op = kirqfd + 1;
 
 	if (copy_from_user(dm_op, u64_to_user_ptr(irqfd->dm_op), irqfd->size)) {
@@ -962,7 +962,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 	}
 
 	/*
-	 * Install our own custom wake-up handling so we are notified via a
+	 * Install our own custom wake-up handling so we are analtified via a
 	 * callback whenever someone signals the underlying eventfd.
 	 */
 	init_waitqueue_func_entry(&kirqfd->wait, irqfd_wakeup);
@@ -990,7 +990,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 		irqfd_inject(kirqfd);
 
 	/*
-	 * Do not drop the file until the kirqfd is fully initialized, otherwise
+	 * Do analt drop the file until the kirqfd is fully initialized, otherwise
 	 * we might race against the EPOLLHUP.
 	 */
 	fdput(f);
@@ -1030,8 +1030,8 @@ static int privcmd_irqfd_deassign(struct privcmd_irqfd *irqfd)
 	eventfd_ctx_put(eventfd);
 
 	/*
-	 * Block until we know all outstanding shutdown jobs have completed so
-	 * that we guarantee there will not be any more interrupts once this
+	 * Block until we kanalw all outstanding shutdown jobs have completed so
+	 * that we guarantee there will analt be any more interrupts once this
 	 * deassign function returns.
 	 */
 	flush_workqueue(irqfd_cleanup_wq);
@@ -1047,7 +1047,7 @@ static long privcmd_ioctl_irqfd(struct file *file, void __user *udata)
 	if (copy_from_user(&irqfd, udata, sizeof(irqfd)))
 		return -EFAULT;
 
-	/* No other flags should be set */
+	/* Anal other flags should be set */
 	if (irqfd.flags & ~PRIVCMD_IRQFD_FLAG_DEASSIGN)
 		return -EINVAL;
 
@@ -1065,7 +1065,7 @@ static int privcmd_irqfd_init(void)
 {
 	irqfd_cleanup_wq = alloc_workqueue("privcmd-irqfd-cleanup", 0, 0);
 	if (!irqfd_cleanup_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -1085,7 +1085,7 @@ static void privcmd_irqfd_exit(void)
 }
 
 /* Ioeventfd Support */
-#define QUEUE_NOTIFY_VQ_MASK 0xFFFF
+#define QUEUE_ANALTIFY_VQ_MASK 0xFFFF
 
 static DEFINE_MUTEX(ioreq_lock);
 static LIST_HEAD(ioreq_list);
@@ -1128,7 +1128,7 @@ static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
 
 	if (ioreq->state != STATE_IOREQ_READY ||
 	    ioreq->type != IOREQ_TYPE_COPY || ioreq->dir != IOREQ_WRITE)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * We need a barrier, smp_mb(), here to ensure reads are finished before
@@ -1144,9 +1144,9 @@ static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
 	ioreq->state = STATE_IOREQ_INPROCESS;
 
 	list_for_each_entry(kioeventfd, &kioreq->ioeventfds, list) {
-		if (ioreq->addr == kioeventfd->addr + VIRTIO_MMIO_QUEUE_NOTIFY &&
+		if (ioreq->addr == kioeventfd->addr + VIRTIO_MMIO_QUEUE_ANALTIFY &&
 		    ioreq->size == kioeventfd->addr_len &&
-		    (ioreq->data & QUEUE_NOTIFY_VQ_MASK) == kioeventfd->vq) {
+		    (ioreq->data & QUEUE_ANALTIFY_VQ_MASK) == kioeventfd->vq) {
 			eventfd_signal(kioeventfd->eventfd);
 			state = STATE_IORESP_READY;
 			break;
@@ -1164,11 +1164,11 @@ static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
 	ioreq->state = state;
 
 	if (state == STATE_IORESP_READY) {
-		notify_remote_via_evtchn(port->port);
+		analtify_remote_via_evtchn(port->port);
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void ioreq_free(struct privcmd_kernel_ioreq *kioreq)
@@ -1201,7 +1201,7 @@ struct privcmd_kernel_ioreq *alloc_ioreq(struct privcmd_ioeventfd *ioeventfd)
 	size = struct_size(kioreq, ports, ioeventfd->vcpus);
 	kioreq = kzalloc(size, GFP_KERNEL);
 	if (!kioreq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	kioreq->dom = ioeventfd->dom;
 	kioreq->vcpus = ioeventfd->vcpus;
@@ -1322,13 +1322,13 @@ static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
 	      ioeventfd->addr_len == 4 || ioeventfd->addr_len == 8))
 		return -EINVAL;
 
-	/* 4096 vcpus limit enough ? */
+	/* 4096 vcpus limit eanalugh ? */
 	if (!ioeventfd->vcpus || ioeventfd->vcpus > 4096)
 		return -EINVAL;
 
 	kioeventfd = kzalloc(sizeof(*kioeventfd), GFP_KERNEL);
 	if (!kioeventfd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f = fdget(ioeventfd->event_fd);
 	if (!f.file) {
@@ -1412,7 +1412,7 @@ static int privcmd_ioeventfd_deassign(struct privcmd_ioeventfd *ioeventfd)
 
 	pr_err("Ioeventfd isn't already assigned, dom: %u, addr: %llu\n",
 	       ioeventfd->dom, ioeventfd->addr);
-	ret = -ENODEV;
+	ret = -EANALDEV;
 
 unlock:
 	mutex_unlock(&ioreq_lock);
@@ -1429,7 +1429,7 @@ static long privcmd_ioctl_ioeventfd(struct file *file, void __user *udata)
 	if (copy_from_user(&ioeventfd, udata, sizeof(ioeventfd)))
 		return -EFAULT;
 
-	/* No other flags should be set */
+	/* Anal other flags should be set */
 	if (ioeventfd.flags & ~PRIVCMD_IOEVENTFD_FLAG_DEASSIGN)
 		return -EINVAL;
 
@@ -1464,7 +1464,7 @@ static void privcmd_ioeventfd_exit(void)
 #else
 static inline long privcmd_ioctl_irqfd(struct file *file, void __user *udata)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int privcmd_irqfd_init(void)
@@ -1478,7 +1478,7 @@ static inline void privcmd_irqfd_exit(void)
 
 static inline long privcmd_ioctl_ioeventfd(struct file *file, void __user *udata)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline void privcmd_ioeventfd_exit(void)
@@ -1489,7 +1489,7 @@ static inline void privcmd_ioeventfd_exit(void)
 static long privcmd_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long data)
 {
-	int ret = -ENOTTY;
+	int ret = -EANALTTY;
 	void __user *udata = (void __user *) data;
 
 	switch (cmd) {
@@ -1536,21 +1536,21 @@ static long privcmd_ioctl(struct file *file,
 	return ret;
 }
 
-static int privcmd_open(struct inode *ino, struct file *file)
+static int privcmd_open(struct ianalde *ianal, struct file *file)
 {
 	struct privcmd_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
 
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* DOMID_INVALID implies no restriction */
+	/* DOMID_INVALID implies anal restriction */
 	data->domid = DOMID_INVALID;
 
 	file->private_data = data;
 	return 0;
 }
 
-static int privcmd_release(struct inode *ino, struct file *file)
+static int privcmd_release(struct ianalde *ianal, struct file *file)
 {
 	struct privcmd_data *data = file->private_data;
 
@@ -1593,7 +1593,7 @@ static const struct vm_operations_struct privcmd_vm_ops = {
 
 static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	/* DONTCOPY is essential for Xen because copy_page_range doesn't know
+	/* DONTCOPY is essential for Xen because copy_page_range doesn't kanalw
 	 * how to recreate these mappings */
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTCOPY |
 			 VM_DONTEXPAND | VM_DONTDUMP);
@@ -1605,12 +1605,12 @@ static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
 
 /*
  * For MMAPBATCH*. This allows asserting the singleshot mapping
- * on a per pfn/pte basis. Mapping calls that fail with ENOENT
+ * on a per pfn/pte basis. Mapping calls that fail with EANALENT
  * can be then retried until success.
  */
 static int is_mapped_fn(pte_t *pte, unsigned long addr, void *data)
 {
-	return pte_none(ptep_get(pte)) ? 0 : -EBUSY;
+	return pte_analne(ptep_get(pte)) ? 0 : -EBUSY;
 }
 
 static int privcmd_vma_range_is_mapped(
@@ -1632,7 +1632,7 @@ const struct file_operations xen_privcmd_fops = {
 EXPORT_SYMBOL_GPL(xen_privcmd_fops);
 
 static struct miscdevice privcmd_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "xen/privcmd",
 	.fops = &xen_privcmd_fops,
 };
@@ -1642,17 +1642,17 @@ static int __init privcmd_init(void)
 	int err;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = misc_register(&privcmd_dev);
 	if (err != 0) {
-		pr_err("Could not register Xen privcmd device\n");
+		pr_err("Could analt register Xen privcmd device\n");
 		return err;
 	}
 
 	err = misc_register(&xen_privcmdbuf_dev);
 	if (err != 0) {
-		pr_err("Could not register Xen hypercall-buf device\n");
+		pr_err("Could analt register Xen hypercall-buf device\n");
 		goto err_privcmdbuf;
 	}
 

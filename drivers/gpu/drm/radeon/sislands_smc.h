@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -205,14 +205,14 @@ struct SISLANDS_SMC_VOLTAGEMASKTABLE {
 
 typedef struct SISLANDS_SMC_VOLTAGEMASKTABLE SISLANDS_SMC_VOLTAGEMASKTABLE;
 
-#define SISLANDS_MAX_NO_VREG_STEPS 32
+#define SISLANDS_MAX_ANAL_VREG_STEPS 32
 
 struct SISLANDS_SMC_STATETABLE {
 	uint8_t					thermalProtectType;
 	uint8_t					systemFlags;
 	uint8_t					maxVDDCIndexInPPTable;
 	uint8_t					extraFlags;
-	uint32_t				lowSMIO[SISLANDS_MAX_NO_VREG_STEPS];
+	uint32_t				lowSMIO[SISLANDS_MAX_ANAL_VREG_STEPS];
 	SISLANDS_SMC_VOLTAGEMASKTABLE		voltageMaskTable;
 	SISLANDS_SMC_VOLTAGEMASKTABLE		phaseMaskTable;
 	PP_SIslands_DPM2Parameters		dpm2Params;
@@ -239,7 +239,7 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_crtc_index               0xC4
 #define SI_SMC_SOFT_REGISTER_mclk_change_block_cp_min 0xC8
 #define SI_SMC_SOFT_REGISTER_mclk_change_block_cp_max 0xCC
-#define SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width  0xF4
+#define SI_SMC_SOFT_REGISTER_analn_ulv_pcie_link_width  0xF4
 #define SI_SMC_SOFT_REGISTER_tdr_is_about_to_happen   0xFC
 #define SI_SMC_SOFT_REGISTER_vr_hot_gpio              0x100
 #define SI_SMC_SOFT_REGISTER_svi_rework_plat_type     0x118

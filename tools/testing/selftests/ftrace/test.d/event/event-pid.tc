@@ -25,7 +25,7 @@ yield
 
 count=`cat trace | grep sched_switch | wc -l`
 if [ $count -eq 0 ]; then
-    fail "sched_switch events are not recorded"
+    fail "sched_switch events are analt recorded"
 fi
 
 do_reset
@@ -53,7 +53,7 @@ yield
 
 count=`cat trace | grep sched_switch | grep -v "pid=$mypid" | wc -l`
 if [ $count -eq 0 ]; then
-    fail "sched_switch events from other task are not recorded"
+    fail "sched_switch events from other task are analt recorded"
 fi
 
 do_reset

@@ -26,7 +26,7 @@
 #endif
 
 #ifndef STORE_ASI
-#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
+#ifndef SIMULATE_NIAGARA_ON_ANALN_NIAGARA
 #define STORE_ASI	ASI_BLK_INIT_QUAD_LDD_P
 #else
 #define STORE_ASI	0x80		/* ASI_P */
@@ -275,7 +275,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 	/* %o0:	dst
 	 * %o1:	src
-	 * %o2:	len  (known to be >= 128)
+	 * %o2:	len  (kanalwn to be >= 128)
 	 *
 	 * The block copy loops can use %o4, %g2, %g3 as
 	 * temporaries while copying the data.  %o5 must
@@ -325,26 +325,26 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 cmp		%g2, 40
 	cmp		%g2, 56
 	blu		170f
-	 nop
+	 analp
 	ba,a,pt		%xcc, 180f
-	 nop
+	 analp
 
 4:	/* 32 <= low bits < 48 */
 	blu		150f
-	 nop
+	 analp
 	ba,a,pt		%xcc, 160f
-	 nop
+	 analp
 5:	/* 0 < low bits < 32 */
 	blu,a		6f
 	 cmp		%g2, 8
 	cmp		%g2, 24
 	blu		130f
-	 nop
+	 analp
 	ba,a,pt		%xcc, 140f
-	 nop
+	 analp
 6:	/* 0 < low bits < 16 */
 	bgeu		120f
-	 nop
+	 analp
 	/* fall through for 0 < low bits < 8 */
 110:	sub		%o4, 64, %g2
 	EX_LD_FP(LOAD_BLK(%g2, %f0), NG2_retl_o2_plus_g1)
@@ -358,7 +358,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 120:	sub		%o4, 56, %g2
 	FREG_LOAD_7(%g2, f0, f2, f4, f6, f8, f10, f12)
@@ -372,7 +372,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 130:	sub		%o4, 48, %g2
 	FREG_LOAD_6(%g2, f0, f2, f4, f6, f8, f10)
@@ -386,7 +386,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 140:	sub		%o4, 40, %g2
 	FREG_LOAD_5(%g2, f0, f2, f4, f6, f8)
@@ -400,7 +400,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 150:	sub		%o4, 32, %g2
 	FREG_LOAD_4(%g2, f0, f2, f4, f6)
@@ -414,7 +414,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 160:	sub		%o4, 24, %g2
 	FREG_LOAD_3(%g2, f0, f2, f4)
@@ -428,7 +428,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 170:	sub		%o4, 16, %g2
 	FREG_LOAD_2(%g2, f0, f2)
@@ -442,7 +442,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 180:	sub		%o4, 8, %g2
 	FREG_LOAD_1(%g2, f0)
@@ -456,7 +456,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	bne,pt		%xcc, 1b
 	 LOAD(prefetch, %o4 + 64, #one_read)
 	ba,pt		%xcc, 195f
-	 nop
+	 analp
 
 190:
 1:	EX_ST_FP(STORE_INIT(%g0, %o4 + %g3), NG2_retl_o2_plus_g1)
@@ -479,7 +479,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	brz,pt		%o2, 85f
 	 sub		%o0, %o1, GLOBAL_SPARE
 	ba,a,pt		%XCC, 90f
-	 nop
+	 analp
 
 	.align		64
 75: /* 16 < len <= 64 */
@@ -501,23 +501,23 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 add		%o1, 0x8, %o1
 73:	andcc		%o2, 0x8, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%o2, 0x8, %o2
 	EX_LD(LOAD(ldx, %o1, %o5), NG2_retl_o2_plus_8)
 	EX_ST(STORE(stx, %o5, %o1 + GLOBAL_SPARE), NG2_retl_o2_plus_8)
 	add		%o1, 0x8, %o1
 1:	andcc		%o2, 0x4, %g0
 	be,pt		%XCC, 1f
-	 nop
+	 analp
 	sub		%o2, 0x4, %o2
 	EX_LD(LOAD(lduw, %o1, %o5), NG2_retl_o2_plus_4)
 	EX_ST(STORE(stw, %o5, %o1 + GLOBAL_SPARE), NG2_retl_o2_plus_4)
 	add		%o1, 0x4, %o1
 1:	cmp		%o2, 0
 	be,pt		%XCC, 85f
-	 nop
+	 analp
 	ba,pt		%xcc, 90f
-	 nop
+	 analp
 
 75:
 	andcc		%o0, 0x7, %g1
@@ -539,7 +539,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 
 	cmp		%o2, 16
 	bgeu,pt		%icc, 72b
-	 nop
+	 analp
 	ba,a,pt		%xcc, 73b
 
 8:	mov		64, GLOBAL_SPARE

@@ -5,7 +5,7 @@
  */
 
 #include <linux/bpf.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -13,7 +13,7 @@ char _license[] SEC("license") = "GPL";
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } secure_exec_task_map SEC(".maps");

@@ -46,18 +46,18 @@
 #include "pseries.h"
 
 /*
- * The Primary thread of each non-boot processor was started from the OF client
+ * The Primary thread of each analn-boot processor was started from the OF client
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_var_t of_spin_mask;
 
-/* Query where a cpu is now.  Return codes #defined in plpar_wrappers.h */
+/* Query where a cpu is analw.  Return codes #defined in plpar_wrappers.h */
 int smp_query_cpu_stopped(unsigned int pcpu)
 {
 	int cpu_status, status;
 	int qcss_tok = rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE);
 
-	if (qcss_tok == RTAS_UNKNOWN_SERVICE) {
+	if (qcss_tok == RTAS_UNKANALWN_SERVICE) {
 		printk_once(KERN_INFO
 			"Firmware doesn't support query-cpu-stopped-state\n");
 		return QCSS_HARDWARE_ERROR;
@@ -76,7 +76,7 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 /**
  * smp_startup_cpu() - start the given cpu
  *
- * At boot time, there is nothing to do for primary threads which were
+ * At boot time, there is analthing to do for primary threads which were
  * started from Open Firmware.  For anything else, call RTAS with the
  * appropriate start location.
  *
@@ -99,17 +99,17 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 	pcpu = get_hard_smp_processor_id(lcpu);
 
 	/* Check to see if the CPU out of FW already for kexec */
-	if (smp_query_cpu_stopped(pcpu) == QCSS_NOT_STOPPED){
+	if (smp_query_cpu_stopped(pcpu) == QCSS_ANALT_STOPPED){
 		cpumask_set_cpu(lcpu, of_spin_mask);
 		return 1;
 	}
 
 	/* 
-	 * If the RTAS start-cpu token does not exist then presume the
+	 * If the RTAS start-cpu token does analt exist then presume the
 	 * cpu is already spinning.
 	 */
 	start_cpu = rtas_function_token(RTAS_FN_START_CPU);
-	if (start_cpu == RTAS_UNKNOWN_SERVICE)
+	if (start_cpu == RTAS_UNKANALWN_SERVICE)
 		return 1;
 
 	status = rtas_call(start_cpu, 3, 1, NULL, pcpu, start_here, pcpu);
@@ -140,11 +140,11 @@ static int smp_pSeries_kick_cpu(int nr)
 		return -EINVAL;
 
 	if (!smp_startup_cpu(nr))
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become analn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	paca_ptrs[nr]->cpu_start = 1;
@@ -199,7 +199,7 @@ static __init void pSeries_smp_probe(void)
 	else
 		xics_smp_probe();
 
-	/* No doorbell facility, must use the interrupt controller for IPIs */
+	/* Anal doorbell facility, must use the interrupt controller for IPIs */
 	if (!cpu_has_feature(CPU_FTR_DBELL))
 		return;
 
@@ -263,10 +263,10 @@ void __init smp_init_pseries(void)
 	/*
 	 * Mark threads which are still spinning in hold loops
 	 *
-	 * We know prom_init will not have started them if RTAS supports
+	 * We kanalw prom_init will analt have started them if RTAS supports
 	 * query-cpu-stopped-state.
 	 */
-	if (rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE) == RTAS_UNKNOWN_SERVICE) {
+	if (rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE) == RTAS_UNKANALWN_SERVICE) {
 		if (cpu_has_feature(CPU_FTR_SMT)) {
 			for_each_present_cpu(i) {
 				if (cpu_thread_in_core(i) == 0)

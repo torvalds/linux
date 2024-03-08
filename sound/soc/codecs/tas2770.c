@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// ALSA SoC Texas Instruments TAS2770 20-W Digital Input Mono Class-D
+// ALSA SoC Texas Instruments TAS2770 20-W Digital Input Moanal Class-D
 // Audio Amplifier with Speaker I/V Sense
 //
 // Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
@@ -146,7 +146,7 @@ static int tas2770_dac_event(struct snd_soc_dapm_widget *w,
 		ret = tas2770_update_pwr_ctrl(tas2770);
 		break;
 	default:
-		dev_err(tas2770->dev, "Not supported evevt\n");
+		dev_err(tas2770->dev, "Analt supported evevt\n");
 		return -EINVAL;
 	}
 
@@ -159,11 +159,11 @@ static const struct snd_kcontrol_new vsense_switch =
 	SOC_DAPM_SINGLE("Switch", TAS2770_PWR_CTRL, 2, 1, 1);
 
 static const struct snd_soc_dapm_widget tas2770_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_NOPM, 0, 0, &tas2770_asi1_mux),
+	SND_SOC_DAPM_AIF_IN("ASI1", "ASI1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_MUX("ASI1 Sel", SND_SOC_ANALPM, 0, 0, &tas2770_asi1_mux),
 	SND_SOC_DAPM_SWITCH("ISENSE", TAS2770_PWR_CTRL, 3, 1, &isense_switch),
 	SND_SOC_DAPM_SWITCH("VSENSE", TAS2770_PWR_CTRL, 2, 1, &vsense_switch),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas2770_dac_event,
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas2770_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 	SND_SOC_DAPM_SIGGEN("VMON"),
@@ -333,7 +333,7 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		asi_cfg_1 |= TAS2770_TDM_CFG_REG1_RX_FALING;
 		break;
 	default:
-		dev_err(tas2770->dev, "ASI format Inverse is not found\n");
+		dev_err(tas2770->dev, "ASI format Inverse is analt found\n");
 		return -EINVAL;
 	}
 
@@ -362,7 +362,7 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		dev_err(tas2770->dev,
-			"DAI Format is not found, fmt=0x%x\n", fmt);
+			"DAI Format is analt found, fmt=0x%x\n", fmt);
 		return -EINVAL;
 	}
 
@@ -435,7 +435,7 @@ static int tas2770_set_dai_tdm_slot(struct snd_soc_dai *dai,
 						    TAS2770_TDM_CFG_REG2_RXS_32BITS);
 		break;
 	case 0:
-		/* Do not change slot width */
+		/* Do analt change slot width */
 		ret = 0;
 		break;
 	default:
@@ -453,7 +453,7 @@ static const struct snd_soc_dai_ops tas2770_dai_ops = {
 	.hw_params  = tas2770_hw_params,
 	.set_fmt    = tas2770_set_fmt,
 	.set_tdm_slot = tas2770_set_dai_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define TAS2770_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -625,20 +625,20 @@ static int tas2770_parse_dt(struct device *dev, struct tas2770_priv *tas2770)
 {
 	int rc = 0;
 
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,imon-slot-no",
+	rc = fwanalde_property_read_u32(dev->fwanalde, "ti,imon-slot-anal",
 				      &tas2770->i_sense_slot);
 	if (rc) {
 		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
-			 "ti,imon-slot-no");
+			 "ti,imon-slot-anal");
 
 		tas2770->i_sense_slot = 0;
 	}
 
-	rc = fwnode_property_read_u32(dev->fwnode, "ti,vmon-slot-no",
+	rc = fwanalde_property_read_u32(dev->fwanalde, "ti,vmon-slot-anal",
 				      &tas2770->v_sense_slot);
 	if (rc) {
 		dev_info(tas2770->dev, "Property %s is missing setting default slot\n",
-			 "ti,vmon-slot-no");
+			 "ti,vmon-slot-anal");
 
 		tas2770->v_sense_slot = 2;
 	}
@@ -662,7 +662,7 @@ static int tas2770_i2c_probe(struct i2c_client *client)
 	tas2770 = devm_kzalloc(&client->dev, sizeof(struct tas2770_priv),
 			       GFP_KERNEL);
 	if (!tas2770)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tas2770->dev = &client->dev;
 	i2c_set_clientdata(client, tas2770);
@@ -676,7 +676,7 @@ static int tas2770_i2c_probe(struct i2c_client *client)
 		return result;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		result = tas2770_parse_dt(&client->dev, tas2770);
 		if (result) {
 			dev_err(tas2770->dev, "%s: Failed to parse devicetree\n",

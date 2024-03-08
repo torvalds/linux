@@ -374,7 +374,7 @@
 #define	STOPBE					BIT(1)
 #define	STOPBK					BIT(0)
 
-#define	LBK_NORMAL				0x00
+#define	LBK_ANALRMAL				0x00
 #define	LBK_MAC_LB				(BIT(0) | BIT(1) | BIT(3))
 #define	LBK_MAC_DLB				(BIT(0) | BIT(1))
 #define	LBK_DMA_LB				(BIT(0) | BIT(1) | BIT(2))
@@ -454,11 +454,11 @@
 
 #define MSR_LINK_MASK				((1 << 0) | (1 << 1))
 #define MSR_LINK_MANAGED			2
-#define MSR_LINK_NONE				0
+#define MSR_LINK_ANALNE				0
 #define MSR_LINK_SHIFT				0
 #define MSR_LINK_ADHOC				1
 #define MSR_LINK_MASTER				3
-#define	MSR_NOLINK				0x00
+#define	MSR_ANALLINK				0x00
 #define	MSR_ADHOC				0x01
 #define	MSR_INFRA				0x02
 #define	MSR_AP					0x03
@@ -600,13 +600,13 @@
 #define	SCR_TXENCENABLE				BIT(2)
 #define	SCR_RXENCENABLE				BIT(3)
 #define	SCR_SKBYA2				BIT(4)
-#define	SCR_NOSKMC				BIT(5)
+#define	SCR_ANALSKMC				BIT(5)
 
 #define	CAM_VALID				BIT(15)
-#define	CAM_NOTVALID				0x0000
+#define	CAM_ANALTVALID				0x0000
 #define	CAM_USEDK				BIT(5)
 
-#define	CAM_NONE				0x0
+#define	CAM_ANALNE				0x0
 #define	CAM_WEP40				0x01
 #define	CAM_TKIP				0x02
 #define	CAM_AES					0x04
@@ -695,8 +695,8 @@
 #define	CCX_CMD_CLM_ENABLE			BIT(0)
 #define	CCX_CMD_NHM_ENABLE			BIT(1)
 #define	CCX_CMD_FUNCTION_ENABLE			BIT(8)
-#define	CCX_CMD_IGNORE_CCA			BIT(9)
-#define	CCX_CMD_IGNORE_TXON			BIT(10)
+#define	CCX_CMD_IGANALRE_CCA			BIT(9)
+#define	CCX_CMD_IGANALRE_TXON			BIT(10)
 #define	CCX_CLM_RESULT_READY			BIT(16)
 #define	CCX_NHM_RESULT_READY			BIT(16)
 #define	CCX_CMD_RESET				0x0
@@ -718,7 +718,7 @@
 #define EEPROM_SMID				0x10
 
 #define EEPROM_MAC_ADDR				0x12
-#define EEPROM_NODE_ADDRESS_BYTE_0		0x12
+#define EEPROM_ANALDE_ADDRESS_BYTE_0		0x12
 
 #define EEPROM_PWDIFF				0x54
 
@@ -803,9 +803,9 @@
 #define	FW_IQK_SUCCESS				0x0000dddd
 #define	FW_IQK_FAIL				0x0000ffff
 #define	FW_OP_FAILURE				0xffffffff
-#define	FW_TX_FEEDBACK_NONE			0xfb000000
-#define	FW_TX_FEEDBACK_DTM_ENABLE		(FW_TX_FEEDBACK_NONE | 0x1)
-#define	FW_TX_FEEDBACK_CCX_ENABL		(FW_TX_FEEDBACK_NONE | 0x2)
+#define	FW_TX_FEEDBACK_ANALNE			0xfb000000
+#define	FW_TX_FEEDBACK_DTM_ENABLE		(FW_TX_FEEDBACK_ANALNE | 0x1)
+#define	FW_TX_FEEDBACK_CCX_ENABL		(FW_TX_FEEDBACK_ANALNE | 0x2)
 #define	FW_BB_RESET_ENABLE			0xff00000d
 #define	FW_BB_RESET_DISABLE			0xff00000e
 #define	FW_CCA_CHK_ENABLE			0xff000011
@@ -1018,7 +1018,7 @@
 #define	ROFDM0_XDTXAFE				0xc9c
 
 #define	ROFDM0_RXHP_PARAMETER			0xce0
-#define	ROFDM0_TXPSEUDO_NOISE_WGT		0xce4
+#define	ROFDM0_TXPSEUDO_ANALISE_WGT		0xce4
 #define	ROFDM0_FRAME_SYNC			0xcf0
 #define	ROFDM0_DFSREPORT			0xcf4
 #define	ROFDM0_TXCOEFF1				0xca4
@@ -1039,9 +1039,9 @@
 #define	ROFDM1_CFOTRACKING			0xd2c
 #define	ROFDM1_TRXMESAURE1			0xd34
 #define	ROFDM1_INTF_DET				0xd3c
-#define	ROFDM1_PSEUDO_NOISESTATEAB		0xd50
-#define	ROFDM1_PSEUDO_NOISESTATECD		0xd54
-#define	ROFDM1_RX_PSEUDO_NOISE_WGT		0xd58
+#define	ROFDM1_PSEUDO_ANALISESTATEAB		0xd50
+#define	ROFDM1_PSEUDO_ANALISESTATECD		0xd54
+#define	ROFDM1_RX_PSEUDO_ANALISE_WGT		0xd58
 
 #define	ROFDM_PHYCOUNTER1			0xda0
 #define	ROFDM_PHYCOUNTER2			0xda4

@@ -9,12 +9,12 @@
 
 #include "kirkwood.dtsi"
 #include "kirkwood-6281.dtsi"
-#include "kirkwood-synology.dtsi"
+#include "kirkwood-syanallogy.dtsi"
 
 / {
-	model = "Synology DS210 v10, v20, v30, DS211j";
-	compatible = "synology,ds210jv10", "synology,ds210jv20",
-		     "synology,ds210jv30", "synology,ds211j",
+	model = "Syanallogy DS210 v10, v20, v30, DS211j";
+	compatible = "syanallogy,ds210jv10", "syanallogy,ds210jv20",
+		     "syanallogy,ds210jv30", "syanallogy,ds211j",
 		     "marvell,kirkwood";
 
 	memory {

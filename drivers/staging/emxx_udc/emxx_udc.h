@@ -246,7 +246,7 @@
 /*------- (0x0044:) EPN Status Register	*/
 #define EPN_ISO_PIDERR			BIT(29)		/* R */
 #define EPN_OPID			BIT(28)		/* R */
-#define EPN_OUT_NOTKN			BIT(27)		/* R */
+#define EPN_OUT_ANALTKN			BIT(27)		/* R */
 #define EPN_ISO_OR			BIT(26)		/* R */
 
 #define EPN_ISO_CRC			BIT(24)		/* R */
@@ -260,7 +260,7 @@
 #define EPN_OUT_EMPTY			BIT(16)		/* R */
 
 #define EPN_IPID			BIT(10)		/* R */
-#define EPN_IN_NOTKN			BIT(9)		/* R */
+#define EPN_IN_ANALTKN			BIT(9)		/* R */
 #define EPN_ISO_UR			BIT(8)		/* R */
 #define EPN_IN_END_INT			BIT(7)		/* RW */
 

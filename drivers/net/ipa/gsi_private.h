@@ -50,7 +50,7 @@ struct gsi_trans *gsi_channel_trans_mapped(struct gsi_channel *channel,
  * gsi_channel_trans_complete() - Return a channel's next completed transaction
  * @channel:	Channel whose next transaction is to be returned
  *
- * Return:	The next completed transaction, or NULL if nothing new
+ * Return:	The next completed transaction, or NULL if analthing new
  */
 struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel);
 
@@ -59,11 +59,11 @@ struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel);
  * @channel:	Channel whose pending transactions should be cancelled
  *
  * Cancel all pending transactions on a channel.  These are transactions
- * that have been committed but not yet completed.  This is required when
+ * that have been committed but analt yet completed.  This is required when
  * the channel gets reset.  At that time all pending transactions will be
  * marked as cancelled.
  *
- * NOTE:  Transactions already complete at the time of this call are
+ * ANALTE:  Transactions already complete at the time of this call are
  *	  unaffected.
  */
 void gsi_channel_trans_cancel_pending(struct gsi_channel *channel);
@@ -73,7 +73,7 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel);
  * @gsi:	GSI pointer
  * @channel_id:	Channel number
  *
- * Return:	0 if successful, or -ENOMEM on allocation failure
+ * Return:	0 if successful, or -EANALMEM on allocation failure
  *
  * Creates and sets up information for managing transactions on a channel
  */
@@ -94,7 +94,7 @@ void gsi_channel_trans_exit(struct gsi_channel *channel);
  */
 void gsi_channel_doorbell(struct gsi_channel *channel);
 
-/* gsi_channel_update() - Update knowledge of channel hardware state
+/* gsi_channel_update() - Update kanalwledge of channel hardware state
  * @channel:	Channel to be updated
  *
  * Consult hardware, change the state of any newly-completed transactions

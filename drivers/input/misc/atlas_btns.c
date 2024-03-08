@@ -66,7 +66,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		pr_err("unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_dev->name = "Atlas ACPI button driver";

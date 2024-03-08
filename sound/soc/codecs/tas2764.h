@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tas2764.h - ALSA SoC Texas Instruments TAS2764 Mono Audio Amplifier
+ * tas2764.h - ALSA SoC Texas Instruments TAS2764 Moanal Audio Amplifier
  *
  * Copyright (C) 2020 Texas Instruments Incorporated -  https://www.ti.com
  *

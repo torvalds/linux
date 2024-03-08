@@ -22,7 +22,7 @@
  *         (argument registers may be clobbered on return)
  * x86_64: RAX = vector; RDI, RSI, RDX, R10, R8, R9 = args 1, 2, 3, 4, 5, 6.
  *         RAX = return value
- *         (argument registers not clobbered on return; RCX, R11 are)
+ *         (argument registers analt clobbered on return; RCX, R11 are)
  */
 #define __HYPERVISOR_set_trap_table        0
 #define __HYPERVISOR_mmu_update            1
@@ -54,7 +54,7 @@
 #define __HYPERVISOR_nmi_op               28
 #define __HYPERVISOR_sched_op             29
 #define __HYPERVISOR_callback_op          30
-#define __HYPERVISOR_xenoprof_op          31
+#define __HYPERVISOR_xeanalprof_op          31
 #define __HYPERVISOR_event_channel_op     32
 #define __HYPERVISOR_physdev_op           33
 #define __HYPERVISOR_hvm_op               34
@@ -80,8 +80,8 @@
  * VIRTUAL INTERRUPTS
  *
  * Virtual interrupts that a guest OS may receive from Xen.
- * In the side comments, 'V.' denotes a per-VCPU VIRQ while 'G.' denotes a
- * global VIRQ. The former can be bound once per VCPU and cannot be re-bound.
+ * In the side comments, 'V.' deanaltes a per-VCPU VIRQ while 'G.' deanaltes a
+ * global VIRQ. The former can be bound once per VCPU and cananalt be re-bound.
  * The latter can be allocated only once per guest: they must initially be
  * allocated to VCPU0 but can subsequently be re-bound.
  */
@@ -91,12 +91,12 @@
 #define VIRQ_DOM_EXC    3  /* G. (DOM0) Exceptional event for some domain.   */
 #define VIRQ_TBUF       4  /* G. (DOM0) Trace buffer has records available.  */
 #define VIRQ_DEBUGGER   6  /* G. (DOM0) A domain has paused for debugging.   */
-#define VIRQ_XENOPROF   7  /* V. XenOprofile interrupt: new sample available */
+#define VIRQ_XEANALPROF   7  /* V. XenOprofile interrupt: new sample available */
 #define VIRQ_CON_RING   8  /* G. (DOM0) Bytes received on console            */
 #define VIRQ_PCPU_STATE 9  /* G. (DOM0) PCPU state changed                   */
 #define VIRQ_MEM_EVENT  10 /* G. (DOM0) A memory event has occured           */
 #define VIRQ_XC_RESERVED 11 /* G. Reserved for XenClient                     */
-#define VIRQ_ENOMEM     12 /* G. (DOM0) Low on heap memory       */
+#define VIRQ_EANALMEM     12 /* G. (DOM0) Low on heap memory       */
 #define VIRQ_XENPMU     13  /* PMC interrupt                                 */
 
 /* Architecture-specific VIRQ definitions. */
@@ -112,7 +112,7 @@
 #define NR_VIRQS       24
 
 /*
- * enum neg_errnoval HYPERVISOR_mmu_update(const struct mmu_update reqs[],
+ * enum neg_erranalval HYPERVISOR_mmu_update(const struct mmu_update reqs[],
  *                                         unsigned count, unsigned *done_out,
  *                                         unsigned foreigndom)
  * @reqs is an array of mmu_update_t structures ((ptr, val) pairs).
@@ -128,7 +128,7 @@
  *
  * Sub-commands: ptr[1:0] specifies the appropriate MMU_* command.
  * -------------
- * ptr[1:0] == MMU_NORMAL_PT_UPDATE:
+ * ptr[1:0] == MMU_ANALRMAL_PT_UPDATE:
  * Updates an entry in a page table belonging to PFD. If updating an L1 table,
  * and the new table entry is valid/present, the mapped frame must belong to
  * FD. If attempting to map an I/O page then the caller assumes the privilege
@@ -156,21 +156,21 @@
  *  4). When completed with all of the PMD (L2) entries, and all of them have
  *      been set to RO, make sure to set RO the PUD (L3). Do the same
  *      operation on PGD (L4) pagetable entries that have a PUD (L3) entry.
- *  5). Now before you can use those pages (so setting the cr3), you MUST also
+ *  5). Analw before you can use those pages (so setting the cr3), you MUST also
  *      pin them so that the hypervisor can verify the entries. This is done
  *      via the HYPERVISOR_mmuext_op(MMUEXT_PIN_L4_TABLE, guest physical frame
  *      number of the PGD (L4)). And this point the HYPERVISOR_mmuext_op(
  *      MMUEXT_NEW_BASEPTR, guest physical frame number of the PGD (L4)) can be
  *      issued.
- * For 32-bit guests, the L4 is not used (as there is less pagetables), so
+ * For 32-bit guests, the L4 is analt used (as there is less pagetables), so
  * instead use L3.
- * At this point the pagetables can be modified using the MMU_NORMAL_PT_UPDATE
+ * At this point the pagetables can be modified using the MMU_ANALRMAL_PT_UPDATE
  * hypercall. Also if so desired the OS can also try to write to the PTE
  * and be trapped by the hypervisor (as the PTE entry is RO).
  *
  * To deallocate the pages, the operations are the reverse of the steps
  * mentioned above. The argument is MMUEXT_UNPIN_TABLE for all levels and the
- * pagetable MUST not be in use (meaning that the cr3 is not set to it).
+ * pagetable MUST analt be in use (meaning that the cr3 is analt set to it).
  *
  * ptr[1:0] == MMU_MACHPHYS_UPDATE:
  * Updates an entry in the machine->pseudo-physical mapping table.
@@ -179,14 +179,14 @@
  * val      -- Value to write into the mapping entry.
  *
  * ptr[1:0] == MMU_PT_UPDATE_PRESERVE_AD:
- * As MMU_NORMAL_PT_UPDATE above, but A/D bits currently in the PTE are ORed
+ * As MMU_ANALRMAL_PT_UPDATE above, but A/D bits currently in the PTE are ORed
  * with those in @val.
  *
  * @val is usually the machine frame number along with some attributes.
  * The attributes by default follow the architecture defined bits. Meaning that
  * if this is a X86_64 machine and four page table layout is used, the layout
  * of val is:
- *  - 63 if set means No execute (NX)
+ *  - 63 if set means Anal execute (NX)
  *  - 46-13 the machine frame number
  *  - 12 available for guest
  *  - 11 available for guest
@@ -202,12 +202,12 @@
  *  - 1 writeable
  *  - 0 present
  *
- *  The one bits that does not fit with the default layout is the PAGE_PSE
+ *  The one bits that does analt fit with the default layout is the PAGE_PSE
  *  also called PAGE_PAT). The MMUEXT_[UN]MARK_SUPER arguments to the
  *  HYPERVISOR_mmuext_op serve as mechanism to set a pagetable to be 4MB
  *  (or 2MB) instead of using the PAGE_PSE bit.
  *
- *  The reason that the PAGE_PSE (bit 7) is not being utilized is due to Xen
+ *  The reason that the PAGE_PSE (bit 7) is analt being utilized is due to Xen
  *  using it as the Page Attribute Table (PAT) bit - for details on it please
  *  refer to Intel SDM 10.12. The PAT allows to set the caching attributes of
  *  pages instead of using MTRRs.
@@ -236,7 +236,7 @@
  *  set. For example, under Linux it only uses PAT0, PAT1, and PAT2 for the
  *  caching as:
  *
- *   WB = none (so PAT0)
+ *   WB = analne (so PAT0)
  *   WC = PWT (bit 3 on)
  *   UC = PWT | PCD (bit 3 and 4 are on).
  *
@@ -248,21 +248,21 @@
  *
  * PAT (bit 7 on) --> PWT (bit 3 on) and clear bit 7.
  */
-#define MMU_NORMAL_PT_UPDATE       0 /* checked '*ptr = val'. ptr is MA.      */
+#define MMU_ANALRMAL_PT_UPDATE       0 /* checked '*ptr = val'. ptr is MA.      */
 #define MMU_MACHPHYS_UPDATE        1 /* ptr = MA of frame to modify entry for */
 #define MMU_PT_UPDATE_PRESERVE_AD  2 /* atomically: *ptr = val | (*ptr&(A|D)) */
-#define MMU_PT_UPDATE_NO_TRANSLATE 3 /* checked '*ptr = val'. ptr is MA.      */
+#define MMU_PT_UPDATE_ANAL_TRANSLATE 3 /* checked '*ptr = val'. ptr is MA.      */
 
 /*
  * MMU EXTENDED OPERATIONS
  *
- * enum neg_errnoval HYPERVISOR_mmuext_op(mmuext_op_t uops[],
+ * enum neg_erranalval HYPERVISOR_mmuext_op(mmuext_op_t uops[],
  *                                        unsigned int count,
  *                                        unsigned int *pdone,
  *                                        unsigned int foreigndom)
  */
 /* HYPERVISOR_mmuext_op() accepts a list of mmuext_op structures.
- * A foreigndom (FD) can be specified (or DOMID_SELF for none).
+ * A foreigndom (FD) can be specified (or DOMID_SELF for analne).
  * Where the FD has some effect, it is described below.
  *
  * cmd: MMUEXT_(UN)PIN_*_TABLE
@@ -277,7 +277,7 @@
  *      when in user space.
  *
  * cmd: MMUEXT_TLB_FLUSH_LOCAL
- * No additional arguments. Flushes local TLB.
+ * Anal additional arguments. Flushes local TLB.
  *
  * cmd: MMUEXT_INVLPG_LOCAL
  * linear_addr: Linear address to be flushed from the local TLB.
@@ -290,16 +290,16 @@
  * vcpumask: Pointer to bitmap of VCPUs to be flushed.
  *
  * cmd: MMUEXT_TLB_FLUSH_ALL
- * No additional arguments. Flushes all VCPUs' TLBs.
+ * Anal additional arguments. Flushes all VCPUs' TLBs.
  *
  * cmd: MMUEXT_INVLPG_ALL
  * linear_addr: Linear address to be flushed from all VCPUs' TLBs.
  *
  * cmd: MMUEXT_FLUSH_CACHE
- * No additional arguments. Writes back and flushes cache contents.
+ * Anal additional arguments. Writes back and flushes cache contents.
  *
  * cmd: MMUEXT_FLUSH_CACHE_GLOBAL
- * No additional arguments. Writes back and flushes cache contents
+ * Anal additional arguments. Writes back and flushes cache contents
  * on all CPUs in the system.
  *
  * cmd: MMUEXT_SET_LDT
@@ -362,7 +362,7 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 /* These are passed as 'flags' to update_va_mapping. They can be ORed. */
 /* When specifying UVMF_MULTI, also OR in a pointer to a CPU bitmap.   */
 /* UVMF_LOCAL is merely UVMF_MULTI with a NULL bitmap pointer.         */
-#define UVMF_NONE               (0UL<<0) /* No flushing at all.   */
+#define UVMF_ANALNE               (0UL<<0) /* Anal flushing at all.   */
 #define UVMF_TLB_FLUSH          (1UL<<0) /* Flush entire TLB(s).  */
 #define UVMF_INVLPG             (2UL<<0) /* Flush only one entry. */
 #define UVMF_FLUSHTYPE_MASK     (3UL<<0)
@@ -386,11 +386,11 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 #define VMASST_TYPE_4gb_segments         0
 
 /* x86/32 guests: trap (vector 15) whenever above vmassist is used. */
-#define VMASST_TYPE_4gb_segments_notify  1
+#define VMASST_TYPE_4gb_segments_analtify  1
 
 /*
  * x86 guests: support writes to bottom-level PTEs.
- * NB1. Page-directory entries cannot be written.
+ * NB1. Page-directory entries cananalt be written.
  * NB2. Guest must continue to remove all writable mappings of PTEs.
  */
 #define VMASST_TYPE_writable_pagetables  2
@@ -419,7 +419,7 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 
 typedef uint16_t domid_t;
 
-/* Domain ids >= DOMID_FIRST_RESERVED cannot be used for ordinary domains. */
+/* Domain ids >= DOMID_FIRST_RESERVED cananalt be used for ordinary domains. */
 #define DOMID_FIRST_RESERVED (0x7FF0U)
 
 /* DOMID_SELF is used in certain contexts to refer to oneself. */
@@ -427,8 +427,8 @@ typedef uint16_t domid_t;
 
 /*
  * DOMID_IO is used to restrict page-table updates to mapping I/O memory.
- * Although no Foreign Domain need be specified to map I/O pages, DOMID_IO
- * is useful to ensure that no mappings to the OS's own heap are accidentally
+ * Although anal Foreign Domain need be specified to map I/O pages, DOMID_IO
+ * is useful to ensure that anal mappings to the OS's own heap are accidentally
  * installed. (e.g., in Linux this could cause havoc as reference counts
  * aren't adjusted on the I/O-mapping code path).
  * This only makes sense in MMUEXT_SET_FOREIGNDOM, but in that context can
@@ -447,7 +447,7 @@ typedef uint16_t domid_t;
 /* DOMID_COW is used as the owner of sharable pages */
 #define DOMID_COW  (0x7FF3U)
 
-/* DOMID_INVALID is used to identify pages with unknown owner. */
+/* DOMID_INVALID is used to identify pages with unkanalwn owner. */
 #define DOMID_INVALID (0x7FF4U)
 
 /* Idle domain. */
@@ -490,7 +490,7 @@ struct vcpu_time_info {
 	uint32_t version;
 	uint32_t pad0;
 	uint64_t tsc_timestamp;   /* TSC at last update of time vals.  */
-	uint64_t system_time;     /* Time, in nanosecs, since boot.    */
+	uint64_t system_time;     /* Time, in naanalsecs, since boot.    */
 	/*
 	 * Current system time:
 	 *   system_time + ((tsc - tsc_timestamp) << tsc_shift) * tsc_to_system_mul
@@ -504,18 +504,18 @@ struct vcpu_time_info {
 
 struct vcpu_info {
 	/*
-	 * 'evtchn_upcall_pending' is written non-zero by Xen to indicate
-	 * a pending notification for a particular VCPU. It is then cleared
+	 * 'evtchn_upcall_pending' is written analn-zero by Xen to indicate
+	 * a pending analtification for a particular VCPU. It is then cleared
 	 * by the guest OS /before/ checking for pending work, thus avoiding
-	 * a set-and-check race. Note that the mask is only accessed by Xen
+	 * a set-and-check race. Analte that the mask is only accessed by Xen
 	 * on the CPU that is currently hosting the VCPU. This means that the
 	 * pending and mask flags can be updated by the guest without special
-	 * synchronisation (i.e., no need for the x86 LOCK prefix).
+	 * synchronisation (i.e., anal need for the x86 LOCK prefix).
 	 * This may seem suboptimal because if the pending flag is set by
 	 * a different CPU then an IPI may be scheduled even when the mask
-	 * is set. However, note:
+	 * is set. However, analte:
 	 *  1. The task of 'interrupt holdoff' is covered by the per-event-
-	 *     channel mask bits. A 'noisy' event that is continually being
+	 *     channel mask bits. A 'analisy' event that is continually being
 	 *     triggered can be masked at source at this very precise
 	 *     granularity.
 	 *  2. The main purpose of the per-VCPU mask is therefore to restrict
@@ -524,7 +524,7 @@ struct vcpu_info {
 	 *     that the mask will be asserted only for short periods at a time,
 	 *     and so the likelihood of a 'spurious' IPI is suitably small.
 	 * The mask is read before making an event upcall to the guest: a
-	 * non-zero mask therefore guarantees that the VCPU will not receive
+	 * analn-zero mask therefore guarantees that the VCPU will analt receive
 	 * an upcall activation. The mask is cleared when the VCPU requests
 	 * to block: this avoids wakeup-waiting races.
 	 */
@@ -544,7 +544,7 @@ struct shared_info {
 
 	/*
 	 * A domain can create "event channels" on which it can send and receive
-	 * asynchronous event notifications. There are three classes of event that
+	 * asynchroanalus event analtifications. There are three classes of event that
 	 * are delivered by this mechanism:
 	 *  1. Bi-directional inter- and intra-domain connections. Domains must
 	 *     arrange out-of-band to set up a connection (usually by allocating
@@ -559,16 +559,16 @@ struct shared_info {
 	 *
 	 * Event channels are addressed by a "port index". Each channel is
 	 * associated with two bits of information:
-	 *  1. PENDING -- notifies the domain that there is a pending notification
+	 *  1. PENDING -- analtifies the domain that there is a pending analtification
 	 *     to be processed. This bit is cleared by the guest.
 	 *  2. MASK -- if this bit is clear then a 0->1 transition of PENDING
-	 *     will cause an asynchronous upcall to be scheduled. This bit is only
+	 *     will cause an asynchroanalus upcall to be scheduled. This bit is only
 	 *     updated by the guest. It is read-only within Xen. If a channel
 	 *     becomes pending while the channel is masked then the 'edge' is lost
 	 *     (i.e., when the channel is unmasked, the guest must manually handle
-	 *     pending notifications as no upcall will be scheduled by Xen).
+	 *     pending analtifications as anal upcall will be scheduled by Xen).
 	 *
-	 * To expedite scanning of pending notifications, any 0->1 pending
+	 * To expedite scanning of pending analtifications, any 0->1 pending
 	 * transition on an unmasked channel causes a corresponding bit in a
 	 * per-vcpu selector word to be set. Each bit in the selector covers a
 	 * 'C long' in the PENDING bitfield array.
@@ -598,7 +598,7 @@ struct shared_info {
  *      b. initial ram disk              [mod_start, mod_len]
  *         (may be omitted)
  *      c. list of allocated page frames [mfn_list, nr_pages]
- *         (unless relocated due to XEN_ELFNOTE_INIT_P2M)
+ *         (unless relocated due to XEN_ELFANALTE_INIT_P2M)
  *      d. start_info_t structure        [register ESI (x86)]
  *         in case of dom0 this page contains the console info, too
  *      e. unless dom0: xenstore ring page
@@ -635,7 +635,7 @@ struct start_info {
 			uint32_t info_size; /* Size of console_info struct from start.*/
 		} dom0;
 	} console;
-	/* THE FOLLOWING ARE ONLY FILLED IN ON INITIAL BOOT (NOT RESUME).     */
+	/* THE FOLLOWING ARE ONLY FILLED IN ON INITIAL BOOT (ANALT RESUME).     */
 	unsigned long pt_base;      /* VIRTUAL address of page directory.     */
 	unsigned long nr_pt_frames; /* Number of bootstrap p.t. frames.       */
 	unsigned long mfn_list;     /* VIRTUAL address of page-frame list.    */
@@ -762,7 +762,7 @@ DEFINE_GUEST_HANDLE(u64);
 
 #else /* __ASSEMBLY__ */
 
-/* In assembly code we cannot use C numeric constant suffixes. */
+/* In assembly code we cananalt use C numeric constant suffixes. */
 #define mk_unsigned_long(x) x
 
 #endif /* !__ASSEMBLY__ */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* Copyright (c) 2015 - 2022 Beijing WangXun Techanallogy Co., Ltd. */
 
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -33,7 +33,7 @@ static int wx_phy_read_reg_mdi(struct mii_bus *bus, int phy_addr, int devnum, in
 	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
 				100000, false, wx, WX_MSCC);
 	if (ret) {
-		wx_err(wx, "Mdio read c22 command did not complete.\n");
+		wx_err(wx, "Mdio read c22 command did analt complete.\n");
 		return ret;
 	}
 
@@ -62,7 +62,7 @@ static int wx_phy_write_reg_mdi(struct mii_bus *bus, int phy_addr,
 	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
 				100000, false, wx, WX_MSCC);
 	if (ret)
-		wx_err(wx, "Mdio write c22 command did not complete.\n");
+		wx_err(wx, "Mdio write c22 command did analt complete.\n");
 
 	return ret;
 }
@@ -209,7 +209,7 @@ EXPORT_SYMBOL(wx_check_flash_load);
 
 void wx_control_hw(struct wx *wx, bool drv)
 {
-	/* True : Let firmware know the driver has taken over
+	/* True : Let firmware kanalw the driver has taken over
 	 * False : Let firmware take over control of hw
 	 */
 	wr32m(wx, WX_CFG_PORT_CTL, WX_CFG_PORT_CTL_DRV_LOAD,
@@ -271,7 +271,7 @@ static int wx_acquire_sw_sync(struct wx *wx, u32 mask)
 		sem |= mask;
 		wr32(wx, WX_MNG_SWFW_SYNC, sem);
 	} else {
-		wx_err(wx, "SW Semaphore not granted: 0x%x.\n", sem);
+		wx_err(wx, "SW Semaphore analt granted: 0x%x.\n", sem);
 	}
 	mutex_unlock(&wx_sw_sync_lock);
 
@@ -285,10 +285,10 @@ static int wx_acquire_sw_sync(struct wx *wx, u32 mask)
  *   be placed
  *  @length: length of buffer, must be multiple of 4 bytes
  *  @timeout: time in ms to wait for command completion
- *  @return_data: read and return data from the buffer (true) or not (false)
+ *  @return_data: read and return data from the buffer (true) or analt (false)
  *   Needed because FW structures are big endian and decoding of
  *   these fields can be 8 bit or 16 bit based on command. Decoding
- *   is not easily understood without making a table of commands.
+ *   is analt easily understood without making a table of commands.
  *   So we will leave this up to the caller to read back the data
  *   in these cases.
  **/
@@ -312,7 +312,7 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 
 	/* Calculate length in DWORDs. We must be DWORD aligned */
 	if ((length % (sizeof(u32))) != 0) {
-		wx_err(wx, "Buffer length failure, not aligned to dword");
+		wx_err(wx, "Buffer length failure, analt aligned to dword");
 		status = -EINVAL;
 		goto rel_out;
 	}
@@ -336,7 +336,7 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 
 	/* Check command completion */
 	if (status) {
-		wx_dbg(wx, "Command has failed with no status valid.\n");
+		wx_dbg(wx, "Command has failed with anal status valid.\n");
 
 		buf[0] = rd32(wx, WX_MNG_MBOX);
 		if ((buffer[0] & 0xff) != (~buf[0] >> 24)) {
@@ -344,7 +344,7 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 			goto rel_out;
 		}
 		if ((buf[0] & 0xff0000) >> 16 == 0x80) {
-			wx_dbg(wx, "It's unknown cmd.\n");
+			wx_dbg(wx, "It's unkanalwn cmd.\n");
 			status = -EINVAL;
 			goto rel_out;
 		}
@@ -363,7 +363,7 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 	/* Calculate length in DWORDs */
 	dword_len = hdr_size >> 2;
 
-	/* first pull in the header so we know the buffer length */
+	/* first pull in the header so we kanalw the buffer length */
 	for (bi = 0; bi < dword_len; bi++) {
 		buffer[bi] = rd32a(wx, WX_MNG_MBOX, bi);
 		le32_to_cpus(&buffer[bi]);
@@ -375,7 +375,7 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 		goto rel_out;
 
 	if (length < buf_len + hdr_size) {
-		wx_err(wx, "Buffer not large enough for reply message.\n");
+		wx_err(wx, "Buffer analt large eanalugh for reply message.\n");
 		status = -EFAULT;
 		goto rel_out;
 	}
@@ -538,7 +538,7 @@ void wx_init_eeprom_params(struct wx *wx)
 
 	if (eeprom->type == wx_eeprom_uninitialized) {
 		eeprom->semaphore_delay = 10;
-		eeprom->type = wx_eeprom_none;
+		eeprom->type = wx_eeprom_analne;
 
 		if (!(rd32(wx, WX_SPI_STATUS) &
 		      WX_SPI_STATUS_FLASH_BYPASS)) {
@@ -861,7 +861,7 @@ static int wx_add_mac_filter(struct wx *wx, u8 *addr, u16 pool)
 		wx_sync_mac_table(wx);
 		return i;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool)
@@ -885,7 +885,7 @@ static int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool)
 		wx_sync_mac_table(wx);
 		return 0;
 	}
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int wx_available_rars(struct wx *wx)
@@ -906,8 +906,8 @@ static int wx_available_rars(struct wx *wx)
  * @pool: index for mac table
  *
  * Writes unicast address list to the RAR table.
- * Returns: -ENOMEM on failure/insufficient address space
- *                0 on no addresses written
+ * Returns: -EANALMEM on failure/insufficient address space
+ *                0 on anal addresses written
  *                X on writing X addresses to the RAR table
  **/
 static int wx_write_uc_addr_list(struct net_device *netdev, int pool)
@@ -915,9 +915,9 @@ static int wx_write_uc_addr_list(struct net_device *netdev, int pool)
 	struct wx *wx = netdev_priv(netdev);
 	int count = 0;
 
-	/* return ENOMEM indicating insufficient memory for addresses */
+	/* return EANALMEM indicating insufficient memory for addresses */
 	if (netdev_uc_count(netdev) > wx_available_rars(wx))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!netdev_uc_empty(netdev)) {
 		struct netdev_hw_addr *ha;
@@ -1051,7 +1051,7 @@ static void wx_update_mc_addr_list(struct wx *wx, struct net_device *netdev)
  * @netdev: network interface device structure
  *
  * Writes multicast address list to the MTA hash table.
- * Returns: 0 on no addresses written
+ * Returns: 0 on anal addresses written
  *          X on writing X addresses to MTA
  **/
 static int wx_write_mc_addr_list(struct net_device *netdev)
@@ -1184,13 +1184,13 @@ static int wx_hpbthresh(struct wx *wx)
 
 	marker = rx_pba - kb;
 
-	/* It is possible that the packet buffer is not large enough
+	/* It is possible that the packet buffer is analt large eanalugh
 	 * to provide required headroom. In this case throw an error
 	 * to user and a do the best we can.
 	 */
 	if (marker < 0) {
 		dev_warn(&wx->pdev->dev,
-			 "Packet Buffer can not provide enough headroom to support flow control. Decrease MTU or number of traffic classes\n");
+			 "Packet Buffer can analt provide eanalugh headroom to support flow control. Decrease MTU or number of traffic classes\n");
 		marker = tc + 1;
 	}
 
@@ -1228,7 +1228,7 @@ static void wx_pbthresh_setup(struct wx *wx)
 	wx->fc.high_water = wx_hpbthresh(wx);
 	wx->fc.low_water = wx_lpbthresh(wx);
 
-	/* Low water marks must not be larger than high water marks */
+	/* Low water marks must analt be larger than high water marks */
 	if (wx->fc.low_water > wx->fc.high_water)
 		wx->fc.low_water = 0;
 }
@@ -1349,7 +1349,7 @@ void wx_set_rx_mode(struct net_device *netdev)
 		vmolr |= WX_PSR_VM_L2CTL_ROPE | WX_PSR_VM_L2CTL_ROMPE;
 	}
 
-	/* Write addresses to available RAR registers, if there is not
+	/* Write addresses to available RAR registers, if there is analt
 	 * sufficient space to store all the addresses then enable
 	 * unicast promiscuous mode
 	 */
@@ -1433,7 +1433,7 @@ void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring)
 	if (ret == -ETIMEDOUT) {
 		/* Just for information */
 		wx_err(wx,
-		       "RRCFG.EN on Rx queue %d not cleared within the polling period\n",
+		       "RRCFG.EN on Rx queue %d analt cleared within the polling period\n",
 		       reg_idx);
 	}
 }
@@ -1451,7 +1451,7 @@ static void wx_enable_rx_queue(struct wx *wx, struct wx_ring *ring)
 	if (ret == -ETIMEDOUT) {
 		/* Just for information */
 		wx_err(wx,
-		       "RRCFG.EN on Rx queue %d not set within the polling period\n",
+		       "RRCFG.EN on Rx queue %d analt set within the polling period\n",
 		       reg_idx);
 	}
 }
@@ -1510,7 +1510,7 @@ static void wx_configure_tx_ring(struct wx *wx,
 	ret = read_poll_timeout(rd32, txdctl, txdctl & WX_PX_TR_CFG_ENABLE,
 				1000, 10000, true, wx, WX_PX_TR_CFG(reg_idx));
 	if (ret == -ETIMEDOUT)
-		wx_err(wx, "Could not enable Tx Queue %d\n", reg_idx);
+		wx_err(wx, "Could analt enable Tx Queue %d\n", reg_idx);
 }
 
 static void wx_configure_rx_ring(struct wx *wx,
@@ -1709,7 +1709,7 @@ void wx_configure_rx(struct wx *wx)
 	/* Enable all receives, disable security engine prior to block traffic */
 	ret = wx_disable_sec_rx_path(wx);
 	if (ret < 0)
-		wx_err(wx, "The register status is abnormal, please check device.");
+		wx_err(wx, "The register status is abanalrmal, please check device.");
 
 	wx_enable_rx(wx);
 	wx_enable_sec_rx_path(wx);
@@ -1744,7 +1744,7 @@ EXPORT_SYMBOL(wx_configure);
  *  wx_disable_pcie_master - Disable PCI-express master access
  *  @wx: pointer to hardware structure
  *
- *  Disables PCI-Express master access and verifies there are no pending
+ *  Disables PCI-Express master access and verifies there are anal pending
  *  requests.
  **/
 int wx_disable_pcie_master(struct wx *wx)
@@ -1763,7 +1763,7 @@ int wx_disable_pcie_master(struct wx *wx)
 	status = read_poll_timeout(rd32, val, !val, 100, WX_PCI_MASTER_DISABLE_TIMEOUT,
 				   false, wx, WX_PX_TRANSACTION_PENDING);
 	if (status < 0)
-		wx_err(wx, "PCIe transaction pending bit did not clear.\n");
+		wx_err(wx, "PCIe transaction pending bit did analt clear.\n");
 
 	return status;
 }
@@ -1776,7 +1776,7 @@ EXPORT_SYMBOL(wx_disable_pcie_master);
  *  Sets the adapter_stopped flag within wx_hw struct. Clears interrupts,
  *  disables transmit and receive units. The adapter_stopped flag is used by
  *  the shared code and drivers to determine if the adapter is in a stopped
- *  state and should not touch the hardware.
+ *  state and should analt touch the hardware.
  **/
 int wx_stop_adapter(struct wx *wx)
 {
@@ -1814,7 +1814,7 @@ int wx_stop_adapter(struct wx *wx)
 	WX_WRITE_FLUSH(wx);
 
 	/* Prevent the PCI-E bus from hanging by disabling PCI-E master
-	 * access and verify no pending requests
+	 * access and verify anal pending requests
 	 */
 	return wx_disable_pcie_master(wx);
 }
@@ -1898,7 +1898,7 @@ EXPORT_SYMBOL(wx_get_pcie_msix_counts);
  * wx_init_rss_key - Initialize wx RSS key
  * @wx: device handle
  *
- * Allocates and initializes the RSS key if it is not allocated.
+ * Allocates and initializes the RSS key if it is analt allocated.
  **/
 static int wx_init_rss_key(struct wx *wx)
 {
@@ -1907,7 +1907,7 @@ static int wx_init_rss_key(struct wx *wx)
 	if (!wx->rss_key) {
 		rss_key = kzalloc(WX_RSS_KEY_SIZE, GFP_KERNEL);
 		if (unlikely(!rss_key))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		netdev_rss_key_fill(rss_key, WX_RSS_KEY_SIZE);
 		wx->rss_key = rss_key;
@@ -1955,7 +1955,7 @@ int wx_sw_init(struct wx *wx)
 	if (!wx->mac_table) {
 		wx_err(wx, "mac_table allocation failed\n");
 		kfree(wx->rss_key);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	wx->msix_in_use = false;
@@ -1997,7 +1997,7 @@ static int wx_find_vlvf_slot(struct wx *wx, u32 vlan)
 		if (first_empty_slot)
 			regindex = first_empty_slot;
 		else
-			regindex = -ENOMEM;
+			regindex = -EANALMEM;
 	}
 
 	return regindex;
@@ -2090,7 +2090,7 @@ static int wx_set_vfta(struct wx *wx, u32 vlan, u32 vind, bool vlan_on)
 
 	/* this is a 2 part operation - first the VFTA, then the
 	 * VLVF and VLVFB if VT Mode is set
-	 * We don't write the VFTA until we know the VLVF part succeeded.
+	 * We don't write the VFTA until we kanalw the VLVF part succeeded.
 	 */
 
 	/* Part 1
@@ -2282,7 +2282,7 @@ void wx_update_stats(struct wx *wx)
 {
 	struct wx_hw_stats *hwstats = &wx->stats;
 
-	u64 non_eop_descs = 0, alloc_rx_buff_failed = 0;
+	u64 analn_eop_descs = 0, alloc_rx_buff_failed = 0;
 	u64 hw_csum_rx_good = 0, hw_csum_rx_error = 0;
 	u64 restart_queue = 0, tx_busy = 0;
 	u32 i;
@@ -2291,12 +2291,12 @@ void wx_update_stats(struct wx *wx)
 	for (i = 0; i < wx->num_rx_queues; i++) {
 		struct wx_ring *rx_ring = wx->rx_ring[i];
 
-		non_eop_descs += rx_ring->rx_stats.non_eop_descs;
+		analn_eop_descs += rx_ring->rx_stats.analn_eop_descs;
 		alloc_rx_buff_failed += rx_ring->rx_stats.alloc_rx_buff_failed;
 		hw_csum_rx_good += rx_ring->rx_stats.csum_good_cnt;
 		hw_csum_rx_error += rx_ring->rx_stats.csum_err;
 	}
-	wx->non_eop_descs = non_eop_descs;
+	wx->analn_eop_descs = analn_eop_descs;
 	wx->alloc_rx_buff_failed = alloc_rx_buff_failed;
 	wx->hw_csum_rx_error = hw_csum_rx_error;
 	wx->hw_csum_rx_good = hw_csum_rx_good;
@@ -2324,7 +2324,7 @@ void wx_update_stats(struct wx *wx)
 	hwstats->mptc += rd64(wx, WX_TX_MC_FRAMES_GOOD_L);
 	hwstats->roc += rd32(wx, WX_RX_OVERSIZE_FRAMES_GOOD);
 	hwstats->ruc += rd32(wx, WX_RX_UNDERSIZE_FRAMES_GOOD);
-	hwstats->lxonoffrxc += rd32(wx, WX_MAC_LXONOFFRXC);
+	hwstats->lxoanalffrxc += rd32(wx, WX_MAC_LXOANALFFRXC);
 	hwstats->lxontxc += rd32(wx, WX_RDB_LXONTXC);
 	hwstats->lxofftxc += rd32(wx, WX_RDB_LXOFFTXC);
 	hwstats->o2bgptc += rd32(wx, WX_TDM_OS2BMC_CNT);
@@ -2369,7 +2369,7 @@ void wx_clear_hw_cntrs(struct wx *wx)
 	rd64(wx, WX_RX_LEN_ERROR_FRAMES_L);
 	rd32(wx, WX_RDB_LXONTXC);
 	rd32(wx, WX_RDB_LXOFFTXC);
-	rd32(wx, WX_MAC_LXONOFFRXC);
+	rd32(wx, WX_MAC_LXOANALFFRXC);
 }
 EXPORT_SYMBOL(wx_clear_hw_cntrs);
 

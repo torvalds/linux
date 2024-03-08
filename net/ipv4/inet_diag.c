@@ -54,7 +54,7 @@ static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 {
 	if (proto < 0 || proto >= IPPROTO_MAX) {
 		mutex_lock(&inet_diag_table_mutex);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	if (!inet_diag_table[proto])
@@ -62,7 +62,7 @@ static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 
 	mutex_lock(&inet_diag_table_mutex);
 	if (!inet_diag_table[proto])
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	return inet_diag_table[proto];
 }
@@ -179,7 +179,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 #endif
 
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
-	r->idiag_inode = sock_i_ino(sk);
+	r->idiag_ianalde = sock_i_ianal(sk);
 
 	memset(&inet_sockopt, 0, sizeof(inet_sockopt));
 	inet_sockopt.recverr	= inet_test_bit(RECVERR, sk);
@@ -189,8 +189,8 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 	inet_sockopt.mc_loop	= inet_test_bit(MC_LOOP, sk);
 	inet_sockopt.transparent = inet_test_bit(TRANSPARENT, sk);
 	inet_sockopt.mc_all	= inet_test_bit(MC_ALL, sk);
-	inet_sockopt.nodefrag	= inet_test_bit(NODEFRAG, sk);
-	inet_sockopt.bind_address_no_port = inet_test_bit(BIND_ADDRESS_NO_PORT, sk);
+	inet_sockopt.analdefrag	= inet_test_bit(ANALDEFRAG, sk);
+	inet_sockopt.bind_address_anal_port = inet_test_bit(BIND_ADDRESS_ANAL_PORT, sk);
 	inet_sockopt.recverr_rfc4884 = inet_test_bit(RECVERR_RFC4884, sk);
 	inet_sockopt.defer_connect = inet_test_bit(DEFER_CONNECT, sk);
 	if (nla_put(skb, INET_DIAG_SOCKOPT, sizeof(inet_sockopt),
@@ -440,7 +440,7 @@ static int inet_twsk_diag_fill(struct sock *sk,
 	r->idiag_rqueue	      = 0;
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
-	r->idiag_inode	      = 0;
+	r->idiag_ianalde	      = 0;
 
 	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK,
 				     tw->tw_mark)) {
@@ -480,7 +480,7 @@ static int inet_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	r->idiag_rqueue	= 0;
 	r->idiag_wqueue	= 0;
 	r->idiag_uid	= 0;
-	r->idiag_inode	= 0;
+	r->idiag_ianalde	= 0;
 
 	if (net_admin && nla_put_u32(skb, INET_DIAG_MARK,
 				     inet_rsk(reqsk)->ir_mark)) {
@@ -540,11 +540,11 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 	}
 	rcu_read_unlock();
 	if (!sk)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	if (sock_diag_check_cookie(sk, req->id.idiag_cookie)) {
 		sock_gen_put(sk);
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 	}
 
 	return sk;
@@ -568,7 +568,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 
 	rep = nlmsg_new(inet_sk_attr_size(sk, req, net_admin), GFP_KERNEL);
 	if (!rep) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -617,7 +617,7 @@ static int inet_diag_cmd_exact(int cmd, struct sk_buff *in_skb,
 	} else if (cmd == SOCK_DESTROY && handler->destroy) {
 		err = handler->destroy(in_skb, req);
 	} else {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 	}
 	inet_diag_unlock_handler(handler);
 
@@ -657,35 +657,35 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 	int len = nla_len(_bc);
 
 	while (len > 0) {
-		int yes = 1;
+		int anal = 1;
 		const struct inet_diag_bc_op *op = bc;
 
 		switch (op->code) {
-		case INET_DIAG_BC_NOP:
+		case INET_DIAG_BC_ANALP:
 			break;
 		case INET_DIAG_BC_JMP:
-			yes = 0;
+			anal = 0;
 			break;
 		case INET_DIAG_BC_S_EQ:
-			yes = entry->sport == op[1].no;
+			anal = entry->sport == op[1].anal;
 			break;
 		case INET_DIAG_BC_S_GE:
-			yes = entry->sport >= op[1].no;
+			anal = entry->sport >= op[1].anal;
 			break;
 		case INET_DIAG_BC_S_LE:
-			yes = entry->sport <= op[1].no;
+			anal = entry->sport <= op[1].anal;
 			break;
 		case INET_DIAG_BC_D_EQ:
-			yes = entry->dport == op[1].no;
+			anal = entry->dport == op[1].anal;
 			break;
 		case INET_DIAG_BC_D_GE:
-			yes = entry->dport >= op[1].no;
+			anal = entry->dport >= op[1].anal;
 			break;
 		case INET_DIAG_BC_D_LE:
-			yes = entry->dport <= op[1].no;
+			anal = entry->dport <= op[1].anal;
 			break;
 		case INET_DIAG_BC_AUTO:
-			yes = !(entry->userlocks & SOCK_BINDPORT_LOCK);
+			anal = !(entry->userlocks & SOCK_BINDPORT_LOCK);
 			break;
 		case INET_DIAG_BC_S_COND:
 		case INET_DIAG_BC_D_COND: {
@@ -696,7 +696,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 			if (cond->port != -1 &&
 			    cond->port != (op->code == INET_DIAG_BC_S_COND ?
 					     entry->sport : entry->dport)) {
-				yes = 0;
+				anal = 0;
 				break;
 			}
 
@@ -716,7 +716,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 							    cond->prefix_len))
 						break;
 				}
-				yes = 0;
+				anal = 0;
 				break;
 			}
 
@@ -725,7 +725,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 			if (bitstring_match(addr, cond->addr,
 					    cond->prefix_len))
 				break;
-			yes = 0;
+			anal = 0;
 			break;
 		}
 		case INET_DIAG_BC_DEV_COND: {
@@ -733,7 +733,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 
 			ifindex = *((const u32 *)(op + 1));
 			if (ifindex != entry->ifindex)
-				yes = 0;
+				anal = 0;
 			break;
 		}
 		case INET_DIAG_BC_MARK_COND: {
@@ -741,7 +741,7 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 
 			cond = (struct inet_diag_markcond *)(op + 1);
 			if ((entry->mark & cond->mask) != cond->mark)
-				yes = 0;
+				anal = 0;
 			break;
 		}
 #ifdef CONFIG_SOCK_CGROUP_DATA
@@ -750,18 +750,18 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 
 			cgroup_id = get_unaligned((const u64 *)(op + 1));
 			if (cgroup_id != entry->cgroup_id)
-				yes = 0;
+				anal = 0;
 			break;
 		}
 #endif
 		}
 
-		if (yes) {
-			len -= op->yes;
-			bc += op->yes;
+		if (anal) {
+			len -= op->anal;
+			bc += op->anal;
 		} else {
-			len -= op->no;
-			bc += op->no;
+			len -= op->anal;
+			bc += op->anal;
 		}
 	}
 	return len == 0;
@@ -824,10 +824,10 @@ static int valid_cc(const void *bc, int len, int cc)
 			return 0;
 		if (cc == len)
 			return 1;
-		if (op->yes < 4 || op->yes & 3)
+		if (op->anal < 4 || op->anal & 3)
 			return 0;
-		len -= op->yes;
-		bc  += op->yes;
+		len -= op->anal;
+		bc  += op->anal;
 	}
 	return 0;
 }
@@ -958,24 +958,24 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 #endif
 		case INET_DIAG_BC_AUTO:
 		case INET_DIAG_BC_JMP:
-		case INET_DIAG_BC_NOP:
+		case INET_DIAG_BC_ANALP:
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		if (op->code != INET_DIAG_BC_NOP) {
-			if (op->no < min_len || op->no > len + 4 || op->no & 3)
+		if (op->code != INET_DIAG_BC_ANALP) {
+			if (op->anal < min_len || op->anal > len + 4 || op->anal & 3)
 				return -EINVAL;
-			if (op->no < len &&
-			    !valid_cc(bytecode, bytecode_len, len - op->no))
+			if (op->anal < len &&
+			    !valid_cc(bytecode, bytecode_len, len - op->anal))
 				return -EINVAL;
 		}
 
-		if (op->yes < min_len || op->yes > len + 4 || op->yes & 3)
+		if (op->anal < min_len || op->anal > len + 4 || op->anal & 3)
 			return -EINVAL;
-		bc  += op->yes;
-		len -= op->yes;
+		bc  += op->anal;
+		len -= op->anal;
 	}
 	return len == 0 ? 0 : -EINVAL;
 }
@@ -1030,13 +1030,13 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 		for (i = s_i; i <= hashinfo->lhash2_mask; i++) {
 			struct inet_listen_hashbucket *ilb;
-			struct hlist_nulls_node *node;
+			struct hlist_nulls_analde *analde;
 
 			num = 0;
 			ilb = &hashinfo->lhash2[i];
 
 			spin_lock(&ilb->lock);
-			sk_nulls_for_each(sk, node, &ilb->nulls_head) {
+			sk_nulls_for_each(sk, analde, &ilb->nulls_head) {
 				struct inet_sock *inet = inet_sk(sk);
 
 				if (!net_eq(sock_net(sk), net))
@@ -1082,7 +1082,7 @@ skip_listen_ht:
  */
 #define SKARR_SZ 16
 
-	/* Dump bound but inactive (not listening, connecting, etc.) sockets */
+	/* Dump bound but inactive (analt listening, connecting, etc.) sockets */
 	if (cb->args[0] == 1) {
 		if (!(idiag_states & TCPF_BOUND_INACTIVE))
 			goto skip_bind_ht;
@@ -1168,7 +1168,7 @@ skip_bind_ht:
 	for (i = s_i; i <= hashinfo->ehash_mask; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, i);
-		struct hlist_nulls_node *node;
+		struct hlist_nulls_analde *analde;
 		struct sock *sk_arr[SKARR_SZ];
 		int num_arr[SKARR_SZ];
 		int idx, accum, res;
@@ -1183,39 +1183,39 @@ next_chunk:
 		num = 0;
 		accum = 0;
 		spin_lock_bh(lock);
-		sk_nulls_for_each(sk, node, &head->chain) {
+		sk_nulls_for_each(sk, analde, &head->chain) {
 			int state;
 
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (num < s_num)
-				goto next_normal;
+				goto next_analrmal;
 			state = (sk->sk_state == TCP_TIME_WAIT) ?
 				inet_twsk(sk)->tw_substate : sk->sk_state;
 			if (!(idiag_states & (1 << state)))
-				goto next_normal;
+				goto next_analrmal;
 			if (r->sdiag_family != AF_UNSPEC &&
 			    sk->sk_family != r->sdiag_family)
-				goto next_normal;
+				goto next_analrmal;
 			if (r->id.idiag_sport != htons(sk->sk_num) &&
 			    r->id.idiag_sport)
-				goto next_normal;
+				goto next_analrmal;
 			if (r->id.idiag_dport != sk->sk_dport &&
 			    r->id.idiag_dport)
-				goto next_normal;
+				goto next_analrmal;
 			twsk_build_assert();
 
 			if (!inet_diag_bc_sk(bc, sk))
-				goto next_normal;
+				goto next_analrmal;
 
-			if (!refcount_inc_not_zero(&sk->sk_refcnt))
-				goto next_normal;
+			if (!refcount_inc_analt_zero(&sk->sk_refcnt))
+				goto next_analrmal;
 
 			num_arr[accum] = num;
 			sk_arr[accum] = sk;
 			if (++accum == SKARR_SZ)
 				break;
-next_normal:
+next_analrmal:
 			++num;
 		}
 		spin_unlock_bh(lock);
@@ -1265,7 +1265,7 @@ again:
 		err = PTR_ERR(handler);
 	inet_diag_unlock_handler(handler);
 
-	/* The skb is not large enough to fit one sk info and
+	/* The skb is analt large eanalugh to fit one sk info and
 	 * inet_sk_diag_fill() has requested for a larger skb.
 	 */
 	if (!skb->len && cb->min_dump_alloc > prev_min_dump_alloc) {
@@ -1292,7 +1292,7 @@ static int __inet_diag_dump_start(struct netlink_callback *cb, int hdrlen)
 
 	cb_data = kzalloc(sizeof(*cb_data), GFP_KERNEL);
 	if (!cb_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = inet_diag_parse_attrs(nlh, hdrlen, cb_data->req_nlas);
 	if (err) {
@@ -1442,7 +1442,7 @@ int inet_diag_handler_get_info(struct sk_buff *skb, struct sock *sk)
 
 	nlh = nlmsg_put(skb, 0, 0, SOCK_DIAG_BY_FAMILY, sizeof(*r), 0);
 	if (!nlh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	r = nlmsg_data(nlh);
 	memset(r, 0, sizeof(*r));
@@ -1529,7 +1529,7 @@ static int __init inet_diag_init(void)
 {
 	const int inet_diag_table_size = (IPPROTO_MAX *
 					  sizeof(struct inet_diag_handler *));
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	inet_diag_table = kzalloc(inet_diag_table_size, GFP_KERNEL);
 	if (!inet_diag_table)

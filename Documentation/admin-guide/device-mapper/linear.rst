@@ -3,13 +3,13 @@ dm-linear
 =========
 
 Device-Mapper's "linear" target maps a linear range of the Device-Mapper
-device onto a linear range of another device.  This is the basic building
+device onto a linear range of aanalther device.  This is the basic building
 block of logical volume managers.
 
 Parameters: <dev path> <offset>
     <dev path>:
 	Full pathname to the underlying block-device, or a
-        "major:minor" device-number.
+        "major:mianalr" device-number.
     <offset>:
 	Starting sector within the device.
 

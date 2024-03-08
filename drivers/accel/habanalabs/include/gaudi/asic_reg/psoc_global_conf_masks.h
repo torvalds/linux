@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PSOC_GLOBAL_CONF_MASKS_H_
@@ -19,9 +19,9 @@
  *****************************************
  */
 
-/* PSOC_GLOBAL_CONF_NON_RST_FLOPS */
-#define PSOC_GLOBAL_CONF_NON_RST_FLOPS_VAL_SHIFT                     0
-#define PSOC_GLOBAL_CONF_NON_RST_FLOPS_VAL_MASK                      0xFFFFFFFF
+/* PSOC_GLOBAL_CONF_ANALN_RST_FLOPS */
+#define PSOC_GLOBAL_CONF_ANALN_RST_FLOPS_VAL_SHIFT                     0
+#define PSOC_GLOBAL_CONF_ANALN_RST_FLOPS_VAL_MASK                      0xFFFFFFFF
 
 /* PSOC_GLOBAL_CONF_PCI_FW_FSM */
 #define PSOC_GLOBAL_CONF_PCI_FW_FSM_EN_SHIFT                         0
@@ -290,8 +290,8 @@
 /* PSOC_GLOBAL_CONF_TARGETID */
 #define PSOC_GLOBAL_CONF_TARGETID_TDESIGNER_SHIFT                    1
 #define PSOC_GLOBAL_CONF_TARGETID_TDESIGNER_MASK                     0xFFE
-#define PSOC_GLOBAL_CONF_TARGETID_TPARTNO_SHIFT                      16
-#define PSOC_GLOBAL_CONF_TARGETID_TPARTNO_MASK                       0xFFF0000
+#define PSOC_GLOBAL_CONF_TARGETID_TPARTANAL_SHIFT                      16
+#define PSOC_GLOBAL_CONF_TARGETID_TPARTANAL_MASK                       0xFFF0000
 #define PSOC_GLOBAL_CONF_TARGETID_TREVISION_SHIFT                    28
 #define PSOC_GLOBAL_CONF_TARGETID_TREVISION_MASK                     0xF0000000
 

@@ -66,7 +66,7 @@ Bridge setup
 
 	[*] if vlan_filtering=1. where default_pvid=1
 
-	Note. Steps [*] are mandatory.
+	Analte. Steps [*] are mandatory.
 
 
 On/off STP
@@ -83,7 +83,7 @@ VLAN configuration
 
   bridge vlan add dev br0 vid 1 pvid untagged self <---- add cpu port to VLAN 1
 
-Note. This step is mandatory for bridge/default_pvid.
+Analte. This step is mandatory for bridge/default_pvid.
 
 Add extra VLANs
 ===============
@@ -139,5 +139,5 @@ Access and Trunk port
  bridge vlan add dev br0 vid 100 self
  ip link add link br0 name br0.100 type vlan id 100
 
-Note. Setting PVID on Bridge device itself works only for
+Analte. Setting PVID on Bridge device itself works only for
 default VLAN (default_pvid).

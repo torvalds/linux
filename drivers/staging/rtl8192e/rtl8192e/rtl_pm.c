@@ -44,7 +44,7 @@ int rtl92e_suspend(struct device *dev_d)
 	}
 out_pci_suspend:
 	netdev_info(dev, "WOL is %s\n", priv->rtllib->bSupportRemoteWakeUp ?
-			    "Supported" : "Not supported");
+			    "Supported" : "Analt supported");
 	device_set_wakeup_enable(dev_d, priv->rtllib->bSupportRemoteWakeUp);
 
 	mdelay(20);

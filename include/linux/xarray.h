@@ -30,7 +30,7 @@
  *
  * Attempting to store internal entries in the XArray is a bug.
  *
- * Most internal entries are pointers to the next node in the tree.
+ * Most internal entries are pointers to the next analde in the tree.
  * The following internal entries have a special meaning:
  *
  * 0-62: Sibling entries
@@ -39,7 +39,7 @@
  *
  * Errors are also represented as internal entries, but use the negative
  * space (-4094 to -2).  They're never stored in the slots array; only
- * returned by the normal API.
+ * returned by the analrmal API.
  */
 
 #define BITS_PER_XA_VALUE	(BITS_PER_LONG - 1)
@@ -88,8 +88,8 @@ static inline bool xa_is_value(const void *entry)
  *
  * If the user of the XArray prefers, they can tag their pointers instead
  * of storing value entries.  Three tags are available (0, 1 and 3).
- * These are distinct from the xa_mark_t as they are not replicated up
- * through the array and cannot be searched for.
+ * These are distinct from the xa_mark_t as they are analt replicated up
+ * through the array and cananalt be searched for.
  *
  * Context: Any context.
  * Return: An XArray entry.
@@ -136,7 +136,7 @@ static inline unsigned int xa_pointer_tag(void *entry)
  * Internal entries are used for a number of purposes.  Entries 0-255 are
  * used for sibling entries (only 0-62 are used by the current code).  256
  * is used for the retry entry.  257 is used for the reserved / zero entry.
- * Negative internal entries are used to represent errnos.  Node pointers
+ * Negative internal entries are used to represent erranals.  Analde pointers
  * are also tagged as internal entries in some situations.
  *
  * Context: Any context.
@@ -177,7 +177,7 @@ static inline bool xa_is_internal(const void *entry)
  * xa_is_zero() - Is the entry a zero entry?
  * @entry: Entry retrieved from the XArray
  *
- * The normal API will return NULL as the contents of a slot containing
+ * The analrmal API will return NULL as the contents of a slot containing
  * a zero entry.  You can only see zero entries by using the advanced API.
  *
  * Return: %true if the entry is a zero entry.
@@ -191,7 +191,7 @@ static inline bool xa_is_zero(const void *entry)
  * xa_is_err() - Report whether an XArray operation returned an error
  * @entry: Result from calling an XArray function
  *
- * If an XArray operation cannot complete an operation, it will return
+ * If an XArray operation cananalt complete an operation, it will return
  * a special value indicating an error.  This function tells you
  * whether an error occurred; xa_err() tells you which error occurred.
  *
@@ -201,24 +201,24 @@ static inline bool xa_is_zero(const void *entry)
 static inline bool xa_is_err(const void *entry)
 {
 	return unlikely(xa_is_internal(entry) &&
-			entry >= xa_mk_internal(-MAX_ERRNO));
+			entry >= xa_mk_internal(-MAX_ERRANAL));
 }
 
 /**
- * xa_err() - Turn an XArray result into an errno.
+ * xa_err() - Turn an XArray result into an erranal.
  * @entry: Result from calling an XArray function.
  *
- * If an XArray operation cannot complete an operation, it will return
- * a special pointer value which encodes an errno.  This function extracts
- * the errno from the pointer value, or returns 0 if the pointer does not
- * represent an errno.
+ * If an XArray operation cananalt complete an operation, it will return
+ * a special pointer value which encodes an erranal.  This function extracts
+ * the erranal from the pointer value, or returns 0 if the pointer does analt
+ * represent an erranal.
  *
  * Context: Any context.
- * Return: A negative errno or 0.
+ * Return: A negative erranal or 0.
  */
 static inline int xa_err(void *entry)
 {
-	/* xa_to_internal() would not do sign extension. */
+	/* xa_to_internal() would analt do sign extension. */
 	if (xa_is_err(entry))
 		return (long)entry >> 2;
 	return 0;
@@ -273,7 +273,7 @@ enum xa_lock_type {
 #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
 						(__force unsigned)(mark)))
 
-/* ALLOC is for a normal 0-based alloc.  ALLOC1 is for an 1-based alloc */
+/* ALLOC is for a analrmal 0-based alloc.  ALLOC1 is for an 1-based alloc */
 #define XA_FLAGS_ALLOC	(XA_FLAGS_TRACK_FREE | XA_FLAGS_MARK(XA_FREE_MARK))
 #define XA_FLAGS_ALLOC1	(XA_FLAGS_TRACK_FREE | XA_FLAGS_ZERO_BUSY)
 
@@ -282,20 +282,20 @@ enum xa_lock_type {
  * @xa_lock: Lock that protects the contents of the XArray.
  *
  * To use the xarray, define it statically or embed it in your data structure.
- * It is a very small data structure, so it does not usually make sense to
+ * It is a very small data structure, so it does analt usually make sense to
  * allocate it separately and keep a pointer to it in your data structure.
  *
  * You may use the xa_lock to protect your own data structures as well.
  */
 /*
  * If all of the entries in the array are NULL, @xa_head is a NULL pointer.
- * If the only non-NULL entry in the array is at index 0, @xa_head is that
- * entry.  If any other entry in the array is non-NULL, @xa_head points
- * to an @xa_node.
+ * If the only analn-NULL entry in the array is at index 0, @xa_head is that
+ * entry.  If any other entry in the array is analn-NULL, @xa_head points
+ * to an @xa_analde.
  */
 struct xarray {
 	spinlock_t	xa_lock;
-/* private: The rest of the data structure is not to be used directly. */
+/* private: The rest of the data structure is analt to be used directly. */
 	gfp_t		xa_flags;
 	void __rcu *	xa_head;
 };
@@ -357,9 +357,9 @@ bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
 void *xa_find(struct xarray *xa, unsigned long *index,
-		unsigned long max, xa_mark_t) __attribute__((nonnull(2)));
+		unsigned long max, xa_mark_t) __attribute__((analnnull(2)));
 void *xa_find_after(struct xarray *xa, unsigned long *index,
-		unsigned long max, xa_mark_t) __attribute__((nonnull(2)));
+		unsigned long max, xa_mark_t) __attribute__((analnnull(2)));
 unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
 		unsigned long max, unsigned int n, xa_mark_t);
 void xa_destroy(struct xarray *);
@@ -509,7 +509,7 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
  *
  * During the iteration, @entry will have the value of the entry stored
  * in @xa at @index.  The iteration will skip all entries in the array
- * which do not match @filter.  You may modify @index during the iteration
+ * which do analt match @filter.  You may modify @index during the iteration
  * if you want to skip or reprocess indices.  It is safe to modify the array
  * during the iteration.  At the end of the iteration, @entry will be set to
  * NULL and @index will have a value less than or equal to max.
@@ -549,7 +549,7 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 		spin_lock_irqsave_nested(&(xa)->xa_lock, flags, subclass)
 
 /*
- * Versions of the normal API which require the caller to hold the
+ * Versions of the analrmal API which require the caller to hold the
  * xa_lock.  If the GFP flags allow it, they will drop the lock to
  * allocate memory, then reacquire it afterwards.  These functions
  * may also re-enable interrupts if the XArray flags indicate the
@@ -629,7 +629,7 @@ static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
  *
  * After this function returns, loading from @index will return %NULL.
  * If the index is part of a multi-index entry, all indices will be erased
- * and none of the entries will be part of a multi-index entry.
+ * and analne of the entries will be part of a multi-index entry.
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
@@ -653,7 +653,7 @@ static inline void *xa_erase_bh(struct xarray *xa, unsigned long index)
  *
  * After this function returns, loading from @index will return %NULL.
  * If the index is part of a multi-index entry, all indices will be erased
- * and none of the entries will be part of a multi-index entry.
+ * and analne of the entries will be part of a multi-index entry.
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
@@ -755,7 +755,7 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
 }
 
 /**
- * xa_insert() - Store this entry in the XArray unless another entry is
+ * xa_insert() - Store this entry in the XArray unless aanalther entry is
  *			already present.
  * @xa: XArray.
  * @index: Index into array.
@@ -763,13 +763,13 @@ static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
  * @gfp: Memory allocation flags.
  *
  * Inserting a NULL entry will store a reserved entry (like xa_reserve())
- * if no entry is present.  Inserting will fail if a reserved entry is
+ * if anal entry is present.  Inserting will fail if a reserved entry is
  * present, even though loading from this index will return NULL.
  *
  * Context: Any context.  Takes and releases the xa_lock.  May sleep if
  * the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
- * -ENOMEM if memory could not be allocated.
+ * Return: 0 if the store succeeded.  -EBUSY if aanalther entry was present.
+ * -EANALMEM if memory could analt be allocated.
  */
 static inline int __must_check xa_insert(struct xarray *xa,
 		unsigned long index, void *entry, gfp_t gfp)
@@ -785,7 +785,7 @@ static inline int __must_check xa_insert(struct xarray *xa,
 }
 
 /**
- * xa_insert_bh() - Store this entry in the XArray unless another entry is
+ * xa_insert_bh() - Store this entry in the XArray unless aanalther entry is
  *			already present.
  * @xa: XArray.
  * @index: Index into array.
@@ -793,13 +793,13 @@ static inline int __must_check xa_insert(struct xarray *xa,
  * @gfp: Memory allocation flags.
  *
  * Inserting a NULL entry will store a reserved entry (like xa_reserve())
- * if no entry is present.  Inserting will fail if a reserved entry is
+ * if anal entry is present.  Inserting will fail if a reserved entry is
  * present, even though loading from this index will return NULL.
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
- * -ENOMEM if memory could not be allocated.
+ * Return: 0 if the store succeeded.  -EBUSY if aanalther entry was present.
+ * -EANALMEM if memory could analt be allocated.
  */
 static inline int __must_check xa_insert_bh(struct xarray *xa,
 		unsigned long index, void *entry, gfp_t gfp)
@@ -815,7 +815,7 @@ static inline int __must_check xa_insert_bh(struct xarray *xa,
 }
 
 /**
- * xa_insert_irq() - Store this entry in the XArray unless another entry is
+ * xa_insert_irq() - Store this entry in the XArray unless aanalther entry is
  *			already present.
  * @xa: XArray.
  * @index: Index into array.
@@ -823,13 +823,13 @@ static inline int __must_check xa_insert_bh(struct xarray *xa,
  * @gfp: Memory allocation flags.
  *
  * Inserting a NULL entry will store a reserved entry (like xa_reserve())
- * if no entry is present.  Inserting will fail if a reserved entry is
+ * if anal entry is present.  Inserting will fail if a reserved entry is
  * present, even though loading from this index will return NULL.
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.  May sleep if the @gfp flags permit.
- * Return: 0 if the store succeeded.  -EBUSY if another entry was present.
- * -ENOMEM if memory could not be allocated.
+ * Return: 0 if the store succeeded.  -EBUSY if aanalther entry was present.
+ * -EANALMEM if memory could analt be allocated.
  */
 static inline int __must_check xa_insert_irq(struct xarray *xa,
 		unsigned long index, void *entry, gfp_t gfp)
@@ -854,15 +854,15 @@ static inline int __must_check xa_insert_irq(struct xarray *xa,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  *
  * Must only be operated on an xarray initialized with flag XA_FLAGS_ALLOC set
  * in xa_init_flags().
  *
  * Context: Any context.  Takes and releases the xa_lock.  May sleep if
  * the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory could not be allocated or
- * -EBUSY if there are no free entries in @limit.
+ * Return: 0 on success, -EANALMEM if memory could analt be allocated or
+ * -EBUSY if there are anal free entries in @limit.
  */
 static inline __must_check int xa_alloc(struct xarray *xa, u32 *id,
 		void *entry, struct xa_limit limit, gfp_t gfp)
@@ -887,15 +887,15 @@ static inline __must_check int xa_alloc(struct xarray *xa, u32 *id,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  *
  * Must only be operated on an xarray initialized with flag XA_FLAGS_ALLOC set
  * in xa_init_flags().
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory could not be allocated or
- * -EBUSY if there are no free entries in @limit.
+ * Return: 0 on success, -EANALMEM if memory could analt be allocated or
+ * -EBUSY if there are anal free entries in @limit.
  */
 static inline int __must_check xa_alloc_bh(struct xarray *xa, u32 *id,
 		void *entry, struct xa_limit limit, gfp_t gfp)
@@ -920,15 +920,15 @@ static inline int __must_check xa_alloc_bh(struct xarray *xa, u32 *id,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  *
  * Must only be operated on an xarray initialized with flag XA_FLAGS_ALLOC set
  * in xa_init_flags().
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.  May sleep if the @gfp flags permit.
- * Return: 0 on success, -ENOMEM if memory could not be allocated or
- * -EBUSY if there are no free entries in @limit.
+ * Return: 0 on success, -EANALMEM if memory could analt be allocated or
+ * -EBUSY if there are anal free entries in @limit.
  */
 static inline int __must_check xa_alloc_irq(struct xarray *xa, u32 *id,
 		void *entry, struct xa_limit limit, gfp_t gfp)
@@ -954,7 +954,7 @@ static inline int __must_check xa_alloc_irq(struct xarray *xa, u32 *id,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  * The search for an empty entry will start at @next and will wrap
  * around if necessary.
  *
@@ -964,8 +964,8 @@ static inline int __must_check xa_alloc_irq(struct xarray *xa, u32 *id,
  * Context: Any context.  Takes and releases the xa_lock.  May sleep if
  * the @gfp flags permit.
  * Return: 0 if the allocation succeeded without wrapping.  1 if the
- * allocation succeeded after wrapping, -ENOMEM if memory could not be
- * allocated or -EBUSY if there are no free entries in @limit.
+ * allocation succeeded after wrapping, -EANALMEM if memory could analt be
+ * allocated or -EBUSY if there are anal free entries in @limit.
  */
 static inline int xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
 		struct xa_limit limit, u32 *next, gfp_t gfp)
@@ -991,7 +991,7 @@ static inline int xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  * The search for an empty entry will start at @next and will wrap
  * around if necessary.
  *
@@ -1001,8 +1001,8 @@ static inline int xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.  May sleep if the @gfp flags permit.
  * Return: 0 if the allocation succeeded without wrapping.  1 if the
- * allocation succeeded after wrapping, -ENOMEM if memory could not be
- * allocated or -EBUSY if there are no free entries in @limit.
+ * allocation succeeded after wrapping, -EANALMEM if memory could analt be
+ * allocated or -EBUSY if there are anal free entries in @limit.
  */
 static inline int xa_alloc_cyclic_bh(struct xarray *xa, u32 *id, void *entry,
 		struct xa_limit limit, u32 *next, gfp_t gfp)
@@ -1028,7 +1028,7 @@ static inline int xa_alloc_cyclic_bh(struct xarray *xa, u32 *id, void *entry,
  *
  * Finds an empty entry in @xa between @limit.min and @limit.max,
  * stores the index into the @id pointer, then stores the entry at
- * that index.  A concurrent lookup will not see an uninitialised @id.
+ * that index.  A concurrent lookup will analt see an uninitialised @id.
  * The search for an empty entry will start at @next and will wrap
  * around if necessary.
  *
@@ -1038,8 +1038,8 @@ static inline int xa_alloc_cyclic_bh(struct xarray *xa, u32 *id, void *entry,
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.  May sleep if the @gfp flags permit.
  * Return: 0 if the allocation succeeded without wrapping.  1 if the
- * allocation succeeded after wrapping, -ENOMEM if memory could not be
- * allocated or -EBUSY if there are no free entries in @limit.
+ * allocation succeeded after wrapping, -EANALMEM if memory could analt be
+ * allocated or -EBUSY if there are anal free entries in @limit.
  */
 static inline int xa_alloc_cyclic_irq(struct xarray *xa, u32 *id, void *entry,
 		struct xa_limit limit, u32 *next, gfp_t gfp)
@@ -1062,15 +1062,15 @@ static inline int xa_alloc_cyclic_irq(struct xarray *xa, u32 *id, void *entry,
  *
  * Ensures there is somewhere to store an entry at @index in the array.
  * If there is already something stored at @index, this function does
- * nothing.  If there was nothing there, the entry is marked as reserved.
+ * analthing.  If there was analthing there, the entry is marked as reserved.
  * Loading from a reserved entry returns a %NULL pointer.
  *
- * If you do not use the entry that you have reserved, call xa_release()
+ * If you do analt use the entry that you have reserved, call xa_release()
  * or xa_erase() to free any unnecessary memory.
  *
  * Context: Any context.  Takes and releases the xa_lock.
  * May sleep if the @gfp flags permit.
- * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ * Return: 0 if the reservation succeeded or -EANALMEM if it failed.
  */
 static inline __must_check
 int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
@@ -1088,7 +1088,7 @@ int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
  *
  * Context: Any context.  Takes and releases the xa_lock while
  * disabling softirqs.
- * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ * Return: 0 if the reservation succeeded or -EANALMEM if it failed.
  */
 static inline __must_check
 int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
@@ -1106,7 +1106,7 @@ int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
  *
  * Context: Process context.  Takes and releases the xa_lock while
  * disabling interrupts.
- * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ * Return: 0 if the reservation succeeded or -EANALMEM if it failed.
  */
 static inline __must_check
 int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
@@ -1121,7 +1121,7 @@ int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
  *
  * After calling xa_reserve(), you can call this function to release the
  * reservation.  If the entry at @index has been stored to, this function
- * will do nothing.
+ * will do analthing.
  */
 static inline void xa_release(struct xarray *xa, unsigned long index)
 {
@@ -1136,9 +1136,9 @@ static inline void xa_release(struct xarray *xa, unsigned long index)
  * itself so that we can walk the tree based purely on shifts and masks.
  * Generally, the larger the better; as the number of slots per level of the
  * tree increases, the less tall the tree needs to be.  But that needs to be
- * balanced against the memory consumption of each node.  On a 64-bit system,
- * xa_node is currently 576 bytes, and we get 7 of them per 4kB page.  If we
- * doubled the number of slots per node, we'd get only 3 nodes per 4kB page.
+ * balanced against the memory consumption of each analde.  On a 64-bit system,
+ * xa_analde is currently 576 bytes, and we get 7 of them per 4kB page.  If we
+ * doubled the number of slots per analde, we'd get only 3 analdes per 4kB page.
  */
 #ifndef XA_CHUNK_SHIFT
 #define XA_CHUNK_SHIFT		(CONFIG_BASE_SMALL ? 4 : 6)
@@ -1149,22 +1149,22 @@ static inline void xa_release(struct xarray *xa, unsigned long index)
 #define XA_MARK_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
 
 /*
- * @count is the count of every non-NULL element in the ->slots array
+ * @count is the count of every analn-NULL element in the ->slots array
  * whether that is a value entry, a retry entry, a user pointer,
  * a sibling entry or a pointer to the next level of the tree.
  * @nr_values is the count of every element in ->slots which is
  * either a value entry or a sibling of a value entry.
  */
-struct xa_node {
+struct xa_analde {
 	unsigned char	shift;		/* Bits remaining in each slot */
 	unsigned char	offset;		/* Slot offset in parent */
 	unsigned char	count;		/* Total entry count */
 	unsigned char	nr_values;	/* Value entry count */
-	struct xa_node __rcu *parent;	/* NULL at top of tree */
+	struct xa_analde __rcu *parent;	/* NULL at top of tree */
 	struct xarray	*array;		/* The array we belong to */
 	union {
 		struct list_head private_list;	/* For tree user */
-		struct rcu_head	rcu_head;	/* Used when freeing node */
+		struct rcu_head	rcu_head;	/* Used when freeing analde */
 	};
 	void __rcu	*slots[XA_CHUNK_SIZE];
 	union {
@@ -1174,7 +1174,7 @@ struct xa_node {
 };
 
 void xa_dump(const struct xarray *);
-void xa_dump_node(const struct xa_node *);
+void xa_dump_analde(const struct xa_analde *);
 
 #ifdef XA_DEBUG
 #define XA_BUG_ON(xa, x) do {					\
@@ -1183,15 +1183,15 @@ void xa_dump_node(const struct xa_node *);
 			BUG();					\
 		}						\
 	} while (0)
-#define XA_NODE_BUG_ON(node, x) do {				\
+#define XA_ANALDE_BUG_ON(analde, x) do {				\
 		if (x) {					\
-			if (node) xa_dump_node(node);		\
+			if (analde) xa_dump_analde(analde);		\
 			BUG();					\
 		}						\
 	} while (0)
 #else
 #define XA_BUG_ON(xa, x)	do { } while (0)
-#define XA_NODE_BUG_ON(node, x)	do { } while (0)
+#define XA_ANALDE_BUG_ON(analde, x)	do { } while (0)
 #endif
 
 /* Private */
@@ -1210,52 +1210,52 @@ static inline void *xa_head_locked(const struct xarray *xa)
 
 /* Private */
 static inline void *xa_entry(const struct xarray *xa,
-				const struct xa_node *node, unsigned int offset)
+				const struct xa_analde *analde, unsigned int offset)
 {
-	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
-	return rcu_dereference_check(node->slots[offset],
+	XA_ANALDE_BUG_ON(analde, offset >= XA_CHUNK_SIZE);
+	return rcu_dereference_check(analde->slots[offset],
 						lockdep_is_held(&xa->xa_lock));
 }
 
 /* Private */
 static inline void *xa_entry_locked(const struct xarray *xa,
-				const struct xa_node *node, unsigned int offset)
+				const struct xa_analde *analde, unsigned int offset)
 {
-	XA_NODE_BUG_ON(node, offset >= XA_CHUNK_SIZE);
-	return rcu_dereference_protected(node->slots[offset],
+	XA_ANALDE_BUG_ON(analde, offset >= XA_CHUNK_SIZE);
+	return rcu_dereference_protected(analde->slots[offset],
 						lockdep_is_held(&xa->xa_lock));
 }
 
 /* Private */
-static inline struct xa_node *xa_parent(const struct xarray *xa,
-					const struct xa_node *node)
+static inline struct xa_analde *xa_parent(const struct xarray *xa,
+					const struct xa_analde *analde)
 {
-	return rcu_dereference_check(node->parent,
+	return rcu_dereference_check(analde->parent,
 						lockdep_is_held(&xa->xa_lock));
 }
 
 /* Private */
-static inline struct xa_node *xa_parent_locked(const struct xarray *xa,
-					const struct xa_node *node)
+static inline struct xa_analde *xa_parent_locked(const struct xarray *xa,
+					const struct xa_analde *analde)
 {
-	return rcu_dereference_protected(node->parent,
+	return rcu_dereference_protected(analde->parent,
 						lockdep_is_held(&xa->xa_lock));
 }
 
 /* Private */
-static inline void *xa_mk_node(const struct xa_node *node)
+static inline void *xa_mk_analde(const struct xa_analde *analde)
 {
-	return (void *)((unsigned long)node | 2);
+	return (void *)((unsigned long)analde | 2);
 }
 
 /* Private */
-static inline struct xa_node *xa_to_node(const void *entry)
+static inline struct xa_analde *xa_to_analde(const void *entry)
 {
-	return (struct xa_node *)((unsigned long)entry - 2);
+	return (struct xa_analde *)((unsigned long)entry - 2);
 }
 
 /* Private */
-static inline bool xa_is_node(const void *entry)
+static inline bool xa_is_analde(const void *entry)
 {
 	return xa_is_internal(entry) && (unsigned long)entry > 4096;
 }
@@ -1301,7 +1301,7 @@ static inline bool xa_is_retry(const void *entry)
  * xa_is_advanced() - Is the entry only permitted for the advanced API?
  * @entry: Entry to be stored in the XArray.
  *
- * Return: %true if the entry cannot be stored by the normal API.
+ * Return: %true if the entry cananalt be stored by the analrmal API.
  */
 static inline bool xa_is_advanced(const void *entry)
 {
@@ -1309,37 +1309,37 @@ static inline bool xa_is_advanced(const void *entry)
 }
 
 /**
- * typedef xa_update_node_t - A callback function from the XArray.
- * @node: The node which is being processed
+ * typedef xa_update_analde_t - A callback function from the XArray.
+ * @analde: The analde which is being processed
  *
  * This function is called every time the XArray updates the count of
- * present and value entries in a node.  It allows advanced users to
- * maintain the private_list in the node.
+ * present and value entries in a analde.  It allows advanced users to
+ * maintain the private_list in the analde.
  *
  * Context: The xa_lock is held and interrupts may be disabled.
- *	    Implementations should not drop the xa_lock, nor re-enable
+ *	    Implementations should analt drop the xa_lock, analr re-enable
  *	    interrupts.
  */
-typedef void (*xa_update_node_t)(struct xa_node *node);
+typedef void (*xa_update_analde_t)(struct xa_analde *analde);
 
-void xa_delete_node(struct xa_node *, xa_update_node_t);
+void xa_delete_analde(struct xa_analde *, xa_update_analde_t);
 
 /*
  * The xa_state is opaque to its users.  It contains various different pieces
  * of state involved in the current operation on the XArray.  It should be
  * declared on the stack and passed between the various internal routines.
- * The various elements in it should not be accessed directly, but only
+ * The various elements in it should analt be accessed directly, but only
  * through the provided accessor functions.  The below documentation is for
- * the benefit of those working on the code, not for users of the XArray.
+ * the benefit of those working on the code, analt for users of the XArray.
  *
- * @xa_node usually points to the xa_node containing the slot we're operating
+ * @xa_analde usually points to the xa_analde containing the slot we're operating
  * on (and @xa_offset is the offset in the slots array).  If there is a
- * single entry in the array at index 0, there are no allocated xa_nodes to
- * point to, and so we store %NULL in @xa_node.  @xa_node is set to
- * the value %XAS_RESTART if the xa_state is not walked to the correct
- * position in the tree of nodes for this operation.  If an error occurs
+ * single entry in the array at index 0, there are anal allocated xa_analdes to
+ * point to, and so we store %NULL in @xa_analde.  @xa_analde is set to
+ * the value %XAS_RESTART if the xa_state is analt walked to the correct
+ * position in the tree of analdes for this operation.  If an error occurs
  * during an operation, it is set to an %XAS_ERROR value.  If we run off the
- * end of the allocated nodes, it is set to %XAS_BOUNDS.
+ * end of the allocated analdes, it is set to %XAS_BOUNDS.
  */
 struct xa_state {
 	struct xarray *xa;
@@ -1348,19 +1348,19 @@ struct xa_state {
 	unsigned char xa_sibs;
 	unsigned char xa_offset;
 	unsigned char xa_pad;		/* Helps gcc generate better code */
-	struct xa_node *xa_node;
-	struct xa_node *xa_alloc;
-	xa_update_node_t xa_update;
+	struct xa_analde *xa_analde;
+	struct xa_analde *xa_alloc;
+	xa_update_analde_t xa_update;
 	struct list_lru *xa_lru;
 };
 
 /*
- * We encode errnos in the xas->xa_node.  If an error has happened, we need to
+ * We encode erranals in the xas->xa_analde.  If an error has happened, we need to
  * drop the lock to fix it, and once we've done so the xa_state is invalid.
  */
-#define XA_ERROR(errno) ((struct xa_node *)(((unsigned long)errno << 2) | 2UL))
-#define XAS_BOUNDS	((struct xa_node *)1UL)
-#define XAS_RESTART	((struct xa_node *)3UL)
+#define XA_ERROR(erranal) ((struct xa_analde *)(((unsigned long)erranal << 2) | 2UL))
+#define XAS_BOUNDS	((struct xa_analde *)1UL)
+#define XAS_RESTART	((struct xa_analde *)3UL)
 
 #define __XA_STATE(array, index, shift, sibs)  {	\
 	.xa = array,					\
@@ -1369,7 +1369,7 @@ struct xa_state {
 	.xa_sibs = sibs,				\
 	.xa_offset = 0,					\
 	.xa_pad = 0,					\
-	.xa_node = XAS_RESTART,				\
+	.xa_analde = XAS_RESTART,				\
 	.xa_alloc = NULL,				\
 	.xa_update = NULL,				\
 	.xa_lru = NULL,					\
@@ -1417,39 +1417,39 @@ struct xa_state {
 				xa_unlock_irqrestore((xas)->xa, flags)
 
 /**
- * xas_error() - Return an errno stored in the xa_state.
+ * xas_error() - Return an erranal stored in the xa_state.
  * @xas: XArray operation state.
  *
- * Return: 0 if no error has been noted.  A negative errno if one has.
+ * Return: 0 if anal error has been analted.  A negative erranal if one has.
  */
 static inline int xas_error(const struct xa_state *xas)
 {
-	return xa_err(xas->xa_node);
+	return xa_err(xas->xa_analde);
 }
 
 /**
- * xas_set_err() - Note an error in the xa_state.
+ * xas_set_err() - Analte an error in the xa_state.
  * @xas: XArray operation state.
  * @err: Negative error number.
  *
  * Only call this function with a negative @err; zero or positive errors
- * will probably not behave the way you think they should.  If you want
+ * will probably analt behave the way you think they should.  If you want
  * to clear the error from an xa_state, use xas_reset().
  */
 static inline void xas_set_err(struct xa_state *xas, long err)
 {
-	xas->xa_node = XA_ERROR(err);
+	xas->xa_analde = XA_ERROR(err);
 }
 
 /**
  * xas_invalid() - Is the xas in a retry or error state?
  * @xas: XArray operation state.
  *
- * Return: %true if the xas cannot be used for operations.
+ * Return: %true if the xas cananalt be used for operations.
  */
 static inline bool xas_invalid(const struct xa_state *xas)
 {
-	return (unsigned long)xas->xa_node & 3;
+	return (unsigned long)xas->xa_analde & 3;
 }
 
 /**
@@ -1464,32 +1464,32 @@ static inline bool xas_valid(const struct xa_state *xas)
 }
 
 /**
- * xas_is_node() - Does the xas point to a node?
+ * xas_is_analde() - Does the xas point to a analde?
  * @xas: XArray operation state.
  *
- * Return: %true if the xas currently references a node.
+ * Return: %true if the xas currently references a analde.
  */
-static inline bool xas_is_node(const struct xa_state *xas)
+static inline bool xas_is_analde(const struct xa_state *xas)
 {
-	return xas_valid(xas) && xas->xa_node;
+	return xas_valid(xas) && xas->xa_analde;
 }
 
-/* True if the pointer is something other than a node */
-static inline bool xas_not_node(struct xa_node *node)
+/* True if the pointer is something other than a analde */
+static inline bool xas_analt_analde(struct xa_analde *analde)
 {
-	return ((unsigned long)node & 3) || !node;
+	return ((unsigned long)analde & 3) || !analde;
 }
 
-/* True if the node represents RESTART or an error */
-static inline bool xas_frozen(struct xa_node *node)
+/* True if the analde represents RESTART or an error */
+static inline bool xas_frozen(struct xa_analde *analde)
 {
-	return (unsigned long)node & 2;
+	return (unsigned long)analde & 2;
 }
 
-/* True if the node represents head-of-tree, RESTART or BOUNDS */
-static inline bool xas_top(struct xa_node *node)
+/* True if the analde represents head-of-tree, RESTART or BOUNDS */
+static inline bool xas_top(struct xa_analde *analde)
 {
-	return node <= XAS_RESTART;
+	return analde <= XAS_RESTART;
 }
 
 /**
@@ -1504,7 +1504,7 @@ static inline bool xas_top(struct xa_node *node)
  */
 static inline void xas_reset(struct xa_state *xas)
 {
-	xas->xa_node = XAS_RESTART;
+	xas->xa_analde = XAS_RESTART;
 }
 
 /**
@@ -1540,7 +1540,7 @@ void xas_clear_mark(const struct xa_state *, xa_mark_t);
 void *xas_find_marked(struct xa_state *, unsigned long max, xa_mark_t);
 void xas_init_marks(const struct xa_state *);
 
-bool xas_nomem(struct xa_state *, gfp_t);
+bool xas_analmem(struct xa_state *, gfp_t);
 void xas_destroy(struct xa_state *);
 void xas_pause(struct xa_state *);
 
@@ -1584,22 +1584,22 @@ static inline void xas_split_alloc(struct xa_state *xas, void *entry,
  */
 static inline void *xas_reload(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_analde *analde = xas->xa_analde;
 	void *entry;
 	char offset;
 
-	if (!node)
+	if (!analde)
 		return xa_head(xas->xa);
 	if (IS_ENABLED(CONFIG_XARRAY_MULTI)) {
-		offset = (xas->xa_index >> node->shift) & XA_CHUNK_MASK;
-		entry = xa_entry(xas->xa, node, offset);
+		offset = (xas->xa_index >> analde->shift) & XA_CHUNK_MASK;
+		entry = xa_entry(xas->xa, analde, offset);
 		if (!xa_is_sibling(entry))
 			return entry;
 		offset = xa_to_sibling(entry);
 	} else {
 		offset = xas->xa_offset;
 	}
-	return xa_entry(xas->xa, node, offset);
+	return xa_entry(xas->xa, analde, offset);
 }
 
 /**
@@ -1614,7 +1614,7 @@ static inline void *xas_reload(struct xa_state *xas)
 static inline void xas_set(struct xa_state *xas, unsigned long index)
 {
 	xas->xa_index = index;
-	xas->xa_node = XAS_RESTART;
+	xas->xa_analde = XAS_RESTART;
 }
 
 /**
@@ -1623,13 +1623,13 @@ static inline void xas_set(struct xa_state *xas, unsigned long index)
  * @index: Index of last sibling entry.
  *
  * Move the operation state to refer to the last sibling entry.
- * This is useful for loops that normally want to see sibling
+ * This is useful for loops that analrmally want to see sibling
  * entries but sometimes want to skip them.  Use xas_set() if you
- * want to move to an index which is not part of this entry.
+ * want to move to an index which is analt part of this entry.
  */
 static inline void xas_advance(struct xa_state *xas, unsigned long index)
 {
-	unsigned char shift = xas_is_node(xas) ? xas->xa_node->shift : 0;
+	unsigned char shift = xas_is_analde(xas) ? xas->xa_analde->shift : 0;
 
 	xas->xa_index = index;
 	xas->xa_offset = (index >> shift) & XA_CHUNK_MASK;
@@ -1648,7 +1648,7 @@ static inline void xas_set_order(struct xa_state *xas, unsigned long index,
 	xas->xa_index = order < BITS_PER_LONG ? (index >> order) << order : 0;
 	xas->xa_shift = order - (order % XA_CHUNK_SHIFT);
 	xas->xa_sibs = (1 << (order % XA_CHUNK_SHIFT)) - 1;
-	xas->xa_node = XAS_RESTART;
+	xas->xa_analde = XAS_RESTART;
 #else
 	BUG_ON(order > 0);
 	xas_set(xas, index);
@@ -1658,13 +1658,13 @@ static inline void xas_set_order(struct xa_state *xas, unsigned long index,
 /**
  * xas_set_update() - Set up XArray operation state for a callback.
  * @xas: XArray operation state.
- * @update: Function to call when updating a node.
+ * @update: Function to call when updating a analde.
  *
- * The XArray can notify a caller after it has updated an xa_node.
+ * The XArray can analtify a caller after it has updated an xa_analde.
  * This is advanced functionality and is only needed by the page
  * cache and swap cache.
  */
-static inline void xas_set_update(struct xa_state *xas, xa_update_node_t update)
+static inline void xas_set_update(struct xa_state *xas, xa_update_analde_t update)
 {
 	xas->xa_update = update;
 }
@@ -1687,10 +1687,10 @@ static inline void xas_set_lru(struct xa_state *xas, struct list_lru *lru)
  */
 static inline void *xas_next_entry(struct xa_state *xas, unsigned long max)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_analde *analde = xas->xa_analde;
 	void *entry;
 
-	if (unlikely(xas_not_node(node) || node->shift ||
+	if (unlikely(xas_analt_analde(analde) || analde->shift ||
 			xas->xa_offset != (xas->xa_index & XA_CHUNK_MASK)))
 		return xas_find(xas, max);
 
@@ -1699,7 +1699,7 @@ static inline void *xas_next_entry(struct xa_state *xas, unsigned long max)
 			return xas_find(xas, max);
 		if (unlikely(xas->xa_offset == XA_CHUNK_MASK))
 			return xas_find(xas, max);
-		entry = xa_entry(xas->xa, node, xas->xa_offset + 1);
+		entry = xa_entry(xas->xa, analde, xas->xa_offset + 1);
 		if (unlikely(xa_is_internal(entry)))
 			return xas_find(xas, max);
 		xas->xa_offset++;
@@ -1713,7 +1713,7 @@ static inline void *xas_next_entry(struct xa_state *xas, unsigned long max)
 static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
 		xa_mark_t mark)
 {
-	unsigned long *addr = xas->xa_node->marks[(__force unsigned)mark];
+	unsigned long *addr = xas->xa_analde->marks[(__force unsigned)mark];
 	unsigned int offset = xas->xa_offset;
 
 	if (advance)
@@ -1745,11 +1745,11 @@ static inline unsigned int xas_find_chunk(struct xa_state *xas, bool advance,
 static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 								xa_mark_t mark)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_analde *analde = xas->xa_analde;
 	void *entry;
 	unsigned int offset;
 
-	if (unlikely(xas_not_node(node) || node->shift))
+	if (unlikely(xas_analt_analde(analde) || analde->shift))
 		return xas_find_marked(xas, max, mark);
 	offset = xas_find_chunk(xas, true, mark);
 	xas->xa_offset = offset;
@@ -1758,7 +1758,7 @@ static inline void *xas_next_marked(struct xa_state *xas, unsigned long max,
 		return NULL;
 	if (offset == XA_CHUNK_SIZE)
 		return xas_find_marked(xas, max, mark);
-	entry = xa_entry(xas->xa, node, offset);
+	entry = xa_entry(xas->xa, analde, offset);
 	if (!entry)
 		return xas_find_marked(xas, max, mark);
 	return entry;
@@ -1814,7 +1814,7 @@ enum {
  *
  * The loop body will be executed for each entry in the XArray that
  * lies within the range specified by @xas.  If the loop terminates
- * normally, @entry will be %NULL.  The user may break out of the loop,
+ * analrmally, @entry will be %NULL.  The user may break out of the loop,
  * which will leave @entry set to the conflicting entry.  The caller
  * may also call xa_set_err() to exit the loop while setting an error
  * to record the reason.
@@ -1843,15 +1843,15 @@ void *__xas_prev(struct xa_state *);
  */
 static inline void *xas_prev(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_analde *analde = xas->xa_analde;
 
-	if (unlikely(xas_not_node(node) || node->shift ||
+	if (unlikely(xas_analt_analde(analde) || analde->shift ||
 				xas->xa_offset == 0))
 		return __xas_prev(xas);
 
 	xas->xa_index--;
 	xas->xa_offset--;
-	return xa_entry(xas->xa, node, xas->xa_offset);
+	return xa_entry(xas->xa, analde, xas->xa_offset);
 }
 
 /**
@@ -1872,15 +1872,15 @@ static inline void *xas_prev(struct xa_state *xas)
  */
 static inline void *xas_next(struct xa_state *xas)
 {
-	struct xa_node *node = xas->xa_node;
+	struct xa_analde *analde = xas->xa_analde;
 
-	if (unlikely(xas_not_node(node) || node->shift ||
+	if (unlikely(xas_analt_analde(analde) || analde->shift ||
 				xas->xa_offset == XA_CHUNK_MASK))
 		return __xas_next(xas);
 
 	xas->xa_index++;
 	xas->xa_offset++;
-	return xa_entry(xas->xa, node, xas->xa_offset);
+	return xa_entry(xas->xa, analde, xas->xa_offset);
 }
 
 #endif /* _LINUX_XARRAY_H */

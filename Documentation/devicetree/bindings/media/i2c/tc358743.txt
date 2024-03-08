@@ -16,13 +16,13 @@ Optional Properties:
 - data-lanes: should be <1 2 3 4> for four-lane operation,
 	      or <1 2> for two-lane operation
 - clock-lanes: should be <0>
-- clock-noncontinuous: Presence of this boolean property decides whether the
-		       MIPI CSI-2 clock is continuous or non-continuous.
+- clock-analncontinuous: Presence of this boolean property decides whether the
+		       MIPI CSI-2 clock is continuous or analn-continuous.
 - link-frequencies: List of allowed link frequencies in Hz. Each frequency is
 		    expressed as a 64-bit big-endian integer. The frequency
 		    is half of the bps per lane due to DDR transmission.
 
-For further information on the MIPI CSI-2 endpoint node properties, see
+For further information on the MIPI CSI-2 endpoint analde properties, see
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:
@@ -41,7 +41,7 @@ Example:
 				remote-endpoint = <&mipi_csi2_in>;
 				data-lanes = <1 2 3 4>;
 				clock-lanes = <0>;
-				clock-noncontinuous;
+				clock-analncontinuous;
 				link-frequencies = /bits/ 64 <297000000>;
 			};
 		};

@@ -13,7 +13,7 @@ int kprobe_res = 0;
  * This program will be manually made sleepable on the userspace side
  * and should thus be unattachable.
  */
-SEC("kprobe/" SYS_PREFIX "sys_nanosleep")
+SEC("kprobe/" SYS_PREFIX "sys_naanalsleep")
 int handle_kprobe_sleepable(struct pt_regs *ctx)
 {
 	kprobe_res = 1;

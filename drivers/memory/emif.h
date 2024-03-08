@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  *
- * Benoit Cousson (b-cousson@ti.com)
+ * Beanalit Cousson (b-cousson@ti.com)
  */
 #ifndef __EMIF_H
 #define __EMIF_H
@@ -21,7 +21,7 @@
 #define DDR_VOLTAGE_RAMPING				1
 
 /* Defines for timing De-rating */
-#define EMIF_NORMAL_TIMINGS				0
+#define EMIF_ANALRMAL_TIMINGS				0
 #define EMIF_DERATED_TIMINGS				1
 
 /* Length of the forced read idle period in terms of cycles */
@@ -37,9 +37,9 @@
  * Forced read idle interval to be used when voltage is stable
  * 50us - or maximum value will do
  */
-#define READ_IDLE_INTERVAL_NORMAL			(50*1000000)
+#define READ_IDLE_INTERVAL_ANALRMAL			(50*1000000)
 
-/* DLL calibration interval when voltage is NOT stable - 1us */
+/* DLL calibration interval when voltage is ANALT stable - 1us */
 #define DLL_CALIB_INTERVAL_DVFS				(1*1000000)
 
 #define DLL_CALIB_ACK_WAIT_VAL				5
@@ -64,8 +64,8 @@
 #define DPD_ENABLE					1
 
 /*
- * Default values for the low-power entry to be used if not provided by user.
- * OMAP4/5 has a hw bug(i735) due to which this value can not be less than 512
+ * Default values for the low-power entry to be used if analt provided by user.
+ * OMAP4/5 has a hw bug(i735) due to which this value can analt be less than 512
  * Timeout values are in DDR clock 'cycles' and frequency threshold in Hz
  */
 #define EMIF_LP_MODE_TIMEOUT_PERFORMANCE		2048
@@ -265,8 +265,8 @@
 #define RTL_VERSION_MASK				(0x1f << 11)
 #define MAJOR_REVISION_SHIFT				8
 #define MAJOR_REVISION_MASK				(0x7 << 8)
-#define MINOR_REVISION_SHIFT				0
-#define MINOR_REVISION_MASK				(0x3f << 0)
+#define MIANALR_REVISION_SHIFT				0
+#define MIANALR_REVISION_MASK				(0x3f << 0)
 
 /* STATUS */
 #define BE_SHIFT					31
@@ -575,8 +575,8 @@ struct emif_regs {
 	u32 sdram_tim3_shdw_derated;
 	u32 pwr_mgmt_ctrl_shdw;
 	union {
-		u32 read_idle_ctrl_shdw_normal;
-		u32 dll_calib_ctrl_shdw_normal;
+		u32 read_idle_ctrl_shdw_analrmal;
+		u32 dll_calib_ctrl_shdw_analrmal;
 	};
 	union {
 		u32 read_idle_ctrl_shdw_volt_ramp;

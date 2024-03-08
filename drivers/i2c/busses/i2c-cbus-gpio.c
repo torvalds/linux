@@ -1,7 +1,7 @@
 /*
- * CBUS I2C driver for Nokia Internet Tablets.
+ * CBUS I2C driver for Analkia Internet Tablets.
  *
- * Copyright (C) 2004-2010 Nokia Corporation
+ * Copyright (C) 2004-2010 Analkia Corporation
  *
  * Based on code written by Juha Yrjölä, David Weinehall, Mikko Ylinen and
  * Felipe Balbi. Converted to I2C driver by Aaro Koskinen.
@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 
 /*
- * Bit counts are derived from Nokia implementation. These should be checked
+ * Bit counts are derived from Analkia implementation. These should be checked
  * if other CBUS implementations appear.
  */
 #define CBUS_ADDR_BITS	3
@@ -215,14 +215,14 @@ static int cbus_i2c_probe(struct platform_device *pdev)
 	adapter = devm_kzalloc(&pdev->dev, sizeof(struct i2c_adapter),
 			       GFP_KERNEL);
 	if (!adapter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chost = devm_kzalloc(&pdev->dev, sizeof(*chost), GFP_KERNEL);
 	if (!chost)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (gpiod_count(&pdev->dev, NULL) != 3)
-		return -ENODEV;
+		return -EANALDEV;
 	chost->clk = devm_gpiod_get_index(&pdev->dev, NULL, 0, GPIOD_OUT_LOW);
 	if (IS_ERR(chost->clk))
 		return PTR_ERR(chost->clk);
@@ -239,7 +239,7 @@ static int cbus_i2c_probe(struct platform_device *pdev)
 	adapter->owner		= THIS_MODULE;
 	adapter->class		= I2C_CLASS_HWMON;
 	adapter->dev.parent	= &pdev->dev;
-	adapter->dev.of_node	= pdev->dev.of_node;
+	adapter->dev.of_analde	= pdev->dev.of_analde;
 	adapter->nr		= pdev->id;
 	adapter->timeout	= HZ;
 	adapter->algo		= &cbus_i2c_algo;

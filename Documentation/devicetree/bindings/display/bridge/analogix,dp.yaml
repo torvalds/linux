@@ -29,7 +29,7 @@ properties:
     type: boolean
     description:
       Indicate driver need force hpd when hpd detect failed, this
-      is used for some eDP screen which don not have a hpd signal.
+      is used for some eDP screen which don analt have a hpd signal.
 
   hpd-gpios:
     description:
@@ -43,12 +43,12 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Input node to receive pixel data.
+          Input analde to receive pixel data.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Port node with one endpoint connected to a dp-connector node.
+          Port analde with one endpoint connected to a dp-connector analde.
 
     required:
       - port@0

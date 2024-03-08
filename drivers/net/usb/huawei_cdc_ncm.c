@@ -5,12 +5,12 @@
  *
  * ABSTRACT:
  * This driver handles devices resembling the CDC NCM standard, but
- * encapsulating another protocol inside it. An example are some Huawei 3G
+ * encapsulating aanalther protocol inside it. An example are some Huawei 3G
  * devices, exposing an embedded AT channel where you can set up the NCM
  * connection.
  * This code has been heavily inspired by the cdc_mbim.c driver, which is
  * Copyright (c) 2012  Smith Micro Software, Inc.
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.anal>
  */
 
 #include <linux/module.h>
@@ -66,7 +66,7 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 			       struct usb_interface *intf)
 {
 	struct cdc_ncm_ctx *ctx;
-	struct usb_driver *subdriver = ERR_PTR(-ENODEV);
+	struct usb_driver *subdriver = ERR_PTR(-EANALDEV);
 	int ret;
 	struct huawei_cdc_ncm_state *drvstate = (void *)&usbnet_dev->data;
 	int drvflags = 0;
@@ -89,7 +89,7 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 	ctx = drvstate->ctx;
 
 	if (usbnet_dev->status)
-		/* The wMaxCommand buffer must be big enough to hold
+		/* The wMaxCommand buffer must be big eanalugh to hold
 		 * any message from the modem. Experience has shown
 		 * that some replies are more than 256 bytes long
 		 */
@@ -135,7 +135,7 @@ static int huawei_cdc_ncm_suspend(struct usb_interface *intf,
 	struct cdc_ncm_ctx *ctx = drvstate->ctx;
 
 	if (ctx == NULL) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error;
 	}
 
@@ -181,7 +181,7 @@ err:
 
 static const struct driver_info huawei_cdc_ncm_info = {
 	.description = "Huawei CDC NCM device",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.flags = FLAG_ANAL_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
 	.bind = huawei_cdc_ncm_bind,
 	.unbind = huawei_cdc_ncm_unbind,
 	.manage_power = huawei_cdc_ncm_manage_power,

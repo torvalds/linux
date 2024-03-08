@@ -68,7 +68,7 @@ static netdev_tx_t efx_ef100_rep_xmit(struct sk_buff *skb,
 
 	/* __ef100_hard_start_xmit() will always return success even in the
 	 * case of TX drops, where it will increment efx's tx_dropped.  The
-	 * efv stats really only count attempted TX, not success/failure.
+	 * efv stats really only count attempted TX, analt success/failure.
 	 */
 	atomic64_inc(&efv->stats.tx_packets);
 	atomic64_add(skb->len, &efv->stats.tx_bytes);
@@ -104,7 +104,7 @@ static int efx_ef100_rep_get_phys_port_name(struct net_device *dev,
 	ret = snprintf(buf, len, "p%upf%uvf%u", efx->port_num,
 		       nic_data->pf_index, efv->idx);
 	if (ret >= len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int efx_ef100_rep_setup_tc(struct net_device *net_dev,
 	if (type == TC_SETUP_BLOCK)
 		return efx_tc_setup_block(net_dev, efx, type_data, efv);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static void efx_ef100_rep_get_stats64(struct net_device *dev,
@@ -209,7 +209,7 @@ static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
 
 	net_dev = alloc_etherdev_mq(sizeof(*efv), 1);
 	if (!net_dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	efv = netdev_priv(net_dev);
 	rc = efx_ef100_rep_init_struct(efx, efv, i);
@@ -378,7 +378,7 @@ void efx_ef100_init_reps(struct efx_nic *efx)
 	rc = efx_mae_enumerate_mports(efx);
 	if (rc)
 		pci_warn(efx->pci_dev,
-			 "Could not enumerate mports (rc=%d), are we admin?",
+			 "Could analt enumerate mports (rc=%d), are we admin?",
 			 rc);
 }
 
@@ -442,7 +442,7 @@ void efx_ef100_rep_rx_packet(struct efx_rep *efv, struct efx_rx_buffer *rx_buf)
 		atomic64_inc(&efv->stats.rx_dropped);
 		if (net_ratelimit())
 			netif_dbg(efv->parent, rx_err, efv->net_dev,
-				  "nodesc-dropped packet of length %u\n",
+				  "analdesc-dropped packet of length %u\n",
 				  rx_buf->len);
 		return;
 	}
@@ -452,7 +452,7 @@ void efx_ef100_rep_rx_packet(struct efx_rep *efv, struct efx_rx_buffer *rx_buf)
 		atomic64_inc(&efv->stats.rx_dropped);
 		if (net_ratelimit())
 			netif_dbg(efv->parent, rx_err, efv->net_dev,
-				  "noskb-dropped packet of length %u\n",
+				  "analskb-dropped packet of length %u\n",
 				  rx_buf->len);
 		return;
 	}
@@ -464,7 +464,7 @@ void efx_ef100_rep_rx_packet(struct efx_rep *efv, struct efx_rx_buffer *rx_buf)
 	/* Move past the ethernet header */
 	skb->protocol = eth_type_trans(skb, efv->net_dev);
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 
 	atomic64_inc(&efv->stats.rx_packets);
 	atomic64_add(rx_buf->len, &efv->stats.rx_bytes);

@@ -96,7 +96,7 @@ void test_ringbuf_multi(void)
 
 	err = ring_buffer__add(ringbuf, bpf_map__fd(skel->maps.ringbuf2),
 			      process_sample, (void *)(long)2);
-	if (CHECK(err, "ringbuf_add", "failed to add another ring\n"))
+	if (CHECK(err, "ringbuf_add", "failed to add aanalther ring\n"))
 		goto cleanup;
 
 	/* verify adding a new ring didn't invalidate our older pointer */
@@ -113,7 +113,7 @@ void test_ringbuf_multi(void)
 	skel->bss->value = 333;
 	syscall(__NR_getpgid);
 
-	/* skipped, no ringbuf in slot 1 */
+	/* skipped, anal ringbuf in slot 1 */
 	skel->bss->target_ring = 1;
 	skel->bss->value = 555;
 	syscall(__NR_getpgid);
@@ -127,7 +127,7 @@ void test_ringbuf_multi(void)
 	if (CHECK(err != 2, "poll_res", "expected 2 records, got %d\n", err))
 		goto cleanup;
 
-	/* expect extra polling to return nothing */
+	/* expect extra polling to return analthing */
 	err = ring_buffer__poll(ringbuf, 0);
 	if (CHECK(err < 0, "extra_samples", "poll result: %d\n", err))
 		goto cleanup;

@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/kstrtox.h>
-#include <linux/panic_notifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
@@ -38,7 +38,7 @@
 
 #define IPL_PARM_BLOCK_VERSION 0
 
-#define IPL_UNKNOWN_STR		"unknown"
+#define IPL_UNKANALWN_STR		"unkanalwn"
 #define IPL_CCW_STR		"ccw"
 #define IPL_ECKD_STR		"eckd"
 #define IPL_ECKD_DUMP_STR	"eckd_dump"
@@ -52,7 +52,7 @@
 #define DUMP_ECKD_STR		"eckd"
 #define DUMP_FCP_STR		"fcp"
 #define DUMP_NVME_STR		"nvme"
-#define DUMP_NONE_STR		"none"
+#define DUMP_ANALNE_STR		"analne"
 
 /*
  * Four shutdown trigger types are supported:
@@ -110,14 +110,14 @@ static char *ipl_type_str(enum ipl_type type)
 		return IPL_NVME_STR;
 	case IPL_TYPE_NVME_DUMP:
 		return IPL_NVME_DUMP_STR;
-	case IPL_TYPE_UNKNOWN:
+	case IPL_TYPE_UNKANALWN:
 	default:
-		return IPL_UNKNOWN_STR;
+		return IPL_UNKANALWN_STR;
 	}
 }
 
 enum dump_type {
-	DUMP_TYPE_NONE	= 1,
+	DUMP_TYPE_ANALNE	= 1,
 	DUMP_TYPE_CCW	= 2,
 	DUMP_TYPE_FCP	= 4,
 	DUMP_TYPE_NVME	= 8,
@@ -127,8 +127,8 @@ enum dump_type {
 static char *dump_type_str(enum dump_type type)
 {
 	switch (type) {
-	case DUMP_TYPE_NONE:
-		return DUMP_NONE_STR;
+	case DUMP_TYPE_ANALNE:
+		return DUMP_ANALNE_STR;
 	case DUMP_TYPE_CCW:
 		return DUMP_CCW_STR;
 	case DUMP_TYPE_ECKD:
@@ -152,9 +152,9 @@ unsigned long __bootdata_preserved(ipl_cert_list_size);
 unsigned long __bootdata(early_ipl_comp_list_addr);
 unsigned long __bootdata(early_ipl_comp_list_size);
 
-static int reipl_capabilities = IPL_TYPE_UNKNOWN;
+static int reipl_capabilities = IPL_TYPE_UNKANALWN;
 
-static enum ipl_type reipl_type = IPL_TYPE_UNKNOWN;
+static enum ipl_type reipl_type = IPL_TYPE_UNKANALWN;
 static struct ipl_parameter_block *reipl_block_fcp;
 static struct ipl_parameter_block *reipl_block_nvme;
 static struct ipl_parameter_block *reipl_block_ccw;
@@ -162,8 +162,8 @@ static struct ipl_parameter_block *reipl_block_eckd;
 static struct ipl_parameter_block *reipl_block_nss;
 static struct ipl_parameter_block *reipl_block_actual;
 
-static int dump_capabilities = DUMP_TYPE_NONE;
-static enum dump_type dump_type = DUMP_TYPE_NONE;
+static int dump_capabilities = DUMP_TYPE_ANALNE;
+static enum dump_type dump_type = DUMP_TYPE_ANALNE;
 static struct ipl_parameter_block *dump_block_fcp;
 static struct ipl_parameter_block *dump_block_nvme;
 static struct ipl_parameter_block *dump_block_ccw;
@@ -186,7 +186,7 @@ static inline int __diag308(unsigned long subcode, unsigned long addr)
 	r1.odd	= 0;
 	asm volatile(
 		"	diag	%[r1],%[subcode],0x308\n"
-		"0:	nopr	%%r7\n"
+		"0:	analpr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: [r1] "+&d" (r1.pair)
 		: [subcode] "d" (subcode)
@@ -216,22 +216,22 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
-	unsigned long long ssid, devno;					\
+	unsigned long long ssid, devanal;					\
 									\
-	if (sscanf(buf, "0.%llx.%llx\n", &ssid, &devno) != 2)		\
+	if (sscanf(buf, "0.%llx.%llx\n", &ssid, &devanal) != 2)		\
 		return -EINVAL;						\
 									\
-	if (ssid > __MAX_SSID || devno > __MAX_SUBCHANNEL)		\
+	if (ssid > __MAX_SSID || devanal > __MAX_SUBCHANNEL)		\
 		return -EINVAL;						\
 									\
 	_ipl_blk.ssid = ssid;						\
-	_ipl_blk.devno = devno;						\
+	_ipl_blk.devanal = devanal;						\
 	return len;							\
 }
 
 #define DEFINE_IPL_CCW_ATTR_RW(_prefix, _name, _ipl_blk)		\
 IPL_ATTR_SHOW_FN(_prefix, _name, "0.%x.%04x\n",				\
-		 _ipl_blk.ssid, _ipl_blk.devno);			\
+		 _ipl_blk.ssid, _ipl_blk.devanal);			\
 IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk);			\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name, 0644,						\
@@ -282,7 +282,7 @@ static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 static __init enum ipl_type get_ipl_type(void)
 {
 	if (!ipl_block_valid)
-		return IPL_TYPE_UNKNOWN;
+		return IPL_TYPE_UNKANALWN;
 
 	switch (ipl_block.pb0_hdr.pbt) {
 	case IPL_PBT_CCW:
@@ -303,7 +303,7 @@ static __init enum ipl_type get_ipl_type(void)
 		else
 			return IPL_TYPE_ECKD;
 	}
-	return IPL_TYPE_UNKNOWN;
+	return IPL_TYPE_UNKANALWN;
 }
 
 struct ipl_info ipl_info;
@@ -354,14 +354,14 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
 		return sprintf(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
-			       ipl_block.ccw.devno);
+			       ipl_block.ccw.devanal);
 	case IPL_TYPE_ECKD:
 	case IPL_TYPE_ECKD_DUMP:
 		return sprintf(page, "0.%x.%04x\n", ipl_block.eckd.ssid,
-			       ipl_block.eckd.devno);
+			       ipl_block.eckd.devanal);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devno);
+		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devanal);
 	case IPL_TYPE_NVME:
 	case IPL_TYPE_NVME_DUMP:
 		return sprintf(page, "%08ux\n", ipl_block.nvme.fid);
@@ -546,7 +546,7 @@ static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 	char loadparm[LOADPARM_LEN + 1] = {};
 
 	if (!sclp_ipl_info.is_valid)
-		return sprintf(page, "#unknown#\n");
+		return sprintf(page, "#unkanalwn#\n");
 	memcpy(loadparm, &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
 	strim(loadparm);
@@ -650,7 +650,7 @@ static int __init ipl_init(void)
 
 	ipl_kset = kset_create_and_add("ipl", NULL, firmware_kobj);
 	if (!ipl_kset) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	rc = sysfs_create_group(&ipl_kset->kobj, &ipl_common_attr_group);
@@ -713,7 +713,7 @@ static ssize_t reipl_generic_vmparm_store(struct ipl_parameter_block *ipb,
 {
 	int i, ip_len;
 
-	/* ignore trailing newline */
+	/* iganalre trailing newline */
 	ip_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		ip_len--;
@@ -829,7 +829,7 @@ DEFINE_IPL_ATTR_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(reipl_fcp, br_lba, "%lld\n", "%lld\n",
 		   reipl_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(reipl_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   reipl_block_fcp->fcp.devno);
+		   reipl_block_fcp->fcp.devanal);
 
 static void reipl_get_ascii_loadparm(char *loadparm,
 				     struct ipl_parameter_block *ibp)
@@ -854,11 +854,11 @@ static ssize_t reipl_generic_loadparm_store(struct ipl_parameter_block *ipb,
 {
 	int i, lp_len;
 
-	/* ignore trailing newline */
+	/* iganalre trailing newline */
 	lp_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		lp_len--;
-	/* loadparm can have max 8 characters and must not start with a blank */
+	/* loadparm can have max 8 characters and must analt start with a blank */
 	if ((lp_len > LOADPARM_LEN) || ((lp_len > 0) && (buf[0] == ' ')))
 		return -EINVAL;
 	/* loadparm can only contain "a-z,A-Z,0-9,SP,." */
@@ -1170,7 +1170,7 @@ static ssize_t reipl_nss_name_store(struct kobject *kobj,
 {
 	int nss_len;
 
-	/* ignore trailing newline */
+	/* iganalre trailing newline */
 	nss_len = len;
 	if ((len > 0) && (buf[len - 1] == '\n'))
 		nss_len--;
@@ -1284,34 +1284,34 @@ static void __reipl_run(void *unused)
 		if (reipl_ccw_clear)
 			diag308(DIAG308_LOAD_CLEAR, NULL);
 		else
-			diag308(DIAG308_LOAD_NORMAL_DUMP, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL_DUMP, NULL);
 		break;
 	case IPL_TYPE_ECKD:
 		diag308(DIAG308_SET, reipl_block_eckd);
 		if (reipl_eckd_clear)
 			diag308(DIAG308_LOAD_CLEAR, NULL);
 		else
-			diag308(DIAG308_LOAD_NORMAL, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL, NULL);
 		break;
 	case IPL_TYPE_FCP:
 		diag308(DIAG308_SET, reipl_block_fcp);
 		if (reipl_fcp_clear)
 			diag308(DIAG308_LOAD_CLEAR, NULL);
 		else
-			diag308(DIAG308_LOAD_NORMAL, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL, NULL);
 		break;
 	case IPL_TYPE_NVME:
 		diag308(DIAG308_SET, reipl_block_nvme);
 		if (reipl_nvme_clear)
 			diag308(DIAG308_LOAD_CLEAR, NULL);
 		else
-			diag308(DIAG308_LOAD_NORMAL, NULL);
+			diag308(DIAG308_LOAD_ANALRMAL, NULL);
 		break;
 	case IPL_TYPE_NSS:
 		diag308(DIAG308_SET, reipl_block_nss);
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
-	case IPL_TYPE_UNKNOWN:
+	case IPL_TYPE_UNKANALWN:
 		diag308(DIAG308_LOAD_CLEAR, NULL);
 		break;
 	case IPL_TYPE_FCP_DUMP:
@@ -1366,7 +1366,7 @@ static int __init reipl_nss_init(void)
 
 	reipl_block_nss = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_nss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sysfs_create_group(&reipl_kset->kobj, &reipl_nss_attr_group);
 	if (rc)
@@ -1383,7 +1383,7 @@ static int __init reipl_ccw_init(void)
 
 	reipl_block_ccw = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_ccw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sysfs_create_group(&reipl_kset->kobj,
 				MACHINE_IS_VM ? &reipl_ccw_attr_group_vm
@@ -1394,7 +1394,7 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw_init(reipl_block_ccw);
 	if (ipl_info.type == IPL_TYPE_CCW) {
 		reipl_block_ccw->ccw.ssid = ipl_block.ccw.ssid;
-		reipl_block_ccw->ccw.devno = ipl_block.ccw.devno;
+		reipl_block_ccw->ccw.devanal = ipl_block.ccw.devanal;
 		reipl_block_ccw_fill_parms(reipl_block_ccw);
 	}
 
@@ -1408,14 +1408,14 @@ static int __init reipl_fcp_init(void)
 
 	reipl_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_fcp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* sysfs: create fcp kset for mixing attr group and bin attrs */
 	reipl_fcp_kset = kset_create_and_add(IPL_FCP_STR, NULL,
 					     &reipl_kset->kobj);
 	if (!reipl_fcp_kset) {
 		free_page((unsigned long) reipl_block_fcp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = sysfs_create_group(&reipl_fcp_kset->kobj, &reipl_fcp_attr_group);
@@ -1464,14 +1464,14 @@ static int __init reipl_nvme_init(void)
 
 	reipl_block_nvme = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_nvme)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* sysfs: create kset for mixing attr group and bin attrs */
 	reipl_nvme_kset = kset_create_and_add(IPL_NVME_STR, NULL,
 					     &reipl_kset->kobj);
 	if (!reipl_nvme_kset) {
 		free_page((unsigned long) reipl_block_nvme);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = sysfs_create_group(&reipl_nvme_kset->kobj, &reipl_nvme_attr_group);
@@ -1523,14 +1523,14 @@ static int __init reipl_eckd_init(void)
 
 	reipl_block_eckd = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!reipl_block_eckd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* sysfs: create kset for mixing attr group and bin attrs */
 	reipl_eckd_kset = kset_create_and_add(IPL_ECKD_STR, NULL,
 					      &reipl_kset->kobj);
 	if (!reipl_eckd_kset) {
 		free_page((unsigned long)reipl_block_eckd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = sysfs_create_group(&reipl_eckd_kset->kobj, &reipl_eckd_attr_group);
@@ -1601,7 +1601,7 @@ static int __init reipl_init(void)
 
 	reipl_kset = kset_create_and_add("reipl", NULL, firmware_kobj);
 	if (!reipl_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_file(&reipl_kset->kobj, &reipl_type_attr.attr);
 	if (rc) {
 		kset_unregister(reipl_kset);
@@ -1646,7 +1646,7 @@ DEFINE_IPL_ATTR_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
 		   dump_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   dump_block_fcp->fcp.devno);
+		   dump_block_fcp->fcp.devanal);
 
 static struct attribute *dump_fcp_attrs[] = {
 	&sys_dump_fcp_device_attr.attr,
@@ -1743,8 +1743,8 @@ static ssize_t dump_type_store(struct kobject *kobj,
 {
 	int rc = -EINVAL;
 
-	if (strncmp(buf, DUMP_NONE_STR, strlen(DUMP_NONE_STR)) == 0)
-		rc = dump_set_type(DUMP_TYPE_NONE);
+	if (strncmp(buf, DUMP_ANALNE_STR, strlen(DUMP_ANALNE_STR)) == 0)
+		rc = dump_set_type(DUMP_TYPE_ANALNE);
 	else if (strncmp(buf, DUMP_CCW_STR, strlen(DUMP_CCW_STR)) == 0)
 		rc = dump_set_type(DUMP_TYPE_CCW);
 	else if (strncmp(buf, DUMP_ECKD_STR, strlen(DUMP_ECKD_STR)) == 0)
@@ -1765,7 +1765,7 @@ static void diag308_dump(void *dump_block)
 {
 	diag308(DIAG308_SET, dump_block);
 	while (1) {
-		if (diag308(DIAG308_LOAD_NORMAL_DUMP, NULL) != 0x302)
+		if (diag308(DIAG308_LOAD_ANALRMAL_DUMP, NULL) != 0x302)
 			break;
 		udelay(USEC_PER_SEC);
 	}
@@ -1793,7 +1793,7 @@ static void __dump_run(void *unused)
 
 static void dump_run(struct shutdown_trigger *trigger)
 {
-	if (dump_type == DUMP_TYPE_NONE)
+	if (dump_type == DUMP_TYPE_ANALNE)
 		return;
 	smp_send_stop();
 	smp_call_ipl_cpu(__dump_run, NULL);
@@ -1805,7 +1805,7 @@ static int __init dump_ccw_init(void)
 
 	dump_block_ccw = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_ccw)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_group(&dump_kset->kobj, &dump_ccw_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_ccw);
@@ -1824,10 +1824,10 @@ static int __init dump_fcp_init(void)
 	int rc;
 
 	if (!sclp_ipl_info.has_dump)
-		return 0; /* LDIPL DUMP is not installed */
+		return 0; /* LDIPL DUMP is analt installed */
 	dump_block_fcp = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_fcp)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_group(&dump_kset->kobj, &dump_fcp_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_fcp);
@@ -1847,10 +1847,10 @@ static int __init dump_nvme_init(void)
 	int rc;
 
 	if (!sclp_ipl_info.has_dump)
-		return 0; /* LDIPL DUMP is not installed */
+		return 0; /* LDIPL DUMP is analt installed */
 	dump_block_nvme = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_nvme)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_group(&dump_kset->kobj, &dump_nvme_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_nvme);
@@ -1870,10 +1870,10 @@ static int __init dump_eckd_init(void)
 	int rc;
 
 	if (!sclp_ipl_info.has_dump || !sclp.has_sipl_eckd)
-		return 0; /* LDIPL DUMP is not installed */
+		return 0; /* LDIPL DUMP is analt installed */
 	dump_block_eckd = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!dump_block_eckd)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_group(&dump_kset->kobj, &dump_eckd_attr_group);
 	if (rc) {
 		free_page((unsigned long)dump_block_eckd);
@@ -1894,7 +1894,7 @@ static int __init dump_init(void)
 
 	dump_kset = kset_create_and_add("dump", NULL, firmware_kobj);
 	if (!dump_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = sysfs_create_file(&dump_kset->kobj, &dump_type_attr.attr);
 	if (rc) {
 		kset_unregister(dump_kset);
@@ -1912,7 +1912,7 @@ static int __init dump_init(void)
 	rc = dump_nvme_init();
 	if (rc)
 		return rc;
-	dump_set_type(DUMP_TYPE_NONE);
+	dump_set_type(DUMP_TYPE_ANALNE);
 	return 0;
 }
 
@@ -1931,14 +1931,14 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 	 * Set REIPL_CLEAR flag in os_info flags entry indicating
 	 * 'clear' sysfs attribute has been set on the panicked system
 	 * for specified reipl type.
-	 * Always set for IPL_TYPE_NSS and IPL_TYPE_UNKNOWN.
+	 * Always set for IPL_TYPE_NSS and IPL_TYPE_UNKANALWN.
 	 */
 	if ((reipl_type == IPL_TYPE_CCW && reipl_ccw_clear) ||
 	    (reipl_type == IPL_TYPE_ECKD && reipl_eckd_clear) ||
 	    (reipl_type == IPL_TYPE_FCP && reipl_fcp_clear) ||
 	    (reipl_type == IPL_TYPE_NVME && reipl_nvme_clear) ||
 	    reipl_type == IPL_TYPE_NSS ||
-	    reipl_type == IPL_TYPE_UNKNOWN)
+	    reipl_type == IPL_TYPE_UNKANALWN)
 		os_info_flags |= OS_INFO_FLAG_REIPL_CLEAR;
 	os_info_entry_add(OS_INFO_FLAGS_ENTRY, &os_info_flags, sizeof(os_info_flags));
 	csum = (__force unsigned int)
@@ -2011,10 +2011,10 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 static int vmcmd_init(void)
 {
 	if (!MACHINE_IS_VM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	vmcmd_kset = kset_create_and_add("vmcmd", NULL, firmware_kobj);
 	if (!vmcmd_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	return sysfs_create_group(&vmcmd_kset->kobj, &vmcmd_attr_group);
 }
 
@@ -2138,7 +2138,7 @@ static ssize_t on_restart_store(struct kobject *kobj,
 }
 static struct kobj_attribute on_restart_attr = __ATTR_RW(on_restart);
 
-static void __do_restart(void *ignore)
+static void __do_restart(void *iganalre)
 {
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
@@ -2258,7 +2258,7 @@ static int __init s390_ipl_init(void)
 	 * when the system has been booted via diag308. In that case we use
 	 * the value from diag308, if available.
 	 *
-	 * There are also systems where diag308 store does not work in
+	 * There are also systems where diag308 store does analt work in
 	 * case the system is booted from HMC. Fortunately in this case
 	 * READ SCP info provides the correct value.
 	 */
@@ -2329,15 +2329,15 @@ static int __init vmcmd_on_poff_setup(char *str)
 }
 __setup("vmpoff=", vmcmd_on_poff_setup);
 
-static int on_panic_notify(struct notifier_block *self,
+static int on_panic_analtify(struct analtifier_block *self,
 			   unsigned long event, void *data)
 {
 	do_panic();
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = on_panic_notify,
+static struct analtifier_block on_panic_nb = {
+	.analtifier_call = on_panic_analtify,
 	.priority = INT_MIN,
 };
 
@@ -2349,17 +2349,17 @@ void __init setup_ipl(void)
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
 		ipl_info.data.ccw.dev_id.ssid = ipl_block.ccw.ssid;
-		ipl_info.data.ccw.dev_id.devno = ipl_block.ccw.devno;
+		ipl_info.data.ccw.dev_id.devanal = ipl_block.ccw.devanal;
 		break;
 	case IPL_TYPE_ECKD:
 	case IPL_TYPE_ECKD_DUMP:
 		ipl_info.data.eckd.dev_id.ssid = ipl_block.eckd.ssid;
-		ipl_info.data.eckd.dev_id.devno = ipl_block.eckd.devno;
+		ipl_info.data.eckd.dev_id.devanal = ipl_block.eckd.devanal;
 		break;
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		ipl_info.data.fcp.dev_id.ssid = 0;
-		ipl_info.data.fcp.dev_id.devno = ipl_block.fcp.devno;
+		ipl_info.data.fcp.dev_id.devanal = ipl_block.fcp.devanal;
 		ipl_info.data.fcp.wwpn = ipl_block.fcp.wwpn;
 		ipl_info.data.fcp.lun = ipl_block.fcp.lun;
 		break;
@@ -2369,11 +2369,11 @@ void __init setup_ipl(void)
 		ipl_info.data.nvme.nsid = ipl_block.nvme.nsid;
 		break;
 	case IPL_TYPE_NSS:
-	case IPL_TYPE_UNKNOWN:
-		/* We have no info to copy */
+	case IPL_TYPE_UNKANALWN:
+		/* We have anal info to copy */
 		break;
 	}
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	atomic_analtifier_chain_register(&panic_analtifier_list, &on_panic_nb);
 }
 
 void s390_reset_system(void)
@@ -2395,7 +2395,7 @@ int ipl_report_add_component(struct ipl_report *report, struct kexec_buf *kbuf,
 
 	comp = vzalloc(sizeof(*comp));
 	if (!comp)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_add_tail(&comp->list, &report->components);
 
 	comp->entry.addr = kbuf->mem;
@@ -2415,7 +2415,7 @@ int ipl_report_add_certificate(struct ipl_report *report, void *key,
 
 	cert = vzalloc(sizeof(*cert));
 	if (!cert)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_add_tail(&cert->list, &report->certificates);
 
 	cert->entry.addr = addr;
@@ -2434,7 +2434,7 @@ struct ipl_report *ipl_report_init(struct ipl_parameter_block *ipib)
 
 	report = vzalloc(sizeof(*report));
 	if (!report)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	report->ipib = ipib;
 	INIT_LIST_HEAD(&report->components);

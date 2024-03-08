@@ -343,7 +343,7 @@
 			clock-names = "ipg";
 		};
 
-		/* 512x PSCs are not 52xx PSC compatible */
+		/* 512x PSCs are analt 52xx PSC compatible */
 
 		/* PSC0 */
 		psc@11000 {

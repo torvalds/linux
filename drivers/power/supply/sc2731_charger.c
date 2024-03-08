@@ -6,7 +6,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/phy.h>
 #include <linux/regmap.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 
 /* PMIC global registers definition */
@@ -55,7 +55,7 @@ struct sc2731_charger_info {
 	struct device *dev;
 	struct regmap *regmap;
 	struct usb_phy *usb_phy;
-	struct notifier_block usb_notify;
+	struct analtifier_block usb_analtify;
 	struct power_supply *psy_usb;
 	struct work_struct work;
 	struct mutex lock;
@@ -210,7 +210,7 @@ sc2731_charger_usb_set_property(struct power_supply *psy,
 
 	if (!info->charging) {
 		mutex_unlock(&info->lock);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (psp) {
@@ -250,7 +250,7 @@ static int sc2731_charger_usb_get_property(struct power_supply *psy,
 		if (info->charging)
 			val->intval = sc2731_charger_get_status(info);
 		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
@@ -353,17 +353,17 @@ out:
 	mutex_unlock(&info->lock);
 }
 
-static int sc2731_charger_usb_change(struct notifier_block *nb,
+static int sc2731_charger_usb_change(struct analtifier_block *nb,
 				     unsigned long limit, void *data)
 {
 	struct sc2731_charger_info *info =
-		container_of(nb, struct sc2731_charger_info, usb_notify);
+		container_of(nb, struct sc2731_charger_info, usb_analtify);
 
 	info->limit = limit;
 
 	schedule_work(&info->work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
@@ -380,10 +380,10 @@ static int sc2731_charger_hw_init(struct sc2731_charger_info *info)
 
 	ret = power_supply_get_battery_info(info->psy_usb, &bat_info);
 	if (ret) {
-		dev_warn(info->dev, "no battery information is supplied\n");
+		dev_warn(info->dev, "anal battery information is supplied\n");
 
 		/*
-		 * If no battery information is supplied, we should set
+		 * If anal battery information is supplied, we should set
 		 * default charge termination current to 120 mA, and default
 		 * charge termination voltage to 4.35V.
 		 */
@@ -440,7 +440,7 @@ static void sc2731_charger_detect_status(struct sc2731_charger_info *info)
 
 	/*
 	 * If the USB charger status has been USB_CHARGER_PRESENT before
-	 * registering the notifier, we should start to charge with getting
+	 * registering the analtifier, we should start to charge with getting
 	 * the charge current.
 	 */
 	if (info->usb_phy->chg_state != USB_CHARGER_PRESENT)
@@ -454,14 +454,14 @@ static void sc2731_charger_detect_status(struct sc2731_charger_info *info)
 
 static int sc2731_charger_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct sc2731_charger_info *info;
 	struct power_supply_config charger_cfg = { };
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&info->lock);
 	info->dev = &pdev->dev;
@@ -470,17 +470,17 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 	info->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!info->regmap) {
 		dev_err(&pdev->dev, "failed to get charger regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = of_property_read_u32(np, "reg", &info->base);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get register address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	charger_cfg.drv_data = info;
-	charger_cfg.of_node = np;
+	charger_cfg.of_analde = np;
 	info->psy_usb = devm_power_supply_register(&pdev->dev,
 						   &sc2731_charger_desc,
 						   &charger_cfg);
@@ -499,10 +499,10 @@ static int sc2731_charger_probe(struct platform_device *pdev)
 		return PTR_ERR(info->usb_phy);
 	}
 
-	info->usb_notify.notifier_call = sc2731_charger_usb_change;
-	ret = usb_register_notifier(info->usb_phy, &info->usb_notify);
+	info->usb_analtify.analtifier_call = sc2731_charger_usb_change;
+	ret = usb_register_analtifier(info->usb_phy, &info->usb_analtify);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register notifier: %d\n", ret);
+		dev_err(&pdev->dev, "failed to register analtifier: %d\n", ret);
 		return ret;
 	}
 
@@ -515,7 +515,7 @@ static void sc2731_charger_remove(struct platform_device *pdev)
 {
 	struct sc2731_charger_info *info = platform_get_drvdata(pdev);
 
-	usb_unregister_notifier(info->usb_phy, &info->usb_notify);
+	usb_unregister_analtifier(info->usb_phy, &info->usb_analtify);
 }
 
 static const struct of_device_id sc2731_charger_of_match[] = {

@@ -73,7 +73,7 @@ enum intel_gsc_proxy_type {
 	GSC_PROXY_MSG_TYPE_PROXY_QUERY = 1,
 	GSC_PROXY_MSG_TYPE_PROXY_PAYLOAD = 2,
 	GSC_PROXY_MSG_TYPE_PROXY_END = 3,
-	GSC_PROXY_MSG_TYPE_PROXY_NOTIFICATION = 4,
+	GSC_PROXY_MSG_TYPE_PROXY_ANALTIFICATION = 4,
 };
 
 struct gsc_proxy_msg {
@@ -163,7 +163,7 @@ static int validate_proxy_header(struct intel_gsc_proxy_header *header,
 	int ret = 0;
 
 	if (header->destination != dest || header->source != source) {
-		ret = -ENOEXEC;
+		ret = -EANALEXEC;
 		goto fail;
 	}
 
@@ -258,7 +258,7 @@ int intel_gsc_proxy_request_handler(struct intel_gsc_uc *gsc)
 	int err;
 
 	if (!gsc->proxy.component_added)
-		return -ENODEV;
+		return -EANALDEV;
 
 	assert_rpm_wakelock_held(gt->uncore->rpm);
 
@@ -277,7 +277,7 @@ int intel_gsc_proxy_request_handler(struct intel_gsc_uc *gsc)
 		/*
 		 * write the status bit to clear it and allow new proxy
 		 * interrupts to be generated while we handle the current
-		 * request, but be sure not to write the reset bit
+		 * request, but be sure analt to write the reset bit
 		 */
 		intel_uncore_rmw(gt->uncore, HECI_H_CSR(MTL_GSC_HECI2_BASE),
 				 HECI_H_CSR_RST, HECI_H_CSR_IS);
@@ -401,7 +401,7 @@ int intel_gsc_proxy_init(struct intel_gsc_uc *gsc)
 
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_GSC_PROXY)) {
 		gt_info(gt, "can't init GSC proxy due to missing mei component\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	err = proxy_channel_alloc(gsc);

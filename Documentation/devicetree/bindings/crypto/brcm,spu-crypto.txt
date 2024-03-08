@@ -8,7 +8,7 @@ Required properties:
   brcm,spu2-crypto - for devices with SPU2 hardware
   brcm,spu2-v2-crypto - for devices with enhanced SPU2 hardware features like SHA3
   and Rabin Fingerprint support
-  brcm,spum-nsp-crypto - for the Northstar Plus variant of the SPU-M hardware
+  brcm,spum-nsp-crypto - for the Analrthstar Plus variant of the SPU-M hardware
 
 - reg: Should contain SPU registers location and length.
 - mboxes: The mailbox channel to be used to communicate with the SPU.

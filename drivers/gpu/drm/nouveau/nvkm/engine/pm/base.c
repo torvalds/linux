@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -208,14 +208,14 @@ static int
 nvkm_perfdom_init(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
-		struct nvif_perfdom_init none;
+		struct nvif_perfdom_init analne;
 	} *args = data;
 	struct nvkm_object *object = &dom->object;
 	struct nvkm_pm *pm = dom->perfmon->pm;
-	int ret = -ENOSYS, i;
+	int ret = -EANALSYS, i;
 
 	nvif_ioctl(object, "perfdom init size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->analne))) {
 		nvif_ioctl(object, "perfdom init\n");
 	} else
 		return ret;
@@ -238,14 +238,14 @@ static int
 nvkm_perfdom_sample(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
-		struct nvif_perfdom_sample none;
+		struct nvif_perfdom_sample analne;
 	} *args = data;
 	struct nvkm_object *object = &dom->object;
 	struct nvkm_pm *pm = dom->perfmon->pm;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(object, "perfdom sample size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->analne))) {
 		nvif_ioctl(object, "perfdom sample\n");
 	} else
 		return ret;
@@ -266,7 +266,7 @@ nvkm_perfdom_read(struct nvkm_perfdom *dom, void *data, u32 size)
 	} *args = data;
 	struct nvkm_object *object = &dom->object;
 	struct nvkm_pm *pm = dom->perfmon->pm;
-	int ret = -ENOSYS, i;
+	int ret = -EANALSYS, i;
 
 	nvif_ioctl(object, "perfdom read size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -339,7 +339,7 @@ nvkm_perfctr_new(struct nvkm_perfdom *dom, int slot, u8 domain,
 
 	ctr = *pctr = kzalloc(sizeof(*ctr), GFP_KERNEL);
 	if (!ctr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctr->domain   = domain;
 	ctr->logic_op = logic_op;
@@ -376,7 +376,7 @@ nvkm_perfdom_new_(struct nvkm_perfmon *perfmon,
 	struct nvkm_perfctr *ctr[4] = {};
 	struct nvkm_perfdom *dom;
 	int c, s, m;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	nvif_ioctl(parent, "create perfdom size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -414,7 +414,7 @@ nvkm_perfdom_new_(struct nvkm_perfmon *perfmon,
 		return -EINVAL;
 
 	if (!(dom = kzalloc(sizeof(*dom), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nvkm_perfdom, oclass, &dom->object);
 	dom->perfmon = perfmon;
 	*pobject = &dom->object;
@@ -441,7 +441,7 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_perfmon *perfmon,
 	struct nvkm_pm *pm = perfmon->pm;
 	struct nvkm_perfdom *dom;
 	u8 domain_nr;
-	int di, ret = -ENOSYS;
+	int di, ret = -EANALSYS;
 
 	nvif_ioctl(object, "perfmon query domain size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -492,7 +492,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_perfmon *perfmon,
 	struct nvkm_perfsig *sig;
 	const bool all = nvkm_boolopt(device->cfgopt, "NvPmShowAll", false);
 	const bool raw = nvkm_boolopt(device->cfgopt, "NvPmUnnamed", all);
-	int ret = -ENOSYS, si;
+	int ret = -EANALSYS, si;
 
 	nvif_ioctl(object, "perfmon query signal size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -544,7 +544,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_perfmon *perfmon,
 	struct nvkm_perfsig *sig;
 	struct nvkm_perfsrc *src;
 	u8 source_nr = 0;
-	int si, ret = -ENOSYS;
+	int si, ret = -EANALSYS;
 
 	nvif_ioctl(object, "perfmon query source size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -648,7 +648,7 @@ nvkm_perfmon_new(struct nvkm_pm *pm, const struct nvkm_oclass *oclass,
 	struct nvkm_perfmon *perfmon;
 
 	if (!(perfmon = kzalloc(sizeof(*perfmon), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nvkm_perfmon, oclass, &perfmon->object);
 	perfmon->pm = pm;
 	*pobject = &perfmon->object;
@@ -708,7 +708,7 @@ nvkm_perfsrc_new(struct nvkm_pm *pm, struct nvkm_perfsig *sig,
 	u8 source_nr = 0;
 
 	if (!spec) {
-		/* No sources are defined for this signal. */
+		/* Anal sources are defined for this signal. */
 		return 0;
 	}
 
@@ -732,7 +732,7 @@ nvkm_perfsrc_new(struct nvkm_pm *pm, struct nvkm_perfsig *sig,
 			if (!found) {
 				src = kzalloc(sizeof(*src), GFP_KERNEL);
 				if (!src)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				src->addr   = ssrc->addr;
 				src->mask   = smux->mask;
@@ -744,7 +744,7 @@ nvkm_perfsrc_new(struct nvkm_pm *pm, struct nvkm_perfsig *sig,
 				src->name = kzalloc(len, GFP_KERNEL);
 				if (!src->name) {
 					kfree(src);
-					return -ENOMEM;
+					return -EANALMEM;
 				}
 				snprintf(src->name, len, "%s_%s", ssrc->name,
 					 smux->name);
@@ -781,7 +781,7 @@ nvkm_perfdom_new(struct nvkm_pm *pm, const char *name, u32 mask,
 			dom = kzalloc(struct_size(dom, signal, sdom->signal_nr),
 				      GFP_KERNEL);
 			if (!dom)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			if (mask) {
 				snprintf(dom->name, sizeof(dom->name),

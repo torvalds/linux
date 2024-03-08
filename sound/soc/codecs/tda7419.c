@@ -492,24 +492,24 @@ static const struct snd_soc_dapm_widget tda7419_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("DIFFR"),
 	SND_SOC_DAPM_INPUT("MIX"),
 
-	SND_SOC_DAPM_MUX("Main Source Select", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Main Source Select", SND_SOC_ANALPM,
 			 0, 0, &soc_mux_main_src_sel),
-	SND_SOC_DAPM_MUX("Second Source Select", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Second Source Select", SND_SOC_ANALPM,
 			 0, 0, &soc_mux_second_src_sel),
-	SND_SOC_DAPM_MUX("Rear Speaker Source", SND_SOC_NOPM,
+	SND_SOC_DAPM_MUX("Rear Speaker Source", SND_SOC_ANALPM,
 			 0, 0, &soc_mux_rear_spkr_src),
 
-	SND_SOC_DAPM_SWITCH("Mix Enable", SND_SOC_NOPM,
+	SND_SOC_DAPM_SWITCH("Mix Enable", SND_SOC_ANALPM,
 			0, 0, &soc_mix_enable_switch_controls[0]),
-	SND_SOC_DAPM_MIXER_NAMED_CTL("LF Output Mixer", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("LF Output Mixer", SND_SOC_ANALPM,
 			0, 0, &soc_mixer_lf_output_controls[0],
 			ARRAY_SIZE(soc_mixer_lf_output_controls)),
-	SND_SOC_DAPM_MIXER_NAMED_CTL("RF Output Mixer", SND_SOC_NOPM,
+	SND_SOC_DAPM_MIXER_NAMED_CTL("RF Output Mixer", SND_SOC_ANALPM,
 			0, 0, &soc_mixer_rf_output_controls[0],
 			ARRAY_SIZE(soc_mixer_rf_output_controls)),
 
 	SND_SOC_DAPM_SWITCH("Subwoofer Enable",
-			SND_SOC_NOPM, 0, 0,
+			SND_SOC_ANALPM, 0, 0,
 			&soc_sub_enable_switch_controls[0]),
 
 	SND_SOC_DAPM_OUTPUT("OUTLF"),
@@ -580,7 +580,7 @@ static int tda7419_probe(struct i2c_client *i2c)
 			       sizeof(struct tda7419_data),
 			       GFP_KERNEL);
 	if (tda7419 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, tda7419);
 
@@ -593,10 +593,10 @@ static int tda7419_probe(struct i2c_client *i2c)
 	}
 
 	/*
-	 * Reset registers to power-on defaults. The part does not provide a
-	 * soft-reset function and the registers are not readable. This ensures
+	 * Reset registers to power-on defaults. The part does analt provide a
+	 * soft-reset function and the registers are analt readable. This ensures
 	 * that the cache matches register contents even if the registers have
-	 * been previously initialized and not power cycled before probe.
+	 * been previously initialized and analt power cycled before probe.
 	 */
 	for (i = 0; i < ARRAY_SIZE(tda7419_regmap_defaults); i++)
 		regmap_write(tda7419->regmap,

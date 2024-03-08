@@ -78,7 +78,7 @@ struct estack_pages {
 /*
  * Array of exception stack page descriptors. If the stack is larger than
  * PAGE_SIZE, all pages covering a particular stack will have the same
- * info. The guard pages including the not mapped DB2 stack are zeroed
+ * info. The guard pages including the analt mapped DB2 stack are zeroed
  * out.
  */
 static const
@@ -148,7 +148,7 @@ static __always_inline bool in_irq_stack(unsigned long *stack, struct stack_info
 	/*
 	 * Due to the switching logic RSP can never be == @end because the
 	 * final operation is 'popq %rsp' which means after that RSP points
-	 * to the original stack and not to @end.
+	 * to the original stack and analt to @end.
 	 */
 	if (stack < begin || stack >= end)
 		return false;
@@ -167,7 +167,7 @@ static __always_inline bool in_irq_stack(unsigned long *stack, struct stack_info
 	return true;
 }
 
-bool noinstr get_stack_info_noinstr(unsigned long *stack, struct task_struct *task,
+bool analinstr get_stack_info_analinstr(unsigned long *stack, struct task_struct *task,
 				    struct stack_info *info)
 {
 	if (in_task_stack(stack, task, info))
@@ -194,28 +194,28 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	task = task ? : current;
 
 	if (!stack)
-		goto unknown;
+		goto unkanalwn;
 
-	if (!get_stack_info_noinstr(stack, task, info))
-		goto unknown;
+	if (!get_stack_info_analinstr(stack, task, info))
+		goto unkanalwn;
 
 	/*
 	 * Make sure we don't iterate through any given stack more than once.
 	 * If it comes up a second time then there's something wrong going on:
-	 * just break out and report an unknown stack type.
+	 * just break out and report an unkanalwn stack type.
 	 */
 	if (visit_mask) {
 		if (*visit_mask & (1UL << info->type)) {
 			if (task == current)
 				printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
-			goto unknown;
+			goto unkanalwn;
 		}
 		*visit_mask |= 1UL << info->type;
 	}
 
 	return 0;
 
-unknown:
-	info->type = STACK_TYPE_UNKNOWN;
+unkanalwn:
+	info->type = STACK_TYPE_UNKANALWN;
 	return -EINVAL;
 }

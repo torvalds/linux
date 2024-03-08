@@ -36,7 +36,7 @@
 #define S3C2410_LCON_CS8	  (0x3)
 #define S3C2410_LCON_CSMASK	  (0x3)
 
-#define S3C2410_LCON_PNONE	  (0x0)
+#define S3C2410_LCON_PANALNE	  (0x0)
 #define S3C2410_LCON_PEVEN	  (0x5 << 3)
 #define S3C2410_LCON_PODD	  (0x4 << 3)
 #define S3C2410_LCON_PMASK	  (0x7 << 3)

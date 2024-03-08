@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA core driver
+ * Copyright (c) 2018-2019 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare eDMA core driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #include <linux/module.h>
@@ -55,7 +55,7 @@ static struct dw_edma_burst *dw_edma_alloc_burst(struct dw_edma_chunk *chunk)
 {
 	struct dw_edma_burst *burst;
 
-	burst = kzalloc(sizeof(*burst), GFP_NOWAIT);
+	burst = kzalloc(sizeof(*burst), GFP_ANALWAIT);
 	if (unlikely(!burst))
 		return NULL;
 
@@ -79,7 +79,7 @@ static struct dw_edma_chunk *dw_edma_alloc_chunk(struct dw_edma_desc *desc)
 	struct dw_edma_chan *chan = desc->chan;
 	struct dw_edma_chunk *chunk;
 
-	chunk = kzalloc(sizeof(*chunk), GFP_NOWAIT);
+	chunk = kzalloc(sizeof(*chunk), GFP_ANALWAIT);
 	if (unlikely(!chunk))
 		return NULL;
 
@@ -122,7 +122,7 @@ static struct dw_edma_desc *dw_edma_alloc_desc(struct dw_edma_chan *chan)
 {
 	struct dw_edma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (unlikely(!desc))
 		return NULL;
 
@@ -250,7 +250,7 @@ static int dw_edma_device_pause(struct dma_chan *dchan)
 		err = -EPERM;
 	else if (chan->status != EDMA_ST_BUSY)
 		err = -EPERM;
-	else if (chan->request != EDMA_REQ_NONE)
+	else if (chan->request != EDMA_REQ_ANALNE)
 		err = -EPERM;
 	else
 		chan->request = EDMA_REQ_PAUSE;
@@ -267,7 +267,7 @@ static int dw_edma_device_resume(struct dma_chan *dchan)
 		err = -EPERM;
 	} else if (chan->status != EDMA_ST_PAUSE) {
 		err = -EPERM;
-	} else if (chan->request != EDMA_REQ_NONE) {
+	} else if (chan->request != EDMA_REQ_ANALNE) {
 		err = -EPERM;
 	} else {
 		chan->status = EDMA_ST_BUSY;
@@ -283,7 +283,7 @@ static int dw_edma_device_terminate_all(struct dma_chan *dchan)
 	int err = 0;
 
 	if (!chan->configured) {
-		/* Do nothing */
+		/* Do analthing */
 	} else if (chan->status == EDMA_ST_PAUSE) {
 		chan->status = EDMA_ST_IDLE;
 		chan->configured = false;
@@ -314,7 +314,7 @@ static void dw_edma_device_issue_pending(struct dma_chan *dchan)
 		return;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-	if (vchan_issue_pending(&chan->vc) && chan->request == EDMA_REQ_NONE &&
+	if (vchan_issue_pending(&chan->vc) && chan->request == EDMA_REQ_ANALNE &&
 	    chan->status == EDMA_ST_IDLE) {
 		chan->status = EDMA_ST_BUSY;
 		dw_edma_start_transfer(chan);
@@ -385,7 +385,7 @@ dw_edma_device_transfer(struct dw_edma_transfer *xfer)
 	 * |                       |    +-+   |                      |
 	 * +-----------------------+          +----------------------+
 	 *
-	 * 1. Normal logic:
+	 * 1. Analrmal logic:
 	 * If eDMA is embedded into the DW PCIe RP/EP and controlled from the
 	 * CPU/Application side, the Rx channel (EDMA_DIR_READ) will be used
 	 * for the device read operations (DEV_TO_MEM) and the Tx channel
@@ -605,10 +605,10 @@ static void dw_edma_done_interrupt(struct dw_edma_chan *chan)
 	vd = vchan_next_desc(&chan->vc);
 	if (vd) {
 		switch (chan->request) {
-		case EDMA_REQ_NONE:
+		case EDMA_REQ_ANALNE:
 			desc = vd2dw_edma_desc(vd);
 			if (!desc->chunks_alloc) {
-				list_del(&vd->node);
+				list_del(&vd->analde);
 				vchan_cookie_complete(vd);
 			}
 
@@ -618,14 +618,14 @@ static void dw_edma_done_interrupt(struct dw_edma_chan *chan)
 			break;
 
 		case EDMA_REQ_STOP:
-			list_del(&vd->node);
+			list_del(&vd->analde);
 			vchan_cookie_complete(vd);
-			chan->request = EDMA_REQ_NONE;
+			chan->request = EDMA_REQ_ANALNE;
 			chan->status = EDMA_ST_IDLE;
 			break;
 
 		case EDMA_REQ_PAUSE:
-			chan->request = EDMA_REQ_NONE;
+			chan->request = EDMA_REQ_ANALNE;
 			chan->status = EDMA_ST_PAUSE;
 			break;
 
@@ -644,11 +644,11 @@ static void dw_edma_abort_interrupt(struct dw_edma_chan *chan)
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	vd = vchan_next_desc(&chan->vc);
 	if (vd) {
-		list_del(&vd->node);
+		list_del(&vd->analde);
 		vchan_cookie_complete(vd);
 	}
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
-	chan->request = EDMA_REQ_NONE;
+	chan->request = EDMA_REQ_ANALNE;
 	chan->status = EDMA_ST_IDLE;
 }
 
@@ -672,7 +672,7 @@ static inline irqreturn_t dw_edma_interrupt_read(int irq, void *data)
 
 static irqreturn_t dw_edma_interrupt_common(int irq, void *data)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	ret |= dw_edma_interrupt_write(irq, data);
 	ret |= dw_edma_interrupt_read(irq, data);
@@ -736,7 +736,7 @@ static int dw_edma_channel_setup(struct dw_edma *dw, u32 wr_alloc, u32 rd_alloc)
 		}
 
 		chan->configured = false;
-		chan->request = EDMA_REQ_NONE;
+		chan->request = EDMA_REQ_ANALNE;
 		chan->status = EDMA_ST_IDLE;
 
 		if (chan->dir == EDMA_DIR_WRITE)
@@ -845,7 +845,7 @@ static int dw_edma_irq_request(struct dw_edma *dw,
 
 	dw->irq = devm_kcalloc(dev, chip->nr_irqs, sizeof(*dw->irq), GFP_KERNEL);
 	if (!dw->irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (chip->nr_irqs == 1) {
 		/* Common IRQ shared among all channels */
@@ -919,7 +919,7 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 
 	dw = devm_kzalloc(dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw->chip = chip;
 
@@ -948,7 +948,7 @@ int dw_edma_probe(struct dw_edma_chip *chip)
 	dw->chan = devm_kcalloc(dev, dw->wr_ch_cnt + dw->rd_ch_cnt,
 				sizeof(*dw->chan), GFP_KERNEL);
 	if (!dw->chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(dw->name, sizeof(dw->name), "dw-edma-core:%s",
 		 dev_name(chip->dev));
@@ -988,9 +988,9 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 	struct dw_edma *dw = chip->dw;
 	int i;
 
-	/* Skip removal if no private data found */
+	/* Skip removal if anal private data found */
 	if (!dw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Disable eDMA */
 	dw_edma_core_off(dw);
@@ -1002,9 +1002,9 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 	/* Deregister eDMA device */
 	dma_async_device_unregister(&dw->dma);
 	list_for_each_entry_safe(chan, _chan, &dw->dma.channels,
-				 vc.chan.device_node) {
+				 vc.chan.device_analde) {
 		tasklet_kill(&chan->vc.task);
-		list_del(&chan->vc.chan.device_node);
+		list_del(&chan->vc.chan.device_analde);
 	}
 
 	return 0;
@@ -1012,5 +1012,5 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 EXPORT_SYMBOL_GPL(dw_edma_remove);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare eDMA controller core driver");
-MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@synopsys.com>");
+MODULE_DESCRIPTION("Syanalpsys DesignWare eDMA controller core driver");
+MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>");

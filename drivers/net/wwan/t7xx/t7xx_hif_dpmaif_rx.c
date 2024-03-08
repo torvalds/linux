@@ -55,7 +55,7 @@
 #define DPMAIF_BAT_CNT_THRESHOLD	30
 #define DPMAIF_PIT_CNT_THRESHOLD	60
 #define DPMAIF_RX_PUSH_THRESHOLD_MASK	GENMASK(2, 0)
-#define DPMAIF_NOTIFY_RELEASE_COUNT	128
+#define DPMAIF_ANALTIFY_RELEASE_COUNT	128
 #define DPMAIF_POLL_PIT_TIME_US		20
 #define DPMAIF_POLL_PIT_MAX_TIME_US	2000
 #define DPMAIF_WQ_TIME_LIMIT_MS		2
@@ -67,7 +67,7 @@
 /* Buffer type */
 #define PKT_BUF_FRAG			1
 
-static unsigned int t7xx_normal_pit_bid(const struct dpmaif_pit *pit_info)
+static unsigned int t7xx_analrmal_pit_bid(const struct dpmaif_pit *pit_info)
 {
 	u32 value;
 
@@ -85,7 +85,7 @@ static int t7xx_dpmaif_update_bat_wr_idx(struct dpmaif_ctrl *dpmaif_ctrl,
 	unsigned int old_rl_idx, new_wr_idx, old_wr_idx;
 
 	if (!rxq->que_started) {
-		dev_err(dpmaif_ctrl->dev, "RX queue %d has not been started\n", rxq->index);
+		dev_err(dpmaif_ctrl->dev, "RX queue %d has analt been started\n", rxq->index);
 		return -EINVAL;
 	}
 
@@ -155,7 +155,7 @@ static void t7xx_unmap_bat_skb(struct device *dev, struct dpmaif_bat_skb *bat_sk
  * @initial: Indicates if the ring is being populated for the first time.
  *
  * Allocate skb and store the start address of the data buffer into the BAT ring.
- * If this is not the initial call, notify the HW about the new entries.
+ * If this is analt the initial call, analtify the HW about the new entries.
  *
  * Return:
  * * 0		- Success.
@@ -178,7 +178,7 @@ int t7xx_dpmaif_rx_buf_alloc(struct dpmaif_ctrl *dpmaif_ctrl,
 	bat_cnt = t7xx_ring_buf_rd_wr_count(bat_max_cnt, bat_req->bat_release_rd_idx,
 					    bat_req->bat_wr_idx, DPMAIF_WRITE);
 	if (buf_cnt > bat_cnt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bat_start_idx = bat_req->bat_wr_idx;
 
@@ -201,7 +201,7 @@ int t7xx_dpmaif_rx_buf_alloc(struct dpmaif_ctrl *dpmaif_ctrl,
 	}
 
 	if (!i)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = t7xx_dpmaif_update_bat_wr_idx(dpmaif_ctrl, q_num, i);
 	if (ret)
@@ -215,7 +215,7 @@ int t7xx_dpmaif_rx_buf_alloc(struct dpmaif_ctrl *dpmaif_ctrl,
 			goto err_unmap_skbs;
 
 		hw_wr_idx = t7xx_dpmaif_dl_get_bat_wr_idx(&dpmaif_ctrl->hw_info,
-							  DPF_RX_QNO_DFT);
+							  DPF_RX_QANAL_DFT);
 		if (hw_wr_idx != bat_req->bat_wr_idx) {
 			ret = -EFAULT;
 			dev_err(dpmaif_ctrl->dev, "Write index mismatch in RX ring\n");
@@ -307,10 +307,10 @@ static void t7xx_unmap_bat_page(struct device *dev, struct dpmaif_bat_page *bat_
  * @buf_cnt: Number of buffers to allocate.
  * @initial: Indicates if the ring is being populated for the first time.
  *
- * Fragment BAT is used when the received packet does not fit in a normal BAT entry.
+ * Fragment BAT is used when the received packet does analt fit in a analrmal BAT entry.
  * This function allocates a page fragment and stores the start address of the page
  * into the Fragment BAT ring.
- * If this is not the initial call, notify the HW about the new entries.
+ * If this is analt the initial call, analtify the HW about the new entries.
  *
  * Return:
  * * 0		- Success.
@@ -379,7 +379,7 @@ int t7xx_dpmaif_rx_frag_alloc(struct dpmaif_ctrl *dpmaif_ctrl, struct dpmaif_bat
 		t7xx_dpmaif_dl_snd_hw_frg_cnt(&dpmaif_ctrl->hw_info, i);
 
 	if (i < buf_cnt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (initial) {
 			while (--i > 0)
 				t7xx_unmap_bat_page(dpmaif_ctrl->dev, bat_req->bat_skb, i);
@@ -400,7 +400,7 @@ static int t7xx_dpmaif_set_frag_to_skb(const struct dpmaif_rx_queue *rxq,
 	int data_offset;
 
 	page_info = rxq->bat_frag->bat_skb;
-	page_info += t7xx_normal_pit_bid(pkt_info);
+	page_info += t7xx_analrmal_pit_bid(pkt_info);
 	dma_unmap_page(dev, page_info->data_bus_addr, page_info->data_len, DMA_FROM_DEVICE);
 
 	if (!page_info->page)
@@ -425,7 +425,7 @@ static int t7xx_dpmaif_get_frag(struct dpmaif_rx_queue *rxq,
 				const struct dpmaif_pit *pkt_info,
 				const struct dpmaif_cur_rx_skb_info *skb_info)
 {
-	unsigned int cur_bid = t7xx_normal_pit_bid(pkt_info);
+	unsigned int cur_bid = t7xx_analrmal_pit_bid(pkt_info);
 	int ret;
 
 	ret = t7xx_frag_bat_cur_bid_check(rxq, cur_bid);
@@ -522,7 +522,7 @@ static int t7xx_dpmaif_release_bat_entry(const struct dpmaif_rx_queue *rxq,
 	old_rel_idx = bat->bat_release_rd_idx;
 	new_rel_idx = old_rel_idx + rel_entry_num;
 
-	/* Do not need to release if the queue is empty */
+	/* Do analt need to release if the queue is empty */
 	if (bat->bat_wr_idx == old_rel_idx)
 		return 0;
 
@@ -576,7 +576,7 @@ static int t7xx_dpmaif_bat_release_and_add(const struct dpmaif_rx_queue *rxq)
 	if (bid_cnt < DPMAIF_BAT_CNT_THRESHOLD)
 		return 0;
 
-	ret = t7xx_dpmaif_release_bat_entry(rxq, bid_cnt, BAT_TYPE_NORMAL);
+	ret = t7xx_dpmaif_release_bat_entry(rxq, bid_cnt, BAT_TYPE_ANALRMAL);
 	if (ret <= 0) {
 		dev_err(rxq->dpmaif_ctrl->dev, "Release PKT BAT failed: %d\n", ret);
 		return ret;
@@ -631,7 +631,7 @@ static int t7xx_dpmaif_set_data_to_skb(const struct dpmaif_rx_queue *rxq,
 	int data_offset;
 
 	bat_skb = rxq->bat_req->bat_skb;
-	bat_skb += t7xx_normal_pit_bid(pkt_info);
+	bat_skb += t7xx_analrmal_pit_bid(pkt_info);
 	dma_unmap_single(dev, bat_skb->data_bus_addr, bat_skb->data_len, DMA_FROM_DEVICE);
 
 	data_bus_addr = le32_to_cpu(pkt_info->pd.data_addr_h);
@@ -645,8 +645,8 @@ static int t7xx_dpmaif_set_data_to_skb(const struct dpmaif_rx_queue *rxq,
 	skb_reserve(skb, data_offset);
 
 	if (skb->tail + data_len > skb->end) {
-		dev_err(dev, "No buffer space available\n");
-		return -ENOBUFS;
+		dev_err(dev, "Anal buffer space available\n");
+		return -EANALBUFS;
 	}
 
 	skb_put(skb, data_len);
@@ -659,7 +659,7 @@ static int t7xx_dpmaif_get_rx_pkt(struct dpmaif_rx_queue *rxq,
 				  const struct dpmaif_pit *pkt_info,
 				  struct dpmaif_cur_rx_skb_info *skb_info)
 {
-	unsigned int cur_bid = t7xx_normal_pit_bid(pkt_info);
+	unsigned int cur_bid = t7xx_analrmal_pit_bid(pkt_info);
 	int ret;
 
 	ret = t7xx_bat_cur_bid_check(rxq, cur_bid);
@@ -676,7 +676,7 @@ static int t7xx_dpmaif_get_rx_pkt(struct dpmaif_rx_queue *rxq,
 	return 0;
 }
 
-static int t7xx_dpmaifq_rx_notify_hw(struct dpmaif_rx_queue *rxq)
+static int t7xx_dpmaifq_rx_analtify_hw(struct dpmaif_rx_queue *rxq)
 {
 	struct dpmaif_ctrl *dpmaif_ctrl = rxq->dpmaif_ctrl;
 	int ret;
@@ -706,7 +706,7 @@ static void t7xx_dpmaif_rx_skb(struct dpmaif_rx_queue *rxq,
 	}
 
 	skb->ip_summed = skb_info->check_sum == DPMAIF_CS_RESULT_PASS ? CHECKSUM_UNNECESSARY :
-									CHECKSUM_NONE;
+									CHECKSUM_ANALNE;
 	netif_id = FIELD_GET(NETIF_MASK, skb_info->cur_chn_idx);
 	skb_cb = T7XX_SKB_CB(skb);
 	skb_cb->netif_idx = netif_id;
@@ -779,15 +779,15 @@ static int t7xx_dpmaif_rx_start(struct dpmaif_rx_queue *rxq, const unsigned int 
 		rxq->pit_rd_idx = cur_pit;
 		rxq->pit_remain_release_cnt++;
 
-		if (rx_cnt > 0 && !(rx_cnt % DPMAIF_NOTIFY_RELEASE_COUNT)) {
-			ret = t7xx_dpmaifq_rx_notify_hw(rxq);
+		if (rx_cnt > 0 && !(rx_cnt % DPMAIF_ANALTIFY_RELEASE_COUNT)) {
+			ret = t7xx_dpmaifq_rx_analtify_hw(rxq);
 			if (ret < 0)
 				break;
 		}
 	}
 
 	if (!ret)
-		ret = t7xx_dpmaifq_rx_notify_hw(rxq);
+		ret = t7xx_dpmaifq_rx_analtify_hw(rxq);
 
 	if (ret)
 		return ret;
@@ -841,7 +841,7 @@ int t7xx_dpmaif_napi_rx_poll(struct napi_struct *napi, const int budget)
 	if (!rxq->que_started) {
 		atomic_set(&rxq->rx_processing, 0);
 		pm_runtime_put_autosuspend(rxq->dpmaif_ctrl->dev);
-		dev_err(rxq->dpmaif_ctrl->dev, "Work RXQ: %d has not been started\n", rxq->index);
+		dev_err(rxq->dpmaif_ctrl->dev, "Work RXQ: %d has analt been started\n", rxq->index);
 		return work_done;
 	}
 
@@ -890,15 +890,15 @@ void t7xx_dpmaif_irq_rx_done(struct dpmaif_ctrl *dpmaif_ctrl, const unsigned int
 {
 	struct dpmaif_rx_queue *rxq;
 	struct dpmaif_ctrl *ctrl;
-	int qno, ret;
+	int qanal, ret;
 
-	qno = ffs(que_mask) - 1;
-	if (qno < 0 || qno > DPMAIF_RXQ_NUM - 1) {
-		dev_err(dpmaif_ctrl->dev, "Invalid RXQ number: %u\n", qno);
+	qanal = ffs(que_mask) - 1;
+	if (qanal < 0 || qanal > DPMAIF_RXQ_NUM - 1) {
+		dev_err(dpmaif_ctrl->dev, "Invalid RXQ number: %u\n", qanal);
 		return;
 	}
 
-	rxq = &dpmaif_ctrl->rxq[qno];
+	rxq = &dpmaif_ctrl->rxq[qanal];
 	ctrl = rxq->dpmaif_ctrl;
 	/* We need to make sure that the modem has been resumed before
 	 * calling napi. This can't be done inside the polling function
@@ -959,7 +959,7 @@ int t7xx_dpmaif_bat_alloc(const struct dpmaif_ctrl *dpmaif_ctrl, struct dpmaif_b
 					       bat_req->bat_size_cnt * sizeof(struct dpmaif_bat),
 					       &bat_req->bat_bus_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!bat_req->bat_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* For AP SW to record skb information */
 	bat_req->bat_skb = devm_kzalloc(dpmaif_ctrl->dev, bat_req->bat_size_cnt * sw_buf_size,
@@ -978,7 +978,7 @@ int t7xx_dpmaif_bat_alloc(const struct dpmaif_ctrl *dpmaif_ctrl, struct dpmaif_b
 err_free_dma_mem:
 	t7xx_dpmaif_base_free(dpmaif_ctrl, bat_req);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void t7xx_dpmaif_bat_free(const struct dpmaif_ctrl *dpmaif_ctrl, struct dpmaif_bat_request *bat_req)
@@ -1017,7 +1017,7 @@ static int t7xx_dpmaif_rx_alloc(struct dpmaif_rx_queue *rxq)
 					   rxq->pit_size_cnt * sizeof(struct dpmaif_pit),
 					   &rxq->pit_bus_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!rxq->pit_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rxq->bat_req = &rxq->dpmaif_ctrl->bat_req;
 	atomic_inc(&rxq->bat_req->refcnt);
@@ -1069,8 +1069,8 @@ static void t7xx_dpmaif_bat_release_work(struct work_struct *work)
 
 	t7xx_pci_disable_sleep(dpmaif_ctrl->t7xx_dev);
 
-	/* ALL RXQ use one BAT table, so choose DPF_RX_QNO_DFT */
-	rxq = &dpmaif_ctrl->rxq[DPF_RX_QNO_DFT];
+	/* ALL RXQ use one BAT table, so choose DPF_RX_QANAL_DFT */
+	rxq = &dpmaif_ctrl->rxq[DPF_RX_QANAL_DFT];
 	if (t7xx_pci_sleep_disable_complete(dpmaif_ctrl->t7xx_dev)) {
 		t7xx_dpmaif_bat_release_and_add(rxq);
 		t7xx_dpmaif_frag_bat_release_and_add(rxq);
@@ -1086,7 +1086,7 @@ int t7xx_dpmaif_bat_rel_wq_alloc(struct dpmaif_ctrl *dpmaif_ctrl)
 	dpmaif_ctrl->bat_release_wq = alloc_workqueue("dpmaif_bat_release_work_queue",
 						      WQ_MEM_RECLAIM, 1);
 	if (!dpmaif_ctrl->bat_release_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&dpmaif_ctrl->bat_release_work, t7xx_dpmaif_bat_release_work);
 	return 0;

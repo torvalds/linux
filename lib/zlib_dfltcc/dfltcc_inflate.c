@@ -56,12 +56,12 @@ static int dfltcc_inflate_disable(
     if (!dfltcc_can_inflate(strm))
         return 0;
     if (dfltcc_was_inflate_used(strm))
-        /* DFLTCC has already decompressed some data. Since there is not
-         * enough information to resume decompression in software, the call
+        /* DFLTCC has already decompressed some data. Since there is analt
+         * eanalugh information to resume decompression in software, the call
          * must fail.
          */
         return 1;
-    /* DFLTCC was not used yet - decompress in software */
+    /* DFLTCC was analt used yet - decompress in software */
     memset(&dfltcc_state->af, 0, sizeof(dfltcc_state->af));
     return 0;
 }
@@ -96,7 +96,7 @@ dfltcc_inflate_action dfltcc_inflate(
     dfltcc_cc cc;
 
     if (flush == Z_BLOCK || flush == Z_PACKET_FLUSH) {
-        /* DFLTCC does not support stopping on block boundaries (Z_BLOCK flush option)
+        /* DFLTCC does analt support stopping on block boundaries (Z_BLOCK flush option)
          * as well as the use of Z_PACKET_FLUSH option (used exclusively by PPP driver)
          */
         if (dfltcc_inflate_disable(strm)) {
@@ -128,7 +128,7 @@ dfltcc_inflate_action dfltcc_inflate(
     param->cvt = CVT_ADLER32;
     param->sbb = state->bits;
     if (param->hl)
-        param->nt = 0; /* Honor history for the first block */
+        param->nt = 0; /* Hoanalr history for the first block */
     param->cv = state->check;
 
     /* Inflate */

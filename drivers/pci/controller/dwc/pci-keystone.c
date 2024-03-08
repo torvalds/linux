@@ -6,7 +6,7 @@
  *		https://www.ti.com
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
- * Implementation based on pci-exynos.c and pcie-designware.c
+ * Implementation based on pci-exyanals.c and pcie-designware.c
  */
 
 #include <linux/clk.h>
@@ -76,11 +76,11 @@
 #define AM6_ERR_AER			BIT(4)	/* AM6 ECRC error */
 #define ERR_AXI				BIT(4)	/* AXI tag lookup fatal error */
 #define ERR_CORR			BIT(3)	/* Correctable error */
-#define ERR_NONFATAL			BIT(2)	/* Non-fatal error */
+#define ERR_ANALNFATAL			BIT(2)	/* Analn-fatal error */
 #define ERR_FATAL			BIT(1)	/* Fatal error */
 #define ERR_SYS				BIT(0)	/* System error */
 #define ERR_IRQ_ALL			(ERR_AER | ERR_AXI | ERR_CORR | \
-					 ERR_NONFATAL | ERR_FATAL | ERR_SYS)
+					 ERR_ANALNFATAL | ERR_FATAL | ERR_SYS)
 
 /* PCIE controller device IDs */
 #define PCIE_RC_K2HK			0xb008
@@ -122,9 +122,9 @@ struct keystone_pcie {
 	u32			num_viewport;
 	struct phy		**phy;
 	struct device_link	**link;
-	struct			device_node *msi_intc_np;
+	struct			device_analde *msi_intc_np;
 	struct irq_domain	*intx_irq_domain;
-	struct device_node	*np;
+	struct device_analde	*np;
 
 	/* Application register space */
 	void __iomem		*va_app_base;	/* DT 1st resource */
@@ -281,7 +281,7 @@ static irqreturn_t ks_pcie_handle_error_irq(struct keystone_pcie *ks_pcie)
 
 	reg = ks_pcie_app_readl(ks_pcie, ERR_IRQ_STATUS);
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & ERR_SYS)
 		dev_err(dev, "System Error\n");
@@ -289,8 +289,8 @@ static irqreturn_t ks_pcie_handle_error_irq(struct keystone_pcie *ks_pcie)
 	if (reg & ERR_FATAL)
 		dev_err(dev, "Fatal Error\n");
 
-	if (reg & ERR_NONFATAL)
-		dev_dbg(dev, "Non Fatal Error\n");
+	if (reg & ERR_ANALNFATAL)
+		dev_dbg(dev, "Analn Fatal Error\n");
 
 	if (reg & ERR_CORR)
 		dev_dbg(dev, "Correctable Error\n");
@@ -528,13 +528,13 @@ static void ks_pcie_quirk(struct pci_dev *dev)
 	struct pci_dev *bridge;
 	static const struct pci_device_id rc_pci_devids[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2HK),
-		 .class = PCI_CLASS_BRIDGE_PCI_NORMAL, .class_mask = ~0, },
+		 .class = PCI_CLASS_BRIDGE_PCI_ANALRMAL, .class_mask = ~0, },
 		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2E),
-		 .class = PCI_CLASS_BRIDGE_PCI_NORMAL, .class_mask = ~0, },
+		 .class = PCI_CLASS_BRIDGE_PCI_ANALRMAL, .class_mask = ~0, },
 		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2L),
-		 .class = PCI_CLASS_BRIDGE_PCI_NORMAL, .class_mask = ~0, },
+		 .class = PCI_CLASS_BRIDGE_PCI_ANALRMAL, .class_mask = ~0, },
 		{ PCI_DEVICE(PCI_VENDOR_ID_TI, PCIE_RC_K2G),
-		 .class = PCI_CLASS_BRIDGE_PCI_NORMAL, .class_mask = ~0, },
+		 .class = PCI_CLASS_BRIDGE_PCI_ANALRMAL, .class_mask = ~0, },
 		{ 0, },
 	};
 
@@ -579,7 +579,7 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 	dev_dbg(dev, "%s, irq %d\n", __func__, irq);
 
 	/*
-	 * The chained irq handler installation would have replaced normal
+	 * The chained irq handler installation would have replaced analrmal
 	 * interrupt driver handler so we need to take care of mask/unmask and
 	 * ack operation.
 	 */
@@ -621,7 +621,7 @@ static void ks_pcie_intx_irq_handler(struct irq_desc *desc)
 	dev_dbg(dev, ": Handling INTX irq %d\n", irq);
 
 	/*
-	 * The chained irq handler installation would have replaced normal
+	 * The chained irq handler installation would have replaced analrmal
 	 * interrupt driver handler so we need to take care of mask/unmask and
 	 * ack operation.
 	 */
@@ -633,8 +633,8 @@ static void ks_pcie_intx_irq_handler(struct irq_desc *desc)
 static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 {
 	struct device *dev = ks_pcie->pci->dev;
-	struct device_node *np = ks_pcie->np;
-	struct device_node *intc_np;
+	struct device_analde *np = ks_pcie->np;
+	struct device_analde *intc_np;
 	struct irq_data *irq_data;
 	int irq_count, irq, ret, i;
 
@@ -645,13 +645,13 @@ static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 	if (!intc_np) {
 		if (ks_pcie->is_am6)
 			return 0;
-		dev_warn(dev, "msi-interrupt-controller node is absent\n");
+		dev_warn(dev, "msi-interrupt-controller analde is absent\n");
 		return -EINVAL;
 	}
 
 	irq_count = of_irq_count(intc_np);
 	if (!irq_count) {
-		dev_err(dev, "No IRQ entries in msi-interrupt-controller\n");
+		dev_err(dev, "Anal IRQ entries in msi-interrupt-controller\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -676,11 +676,11 @@ static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 						 ks_pcie);
 	}
 
-	of_node_put(intc_np);
+	of_analde_put(intc_np);
 	return 0;
 
 err:
-	of_node_put(intc_np);
+	of_analde_put(intc_np);
 	return ret;
 }
 
@@ -688,25 +688,25 @@ static int ks_pcie_config_intx_irq(struct keystone_pcie *ks_pcie)
 {
 	struct device *dev = ks_pcie->pci->dev;
 	struct irq_domain *intx_irq_domain;
-	struct device_node *np = ks_pcie->np;
-	struct device_node *intc_np;
+	struct device_analde *np = ks_pcie->np;
+	struct device_analde *intc_np;
 	int irq_count, irq, ret = 0, i;
 
 	intc_np = of_get_child_by_name(np, "legacy-interrupt-controller");
 	if (!intc_np) {
 		/*
 		 * Since INTX interrupts are modeled as edge-interrupts in
-		 * AM6, keep it disabled for now.
+		 * AM6, keep it disabled for analw.
 		 */
 		if (ks_pcie->is_am6)
 			return 0;
-		dev_warn(dev, "legacy-interrupt-controller node is absent\n");
+		dev_warn(dev, "legacy-interrupt-controller analde is absent\n");
 		return -EINVAL;
 	}
 
 	irq_count = of_irq_count(intc_np);
 	if (!irq_count) {
-		dev_err(dev, "No IRQ entries in legacy-interrupt-controller\n");
+		dev_err(dev, "Anal IRQ entries in legacy-interrupt-controller\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -737,13 +737,13 @@ static int ks_pcie_config_intx_irq(struct keystone_pcie *ks_pcie)
 		ks_pcie_app_writel(ks_pcie, IRQ_ENABLE_SET(i), INTx_EN);
 
 err:
-	of_node_put(intc_np);
+	of_analde_put(intc_np);
 	return ret;
 }
 
 #ifdef CONFIG_ARM
 /*
- * When a PCI device does not exist during config cycles, keystone host
+ * When a PCI device does analt exist during config cycles, keystone host
  * gets a bus error instead of returning 0xffffffff (PCI_ERROR_RESPONSE).
  * This handler always returns 0 for this kind of fault.
  */
@@ -770,7 +770,7 @@ static int __init ks_pcie_init_id(struct keystone_pcie *ks_pcie)
 	struct regmap *devctrl_regs;
 	struct dw_pcie *pci = ks_pcie->pci;
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	unsigned int offset = 0;
 
@@ -778,7 +778,7 @@ static int __init ks_pcie_init_id(struct keystone_pcie *ks_pcie)
 	if (IS_ERR(devctrl_regs))
 		return PTR_ERR(devctrl_regs);
 
-	/* Do not error out to maintain old DT compatibility */
+	/* Do analt error out to maintain old DT compatibility */
 	ret = of_parse_phandle_with_fixed_args(np, "ti,syscon-pcie-id", 1, 0, &args);
 	if (!ret)
 		offset = args.args[0];
@@ -828,7 +828,7 @@ static int __init ks_pcie_host_init(struct dw_pcie_rp *pp)
 	 * "External aborts"
 	 */
 	hook_fault_code(17, ks_pcie_fault, SIGBUS, 0,
-			"Asynchronous external abort");
+			"Asynchroanalus external abort");
 #endif
 
 	return 0;
@@ -896,7 +896,7 @@ static void ks_pcie_am654_raise_intx_irq(struct keystone_pcie *ks_pcie)
 			   INT_ENABLE);
 }
 
-static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
@@ -907,13 +907,13 @@ static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 		ks_pcie_am654_raise_intx_irq(ks_pcie);
 		break;
 	case PCI_IRQ_MSI:
-		dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 		break;
 	case PCI_IRQ_MSIX:
-		dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
+		dw_pcie_ep_raise_msix_irq(ep, func_anal, interrupt_num);
 		break;
 	default:
-		dev_err(pci->dev, "UNKNOWN IRQ type\n");
+		dev_err(pci->dev, "UNKANALWN IRQ type\n");
 		return -EINVAL;
 	}
 
@@ -921,7 +921,7 @@ static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features ks_pcie_am654_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
 	.reserved_bar = 1 << BAR_0 | 1 << BAR_1,
@@ -990,7 +990,7 @@ err_phy:
 
 static int ks_pcie_set_mode(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	unsigned int offset = 0;
 	struct regmap *syscon;
@@ -1002,7 +1002,7 @@ static int ks_pcie_set_mode(struct device *dev)
 	if (IS_ERR(syscon))
 		return 0;
 
-	/* Do not error out to maintain old DT compatibility */
+	/* Do analt error out to maintain old DT compatibility */
 	ret = of_parse_phandle_with_fixed_args(np, "ti,syscon-pcie-mode", 1, 0, &args);
 	if (!ret)
 		offset = args.args[0];
@@ -1022,7 +1022,7 @@ static int ks_pcie_set_mode(struct device *dev)
 static int ks_pcie_am654_set_mode(struct device *dev,
 				  enum dw_pcie_device_mode mode)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args args;
 	unsigned int offset = 0;
 	struct regmap *syscon;
@@ -1034,7 +1034,7 @@ static int ks_pcie_am654_set_mode(struct device *dev,
 	if (IS_ERR(syscon))
 		return 0;
 
-	/* Do not error out to maintain old DT compatibility */
+	/* Do analt error out to maintain old DT compatibility */
 	ret = of_parse_phandle_with_fixed_args(np, "ti,syscon-pcie-mode", 1, 0, &args);
 	if (!ret)
 		offset = args.args[0];
@@ -1101,7 +1101,7 @@ static int ks_pcie_probe(struct platform_device *pdev)
 	const struct dw_pcie_host_ops *host_ops;
 	const struct dw_pcie_ep_ops *ep_ops;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct ks_pcie_of_data *data;
 	enum dw_pcie_device_mode mode;
 	struct dw_pcie *pci;
@@ -1130,11 +1130,11 @@ static int ks_pcie_probe(struct platform_device *pdev)
 
 	ks_pcie = devm_kzalloc(dev, sizeof(*ks_pcie), GFP_KERNEL);
 	if (!ks_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "app");
 	ks_pcie->va_app_base = devm_ioremap_resource(dev, res);
@@ -1175,11 +1175,11 @@ static int ks_pcie_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy) * num_lanes, GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	link = devm_kzalloc(dev, sizeof(*link) * num_lanes, GFP_KERNEL);
 	if (!link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_lanes; i++) {
 		snprintf(name, sizeof(name), "pcie-phy%d", i);
@@ -1247,7 +1247,7 @@ static int ks_pcie_probe(struct platform_device *pdev)
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCI_KEYSTONE_HOST)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_get_sync;
 		}
 
@@ -1278,7 +1278,7 @@ static int ks_pcie_probe(struct platform_device *pdev)
 		break;
 	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCI_KEYSTONE_EP)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_get_sync;
 		}
 

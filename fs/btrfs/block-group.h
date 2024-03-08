@@ -16,7 +16,7 @@ enum btrfs_disk_cache_state {
 
 enum btrfs_block_group_size_class {
 	/* Unset */
-	BTRFS_BG_SZ_NONE,
+	BTRFS_BG_SZ_ANALNE,
 	/* 0 < size <= 128K */
 	BTRFS_BG_SZ_SMALL,
 	/* 128K < size <= 8M */
@@ -39,7 +39,7 @@ enum btrfs_discard_state {
 };
 
 /*
- * Control flags for do_chunk_alloc's force field CHUNK_ALLOC_NO_FORCE means to
+ * Control flags for do_chunk_alloc's force field CHUNK_ALLOC_ANAL_FORCE means to
  * only allocate a chunk if we really need one.
  *
  * CHUNK_ALLOC_LIMITED means to only try and allocate one if we have very few
@@ -53,7 +53,7 @@ enum btrfs_discard_state {
  * find_free_extent() that also activaes the zone
  */
 enum btrfs_chunk_alloc_enum {
-	CHUNK_ALLOC_NO_FORCE,
+	CHUNK_ALLOC_ANAL_FORCE,
 	CHUNK_ALLOC_LIMITED,
 	CHUNK_ALLOC_FORCE,
 	CHUNK_ALLOC_FORCE_FOR_EXTENT,
@@ -80,7 +80,7 @@ enum btrfs_block_group_flags {
 };
 
 enum btrfs_caching_type {
-	BTRFS_CACHE_NO,
+	BTRFS_CACHE_ANAL,
 	BTRFS_CACHE_STARTED,
 	BTRFS_CACHE_FINISHED,
 	BTRFS_CACHE_ERROR,
@@ -102,7 +102,7 @@ struct btrfs_caching_control {
 
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	spinlock_t lock;
 	u64 start;
 	u64 length;
@@ -158,7 +158,7 @@ struct btrfs_block_group {
 	struct btrfs_free_space_ctl *free_space_ctl;
 
 	/* Block group cache stuff */
-	struct rb_node cache_node;
+	struct rb_analde cache_analde;
 
 	/* For block groups in the same raid type */
 	struct list_head list;
@@ -185,8 +185,8 @@ struct btrfs_block_group {
 	struct list_head ro_list;
 
 	/*
-	 * When non-zero it means the block group's logical address and its
-	 * device extents can not be reused for future block group allocations
+	 * When analn-zero it means the block group's logical address and its
+	 * device extents can analt be reused for future block group allocations
 	 * until the counter goes down to 0. This is to prevent them from being
 	 * reused while some task is still using the block group after it was
 	 * deleted - we want to make sure they can only be reused for new block
@@ -211,7 +211,7 @@ struct btrfs_block_group {
 	 * Incremented when doing extent allocations and holding a read lock
 	 * on the space_info's groups_sem semaphore.
 	 * Decremented when an ordered extent that represents an IO against this
-	 * block group's range is created (after it's added to its inode's
+	 * block group's range is created (after it's added to its ianalde's
 	 * root's list of ordered extents) or immediately after the allocation
 	 * if it's a metadata extent or fallocate extent (for these cases we
 	 * don't create ordered extents).
@@ -220,13 +220,13 @@ struct btrfs_block_group {
 
 	/*
 	 * Incremented while holding the spinlock *lock* by a task checking if
-	 * it can perform a nocow write (incremented if the value for the *ro*
+	 * it can perform a analcow write (incremented if the value for the *ro*
 	 * field is 0). Decremented by such tasks once they create an ordered
 	 * extent or before that if some error happens before reaching that step.
-	 * This is to prevent races between block group relocation and nocow
+	 * This is to prevent races between block group relocation and analcow
 	 * writes through direct IO.
 	 */
-	atomic_t nocow_writers;
+	atomic_t analcow_writers;
 
 	/* Lock for free space tree operations. */
 	struct mutex free_space_lock;
@@ -290,10 +290,10 @@ void btrfs_put_block_group(struct btrfs_block_group *cache);
 void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 					const u64 start);
 void btrfs_wait_block_group_reservations(struct btrfs_block_group *bg);
-struct btrfs_block_group *btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info,
+struct btrfs_block_group *btrfs_inc_analcow_writers(struct btrfs_fs_info *fs_info,
 						  u64 bytenr);
-void btrfs_dec_nocow_writers(struct btrfs_block_group *bg);
-void btrfs_wait_nocow_writers(struct btrfs_block_group *bg);
+void btrfs_dec_analcow_writers(struct btrfs_block_group *bg);
+void btrfs_wait_analcow_writers(struct btrfs_block_group *bg);
 void btrfs_wait_block_group_cache_progress(struct btrfs_block_group *cache,
 				           u64 num_bytes);
 int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait);

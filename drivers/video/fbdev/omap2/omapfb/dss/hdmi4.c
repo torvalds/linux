@@ -52,7 +52,7 @@ static void hdmi_runtime_put(void)
 	DSSDBG("hdmi_runtime_put\n");
 
 	r = pm_runtime_put_sync(&hdmi.pdev->dev);
-	WARN_ON(r < 0 && r != -ENOSYS);
+	WARN_ON(r < 0 && r != -EANALSYS);
 }
 
 static irqreturn_t hdmi_irq_handler(int irq, void *data)
@@ -68,8 +68,8 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		/*
 		 * If we get both connect and disconnect interrupts at the same
 		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
+		 * raises connect interrupt if a cable is connected, or analthing
+		 * if cable is analt connected.
 		 */
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_OFF);
 
@@ -322,8 +322,8 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 	mutex_lock(&hdmi.lock);
 
 	if (out->manager == NULL) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
+		DSSERR("failed to enable display: anal output/manager\n");
+		r = -EANALDEV;
 		goto err0;
 	}
 
@@ -420,7 +420,7 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 
 	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
 	if (!mgr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = dss_mgr_connect(mgr, dssdev);
 	if (r)
@@ -525,11 +525,11 @@ static void hdmi_uninit_output(struct platform_device *pdev)
 
 static int hdmi_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *ep;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = omapdss_of_get_first_endpoint(analde);
 	if (!ep)
 		return 0;
 
@@ -537,11 +537,11 @@ static int hdmi_probe_of(struct platform_device *pdev)
 	if (r)
 		goto err;
 
-	of_node_put(ep);
+	of_analde_put(ep);
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_analde_put(ep);
 	return r;
 }
 
@@ -675,7 +675,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	mutex_init(&hdmi.lock);
 	spin_lock_init(&hdmi.audio_playing_lock);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		r = hdmi_probe_of(pdev);
 		if (r)
 			return r;
@@ -700,7 +700,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
+		r = -EANALDEV;
 		goto err;
 	}
 

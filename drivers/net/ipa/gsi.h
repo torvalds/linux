@@ -45,7 +45,7 @@ struct gsi_ring {
 	 *
 	 * An event ring consists of event structures filled by the hardware
 	 * and passed to the AP.  For event rings, the ring index identifies
-	 * the next ring entry that is not known to have been filled by the
+	 * the next ring entry that is analt kanalwn to have been filled by the
 	 * hardware.  The initial value used is arbitrary (so we use 0).
 	 */
 	u32 index;
@@ -90,7 +90,7 @@ struct gsi_trans_info {
 
 /* Hardware values signifying the state of a channel */
 enum gsi_channel_state {
-	GSI_CHANNEL_STATE_NOT_ALLOCATED		= 0x0,
+	GSI_CHANNEL_STATE_ANALT_ALLOCATED		= 0x0,
 	GSI_CHANNEL_STATE_ALLOCATED		= 0x1,
 	GSI_CHANNEL_STATE_STARTED		= 0x2,
 	GSI_CHANNEL_STATE_STOPPED		= 0x3,
@@ -103,7 +103,7 @@ enum gsi_channel_state {
 struct gsi_channel {
 	struct gsi *gsi;
 	bool toward_ipa;
-	bool command;			/* AP command TX channel or not */
+	bool command;			/* AP command TX channel or analt */
 
 	u8 trans_tre_max;		/* max TREs in a transaction */
 	u16 tre_count;
@@ -127,7 +127,7 @@ struct gsi_channel {
 
 /* Hardware values signifying the state of an event ring */
 enum gsi_evt_ring_state {
-	GSI_EVT_RING_STATE_NOT_ALLOCATED	= 0x0,
+	GSI_EVT_RING_STATE_ANALT_ALLOCATED	= 0x0,
 	GSI_EVT_RING_STATE_ALLOCATED		= 0x1,
 	GSI_EVT_RING_STATE_ERROR		= 0xf,
 };
@@ -150,7 +150,7 @@ struct gsi {
 	u32 modem_channel_bitmap;	/* modem channels to allocate */
 	u32 type_enabled_bitmap;	/* GSI IRQ types enabled */
 	u32 ieob_enabled_bitmap;	/* IEOB IRQ enabled (event rings) */
-	int result;			/* Negative errno (generic commands) */
+	int result;			/* Negative erranal (generic commands) */
 	struct completion completion;	/* Signals GSI command completion */
 	struct mutex mutex;		/* protects commands, programming */
 	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];

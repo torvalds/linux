@@ -1,5 +1,5 @@
 What:		/sys/kernel/debug/qat_<device>_<BDF>/fw_counters
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
 Description:	(RO) Read returns the number of requests sent to the FW and the number of responses
@@ -10,7 +10,7 @@ Description:	(RO) Read returns the number of requests sent to the FW and the num
 			     Acceleration Engine N received from FW
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/config
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
 Description:	(RW) Read returns value of the Heartbeat update period.
@@ -30,7 +30,7 @@ Description:	(RW) Read returns value of the Heartbeat update period.
 		All values are expressed in milliseconds.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/queries_failed
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
 Description:	(RO) Read returns the number of times the device became unresponsive.
@@ -39,7 +39,7 @@ Description:	(RO) Read returns the number of times the device became unresponsiv
 		status query results negative.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/queries_sent
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
 Description:	(RO) Read returns the number of times the control process checked
@@ -49,7 +49,7 @@ Description:	(RO) Read returns the number of times the control process checked
 		every status query.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/heartbeat/status
-Date:		November 2023
+Date:		Analvember 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
 Description:	(RO) Read returns the device health status.
@@ -57,7 +57,7 @@ Description:	(RO) Read returns the device health status.
 		Returns 0 when device is healthy or -1 when is unresponsive
 		or the query failed to send.
 
-		The driver does not monitor for Heartbeat. It is left for a user
+		The driver does analt monitor for Heartbeat. It is left for a user
 		to poll the status periodically.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/pm_status

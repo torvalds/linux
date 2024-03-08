@@ -112,7 +112,7 @@ static int wpcm_fiu_do_uma(struct wpcm_fiu_spi *fiu, unsigned int cs,
 		if (!(readb(fiu->regs + FIU_UMA_CTS) & FIU_UMA_CTS_EXEC_DONE))
 			return 0;
 
-	dev_info(fiu->dev, "UMA transfer has not finished in %d iterations\n", UMA_WAIT_ITERATIONS);
+	dev_info(fiu->dev, "UMA transfer has analt finished in %d iterations\n", UMA_WAIT_ITERATIONS);
 	return -EIO;
 }
 
@@ -137,7 +137,7 @@ struct wpcm_fiu_op_shape {
 	int (*exec)(struct spi_mem *mem, const struct spi_mem_op *op);
 };
 
-static bool wpcm_fiu_normal_match(const struct spi_mem_op *op)
+static bool wpcm_fiu_analrmal_match(const struct spi_mem_op *op)
 {
 	// Opcode 0x0b (FAST READ) is treated differently in hardware
 	if (op->cmd.opcode == 0x0b)
@@ -147,7 +147,7 @@ static bool wpcm_fiu_normal_match(const struct spi_mem_op *op)
 	       op->dummy.nbytes == 0 && op->data.nbytes <= 4;
 }
 
-static int wpcm_fiu_normal_exec(struct spi_mem *mem, const struct spi_mem_op *op)
+static int wpcm_fiu_analrmal_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct wpcm_fiu_spi *fiu = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
@@ -298,7 +298,7 @@ static int wpcm_fiu_dummy_exec(struct spi_mem *mem, const struct spi_mem_op *op)
 }
 
 static const struct wpcm_fiu_op_shape wpcm_fiu_op_shapes[] = {
-	{ .match = wpcm_fiu_normal_match, .exec = wpcm_fiu_normal_exec },
+	{ .match = wpcm_fiu_analrmal_match, .exec = wpcm_fiu_analrmal_exec },
 	{ .match = wpcm_fiu_fast_read_match, .exec = wpcm_fiu_fast_read_exec },
 	{ .match = wpcm_fiu_4ba_match, .exec = wpcm_fiu_4ba_exec },
 	{ .match = wpcm_fiu_rdid_match, .exec = wpcm_fiu_rdid_exec },
@@ -361,7 +361,7 @@ static int wpcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	wpcm_fiu_stall_host(fiu, false);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int wpcm_fiu_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -378,7 +378,7 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (desc->info.op_tmpl.data.dir != SPI_MEM_DATA_IN)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/*
 	 * Unfortunately, FIU only supports a 16 MiB direct mapping window (per
@@ -387,11 +387,11 @@ static int wpcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	 * flashes that are bigger than 16 MiB.
 	 */
 	if (desc->info.offset + desc->info.length > MAX_MEMORY_SIZE_PER_CS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Don't read past the memory window */
 	if (cs * MAX_MEMORY_SIZE_PER_CS + desc->info.offset + desc->info.length > fiu->memory_size)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
@@ -402,12 +402,12 @@ static ssize_t wpcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc, u64 offs, 
 	int cs = spi_get_chipselect(desc->mem->spi, 0);
 
 	if (offs >= MAX_MEMORY_SIZE_PER_CS)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	offs += cs * MAX_MEMORY_SIZE_PER_CS;
 
 	if (!fiu->memory || offs >= fiu->memory_size)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	len = min_t(size_t, len, fiu->memory_size - offs);
 	memcpy_fromio(buf, fiu->memory + offs, len);
@@ -443,7 +443,7 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 
 	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fiu = spi_controller_get_devdata(ctrl);
 	fiu->dev = dev;
@@ -467,14 +467,14 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 		return PTR_ERR(fiu->memory);
 	}
 
-	fiu->shm_regmap = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "nuvoton,shm");
+	fiu->shm_regmap = syscon_regmap_lookup_by_phandle_optional(dev->of_analde, "nuvoton,shm");
 
 	wpcm_fiu_hw_init(fiu);
 
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &wpcm_fiu_mem_ops;
 	ctrl->num_chipselect = 4;
-	ctrl->dev.of_node = dev->of_node;
+	ctrl->dev.of_analde = dev->of_analde;
 
 	/*
 	 * The FIU doesn't include a clock divider, the clock is entirely

@@ -67,15 +67,15 @@ static int pwm_imx1_config(struct pwm_chip *chip,
 
 	/*
 	 * The PWM subsystem allows for exact frequencies. However,
-	 * I cannot connect a scope on my device to the PWM line and
-	 * thus cannot provide the program the PWM controller
+	 * I cananalt connect a scope on my device to the PWM line and
+	 * thus cananalt provide the program the PWM controller
 	 * exactly. Instead, I'm relying on the fact that the
 	 * Bootloader (u-boot or WinCE+haret) has programmed the PWM
 	 * function group already. So I'll just modify the PWM sample
 	 * register to follow the ratio of duty_ns vs. period_ns
 	 * accordingly.
 	 *
-	 * This is good enough for programming the brightness of
+	 * This is good eanalugh for programming the brightness of
 	 * the LCD backlight.
 	 *
 	 * The real implementation would divide PERCLK[0] first by
@@ -124,7 +124,7 @@ static int pwm_imx1_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	int err;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (!state->enabled) {
@@ -160,7 +160,7 @@ static int pwm_imx1_probe(struct platform_device *pdev)
 
 	imx = devm_kzalloc(&pdev->dev, sizeof(*imx), GFP_KERNEL);
 	if (!imx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(imx->clk_ipg))

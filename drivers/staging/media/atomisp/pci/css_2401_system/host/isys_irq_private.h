@@ -36,7 +36,7 @@ void isys_irqc_state_get(
 	state->mask     = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_MASK_REG_IDX);
 	state->status   = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_STATUS_REG_IDX);
 	state->enable   = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_ENABLE_REG_IDX);
-	state->level_no = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_LEVEL_NO_REG_IDX);
+	state->level_anal = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_LEVEL_ANAL_REG_IDX);
 	/*
 	** Invalid to read/load from write-only register 'clear'
 	** state->clear = isys_irqc_reg_load(isys_irqc_id, ISYS_IRQ_CLEAR_REG_IDX);
@@ -52,9 +52,9 @@ void isys_irqc_state_dump(
     const isys_irqc_state_t *state)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "isys irq controller id %d\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x\n\tenable:0x%x\n\tlevel_not_pulse:0x%x\n",
+			    "isys irq controller id %d\n\tstatus:0x%x\n\tedge:0x%x\n\tmask:0x%x\n\tenable:0x%x\n\tlevel_analt_pulse:0x%x\n",
 			    isys_irqc_id,
-			    state->status, state->edge, state->mask, state->enable, state->level_no);
+			    state->status, state->edge, state->mask, state->enable, state->level_anal);
 }
 
 /* end of NCI */
@@ -72,7 +72,7 @@ void isys_irqc_reg_store(
 	unsigned int reg_addr;
 
 	assert(isys_irqc_id < N_ISYS_IRQ_ID);
-	assert(reg_idx <= ISYS_IRQ_LEVEL_NO_REG_IDX);
+	assert(reg_idx <= ISYS_IRQ_LEVEL_ANAL_REG_IDX);
 
 	reg_addr = ISYS_IRQ_BASE[isys_irqc_id] + (reg_idx * sizeof(hrt_data));
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -89,7 +89,7 @@ hrt_data isys_irqc_reg_load(
 	hrt_data value;
 
 	assert(isys_irqc_id < N_ISYS_IRQ_ID);
-	assert(reg_idx <= ISYS_IRQ_LEVEL_NO_REG_IDX);
+	assert(reg_idx <= ISYS_IRQ_LEVEL_ANAL_REG_IDX);
 
 	reg_addr = ISYS_IRQ_BASE[isys_irqc_id] + (reg_idx * sizeof(hrt_data));
 	value = ia_css_device_load_uint32(reg_addr);

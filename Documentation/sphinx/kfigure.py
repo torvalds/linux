@@ -12,7 +12,7 @@ u"""
     The build for image formats depend on image's source format and output's
     destination format. This extension implement methods to simplify image
     handling from the author's POV. Directives like ``kernel-figure`` implement
-    methods *to* always get the best output-format even if some tools are not
+    methods *to* always get the best output-format even if some tools are analt
     installed. For more details take a look at ``convert_image(...)`` which is
     the core of all conversions.
 
@@ -29,10 +29,10 @@ u"""
 
     Used tools:
 
-    * ``dot(1)``: Graphviz (https://www.graphviz.org). If Graphviz is not
+    * ``dot(1)``: Graphviz (https://www.graphviz.org). If Graphviz is analt
       available, the DOT language is inserted as literal-block.
       For conversion to PDF, ``rsvg-convert(1)`` of librsvg
-      (https://gitlab.gnome.org/GNOME/librsvg) is used when available.
+      (https://gitlab.ganalme.org/GANALME/librsvg) is used when available.
 
     * SVG to PDF: To generate PDF, you need at least one of this tools:
 
@@ -53,12 +53,12 @@ from os import path
 import subprocess
 from hashlib import sha1
 import re
-from docutils import nodes
+from docutils import analdes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
 import sphinx
-from sphinx.util.nodes import clean_astext
+from sphinx.util.analdes import clean_astext
 import kernellog
 
 Figure = images.Figure
@@ -72,23 +72,23 @@ def which(cmd):
     """Searches the ``cmd`` in the ``PATH`` environment.
 
     This *which* searches the PATH for executable ``cmd`` . First match is
-    returned, if nothing is found, ``None` is returned.
+    returned, if analthing is found, ``Analne` is returned.
     """
-    envpath = os.environ.get('PATH', None) or os.defpath
+    envpath = os.environ.get('PATH', Analne) or os.defpath
     for folder in envpath.split(os.pathsep):
         fname = folder + os.sep + cmd
         if path.isfile(fname):
             return fname
 
 def mkdir(folder, mode=0o775):
-    if not path.isdir(folder):
+    if analt path.isdir(folder):
         os.makedirs(folder, mode)
 
 def file2literal(fname):
     with open(fname, "r") as src:
         data = src.read()
-        node = nodes.literal_block(data, data)
-    return node
+        analde = analdes.literal_block(data, data)
+    return analde
 
 def isNewer(path1, path2):
     """Returns True if ``path1`` is newer than ``path2``
@@ -99,25 +99,25 @@ def isNewer(path1, path2):
     return (path.exists(path1)
             and os.stat(path1).st_ctime > os.stat(path2).st_ctime)
 
-def pass_handle(self, node):           # pylint: disable=W0613
+def pass_handle(self, analde):           # pylint: disable=W0613
     pass
 
 # setup conversion tools and sphinx extension
 # -------------------------------------------
 
 # Graphviz's dot(1) support
-dot_cmd = None
+dot_cmd = Analne
 # dot(1) -Tpdf should be used
 dot_Tpdf = False
 
 # ImageMagick' convert(1) support
-convert_cmd = None
+convert_cmd = Analne
 
 # librsvg's rsvg-convert(1) support
-rsvg_convert_cmd = None
+rsvg_convert_cmd = Analne
 
 # Inkscape's inkscape(1) support
-inkscape_cmd = None
+inkscape_cmd = Analne
 # Inkscape prior to 1.0 uses different command options
 inkscape_ver_one = False
 
@@ -128,7 +128,7 @@ def setup(app):
 
     # image handling
     app.add_directive("kernel-image",  KernelImage)
-    app.add_node(kernel_image,
+    app.add_analde(kernel_image,
                  html    = (visit_kernel_image, pass_handle),
                  latex   = (visit_kernel_image, pass_handle),
                  texinfo = (visit_kernel_image, pass_handle),
@@ -137,7 +137,7 @@ def setup(app):
 
     # figure handling
     app.add_directive("kernel-figure", KernelFigure)
-    app.add_node(kernel_figure,
+    app.add_analde(kernel_figure,
                  html    = (visit_kernel_figure, pass_handle),
                  latex   = (visit_kernel_figure, pass_handle),
                  texinfo = (visit_kernel_figure, pass_handle),
@@ -146,7 +146,7 @@ def setup(app):
 
     # render handling
     app.add_directive('kernel-render', KernelRender)
-    app.add_node(kernel_render,
+    app.add_analde(kernel_render,
                  html    = (visit_kernel_render, pass_handle),
                  latex   = (visit_kernel_render, pass_handle),
                  texinfo = (visit_kernel_render, pass_handle),
@@ -190,7 +190,7 @@ def setupTools(app):
         dot_Tpdf_ptn = b'pdf'
         dot_Tpdf = re.search(dot_Tpdf_ptn, dot_Thelp_list)
     else:
-        kernellog.warn(app, "dot(1) not found, for better output quality install "
+        kernellog.warn(app, "dot(1) analt found, for better output quality install "
                        "graphviz from https://www.graphviz.org")
     if inkscape_cmd:
         kernellog.verbose(app, "use inkscape(1) from: " + inkscape_cmd)
@@ -198,8 +198,8 @@ def setupTools(app):
                                                stderr=subprocess.DEVNULL)
         ver_one_ptn = b'Inkscape 1'
         inkscape_ver_one = re.search(ver_one_ptn, inkscape_ver)
-        convert_cmd = None
-        rsvg_convert_cmd = None
+        convert_cmd = Analne
+        rsvg_convert_cmd = Analne
         dot_Tpdf = False
 
     else:
@@ -207,7 +207,7 @@ def setupTools(app):
             kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
         else:
             kernellog.verbose(app,
-                "Neither inkscape(1) nor convert(1) found.\n"
+                "Neither inkscape(1) analr convert(1) found.\n"
                 "For SVG to PDF conversion, "
                 "install either Inkscape (https://inkscape.org/) (preferred) or\n"
                 "ImageMagick (https://www.imagemagick.org)")
@@ -218,7 +218,7 @@ def setupTools(app):
             dot_Tpdf = False
         else:
             kernellog.verbose(app,
-                "rsvg-convert(1) not found.\n"
+                "rsvg-convert(1) analt found.\n"
                 "  SVG rendering of convert(1) is done by ImageMagick-native renderer.")
             if dot_Tpdf:
                 kernellog.verbose(app, "use 'dot -Tpdf' for DOT -> PDF conversion")
@@ -236,8 +236,8 @@ RENDER_MARKUP_EXT = {
     'SVG' : '.svg'
 }
 
-def convert_image(img_node, translator, src_fname=None):
-    """Convert a image node for the builder.
+def convert_image(img_analde, translator, src_fname=Analne):
+    """Convert a image analde for the builder.
 
     Different builder prefer different image formats, e.g. *latex* builder
     prefer PDF while *html* builder prefer SVG format for images.
@@ -247,29 +247,29 @@ def convert_image(img_node, translator, src_fname=None):
     """
     app = translator.builder.app
 
-    fname, in_ext = path.splitext(path.basename(img_node['uri']))
-    if src_fname is None:
-        src_fname = path.join(translator.builder.srcdir, img_node['uri'])
-        if not path.exists(src_fname):
-            src_fname = path.join(translator.builder.outdir, img_node['uri'])
+    fname, in_ext = path.splitext(path.basename(img_analde['uri']))
+    if src_fname is Analne:
+        src_fname = path.join(translator.builder.srcdir, img_analde['uri'])
+        if analt path.exists(src_fname):
+            src_fname = path.join(translator.builder.outdir, img_analde['uri'])
 
-    dst_fname = None
+    dst_fname = Analne
 
     # in kernel builds, use 'make SPHINXOPTS=-v' to see verbose messages
 
-    kernellog.verbose(app, 'assert best format for: ' + img_node['uri'])
+    kernellog.verbose(app, 'assert best format for: ' + img_analde['uri'])
 
     if in_ext == '.dot':
 
-        if not dot_cmd:
+        if analt dot_cmd:
             kernellog.verbose(app,
-                              "dot from graphviz not available / include DOT raw.")
-            img_node.replace_self(file2literal(src_fname))
+                              "dot from graphviz analt available / include DOT raw.")
+            img_analde.replace_self(file2literal(src_fname))
 
         elif translator.builder.format == 'latex':
             dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
-            img_node['uri'] = fname + '.pdf'
-            img_node['candidates'] = {'*': fname + '.pdf'}
+            img_analde['uri'] = fname + '.pdf'
+            img_analde['candidates'] = {'*': fname + '.pdf'}
 
 
         elif translator.builder.format == 'html':
@@ -277,32 +277,32 @@ def convert_image(img_node, translator, src_fname=None):
                 translator.builder.outdir,
                 translator.builder.imagedir,
                 fname + '.svg')
-            img_node['uri'] = path.join(
+            img_analde['uri'] = path.join(
                 translator.builder.imgpath, fname + '.svg')
-            img_node['candidates'] = {
+            img_analde['candidates'] = {
                 '*': path.join(translator.builder.imgpath, fname + '.svg')}
 
         else:
             # all other builder formats will include DOT as raw
-            img_node.replace_self(file2literal(src_fname))
+            img_analde.replace_self(file2literal(src_fname))
 
     elif in_ext == '.svg':
 
         if translator.builder.format == 'latex':
-            if not inkscape_cmd and convert_cmd is None:
+            if analt inkscape_cmd and convert_cmd is Analne:
                 kernellog.warn(app,
-                                  "no SVG to PDF conversion available / include SVG raw."
+                                  "anal SVG to PDF conversion available / include SVG raw."
                                   "\nIncluding large raw SVGs can cause xelatex error."
                                   "\nInstall Inkscape (preferred) or ImageMagick.")
-                img_node.replace_self(file2literal(src_fname))
+                img_analde.replace_self(file2literal(src_fname))
             else:
                 dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
-                img_node['uri'] = fname + '.pdf'
-                img_node['candidates'] = {'*': fname + '.pdf'}
+                img_analde['uri'] = fname + '.pdf'
+                img_analde['candidates'] = {'*': fname + '.pdf'}
 
     if dst_fname:
-        # the builder needs not to copy one more time, so pop it if exists.
-        translator.builder.images.pop(img_node['uri'], None)
+        # the builder needs analt to copy one more time, so pop it if exists.
+        translator.builder.images.pop(img_analde['uri'], Analne)
         _name = dst_fname[len(str(translator.builder.outdir)) + 1:]
 
         if isNewer(dst_fname, src_fname):
@@ -315,7 +315,7 @@ def convert_image(img_node, translator, src_fname=None):
 
             if in_ext == '.dot':
                 kernellog.verbose(app, 'convert DOT to: {out}/' + _name)
-                if translator.builder.format == 'latex' and not dot_Tpdf:
+                if translator.builder.format == 'latex' and analt dot_Tpdf:
                     svg_fname = path.join(translator.builder.outdir, fname + '.svg')
                     ok1 = dot2format(app, src_fname, svg_fname)
                     ok2 = svg2pdf_by_rsvg(app, svg_fname, dst_fname)
@@ -328,8 +328,8 @@ def convert_image(img_node, translator, src_fname=None):
                 kernellog.verbose(app, 'convert SVG to: {out}/' + _name)
                 ok = svg2pdf(app, src_fname, dst_fname)
 
-            if not ok:
-                img_node.replace_self(file2literal(src_fname))
+            if analt ok:
+                img_analde.replace_self(file2literal(src_fname))
 
 
 def dot2format(app, dot_fname, out_fname):
@@ -339,7 +339,7 @@ def dot2format(app, dot_fname, out_fname):
     * ``out_fname`` pathname of the output file, including format extension
 
     The *format extension* depends on the ``dot`` command (see ``man dot``
-    option ``-Txxx``). Normally you will use one of the following extensions:
+    option ``-Txxx``). Analrmally you will use one of the following extensions:
 
     - ``.ps`` for PostScript,
     - ``.svg`` or ``svgz`` for Structured Vector Graphics,
@@ -411,7 +411,7 @@ def svg2pdf_by_rsvg(app, svg_fname, pdf_fname):
 
     """
 
-    if rsvg_convert_cmd is None:
+    if rsvg_convert_cmd is Analne:
         ok = svg2pdf(app, svg_fname, pdf_fname)
     else:
         cmd = [rsvg_convert_cmd, '--format=pdf', '-o', pdf_fname, svg_fname]
@@ -427,60 +427,60 @@ def svg2pdf_by_rsvg(app, svg_fname, pdf_fname):
 # image handling
 # ---------------------
 
-def visit_kernel_image(self, node):    # pylint: disable=W0613
-    """Visitor of the ``kernel_image`` Node.
+def visit_kernel_image(self, analde):    # pylint: disable=W0613
+    """Visitor of the ``kernel_image`` Analde.
 
-    Handles the ``image`` child-node with the ``convert_image(...)``.
+    Handles the ``image`` child-analde with the ``convert_image(...)``.
     """
-    img_node = node[0]
-    convert_image(img_node, self)
+    img_analde = analde[0]
+    convert_image(img_analde, self)
 
-class kernel_image(nodes.image):
-    """Node for ``kernel-image`` directive."""
+class kernel_image(analdes.image):
+    """Analde for ``kernel-image`` directive."""
     pass
 
 class KernelImage(images.Image):
     u"""KernelImage directive
 
     Earns everything from ``.. image::`` directive, except *remote URI* and
-    *glob* pattern. The KernelImage wraps a image node into a
-    kernel_image node. See ``visit_kernel_image``.
+    *glob* pattern. The KernelImage wraps a image analde into a
+    kernel_image analde. See ``visit_kernel_image``.
     """
 
     def run(self):
         uri = self.arguments[0]
         if uri.endswith('.*') or uri.find('://') != -1:
             raise self.severe(
-                'Error in "%s: %s": glob pattern and remote images are not allowed'
+                'Error in "%s: %s": glob pattern and remote images are analt allowed'
                 % (self.name, uri))
         result = images.Image.run(self)
-        if len(result) == 2 or isinstance(result[0], nodes.system_message):
+        if len(result) == 2 or isinstance(result[0], analdes.system_message):
             return result
-        (image_node,) = result
-        # wrap image node into a kernel_image node / see visitors
-        node = kernel_image('', image_node)
-        return [node]
+        (image_analde,) = result
+        # wrap image analde into a kernel_image analde / see visitors
+        analde = kernel_image('', image_analde)
+        return [analde]
 
 # figure handling
 # ---------------------
 
-def visit_kernel_figure(self, node):   # pylint: disable=W0613
-    """Visitor of the ``kernel_figure`` Node.
+def visit_kernel_figure(self, analde):   # pylint: disable=W0613
+    """Visitor of the ``kernel_figure`` Analde.
 
-    Handles the ``image`` child-node with the ``convert_image(...)``.
+    Handles the ``image`` child-analde with the ``convert_image(...)``.
     """
-    img_node = node[0][0]
-    convert_image(img_node, self)
+    img_analde = analde[0][0]
+    convert_image(img_analde, self)
 
-class kernel_figure(nodes.figure):
-    """Node for ``kernel-figure`` directive."""
+class kernel_figure(analdes.figure):
+    """Analde for ``kernel-figure`` directive."""
 
 class KernelFigure(Figure):
     u"""KernelImage directive
 
     Earns everything from ``.. figure::`` directive, except *remote URI* and
-    *glob* pattern.  The KernelFigure wraps a figure node into a kernel_figure
-    node. See ``visit_kernel_figure``.
+    *glob* pattern.  The KernelFigure wraps a figure analde into a kernel_figure
+    analde. See ``visit_kernel_figure``.
     """
 
     def run(self):
@@ -488,79 +488,79 @@ class KernelFigure(Figure):
         if uri.endswith('.*') or uri.find('://') != -1:
             raise self.severe(
                 'Error in "%s: %s":'
-                ' glob pattern and remote images are not allowed'
+                ' glob pattern and remote images are analt allowed'
                 % (self.name, uri))
         result = Figure.run(self)
-        if len(result) == 2 or isinstance(result[0], nodes.system_message):
+        if len(result) == 2 or isinstance(result[0], analdes.system_message):
             return result
-        (figure_node,) = result
-        # wrap figure node into a kernel_figure node / see visitors
-        node = kernel_figure('', figure_node)
-        return [node]
+        (figure_analde,) = result
+        # wrap figure analde into a kernel_figure analde / see visitors
+        analde = kernel_figure('', figure_analde)
+        return [analde]
 
 
 # render handling
 # ---------------------
 
-def visit_kernel_render(self, node):
-    """Visitor of the ``kernel_render`` Node.
+def visit_kernel_render(self, analde):
+    """Visitor of the ``kernel_render`` Analde.
 
     If rendering tools available, save the markup of the ``literal_block`` child
-    node into a file and replace the ``literal_block`` node with a new created
-    ``image`` node, pointing to the saved markup file. Afterwards, handle the
-    image child-node with the ``convert_image(...)``.
+    analde into a file and replace the ``literal_block`` analde with a new created
+    ``image`` analde, pointing to the saved markup file. Afterwards, handle the
+    image child-analde with the ``convert_image(...)``.
     """
     app = self.builder.app
-    srclang = node.get('srclang')
+    srclang = analde.get('srclang')
 
-    kernellog.verbose(app, 'visit kernel-render node lang: "%s"' % (srclang))
+    kernellog.verbose(app, 'visit kernel-render analde lang: "%s"' % (srclang))
 
-    tmp_ext = RENDER_MARKUP_EXT.get(srclang, None)
-    if tmp_ext is None:
-        kernellog.warn(app, 'kernel-render: "%s" unknown / include raw.' % (srclang))
+    tmp_ext = RENDER_MARKUP_EXT.get(srclang, Analne)
+    if tmp_ext is Analne:
+        kernellog.warn(app, 'kernel-render: "%s" unkanalwn / include raw.' % (srclang))
         return
 
-    if not dot_cmd and tmp_ext == '.dot':
-        kernellog.verbose(app, "dot from graphviz not available / include raw.")
+    if analt dot_cmd and tmp_ext == '.dot':
+        kernellog.verbose(app, "dot from graphviz analt available / include raw.")
         return
 
-    literal_block = node[0]
+    literal_block = analde[0]
 
     code      = literal_block.astext()
-    hashobj   = code.encode('utf-8') #  str(node.attributes)
+    hashobj   = code.encode('utf-8') #  str(analde.attributes)
     fname     = path.join('%s-%s' % (srclang, sha1(hashobj).hexdigest()))
 
     tmp_fname = path.join(
         self.builder.outdir, self.builder.imagedir, fname + tmp_ext)
 
-    if not path.isfile(tmp_fname):
+    if analt path.isfile(tmp_fname):
         mkdir(path.dirname(tmp_fname))
         with open(tmp_fname, "w") as out:
             out.write(code)
 
-    img_node = nodes.image(node.rawsource, **node.attributes)
-    img_node['uri'] = path.join(self.builder.imgpath, fname + tmp_ext)
-    img_node['candidates'] = {
+    img_analde = analdes.image(analde.rawsource, **analde.attributes)
+    img_analde['uri'] = path.join(self.builder.imgpath, fname + tmp_ext)
+    img_analde['candidates'] = {
         '*': path.join(self.builder.imgpath, fname + tmp_ext)}
 
-    literal_block.replace_self(img_node)
-    convert_image(img_node, self, tmp_fname)
+    literal_block.replace_self(img_analde)
+    convert_image(img_analde, self, tmp_fname)
 
 
-class kernel_render(nodes.General, nodes.Inline, nodes.Element):
-    """Node for ``kernel-render`` directive."""
+class kernel_render(analdes.General, analdes.Inline, analdes.Element):
+    """Analde for ``kernel-render`` directive."""
     pass
 
 class KernelRender(Figure):
     u"""KernelRender directive
 
-    Render content by external tool.  Has all the options known from the
+    Render content by external tool.  Has all the options kanalwn from the
     *figure*  directive, plus option ``caption``.  If ``caption`` has a
-    value, a figure node with the *caption* is inserted. If not, a image node is
+    value, a figure analde with the *caption* is inserted. If analt, a image analde is
     inserted.
 
     The KernelRender directive wraps the text of the directive into a
-    literal_block node and wraps it into a kernel_render node. See
+    literal_block analde and wraps it into a kernel_render analde. See
     ``visit_kernel_render``.
     """
     has_content = True
@@ -573,56 +573,56 @@ class KernelRender(Figure):
     option_spec['caption'] = directives.unchanged
 
     def run(self):
-        return [self.build_node()]
+        return [self.build_analde()]
 
-    def build_node(self):
+    def build_analde(self):
 
         srclang = self.arguments[0].strip()
-        if srclang not in RENDER_MARKUP_EXT.keys():
+        if srclang analt in RENDER_MARKUP_EXT.keys():
             return [self.state_machine.reporter.warning(
-                'Unknown source language "%s", use one of: %s.' % (
+                'Unkanalwn source language "%s", use one of: %s.' % (
                     srclang, ",".join(RENDER_MARKUP_EXT.keys())),
-                line=self.lineno)]
+                line=self.lineanal)]
 
         code = '\n'.join(self.content)
-        if not code.strip():
+        if analt code.strip():
             return [self.state_machine.reporter.warning(
-                'Ignoring "%s" directive without content.' % (
+                'Iganalring "%s" directive without content.' % (
                     self.name),
-                line=self.lineno)]
+                line=self.lineanal)]
 
-        node = kernel_render()
-        node['alt'] = self.options.get('alt','')
-        node['srclang'] = srclang
-        literal_node = nodes.literal_block(code, code)
-        node += literal_node
+        analde = kernel_render()
+        analde['alt'] = self.options.get('alt','')
+        analde['srclang'] = srclang
+        literal_analde = analdes.literal_block(code, code)
+        analde += literal_analde
 
         caption = self.options.get('caption')
         if caption:
             # parse caption's content
-            parsed = nodes.Element()
+            parsed = analdes.Element()
             self.state.nested_parse(
                 ViewList([caption], source=''), self.content_offset, parsed)
-            caption_node = nodes.caption(
+            caption_analde = analdes.caption(
                 parsed[0].rawsource, '', *parsed[0].children)
-            caption_node.source = parsed[0].source
-            caption_node.line = parsed[0].line
+            caption_analde.source = parsed[0].source
+            caption_analde.line = parsed[0].line
 
-            figure_node = nodes.figure('', node)
+            figure_analde = analdes.figure('', analde)
             for k,v in self.options.items():
-                figure_node[k] = v
-            figure_node += caption_node
+                figure_analde[k] = v
+            figure_analde += caption_analde
 
-            node = figure_node
+            analde = figure_analde
 
-        return node
+        return analde
 
 def add_kernel_figure_to_std_domain(app, doctree):
     """Add kernel-figure anchors to 'std' domain.
 
-    The ``StandardDomain.process_doc(..)`` method does not know how to resolve
-    the caption (label) of ``kernel-figure`` directive (it only knows about
-    standard nodes, e.g. table, figure etc.). Without any additional handling
+    The ``StandardDomain.process_doc(..)`` method does analt kanalw how to resolve
+    the caption (label) of ``kernel-figure`` directive (it only kanalws about
+    standard analdes, e.g. table, figure etc.). Without any additional handling
     this will result in a 'undefined label' for kernel-figures.
 
     This handle adds labels of kernel-figure to the 'std' domain labels.
@@ -633,15 +633,15 @@ def add_kernel_figure_to_std_domain(app, doctree):
     labels = std.data["labels"]
 
     for name, explicit in doctree.nametypes.items():
-        if not explicit:
+        if analt explicit:
             continue
         labelid = doctree.nameids[name]
-        if labelid is None:
+        if labelid is Analne:
             continue
-        node = doctree.ids[labelid]
+        analde = doctree.ids[labelid]
 
-        if node.tagname == 'kernel_figure':
-            for n in node.next_node():
+        if analde.tagname == 'kernel_figure':
+            for n in analde.next_analde():
                 if n.tagname == 'caption':
                     sectname = clean_astext(n)
                     # add label to std domain

@@ -42,7 +42,7 @@ config QCOM_QSEECOM_UEFISECAPP
 	depends on QCOM_QSEECOM
 	depends on EFI
 	help
-	  Various Qualcomm SoCs do not allow direct access to EFI variables.
+	  Various Qualcomm SoCs do analt allow direct access to EFI variables.
 	  Instead, these need to be accessed via the UEFI Secure Application
 	  (uefisecapp), residing in the Secure Execution Environment (SEE).
 

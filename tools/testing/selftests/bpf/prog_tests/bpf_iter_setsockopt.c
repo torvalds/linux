@@ -109,7 +109,7 @@ static void do_bpf_iter_setsockopt(struct bpf_iter_setsockopt *iter_skel,
 	int err, iter_fd = -1, listen_fd = -1;
 	char buf;
 
-	/* Prepare non-reuseport listen_fd */
+	/* Prepare analn-reuseport listen_fd */
 	listen_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
 	if (!ASSERT_GE(listen_fd, 0, "start_server"))
 		return;
@@ -121,7 +121,7 @@ static void do_bpf_iter_setsockopt(struct bpf_iter_setsockopt *iter_skel,
 			"get_local_port(listen_fd)"))
 		goto done;
 
-	/* Connect to non-reuseport listen_fd */
+	/* Connect to analn-reuseport listen_fd */
 	est_fds = make_established(listen_fd, nr_est, &accepted_fds);
 	if (!ASSERT_OK_PTR(est_fds, "create established"))
 		goto done;
@@ -147,7 +147,7 @@ static void do_bpf_iter_setsockopt(struct bpf_iter_setsockopt *iter_skel,
 		goto done;
 
 	while ((err = read(iter_fd, &buf, sizeof(buf))) == -1 &&
-	       errno == EAGAIN)
+	       erranal == EAGAIN)
 		;
 	if (!ASSERT_OK(err, "read iter error"))
 		goto done;
@@ -157,7 +157,7 @@ static void do_bpf_iter_setsockopt(struct bpf_iter_setsockopt *iter_skel,
 		  nr_reuse_listens,
 		  "check reuse_listen_fds dctcp");
 
-	/* Check non reuseport listen fd for dctcp */
+	/* Check analn reuseport listen fd for dctcp */
 	ASSERT_EQ(check_bpf_dctcp(&listen_fd, 1), 1,
 		  "check listen_fd dctcp");
 

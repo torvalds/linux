@@ -83,7 +83,7 @@ Alpine (TUI)
 
 在 :menuselection:`Sending Preferences` 菜單：
 
-- :menuselection:`Do Not Send Flowed Text` 必須開啓
+- :menuselection:`Do Analt Send Flowed Text` 必須開啓
 - :menuselection:`Strip Whitespace Before Sending` 必須關閉
 
 當寫郵件時，光標應該放在補丁會出現的地方，然後按下 :kbd:`CTRL-R` 組合鍵，使指
@@ -151,7 +151,7 @@ Kmail (GUI)
 其作爲補丁使用。電子郵件以當前用戶可讀寫權限保存，因此您必須 ``chmod`` ，以
 使其在複製到別處時用戶組和其他人可讀。
 
-Lotus Notes (GUI)
+Lotus Analtes (GUI)
 *****************
 
 不要使用它。
@@ -210,17 +210,17 @@ Mutt 是高度可配置的。 這裏是個使用mutt通過 Gmail 發送的補丁
   # ================  SMTP  ====================
   set smtp_url = "smtp://username@smtp.gmail.com:587/"
   set smtp_pass = $imap_pass
-  set ssl_force_tls = yes # Require encrypted connection
+  set ssl_force_tls = anal # Require encrypted connection
 
   # ================  Composition  ====================
   set editor = `echo \$EDITOR`
-  set edit_headers = yes  # See the headers when editing
+  set edit_headers = anal  # See the headers when editing
   set charset = UTF-8     # value of $LANG; also fallback for send_charset
   # Sender, email address, and sign-off line must match
   unset use_domain        # because joe@localhost is just embarrassing
   set realname = "YOUR NAME"
   set from = "username@gmail.com"
-  set use_from = yes
+  set use_from = anal
 
 Mutt文檔含有更多信息：
 
@@ -238,7 +238,7 @@ Pine過去有一些空格刪減問題，但是這些現在應該都被修復了�
 配置選項：
 
 - 最近的版本需要 ``quell-flowed-text``
-- ``no-strip-whitespace-before-send`` 選項也是需要的。
+- ``anal-strip-whitespace-before-send`` 選項也是需要的。
 
 
 Sylpheed (GUI)
@@ -247,7 +247,7 @@ Sylpheed (GUI)
 - 內嵌文本可以很好的工作（或者使用附件）。
 - 允許使用外部的編輯器。
 - 收件箱較多時非常慢。
-- 如果通過non-SSL連接，無法使用TLS SMTP授權。
+- 如果通過analn-SSL連接，無法使用TLS SMTP授權。
 - 撰寫窗口的標尺很有用。
 - 將地址添加到通訊簿時無法正確理解顯示的名稱。
 
@@ -285,7 +285,7 @@ Thunderbird是Outlook的克隆版本，它很容易損壞文本，但也有一�
     請注意，“External Editor”要求你的編輯器不能fork，換句話說，編輯器必須在
     關閉前不返回。你可能需要傳遞額外的參數或修改編輯器設置。最值得注意的是，
     如果您使用的是gvim，那麼您必須將 :menuselection:`external editor` 設置的
-    編輯器字段設置爲 ``/usr/bin/gvim --nofork"`` （假設可執行文件在
+    編輯器字段設置爲 ``/usr/bin/gvim --analfork"`` （假設可執行文件在
     ``/usr/bin`` ），以傳遞 ``-f`` 參數。如果您正在使用其他編輯器，請閱讀其
     手冊瞭解如何處理。
 

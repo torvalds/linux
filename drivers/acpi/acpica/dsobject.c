@@ -47,9 +47,9 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 		/*
 		 * This is a named object reference. If this name was
 		 * previously looked up in the namespace, it was stored in
-		 * this op. Otherwise, go ahead and look it up now
+		 * this op. Otherwise, go ahead and look it up analw
 		 */
-		if (!op->common.node) {
+		if (!op->common.analde) {
 
 			/* Check if we are resolving a named reference within a package */
 
@@ -74,8 +74,8 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 							NULL,
 							ACPI_CAST_INDIRECT_PTR
 							(struct
-							 acpi_namespace_node,
-							 &(op->common.node)));
+							 acpi_namespace_analde,
+							 &(op->common.analde)));
 				if (ACPI_FAILURE(status)) {
 					ACPI_ERROR_NAMESPACE(walk_state->
 							     scope_info,
@@ -95,7 +95,7 @@ create_new_object:
 						   (op->common.aml_opcode))->
 						  object_type);
 	if (!obj_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	status =
@@ -115,13 +115,13 @@ create_new_object:
 		obj_desc->reference.resolved = TRUE;
 
 		if ((op->common.aml_opcode == AML_INT_NAMEPATH_OP) &&
-		    !obj_desc->reference.node) {
+		    !obj_desc->reference.analde) {
 			/*
 			 * Name was unresolved above.
-			 * Get the prefix node for later lookup
+			 * Get the prefix analde for later lookup
 			 */
-			obj_desc->reference.node =
-			    walk_state->scope_info->scope.node;
+			obj_desc->reference.analde =
+			    walk_state->scope_info->scope.analde;
 			obj_desc->reference.aml = op->common.aml;
 			obj_desc->reference.resolved = FALSE;
 		}
@@ -162,7 +162,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 
 	/*
 	 * If we are evaluating a Named buffer object "Name (xxxx, Buffer)".
-	 * The buffer object already exists (from the NS node), otherwise it must
+	 * The buffer object already exists (from the NS analde), otherwise it must
 	 * be created.
 	 */
 	obj_desc = *obj_desc_ptr;
@@ -173,7 +173,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_BUFFER);
 		*obj_desc_ptr = obj_desc;
 		if (!obj_desc) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 	}
 
@@ -219,7 +219,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 		    ACPI_ALLOCATE_ZEROED(obj_desc->buffer.length);
 		if (!obj_desc->buffer.pointer) {
 			acpi_ut_delete_object_desc(obj_desc);
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		/* Initialize buffer from the byte_list (if present) */
@@ -231,46 +231,46 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	}
 
 	obj_desc->buffer.flags |= AOPOBJ_DATA_VALID;
-	op->common.node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_desc);
+	op->common.analde = ACPI_CAST_PTR(struct acpi_namespace_analde, obj_desc);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ds_create_node
+ * FUNCTION:    acpi_ds_create_analde
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              node            - NS Node to be initialized
+ *              analde            - NS Analde to be initialized
  *              op              - Parser object to be translated
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the object to be associated with a namespace node
+ * DESCRIPTION: Create the object to be associated with a namespace analde
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ds_create_node(struct acpi_walk_state *walk_state,
-		    struct acpi_namespace_node *node,
+acpi_ds_create_analde(struct acpi_walk_state *walk_state,
+		    struct acpi_namespace_analde *analde,
 		    union acpi_parse_object *op)
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE_PTR(ds_create_node, op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_analde, op);
 
 	/*
-	 * Because of the execution pass through the non-control-method
+	 * Because of the execution pass through the analn-control-method
 	 * parts of the table, we can arrive here twice. Only init
-	 * the named object node the first time through
+	 * the named object analde the first time through
 	 */
-	if (acpi_ns_get_attached_object(node)) {
+	if (acpi_ns_get_attached_object(analde)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	if (!op->common.value.arg) {
 
-		/* No arguments, there is nothing to do */
+		/* Anal arguments, there is analthing to do */
 
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -286,11 +286,11 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 
 	/* Re-type the object according to its argument */
 
-	node->type = obj_desc->common.type;
+	analde->type = obj_desc->common.type;
 
-	/* Attach obj to node */
+	/* Attach obj to analde */
 
-	status = acpi_ns_attach_object(node, obj_desc, node->type);
+	status = acpi_ns_attach_object(analde, obj_desc, analde->type);
 
 	/* Remove local reference to the object */
 
@@ -329,9 +329,9 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	obj_desc = *ret_obj_desc;
 	op_info = acpi_ps_get_opcode_info(opcode);
-	if (op_info->class == AML_CLASS_UNKNOWN) {
+	if (op_info->class == AML_CLASS_UNKANALWN) {
 
-		/* Unknown opcode */
+		/* Unkanalwn opcode */
 
 		return_ACPI_STATUS(AE_TYPE);
 	}
@@ -343,8 +343,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		/*
 		 * Defer evaluation of Buffer term_arg operand
 		 */
-		obj_desc->buffer.node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
+		obj_desc->buffer.analde =
+		    ACPI_CAST_PTR(struct acpi_namespace_analde,
 				  walk_state->operands[0]);
 		obj_desc->buffer.aml_start = op->named.data;
 		obj_desc->buffer.aml_length = op->named.length;
@@ -358,8 +358,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		 * in order to provide compatibility with other ACPI
 		 * implementations.
 		 */
-		obj_desc->package.node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
+		obj_desc->package.analde =
+		    ACPI_CAST_PTR(struct acpi_namespace_analde,
 				  walk_state->operands[0]);
 
 		if (!op->named.data) {
@@ -379,7 +379,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			 * All constants are integers.
 			 * We mark the integer with a flag that indicates that it started
 			 * life as a constant -- so that stores to constants will perform
-			 * as expected (noop). zero_op is used as a placeholder for optional
+			 * as expected (analop). zero_op is used as a placeholder for optional
 			 * target operands.
 			 */
 			obj_desc->common.flags = AOPOBJ_AML_CONSTANT;
@@ -412,7 +412,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown constant opcode 0x%X",
+					    "Unkanalwn constant opcode 0x%X",
 					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
@@ -437,7 +437,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 		default:
 
-			ACPI_ERROR((AE_INFO, "Unknown Integer type 0x%X",
+			ACPI_ERROR((AE_INFO, "Unkanalwn Integer type 0x%X",
 				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
@@ -471,12 +471,12 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 			status =
-			    acpi_ds_method_data_get_node(ACPI_REFCLASS_LOCAL,
+			    acpi_ds_method_data_get_analde(ACPI_REFCLASS_LOCAL,
 							 obj_desc->reference.
 							 value, walk_state,
 							 ACPI_CAST_INDIRECT_PTR
 							 (struct
-							  acpi_namespace_node,
+							  acpi_namespace_analde,
 							  &obj_desc->reference.
 							  object));
 			break;
@@ -489,13 +489,13 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
-			status = acpi_ds_method_data_get_node(ACPI_REFCLASS_ARG,
+			status = acpi_ds_method_data_get_analde(ACPI_REFCLASS_ARG,
 							      obj_desc->
 							      reference.value,
 							      walk_state,
 							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node,
+							       acpi_namespace_analde,
 							       &obj_desc->
 							       reference.
 							       object));
@@ -506,13 +506,13 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			switch (op->common.aml_opcode) {
 			case AML_INT_NAMEPATH_OP:
 
-				/* Node was saved in Op */
+				/* Analde was saved in Op */
 
-				obj_desc->reference.node = op->common.node;
+				obj_desc->reference.analde = op->common.analde;
 				obj_desc->reference.class = ACPI_REFCLASS_NAME;
-				if (op->common.node) {
+				if (op->common.analde) {
 					obj_desc->reference.object =
-					    op->common.node->object;
+					    op->common.analde->object;
 				}
 				break;
 

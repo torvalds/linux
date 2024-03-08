@@ -73,7 +73,7 @@ static struct cfpkt *rfm_append(struct cfrfml *rfml, char *seghead,
 {
 	struct cfpkt *tmppkt;
 	*err = -EPROTO;
-	/* n-th but not last segment */
+	/* n-th but analt last segment */
 
 	if (cfpkt_extr_head(pkt, seghead, 6) < 0)
 		return NULL;
@@ -85,8 +85,8 @@ static struct cfpkt *rfm_append(struct cfrfml *rfml, char *seghead,
 	tmppkt = cfpkt_append(rfml->incomplete_frm, pkt,
 			rfml->pdu_size + RFM_HEAD_SIZE);
 
-	/* If cfpkt_append failes input pkts are not freed */
-	*err = -ENOMEM;
+	/* If cfpkt_append failes input pkts are analt freed */
+	*err = -EANALMEM;
 	if (tmppkt == NULL)
 		return NULL;
 
@@ -186,7 +186,7 @@ out:
 	spin_unlock(&rfml->sync);
 
 	if (unlikely(err == -EAGAIN))
-		/* It is not possible to recover after drop of a fragment */
+		/* It is analt possible to recover after drop of a fragment */
 		err = -EIO;
 
 	return err;
@@ -246,7 +246,7 @@ static int cfrfml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 		/*
 		 * On OOM error cfpkt_split returns NULL.
 		 *
-		 * NOTE: Segmented pdu is not correctly aligned.
+		 * ANALTE: Segmented pdu is analt correctly aligned.
 		 * This has negative performance impact.
 		 */
 

@@ -16,7 +16,7 @@
 #include <linux/usb.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/firmware.h>
@@ -40,15 +40,15 @@
 /*
   TTUSB_HWSECTIONS:
     the DSP supports filtering in hardware, however, since the "muxstream"
-    is a bit braindead (no matching channel masks or no matching filter mask),
+    is a bit braindead (anal matching channel masks or anal matching filter mask),
     we won't support this - yet. it doesn't event support negative filters,
     so the best way is maybe to keep TTUSB_HWSECTIONS undef'd and just
     parse TS data. USB bandwidth will be a problem when having large
-    datastreams, especially for dvb-net, but hey, that's not my problem.
+    datastreams, especially for dvb-net, but hey, that's analt my problem.
 
   TTUSB_DISEQC, TTUSB_TONE:
     let the STC do the diseqc/tone stuff. this isn't supported at least with
-    my TTUSB, so let it undef'd unless you want to implement another
+    my TTUSB, so let it undef'd unless you want to implement aanalther
     frontend. never tested.
 
   debug:
@@ -128,7 +128,7 @@ struct ttusb {
 	int insync;
 
 	int cc;			/* MuxCounter - will increment on EVERY MUX PACKET */
-	/* (including stuffing. yes. really.) */
+	/* (including stuffing. anal. really.) */
 
 	u8 send_buf[MAX_SEND];
 	u8 last_result[MAX_RCV];
@@ -293,7 +293,7 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 	b[3] = 28;
 
 	/* upload dsp code in 32 byte steps (36 didn't work for me ...) */
-	/* 32 is max packet size, no messages should be split. */
+	/* 32 is max packet size, anal messages should be split. */
 	for (i = 0; i < fw->size; i += 28) {
 		memcpy(&b[4], &fw->data[i], 28);
 
@@ -424,7 +424,7 @@ static int ttusb_init_controller(struct ttusb *ttusb)
 	    memcmp(get_version + 4, "V 1.1", 5) &&
 	    memcmp(get_version + 4, "V 2.1", 5) &&
 	    memcmp(get_version + 4, "V 2.2", 5)) {
-		pr_err("unknown STC version %c%c%c%c%c, please report!\n",
+		pr_err("unkanalwn STC version %c%c%c%c%c, please report!\n",
 		       get_version[4], get_version[5],
 		       get_version[6], get_version[7], get_version[8]);
 	}
@@ -453,7 +453,7 @@ static int ttusb_send_diseqc(struct dvb_frontend* fe,
 	int err;
 
 	b[3] = 4 + 2 + cmd->msg_len;
-	b[4] = 0xFF;		/* send diseqc master, not burst */
+	b[4] = 0xFF;		/* send diseqc master, analt burst */
 	b[5] = cmd->msg_len;
 
 	memcpy(b + 5, cmd->msg, cmd->msg_len);
@@ -543,7 +543,7 @@ static void ttusb_process_muxpack(struct ttusb *ttusb, const u8 * muxpack,
 	for (i = 0; i < len; i += 2)
 		csum ^= le16_to_cpup((__le16 *) (muxpack + i));
 	if (csum) {
-		pr_warn("muxpack with incorrect checksum, ignoring\n");
+		pr_warn("muxpack with incorrect checksum, iganalring\n");
 		numinvalid++;
 		return;
 	}
@@ -627,7 +627,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 			ttusb->mux_npacks = *data++;
 			++ttusb->mux_state;
 			ttusb->muxpack_ptr = 0;
-			/* maximum bytes, until we know the length */
+			/* maximum bytes, until we kanalw the length */
 			ttusb->muxpack_len = 2;
 			break;
 		case 4:
@@ -691,11 +691,11 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 							      ttusb->
 							      muxpack_ptr);
 					ttusb->muxpack_ptr = 0;
-					/* maximum bytes, until we know the length */
+					/* maximum bytes, until we kanalw the length */
 					ttusb->muxpack_len = 2;
 
 				/*
-				 * no muxpacks left?
+				 * anal muxpacks left?
 				 * return to search-sync state
 				 */
 					if (!ttusb->mux_npacks--) {
@@ -761,7 +761,7 @@ static int ttusb_alloc_iso_urbs(struct ttusb *ttusb)
 	ttusb->iso_buffer = kcalloc(FRAMES_PER_ISO_BUF * ISO_BUF_COUNT,
 			ISO_FRAME_SIZE, GFP_KERNEL);
 	if (!ttusb->iso_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ISO_BUF_COUNT; i++) {
 		struct urb *urb;
@@ -770,7 +770,7 @@ static int ttusb_alloc_iso_urbs(struct ttusb *ttusb)
 		    (urb =
 		     usb_alloc_urb(FRAMES_PER_ISO_BUF, GFP_ATOMIC))) {
 			ttusb_free_iso_urbs(ttusb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ttusb->iso_urb[i] = urb;
@@ -927,7 +927,7 @@ static int ttusb_setup_interfaces(struct ttusb *ttusb)
 #if 0
 static u8 stc_firmware[8192];
 
-static int stc_open(struct inode *inode, struct file *file)
+static int stc_open(struct ianalde *ianalde, struct file *file)
 {
 	struct ttusb *ttusb = file->private_data;
 	int addr;
@@ -947,7 +947,7 @@ static ssize_t stc_read(struct file *file, char *buf, size_t count,
 	return simple_read_from_buffer(buf, count, offset, stc_firmware, 8192);
 }
 
-static int stc_release(struct inode *inode, struct file *file)
+static int stc_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -1009,7 +1009,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) return -EIO;
 	msleep(1);
 
-	// disable the mc44BC374c (do not check for errors)
+	// disable the mc44BC374c (do analt check for errors)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
@@ -1117,11 +1117,11 @@ static u8 alps_bsbe1_inittab[] = {
 	0x03, 0x00,
 	0x04, 0x7d,             /* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,             /* I2CT = 0, SCLT = 1, SDAT = 1 */
-	0x06, 0x40,             /* DAC not used, set to high impendance mode */
+	0x06, 0x40,             /* DAC analt used, set to high impendance mode */
 	0x07, 0x00,             /* DAC LSB */
 	0x08, 0x40,             /* DiSEqC off, LNB power on OP2/LOCK pin on */
 	0x09, 0x00,             /* FIFO */
-	0x0c, 0x51,             /* OP1 ctl = Normal, OP1 val = 1 (LNB Power ON) */
+	0x0c, 0x51,             /* OP1 ctl = Analrmal, OP1 val = 1 (LNB Power ON) */
 	0x0d, 0x82,             /* DC offset compensation = ON, beta_agc1 = 2 */
 	0x0e, 0x23,             /* alpha_tmg = 2, beta_tmg = 3 */
 	0x10, 0x3f,             // AGC2  0x3d
@@ -1138,7 +1138,7 @@ static u8 alps_bsbe1_inittab[] = {
 	0x21, 0x00,
 	0x22, 0x00,
 	0x23, 0x00,
-	0x28, 0x00,             // out imp: normal  out type: parallel FEC mode:0
+	0x28, 0x00,             // out imp: analrmal  out type: parallel FEC mode:0
 	0x29, 0x1e,             // 1/2 threshold
 	0x2a, 0x14,             // 2/3 threshold
 	0x2b, 0x0f,             // 3/4 threshold
@@ -1159,11 +1159,11 @@ static u8 alps_bsru6_inittab[] = {
 	0x03, 0x00,
 	0x04, 0x7d,		/* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,		/* I2CT = 0, SCLT = 1, SDAT = 1 */
-	0x06, 0x40,		/* DAC not used, set to high impendance mode */
+	0x06, 0x40,		/* DAC analt used, set to high impendance mode */
 	0x07, 0x00,		/* DAC LSB */
 	0x08, 0x40,		/* DiSEqC off, LNB power on OP2/LOCK pin on */
 	0x09, 0x00,		/* FIFO */
-	0x0c, 0x51,		/* OP1 ctl = Normal, OP1 val = 1 (LNB Power ON) */
+	0x0c, 0x51,		/* OP1 ctl = Analrmal, OP1 val = 1 (LNB Power ON) */
 	0x0d, 0x82,		/* DC offset compensation = ON, beta_agc1 = 2 */
 	0x0e, 0x23,		/* alpha_tmg = 2, beta_tmg = 3 */
 	0x10, 0x3f,		// AGC2  0x3d
@@ -1180,7 +1180,7 @@ static u8 alps_bsru6_inittab[] = {
 	0x21, 0x00,
 	0x22, 0x00,
 	0x23, 0x00,
-	0x28, 0x00,		// out imp: normal  out type: parallel FEC mode:0
+	0x28, 0x00,		// out imp: analrmal  out type: parallel FEC mode:0
 	0x29, 0x1e,		// 1/2 threshold
 	0x2a, 0x14,		// 2/3 threshold
 	0x2b, 0x0f,		// 3/4 threshold
@@ -1273,7 +1273,7 @@ static struct stv0299_config alps_stv0299_config = {
 	.set_symbol_rate = alps_stv0299_set_symbol_rate,
 };
 
-static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *fe)
+static int ttusb_analvas_grundig_29504_491_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
@@ -1296,7 +1296,7 @@ static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *f
 	return 0;
 }
 
-static struct tda8083_config ttusb_novas_grundig_29504_491_config = {
+static struct tda8083_config ttusb_analvas_grundig_29504_491_config = {
 
 	.demod_address = 0x68,
 };
@@ -1518,7 +1518,7 @@ static struct stv0297_config dvbc_philips_tdm1316l_config = {
 static void frontend_init(struct ttusb* ttusb)
 {
 	switch(le16_to_cpu(ttusb->dev->descriptor.idProduct)) {
-	case 0x1003: // Hauppauge/TT Nova-USB-S budget (stv0299/ALPS BSRU6|BSBE1(tsa5059))
+	case 0x1003: // Hauppauge/TT Analva-USB-S budget (stv0299/ALPS BSRU6|BSBE1(tsa5059))
 		// try the stv0299 based first
 		ttusb->fe = dvb_attach(stv0299_attach, &alps_stv0299_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
@@ -1534,9 +1534,9 @@ static void frontend_init(struct ttusb* ttusb)
 		}
 
 		// Grundig 29504-491
-		ttusb->fe = dvb_attach(tda8083_attach, &ttusb_novas_grundig_29504_491_config, &ttusb->i2c_adap);
+		ttusb->fe = dvb_attach(tda8083_attach, &ttusb_analvas_grundig_29504_491_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops.tuner_ops.set_params = ttusb_novas_grundig_29504_491_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.set_params = ttusb_analvas_grundig_29504_491_tuner_set_params;
 			ttusb->fe->ops.set_voltage = ttusb_set_voltage;
 			break;
 		}
@@ -1556,7 +1556,7 @@ static void frontend_init(struct ttusb* ttusb)
 		}
 		break;
 
-	case 0x1005: // Hauppauge/TT Nova-USB-t budget (tda10046/Philips td1316(tda6651tt) OR cx22700/ALPS TDMB7(??))
+	case 0x1005: // Hauppauge/TT Analva-USB-t budget (tda10046/Philips td1316(tda6651tt) OR cx22700/ALPS TDMB7(??))
 		// try the ALPS TDMB7 first
 		ttusb->fe = dvb_attach(cx22700_attach, &alps_tdmb7_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
@@ -1575,7 +1575,7 @@ static void frontend_init(struct ttusb* ttusb)
 	}
 
 	if (ttusb->fe == NULL) {
-		pr_err("no frontend driver found for device [%04x:%04x]\n",
+		pr_err("anal frontend driver found for device [%04x:%04x]\n",
 		       le16_to_cpu(ttusb->dev->descriptor.idVendor),
 		       le16_to_cpu(ttusb->dev->descriptor.idProduct));
 	} else {
@@ -1604,10 +1604,10 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	udev = interface_to_usbdev(intf);
 
-	if (intf->altsetting->desc.bInterfaceNumber != 1) return -ENODEV;
+	if (intf->altsetting->desc.bInterfaceNumber != 1) return -EANALDEV;
 
 	if (!(ttusb = kzalloc(sizeof(struct ttusb), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ttusb->dev = udev;
 	ttusb->c = 0;
@@ -1634,7 +1634,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	mutex_unlock(&ttusb->semi2c);
 
 	result = dvb_register_adapter(&ttusb->adapter,
-				      "Technotrend/Hauppauge Nova-USB",
+				      "Techanaltrend/Hauppauge Analva-USB",
 				      THIS_MODULE, &udev->dev, adapter_nr);
 	if (result < 0) {
 		ttusb_free_iso_urbs(ttusb);
@@ -1674,8 +1674,8 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	result = dvb_dmx_init(&ttusb->dvb_demux);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
-		result = -ENODEV;
+		pr_err("dvb_dmx_init failed (erranal = %d)\n", result);
+		result = -EANALDEV;
 		goto err_i2c_del_adapter;
 	}
 //FIXME dmxdev (nur WAS?)
@@ -1685,15 +1685,15 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	result = dvb_dmxdev_init(&ttusb->dmxdev, &ttusb->adapter);
 	if (result < 0) {
-		pr_err("dvb_dmxdev_init failed (errno = %d)\n",
+		pr_err("dvb_dmxdev_init failed (erranal = %d)\n",
 		       result);
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_release_dmx;
 	}
 
 	if (dvb_net_init(&ttusb->adapter, &ttusb->dvbnet, &ttusb->dvb_demux.dmx)) {
 		pr_err("dvb_net_init failed!\n");
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto err_release_dmxdev;
 	}
 

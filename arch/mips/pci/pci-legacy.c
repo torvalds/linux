@@ -71,7 +71,7 @@ pcibios_align_resource(void *data, const struct resource *res,
 
 static void pcibios_scanbus(struct pci_controller *hose)
 {
-	static int next_busno;
+	static int next_busanal;
 	static int need_domain_info;
 	LIST_HEAD(resources);
 	struct pci_bus *bus;
@@ -82,8 +82,8 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	if (!bridge)
 		return;
 
-	if (hose->get_busno && pci_has_flag(PCI_PROBE_ONLY))
-		next_busno = (*hose->get_busno)();
+	if (hose->get_busanal && pci_has_flag(PCI_PROBE_ONLY))
+		next_busanal = (*hose->get_busanal)();
 
 	pci_add_resource_offset(&resources,
 				hose->mem_resource, hose->mem_offset);
@@ -92,7 +92,7 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	list_splice_init(&resources, &bridge->windows);
 	bridge->dev.parent = NULL;
 	bridge->sysdata = hose;
-	bridge->busnr = next_busno;
+	bridge->busnr = next_busanal;
 	bridge->ops = hose->pci_ops;
 	bridge->swizzle_irq = pci_common_swizzle;
 	bridge->map_irq = pcibios_map_irq;
@@ -107,11 +107,11 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	need_domain_info = need_domain_info || pci_domain_nr(bus);
 	set_pci_need_domain_info(hose, need_domain_info);
 
-	next_busno = bus->busn_res.end + 1;
+	next_busanal = bus->busn_res.end + 1;
 	/* Don't allow 8-bit bus number overflow inside the hose -
 	   reserve some space for bridges. */
-	if (next_busno > 224) {
-		next_busno = 0;
+	if (next_busanal > 224) {
+		next_busanal = 0;
 		need_domain_info = 1;
 	}
 
@@ -127,21 +127,21 @@ static void pcibios_scanbus(struct pci_controller *hose)
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
-		list_for_each_entry(child, &bus->children, node)
+		list_for_each_entry(child, &bus->children, analde)
 			pcie_bus_configure_settings(child);
 	}
 	pci_bus_add_devices(bus);
 }
 
 #ifdef CONFIG_OF
-void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
+void pci_load_of_ranges(struct pci_controller *hose, struct device_analde *analde)
 {
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 
-	hose->of_node = node;
+	hose->of_analde = analde;
 
-	if (of_pci_range_parser_init(&parser, node))
+	if (of_pci_range_parser_init(&parser, analde))
 		return;
 
 	for_each_of_pci_range(&parser, &range) {
@@ -159,7 +159,7 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 			break;
 		}
 		if (res != NULL) {
-			res->name = node->full_name;
+			res->name = analde->full_name;
 			res->flags = range.flags;
 			res->start = range.cpu_addr;
 			res->end = range.cpu_addr + range.size - 1;
@@ -168,11 +168,11 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 	}
 }
 
-struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+struct device_analde *pcibios_get_phb_of_analde(struct pci_bus *bus)
 {
 	struct pci_controller *hose = bus->sysdata;
 
-	return of_node_get(hose->of_node);
+	return of_analde_get(hose->of_analde);
 }
 #endif
 
@@ -202,7 +202,7 @@ void register_pci_controller(struct pci_controller *hose)
 	list_add_tail(&hose->list, &controllers);
 
 	/*
-	 * Do not panic here but later - this might happen before console init.
+	 * Do analt panic here but later - this might happen before console init.
 	 */
 	if (!hose->io_map_base) {
 		printk(KERN_WARNING

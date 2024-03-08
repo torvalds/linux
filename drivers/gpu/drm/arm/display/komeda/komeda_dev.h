@@ -117,7 +117,7 @@ struct komeda_dev_funcs {
 	int (*enable_irq)(struct komeda_dev *mdev);
 	/** @disable_irq: disable irq */
 	int (*disable_irq)(struct komeda_dev *mdev);
-	/** @on_off_vblank: notify HW to on/off vblank */
+	/** @on_off_vblank: analtify HW to on/off vblank */
 	void (*on_off_vblank)(struct komeda_dev *mdev,
 			      int master_pipe, bool on);
 
@@ -126,10 +126,10 @@ struct komeda_dev_funcs {
 	/**
 	 * @change_opmode:
 	 *
-	 * Notify HW to switch to a new display operation mode.
+	 * Analtify HW to switch to a new display operation mode.
 	 */
 	int (*change_opmode)(struct komeda_dev *mdev, int new_mode);
-	/** @flush: Notify the HW to flush or kickoff the update */
+	/** @flush: Analtify the HW to flush or kickoff the update */
 	void (*flush)(struct komeda_dev *mdev,
 		      int master_pipe, u32 active_pipes);
 };
@@ -214,7 +214,7 @@ struct komeda_dev {
 #define KOMEDA_DEV_PRINT_INFO_EVENTS BIT(2)
 	/* Dump DRM state on an error or warning event. */
 #define KOMEDA_DEV_PRINT_DUMP_STATE_ON_EVENT BIT(8)
-	/* Disable rate limiting of event prints (normally one per commit) */
+	/* Disable rate limiting of event prints (analrmally one per commit) */
 #define KOMEDA_DEV_PRINT_DISABLE_RATELIMIT BIT(12)
 };
 

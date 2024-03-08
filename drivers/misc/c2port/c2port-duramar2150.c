@@ -6,7 +6,7 @@
  *  Copyright (c) 2008 Eurotech S.p.A. <info@eurotech.it>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

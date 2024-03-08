@@ -2,7 +2,7 @@
 /*
  * lan966x-pcb8290.dts - Device Tree file for LAN966X-PCB8290 board
  *
- * Copyright (C) 2022 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2022 Microchip Techanallogy Inc. and its subsidiaries
  *
  * Author: Horatiu Vultur <horatiu.vultur@microchip.com>
  */

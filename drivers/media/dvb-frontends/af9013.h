@@ -44,7 +44,7 @@ struct af9013_platform_data {
 #define AF9013_TUNER_MT2060      130 /* Microtune */
 #define AF9013_TUNER_MC44S803    133 /* Freescale */
 #define AF9013_TUNER_QT1010      134 /* Quantek */
-#define AF9013_TUNER_UNKNOWN     140 /* for can tuners ? */
+#define AF9013_TUNER_UNKANALWN     140 /* for can tuners ? */
 #define AF9013_TUNER_MT2060_2    147 /* Microtune */
 #define AF9013_TUNER_TDA18271    156 /* NXP */
 #define AF9013_TUNER_QT1010A     162 /* Quantek */

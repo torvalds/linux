@@ -97,28 +97,28 @@ void perf_gtk__init_hpp(void)
 static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *store,
 					 GtkTreeIter *parent, int col, u64 total)
 {
-	struct rb_node *nd;
-	bool has_single_node = (rb_first(root) == rb_last(root));
+	struct rb_analde *nd;
+	bool has_single_analde = (rb_first(root) == rb_last(root));
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
-		struct callchain_node *node;
+		struct callchain_analde *analde;
 		struct callchain_list *chain;
 		GtkTreeIter iter, new_parent;
 		bool need_new_parent;
 
-		node = rb_entry(nd, struct callchain_node, rb_node);
+		analde = rb_entry(nd, struct callchain_analde, rb_analde);
 
 		new_parent = *parent;
-		need_new_parent = !has_single_node;
+		need_new_parent = !has_single_analde;
 
-		callchain_node__make_parent_list(node);
+		callchain_analde__make_parent_list(analde);
 
-		list_for_each_entry(chain, &node->parent_val, list) {
+		list_for_each_entry(chain, &analde->parent_val, list) {
 			char buf[128];
 
 			gtk_tree_store_append(store, &iter, &new_parent);
 
-			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+			callchain_analde__scnprintf_value(analde, buf, sizeof(buf), total);
 			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 			callchain_list__sym_name(chain, buf, sizeof(buf), false);
@@ -127,19 +127,19 @@ static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *sto
 			if (need_new_parent) {
 				/*
 				 * Only show the top-most symbol in a callchain
-				 * if it's not the only callchain.
+				 * if it's analt the only callchain.
 				 */
 				new_parent = iter;
 				need_new_parent = false;
 			}
 		}
 
-		list_for_each_entry(chain, &node->val, list) {
+		list_for_each_entry(chain, &analde->val, list) {
 			char buf[128];
 
 			gtk_tree_store_append(store, &iter, &new_parent);
 
-			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+			callchain_analde__scnprintf_value(analde, buf, sizeof(buf), total);
 			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 			callchain_list__sym_name(chain, buf, sizeof(buf), false);
@@ -148,7 +148,7 @@ static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *sto
 			if (need_new_parent) {
 				/*
 				 * Only show the top-most symbol in a callchain
-				 * if it's not the only callchain.
+				 * if it's analt the only callchain.
 				 */
 				new_parent = iter;
 				need_new_parent = false;
@@ -160,21 +160,21 @@ static void perf_gtk__add_callchain_flat(struct rb_root *root, GtkTreeStore *sto
 static void perf_gtk__add_callchain_folded(struct rb_root *root, GtkTreeStore *store,
 					   GtkTreeIter *parent, int col, u64 total)
 {
-	struct rb_node *nd;
+	struct rb_analde *nd;
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
-		struct callchain_node *node;
+		struct callchain_analde *analde;
 		struct callchain_list *chain;
 		GtkTreeIter iter;
 		char buf[64];
 		char *str, *str_alloc = NULL;
 		bool first = true;
 
-		node = rb_entry(nd, struct callchain_node, rb_node);
+		analde = rb_entry(nd, struct callchain_analde, rb_analde);
 
-		callchain_node__make_parent_list(node);
+		callchain_analde__make_parent_list(analde);
 
-		list_for_each_entry(chain, &node->parent_val, list) {
+		list_for_each_entry(chain, &analde->parent_val, list) {
 			char name[1024];
 
 			callchain_list__sym_name(chain, name, sizeof(name), false);
@@ -190,7 +190,7 @@ static void perf_gtk__add_callchain_folded(struct rb_root *root, GtkTreeStore *s
 			str_alloc = str;
 		}
 
-		list_for_each_entry(chain, &node->val, list) {
+		list_for_each_entry(chain, &analde->val, list) {
 			char name[1024];
 
 			callchain_list__sym_name(chain, name, sizeof(name), false);
@@ -208,7 +208,7 @@ static void perf_gtk__add_callchain_folded(struct rb_root *root, GtkTreeStore *s
 
 		gtk_tree_store_append(store, &iter, parent);
 
-		callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+		callchain_analde__scnprintf_value(analde, buf, sizeof(buf), total);
 		gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 		gtk_tree_store_set(store, &iter, col, str, -1);
@@ -220,27 +220,27 @@ static void perf_gtk__add_callchain_folded(struct rb_root *root, GtkTreeStore *s
 static void perf_gtk__add_callchain_graph(struct rb_root *root, GtkTreeStore *store,
 					  GtkTreeIter *parent, int col, u64 total)
 {
-	struct rb_node *nd;
-	bool has_single_node = (rb_first(root) == rb_last(root));
+	struct rb_analde *nd;
+	bool has_single_analde = (rb_first(root) == rb_last(root));
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
-		struct callchain_node *node;
+		struct callchain_analde *analde;
 		struct callchain_list *chain;
 		GtkTreeIter iter, new_parent;
 		bool need_new_parent;
 		u64 child_total;
 
-		node = rb_entry(nd, struct callchain_node, rb_node);
+		analde = rb_entry(nd, struct callchain_analde, rb_analde);
 
 		new_parent = *parent;
-		need_new_parent = !has_single_node && (node->val_nr > 1);
+		need_new_parent = !has_single_analde && (analde->val_nr > 1);
 
-		list_for_each_entry(chain, &node->val, list) {
+		list_for_each_entry(chain, &analde->val, list) {
 			char buf[128];
 
 			gtk_tree_store_append(store, &iter, &new_parent);
 
-			callchain_node__scnprintf_value(node, buf, sizeof(buf), total);
+			callchain_analde__scnprintf_value(analde, buf, sizeof(buf), total);
 			gtk_tree_store_set(store, &iter, 0, buf, -1);
 
 			callchain_list__sym_name(chain, buf, sizeof(buf), false);
@@ -249,7 +249,7 @@ static void perf_gtk__add_callchain_graph(struct rb_root *root, GtkTreeStore *st
 			if (need_new_parent) {
 				/*
 				 * Only show the top-most symbol in a callchain
-				 * if it's not the only callchain.
+				 * if it's analt the only callchain.
 				 */
 				new_parent = iter;
 				need_new_parent = false;
@@ -257,12 +257,12 @@ static void perf_gtk__add_callchain_graph(struct rb_root *root, GtkTreeStore *st
 		}
 
 		if (callchain_param.mode == CHAIN_GRAPH_REL)
-			child_total = node->children_hit;
+			child_total = analde->children_hit;
 		else
 			child_total = total;
 
-		/* Now 'iter' contains info of the last callchain_list */
-		perf_gtk__add_callchain_graph(&node->rb_root, store, &iter, col,
+		/* Analw 'iter' contains info of the last callchain_list */
+		perf_gtk__add_callchain_graph(&analde->rb_root, store, &iter, col,
 					      child_total);
 	}
 }
@@ -297,7 +297,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	GType col_types[MAX_COLUMNS];
 	GtkCellRenderer *renderer;
 	GtkTreeStore *store;
-	struct rb_node *nd;
+	struct rb_analde *nd;
 	GtkWidget *view;
 	int col_idx;
 	int sym_col = -1;
@@ -327,8 +327,8 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 			continue;
 
 		/*
-		 * XXX no way to determine where symcol column is..
-		 *     Just use last column for now.
+		 * XXX anal way to determine where symcol column is..
+		 *     Just use last column for analw.
 		 */
 		if (perf_hpp__is_sort_entry(fmt))
 			sym_col = col_idx;
@@ -356,7 +356,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	g_object_unref(GTK_TREE_MODEL(store));
 
 	for (nd = rb_first_cached(&hists->entries); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_analde);
 		GtkTreeIter iter;
 		u64 total = hists__total_period(h->hists);
 		float percent;
@@ -410,19 +410,19 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 					    float min_pcnt)
 {
 	int col_idx = 0;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct hist_entry *he;
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_analde *fmt_analde;
 	u64 total = hists__total_period(hists);
 	int size;
 
-	for (node = rb_first_cached(root); node; node = rb_next(node)) {
+	for (analde = rb_first_cached(root); analde; analde = rb_next(analde)) {
 		GtkTreeIter iter;
 		float percent;
 		char *bf;
 
-		he = rb_entry(node, struct hist_entry, rb_node);
+		he = rb_entry(analde, struct hist_entry, rb_analde);
 		if (he->filtered)
 			continue;
 
@@ -434,10 +434,10 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 
 		col_idx = 0;
 
-		/* the first hpp_list_node is for overhead columns */
-		fmt_node = list_first_entry(&hists->hpp_formats,
-					    struct perf_hpp_list_node, list);
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+		/* the first hpp_list_analde is for overhead columns */
+		fmt_analde = list_first_entry(&hists->hpp_formats,
+					    struct perf_hpp_list_analde, list);
+		perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 			if (fmt->color)
 				fmt->color(fmt, hpp, he);
 			else
@@ -474,7 +474,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 				char buf[32];
 				GtkTreeIter child;
 
-				snprintf(buf, sizeof(buf), "no entry >= %.2f%%",
+				snprintf(buf, sizeof(buf), "anal entry >= %.2f%%",
 					 min_pcnt);
 
 				gtk_tree_store_append(store, &child, &iter);
@@ -498,7 +498,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 				     float min_pcnt)
 {
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_analde *fmt_analde;
 	GType col_types[MAX_COLUMNS];
 	GtkCellRenderer *renderer;
 	GtkTreeStore *store;
@@ -507,7 +507,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	int nr_cols = 0;
 	char s[512];
 	char buf[512];
-	bool first_node, first_col;
+	bool first_analde, first_col;
 	struct perf_hpp hpp = {
 		.buf		= s,
 		.size		= sizeof(s),
@@ -528,10 +528,10 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 
 	col_idx = 0;
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	/* the first hpp_list_analde is for overhead columns */
+	fmt_analde = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_analde, list);
+	perf_hpp_list__for_each_format(&fmt_analde->hpp, fmt) {
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 							    -1, fmt->name,
 							    renderer, "markup",
@@ -540,14 +540,14 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 
 	/* construct merged column header since sort keys share single column */
 	buf[0] = '\0';
-	first_node = true;
-	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
-		if (!first_node)
+	first_analde = true;
+	list_for_each_entry_continue(fmt_analde, &hists->hpp_formats, list) {
+		if (!first_analde)
 			strcat(buf, " / ");
-		first_node = false;
+		first_analde = false;
 
 		first_col = true;
-		perf_hpp_list__for_each_format(&fmt_node->hpp ,fmt) {
+		perf_hpp_list__for_each_format(&fmt_analde->hpp ,fmt) {
 			if (perf_hpp__should_skip(fmt, hists))
 				continue;
 
@@ -595,7 +595,7 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 {
 	struct evsel *pos;
 	GtkWidget *vbox;
-	GtkWidget *notebook;
+	GtkWidget *analtebook;
 	GtkWidget *info_bar;
 	GtkWidget *statbar;
 	GtkWidget *window;
@@ -618,9 +618,9 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 
 	vbox = gtk_vbox_new(FALSE, 0);
 
-	notebook = gtk_notebook_new();
+	analtebook = gtk_analtebook_new();
 
-	gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), analtebook, TRUE, TRUE, 0);
 
 	info_bar = perf_gtk__setup_info_bar();
 	if (info_bar)
@@ -662,7 +662,7 @@ int evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 
 		tab_label = gtk_label_new(evname);
 
-		gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scrolled_window, tab_label);
+		gtk_analtebook_append_page(GTK_ANALTEBOOK(analtebook), scrolled_window, tab_label);
 	}
 
 	gtk_widget_show_all(window);

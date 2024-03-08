@@ -100,7 +100,7 @@ static const struct mfd_cell da9063_common_devs[] = {
 	},
 };
 
-/* Only present on DA9063 , not on DA9063L */
+/* Only present on DA9063 , analt on DA9063L */
 static const struct mfd_cell da9063_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_RTC,
@@ -117,7 +117,7 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_FAULT_LOG, &fault_log);
 	if (ret < 0) {
-		dev_err(da9063->dev, "Cannot read FAULT_LOG.\n");
+		dev_err(da9063->dev, "Cananalt read FAULT_LOG.\n");
 		return -EIO;
 	}
 
@@ -153,7 +153,7 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 			   fault_log);
 	if (ret < 0)
 		dev_err(da9063->dev,
-			"Cannot reset FAULT_LOG values %d\n", ret);
+			"Cananalt reset FAULT_LOG values %d\n", ret);
 
 	return ret;
 }
@@ -164,7 +164,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = da9063_clear_fault_log(da9063);
 	if (ret < 0)
-		dev_err(da9063->dev, "Cannot clear fault log\n");
+		dev_err(da9063->dev, "Cananalt clear fault log\n");
 
 	da9063->flags = 0;
 	da9063->irq_base = -1;
@@ -172,13 +172,13 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	ret = da9063_irq_init(da9063);
 	if (ret) {
-		dev_err(da9063->dev, "Cannot initialize interrupts.\n");
+		dev_err(da9063->dev, "Cananalt initialize interrupts.\n");
 		return ret;
 	}
 
 	da9063->irq_base = regmap_irq_chip_get_base(da9063->regmap_irq);
 
-	ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
+	ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_ANALNE,
 				   da9063_common_devs,
 				   ARRAY_SIZE(da9063_common_devs),
 				   NULL, da9063->irq_base, NULL);
@@ -188,7 +188,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 	}
 
 	if (da9063->type == PMIC_TYPE_DA9063) {
-		ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
+		ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_ANALNE,
 					   da9063_devs, ARRAY_SIZE(da9063_devs),
 					   NULL, da9063->irq_base, NULL);
 		if (ret) {

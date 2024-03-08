@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,36 +35,36 @@
  */
 
 /**
- *  dc_stat_get_dmub_notification
+ *  dc_stat_get_dmub_analtification
  *
- * Calls dmub layer to retrieve dmub notification
+ * Calls dmub layer to retrieve dmub analtification
  *
  * @dc: dc structure
- * @notify: dmub notification structure
+ * @analtify: dmub analtification structure
  *
  * Returns
- *     None
+ *     Analne
  */
-void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification *notify)
+void dc_stat_get_dmub_analtification(const struct dc *dc, struct dmub_analtification *analtify)
 {
 	/**
 	 * This function is called without dal and dc locks, so
-	 * we shall not modify any dc, dc_dmub_srv or dmub variables
+	 * we shall analt modify any dc, dc_dmub_srv or dmub variables
 	 * except variables exclusively accessed by this function
 	 */
 	struct dmub_srv *dmub = dc->ctx->dmub_srv->dmub;
 	enum dmub_status status;
 
-	status = dmub_srv_stat_get_notification(dmub, notify);
+	status = dmub_srv_stat_get_analtification(dmub, analtify);
 	ASSERT(status == DMUB_STATUS_OK);
 
 	/* For HPD/HPD RX, convert dpia port index into link index */
-	if (notify->type == DMUB_NOTIFICATION_HPD ||
-	    notify->type == DMUB_NOTIFICATION_HPD_IRQ ||
-		notify->type == DMUB_NOTIFICATION_DPIA_NOTIFICATION ||
-	    notify->type == DMUB_NOTIFICATION_SET_CONFIG_REPLY) {
-		notify->link_index =
-			get_link_index_from_dpia_port_index(dc, notify->link_index);
+	if (analtify->type == DMUB_ANALTIFICATION_HPD ||
+	    analtify->type == DMUB_ANALTIFICATION_HPD_IRQ ||
+		analtify->type == DMUB_ANALTIFICATION_DPIA_ANALTIFICATION ||
+	    analtify->type == DMUB_ANALTIFICATION_SET_CONFIG_REPLY) {
+		analtify->link_index =
+			get_link_index_from_dpia_port_index(dc, analtify->link_index);
 	}
 }
 
@@ -77,7 +77,7 @@ void dc_stat_get_dmub_notification(const struct dc *dc, struct dmub_notification
  * @dataout: dmub gpint dataout
  *
  * Returns
- *     None
+ *     Analne
  */
 void dc_stat_get_dmub_dataout(const struct dc *dc, uint32_t *dataout)
 {

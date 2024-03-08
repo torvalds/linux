@@ -35,7 +35,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
-          - description: phandle to a syscon node representing the APCS registers
+          - description: phandle to a syscon analde representing the APCS registers
           - description: u32 representing offset to the register within the syscon
           - description: u32 representing the ipc bit within the register
     description:
@@ -64,14 +64,14 @@ patternProperties:
     type: object
     description:
       Each SMP2P pair contain a set of inbound and outbound entries, these are
-      described in subnodes of the smp2p device node. The node names are not
+      described in subanaldes of the smp2p device analde. The analde names are analt
       important.
 
     properties:
       interrupt-controller:
         description:
-          Marks the entry as inbound; the node should be specified as a two
-          cell interrupt-controller.  If not specified this node will denote
+          Marks the entry as inbound; the analde should be specified as a two
+          cell interrupt-controller.  If analt specified this analde will deanalte
           the outgoing entry.
 
       '#interrupt-cells':

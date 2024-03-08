@@ -55,7 +55,7 @@ struct bpf_raw_event_map {
 } __aligned(32);
 
 /*
- * If a tracepoint needs to be called from a header file, it is not
+ * If a tracepoint needs to be called from a header file, it is analt
  * recommended to call it directly, as tracepoints in header files
  * may cause side-effects and bloat the kernel. Instead, use
  * tracepoint_enabled() to test if the tracepoint is enabled, then if
@@ -75,8 +75,8 @@ struct bpf_raw_event_map {
  *            [..]
  *   }
  *
- * Note: tracepoint_enabled(foo_bar) is equivalent to trace_foo_bar_enabled()
- *   but is safe to have in headers, where trace_foo_bar_enabled() is not.
+ * Analte: tracepoint_enabled(foo_bar) is equivalent to trace_foo_bar_enabled()
+ *   but is safe to have in headers, where trace_foo_bar_enabled() is analt.
  */
 #define DECLARE_TRACEPOINT(tp) \
 	extern struct tracepoint __tracepoint_##tp

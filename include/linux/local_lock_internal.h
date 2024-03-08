@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_LOCAL_LOCK_H
-# error "Do not include directly, include linux/local_lock.h"
+# error "Do analt include directly, include linux/local_lock.h"
 #endif
 
 #include <linux/percpu-defs.h>
@@ -55,7 +55,7 @@ static inline void local_lock_debug_init(local_lock_t *l) { }
 do {								\
 	static struct lock_class_key __key;			\
 								\
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));\
+	debug_check_anal_locks_freed((void *)lock, sizeof(*lock));\
 	lockdep_init_map_type(&(lock)->dep_map, #lock, &__key,  \
 			      0, LD_WAIT_CONFIG, LD_WAIT_INV,	\
 			      LD_LOCK_PERCPU);			\

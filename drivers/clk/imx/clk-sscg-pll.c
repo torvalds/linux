@@ -58,7 +58,7 @@
 #define PLL_DIVF2_MAX			63
 #define PLL_DIVQ_MAX			63
 
-#define PLL_BYPASS_NONE			0x0
+#define PLL_BYPASS_ANALNE			0x0
 #define PLL_BYPASS1			0x2
 #define PLL_BYPASS2			0x1
 
@@ -217,7 +217,7 @@ static int clk_sscg_divf1_lookup(struct clk_sscg_pll_setup *setup,
 
 		ret = clk_sscg_pll2_find_setup(setup, temp_setup, vco1);
 		if (!ret) {
-			temp_setup->bypass = PLL_BYPASS_NONE;
+			temp_setup->bypass = PLL_BYPASS_ANALNE;
 			return ret;
 		}
 	}
@@ -285,7 +285,7 @@ static int clk_sscg_pll_find_setup(struct clk_sscg_pll_setup *setup,
 	case PLL_BYPASS1:
 		ret = clk_sscg_pll2_find_setup(setup, &temp_setup, prate);
 		break;
-	case PLL_BYPASS_NONE:
+	case PLL_BYPASS_ANALNE:
 		ret = clk_sscg_pll1_find_setup(setup, &temp_setup, prate);
 		break;
 	}
@@ -476,7 +476,7 @@ static int clk_sscg_pll_determine_rate(struct clk_hw *hw,
 
 	ret = __clk_sscg_pll_determine_rate(hw, req, PLL_REF_MIN_FREQ,
 						PLL_REF_MAX_FREQ, rate,
-						PLL_BYPASS_NONE);
+						PLL_BYPASS_ANALNE);
 	if (!ret)
 		return ret;
 
@@ -511,7 +511,7 @@ struct clk_hw *imx_clk_hw_sscg_pll(const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->parent = parent;
 	pll->bypass1 = bypass1;

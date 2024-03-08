@@ -16,5 +16,5 @@ while (<>) {
   $_ =~ /\W*[0-9]+\W*([a-zA-Z\_0-9]+)\W*[0-9]+/;
 
   print "*(.text.$1)\n"
-      unless ($line =~ /unknown/) || ($line =~ /total/);
+      unless ($line =~ /unkanalwn/) || ($line =~ /total/);
 }

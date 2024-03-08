@@ -2,9 +2,9 @@
 /*
  * stf_video.h
  *
- * StarFive Camera Subsystem - V4L2 device node
+ * StarFive Camera Subsystem - V4L2 device analde
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef STF_VIDEO_H
@@ -48,7 +48,7 @@ struct stfcamss_buffer {
 
 struct fract {
 	u8 numerator;
-	u8 denominator;
+	u8 deanalminator;
 };
 
 /*

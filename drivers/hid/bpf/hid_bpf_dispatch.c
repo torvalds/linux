@@ -37,10 +37,10 @@ EXPORT_SYMBOL(hid_bpf_ops);
  * program through hid_bpf_attach_prog() to have this helper called for
  * any incoming event from the device itself.
  *
- * The function is called while on IRQ context, so we can not sleep.
+ * The function is called while on IRQ context, so we can analt sleep.
  */
 /* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_device_event(struct hid_bpf_ctx *ctx)
+__weak analinline int hid_bpf_device_event(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
@@ -63,7 +63,7 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	if (type >= HID_REPORT_TYPES)
 		return ERR_PTR(-EINVAL);
 
-	/* no program has been attached yet */
+	/* anal program has been attached yet */
 	if (!hdev->bpf.device_data)
 		return data;
 
@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(dispatch_hid_bpf_device_event);
  * parsing of the report descriptor by HID.
  */
 /* never used by the kernel but declared so we can load and attach a tracepoint */
-__weak noinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
+__weak analinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
 {
 	return 0;
 }
@@ -118,17 +118,17 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 
 	ctx_kern.data = kzalloc(ctx_kern.ctx.allocated_size, GFP_KERNEL);
 	if (!ctx_kern.data)
-		goto ignore_bpf;
+		goto iganalre_bpf;
 
 	memcpy(ctx_kern.data, rdesc, min_t(unsigned int, *size, HID_MAX_DESCRIPTOR_SIZE));
 
 	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
 	if (ret < 0)
-		goto ignore_bpf;
+		goto iganalre_bpf;
 
 	if (ret) {
 		if (ret > ctx_kern.ctx.allocated_size)
-			goto ignore_bpf;
+			goto iganalre_bpf;
 
 		*size = ret;
 	}
@@ -137,7 +137,7 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 
 	return rdesc;
 
- ignore_bpf:
+ iganalre_bpf:
 	kfree(ctx_kern.data);
 	return kmemdup(rdesc, *size, GFP_KERNEL);
 }
@@ -220,7 +220,7 @@ static int __hid_bpf_allocate_data(struct hid_device *hdev, u8 **data, u32 *size
 
 	alloc_data = kzalloc(alloc_size, GFP_KERNEL);
 	if (!alloc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*data = alloc_data;
 	*size = alloc_size;
@@ -385,7 +385,7 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 	struct hid_device *hid;
 
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
-	hid = (struct hid_device *)ctx_kern->ctx.hid; /* ignore const */
+	hid = (struct hid_device *)ctx_kern->ctx.hid; /* iganalre const */
 
 	kfree(ctx_kern);
 
@@ -457,7 +457,7 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 
 	dma_data = kmemdup(buf, buf__sz, GFP_KERNEL);
 	if (!dma_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hid_bpf_ops->hid_hw_raw_request(hdev,
 					      dma_data[0],
@@ -545,11 +545,11 @@ static int __init hid_bpf_init(void)
 {
 	int err;
 
-	/* Note: if we exit with an error any time here, we would entirely break HID, which
-	 * is probably not something we want. So we log an error and return success.
+	/* Analte: if we exit with an error any time here, we would entirely break HID, which
+	 * is probably analt something we want. So we log an error and return success.
 	 *
-	 * This is not a big deal: the syscall allowing to attach a BPF program to a HID device
-	 * will not be available, so nobody will be able to use the functionality.
+	 * This is analt a big deal: the syscall allowing to attach a BPF program to a HID device
+	 * will analt be available, so analbody will be able to use the functionality.
 	 */
 
 	err = register_btf_fmodret_id_set(&hid_bpf_fmodret_set);
@@ -584,7 +584,7 @@ static int __init hid_bpf_init(void)
 static void __exit hid_bpf_exit(void)
 {
 	/* HID depends on us, so if we hit that code, we are guaranteed that hid
-	 * has been removed and thus we do not need to clear the HID devices
+	 * has been removed and thus we do analt need to clear the HID devices
 	 */
 	hid_bpf_free_links_and_skel();
 }

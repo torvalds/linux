@@ -5,13 +5,13 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <uapi/linux/idxd.h>
 #include "registers.h"
 #include "idxd.h"
 
 static char *idxd_wq_type_names[] = {
-	[IDXD_WQT_NONE]		= "none",
+	[IDXD_WQT_ANALNE]		= "analne",
 	[IDXD_WQT_KERNEL]	= "kernel",
 	[IDXD_WQT_USER]		= "user",
 };
@@ -143,7 +143,7 @@ static ssize_t group_read_buffers_reserved_store(struct device *dev,
 		return -EINVAL;
 
 	if (idxd->data->type == IDXD_TYPE_IAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -209,7 +209,7 @@ static ssize_t group_read_buffers_allowed_store(struct device *dev,
 		return -EINVAL;
 
 	if (idxd->data->type == IDXD_TYPE_IAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -272,7 +272,7 @@ static ssize_t group_use_read_buffer_limit_store(struct device *dev,
 		return -EINVAL;
 
 	if (idxd->data->type == IDXD_TYPE_IAX)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -532,7 +532,7 @@ static bool idxd_group_attr_read_buffers_invisible(struct attribute *attr,
 						   struct idxd_device *idxd)
 {
 	/*
-	 * Intel IAA does not support Read Buffer allocation control,
+	 * Intel IAA does analt support Read Buffer allocation control,
 	 * make these attributes invisible.
 	 */
 	return (attr == &dev_attr_group_use_token_limit.attr ||
@@ -607,7 +607,7 @@ static ssize_t wq_state_show(struct device *dev,
 		return sysfs_emit(buf, "enabled\n");
 	}
 
-	return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "unkanalwn\n");
 }
 
 static struct device_attribute dev_attr_wq_state =
@@ -810,7 +810,7 @@ static ssize_t wq_block_on_fault_store(struct device *dev,
 	int rc;
 
 	if (!idxd->hw.gen_cap.block_on_fault)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
@@ -824,7 +824,7 @@ static ssize_t wq_block_on_fault_store(struct device *dev,
 
 	if (bof) {
 		if (test_bit(WQ_FLAG_PRS_DISABLE, &wq->flags))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		set_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags);
 	} else {
@@ -889,9 +889,9 @@ static ssize_t wq_type_show(struct device *dev,
 		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_KERNEL]);
 	case IDXD_WQT_USER:
 		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_USER]);
-	case IDXD_WQT_NONE:
+	case IDXD_WQT_ANALNE:
 	default:
-		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_NONE]);
+		return sysfs_emit(buf, "%s\n", idxd_wq_type_names[IDXD_WQT_ANALNE]);
 	}
 
 	return -EINVAL;
@@ -908,8 +908,8 @@ static ssize_t wq_type_store(struct device *dev,
 		return -EPERM;
 
 	old_type = wq->type;
-	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_NONE]))
-		wq->type = IDXD_WQT_NONE;
+	if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_ANALNE]))
+		wq->type = IDXD_WQT_ANALNE;
 	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_KERNEL]))
 		wq->type = IDXD_WQT_KERNEL;
 	else if (sysfs_streq(buf, idxd_wq_type_names[IDXD_WQT_USER]))
@@ -950,7 +950,7 @@ static ssize_t wq_name_store(struct device *dev,
 
 	input = kstrndup(buf, count, GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = strim(input);
 	memset(wq->name, 0, WQ_NAME_SIZE + 1);
@@ -962,24 +962,24 @@ static ssize_t wq_name_store(struct device *dev,
 static struct device_attribute dev_attr_wq_name =
 		__ATTR(name, 0644, wq_name_show, wq_name_store);
 
-static ssize_t wq_cdev_minor_show(struct device *dev,
+static ssize_t wq_cdev_mianalr_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
-	int minor = -1;
+	int mianalr = -1;
 
 	mutex_lock(&wq->wq_lock);
 	if (wq->idxd_cdev)
-		minor = wq->idxd_cdev->minor;
+		mianalr = wq->idxd_cdev->mianalr;
 	mutex_unlock(&wq->wq_lock);
 
-	if (minor == -1)
+	if (mianalr == -1)
 		return -ENXIO;
-	return sysfs_emit(buf, "%d\n", minor);
+	return sysfs_emit(buf, "%d\n", mianalr);
 }
 
-static struct device_attribute dev_attr_wq_cdev_minor =
-		__ATTR(cdev_minor, 0444, wq_cdev_minor_show, NULL);
+static struct device_attribute dev_attr_wq_cdev_mianalr =
+		__ATTR(cdev_mianalr, 0444, wq_cdev_mianalr_show, NULL);
 
 static int __get_sysfs_u64(const char *buf, u64 *val)
 {
@@ -1151,7 +1151,7 @@ static ssize_t wq_occupancy_show(struct device *dev, struct device_attribute *at
 	u32 occup, offset;
 
 	if (!idxd->hw.wq_cap.occupancy)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	offset = WQCFG_OFFSET(idxd, wq->id, WQCFG_OCCUP_IDX);
 	occup = ioread32(idxd->reg_base + offset) & WQCFG_OCCUP_MASK;
@@ -1168,7 +1168,7 @@ static ssize_t wq_enqcmds_retries_show(struct device *dev,
 	struct idxd_wq *wq = confdev_to_wq(dev);
 
 	if (wq_dedicated(wq))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return sysfs_emit(buf, "%u\n", wq->enqcmds_retries);
 }
@@ -1181,7 +1181,7 @@ static ssize_t wq_enqcmds_retries_store(struct device *dev, struct device_attrib
 	unsigned int retries;
 
 	if (wq_dedicated(wq))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = kstrtouint(buf, 10, &retries);
 	if (rc < 0)
@@ -1212,7 +1212,7 @@ static int idxd_verify_supported_opcap(struct idxd_device *idxd, unsigned long *
 	/*
 	 * The OPCAP is defined as 256 bits that represents each operation the device
 	 * supports per bit. Iterate through all the bits and check if the input mask
-	 * is set for bits that are not set in the OPCAP for the device. If no OPCAP
+	 * is set for bits that are analt set in the OPCAP for the device. If anal OPCAP
 	 * bit is set and input mask has the bit set, then return error.
 	 */
 	for_each_set_bit(bit, opmask, IDXD_MAX_OPCAP_BITS) {
@@ -1236,7 +1236,7 @@ static ssize_t wq_op_config_store(struct device *dev, struct device_attribute *a
 
 	opmask = bitmap_zalloc(IDXD_MAX_OPCAP_BITS, GFP_KERNEL);
 	if (!opmask)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = bitmap_parse(buf, count, opmask, IDXD_MAX_OPCAP_BITS);
 	if (rc < 0)
@@ -1280,7 +1280,7 @@ static ssize_t wq_driver_name_store(struct device *dev, struct device_attribute 
 
 	input = kstrndup(buf, count, GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pos = strim(input);
 	memset(wq->driver_name, 0, DRIVER_NAME_SIZE + 1);
@@ -1303,7 +1303,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_threshold.attr,
 	&dev_attr_wq_type.attr,
 	&dev_attr_wq_name.attr,
-	&dev_attr_wq_cdev_minor.attr,
+	&dev_attr_wq_cdev_mianalr.attr,
 	&dev_attr_wq_max_transfer_size.attr,
 	&dev_attr_wq_max_batch_size.attr,
 	&dev_attr_wq_ats_disable.attr,
@@ -1315,14 +1315,14 @@ static struct attribute *idxd_wq_attributes[] = {
 	NULL,
 };
 
-/*  A WQ attr is invisible if the feature is not supported in WQCAP. */
+/*  A WQ attr is invisible if the feature is analt supported in WQCAP. */
 #define idxd_wq_attr_invisible(name, cap_field, a, idxd)		\
 	((a) == &dev_attr_wq_##name.attr && !(idxd)->hw.wq_cap.cap_field)
 
 static bool idxd_wq_attr_max_batch_size_invisible(struct attribute *attr,
 						  struct idxd_device *idxd)
 {
-	/* Intel IAA does not support batch processing, make it invisible */
+	/* Intel IAA does analt support batch processing, make it invisible */
 	return attr == &dev_attr_wq_max_batch_size.attr &&
 	       idxd->data->type == IDXD_TYPE_IAX;
 }
@@ -1422,14 +1422,14 @@ static ssize_t max_engines_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(max_engines);
 
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_analde_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
-	return sysfs_emit(buf, "%d\n", dev_to_node(&idxd->pdev->dev));
+	return sysfs_emit(buf, "%d\n", dev_to_analde(&idxd->pdev->dev));
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_analde);
 
 static ssize_t max_batch_size_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -1518,7 +1518,7 @@ static ssize_t state_show(struct device *dev,
 		return sysfs_emit(buf, "halted\n");
 	}
 
-	return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "unkanalwn\n");
 }
 static DEVICE_ATTR_RO(state);
 
@@ -1641,7 +1641,7 @@ static ssize_t iaa_cap_show(struct device *dev,
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
 	if (idxd->hw.version < DEVICE_VERSION_2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return sysfs_emit(buf, "%#llx\n", idxd->hw.iaa_cap.bits);
 }
@@ -1653,7 +1653,7 @@ static ssize_t event_log_size_show(struct device *dev,
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
 	if (!idxd->evl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return sysfs_emit(buf, "%u\n", idxd->evl->size);
 }
@@ -1667,7 +1667,7 @@ static ssize_t event_log_size_store(struct device *dev,
 	int rc;
 
 	if (!idxd->evl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = kstrtoul(buf, 10, &val);
 	if (rc < 0)
@@ -1691,7 +1691,7 @@ static DEVICE_ATTR_RW(event_log_size);
 static bool idxd_device_attr_max_batch_size_invisible(struct attribute *attr,
 						      struct idxd_device *idxd)
 {
-	/* Intel IAA does not support batch processing, make it invisible */
+	/* Intel IAA does analt support batch processing, make it invisible */
 	return attr == &dev_attr_max_batch_size.attr &&
 	       idxd->data->type == IDXD_TYPE_IAX;
 }
@@ -1700,7 +1700,7 @@ static bool idxd_device_attr_read_buffers_invisible(struct attribute *attr,
 						    struct idxd_device *idxd)
 {
 	/*
-	 * Intel IAA does not support Read Buffer allocation control,
+	 * Intel IAA does analt support Read Buffer allocation control,
 	 * make these attributes invisible.
 	 */
 	return (attr == &dev_attr_max_tokens.attr ||
@@ -1752,7 +1752,7 @@ static struct attribute *idxd_device_attributes[] = {
 	&dev_attr_max_work_queues.attr,
 	&dev_attr_max_work_queues_size.attr,
 	&dev_attr_max_engines.attr,
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_analde.attr,
 	&dev_attr_max_batch_size.attr,
 	&dev_attr_max_transfer_size.attr,
 	&dev_attr_op_cap.attr,

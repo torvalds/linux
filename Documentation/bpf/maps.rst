@@ -24,7 +24,7 @@ Map Types
 
    map_*
 
-Usage Notes
+Usage Analtes
 ===========
 
 .. c:function::
@@ -56,7 +56,7 @@ Returns a process-local file descriptor on success, or negative error in case of
 failure. The map can be deleted by calling ``close(fd)``. Maps held by open
 file descriptors will be deleted automatically when a process exits.
 
-.. note:: Valid characters for ``map_name`` are ``A-Z``, ``a-z``, ``0-9``,
+.. analte:: Valid characters for ``map_name`` are ``A-Z``, ``a-z``, ``0-9``,
    ``'_'`` and ``'.'``.
 
 **BPF_MAP_LOOKUP_ELEM**

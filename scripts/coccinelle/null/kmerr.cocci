@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// This semantic patch looks for kmalloc etc that are not followed by a
+/// This semantic patch looks for kmalloc etc that are analt followed by a
 /// NULL check.  It only gives a report in the case where there is some
 /// error handling code later in the function, which may be helpful
 /// in determining what the error handling code for the call to kmalloc etc
@@ -11,7 +11,7 @@
 // Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual context
 virtual org
@@ -69,5 +69,5 @@ p1 << rfixed.p1;
 p2 << rfixed.p2;
 @@
 
-msg = "alloc with no test, possible model on line %s" % (p2[0].line)
+msg = "alloc with anal test, possible model on line %s" % (p2[0].line)
 coccilib.report.print_report(p1[0],msg)

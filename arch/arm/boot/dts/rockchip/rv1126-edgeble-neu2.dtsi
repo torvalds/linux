@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
- * Copyright (c) 2022 Edgeble AI Technologies Pvt. Ltd.
+ * Copyright (c) 2022 Edgeble AI Techanallogies Pvt. Ltd.
  */
 
 / {
@@ -41,7 +41,7 @@
 
 &emmc {
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk>;
 	rockchip,default-sample-phase = <90>;
@@ -251,13 +251,13 @@
 &pinctrl {
 	bt {
 		bt_enable: bt-enable {
-			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	flash {
 		flash_vol_sel: flash-vol-sel {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -269,7 +269,7 @@
 
 	wifi {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -300,7 +300,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		spi-rx-bus-width = <4>;
@@ -315,7 +315,7 @@
 	keep-power-in-suspend;
 	max-frequency = <100000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_clk &sdmmc1_cmd &sdmmc1_bus4>;
 	rockchip,default-sample-phase = <90>;

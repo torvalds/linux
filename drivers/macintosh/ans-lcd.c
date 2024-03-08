@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
@@ -103,7 +103,7 @@ anslcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case ANSLCD_SENDCTRL:
 		temp = (char __user *) arg;
 		__get_user(ch, temp);
-		for (; ch; temp++) { /* FIXME: This is ugly, but should work, as a \0 byte is not a valid command code */
+		for (; ch; temp++) { /* FIXME: This is ugly, but should work, as a \0 byte is analt a valid command code */
 			anslcd_write_byte_ctrl ( ch );
 			__get_user(ch, temp);
 		}
@@ -129,7 +129,7 @@ anslcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-anslcd_open( struct inode * inode, struct file * file )
+anslcd_open( struct ianalde * ianalde, struct file * file )
 {
 	return 0;
 }
@@ -142,7 +142,7 @@ const struct file_operations anslcd_fops = {
 };
 
 static struct miscdevice anslcd_dev = {
-	LCD_MINOR,
+	LCD_MIANALR,
 	"anslcd",
 	&anslcd_fops
 };
@@ -158,14 +158,14 @@ anslcd_init(void)
 {
 	int a;
 	int retval;
-	struct device_node* node;
+	struct device_analde* analde;
 
-	node = of_find_node_by_name(NULL, "lcd");
-	if (!node || !of_node_name_eq(node->parent, "gc")) {
-		of_node_put(node);
-		return -ENODEV;
+	analde = of_find_analde_by_name(NULL, "lcd");
+	if (!analde || !of_analde_name_eq(analde->parent, "gc")) {
+		of_analde_put(analde);
+		return -EANALDEV;
 	}
-	of_node_put(node);
+	of_analde_put(analde);
 
 	anslcd_ptr = ioremap(ANSLCD_ADDR, 0x20);
 	

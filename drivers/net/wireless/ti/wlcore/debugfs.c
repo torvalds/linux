@@ -2,9 +2,9 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009 Analkia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciaanal Coelho <luciaanal.coelho@analkia.com>
  */
 
 #include "debugfs.h"
@@ -102,7 +102,7 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 	int (*chip_op) (struct wl1271 *wl);
 
 	if (!arg) {
-		wl1271_warning("debugfs chip_op_handler with no callback");
+		wl1271_warning("debugfs chip_op_handler with anal callback");
 		return;
 	}
 
@@ -145,7 +145,7 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 	}								\
 									\
 	if (value < min_val || value > max_val) {			\
-		wl1271_warning(#param " is not in valid range");	\
+		wl1271_warning(#param " is analt in valid range");	\
 		return -ERANGE;						\
 	}								\
 									\
@@ -263,7 +263,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 	}
 
 	if (value < 1 || value > 65535) {
-		wl1271_warning("dynamic_ps_timeout is not in valid range");
+		wl1271_warning("dynamic_ps_timeout is analt in valid range");
 		return -ERANGE;
 	}
 
@@ -427,7 +427,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(DRIVER_STATE_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&wl->mutex);
 
@@ -479,7 +479,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(power_level);
 	DRIVER_STATE_PRINT_INT(sg_enabled);
 	DRIVER_STATE_PRINT_INT(enable_11a);
-	DRIVER_STATE_PRINT_INT(noise);
+	DRIVER_STATE_PRINT_INT(analise);
 	DRIVER_STATE_PRINT_LHEX(ap_fw_ps_map);
 	DRIVER_STATE_PRINT_LHEX(ap_ps_map);
 	DRIVER_STATE_PRINT_HEX(quirks);
@@ -525,7 +525,7 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&wl->mutex);
 
@@ -653,7 +653,7 @@ static ssize_t dtim_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 10) {
-		wl1271_warning("dtim value is not in valid range");
+		wl1271_warning("dtim value is analt in valid range");
 		return -ERANGE;
 	}
 
@@ -667,7 +667,7 @@ static ssize_t dtim_interval_write(struct file *file,
 		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_DTIM;
 
 	/*
-	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS analw, so it will only
 	 * take effect on the next time we enter psm.
 	 */
 	mutex_unlock(&wl->mutex);
@@ -714,7 +714,7 @@ static ssize_t suspend_dtim_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 10) {
-		wl1271_warning("suspend_dtim value is not in valid range");
+		wl1271_warning("suspend_dtim value is analt in valid range");
 		return -ERANGE;
 	}
 
@@ -769,7 +769,7 @@ static ssize_t beacon_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 255) {
-		wl1271_warning("beacon interval value is not in valid range");
+		wl1271_warning("beacon interval value is analt in valid range");
 		return -ERANGE;
 	}
 
@@ -783,7 +783,7 @@ static ssize_t beacon_interval_write(struct file *file,
 		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_BEACONS;
 
 	/*
-	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS analw, so it will only
 	 * take effect on the next time we enter psm.
 	 */
 	mutex_unlock(&wl->mutex);
@@ -814,7 +814,7 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 
 	/* valid values: 0, 10-100 */
 	if (value && (value < 10 || value > 100)) {
-		wl1271_warning("value is not in range!");
+		wl1271_warning("value is analt in range!");
 		return -ERANGE;
 	}
 
@@ -870,7 +870,7 @@ static ssize_t rx_streaming_always_write(struct file *file,
 
 	/* valid values: 0, 10-100 */
 	if (!(value == 0 || value == 1)) {
-		wl1271_warning("value is not in valid!");
+		wl1271_warning("value is analt in valid!");
 		return -EINVAL;
 	}
 
@@ -1058,7 +1058,7 @@ static ssize_t dev_mem_read(struct file *file,
 
 	buf = kmalloc(bytes, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&wl->mutex);
 
@@ -1192,7 +1192,7 @@ static loff_t dev_mem_seek(struct file *file, loff_t offset, int orig)
 	if (offset % 4)
 		return -EINVAL;
 
-	return no_seek_end_llseek(file, offset, orig);
+	return anal_seek_end_llseek(file, offset, orig);
 }
 
 static const struct file_operations dev_mem_ops = {
@@ -1317,7 +1317,7 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 
 	wl->stats.fw_stats = kzalloc(wl->stats.fw_stats_len, GFP_KERNEL);
 	if (!wl->stats.fw_stats) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_remove;
 	}
 

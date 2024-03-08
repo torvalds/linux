@@ -38,7 +38,7 @@
 #define R_F_S	0x0400	/* first */
 #define R_CM_S	0x0200	/* continuous mode */
 #define R_LG_S  0x0020  /* frame length */
-#define R_NO_S  0x0010  /* nonoctet */
+#define R_ANAL_S  0x0010  /* analanalctet */
 #define R_AB_S  0x0008  /* abort */
 #define R_CR_S	0x0004	/* crc */
 #define R_OV_S	0x0002	/* overrun */
@@ -85,21 +85,21 @@ enum ucc_fast_channel_protocol_mode {
 
 /* ucc_fast_transparent_txrx - UCC Fast Transparent TX & RX */
 enum ucc_fast_transparent_txrx {
-	UCC_FAST_GUMR_TRANSPARENT_TTX_TRX_NORMAL = 0x00000000,
+	UCC_FAST_GUMR_TRANSPARENT_TTX_TRX_ANALRMAL = 0x00000000,
 	UCC_FAST_GUMR_TRANSPARENT_TTX_TRX_TRANSPARENT = 0x18000000
 };
 
-/* UCC fast diagnostic mode */
+/* UCC fast diaganalstic mode */
 enum ucc_fast_diag_mode {
-	UCC_FAST_DIAGNOSTIC_NORMAL = 0x0,
-	UCC_FAST_DIAGNOSTIC_LOCAL_LOOP_BACK = 0x40000000,
-	UCC_FAST_DIAGNOSTIC_AUTO_ECHO = 0x80000000,
-	UCC_FAST_DIAGNOSTIC_LOOP_BACK_AND_ECHO = 0xC0000000
+	UCC_FAST_DIAGANALSTIC_ANALRMAL = 0x0,
+	UCC_FAST_DIAGANALSTIC_LOCAL_LOOP_BACK = 0x40000000,
+	UCC_FAST_DIAGANALSTIC_AUTO_ECHO = 0x80000000,
+	UCC_FAST_DIAGANALSTIC_LOOP_BACK_AND_ECHO = 0xC0000000
 };
 
 /* UCC fast Sync length (transparent mode only) */
 enum ucc_fast_sync_len {
-	UCC_FAST_SYNC_LEN_NOT_USED = 0x0,
+	UCC_FAST_SYNC_LEN_ANALT_USED = 0x0,
 	UCC_FAST_SYNC_LEN_AUTOMATIC = 0x00004000,
 	UCC_FAST_SYNC_LEN_8_BIT = 0x00008000,
 	UCC_FAST_SYNC_LEN_16_BIT = 0x0000C000
@@ -250,7 +250,7 @@ void ucc_fast_irq(struct ucc_fast_private * uccf);
  * Immediately forces a poll of the transmitter for data to be sent.
  * Typically, the hardware performs a periodic poll for data that the
  * transmit routine has set up to be transmitted. In cases where
- * this polling cycle is not soon enough, this optional routine can
+ * this polling cycle is analt soon eanalugh, this optional routine can
  * be invoked to force a poll right away, instead. Proper use for
  * each transmission for which this functionality is desired is to
  * call the transmit routine and then this routine right after.

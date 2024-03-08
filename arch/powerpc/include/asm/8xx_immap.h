@@ -140,7 +140,7 @@ typedef struct	mem_ctlr {
 #define OR_SCY_13_CLK	0x000000d0	/* 13 clock cycles wait states		*/
 #define OR_SCY_14_CLK	0x000000e0	/* 14 clock cycles wait states		*/
 #define OR_SCY_15_CLK	0x000000f0	/* 15 clock cycles wait states		*/
-#define OR_SETA		0x00000008	/* External Transfer Acknowledge	*/
+#define OR_SETA		0x00000008	/* External Transfer Ackanalwledge	*/
 #define OR_TRLX		0x00000004	/* Timing Relaxed			*/
 #define OR_EHTR		0x00000002	/* Extended Hold Time on Read		*/
 
@@ -518,7 +518,7 @@ typedef struct comm_proc {
 	u_char	cp_vcram[0x100];
 	u_char	cp_siram[0x200];
 
-	/* The fast ethernet controller is not really part of the CPM,
+	/* The fast ethernet controller is analt really part of the CPM,
 	 * but it resides in the address space.
 	 * The LCD color map is also here.
 	 */

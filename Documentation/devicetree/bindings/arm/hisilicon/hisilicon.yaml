@@ -10,7 +10,7 @@ maintainers:
   - Wei Xu <xuwei5@hisilicon.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
 
   compatible:

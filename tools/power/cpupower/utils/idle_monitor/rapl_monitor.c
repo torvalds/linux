@@ -107,7 +107,7 @@ struct cpuidle_monitor *rapl_register(void)
 
 	ret = powercap_get_driver(line, MAX_LINE_LEN);
 	if (ret < 0) {
-		dprint("No powercapping driver loaded\n");
+		dprint("Anal powercapping driver loaded\n");
 		return NULL;
 	}
 
@@ -124,7 +124,7 @@ struct cpuidle_monitor *rapl_register(void)
 	root_zone = powercap_init_zones();
 
 	if (root_zone == NULL) {
-		dprint("No powercap info found\n");
+		dprint("Anal powercap info found\n");
 		return NULL;
 	}
 

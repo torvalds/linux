@@ -51,7 +51,7 @@ static void qla4xxx_advance_req_ring_ptr(struct scsi_qla_host *ha)
  * @queue_entry: Pointer to pointer to queue entry structure
  *
  * This routine performs the following tasks:
- *	- returns the current request_in pointer (if queue not full)
+ *	- returns the current request_in pointer (if queue analt full)
  *	- advances the request_in pointer
  *	- checks for queue full
  **/
@@ -158,8 +158,8 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 	cmd = srb->cmd;
 	ha = srb->ha;
 
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
-		/* No data being transferred */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
+		/* Anal data being transferred */
 		cmd_entry->ttlByteCnt = cpu_to_le32(0);
 		return;
 	}
@@ -207,7 +207,7 @@ void qla4_83xx_complete_iocb(struct scsi_qla_host *ha)
  * qla4_82xx_queue_iocb - Tell ISP it's got new request(s)
  * @ha: pointer to host adapter structure.
  *
- * This routine notifies the ISP that one or more new request
+ * This routine analtifies the ISP that one or more new request
  * queue entries have been placed on the request queue.
  **/
 void qla4_82xx_queue_iocb(struct scsi_qla_host *ha)
@@ -224,7 +224,7 @@ void qla4_82xx_queue_iocb(struct scsi_qla_host *ha)
  * qla4_82xx_complete_iocb - Tell ISP we're done with response(s)
  * @ha: pointer to host adapter structure.
  *
- * This routine notifies the ISP that one or more response/completion
+ * This routine analtifies the ISP that one or more response/completion
  * queue entries have been processed by the driver.
  * This also clears the interrupt.
  **/
@@ -238,7 +238,7 @@ void qla4_82xx_complete_iocb(struct scsi_qla_host *ha)
  * qla4xxx_queue_iocb - Tell ISP it's got new request(s)
  * @ha: pointer to host adapter structure.
  *
- * This routine is notifies the ISP that one or more new request
+ * This routine is analtifies the ISP that one or more new request
  * queue entries have been placed on the request queue.
  **/
 void qla4xxx_queue_iocb(struct scsi_qla_host *ha)
@@ -251,7 +251,7 @@ void qla4xxx_queue_iocb(struct scsi_qla_host *ha)
  * qla4xxx_complete_iocb - Tell ISP we're done with response(s)
  * @ha: pointer to host adapter structure.
  *
- * This routine is notifies the ISP that one or more response/completion
+ * This routine is analtifies the ISP that one or more response/completion
  * queue entries have been processed by the driver.
  * This also clears the interrupt.
  **/
@@ -298,8 +298,8 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	 */
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
 		DEBUG2(printk("scsi%ld: %s: Adapter OFFLINE! "
-			      "Do not issue command.\n",
-			      ha->host_no, __func__));
+			      "Do analt issue command.\n",
+			      ha->host_anal, __func__));
 		goto queuing_error;
 	}
 
@@ -331,10 +331,10 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 	cmd_entry->hdr.entryCount = req_cnt;
 
 	/* Set data transfer direction control flags
-	 * NOTE: Look at data_direction bits iff there is data to be
+	 * ANALTE: Look at data_direction bits iff there is data to be
 	 *	 transferred, as the data direction bit is sometimed filled
-	 *	 in when there is no data to be transferred */
-	cmd_entry->control_flags = CF_NO_DATA;
+	 *	 in when there is anal data to be transferred */
+	cmd_entry->control_flags = CF_ANAL_DATA;
 	if (scsi_bufflen(cmd)) {
 		if (cmd->sc_data_direction == DMA_TO_DEVICE)
 			cmd_entry->control_flags = CF_WRITE;

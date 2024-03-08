@@ -4,15 +4,15 @@
 $id: http://devicetree.org/schemas/phy/bcm-ns-usb3-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom Northstar USB 3.0 PHY
+title: Broadcom Analrthstar USB 3.0 PHY
 
 description: |
-  Initialization of USB 3.0 PHY depends on Northstar version. There are currently
-  three known series: Ax, Bx and Cx.
-  Known A0: BCM4707 rev 0
-  Known B0: BCM4707 rev 4, BCM53573 rev 2
-  Known B1: BCM4707 rev 6
-  Known C0: BCM47094 rev 0
+  Initialization of USB 3.0 PHY depends on Analrthstar version. There are currently
+  three kanalwn series: Ax, Bx and Cx.
+  Kanalwn A0: BCM4707 rev 0
+  Kanalwn B0: BCM4707 rev 4, BCM53573 rev 2
+  Kanalwn B1: BCM4707 rev 6
+  Kanalwn C0: BCM47094 rev 0
 
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>

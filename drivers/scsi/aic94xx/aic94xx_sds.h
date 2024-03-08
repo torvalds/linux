@@ -9,7 +9,7 @@
 #define _AIC94XX_SDS_H_
 
 enum {
-	FLASH_METHOD_UNKNOWN,
+	FLASH_METHOD_UNKANALWN,
 	FLASH_METHOD_A,
 	FLASH_METHOD_B
 };
@@ -19,7 +19,7 @@ enum {
 #define FLASH_MANUF_ID_FUJITSU          0x04
 #define FLASH_MANUF_ID_MACRONIX         0xC2
 #define FLASH_MANUF_ID_INTEL            0x89
-#define FLASH_MANUF_ID_UNKNOWN          0xFF
+#define FLASH_MANUF_ID_UNKANALWN          0xFF
 
 #define FLASH_DEV_ID_AM29LV008BT        0x3E
 #define FLASH_DEV_ID_AM29LV800DT        0xDA
@@ -34,7 +34,7 @@ enum {
 #define FLASH_DEV_ID_MX29LV800BT        0xDA
 #define FLASH_DEV_ID_MX29LV008CT        0xDA
 #define FLASH_DEV_ID_I28LV00TAT         0x3E
-#define FLASH_DEV_ID_UNKNOWN            0xFF
+#define FLASH_DEV_ID_UNKANALWN            0xFF
 
 /* status bit mask values */
 #define FLASH_STATUS_BIT_MASK_DQ6       0x40
@@ -52,7 +52,7 @@ enum {
 #define FAIL_OPEN_BIOS_FILE             0x000100
 #define FAIL_CHECK_PCI_ID               0x000200
 #define FAIL_CHECK_SUM                  0x000300
-#define FAIL_UNKNOWN                    0x000400
+#define FAIL_UNKANALWN                    0x000400
 #define FAIL_VERIFY                     0x000500
 #define FAIL_RESET_FLASH                0x000600
 #define FAIL_FIND_FLASH_ID              0x000700

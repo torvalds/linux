@@ -12,7 +12,7 @@
 
 / {
 	compatible = "amediatech,x96-max", "amlogic,g12a";
-	model = "Shenzhen Amediatech Technology Co., Ltd X96 Max";
+	model = "Shenzhen Amediatech Techanallogy Co., Ltd X96 Max";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -403,7 +403,7 @@
 	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -447,7 +447,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	max-frequency = <100000000>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&emmc_pwrseq>;

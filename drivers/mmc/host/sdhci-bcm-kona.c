@@ -186,7 +186,7 @@ static const struct sdhci_ops sdhci_bcm_kona_ops = {
 
 static const struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 	.ops    = &sdhci_bcm_kona_ops,
-	.quirks = SDHCI_QUIRK_NO_CARD_NO_RESET |
+	.quirks = SDHCI_QUIRK_ANAL_CARD_ANAL_RESET |
 		SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_32BIT_DMA_ADDR |
 		SDHCI_QUIRK_32BIT_DMA_SIZE | SDHCI_QUIRK_32BIT_ADMA_SIZE |
 		SDHCI_QUIRK_FORCE_BLK_SZ_2048 |
@@ -252,11 +252,11 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
-	dev_dbg(dev, "non-removable=%c\n",
+	dev_dbg(dev, "analn-removable=%c\n",
 		mmc_card_is_removable(host->mmc) ? 'N' : 'Y');
 	dev_dbg(dev, "cd_gpio %c, wp_gpio %c\n",
-		(mmc_gpio_get_cd(host->mmc) != -ENOSYS) ? 'Y' : 'N',
-		(mmc_gpio_get_ro(host->mmc) != -ENOSYS) ? 'Y' : 'N');
+		(mmc_gpio_get_cd(host->mmc) != -EANALSYS) ? 'Y' : 'N',
+		(mmc_gpio_get_ro(host->mmc) != -EANALSYS) ? 'Y' : 'N');
 
 	if (!mmc_card_is_removable(host->mmc))
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
@@ -323,7 +323,7 @@ static void sdhci_bcm_kona_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_bcm_kona_driver = {
 	.driver		= {
 		.name	= "sdhci-kona",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= &sdhci_pltfm_pmops,
 		.of_match_table = sdhci_bcm_kona_of_match,
 	},

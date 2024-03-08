@@ -10,7 +10,7 @@ Supported Hardware
 	ICS 5342 ramdac
 
 	- only BIOS initialized VGA devices supported
-	- probably not working on big endian
+	- probably analt working on big endian
 
 
 Supported Features
@@ -22,19 +22,19 @@ Supported Features
 	* 24 bpp truecolor mode (RGB 888)
 	* 32 bpp truecolor mode (RGB 888)
 	* text mode (activated by bpp = 0)
-	* doublescan mode variant (not available in text mode)
+	* doublescan mode variant (analt available in text mode)
 	* panning in both directions
 	* suspend/resume support
 
 Text mode is supported even in higher resolutions, but there is limitation to
 lower pixclocks (i got maximum about 70 MHz, it is dependent on specific
-hardware). This limitation is not enforced by driver. Text mode supports 8bit
+hardware). This limitation is analt enforced by driver. Text mode supports 8bit
 wide fonts only (hardware limitation) and 16bit tall fonts (driver
 limitation). Unfortunately character attributes (like color) in text mode are
-broken for unknown reason, so its usefulness is limited.
+broken for unkanalwn reason, so its usefulness is limited.
 
-There are two 4 bpp modes. First mode (selected if nonstd == 0) is mode with
-packed pixels, high nibble first. Second mode (selected if nonstd == 1) is mode
+There are two 4 bpp modes. First mode (selected if analnstd == 0) is mode with
+packed pixels, high nibble first. Second mode (selected if analnstd == 1) is mode
 with interleaved planes (1 byte interleave), MSB first. Both modes support
 8bit wide fonts only (driver limitation).
 
@@ -46,7 +46,7 @@ Missing Features
 ================
 (alias TODO list)
 
-	* secondary (not initialized by BIOS) device support
+	* secondary (analt initialized by BIOS) device support
 	* big endian support
 	* DPMS support
 	* MMIO support
@@ -59,7 +59,7 @@ Missing Features
 	* acceleration support (8514-like 2D)
 
 
-Known bugs
+Kanalwn bugs
 ==========
 
 	* character attributes (and cursor) in text mode are broken

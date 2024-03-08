@@ -18,7 +18,7 @@
  */
 
 #include <linux/completion.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/virtio.h>
@@ -76,7 +76,7 @@ struct scmi_vio_channel {
 };
 
 enum poll_states {
-	VIO_MSG_NOT_POLLED,
+	VIO_MSG_ANALT_POLLED,
 	VIO_MSG_POLL_TIMEOUT,
 	VIO_MSG_POLLING,
 	VIO_MSG_POLL_DONE,
@@ -86,7 +86,7 @@ enum poll_states {
  * struct scmi_vio_msg - Transport PDU information
  *
  * @request: SDU used for commands
- * @input: SDU used for (delayed) responses and notifications
+ * @input: SDU used for (delayed) responses and analtifications
  * @list: List which scmi_vio_msg may be part of
  * @rx_len: Input SDU size in bytes, once input has been received
  * @poll_idx: Last used index registered for polling purposes if this message
@@ -118,7 +118,7 @@ static void scmi_vio_channel_ready(struct scmi_vio_channel *vioch,
 
 	spin_lock_irqsave(&vioch->lock, flags);
 	cinfo->transport_info = vioch;
-	/* Indirectly setting channel not available any more */
+	/* Indirectly setting channel analt available any more */
 	vioch->cinfo = cinfo;
 	spin_unlock_irqrestore(&vioch->lock, flags);
 
@@ -127,7 +127,7 @@ static void scmi_vio_channel_ready(struct scmi_vio_channel *vioch,
 
 static inline bool scmi_vio_channel_acquire(struct scmi_vio_channel *vioch)
 {
-	return refcount_inc_not_zero(&vioch->users);
+	return refcount_inc_analt_zero(&vioch->users);
 }
 
 static inline void scmi_vio_channel_release(struct scmi_vio_channel *vioch)
@@ -150,7 +150,7 @@ static void scmi_vio_channel_cleanup_sync(struct scmi_vio_channel *vioch)
 	DECLARE_COMPLETION_ONSTACK(vioch_shutdown_done);
 
 	/*
-	 * Prepare to wait for the last release if not already released
+	 * Prepare to wait for the last release if analt already released
 	 * or in progress.
 	 */
 	spin_lock_irqsave(&vioch->lock, flags);
@@ -161,7 +161,7 @@ static void scmi_vio_channel_cleanup_sync(struct scmi_vio_channel *vioch)
 
 	vioch->shutdown_done = &vioch_shutdown_done;
 	if (!vioch->is_rx && vioch->deferred_tx_wq)
-		/* Cannot be kicked anymore after this...*/
+		/* Cananalt be kicked anymore after this...*/
 		vioch->deferred_tx_wq = NULL;
 	spin_unlock_irqrestore(&vioch->lock, flags);
 
@@ -188,8 +188,8 @@ scmi_virtio_get_free_msg(struct scmi_vio_channel *vioch)
 	list_del_init(&msg->list);
 	spin_unlock_irqrestore(&vioch->free_lock, flags);
 
-	/* Still no users, no need to acquire poll_lock */
-	msg->poll_status = VIO_MSG_NOT_POLLED;
+	/* Still anal users, anal need to acquire poll_lock */
+	msg->poll_status = VIO_MSG_ANALT_POLLED;
 	refcount_set(&msg->users, 1);
 
 	return msg;
@@ -197,7 +197,7 @@ scmi_virtio_get_free_msg(struct scmi_vio_channel *vioch)
 
 static inline bool scmi_vio_msg_acquire(struct scmi_vio_msg *msg)
 {
-	return refcount_inc_not_zero(&msg->users);
+	return refcount_inc_analt_zero(&msg->users);
 }
 
 /* Assumes to be called with vio channel acquired already */
@@ -247,8 +247,8 @@ static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
 }
 
 /*
- * Assume to be called with channel already acquired or not ready at all;
- * vioch->lock MUST NOT have been already acquired.
+ * Assume to be called with channel already acquired or analt ready at all;
+ * vioch->lock MUST ANALT have been already acquired.
  */
 static void scmi_finalize_message(struct scmi_vio_channel *vioch,
 				  struct scmi_vio_msg *msg)
@@ -304,7 +304,7 @@ static void scmi_vio_complete_cb(struct virtqueue *vqueue)
 		 * Release vio channel between loop iterations to allow
 		 * virtio_chan_free() to eventually fully release it when
 		 * shutting down; in such a case, any outstanding message will
-		 * be ignored since this loop will bail out at the next
+		 * be iganalred since this loop will bail out at the next
 		 * iteration.
 		 */
 		scmi_vio_channel_release(vioch);
@@ -323,10 +323,10 @@ static void scmi_vio_deferred_tx_worker(struct work_struct *work)
 		return;
 
 	/*
-	 * Process pre-fetched messages: these could be non-polled messages or
+	 * Process pre-fetched messages: these could be analn-polled messages or
 	 * late timed-out replies to polled messages dequeued by chance while
 	 * polling for some other messages: this worker is in charge to process
-	 * the valid non-expired messages and anyway finally free all of them.
+	 * the valid analn-expired messages and anyway finally free all of them.
 	 */
 	spin_lock_irqsave(&vioch->pending_lock, flags);
 
@@ -335,10 +335,10 @@ static void scmi_vio_deferred_tx_worker(struct work_struct *work)
 		list_del(&msg->list);
 
 		/*
-		 * Channel is acquired here (cannot vanish) and this message
-		 * is no more processed elsewhere so no poll_lock needed.
+		 * Channel is acquired here (cananalt vanish) and this message
+		 * is anal more processed elsewhere so anal poll_lock needed.
 		 */
-		if (msg->poll_status == VIO_MSG_NOT_POLLED)
+		if (msg->poll_status == VIO_MSG_ANALT_POLLED)
 			scmi_rx_callback(vioch->cinfo,
 					 msg_read_header(msg->input), msg);
 
@@ -371,8 +371,8 @@ static unsigned int virtio_get_max_msg(struct scmi_chan_info *base_cinfo)
 static int virtio_link_supplier(struct device *dev)
 {
 	if (!scmi_vdev) {
-		dev_notice(dev,
-			   "Deferring probe after not finding a bound scmi-virtio device\n");
+		dev_analtice(dev,
+			   "Deferring probe after analt finding a bound scmi-virtio device\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -385,7 +385,7 @@ static int virtio_link_supplier(struct device *dev)
 	return 0;
 }
 
-static bool virtio_chan_available(struct device_node *of_node, int idx)
+static bool virtio_chan_available(struct device_analde *of_analde, int idx)
 {
 	struct scmi_vio_channel *channels, *vioch = NULL;
 
@@ -435,7 +435,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 					WQ_UNBOUND | WQ_FREEZABLE | WQ_SYSFS,
 					0);
 		if (!vioch->deferred_tx_wq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = devm_add_action_or_reset(dev, scmi_destroy_tx_workqueue,
 					       vioch->deferred_tx_wq);
@@ -451,14 +451,14 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 
 		msg = devm_kzalloc(dev, sizeof(*msg), GFP_KERNEL);
 		if (!msg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (tx) {
 			msg->request = devm_kzalloc(dev,
 						    VIRTIO_SCMI_MAX_PDU_SIZE,
 						    GFP_KERNEL);
 			if (!msg->request)
-				return -ENOMEM;
+				return -EANALMEM;
 			spin_lock_init(&msg->poll_lock);
 			refcount_set(&msg->users, 1);
 		}
@@ -466,7 +466,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 		msg->input = devm_kzalloc(dev, VIRTIO_SCMI_MAX_PDU_SIZE,
 					  GFP_KERNEL);
 		if (!msg->input)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		scmi_finalize_message(vioch, msg);
 	}
@@ -527,7 +527,7 @@ static int virtio_send_message(struct scmi_chan_info *cinfo,
 	 */
 	if (xfer->hdr.poll_completion) {
 		msg->poll_idx = virtqueue_enable_cb_prepare(vioch->vqueue);
-		/* Still no users, no need to acquire poll_lock */
+		/* Still anal users, anal need to acquire poll_lock */
 		msg->poll_status = VIO_MSG_POLLING;
 		scmi_vio_msg_acquire(msg);
 		/* Ensure initialized msg is visibly bound to xfer */
@@ -565,13 +565,13 @@ static void virtio_fetch_response(struct scmi_chan_info *cinfo,
 		msg_fetch_response(msg->input, msg->rx_len, xfer);
 }
 
-static void virtio_fetch_notification(struct scmi_chan_info *cinfo,
+static void virtio_fetch_analtification(struct scmi_chan_info *cinfo,
 				      size_t max_len, struct scmi_xfer *xfer)
 {
 	struct scmi_vio_msg *msg = xfer->priv;
 
 	if (msg)
-		msg_fetch_notification(msg->input, msg->rx_len, max_len, xfer);
+		msg_fetch_analtification(msg->input, msg->rx_len, max_len, xfer);
 }
 
 /**
@@ -579,7 +579,7 @@ static void virtio_fetch_notification(struct scmi_chan_info *cinfo,
  *
  * Free only completed polling transfer messages.
  *
- * Note that in the SCMI VirtIO transport we never explicitly release still
+ * Analte that in the SCMI VirtIO transport we never explicitly release still
  * outstanding but timed-out messages by forcibly re-adding them to the
  * free-list inside the TX code path; we instead let IRQ/RX callbacks, or the
  * TX deferred worker, eventually clean up such messages once, finally, a late
@@ -594,7 +594,7 @@ static void virtio_fetch_notification(struct scmi_chan_info *cinfo,
  * anyway broken and it will quickly lead to exhaustion of available messages.
  *
  * For this same reason, here, we take care to free only the polled messages
- * that had been somehow replied (only if not by chance already processed on the
+ * that had been somehow replied (only if analt by chance already processed on the
  * IRQ path - the initial scmi_vio_msg_release() takes care of this) and also
  * any timed-out polled message if that indeed appears to have been at least
  * dequeued from the virtqueues (VIO_MSG_POLL_DONE): this is needed since such
@@ -622,14 +622,14 @@ static void virtio_mark_txdone(struct scmi_chan_info *cinfo, int ret,
 	/* Ensure msg is unbound from xfer anyway at this point */
 	smp_store_mb(xfer->priv, NULL);
 
-	/* Must be a polled xfer and not already freed on the IRQ path */
+	/* Must be a polled xfer and analt already freed on the IRQ path */
 	if (!xfer->hdr.poll_completion || scmi_vio_msg_release(vioch, msg)) {
 		scmi_vio_channel_release(vioch);
 		return;
 	}
 
 	spin_lock_irqsave(&msg->poll_lock, flags);
-	/* Do not free timedout polled messages only if still inflight */
+	/* Do analt free timedout polled messages only if still inflight */
 	if (ret != -ETIMEDOUT || msg->poll_status == VIO_MSG_POLL_DONE)
 		scmi_vio_msg_release(vioch, msg);
 	else if (msg->poll_status == VIO_MSG_POLLING)
@@ -667,9 +667,9 @@ static void virtio_mark_txdone(struct scmi_chan_info *cinfo, int ret,
  * Finally, we delegate to the deferred worker also the final free of any timed
  * out reply to a polled message that we should dequeue.
  *
- * Note that, since we do NOT have per-message suppress notification mechanism,
+ * Analte that, since we do ANALT have per-message suppress analtification mechanism,
  * the message we are polling for could be alternatively delivered via usual
- * IRQs callbacks on another core which happened to have IRQs enabled while we
+ * IRQs callbacks on aanalther core which happened to have IRQs enabled while we
  * are actively polling for it here: in such a case it will be handled as such
  * by scmi_rx_callback() and the polling loop in the SCMI Core TX path will be
  * transparently terminated anyway.
@@ -689,16 +689,16 @@ static bool virtio_poll_done(struct scmi_chan_info *cinfo,
 		return true;
 
 	/*
-	 * Processed already by other polling loop on another CPU ?
+	 * Processed already by other polling loop on aanalther CPU ?
 	 *
-	 * Note that this message is acquired on the poll path so cannot vanish
+	 * Analte that this message is acquired on the poll path so cananalt vanish
 	 * while inside this loop iteration even if concurrently processed on
 	 * the IRQ path.
 	 *
 	 * Avoid to acquire poll_lock since polled_status can be changed
 	 * in a relevant manner only later in this same thread of execution:
 	 * any other possible changes made concurrently by other polling loops
-	 * or by a reply delivered on the IRQ path have no meaningful impact on
+	 * or by a reply delivered on the IRQ path have anal meaningful impact on
 	 * this loop iteration: in other words it is harmless to allow this
 	 * possible race but let has avoid spinlocking with irqs off in this
 	 * initial part of the polling loop.
@@ -743,16 +743,16 @@ static bool virtio_poll_done(struct scmi_chan_info *cinfo,
 			found = true;
 			break;
 		} else if (next_msg_done) {
-			/* Skip the rest if this was another polled msg */
+			/* Skip the rest if this was aanalther polled msg */
 			continue;
 		}
 
 		/*
-		 * Enqueue for later processing any non-polled message and any
+		 * Enqueue for later processing any analn-polled message and any
 		 * timed-out polled one that we happen to have dequeued.
 		 */
 		spin_lock(&next_msg->poll_lock);
-		if (next_msg->poll_status == VIO_MSG_NOT_POLLED ||
+		if (next_msg->poll_status == VIO_MSG_ANALT_POLLED ||
 		    next_msg->poll_status == VIO_MSG_POLL_TIMEOUT) {
 			spin_unlock(&next_msg->poll_lock);
 
@@ -769,7 +769,7 @@ static bool virtio_poll_done(struct scmi_chan_info *cinfo,
 	/*
 	 * When the polling loop has successfully terminated if something
 	 * else was queued in the meantime, it will be served by a deferred
-	 * worker OR by the normal IRQ/callback OR by other poll loops.
+	 * worker OR by the analrmal IRQ/callback OR by other poll loops.
 	 *
 	 * If we are still looking for the polled reply, the polling index has
 	 * to be updated to the current vqueue last used index.
@@ -799,7 +799,7 @@ static const struct scmi_transport_ops scmi_virtio_ops = {
 	.get_max_msg = virtio_get_max_msg,
 	.send_message = virtio_send_message,
 	.fetch_response = virtio_fetch_response,
-	.fetch_notification = virtio_fetch_notification,
+	.fetch_analtification = virtio_fetch_analtification,
 	.mark_txdone = virtio_mark_txdone,
 	.poll_done = virtio_poll_done,
 };
@@ -826,7 +826,7 @@ static int scmi_vio_probe(struct virtio_device *vdev)
 
 	channels = devm_kcalloc(dev, vq_cnt, sizeof(*channels), GFP_KERNEL);
 	if (!channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (have_vq_rx)
 		channels[VIRTIO_SCMI_VQ_RX].is_rx = true;
@@ -875,8 +875,8 @@ static void scmi_vio_remove(struct virtio_device *vdev)
 	/*
 	 * Once we get here, virtio_chan_free() will have already been called by
 	 * the SCMI core for any existing channel and, as a consequence, all the
-	 * virtio channels will have been already marked NOT ready, causing any
-	 * outstanding message on any vqueue to be ignored by complete_cb: now
+	 * virtio channels will have been already marked ANALT ready, causing any
+	 * outstanding message on any vqueue to be iganalred by complete_cb: analw
 	 * we can just stop processing buffers and destroy the vqueues.
 	 */
 	virtio_reset_device(vdev);
@@ -890,7 +890,7 @@ static int scmi_vio_validate(struct virtio_device *vdev)
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_VIRTIO_VERSION1_COMPLIANCE
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev,
-			"device does not comply with spec version 1.x\n");
+			"device does analt comply with spec version 1.x\n");
 		return -EINVAL;
 	}
 #endif
@@ -931,7 +931,7 @@ const struct scmi_desc scmi_virtio_desc = {
 	.transport_init = virtio_scmi_init,
 	.transport_exit = virtio_scmi_exit,
 	.ops = &scmi_virtio_ops,
-	/* for non-realtime virtio devices */
+	/* for analn-realtime virtio devices */
 	.max_rx_timeout_ms = VIRTIO_MAX_RX_TIMEOUT_MS,
 	.max_msg = 0, /* overridden by virtio_get_max_msg() */
 	.max_msg_size = VIRTIO_SCMI_MAX_MSG_SIZE,

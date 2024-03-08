@@ -99,7 +99,7 @@ module_param(hp_c2502, int, 0);
 
 static int irq[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_hw_array(irq, int, irq, NULL, 0);
-MODULE_PARM_DESC(irq, "IRQ number(s) (0=none, 254=auto [default])");
+MODULE_PARM_DESC(irq, "IRQ number(s) (0=analne, 254=auto [default])");
 
 static int base[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 module_param_hw_array(base, int, ioport, NULL, 0);
@@ -121,7 +121,7 @@ static void g_NCR5380_trigger_irq(struct Scsi_Host *instance)
 	 * and a bit set in the SELECT_ENABLE_REG is asserted on the
 	 * SCSI bus.
 	 *
-	 * Note that the bus is only driven when the phase control signals
+	 * Analte that the bus is only driven when the phase control signals
 	 * (I/O, C/D, and MSG) match those in the TCR.
 	 */
 	NCR5380_write(TARGET_COMMAND_REG,
@@ -158,7 +158,7 @@ static int g_NCR5380_probe_irq(struct Scsi_Host *instance)
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 
 	if (irq <= 0)
-		return NO_IRQ;
+		return ANAL_IRQ;
 	return irq;
 }
 
@@ -236,7 +236,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 
 	switch (board) {
 	case BOARD_NCR5380:
-		flags = FLAG_NO_PSEUDO_DMA | FLAG_DMA_FIXUP;
+		flags = FLAG_ANAL_PSEUDO_DMA | FLAG_DMA_FIXUP;
 		break;
 	case BOARD_NCR53C400A:
 		ports = ncr_53c400a_ports;
@@ -280,18 +280,18 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 			}
 		if (ports[i]) {
 			/* At this point we have our region reserved */
-			magic_configure(i, 0, magic); /* no IRQ yet */
+			magic_configure(i, 0, magic); /* anal IRQ yet */
 			base = ports[i];
 			outb(0xc0, base + 9);
 			if (inb(base + 9) != 0x80) {
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto out_release;
 			}
 			port_idx = i;
 		} else
 			return -EINVAL;
 	} else if (is_pmio) {
-		/* NCR5380 - no configuration, just grab */
+		/* NCR5380 - anal configuration, just grab */
 		region_size = 8;
 		if (!base || !request_region(base, region_size, "ncr5380"))
 			return -EBUSY;
@@ -307,13 +307,13 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 		iomem = ioremap(base, region_size);
 
 	if (!iomem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release;
 	}
 
 	instance = scsi_host_alloc(tpnt, sizeof(struct NCR5380_hostdata));
 	if (instance == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap;
 	}
 	hostdata = shost_priv(instance);
@@ -360,7 +360,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 		case BOARD_DTC3181E:
 		case BOARD_NCR53C400A:
 		case BOARD_HP_C2502:
-			pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
+			pr_err(DRV_MODULE_NAME ": unkanalwn register offsets\n");
 			ret = -EINVAL;
 			goto out_unregister;
 		}
@@ -369,7 +369,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 	/* Check for vacant slot */
 	NCR5380_write(MODE_REG, 0);
 	if (NCR5380_read(MODE_REG) != 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_unregister;
 	}
 
@@ -389,7 +389,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 
 	/* Compatibility with documented NCR5380 kernel parameters */
 	if (irq == 255 || irq == 0)
-		irq = NO_IRQ;
+		irq = ANAL_IRQ;
 	else if (irq == -1)
 		irq = IRQ_AUTO;
 
@@ -398,7 +398,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 		int board_irq = -1;
 
 		switch (irq) {
-		case NO_IRQ:
+		case ANAL_IRQ:
 			board_irq = 0;
 			break;
 		case IRQ_AUTO:
@@ -412,7 +412,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 
 		if (board_irq <= 0) {
 			board_irq = 0;
-			irq = NO_IRQ;
+			irq = ANAL_IRQ;
 		}
 
 		magic_configure(port_idx, board_irq, magic);
@@ -420,18 +420,18 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 
 	if (irq == IRQ_AUTO) {
 		instance->irq = g_NCR5380_probe_irq(instance);
-		if (instance->irq == NO_IRQ)
-			shost_printk(KERN_INFO, instance, "no irq detected\n");
+		if (instance->irq == ANAL_IRQ)
+			shost_printk(KERN_INFO, instance, "anal irq detected\n");
 	} else {
 		instance->irq = irq;
-		if (instance->irq == NO_IRQ)
-			shost_printk(KERN_INFO, instance, "no irq provided\n");
+		if (instance->irq == ANAL_IRQ)
+			shost_printk(KERN_INFO, instance, "anal irq provided\n");
 	}
 
-	if (instance->irq != NO_IRQ) {
+	if (instance->irq != ANAL_IRQ) {
 		if (request_irq(instance->irq, generic_NCR5380_intr,
 				0, "NCR5380", instance)) {
-			instance->irq = NO_IRQ;
+			instance->irq = ANAL_IRQ;
 			shost_printk(KERN_INFO, instance,
 			             "irq %d denied\n", instance->irq);
 		} else {
@@ -448,7 +448,7 @@ static int generic_NCR5380_init_one(const struct scsi_host_template *tpnt,
 	return 0;
 
 out_free_irq:
-	if (instance->irq != NO_IRQ)
+	if (instance->irq != ANAL_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 out_unregister:
@@ -472,7 +472,7 @@ static void generic_NCR5380_release_resources(struct Scsi_Host *instance)
 	unsigned long region_size = hostdata->region_size;
 
 	scsi_remove_host(instance);
-	if (instance->irq != NO_IRQ)
+	if (instance->irq != ANAL_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);
@@ -502,7 +502,7 @@ static void wait_for_53c80_access(struct NCR5380_hostdata *hostdata)
 	} while (--count > 0);
 
 	scmd_printk(KERN_ERR, hostdata->connected,
-	            "53c80 registers not accessible, device will be reset\n");
+	            "53c80 registers analt accessible, device will be reset\n");
 	NCR5380_write(hostdata->c400_ctl_status, CSR_RESET);
 	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
 }
@@ -527,17 +527,17 @@ static inline int generic_NCR5380_precv(struct NCR5380_hostdata *hostdata,
 
 	do {
 		if (start == len - 128) {
-			/* Ignore End of DMA interrupt for the final buffer */
+			/* Iganalre End of DMA interrupt for the final buffer */
 			if (NCR5380_poll_politely(hostdata, hostdata->c400_ctl_status,
-			                          CSR_HOST_BUF_NOT_RDY, 0, 0) < 0)
+			                          CSR_HOST_BUF_ANALT_RDY, 0, 0) < 0)
 				break;
 		} else {
 			if (NCR5380_poll_politely2(hostdata, hostdata->c400_ctl_status,
-			                           CSR_HOST_BUF_NOT_RDY, 0,
+			                           CSR_HOST_BUF_ANALT_RDY, 0,
 			                           hostdata->c400_ctl_status,
 			                           CSR_GATED_53C80_IRQ,
 			                           CSR_GATED_53C80_IRQ, 0) < 0 ||
-			    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
+			    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_ANALT_RDY)
 				break;
 		}
 
@@ -594,11 +594,11 @@ static inline int generic_NCR5380_psend(struct NCR5380_hostdata *hostdata,
 
 	do {
 		if (NCR5380_poll_politely2(hostdata, hostdata->c400_ctl_status,
-		                           CSR_HOST_BUF_NOT_RDY, 0,
+		                           CSR_HOST_BUF_ANALT_RDY, 0,
 		                           hostdata->c400_ctl_status,
 		                           CSR_GATED_53C80_IRQ,
 		                           CSR_GATED_53C80_IRQ, 0) < 0 ||
-		    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY) {
+		    NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_ANALT_RDY) {
 			/* Both 128 B buffers are in use */
 			if (start >= 128)
 				start -= 128;
@@ -665,10 +665,10 @@ static int generic_NCR5380_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 {
 	int transfersize = NCR5380_to_ncmd(cmd)->this_residual;
 
-	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
+	if (hostdata->flags & FLAG_ANAL_PSEUDO_DMA)
 		return 0;
 
-	/* 53C400 datasheet: non-modulo-128-byte transfers should use PIO */
+	/* 53C400 datasheet: analn-modulo-128-byte transfers should use PIO */
 	if (transfersize % 128)
 		return 0;
 
@@ -712,7 +712,7 @@ static int generic_NCR5380_isa_match(struct device *pdev, unsigned int ndev)
 	                                   irq[ndev], card[ndev]);
 	if (ret) {
 		if (base[ndev])
-			printk(KERN_WARNING "Card not found at address 0x%03x\n",
+			printk(KERN_WARNING "Card analt found at address 0x%03x\n",
 			       base[ndev]);
 		return 0;
 	}

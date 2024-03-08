@@ -45,7 +45,7 @@ static int __xfrm6_output_finish(struct net *net, struct sock *sk, struct sk_buf
 	return xfrm_output(sk, skb);
 }
 
-static int xfrm6_noneed_fragment(struct sk_buff *skb)
+static int xfrm6_analneed_fragment(struct sk_buff *skb)
 {
 	struct frag_hdr *fh;
 	u8 prevhdr = ipv6_hdr(skb)->nexthdr;
@@ -86,10 +86,10 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		xfrm6_local_rxpmtu(skb, mtu);
 		kfree_skb(skb);
 		return -EMSGSIZE;
-	} else if (toobig && xfrm6_noneed_fragment(skb)) {
-		skb->ignore_df = 1;
+	} else if (toobig && xfrm6_analneed_fragment(skb)) {
+		skb->iganalre_df = 1;
 		goto skip_frag;
-	} else if (!skb->ignore_df && toobig && skb->sk) {
+	} else if (!skb->iganalre_df && toobig && skb->sk) {
 		xfrm_local_error(skb, mtu);
 		kfree_skb(skb);
 		return -EMSGSIZE;

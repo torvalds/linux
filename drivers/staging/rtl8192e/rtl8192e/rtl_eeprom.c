@@ -10,24 +10,24 @@
 #include "rtl_core.h"
 #include "rtl_eeprom.h"
 
-static void _rtl92e_gpio_write_bit(struct net_device *dev, int no, bool val)
+static void _rtl92e_gpio_write_bit(struct net_device *dev, int anal, bool val)
 {
 	u8 reg = rtl92e_readb(dev, EPROM_CMD);
 
 	if (val)
-		reg |= 1 << no;
+		reg |= 1 << anal;
 	else
-		reg &= ~(1 << no);
+		reg &= ~(1 << anal);
 
 	rtl92e_writeb(dev, EPROM_CMD, reg);
 	udelay(EPROM_DELAY);
 }
 
-static bool _rtl92e_gpio_get_bit(struct net_device *dev, int no)
+static bool _rtl92e_gpio_get_bit(struct net_device *dev, int anal)
 {
 	u8 reg = rtl92e_readb(dev, EPROM_CMD);
 
-	return (reg >> no) & 0x1;
+	return (reg >> anal) & 0x1;
 }
 
 static void _rtl92e_eeprom_ck_cycle(struct net_device *dev)
@@ -79,6 +79,6 @@ u32 rtl92e_eeprom_read(struct net_device *dev, u32 addr)
 		ret = _rtl92e_eeprom_xfer(dev, (addr & 0x3F) | (0x6 << 6), 9);
 
 	rtl92e_writeb(dev, EPROM_CMD,
-		      (EPROM_CMD_NORMAL << EPROM_CMD_OPERATING_MODE_SHIFT));
+		      (EPROM_CMD_ANALRMAL << EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

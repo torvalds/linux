@@ -32,7 +32,7 @@ int cdx_rpmsg_send(struct cdx_mcdi *cdx_mcdi,
 
 	send_buf = kzalloc(hdr_len + sdu_len, GFP_KERNEL);
 	if (!send_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(send_buf, hdr, hdr_len);
 	memcpy(send_buf + hdr_len, sdu, sdu_len);
@@ -45,7 +45,7 @@ int cdx_rpmsg_send(struct cdx_mcdi *cdx_mcdi,
 
 static int cdx_attach_to_rproc(struct platform_device *pdev)
 {
-	struct device_node *r5_core_node;
+	struct device_analde *r5_core_analde;
 	struct cdx_controller *cdx_c;
 	struct cdx_mcdi *cdx_mcdi;
 	struct device *dev;
@@ -56,13 +56,13 @@ static int cdx_attach_to_rproc(struct platform_device *pdev)
 	cdx_c = platform_get_drvdata(pdev);
 	cdx_mcdi = cdx_c->priv;
 
-	r5_core_node = of_parse_phandle(dev->of_node, "xlnx,rproc", 0);
-	if (!r5_core_node) {
+	r5_core_analde = of_parse_phandle(dev->of_analde, "xlnx,rproc", 0);
+	if (!r5_core_analde) {
 		dev_err(&pdev->dev, "xlnx,rproc: invalid phandle\n");
 		return -EINVAL;
 	}
 
-	rp = rproc_get_by_phandle(r5_core_node->phandle);
+	rp = rproc_get_by_phandle(r5_core_analde->phandle);
 	if (!rp) {
 		ret = -EPROBE_DEFER;
 		goto pdev_err;
@@ -78,7 +78,7 @@ static int cdx_attach_to_rproc(struct platform_device *pdev)
 
 	cdx_mcdi->r5_rproc = rp;
 pdev_err:
-	of_node_put(r5_core_node);
+	of_analde_put(r5_core_analde);
 	return ret;
 }
 

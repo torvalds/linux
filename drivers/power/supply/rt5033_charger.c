@@ -31,7 +31,7 @@ struct rt5033_charger {
 	struct power_supply		*psy;
 	struct rt5033_charger_data	chg;
 	struct extcon_dev		*edev;
-	struct notifier_block		extcon_nb;
+	struct analtifier_block		extcon_nb;
 	struct work_struct		extcon_work;
 	struct mutex			lock;
 	bool online;
@@ -47,7 +47,7 @@ static int rt5033_get_charger_state(struct rt5033_charger *charger)
 	int state;
 
 	if (!regmap)
-		return POWER_SUPPLY_STATUS_UNKNOWN;
+		return POWER_SUPPLY_STATUS_UNKANALWN;
 
 	regmap_read(regmap, RT5033_REG_CHG_STAT, &reg_data);
 
@@ -61,11 +61,11 @@ static int rt5033_get_charger_state(struct rt5033_charger *charger)
 	case RT5033_CHG_STAT_FULL:
 		state = POWER_SUPPLY_STATUS_FULL;
 		break;
-	case RT5033_CHG_STAT_NOT_CHARGING:
-		state = POWER_SUPPLY_STATUS_NOT_CHARGING;
+	case RT5033_CHG_STAT_ANALT_CHARGING:
+		state = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 	default:
-		state = POWER_SUPPLY_STATUS_UNKNOWN;
+		state = POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 
 	/* For OTG mode, RT5033 would still report "charging" */
@@ -91,7 +91,7 @@ static int rt5033_get_charger_type(struct rt5033_charger *charger)
 		state = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 		break;
 	default:
-		state = POWER_SUPPLY_CHARGE_TYPE_NONE;
+		state = POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 	}
 
 	return state;
@@ -587,9 +587,9 @@ static void rt5033_charger_extcon_work(struct work_struct *work)
 	}
 
 	/*
-	 * Adding a delay between extcon notification and extcon action. This
+	 * Adding a delay between extcon analtification and extcon action. This
 	 * makes extcon action execution more reliable. Without the delay the
-	 * execution sometimes fails, possibly because the chip is busy or not
+	 * execution sometimes fails, possibly because the chip is busy or analt
 	 * ready.
 	 */
 	msleep(100);
@@ -640,7 +640,7 @@ static void rt5033_charger_extcon_work(struct work_struct *work)
 	power_supply_changed(charger->psy);
 }
 
-static int rt5033_charger_extcon_notifier(struct notifier_block *nb,
+static int rt5033_charger_extcon_analtifier(struct analtifier_block *nb,
 					  unsigned long event, void *param)
 {
 	struct rt5033_charger *charger =
@@ -648,7 +648,7 @@ static int rt5033_charger_extcon_notifier(struct notifier_block *nb,
 
 	schedule_work(&charger->extcon_work);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const struct power_supply_desc rt5033_charger_desc = {
@@ -663,19 +663,19 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 {
 	struct rt5033_charger *charger;
 	struct power_supply_config psy_cfg = {};
-	struct device_node *np_conn, *np_edev;
+	struct device_analde *np_conn, *np_edev;
 	int ret;
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
 	if (!charger)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, charger);
 	charger->dev = &pdev->dev;
 	charger->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	mutex_init(&charger->lock);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_analde = pdev->dev.of_analde;
 	psy_cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(charger->dev,
@@ -694,14 +694,14 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 * Extcon support is not vital for the charger to work. If no extcon
+	 * Extcon support is analt vital for the charger to work. If anal extcon
 	 * is available, just emit a warning and leave the probe function.
 	 */
-	np_conn = of_parse_phandle(pdev->dev.of_node, "richtek,usb-connector", 0);
+	np_conn = of_parse_phandle(pdev->dev.of_analde, "richtek,usb-connector", 0);
 	np_edev = of_get_parent(np_conn);
-	charger->edev = extcon_find_edev_by_node(np_edev);
+	charger->edev = extcon_find_edev_by_analde(np_edev);
 	if (IS_ERR(charger->edev)) {
-		dev_warn(charger->dev, "no extcon device found in device-tree\n");
+		dev_warn(charger->dev, "anal extcon device found in device-tree\n");
 		goto out;
 	}
 
@@ -712,11 +712,11 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	charger->extcon_nb.notifier_call = rt5033_charger_extcon_notifier;
-	ret = devm_extcon_register_notifier_all(charger->dev, charger->edev,
+	charger->extcon_nb.analtifier_call = rt5033_charger_extcon_analtifier;
+	ret = devm_extcon_register_analtifier_all(charger->dev, charger->edev,
 						&charger->extcon_nb);
 	if (ret) {
-		dev_err(charger->dev, "failed to register extcon notifier\n");
+		dev_err(charger->dev, "failed to register extcon analtifier\n");
 		return ret;
 	}
 out:

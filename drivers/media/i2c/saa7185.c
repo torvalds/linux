@@ -35,7 +35,7 @@ struct saa7185 {
 	struct v4l2_subdev sd;
 	unsigned char reg[128];
 
-	v4l2_std_id norm;
+	v4l2_std_id analrm;
 };
 
 static inline struct saa7185 *to_saa7185(struct v4l2_subdev *sd)
@@ -73,7 +73,7 @@ static int saa7185_write_block(struct v4l2_subdev *sd,
 	/* the adv7175 has an autoincrement function, use it if
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		/* do raw I2C, not smbus compatible */
+		/* do raw I2C, analt smbus compatible */
 		u8 block_data[32];
 		int block_len;
 
@@ -143,7 +143,7 @@ static const unsigned char init_common[] = {
 	0x5f, 0x3a,		/* CCRS=0, BLNVB=58 */
 	0x60, 0x00,		/* NULL      */
 
-	/* 0x61 - 0x66 set according to norm */
+	/* 0x61 - 0x66 set according to analrm */
 
 	0x67, 0x00,		/* 0 : caption 1st byte odd  field */
 	0x68, 0x00,		/* 0 : caption 2nd byte odd  field */
@@ -160,7 +160,7 @@ static const unsigned char init_common[] = {
 	0x6f, 0x00,		/* HTRIG upper bits */
 	0x70, 0x20,		/* PHRES=0, SBLN=1, VTRIG=0 */
 
-	/* The following should not be needed */
+	/* The following should analt be needed */
 
 	0x71, 0x15,		/* BMRQ=0x115 */
 	0x72, 0x90,		/* EMRQ=0x690 */
@@ -176,7 +176,7 @@ static const unsigned char init_common[] = {
 
 	0x7a, 0x70,		/* FLC=0 */
 
-	/* The following should not be needed if SBLN = 1 */
+	/* The following should analt be needed if SBLN = 1 */
 
 	0x7b, 0x16,		/* FAL=22 */
 	0x7c, 0x35,		/* LAL=244 */
@@ -209,7 +209,7 @@ static int saa7185_init(struct v4l2_subdev *sd, u32 val)
 	struct saa7185 *encoder = to_saa7185(sd);
 
 	saa7185_write_block(sd, init_common, sizeof(init_common));
-	if (encoder->norm & V4L2_STD_NTSC)
+	if (encoder->analrm & V4L2_STD_NTSC)
 		saa7185_write_block(sd, init_ntsc, sizeof(init_ntsc));
 	else
 		saa7185_write_block(sd, init_pal, sizeof(init_pal));
@@ -226,7 +226,7 @@ static int saa7185_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		saa7185_write_block(sd, init_pal, sizeof(init_pal));
 	else
 		return -EINVAL;
-	encoder->norm = std;
+	encoder->analrm = std;
 	return 0;
 }
 
@@ -298,15 +298,15 @@ static int saa7185_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
-		return -ENOMEM;
-	encoder->norm = V4L2_STD_NTSC;
+		return -EANALMEM;
+	encoder->analrm = V4L2_STD_NTSC;
 	sd = &encoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa7185_ops);
 

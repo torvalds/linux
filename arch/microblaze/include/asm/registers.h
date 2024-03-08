@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techanal, Inc.
  */
 
 #ifndef _ASM_MICROBLAZE_REGISTERS_H
@@ -25,7 +25,7 @@
 #define FSR_DZ		(1<<3) /* Divide-by-zero */
 #define FSR_OF		(1<<2) /* Overflow */
 #define FSR_UF		(1<<1) /* Underflow */
-#define FSR_DO		(1<<0) /* Denormalized operand error */
+#define FSR_DO		(1<<0) /* Deanalrmalized operand error */
 
 /* Machine State Register (MSR) Fields */
 # define MSR_UM		(1<<11) /* User Mode */

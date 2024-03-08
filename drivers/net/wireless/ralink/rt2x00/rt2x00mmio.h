@@ -56,7 +56,7 @@ static inline void rt2x00mmio_register_multiwrite(struct rt2x00_dev *rt2x00dev,
  * This function will read the given register, and checks if the
  * register is busy. If it is, it will sleep for a couple of
  * microseconds before reading the register again. If the register
- * is not read after a certain timeout, this function will return
+ * is analt read after a certain timeout, this function will return
  * FALSE.
  */
 int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,

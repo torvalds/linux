@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -43,7 +43,7 @@ static struct tcf_meta_ops ife_skbtcindex_ops = {
 	.metaid = IFE_META_TCINDEX,
 	.metatype = NLA_U16,
 	.name = "tc_index",
-	.synopsis = "skb tc_index 16 bit metadata",
+	.syanalpsis = "skb tc_index 16 bit metadata",
 	.check_presence = skbtcindex_check,
 	.encode = skbtcindex_encode,
 	.decode = skbtcindex_decode,

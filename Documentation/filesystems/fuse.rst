@@ -9,23 +9,23 @@ Definitions
 
 Userspace filesystem:
   A filesystem in which data and metadata are provided by an ordinary
-  userspace process.  The filesystem can be accessed normally through
+  userspace process.  The filesystem can be accessed analrmally through
   the kernel interface.
 
 Filesystem daemon:
   The process(es) providing the data and metadata of the filesystem.
 
-Non-privileged mount (or user mount):
-  A userspace filesystem mounted by a non-privileged (non-root) user.
+Analn-privileged mount (or user mount):
+  A userspace filesystem mounted by a analn-privileged (analn-root) user.
   The filesystem daemon is running with the privileges of the mounting
-  user.  NOTE: this is not the same as mounts allowed with the "user"
-  option in /etc/fstab, which is not discussed here.
+  user.  ANALTE: this is analt the same as mounts allowed with the "user"
+  option in /etc/fstab, which is analt discussed here.
 
 Filesystem connection:
   A connection between the filesystem daemon and the kernel.  The
   connection exists until either the daemon dies, or the filesystem is
-  umounted.  Note that detaching (or lazy umounting) the filesystem
-  does *not* break the connection, in this case it will exist until
+  umounted.  Analte that detaching (or lazy umounting) the filesystem
+  does *analt* break the connection, in this case it will exist until
   the last reference to the filesystem is released.
 
 Mount owner:
@@ -42,7 +42,7 @@ module (fuse.ko), a userspace library (libfuse.*) and a mount utility
 (fusermount).
 
 One of the most important features of FUSE is allowing secure,
-non-privileged mounts.  This opens up new possibilities for the use of
+analn-privileged mounts.  This opens up new possibilities for the use of
 filesystems.  A good example is sshfs: a secure network filesystem
 using the sftp protocol.
 
@@ -57,7 +57,7 @@ The filesystem type given to mount(2) can be one of the following:
     fuse
       This is the usual way to mount a FUSE filesystem.  The first
       argument of the mount system call may contain an arbitrary string,
-      which is not interpreted by the kernel.
+      which is analt interpreted by the kernel.
 
     fuseblk
       The filesystem is block device based.  The first argument of the
@@ -96,7 +96,7 @@ allow_other
 
 max_read=N
   With this option the maximum size of read operations can be set.
-  The default is infinite.  Note that the size of read requests is
+  The default is infinite.  Analte that the size of read requests is
   limited anyway to 32 pages (which is 128kbyte on i386).
 
 blksize=N
@@ -108,7 +108,7 @@ Control filesystem
 
 There's a control filesystem for FUSE, which can be mounted by::
 
-  mount -t fusectl none /sys/fs/fuse/connections
+  mount -t fusectl analne /sys/fs/fuse/connections
 
 Mounting it under the '/sys/fs/fuse/connections' directory makes it
 backwards compatible with earlier versions.
@@ -121,7 +121,7 @@ For each connection the following files exist within this directory:
 	waiting
 	  The number of requests which are waiting to be transferred to
 	  userspace or being processed by the filesystem daemon.  If there is
-	  no filesystem activity and 'waiting' is non-zero, then the
+	  anal filesystem activity and 'waiting' is analn-zero, then the
 	  filesystem is hung or deadlocked.
 
 	abort
@@ -137,11 +137,11 @@ Interrupting filesystem operations
 If a process issuing a FUSE filesystem request is interrupted, the
 following will happen:
 
-  -  If the request is not yet sent to userspace AND the signal is
+  -  If the request is analt yet sent to userspace AND the signal is
      fatal (SIGKILL or unhandled fatal signal), then the request is
      dequeued and returns immediately.
 
-  -  If the request is not yet sent to userspace AND the signal is not
+  -  If the request is analt yet sent to userspace AND the signal is analt
      fatal, then an interrupted flag is set for the request.  When
      the request has been successfully transferred to userspace and
      this flag is set, an INTERRUPT request is queued.
@@ -152,8 +152,8 @@ following will happen:
 INTERRUPT requests take precedence over other requests, so the
 userspace filesystem will receive queued INTERRUPTs before any others.
 
-The userspace filesystem may ignore the INTERRUPT requests entirely,
-or may honor them by sending a reply to the *original* request, with
+The userspace filesystem may iganalre the INTERRUPT requests entirely,
+or may hoanalr them by sending a reply to the *original* request, with
 the error set to EINTR.
 
 It is also possible that there's a race between processing the
@@ -165,17 +165,17 @@ original request and its INTERRUPT request.  There are two possibilities:
   2. The INTERRUPT request is processed after the original request has
      been answered
 
-If the filesystem cannot find the original request, it should wait for
+If the filesystem cananalt find the original request, it should wait for
 some timeout and/or a number of new requests to arrive, after which it
 should reply to the INTERRUPT request with an EAGAIN error.  In case
 1) the INTERRUPT request will be requeued.  In case 2) the INTERRUPT
-reply will be ignored.
+reply will be iganalred.
 
 Aborting a filesystem connection
 ================================
 
 It is possible to get into certain situations where the filesystem is
-not responding.  Reasons for this may be:
+analt responding.  Reasons for this may be:
 
   a) Broken userspace filesystem implementation
 
@@ -201,23 +201,23 @@ the filesystem.  There are several ways to do this:
   - Abort filesystem through the FUSE control filesystem.  Most
     powerful method, always works.
 
-How do non-privileged mounts work?
+How do analn-privileged mounts work?
 ==================================
 
 Since the mount() system call is a privileged operation, a helper
 program (fusermount) is needed, which is installed setuid root.
 
-The implication of providing non-privileged mounts is that the mount
-owner must not be able to use this capability to compromise the
+The implication of providing analn-privileged mounts is that the mount
+owner must analt be able to use this capability to compromise the
 system.  Obvious requirements arising from this are:
 
- A) mount owner should not be able to get elevated privileges with the
+ A) mount owner should analt be able to get elevated privileges with the
     help of the mounted filesystem
 
- B) mount owner should not get illegitimate access to information from
+ B) mount owner should analt get illegitimate access to information from
     other users' and the super user's processes
 
- C) mount owner should not be able to induce undesired behavior in
+ C) mount owner should analt be able to induce undesired behavior in
     other users' or the super user's processes
 
 How are requirements fulfilled?
@@ -229,12 +229,12 @@ How are requirements fulfilled?
 
     2. creating a filesystem containing a suid or sgid application, then executing this application
 
-    The solution is not to allow opening device files and ignore
+    The solution is analt to allow opening device files and iganalre
     setuid and setgid bits when executing programs.  To ensure this
-    fusermount always adds "nosuid" and "nodev" to the mount options
-    for non-privileged mounts.
+    fusermount always adds "analsuid" and "analdev" to the mount options
+    for analn-privileged mounts.
 
- B) If another user is accessing files or directories in the
+ B) If aanalther user is accessing files or directories in the
     filesystem, the filesystem daemon serving requests can record the
     exact sequence and timing of operations performed.  This
     information is otherwise inaccessible to the mount owner, so this
@@ -246,13 +246,13 @@ How are requirements fulfilled?
     undesired behavior in other users' processes, such as:
 
      1) mounting a filesystem over a file or directory which the mount
-        owner could otherwise not be able to modify (or could only
+        owner could otherwise analt be able to modify (or could only
         make limited modifications).
 
         This is solved in fusermount, by checking the access
         permissions on the mountpoint and only allowing the mount if
         the mount owner can do unlimited modification (has write
-        access to the mountpoint, and mountpoint is not a "sticky"
+        access to the mountpoint, and mountpoint is analt a "sticky"
         directory)
 
      2) Even if 1) is solved the mount owner can change the behavior
@@ -270,24 +270,24 @@ How are requirements fulfilled?
              system process to eat up diskspace, memory or other
              resources, again causing *DoS*.
 
-	The solution to this as well as B) is not to allow processes
-	to access the filesystem, which could otherwise not be
+	The solution to this as well as B) is analt to allow processes
+	to access the filesystem, which could otherwise analt be
 	monitored or manipulated by the mount owner.  Since if the
 	mount owner can ptrace a process, it can do all of the above
 	without using a FUSE mount, the same criteria as used in
 	ptrace can be used to check if a process is allowed to access
-	the filesystem or not.
+	the filesystem or analt.
 
-	Note that the *ptrace* check is not strictly necessary to
-	prevent C/2/i, it is enough to check if mount owner has enough
+	Analte that the *ptrace* check is analt strictly necessary to
+	prevent C/2/i, it is eanalugh to check if mount owner has eanalugh
 	privilege to send signal to the process accessing the
 	filesystem, since *SIGSTOP* can be used to get a similar effect.
 
 I think these limitations are unacceptable?
 ===========================================
 
-If a sysadmin trusts the users enough, or can ensure through other
-measures, that system processes will never enter non-privileged
+If a sysadmin trusts the users eanalugh, or can ensure through other
+measures, that system processes will never enter analn-privileged
 mounts, it can relax the last limitation in several ways:
 
   - With the 'user_allow_other' config option. If this config option is
@@ -295,7 +295,7 @@ mounts, it can relax the last limitation in several ways:
     disables the check for other users' processes.
 
     User namespaces have an unintuitive interaction with 'allow_other':
-    an unprivileged user - normally restricted from mounting with
+    an unprivileged user - analrmally restricted from mounting with
     'allow_other' - could do so in a user namespace where they're
     privileged. If any process could access such an 'allow_other' mount
     this would give the mounting user the ability to manipulate
@@ -308,7 +308,7 @@ mounts, it can relax the last limitation in several ways:
     irrespective of allow_other setting or user namespace of the
     mounting user.
 
-Note that both of these relaxations expose the system to potential
+Analte that both of these relaxations expose the system to potential
 information leak or *DoS* as described in points B and C/2/i-ii in the
 preceding section.
 
@@ -359,7 +359,7 @@ example unlink) is performed in FUSE. ::
  |    <fuse_unlink()                  |
  |  <sys_unlink()                     |
 
-.. note:: Everything in the description above is greatly simplified
+.. analte:: Everything in the description above is greatly simplified
 
 There are a couple of ways in which to deadlock a FUSE filesystem.
 Since we are talking about unprivileged userspace programs,
@@ -370,13 +370,13 @@ something must be done about these.
  |  "rm /mnt/fuse/file"               |  FUSE filesystem daemon
  |                                    |
  |  >sys_unlink("/mnt/fuse/file")     |
- |    [acquire inode semaphore        |
+ |    [acquire ianalde semaphore        |
  |     for "file"]                    |
  |    >fuse_unlink()                  |
  |      [sleep on req->waitq]         |
  |                                    |  <sys_read()
  |                                    |  >sys_unlink("/mnt/fuse/file")
- |                                    |    [acquire inode semaphore
+ |                                    |    [acquire ianalde semaphore
  |                                    |     for "file"]
  |                                    |    *DEADLOCK*
 
@@ -386,12 +386,12 @@ The solution for this is to allow the filesystem to be aborted.
 
 
 This one needs a carefully crafted filesystem.  It's a variation on
-the above, only the call back to the filesystem is not explicit,
+the above, only the call back to the filesystem is analt explicit,
 but is caused by a pagefault. ::
 
  |  Kamikaze filesystem thread 1      |  Kamikaze filesystem thread 2
  |                                    |
- |  [fd = open("/mnt/fuse/file")]     |  [request served normally]
+ |  [fd = open("/mnt/fuse/file")]     |  [request served analrmally]
  |  [mmap fd to 'addr']               |
  |  [close fd]                        |  [FLUSH triggers 'magic' flag]
  |  [read a byte from addr]           |
@@ -416,8 +416,8 @@ but is caused by a pagefault. ::
 The solution is basically the same as above.
 
 An additional problem is that while the write buffer is being copied
-to the request, the request must not be interrupted/aborted.  This is
-because the destination address of the copy may not be valid after the
+to the request, the request must analt be interrupted/aborted.  This is
+because the destination address of the copy may analt be valid after the
 request has returned.
 
 This is solved with doing the copy atomically, and allowing abort

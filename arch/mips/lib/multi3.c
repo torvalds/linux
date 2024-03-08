@@ -12,7 +12,7 @@
 #if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPSR6) && (__GNUC__ < 8)
 
 /* multiply 64-bit values, low 64-bits returned */
-static inline long long notrace dmulu(long long a, long long b)
+static inline long long analtrace dmulu(long long a, long long b)
 {
 	long long res;
 
@@ -21,7 +21,7 @@ static inline long long notrace dmulu(long long a, long long b)
 }
 
 /* multiply 64-bit unsigned values, high 64-bits of 128-bit result returned */
-static inline long long notrace dmuhu(long long a, long long b)
+static inline long long analtrace dmuhu(long long a, long long b)
 {
 	long long res;
 
@@ -30,7 +30,7 @@ static inline long long notrace dmuhu(long long a, long long b)
 }
 
 /* multiply 128-bit values, low 128-bits returned */
-ti_type notrace __multi3(ti_type a, ti_type b)
+ti_type analtrace __multi3(ti_type a, ti_type b)
 {
 	TWunion res, aa, bb;
 

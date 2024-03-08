@@ -40,7 +40,7 @@ static inline int mv88e6xxx_smi_read(struct mv88e6xxx_chip *chip,
 	if (chip->smi_ops && chip->smi_ops->read)
 		return chip->smi_ops->read(chip, dev, reg, data);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int mv88e6xxx_smi_write(struct mv88e6xxx_chip *chip,
@@ -49,7 +49,7 @@ static inline int mv88e6xxx_smi_write(struct mv88e6xxx_chip *chip,
 	if (chip->smi_ops && chip->smi_ops->write)
 		return chip->smi_ops->write(chip, dev, reg, data);
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif /* _MV88E6XXX_SMI_H */

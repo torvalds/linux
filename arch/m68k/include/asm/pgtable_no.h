@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _M68KNOMMU_PGTABLE_H
-#define _M68KNOMMU_PGTABLE_H
+#ifndef _M68KANALMMU_PGTABLE_H
+#define _M68KANALMMU_PGTABLE_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 
 /*
  * (C) Copyright 2000-2002, Greg Ungerer <gerg@snapgear.com>
@@ -17,12 +17,12 @@
  * Trivial page table functions.
  */
 #define pgd_present(pgd)	(1)
-#define pgd_none(pgd)		(0)
+#define pgd_analne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define	pmd_offset(a, b)	((void *)0)
 
-#define PAGE_NONE	__pgprot(0)
+#define PAGE_ANALNE	__pgprot(0)
 #define PAGE_SHARED	__pgprot(0)
 #define PAGE_COPY	__pgprot(0)
 #define PAGE_READONLY	__pgprot(0)
@@ -39,11 +39,11 @@ extern void *empty_zero_page;
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for analn-VM targets.
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
 #define	KMAP_START	0
 #define	KMAP_END	0xffffffff
 
-#endif /* _M68KNOMMU_PGTABLE_H */
+#endif /* _M68KANALMMU_PGTABLE_H */

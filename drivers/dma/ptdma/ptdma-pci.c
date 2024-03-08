@@ -93,13 +93,13 @@ static int pt_get_irqs(struct pt_device *pt)
 		return 0;
 
 	/* Couldn't get MSI-X vectors, try MSI */
-	dev_err(dev, "could not enable MSI-X (%d), trying MSI\n", ret);
+	dev_err(dev, "could analt enable MSI-X (%d), trying MSI\n", ret);
 	ret = pt_get_msi_irq(pt);
 	if (!ret)
 		return 0;
 
 	/* Couldn't get MSI interrupt */
-	dev_err(dev, "could not enable MSI (%d)\n", ret);
+	dev_err(dev, "could analt enable MSI (%d)\n", ret);
 
 	return ret;
 }
@@ -125,7 +125,7 @@ static int pt_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct device *dev = &pdev->dev;
 	void __iomem * const *iomap_table;
 	int bar_mask;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	pt = pt_alloc_struct(dev);
 	if (!pt)
@@ -138,7 +138,7 @@ static int pt_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pt->pt_msix = pt_msix;
 	pt->dev_vdata = (struct pt_dev_vdata *)id->driver_data;
 	if (!pt->dev_vdata) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(dev, "missing driver data\n");
 		goto e_err;
 	}
@@ -159,14 +159,14 @@ static int pt_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iomap_table = pcim_iomap_table(pdev);
 	if (!iomap_table) {
 		dev_err(dev, "pcim_iomap_table failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_err;
 	}
 
 	pt->io_regs = iomap_table[pt->dev_vdata->bar];
 	if (!pt->io_regs) {
 		dev_err(dev, "ioremap failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto e_err;
 	}
 

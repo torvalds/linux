@@ -8,7 +8,7 @@
  * Based on the example driver written by Emard <emard@softhome.net>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -28,8 +28,8 @@
 
 static const struct vidtv_demod_cnr_to_qual_s vidtv_demod_c_cnr_2_qual[] = {
 	/* from libdvbv5 source code, in milli db */
-	{ QAM_256, FEC_NONE,  34000, 38000},
-	{ QAM_64,  FEC_NONE,  30000, 34000},
+	{ QAM_256, FEC_ANALNE,  34000, 38000},
+	{ QAM_64,  FEC_ANALNE,  30000, 34000},
 };
 
 static const struct vidtv_demod_cnr_to_qual_s vidtv_demod_s_cnr_2_qual[] = {
@@ -119,7 +119,7 @@ static const struct vidtv_demod_cnr_to_qual_s *vidtv_match_cnr_s(struct dvb_fron
 		    cnr2qual[i].fec == c->fec_inner)
 			return &cnr2qual[i];
 
-	return NULL; /* not found */
+	return NULL; /* analt found */
 }
 
 static void vidtv_clean_stats(struct dvb_frontend *fe)
@@ -134,27 +134,27 @@ static void vidtv_clean_stats(struct dvb_frontend *fe)
 	c->strength.stat[0].svalue = 0;
 
 	/* Usually available only after Viterbi lock */
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.stat[0].svalue = 0;
 	c->cnr.len = 1;
 
 	/* Those depends on full lock */
-	c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->pre_bit_error.stat[0].uvalue = 0;
 	c->pre_bit_error.len = 1;
-	c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->pre_bit_count.stat[0].uvalue = 0;
 	c->pre_bit_count.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.stat[0].uvalue = 0;
 	c->post_bit_error.len = 1;
-	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_count.stat[0].uvalue = 0;
 	c->post_bit_count.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.stat[0].uvalue = 0;
 	c->block_error.len = 1;
-	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_count.stat[0].uvalue = 0;
 	c->block_count.len = 1;
 }
@@ -169,7 +169,7 @@ static void vidtv_demod_update_stats(struct dvb_frontend *fe)
 		scale = FE_SCALE_COUNTER;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 	} else {
-		scale = FE_SCALE_NOT_AVAILABLE;
+		scale = FE_SCALE_ANALT_AVAILABLE;
 		c->cnr.stat[0].scale = scale;
 	}
 
@@ -245,7 +245,7 @@ static int vidtv_demod_read_signal_strength(struct dvb_frontend *fe,
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * This is implemented here just to be used as an example for real
  * demod drivers.
  *
@@ -292,7 +292,7 @@ static int vidtv_demod_set_frontend(struct dvb_frontend *fe)
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * This is implemented here just to be used as an example for real
  * demod drivers.
  *
@@ -305,7 +305,7 @@ static int vidtv_demod_set_tone(struct dvb_frontend *fe,
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * This is implemented here just to be used as an example for real
  * demod drivers.
  *
@@ -318,7 +318,7 @@ static int vidtv_demod_set_voltage(struct dvb_frontend *fe,
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * This is implemented here just to be used as an example for real
  * demod drivers.
  *
@@ -331,7 +331,7 @@ static int vidtv_send_diseqc_msg(struct dvb_frontend *fe,
 }
 
 /*
- * NOTE:
+ * ANALTE:
  * This is implemented here just to be used as an example for real
  * demod drivers.
  *
@@ -420,7 +420,7 @@ static int vidtv_demod_i2c_probe(struct i2c_client *client)
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops,

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Generic register map support.  There are no user servicable options here,
+# Generic register map support.  There are anal user servicable options here,
 # this is an API intended to be used by other kernel subsystems.  These
 # subsystems should select the appropriate symbols.
 
@@ -31,7 +31,7 @@ config REGMAP_BUILD
 	  This option exists purely to allow the regmap KUnit tests to
 	  be enabled without having to enable some driver that uses
 	  regmap due to unfortunate issues with how KUnit tests are
-	  normally enabled.
+	  analrmally enabled.
 
 config REGMAP_AC97
 	tristate

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 #ifndef __ASM_HW_BREAKPOINT_H
 #define __ASM_HW_BREAKPOINT_H
@@ -96,7 +96,7 @@ static inline void decode_ctrl_reg(u32 reg, struct arch_hw_breakpoint_ctrl *ctrl
 }
 
 struct task_struct;
-struct notifier_block;
+struct analtifier_block;
 struct perf_event;
 struct perf_event_attr;
 
@@ -106,7 +106,7 @@ extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
 extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 				    const struct perf_event_attr *attr,
 				    struct arch_hw_breakpoint *hw);
-extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+extern int hw_breakpoint_exceptions_analtify(struct analtifier_block *unused,
 					   unsigned long val, void *data);
 
 extern int arch_install_hw_breakpoint(struct perf_event *bp);

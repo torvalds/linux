@@ -11,7 +11,7 @@ Supported chips:
 
     Prefix: 'smsc47b397'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: In this file
 
@@ -20,10 +20,10 @@ Authors:
        - Mark M. Hoffman <mhoffman@lightlink.com>
        - Utilitek Systems, Inc.
 
-November 23, 2004
+Analvember 23, 2004
 
 The following specification describes the SMSC LPC47B397-NC [1]_ sensor chip
-(for which there is no public datasheet available). This document was
+(for which there is anal public datasheet available). This document was
 provided by Craig Kelly (In-Store Broadcast Network) and edited/corrected
 by Mark M. Hoffman <mhoffman@lightlink.com>.
 
@@ -131,8 +131,8 @@ b.	Write the address of the desired configuration register within the
 	logical device to the INDEX PORT and then write or read the config-
 	uration register through the DATA PORT.
 
-Note:
-	If accessing the Global Configuration Registers, step (a) is not required.
+Analte:
+	If accessing the Global Configuration Registers, step (a) is analt required.
 
 Exit Configuration Mode
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -13,7 +13,7 @@
 #include <media/dvb_frontend.h>
 
 #define FE_ERROR				0
-#define FE_NOTICE				1
+#define FE_ANALTICE				1
 #define FE_INFO					2
 #define FE_DEBUG				3
 #define FE_DEBUGREG				4
@@ -22,8 +22,8 @@
 	if (__z) {									\
 		if	((verbose > FE_ERROR) && (verbose > __y))			\
 			printk(KERN_ERR "%s: " format "\n", __func__ , ##arg);		\
-		else if	((verbose > FE_NOTICE) && (verbose > __y))			\
-			printk(KERN_NOTICE "%s: " format "\n", __func__ , ##arg);	\
+		else if	((verbose > FE_ANALTICE) && (verbose > __y))			\
+			printk(KERN_ANALTICE "%s: " format "\n", __func__ , ##arg);	\
 		else if ((verbose > FE_INFO) && (verbose > __y))			\
 			printk(KERN_INFO "%s: " format "\n", __func__ , ##arg);		\
 		else if ((verbose > FE_DEBUG) && (verbose > __y))			\
@@ -79,9 +79,9 @@
 	STV090x_SEARCH_AGC2_TH_CUT30)
 
 enum stv090x_signal_state {
-	STV090x_NOAGC1,
-	STV090x_NOCARRIER,
-	STV090x_NODATA,
+	STV090x_ANALAGC1,
+	STV090x_ANALCARRIER,
+	STV090x_ANALDATA,
 	STV090x_DATAOK,
 	STV090x_RANGEOK,
 	STV090x_OUTOFRANGE
@@ -105,7 +105,7 @@ enum stv090x_modulation {
 	STV090x_8PSK,
 	STV090x_16APSK,
 	STV090x_32APSK,
-	STV090x_UNKNOWN
+	STV090x_UNKANALWN
 };
 
 enum stv090x_frame {
@@ -126,7 +126,7 @@ enum stv090x_rolloff {
 
 enum stv090x_inversion {
 	STV090x_IQ_AUTO,
-	STV090x_IQ_NORMAL,
+	STV090x_IQ_ANALRMAL,
 	STV090x_IQ_SWAP
 };
 
@@ -160,7 +160,7 @@ enum stv090x_modcod {
 	STV090x_32APSK_56,
 	STV090x_32APSK_89,
 	STV090x_32APSK_910,
-	STV090x_MODCODE_UNKNOWN
+	STV090x_MODCODE_UNKANALWN
 };
 
 enum stv090x_search {

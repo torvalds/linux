@@ -10,9 +10,9 @@
 #include "dtc.h"
 #include "srcpos.h"
 
-/* A node in our list of directories to search for source/include files */
+/* A analde in our list of directories to search for source/include files */
 struct search_path {
-	struct search_path *next;	/* next node in list, NULL for end */
+	struct search_path *next;	/* next analde in list, NULL for end */
 	const char *dirname;		/* name of directory to search */
 };
 
@@ -89,12 +89,12 @@ static char *shorten_to_initial_path(char *fname)
 /**
  * Try to open a file in a given directory.
  *
- * If the filename is an absolute path, then dirname is ignored. If it is a
+ * If the filename is an absolute path, then dirname is iganalred. If it is a
  * relative path, then we look in that directory for the file.
  *
- * @param dirname	Directory to look in, or NULL for none
+ * @param dirname	Directory to look in, or NULL for analne
  * @param fname		Filename to look for
- * @param fp		Set to NULL if file did not open
+ * @param fp		Set to NULL if file did analt open
  * @return allocated filename on success (caller must free), NULL on failure
  */
 static char *try_open(const char *dirname, const char *fname, FILE **fp)
@@ -127,7 +127,7 @@ static char *try_open(const char *dirname, const char *fname, FILE **fp)
 static char *fopen_any_on_path(const char *fname, FILE **fp)
 {
 	const char *cur_dir = NULL;
-	struct search_path *node;
+	struct search_path *analde;
 	char *fullname;
 
 	/* Try current directory first */
@@ -137,8 +137,8 @@ static char *fopen_any_on_path(const char *fname, FILE **fp)
 	fullname = try_open(cur_dir, fname, fp);
 
 	/* Failing that, try each search path in turn */
-	for (node = search_path_head; !*fp && node; node = node->next)
-		fullname = try_open(node->dirname, fname, fp);
+	for (analde = search_path_head; !*fp && analde; analde = analde->next)
+		fullname = try_open(analde->dirname, fname, fp);
 
 	return fullname;
 }
@@ -155,7 +155,7 @@ FILE *srcfile_relative_open(const char *fname, char **fullnamep)
 		fullname = fopen_any_on_path(fname, &f);
 		if (!f)
 			die("Couldn't open \"%s\": %s\n", fname,
-			    strerror(errno));
+			    strerror(erranal));
 	}
 
 	if (depfile)
@@ -182,8 +182,8 @@ void srcfile_push(const char *fname)
 	srcfile->dir = get_dirname(srcfile->name);
 	srcfile->prev = current_srcfile;
 
-	srcfile->lineno = 1;
-	srcfile->colno = 1;
+	srcfile->lineanal = 1;
+	srcfile->colanal = 1;
 
 	current_srcfile = srcfile;
 
@@ -201,7 +201,7 @@ bool srcfile_pop(void)
 
 	if (fclose(srcfile->f))
 		die("Error closing \"%s\": %s\n", srcfile->name,
-		    strerror(errno));
+		    strerror(erranal));
 
 	/* FIXME: We allow the srcfile_state structure to leak,
 	 * because it could still be referenced from a location
@@ -214,19 +214,19 @@ bool srcfile_pop(void)
 
 void srcfile_add_search_path(const char *dirname)
 {
-	struct search_path *node;
+	struct search_path *analde;
 
-	/* Create the node */
-	node = xmalloc(sizeof(*node));
-	node->next = NULL;
-	node->dirname = xstrdup(dirname);
+	/* Create the analde */
+	analde = xmalloc(sizeof(*analde));
+	analde->next = NULL;
+	analde->dirname = xstrdup(dirname);
 
 	/* Add to the end of our list */
 	if (search_path_tail)
-		*search_path_tail = node;
+		*search_path_tail = analde;
 	else
-		search_path_head = node;
-	search_path_tail = &node->next;
+		search_path_head = analde;
+	search_path_tail = &analde->next;
 }
 
 void srcpos_update(struct srcpos *pos, const char *text, int len)
@@ -235,19 +235,19 @@ void srcpos_update(struct srcpos *pos, const char *text, int len)
 
 	pos->file = current_srcfile;
 
-	pos->first_line = current_srcfile->lineno;
-	pos->first_column = current_srcfile->colno;
+	pos->first_line = current_srcfile->lineanal;
+	pos->first_column = current_srcfile->colanal;
 
 	for (i = 0; i < len; i++)
 		if (text[i] == '\n') {
-			current_srcfile->lineno++;
-			current_srcfile->colno = 1;
+			current_srcfile->lineanal++;
+			current_srcfile->colanal = 1;
 		} else {
-			current_srcfile->colno++;
+			current_srcfile->colanal++;
 		}
 
-	pos->last_line = current_srcfile->lineno;
-	pos->last_column = current_srcfile->colno;
+	pos->last_line = current_srcfile->lineanal;
+	pos->last_column = current_srcfile->colanal;
 }
 
 struct srcpos *
@@ -286,7 +286,7 @@ struct srcpos *srcpos_extend(struct srcpos *pos, struct srcpos *newtail)
 char *
 srcpos_string(struct srcpos *pos)
 {
-	const char *fname = "<no-file>";
+	const char *fname = "<anal-file>";
 	char *pos_str;
 
 	if (pos->file && pos->file->name)
@@ -316,7 +316,7 @@ srcpos_string_comment(struct srcpos *pos, bool first_line, int level)
 
 	if (!pos) {
 		if (level > 1) {
-			xasprintf(&pos_str, "<no-file>:<no-line>");
+			xasprintf(&pos_str, "<anal-file>:<anal-line>");
 			return pos_str;
 		} else {
 			return NULL;
@@ -324,9 +324,9 @@ srcpos_string_comment(struct srcpos *pos, bool first_line, int level)
 	}
 
 	if (!pos->file)
-		fname = "<no-file>";
+		fname = "<anal-file>";
 	else if (!pos->file->name)
-		fname = "<no-filename>";
+		fname = "<anal-filename>";
 	else if (level > 1)
 		fname = pos->file->name;
 	else {
@@ -397,7 +397,7 @@ void srcpos_error(struct srcpos *pos, const char *prefix,
 void srcpos_set_line(char *f, int l)
 {
 	current_srcfile->name = f;
-	current_srcfile->lineno = l;
+	current_srcfile->lineanal = l;
 
 	if (initial_cpp) {
 		initial_cpp = false;

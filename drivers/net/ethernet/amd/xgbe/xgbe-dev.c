@@ -19,34 +19,34 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -62,51 +62,51 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       analtice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       analtice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. analr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission analtice:
+ *     The Syanalpsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syanalpsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syanalpsys
  *     and you.
  *
- *     The Software IS NOT an item of Licensed Software or Licensed Product
+ *     The Software IS ANALT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syanalpsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     ananaltated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright analtice and this permission analtice shall be included
  *     in all copies or substantial portions of the Software.
  *
- *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
- *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYANALPSYS SOLELY ON AN "AS IS"
+ *     BASIS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED
  *     TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN NO EVENT SHALL SYNOPSYS
+ *     PARTICULAR PURPOSE ARE HEREBY DISCLAIMED. IN ANAL EVENT SHALL SYANALPSYS
  *     BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *     CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  *     SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  *     INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  *     CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -411,7 +411,7 @@ static int xgbe_enable_rss(struct xgbe_prv_data *pdata)
 	int ret;
 
 	if (!pdata->hw_feat.rss)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Program the hash key */
 	ret = xgbe_write_rss_hash_key(pdata);
@@ -435,7 +435,7 @@ static int xgbe_enable_rss(struct xgbe_prv_data *pdata)
 static int xgbe_disable_rss(struct xgbe_prv_data *pdata)
 {
 	if (!pdata->hw_feat.rss)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	XGMAC_IOWRITE_BITS(pdata, MAC_RSSCR, RSSE, 0);
 
@@ -677,8 +677,8 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		channel->curr_ier = 0;
 
 		/* Enable following interrupts
-		 *   NIE  - Normal Interrupt Summary Enable
-		 *   AIE  - Abnormal Interrupt Summary Enable
+		 *   NIE  - Analrmal Interrupt Summary Enable
+		 *   AIE  - Abanalrmal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
 		if (ver < 0x21) {
@@ -728,7 +728,7 @@ static void xgbe_enable_mtl_interrupts(struct xgbe_prv_data *pdata)
 		mtl_q_isr = XGMAC_MTL_IOREAD(pdata, i, MTL_Q_ISR);
 		XGMAC_MTL_IOWRITE(pdata, i, MTL_Q_ISR, mtl_q_isr);
 
-		/* No MTL interrupts to be enabled */
+		/* Anal MTL interrupts to be enabled */
 		XGMAC_MTL_IOWRITE(pdata, i, MTL_Q_IER, 0);
 	}
 }
@@ -878,7 +878,7 @@ static int xgbe_enable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ETV, 1);
 
 	/* In order for the VLAN Hash Table filtering to be effective,
-	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * the VLAN tag identifier in the VLAN Tag Register must analt
 	 * be zero.  Set the VLAN tag identifier to "1" to enable the
 	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
 	 * 1 will always pass filtering.
@@ -1426,7 +1426,7 @@ static int xgbe_set_ext_mii_mode(struct xgbe_prv_data *pdata, unsigned int port,
 
 static int xgbe_tx_complete(struct xgbe_ring_desc *rdesc)
 {
-	return !XGMAC_GET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN);
+	return !XGMAC_GET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, OWN);
 }
 
 static int xgbe_disable_rx_csum(struct xgbe_prv_data *pdata)
@@ -1502,7 +1502,7 @@ static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
 	dma_addr_t hdr_dma, buf_dma;
 
 	if (!rx_usecs && !rx_frames) {
-		/* No coalescing, interrupt for every descriptor */
+		/* Anal coalescing, interrupt for every descriptor */
 		inte = 1;
 	} else {
 		/* Set interrupt based on Rx frame coalescing setting */
@@ -1526,7 +1526,7 @@ static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
 	rdesc->desc2 = cpu_to_le32(lower_32_bits(buf_dma));
 	rdesc->desc3 = cpu_to_le32(upper_32_bits(buf_dma));
 
-	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, inte);
+	XGMAC_SET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, INTE, inte);
 
 	/* Since the Rx DMA engine is likely running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1534,7 +1534,7 @@ static void xgbe_rx_desc_reset(struct xgbe_prv_data *pdata,
 	 */
 	dma_wmb();
 
-	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN, 1);
+	XGMAC_SET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, OWN, 1);
 
 	/* Make sure ownership is written to the descriptor */
 	dma_wmb();
@@ -1667,7 +1667,7 @@ static void xgbe_get_rx_tstamp(struct xgbe_packet_data *packet,
 static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 			      unsigned int mac_tscr)
 {
-	/* Set one nano-second accuracy */
+	/* Set one naanal-second accuracy */
 	XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSCTRLSSR, 1);
 
 	/* Set fine timestamp update */
@@ -1678,7 +1678,7 @@ static int xgbe_config_tstamp(struct xgbe_prv_data *pdata,
 
 	XGMAC_IOWRITE(pdata, MAC_TSCR, mac_tscr);
 
-	/* Exit if timestamping is not enabled */
+	/* Exit if timestamping is analt enabled */
 	if (!XGMAC_GET_BITS(mac_tscr, MAC_TSCR, TSENA))
 		return 0;
 
@@ -1764,10 +1764,10 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 *     - Tx frame count exceeds the frame count setting
 	 *     - Addition of Tx frame count to the frame count since the
 	 *       last interrupt was set exceeds the frame count setting
-	 *   No interrupt:
-	 *     - No frame count setting specified (ethtool -C ethX tx-frames 0)
+	 *   Anal interrupt:
+	 *     - Anal frame count setting specified (ethtool -C ethX tx-frames 0)
 	 *     - Addition of Tx frame count to the frame count since the
-	 *       last interrupt was set does not exceed the frame count setting
+	 *       last interrupt was set does analt exceed the frame count setting
 	 */
 	ring->coalesce_count += tx_packets;
 	if (!pdata->tx_frames)
@@ -1834,54 +1834,54 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	rdesc->desc1 =  cpu_to_le32(upper_32_bits(rdata->skb_dma));
 
 	/* Update the buffer length */
-	XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, HL_B1L,
+	XGMAC_SET_BITS_LE(rdesc->desc2, TX_ANALRMAL_DESC2, HL_B1L,
 			  rdata->skb_dma_len);
 
 	/* VLAN tag insertion check */
 	if (vlan)
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, VTIR,
-				  TX_NORMAL_DESC2_VLAN_INSERT);
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_ANALRMAL_DESC2, VTIR,
+				  TX_ANALRMAL_DESC2_VLAN_INSERT);
 
 	/* Timestamp enablement check */
 	if (XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES, PTP))
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, TTSE, 1);
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_ANALRMAL_DESC2, TTSE, 1);
 
 	/* Mark it as First Descriptor */
-	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, FD, 1);
+	XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, FD, 1);
 
-	/* Mark it as a NORMAL descriptor */
-	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
+	/* Mark it as a ANALRMAL descriptor */
+	XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, CTXT, 0);
 
-	/* Set OWN bit if not the first descriptor */
+	/* Set OWN bit if analt the first descriptor */
 	if (cur_index != start_index)
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, OWN, 1);
 
 	if (tso) {
 		/* Enable TSO */
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TSE, 1);
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TCPPL,
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, TSE, 1);
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, TCPPL,
 				  packet->tcp_payload_len);
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TCPHDRLEN,
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, TCPHDRLEN,
 				  packet->tcp_header_len / 4);
 
 		pdata->ext_stats.tx_tso_packets += tx_packets;
 	} else {
 		/* Enable CRC and Pad Insertion */
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CPC, 0);
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, CPC, 0);
 
 		/* Enable HW CSUM */
 		if (csum)
-			XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3,
+			XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3,
 					  CIC, 0x3);
 
 		/* Set the total length to be transmitted */
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, FL,
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, FL,
 				  packet->length);
 	}
 
 	if (vxlan) {
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, VNP,
-				  TX_NORMAL_DESC3_VXLAN_PACKET);
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, VNP,
+				  TX_ANALRMAL_DESC3_VXLAN_PACKET);
 
 		pdata->ext_stats.tx_vxlan_packets += packet->tx_packets;
 	}
@@ -1896,27 +1896,27 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->skb_dma));
 
 		/* Update the buffer length */
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, HL_B1L,
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_ANALRMAL_DESC2, HL_B1L,
 				  rdata->skb_dma_len);
 
 		/* Set OWN bit */
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, OWN, 1);
 
-		/* Mark it as NORMAL descriptor */
-		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
+		/* Mark it as ANALRMAL descriptor */
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, CTXT, 0);
 
 		/* Enable HW CSUM */
 		if (csum)
-			XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3,
+			XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3,
 					  CIC, 0x3);
 	}
 
 	/* Set LAST bit for the last descriptor */
-	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, LD, 1);
+	XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, LD, 1);
 
 	/* Set IC bit based on Tx coalescing settings */
 	if (tx_set_ic)
-		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
+		XGMAC_SET_BITS_LE(rdesc->desc2, TX_ANALRMAL_DESC2, IC, 1);
 
 	/* Save the Tx info to report back during cleanup */
 	rdata->tx.packets = tx_packets;
@@ -1934,7 +1934,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Set OWN bit for the first descriptor */
 	rdata = XGBE_GET_DESC_DATA(ring, start_index);
 	rdesc = rdata->rdesc;
-	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
+	XGMAC_SET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, OWN, 1);
 
 	if (netif_msg_tx_queued(pdata))
 		xgbe_dump_tx_desc(pdata, ring, start_index,
@@ -1974,7 +1974,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	rdesc = rdata->rdesc;
 
 	/* Check for data availability */
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN))
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, OWN))
 		return 1;
 
 	/* Make sure descriptor fields are read after reading the OWN bit */
@@ -1983,7 +1983,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	if (netif_msg_rx_status(pdata))
 		xgbe_dump_rx_desc(pdata, ring, ring->cur);
 
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CTXT)) {
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, CTXT)) {
 		/* Timestamp Context Descriptor */
 		xgbe_get_rx_tstamp(packet, rdesc);
 
@@ -1994,20 +1994,20 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		return 0;
 	}
 
-	/* Normal Descriptor, be sure Context Descriptor bit is off */
+	/* Analrmal Descriptor, be sure Context Descriptor bit is off */
 	XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, CONTEXT, 0);
 
 	/* Indicate if a Context Descriptor is next */
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CDA))
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, CDA))
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       CONTEXT_NEXT, 1);
 
 	/* Get the header length */
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD)) {
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, FD)) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       FIRST, 1);
 		rdata->rx.hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
-						      RX_NORMAL_DESC2, HL);
+						      RX_ANALRMAL_DESC2, HL);
 		if (rdata->rx.hdr_len)
 			pdata->ext_stats.rx_split_header_packets++;
 	} else {
@@ -2016,13 +2016,13 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	}
 
 	/* Get the RSS hash */
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, RSV)) {
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, RSV)) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       RSS_HASH, 1);
 
 		packet->rss_hash = le32_to_cpu(rdesc->desc1);
 
-		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
+		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, L34T);
 		switch (l34t) {
 		case RX_DESC3_L34T_IPV4_TCP:
 		case RX_DESC3_L34T_IPV4_UDP:
@@ -2035,8 +2035,8 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		}
 	}
 
-	/* Not all the data has been transferred for this packet */
-	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, LD))
+	/* Analt all the data has been transferred for this packet */
+	if (!XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, LD))
 		return 0;
 
 	/* This is the last of the data for this packet */
@@ -2044,7 +2044,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		       LAST, 1);
 
 	/* Get the packet length */
-	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
+	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, PL);
 
 	/* Set checksum done indicator as appropriate */
 	if (netdev->features & NETIF_F_RXCSUM) {
@@ -2055,15 +2055,15 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	}
 
 	/* Set the tunneled packet indicator */
-	if (XGMAC_GET_BITS_LE(rdesc->desc2, RX_NORMAL_DESC2, TNP)) {
+	if (XGMAC_GET_BITS_LE(rdesc->desc2, RX_ANALRMAL_DESC2, TNP)) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       TNP, 1);
 		pdata->ext_stats.rx_vxlan_packets++;
 
-		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
+		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, L34T);
 		switch (l34t) {
-		case RX_DESC3_L34T_IPV4_UNKNOWN:
-		case RX_DESC3_L34T_IPV6_UNKNOWN:
+		case RX_DESC3_L34T_IPV4_UNKANALWN:
+		case RX_DESC3_L34T_IPV6_UNKANALWN:
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       TNPCSUM_DONE, 0);
 			break;
@@ -2071,18 +2071,18 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	}
 
 	/* Check for errors (only valid in last descriptor) */
-	err = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, ES);
-	etlt = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, ETLT);
+	err = XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, ES);
+	etlt = XGMAC_GET_BITS_LE(rdesc->desc3, RX_ANALRMAL_DESC3, ETLT);
 	netif_dbg(pdata, rx_status, netdev, "err=%u, etlt=%#x\n", err, etlt);
 
 	if (!err || !etlt) {
-		/* No error if err is 0 or etlt is 0 */
+		/* Anal error if err is 0 or etlt is 0 */
 		if ((etlt == 0x09) &&
 		    (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       VLAN_CTAG, 1);
 			packet->vlan_ctag = XGMAC_GET_BITS_LE(rdesc->desc0,
-							      RX_NORMAL_DESC0,
+							      RX_ANALRMAL_DESC0,
 							      OVT);
 			netif_dbg(pdata, rx_status, netdev, "vlan-ctag=%#06x\n",
 				  packet->vlan_ctag);
@@ -2121,13 +2121,13 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 static int xgbe_is_context_desc(struct xgbe_ring_desc *rdesc)
 {
 	/* Rx and Tx share CTXT bit, so check TDES3.CTXT bit */
-	return XGMAC_GET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT);
+	return XGMAC_GET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, CTXT);
 }
 
 static int xgbe_is_last_desc(struct xgbe_ring_desc *rdesc)
 {
 	/* Rx and Tx share LD bit, so check TDES3.LD bit */
-	return XGMAC_GET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, LD);
+	return XGMAC_GET_BITS_LE(rdesc->desc3, TX_ANALRMAL_DESC3, LD);
 }
 
 static int xgbe_enable_int(struct xgbe_channel *channel,
@@ -2351,7 +2351,7 @@ static void xgbe_queue_flow_control_threshold(struct xgbe_prv_data *pdata,
 		 * values.
 		 */
 		if (q_fifo_size <= 2048) {
-			/* rx_rfd to zero to signal no flow control */
+			/* rx_rfd to zero to signal anal flow control */
 			pdata->rx_rfa[queue] = 0;
 			pdata->rx_rfd[queue] = 0;
 			return;
@@ -2419,14 +2419,14 @@ static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
 
 static unsigned int xgbe_get_tx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may analt be the actual amount of fifo RAM */
 	return min_t(unsigned int, pdata->tx_max_fifo_size,
 		     pdata->hw_feat.tx_fifo_size);
 }
 
 static unsigned int xgbe_get_rx_fifo_size(struct xgbe_prv_data *pdata)
 {
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may analt be the actual amount of fifo RAM */
 	return min_t(unsigned int, pdata->rx_max_fifo_size,
 		     pdata->hw_feat.rx_fifo_size);
 }
@@ -2454,13 +2454,13 @@ static void xgbe_calculate_equal_fifo(unsigned int fifo_size,
 		fifo[i] = p_fifo;
 }
 
-static unsigned int xgbe_set_nonprio_fifos(unsigned int fifo_size,
+static unsigned int xgbe_set_analnprio_fifos(unsigned int fifo_size,
 					   unsigned int queue_count,
 					   unsigned int *fifo)
 {
 	unsigned int i;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(XGMAC_FIFO_MIN_ALLOC);
 
 	if (queue_count <= IEEE_8021QAZ_MAX_TCS)
 		return fifo_size;
@@ -2536,7 +2536,7 @@ static void xgbe_calculate_dcb_fifo(struct xgbe_prv_data *pdata,
 	pfc_count = xgbe_get_pfc_queues(pdata);
 
 	if (!pfc_count || ((q_fifo_size * prio_queues) > fifo_size)) {
-		/* No traffic classes with PFC enabled or can't do lossless */
+		/* Anal traffic classes with PFC enabled or can't do lossless */
 		xgbe_calculate_equal_fifo(fifo_size, prio_queues, fifo);
 		return;
 	}
@@ -2573,7 +2573,7 @@ static void xgbe_calculate_dcb_fifo(struct xgbe_prv_data *pdata,
 
 		if (addn_fifo > rem_fifo) {
 			netdev_warn(pdata->netdev,
-				    "RXq%u cannot set needed fifo size\n", i);
+				    "RXq%u cananalt set needed fifo size\n", i);
 			if (!rem_fifo)
 				continue;
 
@@ -2625,8 +2625,8 @@ static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 	fifo_size = xgbe_get_rx_fifo_size(pdata);
 	prio_queues = XGMAC_PRIO_QUEUES(pdata->rx_q_count);
 
-	/* Assign a minimum fifo to the non-VLAN priority queues */
-	fifo_size = xgbe_set_nonprio_fifos(fifo_size, pdata->rx_q_count, fifo);
+	/* Assign a minimum fifo to the analn-VLAN priority queues */
+	fifo_size = xgbe_set_analnprio_fifos(fifo_size, pdata->rx_q_count, fifo);
 
 	if (pdata->pfc && pdata->ets)
 		xgbe_calculate_dcb_fifo(pdata, fifo_size, fifo);
@@ -2663,7 +2663,7 @@ static void xgbe_config_queue_mapping(struct xgbe_prv_data *pdata)
 	unsigned int i, j, reg, reg_val;
 
 	/* Map the MTL Tx Queues to Traffic Classes
-	 *   Note: Tx Queues >= Traffic Classes
+	 *   Analte: Tx Queues >= Traffic Classes
 	 */
 	qptc = pdata->tx_q_count / pdata->hw_feat.tc_cnt;
 	qptc_extra = pdata->tx_q_count % pdata->hw_feat.tc_cnt;
@@ -3273,7 +3273,7 @@ static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	unsigned int tx_status;
 	unsigned long tx_timeout;
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine cananalt be stopped if it is actively processing
 	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
 	 * wait forever though...
 	 */
@@ -3315,7 +3315,7 @@ static void xgbe_prepare_tx_stop(struct xgbe_prv_data *pdata,
 			 DMA_DSRX_TPS_START;
 	}
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine cananalt be stopped if it is actively processing
 	 * descriptors. Wait for the Tx engine to enter the stopped or
 	 * suspended state.  Don't wait forever though...
 	 */
@@ -3387,7 +3387,7 @@ static void xgbe_prepare_rx_stop(struct xgbe_prv_data *pdata,
 	unsigned int rx_status;
 	unsigned long rx_timeout;
 
-	/* The Rx engine cannot be stopped if it is actively processing
+	/* The Rx engine cananalt be stopped if it is actively processing
 	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
 	 * wait forever though...
 	 */

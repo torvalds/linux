@@ -10,7 +10,7 @@
  */
 
 #include <dt-bindings/input/input.h>
-#include "exynos5422-odroid-core.dtsi"
+#include "exyanals5422-odroid-core.dtsi"
 
 / {
 	aliases {
@@ -27,7 +27,7 @@
 			 * The power button (SW2) is connected to the PWRON
 			 * pin (active high) of the S2MPS11 PMIC, which acts
 			 * as a 16ms debouce filter and signal inverter with
-			 * output on ONOB pin (active low). ONOB PMIC pin is
+			 * output on OANALB pin (active low). OANALB PMIC pin is
 			 * then connected to XEINT3 SoC pin.
 			 */
 			gpios = <&gpx0 3 GPIO_ACTIVE_LOW>;
@@ -79,7 +79,7 @@
 					type = "critical";
 				};
 				/*
-				 * Exynos542x supports only 4 trip-points
+				 * Exyanals542x supports only 4 trip-points
 				 * so for these polling mode is required.
 				 * Start polling at temperature level of last
 				 * interrupt-driven trip: cpu0_alert2
@@ -110,7 +110,7 @@
 				};
 				/*
 				 * When reaching cpu0_alert3, reduce CPU
-				 * by 2 steps. On Exynos5422/5800 that would
+				 * by 2 steps. On Exyanals5422/5800 that would
 				 * (usually) be: 1800 MHz and 1200 MHz.
 				 */
 				map3 {
@@ -487,24 +487,24 @@
 &pinctrl_0 {
 	power_key: power-key-pins {
 		samsung,pins = "gpx0-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 
 	hdmi_hpd_irq: hdmi-hpd-irq-pins {
 		samsung,pins = "gpx3-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 };
 
 &pinctrl_1 {
 	emmc_nrst_pin: emmc-nrst-pins {
 		samsung,pins = "gpd1-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 };

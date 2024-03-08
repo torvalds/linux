@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* DVB USB framework compliant Linux driver for the Hauppauge WinTV-NOVA-T usb2
+/* DVB USB framework compliant Linux driver for the Hauppauge WinTV-ANALVA-T usb2
  * DVB-T receiver.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -17,7 +17,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define deb_rc(args...) dprintk(debug,0x01,args)
 #define deb_ee(args...) dprintk(debug,0x02,args)
 
-/* Hauppauge NOVA-T USB2 keys */
+/* Hauppauge ANALVA-T USB2 keys */
 static struct rc_map_table rc_map_haupp_table[] = {
 	{ 0x1e00, KEY_0 },
 	{ 0x1e01, KEY_1 },
@@ -67,9 +67,9 @@ static struct rc_map_table rc_map_haupp_table[] = {
 };
 
 /* Firmware bug? sometimes, when a new key is pressed, the previous pressed key
- * is delivered. No workaround yet, maybe a new firmware.
+ * is delivered. Anal workaround yet, maybe a new firmware.
  */
-static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int analva_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 *buf, data, toggle, custom;
 	u16 raw;
@@ -78,7 +78,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	buf = kmalloc(5, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf[0] = DIBUSB_REQ_POLL_REMOTE;
 	buf[1] = 0x35;
@@ -86,7 +86,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	if (ret < 0)
 		goto ret;
 
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 	switch (buf[0]) {
 		case DIBUSB_RC_HAUPPAUGE_KEY_PRESSED:
 			raw = ((buf[1] << 8) | buf[2]) >> 3;
@@ -108,7 +108,7 @@ static int nova_t_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					*state = REMOTE_KEY_PRESSED;
 					if (st->old_toggle == toggle) {
 						if (st->last_repeat_count++ < 2)
-							*state = REMOTE_NO_KEY_PRESSED;
+							*state = REMOTE_ANAL_KEY_PRESSED;
 					} else {
 						st->last_repeat_count = 0;
 						st->old_toggle = toggle;
@@ -128,7 +128,7 @@ ret:
 	return ret;
 }
 
-static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
+static int analva_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 {
 	int i, ret;
 	u8 b;
@@ -150,34 +150,34 @@ static int nova_t_read_mac_address (struct dvb_usb_device *d, u8 mac[6])
 }
 
 /* USB Driver stuff */
-static struct dvb_usb_device_properties nova_t_properties;
+static struct dvb_usb_device_properties analva_t_properties;
 
-static int nova_t_probe(struct usb_interface *intf,
+static int analva_t_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf, &nova_t_properties,
+	return dvb_usb_device_init(intf, &analva_t_properties,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
+/* do analt change the order of the ID table */
 enum {
-	HAUPPAUGE_WINTV_NOVA_T_USB2_COLD,
-	HAUPPAUGE_WINTV_NOVA_T_USB2_WARM,
+	HAUPPAUGE_WINTV_ANALVA_T_USB2_COLD,
+	HAUPPAUGE_WINTV_ANALVA_T_USB2_WARM,
 };
 
-static struct usb_device_id nova_t_table[] = {
-	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_COLD),
-	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_NOVA_T_USB2_WARM),
+static struct usb_device_id analva_t_table[] = {
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_ANALVA_T_USB2_COLD),
+	DVB_USB_DEV(HAUPPAUGE, HAUPPAUGE_WINTV_ANALVA_T_USB2_WARM),
 	{ }
 };
 
-MODULE_DEVICE_TABLE(usb, nova_t_table);
+MODULE_DEVICE_TABLE(usb, analva_t_table);
 
-static struct dvb_usb_device_properties nova_t_properties = {
+static struct dvb_usb_device_properties analva_t_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-nova-t-usb2-02.fw",
+	.firmware = "dvb-usb-analva-t-usb2-02.fw",
 
 	.num_adapters     = 1,
 	.adapter          = {
@@ -211,13 +211,13 @@ static struct dvb_usb_device_properties nova_t_properties = {
 	.size_of_priv     = sizeof(struct dibusb_device_state),
 
 	.power_ctrl       = dibusb2_0_power_ctrl,
-	.read_mac_address = nova_t_read_mac_address,
+	.read_mac_address = analva_t_read_mac_address,
 
 	.rc.legacy = {
 		.rc_interval      = 100,
 		.rc_map_table     = rc_map_haupp_table,
 		.rc_map_size      = ARRAY_SIZE(rc_map_haupp_table),
-		.rc_query         = nova_t_rc_query,
+		.rc_query         = analva_t_rc_query,
 	},
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -226,24 +226,24 @@ static struct dvb_usb_device_properties nova_t_properties = {
 
 	.num_device_descs = 1,
 	.devices = {
-		{   "Hauppauge WinTV-NOVA-T usb2",
-			{ &nova_t_table[HAUPPAUGE_WINTV_NOVA_T_USB2_COLD], NULL },
-			{ &nova_t_table[HAUPPAUGE_WINTV_NOVA_T_USB2_WARM], NULL },
+		{   "Hauppauge WinTV-ANALVA-T usb2",
+			{ &analva_t_table[HAUPPAUGE_WINTV_ANALVA_T_USB2_COLD], NULL },
+			{ &analva_t_table[HAUPPAUGE_WINTV_ANALVA_T_USB2_WARM], NULL },
 		},
 		{ NULL },
 	}
 };
 
-static struct usb_driver nova_t_driver = {
-	.name		= "dvb_usb_nova_t_usb2",
-	.probe		= nova_t_probe,
+static struct usb_driver analva_t_driver = {
+	.name		= "dvb_usb_analva_t_usb2",
+	.probe		= analva_t_probe,
 	.disconnect = dvb_usb_device_exit,
-	.id_table	= nova_t_table,
+	.id_table	= analva_t_table,
 };
 
-module_usb_driver(nova_t_driver);
+module_usb_driver(analva_t_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
-MODULE_DESCRIPTION("Hauppauge WinTV-NOVA-T usb2");
+MODULE_DESCRIPTION("Hauppauge WinTV-ANALVA-T usb2");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

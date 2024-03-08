@@ -108,7 +108,7 @@ static inline u64 oct_mdio_readq(void __iomem *addr)
 	return cvmx_read_csr((u64 __force)addr);
 }
 #else
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #define oct_mdio_writeq(val, addr)	writeq(val, addr)
 #define oct_mdio_readq(addr)		readq(addr)

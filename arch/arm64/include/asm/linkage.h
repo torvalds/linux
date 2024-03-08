@@ -10,33 +10,33 @@
 
 /*
  * When using in-kernel BTI we need to ensure that PCS-conformant
- * assembly functions have suitable annotations.  Override
+ * assembly functions have suitable ananaltations.  Override
  * SYM_FUNC_START to insert a BTI landing pad at the start of
  * everything, the override is done unconditionally so we're more
- * likely to notice any drift from the overridden definitions.
+ * likely to analtice any drift from the overridden definitions.
  */
 #define SYM_FUNC_START(name)				\
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)	\
 	bti c ;
 
-#define SYM_FUNC_START_NOALIGN(name)			\
-	SYM_START(name, SYM_L_GLOBAL, SYM_A_NONE)	\
+#define SYM_FUNC_START_ANALALIGN(name)			\
+	SYM_START(name, SYM_L_GLOBAL, SYM_A_ANALNE)	\
 	bti c ;
 
 #define SYM_FUNC_START_LOCAL(name)			\
 	SYM_START(name, SYM_L_LOCAL, SYM_A_ALIGN)	\
 	bti c ;
 
-#define SYM_FUNC_START_LOCAL_NOALIGN(name)		\
-	SYM_START(name, SYM_L_LOCAL, SYM_A_NONE)	\
+#define SYM_FUNC_START_LOCAL_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_LOCAL, SYM_A_ANALNE)	\
 	bti c ;
 
 #define SYM_FUNC_START_WEAK(name)			\
 	SYM_START(name, SYM_L_WEAK, SYM_A_ALIGN)	\
 	bti c ;
 
-#define SYM_FUNC_START_WEAK_NOALIGN(name)		\
-	SYM_START(name, SYM_L_WEAK, SYM_A_NONE)		\
+#define SYM_FUNC_START_WEAK_ANALALIGN(name)		\
+	SYM_START(name, SYM_L_WEAK, SYM_A_ANALNE)		\
 	bti c ;
 
 #define SYM_TYPED_FUNC_START(name)				\

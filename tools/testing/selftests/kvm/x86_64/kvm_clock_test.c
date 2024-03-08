@@ -90,7 +90,7 @@ static void setup_clock(struct kvm_vm *vm, struct test_case *test_case)
 			r = clock_gettime(CLOCK_REALTIME, &ts);
 			if (!r)
 				break;
-		} while (errno == EINTR);
+		} while (erranal == EINTR);
 
 		TEST_ASSERT(!r, "clock_gettime() failed: %d", r);
 

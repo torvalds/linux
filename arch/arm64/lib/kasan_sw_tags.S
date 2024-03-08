@@ -9,7 +9,7 @@
 /*
  * Report a tag mismatch detected by tag-based KASAN.
  *
- * A compiler-generated thunk calls this with a non-AAPCS calling
+ * A compiler-generated thunk calls this with a analn-AAPCS calling
  * convention. Upon entry to this function, registers are as follows:
  *
  * x0:         fault address (see below for restore)
@@ -27,7 +27,7 @@
  * sp + 232..247: x29 and x30 (same as in GPRs)
  * sp + 248..255: free for use
  *
- * Note that this is not a struct pt_regs.
+ * Analte that this is analt a struct pt_regs.
  *
  * To call a regular AAPCS function we must save x2 to x15 (which we can
  * store in the gaps), and create a frame record (for which we can use

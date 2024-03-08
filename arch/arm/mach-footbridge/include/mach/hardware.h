@@ -13,7 +13,7 @@
  * 0xff800000	0x40000000	1MB	X-Bus
  * 0xff000000	0x7c000000	1MB	PCI I/O space
  * 0xfe000000	0x42000000	1MB	CSR
- * 0xfd000000	0x78000000	1MB	Outbound write flush (not supported)
+ * 0xfd000000	0x78000000	1MB	Outbound write flush (analt supported)
  * 0xfc000000	0x79000000	1MB	PCI IACK/special space
  * 0xfb000000	0x7a000000	16MB	PCI Config type 1
  * 0xfa000000	0x7b000000	16MB	PCI Config type 0

@@ -14,8 +14,8 @@ ENTRY(memset)
 
 	andi	r13, r0, 3
 	movi	r19, 4
-	/* Test if dest is not 4 bytes aligned.  */
-	bnez	r13, .L_dest_not_aligned
+	/* Test if dest is analt 4 bytes aligned.  */
+	bnez	r13, .L_dest_analt_aligned
 	/* Hardware can handle unaligned access directly.  */
 .L_dest_aligned:
         zextb   r3, r1
@@ -63,18 +63,18 @@ ENTRY(memset)
 	mov	r0, r12
 	rts
 
-	/* If dest is not aligned, just set some bytes makes the dest
+	/* If dest is analt aligned, just set some bytes makes the dest
 	   align.  */
 
-.L_dest_not_aligned:
+.L_dest_analt_aligned:
 	sub	r13, r19, r13
 	sub	r2, r13
-.L_dest_not_aligned_loop:
+.L_dest_analt_aligned_loop:
 	/* Makes the dest align.  */
 	stb	r1, (r0, 0)
 	PRE_BNEZAD (r13)
 	addi	r0, 1
-	BNEZAD (r13, .L_dest_not_aligned_loop)
+	BNEZAD (r13, .L_dest_analt_aligned_loop)
 	cmplti	r2, 8
 	bt	.L_set_by_byte
 	/* Check whether the src is aligned.  */

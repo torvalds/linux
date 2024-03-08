@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/mcpm.h>
@@ -202,18 +202,18 @@ static int __init tc2_pm_init(void)
 	unsigned int mpidr, cpu, cluster;
 	int ret, irq;
 	u32 a15_cluster_id, a7_cluster_id, sys_info;
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
 	 * The power management-related features are hidden behind
 	 * SCC registers. We need to extract runtime information like
 	 * cluster ids and number of CPUs really available in clusters.
 	 */
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_analde(NULL, NULL,
 			"arm,vexpress-scc,v2p-ca15_a7");
 	scc = of_iomap(np, 0);
 	if (!scc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	a15_cluster_id = readl_relaxed(scc + A15_CONF) & 0xf;
 	a7_cluster_id = readl_relaxed(scc + A7_CONF) & 0xf;
@@ -237,7 +237,7 @@ static int __init tc2_pm_init(void)
 		return ret;
 
 	if (!cci_probed())
-		return -ENODEV;
+		return -EANALDEV;
 
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);

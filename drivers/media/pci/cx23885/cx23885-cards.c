@@ -33,7 +33,7 @@ MODULE_PARM_DESC(enable_885_ir,
 		 "Enable integrated IR controller for supported\n"
 		 "\t\t    CX2388[57] boards that are wired for it:\n"
 		 "\t\t\tHVR-1250 (reported safe)\n"
-		 "\t\t\tTerraTec Cinergy T PCIe Dual (not well tested, appears to be safe)\n"
+		 "\t\t\tTerraTec Cinergy T PCIe Dual (analt well tested, appears to be safe)\n"
 		 "\t\t\tTeVii S470 (reported unsafe)\n"
 		 "\t\t    This can cause an interrupt storm with some cards.\n"
 		 "\t\t    Default: 0 [Disabled]");
@@ -42,9 +42,9 @@ MODULE_PARM_DESC(enable_885_ir,
 /* board config info                                                  */
 
 struct cx23885_board cx23885_boards[] = {
-	[CX23885_BOARD_UNKNOWN] = {
-		.name		= "UNKNOWN/GENERIC",
-		/* Ensure safe default for unknown boards */
+	[CX23885_BOARD_UNKANALWN] = {
+		.name		= "UNKANALWN/GENERIC",
+		/* Ensure safe default for unkanalwn boards */
 		.clk_freq       = 0,
 		.input          = {{
 			.type   = CX23885_VMUX_COMPOSITE1,
@@ -117,14 +117,14 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Hauppauge WinTV-HVR1250",
 		.porta		= CX23885_ANALOG_VIDEO,
 		.portc		= CX23885_MPEG_DVB,
-#ifdef MT2131_NO_ANALOG_SUPPORT_YET
+#ifdef MT2131_ANAL_ANALOG_SUPPORT_YET
 		.tuner_type	= TUNER_PHILIPS_TDA8290,
 		.tuner_addr	= 0x42, /* 0x84 >> 1 */
 		.tuner_bus	= 1,
 #endif
 		.force_bff	= 1,
 		.input          = {{
-#ifdef MT2131_NO_ANALOG_SUPPORT_YET
+#ifdef MT2131_ANAL_ANALOG_SUPPORT_YET
 			.type   = CX23885_VMUX_TELEVISION,
 			.vmux   =	CX25840_VIN7_CH3 |
 					CX25840_VIN5_CH2 |
@@ -255,7 +255,7 @@ struct cx23885_board cx23885_boards[] = {
 			.type	= CX23885_VMUX_TELEVISION,
 			.vmux	= CX25840_VIN2_CH1 |
 				  CX25840_VIN5_CH2 |
-				  CX25840_NONE0_CH3,
+				  CX25840_ANALNE0_CH3,
 		}, {
 			.type	= CX23885_VMUX_COMPOSITE1,
 			.vmux	= CX25840_COMPOSITE1,
@@ -480,7 +480,7 @@ struct cx23885_board cx23885_boards[] = {
 			.type   = CX23885_VMUX_TELEVISION,
 			.vmux   = CX25840_VIN2_CH1 |
 				  CX25840_VIN5_CH2 |
-				  CX25840_NONE0_CH3,
+				  CX25840_ANALNE0_CH3,
 		}, {
 			.type   = CX23885_VMUX_COMPOSITE1,
 			.vmux   = CX25840_COMPOSITE1,
@@ -627,22 +627,22 @@ struct cx23885_board cx23885_boards[] = {
 			.type   = CX23885_VMUX_TELEVISION,
 			.vmux   = CX25840_VIN2_CH1 |
 				  CX25840_VIN5_CH2 |
-				  CX25840_NONE0_CH3 |
-				  CX25840_NONE1_CH3,
+				  CX25840_ANALNE0_CH3 |
+				  CX25840_ANALNE1_CH3,
 			.amux   = CX25840_AUDIO8,
 		}, {
 			.type   = CX23885_VMUX_SVIDEO,
 			.vmux   = CX25840_VIN8_CH1 |
-				  CX25840_NONE_CH2 |
+				  CX25840_ANALNE_CH2 |
 				  CX25840_VIN7_CH3 |
 				  CX25840_SVIDEO_ON,
 			.amux   = CX25840_AUDIO6,
 		}, {
 			.type   = CX23885_VMUX_COMPONENT,
 			.vmux   = CX25840_VIN1_CH1 |
-				  CX25840_NONE_CH2 |
-				  CX25840_NONE0_CH3 |
-				  CX25840_NONE1_CH3,
+				  CX25840_ANALNE_CH2 |
+				  CX25840_ANALNE0_CH3 |
+				  CX25840_ANALNE1_CH3,
 			.amux   = CX25840_AUDIO6,
 		} },
 	},
@@ -681,7 +681,7 @@ struct cx23885_board cx23885_boards[] = {
 		.portb		= CX23885_MPEG_DVB,
 	},
 	[CX23885_BOARD_TT_CT2_4500_CI] = {
-		.name		= "Technotrend TT-budget CT2-4500 CI",
+		.name		= "Techanaltrend TT-budget CT2-4500 CI",
 		.portb		= CX23885_MPEG_DVB,
 	},
 	[CX23885_BOARD_DVBSKY_S950] = {
@@ -848,13 +848,13 @@ struct cx23885_board cx23885_boards[] = {
 		.input          = {{
 			.type   = CX23885_VMUX_COMPOSITE1,
 			.vmux   = CX25840_VIN1_CH1 |
-				  CX25840_NONE_CH2 |
-				  CX25840_NONE0_CH3,
+				  CX25840_ANALNE_CH2 |
+				  CX25840_ANALNE0_CH3,
 			.amux   = CX25840_AUDIO7,
 		}, {
 			.type   = CX23885_VMUX_SVIDEO,
 			.vmux   = CX25840_VIN8_CH1 |
-				  CX25840_NONE_CH2 |
+				  CX25840_ANALNE_CH2 |
 				  CX25840_VIN7_CH3 |
 				  CX25840_SVIDEO_ON,
 			.amux   = CX25840_AUDIO7,
@@ -870,7 +870,7 @@ struct cx23885_subid cx23885_subids[] = {
 	{
 		.subvendor = 0x0070,
 		.subdevice = 0x3400,
-		.card      = CX23885_BOARD_UNKNOWN,
+		.card      = CX23885_BOARD_UNKANALWN,
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0x7600,
@@ -1197,14 +1197,14 @@ void cx23885_card_list(struct cx23885_dev *dev)
 
 	if (0 == dev->pci->subsystem_vendor &&
 	    0 == dev->pci->subsystem_device) {
-		pr_info("%s: Board has no valid PCIe Subsystem ID and can't\n"
+		pr_info("%s: Board has anal valid PCIe Subsystem ID and can't\n"
 			"%s: be autodetected. Pass card=<n> insmod option\n"
 			"%s: to workaround that. Redirect complaints to the\n"
 			"%s: vendor of the TV card.  Best regards,\n"
 			"%s:         -- tux\n",
 			dev->name, dev->name, dev->name, dev->name, dev->name);
 	} else {
-		pr_info("%s: Your board isn't known (yet) to the driver.\n"
+		pr_info("%s: Your board isn't kanalwn (yet) to the driver.\n"
 			"%s: Try to pick one of the existing card configs via\n"
 			"%s: card=<n> insmod option.  Updating to the latest\n"
 			"%s: version might help as well.\n",
@@ -1223,7 +1223,7 @@ static void viewcast_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 
 	/* The serial number record begins with tag 0x59 */
 	if (*(eeprom_data + 0x00) != 0x59) {
-		pr_info("%s() eeprom records are undefined, no serial number\n",
+		pr_info("%s() eeprom records are undefined, anal serial number\n",
 			__func__);
 		return;
 	}
@@ -1314,34 +1314,34 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		/* WinTV-HVR1200 (PCIe, OEM, full height)
 		 * DVB-T and basic analog */
 	case 76601:
-		/* WinTV-HVR1800lp (PCIe, Retail, No IR, Dual
+		/* WinTV-HVR1800lp (PCIe, Retail, Anal IR, Dual
 			channel ATSC and MPEG2 HW Encoder */
 	case 77001:
-		/* WinTV-HVR1500 (Express Card, OEM, No IR, ATSC
+		/* WinTV-HVR1500 (Express Card, OEM, Anal IR, ATSC
 			and Basic analog */
 	case 77011:
-		/* WinTV-HVR1500 (Express Card, Retail, No IR, ATSC
+		/* WinTV-HVR1500 (Express Card, Retail, Anal IR, ATSC
 			and Basic analog */
 	case 77041:
-		/* WinTV-HVR1500Q (Express Card, OEM, No IR, ATSC/QAM
+		/* WinTV-HVR1500Q (Express Card, OEM, Anal IR, ATSC/QAM
 			and Basic analog */
 	case 77051:
-		/* WinTV-HVR1500Q (Express Card, Retail, No IR, ATSC/QAM
+		/* WinTV-HVR1500Q (Express Card, Retail, Anal IR, ATSC/QAM
 			and Basic analog */
 	case 78011:
-		/* WinTV-HVR1800 (PCIe, Retail, 3.5mm in, IR, No FM,
+		/* WinTV-HVR1800 (PCIe, Retail, 3.5mm in, IR, Anal FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
 	case 78501:
-		/* WinTV-HVR1800 (PCIe, OEM, RCA in, No IR, FM,
+		/* WinTV-HVR1800 (PCIe, OEM, RCA in, Anal IR, FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
 	case 78521:
-		/* WinTV-HVR1800 (PCIe, OEM, RCA in, No IR, FM,
+		/* WinTV-HVR1800 (PCIe, OEM, RCA in, Anal IR, FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
 	case 78531:
-		/* WinTV-HVR1800 (PCIe, OEM, RCA in, No IR, No FM,
+		/* WinTV-HVR1800 (PCIe, OEM, RCA in, Anal IR, Anal FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
 	case 78631:
-		/* WinTV-HVR1800 (PCIe, OEM, No IR, No FM,
+		/* WinTV-HVR1800 (PCIe, OEM, Anal IR, Anal FM,
 			Dual channel ATSC and MPEG2 HW Encoder */
 	case 79001:
 		/* WinTV-HVR1250 (PCIe, Retail, IR, full height,
@@ -1350,25 +1350,25 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		/* WinTV-HVR1250 (PCIe, Retail, IR, half height,
 			ATSC and Basic analog */
 	case 79501:
-		/* WinTV-HVR1250 (PCIe, No IR, half height,
+		/* WinTV-HVR1250 (PCIe, Anal IR, half height,
 			ATSC [at least] and Basic analog) */
 	case 79561:
-		/* WinTV-HVR1250 (PCIe, OEM, No IR, half height,
+		/* WinTV-HVR1250 (PCIe, OEM, Anal IR, half height,
 			ATSC and Basic analog */
 	case 79571:
-		/* WinTV-HVR1250 (PCIe, OEM, No IR, full height,
+		/* WinTV-HVR1250 (PCIe, OEM, Anal IR, full height,
 		 ATSC and Basic analog */
 	case 79671:
-		/* WinTV-HVR1250 (PCIe, OEM, No IR, half height,
+		/* WinTV-HVR1250 (PCIe, OEM, Anal IR, half height,
 			ATSC and Basic analog */
 	case 80019:
 		/* WinTV-HVR1400 (Express Card, Retail, IR,
 		 * DVB-T and Basic analog */
 	case 81509:
-		/* WinTV-HVR1700 (PCIe, OEM, No IR, half height)
+		/* WinTV-HVR1700 (PCIe, OEM, Anal IR, half height)
 		 * DVB-T and MPEG2 HW Encoder */
 	case 81519:
-		/* WinTV-HVR1700 (PCIe, OEM, No IR, full height)
+		/* WinTV-HVR1700 (PCIe, OEM, Anal IR, full height)
 		 * DVB-T and MPEG2 HW Encoder */
 		break;
 	case 85021:
@@ -1411,7 +1411,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		 * ATSC/QAM-B, ATSC/QAM-B */
 		break;
 	default:
-		pr_warn("%s: warning: unknown hauppauge model #%d\n",
+		pr_warn("%s: warning: unkanalwn hauppauge model #%d\n",
 			dev->name, tv.model);
 		break;
 	}
@@ -1459,7 +1459,7 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 		return 0;
 
 	if (command != 0) {
-		pr_err("%s(): Unknown command 0x%x.\n",
+		pr_err("%s(): Unkanalwn command 0x%x.\n",
 		       __func__, command);
 		return -EINVAL;
 	}
@@ -1907,8 +1907,8 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_VIEWCAST_260E:
 	case CX23885_BOARD_VIEWCAST_460E:
-		/* For documentation purposes, it's worth noting that this
-		 * card does not have any GPIO's connected to subcomponents.
+		/* For documentation purposes, it's worth analting that this
+		 * card does analt have any GPIO's connected to subcomponents.
 		 */
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
@@ -2020,7 +2020,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
 		if (dev->sd_ir == NULL) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
@@ -2031,7 +2031,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
 		if (dev->sd_ir == NULL) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			break;
 		}
 		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
@@ -2481,7 +2481,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 
 		ret = request_firmware(&fw, filename, &dev->pci->dev);
 		if (ret != 0)
-			pr_err("did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware.",
+			pr_err("did analt find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware.",
 			       filename);
 		else
 			altera_init(&netup_config, fw);

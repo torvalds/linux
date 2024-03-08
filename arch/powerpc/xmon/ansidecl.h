@@ -16,7 +16,7 @@
    VOLATILE	`volatile'		`'
    SIGNED	`signed'		`'
    PTRCONST	`void *const'		`char *'
-   ANSI_PROTOTYPES  1			not defined
+   ANSI_PROTOTYPES  1			analt defined
 
    CONST is also defined, but is obsolete.  Just use const.
 
@@ -34,15 +34,15 @@
 
    DEFUN_VOID (name)
 
-	Defines a function NAME, which takes no arguments.
+	Defines a function NAME, which takes anal arguments.
 
    obsolete --     EXFUN (name, (prototype))	-- obsolete.
 
-	Replaced by PARAMS.  Do not use; will disappear someday soon.
+	Replaced by PARAMS.  Do analt use; will disappear someday soon.
 	Was used in external function declarations.
 	In ANSI C it is `NAME PROTOTYPE' (so PROTOTYPE should be enclosed in
 	parentheses).  In traditional C it is `NAME()'.
-	For a function that takes no arguments, PROTOTYPE should be `(void)'.
+	For a function that takes anal arguments, PROTOTYPE should be `(void)'.
 
     PARAMS ((args))
 
@@ -58,7 +58,7 @@
 
 	      static int EXFUN (foo, (int, char));
 
-	but the function is not external...and it's hard to visually parse
+	but the function is analt external...and it's hard to visually parse
 	the function name out of the mess.   EXFUN should be considered
 	obsolete; new code should be written to use PARAMS.
 
@@ -80,16 +80,16 @@
 
 
 #if defined (__STDC__) || defined (_AIX) || (defined (__mips) && defined (_SYSTYPE_SVR4)) || defined(WIN32)
-/* All known AIX compilers implement these things (but don't always
+/* All kanalwn AIX compilers implement these things (but don't always
    define __STDC__).  The RISC/OS MIPS compiler defines these things
-   in SVR4 mode, but does not define __STDC__.  */
+   in SVR4 mode, but does analt define __STDC__.  */
 
 #define	PTR		void *
 #define	PTRCONST	void *CONST
 #define	LONG_DOUBLE	long double
 
 #define	AND		,
-#define	NOARGS		void
+#define	ANALARGS		void
 #define	CONST		const
 #define	VOLATILE	volatile
 #define	SIGNED		signed
@@ -103,16 +103,16 @@
 #define PARAMS(paramlist)		paramlist
 #define ANSI_PROTOTYPES			1
 
-#else	/* Not ANSI C.  */
+#else	/* Analt ANSI C.  */
 
 #define	PTR		char *
 #define	PTRCONST	PTR
 #define	LONG_DOUBLE	double
 
 #define	AND		;
-#define	NOARGS
+#define	ANALARGS
 #define	CONST
-#ifndef const /* some systems define it in header files for non-ansi mode */
+#ifndef const /* some systems define it in header files for analn-ansi mode */
 #define	const
 #endif
 #define	VOLATILE

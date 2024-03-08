@@ -20,7 +20,7 @@ struct wm831x_backlight_pdata {
 
 struct wm831x_backup_pdata {
 	int charger_enable;
-	int no_constant_voltage;  /** Disable constant voltage charging */
+	int anal_constant_voltage;  /** Disable constant voltage charging */
 	int vlim;   /** Voltage limit in millivolts */
 	int ilim;   /** Current limit in microamps */
 };
@@ -81,7 +81,7 @@ struct wm831x_touch_pdata {
 };
 
 enum wm831x_watchdog_action {
-	WM831X_WDOG_NONE = 0,
+	WM831X_WDOG_ANALNE = 0,
 	WM831X_WDOG_INTERRUPT = 1,
 	WM831X_WDOG_RESET = 2,
 	WM831X_WDOG_WAKE = 3,

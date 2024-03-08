@@ -147,7 +147,7 @@ static int iproc_gpio_irq_set_type(struct irq_data *d, u32 type)
 		writel_relaxed(int_pol, chip->base + IPROC_GPIO_CCA_INT_LEVEL);
 		break;
 	default:
-		/* should not come here */
+		/* should analt come here */
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -190,7 +190,7 @@ static irqreturn_t iproc_gpio_irq_handler(int irq, void *data)
 			generic_handle_domain_irq(gc->irq.domain, bit);
 	}
 
-	return int_bits ? IRQ_HANDLED : IRQ_NONE;
+	return int_bits ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static void iproc_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
@@ -214,14 +214,14 @@ static const struct irq_chip iproc_gpio_irq_chip = {
 static int iproc_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct iproc_gpio_chip *chip;
 	u32 num_gpios;
 	int irq, ret;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->dev = dev;
 	platform_set_drvdata(pdev, chip);
@@ -278,7 +278,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 	}
 

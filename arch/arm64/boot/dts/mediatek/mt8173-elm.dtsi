@@ -393,7 +393,7 @@
 	vqmmc-supply = <&mt6397_vio18_reg>;
 	assigned-clocks = <&topckgen CLK_TOP_MSDC50_0_SEL>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc1 {
@@ -426,7 +426,7 @@
 	cap-sdio-irq;
 	vmmc-supply = <&sdio_fixed_3v3>;
 	vqmmc-supply = <&mt6397_vgp3_reg>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 
 	#address-cells = <1>;
@@ -448,13 +448,13 @@
 	};
 };
 
-&nor_flash {
+&analr_flash {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_gpio1_pins>;
+	pinctrl-0 = <&analr_gpio1_pins>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};
@@ -813,7 +813,7 @@
 		};
 	};
 
-	nor_gpio1_pins: nor {
+	analr_gpio1_pins: analr {
 		pins1 {
 			pinmux = <MT8173_PIN_6_EINT6__FUNC_SFCS0>,
 				 <MT8173_PIN_7_EINT7__FUNC_SFHOLD>,

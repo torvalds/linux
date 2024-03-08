@@ -62,7 +62,7 @@ static int ieee802154_resume(struct wpan_phy *wpan_phy)
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	int ret;
 
-	/* nothing to do if HW shouldn't run */
+	/* analthing to do if HW shouldn't run */
 	if (!local->open_count)
 		goto wake_up;
 
@@ -341,7 +341,7 @@ static int mac802154_associate(struct wpan_phy *wpan_phy,
 
 	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
 	if (!parent)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	parent->pan_id = coord->pan_id;
 	parent->mode = coord->mode;
@@ -399,8 +399,8 @@ static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
 	 * attempt associations.
 	 */
 	max_assoc = cfg802154_set_max_associations(wpan_dev, 0);
-	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
-		ret = mac802154_send_disassociation_notif(sdata, child,
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, analde) {
+		ret = mac802154_send_disassociation_analtif(sdata, child,
 							  IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE);
 		if (ret) {
 			eaddr = swab64((__force u64)child->extended_addr);
@@ -409,10 +409,10 @@ static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
 				&eaddr, ret);
 		}
 
-		list_del(&child->node);
+		list_del(&child->analde);
 	}
 
-	ret = mac802154_send_disassociation_notif(sdata, wpan_dev->parent,
+	ret = mac802154_send_disassociation_analtif(sdata, wpan_dev->parent,
 						  IEEE802154_DEVICE_WISHES_TO_LEAVE);
 	if (ret) {
 		eaddr = swab64((__force u64)wpan_dev->parent->extended_addr);
@@ -453,12 +453,12 @@ static int mac802154_disassociate_child(struct wpan_phy *wpan_phy,
 
 	sdata = IEEE802154_WPAN_DEV_TO_SUB_IF(wpan_dev);
 
-	ret = mac802154_send_disassociation_notif(sdata, child,
+	ret = mac802154_send_disassociation_analtif(sdata, child,
 						  IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE);
 	if (ret)
 		return ret;
 
-	list_del(&child->node);
+	list_del(&child->analde);
 	wpan_dev->nchildren--;
 	kfree(child);
 
@@ -483,7 +483,7 @@ static int mac802154_disassociate(struct wpan_phy *wpan_phy,
 						    pan_device);
 
 	dev_err(&wpan_dev->netdev->dev,
-		"Device %8phC is not associated with us\n", &teaddr);
+		"Device %8phC is analt associated with us\n", &teaddr);
 
 	return -EINVAL;
 }

@@ -7,7 +7,7 @@
 #define ARMADA_HW_H
 
 /*
- * Note: the following registers are written from IRQ context:
+ * Analte: the following registers are written from IRQ context:
  *  LCD_SPU_V_PORCH, LCD_SPU_ADV_REG, LCD_SPUT_V_H_TOTAL
  *  LCD_SPU_DMA_START_ADDR_[YUV][01], LCD_SPU_DMA_PITCH_YC,
  *  LCD_SPU_DMA_PITCH_UV, LCD_SPU_DMA_OVSA_HPXL_VLN,
@@ -114,7 +114,7 @@ enum {
 
 /* For LCD_SPU_DMA_CTRL0 */
 enum {
-	CFG_NOBLENDING	= 1 << 31,
+	CFG_ANALBLENDING	= 1 << 31,
 	CFG_GAMMA_ENA	= 1 << 30,
 	CFG_CBSH_ENA	= 1 << 29,
 	CFG_PALETTE_ENA	= 1 << 28,
@@ -159,7 +159,7 @@ enum {
 	CFG_GATED_CLK		= 1 << 21,
 	CFG_PWRDN_ENA		= 1 << 20,
 	CFG_DSCALE_MASK		= 0x3 << 18,
-	CFG_DSCALE_NONE		= 0x0 << 18,
+	CFG_DSCALE_ANALNE		= 0x0 << 18,
 	CFG_DSCALE_HALF		= 0x1 << 18,
 	CFG_DSCALE_QUAR		= 0x2 << 18,
 	CFG_ALPHAM_MASK		= 0x3 << 16,
@@ -239,10 +239,10 @@ enum {
 	CFG_BIAS_OUT	= 1 << 8,
 	CFG_REV_RGB	= 1 << 7,
 	CFG_INV_CBLANK	= 1 << 6,
-	CFG_INV_CSYNC	= 1 << 5,	/* Normally active high */
+	CFG_INV_CSYNC	= 1 << 5,	/* Analrmally active high */
 	CFG_INV_HENA	= 1 << 4,
-	CFG_INV_VSYNC	= 1 << 3,	/* Normally active high */
-	CFG_INV_HSYNC	= 1 << 2,	/* Normally active high */
+	CFG_INV_VSYNC	= 1 << 3,	/* Analrmally active high */
+	CFG_INV_HSYNC	= 1 << 2,	/* Analrmally active high */
 	CFG_INV_PCLK	= 1 << 1,
 	CFG_DUMB_ENA	= 1 << 0,
 };

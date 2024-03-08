@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _fm-rx-controls:
 
@@ -53,11 +53,11 @@ FM_RX Control IDs
     steps of 32 or 64 characters. The result is it must always contain a
     string with size multiple of 32 or 64.
 
-``V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT (boolean)``
-    If set, then a traffic announcement is in progress.
+``V4L2_CID_RDS_RX_TRAFFIC_ANANALUNCEMENT (boolean)``
+    If set, then a traffic ananaluncement is in progress.
 
 ``V4L2_CID_RDS_RX_TRAFFIC_PROGRAM (boolean)``
-    If set, then the tuned programme carries traffic announcements.
+    If set, then the tuned programme carries traffic ananaluncements.
 
 ``V4L2_CID_RDS_RX_MUSIC_SPEECH (boolean)``
     If set, then this channel broadcasts music. If cleared, then it
@@ -81,7 +81,7 @@ enum v4l2_deemphasis -
     :stub-columns: 0
 
     * - ``V4L2_DEEMPHASIS_DISABLED``
-      - No de-emphasis is applied.
+      - Anal de-emphasis is applied.
     * - ``V4L2_DEEMPHASIS_50_uS``
       - A de-emphasis of 50 uS is used.
     * - ``V4L2_DEEMPHASIS_75_uS``

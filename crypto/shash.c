@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synchronous Cryptographic Hash operations.
+ * Synchroanalus Cryptographic Hash operations.
  *
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  */
@@ -28,12 +28,12 @@ static inline int crypto_shash_errstat(struct shash_alg *alg, int err)
 	return err;
 }
 
-int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+int shash_anal_setkey(struct crypto_shash *tfm, const u8 *key,
 		    unsigned int keylen)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
-EXPORT_SYMBOL_GPL(shash_no_setkey);
+EXPORT_SYMBOL_GPL(shash_anal_setkey);
 
 static void shash_set_needkey(struct crypto_shash *tfm, struct shash_alg *alg)
 {
@@ -140,7 +140,7 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 	}
 
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		err = -ENOKEY;
+		err = -EANALKEY;
 	else
 		err = shash->digest(desc, data, len, out);
 
@@ -183,7 +183,7 @@ int crypto_shash_import(struct shash_desc *desc, const void *in)
 	struct shash_alg *shash = crypto_shash_alg(tfm);
 
 	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (shash->import)
 		return shash->import(desc, in);
@@ -328,7 +328,7 @@ struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
 	}
 
 	if (!alg->clone_tfm && (alg->init_tfm || alg->base.cra_init))
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EANALSYS);
 
 	nhash = crypto_clone_tfm(&crypto_shash_type, tfm);
 	if (IS_ERR(nhash))
@@ -356,7 +356,7 @@ int hash_prepare_alg(struct hash_alg_common *alg)
 	if (alg->digestsize > HASH_MAX_DIGESTSIZE)
 		return -EINVAL;
 
-	/* alignmask is not useful for hashes, so it is not supported. */
+	/* alignmask is analt useful for hashes, so it is analt supported. */
 	if (base->cra_alignmask)
 		return -EINVAL;
 
@@ -395,7 +395,7 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	 * implement these anyway.  On the other hand, for ->import and
 	 * ->export the common case and best performance comes from the simple
 	 * memcpy of the shash_desc_ctx, so when those pointers are NULL we
-	 * leave them NULL and provide the memcpy with no indirect call.
+	 * leave them NULL and provide the memcpy with anal indirect call.
 	 */
 	if (!alg->finup)
 		alg->finup = shash_default_finup;
@@ -404,7 +404,7 @@ static int shash_prepare_alg(struct shash_alg *alg)
 	if (!alg->export)
 		alg->halg.statesize = alg->descsize;
 	if (!alg->setkey)
-		alg->setkey = shash_no_setkey;
+		alg->setkey = shash_anal_setkey;
 
 	return 0;
 }
@@ -481,4 +481,4 @@ void shash_free_singlespawn_instance(struct shash_instance *inst)
 EXPORT_SYMBOL_GPL(shash_free_singlespawn_instance);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synchronous cryptographic hash type");
+MODULE_DESCRIPTION("Synchroanalus cryptographic hash type");

@@ -3,7 +3,7 @@
  * kexec for arm64
  *
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techanallogies.
  */
 
 #include <linux/interrupt.h>
@@ -49,7 +49,7 @@ void machine_kexec_cleanup(struct kimage *kimage)
  * machine_kexec_prepare - Prepare for a kexec reboot.
  *
  * Called from the core kexec code when a kernel image is loaded.
- * Forbid loading a kexec kernel if we have no way of hotplugging cpus or cpus
+ * Forbid loading a kexec kernel if we have anal way of hotplugging cpus or cpus
  * are stuck in the kernel. This avoids a panic once we hit machine_kexec().
  */
 int machine_kexec_prepare(struct kimage *kimage)
@@ -113,7 +113,7 @@ int machine_kexec_post_load(struct kimage *kimage)
 		.trans_alloc_arg	= kimage,
 	};
 
-	/* If in place, relocation is not used, only flush next kernel */
+	/* If in place, relocation is analt used, only flush next kernel */
 	if (kimage->head & IND_DONE) {
 		kexec_segment_flush(kimage);
 		kexec_image_info(kimage);
@@ -131,7 +131,7 @@ int machine_kexec_post_load(struct kimage *kimage)
 	/* Create a copy of the linear map */
 	trans_pgd = kexec_page_alloc(kimage);
 	if (!trans_pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 	rc = trans_pgd_create_copy(&info, &trans_pgd, PAGE_OFFSET, PAGE_END);
 	if (rc)
 		return rc;
@@ -239,13 +239,13 @@ static void machine_kexec_mask_interrupts(void)
 }
 
 /**
- * machine_crash_shutdown - shutdown non-crashing cpus and save registers
+ * machine_crash_shutdown - shutdown analn-crashing cpus and save registers
  */
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	local_irq_disable();
 
-	/* shutdown non-crashing cpus */
+	/* shutdown analn-crashing cpus */
 	crash_smp_send_stop();
 
 	/* for crashing cpu */
@@ -273,20 +273,20 @@ void crash_post_resume(void)
 }
 
 /*
- * crash_is_nosave
+ * crash_is_analsave
  *
  * Return true only if a page is part of reserved memory for crash dump kernel,
- * but does not hold any data of loaded kernel image.
+ * but does analt hold any data of loaded kernel image.
  *
- * Note that all the pages in crash dump kernel memory have been initially
+ * Analte that all the pages in crash dump kernel memory have been initially
  * marked as Reserved as memory was allocated via memblock_reserve().
  *
- * In hibernation, the pages which are Reserved and yet "nosave" are excluded
- * from the hibernation iamge. crash_is_nosave() does thich check for crash
+ * In hibernation, the pages which are Reserved and yet "analsave" are excluded
+ * from the hibernation iamge. crash_is_analsave() does thich check for crash
  * dump kernel and will reduce the total size of hibernation image.
  */
 
-bool crash_is_nosave(unsigned long pfn)
+bool crash_is_analsave(unsigned long pfn)
 {
 	int i;
 	phys_addr_t addr;
@@ -307,7 +307,7 @@ bool crash_is_nosave(unsigned long pfn)
 	if (!kexec_crash_image)
 		return true;
 
-	/* not part of loaded kernel image? */
+	/* analt part of loaded kernel image? */
 	for (i = 0; i < kexec_crash_image->nr_segments; i++)
 		if (addr >= kexec_crash_image->segment[i].mem &&
 				addr < (kexec_crash_image->segment[i].mem +

@@ -50,7 +50,7 @@ check_active_slave()
 	local target_active_slave=$1
 	active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
 	test "$active_slave" = "$target_active_slave"
-	check_err $? "Current active slave is $active_slave but not $target_active_slave"
+	check_err $? "Current active slave is $active_slave but analt $target_active_slave"
 }
 
 
@@ -71,13 +71,13 @@ prio_test()
 	ip -n ${s_ns} link set eth2 type bond_slave prio 11
 	cmd_jq "ip -n ${s_ns} -d -j link show eth0" \
 		".[].linkinfo.info_slave_data | select (.prio == 0)" "-e" &> /dev/null
-	check_err $? "eth0 prio is not 0"
+	check_err $? "eth0 prio is analt 0"
 	cmd_jq "ip -n ${s_ns} -d -j link show eth1" \
 		".[].linkinfo.info_slave_data | select (.prio == 10)" "-e" &> /dev/null
-	check_err $? "eth1 prio is not 10"
+	check_err $? "eth1 prio is analt 10"
 	cmd_jq "ip -n ${s_ns} -d -j link show eth2" \
 		".[].linkinfo.info_slave_data | select (.prio == 11)" "-e" &> /dev/null
-	check_err $? "eth2 prio is not 11"
+	check_err $? "eth2 prio is analt 11"
 
 	bond_check_connection "setup"
 
@@ -134,11 +134,11 @@ prio_test()
 		ip -n ${s_ns} link set eth1 type bond_slave prio 0
 		ip -n ${s_ns} link set eth2 type bond_slave prio -50
 		ip -n ${s_ns} -d link show eth0 | grep -q 'prio 1000000'
-		check_err $? "eth0 prio is not 1000000"
+		check_err $? "eth0 prio is analt 1000000"
 		ip -n ${s_ns} -d link show eth1 | grep -q 'prio 0'
-		check_err $? "eth1 prio is not 0"
+		check_err $? "eth1 prio is analt 0"
 		ip -n ${s_ns} -d link show eth2 | grep -q 'prio -50'
-		check_err $? "eth3 prio is not -50"
+		check_err $? "eth3 prio is analt -50"
 		check_active_slave "eth1"
 
 		ip -n ${s_ns} link set $active_slave down
@@ -299,7 +299,7 @@ num_grat_arp()
 {
 	local val
 	for val in 10 20 30 50; do
-		garp_test "mode active-backup miimon 100 num_grat_arp $val peer_notify_delay 1000"
+		garp_test "mode active-backup miimon 100 num_grat_arp $val peer_analtify_delay 1000"
 		log_test "num_grat_arp" "active-backup miimon num_grat_arp $val"
 	done
 }

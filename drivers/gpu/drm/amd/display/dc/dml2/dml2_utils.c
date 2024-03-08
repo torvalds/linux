@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@ void dml2_util_copy_dml_timing(struct dml_timing_cfg_st *dml_timing_array, unsig
 	dml_timing_array->VActive[dst_index] = dml_timing_array->VActive[src_index];
 	dml_timing_array->Interlace[dst_index] = dml_timing_array->Interlace[src_index];
 	dml_timing_array->DRRDisplay[dst_index] = dml_timing_array->DRRDisplay[src_index];
-	dml_timing_array->VBlankNom[dst_index] = dml_timing_array->VBlankNom[src_index];
+	dml_timing_array->VBlankAnalm[dst_index] = dml_timing_array->VBlankAnalm[src_index];
 }
 
 void dml2_util_copy_dml_plane(struct dml_plane_cfg_st *dml_plane_array, unsigned int dst_index, unsigned int src_index)
@@ -305,7 +305,7 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 	unbounded_req_enabled = in_ctx->v20.dml_core_ctx.ms.UnboundedRequestEnabledThisState;
 
 	if (unbounded_req_enabled && pipe_cnt > 1) {
-		// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
+		// Unbounded requesting should analt ever be used when more than 1 pipe is enabled.
 		//ASSERT(false);
 		unbounded_req_enabled = false;
 	}
@@ -316,8 +316,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 		if (!context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream)
 			continue;
 		/* The DML2 and the DC logic of determining pipe indices are different from each other so
-		 * there is a need to know which DML pipe index maps to which DC pipe. The code below
-		 * finds a dml_pipe_index from the plane id if a plane is valid. If a plane is not valid then
+		 * there is a need to kanalw which DML pipe index maps to which DC pipe. The code below
+		 * finds a dml_pipe_index from the plane id if a plane is valid. If a plane is analt valid then
 		 * it finds a dml_pipe_index from the stream id. */
 		if (get_plane_id(in_ctx, context, context->res_ctx.pipe_ctx[dc_pipe_ctx_index].plane_state,
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->stream_id,
@@ -337,7 +337,7 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 
 		pipe_mall_type = dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[dc_pipe_ctx_index]);
 		if (pipe_mall_type == SUBVP_PHANTOM) {
-			// Phantom pipe requires that DET_SIZE = 0 and no unbounded requests
+			// Phantom pipe requires that DET_SIZE = 0 and anal unbounded requests
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb = 0;
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = false;
 		} else {
@@ -387,7 +387,7 @@ void dml2_extract_watermark_set(struct dcn_watermarks *watermark, struct display
 	watermark->cstate_pstate.cstate_exit_ns = dml_get_wm_stutter_exit(dml_core_ctx) * 1000;
 	watermark->cstate_pstate.pstate_change_ns = dml_get_wm_dram_clock_change(dml_core_ctx) * 1000;
 	watermark->pte_meta_urgent_ns = dml_get_wm_memory_trip(dml_core_ctx) * 1000;
-	watermark->frac_urg_bw_nom = dml_get_fraction_of_urgent_bandwidth(dml_core_ctx) * 1000;
+	watermark->frac_urg_bw_analm = dml_get_fraction_of_urgent_bandwidth(dml_core_ctx) * 1000;
 	watermark->frac_urg_bw_flip = dml_get_fraction_of_urgent_bandwidth_imm_flip(dml_core_ctx) * 1000;
 	watermark->urgent_latency_ns = dml_get_urgent_latency(dml_core_ctx) * 1000;
 	watermark->cstate_pstate.fclk_pstate_change_ns = dml_get_wm_fclk_change(dml_core_ctx) * 1000;
@@ -438,7 +438,7 @@ void dml2_apply_det_buffer_allocation_policy(struct dml2_context *in_ctx, struct
 		else {
 			dml_dispcfg->plane.DETSizeOverride[plane_index] = ((max_det_size / num_of_streams) / num_of_planes_per_stream[stream_index] / in_ctx->det_helper_scratch.dpps_per_surface[plane_index]);
 
-			/* If the override size is not divisible by det_segment_size then round off to nearest number divisible by det_segment_size as
+			/* If the override size is analt divisible by det_segment_size then round off to nearest number divisible by det_segment_size as
 				* this is a requirement.
 				*/
 			if (dml_dispcfg->plane.DETSizeOverride[plane_index] % in_ctx->config.det_segment_size != 0) {

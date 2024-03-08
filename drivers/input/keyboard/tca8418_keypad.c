@@ -15,7 +15,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
+ * License along with this program; if analt, write to the
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  *
@@ -206,11 +206,11 @@ static irqreturn_t tca8418_irq_handler(int irq, void *dev_id)
 	if (error) {
 		dev_err(&keypad_data->client->dev,
 			"unable to read REG_INT_STAT\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & INT_STAT_OVR_FLOW_INT)
 		dev_warn(&keypad_data->client->dev, "overflow occurred\n");
@@ -270,9 +270,9 @@ static int tca8418_keypad_probe(struct i2c_client *client)
 
 	/* Check i2c driver capabilities */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(dev, "%s adapter not supported\n",
+		dev_err(dev, "%s adapter analt supported\n",
 			dev_driver_string(&client->adapter->dev));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	error = matrix_keypad_parse_properties(dev, &rows, &cols);
@@ -294,20 +294,20 @@ static int tca8418_keypad_probe(struct i2c_client *client)
 	/* Allocate memory for keypad_data and input device */
 	keypad_data = devm_kzalloc(dev, sizeof(*keypad_data), GFP_KERNEL);
 	if (!keypad_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keypad_data->client = client;
 	keypad_data->row_shift = row_shift;
 
-	/* Read key lock register, if this fails assume device not present */
+	/* Read key lock register, if this fails assume device analt present */
 	error = tca8418_read_byte(keypad_data, REG_KEY_LCK_EC, &reg);
 	if (error)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Configure input device */
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	keypad_data->input = input;
 

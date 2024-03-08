@@ -4,10 +4,10 @@
  * Copyright 2002 Hewlett-Packard Company
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright analtice is
  * preserved in its entirety in all copies and derived works.
  *
- * HEWLETT-PACKARD COMPANY MAKES NO WARRANTIES, EXPRESSED OR IMPLIED,
+ * HEWLETT-PACKARD COMPANY MAKES ANAL WARRANTIES, EXPRESSED OR IMPLIED,
  * AS TO THE USEFULNESS OR CORRECTNESS OF THIS CODE OR ITS
  * FITNESS FOR ANY PARTICULAR PURPOSE.
  *
@@ -256,7 +256,7 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_CMDQ_MODE_EN		15	/* R/W */
 #define EXT_CSD_FLUSH_CACHE		32      /* W */
 #define EXT_CSD_CACHE_CTRL		33      /* R/W */
-#define EXT_CSD_POWER_OFF_NOTIFICATION	34	/* R/W */
+#define EXT_CSD_POWER_OFF_ANALTIFICATION	34	/* R/W */
 #define EXT_CSD_EXP_EVENTS_STATUS	54	/* RO, 2 bytes */
 #define EXT_CSD_EXP_EVENTS_CTRL		56	/* R/W, 2 bytes */
 #define EXT_CSD_DATA_SECTOR_SIZE	61	/* R */
@@ -342,7 +342,7 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_PART_SETTING_COMPLETED	(0x1)
 #define EXT_CSD_PART_SUPPORT_PART_EN	(0x1)
 
-#define EXT_CSD_CMD_SET_NORMAL		(1<<0)
+#define EXT_CSD_CMD_SET_ANALRMAL		(1<<0)
 #define EXT_CSD_CMD_SET_SECURE		(1<<1)
 #define EXT_CSD_CMD_SET_CPSECURE	(1<<2)
 
@@ -388,7 +388,7 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_RST_N_EN_MASK	0x3
 #define EXT_CSD_RST_N_ENABLED	1	/* RST_n is enabled on card */
 
-#define EXT_CSD_NO_POWER_NOTIFICATION	0
+#define EXT_CSD_ANAL_POWER_ANALTIFICATION	0
 #define EXT_CSD_POWER_ON		1
 #define EXT_CSD_POWER_OFF_SHORT		2
 #define EXT_CSD_POWER_OFF_LONG		3

@@ -13,7 +13,7 @@
 #include <asm/vmalloc.h>
 
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
-struct notifier_block;		/* in notifier.h */
+struct analtifier_block;		/* in analtifier.h */
 struct iov_iter;		/* in uio.h */
 
 /* bits in flags of vmalloc's vm_struct below */
@@ -22,8 +22,8 @@ struct iov_iter;		/* in uio.h */
 #define VM_MAP			0x00000004	/* vmap()ed pages */
 #define VM_USERMAP		0x00000008	/* suitable for remap_vmalloc_range */
 #define VM_DMA_COHERENT		0x00000010	/* dma_alloc_coherent */
-#define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
-#define VM_NO_GUARD		0x00000040      /* ***DANGEROUS*** don't add guard page */
+#define VM_UNINITIALIZED	0x00000020	/* vm_struct is analt fully initialized */
+#define VM_ANAL_GUARD		0x00000040      /* ***DANGEROUS*** don't add guard page */
 #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
 #define VM_FLUSH_RESET_PERMS	0x00000100	/* reset direct map and flush TLB on unmap, can't be freed in atomic context */
 #define VM_MAP_PUT_PAGES	0x00000200	/* put pages and free array in vfree */
@@ -64,7 +64,7 @@ struct vmap_area {
 	unsigned long va_start;
 	unsigned long va_end;
 
-	struct rb_node rb_node;         /* address sorted rbtree */
+	struct rb_analde rb_analde;         /* address sorted rbtree */
 	struct list_head list;          /* address sorted list */
 
 	/*
@@ -128,7 +128,7 @@ static inline pgprot_t arch_vmap_pgprot_tagged(pgprot_t prot)
  *	Highlevel APIs for driver use
  */
 extern void vm_unmap_ram(const void *mem, unsigned int count);
-extern void *vm_map_ram(struct page **pages, unsigned int count, int node);
+extern void *vm_map_ram(struct page **pages, unsigned int count, int analde);
 extern void vm_unmap_aliases(void);
 
 #ifdef CONFIG_MMU
@@ -140,17 +140,17 @@ static inline unsigned long vmalloc_nr_pages(void) { return 0; }
 extern void *vmalloc(unsigned long size) __alloc_size(1);
 extern void *vzalloc(unsigned long size) __alloc_size(1);
 extern void *vmalloc_user(unsigned long size) __alloc_size(1);
-extern void *vmalloc_node(unsigned long size, int node) __alloc_size(1);
-extern void *vzalloc_node(unsigned long size, int node) __alloc_size(1);
+extern void *vmalloc_analde(unsigned long size, int analde) __alloc_size(1);
+extern void *vzalloc_analde(unsigned long size, int analde) __alloc_size(1);
 extern void *vmalloc_32(unsigned long size) __alloc_size(1);
 extern void *vmalloc_32_user(unsigned long size) __alloc_size(1);
 extern void *__vmalloc(unsigned long size, gfp_t gfp_mask) __alloc_size(1);
-extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+extern void *__vmalloc_analde_range(unsigned long size, unsigned long align,
 			unsigned long start, unsigned long end, gfp_t gfp_mask,
-			pgprot_t prot, unsigned long vm_flags, int node,
+			pgprot_t prot, unsigned long vm_flags, int analde,
 			const void *caller) __alloc_size(1);
-void *__vmalloc_node(unsigned long size, unsigned long align, gfp_t gfp_mask,
-		int node, const void *caller) __alloc_size(1);
+void *__vmalloc_analde(unsigned long size, unsigned long align, gfp_t gfp_mask,
+		int analde, const void *caller) __alloc_size(1);
 void *vmalloc_huge(unsigned long size, gfp_t gfp_mask) __alloc_size(1);
 
 extern void *__vmalloc_array(size_t n, size_t size, gfp_t flags) __alloc_size(1, 2);
@@ -175,7 +175,7 @@ extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 
 /*
  * Architectures can set this mask to a combination of PGTBL_P?D_MODIFIED values
- * and let generic vmalloc and ioremap code know when arch_sync_kernel_mappings()
+ * and let generic vmalloc and ioremap code kanalw when arch_sync_kernel_mappings()
  * needs to be called.
  */
 #ifndef ARCH_PAGE_TABLE_SYNC_MASK
@@ -183,19 +183,19 @@ extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 #endif
 
 /*
- * There is no default implementation for arch_sync_kernel_mappings(). It is
+ * There is anal default implementation for arch_sync_kernel_mappings(). It is
  * relied upon the compiler to optimize calls out if ARCH_PAGE_TABLE_SYNC_MASK
  * is 0.
  */
 void arch_sync_kernel_mappings(unsigned long start, unsigned long end);
 
 /*
- *	Lowlevel-APIs (not for driver use!)
+ *	Lowlevel-APIs (analt for driver use!)
  */
 
 static inline size_t get_vm_area_size(const struct vm_struct *area)
 {
-	if (!(area->flags & VM_NO_GUARD))
+	if (!(area->flags & VM_ANAL_GUARD))
 		/* return actual size without guard page */
 		return area->size - PAGE_SIZE;
 	else
@@ -218,9 +218,9 @@ struct vmap_area *find_vmap_area(unsigned long addr);
 static inline bool is_vm_area_hugepages(const void *addr)
 {
 	/*
-	 * This may not 100% tell if the area is mapped with > PAGE_SIZE
+	 * This may analt 100% tell if the area is mapped with > PAGE_SIZE
 	 * page table entries, if for some reason the architecture indicates
-	 * larger sizes are available but decides not to use them, nothing
+	 * larger sizes are available but decides analt to use them, analthing
 	 * prevents that. This only indicates the size of the physical page
 	 * allocated in the vmalloc layer.
 	 */
@@ -286,8 +286,8 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 #define VMALLOC_TOTAL 0UL
 #endif
 
-int register_vmap_purge_notifier(struct notifier_block *nb);
-int unregister_vmap_purge_notifier(struct notifier_block *nb);
+int register_vmap_purge_analtifier(struct analtifier_block *nb);
+int unregister_vmap_purge_analtifier(struct analtifier_block *nb);
 
 #if defined(CONFIG_MMU) && defined(CONFIG_PRINTK)
 bool vmalloc_dump_obj(void *object);

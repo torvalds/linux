@@ -11,7 +11,7 @@
 #include "vimc-common.h"
 
 /*
- * NOTE: non-bayer formats need to come first (necessary for enum_mbus_code
+ * ANALTE: analn-bayer formats need to come first (necessary for enum_mbus_code
  * in the scaler)
  */
 static const struct vimc_pix_map vimc_pix_map_list[] = {
@@ -262,7 +262,7 @@ static int vimc_get_pix_format(struct media_pad *pad,
 		struct vimc_ent_device *ved = video_get_drvdata(vdev);
 
 		if (!ved->vdev_get_format)
-			return -ENOIOCTLCMD;
+			return -EANALIOCTLCMD;
 
 		ved->vdev_get_format(ved, fmt);
 	} else {
@@ -308,12 +308,12 @@ int vimc_vdev_link_validate(struct media_link *link)
 		return -EPIPE;
 
 	/*
-	 * The field order must match, or the sink field order must be NONE
+	 * The field order must match, or the sink field order must be ANALNE
 	 * to support interlaced hardware connected to bridges that support
 	 * progressive formats only.
 	 */
 	if (source_fmt.field != sink_fmt.field &&
-	    sink_fmt.field != V4L2_FIELD_NONE)
+	    sink_fmt.field != V4L2_FIELD_ANALNE)
 		return -EPIPE;
 
 	/*
@@ -328,7 +328,7 @@ int vimc_vdev_link_validate(struct media_link *link)
 	if (source_fmt.colorspace != sink_fmt.colorspace)
 		return -EPIPE;
 
-	/* Colorimetry must match if they are not set to DEFAULT */
+	/* Colorimetry must match if they are analt set to DEFAULT */
 	if (source_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
 	    sink_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
 	    source_fmt.ycbcr_enc != sink_fmt.ycbcr_enc)
@@ -374,7 +374,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 	v4l2_set_subdevdata(sd, ved);
 
 	/* Expose this subdev to user space */
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	if (sd->ctrl_handler)
 		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 

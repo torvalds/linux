@@ -41,13 +41,13 @@ static int copy_code(struct pt_regs *regs, u16 *val, const u16 *insns)
 	const void __user *uaddr = (__force const void __user *)insns;
 
 	if (!user_mode(regs))
-		return get_kernel_nofault(*val, insns);
+		return get_kernel_analfault(*val, insns);
 
-	/* The user space code from other tasks cannot be accessed. */
+	/* The user space code from other tasks cananalt be accessed. */
 	if (regs != task_pt_regs(current))
 		return -EPERM;
 
-	return copy_from_user_nofault(val, uaddr, sizeof(*val));
+	return copy_from_user_analfault(val, uaddr, sizeof(*val));
 }
 
 static void dump_instr(const char *loglvl, struct pt_regs *regs)
@@ -92,13 +92,13 @@ void die(struct pt_regs *regs, const char *str)
 	}
 
 	cause = regs ? regs->cause : -1;
-	ret = notify_die(DIE_OOPS, str, regs, 0, cause, SIGSEGV);
+	ret = analtify_die(DIE_OOPS, str, regs, 0, cause, SIGSEGV);
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
+	add_taint(TAINT_DIE, LOCKDEP_ANALW_UNRELIABLE);
 	spin_unlock_irqrestore(&die_lock, flags);
 	oops_exit();
 
@@ -106,34 +106,34 @@ void die(struct pt_regs *regs, const char *str)
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
-	if (ret != NOTIFY_STOP)
+	if (ret != ANALTIFY_STOP)
 		make_task_dead(SIGSEGV);
 }
 
-void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
+void do_trap(struct pt_regs *regs, int siganal, int code, unsigned long addr)
 {
 	struct task_struct *tsk = current;
 
-	if (show_unhandled_signals && unhandled_signal(tsk, signo)
+	if (show_unhandled_signals && unhandled_signal(tsk, siganal)
 	    && printk_ratelimit()) {
 		pr_info("%s[%d]: unhandled signal %d code 0x%x at 0x" REG_FMT,
-			tsk->comm, task_pid_nr(tsk), signo, code, addr);
+			tsk->comm, task_pid_nr(tsk), siganal, code, addr);
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
 		__show_regs(regs);
 		dump_instr(KERN_EMERG, regs);
 	}
 
-	force_sig_fault(signo, code, (void __user *)addr);
+	force_sig_fault(siganal, code, (void __user *)addr);
 }
 
-static void do_trap_error(struct pt_regs *regs, int signo, int code,
+static void do_trap_error(struct pt_regs *regs, int siganal, int code,
 	unsigned long addr, const char *str)
 {
 	current->thread.bad_cause = regs->cause;
 
 	if (user_mode(regs)) {
-		do_trap(regs, signo, code, addr);
+		do_trap(regs, siganal, code, addr);
 	} else {
 		if (!fixup_exception(regs))
 			die(regs, str);
@@ -141,26 +141,26 @@ static void do_trap_error(struct pt_regs *regs, int signo, int code,
 }
 
 #if defined(CONFIG_XIP_KERNEL) && defined(CONFIG_RISCV_ALTERNATIVE)
-#define __trap_section __noinstr_section(".xip.traps")
+#define __trap_section __analinstr_section(".xip.traps")
 #else
-#define __trap_section noinstr
+#define __trap_section analinstr
 #endif
-#define DO_ERROR_INFO(name, signo, code, str)					\
+#define DO_ERROR_INFO(name, siganal, code, str)					\
 asmlinkage __visible __trap_section void name(struct pt_regs *regs)		\
 {										\
 	if (user_mode(regs)) {							\
 		irqentry_enter_from_user_mode(regs);				\
-		do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+		do_trap_error(regs, siganal, code, regs->epc, "Oops - " str);	\
 		irqentry_exit_to_user_mode(regs);				\
 	} else {								\
 		irqentry_state_t state = irqentry_nmi_enter(regs);		\
-		do_trap_error(regs, signo, code, regs->epc, "Oops - " str);	\
+		do_trap_error(regs, siganal, code, regs->epc, "Oops - " str);	\
 		irqentry_nmi_exit(regs, state);					\
 	}									\
 }
 
-DO_ERROR_INFO(do_trap_unknown,
-	SIGILL, ILL_ILLTRP, "unknown exception");
+DO_ERROR_INFO(do_trap_unkanalwn,
+	SIGILL, ILL_ILLTRP, "unkanalwn exception");
 DO_ERROR_INFO(do_trap_insn_misaligned,
 	SIGBUS, BUS_ADRALN, "instruction address misaligned");
 DO_ERROR_INFO(do_trap_insn_fault,
@@ -249,7 +249,7 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 {
 	bug_insn_t insn;
 
-	if (get_kernel_nofault(insn, (bug_insn_t *)pc))
+	if (get_kernel_analfault(insn, (bug_insn_t *)pc))
 		return 0;
 
 	return GET_INSN_LENGTH(insn);
@@ -282,8 +282,8 @@ void handle_break(struct pt_regs *regs)
 	if (user_mode(regs))
 		force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->epc);
 #ifdef CONFIG_KGDB
-	else if (notify_die(DIE_TRAP, "EBREAK", regs, 0, regs->cause, SIGTRAP)
-								== NOTIFY_STOP)
+	else if (analtify_die(DIE_TRAP, "EBREAK", regs, 0, regs->cause, SIGTRAP)
+								== ANALTIFY_STOP)
 		return;
 #endif
 	else if (report_bug(regs->epc, regs) == BUG_TRAP_TYPE_WARN ||
@@ -325,7 +325,7 @@ asmlinkage __visible __trap_section void do_trap_ecall_u(struct pt_regs *regs)
 		if (syscall >= 0 && syscall < NR_syscalls)
 			syscall_handler(regs, syscall);
 		else if (syscall != -1)
-			regs->a0 = -ENOSYS;
+			regs->a0 = -EANALSYS;
 
 		syscall_exit_to_user_mode(regs);
 	} else {
@@ -340,7 +340,7 @@ asmlinkage __visible __trap_section void do_trap_ecall_u(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_MMU
-asmlinkage __visible noinstr void do_page_fault(struct pt_regs *regs)
+asmlinkage __visible analinstr void do_page_fault(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -352,7 +352,7 @@ asmlinkage __visible noinstr void do_page_fault(struct pt_regs *regs)
 }
 #endif
 
-static void noinstr handle_riscv_irq(struct pt_regs *regs)
+static void analinstr handle_riscv_irq(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 
@@ -363,7 +363,7 @@ static void noinstr handle_riscv_irq(struct pt_regs *regs)
 	irq_exit_rcu();
 }
 
-asmlinkage void noinstr do_irq(struct pt_regs *regs)
+asmlinkage void analinstr do_irq(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
@@ -382,7 +382,7 @@ int is_valid_bugaddr(unsigned long pc)
 
 	if (pc < VMALLOC_START)
 		return 0;
-	if (get_kernel_nofault(insn, (bug_insn_t *)pc))
+	if (get_kernel_analfault(insn, (bug_insn_t *)pc))
 		return 0;
 	if ((insn & __INSN_LENGTH_MASK) == __INSN_LENGTH_32)
 		return (insn == __BUG_INSN_32);

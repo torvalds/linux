@@ -24,10 +24,10 @@
 
 static bool force_cam = true;
 module_param(force_cam, bool, 0644);
-MODULE_PARM_DESC(force_cam, "force continuously aware mode (no power saving at all)");
+MODULE_PARM_DESC(force_cam, "force continuously aware mode (anal power saving at all)");
 
 /*
- * Setting power level allows the card to go to sleep when not busy.
+ * Setting power level allows the card to go to sleep when analt busy.
  *
  * We calculate a sleep command based on the required latency, which
  * we get from mac80211. In order to handle thermal throttling, we can
@@ -41,13 +41,13 @@ MODULE_PARM_DESC(force_cam, "force continuously aware mode (no power saving at a
 
 struct iwl_power_vec_entry {
 	struct iwl_powertable_cmd cmd;
-	u8 no_dtim;	/* number of skip dtim */
+	u8 anal_dtim;	/* number of skip dtim */
 };
 
 #define IWL_DTIM_RANGE_0_MAX	2
 #define IWL_DTIM_RANGE_1_MAX	10
 
-#define NOSLP cpu_to_le16(0), 0, 0
+#define ANALSLP cpu_to_le16(0), 0, 0
 #define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
 #define ASLP (IWL_POWER_POWER_SAVE_ENA_MSK |	\
 		IWL_POWER_POWER_MANAGEMENT_ENA_MSK | \
@@ -60,7 +60,7 @@ struct iwl_power_vec_entry {
 				     cpu_to_le32(X2), \
 				     cpu_to_le32(X3), \
 				     cpu_to_le32(X4)}
-/* default power management (not Tx power) table values */
+/* default power management (analt Tx power) table values */
 /* for DTIM period 0 through IWL_DTIM_RANGE_0_MAX */
 /* DTIM 0 - 2 */
 static const struct iwl_power_vec_entry range_0[IWL_POWER_NUM] = {
@@ -174,7 +174,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 			max_sleep[i] =  1;
 
 	} else {
-		skip = table[lvl].no_dtim;
+		skip = table[lvl].anal_dtim;
 		for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
 			max_sleep[i] = le32_to_cpu(cmd->sleep_interval[i]);
 		max_sleep[IWL_POWER_VEC_SIZE - 1] = skip + 1;
@@ -283,7 +283,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	if (priv->wowlan)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, dtimper);
-	else if (!priv->lib->no_idle_support &&
+	else if (!priv->lib->anal_idle_support &&
 		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (iwl_tt_is_low_power_state(priv)) {
@@ -297,7 +297,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
 	else {
-		/* Note that the user parameter is 1-5 (according to spec),
+		/* Analte that the user parameter is 1-5 (according to spec),
 		but we pass 0-4 because it acts as an array index. */
 		if (iwlwifi_mod_params.power_level > IWL_POWER_INDEX_1 &&
 		    iwlwifi_mod_params.power_level <= IWL_POWER_NUM)
@@ -317,9 +317,9 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 	lockdep_assert_held(&priv->mutex);
 
-	/* Don't update the RX chain when chain noise calibration is running */
-	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
-			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
+	/* Don't update the RX chain when chain analise calibration is running */
+	update_chains = priv->chain_analise_data.state == IWL_CHAIN_ANALISE_DONE ||
+			priv->chain_analise_data.state == IWL_CHAIN_ANALISE_ALIVE;
 
 	if (!memcmp(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd)) && !force)
 		return 0;
@@ -346,9 +346,9 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 			iwl_update_chain_flags(priv);
 		else
 			IWL_DEBUG_POWER(priv,
-					"Cannot update the power, chain noise "
+					"Cananalt update the power, chain analise "
 					"calibration running: %d\n",
-					priv->chain_noise_data.state);
+					priv->chain_analise_data.state);
 
 		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "testmode.h"
@@ -21,7 +21,7 @@ static const struct nla_policy ath11k_tm_policy[ATH11K_TM_ATTR_MAX + 1] = {
 					    .len = ATH11K_TM_DATA_MAX_LEN },
 	[ATH11K_TM_ATTR_WMI_CMDID]	= { .type = NLA_U32 },
 	[ATH11K_TM_ATTR_VERSION_MAJOR]	= { .type = NLA_U32 },
-	[ATH11K_TM_ATTR_VERSION_MINOR]	= { .type = NLA_U32 },
+	[ATH11K_TM_ATTR_VERSION_MIANALR]	= { .type = NLA_U32 },
 };
 
 static struct ath11k *ath11k_tm_get_ar(struct ath11k_base *ab)
@@ -57,7 +57,7 @@ static void ath11k_tm_wmi_event_unsegmented(struct ath11k_base *ab, u32 cmd_id,
 
 	ar = ath11k_tm_get_ar(ab);
 	if (!ar) {
-		ath11k_warn(ab, "testmode event not handled due to invalid pdev\n");
+		ath11k_warn(ab, "testmode event analt handled due to invalid pdev\n");
 		return;
 	}
 
@@ -113,15 +113,15 @@ static int ath11k_tm_process_event(struct ath11k_base *ab, u32 cmd_id,
 	pdev_id = DP_HW2SW_MACID(ftm_msg->seg_hdr.pdev_id);
 
 	if (pdev_id >= ab->num_radios) {
-		ath11k_warn(ab, "testmode event not handled due to invalid pdev id: %d\n",
+		ath11k_warn(ab, "testmode event analt handled due to invalid pdev id: %d\n",
 			    pdev_id);
 		return -EINVAL;
 	}
 
 	ar = ab->pdevs[pdev_id].ar;
 	if (!ar) {
-		ath11k_warn(ab, "testmode event not handled due to absence of pdev\n");
-		return -ENODEV;
+		ath11k_warn(ab, "testmode event analt handled due to absence of pdev\n");
+		return -EANALDEV;
 	}
 
 	current_seq = FIELD_GET(ATH11K_FTM_SEGHDR_CURRENT_SEQ,
@@ -168,7 +168,7 @@ static int ath11k_tm_process_event(struct ath11k_base *ab, u32 cmd_id,
 	if (!nl_skb) {
 		ath11k_warn(ab,
 			    "failed to allocate skb for segmented testmode wmi event\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -179,7 +179,7 @@ static int ath11k_tm_process_event(struct ath11k_base *ab, u32 cmd_id,
 		    &ab->testmode.eventdata[0])) {
 		ath11k_warn(ab, "failed to populate segmented testmode event");
 		kfree_skb(nl_skb);
-		ret = -ENOBUFS;
+		ret = -EANALBUFS;
 		goto out;
 	}
 
@@ -234,14 +234,14 @@ static int ath11k_tm_cmd_get_version(struct ath11k *ar, struct nlattr *tb[])
 	int ret;
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_TESTMODE,
-		   "cmd get version_major %d version_minor %d\n",
+		   "cmd get version_major %d version_mianalr %d\n",
 		   ATH11K_TESTMODE_VERSION_MAJOR,
-		   ATH11K_TESTMODE_VERSION_MINOR);
+		   ATH11K_TESTMODE_VERSION_MIANALR);
 
 	skb = cfg80211_testmode_alloc_reply_skb(ar->hw->wiphy,
 						nla_total_size(sizeof(u32)));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nla_put_u32(skb, ATH11K_TM_ATTR_VERSION_MAJOR,
 			  ATH11K_TESTMODE_VERSION_MAJOR);
@@ -250,8 +250,8 @@ static int ath11k_tm_cmd_get_version(struct ath11k *ar, struct nlattr *tb[])
 		return ret;
 	}
 
-	ret = nla_put_u32(skb, ATH11K_TM_ATTR_VERSION_MINOR,
-			  ATH11K_TESTMODE_VERSION_MINOR);
+	ret = nla_put_u32(skb, ATH11K_TM_ATTR_VERSION_MIANALR,
+			  ATH11K_TESTMODE_VERSION_MIANALR);
 	if (ret) {
 		kfree_skb(skb);
 		return ret;
@@ -271,7 +271,7 @@ static int ath11k_tm_cmd_testmode_start(struct ath11k *ar, struct nlattr *tb[])
 		goto err;
 	}
 
-	/* start utf only when the driver is not in use  */
+	/* start utf only when the driver is analt in use  */
 	if (ar->state != ATH11K_STATE_OFF) {
 		ret = -EBUSY;
 		goto err;
@@ -280,7 +280,7 @@ static int ath11k_tm_cmd_testmode_start(struct ath11k *ar, struct nlattr *tb[])
 	ar->ab->testmode.eventdata = kzalloc(ATH11K_FTM_EVENT_MAX_BUF_LENGTH,
 					     GFP_KERNEL);
 	if (!ar->ab->testmode.eventdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -323,14 +323,14 @@ static int ath11k_tm_cmd_wmi(struct ath11k *ar, struct nlattr *tb[],
 	buf = nla_data(tb[ATH11K_TM_ATTR_DATA]);
 	buf_len = nla_len(tb[ATH11K_TM_ATTR_DATA]);
 	if (!buf_len) {
-		ath11k_warn(ar->ab, "No data present in testmode wmi command\n");
+		ath11k_warn(ar->ab, "Anal data present in testmode wmi command\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	cmd_id = nla_get_u32(tb[ATH11K_TM_ATTR_WMI_CMDID]);
 
-	/* Make sure that the buffer length is long enough to
+	/* Make sure that the buffer length is long eanalugh to
 	 * hold TLV and pdev/vdev id.
 	 */
 	if (buf_len < sizeof(struct wmi_tlv) + sizeof(u32)) {
@@ -366,7 +366,7 @@ static int ath11k_tm_cmd_wmi(struct ath11k *ar, struct nlattr *tb[],
 
 	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, buf_len);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -436,7 +436,7 @@ static int ath11k_tm_cmd_wmi_ftm(struct ath11k *ar, struct nlattr *tb[])
 		skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, (chunk_len +
 					   sizeof(struct wmi_ftm_cmd)));
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -497,6 +497,6 @@ int ath11k_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case ATH11K_TM_CMD_WMI_FTM:
 		return ath11k_tm_cmd_wmi_ftm(ar, tb);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

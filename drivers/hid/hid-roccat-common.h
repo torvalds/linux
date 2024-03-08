@@ -31,7 +31,7 @@ int roccat_common2_send_with_status(struct usb_device *usb_dev,
 
 struct roccat_common2_device {
 	int roccat_claimed;
-	int chrdev_minor;
+	int chrdev_mianalr;
 	struct mutex lock;
 };
 

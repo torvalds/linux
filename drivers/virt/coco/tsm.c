@@ -25,7 +25,7 @@ static DECLARE_RWSEM(tsm_rwsem);
  * The TSM report interface is a common provider of blobs that facilitate
  * attestation of a TVM (confidential computing guest) by an attestation
  * service. A TSM report combines a user-defined blob (likely a public-key with
- * a nonce for a key-exchange protocol) with a signed attestation report. That
+ * a analnce for a key-exchange protocol) with a signed attestation report. That
  * combined blob is then used to obtain secrets provided by an agent that can
  * validate the attestation report. The expectation is that this interface is
  * invoked infrequently, however configfs allows for multiple agents to
@@ -70,7 +70,7 @@ static int try_advance_write_generation(struct tsm_report *report)
 	lockdep_assert_held_write(&tsm_rwsem);
 
 	/*
-	 * Malicious or broken userspace has written enough times for
+	 * Malicious or broken userspace has written eanalugh times for
 	 * read_generation == write_generation by modular arithmetic without an
 	 * interim read. Stop accepting updates until the current report
 	 * configuration is read.
@@ -95,7 +95,7 @@ static ssize_t tsm_report_privlevel_store(struct config_item *cfg,
 	/*
 	 * The valid privilege levels that a TSM might accept, if it accepts a
 	 * privilege level setting at all, are a max of TSM_PRIVLEVEL_MAX (see
-	 * SEV-SNP GHCB) and a minimum of a TSM selected floor value no less
+	 * SEV-SNP GHCB) and a minimum of a TSM selected floor value anal less
 	 * than 0.
 	 */
 	if (provider.ops->privlevel_floor > val || val > TSM_PRIVLEVEL_MAX)
@@ -188,7 +188,7 @@ static ssize_t read_cached_report(struct tsm_report *report, void *buf,
 
 	/*
 	 * A given TSM backend always fills in ->outblob regardless of
-	 * whether the report includes an auxblob or not.
+	 * whether the report includes an auxblob or analt.
 	 */
 	if (!report->outblob ||
 	    state->read_generation != state->write_generation)
@@ -213,11 +213,11 @@ static ssize_t tsm_report_read(struct tsm_report *report, void *buf,
 	guard(rwsem_write)(&tsm_rwsem);
 	ops = provider.ops;
 	if (!ops)
-		return -ENOTTY;
+		return -EANALTTY;
 	if (!report->desc.inblob_len)
 		return -EINVAL;
 
-	/* did another thread already generate this report? */
+	/* did aanalther thread already generate this report? */
 	if (report->outblob &&
 	    state->read_generation == state->write_generation)
 		goto out;
@@ -324,7 +324,7 @@ static struct config_item *tsm_report_make_item(struct config_group *group,
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	config_item_init_type_name(&state->cfg, name, provider.type);
 	return &state->cfg;

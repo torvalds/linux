@@ -15,12 +15,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -35,7 +35,7 @@
 
 /*
  * Update the needed ring page slots for the first SKB queued.
- * Note that any call sequence outside the RX thread calling this function
+ * Analte that any call sequence outside the RX thread calling this function
  * needs to wake up the RX thread via a call of xenvif_kick_thread()
  * afterwards in order to avoid a race with putting the thread to sleep.
  */
@@ -159,7 +159,7 @@ static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
 static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 {
 	unsigned int i;
-	int notify;
+	int analtify;
 
 	gnttab_batch_copy(queue->rx_copy.op, queue->rx_copy.num);
 
@@ -183,9 +183,9 @@ static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 	queue->rx_copy.num = 0;
 
 	/* Push responses for all completed packets. */
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->rx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->rx_irq);
+	RING_PUSH_RESPONSES_AND_CHECK_ANALTIFY(&queue->rx, analtify);
+	if (analtify)
+		analtify_remote_via_irq(queue->rx_irq);
 
 	__skb_queue_purge(queue->rx_copy.completed);
 }
@@ -235,7 +235,7 @@ static unsigned int xenvif_gso_type(struct sk_buff *skb)
 		else
 			return XEN_NETIF_GSO_TYPE_TCPV6;
 	}
-	return XEN_NETIF_GSO_TYPE_NONE;
+	return XEN_NETIF_GSO_TYPE_ANALNE;
 }
 
 struct xenvif_pkt_state {
@@ -560,11 +560,11 @@ static long xenvif_rx_queue_timeout(struct xenvif_queue *queue)
 /* Wait until the guest Rx thread has work.
  *
  * The timeout needs to be adjusted based on the current head of the
- * queue (and not just the head at the beginning).  In particular, if
+ * queue (and analt just the head at the beginning).  In particular, if
  * the queue is initially empty an infinite timeout is used and this
  * needs to be reduced when a skb is queued.
  *
- * This cannot be done with wait_event_timeout() because it only
+ * This cananalt be done with wait_event_timeout() because it only
  * calculates the timeout once.
  */
 static void xenvif_wait_for_rx_work(struct xenvif_queue *queue)
@@ -580,7 +580,7 @@ static void xenvif_wait_for_rx_work(struct xenvif_queue *queue)
 		prepare_to_wait(&queue->wq, &wait, TASK_INTERRUPTIBLE);
 		if (xenvif_have_rx_work(queue, true))
 			break;
-		if (atomic_fetch_andnot(NETBK_RX_EOI | NETBK_COMMON_EOI,
+		if (atomic_fetch_andanalt(NETBK_RX_EOI | NETBK_COMMON_EOI,
 					&queue->eoi_pending) &
 		    (NETBK_RX_EOI | NETBK_COMMON_EOI))
 			xen_irq_lateeoi(queue->rx_irq, 0);
@@ -640,7 +640,7 @@ int xenvif_kthread_guest_rx(void *data)
 		/* This frontend is found to be rogue, disable it in
 		 * kthread context. Currently this is only set when
 		 * netback finds out frontend sends malformed packet,
-		 * but we cannot disable the interface in softirq
+		 * but we cananalt disable the interface in softirq
 		 * context so we defer it here, if this thread is
 		 * associated with queue 0.
 		 */
@@ -653,7 +653,7 @@ int xenvif_kthread_guest_rx(void *data)
 			xenvif_rx_action(queue);
 
 		/* If the guest hasn't provided any Rx slots for a
-		 * while it's probably not responsive, drop the
+		 * while it's probably analt responsive, drop the
 		 * carrier so packets are dropped earlier.
 		 */
 		if (vif->stall_timeout) {
@@ -664,7 +664,7 @@ int xenvif_kthread_guest_rx(void *data)
 		}
 
 		/* Queued packets may have foreign pages from other
-		 * domains.  These cannot be queued indefinitely as
+		 * domains.  These cananalt be queued indefinitely as
 		 * this would starve guests of grant refs and transmit
 		 * slots.
 		 */

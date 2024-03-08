@@ -8,7 +8,7 @@ Pointer to the radiotap include file
 ------------------------------------
 
 Radiotap headers are variable-length and extensible, you can get most of the
-information you need to know on them from::
+information you need to kanalw on them from::
 
     ./include/net/ieee80211_radiotap.h
 
@@ -19,7 +19,7 @@ Structure of the header
 -----------------------
 
 There is a fixed portion at the start which contains a u32 bitmap that defines
-if the possible argument associated with that bit is present or not.  So if b0
+if the possible argument associated with that bit is present or analt.  So if b0
 of the it_present member of ieee80211_radiotap_header is set, it means that
 the header for argument index 0 (IEEE80211_RADIOTAP_TSFT) is present in the
 argument area.
@@ -32,11 +32,11 @@ argument area.
 
 At the moment there are only 13 possible argument indexes defined, but in case
 we run out of space in the u32 it_present member, it is defined that b31 set
-indicates that there is another u32 bitmap following (shown as "possible
+indicates that there is aanalther u32 bitmap following (shown as "possible
 argument bitmap extensions..." above), and the start of the arguments is moved
 forward 4 bytes each time.
 
-Note also that the it_len member __le16 is set to the total number of bytes
+Analte also that the it_len member __le16 is set to the total number of bytes
 covered by the ieee80211_radiotap_header and any arguments following.
 
 
@@ -64,10 +64,10 @@ ieee80211_radiotap_header.
    address 0x00000003, still the first byte of the radiotap header is treated as
    0 for alignment purposes.
 
- - the above point that there may be no absolute alignment for multibyte
+ - the above point that there may be anal absolute alignment for multibyte
    entities in the fixed radiotap header or the argument region means that you
    have to take special evasive action when trying to access these multibyte
-   entities.  Some arches like Blackfin cannot deal with an attempt to
+   entities.  Some arches like Blackfin cananalt deal with an attempt to
    dereference, eg, a u16 pointer that is pointing to an odd address.  Instead
    you have to use a kernel API get_unaligned() to dereference the pointer,
    which will do it bytewise on the arches that require that.
@@ -75,7 +75,7 @@ ieee80211_radiotap_header.
  - The arguments for a given argument index can be a compound of multiple types
    together.  For example IEEE80211_RADIOTAP_CHANNEL has an argument payload
    consisting of two u16s of total length 4.  When this happens, the padding
-   rule is applied dealing with a u16, NOT dealing with a 4-byte single entity.
+   rule is applied dealing with a u16, ANALT dealing with a 4-byte single entity.
 
 
 Example valid radiotap header
@@ -120,7 +120,7 @@ its prototypes available in include/net/cfg80211.h.  You use it like this::
 		    switch (iterator.this_arg_index) {
 		    /*
 		    * You must take care when dereferencing iterator.this_arg
-		    * for multibyte types... the pointer is not aligned.  Use
+		    * for multibyte types... the pointer is analt aligned.  Use
 		    * get_unaligned((type *)iterator.this_arg) to dereference
 		    * iterator.this_arg for type "type" safely on all arches.
 		    */
@@ -145,7 +145,7 @@ its prototypes available in include/net/cfg80211.h.  You use it like this::
 		    }
 	    }  /* while more rt headers */
 
-	    if (ret != -ENOENT)
+	    if (ret != -EANALENT)
 		    return TXRX_DROP;
 
 	    /* discard the radiotap header part */

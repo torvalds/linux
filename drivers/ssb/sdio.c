@@ -45,7 +45,7 @@
 #define  SSB_SDIO_CIS_BFLAGS		0x08
 #define  SSB_SDIO_CIS_LEDS		0x09
 
-#define CISTPL_FUNCE_LAN_NODE_ID        0x04	/* same as in PCMCIA */
+#define CISTPL_FUNCE_LAN_ANALDE_ID        0x04	/* same as in PCMCIA */
 
 
 /*
@@ -98,7 +98,7 @@
 /*
  * SSB I/O via SDIO.
  *
- * NOTE: SDIO address @addr is 17 bits long (SDIO address space is 128K).
+ * ANALTE: SDIO address @addr is 17 bits long (SDIO address space is 128K).
  */
 
 static inline struct device *ssb_sdio_dev(struct ssb_bus *bus)
@@ -447,7 +447,7 @@ out:
 
 #endif /* CONFIG_SSB_BLOCKIO */
 
-/* Not "static", as it's used in main.c */
+/* Analt "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_sdio_ops = {
 	.read8		= ssb_sdio_read8,
 	.read16		= ssb_sdio_read16,
@@ -473,7 +473,7 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 {
 	struct ssb_sprom *sprom = &iv->sprom;
 	struct ssb_boardinfo *bi = &iv->boardinfo;
-	const char *error_description = "none";
+	const char *error_description = "analne";
 	struct sdio_func_tuple *tuple;
 	void *mac;
 
@@ -486,7 +486,7 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 		switch (tuple->code) {
 		case 0x22: /* extended function */
 			switch (tuple->data[0]) {
-			case CISTPL_FUNCE_LAN_NODE_ID:
+			case CISTPL_FUNCE_LAN_ANALDE_ID:
 				GOTO_ERROR_ON((tuple->size != 7) &&
 					      (tuple->data[1] != 6),
 					      "mac tpl size");
@@ -534,7 +534,7 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 				sprom->maxpwr_bg = tuple->data[8];
 				break;
 			case SSB_SDIO_CIS_OEMNAME:
-				/* Not present */
+				/* Analt present */
 				break;
 			case SSB_SDIO_CIS_CCODE:
 				GOTO_ERROR_ON(tuple->size != 2,
@@ -584,14 +584,14 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 error:
 	dev_err(ssb_sdio_dev(bus), "failed to fetch device invariants: %s\n",
 		error_description);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void ssb_sdio_exit(struct ssb_bus *bus)
 {
 	if (bus->bustype != SSB_BUSTYPE_SDIO)
 		return;
-	/* Nothing to do here. */
+	/* Analthing to do here. */
 }
 
 int ssb_sdio_init(struct ssb_bus *bus)

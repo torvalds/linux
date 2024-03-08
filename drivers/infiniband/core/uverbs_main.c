@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
@@ -16,18 +16,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -43,7 +43,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 
@@ -63,13 +63,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 enum {
 	IB_UVERBS_MAJOR       = 231,
-	IB_UVERBS_BASE_MINOR  = 192,
+	IB_UVERBS_BASE_MIANALR  = 192,
 	IB_UVERBS_MAX_DEVICES = RDMA_MAX_PORTS,
-	IB_UVERBS_NUM_FIXED_MINOR = 32,
-	IB_UVERBS_NUM_DYNAMIC_MINOR = IB_UVERBS_MAX_DEVICES - IB_UVERBS_NUM_FIXED_MINOR,
+	IB_UVERBS_NUM_FIXED_MIANALR = 32,
+	IB_UVERBS_NUM_DYNAMIC_MIANALR = IB_UVERBS_MAX_DEVICES - IB_UVERBS_NUM_FIXED_MIANALR,
 };
 
-#define IB_UVERBS_BASE_DEV	MKDEV(IB_UVERBS_MAJOR, IB_UVERBS_BASE_MINOR)
+#define IB_UVERBS_BASE_DEV	MKDEV(IB_UVERBS_MAJOR, IB_UVERBS_BASE_MIANALR)
 
 static dev_t dynamic_uverbs_dev;
 
@@ -77,7 +77,7 @@ static DEFINE_IDA(uverbs_ida);
 static int ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
-static char *uverbs_devnode(const struct device *dev, umode_t *mode)
+static char *uverbs_devanalde(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;
@@ -86,7 +86,7 @@ static char *uverbs_devnode(const struct device *dev, umode_t *mode)
 
 static const struct class uverbs_class = {
 	.name = "infiniband_verbs",
-	.devnode = uverbs_devnode,
+	.devanalde = uverbs_devanalde,
 };
 
 /*
@@ -96,8 +96,8 @@ static const struct class uverbs_class = {
 struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile)
 {
 	/*
-	 * We do not hold the hw_destroy_rwsem lock for this flow, instead
-	 * srcu is used. It does not matter if someone races this with
+	 * We do analt hold the hw_destroy_rwsem lock for this flow, instead
+	 * srcu is used. It does analt matter if someone races this with
 	 * get_context, we get NULL or valid ucontext.
 	 */
 	struct ib_ucontext *ucontext = smp_load_acquire(&ufile->ucontext);
@@ -239,7 +239,7 @@ static ssize_t ib_uverbs_event_read(struct ib_uverbs_event_queue *ev_queue,
 		}
 
 		spin_unlock_irq(&ev_queue->lock);
-		if (filp->f_flags & O_NONBLOCK)
+		if (filp->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		if (wait_event_interruptible(ev_queue->poll_wait,
@@ -307,7 +307,7 @@ static __poll_t ib_uverbs_event_poll(struct ib_uverbs_event_queue *ev_queue,
 
 	spin_lock_irq(&ev_queue->lock);
 	if (!list_empty(&ev_queue->event_list))
-		pollflags = EPOLLIN | EPOLLRDNORM;
+		pollflags = EPOLLIN | EPOLLRDANALRM;
 	else if (ev_queue->is_closed)
 		pollflags = EPOLLERR;
 	spin_unlock_irq(&ev_queue->lock);
@@ -353,7 +353,7 @@ const struct file_operations uverbs_event_fops = {
 	.poll    = ib_uverbs_comp_event_poll,
 	.release = uverbs_uobject_fd_release,
 	.fasync  = ib_uverbs_comp_event_fasync,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 };
 
 const struct file_operations uverbs_async_event_fops = {
@@ -362,7 +362,7 @@ const struct file_operations uverbs_async_event_fops = {
 	.poll    = ib_uverbs_async_event_poll,
 	.release = uverbs_async_event_release,
 	.fasync  = ib_uverbs_async_event_fasync,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -519,7 +519,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 			return -EINVAL;
 
 		if (hdr->in_words * 8 < method_elm->req_size)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		if (ex_hdr->cmd_hdr_reserved)
 			return -EINVAL;
@@ -529,7 +529,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 				return -EINVAL;
 
 			if (hdr->out_words * 8 < method_elm->resp_size)
-				return -ENOSPC;
+				return -EANALSPC;
 
 			if (!access_ok(u64_to_user_ptr(ex_hdr->response),
 				       (hdr->out_words + ex_hdr->provider_out_words) * 8))
@@ -542,7 +542,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 		return 0;
 	}
 
-	/* not extended command */
+	/* analt extended command */
 	if (hdr->in_words * 4 != count)
 		return -EINVAL;
 
@@ -550,8 +550,8 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 		/*
 		 * rdma-core v18 and v19 have a bug where they send DESTROY_CQ
 		 * with a 16 byte write instead of 24. Old kernels didn't
-		 * check the size so they allowed this. Now that the size is
-		 * checked provide a compatibility work around to not break
+		 * check the size so they allowed this. Analw that the size is
+		 * checked provide a compatibility work around to analt break
 		 * those userspaces.
 		 */
 		if (hdr->command == IB_USER_VERBS_CMD_DESTROY_CQ &&
@@ -559,10 +559,10 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 			hdr->in_words = 6;
 			return 0;
 		}
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	if (hdr->out_words * 4 < method_elm->resp_size)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return 0;
 }
@@ -580,7 +580,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is analt allowed.\n",
 			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -834,7 +834,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			priv = list_first_entry(&ufile->umaps,
 						struct rdma_umap_priv, list);
 			mm = priv->vma->vm_mm;
-			ret = mmget_not_zero(mm);
+			ret = mmget_analt_zero(mm);
 			if (!ret) {
 				list_del_init(&priv->list);
 				if (priv->entry) {
@@ -854,7 +854,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * The umap_lock is nested under mmap_lock since it used within
 		 * the vma_ops callbacks, so we have to clean the list one mm
 		 * at a time to get the lock ordering right. Typically there
-		 * will only be one mm, so no big deal.
+		 * will only be one mm, so anal big deal.
 		 */
 		mmap_read_lock(mm);
 		mutex_lock(&ufile->umap_lock);
@@ -881,16 +881,16 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 }
 
 /*
- * ib_uverbs_open() does not need the BKL:
+ * ib_uverbs_open() does analt need the BKL:
  *
  *  - the ib_uverbs_device structures are properly reference counted and
  *    everything else is purely local to the file being created, so
- *    races against other open calls are not a problem;
- *  - there is no ioctl method to race against;
+ *    races against other open calls are analt a problem;
+ *  - there is anal ioctl method to race against;
  *  - the open method will either immediately run -ENXIO, or all
  *    required initialization will be done.
  */
-static int ib_uverbs_open(struct inode *inode, struct file *filp)
+static int ib_uverbs_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct ib_uverbs_device *dev;
 	struct ib_uverbs_file *file;
@@ -899,8 +899,8 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	int module_dependent;
 	int srcu_key;
 
-	dev = container_of(inode->i_cdev, struct ib_uverbs_device, cdev);
-	if (!refcount_inc_not_zero(&dev->refcount))
+	dev = container_of(ianalde->i_cdev, struct ib_uverbs_device, cdev);
+	if (!refcount_inc_analt_zero(&dev->refcount))
 		return -ENXIO;
 
 	get_device(&dev->dev);
@@ -918,21 +918,21 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
-	/* In case IB device supports disassociate ucontext, there is no hard
+	/* In case IB device supports disassociate ucontext, there is anal hard
 	 * dependency between uverbs device and its low level device.
 	 */
 	module_dependent = !(ib_dev->ops.disassociate_ucontext);
 
 	if (module_dependent) {
 		if (!try_module_get(ib_dev->ops.owner)) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err;
 		}
 	}
 
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (module_dependent)
 			goto err_module;
 
@@ -956,7 +956,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	setup_ufile_idr_uobject(file);
 
-	return stream_open(inode, filp);
+	return stream_open(ianalde, filp);
 
 err_module:
 	module_put(ib_dev->ops.owner);
@@ -971,7 +971,7 @@ err:
 	return ret;
 }
 
-static int ib_uverbs_close(struct inode *inode, struct file *filp)
+static int ib_uverbs_close(struct ianalde *ianalde, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
 
@@ -991,7 +991,7 @@ static const struct file_operations uverbs_fops = {
 	.write	 = ib_uverbs_write,
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
@@ -1002,7 +1002,7 @@ static const struct file_operations uverbs_mmap_fops = {
 	.mmap    = ib_uverbs_mmap,
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
-	.llseek	 = no_llseek,
+	.llseek	 = anal_llseek,
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
@@ -1025,7 +1025,7 @@ static int ib_uverbs_get_nl_info(struct ib_device *ibdev, void *client_data,
 	 * through get_context instead of relying on modalias matching. When
 	 * the drivers are fixed they can drop this flag.
 	 */
-	if (!ibdev->ops.uverbs_no_driver_id_binding) {
+	if (!ibdev->ops.uverbs_anal_driver_id_binding) {
 		ret = nla_put_u32(res->nl_msg, RDMA_NLDEV_ATTR_UVERBS_DRIVER_ID,
 				  ibdev->ops.driver_id);
 		if (ret)
@@ -1036,7 +1036,7 @@ static int ib_uverbs_get_nl_info(struct ib_device *ibdev, void *client_data,
 
 static struct ib_client uverbs_client = {
 	.name   = "uverbs",
-	.no_kverbs_req = true,
+	.anal_kverbs_req = true,
 	.add    = ib_uverbs_add_one,
 	.remove = ib_uverbs_remove_one,
 	.get_nl_info = ib_uverbs_get_nl_info,
@@ -1048,7 +1048,7 @@ static ssize_t ibdev_show(struct device *device, struct device_attribute *attr,
 {
 	struct ib_uverbs_device *dev =
 			container_of(device, struct ib_uverbs_device, dev);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int srcu_key;
 	struct ib_device *ib_dev;
 
@@ -1067,7 +1067,7 @@ static ssize_t abi_version_show(struct device *device,
 {
 	struct ib_uverbs_device *dev =
 			container_of(device, struct ib_uverbs_device, dev);
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	int srcu_key;
 	struct ib_device *ib_dev;
 
@@ -1115,16 +1115,16 @@ static int ib_uverbs_add_one(struct ib_device *device)
 	int ret;
 
 	if (!device->ops.alloc_ucontext)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	uverbs_dev = kzalloc(sizeof(*uverbs_dev), GFP_KERNEL);
 	if (!uverbs_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = init_srcu_struct(&uverbs_dev->disassociate_srcu);
 	if (ret) {
 		kfree(uverbs_dev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	device_initialize(&uverbs_dev->dev);
@@ -1145,12 +1145,12 @@ static int ib_uverbs_add_one(struct ib_device *device)
 	devnum = ida_alloc_max(&uverbs_ida, IB_UVERBS_MAX_DEVICES - 1,
 			       GFP_KERNEL);
 	if (devnum < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	uverbs_dev->devnum = devnum;
-	if (devnum >= IB_UVERBS_NUM_FIXED_MINOR)
-		base = dynamic_uverbs_dev + devnum - IB_UVERBS_NUM_FIXED_MINOR;
+	if (devnum >= IB_UVERBS_NUM_FIXED_MIANALR)
+		base = dynamic_uverbs_dev + devnum - IB_UVERBS_NUM_FIXED_MIANALR;
 	else
 		base = IB_UVERBS_BASE_DEV + devnum;
 
@@ -1224,13 +1224,13 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 
 	if (device->ops.disassociate_ucontext) {
 		/* We disassociate HW resources and immediately return.
-		 * Userspace will see a EIO errno for all future access.
-		 * Upon returning, ib_device may be freed internally and is not
+		 * Userspace will see a EIO erranal for all future access.
+		 * Upon returning, ib_device may be freed internally and is analt
 		 * valid any more.
 		 * uverbs_device is still available until all clients close
 		 * their files, then the uverbs device ref count will be zero
 		 * and its resources will be freed.
-		 * Note: At this point no more files can be opened since the
+		 * Analte: At this point anal more files can be opened since the
 		 * cdev was deleted, however active clients can still issue
 		 * commands and close their open files.
 		 */
@@ -1251,7 +1251,7 @@ static int __init ib_uverbs_init(void)
 	int ret;
 
 	ret = register_chrdev_region(IB_UVERBS_BASE_DEV,
-				     IB_UVERBS_NUM_FIXED_MINOR,
+				     IB_UVERBS_NUM_FIXED_MIANALR,
 				     "infiniband_verbs");
 	if (ret) {
 		pr_err("user_verbs: couldn't register device number\n");
@@ -1259,7 +1259,7 @@ static int __init ib_uverbs_init(void)
 	}
 
 	ret = alloc_chrdev_region(&dynamic_uverbs_dev, 0,
-				  IB_UVERBS_NUM_DYNAMIC_MINOR,
+				  IB_UVERBS_NUM_DYNAMIC_MIANALR,
 				  "infiniband_verbs");
 	if (ret) {
 		pr_err("couldn't register dynamic device number\n");
@@ -1291,11 +1291,11 @@ out_class:
 
 out_chrdev:
 	unregister_chrdev_region(dynamic_uverbs_dev,
-				 IB_UVERBS_NUM_DYNAMIC_MINOR);
+				 IB_UVERBS_NUM_DYNAMIC_MIANALR);
 
 out_alloc:
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV,
-				 IB_UVERBS_NUM_FIXED_MINOR);
+				 IB_UVERBS_NUM_FIXED_MIANALR);
 
 out:
 	return ret;
@@ -1306,10 +1306,10 @@ static void __exit ib_uverbs_cleanup(void)
 	ib_unregister_client(&uverbs_client);
 	class_unregister(&uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV,
-				 IB_UVERBS_NUM_FIXED_MINOR);
+				 IB_UVERBS_NUM_FIXED_MIANALR);
 	unregister_chrdev_region(dynamic_uverbs_dev,
-				 IB_UVERBS_NUM_DYNAMIC_MINOR);
-	mmu_notifier_synchronize();
+				 IB_UVERBS_NUM_DYNAMIC_MIANALR);
+	mmu_analtifier_synchronize();
 }
 
 module_init(ib_uverbs_init);

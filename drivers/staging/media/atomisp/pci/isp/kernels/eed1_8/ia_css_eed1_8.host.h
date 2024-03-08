@@ -36,7 +36,7 @@ ia_css_init_eed1_8_state(
     void *state,
     size_t size);
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_eed1_8_debug_dtrace(
     const struct ia_css_eed1_8_config *config,

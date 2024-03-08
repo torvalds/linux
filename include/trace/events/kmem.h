@@ -15,9 +15,9 @@ TRACE_EVENT(kmem_cache_alloc,
 		 const void *ptr,
 		 struct kmem_cache *s,
 		 gfp_t gfp_flags,
-		 int node),
+		 int analde),
 
-	TP_ARGS(call_site, ptr, s, gfp_flags, node),
+	TP_ARGS(call_site, ptr, s, gfp_flags, analde),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	call_site	)
@@ -25,7 +25,7 @@ TRACE_EVENT(kmem_cache_alloc,
 		__field(	size_t,		bytes_req	)
 		__field(	size_t,		bytes_alloc	)
 		__field(	unsigned long,	gfp_flags	)
-		__field(	int,		node		)
+		__field(	int,		analde		)
 		__field(	bool,		accounted	)
 	),
 
@@ -35,19 +35,19 @@ TRACE_EVENT(kmem_cache_alloc,
 		__entry->bytes_req	= s->object_size;
 		__entry->bytes_alloc	= s->size;
 		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
-		__entry->node		= node;
+		__entry->analde		= analde;
 		__entry->accounted	= IS_ENABLED(CONFIG_MEMCG_KMEM) ?
 					  ((gfp_flags & __GFP_ACCOUNT) ||
 					  (s->flags & SLAB_ACCOUNT)) : false;
 	),
 
-	TP_printk("call_site=%pS ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s node=%d accounted=%s",
+	TP_printk("call_site=%pS ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s analde=%d accounted=%s",
 		(void *)__entry->call_site,
 		__entry->ptr,
 		__entry->bytes_req,
 		__entry->bytes_alloc,
 		show_gfp_flags(__entry->gfp_flags),
-		__entry->node,
+		__entry->analde,
 		__entry->accounted ? "true" : "false")
 );
 
@@ -58,9 +58,9 @@ TRACE_EVENT(kmalloc,
 		 size_t bytes_req,
 		 size_t bytes_alloc,
 		 gfp_t gfp_flags,
-		 int node),
+		 int analde),
 
-	TP_ARGS(call_site, ptr, bytes_req, bytes_alloc, gfp_flags, node),
+	TP_ARGS(call_site, ptr, bytes_req, bytes_alloc, gfp_flags, analde),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	call_site	)
@@ -68,7 +68,7 @@ TRACE_EVENT(kmalloc,
 		__field(	size_t,		bytes_req	)
 		__field(	size_t,		bytes_alloc	)
 		__field(	unsigned long,	gfp_flags	)
-		__field(	int,		node		)
+		__field(	int,		analde		)
 	),
 
 	TP_fast_assign(
@@ -77,16 +77,16 @@ TRACE_EVENT(kmalloc,
 		__entry->bytes_req	= bytes_req;
 		__entry->bytes_alloc	= bytes_alloc;
 		__entry->gfp_flags	= (__force unsigned long)gfp_flags;
-		__entry->node		= node;
+		__entry->analde		= analde;
 	),
 
-	TP_printk("call_site=%pS ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s node=%d accounted=%s",
+	TP_printk("call_site=%pS ptr=%p bytes_req=%zu bytes_alloc=%zu gfp_flags=%s analde=%d accounted=%s",
 		(void *)__entry->call_site,
 		__entry->ptr,
 		__entry->bytes_req,
 		__entry->bytes_alloc,
 		show_gfp_flags(__entry->gfp_flags),
-		__entry->node,
+		__entry->analde,
 		(IS_ENABLED(CONFIG_MEMCG_KMEM) &&
 		 (__entry->gfp_flags & (__force unsigned long)__GFP_ACCOUNT)) ? "true" : "false")
 );
@@ -325,7 +325,7 @@ static unsigned int __maybe_unused mm_ptr_to_hash(const void *ptr)
 
 #define TRACE_MM_PAGES		\
 	EM(MM_FILEPAGES)	\
-	EM(MM_ANONPAGES)	\
+	EM(MM_AANALNPAGES)	\
 	EM(MM_SWAPENTS)		\
 	EMe(MM_SHMEMPAGES)
 

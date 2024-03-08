@@ -43,7 +43,7 @@ properties:
 
   ranges:
     description:
-      Address translation for the possible RNG child node for SA2UL
+      Address translation for the possible RNG child analde for SA2UL
 
   clocks:
     items:
@@ -61,7 +61,7 @@ patternProperties:
   "^rng@[a-f0-9]+$":
     type: object
     description:
-      Child RNG node for SA2UL
+      Child RNG analde for SA2UL
 
 required:
   - compatible

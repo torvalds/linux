@@ -13,7 +13,7 @@ maintainers:
 description: |
   Most Renesas ARM SoCs have a Product Register or Boundary Scan ID
   Register that allows to retrieve SoC product and revision information.
-  If present, a device node for this register should be added.
+  If present, a device analde for this register should be added.
 
 properties:
   compatible:

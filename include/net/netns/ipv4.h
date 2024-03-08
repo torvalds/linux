@@ -53,7 +53,7 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_tso_rtt_log;
 	u8 sysctl_tcp_autocorking;
 	int sysctl_tcp_min_snd_mss;
-	unsigned int sysctl_tcp_notsent_lowat;
+	unsigned int sysctl_tcp_analtsent_lowat;
 	int sysctl_tcp_limit_output_bytes;
 	int sysctl_tcp_min_rtt_wlen;
 	int sysctl_tcp_wmem[3];
@@ -108,10 +108,10 @@ struct netns_ipv4 {
 	struct inet_peer_base	*peers;
 	struct fqdir		*fqdir;
 
-	u8 sysctl_icmp_echo_ignore_all;
+	u8 sysctl_icmp_echo_iganalre_all;
 	u8 sysctl_icmp_echo_enable_probe;
-	u8 sysctl_icmp_echo_ignore_broadcasts;
-	u8 sysctl_icmp_ignore_bogus_error_responses;
+	u8 sysctl_icmp_echo_iganalre_broadcasts;
+	u8 sysctl_icmp_iganalre_bogus_error_responses;
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
@@ -126,9 +126,9 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_ecn_fallback;
 
 	u8 sysctl_ip_default_ttl;
-	u8 sysctl_ip_no_pmtu_disc;
+	u8 sysctl_ip_anal_pmtu_disc;
 	u8 sysctl_ip_fwd_update_priority;
-	u8 sysctl_ip_nonlocal_bind;
+	u8 sysctl_ip_analnlocal_bind;
 	u8 sysctl_ip_autobind_reuse;
 	/* Shall we try to damage output packets if routing dev changes? */
 	u8 sysctl_ip_dynaddr;
@@ -183,8 +183,8 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_dsack;
 	u8 sysctl_tcp_app_win;
 	u8 sysctl_tcp_frto;
-	u8 sysctl_tcp_nometrics_save;
-	u8 sysctl_tcp_no_ssthresh_metrics_save;
+	u8 sysctl_tcp_analmetrics_save;
+	u8 sysctl_tcp_anal_ssthresh_metrics_save;
 	u8 sysctl_tcp_workaround_signed_windows;
 	int sysctl_tcp_challenge_ack_limit;
 	u8 sysctl_tcp_min_tso_segs;
@@ -213,7 +213,7 @@ struct netns_ipv4 {
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
 
-	u8 sysctl_fib_notify_on_flag_change;
+	u8 sysctl_fib_analtify_on_flag_change;
 	u8 sysctl_tcp_syn_linear_timeouts;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
@@ -250,10 +250,10 @@ struct netns_ipv4 {
 	u8 sysctl_fib_multipath_hash_policy;
 #endif
 
-	struct fib_notifier_ops	*notifier_ops;
+	struct fib_analtifier_ops	*analtifier_ops;
 	unsigned int	fib_seq;	/* protected by rtnl_mutex */
 
-	struct fib_notifier_ops	*ipmr_notifier_ops;
+	struct fib_analtifier_ops	*ipmr_analtifier_ops;
 	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;

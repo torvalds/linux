@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   The Qualcomm MSM8939 interconnect providers support adjusting the
-  bandwidth requirements between the various NoC fabrics.
+  bandwidth requirements between the various AnalC fabrics.
 
 allOf:
   - $ref: qcom,rpm-common.yaml#
@@ -20,8 +20,8 @@ properties:
   compatible:
     enum:
       - qcom,msm8939-bimc
-      - qcom,msm8939-pcnoc
-      - qcom,msm8939-snoc
+      - qcom,msm8939-pcanalc
+      - qcom,msm8939-sanalc
 
   reg:
     maxItems: 1
@@ -31,7 +31,7 @@ patternProperties:
     type: object
     $ref: qcom,rpm-common.yaml#
     description:
-      The interconnect providers do not have a separate QoS register space,
+      The interconnect providers do analt have a separate QoS register space,
       but share parent's space.
 
     allOf:
@@ -39,7 +39,7 @@ patternProperties:
 
     properties:
       compatible:
-        const: qcom,msm8939-snoc-mm
+        const: qcom,msm8939-sanalc-mm
 
     required:
       - compatible
@@ -56,8 +56,8 @@ examples:
   - |
     #include <dt-bindings/clock/qcom,rpmcc.h>
 
-    snoc: interconnect@580000 {
-        compatible = "qcom,msm8939-snoc";
+    sanalc: interconnect@580000 {
+        compatible = "qcom,msm8939-sanalc";
         reg = <0x00580000 0x14000>;
         #interconnect-cells = <1>;
     };
@@ -67,8 +67,8 @@ examples:
         reg = <0x00400000 0x62000>;
         #interconnect-cells = <1>;
 
-          snoc_mm: interconnect-snoc {
-              compatible = "qcom,msm8939-snoc-mm";
+          sanalc_mm: interconnect-sanalc {
+              compatible = "qcom,msm8939-sanalc-mm";
               #interconnect-cells = <1>;
           };
     };

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,7 +43,7 @@ ramxlat(const struct ramxlat *xlat, int id)
 static const struct ramxlat
 ramgddr3_cl_lo[] = {
 	{ 5, 5 }, { 7, 7 }, { 8, 0 }, { 9, 1 }, { 10, 2 }, { 11, 3 }, { 12, 8 },
-	/* the below are mentioned in some, but not all, gddr3 docs */
+	/* the below are mentioned in some, but analt all, gddr3 docs */
 	{ 13, 9 }, { 14, 6 },
 	/* XXX: Per Samsung docs, are these used? They overlap with Qimonda */
 	/* { 4, 4 }, { 5, 5 }, { 6, 6 }, { 12, 8 }, { 13, 9 }, { 14, 10 },
@@ -62,7 +62,7 @@ static const struct ramxlat
 ramgddr3_wr_lo[] = {
 	{ 5, 2 }, { 7, 4 }, { 8, 5 }, { 9, 6 }, { 10, 7 },
 	{ 11, 0 }, { 13 , 1 },
-	/* the below are mentioned in some, but not all, gddr3 docs */
+	/* the below are mentioned in some, but analt all, gddr3 docs */
 	{ 4, 0 }, { 6, 3 }, { 12, 1 },
 	{ -1 }
 };
@@ -90,7 +90,7 @@ nvkm_gddr3_calc(struct nvkm_ram *ram)
 		RON = !((ram->mr[1] & 0x300) >> 8);
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (ram->next->bios.timing_ver == 0x20 ||

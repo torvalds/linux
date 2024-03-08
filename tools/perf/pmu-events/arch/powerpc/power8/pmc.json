@@ -14,7 +14,7 @@
   {
     "EventCode": "0x30020",
     "EventName": "PM_PMC2_REWIND",
-    "BriefDescription": "PMC2 Rewind Event (did not match condition)",
+    "BriefDescription": "PMC2 Rewind Event (did analt match condition)",
     "PublicDescription": ""
   },
   {
@@ -39,7 +39,7 @@
     "EventCode": "0x10020",
     "EventName": "PM_PMC4_REWIND",
     "BriefDescription": "PMC4 Rewind Event",
-    "PublicDescription": "PMC4 Rewind Event (did not match condition)"
+    "PublicDescription": "PMC4 Rewind Event (did analt match condition)"
   },
   {
     "EventCode": "0x30022",
@@ -122,7 +122,7 @@
   {
     "EventCode": "0x301e8",
     "EventName": "PM_THRESH_EXC_64",
-    "BriefDescription": "IFU non-branch finished",
+    "BriefDescription": "IFU analn-branch finished",
     "PublicDescription": "Threshold counter exceeded a value of 64"
   },
   {
@@ -133,8 +133,8 @@
   },
   {
     "EventCode": "0x4016e",
-    "EventName": "PM_THRESH_NOT_MET",
-    "BriefDescription": "Threshold counter did not meet threshold",
+    "EventName": "PM_THRESH_ANALT_MET",
+    "BriefDescription": "Threshold counter did analt meet threshold",
     "PublicDescription": ""
   }
 ]

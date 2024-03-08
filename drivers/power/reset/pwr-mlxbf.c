@@ -57,7 +57,7 @@ static int pwr_mlxbf_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
@@ -102,6 +102,6 @@ static struct platform_driver pwr_mlxbf_driver = {
 
 module_platform_driver(pwr_mlxbf_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField power driver");
+MODULE_DESCRIPTION("Mellaanalx BlueField power driver");
 MODULE_AUTHOR("Asmaa Mnebhi <asmaa@nvidia.com>");
 MODULE_LICENSE("Dual BSD/GPL");

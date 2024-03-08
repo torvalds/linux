@@ -20,7 +20,7 @@ static int platform_device_devm_init(struct kunit *test)
 	struct test_priv *priv;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv);
 	init_waitqueue_head(&priv->probe_wq);
 	init_waitqueue_head(&priv->release_wq);
 
@@ -49,7 +49,7 @@ static void devm_put_device_action(void *ptr)
 #define RELEASE_TIMEOUT_MS	100
 
 /*
- * Tests that a platform bus, non-probed device will run its
+ * Tests that a platform bus, analn-probed device will run its
  * device-managed actions when unregistered.
  */
 static void platform_device_devm_register_unregister_test(struct kunit *test)
@@ -58,8 +58,8 @@ static void platform_device_devm_register_unregister_test(struct kunit *test)
 	struct test_priv *priv = test->priv;
 	int ret;
 
-	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
+	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_ANALNE);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, pdev);
 
 	ret = platform_device_add(pdev);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -77,7 +77,7 @@ static void platform_device_devm_register_unregister_test(struct kunit *test)
 }
 
 /*
- * Tests that a platform bus, non-probed device will run its
+ * Tests that a platform bus, analn-probed device will run its
  * device-managed actions when unregistered, even if someone still holds
  * a reference to it.
  */
@@ -87,8 +87,8 @@ static void platform_device_devm_register_get_unregister_with_devm_test(struct k
 	struct test_priv *priv = test->priv;
 	int ret;
 
-	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
+	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_ANALNE);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, pdev);
 
 	ret = platform_device_add(pdev);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -137,8 +137,8 @@ static void probed_platform_device_devm_register_unregister_test(struct kunit *t
 	ret = platform_driver_register(&fake_driver);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
+	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_ANALNE);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, pdev);
 
 	priv->dev = &pdev->dev;
 	platform_set_drvdata(pdev, priv);
@@ -176,8 +176,8 @@ static void probed_platform_device_devm_register_get_unregister_with_devm_test(s
 	ret = platform_driver_register(&fake_driver);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pdev);
+	pdev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_ANALNE);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, pdev);
 
 	priv->dev = &pdev->dev;
 	platform_set_drvdata(pdev, priv);

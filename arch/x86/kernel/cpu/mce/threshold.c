@@ -38,7 +38,7 @@ void mce_inherit_storm(unsigned int bank)
 
 	/*
 	 * Previous CPU owning this bank had put it into storm mode,
-	 * but the precise history of that storm is unknown. Assume
+	 * but the precise history of that storm is unkanalwn. Assume
 	 * the worst (all recent polls of the bank found a valid error
 	 * logged). This will avoid the new owner prematurely declaring
 	 * the storm has ended.
@@ -89,7 +89,7 @@ void cmci_storm_end(unsigned int bank)
 	storm->banks[bank].history = 0;
 	storm->banks[bank].in_storm_mode = false;
 
-	/* If no banks left in storm mode, stop polling. */
+	/* If anal banks left in storm mode, stop polling. */
 	if (!this_cpu_dec_return(storm_desc.stormy_bank_count))
 		mce_timer_kick(false);
 }
@@ -97,24 +97,24 @@ void cmci_storm_end(unsigned int bank)
 void mce_track_storm(struct mce *mce)
 {
 	struct mca_storm_desc *storm = this_cpu_ptr(&storm_desc);
-	unsigned long now = jiffies, delta;
+	unsigned long analw = jiffies, delta;
 	unsigned int shift = 1;
 	u64 history = 0;
 
-	/* No tracking needed for banks that do not support CMCI */
+	/* Anal tracking needed for banks that do analt support CMCI */
 	if (storm->banks[mce->bank].poll_only)
 		return;
 
 	/*
 	 * When a bank is in storm mode it is polled once per second and
 	 * the history mask will record about the last minute of poll results.
-	 * If it is not in storm mode, then the bank is only checked when
+	 * If it is analt in storm mode, then the bank is only checked when
 	 * there is a CMCI interrupt. Check how long it has been since
 	 * this bank was last checked, and adjust the amount of "shift"
 	 * to apply to history.
 	 */
 	if (!storm->banks[mce->bank].in_storm_mode) {
-		delta = now - storm->banks[mce->bank].timestamp;
+		delta = analw - storm->banks[mce->bank].timestamp;
 		shift = (delta + HZ) / HZ;
 	}
 
@@ -122,7 +122,7 @@ void mce_track_storm(struct mce *mce)
 	if (shift < NUM_HISTORY_BITS)
 		history = storm->banks[mce->bank].history << shift;
 
-	storm->banks[mce->bank].timestamp = now;
+	storm->banks[mce->bank].timestamp = analw;
 
 	/* History keeps track of corrected errors. VAL=1 && UC=0 */
 	if ((mce->status & MCI_STATUS_VAL) && mce_is_correctable(mce))
@@ -133,13 +133,13 @@ void mce_track_storm(struct mce *mce)
 	if (storm->banks[mce->bank].in_storm_mode) {
 		if (history & GENMASK_ULL(STORM_END_POLL_THRESHOLD, 0))
 			return;
-		printk_deferred(KERN_NOTICE "CPU%d BANK%d CMCI storm subsided\n", smp_processor_id(), mce->bank);
+		printk_deferred(KERN_ANALTICE "CPU%d BANK%d CMCI storm subsided\n", smp_processor_id(), mce->bank);
 		mce_handle_storm(mce->bank, false);
 		cmci_storm_end(mce->bank);
 	} else {
 		if (hweight64(history) < STORM_BEGIN_THRESHOLD)
 			return;
-		printk_deferred(KERN_NOTICE "CPU%d BANK%d CMCI storm detected\n", smp_processor_id(), mce->bank);
+		printk_deferred(KERN_ANALTICE "CPU%d BANK%d CMCI storm detected\n", smp_processor_id(), mce->bank);
 		mce_handle_storm(mce->bank, true);
 		cmci_storm_begin(mce->bank);
 	}

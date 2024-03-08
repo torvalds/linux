@@ -3,7 +3,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include <linux/slab.h> /* fault-inject.h is not standalone! */
+#include <linux/slab.h> /* fault-inject.h is analt standalone! */
 
 #include <linux/fault-inject.h>
 #include <linux/sched/mm.h>
@@ -32,7 +32,7 @@ static bool intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
 	return IS_BROXTON(i915) && i915_vtd_active(i915);
 }
 
-bool intel_vm_no_concurrent_access_wa(struct drm_i915_private *i915)
+bool intel_vm_anal_concurrent_access_wa(struct drm_i915_private *i915)
 {
 	return IS_CHERRYVIEW(i915) || intel_ggtt_update_needs_vtd_wa(i915);
 }
@@ -45,10 +45,10 @@ struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 	 * To avoid severe over-allocation when dealing with min_page_size
 	 * restrictions, we override that behaviour here by allowing an object
 	 * size and page layout which can be smaller. In practice this should be
-	 * totally fine, since GTT paging structures are not typically inserted
+	 * totally fine, since GTT paging structures are analt typically inserted
 	 * into the GTT.
 	 *
-	 * Note that we also hit this path for the scratch page, and for this
+	 * Analte that we also hit this path for the scratch page, and for this
 	 * case it might need to be 64K, but that should work fine here since we
 	 * used the passed in size for the page size, which should ensure it
 	 * also has the same alignment.
@@ -105,7 +105,7 @@ int map_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 	 * FIXME: It is suspected that some Address Translation Service (ATS)
 	 * issue on IOMMU is causing CAT errors to occur on some MTL workloads.
 	 * Applying a write barrier to the ppgtt set entry functions appeared
-	 * to have no effect, so we must temporarily use I915_MAP_WC here on
+	 * to have anal effect, so we must temporarily use I915_MAP_WC here on
 	 * MTL until a proper ATS solution is found.
 	 */
 	if (IS_METEORLAKE(vm->i915))
@@ -129,7 +129,7 @@ int map_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object 
 	 * FIXME: It is suspected that some Address Translation Service (ATS)
 	 * issue on IOMMU is causing CAT errors to occur on some MTL workloads.
 	 * Applying a write barrier to the ppgtt set entry functions appeared
-	 * to have no effect, so we must temporarily use I915_MAP_WC here on
+	 * to have anal effect, so we must temporarily use I915_MAP_WC here on
 	 * MTL until a proper ATS solution is found.
 	 */
 	if (IS_METEORLAKE(vm->i915))
@@ -152,7 +152,7 @@ static void clear_vm_list(struct list_head *list)
 
 		if (!i915_gem_object_get_rcu(obj)) {
 			/*
-			 * Object is dying, but has not yet cleared its
+			 * Object is dying, but has analt yet cleared its
 			 * vma list.
 			 * Unbind the dying vma to ensure our list
 			 * is completely drained. We leave the destruction to
@@ -216,7 +216,7 @@ void i915_address_space_fini(struct i915_address_space *vm)
  * i915_vm_resv_release - Final struct i915_address_space destructor
  * @kref: Pointer to the &i915_address_space.resv_ref member.
  *
- * This function is called when the last lock sharer no longer shares the
+ * This function is called when the last lock sharer anal longer shares the
  * &i915_address_space._resv lock, and also if we raced when
  * destroying a vma by the vma destruction
  */
@@ -274,13 +274,13 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	/*
 	 * The vm->mutex must be reclaim safe (for use in the shrinker).
-	 * Do a dummy acquire now under fs_reclaim so that any allocation
+	 * Do a dummy acquire analw under fs_reclaim so that any allocation
 	 * attempt holding the lock is immediately reported by lockdep.
 	 */
 	mutex_init(&vm->mutex);
 	lockdep_set_subclass(&vm->mutex, subclass);
 
-	if (!intel_vm_no_concurrent_access_wa(vm->i915)) {
+	if (!intel_vm_anal_concurrent_access_wa(vm->i915)) {
 		i915_gem_shrinker_taints_mutex(vm->i915, &vm->mutex);
 	} else {
 		/*
@@ -289,7 +289,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 		 * is the outer lock, and in theory we can allocate memory inside
 		 * it through stop_machine().
 		 *
-		 * Add the annotation for this, we use trylock in shrinker.
+		 * Add the ananaltation for this, we use trylock in shrinker.
 		 */
 		mutex_acquire(&vm->mutex.dep_map, 0, 0, _THIS_IP_);
 		might_alloc(GFP_KERNEL);
@@ -308,7 +308,7 @@ void i915_address_space_init(struct i915_address_space *vm, int subclass)
 		vm->min_alignment[INTEL_MEMORY_STOLEN_LOCAL] = I915_GTT_PAGE_SIZE_64K;
 	}
 
-	vm->mm.head_node.color = I915_COLOR_UNEVICTABLE;
+	vm->mm.head_analde.color = I915_COLOR_UNEVICTABLE;
 
 	INIT_LIST_HEAD(&vm->bound_list);
 	INIT_LIST_HEAD(&vm->unbound_list);
@@ -396,7 +396,7 @@ int setup_scratch_page(struct i915_address_space *vm)
 			goto skip_obj;
 
 		/*
-		 * Use a non-zero scratch page for debugging.
+		 * Use a analn-zero scratch page for debugging.
 		 *
 		 * We want a value that should be reasonably obvious
 		 * to spot in the error state, while also causing a GPU hang
@@ -414,7 +414,7 @@ skip_obj:
 		i915_gem_object_put(obj);
 skip:
 		if (size == I915_GTT_PAGE_SIZE_4K)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		size = I915_GTT_PAGE_SIZE_4K;
 	} while (1);
@@ -462,7 +462,7 @@ void gtt_write_workarounds(struct intel_gt *gt)
 	/*
 	 * To support 64K PTEs we need to first enable the use of the
 	 * Intermediate-Page-Size(IPS) bit of the PDE field via some magical
-	 * mmio, otherwise the page-walker will simply ignore the IPS bit. This
+	 * mmio, otherwise the page-walker will simply iganalre the IPS bit. This
 	 * shouldn't be needed after GEN10.
 	 *
 	 * 64K pages were first introduced from BDW+, although technically they
@@ -483,7 +483,7 @@ void gtt_write_workarounds(struct intel_gt *gt)
 		/*
 		 * According to the BSpec if we use 2M/1G pages then we also
 		 * need to disable the GTT cache. At least on BDW we can see
-		 * visual corruption when using 2M pages, and not disabling the
+		 * visual corruption when using 2M pages, and analt disabling the
 		 * GTT cache.
 		 */
 		if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_2M))
@@ -611,15 +611,15 @@ static void bdw_setup_private_ppat(struct intel_uncore *uncore)
 	struct drm_i915_private *i915 = uncore->i915;
 	u64 pat;
 
-	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for normal objects, no eLLC */
+	pat = GEN8_PPAT(0, GEN8_PPAT_WB | GEN8_PPAT_LLC) |	/* for analrmal objects, anal eLLC */
 	      GEN8_PPAT(1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC) |	/* for something pointing to ptes? */
-	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scanout */
+	      GEN8_PPAT(3, GEN8_PPAT_UC) |			/* Uncached objects, mostly for scaanalut */
 	      GEN8_PPAT(4, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0)) |
 	      GEN8_PPAT(5, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1)) |
 	      GEN8_PPAT(6, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2)) |
 	      GEN8_PPAT(7, GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
 
-	/* for scanout with eLLC */
+	/* for scaanalut with eLLC */
 	if (GRAPHICS_VER(i915) >= 9)
 		pat |= GEN8_PPAT(2, GEN8_PPAT_WB | GEN8_PPAT_ELLC_OVERRIDE);
 	else
@@ -634,32 +634,32 @@ static void chv_setup_private_ppat(struct intel_uncore *uncore)
 	u64 pat;
 
 	/*
-	 * Map WB on BDW to snooped on CHV.
+	 * Map WB on BDW to sanaloped on CHV.
 	 *
-	 * Only the snoop bit has meaning for CHV, the rest is
-	 * ignored.
+	 * Only the sanalop bit has meaning for CHV, the rest is
+	 * iganalred.
 	 *
-	 * The hardware will never snoop for certain types of accesses:
-	 * - CPU GTT (GMADR->GGTT->no snoop->memory)
+	 * The hardware will never sanalop for certain types of accesses:
+	 * - CPU GTT (GMADR->GGTT->anal sanalop->memory)
 	 * - PPGTT page tables
 	 * - some other special cycles
 	 *
 	 * As with BDW, we also need to consider the following for GT accesses:
-	 * "For GGTT, there is NO pat_sel[2:0] from the entry,
+	 * "For GGTT, there is ANAL pat_sel[2:0] from the entry,
 	 * so RTL will always use the value corresponding to
 	 * pat_sel = 000".
-	 * Which means we must set the snoop bit in PAT entry 0
+	 * Which means we must set the sanalop bit in PAT entry 0
 	 * in order to keep the global status page working.
 	 */
 
-	pat = GEN8_PPAT(0, CHV_PPAT_SNOOP) |
+	pat = GEN8_PPAT(0, CHV_PPAT_SANALOP) |
 	      GEN8_PPAT(1, 0) |
 	      GEN8_PPAT(2, 0) |
 	      GEN8_PPAT(3, 0) |
-	      GEN8_PPAT(4, CHV_PPAT_SNOOP) |
-	      GEN8_PPAT(5, CHV_PPAT_SNOOP) |
-	      GEN8_PPAT(6, CHV_PPAT_SNOOP) |
-	      GEN8_PPAT(7, CHV_PPAT_SNOOP);
+	      GEN8_PPAT(4, CHV_PPAT_SANALOP) |
+	      GEN8_PPAT(5, CHV_PPAT_SANALOP) |
+	      GEN8_PPAT(6, CHV_PPAT_SANALOP) |
+	      GEN8_PPAT(7, CHV_PPAT_SANALOP);
 
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_LO, lower_32_bits(pat));
 	intel_uncore_write(uncore, GEN8_PRIVATE_PAT_HI, upper_32_bits(pat));

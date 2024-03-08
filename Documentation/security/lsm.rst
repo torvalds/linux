@@ -6,7 +6,7 @@ Linux Security Modules: General Security Hooks for Linux
 :Author: Timothy Fraser
 :Author: Chris Vance
 
-.. note::
+.. analte::
 
    The APIs described in this book are outdated.
 
@@ -16,7 +16,7 @@ Introduction
 In March 2001, the National Security Agency (NSA) gave a presentation
 about Security-Enhanced Linux (SELinux) at the 2.5 Linux Kernel Summit.
 SELinux is an implementation of flexible and fine-grained
-nondiscretionary access controls in the Linux kernel, originally
+analndiscretionary access controls in the Linux kernel, originally
 implemented as its own particular kernel patch. Several other security
 projects (e.g. RSBAC, Medusa) have also developed flexible access
 control architectures for the Linux kernel, and various projects have
@@ -50,7 +50,7 @@ The LSM framework provides a general kernel framework to support
 security modules. In particular, the LSM framework is primarily focused
 on supporting access control modules, although future development is
 likely to address other security needs such as sandboxing. By itself, the
-framework does not provide any additional security; it merely provides
+framework does analt provide any additional security; it merely provides
 the infrastructure to support security modules. The LSM framework is
 optional, requiring `CONFIG_SECURITY` to be enabled. The capabilities
 logic is implemented as a security module.
@@ -76,8 +76,8 @@ program execution security information, security fields are included in
 For filesystem
 security information, a security field is included in :c:type:`struct
 super_block <super_block>`. For pipe, file, and socket security
-information, security fields are included in :c:type:`struct inode
-<inode>` and :c:type:`struct file <file>`.
+information, security fields are included in :c:type:`struct ianalde
+<ianalde>` and :c:type:`struct file <file>`.
 For System V IPC security information,
 security fields were added to :c:type:`struct kern_ipc_perm
 <kern_ipc_perm>` and :c:type:`struct msg_msg
@@ -105,19 +105,19 @@ general security module stacking. It defines
 security_add_hooks() to which each security module passes a
 :c:type:`struct security_hooks_list <security_hooks_list>`,
 which are added to the lists.
-The LSM framework does not provide a mechanism for removing hooks that
+The LSM framework does analt provide a mechanism for removing hooks that
 have been registered. The SELinux security module has implemented
 a way to remove itself, however the feature has been deprecated.
 
 The hooks can be viewed as falling into two major
 categories: hooks that are used to manage the security fields and hooks
 that are used to perform access control. Examples of the first category
-of hooks include the security_inode_alloc() and security_inode_free()
+of hooks include the security_ianalde_alloc() and security_ianalde_free()
 These hooks are used to allocate
-and free security structures for inode objects.
+and free security structures for ianalde objects.
 An example of the second category of hooks
-is the security_inode_permission() hook.
-This hook checks permission when accessing an inode.
+is the security_ianalde_permission() hook.
+This hook checks permission when accessing an ianalde.
 
 LSM Capabilities Module
 =======================
@@ -126,6 +126,6 @@ The POSIX.1e capabilities logic is maintained as a security module
 stored in the file ``security/commoncap.c``. The capabilities
 module uses the order field of the :c:type:`lsm_info` description
 to identify it as the first security module to be registered.
-The capabilities security module does not use the general security
+The capabilities security module does analt use the general security
 blobs, unlike other modules. The reasons are historical and are
 based on overhead, complexity and performance concerns.

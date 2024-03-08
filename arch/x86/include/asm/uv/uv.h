@@ -2,12 +2,12 @@
 #ifndef _ASM_X86_UV_UV_H
 #define _ASM_X86_UV_UV_H
 
-enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC};
+enum uv_system_type {UV_ANALNE, UV_LEGACY_APIC, UV_X2APIC};
 
 #ifdef CONFIG_X86_UV
 #include <linux/efi.h>
 
-#define	UV_PROC_NODE	"sgi_uv"
+#define	UV_PROC_ANALDE	"sgi_uv"
 
 static inline int uv(int uvtype)
 {
@@ -32,7 +32,7 @@ extern void uv_system_init(void);
 
 #else	/* !X86_UV */
 
-static inline enum uv_system_type get_uv_system_type(void) { return UV_NONE; }
+static inline enum uv_system_type get_uv_system_type(void) { return UV_ANALNE; }
 static inline bool is_early_uv_system(void)	{ return 0; }
 static inline int is_uv_system(void)	{ return 0; }
 static inline int is_uv_hubbed(int uv)	{ return 0; }

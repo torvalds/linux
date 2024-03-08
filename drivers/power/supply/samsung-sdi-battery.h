@@ -8,6 +8,6 @@ static inline int samsung_sdi_battery_get_info(struct device *dev,
 				const char *compatible,
 				struct power_supply_battery_info **info)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif

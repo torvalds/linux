@@ -30,7 +30,7 @@
 #define	JFS_GRPQUOTA	0x00000020
 
 /* mount time flag to disable journaling to disk */
-#define JFS_NOINTEGRITY 0x00000040
+#define JFS_ANALINTEGRITY 0x00000040
 
 /* mount time flag to enable TRIM to ssd disks */
 #define JFS_DISCARD     0x00000080
@@ -40,7 +40,7 @@
 #define	JFS_GROUPCOMMIT	0x00000100	/* group (of 1) commit */
 #define	JFS_LAZYCOMMIT	0x00000200	/* lazy commit */
 #define	JFS_TMPFS	0x00000400	/* temporary file system -
-					 * do not log/commit:
+					 * do analt log/commit:
 					 * Never implemented
 					 */
 
@@ -48,7 +48,7 @@
 #define	JFS_INLINELOG	0x00000800	/* inline log within file system */
 #define JFS_INLINEMOVE	0x00001000	/* inline log being moved */
 
-/* Secondary aggregate inode table */
+/* Secondary aggregate ianalde table */
 #define JFS_BAD_SAIT	0x00010000	/* current secondary ait is bad */
 
 /* sparse regular file support */
@@ -96,30 +96,30 @@
 #define	PBSIZE		512	/* physical block size (in byte) */
 #define	L2PBSIZE	9	/* log2(PBSIZE) */
 
-#define DISIZE		512	/* on-disk inode size (in byte) */
+#define DISIZE		512	/* on-disk ianalde size (in byte) */
 #define L2DISIZE	9	/* log2(DISIZE) */
 
-#define IDATASIZE	256	/* inode inline data size */
-#define	IXATTRSIZE	128	/* inode inline extended attribute size */
+#define IDATASIZE	256	/* ianalde inline data size */
+#define	IXATTRSIZE	128	/* ianalde inline extended attribute size */
 
 #define XTPAGE_SIZE	4096
 #define log2_PAGESIZE	12
 
 #define IAG_SIZE	4096
 #define IAG_EXTENT_SIZE 4096
-#define	INOSPERIAG	4096	/* number of disk inodes per iag */
-#define	L2INOSPERIAG	12	/* l2 number of disk inodes per iag */
-#define INOSPEREXT	32	/* number of disk inode per extent */
-#define L2INOSPEREXT	5	/* l2 number of disk inode per extent */
-#define	IXSIZE		(DISIZE * INOSPEREXT)	/* inode extent size */
-#define	INOSPERPAGE	8	/* number of disk inodes per 4K page */
-#define	L2INOSPERPAGE	3	/* log2(INOSPERPAGE) */
+#define	IANALSPERIAG	4096	/* number of disk ianaldes per iag */
+#define	L2IANALSPERIAG	12	/* l2 number of disk ianaldes per iag */
+#define IANALSPEREXT	32	/* number of disk ianalde per extent */
+#define L2IANALSPEREXT	5	/* l2 number of disk ianalde per extent */
+#define	IXSIZE		(DISIZE * IANALSPEREXT)	/* ianalde extent size */
+#define	IANALSPERPAGE	8	/* number of disk ianaldes per 4K page */
+#define	L2IANALSPERPAGE	3	/* log2(IANALSPERPAGE) */
 
 #define	IAGFREELIST_LWM	64
 
-#define INODE_EXTENT_SIZE	IXSIZE	/* inode extent size */
-#define NUM_INODE_PER_EXTENT	INOSPEREXT
-#define NUM_INODE_PER_IAG	INOSPERIAG
+#define IANALDE_EXTENT_SIZE	IXSIZE	/* ianalde extent size */
+#define NUM_IANALDE_PER_EXTENT	IANALSPEREXT
+#define NUM_IANALDE_PER_IAG	IANALSPERIAG
 
 #define MINBLOCKSIZE		512
 #define L2MINBLOCKSIZE		9
@@ -148,21 +148,21 @@
 /*
  * fixed physical block address (physical block size = 512 byte)
  *
- * NOTE: since we can't guarantee a physical block size of 512 bytes the use of
+ * ANALTE: since we can't guarantee a physical block size of 512 bytes the use of
  *	 these macros should be removed and the byte offset macros used instead.
  */
 #define SUPER1_B	64	/* primary superblock */
-#define	AIMAP_B		(SUPER1_B + 8)	/* 1st extent of aggregate inode map */
+#define	AIMAP_B		(SUPER1_B + 8)	/* 1st extent of aggregate ianalde map */
 #define	AITBL_B		(AIMAP_B + 16)	/*
-					 * 1st extent of aggregate inode table
+					 * 1st extent of aggregate ianalde table
 					 */
 #define	SUPER2_B	(AITBL_B + 32)	/* 2ndary superblock pbn */
 #define	BMAP_B		(SUPER2_B + 8)	/* block allocation map */
 
 /*
  * SIZE_OF_SUPER defines the total amount of space reserved on disk for the
- * superblock.  This is not the same as the superblock structure, since all of
- * this space is not currently being used.
+ * superblock.  This is analt the same as the superblock structure, since all of
+ * this space is analt currently being used.
  */
 #define SIZE_OF_SUPER	PSIZE
 
@@ -173,7 +173,7 @@
 
 /*
  * SIZE_OF_MAP_PAGE defines the amount of disk space reserved for each page of
- * the inode allocation map (to hold iag)
+ * the ianalde allocation map (to hold iag)
  */
 #define SIZE_OF_MAP_PAGE	PSIZE
 
@@ -183,14 +183,14 @@
 #define SUPER1_OFF	0x8000	/* primary superblock */
 #define AIMAP_OFF	(SUPER1_OFF + SIZE_OF_SUPER)
 					/*
-					 * Control page of aggregate inode map
+					 * Control page of aggregate ianalde map
 					 * followed by 1st extent of map
 					 */
 #define AITBL_OFF	(AIMAP_OFF + (SIZE_OF_MAP_PAGE << 1))
 					/*
-					 * 1st extent of aggregate inode table
+					 * 1st extent of aggregate ianalde table
 					 */
-#define SUPER2_OFF	(AITBL_OFF + INODE_EXTENT_SIZE)
+#define SUPER2_OFF	(AITBL_OFF + IANALDE_EXTENT_SIZE)
 					/*
 					 * secondary superblock
 					 */
@@ -216,37 +216,37 @@
 #define AGGR_RSVD_BYTES	SUPER1_OFF
 
 /*
- * The following macro defines the byte offset for the first inode extent in
- * the aggregate inode table.  This allows us to find the self inode to find the
+ * The following macro defines the byte offset for the first ianalde extent in
+ * the aggregate ianalde table.  This allows us to find the self ianalde to find the
  * rest of the table.  Currently this value is 44K.
  */
-#define AGGR_INODE_TABLE_START	AITBL_OFF
+#define AGGR_IANALDE_TABLE_START	AITBL_OFF
 
 /*
- *	fixed reserved inode number
+ *	fixed reserved ianalde number
  */
-/* aggregate inode */
-#define AGGR_RESERVED_I	0	/* aggregate inode (reserved) */
-#define	AGGREGATE_I	1	/* aggregate inode map inode */
-#define	BMAP_I		2	/* aggregate block allocation map inode */
-#define	LOG_I		3	/* aggregate inline log inode */
-#define BADBLOCK_I	4	/* aggregate bad block inode */
-#define	FILESYSTEM_I	16	/* 1st/only fileset inode in ait:
-				 * fileset inode map inode
+/* aggregate ianalde */
+#define AGGR_RESERVED_I	0	/* aggregate ianalde (reserved) */
+#define	AGGREGATE_I	1	/* aggregate ianalde map ianalde */
+#define	BMAP_I		2	/* aggregate block allocation map ianalde */
+#define	LOG_I		3	/* aggregate inline log ianalde */
+#define BADBLOCK_I	4	/* aggregate bad block ianalde */
+#define	FILESYSTEM_I	16	/* 1st/only fileset ianalde in ait:
+				 * fileset ianalde map ianalde
 				 */
 
-/* per fileset inode */
-#define FILESET_RSVD_I	0	/* fileset inode (reserved) */
-#define FILESET_EXT_I	1	/* fileset inode extension */
-#define	ROOT_I		2	/* fileset root inode */
-#define ACL_I		3	/* fileset ACL inode */
+/* per fileset ianalde */
+#define FILESET_RSVD_I	0	/* fileset ianalde (reserved) */
+#define FILESET_EXT_I	1	/* fileset ianalde extension */
+#define	ROOT_I		2	/* fileset root ianalde */
+#define ACL_I		3	/* fileset ACL ianalde */
 
-#define FILESET_OBJECT_I 4	/* the first fileset inode available for a file
+#define FILESET_OBJECT_I 4	/* the first fileset ianalde available for a file
 				 * or directory or link...
 				 */
-#define FIRST_FILESET_INO 16	/* the first aggregate inode which describes
-				 * an inode.  (To fsck this is also the first
-				 * inode in part 2 of the agg inode table.)
+#define FIRST_FILESET_IANAL 16	/* the first aggregate ianalde which describes
+				 * an ianalde.  (To fsck this is also the first
+				 * ianalde in part 2 of the agg ianalde table.)
 				 */
 
 /*
@@ -261,7 +261,7 @@
  */
 #define FM_CLEAN 0x00000000	/* file system is unmounted and clean */
 #define FM_MOUNT 0x00000001	/* file system is mounted cleanly */
-#define FM_DIRTY 0x00000002	/* file system was not unmounted and clean
+#define FM_DIRTY 0x00000002	/* file system was analt unmounted and clean
 				 * when mounted or
 				 * commit failure occurred while being mounted:
 				 * fsck() must be run to repair

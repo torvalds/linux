@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -80,7 +80,7 @@ void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep)
 {
 	struct usb_ctrlrequest crq;
 	enum std_req_rc std_req_rc;
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	if (WARN_ON(ep->d_idx != 0))
 		return;
@@ -102,7 +102,7 @@ void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep)
 	/*
 	 * Check our state, cancel pending requests if needed
 	 *
-	 * Note: Under some circumstances, we can get a new setup
+	 * Analte: Under some circumstances, we can get a new setup
 	 * packet while waiting for the stall ack, just accept it.
 	 *
 	 * In any case, a SETUP packet in wrong state should have
@@ -153,7 +153,7 @@ void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep)
 		spin_lock(&ep->vhub->lock);
 		EPDBG(ep, "driver returned %d\n", rc);
 	} else {
-		EPDBG(ep, "no gadget for request !\n");
+		EPDBG(ep, "anal gadget for request !\n");
 	}
 	if (rc >= 0)
 		return;
@@ -166,7 +166,7 @@ void ast_vhub_ep0_handle_setup(struct ast_vhub_ep *ep)
 	return;
 
  complete:
-	EPVDBG(ep, "sending [in] status with no data\n");
+	EPVDBG(ep, "sending [in] status with anal data\n");
 	writel(VHUB_EP0_TX_BUFF_RDY, ep->ep0.ctlstat);
 	ep->ep0.state = ep0_state_status;
 	ep->ep0.dir_in = false;
@@ -289,7 +289,7 @@ void ast_vhub_ep0_handle_ack(struct ast_vhub_ep *ep, bool in_ack)
 
 	switch(ep->ep0.state) {
 	case ep0_state_token:
-		/* There should be no request queued in that state... */
+		/* There should be anal request queued in that state... */
 		if (req) {
 			dev_warn(dev, "request present while in TOKEN state\n");
 			ast_vhub_nuke(ep, -EINVAL);
@@ -302,16 +302,16 @@ void ast_vhub_ep0_handle_ack(struct ast_vhub_ep *ep, bool in_ack)
 		if ((ep->ep0.dir_in && (stat & VHUB_EP0_TX_BUFF_RDY)) ||
 		    (!ep->ep0.dir_in && (stat & VHUB_EP0_RX_BUFF_RDY)) ||
 		    (ep->ep0.dir_in != in_ack)) {
-			/* In that case, ignore interrupt */
+			/* In that case, iganalre interrupt */
 			dev_warn(dev, "irq state mismatch");
 			break;
 		}
 		/*
-		 * We are in data phase and there's no request, something is
+		 * We are in data phase and there's anal request, something is
 		 * wrong, stall
 		 */
 		if (!req) {
-			dev_warn(dev, "data phase, no request\n");
+			dev_warn(dev, "data phase, anal request\n");
 			stall = true;
 			break;
 		}
@@ -365,7 +365,7 @@ static int ast_vhub_ep0_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	struct device *dev = &vhub->pdev->dev;
 	unsigned long flags;
 
-	/* Paranoid cheks */
+	/* Paraanalid cheks */
 	if (!u_req || (!u_req->complete && !req->internal)) {
 		dev_warn(dev, "Bogus EP0 request ! u_req=%p\n", u_req);
 		if (u_req) {
@@ -375,7 +375,7 @@ static int ast_vhub_ep0_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		return -EINVAL;
 	}
 
-	/* Not endpoint 0 ? */
+	/* Analt endpoint 0 ? */
 	if (WARN_ON(ep->d_idx != 0))
 		return -EINVAL;
 
@@ -383,16 +383,16 @@ static int ast_vhub_ep0_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 	if (ep->dev && !ep->dev->enabled)
 		return -ESHUTDOWN;
 
-	/* Data, no buffer and not internal ? */
+	/* Data, anal buffer and analt internal ? */
 	if (u_req->length && !u_req->buf && !req->internal) {
-		dev_warn(dev, "Request with no buffer !\n");
+		dev_warn(dev, "Request with anal buffer !\n");
 		return -EINVAL;
 	}
 
 	EPVDBG(ep, "enqueue req @%p\n", req);
-	EPVDBG(ep, "  l=%d zero=%d noshort=%d is_in=%d\n",
+	EPVDBG(ep, "  l=%d zero=%d analshort=%d is_in=%d\n",
 	       u_req->length, u_req->zero,
-	       u_req->short_not_ok, ep->ep0.dir_in);
+	       u_req->short_analt_ok, ep->ep0.dir_in);
 
 	/* Initialize request progress fields */
 	u_req->status = -EINPROGRESS;
@@ -454,7 +454,7 @@ static int ast_vhub_ep0_dequeue(struct usb_ep* u_ep, struct usb_request *u_req)
 
 		/*
 		 * We don't have to deal with "active" as all
-		 * DMAs go to the EP buffers, not the request.
+		 * DMAs go to the EP buffers, analt the request.
 		 */
 		ast_vhub_done(ep, req, -ECONNRESET);
 

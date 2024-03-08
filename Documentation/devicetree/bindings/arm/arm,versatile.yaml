@@ -14,16 +14,16 @@ description: |+
   with various pluggable interface boards, in essence the Versatile PB version
   is a superset of the Versatile AB version.
 
-  The root node in the Versatile platforms must contain a core module child
-  node. They are always at physical address 0x10000000 in all the Versatile
+  The root analde in the Versatile platforms must contain a core module child
+  analde. They are always at physical address 0x10000000 in all the Versatile
   variants.
 
   When fitted with the IB2 Interface Board, the Versatile AB will present an
-  optional system controller node which controls the extra peripherals on the
+  optional system controller analde which controls the extra peripherals on the
   interface board.
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

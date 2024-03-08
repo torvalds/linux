@@ -59,7 +59,7 @@ static const struct regulator_ops tps65090_ext_control_ops = {
  * @ri:		Overall regulator data
  * @rdev:	Regulator device
  *
- * Return: 0 if no error, non-zero if there was an error writing the register.
+ * Return: 0 if anal error, analn-zero if there was an error writing the register.
  */
 static int tps65090_reg_set_overcurrent_wait(struct tps65090_regulator *ri,
 					     struct regulator_dev *rdev)
@@ -82,8 +82,8 @@ static int tps65090_reg_set_overcurrent_wait(struct tps65090_regulator *ri,
  *
  * @rdev:	Regulator device
  *
- * Return: 0 if ok, -ENOTRECOVERABLE if the FET power good bit did not get
- * set, or some other -ve value if another error occurred (e.g. i2c error)
+ * Return: 0 if ok, -EANALTRECOVERABLE if the FET power good bit did analt get
+ * set, or some other -ve value if aanalther error occurred (e.g. i2c error)
  */
 static int tps65090_try_enable_fet(struct regulator_dev *rdev)
 {
@@ -111,7 +111,7 @@ static int tps65090_try_enable_fet(struct regulator_dev *rdev)
 		usleep_range(1000, 1500);
 	}
 	if (!(control & BIT(CTRL_PG_BIT)))
-		return -ENOTRECOVERABLE;
+		return -EANALTRECOVERABLE;
 
 	return 0;
 }
@@ -128,7 +128,7 @@ static int tps65090_try_enable_fet(struct regulator_dev *rdev)
  *
  * @rdev:	Regulator device
  *
- * Return: 0 if ok, non-zero if it fails.
+ * Return: 0 if ok, analn-zero if it fails.
  */
 static int tps65090_fet_enable(struct regulator_dev *rdev)
 {
@@ -143,7 +143,7 @@ static int tps65090_fet_enable(struct regulator_dev *rdev)
 		ret = tps65090_try_enable_fet(rdev);
 		if (!ret)
 			break;
-		if (ret != -ENOTRECOVERABLE || tries == MAX_FET_ENABLE_TRIES)
+		if (ret != -EANALTRECOVERABLE || tries == MAX_FET_ENABLE_TRIES)
 			goto err;
 
 		/* Try turning the FET off (and then on again) */
@@ -311,31 +311,31 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 		struct of_regulator_match **tps65090_reg_matches)
 {
 	struct tps65090_platform_data *tps65090_pdata;
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regulators;
+	struct device_analde *np = pdev->dev.parent->of_analde;
+	struct device_analde *regulators;
 	int idx = 0, ret;
 	struct tps65090_regulator_plat_data *reg_pdata;
 
 	tps65090_pdata = devm_kzalloc(&pdev->dev, sizeof(*tps65090_pdata),
 				GFP_KERNEL);
 	if (!tps65090_pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	reg_pdata = devm_kcalloc(&pdev->dev,
 				 TPS65090_REGULATOR_MAX, sizeof(*reg_pdata),
 				 GFP_KERNEL);
 	if (!reg_pdata)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	regulators = of_get_child_by_name(np, "regulators");
 	if (!regulators) {
-		dev_err(&pdev->dev, "regulator node not found\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(&pdev->dev, "regulator analde analt found\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ret = of_regulator_match(&pdev->dev, regulators, tps65090_matches,
 			ARRAY_SIZE(tps65090_matches));
-	of_node_put(regulators);
+	of_analde_put(regulators);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Error parsing regulator init data: %d\n", ret);
@@ -346,14 +346,14 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 	for (idx = 0; idx < ARRAY_SIZE(tps65090_matches); idx++) {
 		struct regulator_init_data *ri_data;
 		struct tps65090_regulator_plat_data *rpdata;
-		struct device_node *np;
+		struct device_analde *np;
 
 		rpdata = &reg_pdata[idx];
 		ri_data = tps65090_matches[idx].init_data;
 		if (!ri_data)
 			continue;
 
-		np = tps65090_matches[idx].of_node;
+		np = tps65090_matches[idx].of_analde;
 		if (!np)
 			continue;
 
@@ -368,17 +368,17 @@ static struct tps65090_platform_data *tps65090_parse_dt_reg_data(
 				gflags = GPIOD_OUT_HIGH;
 			else
 				gflags = GPIOD_OUT_LOW;
-			gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+			gflags |= GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 
-			rpdata->gpiod = devm_fwnode_gpiod_get(
+			rpdata->gpiod = devm_fwanalde_gpiod_get(
 							&pdev->dev,
-							of_fwnode_handle(np),
+							of_fwanalde_handle(np),
 							"dcdc-ext-control",
 							gflags,
 							"tps65090");
-			if (PTR_ERR(rpdata->gpiod) == -ENOENT) {
+			if (PTR_ERR(rpdata->gpiod) == -EANALENT) {
 				dev_err(&pdev->dev,
-					"could not find DCDC external control GPIO\n");
+					"could analt find DCDC external control GPIO\n");
 				rpdata->gpiod = NULL;
 			} else if (IS_ERR(rpdata->gpiod))
 				return ERR_CAST(rpdata->gpiod);
@@ -418,7 +418,7 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	tps65090_pdata = dev_get_platdata(pdev->dev.parent);
-	if (!tps65090_pdata && tps65090_mfd->dev->of_node)
+	if (!tps65090_pdata && tps65090_mfd->dev->of_analde)
 		tps65090_pdata = tps65090_parse_dt_reg_data(pdev,
 					&tps65090_reg_matches);
 	if (IS_ERR_OR_NULL(tps65090_pdata)) {
@@ -430,7 +430,7 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 			    TPS65090_REGULATOR_MAX, sizeof(*pmic),
 			    GFP_KERNEL);
 	if (!pmic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (num = 0; num < TPS65090_REGULATOR_MAX; num++) {
 		tps_pdata = tps65090_pdata->reg_pdata[num];
@@ -471,9 +471,9 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 		else
 			config.init_data = NULL;
 		if (tps65090_reg_matches)
-			config.of_node = tps65090_reg_matches[num].of_node;
+			config.of_analde = tps65090_reg_matches[num].of_analde;
 		else
-			config.of_node = NULL;
+			config.of_analde = NULL;
 
 		/*
 		 * Hand the GPIO descriptor management over to the regulator
@@ -511,7 +511,7 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps65090_regulator_driver = {
 	.driver	= {
 		.name	= "tps65090-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe		= tps65090_regulator_probe,
 };

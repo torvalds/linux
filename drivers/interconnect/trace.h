@@ -16,7 +16,7 @@
 
 TRACE_EVENT(icc_set_bw,
 
-	TP_PROTO(struct icc_path *p, struct icc_node *n, int i,
+	TP_PROTO(struct icc_path *p, struct icc_analde *n, int i,
 		 u32 avg_bw, u32 peak_bw),
 
 	TP_ARGS(p, n, i, avg_bw, peak_bw),
@@ -24,31 +24,31 @@ TRACE_EVENT(icc_set_bw,
 	TP_STRUCT__entry(
 		__string(path_name, p->name)
 		__string(dev, dev_name(p->reqs[i].dev))
-		__string(node_name, n->name)
+		__string(analde_name, n->name)
 		__field(u32, avg_bw)
 		__field(u32, peak_bw)
-		__field(u32, node_avg_bw)
-		__field(u32, node_peak_bw)
+		__field(u32, analde_avg_bw)
+		__field(u32, analde_peak_bw)
 	),
 
 	TP_fast_assign(
 		__assign_str(path_name, p->name);
 		__assign_str(dev, dev_name(p->reqs[i].dev));
-		__assign_str(node_name, n->name);
+		__assign_str(analde_name, n->name);
 		__entry->avg_bw = avg_bw;
 		__entry->peak_bw = peak_bw;
-		__entry->node_avg_bw = n->avg_bw;
-		__entry->node_peak_bw = n->peak_bw;
+		__entry->analde_avg_bw = n->avg_bw;
+		__entry->analde_peak_bw = n->peak_bw;
 	),
 
-	TP_printk("path=%s dev=%s node=%s avg_bw=%u peak_bw=%u agg_avg=%u agg_peak=%u",
+	TP_printk("path=%s dev=%s analde=%s avg_bw=%u peak_bw=%u agg_avg=%u agg_peak=%u",
 		  __get_str(path_name),
 		  __get_str(dev),
-		  __get_str(node_name),
+		  __get_str(analde_name),
 		  __entry->avg_bw,
 		  __entry->peak_bw,
-		  __entry->node_avg_bw,
-		  __entry->node_peak_bw)
+		  __entry->analde_avg_bw,
+		  __entry->analde_peak_bw)
 );
 
 TRACE_EVENT(icc_set_bw_end,

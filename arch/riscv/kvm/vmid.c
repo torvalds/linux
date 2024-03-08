@@ -8,7 +8,7 @@
 
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -35,7 +35,7 @@ void __init kvm_riscv_gstage_vmid_detect(void)
 	/* We polluted local TLB so flush all guest TLB */
 	kvm_riscv_local_hfence_gvma_all();
 
-	/* We don't use VMID bits if they are not sufficient */
+	/* We don't use VMID bits if they are analt sufficient */
 	if ((1UL << vmid_bits) < num_possible_cpus())
 		vmid_bits = 0;
 }
@@ -81,7 +81,7 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 
 	/*
 	 * We need to re-check the vmid_version here to ensure that if
-	 * another vcpu already allocated a valid vmid for this vm.
+	 * aanalther vcpu already allocated a valid vmid for this vm.
 	 */
 	if (!kvm_riscv_gstage_vmid_ver_changed(vmid)) {
 		spin_unlock(&vmid_lock);
@@ -99,7 +99,7 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 		 *
 		 * This also means existing VMIDs assignment to all Guest
 		 * instances is invalid and we have force VMID re-assignement
-		 * for all Guest instances. The Guest instances that were not
+		 * for all Guest instances. The Guest instances that were analt
 		 * running will automatically pick-up new VMIDs because will
 		 * call kvm_riscv_gstage_vmid_update() whenever they enter
 		 * in-kernel run loop. For Guest instances that are already

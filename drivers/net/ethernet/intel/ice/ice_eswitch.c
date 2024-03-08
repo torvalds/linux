@@ -47,7 +47,7 @@ static int ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
 
 	list = kcalloc(lkups_cnt, sizeof(*list), GFP_ATOMIC);
 	if (!list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_rule_add_src_vsi_metadata(list);
 
@@ -58,7 +58,7 @@ static int ice_eswitch_add_sp_rule(struct ice_pf *pf, struct ice_repr *repr)
 				       ctrl_vsi->rxq_map[repr->q_id];
 	rule_info.flags_info.act |= ICE_SINGLE_ACT_LB_ENABLE;
 	rule_info.flags_info.act_valid = true;
-	rule_info.tun_type = ICE_SW_TUN_AND_NON_TUN;
+	rule_info.tun_type = ICE_SW_TUN_AND_ANALN_TUN;
 	rule_info.src_vsi = repr->src_vsi->idx;
 
 	err = ice_add_adv_rule(hw, list, lkups_cnt, &rule_info,
@@ -148,7 +148,7 @@ err_def_rx:
 	ice_fltr_add_mac_and_broadcast(uplink_vsi,
 				       uplink_vsi->port_info->mac.perm_addr,
 				       ICE_FWD_TO_VSI);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -272,7 +272,7 @@ err_dst_free:
 err_add_mac_fltr:
 	ice_fltr_add_mac_and_broadcast(vsi, repr->parent_mac, ICE_FWD_TO_VSI);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -442,17 +442,17 @@ static int ice_eswitch_enable_switchdev(struct ice_pf *pf)
 
 	uplink_vsi = ice_get_main_vsi(pf);
 	if (!uplink_vsi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (netif_is_any_bridge_port(uplink_vsi->netdev)) {
 		dev_err(ice_pf_to_dev(pf),
-			"Uplink port cannot be a bridge port\n");
+			"Uplink port cananalt be a bridge port\n");
 		return -EINVAL;
 	}
 
 	pf->eswitch.control_vsi = ice_eswitch_vsi_setup(pf, pf->hw.port_info);
 	if (!pf->eswitch.control_vsi)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ctrl_vsi = pf->eswitch.control_vsi;
 	/* cp VSI is createad with 1 queue as default */
@@ -473,7 +473,7 @@ err_br_offloads:
 	ice_eswitch_release_env(pf);
 err_vsi:
 	ice_vsi_release(ctrl_vsi);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /**
@@ -508,9 +508,9 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		return 0;
 
 	if (ice_has_vfs(pf)) {
-		dev_info(ice_pf_to_dev(pf), "Changing eswitch mode is allowed only if there is no VFs created");
-		NL_SET_ERR_MSG_MOD(extack, "Changing eswitch mode is allowed only if there is no VFs created");
-		return -EOPNOTSUPP;
+		dev_info(ice_pf_to_dev(pf), "Changing eswitch mode is allowed only if there is anal VFs created");
+		NL_SET_ERR_MSG_MOD(extack, "Changing eswitch mode is allowed only if there is anal VFs created");
+		return -EOPANALTSUPP;
 	}
 
 	switch (mode) {
@@ -525,7 +525,7 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		if (ice_is_adq_active(pf)) {
 			dev_err(ice_pf_to_dev(pf), "Couldn't change eswitch mode to switchdev - ADQ is active. Delete ADQ configs and try again, e.g. tc qdisc del dev $PF root");
 			NL_SET_ERR_MSG_MOD(extack, "Couldn't change eswitch mode to switchdev - ADQ is active. Delete ADQ configs and try again, e.g. tc qdisc del dev $PF root");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		dev_info(ice_pf_to_dev(pf), "PF %d changed eswitch mode to switchdev",
@@ -535,7 +535,7 @@ ice_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		break;
 	}
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Unknown eswitch mode");
+		NL_SET_ERR_MSG_MOD(extack, "Unkanalwn eswitch mode");
 		return -EINVAL;
 	}
 
@@ -636,7 +636,7 @@ ice_eswitch_cp_change_queues(struct ice_eswitch *eswitch, int change)
 		cp->req_txq = queues;
 		cp->req_rxq = queues;
 		ice_vsi_close(cp);
-		ice_vsi_rebuild(cp, ICE_VSI_FLAG_NO_INIT);
+		ice_vsi_rebuild(cp, ICE_VSI_FLAG_ANAL_INIT);
 		ice_vsi_open(cp);
 	} else if (!change) {
 		/* change == 0 means that VSI wasn't open, open it here */
@@ -723,11 +723,11 @@ void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf)
 
 	if (xa_empty(&pf->eswitch.reprs)) {
 		/* since all port representors are destroyed, there is
-		 * no point in keeping the nodes
+		 * anal point in keeping the analdes
 		 */
 		ice_devlink_rate_clear_tx_topology(ice_get_main_vsi(pf));
 		devl_lock(devlink);
-		devl_rate_nodes_destroy(devlink);
+		devl_rate_analdes_destroy(devlink);
 		devl_unlock(devlink);
 	} else {
 		ice_eswitch_start_reprs(pf);

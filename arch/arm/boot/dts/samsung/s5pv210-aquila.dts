@@ -24,7 +24,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200n8 root=/dev/mmcblk1p5 rw rootwait ignore_loglevel earlyprintk";
+		bootargs = "console=ttySAC2,115200n8 root=/dev/mmcblk1p5 rw rootwait iganalre_loglevel earlyprintk";
 	};
 
 	memory@30000000 {
@@ -267,7 +267,7 @@
 };
 
 &keypad {
-	linux,input-no-autorepeat;
+	linux,input-anal-autorepeat;
 	wakeup-source;
 	samsung,keypad-num-rows = <3>;
 	samsung,keypad-num-columns = <3>;
@@ -336,7 +336,7 @@
 
 &sdhci0 {
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 	vmmc-supply = <&ldo5_reg>;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4>;
@@ -393,6 +393,6 @@
 	t_flash_detect: t-flash-detect-pins {
 		samsung,pins = "gph3-4";
 		samsung,pin-function = <S5PV210_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_ANALNE>;
 	};
 };

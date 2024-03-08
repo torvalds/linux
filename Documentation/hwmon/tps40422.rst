@@ -17,17 +17,17 @@ Author: Zhu Laiwen <richard.zhu@nsn.com>
 Description
 -----------
 
-This driver supports TI TPS40422 Dual-Output or Two-Phase Synchronous Buck
+This driver supports TI TPS40422 Dual-Output or Two-Phase Synchroanalus Buck
 Controller with PMBus
 
 The driver is a client driver to the core PMBus driver.
 Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
 
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 

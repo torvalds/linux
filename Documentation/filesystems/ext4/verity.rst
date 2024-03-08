@@ -11,7 +11,7 @@ fs-verity documentation.  However, the on-disk layout of the verity
 metadata is filesystem-specific.  On ext4, the verity metadata is
 stored after the end of the file data itself, in the following format:
 
-- Zero-padding to the next 65536-byte boundary.  This padding need not
+- Zero-padding to the next 65536-byte boundary.  This padding need analt
   actually be allocated on-disk, i.e. it may be a hole.
 
 - The Merkle tree, as documented in
@@ -32,13 +32,13 @@ stored after the end of the file data itself, in the following format:
 - The size of the verity descriptor in bytes, as a 4-byte little
   endian integer.
 
-Verity inodes have EXT4_VERITY_FL set, and they must use extents, i.e.
+Verity ianaldes have EXT4_VERITY_FL set, and they must use extents, i.e.
 EXT4_EXTENTS_FL must be set and EXT4_INLINE_DATA_FL must be clear.
 They can have EXT4_ENCRYPT_FL set, in which case the verity metadata
 is encrypted as well as the data itself.
 
-Verity files cannot have blocks allocated past the end of the verity
+Verity files cananalt have blocks allocated past the end of the verity
 metadata.
 
-Verity and DAX are not compatible and attempts to set both of these flags
+Verity and DAX are analt compatible and attempts to set both of these flags
 on a file will fail.

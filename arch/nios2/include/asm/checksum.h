@@ -25,7 +25,7 @@ static inline __sum16 csum_fold(__wsum sum)
 		"cmpltu	r8, %0, %1\n"
 		"srli	%0, %0, 16\n"
 		"add	%0, %0, r8\n"
-		"nor	%0, %0, %0\n"
+		"analr	%0, %0, %0\n"
 		: "=r" (sum)
 		: "r" (sum << 16), "0" (sum)
 		: "r8");
@@ -36,8 +36,8 @@ static inline __sum16 csum_fold(__wsum sum)
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-#define csum_tcpudp_nofold csum_tcpudp_nofold
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+#define csum_tcpudp_analfold csum_tcpudp_analfold
+static inline __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -64,7 +64,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_analfold(saddr, daddr, len, proto, sum));
 }
 
 #endif /* _ASM_NIOS_CHECKSUM_H */

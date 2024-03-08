@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 Red Hat
  * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  *
  * Author: Rob Clark <robdclark@gmail.com>
  */
@@ -259,7 +259,7 @@ static void dpu_debugfs_sspp_init(struct dpu_kms *dpu_kms, struct dentry *debugf
 	if (IS_ERR(entry))
 		return;
 
-	for (i = SSPP_NONE; i < SSPP_MAX; i++) {
+	for (i = SSPP_ANALNE; i < SSPP_MAX; i++) {
 		struct dpu_hw_sspp *hw = dpu_rm_get_sspp(&dpu_kms->rm, i);
 
 		if (!hw)
@@ -269,7 +269,7 @@ static void dpu_debugfs_sspp_init(struct dpu_kms *dpu_kms, struct dentry *debugf
 	}
 }
 
-static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_mianalr *mianalr)
 {
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	void *p = dpu_hw_util_get_log_mask_ptr();
@@ -278,11 +278,11 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	if (!p)
 		return -EINVAL;
 
-	/* Only create a set of debugfs for the primary node, ignore render nodes */
-	if (minor->type != DRM_MINOR_PRIMARY)
+	/* Only create a set of debugfs for the primary analde, iganalre render analdes */
+	if (mianalr->type != DRM_MIANALR_PRIMARY)
 		return 0;
 
-	entry = debugfs_create_dir("debug", minor->debugfs_root);
+	entry = debugfs_create_dir("debug", mianalr->debugfs_root);
 
 	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
 
@@ -299,7 +299,7 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 
 /*
  * This is a helper that returns the private state currently in operation.
- * Note that this would return the "old_state" if called in the atomic check
+ * Analte that this would return the "old_state" if called in the atomic check
  * path, and the "new_state" after the atomic swap has been done.
  */
 struct dpu_global_state *
@@ -366,7 +366,7 @@ static int dpu_kms_global_obj_init(struct dpu_kms *dpu_kms)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_atomic_private_obj_init(dpu_kms->dev, &dpu_kms->global_state,
 				    &state->base,
@@ -460,12 +460,12 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 	dev = crtc->dev;
 
 	if (!crtc->state->enable) {
-		DPU_DEBUG("[crtc:%d] not enable\n", crtc->base.id);
+		DPU_DEBUG("[crtc:%d] analt enable\n", crtc->base.id);
 		return;
 	}
 
 	if (!drm_atomic_crtc_effectively_active(crtc->state)) {
-		DPU_DEBUG("[crtc:%d] not active\n", crtc->base.id);
+		DPU_DEBUG("[crtc:%d] analt active\n", crtc->base.id);
 		return;
 	}
 
@@ -475,7 +475,7 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 		/*
 		 * Wait for post-flush if necessary to delay before
 		 * plane_cleanup. For example, wait for vsync in case of video
-		 * mode panels. This may be a no-op for command mode panels.
+		 * mode panels. This may be a anal-op for command mode panels.
 		 */
 		trace_dpu_kms_wait_for_commit_done(DRMID(crtc));
 		ret = dpu_encoder_wait_for_event(encoder, MSM_ENC_COMMIT_DONE);
@@ -881,7 +881,7 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 		msm_disp_snapshot_add_block(disp_state, cat->pingpong[i].len, base,
 					    cat->pingpong[i].name);
 
-		/* TE2 sub-block has length of 0, so will not print it */
+		/* TE2 sub-block has length of 0, so will analt print it */
 
 		if (cat->pingpong[i].sblk && cat->pingpong[i].sblk->dither.len > 0)
 			msm_disp_snapshot_add_block(disp_state, cat->pingpong[i].sblk->dither.len,
@@ -1049,13 +1049,13 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	dpu_kms->catalog = of_device_get_match_data(dev->dev);
 	if (!dpu_kms->catalog) {
-		DPU_ERROR("device config not known!\n");
+		DPU_ERROR("device config analt kanalwn!\n");
 		rc = -EINVAL;
 		goto err_pm_put;
 	}
 
 	/*
-	 * Now we need to read the HW catalog and initialize resources such as
+	 * Analw we need to read the HW catalog and initialize resources such as
 	 * clocks, regulators, GDSC/MMAGIC, ioremap the register ranges etc
 	 */
 	rc = _dpu_kms_mmu_init(dpu_kms);
@@ -1111,7 +1111,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	/* TODO: use the same max_freq as in dpu_kms_hw_init */
 	max_core_clk_rate = dpu_kms_get_clk_rate(dpu_kms, "core");
 	if (!max_core_clk_rate) {
-		DPU_DEBUG("max core clk rate not determined, using default\n");
+		DPU_DEBUG("max core clk rate analt determined, using default\n");
 		max_core_clk_rate = DPU_PERF_DEFAULT_MAX_CORE_CLK_RATE;
 	}
 
@@ -1206,7 +1206,7 @@ static int dpu_dev_probe(struct platform_device *pdev)
 
 	dpu_kms = devm_kzalloc(dev, sizeof(*dpu_kms), GFP_KERNEL);
 	if (!dpu_kms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpu_kms->pdev = pdev;
 
@@ -1215,7 +1215,7 @@ static int dpu_dev_probe(struct platform_device *pdev)
 		return ret;
 	/* OPP table is optional */
 	ret = devm_pm_opp_of_add_table(dev);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return dev_err_probe(dev, ret, "invalid OPP table in device tree\n");
 
 	ret = devm_clk_bulk_get_all(&pdev->dev, &dpu_kms->clocks);
@@ -1250,7 +1250,7 @@ static int dpu_dev_probe(struct platform_device *pdev)
 	dpu_kms->vbif[VBIF_NRT] = msm_ioremap_quiet(pdev, "vbif_nrt");
 	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
 		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
+		DPU_DEBUG("VBIF NRT is analt defined");
 	}
 
 	ret = dpu_kms_parse_data_bus_icc_path(dpu_kms);

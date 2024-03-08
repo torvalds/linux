@@ -93,7 +93,7 @@ do {								\
 		pr_info("%s: " fmt, __func__, ##__VA_ARGS__);		\
 	} while (0)
 
-#define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define brcmf_dbg(level, fmt, ...) anal_printk(fmt, ##__VA_ARGS__)
 
 #define BRCMF_DATA_ON()		0
 #define BRCMF_CTL_ON()		0
@@ -126,7 +126,7 @@ int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 #else
 static inline struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
 {
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-EANALENT);
 }
 static inline
 void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,

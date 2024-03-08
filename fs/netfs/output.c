@@ -73,7 +73,7 @@ EXPORT_SYMBOL(netfs_create_write_request);
 static void netfs_write_terminated(struct netfs_io_request *wreq, bool was_async)
 {
 	struct netfs_io_subrequest *subreq;
-	struct netfs_inode *ctx = netfs_inode(wreq->inode);
+	struct netfs_ianalde *ctx = netfs_ianalde(wreq->ianalde);
 	size_t transferred = 0;
 
 	_enter("R=%x[]", wreq->debug_id);
@@ -106,7 +106,7 @@ static void netfs_write_terminated(struct netfs_io_request *wreq, bool was_async
 			/* Failure doesn't prevent writeback completion unless
 			 * we're in disconnected mode.
 			 */
-			if (subreq->error != -ENOBUFS)
+			if (subreq->error != -EANALBUFS)
 				ctx->ops->invalidate_cache(wreq);
 			break;
 
@@ -124,11 +124,11 @@ static void netfs_write_terminated(struct netfs_io_request *wreq, bool was_async
 	    wreq->mapping->nrpages) {
 		pgoff_t first = wreq->start >> PAGE_SHIFT;
 		pgoff_t last = (wreq->start + wreq->transferred - 1) >> PAGE_SHIFT;
-		invalidate_inode_pages2_range(wreq->mapping, first, last);
+		invalidate_ianalde_pages2_range(wreq->mapping, first, last);
 	}
 
 	if (wreq->origin == NETFS_DIO_WRITE)
-		inode_dio_end(wreq->inode);
+		ianalde_dio_end(wreq->ianalde);
 
 	_debug("finished");
 	trace_netfs_rreq(wreq, netfs_rreq_trace_wake_ip);
@@ -196,7 +196,7 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 	if (subreq->transferred < subreq->len)
 		goto incomplete;
 
-	__clear_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags);
+	__clear_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags);
 out:
 	trace_netfs_sreq(subreq, netfs_sreq_trace_terminated);
 
@@ -212,12 +212,12 @@ out:
 
 incomplete:
 	if (transferred_or_error == 0) {
-		if (__test_and_set_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags)) {
-			subreq->error = -ENODATA;
+		if (__test_and_set_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags)) {
+			subreq->error = -EANALDATA;
 			goto failed;
 		}
 	} else {
-		__clear_bit(NETFS_SREQ_NO_PROGRESS, &subreq->flags);
+		__clear_bit(NETFS_SREQ_ANAL_PROGRESS, &subreq->flags);
 	}
 
 	__set_bit(NETFS_SREQ_SHORT_IO, &subreq->flags);
@@ -282,7 +282,7 @@ static void netfs_set_up_write_to_cache(struct netfs_io_request *wreq)
 {
 	struct netfs_cache_resources *cres = &wreq->cache_resources;
 	struct netfs_io_subrequest *subreq;
-	struct netfs_inode *ctx = netfs_inode(wreq->inode);
+	struct netfs_ianalde *ctx = netfs_ianalde(wreq->ianalde);
 	struct fscache_cookie *cookie = netfs_i_cookie(ctx);
 	loff_t start = wreq->start;
 	size_t len = wreq->len;
@@ -299,7 +299,7 @@ static void netfs_set_up_write_to_cache(struct netfs_io_request *wreq)
 		return;
 
 	ret = cres->ops->prepare_write(cres, &start, &len, wreq->upper_len,
-				       i_size_read(wreq->inode), true);
+				       i_size_read(wreq->ianalde), true);
 	if (ret < 0)
 		return;
 
@@ -327,19 +327,19 @@ static void netfs_set_up_write_to_cache(struct netfs_io_request *wreq)
  * (2) If the data is to be cached, set up a write op for the entire output
  *     buffer to the cache, if the cache wants to accept it.
  *
- * (3) If the data is to be uploaded (ie. not merely cached):
+ * (3) If the data is to be uploaded (ie. analt merely cached):
  *
  *     (a) If the data is to be compressed, create a compression buffer and
  *         compress the data into it.
  *
  *     (b) For each destination we want to upload to, set up write ops to write
- *         to that destination.  We may need multiple writes if the data is not
+ *         to that destination.  We may need multiple writes if the data is analt
  *         contiguous or the span exceeds wsize for a server.
  */
 int netfs_begin_write(struct netfs_io_request *wreq, bool may_wait,
 		      enum netfs_write_trace what)
 {
-	struct netfs_inode *ctx = netfs_inode(wreq->inode);
+	struct netfs_ianalde *ctx = netfs_ianalde(wreq->ianalde);
 
 	_enter("R=%x %llx-%llx f=%lx",
 	       wreq->debug_id, wreq->start, wreq->start + wreq->len - 1,
@@ -352,7 +352,7 @@ int netfs_begin_write(struct netfs_io_request *wreq, bool may_wait,
 	}
 
 	if (wreq->origin == NETFS_DIO_WRITE)
-		inode_dio_begin(wreq->inode);
+		ianalde_dio_begin(wreq->ianalde);
 
 	wreq->io_iter = wreq->iter;
 
@@ -414,7 +414,7 @@ struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len
 
 static void netfs_submit_writethrough(struct netfs_io_request *wreq, bool final)
 {
-	struct netfs_inode *ictx = netfs_inode(wreq->inode);
+	struct netfs_ianalde *ictx = netfs_ianalde(wreq->ianalde);
 	unsigned long long start;
 	size_t len;
 

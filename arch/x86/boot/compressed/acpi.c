@@ -15,9 +15,9 @@
 
 /*
  * Immovable memory regions representation. Max amount of memory regions is
- * MAX_NUMNODES*2.
+ * MAX_NUMANALDES*2.
  */
-struct mem_vector immovable_mem[MAX_NUMNODES*2];
+struct mem_vector immovable_mem[MAX_NUMANALDES*2];
 
 static acpi_physical_address
 __efi_get_rsdp_addr(unsigned long cfg_tbl_pa, unsigned int cfg_tbl_len)
@@ -35,7 +35,7 @@ __efi_get_rsdp_addr(unsigned long cfg_tbl_pa, unsigned int cfg_tbl_len)
 	if (rsdp_addr)
 		return (acpi_physical_address)rsdp_addr;
 
-	/* No ACPI_20_TABLE_GUID found, fallback to ACPI_TABLE_GUID. */
+	/* Anal ACPI_20_TABLE_GUID found, fallback to ACPI_TABLE_GUID. */
 	rsdp_addr = efi_find_vendor_table(boot_params_ptr, cfg_tbl_pa, cfg_tbl_len,
 					  ACPI_TABLE_GUID);
 	if (rsdp_addr)
@@ -57,7 +57,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	int ret;
 
 	et = efi_get_type(boot_params_ptr);
-	if (et == EFI_TYPE_NONE)
+	if (et == EFI_TYPE_ANALNE)
 		return 0;
 
 	systab_pa = efi_get_system_table(boot_params_ptr);
@@ -66,7 +66,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 
 	ret = efi_get_conf_table(boot_params_ptr, &cfg_tbl_pa, &cfg_tbl_len);
 	if (ret || !cfg_tbl_pa)
-		error("EFI config table not found.");
+		error("EFI config table analt found.");
 
 	return __efi_get_rsdp_addr(cfg_tbl_pa, cfg_tbl_len);
 #else
@@ -97,7 +97,7 @@ static u8 *scan_mem_for_rsdp(u8 *start, u32 length)
 	for (address = start; address < end; address += ACPI_RSDP_SCAN_STEP) {
 		/*
 		 * Both RSDP signature and checksum must be correct.
-		 * Note: Sometimes there exists more than one RSDP in memory;
+		 * Analte: Sometimes there exists more than one RSDP in memory;
 		 * the valid RSDP has a valid checksum, all others have an
 		 * invalid checksum.
 		 */
@@ -262,8 +262,8 @@ static unsigned long get_acpi_srat_table(void)
  * Return the number of immovable memory regions on success, 0 on failure:
  *
  * - Too many immovable memory regions
- * - ACPI off or no SRAT found
- * - No immovable memory region found.
+ * - ACPI off or anal SRAT found
+ * - Anal immovable memory region found.
  */
 int count_immovable_mem_regions(void)
 {
@@ -303,7 +303,7 @@ int count_immovable_mem_regions(void)
 				num++;
 			}
 
-			if (num >= MAX_NUMNODES*2) {
+			if (num >= MAX_NUMANALDES*2) {
 				debug_putstr("Too many immovable memory regions, aborting.\n");
 				return 0;
 			}

@@ -15,7 +15,7 @@
  * Marc Gauthier<marc@tensilica.com> <marc@alumni.uwaterloo.ca>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
@@ -160,7 +160,7 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 			}
 		}
 		if (t == &__tagtable_end)
-			pr_warn("Ignoring tag 0x%08x\n", tag->id);
+			pr_warn("Iganalring tag 0x%08x\n", tag->id);
 		tag = (bp_tag_t*)((unsigned long)(tag + 1) + tag->size);
 	}
 
@@ -169,7 +169,7 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 #else
 static int __init parse_bootparam(const bp_tag_t *tag)
 {
-	pr_info("Ignoring boot parameters at %p\n", tag);
+	pr_info("Iganalring boot parameters at %p\n", tag);
 	return 0;
 }
 #endif
@@ -180,7 +180,7 @@ static int __init parse_bootparam(const bp_tag_t *tag)
 unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
 EXPORT_SYMBOL(xtensa_kio_paddr);
 
-static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+static int __init xtensa_dt_io_area(unsigned long analde, const char *uname,
 		int depth, void *data)
 {
 	const __be32 *ranges;
@@ -189,10 +189,10 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 	if (depth > 1)
 		return 0;
 
-	if (!of_flat_dt_is_compatible(node, "simple-bus"))
+	if (!of_flat_dt_is_compatible(analde, "simple-bus"))
 		return 0;
 
-	ranges = of_get_flat_dt_prop(node, "ranges", &len);
+	ranges = of_get_flat_dt_prop(analde, "ranges", &len);
 	if (!ranges)
 		return 1;
 	if (len == 0)
@@ -207,7 +207,7 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 	return 1;
 }
 #else
-static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+static int __init xtensa_dt_io_area(unsigned long analde, const char *uname,
 		int depth, void *data)
 {
 	return 1;
@@ -394,8 +394,8 @@ void cpu_reset(void)
 	/*
 	 * We have full MMU: all autoload ways, ways 7, 8 and 9 of DTLB must
 	 * be flushed.
-	 * Way 4 is not currently used by linux.
-	 * Ways 5 and 6 shall not be touched on MMUv2 as they are hardwired.
+	 * Way 4 is analt currently used by linux.
+	 * Ways 5 and 6 shall analt be touched on MMUv2 as they are hardwired.
 	 * Way 5 shall be flushed and way 6 shall be set to identity mapping
 	 * on MMUv3.
 	 */
@@ -410,7 +410,7 @@ void cpu_reset(void)
 		unsigned long tmp0, tmp1, tmp2, tmp3;
 
 		/*
-		 * Find a place for the temporary mapping. It must not be
+		 * Find a place for the temporary mapping. It must analt be
 		 * in the same 512MB region with vaddr or paddr, otherwise
 		 * there may be multihit exception either on entry to the
 		 * temporary mapping, or on entry to the identity mapping.
@@ -447,7 +447,7 @@ void cpu_reset(void)
 				      "add	%3, %3, %5\n\t"
 				      "jx	%0\n"
 				      /*
-				       * No literal, data or stack access
+				       * Anal literal, data or stack access
 				       * below this point
 				       */
 				      "1:\n\t"

@@ -14,7 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -228,7 +228,7 @@
 	.mask = xmask, .items = xitems, .texts = xtexts, \
 	.values = xvalues, .autodisable = 1}
 #define SOC_ENUM_SINGLE_VIRT(xitems, xtexts) \
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, xitems, xtexts)
+	SOC_ENUM_SINGLE(SND_SOC_ANALPM, 0, xitems, xtexts)
 #define SOC_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
 	.info = snd_soc_info_enum_double, \
@@ -400,7 +400,7 @@
 #define SOC_ENUM_SINGLE_VIRT_DECL(name, xtexts) \
 	const struct soc_enum name = SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(xtexts), xtexts)
 
-struct device_node;
+struct device_analde;
 struct snd_jack;
 struct snd_soc_card;
 struct snd_soc_pcm_stream;
@@ -459,7 +459,7 @@ int devm_snd_soc_register_component(struct device *dev,
 void snd_soc_unregister_component(struct device *dev);
 void snd_soc_unregister_component_by_driver(struct device *dev,
 			 const struct snd_soc_component_driver *component_driver);
-struct snd_soc_component *snd_soc_lookup_component_nolocked(struct device *dev,
+struct snd_soc_component *snd_soc_lookup_component_anallocked(struct device *dev,
 							    const char *driver_name);
 struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 						   const char *driver_name);
@@ -479,7 +479,7 @@ void snd_soc_disconnect_sync(struct device *dev);
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);
 
-bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
+bool snd_soc_runtime_iganalre_pmdown_time(struct snd_soc_pcm_runtime *rtd);
 
 void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
 			    int stream, int action);
@@ -568,7 +568,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_info *uinfo);
-#define snd_soc_info_bool_ext		snd_ctl_boolean_mono_info
+#define snd_soc_info_bool_ext		snd_ctl_boolean_moanal_info
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
@@ -651,7 +651,7 @@ snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 
 struct snd_soc_dai_link_component {
 	const char *name;
-	struct device_node *of_node;
+	struct device_analde *of_analde;
 	const char *dai_name;
 	struct of_phandle_args *dai_args;
 };
@@ -705,14 +705,14 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MAY specify the link's CPU-side device, either by device name,
-	 * or by DT/OF node, but not both. If this information is omitted,
+	 * or by DT/OF analde, but analt both. If this information is omitted,
 	 * the CPU-side DAI is matched using .cpu_dai_name only, which hence
 	 * must be globally unique. These fields are currently typically used
 	 * only for codec to codec links, or systems using device tree.
 	 */
 	/*
 	 * You MAY specify the DAI name of the CPU DAI. If this information is
-	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
+	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_analde
 	 * only, which only works well when that device exposes a single DAI.
 	 */
 	struct snd_soc_dai_link_component *cpus;
@@ -720,7 +720,7 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MUST specify the link's codec, either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF analde, but analt both.
 	 */
 	/* You MUST specify the DAI name within the codec */
 	struct snd_soc_dai_link_component *codecs;
@@ -731,8 +731,8 @@ struct snd_soc_dai_link {
 
 	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
-	 * device name, or by DT/OF node, but not both. Some forms of link
-	 * do not need a platform. In such case, platforms are not mandatory.
+	 * device name, or by DT/OF analde, but analt both. Some forms of link
+	 * do analt need a platform. In such case, platforms are analt mandatory.
 	 */
 	struct snd_soc_dai_link_component *platforms;
 	unsigned int num_platforms;
@@ -772,23 +772,23 @@ struct snd_soc_dai_link {
 	enum snd_soc_trigger_order trigger_start;
 	enum snd_soc_trigger_order trigger_stop;
 
-	/* Mark this pcm with non atomic ops */
-	unsigned int nonatomic:1;
+	/* Mark this pcm with analn atomic ops */
+	unsigned int analnatomic:1;
 
 	/* For unidirectional dai links */
 	unsigned int playback_only:1;
 	unsigned int capture_only:1;
 
 	/* Keep DAI active over suspend */
-	unsigned int ignore_suspend:1;
+	unsigned int iganalre_suspend:1;
 
 	/* Symmetry requirements */
 	unsigned int symmetric_rate:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_sample_bits:1;
 
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int no_pcm:1;
+	/* Do analt create a PCM for this DAI link (Backend link) */
+	unsigned int anal_pcm:1;
 
 	/* This DAI link can route to other DAI links at runtime (Frontend)*/
 	unsigned int dynamic:1;
@@ -804,11 +804,11 @@ struct snd_soc_dai_link {
 	/* DPCM used FE & BE merged rate */
 	unsigned int dpcm_merged_rate:1;
 
-	/* pmdown_time is ignored at stop */
-	unsigned int ignore_pmdown_time:1;
+	/* pmdown_time is iganalred at stop */
+	unsigned int iganalre_pmdown_time:1;
 
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int ignore:1;
+	/* Do analt create a PCM for this DAI link (Backend link) */
+	unsigned int iganalre:1;
 
 #ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj; /* For topology */
@@ -871,7 +871,7 @@ snd_soc_link_to_platform(struct snd_soc_dai_link *link, int n) {
  *	SND_SOC_DAILINK_REG(test),
  * };
  *
- * Sample 2 : Multi CPU/Codec, no Platform
+ * Sample 2 : Multi CPU/Codec, anal Platform
  *
  * SND_SOC_DAILINK_DEFS(test,
  *	DAILINK_COMP_ARRAY(COMP_CPU("cpu_dai1"),
@@ -948,7 +948,7 @@ extern struct snd_soc_dai_link_component snd_soc_dummy_dlc;
 struct snd_soc_codec_conf {
 	/*
 	 * specify device either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF analde, but analt both.
 	 */
 	struct snd_soc_dai_link_component dlc;
 
@@ -962,7 +962,7 @@ struct snd_soc_codec_conf {
 struct snd_soc_aux_dev {
 	/*
 	 * specify multi-codec either by device name, or by
-	 * DT/OF node, but not both.
+	 * DT/OF analde, but analt both.
 	 */
 	struct snd_soc_dai_link_component dlc;
 
@@ -982,7 +982,7 @@ struct snd_soc_card {
 
 #ifdef CONFIG_PCI
 	/*
-	 * PCI does not define 0 as invalid, so pci_subsystem_set indicates
+	 * PCI does analt define 0 as invalid, so pci_subsystem_set indicates
 	 * whether a value has been written to these fields.
 	 */
 	unsigned short pci_subsystem_vendor;
@@ -1054,7 +1054,7 @@ struct snd_soc_card {
 
 	/*
 	 * Card-specific routes and widgets.
-	 * Note: of_dapm_xxx for Device Tree; Otherwise for driver build-in.
+	 * Analte: of_dapm_xxx for Device Tree; Otherwise for driver build-in.
 	 */
 	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
@@ -1171,7 +1171,7 @@ struct snd_soc_pcm_runtime {
 	struct dentry *debugfs_dpcm_root;
 #endif
 
-	unsigned int num; /* 0-based and monotonic increasing */
+	unsigned int num; /* 0-based and moanaltonic increasing */
 	struct list_head list; /* rtd list of the soc card */
 
 	/* function mark */
@@ -1310,7 +1310,7 @@ static inline unsigned int snd_soc_enum_item_to_val(struct soc_enum *e,
  *  control
  * @kcontrol: The control for which to get the component
  *
- * Note: This function will work correctly if the control has been registered
+ * Analte: This function will work correctly if the control has been registered
  * for a component. With snd_soc_add_codec_controls() or via table based
  * setup for either a CODEC or component driver. Otherwise the behavior is
  * undefined.
@@ -1329,26 +1329,26 @@ int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
 					  const char *propname);
 int snd_soc_of_parse_pin_switches(struct snd_soc_card *card, const char *prop);
-int snd_soc_of_get_slot_mask(struct device_node *np,
+int snd_soc_of_get_slot_mask(struct device_analde *np,
 			     const char *prop_name,
 			     unsigned int *mask);
-int snd_soc_of_parse_tdm_slot(struct device_node *np,
+int snd_soc_of_parse_tdm_slot(struct device_analde *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-void snd_soc_of_parse_node_prefix(struct device_node *np,
+void snd_soc_of_parse_analde_prefix(struct device_analde *np,
 				   struct snd_soc_codec_conf *codec_conf,
-				   struct device_node *of_node,
+				   struct device_analde *of_analde,
 				   const char *propname);
 static inline
 void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
 				   struct snd_soc_codec_conf *codec_conf,
-				   struct device_node *of_node,
+				   struct device_analde *of_analde,
 				   const char *propname)
 {
-	snd_soc_of_parse_node_prefix(card->dev->of_node,
-				     codec_conf, of_node, propname);
+	snd_soc_of_parse_analde_prefix(card->dev->of_analde,
+				     codec_conf, of_analde, propname);
 }
 
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
@@ -1358,11 +1358,11 @@ int snd_soc_of_parse_aux_devs(struct snd_soc_card *card, const char *propname);
 unsigned int snd_soc_daifmt_clock_provider_flipped(unsigned int dai_fmt);
 unsigned int snd_soc_daifmt_clock_provider_from_bitmap(unsigned int bit_frame);
 
-unsigned int snd_soc_daifmt_parse_format(struct device_node *np, const char *prefix);
-unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
+unsigned int snd_soc_daifmt_parse_format(struct device_analde *np, const char *prefix);
+unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_analde *np,
 						     const char *prefix,
-						     struct device_node **bitclkmaster,
-						     struct device_node **framemaster);
+						     struct device_analde **bitclkmaster,
+						     struct device_analde **framemaster);
 #define snd_soc_daifmt_parse_clock_provider_as_bitmap(np, prefix)	\
 	snd_soc_daifmt_parse_clock_provider_raw(np, prefix, NULL, NULL)
 #define snd_soc_daifmt_parse_clock_provider_as_phandle			\
@@ -1374,21 +1374,21 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream);
 int snd_soc_get_dlc(const struct of_phandle_args *args,
 		    struct snd_soc_dai_link_component *dlc);
-int snd_soc_of_get_dlc(struct device_node *of_node,
+int snd_soc_of_get_dlc(struct device_analde *of_analde,
 		       struct of_phandle_args *args,
 		       struct snd_soc_dai_link_component *dlc,
 		       int index);
-int snd_soc_get_dai_id(struct device_node *ep);
+int snd_soc_get_dai_id(struct device_analde *ep);
 int snd_soc_get_dai_name(const struct of_phandle_args *args,
 			 const char **dai_name);
-int snd_soc_of_get_dai_name(struct device_node *of_node,
+int snd_soc_of_get_dai_name(struct device_analde *of_analde,
 			    const char **dai_name, int index);
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
-				   struct device_node *of_node,
+				   struct device_analde *of_analde,
 				   struct snd_soc_dai_link *dai_link);
 void snd_soc_of_put_dai_link_codecs(struct snd_soc_dai_link *dai_link);
 int snd_soc_of_get_dai_link_cpus(struct device *dev,
-				 struct device_node *of_node,
+				 struct device_analde *of_analde,
 				 struct snd_soc_dai_link *dai_link);
 void snd_soc_of_put_dai_link_cpus(struct snd_soc_dai_link *dai_link);
 
@@ -1427,12 +1427,12 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 	const char *name;
 	int i;
 
-	if (!platform_name) /* nothing to do */
+	if (!platform_name) /* analthing to do */
 		return 0;
 
 	/* set platform name for each dailink */
 	for_each_card_prelinks(card, i, dai_link) {
-		/* only single platform is supported for now */
+		/* only single platform is supported for analw */
 		if (dai_link->num_platforms != 1)
 			return -EINVAL;
 
@@ -1441,9 +1441,9 @@ int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 
 		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		/* only single platform is supported for now */
+		/* only single platform is supported for analw */
 		dai_link->platforms->name = name;
 	}
 

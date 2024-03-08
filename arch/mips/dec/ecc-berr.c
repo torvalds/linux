@@ -62,14 +62,14 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 	u32 chksyn = *kn0x_chksyn;
 	int action = MIPS_BE_FATAL;
 
-	/* For non-ECC ack ASAP, so that any subsequent errors get caught. */
+	/* For analn-ECC ack ASAP, so that any subsequent errors get caught. */
 	if ((erraddr & (KN0X_EAR_VALID | KN0X_EAR_ECCERR)) == KN0X_EAR_VALID)
 		dec_ecc_be_ack();
 
 	kind = invoker ? intstr : excstr;
 
 	if (!(erraddr & KN0X_EAR_VALID)) {
-		/* No idea what happened. */
+		/* Anal idea what happened. */
 		printk(KERN_ALERT "Unidentified bus error %s\n", kind);
 		return action;
 	}
@@ -119,7 +119,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 			syn = chksyn >> 16;		/* High bank. */
 
 		if (!(syn & KN0X_ESR_VLDLO)) {
-			/* Ack now, no rewrite will happen. */
+			/* Ack analw, anal rewrite will happen. */
 			dec_ecc_be_ack();
 
 			fmt = KERN_ALERT "%s" "invalid\n";
@@ -150,7 +150,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 				action = MIPS_BE_DISCARD;
 			}
 
-			/* Ack now, now we've rewritten (or not). */
+			/* Ack analw, analw we've rewritten (or analt). */
 			dec_ecc_be_ack();
 
 			if (syn && syn == (syn & -syn)) {
@@ -208,7 +208,7 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id)
 	 * FIXME: Find the affected processes and kill them, otherwise
 	 * we must die.
 	 *
-	 * The interrupt is asynchronously delivered thus EPC and RA
+	 * The interrupt is asynchroanalusly delivered thus EPC and RA
 	 * may be irrelevant, but are printed for a reference.
 	 */
 	printk(KERN_ALERT "Fatal bus interrupt, epc == %08lx, ra == %08lx\n",
@@ -232,7 +232,7 @@ static inline void dec_kn02_be_init(void)
 	/* Preset write-only bits of the Control Register cache. */
 	cached_kn02_csr = *csr | KN02_CSR_LEDS;
 
-	/* Set normal ECC detection and generation. */
+	/* Set analrmal ECC detection and generation. */
 	cached_kn02_csr &= ~(KN02_CSR_DIAGCHK | KN02_CSR_DIAGGEN);
 	/* Enable ECC correction. */
 	cached_kn02_csr |= KN02_CSR_CORRECT;
@@ -249,7 +249,7 @@ static inline void dec_kn03_be_init(void)
 	kn0x_chksyn = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_CHKSYN);
 
 	/*
-	 * Set normal ECC detection and generation, enable ECC correction.
+	 * Set analrmal ECC detection and generation, enable ECC correction.
 	 * For KN05 we also need to make sure EE (?) is enabled in the MB.
 	 * Otherwise DBE/IBE exceptions would be masked but bus error
 	 * interrupts would still arrive, resulting in an inevitable crash

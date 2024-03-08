@@ -25,22 +25,22 @@
 
 /**
  * struct ip30_heart_regs - struct that maps IP30 HEART registers.
- * @mode: HEART_MODE - Purpose Unknown, machine reset called from here.
- * @sdram_mode: HEART_SDRAM_MODE - purpose unknown.
- * @mem_refresh: HEART_MEM_REF - purpose unknown.
- * @mem_req_arb: HEART_MEM_REQ_ARB - purpose unknown.
+ * @mode: HEART_MODE - Purpose Unkanalwn, machine reset called from here.
+ * @sdram_mode: HEART_SDRAM_MODE - purpose unkanalwn.
+ * @mem_refresh: HEART_MEM_REF - purpose unkanalwn.
+ * @mem_req_arb: HEART_MEM_REQ_ARB - purpose unkanalwn.
  * @mem_cfg.q: union for 64bit access to HEART_MEMCFG - 4x 64bit registers.
  * @mem_cfg.l: union for 32bit access to HEART_MEMCFG - 8x 32bit registers.
- * @fc_mode: HEART_FC_MODE - Purpose Unknown, possibly for GFX flow control.
- * @fc_timer_limit: HEART_FC_TIMER_LIMIT - purpose unknown.
- * @fc_addr: HEART_FC0_ADDR, HEART_FC1_ADDR - purpose unknown.
- * @fc_credit_cnt: HEART_FC0_CR_CNT, HEART_FC1_CR_CNT - purpose unknown.
- * @fc_timer: HEART_FC0_TIMER, HEART_FC1_TIMER - purpose unknown.
+ * @fc_mode: HEART_FC_MODE - Purpose Unkanalwn, possibly for GFX flow control.
+ * @fc_timer_limit: HEART_FC_TIMER_LIMIT - purpose unkanalwn.
+ * @fc_addr: HEART_FC0_ADDR, HEART_FC1_ADDR - purpose unkanalwn.
+ * @fc_credit_cnt: HEART_FC0_CR_CNT, HEART_FC1_CR_CNT - purpose unkanalwn.
+ * @fc_timer: HEART_FC0_TIMER, HEART_FC1_TIMER - purpose unkanalwn.
  * @status: HEART_STATUS - HEART status information.
  * @bus_err_addr: HEART_BERR_ADDR - likely contains addr of recent SIGBUS.
- * @bus_err_misc: HEART_BERR_MISC - purpose unknown.
+ * @bus_err_misc: HEART_BERR_MISC - purpose unkanalwn.
  * @mem_err_addr: HEART_MEMERR_ADDR - likely contains addr of recent mem err.
- * @mem_err_data: HEART_MEMERR_DATA - purpose unknown.
+ * @mem_err_data: HEART_MEMERR_DATA - purpose unkanalwn.
  * @piur_acc_err: HEART_PIUR_ACC_ERR - likely for access err to HEART regs.
  * @mlan_clock_div: HEART_MLAN_CLK_DIV - MicroLAN clock divider.
  * @mlan_ctrl: HEART_MLAN_CTL - MicroLAN control.
@@ -51,30 +51,30 @@
  * @set_isr: HEART_SET_ISR - set interrupt status register.
  * @clear_isr: HEART_CLR_ISR - clear interrupt status register.
  * @isr: HEART_ISR - interrupt status register (read-only).
- * @imsr: HEART_IMSR - purpose unknown.
+ * @imsr: HEART_IMSR - purpose unkanalwn.
  * @cause: HEART_CAUSE - HEART cause information.
  * @__pad2: 0xffb8 bytes of padding -> next HEART register 0x20000.
  * @count: HEART_COUNT - 52-bit counter.
  * @__pad3: 0xfff8 bytes of padding -> next HEART register 0x30000.
  * @compare: HEART_COMPARE - 24-bit compare.
  * @__pad4: 0xfff8 bytes of padding -> next HEART register 0x40000.
- * @trigger: HEART_TRIGGER - purpose unknown.
+ * @trigger: HEART_TRIGGER - purpose unkanalwn.
  * @__pad5: 0xfff8 bytes of padding -> next HEART register 0x50000.
  * @cpuid: HEART_PRID - contains CPU ID of CPU currently accessing HEART.
  * @__pad6: 0xfff8 bytes of padding -> next HEART register 0x60000.
- * @sync: HEART_SYNC - purpose unknown.
+ * @sync: HEART_SYNC - purpose unkanalwn.
  *
  * HEART is the main system controller ASIC for IP30 system.  It incorporates
  * a memory controller, interrupt status/cause/set/clear management, basic
- * timer with count/compare, and other functionality.  For Linux, not all of
+ * timer with count/compare, and other functionality.  For Linux, analt all of
  * HEART's functions are fully understood.
  *
- * Implementation note: All HEART registers are 64bits-wide, but the mem_cfg
+ * Implementation analte: All HEART registers are 64bits-wide, but the mem_cfg
  * register only reports correct values if queried in 32bits.  Hence the need
  * for a union.  Even though mem_cfg.l has 8 array slots, we only ever query
  * up to 4 of those.  IP30 has 8 DIMM slots arranged into 4 banks, w/ 2 DIMMs
  * per bank.  Each 32bit read accesses one of these banks.  Perhaps HEART was
- * designed to address up to 8 banks (16 DIMMs)?  We may never know.
+ * designed to address up to 8 banks (16 DIMMs)?  We may never kanalw.
  */
 struct ip30_heart_regs {		/* 0x0ff00000 */
 	u64 mode;			/* +  0x00000 */

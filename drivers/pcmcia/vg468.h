@@ -2,7 +2,7 @@
  * vg468.h 1.11 1999/10/25 20:03:34
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may analt use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -19,10 +19,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in which
  * case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use
+ * only under the terms of the GPL and analt to allow others to use
  * your version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the analtice and
+ * other provisions required by the GPL.  If you do analt delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
@@ -68,7 +68,7 @@
 
 /* Flags for VG468_CTL */
 #define VG468_CTL_SLOW		0x01	/* 600ns memory timing */
-#define VG468_CTL_ASYNC		0x02	/* Asynchronous bus clocking */
+#define VG468_CTL_ASYNC		0x02	/* Asynchroanalus bus clocking */
 #define VG468_CTL_TSSI		0x08	/* Tri-state some outputs */
 #define VG468_CTL_DELAY		0x10	/* Card detect debounce */
 #define VG468_CTL_INPACK	0x20	/* Obey INPACK signal? */

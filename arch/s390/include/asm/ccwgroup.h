@@ -19,7 +19,7 @@ struct ccwgroup_device {
 		CCWGROUP_ONLINE,
 	} state;
 /* private: */
-	atomic_t onoff;
+	atomic_t oanalff;
 	struct mutex reg_mutex;
 /* public: */
 	unsigned int count;

@@ -16,10 +16,10 @@
 /*
  * Prototype: void *memmove(void *dest, const void *src, size_t n);
  *
- * Note:
+ * Analte:
  *
  * If the memory regions don't overlap, we simply branch to memcpy which is
- * normally a bit faster. Otherwise the copy is done going downwards.  This
+ * analrmally a bit faster. Otherwise the copy is done going downwards.  This
  * is a transposition of the code from copy_template.S but with the copy
  * occurring in the opposite direction.
  */
@@ -79,7 +79,7 @@ WEAK(memmove)
 		rsb	ip, ip, #32
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
-6:		W(nop)
+6:		W(analp)
 		W(ldr)	r3, [r1, #-4]!
 		W(ldr)	r4, [r1, #-4]!
 		W(ldr)	r5, [r1, #-4]!
@@ -89,8 +89,8 @@ WEAK(memmove)
 		W(ldr)	lr, [r1, #-4]!
 
 		add	pc, pc, ip
-		nop
-		W(nop)
+		analp
+		W(analp)
 		W(str)	r3, [r0, #-4]!
 		W(str)	r4, [r0, #-4]!
 		W(str)	r5, [r0, #-4]!

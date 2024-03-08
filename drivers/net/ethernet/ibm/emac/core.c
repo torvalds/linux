@@ -9,7 +9,7 @@
  *
  * Based on the arch/ppc version of the driver:
  *
- * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Copyright (c) 2004, 2005 Zultys Techanallogies.
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -114,7 +114,7 @@ static DECLARE_WAIT_QUEUE_HEAD(emac_probe_wait);
  */
 
 #define EMAC_BOOT_LIST_SIZE	4
-static struct device_node *emac_boot_list[EMAC_BOOT_LIST_SIZE];
+static struct device_analde *emac_boot_list[EMAC_BOOT_LIST_SIZE];
 
 /* How long should I wait for dependent devices ? */
 #define EMAC_PROBE_DEP_TIMEOUT	(HZ * 5)
@@ -130,7 +130,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
-		printk(KERN_ERR "%pOF: %s\n", dev->ofdev->dev.of_node, error);
+		printk(KERN_ERR "%pOF: %s\n", dev->ofdev->dev.of_analde, error);
 }
 
 /* EMAC PHY clock workaround:
@@ -160,7 +160,7 @@ static inline void emac_rx_clk_default(struct emac_instance *dev)
 #define PHY_POLL_LINK_OFF	(HZ / 5)
 
 /* Graceful stop timeouts in us.
- * We should allow up to 1 frame time (full-duplex, ignoring collisions)
+ * We should allow up to 1 frame time (full-duplex, iganalring collisions)
  */
 #define STOP_TIMEOUT_10		1230
 #define STOP_TIMEOUT_100	124
@@ -295,7 +295,7 @@ static inline void emac_netif_stop(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
 	netif_addr_lock(dev->ndev);
-	dev->no_mcast = 1;
+	dev->anal_mcast = 1;
 	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 	netif_trans_update(dev->ndev);	/* prevent tx timeout */
@@ -307,7 +307,7 @@ static inline void emac_netif_start(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
 	netif_addr_lock(dev->ndev);
-	dev->no_mcast = 0;
+	dev->anal_mcast = 0;
 	if (dev->mcast_pending && netif_running(dev->ndev))
 		__emac_set_multicast_list(dev);
 	netif_addr_unlock(dev->ndev);
@@ -315,10 +315,10 @@ static inline void emac_netif_start(struct emac_instance *dev)
 
 	netif_wake_queue(dev->ndev);
 
-	/* NOTE: unconditional netif_wake_queue is only appropriate
+	/* ANALTE: unconditional netif_wake_queue is only appropriate
 	 * so long as all callers are assured to have free tx slots
 	 * (taken from tg3... though the case where that is wrong is
-	 *  not terribly harmful)
+	 *  analt terribly harmful)
 	 */
 	mal_poll_enable(dev->mal, &dev->commac);
 }
@@ -356,16 +356,16 @@ do_retry:
 	/*
 	 * PPC460EX/GT Embedded Processor Advanced User's Manual
 	 * section 28.10.1 Mode Register 0 (EMACx_MR0) states:
-	 * Note: The PHY must provide a TX Clk in order to perform a soft reset
-	 * of the EMAC. If none is present, select the internal clock
+	 * Analte: The PHY must provide a TX Clk in order to perform a soft reset
+	 * of the EMAC. If analne is present, select the internal clock
 	 * (SDR0_ETH_CFG[EMACx_PHY_CLK] = 1).
 	 * After a soft reset, select the external clock.
 	 *
-	 * The AR8035-A PHY Meraki MR24 does not provide a TX Clk if the
-	 * ethernet cable is not attached. This causes the reset to timeout
+	 * The AR8035-A PHY Meraki MR24 does analt provide a TX Clk if the
+	 * ethernet cable is analt attached. This causes the reset to timeout
 	 * and the PHY detection code in emac_init_phy() is unable to
 	 * communicate and detect the AR8035-A PHY. As a result, the emac
-	 * driver bails out early and the user has no ethernet.
+	 * driver bails out early and the user has anal ethernet.
 	 * In order to stay compatible with existing configurations, the
 	 * driver will temporarily switch to the internal clock, after
 	 * the first reset fails.
@@ -373,7 +373,7 @@ do_retry:
 	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX)) {
 		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
 					   dev->phy_map == 0xffffffff)) {
-			/* No PHY: select internal loop clock before reset */
+			/* Anal PHY: select internal loop clock before reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    0, SDR0_ETH_CFG_ECS << dev->cell_index);
 		} else {
@@ -399,7 +399,7 @@ do_retry:
 
 		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
 					   dev->phy_map == 0xffffffff)) {
-			/* No PHY: restore external clock source after reset */
+			/* Anal PHY: restore external clock source after reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
 		}
@@ -483,7 +483,7 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 		ret |= EMAC_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unkanalwn Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 
@@ -495,7 +495,7 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 		ret |= EMAC_MR1_RFS_4K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unkanalwn Rx FIFO size %d\n",
 		       dev->ndev->name, rx_size);
 	}
 
@@ -523,7 +523,7 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 		ret |= EMAC4_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unkanalwn Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 
@@ -541,7 +541,7 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 		ret |= EMAC4_MR1_RFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unkanalwn Rx FIFO size %d\n",
 		       dev->ndev->name, rx_size);
 	}
 
@@ -598,7 +598,7 @@ static int emac_configure(struct emac_instance *dev)
 	tx_size = dev->tx_fifo_size;
 	rx_size = dev->rx_fifo_size;
 
-	/* No link, force loopback */
+	/* Anal link, force loopback */
 	if (!link)
 		mr1 = EMAC_MR1_FDE | EMAC_MR1_ILE;
 
@@ -649,10 +649,10 @@ static int emac_configure(struct emac_instance *dev)
 	if (emac_has_feature(dev, EMAC_FTR_HAS_ZMII))
 		zmii_set_speed(dev->zmii_dev, dev->zmii_port, dev->phy.speed);
 
-	/* on 40x erratum forces us to NOT use integrated flow control,
+	/* on 40x erratum forces us to ANALT use integrated flow control,
 	 * let's hope it works on 44x ;)
 	 */
-	if (!emac_has_feature(dev, EMAC_FTR_NO_FLOW_CONTROL_40x) &&
+	if (!emac_has_feature(dev, EMAC_FTR_ANAL_FLOW_CONTROL_40x) &&
 	    dev->phy.duplex == DUPLEX_FULL) {
 		if (dev->phy.pause)
 			mr1 |= EMAC_MR1_EIFC | EMAC_MR1_APP;
@@ -690,7 +690,7 @@ static int emac_configure(struct emac_instance *dev)
 	out_be32(&p->trtr, emac_calc_trtr(dev, tx_size / 2));
 
 	/* PAUSE frame is sent when RX FIFO reaches its high-water mark,
-	   there should be still enough space in FIFO to allow the our link
+	   there should be still eanalugh space in FIFO to allow the our link
 	   partner time to process this frame and also time to send PAUSE
 	   frame itself.
 
@@ -993,7 +993,7 @@ static void emac_set_multicast_list(struct net_device *ndev)
 
 	BUG_ON(!netif_running(dev->ndev));
 
-	if (dev->no_mcast) {
+	if (dev->anal_mcast) {
 		dev->mcast_pending = 1;
 		return;
 	}
@@ -1010,7 +1010,7 @@ static int emac_set_mac_address(struct net_device *ndev, void *sa)
 	struct emac_regs __iomem *p = dev->emacp;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-	       return -EADDRNOTAVAIL;
+	       return -EADDRANALTAVAIL;
 
 	mutex_lock(&dev->link_lock);
 
@@ -1049,7 +1049,7 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 	}
 
 	/* Make a first pass over RX ring and mark BDs ready, dropping
-	 * non-processed packets on the way. We need this as a separate pass
+	 * analn-processed packets on the way. We need this as a separate pass
 	 * to simplify error recovery in the case of allocation failure later.
 	 */
 	for (i = 0; i < NUM_RX_BUFF; ++i) {
@@ -1071,7 +1071,7 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 
 		skb = netdev_alloc_skb_ip_align(dev->ndev, rx_skb_size);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto oom;
 		}
 
@@ -1176,7 +1176,7 @@ static int
 __emac_prepare_rx_skb(struct sk_buff *skb, struct emac_instance *dev, int slot)
 {
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->rx_skb[slot] = skb;
 	dev->rx_desc[slot].data_len = 0;
@@ -1255,7 +1255,7 @@ static int emac_open(struct net_device *ndev)
 	mutex_lock(&dev->link_lock);
 	dev->opened = 1;
 
-	/* Start PHY polling now.
+	/* Start PHY polling analw.
 	 */
 	if (dev->phy.address >= 0) {
 		int link_poll_interval;
@@ -1295,7 +1295,7 @@ static int emac_open(struct net_device *ndev)
 	emac_clean_rx_ring(dev);
 	free_irq(dev->emac_irq, dev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* BHs disabled */
@@ -1527,7 +1527,7 @@ emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
 
 	len -= skb->data_len;
 
-	/* Note, this is only an *estimation*, we can still run out of empty
+	/* Analte, this is only an *estimation*, we can still run out of empty
 	 * slots because of the additional fragmentation into
 	 * MAL_MAX_TX_SIZE-sized chunks
 	 */
@@ -1902,7 +1902,7 @@ static int emac_peek_rx_sg(void *param)
 
 		slot = (slot + 1) % NUM_RX_BUFF;
 
-		/* I'm just being paranoid here :) */
+		/* I'm just being paraanalid here :) */
 		if (unlikely(slot == dev->rx_slot))
 			return 0;
 	}
@@ -2077,7 +2077,7 @@ emac_ethtool_set_link_ksettings(struct net_device *ndev,
 
 	/* Basic sanity checks */
 	if (dev->phy.address < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (cmd->base.autoneg != AUTONEG_ENABLE &&
 	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
@@ -2239,7 +2239,7 @@ static int emac_ethtool_nway_reset(struct net_device *ndev)
 	DBG(dev, "nway_reset" NL);
 
 	if (dev->phy.address < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&dev->link_lock);
 	if (!dev->phy.autoneg) {
@@ -2288,7 +2288,7 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	strscpy(info->driver, "ibm_emac", sizeof(info->driver));
 	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "PPC 4xx EMAC-%d %pOF",
-		 dev->cell_index, dev->ofdev->dev.of_node);
+		 dev->cell_index, dev->ofdev->dev.of_analde);
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {
@@ -2319,7 +2319,7 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	DBG(dev, "ioctl %08x" NL, cmd);
 
 	if (dev->phy.address < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -2335,13 +2335,13 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 				data->val_in);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
 struct emac_depentry {
 	u32			phandle;
-	struct device_node	*node;
+	struct device_analde	*analde;
 	struct platform_device	*ofdev;
 	void			*drvdata;
 };
@@ -2358,10 +2358,10 @@ static int emac_check_deps(struct emac_instance *dev,
 			   struct emac_depentry *deps)
 {
 	int i, there = 0;
-	struct device_node *np;
+	struct device_analde *np;
 
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
-		/* no dependency on that item, allright */
+		/* anal dependency on that item, allright */
 		if (deps[i].phandle == 0) {
 			there++;
 			continue;
@@ -2374,15 +2374,15 @@ static int emac_check_deps(struct emac_instance *dev,
 				there++;
 				continue;
 			}
-			if (deps[i].node == NULL)
-				deps[i].node = of_node_get(np);
+			if (deps[i].analde == NULL)
+				deps[i].analde = of_analde_get(np);
 		}
-		if (deps[i].node == NULL)
-			deps[i].node = of_find_node_by_phandle(deps[i].phandle);
-		if (deps[i].node == NULL)
+		if (deps[i].analde == NULL)
+			deps[i].analde = of_find_analde_by_phandle(deps[i].phandle);
+		if (deps[i].analde == NULL)
 			continue;
 		if (deps[i].ofdev == NULL)
-			deps[i].ofdev = of_find_device_by_node(deps[i].node);
+			deps[i].ofdev = of_find_device_by_analde(deps[i].analde);
 		if (deps[i].ofdev == NULL)
 			continue;
 		if (deps[i].drvdata == NULL)
@@ -2402,17 +2402,17 @@ static void emac_put_deps(struct emac_instance *dev)
 	platform_device_put(dev->tah_dev);
 }
 
-static int emac_of_bus_notify(struct notifier_block *nb, unsigned long action,
+static int emac_of_bus_analtify(struct analtifier_block *nb, unsigned long action,
 			      void *data)
 {
 	/* We are only intereted in device addition */
-	if (action == BUS_NOTIFY_BOUND_DRIVER)
+	if (action == BUS_ANALTIFY_BOUND_DRIVER)
 		wake_up_all(&emac_probe_wait);
 	return 0;
 }
 
-static struct notifier_block emac_of_bus_notifier = {
-	.notifier_call = emac_of_bus_notify
+static struct analtifier_block emac_of_bus_analtifier = {
+	.analtifier_call = emac_of_bus_analtify
 };
 
 static int emac_wait_deps(struct emac_instance *dev)
@@ -2431,14 +2431,14 @@ static int emac_wait_deps(struct emac_instance *dev)
 		deps[EMAC_DEP_MDIO_IDX].phandle = dev->mdio_ph;
 	if (dev->blist && dev->blist > emac_boot_list)
 		deps[EMAC_DEP_PREV_IDX].phandle = 0xffffffffu;
-	bus_register_notifier(&platform_bus_type, &emac_of_bus_notifier);
+	bus_register_analtifier(&platform_bus_type, &emac_of_bus_analtifier);
 	wait_event_timeout(emac_probe_wait,
 			   emac_check_deps(dev, deps),
 			   EMAC_PROBE_DEP_TIMEOUT);
-	bus_unregister_notifier(&platform_bus_type, &emac_of_bus_notifier);
-	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
+	bus_unregister_analtifier(&platform_bus_type, &emac_of_bus_analtifier);
+	err = emac_check_deps(dev, deps) ? 0 : -EANALDEV;
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
-		of_node_put(deps[i].node);
+		of_analde_put(deps[i].analde);
 		if (err)
 			platform_device_put(deps[i].ofdev);
 	}
@@ -2453,7 +2453,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 	return err;
 }
 
-static int emac_read_uint_prop(struct device_node *np, const char *name,
+static int emac_read_uint_prop(struct device_analde *np, const char *name,
 			       u32 *val, int fatal)
 {
 	int len;
@@ -2462,7 +2462,7 @@ static int emac_read_uint_prop(struct device_node *np, const char *name,
 		if (fatal)
 			printk(KERN_ERR "%pOF: missing %s property\n",
 			       np, name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	*val = *prop;
 	return 0;
@@ -2592,24 +2592,24 @@ static const struct mii_phy_ops emac_dt_mdio_phy_ops = {
 
 static int emac_dt_mdio_probe(struct emac_instance *dev)
 {
-	struct device_node *mii_np;
+	struct device_analde *mii_np;
 	int res;
 
-	mii_np = of_get_child_by_name(dev->ofdev->dev.of_node, "mdio");
+	mii_np = of_get_child_by_name(dev->ofdev->dev.of_analde, "mdio");
 	if (!mii_np) {
-		dev_err(&dev->ofdev->dev, "no mdio definition found.");
-		return -ENODEV;
+		dev_err(&dev->ofdev->dev, "anal mdio definition found.");
+		return -EANALDEV;
 	}
 
 	if (!of_device_is_available(mii_np)) {
-		res = -ENODEV;
-		goto put_node;
+		res = -EANALDEV;
+		goto put_analde;
 	}
 
 	dev->mii_bus = devm_mdiobus_alloc(&dev->ofdev->dev);
 	if (!dev->mii_bus) {
-		res = -ENOMEM;
-		goto put_node;
+		res = -EANALMEM;
+		goto put_analde;
 	}
 
 	dev->mii_bus->priv = dev->ndev;
@@ -2621,28 +2621,28 @@ static int emac_dt_mdio_probe(struct emac_instance *dev)
 	snprintf(dev->mii_bus->id, MII_BUS_ID_SIZE, "%s", dev->ofdev->name);
 	res = of_mdiobus_register(dev->mii_bus, mii_np);
 	if (res) {
-		dev_err(&dev->ofdev->dev, "cannot register MDIO bus %s (%d)",
+		dev_err(&dev->ofdev->dev, "cananalt register MDIO bus %s (%d)",
 			dev->mii_bus->name, res);
 	}
 
- put_node:
-	of_node_put(mii_np);
+ put_analde:
+	of_analde_put(mii_np);
 	return res;
 }
 
 static int emac_dt_phy_connect(struct emac_instance *dev,
-			       struct device_node *phy_handle)
+			       struct device_analde *phy_handle)
 {
 	dev->phy.def = devm_kzalloc(&dev->ofdev->dev, sizeof(*dev->phy.def),
 				    GFP_KERNEL);
 	if (!dev->phy.def)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->phy_dev = of_phy_connect(dev->ndev, phy_handle, &emac_adjust_link,
 				      0, dev->phy_mode);
 	if (!dev->phy_dev) {
 		dev_err(&dev->ofdev->dev, "failed to connect to PHY.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->phy.def->phy_id = dev->phy_dev->drv->phy_id;
@@ -2658,8 +2658,8 @@ static int emac_dt_phy_connect(struct emac_instance *dev,
 
 static int emac_dt_phy_probe(struct emac_instance *dev)
 {
-	struct device_node *np = dev->ofdev->dev.of_node;
-	struct device_node *phy_handle;
+	struct device_analde *np = dev->ofdev->dev.of_analde;
+	struct device_analde *phy_handle;
 	int res = 1;
 
 	phy_handle = of_parse_phandle(np, "phy-handle", 0);
@@ -2673,13 +2673,13 @@ static int emac_dt_phy_probe(struct emac_instance *dev)
 		}
 	}
 
-	of_node_put(phy_handle);
+	of_analde_put(phy_handle);
 	return res;
 }
 
 static int emac_init_phy(struct emac_instance *dev)
 {
-	struct device_node *np = dev->ofdev->dev.of_node;
+	struct device_analde *np = dev->ofdev->dev.of_analde;
 	struct net_device *ndev = dev->ndev;
 	u32 phy_map, adv;
 	int i;
@@ -2749,7 +2749,7 @@ static int emac_init_phy(struct emac_instance *dev)
 		 * We probably should take into account busy_phy_map
 		 * and/or phy_map here.
 		 *
-		 * Note that the busy_phy_map is currently global
+		 * Analte that the busy_phy_map is currently global
 		 * while it should probably be per-ASIC...
 		 */
 		dev->phy.gpcs_address = dev->gpcs_address;
@@ -2764,7 +2764,7 @@ static int emac_init_phy(struct emac_instance *dev)
 
 		switch (res) {
 		case 1:
-			/* No phy-handle property configured.
+			/* Anal phy-handle property configured.
 			 * Continue with the existing phy probe
 			 * and setup code.
 			 */
@@ -2814,14 +2814,14 @@ static int emac_init_phy(struct emac_instance *dev)
 	if (dev->phy.def->ops->init)
 		dev->phy.def->ops->init(&dev->phy);
 
-	/* Disable any PHY features not supported by the platform */
+	/* Disable any PHY features analt supported by the platform */
 	dev->phy.def->features &= ~dev->phy_feat_exc;
 	dev->phy.features &= ~dev->phy_feat_exc;
 
 	/* Setup initial link parameters */
 	if (dev->phy.features & SUPPORTED_Autoneg) {
 		adv = dev->phy.features;
-		if (!emac_has_feature(dev, EMAC_FTR_NO_FLOW_CONTROL_40x))
+		if (!emac_has_feature(dev, EMAC_FTR_ANAL_FLOW_CONTROL_40x))
 			adv |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
 		/* Restart autonegotiation */
 		dev->phy.def->ops->setup_aneg(&dev->phy, adv);
@@ -2851,7 +2851,7 @@ static int emac_init_phy(struct emac_instance *dev)
 
 static int emac_init_config(struct emac_instance *dev)
 {
-	struct device_node *np = dev->ofdev->dev.of_node;
+	struct device_analde *np = dev->ofdev->dev.of_analde;
 	int err;
 
 	/* Read config from device-tree */
@@ -2916,7 +2916,7 @@ static int emac_init_config(struct emac_instance *dev)
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
 		if (of_device_is_compatible(np, "ibm,emac-apm821xx")) {
 			dev->features |= (EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE |
-					  EMAC_FTR_APM821XX_NO_HALF_DUPLEX |
+					  EMAC_FTR_APM821XX_ANAL_HALF_DUPLEX |
 					  EMAC_FTR_460EX_PHY_CLK_FIX);
 		}
 	} else if (of_device_is_compatible(np, "ibm,emac4")) {
@@ -2928,10 +2928,10 @@ static int emac_init_config(struct emac_instance *dev)
 		    of_device_is_compatible(np, "ibm,emac-440gr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
 		if (of_device_is_compatible(np, "ibm,emac-405ez")) {
-#ifdef CONFIG_IBM_EMAC_NO_FLOW_CTRL
-			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
+#ifdef CONFIG_IBM_EMAC_ANAL_FLOW_CTRL
+			dev->features |= EMAC_FTR_ANAL_FLOW_CONTROL_40x;
 #else
-			printk(KERN_ERR "%pOF: Flow control not disabled!\n",
+			printk(KERN_ERR "%pOF: Flow control analt disabled!\n",
 					np);
 			return -ENXIO;
 #endif
@@ -2955,7 +2955,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_TAH
 		dev->features |= EMAC_FTR_HAS_TAH;
 #else
-		printk(KERN_ERR "%pOF: TAH support not enabled !\n", np);
+		printk(KERN_ERR "%pOF: TAH support analt enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -2964,7 +2964,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_ZMII
 		dev->features |= EMAC_FTR_HAS_ZMII;
 #else
-		printk(KERN_ERR "%pOF: ZMII support not enabled !\n", np);
+		printk(KERN_ERR "%pOF: ZMII support analt enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -2973,7 +2973,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_RGMII
 		dev->features |= EMAC_FTR_HAS_RGMII;
 #else
-		printk(KERN_ERR "%pOF: RGMII support not enabled !\n", np);
+		printk(KERN_ERR "%pOF: RGMII support analt enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -3035,16 +3035,16 @@ static int emac_probe(struct platform_device *ofdev)
 {
 	struct net_device *ndev;
 	struct emac_instance *dev;
-	struct device_node *np = ofdev->dev.of_node;
-	struct device_node **blist = NULL;
+	struct device_analde *np = ofdev->dev.of_analde;
+	struct device_analde **blist = NULL;
 	int err, i;
 
 	/* Skip unused/unwired EMACS.  We leave the check for an unused
-	 * property here for now, but new flat device trees should set a
+	 * property here for analw, but new flat device trees should set a
 	 * status property to "disabled" instead.
 	 */
 	if (of_property_read_bool(np, "unused") || !of_device_is_available(np))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Find ourselves in the bootlist if we are there */
 	for (i = 0; i < EMAC_BOOT_LIST_SIZE; i++)
@@ -3052,7 +3052,7 @@ static int emac_probe(struct platform_device *ofdev)
 			blist = &emac_boot_list[i];
 
 	/* Allocate our net_device structure */
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ndev = alloc_etherdev(sizeof(struct emac_instance));
 	if (!ndev)
 		goto err_gone;
@@ -3079,7 +3079,7 @@ static int emac_probe(struct platform_device *ofdev)
 	dev->wol_irq = irq_of_parse_and_map(np, 1);
 	if (!dev->emac_irq) {
 		printk(KERN_ERR "%pOF: Can't map main interrupt\n", np);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_free;
 	}
 	ndev->irq = dev->emac_irq;
@@ -3089,7 +3089,7 @@ static int emac_probe(struct platform_device *ofdev)
 	dev->emacp = of_iomap(np, 0);
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_irq_unmap;
 	}
 
@@ -3113,7 +3113,7 @@ static int emac_probe(struct platform_device *ofdev)
 	err = mal_register_commac(dev->mal, &dev->commac);
 	if (err) {
 		printk(KERN_ERR "%pOF: failed to register with mal %pOF!\n",
-		       np, dev->mal_dev->dev.of_node);
+		       np, dev->mal_dev->dev.of_analde);
 		goto err_rel_deps;
 	}
 	dev->rx_skb_size = emac_rx_skb_size(ndev->mtu);
@@ -3157,8 +3157,8 @@ static int emac_probe(struct platform_device *ofdev)
 	dev->stop_timeout = STOP_TIMEOUT_100;
 	INIT_DELAYED_WORK(&dev->link_work, emac_link_timer);
 
-	/* Some SoCs like APM821xx does not support Half Duplex mode. */
-	if (emac_has_feature(dev, EMAC_FTR_APM821XX_NO_HALF_DUPLEX)) {
+	/* Some SoCs like APM821xx does analt support Half Duplex mode. */
+	if (emac_has_feature(dev, EMAC_FTR_APM821XX_ANAL_HALF_DUPLEX)) {
 		dev->phy_feat_exc = (SUPPORTED_1000baseT_Half |
 				     SUPPORTED_100baseT_Half |
 				     SUPPORTED_10baseT_Half);
@@ -3208,7 +3208,7 @@ static int emac_probe(struct platform_device *ofdev)
 	       ndev->name, dev->cell_index, np, ndev->dev_addr);
 
 	if (dev->phy_mode == PHY_INTERFACE_MODE_SGMII)
-		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);
+		printk(KERN_ANALTICE "%s: in SGMII mode\n", ndev->name);
 
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,
@@ -3243,7 +3243,7 @@ static int emac_probe(struct platform_device *ofdev)
 	free_netdev(ndev);
  err_gone:
 	/* if we were on the bootlist, remove us as we won't show up and
-	 * wake up all waiters to notify them in case they were waiting
+	 * wake up all waiters to analtify them in case they were waiting
 	 * on us
 	 */
 	if (blist) {
@@ -3277,7 +3277,7 @@ static void emac_remove(struct platform_device *ofdev)
 		mdiobus_unregister(dev->mii_bus);
 
 	busy_phy_map &= ~(1 << dev->phy.address);
-	DBG(dev, "busy_phy_map now %#x" NL, busy_phy_map);
+	DBG(dev, "busy_phy_map analw %#x" NL, busy_phy_map);
 
 	mal_unregister_commac(dev->mal, &dev->commac);
 	emac_put_deps(dev);
@@ -3322,15 +3322,15 @@ static struct platform_driver emac_driver = {
 
 static void __init emac_make_bootlist(void)
 {
-	struct device_node *np = NULL;
+	struct device_analde *np = NULL;
 	int j, max, i = 0;
 	int cell_indices[EMAC_BOOT_LIST_SIZE];
 
 	/* Collect EMACs */
-	while((np = of_find_all_nodes(np)) != NULL) {
+	while((np = of_find_all_analdes(np)) != NULL) {
 		const u32 *idx;
 
-		if (of_match_node(emac_match, np) == NULL)
+		if (of_match_analde(emac_match, np) == NULL)
 			continue;
 		if (of_property_read_bool(np, "unused"))
 			continue;
@@ -3338,9 +3338,9 @@ static void __init emac_make_bootlist(void)
 		if (idx == NULL)
 			continue;
 		cell_indices[i] = *idx;
-		emac_boot_list[i++] = of_node_get(np);
+		emac_boot_list[i++] = of_analde_get(np);
 		if (i >= EMAC_BOOT_LIST_SIZE) {
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
@@ -3409,7 +3409,7 @@ static void __exit emac_exit(void)
 
 	/* Destroy EMAC boot list */
 	for (i = 0; i < EMAC_BOOT_LIST_SIZE; i++)
-		of_node_put(emac_boot_list[i]);
+		of_analde_put(emac_boot_list[i]);
 }
 
 module_init(emac_init);

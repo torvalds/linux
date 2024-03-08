@@ -6,7 +6,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 
 virtual patch
@@ -23,28 +23,28 @@ position kok, vok;
   if (...) {
     ...
     E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|
-          kmalloc_node\|kzalloc_node\|kmalloc_array\|
-          kmalloc_array_node\|kcalloc_node\)(...)@kok
+          kmalloc_analde\|kzalloc_analde\|kmalloc_array\|
+          kmalloc_array_analde\|kcalloc_analde\)(...)@kok
     ...
   } else {
     ...
-    E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|
-          vzalloc_node\|vmalloc_exec\|vmalloc_32\|
-          vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|
-          __vmalloc_node\)(...)@vok
+    E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|
+          vzalloc_analde\|vmalloc_exec\|vmalloc_32\|
+          vmalloc_32_user\|__vmalloc\|__vmalloc_analde_range\|
+          __vmalloc_analde\)(...)@vok
     ...
   }
 |
-  E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_node\|kzalloc_node\|
-        kmalloc_array\|kmalloc_array_node\|kcalloc_node\)(...)@kok
+  E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_analde\|kzalloc_analde\|
+        kmalloc_array\|kmalloc_array_analde\|kcalloc_analde\)(...)@kok
   ... when != E = E1
       when any
   if (E == NULL) {
     ...
-    E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|
-          vzalloc_node\|vmalloc_exec\|vmalloc_32\|
-          vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|
-          __vmalloc_node\)(...)@vok
+    E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|
+          vzalloc_analde\|vmalloc_exec\|vmalloc_32\|
+          vmalloc_32_user\|__vmalloc\|__vmalloc_analde_range\|
+          __vmalloc_analde\)(...)@vok
     ...
   }
 )
@@ -54,7 +54,7 @@ expression E;
 position fok;
 @@
 
-  E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_node\|kvmalloc_node\|
+  E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_analde\|kvmalloc_analde\|
         kvmalloc_array\)(...)
   ...
   kvfree(E)@fok
@@ -65,10 +65,10 @@ position a != alloc.kok;
 position f != free.fok;
 @@
 
-* E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_node\|
-*       kzalloc_node\|kmalloc_array\|kmalloc_array_node\|
-*       kcalloc_node\)(...)@a
-  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
+* E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_analde\|
+*       kzalloc_analde\|kmalloc_array\|kmalloc_array_analde\|
+*       kcalloc_analde\)(...)@a
+  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|vzalloc_analde\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_analde_range\|__vmalloc_analde\)(...); ... }
       when != is_vmalloc_addr(E)
       when any
 * \(vfree\|vfree_atomic\|kvfree\)(E)@f
@@ -79,10 +79,10 @@ position a != alloc.kok;
 position f != free.fok;
 @@
 
-  E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_node\|
-        kzalloc_node\|kmalloc_array\|kmalloc_array_node\|
-        kcalloc_node\)(...)@a
-  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_node_range\|__vmalloc_node\)(...); ... }
+  E = \(kmalloc\|kzalloc\|krealloc\|kcalloc\|kmalloc_analde\|
+        kzalloc_analde\|kmalloc_array\|kmalloc_array_analde\|
+        kcalloc_analde\)(...)@a
+  ... when != if (...) { ... E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|vzalloc_analde\|vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|__vmalloc_analde_range\|__vmalloc_analde\)(...); ... }
       when != is_vmalloc_addr(E)
       when any
 - \(vfree\|vfree_atomic\|kvfree\)(E)@f
@@ -94,9 +94,9 @@ position a != alloc.vok;
 position f != free.fok;
 @@
 
-* E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|
+* E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|vzalloc_analde\|
 *       vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|
-*       __vmalloc_node_range\|__vmalloc_node\)(...)@a
+*       __vmalloc_analde_range\|__vmalloc_analde\)(...)@a
   ... when != is_vmalloc_addr(E)
       when any
 * \(kfree\|kfree_sensitive\|kvfree\)(E)@f
@@ -107,9 +107,9 @@ position a != alloc.vok;
 position f != free.fok;
 @@
 
-  E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_node\|vzalloc_node\|
+  E = \(vmalloc\|vzalloc\|vmalloc_user\|vmalloc_analde\|vzalloc_analde\|
         vmalloc_exec\|vmalloc_32\|vmalloc_32_user\|__vmalloc\|
-        __vmalloc_node_range\|__vmalloc_node\)(...)@a
+        __vmalloc_analde_range\|__vmalloc_analde\)(...)@a
   ... when != is_vmalloc_addr(E)
       when any
 - \(kfree\|kvfree\)(E)@f
@@ -120,7 +120,7 @@ expression E;
 position a, f;
 @@
 
-* E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_node\|kvmalloc_node\|
+* E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_analde\|kvmalloc_analde\|
 *       kvmalloc_array\)(...)@a
   ... when != is_vmalloc_addr(E)
       when any
@@ -130,7 +130,7 @@ position a, f;
 expression E;
 @@
 
-  E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_node\|kvmalloc_node\|
+  E = \(kvmalloc\|kvzalloc\|kvcalloc\|kvzalloc_analde\|kvmalloc_analde\|
         kvmalloc_array\)(...)
   ... when != is_vmalloc_addr(E)
       when any

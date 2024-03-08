@@ -30,7 +30,7 @@ struct xgene_msi_group {
 };
 
 struct xgene_msi {
-	struct device_node	*node;
+	struct device_analde	*analde;
 	struct irq_domain	*inner_domain;
 	struct irq_domain	*msi_domain;
 	u64			msi_addr;
@@ -154,7 +154,7 @@ static void xgene_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
  * X-Gene v1 only has 16 MSI GIC IRQs for 2048 MSI vectors.  To maintain
  * the expected behaviour of .set_affinity for each MSI interrupt, the 16
  * MSI GIC IRQs are statically allocated to 8 X-Gene v1 cores (2 GIC IRQs
- * for each core).  The MSI vector is moved fom 1 MSI GIC IRQ to another
+ * for each core).  The MSI vector is moved fom 1 MSI GIC IRQ to aanalther
  * MSI GIC IRQ to steer its MSI interrupt to correct X-Gene v1 core.  As a
  * consequence, the total MSI vectors that X-Gene v1 supports will be
  * reduced to 256 (2048/8) vectors.
@@ -164,7 +164,7 @@ static int hwirq_to_cpu(unsigned long hwirq)
 	return (hwirq % xgene_msi_ctrl.num_cpus);
 }
 
-static unsigned long hwirq_to_canonical_hwirq(unsigned long hwirq)
+static unsigned long hwirq_to_caanalnical_hwirq(unsigned long hwirq)
 {
 	return (hwirq - hwirq_to_cpu(hwirq));
 }
@@ -180,7 +180,7 @@ static int xgene_msi_set_affinity(struct irq_data *irqdata,
 		return IRQ_SET_MASK_OK_DONE;
 
 	/* Update MSI number to target the new CPU */
-	irqdata->hwirq = hwirq_to_canonical_hwirq(irqdata->hwirq) + target_cpu;
+	irqdata->hwirq = hwirq_to_caanalnical_hwirq(irqdata->hwirq) + target_cpu;
 
 	return IRQ_SET_MASK_OK;
 }
@@ -204,7 +204,7 @@ static int xgene_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (msi_irq < NR_MSI_VEC)
 		bitmap_set(msi->bitmap, msi_irq, msi->num_cpus);
 	else
-		msi_irq = -ENOSPC;
+		msi_irq = -EANALSPC;
 
 	mutex_unlock(&msi->bitmap_lock);
 
@@ -227,7 +227,7 @@ static void xgene_irq_domain_free(struct irq_domain *domain,
 
 	mutex_lock(&msi->bitmap_lock);
 
-	hwirq = hwirq_to_canonical_hwirq(d->hwirq);
+	hwirq = hwirq_to_caanalnical_hwirq(d->hwirq);
 	bitmap_clear(msi->bitmap, hwirq, msi->num_cpus);
 
 	mutex_unlock(&msi->bitmap_lock);
@@ -245,15 +245,15 @@ static int xgene_allocate_domains(struct xgene_msi *msi)
 	msi->inner_domain = irq_domain_add_linear(NULL, NR_MSI_VEC,
 						  &msi_domain_ops, msi);
 	if (!msi->inner_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	msi->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(msi->node),
+	msi->msi_domain = pci_msi_create_irq_domain(of_analde_to_fwanalde(msi->analde),
 						    &xgene_msi_domain_info,
 						    msi->inner_domain);
 
 	if (!msi->msi_domain) {
 		irq_domain_remove(msi->inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -271,7 +271,7 @@ static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 {
 	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
 	if (!xgene_msi->bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&xgene_msi->bitmap_lock);
 
@@ -279,7 +279,7 @@ static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 					sizeof(struct xgene_msi_group),
 					GFP_KERNEL);
 	if (!xgene_msi->msi_groups)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -326,7 +326,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 			 * always look up the virq using the hw_irq as seen from
 			 * CPU0
 			 */
-			hw_irq = hwirq_to_canonical_hwirq(hw_irq);
+			hw_irq = hwirq_to_caanalnical_hwirq(hw_irq);
 			ret = generic_handle_domain_irq(xgene_msi->inner_domain, hw_irq);
 			WARN_ON_ONCE(ret);
 			msir_val &= ~(1 << intr_index);
@@ -447,7 +447,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 		goto error;
 	}
 	xgene_msi->msi_addr = res->start;
-	xgene_msi->node = pdev->dev.of_node;
+	xgene_msi->analde = pdev->dev.of_analde;
 	xgene_msi->num_cpus = num_possible_cpus();
 
 	rc = xgene_msi_init_allocator(xgene_msi);
@@ -506,7 +506,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	return 0;
 
 err_cpuhp:
-	dev_err(&pdev->dev, "failed to add CPU MSI notifier\n");
+	dev_err(&pdev->dev, "failed to add CPU MSI analtifier\n");
 error:
 	xgene_msi_remove(pdev);
 	return rc;

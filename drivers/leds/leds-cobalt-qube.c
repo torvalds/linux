@@ -44,7 +44,7 @@ static int cobalt_qube_led_probe(struct platform_device *pdev)
 
 	led_port = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!led_port)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	led_value = LED_FRONT_LEFT | LED_FRONT_RIGHT;
 	writeb(led_value, led_port);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* linux/drivers/gpu/drm/exynos/regs-gsc.h
+/* linux/drivers/gpu/drm/exyanals/regs-gsc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -7,8 +7,8 @@
  * Register definition file for Samsung G-Scaler driver
  */
 
-#ifndef EXYNOS_REGS_GSC_H_
-#define EXYNOS_REGS_GSC_H_
+#ifndef EXYANALS_REGS_GSC_H_
+#define EXYANALS_REGS_GSC_H_
 
 /* G-Scaler enable */
 #define GSC_ENABLE			0x00
@@ -18,7 +18,7 @@
 #define GSC_ENABLE_CLK_GATE_MODE_MASK	(1 << 8)
 #define GSC_ENABLE_CLK_GATE_MODE_FREE	(1 << 8)
 #define GSC_ENABLE_IPC_MODE_MASK	(1 << 7)
-#define GSC_ENABLE_NORM_MODE		(0 << 7)
+#define GSC_ENABLE_ANALRM_MODE		(0 << 7)
 #define GSC_ENABLE_IPC_MODE		(1 << 7)
 #define GSC_ENABLE_PP_UPDATE_MODE_MASK	(1 << 6)
 #define GSC_ENABLE_PP_UPDATE_FIRE_MODE	(1 << 6)
@@ -266,9 +266,9 @@
 #define GSC_CLK_INIT_COUNT		0xC00
 #define GSC_CLK_GATE_MODE_INIT_CNT(x)	((x) << 0)
 
-/* G-Scaler clock snoop count */
-#define GSC_CLK_SNOOP_COUNT		0xC04
-#define GSC_CLK_GATE_MODE_SNOOP_CNT(x)	((x) << 0)
+/* G-Scaler clock sanalop count */
+#define GSC_CLK_SANALOP_COUNT		0xC04
+#define GSC_CLK_GATE_MODE_SANALOP_CNT(x)	((x) << 0)
 
 /* SYSCON. GSCBLK_CFG */
 #define SYSREG_GSCBLK_CFG1		0x0224
@@ -279,4 +279,4 @@
 #define SYSREG_GSCBLK_CFG2		0x2000
 #define PXLASYNC_LO_MASK_CAMIF_GSCL(x)	(1 << (x))
 
-#endif /* EXYNOS_REGS_GSC_H_ */
+#endif /* EXYANALS_REGS_GSC_H_ */

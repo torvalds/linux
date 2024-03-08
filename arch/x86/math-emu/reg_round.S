@@ -44,12 +44,12 @@
  | following sense:                                                          |
  |   If the significand by itself is the exact result then the significand   |
  |   extension (%edx) must contain 0, otherwise the significand extension    |
- |   must be non-zero.                                                       |
- |   If the significand extension is non-zero then the significand is        |
+ |   must be analn-zero.                                                       |
+ |   If the significand extension is analn-zero then the significand is        |
  |   smaller than the magnitude of the correct exact result by an amount     |
  |   greater than zero and less than one ls bit of the significand.          |
  |   The significand extension is only required to have three possible       |
- |   non-zero values:                                                        |
+ |   analn-zero values:                                                        |
  |       less than 0x80000000  <=> the significand is less than 1/2 an ls    |
  |                                 bit smaller than the magnitude of the     |
  |                                 true exact result.                        |
@@ -66,7 +66,7 @@
  |  The code in this module has become quite complex, but it should handle   |
  |  all of the FPU flags which are set at this stage of the basic arithmetic |
  |  computations.                                                            |
- |  There are a few rare cases where the results are not set identically to  |
+ |  There are a few rare cases where the results are analt set identically to  |
  |  a real FPU. These require a bit more thought because at this stage the   |
  |  results of the code here appear to be more consistent...                 |
  |  This may be changed in a future version.                                 |
@@ -81,27 +81,27 @@
 #define	LOST_DOWN	$1
 #define	LOST_UP		$2
 
-/* Flags for FPU_denormal */
-#define	DENORMAL	$1
+/* Flags for FPU_deanalrmal */
+#define	DEANALRMAL	$1
 #define	UNMASKED_UNDERFLOW $2
 
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 /*	Make the code re-entrant by putting
 	local storage on the stack: */
 #define FPU_bits_lost	(%esp)
-#define FPU_denormal	1(%esp)
+#define FPU_deanalrmal	1(%esp)
 
 #else
-/*	Not re-entrant, so we can gain speed by putting
+/*	Analt re-entrant, so we can gain speed by putting
 	local storage in a static area: */
 .data
 	.align 4,0
 FPU_bits_lost:
 	.byte	0
-FPU_denormal:
+FPU_deanalrmal:
 	.byte	0
-#endif /* NON_REENTRANT_FPU */
+#endif /* ANALN_REENTRANT_FPU */
 
 
 .text
@@ -121,26 +121,26 @@ SYM_FUNC_START(FPU_round)
 	movl	SIGL(%edi),%ebx
 	movl	PARAM2,%edx
 
-fpu_reg_round:			/* Normal entry point */
+fpu_reg_round:			/* Analrmal entry point */
 	movl	PARAM4,%ecx
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	pushl	%ebx		/* adjust the stack pointer */
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* ANALN_REENTRANT_FPU */ 
 
-#ifdef PARANOID
-/* Cannot use this here yet */
+#ifdef PARAANALID
+/* Cananalt use this here yet */
 /*	orl	%eax,%eax */
 /*	jns	L_entry_bugged */
-#endif /* PARANOID */
+#endif /* PARAANALID */
 
 	cmpw	EXP_UNDER,EXP(%edi)
-	jle	L_Make_denorm			/* The number is a de-normal */
+	jle	L_Make_deanalrm			/* The number is a de-analrmal */
 
-	movb	$0,FPU_denormal			/* 0 -> not a de-normal */
+	movb	$0,FPU_deanalrmal			/* 0 -> analt a de-analrmal */
 
-Denorm_done:
-	movb	$0,FPU_bits_lost		/* No bits yet lost in rounding */
+Deanalrm_done:
+	movb	$0,FPU_bits_lost		/* Anal bits yet lost in rounding */
 
 	movl	%ecx,%esi
 	andl	CW_PC,%ecx
@@ -158,13 +158,13 @@ Denorm_done:
    behaves as if the precision control bits were set to 11 "64 bits" */
 	cmpl	PR_RESERVED_BITS,%ecx
 	je	LRound_To_64
-#ifdef PARANOID
-	jmp	L_bugged_denorm_486
-#endif /* PARANOID */ 
+#ifdef PARAANALID
+	jmp	L_bugged_deanalrm_486
+#endif /* PARAANALID */ 
 #else
-#ifdef PARANOID
-	jmp	L_bugged_denorm	/* There is no bug, just a bad control word */
-#endif /* PARANOID */ 
+#ifdef PARAANALID
+	jmp	L_bugged_deanalrm	/* There is anal bug, just a bad control word */
+#endif /* PARAANALID */ 
 #endif /* PECULIAR_486 */
 
 
@@ -184,9 +184,9 @@ LRound_To_24:
 	cmpl	RC_DOWN,%ecx		/* Towards -infinity */
 	je	LDown_24
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jmp	L_bugged_round24
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 LUp_24:
 	cmpb	SIGN_POS,PARAM5
@@ -204,14 +204,14 @@ LCheck_24_round_up:
 	orl	%ebx,%ecx
 	orl	%edx,%ecx
 	jnz	LDo_24_round_up
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 LRound_nearest_24:
 	/* Do rounding of the 24th bit if needed (nearest or even) */
 	movl	%eax,%ecx
 	andl	$0x000000ff,%ecx
 	cmpl	$0x00000080,%ecx
-	jc	LCheck_truncate_24	/* less than half, no increment needed */
+	jc	LCheck_truncate_24	/* less than half, anal increment needed */
 
 	jne	LGreater_Half_24	/* greater than half, increment needed */
 
@@ -239,13 +239,13 @@ LCheck_truncate_24:
 	andl	$0x000000ff,%ecx
 	orl	%ebx,%ecx
 	orl	%edx,%ecx
-	jz	L_Re_normalise		/* No truncation needed */
+	jz	L_Re_analrmalise		/* Anal truncation needed */
 
 LDo_truncate_24:
 	andl	$0xffffff00,%eax	/* Truncate to 24 bits */
 	xorl	%ebx,%ebx
 	movb	LOST_DOWN,FPU_bits_lost
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 
 /* Round etc to 53 bit precision */
@@ -264,9 +264,9 @@ LRound_To_53:
 	cmpl	RC_DOWN,%ecx		/* Towards -infinity */
 	je	LDown_53
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jmp	L_bugged_round53
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 LUp_53:
 	cmpb	SIGN_POS,PARAM5
@@ -283,14 +283,14 @@ LCheck_53_round_up:
 	andl	$0x000007ff,%ecx
 	orl	%edx,%ecx
 	jnz	LDo_53_round_up
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 LRound_nearest_53:
 	/* Do rounding of the 53rd bit if needed (nearest or even) */
 	movl	%ebx,%ecx
 	andl	$0x000007ff,%ecx
 	cmpl	$0x00000400,%ecx
-	jc	LCheck_truncate_53	/* less than half, no increment needed */
+	jc	LCheck_truncate_53	/* less than half, anal increment needed */
 
 	jnz	LGreater_Half_53	/* greater than half, increment needed */
 
@@ -314,12 +314,12 @@ LCheck_truncate_53:
 	movl	%ebx,%ecx
 	andl	$0x000007ff,%ecx
 	orl	%edx,%ecx
-	jz	L_Re_normalise
+	jz	L_Re_analrmalise
 
 LTruncate_53:
 	movb	LOST_DOWN,FPU_bits_lost
 	andl	$0xfffff800,%ebx	/* Truncate to 53 bits */
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 
 /* Round etc to 64 bit precision */
@@ -338,9 +338,9 @@ LRound_To_64:
 	cmpl	RC_DOWN,%ecx		/* Towards -infinity */
 	je	LDown_64
 
-#ifdef PARANOID
+#ifdef PARAANALID
 	jmp	L_bugged_round64
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 LUp_64:
 	cmpb	SIGN_POS,PARAM5
@@ -348,7 +348,7 @@ LUp_64:
 
 	orl	%edx,%edx
 	jnz	LDo_64_round_up
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 LDown_64:
 	cmpb	SIGN_POS,PARAM5
@@ -356,7 +356,7 @@ LDown_64:
 
 	orl	%edx,%edx
 	jnz	LDo_64_round_up
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 LRound_nearest_64:
 	cmpl	$0x80000000,%edx
@@ -364,7 +364,7 @@ LRound_nearest_64:
 
 	jne	LDo_64_round_up
 
-	/* Now test for round-to-even */
+	/* Analw test for round-to-even */
 	testb	$1,%bl
 	jz	LCheck_truncate_64
 
@@ -374,36 +374,36 @@ LDo_64_round_up:
 	adcl	$0,%eax
 
 LCheck_Round_Overflow:
-	jnc	L_Re_normalise
+	jnc	L_Re_analrmalise
 
 	/* Overflow, adjust the result (significand to 1.0) */
 	rcrl	$1,%eax
 	rcrl	$1,%ebx
 	incw	EXP(%edi)
-	jmp	L_Re_normalise
+	jmp	L_Re_analrmalise
 
 LCheck_truncate_64:
 	orl	%edx,%edx
-	jz	L_Re_normalise
+	jz	L_Re_analrmalise
 
 LTruncate_64:
 	movb	LOST_DOWN,FPU_bits_lost
 
-L_Re_normalise:
-	testb	$0xff,FPU_denormal
-	jnz	Normalise_result
+L_Re_analrmalise:
+	testb	$0xff,FPU_deanalrmal
+	jnz	Analrmalise_result
 
-L_Normalised:
+L_Analrmalised:
 	movl	TAG_Valid,%edx
 
-L_deNormalised:
+L_deAnalrmalised:
 	cmpb	LOST_UP,FPU_bits_lost
 	je	L_precision_lost_up
 
 	cmpb	LOST_DOWN,FPU_bits_lost
 	je	L_precision_lost_down
 
-L_no_precision_loss:
+L_anal_precision_loss:
 	/* store the result */
 
 L_Store_significand:
@@ -428,9 +428,9 @@ fpu_reg_round_signed_special_exit:
 
 fpu_reg_round_special_exit:
 
-#ifndef NON_REENTRANT_FPU
+#ifndef ANALN_REENTRANT_FPU
 	popl	%ebx		/* adjust the stack pointer */
-#endif /* NON_REENTRANT_FPU */ 
+#endif /* ANALN_REENTRANT_FPU */ 
 
 fpu_Arith_exit:
 	popl	%ebx
@@ -450,7 +450,7 @@ L_precision_lost_up:
 	call	set_precision_flag_up
 	popl	%eax
 	popl	%edx
-	jmp	L_no_precision_loss
+	jmp	L_anal_precision_loss
 
 /*
  * Set the FPU status flags to represent precision loss due to
@@ -462,50 +462,50 @@ L_precision_lost_down:
 	call	set_precision_flag_down
 	popl	%eax
 	popl	%edx
-	jmp	L_no_precision_loss
+	jmp	L_anal_precision_loss
 
 
 /*
- * The number is a denormal (which might get rounded up to a normal)
+ * The number is a deanalrmal (which might get rounded up to a analrmal)
  * Shift the number right the required number of bits, which will
  * have to be undone later...
  */
-L_Make_denorm:
+L_Make_deanalrm:
 	/* The action to be taken depends upon whether the underflow
 	   exception is masked */
 	testb	CW_Underflow,%cl		/* Underflow mask. */
-	jz	Unmasked_underflow		/* Do not make a denormal. */
+	jz	Unmasked_underflow		/* Do analt make a deanalrmal. */
 
-	movb	DENORMAL,FPU_denormal
+	movb	DEANALRMAL,FPU_deanalrmal
 
 	pushl	%ecx		/* Save */
 	movw	EXP_UNDER+1,%cx
 	subw	EXP(%edi),%cx
 
 	cmpw	$64,%cx	/* shrd only works for 0..31 bits */
-	jnc	Denorm_shift_more_than_63
+	jnc	Deanalrm_shift_more_than_63
 
 	cmpw	$32,%cx	/* shrd only works for 0..31 bits */
-	jnc	Denorm_shift_more_than_32
+	jnc	Deanalrm_shift_more_than_32
 
 /*
  * We got here without jumps by assuming that the most common requirement
- *   is for a small de-normalising shift.
+ *   is for a small de-analrmalising shift.
  * Shift by [1..31] bits
  */
 	addw	%cx,EXP(%edi)
 	orl	%edx,%edx	/* extension */
-	setne	%ch		/* Save whether %edx is non-zero */
+	setne	%ch		/* Save whether %edx is analn-zero */
 	xorl	%edx,%edx
 	shrd	%cl,%ebx,%edx
 	shrd	%cl,%eax,%ebx
 	shr	%cl,%eax
 	orb	%ch,%dl
 	popl	%ecx
-	jmp	Denorm_done
+	jmp	Deanalrm_done
 
 /* Shift by [32..63] bits */
-Denorm_shift_more_than_32:
+Deanalrm_shift_more_than_32:
 	addw	%cx,EXP(%edi)
 	subb	$32,%cl
 	orl	%edx,%edx
@@ -523,12 +523,12 @@ Denorm_shift_more_than_32:
 	movl	%eax,%ebx
 	xorl	%eax,%eax
 	popl	%ecx
-	jmp	Denorm_done
+	jmp	Deanalrm_done
 
 /* Shift by [64..) bits */
-Denorm_shift_more_than_63:
+Deanalrm_shift_more_than_63:
 	cmpw	$64,%cx
-	jne	Denorm_shift_more_than_64
+	jne	Deanalrm_shift_more_than_64
 
 /* Exactly 64 bit shift */
 	addw	%cx,EXP(%edi)
@@ -543,63 +543,63 @@ Denorm_shift_more_than_63:
 	xorl	%eax,%eax
 	xorl	%ebx,%ebx
 	popl	%ecx
-	jmp	Denorm_done
+	jmp	Deanalrm_done
 
-Denorm_shift_more_than_64:
+Deanalrm_shift_more_than_64:
 	movw	EXP_UNDER+1,EXP(%edi)
-/* This is easy, %eax must be non-zero, so.. */
+/* This is easy, %eax must be analn-zero, so.. */
 	movl	$1,%edx
 	xorl	%eax,%eax
 	xorl	%ebx,%ebx
 	popl	%ecx
-	jmp	Denorm_done
+	jmp	Deanalrm_done
 
 
 Unmasked_underflow:
-	movb	UNMASKED_UNDERFLOW,FPU_denormal
-	jmp	Denorm_done
+	movb	UNMASKED_UNDERFLOW,FPU_deanalrmal
+	jmp	Deanalrm_done
 
 
-/* Undo the de-normalisation. */
-Normalise_result:
-	cmpb	UNMASKED_UNDERFLOW,FPU_denormal
+/* Undo the de-analrmalisation. */
+Analrmalise_result:
+	cmpb	UNMASKED_UNDERFLOW,FPU_deanalrmal
 	je	Signal_underflow
 
-/* The number must be a denormal if we got here. */
-#ifdef PARANOID
+/* The number must be a deanalrmal if we got here. */
+#ifdef PARAANALID
 	/* But check it... just in case. */
 	cmpw	EXP_UNDER+1,EXP(%edi)
-	jne	L_norm_bugged
-#endif /* PARANOID */
+	jne	L_analrm_bugged
+#endif /* PARAANALID */
 
 #ifdef PECULIAR_486
 	/*
 	 * This implements a special feature of 80486 behaviour.
 	 * Underflow will be signaled even if the number is
-	 * not a denormal after rounding.
-	 * This difference occurs only for masked underflow, and not
+	 * analt a deanalrmal after rounding.
+	 * This difference occurs only for masked underflow, and analt
 	 * in the unmasked case.
 	 * Actual 80486 behaviour differs from this in some circumstances.
 	 */
 	orl	%eax,%eax		/* ms bits */
-	js	LPseudoDenormal		/* Will be masked underflow */
+	js	LPseudoDeanalrmal		/* Will be masked underflow */
 #else
 	orl	%eax,%eax		/* ms bits */
-	js	L_Normalised		/* No longer a denormal */
+	js	L_Analrmalised		/* Anal longer a deanalrmal */
 #endif /* PECULIAR_486 */ 
 
-	jnz	LDenormal_adj_exponent
+	jnz	LDeanalrmal_adj_exponent
 
 	orl	%ebx,%ebx
 	jz	L_underflow_to_zero	/* The contents are zero */
 
-LDenormal_adj_exponent:
+LDeanalrmal_adj_exponent:
 	decw	EXP(%edi)
 
-LPseudoDenormal:
+LPseudoDeanalrmal:
 	testb	$0xff,FPU_bits_lost	/* bits lost == underflow */
 	movl	TAG_Special,%edx
-	jz	L_deNormalised
+	jz	L_deAnalrmalised
 
 	/* There must be a masked underflow */
 	push	%eax
@@ -608,7 +608,7 @@ LPseudoDenormal:
 	popl	%eax
 	popl	%eax
 	movl	TAG_Special,%edx
-	jmp	L_deNormalised
+	jmp	L_deAnalrmalised
 
 
 /*
@@ -642,12 +642,12 @@ L_overflow:
 
 
 Signal_underflow:
-	/* The number may have been changed to a non-denormal */
+	/* The number may have been changed to a analn-deanalrmal */
 	/* by the rounding operations. */
 	cmpw	EXP_UNDER,EXP(%edi)
 	jle	Do_unmasked_underflow
 
-	jmp	L_Normalised
+	jmp	L_Analrmalised
 
 Do_unmasked_underflow:
 	/* Increase the exponent by the magic number */
@@ -657,18 +657,18 @@ Do_unmasked_underflow:
 	call	EXCEPTION
 	popl	%eax
 	popl	%eax
-	jmp	L_Normalised
+	jmp	L_Analrmalised
 
 
-#ifdef PARANOID
+#ifdef PARAANALID
 #ifdef PECULIAR_486
-L_bugged_denorm_486:
+L_bugged_deanalrm_486:
 	pushl	EX_INTERNAL|0x236
 	call	EXCEPTION
 	popl	%ebx
 	jmp	L_exception_exit
 #else
-L_bugged_denorm:
+L_bugged_deanalrm:
 	pushl	EX_INTERNAL|0x230
 	call	EXCEPTION
 	popl	%ebx
@@ -693,7 +693,7 @@ L_bugged_round64:
 	popl	%ebx
 	jmp	L_exception_exit
 
-L_norm_bugged:
+L_analrm_bugged:
 	pushl	EX_INTERNAL|0x234
 	call	EXCEPTION
 	popl	%ebx
@@ -706,6 +706,6 @@ L_entry_bugged:
 L_exception_exit:
 	mov	$-1,%eax
 	jmp	fpu_reg_round_special_exit
-#endif /* PARANOID */ 
+#endif /* PARAANALID */ 
 
 SYM_FUNC_END(FPU_round)

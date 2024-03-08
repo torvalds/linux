@@ -103,13 +103,13 @@ static const struct regmap_config ipq8064_mdio_regmap_config = {
 	/* the mdio lock is used by any user of this mdio driver */
 	.disable_locking = true,
 
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 };
 
 static int
 ipq8064_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct ipq8064_mdio *priv;
 	struct resource res;
 	struct mii_bus *bus;
@@ -117,15 +117,15 @@ ipq8064_mdio_probe(struct platform_device *pdev)
 	int ret;
 
 	if (of_address_to_resource(np, 0, &res))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
 	if (!base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "ipq8064_mdio_bus";
 	bus->read = ipq8064_mdio_read;

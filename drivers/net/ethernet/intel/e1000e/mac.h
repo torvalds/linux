@@ -36,7 +36,7 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 void e1000e_put_hw_semaphore(struct e1000_hw *hw);
 s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 void e1000e_reset_adaptive(struct e1000_hw *hw);
-void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
+void e1000e_set_pcie_anal_sanalop(struct e1000_hw *hw, u32 anal_sanalop);
 void e1000e_update_adaptive(struct e1000_hw *hw);
 void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
 

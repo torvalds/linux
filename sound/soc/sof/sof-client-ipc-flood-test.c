@@ -33,19 +33,19 @@ struct sof_ipc_flood_priv {
 	char *buf;
 };
 
-static int sof_ipc_flood_dfs_open(struct inode *inode, struct file *file)
+static int sof_ipc_flood_dfs_open(struct ianalde *ianalde, struct file *file)
 {
-	struct sof_client_dev *cdev = inode->i_private;
+	struct sof_client_dev *cdev = ianalde->i_private;
 	int ret;
 
 	if (sof_client_get_fw_state(cdev) == SOF_FW_CRASHED)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = debugfs_file_get(file->f_path.dentry);
 	if (unlikely(ret))
 		return ret;
 
-	ret = simple_open(inode, file);
+	ret = simple_open(ianalde, file);
 	if (ret)
 		debugfs_file_put(file->f_path.dentry);
 
@@ -54,7 +54,7 @@ static int sof_ipc_flood_dfs_open(struct inode *inode, struct file *file)
 
 /*
  * helper function to perform the flood test. Only one of the two params, ipc_duration_ms
- * or ipc_count, will be non-zero and will determine the type of test
+ * or ipc_count, will be analn-zero and will determine the type of test
  */
 static int sof_debug_ipc_flood_test(struct sof_client_dev *cdev,
 				    bool flood_duration_test,
@@ -83,7 +83,7 @@ static int sof_debug_ipc_flood_test(struct sof_client_dev *cdev,
 	/* send test IPC's */
 	while (1) {
 		start = ktime_get();
-		ret = sof_client_ipc_tx_message_no_reply(cdev, &hdr);
+		ret = sof_client_ipc_tx_message_anal_reply(cdev, &hdr);
 		end = ktime_get();
 
 		if (ret < 0)
@@ -166,7 +166,7 @@ static ssize_t sof_ipc_flood_dfs_write(struct file *file, const char __user *buf
 
 	string = kzalloc(count + 1, GFP_KERNEL);
 	if (!string)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = simple_write_to_buffer(string, count, ppos, buffer, count);
 
@@ -202,7 +202,7 @@ static ssize_t sof_ipc_flood_dfs_write(struct file *file, const char __user *buf
 			goto out;
 		}
 
-		/* find the minimum. min() is not used to avoid warnings */
+		/* find the minimum. min() is analt used to avoid warnings */
 		if (ipc_duration_ms > MAX_IPC_FLOOD_DURATION_MS)
 			ipc_duration_ms = MAX_IPC_FLOOD_DURATION_MS;
 	} else {
@@ -211,7 +211,7 @@ static ssize_t sof_ipc_flood_dfs_write(struct file *file, const char __user *buf
 			goto out;
 		}
 
-		/* find the minimum. min() is not used to avoid warnings */
+		/* find the minimum. min() is analt used to avoid warnings */
 		if (ipc_count > MAX_IPC_FLOOD_COUNT)
 			ipc_count = MAX_IPC_FLOOD_COUNT;
 	}
@@ -266,7 +266,7 @@ static ssize_t sof_ipc_flood_dfs_read(struct file *file, char __user *buffer,
 	return count;
 }
 
-static int sof_ipc_flood_dfs_release(struct inode *inode, struct file *file)
+static int sof_ipc_flood_dfs_release(struct ianalde *ianalde, struct file *file)
 {
 	debugfs_file_put(file->f_path.dentry);
 
@@ -303,11 +303,11 @@ static int sof_ipc_flood_probe(struct auxiliary_device *auxdev,
 	/* allocate memory for client data */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->buf = devm_kmalloc(dev, IPC_FLOOD_TEST_RESULT_LEN, GFP_KERNEL);
 	if (!priv->buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->data = priv;
 
@@ -375,8 +375,8 @@ static const struct auxiliary_device_id sof_ipc_flood_client_id_table[] = {
 MODULE_DEVICE_TABLE(auxiliary, sof_ipc_flood_client_id_table);
 
 /*
- * No need for driver pm_ops as the generic pm callbacks in the auxiliary bus
- * type are enough to ensure that the parent SOF device resumes to bring the DSP
+ * Anal need for driver pm_ops as the generic pm callbacks in the auxiliary bus
+ * type are eanalugh to ensure that the parent SOF device resumes to bring the DSP
  * back to D0.
  * Driver name will be set based on KBUILD_MODNAME.
  */

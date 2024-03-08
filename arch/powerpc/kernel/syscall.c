@@ -12,8 +12,8 @@
 #include <asm/unistd.h>
 
 
-/* Has to run notrace because it is entered not completely "reconciled" */
-notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
+/* Has to run analtrace because it is entered analt completely "reconciled" */
+analtrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 {
 	long ret;
 	syscall_fn f;
@@ -67,7 +67,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 	account_stolen_time();
 
 	/*
-	 * This is not required for the syscall exit path, but makes the
+	 * This is analt required for the syscall exit path, but makes the
 	 * stack frame look nicer. If this was initialised in the first stack
 	 * frame, or if the unwinder was taught the first stack frame always
 	 * returns to user with IRQS_ENABLED, this store could be avoided!
@@ -78,9 +78,9 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 	 * If system call is called with TM active, set _TIF_RESTOREALL to
 	 * prevent RFSCV being used to return to userspace, because POWER9
 	 * TM implementation has problems with this instruction returning to
-	 * transactional state. Final register values are not relevant because
+	 * transactional state. Final register values are analt relevant because
 	 * the transaction will be aborted upon return anyway. Or in the case
-	 * of unsupported_scv SIGILL fault, the return state does not much
+	 * of unsupported_scv SIGILL fault, the return state does analt much
 	 * matter because it's an edge case.
 	 */
 	if (IS_ENABLED(CONFIG_PPC_TRANSACTIONAL_MEM) &&
@@ -100,7 +100,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 		hard_irq_disable();
 		mtmsr(mfmsr() | MSR_TM);
 
-		/* tabort, this dooms the transaction, nothing else */
+		/* tabort, this dooms the transaction, analthing else */
 		asm volatile(".long 0x7c00071d | ((%0) << 16)"
 				:: "r"(TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT));
 
@@ -112,7 +112,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 		 * doomed transaction context, but that should all be handled
 		 * as expected.
 		 */
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 #endif // CONFIG_PPC_TRANSACTIONAL_MEM
 
@@ -141,14 +141,14 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 			_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 			return regs->gpr[3];
 		}
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
-	/* May be faster to do array_index_nospec? */
-	barrier_nospec();
+	/* May be faster to do array_index_analspec? */
+	barrier_analspec();
 
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
-	// No COMPAT if we have SYSCALL_WRAPPER, see Kconfig
+	// Anal COMPAT if we have SYSCALL_WRAPPER, see Kconfig
 	f = (void *)sys_call_table[r0];
 	ret = f(regs);
 #else

@@ -36,8 +36,8 @@ static const struct battery_register {
 	unsigned int reg;
 } ec_data[] = {
 	[REG_CAPACITY]		= EC_DATA(0x00, CAPACITY),
-	[REG_VOLTAGE]		= EC_DATA(0x01, VOLTAGE_NOW),
-	[REG_CURRENT]		= EC_DATA(0x03, CURRENT_NOW),
+	[REG_VOLTAGE]		= EC_DATA(0x01, VOLTAGE_ANALW),
+	[REG_CURRENT]		= EC_DATA(0x03, CURRENT_ANALW),
 	[REG_DESIGN_CAPACITY]	= EC_DATA(0x08, CHARGE_FULL_DESIGN),
 	[REG_TEMPERATURE]	= EC_DATA(0x0a, TEMP),
 };
@@ -45,12 +45,12 @@ static const struct battery_register {
 static const enum power_supply_property a500_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 struct a500_battery {
@@ -101,8 +101,8 @@ static void a500_battery_unit_adjustment(struct device *dev,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval *= base_unit_conversion;
 		break;
 
@@ -116,7 +116,7 @@ static void a500_battery_unit_adjustment(struct device *dev,
 
 	default:
 		dev_dbg(dev,
-			"%s: no need for unit conversion %d\n", __func__, psp);
+			"%s: anal need for unit conversion %d\n", __func__, psp);
 	}
 }
 
@@ -126,7 +126,7 @@ static int a500_battery_get_ec_data_index(struct device *dev,
 	unsigned int i;
 
 	/*
-	 * DESIGN_CAPACITY register always returns a non-zero value if
+	 * DESIGN_CAPACITY register always returns a analn-zero value if
 	 * battery is connected and zero if disconnected, hence we'll use
 	 * it for judging the battery presence.
 	 */
@@ -155,8 +155,8 @@ static int a500_battery_get_property(struct power_supply *psy,
 		val->intval = a500_battery_get_status(bat);
 		break;
 
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = POWER_SUPPLY_TECHANALLOGY_LION;
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -165,8 +165,8 @@ static int a500_battery_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = a500_battery_get_ec_data_index(dev, psp);
@@ -189,9 +189,9 @@ static int a500_battery_get_property(struct power_supply *psy,
 	dev_dbg(dev, "%s: property = %d, value = %x\n",
 		__func__, psp, val->intval);
 
-	/* return NODATA for properties if battery not presents */
+	/* return ANALDATA for properties if battery analt presents */
 	if (ret)
-		return -ENODATA;
+		return -EANALDATA;
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static void a500_battery_poll_work(struct work_struct *work)
 	if (capacity_changed)
 		power_supply_changed(bat->psy);
 
-	/* continuously send uevent notification */
+	/* continuously send uevent analtification */
 	schedule_delayed_work(&bat->poll_work, 30 * HZ);
 }
 
@@ -227,18 +227,18 @@ static int a500_battery_probe(struct platform_device *pdev)
 
 	bat = devm_kzalloc(&pdev->dev, sizeof(*bat), GFP_KERNEL);
 	if (!bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, bat);
 
-	psy_cfg.of_node = pdev->dev.parent->of_node;
+	psy_cfg.of_analde = pdev->dev.parent->of_analde;
 	psy_cfg.drv_data = bat;
 
 	bat->regmap = dev_get_regmap(pdev->dev.parent, "KB930");
 	if (!bat->regmap)
 		return -EINVAL;
 
-	bat->psy = devm_power_supply_register_no_ws(&pdev->dev,
+	bat->psy = devm_power_supply_register_anal_ws(&pdev->dev,
 						    &a500_battery_desc,
 						    &psy_cfg);
 	if (IS_ERR(bat->psy))

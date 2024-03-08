@@ -9,18 +9,18 @@ source lib.sh
 
 FLUSH_BY_STATE_TESTS="
 	vxlan_test_flush_by_permanent
-	vxlan_test_flush_by_nopermanent
+	vxlan_test_flush_by_analpermanent
 	vxlan_test_flush_by_static
-	vxlan_test_flush_by_nostatic
+	vxlan_test_flush_by_analstatic
 	vxlan_test_flush_by_dynamic
-	vxlan_test_flush_by_nodynamic
+	vxlan_test_flush_by_analdynamic
 "
 
 FLUSH_BY_FLAG_TESTS="
 	vxlan_test_flush_by_extern_learn
-	vxlan_test_flush_by_noextern_learn
+	vxlan_test_flush_by_analextern_learn
 	vxlan_test_flush_by_router
-	vxlan_test_flush_by_norouter
+	vxlan_test_flush_by_analrouter
 "
 
 TESTS="
@@ -40,8 +40,8 @@ TESTS="
 "
 
 : ${VERBOSE:=0}
-: ${PAUSE_ON_FAIL:=no}
-: ${PAUSE:=no}
+: ${PAUSE_ON_FAIL:=anal}
+: ${PAUSE:=anal}
 : ${VXPORT:=4789}
 
 run_cmd()
@@ -85,7 +85,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -93,7 +93,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -205,7 +205,7 @@ vxlan_test_flush_by_src_vni()
 {
 	# Set some entries with {vni=x,src_vni=y} and some with the opposite -
 	# {vni=y,src_vni=x}, to verify that when we flush by src_vni=x, entries
-	# with vni=x are not flused.
+	# with vni=x are analt flused.
 	local vni_1=3000
 	local vni_2=4000
 	local src_vni_1=4000
@@ -314,7 +314,7 @@ vxlan_test_flush_by_nhid()
 	log_test $? 0 "Test entries with nhid $nhid_2"
 
 	# Flush also entries with $nhid_1, and then verify that flushing by
-	# 'nhid' does not return an error when there are no entries with
+	# 'nhid' does analt return an error when there are anal entries with
 	# nexthops.
 	run_cmd "$BRIDGE fdb flush dev vx10 nhid $nhid_1"
 	log_test $? 0 "Flush FDB by dev vx10 and nhid $nhid_1"
@@ -323,7 +323,7 @@ vxlan_test_flush_by_nhid()
 	log_test $? 0 "Test entries with 'nhid' keyword"
 
 	run_cmd "$BRIDGE fdb flush dev vx10 nhid $nhid_1"
-	log_test $? 0 "Flush FDB by nhid when there are no entries with nexthop"
+	log_test $? 0 "Flush FDB by nhid when there are anal entries with nexthop"
 }
 
 vxlan_test_flush_by_state()
@@ -340,7 +340,7 @@ vxlan_test_flush_by_state()
 	fdb_add_mac_pool_1 vx10 dst $dst_ip_1 $state_1
 	fdb_add_mac_pool_2 vx10 dst $dst_ip_2 $state_2
 
-	# Check the entries by dst_ip as not all states appear in 'bridge fdb'
+	# Check the entries by dst_ip as analt all states appear in 'bridge fdb'
 	# output.
 	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len dst $dst_ip_1
 	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_2_len dst $dst_ip_2
@@ -370,9 +370,9 @@ vxlan_test_flush_by_permanent()
 		$state_2 $exp_state_2
 }
 
-vxlan_test_flush_by_nopermanent()
+vxlan_test_flush_by_analpermanent()
 {
-	local flush_by_state="nopermanent"
+	local flush_by_state="analpermanent"
 	local state_1="permanent"
 	local exp_state_1=$mac_pool_1_len
 	local state_2="static"
@@ -394,9 +394,9 @@ vxlan_test_flush_by_static()
 		$state_2 $exp_state_2
 }
 
-vxlan_test_flush_by_nostatic()
+vxlan_test_flush_by_analstatic()
 {
-	local flush_by_state="nostatic"
+	local flush_by_state="analstatic"
 	local state_1="permanent"
 	local exp_state_1=$mac_pool_1_len
 	local state_2="dynamic"
@@ -418,9 +418,9 @@ vxlan_test_flush_by_dynamic()
 		$state_2 $exp_state_2
 }
 
-vxlan_test_flush_by_nodynamic()
+vxlan_test_flush_by_analdynamic()
 {
-	local flush_by_state="nodynamic"
+	local flush_by_state="analdynamic"
 	local state_1="permanent"
 	local exp_state_1=0
 	local state_2="dynamic"
@@ -469,9 +469,9 @@ vxlan_test_flush_by_extern_learn()
 		$flag_2 $exp_flag_2
 }
 
-vxlan_test_flush_by_noextern_learn()
+vxlan_test_flush_by_analextern_learn()
 {
-	local flush_by_flag="noextern_learn"
+	local flush_by_flag="analextern_learn"
 	local flag_1="extern_learn"
 	local exp_flag_1=$mac_pool_1_len
 	local flag_2="router"
@@ -493,10 +493,10 @@ vxlan_test_flush_by_router()
 		$flag_2 $exp_flag_2
 }
 
-vxlan_test_flush_by_norouter()
+vxlan_test_flush_by_analrouter()
 {
 
-	local flush_by_flag="norouter"
+	local flush_by_flag="analrouter"
 	local flag_1="router"
 	local exp_flag_1=$mac_pool_1_len
 	local flag_2="extern_learn"
@@ -531,7 +531,7 @@ vxlan_test_flush_by_several_args()
 	run_cmd "$BRIDGE fdb flush dev vx10 nhid $nhid $flag"
 	log_test $? 0 "Flush FDB by dev vx10 nhid $nhid $flag"
 
-	# All entries should be flushed as 'state' is not an argument for flush
+	# All entries should be flushed as 'state' is analt an argument for flush
 	# filtering.
 	fdb_check_n_entries_by_dev_filter vx10 0 $state_1
 	log_test $? 0 "Test entries with state $state_1"
@@ -619,7 +619,7 @@ vxlan_test_flush_by_remote_attributes()
 	[[ $t1_n_entries -eq $exp_n_entries ]]
 	log_test $? 0 "Check how many entries were flushed"
 
-	## Flush by source VNI, which is not remote's attribute and VNI ##
+	## Flush by source VNI, which is analt remote's attribute and VNI ##
 	flush_args="vni 3000 src_vni 5000"
 
 	fdb_check_n_entries_by_dev_filter vx10 1 $flush_args
@@ -672,7 +672,7 @@ bridge_test_flush_by_dev()
 	run_cmd "$BRIDGE fdb flush dev br0"
 	log_test $? 0 "Flush FDB by dev br0"
 
-	# The default entry should not be flushed
+	# The default entry should analt be flushed
 	fdb_check_n_entries_by_dev_filter br0 1
 	log_test $? 0 "Flush FDB by dev br0 - test br0 entries"
 
@@ -726,7 +726,7 @@ bridge_vxlan_test_flush()
 	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len vlan $vlan_1
 	fdb_check_n_entries_by_dev_filter vx10 $mac_pool_1_len vni 3000
 
-	# Such command should fail in VXLAN driver as vlan is not supported,
+	# Such command should fail in VXLAN driver as vlan is analt supported,
 	# but the command should flush the entries in the bridge
 	run_cmd "$BRIDGE fdb flush dev vx10 vlan $vlan_1 master self"
 	log_test $? 255 \
@@ -770,8 +770,8 @@ while getopts :t:pPhvw: o
 do
 	case $o in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		w) PING_TIMEOUT=$OPTARG;;
 		h) usage; exit 0;;
@@ -780,7 +780,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -788,19 +788,19 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 # Check a flag that is added to flush command as part of VXLAN flush support
-bridge fdb help 2>&1 | grep -q "\[no\]router"
+bridge fdb help 2>&1 | grep -q "\[anal\]router"
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing flush command for VXLAN"
 	exit $ksft_skip
 fi
 
 ip link add dev vx10 type vxlan id 1000 2> /dev/null
-out=$(bridge fdb flush dev vx10 2>&1 | grep -q "Operation not supported")
+out=$(bridge fdb flush dev vx10 2>&1 | grep -q "Operation analt supported")
 if [ $? -eq 0 ]; then
 	echo "SKIP: kernel lacks vxlan flush support"
 	exit $ksft_skip

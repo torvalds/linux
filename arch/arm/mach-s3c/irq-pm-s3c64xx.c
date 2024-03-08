@@ -8,7 +8,7 @@
 // S3C64XX - Interrupt handling Power Management
 
 /*
- * NOTE: Code in this file is not used when booting with Device Tree support.
+ * ANALTE: Code in this file is analt used when booting with Device Tree support.
  */
 
 #include <linux/kernel.h>

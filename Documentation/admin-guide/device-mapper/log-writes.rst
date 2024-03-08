@@ -2,7 +2,7 @@
 dm-log-writes
 =============
 
-This target takes 2 devices, one to pass all IO to normally, and one to log all
+This target takes 2 devices, one to pass all IO to analrmally, and one to log all
 of the write operations to.  This is intended for file system developers wishing
 to verify the integrity of metadata or data as the file system is written to.
 There is a log_write_entry written for every WRITE request and the target is
@@ -13,10 +13,10 @@ exactly as it happened originally.
 Log Ordering
 ============
 
-We log things in order of completion once we are sure the write is no longer in
-cache.  This means that normal WRITE requests are not actually logged until the
+We log things in order of completion once we are sure the write is anal longer in
+cache.  This means that analrmal WRITE requests are analt actually logged until the
 next REQ_PREFLUSH request.  This is to make it easier for userspace to replay
-the log in a way that correlates to what is on disk and not what is in cache,
+the log in a way that correlates to what is on disk and analt what is in cache,
 to make it easier to detect improper waiting/flushing.
 
 This works by attaching all WRITE requests to a list once the write completes.
@@ -59,7 +59,7 @@ i) Constructor
    log-writes <dev_path> <log_dev_path>
 
    ============= ==============================================
-   dev_path	 Device that all of the IO will go to normally.
+   dev_path	 Device that all of the IO will go to analrmally.
    log_dev_path  Device where the log entries are written to.
    ============= ==============================================
 
@@ -121,7 +121,7 @@ this::
   md5sum /mnt/btrfs-test/foo
   <verify md5sum's are correct>
 
-  Another option is to do a complicated file system operation and verify the file
+  Aanalther option is to do a complicated file system operation and verify the file
   system is consistent during the entire operation.  You could do this with:
 
   TABLE="0 $(blockdev --getsz /dev/sdb) log-writes /dev/sdb /dev/sdc"
@@ -142,4 +142,4 @@ this::
 
 And that will replay the log until it sees a FUA request, run the fsck command
 and if the fsck passes it will replay to the next FUA, until it is completed or
-the fsck command exists abnormally.
+the fsck command exists abanalrmally.

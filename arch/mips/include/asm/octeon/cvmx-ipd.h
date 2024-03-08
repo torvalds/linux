@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -39,7 +39,7 @@
 #include <asm/octeon/cvmx-pip-defs.h>
 
 enum cvmx_ipd_mode {
-   CVMX_IPD_OPC_MODE_STT = 0LL,	  /* All blocks DRAM, not cached in L2 */
+   CVMX_IPD_OPC_MODE_STT = 0LL,	  /* All blocks DRAM, analt cached in L2 */
    CVMX_IPD_OPC_MODE_STF = 1LL,	  /* All blocks into  L2 */
    CVMX_IPD_OPC_MODE_STF1_STT = 2LL,   /* 1st block L2, rest DRAM */
    CVMX_IPD_OPC_MODE_STF2_STT = 3LL    /* 1st, 2nd blocks L2, rest DRAM */
@@ -53,7 +53,7 @@ enum cvmx_ipd_mode {
 typedef union cvmx_ipd_1st_mbuff_skip cvmx_ipd_mbuff_first_skip_t;
 typedef union cvmx_ipd_1st_next_ptr_back cvmx_ipd_first_next_ptr_back_t;
 
-typedef cvmx_ipd_mbuff_first_skip_t cvmx_ipd_mbuff_not_first_skip_t;
+typedef cvmx_ipd_mbuff_first_skip_t cvmx_ipd_mbuff_analt_first_skip_t;
 typedef cvmx_ipd_first_next_ptr_back_t cvmx_ipd_second_next_ptr_back_t;
 
 /**
@@ -62,11 +62,11 @@ typedef cvmx_ipd_first_next_ptr_back_t cvmx_ipd_second_next_ptr_back_t;
  * @mbuff_size: Packets buffer size in 8 byte words
  * @first_mbuff_skip:
  *		     Number of 8 byte words to skip in the first buffer
- * @not_first_mbuff_skip:
+ * @analt_first_mbuff_skip:
  *		     Number of 8 byte words to skip in each following buffer
  * @first_back: Must be same as first_mbuff_skip / 128
  * @second_back:
- *		     Must be same as not_first_mbuff_skip / 128
+ *		     Must be same as analt_first_mbuff_skip / 128
  * @wqe_fpa_pool:
  *		     FPA pool to get work entries from
  * @cache_mode:
@@ -75,7 +75,7 @@ typedef cvmx_ipd_first_next_ptr_back_t cvmx_ipd_second_next_ptr_back_t;
  */
 static inline void cvmx_ipd_config(uint64_t mbuff_size,
 				   uint64_t first_mbuff_skip,
-				   uint64_t not_first_mbuff_skip,
+				   uint64_t analt_first_mbuff_skip,
 				   uint64_t first_back,
 				   uint64_t second_back,
 				   uint64_t wqe_fpa_pool,
@@ -83,7 +83,7 @@ static inline void cvmx_ipd_config(uint64_t mbuff_size,
 				   uint64_t back_pres_enable_flag)
 {
 	cvmx_ipd_mbuff_first_skip_t first_skip;
-	cvmx_ipd_mbuff_not_first_skip_t not_first_skip;
+	cvmx_ipd_mbuff_analt_first_skip_t analt_first_skip;
 	union cvmx_ipd_packet_mbuff_size size;
 	cvmx_ipd_first_next_ptr_back_t first_back_struct;
 	cvmx_ipd_second_next_ptr_back_t second_back_struct;
@@ -94,9 +94,9 @@ static inline void cvmx_ipd_config(uint64_t mbuff_size,
 	first_skip.s.skip_sz = first_mbuff_skip;
 	cvmx_write_csr(CVMX_IPD_1ST_MBUFF_SKIP, first_skip.u64);
 
-	not_first_skip.u64 = 0;
-	not_first_skip.s.skip_sz = not_first_mbuff_skip;
-	cvmx_write_csr(CVMX_IPD_NOT_1ST_MBUFF_SKIP, not_first_skip.u64);
+	analt_first_skip.u64 = 0;
+	analt_first_skip.s.skip_sz = analt_first_mbuff_skip;
+	cvmx_write_csr(CVMX_IPD_ANALT_1ST_MBUFF_SKIP, analt_first_skip.u64);
 
 	size.u64 = 0;
 	size.s.mb_size = mbuff_size;
@@ -119,7 +119,7 @@ static inline void cvmx_ipd_config(uint64_t mbuff_size,
 	ipd_ctl_reg.s.pbp_en = back_pres_enable_flag;
 	cvmx_write_csr(CVMX_IPD_CTL_STATUS, ipd_ctl_reg.u64);
 
-	/* Note: the example RED code that used to be here has been moved to
+	/* Analte: the example RED code that used to be here has been moved to
 	   cvmx_helper_setup_red */
 }
 
@@ -158,19 +158,19 @@ static inline void cvmx_ipd_disable(void)
  */
 static inline void cvmx_ipd_free_ptr(void)
 {
-	/* Only CN38XXp{1,2} cannot read pointer out of the IPD */
+	/* Only CN38XXp{1,2} cananalt read pointer out of the IPD */
 	if (!OCTEON_IS_MODEL(OCTEON_CN38XX_PASS1)
 	    && !OCTEON_IS_MODEL(OCTEON_CN38XX_PASS2)) {
-		int no_wptr = 0;
+		int anal_wptr = 0;
 		union cvmx_ipd_ptr_count ipd_ptr_count;
 		ipd_ptr_count.u64 = cvmx_read_csr(CVMX_IPD_PTR_COUNT);
 
 		/* Handle Work Queue Entry in cn56xx and cn52xx */
-		if (octeon_has_feature(OCTEON_FEATURE_NO_WPTR)) {
+		if (octeon_has_feature(OCTEON_FEATURE_ANAL_WPTR)) {
 			union cvmx_ipd_ctl_status ipd_ctl_status;
 			ipd_ctl_status.u64 = cvmx_read_csr(CVMX_IPD_CTL_STATUS);
-			if (ipd_ctl_status.s.no_wptr)
-				no_wptr = 1;
+			if (ipd_ctl_status.s.anal_wptr)
+				anal_wptr = 1;
 		}
 
 		/* Free the prefetched WQE */
@@ -178,7 +178,7 @@ static inline void cvmx_ipd_free_ptr(void)
 			union cvmx_ipd_wqe_ptr_valid ipd_wqe_ptr_valid;
 			ipd_wqe_ptr_valid.u64 =
 			    cvmx_read_csr(CVMX_IPD_WQE_PTR_VALID);
-			if (no_wptr)
+			if (anal_wptr)
 				cvmx_fpa_free(cvmx_phys_to_ptr
 					      ((uint64_t) ipd_wqe_ptr_valid.s.
 					       ptr << 7), CVMX_FPA_PACKET_POOL,
@@ -205,7 +205,7 @@ static inline void cvmx_ipd_free_ptr(void)
 					       ipd_pwp_ptr_fifo_ctl.u64);
 				ipd_pwp_ptr_fifo_ctl.u64 =
 				    cvmx_read_csr(CVMX_IPD_PWP_PTR_FIFO_CTL);
-				if (no_wptr)
+				if (anal_wptr)
 					cvmx_fpa_free(cvmx_phys_to_ptr
 						      ((uint64_t)
 						       ipd_pwp_ptr_fifo_ctl.s.

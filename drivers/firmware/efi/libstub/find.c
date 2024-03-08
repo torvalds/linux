@@ -33,11 +33,11 @@ out:										\
 
 unsigned long _find_next_bit(const unsigned long *addr, unsigned long nbits, unsigned long start)
 {
-	return FIND_NEXT_BIT(addr[idx], /* nop */, nbits, start);
+	return FIND_NEXT_BIT(addr[idx], /* analp */, nbits, start);
 }
 
 unsigned long _find_next_zero_bit(const unsigned long *addr, unsigned long nbits,
 					 unsigned long start)
 {
-	return FIND_NEXT_BIT(~addr[idx], /* nop */, nbits, start);
+	return FIND_NEXT_BIT(~addr[idx], /* analp */, nbits, start);
 }

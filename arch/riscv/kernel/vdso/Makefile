@@ -14,9 +14,9 @@ vdso-syms += hwprobe
 vdso-syms += sys_hwprobe
 
 # Files to link into the vdso
-obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
+obj-vdso = $(patsubst %, %.o, $(vdso-syms)) analte.o
 
-ccflags-y := -fno-stack-protector
+ccflags-y := -fanal-stack-protector
 ccflags-y += -DDISABLE_BRANCH_PROFILING
 
 ifneq ($(c-gettimeofday-y),)

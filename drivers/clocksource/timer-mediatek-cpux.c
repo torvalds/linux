@@ -6,7 +6,7 @@
  * Copyright (C) 2014 Matthias Brugger <matthias.bgg@gmail.com>
  *
  * Copyright (C) 2022 Collabora Ltd.
- *                    AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ *                    AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -97,15 +97,15 @@ static struct timer_of to = {
 	},
 };
 
-static int __init mtk_cpux_init(struct device_node *node)
+static int __init mtk_cpux_init(struct device_analde *analde)
 {
 	u32 freq, val;
 	int ret;
 
 	/* If this fails, bad things are about to happen... */
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(analde, &to);
 	if (ret) {
-		WARN(1, "Cannot start CPUX timers.\n");
+		WARN(1, "Cananalt start CPUX timers.\n");
 		return ret;
 	}
 
@@ -113,8 +113,8 @@ static int __init mtk_cpux_init(struct device_node *node)
 	 * Check if we're given a clock with the right frequency for this
 	 * timer, otherwise warn but keep going with the setup anyway, as
 	 * that makes it possible to still boot the kernel, even though
-	 * it may not work correctly (random lockups, etc).
-	 * The reason behind this is that having an early UART may not be
+	 * it may analt work correctly (random lockups, etc).
+	 * The reason behind this is that having an early UART may analt be
 	 * possible for everyone and this gives a chance to retrieve kmsg
 	 * for eventual debugging even on consumer devices.
 	 */

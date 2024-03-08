@@ -161,7 +161,7 @@ static inline struct metadata_dst *tun_dst_unclone(struct sk_buff *skb)
 	md_size = md_dst->u.tun_info.options_len;
 	new_md = metadata_dst_alloc(md_size, METADATA_IP_TUNNEL, GFP_ATOMIC);
 	if (!new_md)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memcpy(&new_md->u.tun_info, &md_dst->u.tun_info,
 	       sizeof(struct ip_tunnel_info) + md_size);

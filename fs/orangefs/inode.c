@@ -7,7 +7,7 @@
  */
 
 /*
- *  Linux VFS inode operations.
+ *  Linux VFS ianalde operations.
  */
 
 #include <linux/blkdev.h>
@@ -19,7 +19,7 @@
 static int orangefs_writepage_locked(struct page *page,
     struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct ianalde *ianalde = page->mapping->host;
 	struct orangefs_write_range *wr = NULL;
 	struct iov_iter iter;
 	struct bio_vec bv;
@@ -29,7 +29,7 @@ static int orangefs_writepage_locked(struct page *page,
 
 	set_page_writeback(page);
 
-	len = i_size_read(inode);
+	len = i_size_read(ianalde);
 	if (PagePrivate(page)) {
 		wr = (struct orangefs_write_range *)page_private(page);
 		WARN_ON(wr->pos >= len);
@@ -53,7 +53,7 @@ static int orangefs_writepage_locked(struct page *page,
 	bvec_set_page(&bv, page, wlen, off % PAGE_SIZE);
 	iov_iter_bvec(&iter, ITER_SOURCE, &bv, 1, wlen);
 
-	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, ianalde, &off, &iter, wlen,
 	    len, wr, NULL, NULL);
 	if (ret < 0) {
 		SetPageError(page);
@@ -88,7 +88,7 @@ struct orangefs_writepages {
 static int orangefs_writepages_work(struct orangefs_writepages *ow,
     struct writeback_control *wbc)
 {
-	struct inode *inode = ow->pages[0]->mapping->host;
+	struct ianalde *ianalde = ow->pages[0]->mapping->host;
 	struct orangefs_write_range *wrp, wr;
 	struct iov_iter iter;
 	ssize_t ret;
@@ -96,7 +96,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	loff_t off;
 	int i;
 
-	len = i_size_read(inode);
+	len = i_size_read(ianalde);
 
 	for (i = 0; i < ow->npages; i++) {
 		set_page_writeback(ow->pages[i]);
@@ -115,7 +115,7 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	off = ow->off;
 	wr.uid = ow->uid;
 	wr.gid = ow->gid;
-	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, ianalde, &off, &iter, ow->len,
 	    0, &wr, NULL, NULL);
 	if (ret < 0) {
 		for (i = 0; i < ow->npages; i++) {
@@ -157,8 +157,8 @@ static int orangefs_writepages_callback(struct folio *folio,
 
 	if (!wr) {
 		folio_unlock(folio);
-		/* It's not private so there's nothing to write, right? */
-		printk("writepages_callback not private!\n");
+		/* It's analt private so there's analthing to write, right? */
+		printk("writepages_callback analt private!\n");
 		BUG();
 		return 0;
 	}
@@ -212,18 +212,18 @@ static int orangefs_writepages(struct address_space *mapping,
 	int ret;
 	ow = kzalloc(sizeof(struct orangefs_writepages), GFP_KERNEL);
 	if (!ow)
-		return -ENOMEM;
+		return -EANALMEM;
 	ow->maxpages = orangefs_bufmap_size_query()/PAGE_SIZE;
 	ow->pages = kcalloc(ow->maxpages, sizeof(struct page *), GFP_KERNEL);
 	if (!ow->pages) {
 		kfree(ow);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ow->bv = kcalloc(ow->maxpages, sizeof(struct bio_vec), GFP_KERNEL);
 	if (!ow->bv) {
 		kfree(ow->pages);
 		kfree(ow);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	blk_start_plug(&plug);
 	ret = write_cache_pages(mapping, wbc, orangefs_writepages_callback, ow);
@@ -242,14 +242,14 @@ static void orangefs_readahead(struct readahead_control *rac)
 {
 	loff_t offset;
 	struct iov_iter iter;
-	struct inode *inode = rac->mapping->host;
+	struct ianalde *ianalde = rac->mapping->host;
 	struct xarray *i_pages;
 	struct folio *folio;
 	loff_t new_start = readahead_pos(rac);
 	int ret;
 	size_t new_len = 0;
 
-	loff_t bytes_remaining = inode->i_size - readahead_pos(rac);
+	loff_t bytes_remaining = ianalde->i_size - readahead_pos(rac);
 	loff_t pages_remaining = bytes_remaining / PAGE_SIZE;
 
 	if (pages_remaining >= 1024)
@@ -266,9 +266,9 @@ static void orangefs_readahead(struct readahead_control *rac)
 	iov_iter_xarray(&iter, ITER_DEST, i_pages, offset, readahead_length(rac));
 
 	/* read in the pages. */
-	if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, inode,
+	if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, ianalde,
 			&offset, &iter, readahead_length(rac),
-			inode->i_size, NULL, NULL, rac->file)) < 0)
+			ianalde->i_size, NULL, NULL, rac->file)) < 0)
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			"%s: wait_for_direct_io failed. \n", __func__);
 	else
@@ -284,7 +284,7 @@ static void orangefs_readahead(struct readahead_control *rac)
 
 static int orangefs_read_folio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = folio->mapping->host;
+	struct ianalde *ianalde = folio->mapping->host;
 	struct iov_iter iter;
 	struct bio_vec bv;
 	ssize_t ret;
@@ -297,8 +297,8 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 	bvec_set_folio(&bv, folio, folio_size(folio), 0);
 	iov_iter_bvec(&iter, ITER_DEST, &bv, 1, folio_size(folio));
 
-	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-			folio_size(folio), inode->i_size, NULL, NULL, file);
+	ret = wait_for_direct_io(ORANGEFS_IO_READ, ianalde, &off, &iter,
+			folio_size(folio), ianalde->i_size, NULL, NULL, file);
 	/* this will only zero remaining unread portions of the folio data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
@@ -328,7 +328,7 @@ static int orangefs_write_begin(struct file *file,
 
 	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*pagep = page;
 	folio = page_folio(page);
@@ -336,7 +336,7 @@ static int orangefs_write_begin(struct file *file,
 	if (folio_test_dirty(folio) && !folio_test_private(folio)) {
 		/*
 		 * Should be impossible.  If it happens, launder the page
-		 * since we don't know what's dirty.  This will WARN in
+		 * since we don't kanalw what's dirty.  This will WARN in
 		 * orangefs_writepage_locked.
 		 */
 		ret = orangefs_launder_folio(folio);
@@ -360,7 +360,7 @@ static int orangefs_write_begin(struct file *file,
 
 	wr = kmalloc(sizeof *wr, GFP_KERNEL);
 	if (!wr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wr->pos = pos;
 	wr->len = len;
@@ -374,15 +374,15 @@ okay:
 static int orangefs_write_end(struct file *file, struct address_space *mapping,
     loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct ianalde *ianalde = page->mapping->host;
 	loff_t last_pos = pos + copied;
 
 	/*
-	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * Anal need to use i_size_read() here, the i_size
+	 * cananalt change under us because we hold the i_mutex.
 	 */
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	if (last_pos > ianalde->i_size)
+		i_size_write(ianalde, last_pos);
 
 	/* zero the stale part of the page if we did a short copy */
 	if (!PageUptodate(page)) {
@@ -392,7 +392,7 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 		}
 		/* Set fully written pages uptodate. */
 		if (pos == page_offset(page) &&
-		    (len == PAGE_SIZE || pos + len == inode->i_size)) {
+		    (len == PAGE_SIZE || pos + len == ianalde->i_size)) {
 			zero_user_segment(page, from + copied, PAGE_SIZE);
 			SetPageUptodate(page);
 		}
@@ -402,7 +402,7 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	put_page(page);
 
-	mark_inode_dirty_sync(file_inode(file));
+	mark_ianalde_dirty_sync(file_ianalde(file));
 	return copied;
 }
 
@@ -445,15 +445,15 @@ static void orangefs_invalidate_folio(struct folio *folio,
 	/* invalidate range entirely within write range (punch hole) */
 	} else if (wr->pos < folio_pos(folio) + offset &&
 	    folio_pos(folio) + offset + length < wr->pos + wr->len) {
-		/* XXX what do we do here... should not WARN_ON */
+		/* XXX what do we do here... should analt WARN_ON */
 		WARN_ON(1);
 		/* punch hole */
 		/*
-		 * should we just ignore this and write it out anyway?
+		 * should we just iganalre this and write it out anyway?
 		 * it hardly makes sense
 		 */
 		return;
-	/* non-overlapping ranges */
+	/* analn-overlapping ranges */
 	} else {
 		/* WARN if they do overlap */
 		if (!((folio_pos(folio) + offset + length <= wr->pos) ^
@@ -509,16 +509,16 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	 * This function will dispatch it to either the direct I/O
 	 * or buffered I/O path depending on the mount options and/or
 	 * augmented/extended metadata attached to the file.
-	 * Note: File extended attributes override any mount options.
+	 * Analte: File extended attributes override any mount options.
 	 */
 	struct file *file = iocb->ki_filp;
 	loff_t pos = iocb->ki_pos;
 	enum ORANGEFS_io_type type = iov_iter_rw(iter) == WRITE ?
             ORANGEFS_IO_WRITE : ORANGEFS_IO_READ;
 	loff_t *offset = &pos;
-	struct inode *inode = file->f_mapping->host;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	struct ianalde *ianalde = file->f_mapping->host;
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
+	struct orangefs_khandle *handle = &orangefs_ianalde->refn.khandle;
 	size_t count = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
@@ -563,7 +563,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     handle,
 			     (int)*offset);
 
-		ret = wait_for_direct_io(type, inode, offset, iter,
+		ret = wait_for_direct_io(type, ianalde, offset, iter,
 				each_count, 0, NULL, NULL, file);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
@@ -600,8 +600,8 @@ out:
 			file_accessed(file);
 		} else {
 			file_update_time(file);
-			if (*offset > i_size_read(inode))
-				i_size_write(inode, *offset);
+			if (*offset > i_size_read(ianalde))
+				i_size_write(ianalde, *offset);
 		}
 	}
 
@@ -633,13 +633,13 @@ static const struct address_space_operations orangefs_address_operations = {
 vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct folio *folio = page_folio(vmf->page);
-	struct inode *inode = file_inode(vmf->vma->vm_file);
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	unsigned long *bitlock = &orangefs_inode->bitlock;
+	struct ianalde *ianalde = file_ianalde(vmf->vma->vm_file);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
+	unsigned long *bitlock = &orangefs_ianalde->bitlock;
 	vm_fault_t ret;
 	struct orangefs_write_range *wr;
 
-	sb_start_pagefault(inode->i_sb);
+	sb_start_pagefault(ianalde->i_sb);
 
 	if (wait_on_bit(bitlock, 1, TASK_KILLABLE)) {
 		ret = VM_FAULT_RETRY;
@@ -650,7 +650,7 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 	if (folio_test_dirty(folio) && !folio_test_private(folio)) {
 		/*
 		 * Should be impossible.  If it happens, launder the folio
-		 * since we don't know what's dirty.  This will WARN in
+		 * since we don't kanalw what's dirty.  This will WARN in
 		 * orangefs_writepage_locked.
 		 */
 		if (orangefs_launder_folio(folio)) {
@@ -685,9 +685,9 @@ vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
 okay:
 
 	file_update_time(vmf->vma->vm_file);
-	if (folio->mapping != inode->i_mapping) {
+	if (folio->mapping != ianalde->i_mapping) {
 		folio_unlock(folio);
-		ret = VM_FAULT_LOCKED|VM_FAULT_NOPAGE;
+		ret = VM_FAULT_LOCKED|VM_FAULT_ANALPAGE;
 		goto out;
 	}
 
@@ -700,77 +700,77 @@ okay:
 	folio_wait_stable(folio);
 	ret = VM_FAULT_LOCKED;
 out:
-	sb_end_pagefault(inode->i_sb);
+	sb_end_pagefault(ianalde->i_sb);
 	return ret;
 }
 
-static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
+static int orangefs_setattr_size(struct ianalde *ianalde, struct iattr *iattr)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_ianalde_s *orangefs_ianalde = ORANGEFS_I(ianalde);
 	struct orangefs_kernel_op_s *new_op;
 	loff_t orig_size;
 	int ret = -EINVAL;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_debug(GOSSIP_IANALDE_DEBUG,
 		     "%s: %pU: Handle is %pU | fs_id %d | size is %llu\n",
 		     __func__,
-		     get_khandle_from_ino(inode),
-		     &orangefs_inode->refn.khandle,
-		     orangefs_inode->refn.fs_id,
+		     get_khandle_from_ianal(ianalde),
+		     &orangefs_ianalde->refn.khandle,
+		     orangefs_ianalde->refn.fs_id,
 		     iattr->ia_size);
 
-	/* Ensure that we have a up to date size, so we know if it changed. */
-	ret = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_SIZE);
+	/* Ensure that we have a up to date size, so we kanalw if it changed. */
+	ret = orangefs_ianalde_getattr(ianalde, ORANGEFS_GETATTR_SIZE);
 	if (ret == -ESTALE)
 		ret = -EIO;
 	if (ret) {
-		gossip_err("%s: orangefs_inode_getattr failed, ret:%d:.\n",
+		gossip_err("%s: orangefs_ianalde_getattr failed, ret:%d:.\n",
 		    __func__, ret);
 		return ret;
 	}
-	orig_size = i_size_read(inode);
+	orig_size = i_size_read(ianalde);
 
 	/* This is truncate_setsize in a different order. */
-	truncate_pagecache(inode, iattr->ia_size);
-	i_size_write(inode, iattr->ia_size);
+	truncate_pagecache(ianalde, iattr->ia_size);
+	i_size_write(ianalde, iattr->ia_size);
 	if (iattr->ia_size > orig_size)
-		pagecache_isize_extended(inode, orig_size, iattr->ia_size);
+		pagecache_isize_extended(ianalde, orig_size, iattr->ia_size);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_TRUNCATE);
 	if (!new_op)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	new_op->upcall.req.truncate.refn = orangefs_inode->refn;
+	new_op->upcall.req.truncate.refn = orangefs_ianalde->refn;
 	new_op->upcall.req.truncate.size = (__s64) iattr->ia_size;
 
 	ret = service_operation(new_op,
 		__func__,
-		get_interruptible_flag(inode));
+		get_interruptible_flag(ianalde));
 
 	/*
-	 * the truncate has no downcall members to retrieve, but
-	 * the status value tells us if it went through ok or not
+	 * the truncate has anal downcall members to retrieve, but
+	 * the status value tells us if it went through ok or analt
 	 */
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: ret:%d:\n", __func__, ret);
+	gossip_debug(GOSSIP_IANALDE_DEBUG, "%s: ret:%d:\n", __func__, ret);
 
 	op_release(new_op);
 
 	if (ret != 0)
 		return ret;
 
-	if (orig_size != i_size_read(inode))
+	if (orig_size != i_size_read(ianalde))
 		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME;
 
 	return ret;
 }
 
-int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
+int __orangefs_setattr(struct ianalde *ianalde, struct iattr *iattr)
 {
 	int ret;
 
 	if (iattr->ia_valid & ATTR_MODE) {
 		if (iattr->ia_mode & (S_ISVTX)) {
-			if (is_root_handle(inode)) {
+			if (is_root_handle(ianalde)) {
 				/*
 				 * allow sticky bit to be set on root (since
 				 * it shows up that way by default anyhow),
@@ -779,44 +779,44 @@ int __orangefs_setattr(struct inode *inode, struct iattr *iattr)
 				iattr->ia_mode -= S_ISVTX;
 			} else {
 				gossip_debug(GOSSIP_UTILS_DEBUG,
-					     "User attempted to set sticky bit on non-root directory; returning EINVAL.\n");
+					     "User attempted to set sticky bit on analn-root directory; returning EINVAL.\n");
 				ret = -EINVAL;
 				goto out;
 			}
 		}
 		if (iattr->ia_mode & (S_ISUID)) {
 			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Attempting to set setuid bit (not supported); returning EINVAL.\n");
+				     "Attempting to set setuid bit (analt supported); returning EINVAL.\n");
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
 	if (iattr->ia_valid & ATTR_SIZE) {
-		ret = orangefs_setattr_size(inode, iattr);
+		ret = orangefs_setattr_size(ianalde, iattr);
 		if (ret)
 			goto out;
 	}
 
 again:
-	spin_lock(&inode->i_lock);
-	if (ORANGEFS_I(inode)->attr_valid) {
-		if (uid_eq(ORANGEFS_I(inode)->attr_uid, current_fsuid()) &&
-		    gid_eq(ORANGEFS_I(inode)->attr_gid, current_fsgid())) {
-			ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
+	spin_lock(&ianalde->i_lock);
+	if (ORANGEFS_I(ianalde)->attr_valid) {
+		if (uid_eq(ORANGEFS_I(ianalde)->attr_uid, current_fsuid()) &&
+		    gid_eq(ORANGEFS_I(ianalde)->attr_gid, current_fsgid())) {
+			ORANGEFS_I(ianalde)->attr_valid = iattr->ia_valid;
 		} else {
-			spin_unlock(&inode->i_lock);
-			write_inode_now(inode, 1);
+			spin_unlock(&ianalde->i_lock);
+			write_ianalde_analw(ianalde, 1);
 			goto again;
 		}
 	} else {
-		ORANGEFS_I(inode)->attr_valid = iattr->ia_valid;
-		ORANGEFS_I(inode)->attr_uid = current_fsuid();
-		ORANGEFS_I(inode)->attr_gid = current_fsgid();
+		ORANGEFS_I(ianalde)->attr_valid = iattr->ia_valid;
+		ORANGEFS_I(ianalde)->attr_uid = current_fsuid();
+		ORANGEFS_I(ianalde)->attr_gid = current_fsgid();
 	}
-	setattr_copy(&nop_mnt_idmap, inode, iattr);
-	spin_unlock(&inode->i_lock);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, iattr);
+	spin_unlock(&ianalde->i_lock);
+	mark_ianalde_dirty(ianalde);
 
 	ret = 0;
 out:
@@ -826,12 +826,12 @@ out:
 int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 {
 	int ret;
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	ret = __orangefs_setattr(inode, iattr);
+	ret = __orangefs_setattr(ianalde, iattr);
 	/* change mode on a file that has ACLs */
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
-		ret = posix_acl_chmod(&nop_mnt_idmap, dentry, inode->i_mode);
+		ret = posix_acl_chmod(&analp_mnt_idmap, dentry, ianalde->i_mode);
 	return ret;
 }
 
@@ -842,15 +842,15 @@ int orangefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		     struct iattr *iattr)
 {
 	int ret;
-	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
+	gossip_debug(GOSSIP_IANALDE_DEBUG, "__orangefs_setattr: called on %pd\n",
 	    dentry);
-	ret = setattr_prepare(&nop_mnt_idmap, dentry, iattr);
+	ret = setattr_prepare(&analp_mnt_idmap, dentry, iattr);
 	if (ret)
 	        goto out;
 	ret = __orangefs_setattr_mode(dentry, iattr);
-	sync_inode_metadata(d_inode(dentry), 1);
+	sync_ianalde_metadata(d_ianalde(dentry), 1);
 out:
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n",
+	gossip_debug(GOSSIP_IANALDE_DEBUG, "orangefs_setattr: returning %d\n",
 	    ret);
 	return ret;
 }
@@ -862,51 +862,51 @@ int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
-	struct inode *inode = path->dentry->d_inode;
+	struct ianalde *ianalde = path->dentry->d_ianalde;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
+	gossip_debug(GOSSIP_IANALDE_DEBUG,
 		     "orangefs_getattr: called on %pd mask %u\n",
 		     path->dentry, request_mask);
 
-	ret = orangefs_inode_getattr(inode,
+	ret = orangefs_ianalde_getattr(ianalde,
 	    request_mask & STATX_SIZE ? ORANGEFS_GETATTR_SIZE : 0);
 	if (ret == 0) {
-		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+		generic_fillattr(&analp_mnt_idmap, request_mask, ianalde, stat);
 
 		/* override block size reported to stat */
 		if (!(request_mask & STATX_SIZE))
 			stat->result_mask &= ~STATX_SIZE;
 
-		generic_fill_statx_attr(inode, stat);
+		generic_fill_statx_attr(ianalde, stat);
 	}
 	return ret;
 }
 
 int orangefs_permission(struct mnt_idmap *idmap,
-			struct inode *inode, int mask)
+			struct ianalde *ianalde, int mask)
 {
 	int ret;
 
-	if (mask & MAY_NOT_BLOCK)
+	if (mask & MAY_ANALT_BLOCK)
 		return -ECHILD;
 
-	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
+	gossip_debug(GOSSIP_IANALDE_DEBUG, "%s: refreshing\n", __func__);
 
 	/* Make sure the permission (and other common attrs) are up to date. */
-	ret = orangefs_inode_getattr(inode, 0);
+	ret = orangefs_ianalde_getattr(ianalde, 0);
 	if (ret < 0)
 		return ret;
 
-	return generic_permission(&nop_mnt_idmap, inode, mask);
+	return generic_permission(&analp_mnt_idmap, ianalde, mask);
 }
 
-int orangefs_update_time(struct inode *inode, int flags)
+int orangefs_update_time(struct ianalde *ianalde, int flags)
 {
 	struct iattr iattr;
 
-	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_update_time: %pU\n",
-	    get_khandle_from_ino(inode));
-	flags = generic_update_time(inode, flags);
+	gossip_debug(GOSSIP_IANALDE_DEBUG, "orangefs_update_time: %pU\n",
+	    get_khandle_from_ianal(ianalde));
+	flags = generic_update_time(ianalde, flags);
 	memset(&iattr, 0, sizeof iattr);
         if (flags & S_ATIME)
 		iattr.ia_valid |= ATTR_ATIME;
@@ -914,7 +914,7 @@ int orangefs_update_time(struct inode *inode, int flags)
 		iattr.ia_valid |= ATTR_CTIME;
 	if (flags & S_MTIME)
 		iattr.ia_valid |= ATTR_MTIME;
-	return __orangefs_setattr(inode, &iattr);
+	return __orangefs_setattr(ianalde, &iattr);
 }
 
 static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
@@ -925,10 +925,10 @@ static int orangefs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 	gossip_debug(GOSSIP_FILE_DEBUG, "%s: called on %pd\n", __func__,
 		     dentry);
 
-	ret = orangefs_inode_getxattr(d_inode(dentry),
+	ret = orangefs_ianalde_getxattr(d_ianalde(dentry),
 				      "user.pvfs2.meta_hint",
 				      &val, sizeof(val));
-	if (ret < 0 && ret != -ENODATA)
+	if (ret < 0 && ret != -EANALDATA)
 		return ret;
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "%s: flags=%u\n", __func__, (u32) val);
@@ -946,27 +946,27 @@ static int orangefs_fileattr_set(struct mnt_idmap *idmap,
 		     dentry);
 	/*
 	 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode is
-	 * turned on for a file. The user is not allowed to turn on this bit,
+	 * turned on for a file. The user is analt allowed to turn on this bit,
 	 * but the bit is present if the user first gets the flags and then
-	 * updates the flags with some new settings. So, we ignore it in the
+	 * updates the flags with some new settings. So, we iganalre it in the
 	 * following edit. bligon.
 	 */
 	if (fileattr_has_fsx(fa) ||
-	    (fa->flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL | ORANGEFS_MIRROR_FL))) {
-		gossip_err("%s: only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n",
+	    (fa->flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_ANALATIME_FL | ORANGEFS_MIRROR_FL))) {
+		gossip_err("%s: only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_ANALATIME_FL\n",
 			   __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	val = fa->flags;
 	gossip_debug(GOSSIP_FILE_DEBUG, "%s: flags=%u\n", __func__, (u32) val);
-	return orangefs_inode_setxattr(d_inode(dentry),
+	return orangefs_ianalde_setxattr(d_ianalde(dentry),
 				       "user.pvfs2.meta_hint",
 				       &val, sizeof(val), 0);
 }
 
-/* ORANGEFS2 implementation of VFS inode operations for files */
-static const struct inode_operations orangefs_file_inode_operations = {
-	.get_inode_acl = orangefs_get_acl,
+/* ORANGEFS2 implementation of VFS ianalde operations for files */
+static const struct ianalde_operations orangefs_file_ianalde_operations = {
+	.get_ianalde_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,
 	.getattr = orangefs_getattr,
@@ -977,24 +977,24 @@ static const struct inode_operations orangefs_file_inode_operations = {
 	.fileattr_set = orangefs_fileattr_set,
 };
 
-static int orangefs_init_iops(struct inode *inode)
+static int orangefs_init_iops(struct ianalde *ianalde)
 {
-	inode->i_mapping->a_ops = &orangefs_address_operations;
+	ianalde->i_mapping->a_ops = &orangefs_address_operations;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (ianalde->i_mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_op = &orangefs_file_inode_operations;
-		inode->i_fop = &orangefs_file_operations;
+		ianalde->i_op = &orangefs_file_ianalde_operations;
+		ianalde->i_fop = &orangefs_file_operations;
 		break;
 	case S_IFLNK:
-		inode->i_op = &orangefs_symlink_inode_operations;
+		ianalde->i_op = &orangefs_symlink_ianalde_operations;
 		break;
 	case S_IFDIR:
-		inode->i_op = &orangefs_dir_inode_operations;
-		inode->i_fop = &orangefs_dir_operations;
+		ianalde->i_op = &orangefs_dir_ianalde_operations;
+		ianalde->i_fop = &orangefs_dir_operations;
 		break;
 	default:
-		gossip_debug(GOSSIP_INODE_DEBUG,
+		gossip_debug(GOSSIP_IANALDE_DEBUG,
 			     "%s: unsupported mode\n",
 			     __func__);
 		return -EINVAL;
@@ -1005,165 +1005,165 @@ static int orangefs_init_iops(struct inode *inode)
 
 /*
  * Given an ORANGEFS object identifier (fsid, handle), convert it into
- * a ino_t type that will be used as a hash-index from where the handle will
- * be searched for in the VFS hash table of inodes.
+ * a ianal_t type that will be used as a hash-index from where the handle will
+ * be searched for in the VFS hash table of ianaldes.
  */
-static inline ino_t orangefs_handle_hash(struct orangefs_object_kref *ref)
+static inline ianal_t orangefs_handle_hash(struct orangefs_object_kref *ref)
 {
 	if (!ref)
 		return 0;
-	return orangefs_khandle_to_ino(&(ref->khandle));
+	return orangefs_khandle_to_ianal(&(ref->khandle));
 }
 
 /*
- * Called to set up an inode from iget5_locked.
+ * Called to set up an ianalde from iget5_locked.
  */
-static int orangefs_set_inode(struct inode *inode, void *data)
+static int orangefs_set_ianalde(struct ianalde *ianalde, void *data)
 {
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
-	ORANGEFS_I(inode)->refn.fs_id = ref->fs_id;
-	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
-	ORANGEFS_I(inode)->attr_valid = 0;
-	hash_init(ORANGEFS_I(inode)->xattr_cache);
-	ORANGEFS_I(inode)->mapping_time = jiffies - 1;
-	ORANGEFS_I(inode)->bitlock = 0;
+	ORANGEFS_I(ianalde)->refn.fs_id = ref->fs_id;
+	ORANGEFS_I(ianalde)->refn.khandle = ref->khandle;
+	ORANGEFS_I(ianalde)->attr_valid = 0;
+	hash_init(ORANGEFS_I(ianalde)->xattr_cache);
+	ORANGEFS_I(ianalde)->mapping_time = jiffies - 1;
+	ORANGEFS_I(ianalde)->bitlock = 0;
 	return 0;
 }
 
 /*
  * Called to determine if handles match.
  */
-static int orangefs_test_inode(struct inode *inode, void *data)
+static int orangefs_test_ianalde(struct ianalde *ianalde, void *data)
 {
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
-	struct orangefs_inode_s *orangefs_inode = NULL;
+	struct orangefs_ianalde_s *orangefs_ianalde = NULL;
 
-	orangefs_inode = ORANGEFS_I(inode);
+	orangefs_ianalde = ORANGEFS_I(ianalde);
 	/* test handles and fs_ids... */
-	return (!ORANGEFS_khandle_cmp(&(orangefs_inode->refn.khandle),
+	return (!ORANGEFS_khandle_cmp(&(orangefs_ianalde->refn.khandle),
 				&(ref->khandle)) &&
-			orangefs_inode->refn.fs_id == ref->fs_id);
+			orangefs_ianalde->refn.fs_id == ref->fs_id);
 }
 
 /*
- * Front-end to lookup the inode-cache maintained by the VFS using the ORANGEFS
+ * Front-end to lookup the ianalde-cache maintained by the VFS using the ORANGEFS
  * file handle.
  *
  * @sb: the file system super block instance.
- * @ref: The ORANGEFS object for which we are trying to locate an inode.
+ * @ref: The ORANGEFS object for which we are trying to locate an ianalde.
  */
-struct inode *orangefs_iget(struct super_block *sb,
+struct ianalde *orangefs_iget(struct super_block *sb,
 		struct orangefs_object_kref *ref)
 {
-	struct inode *inode = NULL;
+	struct ianalde *ianalde = NULL;
 	unsigned long hash;
 	int error;
 
 	hash = orangefs_handle_hash(ref);
-	inode = iget5_locked(sb,
+	ianalde = iget5_locked(sb,
 			hash,
-			orangefs_test_inode,
-			orangefs_set_inode,
+			orangefs_test_ianalde,
+			orangefs_set_ianalde,
 			ref);
 
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(ianalde->i_state & I_NEW))
+		return ianalde;
 
-	error = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
+	error = orangefs_ianalde_getattr(ianalde, ORANGEFS_GETATTR_NEW);
 	if (error) {
-		iget_failed(inode);
+		iget_failed(ianalde);
 		return ERR_PTR(error);
 	}
 
-	inode->i_ino = hash;	/* needed for stat etc */
-	orangefs_init_iops(inode);
-	unlock_new_inode(inode);
+	ianalde->i_ianal = hash;	/* needed for stat etc */
+	orangefs_init_iops(ianalde);
+	unlock_new_ianalde(ianalde);
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "iget handle %pU, fsid %d hash %ld i_ino %lu\n",
+	gossip_debug(GOSSIP_IANALDE_DEBUG,
+		     "iget handle %pU, fsid %d hash %ld i_ianal %lu\n",
 		     &ref->khandle,
 		     ref->fs_id,
 		     hash,
-		     inode->i_ino);
+		     ianalde->i_ianal);
 
-	return inode;
+	return ianalde;
 }
 
 /*
- * Allocate an inode for a newly created file and insert it into the inode hash.
+ * Allocate an ianalde for a newly created file and insert it into the ianalde hash.
  */
-struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
+struct ianalde *orangefs_new_ianalde(struct super_block *sb, struct ianalde *dir,
 		umode_t mode, dev_t dev, struct orangefs_object_kref *ref)
 {
 	struct posix_acl *acl = NULL, *default_acl = NULL;
 	unsigned long hash = orangefs_handle_hash(ref);
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int error;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "%s:(sb is %p | MAJOR(dev)=%u | MINOR(dev)=%u mode=%o)\n",
+	gossip_debug(GOSSIP_IANALDE_DEBUG,
+		     "%s:(sb is %p | MAJOR(dev)=%u | MIANALR(dev)=%u mode=%o)\n",
 		     __func__,
 		     sb,
 		     MAJOR(dev),
-		     MINOR(dev),
+		     MIANALR(dev),
 		     mode);
 
-	inode = new_inode(sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error)
 		goto out_iput;
 
-	orangefs_set_inode(inode, ref);
-	inode->i_ino = hash;	/* needed for stat etc */
+	orangefs_set_ianalde(ianalde, ref);
+	ianalde->i_ianal = hash;	/* needed for stat etc */
 
-	error = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
+	error = orangefs_ianalde_getattr(ianalde, ORANGEFS_GETATTR_NEW);
 	if (error)
 		goto out_iput;
 
-	orangefs_init_iops(inode);
-	inode->i_rdev = dev;
+	orangefs_init_iops(ianalde);
+	ianalde->i_rdev = dev;
 
 	if (default_acl) {
-		error = __orangefs_set_acl(inode, default_acl,
+		error = __orangefs_set_acl(ianalde, default_acl,
 					   ACL_TYPE_DEFAULT);
 		if (error)
 			goto out_iput;
 	}
 
 	if (acl) {
-		error = __orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		error = __orangefs_set_acl(ianalde, acl, ACL_TYPE_ACCESS);
 		if (error)
 			goto out_iput;
 	}
 
-	error = insert_inode_locked4(inode, hash, orangefs_test_inode, ref);
+	error = insert_ianalde_locked4(ianalde, hash, orangefs_test_ianalde, ref);
 	if (error < 0)
 		goto out_iput;
 
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "Initializing ACL's for inode %pU\n",
-		     get_khandle_from_ino(inode));
-	if (mode != inode->i_mode) {
+	gossip_debug(GOSSIP_IANALDE_DEBUG,
+		     "Initializing ACL's for ianalde %pU\n",
+		     get_khandle_from_ianal(ianalde));
+	if (mode != ianalde->i_mode) {
 		struct iattr iattr = {
 			.ia_mode = mode,
 			.ia_valid = ATTR_MODE,
 		};
-		inode->i_mode = mode;
-		__orangefs_setattr(inode, &iattr);
-		__posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		ianalde->i_mode = mode;
+		__orangefs_setattr(ianalde, &iattr);
+		__posix_acl_chmod(&acl, GFP_KERNEL, ianalde->i_mode);
 	}
 	posix_acl_release(acl);
 	posix_acl_release(default_acl);
-	return inode;
+	return ianalde;
 
 out_iput:
-	iput(inode);
+	iput(ianalde);
 	posix_acl_release(acl);
 	posix_acl_release(default_acl);
 	return ERR_PTR(error);

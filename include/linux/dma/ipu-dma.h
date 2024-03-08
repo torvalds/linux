@@ -30,7 +30,7 @@ enum ipu_channel {
 	IDMAC_IC_11 = 11,
 	IDMAC_IC_12 = 12,
 	IDMAC_IC_13 = 13,
-	IDMAC_SDC_0 = 14,	/* Background synchronous display data */
+	IDMAC_SDC_0 = 14,	/* Background synchroanalus display data */
 	IDMAC_SDC_1 = 15,	/* Foreground data (overlay) */
 	IDMAC_SDC_2 = 16,
 	IDMAC_SDC_3 = 17,
@@ -96,8 +96,8 @@ enum ipu_color_space {
  * Enumeration of IPU rotation modes
  */
 enum ipu_rotate_mode {
-	/* Note the enum values correspond to BAM value */
-	IPU_ROTATE_NONE = 0,
+	/* Analte the enum values correspond to BAM value */
+	IPU_ROTATE_ANALNE = 0,
 	IPU_ROTATE_VERT_FLIP = 1,
 	IPU_ROTATE_HORIZ_FLIP = 2,
 	IPU_ROTATE_180 = 3,

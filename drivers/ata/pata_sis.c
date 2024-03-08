@@ -55,7 +55,7 @@ static const struct sis_laptop sis_laptop[] = {
 	/* devid, subvendor, subdev */
 	{ 0x5513, 0x1043, 0x1107 },	/* ASUS A6K */
 	{ 0x5513, 0x1734, 0x105F },	/* FSC Amilo A1630 */
-	{ 0x5513, 0x1071, 0x8640 },	/* EasyNote K5305 */
+	{ 0x5513, 0x1071, 0x8640 },	/* EasyAnalte K5305 */
 	/* end marker */
 	{ 0, }
 };
@@ -85,7 +85,7 @@ static int sis_short_ata40(struct pci_dev *dev)
 
 static int sis_old_port_base(struct ata_device *adev)
 {
-	return 0x40 + (4 * adev->link->ap->port_no) + (2 * adev->devno);
+	return 0x40 + (4 * adev->link->ap->port_anal) + (2 * adev->devanal);
 }
 
 /**
@@ -103,12 +103,12 @@ static int sis_port_base(struct ata_device *adev)
 	int port = 0x40;
 	u32 reg54;
 
-	/* If bit 30 is set then the registers are mapped at 0x70 not 0x40 */
+	/* If bit 30 is set then the registers are mapped at 0x70 analt 0x40 */
 	pci_read_config_dword(pdev, 0x54, &reg54);
 	if (reg54 & 0x40000000)
 		port = 0x70;
 
-	return port + (8 * ap->port_no) + (4 * adev->devno);
+	return port + (8 * ap->port_anal) + (4 * adev->devanal);
 }
 
 /**
@@ -125,7 +125,7 @@ static int sis_133_cable_detect(struct ata_port *ap)
 	u16 tmp;
 
 	/* The top bit of this register is the cable detect bit */
-	pci_read_config_word(pdev, 0x50 + 2 * ap->port_no, &tmp);
+	pci_read_config_word(pdev, 0x50 + 2 * ap->port_anal, &tmp);
 	if ((tmp & 0x8000) && !sis_short_ata40(pdev))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -146,7 +146,7 @@ static int sis_66_cable_detect(struct ata_port *ap)
 
 	/* Older chips keep cable detect in bits 4/5 of reg 0x48 */
 	pci_read_config_byte(pdev, 0x48, &tmp);
-	tmp >>= ap->port_no;
+	tmp >>= ap->port_anal;
 	if ((tmp & 0x10) && !sis_short_ata40(pdev))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
@@ -171,11 +171,11 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (!pci_test_config_bits(pdev, &sis_enable_bits[ap->port_anal]))
+		return -EANALENT;
 
 	/* Clear the FIFO settings. We can't enable the FIFO until
-	   we know we are poking at a disk */
+	   we kanalw we are poking at a disk */
 	pci_write_config_byte(pdev, 0x4B, 0);
 	return ata_sff_prereset(link, deadline);
 }
@@ -187,7 +187,7 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
  *	@adev: Device
  *
  *	SIS chipsets implement prefetch/postwrite bits for each device
- *	on both channels. This functionality is not ATAPI compatible and
+ *	on both channels. This functionality is analt ATAPI compatible and
  *	must be configured according to the class of device present
  */
 
@@ -197,8 +197,8 @@ static void sis_set_fifo(struct ata_port *ap, struct ata_device *adev)
 	u8 fifoctrl;
 	u8 mask = 0x11;
 
-	mask <<= (2 * ap->port_no);
-	mask <<= adev->devno;
+	mask <<= (2 * ap->port_anal);
+	mask <<= adev->devanal;
 
 	/* This holds various bits including the FIFO control */
 	pci_read_config_byte(pdev, 0x4B, &fifoctrl);
@@ -220,7 +220,7 @@ static void sis_set_fifo(struct ata_port *ap, struct ata_device *adev)
  *	also early ATA100 devices.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_old_set_piomode (struct ata_port *ap, struct ata_device *adev)
@@ -257,7 +257,7 @@ static void sis_old_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	function handles PIO set up for ATA100 devices and early ATA133.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_100_set_piomode (struct ata_port *ap, struct ata_device *adev)
@@ -282,7 +282,7 @@ static void sis_100_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	function handles PIO set up for the later ATA133 devices.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_133_set_piomode (struct ata_port *ap, struct ata_device *adev)
@@ -330,7 +330,7 @@ static void sis_133_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	the old ide/pci driver.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_old_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -369,7 +369,7 @@ static void sis_old_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	the old ide/pci driver.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_66_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -408,7 +408,7 @@ static void sis_66_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	Handles UDMA66 and early UDMA100 devices.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_100_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -423,7 +423,7 @@ static void sis_100_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	pci_read_config_byte(pdev, drive_pci + 1, &timing);
 
 	if (adev->dma_mode < XFER_UDMA_0) {
-		/* NOT SUPPORTED YET: NEED DATA SHEET. DITTO IN OLD DRIVER */
+		/* ANALT SUPPORTED YET: NEED DATA SHEET. DITTO IN OLD DRIVER */
 	} else {
 		/* Bit 7 is UDMA on/off, bit 0-3 are cycle time */
 		speed = adev->dma_mode - XFER_UDMA_0;
@@ -442,7 +442,7 @@ static void sis_100_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	Handles early SiS 961 bridges.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_133_early_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -457,7 +457,7 @@ static void sis_133_early_set_dmamode (struct ata_port *ap, struct ata_device *a
 	pci_read_config_byte(pdev, drive_pci + 1, &timing);
 
 	if (adev->dma_mode < XFER_UDMA_0) {
-		/* NOT SUPPORTED YET: NEED DATA SHEET. DITTO IN OLD DRIVER */
+		/* ANALT SUPPORTED YET: NEED DATA SHEET. DITTO IN OLD DRIVER */
 	} else {
 		/* Bit 7 is UDMA on/off, bit 0-3 are cycle time */
 		speed = adev->dma_mode - XFER_UDMA_0;
@@ -475,7 +475,7 @@ static void sis_133_early_set_dmamode (struct ata_port *ap, struct ata_device *a
  *	Set UDMA/MWDMA mode for device, in host controller PCI config space.
  *
  *	LOCKING:
- *	None (inherited from caller).
+ *	Analne (inherited from caller).
  */
 
 static void sis_133_set_dmamode (struct ata_port *ap, struct ata_device *adev)
@@ -522,7 +522,7 @@ static void sis_133_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	@adev: ATA device
  *	@mask: received mask to manipulate and pass back
  *
- *	Block UDMA6 on devices that do not support it.
+ *	Block UDMA6 on devices that do analt support it.
  */
 
 static unsigned int sis_133_mode_filter(struct ata_device *adev, unsigned int mask)
@@ -595,7 +595,7 @@ static const struct ata_port_info sis_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
-	/* No UDMA */
+	/* Anal UDMA */
 	.port_ops	= &sis_old_ops,
 };
 static const struct ata_port_info sis_info33 = {
@@ -608,21 +608,21 @@ static const struct ata_port_info sis_info33 = {
 static const struct ata_port_info sis_info66 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA4,
 	.port_ops	= &sis_66_ops,
 };
 static const struct ata_port_info sis_info100 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA5,
 	.port_ops	= &sis_100_ops,
 };
 static const struct ata_port_info sis_info100_early = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA5,
 	.port_ops	= &sis_66_ops,
 };
@@ -636,19 +636,19 @@ static const struct ata_port_info sis_info133 = {
 const struct ata_port_info sis_info133_for_sata = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_for_sata_ops,
 };
 static const struct ata_port_info sis_info133_early = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_early_ops,
 };
 
-/* Privately shared with the SiS180 SATA driver, not for use elsewhere */
+/* Privately shared with the SiS180 SATA driver, analt for use elsewhere */
 EXPORT_SYMBOL_GPL(sis_info133_for_sata);
 
 static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
@@ -717,7 +717,7 @@ static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -859,9 +859,9 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	pci_dev_put(host);
 
-	/* No chipset info, no support */
+	/* Anal chipset info, anal support */
 	if (chipset == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ppi[0] = chipset->info;
 

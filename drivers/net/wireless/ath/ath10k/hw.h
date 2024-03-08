@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _HW_H_
@@ -16,7 +16,7 @@ enum ath10k_bus {
 	ATH10K_BUS_AHB,
 	ATH10K_BUS_SDIO,
 	ATH10K_BUS_USB,
-	ATH10K_BUS_SNOC,
+	ATH10K_BUS_SANALC,
 };
 
 #define ATH10K_FW_DIR			"ath10k"
@@ -412,7 +412,7 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 #define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 
-/* Known peculiarities:
+/* Kanalwn peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
  *  - raw have FCS, nwifi doesn't
  *  - ethernet frames have 802.11 header decapped and parts (base hdr, cipher
@@ -488,7 +488,7 @@ enum ath10k_hw_cc_wraparound_type {
 };
 
 enum ath10k_hw_refclk_speed {
-	ATH10K_HW_REFCLK_UNKNOWN = -1,
+	ATH10K_HW_REFCLK_UNKANALWN = -1,
 	ATH10K_HW_REFCLK_48_MHZ = 0,
 	ATH10K_HW_REFCLK_19_2_MHZ = 1,
 	ATH10K_HW_REFCLK_24_MHZ = 2,
@@ -777,7 +777,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 /* Target specific defines for QCA9377 high latency firmware */
 #define TARGET_QCA9377_HL_NUM_PEERS		15
 
-/* Diagnostic Window */
+/* Diaganalstic Window */
 #define CE_DIAG_PIPE	7
 
 #define NUM_TARGET_CE_CONFIG_WLAN ar->hw_values->num_target_ce_config_wlan
@@ -812,7 +812,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define TARGET_10_4_ROAM_OFFLOAD_MAX_VDEV	3
 #define TARGET_10_4_ROAM_OFFLOAD_MAX_PROFILES   8
 
-/* Note: mcast to ucast is disabled by default */
+/* Analte: mcast to ucast is disabled by default */
 #define TARGET_10_4_NUM_MCAST_GROUPS		0
 #define TARGET_10_4_NUM_MCAST_TABLE_ELEMS	0
 #define TARGET_10_4_MCAST2UCAST_MODE		0
@@ -852,7 +852,7 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
  * Granted MSIs are assigned as follows:
  * Firmware uses the first
  * Remaining MSIs, if any, are used by Copy Engines
- * This mapping is known to both Target firmware and Host software.
+ * This mapping is kanalwn to both Target firmware and Host software.
  * It may be changed as long as Host and Target are kept in sync.
  */
 /* MSI for firmware (errors, etc.) */
@@ -1188,8 +1188,8 @@ ath10k_is_rssi_enable(struct ath10k_hw_params *hw,
 #define WLAN_PLL_CONTROL_REFDIV_MASK		0x00003c00
 #define WLAN_PLL_CONTROL_BYPASS_LSB		16
 #define WLAN_PLL_CONTROL_BYPASS_MASK		0x00010000
-#define WLAN_PLL_CONTROL_NOPWD_LSB		18
-#define WLAN_PLL_CONTROL_NOPWD_MASK		0x00040000
+#define WLAN_PLL_CONTROL_ANALPWD_LSB		18
+#define WLAN_PLL_CONTROL_ANALPWD_MASK		0x00040000
 
 #define RTC_SYNC_STATUS_OFFSET			0x0244
 #define RTC_SYNC_STATUS_PLL_CHANGING_LSB	5

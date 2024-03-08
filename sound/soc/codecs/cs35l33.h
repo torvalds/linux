@@ -33,9 +33,9 @@
 #define CS35L33_INT_MASK_2	0x14	/* Interrupt Mask 2 */
 #define CS35L33_INT_STATUS_1	0x15	/* Interrupt Status 1 [RO] */
 #define CS35L33_INT_STATUS_2	0x16	/* Interrupt Status 2 [RO] */
-#define CS35L33_DIAG_LOCK	0x17	/* Diagnostic Mode Register Lock */
-#define CS35L33_DIAG_CTRL_1	0x18	/* Diagnostic Mode Register Control */
-#define CS35L33_DIAG_CTRL_2	0x19	/* Diagnostic Mode Register Control 2 */
+#define CS35L33_DIAG_LOCK	0x17	/* Diaganalstic Mode Register Lock */
+#define CS35L33_DIAG_CTRL_1	0x18	/* Diaganalstic Mode Register Control */
+#define CS35L33_DIAG_CTRL_2	0x19	/* Diaganalstic Mode Register Control 2 */
 #define CS35L33_HG_MEMLDO_CTL	0x23	/* H/G Memory/LDO CTL */
 #define CS35L33_HG_REL_RATE	0x24	/* H/G Release Rate */
 #define CS35L33_LDO_DEL		0x25	/* LDO Entry Delay/VPhg Control 1 */
@@ -114,12 +114,12 @@
 /* CS35L33_ADC_CTL */
 #define CS35L33_INV_VMON		(1 << 7)
 #define CS35L33_INV_IMON		(1 << 6)
-#define CS35L33_ADC_NOTCH_DIS		(1 << 5)
+#define CS35L33_ADC_ANALTCH_DIS		(1 << 5)
 #define CS35L33_IMON_SCALE		0xF
 
 /* CS35L33_DAC_CTL */
 #define CS35L33_INV_DAC			(1 << 7)
-#define CS35L33_DAC_NOTCH_DIS		(1 << 5)
+#define CS35L33_DAC_ANALTCH_DIS		(1 << 5)
 #define CS35L33_DIGSFT			(1 << 4)
 #define CS35L33_DSR_RATE		0xF
 

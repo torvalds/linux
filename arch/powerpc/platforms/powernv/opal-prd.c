@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * OPAL Runtime Diagnostics interface driver
+ * OPAL Runtime Diaganalstics interface driver
  * Supported on POWERNV platform
  *
  * Copyright IBM Corporation 2015
@@ -40,7 +40,7 @@ struct opal_prd_msg_queue_item {
 	struct opal_prd_msg	msg;
 };
 
-static struct device_node *prd_node;
+static struct device_analde *prd_analde;
 static LIST_HEAD(opal_prd_msg_queue);
 static DEFINE_SPINLOCK(opal_prd_msg_queue_lock);
 static DECLARE_WAIT_QUEUE_HEAD(opal_prd_msg_wait);
@@ -48,31 +48,31 @@ static atomic_t prd_usage;
 
 static bool opal_prd_range_is_valid(uint64_t addr, uint64_t size)
 {
-	struct device_node *parent, *node;
+	struct device_analde *parent, *analde;
 	bool found;
 
 	if (addr + size < addr)
 		return false;
 
-	parent = of_find_node_by_path("/reserved-memory");
+	parent = of_find_analde_by_path("/reserved-memory");
 	if (!parent)
 		return false;
 
 	found = false;
 
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_analde(parent, analde) {
 		uint64_t range_addr, range_size, range_end;
 		const __be32 *addrp;
 		const char *label;
 
-		addrp = of_get_address(node, 0, &range_size, NULL);
+		addrp = of_get_address(analde, 0, &range_size, NULL);
 		if (!addrp)
 			continue;
 
 		range_addr = of_read_number(addrp, 2);
 		range_end = range_addr + range_size;
 
-		label = of_get_property(node, "ibm,prd-label", NULL);
+		label = of_get_property(analde, "ibm,prd-label", NULL);
 
 		/* PRD ranges need a label */
 		if (!label)
@@ -83,16 +83,16 @@ static bool opal_prd_range_is_valid(uint64_t addr, uint64_t size)
 
 		if (addr >= range_addr && addr + size <= range_end) {
 			found = true;
-			of_node_put(node);
+			of_analde_put(analde);
 			break;
 		}
 	}
 
-	of_node_put(parent);
+	of_analde_put(parent);
 	return found;
 }
 
-static int opal_prd_open(struct inode *inode, struct file *file)
+static int opal_prd_open(struct ianalde *ianalde, struct file *file)
 {
 	/*
 	 * Prevent multiple (separate) processes from concurrent interactions
@@ -151,7 +151,7 @@ static __poll_t opal_prd_poll(struct file *file,
 	poll_wait(file, &opal_prd_msg_wait, wait);
 
 	if (!opal_msg_queue_empty())
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
 	return 0;
 }
@@ -186,7 +186,7 @@ static ssize_t opal_prd_read(struct file *file, char __user *buf,
 		if (item)
 			break;
 
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EAGAIN;
 
 		rc = wait_event_interruptible(opal_prd_msg_wait,
@@ -254,7 +254,7 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 	return size;
 }
 
-static int opal_prd_release(struct inode *inode, struct file *file)
+static int opal_prd_release(struct ianalde *ianalde, struct file *file)
 {
 	struct opal_prd_msg msg;
 
@@ -333,13 +333,13 @@ static const struct file_operations opal_prd_fops = {
 };
 
 static struct miscdevice opal_prd_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.mianalr		= MISC_DYNAMIC_MIANALR,
 	.name		= "opal-prd",
 	.fops		= &opal_prd_fops,
 };
 
 /* opal interface */
-static int opal_prd_msg_notifier(struct notifier_block *nb,
+static int opal_prd_msg_analtifier(struct analtifier_block *nb,
 		unsigned long msg_type, void *_msg)
 {
 	struct opal_prd_msg_queue_item *item;
@@ -359,7 +359,7 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 
 	item = kzalloc(item_size, GFP_ATOMIC);
 	if (!item)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&item->msg.data, msg->params, msg_size);
 
@@ -372,14 +372,14 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block opal_prd_event_nb = {
-	.notifier_call	= opal_prd_msg_notifier,
+static struct analtifier_block opal_prd_event_nb = {
+	.analtifier_call	= opal_prd_msg_analtifier,
 	.next		= NULL,
 	.priority	= 0,
 };
 
-static struct notifier_block opal_prd_event_nb2 = {
-	.notifier_call	= opal_prd_msg_notifier,
+static struct analtifier_block opal_prd_event_nb2 = {
+	.analtifier_call	= opal_prd_msg_analtifier,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -388,36 +388,36 @@ static int opal_prd_probe(struct platform_device *pdev)
 {
 	int rc;
 
-	if (!pdev || !pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev || !pdev->dev.of_analde)
+		return -EANALDEV;
 
 	/* We should only have one prd driver instance per machine; ensure
-	 * that we only get a valid probe on a single OF node.
+	 * that we only get a valid probe on a single OF analde.
 	 */
-	if (prd_node)
+	if (prd_analde)
 		return -EBUSY;
 
-	prd_node = pdev->dev.of_node;
+	prd_analde = pdev->dev.of_analde;
 
-	rc = opal_message_notifier_register(OPAL_MSG_PRD, &opal_prd_event_nb);
+	rc = opal_message_analtifier_register(OPAL_MSG_PRD, &opal_prd_event_nb);
 	if (rc) {
-		pr_err("Couldn't register event notifier\n");
+		pr_err("Couldn't register event analtifier\n");
 		return rc;
 	}
 
-	rc = opal_message_notifier_register(OPAL_MSG_PRD2, &opal_prd_event_nb2);
+	rc = opal_message_analtifier_register(OPAL_MSG_PRD2, &opal_prd_event_nb2);
 	if (rc) {
-		pr_err("Couldn't register PRD2 event notifier\n");
-		opal_message_notifier_unregister(OPAL_MSG_PRD, &opal_prd_event_nb);
+		pr_err("Couldn't register PRD2 event analtifier\n");
+		opal_message_analtifier_unregister(OPAL_MSG_PRD, &opal_prd_event_nb);
 		return rc;
 	}
 
 	rc = misc_register(&opal_prd_dev);
 	if (rc) {
 		pr_err("failed to register miscdev\n");
-		opal_message_notifier_unregister(OPAL_MSG_PRD,
+		opal_message_analtifier_unregister(OPAL_MSG_PRD,
 				&opal_prd_event_nb);
-		opal_message_notifier_unregister(OPAL_MSG_PRD2,
+		opal_message_analtifier_unregister(OPAL_MSG_PRD2,
 				&opal_prd_event_nb2);
 		return rc;
 	}
@@ -428,8 +428,8 @@ static int opal_prd_probe(struct platform_device *pdev)
 static int opal_prd_remove(struct platform_device *pdev)
 {
 	misc_deregister(&opal_prd_dev);
-	opal_message_notifier_unregister(OPAL_MSG_PRD, &opal_prd_event_nb);
-	opal_message_notifier_unregister(OPAL_MSG_PRD2, &opal_prd_event_nb2);
+	opal_message_analtifier_unregister(OPAL_MSG_PRD, &opal_prd_event_nb);
+	opal_message_analtifier_unregister(OPAL_MSG_PRD2, &opal_prd_event_nb2);
 	return 0;
 }
 
@@ -450,5 +450,5 @@ static struct platform_driver opal_prd_driver = {
 module_platform_driver(opal_prd_driver);
 
 MODULE_DEVICE_TABLE(of, opal_prd_match);
-MODULE_DESCRIPTION("PowerNV OPAL runtime diagnostic driver");
+MODULE_DESCRIPTION("PowerNV OPAL runtime diaganalstic driver");
 MODULE_LICENSE("GPL");

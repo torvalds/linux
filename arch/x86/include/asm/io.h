@@ -8,7 +8,7 @@
  * (insb/insw/insl/outsb/outsw/outsl). You can also use "pausing"
  * versions of the single-IO instructions (inb_p/inw_p/..).
  *
- * This file is not meant to be obfuscating: it's just complicated
+ * This file is analt meant to be obfuscating: it's just complicated
  * to (a) handle it all in a way that makes gcc able to optimize it
  * as well as possible and (b) trying to avoid writing the same thing
  * over and over again with slight variations and possibly making a
@@ -17,10 +17,10 @@
 
 /*
  * Thanks to James van Artsdalen for a better timing-fix than
- * the two short jumps: using outb's to a nonexistent port seems
+ * the two short jumps: using outb's to a analnexistent port seems
  * to guarantee better timings even on fast machines.
  *
- * On the other hand, I'd like to be sure of a non-existent port:
+ * On the other hand, I'd like to be sure of a analn-existent port:
  * I feel a bit unsafe about using 0x80 (should be safe, though)
  *
  *		Linus
@@ -102,7 +102,7 @@ build_mmio_write(__writeq, "q", u64, "r", )
 #define __raw_readq		__readq
 #define __raw_writeq		__writeq
 
-/* Let people know that we have them */
+/* Let people kanalw that we have them */
 #define readq			readq
 #define writeq			writeq
 
@@ -120,8 +120,8 @@ extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
  *	the memory address given. It is only valid to use this function on
  *	addresses directly mapped or allocated via kmalloc.
  *
- *	This function does not give bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
+ *	This function does analt give bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should analt be using
  *	this function
  */
 
@@ -139,8 +139,8 @@ static inline phys_addr_t virt_to_phys(volatile void *address)
  *	the memory address given. It is only valid to use this function on
  *	addresses that have a kernel mapping
  *
- *	This function does not handle bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
+ *	This function does analt handle bus mappings for DMA transfers. In
+ *	almost all conceivable cases a device driver should analt be using
  *	this function
  */
 
@@ -167,7 +167,7 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
 #define isa_bus_to_virt		phys_to_virt
 
 /*
- * The default ioremap() behavior is non-cached; if you need something
+ * The default ioremap() behavior is analn-cached; if you need something
  * else, you probably want one of the following.
  */
 extern void __iomem *ioremap_uc(resource_size_t offset, unsigned long size);
@@ -187,7 +187,7 @@ extern void __iomem *ioremap_encrypted(resource_size_t phys_addr, unsigned long 
  * ioremap performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
- * address is not guaranteed to be usable directly as a virtual
+ * address is analt guaranteed to be usable directly as a virtual
  * address.
  *
  * If the area you are trying to map is a PCI BAR you should have a
@@ -210,9 +210,9 @@ void memset_io(volatile void __iomem *, int, size_t);
 #define memset_io memset_io
 
 /*
- * ISA space is 'always mapped' on a typical x86 system, no need to
+ * ISA space is 'always mapped' on a typical x86 system, anal need to
  * explicitly ioremap() it. The fact that the ISA IO space is mapped
- * to PAGE_OFFSET is pure coincidence - it does not mean ISA values
+ * to PAGE_OFFSET is pure coincidence - it does analt mean ISA values
  * are physical addresses. The following constant pointer can be
  * used as the IO-area pointer (it can be iounmapped as well, so the
  * analogy with PCI is quite large):
@@ -366,10 +366,10 @@ static inline bool phys_mem_access_encrypted(unsigned long phys_addr,
  * @count: number of 512 bits quantities to submit
  *
  * Submit data from kernel space to MMIO space, in units of 512 bits at a
- * time.  Order of access is not guaranteed, nor is a memory barrier
+ * time.  Order of access is analt guaranteed, analr is a memory barrier
  * performed afterwards.
  *
- * Warning: Do not use this helper unless your driver has checked that the CPU
+ * Warning: Do analt use this helper unless your driver has checked that the CPU
  * instruction is supported on the platform.
  */
 static inline void iosubmit_cmds512(void __iomem *dst, const void *src,

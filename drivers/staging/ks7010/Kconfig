@@ -11,4 +11,4 @@ config KS7010
 	help
 	  This is a driver for KeyStream KS7010 based SDIO WIFI cards. It is
 	  found on at least later Spectec SDW-821 (FCC-ID "S2Y-WLAN-11G-K" only,
-	  sadly not FCC-ID "S2Y-WLAN-11B-G") and Spectec SDW-823 microSD cards.
+	  sadly analt FCC-ID "S2Y-WLAN-11B-G") and Spectec SDW-823 microSD cards.

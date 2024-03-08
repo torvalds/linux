@@ -46,7 +46,7 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 	if (priv->reg_vbus && enable != priv->enabled) {
 		if (port > 1) {
 			dev_warn(dev,
-				"Not support multi-port regulator control\n");
+				"Analt support multi-port regulator control\n");
 			return 0;
 		}
 		if (enable)
@@ -93,8 +93,8 @@ static int ehci_ci_reset(struct usb_hcd *hcd)
 
 	ehci->need_io_watchdog = 0;
 
-	if (ci->platdata->notify_event) {
-		ret = ci->platdata->notify_event(ci,
+	if (ci->platdata->analtify_event) {
+		ret = ci->platdata->analtify_event(ci,
 				CI_HDRC_CONTROLLER_RESET_EVENT);
 		if (ret)
 			return ret;
@@ -124,12 +124,12 @@ static int host_start(struct ci_hdrc *ci)
 	int ret;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	hcd = __usb_create_hcd(&ci_ehci_hc_driver, ci->dev->parent,
 			       ci->dev, dev_name(ci->dev), NULL);
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(ci->dev, ci);
 	hcd->rsrc_start = ci->hw_bank.phys;
@@ -187,9 +187,9 @@ static int host_start(struct ci_hdrc *ci)
 			hcd->self.otg_port = 1;
 		}
 
-		if (ci->platdata->notify_event &&
+		if (ci->platdata->analtify_event &&
 			(ci->platdata->flags & CI_HDRC_IMX_IS_HSIC))
-			ci->platdata->notify_event
+			ci->platdata->analtify_event
 				(ci, CI_HDRC_IMX_HSIC_ACTIVE_EVENT);
 	}
 
@@ -210,8 +210,8 @@ static void host_stop(struct ci_hdrc *ci)
 	struct usb_hcd *hcd = ci->hcd;
 
 	if (hcd) {
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->analtify_event)
+			ci->platdata->analtify_event(ci,
 				CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		usb_remove_hcd(hcd);
 		ci->role = CI_ROLE_END;
@@ -294,8 +294,8 @@ static int ci_ehci_hub_control(
 			ehci_err(ehci, "timeout waiting for SUSPEND\n");
 
 		if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC) {
-			if (ci->platdata->notify_event)
-				ci->platdata->notify_event(ci,
+			if (ci->platdata->analtify_event)
+				ci->platdata->analtify_event(ci,
 					CI_HDRC_IMX_HSIC_SUSPEND_EVENT);
 
 			temp = ehci_readl(ehci, status_reg);
@@ -348,9 +348,9 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 			/*
 			 * For chipidea, the resume signal will be ended
 			 * automatically, so for remote wakeup case, the
-			 * usbcmd.rs may not be set before the resume has
+			 * usbcmd.rs may analt be set before the resume has
 			 * ended if other resume paths consumes too much
-			 * time (~24ms), in that case, the SOF will not
+			 * time (~24ms), in that case, the SOF will analt
 			 * send out within 3ms after resume ends, then the
 			 * high speed device will enter full speed mode.
 			 */
@@ -417,7 +417,7 @@ static int ci_hdrc_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 
 	temp = kmalloc(sizeof(*temp) + ALIGN(urb->transfer_buffer_length, 4), mem_flags);
 	if (!temp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (usb_urb_dir_out(urb))
 		memcpy(temp->data, urb->transfer_buffer,
@@ -473,7 +473,7 @@ int ci_hdrc_host_init(struct ci_hdrc *ci)
 
 	rdrv = devm_kzalloc(ci->dev, sizeof(struct ci_role_driver), GFP_KERNEL);
 	if (!rdrv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdrv->start	= host_start;
 	rdrv->stop	= host_stop;

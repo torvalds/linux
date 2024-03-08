@@ -10,9 +10,9 @@
 #include "pm8150l.dtsi"
 #include "pm8009.dtsi"
 
-/delete-node/ &adsp_mem;
-/delete-node/ &spss_mem;
-/delete-node/ &cdsp_secure_heap;
+/delete-analde/ &adsp_mem;
+/delete-analde/ &spss_mem;
+/delete-analde/ &cdsp_secure_heap;
 
 / {
 	qcom,msm-id = <356 0x20001>; /* SM8250 v2.1 */
@@ -31,14 +31,14 @@
 		framebuffer: framebuffer@9c000000 {
 			compatible = "simple-framebuffer";
 			reg = <0 0x9c000000 0 0x2300000>;
-			/* pdx203 BL initializes in 2.5k mode, not 4k */
+			/* pdx203 BL initializes in 2.5k mode, analt 4k */
 			width = <1096>;
 			height = <2560>;
 			stride = <(1096 * 4)>;
 			format = "a8r8g8b8";
 			/*
 			 * That's a lot of clocks, but it's necessary due
-			 * to unused clk cleanup & no panel driver yet..
+			 * to unused clk cleanup & anal panel driver yet..
 			 */
 			clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
 				 <&gcc GCC_DISP_HF_AXI_CLK>,
@@ -108,22 +108,22 @@
 	reserved-memory {
 		adsp_mem: memory@8a100000 {
 			reg = <0x0 0x8a100000 0x0 0x2500000>;
-			no-map;
+			anal-map;
 		};
 
 		spss_mem: memory@8c600000 {
 			reg = <0x0 0x8c600000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		cdsp_secure_heap: memory@8c700000 {
 			reg = <0x0 0x8c700000 0x0 0x4600000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: memory@9c000000 {
 			reg = <0x0 0x9c000000 0x0 0x2300000>;
-			no-map;
+			anal-map;
 		};
 
 		ramoops@ffc00000 {
@@ -133,7 +133,7 @@
 			console-size = <0x40000>;
 			pmsg-size = <0x20000>;
 			ecc-size = <16>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -262,7 +262,7 @@
 	};
 
 	/*
-	 * Remaining regulators that are not yet supported:
+	 * Remaining regulators that are analt yet supported:
 	 * OLEDB: 4925000-8100000
 	 * ab: 4600000-6100000
 	 * ibb: 800000-5400000
@@ -481,7 +481,7 @@
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,gpio2-src-select = <2>;
@@ -496,7 +496,7 @@
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
 		cirrus,boost-peak-milliamp = <4000>;
-		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-ind-naanalhenry = <1000>;
 		cirrus,boost-cap-microfarad = <15>;
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,gpio2-src-select = <2>;
@@ -566,7 +566,7 @@
 &pm8150_gpios {
 	vol_down_n: vol-down-n-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -576,7 +576,7 @@
 &pm8150b_gpios {
 	snapshot_n: snapshot-n-state {
 		pins = "gpio1";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -584,7 +584,7 @@
 
 	focus_n: focus-n-state {
 		pins = "gpio2";
-		function = "normal";
+		function = "analrmal";
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
@@ -623,8 +623,8 @@
 	vmmc-supply = <&vreg_l9c_2p9>;
 	vqmmc-supply = <&vreg_l6c_2p9>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 };
 
 &slpi {
@@ -687,7 +687,7 @@
 	status = "okay";
 };
 
-/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
+/* BIG WARNING! DO ANALT TOUCH UFS, YOUR DEVICE WILL DIE! */
 &ufs_mem_hc { status = "disabled"; };
 &ufs_mem_phy { status = "disabled"; };
 

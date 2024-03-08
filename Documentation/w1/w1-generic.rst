@@ -31,7 +31,7 @@ When a w1 master driver registers with the w1 subsystem, the following occurs:
 
 When a device is found on the bus, w1 core tries to load the driver for its family
 and check if it is loaded. If so, the family driver is attached to the slave.
-If there is no driver for the family, default one is assigned, which allows to perform
+If there is anal driver for the family, default one is assigned, which allows to perform
 almost any kind of operations. Each logical operation is a transaction
 in nature, which can contain several (two or one) low-level operations.
 Let's see how one can read EEPROM context:
@@ -43,7 +43,7 @@ Then provided control buffer is being written to the wire.
 
 It is possible that between 1. and 2. w1 master thread will reset bus for searching
 and slave device will be even removed, but in this case 0xff will
-be read, since no device was selected.
+be read, since anal device was selected.
 
 
 W1 device families
@@ -128,6 +128,6 @@ driver              (standard) symlink to the w1 driver
 name                the device name, usually the same as the directory name
 w1_slave            (optional) a binary file whose meaning depends on the
                     family driver
-rw		    (optional) created for slave devices which do not have
+rw		    (optional) created for slave devices which do analt have
 		    appropriate family driver. Allows to read/write binary data.
 =================== ============================================================

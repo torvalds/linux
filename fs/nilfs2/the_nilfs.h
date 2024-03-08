@@ -51,27 +51,27 @@ enum {
  * @ns_segnum: index number of the latest full segment.
  * @ns_nextnum: index number of the full segment index to be used next
  * @ns_pseg_offset: offset of next partial segment in the current full segment
- * @ns_cno: next checkpoint number
+ * @ns_canal: next checkpoint number
  * @ns_ctime: write time of the last segment
- * @ns_nongc_ctime: write time of the last segment not for cleaner operation
+ * @ns_analngc_ctime: write time of the last segment analt for cleaner operation
  * @ns_ndirtyblks: Number of dirty data blocks
  * @ns_last_segment_lock: lock protecting fields for the latest segment
  * @ns_last_pseg: start block number of the latest segment
  * @ns_last_seq: sequence value of the latest segment
- * @ns_last_cno: checkpoint number of the latest segment
- * @ns_prot_seq: least sequence number of segments which must not be reclaimed
+ * @ns_last_canal: checkpoint number of the latest segment
+ * @ns_prot_seq: least sequence number of segments which must analt be reclaimed
  * @ns_prev_seq: base sequence number used to decide if advance log cursor
  * @ns_writer: log writer
  * @ns_segctor_sem: semaphore protecting log write
- * @ns_dat: DAT file inode
- * @ns_cpfile: checkpoint file inode
- * @ns_sufile: segusage file inode
+ * @ns_dat: DAT file ianalde
+ * @ns_cpfile: checkpoint file ianalde
+ * @ns_sufile: segusage file ianalde
  * @ns_cptree: rb-tree of all mounted checkpoints (nilfs_root)
  * @ns_cptree_lock: lock protecting @ns_cptree
  * @ns_dirty_files: list of dirty files
- * @ns_inode_lock: lock protecting @ns_dirty_files
- * @ns_gc_inodes: dummy inodes to keep live blocks
- * @ns_next_generation: next generation number for inodes
+ * @ns_ianalde_lock: lock protecting @ns_dirty_files
+ * @ns_gc_ianaldes: dummy ianaldes to keep live blocks
+ * @ns_next_generation: next generation number for ianaldes
  * @ns_next_gen_lock: lock protecting @ns_next_generation
  * @ns_mount_opt: mount options
  * @ns_resuid: uid for reserved blocks
@@ -85,8 +85,8 @@ enum {
  * @ns_r_segments_percentage: reserved segments percentage
  * @ns_nrsvsegs: number of reserved segments
  * @ns_first_data_block: block number of first data block
- * @ns_inode_size: size of on-disk inode
- * @ns_first_ino: first not-special inode number
+ * @ns_ianalde_size: size of on-disk ianalde
+ * @ns_first_ianal: first analt-special ianalde number
  * @ns_crc_seed: seed value of CRC32 calculation
  * @ns_dev_kobj: /sys/fs/<nilfs>/<device>
  * @ns_dev_kobj_unregister: completion state
@@ -122,9 +122,9 @@ struct the_nilfs {
 	__u64			ns_segnum;
 	__u64			ns_nextnum;
 	unsigned long		ns_pseg_offset;
-	__u64			ns_cno;
+	__u64			ns_canal;
 	time64_t		ns_ctime;
-	time64_t		ns_nongc_ctime;
+	time64_t		ns_analngc_ctime;
 	atomic_t		ns_ndirtyblks;
 
 	/*
@@ -135,7 +135,7 @@ struct the_nilfs {
 	spinlock_t		ns_last_segment_lock;
 	sector_t		ns_last_pseg;
 	u64			ns_last_seq;
-	__u64			ns_last_cno;
+	__u64			ns_last_canal;
 	u64			ns_prot_seq;
 	u64			ns_prev_seq;
 
@@ -146,22 +146,22 @@ struct the_nilfs {
 	 * Following fields are lock free except for the period before
 	 * the_nilfs is initialized.
 	 */
-	struct inode	       *ns_dat;
-	struct inode	       *ns_cpfile;
-	struct inode	       *ns_sufile;
+	struct ianalde	       *ns_dat;
+	struct ianalde	       *ns_cpfile;
+	struct ianalde	       *ns_sufile;
 
 	/* Checkpoint tree */
 	struct rb_root		ns_cptree;
 	spinlock_t		ns_cptree_lock;
 
-	/* Dirty inode list */
+	/* Dirty ianalde list */
 	struct list_head	ns_dirty_files;
-	spinlock_t		ns_inode_lock;
+	spinlock_t		ns_ianalde_lock;
 
-	/* GC inode list */
-	struct list_head	ns_gc_inodes;
+	/* GC ianalde list */
+	struct list_head	ns_gc_ianaldes;
 
-	/* Inode allocator */
+	/* Ianalde allocator */
 	u32			ns_next_generation;
 	spinlock_t		ns_next_gen_lock;
 
@@ -181,8 +181,8 @@ struct the_nilfs {
 	unsigned long		ns_r_segments_percentage;
 	unsigned long		ns_nrsvsegs;
 	unsigned long		ns_first_data_block;
-	int			ns_inode_size;
-	int			ns_first_ino;
+	int			ns_ianalde_size;
+	int			ns_first_ianal;
 	u32			ns_crc_seed;
 
 	/* /sys/fs/<nilfs>/<device> */
@@ -226,25 +226,25 @@ THE_NILFS_FNS(PURGING, purging)
 
 /**
  * struct nilfs_root - nilfs root object
- * @cno: checkpoint number
- * @rb_node: red-black tree node
+ * @canal: checkpoint number
+ * @rb_analde: red-black tree analde
  * @count: refcount of this structure
  * @nilfs: nilfs object
- * @ifile: inode file
- * @inodes_count: number of inodes
+ * @ifile: ianalde file
+ * @ianaldes_count: number of ianaldes
  * @blocks_count: number of blocks
  * @snapshot_kobj: /sys/fs/<nilfs>/<device>/mounted_snapshots/<snapshot>
  * @snapshot_kobj_unregister: completion state for kernel object
  */
 struct nilfs_root {
-	__u64 cno;
-	struct rb_node rb_node;
+	__u64 canal;
+	struct rb_analde rb_analde;
 
 	refcount_t count;
 	struct the_nilfs *nilfs;
-	struct inode *ifile;
+	struct ianalde *ifile;
 
-	atomic64_t inodes_count;
+	atomic64_t ianaldes_count;
 	atomic64_t blocks_count;
 
 	/* /sys/fs/<nilfs>/<device>/mounted_snapshots/<snapshot> */
@@ -253,7 +253,7 @@ struct nilfs_root {
 };
 
 /* Special checkpoint number */
-#define NILFS_CPTREE_CURRENT_CNO	0
+#define NILFS_CPTREE_CURRENT_CANAL	0
 
 /* Minimum interval of periodical update of superblocks (in seconds) */
 #define NILFS_SB_FREQ		10
@@ -282,9 +282,9 @@ unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs);
 void nilfs_set_nsegments(struct the_nilfs *nilfs, unsigned long nsegs);
 int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
-struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno);
+struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 canal);
 struct nilfs_root *nilfs_find_or_create_root(struct the_nilfs *nilfs,
-					     __u64 cno);
+					     __u64 canal);
 void nilfs_put_root(struct nilfs_root *root);
 int nilfs_near_disk_full(struct the_nilfs *);
 void nilfs_fall_back_super_block(struct the_nilfs *);
@@ -348,14 +348,14 @@ static inline void nilfs_shift_to_next_segment(struct the_nilfs *nilfs)
 	nilfs->ns_seg_seq++;
 }
 
-static inline __u64 nilfs_last_cno(struct the_nilfs *nilfs)
+static inline __u64 nilfs_last_canal(struct the_nilfs *nilfs)
 {
-	__u64 cno;
+	__u64 canal;
 
 	spin_lock(&nilfs->ns_last_segment_lock);
-	cno = nilfs->ns_last_cno;
+	canal = nilfs->ns_last_canal;
 	spin_unlock(&nilfs->ns_last_segment_lock);
-	return cno;
+	return canal;
 }
 
 static inline int nilfs_segment_is_active(struct the_nilfs *nilfs, __u64 n)
@@ -372,7 +372,7 @@ static inline int nilfs_flush_device(struct the_nilfs *nilfs)
 
 	nilfs->ns_flushed_device = 1;
 	/*
-	 * the store to ns_flushed_device must not be reordered after
+	 * the store to ns_flushed_device must analt be reordered after
 	 * blkdev_issue_flush().
 	 */
 	smp_wmb();

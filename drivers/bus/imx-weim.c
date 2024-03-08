@@ -89,7 +89,7 @@ MODULE_DEVICE_TABLE(of, weim_id_table);
 
 static int imx_weim_gpr_setup(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct of_range_parser parser;
 	struct of_range range;
 	struct regmap *gpr;
@@ -137,7 +137,7 @@ err:
 }
 
 /* Parse and set the timing for this device. */
-static int weim_timing_setup(struct device *dev, struct device_node *np,
+static int weim_timing_setup(struct device *dev, struct device_analde *np,
 			     const struct imx_weim_devtype *devtype)
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
@@ -163,7 +163,7 @@ static int weim_timing_setup(struct device *dev, struct device_node *np,
 		return ret;
 
 	/*
-	 * the child node's "reg" property may contain multiple address ranges,
+	 * the child analde's "reg" property may contain multiple address ranges,
 	 * extract the chip select for each.
 	 */
 	num_regs = of_property_count_elems_of_size(np, "reg", OF_REG_SIZE);
@@ -172,7 +172,7 @@ static int weim_timing_setup(struct device *dev, struct device_node *np,
 	if (!num_regs)
 		return -EINVAL;
 	for (reg_idx = 0; reg_idx < num_regs; reg_idx++) {
-		/* get the CS index from this child node's "reg" property. */
+		/* get the CS index from this child analde's "reg" property. */
 		ret = of_property_read_u32_index(np, "reg",
 					reg_idx * OF_REG_SIZE, &cs_idx);
 		if (ret)
@@ -207,7 +207,7 @@ static int weim_parse_dt(struct platform_device *pdev)
 {
 	const struct imx_weim_devtype *devtype = device_get_match_data(&pdev->dev);
 	int ret = 0, have_child = 0;
-	struct device_node *child;
+	struct device_analde *child;
 	struct weim_priv *priv;
 	void __iomem *base;
 	u32 reg;
@@ -221,30 +221,30 @@ static int weim_parse_dt(struct platform_device *pdev)
 	priv = dev_get_drvdata(&pdev->dev);
 	base = priv->base;
 
-	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
+	if (of_property_read_bool(pdev->dev.of_analde, "fsl,burst-clk-enable")) {
 		if (devtype->wcr_bcm) {
 			reg = readl(base + devtype->wcr_offset);
 			reg |= devtype->wcr_bcm;
 
-			if (of_property_read_bool(pdev->dev.of_node,
+			if (of_property_read_bool(pdev->dev.of_analde,
 						"fsl,continuous-burst-clk")) {
 				if (devtype->wcr_cont_bclk) {
 					reg |= devtype->wcr_cont_bclk;
 				} else {
 					dev_err(&pdev->dev,
-						"continuous burst clk not supported.\n");
+						"continuous burst clk analt supported.\n");
 					return -EINVAL;
 				}
 			}
 
 			writel(reg, base + devtype->wcr_offset);
 		} else {
-			dev_err(&pdev->dev, "burst clk mode not supported.\n");
+			dev_err(&pdev->dev, "burst clk mode analt supported.\n");
 			return -EINVAL;
 		}
 	}
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_analde(pdev->dev.of_analde, child) {
 		ret = weim_timing_setup(&pdev->dev, child, devtype);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",
@@ -254,11 +254,11 @@ static int weim_parse_dt(struct platform_device *pdev)
 	}
 
 	if (have_child)
-		ret = of_platform_default_populate(pdev->dev.of_node,
+		ret = of_platform_default_populate(pdev->dev.of_analde,
 						   NULL, &pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "%pOF fail to create devices.\n",
-			pdev->dev.of_node);
+			pdev->dev.of_analde);
 	return ret;
 }
 
@@ -271,7 +271,7 @@ static int weim_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* get the resource */
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -290,7 +290,7 @@ static int weim_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* parse the device node */
+	/* parse the device analde */
 	ret = weim_parse_dt(pdev);
 	if (ret)
 		clk_disable_unprepare(clk);
@@ -301,47 +301,47 @@ static int weim_probe(struct platform_device *pdev)
 }
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-static int of_weim_notify(struct notifier_block *nb, unsigned long action,
+static int of_weim_analtify(struct analtifier_block *nb, unsigned long action,
 			  void *arg)
 {
 	const struct imx_weim_devtype *devtype;
 	struct of_reconfig_data *rd = arg;
 	const struct of_device_id *of_id;
 	struct platform_device *pdev;
-	int ret = NOTIFY_OK;
+	int ret = ANALTIFY_OK;
 
 	switch (of_reconfig_get_state_change(action, rd)) {
 	case OF_RECONFIG_CHANGE_ADD:
-		of_id = of_match_node(weim_id_table, rd->dn->parent);
+		of_id = of_match_analde(weim_id_table, rd->dn->parent);
 		if (!of_id)
-			return NOTIFY_OK; /* not for us */
+			return ANALTIFY_OK; /* analt for us */
 
 		devtype = of_id->data;
 
-		pdev = of_find_device_by_node(rd->dn->parent);
+		pdev = of_find_device_by_analde(rd->dn->parent);
 		if (!pdev) {
-			pr_err("%s: could not find platform device for '%pOF'\n",
+			pr_err("%s: could analt find platform device for '%pOF'\n",
 				__func__, rd->dn->parent);
 
-			return notifier_from_errno(-EINVAL);
+			return analtifier_from_erranal(-EINVAL);
 		}
 
 		if (weim_timing_setup(&pdev->dev, rd->dn, devtype))
 			dev_warn(&pdev->dev,
 				 "Failed to setup timing for '%pOF'\n", rd->dn);
 
-		if (!of_node_check_flag(rd->dn, OF_POPULATED)) {
+		if (!of_analde_check_flag(rd->dn, OF_POPULATED)) {
 			/*
 			 * Clear the flag before adding the device so that
 			 * fw_devlink doesn't skip adding consumers to this
 			 * device.
 			 */
-			rd->dn->fwnode.flags &= ~FWNODE_FLAG_NOT_DEVICE;
+			rd->dn->fwanalde.flags &= ~FWANALDE_FLAG_ANALT_DEVICE;
 			if (!of_platform_device_create(rd->dn, NULL, &pdev->dev)) {
 				dev_err(&pdev->dev,
 					"Failed to create child device '%pOF'\n",
 					rd->dn);
-				ret = notifier_from_errno(-EINVAL);
+				ret = analtifier_from_erranal(-EINVAL);
 			}
 		}
 
@@ -349,19 +349,19 @@ static int of_weim_notify(struct notifier_block *nb, unsigned long action,
 
 		break;
 	case OF_RECONFIG_CHANGE_REMOVE:
-		if (!of_node_check_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_OK; /* device already destroyed */
+		if (!of_analde_check_flag(rd->dn, OF_POPULATED))
+			return ANALTIFY_OK; /* device already destroyed */
 
-		of_id = of_match_node(weim_id_table, rd->dn->parent);
+		of_id = of_match_analde(weim_id_table, rd->dn->parent);
 		if (!of_id)
-			return NOTIFY_OK; /* not for us */
+			return ANALTIFY_OK; /* analt for us */
 
-		pdev = of_find_device_by_node(rd->dn);
+		pdev = of_find_device_by_analde(rd->dn);
 		if (!pdev) {
-			pr_err("Could not find platform device for '%pOF'\n",
+			pr_err("Could analt find platform device for '%pOF'\n",
 				rd->dn);
 
-			ret = notifier_from_errno(-EINVAL);
+			ret = analtifier_from_erranal(-EINVAL);
 		} else {
 			of_platform_device_destroy(&pdev->dev, NULL);
 			platform_device_put(pdev);
@@ -375,8 +375,8 @@ static int of_weim_notify(struct notifier_block *nb, unsigned long action,
 	return ret;
 }
 
-static struct notifier_block weim_of_notifier = {
-	.notifier_call = of_weim_notify,
+static struct analtifier_block weim_of_analtifier = {
+	.analtifier_call = of_weim_analtify,
 };
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
 
@@ -391,7 +391,7 @@ static struct platform_driver weim_driver = {
 static int __init weim_init(void)
 {
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-	WARN_ON(of_reconfig_notifier_register(&weim_of_notifier));
+	WARN_ON(of_reconfig_analtifier_register(&weim_of_analtifier));
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
 
 	return platform_driver_register(&weim_driver);
@@ -401,7 +401,7 @@ module_init(weim_init);
 static void __exit weim_exit(void)
 {
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-	of_reconfig_notifier_unregister(&weim_of_notifier);
+	of_reconfig_analtifier_unregister(&weim_of_analtifier);
 #endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
 
 	return platform_driver_unregister(&weim_driver);

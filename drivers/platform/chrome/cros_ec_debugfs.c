@@ -38,7 +38,7 @@ static DECLARE_WAIT_QUEUE_HEAD(cros_ec_debugfs_log_wq);
  * @log_mutex: mutex to protect circular buffer
  * @log_poll_work: recurring task to poll EC for new console log data
  * @panicinfo_blob: panicinfo debugfs blob
- * @notifier_panic: notifier_block to let kernel to flush buffered log
+ * @analtifier_panic: analtifier_block to let kernel to flush buffered log
  *                  when EC panic
  */
 struct cros_ec_debugfs {
@@ -51,12 +51,12 @@ struct cros_ec_debugfs {
 	struct delayed_work log_poll_work;
 	/* EC panicinfo */
 	struct debugfs_blob_wrapper panicinfo_blob;
-	struct notifier_block notifier_panic;
+	struct analtifier_block analtifier_panic;
 };
 
 /*
- * We need to make sure that the EC log buffer on the UART is large enough,
- * so that it is unlikely enough to overlow within LOG_POLL_SEC.
+ * We need to make sure that the EC log buffer on the UART is large eanalugh,
+ * so that it is unlikely eanalugh to overlow within LOG_POLL_SEC.
  */
 static void cros_ec_console_log_work(struct work_struct *__work)
 {
@@ -121,11 +121,11 @@ resched:
 			      msecs_to_jiffies(LOG_POLL_SEC * 1000));
 }
 
-static int cros_ec_console_log_open(struct inode *inode, struct file *file)
+static int cros_ec_console_log_open(struct ianalde *ianalde, struct file *file)
 {
-	file->private_data = inode->i_private;
+	file->private_data = ianalde->i_private;
 
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 static ssize_t cros_ec_console_log_read(struct file *file, char __user *buf,
@@ -138,7 +138,7 @@ static ssize_t cros_ec_console_log_read(struct file *file, char __user *buf,
 	mutex_lock(&debug_info->log_mutex);
 
 	while (!CIRC_CNT(cb->head, cb->tail, LOG_SIZE)) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			ret = -EAGAIN;
 			goto error;
 		}
@@ -183,13 +183,13 @@ static __poll_t cros_ec_console_log_poll(struct file *file,
 	if (CIRC_CNT(debug_info->log_buffer.head,
 		     debug_info->log_buffer.tail,
 		     LOG_SIZE))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	mutex_unlock(&debug_info->log_mutex);
 
 	return mask;
 }
 
-static int cros_ec_console_log_release(struct inode *inode, struct file *file)
+static int cros_ec_console_log_release(struct ianalde *ianalde, struct file *file)
 {
 	return 0;
 }
@@ -261,7 +261,7 @@ static bool cros_ec_uptime_is_supported(struct cros_ec_device *ec_dev)
 	if (ret == -EPROTO && msg.cmd.result == EC_RES_INVALID_COMMAND)
 		return false;
 
-	/* Other errors maybe a transient error, do not rule about support. */
+	/* Other errors maybe a transient error, do analt rule about support. */
 	return true;
 }
 
@@ -297,7 +297,7 @@ static const struct file_operations cros_ec_console_log_fops = {
 	.owner = THIS_MODULE,
 	.open = cros_ec_console_log_open,
 	.read = cros_ec_console_log_read,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 	.poll = cros_ec_console_log_poll,
 	.release = cros_ec_console_log_release,
 };
@@ -353,7 +353,7 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	int read_response_size;
 
 	/*
-	 * If the console log feature is not supported return silently and
+	 * If the console log feature is analt supported return silently and
 	 * don't create the console_log entry.
 	 */
 	if (!ec_read_version_supported(ec))
@@ -361,7 +361,7 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 
 	buf = devm_kzalloc(ec->dev, LOG_SIZE, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	read_params_size = sizeof(struct ec_params_console_read_v1);
 	read_response_size = ec->ec_dev->max_response;
@@ -369,7 +369,7 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 		sizeof(*debug_info->read_msg) +
 			max(read_params_size, read_response_size), GFP_KERNEL);
 	if (!debug_info->read_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debug_info->read_msg->version = 1;
 	debug_info->read_msg->command = EC_CMD_CONSOLE_READ + ec->cmd_offset;
@@ -414,7 +414,7 @@ static int cros_ec_get_panicinfo(struct cros_ec_device *ec_dev, uint8_t *data,
 
 	msg = kzalloc(sizeof(*msg) + data_size, GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_GET_PANIC_INFO;
 	msg->insize = data_size;
@@ -439,7 +439,7 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 	data = devm_kzalloc(debug_info->ec->dev, ec_dev->max_response,
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_get_panicinfo(ec_dev, data, ec_dev->max_response);
 	if (ret < 0) {
@@ -447,7 +447,7 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 		goto free;
 	}
 
-	/* No panic data */
+	/* Anal panic data */
 	if (ret == 0)
 		goto free;
 
@@ -464,11 +464,11 @@ free:
 	return ret;
 }
 
-static int cros_ec_debugfs_panic_event(struct notifier_block *nb,
-				       unsigned long queued_during_suspend, void *_notify)
+static int cros_ec_debugfs_panic_event(struct analtifier_block *nb,
+				       unsigned long queued_during_suspend, void *_analtify)
 {
 	struct cros_ec_debugfs *debug_info =
-		container_of(nb, struct cros_ec_debugfs, notifier_panic);
+		container_of(nb, struct cros_ec_debugfs, analtifier_panic);
 
 	if (debug_info->log_buffer.buf) {
 		/* Force log poll work to run immediately */
@@ -477,7 +477,7 @@ static int cros_ec_debugfs_panic_event(struct notifier_block *nb,
 		flush_delayed_work(&debug_info->log_poll_work);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int cros_ec_debugfs_probe(struct platform_device *pd)
@@ -490,7 +490,7 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 
 	debug_info = devm_kzalloc(ec->dev, sizeof(*debug_info), GFP_KERNEL);
 	if (!debug_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debug_info->ec = ec;
 	debug_info->dir = debugfs_create_dir(name, NULL);
@@ -516,9 +516,9 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 	debugfs_create_u16("suspend_timeout_ms", 0664, debug_info->dir,
 			   &ec->ec_dev->suspend_timeout_ms);
 
-	debug_info->notifier_panic.notifier_call = cros_ec_debugfs_panic_event;
-	ret = blocking_notifier_chain_register(&ec->ec_dev->panic_notifier,
-					       &debug_info->notifier_panic);
+	debug_info->analtifier_panic.analtifier_call = cros_ec_debugfs_panic_event;
+	ret = blocking_analtifier_chain_register(&ec->ec_dev->panic_analtifier,
+					       &debug_info->analtifier_panic);
 	if (ret)
 		goto remove_debugfs;
 
@@ -568,7 +568,7 @@ static struct platform_driver cros_ec_debugfs_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_debugfs_pm_ops,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = cros_ec_debugfs_probe,
 	.remove_new = cros_ec_debugfs_remove,

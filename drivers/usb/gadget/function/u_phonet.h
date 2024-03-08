@@ -2,7 +2,7 @@
 /*
  * u_phonet.h - interface to Phonet
  *
- * Copyright (C) 2007-2008 by Nokia Corporation
+ * Copyright (C) 2007-2008 by Analkia Corporation
  */
 
 #ifndef __U_PHONET_H

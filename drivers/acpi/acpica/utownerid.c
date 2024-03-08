@@ -63,13 +63,13 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 		for (k = acpi_gbl_next_owner_id_offset; k < 32; k++) {
 			if (acpi_gbl_owner_id_mask[j] == ACPI_UINT32_MAX) {
 
-				/* There are no free IDs in this mask */
+				/* There are anal free IDs in this mask */
 
 				break;
 			}
 
 			/*
-			 * Note: the u32 cast ensures that 1 is stored as a unsigned
+			 * Analte: the u32 cast ensures that 1 is stored as a unsigned
 			 * integer. Omitting the cast may result in 1 being stored as an
 			 * int. Some compilers or runtime error detection may flag this as
 			 * an error.
@@ -88,7 +88,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 				/*
 				 * Construct encoded ID from the index and bit position
 				 *
-				 * Note: Last [j].k (bit 4095) is never used and is marked
+				 * Analte: Last [j].k (bit 4095) is never used and is marked
 				 * permanently allocated (prevents +1 overflow)
 				 */
 				*owner_id =
@@ -106,17 +106,17 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 
 	/*
 	 * All owner_ids have been allocated. This typically should
-	 * not happen since the IDs are reused after deallocation. The IDs are
+	 * analt happen since the IDs are reused after deallocation. The IDs are
 	 * allocated upon table load (one per table) and method execution, and
 	 * they are released when a table is unloaded or a method completes
 	 * execution.
 	 *
 	 * If this error happens, there may be very deep nesting of invoked
-	 * control methods, or there may be a bug where the IDs are not released.
+	 * control methods, or there may be a bug where the IDs are analt released.
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,
-		    "Could not allocate new OwnerId (4095 max), AE_OWNER_ID_LIMIT"));
+		    "Could analt allocate new OwnerId (4095 max), AE_OWNER_ID_LIMIT"));
 
 exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -129,9 +129,9 @@ exit:
  *
  * PARAMETERS:  owner_id_ptr        - Pointer to a previously allocated owner_ID
  *
- * RETURN:      None. No error is returned because we are either exiting a
+ * RETURN:      Analne. Anal error is returned because we are either exiting a
  *              control method or unloading a table. Either way, we would
- *              ignore any error anyway.
+ *              iganalre any error anyway.
  *
  * DESCRIPTION: Release a table or method owner ID. Valid IDs are 1 - 255
  *
@@ -150,7 +150,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 
 	*owner_id_ptr = 0;
 
-	/* Zero is not a valid owner_ID */
+	/* Zero is analt a valid owner_ID */
 
 	if (owner_id == 0) {
 		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%3.3X", owner_id));
@@ -164,7 +164,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 		return_VOID;
 	}
 
-	/* Normalize the ID to zero */
+	/* Analrmalize the ID to zero */
 
 	owner_id--;
 
@@ -179,7 +179,7 @@ void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Attempted release of non-allocated OwnerId: 0x%3.3X",
+			    "Attempted release of analn-allocated OwnerId: 0x%3.3X",
 			    owner_id + 1));
 	}
 

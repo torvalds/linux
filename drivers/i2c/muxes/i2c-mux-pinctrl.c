@@ -38,7 +38,7 @@ static struct i2c_adapter *i2c_mux_pinctrl_root_adapter(
 	struct pinctrl_setting *setting;
 	struct i2c_adapter *pin_root;
 
-	list_for_each_entry(setting, &state->settings, node) {
+	list_for_each_entry(setting, &state->settings, analde) {
 		pin_root = i2c_root_adapter(setting->pctldev->dev);
 		if (!pin_root)
 			return NULL;
@@ -53,17 +53,17 @@ static struct i2c_adapter *i2c_mux_pinctrl_root_adapter(
 
 static struct i2c_adapter *i2c_mux_pinctrl_parent_adapter(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *parent_np;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *parent_np;
 	struct i2c_adapter *parent;
 
 	parent_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!parent_np) {
-		dev_err(dev, "Cannot parse i2c-parent\n");
-		return ERR_PTR(-ENODEV);
+		dev_err(dev, "Cananalt parse i2c-parent\n");
+		return ERR_PTR(-EANALDEV);
 	}
-	parent = of_get_i2c_adapter_by_node(parent_np);
-	of_node_put(parent_np);
+	parent = of_get_i2c_adapter_by_analde(parent_np);
+	of_analde_put(parent_np);
 	if (!parent)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -73,7 +73,7 @@ static struct i2c_adapter *i2c_mux_pinctrl_parent_adapter(struct device *dev)
 static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct i2c_mux_core *muxc;
 	struct i2c_mux_pinctrl *mux;
 	struct i2c_adapter *parent;
@@ -83,7 +83,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 
 	num_names = of_property_count_strings(np, "pinctrl-names");
 	if (num_names < 0) {
-		dev_err(dev, "Cannot parse pinctrl-names: %d\n",
+		dev_err(dev, "Cananalt parse pinctrl-names: %d\n",
 			num_names);
 		return num_names;
 	}
@@ -96,7 +96,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 			     struct_size(mux, states, num_names),
 			     0, i2c_mux_pinctrl_select, NULL);
 	if (!muxc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put_parent;
 	}
 	mux = i2c_mux_priv(muxc);
@@ -106,7 +106,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	mux->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR(mux->pinctrl)) {
 		ret = PTR_ERR(mux->pinctrl);
-		dev_err(dev, "Cannot get pinctrl: %d\n", ret);
+		dev_err(dev, "Cananalt get pinctrl: %d\n", ret);
 		goto err_put_parent;
 	}
 
@@ -114,14 +114,14 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 		ret = of_property_read_string_index(np, "pinctrl-names", i,
 						    &name);
 		if (ret < 0) {
-			dev_err(dev, "Cannot parse pinctrl-names: %d\n", ret);
+			dev_err(dev, "Cananalt parse pinctrl-names: %d\n", ret);
 			goto err_put_parent;
 		}
 
 		mux->states[i] = pinctrl_lookup_state(mux->pinctrl, name);
 		if (IS_ERR(mux->states[i])) {
 			ret = PTR_ERR(mux->states[i]);
-			dev_err(dev, "Cannot look up pinctrl state %s: %d\n",
+			dev_err(dev, "Cananalt look up pinctrl state %s: %d\n",
 				name, ret);
 			goto err_put_parent;
 		}
@@ -149,7 +149,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 	if (muxc->mux_locked)
 		dev_info(dev, "mux-locked i2c mux\n");
 
-	/* Do not add any adapter for the idle state (if it's there at all). */
+	/* Do analt add any adapter for the idle state (if it's there at all). */
 	for (i = 0; i < num_names - !!muxc->deselect; i++) {
 		ret = i2c_mux_add_adapter(muxc, 0, i, 0);
 		if (ret)

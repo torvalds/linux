@@ -45,17 +45,17 @@
 #define QLA2XXX_INI_MODE_DUAL	3
 
 #define QLA2XXX_COMMAND_COUNT_INIT	250
-#define QLA2XXX_IMMED_NOTIFY_COUNT_INIT 250
+#define QLA2XXX_IMMED_ANALTIFY_COUNT_INIT 250
 
 /*
  * Used to mark which completion handles (for RIO Status's) are for CTIO's
- * vs. regular (non-target) info. This is checked for in
+ * vs. regular (analn-target) info. This is checked for in
  * qla2x00_process_response_queue() to see if a handle coming back in a
  * multi-complete should come to the tgt driver or be handled there by qla2xxx
  */
 #define CTIO_COMPLETION_HANDLE_MARK	BIT_29
 #if (CTIO_COMPLETION_HANDLE_MARK <= DEFAULT_OUTSTANDING_COMMANDS)
-#error "CTIO_COMPLETION_HANDLE_MARK not larger than "
+#error "CTIO_COMPLETION_HANDLE_MARK analt larger than "
 	"DEFAULT_OUTSTANDING_COMMANDS"
 #endif
 #define HANDLE_IS_CTIO_COMP(h) (h & CTIO_COMPLETION_HANDLE_MARK)
@@ -87,7 +87,7 @@
 					/*  (data from target to initiator) */
 #define OF_DATA_OUT         BIT_7       /* Data out from initiator */
 					/*  (data from initiator to target) */
-#define OF_NO_DATA          (BIT_7 | BIT_6)
+#define OF_ANAL_DATA          (BIT_7 | BIT_6)
 #define OF_INC_RC           BIT_8       /* Increment command resource count */
 #define OF_FAST_POST        BIT_9       /* Enable mailbox fast posting. */
 #define OF_CONF_REQ         BIT_13      /* Confirmation Requested */
@@ -121,10 +121,10 @@
 			 ? le16_to_cpu((iocb)->u.isp2x.target.extended)	\
 			 : (uint16_t)(iocb)->u.isp2x.target.id.standard)
 
-#ifndef NOTIFY_ACK_TYPE
-#define NOTIFY_ACK_TYPE 0x0E	  /* Notify acknowledge entry. */
+#ifndef ANALTIFY_ACK_TYPE
+#define ANALTIFY_ACK_TYPE 0x0E	  /* Analtify ackanalwledge entry. */
 /*
- * ISP queue -	notify acknowledge entry structure definition.
+ * ISP queue -	analtify ackanalwledge entry structure definition.
  *		This is sent to the ISP from the target driver.
  */
 struct nack_to_isp {
@@ -176,17 +176,17 @@ struct nack_to_isp {
 	uint8_t  reserved[2];
 	__le16	ox_id;
 } __packed;
-#define NOTIFY_ACK_FLAGS_FCSP		BIT_5
-#define NOTIFY_ACK_FLAGS_TERMINATE	BIT_3
-#define NOTIFY_ACK_SRR_FLAGS_ACCEPT	0
-#define NOTIFY_ACK_SRR_FLAGS_REJECT	1
+#define ANALTIFY_ACK_FLAGS_FCSP		BIT_5
+#define ANALTIFY_ACK_FLAGS_TERMINATE	BIT_3
+#define ANALTIFY_ACK_SRR_FLAGS_ACCEPT	0
+#define ANALTIFY_ACK_SRR_FLAGS_REJECT	1
 
-#define NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM	0x9
+#define ANALTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM	0x9
 
-#define NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL		0
-#define NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_UNABLE_TO_SUPPLY_DATA	0x2a
+#define ANALTIFY_ACK_SRR_FLAGS_REJECT_EXPL_ANAL_EXPL		0
+#define ANALTIFY_ACK_SRR_FLAGS_REJECT_EXPL_UNABLE_TO_SUPPLY_DATA	0x2a
 
-#define NOTIFY_ACK_SUCCESS      0x01
+#define ANALTIFY_ACK_SUCCESS      0x01
 #endif
 
 #ifndef ACCEPT_TGT_IO_TYPE
@@ -346,7 +346,7 @@ struct atio_from_isp {
 			uint8_t  fcp_cmnd_len_high:4;
 			uint8_t  attr:4;
 			__le32	exchange_addr;
-#define ATIO_EXCHANGE_ADDRESS_UNKNOWN	0xFFFFFFFF
+#define ATIO_EXCHANGE_ADDRESS_UNKANALWN	0xFFFFFFFF
 			struct fcp_hdr fcp_hdr;
 			struct atio7_fcp_cmnd fcp_cmnd;
 		} isp24;
@@ -660,7 +660,7 @@ struct abts_resp_from_24xx_fw {
 	struct fcp_hdr_le fcp_hdr_le;
 	uint8_t reserved_4[8];
 	__le32	error_subcode1;
-#define ABTS_RESP_SUBCODE_ERR_ABORTED_EXCH_NOT_TERM	0x1E
+#define ABTS_RESP_SUBCODE_ERR_ABORTED_EXCH_ANALT_TERM	0x1E
 	__le32	error_subcode2;
 	__le32	exchange_addr_to_abort;
 } __packed;
@@ -691,7 +691,7 @@ struct qla_tgt_func_tmpl {
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
 	void (*free_session)(struct fc_port *);
 
-	int (*check_initiator_node_acl)(struct scsi_qla_host *, unsigned char *,
+	int (*check_initiator_analde_acl)(struct scsi_qla_host *, unsigned char *,
 					struct fc_port *);
 	void (*update_sess)(struct fc_port *, port_id_t, uint16_t, bool);
 	struct fc_port *(*find_sess_by_loop_id)(struct scsi_qla_host *,
@@ -715,7 +715,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 
 #define QLA_TGT_MAX_HW_PENDING_TIME	60 /* in seconds */
 
-/* Immediate notify status constants */
+/* Immediate analtify status constants */
 #define IMM_NTFY_LIP_RESET          0x000E
 #define IMM_NTFY_LIP_LINK_REINIT    0x000F
 #define IMM_NTFY_IOCB_OVERFLOW      0x0016
@@ -729,7 +729,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define IMM_NTFY_SRR                0x0045
 #define IMM_NTFY_ELS                0x0046
 
-/* Immediate notify task flags */
+/* Immediate analtify task flags */
 #define IMM_NTFY_TASK_MGMT_SHIFT    8
 
 #define QLA_TGT_CLEAR_ACA               0x40
@@ -744,10 +744,10 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_ABTS			0xFFFB
 #define QLA_TGT_2G_ABORT_TASK		0xFFFA
 
-/* Notify Acknowledge flags */
-#define NOTIFY_ACK_RES_COUNT        BIT_8
-#define NOTIFY_ACK_CLEAR_LIP_RESET  BIT_5
-#define NOTIFY_ACK_TM_RESP_CODE_VALID BIT_4
+/* Analtify Ackanalwledge flags */
+#define ANALTIFY_ACK_RES_COUNT        BIT_8
+#define ANALTIFY_ACK_CLEAR_LIP_RESET  BIT_5
+#define ANALTIFY_ACK_TM_RESP_CODE_VALID BIT_4
 
 /* Command's states */
 #define QLA_TGT_STATE_NEW		0 /* New command + target processing */
@@ -819,7 +819,7 @@ struct qla_tgt {
 
 	struct imm_ntfy_from_isp link_reinit_iocb;
 	wait_queue_head_t waitQ;
-	int notify_ack_expected;
+	int analtify_ack_expected;
 	int abts_resp_expected;
 	int modify_lun_expected;
 	atomic_t tgt_global_resets_count;
@@ -862,7 +862,7 @@ enum trace_flags {
 
 struct qla_tgt_cmd {
 	/*
-	 * Do not move cmd_type field. it needs to line up with srb->cmd_type
+	 * Do analt move cmd_type field. it needs to line up with srb->cmd_type
 	 */
 	uint8_t cmd_type;
 	uint8_t pad[7];
@@ -889,7 +889,7 @@ struct qla_tgt_cmd {
 
 	/*
 	 * This variable may be set from outside the LIO and I/O completion
-	 * callback functions. Do not declare this member variable as a
+	 * callback functions. Do analt declare this member variable as a
 	 * bitfield to avoid a read-modify-write operation when this variable
 	 * is set.
 	 */
@@ -914,7 +914,7 @@ struct qla_tgt_cmd {
 	uint8_t ctx_dsd_alloced;
 
 	/* T10-DIF */
-#define DIF_ERR_NONE 0
+#define DIF_ERR_ANALNE 0
 #define DIF_ERR_GRD 1
 #define DIF_ERR_REF 2
 #define DIF_ERR_APP 3
@@ -1020,7 +1020,7 @@ extern void qlt_exit(void);
 extern void qlt_free_session_done(struct work_struct *);
 /*
  * This macro is used during early initializations when host->active_mode
- * is not set. Right now, ha value is ignored.
+ * is analt set. Right analw, ha value is iganalred.
  */
 #define QLA_TGT_MODE_ENABLED() (ql2x_ini_mode != QLA2XXX_INI_MODE_ENABLED)
 

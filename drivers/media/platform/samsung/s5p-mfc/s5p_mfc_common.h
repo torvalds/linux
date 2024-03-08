@@ -53,14 +53,14 @@
 #define MFC_WATCHDOG_INTERVAL   1000
 /* After how many executions watchdog should assume lock up */
 #define MFC_WATCHDOG_CNT        10
-#define MFC_NO_INSTANCE_SET	-1
+#define MFC_ANAL_INSTANCE_SET	-1
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
 #define VB2_MAX_PLANE_COUNT	3
 #define STUFF_BYTE		4
 #define MFC_MAX_CTRLS		128
 
-#define S5P_MFC_CODEC_NONE		-1
+#define S5P_MFC_CODEC_ANALNE		-1
 #define S5P_MFC_CODEC_H264_DEC		0
 #define S5P_MFC_CODEC_H264_MVC_DEC	1
 #define S5P_MFC_CODEC_VC1_DEC		2
@@ -204,7 +204,7 @@ struct s5p_mfc_pm {
 
 struct s5p_mfc_buf_size_v5 {
 	unsigned int h264_ctx;
-	unsigned int non_h264_ctx;
+	unsigned int analn_h264_ctx;
 	unsigned int dsc;
 	unsigned int shm;
 };
@@ -480,7 +480,7 @@ struct s5p_mfc_hevc_enc_params {
 	u8 tmv_prediction_disable;
 	u8 max_num_merge_mv;
 	u8 eco_mode_enable;
-	u8 encoding_nostartcode_enable;
+	u8 encoding_analstartcode_enable;
 	u8 size_of_length_field;
 	u8 prepend_sps_pps_to_idr;
 };
@@ -516,7 +516,7 @@ struct s5p_mfc_enc_params {
 
 	u8 num_b_frame;
 	u32 rc_framerate_num;
-	u32 rc_framerate_denom;
+	u32 rc_framerate_deanalm;
 
 	struct {
 		struct s5p_mfc_h264_enc_params h264;
@@ -564,7 +564,7 @@ struct s5p_mfc_codec_ops {
  * @dst_queue_cnt:	number of buffers queued on the dest internal queue
  * @type:		type of the instance - decoder or encoder
  * @state:		state of the context
- * @inst_no:		number of hw instance associated with the context
+ * @inst_anal:		number of hw instance associated with the context
  * @img_width:		width of the image that is decoded or encoded
  * @img_height:		height of the image that is decoded or encoded
  * @buf_width:		width of the buffer for processed image
@@ -577,7 +577,7 @@ struct s5p_mfc_codec_ops {
  * @dpb_flush_flag:	flag used to indicate that a DPB buffers are being
  *			flushed
  * @head_processed:	flag mentioning whether the header data is processed
- *			completely or not
+ *			completely or analt
  * @bank1:		handle to memory allocated for temporary buffers from
  *			memory bank 1
  * @bank2:		handle to memory allocated for temporary buffers from
@@ -653,7 +653,7 @@ struct s5p_mfc_ctx {
 
 	enum s5p_mfc_inst_type type;
 	enum s5p_mfc_inst_state state;
-	int inst_no;
+	int inst_anal;
 
 	/* Image parameters */
 	int img_width;
@@ -753,7 +753,7 @@ struct mfc_control {
 	__u32			id;
 	enum v4l2_ctrl_type	type;
 	__u8			name[32];  /* Whatever */
-	__s32			minimum;   /* Note signedness */
+	__s32			minimum;   /* Analte signedness */
 	__s32			maximum;
 	__s32			step;
 	__u32			menu_skip_mask;
@@ -765,7 +765,7 @@ struct mfc_control {
 
 /* Macro for making hardware specific calls */
 #define s5p_mfc_hw_call(f, op, args...) \
-	((f && f->op) ? f->op(args) : (typeof(f->op(args)))(-ENODEV))
+	((f && f->op) ? f->op(args) : (typeof(f->op(args)))(-EANALDEV))
 
 #define fh_to_ctx(__fh) container_of(__fh, struct s5p_mfc_ctx, fh)
 #define ctrl_to_ctx(__ctrl) \

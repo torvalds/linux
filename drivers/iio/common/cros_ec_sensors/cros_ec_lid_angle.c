@@ -96,7 +96,7 @@ static int cros_ec_lid_angle_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_sensors_core_init(pdev, indio_dev, false, NULL);
 	if (ret)

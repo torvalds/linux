@@ -136,7 +136,7 @@ int __maybe_unused cs42l51_resume(struct device *dev);
 #define CS42L51_ALC_EN			0x1C
 #define CS42L51_ALC_REL			0x1D
 #define CS42L51_ALC_THRES		0x1E
-#define CS42L51_NOISE_CONF		0x1F
+#define CS42L51_ANALISE_CONF		0x1F
 
 #define CS42L51_STATUS			0x20
 #define CS42L51_STATUS_SP_CLKERR	(1<<6)

@@ -192,10 +192,10 @@ static uint32_t gf100_ce_code[] = {
 	0x8001cffd,
 	0xf40812c4,
 	0x21f4060b,
-/* 0x0041: ih_no_chsw */
+/* 0x0041: ih_anal_chsw */
 	0x0412c4ca,
 	0xf5070bf4,
-/* 0x004b: ih_no_cmd */
+/* 0x004b: ih_anal_cmd */
 	0xc4010221,
 	0x01d00c11,
 /* 0x0053: swctx */
@@ -240,7 +240,7 @@ static uint32_t gf100_ce_code[] = {
 	0x1e3af053,
 	0xf00023d0,
 	0x24d00147,
-/* 0x00eb: chsw_no_unload */
+/* 0x00eb: chsw_anal_unload */
 	0xcf00f880,
 	0x3dc84023,
 	0x090bf41e,
@@ -296,7 +296,7 @@ static uint32_t gf100_ce_code[] = {
 	0xf1f71bf4,
 	0xf01d0027,
 	0x23d00137,
-/* 0x019f: cmd_nop */
+/* 0x019f: cmd_analp */
 	0xf800f800,
 /* 0x01a1: cmd_pm_trigger */
 	0x0027f100,
@@ -519,7 +519,7 @@ static uint32_t gf100_ce_code[] = {
 	0x21f50e0b,
 	0x47f101af,
 	0x0ef40200,
-/* 0x04cd: cmd_exec_no_format */
+/* 0x04cd: cmd_exec_anal_format */
 	0x1067f11e,
 	0x0664b608,
 	0x800177f0,

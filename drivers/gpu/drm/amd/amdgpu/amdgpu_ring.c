@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -88,7 +88,7 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
 	 * than the maximum for one submission
 	 */
 	if (WARN_ON_ONCE(ndw > ring->max_dw))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->count_dw = ndw;
 	ring->wptr_old = ring->wptr;
@@ -99,33 +99,33 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
 	return 0;
 }
 
-/** amdgpu_ring_insert_nop - insert NOP packets
+/** amdgpu_ring_insert_analp - insert ANALP packets
  *
  * @ring: amdgpu_ring structure holding ring information
- * @count: the number of NOP packets to insert
+ * @count: the number of ANALP packets to insert
  *
- * This is the generic insert_nop function for rings except SDMA
+ * This is the generic insert_analp function for rings except SDMA
  */
-void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+void amdgpu_ring_insert_analp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
 	for (i = 0; i < count; i++)
-		amdgpu_ring_write(ring, ring->funcs->nop);
+		amdgpu_ring_write(ring, ring->funcs->analp);
 }
 
 /**
- * amdgpu_ring_generic_pad_ib - pad IB with NOP packets
+ * amdgpu_ring_generic_pad_ib - pad IB with ANALP packets
  *
  * @ring: amdgpu_ring structure holding ring information
- * @ib: IB to add NOP packets to
+ * @ib: IB to add ANALP packets to
  *
  * This is the generic pad_ib function for rings except SDMA
  */
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 {
 	while (ib->length_dw & ring->funcs->align_mask)
-		ib->ptr[ib->length_dw++] = ring->funcs->nop;
+		ib->ptr[ib->length_dw++] = ring->funcs->analp;
 }
 
 /**
@@ -145,7 +145,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	count = ring->funcs->align_mask + 1 -
 		(ring->wptr & ring->funcs->align_mask);
 	count %= ring->funcs->align_mask + 1;
-	ring->funcs->insert_nop(ring, count);
+	ring->funcs->insert_analp(ring, count);
 
 	mb();
 	amdgpu_ring_set_wptr(ring);
@@ -187,7 +187,7 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
  * @max_dw: maximum number of dw for ring alloc
  * @irq_src: interrupt source to use for this ring
  * @irq_type: interrupt type to use for this ring
- * @hw_prio: ring priority (NORMAL/HIGH)
+ * @hw_prio: ring priority (ANALRMAL/HIGH)
  * @sched_score: optional score atomic shared with other schedulers
  *
  * Initialize the driver information for the selected ring (all asics).
@@ -352,7 +352,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	ring->max_dw = max_dw;
 	ring->hw_prio = hw_prio;
 
-	if (!ring->no_scheduler) {
+	if (!ring->anal_scheduler) {
 		hw_ip = ring->funcs->type;
 		num_sched = &adev->gpu_sched[hw_ip][hw_prio].num_scheds;
 		adev->gpu_sched[hw_ip][hw_prio].sched[(*num_sched)++] =
@@ -372,7 +372,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 
-	/* Not to finish a ring which is not initialized */
+	/* Analt to finish a ring which is analt initialized */
 	if (!(ring->adev) ||
 	    (!ring->is_mes_queue && !(ring->adev->rings[ring->idx])))
 		return;
@@ -446,7 +446,7 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 
 	spin_lock_irqsave(fence->lock, flags);
 	if (!dma_fence_is_signaled_locked(fence))
-		dma_fence_set_error(fence, -ENODATA);
+		dma_fence_set_error(fence, -EANALDATA);
 	spin_unlock_irqrestore(fence->lock, flags);
 
 	atomic_inc(&ring->adev->gpu_reset_counter);
@@ -472,7 +472,7 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct amdgpu_ring *ring = file_inode(f)->i_private;
+	struct amdgpu_ring *ring = file_ianalde(f)->i_private;
 	int r, i;
 	uint32_t value, result, early[3];
 
@@ -522,7 +522,7 @@ static const struct file_operations amdgpu_debugfs_ring_fops = {
 static ssize_t amdgpu_debugfs_mqd_read(struct file *f, char __user *buf,
 				       size_t size, loff_t *pos)
 {
-	struct amdgpu_ring *ring = file_inode(f)->i_private;
+	struct amdgpu_ring *ring = file_ianalde(f)->i_private;
 	volatile u32 *mqd;
 	int r;
 	uint32_t value, result;
@@ -589,8 +589,8 @@ void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
-	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_mianalr *mianalr = adev_to_drm(adev)->primary;
+	struct dentry *root = mianalr->debugfs_root;
 	char name[32];
 
 	sprintf(name, "amdgpu_ring_%s", ring->name);
@@ -724,7 +724,7 @@ bool amdgpu_ring_sched_ready(struct amdgpu_ring *ring)
 	if (!ring)
 		return false;
 
-	if (ring->no_scheduler || !drm_sched_wqueue_ready(&ring->sched))
+	if (ring->anal_scheduler || !drm_sched_wqueue_ready(&ring->sched))
 		return false;
 
 	return true;

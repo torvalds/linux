@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_PARISC_PDC_H
 #define _UAPI_PARISC_PDC_H
 
@@ -11,15 +11,15 @@
 #define PDC_REQ_ERR_1		  2	/* See above			 */
 #define PDC_REQ_ERR_0		  1	/* Call would generate a requestor error */
 #define PDC_OK			  0	/* Call completed successfully	*/
-#define PDC_BAD_PROC		 -1	/* Called non-existent procedure*/
-#define PDC_BAD_OPTION		 -2	/* Called with non-existent option */
-#define PDC_ERROR		 -3	/* Call could not complete without an error */
-#define PDC_NE_MOD		 -5	/* Module not found		*/
-#define PDC_NE_CELL_MOD		 -7	/* Cell module not found	*/
-#define PDC_NE_BOOTDEV		 -9	/* Cannot locate a console device or boot device */
+#define PDC_BAD_PROC		 -1	/* Called analn-existent procedure*/
+#define PDC_BAD_OPTION		 -2	/* Called with analn-existent option */
+#define PDC_ERROR		 -3	/* Call could analt complete without an error */
+#define PDC_NE_MOD		 -5	/* Module analt found		*/
+#define PDC_NE_CELL_MOD		 -7	/* Cell module analt found	*/
+#define PDC_NE_BOOTDEV		 -9	/* Cananalt locate a console device or boot device */
 #define PDC_INVALID_ARG		-10	/* Called with an invalid argument */
-#define PDC_BUS_POW_WARN	-12	/* Call could not complete in allowed power budget */
-#define PDC_NOT_NARROW		-17	/* Narrow mode not supported	*/
+#define PDC_BUS_POW_WARN	-12	/* Call could analt complete in allowed power budget */
+#define PDC_ANALT_NARROW		-17	/* Narrow mode analt supported	*/
 
 /*
  *	PDC entry points...
@@ -50,7 +50,7 @@
 #define PDC_MODEL_DISPEC	5	/* disable specific option	*/
 #define PDC_MODEL_CPU_ID	6	/* returns cpu-id (only newer machines!) */
 #define PDC_MODEL_CAPABILITIES	7	/* returns OS32/OS64-flags	*/
-/* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
+/* Values for PDC_MODEL_CAPABILITIES analn-equivalent virtual aliasing support */
 #define  PDC_MODEL_OS64			(1 << 0)
 #define  PDC_MODEL_OS32			(1 << 1)
 #define  PDC_MODEL_IOPDIR_FDC		(1 << 2)
@@ -90,7 +90,7 @@
 /*				7	  obsolete - HVERSION dependent */
 #define PDC_IODC_RI_TEST	8	/* Module input/output		*/
 #define PDC_IODC_RI_TLB		9	/* Module input/output		*/
-#define PDC_IODC_NINIT		2	/* non-destructive init		*/
+#define PDC_IODC_NINIT		2	/* analn-destructive init		*/
 #define PDC_IODC_DINIT		3	/* destructive init		*/
 #define PDC_IODC_MEMERR		4	/* check for memory errors	*/
 #define PDC_IODC_INDEX_DATA	0	/* get first 16 bytes from mod IODC */
@@ -110,7 +110,7 @@
 #define PDC_STABLE_VERIFY_CONTENTS 3
 #define PDC_STABLE_INITIALIZE	4
 
-#define PDC_NVOLATILE	11		/* often not implemented	*/
+#define PDC_NVOLATILE	11		/* often analt implemented	*/
 #define PDC_NVOLATILE_READ	0
 #define PDC_NVOLATILE_WRITE	1
 #define PDC_NVOLATILE_RETURN_SIZE 2
@@ -148,7 +148,7 @@
 #define PDC_MEM_READ_PDT	3	/* Read PDT entry		*/
 #define PDC_MEM_RESET_CLEAR	4	/* Reset PDT clear flag		*/
 #define PDC_MEM_GOODMEM		5	/* Set good_mem value		*/
-#define PDC_MEM_TABLE		128	/* Non contig mem map (sprockets) */
+#define PDC_MEM_TABLE		128	/* Analn contig mem map (sprockets) */
 #define PDC_MEM_RETURN_ADDRESS_TABLE	PDC_MEM_TABLE
 #define PDC_MEM_GET_MEMORY_SYSTEM_TABLES_SIZE	131
 #define PDC_MEM_GET_MEMORY_SYSTEM_TABLES	132
@@ -199,7 +199,7 @@
 #define PDC_EEPROM_WRITE_BYTE	3
 #define PDC_EEPROM_EEPROM_PASSWORD -1000
 
-#define PDC_NVM		130		/* NVM (non-volatile memory) access */
+#define PDC_NVM		130		/* NVM (analn-volatile memory) access */
 #define PDC_NVM_READ_WORD	0
 #define PDC_NVM_WRITE_WORD	1
 #define PDC_NVM_READ_BYTE	2
@@ -214,7 +214,7 @@
 /* sets bits 6&7 (little endian) of the HcControl Register */
 #define PDC_IO_USB_SUSPEND	0xC000000000000000
 #define PDC_IO_EEPROM_IO_ERR_TABLE_FULL	-5	/* return value */
-#define PDC_IO_NO_SUSPEND		-6	/* return value */
+#define PDC_IO_ANAL_SUSPEND		-6	/* return value */
 
 #define PDC_BROADCAST_RESET 136		/* reset all processors		*/
 #define PDC_DO_RESET		0	/* option: perform a broadcast reset */
@@ -239,8 +239,8 @@
 #define PDC_SYSINFO_RRETURN_ERRORS	2
 #define PDC_SYSINFO_RRETURN_WARNINGS	3
 #define PDC_SYSINFO_RETURN_REVISIONS	4
-#define PDC_SYSINFO_RRETURN_DIAGNOSE	5
-#define PDC_SYSINFO_RRETURN_HV_DIAGNOSE	1005
+#define PDC_SYSINFO_RRETURN_DIAGANALSE	5
+#define PDC_SYSINFO_RRETURN_HV_DIAGANALSE	1005
 
 #define PDC_RDR		144		/* (sprockets)			*/
 #define PDC_RDR_READ_BUFFER	0
@@ -334,12 +334,12 @@
 /* IODC ENTRY_TLB() */
 
 /* constants for OS (NVM...) */
-#define OS_ID_NONE		0	/* Undefined OS ID	*/
+#define OS_ID_ANALNE		0	/* Undefined OS ID	*/
 #define OS_ID_HPUX		1	/* HP-UX OS		*/
 #define OS_ID_MPEXL		2	/* MPE XL OS		*/
 #define OS_ID_OSF		3	/* OSF OS		*/
 #define OS_ID_HPRT		4	/* HP-RT OS		*/
-#define OS_ID_NOVEL		5	/* NOVELL OS		*/
+#define OS_ID_ANALVEL		5	/* ANALVELL OS		*/
 #define OS_ID_LINUX		6	/* Linux		*/
 
 
@@ -371,7 +371,7 @@
 struct hardware_path {
 	unsigned char flags;	/* see bit definitions below */
 	signed   char bc[6];	/* Bus Converter routing info to a specific */
-				/* I/O adaptor (< 0 means none, > 63 resvd) */
+				/* I/O adaptor (< 0 means analne, > 63 resvd) */
 	signed   char mod;	/* fixed field of specified module */
 };
 
@@ -559,7 +559,7 @@ struct pdc_iodc {     /* PDC_IODC */
 	unsigned int    pad[15];
 } __attribute__((aligned(8))) ;
 
-/* no BLTBs in pa2.0 processors */
+/* anal BLTBs in pa2.0 processors */
 struct pdc_btlb_info_range {
 	unsigned char res00;
 	unsigned char num_i;
@@ -660,10 +660,10 @@ struct pdc_hpmc_pim_11 { /* PDC_PIM */
 /*
  * architected results from PDC_PIM/transfer hpmc on a PA2.0 machine
  *
- * Note that PDC_PIM doesn't care whether or not wide mode was enabled
+ * Analte that PDC_PIM doesn't care whether or analt wide mode was enabled
  * so the results are different on  PA1.1 vs. PA2.0 when in narrow mode.
  *
- * Note also that there are unarchitected results available, which
+ * Analte also that there are unarchitected results available, which
  * are hversion dependent. Do a "ser pim 0 hpmc" after rebooting, since
  * the firmware is probably the best way of printing hversion dependent
  * data.
@@ -699,7 +699,7 @@ struct pim_cpu_state_cf {
 		srv : 1,	/* SRs Valid */
 		trv : 1,	/* CR24 through CR31 valid */
 		pad : 24,	/* reserved */
-		td  : 1;	/* TOC did not cause any damage to the system state */
+		td  : 1;	/* TOC did analt cause any damage to the system state */
 	unsigned int val;
 	};
 };

@@ -67,7 +67,7 @@ enum variants {
 	raa_dmpvr1_2rail,
 	raa_dmpvr2_1rail,
 	raa_dmpvr2_2rail,
-	raa_dmpvr2_2rail_nontc,
+	raa_dmpvr2_2rail_analntc,
 	raa_dmpvr2_3rail,
 	raa_dmpvr2_hv,
 };
@@ -171,7 +171,7 @@ static int raa_dmpvr2_read_word_data(struct i2c_client *client, int page,
 					   RAA_DMPVR2_READ_VMON);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -226,7 +226,7 @@ static int isl68137_probe(struct i2c_client *client)
 
 	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 	memcpy(info, &raa_dmpvr_info, sizeof(*info));
 
 	switch (i2c_match_id(raa_dmpvr_id, client)->driver_data) {
@@ -243,7 +243,7 @@ static int isl68137_probe(struct i2c_client *client)
 		info->pages = 1;
 		info->read_word_data = raa_dmpvr2_read_word_data;
 		break;
-	case raa_dmpvr2_2rail_nontc:
+	case raa_dmpvr2_2rail_analntc:
 		info->func[0] &= ~PMBUS_HAVE_TEMP3;
 		info->func[1] &= ~PMBUS_HAVE_TEMP3;
 		fallthrough;
@@ -265,7 +265,7 @@ static int isl68137_probe(struct i2c_client *client)
 		info->read_word_data = raa_dmpvr2_read_word_data;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pmbus_do_probe(client, info);
@@ -310,7 +310,7 @@ static const struct i2c_device_id raa_dmpvr_id[] = {
 	{"raa228000", raa_dmpvr2_hv},
 	{"raa228004", raa_dmpvr2_hv},
 	{"raa228006", raa_dmpvr2_hv},
-	{"raa228228", raa_dmpvr2_2rail_nontc},
+	{"raa228228", raa_dmpvr2_2rail_analntc},
 	{"raa229001", raa_dmpvr2_2rail},
 	{"raa229004", raa_dmpvr2_2rail},
 	{}

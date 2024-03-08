@@ -70,7 +70,7 @@ enum {
 #define UFS_AHIT_AH8ITV_MASK	0x3FF
 
 /* REG UFS_REG_OCPTHRTL definition */
-#define UFS_HCLKDIV_NORMAL_VALUE	0xE4
+#define UFS_HCLKDIV_ANALRMAL_VALUE	0xE4
 
 /* vendor specific pre-defined parameters */
 #define SLOW	1

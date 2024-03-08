@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
@@ -24,7 +24,7 @@
 #include <asm/extmem.h>
 
 #define DCSSBLK_NAME "dcssblk"
-#define DCSSBLK_MINORS_PER_DISK 1
+#define DCSSBLK_MIANALRS_PER_DISK 1
 #define DCSSBLK_PARM_LEN 400
 #define DCSS_BUS_ID_SIZE 20
 
@@ -122,30 +122,30 @@ dcssblk_release_segment(struct device *dev)
 }
 
 /*
- * get a minor number. needs to be called with
+ * get a mianalr number. needs to be called with
  * down_write(&dcssblk_devices_sem) and the
  * device needs to be enqueued before the semaphore is
  * freed.
  */
 static int
-dcssblk_assign_free_minor(struct dcssblk_dev_info *dev_info)
+dcssblk_assign_free_mianalr(struct dcssblk_dev_info *dev_info)
 {
-	int minor, found;
+	int mianalr, found;
 	struct dcssblk_dev_info *entry;
 
 	if (dev_info == NULL)
 		return -EINVAL;
-	for (minor = 0; minor < (1<<MINORBITS); minor++) {
+	for (mianalr = 0; mianalr < (1<<MIANALRBITS); mianalr++) {
 		found = 0;
-		// test if minor available
+		// test if mianalr available
 		list_for_each_entry(entry, &dcssblk_devices, lh)
-			if (minor == entry->gd->first_minor)
+			if (mianalr == entry->gd->first_mianalr)
 				found++;
-		if (!found) break; // got unused minor
+		if (!found) break; // got unused mianalr
 	}
 	if (found)
 		return -EBUSY;
-	dev_info->gd->first_minor = minor;
+	dev_info->gd->first_mianalr = mianalr;
 	return 0;
 }
 
@@ -244,7 +244,7 @@ dcssblk_is_continuous(struct dcssblk_dev_info *dev_info)
 			    sizeof(struct segment_info),
 			    GFP_KERNEL);
 	if (sort_list == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	i = 0;
 	list_for_each_entry(entry, &dev_info->seg_list, lh) {
 		memcpy(&sort_list[i], entry, sizeof(struct segment_info));
@@ -266,7 +266,7 @@ dcssblk_is_continuous(struct dcssblk_dev_info *dev_info)
 	/* check continuity */
 	for (i = 0; i < dev_info->num_of_segments - 1; i++) {
 		if ((sort_list[i].end + 1) != sort_list[i+1].start) {
-			pr_err("Adjacent DCSSs %s and %s are not "
+			pr_err("Adjacent DCSSs %s and %s are analt "
 			       "contiguous\n", sort_list[i].segment_name,
 			       sort_list[i+1].segment_name);
 			rc = -EINVAL;
@@ -312,7 +312,7 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 	/* get a struct segment_info */
 	*seg_info = kzalloc(sizeof(struct segment_info), GFP_KERNEL);
 	if (*seg_info == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy((*seg_info)->segment_name, name);
 
@@ -330,7 +330,7 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 }
 
 /*
- * device attribute for switching shared/nonshared (exclusive)
+ * device attribute for switching shared/analnshared (exclusive)
  * operation (show + store)
  */
 static ssize_t
@@ -378,7 +378,7 @@ dcssblk_shared_store(struct device *dev, struct device_attribute *attr, const ch
 	} else if (inbuf[0] == '0') {
 		/* reload segments in exclusive mode */
 		if (dev_info->segment_type == SEG_TYPE_SC) {
-			pr_err("DCSS %s is of type SC and cannot be "
+			pr_err("DCSS %s is of type SC and cananalt be "
 			       "loaded as exclusive-writable\n",
 			       dev_info->segment_name);
 			rc = -EINVAL;
@@ -435,7 +435,7 @@ static DEVICE_ATTR(shared, S_IWUSR | S_IRUSR, dcssblk_shared_show,
  * device attribute for save operation on current copy
  * of the segment. If the segment is busy, saving will
  * become pending until it gets released, which can be
- * undone by storing a non-true value to this entry.
+ * undone by storing a analn-true value to this entry.
  * (show + store)
  */
 static ssize_t
@@ -467,7 +467,7 @@ dcssblk_save_store(struct device *dev, struct device_attribute *attr, const char
 				if (entry->segment_type == SEG_TYPE_EN ||
 				    entry->segment_type == SEG_TYPE_SN)
 					pr_warn("DCSS %s is of type SN or EN"
-						" and cannot be saved\n",
+						" and cananalt be saved\n",
 						entry->segment_name);
 				else
 					segment_save(entry->segment_name);
@@ -556,17 +556,17 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	seg_info = NULL;
 	if (dev != dcssblk_root_dev) {
 		rc = -EINVAL;
-		goto out_nobuf;
+		goto out_analbuf;
 	}
 	if ((count < 1) || (buf[0] == '\0') || (buf[0] == '\n')) {
 		rc = -ENAMETOOLONG;
-		goto out_nobuf;
+		goto out_analbuf;
 	}
 
 	local_buf = kmalloc(count + 1, GFP_KERNEL);
 	if (local_buf == NULL) {
-		rc = -ENOMEM;
-		goto out_nobuf;
+		rc = -EANALMEM;
+		goto out_analbuf;
 	}
 
 	/*
@@ -596,7 +596,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 			dev_info = kzalloc(sizeof(struct dcssblk_dev_info),
 					GFP_KERNEL);
 			if (dev_info == NULL) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out;
 			}
 			strcpy(dev_info->segment_name, local_buf);
@@ -611,7 +611,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 			break;
 	}
 
-	/* no trailing colon at the end of the input */
+	/* anal trailing colon at the end of the input */
 	if ((i > 0) && (buf[i-1] == ':')) {
 		rc = -ENAMETOOLONG;
 		goto seg_list_del;
@@ -629,16 +629,16 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->dev.release = dcssblk_release_segment;
 	dev_info->dev.groups = dcssblk_dev_attr_groups;
 	INIT_LIST_HEAD(&dev_info->lh);
-	dev_info->gd = blk_alloc_disk(NUMA_NO_NODE);
+	dev_info->gd = blk_alloc_disk(NUMA_ANAL_ANALDE);
 	if (dev_info->gd == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto seg_list_del;
 	}
 	dev_info->gd->major = dcssblk_major;
-	dev_info->gd->minors = DCSSBLK_MINORS_PER_DISK;
+	dev_info->gd->mianalrs = DCSSBLK_MIANALRS_PER_DISK;
 	dev_info->gd->fops = &dcssblk_devops;
 	dev_info->gd->private_data = dev_info;
-	dev_info->gd->flags |= GENHD_FL_NO_PART;
+	dev_info->gd->flags |= GENHD_FL_ANAL_PART;
 	blk_queue_logical_block_size(dev_info->gd->queue, 4096);
 	blk_queue_flag_set(QUEUE_FLAG_DAX, dev_info->gd->queue);
 
@@ -652,22 +652,22 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->dev.parent = dcssblk_root_dev;
 
 	/*
-	 *get minor, add to list
+	 *get mianalr, add to list
 	 */
 	down_write(&dcssblk_devices_sem);
 	if (dcssblk_get_segment_by_name(local_buf)) {
 		rc = -EEXIST;
 		goto release_gd;
 	}
-	rc = dcssblk_assign_free_minor(dev_info);
+	rc = dcssblk_assign_free_mianalr(dev_info);
 	if (rc)
 		goto release_gd;
 	sprintf(dev_info->gd->disk_name, "dcssblk%d",
-		dev_info->gd->first_minor);
+		dev_info->gd->first_mianalr);
 	list_add_tail(&dev_info->lh, &dcssblk_devices);
 
 	if (!try_module_get(THIS_MODULE)) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto dev_list_del;
 	}
 	/*
@@ -683,7 +683,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 		dev_info->dax_dev = NULL;
 		goto put_dev;
 	}
-	set_dax_synchronous(dev_info->dax_dev);
+	set_dax_synchroanalus(dev_info->dax_dev);
 	rc = dax_add_host(dev_info->dax_dev, dev_info->gd);
 	if (rc)
 		goto out_dax;
@@ -738,7 +738,7 @@ seg_list_del:
 	kfree(dev_info);
 out:
 	kfree(local_buf);
-out_nobuf:
+out_analbuf:
 	return rc;
 }
 
@@ -758,7 +758,7 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	}
 	local_buf = kmalloc(count + 1, GFP_KERNEL);
 	if (local_buf == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * parse input
@@ -776,14 +776,14 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	dev_info = dcssblk_get_device_by_name(local_buf);
 	if (dev_info == NULL) {
 		up_write(&dcssblk_devices_sem);
-		pr_warn("Device %s cannot be removed because it is not a known device\n",
+		pr_warn("Device %s cananalt be removed because it is analt a kanalwn device\n",
 			local_buf);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_buf;
 	}
 	if (atomic_read(&dev_info->use_count) != 0) {
 		up_write(&dcssblk_devices_sem);
-		pr_warn("Device %s cannot be removed while it is in use\n",
+		pr_warn("Device %s cananalt be removed while it is in use\n",
 			local_buf);
 		rc = -EBUSY;
 		goto out_buf;
@@ -817,7 +817,7 @@ dcssblk_open(struct gendisk *disk, blk_mode_t mode)
 	int rc;
 
 	if (NULL == dev_info) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out;
 	}
 	atomic_inc(&dev_info->use_count);
@@ -840,11 +840,11 @@ dcssblk_release(struct gendisk *disk)
 	if (atomic_dec_and_test(&dev_info->use_count)
 	    && (dev_info->save_pending)) {
 		pr_info("Device %s has become idle and is being saved "
-			"now\n", dev_info->segment_name);
+			"analw\n", dev_info->segment_name);
 		list_for_each_entry(entry, &dev_info->seg_list, lh) {
 			if (entry->segment_type == SEG_TYPE_EN ||
 			    entry->segment_type == SEG_TYPE_SN)
-				pr_warn("DCSS %s is of type SN or EN and cannot"
+				pr_warn("DCSS %s is of type SN or EN and cananalt"
 					" be saved\n", entry->segment_name);
 			else
 				segment_save(entry->segment_name);
@@ -871,7 +871,7 @@ dcssblk_submit_bio(struct bio *bio)
 		goto fail;
 	if (!IS_ALIGNED(bio->bi_iter.bi_sector, 8) ||
 	    !IS_ALIGNED(bio->bi_iter.bi_size, PAGE_SIZE))
-		/* Request is not page-aligned. */
+		/* Request is analt page-aligned. */
 		goto fail;
 	/* verify data transfer direction */
 	if (dev_info->is_shared) {
@@ -879,7 +879,7 @@ dcssblk_submit_bio(struct bio *bio)
 		case SEG_TYPE_SR:
 		case SEG_TYPE_ER:
 		case SEG_TYPE_SC:
-			/* cannot write to these segments */
+			/* cananalt write to these segments */
 			if (bio_data_dir(bio) == WRITE) {
 				pr_warn("Writing to %s failed because it is a read-only device\n",
 					dev_name(&dev_info->dev));
@@ -894,7 +894,7 @@ dcssblk_submit_bio(struct bio *bio)
 		source_addr = dev_info->start + (index<<12) + bytes_done;
 		if (unlikely(!IS_ALIGNED((unsigned long)page_addr, PAGE_SIZE) ||
 			     !IS_ALIGNED(bvec.bv_len, PAGE_SIZE)))
-			// More paranoia.
+			// More paraanalia.
 			goto fail;
 		if (bio_data_dir(bio) == READ)
 			memcpy(page_addr, __va(source_addr), bvec.bv_len);

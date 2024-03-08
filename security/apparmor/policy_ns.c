@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy manipulation functions
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  *
  * AppArmor policy namespaces, allow for different sets of policies
  * to be loaded for tasks within the namespace.
@@ -31,8 +31,8 @@ const char *aa_hidden_ns_name = "---";
 
 /**
  * aa_ns_visible - test if @view is visible from @curr
- * @curr: namespace to treat as the parent (NOT NULL)
- * @view: namespace to test if visible from @curr (NOT NULL)
+ * @curr: namespace to treat as the parent (ANALT NULL)
+ * @view: namespace to test if visible from @curr (ANALT NULL)
  * @subns: whether view of a subns is allowed
  *
  * Returns: true if @view is visible from @curr else false
@@ -55,8 +55,8 @@ bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns)
 
 /**
  * aa_ns_name - Find the ns name to display for @view from @curr
- * @curr: current namespace (NOT NULL)
- * @view: namespace attempting to view (NOT NULL)
+ * @curr: current namespace (ANALT NULL)
+ * @view: namespace attempting to view (ANALT NULL)
  * @subns: are subns visible
  *
  * Returns: name of @view visible from @curr
@@ -98,7 +98,7 @@ static struct aa_profile *alloc_unconfined(const char *name)
 /**
  * alloc_ns - allocate, initialize and return a new namespace
  * @prefix: parent namespace name (MAYBE NULL)
- * @name: a preallocated name  (NOT NULL)
+ * @name: a preallocated name  (ANALT NULL)
  *
  * Returns: refcounted namespace or NULL on failure.
  */
@@ -161,13 +161,13 @@ void aa_free_ns(struct aa_ns *ns)
 
 /**
  * __aa_lookupn_ns - lookup the namespace matching @hname
- * @view: namespace to search in  (NOT NULL)
- * @hname: hierarchical ns name  (NOT NULL)
+ * @view: namespace to search in  (ANALT NULL)
+ * @hname: hierarchical ns name  (ANALT NULL)
  * @n: length of @hname
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted ns pointer or NULL if not found
+ * Returns: unrefcounted ns pointer or NULL if analt found
  *
  * Do a relative name lookup, recursing through profile tree.
  */
@@ -193,11 +193,11 @@ struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
 
 /**
  * aa_lookupn_ns  -  look up a policy namespace relative to @view
- * @view: namespace to search in  (NOT NULL)
- * @name: name of namespace to find  (NOT NULL)
+ * @view: namespace to search in  (ANALT NULL)
+ * @name: name of namespace to find  (ANALT NULL)
  * @n: length of @name
  *
- * Returns: a refcounted namespace on the list, or NULL if no namespace
+ * Returns: a refcounted namespace on the list, or NULL if anal namespace
  *          called @name exists.
  *
  * refcount released by caller
@@ -225,7 +225,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 
 	ns = alloc_ns(parent->base.hname, name);
 	if (!ns)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	ns->level = parent->level + 1;
 	mutex_lock_nested(&ns->lock, ns->level);
 	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
@@ -249,7 +249,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
  * __aa_find_or_create_ns - create an ns, fail if it already exists
  * @parent: the parent of the namespace being created
  * @name: the name of the namespace
- * @dir: if not null the dir to put the ns entries in
+ * @dir: if analt null the dir to put the ns entries in
  *
  * Returns: the a refcounted ns that has been add or an ERR_PTR
  */
@@ -275,7 +275,7 @@ struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
 /**
  * aa_prepare_ns - find an existing or create a new namespace of @name
  * @parent: ns to treat as parent
- * @name: the namespace to find or add  (NOT NULL)
+ * @name: the namespace to find or add  (ANALT NULL)
  *
  * Returns: refcounted namespace or PTR_ERR if failed to create one
  */
@@ -299,7 +299,7 @@ static void __ns_list_release(struct list_head *head);
 
 /**
  * destroy_ns - remove everything contained by @ns
- * @ns: namespace to have it contents removed  (NOT NULL)
+ * @ns: namespace to have it contents removed  (ANALT NULL)
  */
 static void destroy_ns(struct aa_ns *ns)
 {
@@ -327,7 +327,7 @@ static void destroy_ns(struct aa_ns *ns)
 
 /**
  * __aa_remove_ns - remove a namespace and all its children
- * @ns: namespace to be removed  (NOT NULL)
+ * @ns: namespace to be removed  (ANALT NULL)
  *
  * Requires: ns->parent->lock be held and ns removed from parent.
  */
@@ -341,7 +341,7 @@ void __aa_remove_ns(struct aa_ns *ns)
 
 /**
  * __ns_list_release - remove all profile namespaces on the list put refs
- * @head: list of profile namespaces  (NOT NULL)
+ * @head: list of profile namespaces  (ANALT NULL)
  *
  * Requires: namespace lock be held
  */
@@ -367,13 +367,13 @@ int __init aa_alloc_root_ns(void)
 	/* released by aa_free_root_ns - used as list ref*/
 	root_ns = alloc_ns(NULL, "root");
 	if (!root_ns)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	kernel_p = alloc_unconfined("kernel_t");
 	if (!kernel_p) {
 		destroy_ns(root_ns);
 		aa_free_ns(root_ns);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	kernel_t = &kernel_p->label;
 	root_ns->unconfined->ns = aa_get_ns(root_ns);

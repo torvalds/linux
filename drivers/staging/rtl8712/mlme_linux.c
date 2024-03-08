@@ -122,9 +122,9 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		struct security_priv *sec_priv = &adapter->securitypriv;
 
 		sec_priv->AuthAlgrthm = 0; /*open system*/
-		sec_priv->PrivacyAlgrthm = _NO_PRIVACY_;
+		sec_priv->PrivacyAlgrthm = _ANAL_PRIVACY_;
 		sec_priv->PrivacyKeyIndex = 0;
-		sec_priv->XGrpPrivacy = _NO_PRIVACY_;
+		sec_priv->XGrpPrivacy = _ANAL_PRIVACY_;
 		sec_priv->XGrpKeyid = 1;
 		sec_priv->ndisauthtype = Ndis802_11AuthModeOpen;
 		sec_priv->ndisencryptstatus = Ndis802_11WEPDisabled;

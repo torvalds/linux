@@ -7,7 +7,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erranal.h>
 #include <error.h>
 #include <linux/dccp.h>
 #include <linux/in.h>
@@ -47,7 +47,7 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count,
 		if (!addr_str)
 			addr4.sin_addr.s_addr = htonl(INADDR_ANY);
 		else if (!inet_pton(family, addr_str, &addr4.sin_addr.s_addr))
-			error(1, errno, "inet_pton failed: %s", addr_str);
+			error(1, erranal, "inet_pton failed: %s", addr_str);
 		addr4.sin_port = htons(PORT);
 		sz = sizeof(addr4);
 		addr = (struct sockaddr *)&addr4;
@@ -57,16 +57,16 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count,
 		if (!addr_str)
 			addr6.sin6_addr = in6addr_any;
 		else if (!inet_pton(family, addr_str, &addr6.sin6_addr))
-			error(1, errno, "inet_pton failed: %s", addr_str);
+			error(1, erranal, "inet_pton failed: %s", addr_str);
 		addr6.sin6_port = htons(PORT);
 		sz = sizeof(addr6);
 		addr = (struct sockaddr *)&addr6;
 		break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
-		/* clang does not recognize error() above as terminating
+		/* clang does analt recognize error() above as terminating
 		 * the program, so it complains that saddr, sz are
-		 * not initialized when this code path is taken. Silence it.
+		 * analt initialized when this code path is taken. Silence it.
 		 */
 		return;
 	}
@@ -74,26 +74,26 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count,
 	for (i = 0; i < count; ++i) {
 		rcv_fds[i] = socket(family, proto, 0);
 		if (rcv_fds[i] < 0)
-			error(1, errno, "failed to create receive socket");
+			error(1, erranal, "failed to create receive socket");
 
 		opt = 1;
 		if (setsockopt(rcv_fds[i], SOL_SOCKET, SO_REUSEPORT, &opt,
 			       sizeof(opt)))
-			error(1, errno, "failed to set SO_REUSEPORT");
+			error(1, erranal, "failed to set SO_REUSEPORT");
 
 		if (bind(rcv_fds[i], addr, sz))
-			error(1, errno, "failed to bind receive socket");
+			error(1, erranal, "failed to bind receive socket");
 
 		if (proto == SOCK_STREAM && listen(rcv_fds[i], 10))
-			error(1, errno, "tcp: failed to listen on receive port");
+			error(1, erranal, "tcp: failed to listen on receive port");
 		else if (proto == SOCK_DCCP) {
 			if (setsockopt(rcv_fds[i], SOL_DCCP,
 					DCCP_SOCKOPT_SERVICE,
 					&(int) {htonl(42)}, sizeof(int)))
-				error(1, errno, "failed to setsockopt");
+				error(1, erranal, "failed to setsockopt");
 
 			if (listen(rcv_fds[i], 10))
-				error(1, errno, "dccp: failed to listen on receive port");
+				error(1, erranal, "dccp: failed to listen on receive port");
 		}
 	}
 }
@@ -115,7 +115,7 @@ static int connect_and_send(int family, int proto)
 
 		daddr4.sin_family = AF_INET;
 		if (!inet_pton(family, IP4_ADDR, &daddr4.sin_addr.s_addr))
-			error(1, errno, "inet_pton failed: %s", IP4_ADDR);
+			error(1, erranal, "inet_pton failed: %s", IP4_ADDR);
 		daddr4.sin_port = htons(PORT);
 
 		sz = sizeof(saddr4);
@@ -128,7 +128,7 @@ static int connect_and_send(int family, int proto)
 
 		daddr6.sin6_family = AF_INET6;
 		if (!inet_pton(family, IP6_ADDR, &daddr6.sin6_addr))
-			error(1, errno, "inet_pton failed: %s", IP6_ADDR);
+			error(1, erranal, "inet_pton failed: %s", IP6_ADDR);
 		daddr6.sin6_port = htons(PORT);
 
 		sz = sizeof(saddr6);
@@ -137,30 +137,30 @@ static int connect_and_send(int family, int proto)
 	break;
 	default:
 		error(1, 0, "Unsupported family %d", family);
-		/* clang does not recognize error() above as terminating
+		/* clang does analt recognize error() above as terminating
 		 * the program, so it complains that saddr, daddr, sz are
-		 * not initialized when this code path is taken. Silence it.
+		 * analt initialized when this code path is taken. Silence it.
 		 */
 		return -1;
 	}
 
 	fd = socket(family, proto, 0);
 	if (fd < 0)
-		error(1, errno, "failed to create send socket");
+		error(1, erranal, "failed to create send socket");
 
 	if (proto == SOCK_DCCP &&
 		setsockopt(fd, SOL_DCCP, DCCP_SOCKOPT_SERVICE,
 				&(int){htonl(42)}, sizeof(int)))
-		error(1, errno, "failed to setsockopt");
+		error(1, erranal, "failed to setsockopt");
 
 	if (bind(fd, saddr, sz))
-		error(1, errno, "failed to bind send socket");
+		error(1, erranal, "failed to bind send socket");
 
 	if (connect(fd, daddr, sz))
-		error(1, errno, "failed to connect send socket");
+		error(1, erranal, "failed to connect send socket");
 
 	if (send(fd, "a", 1, 0) < 0)
-		error(1, errno, "failed to send message");
+		error(1, erranal, "failed to send message");
 
 	return fd;
 }
@@ -173,12 +173,12 @@ static int receive_once(int epfd, int proto)
 
 	i = epoll_wait(epfd, &ev, 1, 3);
 	if (i < 0)
-		error(1, errno, "epoll_wait failed");
+		error(1, erranal, "epoll_wait failed");
 
 	if (proto == SOCK_STREAM || proto == SOCK_DCCP) {
 		fd = accept(ev.data.fd, NULL, NULL);
 		if (fd < 0)
-			error(1, errno, "failed to accept");
+			error(1, erranal, "failed to accept");
 		i = recv(fd, buf, sizeof(buf), 0);
 		close(fd);
 	} else {
@@ -186,7 +186,7 @@ static int receive_once(int epfd, int proto)
 	}
 
 	if (i < 0)
-		error(1, errno, "failed to recv");
+		error(1, erranal, "failed to recv");
 
 	return ev.data.fd;
 }
@@ -198,13 +198,13 @@ static void test(int *rcv_fds, int count, int family, int proto, int fd)
 
 	epfd = epoll_create(1);
 	if (epfd < 0)
-		error(1, errno, "failed to create epoll");
+		error(1, erranal, "failed to create epoll");
 
 	ev.events = EPOLLIN;
 	for (i = 0; i < count; ++i) {
 		ev.data.fd = rcv_fds[i];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, rcv_fds[i], &ev))
-			error(1, errno, "failed to register sock epoll");
+			error(1, erranal, "failed to register sock epoll");
 	}
 
 	send_fd = connect_and_send(family, proto);
@@ -223,7 +223,7 @@ static void run_one_test(int fam_send, int fam_rcv, int proto,
 {
 	/* Below we test that a socket listening on a specific address
 	 * is always selected in preference over a socket listening
-	 * on addr_any. Bugs where this is not the case often result
+	 * on addr_any. Bugs where this is analt the case often result
 	 * in sockets created first or last to get picked. So below
 	 * we make sure that there are always addr_any sockets created
 	 * before and after a specific socket is created.
@@ -248,11 +248,11 @@ static void test_proto(int proto, const char *proto_str)
 
 		test_fd = socket(AF_INET, proto, 0);
 		if (test_fd < 0) {
-			if (errno == ESOCKTNOSUPPORT) {
-				fprintf(stderr, "DCCP not supported: skipping DCCP tests\n");
+			if (erranal == ESOCKTANALSUPPORT) {
+				fprintf(stderr, "DCCP analt supported: skipping DCCP tests\n");
 				return;
 			} else
-				error(1, errno, "failed to create a DCCP socket");
+				error(1, erranal, "failed to create a DCCP socket");
 		}
 		close(test_fd);
 	}

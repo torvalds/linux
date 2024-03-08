@@ -46,10 +46,10 @@
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
  */
 #define PMD_SECT_UNCACHED	(_AT(pmdval_t, 0) << 2)	/* strongly ordered */
-#define PMD_SECT_BUFFERED	(_AT(pmdval_t, 1) << 2)	/* normal non-cacheable */
-#define PMD_SECT_WT		(_AT(pmdval_t, 2) << 2)	/* normal inner write-through */
-#define PMD_SECT_WB		(_AT(pmdval_t, 3) << 2)	/* normal inner write-back */
-#define PMD_SECT_WBWA		(_AT(pmdval_t, 7) << 2)	/* normal inner write-alloc */
+#define PMD_SECT_BUFFERED	(_AT(pmdval_t, 1) << 2)	/* analrmal analn-cacheable */
+#define PMD_SECT_WT		(_AT(pmdval_t, 2) << 2)	/* analrmal inner write-through */
+#define PMD_SECT_WB		(_AT(pmdval_t, 3) << 2)	/* analrmal inner write-back */
+#define PMD_SECT_WBWA		(_AT(pmdval_t, 7) << 2)	/* analrmal inner write-alloc */
 #define PMD_SECT_CACHE_MASK	(_AT(pmdval_t, 7) << 2)
 
 /*
@@ -76,7 +76,7 @@
 
 /*
  * TTBR0/TTBR1 split (PAGE_OFFSET):
- *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
+ *   0x40000000: T0SZ = 2, T1SZ = 0 (analt used)
  *   0x80000000: T0SZ = 0, T1SZ = 1
  *   0xc0000000: T0SZ = 0, T1SZ = 2
  *

@@ -77,30 +77,30 @@ static void nxt6000_reset(struct nxt6000_state* state)
 
 static int nxt6000_set_bandwidth(struct nxt6000_state *state, u32 bandwidth)
 {
-	u16 nominal_rate;
+	u16 analminal_rate;
 	int result;
 
 	switch (bandwidth) {
 	case 6000000:
-		nominal_rate = 0x55B7;
+		analminal_rate = 0x55B7;
 		break;
 
 	case 7000000:
-		nominal_rate = 0x6400;
+		analminal_rate = 0x6400;
 		break;
 
 	case 8000000:
-		nominal_rate = 0x7249;
+		analminal_rate = 0x7249;
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if ((result = nxt6000_writereg(state, OFDM_TRL_NOMINALRATE_1, nominal_rate & 0xFF)) < 0)
+	if ((result = nxt6000_writereg(state, OFDM_TRL_ANALMINALRATE_1, analminal_rate & 0xFF)) < 0)
 		return result;
 
-	return nxt6000_writereg(state, OFDM_TRL_NOMINALRATE_2, (nominal_rate >> 8) & 0xFF);
+	return nxt6000_writereg(state, OFDM_TRL_ANALMINALRATE_2, (analminal_rate >> 8) & 0xFF);
 }
 
 static int nxt6000_set_guard_interval(struct nxt6000_state *state,
@@ -191,8 +191,8 @@ static void nxt6000_setup(struct dvb_frontend* fe)
 	nxt6000_writereg(state, CAS_FREQ, 0xBB);	/* CHECKME */
 	nxt6000_writereg(state, OFDM_SYR_CTL, 1 << 2);
 	nxt6000_writereg(state, OFDM_PPM_CTL_1, PPM256);
-	nxt6000_writereg(state, OFDM_TRL_NOMINALRATE_1, 0x49);
-	nxt6000_writereg(state, OFDM_TRL_NOMINALRATE_2, 0x72);
+	nxt6000_writereg(state, OFDM_TRL_ANALMINALRATE_1, 0x49);
+	nxt6000_writereg(state, OFDM_TRL_ANALMINALRATE_2, 0x72);
 	nxt6000_writereg(state, ANALOG_CONTROL_0, 1 << 5);
 	nxt6000_writereg(state, EN_DMD_RACQ, (1 << 7) | (3 << 4) | 2);
 	nxt6000_writereg(state, DIAG_CONFIG, TB_SET);

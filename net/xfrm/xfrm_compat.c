@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * XFRM compat layer
- * Author: Dmitry Safonov <dima@arista.com>
+ * Author: Dmitry Safoanalv <dima@arista.com>
  * Based on code and translator idea by: Florian Westphal <fw@strlen.de>
  */
 #include <linux/compat.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/xfrm.h>
 #include <net/xfrm.h>
 
@@ -164,7 +164,7 @@ static struct nlmsghdr *xfrm_nlmsg_put_compat(struct sk_buff *skb,
 		WARN_ON_ONCE(src_len != payload);
 		memcpy(nlmsg_data(nlh_dst), nlmsg_data(nlh_src), src_len);
 		break;
-	/* 4 byte alignment for trailing u64 on native, but not on compat */
+	/* 4 byte alignment for trailing u64 on native, but analt on compat */
 	case XFRM_MSG_NEWSA:
 	case XFRM_MSG_NEWPOLICY:
 	case XFRM_MSG_UPDSA:
@@ -211,7 +211,7 @@ static struct nlmsghdr *xfrm_nlmsg_put_compat(struct sk_buff *skb,
 		dst_usi->max = src_usi->max;
 		break;
 	}
-	/* Not being sent by kernel */
+	/* Analt being sent by kernel */
 	case XFRM_MSG_GETSA:
 	case XFRM_MSG_GETPOLICY:
 	case XFRM_MSG_GETAE:
@@ -219,7 +219,7 @@ static struct nlmsghdr *xfrm_nlmsg_put_compat(struct sk_buff *skb,
 	case XFRM_MSG_GETSPDINFO:
 	default:
 		pr_warn_once("unsupported nlmsg_type %d\n", nlh_src->nlmsg_type);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	return nlh_dst;
@@ -234,7 +234,7 @@ static int xfrm_xlate64_attr(struct sk_buff *dst, const struct nlattr *src)
 {
 	switch (src->nla_type) {
 	case XFRMA_PAD:
-		/* Ignore */
+		/* Iganalre */
 		return 0;
 	case XFRMA_UNSPEC:
 	case XFRMA_ALG_AUTH:
@@ -281,7 +281,7 @@ static int xfrm_xlate64_attr(struct sk_buff *dst, const struct nlattr *src)
 	default:
 		BUILD_BUG_ON(XFRMA_MAX != XFRMA_MTIMER_THRESH);
 		pr_warn_once("unsupported nla_type %d\n", src->nla_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -328,13 +328,13 @@ static int xfrm_alloc_compat(struct sk_buff *skb, const struct nlmsghdr *nlh_src
 
 	if (type >= ARRAY_SIZE(xfrm_msg_min)) {
 		pr_warn_once("unsupported nlmsg_type %d\n", nlh_src->nlmsg_type);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (skb_shinfo(skb)->frag_list == NULL) {
 		new = alloc_skb(skb->len + skb_tailroom(skb), GFP_ATOMIC);
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		skb_shinfo(skb)->frag_list = new;
 	}
 
@@ -371,7 +371,7 @@ static size_t xfrm_user_rcv_calculate_len64(const struct nlmsghdr *src,
 		len += 8;
 		break;
 	case XFRM_MSG_NEWSPDINFO:
-		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		/* attirbutes are xfrm_spdattr_type_t, analt xfrm_attr_type_t */
 		return len;
 	default:
 		break;
@@ -410,7 +410,7 @@ static int xfrm_attr_cpy32(void *dst, size_t *pos, const struct nlattr *src,
 		copy_len = payload;
 
 	if (size - *pos < nla_attr_size(payload))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	nla = dst + *pos;
 
@@ -436,22 +436,22 @@ static int xfrm_xlate32_attr(void *dst, const struct nlattr *nla,
 	if (type > XFRMA_MAX) {
 		BUILD_BUG_ON(XFRMA_MAX != XFRMA_MTIMER_THRESH);
 		NL_SET_ERR_MSG(extack, "Bad attribute");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	type = array_index_nospec(type, XFRMA_MAX + 1);
+	type = array_index_analspec(type, XFRMA_MAX + 1);
 	if (nla_len(nla) < compat_policy[type].len) {
 		NL_SET_ERR_MSG(extack, "Attribute bad length");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	pol_len32 = compat_policy[type].len;
 	pol_len64 = xfrma_policy[type].len;
 
-	/* XFRMA_SA and XFRMA_POLICY - need to know how-to translate */
+	/* XFRMA_SA and XFRMA_POLICY - need to kanalw how-to translate */
 	if (pol_len32 != pol_len64) {
 		if (nla_len(nla) != compat_policy[type].len) {
 			NL_SET_ERR_MSG(extack, "Attribute bad length");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		err = xfrm_attr_cpy32(dst, pos, nla, size, pol_len32, pol_len64);
 		if (err)
@@ -492,7 +492,7 @@ static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 	case XFRM_MSG_MAPPING:
 		memcpy(nlmsg_data(dst), nlmsg_data(src), compat_msg_min[type]);
 		break;
-	/* 4 byte alignment for trailing u64 on native, but not on compat */
+	/* 4 byte alignment for trailing u64 on native, but analt on compat */
 	case XFRM_MSG_NEWSA:
 	case XFRM_MSG_NEWPOLICY:
 	case XFRM_MSG_UPDSA:
@@ -540,12 +540,12 @@ static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 	}
 	default:
 		NL_SET_ERR_MSG(extack, "Unsupported message type");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	pos = dst->nlmsg_len;
 
 	if (maxtype) {
-		/* attirbutes are xfrm_spdattr_type_t, not xfrm_attr_type_t */
+		/* attirbutes are xfrm_spdattr_type_t, analt xfrm_attr_type_t */
 		WARN_ON_ONCE(src->nlmsg_type != XFRM_MSG_NEWSPDINFO);
 
 		for (i = 1; i <= maxtype; i++) {
@@ -554,7 +554,7 @@ static int xfrm_xlate32(struct nlmsghdr *dst, const struct nlmsghdr *src,
 			if (!attrs[i])
 				continue;
 
-			/* just copy - no need for translation */
+			/* just copy - anal need for translation */
 			err = xfrm_attr_cpy32(dst, &pos, attrs[i], size,
 					nla_len(attrs[i]), nla_len(attrs[i]));
 			if (err)
@@ -615,7 +615,7 @@ static struct nlmsghdr *xfrm_user_rcv_msg_compat(const struct nlmsghdr *h32,
 	len += NLMSG_HDRLEN;
 	h64 = kvmalloc(len, GFP_KERNEL);
 	if (!h64)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	err = xfrm_xlate32(h64, h32, attrs, len, type, maxtype, extack);
 	if (err < 0) {
@@ -635,9 +635,9 @@ static int xfrm_user_policy_compat(u8 **pdata32, int optlen)
 	if (optlen < sizeof(*p))
 		return -EINVAL;
 
-	data64 = kmalloc_track_caller(optlen + 4, GFP_USER | __GFP_NOWARN);
+	data64 = kmalloc_track_caller(optlen + 4, GFP_USER | __GFP_ANALWARN);
 	if (!data64)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(data64, *pdata32, sizeof(*p));
 	memset(data64 + sizeof(*p), 0, 4);
@@ -671,5 +671,5 @@ static void __exit xfrm_compat_exit(void)
 module_init(xfrm_compat_init);
 module_exit(xfrm_compat_exit);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Dmitry Safonov");
+MODULE_AUTHOR("Dmitry Safoanalv");
 MODULE_DESCRIPTION("XFRM 32-bit compatibility layer");

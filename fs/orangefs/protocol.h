@@ -73,23 +73,23 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
  * the sign is stripped before decoding.
  */
 
-/* Bit 31 is not used since it is the sign. */
+/* Bit 31 is analt used since it is the sign. */
 
 /*
  * Bit 30 specifies that this is a ORANGEFS error. A ORANGEFS error is either an
- * encoded errno value or a ORANGEFS protocol error.
+ * encoded erranal value or a ORANGEFS protocol error.
  */
 #define ORANGEFS_ERROR_BIT (1 << 30)
 
 /*
- * Bit 29 specifies that this is a ORANGEFS protocol error and not an encoded
- * errno value.
+ * Bit 29 specifies that this is a ORANGEFS protocol error and analt an encoded
+ * erranal value.
  */
-#define ORANGEFS_NON_ERRNO_ERROR_BIT (1 << 29)
+#define ORANGEFS_ANALN_ERRANAL_ERROR_BIT (1 << 29)
 
 /*
  * Bits 9, 8, and 7 specify the error class, which encodes the section of
- * server code the error originated in for logging purposes. It is not used
+ * server code the error originated in for logging purposes. It is analt used
  * in the kernel except to be masked out.
  */
 #define ORANGEFS_ERROR_CLASS_BITS 0x380
@@ -97,18 +97,18 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 /* Bits 6 - 0 are reserved for the actual error code. */
 #define ORANGEFS_ERROR_NUMBER_BITS 0x7f
 
-/* Encoded errno values decoded by PINT_errno_mapping in orangefs-utils.c. */
+/* Encoded erranal values decoded by PINT_erranal_mapping in orangefs-utils.c. */
 
 /* Our own ORANGEFS protocol error codes. */
-#define ORANGEFS_ECANCEL    (1|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EDEVINIT   (2|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EDETAIL    (3|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EHOSTNTFD  (4|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EADDRNTFD  (5|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ENORECVR   (6|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ETRYAGAIN  (7|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ENOTPVFS   (8|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ESECURITY  (9|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ECANCEL    (1|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EDEVINIT   (2|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EDETAIL    (3|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EHOSTNTFD  (4|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EADDRNTFD  (5|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EANALRECVR   (6|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ETRYAGAIN  (7|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EANALTPVFS   (8|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ESECURITY  (9|ORANGEFS_ANALN_ERRANAL_ERROR_BIT|ORANGEFS_ERROR_BIT)
 
 /* permission bits */
 #define ORANGEFS_O_EXECUTE (1 << 0)
@@ -120,7 +120,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_U_EXECUTE (1 << 6)
 #define ORANGEFS_U_WRITE   (1 << 7)
 #define ORANGEFS_U_READ    (1 << 8)
-/* no ORANGEFS_U_VTX (sticky bit) */
+/* anal ORANGEFS_U_VTX (sticky bit) */
 #define ORANGEFS_G_SGID    (1 << 10)
 #define ORANGEFS_U_SUID    (1 << 11)
 
@@ -128,7 +128,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_ITERATE_END      2147483645
 #define ORANGEFS_IMMUTABLE_FL FS_IMMUTABLE_FL
 #define ORANGEFS_APPEND_FL    FS_APPEND_FL
-#define ORANGEFS_NOATIME_FL   FS_NOATIME_FL
+#define ORANGEFS_ANALATIME_FL   FS_ANALATIME_FL
 #define ORANGEFS_MIRROR_FL    0x01000000ULL
 #define ORANGEFS_FS_ID_NULL       ((__s32)0)
 #define ORANGEFS_ATTR_SYS_UID                   (1 << 0)
@@ -158,7 +158,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_ATTR_SYS_ALL_SETABLE		\
 (ORANGEFS_ATTR_SYS_COMMON_ALL-ORANGEFS_ATTR_SYS_TYPE)
 
-#define ORANGEFS_ATTR_SYS_ALL_NOHINT			\
+#define ORANGEFS_ATTR_SYS_ALL_ANALHINT			\
 	(ORANGEFS_ATTR_SYS_COMMON_ALL		|	\
 	 ORANGEFS_ATTR_SYS_SIZE			|	\
 	 ORANGEFS_ATTR_SYS_LNK_TARGET		|	\
@@ -174,20 +174,20 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 /*
  * max extended attribute name len as imposed by the VFS and exploited for the
  * upcall request types.
- * NOTE: Please retain them as multiples of 8 even if you wish to change them
+ * ANALTE: Please retain them as multiples of 8 even if you wish to change them
  * This is *NECESSARY* for supporting 32 bit user-space binaries on a 64-bit
  * kernel. Due to implementation within DBPF, this really needs to be
- * ORANGEFS_NAME_MAX, which it was the same value as, but no reason to let it
+ * ORANGEFS_NAME_MAX, which it was the same value as, but anal reason to let it
  * break if that changes in the future.
  */
-#define ORANGEFS_MAX_XATTR_NAMELEN   ORANGEFS_NAME_MAX	/* Not the same as
+#define ORANGEFS_MAX_XATTR_NAMELEN   ORANGEFS_NAME_MAX	/* Analt the same as
 						 * XATTR_NAME_MAX defined
 						 * by <linux/xattr.h>
 						 */
-#define ORANGEFS_MAX_XATTR_VALUELEN  8192	/* Not the same as XATTR_SIZE_MAX
+#define ORANGEFS_MAX_XATTR_VALUELEN  8192	/* Analt the same as XATTR_SIZE_MAX
 					 * defined by <linux/xattr.h>
 					 */
-#define ORANGEFS_MAX_XATTR_LISTLEN   16	/* Not the same as XATTR_LIST_MAX
+#define ORANGEFS_MAX_XATTR_LISTLEN   16	/* Analt the same as XATTR_LIST_MAX
 					 * defined by <linux/xattr.h>
 					 */
 /*
@@ -204,7 +204,7 @@ enum ORANGEFS_io_type {
  * change.
  */
 enum orangefs_ds_type {
-	ORANGEFS_TYPE_NONE = 0,
+	ORANGEFS_TYPE_ANALNE = 0,
 	ORANGEFS_TYPE_METAFILE = (1 << 0),
 	ORANGEFS_TYPE_DATAFILE = (1 << 1),
 	ORANGEFS_TYPE_DIRECTORY = (1 << 2),
@@ -232,27 +232,27 @@ struct ORANGEFS_sys_attr_s {
 	__u64 ctime;
 	__s64 size;
 
-	/* NOTE: caller must free if valid */
+	/* ANALTE: caller must free if valid */
 	char *link_target;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does analt change */
 	__s32 dfile_count;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does analt change */
 	__s32 distr_dir_servers_initial;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does analt change */
 	__s32 distr_dir_servers_max;
 
-	/* Changed to __s32 so that size of structure does not change */
+	/* Changed to __s32 so that size of structure does analt change */
 	__s32 distr_dir_split_size;
 
 	__u32 mirror_copies_count;
 
-	/* NOTE: caller must free if valid */
+	/* ANALTE: caller must free if valid */
 	char *dist_name;
 
-	/* NOTE: caller must free if valid */
+	/* ANALTE: caller must free if valid */
 	char *dist_params;
 
 	__s64 dirent_count;
@@ -262,7 +262,7 @@ struct ORANGEFS_sys_attr_s {
 	__s64 blksize;
 };
 
-#define ORANGEFS_LOOKUP_LINK_NO_FOLLOW 0
+#define ORANGEFS_LOOKUP_LINK_ANAL_FOLLOW 0
 
 /* pint-dev.h ***************************************************************/
 
@@ -335,9 +335,9 @@ enum {
 
 /*
  * describes memory regions to map in the ORANGEFS_DEV_MAP ioctl.
- * NOTE: See devorangefs-req.c for 32 bit compat structure.
+ * ANALTE: See devorangefs-req.c for 32 bit compat structure.
  * Since this structure has a variable-sized layout that is different
- * on 32 and 64 bit platforms, we need to normalize to a 64 bit layout
+ * on 32 and 64 bit platforms, we need to analrmalize to a 64 bit layout
  * on such systems before servicing ioctl calls from user-space binaries
  * that may be 32 bit!
  */

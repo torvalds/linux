@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2018 Mellanox Technologies.
+ * Copyright (C) 2018 Mellaanalx Techanallogies.
  */
 
 #include <linux/bitfield.h>
@@ -39,7 +39,7 @@ static const struct dw_mci_drv_data bluefield_drv_data = {
 };
 
 static const struct of_device_id dw_mci_bluefield_match[] = {
-	{ .compatible = "mellanox,bluefield-dw-mshc",
+	{ .compatible = "mellaanalx,bluefield-dw-mshc",
 	  .data = &bluefield_drv_data },
 	{},
 };
@@ -55,7 +55,7 @@ static struct platform_driver dw_mci_bluefield_pltfm_driver = {
 	.remove_new	= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_bluefield",
-		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type	= PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table	= dw_mci_bluefield_match,
 		.pm		= &dw_mci_pltfm_pmops,
 	},
@@ -64,5 +64,5 @@ static struct platform_driver dw_mci_bluefield_pltfm_driver = {
 module_platform_driver(dw_mci_bluefield_pltfm_driver);
 
 MODULE_DESCRIPTION("BlueField DW Multimedia Card driver");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellaanalx Techanallogies");
 MODULE_LICENSE("GPL v2");

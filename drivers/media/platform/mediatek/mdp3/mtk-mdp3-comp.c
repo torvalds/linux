@@ -39,7 +39,7 @@ static s64 get_comp_flag(const struct mdp_comp_ctx *ctx)
 	rdma0 = mdp_cfg_get_id_inner(ctx->comp->mdp_dev, MDP_COMP_RDMA0);
 	rsz1 = mdp_cfg_get_id_inner(ctx->comp->mdp_dev, MDP_COMP_RSZ1);
 	if (!rdma0 || !rsz1)
-		return MDP_COMP_NONE;
+		return MDP_COMP_ANALNE;
 
 	if (mdp_cfg && mdp_cfg->rdma_rsz1_sram_sharing)
 		if (ctx->comp->inner_id == rdma0)
@@ -258,7 +258,7 @@ static int wait_rdma_event(struct mdp_comp_ctx *ctx, struct mdp_cmdq_cmd *cmd)
 	if (ctx->comp->alias_id == 0)
 		MM_REG_WAIT(cmd, ctx->comp->gce_event[MDP_GCE_EVENT_EOF]);
 	else
-		dev_err(dev, "Do not support RDMA1_DONE event\n");
+		dev_err(dev, "Do analt support RDMA1_DONE event\n");
 
 	/* Disable RDMA */
 	MM_REG_WRITE(cmd, subsys_id, base, MDP_RDMA_EN, 0x0, BIT(0));
@@ -556,7 +556,7 @@ static int wait_wrot_event(struct mdp_comp_ctx *ctx, struct mdp_cmdq_cmd *cmd)
 	if (ctx->comp->alias_id == 0)
 		MM_REG_WAIT(cmd, ctx->comp->gce_event[MDP_GCE_EVENT_EOF]);
 	else
-		dev_err(dev, "Do not support WROT1_DONE event\n");
+		dev_err(dev, "Do analt support WROT1_DONE event\n");
 
 	if (mdp_cfg && mdp_cfg->wrot_filter_constraint)
 		MM_REG_WRITE(cmd, subsys_id, base, VIDO_MAIN_BUF_SIZE, 0x0,
@@ -777,7 +777,7 @@ static inline bool is_bypass_gce_event(const enum mdp_comp_type type)
 {
 	/*
 	 * Subcomponent PATH is only used for the direction of data flow and
-	 * dose not need to wait for GCE event.
+	 * dose analt need to wait for GCE event.
 	 */
 	return (type == MDP_COMP_TYPE_PATH);
 }
@@ -790,7 +790,7 @@ static int mdp_comp_get_id(struct mdp_dev *mdp, enum mdp_comp_type type, u32 ali
 		if (mdp->mdp_data->comp_data[i].match.type == type &&
 		    mdp->mdp_data->comp_data[i].match.alias_id == alias_id)
 			return i;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int mdp_comp_clock_on(struct device *dev, struct mdp_comp *comp)
@@ -870,22 +870,22 @@ void mdp_comp_clocks_off(struct device *dev, struct mdp_comp *comps, int num)
 }
 
 static int mdp_get_subsys_id(struct mdp_dev *mdp, struct device *dev,
-			     struct device_node *node, struct mdp_comp *comp)
+			     struct device_analde *analde, struct mdp_comp *comp)
 {
 	struct platform_device *comp_pdev;
 	struct cmdq_client_reg  cmdq_reg;
 	int ret = 0;
 	int index = 0;
 
-	if (!dev || !node || !comp)
+	if (!dev || !analde || !comp)
 		return -EINVAL;
 
-	comp_pdev = of_find_device_by_node(node);
+	comp_pdev = of_find_device_by_analde(analde);
 
 	if (!comp_pdev) {
 		dev_err(dev, "get comp_pdev fail! comp public id=%d, inner id=%d, type=%d\n",
 			comp->public_id, comp->inner_id, comp->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	index = mdp->mdp_data->comp_data[comp->public_id].info.dts_reg_ofst;
@@ -903,7 +903,7 @@ static int mdp_get_subsys_id(struct mdp_dev *mdp, struct device *dev,
 	return 0;
 }
 
-static void __mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
+static void __mdp_comp_init(struct mdp_dev *mdp, struct device_analde *analde,
 			    struct mdp_comp *comp)
 {
 	struct resource res;
@@ -911,17 +911,17 @@ static void __mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 	int index;
 
 	index = mdp->mdp_data->comp_data[comp->public_id].info.dts_reg_ofst;
-	if (of_address_to_resource(node, index, &res) < 0)
+	if (of_address_to_resource(analde, index, &res) < 0)
 		base = 0L;
 	else
 		base = res.start;
 
 	comp->mdp_dev = mdp;
-	comp->regs = of_iomap(node, 0);
+	comp->regs = of_iomap(analde, 0);
 	comp->reg_base = base;
 }
 
-static int mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
+static int mdp_comp_init(struct mdp_dev *mdp, struct device_analde *analde,
 			 struct mdp_comp *comp, enum mtk_mdp_comp_id id)
 {
 	struct device *dev = &mdp->pdev->dev;
@@ -935,11 +935,11 @@ static int mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 		return -EINVAL;
 	}
 
-	pdev_c = of_find_device_by_node(node);
+	pdev_c = of_find_device_by_analde(analde);
 	if (!pdev_c) {
-		dev_warn(dev, "can't find platform device of node:%s\n",
-			 node->name);
-		return -ENODEV;
+		dev_warn(dev, "can't find platform device of analde:%s\n",
+			 analde->name);
+		return -EANALDEV;
 	}
 
 	comp->comp_dev = &pdev_c->dev;
@@ -948,41 +948,41 @@ static int mdp_comp_init(struct mdp_dev *mdp, struct device_node *node,
 	comp->inner_id = mdp->mdp_data->comp_data[id].match.inner_id;
 	comp->alias_id = mdp->mdp_data->comp_data[id].match.alias_id;
 	comp->ops = mdp_comp_ops[comp->type];
-	__mdp_comp_init(mdp, node, comp);
+	__mdp_comp_init(mdp, analde, comp);
 
 	comp->clk_num = mdp->mdp_data->comp_data[id].info.clk_num;
 	comp->clks = devm_kzalloc(dev, sizeof(struct clk *) * comp->clk_num,
 				  GFP_KERNEL);
 	if (!comp->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_ofst = mdp->mdp_data->comp_data[id].info.clk_ofst;
 
 	for (i = 0; i < comp->clk_num; i++) {
-		comp->clks[i] = of_clk_get(node, i + clk_ofst);
+		comp->clks[i] = of_clk_get(analde, i + clk_ofst);
 		if (IS_ERR(comp->clks[i]))
 			break;
 	}
 
-	mdp_get_subsys_id(mdp, dev, node, comp);
+	mdp_get_subsys_id(mdp, dev, analde, comp);
 
 	/* Set GCE SOF event */
 	if (is_bypass_gce_event(comp->type) ||
-	    of_property_read_u32_index(node, "mediatek,gce-events",
+	    of_property_read_u32_index(analde, "mediatek,gce-events",
 				       MDP_GCE_EVENT_SOF, &event))
-		event = MDP_GCE_NO_EVENT;
+		event = MDP_GCE_ANAL_EVENT;
 
 	comp->gce_event[MDP_GCE_EVENT_SOF] = event;
 
 	/* Set GCE EOF event */
 	if (is_dma_capable(comp->type)) {
-		if (of_property_read_u32_index(node, "mediatek,gce-events",
+		if (of_property_read_u32_index(analde, "mediatek,gce-events",
 					       MDP_GCE_EVENT_EOF, &event)) {
-			dev_err(dev, "Component id %d has no EOF\n", id);
+			dev_err(dev, "Component id %d has anal EOF\n", id);
 			return -EINVAL;
 		}
 	} else {
-		event = MDP_GCE_NO_EVENT;
+		event = MDP_GCE_ANAL_EVENT;
 	}
 
 	comp->gce_event[MDP_GCE_EVENT_EOF] = event;
@@ -1005,7 +1005,7 @@ static void mdp_comp_deinit(struct mdp_comp *comp)
 }
 
 static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
-					struct device_node *node,
+					struct device_analde *analde,
 					enum mtk_mdp_comp_id id)
 {
 	struct device *dev = &mdp->pdev->dev;
@@ -1017,9 +1017,9 @@ static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
 
 	comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 	if (!comp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	ret = mdp_comp_init(mdp, node, comp, id);
+	ret = mdp_comp_init(mdp, analde, comp, id);
 	if (ret) {
 		devm_kfree(dev, comp);
 		return ERR_PTR(ret);
@@ -1028,7 +1028,7 @@ static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
 	mdp->comp[id]->mdp_dev = mdp;
 
 	dev_dbg(dev, "%s type:%d alias:%d public id:%d inner id:%d base:%#x regs:%p\n",
-		dev->of_node->name, comp->type, comp->alias_id, id, comp->inner_id,
+		dev->of_analde->name, comp->type, comp->alias_id, id, comp->inner_id,
 		(u32)comp->reg_base, comp->regs);
 	return comp;
 }
@@ -1036,23 +1036,23 @@ static struct mdp_comp *mdp_comp_create(struct mdp_dev *mdp,
 static int mdp_comp_sub_create(struct mdp_dev *mdp)
 {
 	struct device *dev = &mdp->pdev->dev;
-	struct device_node *node, *parent;
+	struct device_analde *analde, *parent;
 	int ret = 0;
 
-	parent = dev->of_node->parent;
+	parent = dev->of_analde->parent;
 
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_analde(parent, analde) {
 		const struct of_device_id *of_id;
 		enum mdp_comp_type type;
 		int id, alias_id;
 		struct mdp_comp *comp;
 
-		of_id = of_match_node(mdp->mdp_data->mdp_sub_comp_dt_ids, node);
+		of_id = of_match_analde(mdp->mdp_data->mdp_sub_comp_dt_ids, analde);
 		if (!of_id)
 			continue;
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_dbg(dev, "Skipping disabled sub comp. %pOF\n",
-				node);
+				analde);
 			continue;
 		}
 
@@ -1064,20 +1064,20 @@ static int mdp_comp_sub_create(struct mdp_dev *mdp)
 				"Fail to get sub comp. id: type %d alias %d\n",
 				type, alias_id);
 			ret = -EINVAL;
-			goto err_free_node;
+			goto err_free_analde;
 		}
 		mdp_comp_alias_id[type]++;
 
-		comp = mdp_comp_create(mdp, node, id);
+		comp = mdp_comp_create(mdp, analde, id);
 		if (IS_ERR(comp)) {
 			ret = PTR_ERR(comp);
-			goto err_free_node;
+			goto err_free_analde;
 		}
 	}
 	return ret;
 
-err_free_node:
-	of_node_put(node);
+err_free_analde:
+	of_analde_put(analde);
 	return ret;
 }
 
@@ -1099,27 +1099,27 @@ void mdp_comp_destroy(struct mdp_dev *mdp)
 int mdp_comp_config(struct mdp_dev *mdp)
 {
 	struct device *dev = &mdp->pdev->dev;
-	struct device_node *node, *parent;
+	struct device_analde *analde, *parent;
 	int ret;
 
 	memset(mdp_comp_alias_id, 0, sizeof(mdp_comp_alias_id));
 	p_id = mdp->mdp_data->mdp_plat_id;
 
-	parent = dev->of_node->parent;
+	parent = dev->of_analde->parent;
 	/* Iterate over sibling MDP function blocks */
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_analde(parent, analde) {
 		const struct of_device_id *of_id;
 		enum mdp_comp_type type;
 		int id, alias_id;
 		struct mdp_comp *comp;
 
-		of_id = of_match_node(mdp_comp_dt_ids, node);
+		of_id = of_match_analde(mdp_comp_dt_ids, analde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(analde)) {
 			dev_dbg(dev, "Skipping disabled component %pOF\n",
-				node);
+				analde);
 			continue;
 		}
 
@@ -1134,10 +1134,10 @@ int mdp_comp_config(struct mdp_dev *mdp)
 		}
 		mdp_comp_alias_id[type]++;
 
-		comp = mdp_comp_create(mdp, node, id);
+		comp = mdp_comp_create(mdp, analde, id);
 		if (IS_ERR(comp)) {
 			ret = PTR_ERR(comp);
-			of_node_put(node);
+			of_analde_put(analde);
 			goto err_init_comps;
 		}
 
@@ -1163,7 +1163,7 @@ int mdp_comp_ctx_config(struct mdp_dev *mdp, struct mdp_comp_ctx *ctx,
 			const struct img_ipi_frameparam *frame)
 {
 	struct device *dev = &mdp->pdev->dev;
-	enum mtk_mdp_comp_id public_id = MDP_COMP_NONE;
+	enum mtk_mdp_comp_id public_id = MDP_COMP_ANALNE;
 	u32 arg;
 	int i, idx;
 

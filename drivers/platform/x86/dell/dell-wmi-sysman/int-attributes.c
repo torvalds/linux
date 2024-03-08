@@ -126,7 +126,7 @@ int alloc_int_data(void)
 					sizeof(struct integer_data), GFP_KERNEL);
 	if (!wmi_priv.integer_data) {
 		wmi_priv.integer_instances_count = 0;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 	return ret;
 }

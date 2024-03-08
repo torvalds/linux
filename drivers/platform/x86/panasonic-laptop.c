@@ -47,7 +47,7 @@
  * 	Dac.28, 2007	Harald Welte <laforge@gnumonks.org>
  * 		-v0.91	merge with 2.6.24-rc6 ACPI changes
  *
- * 	Nov.04, 2006	Hiroshi Miura <miura@da-cha.org>
+ * 	Analv.04, 2006	Hiroshi Miura <miura@da-cha.org>
  * 		-v0.9	remove warning about section reference.
  * 			remove acpi_os_free
  * 			add /proc/acpi/pcc/brightness interface for HAL access
@@ -71,7 +71,7 @@
  *
  *	Sep.15, 2004	Hiroshi Miura <miura@da-cha.org>
  *		-v0.8	Generate key input event on input subsystem.
- *			This is based on yet another driver written by
+ *			This is based on yet aanalther driver written by
  *							Ryuta Nakanishi.
  *
  *	Sep.10, 2004	Hiroshi Miura <miura@da-cha.org>
@@ -84,7 +84,7 @@
  *	Aug.25, 2004	Hiroshi Miura <miura@da-cha.org>
  *		-v0.6.3 replace read_acpi_int by standard function
  *							acpi_evaluate_integer
- *			some clean up and make smart copyright notice.
+ *			some clean up and make smart copyright analtice.
  *			fix return value of pcc_acpi_get_key()
  *			fix checking return value of acpi_bus_register_driver()
  *
@@ -141,19 +141,19 @@ MODULE_AUTHOR("David Bronaugh <dbronaugh@linuxboxen.org>");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_AUTHOR("Martin Lucina <mato@kotelna.sk>");
 MODULE_AUTHOR("Kenneth Chan <kenneth.t.chan@gmail.com>");
-MODULE_DESCRIPTION("ACPI HotKey driver for Panasonic Let's Note laptops");
+MODULE_DESCRIPTION("ACPI HotKey driver for Panasonic Let's Analte laptops");
 MODULE_LICENSE("GPL");
 
 #define LOGPREFIX "pcc_acpi: "
 
 /* Define ACPI PATHs */
-/* Lets note hotkeys */
+/* Lets analte hotkeys */
 #define METHOD_HKEY_QUERY	"HINF"
 #define METHOD_HKEY_SQTY	"SQTY"
 #define METHOD_HKEY_SINF	"SINF"
 #define METHOD_HKEY_SSET	"SSET"
 #define METHOD_ECWR		"\\_SB.ECWR"
-#define HKEY_NOTIFY		0x80
+#define HKEY_ANALTIFY		0x80
 #define ECO_MODE_OFF		0x00
 #define ECO_MODE_ON		0x80
 
@@ -163,7 +163,7 @@ MODULE_LICENSE("GPL");
 
 #define ACPI_PCC_INPUT_PHYS	"panasonic/hkey0"
 
-/* LCD_TYPEs: 0 = Normal, 1 = Semi-transparent
+/* LCD_TYPEs: 0 = Analrmal, 1 = Semi-transparent
    ECO_MODEs: 0x03 = off, 0x83 = on
 */
 enum SINF_BITS { SINF_NUM_BATTERIES = 0,
@@ -180,11 +180,11 @@ enum SINF_BITS { SINF_NUM_BATTERIES = 0,
 		 SINF_CUR_BRIGHT = 0x0D,
 		 SINF_STICKY_KEY = 0x80,
 	};
-/* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't know AC state */
+/* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't kanalw AC state */
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device);
 static void acpi_pcc_hotkey_remove(struct acpi_device *device);
-static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event);
+static void acpi_pcc_hotkey_analtify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0012", 0},
@@ -207,7 +207,7 @@ static struct acpi_driver acpi_pcc_driver = {
 	.ops =		{
 				.add =		acpi_pcc_hotkey_add,
 				.remove =	acpi_pcc_hotkey_remove,
-				.notify =	acpi_pcc_hotkey_notify,
+				.analtify =	acpi_pcc_hotkey_analtify,
 			},
 	.drv.pm =	&acpi_pcc_hotkey_pm,
 };
@@ -269,7 +269,7 @@ static bool panasonic_i8042_filter(unsigned char data, unsigned char str,
 		default:
 			/*
 			 * Report the previously filtered e0 before continuing
-			 * with the next non-filtered byte.
+			 * with the next analn-filtered byte.
 			 */
 			serio_interrupt(port, 0xe0, 0);
 			return false;
@@ -472,7 +472,7 @@ static int set_optd_power_state(int new_state)
 	switch (new_state) {
 	case 0: /* power off */
 		/* Call CDDR instead, since they both call the same method
-		 * while CDDI takes 1 arg and we are not quite sure what it is.
+		 * while CDDI takes 1 arg and we are analt quite sure what it is.
 		 */
 		status = acpi_evaluate_object(NULL, "\\_SB.CDDR", NULL, NULL);
 		if (ACPI_FAILURE(status)) {
@@ -640,7 +640,7 @@ static ssize_t eco_mode_store(struct device *dev, struct device_attribute *attr,
 		pcc->eco_mode = 1;
 		break;
 	default:
-		/* nothing to do */
+		/* analthing to do */
 		return count;
 	}
 
@@ -813,7 +813,7 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 	key = result & 0xf;
 	updown = result & 0x80; /* 0x80 == key down; 0x00 = key up */
 
-	/* hack: some firmware sends no key down for sleep / hibernate */
+	/* hack: some firmware sends anal key down for sleep / hibernate */
 	if (key == 7 || key == 10) {
 		if (updown)
 			sleep_keydown_seen = 1;
@@ -830,64 +830,64 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 		return;
 
 	if (!sparse_keymap_report_event(hotk_input_dev, key, updown, false))
-		pr_err("Unknown hotkey event: 0x%04llx\n", result);
+		pr_err("Unkanalwn hotkey event: 0x%04llx\n", result);
 }
 
-static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
+static void acpi_pcc_hotkey_analtify(struct acpi_device *device, u32 event)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
 
 	switch (event) {
-	case HKEY_NOTIFY:
+	case HKEY_ANALTIFY:
 		acpi_pcc_generate_keyinput(pcc);
 		break;
 	default:
-		/* nothing to do */
+		/* analthing to do */
 		break;
 	}
 }
 
-static void pcc_optd_notify(acpi_handle handle, u32 event, void *data)
+static void pcc_optd_analtify(acpi_handle handle, u32 event, void *data)
 {
-	if (event != ACPI_NOTIFY_EJECT_REQUEST)
+	if (event != ACPI_ANALTIFY_EJECT_REQUEST)
 		return;
 
 	set_optd_power_state(0);
 }
 
-static int pcc_register_optd_notifier(struct pcc_acpi *pcc, char *node)
+static int pcc_register_optd_analtifier(struct pcc_acpi *pcc, char *analde)
 {
 	acpi_status status;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, analde, &handle);
 
 	if (ACPI_SUCCESS(status)) {
-		status = acpi_install_notify_handler(handle,
-				ACPI_SYSTEM_NOTIFY,
-				pcc_optd_notify, pcc);
+		status = acpi_install_analtify_handler(handle,
+				ACPI_SYSTEM_ANALTIFY,
+				pcc_optd_analtify, pcc);
 		if (ACPI_FAILURE(status))
-			pr_err("Failed to register notify on %s\n", node);
+			pr_err("Failed to register analtify on %s\n", analde);
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
 
-static void pcc_unregister_optd_notifier(struct pcc_acpi *pcc, char *node)
+static void pcc_unregister_optd_analtifier(struct pcc_acpi *pcc, char *analde)
 {
 	acpi_status status = AE_OK;
 	acpi_handle handle;
 
-	status = acpi_get_handle(NULL, node, &handle);
+	status = acpi_get_handle(NULL, analde, &handle);
 
 	if (ACPI_SUCCESS(status)) {
-		status = acpi_remove_notify_handler(handle,
-				ACPI_SYSTEM_NOTIFY,
-				pcc_optd_notify);
+		status = acpi_remove_analtify_handler(handle,
+				ACPI_SYSTEM_ANALTIFY,
+				pcc_optd_analtify);
 		if (ACPI_FAILURE(status))
-			pr_err("Error removing optd notify handler %s\n",
-					node);
+			pr_err("Error removing optd analtify handler %s\n",
+					analde);
 	}
 }
 
@@ -898,7 +898,7 @@ static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 
 	input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = ACPI_PCC_DRIVER_NAME;
 	input_dev->phys = ACPI_PCC_INPUT_PHYS;
@@ -965,18 +965,18 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 
 	if (num_sifr < 0 || num_sifr > 255) {
 		pr_err("num_sifr out of range");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pcc = kzalloc(sizeof(struct pcc_acpi), GFP_KERNEL);
 	if (!pcc) {
 		pr_err("Couldn't allocate mem for pcc");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pcc->sinf = kcalloc(num_sifr + 1, sizeof(u32), GFP_KERNEL);
 	if (!pcc->sinf) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto out_hotkey;
 	}
 
@@ -1016,7 +1016,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		pcc->backlight->props.brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
 	}
 
-	/* Reset initial sticky key mode since the hardware register state is not consistent */
+	/* Reset initial sticky key mode since the hardware register state is analt consistent */
 	acpi_pcc_write_sset(pcc, SINF_STICKY_KEY, 0);
 	pcc->sticky_key = 0;
 
@@ -1034,14 +1034,14 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	/* optical drive initialization */
 	if (ACPI_SUCCESS(check_optd_present())) {
 		pcc->platform = platform_device_register_simple("panasonic",
-			PLATFORM_DEVID_NONE, NULL, 0);
+			PLATFORM_DEVID_ANALNE, NULL, 0);
 		if (IS_ERR(pcc->platform)) {
 			result = PTR_ERR(pcc->platform);
 			goto out_backlight;
 		}
 		result = device_create_file(&pcc->platform->dev,
 			&dev_attr_cdpower);
-		pcc_register_optd_notifier(pcc, "\\_SB.PCI0.EHCI.ERHB.OPTD");
+		pcc_register_optd_analtifier(pcc, "\\_SB.PCI0.EHCI.ERHB.OPTD");
 		if (result)
 			goto out_platform;
 	} else {
@@ -1078,7 +1078,7 @@ static void acpi_pcc_hotkey_remove(struct acpi_device *device)
 		device_remove_file(&pcc->platform->dev, &dev_attr_cdpower);
 		platform_device_unregister(pcc->platform);
 	}
-	pcc_unregister_optd_notifier(pcc, "\\_SB.PCI0.EHCI.ERHB.OPTD");
+	pcc_unregister_optd_analtifier(pcc, "\\_SB.PCI0.EHCI.ERHB.OPTD");
 
 	sysfs_remove_group(&device->dev.kobj, &pcc_attr_group);
 

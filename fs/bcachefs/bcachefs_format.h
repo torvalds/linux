@@ -15,8 +15,8 @@
  *  - btree
  *
  * The btree is the primary structure; most metadata exists as keys in the
- * various btrees. There are only a small number of btrees, they're not
- * sharded - we have one btree for extents, another for inodes, et cetera.
+ * various btrees. There are only a small number of btrees, they're analt
+ * sharded - we have one btree for extents, aanalther for ianaldes, et cetera.
  *
  * SUPERBLOCK:
  *
@@ -28,8 +28,8 @@
  * The superblock is extensible, and most of the contents of the superblock are
  * in variable length, type tagged fields; see struct bch_sb_field.
  *
- * Backup superblocks do not reside in a fixed location; also, superblocks do
- * not have a fixed size. To locate backup superblocks we have struct
+ * Backup superblocks do analt reside in a fixed location; also, superblocks do
+ * analt have a fixed size. To locate backup superblocks we have struct
  * bch_sb_layout; we store a copy of this inside every superblock, and also
  * before the first superblock.
  *
@@ -44,15 +44,15 @@
  *
  * BTREE:
  *
- * bcachefs btrees are copy on write b+ trees, where nodes are big (typically
- * 128k-256k) and log structured. We use struct btree_node for writing the first
- * entry in a given node (offset 0), and struct btree_node_entry for all
+ * bcachefs btrees are copy on write b+ trees, where analdes are big (typically
+ * 128k-256k) and log structured. We use struct btree_analde for writing the first
+ * entry in a given analde (offset 0), and struct btree_analde_entry for all
  * subsequent writes.
  *
- * After the header, btree node entries contain a list of keys in sorted order.
+ * After the header, btree analde entries contain a list of keys in sorted order.
  * Values are stored inline with the keys; since values are variable length (and
  * keys effectively are variable length too, due to packing) we can't do random
- * access without building up additional in memory tables in the btree node read
+ * access without building up additional in memory tables in the btree analde read
  * path.
  *
  * BTREE KEYS (struct bkey):
@@ -63,13 +63,13 @@
  *
  * The size of a key/value pair is stored as a u8 in units of u64s, so the max
  * size is just under 2k. The common part also contains a type tag for the
- * value, and a format field indicating whether the key is packed or not (and
+ * value, and a format field indicating whether the key is packed or analt (and
  * also meant to allow adding new key fields in the future, if desired).
  *
- * bkeys, when stored within a btree node, may also be packed. In that case, the
- * bkey_format in that node is used to unpack it. Packed bkeys mean that we can
+ * bkeys, when stored within a btree analde, may also be packed. In that case, the
+ * bkey_format in that analde is used to unpack it. Packed bkeys mean that we can
  * be generous with field sizes in the common part of the key format (64 bit
- * inode number, 64 bit offset, 96 bit version field, etc.) for negligible cost.
+ * ianalde number, 64 bit offset, 96 bit version field, etc.) for negligible cost.
  */
 
 #include <asm/types.h>
@@ -124,7 +124,7 @@ static inline void SET_##name(type *k, __u64 v)				\
 struct bkey_format {
 	__u8		key_u64s;
 	__u8		nr_fields;
-	/* One unused slot for now: */
+	/* One unused slot for analw: */
 	__u8		bits_per_field[6];
 	__le64		field_offset[6];
 };
@@ -136,16 +136,16 @@ struct bpos {
 	 * Word order matches machine byte order - btree code treats a bpos as a
 	 * single large integer, for search/comparison purposes
 	 *
-	 * Note that wherever a bpos is embedded in another on disk data
+	 * Analte that wherever a bpos is embedded in aanalther on disk data
 	 * structure, it has to be byte swabbed when reading in metadata that
 	 * wasn't written in native endian order:
 	 */
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	__u32		snapshot;
 	__u64		offset;
-	__u64		inode;
+	__u64		ianalde;
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	__u64		inode;
+	__u64		ianalde;
 	__u64		offset;		/* Points to end of extent - sectors */
 	__u32		snapshot;
 #else
@@ -157,28 +157,28 @@ __aligned(4)
 #endif
 ;
 
-#define KEY_INODE_MAX			((__u64)~0ULL)
+#define KEY_IANALDE_MAX			((__u64)~0ULL)
 #define KEY_OFFSET_MAX			((__u64)~0ULL)
 #define KEY_SNAPSHOT_MAX		((__u32)~0U)
 #define KEY_SIZE_MAX			((__u32)~0U)
 
-static inline struct bpos SPOS(__u64 inode, __u64 offset, __u32 snapshot)
+static inline struct bpos SPOS(__u64 ianalde, __u64 offset, __u32 snapshot)
 {
 	return (struct bpos) {
-		.inode		= inode,
+		.ianalde		= ianalde,
 		.offset		= offset,
 		.snapshot	= snapshot,
 	};
 }
 
 #define POS_MIN				SPOS(0, 0, 0)
-#define POS_MAX				SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, 0)
-#define SPOS_MAX			SPOS(KEY_INODE_MAX, KEY_OFFSET_MAX, KEY_SNAPSHOT_MAX)
-#define POS(_inode, _offset)		SPOS(_inode, _offset, 0)
+#define POS_MAX				SPOS(KEY_IANALDE_MAX, KEY_OFFSET_MAX, 0)
+#define SPOS_MAX			SPOS(KEY_IANALDE_MAX, KEY_OFFSET_MAX, KEY_SNAPSHOT_MAX)
+#define POS(_ianalde, _offset)		SPOS(_ianalde, _offset, 0)
 
 /* Empty placeholder struct, for container_of() */
 struct bch_val {
-	__u64		__nothing[0];
+	__u64		__analthing[0];
 };
 
 struct bversion {
@@ -195,7 +195,7 @@ struct bkey {
 	/* Size of combined key and value, in u64s */
 	__u8		u64s;
 
-	/* Format of key (0 for format local to btree node) */
+	/* Format of key (0 for format local to btree analde) */
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8		format:7,
 			needs_whiteout:1;
@@ -230,7 +230,7 @@ struct bkey_packed {
 	/* Size of combined key and value, in u64s */
 	__u8		u64s;
 
-	/* Format of key (0 for format local to btree node) */
+	/* Format of key (0 for format local to btree analde) */
 
 	/*
 	 * XXX: next incompat on disk format change, switch format and
@@ -273,7 +273,7 @@ typedef struct {
 #define KEY_FORMAT_CURRENT		1
 
 enum bch_bkey_fields {
-	BKEY_FIELD_INODE,
+	BKEY_FIELD_IANALDE,
 	BKEY_FIELD_OFFSET,
 	BKEY_FIELD_SNAPSHOT,
 	BKEY_FIELD_SIZE,
@@ -290,7 +290,7 @@ enum bch_bkey_fields {
 	.key_u64s	= BKEY_U64s,					\
 	.nr_fields	= BKEY_NR_FIELDS,				\
 	.bits_per_field = {						\
-		bkey_format_field(INODE,	p.inode),		\
+		bkey_format_field(IANALDE,	p.ianalde),		\
 		bkey_format_field(OFFSET,	p.offset),		\
 		bkey_format_field(SNAPSHOT,	p.snapshot),		\
 		bkey_format_field(SIZE,		size),			\
@@ -314,11 +314,11 @@ struct bkey_i {
 	.p		= _pos,						\
 })
 
-#define KEY(_inode, _offset, _size)					\
+#define KEY(_ianalde, _offset, _size)					\
 ((struct bkey) {							\
 	.u64s		= BKEY_U64s,					\
 	.format		= KEY_FORMAT_CURRENT,				\
-	.p		= POS(_inode, _offset),				\
+	.p		= POS(_ianalde, _offset),				\
 	.size		= _size,					\
 })
 
@@ -333,18 +333,18 @@ static inline void bkey_init(struct bkey *k)
 	struct bkey_i key; __u64 key ## _pad[pad]
 
 /*
- * - DELETED keys are used internally to mark keys that should be ignored but
- *   override keys in composition order.  Their version number is ignored.
+ * - DELETED keys are used internally to mark keys that should be iganalred but
+ *   override keys in composition order.  Their version number is iganalred.
  *
  * - DISCARDED keys indicate that the data is all 0s because it has been
- *   discarded. DISCARDs may have a version; if the version is nonzero the key
+ *   discarded. DISCARDs may have a version; if the version is analnzero the key
  *   will be persistent, otherwise the key will be dropped whenever the btree
- *   node is rewritten (like DELETED keys).
+ *   analde is rewritten (like DELETED keys).
  *
  * - ERROR: any read of the data returns a read error, as the data was lost due
  *   to a failing device. Like DISCARDED keys, they can be removed (overridden)
- *   by new writes or cluster-wide GC. Node repair can also overwrite them with
- *   the same or a more recent version number, but not with an older version
+ *   by new writes or cluster-wide GC. Analde repair can also overwrite them with
+ *   the same or a more recent version number, but analt with an older version
  *   number.
  *
  * - WHITEOUT: for hash table btrees
@@ -358,8 +358,8 @@ static inline void bkey_init(struct bkey *k)
 	x(btree_ptr,		5)			\
 	x(extent,		6)			\
 	x(reservation,		7)			\
-	x(inode,		8)			\
-	x(inode_generation,	9)			\
+	x(ianalde,		8)			\
+	x(ianalde_generation,	9)			\
 	x(dirent,		10)			\
 	x(xattr,		11)			\
 	x(alloc,		12)			\
@@ -373,13 +373,13 @@ static inline void bkey_init(struct bkey *k)
 	x(alloc_v2,		20)			\
 	x(subvolume,		21)			\
 	x(snapshot,		22)			\
-	x(inode_v2,		23)			\
+	x(ianalde_v2,		23)			\
 	x(alloc_v3,		24)			\
 	x(set,			25)			\
 	x(lru,			26)			\
 	x(alloc_v4,		27)			\
 	x(backpointer,		28)			\
-	x(inode_v3,		29)			\
+	x(ianalde_v3,		29)			\
 	x(bucket_gens,		30)			\
 	x(snapshot_tree,	31)			\
 	x(logged_op_truncate,	32)			\
@@ -471,7 +471,7 @@ struct bch_sb_field {
 #include "extents_format.h"
 #include "reflink_format.h"
 #include "ec_format.h"
-#include "inode_format.h"
+#include "ianalde_format.h"
 #include "dirent_format.h"
 #include "xattr_format.h"
 #include "quota_format.h"
@@ -489,7 +489,7 @@ enum bch_sb_field_type {
 
 /*
  * Most superblock fields are replicated in all device's superblocks - a few are
- * not:
+ * analt:
  */
 #define BCH_SINGLE_DEVICE_SB_FIELDS		\
 	((1U << BCH_SB_FIELD_journal)|		\
@@ -587,7 +587,7 @@ enum bch_member_state {
 
 struct bch_sb_field_members_v1 {
 	struct bch_sb_field	field;
-	struct bch_member	_members[]; //Members are now variable size
+	struct bch_member	_members[]; //Members are analw variable size
 };
 
 struct bch_sb_field_members_v2 {
@@ -599,7 +599,7 @@ struct bch_sb_field_members_v2 {
 
 /* BCH_SB_FIELD_crypt: */
 
-struct nonce {
+struct analnce {
 	__le32			d[4];
 };
 
@@ -620,7 +620,7 @@ struct bch_encrypted_key {
 
 /*
  * If this field is present in the superblock, it stores an encryption key which
- * is used encrypt all other data/metadata. The key will normally be encrypted
+ * is used encrypt all other data/metadata. The key will analrmally be encrypted
  * with the key userspace provides, but if encryption has been turned off we'll
  * just store the master key unencrypted in the superblock so we can access the
  * previously encrypted data.
@@ -752,7 +752,7 @@ struct bch_sb_field_clean {
 	struct bch_sb_field	field;
 
 	__le32			flags;
-	__le16			_read_clock; /* no longer used */
+	__le16			_read_clock; /* anal longer used */
 	__le16			_write_clock;
 	__le64			journal_seq;
 
@@ -804,41 +804,41 @@ struct bch_sb_field_downgrade {
 /*
  * New versioning scheme:
  * One common version number for all on disk data structures - superblock, btree
- * nodes, journal entries
+ * analdes, journal entries
  */
 #define BCH_VERSION_MAJOR(_v)		((__u16) ((_v) >> 10))
-#define BCH_VERSION_MINOR(_v)		((__u16) ((_v) & ~(~0U << 10)))
-#define BCH_VERSION(_major, _minor)	(((_major) << 10)|(_minor) << 0)
+#define BCH_VERSION_MIANALR(_v)		((__u16) ((_v) & ~(~0U << 10)))
+#define BCH_VERSION(_major, _mianalr)	(((_major) << 10)|(_mianalr) << 0)
 
 /*
  * field 1:		version name
- * field 2:		BCH_VERSION(major, minor)
+ * field 2:		BCH_VERSION(major, mianalr)
  * field 3:		recovery passess required on upgrade
  */
 #define BCH_METADATA_VERSIONS()						\
 	x(bkey_renumber,		BCH_VERSION(0, 10))		\
-	x(inode_btree_change,		BCH_VERSION(0, 11))		\
+	x(ianalde_btree_change,		BCH_VERSION(0, 11))		\
 	x(snapshot,			BCH_VERSION(0, 12))		\
-	x(inode_backpointers,		BCH_VERSION(0, 13))		\
+	x(ianalde_backpointers,		BCH_VERSION(0, 13))		\
 	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14))		\
 	x(snapshot_2,			BCH_VERSION(0, 15))		\
 	x(reflink_p_fix,		BCH_VERSION(0, 16))		\
 	x(subvol_dirent,		BCH_VERSION(0, 17))		\
-	x(inode_v2,			BCH_VERSION(0, 18))		\
+	x(ianalde_v2,			BCH_VERSION(0, 18))		\
 	x(freespace,			BCH_VERSION(0, 19))		\
 	x(alloc_v4,			BCH_VERSION(0, 20))		\
 	x(new_data_types,		BCH_VERSION(0, 21))		\
 	x(backpointers,			BCH_VERSION(0, 22))		\
-	x(inode_v3,			BCH_VERSION(0, 23))		\
+	x(ianalde_v3,			BCH_VERSION(0, 23))		\
 	x(unwritten_extents,		BCH_VERSION(0, 24))		\
 	x(bucket_gens,			BCH_VERSION(0, 25))		\
 	x(lru_v2,			BCH_VERSION(0, 26))		\
 	x(fragmentation_lru,		BCH_VERSION(0, 27))		\
-	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28))		\
+	x(anal_bps_in_alloc_keys,		BCH_VERSION(0, 28))		\
 	x(snapshot_trees,		BCH_VERSION(0, 29))		\
-	x(major_minor,			BCH_VERSION(1,  0))		\
+	x(major_mianalr,			BCH_VERSION(1,  0))		\
 	x(snapshot_skiplists,		BCH_VERSION(1,  1))		\
-	x(deleted_inodes,		BCH_VERSION(1,  2))		\
+	x(deleted_ianaldes,		BCH_VERSION(1,  2))		\
 	x(rebalance_work,		BCH_VERSION(1,  3))		\
 	x(member_seq,			BCH_VERSION(1,  4))
 
@@ -922,9 +922,9 @@ struct bch_sb {
  * BCH_SB_INITALIZED	- set on first mount
  * BCH_SB_CLEAN		- did we shut down cleanly? Just a hint, doesn't affect
  *			  behaviour of mount/recovery path:
- * BCH_SB_INODE_32BIT	- limit inode numbers to 32 bits
+ * BCH_SB_IANALDE_32BIT	- limit ianalde numbers to 32 bits
  * BCH_SB_128_BIT_MACS	- 128 bit macs instead of 80
- * BCH_SB_ENCRYPTION_TYPE - if nonzero encryption is enabled; overrides
+ * BCH_SB_ENCRYPTION_TYPE - if analnzero encryption is enabled; overrides
  *			   DATA/META_CSUM_TYPE. Also indicates encryption
  *			   algorithm in use, if/when we get more than one
  */
@@ -936,7 +936,7 @@ LE64_BITMASK(BCH_SB_CLEAN,		struct bch_sb, flags[0],  1,  2);
 LE64_BITMASK(BCH_SB_CSUM_TYPE,		struct bch_sb, flags[0],  2,  8);
 LE64_BITMASK(BCH_SB_ERROR_ACTION,	struct bch_sb, flags[0],  8, 12);
 
-LE64_BITMASK(BCH_SB_BTREE_NODE_SIZE,	struct bch_sb, flags[0], 12, 28);
+LE64_BITMASK(BCH_SB_BTREE_ANALDE_SIZE,	struct bch_sb, flags[0], 12, 28);
 
 LE64_BITMASK(BCH_SB_GC_RESERVE,		struct bch_sb, flags[0], 28, 33);
 LE64_BITMASK(BCH_SB_ROOT_RESERVE,	struct bch_sb, flags[0], 33, 40);
@@ -959,7 +959,7 @@ LE64_BITMASK(BCH_SB_BIG_ENDIAN,		struct bch_sb, flags[0], 62, 63);
 
 LE64_BITMASK(BCH_SB_STR_HASH_TYPE,	struct bch_sb, flags[1],  0,  4);
 LE64_BITMASK(BCH_SB_COMPRESSION_TYPE_LO,struct bch_sb, flags[1],  4,  8);
-LE64_BITMASK(BCH_SB_INODE_32BIT,	struct bch_sb, flags[1],  8,  9);
+LE64_BITMASK(BCH_SB_IANALDE_32BIT,	struct bch_sb, flags[1],  8,  9);
 
 LE64_BITMASK(BCH_SB_128_BIT_MACS,	struct bch_sb, flags[1],  9, 10);
 LE64_BITMASK(BCH_SB_ENCRYPTION_TYPE,	struct bch_sb, flags[1], 10, 14);
@@ -985,12 +985,12 @@ LE64_BITMASK(BCH_SB_GC_RESERVE_BYTES,	struct bch_sb, flags[2],  4, 64);
 LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 LE64_BITMASK(BCH_SB_SHARD_INUMS,	struct bch_sb, flags[3], 28, 29);
-LE64_BITMASK(BCH_SB_INODES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
+LE64_BITMASK(BCH_SB_IANALDES_USE_KEY_CACHE,struct bch_sb, flags[3], 29, 30);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
 LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
-LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
+LE64_BITMASK(BCH_SB_ANALCOW,		struct bch_sb, flags[4], 33, 34);
 LE64_BITMASK(BCH_SB_WRITE_BUFFER_SIZE,	struct bch_sb, flags[4], 34, 54);
 LE64_BITMASK(BCH_SB_VERSION_UPGRADE,	struct bch_sb, flags[4], 54, 56);
 
@@ -1031,7 +1031,7 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
  * reflink:			gates KEY_TYPE_reflink
  * inline_data:			gates KEY_TYPE_inline_data
  * new_siphash:			gates BCH_STR_HASH_siphash
- * new_extent_overwrite:	gates BTREE_NODE_NEW_EXTENT_OVERWRITE
+ * new_extent_overwrite:	gates BTREE_ANALDE_NEW_EXTENT_OVERWRITE
  */
 #define BCH_SB_FEATURES()			\
 	x(lz4,				0)	\
@@ -1050,23 +1050,23 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	x(btree_updates_journalled,	13)	\
 	x(reflink_inline_data,		14)	\
 	x(new_varint,			15)	\
-	x(journal_no_flush,		16)	\
+	x(journal_anal_flush,		16)	\
 	x(alloc_v2,			17)	\
-	x(extents_across_btree_nodes,	18)
+	x(extents_across_btree_analdes,	18)
 
 #define BCH_SB_FEATURES_ALWAYS				\
 	((1ULL << BCH_FEATURE_new_extent_overwrite)|	\
 	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
 	 (1ULL << BCH_FEATURE_btree_updates_journalled)|\
 	 (1ULL << BCH_FEATURE_alloc_v2)|\
-	 (1ULL << BCH_FEATURE_extents_across_btree_nodes))
+	 (1ULL << BCH_FEATURE_extents_across_btree_analdes))
 
 #define BCH_SB_FEATURES_ALL				\
 	(BCH_SB_FEATURES_ALWAYS|			\
 	 (1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
 	 (1ULL << BCH_FEATURE_new_varint)|		\
-	 (1ULL << BCH_FEATURE_journal_no_flush))
+	 (1ULL << BCH_FEATURE_journal_anal_flush))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
@@ -1093,7 +1093,7 @@ enum bch_sb_compat {
 #define BCH_VERSION_UPGRADE_OPTS()	\
 	x(compatible,		0)	\
 	x(incompatible,		1)	\
-	x(none,			2)
+	x(analne,			2)
 
 enum bch_version_upgrade_opts {
 #define x(t, n) BCH_VERSION_UPGRADE_##t = n,
@@ -1143,9 +1143,9 @@ enum bch_str_hash_opts {
 };
 
 #define BCH_CSUM_TYPES()			\
-	x(none,				0)	\
-	x(crc32c_nonzero,		1)	\
-	x(crc64_nonzero,		2)	\
+	x(analne,				0)	\
+	x(crc32c_analnzero,		1)	\
+	x(crc64_analnzero,		2)	\
 	x(chacha20_poly1305_80,		3)	\
 	x(chacha20_poly1305_128,	4)	\
 	x(crc32c,			5)	\
@@ -1160,10 +1160,10 @@ enum bch_csum_type {
 };
 
 static const __maybe_unused unsigned bch_crc_bytes[] = {
-	[BCH_CSUM_none]				= 0,
-	[BCH_CSUM_crc32c_nonzero]		= 4,
+	[BCH_CSUM_analne]				= 0,
+	[BCH_CSUM_crc32c_analnzero]		= 4,
 	[BCH_CSUM_crc32c]			= 4,
-	[BCH_CSUM_crc64_nonzero]		= 8,
+	[BCH_CSUM_crc64_analnzero]		= 8,
 	[BCH_CSUM_crc64]			= 8,
 	[BCH_CSUM_xxhash]			= 8,
 	[BCH_CSUM_chacha20_poly1305_80]		= 10,
@@ -1182,7 +1182,7 @@ static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
 }
 
 #define BCH_CSUM_OPTS()			\
-	x(none,			0)	\
+	x(analne,			0)	\
 	x(crc32c,		1)	\
 	x(crc64,		2)	\
 	x(xxhash,		3)
@@ -1195,7 +1195,7 @@ enum bch_csum_opts {
 };
 
 #define BCH_COMPRESSION_TYPES()		\
-	x(none,			0)	\
+	x(analne,			0)	\
 	x(lz4_old,		1)	\
 	x(gzip,			2)	\
 	x(lz4,			3)	\
@@ -1210,7 +1210,7 @@ enum bch_compression_type {
 };
 
 #define BCH_COMPRESSION_OPTS()		\
-	x(none,		0)		\
+	x(analne,		0)		\
 	x(lz4,		1)		\
 	x(gzip,		2)		\
 	x(zstd,		3)
@@ -1300,7 +1300,7 @@ static inline bool jset_entry_is_key(struct jset_entry *e)
 /*
  * Journal sequence numbers can be blacklisted: bsets record the max sequence
  * number of all the journal entries they contain updates for, so that on
- * recovery we can ignore those bsets that contain index updates newer that what
+ * recovery we can iganalre those bsets that contain index updates newer that what
  * made it into the journal.
  *
  * This means that we can't reuse that journal_seq - we have to skip it, and
@@ -1320,7 +1320,7 @@ struct jset_entry_blacklist_v2 {
 
 #define BCH_FS_USAGE_TYPES()			\
 	x(reserved,		0)		\
-	x(inodes,		1)		\
+	x(ianaldes,		1)		\
 	x(key_version,		2)
 
 enum {
@@ -1359,8 +1359,8 @@ struct jset_entry_dev_usage {
 	__le32			dev;
 	__u32			pad;
 
-	__le64			_buckets_ec;		/* No longer used */
-	__le64			_buckets_unavailable;	/* No longer used */
+	__le64			_buckets_ec;		/* Anal longer used */
+	__le64			_buckets_unavailable;	/* Anal longer used */
 
 	struct jset_entry_dev_usage_type d[];
 };
@@ -1378,7 +1378,7 @@ struct jset_entry_log {
 
 /*
  * On disk format for a journal entry:
- * seq is monotonically increasing; every journal entry has its own unique
+ * seq is moanaltonically increasing; every journal entry has its own unique
  * sequence number.
  *
  * last_seq is the oldest journal entry that still has keys the btree hasn't
@@ -1398,7 +1398,7 @@ struct jset {
 
 	__u8			encrypted_start[0];
 
-	__le16			_read_clock; /* no longer used */
+	__le16			_read_clock; /* anal longer used */
 	__le16			_write_clock;
 
 	/* Sequence number of oldest dirty journal entry */
@@ -1411,7 +1411,7 @@ struct jset {
 
 LE32_BITMASK(JSET_CSUM_TYPE,	struct jset, flags, 0, 4);
 LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
-LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
+LE32_BITMASK(JSET_ANAL_FLUSH,	struct jset, flags, 5, 6);
 
 #define BCH_JOURNAL_BUCKETS_MIN		8
 
@@ -1433,12 +1433,12 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_reservation)|					\
 	  BIT_ULL(KEY_TYPE_reflink_p)|						\
 	  BIT_ULL(KEY_TYPE_inline_data))					\
-	x(inodes,		1,	BTREE_ID_SNAPSHOTS,			\
+	x(ianaldes,		1,	BTREE_ID_SNAPSHOTS,			\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
-	  BIT_ULL(KEY_TYPE_inode)|						\
-	  BIT_ULL(KEY_TYPE_inode_v2)|						\
-	  BIT_ULL(KEY_TYPE_inode_v3)|						\
-	  BIT_ULL(KEY_TYPE_inode_generation))					\
+	  BIT_ULL(KEY_TYPE_ianalde)|						\
+	  BIT_ULL(KEY_TYPE_ianalde_v2)|						\
+	  BIT_ULL(KEY_TYPE_ianalde_v3)|						\
+	  BIT_ULL(KEY_TYPE_ianalde_generation))					\
 	x(dirents,		2,	BTREE_ID_SNAPSHOTS,			\
 	  BIT_ULL(KEY_TYPE_whiteout)|						\
 	  BIT_ULL(KEY_TYPE_hash_whiteout)|					\
@@ -1476,7 +1476,7 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_bucket_gens))					\
 	x(snapshot_trees,	15,	0,					\
 	  BIT_ULL(KEY_TYPE_snapshot_tree))					\
-	x(deleted_inodes,	16,	BTREE_ID_SNAPSHOT_FIELD,		\
+	x(deleted_ianaldes,	16,	BTREE_ID_SNAPSHOT_FIELD,		\
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
@@ -1493,12 +1493,12 @@ enum btree_id {
 
 #define BTREE_MAX_DEPTH		4U
 
-/* Btree nodes */
+/* Btree analdes */
 
 /*
- * Btree nodes
+ * Btree analdes
  *
- * On disk a btree node is a list/log of these; within each set the keys are
+ * On disk a btree analde is a list/log of these; within each set the keys are
  * sorted
  */
 struct bset {
@@ -1506,7 +1506,7 @@ struct bset {
 
 	/*
 	 * Highest journal entry this bset contains keys for.
-	 * If on recovery we don't see that journal entry, this bset is ignored:
+	 * If on recovery we don't see that journal entry, this bset is iganalred:
 	 * this allows us to preserve the order of all index updates after a
 	 * crash, since the journal records a total order of all index updates
 	 * and anything that didn't make it to the journal doesn't get used.
@@ -1527,10 +1527,10 @@ LE32_BITMASK(BSET_BIG_ENDIAN,	struct bset, flags, 4, 5);
 LE32_BITMASK(BSET_SEPARATE_WHITEOUTS,
 				struct bset, flags, 5, 6);
 
-/* Sector offset within the btree node: */
+/* Sector offset within the btree analde: */
 LE32_BITMASK(BSET_OFFSET,	struct bset, flags, 16, 32);
 
-struct btree_node {
+struct btree_analde {
 	struct bch_csum		csum;
 	__le64			magic;
 
@@ -1540,7 +1540,7 @@ struct btree_node {
 	/* Closed interval: */
 	struct bpos		min_key;
 	struct bpos		max_key;
-	struct bch_extent_ptr	_ptr; /* not used anymore */
+	struct bch_extent_ptr	_ptr; /* analt used anymore */
 	struct bkey_format	format;
 
 	union {
@@ -1554,26 +1554,26 @@ struct btree_node {
 	};
 } __packed __aligned(8);
 
-LE64_BITMASK(BTREE_NODE_ID_LO,	struct btree_node, flags,  0,  4);
-LE64_BITMASK(BTREE_NODE_LEVEL,	struct btree_node, flags,  4,  8);
-LE64_BITMASK(BTREE_NODE_NEW_EXTENT_OVERWRITE,
-				struct btree_node, flags,  8,  9);
-LE64_BITMASK(BTREE_NODE_ID_HI,	struct btree_node, flags,  9, 25);
+LE64_BITMASK(BTREE_ANALDE_ID_LO,	struct btree_analde, flags,  0,  4);
+LE64_BITMASK(BTREE_ANALDE_LEVEL,	struct btree_analde, flags,  4,  8);
+LE64_BITMASK(BTREE_ANALDE_NEW_EXTENT_OVERWRITE,
+				struct btree_analde, flags,  8,  9);
+LE64_BITMASK(BTREE_ANALDE_ID_HI,	struct btree_analde, flags,  9, 25);
 /* 25-32 unused */
-LE64_BITMASK(BTREE_NODE_SEQ,	struct btree_node, flags, 32, 64);
+LE64_BITMASK(BTREE_ANALDE_SEQ,	struct btree_analde, flags, 32, 64);
 
-static inline __u64 BTREE_NODE_ID(struct btree_node *n)
+static inline __u64 BTREE_ANALDE_ID(struct btree_analde *n)
 {
-	return BTREE_NODE_ID_LO(n) | (BTREE_NODE_ID_HI(n) << 4);
+	return BTREE_ANALDE_ID_LO(n) | (BTREE_ANALDE_ID_HI(n) << 4);
 }
 
-static inline void SET_BTREE_NODE_ID(struct btree_node *n, __u64 v)
+static inline void SET_BTREE_ANALDE_ID(struct btree_analde *n, __u64 v)
 {
-	SET_BTREE_NODE_ID_LO(n, v);
-	SET_BTREE_NODE_ID_HI(n, v >> 4);
+	SET_BTREE_ANALDE_ID_LO(n, v);
+	SET_BTREE_ANALDE_ID_HI(n, v >> 4);
 }
 
-struct btree_node_entry {
+struct btree_analde_entry {
 	struct bch_csum		csum;
 
 	union {

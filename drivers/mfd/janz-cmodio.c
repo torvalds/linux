@@ -59,8 +59,8 @@ struct cmodio_device {
  */
 
 static int cmodio_setup_subdevice(struct cmodio_device *priv,
-					    char *name, unsigned int devno,
-					    unsigned int modno)
+					    char *name, unsigned int devanal,
+					    unsigned int modanal)
 {
 	struct janz_platform_data *pdata;
 	struct mfd_cell *cell;
@@ -68,9 +68,9 @@ static int cmodio_setup_subdevice(struct cmodio_device *priv,
 	struct pci_dev *pci;
 
 	pci = priv->pdev;
-	cell = &priv->cells[devno];
-	res = &priv->resources[devno * 3];
-	pdata = &priv->pdata[devno];
+	cell = &priv->cells[devanal];
+	res = &priv->resources[devanal * 3];
+	pdata = &priv->pdata[devanal];
 
 	cell->name = name;
 	cell->resources = res;
@@ -80,14 +80,14 @@ static int cmodio_setup_subdevice(struct cmodio_device *priv,
 	cell->id = cmodio_id++;
 
 	/* Add platform data */
-	pdata->modno = modno;
+	pdata->modanal = modanal;
 	cell->platform_data = pdata;
 	cell->pdata_size = sizeof(*pdata);
 
 	/* MODULbus registers -- PCI BAR3 is big-endian MODULbus access */
 	res->flags = IORESOURCE_MEM;
 	res->parent = &pci->resource[3];
-	res->start = pci->resource[3].start + (CMODIO_MODULBUS_SIZE * modno);
+	res->start = pci->resource[3].start + (CMODIO_MODULBUS_SIZE * modanal);
 	res->end = res->start + CMODIO_MODULBUS_SIZE - 1;
 	res++;
 
@@ -132,13 +132,13 @@ static int cmodio_probe_submodules(struct cmodio_device *priv)
 		num_probed++;
 	}
 
-	/* print an error message if no modules were probed */
+	/* print an error message if anal modules were probed */
 	if (num_probed == 0) {
-		dev_err(&priv->pdev->dev, "no MODULbus modules specified, "
+		dev_err(&priv->pdev->dev, "anal MODULbus modules specified, "
 					  "please set the ``modules'' kernel "
 					  "parameter according to your "
 					  "hardware configuration\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return mfd_add_devices(&pdev->dev, 0, priv->cells,
@@ -180,7 +180,7 @@ static int cmodio_pci_probe(struct pci_dev *dev,
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_set_drvdata(dev, priv);
 	priv->pdev = dev;
@@ -203,7 +203,7 @@ static int cmodio_pci_probe(struct pci_dev *dev,
 	priv->ctrl = pci_ioremap_bar(dev, 4);
 	if (!priv->ctrl) {
 		dev_err(&dev->dev, "unable to remap onboard regs\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_pci_release_regions;
 	}
 

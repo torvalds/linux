@@ -11,15 +11,15 @@
 
 /* list of 'exported' ports */
 
-/* Client ports that are not exported are still accessible, but are
- anonymous ports. 
+/* Client ports that are analt exported are still accessible, but are
+ aanalnymous ports. 
  
  If a port supports SUBSCRIPTION, that port can send events to all
  subscribersto a special address, with address
  (queue==SNDRV_SEQ_ADDRESS_SUBSCRIBERS). The message is then send to all
  recipients that are registered in the subscription list. A typical
  application for these SUBSCRIPTION events is handling of incoming MIDI
- data. The port doesn't 'know' what other clients are interested in this
+ data. The port doesn't 'kanalw' what other clients are interested in this
  message. If for instance a MIDI recording application would like to receive
  the events from that port, it will first have to subscribe with that port.
  

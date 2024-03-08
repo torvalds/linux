@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (C) 2012 Intel, Inc.
- * Copyright (C) 2017 Imagination Technologies Ltd.
+ * Copyright (C) 2017 Imagination Techanallogies Ltd.
  */
 
 #include <linux/console.h>
@@ -137,7 +137,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = gf_ioread32(base + GOLDFISH_TTY_REG_BYTES_READY);
 	if (count == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 
@@ -213,9 +213,9 @@ static struct tty_driver *goldfish_tty_console_device(struct console *c,
 static int goldfish_tty_console_setup(struct console *co, char *options)
 {
 	if ((unsigned)co->index >= goldfish_tty_line_count)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!goldfish_ttys[co->index].base)
-		return -ENODEV;
+		return -EANALDEV;
 	return 0;
 }
 
@@ -242,7 +242,7 @@ static int goldfish_tty_create_driver(void)
 				sizeof(*goldfish_ttys),
 				GFP_KERNEL);
 	if (goldfish_ttys == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_alloc_goldfish_ttys_failed;
 	}
 	tty = tty_alloc_driver(goldfish_tty_line_count,
@@ -255,7 +255,7 @@ static int goldfish_tty_create_driver(void)
 	tty->driver_name = "goldfish";
 	tty->name = "ttyGF";
 	tty->type = TTY_DRIVER_TYPE_SERIAL;
-	tty->subtype = SERIAL_TYPE_NORMAL;
+	tty->subtype = SERIAL_TYPE_ANALRMAL;
 	tty->init_termios = tty_std_termios;
 	tty_set_operations(tty, &goldfish_tty_ops);
 	ret = tty_register_driver(tty);
@@ -286,7 +286,7 @@ static void goldfish_tty_delete_driver(void)
 static int goldfish_tty_probe(struct platform_device *pdev)
 {
 	struct goldfish_tty *qtty;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct resource *r;
 	struct device *ttydev;
 	void __iomem *base;
@@ -295,14 +295,14 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		pr_err("goldfish_tty: No MEM resource available!\n");
-		return -ENOMEM;
+		pr_err("goldfish_tty: Anal MEM resource available!\n");
+		return -EANALMEM;
 	}
 
 	base = ioremap(r->start, 0x1000);
 	if (!base) {
 		pr_err("goldfish_tty: Unable to ioremap base!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -313,7 +313,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 
 	mutex_lock(&goldfish_tty_lock);
 
-	if (pdev->id == PLATFORM_DEVID_NONE)
+	if (pdev->id == PLATFORM_DEVID_ANALNE)
 		line = goldfish_tty_current_line_count;
 	else
 		line = pdev->id;
@@ -321,7 +321,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	if (line >= goldfish_tty_line_count) {
 		pr_err("goldfish_tty: Reached maximum tty number of %d.\n",
 		       goldfish_tty_current_line_count);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unlock;
 	}
 
@@ -361,7 +361,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 			pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(&pdev->dev, "No suitable DMA available.\n");
+			dev_err(&pdev->dev, "Anal suitable DMA available.\n");
 			goto err_dec_line_count;
 		}
 	}
@@ -371,7 +371,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	ret = request_irq(irq, goldfish_tty_interrupt, IRQF_SHARED,
 			  "goldfish_tty", qtty);
 	if (ret) {
-		pr_err("goldfish_tty: No IRQ available!\n");
+		pr_err("goldfish_tty: Anal IRQ available!\n");
 		goto err_dec_line_count;
 	}
 
@@ -444,7 +444,7 @@ static int __init gf_earlycon_setup(struct earlycon_device *device,
 				    const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = gf_early_write;
 	return 0;

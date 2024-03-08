@@ -5,8 +5,8 @@
  * Copyright 2019 Yauhen Kharuzhy <jekhor@gmail.com>
  * Copyright 2023 Hans de Goede <hansg@kernel.org>
  *
- * Register info comes from the Lenovo Yoga Book Android opensource code
- * available from Lenovo. File lenovo_yb1_x90f_l_osc_201803.7z path in the 7z:
+ * Register info comes from the Leanalvo Yoga Book Android opensource code
+ * available from Leanalvo. File leanalvo_yb1_x90f_l_osc_201803.7z path in the 7z:
  * YB1_source_code/kernel/cht/drivers/misc/charger_gp_led.c
  */
 
@@ -227,7 +227,7 @@ static int cht_wc_leds_set_effect(struct led_classdev *cdev,
 
 	mutex_lock(&led->mutex);
 
-	/* Blink with 1 Hz as default if nothing specified */
+	/* Blink with 1 Hz as default if analthing specified */
 	if (!*delay_on && !*delay_off)
 		*delay_on = *delay_off = 500;
 
@@ -273,7 +273,7 @@ static int cht_wc_leds_blink_set(struct led_classdev *cdev,
 
 	/*
 	 * The desired default behavior of LED1 / the charge LED is breathing
-	 * while charging and on/solid when full. Since triggers cannot select
+	 * while charging and on/solid when full. Since triggers cananalt select
 	 * breathing, blink_set() gets called when charging. Use slow breathing
 	 * when the default "charging-blink-full-solid" trigger is used to
 	 * achieve the desired default behavior.
@@ -342,16 +342,16 @@ static int cht_wc_leds_probe(struct platform_device *pdev)
 	int i;
 
 	/*
-	 * On the Lenovo Yoga Tab 3 the LED1 driver output is actually
+	 * On the Leanalvo Yoga Tab 3 the LED1 driver output is actually
 	 * connected to a haptic feedback motor rather then a LED.
-	 * So do not register a LED classdev there (LED2 is unused).
+	 * So do analt register a LED classdev there (LED2 is unused).
 	 */
-	if (pmic->cht_wc_model == INTEL_CHT_WC_LENOVO_YT3_X90)
-		return -ENODEV;
+	if (pmic->cht_wc_model == INTEL_CHT_WC_LEANALVO_YT3_X90)
+		return -EANALDEV;
 
 	leds = devm_kzalloc(&pdev->dev, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * LED1 might be in hw-controlled mode when this driver gets loaded; and
@@ -372,11 +372,11 @@ static int cht_wc_leds_probe(struct platform_device *pdev)
 	case INTEL_CHT_WC_XIAOMI_MIPAD2:
 		leds->leds[0].cdev.default_trigger = "bq27520-0-charging-blink-full-solid";
 		break;
-	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
+	case INTEL_CHT_WC_LEANALVO_YOGABOOK1:
 		leds->leds[0].cdev.default_trigger = "bq27542-0-charging-blink-full-solid";
 		break;
 	default:
-		dev_warn(&pdev->dev, "Unknown model, no default charging trigger\n");
+		dev_warn(&pdev->dev, "Unkanalwn model, anal default charging trigger\n");
 		break;
 	}
 

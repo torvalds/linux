@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _AUDIO_SET_MUTE:
@@ -14,7 +14,7 @@ AUDIO_SET_MUTE
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: AUDIO_SET_MUTE
@@ -38,7 +38,7 @@ Arguments
 
        -  boolean state
 
-       -  Indicates if audio device shall mute or not.
+       -  Indicates if audio device shall mute or analt.
 
           TRUE: Audio Mute
 
@@ -57,6 +57,6 @@ currently being played.
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

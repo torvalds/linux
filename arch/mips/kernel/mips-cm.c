@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 
@@ -22,19 +22,19 @@ static char *cm2_tr[8] = {
 
 /* CM3 Tag ECC transaction type */
 static char *cm3_tr[16] = {
-	[0x0] = "ReqNoData",
+	[0x0] = "ReqAnalData",
 	[0x1] = "0x1",
 	[0x2] = "ReqWData",
 	[0x3] = "0x3",
-	[0x4] = "IReqNoResp",
+	[0x4] = "IReqAnalResp",
 	[0x5] = "IReqWResp",
-	[0x6] = "IReqNoRespDat",
+	[0x6] = "IReqAnalRespDat",
 	[0x7] = "IReqWRespDat",
-	[0x8] = "RespNoData",
+	[0x8] = "RespAnalData",
 	[0x9] = "RespDataFol",
 	[0xa] = "RespWData",
 	[0xb] = "RespDataOnly",
-	[0xc] = "IRespNoData",
+	[0xc] = "IRespAnalData",
 	[0xd] = "IRespDataFol",
 	[0xe] = "IRespWData",
 	[0xf] = "IRespDataOnly"
@@ -97,7 +97,7 @@ static char *cm3_cmd[16] = {
 
 /* CM3 Tag ECC command group */
 static char *cm3_cmd_group[8] = {
-	[0x0] = "Normal",
+	[0x0] = "Analrmal",
 	[0x1] = "Registers",
 	[0x2] = "TLB",
 	[0x3] = "0x3",
@@ -115,14 +115,14 @@ static char *cm2_core[8] = {
 };
 
 static char *cm2_l2_type[4] = {
-	[0x0] = "None",
+	[0x0] = "Analne",
 	[0x1] = "Tag RAM single/double ECC error",
 	[0x2] = "Data RAM single/double ECC error",
 	[0x3] = "WS RAM uncorrectable dirty parity"
 };
 
 static char *cm2_l2_instr[32] = {
-	[0x00] = "L2_NOP",
+	[0x00] = "L2_ANALP",
 	[0x01] = "L2_ERR_CORR",
 	[0x02] = "L2_TAG_INV",
 	[0x03] = "L2_WS_CLEAN",
@@ -157,7 +157,7 @@ static char *cm2_l2_instr[32] = {
 };
 
 static char *cm2_causes[32] = {
-	"None", "GC_WR_ERR", "GC_RD_ERR", "COH_WR_ERR",
+	"Analne", "GC_WR_ERR", "GC_RD_ERR", "COH_WR_ERR",
 	"COH_RD_ERR", "MMIO_WR_ERR", "MMIO_RD_ERR", "0x07",
 	"0x08", "0x09", "0x0a", "0x0b",
 	"0x0c", "0x0d", "0x0e", "0x0f",
@@ -250,7 +250,7 @@ int mips_cm_probe(void)
 	unsigned cpu;
 
 	/*
-	 * No need to probe again if we have already been
+	 * Anal need to probe again if we have already been
 	 * here before.
 	 */
 	if (mips_gcr_base)
@@ -259,7 +259,7 @@ int mips_cm_probe(void)
 	addr = mips_cm_phys_base();
 	BUG_ON((addr & CM_GCR_BASE_GCRBASE) != addr);
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mips_gcr_base = ioremap(addr, MIPS_CM_GCR_SIZE);
 	if (!mips_gcr_base)
@@ -272,7 +272,7 @@ int mips_cm_probe(void)
 		       (unsigned long)addr);
 		iounmap(mips_gcr_base);
 		mips_gcr_base = NULL;
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* set default target to memory */

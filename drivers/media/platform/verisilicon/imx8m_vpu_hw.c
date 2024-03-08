@@ -81,7 +81,7 @@ static int imx8mq_runtime_resume(struct hantro_dev *vpu)
 static const struct hantro_fmt imx8m_vpu_postproc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_YUYV,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.postprocessed = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
@@ -97,7 +97,7 @@ static const struct hantro_fmt imx8m_vpu_postproc_fmts[] = {
 static const struct hantro_fmt imx8m_vpu_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_UHD_WIDTH,
@@ -151,7 +151,7 @@ static const struct hantro_fmt imx8m_vpu_dec_fmts[] = {
 static const struct hantro_fmt imx8m_vpu_g2_postproc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.postprocessed = true,
 		.frmsize = {
@@ -165,7 +165,7 @@ static const struct hantro_fmt imx8m_vpu_g2_postproc_fmts[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_P010,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.postprocessed = true,
 		.frmsize = {
@@ -182,7 +182,7 @@ static const struct hantro_fmt imx8m_vpu_g2_postproc_fmts[] = {
 static const struct hantro_fmt imx8m_vpu_g2_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12_4L4,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
@@ -195,7 +195,7 @@ static const struct hantro_fmt imx8m_vpu_g2_dec_fmts[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_P010_4L4,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,

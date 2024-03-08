@@ -19,7 +19,7 @@ int bad_relo(const void *ctx)
 	return bpf_core_field_size(t->fake_field);
 }
 
-static __noinline int bad_subprog(void)
+static __analinline int bad_subprog(void)
 {
 	static struct task_struct___bad *t;
 
@@ -61,12 +61,12 @@ int use_missing_map(const void *ctx)
 	return value != NULL;
 }
 
-extern int bpf_nonexistent_kfunc(void) __ksym __weak;
+extern int bpf_analnexistent_kfunc(void) __ksym __weak;
 
 SEC("?raw_tp/sys_enter")
 int use_missing_kfunc(const void *ctx)
 {
-	bpf_nonexistent_kfunc();
+	bpf_analnexistent_kfunc();
 
 	return 0;
 }

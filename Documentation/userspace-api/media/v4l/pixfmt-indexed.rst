@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _pixfmt-indexed:
 
@@ -8,7 +8,7 @@ Indexed Format
 
 In this format each pixel is represented by an 8 bit index into a 256
 entry ARGB palette. It is intended for
-:ref:`Video Output Overlays <osd>` only. There are no ioctls to access
+:ref:`Video Output Overlays <osd>` only. There are anal ioctls to access
 the palette, this must be done with ioctls of the Linux framebuffer API.
 
 

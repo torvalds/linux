@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/asm-xtensa/shmbuf.h
  *
  * The shmid64_ds structure for Xtensa architecture.
- * Note extra padding because this structure is passed back and forth
+ * Analte extra padding because this structure is passed back and forth
  * between kernel and user space, but the padding is on the wrong
  * side for big-endian xtensa, for historic reasons.
  *
@@ -34,7 +34,7 @@ struct shmid64_ds {
 	unsigned long		shm_ctime_high;
 	__kernel_pid_t		shm_cpid;	/* pid of creator */
 	__kernel_pid_t		shm_lpid;	/* pid of last operator */
-	unsigned long		shm_nattch;	/* no. of current attaches */
+	unsigned long		shm_nattch;	/* anal. of current attaches */
 	unsigned long		__unused4;
 	unsigned long		__unused5;
 };

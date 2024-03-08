@@ -14,7 +14,7 @@
 #define MAX77714_INT_TOP	0x00
 #define MAX77714_INT_TOPM	0x07 /* Datasheet says "read only", but it is RW */
 
-#define MAX77714_INT_TOP_ONOFF		BIT(1)
+#define MAX77714_INT_TOP_OANALFF		BIT(1)
 #define MAX77714_INT_TOP_RTC		BIT(3)
 #define MAX77714_INT_TOP_GPIO		BIT(4)
 #define MAX77714_INT_TOP_LDO		BIT(5)
@@ -44,12 +44,12 @@
 #define MAX77714_CNFG_GLBL3	0x92
 #define MAX77714_WDTC			BIT(0)
 
-#define MAX77714_CNFG2_ONOFF	0x94
+#define MAX77714_CNFG2_OANALFF	0x94
 #define MAX77714_WD_RST_WK		BIT(5)
 
 /* Interrupts */
 enum {
-	MAX77714_IRQ_TOP_ONOFF,
+	MAX77714_IRQ_TOP_OANALFF,
 	MAX77714_IRQ_TOP_RTC,		/* Real-time clock */
 	MAX77714_IRQ_TOP_GPIO,		/* GPIOs */
 	MAX77714_IRQ_TOP_LDO,		/* Low-dropout regulators */

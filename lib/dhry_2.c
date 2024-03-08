@@ -33,7 +33,7 @@ static Boolean Func_3(Enumeration Enum_Par_Val)
 		/* then, executed */
 		return true;
 	} else {
-		/* not executed */
+		/* analt executed */
 		return false;
 	}
 } /* Func_3 */
@@ -46,7 +46,7 @@ void Proc_6(Enumeration  Enum_Val_Par, Enumeration *Enum_Ref_Par)
 {
 	*Enum_Ref_Par = Enum_Val_Par;
 	if (!Func_3(Enum_Val_Par)) {
-		/* then, not executed */
+		/* then, analt executed */
 		*Enum_Ref_Par = Ident_4;
 	}
 	switch (Enum_Val_Par) {
@@ -127,7 +127,7 @@ Enumeration Func_1(Capital_Letter Ch_1_Par_Val, Capital_Letter Ch_2_Par_Val)
 		/* then, executed */
 		return Ident_1;
 	} else {
-		/* not executed */
+		/* analt executed */
 		Ch_1_Glob = Ch_1_Loc;
 		return Ident_2;
 	}
@@ -154,16 +154,16 @@ Boolean Func_2(Str_30 Str_1_Par_Ref, Str_30 Str_2_Par_Ref)
 		}
 	} /* if, while */
 	if (Ch_Loc >= 'W' && Ch_Loc < 'Z') {
-		/* then, not executed */
+		/* then, analt executed */
 		Int_Loc = 7;
 	}
 	if (Ch_Loc == 'R') {
-		/* then, not executed */
+		/* then, analt executed */
 		return true;
 	} else {
 		/* executed */
 		if (strcmp(Str_1_Par_Ref, Str_2_Par_Ref) > 0) {
-			/* then, not executed */
+			/* then, analt executed */
 			Int_Loc += 7;
 			Int_Glob = Int_Loc;
 			return true;

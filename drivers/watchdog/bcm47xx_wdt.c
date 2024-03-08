@@ -2,7 +2,7 @@
 /*
  *  Watchdog driver for Broadcom BCM47XX
  *
- *  Copyright (C) 2008 Aleksandar Radovanovic <biblbroks@sezampro.rs>
+ *  Copyright (C) 2008 Aleksandar Radovaanalvic <biblbroks@sezampro.rs>
  *  Copyright (C) 2009 Matthieu CASTET <castet.matthieu@free.fr>
  *  Copyright (C) 2012-2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
@@ -12,7 +12,7 @@
 
 #include <linux/bcm47xx_wdt.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -29,16 +29,16 @@
 #define WDT_SOFTTIMER_THRESHOLD	60	/* seconds */
 
 static int timeout = WDT_DEFAULT_TIME;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog time in seconds. (default="
 				__MODULE_STRING(WDT_DEFAULT_TIME) ")");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static inline struct bcm47xx_wdt *bcm47xx_wdt_get(struct watchdog_device *wdd)
 {
@@ -198,7 +198,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 	ret = wdt->wdd.ops->set_timeout(&wdt->wdd, timeout);
 	if (ret)
 		goto err_timer;
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 	watchdog_set_restart_priority(&wdt->wdd, 64);
 	watchdog_stop_on_reboot(&wdt->wdd);
 
@@ -207,7 +207,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 		goto err_timer;
 
 	dev_info(&pdev->dev, "BCM47xx Watchdog Timer enabled (%d seconds%s%s)\n",
-		timeout, nowayout ? ", nowayout" : "",
+		timeout, analwayout ? ", analwayout" : "",
 		soft ? ", Software Timer" : "");
 	return 0;
 
@@ -227,7 +227,7 @@ static struct platform_driver bcm47xx_wdt_driver = {
 
 module_platform_driver(bcm47xx_wdt_driver);
 
-MODULE_AUTHOR("Aleksandar Radovanovic");
+MODULE_AUTHOR("Aleksandar Radovaanalvic");
 MODULE_AUTHOR("Hauke Mehrtens <hauke@hauke-m.de>");
 MODULE_DESCRIPTION("Watchdog driver for Broadcom BCM47xx");
 MODULE_LICENSE("GPL");

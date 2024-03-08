@@ -14,7 +14,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/sync_file.h>
 #include <uapi/linux/sync_file.h>
 
@@ -28,14 +28,14 @@ static struct sync_file *sync_file_alloc(void)
 	if (!sync_file)
 		return NULL;
 
-	sync_file->file = anon_inode_getfile("sync_file", &sync_file_fops,
+	sync_file->file = aanaln_ianalde_getfile("sync_file", &sync_file_fops,
 					     sync_file, 0);
 	if (IS_ERR(sync_file->file))
 		goto err;
 
 	init_waitqueue_head(&sync_file->wq);
 
-	INIT_LIST_HEAD(&sync_file->cb.node);
+	INIT_LIST_HEAD(&sync_file->cb.analde);
 
 	return sync_file;
 
@@ -140,7 +140,7 @@ char *sync_file_get_name(struct sync_file *sync_file, char *buf, int len)
 			 fence->ops->get_driver_name(fence),
 			 fence->ops->get_timeline_name(fence),
 			 fence->context,
-			 fence->seqno);
+			 fence->seqanal);
 	}
 
 	return buf;
@@ -176,7 +176,7 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	return sync_file;
 }
 
-static int sync_file_release(struct inode *inode, struct file *file)
+static int sync_file_release(struct ianalde *ianalde, struct file *file)
 {
 	struct sync_file *sync_file = file->private_data;
 
@@ -194,7 +194,7 @@ static __poll_t sync_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &sync_file->wq, wait);
 
-	if (list_empty(&sync_file->cb.node) &&
+	if (list_empty(&sync_file->cb.analde) &&
 	    !test_and_set_bit(POLL_ENABLED, &sync_file->flags)) {
 		if (dma_fence_add_callback(sync_file->fence, &sync_file->cb,
 					   fence_check_cb_func) < 0)
@@ -227,14 +227,14 @@ static long sync_file_ioctl_merge(struct sync_file *sync_file,
 
 	fence2 = sync_file_fdget(data.fd2);
 	if (!fence2) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto err_put_fd;
 	}
 
 	data.name[sizeof(data.name) - 1] = '\0';
 	fence3 = sync_file_merge(data.name, sync_file, fence2);
 	if (!fence3) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put_fence2;
 	}
 
@@ -305,7 +305,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	 */
 	if (!info.num_fences) {
 		info.status = dma_fence_get_status(sync_file->fence);
-		goto no_fences;
+		goto anal_fences;
 	} else {
 		info.status = 1;
 	}
@@ -316,7 +316,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	size = num_fences * sizeof(*fence_info);
 	fence_info = kzalloc(size, GFP_KERNEL);
 	if (!fence_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	num_fences = 0;
 	dma_fence_unwrap_for_each(fence, &iter, sync_file->fence) {
@@ -332,7 +332,7 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 		goto out;
 	}
 
-no_fences:
+anal_fences:
 	sync_file_get_name(sync_file, info.name, sizeof(info.name));
 	info.num_fences = num_fences;
 
@@ -379,7 +379,7 @@ static long sync_file_ioctl(struct file *file, unsigned int cmd,
 		return sync_file_ioctl_set_deadline(sync_file, arg);
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 

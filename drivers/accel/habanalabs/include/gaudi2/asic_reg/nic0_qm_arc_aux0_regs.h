@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_NIC0_QM_ARC_AUX0_REGS_H_
@@ -284,7 +284,7 @@
 
 #define mmNIC0_QM_ARC_AUX0_CBU_FORCE_RSP_OK 0x5418384
 
-#define mmNIC0_QM_ARC_AUX0_CBU_NO_WR_INFLIGHT 0x541838C
+#define mmNIC0_QM_ARC_AUX0_CBU_ANAL_WR_INFLIGHT 0x541838C
 
 #define mmNIC0_QM_ARC_AUX0_CBU_SEI_INTR_ID 0x5418390
 
@@ -308,7 +308,7 @@
 
 #define mmNIC0_QM_ARC_AUX0_LBU_FORCE_RSP_OK 0x5418434
 
-#define mmNIC0_QM_ARC_AUX0_LBU_NO_WR_INFLIGHT 0x541843C
+#define mmNIC0_QM_ARC_AUX0_LBU_ANAL_WR_INFLIGHT 0x541843C
 
 #define mmNIC0_QM_ARC_AUX0_LBU_SEI_INTR_ID 0x5418440
 

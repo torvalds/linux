@@ -6,7 +6,7 @@
  *
  * Tasks that periodically executes their instances for less than their
  * runtime won't miss any of their deadlines.
- * Tasks that are not periodic or sporadic or that tries to execute more
+ * Tasks that are analt periodic or sporadic or that tries to execute more
  * than their reserved bandwidth will be slowed down (and may potentially
  * miss some of their deadlines), and won't affect any other task.
  *
@@ -87,7 +87,7 @@ static inline struct dl_rq *dl_rq_of_se(struct sched_dl_entity *dl_se)
 
 static inline int on_dl_rq(struct sched_dl_entity *dl_se)
 {
-	return !RB_EMPTY_NODE(&dl_se->rb_node);
+	return !RB_EMPTY_ANALDE(&dl_se->rb_analde);
 }
 
 #ifdef CONFIG_RT_MUTEXES
@@ -331,14 +331,14 @@ static void dl_change_utilization(struct task_struct *p, u64 new_bw)
 		return;
 
 	rq = task_rq(p);
-	if (p->dl.dl_non_contending) {
+	if (p->dl.dl_analn_contending) {
 		sub_running_bw(&p->dl, &rq->dl);
-		p->dl.dl_non_contending = 0;
+		p->dl.dl_analn_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be canceled, inactive_task_timer()
-		 * will see that dl_not_contending is not set, and
-		 * will not touch the rq's active utilization,
+		 * timer cananalt be canceled, inactive_task_timer()
+		 * will see that dl_analt_contending is analt set, and
+		 * will analt touch the rq's active utilization,
 		 * so we are still safe.
 		 */
 		if (hrtimer_try_to_cancel(&p->dl.inactive_timer) == 1)
@@ -351,7 +351,7 @@ static void dl_change_utilization(struct task_struct *p, u64 new_bw)
 static void __dl_clear_params(struct sched_dl_entity *dl_se);
 
 /*
- * The utilization of a task cannot be immediately removed from
+ * The utilization of a task cananalt be immediately removed from
  * the rq active utilization (running_bw) when the task blocks.
  * Instead, we have to wait for the so called "0-lag time".
  *
@@ -363,16 +363,16 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se);
  * the timer is canceled, whereas if the task wakes up after the
  * inactive timer fired (and running_bw has been decreased) the
  * task's utilization has to be added to running_bw again.
- * A flag in the deadline scheduling entity (dl_non_contending)
+ * A flag in the deadline scheduling entity (dl_analn_contending)
  * is used to avoid race conditions between the inactive timer handler
  * and task wakeups.
  *
  * The following diagram shows how running_bw is updated. A task is
  * "ACTIVE" when its utilization contributes to running_bw; an
  * "ACTIVE contending" task is in the TASK_RUNNING state, while an
- * "ACTIVE non contending" task is a blocked task for which the "0-lag time"
- * has not passed yet. An "INACTIVE" task is a task for which the "0-lag"
- * time already passed, which does not contribute to running_bw anymore.
+ * "ACTIVE analn contending" task is a blocked task for which the "0-lag time"
+ * has analt passed yet. An "INACTIVE" task is a task for which the "0-lag"
+ * time already passed, which does analt contribute to running_bw anymore.
  *                              +------------------+
  *             wakeup           |    ACTIVE        |
  *          +------------------>+   contending     |
@@ -392,19 +392,19 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se);
  *          |                   +----+------+------+
  *          | sub_running_bw    |    ACTIVE        |
  *          +-------------------+                  |
- *            inactive timer    |  non contending  |
+ *            inactive timer    |  analn contending  |
  *            fired             +------------------+
  *
- * The task_non_contending() function is invoked when a task
+ * The task_analn_contending() function is invoked when a task
  * blocks, and checks if the 0-lag time already passed or
- * not (in the first case, it directly updates running_bw;
+ * analt (in the first case, it directly updates running_bw;
  * in the second case, it arms the inactive timer).
  *
  * The task_contending() function is invoked when a task wakes
- * up, and checks if the task is still in the "ACTIVE non contending"
- * state or not (in the second case, it updates running_bw).
+ * up, and checks if the task is still in the "ACTIVE analn contending"
+ * state or analt (in the second case, it updates running_bw).
  */
-static void task_non_contending(struct sched_dl_entity *dl_se)
+static void task_analn_contending(struct sched_dl_entity *dl_se)
 {
 	struct hrtimer *timer = &dl_se->inactive_timer;
 	struct rq *rq = rq_of_dl_se(dl_se);
@@ -412,8 +412,8 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 	s64 zerolag_time;
 
 	/*
-	 * If this is a non-deadline task that has been boosted,
-	 * do nothing
+	 * If this is a analn-deadline task that has been boosted,
+	 * do analthing
 	 */
 	if (dl_se->dl_runtime == 0)
 		return;
@@ -421,7 +421,7 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 	if (dl_entity_is_special(dl_se))
 		return;
 
-	WARN_ON(dl_se->dl_non_contending);
+	WARN_ON(dl_se->dl_analn_contending);
 
 	zerolag_time = dl_se->deadline -
 		 div64_long((dl_se->runtime * dl_se->dl_period),
@@ -435,7 +435,7 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 
 	/*
 	 * If the "0-lag time" already passed, decrease the active
-	 * utilization now, instead of starting a timer
+	 * utilization analw, instead of starting a timer
 	 */
 	if ((zerolag_time < 0) || hrtimer_active(&dl_se->inactive_timer)) {
 		if (dl_server(dl_se)) {
@@ -461,7 +461,7 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 		return;
 	}
 
-	dl_se->dl_non_contending = 1;
+	dl_se->dl_analn_contending = 1;
 	if (!dl_server(dl_se))
 		get_task_struct(dl_task_of(dl_se));
 
@@ -473,8 +473,8 @@ static void task_contending(struct sched_dl_entity *dl_se, int flags)
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 
 	/*
-	 * If this is a non-deadline task that has been boosted,
-	 * do nothing
+	 * If this is a analn-deadline task that has been boosted,
+	 * do analthing
 	 */
 	if (dl_se->dl_runtime == 0)
 		return;
@@ -482,13 +482,13 @@ static void task_contending(struct sched_dl_entity *dl_se, int flags)
 	if (flags & ENQUEUE_MIGRATED)
 		add_rq_bw(dl_se, dl_rq);
 
-	if (dl_se->dl_non_contending) {
-		dl_se->dl_non_contending = 0;
+	if (dl_se->dl_analn_contending) {
+		dl_se->dl_analn_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be canceled, inactive_task_timer()
-		 * will see that dl_not_contending is not set, and
-		 * will not touch the rq's active utilization,
+		 * timer cananalt be canceled, inactive_task_timer()
+		 * will see that dl_analt_contending is analt set, and
+		 * will analt touch the rq's active utilization,
 		 * so we are still safe.
 		 */
 		if (hrtimer_try_to_cancel(&dl_se->inactive_timer) == 1) {
@@ -497,7 +497,7 @@ static void task_contending(struct sched_dl_entity *dl_se, int flags)
 		}
 	} else {
 		/*
-		 * Since "dl_non_contending" is not set, the
+		 * Since "dl_analn_contending" is analt set, the
 		 * task's utilization has already been removed from
 		 * active utilization (either when the task blocked,
 		 * when the "inactive timer" fired).
@@ -509,7 +509,7 @@ static void task_contending(struct sched_dl_entity *dl_se, int flags)
 
 static inline int is_leftmost(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
-	return rb_first_cached(&dl_rq->root) == &dl_se->rb_node;
+	return rb_first_cached(&dl_rq->root) == &dl_se->rb_analde;
 }
 
 static void init_dl_rq_bw_ratio(struct dl_rq *dl_rq);
@@ -529,7 +529,7 @@ void init_dl_rq(struct dl_rq *dl_rq)
 	dl_rq->root = RB_ROOT_CACHED;
 
 #ifdef CONFIG_SMP
-	/* zero means no -deadline tasks */
+	/* zero means anal -deadline tasks */
 	dl_rq->earliest_dl.curr = dl_rq->earliest_dl.next = 0;
 
 	dl_rq->overloaded = 0;
@@ -575,12 +575,12 @@ static inline void dl_clear_overload(struct rq *rq)
 	cpumask_clear_cpu(rq->cpu, rq->rd->dlo_mask);
 }
 
-#define __node_2_pdl(node) \
-	rb_entry((node), struct task_struct, pushable_dl_tasks)
+#define __analde_2_pdl(analde) \
+	rb_entry((analde), struct task_struct, pushable_dl_tasks)
 
-static inline bool __pushable_less(struct rb_node *a, const struct rb_node *b)
+static inline bool __pushable_less(struct rb_analde *a, const struct rb_analde *b)
 {
-	return dl_entity_preempt(&__node_2_pdl(a)->dl, &__node_2_pdl(b)->dl);
+	return dl_entity_preempt(&__analde_2_pdl(a)->dl, &__analde_2_pdl(b)->dl);
 }
 
 static inline int has_pushable_dl_tasks(struct rq *rq)
@@ -589,14 +589,14 @@ static inline int has_pushable_dl_tasks(struct rq *rq)
 }
 
 /*
- * The list of pushable -deadline task is not a plist, like in
+ * The list of pushable -deadline task is analt a plist, like in
  * sched_rt.c, it is an rb-tree with tasks ordered by deadline.
  */
 static void enqueue_pushable_dl_task(struct rq *rq, struct task_struct *p)
 {
-	struct rb_node *leftmost;
+	struct rb_analde *leftmost;
 
-	WARN_ON_ONCE(!RB_EMPTY_NODE(&p->pushable_dl_tasks));
+	WARN_ON_ONCE(!RB_EMPTY_ANALDE(&p->pushable_dl_tasks));
 
 	leftmost = rb_add_cached(&p->pushable_dl_tasks,
 				 &rq->dl.pushable_dl_tasks_root,
@@ -614,16 +614,16 @@ static void dequeue_pushable_dl_task(struct rq *rq, struct task_struct *p)
 {
 	struct dl_rq *dl_rq = &rq->dl;
 	struct rb_root_cached *root = &dl_rq->pushable_dl_tasks_root;
-	struct rb_node *leftmost;
+	struct rb_analde *leftmost;
 
-	if (RB_EMPTY_NODE(&p->pushable_dl_tasks))
+	if (RB_EMPTY_ANALDE(&p->pushable_dl_tasks))
 		return;
 
 	leftmost = rb_erase_cached(&p->pushable_dl_tasks, root);
 	if (leftmost)
-		dl_rq->earliest_dl.next = __node_2_pdl(leftmost)->dl.deadline;
+		dl_rq->earliest_dl.next = __analde_2_pdl(leftmost)->dl.deadline;
 
-	RB_CLEAR_NODE(&p->pushable_dl_tasks);
+	RB_CLEAR_ANALDE(&p->pushable_dl_tasks);
 
 	if (!has_pushable_dl_tasks(rq) && rq->dl.overloaded) {
 		dl_clear_overload(rq);
@@ -669,7 +669,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 		int cpu;
 
 		/*
-		 * If we cannot preempt any rq, fall back to pick any
+		 * If we cananalt preempt any rq, fall back to pick any
 		 * online CPU:
 		 */
 		cpu = cpumask_any_and(cpu_active_mask, p->cpus_ptr);
@@ -691,7 +691,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 		double_lock_balance(rq, later_rq);
 	}
 
-	if (p->dl.dl_non_contending || p->dl.dl_throttled) {
+	if (p->dl.dl_analn_contending || p->dl.dl_throttled) {
 		/*
 		 * Inactive timer is armed (or callback is running, but
 		 * waiting for us to release rq locks). In any case, when it
@@ -710,7 +710,7 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 
 	/*
 	 * And we finally need to fixup root_domain(s) bandwidth accounting,
-	 * since p is still hanging out in the old (now moved to default) root
+	 * since p is still hanging out in the old (analw moved to default) root
 	 * domain.
 	 */
 	dl_b = &rq->rd->dl_bw;
@@ -769,7 +769,7 @@ static void wakeup_preempt_dl(struct rq *rq, struct task_struct *p, int flags);
 static inline void replenish_dl_new_period(struct sched_dl_entity *dl_se,
 					    struct rq *rq)
 {
-	/* for non-boosted task, pi_of(dl_se) == dl_se */
+	/* for analn-boosted task, pi_of(dl_se) == dl_se */
 	dl_se->deadline = rq_clock(rq) + pi_of(dl_se)->dl_deadline;
 	dl_se->runtime = pi_of(dl_se)->dl_runtime;
 }
@@ -795,7 +795,7 @@ static inline void setup_new_dl_entity(struct sched_dl_entity *dl_se)
 	WARN_ON(dl_time_before(rq_clock(rq), dl_se->deadline));
 
 	/*
-	 * We are racing with the deadline timer. So, do nothing because
+	 * We are racing with the deadline timer. So, do analthing because
 	 * the deadline timer handler will take care of properly recharging
 	 * the runtime and postponing the deadline
 	 */
@@ -811,12 +811,12 @@ static inline void setup_new_dl_entity(struct sched_dl_entity *dl_se)
 }
 
 /*
- * Pure Earliest Deadline First (EDF) scheduling does not deal with the
+ * Pure Earliest Deadline First (EDF) scheduling does analt deal with the
  * possibility of a entity lasting more than what it declared, and thus
  * exhausting its runtime.
  *
  * Here we are interested in making runtime overrun possible, but we do
- * not want a entity which is misbehaving to affect the scheduling of all
+ * analt want a entity which is misbehaving to affect the scheduling of all
  * other entities.
  * Therefore, a budgeting strategy called Constant Bandwidth Server (CBS)
  * is used, in order to confine each entity within its own bandwidth.
@@ -859,7 +859,7 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se)
 	/*
 	 * At this point, the deadline really should be "in
 	 * the future" with respect to rq->clock. If it's
-	 * not, we are, for some reason, lagging too much!
+	 * analt, we are, for some reason, lagging too much!
 	 * Anyway, after having warn userspace abut that,
 	 * we still try to keep the things running by
 	 * resetting the deadline and the budget of the
@@ -896,7 +896,7 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se)
  *
  * IOW we can't recycle current parameters.
  *
- * Notice that the bandwidth check is done against the deadline. For
+ * Analtice that the bandwidth check is done against the deadline. For
  * task with deadline equal to period this is the same of using
  * dl_period instead of dl_deadline in the equation above.
  */
@@ -909,7 +909,7 @@ static bool dl_entity_overflow(struct sched_dl_entity *dl_se, u64 t)
 	 * after a bit of shuffling to use multiplications instead
 	 * of divisions.
 	 *
-	 * Note that none of the time values involved in the two
+	 * Analte that analne of the time values involved in the two
 	 * multiplications are absolute: dl_deadline and dl_runtime
 	 * are the relative deadline and the maximum runtime of each
 	 * instance, runtime is the runtime left for the last instance
@@ -969,8 +969,8 @@ update_dl_revised_wakeup(struct sched_dl_entity *dl_se, struct rq *rq)
  * relative deadline <= relative period.
  *
  * We support constrained deadline tasks. However, there are some restrictions
- * applied only for tasks which do not have an implicit deadline. See
- * update_dl_entity() to know more about such restrictions.
+ * applied only for tasks which do analt have an implicit deadline. See
+ * update_dl_entity() to kanalw more about such restrictions.
  *
  * The dl_is_implicit() returns true if the task has an implicit deadline.
  */
@@ -996,7 +996,7 @@ static inline bool dl_is_implicit(struct sched_dl_entity *dl_se)
  * CBS is applied. the runtime is replenished and a new absolute deadline is
  * set, as in the previous cases.
  *
- * However, the Original CBS does not work properly for tasks with
+ * However, the Original CBS does analt work properly for tasks with
  * deadline < period, which are said to have a constrained deadline. By
  * applying the Original CBS, a constrained deadline task would be able to run
  * runtime/deadline in a period. With deadline < period, the task would
@@ -1038,8 +1038,8 @@ static inline u64 dl_next_period(struct sched_dl_entity *dl_se)
  * set the bandwidth replenishment timer to the replenishment instant
  * and try to activate it.
  *
- * Notice that it is important for the caller to know if the timer
- * actually started or not (i.e., the replenishment instant is in
+ * Analtice that it is important for the caller to kanalw if the timer
+ * actually started or analt (i.e., the replenishment instant is in
  * the future or in the past).
  */
 static int start_dl_timer(struct sched_dl_entity *dl_se)
@@ -1047,19 +1047,19 @@ static int start_dl_timer(struct sched_dl_entity *dl_se)
 	struct hrtimer *timer = &dl_se->dl_timer;
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 	struct rq *rq = rq_of_dl_rq(dl_rq);
-	ktime_t now, act;
+	ktime_t analw, act;
 	s64 delta;
 
 	lockdep_assert_rq_held(rq);
 
 	/*
 	 * We want the timer to fire at the deadline, but considering
-	 * that it is actually coming from rq->clock and not from
+	 * that it is actually coming from rq->clock and analt from
 	 * hrtimer's time base reading.
 	 */
 	act = ns_to_ktime(dl_next_period(dl_se));
-	now = hrtimer_cb_get_time(timer);
-	delta = ktime_to_ns(now) - rq_clock(rq);
+	analw = hrtimer_cb_get_time(timer);
+	delta = ktime_to_ns(analw) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
 
 	/*
@@ -1067,11 +1067,11 @@ static int start_dl_timer(struct sched_dl_entity *dl_se)
 	 * chosen as the deadline is too small, don't even try to
 	 * start the timer in the past!
 	 */
-	if (ktime_us_delta(act, now) < 0)
+	if (ktime_us_delta(act, analw) < 0)
 		return 0;
 
 	/*
-	 * !enqueued will guarantee another callback; even if one is already in
+	 * !enqueued will guarantee aanalther callback; even if one is already in
 	 * progress. This ensures a balanced {get,put}_task_struct().
 	 *
 	 * The race against __run_timer() clearing the enqueued state is
@@ -1097,7 +1097,7 @@ static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 	 */
 	if (has_pushable_dl_tasks(rq)) {
 		/*
-		 * Nothing relies on rq->lock after this, so its safe to drop
+		 * Analthing relies on rq->lock after this, so its safe to drop
 		 * rq->lock.
 		 */
 		rq_unpin_lock(rq, rf);
@@ -1108,15 +1108,15 @@ static void __push_dl_task(struct rq *rq, struct rq_flags *rf)
 }
 
 /*
- * This is the bandwidth enforcement timer callback. If here, we know
- * a task is not on its dl_rq, since the fact that the timer was running
+ * This is the bandwidth enforcement timer callback. If here, we kanalw
+ * a task is analt on its dl_rq, since the fact that the timer was running
  * means the task is throttled and needs a runtime replenishment.
  *
  * However, what we actually do depends on the fact the task is active,
  * (it is on its rq) or has been removed from there by a call to
  * dequeue_task_dl(). In the former case we must issue the runtime
  * replenishment and add the task back to the dl_rq; in the latter, we just
- * do nothing but clearing dl_throttled, so that runtime and deadline
+ * do analthing but clearing dl_throttled, so that runtime and deadline
  * updating (and the queueing back to dl_rq) will be done by the
  * next call to enqueue_task_dl().
  */
@@ -1149,7 +1149,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		}
 		rq_unlock(rq, &rf);
 
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 	}
 
 	p = dl_task_of(dl_se);
@@ -1164,7 +1164,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 
 	/*
 	 * The task might have been boosted by someone else and might be in the
-	 * boosting/deboosting path, its not throttled.
+	 * boosting/deboosting path, its analt throttled.
 	 */
 	if (is_dl_boosted(dl_se))
 		goto unlock;
@@ -1191,7 +1191,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	 *     prev->on_rq = 0;
 	 *
 	 * We can be both throttled and !queued. Replenish the counter
-	 * but do not enqueue -- wait for our wakeup to do that.
+	 * but do analt enqueue -- wait for our wakeup to do that.
 	 */
 	if (!task_on_rq_queued(p)) {
 		replenish_dl_entity(dl_se);
@@ -1201,7 +1201,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 #ifdef CONFIG_SMP
 	if (unlikely(!rq->online)) {
 		/*
-		 * If the runqueue is no longer available, migrate the
+		 * If the runqueue is anal longer available, migrate the
 		 * task elsewhere. This necessarily changes rq.
 		 */
 		lockdep_unpin_lock(__rq_lockp(rq), rf.cookie);
@@ -1210,8 +1210,8 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 		update_rq_clock(rq);
 
 		/*
-		 * Now that the task has been migrated to the new RQ and we
-		 * have that locked, proceed as normal and enqueue the task
+		 * Analw that the task has been migrated to the new RQ and we
+		 * have that locked, proceed as analrmal and enqueue the task
 		 * there.
 		 */
 	}
@@ -1229,33 +1229,33 @@ unlock:
 	task_rq_unlock(rq, p, &rf);
 
 	/*
-	 * This can free the task_struct, including this hrtimer, do not touch
+	 * This can free the task_struct, including this hrtimer, do analt touch
 	 * anything related to that after this.
 	 */
 	put_task_struct(p);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void init_dl_task_timer(struct sched_dl_entity *dl_se)
 {
 	struct hrtimer *timer = &dl_se->dl_timer;
 
-	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	timer->function = dl_task_timer;
 }
 
 /*
  * During the activation, CBS checks if it can reuse the current task's
  * runtime and period. If the deadline of the task is in the past, CBS
- * cannot use the runtime, and so it replenishes the task. This rule
+ * cananalt use the runtime, and so it replenishes the task. This rule
  * works fine for implicit deadline tasks (deadline == period), and the
  * CBS was designed for implicit deadline tasks. However, a task with
  * constrained deadline (deadline < period) might be awakened after the
  * deadline, but before the next period. In this case, replenishing the
  * task would allow it to run for runtime / deadline. As in this case
  * deadline < period, CBS enables a task to run for more than the
- * runtime / period. In a very loaded system, this can cause a domino
+ * runtime / period. In a very loaded system, this can cause a domianal
  * effect, making other tasks miss their deadlines.
  *
  * To avoid this problem, in the activation of a constrained deadline
@@ -1285,7 +1285,7 @@ int dl_runtime_exceeded(struct sched_dl_entity *dl_se)
 
 /*
  * This function implements the GRUB accounting rule. According to the
- * GRUB reclaiming algorithm, the runtime is not decreased as "dq = -dt",
+ * GRUB reclaiming algorithm, the runtime is analt decreased as "dq = -dt",
  * but as "dq = -(max{u, (Umax - Uinact - Uextra)} / Umax) dt",
  * where u is the utilization of the task, Umax is the maximum reclaimable
  * utilization, Uinact is the (per-runqueue) inactive utilization, computed
@@ -1298,7 +1298,7 @@ int dl_runtime_exceeded(struct sched_dl_entity *dl_se)
  * is multiped by rq->dl.bw_ratio and shifted right by RATIO_SHIFT.
  * Since delta is a 64 bit variable, to have an overflow its value should be
  * larger than 2^(64 - 20 - 8), which is more than 64 seconds. So, overflow is
- * not an issue here.
+ * analt an issue here.
  */
 static u64 grub_reclaim(u64 delta, struct rq *rq, struct sched_dl_entity *dl_se)
 {
@@ -1383,11 +1383,11 @@ throttle:
 	}
 
 	/*
-	 * Because -- for now -- we share the rt bandwidth, we need to
+	 * Because -- for analw -- we share the rt bandwidth, we need to
 	 * account our runtime there too, otherwise actual rt tasks
 	 * would be able to exceed the shared quota.
 	 *
-	 * Account to the root rt group for now.
+	 * Account to the root rt group for analw.
 	 *
 	 * The solution we're working towards is having the RT groups scheduled
 	 * using deadline servers -- however there's a few nasties to figure
@@ -1438,7 +1438,7 @@ void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
 
 /*
  * Update the current task's runtime statistics (provided it is still
- * a -deadline task and has not been removed from the dl_rq).
+ * a -deadline task and has analt been removed from the dl_rq).
  */
 static void update_curr_dl(struct rq *rq)
 {
@@ -1482,15 +1482,15 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
 	update_rq_clock(rq);
 
 	if (dl_server(dl_se))
-		goto no_task;
+		goto anal_task;
 
 	if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
 		struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
 
-		if (READ_ONCE(p->__state) == TASK_DEAD && dl_se->dl_non_contending) {
+		if (READ_ONCE(p->__state) == TASK_DEAD && dl_se->dl_analn_contending) {
 			sub_running_bw(&p->dl, dl_rq_of_se(&p->dl));
 			sub_rq_bw(&p->dl, dl_rq_of_se(&p->dl));
-			dl_se->dl_non_contending = 0;
+			dl_se->dl_analn_contending = 0;
 		}
 
 		raw_spin_lock(&dl_b->lock);
@@ -1501,12 +1501,12 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
 		goto unlock;
 	}
 
-no_task:
-	if (dl_se->dl_non_contending == 0)
+anal_task:
+	if (dl_se->dl_analn_contending == 0)
 		goto unlock;
 
 	sub_running_bw(dl_se, &rq->dl);
-	dl_se->dl_non_contending = 0;
+	dl_se->dl_analn_contending = 0;
 unlock:
 
 	if (!dl_server(dl_se)) {
@@ -1516,19 +1516,19 @@ unlock:
 		rq_unlock(rq, &rf);
 	}
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se)
 {
 	struct hrtimer *timer = &dl_se->inactive_timer;
 
-	hrtimer_init(timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_init(timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL_HARD);
 	timer->function = inactive_task_timer;
 }
 
-#define __node_2_dle(node) \
-	rb_entry((node), struct sched_dl_entity, rb_node)
+#define __analde_2_dle(analde) \
+	rb_entry((analde), struct sched_dl_entity, rb_analde)
 
 #ifdef CONFIG_SMP
 
@@ -1559,8 +1559,8 @@ static void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 		cpudl_clear(&rq->rd->cpudl, rq->cpu);
 		cpupri_set(&rq->rd->cpupri, rq->cpu, rq->rt.highest_prio.curr);
 	} else {
-		struct rb_node *leftmost = rb_first_cached(&dl_rq->root);
-		struct sched_dl_entity *entry = __node_2_dle(leftmost);
+		struct rb_analde *leftmost = rb_first_cached(&dl_rq->root);
+		struct sched_dl_entity *entry = __analde_2_dle(leftmost);
 
 		dl_rq->earliest_dl.curr = entry->deadline;
 		cpudl_set(&rq->rd->cpudl, rq->cpu, entry->deadline);
@@ -1595,9 +1595,9 @@ void dec_dl_tasks(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 	dec_dl_deadline(dl_rq, dl_se->deadline);
 }
 
-static inline bool __dl_less(struct rb_node *a, const struct rb_node *b)
+static inline bool __dl_less(struct rb_analde *a, const struct rb_analde *b)
 {
-	return dl_time_before(__node_2_dle(a)->deadline, __node_2_dle(b)->deadline);
+	return dl_time_before(__analde_2_dle(a)->deadline, __analde_2_dle(b)->deadline);
 }
 
 static inline struct sched_statistics *
@@ -1680,9 +1680,9 @@ static void __enqueue_dl_entity(struct sched_dl_entity *dl_se)
 {
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 
-	WARN_ON_ONCE(!RB_EMPTY_NODE(&dl_se->rb_node));
+	WARN_ON_ONCE(!RB_EMPTY_ANALDE(&dl_se->rb_analde));
 
-	rb_add_cached(&dl_se->rb_node, &dl_rq->root, __dl_less);
+	rb_add_cached(&dl_se->rb_analde, &dl_rq->root, __dl_less);
 
 	inc_dl_tasks(dl_se, dl_rq);
 }
@@ -1691,12 +1691,12 @@ static void __dequeue_dl_entity(struct sched_dl_entity *dl_se)
 {
 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
 
-	if (RB_EMPTY_NODE(&dl_se->rb_node))
+	if (RB_EMPTY_ANALDE(&dl_se->rb_analde))
 		return;
 
-	rb_erase_cached(&dl_se->rb_node, &dl_rq->root);
+	rb_erase_cached(&dl_se->rb_analde, &dl_rq->root);
 
-	RB_CLEAR_NODE(&dl_se->rb_node);
+	RB_CLEAR_ANALDE(&dl_se->rb_analde);
 
 	dec_dl_tasks(dl_se, dl_rq);
 }
@@ -1725,12 +1725,12 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	}
 
 	/*
-	 * If p is throttled, we do not enqueue it. In fact, if it exhausted
-	 * its budget it needs a replenishment and, since it now is on
-	 * its rq, the bandwidth timer callback (which clearly has not
+	 * If p is throttled, we do analt enqueue it. In fact, if it exhausted
+	 * its budget it needs a replenishment and, since it analw is on
+	 * its rq, the bandwidth timer callback (which clearly has analt
 	 * run yet) will take care of this.
-	 * However, the active utilization does not depend on the fact
-	 * that the task is on the runqueue or not (but depends on the
+	 * However, the active utilization does analt depend on the fact
+	 * that the task is on the runqueue or analt (but depends on the
 	 * task's state - in GRUB parlance, "inactive" vs "active contending").
 	 * In other words, even if a task is throttled its utilization must
 	 * be counted in the active utilization; hence, we need to call
@@ -1778,11 +1778,11 @@ static void dequeue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	 * when the task blocks and when it is terminating
 	 * (p->state == TASK_DEAD). We can handle the two cases in the same
 	 * way, because from GRUB's point of view the same thing is happening
-	 * (the task moves from "active contending" to "active non contending"
+	 * (the task moves from "active contending" to "active analn contending"
 	 * or "inactive")
 	 */
 	if (flags & DEQUEUE_SLEEP)
-		task_non_contending(dl_se);
+		task_analn_contending(dl_se);
 }
 
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
@@ -1802,21 +1802,21 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 		 */
 		if (p->dl.dl_throttled) {
 			/*
-			 * The replenish timer needs to be canceled. No
+			 * The replenish timer needs to be canceled. Anal
 			 * problem if it fires concurrently: boosted threads
-			 * are ignored in dl_task_timer().
+			 * are iganalred in dl_task_timer().
 			 */
 			hrtimer_try_to_cancel(&p->dl.dl_timer);
 			p->dl.dl_throttled = 0;
 		}
-	} else if (!dl_prio(p->normal_prio)) {
+	} else if (!dl_prio(p->analrmal_prio)) {
 		/*
 		 * Special case in which we have a !SCHED_DEADLINE task that is going
-		 * to be deboosted, but exceeds its runtime while doing so. No point in
+		 * to be deboosted, but exceeds its runtime while doing so. Anal point in
 		 * replenishing it, as it's going to return back to its original
 		 * scheduling class after this. If it has been throttled, we need to
 		 * clear the flag, otherwise the task may wake up as throttled after
-		 * being boosted again with no means to replenish the runtime and clear
+		 * being boosted again with anal means to replenish the runtime and clear
 		 * the throttle.
 		 */
 		p->dl.dl_throttled = 0;
@@ -1858,7 +1858,7 @@ static void dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags)
  * Yield task semantic for -deadline tasks is:
  *
  *   get off from the CPU until our next instance, with
- *   a new runtime. This is of little use now, since we
+ *   a new runtime. This is of little use analw, since we
  *   don't have a bandwidth reclaiming mechanism. Anyway,
  *   bandwidth reclaiming is planned for the future, and
  *   yield_task_dl will indicate that some spare budget
@@ -1957,18 +1957,18 @@ static void migrate_task_rq_dl(struct task_struct *p, int new_cpu __maybe_unused
 	/*
 	 * Since p->state == TASK_WAKING, set_task_cpu() has been called
 	 * from try_to_wake_up(). Hence, p->pi_lock is locked, but
-	 * rq->lock is not... So, lock it
+	 * rq->lock is analt... So, lock it
 	 */
 	rq_lock(rq, &rf);
-	if (p->dl.dl_non_contending) {
+	if (p->dl.dl_analn_contending) {
 		update_rq_clock(rq);
 		sub_running_bw(&p->dl, &rq->dl);
-		p->dl.dl_non_contending = 0;
+		p->dl.dl_analn_contending = 0;
 		/*
 		 * If the timer handler is currently running and the
-		 * timer cannot be canceled, inactive_task_timer()
-		 * will see that dl_not_contending is not set, and
-		 * will not touch the rq's active utilization,
+		 * timer cananalt be canceled, inactive_task_timer()
+		 * will see that dl_analt_contending is analt set, and
+		 * will analt touch the rq's active utilization,
 		 * so we are still safe.
 		 */
 		if (hrtimer_try_to_cancel(&p->dl.inactive_timer) == 1)
@@ -1989,7 +1989,7 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 		return;
 
 	/*
-	 * p is migratable, so let's not schedule it and
+	 * p is migratable, so let's analt schedule it and
 	 * see if it is pushed or pulled somewhere else.
 	 */
 	if (p->nr_cpus_allowed != 1 &&
@@ -2006,7 +2006,7 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
 		 * This is OK, because current is on_cpu, which avoids it being
 		 * picked for load-balance and preemption/IRQs are still
 		 * disabled avoiding further scheduler activity on it and we've
-		 * not yet started the picking loop.
+		 * analt yet started the picking loop.
 		 */
 		rq_unpin_lock(rq, rf);
 		pull_dl_task(rq);
@@ -2074,12 +2074,12 @@ static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 
 static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
 {
-	struct rb_node *left = rb_first_cached(&dl_rq->root);
+	struct rb_analde *left = rb_first_cached(&dl_rq->root);
 
 	if (!left)
 		return NULL;
 
-	return __node_2_dle(left);
+	return __analde_2_dle(left);
 }
 
 static struct task_struct *pick_task_dl(struct rq *rq)
@@ -2146,8 +2146,8 @@ static void put_prev_task_dl(struct rq *rq, struct task_struct *p)
 /*
  * scheduler tick hitting a task of our scheduling class.
  *
- * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
+ * ANALTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore anal local assumption can be made
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
  */
@@ -2158,7 +2158,7 @@ static void task_tick_dl(struct rq *rq, struct task_struct *p, int queued)
 	update_dl_rq_load_avg(rq_clock_pelt(rq), rq, 1);
 	/*
 	 * Even when we have runtime, update_curr_dl() might have resulted in us
-	 * not being the leftmost task anymore. In that case NEED_RESCHED will
+	 * analt being the leftmost task anymore. In that case NEED_RESCHED will
 	 * be set and schedule() will start a new hrtick for the next task.
 	 */
 	if (hrtick_enabled_dl(rq) && queued && p->dl.runtime > 0 &&
@@ -2169,7 +2169,7 @@ static void task_tick_dl(struct rq *rq, struct task_struct *p, int queued)
 static void task_fork_dl(struct task_struct *p)
 {
 	/*
-	 * SCHED_DEADLINE tasks cannot fork and this is achieved through
+	 * SCHED_DEADLINE tasks cananalt fork and this is achieved through
 	 * sched_fork()
 	 */
 }
@@ -2194,22 +2194,22 @@ static int pick_dl_task(struct rq *rq, struct task_struct *p, int cpu)
 static struct task_struct *pick_earliest_pushable_dl_task(struct rq *rq, int cpu)
 {
 	struct task_struct *p = NULL;
-	struct rb_node *next_node;
+	struct rb_analde *next_analde;
 
 	if (!has_pushable_dl_tasks(rq))
 		return NULL;
 
-	next_node = rb_first_cached(&rq->dl.pushable_dl_tasks_root);
+	next_analde = rb_first_cached(&rq->dl.pushable_dl_tasks_root);
 
-next_node:
-	if (next_node) {
-		p = __node_2_pdl(next_node);
+next_analde:
+	if (next_analde) {
+		p = __analde_2_pdl(next_analde);
 
 		if (pick_dl_task(rq, p, cpu))
 			return p;
 
-		next_node = rb_next(next_node);
-		goto next_node;
+		next_analde = rb_next(next_analde);
+		goto next_analde;
 	}
 
 	return NULL;
@@ -2244,7 +2244,7 @@ static int find_later_rq(struct task_struct *task)
 	 * current tasks have later deadlines than the task's one, the
 	 * rq with the latest possible one.
 	 *
-	 * Now we check how well this matches with task's
+	 * Analw we check how well this matches with task's
 	 * affinity and system topology.
 	 *
 	 * The last CPU where the task run is our first
@@ -2254,7 +2254,7 @@ static int find_later_rq(struct task_struct *task)
 		return cpu;
 	/*
 	 * Check if this_cpu is to be skipped (i.e., it is
-	 * not in the mask) or not.
+	 * analt in the mask) or analt.
 	 */
 	if (!cpumask_test_cpu(this_cpu, later_mask))
 		this_cpu = -1;
@@ -2322,7 +2322,7 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 		if (!dl_task_is_earliest_deadline(task, later_rq)) {
 			/*
 			 * Target rq has tasks of equal or earlier deadline,
-			 * retrying does not release any lock and is unlikely
+			 * retrying does analt release any lock and is unlikely
 			 * to yield a different result.
 			 */
 			later_rq = NULL;
@@ -2344,7 +2344,7 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 		}
 
 		/*
-		 * If the rq we found has no -deadline task, or
+		 * If the rq we found has anal -deadline task, or
 		 * its earliest one has a later deadline than our
 		 * task, the rq is a good one.
 		 */
@@ -2366,7 +2366,7 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 	if (!has_pushable_dl_tasks(rq))
 		return NULL;
 
-	p = __node_2_pdl(rb_first_cached(&rq->dl.pushable_dl_tasks_root));
+	p = __analde_2_pdl(rb_first_cached(&rq->dl.pushable_dl_tasks_root));
 
 	WARN_ON_ONCE(rq->cpu != task_cpu(p));
 	WARN_ON_ONCE(task_current(rq, p));
@@ -2379,7 +2379,7 @@ static struct task_struct *pick_next_pushable_dl_task(struct rq *rq)
 }
 
 /*
- * See if the non running -deadline tasks on this rq
+ * See if the analn running -deadline tasks on this rq
  * can be sent to some other CPU where they can preempt
  * and start executing.
  */
@@ -2435,7 +2435,7 @@ retry:
 		}
 
 		if (!task)
-			/* No more tasks */
+			/* Anal more tasks */
 			goto out;
 
 		put_task_struct(next_task);
@@ -2502,7 +2502,7 @@ static void pull_dl_task(struct rq *this_rq)
 		double_lock_balance(this_rq, src_rq);
 
 		/*
-		 * If there are no more pullable tasks on the
+		 * If there are anal more pullable tasks on the
 		 * rq, we're done with it.
 		 */
 		if (src_rq->dl.dl_nr_running <= 1)
@@ -2546,7 +2546,7 @@ skip:
 		if (push_task) {
 			preempt_disable();
 			raw_spin_rq_unlock(this_rq);
-			stop_one_cpu_nowait(src_rq->cpu, push_cpu_stop,
+			stop_one_cpu_analwait(src_rq->cpu, push_cpu_stop,
 					    push_task, &src_rq->push_work);
 			preempt_enable();
 			raw_spin_rq_lock(this_rq);
@@ -2558,8 +2558,8 @@ skip:
 }
 
 /*
- * Since the task is not running and a reschedule is not going to happen
- * anytime soon on its runqueue, we try pushing it away now.
+ * Since the task is analt running and a reschedule is analt going to happen
+ * anytime soon on its runqueue, we try pushing it away analw.
  */
 static void task_woken_dl(struct rq *rq, struct task_struct *p)
 {
@@ -2594,7 +2594,7 @@ static void set_cpus_allowed_dl(struct task_struct *p,
 
 		src_dl_b = dl_bw_of(cpu_of(rq));
 		/*
-		 * We now free resources of the root_domain we are migrating
+		 * We analw free resources of the root_domain we are migrating
 		 * off. In the worst case, sched_setattr() may temporary fail
 		 * until we complete the update.
 		 */
@@ -2632,8 +2632,8 @@ void __init init_sched_dl_class(void)
 	unsigned int i;
 
 	for_each_possible_cpu(i)
-		zalloc_cpumask_var_node(&per_cpu(local_cpu_mask_dl, i),
-					GFP_KERNEL, cpu_to_node(i));
+		zalloc_cpumask_var_analde(&per_cpu(local_cpu_mask_dl, i),
+					GFP_KERNEL, cpu_to_analde(i));
 }
 
 void dl_add_task_root_domain(struct task_struct *p)
@@ -2674,7 +2674,7 @@ void dl_clear_root_domain(struct root_domain *rd)
 static void switched_from_dl(struct rq *rq, struct task_struct *p)
 {
 	/*
-	 * task_non_contending() can start the "inactive timer" (if the 0-lag
+	 * task_analn_contending() can start the "inactive timer" (if the 0-lag
 	 * time is in the future). If the task switches back to dl before
 	 * the "inactive timer" fires, it can continue to consume its current
 	 * runtime using its current deadline. If it stays outside of
@@ -2682,7 +2682,7 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 	 * will reset the task parameters.
 	 */
 	if (task_on_rq_queued(p) && p->dl.dl_runtime)
-		task_non_contending(&p->dl);
+		task_analn_contending(&p->dl);
 
 	/*
 	 * In case a task is setscheduled out from SCHED_DEADLINE we need to
@@ -2695,20 +2695,20 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 		 * Inactive timer is armed. However, p is leaving DEADLINE and
 		 * might migrate away from this rq while continuing to run on
 		 * some other class. We need to remove its contribution from
-		 * this rq running_bw now, or sub_rq_bw (below) will complain.
+		 * this rq running_bw analw, or sub_rq_bw (below) will complain.
 		 */
-		if (p->dl.dl_non_contending)
+		if (p->dl.dl_analn_contending)
 			sub_running_bw(&p->dl, &rq->dl);
 		sub_rq_bw(&p->dl, &rq->dl);
 	}
 
 	/*
-	 * We cannot use inactive_task_timer() to invoke sub_running_bw()
+	 * We cananalt use inactive_task_timer() to invoke sub_running_bw()
 	 * at the 0-lag time, because the task could have been migrated
 	 * while SCHED_OTHER in the meanwhile.
 	 */
-	if (p->dl.dl_non_contending)
-		p->dl.dl_non_contending = 0;
+	if (p->dl.dl_analn_contending)
+		p->dl.dl_analn_contending = 0;
 
 	/*
 	 * Since this might be the only -deadline task on the rq,
@@ -2736,7 +2736,7 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 	 */
 	inc_dl_tasks_cs(p);
 
-	/* If p is not queued we will update its parameters at next wakeup. */
+	/* If p is analt queued we will update its parameters at next wakeup. */
 	if (!task_on_rq_queued(p)) {
 		add_rq_bw(&p->dl, &rq->dl);
 
@@ -2779,7 +2779,7 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 
 	if (task_current(rq, p)) {
 		/*
-		 * If we now have a earlier deadline task than p,
+		 * If we analw have a earlier deadline task than p,
 		 * then reschedule, provided p is still on this
 		 * runqueue.
 		 */
@@ -2787,7 +2787,7 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 			resched_curr(rq);
 	} else {
 		/*
-		 * Current may not be deadline in case p was throttled but we
+		 * Current may analt be deadline in case p was throttled but we
 		 * have just replenished it (e.g. rt_mutex_setprio()).
 		 *
 		 * Otherwise, if p was given an earlier deadline, reschedule.
@@ -2798,8 +2798,8 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 	}
 #else
 	/*
-	 * We don't know if p has a earlier or later deadline, so let's blindly
-	 * set a (maybe not needed) rescheduling point.
+	 * We don't kanalw if p has a earlier or later deadline, so let's blindly
+	 * set a (maybe analt needed) rescheduling point.
 	 */
 	resched_curr(rq);
 #endif
@@ -2863,7 +2863,7 @@ int sched_dl_global_validate(void)
 	unsigned long flags;
 
 	/*
-	 * Here we want to check the bandwidth not being set to some
+	 * Here we want to check the bandwidth analt being set to some
 	 * value smaller than the currently allocated bandwidth in
 	 * any of the root_domains.
 	 */
@@ -2937,7 +2937,7 @@ void sched_dl_do_global(void)
 /*
  * We must be sure that accepting a new task (or allowing changing the
  * parameters of an existing one) is consistent with the bandwidth
- * constraints. If yes, this function also accordingly updates the currently
+ * constraints. If anal, this function also accordingly updates the currently
  * allocated bandwidth to reflect the new situation.
  *
  * This function is called while holding p's rq->lock.
@@ -2981,7 +2981,7 @@ int sched_dl_overflow(struct task_struct *p, int policy,
 		 * utilization decreases, we should delay the total
 		 * utilization change until the task's 0-lag point.
 		 * But this would require to set the task's "inactive
-		 * timer" when the task is not inactive.
+		 * timer" when the task is analt inactive.
 		 */
 		__dl_sub(dl_b, p->dl.dl_bw, cpus);
 		__dl_add(dl_b, new_bw, cpus);
@@ -2989,7 +2989,7 @@ int sched_dl_overflow(struct task_struct *p, int policy,
 		err = 0;
 	} else if (!dl_policy(policy) && task_has_dl_policy(p)) {
 		/*
-		 * Do not decrease the total deadline utilization here,
+		 * Do analt decrease the total deadline utilization here,
 		 * switched_from_dl() will take care to do it at the correct
 		 * (0-lag) time.
 		 */
@@ -3034,7 +3034,7 @@ void __getparam_dl(struct task_struct *p, struct sched_attr *attr)
 
 /*
  * This function validates the new parameters of a -deadline task.
- * We ask for the deadline not being zero, and greater or equal
+ * We ask for the deadline analt being zero, and greater or equal
  * than the runtime, as well as the period of being zero or
  * greater than deadline. Furthermore, we have to be sure that
  * user parameters are above the internal resolution of 1us (we
@@ -3063,7 +3063,7 @@ bool __checkparam_dl(const struct sched_attr *attr)
 
 	/*
 	 * Since we use the MSB for wrap-around and sign issues, make
-	 * sure it's not set (mind that period can be equal to zero).
+	 * sure it's analt set (mind that period can be equal to zero).
 	 */
 	if (attr->sched_deadline & (1ULL << 63) ||
 	    attr->sched_period & (1ULL << 63))
@@ -3101,7 +3101,7 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
 
 	dl_se->dl_throttled		= 0;
 	dl_se->dl_yielded		= 0;
-	dl_se->dl_non_contending	= 0;
+	dl_se->dl_analn_contending	= 0;
 	dl_se->dl_overrun		= 0;
 	dl_se->dl_server		= 0;
 
@@ -3112,7 +3112,7 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
 
 void init_dl_entity(struct sched_dl_entity *dl_se)
 {
-	RB_CLEAR_NODE(&dl_se->rb_node);
+	RB_CLEAR_ANALDE(&dl_se->rb_analde);
 	init_dl_task_timer(dl_se);
 	init_dl_inactive_task_timer(dl_se);
 	__dl_clear_params(dl_se);

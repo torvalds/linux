@@ -12,7 +12,7 @@ Required properties:
     Define the base and range of the I/O address space that contains the Cygnus
 IOMUX registers
 
-Properties in subnodes:
+Properties in subanaldes:
 
 - function:
     The mux function to select

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -76,7 +76,7 @@ static void set_priority(struct vi_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_analde *kfd,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -203,9 +203,9 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 			mtype << CP_HQD_IB_CONTROL__MTYPE__SHIFT;
 
 	/*
-	 * HW does not clamp this field correctly. Maximum EOP queue size
+	 * HW does analt clamp this field correctly. Maximum EOP queue size
 	 * is constrained by per-SE EOP done signal count, which is 8-bit.
-	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
+	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will analt submit
 	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
 	 * is safe, giving a maximum field value of 0xA.
 	 */
@@ -222,7 +222,7 @@ static void __update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
-		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__NO_UPDATE_RPTR_MASK |
+		m->cp_hqd_pq_control |= CP_HQD_PQ_CONTROL__ANAL_UPDATE_RPTR_MASK |
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT;
 	}
 
@@ -266,7 +266,7 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 	*save_area_used_size = m->cp_hqd_wg_state_offset -
 		m->cp_hqd_cntl_stack_size;
 
-	/* Control stack is not copied to user mode for GFXv8 because
+	/* Control stack is analt copied to user mode for GFXv8 because
 	 * it's part of the context save area that is already
 	 * accessible to user mode
 	 */
@@ -438,7 +438,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
-		struct kfd_node *dev)
+		struct kfd_analde *dev)
 {
 	struct mqd_manager *mqd;
 

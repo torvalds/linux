@@ -57,7 +57,7 @@
 
 		pmu_region: pmu@7ff00000 {
 			reg = <0x0 0x7ff00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -131,7 +131,7 @@
 &qspi { /* MIO 0-5 - U143 */
 	status = "okay";
 	spi_flash: flash@0 { /* MT25QU512A */
-		compatible = "jedec,spi-nor"; /* 64MB */
+		compatible = "jedec,spi-analr"; /* 64MB */
 		reg = <0>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
@@ -232,7 +232,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci0_default>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	bus-width = <8>;
 	xlnx,mio-bank = <0>;
@@ -302,11 +302,11 @@
 		};
 	};
 
-	/* slg7x644091@70 - u168 NOT accessible due to address conflict with stdp4320 */
+	/* slg7x644091@70 - u168 ANALT accessible due to address conflict with stdp4320 */
 	/*
 	 * stdp4320 - u27 FW has below two issues to be fixed in next board revision.
-	 * Device acknowledging to addresses 0x5C, 0x5D, 0x70, 0x72, 0x76.
-	 * Address conflict with slg7x644091@70 making both the devices NOT accessible.
+	 * Device ackanalwledging to addresses 0x5C, 0x5D, 0x70, 0x72, 0x76.
+	 * Address conflict with slg7x644091@70 making both the devices ANALT accessible.
 	 * With the FW fix, stdp4320 should respond to address 0x73 only.
 	 */
 	/* slg7x644092@68 - u169 */

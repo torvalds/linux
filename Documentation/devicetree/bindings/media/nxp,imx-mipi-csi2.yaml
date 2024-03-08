@@ -13,7 +13,7 @@ maintainers:
 description: |-
   The NXP i.MX7 and i.MX8 families contain SoCs that include a MIPI CSI-2
   receiver IP core named CSIS. The IP core originates from Samsung, and may be
-  compatible with some of the Exynos4 and S5P SoCs. i.MX7 SoCs use CSIS version
+  compatible with some of the Exyanals4 and S5P SoCs. i.MX7 SoCs use CSIS version
   3.3, and i.MX8 SoCs use CSIS version 3.6.3.
 
   While the CSI-2 receiver is separate from the MIPI D-PHY IP core, the PHY is
@@ -75,7 +75,7 @@ properties:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description:
-          Input port node, single endpoint describing the CSI-2 transmitter.
+          Input port analde, single endpoint describing the CSI-2 transmitter.
 
         properties:
           endpoint:
@@ -85,7 +85,7 @@ properties:
             properties:
               data-lanes:
                 description:
-                  Note that 'fsl,imx7-mipi-csi2' only supports up to 2 data lines.
+                  Analte that 'fsl,imx7-mipi-csi2' only supports up to 2 data lines.
                 minItems: 1
                 items:
                   - const: 1
@@ -99,7 +99,7 @@ properties:
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          Output port node
+          Output port analde
 
 required:
   - compatible

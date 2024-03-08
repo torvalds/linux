@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ISC
 /*
- * Device Tree file for the Intel IXDP425 also known as IXCDP1100 Control Plane
+ * Device Tree file for the Intel IXDP425 also kanalwn as IXCDP1100 Control Plane
  * processor reference design.
  *
  * This platform has the codename "Richfield".

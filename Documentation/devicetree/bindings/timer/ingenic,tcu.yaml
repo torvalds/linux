@@ -29,7 +29,7 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^timer@[0-9a-f]+$"
 
   "#address-cells":

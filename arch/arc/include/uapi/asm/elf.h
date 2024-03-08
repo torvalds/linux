@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,7 @@
 /* Machine specific ELF Hdr flags */
 #define EF_ARC_OSABI_MSK	0x00000f00
 
-#define EF_ARC_OSABI_V3		0x00000300   /* v3 (no legacy syscalls) */
+#define EF_ARC_OSABI_V3		0x00000300   /* v3 (anal legacy syscalls) */
 #define EF_ARC_OSABI_V4		0x00000400   /* v4 (64bit data any reg align) */
 
 #if __GNUC__ < 6

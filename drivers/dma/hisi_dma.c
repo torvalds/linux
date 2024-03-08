@@ -485,7 +485,7 @@ hisi_dma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dst, dma_addr_t src,
 	struct hisi_dma_chan *chan = to_hisi_dma_chan(c);
 	struct hisi_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -515,7 +515,7 @@ static void hisi_dma_start_transfer(struct hisi_dma_chan *chan)
 		chan->desc = NULL;
 		return;
 	}
-	list_del(&vd->node);
+	list_del(&vd->analde);
 	desc = to_hisi_dma_desc(vd);
 	chan->desc = desc;
 
@@ -593,12 +593,12 @@ static int hisi_dma_alloc_qps_mem(struct hisi_dma_dev *hdma_dev)
 		chan->sq = dmam_alloc_coherent(dev, sq_size, &chan->sq_dma,
 					       GFP_KERNEL);
 		if (!chan->sq)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		chan->cq = dmam_alloc_coherent(dev, cq_size, &chan->cq_dma,
 					       GFP_KERNEL);
 		if (!chan->cq)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -678,7 +678,7 @@ static void hisi_dma_init_hw_qp(struct hisi_dma_dev *hdma_dev, u32 index)
 
 		/*
 		 * 0 - dma should process FLR whith CPU.
-		 * 1 - dma not process FLR, only cpu process FLR.
+		 * 1 - dma analt process FLR, only cpu process FLR.
 		 */
 		addr = q_base + HISI_DMA_HIP09_DMA_FLR_DISABLE +
 		       index * HISI_DMA_Q_OFFSET;
@@ -885,11 +885,11 @@ static int hisi_dma_create_chan_dir(struct hisi_dma_dev *hdma_dev)
 	regsets = devm_kcalloc(dev, hdma_dev->chan_num,
 			       sizeof(*regsets), GFP_KERNEL);
 	if (!regsets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = hisi_dma_get_ch_regs(hdma_dev, &regs_sz);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < hdma_dev->chan_num; i++) {
 		regsets[i].regs = regs;

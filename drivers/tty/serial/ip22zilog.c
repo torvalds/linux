@@ -15,7 +15,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -43,7 +43,7 @@
 #include "ip22zilog.h"
 
 /*
- * On IP22 we need to delay after register accesses but we do not need to
+ * On IP22 we need to delay after register accesses but we do analt need to
  * flush writes.
  */
 #define ZSDELAY()		udelay(5)
@@ -152,7 +152,7 @@ static void ip22zilog_clear_fifo(struct zilog_channel *channel)
 	}
 }
 
-/* This function must only be called when the TX is not busy.  The UART
+/* This function must only be called when the TX is analt busy.  The UART
  * port lock must be held and local interrupts disabled.
  */
 static void __load_zsregs(struct zilog_channel *channel, unsigned char *regs)
@@ -187,7 +187,7 @@ static void __load_zsregs(struct zilog_channel *channel, unsigned char *regs)
 	write_zsreg(channel, R3, regs[R3] & ~RxENAB);
 	write_zsreg(channel, R5, regs[R5] & ~TxENAB);
 
-	/* Synchronous mode config.  */
+	/* Synchroanalus mode config.  */
 	write_zsreg(channel, R6, regs[R6]);
 	write_zsreg(channel, R7, regs[R7]);
 
@@ -206,7 +206,7 @@ static void __load_zsregs(struct zilog_channel *channel, unsigned char *regs)
 	write_zsreg(channel, R12, regs[R12]);
 	write_zsreg(channel, R13, regs[R13]);
 
-	/* Now rewrite R14, with BRENAB (if set).  */
+	/* Analw rewrite R14, with BRENAB (if set).  */
 	write_zsreg(channel, R14, regs[R14]);
 
 	/* External status interrupt control.  */
@@ -226,7 +226,7 @@ static void __load_zsregs(struct zilog_channel *channel, unsigned char *regs)
 
 /* Reprogram the Zilog channel HW registers with the copies found in the
  * software state struct.  If the transmitter is busy, we defer this update
- * until the next TX complete interrupt.  Else, we do it right now.
+ * until the next TX complete interrupt.  Else, we do it right analw.
  *
  * The UART port lock must be held and local interrupts disabled.
  */
@@ -275,7 +275,7 @@ static bool ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 			r1 |= up->tty_break;
 
 		/* A real serial line, record the character and status.  */
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		up->port.icount.rx++;
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR | Rx_SYS | Rx_BRK)) {
 			up->tty_break = 0;
@@ -336,7 +336,7 @@ static void ip22zilog_status_handle(struct uart_ip22zilog_port *up,
 			up->port.icount.dsr++;
 
 		/* The Zilog just gives us an interrupt when DCD/CTS/etc. change.
-		 * But it does not tell us which bit has changed, we have to keep
+		 * But it does analt tell us which bit has changed, we have to keep
 		 * track of this ourselves.
 		 */
 		if ((status ^ up->prev_status) ^ DCD)
@@ -364,10 +364,10 @@ static void ip22zilog_transmit_chars(struct uart_ip22zilog_port *up,
 		/* TX still busy?  Just wait for the next TX done interrupt.
 		 *
 		 * It can occur because of how we do serial console writes.  It would
-		 * be nice to transmit console writes just like we normally would for
-		 * a TTY line. (ie. buffered and TX interrupt driven).  That is not
-		 * easy because console writes cannot sleep.  One solution might be
-		 * to poll on enough port->xmit space becoming free.  -DaveM
+		 * be nice to transmit console writes just like we analrmally would for
+		 * a TTY line. (ie. buffered and TX interrupt driven).  That is analt
+		 * easy because console writes cananalt sleep.  One solution might be
+		 * to poll on eanalugh port->xmit space becoming free.  -DaveM
 		 */
 		if (!(status & Tx_BUF_EMP))
 			return;
@@ -482,7 +482,7 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* A convenient way to quickly get R0 status.  The caller must _not_ hold the
+/* A convenient way to quickly get R0 status.  The caller must _analt_ hold the
  * port lock, it is acquired here.
  */
 static __inline__ unsigned char ip22zilog_read_channel_status(struct uart_port *port)
@@ -497,7 +497,7 @@ static __inline__ unsigned char ip22zilog_read_channel_status(struct uart_port *
 	return status;
 }
 
-/* The port lock is not held.  */
+/* The port lock is analt held.  */
 static unsigned int ip22zilog_tx_empty(struct uart_port *port)
 {
 	unsigned long flags;
@@ -556,7 +556,7 @@ static void ip22zilog_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	else
 		clear_bits |= DTR;
 
-	/* NOTE: Not subject to 'transmitter active' rule.  */
+	/* ANALTE: Analt subject to 'transmitter active' rule.  */
 	up->curregs[R5] |= set_bits;
 	up->curregs[R5] &= ~clear_bits;
 	write_zsreg(channel, R5, up->curregs[R5]);
@@ -643,12 +643,12 @@ static void ip22zilog_enable_ms(struct uart_port *port)
 	if (new_reg != up->curregs[R15]) {
 		up->curregs[R15] = new_reg;
 
-		/* NOTE: Not subject to 'transmitter active' rule.  */
+		/* ANALTE: Analt subject to 'transmitter active' rule.  */
 		write_zsreg(channel, R15, up->curregs[R15]);
 	}
 }
 
-/* The port lock is not held.  */
+/* The port lock is analt held.  */
 static void ip22zilog_break_ctl(struct uart_port *port, int break_state)
 {
 	struct uart_ip22zilog_port *up =
@@ -670,7 +670,7 @@ static void ip22zilog_break_ctl(struct uart_port *port, int break_state)
 	if (new_reg != up->curregs[R5]) {
 		up->curregs[R5] = new_reg;
 
-		/* NOTE: Not subject to 'transmitter active' rule.  */
+		/* ANALTE: Analt subject to 'transmitter active' rule.  */
 		write_zsreg(channel, R5, up->curregs[R5]);
 	}
 
@@ -749,21 +749,21 @@ static int ip22zilog_startup(struct uart_port *port)
  *
  * On Sun, Dec 08, 2002 at 02:43:36AM -0500, Pete Zaitcev wrote:
  * > I boot my 2.5 boxes using "console=ttyS0,9600" argument,
- * > and I noticed that something is not right with reference
+ * > and I analticed that something is analt right with reference
  * > counting in this case. It seems that when the console
- * > is open by kernel initially, this is not accounted
- * > as an open, and uart_startup is not called.
+ * > is open by kernel initially, this is analt accounted
+ * > as an open, and uart_startup is analt called.
  *
  * That is correct.  We are unable to call uart_startup when the serial
  * console is initialised because it may need to allocate memory (as
- * request_irq does) and the memory allocators may not have been
+ * request_irq does) and the memory allocators may analt have been
  * initialised.
  *
  * 1. initialise the port into a state where it can send characters in the
  *    console write method.
  *
  * 2. don't do the actual hardware shutdown in your shutdown() method (but
- *    do the normal software shutdown - ie, free irqs etc)
+ *    do the analrmal software shutdown - ie, free irqs etc)
  *****
  */
 static void ip22zilog_shutdown(struct uart_port *port)
@@ -855,20 +855,20 @@ ip22zilog_convert_to_zs(struct uart_ip22zilog_port *up, unsigned int cflag,
 	if (iflag & (IGNBRK | BRKINT | PARMRK))
 		up->port.read_status_mask |= BRK_ABRT;
 
-	up->port.ignore_status_mask = 0;
+	up->port.iganalre_status_mask = 0;
 	if (iflag & IGNPAR)
-		up->port.ignore_status_mask |= CRC_ERR | PAR_ERR;
+		up->port.iganalre_status_mask |= CRC_ERR | PAR_ERR;
 	if (iflag & IGNBRK) {
-		up->port.ignore_status_mask |= BRK_ABRT;
+		up->port.iganalre_status_mask |= BRK_ABRT;
 		if (iflag & IGNPAR)
-			up->port.ignore_status_mask |= Rx_OVR;
+			up->port.iganalre_status_mask |= Rx_OVR;
 	}
 
 	if ((cflag & CREAD) == 0)
-		up->port.ignore_status_mask = 0xff;
+		up->port.iganalre_status_mask = 0xff;
 }
 
-/* The port lock is not held.  */
+/* The port lock is analt held.  */
 static void
 ip22zilog_set_termios(struct uart_port *port, struct ktermios *termios,
 		      const struct ktermios *old)
@@ -902,7 +902,7 @@ static const char *ip22zilog_type(struct uart_port *port)
 	return "IP22-Zilog";
 }
 
-/* We do not request/release mappings of the registers here, this
+/* We do analt request/release mappings of the registers here, this
  * happens at early serial probe time.
  */
 static void ip22zilog_release_port(struct uart_port *port)
@@ -914,12 +914,12 @@ static int ip22zilog_request_port(struct uart_port *port)
 	return 0;
 }
 
-/* These do not need to do anything interesting either.  */
+/* These do analt need to do anything interesting either.  */
 static void ip22zilog_config_port(struct uart_port *port, int flags)
 {
 }
 
-/* We do not support letting the user mess with the divisor, IRQ, etc. */
+/* We do analt support letting the user mess with the divisor, IRQ, etc. */
 static int ip22zilog_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
 	return -EINVAL;
@@ -963,7 +963,7 @@ static void __init ip22zilog_alloc_tables(void)
 		alloc_one_table(NUM_IP22ZILOG * sizeof(struct zilog_layout *));
 
 	if (ip22zilog_port_table == NULL || ip22zilog_chip_regs == NULL) {
-		panic("IP22-Zilog: Cannot allocate IP22-Zilog tables.");
+		panic("IP22-Zilog: Cananalt allocate IP22-Zilog tables.");
 	}
 }
 
@@ -976,7 +976,7 @@ static struct zilog_layout * __init get_zs(int chip)
 		panic("IP22-Zilog: Illegal chip number %d in get_zs.", chip);
 	}
 
-	/* Not probe-able, hard code it. */
+	/* Analt probe-able, hard code it. */
 	base = (unsigned long) &sgioc->uart;
 
 	zilog_irq = SGI_SERIAL_IRQ;
@@ -993,8 +993,8 @@ static void ip22zilog_put_char(struct uart_port *port, unsigned char ch)
 	struct zilog_channel *channel = ZILOG_CHANNEL_FROM_PORT(port);
 	int loops = ZS_PUT_CHAR_MAX_DELAY;
 
-	/* This is a timed polling loop so do not switch the explicit
-	 * udelay with ZSDELAY as that is a NOP on some platforms.  -DaveM
+	/* This is a timed polling loop so do analt switch the explicit
+	 * udelay with ZSDELAY as that is a ANALP on some platforms.  -DaveM
 	 */
 	do {
 		unsigned char val = readb(&channel->control);
@@ -1065,7 +1065,7 @@ static struct uart_driver ip22zilog_reg = {
 	.driver_name	= "serial",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.mianalr		= 64,
 	.nr		= NUM_CHANNELS,
 #ifdef CONFIG_SERIAL_IP22_ZILOG_CONSOLE
 	.cons		= &ip22zilog_console,
@@ -1133,7 +1133,7 @@ static void __init ip22zilog_prepare(void)
 		struct uart_ip22zilog_port *up = &ip22zilog_port_table[channel];
 		int brg;
 
-		/* Normal serial TTY. */
+		/* Analrmal serial TTY. */
 		up->parity_mask = 0xff;
 		up->curregs[R1] = EXT_INT_ENAB | INT_ALL_Rx | TxINT_ENAB;
 		up->curregs[R4] = PAR_EVEN | X16CLK | SB1;
@@ -1178,7 +1178,7 @@ static int __init ip22zilog_ports_init(void)
 
 static int __init ip22zilog_init(void)
 {
-	/* IP22 Zilog setup is hard coded, no probing to do.  */
+	/* IP22 Zilog setup is hard coded, anal probing to do.  */
 	ip22zilog_alloc_tables();
 	ip22zilog_ports_init();
 

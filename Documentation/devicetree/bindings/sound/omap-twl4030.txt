@@ -3,16 +3,16 @@
 Required properties:
 - compatible: "ti,omap-twl4030"
 - ti,model: Name of the sound card (for example "omap3beagle")
-- ti,mcbsp: phandle for the McBSP node
+- ti,mcbsp: phandle for the McBSP analde
 
 Optional properties:
-- ti,codec: phandle for the twl4030 audio node
-- ti,mcbsp-voice: phandle for the McBSP node connected to the voice port of twl
+- ti,codec: phandle for the twl4030 audio analde
+- ti,mcbsp-voice: phandle for the McBSP analde connected to the voice port of twl
 - ti, jack-det-gpio: Jack detect GPIO
 - ti,audio-routing: List of connections between audio components.
   Each entry is a pair of strings, the first being the connection's sink,
   the second being the connection's source.
-  If the routing is not provided all possible connection will be available
+  If the routing is analt provided all possible connection will be available
 
 Available audio endpoints for the audio-routing table:
 

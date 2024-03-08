@@ -112,9 +112,9 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 	const u16 slpin = 0x10;
 	const u16 disoff = 0x28;
 
-	if (power <= FB_BLANK_NORMAL) {
-		if (priv->lcd_state <= FB_BLANK_NORMAL) {
-			/* Do nothing, the LCD is running */
+	if (power <= FB_BLANK_ANALRMAL) {
+		if (priv->lcd_state <= FB_BLANK_ANALRMAL) {
+			/* Do analthing, the LCD is running */
 		} else if (priv->lcd_state < FB_BLANK_POWERDOWN) {
 			dev_dbg(&spi->dev, "Resuming LCD\n");
 
@@ -128,7 +128,7 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 			l4f00242t03_lcd_power_set(priv->ld, power);
 		}
 	} else if (power < FB_BLANK_POWERDOWN) {
-		if (priv->lcd_state <= FB_BLANK_NORMAL) {
+		if (priv->lcd_state <= FB_BLANK_ANALRMAL) {
 			/* Send the display in standby */
 			dev_dbg(&spi->dev, "Standby the LCD\n");
 
@@ -136,7 +136,7 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 			msleep(60);
 			spi_write(spi, (const u8 *)&slpin, sizeof(u16));
 		} else if (priv->lcd_state < FB_BLANK_POWERDOWN) {
-			/* Do nothing, the LCD is already in standby */
+			/* Do analthing, the LCD is already in standby */
 		} else {
 			/* priv->lcd_state == FB_BLANK_POWERDOWN */
 			l4f00242t03_lcd_init(spi);
@@ -170,7 +170,7 @@ static int l4f00242t03_probe(struct spi_device *spi)
 	priv = devm_kzalloc(&spi->dev, sizeof(struct l4f00242t03_priv),
 				GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, priv);
 	spi->bits_per_word = 9;

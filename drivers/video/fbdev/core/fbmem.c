@@ -16,7 +16,7 @@
 #include <linux/fb.h>
 #include <linux/fbcon.h>
 
-#include <video/nomodeset.h>
+#include <video/analmodeset.h>
 
 #include "fb_internal.h"
 
@@ -40,7 +40,7 @@ struct fb_info *get_fb_info(unsigned int idx)
 	struct fb_info *fb_info;
 
 	if (idx >= FB_MAX)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mutex_lock(&registration_lock);
 	fb_info = registered_fb[idx];
@@ -68,8 +68,8 @@ int fb_get_color_depth(struct fb_var_screeninfo *var,
 {
 	int depth = 0;
 
-	if (fix->visual == FB_VISUAL_MONO01 ||
-	    fix->visual == FB_VISUAL_MONO10)
+	if (fix->visual == FB_VISUAL_MOANAL01 ||
+	    fix->visual == FB_VISUAL_MOANAL10)
 		depth = 1;
 	else {
 		if (var->green.length == var->blue.length &&
@@ -134,7 +134,7 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 	u32 align = buf->buf_align - 1, offset;
 	char *addr = buf->addr;
 
-	/* If IO mapped, we need to sync before access, no sharing of
+	/* If IO mapped, we need to sync before access, anal sharing of
 	 * the pixmap is done
 	 */
 	if (buf->flags & FB_PIXMAP_IO) {
@@ -147,8 +147,8 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 	offset = buf->offset + align;
 	offset &= ~align;
 	if (offset + size > buf->size) {
-		/* We do not fit. In order to be able to re-use the buffer,
-		 * we must ensure no asynchronous DMA'ing or whatever operation
+		/* We do analt fit. In order to be able to re-use the buffer,
+		 * we must ensure anal asynchroanalus DMA'ing or whatever operation
 		 * is in progress, we sync for that.
 		 */
 		if (info->fbops->fb_sync && (buf->flags & FB_PIXMAP_SYNC))
@@ -295,7 +295,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 		return -EINVAL;
 	}
 
-	if ((var->activate & FB_ACTIVATE_MASK) != FB_ACTIVATE_NOW)
+	if ((var->activate & FB_ACTIVATE_MASK) != FB_ACTIVATE_ANALW)
 		return 0;
 
 	if (info->fbops->fb_get_caps) {
@@ -333,7 +333,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 	event.info = info;
 	event.data = &mode;
-	fb_notifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
+	fb_analtifier_call_chain(FB_EVENT_MODE_CHANGE, &event);
 
 	return 0;
 }
@@ -355,7 +355,7 @@ fb_blank(struct fb_info *info, int blank)
 		ret = info->fbops->fb_blank(blank, info);
 
 	if (!ret)
-		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
+		fb_analtifier_call_chain(FB_EVENT_BLANK, &event);
 
 	return ret;
 }
@@ -376,11 +376,11 @@ static int fb_check_foreignness(struct fb_info *fi)
 	if (fi->flags & FBINFO_BE_MATH && !fb_be_math(fi)) {
 		pr_err("%s: enable CONFIG_FB_BIG_ENDIAN to "
 		       "support this framebuffer\n", fi->fix.id);
-		return -ENOSYS;
+		return -EANALSYS;
 	} else if (!(fi->flags & FBINFO_BE_MATH) && fb_be_math(fi)) {
 		pr_err("%s: enable CONFIG_FB_LITTLE_ENDIAN to "
 		       "support this framebuffer\n", fi->fix.id);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return 0;
@@ -392,7 +392,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	struct fb_videomode mode;
 
 	if (fb_check_foreignness(fb_info))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -401,7 +401,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	for (i = 0 ; i < FB_MAX; i++)
 		if (!registered_fb[i])
 			break;
-	fb_info->node = i;
+	fb_info->analde = i;
 	refcount_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
@@ -442,7 +442,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	{
 		struct fb_event event;
 		event.info = fb_info;
-		fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
+		fb_analtifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	}
 #endif
 
@@ -451,7 +451,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 
 static void unbind_console(struct fb_info *fb_info)
 {
-	int i = fb_info->node;
+	int i = fb_info->analde;
 
 	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
 		return;
@@ -463,7 +463,7 @@ static void unlink_framebuffer(struct fb_info *fb_info)
 {
 	int i;
 
-	i = fb_info->node;
+	i = fb_info->analde;
 	if (WARN_ON(i < 0 || i >= FB_MAX || registered_fb[i] != fb_info))
 		return;
 
@@ -482,13 +482,13 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
 	}
 
 	fb_destroy_modelist(&fb_info->modelist);
-	registered_fb[fb_info->node] = NULL;
+	registered_fb[fb_info->analde] = NULL;
 	num_registered_fb--;
 #ifdef CONFIG_GUMSTIX_AM200EPD
 	{
 		struct fb_event event;
 		event.info = fb_info;
-		fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
+		fb_analtifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	}
 #endif
 	fbcon_fb_unregistered(fb_info);
@@ -503,7 +503,7 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
  *
  *	Registers a frame buffer device @fb_info.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erranal on error, or zero for success.
  *
  */
 int
@@ -525,15 +525,15 @@ EXPORT_SYMBOL(register_framebuffer);
  *
  *	Unregisters a frame buffer device @fb_info.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erranal on error, or zero for success.
  *
- *      This function will also notify the framebuffer console
+ *      This function will also analtify the framebuffer console
  *      to release the driver.
  *
  *      This is meant to be called within a driver's module_exit()
  *      function. If this is called outside module_exit(), ensure
  *      that the driver implements fb_open() and fb_release() to
- *      check that no processes are using the device.
+ *      check that anal processes are using the device.
  */
 void
 unregister_framebuffer(struct fb_info *fb_info)
@@ -574,7 +574,7 @@ static int __init fbmem_init(void)
 	fb_class = class_create("graphics");
 	if (IS_ERR(fb_class)) {
 		ret = PTR_ERR(fb_class);
-		pr_err("Unable to create fb class; errno = %d\n", ret);
+		pr_err("Unable to create fb class; erranal = %d\n", ret);
 		goto err_fb_class;
 	}
 
@@ -645,13 +645,13 @@ int fb_new_modelist(struct fb_info *info)
 	return 0;
 }
 
-#if defined(CONFIG_VIDEO_NOMODESET)
+#if defined(CONFIG_VIDEO_ANALMODESET)
 bool fb_modesetting_disabled(const char *drvname)
 {
 	bool fwonly = video_firmware_drivers_only();
 
 	if (fwonly)
-		pr_warn("Driver %s not loading because of nomodeset parameter\n",
+		pr_warn("Driver %s analt loading because of analmodeset parameter\n",
 			drvname);
 
 	return fwonly;

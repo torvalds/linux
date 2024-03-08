@@ -8,16 +8,16 @@
  * Sreedhara DS <sreedhara.ds@intel.com>
  *
  * The PMC (Power Management Controller) running on the ARC processor
- * communicates with another entity running in the IA (Intel Architecture)
+ * communicates with aanalther entity running in the IA (Intel Architecture)
  * core through an IPC (Intel Processor Communications) mechanism which in
  * turn sends messages between the IA and the PMC.
  */
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/intel_pmc_bxt.h>
 #include <linux/module.h>
@@ -49,7 +49,7 @@
 #define PLAT_RESOURCE_ACPI_IO_INDEX	0
 
 /*
- * BIOS does not create an ACPI device for each PMC function, but
+ * BIOS does analt create an ACPI device for each PMC function, but
  * exports multiple resources from one ACPI device (IPC) for multiple
  * functions. This driver is responsible for creating a child device and
  * to export resources for those functions.
@@ -63,7 +63,7 @@
 #define TELEM_PUNIT_SSRAM_OFFSET	0x1a00
 
 /* Commands */
-#define PMC_NORTHPEAK_CTRL		0xed
+#define PMC_ANALRTHPEAK_CTRL		0xed
 
 static inline bool is_gcr_valid(u32 offset)
 {
@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(intel_pmc_s0ix_counter_read);
  * Expects a string with two integers separated with space. These two
  * values hold command and subcommand that is send to PMC.
  *
- * Return: Number number of bytes written (@count) or negative errno in
+ * Return: Number number of bytes written (@count) or negative erranal in
  *	   case of error.
  */
 static ssize_t simplecmd_store(struct device *dev, struct device_attribute *attr,
@@ -187,19 +187,19 @@ static ssize_t simplecmd_store(struct device *dev, struct device_attribute *attr
 static DEVICE_ATTR_WO(simplecmd);
 
 /**
- * northpeak_store() - Enable or disable Northpeak
+ * analrthpeak_store() - Enable or disable Analrthpeak
  * @dev: Device under the attribute is
  * @attr: Attribute in question
  * @buf: Buffer holding data to be stored to the attribute
  * @count: Number of bytes in @buf
  *
- * Expects an unsigned integer. Non-zero enables Northpeak and zero
+ * Expects an unsigned integer. Analn-zero enables Analrthpeak and zero
  * disables it.
  *
- * Return: Number number of bytes written (@count) or negative errno in
+ * Return: Number number of bytes written (@count) or negative erranal in
  *	   case of error.
  */
-static ssize_t northpeak_store(struct device *dev, struct device_attribute *attr,
+static ssize_t analrthpeak_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
 	struct intel_pmc_dev *pmc = dev_get_drvdata(dev);
@@ -212,22 +212,22 @@ static ssize_t northpeak_store(struct device *dev, struct device_attribute *attr
 	if (ret)
 		return ret;
 
-	/* Northpeak is enabled if subcmd == 1 and disabled if it is 0 */
+	/* Analrthpeak is enabled if subcmd == 1 and disabled if it is 0 */
 	if (val)
 		subcmd = 1;
 	else
 		subcmd = 0;
 
-	ret = intel_scu_ipc_dev_simple_command(scu, PMC_NORTHPEAK_CTRL, subcmd);
+	ret = intel_scu_ipc_dev_simple_command(scu, PMC_ANALRTHPEAK_CTRL, subcmd);
 	if (ret)
 		return ret;
 
 	return count;
 }
-static DEVICE_ATTR_WO(northpeak);
+static DEVICE_ATTR_WO(analrthpeak);
 
 static struct attribute *intel_pmc_attrs[] = {
-	&dev_attr_northpeak.attr,
+	&dev_attr_analrthpeak.attr,
 	&dev_attr_simplecmd.attr,
 	NULL
 };
@@ -251,14 +251,14 @@ static struct mfd_cell punit = {
 static struct itco_wdt_platform_data tco_pdata = {
 	.name = "Apollo Lake SoC",
 	.version = 5,
-	.no_reboot_use_pmc = true,
+	.anal_reboot_use_pmc = true,
 };
 
 static struct resource tco_res[2];
 
 static const struct mfd_cell tco = {
 	.name = "iTCO_wdt",
-	.ignore_resource_conflicts = true,
+	.iganalre_resource_conflicts = true,
 	.resources = tco_res,
 	.num_resources = ARRAY_SIZE(tco_res),
 	.platform_data = &tco_pdata,
@@ -332,7 +332,7 @@ static int intel_pmc_get_resources(struct platform_device *pdev,
 	if (IS_ERR(pmc->gcr_mem_base))
 		return PTR_ERR(pmc->gcr_mem_base);
 
-	/* Only register iTCO watchdog if there is no WDAT ACPI table */
+	/* Only register iTCO watchdog if there is anal WDAT ACPI table */
 	ret = intel_pmc_get_tco_resources(pdev);
 	if (ret)
 		return ret;
@@ -428,7 +428,7 @@ static int intel_pmc_probe(struct platform_device *pdev)
 
 	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmc->dev = &pdev->dev;
 	spin_lock_init(&pmc->gcr_lock);

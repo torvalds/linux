@@ -30,7 +30,7 @@
 
 
 /*  *********************************************************************
-    *  Some general notes:
+    *  Some general analtes:
     *
     *  Register addresses are grouped by function and follow the order
     *  of the User Manual.
@@ -55,7 +55,7 @@
     *  for blocks that are different between the two chip families.
     *  All BCM1480-specific symbols have _BCM1480_ in their names,
     *  and all BCM1250-specific and "base" functions that are common in
-    *  both chips have no special names (this is for compatibility with
+    *  both chips have anal special names (this is for compatibility with
     *  older include files).  Therefore, if you're working with the
     *  SCD, which is very different on each chip, A_SCD_xxx implies
     *  the BCM1250 version and A_BCM1480_SCD_xxx implies the BCM1480
@@ -170,7 +170,7 @@
     * Ethernet MAC Registers (Section 11) and DMA Registers (Section 10.6)
     ********************************************************************* */
 
-/* No register changes with Rev.C BCM1250, but one additional MAC */
+/* Anal register changes with Rev.C BCM1250, but one additional MAC */
 
 #define A_BCM1480_MAC_BASE_2	    0x0010066000
 
@@ -192,7 +192,7 @@
     * DUART Registers (Section 14)
     ********************************************************************* */
 
-/* No significant differences from BCM1250, two DUARTs */
+/* Anal significant differences from BCM1250, two DUARTs */
 
 /*  Conventions, per user manual:
  *     DUART	generic, channels A,B,C,D
@@ -298,7 +298,7 @@
     * SMBus Registers (Section 18)
     ********************************************************************* */
 
-/* No changes from BCM1250 */
+/* Anal changes from BCM1250 */
 
 /*  *********************************************************************
     * Timer Registers (Sections 4.6)
@@ -345,7 +345,7 @@
     * System Address Trap Registers (Section 4.9)
     ********************************************************************* */
 
-/* No changes from BCM1250 */
+/* Anal changes from BCM1250 */
 
 /*  *********************************************************************
     * System Interrupt Mapper Registers (Sections 4.3-4.5)
@@ -361,7 +361,7 @@
 #define A_BCM1480_IMR_MAPPER(cpu)	(A_BCM1480_IMR_CPU0_BASE+(cpu)*BCM1480_IMR_REGISTER_SPACING)
 #define A_BCM1480_IMR_REGISTER(cpu, reg) (A_BCM1480_IMR_MAPPER(cpu)+(reg))
 
-/* Most IMR registers are 128 bits, implemented as non-contiguous
+/* Most IMR registers are 128 bits, implemented as analn-contiguous
    64-bit registers high (_H) and low (_L) */
 #define BCM1480_IMR_HL_SPACING			0x1000
 
@@ -491,7 +491,7 @@
 
 
 /*  *********************************************************************
-    * Node Controller Registers (Section 9)
+    * Analde Controller Registers (Section 9)
     ********************************************************************* */
 
 #define A_BCM1480_NC_BASE		    0x00DFBD0000
@@ -613,7 +613,7 @@
 #define R_BCM1480_PM_LOCALDEBUG_POB	    0x00000000F8   /* PMO only */
 
 /*
- * Global Registers (Not Channelized)
+ * Global Registers (Analt Channelized)
  */
 
 #define A_BCM1480_PMI_GLB_0		    0x0010056000
@@ -866,7 +866,7 @@
 #define A_BCM1480_PHYS_PCI_UPPER		_SB_MAKE64(0x1000000000)
 #define A_BCM1480_PHYS_HT_UPPER_MATCH_BYTES	_SB_MAKE64(0x2000000000)
 #define A_BCM1480_PHYS_HT_UPPER_MATCH_BITS	_SB_MAKE64(0x3000000000)
-#define A_BCM1480_PHYS_HT_NODE_ALIAS		_SB_MAKE64(0x4000000000)
+#define A_BCM1480_PHYS_HT_ANALDE_ALIAS		_SB_MAKE64(0x4000000000)
 #define A_BCM1480_PHYS_HT_FULLACCESS		_SB_MAKE64(0xF000000000)
 
 

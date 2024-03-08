@@ -17,7 +17,7 @@
  *  - 16 or 32 double precision data registers
  *  - an implementation-dependent word of state for FLDMX/FSTMX (pre-ARMv6)
  * 
- *  FPEXC will always be non-zero once the VFP has been used in this process.
+ *  FPEXC will always be analn-zero once the VFP has been used in this process.
  */
 
 struct vfp_hard_struct {

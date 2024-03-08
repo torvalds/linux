@@ -44,7 +44,7 @@ static int __guc_action_get_hwconfig(struct intel_guc *guc,
 
 	ret = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	if (ret == -ENXIO)
-		return -ENOENT;
+		return -EANALENT;
 
 	return ret;
 }
@@ -124,7 +124,7 @@ static int guc_hwconfig_init(struct intel_gt *gt)
 	hwconfig->ptr = kmalloc(hwconfig->size, GFP_KERNEL);
 	if (!hwconfig->ptr) {
 		hwconfig->size = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = guc_hwconfig_fill_buffer(guc, hwconfig);

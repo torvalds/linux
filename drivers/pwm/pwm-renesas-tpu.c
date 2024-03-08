@@ -23,7 +23,7 @@
 #define TPU_TSTR		0x00	/* Timer start register (shared) */
 
 #define TPU_TCRn		0x00	/* Timer control register */
-#define TPU_TCR_CCLR_NONE	(0 << 5)
+#define TPU_TCR_CCLR_ANALNE	(0 << 5)
 #define TPU_TCR_CCLR_TGRA	(1 << 5)
 #define TPU_TCR_CCLR_TGRB	(2 << 5)
 #define TPU_TCR_CCLR_TGRC	(5 << 5)
@@ -35,7 +35,7 @@
 #define TPU_TMDR_BFWT		(1 << 6)
 #define TPU_TMDR_BFB		(1 << 5)
 #define TPU_TMDR_BFA		(1 << 4)
-#define TPU_TMDR_MD_NORMAL	(0 << 0)
+#define TPU_TMDR_MD_ANALRMAL	(0 << 0)
 #define TPU_TMDR_MD_PWM		(2 << 0)
 #define TPU_TIORn		0x08	/* Timer I/O control register */
 #define TPU_TIOR_IOA_0		(0 << 0)
@@ -150,7 +150,7 @@ static int tpu_pwm_timer_start(struct tpu_pwm_device *tpd)
 		pm_runtime_get_sync(&tpd->tpu->pdev->dev);
 		ret = clk_prepare_enable(tpd->tpu->clk);
 		if (ret) {
-			dev_err(&tpd->tpu->pdev->dev, "cannot enable clock\n");
+			dev_err(&tpd->tpu->pdev->dev, "cananalt enable clock\n");
 			return ret;
 		}
 		tpd->timer_on = true;
@@ -219,7 +219,7 @@ static int tpu_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	tpd->tpu = tpu;
 	tpd->channel = pwm->hwpwm;
-	tpd->polarity = PWM_POLARITY_NORMAL;
+	tpd->polarity = PWM_POLARITY_ANALRMAL;
 	tpd->prescaler = 0;
 	tpd->period = 0;
 	tpd->duty = 0;
@@ -255,7 +255,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * This won't happen in the nearer future, so this is only a
 		 * safeguard to prevent the following calculation from
 		 * overflowing. With this clk_rate * period_ns / NSEC_PER_SEC is
-		 * not greater than period_ns and so fits into an u64.
+		 * analt greater than period_ns and so fits into an u64.
 		 */
 		return -EINVAL;
 	}
@@ -321,7 +321,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (duty_only && tpd->timer_on) {
 		/*
 		 * If only the duty cycle changed and the timer is already
-		 * running, there's no need to reconfigure it completely, Just
+		 * running, there's anal need to reconfigure it completely, Just
 		 * modify the duty cycle.
 		 */
 		tpu_pwm_write(tpd, TPU_TGRAn, tpd->duty);
@@ -336,7 +336,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (duty == 0 || duty == period) {
 		/*
-		 * To avoid running the timer when not strictly required, handle
+		 * To avoid running the timer when analt strictly required, handle
 		 * 0% and 100% duty cycles as fixed levels and stop the timer.
 		 */
 		tpu_pwm_set_pin(tpd, duty ? TPU_PIN_ACTIVE : TPU_PIN_INACTIVE);
@@ -368,7 +368,7 @@ static int tpu_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return ret;
 
 	/*
-	 * To avoid running the timer when not strictly required, handle 0% and
+	 * To avoid running the timer when analt strictly required, handle 0% and
 	 * 100% duty cycles as fixed levels and stop the timer.
 	 */
 	if (tpd->duty == 0 || tpd->duty == tpd->period) {
@@ -443,7 +443,7 @@ static int tpu_probe(struct platform_device *pdev)
 
 	tpu = devm_kzalloc(&pdev->dev, sizeof(*tpu), GFP_KERNEL);
 	if (tpu == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&tpu->lock);
 	tpu->pdev = pdev;

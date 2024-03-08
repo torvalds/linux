@@ -6,19 +6,19 @@
 #ifndef __XFS_ATTR_H__
 #define	__XFS_ATTR_H__
 
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_da_args;
 struct xfs_attr_list_context;
 
 /*
  * Large attribute lists are structured around Btrees where all the data
- * elements are in the leaf nodes.  Attribute names are hashed into an int,
+ * elements are in the leaf analdes.  Attribute names are hashed into an int,
  * then that int is used as the index into the Btree.  Since the hashval
- * of an attribute name may not be unique, we may have duplicate keys.
+ * of an attribute name may analt be unique, we may have duplicate keys.
  * The internal links in the Btree are logical block offsets into the file.
  *
  * Small attribute lists use a different format and are packed as tightly
- * as possible so as to fit into the literal area of the inode.
+ * as possible so as to fit into the literal area of the ianalde.
  */
 
 /*
@@ -33,7 +33,7 @@ struct xfs_attr_list_context;
  */
 struct xfs_attrlist_cursor_kern {
 	__u32	hashval;	/* hash value of next entry to add */
-	__u32	blkno;		/* block containing entry (suggestion) */
+	__u32	blkanal;		/* block containing entry (suggestion) */
 	__u32	offset;		/* offset in list of equal-hashvals */
 	__u16	pad1;		/* padding to match user-level */
 	__u8	pad2;		/* padding to match user-level */
@@ -52,15 +52,15 @@ typedef void (*put_listent_func_t)(struct xfs_attr_list_context *, int,
 
 struct xfs_attr_list_context {
 	struct xfs_trans	*tp;
-	struct xfs_inode	*dp;		/* inode */
+	struct xfs_ianalde	*dp;		/* ianalde */
 	struct xfs_attrlist_cursor_kern cursor;	/* position in list */
 	void			*buffer;	/* output buffer */
 
 	/*
-	 * Abort attribute list iteration if non-zero.  Can be used to pass
+	 * Abort attribute list iteration if analn-zero.  Can be used to pass
 	 * error values to the xfs_attr_list caller.
 	 */
-	int			seen_enough;
+	int			seen_eanalugh;
 	bool			allow_incomplete;
 
 	ssize_t			count;		/* num used entries */
@@ -86,7 +86,7 @@ struct xfs_attr_list_context {
  * immediately resume from after being called by the calling function. States
  * marked as a "subroutine state" indicate that they belong to a subroutine, and
  * so the calling function needs to pass them back to that subroutine to allow
- * it to finish where it left off. But they otherwise do not have a role in the
+ * it to finish where it left off. But they otherwise do analt have a role in the
  * calling function other than just passing through.
  *
  * xfs_attr_remove_iter()
@@ -141,7 +141,7 @@ struct xfs_attr_list_context {
  *              v
  *       remove leaf and
  *       update hash with
- *   xfs_attr_node_remove_cleanup
+ *   xfs_attr_analde_remove_cleanup
  *              │
  *              v
  *           need to
@@ -205,7 +205,7 @@ struct xfs_attr_list_context {
  *   │ xfs_attr_try_sf_addname
  *   │          │
  *   │          V
- *   │      had enough ──y──> done
+ *   │      had eanalugh ──y──> done
  *   │        space?
  *   n          │
  *   │          n
@@ -234,7 +234,7 @@ struct xfs_attr_list_context {
  *   │ xfs_attr_leaf_try_add()
  *   │          │
  *   │          v
- *   │      had enough ──────────────y─────────────┐
+ *   │      had eanalugh ──────────────y─────────────┐
  *   │        space?                               │
  *   │          │                                  │
  *   │          n                                  │
@@ -242,23 +242,23 @@ struct xfs_attr_list_context {
  *   │          v                                  │
  *   │    return -EAGAIN                           │
  *   │      re-enter in                            │
- *   │        node form                            │
+ *   │        analde form                            │
  *   │          │                                  │
  *   └──────────┤                                  │
  *              │                                  │
  *              V                                  │
- * xfs_attr_node_addname_find_attr                 │
+ * xfs_attr_analde_addname_find_attr                 │
  *        determines if this                       │
  *       is create or rename                       │
  *     find space to store attr                    │
  *              │                                  │
  *              v                                  │
- *     xfs_attr_node_addname                       │
+ *     xfs_attr_analde_addname                       │
  *              │                                  │
  *              v                                  │
- *   fits in a node leaf? ────n─────┐              │
+ *   fits in a analde leaf? ────n─────┐              │
  *              │     ^             v              │
- *              │     │       single leaf node?    │
+ *              │     │       single leaf analde?    │
  *              │     │         │            │     │
  *              y     │         y            n     │
  *              │     │         │            │     │
@@ -367,7 +367,7 @@ struct xfs_attr_list_context {
  *       │        find space
  *       │             │
  *       │             v
- *       │  ┌─>XFS_DAS_ALLOC_NODE
+ *       │  ┌─>XFS_DAS_ALLOC_ANALDE
  *       │  │          │
  *       │  │          v
  *       │  │      alloc blk
@@ -434,7 +434,7 @@ struct xfs_attr_list_context {
  * to where it was and resume executing where it left off.
  */
 enum xfs_delattr_state {
-	XFS_DAS_UNINIT		= 0,	/* No state has been set yet */
+	XFS_DAS_UNINIT		= 0,	/* Anal state has been set yet */
 
 	/*
 	 * Initial sequence states. The replace setup code relies on the
@@ -448,8 +448,8 @@ enum xfs_delattr_state {
 	XFS_DAS_LEAF_ADD,		/* Initial leaf add state */
 	XFS_DAS_LEAF_REMOVE,		/* Initial leaf replace/remove state */
 
-	XFS_DAS_NODE_ADD,		/* Initial node add state */
-	XFS_DAS_NODE_REMOVE,		/* Initial node replace/remove state */
+	XFS_DAS_ANALDE_ADD,		/* Initial analde add state */
+	XFS_DAS_ANALDE_REMOVE,		/* Initial analde replace/remove state */
 
 	/* Leaf state set/replace/remove sequence */
 	XFS_DAS_LEAF_SET_RMT,		/* set a remote xattr from a leaf */
@@ -459,13 +459,13 @@ enum xfs_delattr_state {
 	XFS_DAS_LEAF_REMOVE_RMT,	/* A rename is removing remote blocks */
 	XFS_DAS_LEAF_REMOVE_ATTR,	/* Remove the old attr from a leaf */
 
-	/* Node state sequence, must match leaf state above */
-	XFS_DAS_NODE_SET_RMT,		/* set a remote xattr from a node */
-	XFS_DAS_NODE_ALLOC_RMT,		/* We are allocating remote blocks */
-	XFS_DAS_NODE_REPLACE,		/* Perform replace ops on a node */
-	XFS_DAS_NODE_REMOVE_OLD,	/* Start removing old attr from node */
-	XFS_DAS_NODE_REMOVE_RMT,	/* A rename is removing remote blocks */
-	XFS_DAS_NODE_REMOVE_ATTR,	/* Remove the old attr from a node */
+	/* Analde state sequence, must match leaf state above */
+	XFS_DAS_ANALDE_SET_RMT,		/* set a remote xattr from a analde */
+	XFS_DAS_ANALDE_ALLOC_RMT,		/* We are allocating remote blocks */
+	XFS_DAS_ANALDE_REPLACE,		/* Perform replace ops on a analde */
+	XFS_DAS_ANALDE_REMOVE_OLD,	/* Start removing old attr from analde */
+	XFS_DAS_ANALDE_REMOVE_RMT,	/* A rename is removing remote blocks */
+	XFS_DAS_ANALDE_REMOVE_ATTR,	/* Remove the old attr from a analde */
 
 	XFS_DAS_DONE,			/* finished operation */
 };
@@ -476,20 +476,20 @@ enum xfs_delattr_state {
 	{ XFS_DAS_SF_REMOVE,		"XFS_DAS_SF_REMOVE" }, \
 	{ XFS_DAS_LEAF_ADD,		"XFS_DAS_LEAF_ADD" }, \
 	{ XFS_DAS_LEAF_REMOVE,		"XFS_DAS_LEAF_REMOVE" }, \
-	{ XFS_DAS_NODE_ADD,		"XFS_DAS_NODE_ADD" }, \
-	{ XFS_DAS_NODE_REMOVE,		"XFS_DAS_NODE_REMOVE" }, \
+	{ XFS_DAS_ANALDE_ADD,		"XFS_DAS_ANALDE_ADD" }, \
+	{ XFS_DAS_ANALDE_REMOVE,		"XFS_DAS_ANALDE_REMOVE" }, \
 	{ XFS_DAS_LEAF_SET_RMT,		"XFS_DAS_LEAF_SET_RMT" }, \
 	{ XFS_DAS_LEAF_ALLOC_RMT,	"XFS_DAS_LEAF_ALLOC_RMT" }, \
 	{ XFS_DAS_LEAF_REPLACE,		"XFS_DAS_LEAF_REPLACE" }, \
 	{ XFS_DAS_LEAF_REMOVE_OLD,	"XFS_DAS_LEAF_REMOVE_OLD" }, \
 	{ XFS_DAS_LEAF_REMOVE_RMT,	"XFS_DAS_LEAF_REMOVE_RMT" }, \
 	{ XFS_DAS_LEAF_REMOVE_ATTR,	"XFS_DAS_LEAF_REMOVE_ATTR" }, \
-	{ XFS_DAS_NODE_SET_RMT,		"XFS_DAS_NODE_SET_RMT" }, \
-	{ XFS_DAS_NODE_ALLOC_RMT,	"XFS_DAS_NODE_ALLOC_RMT" },  \
-	{ XFS_DAS_NODE_REPLACE,		"XFS_DAS_NODE_REPLACE" },  \
-	{ XFS_DAS_NODE_REMOVE_OLD,	"XFS_DAS_NODE_REMOVE_OLD" }, \
-	{ XFS_DAS_NODE_REMOVE_RMT,	"XFS_DAS_NODE_REMOVE_RMT" }, \
-	{ XFS_DAS_NODE_REMOVE_ATTR,	"XFS_DAS_NODE_REMOVE_ATTR" }, \
+	{ XFS_DAS_ANALDE_SET_RMT,		"XFS_DAS_ANALDE_SET_RMT" }, \
+	{ XFS_DAS_ANALDE_ALLOC_RMT,	"XFS_DAS_ANALDE_ALLOC_RMT" },  \
+	{ XFS_DAS_ANALDE_REPLACE,		"XFS_DAS_ANALDE_REPLACE" },  \
+	{ XFS_DAS_ANALDE_REMOVE_OLD,	"XFS_DAS_ANALDE_REMOVE_OLD" }, \
+	{ XFS_DAS_ANALDE_REMOVE_RMT,	"XFS_DAS_ANALDE_REMOVE_RMT" }, \
+	{ XFS_DAS_ANALDE_REMOVE_ATTR,	"XFS_DAS_ANALDE_REMOVE_ATTR" }, \
 	{ XFS_DAS_DONE,			"XFS_DAS_DONE" }
 
 struct xfs_attri_log_nameval;
@@ -504,7 +504,7 @@ struct xfs_attr_intent {
 	 */
 	struct list_head		xattri_list;
 
-	/* Used in xfs_attr_node_removename to roll through removing blocks */
+	/* Used in xfs_attr_analde_removename to roll through removing blocks */
 	struct xfs_da_state		*xattri_da_state;
 
 	struct xfs_da_args		*xattri_da_args;
@@ -524,7 +524,7 @@ struct xfs_attr_intent {
 	unsigned int			xattri_op_flags;
 
 	/* Used in xfs_attr_rmtval_set_blk to roll through allocating blocks */
-	xfs_dablk_t			xattri_lblkno;
+	xfs_dablk_t			xattri_lblkanal;
 	int				xattri_blkcnt;
 	struct xfs_bmbt_irec		xattri_map;
 };
@@ -537,11 +537,11 @@ struct xfs_attr_intent {
 /*
  * Overall external interface routines.
  */
-int xfs_attr_inactive(struct xfs_inode *dp);
+int xfs_attr_inactive(struct xfs_ianalde *dp);
 int xfs_attr_list_ilocked(struct xfs_attr_list_context *);
 int xfs_attr_list(struct xfs_attr_list_context *);
-int xfs_inode_hasattr(struct xfs_inode *ip);
-bool xfs_attr_is_leaf(struct xfs_inode *ip);
+int xfs_ianalde_hasattr(struct xfs_ianalde *ip);
+bool xfs_attr_is_leaf(struct xfs_ianalde *ip);
 int xfs_attr_get_ilocked(struct xfs_da_args *args);
 int xfs_attr_get(struct xfs_da_args *args);
 int xfs_attr_set(struct xfs_da_args *args);
@@ -553,15 +553,15 @@ void xfs_init_attr_trans(struct xfs_da_args *args, struct xfs_trans_res *tres,
 			 unsigned int *total);
 
 /*
- * Check to see if the attr should be upgraded from non-existent or shortform to
+ * Check to see if the attr should be upgraded from analn-existent or shortform to
  * single-leaf-block attribute list.
  */
 static inline bool
 xfs_attr_is_shortform(
-	struct xfs_inode    *ip)
+	struct xfs_ianalde    *ip)
 {
-	return ip->i_af.if_format == XFS_DINODE_FMT_LOCAL ||
-	       (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
+	return ip->i_af.if_format == XFS_DIANALDE_FMT_LOCAL ||
+	       (ip->i_af.if_format == XFS_DIANALDE_FMT_EXTENTS &&
 		ip->i_af.if_nextents == 0);
 }
 
@@ -576,7 +576,7 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 	 * context, i_af is guaranteed to exist. Hence if the attr fork is
 	 * null, we were called from a pure remove operation and so we are done.
 	 */
-	if (!xfs_inode_has_attr_fork(args->dp))
+	if (!xfs_ianalde_has_attr_fork(args->dp))
 		return XFS_DAS_DONE;
 
 	args->op_flags |= XFS_DA_OP_ADDNAME;
@@ -584,7 +584,7 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 		return XFS_DAS_SF_ADD;
 	if (xfs_attr_is_leaf(args->dp))
 		return XFS_DAS_LEAF_ADD;
-	return XFS_DAS_NODE_ADD;
+	return XFS_DAS_ANALDE_ADD;
 }
 
 static inline enum xfs_delattr_state
@@ -595,7 +595,7 @@ xfs_attr_init_remove_state(struct xfs_da_args *args)
 		return XFS_DAS_SF_REMOVE;
 	if (xfs_attr_is_leaf(args->dp))
 		return XFS_DAS_LEAF_REMOVE;
-	return XFS_DAS_NODE_REMOVE;
+	return XFS_DAS_ANALDE_REMOVE;
 }
 
 /*

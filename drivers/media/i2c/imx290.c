@@ -25,7 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define IMX290_STANDBY					CCI_REG8(0x3000)
@@ -130,11 +130,11 @@
  * |   |                                    |   | }  Effective bottom margin (9)
  * +---+------------------------------------+---+
  *  <-> <-> <--------------------------> <-> <->
- *                                            \----  Ignored right margin (4)
+ *                                            \----  Iganalred right margin (4)
  *                                        \--------  Effective right margin (9)
  *                       \-------------------------  Recommended width (1920)
  *       \-----------------------------------------  Effective left margin (8)
- *   \---------------------------------------------  Ignored left margin (4)
+ *   \---------------------------------------------  Iganalred left margin (4)
  *
  * The optical black lines are output over CSI-2 with a separate data type.
  *
@@ -142,9 +142,9 @@
  * processing in an ISP. It has 8 (9) extra active pixels usable for color
  * processing in the ISP on the top and left (bottom and right) sides of the
  * image. In addition, 4 additional pixels are present on the left and right
- * sides of the image, documented as "ignored area".
+ * sides of the image, documented as "iganalred area".
  *
- * As far as is understood, all pixels of the pixel array (ignored area, color
+ * As far as is understood, all pixels of the pixel array (iganalred area, color
  * processing margins and recording area) can be output by the sensor.
  */
 
@@ -164,7 +164,7 @@
 
 enum imx290_colour_variant {
 	IMX290_VARIANT_COLOUR,
-	IMX290_VARIANT_MONO,
+	IMX290_VARIANT_MOANAL,
 	IMX290_VARIANT_MAX
 };
 
@@ -574,7 +574,7 @@ static const struct imx290_format_info imx290_formats[] = {
 	{
 		.code = {
 			[IMX290_VARIANT_COLOUR] = MEDIA_BUS_FMT_SRGGB10_1X10,
-			[IMX290_VARIANT_MONO] = MEDIA_BUS_FMT_Y10_1X10
+			[IMX290_VARIANT_MOANAL] = MEDIA_BUS_FMT_Y10_1X10
 		},
 		.bpp = 10,
 		.regs = imx290_10bit_settings,
@@ -582,7 +582,7 @@ static const struct imx290_format_info imx290_formats[] = {
 	}, {
 		.code = {
 			[IMX290_VARIANT_COLOUR] = MEDIA_BUS_FMT_SRGGB12_1X12,
-			[IMX290_VARIANT_MONO] = MEDIA_BUS_FMT_Y12_1X12
+			[IMX290_VARIANT_MOANAL] = MEDIA_BUS_FMT_Y12_1X12
 		},
 		.bpp = 12,
 		.regs = imx290_12bit_settings,
@@ -711,7 +711,7 @@ static int imx290_setup_format(struct imx290 *imx290,
 
 	ret = imx290_set_register_array(imx290, info->regs, info->num_regs);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set format registers\n");
+		dev_err(imx290->dev, "Could analt set format registers\n");
 		return ret;
 	}
 
@@ -862,10 +862,10 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 
 static int imx290_ctrl_init(struct imx290 *imx290)
 {
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	int ret;
 
-	ret = v4l2_fwnode_device_parse(imx290->dev, &props);
+	ret = v4l2_fwanalde_device_parse(imx290->dev, &props);
 	if (ret < 0)
 		return ret;
 
@@ -932,7 +932,7 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_cluster(2, &imx290->hflip);
 
-	v4l2_ctrl_new_fwnode_properties(&imx290->ctrls, &imx290_ctrl_ops,
+	v4l2_ctrl_new_fwanalde_properties(&imx290->ctrls, &imx290_ctrl_ops,
 					&props);
 
 	imx290->sd.ctrl_handler = &imx290->ctrls;
@@ -961,7 +961,7 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	ret = imx290_set_register_array(imx290, imx290_global_init_settings,
 					ARRAY_SIZE(imx290_global_init_settings));
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set init registers\n");
+		dev_err(imx290->dev, "Could analt set init registers\n");
 		return ret;
 	}
 
@@ -969,27 +969,27 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	ret = imx290_set_register_array(imx290, imx290->model->init_regs,
 					imx290->model->init_regs_num);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set model specific init registers\n");
+		dev_err(imx290->dev, "Could analt set model specific init registers\n");
 		return ret;
 	}
 
 	/* Set clock parameters based on mode and xclk */
 	ret = imx290_set_clock(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set clocks - %d\n", ret);
+		dev_err(imx290->dev, "Could analt set clocks - %d\n", ret);
 		return ret;
 	}
 
 	/* Set data lane count */
 	ret = imx290_set_data_lanes(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set data lanes - %d\n", ret);
+		dev_err(imx290->dev, "Could analt set data lanes - %d\n", ret);
 		return ret;
 	}
 
 	ret = imx290_set_csi_config(imx290);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set csi cfg - %d\n", ret);
+		dev_err(imx290->dev, "Could analt set csi cfg - %d\n", ret);
 		return ret;
 	}
 
@@ -997,7 +997,7 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	format = v4l2_subdev_state_get_format(state, 0);
 	ret = imx290_setup_format(imx290, format);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set frame format - %d\n", ret);
+		dev_err(imx290->dev, "Could analt set frame format - %d\n", ret);
 		return ret;
 	}
 
@@ -1005,14 +1005,14 @@ static int imx290_start_streaming(struct imx290 *imx290,
 	ret = imx290_set_register_array(imx290, imx290->current_mode->data,
 					imx290->current_mode->data_size);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not set current mode - %d\n", ret);
+		dev_err(imx290->dev, "Could analt set current mode - %d\n", ret);
 		return ret;
 	}
 
 	/* Apply customized values from user */
 	ret = __v4l2_ctrl_handler_setup(imx290->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx290->dev, "Could not sync v4l2 controls - %d\n", ret);
+		dev_err(imx290->dev, "Could analt sync v4l2 controls - %d\n", ret);
 		return ret;
 	}
 
@@ -1062,7 +1062,7 @@ static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	/*
-	 * vflip and hflip should not be changed during streaming as the sensor
+	 * vflip and hflip should analt be changed during streaming as the sensor
 	 * will produce an invalid frame.
 	 */
 	__v4l2_ctrl_grab(imx290->vflip, enable);
@@ -1126,11 +1126,11 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	if (!imx290_format_info(imx290, fmt->format.code))
 		fmt->format.code = imx290_formats[0].code[imx290->model->colour_variant];
 
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_601;
 	fmt->format.quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_ANALNE;
 
 	format = v4l2_subdev_state_get_format(sd_state, 0);
 
@@ -1252,7 +1252,7 @@ static int imx290_subdev_init(struct imx290 *imx290)
 
 	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
 	imx290->sd.internal_ops = &imx290_internal_ops;
-	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx290->sd.dev = imx290->dev;
 	imx290->sd.entity.ops = &imx290_subdev_entity_ops;
@@ -1261,7 +1261,7 @@ static int imx290_subdev_init(struct imx290 *imx290)
 	imx290->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx290->sd.entity, 1, &imx290->pad);
 	if (ret < 0) {
-		dev_err(imx290->dev, "Could not register media entity\n");
+		dev_err(imx290->dev, "Could analt register media entity\n");
 		return ret;
 	}
 
@@ -1386,7 +1386,7 @@ static int imx290_init_clk(struct imx290 *imx290)
 	ret = device_property_read_u32(imx290->dev, "clock-frequency",
 				       &xclk_freq);
 	if (ret) {
-		dev_err(imx290->dev, "Could not get xclk frequency\n");
+		dev_err(imx290->dev, "Could analt get xclk frequency\n");
 		return ret;
 	}
 
@@ -1399,14 +1399,14 @@ static int imx290_init_clk(struct imx290 *imx290)
 		imx290->xclk_idx = IMX290_CLK_74_25;
 		break;
 	default:
-		dev_err(imx290->dev, "External clock frequency %u is not supported\n",
+		dev_err(imx290->dev, "External clock frequency %u is analt supported\n",
 			xclk_freq);
 		return -EINVAL;
 	}
 
 	ret = clk_set_rate(imx290->xclk, xclk_freq);
 	if (ret) {
-		dev_err(imx290->dev, "Could not set xclk frequency\n");
+		dev_err(imx290->dev, "Could analt set xclk frequency\n");
 		return ret;
 	}
 
@@ -1419,7 +1419,7 @@ static int imx290_init_clk(struct imx290 *imx290)
  * first missing frequency otherwise.
  */
 static s64 imx290_check_link_freqs(const struct imx290 *imx290,
-				   const struct v4l2_fwnode_endpoint *ep)
+				   const struct v4l2_fwanalde_endpoint *ep)
 {
 	int i, j;
 	const s64 *freqs = imx290_link_freqs_ptr(imx290);
@@ -1443,7 +1443,7 @@ static const struct imx290_model_info imx290_models[] = {
 		.name = "imx290",
 	},
 	[IMX290_MODEL_IMX290LLR] = {
-		.colour_variant = IMX290_VARIANT_MONO,
+		.colour_variant = IMX290_VARIANT_MOANAL,
 		.init_regs = imx290_global_init_settings_290,
 		.init_regs_num = ARRAY_SIZE(imx290_global_init_settings_290),
 		.name = "imx290",
@@ -1458,29 +1458,29 @@ static const struct imx290_model_info imx290_models[] = {
 
 static int imx290_parse_dt(struct imx290 *imx290)
 {
-	/* Only CSI2 is supported for now: */
-	struct v4l2_fwnode_endpoint ep = {
+	/* Only CSI2 is supported for analw: */
+	struct v4l2_fwanalde_endpoint ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 	int ret;
 	s64 fq;
 
 	imx290->model = of_device_get_match_data(imx290->dev);
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(imx290->dev), NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(dev_fwanalde(imx290->dev), NULL);
 	if (!endpoint) {
-		dev_err(imx290->dev, "Endpoint node not found\n");
+		dev_err(imx290->dev, "Endpoint analde analt found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
-	fwnode_handle_put(endpoint);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(endpoint, &ep);
+	fwanalde_handle_put(endpoint);
 	if (ret == -ENXIO) {
 		dev_err(imx290->dev, "Unsupported bus type, should be CSI2\n");
 		goto done;
 	} else if (ret) {
-		dev_err(imx290->dev, "Parsing endpoint node failed\n");
+		dev_err(imx290->dev, "Parsing endpoint analde failed\n");
 		goto done;
 	}
 
@@ -1495,7 +1495,7 @@ static int imx290_parse_dt(struct imx290 *imx290)
 	dev_dbg(imx290->dev, "Using %u data lanes\n", imx290->nlanes);
 
 	if (!ep.nr_of_link_frequencies) {
-		dev_err(imx290->dev, "link-frequency property not found in DT\n");
+		dev_err(imx290->dev, "link-frequency property analt found in DT\n");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -1503,7 +1503,7 @@ static int imx290_parse_dt(struct imx290 *imx290)
 	/* Check that link frequences for all the modes are in device tree */
 	fq = imx290_check_link_freqs(imx290, &ep);
 	if (fq) {
-		dev_err(imx290->dev, "Link frequency of %lld is not supported\n",
+		dev_err(imx290->dev, "Link frequency of %lld is analt supported\n",
 			fq);
 		ret = -EINVAL;
 		goto done;
@@ -1512,7 +1512,7 @@ static int imx290_parse_dt(struct imx290 *imx290)
 	ret = 0;
 
 done:
-	v4l2_fwnode_endpoint_free(&ep);
+	v4l2_fwanalde_endpoint_free(&ep);
 	return ret;
 }
 
@@ -1524,13 +1524,13 @@ static int imx290_probe(struct i2c_client *client)
 
 	imx290 = devm_kzalloc(dev, sizeof(*imx290), GFP_KERNEL);
 	if (!imx290)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx290->dev = dev;
 	imx290->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(imx290->regmap)) {
 		dev_err(dev, "Unable to initialize I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = imx290_parse_dt(imx290);
@@ -1541,17 +1541,17 @@ static int imx290_probe(struct i2c_client *client)
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk))
 		return dev_err_probe(dev, PTR_ERR(imx290->xclk),
-				     "Could not get xclk\n");
+				     "Could analt get xclk\n");
 
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "Cannot get regulators\n");
+		return dev_err_probe(dev, ret, "Cananalt get regulators\n");
 
 	imx290->rst_gpio = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_OUT_HIGH);
 	if (IS_ERR(imx290->rst_gpio))
 		return dev_err_probe(dev, PTR_ERR(imx290->rst_gpio),
-				     "Cannot get reset gpio\n");
+				     "Cananalt get reset gpio\n");
 
 	/* Initialize external clock frequency. */
 	ret = imx290_init_clk(imx290);
@@ -1565,7 +1565,7 @@ static int imx290_probe(struct i2c_client *client)
 	 */
 	ret = imx290_power_on(imx290);
 	if (ret < 0) {
-		dev_err(dev, "Could not power on the device\n");
+		dev_err(dev, "Could analt power on the device\n");
 		return ret;
 	}
 
@@ -1575,7 +1575,7 @@ static int imx290_probe(struct i2c_client *client)
 	 * resuming the device.
 	 */
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -1595,7 +1595,7 @@ static int imx290_probe(struct i2c_client *client)
 	 */
 	ret = v4l2_async_register_subdev(&imx290->sd);
 	if (ret < 0) {
-		dev_err(dev, "Could not register v4l2 device\n");
+		dev_err(dev, "Could analt register v4l2 device\n");
 		goto err_subdev;
 	}
 
@@ -1612,7 +1612,7 @@ err_subdev:
 	imx290_subdev_cleanup(imx290);
 err_pm:
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	imx290_power_off(imx290);
 	return ret;
 }
@@ -1637,7 +1637,7 @@ static void imx290_remove(struct i2c_client *client)
 
 static const struct of_device_id imx290_of_match[] = {
 	{
-		/* Deprecated - synonym for "sony,imx290lqr" */
+		/* Deprecated - syanalnym for "sony,imx290lqr" */
 		.compatible = "sony,imx290",
 		.data = &imx290_models[IMX290_MODEL_IMX290LQR],
 	}, {

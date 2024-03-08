@@ -69,12 +69,12 @@ static void roq_print(struct msm_gpu *gpu, struct drm_printer *p)
 
 static int show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_analde *analde = m->private;
+	struct drm_device *dev = analde->mianalr->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_printer p = drm_seq_file_printer(m);
 	void (*show)(struct msm_gpu *gpu, struct drm_printer *p) =
-		node->info_ent->data;
+		analde->info_ent->data;
 
 	show(priv->gpu, &p);
 	return 0;
@@ -95,8 +95,8 @@ reset_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreanal_gpu *adreanal_gpu = to_adreanal_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreanal_gpu);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EINVAL;
@@ -109,11 +109,11 @@ reset_set(void *data, u64 val)
 
 	mutex_lock(&gpu->lock);
 
-	release_firmware(adreno_gpu->fw[ADRENO_FW_PM4]);
-	adreno_gpu->fw[ADRENO_FW_PM4] = NULL;
+	release_firmware(adreanal_gpu->fw[ADREANAL_FW_PM4]);
+	adreanal_gpu->fw[ADREANAL_FW_PM4] = NULL;
 
-	release_firmware(adreno_gpu->fw[ADRENO_FW_PFP]);
-	adreno_gpu->fw[ADRENO_FW_PFP] = NULL;
+	release_firmware(adreanal_gpu->fw[ADREANAL_FW_PFP]);
+	adreanal_gpu->fw[ADREANAL_FW_PFP] = NULL;
 
 	if (a5xx_gpu->pm4_bo) {
 		msm_gem_unpin_iova(a5xx_gpu->pm4_bo, gpu->aspace);
@@ -141,19 +141,19 @@ reset_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(reset_fops, NULL, reset_set, "%llx\n");
 
 
-void a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
+void a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_mianalr *mianalr)
 {
 	struct drm_device *dev;
 
-	if (!minor)
+	if (!mianalr)
 		return;
 
-	dev = minor->dev;
+	dev = mianalr->dev;
 
 	drm_debugfs_create_files(a5xx_debugfs_list,
 				 ARRAY_SIZE(a5xx_debugfs_list),
-				 minor->debugfs_root, minor);
+				 mianalr->debugfs_root, mianalr);
 
-	debugfs_create_file_unsafe("reset", S_IWUGO, minor->debugfs_root, dev,
+	debugfs_create_file_unsafe("reset", S_IWUGO, mianalr->debugfs_root, dev,
 				&reset_fops);
 }

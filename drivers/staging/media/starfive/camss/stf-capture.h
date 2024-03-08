@@ -4,7 +4,7 @@
  *
  * Starfive Camera Subsystem driver
  *
- * Copyright (C) 2021-2023 StarFive Technology Co., Ltd.
+ * Copyright (C) 2021-2023 StarFive Techanallogy Co., Ltd.
  */
 
 #ifndef STF_CAPTURE_H

@@ -64,12 +64,12 @@
 #define get_loc_len(dl)		((u32)(dl) >> 16)
 #define get_loc_offs(dl)	((u32)(dl) & 0xffff)
 
-static nokprobe_inline void *get_loc_data(u32 *dl, void *ent)
+static analkprobe_inline void *get_loc_data(u32 *dl, void *ent)
 {
 	return (u8 *)ent + get_loc_offs(*dl);
 }
 
-static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
+static analkprobe_inline u32 update_data_loc(u32 loc, int consumed)
 {
 	u32 maxlen = get_loc_len(loc);
 	u32 offset = get_loc_offs(loc);
@@ -81,7 +81,7 @@ static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
 typedef int (*print_type_func_t)(struct trace_seq *, void *, void *);
 
 enum fetch_op {
-	FETCH_OP_NOP = 0,
+	FETCH_OP_ANALP = 0,
 	// Stage 1 (load) ops
 	FETCH_OP_REG,		/* Register : .param = offset */
 	FETCH_OP_STACK,		/* Stack : .param = index */
@@ -108,7 +108,7 @@ enum fetch_op {
 	FETCH_OP_LP_ARRAY,	/* Array: .param = loop count */
 	FETCH_OP_TP_ARG,	/* Trace Point argument */
 	FETCH_OP_END,
-	FETCH_NOP_SYMBOL,	/* Unresolved Symbol holder */
+	FETCH_ANALP_SYMBOL,	/* Unresolved Symbol holder */
 };
 
 struct fetch_insn {
@@ -129,7 +129,7 @@ struct fetch_insn {
 	};
 };
 
-/* fetch + deref*N + store + mod + end <= 16, this allows N=12, enough */
+/* fetch + deref*N + store + mod + end <= 16, this allows N=12, eanalugh */
 #define FETCH_INSN_MAX	16
 #define FETCH_TOKEN_COMM	(-ECOMM)
 
@@ -193,7 +193,7 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(symbol);
 	 .fmttype = _fmttype,				\
 	}
 
-/* Non string types can use these macros */
+/* Analn string types can use these macros */
 #define _ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, _fmttype)	\
 	__ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, 0, #_fmttype)
 #define ASSIGN_FETCH_TYPE(ptype, ftype, sign)			\
@@ -417,7 +417,7 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 				char *buf, int offset);
 
 enum probe_print_type {
-	PROBE_PRINT_NORMAL,
+	PROBE_PRINT_ANALRMAL,
 	PROBE_PRINT_RETURN,
 	PROBE_PRINT_EVENT,
 };
@@ -440,82 +440,82 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 
 #undef ERRORS
 #define ERRORS	\
-	C(FILE_NOT_FOUND,	"Failed to find the given file"),	\
-	C(NO_REGULAR_FILE,	"Not a regular file"),			\
+	C(FILE_ANALT_FOUND,	"Failed to find the given file"),	\
+	C(ANAL_REGULAR_FILE,	"Analt a regular file"),			\
 	C(BAD_REFCNT,		"Invalid reference counter offset"),	\
-	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"), \
+	C(REFCNT_OPEN_BRACE,	"Reference counter brace is analt closed"), \
 	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
 	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
 	C(BAD_MAXACT_TYPE,	"Maxactive is only for function exit"),	\
 	C(BAD_MAXACT,		"Invalid maxactive number"),		\
 	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
 	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
-	C(NON_UNIQ_SYMBOL,	"The symbol is not unique"),		\
+	C(ANALN_UNIQ_SYMBOL,	"The symbol is analt unique"),		\
 	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
-	C(NO_TRACEPOINT,	"Tracepoint is not found"),		\
+	C(ANAL_TRACEPOINT,	"Tracepoint is analt found"),		\
 	C(BAD_ADDR_SUFFIX,	"Invalid probed address suffix"), \
-	C(NO_GROUP_NAME,	"Group name is not specified"),		\
+	C(ANAL_GROUP_NAME,	"Group name is analt specified"),		\
 	C(GROUP_TOO_LONG,	"Group name is too long"),		\
 	C(BAD_GROUP_NAME,	"Group name must follow the same rules as C identifiers"), \
-	C(NO_EVENT_NAME,	"Event name is not specified"),		\
+	C(ANAL_EVENT_NAME,	"Event name is analt specified"),		\
 	C(EVENT_TOO_LONG,	"Event name is too long"),		\
 	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"), \
-	C(EVENT_EXIST,		"Given group/event name is already used by another event"), \
-	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
-	C(NO_RETVAL,		"This function returns 'void' type"),	\
+	C(EVENT_EXIST,		"Given group/event name is already used by aanalther event"), \
+	C(RETVAL_ON_PROBE,	"$retval is analt available on probe"),	\
+	C(ANAL_RETVAL,		"This function returns 'void' type"),	\
 	C(BAD_STACK_NUM,	"Invalid stack number"),		\
 	C(BAD_ARG_NUM,		"Invalid argument number"),		\
 	C(BAD_VAR,		"Invalid $-valiable specified"),	\
 	C(BAD_REG_NAME,		"Invalid register name"),		\
 	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
 	C(BAD_IMM,		"Invalid immediate value"),		\
-	C(IMMSTR_NO_CLOSE,	"String is not closed with '\"'"),	\
-	C(FILE_ON_KPROBE,	"File offset is not available with kprobe"), \
+	C(IMMSTR_ANAL_CLOSE,	"String is analt closed with '\"'"),	\
+	C(FILE_ON_KPROBE,	"File offset is analt available with kprobe"), \
 	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
-	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
+	C(SYM_ON_UPROBE,	"Symbol is analt available with uprobe"),	\
 	C(TOO_MANY_OPS,		"Dereference is too much nested"), 	\
 	C(DEREF_NEED_BRACE,	"Dereference needs a brace"),		\
 	C(BAD_DEREF_OFFS,	"Invalid dereference offset"),		\
-	C(DEREF_OPEN_BRACE,	"Dereference brace is not closed"),	\
-	C(COMM_CANT_DEREF,	"$comm can not be dereferenced"),	\
+	C(DEREF_OPEN_BRACE,	"Dereference brace is analt closed"),	\
+	C(COMM_CANT_DEREF,	"$comm can analt be dereferenced"),	\
 	C(BAD_FETCH_ARG,	"Invalid fetch argument"),		\
-	C(ARRAY_NO_CLOSE,	"Array is not closed"),			\
+	C(ARRAY_ANAL_CLOSE,	"Array is analt closed"),			\
 	C(BAD_ARRAY_SUFFIX,	"Array has wrong suffix"),		\
 	C(BAD_ARRAY_NUM,	"Invalid array size"),			\
 	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
-	C(BAD_TYPE,		"Unknown type is specified"),		\
+	C(BAD_TYPE,		"Unkanalwn type is specified"),		\
 	C(BAD_STRING,		"String accepts only memory argument"),	\
 	C(BAD_SYMSTRING,	"Symbol String doesn't accept data/userdata"),	\
 	C(BAD_BITFIELD,		"Invalid bitfield"),			\
 	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
-	C(NO_ARG_NAME,		"Argument name is not specified"),	\
+	C(ANAL_ARG_NAME,		"Argument name is analt specified"),	\
 	C(BAD_ARG_NAME,		"Argument name must follow the same rules as C identifiers"), \
 	C(USED_ARG_NAME,	"This argument name is already used"),	\
 	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
-	C(NO_ARG_BODY,		"No argument expression"),		\
-	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
+	C(ANAL_ARG_BODY,		"Anal argument expression"),		\
+	C(BAD_INSN_BNDRY,	"Probe point is analt an instruction boundary"),\
 	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
 	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
 	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),\
 	C(SAME_PROBE,		"There is already the exact same probe event"),\
-	C(NO_EVENT_INFO,	"This requires both group and event name to attach"),\
-	C(BAD_ATTACH_EVENT,	"Attached event does not exist"),\
-	C(BAD_ATTACH_ARG,	"Attached event does not have this field"),\
-	C(NO_EP_FILTER,		"No filter rule after 'if'"),		\
-	C(NOSUP_BTFARG,		"BTF is not available or not supported"),	\
-	C(NO_BTFARG,		"This variable is not found at this probe point"),\
-	C(NO_BTF_ENTRY,		"No BTF entry for this probe point"),	\
+	C(ANAL_EVENT_INFO,	"This requires both group and event name to attach"),\
+	C(BAD_ATTACH_EVENT,	"Attached event does analt exist"),\
+	C(BAD_ATTACH_ARG,	"Attached event does analt have this field"),\
+	C(ANAL_EP_FILTER,		"Anal filter rule after 'if'"),		\
+	C(ANALSUP_BTFARG,		"BTF is analt available or analt supported"),	\
+	C(ANAL_BTFARG,		"This variable is analt found at this probe point"),\
+	C(ANAL_BTF_ENTRY,		"Anal BTF entry for this probe point"),	\
 	C(BAD_VAR_ARGS,		"$arg* must be an independent parameter without name etc."),\
-	C(NOFENTRY_ARGS,	"$arg* can be used only on function entry"),	\
+	C(ANALFENTRY_ARGS,	"$arg* can be used only on function entry"),	\
 	C(DOUBLE_ARGS,		"$arg* can be used only once in the parameters"),	\
 	C(ARGS_2LONG,		"$arg* failed because the argument list is too long"),	\
 	C(ARGIDX_2BIG,		"$argN index is too big"),		\
-	C(NO_PTR_STRCT,		"This is not a pointer to union/structure."),	\
-	C(NOSUP_DAT_ARG,	"Non pointer structure/union argument is not supported."),\
+	C(ANAL_PTR_STRCT,		"This is analt a pointer to union/structure."),	\
+	C(ANALSUP_DAT_ARG,	"Analn pointer structure/union argument is analt supported."),\
 	C(BAD_HYPHEN,		"Failed to parse single hyphen. Forgot '>'?"),	\
-	C(NO_BTF_FIELD,		"This field is not found."),	\
+	C(ANAL_BTF_FIELD,		"This field is analt found."),	\
 	C(BAD_BTF_TID,		"Failed to get BTF type info."),\
-	C(BAD_TYPE4STR,		"This type does not fit for string."),\
+	C(BAD_TYPE4STR,		"This type does analt fit for string."),\
 	C(NEED_STRING_TYPE,	"$comm and immediate-string only accepts string type"),
 
 #undef C

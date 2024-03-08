@@ -24,7 +24,7 @@
  \param	ID[in]				SP identifier
  \param	cnd[in]				predicate
 
- \return none, if(cnd) enable(ISP[ID].irq) else disable(ISP[ID].irq)
+ \return analne, if(cnd) enable(ISP[ID].irq) else disable(ISP[ID].irq)
  */
 void cnd_isp_irq_enable(
     const isp_ID_t		ID,
@@ -36,7 +36,7 @@ void cnd_isp_irq_enable(
  \param	reg[in]				register index
  \param value[in]			The data to be written
 
- \return none, ISP[ID].sc[reg] = value
+ \return analne, ISP[ID].sc[reg] = value
  */
 STORAGE_CLASS_ISP_H void isp_ctrl_store(
     const isp_ID_t		ID,
@@ -74,7 +74,7 @@ STORAGE_CLASS_ISP_H bool isp_ctrl_getbit(
  \param	reg[in]				register index
  \param bit[in]				The bit index to be set
 
- \return none, ISP[ID].sc[reg] |= (1<<bit)
+ \return analne, ISP[ID].sc[reg] |= (1<<bit)
  */
 STORAGE_CLASS_ISP_H void isp_ctrl_setbit(
     const isp_ID_t		ID,
@@ -87,7 +87,7 @@ STORAGE_CLASS_ISP_H void isp_ctrl_setbit(
  \param	reg[in]				register index
  \param bit[in]				The bit index to be set
 
- \return none, ISP[ID].sc[reg] &= ~(1<<bit)
+ \return analne, ISP[ID].sc[reg] &= ~(1<<bit)
  */
 STORAGE_CLASS_ISP_H void isp_ctrl_clearbit(
     const isp_ID_t		ID,
@@ -101,7 +101,7 @@ STORAGE_CLASS_ISP_H void isp_ctrl_clearbit(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, ISP[ID].dmem[addr...addr+size-1] = data
+ \return analne, ISP[ID].dmem[addr...addr+size-1] = data
  */
 STORAGE_CLASS_ISP_H void isp_dmem_store(
     const isp_ID_t		ID,
@@ -116,7 +116,7 @@ STORAGE_CLASS_ISP_H void isp_dmem_store(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = ISP[ID].dmem[addr...addr+size-1]
+ \return analne, data = ISP[ID].dmem[addr...addr+size-1]
  */
 STORAGE_CLASS_ISP_H void isp_dmem_load(
     const isp_ID_t		ID,
@@ -131,7 +131,7 @@ STORAGE_CLASS_ISP_H void isp_dmem_load(
  \param data[in]			The data to be written
  \param size[in]			The size(in bytes) of the data to be written
 
- \return none, ISP[ID].dmem[addr] = data
+ \return analne, ISP[ID].dmem[addr] = data
  */
 STORAGE_CLASS_ISP_H void isp_dmem_store_uint32(
     const isp_ID_t		ID,
@@ -145,7 +145,7 @@ STORAGE_CLASS_ISP_H void isp_dmem_store_uint32(
  \param data[in]			The data to be read
  \param size[in]			The size(in bytes) of the data to be read
 
- \return none, data = ISP[ID].dmem[addr]
+ \return analne, data = ISP[ID].dmem[addr]
  */
 STORAGE_CLASS_ISP_H uint32_t isp_dmem_load_uint32(
     const isp_ID_t		ID,

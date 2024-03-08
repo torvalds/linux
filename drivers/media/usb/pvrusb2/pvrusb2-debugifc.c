@@ -32,7 +32,7 @@ static unsigned int debugifc_count_whitespace(const char *buf,
 }
 
 
-static unsigned int debugifc_count_nonwhitespace(const char *buf,
+static unsigned int debugifc_count_analnwhitespace(const char *buf,
 						 unsigned int count)
 {
 	unsigned int scnt;
@@ -63,7 +63,7 @@ static unsigned int debugifc_isolate_word(const char *buf,unsigned int count,
 	consume_cnt += scnt; count -= scnt; buf += scnt;
 	if (!count) goto done;
 
-	scnt = debugifc_count_nonwhitespace(buf,count);
+	scnt = debugifc_count_analnwhitespace(buf,count);
 	if (!scnt) goto done;
 	wptr = buf;
 	wlen = scnt;

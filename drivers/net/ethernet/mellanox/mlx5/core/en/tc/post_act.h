@@ -29,7 +29,7 @@ mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
 			  struct mlx5e_post_act_handle *handle);
 
 void
-mlx5e_tc_post_act_unoffload(struct mlx5e_post_act *post_act,
+mlx5e_tc_post_act_uanalffload(struct mlx5e_post_act *post_act,
 			    struct mlx5e_post_act_handle *handle);
 
 struct mlx5_flow_table *

@@ -5,7 +5,7 @@
  * Copyright 2003-11 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
- * Notes:
+ * Analtes:
  *  The WM8753 is a low power, high quality stereo codec with integrated PCM
  *  codec designed for portable digital telephony applications.
  *
@@ -15,14 +15,14 @@
  * HiFi audio (e.g. MP3, ogg) playback/capture and the other PCM available for
  * voice.
  *
- * Please note that the voice PCM can be connected directly to a Bluetooth
- * codec or GSM modem and thus cannot be read or written to, although it is
+ * Please analte that the voice PCM can be connected directly to a Bluetooth
+ * codec or GSM modem and thus cananalt be read or written to, although it is
  * available to be configured with snd_hw_params(), etc and kcontrols in the
- * normal alsa manner.
+ * analrmal alsa manner.
  *
  * Fast DAI switching:-
  *
- * The driver can now fast switch between the DAI configurations via a
+ * The driver can analw fast switch between the DAI configurations via a
  * an alsa kcontrol. This allows the PCM to remain open.
  */
 
@@ -160,25 +160,25 @@ static const char *wm8753_ng_type[] = {"Constant PGA Gain", "Mute ADC Output"};
 static const char *wm8753_3d_func[] = {"Capture", "Playback"};
 static const char *wm8753_3d_uc[] = {"2.2kHz", "1.5kHz"};
 static const char *wm8753_3d_lc[] = {"200Hz", "500Hz"};
-static const char *wm8753_deemp[] = {"None", "32kHz", "44.1kHz", "48kHz"};
-static const char *wm8753_mono_mix[] = {"Stereo", "Left", "Right", "Mono"};
-static const char *wm8753_dac_phase[] = {"Non Inverted", "Inverted"};
+static const char *wm8753_deemp[] = {"Analne", "32kHz", "44.1kHz", "48kHz"};
+static const char *wm8753_moanal_mix[] = {"Stereo", "Left", "Right", "Moanal"};
+static const char *wm8753_dac_phase[] = {"Analn Inverted", "Inverted"};
 static const char *wm8753_line_mix[] = {"Line 1 + 2", "Line 1 - 2",
 	"Line 1", "Line 2"};
-static const char *wm8753_mono_mux[] = {"Line Mix", "Rx Mix"};
+static const char *wm8753_moanal_mux[] = {"Line Mix", "Rx Mix"};
 static const char *wm8753_right_mux[] = {"Line 2", "Rx Mix"};
 static const char *wm8753_left_mux[] = {"Line 1", "Rx Mix"};
 static const char *wm8753_rxmsel[] = {"RXP - RXN", "RXP + RXN", "RXP", "RXN"};
 static const char *wm8753_sidetone_mux[] = {"Left PGA", "Mic 1", "Mic 2",
 	"Right PGA"};
-static const char *wm8753_mono2_src[] = {"Inverted Mono 1", "Left", "Right",
+static const char *wm8753_moanal2_src[] = {"Inverted Moanal 1", "Left", "Right",
 	"Left + Right"};
 static const char *wm8753_out3[] = {"VREF", "ROUT2", "Left + Right"};
 static const char *wm8753_out4[] = {"VREF", "Capture ST", "LOUT2"};
 static const char *wm8753_radcsel[] = {"PGA", "Line or RXP-RXN", "Sidetone"};
 static const char *wm8753_ladcsel[] = {"PGA", "Line or RXP-RXN", "Line"};
-static const char *wm8753_mono_adc[] = {"Stereo", "Analogue Mix Left",
-	"Analogue Mix Right", "Digital Mono Mix"};
+static const char *wm8753_moanal_adc[] = {"Stereo", "Analogue Mix Left",
+	"Analogue Mix Right", "Digital Moanal Mix"};
 static const char *wm8753_adc_hp[] = {"3.4Hz @ 48kHz", "82Hz @ 16k",
 	"82Hz @ 8kHz", "170Hz @ 8kHz"};
 static const char *wm8753_adc_filter[] = {"HiFi", "Voice"};
@@ -186,7 +186,7 @@ static const char *wm8753_mic_sel[] = {"Mic 1", "Mic 2", "Mic 3"};
 static const char *wm8753_dai_mode[] = {"DAI 0", "DAI 1", "DAI 2", "DAI 3"};
 static const char *wm8753_dat_sel[] = {"Stereo", "Left ADC", "Right ADC",
 	"Channel Swap"};
-static const char *wm8753_rout2_phase[] = {"Non Inverted", "Inverted"};
+static const char *wm8753_rout2_phase[] = {"Analn Inverted", "Inverted"};
 
 static const struct soc_enum wm8753_enum[] = {
 SOC_ENUM_SINGLE(WM8753_BASS, 7, 2, wm8753_base),
@@ -198,20 +198,20 @@ SOC_ENUM_SINGLE(WM8753_3D, 7, 2, wm8753_3d_func),
 SOC_ENUM_SINGLE(WM8753_3D, 6, 2, wm8753_3d_uc),
 SOC_ENUM_SINGLE(WM8753_3D, 5, 2, wm8753_3d_lc),
 SOC_ENUM_SINGLE(WM8753_DAC, 1, 4, wm8753_deemp),
-SOC_ENUM_SINGLE(WM8753_DAC, 4, 4, wm8753_mono_mix),
+SOC_ENUM_SINGLE(WM8753_DAC, 4, 4, wm8753_moanal_mix),
 SOC_ENUM_SINGLE(WM8753_DAC, 6, 2, wm8753_dac_phase),
 SOC_ENUM_SINGLE(WM8753_INCTL1, 3, 4, wm8753_line_mix),
-SOC_ENUM_SINGLE(WM8753_INCTL1, 2, 2, wm8753_mono_mux),
+SOC_ENUM_SINGLE(WM8753_INCTL1, 2, 2, wm8753_moanal_mux),
 SOC_ENUM_SINGLE(WM8753_INCTL1, 1, 2, wm8753_right_mux),
 SOC_ENUM_SINGLE(WM8753_INCTL1, 0, 2, wm8753_left_mux),
 SOC_ENUM_SINGLE(WM8753_INCTL2, 6, 4, wm8753_rxmsel),
 SOC_ENUM_SINGLE(WM8753_INCTL2, 4, 4, wm8753_sidetone_mux),
-SOC_ENUM_SINGLE(WM8753_OUTCTL, 7, 4, wm8753_mono2_src),
+SOC_ENUM_SINGLE(WM8753_OUTCTL, 7, 4, wm8753_moanal2_src),
 SOC_ENUM_SINGLE(WM8753_OUTCTL, 0, 3, wm8753_out3),
 SOC_ENUM_SINGLE(WM8753_ADCTL2, 7, 3, wm8753_out4),
 SOC_ENUM_SINGLE(WM8753_ADCIN, 2, 3, wm8753_radcsel),
 SOC_ENUM_SINGLE(WM8753_ADCIN, 0, 3, wm8753_ladcsel),
-SOC_ENUM_SINGLE(WM8753_ADCIN, 4, 4, wm8753_mono_adc),
+SOC_ENUM_SINGLE(WM8753_ADCIN, 4, 4, wm8753_moanal_adc),
 SOC_ENUM_SINGLE(WM8753_ADC, 2, 4, wm8753_adc_hp),
 SOC_ENUM_SINGLE(WM8753_ADC, 4, 2, wm8753_adc_filter),
 SOC_ENUM_SINGLE(WM8753_MICBIAS, 6, 3, wm8753_mic_sel),
@@ -286,7 +286,7 @@ SOC_DOUBLE_R_TLV("Headphone Playback Volume", WM8753_LOUT1V, WM8753_ROUT1V,
 SOC_DOUBLE_R_TLV("Speaker Playback Volume", WM8753_LOUT2V, WM8753_ROUT2V, 0,
 		 127, 0, out_tlv),
 
-SOC_SINGLE_TLV("Mono Playback Volume", WM8753_MOUTV, 0, 127, 0, out_tlv),
+SOC_SINGLE_TLV("Moanal Playback Volume", WM8753_MOUTV, 0, 127, 0, out_tlv),
 
 SOC_DOUBLE_R_TLV("Bypass Playback Volume", WM8753_LOUTM1, WM8753_ROUTM1, 4, 7,
 		 1, mix_tlv),
@@ -300,12 +300,12 @@ SOC_DOUBLE_R("Headphone Playback ZC Switch", WM8753_LOUT1V, WM8753_ROUT1V, 7,
 SOC_DOUBLE_R("Speaker Playback ZC Switch", WM8753_LOUT2V, WM8753_ROUT2V, 7,
 	     1, 0),
 
-SOC_SINGLE_TLV("Mono Bypass Playback Volume", WM8753_MOUTM1, 4, 7, 1, mix_tlv),
-SOC_SINGLE_TLV("Mono Sidetone Playback Volume", WM8753_MOUTM2, 4, 7, 1,
+SOC_SINGLE_TLV("Moanal Bypass Playback Volume", WM8753_MOUTM1, 4, 7, 1, mix_tlv),
+SOC_SINGLE_TLV("Moanal Sidetone Playback Volume", WM8753_MOUTM2, 4, 7, 1,
 	       mix_tlv),
-SOC_SINGLE_TLV("Mono Voice Playback Volume", WM8753_MOUTM2, 0, 7, 1,
+SOC_SINGLE_TLV("Moanal Voice Playback Volume", WM8753_MOUTM2, 0, 7, 1,
 	       voice_mix_tlv),
-SOC_SINGLE("Mono Playback ZC Switch", WM8753_MOUTV, 7, 1, 0),
+SOC_SINGLE("Moanal Playback ZC Switch", WM8753_MOUTV, 7, 1, 0),
 
 SOC_ENUM("Bass Boost", wm8753_enum[0]),
 SOC_ENUM("Bass Filter", wm8753_enum[1]),
@@ -349,7 +349,7 @@ SOC_SINGLE("Capture 6dB Attenuate", WM8753_ADCTL1, 2, 1, 0),
 SOC_SINGLE("Playback 6dB Attenuate", WM8753_ADCTL1, 1, 1, 0),
 
 SOC_ENUM("De-emphasis", wm8753_enum[8]),
-SOC_ENUM("Playback Mono Mix", wm8753_enum[9]),
+SOC_ENUM("Playback Moanal Mix", wm8753_enum[9]),
 SOC_ENUM("Playback Phase", wm8753_enum[10]),
 
 SOC_SINGLE_TLV("Mic2 Capture Volume", WM8753_INCTL1, 7, 3, 0, mic_preamp_tlv),
@@ -381,8 +381,8 @@ SOC_DAPM_SINGLE("Right Playback Switch", WM8753_ROUTM1, 8, 1, 0),
 SOC_DAPM_SINGLE("Bypass Playback Switch", WM8753_ROUTM1, 7, 1, 0),
 };
 
-/* Mono mixer */
-static const struct snd_kcontrol_new wm8753_mono_mixer_controls[] = {
+/* Moanal mixer */
+static const struct snd_kcontrol_new wm8753_moanal_mixer_controls[] = {
 SOC_DAPM_SINGLE("Left Playback Switch", WM8753_MOUTM1, 8, 1, 0),
 SOC_DAPM_SINGLE("Right Playback Switch", WM8753_MOUTM2, 8, 1, 0),
 SOC_DAPM_SINGLE("Voice Playback Switch", WM8753_MOUTM2, 3, 1, 0),
@@ -390,8 +390,8 @@ SOC_DAPM_SINGLE("Sidetone Playback Switch", WM8753_MOUTM2, 7, 1, 0),
 SOC_DAPM_SINGLE("Bypass Playback Switch", WM8753_MOUTM1, 7, 1, 0),
 };
 
-/* Mono 2 Mux */
-static const struct snd_kcontrol_new wm8753_mono2_controls =
+/* Moanal 2 Mux */
+static const struct snd_kcontrol_new wm8753_moanal2_controls =
 SOC_DAPM_ENUM("Route", wm8753_enum[17]);
 
 /* Out 3 Mux */
@@ -402,8 +402,8 @@ SOC_DAPM_ENUM("Route", wm8753_enum[18]);
 static const struct snd_kcontrol_new wm8753_out4_controls =
 SOC_DAPM_ENUM("Route", wm8753_enum[19]);
 
-/* ADC Mono Mix */
-static const struct snd_kcontrol_new wm8753_adc_mono_controls =
+/* ADC Moanal Mix */
+static const struct snd_kcontrol_new wm8753_adc_moanal_controls =
 SOC_DAPM_ENUM("Route", wm8753_enum[22]);
 
 /* Record mixer */
@@ -441,8 +441,8 @@ SOC_DAPM_ENUM("Route", wm8753_enum[14]);
 static const struct snd_kcontrol_new wm8753_line_right_controls =
 SOC_DAPM_ENUM("Route", wm8753_enum[13]);
 
-/* Mono Line mux */
-static const struct snd_kcontrol_new wm8753_line_mono_controls =
+/* Moanal Line mux */
+static const struct snd_kcontrol_new wm8753_line_moanal_controls =
 SOC_DAPM_ENUM("Route", wm8753_enum[12]);
 
 /* Line mux and mixer */
@@ -473,19 +473,19 @@ SND_SOC_DAPM_PGA("Right Out 2", WM8753_PWR3, 5, 0, NULL, 0),
 SND_SOC_DAPM_DAC("Right DAC", "Right HiFi Playback", WM8753_PWR1, 2, 0),
 SND_SOC_DAPM_OUTPUT("ROUT1"),
 SND_SOC_DAPM_OUTPUT("ROUT2"),
-SND_SOC_DAPM_MIXER("Mono Mixer", WM8753_PWR4, 2, 0,
-	&wm8753_mono_mixer_controls[0], ARRAY_SIZE(wm8753_mono_mixer_controls)),
-SND_SOC_DAPM_PGA("Mono Out 1", WM8753_PWR3, 2, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Mono Out 2", WM8753_PWR3, 1, 0, NULL, 0),
+SND_SOC_DAPM_MIXER("Moanal Mixer", WM8753_PWR4, 2, 0,
+	&wm8753_moanal_mixer_controls[0], ARRAY_SIZE(wm8753_moanal_mixer_controls)),
+SND_SOC_DAPM_PGA("Moanal Out 1", WM8753_PWR3, 2, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Moanal Out 2", WM8753_PWR3, 1, 0, NULL, 0),
 SND_SOC_DAPM_DAC("Voice DAC", "Voice Playback", WM8753_PWR1, 4, 0),
-SND_SOC_DAPM_OUTPUT("MONO1"),
-SND_SOC_DAPM_MUX("Mono 2 Mux", SND_SOC_NOPM, 0, 0, &wm8753_mono2_controls),
-SND_SOC_DAPM_OUTPUT("MONO2"),
-SND_SOC_DAPM_MIXER("Out3 Left + Right", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_MUX("Out3 Mux", SND_SOC_NOPM, 0, 0, &wm8753_out3_controls),
+SND_SOC_DAPM_OUTPUT("MOANAL1"),
+SND_SOC_DAPM_MUX("Moanal 2 Mux", SND_SOC_ANALPM, 0, 0, &wm8753_moanal2_controls),
+SND_SOC_DAPM_OUTPUT("MOANAL2"),
+SND_SOC_DAPM_MIXER("Out3 Left + Right", SND_SOC_ANALPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_MUX("Out3 Mux", SND_SOC_ANALPM, 0, 0, &wm8753_out3_controls),
 SND_SOC_DAPM_PGA("Out 3", WM8753_PWR3, 4, 0, NULL, 0),
 SND_SOC_DAPM_OUTPUT("OUT3"),
-SND_SOC_DAPM_MUX("Out4 Mux", SND_SOC_NOPM, 0, 0, &wm8753_out4_controls),
+SND_SOC_DAPM_MUX("Out4 Mux", SND_SOC_ANALPM, 0, 0, &wm8753_out4_controls),
 SND_SOC_DAPM_PGA("Out 4", WM8753_PWR3, 3, 0, NULL, 0),
 SND_SOC_DAPM_OUTPUT("OUT4"),
 SND_SOC_DAPM_MIXER("Playback Mixer", WM8753_PWR4, 3, 0,
@@ -493,33 +493,33 @@ SND_SOC_DAPM_MIXER("Playback Mixer", WM8753_PWR4, 3, 0,
 	ARRAY_SIZE(wm8753_record_mixer_controls)),
 SND_SOC_DAPM_ADC("Left ADC", "Left Capture", WM8753_PWR2, 3, 0),
 SND_SOC_DAPM_ADC("Right ADC", "Right Capture", WM8753_PWR2, 2, 0),
-SND_SOC_DAPM_MUX("Capture Left Mixer", SND_SOC_NOPM, 0, 0,
-	&wm8753_adc_mono_controls),
-SND_SOC_DAPM_MUX("Capture Right Mixer", SND_SOC_NOPM, 0, 0,
-	&wm8753_adc_mono_controls),
-SND_SOC_DAPM_MUX("Capture Left Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Capture Left Mixer", SND_SOC_ANALPM, 0, 0,
+	&wm8753_adc_moanal_controls),
+SND_SOC_DAPM_MUX("Capture Right Mixer", SND_SOC_ANALPM, 0, 0,
+	&wm8753_adc_moanal_controls),
+SND_SOC_DAPM_MUX("Capture Left Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_adc_left_controls),
-SND_SOC_DAPM_MUX("Capture Right Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Capture Right Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_adc_right_controls),
-SND_SOC_DAPM_MUX("Mic Sidetone Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Mic Sidetone Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_mic_mux_controls),
 SND_SOC_DAPM_PGA("Left Capture Volume", WM8753_PWR2, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Right Capture Volume", WM8753_PWR2, 4, 0, NULL, 0),
 SND_SOC_DAPM_MIXER("ALC Mixer", WM8753_PWR2, 6, 0,
 	&wm8753_alc_mixer_controls[0], ARRAY_SIZE(wm8753_alc_mixer_controls)),
-SND_SOC_DAPM_MUX("Line Left Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Line Left Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_line_left_controls),
-SND_SOC_DAPM_MUX("Line Right Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Line Right Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_line_right_controls),
-SND_SOC_DAPM_MUX("Line Mono Mux", SND_SOC_NOPM, 0, 0,
-	&wm8753_line_mono_controls),
+SND_SOC_DAPM_MUX("Line Moanal Mux", SND_SOC_ANALPM, 0, 0,
+	&wm8753_line_moanal_controls),
 SND_SOC_DAPM_MUX("Line Mixer", WM8753_PWR2, 0, 0,
 	&wm8753_line_mux_mix_controls),
 SND_SOC_DAPM_MUX("Rx Mixer", WM8753_PWR2, 1, 0,
 	&wm8753_rx_mux_mix_controls),
 SND_SOC_DAPM_PGA("Mic 1 Volume", WM8753_PWR2, 8, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Mic 2 Volume", WM8753_PWR2, 7, 0, NULL, 0),
-SND_SOC_DAPM_MUX("Mic Selection Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Mic Selection Mux", SND_SOC_ANALPM, 0, 0,
 	&wm8753_mic_sel_mux_controls),
 SND_SOC_DAPM_INPUT("LINE1"),
 SND_SOC_DAPM_INPUT("LINE2"),
@@ -547,12 +547,12 @@ static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 	{"Right Mixer", "Sidetone Playback Switch", "Mic Sidetone Mux"},
 	{"Right Mixer", "Bypass Playback Switch", "Line Right Mux"},
 
-	/* mono mixer */
-	{"Mono Mixer", "Voice Playback Switch", "Voice DAC"},
-	{"Mono Mixer", "Left Playback Switch", "Left DAC"},
-	{"Mono Mixer", "Right Playback Switch", "Right DAC"},
-	{"Mono Mixer", "Sidetone Playback Switch", "Mic Sidetone Mux"},
-	{"Mono Mixer", "Bypass Playback Switch", "Line Mono Mux"},
+	/* moanal mixer */
+	{"Moanal Mixer", "Voice Playback Switch", "Voice DAC"},
+	{"Moanal Mixer", "Left Playback Switch", "Left DAC"},
+	{"Moanal Mixer", "Right Playback Switch", "Right DAC"},
+	{"Moanal Mixer", "Sidetone Playback Switch", "Mic Sidetone Mux"},
+	{"Moanal Mixer", "Bypass Playback Switch", "Line Moanal Mux"},
 
 	/* left out */
 	{"Left Out 1", NULL, "Left Mixer"},
@@ -566,17 +566,17 @@ static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 	{"ROUT1", NULL, "Right Out 1"},
 	{"ROUT2", NULL, "Right Out 2"},
 
-	/* mono 1 out */
-	{"Mono Out 1", NULL, "Mono Mixer"},
-	{"MONO1", NULL, "Mono Out 1"},
+	/* moanal 1 out */
+	{"Moanal Out 1", NULL, "Moanal Mixer"},
+	{"MOANAL1", NULL, "Moanal Out 1"},
 
-	/* mono 2 out */
-	{"Mono 2 Mux", "Left + Right", "Out3 Left + Right"},
-	{"Mono 2 Mux", "Inverted Mono 1", "MONO1"},
-	{"Mono 2 Mux", "Left", "Left Mixer"},
-	{"Mono 2 Mux", "Right", "Right Mixer"},
-	{"Mono Out 2", NULL, "Mono 2 Mux"},
-	{"MONO2", NULL, "Mono Out 2"},
+	/* moanal 2 out */
+	{"Moanal 2 Mux", "Left + Right", "Out3 Left + Right"},
+	{"Moanal 2 Mux", "Inverted Moanal 1", "MOANAL1"},
+	{"Moanal 2 Mux", "Left", "Left Mixer"},
+	{"Moanal 2 Mux", "Right", "Right Mixer"},
+	{"Moanal Out 2", NULL, "Moanal 2 Mux"},
+	{"MOANAL2", NULL, "Moanal Out 2"},
 
 	/* out 3 */
 	{"Out3 Left + Right", NULL, "Left Mixer"},
@@ -596,7 +596,7 @@ static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 
 	/* record mixer  */
 	{"Playback Mixer", "Left Capture Switch", "Left Mixer"},
-	{"Playback Mixer", "Voice Capture Switch", "Mono Mixer"},
+	{"Playback Mixer", "Voice Capture Switch", "Moanal Mixer"},
 	{"Playback Mixer", "Right Capture Switch", "Right Mixer"},
 
 	/* Mic/SideTone Mux */
@@ -615,17 +615,17 @@ static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 	{"Capture Right Mux", "Line or RXP-RXN", "Line Right Mux"},
 	{"Capture Right Mux", "Sidetone", "Playback Mixer"},
 
-	/* Mono Capture mixer-mux */
+	/* Moanal Capture mixer-mux */
 	{"Capture Right Mixer", "Stereo", "Capture Right Mux"},
 	{"Capture Left Mixer", "Stereo", "Capture Left Mux"},
 	{"Capture Left Mixer", "Analogue Mix Left", "Capture Left Mux"},
 	{"Capture Left Mixer", "Analogue Mix Left", "Capture Right Mux"},
 	{"Capture Right Mixer", "Analogue Mix Right", "Capture Left Mux"},
 	{"Capture Right Mixer", "Analogue Mix Right", "Capture Right Mux"},
-	{"Capture Left Mixer", "Digital Mono Mix", "Capture Left Mux"},
-	{"Capture Left Mixer", "Digital Mono Mix", "Capture Right Mux"},
-	{"Capture Right Mixer", "Digital Mono Mix", "Capture Left Mux"},
-	{"Capture Right Mixer", "Digital Mono Mix", "Capture Right Mux"},
+	{"Capture Left Mixer", "Digital Moanal Mix", "Capture Left Mux"},
+	{"Capture Left Mixer", "Digital Moanal Mix", "Capture Right Mux"},
+	{"Capture Right Mixer", "Digital Moanal Mix", "Capture Left Mux"},
+	{"Capture Right Mixer", "Digital Moanal Mix", "Capture Right Mux"},
 
 	/* ADC */
 	{"Left ADC", NULL, "Capture Left Mixer"},
@@ -651,9 +651,9 @@ static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 	{"Line Right Mux", "Line 2", "LINE2"},
 	{"Line Right Mux", "Rx Mix", "Rx Mixer"},
 
-	/* Line Mono Mux */
-	{"Line Mono Mux", "Line Mix", "Line Mixer"},
-	{"Line Mono Mux", "Rx Mix", "Rx Mixer"},
+	/* Line Moanal Mux */
+	{"Line Moanal Mux", "Line Mix", "Line Mixer"},
+	{"Line Moanal Mux", "Rx Mix", "Rx Mixer"},
 
 	/* Line Mixer/Mux */
 	{"Line Mixer", "Line 1 + 2", "LINE1"},
@@ -729,7 +729,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	K /= 10;
 
 	pll_div->k = K;
@@ -743,7 +743,7 @@ static int wm8753_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	struct snd_soc_component *component = codec_dai->component;
 
 	if (pll_id < WM8753_PLL1 || pll_id > WM8753_PLL2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pll_id == WM8753_PLL1) {
 		offset = 0;
@@ -979,7 +979,7 @@ static int wm8753_pcm_set_dai_fmt(struct snd_soc_component *component,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1105,7 +1105,7 @@ static int wm8753_i2s_set_dai_fmt(struct snd_soc_component *component,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1304,7 +1304,7 @@ static int wm8753_mute(struct snd_soc_dai *dai, int mute, int direction)
 	struct wm8753_priv *wm8753 = snd_soc_component_get_drvdata(component);
 
 	/* the digital mute covers the HiFi and Voice DAC's on the WM8753.
-	 * make sure we check if they are not both active when we mute */
+	 * make sure we check if they are analt both active when we mute */
 	if (mute && wm8753->dai_func == 1) {
 		if (!snd_soc_component_active(component))
 			snd_soc_component_write(component, WM8753_DAC, mute_reg | 0x8);
@@ -1372,7 +1372,7 @@ static int wm8753_set_bias_level(struct snd_soc_component *component,
 /*
  * The WM8753 supports up to 4 different and mutually exclusive DAI
  * configurations. This gives 2 PCM's available for use, hifi and voice.
- * NOTE: The Voice PCM cannot play or capture audio to the CPU as it's DAI
+ * ANALTE: The Voice PCM cananalt play or capture audio to the CPU as it's DAI
  * is connected between the wm8753 and a BT codec or GSM modem.
  *
  * 1. Voice over PCM DAI - HIFI DAC over HIFI DAI
@@ -1387,7 +1387,7 @@ static const struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode = {
 	.set_clkdiv	= wm8753_set_dai_clkdiv,
 	.set_pll	= wm8753_set_dai_pll,
 	.set_sysclk	= wm8753_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const struct snd_soc_dai_ops wm8753_dai_ops_voice_mode = {
@@ -1397,7 +1397,7 @@ static const struct snd_soc_dai_ops wm8753_dai_ops_voice_mode = {
 	.set_clkdiv	= wm8753_set_dai_clkdiv,
 	.set_pll	= wm8753_set_dai_pll,
 	.set_sysclk	= wm8753_set_dai_sysclk,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8753_dai[] = {
@@ -1521,7 +1521,7 @@ static int wm8753_spi_probe(struct spi_device *spi)
 	wm8753 = devm_kzalloc(&spi->dev, sizeof(struct wm8753_priv),
 			      GFP_KERNEL);
 	if (wm8753 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, wm8753);
 
@@ -1559,7 +1559,7 @@ static int wm8753_i2c_probe(struct i2c_client *i2c)
 	wm8753 = devm_kzalloc(&i2c->dev, sizeof(struct wm8753_priv),
 			      GFP_KERNEL);
 	if (wm8753 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm8753);
 

@@ -18,7 +18,7 @@ description: |+
 
   The two slots are supported by a common configuration area. As the SDHCIs for
   the slots are dependent on the common configuration area, they are described
-  as child nodes.
+  as child analdes.
 
 properties:
   compatible:

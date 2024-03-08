@@ -19,7 +19,7 @@ struct phy_shim_info;
 struct brcms_phy_srom_fem {
 	/* TSSI positive slope, 1: positive, 0: negative */
 	u8 tssipos;
-	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
+	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, anal_pa: 2 */
 	u8 extpagain;
 	/* support 32 combinations of different Pdet dynamic ranges */
 	u8 pdetrange;
@@ -110,18 +110,18 @@ struct brcms_phy_srom_fem {
 
 #define MA_WINDOW_SZ		8
 
-#define PHY_NOISE_SAMPLE_MON		1
-#define PHY_NOISE_SAMPLE_EXTERNAL	2
-#define PHY_NOISE_WINDOW_SZ	16
-#define PHY_NOISE_GLITCH_INIT_MA 10
-#define PHY_NOISE_GLITCH_INIT_MA_BADPlCP 10
-#define PHY_NOISE_STATE_MON		0x1
-#define PHY_NOISE_STATE_EXTERNAL	0x2
-#define PHY_NOISE_SAMPLE_LOG_NUM_NPHY	10
-#define PHY_NOISE_SAMPLE_LOG_NUM_UCODE	9
+#define PHY_ANALISE_SAMPLE_MON		1
+#define PHY_ANALISE_SAMPLE_EXTERNAL	2
+#define PHY_ANALISE_WINDOW_SZ	16
+#define PHY_ANALISE_GLITCH_INIT_MA 10
+#define PHY_ANALISE_GLITCH_INIT_MA_BADPlCP 10
+#define PHY_ANALISE_STATE_MON		0x1
+#define PHY_ANALISE_STATE_EXTERNAL	0x2
+#define PHY_ANALISE_SAMPLE_LOG_NUM_NPHY	10
+#define PHY_ANALISE_SAMPLE_LOG_NUM_UCODE	9
 
-#define PHY_NOISE_OFFSETFACT_4322  (-103)
-#define PHY_NOISE_MA_WINDOW_SZ	2
+#define PHY_ANALISE_OFFSETFACT_4322  (-103)
+#define PHY_ANALISE_MA_WINDOW_SZ	2
 
 #define	PHY_RSSI_TABLE_SIZE	64
 #define RSSI_ANT_MERGE_MAX	0
@@ -159,7 +159,7 @@ struct brcms_phy_srom_fem {
 #define PHY_PERICAL_FULL	1
 #define PHY_PERICAL_PARTIAL	2
 
-#define PHY_PERICAL_NODELAY	0
+#define PHY_PERICAL_ANALDELAY	0
 #define PHY_PERICAL_INIT_DELAY	5
 #define PHY_PERICAL_ASSOC_DELAY	5
 #define PHY_PERICAL_WDOG_DELAY	5
@@ -226,8 +226,8 @@ enum phy_cal_mode {
 #define PHY_MUTED(pi) \
 	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_MUTE))
 
-#define PUB_NOT_ASSOC(pi) \
-	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_NOT_ASSOC))
+#define PUB_ANALT_ASSOC(pi) \
+	(mboolisset(pi->measure_hold, PHY_HOLD_FOR_ANALT_ASSOC))
 
 struct phy_table_info {
 	uint table;
@@ -424,13 +424,13 @@ struct nphy_txgains {
 	u16 ipa[2];
 };
 
-#define PHY_NOISEVAR_BUFSIZE 10
+#define PHY_ANALISEVAR_BUFSIZE 10
 
-struct nphy_noisevar_buf {
+struct nphy_analisevar_buf {
 	int bufcount;
-	int tone_id[PHY_NOISEVAR_BUFSIZE];
-	u32 noise_vars[PHY_NOISEVAR_BUFSIZE];
-	u32 min_noise_vars[PHY_NOISEVAR_BUFSIZE];
+	int tone_id[PHY_ANALISEVAR_BUFSIZE];
+	u32 analise_vars[PHY_ANALISEVAR_BUFSIZE];
+	u32 min_analise_vars[PHY_ANALISEVAR_BUFSIZE];
 };
 
 struct rssical_cache {
@@ -475,7 +475,7 @@ struct shared_phy {
 	u32 machwcap;
 	bool up;
 	bool clk;
-	uint now;
+	uint analw;
 	u16 vid;
 	u16 did;
 	uint chip;
@@ -490,8 +490,8 @@ struct shared_phy {
 	uint slow_timer;
 	uint glacial_timer;
 	u8 rx_antdiv;
-	s8 phy_noise_window[MA_WINDOW_SZ];
-	uint phy_noise_index;
+	s8 phy_analise_window[MA_WINDOW_SZ];
+	uint phy_analise_index;
 	u8 hw_phytxchain;
 	u8 hw_phyrxchain;
 	u8 phytxchain;
@@ -557,10 +557,10 @@ struct brcms_phy {
 	bool sbtml_gm;
 	uint refcnt;
 	bool watchdog_override;
-	u8 phynoise_state;
-	uint phynoise_now;
-	int phynoise_chan_watchdog;
-	bool phynoise_polling;
+	u8 phyanalise_state;
+	uint phyanalise_analw;
+	int phyanalise_chan_watchdog;
+	bool phyanalise_polling;
 	bool disable_percal;
 	u32 measure_hold;
 
@@ -634,7 +634,7 @@ struct brcms_phy {
 	u32 phy_tx_tone_freq;
 	uint phy_lastcal;
 	bool phy_forcecal;
-	bool phy_fixed_noise;
+	bool phy_fixed_analise;
 	u32 xtalfreq;
 	u8 pdiv;
 	s8 carrier_suppr_disable;
@@ -703,7 +703,7 @@ struct brcms_phy {
 	bool temppwrctrl_capable;
 
 	uint phycal_nslope;
-	uint phycal_noffset;
+	uint phycal_analffset;
 	uint phycal_mlo;
 	uint phycal_txpower;
 
@@ -750,8 +750,8 @@ struct brcms_phy {
 	u8 nphy_papd_skip;
 	u8 nphy_tssi_slope;
 
-	s16 nphy_noise_win[PHY_CORE_MAX][PHY_NOISE_WINDOW_SZ];
-	u8 nphy_noise_index;
+	s16 nphy_analise_win[PHY_CORE_MAX][PHY_ANALISE_WINDOW_SZ];
+	u8 nphy_analise_index;
 
 	bool nphy_gain_boost;
 	bool nphy_elna_gain_config;
@@ -821,10 +821,10 @@ struct brcms_phy {
 	bool nphy_aband_spurwar_en;
 	u16 nphy_rccal_value;
 	u16 nphy_crsminpwr[3];
-	struct nphy_noisevar_buf nphy_saved_noisevars;
+	struct nphy_analisevar_buf nphy_saved_analisevars;
 	bool nphy_anarxlpf_adjusted;
 	bool nphy_crsminpwr_adjusted;
-	bool nphy_noisevars_adjusted;
+	bool nphy_analisevars_adjusted;
 
 	bool nphy_rxcal_active;
 	u16 radar_percal_mask;
@@ -837,12 +837,12 @@ struct brcms_phy {
 	u16 crsminpwr0;
 	u16 crsminpwrl0;
 	u16 crsminpwru0;
-	s16 noise_crsminpwr_index;
+	s16 analise_crsminpwr_index;
 	u16 init_gain_core1;
 	u16 init_gain_core2;
 	u16 init_gainb_core1;
 	u16 init_gainb_core2;
-	u8 aci_noise_curr_channel;
+	u8 aci_analise_curr_channel;
 	u16 init_gain_rfseq[4];
 
 	bool radio_is_on;
@@ -1077,7 +1077,7 @@ void wlc_phy_rx_iq_est_nphy(struct brcms_phy *pi, struct phy_iq_est *est,
 
 void wlc_phy_rx_iq_coeffs_nphy(struct brcms_phy *pi, u8 write,
 			       struct nphy_iq_comp *comp);
-void wlc_phy_aci_and_noise_reduction_nphy(struct brcms_phy *pi);
+void wlc_phy_aci_and_analise_reduction_nphy(struct brcms_phy *pi);
 
 void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask);
 u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih);

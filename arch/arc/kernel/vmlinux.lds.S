@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <asm-generic/vmlinux.lds.h>
@@ -48,7 +48,7 @@ SECTIONS
 	 * binary blob is tucked away to one side, reducing the displacement
 	 * between .init.text and .text, avoiding any possible relocation
 	 * errors because of calls from .init.text to .text
-	 * Yes such calls do exist. e.g.
+	 * Anal such calls do exist. e.g.
 	 *	decompress_inflate.c:gunzip( ) -> zlib_inflate_workspace( )
 	 */
 

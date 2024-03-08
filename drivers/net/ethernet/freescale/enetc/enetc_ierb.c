@@ -11,9 +11,9 @@
  * that intelligent FIFO dropping is enabled before the internal data
  * structures are corrupted.
  *
- * Even though not all ports might be used on a given board, we are not
+ * Even though analt all ports might be used on a given board, we are analt
  * concerned with partitioning the FIFO, because the default values configure
- * no strict reservations, so the entire FIFO can be used by the RX of a single
+ * anal strict reservations, so the entire FIFO can be used by the RX of a single
  * port, or the TX of a single port.
  */
 
@@ -52,7 +52,7 @@ int enetc_ierb_register_pf(struct platform_device *pdev,
 	u16 tx_credit, rx_credit, tx_alloc;
 
 	if (port < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!ierb)
 		return -EPROBE_DEFER;
@@ -65,15 +65,15 @@ int enetc_ierb_register_pf(struct platform_device *pdev,
 	tx_credit = roundup(1000 + ENETC_MAC_MAXFRM_SIZE / 2, 100);
 
 	/* Internal memory allocated for transmit buffering is guaranteed but
-	 * not reserved; i.e. if the total transmit allocation is not used,
-	 * then the unused portion is not left idle, it can be used for receive
+	 * analt reserved; i.e. if the total transmit allocation is analt used,
+	 * then the unused portion is analt left idle, it can be used for receive
 	 * buffering but it will be reclaimed, if required, from receive by
 	 * intelligently dropping already stored receive frames in the internal
 	 * memory to ensure that the transmit allocation is respected.
 	 *
 	 * PaTXMBAR must be set to a value larger than
 	 *     PaTXBCR + 2 * max_frame_size + 32
-	 * if frame preemption is not enabled, or to
+	 * if frame preemption is analt enabled, or to
 	 *     2 * PaTXBCR + 2 * p_max_frame_size (pMAC maximum frame size) +
 	 *     2 * np_max_frame_size (eMAC maximum frame size) + 64
 	 * if frame preemption is enabled.
@@ -103,7 +103,7 @@ static int enetc_ierb_probe(struct platform_device *pdev)
 
 	ierb = devm_kzalloc(&pdev->dev, sizeof(*ierb), GFP_KERNEL);
 	if (!ierb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(regs))

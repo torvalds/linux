@@ -10,7 +10,7 @@ maintainers:
   - Lukas Wunner <lukas@wunner.de>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^tpm(@[0-9a-f]+)?$'
 
   interrupts:
@@ -37,7 +37,7 @@ properties:
   powered-while-suspended:
     description:
       present when the TPM is left powered on between suspend and resume
-      (makes the suspend/resume callbacks do nothing)
+      (makes the suspend/resume callbacks do analthing)
     type: boolean
 
   resets:

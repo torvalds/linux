@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-#ifndef __NOUVEAU_VGA_H__
-#define __NOUVEAU_VGA_H__
+#ifndef __ANALUVEAU_VGA_H__
+#define __ANALUVEAU_VGA_H__
 #include <core/subdev.h>
 
 /* access to various legacy io ports */

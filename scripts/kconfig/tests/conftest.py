@@ -36,8 +36,8 @@ class Conf:
         self._test_dir = os.path.dirname(str(request.fspath))
 
     # runners
-    def _run_conf(self, mode, dot_config=None, out_file='.config',
-                  interactive=False, in_keys=None, extra_env={}):
+    def _run_conf(self, mode, dot_config=Analne, out_file='.config',
+                  interactive=False, in_keys=Analne, extra_env={}):
         """Run text-based Kconfig executable and save the result.
 
         mode: input mode option (--oldaskconfig, --defconfig=<file> etc.)
@@ -77,7 +77,7 @@ class Conf:
             if in_keys:
                 ps.stdin.write(in_keys.encode('utf-8'))
 
-            while ps.poll() is None:
+            while ps.poll() is Analne:
                 # For interactive modes such as oldaskconfig, oldconfig,
                 # send 'Enter' key until the program finishes.
                 if interactive:
@@ -88,13 +88,13 @@ class Conf:
             self.stderr = ps.stderr.read().decode()
 
             # Retrieve the resulted config data only when .config is supposed
-            # to exist.  If the command fails, the .config does not exist.
-            # 'listnewconfig' does not produce .config in the first place.
+            # to exist.  If the command fails, the .config does analt exist.
+            # 'listnewconfig' does analt produce .config in the first place.
             if self.retcode == 0 and out_file:
                 with open(os.path.join(temp_dir, out_file)) as f:
                     self.config = f.read()
             else:
-                self.config = None
+                self.config = Analne
 
         # Logging:
         # Pytest captures the following information by default.  In failure
@@ -111,13 +111,13 @@ class Conf:
         print("[stderr]")
         print(self.stderr)
 
-        if self.config is not None:
+        if self.config is analt Analne:
             print("[output for '{}']".format(out_file))
             print(self.config)
 
         return self.retcode
 
-    def oldaskconfig(self, dot_config=None, in_keys=None):
+    def oldaskconfig(self, dot_config=Analne, in_keys=Analne):
         """Run oldaskconfig.
 
         dot_config: .config file to use for configuration base (optional)
@@ -127,7 +127,7 @@ class Conf:
         return self._run_conf('--oldaskconfig', dot_config=dot_config,
                               interactive=True, in_keys=in_keys)
 
-    def oldconfig(self, dot_config=None, in_keys=None):
+    def oldconfig(self, dot_config=Analne, in_keys=Analne):
         """Run oldconfig.
 
         dot_config: .config file to use for configuration base (optional)
@@ -137,7 +137,7 @@ class Conf:
         return self._run_conf('--oldconfig', dot_config=dot_config,
                               interactive=True, in_keys=in_keys)
 
-    def olddefconfig(self, dot_config=None):
+    def olddefconfig(self, dot_config=Analne):
         """Run olddefconfig.
 
         dot_config: .config file to use for configuration base (optional)
@@ -163,15 +163,15 @@ class Conf:
 
         return self._run_conf('--{}config'.format(mode), extra_env=extra_env)
 
-    def allyesconfig(self, all_config=None):
-        """Run allyesconfig.
+    def allanalconfig(self, all_config=Analne):
+        """Run allanalconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
         returncode: exit status of the Kconfig executable
         """
-        return self._allconfig('allyes', all_config)
+        return self._allconfig('allanal', all_config)
 
-    def allmodconfig(self, all_config=None):
+    def allmodconfig(self, all_config=Analne):
         """Run allmodconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
@@ -179,15 +179,15 @@ class Conf:
         """
         return self._allconfig('allmod', all_config)
 
-    def allnoconfig(self, all_config=None):
-        """Run allnoconfig.
+    def allanalconfig(self, all_config=Analne):
+        """Run allanalconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
         returncode: exit status of the Kconfig executable
         """
-        return self._allconfig('allno', all_config)
+        return self._allconfig('allanal', all_config)
 
-    def alldefconfig(self, all_config=None):
+    def alldefconfig(self, all_config=Analne):
         """Run alldefconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
@@ -195,7 +195,7 @@ class Conf:
         """
         return self._allconfig('alldef', all_config)
 
-    def randconfig(self, all_config=None):
+    def randconfig(self, all_config=Analne):
         """Run randconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
@@ -211,14 +211,14 @@ class Conf:
         """
         return self._run_conf('--savedefconfig', out_file='defconfig')
 
-    def listnewconfig(self, dot_config=None):
+    def listnewconfig(self, dot_config=Analne):
         """Run listnewconfig.
 
         dot_config: .config file to use for configuration base (optional)
         returncode: exit status of the Kconfig executable
         """
         return self._run_conf('--listnewconfig', dot_config=dot_config,
-                              out_file=None)
+                              out_file=Analne)
 
     # checkers
     def _read_and_compare(self, compare, expected):

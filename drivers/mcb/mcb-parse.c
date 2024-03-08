@@ -49,7 +49,7 @@ static int chameleon_parse_gdd(struct mcb_bus *bus,
 
 	mdev = mcb_alloc_dev(bus);
 	if (!mdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reg1 = readl(&gdd->reg1);
 	reg2 = readl(&gdd->reg2);
@@ -69,20 +69,20 @@ static int chameleon_parse_gdd(struct mcb_bus *bus,
 	 * next device, instead of completely stop the gdd parser
 	 */
 	if (mdev->bar > bar_count - 1) {
-		pr_info("No BAR for 16z%03d\n", mdev->id);
+		pr_info("Anal BAR for 16z%03d\n", mdev->id);
 		ret = 0;
 		goto err;
 	}
 
 	dev_mapbase = cb[mdev->bar].addr;
 	if (!dev_mapbase) {
-		pr_info("BAR not assigned for 16z%03d\n", mdev->id);
+		pr_info("BAR analt assigned for 16z%03d\n", mdev->id);
 		ret = 0;
 		goto err;
 	}
 
 	if (dev_mapbase & 0x01) {
-		pr_info("IO mapped Device (16z%03d) not yet supported\n",
+		pr_info("IO mapped Device (16z%03d) analt yet supported\n",
 			mdev->id);
 		ret = 0;
 		goto err;
@@ -137,7 +137,7 @@ static int chameleon_get_bar(void __iomem **base, phys_addr_t mapbase,
 	u32 dtype;
 
 	/*
-	 * For those devices which are not connected
+	 * For those devices which are analt connected
 	 * to the PCI Bus (e.g. LPC) there is a bar
 	 * descriptor located directly after the
 	 * chameleon header. This header is comparable
@@ -149,19 +149,19 @@ static int chameleon_get_bar(void __iomem **base, phys_addr_t mapbase,
 
 		bar_count = BAR_CNT(reg);
 		if (bar_count <= 0 || bar_count > CHAMELEON_BAR_MAX)
-			return -ENODEV;
+			return -EANALDEV;
 
 		c = kcalloc(bar_count, sizeof(struct chameleon_bar),
 			    GFP_KERNEL);
 		if (!c)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		chameleon_parse_bar(*base, c, bar_count);
 		*base += BAR_DESC_SIZE(bar_count);
 	} else {
 		c = kzalloc(sizeof(struct chameleon_bar), GFP_KERNEL);
 		if (!c)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		bar_count = 1;
 		c->addr = mapbase;
@@ -189,7 +189,7 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 
 	header = kzalloc(hsize, GFP_KERNEL);
 	if (!header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Extract header information */
 	memcpy_fromio(header, p, hsize);
@@ -198,14 +198,14 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 	if (header->magic != CHAMELEONV2_MAGIC) {
 		pr_err("Unsupported chameleon version 0x%x\n",
 				header->magic);
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto free_header;
 	}
 	p += hsize;
 
 	bus->revision = header->revision;
 	bus->model = header->model;
-	bus->minor = header->minor;
+	bus->mianalr = header->mianalr;
 	snprintf(bus->name, CHAMELEON_FILENAME_LEN + 1, "%s",
 		 header->filename);
 

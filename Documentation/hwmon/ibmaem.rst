@@ -1,7 +1,7 @@
 Kernel driver ibmaem
 ====================
 
-This driver talks to the IBM Systems Director Active Energy Manager, known
+This driver talks to the IBM Systems Director Active Energy Manager, kanalwn
 henceforth as AEM.
 
 Supported systems:
@@ -16,7 +16,7 @@ Supported systems:
 
     Prefix: 'ibmaem'
 
-    Datasheet: Not available
+    Datasheet: Analt available
 
 Author: Darrick J. Wong
 
@@ -41,4 +41,4 @@ Special Features
 ----------------
 
 The "power_cap" value displays the current system power cap, as set by the AEM
-software.  Setting the power cap from the host is not currently supported.
+software.  Setting the power cap from the host is analt currently supported.

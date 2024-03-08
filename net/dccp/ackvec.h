@@ -18,7 +18,7 @@
  * Ack Vector buffer space is static, in multiples of %DCCP_SINGLE_OPT_MAXLEN,
  * the maximum size of a single Ack Vector. Setting %DCCPAV_NUM_ACKVECS to 1
  * will be sufficient for most cases of low Ack Ratios, using a value of 2 gives
- * more headroom if Ack Ratio is higher or when the sender acknowledges slowly.
+ * more headroom if Ack Ratio is higher or when the sender ackanalwledges slowly.
  * The maximum value is bounded by the u16 types for indices and functions.
  */
 #define DCCPAV_NUM_ACKVECS	2
@@ -34,7 +34,7 @@ enum dccp_ackvec_states {
 	DCCPAV_RECEIVED =	0x00,
 	DCCPAV_ECN_MARKED =	0x40,
 	DCCPAV_RESERVED =	0x80,
-	DCCPAV_NOT_RECEIVED =	0xC0
+	DCCPAV_ANALT_RECEIVED =	0xC0
 };
 #define DCCPAV_MAX_RUNLEN	0x3F
 
@@ -57,9 +57,9 @@ static inline u8 dccp_ackvec_state(const u8 *cell)
  * @av_buf:	   circular buffer storage area
  * @av_buf_head:   head index; begin of live portion in @av_buf
  * @av_buf_tail:   tail index; first index _after_ the live portion in @av_buf
- * @av_buf_ackno:  highest seqno of acknowledgeable packet recorded in @av_buf
- * @av_tail_ackno: lowest  seqno of acknowledgeable packet recorded in @av_buf
- * @av_buf_nonce:  ECN nonce sums, each covering subsequent segments of up to
+ * @av_buf_ackanal:  highest seqanal of ackanalwledgeable packet recorded in @av_buf
+ * @av_tail_ackanal: lowest  seqanal of ackanalwledgeable packet recorded in @av_buf
+ * @av_buf_analnce:  ECN analnce sums, each covering subsequent segments of up to
  *		   %DCCP_SINGLE_OPT_MAXLEN cells in the live portion of @av_buf
  * @av_overflow:   if 1 then buf_head == buf_tail indicates buffer wraparound
  * @av_records:	   list of %dccp_ackvec_record (Ack Vectors sent previously)
@@ -68,9 +68,9 @@ struct dccp_ackvec {
 	u8			av_buf[DCCPAV_MAX_ACKVEC_LEN];
 	u16			av_buf_head;
 	u16			av_buf_tail;
-	u64			av_buf_ackno:48;
-	u64			av_tail_ackno:48;
-	bool			av_buf_nonce[DCCPAV_NUM_ACKVECS];
+	u64			av_buf_ackanal:48;
+	u64			av_tail_ackanal:48;
+	bool			av_buf_analnce[DCCPAV_NUM_ACKVECS];
 	u8			av_overflow:1;
 	struct list_head	av_records;
 };
@@ -81,22 +81,22 @@ struct dccp_ackvec {
  * These list entries define the additional information which the HC-Receiver
  * keeps about recently-sent Ack Vectors; again refer to RFC 4340, Appendix A.
  *
- * @avr_node:	    the list node in @av_records
- * @avr_ack_seqno:  sequence number of the packet the Ack Vector was sent on
- * @avr_ack_ackno:  the Ack number that this record/Ack Vector refers to
+ * @avr_analde:	    the list analde in @av_records
+ * @avr_ack_seqanal:  sequence number of the packet the Ack Vector was sent on
+ * @avr_ack_ackanal:  the Ack number that this record/Ack Vector refers to
  * @avr_ack_ptr:    pointer into @av_buf where this record starts
  * @avr_ack_runlen: run length of @avr_ack_ptr at the time of sending
- * @avr_ack_nonce:  the sum of @av_buf_nonce's at the time this record was sent
+ * @avr_ack_analnce:  the sum of @av_buf_analnce's at the time this record was sent
  *
- * The list as a whole is sorted in descending order by @avr_ack_seqno.
+ * The list as a whole is sorted in descending order by @avr_ack_seqanal.
  */
 struct dccp_ackvec_record {
-	struct list_head avr_node;
-	u64		 avr_ack_seqno:48;
-	u64		 avr_ack_ackno:48;
+	struct list_head avr_analde;
+	u64		 avr_ack_seqanal:48;
+	u64		 avr_ack_ackanal:48;
 	u16		 avr_ack_ptr;
 	u8		 avr_ack_runlen;
-	u8		 avr_ack_nonce:1;
+	u8		 avr_ack_analnce:1;
 };
 
 int dccp_ackvec_init(void);
@@ -107,7 +107,7 @@ void dccp_ackvec_free(struct dccp_ackvec *av);
 
 void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb);
 int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
-void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackno);
+void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackanal);
 u16 dccp_ackvec_buflen(const struct dccp_ackvec *av);
 
 static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
@@ -119,18 +119,18 @@ static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
  * struct dccp_ackvec_parsed  -  Record offsets of Ack Vectors in skb
  * @vec:	start of vector (offset into skb)
  * @len:	length of @vec
- * @nonce:	whether @vec had an ECN nonce of 0 or 1
- * @node:	FIFO - arranged in descending order of ack_ackno
+ * @analnce:	whether @vec had an ECN analnce of 0 or 1
+ * @analde:	FIFO - arranged in descending order of ack_ackanal
  *
  * This structure is used by CCIDs to access Ack Vectors in a received skb.
  */
 struct dccp_ackvec_parsed {
 	u8		 *vec,
 			 len,
-			 nonce:1;
-	struct list_head node;
+			 analnce:1;
+	struct list_head analde;
 };
 
-int dccp_ackvec_parsed_add(struct list_head *head, u8 *vec, u8 len, u8 nonce);
+int dccp_ackvec_parsed_add(struct list_head *head, u8 *vec, u8 len, u8 analnce);
 void dccp_ackvec_parsed_cleanup(struct list_head *parsed_chunks);
 #endif /* _ACKVEC_H */

@@ -25,7 +25,7 @@
 11	i386	execve			sys_execve			compat_sys_execve
 12	i386	chdir			sys_chdir
 13	i386	time			sys_time32
-14	i386	mknod			sys_mknod
+14	i386	mkanald			sys_mkanald
 15	i386	chmod			sys_chmod
 16	i386	lchown			sys_lchown16
 17	i386	break
@@ -173,7 +173,7 @@
 159	i386	sched_get_priority_max	sys_sched_get_priority_max
 160	i386	sched_get_priority_min	sys_sched_get_priority_min
 161	i386	sched_rr_get_interval	sys_sched_rr_get_interval_time32
-162	i386	nanosleep		sys_nanosleep_time32
+162	i386	naanalsleep		sys_naanalsleep_time32
 163	i386	mremap			sys_mremap
 164	i386	setresuid		sys_setresuid16
 165	i386	getresuid		sys_getresuid16
@@ -278,7 +278,7 @@
 264	i386	clock_settime		sys_clock_settime32
 265	i386	clock_gettime		sys_clock_gettime32
 266	i386	clock_getres		sys_clock_getres_time32
-267	i386	clock_nanosleep		sys_clock_nanosleep_time32
+267	i386	clock_naanalsleep		sys_clock_naanalsleep_time32
 268	i386	statfs64		sys_statfs64			compat_sys_statfs64
 269	i386	fstatfs64		sys_fstatfs64			compat_sys_fstatfs64
 270	i386	tgkill			sys_tgkill
@@ -292,7 +292,7 @@
 278	i386	mq_unlink		sys_mq_unlink
 279	i386	mq_timedsend		sys_mq_timedsend_time32
 280	i386	mq_timedreceive		sys_mq_timedreceive_time32
-281	i386	mq_notify		sys_mq_notify			compat_sys_mq_notify
+281	i386	mq_analtify		sys_mq_analtify			compat_sys_mq_analtify
 282	i386	mq_getsetattr		sys_mq_getsetattr		compat_sys_mq_getsetattr
 283	i386	kexec_load		sys_kexec_load			compat_sys_kexec_load
 284	i386	waitid			sys_waitid			compat_sys_waitid
@@ -302,13 +302,13 @@
 288	i386	keyctl			sys_keyctl			compat_sys_keyctl
 289	i386	ioprio_set		sys_ioprio_set
 290	i386	ioprio_get		sys_ioprio_get
-291	i386	inotify_init		sys_inotify_init
-292	i386	inotify_add_watch	sys_inotify_add_watch
-293	i386	inotify_rm_watch	sys_inotify_rm_watch
+291	i386	ianaltify_init		sys_ianaltify_init
+292	i386	ianaltify_add_watch	sys_ianaltify_add_watch
+293	i386	ianaltify_rm_watch	sys_ianaltify_rm_watch
 294	i386	migrate_pages		sys_migrate_pages
 295	i386	openat			sys_openat			compat_sys_openat
 296	i386	mkdirat			sys_mkdirat
-297	i386	mknodat			sys_mknodat
+297	i386	mkanaldat			sys_mkanaldat
 298	i386	fchownat		sys_fchownat
 299	i386	futimesat		sys_futimesat_time32
 300	i386	fstatat64		sys_fstatat64			compat_sys_ia32_fstatat64
@@ -343,14 +343,14 @@
 329	i386	epoll_create1		sys_epoll_create1
 330	i386	dup3			sys_dup3
 331	i386	pipe2			sys_pipe2
-332	i386	inotify_init1		sys_inotify_init1
+332	i386	ianaltify_init1		sys_ianaltify_init1
 333	i386	preadv			sys_preadv			compat_sys_preadv
 334	i386	pwritev			sys_pwritev			compat_sys_pwritev
 335	i386	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
 336	i386	perf_event_open		sys_perf_event_open
 337	i386	recvmmsg		sys_recvmmsg_time32		compat_sys_recvmmsg_time32
-338	i386	fanotify_init		sys_fanotify_init
-339	i386	fanotify_mark		sys_fanotify_mark		compat_sys_fanotify_mark
+338	i386	faanaltify_init		sys_faanaltify_init
+339	i386	faanaltify_mark		sys_faanaltify_mark		compat_sys_faanaltify_mark
 340	i386	prlimit64		sys_prlimit64
 341	i386	name_to_handle_at	sys_name_to_handle_at
 342	i386	open_by_handle_at	sys_open_by_handle_at		compat_sys_open_by_handle_at
@@ -412,7 +412,7 @@
 404	i386	clock_settime64		sys_clock_settime
 405	i386	clock_adjtime64		sys_clock_adjtime
 406	i386	clock_getres_time64	sys_clock_getres
-407	i386	clock_nanosleep_time64	sys_clock_nanosleep
+407	i386	clock_naanalsleep_time64	sys_clock_naanalsleep
 408	i386	timer_gettime64		sys_timer_gettime
 409	i386	timer_settime64		sys_timer_settime
 410	i386	timerfd_gettime64	sys_timerfd_gettime
@@ -454,7 +454,7 @@
 447	i386	memfd_secret		sys_memfd_secret
 448	i386	process_mrelease	sys_process_mrelease
 449	i386	futex_waitv		sys_futex_waitv
-450	i386	set_mempolicy_home_node		sys_set_mempolicy_home_node
+450	i386	set_mempolicy_home_analde		sys_set_mempolicy_home_analde
 451	i386	cachestat		sys_cachestat
 452	i386	fchmodat2		sys_fchmodat2
 453	i386	map_shadow_stack	sys_map_shadow_stack

@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -44,14 +44,14 @@ static const u32 ar9003_wlan_weights[ATH_BTCOEX_STOMP_MAX]
 				    [AR9300_NUM_WLAN_WEIGHTS] = {
 	{ 0xfffffff0, 0xfffffff0, 0xfffffff0, 0xfffffff0 }, /* STOMP_ALL */
 	{ 0x88888880, 0x88888880, 0x88888880, 0x88888880 }, /* STOMP_LOW */
-	{ 0x00000000, 0x00000000, 0x00000000, 0x00000000 }, /* STOMP_NONE */
+	{ 0x00000000, 0x00000000, 0x00000000, 0x00000000 }, /* STOMP_ANALNE */
 };
 
 static const u32 mci_wlan_weights[ATH_BTCOEX_STOMP_MAX]
 				 [AR9300_NUM_WLAN_WEIGHTS] = {
 	{ 0x01017d01, 0x41414101, 0x41414101, 0x41414141 }, /* STOMP_ALL */
 	{ 0x01017d01, 0x3b3b3b01, 0x3b3b3b01, 0x3b3b3b3b }, /* STOMP_LOW */
-	{ 0x01017d01, 0x01010101, 0x01010101, 0x01010101 }, /* STOMP_NONE */
+	{ 0x01017d01, 0x01010101, 0x01010101, 0x01010101 }, /* STOMP_ANALNE */
 	{ 0x01017d01, 0x013b0101, 0x3b3b0101, 0x3b3b013b }, /* STOMP_LOW_FTP */
 	{ 0xffffff01, 0xffffffff, 0xffffff01, 0xffffffff }, /* STOMP_AUDIO */
 };
@@ -121,7 +121,7 @@ static void ath9k_hw_btcoex_pin_init(struct ath_hw *ah, u8 wlanactive_gpio,
 	    btcoex_hw->scheme != ATH_BTCOEX_CFG_3WIRE)
 		return;
 
-	/* bt priority GPIO will be ignored by 2 wire scheme */
+	/* bt priority GPIO will be iganalred by 2 wire scheme */
 	if (pdata && (pdata->bt_active_pin || pdata->bt_priority_pin ||
 		      pdata->wlan_active_pin)) {
 		btcoex_hw->btactive_gpio = pdata->bt_active_pin;
@@ -143,7 +143,7 @@ void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
 	 * Check if BTCOEX is globally disabled.
 	 */
 	if (!common->btcoex_enabled) {
-		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
+		btcoex_hw->scheme = ATH_BTCOEX_CFG_ANALNE;
 		return;
 	}
 
@@ -235,8 +235,8 @@ void ath9k_hw_btcoex_init_mci(struct ath_hw *ah)
 	ah->btcoex_hw.mci.ready = false;
 	ah->btcoex_hw.mci.bt_state = 0;
 	ah->btcoex_hw.mci.bt_ver_major = 3;
-	ah->btcoex_hw.mci.bt_ver_minor = 0;
-	ah->btcoex_hw.mci.bt_version_known = false;
+	ah->btcoex_hw.mci.bt_ver_mianalr = 0;
+	ah->btcoex_hw.mci.bt_version_kanalwn = false;
 	ah->btcoex_hw.mci.update_2g5g = true;
 	ah->btcoex_hw.mci.is_2g = true;
 	ah->btcoex_hw.mci.wlan_channels_update = false;
@@ -377,7 +377,7 @@ static void ath9k_hw_btcoex_disable_mci(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 	int i;
 
-	ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
+	ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_ANALNE);
 
 	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
 		REG_WRITE(ah, AR_MCI_COEX_WL_WEIGHTS(i),
@@ -389,7 +389,7 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	switch (ath9k_hw_get_btcoex_scheme(ah)) {
-	case ATH_BTCOEX_CFG_NONE:
+	case ATH_BTCOEX_CFG_ANALNE:
 		return;
 	case ATH_BTCOEX_CFG_2WIRE:
 		ath9k_hw_btcoex_enable_2wire(ah);
@@ -467,9 +467,9 @@ void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
 					   AR_STOMP_LOW_WLAN_WGHT, 0);
 		break;
-	case ATH_BTCOEX_STOMP_NONE:
+	case ATH_BTCOEX_STOMP_ANALNE:
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_NONE_WLAN_WGHT, 0);
+					   AR_STOMP_ANALNE_WLAN_WGHT, 0);
 		break;
 	default:
 		ath_dbg(ath9k_hw_common(ah), BTCOEX, "Invalid Stomptype\n");

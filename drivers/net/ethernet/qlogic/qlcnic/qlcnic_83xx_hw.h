@@ -38,7 +38,7 @@
 #define QLC_83XX_DRV_LOCK_RECOVERY_STATUS_MASK		0x3
 #define QLC_83XX_LB_WAIT_COUNT				250
 #define QLC_83XX_LB_MSLEEP_COUNT			20
-#define QLC_83XX_NO_NIC_RESOURCE	0x5
+#define QLC_83XX_ANAL_NIC_RESOURCE	0x5
 #define QLC_83XX_MAC_PRESENT		0xC
 #define QLC_83XX_MAC_ABSENT		0xD
 
@@ -130,8 +130,8 @@ struct qlcnic_sds_mbx {
  * phy_addr_reg_{low|high}: physical address of regular buffer
  * phy_addr_jmb_{low|high}: physical address of jumbo buffer
  * reg_ring_sz: size of regular buffer
- * reg_ring_len: no. of entries in regular buffer
- * jmb_ring_len: no. of entries in jumbo buffer
+ * reg_ring_len: anal. of entries in regular buffer
+ * jmb_ring_len: anal. of entries in jumbo buffer
  * jmb_ring_sz: size of jumbo buffer
  */
 struct qlcnic_rds_mbx {
@@ -305,7 +305,7 @@ struct qlc_83xx_reset {
 #define QLC_83XX_IDC_MAX_FUNC_PER_PARTITION_INFO	8
 #define QLC_83XX_IDC_MAX_CNA_FUNCTIONS			16
 #define QLC_83XX_IDC_MAJOR_VERSION			1
-#define QLC_83XX_IDC_MINOR_VERSION			0
+#define QLC_83XX_IDC_MIANALR_VERSION			0
 #define QLC_83XX_IDC_FLASH_PARAM_ADDR			0x3e8020
 
 struct qlcnic_adapter;
@@ -334,7 +334,7 @@ enum qlcnic_vlan_operations {
 
 /* Device States */
 enum qlcnic_83xx_states {
-	QLC_83XX_IDC_DEV_UNKNOWN,
+	QLC_83XX_IDC_DEV_UNKANALWN,
 	QLC_83XX_IDC_DEV_COLD,
 	QLC_83XX_IDC_DEV_INIT,
 	QLC_83XX_IDC_DEV_READY,
@@ -467,7 +467,7 @@ enum qlcnic_83xx_states {
 
 enum qlc_83xx_mbx_cmd_type {
 	QLC_83XX_MBX_CMD_WAIT = 0,
-	QLC_83XX_MBX_CMD_NO_WAIT,
+	QLC_83XX_MBX_CMD_ANAL_WAIT,
 	QLC_83XX_MBX_CMD_BUSY_WAIT,
 };
 
@@ -477,7 +477,7 @@ enum qlc_83xx_mbx_response_states {
 };
 
 #define QLC_83XX_MBX_RESPONSE_FAILED	0x2
-#define QLC_83XX_MBX_RESPONSE_UNKNOWN	0x3
+#define QLC_83XX_MBX_RESPONSE_UNKANALWN	0x3
 
 /* Additional registers in 83xx */
 enum qlc_83xx_ext_regs {
@@ -536,7 +536,7 @@ enum qlc_83xx_ext_regs {
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 int qlcnic_83xx_setup_intr(struct qlcnic_adapter *);
-void qlcnic_83xx_get_func_no(struct qlcnic_adapter *);
+void qlcnic_83xx_get_func_anal(struct qlcnic_adapter *);
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *);
 void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *);
 int qlcnic_send_ctrl_op(struct qlcnic_adapter *, struct qlcnic_cmd_args *, u32);

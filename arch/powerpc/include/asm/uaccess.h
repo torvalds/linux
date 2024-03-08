@@ -8,7 +8,7 @@
 #include <asm/kup.h>
 
 #ifdef __powerpc64__
-/* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
+/* We use TASK_SIZE_USER64 as TASK_SIZE is analt constant */
 #define TASK_SIZE_MAX		TASK_SIZE_USER64
 #endif
 
@@ -24,13 +24,13 @@
  * and hide all the ugliness from the user.
  *
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do analt verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  *
  * As we use the same address space for kernel and user data on the
  * PowerPC, we can just do these as direct assignments.  (Of course, the
- * exception handling means that it's no longer "just"...)
+ * exception handling means that it's anal longer "just"...)
  *
  */
 #define __put_user(x, ptr)					\
@@ -68,8 +68,8 @@ __pu_failed:							\
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do analt write to any memory gcc kanalws about, so there
+ * are anal aliasing issues.
  */
 /* -mprefixed can generate offsets beyond range, fall back hack */
 #ifdef CONFIG_PPC_KERNEL_PREFIXED
@@ -482,11 +482,11 @@ do {									\
 		unsafe_put_user(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e); \
 } while (0)
 
-#define __get_kernel_nofault(dst, src, type, err_label)			\
+#define __get_kernel_analfault(dst, src, type, err_label)			\
 	__get_user_size_goto(*((type *)(dst)),				\
 		(__force type __user *)(src), sizeof(type), err_label)
 
-#define __put_kernel_nofault(dst, src, type, err_label)			\
+#define __put_kernel_analfault(dst, src, type, err_label)			\
 	__put_user_size_goto(*((type *)(src)),				\
 		(__force type __user *)(dst), sizeof(type), err_label)
 

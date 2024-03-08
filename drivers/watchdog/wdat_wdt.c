@@ -19,12 +19,12 @@
  * struct wdat_instruction - Single ACPI WDAT instruction
  * @entry: Copy of the ACPI table instruction
  * @reg: Register the instruction is accessing
- * @node: Next instruction in action sequence
+ * @analde: Next instruction in action sequence
  */
 struct wdat_instruction {
 	struct acpi_wdat_entry entry;
 	void __iomem *reg;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /**
@@ -35,7 +35,7 @@ struct wdat_instruction {
  * @stopped_in_sleep: Is this watchdog stopped by the firmware in S1-S5
  * @stopped: Was the watchdog stopped by the driver in suspend
  * @instructions: An array of instruction lists indexed by an action number from
- *                the WDAT table. There can be %NULL entries for not implemented
+ *                the WDAT table. There can be %NULL entries for analt implemented
  *                actions.
  */
 struct wdat_wdt {
@@ -49,10 +49,10 @@ struct wdat_wdt {
 
 #define to_wdat_wdt(wdd) container_of(wdd, struct wdat_wdt, wdd)
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 #define WDAT_DEFAULT_TIMEOUT	30
 
@@ -120,12 +120,12 @@ static int wdat_wdt_run_action(struct wdat_wdt *wdat, unsigned int action,
 		return -EINVAL;
 
 	if (!wdat->instructions[action])
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dev_dbg(&wdat->pdev->dev, "Running action %#x\n", action);
 
 	/* Run each instruction sequentially */
-	list_for_each_entry(instr, wdat->instructions[action], node) {
+	list_for_each_entry(instr, wdat->instructions[action], analde) {
 		const struct acpi_wdat_entry *entry = &instr->entry;
 		const struct acpi_generic_address *gas;
 		u32 flags, value, mask, x, y;
@@ -192,7 +192,7 @@ static int wdat_wdt_run_action(struct wdat_wdt *wdat, unsigned int action,
 			break;
 
 		default:
-			dev_err(&wdat->pdev->dev, "Unknown instruction: %u\n",
+			dev_err(&wdat->pdev->dev, "Unkanalwn instruction: %u\n",
 				flags);
 			return -EINVAL;
 		}
@@ -209,10 +209,10 @@ static int wdat_wdt_enable_reboot(struct wdat_wdt *wdat)
 	 * WDAT specification says that the watchdog is required to reboot
 	 * the system when it fires. However, it also states that it is
 	 * recommended to make it configurable through hardware register. We
-	 * enable reboot now if it is configurable, just in case.
+	 * enable reboot analw if it is configurable, just in case.
 	 */
 	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_REBOOT, 0, NULL);
-	if (ret && ret != -EOPNOTSUPP) {
+	if (ret && ret != -EOPANALTSUPP) {
 		dev_err(&wdat->pdev->dev,
 			"Failed to enable reboot when watchdog triggers\n");
 		return ret;
@@ -227,7 +227,7 @@ static void wdat_wdt_boot_status(struct wdat_wdt *wdat)
 	int ret;
 
 	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_GET_STATUS, 0, &boot_status);
-	if (ret && ret != -EOPNOTSUPP) {
+	if (ret && ret != -EOPANALTSUPP) {
 		dev_err(&wdat->pdev->dev, "Failed to read boot status\n");
 		return;
 	}
@@ -235,9 +235,9 @@ static void wdat_wdt_boot_status(struct wdat_wdt *wdat)
 	if (boot_status)
 		wdat->wdd.bootstatus = WDIOF_CARDRESET;
 
-	/* Clear the boot status in case BIOS did not do it */
+	/* Clear the boot status in case BIOS did analt do it */
 	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_SET_STATUS, 0, NULL);
-	if (ret && ret != -EOPNOTSUPP)
+	if (ret && ret != -EOPANALTSUPP)
 		dev_err(&wdat->pdev->dev, "Failed to clear boot status\n");
 }
 
@@ -248,7 +248,7 @@ static void wdat_wdt_set_running(struct wdat_wdt *wdat)
 
 	ret = wdat_wdt_run_action(wdat, ACPI_WDAT_GET_RUNNING_STATE, 0,
 				  &running);
-	if (ret && ret != -EOPNOTSUPP)
+	if (ret && ret != -EOPANALTSUPP)
 		dev_err(&wdat->pdev->dev, "Failed to read running state\n");
 
 	if (running)
@@ -323,16 +323,16 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	status = acpi_get_table(ACPI_SIG_WDAT, 0,
 				(struct acpi_table_header **)&tbl);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EANALDEV;
 
 	wdat = devm_kzalloc(dev, sizeof(*wdat), GFP_KERNEL);
 	if (!wdat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regs = devm_kcalloc(dev, pdev->num_resources, sizeof(*regs),
 			    GFP_KERNEL);
 	if (!regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* WDAT specification wants to have >= 1ms period */
 	if (tbl->timer_period < 1)
@@ -360,7 +360,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		} else if (resource_type(res) == IORESOURCE_IO) {
 			reg = devm_ioport_map(dev, res->start, 1);
 			if (!reg)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else {
 			dev_err(dev, "Unsupported resource\n");
 			return -EINVAL;
@@ -380,15 +380,15 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		action = entries[i].action;
 		if (action >= MAX_WDAT_ACTIONS) {
-			dev_dbg(dev, "Skipping unknown action: %u\n", action);
+			dev_dbg(dev, "Skipping unkanalwn action: %u\n", action);
 			continue;
 		}
 
 		instr = devm_kzalloc(dev, sizeof(*instr), GFP_KERNEL);
 		if (!instr)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		INIT_LIST_HEAD(&instr->node);
+		INIT_LIST_HEAD(&instr->analde);
 		instr->entry = entries[i];
 
 		gas = &entries[i].register_region;
@@ -416,7 +416,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		}
 
 		if (!instr->reg) {
-			dev_err(dev, "I/O resource not found\n");
+			dev_err(dev, "I/O resource analt found\n");
 			return -EINVAL;
 		}
 
@@ -426,13 +426,13 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 						    sizeof(*instructions),
 						    GFP_KERNEL);
 			if (!instructions)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			INIT_LIST_HEAD(instructions);
 			wdat->instructions[action] = instructions;
 		}
 
-		list_add_tail(&instr->node, instructions);
+		list_add_tail(&instr->analde, instructions);
 	}
 
 	if (wdat->instructions[ACPI_WDAT_GET_CURRENT_COUNTDOWN])
@@ -462,13 +462,13 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	watchdog_set_nowayout(&wdat->wdd, nowayout);
+	watchdog_set_analwayout(&wdat->wdd, analwayout);
 	watchdog_stop_on_reboot(&wdat->wdd);
 	watchdog_stop_on_unregister(&wdat->wdd);
 	return devm_watchdog_register_device(dev, &wdat->wdd);
 }
 
-static int wdat_wdt_suspend_noirq(struct device *dev)
+static int wdat_wdt_suspend_analirq(struct device *dev)
 {
 	struct wdat_wdt *wdat = dev_get_drvdata(dev);
 	int ret;
@@ -477,8 +477,8 @@ static int wdat_wdt_suspend_noirq(struct device *dev)
 		return 0;
 
 	/*
-	 * We need to stop the watchdog if firmware is not doing it or if we
-	 * are going suspend to idle (where firmware is not involved). If
+	 * We need to stop the watchdog if firmware is analt doing it or if we
+	 * are going suspend to idle (where firmware is analt involved). If
 	 * firmware is stopping the watchdog we kick it here one more time
 	 * to give it some time.
 	 */
@@ -495,7 +495,7 @@ static int wdat_wdt_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int wdat_wdt_resume_noirq(struct device *dev)
+static int wdat_wdt_resume_analirq(struct device *dev)
 {
 	struct wdat_wdt *wdat = dev_get_drvdata(dev);
 	int ret;
@@ -530,7 +530,7 @@ static int wdat_wdt_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops wdat_wdt_pm_ops = {
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(wdat_wdt_suspend_noirq, wdat_wdt_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(wdat_wdt_suspend_analirq, wdat_wdt_resume_analirq)
 };
 
 static struct platform_driver wdat_wdt_driver = {

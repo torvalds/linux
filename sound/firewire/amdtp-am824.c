@@ -16,14 +16,14 @@
 #define AMDTP_FDF_AM824		0x00
 
 /*
- * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * Analminally 3125 bytes/second, but the MIDI port's clock might be
  * 1% too slow, and the bus clock 100 ppm too fast.
  */
 #define MIDI_BYTES_PER_SECOND	3093
 
 /*
  * Several devices look only at the first eight data blocks.
- * In any case, this is more than enough for the MIDI data rate.
+ * In any case, this is more than eanalugh for the MIDI data rate.
  */
 #define MAX_MIDI_RX_BLOCKS	8
 
@@ -47,7 +47,7 @@ struct amdtp_am824 {
  * @midi_ports: the number of MIDI ports (i.e., MPX-MIDI Data Channels)
  * @double_pcm_frames: one data block transfers two PCM frames
  *
- * The parameters must be set before the stream is started, and must not be
+ * The parameters must be set before the stream is started, and must analt be
  * changed while the stream is running.
  */
 int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
@@ -102,7 +102,7 @@ int amdtp_am824_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	p->midi_position = p->pcm_channels;
 
 	/*
-	 * We do not know the actual MIDI FIFO size of most devices.  Just
+	 * We do analt kanalw the actual MIDI FIFO size of most devices.  Just
 	 * assume two bytes, i.e., one byte can be received over the bus while
 	 * the previous one is transmitted over MIDI.
 	 * (The value here is adjusted for midi_ratelimit_per_packet().)
@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(amdtp_am824_add_pcm_hw_constraints);
  * @port: index of MIDI port
  * @midi: the MIDI device to be started, or %NULL to stop the current device
  *
- * Call this function on a running isochronous stream to enable the actual
+ * Call this function on a running isochroanalus stream to enable the actual
  * transmission of MIDI data.  This function should be called from the MIDI
  * device's .trigger callback.
  */

@@ -2,7 +2,7 @@
 /*
  * This file exists solely to ensure debug information for some core
  * data structures is included in the final image even for
- * CONFIG_DEBUG_INFO_REDUCED. Please do not add actual code. However,
+ * CONFIG_DEBUG_INFO_REDUCED. Please do analt add actual code. However,
  * adding appropriate #includes is fine.
  */
 #include <linux/cred.h>

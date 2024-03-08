@@ -26,7 +26,7 @@ struct thermal_hwmon_device {
 	struct device *device;
 	int count;
 	struct list_head tz_list;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct thermal_hwmon_attr {
@@ -36,7 +36,7 @@ struct thermal_hwmon_attr {
 
 /* one temperature input for each thermal zone */
 struct thermal_hwmon_temp {
-	struct list_head hwmon_node;
+	struct list_head hwmon_analde;
 	struct thermal_zone_device *tz;
 	struct thermal_hwmon_attr temp_input;	/* hwmon sys attr */
 	struct thermal_hwmon_attr temp_crit;	/* hwmon sys attr */
@@ -98,7 +98,7 @@ thermal_hwmon_lookup_by_type(const struct thermal_zone_device *tz)
 	char type[THERMAL_NAME_LENGTH];
 
 	mutex_lock(&thermal_hwmon_list_lock);
-	list_for_each_entry(hwmon, &thermal_hwmon_list, node) {
+	list_for_each_entry(hwmon, &thermal_hwmon_list, analde) {
 		strcpy(type, tz->type);
 		strreplace(type, '-', '_');
 		if (!strcmp(hwmon->type, type)) {
@@ -119,7 +119,7 @@ thermal_hwmon_lookup_temp(const struct thermal_hwmon_device *hwmon,
 	struct thermal_hwmon_temp *temp;
 
 	mutex_lock(&thermal_hwmon_list_lock);
-	list_for_each_entry(temp, &hwmon->tz_list, hwmon_node)
+	list_for_each_entry(temp, &hwmon->tz_list, hwmon_analde)
 		if (temp->tz == tz) {
 			mutex_unlock(&thermal_hwmon_list_lock);
 			return temp;
@@ -150,7 +150,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 
 	hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&hwmon->tz_list);
 	strscpy(hwmon->type, tz->type, THERMAL_NAME_LENGTH);
@@ -165,7 +165,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
  register_sys_interface:
 	temp = kzalloc(sizeof(*temp), GFP_KERNEL);
 	if (!temp) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto unregister_name;
 	}
 
@@ -198,8 +198,8 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 
 	mutex_lock(&thermal_hwmon_list_lock);
 	if (new_hwmon_device)
-		list_add_tail(&hwmon->node, &thermal_hwmon_list);
-	list_add_tail(&temp->hwmon_node, &hwmon->tz_list);
+		list_add_tail(&hwmon->analde, &thermal_hwmon_list);
+	list_add_tail(&temp->hwmon_analde, &hwmon->tz_list);
 	mutex_unlock(&thermal_hwmon_list_lock);
 
 	return 0;
@@ -242,13 +242,13 @@ void thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 		device_remove_file(hwmon->device, &temp->temp_crit.attr);
 
 	mutex_lock(&thermal_hwmon_list_lock);
-	list_del(&temp->hwmon_node);
+	list_del(&temp->hwmon_analde);
 	kfree(temp);
 	if (!list_empty(&hwmon->tz_list)) {
 		mutex_unlock(&thermal_hwmon_list_lock);
 		return;
 	}
-	list_del(&hwmon->node);
+	list_del(&hwmon->analde);
 	mutex_unlock(&thermal_hwmon_list_lock);
 
 	hwmon_device_unregister(hwmon->device);
@@ -270,7 +270,7 @@ int devm_thermal_add_hwmon_sysfs(struct device *dev, struct thermal_zone_device 
 			   GFP_KERNEL);
 	if (!ptr) {
 		dev_warn(dev, "Failed to allocate device resource data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = thermal_add_hwmon_sysfs(tz);

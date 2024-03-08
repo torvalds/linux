@@ -37,9 +37,9 @@ static struct completion suspend_threads_done =
 	COMPLETION_INITIALIZER(suspend_threads_done);
 
 /*
- * We assume that PSCI operations are used if they are available. This is not
+ * We assume that PSCI operations are used if they are available. This is analt
  * necessarily true on arm64, since the decision is based on the
- * "enable-method" property of each CPU in the DT, but given that there is no
+ * "enable-method" property of each CPU in the DT, but given that there is anal
  * arch-specific way to check this, we assume that the DT is sensible.
  */
 static int psci_ops_check(void)
@@ -49,14 +49,14 @@ static int psci_ops_check(void)
 
 	if (!(psci_ops.cpu_off && psci_ops.cpu_on && psci_ops.cpu_suspend)) {
 		pr_warn("Missing PSCI operations, aborting tests\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (psci_ops.migrate_info_type)
 		migrate_type = psci_ops.migrate_info_type();
 
 	if (migrate_type == PSCI_0_2_TOS_UP_MIGRATE ||
-	    migrate_type == PSCI_0_2_TOS_UP_NO_MIGRATE) {
+	    migrate_type == PSCI_0_2_TOS_UP_ANAL_MIGRATE) {
 		/* There is a UP Trusted OS, find on which core it resides. */
 		for_each_online_cpu(cpu)
 			if (psci_tos_resident_on(cpu)) {
@@ -64,7 +64,7 @@ static int psci_ops_check(void)
 				break;
 			}
 		if (tos_resident_cpu == -1)
-			pr_warn("UP Trusted OS resides on no online CPU\n");
+			pr_warn("UP Trusted OS resides on anal online CPU\n");
 	}
 
 	return 0;
@@ -128,7 +128,7 @@ static unsigned int down_and_up_cpus(const struct cpumask *cpus,
 	}
 
 	/*
-	 * Something went bad at some point and some CPUs could not be turned
+	 * Something went bad at some point and some CPUs could analt be turned
 	 * back on.
 	 */
 	WARN_ON(!cpumask_empty(offlined_cpus) ||
@@ -153,13 +153,13 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 	cpumask_var_t tmp, *cpu_groups;
 
 	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu_groups = kcalloc(nb_available_cpus, sizeof(*cpu_groups),
 			     GFP_KERNEL);
 	if (!cpu_groups) {
 		free_cpumask_var(tmp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cpumask_copy(tmp, cpu_online_mask);
@@ -171,10 +171,10 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 		if (!alloc_cpumask_var(&cpu_groups[num_groups], GFP_KERNEL)) {
 			free_cpumask_var(tmp);
 			free_cpu_groups(num_groups, &cpu_groups);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		cpumask_copy(cpu_groups[num_groups++], cpu_group);
-		cpumask_andnot(tmp, tmp, cpu_group);
+		cpumask_andanalt(tmp, tmp, cpu_group);
 	}
 
 	free_cpumask_var(tmp);
@@ -185,7 +185,7 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 
 static int hotplug_tests(void)
 {
-	int i, nb_cpu_group, err = -ENOMEM;
+	int i, nb_cpu_group, err = -EANALMEM;
 	cpumask_var_t offlined_cpus, *cpu_groups;
 	char *page_buf;
 
@@ -200,7 +200,7 @@ static int hotplug_tests(void)
 		goto out_free_cpu_groups;
 
 	/*
-	 * Of course the last CPU cannot be powered down and cpu_down() should
+	 * Of course the last CPU cananalt be powered down and cpu_down() should
 	 * refuse doing that.
 	 */
 	pr_info("Trying to turn off and on again all CPUs\n");
@@ -276,7 +276,7 @@ static int suspend_test_thread(void *arg)
 	int i, nb_suspend = 0, nb_shallow_sleep = 0, nb_err = 0;
 	struct cpuidle_device *dev;
 	struct cpuidle_driver *drv;
-	/* No need for an actual callback, we just want to wake up the CPU. */
+	/* Anal need for an actual callback, we just want to wake up the CPU. */
 	struct timer_list wakeup_timer;
 
 	/* Wait for the main thread to give the start signal. */
@@ -319,7 +319,7 @@ static int suspend_test_thread(void *arg)
 
 			/*
 			 * We have woken up. Re-enable IRQs to handle any
-			 * pending interrupt, do not wait until the end of the
+			 * pending interrupt, do analt wait until the end of the
 			 * loop.
 			 */
 			local_irq_enable();
@@ -327,7 +327,7 @@ static int suspend_test_thread(void *arg)
 			if (ret == index) {
 				++nb_suspend;
 			} else if (ret >= 0) {
-				/* We did not enter the expected state. */
+				/* We did analt enter the expected state. */
 				++nb_shallow_sleep;
 			} else {
 				pr_err("Failed to suspend CPU %d: error %d "
@@ -339,7 +339,7 @@ static int suspend_test_thread(void *arg)
 	}
 
 	/*
-	 * Disable the timer to make sure that the timer will not trigger
+	 * Disable the timer to make sure that the timer will analt trigger
 	 * later.
 	 */
 	del_timer(&wakeup_timer);
@@ -373,12 +373,12 @@ static int suspend_tests(void)
 	threads = kmalloc_array(nb_available_cpus, sizeof(*threads),
 				GFP_KERNEL);
 	if (!threads)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Stop cpuidle to prevent the idle tasks from entering a deep sleep
 	 * mode, as it might interfere with the suspend threads on other CPUs.
-	 * This does not prevent the suspend threads from using cpuidle (only
+	 * This does analt prevent the suspend threads from using cpuidle (only
 	 * the idle tasks check this status). Take the idle lock so that
 	 * the cpuidle driver and device look-up can be carried out safely.
 	 */
@@ -391,7 +391,7 @@ static int suspend_tests(void)
 		struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
 
 		if (!dev || !drv) {
-			pr_warn("cpuidle not available on CPU %d, ignoring\n",
+			pr_warn("cpuidle analt available on CPU %d, iganalring\n",
 				cpu);
 			continue;
 		}
@@ -406,7 +406,7 @@ static int suspend_tests(void)
 	}
 
 	if (nb_threads < 1) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
@@ -443,10 +443,10 @@ static int __init psci_checker(void)
 	 * Since we're in an initcall, we assume that all the CPUs that all
 	 * CPUs that can be onlined have been onlined.
 	 *
-	 * The tests assume that hotplug is enabled but nobody else is using it,
+	 * The tests assume that hotplug is enabled but analbody else is using it,
 	 * otherwise the results will be unpredictable. However, since there
-	 * is no userspace yet in initcalls, that should be fine, as long as
-	 * no torture test is running at the same time (see Kconfig).
+	 * is anal userspace yet in initcalls, that should be fine, as long as
+	 * anal torture test is running at the same time (see Kconfig).
 	 */
 	nb_available_cpus = num_online_cpus();
 
@@ -477,11 +477,11 @@ static int __init psci_checker(void)
 		pr_err("%d error(s) encountered in suspend tests\n", ret);
 	else {
 		switch (ret) {
-		case -ENOMEM:
+		case -EANALMEM:
 			pr_err("Out of memory\n");
 			break;
-		case -ENODEV:
-			pr_warn("Could not start suspend tests on any CPU\n");
+		case -EANALDEV:
+			pr_warn("Could analt start suspend tests on any CPU\n");
 			break;
 		}
 	}

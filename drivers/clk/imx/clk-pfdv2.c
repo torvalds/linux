@@ -162,13 +162,13 @@ static int clk_pfdv2_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	/*
-	 * PFD can NOT change rate without gating.
-	 * as the PFDs may enabled in HW by default but no
+	 * PFD can ANALT change rate without gating.
+	 * as the PFDs may enabled in HW by default but anal
 	 * consumer used it, the enable count is '0', so the
-	 * 'SET_RATE_GATE' can NOT help on blocking the set_rate
+	 * 'SET_RATE_GATE' can ANALT help on blocking the set_rate
 	 * ops especially for 'assigned-clock-xxx'. In order
 	 * to simplify the case, just disable the PFD if it is
-	 * enabled in HW but not in SW.
+	 * enabled in HW but analt in SW.
 	 */
 	if (clk_pfdv2_is_enabled(hw))
 		clk_pfdv2_disable(hw);
@@ -212,7 +212,7 @@ struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
 
 	pfd = kzalloc(sizeof(*pfd), GFP_KERNEL);
 	if (!pfd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pfd->reg = reg;
 	pfd->gate_bit = (idx + 1) * 8 - 1;

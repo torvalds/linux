@@ -60,7 +60,7 @@
 
 #define AD7791_MODE_BUFFER		BIT(1)
 #define AD7791_MODE_UNIPOLAR		BIT(2)
-#define AD7791_MODE_BURNOUT		BIT(3)
+#define AD7791_MODE_BURANALUT		BIT(3)
 #define AD7791_MODE_SEL_MASK		(0x3 << 6)
 #define AD7791_MODE_SEL(x)		((x) << 6)
 
@@ -151,7 +151,7 @@ enum ad7791_chip_info_flags {
 	AD7791_FLAG_HAS_FILTER		= (1 << 0),
 	AD7791_FLAG_HAS_BUFFER		= (1 << 1),
 	AD7791_FLAG_HAS_UNIPOLAR	= (1 << 2),
-	AD7791_FLAG_HAS_BURNOUT		= (1 << 3),
+	AD7791_FLAG_HAS_BURANALUT		= (1 << 3),
 };
 
 struct ad7791_chip_info {
@@ -165,7 +165,7 @@ static const struct ad7791_chip_info ad7791_chip_infos[] = {
 		.channels = ad7787_channels,
 		.num_channels = ARRAY_SIZE(ad7787_channels),
 		.flags = AD7791_FLAG_HAS_FILTER | AD7791_FLAG_HAS_BUFFER |
-			AD7791_FLAG_HAS_UNIPOLAR | AD7791_FLAG_HAS_BURNOUT,
+			AD7791_FLAG_HAS_UNIPOLAR | AD7791_FLAG_HAS_BURANALUT,
 	},
 	[AD7788] = {
 		.channels = ad7790_channels,
@@ -181,13 +181,13 @@ static const struct ad7791_chip_info ad7791_chip_infos[] = {
 		.channels = ad7790_channels,
 		.num_channels = ARRAY_SIZE(ad7790_channels),
 		.flags = AD7791_FLAG_HAS_FILTER | AD7791_FLAG_HAS_BUFFER |
-			AD7791_FLAG_HAS_BURNOUT,
+			AD7791_FLAG_HAS_BURANALUT,
 	},
 	[AD7791] = {
 		.channels = ad7791_channels,
 		.num_channels = ARRAY_SIZE(ad7791_channels),
 		.flags = AD7791_FLAG_HAS_FILTER | AD7791_FLAG_HAS_BUFFER |
-			AD7791_FLAG_HAS_UNIPOLAR | AD7791_FLAG_HAS_BURNOUT,
+			AD7791_FLAG_HAS_UNIPOLAR | AD7791_FLAG_HAS_BURANALUT,
 	},
 };
 
@@ -364,7 +364,7 @@ static const struct iio_info ad7791_info = {
 	.validate_trigger = ad_sd_validate_trigger,
 };
 
-static const struct iio_info ad7791_no_filter_info = {
+static const struct iio_info ad7791_anal_filter_info = {
 	.read_raw = &ad7791_read_raw,
 	.write_raw = &ad7791_write_raw,
 	.validate_trigger = ad_sd_validate_trigger,
@@ -383,9 +383,9 @@ static int ad7791_setup(struct ad7791_state *st,
 	if ((st->info->flags & AD7791_FLAG_HAS_BUFFER) && !pdata->buffered)
 		st->mode &= ~AD7791_MODE_BUFFER;
 
-	if ((st->info->flags & AD7791_FLAG_HAS_BURNOUT) &&
-		pdata->burnout_current)
-		st->mode |= AD7791_MODE_BURNOUT;
+	if ((st->info->flags & AD7791_FLAG_HAS_BURANALUT) &&
+		pdata->buranalut_current)
+		st->mode |= AD7791_MODE_BURANALUT;
 
 	if ((st->info->flags & AD7791_FLAG_HAS_UNIPOLAR) && pdata->unipolar)
 		st->mode |= AD7791_MODE_UNIPOLAR;
@@ -413,7 +413,7 @@ static int ad7791_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -439,7 +439,7 @@ static int ad7791_probe(struct spi_device *spi)
 	if (st->info->flags & AD7791_FLAG_HAS_FILTER)
 		indio_dev->info = &ad7791_info;
 	else
-		indio_dev->info = &ad7791_no_filter_info;
+		indio_dev->info = &ad7791_anal_filter_info;
 
 	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
 	if (ret)

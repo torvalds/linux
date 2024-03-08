@@ -111,7 +111,7 @@
 /*
  * Read, write and cache policies
  */
-#define NO_READ_AHEAD		0
+#define ANAL_READ_AHEAD		0
 #define READ_AHEAD		1
 #define ADAP_READ_AHEAD		2
 #define WRMODE_WRITE_THRU	0
@@ -302,7 +302,7 @@ typedef struct {
 
 /**
  * mraid_pinfo_t - product info, static information about the controller
- * @data_size		: current size in bytes (not including resvd)
+ * @data_size		: current size in bytes (analt including resvd)
  * @config_signature	: Current value is 0x00282008
  * @fw_version		: Firmware version
  * @bios_version	: version of the BIOS
@@ -315,10 +315,10 @@ typedef struct {
  * @dram_size		: In terms of MB
  * @subsysid		: device PCI subsystem ID
  * @subsysvid		: device PCI subsystem vendor ID
- * @notify_counters	:
+ * @analtify_counters	:
  * @pad1k		: 135 + 889 resvd = 1024 total size
  *
- * This structures holds the information about the controller which is not
+ * This structures holds the information about the controller which is analt
  * expected to change dynamically.
  *
  * The current value of config signature is 0x00282008:
@@ -340,13 +340,13 @@ typedef struct {
 	uint16_t	dram_size;
 	uint16_t	subsysid;
 	uint16_t	subsysvid;
-	uint8_t		notify_counters;
+	uint8_t		analtify_counters;
 	uint8_t		pad1k[889];
 } __attribute__ ((packed)) mraid_pinfo_t;
 
 
 /**
- * mraid_notify_t - the notification structure
+ * mraid_analtify_t - the analtification structure
  * @global_counter		: Any change increments this counter
  * @param_counter		: Indicates any params changed
  * @param_id			: Param modified - defined below
@@ -417,21 +417,21 @@ typedef struct {
 	uint8_t		fcloop_state0;
 	uint8_t		fcloop_state1;
 	uint8_t		fcloop_state_rsvd;
-} __attribute__ ((packed)) mraid_notify_t;
+} __attribute__ ((packed)) mraid_analtify_t;
 
 
 /**
  * mraid_inquiry3_t - enquiry for device information
  *
- * @data_size		: current size in bytes (not including resvd)
- * @notify		:
- * @notify_rsvd		:
+ * @data_size		: current size in bytes (analt including resvd)
+ * @analtify		:
+ * @analtify_rsvd		:
  * @rebuild_rate	: rebuild rate (0% - 100%)
  * @cache_flush_int	: cache flush interval in seconds
  * @sense_alert		:
  * @drive_insert_count	: drive insertion count
  * @battery_status	:
- * @num_ldrv		: no. of Log Drives configured
+ * @num_ldrv		: anal. of Log Drives configured
  * @recon_state		: state of reconstruct
  * @ldrv_op_status	: logdrv Status
  * @ldrv_size		: size of each log drv
@@ -442,15 +442,15 @@ typedef struct {
  * @targ_xfer		: phys device transfer rate
  * @pad1k		: 761 + 263reserved = 1024 bytes total size
  */
-#define MAX_NOTIFY_SIZE		0x80
-#define CUR_NOTIFY_SIZE		sizeof(mraid_notify_t)
+#define MAX_ANALTIFY_SIZE		0x80
+#define CUR_ANALTIFY_SIZE		sizeof(mraid_analtify_t)
 
 typedef struct {
 	uint32_t	data_size;
 
-	mraid_notify_t	notify;
+	mraid_analtify_t	analtify;
 
-	uint8_t		notify_rsvd[MAX_NOTIFY_SIZE - CUR_NOTIFY_SIZE];
+	uint8_t		analtify_rsvd[MAX_ANALTIFY_SIZE - CUR_ANALTIFY_SIZE];
 
 	uint8_t		rebuild_rate;
 	uint8_t		cache_flush_int;
@@ -620,7 +620,7 @@ typedef struct {
  *
  * @span_depth	: total number of spans
  * @level	: RAID level
- * @read_ahead	: read ahead, no read ahead, adaptive read ahead
+ * @read_ahead	: read ahead, anal read ahead, adaptive read ahead
  * @stripe_sz	: encoded stripe size
  * @status	: status of the logical drive
  * @write_mode	: write mode, write_through/write_back

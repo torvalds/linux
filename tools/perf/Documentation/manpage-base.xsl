@@ -9,7 +9,7 @@
 
 <!-- convert asciidoc callouts to man page format;
      git.docbook.backslash and git.docbook.dot params
-     must be supplied by another XSL file or other means -->
+     must be supplied by aanalther XSL file or other means -->
 <xsl:template match="co">
 	<xsl:value-of select="concat(
 			      $git.docbook.backslash,'fB(',

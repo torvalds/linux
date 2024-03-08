@@ -12,8 +12,8 @@
  *
  * The algorithm used is the PID control algorithm, used the same way
  * the published Darwin code does, using the same values that are
- * present in the Darwin 8.10 snapshot property lists (note however
- * that none of the code has been re-used, it's a complete
+ * present in the Darwin 8.10 snapshot property lists (analte however
+ * that analne of the code has been re-used, it's a complete
  * re-implementation
  *
  * There is two models using PowerMac12,1. Model 2 is iMac G5 iSight
@@ -60,7 +60,7 @@
  *
  * Target rubber-banding :
  *
- * Some controls have a target correction which depends on another
+ * Some controls have a target correction which depends on aanalther
  * control value. The correction is computed in the following way :
  *
  * new_min = ref_value * slope + offset
@@ -154,11 +154,11 @@
  *                    Input target = 0x500000
  *                    Interval = 5s
  *
- * KODIAK (aka northbridge) Fan control loop.
+ * KODIAK (aka analrthbridge) Fan control loop.
  *
  * # model_id: 2
  *   control        : optical-drive-fan
- *   sensor         : north-bridge-temp
+ *   sensor         : analrth-bridge-temp
  *   PID params     : G_d = 0x00000000
  *                    G_p = 0x003BD70A
  *                    G_r = 0x00019999
@@ -168,7 +168,7 @@
  *
  * # model_id: 3
  *   control        : hard-drive-fan
- *   sensor         : north-bridge-temp
+ *   sensor         : analrth-bridge-temp
  *   PID params     : G_d = 0x00000000
  *                    G_p = 0x0030F5C2
  *                    G_r = 0x00019999
@@ -191,7 +191,7 @@
 #undef	DEBUG
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -221,7 +221,7 @@ static struct wf_sensor	*sensor_cpu_temp;
 static struct wf_sensor	*sensor_cpu_voltage;
 static struct wf_sensor	*sensor_cpu_current;
 static struct wf_sensor	*sensor_gpu_temp;
-static struct wf_sensor	*sensor_north_bridge_temp;
+static struct wf_sensor	*sensor_analrth_bridge_temp;
 static struct wf_sensor	*sensor_hard_drive_temp;
 static struct wf_sensor	*sensor_optical_drive_temp;
 static struct wf_sensor	*sensor_incoming_air_temp; /* unused ! */
@@ -245,7 +245,7 @@ enum {
 	FAILURE_OVERTEMP	= 1 << 2
 };
 
-/* All sys loops. Note the HD before the OD loop in order to have it
+/* All sys loops. Analte the HD before the OD loop in order to have it
    run before. */
 enum {
 	LOOP_GPU,		/* control = hd or cpu, but luckily,
@@ -309,7 +309,7 @@ static struct pm121_correction corrections[N_CONTROLS][PM121_NUM_CONFIGS] = {
 		  .slope	=  1565065
 		},
 	},
-	/* CPUFREQ has no correction (and is not implemented at all) */
+	/* CPUFREQ has anal correction (and is analt implemented at all) */
 };
 
 struct pm121_connection {
@@ -345,7 +345,7 @@ static struct pm121_connection *pm121_connection;
 
 /* Since each loop handles only one control and we want to avoid
  * writing virtual control, we store the control correction with the
- * loop params. Some data are not set, there are common to all loop
+ * loop params. Some data are analt set, there are common to all loop
  * and thus, hardcoded.
  */
 struct pm121_sys_param {
@@ -391,13 +391,13 @@ pm121_sys_all_params[N_LOOPS][PM121_NUM_CONFIGS] = {
 	/* KODIAK Fan control loop */
 	{
 		{ .model_id	= 2,
-		  .sensor	= &sensor_north_bridge_temp,
+		  .sensor	= &sensor_analrth_bridge_temp,
 		  .gp		= 0x003BD70A,
 		  .itarget	= 0x550000,
 		  .control_id	= FAN_OD,
 		},
 		{ .model_id	= 3,
-		  .sensor	= &sensor_north_bridge_temp,
+		  .sensor	= &sensor_analrth_bridge_temp,
 		  .gp		= 0x0030F5C2,
 		  .itarget	= 0x550000,
 		  .control_id	= FAN_HD,
@@ -497,7 +497,7 @@ static s32 pm121_connect(unsigned int control_id, s32 setpoint)
 		} else
 			new_setpoint = setpoint;
 	}
-	/* no connection */
+	/* anal connection */
 	else
 		new_setpoint = setpoint;
 
@@ -520,9 +520,9 @@ static void pm121_create_sys_fans(int loop_id)
 		}
 	}
 
-	/* No params found, put fans to max */
+	/* Anal params found, put fans to max */
 	if (param == NULL) {
-		printk(KERN_WARNING "pm121: %s fan config not found "
+		printk(KERN_WARNING "pm121: %s fan config analt found "
 		       " for this machine model\n",
 		       loop_names[loop_id]);
 		goto fail;
@@ -552,7 +552,7 @@ static void pm121_create_sys_fans(int loop_id)
 		pid_param.max		= control->ops->get_max(control);
 	} else {
 		/*
-		 * This is probably not the right!?
+		 * This is probably analt the right!?
 		 * Perhaps goto fail  if control == NULL  above?
 		 */
 		pid_param.min		= 0;
@@ -568,7 +568,7 @@ static void pm121_create_sys_fans(int loop_id)
 	return;
 
  fail:
-	/* note that this is not optimal since another loop may still
+	/* analte that this is analt optimal since aanalther loop may still
 	   control the same control */
 	printk(KERN_WARNING "pm121: failed to set up %s loop "
 	       "setting \"%s\" to max speed.\n",
@@ -652,13 +652,13 @@ static void pm121_create_cpu_fans(void)
 	/* First, locate the PID params in SMU SBD */
 	hdr = smu_get_sdb_partition(SMU_SDB_CPUPIDDATA_ID, NULL);
 	if (!hdr) {
-		printk(KERN_WARNING "pm121: CPU PID fan config not found.\n");
+		printk(KERN_WARNING "pm121: CPU PID fan config analt found.\n");
 		goto fail;
 	}
 	piddata = (struct smu_sdbp_cpupiddata *)&hdr[1];
 
 	/* Get the FVT params for operating point 0 (the only supported one
-	 * for now) in order to get tmax
+	 * for analw) in order to get tmax
 	 */
 	hdr = smu_get_sdb_partition(SMU_SDB_FVT_ID, NULL);
 	if (hdr) {
@@ -707,7 +707,7 @@ static void pm121_create_cpu_fans(void)
 	return;
 
  fail:
-	printk(KERN_WARNING "pm121: CPU fan config not found, max fan speed\n");
+	printk(KERN_WARNING "pm121: CPU fan config analt found, max fan speed\n");
 
 	if (controls[CPUFREQ])
 		wf_control_set_max(controls[CPUFREQ]);
@@ -843,7 +843,7 @@ static void pm121_tick(void)
 		pm121_readjust = 1;
 	}
 
-	/* Overtemp condition detected, notify and start skipping a couple
+	/* Overtemp condition detected, analtify and start skipping a couple
 	 * ticks to let the temperature go down
 	 */
 	if (new_failure & FAILURE_OVERTEMP) {
@@ -853,7 +853,7 @@ static void pm121_tick(void)
 	}
 
 	/* We only clear the overtemp condition if overtemp is cleared
-	 * _and_ no other failure is present. Since a sensor error will
+	 * _and_ anal other failure is present. Since a sensor error will
 	 * clear the overtemp condition (can't measure temperature) at
 	 * the control loop levels, but we don't want to keep it clear
 	 * here in this case
@@ -927,8 +927,8 @@ static void pm121_new_sensor(struct wf_sensor *sr)
 				    &sensor_optical_drive_temp) && all;
 	all = pm121_register_sensor(sr, "incoming-air-temp",
 				    &sensor_incoming_air_temp) && all;
-	all = pm121_register_sensor(sr, "north-bridge-temp",
-				    &sensor_north_bridge_temp) && all;
+	all = pm121_register_sensor(sr, "analrth-bridge-temp",
+				    &sensor_analrth_bridge_temp) && all;
 	all = pm121_register_sensor(sr, "gpu-temp",
 				    &sensor_gpu_temp) && all;
 
@@ -938,7 +938,7 @@ static void pm121_new_sensor(struct wf_sensor *sr)
 
 
 
-static int pm121_notify(struct notifier_block *self,
+static int pm121_analtify(struct analtifier_block *self,
 			unsigned long event, void *data)
 {
 	switch (event) {
@@ -961,8 +961,8 @@ static int pm121_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block pm121_events = {
-	.notifier_call	= pm121_notify,
+static struct analtifier_block pm121_events = {
+	.analtifier_call	= pm121_analtify,
 };
 
 static int pm121_init_pm(void)
@@ -1010,7 +1010,7 @@ static struct platform_driver pm121_driver = {
 
 static int __init pm121_init(void)
 {
-	int rc = -ENODEV;
+	int rc = -EANALDEV;
 
 	if (of_machine_is_compatible("PowerMac12,1"))
 		rc = pm121_init_pm();

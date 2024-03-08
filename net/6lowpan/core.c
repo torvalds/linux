@@ -84,12 +84,12 @@ int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
 	if (!lowpan_802154_is_valid_src_short_addr(wpan_dev->short_addr))
 		return -1;
 
-	/* For either address format, all zero addresses MUST NOT be used */
+	/* For either address format, all zero addresses MUST ANALT be used */
 	if (wpan_dev->pan_id == cpu_to_le16(0x0000) &&
 	    wpan_dev->short_addr == cpu_to_le16(0x0000))
 		return -1;
 
-	/* Alternatively, if no PAN ID is known, 16 zero bits may be used */
+	/* Alternatively, if anal PAN ID is kanalwn, 16 zero bits may be used */
 	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 		memset(eui, 0, 2);
 	else
@@ -105,20 +105,20 @@ int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
-static int lowpan_event(struct notifier_block *unused,
+static int lowpan_event(struct analtifier_block *unused,
 			unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct inet6_dev *idev;
 	struct in6_addr addr;
 	int i;
 
 	if (dev->type != ARPHRD_6LOWPAN)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	idev = __in6_dev_get(dev);
 	if (!idev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UP:
@@ -137,14 +137,14 @@ static int lowpan_event(struct notifier_block *unused,
 				  &lowpan_dev(dev)->ctx.table[i].flags);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block lowpan_notifier = {
-	.notifier_call = lowpan_event,
+static struct analtifier_block lowpan_analtifier = {
+	.analtifier_call = lowpan_event,
 };
 
 static int __init lowpan_module_init(void)
@@ -153,19 +153,19 @@ static int __init lowpan_module_init(void)
 
 	lowpan_debugfs_init();
 
-	ret = register_netdevice_notifier(&lowpan_notifier);
+	ret = register_netdevice_analtifier(&lowpan_analtifier);
 	if (ret < 0) {
 		lowpan_debugfs_exit();
 		return ret;
 	}
 
-	request_module_nowait("nhc_dest");
-	request_module_nowait("nhc_fragment");
-	request_module_nowait("nhc_hop");
-	request_module_nowait("nhc_ipv6");
-	request_module_nowait("nhc_mobility");
-	request_module_nowait("nhc_routing");
-	request_module_nowait("nhc_udp");
+	request_module_analwait("nhc_dest");
+	request_module_analwait("nhc_fragment");
+	request_module_analwait("nhc_hop");
+	request_module_analwait("nhc_ipv6");
+	request_module_analwait("nhc_mobility");
+	request_module_analwait("nhc_routing");
+	request_module_analwait("nhc_udp");
 
 	return 0;
 }
@@ -173,7 +173,7 @@ static int __init lowpan_module_init(void)
 static void __exit lowpan_module_exit(void)
 {
 	lowpan_debugfs_exit();
-	unregister_netdevice_notifier(&lowpan_notifier);
+	unregister_netdevice_analtifier(&lowpan_analtifier);
 }
 
 module_init(lowpan_module_init);

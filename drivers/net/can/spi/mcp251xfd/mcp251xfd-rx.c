@@ -230,7 +230,7 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 		/* Increment the RX FIFO tail pointer 'len' times in a
 		 * single SPI message.
 		 *
-		 * Note:
+		 * Analte:
 		 * Calculate offset, so that the SPI transfer ends on
 		 * the last message of the uinc_xfer array, which has
 		 * "cs_change == 0", to properly deactivate the chip

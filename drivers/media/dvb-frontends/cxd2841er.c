@@ -1417,7 +1417,7 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x62, data, sizeof(data));
 	if (!(data[0] & 0x80)) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): no valid BER data\n", __func__);
+				"%s(): anal valid BER data\n", __func__);
 		return -EINVAL;
 	}
 	bit_err = ((u32)(data[0] & 0x3f) << 16) |
@@ -1428,7 +1428,7 @@ static int cxd2841er_read_ber_c(struct cxd2841er_priv *priv,
 
 	if ((period_exp <= 11) && (bit_err > (1 << period_exp) * 204 * 8)) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): period_exp(%u) or bit_err(%u)  not in range. no valid BER data\n",
+				"%s(): period_exp(%u) or bit_err(%u)  analt in range. anal valid BER data\n",
 				__func__, period_exp, bit_err);
 		return -EINVAL;
 	}
@@ -1465,7 +1465,7 @@ static int cxd2841er_read_ber_i(struct cxd2841er_priv *priv,
 
 	if (!pktnum[0] && !pktnum[1]) {
 		dev_dbg(&priv->i2c->dev,
-				"%s(): no valid BER data\n", __func__);
+				"%s(): anal valid BER data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1511,7 +1511,7 @@ static int cxd2841er_mon_read_ber_s(struct cxd2841er_priv *priv,
 		}
 		return 0;
 	}
-	dev_dbg(&priv->i2c->dev, "%s(): no data available\n", __func__);
+	dev_dbg(&priv->i2c->dev, "%s(): anal data available\n", __func__);
 	return -EINVAL;
 }
 
@@ -1561,7 +1561,7 @@ static int cxd2841er_mon_read_ber_s2(struct cxd2841er_priv *priv,
 		return 0;
 	} else {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no data available\n", __func__);
+			"%s(): anal data available\n", __func__);
 	}
 	return -EINVAL;
 }
@@ -1581,7 +1581,7 @@ static int cxd2841er_read_ber_t2(struct cxd2841er_priv *priv,
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x39, data, sizeof(data));
 	if (!(data[0] & 0x10)) {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no valid BER data\n", __func__);
+			"%s(): anal valid BER data\n", __func__);
 		return -EINVAL;
 	}
 	*bit_error = ((u32)(data[0] & 0x0f) << 24) |
@@ -1601,7 +1601,7 @@ static int cxd2841er_read_ber_t2(struct cxd2841er_priv *priv,
 
 	/*
 	 * FIXME: the right thing would be to return bit_error untouched,
-	 * but, as we don't know the scale returned by the counters, let's
+	 * but, as we don't kanalw the scale returned by the counters, let's
 	 * at least preserver BER = bit_error/bit_count.
 	 */
 	if (period_exp >= 4) {
@@ -1629,7 +1629,7 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 	cxd2841er_read_reg(priv, I2C_SLVT, 0x39, data);
 	if (!(data[0] & 0x01)) {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no valid BER data\n", __func__);
+			"%s(): anal valid BER data\n", __func__);
 		return 0;
 	}
 	cxd2841er_read_regs(priv, I2C_SLVT, 0x22, data, sizeof(data));
@@ -1639,7 +1639,7 @@ static int cxd2841er_read_ber_t(struct cxd2841er_priv *priv,
 
 	/*
 	 * FIXME: the right thing would be to return bit_error untouched,
-	 * but, as we don't know the scale returned by the counters, let's
+	 * but, as we don't kanalw the scale returned by the counters, let's
 	 * at least preserver BER = bit_error/bit_count.
 	 */
 	*bit_count = period / 128;
@@ -1725,7 +1725,7 @@ static u32 cxd2841er_dvbs_read_snr(struct cxd2841er_priv *priv,
 		}
 	} else {
 		dev_dbg(&priv->i2c->dev,
-			"%s(): no data available\n", __func__);
+			"%s(): anal data available\n", __func__);
 		return -EINVAL;
 	}
 done:
@@ -1965,8 +1965,8 @@ static void cxd2841er_read_ber(struct dvb_frontend *fe)
 		ret = cxd2841er_read_ber_t2(priv, &bit_error, &bit_count);
 		break;
 	default:
-		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 
@@ -1976,8 +1976,8 @@ static void cxd2841er_read_ber(struct dvb_frontend *fe)
 		p->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
 		p->post_bit_count.stat[0].uvalue += bit_count;
 	} else {
-		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 }
 
@@ -2026,7 +2026,7 @@ static void cxd2841er_read_signal_strength(struct dvb_frontend *fe)
 		p->strength.stat[0].uvalue = strength;
 		break;
 	default:
-		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		break;
 	}
 }
@@ -2059,9 +2059,9 @@ static void cxd2841er_read_snr(struct dvb_frontend *fe)
 		ret = cxd2841er_dvbs_read_snr(priv, p->delivery_system, &tmp);
 		break;
 	default:
-		dev_dbg(&priv->i2c->dev, "%s(): unknown delivery system %d\n",
+		dev_dbg(&priv->i2c->dev, "%s(): unkanalwn delivery system %d\n",
 			__func__, p->delivery_system);
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 
@@ -2072,7 +2072,7 @@ static void cxd2841er_read_snr(struct dvb_frontend *fe)
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = tmp;
 	} else {
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 }
 
@@ -2099,7 +2099,7 @@ static void cxd2841er_read_ucblocks(struct dvb_frontend *fe)
 		cxd2841er_read_packet_errors_i(priv, &ucblocks);
 		break;
 	default:
-		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		return;
 	}
 	dev_dbg(&priv->i2c->dev, "%s() ucblocks=%u\n", __func__, ucblocks);
@@ -2112,24 +2112,24 @@ static int cxd2841er_dvbt2_set_profile(
 	struct cxd2841er_priv *priv, enum cxd2841er_dvbt2_profile_t profile)
 {
 	u8 tune_mode;
-	u8 seq_not2d_time;
+	u8 seq_analt2d_time;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	switch (profile) {
 	case DVBT2_PROFILE_BASE:
 		tune_mode = 0x01;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x0E:0x0C;
+		seq_analt2d_time = (priv->xtal == SONY_XTAL_24000)?0x0E:0x0C;
 		break;
 	case DVBT2_PROFILE_LITE:
 		tune_mode = 0x05;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
+		seq_analt2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
 		break;
 	case DVBT2_PROFILE_ANY:
 		tune_mode = 0x00;
 		/* Set early unlock time */
-		seq_not2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
+		seq_analt2d_time = (priv->xtal == SONY_XTAL_24000)?0x2E:0x28;
 		break;
 	default:
 		return -EINVAL;
@@ -2141,7 +2141,7 @@ static int cxd2841er_dvbt2_set_profile(
 	/* Set SLV-T Bank : 0x2B */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x2b);
 	/* Set early unlock detection time */
-	cxd2841er_write_reg(priv, I2C_SLVT, 0x9d, seq_not2d_time);
+	cxd2841er_write_reg(priv, I2C_SLVT, 0x9d, seq_analt2d_time);
 	return 0;
 }
 
@@ -2173,36 +2173,36 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	u32 iffreq, ifhz;
 	u8 data[MAX_WRITE_REGSIZE];
 
-	static const uint8_t nominalRate8bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const uint8_t analminalRate8bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate7bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const uint8_t analminalRate7bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate6bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const uint8_t analminalRate6bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate5bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const uint8_t analminalRate5bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}  /* 41MHz XTal */
 	};
 
-	static const uint8_t nominalRate17bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const uint8_t analminalRate17bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x58, 0xE2, 0xAF, 0xE0, 0xBC}, /* 20.5MHz XTal */
 		{0x68, 0x0F, 0xA2, 0x32, 0xD0}, /* 24MHz XTal */
 		{0x58, 0xE2, 0xAF, 0xE0, 0xBC}  /* 41MHz XTal */
@@ -2260,7 +2260,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 8000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, analminalRate8bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2290,7 +2290,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 7000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, analminalRate7bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2320,7 +2320,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 6000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, analminalRate6bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2350,7 +2350,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 5000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate5bw[priv->xtal], 5);
+				0x9F, analminalRate5bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2380,7 +2380,7 @@ static int cxd2841er_sleep_tc_to_active_t2_band(struct cxd2841er_priv *priv,
 	case 1712000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate17bw[priv->xtal], 5);
+				0x9F, analminalRate17bw[priv->xtal], 5);
 
 		/* Set SLV-T Bank : 0x27 */
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x27);
@@ -2418,26 +2418,26 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 {
 	u8 data[MAX_WRITE_REGSIZE];
 	u32 iffreq, ifhz;
-	static const u8 nominalRate8bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const u8 analminalRate8bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x15, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x11, 0xF0, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate7bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const u8 analminalRate7bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x14, 0x80, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x18, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x80, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate6bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const u8 analminalRate6bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}, /* 20.5MHz XTal */
 		{0x1C, 0x00, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x17, 0xEA, 0xAA, 0xAA, 0xAA}  /* 41MHz XTal */
 	};
-	static const u8 nominalRate5bw[3][5] = {
-		/* TRCG Nominal Rate [37:0] */
+	static const u8 analminalRate5bw[3][5] = {
+		/* TRCG Analminal Rate [37:0] */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}, /* 20.5MHz XTal */
 		{0x21, 0x99, 0x99, 0x99, 0x99}, /* 24MHz XTal */
 		{0x1C, 0xB3, 0x33, 0x33, 0x33}  /* 41MHz XTal */
@@ -2490,7 +2490,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 8000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, analminalRate8bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2518,7 +2518,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		}
 		cxd2841er_write_regs(priv, I2C_SLVT, 0xD9, data, 2);
 
-		/* Notch filter setting */
+		/* Analtch filter setting */
 		data[0] = 0x01;
 		data[1] = 0x02;
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x17);
@@ -2527,7 +2527,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 7000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, analminalRate7bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2555,7 +2555,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		}
 		cxd2841er_write_regs(priv, I2C_SLVT, 0xD9, data, 2);
 
-		/* Notch filter setting */
+		/* Analtch filter setting */
 		data[0] = 0x00;
 		data[1] = 0x03;
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x17);
@@ -2564,7 +2564,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 6000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, analminalRate6bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2592,7 +2592,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		}
 		cxd2841er_write_regs(priv, I2C_SLVT, 0xD9, data, 2);
 
-		/* Notch filter setting */
+		/* Analtch filter setting */
 		data[0] = 0x00;
 		data[1] = 0x03;
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x17);
@@ -2601,7 +2601,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 	case 5000000:
 		/* <Timing Recovery setting> */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate5bw[priv->xtal], 5);
+				0x9F, analminalRate5bw[priv->xtal], 5);
 		/* Group delay equaliser settings for
 		 * ASCOT2D, ASCOT2E and ASCOT3 tuners
 		*/
@@ -2629,7 +2629,7 @@ static int cxd2841er_sleep_tc_to_active_t_band(
 		}
 		cxd2841er_write_regs(priv, I2C_SLVT, 0xD9, data, 2);
 
-		/* Notch filter setting */
+		/* Analtch filter setting */
 		data[0] = 0x00;
 		data[1] = 0x03;
 		cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x17);
@@ -2646,20 +2646,20 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	u32 iffreq, ifhz;
 	u8 data[3];
 
-	/* TRCG Nominal Rate */
-	static const u8 nominalRate8bw[3][5] = {
+	/* TRCG Analminal Rate */
+	static const u8 analminalRate8bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x11, 0xB8, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const u8 nominalRate7bw[3][5] = {
+	static const u8 analminalRate7bw[3][5] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x14, 0x40, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x00, 0x00, 0x00, 0x00, 0x00}  /* 41MHz XTal */
 	};
 
-	static const u8 nominalRate6bw[3][5] = {
+	static const u8 analminalRate6bw[3][5] = {
 		{0x14, 0x2E, 0x00, 0x00, 0x00}, /* 20.5MHz XTal */
 		{0x17, 0xA0, 0x00, 0x00, 0x00}, /* 24MHz XTal */
 		{0x14, 0x2E, 0x00, 0x00, 0x00}  /* 41MHz XTal */
@@ -2692,7 +2692,7 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 	/* Set SLV-T Bank : 0x10 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 
-	/*  20.5/41MHz Xtal support is not available
+	/*  20.5/41MHz Xtal support is analt available
 	 *  on ISDB-T 7MHzBW and 8MHzBW
 	*/
 	if (priv->xtal != SONY_XTAL_24000 && bandwidth > 6000000) {
@@ -2704,9 +2704,9 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 
 	switch (bandwidth) {
 	case 8000000:
-		/* TRCG Nominal Rate */
+		/* TRCG Analminal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate8bw[priv->xtal], 5);
+				0x9F, analminalRate8bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -2735,9 +2735,9 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 		cxd2841er_write_reg(priv, I2C_SLVT, 0xBE, 0x03);
 		break;
 	case 7000000:
-		/* TRCG Nominal Rate */
+		/* TRCG Analminal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate7bw[priv->xtal], 5);
+				0x9F, analminalRate7bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -2766,9 +2766,9 @@ static int cxd2841er_sleep_tc_to_active_i_band(
 		cxd2841er_write_reg(priv, I2C_SLVT, 0xBE, 0x02);
 		break;
 	case 6000000:
-		/* TRCG Nominal Rate */
+		/* TRCG Analminal Rate */
 		cxd2841er_write_regs(priv, I2C_SLVT,
-				0x9F, nominalRate6bw[priv->xtal], 5);
+				0x9F, analminalRate6bw[priv->xtal], 5);
 		/*  Group delay equaliser settings for ASCOT tuners optimized */
 		if (priv->flags & CXD2841ER_ASCOT)
 			cxd2841er_write_regs(priv, I2C_SLVT,
@@ -3277,7 +3277,7 @@ static int cxd2841er_get_frontend(struct dvb_frontend *fe,
 	if (priv->state == STATE_ACTIVE_TC || priv->state == STATE_ACTIVE_S)
 		cxd2841er_read_signal_strength(fe);
 	else
-		p->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	if (status & FE_HAS_LOCK) {
 		if (priv->stats_time &&
@@ -3291,10 +3291,10 @@ static int cxd2841er_get_frontend(struct dvb_frontend *fe,
 		cxd2841er_read_ucblocks(fe);
 		cxd2841er_read_ber(fe);
 	} else {
-		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 	return 0;
 }
@@ -3362,10 +3362,10 @@ static int cxd2841er_set_frontend_s(struct dvb_frontend *fe)
 done:
 	/* Reset stats */
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
-	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	/* Reset the wait for jiffies logic */
 	priv->stats_time = 0;
@@ -3481,7 +3481,7 @@ static int cxd2841er_set_frontend_tc(struct dvb_frontend *fe)
 
 	cxd2841er_tune_done(priv);
 
-	if (priv->flags & CXD2841ER_NO_WAIT_LOCK)
+	if (priv->flags & CXD2841ER_ANAL_WAIT_LOCK)
 		goto done;
 
 	timeout = 2500;
@@ -3627,7 +3627,7 @@ static int cxd2841er_sleep_tc(struct dvb_frontend *fe)
 			break;
 		default:
 			dev_warn(&priv->i2c->dev,
-				"%s(): unknown delivery system %d\n",
+				"%s(): unkanalwn delivery system %d\n",
 				__func__, priv->system);
 		}
 	}
@@ -3769,13 +3769,13 @@ static void cxd2841er_init_stats(struct dvb_frontend *fe)
 	p->strength.len = 1;
 	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
 	p->cnr.len = 1;
-	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->block_error.len = 1;
-	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->post_bit_error.len = 1;
-	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	p->post_bit_count.len = 1;
-	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 }
 
 
@@ -3814,10 +3814,10 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	dev_dbg(&priv->i2c->dev, "%s() bandwidth_hz=%d\n",
 			__func__, p->bandwidth_hz);
 	cxd2841er_shutdown_to_sleep_tc(priv);
-	/* SONY_DEMOD_CONFIG_IFAGCNEG = 1 (0 for NO_AGCNEG */
+	/* SONY_DEMOD_CONFIG_IFAGCNEG = 1 (0 for ANAL_AGCNEG */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x10);
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0xcb,
-		((priv->flags & CXD2841ER_NO_AGCNEG) ? 0x00 : 0x40), 0x40);
+		((priv->flags & CXD2841ER_ANAL_AGCNEG) ? 0x00 : 0x40), 0x40);
 	/* SONY_DEMOD_CONFIG_IFAGC_ADC_FS = 0 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0xcd, 0x50);
 	/* SONY_DEMOD_CONFIG_PARALLEL_SEL = 1 */

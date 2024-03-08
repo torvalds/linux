@@ -17,7 +17,7 @@
 
 #include "alloc.h"
 #include "dlmglue.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "journal.h"
 #include "super.h"
 #include "sysfile.h"
@@ -35,7 +35,7 @@
  *
  * Return how many backups we find in the last group.
  */
-static u16 ocfs2_calc_new_backup_super(struct inode *inode,
+static u16 ocfs2_calc_new_backup_super(struct ianalde *ianalde,
 				       struct ocfs2_group_desc *gd,
 				       u16 cl_cpg,
 				       u16 old_bg_clusters,
@@ -44,20 +44,20 @@ static u16 ocfs2_calc_new_backup_super(struct inode *inode,
 	int i;
 	u16 backups = 0;
 	u32 cluster, lgd_cluster;
-	u64 blkno, gd_blkno, lgd_blkno = le64_to_cpu(gd->bg_blkno);
+	u64 blkanal, gd_blkanal, lgd_blkanal = le64_to_cpu(gd->bg_blkanal);
 
 	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
-		blkno = ocfs2_backup_super_blkno(inode->i_sb, i);
-		cluster = ocfs2_blocks_to_clusters(inode->i_sb, blkno);
+		blkanal = ocfs2_backup_super_blkanal(ianalde->i_sb, i);
+		cluster = ocfs2_blocks_to_clusters(ianalde->i_sb, blkanal);
 
-		gd_blkno = ocfs2_which_cluster_group(inode, cluster);
-		if (gd_blkno < lgd_blkno)
+		gd_blkanal = ocfs2_which_cluster_group(ianalde, cluster);
+		if (gd_blkanal < lgd_blkanal)
 			continue;
-		else if (gd_blkno > lgd_blkno)
+		else if (gd_blkanal > lgd_blkanal)
 			break;
 
 		/* check if already done backup super */
-		lgd_cluster = ocfs2_blocks_to_clusters(inode->i_sb, lgd_blkno);
+		lgd_cluster = ocfs2_blocks_to_clusters(ianalde->i_sb, lgd_blkanal);
 		lgd_cluster += old_bg_clusters;
 		if (lgd_cluster >= cluster)
 			continue;
@@ -74,16 +74,16 @@ static u16 ocfs2_calc_new_backup_super(struct inode *inode,
 	return backups;
 }
 
-static int ocfs2_update_last_group_and_inode(handle_t *handle,
-					     struct inode *bm_inode,
+static int ocfs2_update_last_group_and_ianalde(handle_t *handle,
+					     struct ianalde *bm_ianalde,
 					     struct buffer_head *bm_bh,
 					     struct buffer_head *group_bh,
 					     u32 first_new_cluster,
 					     int new_clusters)
 {
 	int ret = 0;
-	struct ocfs2_super *osb = OCFS2_SB(bm_inode->i_sb);
-	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) bm_bh->b_data;
+	struct ocfs2_super *osb = OCFS2_SB(bm_ianalde->i_sb);
+	struct ocfs2_dianalde *fe = (struct ocfs2_dianalde *) bm_bh->b_data;
 	struct ocfs2_chain_list *cl = &fe->id2.i_chain;
 	struct ocfs2_chain_rec *cr;
 	struct ocfs2_group_desc *group;
@@ -92,13 +92,13 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 	u16 cl_cpg = le16_to_cpu(cl->cl_cpg);
 	u16 old_bg_clusters;
 
-	trace_ocfs2_update_last_group_and_inode(new_clusters,
+	trace_ocfs2_update_last_group_and_ianalde(new_clusters,
 						first_new_cluster);
 
-	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(bm_inode),
+	ret = ocfs2_journal_access_gd(handle, IANALDE_CACHE(bm_ianalde),
 				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out;
 	}
 
@@ -116,7 +116,7 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 	 */
 	if (OCFS2_HAS_COMPAT_FEATURE(osb->sb,
 				     OCFS2_FEATURE_COMPAT_BACKUP_SB)) {
-		backups = ocfs2_calc_new_backup_super(bm_inode,
+		backups = ocfs2_calc_new_backup_super(bm_ianalde,
 						     group,
 						     cl_cpg, old_bg_clusters, 1);
 		le16_add_cpu(&group->bg_free_bits_count, -1 * backups);
@@ -124,11 +124,11 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 
 	ocfs2_journal_dirty(handle, group_bh);
 
-	/* update the inode accordingly. */
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(bm_inode), bm_bh,
+	/* update the ianalde accordingly. */
+	ret = ocfs2_journal_access_di(handle, IANALDE_CACHE(bm_ianalde), bm_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_rollback;
 	}
 
@@ -144,17 +144,17 @@ static int ocfs2_update_last_group_and_inode(handle_t *handle,
 		le32_add_cpu(&fe->id1.bitmap1.i_used, backups);
 	}
 
-	spin_lock(&OCFS2_I(bm_inode)->ip_lock);
-	OCFS2_I(bm_inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	spin_lock(&OCFS2_I(bm_ianalde)->ip_lock);
+	OCFS2_I(bm_ianalde)->ip_clusters = le32_to_cpu(fe->i_clusters);
 	le64_add_cpu(&fe->i_size, (u64)new_clusters << osb->s_clustersize_bits);
-	spin_unlock(&OCFS2_I(bm_inode)->ip_lock);
-	i_size_write(bm_inode, le64_to_cpu(fe->i_size));
+	spin_unlock(&OCFS2_I(bm_ianalde)->ip_lock);
+	i_size_write(bm_ianalde, le64_to_cpu(fe->i_size));
 
 	ocfs2_journal_dirty(handle, bm_bh);
 
 out_rollback:
 	if (ret < 0) {
-		ocfs2_calc_new_backup_super(bm_inode,
+		ocfs2_calc_new_backup_super(bm_ianalde,
 					    group,
 					    cl_cpg, old_bg_clusters, 0);
 		le16_add_cpu(&group->bg_free_bits_count, backups);
@@ -163,42 +163,42 @@ out_rollback:
 	}
 out:
 	if (ret)
-		mlog_errno(ret);
+		mlog_erranal(ret);
 	return ret;
 }
 
-static int update_backups(struct inode * inode, u32 clusters, char *data)
+static int update_backups(struct ianalde * ianalde, u32 clusters, char *data)
 {
 	int i, ret = 0;
 	u32 cluster;
-	u64 blkno;
+	u64 blkanal;
 	struct buffer_head *backup = NULL;
-	struct ocfs2_dinode *backup_di = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dianalde *backup_di = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
 	/* calculate the real backups we need to update. */
 	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
-		blkno = ocfs2_backup_super_blkno(inode->i_sb, i);
-		cluster = ocfs2_blocks_to_clusters(inode->i_sb, blkno);
+		blkanal = ocfs2_backup_super_blkanal(ianalde->i_sb, i);
+		cluster = ocfs2_blocks_to_clusters(ianalde->i_sb, blkanal);
 		if (cluster >= clusters)
 			break;
 
-		ret = ocfs2_read_blocks_sync(osb, blkno, 1, &backup);
+		ret = ocfs2_read_blocks_sync(osb, blkanal, 1, &backup);
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog_erranal(ret);
 			break;
 		}
 
-		memcpy(backup->b_data, data, inode->i_sb->s_blocksize);
+		memcpy(backup->b_data, data, ianalde->i_sb->s_blocksize);
 
-		backup_di = (struct ocfs2_dinode *)backup->b_data;
-		backup_di->i_blkno = cpu_to_le64(blkno);
+		backup_di = (struct ocfs2_dianalde *)backup->b_data;
+		backup_di->i_blkanal = cpu_to_le64(blkanal);
 
 		ret = ocfs2_write_super_or_backup(osb, backup);
 		brelse(backup);
 		backup = NULL;
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog_erranal(ret);
 			break;
 		}
 	}
@@ -206,44 +206,44 @@ static int update_backups(struct inode * inode, u32 clusters, char *data)
 	return ret;
 }
 
-static void ocfs2_update_super_and_backups(struct inode *inode,
+static void ocfs2_update_super_and_backups(struct ianalde *ianalde,
 					   int new_clusters)
 {
 	int ret;
 	u32 clusters = 0;
 	struct buffer_head *super_bh = NULL;
-	struct ocfs2_dinode *super_di = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dianalde *super_di = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 
 	/*
 	 * update the superblock last.
 	 * It doesn't matter if the write failed.
 	 */
-	ret = ocfs2_read_blocks_sync(osb, OCFS2_SUPER_BLOCK_BLKNO, 1,
+	ret = ocfs2_read_blocks_sync(osb, OCFS2_SUPER_BLOCK_BLKANAL, 1,
 				     &super_bh);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out;
 	}
 
-	super_di = (struct ocfs2_dinode *)super_bh->b_data;
+	super_di = (struct ocfs2_dianalde *)super_bh->b_data;
 	le32_add_cpu(&super_di->i_clusters, new_clusters);
 	clusters = le32_to_cpu(super_di->i_clusters);
 
 	ret = ocfs2_write_super_or_backup(osb, super_bh);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out;
 	}
 
 	if (OCFS2_HAS_COMPAT_FEATURE(osb->sb, OCFS2_FEATURE_COMPAT_BACKUP_SB))
-		ret = update_backups(inode, clusters, super_bh->b_data);
+		ret = update_backups(ianalde, clusters, super_bh->b_data);
 
 out:
 	brelse(super_bh);
 	if (ret)
 		printk(KERN_WARNING "ocfs2: Failed to update super blocks on %s"
-			" during fs resize. This condition is not fatal,"
+			" during fs resize. This condition is analt fatal,"
 			" but fsck.ocfs2 should be run to fix it\n",
 			osb->dev_str);
 	return;
@@ -254,19 +254,19 @@ out:
  * point is only used to extend the current filesystem to the end of the last
  * existing group.
  */
-int ocfs2_group_extend(struct inode * inode, int new_clusters)
+int ocfs2_group_extend(struct ianalde * ianalde, int new_clusters)
 {
 	int ret;
 	handle_t *handle;
 	struct buffer_head *main_bm_bh = NULL;
 	struct buffer_head *group_bh = NULL;
-	struct inode *main_bm_inode = NULL;
-	struct ocfs2_dinode *fe = NULL;
+	struct ianalde *main_bm_ianalde = NULL;
+	struct ocfs2_dianalde *fe = NULL;
 	struct ocfs2_group_desc *group = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 	u16 cl_bpc;
 	u32 first_new_cluster;
-	u64 lgd_blkno;
+	u64 lgd_blkanal;
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
@@ -276,28 +276,28 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	else if (new_clusters == 0)
 		return 0;
 
-	main_bm_inode = ocfs2_get_system_file_inode(osb,
-						    GLOBAL_BITMAP_SYSTEM_INODE,
+	main_bm_ianalde = ocfs2_get_system_file_ianalde(osb,
+						    GLOBAL_BITMAP_SYSTEM_IANALDE,
 						    OCFS2_INVALID_SLOT);
-	if (!main_bm_inode) {
+	if (!main_bm_ianalde) {
 		ret = -EINVAL;
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out;
 	}
 
-	inode_lock(main_bm_inode);
+	ianalde_lock(main_bm_ianalde);
 
-	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
+	ret = ocfs2_ianalde_lock(main_bm_ianalde, &main_bm_bh, 1);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_mutex;
 	}
 
-	fe = (struct ocfs2_dinode *)main_bm_bh->b_data;
+	fe = (struct ocfs2_dianalde *)main_bm_bh->b_data;
 
-	/* main_bm_bh is validated by inode read inside ocfs2_inode_lock(),
+	/* main_bm_bh is validated by ianalde read inside ocfs2_ianalde_lock(),
 	 * so any corruption is a code bug. */
-	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+	BUG_ON(!OCFS2_IS_VALID_DIANALDE(fe));
 
 	if (le16_to_cpu(fe->id2.i_chain.cl_cpg) !=
 		ocfs2_group_bitmap_size(osb->sb, 0,
@@ -309,13 +309,13 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 	}
 
 	first_new_cluster = le32_to_cpu(fe->i_clusters);
-	lgd_blkno = ocfs2_which_cluster_group(main_bm_inode,
+	lgd_blkanal = ocfs2_which_cluster_group(main_bm_ianalde,
 					      first_new_cluster - 1);
 
-	ret = ocfs2_read_group_descriptor(main_bm_inode, fe, lgd_blkno,
+	ret = ocfs2_read_group_descriptor(main_bm_ianalde, fe, lgd_blkanal,
 					  &group_bh);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_unlock;
 	}
 	group = (struct ocfs2_group_desc *)group_bh->b_data;
@@ -329,26 +329,26 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 
 
 	trace_ocfs2_group_extend(
-	     (unsigned long long)le64_to_cpu(group->bg_blkno), new_clusters);
+	     (unsigned long long)le64_to_cpu(group->bg_blkanal), new_clusters);
 
 	handle = ocfs2_start_trans(osb, OCFS2_GROUP_EXTEND_CREDITS);
 	if (IS_ERR(handle)) {
-		mlog_errno(PTR_ERR(handle));
+		mlog_erranal(PTR_ERR(handle));
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	/* update the last group descriptor and inode. */
-	ret = ocfs2_update_last_group_and_inode(handle, main_bm_inode,
+	/* update the last group descriptor and ianalde. */
+	ret = ocfs2_update_last_group_and_ianalde(handle, main_bm_ianalde,
 						main_bm_bh, group_bh,
 						first_new_cluster,
 						new_clusters);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_commit;
 	}
 
-	ocfs2_update_super_and_backups(main_bm_inode, new_clusters);
+	ocfs2_update_super_and_backups(main_bm_ianalde, new_clusters);
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
@@ -356,18 +356,18 @@ out_unlock:
 	brelse(group_bh);
 	brelse(main_bm_bh);
 
-	ocfs2_inode_unlock(main_bm_inode, 1);
+	ocfs2_ianalde_unlock(main_bm_ianalde, 1);
 
 out_mutex:
-	inode_unlock(main_bm_inode);
-	iput(main_bm_inode);
+	ianalde_unlock(main_bm_ianalde);
+	iput(main_bm_ianalde);
 
 out:
 	return ret;
 }
 
-static int ocfs2_check_new_group(struct inode *inode,
-				 struct ocfs2_dinode *di,
+static int ocfs2_check_new_group(struct ianalde *ianalde,
+				 struct ocfs2_dianalde *di,
 				 struct ocfs2_new_group_input *input,
 				 struct buffer_head *group_bh)
 {
@@ -376,7 +376,7 @@ static int ocfs2_check_new_group(struct inode *inode,
 		(struct ocfs2_group_desc *)group_bh->b_data;
 	u16 cl_bpc = le16_to_cpu(di->id2.i_chain.cl_bpc);
 
-	ret = ocfs2_check_group_descriptor(inode->i_sb, di, group_bh);
+	ret = ocfs2_check_group_descriptor(ianalde->i_sb, di, group_bh);
 	if (ret)
 		goto out;
 
@@ -384,17 +384,17 @@ static int ocfs2_check_new_group(struct inode *inode,
 	if (le16_to_cpu(gd->bg_chain) != input->chain)
 		mlog(ML_ERROR, "Group descriptor # %llu has bad chain %u "
 		     "while input has %u set.\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
+		     (unsigned long long)le64_to_cpu(gd->bg_blkanal),
 		     le16_to_cpu(gd->bg_chain), input->chain);
 	else if (le16_to_cpu(gd->bg_bits) != input->clusters * cl_bpc)
 		mlog(ML_ERROR, "Group descriptor # %llu has bit count %u but "
 		     "input has %u clusters set\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
+		     (unsigned long long)le64_to_cpu(gd->bg_blkanal),
 		     le16_to_cpu(gd->bg_bits), input->clusters);
 	else if (le16_to_cpu(gd->bg_free_bits_count) != input->frees * cl_bpc)
 		mlog(ML_ERROR, "Group descriptor # %llu has free bit count %u "
 		     "but it should have %u set\n",
-		     (unsigned long long)le64_to_cpu(gd->bg_blkno),
+		     (unsigned long long)le64_to_cpu(gd->bg_blkanal),
 		     le16_to_cpu(gd->bg_bits),
 		     input->frees * cl_bpc);
 	else
@@ -404,15 +404,15 @@ out:
 	return ret;
 }
 
-static int ocfs2_verify_group_and_input(struct inode *inode,
-					struct ocfs2_dinode *di,
+static int ocfs2_verify_group_and_input(struct ianalde *ianalde,
+					struct ocfs2_dianalde *di,
 					struct ocfs2_new_group_input *input,
 					struct buffer_head *group_bh)
 {
 	u16 cl_count = le16_to_cpu(di->id2.i_chain.cl_count);
 	u16 cl_cpg = le16_to_cpu(di->id2.i_chain.cl_cpg);
 	u16 next_free = le16_to_cpu(di->id2.i_chain.cl_next_free_rec);
-	u32 cluster = ocfs2_blocks_to_clusters(inode->i_sb, input->group);
+	u32 cluster = ocfs2_blocks_to_clusters(ianalde->i_sb, input->group);
 	u32 total_clusters = le32_to_cpu(di->i_clusters);
 	int ret = -EINVAL;
 
@@ -432,9 +432,9 @@ static int ocfs2_verify_group_and_input(struct inode *inode,
 	else if (total_clusters % cl_cpg != 0)
 		mlog(ML_ERROR,
 		     "the last group isn't full. Use group extend first.\n");
-	else if (input->group != ocfs2_which_cluster_group(inode, cluster))
-		mlog(ML_ERROR, "group blkno is invalid\n");
-	else if ((ret = ocfs2_check_new_group(inode, di, input, group_bh)))
+	else if (input->group != ocfs2_which_cluster_group(ianalde, cluster))
+		mlog(ML_ERROR, "group blkanal is invalid\n");
+	else if ((ret = ocfs2_check_new_group(ianalde, di, input, group_bh)))
 		mlog(ML_ERROR, "group descriptor check failed.\n");
 	else
 		ret = 0;
@@ -443,14 +443,14 @@ static int ocfs2_verify_group_and_input(struct inode *inode,
 }
 
 /* Add a new group descriptor to global_bitmap. */
-int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
+int ocfs2_group_add(struct ianalde *ianalde, struct ocfs2_new_group_input *input)
 {
 	int ret;
 	handle_t *handle;
 	struct buffer_head *main_bm_bh = NULL;
-	struct inode *main_bm_inode = NULL;
-	struct ocfs2_dinode *fe = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ianalde *main_bm_ianalde = NULL;
+	struct ocfs2_dianalde *fe = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(ianalde->i_sb);
 	struct buffer_head *group_bh = NULL;
 	struct ocfs2_group_desc *group = NULL;
 	struct ocfs2_chain_list *cl;
@@ -461,24 +461,24 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb))
 		return -EROFS;
 
-	main_bm_inode = ocfs2_get_system_file_inode(osb,
-						    GLOBAL_BITMAP_SYSTEM_INODE,
+	main_bm_ianalde = ocfs2_get_system_file_ianalde(osb,
+						    GLOBAL_BITMAP_SYSTEM_IANALDE,
 						    OCFS2_INVALID_SLOT);
-	if (!main_bm_inode) {
+	if (!main_bm_ianalde) {
 		ret = -EINVAL;
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out;
 	}
 
-	inode_lock(main_bm_inode);
+	ianalde_lock(main_bm_ianalde);
 
-	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
+	ret = ocfs2_ianalde_lock(main_bm_ianalde, &main_bm_bh, 1);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_mutex;
 	}
 
-	fe = (struct ocfs2_dinode *)main_bm_bh->b_data;
+	fe = (struct ocfs2_dianalde *)main_bm_bh->b_data;
 
 	if (le16_to_cpu(fe->id2.i_chain.cl_cpg) !=
 		ocfs2_group_bitmap_size(osb->sb, 0,
@@ -496,11 +496,11 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_unlock;
 	}
 
-	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), group_bh);
+	ocfs2_set_new_buffer_uptodate(IANALDE_CACHE(ianalde), group_bh);
 
-	ret = ocfs2_verify_group_and_input(main_bm_inode, fe, input, group_bh);
+	ret = ocfs2_verify_group_and_input(main_bm_ianalde, fe, input, group_bh);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_free_group_bh;
 	}
 
@@ -509,7 +509,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 
 	handle = ocfs2_start_trans(osb, OCFS2_GROUP_ADD_CREDITS);
 	if (IS_ERR(handle)) {
-		mlog_errno(PTR_ERR(handle));
+		mlog_erranal(PTR_ERR(handle));
 		ret = -EINVAL;
 		goto out_free_group_bh;
 	}
@@ -518,23 +518,23 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 	cl = &fe->id2.i_chain;
 	cr = &cl->cl_recs[input->chain];
 
-	ret = ocfs2_journal_access_gd(handle, INODE_CACHE(main_bm_inode),
+	ret = ocfs2_journal_access_gd(handle, IANALDE_CACHE(main_bm_ianalde),
 				      group_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_commit;
 	}
 
 	group = (struct ocfs2_group_desc *)group_bh->b_data;
 	bg_ptr = le64_to_cpu(group->bg_next_group);
-	group->bg_next_group = cr->c_blkno;
+	group->bg_next_group = cr->c_blkanal;
 	ocfs2_journal_dirty(handle, group_bh);
 
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(main_bm_inode),
+	ret = ocfs2_journal_access_di(handle, IANALDE_CACHE(main_bm_ianalde),
 				      main_bm_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		group->bg_next_group = cpu_to_le64(bg_ptr);
-		mlog_errno(ret);
+		mlog_erranal(ret);
 		goto out_commit;
 	}
 
@@ -543,7 +543,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		memset(cr, 0, sizeof(struct ocfs2_chain_rec));
 	}
 
-	cr->c_blkno = cpu_to_le64(input->group);
+	cr->c_blkanal = cpu_to_le64(input->group);
 	le32_add_cpu(&cr->c_total, input->clusters * cl_bpc);
 	le32_add_cpu(&cr->c_free, input->frees * cl_bpc);
 
@@ -554,13 +554,13 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 
 	ocfs2_journal_dirty(handle, main_bm_bh);
 
-	spin_lock(&OCFS2_I(main_bm_inode)->ip_lock);
-	OCFS2_I(main_bm_inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	spin_lock(&OCFS2_I(main_bm_ianalde)->ip_lock);
+	OCFS2_I(main_bm_ianalde)->ip_clusters = le32_to_cpu(fe->i_clusters);
 	le64_add_cpu(&fe->i_size, (u64)input->clusters << osb->s_clustersize_bits);
-	spin_unlock(&OCFS2_I(main_bm_inode)->ip_lock);
-	i_size_write(main_bm_inode, le64_to_cpu(fe->i_size));
+	spin_unlock(&OCFS2_I(main_bm_ianalde)->ip_lock);
+	i_size_write(main_bm_ianalde, le64_to_cpu(fe->i_size));
 
-	ocfs2_update_super_and_backups(main_bm_inode, input->clusters);
+	ocfs2_update_super_and_backups(main_bm_ianalde, input->clusters);
 
 out_commit:
 	ocfs2_commit_trans(osb, handle);
@@ -571,11 +571,11 @@ out_free_group_bh:
 out_unlock:
 	brelse(main_bm_bh);
 
-	ocfs2_inode_unlock(main_bm_inode, 1);
+	ocfs2_ianalde_unlock(main_bm_ianalde, 1);
 
 out_mutex:
-	inode_unlock(main_bm_inode);
-	iput(main_bm_inode);
+	ianalde_unlock(main_bm_ianalde);
+	iput(main_bm_ianalde);
 
 out:
 	return ret;

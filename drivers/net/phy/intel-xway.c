@@ -49,7 +49,7 @@
 /* LED Configuration */
 #define XWAY_MMD_LEDCH			0x01E0
 /* Inverse of SCAN Function */
-#define  XWAY_MMD_LEDCH_NACS_NONE	0x0000
+#define  XWAY_MMD_LEDCH_NACS_ANALNE	0x0000
 #define  XWAY_MMD_LEDCH_NACS_LINK	0x0001
 #define  XWAY_MMD_LEDCH_NACS_PDOWN	0x0002
 #define  XWAY_MMD_LEDCH_NACS_EEE	0x0003
@@ -70,7 +70,7 @@
 /* LED Configuration */
 #define XWAY_MMD_LEDCL			0x01E1
 /* Complex Blinking Configuration */
-#define  XWAY_MMD_LEDCH_CBLINK_NONE	0x0000
+#define  XWAY_MMD_LEDCH_CBLINK_ANALNE	0x0000
 #define  XWAY_MMD_LEDCH_CBLINK_LINK	0x0001
 #define  XWAY_MMD_LEDCH_CBLINK_PDOWN	0x0002
 #define  XWAY_MMD_LEDCH_CBLINK_EEE	0x0003
@@ -79,7 +79,7 @@
 #define  XWAY_MMD_LEDCH_CBLINK_CDIAG	0x0006
 #define  XWAY_MMD_LEDCH_CBLINK_TEST	0x0007
 /* Complex SCAN Configuration */
-#define  XWAY_MMD_LEDCH_SCAN_NONE	0x0000
+#define  XWAY_MMD_LEDCH_SCAN_ANALNE	0x0000
 #define  XWAY_MMD_LEDCH_SCAN_LINK	0x0010
 #define  XWAY_MMD_LEDCH_SCAN_PDOWN	0x0020
 #define  XWAY_MMD_LEDCH_SCAN_EEE	0x0030
@@ -91,7 +91,7 @@
 #define XWAY_MMD_LED0H			0x01E2
 /* Fast Blinking Configuration */
 #define  XWAY_MMD_LEDxH_BLINKF_MASK	0x000F
-#define  XWAY_MMD_LEDxH_BLINKF_NONE	0x0000
+#define  XWAY_MMD_LEDxH_BLINKF_ANALNE	0x0000
 #define  XWAY_MMD_LEDxH_BLINKF_LINK10	0x0001
 #define  XWAY_MMD_LEDxH_BLINKF_LINK100	0x0002
 #define  XWAY_MMD_LEDxH_BLINKF_LINK10X	0x0003
@@ -106,7 +106,7 @@
 #define  XWAY_MMD_LEDxH_BLINKF_CDIAG	0x000C
 /* Constant On Configuration */
 #define  XWAY_MMD_LEDxH_CON_MASK	0x00F0
-#define  XWAY_MMD_LEDxH_CON_NONE	0x0000
+#define  XWAY_MMD_LEDxH_CON_ANALNE	0x0000
 #define  XWAY_MMD_LEDxH_CON_LINK10	0x0010
 #define  XWAY_MMD_LEDxH_CON_LINK100	0x0020
 #define  XWAY_MMD_LEDxH_CON_LINK10X	0x0030
@@ -125,13 +125,13 @@
 #define XWAY_MMD_LED0L			0x01E3
 /* Pulsing Configuration */
 #define  XWAY_MMD_LEDxL_PULSE_MASK	0x000F
-#define  XWAY_MMD_LEDxL_PULSE_NONE	0x0000
+#define  XWAY_MMD_LEDxL_PULSE_ANALNE	0x0000
 #define  XWAY_MMD_LEDxL_PULSE_TXACT	0x0001
 #define  XWAY_MMD_LEDxL_PULSE_RXACT	0x0002
 #define  XWAY_MMD_LEDxL_PULSE_COL	0x0004
 /* Slow Blinking Configuration */
 #define  XWAY_MMD_LEDxL_BLINKS_MASK	0x00F0
-#define  XWAY_MMD_LEDxL_BLINKS_NONE	0x0000
+#define  XWAY_MMD_LEDxL_BLINKS_ANALNE	0x0000
 #define  XWAY_MMD_LEDxL_BLINKS_LINK10	0x0010
 #define  XWAY_MMD_LEDxL_BLINKS_LINK100	0x0020
 #define  XWAY_MMD_LEDxL_BLINKS_LINK10X	0x0030
@@ -176,8 +176,8 @@ static int xway_gphy_rgmii_init(struct phy_device *phydev)
 		return 0;
 
 	/* Existing behavior was to use default pin strapping delay in rgmii
-	 * mode, but rgmii should have meant no delay.  Warn existing users,
-	 * but do not change anything at the moment.
+	 * mode, but rgmii should have meant anal delay.  Warn existing users,
+	 * but do analt change anything at the moment.
 	 */
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
 		u16 txskew, rxskew;
@@ -253,12 +253,12 @@ static int xway_gphy_config_init(struct phy_device *phydev)
 		return err;
 
 	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LEDCH,
-		      XWAY_MMD_LEDCH_NACS_NONE |
+		      XWAY_MMD_LEDCH_NACS_ANALNE |
 		      XWAY_MMD_LEDCH_SBF_F02HZ |
 		      XWAY_MMD_LEDCH_FBF_F16HZ);
 	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LEDCL,
-		      XWAY_MMD_LEDCH_CBLINK_NONE |
-		      XWAY_MMD_LEDCH_SCAN_NONE);
+		      XWAY_MMD_LEDCH_CBLINK_ANALNE |
+		      XWAY_MMD_LEDCH_SCAN_ANALNE);
 
 	/**
 	 * In most cases only one LED is connected to this phy, so
@@ -266,9 +266,9 @@ static int xway_gphy_config_init(struct phy_device *phydev)
 	 * only available in some packages, leave it in its reset
 	 * configuration.
 	 */
-	ledxh = XWAY_MMD_LEDxH_BLINKF_NONE | XWAY_MMD_LEDxH_CON_LINK10XX;
+	ledxh = XWAY_MMD_LEDxH_BLINKF_ANALNE | XWAY_MMD_LEDxH_CON_LINK10XX;
 	ledxl = XWAY_MMD_LEDxL_PULSE_TXACT | XWAY_MMD_LEDxL_PULSE_RXACT |
-		XWAY_MMD_LEDxL_BLINKS_NONE;
+		XWAY_MMD_LEDxL_BLINKS_ANALNE;
 	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED0H, ledxh);
 	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED0L, ledxl);
 	phy_write_mmd(phydev, MDIO_MMD_VEND2, XWAY_MMD_LED1H, ledxh);
@@ -336,11 +336,11 @@ static irqreturn_t xway_gphy_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, XWAY_MDIO_ISTAT);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & XWAY_MDIO_INIT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 

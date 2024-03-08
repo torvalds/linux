@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Input driver for slidebars on some Lenovo IdeaPad laptops
+ * Input driver for slidebars on some Leanalvo IdeaPad laptops
  *
  * Copyright (C) 2013 Andrey Moiseev <o2g.org.ru@gmail.com>
  *
- * Reverse-engineered from Lenovo SlideNav software (SBarHook.dll).
+ * Reverse-engineered from Leanalvo SlideNav software (SBarHook.dll).
  *
  * Trademarks are the property of their respective owners.
  */
 
 /*
  * Currently tested and works on:
- *	Lenovo IdeaPad Y550
- *	Lenovo IdeaPad Y550P
+ *	Leanalvo IdeaPad Y550
+ *	Leanalvo IdeaPad Y550P
  *
  * Other models can be added easily. To test,
  * load with 'force' parameter set 'true'.
@@ -32,12 +32,12 @@
  * Meaning:
  *           released      touched
  * STD       'heartbeat'   lights follow the finger
- * ONMOV     no lights     lights follow the finger
+ * ONMOV     anal lights     lights follow the finger
  * LAST      at last pos   lights follow the finger
- * OFF       no lights     no lights
+ * OFF       anal lights     anal lights
  *
  * INT       all input events are generated, interrupts are used
- * POLL      no input events by default, to get them,
+ * POLL      anal input events by default, to get them,
  *	     send 0b10000000 (read below)
  *
  * Commands: write
@@ -57,7 +57,7 @@
  * Any state |   0b10000000 ->  if the slidebar has updated data,
  *				produce one input event (last position),
  *				switch to respective POLL mode
- *				(like 0x0), if not in POLL mode yet.
+ *				(like 0x0), if analt in POLL mode yet.
  *
  * Get current state: read
  *
@@ -86,7 +86,7 @@
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, iganalre DMI data");
 
 static DEFINE_SPINLOCK(io_lock);
 
@@ -220,7 +220,7 @@ static int __init ideapad_probe(struct platform_device* pdev)
 	slidebar_input_dev = input_allocate_device();
 	if (!slidebar_input_dev) {
 		dev_err(&pdev->dev, "Failed to allocate input device\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_release_ports;
 	}
 
@@ -278,20 +278,20 @@ static int __init ideapad_dmi_check(const struct dmi_system_id *id)
 
 static const struct dmi_system_id ideapad_dmi[] __initconst = {
 	{
-		.ident = "Lenovo IdeaPad Y550",
+		.ident = "Leanalvo IdeaPad Y550",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20017"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Y550")
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leanalvo IdeaPad Y550")
 		},
 		.callback = ideapad_dmi_check
 	},
 	{
-		.ident = "Lenovo IdeaPad Y550P",
+		.ident = "Leanalvo IdeaPad Y550P",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "20035"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo IdeaPad Y550P")
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leanalvo IdeaPad Y550P")
 		},
 		.callback = ideapad_dmi_check
 	},
@@ -304,14 +304,14 @@ static int __init slidebar_init(void)
 	int err;
 
 	if (!force && !dmi_check_system(ideapad_dmi)) {
-		pr_err("DMI does not match\n");
-		return -ENODEV;
+		pr_err("DMI does analt match\n");
+		return -EANALDEV;
 	}
 
 	slidebar_platform_dev = platform_device_alloc("ideapad_slidebar", -1);
 	if (!slidebar_platform_dev) {
-		pr_err("Not enough memory\n");
-		return -ENOMEM;
+		pr_err("Analt eanalugh memory\n");
+		return -EANALMEM;
 	}
 
 	slidebar_platform_dev->dev.groups = ideapad_attr_groups;
@@ -347,5 +347,5 @@ module_init(slidebar_init);
 module_exit(slidebar_exit);
 
 MODULE_AUTHOR("Andrey Moiseev <o2g.org.ru@gmail.com>");
-MODULE_DESCRIPTION("Slidebar input support for some Lenovo IdeaPad laptops");
+MODULE_DESCRIPTION("Slidebar input support for some Leanalvo IdeaPad laptops");
 MODULE_LICENSE("GPL");

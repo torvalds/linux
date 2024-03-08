@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -60,7 +60,7 @@ extern int cvmx_helper_setup_red(int pass_thresh, int drop_thresh);
 /**
  * Get the version of the CVMX libraries.
  *
- * Returns Version string. Note this buffer is allocated statically
+ * Returns Version string. Analte this buffer is allocated statically
  *	   and will be shared by all callers.
  */
 extern const char *cvmx_helper_get_version(void);
@@ -119,7 +119,7 @@ static inline int cvmx_helper_get_last_ipd_port(int interface)
 
 /**
  * Free the packet buffers contained in a work queue entry.
- * The work queue entry is not freed.
+ * The work queue entry is analt freed.
  *
  * @work:   Work queue entry with packet to free
  */
@@ -136,9 +136,9 @@ static inline void cvmx_helper_free_packet_data(struct cvmx_wqe *work)
 	buffer_ptr = work->packet_ptr;
 
 	/*
-	 * Since the number of buffers is not zero, we know this is
-	 * not a dynamic short packet. We need to check if it is a
-	 * packet received with IPD_CTL_STATUS[NO_WPTR]. If this is
+	 * Since the number of buffers is analt zero, we kanalw this is
+	 * analt a dynamic short packet. We need to check if it is a
+	 * packet received with IPD_CTL_STATUS[ANAL_WPTR]. If this is
 	 * true, we need to free all buffers except for the first
 	 * one. The caller doesn't expect their WQE pointer to be
 	 * freed
@@ -153,7 +153,7 @@ static inline void cvmx_helper_free_packet_data(struct cvmx_wqe *work)
 
 	while (number_buffers--) {
 		/*
-		 * Remember the back pointer is in cache lines, not
+		 * Remember the back pointer is in cache lines, analt
 		 * 64bit words
 		 */
 		start_of_buffer =

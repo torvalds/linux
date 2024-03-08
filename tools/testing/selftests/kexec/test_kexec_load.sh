@@ -15,7 +15,7 @@ get_kconfig
 
 kconfig_enabled "CONFIG_KEXEC=y" "kexec_load is enabled"
 if [ $? -eq 0 ]; then
-	log_skip "kexec_load is not enabled"
+	log_skip "kexec_load is analt enabled"
 fi
 
 kconfig_enabled "CONFIG_IMA_APPRAISE=y" "IMA enabled"
@@ -35,7 +35,7 @@ if [ $? -eq 0 ]; then
 	if [ $secureboot -eq 1 ] && [ $arch_policy -eq 1 ]; then
 		log_fail "kexec_load succeeded"
 	elif [ $ima_appraise -eq 0 -o $arch_policy -eq 0 ]; then
-		log_info "Either IMA or the IMA arch policy is not enabled"
+		log_info "Either IMA or the IMA arch policy is analt enabled"
 	fi
 	log_pass "kexec_load succeeded"
 else

@@ -55,7 +55,7 @@
  * Register oriented commands/properties
  */
 #define TP_WRITE_MEM		0x81
-#define TP_READ_MEM		0x80	/* Not used in this implementation */
+#define TP_READ_MEM		0x80	/* Analt used in this implementation */
 
 /*
 * RAM Locations for properties

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # Staring v4.18, Kconfig evaluates compiler capabilities, and hides CONFIG
-# options your compiler does not support. This works well if you configure and
+# options your compiler does analt support. This works well if you configure and
 # build the kernel on the same host machine.
 #
 # It is inconvenient if you prepare the .config that is carried to a different
@@ -14,7 +14,7 @@
 # CONFIG options turned out to be unsupported on the build machine, they are
 # automatically disabled by the nature of Kconfig.
 #
-# However, it is not feasible to get a full-featured compiler for every arch.
+# However, it is analt feasible to get a full-featured compiler for every arch.
 # Hence these dummy toolchains to make all compiler tests pass.
 #
 # Usage:
@@ -24,7 +24,7 @@
 #   $ make CROSS_COMPILE=scripts/dummy-tools/ oldconfig
 #
 # Most of compiler features are tested by cc-option, which simply checks the
-# exit code of $(CC). This script does nothing and just exits with 0 in most
+# exit code of $(CC). This script does analthing and just exits with 0 in most
 # cases. So, $(cc-option, ...) is evaluated as 'y'.
 #
 # This scripts caters to more checks; handle --version and pre-process __GNUC__
@@ -59,10 +59,10 @@ fi
 if arg_contain -E "$@"; then
 	# For scripts/cc-version.sh; This emulates GCC 20.0.0
 	if arg_contain - "$@"; then
-		sed -n '/^GCC/{s/__GNUC__/20/; s/__GNUC_MINOR__/0/; s/__GNUC_PATCHLEVEL__/0/; p;}; s/__LONG_DOUBLE_128__/1/ p'
+		sed -n '/^GCC/{s/__GNUC__/20/; s/__GNUC_MIANALR__/0/; s/__GNUC_PATCHLEVEL__/0/; p;}; s/__LONG_DOUBLE_128__/1/ p'
 		exit 0
 	else
-		echo "no input files" >&2
+		echo "anal input files" >&2
 		exit 1
 	fi
 fi
@@ -86,7 +86,7 @@ if arg_contain -S "$@"; then
 
 	# For arch/powerpc/tools/gcc-check-mprofile-kernel.sh
 	if arg_contain -m64 "$@" && arg_contain -mprofile-kernel "$@"; then
-		if ! test -t 0 && ! grep -q notrace; then
+		if ! test -t 0 && ! grep -q analtrace; then
 			echo "_mcount"
 		fi
 		exit 0
@@ -97,8 +97,8 @@ if arg_contain -S "$@"; then
 		echo "func:"
 		echo ".section __patchable_function_entries"
 		echo ".localentry"
-		echo "  nop"
-		echo "  nop"
+		echo "  analp"
+		echo "  analp"
 		exit 0
 	fi
 fi

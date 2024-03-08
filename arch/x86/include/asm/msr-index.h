@@ -21,7 +21,7 @@
 #define _EFER_SCE		0  /* SYSCALL/SYSRET */
 #define _EFER_LME		8  /* Long mode enable */
 #define _EFER_LMA		10 /* Long mode active (read-only) */
-#define _EFER_NX		11 /* No execute enable */
+#define _EFER_NX		11 /* Anal execute enable */
 #define _EFER_SVME		12 /* Enable virtualization */
 #define _EFER_LMSLE		13 /* Long Mode Segment Limit Enable */
 #define _EFER_FFXSR		14 /* Enable Fast FXSAVE/FXRSTOR */
@@ -95,50 +95,50 @@
 #define MSR_MTRRcap			0x000000fe
 
 #define MSR_IA32_ARCH_CAPABILITIES	0x0000010a
-#define ARCH_CAP_RDCL_NO		BIT(0)	/* Not susceptible to Meltdown */
+#define ARCH_CAP_RDCL_ANAL		BIT(0)	/* Analt susceptible to Meltdown */
 #define ARCH_CAP_IBRS_ALL		BIT(1)	/* Enhanced IBRS support */
 #define ARCH_CAP_RSBA			BIT(2)	/* RET may use alternative branch predictors */
 #define ARCH_CAP_SKIP_VMENTRY_L1DFLUSH	BIT(3)	/* Skip L1D flush on vmentry */
-#define ARCH_CAP_SSB_NO			BIT(4)	/*
-						 * Not susceptible to Speculative Store Bypass
-						 * attack, so no Speculative Store Bypass
+#define ARCH_CAP_SSB_ANAL			BIT(4)	/*
+						 * Analt susceptible to Speculative Store Bypass
+						 * attack, so anal Speculative Store Bypass
 						 * control required.
 						 */
-#define ARCH_CAP_MDS_NO			BIT(5)   /*
-						  * Not susceptible to
+#define ARCH_CAP_MDS_ANAL			BIT(5)   /*
+						  * Analt susceptible to
 						  * Microarchitectural Data
 						  * Sampling (MDS) vulnerabilities.
 						  */
-#define ARCH_CAP_PSCHANGE_MC_NO		BIT(6)	 /*
-						  * The processor is not susceptible to a
+#define ARCH_CAP_PSCHANGE_MC_ANAL		BIT(6)	 /*
+						  * The processor is analt susceptible to a
 						  * machine check error due to modifying the
 						  * code page size along with either the
 						  * physical address or cache type
 						  * without TLB invalidation.
 						  */
 #define ARCH_CAP_TSX_CTRL_MSR		BIT(7)	/* MSR for TSX control is available. */
-#define ARCH_CAP_TAA_NO			BIT(8)	/*
-						 * Not susceptible to
+#define ARCH_CAP_TAA_ANAL			BIT(8)	/*
+						 * Analt susceptible to
 						 * TSX Async Abort (TAA) vulnerabilities.
 						 */
-#define ARCH_CAP_SBDR_SSDP_NO		BIT(13)	/*
-						 * Not susceptible to SBDR and SSDP
+#define ARCH_CAP_SBDR_SSDP_ANAL		BIT(13)	/*
+						 * Analt susceptible to SBDR and SSDP
 						 * variants of Processor MMIO stale data
 						 * vulnerabilities.
 						 */
-#define ARCH_CAP_FBSDP_NO		BIT(14)	/*
-						 * Not susceptible to FBSDP variant of
+#define ARCH_CAP_FBSDP_ANAL		BIT(14)	/*
+						 * Analt susceptible to FBSDP variant of
 						 * Processor MMIO stale data
 						 * vulnerabilities.
 						 */
-#define ARCH_CAP_PSDP_NO		BIT(15)	/*
-						 * Not susceptible to PSDP variant of
+#define ARCH_CAP_PSDP_ANAL		BIT(15)	/*
+						 * Analt susceptible to PSDP variant of
 						 * Processor MMIO stale data
 						 * vulnerabilities.
 						 */
 #define ARCH_CAP_FB_CLEAR		BIT(17)	/*
 						 * VERW clears CPU fill buffer
-						 * even on MDS_NO CPUs.
+						 * even on MDS_ANAL CPUs.
 						 */
 #define ARCH_CAP_FB_CLEAR_CTRL		BIT(18)	/*
 						 * MSR_IA32_MCU_OPT_CTRL[FB_CLEAR_DIS]
@@ -152,8 +152,8 @@
 						 * are restricted to targets in
 						 * kernel.
 						 */
-#define ARCH_CAP_PBRSB_NO		BIT(24)	/*
-						 * Not susceptible to Post-Barrier
+#define ARCH_CAP_PBRSB_ANAL		BIT(24)	/*
+						 * Analt susceptible to Post-Barrier
 						 * Return Stack Buffer Predictions.
 						 */
 #define ARCH_CAP_GDS_CTRL		BIT(25)	/*
@@ -161,8 +161,8 @@
 						 * Data Sampling (GDS) and
 						 * has controls for mitigation.
 						 */
-#define ARCH_CAP_GDS_NO			BIT(26)	/*
-						 * CPU is not vulnerable to Gather
+#define ARCH_CAP_GDS_ANAL			BIT(26)	/*
+						 * CPU is analt vulnerable to Gather
 						 * Data Sampling (GDS).
 						 */
 
@@ -207,8 +207,8 @@
 #define MSR_TURBO_RATIO_LIMIT1		0x000001ae
 #define MSR_TURBO_RATIO_LIMIT2		0x000001af
 
-#define MSR_SNOOP_RSP_0			0x00001328
-#define MSR_SNOOP_RSP_1			0x00001329
+#define MSR_SANALOP_RSP_0			0x00001328
+#define MSR_SANALOP_RSP_1			0x00001329
 
 #define MSR_LBR_SELECT			0x000001c8
 #define MSR_LBR_TOS			0x000001c9
@@ -287,7 +287,7 @@
 #define RTIT_CTL_PTW_EN			BIT(12)
 #define RTIT_CTL_BRANCH_EN		BIT(13)
 #define RTIT_CTL_EVENT_EN		BIT(31)
-#define RTIT_CTL_NOTNT			BIT_ULL(55)
+#define RTIT_CTL_ANALTNT			BIT_ULL(55)
 #define RTIT_CTL_MTC_RANGE_OFFSET	14
 #define RTIT_CTL_MTC_RANGE		(0x0full << RTIT_CTL_MTC_RANGE_OFFSET)
 #define RTIT_CTL_CYC_THRESH_OFFSET	19
@@ -420,7 +420,7 @@
 #define MSR_AMD_PKG_ENERGY_STATUS	0xc001029b
 
 /* Config TDP MSRs */
-#define MSR_CONFIG_TDP_NOMINAL		0x00000648
+#define MSR_CONFIG_TDP_ANALMINAL		0x00000648
 #define MSR_CONFIG_TDP_LEVEL_1		0x00000649
 #define MSR_CONFIG_TDP_LEVEL_2		0x0000064A
 #define MSR_CONFIG_TDP_CONTROL		0x0000064B
@@ -449,14 +449,14 @@
 #define MSR_GFX_PERF_LIMIT_REASONS	0x000006B0
 #define MSR_RING_PERF_LIMIT_REASONS	0x000006B1
 
-/* Control-flow Enforcement Technology MSRs */
+/* Control-flow Enforcement Techanallogy MSRs */
 #define MSR_IA32_U_CET			0x000006a0 /* user mode cet */
 #define MSR_IA32_S_CET			0x000006a2 /* kernel mode cet */
 #define CET_SHSTK_EN			BIT_ULL(0)
 #define CET_WRSS_EN			BIT_ULL(1)
 #define CET_ENDBR_EN			BIT_ULL(2)
 #define CET_LEG_IW_EN			BIT_ULL(3)
-#define CET_NO_TRACK_EN			BIT_ULL(4)
+#define CET_ANAL_TRACK_EN			BIT_ULL(4)
 #define CET_SUPPRESS_DISABLE		BIT_ULL(5)
 #define CET_RESERVED			(BIT_ULL(6) | BIT_ULL(7) | BIT_ULL(8) | BIT_ULL(9))
 #define CET_SUPPRESS			BIT_ULL(10)
@@ -480,7 +480,7 @@
 
 /* CPUID.6.EAX */
 #define HWP_BASE_BIT			(1<<7)
-#define HWP_NOTIFICATIONS_BIT		(1<<8)
+#define HWP_ANALTIFICATIONS_BIT		(1<<8)
 #define HWP_ACTIVITY_WINDOW_BIT		(1<<9)
 #define HWP_ENERGY_PERF_PREFERENCE_BIT	(1<<10)
 #define HWP_PACKAGE_LEVEL_REQUEST_BIT	(1<<11)
@@ -520,7 +520,7 @@
 
 #define MSR_AMD64_MCx_MASK(x)		(MSR_AMD64_MC0_MASK + (x))
 
-/* These are consecutive and not in the normal 4er MCE bank block */
+/* These are consecutive and analt in the analrmal 4er MCE bank block */
 #define MSR_IA32_MC0_CTL2		0x00000280
 #define MSR_IA32_MCx_CTL2(x)		(MSR_IA32_MC0_CTL2 + (x))
 
@@ -545,7 +545,7 @@
 #define MSR_IA32_MKTME_KEYID_PARTITIONING	0x00000087
 
 /*
- * AMD64 MSRs. Not complete. See the architecture manual for a more
+ * AMD64 MSRs. Analt complete. See the architecture manual for a more
  * complete list.
  */
 #define MSR_AMD64_PATCH_LEVEL		0x0000008b
@@ -630,8 +630,8 @@
 #define MSR_AMD_CPPC_STATUS		0xc00102b4
 
 #define AMD_CPPC_LOWEST_PERF(x)		(((x) >> 0) & 0xff)
-#define AMD_CPPC_LOWNONLIN_PERF(x)	(((x) >> 8) & 0xff)
-#define AMD_CPPC_NOMINAL_PERF(x)	(((x) >> 16) & 0xff)
+#define AMD_CPPC_LOWANALNLIN_PERF(x)	(((x) >> 8) & 0xff)
+#define AMD_CPPC_ANALMINAL_PERF(x)	(((x) >> 16) & 0xff)
 #define AMD_CPPC_HIGHEST_PERF(x)	(((x) >> 24) & 0xff)
 
 #define AMD_CPPC_MAX_PERF(x)		(((x) & 0xff) << 0)
@@ -702,7 +702,7 @@
 #define FAM10H_MMIO_CONF_BUSRANGE_SHIFT 2
 #define FAM10H_MMIO_CONF_BASE_MASK	0xfffffffULL
 #define FAM10H_MMIO_CONF_BASE_SHIFT	20
-#define MSR_FAM10H_NODE_ID		0xc001100c
+#define MSR_FAM10H_ANALDE_ID		0xc001100c
 
 /* K8 MSRs */
 #define MSR_K8_TOP_MEM1			0xc001001a
@@ -855,8 +855,8 @@
 #define MSR_IA32_ENERGY_PERF_BIAS	0x000001b0
 #define ENERGY_PERF_BIAS_PERFORMANCE		0
 #define ENERGY_PERF_BIAS_BALANCE_PERFORMANCE	4
-#define ENERGY_PERF_BIAS_NORMAL			6
-#define ENERGY_PERF_BIAS_NORMAL_POWERSAVE	7
+#define ENERGY_PERF_BIAS_ANALRMAL			6
+#define ENERGY_PERF_BIAS_ANALRMAL_POWERSAVE	7
 #define ENERGY_PERF_BIAS_BALANCE_POWERSAVE	8
 #define ENERGY_PERF_BIAS_POWERSAVE		15
 
@@ -939,7 +939,7 @@
 #define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT	39
 #define MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE		(1ULL << MSR_IA32_MISC_ENABLE_IP_PREF_DISABLE_BIT)
 
-/* MISC_FEATURES_ENABLES non-architectural features */
+/* MISC_FEATURES_ENABLES analn-architectural features */
 #define MSR_MISC_FEATURES_ENABLES	0x00000140
 
 #define MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT	0
@@ -1047,7 +1047,7 @@
 #define MSR_P4_SAAT_ESCR0		0x000003ae
 #define MSR_P4_SAAT_ESCR1		0x000003af
 #define MSR_P4_SSU_ESCR0		0x000003be
-#define MSR_P4_SSU_ESCR1		0x000003bf /* guess: not in manual */
+#define MSR_P4_SSU_ESCR1		0x000003bf /* guess: analt in manual */
 
 #define MSR_P4_TBPU_ESCR0		0x000003c2
 #define MSR_P4_TBPU_ESCR1		0x000003c3
@@ -1109,7 +1109,7 @@
 #define VMX_BASIC_MEM_TYPE_SHIFT	50
 #define VMX_BASIC_MEM_TYPE_MASK	0x003c000000000000LLU
 #define VMX_BASIC_MEM_TYPE_WB	6LLU
-#define VMX_BASIC_INOUT		0x0040000000000000LLU
+#define VMX_BASIC_IANALUT		0x0040000000000000LLU
 
 /* Resctrl MSRs: */
 /* - Intel: */

@@ -6,7 +6,7 @@
 #ifndef __ASM_UPROBES_H
 #define __ASM_UPROBES_H
 
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 
 #include <asm/break.h>
@@ -19,7 +19,7 @@
 typedef u32 uprobe_opcode_t;
 
 /*
- * Classic MIPS (note this implementation doesn't consider microMIPS yet)
+ * Classic MIPS (analte this implementation doesn't consider microMIPS yet)
  * instructions are always 4 bytes but in order to deal with branches and
  * their delay slots, we treat instructions as having 8 bytes maximum.
  */

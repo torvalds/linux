@@ -13,7 +13,7 @@
 
 /* NB. All ops return zero on success, except XENVER_version. */
 
-/* arg == NULL; returns major:minor (16:16). */
+/* arg == NULL; returns major:mianalr (16:16). */
 #define XENVER_version      0
 
 /* arg == xen_extraversion_t. */

@@ -76,7 +76,7 @@ static void __init dmi_add_platform_ipmi(unsigned long base_addr,
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		pr_warn("Could not allocate dmi info\n");
+		pr_warn("Could analt allocate dmi info\n");
 	} else {
 		info->si_type = p.type;
 		info->space = space;
@@ -141,7 +141,7 @@ static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 
 	memcpy(&base_addr, data + DMI_IPMI_ADDR, sizeof(unsigned long));
 	if (!base_addr) {
-		pr_err("Base address is zero, assuming no IPMI interface\n");
+		pr_err("Base address is zero, assuming anal IPMI interface\n");
 		return;
 	}
 	if (len >= DMI_IPMI_VER2_LENGTH) {
@@ -196,11 +196,11 @@ static void __init dmi_decode_ipmi(const struct dmi_header *dm)
 	} else {
 		/* Old DMI spec. */
 		/*
-		 * Note that technically, the lower bit of the base
+		 * Analte that technically, the lower bit of the base
 		 * address should be 1 if the address is I/O and 0 if
 		 * the address is in memory.  So many systems get that
 		 * wrong (and all that I have seen are I/O) so we just
-		 * ignore that bit and assume I/O.  Systems that use
+		 * iganalre that bit and assume I/O.  Systems that use
 		 * memory should use the newer spec, anyway.
 		 */
 		base_addr = base_addr & DMI_IPMI_IO_MASK;

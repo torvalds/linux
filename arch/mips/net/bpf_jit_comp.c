@@ -54,8 +54,8 @@
  *    we must fall back to the register version.
  *
  * 2) rewrite_alu_i:
- *    Convert BPF operation and immediate value to a canonical form for
- *    JITing. In some degenerate cases this form may be a no-op.
+ *    Convert BPF operation and immediate value to a caanalnical form for
+ *    JITing. In some degenerate cases this form may be a anal-op.
  *
  * 3) emit_alu_{i,i64,r,64}:
  *    Emit instructions for an ALU or ALU64 immediate or register operation.
@@ -70,13 +70,13 @@
  * following sequence.
  *
  *    <branch> !<cond> +2    Inverted PC-relative branch
- *    nop                    Delay slot
+ *    analp                    Delay slot
  *    j <offset>             Unconditional absolute long jump
- *    nop                    Delay slot
+ *    analp                    Delay slot
  *
  * Since this converted sequence alters the offset table, all offsets must
  * be re-calculated. This may in turn trigger new branch conversions, so
- * the process is repeated until no further changes are made. Normally it
+ * the process is repeated until anal further changes are made. Analrmally it
  * completes in 1-2 iterations. If JIT_MAX_ITERATIONS should reached, we
  * fall back to converting every remaining jump operation. The branch
  * conversion is independent of how the JMP or JMP32 condition is JITed.
@@ -85,7 +85,7 @@
  *
  * 1) setup_jmp_{i,r}:
  *    Convert jump conditional and offset into a form that can be JITed.
- *    This form may be a no-op, a canonical form, or an inverted PC-relative
+ *    This form may be a anal-op, a caanalnical form, or an inverted PC-relative
  *    jump if branch conversion is necessary.
  *
  * 2) valid_jmp_i:
@@ -97,14 +97,14 @@
  *    Emit instructions for an JMP or JMP32 immediate or register operation.
  *
  * 4) finish_jmp_{i,r}:
- *    Emit any instructions needed to finish the jump. This includes a nop
+ *    Emit any instructions needed to finish the jump. This includes a analp
  *    for the delay slot if a branch was emitted, and a long absolute jump
  *    if the branch was converted.
  */
 
 #include <linux/limits.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <linux/slab.h>
@@ -256,12 +256,12 @@ bool rewrite_alu_i(u8 op, s32 imm, u8 *alu, s32 *val)
 	case BPF_SUB:
 	case BPF_OR:
 	case BPF_XOR:
-		/* imm == 0 is a no-op */
+		/* imm == 0 is a anal-op */
 		act = imm != 0;
 		break;
 	case BPF_MUL:
 		if (imm == 1) {
-			/* dst * 1 is a no-op */
+			/* dst * 1 is a anal-op */
 			act = false;
 		} else if (imm == 0) {
 			/* dst * 0 is dst & 0 */
@@ -274,7 +274,7 @@ bool rewrite_alu_i(u8 op, s32 imm, u8 *alu, s32 *val)
 		break;
 	case BPF_DIV:
 		if (imm == 1) {
-			/* dst / 1 is a no-op */
+			/* dst / 1 is a anal-op */
 			act = false;
 		} else {
 			/* dst / (1 << n) is dst >> n */
@@ -433,7 +433,7 @@ void emit_atomic_r(struct jit_context *ctx, u8 dst, u8 src, s16 off, u8 code)
 	}
 	emit(ctx, sc, MIPS_R_T8, off, dst);
 	emit(ctx, LLSC_beqz, MIPS_R_T8, -16 - LLSC_offset);
-	emit(ctx, nop); /* Delay slot */
+	emit(ctx, analp); /* Delay slot */
 
 	if (code & BPF_FETCH) {
 		emit(ctx, move, src, MIPS_R_T9);
@@ -502,12 +502,12 @@ void emit_bswap_r(struct jit_context *ctx, u8 dst, u32 width)
 bool valid_jmp_i(u8 op, s32 imm)
 {
 	switch (op) {
-	case JIT_JNOP:
-		/* Immediate value not used */
+	case JIT_JANALP:
+		/* Immediate value analt used */
 		return true;
 	case BPF_JEQ:
 	case BPF_JNE:
-		/* No immediate operation */
+		/* Anal immediate operation */
 		return false;
 	case BPF_JSET:
 	case JIT_JNSET:
@@ -533,7 +533,7 @@ bool valid_jmp_i(u8 op, s32 imm)
 static u8 invert_jmp(u8 op)
 {
 	switch (op) {
-	case BPF_JA: return JIT_JNOP;
+	case BPF_JA: return JIT_JANALP;
 	case BPF_JEQ: return BPF_JNE;
 	case BPF_JNE: return BPF_JEQ;
 	case BPF_JSET: return JIT_JNSET;
@@ -557,12 +557,12 @@ static void setup_jmp(struct jit_context *ctx, u8 bpf_op,
 	int op = bpf_op;
 	int offset = 0;
 
-	/* Do not compute offsets on the first pass */
+	/* Do analt compute offsets on the first pass */
 	if (INDEX(*descp) == 0)
 		goto done;
 
 	/* Skip jumps never taken */
-	if (bpf_op == JIT_JNOP)
+	if (bpf_op == JIT_JANALP)
 		goto done;
 
 	/* Convert jumps always taken */
@@ -572,7 +572,7 @@ static void setup_jmp(struct jit_context *ctx, u8 bpf_op,
 	/*
 	 * Current ctx->jit_index points to the start of the branch preamble.
 	 * Since the preamble differs among different branch conditionals,
-	 * the current index cannot be used to compute the branch offset.
+	 * the current index cananalt be used to compute the branch offset.
 	 * Instead, we use the offset table value for the next instruction,
 	 * which gives the index immediately after the branch delay slot.
 	 */
@@ -640,7 +640,7 @@ void setup_jmp_i(struct jit_context *ctx, s32 imm, u8 width,
 	}
 
 	if (never)
-		bpf_op = JIT_JNOP;
+		bpf_op = JIT_JANALP;
 	if (always)
 		bpf_op = BPF_JA;
 	setup_jmp(ctx, bpf_op, bpf_off, jit_op, jit_off);
@@ -667,7 +667,7 @@ void setup_jmp_r(struct jit_context *ctx, bool same_reg,
 	case BPF_JSGT:
 	case BPF_JSLT:
 		if (same_reg)
-			bpf_op = JIT_JNOP;
+			bpf_op = JIT_JANALP;
 		break;
 	}
 	setup_jmp(ctx, bpf_op, bpf_off, jit_op, jit_off);
@@ -677,8 +677,8 @@ void setup_jmp_r(struct jit_context *ctx, bool same_reg,
 int finish_jmp(struct jit_context *ctx, u8 jit_op, s16 bpf_off)
 {
 	/* Emit conditional branch delay slot */
-	if (jit_op != JIT_JNOP)
-		emit(ctx, nop);
+	if (jit_op != JIT_JANALP)
+		emit(ctx, analp);
 	/*
 	 * Emit an absolute long jump with delay slot,
 	 * if the PC-relative branch was converted.
@@ -689,7 +689,7 @@ int finish_jmp(struct jit_context *ctx, u8 jit_op, s16 bpf_off)
 		if (target < 0)
 			return -1;
 		emit(ctx, j, target);
-		emit(ctx, nop);
+		emit(ctx, analp);
 	}
 	return 0;
 }
@@ -698,15 +698,15 @@ int finish_jmp(struct jit_context *ctx, u8 jit_op, s16 bpf_off)
 void emit_jmp_i(struct jit_context *ctx, u8 dst, s32 imm, s32 off, u8 op)
 {
 	switch (op) {
-	/* No-op, used internally for branch optimization */
-	case JIT_JNOP:
+	/* Anal-op, used internally for branch optimization */
+	case JIT_JANALP:
 		break;
 	/* PC += off if dst & imm */
 	case BPF_JSET:
 		emit(ctx, andi, MIPS_R_T9, dst, (u16)imm);
 		emit(ctx, bnez, MIPS_R_T9, off);
 		break;
-	/* PC += off if (dst & imm) == 0 (not in BPF, used for long jumps) */
+	/* PC += off if (dst & imm) == 0 (analt in BPF, used for long jumps) */
 	case JIT_JNSET:
 		emit(ctx, andi, MIPS_R_T9, dst, (u16)imm);
 		emit(ctx, beqz, MIPS_R_T9, off);
@@ -758,8 +758,8 @@ void emit_jmp_i(struct jit_context *ctx, u8 dst, s32 imm, s32 off, u8 op)
 void emit_jmp_r(struct jit_context *ctx, u8 dst, u8 src, s32 off, u8 op)
 {
 	switch (op) {
-	/* No-op, used internally for branch optimization */
-	case JIT_JNOP:
+	/* Anal-op, used internally for branch optimization */
+	case JIT_JANALP:
 		break;
 	/* PC += off if dst == src */
 	case BPF_JEQ:
@@ -774,7 +774,7 @@ void emit_jmp_r(struct jit_context *ctx, u8 dst, u8 src, s32 off, u8 op)
 		emit(ctx, and, MIPS_R_T9, dst, src);
 		emit(ctx, bnez, MIPS_R_T9, off);
 		break;
-	/* PC += off if (dst & imm) == 0 (not in BPF, used for long jumps) */
+	/* PC += off if (dst & imm) == 0 (analt in BPF, used for long jumps) */
 	case JIT_JNSET:
 		emit(ctx, and, MIPS_R_T9, dst, src);
 		emit(ctx, beqz, MIPS_R_T9, off);
@@ -830,7 +830,7 @@ int emit_ja(struct jit_context *ctx, s16 off)
 	if (target < 0)
 		return -1;
 	emit(ctx, j, target);
-	emit(ctx, nop);
+	emit(ctx, analp);
 	return 0;
 }
 
@@ -842,7 +842,7 @@ int emit_exit(struct jit_context *ctx)
 	if (target < 0)
 		return -1;
 	emit(ctx, j, target);
-	emit(ctx, nop);
+	emit(ctx, analp);
 	return 0;
 }
 
@@ -921,7 +921,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	int tries;
 
 	/*
-	 * If BPF JIT was not enabled then we must fall back to
+	 * If BPF JIT was analt enabled then we must fall back to
 	 * the interpreter.
 	 */
 	if (!prog->jit_requested)
@@ -943,7 +943,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx.program = prog;
 
 	/*
-	 * Not able to allocate memory for descriptors[], then
+	 * Analt able to allocate memory for descriptors[], then
 	 * we must fall back to the interpreter
 	 */
 	ctx.descriptors = kcalloc(prog->len + 1, sizeof(*ctx.descriptors),
@@ -959,7 +959,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * If any PC-relative branches are out of range, a sequence of
 	 * a PC-relative branch + a jump is generated, and we have to
 	 * try again from the beginning to generate the new offsets.
-	 * This is done until no additional conversions are necessary.
+	 * This is done until anal additional conversions are necessary.
 	 * The last two iterations are done with all branches being
 	 * converted, to guarantee offset table convergence within a
 	 * fixed number of iterations.
@@ -983,12 +983,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	build_epilogue(&ctx, MIPS_R_RA);
 
-	/* Now we know the size of the structure to make */
+	/* Analw we kanalw the size of the structure to make */
 	image_size = sizeof(u32) * ctx.jit_index;
 	header = bpf_jit_binary_alloc(image_size, &image_ptr,
 				      sizeof(u32), jit_fill_hole);
 	/*
-	 * Not able to allocate memory for the structure then
+	 * Analt able to allocate memory for the structure then
 	 * we must fall back to the interpretation
 	 */
 	if (header == NULL)

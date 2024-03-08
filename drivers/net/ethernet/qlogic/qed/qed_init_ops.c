@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -165,7 +165,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 	u16 i, j, segment;
 	int rc = 0;
 
-	/* Since not all RT entries are initialized, go over the RT and
+	/* Since analt all RT entries are initialized, go over the RT and
 	 * for each segment of initialized values use DMA.
 	 */
 	for (i = 0; i < size; i++) {
@@ -213,14 +213,14 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 	rt_data->b_valid = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(bool),
 				   GFP_KERNEL);
 	if (!rt_data->b_valid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt_data->init_val = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(u32),
 				    GFP_KERNEL);
 	if (!rt_data->init_val) {
 		kfree(rt_data->b_valid);
 		rt_data->b_valid = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -245,7 +245,7 @@ static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
 {
 	int rc = 0;
 
-	/* Perform DMAE only for lengthy enough sections or for wide-bus */
+	/* Perform DMAE only for lengthy eanalugh sections or for wide-bus */
 	if (!b_can_dmae || (!b_must_dmae && (size < 16))) {
 		const u32 *data = buf + dmae_data_offset;
 		u32 i;
@@ -329,7 +329,7 @@ static int qed_init_cmd_array(struct qed_hwfn *p_hwfn,
 						 p_hwfn->unzip_buf,
 						 b_must_dmae, b_can_dmae);
 		} else {
-			DP_NOTICE(p_hwfn, "Failed to unzip dmae data\n");
+			DP_ANALTICE(p_hwfn, "Failed to unzip dmae data\n");
 			rc = -EINVAL;
 		}
 		break;
@@ -376,7 +376,7 @@ static int qed_init_cmd_wr(struct qed_hwfn *p_hwfn,
 
 	/* Sanitize */
 	if (b_must_dmae && !b_can_dmae) {
-		DP_NOTICE(p_hwfn,
+		DP_ANALTICE(p_hwfn,
 			  "Need to write to %08x for Wide-bus but DMAE isn't allowed\n",
 			  addr);
 		return -EINVAL;
@@ -439,7 +439,7 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 
 	val = qed_rd(p_hwfn, p_ptt, addr);
 
-	if (poll == INIT_POLL_NONE)
+	if (poll == INIT_POLL_ANALNE)
 		return;
 
 	switch (poll) {
@@ -486,7 +486,7 @@ static int qed_init_cmd_cb(struct qed_hwfn *p_hwfn,
 		rc = qed_dmae_sanity(p_hwfn, p_ptt, "engine_phase");
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unexpected init op callback ID %d\n",
+		DP_ANALTICE(p_hwfn, "Unexpected init op callback ID %d\n",
 			  p_cmd->callback_id);
 		return -EINVAL;
 	}
@@ -504,7 +504,7 @@ static u8 qed_init_cmd_mode_match(struct qed_hwfn *p_hwfn,
 	modes_tree_buf = cdev->fw_data->modes_tree_buf;
 	tree_val = modes_tree_buf[(*p_offset)++];
 	switch (tree_val) {
-	case INIT_MODE_OP_NOT:
+	case INIT_MODE_OP_ANALT:
 		return qed_init_cmd_mode_match(p_hwfn, p_offset, modes) ^ 1;
 	case INIT_MODE_OP_OR:
 		arg1 = qed_init_cmd_mode_match(p_hwfn, p_offset, modes);
@@ -560,7 +560,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 
 	p_hwfn->unzip_buf = kzalloc(MAX_ZIPPED_SIZE * 4, GFP_ATOMIC);
 	if (!p_hwfn->unzip_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (cmd_num = 0; cmd_num < num_init_ops; cmd_num++) {
 		union init_op *cmd = &init_ops[cmd_num];
@@ -627,7 +627,7 @@ int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 	u32 offset, len;
 
 	if (!data) {
-		DP_NOTICE(cdev, "Invalid fw data\n");
+		DP_ANALTICE(cdev, "Invalid fw data\n");
 		return -EINVAL;
 	}
 

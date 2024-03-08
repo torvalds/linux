@@ -5,7 +5,7 @@ Contact:	David Box <david.e.box@linux.intel.com>
 Description:
 		The intel_pmt/ class directory contains information for
 		devices that expose hardware telemetry using Intel Platform
-		Monitoring Technology (PMT)
+		Monitoring Techanallogy (PMT)
 
 What:		/sys/class/intel_pmt/telem<x>
 Date:		October 2020
@@ -113,7 +113,7 @@ KernelVersion:	5.10
 Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
 Description:
 		(RW) Boolean value controlling the triggering of the crashlog
-		device node. When read it provides data on if the crashlog has
+		device analde. When read it provides data on if the crashlog has
 		been triggered. When written to it can be used to either clear
 		the current trigger by writing false, or to trigger a new
-		event if the trigger is not currently set.
+		event if the trigger is analt currently set.

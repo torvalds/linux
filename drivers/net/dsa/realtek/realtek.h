@@ -18,7 +18,7 @@
 
 struct realtek_ops;
 struct dentry;
-struct inode;
+struct ianalde;
 struct file;
 
 struct rtl8366_mib_counter {
@@ -52,7 +52,7 @@ struct realtek_priv {
 	struct gpio_desc	*mdc;
 	struct gpio_desc	*mdio;
 	struct regmap		*map;
-	struct regmap		*map_nolock;
+	struct regmap		*map_anallock;
 	struct mutex		map_lock;
 	struct mii_bus		*user_mii_bus;
 	struct mii_bus		*bus;
@@ -74,7 +74,7 @@ struct realtek_priv {
 
 	const struct realtek_ops *ops;
 	int			(*setup_interface)(struct dsa_switch *ds);
-	int			(*write_reg_noack)(void *ctx, u32 addr, u32 data);
+	int			(*write_reg_analack)(void *ctx, u32 addr, u32 data);
 
 	int			vlan_enabled;
 	int			vlan4k_enabled;

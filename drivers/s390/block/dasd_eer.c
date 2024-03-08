@@ -39,7 +39,7 @@
 
 /*
  * The internal buffer is meant to store obaque blobs of data, so it does
- * not know of higher level concepts like triggers.
+ * analt kanalw of higher level concepts like triggers.
  * It consists of a number of pages that are used as a ringbuffer. Each data
  * blob is stored in a simple record that consists of an integer, which
  * contains the size of the following data, and the data bytes themselfes.
@@ -70,7 +70,7 @@
  * a struct eerbuffer. The buffer specific to a file pointer is strored in
  * the private_data field of that file. To be able to write data to all
  * existing buffers, each buffer is also added to the bufferlist.
- * If the user does not want to read a complete record in one go, we have to
+ * If the user does analt want to read a complete record in one go, we have to
  * keep track of the rest of the record. residual stores the number of bytes
  * that are still to deliver. If the rest of the record is invalidated between
  * two reads then residual will be set to -1 so that the next read will fail.
@@ -123,7 +123,7 @@ static int dasd_eer_get_filled_bytes(struct eerbuffer *eerb)
 /*
  * The dasd_eer_write_buffer function just copies count bytes of data
  * to the buffer. Make sure to call dasd_eer_start_record first, to
- * make sure that enough free space is available.
+ * make sure that eanalugh free space is available.
  * Needs to be called with bufferlock held.
  */
 static void dasd_eer_write_buffer(struct eerbuffer *eerb,
@@ -190,7 +190,7 @@ static int dasd_eer_start_record(struct eerbuffer *eerb, int count)
 	int tailcount;
 
 	if (count + sizeof(count) > eerb->buffersize)
-		return -ENOMEM;
+		return -EANALMEM;
 	while (dasd_eer_get_free_bytes(eerb) < count + sizeof(count)) {
 		if (eerb->residual > 0) {
 			eerb->tail += eerb->residual;
@@ -210,28 +210,28 @@ static int dasd_eer_start_record(struct eerbuffer *eerb, int count)
 };
 
 /*
- * Release pages that are not used anymore.
+ * Release pages that are analt used anymore.
  */
-static void dasd_eer_free_buffer_pages(char **buf, int no_pages)
+static void dasd_eer_free_buffer_pages(char **buf, int anal_pages)
 {
 	int i;
 
-	for (i = 0; i < no_pages; i++)
+	for (i = 0; i < anal_pages; i++)
 		free_page((unsigned long) buf[i]);
 }
 
 /*
  * Allocate a new set of memory pages.
  */
-static int dasd_eer_allocate_buffer_pages(char **buf, int no_pages)
+static int dasd_eer_allocate_buffer_pages(char **buf, int anal_pages)
 {
 	int i;
 
-	for (i = 0; i < no_pages; i++) {
+	for (i = 0; i < anal_pages; i++) {
 		buf[i] = (char *) get_zeroed_page(GFP_KERNEL);
 		if (!buf[i]) {
 			dasd_eer_free_buffer_pages(buf, i);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;
@@ -248,7 +248,7 @@ static int dasd_eer_allocate_buffer_pages(char **buf, int no_pages)
  *
  * DASD_EER_FATALERROR:  all kinds of unrecoverable I/O problems
  * DASD_EER_PPRCSUSPEND: PPRC was suspended
- * DASD_EER_NOPATH:      There is no path to the device left.
+ * DASD_EER_ANALPATH:      There is anal path to the device left.
  * DASD_EER_STATECHANGE: The state of the device has changed.
  *
  * For the first three triggers all required information can be supplied by
@@ -267,7 +267,7 @@ static int dasd_eer_allocate_buffer_pages(char **buf, int no_pages)
  * eer enabled DASD device. The presence of the cqr in device->eer_cqr
  * indicates that eer is enable for the device. The use of the snss request
  * is protected by the DASD_FLAG_EER_IN_USE bit. When this flag indicates
- * that the cqr is currently in use, dasd_eer_snss cannot start a second
+ * that the cqr is currently in use, dasd_eer_snss cananalt start a second
  * request but sets the DASD_FLAG_EER_SNSS flag instead. The callback of
  * the SNSS request will check the bit and call dasd_eer_snss again.
  */
@@ -286,7 +286,7 @@ struct dasd_eer_header {
 /*
  * The following function can be used for those triggers that have
  * all necessary data available when the function is called.
- * If the parameter cqr is not NULL, the chain of requests will be searched
+ * If the parameter cqr is analt NULL, the chain of requests will be searched
  * for valid sense data, and all valid sense data sets will be added to
  * the triggers data.
  */
@@ -385,15 +385,15 @@ void dasd_eer_write(struct dasd_device *device, struct dasd_ccw_req *cqr,
 	case DASD_EER_PPRCSUSPEND:
 		dasd_eer_write_standard_trigger(device, cqr, id);
 		break;
-	case DASD_EER_NOPATH:
-	case DASD_EER_NOSPC:
+	case DASD_EER_ANALPATH:
+	case DASD_EER_ANALSPC:
 	case DASD_EER_AUTOQUIESCE:
 		dasd_eer_write_standard_trigger(device, NULL, id);
 		break;
 	case DASD_EER_STATECHANGE:
 		dasd_eer_write_snss_trigger(device, cqr, id);
 		break;
-	default: /* unknown trigger, so we write it without any sense data */
+	default: /* unkanalwn trigger, so we write it without any sense data */
 		dasd_eer_write_standard_trigger(device, NULL, id);
 		break;
 	}
@@ -409,7 +409,7 @@ void dasd_eer_snss(struct dasd_device *device)
 	struct dasd_ccw_req *cqr;
 
 	cqr = device->eer_cqr;
-	if (!cqr)	/* Device not eer enabled. */
+	if (!cqr)	/* Device analt eer enabled. */
 		return;
 	if (test_and_set_bit(DASD_FLAG_EER_IN_USE, &device->flags)) {
 		/* Sense subsystem status request in use. */
@@ -436,7 +436,7 @@ static void dasd_eer_snss_cb(struct dasd_ccw_req *cqr, void *data)
 	if (device->eer_cqr == cqr) {
 		clear_bit(DASD_FLAG_EER_IN_USE, &device->flags);
 		if (test_bit(DASD_FLAG_EER_SNSS, &device->flags))
-			/* Another SNSS has been requested in the meantime. */
+			/* Aanalther SNSS has been requested in the meantime. */
 			dasd_eer_snss(device);
 		cqr = NULL;
 	}
@@ -447,7 +447,7 @@ static void dasd_eer_snss_cb(struct dasd_ccw_req *cqr, void *data)
 		 * the SNSS request was running. It could even have
 		 * been switched off and on again in which case there
 		 * is a new ccw in device->eer_cqr. Free the "old"
-		 * snss request now.
+		 * snss request analw.
 		 */
 		dasd_sfree_request(cqr, device);
 }
@@ -477,7 +477,7 @@ int dasd_eer_enable(struct dasd_device *device)
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* SNSS */,
 				   SNSS_DATA_SIZE, device, NULL);
 	if (IS_ERR(cqr)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		cqr = NULL;
 		goto out;
 	}
@@ -545,14 +545,14 @@ void dasd_eer_disable(struct dasd_device *device)
 static char readbuffer[PAGE_SIZE];
 static DEFINE_MUTEX(readbuffer_mutex);
 
-static int dasd_eer_open(struct inode *inp, struct file *filp)
+static int dasd_eer_open(struct ianalde *inp, struct file *filp)
 {
 	struct eerbuffer *eerb;
 	unsigned long flags;
 
 	eerb = kzalloc(sizeof(struct eerbuffer), GFP_KERNEL);
 	if (!eerb)
-		return -ENOMEM;
+		return -EANALMEM;
 	eerb->buffer_page_count = eer_pages;
 	if (eerb->buffer_page_count < 1 ||
 	    eerb->buffer_page_count > INT_MAX / PAGE_SIZE) {
@@ -567,23 +567,23 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 				     GFP_KERNEL);
         if (!eerb->buffer) {
 		kfree(eerb);
-                return -ENOMEM;
+                return -EANALMEM;
 	}
 	if (dasd_eer_allocate_buffer_pages(eerb->buffer,
 					   eerb->buffer_page_count)) {
 		kfree(eerb->buffer);
 		kfree(eerb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	filp->private_data = eerb;
 	spin_lock_irqsave(&bufferlock, flags);
 	list_add(&eerb->list, &bufferlist);
 	spin_unlock_irqrestore(&bufferlock, flags);
 
-	return nonseekable_open(inp,filp);
+	return analnseekable_open(inp,filp);
 }
 
-static int dasd_eer_close(struct inode *inp, struct file *filp)
+static int dasd_eer_close(struct ianalde *inp, struct file *filp)
 {
 	struct eerbuffer *eerb;
 	unsigned long flags;
@@ -629,10 +629,10 @@ static ssize_t dasd_eer_read(struct file *filp, char __user *buf,
 			tc = dasd_eer_read_buffer(eerb, (char *) &tailcount,
 						  sizeof(tailcount));
 			if (!tc) {
-				/* no data available */
+				/* anal data available */
 				spin_unlock_irqrestore(&bufferlock, flags);
 				mutex_unlock(&readbuffer_mutex);
-				if (filp->f_flags & O_NONBLOCK)
+				if (filp->f_flags & O_ANALNBLOCK)
 					return -EAGAIN;
 				rc = wait_event_interruptible(
 					dasd_eer_read_wait_queue,
@@ -673,7 +673,7 @@ static __poll_t dasd_eer_poll(struct file *filp, poll_table *ptable)
 	poll_wait(filp, &dasd_eer_read_wait_queue, ptable);
 	spin_lock_irqsave(&bufferlock, flags);
 	if (eerb->head != eerb->tail)
-		mask = EPOLLIN | EPOLLRDNORM ;
+		mask = EPOLLIN | EPOLLRDANALRM ;
 	else
 		mask = 0;
 	spin_unlock_irqrestore(&bufferlock, flags);
@@ -686,7 +686,7 @@ static const struct file_operations dasd_eer_fops = {
 	.read		= &dasd_eer_read,
 	.poll		= &dasd_eer_poll,
 	.owner		= THIS_MODULE,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice *dasd_eer_dev = NULL;
@@ -697,9 +697,9 @@ int __init dasd_eer_init(void)
 
 	dasd_eer_dev = kzalloc(sizeof(*dasd_eer_dev), GFP_KERNEL);
 	if (!dasd_eer_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	dasd_eer_dev->minor = MISC_DYNAMIC_MINOR;
+	dasd_eer_dev->mianalr = MISC_DYNAMIC_MIANALR;
 	dasd_eer_dev->name  = "dasd_eer";
 	dasd_eer_dev->fops  = &dasd_eer_fops;
 
@@ -707,7 +707,7 @@ int __init dasd_eer_init(void)
 	if (rc) {
 		kfree(dasd_eer_dev);
 		dasd_eer_dev = NULL;
-		DBF_EVENT(DBF_ERR, "%s", "dasd_eer_init could not "
+		DBF_EVENT(DBF_ERR, "%s", "dasd_eer_init could analt "
 		       "register misc device");
 		return rc;
 	}

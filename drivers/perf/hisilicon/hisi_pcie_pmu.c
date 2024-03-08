@@ -33,7 +33,7 @@
 
 /* Define command in HISI_PCIE_GLOBAL_CTRL */
 #define HISI_PCIE_GLOBAL_EN		0x01
-#define HISI_PCIE_GLOBAL_NONE		0
+#define HISI_PCIE_GLOBAL_ANALNE		0
 
 /* Define command in HISI_PCIE_EVENT_CTRL */
 #define HISI_PCIE_EVENT_EN		BIT_ULL(20)
@@ -64,7 +64,7 @@
 
 struct hisi_pcie_pmu {
 	struct perf_event *hw_events[HISI_PCIE_MAX_COUNTERS];
-	struct hlist_node node;
+	struct hlist_analde analde;
 	struct pci_dev *pdev;
 	struct pmu pmu;
 	void __iomem *base;
@@ -172,7 +172,7 @@ hisi_pcie_parse_reg_value(struct hisi_pcie_pmu *pcie_pmu, u32 reg_off)
  *
  * As we don't want PMU driver to process these two data, "delay cycles" can
  * be treated as an independent event(index = 0x0010), "RX memory write packets
- * number" as another(index = 0x10010). BIT 16 is used to distinguish and 0-15
+ * number" as aanalther(index = 0x10010). BIT 16 is used to distinguish and 0-15
  * bits are "real" event index, which can be used to set HISI_PCIE_EVENT_CTRL.
  */
 #define EXT_COUNTER_IS_USED(idx)		((idx) & BIT(16))
@@ -353,18 +353,18 @@ static int hisi_pcie_pmu_event_init(struct perf_event *event)
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 
-	/* Check the type first before going on, otherwise it's not our event */
+	/* Check the type first before going on, otherwise it's analt our event */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (EXT_COUNTER_IS_USED(hisi_pcie_get_event(event)))
 		hwc->event_base = HISI_PCIE_EXT_CNT;
 	else
 		hwc->event_base = HISI_PCIE_CNT;
 
-	/* Sampling is not supported. */
+	/* Sampling is analt supported. */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!hisi_pcie_pmu_valid_filter(event, pcie_pmu))
 		return -EINVAL;
@@ -601,13 +601,13 @@ static void hisi_pcie_pmu_disable(struct pmu *pmu)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(pmu);
 
-	writel(HISI_PCIE_GLOBAL_NONE, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
+	writel(HISI_PCIE_GLOBAL_ANALNE, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
 }
 
 static irqreturn_t hisi_pcie_pmu_irq(int irq, void *data)
 {
 	struct hisi_pcie_pmu *pcie_pmu = data;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct perf_event *event;
 	u32 overflown;
 	int idx;
@@ -642,7 +642,7 @@ static int hisi_pcie_pmu_irq_register(struct pci_dev *pdev, struct hisi_pcie_pmu
 	}
 
 	irq = pci_irq_vector(pdev, 0);
-	ret = request_irq(irq, hisi_pcie_pmu_irq, IRQF_NOBALANCING | IRQF_NO_THREAD, DRV_NAME,
+	ret = request_irq(irq, hisi_pcie_pmu_irq, IRQF_ANALBALANCING | IRQF_ANAL_THREAD, DRV_NAME,
 			  pcie_pmu);
 	if (ret) {
 		pci_err(pdev, "Failed to register IRQ: %d\n", ret);
@@ -661,41 +661,41 @@ static void hisi_pcie_pmu_irq_unregister(struct pci_dev *pdev, struct hisi_pcie_
 	pci_free_irq_vectors(pdev);
 }
 
-static int hisi_pcie_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+static int hisi_pcie_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(node, struct hisi_pcie_pmu, node);
+	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(analde, struct hisi_pcie_pmu, analde);
 
 	if (pcie_pmu->on_cpu == -1) {
-		pcie_pmu->on_cpu = cpumask_local_spread(0, dev_to_node(&pcie_pmu->pdev->dev));
+		pcie_pmu->on_cpu = cpumask_local_spread(0, dev_to_analde(&pcie_pmu->pdev->dev));
 		WARN_ON(irq_set_affinity(pcie_pmu->irq, cpumask_of(pcie_pmu->on_cpu)));
 	}
 
 	return 0;
 }
 
-static int hisi_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int hisi_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(node, struct hisi_pcie_pmu, node);
+	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(analde, struct hisi_pcie_pmu, analde);
 	unsigned int target;
 	cpumask_t mask;
-	int numa_node;
+	int numa_analde;
 
-	/* Nothing to do if this CPU doesn't own the PMU */
+	/* Analthing to do if this CPU doesn't own the PMU */
 	if (pcie_pmu->on_cpu != cpu)
 		return 0;
 
 	pcie_pmu->on_cpu = -1;
 
 	/* Choose a local CPU from all online cpus. */
-	numa_node = dev_to_node(&pcie_pmu->pdev->dev);
-	if (cpumask_and(&mask, cpumask_of_node(numa_node), cpu_online_mask) &&
-	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
+	numa_analde = dev_to_analde(&pcie_pmu->pdev->dev);
+	if (cpumask_and(&mask, cpumask_of_analde(numa_analde), cpu_online_mask) &&
+	    cpumask_andanalt(&mask, &mask, cpumask_of(cpu)))
 		target = cpumask_any(&mask);
 	else
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
 	if (target >= nr_cpu_ids) {
-		pci_err(pcie_pmu->pdev, "There is no CPU to set\n");
+		pci_err(pcie_pmu->pdev, "There is anal CPU to set\n");
 		return 0;
 	}
 
@@ -795,7 +795,7 @@ static int hisi_pcie_alloc_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_pcie%u_core%u", sicl_id, core_id);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcie_pmu->pdev = pdev;
 	pcie_pmu->on_cpu = -1;
@@ -813,7 +813,7 @@ static int hisi_pcie_alloc_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_
 		.read		= hisi_pcie_pmu_read,
 		.task_ctx_nr	= perf_invalid_context,
 		.attr_groups	= hisi_pcie_pmu_attr_groups,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	return 0;
@@ -826,7 +826,7 @@ static int hisi_pcie_init_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_p
 	pcie_pmu->base = pci_ioremap_bar(pdev, 2);
 	if (!pcie_pmu->base) {
 		pci_err(pdev, "Ioremap failed for pcie_pmu resource\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = hisi_pcie_alloc_pmu(pdev, pcie_pmu);
@@ -837,7 +837,7 @@ static int hisi_pcie_init_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_p
 	if (ret)
 		goto err_iounmap;
 
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->node);
+	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->analde);
 	if (ret) {
 		pci_err(pdev, "Failed to register hotplug: %d\n", ret);
 		goto err_irq_unregister;
@@ -852,8 +852,8 @@ static int hisi_pcie_init_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_p
 	return ret;
 
 err_hotplug_unregister:
-	cpuhp_state_remove_instance_nocalls(
-		CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->node);
+	cpuhp_state_remove_instance_analcalls(
+		CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->analde);
 
 err_irq_unregister:
 	hisi_pcie_pmu_irq_unregister(pdev, pcie_pmu);
@@ -869,8 +869,8 @@ static void hisi_pcie_uninit_pmu(struct pci_dev *pdev)
 	struct hisi_pcie_pmu *pcie_pmu = pci_get_drvdata(pdev);
 
 	perf_pmu_unregister(&pcie_pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(
-		CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->node);
+	cpuhp_state_remove_instance_analcalls(
+		CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->analde);
 	hisi_pcie_pmu_irq_unregister(pdev, pcie_pmu);
 	iounmap(pcie_pmu->base);
 }
@@ -903,7 +903,7 @@ static int hisi_pcie_pmu_probe(struct pci_dev *pdev, const struct pci_device_id 
 
 	pcie_pmu = devm_kzalloc(&pdev->dev, sizeof(*pcie_pmu), GFP_KERNEL);
 	if (!pcie_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hisi_pcie_init_dev(pdev);
 	if (ret)

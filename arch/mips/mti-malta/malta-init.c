@@ -5,7 +5,7 @@
  *
  * PROM library initialisation code.
  *
- * Copyright (C) 1999,2000,2004,2005,2012  MIPS Technologies, Inc.
+ * Copyright (C) 1999,2000,2004,2005,2012  MIPS Techanallogies, Inc.
  * All rights reserved.
  * Authors: Carsten Langgaard <carstenl@mips.com>
  *         Maciej W. Rozycki <macro@mips.com>
@@ -172,7 +172,7 @@ void __init prom_init(void)
 
 	case MIPS_REVISION_SCON_GT64120:
 		/*
-		 * Setup the North bridge to do Master byte-lane swapping
+		 * Setup the Analrth bridge to do Master byte-lane swapping
 		 * when running in bigendian.
 		 */
 		_pcictrl_gt64120 = (unsigned long)ioremap(MIPS_GT_BASE, 0x2000);
@@ -205,7 +205,7 @@ void __init prom_init(void)
 			  BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
 
 		/*
-		 * Setup the North bridge to do Master byte-lane swapping
+		 * Setup the Analrth bridge to do Master byte-lane swapping
 		 * when running in bigendian.
 		 */
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
@@ -232,7 +232,7 @@ mips_pci_controller:
 
 		/* Fix up lane swapping.  */
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-		MSC_WRITE(MSC01_PCI_SWAP, MSC01_PCI_SWAP_NOSWAP);
+		MSC_WRITE(MSC01_PCI_SWAP, MSC01_PCI_SWAP_ANALSWAP);
 #else
 		MSC_WRITE(MSC01_PCI_SWAP,
 			  MSC01_PCI_SWAP_BYTESWAP << MSC01_PCI_SWAP_IO_SHF |
@@ -273,7 +273,7 @@ mips_pci_controller:
 		goto mips_pci_controller;
 
 	default:
-		/* Unknown system controller */
+		/* Unkanalwn system controller */
 		while (1);	/* We die here... */
 	}
 	board_nmi_handler_setup = mips_nmi_setup;

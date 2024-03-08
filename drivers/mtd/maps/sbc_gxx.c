@@ -26,7 +26,7 @@ The flash is accessed as follows:
 The single flash device is divided into 3 partition which appear as
 separate MTD devices.
 
-25/04/2001 AJL (Arcom)  Modified signon strings and partition sizes
+25/04/2001 AJL (Arcom)  Modified siganaln strings and partition sizes
                         (to support bzImages up to 638KiB-ish)
 */
 
@@ -153,7 +153,7 @@ static void sbc_gxx_copy_to(struct map_info *map, unsigned long to, const void *
 
 static struct map_info sbc_gxx_map = {
 	.name = "SBC-GXx flash",
-	.phys = NO_XIP,
+	.phys = ANAL_XIP,
 	.size = MAX_SIZE_KiB*1024, /* this must be set to a maximum possible amount
 			 of flash so the cfi probe routines find all
 			 the chips */

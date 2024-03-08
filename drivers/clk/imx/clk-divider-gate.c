@@ -108,7 +108,7 @@ static int clk_divider_enable(struct clk_hw *hw)
 	u32 val;
 
 	if (!div_gate->cached_val) {
-		pr_err("%s: no valid preset rate\n", clk_hw_get_name(hw));
+		pr_err("%s: anal valid preset rate\n", clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 
@@ -167,7 +167,7 @@ static const struct clk_ops clk_divider_gate_ops = {
 };
 
 /*
- * NOTE: In order to reuse the most code from the common divider,
+ * ANALTE: In order to reuse the most code from the common divider,
  * we also design our divider following the way that provids an extra
  * clk_divider_flags, however it's fixed to CLK_DIVIDER_ONE_BASED by
  * default as our HW is. Besides that it supports only CLK_DIVIDER_READ_ONLY
@@ -187,7 +187,7 @@ struct clk_hw *imx_clk_hw_divider_gate(const char *name, const char *parent_name
 
 	div_gate  = kzalloc(sizeof(*div_gate), GFP_KERNEL);
 	if (!div_gate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (clk_divider_flags & CLK_DIVIDER_READ_ONLY)

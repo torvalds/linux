@@ -30,7 +30,7 @@ enum {
 #define FILE_RESERVE_OPFILTER_LE		cpu_to_le32(0x00100000)
 
 #define CREATE_OPTION_READONLY			0x10000000
-/* system. NB not sent over wire */
+/* system. NB analt sent over wire */
 #define CREATE_OPTION_SPECIAL			0x20000000
 
 struct ksmbd_work;
@@ -163,5 +163,5 @@ int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
 				 struct path *path);
 int ksmbd_vfs_inherit_posix_acl(struct mnt_idmap *idmap,
 				struct path *path,
-				struct inode *parent_inode);
+				struct ianalde *parent_ianalde);
 #endif /* __KSMBD_VFS_H__ */

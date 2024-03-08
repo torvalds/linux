@@ -27,7 +27,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -42,7 +42,7 @@ struct ipu3_cio2_fmt {
 
 /*
  * These are raw formats used in Intel's third generation of
- * Image Processing Unit known as IPU3.
+ * Image Processing Unit kanalwn as IPU3.
  * 10bit raw bayer packed, 32 bytes for every 25 pixels,
  * last LSB 6 bits unused.
  */
@@ -77,8 +77,8 @@ static const struct ipu3_cio2_fmt formats[] = {
 
 /*
  * cio2_find_format - lookup color format by fourcc or/and media bus code
- * @pixelformat: fourcc to match, ignored if null
- * @mbus_code: media bus code to match, ignored if null
+ * @pixelformat: fourcc to match, iganalred if null
+ * @mbus_code: media bus code to match, iganalred if null
  */
 static const struct ipu3_cio2_fmt *cio2_find_format(const u32 *pixelformat,
 						    const u32 *mbus_code)
@@ -137,7 +137,7 @@ static int cio2_fbpt_init_dummy(struct cio2_device *cio2)
 					     GFP_KERNEL);
 	if (!cio2->dummy_page || !cio2->dummy_lop) {
 		cio2_fbpt_exit_dummy(cio2);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/*
 	 * List of Pointers(LOP) contains 1024x32b pointers to 4KB page each
@@ -155,7 +155,7 @@ static void cio2_fbpt_entry_enable(struct cio2_device *cio2,
 	/*
 	 * The CPU first initializes some fields in fbpt, then sets
 	 * the VALID bit, this barrier is to ensure that the DMA(device)
-	 * does not see the VALID bit enabled before other fields are
+	 * does analt see the VALID bit enabled before other fields are
 	 * initialized; otherwise it could lead to havoc.
 	 */
 	dma_wmb();
@@ -200,7 +200,7 @@ static void cio2_fbpt_entry_init_buf(struct cio2_device *cio2,
 	entry[1].second_entry.num_of_pages = PFN_UP(remaining);
 	/*
 	 * last_page_available_bytes has the offset of the last byte in the
-	 * last page which is still accessible by DMA. DMA cannot access
+	 * last page which is still accessible by DMA. DMA cananalt access
 	 * beyond this point. Valid range for this is from 0 to 4095.
 	 * 0 indicates 1st byte in the page is DMA accessible.
 	 * 4095 (PAGE_SIZE - 1) means every single byte in the last page
@@ -219,7 +219,7 @@ static void cio2_fbpt_entry_init_buf(struct cio2_device *cio2,
 	}
 
 	/*
-	 * The first not meaningful FBPT entry should point to a valid LOP
+	 * The first analt meaningful FBPT entry should point to a valid LOP
 	 */
 	entry->lop_page_addr = PFN_DOWN(cio2->dummy_lop_bus_addr);
 
@@ -233,7 +233,7 @@ static int cio2_fbpt_init(struct cio2_device *cio2, struct cio2_queue *q)
 	q->fbpt = dma_alloc_coherent(dev, CIO2_FBPT_SIZE, &q->fbpt_bus_addr,
 				     GFP_KERNEL);
 	if (!q->fbpt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -311,7 +311,7 @@ static int cio2_csi2_calc_timing(struct cio2_device *cio2, struct cio2_queue *q,
 	s64 freq;
 
 	if (!q->sensor)
-		return -ENODEV;
+		return -EANALDEV;
 
 	freq = v4l2_get_link_freq(q->sensor->ctrl_handler, bpp, lanes * 2);
 	if (freq < 0) {
@@ -421,7 +421,7 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 	writel(CIO2_IRQCTRL_MASK, q->csi_rx_base + CIO2_REG_IRQCTRL_MASK);
 	writel(CIO2_IRQCTRL_MASK, q->csi_rx_base + CIO2_REG_IRQCTRL_ENABLE);
 	writel(0, q->csi_rx_base + CIO2_REG_IRQCTRL_EDGE);
-	writel(0, q->csi_rx_base + CIO2_REG_IRQCTRL_LEVEL_NOT_PULSE);
+	writel(0, q->csi_rx_base + CIO2_REG_IRQCTRL_LEVEL_ANALT_PULSE);
 	writel(CIO2_INT_EN_EXT_OE_MASK, base + CIO2_REG_INT_EN_EXT_OE);
 
 	writel(CIO2_REG_INT_EN_IRQ | CIO2_INT_IOC(CIO2_DMA_CHAN) |
@@ -439,7 +439,7 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 	writel(0, q->csi_rx_base + CIO2_REG_MIPIBE_FORCE_RAW8);
 	writel(0, base + CIO2_REG_PXM_SID2BID0(csi2bus));
 
-	writel(lanes, q->csi_rx_base + CIO2_REG_CSIRX_NOF_ENABLED_LANES);
+	writel(lanes, q->csi_rx_base + CIO2_REG_CSIRX_ANALF_ENABLED_LANES);
 	writel(CIO2_CGC_PRIM_TGE |
 	       CIO2_CGC_SIDE_TGE |
 	       CIO2_CGC_XOSC_TGE |
@@ -526,7 +526,7 @@ static void cio2_hw_exit(struct cio2_device *cio2, struct cio2_queue *q)
 				 value, value & CIO2_CDMAC0_DMA_HALTED,
 				 4000, 2000000);
 	if (ret)
-		dev_err(dev, "DMA %i can not be halted\n", CIO2_DMA_CHAN);
+		dev_err(dev, "DMA %i can analt be halted\n", CIO2_DMA_CHAN);
 
 	for (i = 0; i < CIO2_NUM_PORTS; i++) {
 		writel(readl(base + CIO2_REG_PXM_FRF_CFG(i)) |
@@ -550,7 +550,7 @@ static void cio2_buffer_done(struct cio2_device *cio2, unsigned int dma_chan)
 
 	entry = &q->fbpt[q->bufs_first * CIO2_MAX_LOPS];
 	if (entry->first_entry.ctrl & CIO2_FBPT_CTRL_VALID) {
-		dev_warn(dev, "no ready buffers found on DMA channel %u\n",
+		dev_warn(dev, "anal ready buffers found on DMA channel %u\n",
 			 dma_chan);
 		return;
 	}
@@ -570,7 +570,7 @@ static void cio2_buffer_done(struct cio2_device *cio2, unsigned int dma_chan)
 			dev_dbg(dev, "buffer %i done\n", b->vbb.vb2_buf.index);
 
 			b->vbb.vb2_buf.timestamp = ns;
-			b->vbb.field = V4L2_FIELD_NONE;
+			b->vbb.field = V4L2_FIELD_ANALNE;
 			b->vbb.sequence = atomic_read(&q->frame_sequence);
 			if (payload != received)
 				dev_warn(dev,
@@ -589,7 +589,7 @@ static void cio2_queue_event_sof(struct cio2_device *cio2, struct cio2_queue *q)
 {
 	/*
 	 * For the user space camera control algorithms it is essential
-	 * to know when the reception of a frame has begun. That's often
+	 * to kanalw when the reception of a frame has begun. That's often
 	 * the best timing information to get from the hardware.
 	 */
 	struct v4l2_event event = {
@@ -597,7 +597,7 @@ static void cio2_queue_event_sof(struct cio2_device *cio2, struct cio2_queue *q)
 		.u.frame_sync.frame_sequence = atomic_read(&q->frame_sequence),
 	};
 
-	v4l2_event_queue(q->subdev.devnode, &event);
+	v4l2_event_queue(q->subdev.devanalde, &event);
 }
 
 static const char *const cio2_irq_errs[] = {
@@ -618,7 +618,7 @@ static const char *const cio2_irq_errs[] = {
 	"escape mode ultra-low power state exit for clock lane",
 	"inter-frame short packet discarded",
 	"inter-frame long packet discarded",
-	"non-matching Long Packet stalled",
+	"analn-matching Long Packet stalled",
 };
 
 static void cio2_irq_log_irq_errs(struct device *dev, u8 port, u32 status)
@@ -631,14 +631,14 @@ static void cio2_irq_log_irq_errs(struct device *dev, u8 port, u32 status)
 			port, cio2_irq_errs[i]);
 
 	if (fls_long(csi2_status) >= ARRAY_SIZE(cio2_irq_errs))
-		dev_warn(dev, "unknown CSI2 error 0x%lx on port %i\n",
+		dev_warn(dev, "unkanalwn CSI2 error 0x%lx on port %i\n",
 			 csi2_status, port);
 }
 
 static const char *const cio2_port_errs[] = {
 	"ECC recoverable",
-	"DPHY not recoverable",
-	"ECC not recoverable",
+	"DPHY analt recoverable",
+	"ECC analt recoverable",
 	"CRC error",
 	"INTERFRAMEDATA",
 	"PKT2SHORT",
@@ -684,7 +684,7 @@ static void cio2_irq_handle_once(struct cio2_device *cio2, u32 int_status)
 		}
 		writel(oe_clear, base + CIO2_REG_INT_STS_EXT_OE);
 		if (oe_status)
-			dev_warn(dev, "unknown interrupt 0x%x on OE\n",
+			dev_warn(dev, "unkanalwn interrupt 0x%x on OE\n",
 				 oe_status);
 		int_status &= ~CIO2_INT_IOOE;
 	}
@@ -750,7 +750,7 @@ static void cio2_irq_handle_once(struct cio2_device *cio2, u32 int_status)
 	}
 
 	if (int_status)
-		dev_warn(dev, "unknown interrupt 0x%x on INT\n", int_status);
+		dev_warn(dev, "unkanalwn interrupt 0x%x on INT\n", int_status);
 }
 
 static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
@@ -763,7 +763,7 @@ static irqreturn_t cio2_irq(int irq, void *cio2_ptr)
 	int_status = readl(base + CIO2_REG_INT_STS);
 	dev_dbg(dev, "isr enter - interrupt status 0x%x\n", int_status);
 	if (!int_status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	do {
 		writel(int_status, base + CIO2_REG_INT_STS);
@@ -844,7 +844,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	if (lops <= 0 || lops > CIO2_MAX_LOPS) {
 		dev_err(dev, "%s: bad buffer size (%i)\n", __func__,
 			vb->planes[0].length);
-		return -ENOSPC;		/* Should never happen */
+		return -EANALSPC;		/* Should never happen */
 	}
 
 	memset(b->lop, 0, sizeof(b->lop));
@@ -859,7 +859,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	/* Fill LOP */
 	sg = vb2_dma_sg_plane_desc(vb, 0);
 	if (!sg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sg->nents && sg->sgl)
 		b->offset = sg->sgl->offset;
@@ -881,7 +881,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 fail:
 	while (i--)
 		dma_free_coherent(dev, PAGE_SIZE, b->lop[i], b->lop_bus_addr[i]);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Transfer buffer ownership to cio2 */
@@ -904,11 +904,11 @@ static void cio2_vb2_buf_queue(struct vb2_buffer *vb)
 	 * This code queues the buffer to the CIO2 DMA engine, which starts
 	 * running once streaming has started. It is possible that this code
 	 * gets pre-empted due to increased CPU load. Upon this, the driver
-	 * does not get an opportunity to queue new buffers to the CIO2 DMA
+	 * does analt get an opportunity to queue new buffers to the CIO2 DMA
 	 * engine. When the DMA engine encounters an FBPT entry without the
 	 * VALID bit set, the DMA engine halts, which requires a restart of
 	 * the DMA engine and sensor, to continue streaming.
-	 * This is not desired and is highly unlikely given that there are
+	 * This is analt desired and is highly unlikely given that there are
 	 * 32 FBPT entries that the DMA engine needs to process, to run into
 	 * an FBPT entry, without the VALID bit set. We try to mitigate this
 	 * by disabling interrupts for the duration of this queueing.
@@ -1098,7 +1098,7 @@ static int cio2_v4l2_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	mpix->num_planes = 1;
 	mpix->pixelformat = fmt->fourcc;
 	mpix->colorspace = V4L2_COLORSPACE_RAW;
-	mpix->field = V4L2_FIELD_NONE;
+	mpix->field = V4L2_FIELD_ANALNE;
 	mpix->plane_fmt[0].bytesperline = cio2_bytesperline(mpix->width);
 	mpix->plane_fmt[0].sizeimage = mpix->plane_fmt[0].bytesperline *
 							mpix->height;
@@ -1183,7 +1183,7 @@ static int cio2_subdev_subscribe_event(struct v4l2_subdev *sd,
 	if (sub->type != V4L2_EVENT_FRAME_SYNC)
 		return -EINVAL;
 
-	/* Line number. For now only zero accepted. */
+	/* Line number. For analw only zero accepted. */
 	if (sub->id != 0)
 		return -EINVAL;
 
@@ -1197,7 +1197,7 @@ static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		.width = 1936,
 		.height = 1096,
 		.code = formats[0].mbus_code,
-		.field = V4L2_FIELD_NONE,
+		.field = V4L2_FIELD_ANALNE,
 		.colorspace = V4L2_COLORSPACE_RAW,
 		.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT,
 		.quantization = V4L2_QUANTIZATION_DEFAULT,
@@ -1266,7 +1266,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	fmt->format.width = min(fmt->format.width, CIO2_IMAGE_MAX_WIDTH);
 	fmt->format.height = min(fmt->format.height, CIO2_IMAGE_MAX_HEIGHT);
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 
 	mutex_lock(&q->subdev_lock);
 	*mbus = fmt->format;
@@ -1313,8 +1313,8 @@ static int cio2_video_link_validate(struct media_link *link)
 	int ret;
 
 	if (!media_pad_remote_pad_first(entity->pads)) {
-		dev_info(dev, "video node %s pad not connected\n", vd->name);
-		return -ENOTCONN;
+		dev_info(dev, "video analde %s pad analt connected\n", vd->name);
+		return -EANALTCONN;
 	}
 
 	ret = cio2_subdev_link_validate_get_format(link->source, &source_fmt);
@@ -1356,7 +1356,7 @@ static const struct v4l2_subdev_ops cio2_subdev_ops = {
 	.pad = &cio2_subdev_pad_ops,
 };
 
-/******* V4L2 sub-device asynchronous registration callbacks***********/
+/******* V4L2 sub-device asynchroanalus registration callbacks***********/
 
 struct sensor_async_subdev {
 	struct v4l2_async_connection asd;
@@ -1366,12 +1366,12 @@ struct sensor_async_subdev {
 #define to_sensor_asd(__asd)	\
 	container_of_const(__asd, struct sensor_async_subdev, asd)
 
-/* The .bound() notifier callback when a match is found */
-static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
+/* The .bound() analtifier callback when a match is found */
+static int cio2_analtifier_bound(struct v4l2_async_analtifier *analtifier,
 			       struct v4l2_subdev *sd,
 			       struct v4l2_async_connection *asd)
 {
-	struct cio2_device *cio2 = to_cio2_device(notifier);
+	struct cio2_device *cio2 = to_cio2_device(analtifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 	struct cio2_queue *q;
 	int ret;
@@ -1393,36 +1393,36 @@ static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 }
 
 /* The .unbind callback */
-static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
+static void cio2_analtifier_unbind(struct v4l2_async_analtifier *analtifier,
 				 struct v4l2_subdev *sd,
 				 struct v4l2_async_connection *asd)
 {
-	struct cio2_device *cio2 = to_cio2_device(notifier);
+	struct cio2_device *cio2 = to_cio2_device(analtifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 
 	cio2->queue[s_asd->csi2.port].sensor = NULL;
 }
 
 /* .complete() is called after all subdevices have been located */
-static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
+static int cio2_analtifier_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct cio2_device *cio2 = to_cio2_device(notifier);
+	struct cio2_device *cio2 = to_cio2_device(analtifier);
 	struct device *dev = &cio2->pci_dev->dev;
 	struct sensor_async_subdev *s_asd;
 	struct v4l2_async_connection *asd;
 	struct cio2_queue *q;
 	int ret;
 
-	list_for_each_entry(asd, &cio2->notifier.done_list, asc_entry) {
+	list_for_each_entry(asd, &cio2->analtifier.done_list, asc_entry) {
 		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 
-		ret = media_entity_get_fwnode_pad(&q->sensor->entity,
-						  s_asd->asd.match.fwnode,
+		ret = media_entity_get_fwanalde_pad(&q->sensor->entity,
+						  s_asd->asd.match.fwanalde,
 						  MEDIA_PAD_FL_SOURCE);
 		if (ret < 0) {
-			dev_err(dev, "no pad for endpoint %pfw (%d)\n",
-				s_asd->asd.match.fwnode, ret);
+			dev_err(dev, "anal pad for endpoint %pfw (%d)\n",
+				s_asd->asd.match.fwanalde, ret);
 			return ret;
 		}
 
@@ -1431,18 +1431,18 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 					    0);
 		if (ret) {
 			dev_err(dev, "failed to create link for %s (endpoint %pfw, error %d)\n",
-				q->sensor->name, s_asd->asd.match.fwnode, ret);
+				q->sensor->name, s_asd->asd.match.fwanalde, ret);
 			return ret;
 		}
 	}
 
-	return v4l2_device_register_subdev_nodes(&cio2->v4l2_dev);
+	return v4l2_device_register_subdev_analdes(&cio2->v4l2_dev);
 }
 
-static const struct v4l2_async_notifier_operations cio2_async_ops = {
-	.bound = cio2_notifier_bound,
-	.unbind = cio2_notifier_unbind,
-	.complete = cio2_notifier_complete,
+static const struct v4l2_async_analtifier_operations cio2_async_ops = {
+	.bound = cio2_analtifier_bound,
+	.unbind = cio2_analtifier_unbind,
+	.complete = cio2_analtifier_complete,
 };
 
 static int cio2_parse_firmware(struct cio2_device *cio2)
@@ -1452,22 +1452,22 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 	int ret;
 
 	for (i = 0; i < CIO2_NUM_PORTS; i++) {
-		struct v4l2_fwnode_endpoint vep = {
+		struct v4l2_fwanalde_endpoint vep = {
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
 		struct sensor_async_subdev *s_asd;
-		struct fwnode_handle *ep;
+		struct fwanalde_handle *ep;
 
-		ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), i, 0,
-						FWNODE_GRAPH_ENDPOINT_NEXT);
+		ep = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), i, 0,
+						FWANALDE_GRAPH_ENDPOINT_NEXT);
 		if (!ep)
 			continue;
 
-		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		ret = v4l2_fwanalde_endpoint_parse(ep, &vep);
 		if (ret)
 			goto err_parse;
 
-		s_asd = v4l2_async_nf_add_fwnode_remote(&cio2->notifier, ep,
+		s_asd = v4l2_async_nf_add_fwanalde_remote(&cio2->analtifier, ep,
 							struct
 							sensor_async_subdev);
 		if (IS_ERR(s_asd)) {
@@ -1478,12 +1478,12 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		s_asd->csi2.port = vep.base.port;
 		s_asd->csi2.lanes = vep.bus.mipi_csi2.num_data_lanes;
 
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 
 		continue;
 
 err_parse:
-		fwnode_handle_put(ep);
+		fwanalde_handle_put(ep);
 		return ret;
 	}
 
@@ -1491,10 +1491,10 @@ err_parse:
 	 * Proceed even without sensors connected to allow the device to
 	 * suspend.
 	 */
-	cio2->notifier.ops = &cio2_async_ops;
-	ret = v4l2_async_nf_register(&cio2->notifier);
+	cio2->analtifier.ops = &cio2_async_ops;
+	ret = v4l2_async_nf_register(&cio2->analtifier);
 	if (ret)
-		dev_err(dev, "failed to register async notifier : %d\n", ret);
+		dev_err(dev, "failed to register async analtifier : %d\n", ret);
 
 	return ret;
 }
@@ -1529,13 +1529,13 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	fmt->width = default_width;
 	fmt->height = default_height;
 	fmt->code = dflt_fmt.mbus_code;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 
 	q->format.width = default_width;
 	q->format.height = default_height;
 	q->format.pixelformat = dflt_fmt.fourcc;
 	q->format.colorspace = V4L2_COLORSPACE_RAW;
-	q->format.field = V4L2_FIELD_NONE;
+	q->format.field = V4L2_FIELD_ANALNE;
 	q->format.num_planes = 1;
 	q->format.plane_fmt[0].bytesperline =
 				cio2_bytesperline(q->format.width);
@@ -1570,7 +1570,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 
 	/* Initialize subdev */
 	v4l2_subdev_init(subdev, &cio2_subdev_ops);
-	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	subdev->owner = THIS_MODULE;
 	snprintf(subdev->name, sizeof(subdev->name),
 		 CIO2_ENTITY_NAME " %td", q - cio2->queue);
@@ -1588,7 +1588,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	vbq->ops = &cio2_vb2_ops;
 	vbq->mem_ops = &vb2_dma_sg_memops;
 	vbq->buf_struct_size = sizeof(struct cio2_buffer);
-	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vbq->min_queued_buffers = 1;
 	vbq->drv_priv = cio2;
 	vbq->lock = &q->lock;
@@ -1615,7 +1615,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 		goto fail_vdev;
 	}
 
-	/* Create link from CIO2 subdev to output node */
+	/* Create link from CIO2 subdev to output analde */
 	r = media_create_pad_link(
 		&subdev->entity, CIO2_PAD_SOURCE, &vdev->entity, 0,
 		MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
@@ -1679,20 +1679,20 @@ static void cio2_queues_exit(struct cio2_device *cio2)
 		cio2_queue_exit(cio2, &cio2->queue[i]);
 }
 
-static int cio2_check_fwnode_graph(struct fwnode_handle *fwnode)
+static int cio2_check_fwanalde_graph(struct fwanalde_handle *fwanalde)
 {
-	struct fwnode_handle *endpoint;
+	struct fwanalde_handle *endpoint;
 
-	if (IS_ERR_OR_NULL(fwnode))
+	if (IS_ERR_OR_NULL(fwanalde))
 		return -EINVAL;
 
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	endpoint = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (endpoint) {
-		fwnode_handle_put(endpoint);
+		fwanalde_handle_put(endpoint);
 		return 0;
 	}
 
-	return cio2_check_fwnode_graph(fwnode->secondary);
+	return cio2_check_fwanalde_graph(fwanalde->secondary);
 }
 
 /**************** PCI interface ****************/
@@ -1701,19 +1701,19 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
 	struct device *dev = &pci_dev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	struct cio2_device *cio2;
 	int r;
 
 	/*
-	 * On some platforms no connections to sensors are defined in firmware,
-	 * if the device has no endpoints then we can try to build those as
-	 * software_nodes parsed from SSDB.
+	 * On some platforms anal connections to sensors are defined in firmware,
+	 * if the device has anal endpoints then we can try to build those as
+	 * software_analdes parsed from SSDB.
 	 */
-	r = cio2_check_fwnode_graph(fwnode);
+	r = cio2_check_fwanalde_graph(fwanalde);
 	if (r) {
-		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
-			dev_err(dev, "fwnode graph has no endpoints connected\n");
+		if (fwanalde && !IS_ERR_OR_NULL(fwanalde->secondary)) {
+			dev_err(dev, "fwanalde graph has anal endpoints connected\n");
 			return -EINVAL;
 		}
 
@@ -1724,7 +1724,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
 	if (!cio2)
-		return -ENOMEM;
+		return -EANALMEM;
 	cio2->pci_dev = pci_dev;
 
 	r = pcim_enable_device(pci_dev);
@@ -1739,7 +1739,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	r = pcim_iomap_regions(pci_dev, 1 << CIO2_PCI_BAR, pci_name(pci_dev));
 	if (r) {
 		dev_err(dev, "failed to remap I/O memory (%d)\n", r);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	cio2->base = pcim_iomap_table(pci_dev)[CIO2_PCI_BAR];
@@ -1751,7 +1751,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	r = dma_set_mask(&pci_dev->dev, CIO2_DMA_MASK);
 	if (r) {
 		dev_err(dev, "failed to set DMA mask (%d)\n", r);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	r = pci_enable_msi(pci_dev);
@@ -1787,28 +1787,28 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	if (r)
 		goto fail_v4l2_device_unregister;
 
-	v4l2_async_nf_init(&cio2->notifier, &cio2->v4l2_dev);
+	v4l2_async_nf_init(&cio2->analtifier, &cio2->v4l2_dev);
 
-	/* Register notifier for subdevices we care */
+	/* Register analtifier for subdevices we care */
 	r = cio2_parse_firmware(cio2);
 	if (r)
-		goto fail_clean_notifier;
+		goto fail_clean_analtifier;
 
 	r = devm_request_irq(dev, pci_dev->irq, cio2_irq, IRQF_SHARED,
 			     CIO2_NAME, cio2);
 	if (r) {
 		dev_err(dev, "failed to request IRQ (%d)\n", r);
-		goto fail_clean_notifier;
+		goto fail_clean_analtifier;
 	}
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_allow(dev);
 
 	return 0;
 
-fail_clean_notifier:
-	v4l2_async_nf_unregister(&cio2->notifier);
-	v4l2_async_nf_cleanup(&cio2->notifier);
+fail_clean_analtifier:
+	v4l2_async_nf_unregister(&cio2->analtifier);
+	v4l2_async_nf_cleanup(&cio2->analtifier);
 	cio2_queues_exit(cio2);
 fail_v4l2_device_unregister:
 	v4l2_device_unregister(&cio2->v4l2_dev);
@@ -1827,8 +1827,8 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 
 	media_device_unregister(&cio2->media_dev);
-	v4l2_async_nf_unregister(&cio2->notifier);
-	v4l2_async_nf_cleanup(&cio2->notifier);
+	v4l2_async_nf_unregister(&cio2->analtifier);
+	v4l2_async_nf_cleanup(&cio2->analtifier);
 	cio2_queues_exit(cio2);
 	cio2_fbpt_exit_dummy(cio2);
 	v4l2_device_unregister(&cio2->v4l2_dev);
@@ -1836,7 +1836,7 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	mutex_destroy(&cio2->lock);
 
 	pm_runtime_forbid(&pci_dev->dev);
-	pm_runtime_get_noresume(&pci_dev->dev);
+	pm_runtime_get_analresume(&pci_dev->dev);
 }
 
 static int __maybe_unused cio2_runtime_suspend(struct device *dev)

@@ -23,15 +23,15 @@
  * makes locks slightly more efficient when stealing.
  *
  * This is compile-time, so if true then there may always be stealers, so the
- * nosteal paths become unused.
+ * analsteal paths become unused.
  */
 #define _Q_SPIN_TRY_LOCK_STEAL 1
 
 /*
- * Put a speculation barrier after testing the lock/node and finding it
+ * Put a speculation barrier after testing the lock/analde and finding it
  * busy. Try to prevent pointless speculation in slow paths.
  *
- * Slows down the lockstorm microbenchmark with no stealing, where locking
+ * Slows down the lockstorm microbenchmark with anal stealing, where locking
  * is purely FIFO through the queue. May have more benefit in real workload
  * where speculating into the wrong place could have a greater cost.
  */
@@ -42,8 +42,8 @@
  * Execute a miso instruction after passing the MCS lock ownership to the
  * queue head. Miso is intended to make stores visible to other CPUs sooner.
  *
- * This seems to make the lockstorm microbenchmark nospin test go slightly
- * faster on POWER10, but disable for now.
+ * This seems to make the lockstorm microbenchmark analspin test go slightly
+ * faster on POWER10, but disable for analw.
  */
 #define _Q_SPIN_MISO 0
 #else
@@ -54,7 +54,7 @@
 /*
  * This executes miso after an unlock of the lock word, having ownership
  * pass to the next CPU sooner. This will slow the uncontended path to some
- * degree. Not evidence it helps yet.
+ * degree. Analt evidence it helps yet.
  */
 #define _Q_SPIN_MISO_UNLOCK 0
 #else
@@ -62,7 +62,7 @@
 #endif
 
 /*
- * Seems to slow down lockstorm microbenchmark, suspect queue node just
+ * Seems to slow down lockstorm microbenchmark, suspect queue analde just
  * has to become shared again right afterwards when its waiter spins on
  * the lock field.
  */
@@ -89,14 +89,14 @@ static __always_inline u32 queued_spin_encode_locked_val(void)
 	return _Q_LOCKED_VAL | (smp_processor_id() << _Q_OWNER_CPU_OFFSET);
 }
 
-static __always_inline int __queued_spin_trylock_nosteal(struct qspinlock *lock)
+static __always_inline int __queued_spin_trylock_analsteal(struct qspinlock *lock)
 {
 	u32 new = queued_spin_encode_locked_val();
 	u32 prev;
 
-	/* Trylock succeeds only when unlocked and no queued nodes */
+	/* Trylock succeeds only when unlocked and anal queued analdes */
 	asm volatile(
-"1:	lwarx	%0,0,%1,%3	# __queued_spin_trylock_nosteal		\n"
+"1:	lwarx	%0,0,%1,%3	# __queued_spin_trylock_analsteal		\n"
 "	cmpwi	0,%0,0							\n"
 "	bne-	2f							\n"
 "	stwcx.	%2,0,%1							\n"
@@ -116,7 +116,7 @@ static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 	u32 new = queued_spin_encode_locked_val();
 	u32 prev, tmp;
 
-	/* Trylock may get ahead of queued nodes if it finds unlocked */
+	/* Trylock may get ahead of queued analdes if it finds unlocked */
 	asm volatile(
 "1:	lwarx	%0,0,%2,%5	# __queued_spin_trylock_steal		\n"
 "	andc.	%1,%0,%4						\n"
@@ -138,7 +138,7 @@ static __always_inline int __queued_spin_trylock_steal(struct qspinlock *lock)
 static __always_inline int queued_spin_trylock(struct qspinlock *lock)
 {
 	if (!_Q_SPIN_TRY_LOCK_STEAL)
-		return __queued_spin_trylock_nosteal(lock);
+		return __queued_spin_trylock_analsteal(lock);
 	else
 		return __queued_spin_trylock_steal(lock);
 }

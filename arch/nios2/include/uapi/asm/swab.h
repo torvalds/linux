@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2011 Pyramid Technical Consultants, Inc.
@@ -18,7 +18,7 @@
 #ifdef __GNUC__
 
 #define __nios2_swab(x)		\
-	__builtin_custom_ini(CONFIG_NIOS2_CI_SWAB_NO, (x))
+	__builtin_custom_ini(CONFIG_NIOS2_CI_SWAB_ANAL, (x))
 
 static inline __attribute__((const)) __u16 __arch_swab16(__u16 x)
 {

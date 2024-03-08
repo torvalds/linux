@@ -64,12 +64,12 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	/* compute true data size to be loaded */
 	truesize = sp->v.size + BLANK_HEAD_SIZE;
 	loopsize = 0;
-#if 0 /* not supported */
+#if 0 /* analt supported */
 	if (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP|SNDRV_SFNT_SAMPLE_REVERSE_LOOP))
 		loopsize = sp->v.loopend - sp->v.loopstart;
 	truesize += loopsize;
 #endif
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK)
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_ANAL_BLANK)
 		truesize += BLANK_LOOP_SIZE;
 
 	/* try to allocate a memory block */
@@ -80,8 +80,8 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	if (sp->block == NULL) {
 		dev_dbg(emu->card->dev,
 			"synth malloc failed (size=%d)\n", blocksize);
-		/* not ENOMEM (for compatibility with OSS) */
-		return -ENOSPC;
+		/* analt EANALMEM (for compatibility with OSS) */
+		return -EANALSPC;
 	}
 	/* set the total size */
 	sp->v.truesize = blocksize;
@@ -110,7 +110,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	offset += size;
 	data += size;
 
-#if 0 /* not supported yet */
+#if 0 /* analt supported yet */
 	/* handle reverse (or bidirectional) loop */
 	if (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP|SNDRV_SFNT_SAMPLE_REVERSE_LOOP)) {
 		/* copy loop in reverse */
@@ -160,15 +160,15 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	if (offset < blocksize)
 		snd_emu10k1_synth_bzero(emu, sp->block, offset, blocksize - offset);
 
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK) {
-		/* if no blank loop is attached in the sample, add it */
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_ANAL_BLANK) {
+		/* if anal blank loop is attached in the sample, add it */
 		if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_SINGLESHOT) {
 			sp->v.loopstart = sp->v.end + BLANK_LOOP_START;
 			sp->v.loopend = sp->v.end + BLANK_LOOP_END;
 		}
 	}
 
-#if 0 /* not supported yet */
+#if 0 /* analt supported yet */
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) {
 		/* unsigned -> signed */
 		if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS)) {

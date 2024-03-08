@@ -21,21 +21,21 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE
  * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -53,7 +53,7 @@
  * @pd: protection domain
  * @acc: access flags
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erranal.
  */
 struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
 {
@@ -69,12 +69,12 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
 	if (acc & ~IB_ACCESS_LOCAL_WRITE) {
 		dev_warn(&dev->pdev->dev,
 			 "unsupported dma mr access flags %#x\n", acc);
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_MR;
@@ -85,7 +85,7 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not get DMA mem region, error: %d\n", ret);
+			 "could analt get DMA mem region, error: %d\n", ret);
 		kfree(mr);
 		return ERR_PTR(ret);
 	}
@@ -106,7 +106,7 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
  * @access_flags: access flags for memory region
  * @udata: user data
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erranal.
  */
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				 u64 virt_addr, int access_flags,
@@ -129,7 +129,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	umem = ib_umem_get(pd->device, start, length, access_flags);
 	if (IS_ERR(umem)) {
 		dev_warn(&dev->pdev->dev,
-			 "could not get umem for mem region\n");
+			 "could analt get umem for mem region\n");
 		return ERR_CAST(umem);
 	}
 
@@ -143,7 +143,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_umem;
 	}
 
@@ -154,7 +154,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	ret = pvrdma_page_dir_init(dev, &mr->pdir, npages, false);
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
-			 "could not allocate page directory\n");
+			 "could analt allocate page directory\n");
 		goto err_umem;
 	}
 
@@ -174,7 +174,7 @@ struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not register mem region, error: %d\n", ret);
+			 "could analt register mem region, error: %d\n", ret);
 		goto err_pdir;
 	}
 
@@ -199,7 +199,7 @@ err_umem:
  * @mr_type: type of memory region
  * @max_num_sg: maximum number of pages
  *
- * @return: ib_mr pointer on success, otherwise returns an errno.
+ * @return: ib_mr pointer on success, otherwise returns an erranal.
  */
 struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			      u32 max_num_sg)
@@ -219,11 +219,11 @@ struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->pages = kzalloc(size, GFP_KERNEL);
 	if (!mr->pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto freemr;
 	}
 
@@ -231,7 +231,7 @@ struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
 			 "failed to allocate page dir for mr\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto freepages;
 	}
 
@@ -245,7 +245,7 @@ struct ib_mr *pvrdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_MR_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create FR mem region, error: %d\n", ret);
+			 "could analt create FR mem region, error: %d\n", ret);
 		goto freepdir;
 	}
 
@@ -288,7 +288,7 @@ int pvrdma_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0)
 		dev_warn(&dev->pdev->dev,
-			 "could not deregister mem region, error: %d\n", ret);
+			 "could analt deregister mem region, error: %d\n", ret);
 
 	pvrdma_page_dir_cleanup(dev, &mr->pdir);
 	ib_umem_release(mr->umem);
@@ -304,7 +304,7 @@ static int pvrdma_set_page(struct ib_mr *ibmr, u64 addr)
 	struct pvrdma_user_mr *mr = to_vmr(ibmr);
 
 	if (mr->npages == mr->max_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mr->pages[mr->npages++] = addr;
 	return 0;
@@ -321,7 +321,7 @@ int pvrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 
 	ret = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, pvrdma_set_page);
 	if (ret < 0)
-		dev_warn(&dev->pdev->dev, "could not map sg to pages\n");
+		dev_warn(&dev->pdev->dev, "could analt map sg to pages\n");
 
 	return ret;
 }

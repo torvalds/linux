@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * IOMMU user API definitions
  */
@@ -20,9 +20,9 @@ enum iommu_fault_type {
 };
 
 enum iommu_fault_reason {
-	IOMMU_FAULT_REASON_UNKNOWN = 0,
+	IOMMU_FAULT_REASON_UNKANALWN = 0,
 
-	/* Could not access the PASID table (fetch caused external abort) */
+	/* Could analt access the PASID table (fetch caused external abort) */
 	IOMMU_FAULT_REASON_PASID_FETCH,
 
 	/* PASID entry is invalid or has configuration errors */
@@ -41,7 +41,7 @@ enum iommu_fault_reason {
 	IOMMU_FAULT_REASON_WALK_EABT,
 
 	/*
-	 * Could not access the page table entry (Bad address),
+	 * Could analt access the page table entry (Bad address),
 	 * actual translation fault
 	 */
 	IOMMU_FAULT_REASON_PTE_FETCH,
@@ -84,7 +84,7 @@ struct iommu_fault_unrecoverable {
  *         is the last page in group (IOMMU_FAULT_PAGE_REQUEST_* values).
  *         When IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID is set, the page response
  *         must have the same PASID value as the page request. When it is clear,
- *         the page response should not have a PASID.
+ *         the page response should analt have a PASID.
  * @pasid: Process Address Space ID
  * @grpid: Page Request Group Index
  * @perm: requested page permissions (IOMMU_FAULT_PERM_* values)
@@ -128,7 +128,7 @@ struct iommu_fault {
  *	populated, retry the access. This is "Success" in PCI PRI.
  * @IOMMU_PAGE_RESP_FAILURE: General error. Drop all subsequent faults from
  *	this device if possible. This is "Response Failure" in PCI PRI.
- * @IOMMU_PAGE_RESP_INVALID: Could not handle this fault, don't retry the
+ * @IOMMU_PAGE_RESP_INVALID: Could analt handle this fault, don't retry the
  *	access. This is "Invalid Request" in PCI PRI.
  */
 enum iommu_page_response_code {

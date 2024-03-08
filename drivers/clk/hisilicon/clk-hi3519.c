@@ -2,7 +2,7 @@
 /*
  * Hi3519 Clock Driver
  *
- * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2015-2016 HiSilicon Techanallogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/hi3519-clock.h>
@@ -80,7 +80,7 @@ static struct hisi_clock_data *hi3519_clk_register(struct platform_device *pdev)
 
 	clk_data = hisi_clk_alloc(pdev, HI3519_NR_CLKS);
 	if (!clk_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = hisi_clk_register_fixed_rate(hi3519_fixed_rate_clks,
 				     ARRAY_SIZE(hi3519_fixed_rate_clks),
@@ -100,7 +100,7 @@ static struct hisi_clock_data *hi3519_clk_register(struct platform_device *pdev)
 	if (ret)
 		goto unregister_mux;
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_analde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -127,7 +127,7 @@ static void hi3519_clk_unregister(struct platform_device *pdev)
 {
 	struct hi3519_crg_data *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 
 	hisi_clk_unregister_gate(hi3519_gate_clks,
 				ARRAY_SIZE(hi3519_mux_clks),
@@ -146,11 +146,11 @@ static int hi3519_clk_probe(struct platform_device *pdev)
 
 	crg = devm_kmalloc(&pdev->dev, sizeof(*crg), GFP_KERNEL);
 	if (!crg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->rstc = hisi_reset_init(pdev);
 	if (!crg->rstc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crg->clk_data = hi3519_clk_register(pdev);
 	if (IS_ERR(crg->clk_data)) {

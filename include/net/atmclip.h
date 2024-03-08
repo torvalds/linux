@@ -22,7 +22,7 @@ struct sk_buff;
 struct clip_vcc {
 	struct atm_vcc	*vcc;		/* VCC descriptor */
 	struct atmarp_entry *entry;	/* ATMARP table entry, NULL if IP addr.
-					   isn't known yet */
+					   isn't kanalwn yet */
 	int		xoff;		/* 1 if send buffer is full */
 	unsigned char	encap;		/* 0: NULL, 1: LLC/SNAP */
 	unsigned long	last_use;	/* last send or receive operation */

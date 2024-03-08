@@ -145,18 +145,18 @@
 
 		dsp_vdev0vring0: vdev0vring0@942f0000 {
 			reg = <0 0x942f0000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		dsp_vdev0vring1: vdev0vring1@942f8000 {
 			reg = <0 0x942f8000 0 0x8000>;
-			no-map;
+			anal-map;
 		};
 
 		dsp_vdev0buffer: vdev0buffer@94300000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x94300000 0 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -167,7 +167,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 		spi-max-frequency = <80000000>;
 		spi-tx-bus-width = <1>;
@@ -507,7 +507,7 @@
 	 *     LOW:  CAN1 (default, pull-down)
 	 *     HIGH: I2C5
 	 * You need to set it to high to enable I2C5 (for example, add gpio-hog
-	 * in pca6416 node).
+	 * in pca6416 analde).
 	 */
 };
 
@@ -639,7 +639,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

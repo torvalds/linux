@@ -9,13 +9,13 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
  * The Armada 370, 375 and Armada XP SoCs have a range of
- * miscellaneous registers, that do not belong to a particular device,
+ * miscellaneous registers, that do analt belong to a particular device,
  * but rather provide system-level features. This basic
  * system-controller driver provides a device tree binding for those
  * registers, and implements utility functions offering various
  * features related to those registers.
  *
- * For now, the feature set is limited to restarting the platform by a
+ * For analw, the feature set is limited to restarting the platform by a
  * soft-reset, but it might be extended in the future.
  */
 
@@ -91,7 +91,7 @@ static const struct of_device_id of_system_controller_table[] = {
 void mvebu_restart(enum reboot_mode mode, const char *cmd)
 {
 	if (!system_controller_base) {
-		pr_err("Cannot restart, system-controller not available: check the device tree\n");
+		pr_err("Cananalt restart, system-controller analt available: check the device tree\n");
 	} else {
 		/*
 		 * Enable soft reset to assert RSTOUTn.
@@ -120,7 +120,7 @@ int mvebu_system_controller_get_soc_id(u32 *dev, u32 *rev)
 			& 0xF;
 		return 0;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 #if defined(CONFIG_SMP) && defined(CONFIG_MACH_MVEBU_V7)
@@ -158,9 +158,9 @@ void mvebu_system_controller_set_cpu_boot_addr(void *boot_addr)
 static int __init mvebu_system_controller_init(void)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node_and_match(NULL, of_system_controller_table,
+	np = of_find_matching_analde_and_match(NULL, of_system_controller_table,
 					     &match);
 	if (np) {
 		struct resource res;
@@ -168,7 +168,7 @@ static int __init mvebu_system_controller_init(void)
 		of_address_to_resource(np, 0, &res);
 		system_controller_phys_base = res.start;
 		mvebu_sc = (struct mvebu_system_controller *)match->data;
-		of_node_put(np);
+		of_analde_put(np);
 	}
 
 	return 0;

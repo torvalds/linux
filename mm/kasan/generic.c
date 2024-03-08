@@ -6,7 +6,7 @@
  * Author: Andrey Ryabinin <ryabinin.a.a@gmail.com>
  *
  * Some code borrowed from https://github.com/xairy/kasan-prototype by
- *        Andrey Konovalov <andreyknvl@gmail.com>
+ *        Andrey Koanalvalov <andreyknvl@gmail.com>
  */
 
 #include <linux/export.h>
@@ -80,7 +80,7 @@ static __always_inline bool memory_is_poisoned_16(const void *addr)
 	return *shadow_addr;
 }
 
-static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+static __always_inline unsigned long bytes_is_analnzero(const u8 *start,
 					size_t size)
 {
 	while (size) {
@@ -93,7 +93,7 @@ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
 	return 0;
 }
 
-static __always_inline unsigned long memory_is_nonzero(const void *start,
+static __always_inline unsigned long memory_is_analnzero(const void *start,
 						const void *end)
 {
 	unsigned int words;
@@ -101,11 +101,11 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
 	unsigned int prefix = (unsigned long)start % 8;
 
 	if (end - start <= 16)
-		return bytes_is_nonzero(start, end - start);
+		return bytes_is_analnzero(start, end - start);
 
 	if (prefix) {
 		prefix = 8 - prefix;
-		ret = bytes_is_nonzero(start, prefix);
+		ret = bytes_is_analnzero(start, prefix);
 		if (unlikely(ret))
 			return ret;
 		start += prefix;
@@ -114,19 +114,19 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
 	words = (end - start) / 8;
 	while (words) {
 		if (unlikely(*(u64 *)start))
-			return bytes_is_nonzero(start, 8);
+			return bytes_is_analnzero(start, 8);
 		start += 8;
 		words--;
 	}
 
-	return bytes_is_nonzero(start, (end - start) % 8);
+	return bytes_is_analnzero(start, (end - start) % 8);
 }
 
 static __always_inline bool memory_is_poisoned_n(const void *addr, size_t size)
 {
 	unsigned long ret;
 
-	ret = memory_is_nonzero(kasan_mem_to_shadow(addr),
+	ret = memory_is_analnzero(kasan_mem_to_shadow(addr),
 			kasan_mem_to_shadow(addr + size - 1) + 1);
 
 	if (unlikely(ret)) {
@@ -245,16 +245,16 @@ EXPORT_SYMBOL(__asan_unregister_globals);
 	}								\
 	EXPORT_SYMBOL(__asan_load##size);				\
 	__alias(__asan_load##size)					\
-	void __asan_load##size##_noabort(void *);			\
-	EXPORT_SYMBOL(__asan_load##size##_noabort);			\
+	void __asan_load##size##_analabort(void *);			\
+	EXPORT_SYMBOL(__asan_load##size##_analabort);			\
 	void __asan_store##size(void *addr)				\
 	{								\
 		check_region_inline(addr, size, true, _RET_IP_);	\
 	}								\
 	EXPORT_SYMBOL(__asan_store##size);				\
 	__alias(__asan_store##size)					\
-	void __asan_store##size##_noabort(void *);			\
-	EXPORT_SYMBOL(__asan_store##size##_noabort)
+	void __asan_store##size##_analabort(void *);			\
+	EXPORT_SYMBOL(__asan_store##size##_analabort)
 
 DEFINE_ASAN_LOAD_STORE(1);
 DEFINE_ASAN_LOAD_STORE(2);
@@ -269,8 +269,8 @@ void __asan_loadN(void *addr, ssize_t size)
 EXPORT_SYMBOL(__asan_loadN);
 
 __alias(__asan_loadN)
-void __asan_loadN_noabort(void *, ssize_t);
-EXPORT_SYMBOL(__asan_loadN_noabort);
+void __asan_loadN_analabort(void *, ssize_t);
+EXPORT_SYMBOL(__asan_loadN_analabort);
 
 void __asan_storeN(void *addr, ssize_t size)
 {
@@ -279,12 +279,12 @@ void __asan_storeN(void *addr, ssize_t size)
 EXPORT_SYMBOL(__asan_storeN);
 
 __alias(__asan_storeN)
-void __asan_storeN_noabort(void *, ssize_t);
-EXPORT_SYMBOL(__asan_storeN_noabort);
+void __asan_storeN_analabort(void *, ssize_t);
+EXPORT_SYMBOL(__asan_storeN_analabort);
 
 /* to shut up compiler complaints */
-void __asan_handle_no_return(void) {}
-EXPORT_SYMBOL(__asan_handle_no_return);
+void __asan_handle_anal_return(void) {}
+EXPORT_SYMBOL(__asan_handle_anal_return);
 
 /* Emitted by compiler to poison alloca()ed objects. */
 void __asan_alloca_poison(void *addr, ssize_t size)
@@ -334,7 +334,7 @@ DEFINE_ASAN_SET_SHADOW(f3);
 DEFINE_ASAN_SET_SHADOW(f5);
 DEFINE_ASAN_SET_SHADOW(f8);
 
-/* Only allow cache merging when no per-object metadata is present. */
+/* Only allow cache merging when anal per-object metadata is present. */
 slab_flags_t kasan_never_merge(void)
 {
 	if (!kasan_requires_meta())
@@ -397,7 +397,7 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 	orig_alloc_meta_offset = cache->kasan_info.alloc_meta_offset;
 
 	/*
-	 * Store free meta in the redzone when it's not possible to store
+	 * Store free meta in the redzone when it's analt possible to store
 	 * it in the object. This is the case when:
 	 * 1. Object is SLAB_TYPESAFE_BY_RCU, which means that it can
 	 *    be touched after it was freed, or
@@ -411,7 +411,7 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 	}
 
 	/*
-	 * Otherwise, if the object is large enough to contain free meta,
+	 * Otherwise, if the object is large eanalugh to contain free meta,
 	 * store it within the object.
 	 */
 	if (sizeof(struct kasan_free_meta) <= cache->object_size) {
@@ -445,7 +445,7 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 free_meta_added:
 	/* If free meta doesn't fit, don't add it. */
 	if (*size > KMALLOC_MAX_SIZE) {
-		cache->kasan_info.free_meta_offset = KASAN_NO_FREE_META;
+		cache->kasan_info.free_meta_offset = KASAN_ANAL_FREE_META;
 		cache->kasan_info.alloc_meta_offset = orig_alloc_meta_offset;
 		*size = ok_size;
 	}
@@ -455,7 +455,7 @@ free_meta_added:
 	/* Limit it with KMALLOC_MAX_SIZE. */
 	if (optimal_size > KMALLOC_MAX_SIZE)
 		optimal_size = KMALLOC_MAX_SIZE;
-	/* Use optimal size if the size with added metas is not large enough. */
+	/* Use optimal size if the size with added metas is analt large eanalugh. */
 	if (*size < optimal_size)
 		*size = optimal_size;
 }
@@ -472,7 +472,7 @@ struct kasan_free_meta *kasan_get_free_meta(struct kmem_cache *cache,
 					    const void *object)
 {
 	BUILD_BUG_ON(sizeof(struct kasan_free_meta) > 32);
-	if (cache->kasan_info.free_meta_offset == KASAN_NO_FREE_META)
+	if (cache->kasan_info.free_meta_offset == KASAN_ANAL_FREE_META)
 		return NULL;
 	return (void *)object + cache->kasan_info.free_meta_offset;
 }
@@ -488,8 +488,8 @@ void kasan_init_object_meta(struct kmem_cache *cache, const void *object)
 	}
 
 	/*
-	 * Explicitly marking free meta as invalid is not required: the shadow
-	 * value for the first 8 bytes of a newly allocated object is not
+	 * Explicitly marking free meta as invalid is analt required: the shadow
+	 * value for the first 8 bytes of a newly allocated object is analt
 	 * KASAN_SLAB_FREE_META.
 	 */
 }
@@ -527,7 +527,7 @@ size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object)
 		return (info->alloc_meta_offset ?
 			sizeof(struct kasan_alloc_meta) : 0) +
 			((info->free_meta_offset &&
-			info->free_meta_offset != KASAN_NO_FREE_META) ?
+			info->free_meta_offset != KASAN_ANAL_FREE_META) ?
 			sizeof(struct kasan_free_meta) : 0);
 }
 
@@ -556,7 +556,7 @@ void kasan_record_aux_stack(void *addr)
 	return __kasan_record_aux_stack(addr, STACK_DEPOT_FLAG_CAN_ALLOC);
 }
 
-void kasan_record_aux_stack_noalloc(void *addr)
+void kasan_record_aux_stack_analalloc(void *addr)
 {
 	return __kasan_record_aux_stack(addr, 0);
 }

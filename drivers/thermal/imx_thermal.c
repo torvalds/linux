@@ -345,11 +345,11 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip_id,
 	if (ret)
 		return ret;
 
-	/* do not allow changing critical threshold */
+	/* do analt allow changing critical threshold */
 	if (trip.type == THERMAL_TRIP_CRITICAL)
 		return -EPERM;
 
-	/* do not allow passive to be set higher than critical */
+	/* do analt allow passive to be set higher than critical */
 	if (temp < 0 || temp > trips[IMX_TRIP_CRITICAL].temperature)
 		return -EINVAL;
 
@@ -364,8 +364,8 @@ static int imx_bind(struct thermal_zone_device *tz,
 		    struct thermal_cooling_device *cdev)
 {
 	return thermal_zone_bind_cooling_device(tz, IMX_TRIP_PASSIVE, cdev,
-						THERMAL_NO_LIMIT,
-						THERMAL_NO_LIMIT,
+						THERMAL_ANAL_LIMIT,
+						THERMAL_ANAL_LIMIT,
 						THERMAL_WEIGHT_DEFAULT);
 }
 
@@ -471,7 +471,7 @@ static int imx_init_from_tempmon_data(struct platform_device *pdev)
 	int ret;
 	u32 val;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 					      "fsl,tempmon-data");
 	if (IS_ERR(map)) {
 		ret = PTR_ERR(map);
@@ -523,7 +523,7 @@ static irqreturn_t imx_thermal_alarm_irq(int irq, void *dev)
 {
 	struct imx_thermal_data *data = dev;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 	data->irq_enabled = false;
 
 	return IRQ_WAKE_THREAD;
@@ -550,21 +550,21 @@ MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 #ifdef CONFIG_CPU_FREQ
 /*
- * Create cooling device in case no #cooling-cells property is available in
- * CPU node
+ * Create cooling device in case anal #cooling-cells property is available in
+ * CPU analde
  */
 static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	int ret = 0;
 
 	data->policy = cpufreq_cpu_get(0);
 	if (!data->policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
+		pr_debug("%s: CPUFreq policy analt found\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
-	np = of_get_cpu_node(data->policy->cpu, NULL);
+	np = of_get_cpu_analde(data->policy->cpu, NULL);
 
 	if (!np || !of_property_present(np, "#cooling-cells")) {
 		data->cdev = cpufreq_cooling_register(data->policy);
@@ -574,7 +574,7 @@ static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	return ret;
 }
@@ -606,11 +606,11 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = &pdev->dev;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "fsl,tempmon");
+	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde, "fsl,tempmon");
 	if (IS_ERR(map)) {
 		ret = PTR_ERR(map);
 		dev_err(&pdev->dev, "failed to get tempmon regmap: %d\n", ret);
@@ -620,8 +620,8 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	data->socdata = of_device_get_match_data(&pdev->dev);
 	if (!data->socdata) {
-		dev_err(&pdev->dev, "no device match found\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "anal device match found\n");
+		return -EANALDEV;
 	}
 
 	/* make sure the IRQ flag is clear before enabling irq on i.MX6SX */
@@ -643,7 +643,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	if (of_property_present(pdev->dev.of_node, "nvmem-cells")) {
+	if (of_property_present(pdev->dev.of_analde, "nvmem-cells")) {
 		ret = imx_init_from_nvmem_cells(pdev);
 		if (ret)
 			return dev_err_probe(&pdev->dev, ret,
@@ -656,7 +656,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Make sure sensor is in known good state for measurements */
+	/* Make sure sensor is in kanalwn good state for measurements */
 	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
 		     data->socdata->power_down_mask);
 	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
@@ -684,7 +684,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Thermal sensor needs clk on to get correct value, normally
+	 * Thermal sensor needs clk on to get correct value, analrmally
 	 * we should enable its clk before taking measurement and disable
 	 * clk after measurement is done, but if alarm function is enabled,
 	 * hardware will auto measure the temperature periodically, so we
@@ -761,7 +761,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 thermal_zone_unregister:
 	thermal_zone_device_unregister(data->tz);
 disable_runtime_pm:
-	pm_runtime_put_noidle(data->dev);
+	pm_runtime_put_analidle(data->dev);
 	pm_runtime_disable(data->dev);
 clk_disable:
 	clk_disable_unprepare(data->thermal_clk);
@@ -775,7 +775,7 @@ static void imx_thermal_remove(struct platform_device *pdev)
 {
 	struct imx_thermal_data *data = platform_get_drvdata(pdev);
 
-	pm_runtime_put_noidle(data->dev);
+	pm_runtime_put_analidle(data->dev);
 	pm_runtime_disable(data->dev);
 
 	thermal_zone_device_unregister(data->tz);

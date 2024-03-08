@@ -44,7 +44,7 @@ static int xsens_mt_probe(struct usb_serial *serial,
 	if (serial->interface->cur_altsetting->desc.bInterfaceNumber == 1)
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct usb_serial_driver xsens_mt_device = {

@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -166,7 +166,7 @@ int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
  * If the given type doesn't have such a kind of information,
  * e.g. give a l4 root entry type, then request to get its PSE type,
  * give a PTE page table type, then request to get its next level page
- * table type, as we know l4 root entry doesn't have a PSE bit,
+ * table type, as we kanalw l4 root entry doesn't have a PSE bit,
  * and a PTE page table doesn't have a next level page table type,
  * GTT_TYPE_INVALID will be returned. This is useful when traversing a
  * page table.
@@ -834,7 +834,7 @@ retry:
 			goto retry;
 
 		gvt_vgpu_err("fail to allocate ppgtt shadow page\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	spt->vgpu = vgpu;
@@ -1058,7 +1058,7 @@ static bool vgpu_ips_enabled(struct intel_vgpu *vgpu)
 
 		return ips == GAMW_ECO_ENABLE_64K_IPS_FIELD;
 	} else if (GRAPHICS_VER(dev_priv) >= 11) {
-		/* 64K paging only controlled by IPS bit in PTE now. */
+		/* 64K paging only controlled by IPS bit in PTE analw. */
 		return true;
 	} else
 		return false;
@@ -1703,11 +1703,11 @@ static int ppgtt_handle_guest_write_page_table_bytes(
 	/*
 	 * For page table which has 64K gtt entry, only PTE#0, PTE#16,
 	 * PTE#32, ... PTE#496 are used. Unused PTEs update should be
-	 * ignored.
+	 * iganalred.
 	 */
 	if (we.type == GTT_TYPE_PPGTT_PTE_64K_ENTRY &&
 	    (index % GTT_64K_PTE_STRIDE)) {
-		gvt_vdbg_mm("Ignore write to unused PTE entry, index %lu\n",
+		gvt_vdbg_mm("Iganalre write to unused PTE entry, index %lu\n",
 			    index);
 		return 0;
 	}
@@ -1866,7 +1866,7 @@ struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	mm = vgpu_alloc_mm(vgpu);
 	if (!mm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mm->type = INTEL_GVT_MM_PPGTT;
 
@@ -1907,7 +1907,7 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 
 	mm = vgpu_alloc_mm(vgpu);
 	if (!mm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mm->type = INTEL_GVT_MM_GGTT;
 
@@ -1917,14 +1917,14 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 				   vgpu->gvt->device_info.gtt_entry_size));
 	if (!mm->ggtt_mm.virtual_ggtt) {
 		vgpu_free_mm(mm);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mm->ggtt_mm.host_ggtt_aperture = vzalloc((vgpu_aperture_sz(vgpu) >> PAGE_SHIFT) * sizeof(u64));
 	if (!mm->ggtt_mm.host_ggtt_aperture) {
 		vfree(mm->ggtt_mm.virtual_ggtt);
 		vgpu_free_mm(mm);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	mm->ggtt_mm.host_ggtt_hidden = vzalloc((vgpu_hidden_sz(vgpu) >> PAGE_SHIFT) * sizeof(u64));
@@ -1932,7 +1932,7 @@ static struct intel_vgpu_mm *intel_vgpu_create_ggtt_mm(struct intel_vgpu *vgpu)
 		vfree(mm->ggtt_mm.host_ggtt_aperture);
 		vfree(mm->ggtt_mm.virtual_ggtt);
 		vgpu_free_mm(mm);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return mm;
@@ -2122,7 +2122,7 @@ unsigned long intel_vgpu_gma_to_gpa(struct intel_vgpu_mm *mm, unsigned long gma)
 				goto err;
 
 			if (!pte_ops->test_present(&e)) {
-				gvt_dbg_core("GMA 0x%lx is not present\n", gma);
+				gvt_dbg_core("GMA 0x%lx is analt present\n", gma);
 				goto err;
 			}
 		}
@@ -2268,7 +2268,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			/* the first partial part */
 			partial_pte = kzalloc(sizeof(*partial_pte), GFP_KERNEL);
 			if (!partial_pte)
-				return -ENOMEM;
+				return -EANALMEM;
 			partial_pte->offset = off;
 			partial_pte->data = e.val64;
 			list_add_tail(&partial_pte->list,
@@ -2369,14 +2369,14 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	scratch_pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!scratch_pt) {
 		gvt_vgpu_err("fail to allocate scratch page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	daddr = dma_map_page(dev, virt_to_page(scratch_pt), 0, 4096, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, daddr)) {
 		gvt_vgpu_err("fail to dmamap scratch_pt\n");
 		__free_page(virt_to_page(scratch_pt));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	gtt->scratch_pt[type].page_mfn =
 		(unsigned long)(daddr >> I915_GTT_PAGE_SHIFT);
@@ -2494,10 +2494,10 @@ void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 	}
 
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
-		gvt_err("vgpu ppgtt mm is not fully destroyed\n");
+		gvt_err("vgpu ppgtt mm is analt fully destroyed\n");
 
 	if (GEM_WARN_ON(!radix_tree_empty(&vgpu->gtt.spt_tree))) {
-		gvt_err("Why we still has spt not freed?\n");
+		gvt_err("Why we still has spt analt freed?\n");
 		ppgtt_free_all_spt(vgpu);
 	}
 }
@@ -2564,12 +2564,12 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 	for (i = 0; i < preallocated_oos_pages; i++) {
 		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
 		if (!oos_page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto fail;
 		}
 		oos_page->mem = (void *)__get_free_pages(GFP_KERNEL, 0);
 		if (!oos_page->mem) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(oos_page);
 			goto fail;
 		}
@@ -2699,7 +2699,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 	page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!page) {
 		gvt_err("fail to allocate scratch ggtt page\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	daddr = dma_map_page(dev, virt_to_page(page), 0,
@@ -2707,7 +2707,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 	if (dma_mapping_error(dev, daddr)) {
 		gvt_err("fail to dmamap scratch ggtt page\n");
 		__free_page(virt_to_page(page));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	gvt->gtt.scratch_page = virt_to_page(page);

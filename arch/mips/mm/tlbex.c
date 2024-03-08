@@ -9,9 +9,9 @@
  * Copyright (C) 2005, 2007, 2008, 2009	 Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2008, 2009 Cavium Networks, Inc.
- * Copyright (C) 2011  MIPS Technologies, Inc.
+ * Copyright (C) 2011  MIPS Techanallogies, Inc.
  *
- * ... and the days got worse and worse and now you see
+ * ... and the days got worse and worse and analw you see
  * I've gone completely out of my mind.
  *
  * They're coming to take me a away haha
@@ -46,13 +46,13 @@ static int __init xpa_disable(char *s)
 	return 1;
 }
 
-__setup("noxpa", xpa_disable);
+__setup("analxpa", xpa_disable);
 
 /*
  * TLB load/store/modify handlers.
  *
  * Only the fastpath gets synthesized at runtime, the slowpath for
- * do_page_fault remains normal asm.
+ * do_page_fault remains analrmal asm.
  */
 extern void tlb_do_page_fault_0(void);
 extern void tlb_do_page_fault_1(void);
@@ -150,9 +150,9 @@ static int scratchpad_offset(int i)
  * Found by experiment: At least some revisions of the 4kc throw under
  * some circumstances a machine check exception, triggered by invalid
  * values in the index register.  Delaying the tlbp instruction until
- * after the next branch,  plus adding an additional nop in front of
- * tlbwi/tlbwr avoids the invalid index register values. Nobody knows
- * why; it's not an issue caused by the core RTL.
+ * after the next branch,  plus adding an additional analp in front of
+ * tlbwi/tlbwr avoids the invalid index register values. Analbody kanalws
+ * why; it's analt an issue caused by the core RTL.
  *
  */
 static int m4kc_tlbp_war(void)
@@ -170,9 +170,9 @@ enum label_id {
 	label_split = label_tlbw_hazard_0 + 8,
 	label_tlbl_goaround1,
 	label_tlbl_goaround2,
-	label_nopage_tlbl,
-	label_nopage_tlbs,
-	label_nopage_tlbm,
+	label_analpage_tlbl,
+	label_analpage_tlbs,
+	label_analpage_tlbm,
 	label_smp_pgtable_change,
 	label_r3000_write_probe_fail,
 	label_large_segbits_fault,
@@ -189,9 +189,9 @@ UASM_L_LA(_vmalloc_done)
 UASM_L_LA(_split)
 UASM_L_LA(_tlbl_goaround1)
 UASM_L_LA(_tlbl_goaround2)
-UASM_L_LA(_nopage_tlbl)
-UASM_L_LA(_nopage_tlbs)
-UASM_L_LA(_nopage_tlbm)
+UASM_L_LA(_analpage_tlbl)
+UASM_L_LA(_analpage_tlbs)
+UASM_L_LA(_analpage_tlbm)
 UASM_L_LA(_smp_pgtable_change)
 UASM_L_LA(_r3000_write_probe_fail)
 UASM_L_LA(_large_segbits_fault)
@@ -239,16 +239,16 @@ static void output_pgtable_bits_defines(void)
 	pr_debug("\n");
 
 	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
-	pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
+	pr_define("_PAGE_ANAL_READ_SHIFT %d\n", _PAGE_ANAL_READ_SHIFT);
 	pr_define("_PAGE_WRITE_SHIFT %d\n", _PAGE_WRITE_SHIFT);
 	pr_define("_PAGE_ACCESSED_SHIFT %d\n", _PAGE_ACCESSED_SHIFT);
 	pr_define("_PAGE_MODIFIED_SHIFT %d\n", _PAGE_MODIFIED_SHIFT);
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 	pr_define("_PAGE_HUGE_SHIFT %d\n", _PAGE_HUGE_SHIFT);
 #endif
-#ifdef _PAGE_NO_EXEC_SHIFT
+#ifdef _PAGE_ANAL_EXEC_SHIFT
 	if (cpu_has_rixi)
-		pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
+		pr_define("_PAGE_ANAL_EXEC_SHIFT %d\n", _PAGE_ANAL_EXEC_SHIFT);
 #endif
 	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
 	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
@@ -266,7 +266,7 @@ static inline void dump_handler(const char *symbol, const void *start, const voi
 	pr_debug("LEAF(%s)\n", symbol);
 
 	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_debug("\t.set analreorder\n");
 
 	for (i = 0; i < count; i++)
 		pr_debug("\t.word\t0x%08x\t\t# %p\n", handler[i], &handler[i]);
@@ -347,7 +347,7 @@ static int allocate_kscratch(void)
 static int scratch_reg;
 int pgd_reg;
 EXPORT_SYMBOL_GPL(pgd_reg);
-enum vmalloc64_mode {not_refill, refill_scratch, refill_noscratch};
+enum vmalloc64_mode {analt_refill, refill_scratch, refill_analscratch};
 
 static struct work_registers build_get_work_registers(u32 **p)
 {
@@ -375,7 +375,7 @@ static struct work_registers build_get_work_registers(u32 **p)
 	} else {
 		UASM_i_LA(p, K0, (long)&handler_reg_save);
 	}
-	/* K0 now points to save area, save $1 and $2  */
+	/* K0 analw points to save area, save $1 and $2  */
 	UASM_i_SW(p, 1, offsetof(struct tlb_reg_save, a), K0);
 	UASM_i_SW(p, 2, offsetof(struct tlb_reg_save, b), K0);
 
@@ -401,7 +401,7 @@ static void build_restore_work_registers(u32 **p)
 
 /*
  * CONFIG_MIPS_PGD_C0_CONTEXT implies 64 bit and lack of pgd_current,
- * we cannot do r3000 under these circumstances.
+ * we cananalt do r3000 under these circumstances.
  *
  * The R3000 TLB handler is simple.
  */
@@ -424,7 +424,7 @@ static void build_r3000_tlb_refill_handler(void)
 	uasm_i_andi(&p, K0, K0, 0xffc); /* load delay */
 	uasm_i_addu(&p, K1, K1, K0);
 	uasm_i_lw(&p, K0, 0, K1);
-	uasm_i_nop(&p); /* load delay */
+	uasm_i_analp(&p); /* load delay */
 	uasm_i_mtc0(&p, K0, C0_ENTRYLO0);
 	uasm_i_mfc0(&p, K1, C0_EPC); /* cp0 delay */
 	uasm_i_tlbwr(&p); /* cp0 delay */
@@ -462,17 +462,17 @@ static u32 final_handler[64];
  *	TLBP
  *
  * The JTLB is being read for the TLBP throughout the stall generated by the
- * previous instruction. This is not really correct as the stalling instruction
+ * previous instruction. This is analt really correct as the stalling instruction
  * can modify the address used to access the JTLB.  The failure symptom is that
  * the TLBP instruction will use an address created for the stalling instruction
- * and not the address held in C0_ENHI and thus report the wrong results.
+ * and analt the address held in C0_ENHI and thus report the wrong results.
  *
- * The software work-around is to not allow the instruction preceding the TLBP
- * to stall - make it an NOP or some other instruction guaranteed not to stall.
+ * The software work-around is to analt allow the instruction preceding the TLBP
+ * to stall - make it an ANALP or some other instruction guaranteed analt to stall.
  *
- * Errata 2 will not be fixed.	This errata is also on the R5000.
+ * Errata 2 will analt be fixed.	This errata is also on the R5000.
  *
- * As if we MIPS hackers wouldn't know how to nop pipelines happy ...
+ * As if we MIPS hackers wouldn't kanalw how to analp pipelines happy ...
  */
 static void __maybe_unused build_tlb_probe_entry(u32 **p)
 {
@@ -482,7 +482,7 @@ static void __maybe_unused build_tlb_probe_entry(u32 **p)
 	case CPU_R4700:
 	case CPU_R5000:
 	case CPU_NEVADA:
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		uasm_i_tlbp(p);
 		break;
 
@@ -518,27 +518,27 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_R4400SC:
 	case CPU_R4400MC:
 		/*
-		 * This branch uses up a mtc0 hazard nop slot and saves
-		 * two nops after the tlbw instruction.
+		 * This branch uses up a mtc0 hazard analp slot and saves
+		 * two analps after the tlbw instruction.
 		 */
 		uasm_bgezl_hazard(p, r, hazard_instance);
 		tlbw(p);
 		uasm_bgezl_label(l, p, hazard_instance);
 		hazard_instance++;
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		break;
 
 	case CPU_R4600:
 	case CPU_R4700:
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		tlbw(p);
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		break;
 
 	case CPU_R5000:
 	case CPU_NEVADA:
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
-		uasm_i_nop(p); /* QED specifies 2 nops hazard */
+		uasm_i_analp(p); /* QED specifies 2 analps hazard */
+		uasm_i_analp(p); /* QED specifies 2 analps hazard */
 		tlbw(p);
 		break;
 
@@ -546,7 +546,7 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_5KC:
 	case CPU_TX49XX:
 	case CPU_PR4450:
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		tlbw(p);
 		break;
 
@@ -572,27 +572,27 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_LOONGSON64:
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
-			uasm_i_nop(p);
+			uasm_i_analp(p);
 		fallthrough;
 	case CPU_ALCHEMY:
 		tlbw(p);
 		break;
 
 	case CPU_RM7000:
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		uasm_i_nop(p);
+		uasm_i_analp(p);
+		uasm_i_analp(p);
+		uasm_i_analp(p);
+		uasm_i_analp(p);
 		tlbw(p);
 		break;
 
 	case CPU_XBURST:
 		tlbw(p);
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 		break;
 
 	default:
-		panic("No TLB refill handler yet (CPU type: %d)",
+		panic("Anal TLB refill handler yet (CPU type: %d)",
 		      current_cpu_type());
 		break;
 	}
@@ -607,13 +607,13 @@ static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 		return;
 	}
 
-	if (cpu_has_rixi && _PAGE_NO_EXEC != 0) {
+	if (cpu_has_rixi && _PAGE_ANAL_EXEC != 0) {
 		if (fill_includes_sw_bits) {
 			UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
 		} else {
-			UASM_i_SRL(p, reg, reg, ilog2(_PAGE_NO_EXEC));
+			UASM_i_SRL(p, reg, reg, ilog2(_PAGE_ANAL_EXEC));
 			UASM_i_ROTR(p, reg, reg,
-				    ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_NO_EXEC));
+				    ilog2(_PAGE_GLOBAL) - ilog2(_PAGE_ANAL_EXEC));
 		}
 	} else {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
@@ -783,7 +783,7 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	long pgdc = (long)pgd_current;
 #endif
 	/*
-	 * The vmalloc handling is not in the hotpath.
+	 * The vmalloc handling is analt in the hotpath.
 	 */
 	uasm_i_dmfc0(p, tmp, C0_BADVADDR);
 
@@ -804,7 +804,7 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	} else {
 		uasm_il_bltz(p, r, tmp, label_vmalloc);
 	}
-	/* No uasm_i_nop needed here, since the next insn doesn't touch TMP. */
+	/* Anal uasm_i_analp needed here, since the next insn doesn't touch TMP. */
 
 	if (pgd_reg != -1) {
 		/* pgd is in pgd_reg */
@@ -879,7 +879,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 
 	uasm_l_vmalloc(l, *p);
 
-	if (mode != not_refill && check_for_high_segbits) {
+	if (mode != analt_refill && check_for_high_segbits) {
 		if (single_insn_swpd) {
 			uasm_il_bltz(p, r, bvaddr, label_vmalloc_done);
 			uasm_i_lui(p, ptr, uasm_rel_hi(swpd));
@@ -902,7 +902,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 				uasm_i_daddiu(p, ptr, ptr, uasm_rel_lo(swpd));
 		}
 	}
-	if (mode != not_refill && check_for_high_segbits) {
+	if (mode != analt_refill && check_for_high_segbits) {
 		uasm_l_large_segbits_fault(l, *p);
 
 		if (mode == refill_scratch && scratch_reg >= 0)
@@ -912,7 +912,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		 * We get here if we are an xsseg address, or if we are
 		 * an xuseg address above (PGDIR_SHIFT+PGDIR_BITS) boundary.
 		 *
-		 * Ignoring xsseg (assume disabled so would generate
+		 * Iganalring xsseg (assume disabled so would generate
 		 * (address errors?), the only remaining possibility
 		 * is the upper xuseg addresses.  On processors with
 		 * TLB_SEGBITS <= PGDIR_SHIFT+PGDIR_BITS, these
@@ -931,7 +931,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 			else
 				UASM_i_LW(p, 1, scratchpad_offset(0), 0);
 		} else {
-			uasm_i_nop(p);
+			uasm_i_analp(p);
 		}
 	}
 }
@@ -1197,11 +1197,11 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	uasm_il_bbit1(p, r, scratch, ilog2(_PAGE_HUGE), label_tlb_huge_update);
 	/*
 	 * The in the LWX case we don't want to do the load in the
-	 * delay slot.	It cannot issue in the same cycle and may be
+	 * delay slot.	It cananalt issue in the same cycle and may be
 	 * speculative and unneeded.
 	 */
 	if (use_lwx_insns())
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 
 
@@ -1283,7 +1283,7 @@ static void build_r4000_tlb_refill_handler(void)
 		htlb_info.huge_pte = K0;
 		htlb_info.restore_scratch = 0;
 		htlb_info.need_reload_pte = true;
-		vmalloc_mode = refill_noscratch;
+		vmalloc_mode = refill_analscratch;
 		/*
 		 * create the plain linear handler
 		 */
@@ -1298,7 +1298,7 @@ static void build_r4000_tlb_refill_handler(void)
 			uasm_i_dsll_safe(&p, K0, K0, 64 + 12 + 1 - segbits);
 			uasm_i_or(&p, K0, K0, K1);
 			uasm_il_bnez(&p, &r, K0, label_leave);
-			/* No need for uasm_i_nop */
+			/* Anal need for uasm_i_analp */
 		}
 
 #ifdef CONFIG_64BIT
@@ -1334,7 +1334,7 @@ static void build_r4000_tlb_refill_handler(void)
 	 * Overflow check: For the 64bit handler, we need at least one
 	 * free instruction slot for the wrap-around branch. In worst
 	 * case, if the intended insertion point is a delay slot, we
-	 * need three, with the second nop'ed and the third being
+	 * need three, with the second analp'ed and the third being
 	 * unused.
 	 */
 	switch (boot_cpu_type()) {
@@ -1346,7 +1346,7 @@ static void build_r4000_tlb_refill_handler(void)
 			if ((p - tlb_handler) > 64)
 				panic("TLB refill handler space exceeded");
 			/*
-			 * Now fold the handler in the TLB refill handler space.
+			 * Analw fold the handler in the TLB refill handler space.
 			 */
 			f = final_handler;
 			/* Simplest case, just copy the handler. */
@@ -1360,7 +1360,7 @@ static void build_r4000_tlb_refill_handler(void)
 							tlb_handler + MIPS64_REFILL_INSNS - 3)))
 				panic("TLB refill handler space exceeded");
 			/*
-			 * Now fold the handler in the TLB refill handler space.
+			 * Analw fold the handler in the TLB refill handler space.
 			 */
 			f = final_handler + MIPS64_REFILL_INSNS;
 			if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
@@ -1400,7 +1400,7 @@ static void build_r4000_tlb_refill_handler(void)
 					/*
 					 * If the branch would fall in a delay slot,
 					 * we must back up an additional instruction
-					 * so that it is no longer in a delay slot.
+					 * so that it is anal longer in a delay slot.
 					 */
 					if (uasm_insn_has_bdelay(relocs, split - 1))
 						split--;
@@ -1414,7 +1414,7 @@ static void build_r4000_tlb_refill_handler(void)
 					uasm_l_split(&l, final_handler);
 					uasm_il_b(&f, &r, label_split);
 					if (uasm_insn_has_bdelay(relocs, split))
-						uasm_i_nop(&f);
+						uasm_i_analp(&f);
 					else {
 						uasm_copy_handler(relocs, labels,
 								  split, split + 1, f);
@@ -1503,10 +1503,10 @@ static void build_loongson3_tlb_refill_handler(void)
 		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
 		uasm_i_dsrl_safe(&p, K1, K0, PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
 		uasm_il_beqz(&p, &r, K1, label_vmalloc);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 
 		uasm_il_bgez(&p, &r, K0, label_large_segbits_fault);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 		uasm_l_vmalloc(&l, p);
 	}
 
@@ -1538,7 +1538,7 @@ static void build_loongson3_tlb_refill_handler(void)
 		uasm_l_large_segbits_fault(&l, p);
 		UASM_i_LA(&p, K1, (unsigned long)tlb_do_page_fault_0);
 		uasm_i_jr(&p, K1);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 	}
 
 	uasm_resolve_relocs(relocs, labels);
@@ -1577,7 +1577,7 @@ static void build_setup_pgd(void)
 		UASM_i_SRA(&p, a1, a0, 29);
 		UASM_i_ADDIU(&p, a1, a1, 4);
 		uasm_il_bnez(&p, &r, a1, label_tlbl_goaround1);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 		uasm_i_dinsm(&p, a0, 0, 29, 64 - 29);
 		uasm_l_tlbl_goaround1(&l, p);
 		UASM_i_SLL(&p, a0, a0, 11);
@@ -1613,7 +1613,7 @@ static void build_setup_pgd(void)
 		uasm_i_ehb(&p);
 	} else {
 		uasm_i_jr(&p, 31);
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 	}
 #endif
 	if (p >= (u32 *)tlbmiss_handler_setup_pgd_end)
@@ -1679,18 +1679,18 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 
 # ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!cpu_has_64bits) {
-		/* no uasm_i_nop needed */
+		/* anal uasm_i_analp needed */
 		uasm_i_ll(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_i_ori(p, pte, pte, hwmode);
 		BUG_ON(hwmode & ~0xffff);
 		uasm_i_sc(p, pte, sizeof(pte_t) / 2, ptr);
 		uasm_il_beqz(p, r, pte, label_smp_pgtable_change);
-		/* no uasm_i_nop needed */
+		/* anal uasm_i_analp needed */
 		uasm_i_lw(p, pte, 0, ptr);
 	} else
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 # else
-	uasm_i_nop(p);
+	uasm_i_analp(p);
 # endif
 #else
 # ifdef CONFIG_PHYS_ADDR_T_64BIT
@@ -1713,7 +1713,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 }
 
 /*
- * Check if PTE is present, if not then jump to LABEL. PTR points to
+ * Check if PTE is present, if analt then jump to LABEL. PTR points to
  * the page table where this PTE is located, PTE will be re-loaded
  * with its original value.
  */
@@ -1727,7 +1727,7 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 	if (cpu_has_rixi) {
 		if (use_bbit_insns()) {
 			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
-			uasm_i_nop(p);
+			uasm_i_analp(p);
 		} else {
 			if (_PAGE_PRESENT_SHIFT) {
 				uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
@@ -1745,7 +1745,7 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 			cur = t;
 		}
 		uasm_i_andi(p, t, cur,
-			(_PAGE_PRESENT | _PAGE_NO_READ) >> _PAGE_PRESENT_SHIFT);
+			(_PAGE_PRESENT | _PAGE_ANAL_READ) >> _PAGE_PRESENT_SHIFT);
 		uasm_i_xori(p, t, t, _PAGE_PRESENT >> _PAGE_PRESENT_SHIFT);
 		uasm_il_bnez(p, r, t, lid);
 		if (pte == t)
@@ -1765,7 +1765,7 @@ build_make_valid(u32 **p, struct uasm_reloc **r, unsigned int pte,
 }
 
 /*
- * Check if PTE can be written to, if not branch to LABEL. Regardless
+ * Check if PTE can be written to, if analt branch to LABEL. Regardless
  * restore PTE with value from PTR when done.
  */
 static void
@@ -1789,7 +1789,7 @@ build_pte_writable(u32 **p, struct uasm_reloc **r,
 		/* You lose the SMP race :-(*/
 		iPTE_LW(p, pte, ptr);
 	else
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 }
 
 /* Make PTE writable, update software status bits as well, then store
@@ -1806,7 +1806,7 @@ build_make_write(u32 **p, struct uasm_reloc **r, unsigned int pte,
 }
 
 /*
- * Check if PTE can be modified, if not branch to LABEL. Regardless
+ * Check if PTE can be modified, if analt branch to LABEL. Regardless
  * restore PTE with value from PTR when done.
  */
 static void
@@ -1816,7 +1816,7 @@ build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 {
 	if (use_bbit_insns()) {
 		uasm_il_bbit0(p, r, pte, ilog2(_PAGE_WRITE), lid);
-		uasm_i_nop(p);
+		uasm_i_analp(p);
 	} else {
 		int t = scratch >= 0 ? scratch : pte;
 		uasm_i_srl(p, t, pte, _PAGE_WRITE_SHIFT);
@@ -1904,14 +1904,14 @@ static void build_r3000_tlb_load_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_present(&p, &r, K0, K1, -1, label_nopage_tlbl);
-	uasm_i_nop(&p); /* load delay */
+	build_pte_present(&p, &r, K0, K1, -1, label_analpage_tlbl);
+	uasm_i_analp(&p); /* load delay */
 	build_make_valid(&p, &r, K0, K1, -1);
 	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
-	uasm_l_nopage_tlbl(&l, p);
+	uasm_l_analpage_tlbl(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbl_end)
 		panic("TLB load handler fastpath space exceeded");
@@ -1934,14 +1934,14 @@ static void build_r3000_tlb_store_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_writable(&p, &r, K0, K1, -1, label_nopage_tlbs);
-	uasm_i_nop(&p); /* load delay */
+	build_pte_writable(&p, &r, K0, K1, -1, label_analpage_tlbs);
+	uasm_i_analp(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1, -1);
 	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
-	uasm_l_nopage_tlbs(&l, p);
+	uasm_l_analpage_tlbs(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbs_end)
 		panic("TLB store handler fastpath space exceeded");
@@ -1964,14 +1964,14 @@ static void build_r3000_tlb_modify_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_modifiable(&p, &r, K0, K1,  -1, label_nopage_tlbm);
-	uasm_i_nop(&p); /* load delay */
+	build_pte_modifiable(&p, &r, K0, K1,  -1, label_analpage_tlbm);
+	uasm_i_analp(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1, -1);
 	build_r3000_pte_reload_tlbwi(&p, K0, K1);
 
-	uasm_l_nopage_tlbm(&l, p);
+	uasm_l_analpage_tlbm(&l, p);
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbm_end)
 		panic("TLB modify handler fastpath space exceeded");
@@ -2000,7 +2000,7 @@ static bool cpu_has_tlbex_tlbp_race(void)
 	if (cpu_has_shared_ftlb_ram)
 		return true;
 
-	/* In all other cases there ought to be no race condition to handle */
+	/* In all other cases there ought to be anal race condition to handle */
 	return false;
 }
 
@@ -2045,7 +2045,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 			uasm_i_ehb(p);
 			uasm_i_mfc0(p, wr.r3, C0_INDEX);
 			uasm_il_bltz(p, r, wr.r3, label_leave);
-			uasm_i_nop(p);
+			uasm_i_analp(p);
 		}
 	}
 	return wr;
@@ -2065,7 +2065,7 @@ build_r4000_tlbchange_handler_tail(u32 **p, struct uasm_label **l,
 	uasm_i_eret(p); /* return from trap */
 
 #ifdef CONFIG_64BIT
-	build_get_pgd_vmalloc64(p, l, r, tmp, ptr, not_refill);
+	build_get_pgd_vmalloc64(p, l, r, tmp, ptr, analt_refill);
 #endif
 }
 
@@ -2091,17 +2091,17 @@ static void build_r4000_tlb_load_handler(void)
 		uasm_i_dsll_safe(&p, K0, K0, 64 + 12 + 1 - segbits);
 		uasm_i_or(&p, K0, K0, K1);
 		uasm_il_bnez(&p, &r, K0, label_leave);
-		/* No need for uasm_i_nop */
+		/* Anal need for uasm_i_analp */
 	}
 
 	wr = build_r4000_tlbchange_handler_head(&p, &l, &r);
-	build_pte_present(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbl);
+	build_pte_present(&p, &r, wr.r1, wr.r2, wr.r3, label_analpage_tlbl);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 
 	if (cpu_has_rixi && !cpu_has_rixiex) {
 		/*
-		 * If the page is not _PAGE_VALID, RI or XI could not
+		 * If the page is analt _PAGE_VALID, RI or XI could analt
 		 * have triggered it.  Skip the expensive test..
 		 */
 		if (use_bbit_insns()) {
@@ -2111,7 +2111,7 @@ static void build_r4000_tlb_load_handler(void)
 			uasm_i_andi(&p, wr.r3, wr.r1, _PAGE_VALID);
 			uasm_il_beqz(&p, &r, wr.r3, label_tlbl_goaround1);
 		}
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 
 		/*
 		 * Warn if something may race with us & replace the TLB entry
@@ -2138,17 +2138,17 @@ static void build_r4000_tlb_load_handler(void)
 		/* load it if ptr is odd */
 		UASM_i_MFC0(&p, wr.r3, C0_ENTRYLO1);
 		/*
-		 * If the entryLo (now in wr.r3) is valid (bit 1), RI or
+		 * If the entryLo (analw in wr.r3) is valid (bit 1), RI or
 		 * XI must have triggered it.
 		 */
 		if (use_bbit_insns()) {
-			uasm_il_bbit1(&p, &r, wr.r3, 1, label_nopage_tlbl);
-			uasm_i_nop(&p);
+			uasm_il_bbit1(&p, &r, wr.r3, 1, label_analpage_tlbl);
+			uasm_i_analp(&p);
 			uasm_l_tlbl_goaround1(&l, p);
 		} else {
 			uasm_i_andi(&p, wr.r3, wr.r3, 2);
-			uasm_il_bnez(&p, &r, wr.r3, label_nopage_tlbl);
-			uasm_i_nop(&p);
+			uasm_il_bnez(&p, &r, wr.r3, label_analpage_tlbl);
+			uasm_i_analp(&p);
 		}
 		uasm_l_tlbl_goaround1(&l, p);
 	}
@@ -2162,12 +2162,12 @@ static void build_r4000_tlb_load_handler(void)
 	 */
 	uasm_l_tlb_huge_update(&l, p);
 	iPTE_LW(&p, wr.r1, wr.r2);
-	build_pte_present(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbl);
+	build_pte_present(&p, &r, wr.r1, wr.r2, wr.r3, label_analpage_tlbl);
 	build_tlb_probe_entry(&p);
 
 	if (cpu_has_rixi && !cpu_has_rixiex) {
 		/*
-		 * If the page is not _PAGE_VALID, RI or XI could not
+		 * If the page is analt _PAGE_VALID, RI or XI could analt
 		 * have triggered it.  Skip the expensive test..
 		 */
 		if (use_bbit_insns()) {
@@ -2177,7 +2177,7 @@ static void build_r4000_tlb_load_handler(void)
 			uasm_i_andi(&p, wr.r3, wr.r1, _PAGE_VALID);
 			uasm_il_beqz(&p, &r, wr.r3, label_tlbl_goaround2);
 		}
-		uasm_i_nop(&p);
+		uasm_i_analp(&p);
 
 		/*
 		 * Warn if something may race with us & replace the TLB entry
@@ -2204,7 +2204,7 @@ static void build_r4000_tlb_load_handler(void)
 		/* load it if ptr is odd */
 		UASM_i_MFC0(&p, wr.r3, C0_ENTRYLO1);
 		/*
-		 * If the entryLo (now in wr.r3) is valid (bit 1), RI or
+		 * If the entryLo (analw in wr.r3) is valid (bit 1), RI or
 		 * XI must have triggered it.
 		 */
 		if (use_bbit_insns()) {
@@ -2214,12 +2214,12 @@ static void build_r4000_tlb_load_handler(void)
 			uasm_il_beqz(&p, &r, wr.r3, label_tlbl_goaround2);
 		}
 		if (PM_DEFAULT_MASK == 0)
-			uasm_i_nop(&p);
+			uasm_i_analp(&p);
 		/*
 		 * We clobbered C0_PAGEMASK, restore it.  On the other branch
 		 * it is restored in build_huge_tlb_write_entry.
 		 */
-		build_restore_pagemask(&p, &r, wr.r3, label_nopage_tlbl, 0);
+		build_restore_pagemask(&p, &r, wr.r3, label_analpage_tlbl, 0);
 
 		uasm_l_tlbl_goaround2(&l, p);
 	}
@@ -2227,7 +2227,7 @@ static void build_r4000_tlb_load_handler(void)
 	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 1);
 #endif
 
-	uasm_l_nopage_tlbl(&l, p);
+	uasm_l_analpage_tlbl(&l, p);
 	if (IS_ENABLED(CONFIG_CPU_LOONGSON3_WORKAROUNDS))
 		uasm_i_sync(&p, 0);
 	build_restore_work_registers(&p);
@@ -2239,7 +2239,7 @@ static void build_r4000_tlb_load_handler(void)
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbl_end)
 		panic("TLB load handler fastpath space exceeded");
@@ -2263,7 +2263,7 @@ static void build_r4000_tlb_store_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	wr = build_r4000_tlbchange_handler_head(&p, &l, &r);
-	build_pte_writable(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbs);
+	build_pte_writable(&p, &r, wr.r1, wr.r2, wr.r3, label_analpage_tlbs);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 	build_make_write(&p, &r, wr.r1, wr.r2, wr.r3);
@@ -2276,14 +2276,14 @@ static void build_r4000_tlb_store_handler(void)
 	 */
 	uasm_l_tlb_huge_update(&l, p);
 	iPTE_LW(&p, wr.r1, wr.r2);
-	build_pte_writable(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbs);
+	build_pte_writable(&p, &r, wr.r1, wr.r2, wr.r3, label_analpage_tlbs);
 	build_tlb_probe_entry(&p);
 	uasm_i_ori(&p, wr.r1, wr.r1,
 		   _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
 	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 1);
 #endif
 
-	uasm_l_nopage_tlbs(&l, p);
+	uasm_l_analpage_tlbs(&l, p);
 	if (IS_ENABLED(CONFIG_CPU_LOONGSON3_WORKAROUNDS))
 		uasm_i_sync(&p, 0);
 	build_restore_work_registers(&p);
@@ -2295,7 +2295,7 @@ static void build_r4000_tlb_store_handler(void)
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbs_end)
 		panic("TLB store handler fastpath space exceeded");
@@ -2319,7 +2319,7 @@ static void build_r4000_tlb_modify_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	wr = build_r4000_tlbchange_handler_head(&p, &l, &r);
-	build_pte_modifiable(&p, &r, wr.r1, wr.r2, wr.r3, label_nopage_tlbm);
+	build_pte_modifiable(&p, &r, wr.r1, wr.r2, wr.r3, label_analpage_tlbm);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 	/* Present and writable bits set, set accessed and dirty bits. */
@@ -2333,14 +2333,14 @@ static void build_r4000_tlb_modify_handler(void)
 	 */
 	uasm_l_tlb_huge_update(&l, p);
 	iPTE_LW(&p, wr.r1, wr.r2);
-	build_pte_modifiable(&p, &r, wr.r1, wr.r2,  wr.r3, label_nopage_tlbm);
+	build_pte_modifiable(&p, &r, wr.r1, wr.r2,  wr.r3, label_analpage_tlbm);
 	build_tlb_probe_entry(&p);
 	uasm_i_ori(&p, wr.r1, wr.r1,
 		   _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
 	build_huge_handler_tail(&p, &r, &l, wr.r1, wr.r2, 0);
 #endif
 
-	uasm_l_nopage_tlbm(&l, p);
+	uasm_l_analpage_tlbm(&l, p);
 	if (IS_ENABLED(CONFIG_CPU_LOONGSON3_WORKAROUNDS))
 		uasm_i_sync(&p, 0);
 	build_restore_work_registers(&p);
@@ -2352,7 +2352,7 @@ static void build_r4000_tlb_modify_handler(void)
 	} else
 #endif
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
-	uasm_i_nop(&p);
+	uasm_i_analp(&p);
 
 	if (p >= (u32 *)handle_tlbm_end)
 		panic("TLB modify handler fastpath space exceeded");
@@ -2447,10 +2447,10 @@ static void config_htw_params(void)
 	pwfield = read_c0_pwfield();
 	if (((pwfield & MIPS_PWFIELD_PTEI_MASK) << MIPS_PWFIELD_PTEI_SHIFT)
 		!= ptei) {
-		pr_warn("Unsupported PTEI field value: 0x%lx. HTW will not be enabled",
+		pr_warn("Unsupported PTEI field value: 0x%lx. HTW will analt be enabled",
 			ptei);
 		/*
-		 * Drop option to avoid HTW being enabled via another path
+		 * Drop option to avoid HTW being enabled via aanalther path
 		 * (eg htw_reset())
 		 */
 		current_cpu_data.options &= ~MIPS_CPU_HTW;
@@ -2514,7 +2514,7 @@ static void check_pabits(void)
 	unsigned long entry;
 	unsigned pabits, fillbits;
 
-	if (!cpu_has_rixi || _PAGE_NO_EXEC == 0) {
+	if (!cpu_has_rixi || _PAGE_ANAL_EXEC == 0) {
 		/*
 		 * We'll only be making use of the fact that we can rotate bits
 		 * into the fill if the CPU supports RIXI, so don't bother
@@ -2527,7 +2527,7 @@ static void check_pabits(void)
 	back_to_back_c0_hazard();
 	entry = read_c0_entrylo0();
 
-	/* clear all non-PFN bits */
+	/* clear all analn-PFN bits */
 	entry &= ~((1 << MIPS_ENTRYLO_PFN_SHIFT) - 1);
 	entry &= ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
 
@@ -2538,7 +2538,7 @@ static void check_pabits(void)
 	/* minus the RI & XI bits */
 	fillbits -= min_t(unsigned, fillbits, 2);
 
-	if (fillbits >= ilog2(_PAGE_NO_EXEC))
+	if (fillbits >= ilog2(_PAGE_ANAL_EXEC))
 		fill_includes_sw_bits = true;
 
 	pr_debug("Entry* registers contain %u fill bits\n", fillbits);
@@ -2547,7 +2547,7 @@ static void check_pabits(void)
 void build_tlb_refill_handler(void)
 {
 	/*
-	 * The refill handler is generated per-CPU, multi-node systems
+	 * The refill handler is generated per-CPU, multi-analde systems
 	 * may have local storage for it. The other handlers are only
 	 * needed once.
 	 */
@@ -2575,7 +2575,7 @@ void build_tlb_refill_handler(void)
 			run_once++;
 		}
 #else
-		panic("No R3000 TLB refill handler");
+		panic("Anal R3000 TLB refill handler");
 #endif
 		return;
 	}

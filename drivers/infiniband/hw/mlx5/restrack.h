@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /*
- * Copyright (c) 2013-2020, Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2013-2020, Mellaanalx Techanallogies Ltd. All rights reserved.
  */
 
 #ifndef _MLX5_IB_RESTRACK_H

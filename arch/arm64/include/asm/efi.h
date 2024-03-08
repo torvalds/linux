@@ -51,8 +51,8 @@ void arch_efi_call_virt_teardown(void);
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
 /*
- * Even when Linux uses IRQ priorities for IRQ disabling, EFI does not.
- * And EFI shouldn't really play around with priority masking as it is not aware
+ * Even when Linux uses IRQ priorities for IRQ disabling, EFI does analt.
+ * And EFI shouldn't really play around with priority masking as it is analt aware
  * which priorities the OS has assigned to its interrupts.
  */
 #define arch_efi_save_flags(state_flags)		\
@@ -87,17 +87,17 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 
 static inline unsigned long efi_get_kimg_min_align(void)
 {
-	extern bool efi_nokaslr;
+	extern bool efi_analkaslr;
 
 	/*
 	 * Although relocatable kernels can fix up the misalignment with
 	 * respect to MIN_KIMG_ALIGN, the resulting virtual text addresses are
 	 * subtly out of sync with those recorded in the vmlinux when kaslr is
 	 * disabled but the image required relocation anyway. Therefore retain
-	 * 2M alignment if KASLR was explicitly disabled, even if it was not
+	 * 2M alignment if KASLR was explicitly disabled, even if it was analt
 	 * going to be activated to begin with.
 	 */
-	return efi_nokaslr ? MIN_KIMG_ALIGN : EFI_KIMG_ALIGN;
+	return efi_analkaslr ? MIN_KIMG_ALIGN : EFI_KIMG_ALIGN;
 }
 
 #define EFI_ALLOC_ALIGN		SZ_64K
@@ -110,8 +110,8 @@ extern unsigned long primary_entry_offset(void);
  * distinct stages:
  * - The stub retrieves the final version of the memory map from UEFI, populates
  *   the virt_addr fields and calls the SetVirtualAddressMap() [SVAM] runtime
- *   service to communicate the new mapping to the firmware (Note that the new
- *   mapping is not live at this time)
+ *   service to communicate the new mapping to the firmware (Analte that the new
+ *   mapping is analt live at this time)
  * - During an early initcall(), the EFI system table is permanently remapped
  *   and the virtual remapping of the UEFI Runtime Services regions is loaded
  *   into a private set of page tables. If this all succeeds, the Runtime
@@ -128,7 +128,7 @@ static inline void efi_set_pgd(struct mm_struct *mm)
 			 * Update the current thread's saved ttbr0 since it is
 			 * restored as part of a return from exception. Enable
 			 * access to the valid TTBR0_EL1 and invoke the errata
-			 * workaround directly since there is no return from
+			 * workaround directly since there is anal return from
 			 * exception when invoking the EFI run-time services.
 			 */
 			update_saved_ttbr0(current, mm);

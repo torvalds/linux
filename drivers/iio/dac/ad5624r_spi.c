@@ -227,7 +227,7 @@ static int ad5624r_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
 	if (!IS_ERR(st->reg)) {
@@ -241,9 +241,9 @@ static int ad5624r_probe(struct spi_device *spi)
 
 		voltage_uv = ret;
 	} else {
-		if (PTR_ERR(st->reg) != -ENODEV)
+		if (PTR_ERR(st->reg) != -EANALDEV)
 			return PTR_ERR(st->reg);
-		/* Backwards compatibility. This naming is not correct */
+		/* Backwards compatibility. This naming is analt correct */
 		st->reg = devm_regulator_get_optional(&spi->dev, "vcc");
 		if (!IS_ERR(st->reg)) {
 			ret = regulator_enable(st->reg);

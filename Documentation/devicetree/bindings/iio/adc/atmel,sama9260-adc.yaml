@@ -54,14 +54,14 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     description:
       String corresponding to an identifier from atmel,adc-res-names property.
-      If not specified, the highest resolution will be used.
+      If analt specified, the highest resolution will be used.
     enum:
       - lowres
       - highres
 
   atmel,adc-sleep-mode:
     $ref: /schemas/types.yaml#/definitions/flag
-    description: Enable sleep mode when no conversion
+    description: Enable sleep mode when anal conversion
 
   atmel,adc-sample-hold-time:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -71,7 +71,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Number of touchscreen wires. Must be set to enable touchscreen.
-      NOTE: when adc touchscreen is enabled, the adc hardware trigger will be
+      ANALTE: when adc touchscreen is enabled, the adc hardware trigger will be
       disabled. Since touchscreen will occupy the trigger register.
     enum:
       - 4

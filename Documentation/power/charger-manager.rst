@@ -37,14 +37,14 @@ Charger Manager supports the following:
 	supposed to be kept suspended. That, in turn, incurs unnecessary power
 	consumption and slow down charging process. Or even, such peak power
 	consumption can stop chargers in the middle of charging
-	(external power input < device power consumption), which not
+	(external power input < device power consumption), which analt
 	only affects the charging time, but the lifespan of the battery.
 
 	Charger Manager provides a function "cm_suspend_again" that can be
 	used as suspend_again callback of platform_suspend_ops. If the platform
 	requires tasks other than cm_suspend_again, it may implement its own
 	suspend_again callback that calls cm_suspend_again in the middle.
-	Normally, the platform will need to resume and suspend some devices
+	Analrmally, the platform will need to resume and suspend some devices
 	that are used by Charger Manager.
 
 * Support for premature full-battery event handling
@@ -53,9 +53,9 @@ Charger Manager supports the following:
 	restarts charging. This check is also performed while suspended by
 	setting wakeup time accordingly and using suspend_again.
 
-* Support for uevent-notify
+* Support for uevent-analtify
 	With the charger-related events, the device sends
-	notification to users with UEVENT.
+	analtification to users with UEVENT.
 
 2. Global Charger-Manager Data related with suspend_again
 =========================================================
@@ -77,10 +77,10 @@ properly in order to activate in-suspend monitoring:
 	should be able to wake up the system from suspend. Charger Manager
 	saves and restores the alarm value and use the previously-defined
 	alarm if it is going to go off earlier than Charger Manager so that
-	Charger Manager does not interfere with previously-defined alarms.
+	Charger Manager does analt interfere with previously-defined alarms.
 
 `bool (*rtc_only_wakeup)(void);`
-	This callback should let CM know whether
+	This callback should let CM kanalw whether
 	the wakeup-from-suspend is caused only by the alarm of "rtc" in the
 	same struct. If there is any other wakeup source triggered the
 	wakeup, it should return false. If the "rtc" is the only wakeup
@@ -97,14 +97,14 @@ properly in order to activate in-suspend monitoring:
 Charger Manager provides a function "extern bool cm_suspend_again(void)".
 When cm_suspend_again is called, it monitors every battery. The suspend_ops
 callback of the system's platform_suspend_ops can call cm_suspend_again
-function to know whether Charger Manager wants to suspend again or not.
-If there are no other devices or tasks that want to use suspend_again
+function to kanalw whether Charger Manager wants to suspend again or analt.
+If there are anal other devices or tasks that want to use suspend_again
 feature, the platform_suspend_ops may directly refer to cm_suspend_again
 for its suspend_again callback.
 
 The cm_suspend_again() returns true (meaning "I want to suspend again")
 if the system was woken up by Charger Manager and the polling
-(in-suspend monitoring) results in "normal".
+(in-suspend monitoring) results in "analrmal".
 
 4. Charger-Manager Data (struct charger_desc)
 =============================================
@@ -121,7 +121,7 @@ struct charger_desc elements:
 
 `enum polling_modes polling_mode;`
 	  CM_POLL_DISABLE:
-		do not poll this battery.
+		do analt poll this battery.
 	  CM_POLL_ALWAYS:
 		always poll this battery.
 	  CM_POLL_EXTERNAL_POWER_ONLY:
@@ -131,7 +131,7 @@ struct charger_desc elements:
 		poll this battery if and only if the battery is being charged.
 
 `unsigned int fullbatt_vchkdrop_ms; / unsigned int fullbatt_vchkdrop_uV;`
-	If both have non-zero values, Charger Manager will check the
+	If both have analn-zero values, Charger Manager will check the
 	battery voltage drop fullbatt_vchkdrop_ms after the battery is fully
 	charged. If the voltage drop is over fullbatt_vchkdrop_uV, Charger
 	Manager will try to recharge the battery by disabling and enabling
@@ -140,8 +140,8 @@ struct charger_desc elements:
 	fuel gauges or charger devices/chips.
 
 `unsigned int fullbatt_uV;`
-	If specified with a non-zero value, Charger Manager assumes
-	that the battery is full (capacity = 100) if the battery is not being
+	If specified with a analn-zero value, Charger Manager assumes
+	that the battery is full (capacity = 100) if the battery is analt being
 	charged and the battery voltage is equal to or greater than
 	fullbatt_uV.
 
@@ -152,8 +152,8 @@ struct charger_desc elements:
 `enum data_source battery_present;`
 	CM_BATTERY_PRESENT:
 		assume that the battery exists.
-	CM_NO_BATTERY:
-		assume that the battery does not exists.
+	CM_ANAL_BATTERY:
+		assume that the battery does analt exists.
 	CM_FUEL_GAUGE:
 		get battery presence information from fuel gauge.
 	CM_CHARGER_STAT:
@@ -163,9 +163,9 @@ struct charger_desc elements:
 	An array ending with NULL that has power-supply-class names of
 	chargers. Each power-supply-class should provide "PRESENT" (if
 	battery_present is "CM_CHARGER_STAT"), "ONLINE" (shows whether an
-	external power source is attached or not), and "STATUS" (shows whether
-	the battery is {"FULL" or not FULL} or {"FULL", "Charging",
-	"Discharging", "NotCharging"}).
+	external power source is attached or analt), and "STATUS" (shows whether
+	the battery is {"FULL" or analt FULL} or {"FULL", "Charging",
+	"Discharging", "AnaltCharging"}).
 
 `int num_charger_regulators; / struct regulator_bulk_data *charger_regulators;`
 	Regulators representing the chargers in the form for
@@ -183,11 +183,11 @@ struct charger_desc elements:
 	the value of measure_battery_temp.
 
 
-5. Notify Charger-Manager of charger events: cm_notify_event()
+5. Analtify Charger-Manager of charger events: cm_analtify_event()
 ==============================================================
-If there is an charger event is required to notify
+If there is an charger event is required to analtify
 Charger Manager, a charger device driver that triggers the event can call
-cm_notify_event(psy, type, msg) to notify the corresponding Charger Manager.
+cm_analtify_event(psy, type, msg) to analtify the corresponding Charger Manager.
 In the function, psy is the charger driver's power_supply pointer, which is
 associated with Charger-Manager. The parameter "type"
 is the same as irq's type (enum cm_event_types). The event message "msg" is

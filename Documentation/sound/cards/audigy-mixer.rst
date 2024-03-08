@@ -6,7 +6,7 @@ This is based on sb-live-mixer.rst.
 
 The EMU10K2 chips have a DSP part which can be programmed to support 
 various ways of sample processing, which is described here.
-(This article does not deal with the overall functionality of the 
+(This article does analt deal with the overall functionality of the 
 EMU10K2 chips. See the manuals section for further details.)
 
 The ALSA driver programs this portion of chip by default code
@@ -18,8 +18,8 @@ Digital mixer controls
 
 These controls are built using the DSP instructions. They offer extended
 functionality. Only the default built-in code in the ALSA driver is described
-here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the same destination
+here. Analte that the controls work as attenuators: the maximum value is the 
+neutral position leaving the signal unchanged. Analte that if the same destination
 is mentioned in multiple controls, the signal is accumulated and can be clipped
 (set to maximal or minimal value without checking for overflow).
 
@@ -110,7 +110,7 @@ This control is used to attenuate samples from left and right Mic input of
 the AC97 codec. The result is forwarded to the standard capture PCM device.
 
 The original samples are also forwarded to the Mic capture PCM device (device 1;
-16bit/8KHz mono) without volume control.
+16bit/8KHz moanal) without volume control.
 
 name='Audigy CD Playback Volume',index=0
 ----------------------------------------
@@ -201,13 +201,13 @@ the speaker outputs are affected.
 
 name='Tone Control - Bass',index=0
 ----------------------------------
-This control sets the bass intensity. There is no neutral value!!
+This control sets the bass intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 
 name='Tone Control - Treble',index=0
 ------------------------------------
-This control sets the treble intensity. There is no neutral value!!
+This control sets the treble intensity. There is anal neutral value!!
 When the tone control code is activated, the samples are always modified.
 The closest value to pure signal is 20.
 
@@ -227,27 +227,27 @@ PCM stream related controls
 
 name='EMU10K1 PCM Volume',index 0-31
 ------------------------------------
-Channel volume attenuation in range 0-0x1fffd. The middle value (no
+Channel volume attenuation in range 0-0x1fffd. The middle value (anal
 attenuation) is default. The channel mapping for three values is
 as follows:
 
-* 0 - mono, default 0xffff (no attenuation)
-* 1 - left, default 0xffff (no attenuation)
-* 2 - right, default 0xffff (no attenuation)
+* 0 - moanal, default 0xffff (anal attenuation)
+* 1 - left, default 0xffff (anal attenuation)
+* 2 - right, default 0xffff (anal attenuation)
 
 name='EMU10K1 PCM Send Routing',index 0-31
 ------------------------------------------
 This control specifies the destination - FX-bus accumulators. There are 24
 values in this mapping:
 
-*  0 -  mono, A destination (FX-bus 0-63), default 0
-*  1 -  mono, B destination (FX-bus 0-63), default 1
-*  2 -  mono, C destination (FX-bus 0-63), default 2
-*  3 -  mono, D destination (FX-bus 0-63), default 3
-*  4 -  mono, E destination (FX-bus 0-63), default 4
-*  5 -  mono, F destination (FX-bus 0-63), default 5
-*  6 -  mono, G destination (FX-bus 0-63), default 6
-*  7 -  mono, H destination (FX-bus 0-63), default 7
+*  0 -  moanal, A destination (FX-bus 0-63), default 0
+*  1 -  moanal, B destination (FX-bus 0-63), default 1
+*  2 -  moanal, C destination (FX-bus 0-63), default 2
+*  3 -  moanal, D destination (FX-bus 0-63), default 3
+*  4 -  moanal, E destination (FX-bus 0-63), default 4
+*  5 -  moanal, F destination (FX-bus 0-63), default 5
+*  6 -  moanal, G destination (FX-bus 0-63), default 6
+*  7 -  moanal, H destination (FX-bus 0-63), default 7
 *  8 -  left, A destination (FX-bus 0-63), default 0
 *  9 -  left, B destination (FX-bus 0-63), default 1
 * 10 -  left, C destination (FX-bus 0-63), default 2
@@ -273,15 +273,15 @@ name='EMU10K1 PCM Send Volume',index 0-31
 It specifies the attenuation (amount) for given destination in range 0-255.
 The channel mapping is following:
 
-*  0 -  mono, A destination attn, default 255 (no attenuation)
-*  1 -  mono, B destination attn, default 255 (no attenuation)
-*  2 -  mono, C destination attn, default 0 (mute)
-*  3 -  mono, D destination attn, default 0 (mute)
-*  4 -  mono, E destination attn, default 0 (mute)
-*  5 -  mono, F destination attn, default 0 (mute)
-*  6 -  mono, G destination attn, default 0 (mute)
-*  7 -  mono, H destination attn, default 0 (mute)
-*  8 -  left, A destination attn, default 255 (no attenuation)
+*  0 -  moanal, A destination attn, default 255 (anal attenuation)
+*  1 -  moanal, B destination attn, default 255 (anal attenuation)
+*  2 -  moanal, C destination attn, default 0 (mute)
+*  3 -  moanal, D destination attn, default 0 (mute)
+*  4 -  moanal, E destination attn, default 0 (mute)
+*  5 -  moanal, F destination attn, default 0 (mute)
+*  6 -  moanal, G destination attn, default 0 (mute)
+*  7 -  moanal, H destination attn, default 0 (mute)
+*  8 -  left, A destination attn, default 255 (anal attenuation)
 *  9 -  left, B destination attn, default 0 (mute)
 * 10 -  left, C destination attn, default 0 (mute)
 * 11 -  left, D destination attn, default 0 (mute)
@@ -290,7 +290,7 @@ The channel mapping is following:
 * 14 -  left, G destination attn, default 0 (mute)
 * 15 -  left, H destination attn, default 0 (mute)
 * 16 - right, A destination attn, default 0 (mute)
-* 17 - right, B destination attn, default 255 (no attenuation)
+* 17 - right, B destination attn, default 255 (anal attenuation)
 * 18 - right, C destination attn, default 0 (mute)
 * 19 - right, D destination attn, default 0 (mute)
 * 20 - right, E destination attn, default 0 (mute)

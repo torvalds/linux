@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/time.h>
 #include <linux/hpet.h>
 
@@ -71,7 +71,7 @@ main(int argc, const char ** argv)
 			return 0;
 		}
 
-	fprintf(stderr, "do_hpet: command %s not implemented\n", argv[0]);
+	fprintf(stderr, "do_hpet: command %s analt implemented\n", argv[0]);
 
 	return -1;
 }

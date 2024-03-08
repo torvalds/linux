@@ -27,7 +27,7 @@
  * Static DRRS involves changing refresh rate (RR) by doing a full modeset
  * (may appear as a blink on screen) and is used in dock-undock scenario.
  * Seamless DRRS involves changing RR without any visual effect to the user
- * and can be used during normal system usage. This is done by programming
+ * and can be used during analrmal system usage. This is done by programming
  * certain registers.
  *
  * Support for static/seamless DRRS may be indicated in the VBT based on
@@ -38,7 +38,7 @@
  * The implementation is based on frontbuffer tracking implementation.  When
  * there is a disturbance on the screen triggered by user activity or a periodic
  * system activity, DRRS is disabled (RR is changed to high RR).  When there is
- * no movement on screen, after a timeout of 1 second, a switch to low RR is
+ * anal movement on screen, after a timeout of 1 second, a switch to low RR is
  * made.
  *
  * For integration with frontbuffer tracking code, intel_drrs_invalidate()
@@ -52,7 +52,7 @@
 const char *intel_drrs_type_str(enum drrs_type drrs_type)
 {
 	static const char * const str[] = {
-		[DRRS_TYPE_NONE] = "none",
+		[DRRS_TYPE_ANALNE] = "analne",
 		[DRRS_TYPE_STATIC] = "static",
 		[DRRS_TYPE_SEAMLESS] = "seamless",
 	};
@@ -114,7 +114,7 @@ static void intel_drrs_schedule_work(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	mod_delayed_work(i915->unordered_wq, &crtc->drrs.work, msecs_to_jiffies(1000));
+	mod_delayed_work(i915->uanalrdered_wq, &crtc->drrs.work, msecs_to_jiffies(1000));
 }
 
 static unsigned int intel_drrs_frontbuffer_bits(const struct intel_crtc_state *crtc_state)
@@ -235,7 +235,7 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 		intel_drrs_set_state(crtc, DRRS_REFRESH_RATE_HIGH);
 
 		/*
-		 * flush also means no more activity hence schedule downclock, if all
+		 * flush also means anal more activity hence schedule downclock, if all
 		 * other fbs are quiescent too
 		 */
 		if (!crtc->drrs.busy_frontbuffer_bits)
@@ -271,7 +271,7 @@ void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
  * This function gets called every time rendering on the given planes has
  * completed or flip on a crtc is completed. So DRRS should be upclocked
  * (LOW_RR -> HIGH_RR). And also Idleness detection should be started again,
- * if no other planes are dirty.
+ * if anal other planes are dirty.
  *
  * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
  */
@@ -311,10 +311,10 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 	mutex_lock(&crtc->drrs.mutex);
 
 	seq_printf(m, "DRRS enabled: %s\n",
-		   str_yes_no(crtc_state->has_drrs));
+		   str_anal_anal(crtc_state->has_drrs));
 
 	seq_printf(m, "DRRS active: %s\n",
-		   str_yes_no(intel_drrs_is_active(crtc)));
+		   str_anal_anal(intel_drrs_is_active(crtc)));
 
 	seq_printf(m, "DRRS refresh rate: %s\n",
 		   crtc->drrs.refresh_rate == DRRS_REFRESH_RATE_LOW ?
@@ -397,7 +397,7 @@ DEFINE_SHOW_ATTRIBUTE(intel_drrs_debugfs_type);
 
 void intel_drrs_connector_debugfs_add(struct intel_connector *connector)
 {
-	if (intel_panel_drrs_type(connector) == DRRS_TYPE_NONE)
+	if (intel_panel_drrs_type(connector) == DRRS_TYPE_ANALNE)
 		return;
 
 	debugfs_create_file("i915_drrs_type", 0444, connector->base.debugfs_entry,

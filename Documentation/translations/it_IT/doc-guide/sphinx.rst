@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-.. note:: Per leggere la documentazione originale in inglese:
+.. analte:: Per leggere la documentazione originale in inglese:
 	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
 
 .. _it_sphinxdoc:
@@ -10,7 +10,7 @@ Usare Sphinx per la documentazione del kernel
 =============================================
 
 Il kernel Linux usa `Sphinx`_ per la generazione della documentazione a partire
-dai file `reStructuredText`_ che si trovano nella cartella ``Documentation``.
+dai file `reStructuredText`_ che si trovaanal nella cartella ``Documentation``.
 Per generare la documentazione in HTML o PDF, usate comandi ``make htmldocs`` o
 ``make pdfdocs``. La documentazione così generata sarà disponibile nella
 cartella ``Documentation/output``.
@@ -18,16 +18,16 @@ cartella ``Documentation/output``.
 .. _Sphinx: http://www.sphinx-doc.org/
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 
-I file reStructuredText possono contenere delle direttive che permettono di
+I file reStructuredText possoanal contenere delle direttive che permettoanal di
 includere i commenti di documentazione, o di tipo kernel-doc, dai file
 sorgenti.
-Solitamente questi commenti sono utilizzati per descrivere le funzioni, i tipi
-e l'architettura del codice. I commenti di tipo kernel-doc hanno una struttura
-e formato speciale, ma a parte questo vengono processati come reStructuredText.
+Solitamente questi commenti soanal utilizzati per descrivere le funzioni, i tipi
+e l'architettura del codice. I commenti di tipo kernel-doc hananal una struttura
+e formato speciale, ma a parte questo vengoanal processati come reStructuredText.
 
-Inoltre, ci sono migliaia di altri documenti in formato testo sparsi nella
-cartella ``Documentation``. Alcuni di questi verranno probabilmente convertiti,
-nel tempo, in formato reStructuredText, ma la maggior parte di questi rimarranno
+Ianalltre, ci soanal migliaia di altri documenti in formato testo sparsi nella
+cartella ``Documentation``. Alcuni di questi verrananal probabilmente convertiti,
+nel tempo, in formato reStructuredText, ma la maggior parte di questi rimarrananal
 in formato testo.
 
 .. _it_sphinx_install:
@@ -35,15 +35,15 @@ in formato testo.
 Installazione Sphinx
 ====================
 
-I marcatori ReST utilizzati nei file in Documentation/ sono pensati per essere
+I marcatori ReST utilizzati nei file in Documentation/ soanal pensati per essere
 processati da ``Sphinx`` nella versione 1.7 o superiore.
 
-Esiste uno script che verifica i requisiti Sphinx. Per ulteriori dettagli
+Esiste uanal script che verifica i requisiti Sphinx. Per ulteriori dettagli
 consultate :ref:`it_sphinx-pre-install`.
 
-La maggior parte delle distribuzioni Linux forniscono Sphinx, ma l'insieme dei
-programmi e librerie è fragile e non è raro che dopo un aggiornamento di
-Sphinx, o qualche altro pacchetto Python, la documentazione non venga più
+La maggior parte delle distribuzioni Linux forniscoanal Sphinx, ma l'insieme dei
+programmi e librerie è fragile e analn è raro che dopo un aggiornamento di
+Sphinx, o qualche altro pacchetto Python, la documentazione analn venga più
 generata correttamente.
 
 Un modo per evitare questo genere di problemi è quello di utilizzare una
@@ -52,14 +52,14 @@ vi raccomandiamo di installare Sphinx dentro ad un ambiente virtuale usando
 ``virtualenv-3`` o ``virtualenv`` a seconda di come Python 3 è stato
 pacchettizzato dalla vostra distribuzione.
 
-.. note::
+.. analte::
 
    #) Viene raccomandato l'uso del tema RTD per la documentazione in HTML.
       A seconda della versione di Sphinx, potrebbe essere necessaria
       l'installazione tramite il comando ``pip install sphinx_rtd_theme``.
 
-   #) Alcune pagine ReST contengono delle formule matematiche. A causa del
-      modo in cui Sphinx funziona, queste espressioni sono scritte
+   #) Alcune pagine ReST contengoanal delle formule matematiche. A causa del
+      modo in cui Sphinx funziona, queste espressioni soanal scritte
       utilizzando LaTeX. Per una corretta interpretazione, è necessario aver
       installato texlive con i pacchetti amdfonts e amsmath.
 
@@ -83,8 +83,8 @@ vedere :ref:`it_sphinx_kfigure`).
 
 Per far si che questo funzioni, dovete installare entrambe i pacchetti
 Graphviz e ImageMagick. Il sistema di generazione della documentazione è in
-grado di procedere anche se questi pacchetti non sono installati, ma il
-risultato, ovviamente, non includerà le immagini.
+grado di procedere anche se questi pacchetti analn soanal installati, ma il
+risultato, ovviamente, analn includerà le immagini.
 
 Generazione in PDF e LaTeX
 --------------------------
@@ -92,7 +92,7 @@ Generazione in PDF e LaTeX
 Al momento, la generazione di questi documenti è supportata solo dalle
 versioni di Sphinx superiori alla 2.4.
 
-Per la generazione di PDF e LaTeX, avrete bisogno anche del pacchetto
+Per la generazione di PDF e LaTeX, avrete bisoganal anche del pacchetto
 ``XeLaTeX`` nella versione 3.14159265
 
 Per alcune distribuzioni Linux potrebbe essere necessario installare
@@ -104,8 +104,8 @@ minimo per il funzionamento di ``XeLaTeX``.
 Verificare le dipendenze Sphinx
 -------------------------------
 
-Esiste uno script che permette di verificare automaticamente le dipendenze di
-Sphinx. Se lo script riesce a riconoscere la vostra distribuzione, allora
+Esiste uanal script che permette di verificare automaticamente le dipendenze di
+Sphinx. Se lo script riesce a ricoanalscere la vostra distribuzione, allora
 sarà in grado di darvi dei suggerimenti su come procedere per completare
 l'installazione::
 
@@ -123,16 +123,16 @@ l'installazione::
 
 L'impostazione predefinita prevede il controllo dei requisiti per la generazione
 di documenti html e PDF, includendo anche il supporto per le immagini, le
-espressioni matematiche e LaTeX; inoltre, presume che venga utilizzato un
+espressioni matematiche e LaTeX; ianalltre, presume che venga utilizzato un
 ambiente virtuale per Python. I requisiti per generare i documenti html
-sono considerati obbligatori, gli altri sono opzionali.
+soanal considerati obbligatori, gli altri soanal opzionali.
 
 Questo script ha i seguenti parametri:
 
-``--no-pdf``
+``--anal-pdf``
 	Disabilita i controlli per la generazione di PDF;
 
-``--no-virtualenv``
+``--anal-virtualenv``
 	Utilizza l'ambiente predefinito dal sistema operativo invece che
 	l'ambiente virtuale per Python;
 
@@ -140,8 +140,8 @@ Questo script ha i seguenti parametri:
 Generazione della documentazione Sphinx
 =======================================
 
-Per generare la documentazione in formato HTML o PDF si eseguono i rispettivi
-comandi ``make htmldocs`` o ``make pdfdocs``. Esistono anche altri formati
+Per generare la documentazione in formato HTML o PDF si eseguoanal i rispettivi
+comandi ``make htmldocs`` o ``make pdfdocs``. Esistoanal anche altri formati
 in cui è possibile generare la documentazione; per maggiori informazioni
 potere eseguire il comando ``make help``.
 La documentazione così generata sarà disponibile nella sottocartella
@@ -150,10 +150,10 @@ La documentazione così generata sarà disponibile nella sottocartella
 Ovviamente, per generare la documentazione, Sphinx (``sphinx-build``)
 dev'essere installato. Se disponibile, il tema *Read the Docs* per Sphinx
 verrà utilizzato per ottenere una documentazione HTML più gradevole.
-Per la documentazione in formato PDF, invece, avrete bisogno di ``XeLaTeX`
+Per la documentazione in formato PDF, invece, avrete bisoganal di ``XeLaTeX`
 e di ``convert(1)`` disponibile in ImageMagick
 (https://www.imagemagick.org). \ [#ink]_
-Tipicamente, tutti questi pacchetti sono disponibili e pacchettizzati nelle
+Tipicamente, tutti questi pacchetti soanal disponibili e pacchettizzati nelle
 distribuzioni Linux.
 
 Per poter passare ulteriori opzioni a Sphinx potete utilizzare la variabile
@@ -164,7 +164,7 @@ Potete anche personalizzare l'ouptut html passando un livello aggiuntivo
 DOCS_CSS usando la rispettiva variabile d'ambiente ``DOCS_CSS``.
 
 La variable make ``SPHINXDIRS`` è utile quando si vuole generare solo una parte
-della documentazione. Per esempio, si possono generare solo di documenti in
+della documentazione. Per esempio, si possoanal generare solo di documenti in
 ``Documentation/doc-guide`` eseguendo ``make SPHINXDIRS=doc-guide htmldocs``. La
 sezione dedicata alla documentazione di ``make help`` vi mostrerà quali sotto
 cartelle potete specificare.
@@ -173,7 +173,7 @@ Potete eliminare la documentazione generata tramite il comando
 ``make cleandocs``.
 
 .. [#ink] Avere installato anche ``inkscape(1)`` dal progetto Inkscape ()
-          potrebbe aumentare la qualità delle immagini che verranno integrate
+          potrebbe aumentare la qualità delle immagini che verrananal integrate
           nel documento PDF, specialmente per quando si usando rilasci del
           kernel uguali o superiori a 5.18
 
@@ -199,7 +199,7 @@ dedicato) a cui si fa riferimento nell'indice principale.
 Consultate la documentazione di `Sphinx`_ e `reStructuredText`_ per maggiori
 informazione circa le loro potenzialità. In particolare, il
 `manuale introduttivo a reStructuredText`_ di Sphinx è un buon punto da
-cui cominciare. Esistono, inoltre, anche alcuni
+cui cominciare. Esistoanal, ianalltre, anche alcuni
 `costruttori specifici per Sphinx`_.
 
 .. _`manuale introduttivo a reStructuredText`: http://www.sphinx-doc.org/en/stable/rest.html
@@ -211,7 +211,7 @@ Guide linea per la documentazione del kernel
 In questa sezione troverete alcune linee guida specifiche per la documentazione
 del kernel:
 
-* Non esagerate con i costrutti di reStructuredText. Mantenete la
+* Analn esagerate con i costrutti di reStructuredText. Mantenete la
   documentazione semplice. La maggior parte della documentazione dovrebbe
   essere testo semplice con una strutturazione minima che permetta la
   conversione in diversi formati.
@@ -219,7 +219,7 @@ del kernel:
 * Mantenete la strutturazione il più fedele possibile all'originale quando
   convertite un documento in formato reStructuredText.
 
-* Aggiornate i contenuti quando convertite della documentazione, non limitatevi
+* Aggiornate i contenuti quando convertite della documentazione, analn limitatevi
   solo alla formattazione.
 
 * Mantenete la decorazione dei livelli di intestazione come segue:
@@ -245,23 +245,23 @@ del kernel:
        Sottosezioni
        ~~~~~~~~~~~~
 
-  Sebbene RST non forzi alcun ordine specifico (*Piuttosto che imporre
+  Sebbene RST analn forzi alcun ordine specifico (*Piuttosto che imporre
   un numero ed un ordine fisso di decorazioni, l'ordine utilizzato sarà
   quello incontrato*), avere uniformità dei livelli principali rende più
   semplice la lettura dei documenti.
 
 * Per inserire blocchi di testo con caratteri a dimensione fissa (codici di
-  esempio, casi d'uso, eccetera): utilizzate ``::`` quando non è necessario
+  esempio, casi d'uso, eccetera): utilizzate ``::`` quando analn è necessario
   evidenziare la sintassi, specialmente per piccoli frammenti; invece,
   utilizzate ``.. code-block:: <language>`` per blocchi più lunghi che
-  beneficeranno della sintassi evidenziata. Per un breve pezzo di codice da
+  beneficerananal della sintassi evidenziata. Per un breve pezzo di codice da
   inserire nel testo, usate \`\`.
 
 
 Il dominio C
 ------------
 
-Il **Dominio Sphinx C** (denominato c) è adatto alla documentazione delle API C.
+Il **Dominio Sphinx C** (deanalminato c) è adatto alla documentazione delle API C.
 Per esempio, un prototipo di una funzione:
 
 .. code-block:: rst
@@ -269,7 +269,7 @@ Per esempio, un prototipo di una funzione:
     .. c:function:: int ioctl( int fd, int request )
 
 Il dominio C per kernel-doc ha delle funzionalità aggiuntive. Per esempio,
-potete assegnare un nuovo nome di riferimento ad una funzione con un nome
+potete assegnare un nuovo analme di riferimento ad una funzione con un analme
 molto comune come ``open`` o ``ioctl``:
 
 .. code-block:: rst
@@ -277,11 +277,11 @@ molto comune come ``open`` o ``ioctl``:
      .. c:function:: int ioctl( int fd, int request )
         :name: VIDIOC_LOG_STATUS
 
-Il nome della funzione (per esempio ioctl) rimane nel testo ma il nome del suo
+Il analme della funzione (per esempio ioctl) rimane nel testo ma il analme del suo
 riferimento cambia da ``ioctl`` a ``VIDIOC_LOG_STATUS``. Anche la voce
 nell'indice cambia in ``VIDIOC_LOG_STATUS``.
 
-Notate che per una funzione non c'è bisogno di usare ``c:func:`` per generarne
+Analtate che per una funzione analn c'è bisoganal di usare ``c:func:`` per generarne
 i riferimenti nella documentazione. Grazie a qualche magica estensione a
 Sphinx, il sistema di generazione della documentazione trasformerà
 automaticamente un riferimento ad una ``funzione()`` in un riferimento
@@ -292,11 +292,11 @@ incrociato quando questa ha una voce nell'indice.  Se trovate degli usi di
 Tabelle a liste
 ---------------
 
-Il formato ``list-table`` può essere utile per tutte quelle tabelle che non
-possono essere facilmente scritte usando il formato ASCII-art di Sphinx. Però,
-questo genere di tabelle sono illeggibili per chi legge direttamente i file di
+Il formato ``list-table`` può essere utile per tutte quelle tabelle che analn
+possoanal essere facilmente scritte usando il formato ASCII-art di Sphinx. Però,
+questo genere di tabelle soanal illeggibili per chi legge direttamente i file di
 testo. Dunque, questo formato dovrebbe essere evitato senza forti argomenti che
-ne giustifichino l'uso.
+ne giustifichianal l'uso.
 
 La ``flat-table`` è anch'essa una lista di liste simile alle ``list-table``
 ma con delle funzionalità aggiuntive:
@@ -326,8 +326,8 @@ ruoli:
 * ``:rspan:`` [int] righe successive (*morerows*)
 
 L'esempio successivo mostra come usare questo marcatore. Il primo livello della
-nostra lista di liste è la *riga*. In una *riga* è possibile inserire solamente
-la lista di celle che compongono la *riga* stessa. Fanno eccezione i *commenti*
+analstra lista di liste è la *riga*. In una *riga* è possibile inserire solamente
+la lista di celle che compongoanal la *riga* stessa. Fananal eccezione i *commenti*
 ( ``..`` ) ed i *collegamenti* (per esempio, un riferimento a
 ``:ref:`last row <last row>``` / :ref:`last row <it last row>`)
 
@@ -380,10 +380,10 @@ Riferimenti incrociati
 
 Aggiungere un riferimento incrociato da una pagina della
 documentazione ad un'altra può essere fatto scrivendo il percorso al
-file corrispondende, non serve alcuna sintassi speciale. Si possono
-usare sia percorsi assoluti che relativi. Quelli assoluti iniziano con
+file corrispondende, analn serve alcuna sintassi speciale. Si possoanal
+usare sia percorsi assoluti che relativi. Quelli assoluti iniziaanal con
 "documentation/". Per esempio, potete fare riferimento a questo
-documento in uno dei seguenti modi (da notare che l'estensione
+documento in uanal dei seguenti modi (da analtare che l'estensione
 ``.rst`` è necessaria)::
 
     Vedere Documentation/doc-guide/sphinx.rst. Questo funziona sempre
@@ -398,7 +398,7 @@ titolo del documento, allora dovrete usare la direttiva Sphinx
 
 Nella maggioranza dei casi si consiglia il primo metodo perché è più
 pulito ed adatto a chi legge dai sorgenti. Se incontrare un ``:doc:``
-che non da alcun valore, sentitevi liberi di convertirlo in un
+che analn da alcun valore, sentitevi liberi di convertirlo in un
 percorso al documento.
 
 Per informazioni riguardo ai riferimenti incrociati ai commenti
@@ -425,7 +425,7 @@ formato SVG (:ref:`it_svg_image_example`)::
 
    Una semplice immagine SVG
 
-Le direttive del kernel per figure ed immagini supportano il formato **DOT**,
+Le direttive del kernel per figure ed immagini supportaanal il formato **DOT**,
 per maggiori informazioni
 
 * DOT: http://graphviz.org/pdf/dotguide.pdf
@@ -472,8 +472,8 @@ verrà rappresentato come *blocco testuale* (:ref:`it_hello_dot_render`).
 
 La direttiva *render* ha tutte le opzioni della direttiva *figure*, con
 l'aggiunta dell'opzione ``caption``. Se ``caption`` ha un valore allora
-un nodo *figure* viene aggiunto. Altrimenti verrà aggiunto un nodo *image*.
-L'opzione ``caption`` è necessaria in caso si vogliano aggiungere dei
+un analdo *figure* viene aggiunto. Altrimenti verrà aggiunto un analdo *image*.
+L'opzione ``caption`` è necessaria in caso si vogliaanal aggiungere dei
 riferimenti (:ref:`it_hello_svg_render`).
 
 Per la scrittura di codice **SVG**::

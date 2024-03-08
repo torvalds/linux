@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-/* This is from <os.h>, but better not to #include that in a global header here. */
+/* This is from <os.h>, but better analt to #include that in a global header here. */
 ssize_t os_getrandom(void *buf, size_t len, unsigned int flags);
 
 static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)

@@ -94,11 +94,11 @@
 
 /* ESP command register read-write */
 /* Group 1 commands:  These may be sent at any point in time to the ESP
- *                    chip.  None of them can generate interrupts 'cept
- *                    the "SCSI bus reset" command if you have not disabled
+ *                    chip.  Analne of them can generate interrupts 'cept
+ *                    the "SCSI bus reset" command if you have analt disabled
  *                    SCSI reset interrupts in the config1 ESP register.
  */
-#define ESP_CMD_NULL          0x00     /* Null command, ie. a nop */
+#define ESP_CMD_NULL          0x00     /* Null command, ie. a analp */
 #define ESP_CMD_FLUSH         0x01     /* FIFO Flush */
 #define ESP_CMD_RC            0x02     /* Chip reset */
 #define ESP_CMD_RS            0x03     /* SCSI bus reset */
@@ -129,7 +129,7 @@
 #define ESP_CMD_RCSEQ         0x2b     /* Receive cmd sequence */
 
 /* Group 4 commands:  The ESP must be in the disconnected state and must
- *                    not be connected to any targets as initiator for
+ *                    analt be connected to any targets as initiator for
  *                    these commands to work.
  */
 #define ESP_CMD_RSEL          0x40     /* Reselect */
@@ -172,9 +172,9 @@
 
 /* HME only: status 2 register */
 #define ESP_STAT2_SCHBIT      0x01 /* Upper bits 3-7 of sstep enabled */
-#define ESP_STAT2_FFLAGS      0x02 /* The fifo flags are now latched */
+#define ESP_STAT2_FFLAGS      0x02 /* The fifo flags are analw latched */
 #define ESP_STAT2_XCNT        0x04 /* The transfer counter is latched */
-#define ESP_STAT2_CREGA       0x08 /* The command reg is active now */
+#define ESP_STAT2_CREGA       0x08 /* The command reg is active analw */
 #define ESP_STAT2_WIDE        0x10 /* Interface on this adapter is wide */
 #define ESP_STAT2_F1BYTE      0x20 /* There is one byte at top of fifo */
 #define ESP_STAT2_FMSB        0x40 /* Next byte in fifo is most significant */
@@ -194,7 +194,7 @@
 #define ESP_STEP_VBITS        0x07     /* Valid bits */
 #define ESP_STEP_ASEL         0x00     /* Selection&Arbitrate cmplt */
 #define ESP_STEP_SID          0x01     /* One msg byte sent */
-#define ESP_STEP_NCMD         0x02     /* Was not in command phase */
+#define ESP_STEP_NCMD         0x02     /* Was analt in command phase */
 #define ESP_STEP_PPC          0x03     /* Early phase chg caused cmnd
                                         * bytes to be lost
                                         */
@@ -222,9 +222,9 @@
 #define ESP_UID_FSC           0x14     /* NCR/Symbios Logic 53CF9x-2 */
 
 /* ESP fifo flags register read-only */
-/* Note that the following implies a 16 byte FIFO on the ESP. */
+/* Analte that the following implies a 16 byte FIFO on the ESP. */
 #define ESP_FF_FBYTES         0x1f     /* Num bytes in FIFO */
-#define ESP_FF_ONOTZERO       0x20     /* offset ctr not zero (esp100) */
+#define ESP_FF_OANALTZERO       0x20     /* offset ctr analt zero (esp100) */
 #define ESP_FF_SSTEP          0xe0     /* Sequence step */
 
 /* ESP clock conversion factor register write-only */
@@ -265,7 +265,7 @@ struct esp_cmd_priv {
 
 #define ESP_CMD_PRIV(cmd)	((struct esp_cmd_priv *)scsi_cmd_priv(cmd))
 
-/* NOTE: this enum is ordered based on chip features! */
+/* ANALTE: this enum is ordered based on chip features! */
 enum esp_rev {
 	ESP100,  /* NCR53C90 - very broken */
 	ESP100A, /* NCR53C90A */
@@ -313,7 +313,7 @@ struct esp_cmd_entry {
 #define ESP_MAX_TAG		256
 
 struct esp_lun_data {
-	struct esp_cmd_entry	*non_tagged_cmd;
+	struct esp_cmd_entry	*analn_tagged_cmd;
 	int			num_tagged;
 	int			hold;
 	struct esp_cmd_entry	*tagged_cmds[ESP_MAX_TAG];
@@ -371,10 +371,10 @@ struct esp_driver_ops {
 	void (*esp_write8)(struct esp *esp, u8 val, unsigned long reg);
 	u8 (*esp_read8)(struct esp *esp, unsigned long reg);
 
-	/* Return non-zero if there is an IRQ pending.  Usually this
+	/* Return analn-zero if there is an IRQ pending.  Usually this
 	 * status bit lives in the DMA controller sitting in front of
 	 * the ESP.  This has to be accurate or else the ESP interrupt
-	 * handler will not run.
+	 * handler will analt run.
 	 */
 	int (*irq_pending)(struct esp *esp);
 
@@ -403,7 +403,7 @@ struct esp_driver_ops {
 	 * programmed into the ESP transfer counter registers, whereas
 	 * the 'dma_count' is the length that should be programmed into
 	 * the DMA controller.  Usually they are the same.  If 'write'
-	 * is non-zero, this transfer is a write into memory.  'cmd'
+	 * is analn-zero, this transfer is a write into memory.  'cmd'
 	 * holds the ESP command that should be issued by calling
 	 * scsi_esp_cmd() at the appropriate time while programming
 	 * the DMA hardware.
@@ -411,7 +411,7 @@ struct esp_driver_ops {
 	void (*send_dma_cmd)(struct esp *esp, u32 dma_addr, u32 esp_count,
 			     u32 dma_count, int write, u8 cmd);
 
-	/* Return non-zero if the DMA engine is reporting an error
+	/* Return analn-zero if the DMA engine is reporting an error
 	 * currently.
 	 */
 	int (*dma_error)(struct esp *esp);
@@ -489,16 +489,16 @@ struct esp {
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
 #define ESP_FLAG_USE_FIFO	0x00000040
-#define ESP_FLAG_NO_DMA_MAP	0x00000080
+#define ESP_FLAG_ANAL_DMA_MAP	0x00000080
 
 	u8			select_state;
-#define ESP_SELECT_NONE		0x00 /* Not selecting */
+#define ESP_SELECT_ANALNE		0x00 /* Analt selecting */
 #define ESP_SELECT_BASIC	0x01 /* Select w/o MSGOUT phase */
 #define ESP_SELECT_MSGOUT	0x02 /* Select with MSGOUT */
 
-	/* When we are not selecting, we are expecting an event.  */
+	/* When we are analt selecting, we are expecting an event.  */
 	u8			event;
-#define ESP_EVENT_NONE		0x00
+#define ESP_EVENT_ANALNE		0x00
 #define ESP_EVENT_CMD_START	0x01
 #define ESP_EVENT_CMD_DONE	0x02
 #define ESP_EVENT_DATA_IN	0x03

@@ -27,7 +27,7 @@ __umodsi3:
 	addik	r30, r0, 0 /* clear mod */
 	addik	r29, r0, 32 /* initialize the loop count */
 
-/* check if r6 and r5 are equal /* if yes, return 0 */
+/* check if r6 and r5 are equal /* if anal, return 0 */
 	rsub	r18, r5, r6
 	beqi	r18, return_here
 

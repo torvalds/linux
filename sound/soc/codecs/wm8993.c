@@ -435,7 +435,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 		return -EINVAL;
 	}
 
-	/* Now, calculate N.K */
+	/* Analw, calculate N.K */
 	Ndiv = target / Fref;
 
 	fll_div->n = Ndiv;
@@ -452,7 +452,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range analw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -510,7 +510,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkanalwn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -612,7 +612,7 @@ static int configure_clock(struct snd_soc_component *component)
 		break;
 
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock analt configured\n");
 		return -EINVAL;
 	}
 
@@ -636,7 +636,7 @@ static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 static const DECLARE_TLV_DB_SCALE(dac_boost_tlv, 0, 600, 0);
 
 static const char *dac_deemph_text[] = {
-	"None",
+	"Analne",
 	"32kHz",
 	"44.1kHz",
 	"48kHz",
@@ -862,7 +862,7 @@ static const struct snd_kcontrol_new aifinr_mux =
 	SOC_DAPM_ENUM("AIFINR Mux", aifinr_enum);
 
 static const char *sidetone_text[] = {
-	"None", "Left", "Right"
+	"Analne", "Left", "Right"
 };
 
 static SOC_ENUM_SINGLE_DECL(sidetonel_enum,
@@ -882,37 +882,37 @@ SND_SOC_DAPM_SUPPLY("CLK_SYS", WM8993_BUS_CONTROL_1, 1, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8993_CLOCKING_1, 14, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8993_CLOCKING_3, 0, 0, NULL, 0),
-SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_ADC("ADCL", NULL, WM8993_POWER_MANAGEMENT_2, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, WM8993_POWER_MANAGEMENT_2, 0, 0),
 
-SND_SOC_DAPM_MUX("AIFOUTL Mux", SND_SOC_NOPM, 0, 0, &aifoutl_mux),
-SND_SOC_DAPM_MUX("AIFOUTR Mux", SND_SOC_NOPM, 0, 0, &aifoutr_mux),
+SND_SOC_DAPM_MUX("AIFOUTL Mux", SND_SOC_ANALPM, 0, 0, &aifoutl_mux),
+SND_SOC_DAPM_MUX("AIFOUTR Mux", SND_SOC_ANALPM, 0, 0, &aifoutr_mux),
 
-SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTL", "Capture", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_OUT("AIFOUTR", "Capture", 1, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_NOPM, 0, 0),
-SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINL", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+SND_SOC_DAPM_AIF_IN("AIFINR", "Playback", 1, SND_SOC_ANALPM, 0, 0),
 
-SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_NOPM, 0, 0, &aifinl_mux),
-SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_NOPM, 0, 0, &aifinr_mux),
+SND_SOC_DAPM_MUX("DACL Mux", SND_SOC_ANALPM, 0, 0, &aifinl_mux),
+SND_SOC_DAPM_MUX("DACR Mux", SND_SOC_ANALPM, 0, 0, &aifinr_mux),
 
-SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &sidetonel_mux),
-SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &sidetoner_mux),
+SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_ANALPM, 0, 0, &sidetonel_mux),
+SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_ANALPM, 0, 0, &sidetoner_mux),
 
 SND_SOC_DAPM_DAC("DACL", NULL, WM8993_POWER_MANAGEMENT_3, 1, 0),
 SND_SOC_DAPM_DAC("DACR", NULL, WM8993_POWER_MANAGEMENT_3, 0, 0),
 
-SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpl_mux),
-SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpr_mux),
+SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpl_mux),
+SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_ANALPM, 0, 0, &wm_hubs_hpr_mux),
 
 SND_SOC_DAPM_MIXER("SPKL", WM8993_POWER_MANAGEMENT_3, 8, 0,
 		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
 SND_SOC_DAPM_MIXER("SPKR", WM8993_POWER_MANAGEMENT_3, 9, 0,
 		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),
-SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_ANALPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route routes[] = {
@@ -1025,7 +1025,7 @@ static int wm8993_set_bias_level(struct snd_soc_component *component,
 					    WM8993_BIAS_ENA | 0x2);
 			msleep(32);
 
-			/* Switch to normal bias */
+			/* Switch to analrmal bias */
 			snd_soc_component_update_bits(component, WM8993_ANTIPOP2,
 					    WM8993_BIAS_SRC |
 					    WM8993_STARTUP_BIAS_ENA, 0);
@@ -1140,7 +1140,7 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion analt valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1361,7 +1361,7 @@ static int wm8993_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		goto out;
 	}
 
-	/* Note that we allow configurations we can't handle ourselves - 
+	/* Analte that we allow configurations we can't handle ourselves - 
 	 * for example, we can generate clocks for slots 2 and up even if
 	 * we can't use those slots ourselves.
 	 */
@@ -1410,20 +1410,20 @@ static irqreturn_t wm8993_irq(int irq, void *data)
 	if (ret != 0) {
 		dev_err(wm8993->dev, "Failed to read interrupt status: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ret = regmap_read(wm8993->regmap, WM8993_GPIOCTRL_2, &mask);
 	if (ret != 0) {
 		dev_err(wm8993->dev, "Failed to read interrupt mask: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* The IRQ pin status is visible in the register too */
 	val &= ~(mask | WM8993_IRQ);
 	if (!val)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (val & WM8993_TEMPOK_EINT)
 		dev_crit(wm8993->dev, "Thermal warning\n");
@@ -1447,7 +1447,7 @@ static const struct snd_soc_dai_ops wm8993_ops = {
 	.mute_stream = wm8993_mute,
 	.set_pll = wm8993_set_fll,
 	.set_tdm_slot = wm8993_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 #define WM8993_RATES SNDRV_PCM_RATE_8000_48000
@@ -1519,7 +1519,7 @@ static int wm8993_probe(struct snd_soc_component *component)
 	if (wm8993->pdata.num_retune_configs != 0) {
 		dev_dbg(component->dev, "Using ReTune Mobile\n");
 	} else {
-		dev_dbg(component->dev, "No ReTune Mobile, using normal EQ\n");
+		dev_dbg(component->dev, "Anal ReTune Mobile, using analrmal EQ\n");
 		snd_soc_add_component_controls(component, wm8993_eq_controls,
 				     ARRAY_SIZE(wm8993_eq_controls));
 	}
@@ -1632,7 +1632,7 @@ static int wm8993_i2c_probe(struct i2c_client *i2c)
 	wm8993 = devm_kzalloc(&i2c->dev, sizeof(struct wm8993_priv),
 			      GFP_KERNEL);
 	if (wm8993 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wm8993->dev = &i2c->dev;
 	init_completion(&wm8993->fll_lock);

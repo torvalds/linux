@@ -5,7 +5,7 @@
  *  Written 1992,1993 by Werner Almesberger
  *
  *  Mar 1999. AV. Changed cache, so that it uses the starting cluster instead
- *	of inode number.
+ *	of ianalde number.
  *  May 1999. AV. Fixed the bogosity with FAT32 (read "FAT28"). Fscking lusers.
  *  Copyright (C) 2012-2013 Samsung Electronics Co., Ltd.
  */
@@ -49,7 +49,7 @@ int exfat_cache_init(void)
 				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
 				exfat_cache_init_once);
 	if (!exfat_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -62,7 +62,7 @@ void exfat_cache_shutdown(void)
 
 static inline struct exfat_cache *exfat_cache_alloc(void)
 {
-	return kmem_cache_alloc(exfat_cachep, GFP_NOFS);
+	return kmem_cache_alloc(exfat_cachep, GFP_ANALFS);
 }
 
 static inline void exfat_cache_free(struct exfat_cache *cache)
@@ -71,22 +71,22 @@ static inline void exfat_cache_free(struct exfat_cache *cache)
 	kmem_cache_free(exfat_cachep, cache);
 }
 
-static inline void exfat_cache_update_lru(struct inode *inode,
+static inline void exfat_cache_update_lru(struct ianalde *ianalde,
 		struct exfat_cache *cache)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 
 	if (ei->cache_lru.next != &cache->cache_list)
 		list_move(&cache->cache_list, &ei->cache_lru);
 }
 
-static unsigned int exfat_cache_lookup(struct inode *inode,
+static unsigned int exfat_cache_lookup(struct ianalde *ianalde,
 		unsigned int fclus, struct exfat_cache_id *cid,
 		unsigned int *cached_fclus, unsigned int *cached_dclus)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
-	static struct exfat_cache nohit = { .fcluster = 0, };
-	struct exfat_cache *hit = &nohit, *p;
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
+	static struct exfat_cache analhit = { .fcluster = 0, };
+	struct exfat_cache *hit = &analhit, *p;
 	unsigned int offset = EXFAT_EOF_CLUSTER;
 
 	spin_lock(&ei->cache_lru_lock);
@@ -102,8 +102,8 @@ static unsigned int exfat_cache_lookup(struct inode *inode,
 			}
 		}
 	}
-	if (hit != &nohit) {
-		exfat_cache_update_lru(inode, hit);
+	if (hit != &analhit) {
+		exfat_cache_update_lru(ianalde, hit);
 
 		cid->id = ei->cache_valid_id;
 		cid->nr_contig = hit->nr_contig;
@@ -117,10 +117,10 @@ static unsigned int exfat_cache_lookup(struct inode *inode,
 	return offset;
 }
 
-static struct exfat_cache *exfat_cache_merge(struct inode *inode,
+static struct exfat_cache *exfat_cache_merge(struct ianalde *ianalde,
 		struct exfat_cache_id *new)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 	struct exfat_cache *p;
 
 	list_for_each_entry(p, &ei->cache_lru, cache_list) {
@@ -134,10 +134,10 @@ static struct exfat_cache *exfat_cache_merge(struct inode *inode,
 	return NULL;
 }
 
-static void exfat_cache_add(struct inode *inode,
+static void exfat_cache_add(struct ianalde *ianalde,
 		struct exfat_cache_id *new)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 	struct exfat_cache *cache, *tmp;
 
 	if (new->fcluster == EXFAT_EOF_CLUSTER) /* dummy cache */
@@ -148,7 +148,7 @@ static void exfat_cache_add(struct inode *inode,
 	    new->id != ei->cache_valid_id)
 		goto unlock;	/* this cache was invalidated */
 
-	cache = exfat_cache_merge(inode, new);
+	cache = exfat_cache_merge(ianalde, new);
 	if (cache == NULL) {
 		if (ei->nr_caches < EXFAT_MAX_CACHE) {
 			ei->nr_caches++;
@@ -163,7 +163,7 @@ static void exfat_cache_add(struct inode *inode,
 			}
 
 			spin_lock(&ei->cache_lru_lock);
-			cache = exfat_cache_merge(inode, new);
+			cache = exfat_cache_merge(ianalde, new);
 			if (cache != NULL) {
 				ei->nr_caches--;
 				exfat_cache_free(tmp);
@@ -181,18 +181,18 @@ static void exfat_cache_add(struct inode *inode,
 		cache->nr_contig = new->nr_contig;
 	}
 out_update_lru:
-	exfat_cache_update_lru(inode, cache);
+	exfat_cache_update_lru(ianalde, cache);
 unlock:
 	spin_unlock(&ei->cache_lru_lock);
 }
 
 /*
- * Cache invalidation occurs rarely, thus the LRU chain is not updated. It
+ * Cache invalidation occurs rarely, thus the LRU chain is analt updated. It
  * fixes itself after a while.
  */
-static void __exfat_cache_inval_inode(struct inode *inode)
+static void __exfat_cache_inval_ianalde(struct ianalde *ianalde)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 	struct exfat_cache *cache;
 
 	while (!list_empty(&ei->cache_lru)) {
@@ -208,12 +208,12 @@ static void __exfat_cache_inval_inode(struct inode *inode)
 		ei->cache_valid_id++;
 }
 
-void exfat_cache_inval_inode(struct inode *inode)
+void exfat_cache_inval_ianalde(struct ianalde *ianalde)
 {
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 
 	spin_lock(&ei->cache_lru_lock);
-	__exfat_cache_inval_inode(inode);
+	__exfat_cache_inval_ianalde(ianalde);
 	spin_unlock(&ei->cache_lru_lock);
 }
 
@@ -233,14 +233,14 @@ static inline void cache_init(struct exfat_cache_id *cid,
 	cid->nr_contig = 0;
 }
 
-int exfat_get_cluster(struct inode *inode, unsigned int cluster,
+int exfat_get_cluster(struct ianalde *ianalde, unsigned int cluster,
 		unsigned int *fclus, unsigned int *dclus,
 		unsigned int *last_dclus, int allow_eof)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	unsigned int limit = sbi->num_clusters;
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 	struct exfat_cache_id cid;
 	unsigned int content;
 
@@ -256,17 +256,17 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 	*last_dclus = *dclus;
 
 	/*
-	 * Don`t use exfat_cache if zero offset or non-cluster allocation
+	 * Don`t use exfat_cache if zero offset or analn-cluster allocation
 	 */
 	if (cluster == 0 || *dclus == EXFAT_EOF_CLUSTER)
 		return 0;
 
 	cache_init(&cid, EXFAT_EOF_CLUSTER, EXFAT_EOF_CLUSTER);
 
-	if (exfat_cache_lookup(inode, cluster, &cid, fclus, dclus) ==
+	if (exfat_cache_lookup(ianalde, cluster, &cid, fclus, dclus) ==
 			EXFAT_EOF_CLUSTER) {
 		/*
-		 * dummy, always not contiguous
+		 * dummy, always analt contiguous
 		 * This is reinitialized by cache_init(), later.
 		 */
 		WARN_ON(cid.id != EXFAT_CACHE_VALID ||
@@ -309,6 +309,6 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 			cache_init(&cid, *fclus, *dclus);
 	}
 
-	exfat_cache_add(inode, &cid);
+	exfat_cache_add(ianalde, &cid);
 	return 0;
 }

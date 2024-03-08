@@ -30,7 +30,7 @@
 
 #define TASDEVICE_SPEAKER_CALIBRATION_SIZE	20
 
-/* No standard control callbacks for SNDRV_CTL_ELEM_IFACE_CARD
+/* Anal standard control callbacks for SNDRV_CTL_ELEM_IFACE_CARD
  * Define two controls, one is Volume control callbacks, the other is
  * flag setting control callbacks.
  */
@@ -52,7 +52,7 @@
 /* Flag control callbacks for tas2781 */
 #define ACARD_SINGLE_BOOL_EXT(xname, xdata, xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_CARD, .name = xname, \
-	.info = snd_ctl_boolean_mono_info, \
+	.info = snd_ctl_boolean_moanal_info, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = xdata }
 
@@ -120,7 +120,7 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 	if (!adev) {
 		dev_err(p->dev,
 			"Failed to find an ACPI device for %s\n", hid);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = acpi_dev_get_resources(adev, &resources, tas2781_get_i2c_res, p);
@@ -129,10 +129,10 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 
 	acpi_dev_free_resource_list(&resources);
 	strscpy(p->dev_name, hid, sizeof(p->dev_name));
-	physdev = get_device(acpi_get_first_physical_node(adev));
+	physdev = get_device(acpi_get_first_physical_analde(adev));
 	acpi_dev_put(adev);
 
-	/* No side-effect to the playback even if subsystem_id is NULL*/
+	/* Anal side-effect to the playback even if subsystem_id is NULL*/
 	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
 	if (IS_ERR(sub))
 		sub = NULL;
@@ -171,7 +171,7 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
-		dev_dbg(tas_hda->dev, "Playback action not supported: %d\n",
+		dev_dbg(tas_hda->dev, "Playback action analt supported: %d\n",
 			action);
 		break;
 	}
@@ -462,7 +462,7 @@ static int tas2563_save_calibration(struct tasdevice_priv *tas_priv)
 	tas_priv->cali_data.data = devm_kzalloc(tas_priv->dev,
 			TAS2563_CAL_ARRAY_SIZE, GFP_KERNEL);
 	if (!tas_priv->cali_data.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (int i = 0; i < tas_priv->ndev; ++i) {
 		for (int j = 0; j < TAS2563_CAL_N; ++j) {
@@ -490,7 +490,7 @@ static void tas2781_apply_calib(struct tasdevice_priv *tas_priv)
 	static const unsigned char page_array[CALIB_MAX] = {
 		0x17, 0x18, 0x18, 0x0d, 0x18
 	};
-	static const unsigned char rgno_array[CALIB_MAX] = {
+	static const unsigned char rganal_array[CALIB_MAX] = {
 		0x74, 0x0c, 0x14, 0x3c, 0x7c
 	};
 	unsigned char *data;
@@ -501,7 +501,7 @@ static void tas2781_apply_calib(struct tasdevice_priv *tas_priv)
 			i * TASDEVICE_SPEAKER_CALIBRATION_SIZE;
 		for (j = 0; j < CALIB_MAX; j++) {
 			rc = tasdevice_dev_bulk_write(tas_priv, i,
-				TASDEVICE_REG(0, page_array[j], rgno_array[j]),
+				TASDEVICE_REG(0, page_array[j], rganal_array[j]),
 				&(data[4 * j]), 4);
 			if (rc < 0)
 				dev_err(tas_priv->dev,
@@ -526,8 +526,8 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 	unsigned int *tmp_val;
 	efi_status_t status;
 
-	/* Lenovo devices */
-	if (tas_priv->catlog_id == LENOVO)
+	/* Leanalvo devices */
+	if (tas_priv->catlog_id == LEANALVO)
 		efi_guid = EFI_GUID(0x1f52d2a1, 0xbb3a, 0x457d, 0xbc, 0x09,
 			0x43, 0xa3, 0xf4, 0x31, 0x0a, 0x92);
 
@@ -540,7 +540,7 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		tas_priv->cali_data.data = devm_kzalloc(tas_priv->dev,
 			tas_priv->cali_data.total_sz, GFP_KERNEL);
 		if (!tas_priv->cali_data.data)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Get variable contents into buffer */
 		status = efi.get_variable(efi_name, &efi_guid, &attr,
 			&tas_priv->cali_data.total_sz,
@@ -697,7 +697,7 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 
 	switch (subid) {
 	case 0x17aa:
-		tas_hda->priv->catlog_id = LENOVO;
+		tas_hda->priv->catlog_id = LEANALVO;
 		break;
 	default:
 		tas_hda->priv->catlog_id = OTHERS;
@@ -755,7 +755,7 @@ static void tas2781_hda_remove(struct device *dev)
 
 	component_del(tas_hda->dev, &tas2781_hda_comp_ops);
 
-	pm_runtime_put_noidle(tas_hda->dev);
+	pm_runtime_put_analidle(tas_hda->dev);
 
 	tasdevice_remove(tas_hda->priv);
 }
@@ -769,14 +769,14 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 
 	tas_hda = devm_kzalloc(&clt->dev, sizeof(*tas_hda), GFP_KERNEL);
 	if (!tas_hda)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&clt->dev, tas_hda);
 	tas_hda->dev = &clt->dev;
 
 	tas_hda->priv = tasdevice_kzalloc(clt);
 	if (!tas_hda->priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (strstr(dev_name(&clt->dev), "TIAS2781")) {
 		device_name = "TIAS2781";
@@ -789,13 +789,13 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 		tas_hda->priv->apply_calibration = tas2563_apply_calib;
 		tas_hda->priv->global_addr = TAS2563_GLOBAL_ADDR;
 	} else
-		return -ENODEV;
+		return -EANALDEV;
 
 	tas_hda->priv->irq_info.irq = clt->irq;
 	ret = tas2781_read_acpi(tas_hda->priv, device_name);
 	if (ret)
 		return dev_err_probe(tas_hda->dev, ret,
-			"Platform not supported\n");
+			"Platform analt supported\n");
 
 	ret = tasdevice_init(tas_hda->priv);
 	if (ret)
@@ -805,7 +805,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 	pm_runtime_use_autosuspend(tas_hda->dev);
 	pm_runtime_mark_last_busy(tas_hda->dev);
 	pm_runtime_set_active(tas_hda->dev);
-	pm_runtime_get_noresume(tas_hda->dev);
+	pm_runtime_get_analresume(tas_hda->dev);
 	pm_runtime_enable(tas_hda->dev);
 
 	pm_runtime_put_autosuspend(tas_hda->dev);
@@ -889,7 +889,7 @@ static int tas2781_system_suspend(struct device *dev)
 	tasdevice_tuning_switch(tas_hda->priv, 1);
 
 	/*
-	 * Reset GPIO may be shared, so cannot reset here.
+	 * Reset GPIO may be shared, so cananalt reset here.
 	 * However beyond this point, amps may be powered down.
 	 */
 	return 0;

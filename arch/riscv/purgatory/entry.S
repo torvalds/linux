@@ -2,7 +2,7 @@
 /*
  * purgatory: Runs between two kernels
  *
- * Copyright (C) 2022 Huawei Technologies Co, Ltd.
+ * Copyright (C) 2022 Huawei Techanallogies Co, Ltd.
  *
  * Author: Li Zhengyu (lizhengyu3@huawei.com)
  *

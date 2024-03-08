@@ -2,7 +2,7 @@
 /*
  * Driver for HiSilicon PCIe tune and trace device
  *
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  * Author: Yicong Yang <yangyicong@hisilicon.com>
  */
 
@@ -15,7 +15,7 @@
 #include <linux/kfifo.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/pci.h>
 #include <linux/perf_event.h>
 #include <linux/spinlock.h>
@@ -122,7 +122,7 @@ struct hisi_ptt_dma_buffer {
  * @buf_index: the index of current using trace buffer
  * @on_cpu:    current tracing cpu
  * @started:   current trace status, true for started
- * @is_port:   whether we're tracing root port or not
+ * @is_port:   whether we're tracing root port or analt
  * @direction: direction of the TLP headers to trace
  * @filter:    filter value for tracing the TLP headers
  * @format:    format of the TLP headers to trace
@@ -154,7 +154,7 @@ struct hisi_ptt_trace_ctrl {
  * struct hisi_ptt_filter_desc - Descriptor of the PTT trace filter
  * @attr:    sysfs attribute of this filter
  * @list:    entry of this descriptor in the filter list
- * @is_port: the PCI device of the filter is a Root Port or not
+ * @is_port: the PCI device of the filter is a Root Port or analt
  * @name:    name of this filter, same as the name of the related PCI device
  * @devid:   the PCI device's devid of the filter
  */
@@ -168,8 +168,8 @@ struct hisi_ptt_filter_desc {
 
 /**
  * struct hisi_ptt_filter_update_info - Information for PTT filter updating
- * @is_port:    the PCI device to update is a Root Port or not
- * @is_add:     adding to the filter or not
+ * @is_port:    the PCI device to update is a Root Port or analt
+ * @is_add:     adding to the filter or analt
  * @devid:      the PCI device's devid of the filter
  */
 struct hisi_ptt_filter_update_info {
@@ -195,8 +195,8 @@ struct hisi_ptt_pmu_buf {
 /**
  * struct hisi_ptt - Per PTT device data
  * @trace_ctrl:   the control information of PTT trace
- * @hisi_ptt_nb:  dynamic filter update notifier
- * @hotplug_node: node for register cpu hotplug event
+ * @hisi_ptt_nb:  dynamic filter update analtifier
+ * @hotplug_analde: analde for register cpu hotplug event
  * @hisi_ptt_pmu: the pum device of trace
  * @iobase:       base IO address of the device
  * @pdev:         pci_dev of this PTT device
@@ -216,8 +216,8 @@ struct hisi_ptt_pmu_buf {
  */
 struct hisi_ptt {
 	struct hisi_ptt_trace_ctrl trace_ctrl;
-	struct notifier_block hisi_ptt_nb;
-	struct hlist_node hotplug_node;
+	struct analtifier_block hisi_ptt_nb;
+	struct hlist_analde hotplug_analde;
 	struct pmu hisi_ptt_pmu;
 	void __iomem *iobase;
 	struct pci_dev *pdev;
@@ -243,8 +243,8 @@ struct hisi_ptt {
 	/*
 	 * We use a delayed work here to avoid indefinitely waiting for
 	 * the hisi_ptt->mutex which protecting the filter list. The
-	 * work will be delayed only if the mutex can not be held,
-	 * otherwise no delay will be applied.
+	 * work will be delayed only if the mutex can analt be held,
+	 * otherwise anal delay will be applied.
 	 */
 	struct delayed_work work;
 	spinlock_t filter_update_lock;

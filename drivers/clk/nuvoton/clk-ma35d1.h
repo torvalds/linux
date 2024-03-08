@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2023 Nuvoton Technology Corp.
+ * Copyright (C) 2023 Nuvoton Techanallogy Corp.
  * Author: Chi-Fang Li <cfli0@nuvoton.com>
  */
 

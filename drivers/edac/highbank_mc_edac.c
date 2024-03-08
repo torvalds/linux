@@ -158,7 +158,7 @@ static int highbank_mc_probe(struct platform_device *pdev)
 
 	id = of_match_device(hb_ddr_ctrl_of_match, &pdev->dev);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
 	layers[0].size = 1;
@@ -169,21 +169,21 @@ static int highbank_mc_probe(struct platform_device *pdev)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(struct hb_mc_drvdata));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->pdev = &pdev->dev;
 	drvdata = mci->pvt_info;
 	platform_set_drvdata(pdev, mci);
 
 	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto free;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
 		dev_err(&pdev->dev, "Unable to get mem resource\n");
-		res = -ENODEV;
+		res = -EANALDEV;
 		goto err;
 	}
 
@@ -197,7 +197,7 @@ static int highbank_mc_probe(struct platform_device *pdev)
 	base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!base) {
 		dev_err(&pdev->dev, "Unable to map regs\n");
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err;
 	}
 
@@ -207,13 +207,13 @@ static int highbank_mc_probe(struct platform_device *pdev)
 
 	control = readl(drvdata->mc_err_base + HB_DDR_ECC_OPT) & 0x3;
 	if (!control || (control == 0x2)) {
-		dev_err(&pdev->dev, "No ECC present, or ECC disabled\n");
-		res = -ENODEV;
+		dev_err(&pdev->dev, "Anal ECC present, or ECC disabled\n");
+		res = -EANALDEV;
 		goto err;
 	}
 
 	mci->mtype_cap = MEM_FLAG_DDR3;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	mci->mod_name = pdev->dev.driver->name;
 	mci->ctl_name = id->compatible;

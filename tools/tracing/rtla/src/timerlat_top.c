@@ -11,12 +11,12 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sched.h>
 #include <pthread.h>
 
 #include "utils.h"
-#include "osnoise.h"
+#include "osanalise.h"
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_u.h"
@@ -37,7 +37,7 @@ struct timerlat_top_params {
 	int			quiet;
 	int			set_sched;
 	int			dma_latency;
-	int			no_aa;
+	int			anal_aa;
 	int			aa_only;
 	int			dump_tasks;
 	int			cgroup;
@@ -121,7 +121,7 @@ cleanup:
  * timerlat_hist_update - record a new timerlat occurent on cpu, updating data
  */
 static void
-timerlat_top_update(struct osnoise_tool *tool, int cpu,
+timerlat_top_update(struct osanalise_tool *tool, int cpu,
 		    unsigned long long thread,
 		    unsigned long long latency)
 {
@@ -159,10 +159,10 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 	struct trace_instance *trace = context;
 	struct timerlat_top_params *params;
 	unsigned long long latency, thread;
-	struct osnoise_tool *top;
+	struct osanalise_tool *top;
 	int cpu = record->cpu;
 
-	top = container_of(trace, struct osnoise_tool, trace);
+	top = container_of(trace, struct osanalise_tool, trace);
 	params = top->params;
 
 	if (!params->aa_only) {
@@ -178,7 +178,7 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 /*
  * timerlat_top_header - print the header of the tool output
  */
-static void timerlat_top_header(struct osnoise_tool *top)
+static void timerlat_top_header(struct osanalise_tool *top)
 {
 	struct timerlat_top_params *params = top->params;
 	struct trace_seq *s = top->trace.seq;
@@ -214,7 +214,7 @@ static void timerlat_top_header(struct osnoise_tool *top)
 /*
  * timerlat_top_print - prints the output of a given CPU
  */
-static void timerlat_top_print(struct osnoise_tool *top, int cpu)
+static void timerlat_top_print(struct osanalise_tool *top, int cpu)
 {
 
 	struct timerlat_top_params *params = top->params;
@@ -227,7 +227,7 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 		return;
 
 	/*
-	 * Skip if no data is available: is this cpu offline?
+	 * Skip if anal data is available: is this cpu offline?
 	 */
 	if (!cpu_data->irq_count && !cpu_data->thread_count)
 		return;
@@ -296,7 +296,7 @@ static void clear_terminal(struct trace_seq *seq)
  * timerlat_print_stats - print data for all cpus
  */
 static void
-timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *top)
+timerlat_print_stats(struct timerlat_top_params *params, struct osanalise_tool *top)
 {
 	struct trace_instance *trace = &top->trace;
 	static int nr_cpus = -1;
@@ -345,16 +345,16 @@ static void timerlat_top_usage(char *usage)
 		"	  -s/--stack us: save the stack trace at the IRQ if a thread latency is higher than the argument in us",
 		"	  -c/--cpus cpus: run the tracer only on the given cpus",
 		"	  -H/--house-keeping cpus: run rtla control threads only on the given cpus",
-		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if anal cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[m|h|d]: duration of the session in seconds",
 		"	  -D/--debug: print debug info",
-		"	     --dump-tasks: prints the task running on all CPUs if stop conditions are met (depends on !--no-aa)",
+		"	     --dump-tasks: prints the task running on all CPUs if stop conditions are met (depends on !--anal-aa)",
 		"	  -t/--trace[=file]: save the stopped trace to [file|timerlat_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <command>: enable a trace event filter to the previous -e event",
 		"	     --trigger <command>: enable a trace event trigger to the previous -e event",
-		"	  -n/--nano: display data in nanoseconds",
-		"	     --no-aa: disable auto-analysis, reducing rtla timerlat cpu usage",
+		"	  -n/--naanal: display data in naanalseconds",
+		"	     --anal-aa: disable auto-analysis, reducing rtla timerlat cpu usage",
 		"	  -q/--quiet print only a summary at the end",
 		"	     --dma-latency us: set /dev/cpu_dma_latency latency <us> to reduce exit from idle latency",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period : set scheduling parameters",
@@ -362,7 +362,7 @@ static void timerlat_top_usage(char *usage)
 		"		r:prio - use SCHED_RR with prio",
 		"		f:prio - use SCHED_FIFO with prio",
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
-		"						       in nanoseconds",
+		"						       in naanalseconds",
 		"	  -u/--user-threads: use rtla user-space threads instead of in-kernel timerlat threads",
 		NULL,
 	};
@@ -409,25 +409,25 @@ static struct timerlat_top_params
 			{"auto",		required_argument,	0, 'a'},
 			{"cpus",		required_argument,	0, 'c'},
 			{"cgroup",		optional_argument,	0, 'C'},
-			{"debug",		no_argument,		0, 'D'},
+			{"debug",		anal_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
 			{"event",		required_argument,	0, 'e'},
-			{"help",		no_argument,		0, 'h'},
+			{"help",		anal_argument,		0, 'h'},
 			{"house-keeping",	required_argument,	0, 'H'},
 			{"irq",			required_argument,	0, 'i'},
-			{"nano",		no_argument,		0, 'n'},
+			{"naanal",		anal_argument,		0, 'n'},
 			{"period",		required_argument,	0, 'p'},
 			{"priority",		required_argument,	0, 'P'},
-			{"quiet",		no_argument,		0, 'q'},
+			{"quiet",		anal_argument,		0, 'q'},
 			{"stack",		required_argument,	0, 's'},
 			{"thread",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
-			{"user-threads",	no_argument,		0, 'u'},
+			{"user-threads",	anal_argument,		0, 'u'},
 			{"trigger",		required_argument,	0, '0'},
 			{"filter",		required_argument,	0, '1'},
 			{"dma-latency",		required_argument,	0, '2'},
-			{"no-aa",		no_argument,		0, '3'},
-			{"dump-tasks",		no_argument,		0, '4'},
+			{"anal-aa",		anal_argument,		0, '3'},
+			{"dump-tasks",		anal_argument,		0, '4'},
 			{"aa-only",		required_argument,	0, '5'},
 			{0, 0, 0, 0}
 		};
@@ -583,8 +583,8 @@ static struct timerlat_top_params
 				exit(EXIT_FAILURE);
 			}
 			break;
-		case '3': /* no-aa */
-			params->no_aa = 1;
+		case '3': /* anal-aa */
+			params->anal_aa = 1;
 			break;
 		case '4':
 			params->dump_tasks = 1;
@@ -603,10 +603,10 @@ static struct timerlat_top_params
 	 * Auto analysis only happens if stop tracing, thus:
 	 */
 	if (!params->stop_us && !params->stop_total_us)
-		params->no_aa = 1;
+		params->anal_aa = 1;
 
-	if (params->no_aa && params->aa_only)
-		timerlat_top_usage("--no-aa and --aa-only are mutually exclusive!");
+	if (params->anal_aa && params->aa_only)
+		timerlat_top_usage("--anal-aa and --aa-only are mutually exclusive!");
 
 	return params;
 }
@@ -615,7 +615,7 @@ static struct timerlat_top_params
  * timerlat_top_apply_config - apply the top configs to the initialized tool
  */
 static int
-timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *params)
+timerlat_top_apply_config(struct osanalise_tool *top, struct timerlat_top_params *params)
 {
 	int retval;
 	int i;
@@ -624,7 +624,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 		params->sleep_time = 1;
 
 	if (params->cpus) {
-		retval = osnoise_set_cpus(top->context, params->cpus);
+		retval = osanalise_set_cpus(top->context, params->cpus);
 		if (retval) {
 			err_msg("Failed to apply CPUs config\n");
 			goto out_err;
@@ -635,7 +635,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 	}
 
 	if (params->stop_us) {
-		retval = osnoise_set_stop_us(top->context, params->stop_us);
+		retval = osanalise_set_stop_us(top->context, params->stop_us);
 		if (retval) {
 			err_msg("Failed to set stop us\n");
 			goto out_err;
@@ -643,7 +643,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 	}
 
 	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(top->context, params->stop_total_us);
+		retval = osanalise_set_stop_total_us(top->context, params->stop_total_us);
 		if (retval) {
 			err_msg("Failed to set stop total us\n");
 			goto out_err;
@@ -652,7 +652,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 
 
 	if (params->timerlat_period_us) {
-		retval = osnoise_set_timerlat_period_us(top->context, params->timerlat_period_us);
+		retval = osanalise_set_timerlat_period_us(top->context, params->timerlat_period_us);
 		if (retval) {
 			err_msg("Failed to set timerlat period\n");
 			goto out_err;
@@ -661,7 +661,7 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 
 
 	if (params->print_stack) {
-		retval = osnoise_set_print_stack(top->context, params->print_stack);
+		retval = osanalise_set_print_stack(top->context, params->print_stack);
 		if (retval) {
 			err_msg("Failed to set print stack\n");
 			goto out_err;
@@ -677,19 +677,19 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 		}
 	} else if (params->cpus) {
 		/*
-		 * Even if the user do not set a house-keeping CPU, try to
+		 * Even if the user do analt set a house-keeping CPU, try to
 		 * move rtla to a CPU set different to the one where the user
 		 * set the workload to run.
 		 *
-		 * No need to check results as this is an automatic attempt.
+		 * Anal need to check results as this is an automatic attempt.
 		 */
 		auto_house_keeping(&params->monitored_cpus);
 	}
 
 	if (params->user_top) {
-		retval = osnoise_set_workload(top->context, 0);
+		retval = osanalise_set_workload(top->context, 0);
 		if (retval) {
-			err_msg("Failed to set OSNOISE_WORKLOAD option\n");
+			err_msg("Failed to set OSANALISE_WORKLOAD option\n");
 			goto out_err;
 		}
 	}
@@ -703,15 +703,15 @@ out_err:
 /*
  * timerlat_init_top - initialize a timerlat top tool with parameters
  */
-static struct osnoise_tool
+static struct osanalise_tool
 *timerlat_init_top(struct timerlat_top_params *params)
 {
-	struct osnoise_tool *top;
+	struct osanalise_tool *top;
 	int nr_cpus;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
-	top = osnoise_init_tool("timerlat_top");
+	top = osanalise_init_tool("timerlat_top");
 	if (!top)
 		return NULL;
 
@@ -727,7 +727,7 @@ static struct osnoise_tool
 	return top;
 
 out_err:
-	osnoise_destroy_tool(top);
+	osanalise_destroy_tool(top);
 	return NULL;
 }
 
@@ -753,10 +753,10 @@ timerlat_top_set_signals(struct timerlat_top_params *params)
 int timerlat_top_main(int argc, char *argv[])
 {
 	struct timerlat_top_params *params;
-	struct osnoise_tool *record = NULL;
+	struct osanalise_tool *record = NULL;
 	struct timerlat_u_params params_u;
-	struct osnoise_tool *top = NULL;
-	struct osnoise_tool *aa = NULL;
+	struct osanalise_tool *top = NULL;
+	struct osanalise_tool *aa = NULL;
 	struct trace_instance *trace;
 	int dma_latency_fd = -1;
 	pthread_t timerlat_u;
@@ -770,13 +770,13 @@ int timerlat_top_main(int argc, char *argv[])
 
 	top = timerlat_init_top(params);
 	if (!top) {
-		err_msg("Could not init osnoise top\n");
+		err_msg("Could analt init osanalise top\n");
 		goto out_exit;
 	}
 
 	retval = timerlat_top_apply_config(top, params);
 	if (retval) {
-		err_msg("Could not apply config\n");
+		err_msg("Could analt apply config\n");
 		goto out_free;
 	}
 
@@ -807,13 +807,13 @@ int timerlat_top_main(int argc, char *argv[])
 	if (params->dma_latency >= 0) {
 		dma_latency_fd = set_cpu_dma_latency(params->dma_latency);
 		if (dma_latency_fd < 0) {
-			err_msg("Could not set /dev/cpu_dma_latency.\n");
+			err_msg("Could analt set /dev/cpu_dma_latency.\n");
 			goto out_free;
 		}
 	}
 
 	if (params->trace_output) {
-		record = osnoise_init_trace_tool("timerlat");
+		record = osanalise_init_trace_tool("timerlat");
 		if (!record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;
@@ -826,13 +826,13 @@ int timerlat_top_main(int argc, char *argv[])
 		}
 	}
 
-	if (!params->no_aa) {
+	if (!params->anal_aa) {
 		if (params->aa_only) {
-			/* as top is not used for display, use it for aa */
+			/* as top is analt used for display, use it for aa */
 			aa = top;
 		} else  {
 			/* otherwise, a new instance is needed */
-			aa = osnoise_init_tool("timerlat_aa");
+			aa = osanalise_init_tool("timerlat_aa");
 			if (!aa)
 				goto out_top;
 		}
@@ -843,7 +843,7 @@ int timerlat_top_main(int argc, char *argv[])
 			goto out_top;
 		}
 
-		/* if it is re-using the main instance, there is no need to start it */
+		/* if it is re-using the main instance, there is anal need to start it */
 		if (aa != top) {
 			retval = enable_timerlat(&aa->trace);
 			if (retval) {
@@ -862,7 +862,7 @@ int timerlat_top_main(int argc, char *argv[])
 	 */
 	if (params->trace_output)
 		trace_instance_start(&record->trace);
-	if (!params->no_aa && aa != top)
+	if (!params->anal_aa && aa != top)
 		trace_instance_start(&aa->trace);
 	trace_instance_start(trace);
 
@@ -932,7 +932,7 @@ int timerlat_top_main(int argc, char *argv[])
 	if (trace_is_off(&top->trace, &record->trace)) {
 		printf("rtla timerlat hit stop tracing\n");
 
-		if (!params->no_aa)
+		if (!params->anal_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
 		if (params->trace_output) {
@@ -941,8 +941,8 @@ int timerlat_top_main(int argc, char *argv[])
 		}
 	} else if (params->aa_only) {
 		/*
-		 * If the trace did not stop with --aa-only, at least print the
-		 * max known latency.
+		 * If the trace did analt stop with --aa-only, at least print the
+		 * max kanalwn latency.
 		 */
 		max_lat = tracefs_instance_file_read(trace->inst, "tracing_max_latency", NULL);
 		if (max_lat) {
@@ -960,9 +960,9 @@ out_top:
 out_free:
 	timerlat_free_top(top->data);
 	if (aa && aa != top)
-		osnoise_destroy_tool(aa);
-	osnoise_destroy_tool(record);
-	osnoise_destroy_tool(top);
+		osanalise_destroy_tool(aa);
+	osanalise_destroy_tool(record);
+	osanalise_destroy_tool(top);
 	free(params);
 out_exit:
 	exit(return_value);

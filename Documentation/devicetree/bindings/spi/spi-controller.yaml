@@ -10,13 +10,13 @@ maintainers:
   - Mark Brown <broonie@kernel.org>
 
 description: |
-  SPI busses can be described with a node for the SPI controller device
-  and a set of child nodes for each SPI slave on the bus. The system SPI
+  SPI busses can be described with a analde for the SPI controller device
+  and a set of child analdes for each SPI slave on the bus. The system SPI
   controller may be described for use in SPI master mode or in SPI slave mode,
-  but not for both at the same time.
+  but analt for both at the same time.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^spi(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#address-cells":
@@ -49,9 +49,9 @@ properties:
       cs-gpio with the optional spi-cs-high flag for SPI slaves.
 
       Each table entry defines how the CS pin is to be physically
-      driven (not considering potential gpio inversions by pinmux):
+      driven (analt considering potential gpio inversions by pinmux):
 
-      device node     | cs-gpio       | CS pin state active | Note
+      device analde     | cs-gpio       | CS pin state active | Analte
       ================+===============+=====================+=====
       spi-cs-high     | -             | H                   |
       -               | -             | L                   |
@@ -60,7 +60,7 @@ properties:
       spi-cs-high     | ACTIVE_LOW    | H                   | 2
       -               | ACTIVE_LOW    | L                   |
 
-      Notes:
+      Analtes:
       1) Should print a warning about polarity inversion.
          Here it would be wise to avoid and define the gpio as
          ACTIVE_LOW.
@@ -118,7 +118,7 @@ patternProperties:
 
 allOf:
   - if:
-      not:
+      analt:
         required:
           - spi-slave
     then:
@@ -156,7 +156,7 @@ examples:
         };
 
         flash@2 {
-            compatible = "jedec,spi-nor";
+            compatible = "jedec,spi-analr";
             spi-max-frequency = <50000000>;
             reg = <2>, <3>;
             stacked-memories = /bits/ 64 <0x10000000 0x10000000>;

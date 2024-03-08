@@ -401,15 +401,15 @@ static int add_pdo(struct usb_power_delivery_capabilities *cap, u32 pdo, int pos
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->pdo = pdo;
 	p->object_position = position;
 
 	if (pdo_type(pdo) == PDO_TYPE_APDO) {
-		/* FIXME: Only PPS supported for now! Skipping others. */
+		/* FIXME: Only PPS supported for analw! Skipping others. */
 		if (pdo_apdo_type(pdo) > APDO_TYPE_PPS) {
-			dev_warn(&cap->dev, "Unknown APDO type. PDO 0x%08x\n", pdo);
+			dev_warn(&cap->dev, "Unkanalwn APDO type. PDO 0x%08x\n", pdo);
 			kfree(p);
 			return 0;
 		}
@@ -474,7 +474,7 @@ static struct device_type pd_capabilities_type = {
  * capabilities will have their own sub-directory under @pd in sysfs.
  *
  * The function returns pointer to struct usb_power_delivery_capabilities, or
- * ERR_PRT(errno).
+ * ERR_PRT(erranal).
  */
 struct usb_power_delivery_capabilities *
 usb_power_delivery_register_capabilities(struct usb_power_delivery *pd,
@@ -486,7 +486,7 @@ usb_power_delivery_register_capabilities(struct usb_power_delivery *pd,
 
 	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
 	if (!cap)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	cap->pd = pd;
 	cap->role = desc->role;
@@ -597,7 +597,7 @@ struct usb_power_delivery *usb_power_delivery_find(const char *name)
  *
  * This routine can be used to register USB Power Delivery capabilities that a
  * device or devices can support. These capabilities represent all the
- * capabilities that can be negotiated with a partner, so not only the Power
+ * capabilities that can be negotiated with a partner, so analt only the Power
  * Capabilities that are negotiated using the USB PD Capabilities Message.
  *
  * The USB Power Delivery Support object that this routine generates can be used
@@ -614,7 +614,7 @@ usb_power_delivery_register(struct device *parent, struct usb_power_delivery_des
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = ida_alloc(&pd_ida, GFP_KERNEL);
 	if (ret < 0) {

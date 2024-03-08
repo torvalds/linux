@@ -39,7 +39,7 @@ static int do_xdp_dump_one(struct nlattr *attr, unsigned int ifindex,
 		return 0;
 
 	mode = libbpf_nla_getattr_u8(tb[IFLA_XDP_ATTACHED]);
-	if (mode == XDP_ATTACHED_NONE)
+	if (mode == XDP_ATTACHED_ANALNE)
 		return 0;
 
 	NET_START_OBJECT;
@@ -83,10 +83,10 @@ static int do_bpf_dump_one_act(struct nlattr *attr)
 	struct nlattr *tb[TCA_ACT_BPF_MAX + 1];
 
 	if (libbpf_nla_parse_nested(tb, TCA_ACT_BPF_MAX, attr, NULL) < 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	if (!tb[TCA_ACT_BPF_PARMS])
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	NET_START_OBJECT_NESTED2;
 	if (tb[TCA_ACT_BPF_NAME])
@@ -107,7 +107,7 @@ static int do_dump_one_act(struct nlattr *attr)
 		return 0;
 
 	if (libbpf_nla_parse_nested(tb, TCA_ACT_MAX, attr, NULL) < 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	if (tb[TCA_ACT_KIND] &&
 	    strcmp(libbpf_nla_data(tb[TCA_ACT_KIND]), "bpf") == 0)
@@ -122,7 +122,7 @@ static int do_bpf_act_dump(struct nlattr *attr)
 	int act, ret;
 
 	if (libbpf_nla_parse_nested(tb, TCA_ACT_MAX_PRIO, attr, NULL) < 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	NET_START_ARRAY("act", " %s [");
 	for (act = 0; act <= TCA_ACT_MAX_PRIO; act++) {
@@ -141,7 +141,7 @@ static int do_bpf_filter_dump(struct nlattr *attr)
 	int ret;
 
 	if (libbpf_nla_parse_nested(tb, TCA_BPF_MAX, attr, NULL) < 0)
-		return -LIBBPF_ERRNO__NLPARSE;
+		return -LIBBPF_ERRANAL__NLPARSE;
 
 	if (tb[TCA_BPF_NAME])
 		NET_DUMP_STR("name", " %s",

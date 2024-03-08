@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The battery charger of the multifunction device RT5033 has to be instantiated
-  under sub-node named "charger" using the following format.
+  under sub-analde named "charger" using the following format.
 
 properties:
   compatible:
@@ -21,7 +21,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Phandle to the monitored battery according to battery.yaml. The battery
-      node needs to contain five parameters.
+      analde needs to contain five parameters.
 
       precharge-current-microamp:
       Current of pre-charge mode. The pre-charge current levels are 350 mA

@@ -18,16 +18,16 @@ When to post
 ------------
 
 There is a constant temptation to avoid posting patches before they are
-completely "ready."  For simple patches, that is not a problem.  If the
+completely "ready."  For simple patches, that is analt a problem.  If the
 work being done is complex, though, there is a lot to be gained by getting
 feedback from the community before the work is complete.  So you should
 consider posting in-progress work, or even making a git tree available so
 that interested developers can catch up with your work at any time.
 
-When posting code which is not yet considered ready for inclusion, it is a
+When posting code which is analt yet considered ready for inclusion, it is a
 good idea to say so in the posting itself.  Also mention any major work
-which remains to be done and any known problems.  Fewer people will look at
-patches which are known to be half-baked, but those who do will come in
+which remains to be done and any kanalwn problems.  Fewer people will look at
+patches which are kanalwn to be half-baked, but those who do will come in
 with the idea that they can help you drive the work in the right direction.
 
 
@@ -61,12 +61,12 @@ Patch preparation
 -----------------
 
 The preparation of patches for posting can be a surprising amount of work,
-but, once again, attempting to save time here is not generally advisable
+but, once again, attempting to save time here is analt generally advisable
 even in the short term.
 
 Patches must be prepared against a specific version of the kernel.  As a
 general rule, a patch should be based on the current mainline as found in
-Linus's git tree.  When basing on mainline, start with a well-known release
+Linus's git tree.  When basing on mainline, start with a well-kanalwn release
 point - a stable or -rc release - rather than branching off the mainline at
 an arbitrary spot.
 
@@ -82,11 +82,11 @@ up patches is a bit of an art; some developers spend a long time figuring
 out how to do it in the way that the community expects.  There are a few
 rules of thumb, however, which can help considerably:
 
- - The patch series you post will almost certainly not be the series of
+ - The patch series you post will almost certainly analt be the series of
    changes found in your working revision control system.  Instead, the
    changes you have made need to be considered in their final form, then
    split apart in ways which make sense.  The developers are interested in
-   discrete, self-contained changes, not the path you took to get to those
+   discrete, self-contained changes, analt the path you took to get to those
    changes.
 
  - Each logically independent change should be formatted as a separate
@@ -96,7 +96,7 @@ rules of thumb, however, which can help considerably:
    should make a specific change which can be reviewed on its own and
    verified to do what it says it does.
 
- - As a way of restating the guideline above: do not mix different types of
+ - As a way of restating the guideline above: do analt mix different types of
    changes in the same patch.  If a single patch fixes a critical security
    bug, rearranges a few structures, and reformats the code, there is a
    good chance that it will be passed over and the important fix will be
@@ -107,10 +107,10 @@ rules of thumb, however, which can help considerably:
    working kernel.  Partial application of a patch series is a common
    scenario when the "git bisect" tool is used to find regressions; if the
    result is a broken kernel, you will make life harder for developers and
-   users who are engaging in the noble work of tracking down problems.
+   users who are engaging in the analble work of tracking down problems.
 
- - Do not overdo it, though.  One developer once posted a set of edits
-   to a single file as 500 separate patches - an act which did not make him
+ - Do analt overdo it, though.  One developer once posted a set of edits
+   to a single file as 500 separate patches - an act which did analt make him
    the most popular person on the kernel mailing list.  A single patch can
    be reasonably large as long as it still contains a single *logical*
    change.
@@ -131,8 +131,8 @@ done.  When done properly, though, it is time well spent.
 Patch formatting and changelogs
 -------------------------------
 
-So now you have a perfect series of patches for posting, but the work is
-not done quite yet.  Each patch needs to be formatted into a message which
+So analw you have a perfect series of patches for posting, but the work is
+analt done quite yet.  Each patch needs to be formatted into a message which
 quickly and clearly communicates its purpose to the rest of the world.  To
 that end, each patch will be composed of the following:
 
@@ -141,7 +141,7 @@ that end, each patch will be composed of the following:
    but it never hurts to add it when in doubt.
 
  - A one-line description of what the patch does.  This message should be
-   enough for a reader who sees it with no other context to figure out the
+   eanalugh for a reader who sees it with anal other context to figure out the
    scope of the patch; it is the line that will show up in the "short form"
    changelogs.  This message is usually formatted with the relevant
    subsystem name first, followed by the purpose of the patch.  For
@@ -160,13 +160,13 @@ that end, each patch will be composed of the following:
 
 The items above, together, form the changelog for the patch.  Writing good
 changelogs is a crucial but often-neglected art; it's worth spending
-another moment discussing this issue.  When writing a changelog, you should
+aanalther moment discussing this issue.  When writing a changelog, you should
 bear in mind that a number of different people will be reading your words.
 These include subsystem maintainers and reviewers who need to decide
 whether the patch should be included, distributors and other maintainers
 trying to decide whether a patch should be backported to other kernels, bug
 hunters wondering whether the patch is responsible for a problem they are
-chasing, users who want to know how the kernel has changed, and more.  A
+chasing, users who want to kanalw how the kernel has changed, and more.  A
 good changelog conveys the needed information to all of these people in the
 most direct and concise way possible.
 
@@ -206,7 +206,7 @@ the patch::
 
 	Fixes: 1f2e3d4c5b6a ("The first line of the commit specified by the first 12 characters of its SHA-1 ID")
 
-Another tag is used for linking web pages with additional backgrounds or
+Aanalther tag is used for linking web pages with additional backgrounds or
 details, for example an earlier discussion which leads to the patch or a
 document with a specification implemented by the patch::
 
@@ -227,7 +227,7 @@ commit with such a tag is applied. Some bots monitoring mailing lists can
 also track such tags and take certain actions. Private bug trackers and
 invalid URLs are forbidden.
 
-Another kind of tag is used to document who was involved in the development of
+Aanalther kind of tag is used to document who was involved in the development of
 the patch. Each of these uses this format::
 
 	tag: Full Name <email address>  optional-other-stuff
@@ -238,7 +238,7 @@ The tags in common use are:
    the right to submit the patch for inclusion into the kernel.  It is an
    agreement to the Developer's Certificate of Origin, the full text of
    which can be found in :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-   Code without a proper signoff cannot be merged into the mainline.
+   Code without a proper siganalff cananalt be merged into the mainline.
 
  - Co-developed-by: states that the patch was co-created by several developers;
    it is a used to give attribution to co-authors (in addition to the author
@@ -247,7 +247,7 @@ The tags in common use are:
    the associated co-author.  Details and examples can be found in
    :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`.
 
- - Acked-by: indicates an agreement by another developer (often a
+ - Acked-by: indicates an agreement by aanalther developer (often a
    maintainer of the relevant code) that the patch is appropriate for
    inclusion into the kernel.
 
@@ -260,9 +260,9 @@ The tags in common use are:
 
  - Reported-by: names a user who reported a problem which is fixed by this
    patch; this tag is used to give credit to the (often underappreciated)
-   people who test our code and let us know when things do not work
-   correctly. Note, this tag should be followed by a Closes: tag pointing to
-   the report, unless the report is not available on the web. The Link: tag
+   people who test our code and let us kanalw when things do analt work
+   correctly. Analte, this tag should be followed by a Closes: tag pointing to
+   the report, unless the report is analt available on the web. The Link: tag
    can be used instead of Closes: if the patch fixes a part of the issue(s)
    being reported.
 
@@ -281,9 +281,9 @@ Sending the patch
 Before you mail your patches, there are a couple of other things you should
 take care of:
 
- - Are you sure that your mailer will not corrupt the patches?  Patches
+ - Are you sure that your mailer will analt corrupt the patches?  Patches
    which have had gratuitous white-space changes or line wrapping performed
-   by the mail client will not apply at the other end, and often will not
+   by the mail client will analt apply at the other end, and often will analt
    be examined in any detail.  If there is any doubt at all, mail the patch
    to yourself and convince yourself that it shows up intact.
 
@@ -294,10 +294,10 @@ take care of:
    run patches through scripts/checkpatch.pl and address the complaints it
    comes up with.  Please bear in mind that checkpatch.pl, while being the
    embodiment of a fair amount of thought about what kernel patches should
-   look like, is not smarter than you.  If fixing a checkpatch.pl complaint
+   look like, is analt smarter than you.  If fixing a checkpatch.pl complaint
    would make the code worse, don't do it.
 
-Patches should always be sent as plain text.  Please do not send them as
+Patches should always be sent as plain text.  Please do analt send them as
 attachments; that makes it much harder for reviewers to quote sections of
 the patch in their replies.  Instead, just put the patch directly into your
 message.
@@ -312,30 +312,30 @@ copies should go to:
    the MAINTAINERS file is the first place to look for these people.
 
  - Other developers who have been working in the same area - especially
-   those who might be working there now.  Using git to see who else has
+   those who might be working there analw.  Using git to see who else has
    modified the files you are working on can be helpful.
 
  - If you are responding to a bug report or a feature request, copy the
    original poster as well.
 
- - Send a copy to the relevant mailing list, or, if nothing else applies,
+ - Send a copy to the relevant mailing list, or, if analthing else applies,
    the linux-kernel list.
 
  - If you are fixing a bug, think about whether the fix should go into the
    next stable update.  If so, stable@vger.kernel.org should get a copy of
    the patch.  Also add a "Cc: stable@vger.kernel.org" to the tags within
-   the patch itself; that will cause the stable team to get a notification
+   the patch itself; that will cause the stable team to get a analtification
    when your fix goes into the mainline.
 
 When selecting recipients for a patch, it is good to have an idea of who
 you think will eventually accept the patch and get it merged.  While it
 is possible to send patches directly to Linus Torvalds and have him merge
-them, things are not normally done that way.  Linus is busy, and there are
+them, things are analt analrmally done that way.  Linus is busy, and there are
 subsystem maintainers who watch over specific parts of the kernel.  Usually
-you will be wanting that maintainer to merge your patches.  If there is no
+you will be wanting that maintainer to merge your patches.  If there is anal
 obvious maintainer, Andrew Morton is often the patch target of last resort.
 
-Patches need good subject lines.  The canonical format for a patch line is
+Patches need good subject lines.  The caanalnical format for a patch line is
 something like:
 
 ::
@@ -347,9 +347,9 @@ patches in the series, and "subsys" is the name of the affected subsystem.
 Clearly, nn/mm can be omitted for a single, standalone patch.
 
 If you have a significant series of patches, it is customary to send an
-introductory description as part zero.  This convention is not universally
+introductory description as part zero.  This convention is analt universally
 followed though; if you use it, remember that information in the
-introduction does not make it into the kernel changelogs.  So please ensure
+introduction does analt make it into the kernel changelogs.  So please ensure
 that the patches, themselves, have complete changelog information.
 
 In general, the second and following parts of a multi-part patch should be

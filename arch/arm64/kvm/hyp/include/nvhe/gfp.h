@@ -7,7 +7,7 @@
 #include <nvhe/memory.h>
 #include <nvhe/spinlock.h>
 
-#define HYP_NO_ORDER	USHRT_MAX
+#define HYP_ANAL_ORDER	USHRT_MAX
 
 struct hyp_pool {
 	/*
@@ -28,7 +28,7 @@ void hyp_split_page(struct hyp_page *page);
 void hyp_get_page(struct hyp_pool *pool, void *addr);
 void hyp_put_page(struct hyp_pool *pool, void *addr);
 
-/* Used pages cannot be freed */
+/* Used pages cananalt be freed */
 int hyp_pool_init(struct hyp_pool *pool, u64 pfn, unsigned int nr_pages,
 		  unsigned int reserved_pages);
 #endif /* __KVM_HYP_GFP_H */

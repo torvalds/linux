@@ -138,7 +138,7 @@ static void virtio_gpio_free(struct gpio_chip *gc, unsigned int gpio)
 	struct virtio_gpio *vgpio = gpiochip_get_data(gc);
 
 	virtio_gpio_req(vgpio, VIRTIO_GPIO_MSG_SET_DIRECTION, gpio,
-			VIRTIO_GPIO_DIRECTION_NONE, NULL);
+			VIRTIO_GPIO_DIRECTION_ANALNE, NULL);
 }
 
 static int virtio_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
@@ -330,7 +330,7 @@ static void virtio_gpio_irq_bus_sync_unlock(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct virtio_gpio *vgpio = gpiochip_get_data(gc);
 	struct vgpio_irq_line *irq_line = &vgpio->irq_lines[d->hwirq];
-	u8 type = irq_line->disabled ? VIRTIO_GPIO_IRQ_TYPE_NONE : irq_line->type;
+	u8 type = irq_line->disabled ? VIRTIO_GPIO_IRQ_TYPE_ANALNE : irq_line->type;
 	unsigned long flags;
 
 	if (irq_line->update_pending) {
@@ -363,37 +363,37 @@ static struct irq_chip vgpio_irq_chip = {
 	.irq_bus_sync_unlock	= virtio_gpio_irq_bus_sync_unlock,
 };
 
-static bool ignore_irq(struct virtio_gpio *vgpio, int gpio,
+static bool iganalre_irq(struct virtio_gpio *vgpio, int gpio,
 		       struct vgpio_irq_line *irq_line)
 {
-	bool ignore = false;
+	bool iganalre = false;
 
 	raw_spin_lock(&vgpio->eventq_lock);
 	irq_line->queued = false;
 
 	/* Interrupt is disabled currently */
 	if (irq_line->masked || irq_line->disabled) {
-		ignore = true;
+		iganalre = true;
 		goto unlock;
 	}
 
 	/*
 	 * Buffer is returned as the interrupt was disabled earlier, but is
-	 * enabled again now. Requeue the buffers.
+	 * enabled again analw. Requeue the buffers.
 	 */
 	if (irq_line->ires.status == VIRTIO_GPIO_IRQ_STATUS_INVALID) {
 		virtio_gpio_irq_prepare(vgpio, gpio);
-		ignore = true;
+		iganalre = true;
 		goto unlock;
 	}
 
 	if (WARN_ON(irq_line->ires.status != VIRTIO_GPIO_IRQ_STATUS_VALID))
-		ignore = true;
+		iganalre = true;
 
 unlock:
 	raw_spin_unlock(&vgpio->eventq_lock);
 
-	return ignore;
+	return iganalre;
 }
 
 static void virtio_gpio_event_vq(struct virtqueue *vq)
@@ -418,13 +418,13 @@ static void virtio_gpio_event_vq(struct virtqueue *vq)
 		/*
 		 * Find GPIO line number from the offset of irq_line within the
 		 * irq_lines block. We can also get GPIO number from
-		 * irq-request, but better not to rely on a buffer returned by
+		 * irq-request, but better analt to rely on a buffer returned by
 		 * remote.
 		 */
 		gpio = irq_line - vgpio->irq_lines;
 		WARN_ON(gpio >= vgpio->gc.ngpio);
 
-		if (unlikely(ignore_irq(vgpio, gpio, irq_line)))
+		if (unlikely(iganalre_irq(vgpio, gpio, irq_line)))
 			continue;
 
 		ret = generic_handle_domain_irq(vgpio->gc.irq.domain, gpio);
@@ -489,7 +489,7 @@ out:
 	if (vqs[0] || vqs[1])
 		virtio_gpio_free_vqs(vdev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const char **virtio_gpio_get_names(struct virtio_gpio *vgpio,
@@ -548,7 +548,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 
 	vgpio = devm_kzalloc(dev, sizeof(*vgpio), GFP_KERNEL);
 	if (!vgpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Read configuration */
 	virtio_cread_bytes(vdev, 0, &config, sizeof(config));
@@ -561,7 +561,7 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 
 	vgpio->lines = devm_kcalloc(dev, ngpio, sizeof(*vgpio->lines), GFP_KERNEL);
 	if (!vgpio->lines)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ngpio; i++) {
 		mutex_init(&vgpio->lines[i].lock);
@@ -589,18 +589,18 @@ static int virtio_gpio_probe(struct virtio_device *vdev)
 	if (virtio_has_feature(vdev, VIRTIO_GPIO_F_IRQ)) {
 		vgpio->irq_lines = devm_kcalloc(dev, ngpio, sizeof(*vgpio->irq_lines), GFP_KERNEL);
 		if (!vgpio->irq_lines)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		/* The event comes from the outside so no parent handler */
+		/* The event comes from the outside so anal parent handler */
 		vgpio->gc.irq.parent_handler	= NULL;
 		vgpio->gc.irq.num_parents	= 0;
 		vgpio->gc.irq.parents		= NULL;
-		vgpio->gc.irq.default_type	= IRQ_TYPE_NONE;
+		vgpio->gc.irq.default_type	= IRQ_TYPE_ANALNE;
 		vgpio->gc.irq.handler		= handle_level_irq;
 		vgpio->gc.irq.chip		= &vgpio_irq_chip;
 
 		for (i = 0; i < ngpio; i++) {
-			vgpio->irq_lines[i].type = VIRTIO_GPIO_IRQ_TYPE_NONE;
+			vgpio->irq_lines[i].type = VIRTIO_GPIO_IRQ_TYPE_ANALNE;
 			vgpio->irq_lines[i].disabled = true;
 			vgpio->irq_lines[i].masked = true;
 		}

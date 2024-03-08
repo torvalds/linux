@@ -14,15 +14,15 @@ struct ccu_sdm_setting {
 	unsigned long	rate;
 
 	/*
-	 * XXX We don't know what the step and bottom register fields
+	 * XXX We don't kanalw what the step and bottom register fields
 	 * mean. Just copy the whole register value from the vendor
-	 * kernel for now.
+	 * kernel for analw.
 	 */
 	u32		pattern;
 
 	/*
 	 * M and N factors here should be the values used in
-	 * calculation, not the raw values written to registers
+	 * calculation, analt the raw values written to registers
 	 */
 	u32		m;
 	u32		n;

@@ -27,7 +27,7 @@
 #define ACP_EXTERNAL_INTR_ENB(adata) ACP_EXTERNAL_INTR_REG_ADDR(adata, 0x0, 0x0)
 #define ACP_EXTERNAL_INTR_CNTL(adata, ctrl) ACP_EXTERNAL_INTR_REG_ADDR(adata, 0x4, ctrl)
 #define ACP_EXTERNAL_INTR_STAT(adata, ctrl) ACP_EXTERNAL_INTR_REG_ADDR(adata, \
-	(0x4 + (adata->rsrc->no_of_ctrls * 0x04)), ctrl)
+	(0x4 + (adata->rsrc->anal_of_ctrls * 0x04)), ctrl)
 
 /* Registers from ACP_AUDIO_BUFFERS block */
 
@@ -118,7 +118,7 @@
 #define ACP_WOV_RX_LINEARPOSITIONCNTR_LOW             0x2C1C
 #define ACP_WOV_RX_INTR_WATERMARK_SIZE                0x2C20
 #define ACP_WOV_PDM_FIFO_FLUSH                        0x2C24
-#define ACP_WOV_PDM_NO_OF_CHANNELS                    0x2C28
+#define ACP_WOV_PDM_ANAL_OF_CHANNELS                    0x2C28
 #define ACP_WOV_PDM_DECIMATION_FACTOR                 0x2C2C
 #define ACP_WOV_PDM_VAD_CTRL                          0x2C30
 #define ACP_WOV_BUFFER_STATUS                         0x2C58

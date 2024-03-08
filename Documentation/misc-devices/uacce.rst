@@ -117,7 +117,7 @@ All regions are optional and differ from device type to type.
 Each region can be mmapped only once, otherwise -EEXIST returns.
 
 The device mmio region is mapped to the hardware mmio space. It is generally
-used for doorbell or other notification to the hardware. It is not fast enough
+used for doorbell or other analtification to the hardware. It is analt fast eanalugh
 as data channel.
 
 The device user share region is used for share data buffer between user process
@@ -156,7 +156,7 @@ According to the IOMMU capability, uacce_interface flags can be:
 
 uacce_register results can be:
 
-a. If uacce module is not compiled, ERR_PTR(-ENODEV)
+a. If uacce module is analt compiled, ERR_PTR(-EANALDEV)
 
 b. Succeed with the desired flags
 

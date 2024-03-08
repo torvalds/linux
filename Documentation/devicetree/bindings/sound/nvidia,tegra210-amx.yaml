@@ -21,7 +21,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^amx@[0-9a-f]*$"
 
   compatible:
@@ -45,7 +45,7 @@ properties:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
       AMX has four inputs and one output. Accordingly ACIF (Audio Client
-      Interfaces) port nodes are defined to represent AMX inputs (port 0
+      Interfaces) port analdes are defined to represent AMX inputs (port 0
       to 3) and output (port 4). These are connected to corresponding
       ports on AHUB (Audio Hub).
 

@@ -9,7 +9,7 @@
  * is sent via MEI protocol. That's a two-step scheme where the firmware
  * first acks receipt of the command and later responses the command was
  * executed. The command sending function uses "completion" as the
- * synchronization mechanism. The notification for command is received
+ * synchronization mechanism. The analtification for command is received
  * via a mei callback which wakes up the caller. There can be only one
  * outstanding command at a time.
  *
@@ -40,7 +40,7 @@
 #define	ACE_CMD_INIT_BLOCK	1
 /* indicating the last command block */
 #define	ACE_CMD_FINAL_BLOCK	1
-/* size of camera status notification content */
+/* size of camera status analtification content */
 #define	ACE_CAMERA_STATUS_SIZE	5
 
 /* UUID used to get firmware id */
@@ -105,8 +105,8 @@ struct ace_cmd {
 	union ace_cmd_param param;
 } __packed;
 
-/* ACE notification header */
-union ace_notif_hdr {
+/* ACE analtification header */
+union ace_analtif_hdr {
 	struct _confirm {
 		u32 status : 24;
 		u32 type : 5;
@@ -133,7 +133,7 @@ union ace_notif_hdr {
 
 	struct _response {
 		u32 event_id : 16;
-		u32 notif_type : 8;
+		u32 analtif_type : 8;
 		u32 type : 5;
 		u32 rsp : 1;
 		u32 msg_tgt : 1;
@@ -146,26 +146,26 @@ union ace_notif_hdr {
 	} __packed response;
 };
 
-/* ACE notification content */
-union ace_notif_cont {
+/* ACE analtification content */
+union ace_analtif_cont {
 	u16 firmware_id;
-	u8 state_notif;
+	u8 state_analtif;
 	u8 camera_status[ACE_CAMERA_STATUS_SIZE];
 };
 
-/* ACE notification structure */
-struct ace_notif {
-	union ace_notif_hdr hdr;
-	union ace_notif_cont cont;
+/* ACE analtification structure */
+struct ace_analtif {
+	union ace_analtif_hdr hdr;
+	union ace_analtif_cont cont;
 } __packed;
 
 struct mei_ace {
 	struct mei_cl_device *cldev;
 
 	/* command ack */
-	struct ace_notif cmd_ack;
+	struct ace_analtif cmd_ack;
 	/* command response */
-	struct ace_notif cmd_response;
+	struct ace_analtif cmd_response;
 	/* used to wait for command ack and response */
 	struct completion cmd_completion;
 	/* lock used to prevent multiple call to send command */
@@ -225,8 +225,8 @@ static int construct_command(struct mei_ace *ace, struct ace_cmd *cmd,
 static int mei_ace_send(struct mei_ace *ace, struct ace_cmd *cmd,
 			size_t len, bool only_ack)
 {
-	union ace_notif_hdr *resp_hdr = &ace->cmd_response.hdr;
-	union ace_notif_hdr *ack_hdr = &ace->cmd_ack.hdr;
+	union ace_analtif_hdr *resp_hdr = &ace->cmd_response.hdr;
+	union ace_analtif_hdr *ack_hdr = &ace->cmd_ack.hdr;
 	struct ace_cmd_hdr *cmd_hdr = &cmd->hdr;
 	int ret;
 
@@ -321,9 +321,9 @@ static inline int ace_get_firmware_id(struct mei_ace *ace)
 }
 
 static void handle_command_response(struct mei_ace *ace,
-				    struct ace_notif *resp, int len)
+				    struct ace_analtif *resp, int len)
 {
-	union ace_notif_hdr *hdr = &resp->hdr;
+	union ace_analtif_hdr *hdr = &resp->hdr;
 
 	switch (hdr->response.cmd_id) {
 	case ACE_SWITCH_CAMERA_TO_IVSC:
@@ -339,9 +339,9 @@ static void handle_command_response(struct mei_ace *ace,
 }
 
 static void handle_command_ack(struct mei_ace *ace,
-			       struct ace_notif *ack, int len)
+			       struct ace_analtif *ack, int len)
 {
-	union ace_notif_hdr *hdr = &ack->hdr;
+	union ace_analtif_hdr *hdr = &ack->hdr;
 
 	switch (hdr->ack.cmd_id) {
 	case ACE_GET_FW_ID:
@@ -361,8 +361,8 @@ static void handle_command_ack(struct mei_ace *ace,
 static void mei_ace_rx(struct mei_cl_device *cldev)
 {
 	struct mei_ace *ace = mei_cldev_get_drvdata(cldev);
-	struct ace_notif event;
-	union ace_notif_hdr *hdr = &event.hdr;
+	struct ace_analtif event;
+	union ace_analtif_hdr *hdr = &event.hdr;
 	int ret;
 
 	ret = mei_cldev_recv(cldev, (u8 *)&event, sizeof(event));
@@ -382,7 +382,7 @@ static void mei_ace_rx(struct mei_cl_device *cldev)
 		break;
 	case ACE_FW_READY:
 		/*
-		 * firmware ready notification sent to driver
+		 * firmware ready analtification sent to driver
 		 * after HECI client connected with firmware.
 		 */
 		dev_dbg(&cldev->dev, "firmware ready\n");
@@ -406,7 +406,7 @@ static int mei_ace_setup_dev_link(struct mei_ace *ace)
 	if (!csi_dev) {
 		ret = -EPROBE_DEFER;
 		goto err;
-	} else if (!dev_fwnode(csi_dev)) {
+	} else if (!dev_fwanalde(csi_dev)) {
 		ret = -EPROBE_DEFER;
 		goto err_put;
 	}
@@ -464,7 +464,7 @@ static int mei_ace_probe(struct mei_cl_device *cldev,
 
 	ace = devm_kzalloc(dev, sizeof(struct mei_ace), GFP_KERNEL);
 	if (!ace)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ace->cldev = cldev;
 	mutex_init(&ace->lock);

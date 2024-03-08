@@ -18,8 +18,8 @@ static const __u8 root_hub_hub_des[] =
 	0x09,			/*  __u8  bLength; */
 	USB_DT_HUB,		/*  __u8  bDescriptorType; Hub-descriptor */
 	0x02,			/*  __u8  bNbrPorts; */
-	HUB_CHAR_NO_LPSM |	/* __u16  wHubCharacteristics; */
-		HUB_CHAR_INDV_PORT_OCPM, /* (per-port OC, no power switching) */
+	HUB_CHAR_ANAL_LPSM |	/* __u16  wHubCharacteristics; */
+		HUB_CHAR_INDV_PORT_OCPM, /* (per-port OC, anal power switching) */
 	0x00,
 	0x01,			/*  __u8  bPwrOn2pwrGood; 2ms */
 	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
@@ -32,7 +32,7 @@ static const __u8 root_hub_hub_des[] =
 /* must write as zeroes */
 #define WZ_BITS		(USBPORTSC_RES2 | USBPORTSC_RES3 | USBPORTSC_RES4)
 
-/* status change bits:  nonzero writes will clear */
+/* status change bits:  analnzero writes will clear */
 #define RWC_BITS	(USBPORTSC_OCC | USBPORTSC_PEC | USBPORTSC_CSC)
 
 /* suspend/resume bits: port suspended or port resuming */
@@ -61,11 +61,11 @@ static inline int get_hub_status_data(struct uhci_hcd *uhci, char *buf)
 
 	/* Some boards (both VIA and Intel apparently) report bogus
 	 * overcurrent indications, causing massive log spam unless
-	 * we completely ignore them.  This doesn't seem to be a problem
+	 * we completely iganalre them.  This doesn't seem to be a problem
 	 * with the chipset so much as with the way it is connected on
 	 * the motherboard; if the overcurrent input is left to float
 	 * then it may constantly register false positives. */
-	if (ignore_oc)
+	if (iganalre_oc)
 		mask &= ~USBPORTSC_OCC;
 
 	*buf = 0;
@@ -216,13 +216,13 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	    case UHCI_RH_RUNNING:
 		/* are any devices attached? */
 		if (!any_ports_active(uhci)) {
-			uhci->rh_state = UHCI_RH_RUNNING_NODEVS;
+			uhci->rh_state = UHCI_RH_RUNNING_ANALDEVS;
 			uhci->auto_stop_time = jiffies + HZ;
 		}
 		break;
 
-	    case UHCI_RH_RUNNING_NODEVS:
-		/* auto-stop if nothing connected for 1 second */
+	    case UHCI_RH_RUNNING_ANALDEVS:
+		/* auto-stop if analthing connected for 1 second */
 		if (any_ports_active(uhci))
 			uhci->rh_state = UHCI_RH_RUNNING;
 		else if (time_after_eq(jiffies, uhci->auto_stop_time) &&
@@ -269,7 +269,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		/* Intel controllers report the OverCurrent bit active on.
 		 * VIA controllers report it active off, so we'll adjust the
-		 * bit value.  (It's not standardized in the UHCI spec.)
+		 * bit value.  (It's analt standardized in the UHCI spec.)
 		 */
 		if (uhci->oc_low)
 			status ^= USBPORTSC_OC;
@@ -280,7 +280,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			wPortChange |= USB_PORT_STAT_C_CONNECTION;
 		if (status & USBPORTSC_PEC)
 			wPortChange |= USB_PORT_STAT_C_ENABLE;
-		if ((status & USBPORTSC_OCC) && !ignore_oc)
+		if ((status & USBPORTSC_OCC) && !iganalre_oc)
 			wPortChange |= USB_PORT_STAT_C_OVERCURRENT;
 
 		if (test_bit(port, &uhci->port_c_suspend)) {
@@ -290,7 +290,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		if (test_bit(port, &uhci->resuming_ports))
 			lstatus |= 4;
 
-		/* UHCI has no power switching (always on) */
+		/* UHCI has anal power switching (always on) */
 		wPortStatus = USB_PORT_STAT_POWER;
 		if (status & USBPORTSC_CCS)
 			wPortStatus |= USB_PORT_STAT_CONNECTION;
@@ -343,7 +343,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			break;
 		case USB_PORT_FEAT_POWER:
-			/* UHCI has no power switching */
+			/* UHCI has anal power switching */
 			break;
 		default:
 			goto err;
@@ -390,7 +390,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			clear_bit(port, &uhci->port_c_suspend);
 			break;
 		case USB_PORT_FEAT_POWER:
-			/* UHCI has no power switching */
+			/* UHCI has anal power switching */
 			goto err;
 		case USB_PORT_FEAT_C_CONNECTION:
 			CLR_RH_PORTSTAT(USBPORTSC_CSC);

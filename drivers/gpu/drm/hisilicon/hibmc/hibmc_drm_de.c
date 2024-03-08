@@ -71,7 +71,7 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	if (src_w != new_plane_state->crtc_w || src_h != new_plane_state->crtc_h) {
-		drm_dbg_atomic(plane->dev, "scale not support\n");
+		drm_dbg_atomic(plane->dev, "scale analt support\n");
 		return -EINVAL;
 	}
 
@@ -218,7 +218,7 @@ hibmc_crtc_mode_valid(struct drm_crtc *crtc,
 	int vrefresh = drm_mode_vrefresh(mode);
 
 	if (vrefresh < 59 || vrefresh > 61)
-		return MODE_NOCLOCK;
+		return MODE_ANALCLOCK;
 
 	for (i = 0; i < ARRAY_SIZE(hibmc_pll_table); i++) {
 		if (hibmc_pll_table[i].hdisplay == mode->hdisplay &&
@@ -235,7 +235,7 @@ static u32 format_pll_reg(void)
 	struct hibmc_display_panel_pll pll = {0};
 
 	/*
-	 * Note that all PLL's have the same format. Here,
+	 * Analte that all PLL's have the same format. Here,
 	 * we just use Panel PLL parameter to work out the bit
 	 * fields in the register.On returning a 32 bit number, the value can
 	 * be applied to any PLL in the calling function.
@@ -295,7 +295,7 @@ static void get_pll_config(u64 x, u64 y, u32 *pll1, u32 *pll2)
 		}
 	}
 
-	/* if found none, we use default value */
+	/* if found analne, we use default value */
 	*pll1 = CRT_PLL1_HS_25MHZ;
 	*pll2 = CRT_PLL2_HS_25MHZ;
 }
@@ -326,7 +326,7 @@ static u32 display_ctrl_adjust(struct drm_device *dev,
 	/*
 	 * Hisilicon has to set up the top-left and bottom-right
 	 * registers as well.
-	 * Note that normal chip only use those two register for
+	 * Analte that analrmal chip only use those two register for
 	 * auto-centering mode.
 	 */
 	writel(HIBMC_FIELD(HIBMC_CRT_AUTO_CENTERING_TL_TOP, 0) |
@@ -357,7 +357,7 @@ static u32 display_ctrl_adjust(struct drm_device *dev,
 	return ctrl;
 }
 
-static void hibmc_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void hibmc_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 	u32 val;
 	struct drm_display_mode *mode = &crtc->state->mode;
@@ -491,7 +491,7 @@ static const struct drm_crtc_funcs hibmc_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
-	.mode_set_nofb	= hibmc_crtc_mode_set_nofb,
+	.mode_set_analfb	= hibmc_crtc_mode_set_analfb,
 	.atomic_begin	= hibmc_crtc_atomic_begin,
 	.atomic_flush	= hibmc_crtc_atomic_flush,
 	.atomic_enable	= hibmc_crtc_atomic_enable,

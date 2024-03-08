@@ -8,7 +8,7 @@ int invocations = 0, in_use = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, int);
 } sk_map SEC(".maps");
@@ -30,7 +30,7 @@ int sock(struct bpf_sock *ctx)
 	__sync_fetch_and_add(&invocations, 1);
 
 	if (in_use > 0) {
-		/* BPF_CGROUP_INET_SOCK_RELEASE is _not_ called
+		/* BPF_CGROUP_INET_SOCK_RELEASE is _analt_ called
 		 * when we return an error from the BPF
 		 * program!
 		 */

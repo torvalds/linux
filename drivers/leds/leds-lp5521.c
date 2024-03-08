@@ -2,10 +2,10 @@
 /*
  * LP5521 LED chip driver.
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2012 Texas Instruments
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@analkia.com>
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
@@ -283,7 +283,7 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 	 * Make sure that the chip is reset by reading back the r channel
 	 * current reg. This is dummy read is required on some platforms -
 	 * otherwise further access to the R G B channels in the
-	 * LP5521_REG_ENABLE register will not have any effect - strange!
+	 * LP5521_REG_ENABLE register will analt have any effect - strange!
 	 */
 	ret = lp55xx_read(chip, LP5521_REG_R_CURRENT, &val);
 	if (ret) {
@@ -524,11 +524,11 @@ static int lp5521_probe(struct i2c_client *client)
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = dev_of_node(&client->dev);
+	struct device_analde *np = dev_of_analde(&client->dev);
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cfg = &lp5521_cfg;
 
@@ -539,7 +539,7 @@ static int lp5521_probe(struct i2c_client *client)
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "anal platform data\n");
 			return -EINVAL;
 		}
 	}
@@ -547,7 +547,7 @@ static int lp5521_probe(struct i2c_client *client)
 	led = devm_kcalloc(&client->dev,
 			pdata->num_channels, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->cl = client;
 	chip->pdata = pdata;

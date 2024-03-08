@@ -48,7 +48,7 @@
 #define ACPI_ALL_DRIVERS            0xFFFF0000
 
 /*
- * Raw debug output levels, do not use these in the ACPI_DEBUG_PRINT macros
+ * Raw debug output levels, do analt use these in the ACPI_DEBUG_PRINT macros
  */
 #define ACPI_LV_INIT                0x00000001
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
@@ -109,7 +109,7 @@
 /*
  * Exception level -- used in the global "DebugLevel"
  *
- * Note: For errors, use the ACPI_ERROR or ACPI_EXCEPTION interfaces.
+ * Analte: For errors, use the ACPI_ERROR or ACPI_EXCEPTION interfaces.
  * For warnings, use ACPI_WARNING.
  */
 #define ACPI_DB_INIT                ACPI_DEBUG_LEVEL (ACPI_LV_INIT)
@@ -148,13 +148,13 @@
 
 #define ACPI_DB_ALL                 ACPI_DEBUG_LEVEL (ACPI_LV_ALL)
 
-/* Defaults for debug_level, debug and normal */
+/* Defaults for debug_level, debug and analrmal */
 
 #ifndef ACPI_DEBUG_DEFAULT
 #define ACPI_DEBUG_DEFAULT          (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_EVALUATION | ACPI_LV_REPAIR)
 #endif
 
-#define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
+#define ACPI_ANALRMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
 #define ACPI_DEBUG_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
 
 /*
@@ -171,17 +171,17 @@
 #define ACPI_TRACE_LEVEL_DEFAULT    ACPI_LV_TRACE_POINT
 #define ACPI_TRACE_LAYER_DEFAULT    ACPI_EXECUTER
 
-#if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)
+#if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_ANAL_ERROR_MESSAGES)
 /*
  * The module name is used primarily for error and debug messages.
- * The __FILE__ macro is not very useful for this, because it
+ * The __FILE__ macro is analt very useful for this, because it
  * usually includes the entire pathname to the module making the
  * debug output difficult to read.
  */
 #define ACPI_MODULE_NAME(name)          static const char ACPI_UNUSED_VAR _acpi_module_name[] = name;
 #else
 /*
- * For the no-debug and no-error-msg cases, we must at least define
+ * For the anal-debug and anal-error-msg cases, we must at least define
  * a null module name.
  */
 #define ACPI_MODULE_NAME(name)
@@ -191,13 +191,13 @@
 /*
  * Ascii error messages can be configured out
  */
-#ifndef ACPI_NO_ERROR_MESSAGES
+#ifndef ACPI_ANAL_ERROR_MESSAGES
 #define AE_INFO                         _acpi_module_name, __LINE__
 
 /*
  * Error reporting. Callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the debug and analn-debug versions of the code.
  */
 #define ACPI_INFO(plist)                acpi_info plist
 #define ACPI_WARNING(plist)             acpi_warning plist
@@ -210,7 +210,7 @@
 
 #else
 
-/* No error messages */
+/* Anal error messages */
 
 #define ACPI_INFO(plist)
 #define ACPI_WARNING(plist)
@@ -221,7 +221,7 @@
 #define ACPI_BIOS_ERROR(plist)
 #define ACPI_DEBUG_OBJECT(obj,l,i)
 
-#endif				/* ACPI_NO_ERROR_MESSAGES */
+#endif				/* ACPI_ANAL_ERROR_MESSAGES */
 
 /*
  * Debug macros that are conditionally compiled
@@ -229,23 +229,23 @@
 #ifdef ACPI_DEBUG_OUTPUT
 
 /*
- * If ACPI_GET_FUNCTION_NAME was not defined in the compiler-dependent header,
- * define it now. This is the case where there the compiler does not support
+ * If ACPI_GET_FUNCTION_NAME was analt defined in the compiler-dependent header,
+ * define it analw. This is the case where there the compiler does analt support
  * a __func__ macro or equivalent.
  */
 #ifndef ACPI_GET_FUNCTION_NAME
 #define ACPI_GET_FUNCTION_NAME          _acpi_function_name
 
 /*
- * The Name parameter should be the procedure name as a non-quoted string.
+ * The Name parameter should be the procedure name as a analn-quoted string.
  * The function name is also used by the function exit macros below.
- * Note: (const char) is used to be compatible with the debug interfaces
+ * Analte: (const char) is used to be compatible with the debug interfaces
  * and macros such as __func__.
  */
 #define ACPI_FUNCTION_NAME(name)        static const char _acpi_function_name[] = #name;
 
 #else
-/* Compiler supports __func__ (or equivalent) -- Ignore this macro */
+/* Compiler supports __func__ (or equivalent) -- Iganalre this macro */
 
 #define ACPI_FUNCTION_NAME(name)
 #endif				/* ACPI_GET_FUNCTION_NAME */
@@ -268,12 +268,12 @@
  *    1) Debug print for the current component is enabled
  *    2) Debug error level or trace level for the print statement is enabled
  *
- * November 2012: Moved the runtime check for whether to actually emit the
+ * Analvember 2012: Moved the runtime check for whether to actually emit the
  * debug message outside of the print function itself. This improves overall
  * performance at a relatively small code cost. Implementation involves the
  * use of variadic macros supported by C99.
  *
- * Note: the ACPI_DO_WHILE0 macro is used to prevent some compilers from
+ * Analte: the ACPI_DO_WHILE0 macro is used to prevent some compilers from
  * complaining about these constructs. On other compilers the do...while
  * adds some extra code, so this feature is optional.
  */
@@ -358,7 +358,7 @@
  *
  * There are two versions of most of the return macros. The default version is
  * safer, since it avoids side-effects by guaranteeing that the argument will
- * not be evaluated twice.
+ * analt be evaluated twice.
  *
  * A less-safe version of the macros is provided for optional use if the
  * compiler uses excessive CPU stack (for example, this may happen in the
@@ -430,8 +430,8 @@
 
 #else				/* ACPI_DEBUG_OUTPUT */
 /*
- * This is the non-debug case -- make everything go away,
- * leaving no executable debug code!
+ * This is the analn-debug case -- make everything go away,
+ * leaving anal executable debug code!
  */
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)

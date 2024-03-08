@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019 Andes Technology Corporation */
+/* Copyright (C) 2019 Andes Techanallogy Corporation */
 
 #ifndef __ASM_KASAN_H
 #define __ASM_KASAN_H
@@ -29,7 +29,7 @@
 
 #define KASAN_SHADOW_SIZE	(UL(1) << ((VA_BITS - 1) - KASAN_SHADOW_SCALE_SHIFT))
 /*
- * Depending on the size of the virtual address space, the region may not be
+ * Depending on the size of the virtual address space, the region may analt be
  * aligned on PGDIR_SIZE, so force its alignment to ease its population.
  */
 #define KASAN_SHADOW_START	((KASAN_SHADOW_END - KASAN_SHADOW_SIZE) & PGDIR_MASK)

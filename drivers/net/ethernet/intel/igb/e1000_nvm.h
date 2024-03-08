@@ -19,11 +19,11 @@ s32  igb_update_nvm_checksum(struct e1000_hw *hw);
 struct e1000_fw_version {
 	u32 etrack_id;
 	u16 eep_major;
-	u16 eep_minor;
+	u16 eep_mianalr;
 	u16 eep_build;
 
 	u8 invm_major;
-	u8 invm_minor;
+	u8 invm_mianalr;
 	u8 invm_img_type;
 
 	bool or_valid;

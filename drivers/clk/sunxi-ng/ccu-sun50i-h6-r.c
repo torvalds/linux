@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.xyz>
  */
 
 #include <linux/clk-provider.h>
@@ -99,7 +99,7 @@ static SUNXI_CCU_GATE(r_apb1_ir_clk,	"r-apb1-ir",	"r-apb1",
 static SUNXI_CCU_GATE(r_apb1_w1_clk,	"r-apb1-w1",	"r-apb1",
 		      0x1ec, BIT(0), 0);
 static SUNXI_CCU_GATE(r_apb1_rtc_clk,	"r-apb1-rtc",	"r-apb1",
-		      0x20c, BIT(0), CLK_IGNORE_UNUSED);
+		      0x20c, BIT(0), CLK_IGANALRE_UNUSED);
 
 /* Information of IR(RX) mod clock is gathered from BSP source code */
 static const char * const r_mod0_default_parents[] = { "osc32k", "osc24M" };
@@ -112,7 +112,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
 				  0);
 
 /*
- * BSP didn't use the 1-wire function at all now, and the information about
+ * BSP didn't use the 1-wire function at all analw, and the information about
  * this mod clock is guessed from the IR mod clock above. The existence of
  * this mod clock is proven by BSP clock header, and the dividers are verified
  * by contents in the 1-wire related chapter of the User Manual.

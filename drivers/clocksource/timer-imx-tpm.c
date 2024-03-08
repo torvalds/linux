@@ -56,7 +56,7 @@ static inline void tpm_timer_enable(void)
 	writel(val, timer_base + TPM_C0SC);
 }
 
-static inline void tpm_irq_acknowledge(void)
+static inline void tpm_irq_ackanalwledge(void)
 {
 	writel(TPM_STATUS_CH0F, timer_base + TPM_STATUS);
 }
@@ -74,7 +74,7 @@ static unsigned long tpm_read_current_timer(void)
 	return tpm_read_counter();
 }
 
-static u64 notrace tpm_read_sched_clock(void)
+static u64 analtrace tpm_read_sched_clock(void)
 {
 	return tpm_read_counter();
 }
@@ -83,20 +83,20 @@ static u64 notrace tpm_read_sched_clock(void)
 static int tpm_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
 {
-	unsigned long next, now;
+	unsigned long next, analw;
 
 	next = tpm_read_counter();
 	next += delta;
 	writel(next, timer_base + TPM_C0V);
-	now = tpm_read_counter();
+	analw = tpm_read_counter();
 
 	/*
-	 * NOTE: We observed in a very small probability, the bus fabric
+	 * ANALTE: We observed in a very small probability, the bus fabric
 	 * contention between GPU and A7 may results a few cycles delay
 	 * of writing CNT registers which may cause the min_delta event got
 	 * missed, so we need add a ETIME check here in case it happened.
 	 */
-	return (int)(next - now) <= 0 ? -ETIME : 0;
+	return (int)(next - analw) <= 0 ? -ETIME : 0;
 }
 
 static int tpm_set_state_oneshot(struct clock_event_device *evt)
@@ -117,7 +117,7 @@ static irqreturn_t tpm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	tpm_irq_acknowledge();
+	tpm_irq_ackanalwledge();
 
 	evt->event_handler(evt);
 
@@ -172,7 +172,7 @@ static void __init tpm_clockevent_init(void)
 					1));
 }
 
-static int __init tpm_timer_init(struct device_node *np)
+static int __init tpm_timer_init(struct device_analde *np)
 {
 	struct clk *ipg;
 	int ret;
@@ -180,7 +180,7 @@ static int __init tpm_timer_init(struct device_node *np)
 	ipg = of_clk_get_by_name(np, "ipg");
 	if (IS_ERR(ipg)) {
 		pr_err("tpm: failed to get ipg clk\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* enable clk before accessing registers */
 	ret = clk_prepare_enable(ipg);
@@ -202,7 +202,7 @@ static int __init tpm_timer_init(struct device_node *np)
 	to_tpm.clkevt.rating = counter_width == 0x20 ? 200 : 150;
 
 	/*
-	 * Initialize tpm module to a known state
+	 * Initialize tpm module to a kanalwn state
 	 * 1) Counter disabled
 	 * 2) TPM counter operates in up counting mode
 	 * 3) Timer Overflow Interrupt disabled

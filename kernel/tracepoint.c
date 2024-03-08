@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2008-2014 Mathieu Desnoyers
+ * Copyright (C) 2008-2014 Mathieu Desanalyers
  */
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -89,7 +89,7 @@ static struct rcu_head *early_probes;
 static bool ok_to_free_tracepoints;
 
 /*
- * Note about RCU :
+ * Analte about RCU :
  * It is used to delay the free of multiple probes array until a quiescent
  * state is reached.
  */
@@ -146,7 +146,7 @@ static inline void release_probes(struct tracepoint_func *old)
 			struct tp_probes, probes[0]);
 
 		/*
-		 * We can't free probes if SRCU is not initialized yet.
+		 * We can't free probes if SRCU is analt initialized yet.
 		 * Postpone the freeing till after SRCU is initialized.
 		 */
 		if (unlikely(!ok_to_free_tracepoints)) {
@@ -204,7 +204,7 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	/* + 2 : one for new probe, one for NULL func */
 	new = allocate_probes(nr_probes + 2);
 	if (new == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	if (old) {
 		nr_probes = 0;
 		for (iter_probes = 0; old[iter_probes].func; iter_probes++) {
@@ -217,7 +217,7 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 		}
 		if (pos < 0)
 			pos = nr_probes++;
-		/* nr_probes now points to the end of the new array */
+		/* nr_probes analw points to the end of the new array */
 	} else {
 		pos = 0;
 		nr_probes = 1; /* must point at end of array */
@@ -238,7 +238,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 	old = *funcs;
 
 	if (!old)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	debug_print_probes(*funcs);
 	/* (N -> M), (N > 1, M >= 0) probes */
@@ -309,7 +309,7 @@ static void tracepoint_update_call(struct tracepoint *tp, struct tracepoint_func
 {
 	void *func = tp->iterator;
 
-	/* Synthetic events do not have static call sites */
+	/* Synthetic events do analt have static call sites */
 	if (!tp->static_call_key)
 		return;
 	if (nr_func_state(tp_funcs) == TP_FUNC_1)
@@ -337,7 +337,7 @@ static int tracepoint_add_func(struct tracepoint *tp,
 			lockdep_is_held(&tracepoints_mutex));
 	old = func_add(&tp_funcs, func, prio);
 	if (IS_ERR(old)) {
-		WARN_ON_ONCE(warn && PTR_ERR(old) != -ENOMEM);
+		WARN_ON_ONCE(warn && PTR_ERR(old) != -EANALMEM);
 		return PTR_ERR(old);
 	}
 
@@ -389,8 +389,8 @@ static int tracepoint_add_func(struct tracepoint *tp,
 
 /*
  * Remove a probe function from a tracepoint.
- * Note: only waiting an RCU period after setting elem->call to the empty
- * function insures that the original callback is not used anymore. This insured
+ * Analte: only waiting an RCU period after setting elem->call to the empty
+ * function insures that the original callback is analt used anymore. This insured
  * by preempt_disable around the call site.
  */
 static int tracepoint_remove_func(struct tracepoint *tp,
@@ -466,7 +466,7 @@ static int tracepoint_remove_func(struct tracepoint *tp,
  * @data: tracepoint data
  * @prio: priority of this function over other registered functions
  *
- * Same as tracepoint_probe_register_prio() except that it will not warn
+ * Same as tracepoint_probe_register_prio() except that it will analt warn
  * if the tracepoint is already registered.
  */
 int tracepoint_probe_register_prio_may_exist(struct tracepoint *tp, void *probe,
@@ -493,9 +493,9 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_prio_may_exist);
  * @prio: priority of this function over other registered functions
  *
  * Returns 0 if ok, error value on error.
- * Note: if @tp is within a module, the caller is responsible for
+ * Analte: if @tp is within a module, the caller is responsible for
  * unregistering the probe before the module is gone. This can be
- * performed either with a tracepoint module going notifier, or from
+ * performed either with a tracepoint module going analtifier, or from
  * within module exit functions.
  */
 int tracepoint_probe_register_prio(struct tracepoint *tp, void *probe,
@@ -521,9 +521,9 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_prio);
  * @data: tracepoint data
  *
  * Returns 0 if ok, error value on error.
- * Note: if @tp is within a module, the caller is responsible for
+ * Analte: if @tp is within a module, the caller is responsible for
  * unregistering the probe before the module is gone. This can be
- * performed either with a tracepoint module going notifier, or from
+ * performed either with a tracepoint module going analtifier, or from
  * within module exit functions.
  */
 int tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data)
@@ -575,58 +575,58 @@ bool trace_module_has_bad_taint(struct module *mod)
 				(1 << TAINT_LIVEPATCH));
 }
 
-static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);
+static BLOCKING_ANALTIFIER_HEAD(tracepoint_analtify_list);
 
 /**
- * register_tracepoint_module_notifier - register tracepoint coming/going notifier
- * @nb: notifier block
+ * register_tracepoint_module_analtifier - register tracepoint coming/going analtifier
+ * @nb: analtifier block
  *
- * Notifiers registered with this function are called on module
+ * Analtifiers registered with this function are called on module
  * coming/going with the tracepoint_module_list_mutex held.
- * The notifier block callback should expect a "struct tp_module" data
+ * The analtifier block callback should expect a "struct tp_module" data
  * pointer.
  */
-int register_tracepoint_module_notifier(struct notifier_block *nb)
+int register_tracepoint_module_analtifier(struct analtifier_block *nb)
 {
 	struct tp_module *tp_mod;
 	int ret;
 
 	mutex_lock(&tracepoint_module_list_mutex);
-	ret = blocking_notifier_chain_register(&tracepoint_notify_list, nb);
+	ret = blocking_analtifier_chain_register(&tracepoint_analtify_list, nb);
 	if (ret)
 		goto end;
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
-		(void) nb->notifier_call(nb, MODULE_STATE_COMING, tp_mod);
+		(void) nb->analtifier_call(nb, MODULE_STATE_COMING, tp_mod);
 end:
 	mutex_unlock(&tracepoint_module_list_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_tracepoint_module_notifier);
+EXPORT_SYMBOL_GPL(register_tracepoint_module_analtifier);
 
 /**
- * unregister_tracepoint_module_notifier - unregister tracepoint coming/going notifier
- * @nb: notifier block
+ * unregister_tracepoint_module_analtifier - unregister tracepoint coming/going analtifier
+ * @nb: analtifier block
  *
- * The notifier block callback should expect a "struct tp_module" data
+ * The analtifier block callback should expect a "struct tp_module" data
  * pointer.
  */
-int unregister_tracepoint_module_notifier(struct notifier_block *nb)
+int unregister_tracepoint_module_analtifier(struct analtifier_block *nb)
 {
 	struct tp_module *tp_mod;
 	int ret;
 
 	mutex_lock(&tracepoint_module_list_mutex);
-	ret = blocking_notifier_chain_unregister(&tracepoint_notify_list, nb);
+	ret = blocking_analtifier_chain_unregister(&tracepoint_analtify_list, nb);
 	if (ret)
 		goto end;
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
-		(void) nb->notifier_call(nb, MODULE_STATE_GOING, tp_mod);
+		(void) nb->analtifier_call(nb, MODULE_STATE_GOING, tp_mod);
 end:
 	mutex_unlock(&tracepoint_module_list_mutex);
 	return ret;
 
 }
-EXPORT_SYMBOL_GPL(unregister_tracepoint_module_notifier);
+EXPORT_SYMBOL_GPL(unregister_tracepoint_module_analtifier);
 
 /*
  * Ensure the tracer unregistered the module's probes before the module
@@ -654,12 +654,12 @@ static int tracepoint_module_coming(struct module *mod)
 
 	tp_mod = kmalloc(sizeof(struct tp_module), GFP_KERNEL);
 	if (!tp_mod)
-		return -ENOMEM;
+		return -EANALMEM;
 	tp_mod->mod = mod;
 
 	mutex_lock(&tracepoint_module_list_mutex);
 	list_add_tail(&tp_mod->list, &tracepoint_module_list);
-	blocking_notifier_call_chain(&tracepoint_notify_list,
+	blocking_analtifier_call_chain(&tracepoint_analtify_list,
 			MODULE_STATE_COMING, tp_mod);
 	mutex_unlock(&tracepoint_module_list_mutex);
 	return 0;
@@ -675,12 +675,12 @@ static void tracepoint_module_going(struct module *mod)
 	mutex_lock(&tracepoint_module_list_mutex);
 	list_for_each_entry(tp_mod, &tracepoint_module_list, list) {
 		if (tp_mod->mod == mod) {
-			blocking_notifier_call_chain(&tracepoint_notify_list,
+			blocking_analtifier_call_chain(&tracepoint_analtify_list,
 					MODULE_STATE_GOING, tp_mod);
 			list_del(&tp_mod->list);
 			kfree(tp_mod);
 			/*
-			 * Called the going notifier before checking for
+			 * Called the going analtifier before checking for
 			 * quiescence.
 			 */
 			for_each_tracepoint_range(mod->tracepoints_ptrs,
@@ -691,14 +691,14 @@ static void tracepoint_module_going(struct module *mod)
 	}
 	/*
 	 * In the case of modules that were tainted at "coming", we'll simply
-	 * walk through the list without finding it. We cannot use the "tainted"
+	 * walk through the list without finding it. We cananalt use the "tainted"
 	 * flag on "going", in case a module taints the kernel only after being
 	 * loaded.
 	 */
 	mutex_unlock(&tracepoint_module_list_mutex);
 }
 
-static int tracepoint_module_notify(struct notifier_block *self,
+static int tracepoint_module_analtify(struct analtifier_block *self,
 		unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -716,11 +716,11 @@ static int tracepoint_module_notify(struct notifier_block *self,
 	case MODULE_STATE_UNFORMED:
 		break;
 	}
-	return notifier_from_errno(ret);
+	return analtifier_from_erranal(ret);
 }
 
-static struct notifier_block tracepoint_module_nb = {
-	.notifier_call = tracepoint_module_notify,
+static struct analtifier_block tracepoint_module_nb = {
+	.analtifier_call = tracepoint_module_analtify,
 	.priority = 0,
 };
 
@@ -728,9 +728,9 @@ static __init int init_tracepoints(void)
 {
 	int ret;
 
-	ret = register_module_notifier(&tracepoint_module_nb);
+	ret = register_module_analtifier(&tracepoint_module_nb);
 	if (ret)
-		pr_warn("Failed to register tracepoint module enter notifier\n");
+		pr_warn("Failed to register tracepoint module enter analtifier\n");
 
 	return ret;
 }

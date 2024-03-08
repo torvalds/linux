@@ -67,7 +67,7 @@
 	#define PIO_XFER_ERR_IRQ		(1 << 9)
 	#define BUF_AVAIL_IRQ			(1 << 10)
 	#define XFER_DONE_IRQ			(1 << 11)
-	#define IGNORED_IRQS	(STATUS_CHNG_IRQ | MEM_MODE_IRQ | IO_MODE_IRQ |\
+	#define IGANALRED_IRQS	(STATUS_CHNG_IRQ | MEM_MODE_IRQ | IO_MODE_IRQ |\
 					TRUE_IDE_MODE_IRQ)
 	#define TRUE_IDE_IRQS	(CARD_DETECT_IRQ | PIO_XFER_ERR_IRQ |\
 					BUF_AVAIL_IRQ | XFER_DONE_IRQ)
@@ -139,7 +139,7 @@
 
 	#define DMA_XFER_MODE			(1 << 28)
 
-	#define AHB_BUS_NORMAL_PIO_OPRTN	(~(1 << 29))
+	#define AHB_BUS_ANALRMAL_PIO_OPRTN	(~(1 << 29))
 	#define XFER_DIR_MASK			(1 << 30)
 	#define XFER_READ			(0)
 	#define XFER_WRITE			(1 << 30)
@@ -198,7 +198,7 @@ struct arasan_cf_dev {
 
 	/* status to be updated to framework regarding DMA transfer */
 	u8 dma_status;
-	/* Card is present or Not */
+	/* Card is present or Analt */
 	u8 card_present;
 
 	/* dma specific */
@@ -599,7 +599,7 @@ static irqreturn_t arasan_cf_interrupt(int irq, void *dev)
 
 	irqsts = readl(acdev->vbase + GIRQ_STS);
 	if (!(irqsts & GIRQ_CF))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(&acdev->host->lock, flags);
 	irqsts = readl(acdev->vbase + IRQ_STS);
@@ -607,7 +607,7 @@ static irqreturn_t arasan_cf_interrupt(int irq, void *dev)
 	writel(GIRQ_CF, acdev->vbase + GIRQ_STS);	/* clear girqs */
 
 	/* handle only relevant interrupts */
-	irqsts &= ~IGNORED_IRQS;
+	irqsts &= ~IGANALRED_IRQS;
 
 	if (irqsts & CARD_DETECT_IRQ) {
 		cf_card_detect(acdev, 1);
@@ -697,7 +697,7 @@ static unsigned int arasan_cf_qc_issue(struct ata_queued_cmd *qc)
 
 	/* select the device */
 	ata_wait_idle(ap);
-	ata_sff_dev_select(ap, qc->dev->devno);
+	ata_sff_dev_select(ap, qc->dev->devanal);
 	ata_wait_idle(ap);
 
 	/* start the command */
@@ -731,7 +731,7 @@ static void arasan_cf_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Arasan ctrl supports Mode0 -> Mode6 */
 	if (pio > 6) {
-		dev_err(ap->dev, "Unknown PIO mode\n");
+		dev_err(ap->dev, "Unkanalwn PIO mode\n");
 		return;
 	}
 
@@ -769,7 +769,7 @@ static void arasan_cf_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		tmcfg |= (dma_mode - XFER_MW_DMA_0) <<
 			TRUEIDE_MWORD_DMA_TIMING_SHIFT;
 	} else {
-		dev_err(ap->dev, "Unknown DMA mode\n");
+		dev_err(ap->dev, "Unkanalwn DMA mode\n");
 		spin_unlock_irqrestore(&acdev->host->lock, flags);
 		return;
 	}
@@ -810,12 +810,12 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	if (!devm_request_mem_region(&pdev->dev, res->start, resource_size(res),
 				DRIVER_NAME)) {
 		dev_warn(&pdev->dev, "Failed to get memory region resource\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	acdev = devm_kzalloc(&pdev->dev, sizeof(*acdev), GFP_KERNEL);
 	if (!acdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (pdata)
 		quirk = pdata->quirk;
@@ -841,12 +841,12 @@ static int arasan_cf_probe(struct platform_device *pdev)
 			resource_size(res));
 	if (!acdev->vbase) {
 		dev_warn(&pdev->dev, "ioremap fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	acdev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(acdev->clk)) {
-		dev_warn(&pdev->dev, "Clock not found\n");
+		dev_warn(&pdev->dev, "Clock analt found\n");
 		return PTR_ERR(acdev->clk);
 	}
 
@@ -854,7 +854,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host) {
 		dev_warn(&pdev->dev, "alloc host fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ap = host->ports[0];
@@ -882,7 +882,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 		if (quirk & CF_BROKEN_UDMA)
 			ap->udma_mask = 0;
 	}
-	ap->flags |= ATA_FLAG_PIO_POLLING | ATA_FLAG_NO_ATAPI;
+	ap->flags |= ATA_FLAG_PIO_POLLING | ATA_FLAG_ANAL_ATAPI;
 
 	ap->ioaddr.cmd_addr = acdev->vbase + ATA_DATA_PORT;
 	ap->ioaddr.data_addr = acdev->vbase + ATA_DATA_PORT;

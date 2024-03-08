@@ -14,10 +14,10 @@
 #include <linux/time64.h>
 
 /*
- * While not explicitly listed in the TLFS, Hyper-V always runs with a page size
+ * While analt explicitly listed in the TLFS, Hyper-V always runs with a page size
  * of 4096. These definitions are used when communicating with Hyper-V using
  * guest physical pages and guest physical page addresses, since the guest page
- * size may not be 4096 on all architectures.
+ * size may analt be 4096 on all architectures.
  */
 #define HV_HYP_PAGE_SHIFT      12
 #define HV_HYP_PAGE_SIZE       BIT(HV_HYP_PAGE_SHIFT)
@@ -29,12 +29,12 @@
  * to guests on this particular instance of Hyper-V. The "Features"
  * are presented in four groups, each of which is 32 bits. The group A
  * and B definitions are common across architectures and are listed here.
- * However, not all flags are relevant on all architectures.
+ * However, analt all flags are relevant on all architectures.
  *
  * Groups C and D vary across architectures and are listed in the
  * architecture specific portion of hyperv-tlfs.h. Some of these flags exist
  * on multiple architectures, but the bit positions are different so they
- * cannot appear in the generic portion of hyperv-tlfs.h.
+ * cananalt appear in the generic portion of hyperv-tlfs.h.
  *
  * The "Enlightenments" category provides recommendations on whether to use
  * specific enlightenments that are available. The Enlighenments are a single
@@ -118,7 +118,7 @@ union hv_reference_tsc_msr {
  *
  * msdn.microsoft.com/en-us/library/windows/hardware/ff542653%28v=vs.85%29.aspx
  *
- * While the current guideline does not specify how Linux guest ID(s)
+ * While the current guideline does analt specify how Linux guest ID(s)
  * need to be generated, our plan is to publish the guidelines for
  * Linux and other guest operating systems that currently are hosted
  * on Hyper-V. The implementation here conforms to this yet
@@ -126,7 +126,7 @@ union hv_reference_tsc_msr {
  *
  *
  * Bit(s)
- * 63 - Indicates if the OS is Open Source or not; 1 is Open Source
+ * 63 - Indicates if the OS is Open Source or analt; 1 is Open Source
  * 62:56 - Os Type; Linux is 0x100
  * 55:48 - Distro specific identification
  * 47:16 - Linux kernel version number
@@ -138,16 +138,16 @@ union hv_reference_tsc_msr {
 #define HV_LINUX_VENDOR_ID              0x8100
 
 /*
- * Crash notification flags.
+ * Crash analtification flags.
  */
-#define HV_CRASH_CTL_CRASH_NOTIFY_MSG		BIT_ULL(62)
-#define HV_CRASH_CTL_CRASH_NOTIFY		BIT_ULL(63)
+#define HV_CRASH_CTL_CRASH_ANALTIFY_MSG		BIT_ULL(62)
+#define HV_CRASH_CTL_CRASH_ANALTIFY		BIT_ULL(63)
 
 /* Declare the various hypercall operations. */
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE	0x0002
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST	0x0003
 #define HVCALL_ENABLE_VP_VTL			0x000f
-#define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_ANALTIFY_LONG_SPIN_WAIT		0x0008
 #define HVCALL_SEND_IPI				0x000b
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX	0x0013
 #define HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX	0x0014
@@ -180,7 +180,7 @@ union hv_reference_tsc_msr {
 
 #define HV_FLUSH_ALL_PROCESSORS			BIT(0)
 #define HV_FLUSH_ALL_VIRTUAL_ADDRESS_SPACES	BIT(1)
-#define HV_FLUSH_NON_GLOBAL_MAPPINGS_ONLY	BIT(2)
+#define HV_FLUSH_ANALN_GLOBAL_MAPPINGS_ONLY	BIT(2)
 #define HV_FLUSH_USE_EXTENDED_RANGE_FORMAT	BIT(3)
 
 /* Extended capability bits */
@@ -255,20 +255,20 @@ enum HV_GENERIC_SET_FORMAT {
 
 /*
  * Define hypervisor message types. Some of the message types
- * are x86/x64 specific, but there's no good way to separate
+ * are x86/x64 specific, but there's anal good way to separate
  * them out into the arch-specific version of hyperv-tlfs.h
  * because C doesn't provide a way to extend enum types.
  * Keeping them all in the arch neutral hyperv-tlfs.h seems
  * the least messy compromise.
  */
 enum hv_message_type {
-	HVMSG_NONE			= 0x00000000,
+	HVMSG_ANALNE			= 0x00000000,
 
 	/* Memory access messages. */
 	HVMSG_UNMAPPED_GPA		= 0x80000000,
 	HVMSG_GPA_INTERCEPT		= 0x80000001,
 
-	/* Timer notification messages. */
+	/* Timer analtification messages. */
 	HVMSG_TIMER_EXPIRED		= 0x80000010,
 
 	/* Error messages. */
@@ -512,7 +512,7 @@ struct hv_proximity_domain_flags {
 	u32 proximity_info_valid : 1;
 } __packed;
 
-/* Not a union in windows but useful for zeroing */
+/* Analt a union in windows but useful for zeroing */
 union hv_proximity_domain_info {
 	struct {
 		u32 domain_id;
@@ -543,14 +543,14 @@ struct hv_add_logical_processor_out {
 	struct hv_lp_startup_status startup_status;
 } __packed;
 
-enum HV_SUBNODE_TYPE
+enum HV_SUBANALDE_TYPE
 {
-    HvSubnodeAny = 0,
-    HvSubnodeSocket = 1,
-    HvSubnodeAmdNode = 2,
-    HvSubnodeL3 = 3,
-    HvSubnodeCount = 4,
-    HvSubnodeInvalid = -1
+    HvSubanaldeAny = 0,
+    HvSubanaldeSocket = 1,
+    HvSubanaldeAmdAnalde = 2,
+    HvSubanaldeL3 = 3,
+    HvSubanaldeCount = 4,
+    HvSubanaldeInvalid = -1
 };
 
 /* HvCreateVp hypercall */
@@ -558,8 +558,8 @@ struct hv_create_vp {
 	u64 partition_id;
 	u32 vp_index;
 	u8 padding[3];
-	u8 subnode_type;
-	u64 subnode_id;
+	u8 subanalde_type;
+	u64 subanalde_id;
 	union hv_proximity_domain_info proximity_domain_info;
 	u64 flags;
 } __packed;
@@ -784,7 +784,7 @@ struct hv_input_unmap_device_interrupt {
 	struct hv_interrupt_entry interrupt_entry;
 } __packed;
 
-#define HV_SOURCE_SHADOW_NONE               0x0
+#define HV_SOURCE_SHADOW_ANALNE               0x0
 #define HV_SOURCE_SHADOW_BRIDGE_BUS_RANGE   0x1
 
 /*

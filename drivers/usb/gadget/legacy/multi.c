@@ -3,7 +3,7 @@
  * multi.c -- Multifunction Composite driver
  *
  * Copyright (C) 2008 David Brownell
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  * Copyright (C) 2009 Samsung Electronics
  * Author: Michal Nazarewicz (mina86@mina86.com)
  */
@@ -49,7 +49,7 @@ USB_ETHERNET_MODULE_PARAMETERS();
 
 
 enum {
-	__MULTI_NO_CONFIG,
+	__MULTI_ANAL_CONFIG,
 #ifdef CONFIG_USB_G_MULTI_RNDIS
 	MULTI_RNDIS_CONFIG_NUM,
 #endif
@@ -112,13 +112,13 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eanalugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
+FSG_MODULE_PARAMETERS(/* anal prefix */, fsg_mod_data);
 
 static struct usb_function_instance *fi_acm;
 static struct usb_function_instance *fi_msg;
@@ -305,7 +305,7 @@ static int multi_bind(struct usb_composite_dev *cdev)
 	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
-		dev_err(&gadget->dev, "controller '%s' not usable\n",
+		dev_err(&gadget->dev, "controller '%s' analt usable\n",
 			gadget->name);
 		return -EINVAL;
 	}
@@ -344,7 +344,7 @@ static int multi_bind(struct usb_composite_dev *cdev)
 	/*
 	 * If both ecm and rndis are selected then:
 	 *	1) rndis borrows the net interface from ecm
-	 *	2) since the interface is shared it must not be bound
+	 *	2) since the interface is shared it must analt be bound
 	 *	twice - in ecm's _and_ rndis' binds, so do it here.
 	 */
 	gether_set_gadget(ecm_opts->net, cdev->gadget);
@@ -372,7 +372,7 @@ static int multi_bind(struct usb_composite_dev *cdev)
 	fsg_config_from_params(&config, &fsg_mod_data, fsg_num_buffers);
 	fsg_opts = fsg_opts_from_func_inst(fi_msg);
 
-	fsg_opts->no_configfs = true;
+	fsg_opts->anal_configfs = true;
 	status = fsg_common_set_num_buffers(fsg_opts->common, fsg_num_buffers);
 	if (status)
 		goto fail2;
@@ -400,7 +400,7 @@ static int multi_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail_string_ids;
 		}
 		usb_otg_descriptor_init(gadget, usb_desc);
@@ -477,7 +477,7 @@ static int multi_unbind(struct usb_composite_dev *cdev)
 }
 
 
-/****************************** Some noise ******************************/
+/****************************** Some analise ******************************/
 
 
 static struct usb_composite_driver multi_driver = {

@@ -83,7 +83,7 @@ static int udl_parse_vendor_descriptor(struct udl_device *udl)
 	goto success;
 
 unrecognized:
-	/* allow udlfb to load for now even if firmware unrecognized */
+	/* allow udlfb to load for analw even if firmware unrecognized */
 	DRM_ERROR("Unrecognized vendor firmware descriptor\n");
 
 success:
@@ -107,7 +107,7 @@ int udl_select_std_channel(struct udl_device *udl)
 
 	sendbuf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
 	if (!sendbuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      NR_USB_REQUEST_CHANNEL,
@@ -120,17 +120,17 @@ int udl_select_std_channel(struct udl_device *udl)
 
 void udl_urb_completion(struct urb *urb)
 {
-	struct urb_node *unode = urb->context;
-	struct udl_device *udl = unode->dev;
+	struct urb_analde *uanalde = urb->context;
+	struct udl_device *udl = uanalde->dev;
 	unsigned long flags;
 
 	/* sync/async unlink faults aren't errors */
 	if (urb->status) {
-		if (!(urb->status == -ENOENT ||
+		if (!(urb->status == -EANALENT ||
 		    urb->status == -ECONNRESET ||
 		    urb->status == -EPROTO ||
 		    urb->status == -ESHUTDOWN)) {
-			DRM_ERROR("%s - nonzero write bulk status received: %d\n",
+			DRM_ERROR("%s - analnzero write bulk status received: %d\n",
 				__func__, urb->status);
 		}
 	}
@@ -138,7 +138,7 @@ void udl_urb_completion(struct urb *urb)
 	urb->transfer_buffer_length = udl->urbs.size; /* reset to actual */
 
 	spin_lock_irqsave(&udl->urbs.lock, flags);
-	list_add_tail(&unode->entry, &udl->urbs.list);
+	list_add_tail(&uanalde->entry, &udl->urbs.list);
 	udl->urbs.available++;
 	spin_unlock_irqrestore(&udl->urbs.lock, flags);
 
@@ -148,7 +148,7 @@ void udl_urb_completion(struct urb *urb)
 static void udl_free_urb_list(struct drm_device *dev)
 {
 	struct udl_device *udl = to_udl(dev);
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 	struct urb *urb;
 
 	DRM_DEBUG("Waiting for completes and freeing all render urbs\n");
@@ -161,12 +161,12 @@ static void udl_free_urb_list(struct drm_device *dev)
 		spin_unlock_irq(&udl->urbs.lock);
 		if (WARN_ON(!urb))
 			break;
-		unode = urb->context;
+		uanalde = urb->context;
 		/* Free each separately allocated piece */
 		usb_free_coherent(urb->dev, udl->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		kfree(unode);
+		kfree(uanalde);
 	}
 
 	wake_up_all(&udl->urbs.sleep);
@@ -176,7 +176,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 {
 	struct udl_device *udl = to_udl(dev);
 	struct urb *urb;
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 	char *buf;
 	size_t wanted_size = count * size;
 	struct usb_device *udev = udl_to_usb_device(udl);
@@ -191,22 +191,22 @@ retry:
 	udl->urbs.size = size;
 
 	while (udl->urbs.count * size < wanted_size) {
-		unode = kzalloc(sizeof(struct urb_node), GFP_KERNEL);
-		if (!unode)
+		uanalde = kzalloc(sizeof(struct urb_analde), GFP_KERNEL);
+		if (!uanalde)
 			break;
-		unode->dev = udl;
+		uanalde->dev = udl;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			kfree(unode);
+			kfree(uanalde);
 			break;
 		}
-		unode->urb = urb;
+		uanalde->urb = urb;
 
 		buf = usb_alloc_coherent(udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			kfree(unode);
+			kfree(uanalde);
 			usb_free_urb(urb);
 			if (size > PAGE_SIZE) {
 				size /= 2;
@@ -218,10 +218,10 @@ retry:
 
 		/* urb->transfer_buffer_length set to actual before submit */
 		usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, 1),
-				  buf, size, udl_urb_completion, unode);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+				  buf, size, udl_urb_completion, uanalde);
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
-		list_add_tail(&unode->entry, &udl->urbs.list);
+		list_add_tail(&uanalde->entry, &udl->urbs.list);
 
 		udl->urbs.count++;
 		udl->urbs.available++;
@@ -234,7 +234,7 @@ retry:
 
 static struct urb *udl_get_urb_locked(struct udl_device *udl, long timeout)
 {
-	struct urb_node *unode;
+	struct urb_analde *uanalde;
 
 	assert_spin_locked(&udl->urbs.lock);
 
@@ -251,11 +251,11 @@ static struct urb *udl_get_urb_locked(struct udl_device *udl, long timeout)
 	if (!udl->urbs.count)
 		return NULL;
 
-	unode = list_first_entry(&udl->urbs.list, struct urb_node, entry);
-	list_del_init(&unode->entry);
+	uanalde = list_first_entry(&udl->urbs.list, struct urb_analde, entry);
+	list_del_init(&uanalde->entry);
 	udl->urbs.available--;
 
-	return unode->urb;
+	return uanalde->urb;
 }
 
 #define GET_URB_TIMEOUT	HZ
@@ -283,7 +283,7 @@ int udl_submit_urb(struct drm_device *dev, struct urb *urb, size_t len)
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
  error:
 	if (ret) {
-		udl_urb_completion(urb); /* because no one else will */
+		udl_urb_completion(urb); /* because anal one else will */
 		DRM_ERROR("usb_submit_urb error %x\n", ret);
 	}
 	return ret;
@@ -307,19 +307,19 @@ void udl_sync_pending_urbs(struct drm_device *dev)
 int udl_init(struct udl_device *udl)
 {
 	struct drm_device *dev = &udl->drm;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	DRM_DEBUG("\n");
 
 	udl->dmadev = usb_intf_get_dma_device(to_usb_interface(dev->dev));
 	if (!udl->dmadev)
-		drm_warn(dev, "buffer sharing not supported"); /* not an error */
+		drm_warn(dev, "buffer sharing analt supported"); /* analt an error */
 
 	mutex_init(&udl->gem_lock);
 
 	if (!udl_parse_vendor_descriptor(udl)) {
-		ret = -ENODEV;
-		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
+		ret = -EANALDEV;
+		DRM_ERROR("firmware analt recognized. Assume incompatible device\n");
 		goto err;
 	}
 

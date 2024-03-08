@@ -228,7 +228,7 @@ static int mantix_get_modes(struct drm_panel *panel,
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			ctx->default_mode->hdisplay, ctx->default_mode->vdisplay,
 			drm_mode_vrefresh(ctx->default_mode));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	drm_mode_set_name(mode);
@@ -261,18 +261,18 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->default_mode = of_device_get_match_data(dev);
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "cananalt get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
 	ctx->tp_rstn_gpio = devm_gpiod_get(dev, "mantix,tp-rstn", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->tp_rstn_gpio)) {
-		dev_err(dev, "cannot get tp-rstn gpio\n");
+		dev_err(dev, "cananalt get tp-rstn gpio\n");
 		return PTR_ERR(ctx->tp_rstn_gpio);
 	}
 

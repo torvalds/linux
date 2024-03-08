@@ -198,7 +198,7 @@ static uint32_t g98_sec_code[] = {
 /* 0x009f: dummyload */
 	0xf0f018f4,
 	0x35d00257,
-/* 0x00a5: noctx */
+/* 0x00a5: analctx */
 	0x0412c480,
 	0xf50024b0,
 	0xf100df0b,
@@ -264,7 +264,7 @@ static uint32_t g98_sec_code[] = {
 /* 0x0180: cmddone */
 	0x1d0037f1,
 	0xd00147f0,
-/* 0x018a: nocmd */
+/* 0x018a: analcmd */
 	0x11c40034,
 	0x4001d00c,
 /* 0x0192: cmd_query_get */
@@ -506,11 +506,11 @@ static uint32_t g98_sec_code[] = {
 	0x03f8013c,
 	0xb81070b6,
 	0x1bf40473,
-/* 0x04db: sec_do_inout */
+/* 0x04db: sec_do_ianalut */
 	0xbb00f8e8,
 	0x97f10035,
 	0x93f00080,
-/* 0x04e5: sec_do_inout_loop */
+/* 0x04e5: sec_do_ianalut_loop */
 	0x0047fe02,
 	0xf80559fa,
 	0x213cf403,

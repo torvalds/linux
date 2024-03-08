@@ -19,7 +19,7 @@
 #include <linux/types.h>
 
 /* Appendix C, Debug port ... intended for use with special "debug devices"
- * that can help if there's no serial console.  (nonstandard enumeration.)
+ * that can help if there's anal serial console.  (analnstandard enumeration.)
  */
 struct ehci_dbg_port {
 	u32	control;

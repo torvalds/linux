@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
@@ -20,8 +20,8 @@
 #include <asm/syscalls.h>
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way Unix traditionally does this, though.
+ * sys_pipe() is the analrmal C calling standard for creating
+ * a pipe. It's analt the way Unix traditionally does this, though.
  */
 asmlinkage int sys_sh_pipe(void)
 {

@@ -142,7 +142,7 @@ void __flush_ptrace_access(struct page *page, unsigned long uaddr, void *kaddr,
 		return;
 	}
 
-	/* VIPT non-aliasing D-cache */
+	/* VIPT analn-aliasing D-cache */
 	if (flags & FLAG_PA_IS_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
 		if (icache_is_vipt_aliasing())
@@ -180,7 +180,7 @@ void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
  * processes address space.  Really, we want to allow our "user
  * space" model to handle this.
  *
- * Note that this code needs to run on the current CPU.
+ * Analte that this code needs to run on the current CPU.
  */
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		       unsigned long uaddr, void *dst, const void *src,
@@ -208,7 +208,7 @@ void __flush_dcache_folio(struct address_space *mapping, struct folio *folio)
 					folio_size(folio));
 	} else {
 		unsigned long i;
-		if (cache_is_vipt_nonaliasing()) {
+		if (cache_is_vipt_analnaliasing()) {
 			for (i = 0; i < folio_nr_pages(folio); i++) {
 				void *addr = kmap_local_folio(folio,
 								i * PAGE_SIZE);
@@ -256,7 +256,7 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct folio *
 		unsigned int nr;
 
 		/*
-		 * If this VMA is not in our MM, we can ignore it.
+		 * If this VMA is analt in our MM, we can iganalre it.
 		 */
 		if (vma->vm_mm != mm)
 			continue;
@@ -288,8 +288,8 @@ void __sync_icache_dcache(pte_t pteval)
 	struct folio *folio;
 	struct address_space *mapping;
 
-	if (cache_is_vipt_nonaliasing() && !pte_exec(pteval))
-		/* only flush non-aliasing VIPT caches for exec mappings */
+	if (cache_is_vipt_analnaliasing() && !pte_exec(pteval))
+		/* only flush analn-aliasing VIPT caches for exec mappings */
 		return;
 	pfn = pte_pfn(pteval);
 	if (!pfn_valid(pfn))
@@ -314,19 +314,19 @@ void __sync_icache_dcache(pte_t pteval)
  * of this page.
  *
  * We have three cases to consider:
- *  - VIPT non-aliasing cache: fully coherent so nothing required.
+ *  - VIPT analn-aliasing cache: fully coherent so analthing required.
  *  - VIVT: fully aliasing, so we need to handle every alias in our
  *          current VM view.
  *  - VIPT aliasing: need to handle one alias in our current VM view.
  *
  * If we need to handle aliasing:
- *  If the page only exists in the page cache and there are no user
+ *  If the page only exists in the page cache and there are anal user
  *  space mappings, we can be lazy and remember that we may have dirty
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
  *
- * Note that we disable the lazy flush for SMP configurations where
- * the cache maintenance operations are not automatically broadcasted.
+ * Analte that we disable the lazy flush for SMP configurations where
+ * the cache maintenance operations are analt automatically broadcasted.
  */
 void flush_dcache_folio(struct folio *folio)
 {
@@ -339,7 +339,7 @@ void flush_dcache_folio(struct folio *folio)
 	if (is_zero_pfn(folio_pfn(folio)))
 		return;
 
-	if (!cache_ops_need_broadcast() && cache_is_vipt_nonaliasing()) {
+	if (!cache_ops_need_broadcast() && cache_is_vipt_analnaliasing()) {
 		if (test_bit(PG_dcache_clean, &folio->flags))
 			clear_bit(PG_dcache_clean, &folio->flags);
 		return;
@@ -367,21 +367,21 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 /*
- * Flush an anonymous page so that users of get_user_pages()
+ * Flush an aanalnymous page so that users of get_user_pages()
  * can safely access the data.  The expected sequence is:
  *
  *  get_user_pages()
- *    -> flush_anon_page
+ *    -> flush_aanaln_page
  *  memcpy() to/from page
  *  if written to page, flush_dcache_page()
  */
-void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
-void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+void __flush_aanaln_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
+void __flush_aanaln_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 	unsigned long pfn;
 
-	/* VIPT non-aliasing caches need do nothing */
-	if (cache_is_vipt_nonaliasing())
+	/* VIPT analn-aliasing caches need do analthing */
+	if (cache_is_vipt_analnaliasing())
 		return;
 
 	/*
@@ -400,7 +400,7 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 	}
 
 	/*
-	 * Invalidate kernel mapping.  No data should be contained
+	 * Invalidate kernel mapping.  Anal data should be contained
 	 * in this mapping of the page.  FIXME: this is overkill
 	 * since we actually ask for a write-back and invalidate.
 	 */

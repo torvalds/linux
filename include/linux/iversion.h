@@ -5,16 +5,16 @@
 #include <linux/fs.h>
 
 /*
- * The inode->i_version field:
+ * The ianalde->i_version field:
  * ---------------------------
  * The change attribute (i_version) is mandated by NFSv4 and is mostly for
  * knfsd, but is also used for other purposes (e.g. IMA). The i_version must
- * appear larger to observers if there was an explicit change to the inode's
+ * appear larger to observers if there was an explicit change to the ianalde's
  * data or metadata since it was last queried.
  *
  * An explicit change is one that would ordinarily result in a change to the
- * inode status change time (aka ctime). i_version must appear to change, even
- * if the ctime does not (since the whole point is to avoid missing updates due
+ * ianalde status change time (aka ctime). i_version must appear to change, even
+ * if the ctime does analt (since the whole point is to avoid missing updates due
  * to timestamp granularity). If POSIX or other relevant spec mandates that the
  * ctime must change due to an operation, then the i_version counter must be
  * incremented as well.
@@ -27,23 +27,23 @@
  * associate a new timestamp with old file contents. Since the purpose of the
  * i_version is to allow for better cache coherency, the i_version must always
  * be updated after the results of the operation are visible. Updating it before
- * and after a change is also permitted. (Note that no filesystems currently do
+ * and after a change is also permitted. (Analte that anal filesystems currently do
  * this. Fixing that is a work-in-progress).
  *
  * Observers see the i_version as a 64-bit number that never decreases. If it
- * remains the same since it was last checked, then nothing has changed in the
- * inode. If it's different then something has changed. Observers cannot infer
+ * remains the same since it was last checked, then analthing has changed in the
+ * ianalde. If it's different then something has changed. Observers cananalt infer
  * anything about the nature or magnitude of the changes from the value, only
- * that the inode has changed in some fashion.
+ * that the ianalde has changed in some fashion.
  *
- * Not all filesystems properly implement the i_version counter. Subsystems that
- * want to use i_version field on an inode should first check whether the
+ * Analt all filesystems properly implement the i_version counter. Subsystems that
+ * want to use i_version field on an ianalde should first check whether the
  * filesystem sets the SB_I_VERSION flag (usually via the IS_I_VERSION macro).
  *
  * Those that set SB_I_VERSION will automatically have their i_version counter
- * incremented on writes to normal files. If the SB_I_VERSION is not set, then
- * the VFS will not touch it on writes, and the filesystem can use it how it
- * wishes. Note that the filesystem is always responsible for updating the
+ * incremented on writes to analrmal files. If the SB_I_VERSION is analt set, then
+ * the VFS will analt touch it on writes, and the filesystem can use it how it
+ * wishes. Analte that the filesystem is always responsible for updating the
  * i_version on namespace changes in directories (mkdir, rmdir, unlink, etc.).
  * We consider these sorts of filesystems to have a kernel-managed i_version.
  *
@@ -54,7 +54,7 @@
  * the original change to reach disk.
  *
  * This implementation uses the low bit in the i_version field as a flag to
- * track when the value has been queried. If it has not been queried since it
+ * track when the value has been queried. If it has analt been queried since it
  * was last incremented, we can skip the increment in most cases.
  *
  * In the event that we're updating the ctime, we will usually go ahead and
@@ -63,27 +63,27 @@
  *
  * With this implementation, the value should always appear to observers to
  * increase over time if the file has changed. It's recommended to use
- * inode_eq_iversion() helper to compare values.
+ * ianalde_eq_iversion() helper to compare values.
  *
- * Note that some filesystems (e.g. NFS and AFS) just use the field to store
+ * Analte that some filesystems (e.g. NFS and AFS) just use the field to store
  * a server-provided value (for the most part). For that reason, those
- * filesystems do not set SB_I_VERSION. These filesystems are considered to
+ * filesystems do analt set SB_I_VERSION. These filesystems are considered to
  * have a self-managed i_version.
  *
  * Persistently storing the i_version
  * ----------------------------------
- * Queries of the i_version field are not gated on them hitting the backing
+ * Queries of the i_version field are analt gated on them hitting the backing
  * store. It's always possible that the host could crash after allowing
  * a query of the value but before it has made it to disk.
  *
  * To mitigate this problem, filesystems should always use
- * inode_set_iversion_queried when loading an existing inode from disk. This
- * ensures that the next attempted inode increment will result in the value
+ * ianalde_set_iversion_queried when loading an existing ianalde from disk. This
+ * ensures that the next attempted ianalde increment will result in the value
  * changing.
  *
- * Storing the value to disk therefore does not count as a query, so those
- * filesystems should use inode_peek_iversion to grab the value to be stored.
- * There is no need to flag the value as having been queried in that case.
+ * Storing the value to disk therefore does analt count as a query, so those
+ * filesystems should use ianalde_peek_iversion to grab the value to be stored.
+ * There is anal need to flag the value as having been queried in that case.
  */
 
 /*
@@ -97,27 +97,27 @@
 #define I_VERSION_INCREMENT	(1ULL << I_VERSION_QUERIED_SHIFT)
 
 /**
- * inode_set_iversion_raw - set i_version to the specified raw value
- * @inode: inode to set
+ * ianalde_set_iversion_raw - set i_version to the specified raw value
+ * @ianalde: ianalde to set
  * @val: new i_version value to set
  *
- * Set @inode's i_version field to @val. This function is for use by
+ * Set @ianalde's i_version field to @val. This function is for use by
  * filesystems that self-manage the i_version.
  *
  * For example, the NFS client stores its NFSv4 change attribute in this way,
  * and the AFS client stores the data_version from the server here.
  */
 static inline void
-inode_set_iversion_raw(struct inode *inode, u64 val)
+ianalde_set_iversion_raw(struct ianalde *ianalde, u64 val)
 {
-	atomic64_set(&inode->i_version, val);
+	atomic64_set(&ianalde->i_version, val);
 }
 
 /**
- * inode_peek_iversion_raw - grab a "raw" iversion value
- * @inode: inode from which i_version should be read
+ * ianalde_peek_iversion_raw - grab a "raw" iversion value
+ * @ianalde: ianalde from which i_version should be read
  *
- * Grab a "raw" inode->i_version value and return it. The i_version is not
+ * Grab a "raw" ianalde->i_version value and return it. The i_version is analt
  * flagged or converted in any way. This is mostly used to access a self-managed
  * i_version.
  *
@@ -125,102 +125,102 @@ inode_set_iversion_raw(struct inode *inode, u64 val)
  * opaque value.
  */
 static inline u64
-inode_peek_iversion_raw(const struct inode *inode)
+ianalde_peek_iversion_raw(const struct ianalde *ianalde)
 {
-	return atomic64_read(&inode->i_version);
+	return atomic64_read(&ianalde->i_version);
 }
 
 /**
- * inode_set_max_iversion_raw - update i_version new value is larger
- * @inode: inode to set
+ * ianalde_set_max_iversion_raw - update i_version new value is larger
+ * @ianalde: ianalde to set
  * @val: new i_version to set
  *
  * Some self-managed filesystems (e.g Ceph) will only update the i_version
  * value if the new value is larger than the one we already have.
  */
 static inline void
-inode_set_max_iversion_raw(struct inode *inode, u64 val)
+ianalde_set_max_iversion_raw(struct ianalde *ianalde, u64 val)
 {
-	u64 cur = inode_peek_iversion_raw(inode);
+	u64 cur = ianalde_peek_iversion_raw(ianalde);
 
 	do {
 		if (cur > val)
 			break;
-	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, val));
+	} while (!atomic64_try_cmpxchg(&ianalde->i_version, &cur, val));
 }
 
 /**
- * inode_set_iversion - set i_version to a particular value
- * @inode: inode to set
+ * ianalde_set_iversion - set i_version to a particular value
+ * @ianalde: ianalde to set
  * @val: new i_version value to set
  *
- * Set @inode's i_version field to @val. This function is for filesystems with
- * a kernel-managed i_version, for initializing a newly-created inode from
+ * Set @ianalde's i_version field to @val. This function is for filesystems with
+ * a kernel-managed i_version, for initializing a newly-created ianalde from
  * scratch.
  *
- * In this case, we do not set the QUERIED flag since we know that this value
+ * In this case, we do analt set the QUERIED flag since we kanalw that this value
  * has never been queried.
  */
 static inline void
-inode_set_iversion(struct inode *inode, u64 val)
+ianalde_set_iversion(struct ianalde *ianalde, u64 val)
 {
-	inode_set_iversion_raw(inode, val << I_VERSION_QUERIED_SHIFT);
+	ianalde_set_iversion_raw(ianalde, val << I_VERSION_QUERIED_SHIFT);
 }
 
 /**
- * inode_set_iversion_queried - set i_version to a particular value as quereied
- * @inode: inode to set
+ * ianalde_set_iversion_queried - set i_version to a particular value as quereied
+ * @ianalde: ianalde to set
  * @val: new i_version value to set
  *
- * Set @inode's i_version field to @val, and flag it for increment on the next
+ * Set @ianalde's i_version field to @val, and flag it for increment on the next
  * change.
  *
  * Filesystems that persistently store the i_version on disk should use this
- * when loading an existing inode from disk.
+ * when loading an existing ianalde from disk.
  *
  * When loading in an i_version value from a backing store, we can't be certain
  * that it wasn't previously viewed before being stored. Thus, we must assume
  * that it was, to ensure that we don't end up handing out the same value for
- * different versions of the same inode.
+ * different versions of the same ianalde.
  */
 static inline void
-inode_set_iversion_queried(struct inode *inode, u64 val)
+ianalde_set_iversion_queried(struct ianalde *ianalde, u64 val)
 {
-	inode_set_iversion_raw(inode, (val << I_VERSION_QUERIED_SHIFT) |
+	ianalde_set_iversion_raw(ianalde, (val << I_VERSION_QUERIED_SHIFT) |
 				I_VERSION_QUERIED);
 }
 
-bool inode_maybe_inc_iversion(struct inode *inode, bool force);
+bool ianalde_maybe_inc_iversion(struct ianalde *ianalde, bool force);
 
 /**
- * inode_inc_iversion - forcibly increment i_version
- * @inode: inode that needs to be updated
+ * ianalde_inc_iversion - forcibly increment i_version
+ * @ianalde: ianalde that needs to be updated
  *
  * Forcbily increment the i_version field. This always results in a change to
  * the observable value.
  */
 static inline void
-inode_inc_iversion(struct inode *inode)
+ianalde_inc_iversion(struct ianalde *ianalde)
 {
-	inode_maybe_inc_iversion(inode, true);
+	ianalde_maybe_inc_iversion(ianalde, true);
 }
 
 /**
- * inode_iversion_need_inc - is the i_version in need of being incremented?
- * @inode: inode to check
+ * ianalde_iversion_need_inc - is the i_version in need of being incremented?
+ * @ianalde: ianalde to check
  *
- * Returns whether the inode->i_version counter needs incrementing on the next
+ * Returns whether the ianalde->i_version counter needs incrementing on the next
  * change. Just fetch the value and check the QUERIED flag.
  */
 static inline bool
-inode_iversion_need_inc(struct inode *inode)
+ianalde_iversion_need_inc(struct ianalde *ianalde)
 {
-	return inode_peek_iversion_raw(inode) & I_VERSION_QUERIED;
+	return ianalde_peek_iversion_raw(ianalde) & I_VERSION_QUERIED;
 }
 
 /**
- * inode_inc_iversion_raw - forcibly increment raw i_version
- * @inode: inode that needs to be updated
+ * ianalde_inc_iversion_raw - forcibly increment raw i_version
+ * @ianalde: ianalde that needs to be updated
  *
  * Forcbily increment the raw i_version field. This always results in a change
  * to the raw value.
@@ -230,26 +230,26 @@ inode_iversion_need_inc(struct inode *inode)
  * delegation, it must increment the value itself. This function does that.
  */
 static inline void
-inode_inc_iversion_raw(struct inode *inode)
+ianalde_inc_iversion_raw(struct ianalde *ianalde)
 {
-	atomic64_inc(&inode->i_version);
+	atomic64_inc(&ianalde->i_version);
 }
 
 /**
- * inode_peek_iversion - read i_version without flagging it to be incremented
- * @inode: inode from which i_version should be read
+ * ianalde_peek_iversion - read i_version without flagging it to be incremented
+ * @ianalde: ianalde from which i_version should be read
  *
- * Read the inode i_version counter for an inode without registering it as a
+ * Read the ianalde i_version counter for an ianalde without registering it as a
  * query.
  *
  * This is typically used by local filesystems that need to store an i_version
- * on disk. In that situation, it's not necessary to flag it as having been
+ * on disk. In that situation, it's analt necessary to flag it as having been
  * viewed, as the result won't be used to gauge changes from that point.
  */
 static inline u64
-inode_peek_iversion(const struct inode *inode)
+ianalde_peek_iversion(const struct ianalde *ianalde)
 {
-	return inode_peek_iversion_raw(inode) >> I_VERSION_QUERIED_SHIFT;
+	return ianalde_peek_iversion_raw(ianalde) >> I_VERSION_QUERIED_SHIFT;
 }
 
 /*
@@ -265,36 +265,36 @@ static inline u64 time_to_chattr(const struct timespec64 *t)
 	return chattr;
 }
 
-u64 inode_query_iversion(struct inode *inode);
+u64 ianalde_query_iversion(struct ianalde *ianalde);
 
 /**
- * inode_eq_iversion_raw - check whether the raw i_version counter has changed
- * @inode: inode to check
+ * ianalde_eq_iversion_raw - check whether the raw i_version counter has changed
+ * @ianalde: ianalde to check
  * @old: old value to check against its i_version
  *
  * Compare the current raw i_version counter with a previous one. Returns true
  * if they are the same or false if they are different.
  */
 static inline bool
-inode_eq_iversion_raw(const struct inode *inode, u64 old)
+ianalde_eq_iversion_raw(const struct ianalde *ianalde, u64 old)
 {
-	return inode_peek_iversion_raw(inode) == old;
+	return ianalde_peek_iversion_raw(ianalde) == old;
 }
 
 /**
- * inode_eq_iversion - check whether the i_version counter has changed
- * @inode: inode to check
+ * ianalde_eq_iversion - check whether the i_version counter has changed
+ * @ianalde: ianalde to check
  * @old: old value to check against its i_version
  *
  * Compare an i_version counter with a previous one. Returns true if they are
  * the same, and false if they are different.
  *
- * Note that we don't need to set the QUERIED flag in this case, as the value
- * in the inode is not being recorded for later use.
+ * Analte that we don't need to set the QUERIED flag in this case, as the value
+ * in the ianalde is analt being recorded for later use.
  */
 static inline bool
-inode_eq_iversion(const struct inode *inode, u64 old)
+ianalde_eq_iversion(const struct ianalde *ianalde, u64 old)
 {
-	return inode_peek_iversion(inode) == old;
+	return ianalde_peek_iversion(ianalde) == old;
 }
 #endif

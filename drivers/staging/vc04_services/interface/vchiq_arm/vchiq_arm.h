@@ -41,7 +41,7 @@ struct user_service {
 	struct vchiq_header *msg_queue[MSG_QUEUE_SIZE];
 };
 
-struct bulk_waiter_node {
+struct bulk_waiter_analde {
 	struct bulk_waiter bulk_waiter;
 	int pid;
 	struct list_head list;
@@ -66,7 +66,7 @@ struct vchiq_instance {
 	struct list_head bulk_waiter_list;
 	struct mutex bulk_waiter_list_mutex;
 
-	struct vchiq_debugfs_node debugfs_node;
+	struct vchiq_debugfs_analde debugfs_analde;
 };
 
 extern spinlock_t msg_queue_spinlock;
@@ -97,8 +97,8 @@ extern int
 vchiq_release_internal(struct vchiq_state *state,
 		       struct vchiq_service *service);
 
-extern struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(struct vchiq_instance *instance);
+extern struct vchiq_debugfs_analde *
+vchiq_instance_get_debugfs_analde(struct vchiq_instance *instance);
 
 extern int
 vchiq_instance_get_use_count(struct vchiq_instance *instance);

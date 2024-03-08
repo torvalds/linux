@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -127,13 +127,13 @@ static const struct ast_vhub_full_cdesc ast_vhub_conf_desc = {
 	},
 };
 
-#define AST_VHUB_HUB_DESC_SIZE	(USB_DT_HUB_NONVAR_SIZE + 2)
+#define AST_VHUB_HUB_DESC_SIZE	(USB_DT_HUB_ANALNVAR_SIZE + 2)
 
 static const struct usb_hub_descriptor ast_vhub_hub_desc = {
 	.bDescLength			= AST_VHUB_HUB_DESC_SIZE,
 	.bDescriptorType		= USB_DT_HUB,
 	.bNbrPorts			= AST_VHUB_NUM_PORTS,
-	.wHubCharacteristics		= cpu_to_le16(HUB_CHAR_NO_LPSM),
+	.wHubCharacteristics		= cpu_to_le16(HUB_CHAR_ANAL_LPSM),
 	.bPwrOn2PwrGood			= 10,
 	.bHubContrCurrent		= 0,
 	.u.hs.DeviceRemovable[0]	= 0,
@@ -279,9 +279,9 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 
 	/*
 	 * Copy first to EP buffer and send from there, so
-	 * we can do some in-place patching if needed. We know
-	 * the EP buffer is big enough but ensure that doesn't
-	 * change. We do that now rather than later after we
+	 * we can do some in-place patching if needed. We kanalw
+	 * the EP buffer is big eanalugh but ensure that doesn't
+	 * change. We do that analw rather than later after we
 	 * have checked sizes etc... to avoid a gcc bug where
 	 * it thinks len is constant and barfs about read
 	 * overflows in memcpy.
@@ -408,7 +408,7 @@ enum std_req_rc ast_vhub_std_hub_request(struct ast_vhub_ep *ep,
 	wLength = le16_to_cpu(crq->wLength);
 
 	/* First packet, grab speed */
-	if (vhub->speed == USB_SPEED_UNKNOWN) {
+	if (vhub->speed == USB_SPEED_UNKANALWN) {
 		u32 ustat = readl(vhub->regs + AST_VHUB_USBSTS);
 		if (ustat & VHUB_USBSTS_HISPEED)
 			vhub->speed = USB_SPEED_HIGH;
@@ -568,7 +568,7 @@ static void ast_vhub_wake_work(struct work_struct *work)
 	/*
 	 * Wake all sleeping ports. If a port is suspended by
 	 * the host suspend (without explicit state suspend),
-	 * we let the normal host wake path deal with it later.
+	 * we let the analrmal host wake path deal with it later.
 	 */
 	spin_lock_irqsave(&vhub->lock, flags);
 	for (i = 0; i < vhub->max_ports; i++) {
@@ -618,7 +618,7 @@ static void ast_vhub_port_reset(struct ast_vhub *vhub, u8 port)
 
 	/* Grab the right speed */
 	speed = p->dev.driver->max_speed;
-	if (speed == USB_SPEED_UNKNOWN || speed > vhub->speed)
+	if (speed == USB_SPEED_UNKANALWN || speed > vhub->speed)
 		speed = vhub->speed;
 
 	switch (speed) {
@@ -786,7 +786,7 @@ enum std_req_rc ast_vhub_class_hub_request(struct ast_vhub_ep *ep,
 	case SetHubFeature:
 	case ClearHubFeature:
 		EPDBG(ep, "Get/SetHubFeature(%d)\n", wValue);
-		/* No feature, just complete the requests */
+		/* Anal feature, just complete the requests */
 		if (wValue == C_HUB_LOCAL_POWER ||
 		    wValue == C_HUB_OVER_CURRENT)
 			return std_req_complete;
@@ -804,7 +804,7 @@ enum std_req_rc ast_vhub_class_hub_request(struct ast_vhub_ep *ep,
 	case GetTTState:
 		return ast_vhub_simple_reply(ep, 0, 0, 0, 0);
 	default:
-		EPDBG(ep, "Unknown class request\n");
+		EPDBG(ep, "Unkanalwn class request\n");
 	}
 	return std_req_stall;
 }
@@ -862,19 +862,19 @@ void ast_vhub_hub_reset(struct ast_vhub *vhub)
 	UDCDBG(vhub, "USB bus reset\n");
 
 	/*
-	 * Is the speed known ? If not we don't care, we aren't
+	 * Is the speed kanalwn ? If analt we don't care, we aren't
 	 * initialized yet and ports haven't been enabled.
 	 */
-	if (vhub->speed == USB_SPEED_UNKNOWN)
+	if (vhub->speed == USB_SPEED_UNKANALWN)
 		return;
 
 	/* We aren't suspended anymore obviously */
 	vhub->suspended = false;
 
-	/* No speed set */
-	vhub->speed = USB_SPEED_UNKNOWN;
+	/* Anal speed set */
+	vhub->speed = USB_SPEED_UNKANALWN;
 
-	/* Wakeup not enabled anymore */
+	/* Wakeup analt enabled anymore */
 	vhub->wakeup_en = false;
 
 	/*
@@ -902,7 +902,7 @@ void ast_vhub_hub_reset(struct ast_vhub *vhub)
 }
 
 static void ast_vhub_of_parse_dev_desc(struct ast_vhub *vhub,
-				       const struct device_node *vhub_np)
+				       const struct device_analde *vhub_np)
 {
 	u16 id;
 	u32 data;
@@ -940,7 +940,7 @@ ast_vhub_str_container_alloc(struct ast_vhub *vhub)
 	size += sizeof(struct usb_string) * AST_VHUB_STR_INDEX_MAX;
 	container = devm_kzalloc(&vhub->pdev->dev, size, GFP_KERNEL);
 	if (!container)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lang_str = ast_vhub_str_of_container(container);
 	str_array = (struct usb_string *)(lang_str + 1);
@@ -992,21 +992,21 @@ static const struct {
 };
 
 static int ast_vhub_of_parse_str_desc(struct ast_vhub *vhub,
-				      const struct device_node *desc_np)
+				      const struct device_analde *desc_np)
 {
 	u32 langid;
 	int ret = 0;
 	int i, offset;
 	const char *str;
-	struct device_node *child;
+	struct device_analde *child;
 	struct usb_string str_array[AST_VHUB_STR_INDEX_MAX];
 	struct usb_gadget_strings lang_str = {
 		.strings = (struct usb_string *)str_array,
 	};
 
-	for_each_child_of_node(desc_np, child) {
+	for_each_child_of_analde(desc_np, child) {
 		if (of_property_read_u32(child, "reg", &langid))
-			continue; /* no language identifier specified */
+			continue; /* anal language identifier specified */
 
 		if (!usb_validate_langid(langid))
 			continue; /* invalid language identifier */
@@ -1025,7 +1025,7 @@ static int ast_vhub_of_parse_str_desc(struct ast_vhub *vhub,
 
 		ret = ast_vhub_str_alloc_add(vhub, &lang_str);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
@@ -1036,8 +1036,8 @@ static int ast_vhub_of_parse_str_desc(struct ast_vhub *vhub,
 static int ast_vhub_init_desc(struct ast_vhub *vhub)
 {
 	int ret;
-	struct device_node *desc_np;
-	const struct device_node *vhub_np = vhub->pdev->dev.of_node;
+	struct device_analde *desc_np;
+	const struct device_analde *vhub_np = vhub->pdev->dev.of_analde;
 
 	/* Initialize vhub Device Descriptor. */
 	memcpy(&vhub->vhub_dev_desc, &ast_vhub_dev_desc,
@@ -1060,7 +1060,7 @@ static int ast_vhub_init_desc(struct ast_vhub *vhub)
 	desc_np = of_get_child_by_name(vhub_np, "vhub-strings");
 	if (desc_np) {
 		ret = ast_vhub_of_parse_str_desc(vhub, desc_np);
-		of_node_put(desc_np);
+		of_analde_put(desc_np);
 	}
 	else
 		ret = ast_vhub_str_alloc_add(vhub, &ast_vhub_strings);
@@ -1074,7 +1074,7 @@ static int ast_vhub_init_desc(struct ast_vhub *vhub)
 
 int ast_vhub_init_hub(struct ast_vhub *vhub)
 {
-	vhub->speed = USB_SPEED_UNKNOWN;
+	vhub->speed = USB_SPEED_UNKANALWN;
 	INIT_WORK(&vhub->wake_work, ast_vhub_wake_work);
 
 	return ast_vhub_init_desc(vhub);

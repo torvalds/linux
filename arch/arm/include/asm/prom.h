@@ -2,7 +2,7 @@
 /*
  *  arch/arm/include/asm/prom.h
  *
- *  Copyright (C) 2009 Canonical Ltd. <jeremy.kerr@canonical.com>
+ *  Copyright (C) 2009 Caanalnical Ltd. <jeremy.kerr@caanalnical.com>
  */
 #ifndef __ASMARM_PROM_H
 #define __ASMARM_PROM_H

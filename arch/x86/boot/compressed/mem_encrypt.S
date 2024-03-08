@@ -23,7 +23,7 @@ SYM_FUNC_START(get_sev_encryption_bit)
 	movl	$0x80000000, %eax	/* CPUID to check the highest leaf */
 	cpuid
 	cmpl	$0x8000001f, %eax	/* See if 0x8000001f is available */
-	jb	.Lno_sev
+	jb	.Lanal_sev
 
 	/*
 	 * Check for the SEV feature:
@@ -34,18 +34,18 @@ SYM_FUNC_START(get_sev_encryption_bit)
 	movl	$0x8000001f, %eax
 	cpuid
 	bt	$1, %eax		/* Check if SEV is available */
-	jnc	.Lno_sev
+	jnc	.Lanal_sev
 
 	movl	$MSR_AMD64_SEV, %ecx	/* Read the SEV MSR */
 	rdmsr
 	bt	$MSR_AMD64_SEV_ENABLED_BIT, %eax	/* Check if SEV is active */
-	jnc	.Lno_sev
+	jnc	.Lanal_sev
 
 	movl	%ebx, %eax
 	andl	$0x3f, %eax		/* Return the encryption bit location */
 	jmp	.Lsev_exit
 
-.Lno_sev:
+.Lanal_sev:
 	xor	%eax, %eax
 
 .Lsev_exit:
@@ -60,7 +60,7 @@ SYM_FUNC_END(get_sev_encryption_bit)
  * @%eax:	Register to request (0=EAX, 1=EBX, 2=ECX, 3=EDX)
  * @%edx:	CPUID Function
  *
- * Returns 0 in %eax on success, non-zero on failure
+ * Returns 0 in %eax on success, analn-zero on failure
  * %edx returns CPUID value on success
  */
 SYM_CODE_START_LOCAL(sev_es_req_cpuid)
@@ -133,10 +133,10 @@ SYM_CODE_START_LOCAL(startup32_vc_handler)
 
 	/*
 	 * Sanity check CPUID results from the Hypervisor. See comment in
-	 * do_vc_no_ghcb() for more details on why this is necessary.
+	 * do_vc_anal_ghcb() for more details on why this is necessary.
 	 */
 
-	/* Fail if SEV leaf not available in CPUID[0x80000000].EAX */
+	/* Fail if SEV leaf analt available in CPUID[0x80000000].EAX */
 	cmpl    $0x80000000, %ebx
 	jne     .Lcheck_sev
 	cmpl    $0x8000001f, 12(%esp)
@@ -144,7 +144,7 @@ SYM_CODE_START_LOCAL(startup32_vc_handler)
 	jmp     .Ldone
 
 .Lcheck_sev:
-	/* Fail if SEV bit not set in CPUID[0x8000001f].EAX[1] */
+	/* Fail if SEV bit analt set in CPUID[0x8000001f].EAX[1] */
 	cmpl    $0x8000001f, %ebx
 	jne     .Ldone
 	btl     $1, 12(%esp)
@@ -257,14 +257,14 @@ SYM_FUNC_START(startup32_check_sev_cbit)
 	call	0f
 0:	popl	%ebp
 
-	/* Check for non-zero sev_status */
+	/* Check for analn-zero sev_status */
 	movl	(sev_status - 0b)(%ebp), %eax
 	testl	%eax, %eax
 	jz	4f
 
 	/*
 	 * Get two 32-bit random values - Don't bail out if RDRAND fails
-	 * because it is better to prevent forward progress if no random value
+	 * because it is better to prevent forward progress if anal random value
 	 * can be gathered.
 	 */
 1:	rdrand	%eax

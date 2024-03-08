@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016, Avago Technologies
+ * Copyright (c) 2016, Avago Techanallogies
  */
 
 #ifndef _NVME_FC_TRANSPORT_H
@@ -65,7 +65,7 @@ nvme_fc_format_rjt(void *buf, u16 buflen, u8 ls_cmd,
 
 /* Validation Error indexes into the string table below */
 enum {
-	VERR_NO_ERROR		= 0,
+	VERR_ANAL_ERROR		= 0,
 	VERR_CR_ASSOC_LEN	= 1,
 	VERR_CR_ASSOC_RQST_LEN	= 2,
 	VERR_CR_ASSOC_CMD	= 3,
@@ -77,7 +77,7 @@ enum {
 	VERR_CR_CONN_RQST_LEN	= 9,
 	VERR_ASSOC_ID		= 10,
 	VERR_ASSOC_ID_LEN	= 11,
-	VERR_NO_ASSOC		= 12,
+	VERR_ANAL_ASSOC		= 12,
 	VERR_CONN_ID		= 13,
 	VERR_CONN_ID_LEN	= 14,
 	VERR_INVAL_CONN		= 15,
@@ -109,40 +109,40 @@ static char *validation_errors[] = {
 	"OK",
 	"Bad CR_ASSOC Length",
 	"Bad CR_ASSOC Rqst Length",
-	"Not CR_ASSOC Cmd",
+	"Analt CR_ASSOC Cmd",
 	"Bad CR_ASSOC Cmd Length",
 	"Bad Ersp Ratio",
 	"Association Allocation Failed",
 	"Queue Allocation Failed",
 	"Bad CR_CONN Length",
 	"Bad CR_CONN Rqst Length",
-	"Not Association ID",
+	"Analt Association ID",
 	"Bad Association ID Length",
-	"No Association",
-	"Not Connection ID",
+	"Anal Association",
+	"Analt Connection ID",
 	"Bad Connection ID Length",
 	"Invalid Connection ID",
-	"Not CR_CONN Cmd",
+	"Analt CR_CONN Cmd",
 	"Bad CR_CONN Cmd Length",
 	"Bad DISCONN Length",
 	"Bad DISCONN Rqst Length",
-	"Not DISCONN Cmd",
+	"Analt DISCONN Cmd",
 	"Bad DISCONN Cmd Length",
 	"Bad Disconnect Scope",
 	"Bad RS Length",
 	"Bad RS Rqst Length",
-	"Not RS Cmd",
+	"Analt RS Cmd",
 	"Bad RS Cmd Length",
 	"Bad RS R_CTL",
 	"Bad RS Relative Offset",
-	"Not LS_ACC",
-	"Not LSDESC_RQST",
+	"Analt LS_ACC",
+	"Analt LSDESC_RQST",
 	"Bad LSDESC_RQST Length",
-	"Not CR_ASSOC Rqst",
+	"Analt CR_ASSOC Rqst",
 	"Bad CR_ASSOC ACC Length",
-	"Not CR_CONN Rqst",
+	"Analt CR_CONN Rqst",
 	"Bad CR_CONN ACC Length",
-	"Not Disconnect Rqst",
+	"Analt Disconnect Rqst",
 	"Bad Disconnect ACC Length",
 };
 

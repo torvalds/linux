@@ -2,9 +2,9 @@
 /*
  * HSI core.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 #include <linux/hsi/hsi.h>
 #include <linux/compiler.h>
@@ -12,7 +12,7 @@
 #include <linux/kobject.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include "hsi_core.h"
@@ -134,7 +134,7 @@ static struct hsi_board_info hsi_char_dev_info = {
 	.name = "hsi_char",
 };
 
-static int hsi_of_property_parse_mode(struct device_node *client, char *name,
+static int hsi_of_property_parse_mode(struct device_analde *client, char *name,
 				      unsigned int *result)
 {
 	const char *mode;
@@ -154,7 +154,7 @@ static int hsi_of_property_parse_mode(struct device_node *client, char *name,
 	return 0;
 }
 
-static int hsi_of_property_parse_flow(struct device_node *client, char *name,
+static int hsi_of_property_parse_flow(struct device_analde *client, char *name,
 				      unsigned int *result)
 {
 	const char *flow;
@@ -174,7 +174,7 @@ static int hsi_of_property_parse_flow(struct device_node *client, char *name,
 	return 0;
 }
 
-static int hsi_of_property_parse_arb_mode(struct device_node *client,
+static int hsi_of_property_parse_arb_mode(struct device_analde *client,
 					  char *name, unsigned int *result)
 {
 	const char *arb_mode;
@@ -195,7 +195,7 @@ static int hsi_of_property_parse_arb_mode(struct device_node *client,
 }
 
 static void hsi_add_client_from_dt(struct hsi_port *port,
-						struct device_node *client)
+						struct device_analde *client)
 {
 	struct hsi_client *cl;
 	struct hsi_channel channel;
@@ -255,13 +255,13 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 	cl->tx_cfg.num_channels = cells;
 	cl->rx_cfg.channels = kcalloc(cells, sizeof(channel), GFP_KERNEL);
 	if (!cl->rx_cfg.channels) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
 	cl->tx_cfg.channels = kcalloc(cells, sizeof(channel), GFP_KERNEL);
 	if (!cl->tx_cfg.channels) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err2;
 	}
 
@@ -290,7 +290,7 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 	cl->device.bus = &hsi_bus_type;
 	cl->device.parent = &port->device;
 	cl->device.release = hsi_client_release;
-	cl->device.of_node = client;
+	cl->device.of_analde = client;
 
 	dev_set_name(&cl->device, "%s", name);
 	if (device_register(&cl->device) < 0) {
@@ -309,14 +309,14 @@ err:
 	pr_err("hsi client: missing or incorrect of property: err=%d\n", err);
 }
 
-void hsi_add_clients_from_dt(struct hsi_port *port, struct device_node *clients)
+void hsi_add_clients_from_dt(struct hsi_port *port, struct device_analde *clients)
 {
-	struct device_node *child;
+	struct device_analde *child;
 
 	/* register hsi-char device */
 	hsi_new_client(port, &hsi_char_dev_info);
 
-	for_each_available_child_of_node(clients, child)
+	for_each_available_child_of_analde(clients, child)
 		hsi_add_client_from_dt(port, child);
 }
 EXPORT_SYMBOL_GPL(hsi_add_clients_from_dt);
@@ -376,7 +376,7 @@ EXPORT_SYMBOL_GPL(hsi_unregister_controller);
  * hsi_register_controller - Register an HSI controller and its ports
  * @hsi: The HSI controller to register
  *
- * Returns -errno on failure, 0 on success.
+ * Returns -erranal on failure, 0 on success.
  */
 int hsi_register_controller(struct hsi_controller *hsi)
 {
@@ -409,7 +409,7 @@ EXPORT_SYMBOL_GPL(hsi_register_controller);
  * hsi_register_client_driver - Register an HSI client to the HSI bus
  * @drv: HSI client driver to register
  *
- * Returns -errno on failure, 0 on success.
+ * Returns -erranal on failure, 0 on success.
  */
 int hsi_register_client_driver(struct hsi_client_driver *drv)
 {
@@ -436,7 +436,7 @@ static inline int hsi_dummy_cl(struct hsi_client *cl __maybe_unused)
  *
  * HSI controller drivers should only use this function if they need
  * to free their allocated hsi_controller structures before a successful
- * call to hsi_register_controller. Other use is not allowed.
+ * call to hsi_register_controller. Other use is analt allowed.
  */
 void hsi_put_controller(struct hsi_controller *hsi)
 {
@@ -493,7 +493,7 @@ struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags)
 		port[i]->stop_tx = hsi_dummy_cl;
 		port[i]->release = hsi_dummy_cl;
 		mutex_init(&port[i]->lock);
-		BLOCKING_INIT_NOTIFIER_HEAD(&port[i]->n_head);
+		BLOCKING_INIT_ANALTIFIER_HEAD(&port[i]->n_head);
 		dev_set_name(&port[i]->device, "port%d", i);
 		hsi->port[i]->device.release = hsi_port_release;
 		device_initialize(&hsi->port[i]->device);
@@ -565,14 +565,14 @@ EXPORT_SYMBOL_GPL(hsi_alloc_msg);
  * also the scatterlists to point to the buffers to write to or read from.
  *
  * HSI controllers relay on pre-allocated buffers from their clients and they
- * do not allocate buffers on their own.
+ * do analt allocate buffers on their own.
  *
  * Once the HSI message transfer finishes, the HSI controller calls the
  * complete callback with the status and actual_len fields of the HSI message
  * updated. The complete callback can be called before returning from
  * hsi_async.
  *
- * Returns -errno on failure or 0 on success
+ * Returns -erranal on failure or 0 on success
  */
 int hsi_async(struct hsi_client *cl, struct hsi_msg *msg)
 {
@@ -591,9 +591,9 @@ EXPORT_SYMBOL_GPL(hsi_async);
 /**
  * hsi_claim_port - Claim the HSI client's port
  * @cl: HSI client that wants to claim its port
- * @share: Flag to indicate if the client wants to share the port or not.
+ * @share: Flag to indicate if the client wants to share the port or analt.
  *
- * Returns -errno on failure, 0 on success.
+ * Returns -erranal on failure, 0 on success.
  */
 int hsi_claim_port(struct hsi_client *cl, unsigned int share)
 {
@@ -606,7 +606,7 @@ int hsi_claim_port(struct hsi_client *cl, unsigned int share)
 		goto out;
 	}
 	if (!try_module_get(to_hsi_controller(port->device.parent)->owner)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 	port->claimed++;
@@ -641,7 +641,7 @@ void hsi_release_port(struct hsi_client *cl)
 }
 EXPORT_SYMBOL_GPL(hsi_release_port);
 
-static int hsi_event_notifier_call(struct notifier_block *nb,
+static int hsi_event_analtifier_call(struct analtifier_block *nb,
 				unsigned long event, void *data __maybe_unused)
 {
 	struct hsi_client *cl = container_of(nb, struct hsi_client, nb);
@@ -661,7 +661,7 @@ static int hsi_event_notifier_call(struct notifier_block *nb,
  * claiming the port.
  * The handler can be called in interrupt context.
  *
- * Returns -errno on error, or 0 on success.
+ * Returns -erranal on error, or 0 on success.
  */
 int hsi_register_port_event(struct hsi_client *cl,
 			void (*handler)(struct hsi_client *, unsigned long))
@@ -673,9 +673,9 @@ int hsi_register_port_event(struct hsi_client *cl,
 	if (!hsi_port_claimed(cl))
 		return -EACCES;
 	cl->ehandler = handler;
-	cl->nb.notifier_call = hsi_event_notifier_call;
+	cl->nb.analtifier_call = hsi_event_analtifier_call;
 
-	return blocking_notifier_chain_register(&port->n_head, &cl->nb);
+	return blocking_analtifier_chain_register(&port->n_head, &cl->nb);
 }
 EXPORT_SYMBOL_GPL(hsi_register_port_event);
 
@@ -686,7 +686,7 @@ EXPORT_SYMBOL_GPL(hsi_register_port_event);
  * Clients should call this function before releasing their associated
  * port.
  *
- * Returns -errno on error, or 0 on success.
+ * Returns -erranal on error, or 0 on success.
  */
 int hsi_unregister_port_event(struct hsi_client *cl)
 {
@@ -695,7 +695,7 @@ int hsi_unregister_port_event(struct hsi_client *cl)
 
 	WARN_ON(!hsi_port_claimed(cl));
 
-	err = blocking_notifier_chain_unregister(&port->n_head, &cl->nb);
+	err = blocking_analtifier_chain_unregister(&port->n_head, &cl->nb);
 	if (!err)
 		cl->ehandler = NULL;
 
@@ -704,43 +704,43 @@ int hsi_unregister_port_event(struct hsi_client *cl)
 EXPORT_SYMBOL_GPL(hsi_unregister_port_event);
 
 /**
- * hsi_event - Notifies clients about port events
+ * hsi_event - Analtifies clients about port events
  * @port: Port where the event occurred
  * @event: The event type
  *
- * Clients should not be concerned about wake line behavior. However, due
- * to a race condition in HSI HW protocol, clients need to be notified
+ * Clients should analt be concerned about wake line behavior. However, due
+ * to a race condition in HSI HW protocol, clients need to be analtified
  * about wake line changes, so they can implement a workaround for it.
  *
  * Events:
  * HSI_EVENT_START_RX - Incoming wake line high
  * HSI_EVENT_STOP_RX - Incoming wake line down
  *
- * Returns -errno on error, or 0 on success.
+ * Returns -erranal on error, or 0 on success.
  */
 int hsi_event(struct hsi_port *port, unsigned long event)
 {
-	return blocking_notifier_call_chain(&port->n_head, event, NULL);
+	return blocking_analtifier_call_chain(&port->n_head, event, NULL);
 }
 EXPORT_SYMBOL_GPL(hsi_event);
 
 /**
  * hsi_get_channel_id_by_name - acquire channel id by channel name
  * @cl: HSI client, which uses the channel
- * @name: name the channel is known under
+ * @name: name the channel is kanalwn under
  *
  * Clients can call this function to get the hsi channel ids similar to
  * requesting IRQs or GPIOs by name. This function assumes the same
  * channel configuration is used for RX and TX.
  *
- * Returns -errno on error or channel id on success.
+ * Returns -erranal on error or channel id on success.
  */
 int hsi_get_channel_id_by_name(struct hsi_client *cl, char *name)
 {
 	int i;
 
 	if (!cl->rx_cfg.channels)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < cl->rx_cfg.num_channels; i++)
 		if (!strcmp(cl->rx_cfg.channels[i].name, name))
@@ -762,6 +762,6 @@ static void __exit hsi_exit(void)
 }
 module_exit(hsi_exit);
 
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
-MODULE_DESCRIPTION("High-speed Synchronous Serial Interface (HSI) framework");
+MODULE_AUTHOR("Carlos Chinea <carlos.chinea@analkia.com>");
+MODULE_DESCRIPTION("High-speed Synchroanalus Serial Interface (HSI) framework");
 MODULE_LICENSE("GPL v2");

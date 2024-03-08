@@ -25,7 +25,7 @@
 static const int MCTP_I3C_MINMTU = 64 + 4;
 /* One byte less to allow for the PEC */
 static const int MCTP_I3C_MAXMTU = MCTP_I3C_MAXBUF - 1;
-/* 4 byte MCTP header, no data, 1 byte PEC */
+/* 4 byte MCTP header, anal data, 1 byte PEC */
 static const int MCTP_I3C_MINLEN = 4 + 1;
 
 /* Sufficient for 64kB at min mtu */
@@ -111,7 +111,7 @@ static int mctp_i3c_read(struct mctp_i3c_device *mi)
 			       mi->mrl + sizeof(struct mctp_i3c_internal_hdr));
 	if (!skb) {
 		stats->rx_dropped++;
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -183,7 +183,7 @@ static void mctp_i3c_ibi_handler(struct i3c_device *i3c,
 	if (mi->have_mdb) {
 		if (payload->len > 0) {
 			if (((u8 *)payload->data)[0] != I3C_MDB_MCTP) {
-				/* Not a mctp-i3c interrupt, ignore it */
+				/* Analt a mctp-i3c interrupt, iganalre it */
 				return;
 			}
 		} else {
@@ -215,10 +215,10 @@ static int mctp_i3c_setup(struct mctp_i3c_device *mi)
 	mi->pid = info.pid;
 
 	rc = i3c_device_request_ibi(mi->i3c, &ibi);
-	if (rc == -ENOTSUPP) {
+	if (rc == -EANALTSUPP) {
 		/* This driver only supports In-Band Interrupt mode.
 		 * Support for Polling Mode could be added if required.
-		 * (ENOTSUPP is from the i3c layer, not EOPNOTSUPP).
+		 * (EANALTSUPP is from the i3c layer, analt EOPANALTSUPP).
 		 */
 		dev_warn(i3cdev_to_dev(mi->i3c),
 			 "Failed, bus driver doesn't support In-Band Interrupts");
@@ -257,7 +257,7 @@ __must_hold(&busdevs_lock)
 
 	mi = kzalloc(sizeof(*mi), GFP_KERNEL);
 	if (!mi) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	mi->mbus = mbus;
@@ -285,7 +285,7 @@ static int mctp_i3c_probe(struct i3c_device *i3c)
 {
 	struct mctp_i3c_bus *b = NULL, *mbus = NULL;
 
-	/* Look for a known bus */
+	/* Look for a kanalwn bus */
 	mutex_lock(&busdevs_lock);
 	list_for_each_entry(b, &busdevs, list)
 		if (b->bus == i3c->bus) {
@@ -295,8 +295,8 @@ static int mctp_i3c_probe(struct i3c_device *i3c)
 	mutex_unlock(&busdevs_lock);
 
 	if (!mbus) {
-		/* probably no "mctp-controller" property on the i3c bus */
-		return -ENODEV;
+		/* probably anal "mctp-controller" property on the i3c bus */
+		return -EANALDEV;
 	}
 
 	return mctp_i3c_add_device(mbus, i3c);
@@ -325,7 +325,7 @@ static void mctp_i3c_remove(struct i3c_device *i3c)
 {
 	struct mctp_i3c_device *mi = i3cdev_get_drvdata(i3c);
 
-	/* We my have received a Bus Remove notify prior to device remove,
+	/* We my have received a Bus Remove analtify prior to device remove,
 	 * so mi will already be removed.
 	 */
 	if (!mi)
@@ -493,7 +493,7 @@ static void mctp_i3c_ndo_uninit(struct net_device *ndev)
 {
 	struct mctp_i3c_bus *mbus = netdev_priv(ndev);
 
-	/* Perform cleanup here to ensure there are no remaining references */
+	/* Perform cleanup here to ensure there are anal remaining references */
 	mctp_i3c_bus_free(mbus);
 }
 
@@ -543,7 +543,7 @@ static bool mctp_i3c_is_mctp_controller(struct i3c_bus *bus)
 	if (!master)
 		return false;
 
-	return of_property_read_bool(master->common.master->dev.of_node,
+	return of_property_read_bool(master->common.master->dev.of_analde,
 				     MCTP_I3C_OF_PROP);
 }
 
@@ -554,7 +554,7 @@ static int mctp_i3c_bus_local_pid(struct i3c_bus *bus, u64 *ret_pid)
 
 	master = bus->cur_master;
 	if (WARN_ON_ONCE(!master))
-		return -ENOENT;
+		return -EANALENT;
 	*ret_pid = master->info.pid;
 
 	return 0;
@@ -571,13 +571,13 @@ __must_hold(&busdevs_lock)
 	int rc;
 
 	if (!mctp_i3c_is_mctp_controller(bus))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	snprintf(namebuf, sizeof(namebuf), "mctpi3c%d", bus->id);
 	ndev = alloc_netdev(sizeof(*mbus), namebuf, NET_NAME_ENUM,
 			    mctp_i3c_net_setup);
 	if (!ndev) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -589,7 +589,7 @@ __must_hold(&busdevs_lock)
 
 	rc = mctp_i3c_bus_local_pid(bus, &mbus->pid);
 	if (rc < 0) {
-		dev_err(&ndev->dev, "No I3C PID available\n");
+		dev_err(&ndev->dev, "Anal I3C PID available\n");
 		goto err_free_uninit;
 	}
 	put_unaligned_be48(mbus->pid, addr);
@@ -615,7 +615,7 @@ __must_hold(&busdevs_lock)
 	return mbus;
 
 err_free_uninit:
-	/* uninit will not get called if a netdev has not been registered,
+	/* uninit will analt get called if a netdev has analt been registered,
 	 * so we perform the same mbus cleanup manually.
 	 */
 	mctp_i3c_bus_free(mbus);
@@ -663,7 +663,7 @@ static int mctp_i3c_bus_add_new(struct i3c_bus *bus, void *data)
 			exists = true;
 
 	/* It is OK for a bus to already exist. That can occur due to
-	 * the race in mod_init between notifier and for_each_bus
+	 * the race in mod_init between analtifier and for_each_bus
 	 */
 	if (!exists)
 		mctp_i3c_bus_add(bus);
@@ -671,7 +671,7 @@ static int mctp_i3c_bus_add_new(struct i3c_bus *bus, void *data)
 	return 0;
 }
 
-static void mctp_i3c_notify_bus_remove(struct i3c_bus *bus)
+static void mctp_i3c_analtify_bus_remove(struct i3c_bus *bus)
 {
 	struct mctp_i3c_bus *mbus = NULL, *tmp;
 
@@ -682,22 +682,22 @@ static void mctp_i3c_notify_bus_remove(struct i3c_bus *bus)
 	mutex_unlock(&busdevs_lock);
 }
 
-static int mctp_i3c_notifier_call(struct notifier_block *nb,
+static int mctp_i3c_analtifier_call(struct analtifier_block *nb,
 				  unsigned long action, void *data)
 {
 	switch (action) {
-	case I3C_NOTIFY_BUS_ADD:
+	case I3C_ANALTIFY_BUS_ADD:
 		mctp_i3c_bus_add_new((struct i3c_bus *)data, NULL);
 		break;
-	case I3C_NOTIFY_BUS_REMOVE:
-		mctp_i3c_notify_bus_remove((struct i3c_bus *)data);
+	case I3C_ANALTIFY_BUS_REMOVE:
+		mctp_i3c_analtify_bus_remove((struct i3c_bus *)data);
 		break;
 	}
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block mctp_i3c_notifier = {
-	.notifier_call = mctp_i3c_notifier_call,
+static struct analtifier_block mctp_i3c_analtifier = {
+	.analtifier_call = mctp_i3c_analtifier_call,
 };
 
 static const struct i3c_device_id mctp_i3c_ids[] = {
@@ -718,7 +718,7 @@ static __init int mctp_i3c_mod_init(void)
 {
 	int rc;
 
-	rc = i3c_register_notifier(&mctp_i3c_notifier);
+	rc = i3c_register_analtifier(&mctp_i3c_analtifier);
 	if (rc < 0) {
 		i3c_driver_unregister(&mctp_i3c_driver);
 		return rc;
@@ -739,9 +739,9 @@ static __exit void mctp_i3c_mod_exit(void)
 
 	i3c_driver_unregister(&mctp_i3c_driver);
 
-	rc = i3c_unregister_notifier(&mctp_i3c_notifier);
+	rc = i3c_unregister_analtifier(&mctp_i3c_analtifier);
 	if (rc < 0)
-		pr_warn("MCTP I3C could not unregister notifier, %d\n", rc);
+		pr_warn("MCTP I3C could analt unregister analtifier, %d\n", rc);
 
 	mctp_i3c_bus_remove_all();
 }

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_FW_INFO_H
 #define PVR_FW_INFO_H
@@ -36,7 +36,7 @@ enum pvr_fw_section_id {
 };
 
 enum pvr_fw_section_type {
-	NONE = 0,
+	ANALNE = 0,
 	FW_CODE,
 	FW_DATA,
 	FW_COREMEM_CODE,
@@ -89,8 +89,8 @@ struct pvr_fw_info_header {
 	u32 flags;
 	/** @fw_version_major: Firmware major version number. */
 	u16 fw_version_major;
-	/** @fw_version_minor: Firmware minor version number. */
-	u16 fw_version_minor;
+	/** @fw_version_mianalr: Firmware mianalr version number. */
+	u16 fw_version_mianalr;
 	/** @fw_version_build: Firmware build number. */
 	u32 fw_version_build;
 	/** @device_info_size: Size of device info structure. */

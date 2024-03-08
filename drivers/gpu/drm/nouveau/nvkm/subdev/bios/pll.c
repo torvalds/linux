@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -243,7 +243,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 	}
 
 	if (ver && !data)
-		return -ENOENT;
+		return -EANALENT;
 
 	memset(info, 0, sizeof(*info));
 	info->type = type;
@@ -379,7 +379,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 		info->max_p = nvbios_rd08(bios, data + 18);
 		break;
 	default:
-		nvkm_error(subdev, "unknown pll limits version 0x%02x\n", ver);
+		nvkm_error(subdev, "unkanalwn pll limits version 0x%02x\n", ver);
 		return -EINVAL;
 	}
 
@@ -398,7 +398,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 	}
 
 	/*
-	 * By now any valid limit table ought to have set a max frequency for
+	 * By analw any valid limit table ought to have set a max frequency for
 	 * vco1, so if it's zero it's either a pre limit table bios, or one
 	 * with an empty limit table (seen on nv18)
 	 */
@@ -417,7 +417,7 @@ nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 		info->vco1.min_m = 0x1;
 
 		if (device->crystal == 13500) {
-			/* nv05 does this, nv11 doesn't, nv10 unknown */
+			/* nv05 does this, nv11 doesn't, nv10 unkanalwn */
 			if (bios->version.chip < 0x11)
 				info->vco1.min_m = 0x7;
 			info->vco1.max_m = 0xd;

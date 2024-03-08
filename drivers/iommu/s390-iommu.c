@@ -141,7 +141,7 @@ static int __init dma_alloc_cpu_table_caches(void)
 						   ZPCI_TABLE_ALIGN,
 						   0, NULL);
 	if (!dma_region_table_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_page_table_cache = kmem_cache_create("PCI_DMA_page_tables",
 						 ZPCI_PT_SIZE,
@@ -149,7 +149,7 @@ static int __init dma_alloc_cpu_table_caches(void)
 						 0, NULL);
 	if (!dma_page_table_cache) {
 		kmem_cache_destroy(dma_region_table_cache);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -395,7 +395,7 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 	int cc;
 
 	if (!zdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (WARN_ON(domain->geometry.aperture_start > zdev->end_dma ||
 		domain->geometry.aperture_end < zdev->start_dma))
@@ -410,7 +410,7 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 	 * If the device is undergoing error recovery the reset code
 	 * will re-establish the new domain.
 	 */
-	if (cc && status != ZPCI_PCI_ST_FUNC_NOT_AVAIL)
+	if (cc && status != ZPCI_PCI_ST_FUNC_ANALT_AVAIL)
 		return -EIO;
 
 	zdev->dma_table = s390_domain->dma_table;
@@ -452,7 +452,7 @@ static struct iommu_device *s390_iommu_probe_device(struct device *dev)
 	struct zpci_dev *zdev;
 
 	if (!dev_is_pci(dev))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	zdev = to_zpci_dev(dev);
 
@@ -507,7 +507,7 @@ static void s390_iommu_iotlb_sync(struct iommu_domain *domain,
 	size_t size = gather->end - gather->start + 1;
 	struct zpci_dev *zdev;
 
-	/* If gather was never added to there is nothing to flush */
+	/* If gather was never added to there is analthing to flush */
 	if (!gather->end)
 		return;
 
@@ -538,7 +538,7 @@ static int s390_iommu_iotlb_sync_map(struct iommu_domain *domain,
 		 * let the hypervisor discover invalidated entries
 		 * allowing it to free IOVAs and unpin pages
 		 */
-		if (ret == -ENOMEM) {
+		if (ret == -EANALMEM) {
 			ret = zpci_refresh_all(zdev);
 			if (ret)
 				break;
@@ -563,7 +563,7 @@ static int s390_iommu_validate_trans(struct s390_domain *s390_domain,
 		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr,
 					   gfp);
 		if (unlikely(!entry)) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto undo_cpu_trans;
 		}
 		dma_update_cpu_trans(entry, page_addr, flags);

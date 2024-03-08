@@ -132,12 +132,12 @@ static int apq8016_dai_init(struct snd_soc_pcm_runtime *rtd, int mi2s)
 		/* Set default mclk for internal codec */
 		rval = snd_soc_component_set_sysclk(component, 0, 0, DEFAULT_MCLK_RATE,
 				       SND_SOC_CLOCK_IN);
-		if (rval != 0 && rval != -ENOTSUPP) {
+		if (rval != 0 && rval != -EANALTSUPP) {
 			dev_warn(card->dev, "Failed to set mclk: %d\n", rval);
 			return rval;
 		}
 		rval = snd_soc_component_set_jack(component, &pdata->jack, NULL);
-		if (rval != 0 && rval != -ENOTSUPP) {
+		if (rval != 0 && rval != -EANALTSUPP) {
 			dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 			return rval;
 		}
@@ -261,7 +261,7 @@ static void msm8916_qdsp6_add_ops(struct snd_soc_card *card)
 	card->components = "qdsp6";
 
 	for_each_card_prelinks(card, i, link) {
-		if (link->no_pcm) {
+		if (link->anal_pcm) {
 			link->init = msm8916_qdsp6_dai_init;
 			link->ops = &msm8916_qdsp6_be_ops;
 			link->be_hw_params_fixup = msm8916_qdsp6_be_hw_params_fixup;
@@ -298,7 +298,7 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card = &data->card;
 	card->dev = dev;

@@ -93,18 +93,18 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 	might_sleep();
 
 	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&lock);
 
-	list_for_each_entry(tmp, &producers, node) {
+	list_for_each_entry(tmp, &producers, analde) {
 		if (tmp->token == producer->token) {
 			ret = -EBUSY;
 			goto out_err;
 		}
 	}
 
-	list_for_each_entry(consumer, &consumers, node) {
+	list_for_each_entry(consumer, &consumers, analde) {
 		if (consumer->token == producer->token) {
 			ret = __connect(producer, consumer);
 			if (ret)
@@ -113,7 +113,7 @@ int irq_bypass_register_producer(struct irq_bypass_producer *producer)
 		}
 	}
 
-	list_add(&producer->node, &producers);
+	list_add(&producer->analde, &producers);
 
 	mutex_unlock(&lock);
 
@@ -143,22 +143,22 @@ void irq_bypass_unregister_producer(struct irq_bypass_producer *producer)
 	might_sleep();
 
 	if (!try_module_get(THIS_MODULE))
-		return; /* nothing in the list anyway */
+		return; /* analthing in the list anyway */
 
 	mutex_lock(&lock);
 
-	list_for_each_entry(tmp, &producers, node) {
+	list_for_each_entry(tmp, &producers, analde) {
 		if (tmp->token != producer->token)
 			continue;
 
-		list_for_each_entry(consumer, &consumers, node) {
+		list_for_each_entry(consumer, &consumers, analde) {
 			if (consumer->token == producer->token) {
 				__disconnect(producer, consumer);
 				break;
 			}
 		}
 
-		list_del(&producer->node);
+		list_del(&producer->analde);
 		module_put(THIS_MODULE);
 		break;
 	}
@@ -189,18 +189,18 @@ int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
 	might_sleep();
 
 	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&lock);
 
-	list_for_each_entry(tmp, &consumers, node) {
+	list_for_each_entry(tmp, &consumers, analde) {
 		if (tmp->token == consumer->token || tmp == consumer) {
 			ret = -EBUSY;
 			goto out_err;
 		}
 	}
 
-	list_for_each_entry(producer, &producers, node) {
+	list_for_each_entry(producer, &producers, analde) {
 		if (producer->token == consumer->token) {
 			ret = __connect(producer, consumer);
 			if (ret)
@@ -209,7 +209,7 @@ int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
 		}
 	}
 
-	list_add(&consumer->node, &consumers);
+	list_add(&consumer->analde, &consumers);
 
 	mutex_unlock(&lock);
 
@@ -239,22 +239,22 @@ void irq_bypass_unregister_consumer(struct irq_bypass_consumer *consumer)
 	might_sleep();
 
 	if (!try_module_get(THIS_MODULE))
-		return; /* nothing in the list anyway */
+		return; /* analthing in the list anyway */
 
 	mutex_lock(&lock);
 
-	list_for_each_entry(tmp, &consumers, node) {
+	list_for_each_entry(tmp, &consumers, analde) {
 		if (tmp != consumer)
 			continue;
 
-		list_for_each_entry(producer, &producers, node) {
+		list_for_each_entry(producer, &producers, analde) {
 			if (producer->token == consumer->token) {
 				__disconnect(producer, consumer);
 				break;
 			}
 		}
 
-		list_del(&consumer->node);
+		list_del(&consumer->analde);
 		module_put(THIS_MODULE);
 		break;
 	}

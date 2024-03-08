@@ -9,7 +9,7 @@
 #ifndef __ASM_XTENSA_ISS_SERIAL_H
 #define __ASM_XTENSA_ISS_SERIAL_H
 
-/* Have no meaning on ISS, but needed for 8250_early.c */
+/* Have anal meaning on ISS, but needed for 8250_early.c */
 #define BASE_BAUD 0
 
 #endif /* __ASM_XTENSA_ISS_SERIAL_H */

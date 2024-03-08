@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_STD:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_STD - VIDIOC_S_STD - VIDIOC_SUBDEV_G_STD - VIDIOC_SUBDEV_S_STD - Query or select the video standard of the current input
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_STD
@@ -52,31 +52,31 @@ unambiguous such that they appear in only one enumerated
 struct :c:type:`v4l2_standard` structure.
 
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
-does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When
-no flags are given or the current input does not support the requested
+does analt return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When
+anal flags are given or the current input does analt support the requested
 standard the driver returns an ``EINVAL`` error code. When the standard set
 is ambiguous drivers may return ``EINVAL`` or choose any of the requested
-standards. If the current input or output does not support standard
+standards. If the current input or output does analt support standard
 video timings (e.g. if :ref:`VIDIOC_ENUMINPUT`
-does not set the ``V4L2_IN_CAP_STD`` flag), then ``ENODATA`` error code is
+does analt set the ``V4L2_IN_CAP_STD`` flag), then ``EANALDATA`` error code is
 returned.
 
-Calling ``VIDIOC_SUBDEV_S_STD`` on a subdev device node that has been registered
-in read-only mode is not allowed. An error is returned and the errno variable is
+Calling ``VIDIOC_SUBDEV_S_STD`` on a subdev device analde that has been registered
+in read-only mode is analt allowed. An error is returned and the erranal variable is
 set to ``-EPERM``.
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` parameter was unsuitable.
 
-ENODATA
-    Standard video timings are not supported for this input or output.
+EANALDATA
+    Standard video timings are analt supported for this input or output.
 
 EPERM
     ``VIDIOC_SUBDEV_S_STD`` has been called on a read-only subdevice.

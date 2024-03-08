@@ -25,7 +25,7 @@
  *
  * Test hardware: Intel SE440BX-2 desktop motherboard --Grant
  *
- * LM81 extended temp reading not implemented
+ * LM81 extended temp reading analt implemented
  */
 
 #include <linux/bits.h>
@@ -41,7 +41,7 @@
 #include <linux/regmap.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short analrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
 enum chips { adm9240, ds1780, lm81 };
@@ -77,17 +77,17 @@ static inline int SCALE(long val, int mul, int div)
 }
 
 /* adm9240 internally scales voltage measurements */
-static const u16 nom_mv[] = { 2500, 2700, 3300, 5000, 12000, 2700 };
+static const u16 analm_mv[] = { 2500, 2700, 3300, 5000, 12000, 2700 };
 
 static inline unsigned int IN_FROM_REG(u8 reg, int n)
 {
-	return SCALE(reg, nom_mv[n], 192);
+	return SCALE(reg, analm_mv[n], 192);
 }
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	val = clamp_val(val, 0, nom_mv[n] * 255 / 192);
-	return SCALE(val, 192, nom_mv[n]);
+	val = clamp_val(val, 0, analm_mv[n] * 255 / 192);
+	return SCALE(val, 192, analm_mv[n]);
 }
 
 /* temperature range: -40..125, 127 disables temperature alarm */
@@ -128,7 +128,7 @@ struct adm9240_data {
 	struct mutex update_lock;
 
 	u8 fan_div[2];		/* rw	fan1_div, read-only accessor */
-	u8 vrm;			/* --	vrm set on startup, no accessor */
+	u8 vrm;			/* --	vrm set on startup, anal accessor */
 };
 
 /* write new fan div, callers must hold data->update_lock */
@@ -272,7 +272,7 @@ ATTRIBUTE_GROUPS(adm9240);
 
 /*** sensor chip detect and driver install ***/
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adm9240_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
@@ -282,13 +282,13 @@ static int adm9240_detect(struct i2c_client *new_client,
 	u8 man_id, die_rev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* verify chip: reg address should match i2c address */
 	if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR) != address)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* check known chip manufacturer */
+	/* check kanalwn chip manufacturer */
 	man_id = i2c_smbus_read_byte_data(new_client, ADM9240_REG_MAN_ID);
 	if (man_id == 0x23)
 		name = "adm9240";
@@ -297,7 +297,7 @@ static int adm9240_detect(struct i2c_client *new_client,
 	else if (man_id == 0x01)
 		name = "lm81";
 	else
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* successful detect, print chip info */
 	die_rev = i2c_smbus_read_byte_data(new_client, ADM9240_REG_DIE_REV);
@@ -392,7 +392,7 @@ static int adm9240_chip_read(struct device *dev, u32 attr, long *val)
 		*val = regs[0] | regs[1] << 8;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -411,7 +411,7 @@ static int adm9240_intrusion_read(struct device *dev, u32 attr, long *val)
 		*val = !!(regval & BIT(4));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -431,7 +431,7 @@ static int adm9240_intrusion_write(struct device *dev, u32 attr, long val)
 		dev_dbg(data->dev, "chassis intrusion latch cleared\n");
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -466,7 +466,7 @@ static int adm9240_in_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = !!(regval & BIT(channel));
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	err = regmap_read(data->regmap, reg, &regval);
 	if (err < 0)
@@ -488,7 +488,7 @@ static int adm9240_in_write(struct device *dev, u32 attr, int channel, long val)
 		reg = ADM9240_REG_IN_MAX(channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return regmap_write(data->regmap, reg, IN_TO_REG(val, channel));
 }
@@ -535,7 +535,7 @@ static int adm9240_fan_read(struct device *dev, u32 attr, int channel, long *val
 		*val = !!(regval & BIT(channel + 6));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -552,7 +552,7 @@ static int adm9240_fan_write(struct device *dev, u32 attr, int channel, long val
 			return err;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -594,7 +594,7 @@ static int adm9240_temp_read(struct device *dev, u32 attr, int channel, long *va
 		*val = !!(regval & BIT(4));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -612,7 +612,7 @@ static int adm9240_temp_write(struct device *dev, u32 attr, int channel, long va
 		reg = ADM9240_REG_TEMP_MAX(1);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return regmap_write(data->regmap, reg, TEMP_TO_REG(val));
 }
@@ -632,7 +632,7 @@ static int adm9240_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	case hwmon_temp:
 		return adm9240_temp_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -649,7 +649,7 @@ static int adm9240_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 	case hwmon_temp:
 		return adm9240_temp_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -788,7 +788,7 @@ static int adm9240_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->dev = dev;
 	mutex_init(&data->update_lock);
@@ -822,7 +822,7 @@ static struct i2c_driver adm9240_driver = {
 	.probe		= adm9240_probe,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adm9240_driver);

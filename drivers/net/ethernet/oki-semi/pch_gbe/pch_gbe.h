@@ -24,8 +24,8 @@
 
 /**
  * pch_gbe_regs_mac_adr - Structure holding values of mac address registers
- * @high	Denotes the 1st to 4th byte from the initial of MAC address
- * @low		Denotes the 5th to 6th byte from the initial of MAC address
+ * @high	Deanaltes the 1st to 4th byte from the initial of MAC address
+ * @low		Deanaltes the 5th to 6th byte from the initial of MAC address
  */
 struct pch_gbe_regs_mac_adr {
 	u32 high;
@@ -91,7 +91,7 @@ struct pch_gbe_regs {
 /* Interrupt Status Hold */
 /* Interrupt Enable */
 #define PCH_GBE_INT_RX_DMA_CMPLT  0x00000001 /* Receive DMA Transfer Complete */
-#define PCH_GBE_INT_RX_VALID      0x00000002 /* MAC Normal Receive Complete */
+#define PCH_GBE_INT_RX_VALID      0x00000002 /* MAC Analrmal Receive Complete */
 #define PCH_GBE_INT_RX_FRAME_ERR  0x00000004 /* Receive frame error */
 #define PCH_GBE_INT_RX_FIFO_ERR   0x00000008 /* Receive FIFO Overflow */
 #define PCH_GBE_INT_RX_DMA_ERR    0x00000010 /* Receive DMA Transfer Error */
@@ -174,10 +174,10 @@ struct pch_gbe_regs {
 #define PCH_GBE_RXD_GMAC_STAT_MARBR         0x0100
 #define PCH_GBE_RXD_GMAC_STAT_MARMLT        0x0080
 #define PCH_GBE_RXD_GMAC_STAT_MARIND        0x0040
-#define PCH_GBE_RXD_GMAC_STAT_MARNOTMT      0x0020
+#define PCH_GBE_RXD_GMAC_STAT_MARANALTMT      0x0020
 #define PCH_GBE_RXD_GMAC_STAT_TLONG         0x0010
 #define PCH_GBE_RXD_GMAC_STAT_TSHRT         0x0008
-#define PCH_GBE_RXD_GMAC_STAT_NOTOCTAL      0x0004
+#define PCH_GBE_RXD_GMAC_STAT_ANALTOCTAL      0x0004
 #define PCH_GBE_RXD_GMAC_STAT_NBLERR        0x0002
 #define PCH_GBE_RXD_GMAC_STAT_CRCERR        0x0001
 
@@ -200,7 +200,7 @@ struct pch_gbe_regs {
 #define PCH_GBE_TXD_GMAC_STAT_RTYCNT_MASK   0x000F
 
 /* TX Mode */
-#define PCH_GBE_TM_NO_RTRY     0x80000000 /* No Retransmission */
+#define PCH_GBE_TM_ANAL_RTRY     0x80000000 /* Anal Retransmission */
 #define PCH_GBE_TM_LONG_PKT    0x40000000 /* Long Packt TX Enable */
 #define PCH_GBE_TM_ST_AND_FD   0x20000000 /* Stare and Forward */
 #define PCH_GBE_TM_SHORT_PKT   0x10000000 /* Short Packet TX Enable */
@@ -309,7 +309,7 @@ struct pch_gbe_regs {
 #define PCH_GBE_HAL_MIIM_WRITE         ((u32)0x04000000)
 
 /* flow control values */
-#define PCH_GBE_FC_NONE			0
+#define PCH_GBE_FC_ANALNE			0
 #define PCH_GBE_FC_RX_PAUSE		1
 #define PCH_GBE_FC_TX_PAUSE		2
 #define PCH_GBE_FC_FULL			3
@@ -480,8 +480,8 @@ struct pch_gbe_rx_ring {
  * @tx_bytes:		    total bytes transmitted
  * @rx_errors:		    bad packets received
  * @tx_errors:		    packet transmit problems
- * @rx_dropped:		    no space in Linux buffers
- * @tx_dropped:		    no space available in Linux
+ * @rx_dropped:		    anal space in Linux buffers
+ * @tx_dropped:		    anal space available in Linux
  * @multicast:		    multicast packets received
  * @collisions:		    collisions
  * @rx_crc_errors:	    received packet with crc error

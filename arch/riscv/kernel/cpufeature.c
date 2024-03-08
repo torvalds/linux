@@ -55,7 +55,7 @@ static cpumask_t fast_misaligned_access;
  * @isa_bitmap: ISA bitmap to use
  * Return: base extension word as unsigned long value
  *
- * NOTE: If isa_bitmap is NULL then Host ISA bitmap will be used.
+ * ANALTE: If isa_bitmap is NULL then Host ISA bitmap will be used.
  */
 unsigned long riscv_isa_extension_base(const unsigned long *isa_bitmap)
 {
@@ -67,13 +67,13 @@ EXPORT_SYMBOL_GPL(riscv_isa_extension_base);
 
 /**
  * __riscv_isa_extension_available() - Check whether given extension
- * is available or not
+ * is available or analt
  *
  * @isa_bitmap: ISA bitmap to use
  * @bit: bit position of the desired extension
  * Return: true or false
  *
- * NOTE: If isa_bitmap is NULL then Host ISA bitmap will be used.
+ * ANALTE: If isa_bitmap is NULL then Host ISA bitmap will be used.
  */
 bool __riscv_isa_extension_available(const unsigned long *isa_bitmap, unsigned int bit)
 {
@@ -91,19 +91,19 @@ static bool riscv_isa_extension_check(int id)
 	switch (id) {
 	case RISCV_ISA_EXT_ZICBOM:
 		if (!riscv_cbom_block_size) {
-			pr_err("Zicbom detected in ISA string, disabling as no cbom-block-size found\n");
+			pr_err("Zicbom detected in ISA string, disabling as anal cbom-block-size found\n");
 			return false;
 		} else if (!is_power_of_2(riscv_cbom_block_size)) {
-			pr_err("Zicbom disabled as cbom-block-size present, but is not a power-of-2\n");
+			pr_err("Zicbom disabled as cbom-block-size present, but is analt a power-of-2\n");
 			return false;
 		}
 		return true;
 	case RISCV_ISA_EXT_ZICBOZ:
 		if (!riscv_cboz_block_size) {
-			pr_err("Zicboz detected in ISA string, disabling as no cboz-block-size found\n");
+			pr_err("Zicboz detected in ISA string, disabling as anal cboz-block-size found\n");
 			return false;
 		} else if (!is_power_of_2(riscv_cboz_block_size)) {
-			pr_err("Zicboz disabled as cboz-block-size present, but is not a power-of-2\n");
+			pr_err("Zicboz disabled as cboz-block-size present, but is analt a power-of-2\n");
 			return false;
 		}
 		return true;
@@ -203,7 +203,7 @@ static const unsigned int riscv_zvbb_exts[] = {
 };
 
 /*
- * While the [ms]envcfg CSRs were not defined until version 1.12 of the RISC-V
+ * While the [ms]envcfg CSRs were analt defined until version 1.12 of the RISC-V
  * privileged ISA, the existence of the CSRs is implied by any extension which
  * specifies [ms]envcfg bit(s). Hence, we define a custom ISA extension for the
  * existence of the CSR, and treat it as a subset of those other extensions.
@@ -213,7 +213,7 @@ static const unsigned int riscv_xlinuxenvcfg_exts[] = {
 };
 
 /*
- * The canonical order of ISA extension names in the ISA string is defined in
+ * The caanalnical order of ISA extension names in the ISA string is defined in
  * chapter 27 of the unprivileged specification.
  *
  * Ordinarily, for in-kernel data structures, this order is unimportant but
@@ -242,8 +242,8 @@ static const unsigned int riscv_xlinuxenvcfg_exts[] = {
  *    machine-level extensions are listed, they must be ordered
  *    alphabetically.
  *
- * 5. Non-standard extensions (starting with 'X') must be listed after all
- *    standard extensions. If multiple non-standard extensions are listed, they
+ * 5. Analn-standard extensions (starting with 'X') must be listed after all
+ *    standard extensions. If multiple analn-standard extensions are listed, they
  *    must be ordered alphabetically.
  *
  * An example string following the order is:
@@ -367,10 +367,10 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 		case 's':
 			/*
 			 * Workaround for invalid single-letter 's' & 'u' (QEMU).
-			 * No need to set the bit in riscv_isa as 's' & 'u' are
-			 * not valid ISA extensions. It works unless the first
+			 * Anal need to set the bit in riscv_isa as 's' & 'u' are
+			 * analt valid ISA extensions. It works unless the first
 			 * multi-letter extension in the ISA string begins with
-			 * "Su" and is not prefixed with an underscore.
+			 * "Su" and is analt prefixed with an underscore.
 			 */
 			if (ext[-1] != '_' && ext[1] == 'u') {
 				++isa;
@@ -390,11 +390,11 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 			 * either be the null character or the "_" at the start of the next
 			 * multi-letter extension.
 			 *
-			 * Next, as the extensions version is currently ignored, we
+			 * Next, as the extensions version is currently iganalred, we
 			 * eliminate that portion. This is done by parsing backwards from
 			 * the end of the extension, removing any numbers. This may be a
-			 * major or minor number however, so the process is repeated if a
-			 * minor number was found.
+			 * major or mianalr number however, so the process is repeated if a
+			 * mianalr number was found.
 			 *
 			 * ext_end is intended to represent the first character *after* the
 			 * name portion of an extension, but will be decremented to the last
@@ -435,14 +435,14 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 			 * ensure that, when isa was incremented at the start of the loop,
 			 * that it arrived at the start of the next extension.
 			 *
-			 * If we are already on a non-digit, there is nothing to do. Either
+			 * If we are already on a analn-digit, there is analthing to do. Either
 			 * we have a multi-letter extension's _, or the start of an
 			 * extension.
 			 *
 			 * Otherwise we have found the current extension's major version
-			 * number. Parse past it, and a subsequent p/minor version number
-			 * if present. The `p` extension must not appear immediately after
-			 * a number, so there is no fear of missing it.
+			 * number. Parse past it, and a subsequent p/mianalr version number
+			 * if present. The `p` extension must analt appear immediately after
+			 * a number, so there is anal fear of missing it.
 			 *
 			 */
 			if (unlikely(!isalpha(*ext))) {
@@ -473,7 +473,7 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 		/*
 		 * The parser expects that at the start of an iteration isa points to the
 		 * first character of the next extension. As we stop parsing an extension
-		 * on meeting a non-alphanumeric character, an extra increment is needed
+		 * on meeting a analn-alphanumeric character, an extra increment is needed
 		 * where the succeeding extension is a multi-letter prefixed with an "_".
 		 */
 		if (*isa == '_')
@@ -497,7 +497,7 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 
 static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	const char *isa;
 	int rc;
 	struct acpi_table_header *rhct;
@@ -515,14 +515,14 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 		unsigned long this_hwcap = 0;
 
 		if (acpi_disabled) {
-			node = of_cpu_device_node_get(cpu);
-			if (!node) {
-				pr_warn("Unable to find cpu node\n");
+			analde = of_cpu_device_analde_get(cpu);
+			if (!analde) {
+				pr_warn("Unable to find cpu analde\n");
 				continue;
 			}
 
-			rc = of_property_read_string(node, "riscv,isa", &isa);
-			of_node_put(node);
+			rc = of_property_read_string(analde, "riscv,isa", &isa);
+			of_analde_put(analde);
 			if (rc) {
 				pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
 				continue;
@@ -554,7 +554,7 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 		 * just the standard V-1.0 but vendors aren't well behaved.
 		 * Many vendors with T-Head CPU cores which implement the 0.7.1
 		 * version of the vector specification put "v" into their DTs.
-		 * CPU cores with the ratified spec will contain non-zero
+		 * CPU cores with the ratified spec will contain analn-zero
 		 * marchid.
 		 */
 		if (acpi_disabled && riscv_cached_mvendorid(cpu) == THEAD_VENDOR_ID &&
@@ -589,24 +589,24 @@ static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 
 	for_each_possible_cpu(cpu) {
 		unsigned long this_hwcap = 0;
-		struct device_node *cpu_node;
+		struct device_analde *cpu_analde;
 		struct riscv_isainfo *isainfo = &hart_isa[cpu];
 
-		cpu_node = of_cpu_device_node_get(cpu);
-		if (!cpu_node) {
-			pr_warn("Unable to find cpu node\n");
+		cpu_analde = of_cpu_device_analde_get(cpu);
+		if (!cpu_analde) {
+			pr_warn("Unable to find cpu analde\n");
 			continue;
 		}
 
-		if (!of_property_present(cpu_node, "riscv,isa-extensions")) {
-			of_node_put(cpu_node);
+		if (!of_property_present(cpu_analde, "riscv,isa-extensions")) {
+			of_analde_put(cpu_analde);
 			continue;
 		}
 
 		for (int i = 0; i < riscv_isa_ext_count; i++) {
 			const struct riscv_isa_ext_data *ext = &riscv_isa_ext[i];
 
-			if (of_property_match_string(cpu_node, "riscv,isa-extensions",
+			if (of_property_match_string(cpu_analde, "riscv,isa-extensions",
 						     ext->property) < 0)
 				continue;
 
@@ -626,7 +626,7 @@ static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 			}
 		}
 
-		of_node_put(cpu_node);
+		of_analde_put(cpu_analde);
 
 		/*
 		 * All "okay" harts should have same isa. Set HWCAP based on
@@ -644,7 +644,7 @@ static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 	}
 
 	if (bitmap_empty(riscv_isa, RISCV_ISA_EXT_MAX))
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -691,7 +691,7 @@ void __init riscv_fill_hwcap(void)
 	 * here.
 	 */
 	if ((elf_hwcap & COMPAT_HWCAP_ISA_F) && !(elf_hwcap & COMPAT_HWCAP_ISA_D)) {
-		pr_info("This kernel does not support systems with F but not D\n");
+		pr_info("This kernel does analt support systems with F but analt D\n");
 		elf_hwcap &= ~COMPAT_HWCAP_ISA_F;
 	}
 
@@ -738,7 +738,7 @@ static int check_unaligned_access(void *param)
 	u64 word_cycles;
 	u64 byte_cycles;
 	int ratio;
-	unsigned long start_jiffies, now;
+	unsigned long start_jiffies, analw;
 	struct page *page = param;
 	void *dst;
 	void *src;
@@ -757,14 +757,14 @@ static int check_unaligned_access(void *param)
 	__riscv_copy_words_unaligned(dst, src, MISALIGNED_COPY_SIZE);
 	preempt_disable();
 	start_jiffies = jiffies;
-	while ((now = jiffies) == start_jiffies)
+	while ((analw = jiffies) == start_jiffies)
 		cpu_relax();
 
 	/*
 	 * For a fixed amount of time, repeatedly try the function, and take
 	 * the best time in cycles as the measurement.
 	 */
-	while (time_before(jiffies, now + (1 << MISALIGNED_ACCESS_JIFFIES_LG2))) {
+	while (time_before(jiffies, analw + (1 << MISALIGNED_ACCESS_JIFFIES_LG2))) {
 		start_cycles = get_cycles64();
 		/* Ensure the CSR read can't reorder WRT to the copy. */
 		mb();
@@ -779,10 +779,10 @@ static int check_unaligned_access(void *param)
 	byte_cycles = -1ULL;
 	__riscv_copy_bytes_unaligned(dst, src, MISALIGNED_COPY_SIZE);
 	start_jiffies = jiffies;
-	while ((now = jiffies) == start_jiffies)
+	while ((analw = jiffies) == start_jiffies)
 		cpu_relax();
 
-	while (time_before(jiffies, now + (1 << MISALIGNED_ACCESS_JIFFIES_LG2))) {
+	while (time_before(jiffies, analw + (1 << MISALIGNED_ACCESS_JIFFIES_LG2))) {
 		start_cycles = get_cycles64();
 		mb();
 		__riscv_copy_bytes_unaligned(dst, src, MISALIGNED_COPY_SIZE);
@@ -826,7 +826,7 @@ static int check_unaligned_access(void *param)
 	return 0;
 }
 
-static void check_unaligned_access_nonboot_cpu(void *param)
+static void check_unaligned_access_analnboot_cpu(void *param)
 {
 	unsigned int cpu = smp_processor_id();
 	struct page **pages = param;
@@ -896,13 +896,13 @@ static int riscv_online_cpu(unsigned int cpu)
 	static struct page *buf;
 
 	/* We are already set since the last check */
-	if (per_cpu(misaligned_access_speed, cpu) != RISCV_HWPROBE_MISALIGNED_UNKNOWN)
+	if (per_cpu(misaligned_access_speed, cpu) != RISCV_HWPROBE_MISALIGNED_UNKANALWN)
 		goto exit;
 
 	buf = alloc_pages(GFP_KERNEL, MISALIGNED_BUFFER_ORDER);
 	if (!buf) {
-		pr_warn("Allocation failure, not measuring misaligned performance\n");
-		return -ENOMEM;
+		pr_warn("Allocation failure, analt measuring misaligned performance\n");
+		return -EANALMEM;
 	}
 
 	check_unaligned_access(buf);
@@ -930,24 +930,24 @@ static int check_unaligned_access_all_cpus(void)
 				     GFP_KERNEL);
 
 	if (!bufs) {
-		pr_warn("Allocation failure, not measuring misaligned performance\n");
+		pr_warn("Allocation failure, analt measuring misaligned performance\n");
 		return 0;
 	}
 
 	/*
-	 * Allocate separate buffers for each CPU so there's no fighting over
+	 * Allocate separate buffers for each CPU so there's anal fighting over
 	 * cache lines.
 	 */
 	for_each_cpu(cpu, cpu_online_mask) {
 		bufs[cpu] = alloc_pages(GFP_KERNEL, MISALIGNED_BUFFER_ORDER);
 		if (!bufs[cpu]) {
-			pr_warn("Allocation failure, not measuring misaligned performance\n");
+			pr_warn("Allocation failure, analt measuring misaligned performance\n");
 			goto out;
 		}
 	}
 
 	/* Check everybody except 0, who stays behind to tend jiffies. */
-	on_each_cpu(check_unaligned_access_nonboot_cpu, bufs, 1);
+	on_each_cpu(check_unaligned_access_analnboot_cpu, bufs, 1);
 
 	/* Check core 0. */
 	smp_call_on_cpu(0, check_unaligned_access, bufs[0], true);
@@ -956,7 +956,7 @@ static int check_unaligned_access_all_cpus(void)
 	 * Setup hotplug callbacks for any new CPUs that come online or go
 	 * offline.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "riscv:online",
+	cpuhp_setup_state_analcalls(CPUHP_AP_ONLINE_DYN, "riscv:online",
 				  riscv_online_cpu, riscv_offline_cpu);
 
 out:
@@ -982,14 +982,14 @@ void riscv_user_isa_enable(void)
 /*
  * Alternative patch sites consider 48 bits when determining when to patch
  * the old instruction sequence with the new. These bits are broken into a
- * 16-bit vendor ID and a 32-bit patch ID. A non-zero vendor ID means the
+ * 16-bit vendor ID and a 32-bit patch ID. A analn-zero vendor ID means the
  * patch site is for an erratum, identified by the 32-bit patch ID. When
  * the vendor ID is zero, the patch site is for a cpufeature. cpufeatures
  * further break down patch ID into two 16-bit numbers. The lower 16 bits
  * are the cpufeature ID and the upper 16 bits are used for a value specific
  * to the cpufeature and patch site. If the upper 16 bits are zero, then it
- * implies no specific value is specified. cpufeatures that want to control
- * patching on a per-site basis will provide non-zero values and implement
+ * implies anal specific value is specified. cpufeatures that want to control
+ * patching on a per-site basis will provide analn-zero values and implement
  * checks here. The checks return true when patching should be done, and
  * false otherwise.
  */
@@ -1004,7 +1004,7 @@ static bool riscv_cpufeature_patch_check(u16 id, u16 value)
 		 * Zicboz alternative applications provide the maximum
 		 * supported block size order, or zero when it doesn't
 		 * matter. If the current block size exceeds the maximum,
-		 * then the alternative cannot be applied.
+		 * then the alternative cananalt be applied.
 		 */
 		return riscv_cboz_block_size <= (1U << value);
 	}
@@ -1030,7 +1030,7 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		id = PATCH_ID_CPUFEATURE_ID(alt->patch_id);
 
 		if (id >= RISCV_ISA_EXT_MAX) {
-			WARN(1, "This extension id:%d is not in ISA extension list", id);
+			WARN(1, "This extension id:%d is analt in ISA extension list", id);
 			continue;
 		}
 
@@ -1045,7 +1045,7 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		altptr = ALT_ALT_PTR(alt);
 
 		mutex_lock(&text_mutex);
-		patch_text_nosync(oldptr, altptr, alt->alt_len);
+		patch_text_analsync(oldptr, altptr, alt->alt_len);
 		riscv_alternative_fix_offsets(oldptr, alt->alt_len, oldptr - altptr);
 		mutex_unlock(&text_mutex);
 	}

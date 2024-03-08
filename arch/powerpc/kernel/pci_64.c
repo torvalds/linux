@@ -31,7 +31,7 @@
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
  * and it *must* be the start of ISA space if an ISA bus exists because
- * ISA drivers use hard coded offsets.  If no ISA bus exists nothing
+ * ISA drivers use hard coded offsets.  If anal ISA bus exists analthing
  * is mapped on the first 64K of IO space
  */
 unsigned long pci_io_base;
@@ -43,7 +43,7 @@ static int __init pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
-	/* For now, override phys_mem_access_prot. If we need it,g
+	/* For analw, override phys_mem_access_prot. If we need it,g
 	 * later, we may move that initialization to each ppc_md
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
@@ -54,14 +54,14 @@ static int __init pcibios_init(void)
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
 
 	/* Scan all of the recorded PCI controllers.  */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_analde)
 		pcibios_scan_phb(hose);
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
 
 	/* Add devices. */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_analde)
 		pci_bus_add_devices(hose->bus);
 
 	/* Call machine dependent fixup */
@@ -81,14 +81,14 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 
 	WARN_ON(bus == NULL);
 
-	/* If this is not a PHB, we only flush the hash table over
+	/* If this is analt a PHB, we only flush the hash table over
 	 * the area mapped by this bridge. We don't play with the PTE
 	 * mappings since we might have to deal with sub-page alignments
 	 * so flushing the hash table is the only sane way to make sure
-	 * that no hash entries are covering that removed bridge area
+	 * that anal hash entries are covering that removed bridge area
 	 * while still allowing other busses overlapping those pages
 	 *
-	 * Note: If we ever support P2P hotplug on Book3E, we'll have
+	 * Analte: If we ever support P2P hotplug on Book3E, we'll have
 	 * to do an appropriate TLB flush here too
 	 */
 	if (bus->self) {
@@ -129,7 +129,7 @@ void __iomem *ioremap_phb(phys_addr_t paddr, unsigned long size)
 	 * Let's allocate some IO space for that guy. We don't pass VM_IOREMAP
 	 * because we don't care about alignment tricks that the core does in
 	 * that case.  Maybe we should due to stupid card with incomplete
-	 * address decoding but I'd rather not deal with those outside of the
+	 * address decoding but I'd rather analt deal with those outside of the
 	 * reserved 64K legacy region.
 	 */
 	area = __get_vm_area_caller(size, VM_IOREMAP, PHB_IO_BASE, PHB_IO_END,
@@ -139,7 +139,7 @@ void __iomem *ioremap_phb(phys_addr_t paddr, unsigned long size)
 
 	addr = (unsigned long)area->addr;
 	if (ioremap_page_range(addr, addr + size, paddr,
-			pgprot_noncached(PAGE_KERNEL))) {
+			pgprot_analncached(PAGE_KERNEL))) {
 		vunmap_range(addr, addr + size);
 		return NULL;
 	}
@@ -160,19 +160,19 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 	/* Make sure IO area address is clear */
 	hose->io_base_alloc = NULL;
 
-	/* If there's no IO to map on that bus, get away too */
+	/* If there's anal IO to map on that bus, get away too */
 	if (hose->pci_io_size == 0 || hose->io_base_phys == 0)
 		return 0;
 
 	/* Let's allocate some IO space for that guy. We don't pass
 	 * VM_IOREMAP because we don't care about alignment tricks that
 	 * the core does in that case. Maybe we should due to stupid card
-	 * with incomplete address decoding but I'd rather not deal with
+	 * with incomplete address decoding but I'd rather analt deal with
 	 * those outside of the reserved 64K legacy region.
 	 */
 	hose->io_base_alloc = ioremap_phb(phys_page, size_page);
 	if (!hose->io_base_alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 	hose->io_base_virt = hose->io_base_alloc +
 				hose->io_base_phys - phys_page;
 
@@ -196,7 +196,7 @@ int pcibios_map_io_space(struct pci_bus *bus)
 {
 	WARN_ON(bus == NULL);
 
-	/* If this not a PHB, nothing to do, page tables still exist and
+	/* If this analt a PHB, analthing to do, page tables still exist and
 	 * thus HPTEs will be faulted in when needed
 	 */
 	if (bus->self) {
@@ -228,42 +228,42 @@ SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, in_bus,
 {
 	struct pci_controller* hose;
 	struct pci_bus *tmp_bus, *bus = NULL;
-	struct device_node *hose_node;
+	struct device_analde *hose_analde;
 
 	/* Argh ! Please forgive me for that hack, but that's the
-	 * simplest way to get existing XFree to not lockup on some
+	 * simplest way to get existing XFree to analt lockup on some
 	 * G5 machines... So when something asks for bus 0 io base
 	 * (bus 0 is HT root), we return the AGP one instead.
 	 */
 	if (in_bus == 0 && of_machine_is_compatible("MacRISC4")) {
-		struct device_node *agp;
+		struct device_analde *agp;
 
-		agp = of_find_compatible_node(NULL, NULL, "u3-agp");
+		agp = of_find_compatible_analde(NULL, NULL, "u3-agp");
 		if (agp)
 			in_bus = 0xf0;
-		of_node_put(agp);
+		of_analde_put(agp);
 	}
 
 	/* That syscall isn't quite compatible with PCI domains, but it's
 	 * used on pre-domains setup. We return the first match
 	 */
 
-	list_for_each_entry(tmp_bus, &pci_root_buses, node) {
+	list_for_each_entry(tmp_bus, &pci_root_buses, analde) {
 		if (in_bus >= tmp_bus->number &&
 		    in_bus <= tmp_bus->busn_res.end) {
 			bus = tmp_bus;
 			break;
 		}
 	}
-	if (bus == NULL || bus->dev.of_node == NULL)
-		return -ENODEV;
+	if (bus == NULL || bus->dev.of_analde == NULL)
+		return -EANALDEV;
 
-	hose_node = bus->dev.of_node;
-	hose = PCI_DN(hose_node)->phb;
+	hose_analde = bus->dev.of_analde;
+	hose = PCI_DN(hose_analde)->phb;
 
 	switch (which) {
 	case IOBASE_BRIDGE_NUMBER:
-		return (long)hose->first_busno;
+		return (long)hose->first_busanal;
 	case IOBASE_MEMORY:
 		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
@@ -274,24 +274,24 @@ SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, in_bus,
 		return -EINVAL;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #ifdef CONFIG_NUMA
-int pcibus_to_node(struct pci_bus *bus)
+int pcibus_to_analde(struct pci_bus *bus)
 {
 	struct pci_controller *phb = pci_bus_to_host(bus);
-	return phb->node;
+	return phb->analde;
 }
-EXPORT_SYMBOL(pcibus_to_node);
+EXPORT_SYMBOL(pcibus_to_analde);
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-int pci_device_from_OF_node(struct device_node *np, u8 *bus, u8 *devfn)
+int pci_device_from_OF_analde(struct device_analde *np, u8 *bus, u8 *devfn)
 {
 	if (!PCI_DN(np))
-		return -ENODEV;
-	*bus = PCI_DN(np)->busno;
+		return -EANALDEV;
+	*bus = PCI_DN(np)->busanal;
 	*devfn = PCI_DN(np)->devfn;
 	return 0;
 }

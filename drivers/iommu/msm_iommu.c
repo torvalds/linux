@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/io-pgtable.h>
 #include <linux/interrupt.h>
@@ -121,7 +121,7 @@ static void __flush_iotlb(void *cookie)
 	struct msm_iommu_ctx_dev *master;
 	int ret = 0;
 
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_analde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -144,7 +144,7 @@ static void __flush_iotlb_range(unsigned long iova, size_t size,
 	int ret = 0;
 	int temp_size;
 
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_analde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -192,7 +192,7 @@ static int msm_iommu_alloc_ctx(unsigned long *map, int start, int end)
 	do {
 		idx = find_next_zero_bit(map, end, start);
 		if (idx == end)
-			return -ENOSPC;
+			return -EANALSPC;
 	} while (test_and_set_bit(idx, map));
 
 	return idx;
@@ -227,7 +227,7 @@ static void config_mids(struct msm_iommu_dev *iommu,
 		/* Set the ASID for TLB tagging for this context */
 		SET_CONTEXTIDR_ASID(iommu->base, ctx, ctx);
 
-		/* Set security bit override to be Non-secure */
+		/* Set security bit override to be Analn-secure */
 		SET_NSCFG(iommu->base, mid, 3);
 	}
 }
@@ -308,7 +308,7 @@ static struct iommu_domain *msm_iommu_domain_alloc_paging(struct device *dev)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		goto fail_nomem;
+		goto fail_analmem;
 
 	INIT_LIST_HEAD(&priv->list_attached);
 
@@ -318,7 +318,7 @@ static struct iommu_domain *msm_iommu_domain_alloc_paging(struct device *dev)
 
 	return &priv->domain;
 
-fail_nomem:
+fail_analmem:
 	kfree(priv);
 	return NULL;
 }
@@ -363,11 +363,11 @@ static struct msm_iommu_dev *find_iommu_for_dev(struct device *dev)
 	struct msm_iommu_dev *iommu, *ret = NULL;
 	struct msm_iommu_ctx_dev *master;
 
-	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_analde) {
 		master = list_first_entry(&iommu->ctx_list,
 					  struct msm_iommu_ctx_dev,
 					  list);
-		if (master->of_node == dev->of_node) {
+		if (master->of_analde == dev->of_analde) {
 			ret = iommu;
 			break;
 		}
@@ -386,7 +386,7 @@ static struct iommu_device *msm_iommu_probe_device(struct device *dev)
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 
 	if (!iommu)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return &iommu->iommu;
 }
@@ -403,11 +403,11 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	msm_iommu_domain_config(priv);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_analde) {
 		master = list_first_entry(&iommu->ctx_list,
 					  struct msm_iommu_ctx_dev,
 					  list);
-		if (master->of_node == dev->of_node) {
+		if (master->of_analde == dev->of_analde) {
 			ret = __enable_clocks(iommu);
 			if (ret)
 				goto fail;
@@ -422,7 +422,7 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 					msm_iommu_alloc_ctx(iommu->context_map,
 							    0, iommu->ncb);
 				if (IS_ERR_VALUE(master->num)) {
-					ret = -ENODEV;
+					ret = -EANALDEV;
 					goto fail;
 				}
 				config_mids(iommu, master);
@@ -430,7 +430,7 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 						  priv);
 			}
 			__disable_clocks(iommu);
-			list_add(&iommu->dom_node, &priv->list_attached);
+			list_add(&iommu->dom_analde, &priv->list_attached);
 		}
 	}
 
@@ -457,7 +457,7 @@ static int msm_iommu_identity_attach(struct iommu_domain *identity_domain,
 	free_io_pgtable_ops(priv->iop);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_analde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -536,7 +536,7 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 
 	priv = to_msm_priv(domain);
 	iommu = list_first_entry(&priv->list_attached,
-				 struct msm_iommu_dev, dom_node);
+				 struct msm_iommu_dev, dom_analde);
 
 	if (list_empty(&iommu->ctx_list))
 		goto fail;
@@ -557,7 +557,7 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 	par = GET_PAR(iommu->base, master->num);
 
 	/* We are dealing with a supersection */
-	if (GET_NOFAULT_SS(iommu->base, master->num))
+	if (GET_ANALFAULT_SS(iommu->base, master->num))
 		ret = (par & 0xFF000000) | (va & 0x00FFFFFF);
 	else	/* Upper 20 bits from PAR, lower 12 from VA */
 		ret = (par & 0xFFFFF000) | (va & 0x00000FFF);
@@ -607,16 +607,16 @@ static int insert_iommu_master(struct device *dev,
 		master = kzalloc(sizeof(*master), GFP_ATOMIC);
 		if (!master) {
 			dev_err(dev, "Failed to allocate iommu_master\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
-		master->of_node = dev->of_node;
+		master->of_analde = dev->of_analde;
 		list_add(&master->list, &(*iommu)->ctx_list);
 		dev_iommu_priv_set(dev, master);
 	}
 
 	for (sid = 0; sid < master->num_mids; sid++)
 		if (master->mids[sid] == spec->args[0]) {
-			dev_warn(dev, "Stream ID 0x%x repeated; ignoring\n",
+			dev_warn(dev, "Stream ID 0x%x repeated; iganalring\n",
 				 sid);
 			return 0;
 		}
@@ -633,15 +633,15 @@ static int qcom_iommu_of_xlate(struct device *dev,
 	int ret = 0;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iter, &qcom_iommu_devices, dev_node) {
-		if (iter->dev->of_node == spec->np) {
+	list_for_each_entry(iter, &qcom_iommu_devices, dev_analde) {
+		if (iter->dev->of_analde == spec->np) {
 			iommu = iter;
 			break;
 		}
 	}
 
 	if (!iommu) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -699,7 +699,7 @@ static struct iommu_ops msm_iommu_ops = {
 		.map_pages	= msm_iommu_map,
 		.unmap_pages	= msm_iommu_unmap,
 		/*
-		 * Nothing is needed here, the barrier to guarantee
+		 * Analthing is needed here, the barrier to guarantee
 		 * completion of the tlb sync operation is implicitly
 		 * taken care when the iommu client does a writel before
 		 * kick starting the other master.
@@ -720,7 +720,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	iommu = devm_kzalloc(&pdev->dev, sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
-		return -ENODEV;
+		return -EANALDEV;
 
 	iommu->dev = &pdev->dev;
 	INIT_LIST_HEAD(&iommu->ctx_list);
@@ -728,43 +728,43 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	iommu->pclk = devm_clk_get(iommu->dev, "smmu_pclk");
 	if (IS_ERR(iommu->pclk))
 		return dev_err_probe(iommu->dev, PTR_ERR(iommu->pclk),
-				     "could not get smmu_pclk\n");
+				     "could analt get smmu_pclk\n");
 
 	ret = clk_prepare(iommu->pclk);
 	if (ret)
 		return dev_err_probe(iommu->dev, ret,
-				     "could not prepare smmu_pclk\n");
+				     "could analt prepare smmu_pclk\n");
 
 	iommu->clk = devm_clk_get(iommu->dev, "iommu_clk");
 	if (IS_ERR(iommu->clk)) {
 		clk_unprepare(iommu->pclk);
 		return dev_err_probe(iommu->dev, PTR_ERR(iommu->clk),
-				     "could not get iommu_clk\n");
+				     "could analt get iommu_clk\n");
 	}
 
 	ret = clk_prepare(iommu->clk);
 	if (ret) {
 		clk_unprepare(iommu->pclk);
-		return dev_err_probe(iommu->dev, ret, "could not prepare iommu_clk\n");
+		return dev_err_probe(iommu->dev, ret, "could analt prepare iommu_clk\n");
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iommu->base = devm_ioremap_resource(iommu->dev, r);
 	if (IS_ERR(iommu->base)) {
-		ret = dev_err_probe(iommu->dev, PTR_ERR(iommu->base), "could not get iommu base\n");
+		ret = dev_err_probe(iommu->dev, PTR_ERR(iommu->base), "could analt get iommu base\n");
 		goto fail;
 	}
 	ioaddr = r->start;
 
 	iommu->irq = platform_get_irq(pdev, 0);
 	if (iommu->irq < 0) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
-	ret = of_property_read_u32(iommu->dev->of_node, "qcom,ncb", &val);
+	ret = of_property_read_u32(iommu->dev->of_analde, "qcom,ncb", &val);
 	if (ret) {
-		dev_err(iommu->dev, "could not get ncb\n");
+		dev_err(iommu->dev, "could analt get ncb\n");
 		goto fail;
 	}
 	iommu->ncb = val;
@@ -780,7 +780,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	if (!par) {
 		pr_err("Invalid PAR value detected\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto fail;
 	}
 
@@ -794,18 +794,18 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	list_add(&iommu->dev_node, &qcom_iommu_devices);
+	list_add(&iommu->dev_analde, &qcom_iommu_devices);
 
 	ret = iommu_device_sysfs_add(&iommu->iommu, iommu->dev, NULL,
 				     "msm-smmu.%pa", &ioaddr);
 	if (ret) {
-		pr_err("Could not add msm-smmu at %pa to sysfs\n", &ioaddr);
+		pr_err("Could analt add msm-smmu at %pa to sysfs\n", &ioaddr);
 		goto fail;
 	}
 
 	ret = iommu_device_register(&iommu->iommu, &msm_iommu_ops, &pdev->dev);
 	if (ret) {
-		pr_err("Could not register msm-smmu at %pa\n", &ioaddr);
+		pr_err("Could analt register msm-smmu at %pa\n", &ioaddr);
 		goto fail;
 	}
 

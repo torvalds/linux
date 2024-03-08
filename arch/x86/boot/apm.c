@@ -26,7 +26,7 @@ int query_apm_bios(void)
 	intcall(0x15, &ireg, &oreg);
 
 	if (oreg.flags & X86_EFLAGS_CF)
-		return -1;		/* No APM BIOS */
+		return -1;		/* Anal APM BIOS */
 
 	if (oreg.bx != 0x504d)		/* "PM" signature */
 		return -1;
@@ -60,7 +60,7 @@ int query_apm_bios(void)
 	intcall(0x15, &ireg, &oreg);
 
 	if ((oreg.eflags & X86_EFLAGS_CF) || oreg.bx != 0x504d) {
-		/* Failure with 32-bit connect, try to disconnect and ignore */
+		/* Failure with 32-bit connect, try to disconnect and iganalre */
 		ireg.al = 0x04;
 		intcall(0x15, &ireg, NULL);
 		return -1;

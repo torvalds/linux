@@ -125,9 +125,9 @@ static inline int clk_on_imx6ull(void)
 	return of_machine_is_compatible("fsl,imx6ull");
 }
 
-static void __init imx6ul_clocks_init(struct device_node *ccm_node)
+static void __init imx6ul_clocks_init(struct device_analde *ccm_analde)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *base;
 
 	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
@@ -140,16 +140,16 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	hws[IMX6UL_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX6UL_CLK_CKIL] = imx_get_clk_hw_by_name(ccm_node, "ckil");
-	hws[IMX6UL_CLK_OSC] = imx_get_clk_hw_by_name(ccm_node, "osc");
+	hws[IMX6UL_CLK_CKIL] = imx_get_clk_hw_by_name(ccm_analde, "ckil");
+	hws[IMX6UL_CLK_OSC] = imx_get_clk_hw_by_name(ccm_analde, "osc");
 
 	/* ipp_di clock is external input */
-	hws[IMX6UL_CLK_IPP_DI0] = imx_get_clk_hw_by_name(ccm_node, "ipp_di0");
-	hws[IMX6UL_CLK_IPP_DI1] = imx_get_clk_hw_by_name(ccm_node, "ipp_di1");
+	hws[IMX6UL_CLK_IPP_DI0] = imx_get_clk_hw_by_name(ccm_analde, "ipp_di0");
+	hws[IMX6UL_CLK_IPP_DI1] = imx_get_clk_hw_by_name(ccm_analde, "ipp_di1");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-anatop");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx6ul-anatop");
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	WARN_ON(!base);
 
 	hws[IMX6UL_PLL1_BYPASS_SRC] = imx_clk_hw_mux("pll1_bypass_src", base + 0x00, 14, 1, pll_bypass_src_sels, ARRAY_SIZE(pll_bypass_src_sels));
@@ -176,7 +176,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	hws[IMX6UL_PLL6_BYPASS] = imx_clk_hw_mux_flags("pll6_bypass", base + 0xe0, 16, 1, pll6_bypass_sels, ARRAY_SIZE(pll6_bypass_sels), CLK_SET_RATE_PARENT);
 	hws[IMX6UL_PLL7_BYPASS] = imx_clk_hw_mux_flags("pll7_bypass", base + 0x20, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do analt bypass PLLs initially */
 	clk_set_parent(hws[IMX6UL_PLL1_BYPASS]->clk, hws[IMX6UL_CLK_PLL1]->clk);
 	clk_set_parent(hws[IMX6UL_PLL2_BYPASS]->clk, hws[IMX6UL_CLK_PLL2]->clk);
 	clk_set_parent(hws[IMX6UL_PLL3_BYPASS]->clk, hws[IMX6UL_CLK_PLL3]->clk);
@@ -195,7 +195,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
-	 * - Do nothing for usbphy clk_enable/disable
+	 * - Do analthing for usbphy clk_enable/disable
 	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
 	 * the clk framework many need to enable/disable usbphy's parent
 	 */
@@ -244,7 +244,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	hws[IMX6UL_CLK_PLL3_60M]  = imx_clk_hw_fixed_factor("pll3_60m",  "pll3_usb_otg",   1,	8);
 	hws[IMX6UL_CLK_GPT_3M]	   = imx_clk_hw_fixed_factor("gpt_3m",	"osc",		 1,	8);
 
-	np = ccm_node;
+	np = ccm_analde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 
@@ -486,12 +486,12 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	/* mask handshake of mmdc */
 	imx_mmdc_mask_handshake(base, 0);
 
-	hws[IMX6UL_CLK_ENET1_REF_PAD] = imx_obtain_fixed_of_clock(ccm_node, "enet1_ref_pad", 0);
+	hws[IMX6UL_CLK_ENET1_REF_PAD] = imx_obtain_fixed_of_clock(ccm_analde, "enet1_ref_pad", 0);
 
 	hws[IMX6UL_CLK_ENET1_REF_SEL] = imx_clk_gpr_mux("enet1_ref_sel", "fsl,imx6ul-iomuxc-gpr",
 				IOMUXC_GPR1, enet1_ref_sels, ARRAY_SIZE(enet1_ref_sels),
 				enet1_ref_sels_table, enet1_ref_sels_table_mask);
-	hws[IMX6UL_CLK_ENET2_REF_PAD] = imx_obtain_fixed_of_clock(ccm_node, "enet2_ref_pad", 0);
+	hws[IMX6UL_CLK_ENET2_REF_PAD] = imx_obtain_fixed_of_clock(ccm_analde, "enet2_ref_pad", 0);
 
 	hws[IMX6UL_CLK_ENET2_REF_SEL] = imx_clk_gpr_mux("enet2_ref_sel", "fsl,imx6ul-iomuxc-gpr",
 				IOMUXC_GPR1, enet2_ref_sels, ARRAY_SIZE(enet2_ref_sels),
@@ -503,7 +503,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Lower the AHB clock rate before changing the parent clock source,
-	 * as AHB clock rate can NOT be higher than 133MHz, but its parent
+	 * as AHB clock rate can ANALT be higher than 133MHz, but its parent
 	 * will be switched from 396MHz PFD to 528MHz PLL in order to increase
 	 * AXI clock rate, so we need to lower AHB rate first to make sure at
 	 * any time, AHB rate is <= 133MHz.

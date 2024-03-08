@@ -12,7 +12,7 @@
 #define EF_SH_FDPIC		0x8000	/* -mfdpic */
 
 /* SH (particularly SHcompact) relocation types  */
-#define	R_SH_NONE		0
+#define	R_SH_ANALNE		0
 #define	R_SH_DIR32		1
 #define	R_SH_REL32		2
 #define	R_SH_DIR8WPN		3
@@ -119,7 +119,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 
 #define ELF_HWCAP	(boot_cpu_data.flags)
 
@@ -180,15 +180,15 @@ extern void __kernel_vsyscall;
 	if (vdso_enabled)					\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);	\
 	else							\
-		NEW_AUX_ENT(AT_IGNORE, 0)
+		NEW_AUX_ENT(AT_IGANALRE, 0)
 #else
-#define VSYSCALL_AUX_ENT	NEW_AUX_ENT(AT_IGNORE, 0)
+#define VSYSCALL_AUX_ENT	NEW_AUX_ENT(AT_IGANALRE, 0)
 #endif /* CONFIG_VSYSCALL */
 
 #ifdef CONFIG_SH_FPU
 #define FPU_AUX_ENT	NEW_AUX_ENT(AT_FPUCW, FPSCR_INIT)
 #else
-#define FPU_AUX_ENT	NEW_AUX_ENT(AT_IGNORE, 0)
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_IGANALRE, 0)
 #endif
 
 extern int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;

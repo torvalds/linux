@@ -20,7 +20,7 @@ ftrace, and LTTng.
 
 Tracepoints are defined in a number of header files via various macros.
 Thus, the purpose of this document is to provide a clear accounting of
-the available tracepoints. The intention is to understand not only what
+the available tracepoints. The intention is to understand analt only what
 tracepoints are available but also to understand where future
 tracepoints might be added.
 

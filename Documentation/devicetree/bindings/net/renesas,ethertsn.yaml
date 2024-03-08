@@ -61,7 +61,7 @@ properties:
   phy-handle:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Specifies a reference to a node representing a PHY device.
+      Specifies a reference to a analde representing a PHY device.
 
   rx-internal-delay-ps:
     enum: [0, 1800]

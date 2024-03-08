@@ -8,13 +8,13 @@ struct strlist;
 struct intlist;
 
 struct symbol_conf {
-	bool		nanosecs;
+	bool		naanalsecs;
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
-			init_annotation,
+			init_ananaltation,
 			force,
-			ignore_vmlinux,
-			ignore_vmlinux_buildid,
+			iganalre_vmlinux,
+			iganalre_vmlinux_buildid,
 			show_kernel_path,
 			use_modules,
 			allow_aliases,
@@ -45,8 +45,8 @@ struct symbol_conf {
 			guest_code,
 			lazy_load_kernel_maps,
 			keep_exited_threads,
-			annotate_data_member,
-			annotate_data_sample;
+			ananaltate_data_member,
+			ananaltate_data_sample;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

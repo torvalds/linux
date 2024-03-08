@@ -9,7 +9,7 @@
 
 /* Completion code size and initial value */
 #define OTX2_CPT_COMPLETION_CODE_SIZE 8
-#define OTX2_CPT_COMPLETION_CODE_INIT OTX2_CPT_COMP_E_NOTDONE
+#define OTX2_CPT_COMPLETION_CODE_INIT OTX2_CPT_COMP_E_ANALTDONE
 /*
  * Maximum total number of SG buffers is 100, we divide it equally
  * between input and output
@@ -38,7 +38,7 @@ union otx2_cpt_opcode {
 	u16 flags;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 	} s;
 };
 
@@ -86,7 +86,7 @@ struct otx2_cpt_pending_entry {
 	/* Kernel async request callback */
 	void (*callback)(int status, void *arg1, void *arg2);
 	struct crypto_async_request *areq; /* Async request callback arg */
-	u8 resume_sender;	/* Notify sender to resume sending requests */
+	u8 resume_sender;	/* Analtify sender to resume sending requests */
 	u8 busy;		/* Entry status (free/busy) */
 };
 

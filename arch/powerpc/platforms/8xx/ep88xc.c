@@ -118,22 +118,22 @@ static u8 __iomem *ep88xc_bcsr;
 
 static void __init ep88xc_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	cpm_reset();
 	init_ioports();
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ep88xc-bcsr");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,ep88xc-bcsr");
 	if (!np) {
-		printk(KERN_CRIT "Could not find fsl,ep88xc-bcsr node\n");
+		printk(KERN_CRIT "Could analt find fsl,ep88xc-bcsr analde\n");
 		return;
 	}
 
 	ep88xc_bcsr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!ep88xc_bcsr) {
-		printk(KERN_CRIT "Could not remap BCSR\n");
+		printk(KERN_CRIT "Could analt remap BCSR\n");
 		return;
 	}
 

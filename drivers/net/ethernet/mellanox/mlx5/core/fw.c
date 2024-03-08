@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -76,10 +76,10 @@ int mlx5_query_board_id(struct mlx5_core_dev *dev)
 
 	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_adapter_in, in, opcode, MLX5_CMD_OP_QUERY_ADAPTER);
-	err = mlx5_cmd_exec_inout(dev, query_adapter, in, out);
+	err = mlx5_cmd_exec_ianalut(dev, query_adapter, in, out);
 	if (err)
 		goto out;
 
@@ -103,10 +103,10 @@ int mlx5_core_query_vendor_id(struct mlx5_core_dev *mdev, u32 *vendor_id)
 
 	out = kzalloc(outlen, GFP_KERNEL);
 	if (!out)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(query_adapter_in, in, opcode, MLX5_CMD_OP_QUERY_ADAPTER);
-	err = mlx5_cmd_exec_inout(mdev, query_adapter, in, out);
+	err = mlx5_cmd_exec_ianalut(mdev, query_adapter, in, out);
 	if (err)
 		goto out;
 
@@ -319,8 +319,8 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, force_teardown)) {
-		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
-		return -EOPNOTSUPP;
+		mlx5_core_dbg(dev, "force teardown is analt supported in the firmware\n");
+		return -EOPANALTSUPP;
 	}
 
 	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
@@ -332,7 +332,7 @@ int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev)
 
 	force_state = MLX5_GET(teardown_hca_out, out, state);
 	if (force_state == MLX5_TEARDOWN_HCA_OUT_FORCE_STATE_FAIL) {
-		mlx5_core_warn(dev, "teardown with force mode failed, doing normal teardown\n");
+		mlx5_core_warn(dev, "teardown with force mode failed, doing analrmal teardown\n");
 		return -EIO;
 	}
 
@@ -348,15 +348,15 @@ int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev)
 	int ret;
 
 	if (!MLX5_CAP_GEN(dev, fast_teardown)) {
-		mlx5_core_dbg(dev, "fast teardown is not supported in the firmware\n");
-		return -EOPNOTSUPP;
+		mlx5_core_dbg(dev, "fast teardown is analt supported in the firmware\n");
+		return -EOPANALTSUPP;
 	}
 
 	MLX5_SET(teardown_hca_in, in, opcode, MLX5_CMD_OP_TEARDOWN_HCA);
 	MLX5_SET(teardown_hca_in, in, profile,
 		 MLX5_TEARDOWN_HCA_IN_PROFILE_PREPARE_FAST_TEARDOWN);
 
-	ret = mlx5_cmd_exec_inout(dev, teardown_hca, in, out);
+	ret = mlx5_cmd_exec_ianalut(dev, teardown_hca, in, out);
 	if (ret)
 		return ret;
 
@@ -452,7 +452,7 @@ static int mlx5_reg_mcda_set(struct mlx5_core_dev *dev,
 
 	in = kzalloc(in_size, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(mcda_reg, in, update_handle, update_handle);
 	MLX5_SET(mcda_reg, in, offset, offset);
@@ -531,7 +531,7 @@ static int mlx5_component_query(struct mlxfw_dev *mlxfw_dev,
 
 	if (!MLX5_CAP_GEN(dev, mcam_reg) || !MLX5_CAP_MCAM_REG(dev, mcqi)) {
 		mlx5_core_warn(dev, "caps query isn't supported by running FW\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return mlx5_reg_mcqi_caps_query(dev, component_index, p_max_size,
@@ -652,7 +652,7 @@ static int mlx5_fsm_reactivate(struct mlxfw_dev *mlxfw_dev, u8 *status)
 	exp_time = jiffies + msecs_to_jiffies(mlx5_tout_ms(dev, FSM_REACTIVATE));
 
 	if (!MLX5_CAP_MCAM_REG2(dev, mirc))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memset(in, 0, sizeof(in));
 
@@ -710,7 +710,7 @@ int mlx5_firmware_flash(struct mlx5_core_dev *dev,
 	    !MLX5_CAP_MCAM_REG(dev, mcc)  ||
 	    !MLX5_CAP_MCAM_REG(dev, mcda)) {
 		pr_info("%s flashing isn't supported by the running FW\n", __func__);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return mlxfw_firmware_flash(&mlx5_mlxfw_dev.mlxfw_dev,
@@ -764,7 +764,7 @@ static int mlx5_get_boot_img_component_index(struct mlx5_core_dev *dev)
 	if (identifier != MCQS_IDENTIFIER_BOOT_IMG) {
 		mlx5_core_warn(dev, "mcqs: can't find boot_img component ix, last scanned idx %d\n",
 			       component_idx);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return component_idx;
@@ -793,7 +793,7 @@ mlx5_fw_image_pending(struct mlx5_core_dev *dev,
 		mlx5_core_warn(dev,
 			       "mcqs: can't read pending fw version while fw state is %d\n",
 			       component_update_state);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 	return 0;
 }
@@ -809,7 +809,7 @@ int mlx5_fw_version_query(struct mlx5_core_dev *dev,
 	if (!MLX5_CAP_GEN(dev, mcam_reg) || !MLX5_CAP_MCAM_REG(dev, mcqi) ||
 	    !MLX5_CAP_MCAM_REG(dev, mcqs)) {
 		mlx5_core_warn(dev, "fw query isn't supported by the FW\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	component_index = mlx5_get_boot_img_component_index(dev);

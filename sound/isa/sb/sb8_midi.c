@@ -26,12 +26,12 @@ irqreturn_t snd_sb8dsp_midi_interrupt(struct snd_sb *chip)
 	char byte;
 
 	if (!chip)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	
 	rmidi = chip->rmidi;
 	if (!rmidi) {
 		inb(SBP(chip, DATA_AVAIL));	/* ack interrupt */
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	spin_lock(&chip->midi_input_lock);

@@ -8,7 +8,7 @@
 #define _SUN6I_ISP_PROC_H_
 
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define SUN6I_ISP_PROC_NAME		"sun6i-isp-proc"
 
@@ -29,7 +29,7 @@ struct sun6i_isp_proc_format {
 
 struct sun6i_isp_proc_source {
 	struct v4l2_subdev		*subdev;
-	struct v4l2_fwnode_endpoint	endpoint;
+	struct v4l2_fwanalde_endpoint	endpoint;
 	bool				expected;
 };
 
@@ -41,7 +41,7 @@ struct sun6i_isp_proc_async_subdev {
 struct sun6i_isp_proc {
 	struct v4l2_subdev		subdev;
 	struct media_pad		pads[3];
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct v4l2_mbus_framefmt	mbus_format;
 	struct mutex			lock; /* Mbus format lock. */
 

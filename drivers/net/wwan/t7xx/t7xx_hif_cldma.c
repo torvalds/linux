@@ -25,7 +25,7 @@
 #include <linux/dma-direction.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/iopoll.h>
 #include <linux/irqreturn.h>
 #include <linux/kernel.h>
@@ -95,7 +95,7 @@ static int t7xx_cldma_alloc_and_map_skb(struct cldma_ctrl *md_ctrl, struct cldma
 {
 	req->skb = __dev_alloc_skb(size, gfp_mask);
 	if (!req->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->mapped_buff = dma_map_single(md_ctrl->dev, req->skb->data, size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(md_ctrl->dev, req->mapped_buff)) {
@@ -103,7 +103,7 @@ static int t7xx_cldma_alloc_and_map_skb(struct cldma_ctrl *md_ctrl, struct cldma
 		req->skb = NULL;
 		req->mapped_buff = 0;
 		dev_err(md_ctrl->dev, "DMA mapping failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -114,7 +114,7 @@ static int t7xx_cldma_gpd_rx_from_q(struct cldma_queue *queue, int budget, bool 
 	struct cldma_ctrl *md_ctrl = queue->md_ctrl;
 	unsigned int hwo_polling_count = 0;
 	struct t7xx_cldma_hw *hw_info;
-	bool rx_not_done = true;
+	bool rx_analt_done = true;
 	unsigned long flags;
 	int count = 0;
 
@@ -128,7 +128,7 @@ static int t7xx_cldma_gpd_rx_from_q(struct cldma_queue *queue, int budget, bool 
 
 		req = queue->tr_done;
 		if (!req)
-			return -ENODATA;
+			return -EANALDATA;
 
 		gpd = req->gpd;
 		if ((gpd->flags & GPD_FLAGS_HWO) || !req->skb) {
@@ -136,7 +136,7 @@ static int t7xx_cldma_gpd_rx_from_q(struct cldma_queue *queue, int budget, bool 
 
 			if (!pci_device_is_present(to_pci_dev(md_ctrl->dev))) {
 				dev_err(md_ctrl->dev, "PCIe Link disconnected\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 
 			gpd_addr = ioread64(hw_info->ap_pdn_base + REG_CLDMA_DL_CURRENT_ADDRL_0 +
@@ -187,8 +187,8 @@ static int t7xx_cldma_gpd_rx_from_q(struct cldma_queue *queue, int budget, bool 
 		queue->rx_refill = list_next_entry_circular(req, &queue->tr_ring->gpd_ring, entry);
 		spin_unlock_irqrestore(&queue->ring_lock, flags);
 
-		rx_not_done = ++count < budget || !need_resched();
-	} while (rx_not_done);
+		rx_analt_done = ++count < budget || !need_resched();
+	} while (rx_analt_done);
 
 	*over_budget = true;
 	return 0;
@@ -207,7 +207,7 @@ static int t7xx_cldma_gpd_rx_collect(struct cldma_queue *queue, int budget)
 
 	do {
 		ret = t7xx_cldma_gpd_rx_from_q(queue, budget, &over_budget);
-		if (ret == -ENODATA)
+		if (ret == -EANALDATA)
 			return 0;
 		else if (ret)
 			return ret;
@@ -322,7 +322,7 @@ static void t7xx_cldma_txq_empty_hndl(struct cldma_queue *queue)
 					queue->index * sizeof(u64));
 		if (req->gpd_addr != ul_curr_addr) {
 			spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
-			dev_err(md_ctrl->dev, "CLDMA%d queue %d is not empty\n",
+			dev_err(md_ctrl->dev, "CLDMA%d queue %d is analt empty\n",
 				md_ctrl->hif_id, queue->index);
 			return;
 		}
@@ -430,7 +430,7 @@ static int t7xx_cldma_rx_ring_init(struct cldma_ctrl *md_ctrl, struct cldma_ring
 		req = t7xx_alloc_rx_request(md_ctrl, ring->pkt_size);
 		if (!req) {
 			t7xx_cldma_ring_free(md_ctrl, ring, DMA_FROM_DEVICE);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		gpd = req->gpd;
@@ -480,7 +480,7 @@ static int t7xx_cldma_tx_ring_init(struct cldma_ctrl *md_ctrl, struct cldma_ring
 		req = t7xx_alloc_tx_request(md_ctrl);
 		if (!req) {
 			t7xx_cldma_ring_free(md_ctrl, ring, DMA_TO_DEVICE);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		gpd = req->gpd;
@@ -661,7 +661,7 @@ int t7xx_cldma_stop(struct cldma_ctrl *md_ctrl)
 	ret = read_poll_timeout(t7xx_cldma_qs_are_active, active, !active, CHECK_Q_STOP_STEP_US,
 				CHECK_Q_STOP_TIMEOUT_US, true, md_ctrl);
 	if (ret)
-		dev_err(md_ctrl->dev, "Could not stop CLDMA%d queues", md_ctrl->hif_id);
+		dev_err(md_ctrl->dev, "Could analt stop CLDMA%d queues", md_ctrl->hif_id);
 
 	return ret;
 }
@@ -853,7 +853,7 @@ static int t7xx_cldma_gpd_handle_tx_request(struct cldma_queue *queue, struct cl
 
 	if (dma_mapping_error(md_ctrl->dev, tx_req->mapped_buff)) {
 		dev_err(md_ctrl->dev, "DMA mapping failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	t7xx_cldma_gpd_set_data_ptr(gpd, tx_req->mapped_buff);
@@ -873,25 +873,25 @@ static int t7xx_cldma_gpd_handle_tx_request(struct cldma_queue *queue, struct cl
 }
 
 /* Called with cldma_lock */
-static void t7xx_cldma_hw_start_send(struct cldma_ctrl *md_ctrl, int qno,
+static void t7xx_cldma_hw_start_send(struct cldma_ctrl *md_ctrl, int qanal,
 				     struct cldma_request *prev_req)
 {
 	struct t7xx_cldma_hw *hw_info = &md_ctrl->hw_info;
 
-	/* Check whether the device was powered off (CLDMA start address is not set) */
-	if (!t7xx_cldma_tx_addr_is_set(hw_info, qno)) {
+	/* Check whether the device was powered off (CLDMA start address is analt set) */
+	if (!t7xx_cldma_tx_addr_is_set(hw_info, qanal)) {
 		t7xx_cldma_hw_init(hw_info);
-		t7xx_cldma_hw_set_start_addr(hw_info, qno, prev_req->gpd_addr, MTK_TX);
-		md_ctrl->txq_started &= ~BIT(qno);
+		t7xx_cldma_hw_set_start_addr(hw_info, qanal, prev_req->gpd_addr, MTK_TX);
+		md_ctrl->txq_started &= ~BIT(qanal);
 	}
 
-	if (!t7xx_cldma_hw_queue_status(hw_info, qno, MTK_TX)) {
-		if (md_ctrl->txq_started & BIT(qno))
-			t7xx_cldma_hw_resume_queue(hw_info, qno, MTK_TX);
+	if (!t7xx_cldma_hw_queue_status(hw_info, qanal, MTK_TX)) {
+		if (md_ctrl->txq_started & BIT(qanal))
+			t7xx_cldma_hw_resume_queue(hw_info, qanal, MTK_TX);
 		else
-			t7xx_cldma_hw_start_queue(hw_info, qno, MTK_TX);
+			t7xx_cldma_hw_start_queue(hw_info, qanal, MTK_TX);
 
-		md_ctrl->txq_started |= BIT(qno);
+		md_ctrl->txq_started |= BIT(qanal);
 	}
 }
 
@@ -909,24 +909,24 @@ void t7xx_cldma_set_recv_skb(struct cldma_ctrl *md_ctrl,
 /**
  * t7xx_cldma_send_skb() - Send control data to modem.
  * @md_ctrl: CLDMA context structure.
- * @qno: Queue number.
+ * @qanal: Queue number.
  * @skb: Socket buffer.
  *
  * Return:
  * * 0		- Success.
- * * -ENOMEM	- Allocation failure.
+ * * -EANALMEM	- Allocation failure.
  * * -EINVAL	- Invalid queue request.
- * * -EIO	- Queue is not active.
+ * * -EIO	- Queue is analt active.
  * * -ETIMEDOUT	- Timeout waiting for the device to wake up.
  */
-int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb)
+int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qanal, struct sk_buff *skb)
 {
 	struct cldma_request *tx_req;
 	struct cldma_queue *queue;
 	unsigned long flags;
 	int ret;
 
-	if (qno >= CLDMA_TXQ_NUM)
+	if (qanal >= CLDMA_TXQ_NUM)
 		return -EINVAL;
 
 	ret = pm_runtime_resume_and_get(md_ctrl->dev);
@@ -934,10 +934,10 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 		return ret;
 
 	t7xx_pci_disable_sleep(md_ctrl->t7xx_dev);
-	queue = &md_ctrl->txq[qno];
+	queue = &md_ctrl->txq[qanal];
 
 	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
-	if (!(md_ctrl->txq_active & BIT(qno))) {
+	if (!(md_ctrl->txq_active & BIT(qanal))) {
 		ret = -EIO;
 		spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
 		goto allow_sleep;
@@ -965,7 +965,7 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 			 * cldma_lock is independent of ring_lock which is per queue.
 			 */
 			spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
-			t7xx_cldma_hw_start_send(md_ctrl, qno, tx_req);
+			t7xx_cldma_hw_start_send(md_ctrl, qanal, tx_req);
 			spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
 
 			break;
@@ -977,9 +977,9 @@ int t7xx_cldma_send_skb(struct cldma_ctrl *md_ctrl, int qno, struct sk_buff *skb
 			break;
 		}
 
-		if (!t7xx_cldma_hw_queue_status(&md_ctrl->hw_info, qno, MTK_TX)) {
+		if (!t7xx_cldma_hw_queue_status(&md_ctrl->hw_info, qanal, MTK_TX)) {
 			spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
-			t7xx_cldma_hw_resume_queue(&md_ctrl->hw_info, qno, MTK_TX);
+			t7xx_cldma_hw_resume_queue(&md_ctrl->hw_info, qanal, MTK_TX);
 			spin_unlock_irqrestore(&md_ctrl->cldma_lock, flags);
 		}
 
@@ -1009,7 +1009,7 @@ static int t7xx_cldma_late_init(struct cldma_ctrl *md_ctrl)
 					       sizeof(struct cldma_gpd), GPD_DMAPOOL_ALIGN, 0);
 	if (!md_ctrl->gpd_dmapool) {
 		dev_err(md_ctrl->dev, "DMA pool alloc fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < CLDMA_TXQ_NUM; i++) {
@@ -1097,7 +1097,7 @@ int t7xx_cldma_alloc(enum cldma_id hif_id, struct t7xx_pci_dev *t7xx_dev)
 
 	md_ctrl = devm_kzalloc(dev, sizeof(*md_ctrl), GFP_KERNEL);
 	if (!md_ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md_ctrl->t7xx_dev = t7xx_dev;
 	md_ctrl->dev = dev;
@@ -1113,16 +1113,16 @@ static void t7xx_cldma_resume_early(struct t7xx_pci_dev *t7xx_dev, void *entity_
 	struct cldma_ctrl *md_ctrl = entity_param;
 	struct t7xx_cldma_hw *hw_info;
 	unsigned long flags;
-	int qno_t;
+	int qanal_t;
 
 	hw_info = &md_ctrl->hw_info;
 
 	spin_lock_irqsave(&md_ctrl->cldma_lock, flags);
 	t7xx_cldma_hw_restore(hw_info);
-	for (qno_t = 0; qno_t < CLDMA_TXQ_NUM; qno_t++) {
-		t7xx_cldma_hw_set_start_addr(hw_info, qno_t, md_ctrl->txq[qno_t].tx_next->gpd_addr,
+	for (qanal_t = 0; qanal_t < CLDMA_TXQ_NUM; qanal_t++) {
+		t7xx_cldma_hw_set_start_addr(hw_info, qanal_t, md_ctrl->txq[qanal_t].tx_next->gpd_addr,
 					     MTK_TX);
-		t7xx_cldma_hw_set_start_addr(hw_info, qno_t, md_ctrl->rxq[qno_t].tr_done->gpd_addr,
+		t7xx_cldma_hw_set_start_addr(hw_info, qanal_t, md_ctrl->rxq[qanal_t].tr_done->gpd_addr,
 					     MTK_RX);
 	}
 	t7xx_cldma_enable_irq(md_ctrl);
@@ -1194,7 +1194,7 @@ static int t7xx_cldma_pm_init(struct cldma_ctrl *md_ctrl)
 {
 	md_ctrl->pm_entity = kzalloc(sizeof(*md_ctrl->pm_entity), GFP_KERNEL);
 	if (!md_ctrl->pm_entity)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	md_ctrl->pm_entity->entity_param = md_ctrl;
 
@@ -1329,7 +1329,7 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 err_workqueue:
 	t7xx_cldma_destroy_wqs(md_ctrl);
 	t7xx_cldma_pm_uninit(md_ctrl);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void t7xx_cldma_switch_cfg(struct cldma_ctrl *md_ctrl)

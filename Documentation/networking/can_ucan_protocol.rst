@@ -46,7 +46,7 @@ Setup Packet
 =================  =====================================================
 ``bmRequestType``  Direction | Vendor | (Interface or Device)
 ``bRequest``       Command Number
-``wValue``         Subcommand Number (16 Bit) or 0 if not used
+``wValue``         Subcommand Number (16 Bit) or 0 if analt used
 ``wIndex``         USB Interface Index (0 for device commands)
 ``wLength``        * Host to Device - Number of bytes to transmit
                    * Device to Host - Maximum Number of bytes to
@@ -136,7 +136,7 @@ UCAN_COMMAND_GET_PROTOCOL_VERSION
   Payload Format
     ``ucan_ctl_payload_t.protocol_version``
 
-.. note:: Devices that do not implement this command use the old
+.. analte:: Devices that do analt implement this command use the old
           protocol version 1
 
 UCAN_COMMAND_SET_BITTIMING
@@ -156,14 +156,14 @@ UCAN_SLEEP/WAKE
 
 *Host2Dev; optional*
 
-Configure sleep and wake modes. Not yet supported by the driver.
+Configure sleep and wake modes. Analt yet supported by the driver.
 
 UCAN_FILTER
 ~~~~~~~~~~~
 
 *Host2Dev; optional*
 
-Setup hardware CAN filters. Not yet supported by the driver.
+Setup hardware CAN filters. Analt yet supported by the driver.
 
 Allowed interface commands
 --------------------------
@@ -176,7 +176,7 @@ stopped             START                started
 started             STOP or RESET        stopped
 stopped             STOP or RESET        stopped
 started             RESTART              started
-any                 GET                  *no change*
+any                 GET                  *anal change*
 ==================  ===================  ==================
 
 IN Message Format
@@ -242,8 +242,8 @@ are reserved and set to zero.
 Flow Control
 ------------
 
-When receiving CAN messages there is no flow control on the USB
-buffer. The driver has to handle inbound message quickly enough to
+When receiving CAN messages there is anal flow control on the USB
+buffer. The driver has to handle inbound message quickly eanalugh to
 avoid drops. I case the device buffer overflow the condition is
 reported by sending corresponding error frames (see
 :ref:`can_ucan_error_handling`)
@@ -312,12 +312,12 @@ user space is done by the driver.
 Bus OFF
 -------
 
-- The device does not recover from bus of automatically.
+- The device does analt recover from bus of automatically.
 - Bus OFF is indicated by an error frame (see ``uapi/linux/can/error.h``)
 - Bus OFF recovery is started by ``UCAN_COMMAND_RESTART``
 - Once Bus OFF recover is completed the device sends an error frame
   indicating that it is on ERROR-ACTIVE state.
-- During Bus OFF no frames are sent by the device.
+- During Bus OFF anal frames are sent by the device.
 - During Bus OFF transmission requests from the host are completed
   immediately with the success bit left unset.
 

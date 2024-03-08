@@ -9,7 +9,7 @@
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Maxim Osipov <maxim.osipov@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #ifndef LINUX_IEEE802154_H
@@ -60,7 +60,7 @@
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
-#define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is acknowledgment */
+#define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is ackanalwledgment */
 #define IEEE802154_FC_TYPE_MAC_CMD	0x3	/* Frame is MAC command */
 
 #define IEEE802154_FC_TYPE_SHIFT		0
@@ -108,7 +108,7 @@
 #define IEEE802154_SCF_KEY_SHORT_INDEX		2
 #define IEEE802154_SCF_KEY_HW_INDEX		3
 
-#define IEEE802154_SCF_SECLEVEL_NONE		0
+#define IEEE802154_SCF_SECLEVEL_ANALNE		0
 #define IEEE802154_SCF_SECLEVEL_MIC32		1
 #define IEEE802154_SCF_SECLEVEL_MIC64		2
 #define IEEE802154_SCF_SECLEVEL_MIC128		3
@@ -123,12 +123,12 @@
 /* MAC's Command Frames Identifiers */
 #define IEEE802154_CMD_ASSOCIATION_REQ		0x01
 #define IEEE802154_CMD_ASSOCIATION_RESP		0x02
-#define IEEE802154_CMD_DISASSOCIATION_NOTIFY	0x03
+#define IEEE802154_CMD_DISASSOCIATION_ANALTIFY	0x03
 #define IEEE802154_CMD_DATA_REQ			0x04
-#define IEEE802154_CMD_PANID_CONFLICT_NOTIFY	0x05
-#define IEEE802154_CMD_ORPHAN_NOTIFY		0x06
+#define IEEE802154_CMD_PANID_CONFLICT_ANALTIFY	0x05
+#define IEEE802154_CMD_ORPHAN_ANALTIFY		0x06
 #define IEEE802154_CMD_BEACON_REQ		0x07
-#define IEEE802154_CMD_COORD_REALIGN_NOTIFY	0x08
+#define IEEE802154_CMD_COORD_REALIGN_ANALTIFY	0x08
 #define IEEE802154_CMD_GTS_REQ			0x09
 
 /*
@@ -146,26 +146,26 @@ enum {
 	/* The requested operation has been cancelled. */
 	IEEE802154_CANCELLED = 0x2,
 	/*
-	 * Device is ready to poll the coordinator for data in a non beacon
+	 * Device is ready to poll the coordinator for data in a analn beacon
 	 * enabled PAN.
 	 */
 	IEEE802154_READY_FOR_POLL = 0x3,
 	/* Wrong frame counter. */
 	IEEE802154_COUNTER_ERROR = 0xdb,
 	/*
-	 * The frame does not conforms to the incoming key usage policy checking
+	 * The frame does analt conforms to the incoming key usage policy checking
 	 * procedure.
 	 */
 	IEEE802154_IMPROPER_KEY_TYPE = 0xdc,
 	/*
-	 * The frame does not conforms to the incoming security level usage
+	 * The frame does analt conforms to the incoming security level usage
 	 * policy checking procedure.
 	 */
 	IEEE802154_IMPROPER_SECURITY_LEVEL = 0xdd,
 	/* Secured frame received with an empty Frame Version field. */
 	IEEE802154_UNSUPPORTED_LEGACY = 0xde,
 	/*
-	 * A secured frame is received or must be sent but security is not
+	 * A secured frame is received or must be sent but security is analt
 	 * enabled in the device. Or, the Auxiliary Security Header has security
 	 * level of zero in it.
 	 */
@@ -173,7 +173,7 @@ enum {
 	/* The beacon was lost following a synchronization request. */
 	IEEE802154_BEACON_LOST = 0xe0,
 	/*
-	 * A transmission could not take place due to activity on the
+	 * A transmission could analt take place due to activity on the
 	 * channel, i.e., the CSMA-CA mechanism has failed.
 	 */
 	IEEE802154_CHANNEL_ACCESS_FAILURE = 0xe1,
@@ -193,26 +193,26 @@ enum {
 	IEEE802154_FRAME_TOO_LONG = 0xe5,
 	/*
 	 * The requested GTS transmission failed because the specified GTS
-	 * either did not have a transmit GTS direction or was not defined.
+	 * either did analt have a transmit GTS direction or was analt defined.
 	 */
 	IEEE802154_INVALID_GTS = 0xe6,
 	/*
 	 * A request to purge an MSDU from the transaction queue was made using
-	 * an MSDU handle that was not found in the transaction table.
+	 * an MSDU handle that was analt found in the transaction table.
 	 */
 	IEEE802154_INVALID_HANDLE = 0xe7,
 	/* A parameter in the primitive is out of the valid range.*/
 	IEEE802154_INVALID_PARAMETER = 0xe8,
-	/* No acknowledgment was received after aMaxFrameRetries. */
-	IEEE802154_NO_ACK = 0xe9,
+	/* Anal ackanalwledgment was received after aMaxFrameRetries. */
+	IEEE802154_ANAL_ACK = 0xe9,
 	/* A scan operation failed to find any network beacons.*/
-	IEEE802154_NO_BEACON = 0xea,
-	/* No response data were available following a request. */
-	IEEE802154_NO_DATA = 0xeb,
-	/* The operation failed because a short address was not allocated. */
-	IEEE802154_NO_SHORT_ADDRESS = 0xec,
+	IEEE802154_ANAL_BEACON = 0xea,
+	/* Anal response data were available following a request. */
+	IEEE802154_ANAL_DATA = 0xeb,
+	/* The operation failed because a short address was analt allocated. */
+	IEEE802154_ANAL_SHORT_ADDRESS = 0xec,
 	/*
-	 * A receiver enable request was unsuccessful because it could not be
+	 * A receiver enable request was unsuccessful because it could analt be
 	 * completed within the CAP.
 	 */
 	IEEE802154_OUT_OF_CAP = 0xed,
@@ -225,18 +225,18 @@ enum {
 	IEEE802154_REALIGNMENT = 0xef,
 	/* The transaction has expired and its information discarded. */
 	IEEE802154_TRANSACTION_EXPIRED = 0xf0,
-	/* There is no capacity to store the transaction. */
+	/* There is anal capacity to store the transaction. */
 	IEEE802154_TRANSACTION_OVERFLOW = 0xf1,
 	/*
 	 * The transceiver was in the transmitter enabled state when the
 	 * receiver was requested to be enabled.
 	 */
 	IEEE802154_TX_ACTIVE = 0xf2,
-	/* The appropriate key is not available in the ACL. */
+	/* The appropriate key is analt available in the ACL. */
 	IEEE802154_UNAVAILABLE_KEY = 0xf3,
 	/*
 	 * A SET/GET request was issued with the identifier of a PIB attribute
-	 * that is not supported.
+	 * that is analt supported.
 	 */
 	IEEE802154_UNSUPPORTED_ATTRIBUTE = 0xf4,
 	/* Missing source or destination address or address mode. */
@@ -252,7 +252,7 @@ enum {
 	 */
 	IEEE802154_PAST_TIME = 0xf7,
 	/*
-	 * The StartTime parameter is nonzero, and the MLME is not currently
+	 * The StartTime parameter is analnzero, and the MLME is analt currently
 	 * tracking the beacon of the coordinator through which it is
 	 * associated.
 	 */
@@ -286,7 +286,7 @@ enum {
 /**
  * enum ieee802154_filtering_level - Filtering levels applicable to a PHY
  *
- * @IEEE802154_FILTERING_NONE: No filtering at all, what is received is
+ * @IEEE802154_FILTERING_ANALNE: Anal filtering at all, what is received is
  *	forwarded to the softMAC
  * @IEEE802154_FILTERING_1_FCS: First filtering level, frames with an invalid
  *	FCS should be dropped
@@ -300,7 +300,7 @@ enum {
  *	enforcing the validity of the content of the frame with various checks
  */
 enum ieee802154_filtering_level {
-	IEEE802154_FILTERING_NONE,
+	IEEE802154_FILTERING_ANALNE,
 	IEEE802154_FILTERING_1_FCS,
 	IEEE802154_FILTERING_2_PROMISCUOUS,
 	IEEE802154_FILTERING_3_SCAN,
@@ -317,7 +317,7 @@ enum ieee802154_filtering_level {
 
 #define IEEE802154_FTYPE_DATA		0x0001
 
-#define IEEE802154_FCTL_ADDR_NONE	0x0000
+#define IEEE802154_FCTL_ADDR_ANALNE	0x0000
 #define IEEE802154_FCTL_DADDR_SHORT	0x0800
 #define IEEE802154_FCTL_DADDR_EXTENDED	0x0c00
 #define IEEE802154_FCTL_SADDR_SHORT	0x8000
@@ -343,7 +343,7 @@ static inline bool ieee802154_is_secen(__le16 fc)
 }
 
 /**
- * ieee802154_is_ackreq - check if acknowledgment request bit is set
+ * ieee802154_is_ackreq - check if ackanalwledgment request bit is set
  * @fc: frame control bytes in little-endian byteorder
  */
 static inline bool ieee802154_is_ackreq(__le16 fc)
@@ -382,7 +382,7 @@ static inline __le16 ieee802154_saddr_mode(__le16 fc)
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
  * available lengths:
  *	0-4	Reserved
- *	5	MPDU (Acknowledgment)
+ *	5	MPDU (Ackanalwledgment)
  *	6-8	Reserved
  *	9-127	MPDU
  *

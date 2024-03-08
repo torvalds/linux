@@ -25,7 +25,7 @@ int wl12xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 		break;
 
 	default:
-		/* event not implemented */
+		/* event analt implemented */
 		return 0;
 	}
 	return wlcore_cmd_wait_for_event_or_timeout(wl, local_event, timeout);

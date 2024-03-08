@@ -9,7 +9,7 @@
 struct rx_header {
 	ushort pad;		/* Pad. */
 	ushort rx_count;
-	ushort rx_status;	/* Unknown bit assignments :-<.  */
+	ushort rx_status;	/* Unkanalwn bit assignments :-<.  */
 	ushort cur_addr;	/* Apparently the current buffer address(?) */
 };
 
@@ -47,7 +47,7 @@ enum page0_regs {
 
 enum eepage_regs {
 	PROM_CMD = 6,
-	PROM_DATA = 7	/* Note that PROM_CMD is in the "high" bits. */
+	PROM_DATA = 7	/* Analte that PROM_CMD is in the "high" bits. */
 };
 
 #define ISR_TxOK	0x01
@@ -71,9 +71,9 @@ enum eepage_regs {
 #define CMR2_RAMTEST	10
 #define CMR2_EEPROM	12	/* Set to page 1, for reading the EEPROM. */
 
-#define CMR2h_OFF	0	/* No accept mode. */
+#define CMR2h_OFF	0	/* Anal accept mode. */
 #define CMR2h_Physical	1	/* Accept a physical address match only. */
-#define CMR2h_Normal	2	/* Accept physical and broadcast address. */
+#define CMR2h_Analrmal	2	/* Accept physical and broadcast address. */
 #define CMR2h_PROMISC	3	/* Promiscuous mode. */
 
 /* An inline function used below: it differs from inb() by explicitly

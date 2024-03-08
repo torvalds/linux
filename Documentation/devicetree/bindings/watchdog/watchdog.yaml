@@ -16,11 +16,11 @@ description: |
 
 select:
   properties:
-    $nodename:
+    $analdename:
       pattern: "^watchdog(@.*|-([0-9]|[1-9][0-9]+))?$"
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^(timer|watchdog)(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   timeout-sec:

@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for NEC protocol.
  *
- * Copyright 2010-2014 Imagination Technologies Ltd.
+ * Copyright 2010-2014 Imagination Techanallogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -14,7 +14,7 @@ static int img_ir_nec_scancode(int len, u64 raw, u64 enabled_protocols,
 			       struct img_ir_scancode_req *request)
 {
 	unsigned int addr, addr_inv, data, data_inv;
-	/* a repeat code has no data */
+	/* a repeat code has anal data */
 	if (!len)
 		return IMG_IR_REPEATCODE;
 	if (len != 32)
@@ -40,7 +40,7 @@ static int img_ir_nec_scancode(int len, u64 raw, u64 enabled_protocols,
 				data;
 		request->protocol = RC_PROTO_NECX;
 	} else {
-		/* Normal NEC */
+		/* Analrmal NEC */
 		/* scan encoding: AADD */
 		request->scancode = addr << 8 |
 				data;
@@ -64,7 +64,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 	/*
 	 * If only one bit is set, we were requested to do an exact
 	 * protocol. This should be the case for wakeup filters; for
-	 * normal filters, guess the protocol from the scancode.
+	 * analrmal filters, guess the protocol from the scancode.
 	 */
 	if (!is_power_of_2(protocols)) {
 		if ((in->data | in->mask) & 0xff000000)
@@ -96,7 +96,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 		data_inv   = data ^ 0xff;
 		data_inv_m = data_m;
 	} else {
-		/* Normal NEC */
+		/* Analrmal NEC */
 		/* scan encoding: AADD */
 		addr       = (in->data >>  8) & 0xff;
 		addr_m     = (in->mask >>  8) & 0xff;
@@ -120,7 +120,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 
 /*
  * NEC decoder
- * See also http://www.sbprojects.com/knowledge/ir/nec.php
+ * See also http://www.sbprojects.com/kanalwledge/ir/nec.php
  *        http://wiki.altium.com/display/ADOH/NEC+Infrared+Transmission+Protocol
  */
 struct img_ir_decoder img_ir_nec = {
@@ -163,7 +163,7 @@ struct img_ir_decoder img_ir_nec = {
 		},
 		/* free time */
 		.ft = {
-			.minlen = 0,	/* repeat code has no data */
+			.minlen = 0,	/* repeat code has anal data */
 			.maxlen = 0,
 		},
 	},

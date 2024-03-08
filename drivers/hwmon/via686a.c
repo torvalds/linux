@@ -87,7 +87,7 @@ static const u8 VIA686A_REG_TEMP_HYST[]	= { 0x3a, 0x3e, 0x1e };
  * 3-2 for temp2, 5-4 for temp3).  Modes are:
  * 00 interrupt stays as long as value is out-of-range
  * 01 interrupt is cleared once register is read (default)
- * 10 comparator mode- like 00, but ignores hysteresis
+ * 10 comparator mode- like 00, but iganalres hysteresis
  * 11 same as 00
  */
 #define VIA686A_REG_TEMP_MODE		0x4b
@@ -153,7 +153,7 @@ static inline long IN_FROM_REG(u8 val, int in_num)
 /********* FAN RPM CONVERSIONS ********/
 /*
  * Higher register values = slower fans (the fan's strobe gates a counter).
- * But this chip saturates back at 0, not at 255 like all the other chips.
+ * But this chip saturates back at 0, analt at 255 like all the other chips.
  * So, 0 means 0 RPM
  */
 static inline u8 FAN_TO_REG(long rpm, int div)
@@ -177,7 +177,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  *	else
  *		return double(temp)*0.924-127.33;
  *
- * A fifth-order polynomial fits the unofficial data (provided by Alex van
+ * A fifth-order polyanalmial fits the uanalfficial data (provided by Alex van
  * Kaam <darkside@chello.nl>) a bit better.  It also give more reasonable
  * numbers on my machine (ie. they agree with what my BIOS tells me).
  * Here's the fifth-order fit to the 8-bit data:
@@ -187,12 +187,12 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  * (2000-10-25- RFD: thanks to Uwe Andersen <uandersen@mayah.com> for
  * finding my typos in this formula!)
  *
- * Alas, none of the elegant function-fit solutions will work because we
+ * Alas, analne of the elegant function-fit solutions will work because we
  * aren't allowed to use floating point in the kernel and doing it with
- * integers doesn't provide enough precision.  So we'll do boring old
- * look-up table stuff.  The unofficial data (see below) have effectively
+ * integers doesn't provide eanalugh precision.  So we'll do boring old
+ * look-up table stuff.  The uanalfficial data (see below) have effectively
  * 7-bit resolution (they are rounded to the nearest degree).  I'm assuming
- * that the transfer function of the device is monotonic and smooth, so a
+ * that the transfer function of the device is moanaltonic and smooth, so a
  * smooth function fit to the data will allow us to get better precision.
  * I used the 5th-order poly fit described above and solved for
  * VIA register values 0-255.  I *10 before rounding, so we get tenth-degree
@@ -247,7 +247,7 @@ static const s16 temp_lut[] = {
  * this chip).  Here's the fit:
  * viaRegVal = -1.160370e-10*val^6 +3.193693e-08*val^5 - 1.464447e-06*val^4
  * - 2.525453e-04*val^3 + 1.424593e-02*val^2 + 2.148941e+00*val +7.275808e+01)
- * Note that n=161:
+ * Analte that n=161:
  */
 static const u8 via_lut[] = {
 	12, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 20, 21, 22, 23,
@@ -267,7 +267,7 @@ static const u8 via_lut[] = {
 
 /*
  * Converting temps to (8-bit) hyst and over registers
- * No interpolation here.
+ * Anal interpolation here.
  * The +50 is because the temps start at -50
  */
 static inline u8 TEMP_TO_REG(long val)
@@ -285,7 +285,7 @@ static inline long TEMP_FROM_REG10(u16 val)
 	u16 eight_bits = val >> 2;
 	u16 two_bits = val & 3;
 
-	/* no interpolation for these */
+	/* anal interpolation for these */
 	if (two_bits == 0 || eight_bits == 255)
 		return TEMP_FROM_REG(eight_bits);
 
@@ -752,13 +752,13 @@ static int via686a_probe(struct platform_device *pdev)
 				 DRIVER_NAME)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct via686a_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
@@ -824,7 +824,7 @@ static int via686a_device_add(unsigned short address)
 
 	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -860,34 +860,34 @@ static int via686a_pci_probe(struct pci_dev *dev,
 		dev_warn(&dev->dev, "Forcing ISA address 0x%x\n", address);
 		ret = pci_write_config_word(dev, VIA686A_BASE_REG, address | 1);
 		if (ret != PCIBIOS_SUCCESSFUL)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 	ret = pci_read_config_word(dev, VIA686A_BASE_REG, &val);
 	if (ret != PCIBIOS_SUCCESSFUL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	address = val & ~(VIA686A_EXTENT - 1);
 	if (address == 0) {
 		dev_err(&dev->dev,
-			"base address not set - upgrade BIOS or use force_addr=0xaddr\n");
-		return -ENODEV;
+			"base address analt set - upgrade BIOS or use force_addr=0xaddr\n");
+		return -EANALDEV;
 	}
 
 	ret = pci_read_config_word(dev, VIA686A_ENABLE_REG, &val);
 	if (ret != PCIBIOS_SUCCESSFUL)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!(val & 0x0001)) {
 		if (!force_addr) {
 			dev_warn(&dev->dev,
 				 "Sensors disabled, enable with force_addr=0x%x\n",
 				 address);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		dev_warn(&dev->dev, "Enabling sensors\n");
 		ret = pci_write_config_word(dev, VIA686A_ENABLE_REG, val | 0x1);
 		if (ret != PCIBIOS_SUCCESSFUL)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	if (platform_driver_register(&via686a_driver))
@@ -903,12 +903,12 @@ static int via686a_pci_probe(struct pci_dev *dev,
 	 * pci device, we only wanted to read as few register values from it.
 	 */
 	s_bridge = pci_dev_get(dev);
-	return -ENODEV;
+	return -EANALDEV;
 
 exit_unregister:
 	platform_driver_unregister(&via686a_driver);
 exit:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pci_driver via686a_pci_driver = {

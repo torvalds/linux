@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_ioc_enum_entities:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_IOC_ENUM_ENTITIES - Enumerate entities and their properties
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_IOC_ENUM_ENTITIES
@@ -42,9 +42,9 @@ EINVAL error code when the id is invalid.
 Entities can be enumerated by or'ing the id with the
 ``MEDIA_ENT_ID_FLAG_NEXT`` flag. The driver will return information
 about the entity with the smallest id strictly larger than the requested
-one ('next entity'), or the ``EINVAL`` error code if there is none.
+one ('next entity'), or the ``EINVAL`` error code if there is analne.
 
-Entity IDs can be non-contiguous. Applications must *not* try to
+Entity IDs can be analn-contiguous. Applications must *analt* try to
 enumerate entities by calling MEDIA_IOC_ENUM_ENTITIES with increasing
 id's until they get an error.
 
@@ -62,9 +62,9 @@ id's until they get an error.
        -
        -  Entity ID, set by the application. When the ID is or'ed with
 	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
-	  the first entity with a larger ID. Do not expect that the ID will
+	  the first entity with a larger ID. Do analt expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode entity IDs in an application.
+	  do analt hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [32]
@@ -100,7 +100,7 @@ id's until they get an error.
     *  -  __u16
        -  ``links``
        -
-       -  Total number of outbound links. Inbound links are not counted in
+       -  Total number of outbound links. Inbound links are analt counted in
 	  this field.
 
     *  -  __u32
@@ -110,22 +110,22 @@ id's until they get an error.
           the array to zero.
 
     *  -  union {
-       -  (anonymous)
+       -  (aanalnymous)
 
     *  -  struct
        -  ``dev``
        -
-       -  Valid for (sub-)devices that create a single device node.
+       -  Valid for (sub-)devices that create a single device analde.
 
     *  -
        -  __u32
        -  ``major``
-       -  Device node major number.
+       -  Device analde major number.
 
     *  -
        -  __u32
-       -  ``minor``
-       -  Device node minor number.
+       -  ``mianalr``
+       -  Device analde mianalr number.
 
     *  -  __u8
        -  ``raw``\ [184]
@@ -137,10 +137,10 @@ id's until they get an error.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`media_entity_desc` ``id``
-    references a non-existing entity.
+    references a analn-existing entity.

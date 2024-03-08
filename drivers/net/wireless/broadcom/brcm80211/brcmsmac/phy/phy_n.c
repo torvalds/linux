@@ -69,30 +69,30 @@
 #define NPHY_ACI_CHANNEL_DELTA_GE_REV3 4
 #define NPHY_ACI_CHANNEL_SKIP_GE_REV3 3
 
-#define NPHY_NOISE_NOASSOC_GLITCH_TH_UP 2
+#define NPHY_ANALISE_ANALASSOC_GLITCH_TH_UP 2
 
-#define NPHY_NOISE_NOASSOC_GLITCH_TH_DN 8
+#define NPHY_ANALISE_ANALASSOC_GLITCH_TH_DN 8
 
-#define NPHY_NOISE_ASSOC_GLITCH_TH_UP 2
+#define NPHY_ANALISE_ASSOC_GLITCH_TH_UP 2
 
-#define NPHY_NOISE_ASSOC_GLITCH_TH_DN 8
+#define NPHY_ANALISE_ASSOC_GLITCH_TH_DN 8
 
-#define NPHY_NOISE_ASSOC_ACI_GLITCH_TH_UP 2
+#define NPHY_ANALISE_ASSOC_ACI_GLITCH_TH_UP 2
 
-#define NPHY_NOISE_ASSOC_ACI_GLITCH_TH_DN 8
+#define NPHY_ANALISE_ASSOC_ACI_GLITCH_TH_DN 8
 
-#define NPHY_NOISE_NOASSOC_ENTER_TH  400
+#define NPHY_ANALISE_ANALASSOC_ENTER_TH  400
 
-#define NPHY_NOISE_ASSOC_ENTER_TH  400
+#define NPHY_ANALISE_ASSOC_ENTER_TH  400
 
-#define NPHY_NOISE_ASSOC_RX_GLITCH_BADPLCP_ENTER_TH  400
+#define NPHY_ANALISE_ASSOC_RX_GLITCH_BADPLCP_ENTER_TH  400
 
-#define NPHY_NOISE_CRSMINPWR_ARRAY_MAX_INDEX 44
-#define NPHY_NOISE_CRSMINPWR_ARRAY_MAX_INDEX_REV_7 56
+#define NPHY_ANALISE_CRSMINPWR_ARRAY_MAX_INDEX 44
+#define NPHY_ANALISE_CRSMINPWR_ARRAY_MAX_INDEX_REV_7 56
 
-#define NPHY_NOISE_NOASSOC_CRSIDX_INCR 16
+#define NPHY_ANALISE_ANALASSOC_CRSIDX_INCR 16
 
-#define NPHY_NOISE_ASSOC_CRSIDX_INCR 8
+#define NPHY_ANALISE_ASSOC_CRSIDX_INCR 8
 
 #define NPHY_IS_SROM_REINTERPRET NREV_GE(pi->pubpi.phy_rev, 5)
 
@@ -141,8 +141,8 @@
 
 #define NPHY_CAL_MAXTEMPDELTA           64
 
-#define NPHY_NOISEVAR_TBLLEN40 256
-#define NPHY_NOISEVAR_TBLLEN20 128
+#define NPHY_ANALISEVAR_TBLLEN40 256
+#define NPHY_ANALISEVAR_TBLLEN20 128
 
 #define NPHY_ANARXLPFBW_REDUCTIONFACT 7
 
@@ -279,7 +279,7 @@ static const u16 NPHY_IPA_REV4_txdigi_filtcoeffs[][NPHY_NUM_DIG_FILT_COEFFS] = {
 struct chan_info_nphy_2055 {
 	u16 chan;
 	u16 freq;
-	uint unknown;
+	uint unkanalwn;
 	u8 RF_pll_ref;
 	u8 RF_rf_pll_mod1;
 	u8 RF_rf_pll_mod0;
@@ -16052,7 +16052,7 @@ static void wlc_phy_workarounds_nphy_gainctrl(struct brcms_phy *pi)
 static void wlc_phy_workarounds_nphy_rev7(struct brcms_phy *pi)
 {
 	static const u8 rfseq_rx2tx_events_rev3_ipa[] = {
-		NPHY_REV3_RFSEQ_CMD_NOP,
+		NPHY_REV3_RFSEQ_CMD_ANALP,
 		NPHY_REV3_RFSEQ_CMD_RXG_FBW,
 		NPHY_REV3_RFSEQ_CMD_TR_SWITCH,
 		NPHY_REV3_RFSEQ_CMD_CLR_HIQ_DIS,
@@ -16441,7 +16441,7 @@ static void wlc_phy_workarounds_nphy_rev7(struct brcms_phy *pi)
 
 	write_phy_reg(pi, 0x6a, 0x2);
 
-	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1, 256, 32,
+	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1, 256, 32,
 				 &min_nvar_offset_6mbps);
 
 	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x138, 16,
@@ -16463,17 +16463,17 @@ static void wlc_phy_workarounds_nphy_rev7(struct brcms_phy *pi)
 				 &rfseq_rx2tx_lpf_h_hpc_rev7);
 
 	if (CHSPEC_IS40(pi->radio_chanspec) == 0) {
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1, 3,
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1, 3,
 					 32, &min_nvar_val);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
 					 127, 32, &min_nvar_val);
 	} else {
-		min_nvar_val = noise_var_tbl_rev7[3];
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1, 3,
+		min_nvar_val = analise_var_tbl_rev7[3];
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1, 3,
 					 32, &min_nvar_val);
 
-		min_nvar_val = noise_var_tbl_rev7[127];
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+		min_nvar_val = analise_var_tbl_rev7[127];
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
 					 127, 32, &min_nvar_val);
 	}
 
@@ -16565,7 +16565,7 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 	};
 	static const u8 rfseq_tx2rx_dlys_rev3[] = { 8, 4, 2, 2, 4, 4, 6, 1 };
 	u8 rfseq_rx2tx_events_rev3[] = {
-		NPHY_REV3_RFSEQ_CMD_NOP,
+		NPHY_REV3_RFSEQ_CMD_ANALP,
 		NPHY_REV3_RFSEQ_CMD_RXG_FBW,
 		NPHY_REV3_RFSEQ_CMD_TR_SWITCH,
 		NPHY_REV3_RFSEQ_CMD_CLR_HIQ_DIS,
@@ -16577,7 +16577,7 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 	};
 	u8 rfseq_rx2tx_dlys_rev3[] = { 8, 6, 6, 4, 4, 18, 42, 1, 1 };
 	static const u8 rfseq_rx2tx_events_rev3_ipa[] = {
-		NPHY_REV3_RFSEQ_CMD_NOP,
+		NPHY_REV3_RFSEQ_CMD_ANALP,
 		NPHY_REV3_RFSEQ_CMD_RXG_FBW,
 		NPHY_REV3_RFSEQ_CMD_TR_SWITCH,
 		NPHY_REV3_RFSEQ_CMD_CLR_HIQ_DIS,
@@ -16666,17 +16666,17 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 	mod_phy_reg(pi, 0x294, (0xf << 8), (7 << 8));
 
 	if (CHSPEC_IS40(pi->radio_chanspec) == 0) {
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1, 3,
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1, 3,
 					 32, &min_nvar_val);
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
 					 127, 32, &min_nvar_val);
 	} else {
-		min_nvar_val = noise_var_tbl_rev3[3];
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1, 3,
+		min_nvar_val = analise_var_tbl_rev3[3];
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1, 3,
 					 32, &min_nvar_val);
 
-		min_nvar_val = noise_var_tbl_rev3[127];
-		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+		min_nvar_val = analise_var_tbl_rev3[127];
+		wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
 					 127, 32, &min_nvar_val);
 	}
 
@@ -16896,7 +16896,7 @@ static void wlc_phy_workarounds_nphy_rev3(struct brcms_phy *pi)
 static void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
 {
 	static const u8 rfseq_rx2tx_events[] = {
-		NPHY_RFSEQ_CMD_NOP,
+		NPHY_RFSEQ_CMD_ANALP,
 		NPHY_RFSEQ_CMD_RXG_FBW,
 		NPHY_RFSEQ_CMD_TR_SWITCH,
 		NPHY_RFSEQ_CMD_CLR_HIQ_DIS,
@@ -16906,7 +16906,7 @@ static void wlc_phy_workarounds_nphy_rev1(struct brcms_phy *pi)
 	};
 	u8 rfseq_rx2tx_dlys[] = { 8, 6, 6, 2, 4, 60, 1 };
 	static const u8 rfseq_tx2rx_events[] = {
-		NPHY_RFSEQ_CMD_NOP,
+		NPHY_RFSEQ_CMD_ANALP,
 		NPHY_RFSEQ_CMD_EXT_PA,
 		NPHY_RFSEQ_CMD_TX_GAIN,
 		NPHY_RFSEQ_CMD_RXPD_TXPD,
@@ -18927,51 +18927,51 @@ wlc_phy_adjust_rx_analpfbw_nphy(struct brcms_phy *pi, u16 reduction_factr)
 }
 
 static void
-wlc_phy_adjust_min_noisevar_nphy(struct brcms_phy *pi, int ntones,
-				 int *tone_id_buf, u32 *noise_var_buf)
+wlc_phy_adjust_min_analisevar_nphy(struct brcms_phy *pi, int ntones,
+				 int *tone_id_buf, u32 *analise_var_buf)
 {
 	int i;
 	u32 offset;
 	int tone_id;
 	int tbllen =
 		CHSPEC_IS40(pi->radio_chanspec) ?
-		NPHY_NOISEVAR_TBLLEN40 : NPHY_NOISEVAR_TBLLEN20;
+		NPHY_ANALISEVAR_TBLLEN40 : NPHY_ANALISEVAR_TBLLEN20;
 
-	if (pi->nphy_noisevars_adjusted) {
-		for (i = 0; i < pi->nphy_saved_noisevars.bufcount; i++) {
-			tone_id = pi->nphy_saved_noisevars.tone_id[i];
+	if (pi->nphy_analisevars_adjusted) {
+		for (i = 0; i < pi->nphy_saved_analisevars.bufcount; i++) {
+			tone_id = pi->nphy_saved_analisevars.tone_id[i];
 			offset = (tone_id >= 0) ?
 				 ((tone_id *
 				   2) + 1) : (tbllen + (tone_id * 2) + 1);
 			wlc_phy_table_write_nphy(
-				pi, NPHY_TBL_ID_NOISEVAR, 1,
+				pi, NPHY_TBL_ID_ANALISEVAR, 1,
 				offset, 32,
-				&pi->nphy_saved_noisevars.min_noise_vars[i]);
+				&pi->nphy_saved_analisevars.min_analise_vars[i]);
 		}
 
-		pi->nphy_saved_noisevars.bufcount = 0;
-		pi->nphy_noisevars_adjusted = false;
+		pi->nphy_saved_analisevars.bufcount = 0;
+		pi->nphy_analisevars_adjusted = false;
 	}
 
-	if ((noise_var_buf != NULL) && (tone_id_buf != NULL)) {
-		pi->nphy_saved_noisevars.bufcount = 0;
+	if ((analise_var_buf != NULL) && (tone_id_buf != NULL)) {
+		pi->nphy_saved_analisevars.bufcount = 0;
 
 		for (i = 0; i < ntones; i++) {
 			tone_id = tone_id_buf[i];
 			offset = (tone_id >= 0) ?
 				 ((tone_id * 2) + 1) :
 				 (tbllen + (tone_id * 2) + 1);
-			pi->nphy_saved_noisevars.tone_id[i] = tone_id;
-			wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
+			pi->nphy_saved_analisevars.tone_id[i] = tone_id;
+			wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
 						offset, 32,
-						&pi->nphy_saved_noisevars.
-						min_noise_vars[i]);
-			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_NOISEVAR, 1,
-						 offset, 32, &noise_var_buf[i]);
-			pi->nphy_saved_noisevars.bufcount++;
+						&pi->nphy_saved_analisevars.
+						min_analise_vars[i]);
+			wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_ANALISEVAR, 1,
+						 offset, 32, &analise_var_buf[i]);
+			pi->nphy_saved_analisevars.bufcount++;
 		}
 
-		pi->nphy_noisevars_adjusted = true;
+		pi->nphy_analisevars_adjusted = true;
 	}
 }
 
@@ -19030,8 +19030,8 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 {
 	u16 cur_channel = 0;
 	int nphy_adj_tone_id_buf[] = { 57, 58 };
-	u32 nphy_adj_noise_var_buf[] = { 0x3ff, 0x3ff };
-	bool isAdjustNoiseVar = false;
+	u32 nphy_adj_analise_var_buf[] = { 0x3ff, 0x3ff };
+	bool isAdjustAnaliseVar = false;
 	uint numTonesAdjust = 0;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
@@ -19049,12 +19049,12 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 			if (CHSPEC_IS2G(pi->radio_chanspec)) {
 				if ((cur_channel == 11)
 				    && CHSPEC_IS40(pi->radio_chanspec))
-					wlc_phy_adjust_min_noisevar_nphy(
+					wlc_phy_adjust_min_analisevar_nphy(
 						pi, 2,
 						nphy_adj_tone_id_buf,
-						nphy_adj_noise_var_buf);
+						nphy_adj_analise_var_buf);
 				else
-					wlc_phy_adjust_min_noisevar_nphy(pi, 0,
+					wlc_phy_adjust_min_analisevar_nphy(pi, 0,
 									 NULL,
 									 NULL);
 			}
@@ -19071,75 +19071,75 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 				case 3:
 					nphy_adj_tone_id_buf[0] = 57;
 					nphy_adj_tone_id_buf[1] = 58;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x25f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 4:
 					nphy_adj_tone_id_buf[0] = 41;
 					nphy_adj_tone_id_buf[1] = 42;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x25f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 5:
 					nphy_adj_tone_id_buf[0] = 25;
 					nphy_adj_tone_id_buf[1] = 26;
-					nphy_adj_noise_var_buf[0] = 0x24f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x24f;
+					nphy_adj_analise_var_buf[1] = 0x25f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 6:
 					nphy_adj_tone_id_buf[0] = 9;
 					nphy_adj_tone_id_buf[1] = 10;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x24f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 7:
 					nphy_adj_tone_id_buf[0] = 121;
 					nphy_adj_tone_id_buf[1] = 122;
-					nphy_adj_noise_var_buf[0] = 0x18f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x18f;
+					nphy_adj_analise_var_buf[1] = 0x24f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 8:
 					nphy_adj_tone_id_buf[0] = 105;
 					nphy_adj_tone_id_buf[1] = 106;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x25f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x25f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 9:
 					nphy_adj_tone_id_buf[0] = 89;
 					nphy_adj_tone_id_buf[1] = 90;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x24f;
+					isAdjustAnaliseVar = true;
 					break;
 				case 10:
 					nphy_adj_tone_id_buf[0] = 73;
 					nphy_adj_tone_id_buf[1] = 74;
-					nphy_adj_noise_var_buf[0] = 0x22f;
-					nphy_adj_noise_var_buf[1] = 0x24f;
-					isAdjustNoiseVar = true;
+					nphy_adj_analise_var_buf[0] = 0x22f;
+					nphy_adj_analise_var_buf[1] = 0x24f;
+					isAdjustAnaliseVar = true;
 					break;
 				default:
-					isAdjustNoiseVar = false;
+					isAdjustAnaliseVar = false;
 					break;
 				}
 			}
 
-			if (isAdjustNoiseVar) {
+			if (isAdjustAnaliseVar) {
 				numTonesAdjust = ARRAY_SIZE(nphy_adj_tone_id_buf);
 
-				wlc_phy_adjust_min_noisevar_nphy(
+				wlc_phy_adjust_min_analisevar_nphy(
 					pi,
 					numTonesAdjust,
 					nphy_adj_tone_id_buf,
-					nphy_adj_noise_var_buf);
+					nphy_adj_analise_var_buf);
 			} else {
-				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
+				wlc_phy_adjust_min_analisevar_nphy(pi, 0, NULL,
 								 NULL);
 			}
 		}
@@ -19149,7 +19149,7 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 			switch (cur_channel) {
 			case 54:
 				nphy_adj_tone_id_buf[0] = 32;
-				nphy_adj_noise_var_buf[0] = 0x25f;
+				nphy_adj_analise_var_buf[0] = 0x25f;
 				break;
 			case 38:
 			case 102:
@@ -19157,39 +19157,39 @@ static void wlc_phy_spurwar_nphy(struct brcms_phy *pi)
 				if ((pi->sh->chip == BCMA_CHIP_ID_BCM4716) &&
 				    (pi->sh->chippkg == BCMA_PKG_ID_BCM4717)) {
 					nphy_adj_tone_id_buf[0] = 32;
-					nphy_adj_noise_var_buf[0] = 0x21f;
+					nphy_adj_analise_var_buf[0] = 0x21f;
 				} else {
 					nphy_adj_tone_id_buf[0] = 0;
-					nphy_adj_noise_var_buf[0] = 0x0;
+					nphy_adj_analise_var_buf[0] = 0x0;
 				}
 				break;
 			case 134:
 				nphy_adj_tone_id_buf[0] = 32;
-				nphy_adj_noise_var_buf[0] = 0x21f;
+				nphy_adj_analise_var_buf[0] = 0x21f;
 				break;
 			case 151:
 				nphy_adj_tone_id_buf[0] = 16;
-				nphy_adj_noise_var_buf[0] = 0x23f;
+				nphy_adj_analise_var_buf[0] = 0x23f;
 				break;
 			case 153:
 			case 161:
 				nphy_adj_tone_id_buf[0] = 48;
-				nphy_adj_noise_var_buf[0] = 0x23f;
+				nphy_adj_analise_var_buf[0] = 0x23f;
 				break;
 			default:
 				nphy_adj_tone_id_buf[0] = 0;
-				nphy_adj_noise_var_buf[0] = 0x0;
+				nphy_adj_analise_var_buf[0] = 0x0;
 				break;
 			}
 
 			if (nphy_adj_tone_id_buf[0]
-			    && nphy_adj_noise_var_buf[0])
-				wlc_phy_adjust_min_noisevar_nphy(
+			    && nphy_adj_analise_var_buf[0])
+				wlc_phy_adjust_min_analisevar_nphy(
 					pi, 1,
 					nphy_adj_tone_id_buf,
-					nphy_adj_noise_var_buf);
+					nphy_adj_analise_var_buf);
 			else
-				wlc_phy_adjust_min_noisevar_nphy(pi, 0, NULL,
+				wlc_phy_adjust_min_analisevar_nphy(pi, 0, NULL,
 								 NULL);
 		}
 
@@ -19212,7 +19212,7 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	core = 0;
 
 	if (!(pi->measure_hold & PHY_HOLD_FOR_SCAN))
-		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
+		pi->measure_hold |= PHY_HOLD_FOR_ANALT_ASSOC;
 
 	if ((ISNPHY(pi)) && (NREV_GE(pi->pubpi.phy_rev, 5)) &&
 	    ((pi->sh->chippkg == BCMA_PKG_ID_BCM4717) ||
@@ -19252,7 +19252,7 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	wlc_phy_tbl_init_nphy(pi);
 
 	pi->nphy_crsminpwr_adjusted = false;
-	pi->nphy_noisevars_adjusted = false;
+	pi->nphy_analisevars_adjusted = false;
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		write_phy_reg(pi, 0xe7, 0);
@@ -19669,7 +19669,7 @@ void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask)
 					    NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS) {
 						pi->rx2tx_biasentry = (u8) i;
 						tbl_opcode =
-							NPHY_REV3_RFSEQ_CMD_NOP;
+							NPHY_REV3_RFSEQ_CMD_ANALP;
 						wlc_phy_table_write_nphy(
 							pi,
 							NPHY_TBL_ID_RFSEQ,
@@ -23269,7 +23269,7 @@ static u32 *brcms_phy_get_tx_pwrctrl_tbl(struct brcms_phy *pi)
 struct nphy_txgains wlc_phy_get_tx_gain_nphy(struct brcms_phy *pi)
 {
 	u16 base_idx[2], curr_gain[2];
-	u8 core_no;
+	u8 core_anal;
 	struct nphy_txgains target_gain;
 	u32 *tx_pwrctrl_tbl = NULL;
 
@@ -23283,36 +23283,36 @@ struct nphy_txgains wlc_phy_get_tx_gain_nphy(struct brcms_phy *pi)
 		if (pi->phyhang_avoid)
 			wlc_phy_stay_in_carriersearch_nphy(pi, false);
 
-		for (core_no = 0; core_no < 2; core_no++) {
+		for (core_anal = 0; core_anal < 2; core_anal++) {
 			if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-				target_gain.ipa[core_no] =
-					curr_gain[core_no] & 0x0007;
-				target_gain.pad[core_no] =
-					((curr_gain[core_no] & 0x00F8) >> 3);
-				target_gain.pga[core_no] =
-					((curr_gain[core_no] & 0x0F00) >> 8);
-				target_gain.txgm[core_no] =
-					((curr_gain[core_no] & 0x7000) >> 12);
-				target_gain.txlpf[core_no] =
-					((curr_gain[core_no] & 0x8000) >> 15);
+				target_gain.ipa[core_anal] =
+					curr_gain[core_anal] & 0x0007;
+				target_gain.pad[core_anal] =
+					((curr_gain[core_anal] & 0x00F8) >> 3);
+				target_gain.pga[core_anal] =
+					((curr_gain[core_anal] & 0x0F00) >> 8);
+				target_gain.txgm[core_anal] =
+					((curr_gain[core_anal] & 0x7000) >> 12);
+				target_gain.txlpf[core_anal] =
+					((curr_gain[core_anal] & 0x8000) >> 15);
 			} else if (NREV_GE(pi->pubpi.phy_rev, 3)) {
-				target_gain.ipa[core_no] =
-					curr_gain[core_no] & 0x000F;
-				target_gain.pad[core_no] =
-					((curr_gain[core_no] & 0x00F0) >> 4);
-				target_gain.pga[core_no] =
-					((curr_gain[core_no] & 0x0F00) >> 8);
-				target_gain.txgm[core_no] =
-					((curr_gain[core_no] & 0x7000) >> 12);
+				target_gain.ipa[core_anal] =
+					curr_gain[core_anal] & 0x000F;
+				target_gain.pad[core_anal] =
+					((curr_gain[core_anal] & 0x00F0) >> 4);
+				target_gain.pga[core_anal] =
+					((curr_gain[core_anal] & 0x0F00) >> 8);
+				target_gain.txgm[core_anal] =
+					((curr_gain[core_anal] & 0x7000) >> 12);
 			} else {
-				target_gain.ipa[core_no] =
-					curr_gain[core_no] & 0x0003;
-				target_gain.pad[core_no] =
-					((curr_gain[core_no] & 0x000C) >> 2);
-				target_gain.pga[core_no] =
-					((curr_gain[core_no] & 0x0070) >> 4);
-				target_gain.txgm[core_no] =
-					((curr_gain[core_no] & 0x0380) >> 7);
+				target_gain.ipa[core_anal] =
+					curr_gain[core_anal] & 0x0003;
+				target_gain.pad[core_anal] =
+					((curr_gain[core_anal] & 0x000C) >> 2);
+				target_gain.pga[core_anal] =
+					((curr_gain[core_anal] & 0x0070) >> 4);
+				target_gain.txgm[core_anal] =
+					((curr_gain[core_anal] & 0x0380) >> 7);
 			}
 		}
 	} else {
@@ -23320,61 +23320,61 @@ struct nphy_txgains wlc_phy_get_tx_gain_nphy(struct brcms_phy *pi)
 
 		base_idx[0] = (read_phy_reg(pi, 0x1ed) >> 8) & 0x7f;
 		base_idx[1] = (read_phy_reg(pi, 0x1ee) >> 8) & 0x7f;
-		for (core_no = 0; core_no < 2; core_no++) {
+		for (core_anal = 0; core_anal < 2; core_anal++) {
 			if (NREV_GE(phyrev, 3)) {
 				tx_pwrctrl_tbl =
 					brcms_phy_get_tx_pwrctrl_tbl(pi);
 				if (NREV_GE(phyrev, 7)) {
-					target_gain.ipa[core_no] =
+					target_gain.ipa[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 16) & 0x7;
-					target_gain.pad[core_no] =
+					target_gain.pad[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 19) & 0x1f;
-					target_gain.pga[core_no] =
+					target_gain.pga[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 24) & 0xf;
-					target_gain.txgm[core_no] =
+					target_gain.txgm[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 28) & 0x7;
-					target_gain.txlpf[core_no] =
+					target_gain.txlpf[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 31) & 0x1;
 				} else {
-					target_gain.ipa[core_no] =
+					target_gain.ipa[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 16) & 0xf;
-					target_gain.pad[core_no] =
+					target_gain.pad[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 20) & 0xf;
-					target_gain.pga[core_no] =
+					target_gain.pga[core_anal] =
 						(tx_pwrctrl_tbl
-						 [base_idx[core_no]]
+						 [base_idx[core_anal]]
 						 >> 24) & 0xf;
-					target_gain.txgm[core_no] =
+					target_gain.txgm[core_anal] =
 						(tx_pwrctrl_tbl
-						[base_idx[core_no]]
+						[base_idx[core_anal]]
 						 >> 28) & 0x7;
 				}
 			} else {
-				target_gain.ipa[core_no] =
-					(nphy_tpc_txgain[base_idx[core_no]] >>
+				target_gain.ipa[core_anal] =
+					(nphy_tpc_txgain[base_idx[core_anal]] >>
 					 16) & 0x3;
-				target_gain.pad[core_no] =
-					(nphy_tpc_txgain[base_idx[core_no]] >>
+				target_gain.pad[core_anal] =
+					(nphy_tpc_txgain[base_idx[core_anal]] >>
 					 18) & 0x3;
-				target_gain.pga[core_no] =
-					(nphy_tpc_txgain[base_idx[core_no]] >>
+				target_gain.pga[core_anal] =
+					(nphy_tpc_txgain[base_idx[core_anal]] >>
 					 20) & 0x7;
-				target_gain.txgm[core_no] =
-					(nphy_tpc_txgain[base_idx[core_no]] >>
+				target_gain.txgm[core_anal] =
+					(nphy_tpc_txgain[base_idx[core_anal]] >>
 					 23) & 0x7;
 			}
 		}
@@ -23384,7 +23384,7 @@ struct nphy_txgains wlc_phy_get_tx_gain_nphy(struct brcms_phy *pi)
 }
 
 static void
-wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_no,
+wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_anal,
 			      struct nphy_txgains target_gain,
 			      struct nphy_iqcal_params *params)
 {
@@ -23394,12 +23394,12 @@ wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_no,
 
 	if (NREV_GE(pi->pubpi.phy_rev, 3)) {
 		if (NREV_GE(pi->pubpi.phy_rev, 7))
-			params->txlpf = target_gain.txlpf[core_no];
+			params->txlpf = target_gain.txlpf[core_anal];
 
-		params->txgm = target_gain.txgm[core_no];
-		params->pga = target_gain.pga[core_no];
-		params->pad = target_gain.pad[core_no];
-		params->ipa = target_gain.ipa[core_no];
+		params->txgm = target_gain.txgm[core_anal];
+		params->pga = target_gain.pga[core_anal];
+		params->pad = target_gain.pad[core_anal];
+		params->ipa = target_gain.ipa[core_anal];
 		if (NREV_GE(pi->pubpi.phy_rev, 7))
 			params->cal_gain =
 				((params->txlpf << 15) | (params->txgm << 12) |
@@ -23417,9 +23417,9 @@ wlc_phy_iqcal_gainparams_nphy(struct brcms_phy *pi, u16 core_no,
 		params->ncorr[4] = 0x79;
 	} else {
 
-		gain_index = ((target_gain.pad[core_no] << 0) |
-			      (target_gain.pga[core_no] << 4) |
-			      (target_gain.txgm[core_no] << 8));
+		gain_index = ((target_gain.pad[core_anal] << 0) |
+			      (target_gain.pga[core_anal] << 4) |
+			      (target_gain.txgm[core_anal] << 8));
 
 		for (k = 0; k < NPHY_IQCAL_NUMGAINS; k++) {
 			if (tbl_iqcal_gainparams_nphy[band_idx][k][0] ==
@@ -25145,7 +25145,7 @@ static void wlc_phy_a4(struct brcms_phy *pi, bool full_cal)
 		pi->nphy_papd_tx_gain_at_last_cal[phy_b5] =
 			wlc_phy_txpwr_idx_cur_get_nphy(pi, phy_b5);
 
-	pi->nphy_papd_last_cal = pi->sh->now;
+	pi->nphy_papd_last_cal = pi->sh->analw;
 	pi->nphy_papd_recal_counter++;
 
 	phy_b4 = pi->nphy_txpwrctrl;
@@ -25477,7 +25477,7 @@ void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype)
 
 				wlc_phy_txpwrctrl_coeff_setup_nphy(pi);
 
-				pi->nphy_perical_last = pi->sh->now;
+				pi->nphy_perical_last = pi->sh->analw;
 			}
 		}
 		if (caltype != PHY_PERICAL_AUTO)
@@ -25495,7 +25495,7 @@ void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype)
 	} else {
 		switch (pi->mphase_cal_phase_id) {
 		case MPHASE_CAL_STATE_INIT:
-			pi->nphy_perical_last = pi->sh->now;
+			pi->nphy_perical_last = pi->sh->analw;
 			pi->nphy_txiqlocal_chanspec = pi->radio_chanspec;
 
 			if (NREV_GE(pi->pubpi.phy_rev, 3))
@@ -25636,7 +25636,7 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 	u8 cal_cnt;
 	u16 cal_cmd;
 	u8 num_cals, max_cal_cmds;
-	u16 core_no, cal_type;
+	u16 core_anal, cal_type;
 	u16 diq_start = 0;
 	u8 phy_bw;
 	u16 max_val;
@@ -25724,10 +25724,10 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 
 	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, gain_save);
 
-	for (core_no = 0; core_no <= 1; core_no++) {
-		wlc_phy_iqcal_gainparams_nphy(pi, core_no, target_gain,
-					      &cal_params[core_no]);
-		cal_gain[core_no] = cal_params[core_no].cal_gain;
+	for (core_anal = 0; core_anal <= 1; core_anal++) {
+		wlc_phy_iqcal_gainparams_nphy(pi, core_anal, target_gain,
+					      &cal_params[core_anal]);
+		cal_gain[core_anal] = cal_params[core_anal].cal_gain;
 	}
 
 	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, cal_gain);
@@ -25849,23 +25849,23 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 					  : tbl_tx_iqlo_cal_cmds_recal[cal_cnt];
 			}
 
-			core_no = ((cal_cmd & 0x3000) >> 12);
+			core_anal = ((cal_cmd & 0x3000) >> 12);
 			cal_type = ((cal_cmd & 0x0F00) >> 8);
 
 			if (NREV_GE(pi->pubpi.phy_rev, 6) ||
 			    (NREV_IS(pi->pubpi.phy_rev, 5) &&
 			     PHY_IPA(pi)
 			     && (CHSPEC_IS2G(pi->radio_chanspec)))) {
-				if (!ladder_updated[core_no]) {
+				if (!ladder_updated[core_anal]) {
 					wlc_phy_update_txcal_ladder_nphy(
 						pi,
-						core_no);
-					ladder_updated[core_no] = true;
+						core_anal);
+					ladder_updated[core_anal] = true;
 				}
 			}
 
 			val =
-				(cal_params[core_no].
+				(cal_params[core_anal].
 				 ncorr[cal_type] << 8) | NPHY_N_GCTL;
 			write_phy_reg(pi, 0xc1, val);
 
@@ -25873,7 +25873,7 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 			    || (cal_type == 4)) {
 
 				wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_IQLOCAL,
-							1, 69 + core_no, 16,
+							1, 69 + core_anal, 16,
 							tbl_buf);
 
 				diq_start = tbl_buf[0];
@@ -25881,7 +25881,7 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 				tbl_buf[0] = 0;
 				wlc_phy_table_write_nphy(pi,
 							 NPHY_TBL_ID_IQLOCAL, 1,
-							 69 + core_no, 16,
+							 69 + core_anal, 16,
 							 tbl_buf);
 			}
 
@@ -27315,7 +27315,7 @@ static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 				      u8 cal_type, bool debug)
 {
 	u16 orig_BBConfig;
-	u8 core_no, rx_core;
+	u8 core_anal, rx_core;
 	u8 best_rccal[2];
 	u16 gain_save[2];
 	u16 cal_gain[2];
@@ -27338,10 +27338,10 @@ static int wlc_phy_cal_rxiq_nphy_rev3(struct brcms_phy *pi,
 
 	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, gain_save);
 
-	for (core_no = 0; core_no <= 1; core_no++) {
-		wlc_phy_iqcal_gainparams_nphy(pi, core_no, target_gain,
-					      &cal_params[core_no]);
-		cal_gain[core_no] = cal_params[core_no].cal_gain;
+	for (core_anal = 0; core_anal <= 1; core_anal++) {
+		wlc_phy_iqcal_gainparams_nphy(pi, core_anal, target_gain,
+					      &cal_params[core_anal]);
+		cal_gain[core_anal] = cal_params[core_anal].cal_gain;
 	}
 
 	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, cal_gain);
@@ -27488,7 +27488,7 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 	u32 i_pwr, q_pwr, tot_pwr[3];
 	u8 gain_pass, use_hpf_num;
 	u16 mask, val1, val2;
-	u16 core_no;
+	u16 core_anal;
 	u16 gain_save[2];
 	u16 cal_gain[2];
 	struct nphy_iqcal_params cal_params[2];
@@ -27503,10 +27503,10 @@ wlc_phy_cal_rxiq_nphy_rev2(struct brcms_phy *pi,
 
 	wlc_phy_table_read_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, gain_save);
 
-	for (core_no = 0; core_no <= 1; core_no++) {
-		wlc_phy_iqcal_gainparams_nphy(pi, core_no, target_gain,
-					      &cal_params[core_no]);
-		cal_gain[core_no] = cal_params[core_no].cal_gain;
+	for (core_anal = 0; core_anal <= 1; core_anal++) {
+		wlc_phy_iqcal_gainparams_nphy(pi, core_anal, target_gain,
+					      &cal_params[core_anal]);
+		cal_gain[core_anal] = cal_params[core_anal].cal_gain;
 	}
 
 	wlc_phy_table_write_nphy(pi, NPHY_TBL_ID_RFSEQ, 2, 0x110, 16, cal_gain);

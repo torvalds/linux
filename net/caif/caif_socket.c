@@ -115,7 +115,7 @@ static void caif_flow_ctrl(struct sock *sk, int mode)
 
 /*
  * Copied from sock.c:sock_queue_rcv_skb(), but changed so packets are
- * not dropped, but CAIF is sending flow off instead.
+ * analt dropped, but CAIF is sending flow off instead.
  */
 static void caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -206,7 +206,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	case CAIF_CTRLCMD_INIT_RSP:
-		/* We're now connected */
+		/* We're analw connected */
 		caif_client_register_refcnt(&cf_sk->layer,
 						cfsk_hold, cfsk_put);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
@@ -216,7 +216,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	case CAIF_CTRLCMD_DEINIT_RSP:
-		/* We're now disconnected */
+		/* We're analw disconnected */
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
 		break;
@@ -273,7 +273,7 @@ static int caif_seqpkt_recvmsg(struct socket *sock, struct msghdr *m,
 	int ret;
 	int copylen;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (flags & MSG_OOB)
 		goto read_error;
 
@@ -349,7 +349,7 @@ static int caif_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	int err = 0;
 	long timeo;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (flags&MSG_OOB)
 		goto out;
 
@@ -407,7 +407,7 @@ static int caif_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 			timeo = caif_stream_data_wait(sk, timeo);
 
 			if (signal_pending(current)) {
-				err = sock_intr_errno(timeo);
+				err = sock_intr_erranal(timeo);
 				goto out;
 			}
 			caif_read_lock(sk);
@@ -440,7 +440,7 @@ unlock:
 
 		} else {
 			/*
-			 * It is questionable, see note in unix_dgram_recvmsg.
+			 * It is questionable, see analte in unix_dgram_recvmsg.
 			 */
 			/* put message back and return */
 			skb_queue_head(&sk->sk_receive_queue, skb);
@@ -494,7 +494,7 @@ static long caif_wait_for_flow_on(struct caifsock *cf_sk,
  * by returning EAGAIN.
  */
 static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
-			int noblock, long timeo)
+			int analblock, long timeo)
 {
 	struct cfpkt *pkt;
 
@@ -519,24 +519,24 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 	int buffer_size;
 	int ret = 0;
 	struct sk_buff *skb = NULL;
-	int noblock;
+	int analblock;
 	long timeo;
 	caif_assert(cf_sk);
 	ret = sock_error(sk);
 	if (ret)
 		goto err;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (msg->msg_flags&MSG_OOB)
 		goto err;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (msg->msg_namelen)
 		goto err;
 
-	noblock = msg->msg_flags & MSG_DONTWAIT;
+	analblock = msg->msg_flags & MSG_DONTWAIT;
 
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, analblock);
 	timeo = caif_wait_for_flow_on(container_of(sk, struct caifsock, sk),
 				1, timeo, &ret);
 
@@ -555,8 +555,8 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	buffer_size = len + cf_sk->headroom + cf_sk->tailroom;
 
-	ret = -ENOMEM;
-	skb = sock_alloc_send_skb(sk, buffer_size, noblock, &ret);
+	ret = -EANALMEM;
+	skb = sock_alloc_send_skb(sk, buffer_size, analblock, &ret);
 
 	if (!skb || skb_tailroom(skb) < buffer_size)
 		goto err;
@@ -567,7 +567,7 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	if (ret)
 		goto err;
-	ret = transmit_skb(skb, cf_sk, noblock, timeo);
+	ret = transmit_skb(skb, cf_sk, analblock, timeo);
 	if (ret < 0)
 		/* skb is already freed */
 		return ret;
@@ -581,7 +581,7 @@ err:
 /*
  * Copied from unix_stream_sendmsg and adapted to CAIF:
  * Changed removed permission handling and added waiting for flow on
- * and other minor adaptations.
+ * and other mianalr adaptations.
  */
 static int caif_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 			       size_t len)
@@ -593,7 +593,7 @@ static int caif_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	int sent = 0;
 	long timeo;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (unlikely(msg->msg_flags&MSG_OOB))
 		goto out_err;
 
@@ -631,7 +631,7 @@ static int caif_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 		skb_reserve(skb, cf_sk->headroom);
 		/*
 		 *	If you pass two values to the sock_alloc_send_skb
-		 *	it tries to grab the large buffer with GFP_NOFS
+		 *	it tries to grab the large buffer with GFP_ANALFS
 		 *	(which can fail easily), and if it fails grab the
 		 *	fallback size buffer which is under a page and will
 		 *	succeed. [Alan]
@@ -655,7 +655,7 @@ static int caif_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	return sent;
 
 pipe_err:
-	if (sent == 0 && !(msg->msg_flags&MSG_NOSIGNAL))
+	if (sent == 0 && !(msg->msg_flags&MSG_ANALSIGNAL))
 		send_sig(SIGPIPE, current, 0);
 	err = -EPIPE;
 out_err:
@@ -670,7 +670,7 @@ static int setsockopt(struct socket *sock, int lvl, int opt, sockptr_t ov,
 	int linksel;
 
 	if (cf_sk->sk.sk_socket->state != SS_UNCONNECTED)
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 
 	switch (opt) {
 	case CAIFSO_LINK_SELECT:
@@ -689,7 +689,7 @@ static int setsockopt(struct socket *sock, int lvl, int opt, sockptr_t ov,
 		if (lvl != SOL_CAIF)
 			goto bad_sol;
 		if (cf_sk->sk.sk_protocol != CAIFPROTO_UTIL)
-			return -ENOPROTOOPT;
+			return -EANALPROTOOPT;
 		lock_sock(&(cf_sk->sk));
 		if (ol > sizeof(cf_sk->conn_req.param.data) ||
 		    copy_from_sockptr(&cf_sk->conn_req.param.data, ov, ol)) {
@@ -701,12 +701,12 @@ static int setsockopt(struct socket *sock, int lvl, int opt, sockptr_t ov,
 		return 0;
 
 	default:
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
 	return 0;
 bad_sol:
-	return -ENOPROTOOPT;
+	return -EANALPROTOOPT;
 
 }
 
@@ -714,19 +714,19 @@ bad_sol:
  * caif_connect() - Connect a CAIF Socket
  * Copied and modified af_irda.c:irda_connect().
  *
- * Note : by consulting "errno", the user space caller may learn the cause
+ * Analte : by consulting "erranal", the user space caller may learn the cause
  * of the failure. Most of them are visible in the function, others may come
  * from subroutines called and are listed here :
- *  o -EAFNOSUPPORT: bad socket family or type.
- *  o -ESOCKTNOSUPPORT: bad socket type or protocol
+ *  o -EAFANALSUPPORT: bad socket family or type.
+ *  o -ESOCKTANALSUPPORT: bad socket type or protocol
  *  o -EINVAL: bad socket address, or CAIF link type
  *  o -ECONNREFUSED: remote end refused the connection.
- *  o -EINPROGRESS: connect request sent but timed out (or non-blocking)
+ *  o -EINPROGRESS: connect request sent but timed out (or analn-blocking)
  *  o -EISCONN: already connected.
  *  o -ETIMEDOUT: Connection timed out (send timeout)
- *  o -ENODEV: No link layer to send request
+ *  o -EANALDEV: Anal link layer to send request
  *  o -ECONNRESET: Received Shutdown indication or lost link layer
- *  o -ENOMEM: Out of memory
+ *  o -EANALMEM: Out of memory
  *
  *  State Strategy:
  *  o sk_state: holds the CAIF_* protocol state, it's updated by
@@ -751,13 +751,13 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (addr_len < offsetofend(struct sockaddr, sa_family))
 		goto out;
 
-	err = -EAFNOSUPPORT;
+	err = -EAFANALSUPPORT;
 	if (uaddr->sa_family != AF_CAIF)
 		goto out;
 
 	switch (sock->state) {
 	case SS_UNCONNECTED:
-		/* Normal case, a fresh connect */
+		/* Analrmal case, a fresh connect */
 		caif_assert(sk->sk_state == CAIF_DISCONNECTED);
 		break;
 	case SS_CONNECTING:
@@ -771,7 +771,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 			break;
 		case CAIF_CONNECTING:
 			err = -EALREADY;
-			if (flags & O_NONBLOCK)
+			if (flags & O_ANALNBLOCK)
 				goto out;
 			goto wait_connect;
 		}
@@ -785,7 +785,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 			caif_free_client(&cf_sk->layer);
 			break;
 		}
-		/* No reconnect on a seqpacket socket */
+		/* Anal reconnect on a seqpacket socket */
 		err = -EISCONN;
 		goto out;
 	case SS_DISCONNECTING:
@@ -831,7 +831,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out;
 	}
 
-	err = -ENODEV;
+	err = -EANALDEV;
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(sock_net(sk), ifindex);
 	if (!dev) {
@@ -846,17 +846,17 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	cf_sk->maxframe = mtu - (headroom + tailroom);
 	if (cf_sk->maxframe < 1) {
 		pr_warn("CAIF Interface MTU too small (%d)\n", dev->mtu);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out;
 	}
 
 	err = -EINPROGRESS;
 wait_connect:
 
-	if (sk->sk_state != CAIF_CONNECTED && (flags & O_NONBLOCK))
+	if (sk->sk_state != CAIF_CONNECTED && (flags & O_ANALNBLOCK))
 		goto out;
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, flags & O_ANALNBLOCK);
 
 	release_sock(sk);
 	err = -ERESTARTSYS;
@@ -899,9 +899,9 @@ static int caif_release(struct socket *sock)
 	set_tx_flow_off(cf_sk);
 
 	/*
-	 * Ensure that packets are not queued after this point in time.
+	 * Ensure that packets are analt queued after this point in time.
 	 * caif_queue_rcv_skb checks SOCK_DEAD holding the queue lock,
-	 * this ensures no packets when sock is dead.
+	 * this ensures anal packets when sock is dead.
 	 */
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sock_set_flag(sk, SOCK_DEAD);
@@ -948,14 +948,14 @@ static __poll_t caif_poll(struct file *file,
 	/* readable? */
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	/*
 	 * we set writable also when the other side has shut down the
 	 * connection. This prevents stuck sockets.
 	 */
 	if (sock_writeable(sk) && tx_flow_is_on(cf_sk))
-		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRANALRM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -964,38 +964,38 @@ static const struct proto_ops caif_seqpacket_ops = {
 	.family = PF_CAIF,
 	.owner = THIS_MODULE,
 	.release = caif_release,
-	.bind = sock_no_bind,
+	.bind = sock_anal_bind,
 	.connect = caif_connect,
-	.socketpair = sock_no_socketpair,
-	.accept = sock_no_accept,
-	.getname = sock_no_getname,
+	.socketpair = sock_anal_socketpair,
+	.accept = sock_anal_accept,
+	.getname = sock_anal_getname,
 	.poll = caif_poll,
-	.ioctl = sock_no_ioctl,
-	.listen = sock_no_listen,
-	.shutdown = sock_no_shutdown,
+	.ioctl = sock_anal_ioctl,
+	.listen = sock_anal_listen,
+	.shutdown = sock_anal_shutdown,
 	.setsockopt = setsockopt,
 	.sendmsg = caif_seqpkt_sendmsg,
 	.recvmsg = caif_seqpkt_recvmsg,
-	.mmap = sock_no_mmap,
+	.mmap = sock_anal_mmap,
 };
 
 static const struct proto_ops caif_stream_ops = {
 	.family = PF_CAIF,
 	.owner = THIS_MODULE,
 	.release = caif_release,
-	.bind = sock_no_bind,
+	.bind = sock_anal_bind,
 	.connect = caif_connect,
-	.socketpair = sock_no_socketpair,
-	.accept = sock_no_accept,
-	.getname = sock_no_getname,
+	.socketpair = sock_anal_socketpair,
+	.accept = sock_anal_accept,
+	.getname = sock_anal_getname,
 	.poll = caif_poll,
-	.ioctl = sock_no_ioctl,
-	.listen = sock_no_listen,
-	.shutdown = sock_no_shutdown,
+	.ioctl = sock_anal_ioctl,
+	.listen = sock_anal_listen,
+	.shutdown = sock_anal_shutdown,
 	.setsockopt = setsockopt,
 	.sendmsg = caif_stream_sendmsg,
 	.recvmsg = caif_stream_recvmsg,
-	.mmap = sock_no_mmap,
+	.mmap = sock_anal_mmap,
 };
 
 /* This function is called when a socket is finally destroyed. */
@@ -1032,32 +1032,32 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	 * The sock->type specifies the socket type to use.
 	 * The CAIF socket is a packet stream in the sense
 	 * that it is packet based. CAIF trusts the reliability
-	 * of the link, no resending is implemented.
+	 * of the link, anal resending is implemented.
 	 */
 	if (sock->type == SOCK_SEQPACKET)
 		sock->ops = &caif_seqpacket_ops;
 	else if (sock->type == SOCK_STREAM)
 		sock->ops = &caif_stream_ops;
 	else
-		return -ESOCKTNOSUPPORT;
+		return -ESOCKTANALSUPPORT;
 
 	if (protocol < 0 || protocol >= CAIFPROTO_MAX)
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	/*
 	 * Set the socket state to unconnected.	 The socket state
-	 * is really not used at all in the net/core or socket.c but the
-	 * initialization makes sure that sock->state is not uninitialized.
+	 * is really analt used at all in the net/core or socket.c but the
+	 * initialization makes sure that sock->state is analt uninitialized.
 	 */
 	sk = sk_alloc(net, PF_CAIF, GFP_KERNEL, &prot, kern);
 	if (!sk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cf_sk = container_of(sk, struct caifsock, sk);
 
 	/* Store the protocol */
 	sk->sk_protocol = (unsigned char) protocol;
 
-	/* Initialize default priority for well-known cases */
+	/* Initialize default priority for well-kanalwn cases */
 	switch (protocol) {
 	case CAIFPROTO_AT:
 		sk->sk_priority = TC_PRIO_CONTROL;
@@ -1075,7 +1075,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	 */
 	lock_sock(&(cf_sk->sk));
 
-	/* Initialize the nozero default sock structure data. */
+	/* Initialize the analzero default sock structure data. */
 	sock_init_data(sock, sk);
 	sk->sk_destruct = caif_sock_destructor;
 

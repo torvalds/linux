@@ -231,12 +231,12 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct rockchip_p3phy_priv *priv;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(priv->mmio)) {
@@ -246,7 +246,7 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 
 	priv->ops = of_device_get_match_data(&pdev->dev);
 	if (!priv->ops) {
-		dev_err(dev, "no of match data provided\n");
+		dev_err(dev, "anal of match data provided\n");
 		return -EINVAL;
 	}
 
@@ -258,7 +258,7 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 
 	if (of_device_is_compatible(np, "rockchip,rk3588-pcie3-phy")) {
 		priv->pipe_grf =
-			syscon_regmap_lookup_by_phandle(dev->of_node,
+			syscon_regmap_lookup_by_phandle(dev->of_analde,
 							"rockchip,pipe-grf");
 		if (IS_ERR(priv->pipe_grf))
 			dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
@@ -266,13 +266,13 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		priv->pipe_grf = NULL;
 	}
 
-	priv->num_lanes = of_property_read_variable_u32_array(dev->of_node, "data-lanes",
+	priv->num_lanes = of_property_read_variable_u32_array(dev->of_analde, "data-lanes",
 							     priv->lanes, 2,
 							     ARRAY_SIZE(priv->lanes));
 
-	/* if no data-lanes assume aggregation */
+	/* if anal data-lanes assume aggregation */
 	if (priv->num_lanes == -EINVAL) {
-		dev_dbg(dev, "no data-lanes property found\n");
+		dev_dbg(dev, "anal data-lanes property found\n");
 		priv->num_lanes = 1;
 		priv->lanes[0] = 1;
 	} else if (priv->num_lanes < 0) {
@@ -292,11 +292,11 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 				     "failed to get phy reset control\n");
 	}
 	if (!priv->p30phy)
-		dev_info(dev, "no phy reset control specified\n");
+		dev_info(dev, "anal phy reset control specified\n");
 
 	priv->num_clks = devm_clk_bulk_get_all(dev, &priv->clks);
 	if (priv->num_clks < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_set_drvdata(dev, priv);
 	phy_set_drvdata(priv->phy, priv);
@@ -319,5 +319,5 @@ static struct platform_driver rockchip_p3phy_driver = {
 	},
 };
 module_platform_driver(rockchip_p3phy_driver);
-MODULE_DESCRIPTION("Rockchip Synopsys PCIe 3.0 PHY driver");
+MODULE_DESCRIPTION("Rockchip Syanalpsys PCIe 3.0 PHY driver");
 MODULE_LICENSE("GPL");

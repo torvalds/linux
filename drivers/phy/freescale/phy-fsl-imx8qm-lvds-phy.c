@@ -117,7 +117,7 @@ static int mixel_lvds_phy_power_on(struct phy *phy)
 	regmap_update_bits(priv->regmap, PHY_CTRL, M_MASK | NB, val);
 
 	/*
-	 * Enable two channels synchronously,
+	 * Enable two channels synchroanalusly,
 	 * if the companion PHY is a slave PHY.
 	 */
 	if (companion->cfg.is_slave)
@@ -211,7 +211,7 @@ static int mixel_lvds_phy_check_slave(struct phy *slave_phy)
 	}
 
 	if (mst_cfg->is_slave == slv_cfg->is_slave) {
-		dev_err(dev, "master PHY is not found\n");
+		dev_err(dev, "master PHY is analt found\n");
 		return -EINVAL;
 	}
 
@@ -310,7 +310,7 @@ static struct phy *mixel_lvds_phy_xlate(struct device *dev,
 
 	if (phy_id >= PHY_NUM) {
 		dev_err(dev, "invalid PHY index(%d)\n", phy_id);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return priv->phys[phy_id]->phy;
@@ -326,14 +326,14 @@ static int mixel_lvds_phy_probe(struct platform_device *pdev)
 	int i;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->regmap = syscon_node_to_regmap(dev->of_node->parent);
+	priv->regmap = syscon_analde_to_regmap(dev->of_analde->parent);
 	if (IS_ERR(priv->regmap))
 		return dev_err_probe(dev, PTR_ERR(priv->regmap),
 				     "failed to get regmap\n");
@@ -358,7 +358,7 @@ static int mixel_lvds_phy_probe(struct platform_device *pdev)
 	for (i = 0; i < PHY_NUM; i++) {
 		lvds_phy = devm_kzalloc(dev, sizeof(*lvds_phy), GFP_KERNEL);
 		if (!lvds_phy) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 

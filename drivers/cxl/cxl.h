@@ -8,7 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/io.h>
 
 /**
@@ -197,7 +197,7 @@ static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 
 /*
  * Using struct_group() allows for per register-block-type helper routines,
- * without requiring block-type agnostic code to include the prefix.
+ * without requiring block-type aganalstic code to include the prefix.
  */
 struct cxl_regs {
 	/*
@@ -300,7 +300,7 @@ struct cxl_dport;
 resource_size_t cxl_rcd_component_reg_phys(struct device *dev,
 					   struct cxl_dport *dport);
 
-#define CXL_RESOURCE_NONE ((resource_size_t) -1)
+#define CXL_RESOURCE_ANALNE ((resource_size_t) -1)
 #define CXL_TARGET_STRLEN 20
 
 /*
@@ -362,7 +362,7 @@ struct cxl_decoder {
  * while cxld_unregister() is running
  */
 enum cxl_decoder_mode {
-	CXL_DECODER_NONE,
+	CXL_DECODER_ANALNE,
 	CXL_DECODER_RAM,
 	CXL_DECODER_PMEM,
 	CXL_DECODER_MIXED,
@@ -372,13 +372,13 @@ enum cxl_decoder_mode {
 static inline const char *cxl_decoder_mode_name(enum cxl_decoder_mode mode)
 {
 	static const char * const names[] = {
-		[CXL_DECODER_NONE] = "none",
+		[CXL_DECODER_ANALNE] = "analne",
 		[CXL_DECODER_RAM] = "ram",
 		[CXL_DECODER_PMEM] = "pmem",
 		[CXL_DECODER_MIXED] = "mixed",
 	};
 
-	if (mode >= CXL_DECODER_NONE && mode <= CXL_DECODER_MIXED)
+	if (mode >= CXL_DECODER_ANALNE && mode <= CXL_DECODER_MIXED)
 		return names[mode];
 	return "mixed";
 }
@@ -455,9 +455,9 @@ struct cxl_root_decoder {
 /*
  * enum cxl_config_state - State machine for region configuration
  * @CXL_CONFIG_IDLE: Any sysfs attribute can be written freely
- * @CXL_CONFIG_INTERLEAVE_ACTIVE: region size has been set, no more
+ * @CXL_CONFIG_INTERLEAVE_ACTIVE: region size has been set, anal more
  * changes to interleave_ways or interleave_granularity
- * @CXL_CONFIG_ACTIVE: All targets have been added the region is now
+ * @CXL_CONFIG_ACTIVE: All targets have been added the region is analw
  * active
  * @CXL_CONFIG_RESET_PENDING: see commit_store()
  * @CXL_CONFIG_COMMIT: Soft-config has been committed to hardware
@@ -710,7 +710,7 @@ struct cxl_region_ref {
 
 /*
  * The platform firmware device hosting the root is also the top of the
- * CXL port topology. All other CXL ports have another CXL port as their
+ * CXL port topology. All other CXL ports have aanalther CXL port as their
  * parent and their ->uport_dev / host device is out-of-line of the port
  * ancestry.
  */

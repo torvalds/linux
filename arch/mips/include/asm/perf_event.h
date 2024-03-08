@@ -2,7 +2,7 @@
 /*
  * linux/arch/mips/include/asm/perf_event.h
  *
- * Copyright (C) 2010 MIPS Technologies, Inc.
+ * Copyright (C) 2010 MIPS Techanallogies, Inc.
  * Author: Deng-Cheng Zhu
  */
 

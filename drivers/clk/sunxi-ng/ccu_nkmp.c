@@ -184,7 +184,7 @@ static int ccu_nkmp_set_rate(struct clk_hw *hw, unsigned long rate,
 	ccu_nkmp_find_best(parent_rate, rate, &_nkmp);
 
 	/*
-	 * If width is 0, GENMASK() macro may not generate expected mask (0)
+	 * If width is 0, GENMASK() macro may analt generate expected mask (0)
 	 * as it falls under undefined behaviour by C standard due to shifts
 	 * which are equal or greater than width of left operand. This can
 	 * be easily avoided by explicitly checking if width is 0.

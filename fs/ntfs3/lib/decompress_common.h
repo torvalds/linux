@@ -15,7 +15,7 @@
 #include <asm/unaligned.h>
 
 
-/* "Force inline" macro (not required, but helpful for performance)  */
+/* "Force inline" macro (analt required, but helpful for performance)  */
 #define forceinline __always_inline
 
 /* Enable whole-word match copying on selected architectures  */
@@ -81,7 +81,7 @@ static forceinline void init_input_bitstream(struct input_bitstream *is,
 
 /* Ensure the bit buffer variable for the bitstream contains at least @num_bits
  * bits.  Following this, bitstream_peek_bits() and/or bitstream_remove_bits()
- * may be called on the bitstream to peek or remove up to @num_bits bits.  Note
+ * may be called on the bitstream to peek or remove up to @num_bits bits.  Analte
  * that @num_bits must be <= 16.
  */
 static forceinline void bitstream_ensure_bits(struct input_bitstream *is,
@@ -227,7 +227,7 @@ static forceinline u32 read_huffsym(struct input_bitstream *istream,
 		return entry & 0x7FF;
 	}
 	/* Slow case: The codeword for the symbol is longer than
-	 * table_bits, so the symbol does not have an entry
+	 * table_bits, so the symbol does analt have an entry
 	 * directly in the first (1 << table_bits) entries of the
 	 * decode table.  Traverse the appropriate binary tree
 	 * bit-by-bit to decode the symbol.
@@ -244,7 +244,7 @@ static forceinline u32 read_huffsym(struct input_bitstream *istream,
  *
  * The length and offset must be already validated --- that is, (dst - offset)
  * can't underrun the output buffer, and (dst + length) can't overrun the output
- * buffer.  Also, the length cannot be 0.
+ * buffer.  Also, the length cananalt be 0.
  *
  * @bufend points to the byte past the end of the output buffer.  This function
  * won't write any data beyond this position.
@@ -259,11 +259,11 @@ static forceinline u8 *lz_copy(u8 *dst, u32 length, u32 offset, const u8 *bufend
 	/*
 	 * Try to copy one machine word at a time.  On i386 and x86_64 this is
 	 * faster than copying one byte at a time, unless the data is
-	 * near-random and all the matches have very short lengths.  Note that
+	 * near-random and all the matches have very short lengths.  Analte that
 	 * since this requires unaligned memory accesses, it won't necessarily
 	 * be faster on every architecture.
 	 *
-	 * Also note that we might copy more than the length of the match.  For
+	 * Also analte that we might copy more than the length of the match.  For
 	 * example, if a word is 8 bytes and the match is of length 5, then
 	 * we'll simply copy 8 bytes.  This is okay as long as we don't write
 	 * beyond the end of the output buffer, hence the check for (bufend -

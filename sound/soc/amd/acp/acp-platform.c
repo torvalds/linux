@@ -76,17 +76,17 @@ int acp_machine_select(struct acp_dev_data *adata)
 	if (adata->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
 		platform = adata->platform;
 		adata->mach_dev = platform_device_register_data(adata->dev, "acp-pdm-mach",
-								PLATFORM_DEVID_NONE, &platform,
+								PLATFORM_DEVID_ANALNE, &platform,
 								sizeof(platform));
 	} else {
 		size = sizeof(*adata->machines);
 		mach = snd_soc_acpi_find_machine(adata->machines);
 		if (!mach) {
-			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
+			dev_err(adata->dev, "warning: Anal matching ASoC machine driver found\n");
 			return -EINVAL;
 		}
 		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
-								PLATFORM_DEVID_NONE, mach, size);
+								PLATFORM_DEVID_ANALNE, mach, size);
 	}
 	if (IS_ERR(adata->mach_dev))
 		dev_warn(adata->dev, "Unable to register Machine device\n");
@@ -103,9 +103,9 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	u32 ext_intr_stat, ext_intr_stat1;
 
 	if (!adata)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	if (adata->rsrc->no_of_ctrls == 2)
+	if (adata->rsrc->anal_of_ctrls == 2)
 		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
 
 	ext_intr_stat = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
@@ -118,7 +118,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 			snd_pcm_period_elapsed(stream->substream);
 			i2s_flag = 1;
 		}
-		if (adata->rsrc->no_of_ctrls == 2) {
+		if (adata->rsrc->anal_of_ctrls == 2) {
 			if (ext_intr_stat1 & stream->irq_bit) {
 				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
 				       (rsrc->irqp_used - 1)));
@@ -131,7 +131,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	if (i2s_flag)
 		return IRQ_HANDLED;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
@@ -188,7 +188,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stream->substream = substream;
 

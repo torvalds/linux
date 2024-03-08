@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL v2");
 #define PCC_SPI_ADR		0x0a
 #define PCC_SPI_IR		0x0c
 #define PCC_FW_MAJOR		0x10
-#define PCC_FW_MINOR		0x12
+#define PCC_FW_MIANALR		0x12
 
 /* CCR bits */
 #define PCC_CCR_CLK_16		0x00
@@ -97,7 +97,7 @@ MODULE_LICENSE("GPL v2");
 #define PCC_ISR_MAX_LOOP		10
 
 /* EEPROM chip instruction set */
-/* note: EEPROM Read/Write instructions include A8 bit */
+/* analte: EEPROM Read/Write instructions include A8 bit */
 #define PCC_EEP_WRITE(a)	(0x02 | (((a) & 0x100) >> 5))
 #define PCC_EEP_READ(a)		(0x03 | (((a) & 0x100) >> 5))
 #define PCC_EEP_WRDI		0x04	/* EEPROM Write Disable */
@@ -111,10 +111,10 @@ MODULE_LICENSE("GPL v2");
 /*
  * The board configuration is probably following:
  * RX1 is connected to ground.
- * TX1 is not connected.
- * CLKO is not connected.
+ * TX1 is analt connected.
+ * CLKO is analt connected.
  * Setting the OCR register to 0xDA is a good idea.
- * This means normal output mode, push-pull and the correct polarity.
+ * This means analrmal output mode, push-pull and the correct polarity.
  */
 #define PCC_OCR			(OCR_TX0_PUSHPULL | OCR_TX1_PUSHPULL)
 
@@ -139,7 +139,7 @@ struct pcan_pccard {
 	struct pcan_channel channel[PCC_CHAN_MAX];
 	u8 ccr;
 	u8 fw_major;
-	u8 fw_minor;
+	u8 fw_mianalr;
 	void __iomem *ioport_addr;
 	struct timer_list led_timer;
 };
@@ -194,7 +194,7 @@ static void pcan_write_canreg(const struct sja1000_priv *priv, int port, u8 v)
 			pcan_set_leds(card, PCC_LED(c), PCC_LED_ON);
 			break;
 		case 0x00:
-			/* Normal Mode: led slow blinking and start led timer */
+			/* Analrmal Mode: led slow blinking and start led timer */
 			pcan_set_leds(card, PCC_LED(c), PCC_LED_SLOW);
 			pcan_start_led_timer(card);
 			break;
@@ -235,7 +235,7 @@ static void pcan_write_reg(struct pcan_pccard *card, int port, u8 v)
 static inline int pcan_pccard_present(struct pcan_pccard *card)
 {
 	return ((pcan_read_reg(card, PCC_FW_MAJOR) == card->fw_major) &&
-		(pcan_read_reg(card, PCC_FW_MINOR) == card->fw_minor));
+		(pcan_read_reg(card, PCC_FW_MIANALR) == card->fw_mianalr));
 }
 
 /*
@@ -358,15 +358,15 @@ static void pcan_set_leds(struct pcan_pccard *card, u8 led_mask, u8 state)
 /*
  * enable/disable CAN connectors power
  */
-static inline void pcan_set_can_power(struct pcan_pccard *card, int onoff)
+static inline void pcan_set_can_power(struct pcan_pccard *card, int oanalff)
 {
 	int err;
 
-	err = pcan_write_eeprom(card, 0, !!onoff);
+	err = pcan_write_eeprom(card, 0, !!oanalff);
 	if (err)
 		dev_err(&card->pdev->dev,
 			"failed setting power %s to can connectors (err %d)\n",
-			(onoff) ? "on" : "off", err);
+			(oanalff) ? "on" : "off", err);
 }
 
 /*
@@ -381,7 +381,7 @@ static void pcan_led_timer(struct timer_list *t)
 
 	ccr = card->ccr;
 	for (i = 0; i < card->chan_count; i++) {
-		/* default is: not configured */
+		/* default is: analt configured */
 		ccr &= ~PCC_CCR_LED_MASK_CHAN(i);
 		ccr |= PCC_CCR_LED_ON_CHAN(i);
 
@@ -391,7 +391,7 @@ static void pcan_led_timer(struct timer_list *t)
 
 		up_count++;
 
-		/* no activity (but configured) */
+		/* anal activity (but configured) */
 		ccr &= ~PCC_CCR_LED_MASK_CHAN(i);
 		ccr |= PCC_CCR_LED_SLOW_CHAN(i);
 
@@ -411,7 +411,7 @@ static void pcan_led_timer(struct timer_list *t)
 	/* write the new leds state */
 	pcan_write_reg(card, PCC_CCR, ccr);
 
-	/* restart timer (except if no more configured channels) */
+	/* restart timer (except if anal more configured channels) */
 	if (up_count)
 		mod_timer(&card->led_timer, jiffies + HZ);
 }
@@ -427,7 +427,7 @@ static irqreturn_t pcan_isr(int irq, void *dev_id)
 	/* prevent from infinite loop */
 	for (irq_handled = 0; irq_handled < PCC_ISR_MAX_LOOP; irq_handled++) {
 		/* handle shared interrupt and next loop */
-		int nothing_to_handle = 1;
+		int analthing_to_handle = 1;
 		int i;
 
 		/* check interrupt for each channel */
@@ -440,7 +440,7 @@ static irqreturn_t pcan_isr(int irq, void *dev_id)
 			 */
 			if (!pcan_pccard_present(card)) {
 				/* card unplugged during isr */
-				return IRQ_NONE;
+				return IRQ_ANALNE;
 			}
 
 			/*
@@ -450,14 +450,14 @@ static irqreturn_t pcan_isr(int irq, void *dev_id)
 			netdev = card->channel[i].netdev;
 			if (netdev &&
 			    sja1000_interrupt(irq, netdev) == IRQ_HANDLED)
-				nothing_to_handle = 0;
+				analthing_to_handle = 0;
 		}
 
-		if (nothing_to_handle)
+		if (analthing_to_handle)
 			break;
 	}
 
-	return (irq_handled) ? IRQ_HANDLED : IRQ_NONE;
+	return (irq_handled) ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /*
@@ -487,7 +487,7 @@ static void pcan_free_channels(struct pcan_pccard *card)
 		dev_info(&card->pdev->dev, "%s removed\n", name);
 	}
 
-	/* do it only if device not removed */
+	/* do it only if device analt removed */
 	if (pcan_pccard_present(card)) {
 		pcan_set_leds(card, led_mask, PCC_LED_OFF);
 		pcan_set_can_power(card, 0);
@@ -533,7 +533,7 @@ static int pcan_add_channels(struct pcan_pccard *card)
 
 		netdev = alloc_sja1000dev(0);
 		if (!netdev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -549,7 +549,7 @@ static int pcan_add_channels(struct pcan_pccard *card)
 
 		/* check if channel is present */
 		if (!pcan_channel_present(priv)) {
-			dev_err(&pdev->dev, "channel %d not present\n", i);
+			dev_err(&pdev->dev, "channel %d analt present\n", i);
 			free_sja1000dev(netdev);
 			continue;
 		}
@@ -638,8 +638,8 @@ static int pcan_probe(struct pcmcia_device *pdev)
 	}
 
 	if (!pdev->irq) {
-		dev_err(&pdev->dev, "no irq assigned\n");
-		err = -ENODEV;
+		dev_err(&pdev->dev, "anal irq assigned\n");
+		err = -EANALDEV;
 		goto probe_err_1;
 	}
 
@@ -652,7 +652,7 @@ static int pcan_probe(struct pcmcia_device *pdev)
 
 	card = kzalloc(sizeof(struct pcan_pccard), GFP_KERNEL);
 	if (!card) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto probe_err_2;
 	}
 
@@ -664,21 +664,21 @@ static int pcan_probe(struct pcmcia_device *pdev)
 					resource_size(pdev->resource[0]));
 	if (!card->ioport_addr) {
 		dev_err(&pdev->dev, "couldn't map io port into io memory\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto probe_err_3;
 	}
 	card->fw_major = pcan_read_reg(card, PCC_FW_MAJOR);
-	card->fw_minor = pcan_read_reg(card, PCC_FW_MINOR);
+	card->fw_mianalr = pcan_read_reg(card, PCC_FW_MIANALR);
 
 	/* display board name and firmware version */
 	dev_info(&pdev->dev, "PEAK-System pcmcia card %s fw %d.%d\n",
 		pdev->prod_id[1] ? pdev->prod_id[1] : "PCAN-PC Card",
-		card->fw_major, card->fw_minor);
+		card->fw_major, card->fw_mianalr);
 
 	/* detect available channels */
 	pcan_add_channels(card);
 	if (!card->chan_count) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto probe_err_4;
 	}
 

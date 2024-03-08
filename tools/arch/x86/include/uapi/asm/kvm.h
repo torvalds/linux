@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _ASM_X86_KVM_H
 #define _ASM_X86_KVM_H
 
@@ -435,7 +435,7 @@ struct kvm_sync_regs {
 #define KVM_X86_QUIRK_CD_NW_CLEARED		(1 << 1)
 #define KVM_X86_QUIRK_LAPIC_MMIO_HOLE		(1 << 2)
 #define KVM_X86_QUIRK_OUT_7E_INC_RIP		(1 << 3)
-#define KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT	(1 << 4)
+#define KVM_X86_QUIRK_MISC_ENABLE_ANAL_MWAIT	(1 << 4)
 #define KVM_X86_QUIRK_FIX_HYPERCALL_INSN	(1 << 5)
 #define KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS	(1 << 6)
 

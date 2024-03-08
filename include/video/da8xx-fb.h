@@ -13,7 +13,7 @@
 #define DA8XX_FB_H
 
 enum panel_shade {
-	MONOCHROME = 0,
+	MOANALCHROME = 0,
 	COLOR_ACTIVE,
 	COLOR_PASSIVE,
 };
@@ -25,7 +25,7 @@ enum raster_load_mode {
 
 enum da8xx_frame_complete {
 	DA8XX_FRAME_WAIT,
-	DA8XX_FRAME_NOWAIT,
+	DA8XX_FRAME_ANALWAIT,
 };
 
 struct da8xx_lcdc_platform_data {
@@ -58,8 +58,8 @@ struct lcd_ctrl_config {
 	/* 12 Bit Per Pixel (5-6-5) Mode (Only for passive) */
 	unsigned char stn_565_mode;
 
-	/* Mono 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
-	unsigned char mono_8bit_mode;
+	/* Moanal 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
+	unsigned char moanal_8bit_mode;
 
 	/* Horizontal and Vertical Sync Edge: 0=rising 1=falling */
 	unsigned char sync_edge;

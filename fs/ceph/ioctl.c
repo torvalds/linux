@@ -17,11 +17,11 @@
  */
 static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 {
-	struct ceph_inode_info *ci = ceph_inode(file_inode(file));
+	struct ceph_ianalde_info *ci = ceph_ianalde(file_ianalde(file));
 	struct ceph_ioctl_layout l;
 	int err;
 
-	err = ceph_do_getattr(file_inode(file), CEPH_STAT_CAP_LAYOUT, false);
+	err = ceph_do_getattr(file_ianalde(file), CEPH_STAT_CAP_LAYOUT, false);
 	if (!err) {
 		l.stripe_unit = ci->i_layout.stripe_unit;
 		l.stripe_count = ci->i_layout.stripe_count;
@@ -64,11 +64,11 @@ static long __validate_layout(struct ceph_mds_client *mdsc,
 
 static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_mds_client *mdsc = ceph_sb_to_fs_client(inode->i_sb)->mdsc;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_mds_client *mdsc = ceph_sb_to_fs_client(ianalde->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
-	struct ceph_inode_info *ci = ceph_inode(file_inode(file));
+	struct ceph_ianalde_info *ci = ceph_ianalde(file_ianalde(file));
 	struct ceph_ioctl_layout nl;
 	int err;
 
@@ -76,7 +76,7 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	/* validate changed params against current layout */
-	err = ceph_do_getattr(file_inode(file), CEPH_STAT_CAP_LAYOUT, false);
+	err = ceph_do_getattr(file_ianalde(file), CEPH_STAT_CAP_LAYOUT, false);
 	if (err)
 		return err;
 
@@ -109,11 +109,11 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 				       USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_ianalde = ianalde;
+	ihold(ianalde);
 	req->r_num_caps = 1;
 
-	req->r_inode_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL;
+	req->r_ianalde_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL;
 
 	req->r_args.setlayout.layout.fl_stripe_unit =
 		cpu_to_le32(l.stripe_unit);
@@ -129,18 +129,18 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 }
 
 /*
- * Set a layout policy on a directory inode. All items in the tree
- * rooted at this inode will inherit this layout on creation,
+ * Set a layout policy on a directory ianalde. All items in the tree
+ * rooted at this ianalde will inherit this layout on creation,
  * (It doesn't apply retroactively )
  * unless a subdirectory has its own layout policy.
  */
 static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 {
-	struct inode *inode = file_inode(file);
+	struct ianalde *ianalde = file_ianalde(file);
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
 	int err;
-	struct ceph_mds_client *mdsc = ceph_sb_to_fs_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_fs_client(ianalde->i_sb)->mdsc;
 
 	/* copy and validate */
 	if (copy_from_user(&l, arg, sizeof(l)))
@@ -155,8 +155,8 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_ianalde = ianalde;
+	ihold(ianalde);
 	req->r_num_caps = 1;
 
 	req->r_args.setlayout.layout.fl_stripe_unit =
@@ -168,7 +168,7 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 	req->r_args.setlayout.layout.fl_pg_pool =
 			cpu_to_le32(l.data_pool);
 
-	err = ceph_mdsc_do_request(mdsc, inode, req);
+	err = ceph_mdsc_do_request(mdsc, ianalde, req);
 	ceph_mdsc_put_request(req);
 	return err;
 }
@@ -180,10 +180,10 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 {
 	struct ceph_ioctl_dataloc dl;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 	struct ceph_osd_client *osdc =
-		&ceph_sb_to_fs_client(inode->i_sb)->client->osdc;
+		&ceph_sb_to_fs_client(ianalde->i_sb)->client->osdc;
 	struct ceph_object_locator oloc;
 	CEPH_DEFINE_OID_ONSTACK(oid);
 	u32 xlen;
@@ -197,7 +197,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 
 	down_read(&osdc->lock);
 	ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, 1,
-				      &dl.object_no, &dl.object_offset, &xlen);
+				      &dl.object_anal, &dl.object_offset, &xlen);
 	dl.file_offset -= dl.object_offset;
 	dl.object_size = ci->i_layout.object_size;
 	dl.block_size = ci->i_layout.stripe_unit;
@@ -207,7 +207,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	dl.block_offset = do_div(tmp, dl.block_size);
 
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
-		 ceph_ino(inode), dl.object_no);
+		 ceph_ianal(ianalde), dl.object_anal);
 
 	oloc.pool = ci->i_layout.pool_id;
 	oloc.pool_ns = ceph_try_get_string(ci->i_layout.pool_ns);
@@ -242,9 +242,9 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 static long ceph_ioctl_lazyio(struct file *file)
 {
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_mds_client *mdsc = ceph_inode_to_fs_client(inode)->mdsc;
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
+	struct ceph_mds_client *mdsc = ceph_ianalde_to_fs_client(ianalde)->mdsc;
 	struct ceph_client *cl = mdsc->fsc->client;
 
 	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
@@ -253,13 +253,13 @@ static long ceph_ioctl_lazyio(struct file *file)
 		ci->i_nr_by_mode[ffs(CEPH_FILE_MODE_LAZY)]++;
 		__ceph_touch_fmode(ci, mdsc, fi->fmode);
 		spin_unlock(&ci->i_ceph_lock);
-		doutc(cl, "file %p %p %llx.%llx marked lazy\n", file, inode,
-		      ceph_vinop(inode));
+		doutc(cl, "file %p %p %llx.%llx marked lazy\n", file, ianalde,
+		      ceph_vianalp(ianalde));
 
 		ceph_check_caps(ci, 0);
 	} else {
-		doutc(cl, "file %p %p %llx.%llx already lazy\n", file, inode,
-		      ceph_vinop(inode));
+		doutc(cl, "file %p %p %llx.%llx already lazy\n", file, ianalde,
+		      ceph_vianalp(ianalde));
 	}
 	return 0;
 }
@@ -274,8 +274,8 @@ static long ceph_ioctl_syncio(struct file *file)
 
 static int vet_mds_for_fscrypt(struct file *file)
 {
-	int i, ret = -EOPNOTSUPP;
-	struct ceph_mds_client	*mdsc = ceph_sb_to_mdsc(file_inode(file)->i_sb);
+	int i, ret = -EOPANALTSUPP;
+	struct ceph_mds_client	*mdsc = ceph_sb_to_mdsc(file_ianalde(file)->i_sb);
 
 	mutex_lock(&mdsc->mutex);
 	for (i = 0; i < mdsc->max_sessions; i++) {
@@ -294,8 +294,8 @@ static int vet_mds_for_fscrypt(struct file *file)
 static long ceph_set_encryption_policy(struct file *file, unsigned long arg)
 {
 	int ret, got = 0;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_ianalde_info *ci = ceph_ianalde(ianalde);
 
 	/* encrypted directories can't have striped layout */
 	if (ci->i_layout.stripe_count > 1)
@@ -306,7 +306,7 @@ static long ceph_set_encryption_policy(struct file *file, unsigned long arg)
 		return ret;
 
 	/*
-	 * Ensure we hold these caps so that we _know_ that the rstats check
+	 * Ensure we hold these caps so that we _kanalw_ that the rstats check
 	 * in the empty_dir check is reliable.
 	 */
 	ret = ceph_get_caps(file, CEPH_CAP_FILE_SHARED, 0, -1, &got);
@@ -349,21 +349,21 @@ static const char *ceph_ioctl_cmd_name(const unsigned int cmd)
 		return "remove_encryption_key_all_users";
 	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
 		return "get_encryption_key_status";
-	case FS_IOC_GET_ENCRYPTION_NONCE:
-		return "get_encryption_nonce";
+	case FS_IOC_GET_ENCRYPTION_ANALNCE:
+		return "get_encryption_analnce";
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
 long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ianalde *ianalde = file_ianalde(file);
+	struct ceph_fs_client *fsc = ceph_ianalde_to_fs_client(ianalde);
 	int ret;
 
 	doutc(fsc->client, "file %p %p %llx.%llx cmd %s arg %lu\n", file,
-	      inode, ceph_vinop(inode), ceph_ioctl_cmd_name(cmd), arg);
+	      ianalde, ceph_vianalp(ianalde), ceph_ioctl_cmd_name(cmd), arg);
 	switch (cmd) {
 	case CEPH_IOC_GET_LAYOUT:
 		return ceph_ioctl_get_layout(file, (void __user *)arg);
@@ -414,12 +414,12 @@ long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_GET_ENCRYPTION_KEY_STATUS:
 		return fscrypt_ioctl_get_key_status(file, (void __user *)arg);
 
-	case FS_IOC_GET_ENCRYPTION_NONCE:
+	case FS_IOC_GET_ENCRYPTION_ANALNCE:
 		ret = vet_mds_for_fscrypt(file);
 		if (ret)
 			return ret;
-		return fscrypt_ioctl_get_nonce(file, (void __user *)arg);
+		return fscrypt_ioctl_get_analnce(file, (void __user *)arg);
 	}
 
-	return -ENOTTY;
+	return -EANALTTY;
 }

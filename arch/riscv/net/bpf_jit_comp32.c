@@ -145,7 +145,7 @@ static void __build_epilogue(bool is_tail_call, struct rv_jit_context *ctx)
 	int stack_adjust = ctx->stack_size;
 	const s8 *r0 = bpf2rv32[BPF_REG_0];
 
-	/* Set return value if not tail call. */
+	/* Set return value if analt tail call. */
 	if (!is_tail_call) {
 		emit(rv_addi(RV_REG_A0, lo(r0), 0), ctx);
 		emit(rv_addi(RV_REG_A1, hi(r0), 0), ctx);
@@ -285,7 +285,7 @@ static void emit_alu_i64(const s8 *dst, s32 imm,
 			emit(rv_slli(hi(rd), lo(rd), imm - 32), ctx);
 			emit(rv_addi(lo(rd), RV_REG_ZERO, 0), ctx);
 		} else if (imm == 0) {
-			/* Do nothing. */
+			/* Do analthing. */
 		} else {
 			emit(rv_srli(RV_REG_T0, lo(rd), 32 - imm), ctx);
 			emit(rv_slli(hi(rd), hi(rd), imm), ctx);
@@ -298,7 +298,7 @@ static void emit_alu_i64(const s8 *dst, s32 imm,
 			emit(rv_srli(lo(rd), hi(rd), imm - 32), ctx);
 			emit(rv_addi(hi(rd), RV_REG_ZERO, 0), ctx);
 		} else if (imm == 0) {
-			/* Do nothing. */
+			/* Do analthing. */
 		} else {
 			emit(rv_slli(RV_REG_T0, hi(rd), 32 - imm), ctx);
 			emit(rv_srli(lo(rd), lo(rd), imm), ctx);
@@ -311,7 +311,7 @@ static void emit_alu_i64(const s8 *dst, s32 imm,
 			emit(rv_srai(lo(rd), hi(rd), imm - 32), ctx);
 			emit(rv_srai(hi(rd), hi(rd), 31), ctx);
 		} else if (imm == 0) {
-			/* Do nothing. */
+			/* Do analthing. */
 		} else {
 			emit(rv_slli(RV_REG_T0, hi(rd), 32 - imm), ctx);
 			emit(rv_srli(lo(rd), lo(rd), imm), ctx);
@@ -572,74 +572,74 @@ static int emit_branch_r64(const s8 *src1, const s8 *src2, s32 rvoff,
 	const s8 *rs2 = bpf_get_reg64(src2, tmp2, ctx);
 
 	/*
-	 * NO_JUMP skips over the rest of the instructions and the
-	 * emit_jump_and_link, meaning the BPF branch is not taken.
+	 * ANAL_JUMP skips over the rest of the instructions and the
+	 * emit_jump_and_link, meaning the BPF branch is analt taken.
 	 * JUMP skips directly to the emit_jump_and_link, meaning
 	 * the BPF branch is taken.
 	 *
 	 * The fallthrough case results in the BPF branch being taken.
 	 */
-#define NO_JUMP(idx) (6 + (2 * (idx)))
+#define ANAL_JUMP(idx) (6 + (2 * (idx)))
 #define JUMP(idx) (2 + (2 * (idx)))
 
 	switch (op) {
 	case BPF_JEQ:
-		emit(rv_bne(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bne(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bne(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bne(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JGT:
 		emit(rv_bgtu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bltu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bleu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bltu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bleu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JLT:
 		emit(rv_bltu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bgtu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bgeu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bgtu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bgeu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JGE:
 		emit(rv_bgtu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bltu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bltu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bltu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bltu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JLE:
 		emit(rv_bltu(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bgtu(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bgtu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bgtu(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bgtu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JNE:
 		emit(rv_bne(hi(rs1), hi(rs2), JUMP(1)), ctx);
-		emit(rv_beq(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_beq(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSGT:
 		emit(rv_bgt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_blt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bleu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_blt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bleu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSLT:
 		emit(rv_blt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bgt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bgeu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bgt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bgeu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSGE:
 		emit(rv_bgt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_blt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bltu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_blt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bltu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSLE:
 		emit(rv_blt(hi(rs1), hi(rs2), JUMP(2)), ctx);
-		emit(rv_bgt(hi(rs1), hi(rs2), NO_JUMP(1)), ctx);
-		emit(rv_bgtu(lo(rs1), lo(rs2), NO_JUMP(0)), ctx);
+		emit(rv_bgt(hi(rs1), hi(rs2), ANAL_JUMP(1)), ctx);
+		emit(rv_bgtu(lo(rs1), lo(rs2), ANAL_JUMP(0)), ctx);
 		break;
 	case BPF_JSET:
 		emit(rv_and(RV_REG_T0, hi(rs1), hi(rs2)), ctx);
 		emit(rv_bne(RV_REG_T0, RV_REG_ZERO, JUMP(2)), ctx);
 		emit(rv_and(RV_REG_T0, lo(rs1), lo(rs2)), ctx);
-		emit(rv_beq(RV_REG_T0, RV_REG_ZERO, NO_JUMP(0)), ctx);
+		emit(rv_beq(RV_REG_T0, RV_REG_ZERO, ANAL_JUMP(0)), ctx);
 		break;
 	}
 
-#undef NO_JUMP
+#undef ANAL_JUMP
 #undef JUMP
 
 	e = ctx->ninsns;
@@ -657,7 +657,7 @@ static int emit_bcc(u8 op, u8 rd, u8 rs, int rvoff, struct rv_jit_context *ctx)
 
 	if (op == BPF_JSET) {
 		/*
-		 * BPF_JSET is a special case: it has no inverse so we always
+		 * BPF_JSET is a special case: it has anal inverse so we always
 		 * treat it as a far branch.
 		 */
 		far = true;
@@ -756,7 +756,7 @@ static void emit_call(bool fixed, u64 addr, struct rv_jit_context *ctx)
 
 	/*
 	 * Use lui/jalr pair to jump to absolute address. Don't use emit_imm as
-	 * the number of emitted instructions should not depend on the value of
+	 * the number of emitted instructions should analt depend on the value of
 	 * addr.
 	 */
 	emit(rv_lui(RV_REG_T1, upper), ctx);
@@ -1000,7 +1000,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_ALU64 | BPF_DIV | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
-		goto notsupported;
+		goto analtsupported;
 
 	case BPF_ALU64 | BPF_MOV | BPF_K:
 	case BPF_ALU64 | BPF_AND | BPF_K:
@@ -1056,15 +1056,15 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_ALU | BPF_ARSH | BPF_K:
 		/*
 		 * mul,div,mod are handled in the BPF_X case since there are
-		 * no RISC-V I-type equivalents.
+		 * anal RISC-V I-type equivalents.
 		 */
 		emit_alu_i32(dst, imm, ctx, BPF_OP(code));
 		break;
 
 	case BPF_ALU | BPF_NEG:
 		/*
-		 * src is ignored---choose tmp2 as a dummy register since it
-		 * is not on the stack.
+		 * src is iganalred---choose tmp2 as a dummy register since it
+		 * is analt on the stack.
 		 */
 		emit_alu_r32(dst, tmp2, ctx, BPF_OP(code));
 		break;
@@ -1083,7 +1083,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 				emit(rv_addi(hi(rd), RV_REG_ZERO, 0), ctx);
 			break;
 		case 64:
-			/* Do nothing. */
+			/* Do analthing. */
 			break;
 		default:
 			pr_err("bpf-jit: BPF_END imm %d invalid\n", imm);
@@ -1250,7 +1250,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		break;
 
 	/* speculation barrier */
-	case BPF_ST | BPF_NOSPEC:
+	case BPF_ST | BPF_ANALSPEC:
 		break;
 
 	case BPF_ST | BPF_MEM | BPF_B:
@@ -1275,7 +1275,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 		if (insn->imm != BPF_ADD) {
 			pr_info_once(
-				"bpf-jit: not supported: atomic operation %02x ***\n",
+				"bpf-jit: analt supported: atomic operation %02x ***\n",
 				insn->imm);
 			return -EFAULT;
 		}
@@ -1285,16 +1285,16 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			return -1;
 		break;
 
-	/* No hardware support for 8-byte atomics in RV32. */
+	/* Anal hardware support for 8-byte atomics in RV32. */
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 		/* Fallthrough. */
 
-notsupported:
-		pr_info_once("bpf-jit: not supported: opcode %02x ***\n", code);
+analtsupported:
+		pr_info_once("bpf-jit: analt supported: opcode %02x ***\n", code);
 		return -EFAULT;
 
 	default:
-		pr_err("bpf-jit: unknown opcode %02x\n", code);
+		pr_err("bpf-jit: unkanalwn opcode %02x\n", code);
 		return -EINVAL;
 	}
 

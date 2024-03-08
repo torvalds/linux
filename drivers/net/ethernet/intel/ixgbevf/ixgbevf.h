@@ -122,7 +122,7 @@ struct ixgbevf_ring {
 	 */
 	u16 reg_idx;
 	int queue_index; /* needed for multiqueue queue management */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interanaldealigned_in_smp;
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBEVF_RX_BUFFER_WRITE	16	/* Must be power of 2 */
@@ -241,7 +241,7 @@ struct ixgbevf_q_vector {
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct ixgbevf_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct ixgbevf_ring ring[0] ____cacheline_interanaldealigned_in_smp;
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define IXGBEVF_QV_STATE_IDLE		0
@@ -269,7 +269,7 @@ struct ixgbevf_q_vector {
 #define IXGBE_12K_ITR		336
 
 /* Helper macros to switch between ints/sec and what the register uses.
- * And yes, it's the same math going both ways.  The lowest value
+ * And anal, it's the same math going both ways.  The lowest value
  * supported by all of the ixgbe hardware is 8.
  */
 #define EITR_INTS_PER_SEC_TO_REG(_eitr) \
@@ -306,12 +306,12 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 #define IXGBE_MAX_JUMBO_FRAME_SIZE	9728 /* Maximum Supported Size 9.5KB */
 
 #define OTHER_VECTOR	1
-#define NON_Q_VECTORS	(OTHER_VECTOR)
+#define ANALN_Q_VECTORS	(OTHER_VECTOR)
 
 #define MAX_MSIX_Q_VECTORS	2
 
 #define MIN_MSIX_Q_VECTORS	1
-#define MIN_MSIX_COUNT		(MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
+#define MIN_MSIX_COUNT		(MIN_MSIX_Q_VECTORS + ANALN_Q_VECTORS)
 
 #define IXGBEVF_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
@@ -346,7 +346,7 @@ struct ixgbevf_adapter {
 	int num_rx_queues;
 	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 hw_csum_rx_error;
-	u64 hw_rx_no_dma_resources;
+	u64 hw_rx_anal_dma_resources;
 	int num_msix_vectors;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
@@ -421,7 +421,7 @@ enum ixgbevf_boards {
 };
 
 enum ixgbevf_xcast_modes {
-	IXGBEVF_XCAST_MODE_NONE = 0,
+	IXGBEVF_XCAST_MODE_ANALNE = 0,
 	IXGBEVF_XCAST_MODE_MULTI,
 	IXGBEVF_XCAST_MODE_ALLMULTI,
 	IXGBEVF_XCAST_MODE_PROMISC,

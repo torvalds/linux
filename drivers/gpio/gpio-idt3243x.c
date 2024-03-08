@@ -54,7 +54,7 @@ static int idt_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	u32 ilevel;
 
 	/* hardware only supports level triggered */
-	if (sense == IRQ_TYPE_NONE || (sense & IRQ_TYPE_EDGE_BOTH))
+	if (sense == IRQ_TYPE_ANALNE || (sense & IRQ_TYPE_EDGE_BOTH))
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
@@ -144,7 +144,7 @@ static int idt_gpio_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->gpio = devm_platform_ioremap_resource_byname(pdev, "gpio");
 	if (IS_ERR(ctrl->gpio))
@@ -181,10 +181,10 @@ static int idt_gpio_probe(struct platform_device *pdev)
 					     sizeof(*girq->parents),
 					     GFP_KERNEL);
 		if (!girq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		girq->parents[0] = parent_irq;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_bad_irq;
 	}
 

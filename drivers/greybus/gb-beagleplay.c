@@ -267,7 +267,7 @@ static void hdlc_rx_frame(struct gb_beagleplay *bg)
 		hdlc_rx_greybus_frame(bg, buf, len);
 		break;
 	default:
-		dev_warn_ratelimited(&bg->sd->dev, "unknown frame %u", address);
+		dev_warn_ratelimited(&bg->sd->dev, "unkanalwn frame %u", address);
 	}
 }
 
@@ -318,7 +318,7 @@ static int hdlc_init(struct gb_beagleplay *bg)
 
 	bg->tx_circ_buf.buf = devm_kmalloc(&bg->sd->dev, TX_CIRC_BUF_SIZE, GFP_KERNEL);
 	if (!bg->tx_circ_buf.buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bg->rx_buffer_len = 0;
 	bg->rx_in_esc = false;
@@ -470,7 +470,7 @@ static int gb_beagleplay_probe(struct serdev_device *serdev)
 
 	bg = devm_kmalloc(&serdev->dev, sizeof(*bg), GFP_KERNEL);
 	if (!bg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bg->sd = serdev;
 	ret = gb_serdev_init(bg);

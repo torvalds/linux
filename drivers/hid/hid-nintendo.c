@@ -24,7 +24,7 @@
  * for the NES, SNES, Sega Genesis, and N64.
  *
  * The driver will retrieve the factory calibration info from the controllers,
- * so little to no user calibration should be required.
+ * so little to anal user calibration should be required.
  *
  */
 
@@ -98,13 +98,13 @@
 #define JC_USB_CMD_CONN_STATUS		 0x01
 #define JC_USB_CMD_HANDSHAKE		 0x02
 #define JC_USB_CMD_BAUDRATE_3M		 0x03
-#define JC_USB_CMD_NO_TIMEOUT		 0x04
+#define JC_USB_CMD_ANAL_TIMEOUT		 0x04
 #define JC_USB_CMD_EN_TIMEOUT		 0x05
 #define JC_USB_RESET			 0x06
 #define JC_USB_PRE_HANDSHAKE		 0x91
 #define JC_USB_SEND_UART		 0x92
 
-/* Magic value denoting presence of user calibration */
+/* Magic value deanalting presence of user calibration */
 #define JC_CAL_USR_MAGIC_0		 0xB2
 #define JC_CAL_USR_MAGIC_1		 0xA1
 #define JC_CAL_USR_MAGIC_SIZE		 2
@@ -172,11 +172,11 @@
  * dps per digit (corrected): .0610 * 1.15 = .0702
  * digits per dps (corrected): .0702E-1 = 14.247
  *
- * Now, 14.247 truncating to 14 loses a lot of precision, so we rescale the
+ * Analw, 14.247 truncating to 14 loses a lot of precision, so we rescale the
  * min/max range by 1000.
  */
 #define JC_IMU_PREC_RANGE_SCALE	1000
-/* Note: change mag and res_per_dps if prec_range_scale is ever altered */
+/* Analte: change mag and res_per_dps if prec_range_scale is ever altered */
 #define JC_IMU_MAX_GYRO_MAG		32767000 /* (2^16-1)*1000 */
 #define JC_IMU_GYRO_RES_PER_DPS		14247 /* (14.247*1000) */
 #define JC_IMU_GYRO_FUZZ		10
@@ -382,7 +382,7 @@ static const struct joycon_ctlr_button_mapping left_joycon_button_mappings[] = {
 
 /*
  * The unused *right*-side triggers become the SL/SR triggers for the *left*
- * Joy-Con, if and only if we're not using a charging grip.
+ * Joy-Con, if and only if we're analt using a charging grip.
  */
 static const struct joycon_ctlr_button_mapping left_joycon_s_button_mappings[] = {
 	{ BTN_TR,	JC_BTN_SL_L,	},
@@ -393,7 +393,7 @@ static const struct joycon_ctlr_button_mapping left_joycon_s_button_mappings[] =
 static const struct joycon_ctlr_button_mapping right_joycon_button_mappings[] = {
 	{ BTN_EAST,	JC_BTN_A,	},
 	{ BTN_SOUTH,	JC_BTN_B,	},
-	{ BTN_NORTH,	JC_BTN_X,	},
+	{ BTN_ANALRTH,	JC_BTN_X,	},
 	{ BTN_WEST,	JC_BTN_Y,	},
 	{ BTN_TR,	JC_BTN_R,	},
 	{ BTN_TR2,	JC_BTN_ZR,	},
@@ -405,7 +405,7 @@ static const struct joycon_ctlr_button_mapping right_joycon_button_mappings[] = 
 
 /*
  * The unused *left*-side triggers become the SL/SR triggers for the *right*
- * Joy-Con, if and only if we're not using a charging grip.
+ * Joy-Con, if and only if we're analt using a charging grip.
  */
 static const struct joycon_ctlr_button_mapping right_joycon_s_button_mappings[] = {
 	{ BTN_TL,	JC_BTN_SL_R,	},
@@ -416,7 +416,7 @@ static const struct joycon_ctlr_button_mapping right_joycon_s_button_mappings[] 
 static const struct joycon_ctlr_button_mapping procon_button_mappings[] = {
 	{ BTN_EAST,	JC_BTN_A,	},
 	{ BTN_SOUTH,	JC_BTN_B,	},
-	{ BTN_NORTH,	JC_BTN_X,	},
+	{ BTN_ANALRTH,	JC_BTN_X,	},
 	{ BTN_WEST,	JC_BTN_Y,	},
 	{ BTN_TL,	JC_BTN_L,	},
 	{ BTN_TR,	JC_BTN_R,	},
@@ -444,7 +444,7 @@ static const struct joycon_ctlr_button_mapping nescon_button_mappings[] = {
 static const struct joycon_ctlr_button_mapping snescon_button_mappings[] = {
 	{ BTN_EAST,	JC_BTN_A,	},
 	{ BTN_SOUTH,	JC_BTN_B,	},
-	{ BTN_NORTH,	JC_BTN_X,	},
+	{ BTN_ANALRTH,	JC_BTN_X,	},
 	{ BTN_WEST,	JC_BTN_Y,	},
 	{ BTN_TL,	JC_BTN_L,	},
 	{ BTN_TR,	JC_BTN_R,	},
@@ -491,7 +491,7 @@ static const struct joycon_ctlr_button_mapping n64con_button_mappings[] = {
 };
 
 enum joycon_msg_type {
-	JOYCON_MSG_TYPE_NONE,
+	JOYCON_MSG_TYPE_ANALNE,
 	JOYCON_MSG_TYPE_USB,
 	JOYCON_MSG_TYPE_SUBCMD,
 };
@@ -577,7 +577,7 @@ struct joycon_ctlr {
 	char *mac_addr_str;
 	enum joycon_ctlr_type ctlr_type;
 
-	/* The following members are used for synchronous sends/receives */
+	/* The following members are used for synchroanalus sends/receives */
 	enum joycon_msg_type msg_type;
 	u8 subcmd_num;
 	struct mutex output_mutex;
@@ -660,7 +660,7 @@ struct joycon_ctlr {
 /*
  * Controller device helpers
  *
- * These look at the device ID known to the HID subsystem to identify a device,
+ * These look at the device ID kanalwn to the HID subsystem to identify a device,
  * but take caution: some NSO devices lie about themselves (NES Joy-Cons and
  * Sega Genesis controller). See type helpers below.
  *
@@ -720,7 +720,7 @@ static inline bool joycon_device_has_usb(struct joycon_ctlr *ctlr)
  * useful for reporting available inputs. For other kinds of distinctions, see
  * the capability helpers below.
  *
- * They have two major drawbacks: (1) they're not available until after we set
+ * They have two major drawbacks: (1) they're analt available until after we set
  * the reporting method and then request the device info; (2) they can't
  * distinguish all controllers (like the Charging Grip from the Pro controller.)
  */
@@ -794,7 +794,7 @@ static inline bool joycon_type_is_any_nescon(struct joycon_ctlr *ctlr)
  *
  * These helpers combine the use of the helpers above to detect certain
  * capabilities during initialization. They are always accurate but (since they
- * use type helpers) cannot be used early in the HID probe.
+ * use type helpers) cananalt be used early in the HID probe.
  */
 static inline bool joycon_has_imu(struct joycon_ctlr *ctlr)
 {
@@ -831,7 +831,7 @@ static int __joycon_hid_send(struct hid_device *hdev, u8 *data, size_t len)
 
 	buf = kmemdup(data, len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = hid_hw_output_report(hdev, buf, len);
 	kfree(buf);
 	if (ret < 0)
@@ -941,7 +941,7 @@ static int joycon_hid_send_sync(struct joycon_ctlr *ctlr, u8 *data, size_t len,
 					 timeout);
 		if (!ret) {
 			hid_dbg(ctlr->hdev,
-				"synchronous send/receive timed out\n");
+				"synchroanalus send/receive timed out\n");
 			if (tries) {
 				hid_dbg(ctlr->hdev,
 					"retrying sync send after timeout\n");
@@ -981,12 +981,12 @@ static int joycon_send_subcmd(struct joycon_ctlr *ctlr,
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 	/*
-	 * If the controller has been removed, just return ENODEV so the LED
+	 * If the controller has been removed, just return EANALDEV so the LED
 	 * subsystem doesn't print invalid errors on removal.
 	 */
 	if (ctlr->ctlr_state == JOYCON_CTLR_STATE_REMOVED) {
 		spin_unlock_irqrestore(&ctlr->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	memcpy(subcmd->rumble_data, ctlr->rumble_data[ctlr->rumble_queue_tail],
 	       JC_RUMBLE_DATA_SIZE);
@@ -1072,8 +1072,8 @@ static int joycon_request_spi_flash_read(struct joycon_ctlr *ctlr,
 }
 
 /*
- * User calibration's presence is denoted with a magic byte preceding it.
- * returns 0 if magic val is present, 1 if not present, < 0 on error
+ * User calibration's presence is deanalted with a magic byte preceding it.
+ * returns 0 if magic val is present, 1 if analt present, < 0 on error
  */
 static int joycon_check_for_cal_magic(struct joycon_ctlr *ctlr, u32 flash_addr)
 {
@@ -1105,7 +1105,7 @@ static int joycon_read_stick_calibration(struct joycon_ctlr *ctlr, u16 cal_addr,
 	if (ret)
 		return ret;
 
-	/* stick calibration parsing: note the order differs based on stick */
+	/* stick calibration parsing: analte the order differs based on stick */
 	if (left_stick) {
 		x_max_above = hid_field_extract(ctlr->hdev, (raw_cal + 0), 0,
 						12);
@@ -1352,7 +1352,7 @@ static int joycon_enable_rumble(struct joycon_ctlr *ctlr)
 
 	req = (struct joycon_subcmd_request *)buffer;
 	req->subcmd_id = JC_SUBCMD_ENABLE_VIBRATION;
-	req->data[0] = 0x01; /* note: 0x00 would disable */
+	req->data[0] = 0x01; /* analte: 0x00 would disable */
 
 	hid_dbg(ctlr->hdev, "enabling rumble\n");
 	return joycon_send_subcmd(ctlr, req, 1, HZ/4);
@@ -1365,7 +1365,7 @@ static int joycon_enable_imu(struct joycon_ctlr *ctlr)
 
 	req = (struct joycon_subcmd_request *)buffer;
 	req->subcmd_id = JC_SUBCMD_ENABLE_IMU;
-	req->data[0] = 0x01; /* note: 0x00 would disable */
+	req->data[0] = 0x01; /* analte: 0x00 would disable */
 
 	hid_dbg(ctlr->hdev, "enabling IMU\n");
 	return joycon_send_subcmd(ctlr, req, 1, HZ);
@@ -1425,9 +1425,9 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 	/*
 	 * There are complexities surrounding how we determine the timestamps we
 	 * associate with the samples we pass to userspace. The IMU input
-	 * reports do not provide us with a good timestamp. There's a quickly
-	 * incrementing 8-bit counter per input report, but it is not very
-	 * useful for this purpose (it is not entirely clear what rate it
+	 * reports do analt provide us with a good timestamp. There's a quickly
+	 * incrementing 8-bit counter per input report, but it is analt very
+	 * useful for this purpose (it is analt entirely clear what rate it
 	 * increments at or if it varies based on packet push rate - more on
 	 * the push rate below...).
 	 *
@@ -1443,7 +1443,7 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 	 *      * pro controller (USB): every 15 ms
 	 *      * pro controller (bluetooth): every 8 ms (this is the wildcard)
 	 *
-	 * Further complicating matters is that some bluetooth stacks are known
+	 * Further complicating matters is that some bluetooth stacks are kanalwn
 	 * to alter the controller's packet rate by hardcoding the bluetooth
 	 * SSR for the switch controllers (android's stack currently sets the
 	 * SSR to 11ms for both the joy-cons and pro controllers).
@@ -1451,7 +1451,7 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 	 * In my own testing, I've discovered that my pro controller either
 	 * reports IMU sample batches every 11ms or every 15ms. This rate is
 	 * stable after connecting. It isn't 100% clear what determines this
-	 * rate. Importantly, even when sending every 11ms, none of the samples
+	 * rate. Importantly, even when sending every 11ms, analne of the samples
 	 * are duplicates. This seems to indicate that the time deltas between
 	 * reported samples can vary based on the input report rate.
 	 *
@@ -1535,7 +1535,7 @@ static void joycon_parse_imu_report(struct joycon_ctlr *ctlr,
 		 * offsets from the raw value itself. In testing, doing the same
 		 * for the accelerometer raw values decreased accuracy.
 		 *
-		 * Note that the gyro values are multiplied by the
+		 * Analte that the gyro values are multiplied by the
 		 * precision-saving scaling factor to prevent large inaccuracies
 		 * due to truncation of the resolution value which would
 		 * otherwise occur. To prevent overflow (without resorting to 64
@@ -1619,7 +1619,7 @@ static void joycon_handle_rumble_report(struct joycon_ctlr *ctlr, struct joycon_
 	    (ctlr->rumble_queue_head != ctlr->rumble_queue_tail ||
 	     ctlr->rumble_zero_countdown > 0)) {
 		/*
-		 * When this value reaches 0, we know we've sent multiple
+		 * When this value reaches 0, we kanalw we've sent multiple
 		 * packets to the controller instructing it to disable rumble.
 		 * We can safely stop sending periodic rumble packets until the
 		 * next ff effect.
@@ -1652,7 +1652,7 @@ static void joycon_parse_battery_status(struct joycon_ctlr *ctlr, struct joycon_
 		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
 		break;
 	case 2: /* medium */
-		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_ANALRMAL;
 		break;
 	case 3: /* high */
 		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
@@ -1661,7 +1661,7 @@ static void joycon_parse_battery_status(struct joycon_ctlr *ctlr, struct joycon_
 		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
 		break;
 	default:
-		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+		ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 		hid_warn(ctlr->hdev, "Invalid battery status\n");
 		break;
 	}
@@ -1831,12 +1831,12 @@ static int joycon_send_rumble_data(struct joycon_ctlr *ctlr)
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 	/*
-	 * If the controller has been removed, just return ENODEV so the LED
+	 * If the controller has been removed, just return EANALDEV so the LED
 	 * subsystem doesn't print invalid errors on removal.
 	 */
 	if (ctlr->ctlr_state == JOYCON_CTLR_STATE_REMOVED) {
 		spin_unlock_irqrestore(&ctlr->lock, flags);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	memcpy(rumble_output.rumble_data,
 	       ctlr->rumble_data[ctlr->rumble_queue_tail],
@@ -1868,9 +1868,9 @@ static void joycon_rumble_worker(struct work_struct *work)
 		ret = joycon_send_rumble_data(ctlr);
 		mutex_unlock(&ctlr->output_mutex);
 
-		/* -ENODEV means the controller was just unplugged */
+		/* -EANALDEV means the controller was just unplugged */
 		spin_lock_irqsave(&ctlr->lock, flags);
-		if (ret < 0 && ret != -ENODEV &&
+		if (ret < 0 && ret != -EANALDEV &&
 		    ctlr->ctlr_state != JOYCON_CTLR_STATE_REMOVED)
 			hid_warn(ctlr->hdev, "Failed to set rumble; e=%d", ret);
 
@@ -1960,7 +1960,7 @@ static void joycon_clamp_rumble_freqs(struct joycon_ctlr *ctlr)
 }
 
 static int joycon_set_rumble(struct joycon_ctlr *ctlr, u16 amp_r, u16 amp_l,
-			     bool schedule_now)
+			     bool schedule_analw)
 {
 	u8 data[JC_RUMBLE_DATA_SIZE];
 	u16 amp;
@@ -2009,7 +2009,7 @@ static int joycon_set_rumble(struct joycon_ctlr *ctlr, u16 amp_r, u16 amp_l,
 	       JC_RUMBLE_DATA_SIZE);
 
 	/* don't wait for the periodic send (reduces latency) */
-	if (schedule_now && ctlr->ctlr_state != JOYCON_CTLR_STATE_REMOVED)
+	if (schedule_analw && ctlr->ctlr_state != JOYCON_CTLR_STATE_REMOVED)
 		queue_work(ctlr->rumble_queue, &ctlr->rumble_worker);
 
 	spin_unlock_irqrestore(&ctlr->lock, flags);
@@ -2116,7 +2116,7 @@ static int joycon_imu_input_create(struct joycon_ctlr *ctlr)
 	/* configure the imu input device */
 	ctlr->imu_input = devm_input_allocate_device(&hdev->dev);
 	if (!ctlr->imu_input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->imu_input->id.bustype = hdev->bus;
 	ctlr->imu_input->id.vendor = hdev->vendor;
@@ -2127,7 +2127,7 @@ static int joycon_imu_input_create(struct joycon_ctlr *ctlr)
 
 	imu_name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s (IMU)", ctlr->input->name);
 	if (!imu_name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->imu_input->name = imu_name;
 
@@ -2181,7 +2181,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 
 	ctlr->input = devm_input_allocate_device(&hdev->dev);
 	if (!ctlr->input)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctlr->input->id.bustype = hdev->bus;
 	ctlr->input->id.vendor = hdev->vendor;
 	ctlr->input->id.product = hdev->product;
@@ -2237,7 +2237,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	return 0;
 }
 
-/* Because the subcommand sets all the leds at once, the brightness argument is ignored */
+/* Because the subcommand sets all the leds at once, the brightness argument is iganalred */
 static int joycon_player_led_brightness_set(struct led_classdev *led,
 					    enum led_brightness brightness)
 {
@@ -2250,8 +2250,8 @@ static int joycon_player_led_brightness_set(struct led_classdev *led,
 
 	ctlr = hid_get_drvdata(hdev);
 	if (!ctlr) {
-		hid_err(hdev, "No controller data\n");
-		return -ENODEV;
+		hid_err(hdev, "Anal controller data\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < JC_NUM_LEDS; i++)
@@ -2274,8 +2274,8 @@ static int joycon_home_led_brightness_set(struct led_classdev *led,
 
 	ctlr = hid_get_drvdata(hdev);
 	if (!ctlr) {
-		hid_err(hdev, "No controller data\n");
-		return -ENODEV;
+		hid_err(hdev, "Anal controller data\n");
+		return -EANALDEV;
 	}
 	mutex_lock(&ctlr->output_mutex);
 	ret = joycon_set_home_led(ctlr, brightness);
@@ -2300,7 +2300,7 @@ static int joycon_leds_create(struct joycon_ctlr *ctlr)
 
 	/*
 	 * Set the player leds based on controller number
-	 * Because there is no standard concept of "player number", the pattern
+	 * Because there is anal standard concept of "player number", the pattern
 	 * number will simply increase by 1 every time a controller is connected.
 	 */
 	spin_lock_irqsave(&joycon_input_num_spinlock, flags);
@@ -2314,7 +2314,7 @@ static int joycon_leds_create(struct joycon_ctlr *ctlr)
 				      "green",
 				      joycon_player_led_names[i]);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led = &ctlr->leds[i];
 		led->name = name;
@@ -2351,7 +2351,7 @@ home_led:
 				      "blue",
 				      LED_FUNCTION_PLAYER5);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		led = &ctlr->home_led;
 		led->name = name;
@@ -2436,8 +2436,8 @@ static int joycon_power_supply_create(struct joycon_ctlr *ctlr)
 	const char * const name_fmt = "nintendo_switch_controller_battery_%s";
 	int ret = 0;
 
-	/* Set initially to unknown before receiving first input report */
-	ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+	/* Set initially to unkanalwn before receiving first input report */
+	ctlr->battery_capacity = POWER_SUPPLY_CAPACITY_LEVEL_UNKANALWN;
 
 	/* Configure the battery's description */
 	ctlr->battery_desc.properties = joycon_battery_props;
@@ -2450,7 +2450,7 @@ static int joycon_power_supply_create(struct joycon_ctlr *ctlr)
 						 name_fmt,
 						 dev_name(&hdev->dev));
 	if (!ctlr->battery_desc.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->battery = devm_power_supply_register(&hdev->dev,
 						   &ctlr->battery_desc,
@@ -2493,7 +2493,7 @@ static int joycon_read_info(struct joycon_ctlr *ctlr)
 					    ctlr->mac_addr[4],
 					    ctlr->mac_addr[5]);
 	if (!ctlr->mac_addr_str)
-		return -ENOMEM;
+		return -EANALMEM;
 	hid_info(ctlr->hdev, "controller MAC = %s\n", ctlr->mac_addr_str);
 
 	/*
@@ -2533,10 +2533,10 @@ static int joycon_init(struct hid_device *hdev)
 			goto out_unlock;
 		}
 		/*
-		 * Set no timeout (to keep controller in USB mode).
-		 * This doesn't send a response, so ignore the timeout.
+		 * Set anal timeout (to keep controller in USB mode).
+		 * This doesn't send a response, so iganalre the timeout.
 		 */
-		joycon_send_usb(ctlr, JC_USB_CMD_NO_TIMEOUT, HZ/10);
+		joycon_send_usb(ctlr, JC_USB_CMD_ANAL_TIMEOUT, HZ/10);
 	} else if (jc_type_is_chrggrip(ctlr)) {
 		hid_err(hdev, "Failed charging grip handshake\n");
 		ret = -ETIMEDOUT;
@@ -2625,7 +2625,7 @@ static int joycon_ctlr_handle_event(struct joycon_ctlr *ctlr, u8 *data,
 	struct joycon_input_report *report;
 
 	if (unlikely(mutex_is_locked(&ctlr->output_mutex)) &&
-	    ctlr->msg_type != JOYCON_MSG_TYPE_NONE) {
+	    ctlr->msg_type != JOYCON_MSG_TYPE_ANALNE) {
 		switch (ctlr->msg_type) {
 		case JOYCON_MSG_TYPE_USB:
 			if (size < 2)
@@ -2649,7 +2649,7 @@ static int joycon_ctlr_handle_event(struct joycon_ctlr *ctlr, u8 *data,
 		if (match) {
 			memcpy(ctlr->input_buf, data,
 			       min(size, (int)JC_MAX_RESP_SIZE));
-			ctlr->msg_type = JOYCON_MSG_TYPE_NONE;
+			ctlr->msg_type = JOYCON_MSG_TYPE_ANALNE;
 			ctlr->received_resp = true;
 			wake_up(&ctlr->wait);
 
@@ -2685,7 +2685,7 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 
 	ctlr = devm_kzalloc(&hdev->dev, sizeof(*ctlr), GFP_KERNEL);
 	if (!ctlr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -2700,7 +2700,7 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	ctlr->rumble_queue = alloc_workqueue("hid-nintendo-rumble_wq",
 					     WQ_FREEZABLE | WQ_MEM_RECLAIM, 0);
 	if (!ctlr->rumble_queue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	INIT_WORK(&ctlr->rumble_worker, joycon_rumble_worker);
@@ -2728,7 +2728,7 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 
 	ret = hid_hw_open(hdev);
 	if (ret) {
-		hid_err(hdev, "cannot start hardware I/O\n");
+		hid_err(hdev, "cananalt start hardware I/O\n");
 		goto err_stop;
 	}
 

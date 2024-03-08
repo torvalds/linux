@@ -3,7 +3,7 @@
  * apds9960.c - Support for Avago APDS9960 gesture/RGB/ALS/proximity sensor
  *
  * Copyright (C) 2015, 2018
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Raanalstay <matt.raanalstay@konsulko.com>
  *
  * TODO: gesture + proximity calib offsets
  */
@@ -165,8 +165,8 @@ static const struct regmap_range apds9960_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table apds9960_volatile_table = {
-	.yes_ranges	= apds9960_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(apds9960_volatile_ranges),
+	.anal_ranges	= apds9960_volatile_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(apds9960_volatile_ranges),
 };
 
 static const struct regmap_range apds9960_precious_ranges[] = {
@@ -174,8 +174,8 @@ static const struct regmap_range apds9960_precious_ranges[] = {
 };
 
 static const struct regmap_access_table apds9960_precious_table = {
-	.yes_ranges	= apds9960_precious_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(apds9960_precious_ranges),
+	.anal_ranges	= apds9960_precious_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(apds9960_precious_ranges),
 };
 
 static const struct regmap_range apds9960_readable_ranges[] = {
@@ -186,8 +186,8 @@ static const struct regmap_range apds9960_readable_ranges[] = {
 };
 
 static const struct regmap_access_table apds9960_readable_table = {
-	.yes_ranges	= apds9960_readable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(apds9960_readable_ranges),
+	.anal_ranges	= apds9960_readable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(apds9960_readable_ranges),
 };
 
 static const struct regmap_range apds9960_writeable_ranges[] = {
@@ -197,8 +197,8 @@ static const struct regmap_range apds9960_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table apds9960_writeable_table = {
-	.yes_ranges	= apds9960_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(apds9960_writeable_ranges),
+	.anal_ranges	= apds9960_writeable_ranges,
+	.n_anal_ranges	= ARRAY_SIZE(apds9960_writeable_ranges),
 };
 
 static const struct regmap_config apds9960_regmap_config = {
@@ -996,7 +996,7 @@ static int apds9960_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &apds9960_info;
 	indio_dev->name = APDS9960_DRV_NAME;
@@ -1042,7 +1042,7 @@ static int apds9960_probe(struct i2c_client *client)
 		goto error_power_down;
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
+		dev_err(&client->dev, "anal valid irq defined\n");
 		ret = -EINVAL;
 		goto error_power_down;
 	}
@@ -1137,6 +1137,6 @@ static struct i2c_driver apds9960_driver = {
 };
 module_i2c_driver(apds9960_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Raanalstay <matt.raanalstay@konsulko.com>");
 MODULE_DESCRIPTION("APDS9960 Gesture/RGB/ALS/Proximity sensor");
 MODULE_LICENSE("GPL");

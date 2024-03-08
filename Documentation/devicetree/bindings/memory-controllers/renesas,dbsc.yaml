@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Renesas SoCs contain one or more memory controllers.  These memory
-  controllers differ from one SoC variant to another, and are called by
+  controllers differ from one SoC variant to aanalther, and are called by
   different names, e.g. "DDR Bus Controller (DBSC)", "DDR3 Bus State Controller
   (DBSC3)", or "SDRAM Bus State Controller (SBSC)").
 
@@ -31,7 +31,7 @@ properties:
   interrupt-names:
     items:
       - const: sec  # secure interrupt
-      - const: temp # normal (temperature) interrupt
+      - const: temp # analrmal (temperature) interrupt
 
   power-domains:
     maxItems: 1

@@ -98,7 +98,7 @@ bfa_fcs_pbc_vport_init(struct bfa_fcs_s *fcs)
  *	param[in]		fcs		FCS instance
  *	param[in]		driver_info	Driver Details
  *
- *	return None
+ *	return Analne
  */
 void
 bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
@@ -116,7 +116,7 @@ bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
  *		FCS instance cleanup and exit.
  *
  *	param[in]		fcs			FCS instance
- *	return None
+ *	return Analne
  */
 void
 bfa_fcs_exit(struct bfa_fcs_s *fcs)
@@ -152,8 +152,8 @@ bfa_fcs_exit(struct bfa_fcs_s *fcs)
  */
 static void bfa_fcs_fabric_init(struct bfa_fcs_fabric_s *fabric);
 static void bfa_fcs_fabric_login(struct bfa_fcs_fabric_s *fabric);
-static void bfa_fcs_fabric_notify_online(struct bfa_fcs_fabric_s *fabric);
-static void bfa_fcs_fabric_notify_offline(struct bfa_fcs_fabric_s *fabric);
+static void bfa_fcs_fabric_analtify_online(struct bfa_fcs_fabric_s *fabric);
+static void bfa_fcs_fabric_analtify_offline(struct bfa_fcs_fabric_s *fabric);
 static void bfa_fcs_fabric_delay(void *cbarg);
 static void bfa_fcs_fabric_delete(struct bfa_fcs_fabric_s *fabric);
 static void bfa_fcs_fabric_delete_comp(void *cbarg);
@@ -183,7 +183,7 @@ static void	bfa_fcs_fabric_sm_flogi_retry(struct bfa_fcs_fabric_s *fabric,
 					      enum bfa_fcs_fabric_event event);
 static void	bfa_fcs_fabric_sm_auth(struct bfa_fcs_fabric_s *fabric,
 				       enum bfa_fcs_fabric_event event);
-static void	bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
+static void	bfa_fcs_fabric_sm_analfabric(struct bfa_fcs_fabric_s *fabric,
 					   enum bfa_fcs_fabric_event event);
 static void	bfa_fcs_fabric_sm_evfp(struct bfa_fcs_fabric_s *fabric,
 				       enum bfa_fcs_fabric_event event);
@@ -339,7 +339,7 @@ bfa_fcs_fabric_sm_flogi(struct bfa_fcs_fabric_s *fabric,
 			bfa_trc(fabric->fcs, event);
 		} else {
 			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_online);
-			bfa_fcs_fabric_notify_online(fabric);
+			bfa_fcs_fabric_analtify_online(fabric);
 		}
 		break;
 
@@ -356,12 +356,12 @@ bfa_fcs_fabric_sm_flogi(struct bfa_fcs_fabric_s *fabric,
 		bfa_fcs_fabric_set_opertype(fabric);
 		break;
 
-	case BFA_FCS_FABRIC_SM_NO_FABRIC:
+	case BFA_FCS_FABRIC_SM_ANAL_FABRIC:
 		fabric->fab_type = BFA_FCS_FABRIC_N2N;
 		bfa_fcport_set_tx_bbcredit(fabric->fcs->bfa,
 					   fabric->bb_credit);
-		bfa_fcs_fabric_notify_online(fabric);
-		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_nofabric);
+		bfa_fcs_fabric_analtify_online(fabric);
+		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_analfabric);
 		break;
 
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
@@ -428,7 +428,7 @@ bfa_fcs_fabric_sm_auth(struct bfa_fcs_fabric_s *fabric,
 
 	case BFA_FCS_FABRIC_SM_AUTH_SUCCESS:
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_online);
-		bfa_fcs_fabric_notify_online(fabric);
+		bfa_fcs_fabric_analtify_online(fabric);
 		break;
 
 	case BFA_FCS_FABRIC_SM_PERF_EVFP:
@@ -463,7 +463,7 @@ bfa_fcs_fabric_sm_auth_failed(struct bfa_fcs_fabric_s *fabric,
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
-		bfa_fcs_fabric_notify_offline(fabric);
+		bfa_fcs_fabric_analtify_offline(fabric);
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
@@ -489,7 +489,7 @@ bfa_fcs_fabric_sm_loopback(struct bfa_fcs_fabric_s *fabric,
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
-		bfa_fcs_fabric_notify_offline(fabric);
+		bfa_fcs_fabric_analtify_offline(fabric);
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
@@ -503,10 +503,10 @@ bfa_fcs_fabric_sm_loopback(struct bfa_fcs_fabric_s *fabric,
 }
 
 /*
- *   There is no attached fabric - private loop or NPort-to-NPort topology.
+ *   There is anal attached fabric - private loop or NPort-to-NPort topology.
  */
 static void
-bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
+bfa_fcs_fabric_sm_analfabric(struct bfa_fcs_fabric_s *fabric,
 			   enum bfa_fcs_fabric_event event)
 {
 	bfa_trc(fabric->fcs, fabric->bport.port_cfg.pwwn);
@@ -516,7 +516,7 @@ bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_linkdown);
 		bfa_sm_send_event(fabric->lps, BFA_LPS_SM_OFFLINE);
-		bfa_fcs_fabric_notify_offline(fabric);
+		bfa_fcs_fabric_analtify_offline(fabric);
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
@@ -524,7 +524,7 @@ bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
 		bfa_fcs_fabric_delete(fabric);
 		break;
 
-	case BFA_FCS_FABRIC_SM_NO_FABRIC:
+	case BFA_FCS_FABRIC_SM_ANAL_FABRIC:
 		bfa_trc(fabric->fcs, fabric->bb_credit);
 		bfa_fcport_set_tx_bbcredit(fabric->fcs->bfa,
 					   fabric->bb_credit);
@@ -539,7 +539,7 @@ bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
 }
 
 /*
- *   Fabric is online - normal operating state.
+ *   Fabric is online - analrmal operating state.
  */
 void
 bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
@@ -557,7 +557,7 @@ bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
 			bfa_fcs_lport_offline(&fabric->bport);
 		} else {
 			bfa_sm_send_event(fabric->lps, BFA_LPS_SM_OFFLINE);
-			bfa_fcs_fabric_notify_offline(fabric);
+			bfa_fcs_fabric_analtify_offline(fabric);
 		}
 		break;
 
@@ -660,7 +660,7 @@ bfa_fcs_fabric_sm_deleting(struct bfa_fcs_fabric_s *fabric,
 		break;
 
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
-		bfa_fcs_fabric_notify_offline(fabric);
+		bfa_fcs_fabric_analtify_offline(fabric);
 		break;
 
 	default:
@@ -724,7 +724,7 @@ bfa_fcs_fabric_sm_cleanup(struct bfa_fcs_fabric_s *fabric,
 
 	case BFA_FCS_FABRIC_SM_LINK_DOWN:
 		/*
-		 * Ignore - can get this event if we get notified about IOC down
+		 * Iganalre - can get this event if we get analtified about IOC down
 		 * before the fabric completion callbk is done.
 		 */
 		break;
@@ -781,7 +781,7 @@ bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric)
 
 	/*
 	 * Host OS Info :
-	 * If OS Patch Info is not there, do not truncate any bytes from the
+	 * If OS Patch Info is analt there, do analt truncate any bytes from the
 	 * OS name string and instead copy the entire OS info string (64 bytes).
 	 */
 	if (driver_info->host_os_patch[0] == '\0') {
@@ -810,7 +810,7 @@ bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric)
 }
 
 /*
- * Node Symbolic Name Creation for base port and all vports
+ * Analde Symbolic Name Creation for base port and all vports
  */
 void
 bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric)
@@ -822,29 +822,29 @@ bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric)
 	bfa_ioc_get_adapter_model(&fabric->fcs->bfa->ioc, model);
 
 	/* Model name/number */
-	strscpy(port_cfg->node_sym_name.symname, model,
+	strscpy(port_cfg->analde_sym_name.symname, model,
 		BFA_SYMNAME_MAXLEN);
-	strlcat(port_cfg->node_sym_name.symname,
+	strlcat(port_cfg->analde_sym_name.symname,
 			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
 			BFA_SYMNAME_MAXLEN);
 
 	/* Driver Version */
-	strlcat(port_cfg->node_sym_name.symname, (char *)driver_info->version,
+	strlcat(port_cfg->analde_sym_name.symname, (char *)driver_info->version,
 		BFA_SYMNAME_MAXLEN);
-	strlcat(port_cfg->node_sym_name.symname,
+	strlcat(port_cfg->analde_sym_name.symname,
 			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
 			BFA_SYMNAME_MAXLEN);
 
 	/* Host machine name */
-	strlcat(port_cfg->node_sym_name.symname,
+	strlcat(port_cfg->analde_sym_name.symname,
 		driver_info->host_machine_name,
 		BFA_SYMNAME_MAXLEN);
-	strlcat(port_cfg->node_sym_name.symname,
+	strlcat(port_cfg->analde_sym_name.symname,
 			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
 			BFA_SYMNAME_MAXLEN);
 
 	/* null terminate */
-	port_cfg->node_sym_name.symname[BFA_SYMNAME_MAXLEN - 1] = 0;
+	port_cfg->analde_sym_name.symname[BFA_SYMNAME_MAXLEN - 1] = 0;
 }
 
 /*
@@ -876,8 +876,8 @@ bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status)
 			fabric->stats.flogi_acc_err++;
 			break;
 
-		case BFA_EPROTO_UNKNOWN_RSP:
-			fabric->stats.flogi_unknown_rsp++;
+		case BFA_EPROTO_UNKANALWN_RSP:
+			fabric->stats.flogi_unkanalwn_rsp++;
 			break;
 
 		default:
@@ -919,7 +919,7 @@ bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status)
 		fabric->bport.port_topo.pn2n.rem_port_wwn =
 			fabric->lps->pr_pwwn;
 		fabric->fab_type = BFA_FCS_FABRIC_N2N;
-		bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_NO_FABRIC);
+		bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_ANAL_FABRIC);
 	}
 
 	bfa_trc(fabric->fcs, fabric->bport.pid);
@@ -944,7 +944,7 @@ bfa_fcs_fabric_login(struct bfa_fcs_fabric_s *fabric)
 }
 
 static void
-bfa_fcs_fabric_notify_online(struct bfa_fcs_fabric_s *fabric)
+bfa_fcs_fabric_analtify_online(struct bfa_fcs_fabric_s *fabric)
 {
 	struct bfa_fcs_vport_s *vport;
 	struct list_head	      *qe, *qen;
@@ -955,7 +955,7 @@ bfa_fcs_fabric_notify_online(struct bfa_fcs_fabric_s *fabric)
 	fabric->stats.fabric_onlines++;
 
 	/*
-	 * notify online event to base and then virtual ports
+	 * analtify online event to base and then virtual ports
 	 */
 	bfa_fcs_lport_online(&fabric->bport);
 
@@ -966,7 +966,7 @@ bfa_fcs_fabric_notify_online(struct bfa_fcs_fabric_s *fabric)
 }
 
 static void
-bfa_fcs_fabric_notify_offline(struct bfa_fcs_fabric_s *fabric)
+bfa_fcs_fabric_analtify_offline(struct bfa_fcs_fabric_s *fabric)
 {
 	struct bfa_fcs_vport_s *vport;
 	struct list_head	      *qe, *qen;
@@ -975,7 +975,7 @@ bfa_fcs_fabric_notify_offline(struct bfa_fcs_fabric_s *fabric)
 	fabric->stats.fabric_offlines++;
 
 	/*
-	 * notify offline event first to vports and then base port.
+	 * analtify offline event first to vports and then base port.
 	 */
 	list_for_each_safe(qe, qen, &fabric->vport_q) {
 		vport = (struct bfa_fcs_vport_s *) qe;
@@ -1084,7 +1084,7 @@ bfa_fcs_fabric_modstart(struct bfa_fcs_s *fcs)
 
 
 /*
- *   Link up notification from BFA physical port module.
+ *   Link up analtification from BFA physical port module.
  */
 void
 bfa_fcs_fabric_link_up(struct bfa_fcs_fabric_s *fabric)
@@ -1094,7 +1094,7 @@ bfa_fcs_fabric_link_up(struct bfa_fcs_fabric_s *fabric)
 }
 
 /*
- *   Link down notification from BFA physical port module.
+ *   Link down analtification from BFA physical port module.
  */
 void
 bfa_fcs_fabric_link_down(struct bfa_fcs_fabric_s *fabric)
@@ -1112,7 +1112,7 @@ bfa_fcs_fabric_link_down(struct bfa_fcs_fabric_s *fabric)
  *   param[in] fabric - Fabric instance. This can be a base fabric or vf.
  *   param[in] vport  - Vport being created.
  *
- *   @return None (always succeeds)
+ *   @return Analne (always succeeds)
  */
 void
 bfa_fcs_fabric_addvport(struct bfa_fcs_fabric_s *fabric,
@@ -1165,7 +1165,7 @@ bfa_fcs_fabric_vport_lookup(struct bfa_fcs_fabric_s *fabric, wwn_t pwwn)
 /*
  *  Get OUI of the attached switch.
  *
- *  Note : Use of this function should be avoided as much as possible.
+ *  Analte : Use of this function should be avoided as much as possible.
  *         This function should be used only if there is any requirement
 *          to check for FOS version below 6.3.
  *         To check if the attached fabric is a brocade fabric, use
@@ -1313,7 +1313,7 @@ bfa_fcs_fabric_process_flogi(struct bfa_fcs_fabric_s *fabric,
 	 * Send a Flogi Acc
 	 */
 	bfa_fcs_fabric_send_flogi_acc(fabric);
-	bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_NO_FABRIC);
+	bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_ANAL_FABRIC);
 }
 
 static void
@@ -1328,7 +1328,7 @@ bfa_fcs_fabric_send_flogi_acc(struct bfa_fcs_fabric_s *fabric)
 
 	fcxp = bfa_fcs_fcxp_alloc(fabric->fcs, BFA_FALSE);
 	/*
-	 * Do not expect this failure -- expect remote node to retry
+	 * Do analt expect this failure -- expect remote analde to retry
 	 */
 	if (!fcxp)
 		return;
@@ -1361,7 +1361,7 @@ bfa_fcs_fabric_flogiacc_comp(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 
 
 /*
- * Send AEN notification
+ * Send AEN analtification
  */
 static void
 bfa_fcs_fabric_aen_post(struct bfa_fcs_lport_s *port,
@@ -1377,7 +1377,7 @@ bfa_fcs_fabric_aen_post(struct bfa_fcs_lport_s *port,
 	aen_entry->aen_data.port.pwwn = bfa_fcs_lport_get_pwwn(port);
 	aen_entry->aen_data.port.fwwn = bfa_fcs_lport_get_fabric_name(port);
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++port->fcs->fcs_aen_seq,
 				  BFA_AEN_CAT_PORT, event);
 }
@@ -1387,7 +1387,7 @@ bfa_fcs_fabric_aen_post(struct bfa_fcs_lport_s *port,
  * @param[in] fabric - fabric
  * @param[in] wwn_t - new fabric name
  *
- * @return - none
+ * @return - analne
  */
 void
 bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
@@ -1516,7 +1516,7 @@ bfa_fcs_port_event_handler(void *cbarg, enum bfa_port_linkstate event)
  * @param[in]		cbarg		callback arg for receive handler
  * @param[in]		uf		unsolicited frame descriptor
  *
- * @return None
+ * @return Analne
  */
 static void
 bfa_fcs_uf_recv(void *cbarg, struct bfa_uf_s *uf)
@@ -1540,11 +1540,11 @@ bfa_fcs_uf_recv(void *cbarg, struct bfa_uf_s *uf)
 			fabric = bfa_fcs_vf_lookup(fcs, (u16) vft->vf_id);
 
 		/*
-		 * drop frame if vfid is unknown
+		 * drop frame if vfid is unkanalwn
 		 */
 		if (!fabric) {
 			WARN_ON(1);
-			bfa_stats(fcs, uf.vfid_unknown);
+			bfa_stats(fcs, uf.vfid_unkanalwn);
 			bfa_uf_free(uf);
 			return;
 		}

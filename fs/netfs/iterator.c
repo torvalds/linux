@@ -54,7 +54,7 @@ ssize_t netfs_extract_user_iter(struct iov_iter *orig, size_t orig_len,
 	bv_size = array_size(max_pages, sizeof(*bv));
 	bv = kvmalloc(bv_size, GFP_KERNEL);
 	if (!bv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Put the page list at the end of the bvec list storage.  bvec
 	 * elements are larger than page pointers, so as long as we work

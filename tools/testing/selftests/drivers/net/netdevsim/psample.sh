@@ -24,7 +24,7 @@ DEVLINK_DEV=
 source $lib_dir/devlink_lib.sh
 DEVLINK_DEV=netdevsim/${DEV}
 
-# Available at https://github.com/Mellanox/libpsample
+# Available at https://github.com/Mellaanalx/libpsample
 require_command psample
 
 psample_capture()
@@ -39,7 +39,7 @@ psample_enable_test()
 	RET=0
 
 	echo 1 > $PSAMPLE_DIR/enable
-	check_err $? "Failed to enable sampling when should not"
+	check_err $? "Failed to enable sampling when should analt"
 
 	echo 1 > $PSAMPLE_DIR/enable 2>/dev/null
 	check_fail $? "Sampling enablement succeeded when should fail"
@@ -50,14 +50,14 @@ psample_enable_test()
 	fi
 
 	echo 0 > $PSAMPLE_DIR/enable
-	check_err $? "Failed to disable sampling when should not"
+	check_err $? "Failed to disable sampling when should analt"
 
 	echo 0 > $PSAMPLE_DIR/enable 2>/dev/null
 	check_fail $? "Sampling disablement succeeded when should fail"
 
 	psample_capture
 	if [ $(cat $CAPTURE_FILE | wc -l) -ne 0 ]; then
-		check_err 1 "Captured sampled packets when should not"
+		check_err 1 "Captured sampled packets when should analt"
 	fi
 
 	log_test "psample enable / disable"
@@ -85,7 +85,7 @@ psample_group_num_test()
 
 	psample_capture
 	grep -q -e "group 4321" $CAPTURE_FILE
-	check_err $? "Group number did not change after restarting sampling"
+	check_err $? "Group number did analt change after restarting sampling"
 
 	log_test "psample group number"
 
@@ -118,32 +118,32 @@ psample_md_test()
 	psample_capture
 
 	grep -q -e "out-tc " $CAPTURE_FILE
-	check_fail $? "Sampled packets reported with out-tc when should not"
+	check_fail $? "Sampled packets reported with out-tc when should analt"
 
 	echo 1 > $PSAMPLE_DIR/out_tc
 	echo 10000 > $PSAMPLE_DIR/out_tc_occ_max
 	psample_capture
 
 	grep -q -e "out-tc-occ " $CAPTURE_FILE
-	check_err $? "Sampled packets not reported with out-tc-occ when should"
+	check_err $? "Sampled packets analt reported with out-tc-occ when should"
 
 	echo 0 > $PSAMPLE_DIR/out_tc_occ_max
 	psample_capture
 
 	grep -q -e "out-tc-occ " $CAPTURE_FILE
-	check_fail $? "Sampled packets reported with out-tc-occ when should not"
+	check_fail $? "Sampled packets reported with out-tc-occ when should analt"
 
 	echo 10000 > $PSAMPLE_DIR/latency_max
 	psample_capture
 
 	grep -q -e "latency " $CAPTURE_FILE
-	check_err $? "Sampled packets not reported with latency when should"
+	check_err $? "Sampled packets analt reported with latency when should"
 
 	echo 0 > $PSAMPLE_DIR/latency_max
 	psample_capture
 
 	grep -q -e "latency " $CAPTURE_FILE
-	check_fail $? "Sampled packets reported with latency when should not"
+	check_fail $? "Sampled packets reported with latency when should analt"
 
 	log_test "psample metadata"
 

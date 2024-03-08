@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -501,28 +501,28 @@
 #define DCN_1_0__SRCID__OPTC5_DATA_UNDERFLOW_INT	    0x15	// D0 ODM data underflow interrupt 	OPTC6_DATA_UNDERFLOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level	
 #define DCN_1_0__CTXID__OPTC5_DATA_UNDERFLOW_INT	    11
 
-#define DCN_1_0__SRCID__MPCC0_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC0_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC0_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC0_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC0_STALL_INTERRUPT	        0
 
-#define DCN_1_0__SRCID__MPCC1_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC1_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC1_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC1_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC1_STALL_INTERRUPT	        1
 
-#define DCN_1_0__SRCID__MPCC2_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC2_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC2_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC2_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC2_STALL_INTERRUPT	        2
 
-#define DCN_1_0__SRCID__MPCC3_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC3_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC3_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC3_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC3_STALL_INTERRUPT	        3
 
-#define DCN_1_0__SRCID__MPCC4_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC4_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC4_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC4_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC4_STALL_INTERRUPT	        4
 
-#define DCN_1_0__SRCID__MPCC5_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC5_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC5_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC5_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC5_STALL_INTERRUPT	        5
 
-#define DCN_1_0__SRCID__MPCC6_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC6_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC6_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC6_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC6_STALL_INTERRUPT	        6
 
-#define DCN_1_0__SRCID__MPCC7_STALL_INTERRUPT	        0x16	// Indicate no pixel was available to be sent when OPP asked for	MPCC7_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
+#define DCN_1_0__SRCID__MPCC7_STALL_INTERRUPT	        0x16	// Indicate anal pixel was available to be sent when OPP asked for	MPCC7_STALL_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE11	Level	
 #define DCN_1_0__CTXID__MPCC7_STALL_INTERRUPT	        7
 
 #define DCN_1_0__SRCID__OTG1_CPU_SS_INT	                0x17	// D1: OTG Static Screen interrupt	OTG1_IHC_CPU_SS_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE20	Level / Pulse	
@@ -571,7 +571,7 @@
 #define DCN_1_0__SRCID__DC_D1_OTG_SNAPSHOT	0x1E	// D1 : OTG snapshot	OTG1_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D1_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D1_FORCE_CNT_W	0x1E	// D1 : Force - count--w	OTG1_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D1_FORCE_CNT_W	0x1E	// D1 : Force - count--w	OTG1_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D1_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D1_FORCE_VSYNC_NXT_LINE	0x1E	// D1 : Force - Vsync - next - line	OTG1_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse	
@@ -610,7 +610,7 @@
 #define DCN_1_0__SRCID__DC_D2_OTG_SNAPSHOT	0x1F	// D2 : OTG snapshot	OTG2_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D2_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D2_FORCE_CNT_W	0x1F	// D2 : Force - count--w	OTG2_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D2_FORCE_CNT_W	0x1F	// D2 : Force - count--w	OTG2_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D2_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D2_FORCE_VSYNC_NXT_LINE	0x1F	// D2 : Force - Vsync - next - line	OTG2_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse	
@@ -649,7 +649,7 @@
 #define DCN_1_0__SRCID__DC_D3_OTG_SNAPSHOT	0x20	// D3 : OTG snapshot	OTG3_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D3_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D3_FORCE_CNT_W	0x20	// D3 : Force - count--w	OTG3_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D3_FORCE_CNT_W	0x20	// D3 : Force - count--w	OTG3_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D3_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D3_FORCE_VSYNC_NXT_LINE	0x20	// D3 : Force - Vsync - next - line	OTG3_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse	
@@ -688,7 +688,7 @@
 #define DCN_1_0__SRCID__DC_D4_OTG_SNAPSHOT	0x21	// D4 : OTG snapshot	OTG4_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D4_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D4_FORCE_CNT_W	0x21	// D4 : Force - count--w	OTG4_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D4_FORCE_CNT_W	0x21	// D4 : Force - count--w	OTG4_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D4_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D4_FORCE_VSYNC_NXT_LINE	0x21	// D4 : Force - Vsync - next - line	OTG4_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse	
@@ -727,7 +727,7 @@
 #define DCN_1_0__SRCID__DC_D5_OTG_SNAPSHOT	0x22	// D5 : OTG snapshot	OTG5_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D5_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D5_FORCE_CNT_W	0x22	// D5 : Force - count--w	OTG5_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D5_FORCE_CNT_W	0x22	// D5 : Force - count--w	OTG5_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D5_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D5_FORCE_VSYNC_NXT_LINE	0x22	// D5 : Force - Vsync - next - line	OTG5_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse	
@@ -982,7 +982,7 @@
 #define DCN_1_0__SRCID__DC_D6_OTG_SNAPSHOT	0x38	// D6: OTG snapshot	OTG6_IHC_SNAPSHOT_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D6_OTG_SNAPSHOT	0
 
-#define DCN_1_0__SRCID__DC_D6_FORCE_CNT_W	0x38	// D6 : Force - count--w	OTG6_IHC_FORCE_COUNT_NOW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse	
+#define DCN_1_0__SRCID__DC_D6_FORCE_CNT_W	0x38	// D6 : Force - count--w	OTG6_IHC_FORCE_COUNT_ANALW_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse	
 #define DCN_1_0__CTXID__DC_D6_FORCE_CNT_W	1
 
 #define DCN_1_0__SRCID__DC_D6_FORCE_VSYNC_NXT_LINE	0x38	// D6 : Force - Vsync - next - line	OTG6_IHC_FORCE_VSYNC_NEXT_LINE_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse	
@@ -1050,12 +1050,12 @@
 #define DCN_1_0__SRCID__DC_D5_OTG_VREADY	0x46	// "OTG4 VREADY event occurred interrupt, VREADY event, VREADY event indicates the time DCHUB can start to request data for new frame"	OTG5_IHC_VREADY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE20	Level / Pulse
 #define DCN_1_0__SRCID__DC_D6_OTG_VREADY	0x47	// "OTG5 VREADY event occurred interrupt, VREADY event, VREADY event indicates the time DCHUB can start to request data for new frame"	OTG6_IHC_VREADY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE20	Level / Pulse
 
-#define DCN_1_0__SRCID__OTG0_VSYNC_NOM	0x48	// OTG0 vsync nom interrupt	OTG1_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse
-#define DCN_1_0__SRCID__OTG1_VSYNC_NOM	0x49	// OTG1 vsync nom interrupt	OTG2_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse
-#define DCN_1_0__SRCID__OTG2_VSYNC_NOM	0x4A	// OTG2 vsync nom interrupt	OTG3_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse
-#define DCN_1_0__SRCID__OTG3_VSYNC_NOM	0x4B	// OTG3 vsync nom interrupt	OTG4_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse
-#define DCN_1_0__SRCID__OTG4_VSYNC_NOM	0x4C	// OTG4 vsync nom interrupt	OTG5_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse
-#define DCN_1_0__SRCID__OTG5_VSYNC_NOM	0x4D	// OTG5 vsync nom interrupt	OTG6_IHC_VSYNC_NOM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse
+#define DCN_1_0__SRCID__OTG0_VSYNC_ANALM	0x48	// OTG0 vsync analm interrupt	OTG1_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS	Level / Pulse
+#define DCN_1_0__SRCID__OTG1_VSYNC_ANALM	0x49	// OTG1 vsync analm interrupt	OTG2_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE	Level / Pulse
+#define DCN_1_0__SRCID__OTG2_VSYNC_ANALM	0x4A	// OTG2 vsync analm interrupt	OTG3_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE2	Level / Pulse
+#define DCN_1_0__SRCID__OTG3_VSYNC_ANALM	0x4B	// OTG3 vsync analm interrupt	OTG4_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE3	Level / Pulse
+#define DCN_1_0__SRCID__OTG4_VSYNC_ANALM	0x4C	// OTG4 vsync analm interrupt	OTG5_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE4	Level / Pulse
+#define DCN_1_0__SRCID__OTG5_VSYNC_ANALM	0x4D	// OTG5 vsync analm interrupt	OTG6_IHC_VSYNC_ANALM_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE5	Level / Pulse
 
 #define DCN_1_0__SRCID__DCPG_DCFE8_POWER_UP_INT	0x4E	// Display pipe0 power up interrupt 	DCPG_IHC_DOMAIN8_POWER_UP_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level	
 #define DCN_1_0__CTXID__DCPG_DCFE8_POWER_UP_INT	0
@@ -1114,21 +1114,21 @@
 #define DCN_1_0__SRCID__HUBP6_FLIP_INTERRUPT	0x55	// Flip interrupt is generated when flip request is accepted by flip logic and surface is flipped from old surface to new surface.HUBP6_IHC_FLIP_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
 #define DCN_1_0__SRCID__HUBP7_FLIP_INTERRUPT	0x56	// Flip interrupt is generated when flip request is accepted by flip logic and surface is flipped from old surface to new surface.HUBP7_IHC_FLIP_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
 
-#define DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x57	// "OTG0 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
-#define DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x58	// "OTG1 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG1_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
-#define DCN_1_0__SRCID__OTG2_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x59	// "OTG2 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG2_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
-#define DCN_1_0__SRCID__OTG3_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x5A	// "OTG3 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG3_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
-#define DCN_1_0__SRCID__OTG4_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x5B	// "OTG4 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG4_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
-#define DCN_1_0__SRCID__OTG5_IHC_V_UPDATE_NO_LOCK_INTERRUPT	0x5C	// "OTG5 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG5_IHC_V_UPDATE_NO_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x57	// "OTG0 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG0_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x58	// "OTG1 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG1_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG2_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x59	// "OTG2 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG2_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG3_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x5A	// "OTG3 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG3_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG4_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x5B	// "OTG4 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG4_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
+#define DCN_1_0__SRCID__OTG5_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	0x5C	// "OTG5 VUPDATE event without lock interrupt, VUPDATE is update event for double buffered registers"	OTG5_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE22	Level / Pulse
 
-#define DCN_1_0__SRCID__HUBP0_FLIP_AWAY_INTERRUPT	0x5D	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP0_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP1_FLIP_AWAY_INTERRUPT	0x5E	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP1_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP2_FLIP_AWAY_INTERRUPT	0x5F	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP2_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP3_FLIP_AWAY_INTERRUPT	0x60	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP3_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP4_FLIP_AWAY_INTERRUPT	0x61	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP4_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP5_FLIP_AWAY_INTERRUPT	0x62	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP5_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP6_FLIP_AWAY_INTERRUPT	0x63	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP6_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
-#define DCN_1_0__SRCID__HUBP7_FLIP_AWAY_INTERRUPT	0x64	// Flip_away interrupt is generated when all data for old surface is returned and old surface is not used again after the surface flip.HUBP7_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP0_FLIP_AWAY_INTERRUPT	0x5D	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP0_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP1_FLIP_AWAY_INTERRUPT	0x5E	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP1_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP2_FLIP_AWAY_INTERRUPT	0x5F	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP2_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP3_FLIP_AWAY_INTERRUPT	0x60	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP3_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP4_FLIP_AWAY_INTERRUPT	0x61	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP4_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP5_FLIP_AWAY_INTERRUPT	0x62	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP5_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP6_FLIP_AWAY_INTERRUPT	0x63	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP6_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
+#define DCN_1_0__SRCID__HUBP7_FLIP_AWAY_INTERRUPT	0x64	// Flip_away interrupt is generated when all data for old surface is returned and old surface is analt used again after the surface flip.HUBP7_IHC_FLIP_AWAY_INTERRUPT	DISP_INTERRUPT_STATUS_CONTINUE17	Level / Pulse
 
 #define DCN_1_0__SRCID__DMCUB_OUTBOX_HIGH_PRIORITY_READY_INT       0x68
 #define DCN_1_0__CTXID__DMCUB_OUTBOX_HIGH_PRIORITY_READY_INT       6

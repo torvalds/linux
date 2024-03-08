@@ -128,7 +128,7 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
  *
  * It will fill common rates in rate1 as output if found.
  *
- * NOTE: Setting the MSB of the basic rates needs to be taken
+ * ANALTE: Setting the MSB of the basic rates needs to be taken
  * care of, either before or after calling this function.
  */
 static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
@@ -141,7 +141,7 @@ static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 	tmp = kmemdup(rate1, rate1_size, GFP_KERNEL);
 	if (!tmp) {
 		mwifiex_dbg(priv->adapter, ERROR, "failed to alloc tmp buf\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(rate1, 0, rate1_size);
@@ -170,7 +170,7 @@ static int mwifiex_get_common_rates(struct mwifiex_private *priv, u8 *rate1,
 		}
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "previously set fixed data rate %#x\t"
-			    "is not compatible with the network\n",
+			    "is analt compatible with the network\n",
 			    priv->data_rate);
 
 		ret = -1;
@@ -204,7 +204,7 @@ mwifiex_setup_rates_from_bssdesc(struct mwifiex_private *priv,
 				     card_rates, card_rates_size)) {
 		*out_rates_size = 0;
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "%s: cannot get common rates\n",
+			    "%s: cananalt get common rates\n",
 			    __func__);
 		return -1;
 	}
@@ -393,7 +393,7 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_802_11_ASSOCIATE);
 
-	/* Save so we know which BSS Desc to use in the response handler */
+	/* Save so we kanalw which BSS Desc to use in the response handler */
 	priv->attempted_bss_desc = bss_desc;
 
 	memcpy(assoc->peer_sta_addr,
@@ -559,7 +559,7 @@ static const char *assoc_failure_reason_to_str(u16 cap_info)
 		return "CONNECT_ERR_STA_FAILURE";
 	}
 
-	return "Unknown connect failure";
+	return "Unkanalwn connect failure";
 }
 /*
  * Association firmware command response handler
@@ -567,7 +567,7 @@ static const char *assoc_failure_reason_to_str(u16 cap_info)
  * The response buffer for the association command has the following
  * memory layout.
  *
- * For cases where an association response was not received (indicated
+ * For cases where an association response was analt received (indicated
  * by the CapInfo and AId field):
  *
  *     .------------------------------------------------------------.
@@ -587,7 +587,7 @@ static const char *assoc_failure_reason_to_str(u16 cap_info)
  *     |                                                            |
  *     |        If cap_info is -2:                                  |
  *     |           An authentication frame was received but was     |
- *     |           not handled by the firmware.  IEEE Status        |
+ *     |           analt handled by the firmware.  IEEE Status        |
  *     |           code for the failure is returned.                |
  *     |                                                            |
  *     |        If cap_info is -3:                                  |
@@ -621,7 +621,7 @@ static const char *assoc_failure_reason_to_str(u16 cap_info)
  *     .------------------------------------------------------------.
  *
  * For simplistic handling, the status_code field can be used to determine
- * an association success (0) or failure (non-zero).
+ * an association success (0) or failure (analn-zero).
  */
 int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 			     struct host_cmd_ds_command *resp)
@@ -649,7 +649,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 
 	if ((aid & (BIT(15) | BIT(14))) != (BIT(15) | BIT(14)))
 		dev_err(priv->adapter->dev,
-			"invalid AID value 0x%x; bits 15:14 not set\n",
+			"invalid AID value 0x%x; bits 15:14 analt set\n",
 			aid);
 
 	aid &= ~(BIT(15) | BIT(14));
@@ -752,7 +752,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 		   event */
 		enable_data = false;
 	} else {
-		/* Since WMM is not enabled, setup the queues with the
+		/* Since WMM is analt enabled, setup the queues with the
 		   defaults */
 		mwifiex_wmm_setup_queue_priorities(priv, NULL);
 		mwifiex_wmm_setup_ac_downgrade(priv);
@@ -903,7 +903,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 
 	if (!priv->adhoc_channel) {
 		mwifiex_dbg(adapter, ERROR,
-			    "ADHOC_S_CMD: adhoc_channel cannot be 0\n");
+			    "ADHOC_S_CMD: adhoc_channel cananalt be 0\n");
 		return -1;
 	}
 
@@ -947,7 +947,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		tmp_cap |= WLAN_CAPABILITY_PRIVACY;
 	} else {
 		mwifiex_dbg(adapter, INFO,
-			    "info: ADHOC_S_CMD: wep_status NOT set,\t"
+			    "info: ADHOC_S_CMD: wep_status ANALT set,\t"
 			    "setting privacy to ACCEPT ALL\n");
 		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_ACCEPT_ALL;
 	}
@@ -964,7 +964,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 			return -1;
 		}
 	}
-	/* Find the last non zero */
+	/* Find the last analn zero */
 	for (i = 0; i < sizeof(adhoc_start->data_rate); i++)
 		if (!adhoc_start->data_rate[i])
 			break;
@@ -1040,7 +1040,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		mwifiex_fill_cap_info(priv, radio_type, &ht_cap->ht_cap);
 
 		if (adapter->sec_chan_offset ==
-					IEEE80211_HT_PARAM_CHA_SEC_NONE) {
+					IEEE80211_HT_PARAM_CHA_SEC_ANALNE) {
 			u16 tmp_ht_cap;
 
 			tmp_ht_cap = le16_to_cpu(ht_cap->ht_cap.cap_info);
@@ -1067,7 +1067,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 					IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 		}
 		ht_info->ht_oper.operation_mode =
-		     cpu_to_le16(IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		     cpu_to_le16(IEEE80211_HT_OP_MODE_ANALN_GF_STA_PRSNT);
 		ht_info->ht_oper.basic_set[0] = 0xff;
 		pos += sizeof(struct mwifiex_ie_types_htinfo);
 		cmd_append_size +=
@@ -1248,7 +1248,7 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
  * This function handles the command response of ad-hoc start and
  * ad-hoc join.
  *
- * The function generates a device-connected event to notify
+ * The function generates a device-connected event to analtify
  * the applications, in case of successful ad-hoc start/join, and
  * saves the beacon buffer.
  */
@@ -1305,7 +1305,7 @@ int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 		priv->adhoc_state = ADHOC_STARTED;
 	} else {
 		/*
-		 * Now the join cmd should be successful.
+		 * Analw the join cmd should be successful.
 		 * If BSSID has changed use SSID to compare instead of BSSID
 		 */
 		mwifiex_dbg(priv->adapter, INFO,
@@ -1357,8 +1357,8 @@ done:
 int mwifiex_associate(struct mwifiex_private *priv,
 		      struct mwifiex_bssdescriptor *bss_desc)
 {
-	/* Return error if the adapter is not STA role or table entry
-	 * is not marked as infra.
+	/* Return error if the adapter is analt STA role or table entry
+	 * is analt marked as infra.
 	 */
 	if ((GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA) ||
 	    (bss_desc->bss_mode != NL80211_IFTYPE_STATION))
@@ -1409,7 +1409,7 @@ mwifiex_adhoc_start(struct mwifiex_private *priv,
  * This function joins an ad-hoc network found in a previous scan.
  *
  * It calls the command preparation routine to send the command to firmware,
- * if already not connected to the requested SSID.
+ * if already analt connected to the requested SSID.
  */
 int mwifiex_adhoc_join(struct mwifiex_private *priv,
 		       struct mwifiex_bssdescriptor *bss_desc)
@@ -1433,7 +1433,7 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 							NL80211_IFTYPE_ADHOC)) {
 		mwifiex_dbg(priv->adapter, INFO,
 			    "info: ADHOC_J_CMD: new ad-hoc SSID\t"
-			    "is the same as current; not attempting to re-join\n");
+			    "is the same as current; analt attempting to re-join\n");
 		return -1;
 	}
 

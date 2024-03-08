@@ -75,14 +75,14 @@ struct vidtv_mux_si {
  * struct vidtv_mux_pid_ctx - Store the context for a given TS PID.
  * @pid: The TS PID.
  * @cc: The continuity counter for this PID. It is incremented on every TS
- * pack and it will wrap around at 0xf0. If the decoder notices a sudden jump in
+ * pack and it will wrap around at 0xf0. If the decoder analtices a sudden jump in
  * this counter this will trigger a discontinuity state.
  * @h: This is embedded in a hash table, mapping pid -> vidtv_mux_pid_ctx
  */
 struct vidtv_mux_pid_ctx {
 	u16 pid;
 	u8 cc; /* continuity counter */
-	struct hlist_node h;
+	struct hlist_analde h;
 };
 
 /**

@@ -53,7 +53,7 @@
 /* Analog Register Part: reg01 */
 #define REG_SYNCRST_MASK			BIT(2)
 #define REG_SYNCRST_RESET			BIT(2)
-#define REG_SYNCRST_NORMAL			0
+#define REG_SYNCRST_ANALRMAL			0
 #define REG_LDOPD_MASK				BIT(1)
 #define REG_LDOPD_POWER_DOWN			BIT(1)
 #define REG_LDOPD_POWER_ON			0
@@ -105,7 +105,7 @@
 #define PLL_MODE_SEL_MIPI_MODE			BIT(5)
 /* Digital Register Part: reg00 */
 #define REG_DIG_RSTN_MASK			BIT(0)
-#define REG_DIG_RSTN_NORMAL			BIT(0)
+#define REG_DIG_RSTN_ANALRMAL			BIT(0)
 #define REG_DIG_RSTN_RESET			0
 /* Digital Register Part: reg01 */
 #define INVERT_TXCLKESC_MASK			BIT(1)
@@ -196,18 +196,18 @@ enum phy_max_rate {
 	MAX_2_5GHZ,
 };
 
-struct inno_video_phy_plat_data {
-	const struct inno_mipi_dphy_timing *inno_mipi_dphy_timing_table;
+struct inanal_video_phy_plat_data {
+	const struct inanal_mipi_dphy_timing *inanal_mipi_dphy_timing_table;
 	const unsigned int num_timings;
 	enum phy_max_rate max_rate;
 };
 
-struct inno_dsidphy {
+struct inanal_dsidphy {
 	struct device *dev;
 	struct clk *ref_clk;
 	struct clk *pclk_phy;
 	struct clk *pclk_host;
-	const struct inno_video_phy_plat_data *pdata;
+	const struct inanal_video_phy_plat_data *pdata;
 	void __iomem *phy_base;
 	void __iomem *host_base;
 	struct reset_control *rst;
@@ -234,7 +234,7 @@ enum {
 	REGISTER_PART_LVDS,
 };
 
-struct inno_mipi_dphy_timing {
+struct inanal_mipi_dphy_timing {
 	unsigned long rate;
 	u8 lpx;
 	u8 hs_prepare;
@@ -244,7 +244,7 @@ struct inno_mipi_dphy_timing {
 };
 
 static const
-struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1ghz[] = {
+struct inanal_mipi_dphy_timing inanal_mipi_dphy_timing_table_max_1ghz[] = {
 	{ 110000000, 0x0, 0x20, 0x16, 0x02, 0x22},
 	{ 150000000, 0x0, 0x06, 0x16, 0x03, 0x45},
 	{ 200000000, 0x0, 0x18, 0x17, 0x04, 0x0b},
@@ -259,7 +259,7 @@ struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_1ghz[] = {
 };
 
 static const
-struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_2_5ghz[] = {
+struct inanal_mipi_dphy_timing inanal_mipi_dphy_timing_table_max_2_5ghz[] = {
 	{ 110000000, 0x02, 0x7f, 0x16, 0x02, 0x02},
 	{ 150000000, 0x02, 0x7f, 0x16, 0x03, 0x02},
 	{ 200000000, 0x02, 0x7f, 0x17, 0x04, 0x02},
@@ -281,22 +281,22 @@ struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table_max_2_5ghz[] = {
 	{2500000000, 0x15, 0x54, 0x7f, 0x15, 0x6a},
 };
 
-static void phy_update_bits(struct inno_dsidphy *inno,
+static void phy_update_bits(struct inanal_dsidphy *inanal,
 			    u8 first, u8 second, u8 mask, u8 val)
 {
 	u32 reg = PHY_REG(first, second) << 2;
 	unsigned int tmp, orig;
 
-	orig = readl(inno->phy_base + reg);
+	orig = readl(inanal->phy_base + reg);
 	tmp = orig & ~mask;
 	tmp |= val & mask;
-	writel(tmp, inno->phy_base + reg);
+	writel(tmp, inanal->phy_base + reg);
 }
 
-static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
+static unsigned long inanal_dsidphy_pll_calc_rate(struct inanal_dsidphy *inanal,
 						unsigned long rate)
 {
-	unsigned long prate = clk_get_rate(inno->ref_clk);
+	unsigned long prate = clk_get_rate(inanal->ref_clk);
 	unsigned long best_freq = 0;
 	unsigned long fref, fout;
 	u8 min_prediv, max_prediv;
@@ -355,63 +355,63 @@ static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
 	}
 
 	if (best_freq) {
-		inno->pll.prediv = best_prediv;
-		inno->pll.fbdiv = best_fbdiv;
-		inno->pll.rate = best_freq;
+		inanal->pll.prediv = best_prediv;
+		inanal->pll.fbdiv = best_fbdiv;
+		inanal->pll.rate = best_freq;
 	}
 
 	return best_freq;
 }
 
-static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
+static void inanal_dsidphy_mipi_mode_enable(struct inanal_dsidphy *inanal)
 {
-	struct phy_configure_opts_mipi_dphy *cfg = &inno->dphy_cfg;
-	const struct inno_mipi_dphy_timing *timings;
+	struct phy_configure_opts_mipi_dphy *cfg = &inanal->dphy_cfg;
+	const struct inanal_mipi_dphy_timing *timings;
 	u32 t_txbyteclkhs, t_txclkesc;
 	u32 txbyteclkhs, txclkesc, esc_clk_div;
 	u32 hs_exit, clk_post, clk_pre, wakeup, lpx, ta_go, ta_sure, ta_wait;
 	u32 hs_prepare, hs_trail, hs_zero, clk_lane_hs_zero, data_lane_hs_zero;
 	unsigned int i;
 
-	timings = inno->pdata->inno_mipi_dphy_timing_table;
+	timings = inanal->pdata->inanal_mipi_dphy_timing_table;
 
-	inno_dsidphy_pll_calc_rate(inno, cfg->hs_clk_rate);
+	inanal_dsidphy_pll_calc_rate(inanal, cfg->hs_clk_rate);
 
 	/* Select MIPI mode */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, MIPI_MODE_ENABLE);
 	/* Configure PLL */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
-			REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
-			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
-			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
-	if (inno->pdata->max_rate == MAX_2_5GHZ) {
-		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x03,
+			REG_PREDIV_MASK, REG_PREDIV(inanal->pll.prediv));
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x03,
+			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inanal->pll.fbdiv));
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x04,
+			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inanal->pll.fbdiv));
+	if (inanal->pdata->max_rate == MAX_2_5GHZ) {
+		phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x08,
 				PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
-		phy_update_bits(inno, REGISTER_PART_ANALOG, 0x0b,
+		phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x0b,
 				CLOCK_LANE_VOD_RANGE_SET_MASK,
 				CLOCK_LANE_VOD_RANGE_SET(VOD_MAX_RANGE));
 	}
 	/* Enable PLL and LDO */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x01,
 			REG_LDOPD_MASK | REG_PLLPD_MASK,
 			REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
 	/* Reset analog */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x01,
 			REG_SYNCRST_MASK, REG_SYNCRST_RESET);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
-			REG_SYNCRST_MASK, REG_SYNCRST_NORMAL);
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x01,
+			REG_SYNCRST_MASK, REG_SYNCRST_ANALRMAL);
 	/* Reset digital */
-	phy_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_DIGITAL, 0x00,
 			REG_DIG_RSTN_MASK, REG_DIG_RSTN_RESET);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
-			REG_DIG_RSTN_MASK, REG_DIG_RSTN_NORMAL);
+	phy_update_bits(inanal, REGISTER_PART_DIGITAL, 0x00,
+			REG_DIG_RSTN_MASK, REG_DIG_RSTN_ANALRMAL);
 
-	txbyteclkhs = inno->pll.rate / 8;
+	txbyteclkhs = inanal->pll.rate / 8;
 	t_txbyteclkhs = div_u64(PSEC_PER_SEC, txbyteclkhs);
 
 	esc_clk_div = DIV_ROUND_UP(txbyteclkhs, 20000000);
@@ -453,18 +453,18 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	 */
 	ta_wait = DIV_ROUND_UP(cfg->ta_get, t_txclkesc);
 
-	for (i = 0; i < inno->pdata->num_timings; i++)
-		if (inno->pll.rate <= timings[i].rate)
+	for (i = 0; i < inanal->pdata->num_timings; i++)
+		if (inanal->pll.rate <= timings[i].rate)
 			break;
 
-	if (i == inno->pdata->num_timings)
+	if (i == inanal->pdata->num_timings)
 		--i;
 
 	/*
 	 * The value of counter for HS Tlpx Time
 	 * Tlpx = Tpin_txbyteclkhs * (2 + value)
 	 */
-	if (inno->pdata->max_rate == MAX_1GHZ) {
+	if (inanal->pdata->max_rate == MAX_1GHZ) {
 		lpx = DIV_ROUND_UP(cfg->lpx, t_txbyteclkhs);
 		if (lpx >= 2)
 			lpx -= 2;
@@ -483,120 +483,120 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 		else
 			hs_zero = data_lane_hs_zero;
 
-		phy_update_bits(inno, i, 0x05, T_LPX_CNT_MASK,
+		phy_update_bits(inanal, i, 0x05, T_LPX_CNT_MASK,
 				T_LPX_CNT(lpx));
-		phy_update_bits(inno, i, 0x06, T_HS_PREPARE_CNT_MASK,
+		phy_update_bits(inanal, i, 0x06, T_HS_PREPARE_CNT_MASK,
 				T_HS_PREPARE_CNT(hs_prepare));
-		if (inno->pdata->max_rate == MAX_2_5GHZ)
-			phy_update_bits(inno, i, 0x06, T_HS_ZERO_CNT_HI_MASK,
+		if (inanal->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inanal, i, 0x06, T_HS_ZERO_CNT_HI_MASK,
 					T_HS_ZERO_CNT_HI(hs_zero >> 6));
-		phy_update_bits(inno, i, 0x07, T_HS_ZERO_CNT_LO_MASK,
+		phy_update_bits(inanal, i, 0x07, T_HS_ZERO_CNT_LO_MASK,
 				T_HS_ZERO_CNT_LO(hs_zero));
-		phy_update_bits(inno, i, 0x08, T_HS_TRAIL_CNT_MASK,
+		phy_update_bits(inanal, i, 0x08, T_HS_TRAIL_CNT_MASK,
 				T_HS_TRAIL_CNT(hs_trail));
-		if (inno->pdata->max_rate == MAX_2_5GHZ)
-			phy_update_bits(inno, i, 0x11, T_HS_EXIT_CNT_HI_MASK,
+		if (inanal->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inanal, i, 0x11, T_HS_EXIT_CNT_HI_MASK,
 					T_HS_EXIT_CNT_HI(hs_exit >> 5));
-		phy_update_bits(inno, i, 0x09, T_HS_EXIT_CNT_LO_MASK,
+		phy_update_bits(inanal, i, 0x09, T_HS_EXIT_CNT_LO_MASK,
 				T_HS_EXIT_CNT_LO(hs_exit));
-		if (inno->pdata->max_rate == MAX_2_5GHZ)
-			phy_update_bits(inno, i, 0x10, T_CLK_POST_CNT_HI_MASK,
+		if (inanal->pdata->max_rate == MAX_2_5GHZ)
+			phy_update_bits(inanal, i, 0x10, T_CLK_POST_CNT_HI_MASK,
 					T_CLK_POST_CNT_HI(clk_post >> 4));
-		phy_update_bits(inno, i, 0x0a, T_CLK_POST_CNT_LO_MASK,
+		phy_update_bits(inanal, i, 0x0a, T_CLK_POST_CNT_LO_MASK,
 				T_CLK_POST_CNT_LO(clk_post));
-		phy_update_bits(inno, i, 0x0e, T_CLK_PRE_CNT_MASK,
+		phy_update_bits(inanal, i, 0x0e, T_CLK_PRE_CNT_MASK,
 				T_CLK_PRE_CNT(clk_pre));
-		phy_update_bits(inno, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
+		phy_update_bits(inanal, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
 				T_WAKEUP_CNT_HI(wakeup >> 8));
-		phy_update_bits(inno, i, 0x0d, T_WAKEUP_CNT_LO_MASK,
+		phy_update_bits(inanal, i, 0x0d, T_WAKEUP_CNT_LO_MASK,
 				T_WAKEUP_CNT_LO(wakeup));
-		phy_update_bits(inno, i, 0x10, T_TA_GO_CNT_MASK,
+		phy_update_bits(inanal, i, 0x10, T_TA_GO_CNT_MASK,
 				T_TA_GO_CNT(ta_go));
-		phy_update_bits(inno, i, 0x11, T_TA_SURE_CNT_MASK,
+		phy_update_bits(inanal, i, 0x11, T_TA_SURE_CNT_MASK,
 				T_TA_SURE_CNT(ta_sure));
-		phy_update_bits(inno, i, 0x12, T_TA_WAIT_CNT_MASK,
+		phy_update_bits(inanal, i, 0x12, T_TA_WAIT_CNT_MASK,
 				T_TA_WAIT_CNT(ta_wait));
 	}
 
 	/* Enable all lanes on analog part */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00,
 			LANE_EN_MASK, LANE_EN_CK | LANE_EN_3 | LANE_EN_2 |
 			LANE_EN_1 | LANE_EN_0);
 }
 
-static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
+static void inanal_dsidphy_lvds_mode_enable(struct inanal_dsidphy *inanal)
 {
 	u8 prediv = 2;
 	u16 fbdiv = 28;
 
 	/* Sample clock reverse direction */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x08,
 			SAMPLE_CLOCK_DIRECTION_MASK | LOWFRE_EN_MASK,
 			SAMPLE_CLOCK_DIRECTION_REVERSE |
 			PLL_OUTPUT_FREQUENCY_DIV_BY_1);
 
 	/* Select LVDS mode */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, LVDS_MODE_ENABLE);
 	/* Configure PLL */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x03,
 			REG_PREDIV_MASK, REG_PREDIV(prediv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x03,
 			REG_FBDIV_HI_MASK, REG_FBDIV_HI(fbdiv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x04,
 			REG_FBDIV_LO_MASK, REG_FBDIV_LO(fbdiv));
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x08, 0xff, 0xfc);
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x08, 0xff, 0xfc);
 	/* Enable PLL and Bandgap */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x0b,
 			LVDS_PLL_POWER_MASK | LVDS_BANDGAP_POWER_MASK,
 			LVDS_PLL_POWER_ON | LVDS_BANDGAP_POWER_ON);
 
 	msleep(20);
 
 	/* Select PLL mode */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1e,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x1e,
 			PLL_MODE_SEL_MASK, PLL_MODE_SEL_LVDS_MODE);
 
 	/* Reset LVDS digital logic */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x00,
 			LVDS_DIGITAL_INTERNAL_RESET_MASK,
 			LVDS_DIGITAL_INTERNAL_RESET_ENABLE);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x00,
 			LVDS_DIGITAL_INTERNAL_RESET_MASK,
 			LVDS_DIGITAL_INTERNAL_RESET_DISABLE);
 	/* Enable LVDS digital logic */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x01,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x01,
 			LVDS_DIGITAL_INTERNAL_ENABLE_MASK,
 			LVDS_DIGITAL_INTERNAL_ENABLE);
 	/* Enable LVDS analog driver */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x0b,
 			LVDS_LANE_EN_MASK, LVDS_CLK_LANE_EN |
 			LVDS_DATA_LANE0_EN | LVDS_DATA_LANE1_EN |
 			LVDS_DATA_LANE2_EN | LVDS_DATA_LANE3_EN);
 }
 
-static int inno_dsidphy_power_on(struct phy *phy)
+static int inanal_dsidphy_power_on(struct phy *phy)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inanal_dsidphy *inanal = phy_get_drvdata(phy);
 
-	clk_prepare_enable(inno->pclk_phy);
-	clk_prepare_enable(inno->ref_clk);
-	pm_runtime_get_sync(inno->dev);
+	clk_prepare_enable(inanal->pclk_phy);
+	clk_prepare_enable(inanal->ref_clk);
+	pm_runtime_get_sync(inanal->dev);
 
 	/* Bandgap power on */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00,
 			BANDGAP_POWER_MASK, BANDGAP_POWER_ON);
 	/* Enable power work */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
 
-	switch (inno->mode) {
+	switch (inanal->mode) {
 	case PHY_MODE_MIPI_DPHY:
-		inno_dsidphy_mipi_mode_enable(inno);
+		inanal_dsidphy_mipi_mode_enable(inanal);
 		break;
 	case PHY_MODE_LVDS:
-		inno_dsidphy_lvds_mode_enable(inno);
+		inanal_dsidphy_lvds_mode_enable(inanal);
 		break;
 	default:
 		return -EINVAL;
@@ -605,43 +605,43 @@ static int inno_dsidphy_power_on(struct phy *phy)
 	return 0;
 }
 
-static int inno_dsidphy_power_off(struct phy *phy)
+static int inanal_dsidphy_power_off(struct phy *phy)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inanal_dsidphy *inanal = phy_get_drvdata(phy);
 
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, 0);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, 0);
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x01,
 			REG_LDOPD_MASK | REG_PLLPD_MASK,
 			REG_LDOPD_POWER_DOWN | REG_PLLPD_POWER_DOWN);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_DISABLE);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inanal, REGISTER_PART_ANALOG, 0x00,
 			BANDGAP_POWER_MASK, BANDGAP_POWER_DOWN);
 
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b, LVDS_LANE_EN_MASK, 0);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x01,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x0b, LVDS_LANE_EN_MASK, 0);
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x01,
 			LVDS_DIGITAL_INTERNAL_ENABLE_MASK,
 			LVDS_DIGITAL_INTERNAL_DISABLE);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inanal, REGISTER_PART_LVDS, 0x0b,
 			LVDS_PLL_POWER_MASK | LVDS_BANDGAP_POWER_MASK,
 			LVDS_PLL_POWER_OFF | LVDS_BANDGAP_POWER_DOWN);
 
-	pm_runtime_put(inno->dev);
-	clk_disable_unprepare(inno->ref_clk);
-	clk_disable_unprepare(inno->pclk_phy);
+	pm_runtime_put(inanal->dev);
+	clk_disable_unprepare(inanal->ref_clk);
+	clk_disable_unprepare(inanal->pclk_phy);
 
 	return 0;
 }
 
-static int inno_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
+static int inanal_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
 				   int submode)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inanal_dsidphy *inanal = phy_get_drvdata(phy);
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
 	case PHY_MODE_LVDS:
-		inno->mode = mode;
+		inanal->mode = mode;
 		break;
 	default:
 		return -EINVAL;
@@ -650,93 +650,93 @@ static int inno_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
 	return 0;
 }
 
-static int inno_dsidphy_configure(struct phy *phy,
+static int inanal_dsidphy_configure(struct phy *phy,
 				  union phy_configure_opts *opts)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inanal_dsidphy *inanal = phy_get_drvdata(phy);
 	int ret;
 
-	if (inno->mode != PHY_MODE_MIPI_DPHY)
+	if (inanal->mode != PHY_MODE_MIPI_DPHY)
 		return -EINVAL;
 
 	ret = phy_mipi_dphy_config_validate(&opts->mipi_dphy);
 	if (ret)
 		return ret;
 
-	memcpy(&inno->dphy_cfg, &opts->mipi_dphy, sizeof(inno->dphy_cfg));
+	memcpy(&inanal->dphy_cfg, &opts->mipi_dphy, sizeof(inanal->dphy_cfg));
 
 	return 0;
 }
 
-static const struct phy_ops inno_dsidphy_ops = {
-	.configure = inno_dsidphy_configure,
-	.set_mode = inno_dsidphy_set_mode,
-	.power_on = inno_dsidphy_power_on,
-	.power_off = inno_dsidphy_power_off,
+static const struct phy_ops inanal_dsidphy_ops = {
+	.configure = inanal_dsidphy_configure,
+	.set_mode = inanal_dsidphy_set_mode,
+	.power_on = inanal_dsidphy_power_on,
+	.power_off = inanal_dsidphy_power_off,
 	.owner = THIS_MODULE,
 };
 
-static const struct inno_video_phy_plat_data max_1ghz_video_phy_plat_data = {
-	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_1ghz,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_1ghz),
+static const struct inanal_video_phy_plat_data max_1ghz_video_phy_plat_data = {
+	.inanal_mipi_dphy_timing_table = inanal_mipi_dphy_timing_table_max_1ghz,
+	.num_timings = ARRAY_SIZE(inanal_mipi_dphy_timing_table_max_1ghz),
 	.max_rate = MAX_1GHZ,
 };
 
-static const struct inno_video_phy_plat_data max_2_5ghz_video_phy_plat_data = {
-	.inno_mipi_dphy_timing_table = inno_mipi_dphy_timing_table_max_2_5ghz,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table_max_2_5ghz),
+static const struct inanal_video_phy_plat_data max_2_5ghz_video_phy_plat_data = {
+	.inanal_mipi_dphy_timing_table = inanal_mipi_dphy_timing_table_max_2_5ghz,
+	.num_timings = ARRAY_SIZE(inanal_mipi_dphy_timing_table_max_2_5ghz),
 	.max_rate = MAX_2_5GHZ,
 };
 
-static int inno_dsidphy_probe(struct platform_device *pdev)
+static int inanal_dsidphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct inno_dsidphy *inno;
+	struct inanal_dsidphy *inanal;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 	int ret;
 
-	inno = devm_kzalloc(dev, sizeof(*inno), GFP_KERNEL);
-	if (!inno)
-		return -ENOMEM;
+	inanal = devm_kzalloc(dev, sizeof(*inanal), GFP_KERNEL);
+	if (!inanal)
+		return -EANALMEM;
 
-	inno->dev = dev;
-	inno->pdata = of_device_get_match_data(inno->dev);
-	platform_set_drvdata(pdev, inno);
+	inanal->dev = dev;
+	inanal->pdata = of_device_get_match_data(inanal->dev);
+	platform_set_drvdata(pdev, inanal);
 
-	inno->phy_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(inno->phy_base))
-		return PTR_ERR(inno->phy_base);
+	inanal->phy_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(inanal->phy_base))
+		return PTR_ERR(inanal->phy_base);
 
-	inno->ref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(inno->ref_clk)) {
-		ret = PTR_ERR(inno->ref_clk);
+	inanal->ref_clk = devm_clk_get(dev, "ref");
+	if (IS_ERR(inanal->ref_clk)) {
+		ret = PTR_ERR(inanal->ref_clk);
 		dev_err(dev, "failed to get ref clock: %d\n", ret);
 		return ret;
 	}
 
-	inno->pclk_phy = devm_clk_get(dev, "pclk");
-	if (IS_ERR(inno->pclk_phy)) {
-		ret = PTR_ERR(inno->pclk_phy);
+	inanal->pclk_phy = devm_clk_get(dev, "pclk");
+	if (IS_ERR(inanal->pclk_phy)) {
+		ret = PTR_ERR(inanal->pclk_phy);
 		dev_err(dev, "failed to get phy pclk: %d\n", ret);
 		return ret;
 	}
 
-	inno->rst = devm_reset_control_get(dev, "apb");
-	if (IS_ERR(inno->rst)) {
-		ret = PTR_ERR(inno->rst);
+	inanal->rst = devm_reset_control_get(dev, "apb");
+	if (IS_ERR(inanal->rst)) {
+		ret = PTR_ERR(inanal->rst);
 		dev_err(dev, "failed to get system reset control: %d\n", ret);
 		return ret;
 	}
 
-	phy = devm_phy_create(dev, NULL, &inno_dsidphy_ops);
+	phy = devm_phy_create(dev, NULL, &inanal_dsidphy_ops);
 	if (IS_ERR(phy)) {
 		ret = PTR_ERR(phy);
 		dev_err(dev, "failed to create phy: %d\n", ret);
 		return ret;
 	}
 
-	phy_set_drvdata(phy, inno);
+	phy_set_drvdata(phy, inanal);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider)) {
@@ -750,14 +750,14 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void inno_dsidphy_remove(struct platform_device *pdev)
+static void inanal_dsidphy_remove(struct platform_device *pdev)
 {
-	struct inno_dsidphy *inno = platform_get_drvdata(pdev);
+	struct inanal_dsidphy *inanal = platform_get_drvdata(pdev);
 
-	pm_runtime_disable(inno->dev);
+	pm_runtime_disable(inanal->dev);
 }
 
-static const struct of_device_id inno_dsidphy_of_match[] = {
+static const struct of_device_id inanal_dsidphy_of_match[] = {
 	{
 		.compatible = "rockchip,px30-dsi-dphy",
 		.data = &max_1ghz_video_phy_plat_data,
@@ -776,18 +776,18 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, inno_dsidphy_of_match);
+MODULE_DEVICE_TABLE(of, inanal_dsidphy_of_match);
 
-static struct platform_driver inno_dsidphy_driver = {
+static struct platform_driver inanal_dsidphy_driver = {
 	.driver = {
-		.name = "inno-dsidphy",
-		.of_match_table	= of_match_ptr(inno_dsidphy_of_match),
+		.name = "inanal-dsidphy",
+		.of_match_table	= of_match_ptr(inanal_dsidphy_of_match),
 	},
-	.probe = inno_dsidphy_probe,
-	.remove_new = inno_dsidphy_remove,
+	.probe = inanal_dsidphy_probe,
+	.remove_new = inanal_dsidphy_remove,
 };
-module_platform_driver(inno_dsidphy_driver);
+module_platform_driver(inanal_dsidphy_driver);
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
-MODULE_DESCRIPTION("Innosilicon MIPI/LVDS/TTL Video Combo PHY driver");
+MODULE_DESCRIPTION("Inanalsilicon MIPI/LVDS/TTL Video Combo PHY driver");
 MODULE_LICENSE("GPL v2");

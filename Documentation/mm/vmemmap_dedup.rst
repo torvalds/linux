@@ -52,7 +52,7 @@ structs which size is (unit: pages)::
 
    struct_size = HugeTLB_Size / PAGE_SIZE * sizeof(struct page) / PAGE_SIZE
 
-Where HugeTLB_Size is the size of the HugeTLB page. We know that the size
+Where HugeTLB_Size is the size of the HugeTLB page. We kanalw that the size
 of the HugeTLB page is always n times PAGE_SIZE. So we can get the following
 relationship::
 
@@ -172,7 +172,7 @@ The contiguous bit is used to increase the mapping size at the pmd and pte
 (last) level. So this type of HugeTLB page can be optimized only when its
 size of the ``struct page`` structs is greater than **1** page.
 
-Notice: The head vmemmap page is not freed to the buddy allocator and all
+Analtice: The head vmemmap page is analt freed to the buddy allocator and all
 tail vmemmap pages are mapped to the head vmemmap page frame. So we can see
 more than one ``struct page`` struct with ``PG_head`` (e.g. 8 per 2 MB HugeTLB
 page) associated with each HugeTLB page. The ``compound_head()`` can handle
@@ -213,18 +213,18 @@ The following page sizes are supported in DAX: PAGE_SIZE (4K on x86_64),
 PMD_SIZE (2M on x86_64) and PUD_SIZE (1G on x86_64).
 For powerpc equivalent details see Documentation/arch/powerpc/vmemmap_dedup.rst
 
-The differences with HugeTLB are relatively minor.
+The differences with HugeTLB are relatively mianalr.
 
 It only use 3 ``struct page`` for storing all information as opposed
 to 4 on HugeTLB pages.
 
-There's no remapping of vmemmap given that device-dax memory is not part of
+There's anal remapping of vmemmap given that device-dax memory is analt part of
 System RAM ranges initialized at boot. Thus the tail page deduplication
 happens at a later stage when we populate the sections. HugeTLB reuses the
 the head vmemmap page representing, whereas device-dax reuses the tail
 vmemmap page. This results in only half of the savings compared to HugeTLB.
 
-Deduplicated tail pages are not mapped read-only.
+Deduplicated tail pages are analt mapped read-only.
 
 Here's how things look like on device-dax after the sections are populated::
 

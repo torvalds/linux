@@ -29,11 +29,11 @@
 
 /*
  * Macro used to get to thread save registers.
- * Note that entries 0-3 are used for the prolog code, and the remaining
+ * Analte that entries 0-3 are used for the prolog code, and the remaining
  * entries are available for specific exception use in the event a handler
  * requires more than 4 scratch registers.
  */
-#define THREAD_NORMSAVE(offset)	(THREAD_NORMSAVES + (offset * 4))
+#define THREAD_ANALRMSAVE(offset)	(THREAD_ANALRMSAVES + (offset * 4))
 
 #ifdef CONFIG_PPC_E500
 #define BOOKE_CLEAR_BTB(reg)									\
@@ -45,14 +45,14 @@ END_BTB_FLUSH_SECTION
 #endif
 
 
-#define NORMAL_EXCEPTION_PROLOG(trapno, intno)						     \
+#define ANALRMAL_EXCEPTION_PROLOG(trapanal, intanal)						     \
 	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
 	mfspr	r10, SPRN_SPRG_THREAD;					     \
-	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
-	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
-	mfcr	r13;			/* save CR in r13 for now	   */\
+	stw	r11, THREAD_ANALRMSAVE(0)(r10);				     \
+	stw	r13, THREAD_ANALRMSAVE(2)(r10);				     \
+	mfcr	r13;			/* save CR in r13 for analw	   */\
 	mfspr	r11, SPRN_SRR1;		                                     \
-	DO_KVM	BOOKE_INTERRUPT_##intno SPRN_SRR1;			     \
+	DO_KVM	BOOKE_INTERRUPT_##intanal SPRN_SRR1;			     \
 	andi.	r11, r11, MSR_PR;	/* check whether user or kernel    */\
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL);				\
 	mtmsr	r11;							\
@@ -68,9 +68,9 @@ END_BTB_FLUSH_SECTION
 	stw	r9,GPR9(r11);						     \
 	mfspr	r13, SPRN_SPRG_RSCRATCH0;				     \
 	stw	r13, GPR10(r11);					     \
-	lwz	r12, THREAD_NORMSAVE(0)(r10);				     \
+	lwz	r12, THREAD_ANALRMSAVE(0)(r10);				     \
 	stw	r12,GPR11(r11);						     \
-	lwz	r13, THREAD_NORMSAVE(2)(r10); /* restore r13 */		     \
+	lwz	r13, THREAD_ANALRMSAVE(2)(r10); /* restore r13 */		     \
 	mflr	r10;							     \
 	stw	r10,_LINK(r11);						     \
 	mfspr	r12,SPRN_SRR0;						     \
@@ -79,14 +79,14 @@ END_BTB_FLUSH_SECTION
 	stw	r1, 0(r11);						     \
 	mr	r1, r11;						     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	COMMON_EXCEPTION_PROLOG_END trapno
+	COMMON_EXCEPTION_PROLOG_END trapanal
 
-.macro COMMON_EXCEPTION_PROLOG_END trapno
+.macro COMMON_EXCEPTION_PROLOG_END trapanal
 	stw	r0,GPR0(r1)
 	lis	r10, STACK_FRAME_REGS_MARKER@ha	/* exception frame marker */
 	addi	r10, r10, STACK_FRAME_REGS_MARKER@l
 	stw	r10, STACK_INT_FRAME_MARKER(r1)
-	li	r10, \trapno
+	li	r10, \trapanal
 	stw	r10,_TRAP(r1)
 	SAVE_GPRS(3, 8, r1)
 	SAVE_NVGPRS(r1)
@@ -112,21 +112,21 @@ END_BTB_FLUSH_SECTION
 #endif
 .endm
 
-.macro SYSCALL_ENTRY trapno intno srr1
+.macro SYSCALL_ENTRY trapanal intanal srr1
 	mfspr	r10, SPRN_SPRG_THREAD
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mtspr	SPRN_SPRG_WSCRATCH0, r10
-	stw	r11, THREAD_NORMSAVE(0)(r10)
-	stw	r13, THREAD_NORMSAVE(2)(r10)
-	mfcr	r13			/* save CR in r13 for now	   */
+	stw	r11, THREAD_ANALRMSAVE(0)(r10)
+	stw	r13, THREAD_ANALRMSAVE(2)(r10)
+	mfcr	r13			/* save CR in r13 for analw	   */
 	mfspr	r11, SPRN_SRR1
 	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
 	bf	3, 1975f
-	b	kvmppc_handler_\intno\()_\srr1
+	b	kvmppc_handler_\intanal\()_\srr1
 1975:
 	mr	r12, r13
-	lwz	r13, THREAD_NORMSAVE(2)(r10)
+	lwz	r13, THREAD_ANALRMSAVE(2)(r10)
 FTR_SECTION_ELSE
 	mfcr	r12
 ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
@@ -184,22 +184,22 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 
 /*
  * Exception prolog for critical/machine check exceptions.  This is a
- * little different from the normal exception prolog above since a
+ * little different from the analrmal exception prolog above since a
  * critical/machine check exception can potentially occur at any point
- * during normal exception processing. Thus we cannot use the same SPRG
- * registers as the normal prolog above. Instead we use a portion of the
+ * during analrmal exception processing. Thus we cananalt use the same SPRG
+ * registers as the analrmal prolog above. Instead we use a portion of the
  * critical/machine check exception stack at low physical addresses.
  */
-#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, trapno, intno, exc_level_srr0, exc_level_srr1) \
+#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, trapanal, intanal, exc_level_srr0, exc_level_srr1) \
 	mtspr	SPRN_SPRG_WSCRATCH_##exc_level,r8;			     \
 	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
 	stw	r9,GPR9(r8);		/* save various registers	   */\
-	mfcr	r9;			/* save CR in r9 for now	   */\
+	mfcr	r9;			/* save CR in r9 for analw	   */\
 	stw	r10,GPR10(r8);						     \
 	stw	r11,GPR11(r8);						     \
 	stw	r9,_CCR(r8);		/* save CR on stack		   */\
 	mfspr	r11,exc_level_srr1;	/* check whether user or kernel    */\
-	DO_KVM	BOOKE_INTERRUPT_##intno exc_level_srr1;		             \
+	DO_KVM	BOOKE_INTERRUPT_##intanal exc_level_srr1;		             \
 	BOOKE_CLEAR_BTB(r10)						\
 	andi.	r11,r11,MSR_PR;						     \
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE));	\
@@ -233,7 +233,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r1,0(r11);						     \
 	mr	r1,r11;							     \
 	rlwinm	r9,r9,0,14,12;		/* clear MSR_WE (necessary?)	   */\
-	COMMON_EXCEPTION_PROLOG_END trapno
+	COMMON_EXCEPTION_PROLOG_END trapanal
 
 #define SAVE_xSRR(xSRR)			\
 	mfspr	r0,SPRN_##xSRR##0;	\
@@ -265,12 +265,12 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 #endif
 .endm
 
-#define CRITICAL_EXCEPTION_PROLOG(trapno, intno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, trapno+2, intno, SPRN_CSRR0, SPRN_CSRR1)
-#define DEBUG_EXCEPTION_PROLOG(trapno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(DBG, trapno+8, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
-#define MCHECK_EXCEPTION_PROLOG(trapno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(MC, trapno+4, MACHINE_CHECK, \
+#define CRITICAL_EXCEPTION_PROLOG(trapanal, intanal) \
+		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, trapanal+2, intanal, SPRN_CSRR0, SPRN_CSRR1)
+#define DEBUG_EXCEPTION_PROLOG(trapanal) \
+		EXC_LEVEL_EXCEPTION_PROLOG(DBG, trapanal+8, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
+#define MCHECK_EXCEPTION_PROLOG(trapanal) \
+		EXC_LEVEL_EXCEPTION_PROLOG(MC, trapanal+4, MACHINE_CHECK, \
 			SPRN_MCSRR0, SPRN_MCSRR1)
 
 /*
@@ -283,10 +283,10 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	START_EXCEPTION(GuestDoorbell);					     \
 	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
 	mfspr	r10, SPRN_SPRG_THREAD;					     \
-	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
+	stw	r11, THREAD_ANALRMSAVE(0)(r10);				     \
 	mfspr	r11, SPRN_SRR1;		                                     \
-	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
-	mfcr	r13;			/* save CR in r13 for now	   */\
+	stw	r13, THREAD_ANALRMSAVE(2)(r10);				     \
+	mfcr	r13;			/* save CR in r13 for analw	   */\
 	DO_KVM	BOOKE_INTERRUPT_GUEST_DBELL SPRN_GSRR1;			     \
 	trap
 
@@ -297,16 +297,16 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
         .align 5;              						     \
 label:
 
-#define EXCEPTION(n, intno, label, hdlr)			\
+#define EXCEPTION(n, intanal, label, hdlr)			\
 	START_EXCEPTION(label);					\
-	NORMAL_EXCEPTION_PROLOG(n, intno);			\
+	ANALRMAL_EXCEPTION_PROLOG(n, intanal);			\
 	prepare_transfer_to_handler;				\
 	bl	hdlr;						\
 	b	interrupt_return
 
-#define CRITICAL_EXCEPTION(n, intno, label, hdlr)			\
+#define CRITICAL_EXCEPTION(n, intanal, label, hdlr)			\
 	START_EXCEPTION(label);						\
-	CRITICAL_EXCEPTION_PROLOG(n, intno);				\
+	CRITICAL_EXCEPTION_PROLOG(n, intanal);				\
 	SAVE_MMU_REGS;							\
 	SAVE_xSRR(SRR);							\
 	prepare_transfer_to_handler;					\
@@ -335,7 +335,7 @@ label:
  * If we get a debug trap on the first instruction of an exception handler,
  * we reset the MSR_DE in the _exception handler's_ MSR (the debug trap is
  * a critical exception, so we are using SPRN_CSRR1 to manipulate the MSR).
- * The exception handler was handling a non-critical interrupt, so it will
+ * The exception handler was handling a analn-critical interrupt, so it will
  * save (and later restore) the MSR via SPRN_CSRR1, which will still have
  * the MSR_DE bit set.
  */
@@ -387,7 +387,7 @@ label:
 	PPC_RFDI;							      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a debug exception... */		      \
+	/* continue analrmal handling for a debug exception... */		      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	stw	r4,_ESR(r11);		/* DebugException takes DBSR in _ESR */\
 	SAVE_xSRR(CSRR);						      \
@@ -445,7 +445,7 @@ label:
 	rfci;								      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a critical exception... */	      \
+	/* continue analrmal handling for a critical exception... */	      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	stw	r4,_ESR(r11);		/* DebugException takes DBSR in _ESR */\
 	SAVE_MMU_REGS;							      \
@@ -456,7 +456,7 @@ label:
 
 #define DATA_STORAGE_EXCEPTION						      \
 	START_EXCEPTION(DataStorage)					      \
-	NORMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE);		      \
+	ANALRMAL_EXCEPTION_PROLOG(0x300, DATA_STORAGE);		      \
 	mfspr	r5,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r5,_ESR(r11);						      \
 	mfspr	r4,SPRN_DEAR;		/* Grab the DEAR */		      \
@@ -470,13 +470,13 @@ label:
  * directly without clearing ESR, so the ESR at this point may be left over
  * from a prior interrupt.
  *
- * In any case, do_page_fault for BOOK3E does not use ESR and always expects
+ * In any case, do_page_fault for BOOK3E does analt use ESR and always expects
  * dsisr to be 0. ESR_DST from a prior store in particular would confuse fault
  * handling.
  */
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \
-	NORMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);			      \
+	ANALRMAL_EXCEPTION_PROLOG(0x400, INST_STORAGE);			      \
 	li	r5,0;			/* Store 0 in regs->esr (dsisr) */    \
 	stw	r5,_ESR(r11);						      \
 	stw	r12, _DEAR(r11);	/* Set regs->dear (dar) to SRR0 */    \
@@ -486,7 +486,7 @@ label:
 
 #define ALIGNMENT_EXCEPTION						      \
 	START_EXCEPTION(Alignment)					      \
-	NORMAL_EXCEPTION_PROLOG(0x600, ALIGNMENT);		      \
+	ANALRMAL_EXCEPTION_PROLOG(0x600, ALIGNMENT);		      \
 	mfspr   r4,SPRN_DEAR;           /* Grab the DEAR and save it */	      \
 	stw     r4,_DEAR(r11);						      \
 	prepare_transfer_to_handler;					      \
@@ -496,7 +496,7 @@ label:
 
 #define PROGRAM_EXCEPTION						      \
 	START_EXCEPTION(Program)					      \
-	NORMAL_EXCEPTION_PROLOG(0x700, PROGRAM);		      \
+	ANALRMAL_EXCEPTION_PROLOG(0x700, PROGRAM);		      \
 	mfspr	r4,SPRN_ESR;		/* Grab the ESR and save it */	      \
 	stw	r4,_ESR(r11);						      \
 	prepare_transfer_to_handler;					      \
@@ -506,7 +506,7 @@ label:
 
 #define DECREMENTER_EXCEPTION						      \
 	START_EXCEPTION(Decrementer)					      \
-	NORMAL_EXCEPTION_PROLOG(0x900, DECREMENTER);		      \
+	ANALRMAL_EXCEPTION_PROLOG(0x900, DECREMENTER);		      \
 	lis     r0,TSR_DIS@h;           /* Setup the DEC interrupt mask */    \
 	mtspr   SPRN_TSR,r0;		/* Clear the DEC interrupt */	      \
 	prepare_transfer_to_handler;					      \
@@ -515,7 +515,7 @@ label:
 
 #define FP_UNAVAILABLE_EXCEPTION					      \
 	START_EXCEPTION(FloatingPointUnavailable)			      \
-	NORMAL_EXCEPTION_PROLOG(0x800, FP_UNAVAIL);		      \
+	ANALRMAL_EXCEPTION_PROLOG(0x800, FP_UNAVAIL);		      \
 	beq	1f;							      \
 	bl	load_up_fpu;		/* if from user, just load it up */   \
 	b	fast_exception_return;					      \

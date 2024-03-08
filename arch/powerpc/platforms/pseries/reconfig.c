@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/slab.h>
@@ -20,10 +20,10 @@
 
 #include "of_helpers.h"
 
-static int pSeries_reconfig_add_node(const char *path, struct property *proplist)
+static int pSeries_reconfig_add_analde(const char *path, struct property *proplist)
 {
-	struct device_node *np;
-	int err = -ENOMEM;
+	struct device_analde *np;
+	int err = -EANALMEM;
 
 	np = kzalloc(sizeof(*np), GFP_KERNEL);
 	if (!np)
@@ -34,8 +34,8 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 		goto out_err;
 
 	np->properties = proplist;
-	of_node_set_flag(np, OF_DYNAMIC);
-	of_node_init(np);
+	of_analde_set_flag(np, OF_DYNAMIC);
+	of_analde_init(np);
 
 	np->parent = pseries_of_derive_parent(path);
 	if (IS_ERR(np->parent)) {
@@ -43,47 +43,47 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 		goto out_err;
 	}
 
-	err = of_attach_node(np);
+	err = of_attach_analde(np);
 	if (err) {
-		printk(KERN_ERR "Failed to add device node %s\n", path);
+		printk(KERN_ERR "Failed to add device analde %s\n", path);
 		goto out_err;
 	}
 
-	of_node_put(np->parent);
+	of_analde_put(np->parent);
 
 	return 0;
 
 out_err:
 	if (np) {
-		of_node_put(np->parent);
+		of_analde_put(np->parent);
 		kfree(np->full_name);
 		kfree(np);
 	}
 	return err;
 }
 
-static int pSeries_reconfig_remove_node(struct device_node *np)
+static int pSeries_reconfig_remove_analde(struct device_analde *np)
 {
-	struct device_node *parent, *child;
+	struct device_analde *parent, *child;
 
 	parent = of_get_parent(np);
 	if (!parent)
 		return -EINVAL;
 
 	if ((child = of_get_next_child(np, NULL))) {
-		of_node_put(child);
-		of_node_put(parent);
+		of_analde_put(child);
+		of_analde_put(parent);
 		return -EBUSY;
 	}
 
-	of_detach_node(np);
-	of_node_put(parent);
+	of_detach_analde(np);
+	of_analde_put(parent);
 	return 0;
 }
 
 /*
  * /proc/powerpc/ofdt - yucky binary interface for adding and removing
- * OF device nodes.  Should be deprecated as soon as we get an
+ * OF device analdes.  Should be deprecated as soon as we get an
  * in-kernel wrapper for the RTAS ibm,configure-connector call.
  */
 
@@ -107,8 +107,8 @@ static void release_prop_list(const struct property *prop)
  * @length: return value; set to length of value
  * @value: return value; set to the property value in buf
  *
- * Note that the caller must make copies of the name and value returned,
- * this function does no allocation or copying of the data.  Return value
+ * Analte that the caller must make copies of the name and value returned,
+ * this function does anal allocation or copying of the data.  Return value
  * is set to the next name in buf, or NULL on error.
  */
 static char * parse_next_property(char *buf, char *end, char **name, int *length,
@@ -132,7 +132,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 		return NULL;
 	}
 
-	/* now we're on the length */
+	/* analw we're on the length */
 	*length = -1;
 	*length = simple_strtoul(tmp, &tmp, 10);
 	if (*length == -1) {
@@ -146,7 +146,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 		return NULL;
 	}
 
-	/* now we're on the value */
+	/* analw we're on the value */
 	*value = tmp;
 	tmp += *length;
 	if (tmp > end) {
@@ -161,7 +161,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 	}
 	tmp++;
 
-	/* and now we should be on the next name, or the end */
+	/* and analw we should be on the next name, or the end */
 	return tmp;
 }
 
@@ -191,10 +191,10 @@ cleanup:
 	return NULL;
 }
 
-static int do_add_node(char *buf, size_t bufsize)
+static int do_add_analde(char *buf, size_t bufsize)
 {
 	char *path, *end, *name;
-	struct device_node *np;
+	struct device_analde *np;
 	struct property *prop = NULL;
 	unsigned char* value;
 	int length, rv = 0;
@@ -207,8 +207,8 @@ static int do_add_node(char *buf, size_t bufsize)
 	*buf = '\0';
 	buf++;
 
-	if ((np = of_find_node_by_path(path))) {
-		of_node_put(np);
+	if ((np = of_find_analde_by_path(path))) {
+		of_analde_put(np);
 		return -EINVAL;
 	}
 
@@ -219,7 +219,7 @@ static int do_add_node(char *buf, size_t bufsize)
 
 		prop = new_property(name, length, value, last);
 		if (!prop) {
-			rv = -ENOMEM;
+			rv = -EANALMEM;
 			prop = last;
 			goto out;
 		}
@@ -229,7 +229,7 @@ static int do_add_node(char *buf, size_t bufsize)
 		goto out;
 	}
 
-	rv = pSeries_reconfig_add_node(path, prop);
+	rv = pSeries_reconfig_add_analde(path, prop);
 
 out:
 	if (rv)
@@ -237,19 +237,19 @@ out:
 	return rv;
 }
 
-static int do_remove_node(char *buf)
+static int do_remove_analde(char *buf)
 {
-	struct device_node *node;
-	int rv = -ENODEV;
+	struct device_analde *analde;
+	int rv = -EANALDEV;
 
-	if ((node = of_find_node_by_path(buf)))
-		rv = pSeries_reconfig_remove_node(node);
+	if ((analde = of_find_analde_by_path(buf)))
+		rv = pSeries_reconfig_remove_analde(analde);
 
-	of_node_put(node);
+	of_analde_put(analde);
 	return rv;
 }
 
-static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
+static char *parse_analde(char *buf, size_t bufsize, struct device_analde **npp)
 {
 	char *handle_str;
 	phandle handle;
@@ -265,29 +265,29 @@ static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
 
 	handle = simple_strtoul(handle_str, NULL, 0);
 
-	*npp = of_find_node_by_phandle(handle);
+	*npp = of_find_analde_by_phandle(handle);
 	return buf;
 }
 
 static int do_add_property(char *buf, size_t bufsize)
 {
 	struct property *prop = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned char *value;
 	char *name, *end;
 	int length;
 	end = buf + bufsize;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_analde(buf, bufsize, &np);
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (parse_next_property(buf, end, &name, &length, &value) == NULL)
 		return -EINVAL;
 
 	prop = new_property(name, length, value, NULL);
 	if (!prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_add_property(np, prop);
 
@@ -296,12 +296,12 @@ static int do_add_property(char *buf, size_t bufsize)
 
 static int do_remove_property(char *buf, size_t bufsize)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	char *tmp;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_analde(buf, bufsize, &np);
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	tmp = strchr(buf,' ');
 	if (tmp)
@@ -315,27 +315,27 @@ static int do_remove_property(char *buf, size_t bufsize)
 
 static int do_update_property(char *buf, size_t bufsize)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned char *value;
 	char *name, *end, *next_prop;
 	int length;
 	struct property *newprop;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_analde(buf, bufsize, &np);
 	end = buf + bufsize;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	next_prop = parse_next_property(buf, end, &name, &length, &value);
 	if (!next_prop)
 		return -EINVAL;
 
 	if (!strlen(name))
-		return -ENODEV;
+		return -EANALDEV;
 
 	newprop = new_property(name, length, value, NULL);
 	if (!newprop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!strcmp(name, "slb-size") || !strcmp(name, "ibm,slb-size"))
 		slb_set_size(*(int *)value);
@@ -346,14 +346,14 @@ static int do_update_property(char *buf, size_t bufsize)
 /**
  * ofdt_write - perform operations on the Open Firmware device tree
  *
- * @file: not used
+ * @file: analt used
  * @buf: command and arguments
  * @count: size of the command buffer
- * @off: not used
+ * @off: analt used
  *
  * Operations supported at this time are addition and removal of
- * whole nodes along with their properties.  Operations on individual
- * properties are not implemented (yet).
+ * whole analdes along with their properties.  Operations on individual
+ * properties are analt implemented (yet).
  */
 static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t count,
 			  loff_t *off)
@@ -378,10 +378,10 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 	*tmp = '\0';
 	tmp++;
 
-	if (!strcmp(kbuf, "add_node"))
-		rv = do_add_node(tmp, count - (tmp - kbuf));
-	else if (!strcmp(kbuf, "remove_node"))
-		rv = do_remove_node(tmp);
+	if (!strcmp(kbuf, "add_analde"))
+		rv = do_add_analde(tmp, count - (tmp - kbuf));
+	else if (!strcmp(kbuf, "remove_analde"))
+		rv = do_remove_analde(tmp);
 	else if (!strcmp(kbuf, "add_property"))
 		rv = do_add_property(tmp, count - (tmp - kbuf));
 	else if (!strcmp(kbuf, "remove_property"))
@@ -397,7 +397,7 @@ out:
 
 static const struct proc_ops ofdt_proc_ops = {
 	.proc_write	= ofdt_write,
-	.proc_lseek	= noop_llseek,
+	.proc_lseek	= analop_llseek,
 };
 
 /* create /proc/powerpc/ofdt write-only by root */

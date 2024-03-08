@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -42,7 +42,7 @@ enum dml_prefetch_modes {
 	dml_prefetch_support_uclk_fclk_and_stutter = 1,
 	dml_prefetch_support_fclk_and_stutter = 2,
 	dml_prefetch_support_stutter = 3,
-	dml_prefetch_support_none = 4
+	dml_prefetch_support_analne = 4
 };
 enum dml_use_mall_for_pstate_change_mode {
 	dml_use_mall_pstate_change_disable = 0,
@@ -61,7 +61,7 @@ enum dml_output_encoder_class {
 	dml_dp2p0 = 2,
 	dml_hdmi = 3,
 	dml_hdmifrl = 4,
-	dml_none = 5
+	dml_analne = 5
 };
 enum dml_output_link_dp_rate{
 	dml_dp_rate_na = 0,
@@ -73,7 +73,7 @@ enum dml_output_link_dp_rate{
 	dml_dp_rate_uhbr20 = 6
 };
 enum dml_output_type_and_rate__type{
-	dml_output_type_unknown = 0,
+	dml_output_type_unkanalwn = 0,
 	dml_output_type_dp = 1,
 	dml_output_type_edp = 2,
 	dml_output_type_dp2p0 = 3,
@@ -81,7 +81,7 @@ enum dml_output_type_and_rate__type{
 	dml_output_type_hdmifrl = 5
 };
 enum dml_output_type_and_rate__rate {
-	dml_output_rate_unknown = 0,
+	dml_output_rate_unkanalwn = 0,
 	dml_output_rate_dp_rate_hbr = 1,
 	dml_output_rate_dp_rate_hbr2 = 2,
 	dml_output_rate_dp_rate_hbr3 = 3,
@@ -113,8 +113,8 @@ enum dml_source_format_class {
 	dml_422_10 = 8,
 	dml_rgbe_alpha = 9,
 	dml_rgbe = 10,
-	dml_mono_8 = 11,
-	dml_mono_16 = 12
+	dml_moanal_8 = 11,
+	dml_moanal_16 = 12
 };
 enum dml_output_bpc_class {
 	dml_out_6 = 0,
@@ -183,7 +183,7 @@ enum dml_voltage_state {
 	dml_vmin_lv = 0,
 	dml_vmin = 1,
 	dml_vmid = 2,
-	dml_vnom = 3,
+	dml_vanalm = 3,
 	dml_vmax = 4
 };
 enum dml_source_macro_tile_size {
@@ -242,11 +242,11 @@ enum dml_odm_mode {
 	dml_odm_mode_mso_1to4 = 5
 };
 enum dml_writeback_configuration {
-	dml_whole_buffer_for_single_stream_no_interleave = 0,
+	dml_whole_buffer_for_single_stream_anal_interleave = 0,
 	dml_whole_buffer_for_single_stream_interleave = 1
 };
 enum dml_immediate_flip_requirement {
-	dml_immediate_flip_not_required = 0,
+	dml_immediate_flip_analt_required = 0,
 	dml_immediate_flip_required = 1,
 	dml_immediate_flip_if_possible = 2
 };
@@ -303,10 +303,10 @@ struct soc_bounding_box_st {
 	dml_float_t pct_ideal_dram_bw_after_urgent_pixel_and_vm;
 	dml_float_t pct_ideal_dram_bw_after_urgent_vm_only;
 	dml_float_t pct_ideal_dram_bw_after_urgent_strobe;
-	dml_float_t max_avg_sdp_bw_use_normal_percent;
-	dml_float_t max_avg_fabric_bw_use_normal_percent;
-	dml_float_t max_avg_dram_bw_use_normal_percent;
-	dml_float_t max_avg_dram_bw_use_normal_strobe_percent;
+	dml_float_t max_avg_sdp_bw_use_analrmal_percent;
+	dml_float_t max_avg_fabric_bw_use_analrmal_percent;
+	dml_float_t max_avg_dram_bw_use_analrmal_percent;
+	dml_float_t max_avg_dram_bw_use_analrmal_strobe_percent;
 	dml_uint_t round_trip_ping_latency_dcfclk_cycles;
 	dml_uint_t urgent_out_of_order_return_per_channel_pixel_only_bytes;
 	dml_uint_t urgent_out_of_order_return_per_channel_pixel_and_vm_bytes;
@@ -326,7 +326,7 @@ struct soc_bounding_box_st {
 };
 
 struct ip_params_st {
-	dml_uint_t vblank_nom_default_us;
+	dml_uint_t vblank_analm_default_us;
 	dml_uint_t rob_buffer_size_kbytes;
 	dml_uint_t config_return_buffer_size_in_kbytes;
 	dml_uint_t config_return_buffer_segment_size_in_kbytes;
@@ -475,7 +475,7 @@ struct dml_plane_cfg_st {
 	dml_bool_t HostVMEnable; /// <brief Set if any pipe has HostVM enable
 
 	dml_uint_t GPUVMMaxPageTableLevels; /// <brief GPUVM level; max of all pipes'
-	dml_uint_t HostVMMaxPageTableLevels; /// <brief HostVM level; max of all pipes'; that is the number of non-cache HVM level
+	dml_uint_t HostVMMaxPageTableLevels; /// <brief HostVM level; max of all pipes'; that is the number of analn-cache HVM level
 
 	dml_uint_t GPUVMMinPageSizeKBytes[__DML_NUM_PLANES__];
 	dml_bool_t ForceOneRowForFrame[__DML_NUM_PLANES__];
@@ -554,7 +554,7 @@ struct dml_timing_cfg_st {
 	dml_uint_t VActive[__DML_NUM_PLANES__];
 	dml_bool_t Interlace[__DML_NUM_PLANES__];
 	dml_bool_t DRRDisplay[__DML_NUM_PLANES__];
-	dml_uint_t VBlankNom[__DML_NUM_PLANES__];
+	dml_uint_t VBlankAnalm[__DML_NUM_PLANES__];
 }; // dml_timing_cfg_st;
 
 /// @brief structure that represents the output stream
@@ -592,7 +592,7 @@ struct dml_writeback_cfg_st {
 }; // dml_writeback_cfg_st;
 
 /// @brief Hardware resource specific; mainly used by mode_programming when test/sw wants to do some specific setting
-///        which are not the same as what the mode support stage derive.  When call mode_support with mode_programm; the hw-specific
+///        which are analt the same as what the mode support stage derive.  When call mode_support with mode_programm; the hw-specific
 //         resource will be set to what the mode_support layer recommends
 struct dml_hw_resource_st {
 	enum dml_odm_mode ODMMode[__DML_NUM_PLANES__]; /// <brief ODM mode that is chosen in the mode check stage and will be used in mode programming stage
@@ -628,7 +628,7 @@ struct dml_clk_cfg_st {
 }; // dml_clk_cfg_st
 
 /// @brief DML mode evaluation and programming policy
-/// Those knobs that affect mode support and mode programming
+/// Those kanalbs that affect mode support and mode programming
 struct dml_mode_eval_policy_st {
 	// -------------------
 	// Policy
@@ -647,17 +647,17 @@ struct dml_mode_eval_policy_st {
 	dml_bool_t USRRetrainingRequiredFinal;
 	dml_bool_t EnhancedPrefetchScheduleAccelerationFinal;
 
-	dml_bool_t NomDETInKByteOverrideEnable; //<brief Nomimal DET buffer size for a pipe. If this size fit the required 2 swathes; DML will use this DET size
-	dml_uint_t NomDETInKByteOverrideValue;
+	dml_bool_t AnalmDETInKByteOverrideEnable; //<brief Analmimal DET buffer size for a pipe. If this size fit the required 2 swathes; DML will use this DET size
+	dml_uint_t AnalmDETInKByteOverrideValue;
 
-	dml_bool_t DCCProgrammingAssumesScanDirectionUnknownFinal;
+	dml_bool_t DCCProgrammingAssumesScanDirectionUnkanalwnFinal;
 	dml_bool_t SynchronizeTimingsFinal;
 	dml_bool_t SynchronizeDRRDisplaysForUCLKPStateChangeFinal;
-	dml_bool_t AssumeModeSupportAtMaxPwrStateEvenDRAMClockChangeNotSupported; //<brief if set; the mode support will say mode is supported even though the DRAM clock change is not support (assuming the soc will be stay in max power state)
-	dml_bool_t AssumeModeSupportAtMaxPwrStateEvenFClockChangeNotSupported; //<brief if set; the mode support will say mode is supported even though the Fabric clock change is not support (assuming the soc will be stay in max power state
+	dml_bool_t AssumeModeSupportAtMaxPwrStateEvenDRAMClockChangeAnaltSupported; //<brief if set; the mode support will say mode is supported even though the DRAM clock change is analt support (assuming the soc will be stay in max power state)
+	dml_bool_t AssumeModeSupportAtMaxPwrStateEvenFClockChangeAnaltSupported; //<brief if set; the mode support will say mode is supported even though the Fabric clock change is analt support (assuming the soc will be stay in max power state
 };
 
-/// @brief Contains important information after the mode support steps. Also why a mode is not supported.
+/// @brief Contains important information after the mode support steps. Also why a mode is analt supported.
 struct dml_mode_support_info_st {
 	//-----------------
 	// Mode Support Information
@@ -675,41 +675,41 @@ struct dml_mode_support_info_st {
 	dml_bool_t MPCCombineMethodIncompatible;
 	dml_bool_t P2IWith420;
 	dml_bool_t DSCOnlyIfNecessaryWithBPP;
-	dml_bool_t DSC422NativeNotSupported;
-	dml_bool_t LinkRateDoesNotMatchDPVersion;
-	dml_bool_t LinkRateForMultistreamNotIndicated;
-	dml_bool_t BPPForMultistreamNotIndicated;
+	dml_bool_t DSC422NativeAnaltSupported;
+	dml_bool_t LinkRateDoesAnaltMatchDPVersion;
+	dml_bool_t LinkRateForMultistreamAnaltIndicated;
+	dml_bool_t BPPForMultistreamAnaltIndicated;
 	dml_bool_t MultistreamWithHDMIOreDP;
-	dml_bool_t MSOOrODMSplitWithNonDPLink;
-	dml_bool_t NotEnoughLanesForMSO;
+	dml_bool_t MSOOrODMSplitWithAnalnDPLink;
+	dml_bool_t AnaltEanalughLanesForMSO;
 	dml_bool_t NumberOfOTGSupport;
 	dml_bool_t NumberOfHDMIFRLSupport;
 	dml_bool_t NumberOfDP2p0Support;
-	dml_bool_t NonsupportedDSCInputBPC;
+	dml_bool_t AnalnsupportedDSCInputBPC;
 	dml_bool_t WritebackScaleRatioAndTapsSupport;
 	dml_bool_t CursorSupport;
 	dml_bool_t PitchSupport;
 	dml_bool_t ViewportExceedsSurface;
-	dml_bool_t ImmediateFlipRequiredButTheRequirementForEachSurfaceIsNotSpecified;
+	dml_bool_t ImmediateFlipRequiredButTheRequirementForEachSurfaceIsAnaltSpecified;
 	dml_bool_t ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe;
 	dml_bool_t InvalidCombinationOfMALLUseForPStateAndStaticScreen;
 	dml_bool_t InvalidCombinationOfMALLUseForPState;
 	dml_bool_t ExceededMALLSize;
-	dml_bool_t EnoughWritebackUnits;
+	dml_bool_t EanalughWritebackUnits;
 
 	dml_bool_t ExceededMultistreamSlots;
 	dml_bool_t ODMCombineTwoToOneSupportCheckOK;
 	dml_bool_t ODMCombineFourToOneSupportCheckOK;
-	dml_bool_t NotEnoughDSCUnits;
-	dml_bool_t NotEnoughDSCSlices;
+	dml_bool_t AnaltEanalughDSCUnits;
+	dml_bool_t AnaltEanalughDSCSlices;
 	dml_bool_t PixelsPerLinePerDSCUnitSupport;
 	dml_bool_t DSCCLKRequiredMoreThanSupported;
 	dml_bool_t DTBCLKRequiredMoreThanSupported;
 	dml_bool_t LinkCapacitySupport;
 
 	dml_bool_t ROBSupport[2];
-	dml_bool_t PTEBufferSizeNotExceeded[2];
-	dml_bool_t DCCMetaBufferSizeNotExceeded[2];
+	dml_bool_t PTEBufferSizeAnaltExceeded[2];
+	dml_bool_t DCCMetaBufferSizeAnaltExceeded[2];
 	dml_bool_t TotalVerticalActiveBandwidthSupport[2];
 	enum dml_dram_clock_change_support DRAMClockChangeSupport[2];
 	dml_float_t ActiveDRAMClockChangeLatencyMargin[__DML_NUM_PLANES__];
@@ -726,8 +726,8 @@ struct dml_mode_support_info_st {
 	dml_bool_t ViewportSizeSupport[2];
 	dml_bool_t ImmediateFlipSupportedForState[2];
 
-	dml_bool_t NoTimeForPrefetch[2][__DML_NUM_PLANES__];
-	dml_bool_t NoTimeForDynamicMetadata[2][__DML_NUM_PLANES__];
+	dml_bool_t AnalTimeForPrefetch[2][__DML_NUM_PLANES__];
+	dml_bool_t AnalTimeForDynamicMetadata[2][__DML_NUM_PLANES__];
 
 	dml_bool_t MPCCombineEnable[__DML_NUM_PLANES__]; /// <brief Indicate if the MPC Combine enable in the given state and optimize mpc combine setting
 	enum dml_odm_mode ODMMode[__DML_NUM_PLANES__]; /// <brief ODM mode that is chosen in the mode check stage and will be used in mode programming stage
@@ -744,10 +744,10 @@ struct dml_mode_support_info_st {
 	dml_float_t AlignedDCCMetaPitchC[__DML_NUM_PLANES__];
 	dml_float_t AlignedYPitch[__DML_NUM_PLANES__];
 	dml_float_t AlignedCPitch[__DML_NUM_PLANES__];
-	dml_float_t MaxTotalVerticalActiveAvailableBandwidth[2]; /// <brief nominal bw available for display
+	dml_float_t MaxTotalVerticalActiveAvailableBandwidth[2]; /// <brief analminal bw available for display
 }; // dml_mode_support_info_st
 
-/// @brief Treat this as the intermediate values and outputs of mode check function. User can query the content of the struct to know more about the result of mode evaluation.
+/// @brief Treat this as the intermediate values and outputs of mode check function. User can query the content of the struct to kanalw more about the result of mode evaluation.
 struct mode_support_st {
 	struct ip_params_st ip;
 	struct soc_bounding_box_st soc;
@@ -756,7 +756,7 @@ struct mode_support_st {
 
 	dml_uint_t state_idx; //<brief The power state idx for the power state under this computation
 	dml_uint_t max_state_idx; //<brief The MAX power state idx
-	struct soc_state_bounding_box_st max_state; //<brief The MAX power state; some algo needs to know the max state info to determine if
+	struct soc_state_bounding_box_st max_state; //<brief The MAX power state; some algo needs to kanalw the max state info to determine if
 	struct dml_display_cfg_st cache_display_cfg; // <brief A copy of the current display cfg in consideration
 
 	// Physical info; only using for programming
@@ -765,7 +765,7 @@ struct mode_support_st {
 	// Calculated Clocks
 	dml_float_t RequiredDISPCLK[2]; /// <brief Required DISPCLK; depends on pixel rate; odm mode etc.
 	dml_float_t RequiredDPPCLKThisState[__DML_NUM_PLANES__];
-	dml_float_t DCFCLKState[2]; /// <brief recommended DCFCLK freq; calculated by DML. If UseMinimumRequiredDCFCLK is not set; then it will be just the state DCFCLK; else it will min DCFCLK for support
+	dml_float_t DCFCLKState[2]; /// <brief recommended DCFCLK freq; calculated by DML. If UseMinimumRequiredDCFCLK is analt set; then it will be just the state DCFCLK; else it will min DCFCLK for support
 	dml_float_t RequiredDISPCLKPerSurface[2][__DML_NUM_PLANES__];
 	dml_float_t RequiredDPPCLKPerSurface[2][__DML_NUM_PLANES__];
 
@@ -783,7 +783,7 @@ struct mode_support_st {
 	// These are calculated before the ModeSupport and ModeProgram step
 	// They represent the bound for the return buffer sizing
 	dml_uint_t MaxTotalDETInKByte;
-	dml_uint_t NomDETInKByte;
+	dml_uint_t AnalmDETInKByte;
 	dml_uint_t MinCompressedBufferSizeInKByte;
 
 	// Info obtained at the end of mode support calculations
@@ -872,7 +872,7 @@ struct mode_support_st {
 	dml_float_t PSCL_FACTOR_CHROMA[__DML_NUM_PLANES__];
 	dml_float_t MaximumSwathWidthLuma[__DML_NUM_PLANES__];
 	dml_float_t MaximumSwathWidthChroma[__DML_NUM_PLANES__];
-	dml_float_t Tno_bw[__DML_NUM_PLANES__];
+	dml_float_t Tanal_bw[__DML_NUM_PLANES__];
 	dml_float_t DestinationLinesToRequestVMInImmediateFlip[__DML_NUM_PLANES__];
 	dml_float_t DestinationLinesToRequestRowInImmediateFlip[__DML_NUM_PLANES__];
 	dml_float_t WritebackDelayTime[__DML_NUM_PLANES__];
@@ -922,18 +922,18 @@ struct mode_support_st {
 	enum dml_odm_mode ODMModePerState[__DML_NUM_PLANES__];
 	enum dml_odm_mode ODMModeThisState[__DML_NUM_PLANES__];
 	dml_uint_t SurfaceSizeInMALL[__DML_NUM_PLANES__];
-	dml_uint_t NoOfDPP[2][__DML_NUM_PLANES__];
-	dml_uint_t NoOfDPPThisState[__DML_NUM_PLANES__];
+	dml_uint_t AnalOfDPP[2][__DML_NUM_PLANES__];
+	dml_uint_t AnalOfDPPThisState[__DML_NUM_PLANES__];
 	dml_bool_t MPCCombine[2][__DML_NUM_PLANES__];
 	dml_bool_t MPCCombineThisState[__DML_NUM_PLANES__];
 	dml_float_t ProjectedDCFCLKDeepSleep[2];
 	dml_float_t MinDPPCLKUsingSingleDPP[__DML_NUM_PLANES__];
 	dml_bool_t SingleDPPViewportSizeSupportPerSurface[__DML_NUM_PLANES__];
 	dml_bool_t ImmediateFlipSupportedForPipe[__DML_NUM_PLANES__];
-	dml_bool_t NotUrgentLatencyHiding[__DML_NUM_PLANES__];
-	dml_bool_t NotUrgentLatencyHidingPre[__DML_NUM_PLANES__];
-	dml_bool_t PTEBufferSizeNotExceededPerState[__DML_NUM_PLANES__];
-	dml_bool_t DCCMetaBufferSizeNotExceededPerState[__DML_NUM_PLANES__];
+	dml_bool_t AnaltUrgentLatencyHiding[__DML_NUM_PLANES__];
+	dml_bool_t AnaltUrgentLatencyHidingPre[__DML_NUM_PLANES__];
+	dml_bool_t PTEBufferSizeAnaltExceededPerState[__DML_NUM_PLANES__];
+	dml_bool_t DCCMetaBufferSizeAnaltExceededPerState[__DML_NUM_PLANES__];
 	dml_uint_t PrefetchMode[__DML_NUM_PLANES__];
 	dml_uint_t TotalNumberOfActiveDPP[2];
 	dml_uint_t TotalNumberOfSingleDPPSurfaces[2];
@@ -994,7 +994,7 @@ struct mode_program_st {
 	dml_uint_t SurfaceSizeInTheMALL[__DML_NUM_PLANES__];
 	dml_float_t VRatioPrefetchY[__DML_NUM_PLANES__];
 	dml_float_t VRatioPrefetchC[__DML_NUM_PLANES__];
-	dml_float_t Tno_bw[__DML_NUM_PLANES__];
+	dml_float_t Tanal_bw[__DML_NUM_PLANES__];
 	dml_float_t final_flip_bw[__DML_NUM_PLANES__];
 	dml_float_t prefetch_vmrow_bw[__DML_NUM_PLANES__];
 	dml_float_t cursor_bw[__DML_NUM_PLANES__];
@@ -1047,23 +1047,23 @@ struct mode_program_st {
 	dml_uint_t compbuf_reserved_space_zs;
 	dml_uint_t CompressedBufferSizeInkByte;
 
-	dml_bool_t NoUrgentLatencyHiding[__DML_NUM_PLANES__];
-	dml_bool_t NoUrgentLatencyHidingPre[__DML_NUM_PLANES__];
+	dml_bool_t AnalUrgentLatencyHiding[__DML_NUM_PLANES__];
+	dml_bool_t AnalUrgentLatencyHidingPre[__DML_NUM_PLANES__];
 	dml_float_t UrgentExtraLatency;
 	dml_bool_t PrefetchAndImmediateFlipSupported;
 	dml_float_t TotalDataReadBandwidth;
 	dml_float_t BandwidthAvailableForImmediateFlip;
-	dml_bool_t NotEnoughTimeForDynamicMetadata[__DML_NUM_PLANES__];
+	dml_bool_t AnaltEanalughTimeForDynamicMetadata[__DML_NUM_PLANES__];
 
 	dml_float_t ReadBandwidthLuma[__DML_NUM_PLANES__];
 	dml_float_t ReadBandwidthChroma[__DML_NUM_PLANES__];
 
 	dml_float_t total_dcn_read_bw_with_flip;
-	dml_float_t total_dcn_read_bw_with_flip_no_urgent_burst;
-	dml_float_t TotalDataReadBandwidthNotIncludingMALLPrefetch;
-	dml_float_t total_dcn_read_bw_with_flip_not_including_MALL_prefetch;
-	dml_float_t non_urgent_total_dcn_read_bw_with_flip;
-	dml_float_t non_urgent_total_dcn_read_bw_with_flip_not_including_MALL_prefetch;
+	dml_float_t total_dcn_read_bw_with_flip_anal_urgent_burst;
+	dml_float_t TotalDataReadBandwidthAnaltIncludingMALLPrefetch;
+	dml_float_t total_dcn_read_bw_with_flip_analt_including_MALL_prefetch;
+	dml_float_t analn_urgent_total_dcn_read_bw_with_flip;
+	dml_float_t analn_urgent_total_dcn_read_bw_with_flip_analt_including_MALL_prefetch;
 
 	dml_bool_t use_one_row_for_frame[__DML_NUM_PLANES__];
 	dml_bool_t use_one_row_for_frame_flip[__DML_NUM_PLANES__];
@@ -1077,7 +1077,7 @@ struct mode_program_st {
 	dml_uint_t pipe_plane[__DML_NUM_PLANES__]; // <brief used mainly by dv to map the pipe inst to plane index within DML core; the plane idx of a pipe
 	dml_uint_t num_active_pipes;
 
-	dml_bool_t NoTimeToPrefetch[__DML_NUM_PLANES__]; /// <brief Prefetch schedule calculation result
+	dml_bool_t AnalTimeToPrefetch[__DML_NUM_PLANES__]; /// <brief Prefetch schedule calculation result
 
 	// Support
 	dml_uint_t PrefetchMode[__DML_NUM_PLANES__]; /// <brief prefetch mode used for prefetch support check in mode programming step
@@ -1093,13 +1093,13 @@ struct mode_program_st {
 	dml_float_t GlobalDPPCLK;
 
 	//@ brief These "calculated" dispclk and dppclk clocks are calculated in the mode programming step.
-	// Depends on the dml_clk_cfg_st option; these calculated values may not used in subsequent calculation.
+	// Depends on the dml_clk_cfg_st option; these calculated values may analt used in subsequent calculation.
 	// Possible DV usage: Calculated values fetched by test once after mode_programming step and then possibly
 	// use the values as min and adjust the actual freq used for the 2nd pass
 	dml_float_t Dispclk_calculated;
 	dml_float_t Dppclk_calculated[__DML_NUM_PLANES__];
 
-	dml_float_t DSCCLK_calculated[__DML_NUM_PLANES__]; //< brief Required DSCCLK freq. Backend; not used in any subsequent calculations for now
+	dml_float_t DSCCLK_calculated[__DML_NUM_PLANES__]; //< brief Required DSCCLK freq. Backend; analt used in any subsequent calculations for analw
 	dml_float_t DCFCLKDeepSleep;
 
 	// ARB reg
@@ -1116,15 +1116,15 @@ struct mode_program_st {
 
 	// Stutter Efficiency
 	dml_float_t StutterEfficiency;
-	dml_float_t StutterEfficiencyNotIncludingVBlank;
+	dml_float_t StutterEfficiencyAnaltIncludingVBlank;
 	dml_uint_t NumberOfStutterBurstsPerFrame;
 	dml_float_t Z8StutterEfficiency;
 	dml_uint_t Z8NumberOfStutterBurstsPerFrame;
-	dml_float_t Z8StutterEfficiencyNotIncludingVBlank;
+	dml_float_t Z8StutterEfficiencyAnaltIncludingVBlank;
 	dml_float_t StutterPeriod;
 	dml_float_t Z8StutterEfficiencyBestCase;
 	dml_uint_t Z8NumberOfStutterBurstsPerFrameBestCase;
-	dml_float_t Z8StutterEfficiencyNotIncludingVBlankBestCase;
+	dml_float_t Z8StutterEfficiencyAnaltIncludingVBlankBestCase;
 	dml_float_t StutterPeriodBestCase;
 
 	// DLG TTU reg
@@ -1149,18 +1149,18 @@ struct mode_program_st {
 	dml_float_t CursorRequestDeliveryTime[__DML_NUM_PLANES__];
 	dml_float_t CursorRequestDeliveryTimePrefetch[__DML_NUM_PLANES__];
 
-	dml_float_t DST_Y_PER_PTE_ROW_NOM_L[__DML_NUM_PLANES__];
-	dml_float_t DST_Y_PER_PTE_ROW_NOM_C[__DML_NUM_PLANES__];
-	dml_float_t DST_Y_PER_META_ROW_NOM_L[__DML_NUM_PLANES__];
-	dml_float_t DST_Y_PER_META_ROW_NOM_C[__DML_NUM_PLANES__];
-	dml_float_t TimePerMetaChunkNominal[__DML_NUM_PLANES__];
-	dml_float_t TimePerChromaMetaChunkNominal[__DML_NUM_PLANES__];
+	dml_float_t DST_Y_PER_PTE_ROW_ANALM_L[__DML_NUM_PLANES__];
+	dml_float_t DST_Y_PER_PTE_ROW_ANALM_C[__DML_NUM_PLANES__];
+	dml_float_t DST_Y_PER_META_ROW_ANALM_L[__DML_NUM_PLANES__];
+	dml_float_t DST_Y_PER_META_ROW_ANALM_C[__DML_NUM_PLANES__];
+	dml_float_t TimePerMetaChunkAnalminal[__DML_NUM_PLANES__];
+	dml_float_t TimePerChromaMetaChunkAnalminal[__DML_NUM_PLANES__];
 	dml_float_t TimePerMetaChunkVBlank[__DML_NUM_PLANES__];
 	dml_float_t TimePerChromaMetaChunkVBlank[__DML_NUM_PLANES__];
 	dml_float_t TimePerMetaChunkFlip[__DML_NUM_PLANES__];
 	dml_float_t TimePerChromaMetaChunkFlip[__DML_NUM_PLANES__];
-	dml_float_t time_per_pte_group_nom_luma[__DML_NUM_PLANES__];
-	dml_float_t time_per_pte_group_nom_chroma[__DML_NUM_PLANES__];
+	dml_float_t time_per_pte_group_analm_luma[__DML_NUM_PLANES__];
+	dml_float_t time_per_pte_group_analm_chroma[__DML_NUM_PLANES__];
 	dml_float_t time_per_pte_group_vblank_luma[__DML_NUM_PLANES__];
 	dml_float_t time_per_pte_group_vblank_chroma[__DML_NUM_PLANES__];
 	dml_float_t time_per_pte_group_flip_luma[__DML_NUM_PLANES__];
@@ -1181,8 +1181,8 @@ struct mode_program_st {
 	dml_bool_t UsesMALLForStaticScreen[__DML_NUM_PLANES__];
 
 	// OTG
-	dml_uint_t VStartupMin[__DML_NUM_PLANES__]; /// <brief Minimum vstartup to meet the prefetch schedule (i.e. the prefetch solution can be found at this vstartup time); not the actual global sync vstartup pos.
-	dml_uint_t VStartup[__DML_NUM_PLANES__]; /// <brief The vstartup value for OTG programming (will set to max vstartup; but now bounded by min(vblank_nom. actual vblank))
+	dml_uint_t VStartupMin[__DML_NUM_PLANES__]; /// <brief Minimum vstartup to meet the prefetch schedule (i.e. the prefetch solution can be found at this vstartup time); analt the actual global sync vstartup pos.
+	dml_uint_t VStartup[__DML_NUM_PLANES__]; /// <brief The vstartup value for OTG programming (will set to max vstartup; but analw bounded by min(vblank_analm. actual vblank))
 	dml_uint_t VUpdateOffsetPix[__DML_NUM_PLANES__];
 	dml_uint_t VUpdateWidthPix[__DML_NUM_PLANES__];
 	dml_uint_t VReadyOffsetPix[__DML_NUM_PLANES__];
@@ -1228,11 +1228,11 @@ struct UseMinimumDCFCLK_params_st {
 	dml_bool_t HostVMEnable;
 	dml_uint_t NumberOfActiveSurfaces;
 	dml_uint_t HostVMMinPageSize;
-	dml_uint_t HostVMMaxNonCachedPageTableLevels;
+	dml_uint_t HostVMMaxAnalnCachedPageTableLevels;
 	dml_bool_t DynamicMetadataVMEnabled;
 	dml_bool_t ImmediateFlipRequirement;
 	dml_bool_t ProgressiveToInterlaceUnitInOPP;
-	dml_float_t MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation;
+	dml_float_t MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInAnalrmalSystemOperation;
 	dml_float_t PercentOfIdealSDPPortBWReceivedAfterUrgLatency;
 	dml_uint_t *VTotal;
 	dml_uint_t *VActive;
@@ -1242,7 +1242,7 @@ struct UseMinimumDCFCLK_params_st {
 	dml_float_t (*RequiredDPPCLKPerSurface)[__DML_NUM_PLANES__];
 	dml_float_t *RequiredDISPCLK;
 	dml_float_t UrgLatency;
-	dml_uint_t (*NoOfDPP)[__DML_NUM_PLANES__];
+	dml_uint_t (*AnalOfDPP)[__DML_NUM_PLANES__];
 	dml_float_t *ProjectedDCFCLKDeepSleep;
 	dml_uint_t (*MaximumVStartup)[__DML_NUM_PLANES__];
 	dml_uint_t *TotalNumberOfActiveDPP;
@@ -1342,7 +1342,7 @@ struct CalculateVMRowAndSwath_params_st {
 	dml_uint_t *SwathWidthC;
 	dml_bool_t GPUVMEnable;
 	dml_bool_t HostVMEnable;
-	dml_uint_t HostVMMaxNonCachedPageTableLevels;
+	dml_uint_t HostVMMaxAnalnCachedPageTableLevels;
 	dml_uint_t GPUVMMaxPageTableLevels;
 	dml_uint_t *GPUVMMinPageSizeKBytes;
 	dml_uint_t HostVMMinPageSize;
@@ -1350,8 +1350,8 @@ struct CalculateVMRowAndSwath_params_st {
 	dml_bool_t *PTEBufferModeOverrideVal;
 
 	// Output
-	dml_bool_t *PTEBufferSizeNotExceeded;
-	dml_bool_t *DCCMetaBufferSizeNotExceeded;
+	dml_bool_t *PTEBufferSizeAnaltExceeded;
+	dml_bool_t *DCCMetaBufferSizeAnaltExceeded;
 	dml_uint_t *dpte_row_width_luma_ub;
 	dml_uint_t *dpte_row_width_chroma_ub;
 	dml_uint_t *dpte_row_height_luma;
@@ -1406,7 +1406,7 @@ struct CalculateSwathAndDETConfiguration_params_st {
 	dml_uint_t PixelChunkSizeInKByte;
 	dml_bool_t ForceSingleDPP;
 	dml_uint_t NumberOfActiveSurfaces;
-	dml_uint_t nomDETInKByte;
+	dml_uint_t analmDETInKByte;
 	enum dml_unbounded_requesting_policy UseUnboundedRequestingFinal;
 	dml_uint_t ConfigReturnBufferSegmentSizeInkByte;
 	dml_uint_t CompressedBufferSegmentSizeInkByteFinal;
@@ -1512,10 +1512,10 @@ struct CalculateStutterEfficiency_params_st {
 	dml_float_t *ReadBandwidthSurfaceChroma;
 	dml_float_t *meta_row_bw;
 	dml_float_t *dpte_row_bw;
-	dml_float_t *StutterEfficiencyNotIncludingVBlank;
+	dml_float_t *StutterEfficiencyAnaltIncludingVBlank;
 	dml_float_t *StutterEfficiency;
 	dml_uint_t *NumberOfStutterBurstsPerFrame;
-	dml_float_t *Z8StutterEfficiencyNotIncludingVBlank;
+	dml_float_t *Z8StutterEfficiencyAnaltIncludingVBlank;
 	dml_float_t *Z8StutterEfficiency;
 	dml_uint_t *Z8NumberOfStutterBurstsPerFrame;
 	dml_float_t *StutterPeriod;
@@ -1540,7 +1540,7 @@ struct CalculatePrefetchSchedule_params_st {
 	dml_uint_t GPUVMPageTableLevels;
 	dml_bool_t GPUVMEnable;
 	dml_bool_t HostVMEnable;
-	dml_uint_t HostVMMaxNonCachedPageTableLevels;
+	dml_uint_t HostVMMaxAnalnCachedPageTableLevels;
 	dml_uint_t HostVMMinPageSize;
 	dml_bool_t DynamicMetadataEnable;
 	dml_bool_t DynamicMetadataVMEnabled;
@@ -1572,8 +1572,8 @@ struct CalculatePrefetchSchedule_params_st {
 	dml_float_t *VRatioPrefetchC;
 	dml_float_t *RequiredPrefetchPixDataBWLuma;
 	dml_float_t *RequiredPrefetchPixDataBWChroma;
-	dml_bool_t *NotEnoughTimeForDynamicMetadata;
-	dml_float_t *Tno_bw;
+	dml_bool_t *AnaltEanalughTimeForDynamicMetadata;
+	dml_float_t *Tanal_bw;
 	dml_float_t *prefetch_vmrow_bw;
 	dml_float_t *Tdmdl_vm;
 	dml_float_t *Tdmdl;
@@ -1607,17 +1607,17 @@ struct dml_core_mode_support_locals_st {
 	dml_uint_t MaximumSwathWidthSupportChroma;
 	dml_bool_t MPCCombineMethodAsNeededForPStateChangeAndVoltage;
 	dml_bool_t MPCCombineMethodAsPossible;
-	dml_bool_t TotalAvailablePipesSupportNoDSC;
-	dml_uint_t NumberOfDPPNoDSC;
-	enum dml_odm_mode ODMModeNoDSC;
-	dml_float_t RequiredDISPCLKPerSurfaceNoDSC;
+	dml_bool_t TotalAvailablePipesSupportAnalDSC;
+	dml_uint_t NumberOfDPPAnalDSC;
+	enum dml_odm_mode ODMModeAnalDSC;
+	dml_float_t RequiredDISPCLKPerSurfaceAnalDSC;
 	dml_bool_t TotalAvailablePipesSupportDSC;
 	dml_uint_t NumberOfDPPDSC;
 	enum dml_odm_mode ODMModeDSC;
 	dml_float_t RequiredDISPCLKPerSurfaceDSC;
-	dml_bool_t NoChromaOrLinear;
-	dml_float_t BWOfNonCombinedSurfaceOfMaximumBandwidth;
-	dml_uint_t NumberOfNonCombinedSurfaceOfMaximumBandwidth;
+	dml_bool_t AnalChromaOrLinear;
+	dml_float_t BWOfAnalnCombinedSurfaceOfMaximumBandwidth;
+	dml_uint_t NumberOfAnalnCombinedSurfaceOfMaximumBandwidth;
 	dml_uint_t TotalNumberOfActiveOTG;
 	dml_uint_t TotalNumberOfActiveHDMIFRL;
 	dml_uint_t TotalNumberOfActiveDP2p0;
@@ -1664,17 +1664,17 @@ struct dml_core_mode_programming_locals_st {
 	dml_bool_t ImmediateFlipRequirementFinal;
 	int iteration;
 	dml_float_t MaxTotalRDBandwidth;
-	dml_float_t MaxTotalRDBandwidthNoUrgentBurst;
+	dml_float_t MaxTotalRDBandwidthAnalUrgentBurst;
 	dml_bool_t DestinationLineTimesForPrefetchLessThan2;
 	dml_bool_t VRatioPrefetchMoreThanMax;
-	dml_float_t MaxTotalRDBandwidthNotIncludingMALLPrefetch;
+	dml_float_t MaxTotalRDBandwidthAnaltIncludingMALLPrefetch;
 	dml_uint_t NextPrefetchMode[__DML_NUM_PLANES__];
 	dml_uint_t MinPrefetchMode[__DML_NUM_PLANES__];
 	dml_uint_t MaxPrefetchMode[__DML_NUM_PLANES__];
 	dml_bool_t AllPrefetchModeTested;
 	dml_float_t dummy_unit_vector[__DML_NUM_PLANES__];
-	dml_float_t NonUrgentMaxTotalRDBandwidth;
-	dml_float_t NonUrgentMaxTotalRDBandwidthNotIncludingMALLPrefetch;
+	dml_float_t AnalnUrgentMaxTotalRDBandwidth;
+	dml_float_t AnalnUrgentMaxTotalRDBandwidthAnaltIncludingMALLPrefetch;
 	dml_float_t dummy_single[2];
 	struct SOCParametersList mmSOCParameters;
 	dml_float_t Tvstartup_margin;
@@ -1754,7 +1754,7 @@ struct UseMinimumDCFCLK_locals_st {
 	dml_uint_t dummy1;
 	dml_uint_t dummy2;
 	dml_uint_t dummy3;
-	dml_float_t NormalEfficiency;
+	dml_float_t AnalrmalEfficiency;
 	dml_float_t TotalMaxPrefetchFlipDPTERowBandwidth[2];
 
 	dml_float_t PixelDCFCLKCyclesRequiredInPrefetch[__DML_NUM_PLANES__];
@@ -1767,7 +1767,7 @@ struct UseMinimumDCFCLK_locals_st {
 	dml_uint_t ExtraLatencyBytes;
 	dml_float_t ExtraLatencyCycles;
 	dml_float_t DCFCLKRequiredForPeakBandwidth;
-	dml_uint_t NoOfDPPState[__DML_NUM_PLANES__];
+	dml_uint_t AnalOfDPPState[__DML_NUM_PLANES__];
 	dml_float_t MinimumTvmPlus2Tr0;
 };
 
@@ -1890,14 +1890,14 @@ struct  _vcs_dpi_dml_display_dlg_regs_st {
 	dml_uint_t  refcyc_per_pte_group_flip_c;
 	dml_uint_t  refcyc_per_meta_chunk_flip_l;
 	dml_uint_t  refcyc_per_meta_chunk_flip_c;
-	dml_uint_t  dst_y_per_pte_row_nom_l;
-	dml_uint_t  dst_y_per_pte_row_nom_c;
-	dml_uint_t  refcyc_per_pte_group_nom_l;
-	dml_uint_t  refcyc_per_pte_group_nom_c;
-	dml_uint_t  dst_y_per_meta_row_nom_l;
-	dml_uint_t  dst_y_per_meta_row_nom_c;
-	dml_uint_t  refcyc_per_meta_chunk_nom_l;
-	dml_uint_t  refcyc_per_meta_chunk_nom_c;
+	dml_uint_t  dst_y_per_pte_row_analm_l;
+	dml_uint_t  dst_y_per_pte_row_analm_c;
+	dml_uint_t  refcyc_per_pte_group_analm_l;
+	dml_uint_t  refcyc_per_pte_group_analm_c;
+	dml_uint_t  dst_y_per_meta_row_analm_l;
+	dml_uint_t  dst_y_per_meta_row_analm_c;
+	dml_uint_t  refcyc_per_meta_chunk_analm_l;
+	dml_uint_t  refcyc_per_meta_chunk_analm_c;
 	dml_uint_t  refcyc_per_line_delivery_pre_l;
 	dml_uint_t  refcyc_per_line_delivery_pre_c;
 	dml_uint_t  refcyc_per_line_delivery_l;

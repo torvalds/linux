@@ -97,7 +97,7 @@ match_indev_egress_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $rp3 egress" 101 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	$MZ $h2 -c 1 -p 64 -a $h2mac -b $rp2mac -A 192.0.2.1 -B 192.0.3.1 \
 		-t ip -q
@@ -106,7 +106,7 @@ match_indev_egress_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $rp3 egress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did analt match on correct filter"
 
 	tc filter del dev $rp3 egress protocol ip pref 2 handle 102 flower
 	tc filter del dev $rp3 egress protocol ip pref 1 handle 101 flower
@@ -163,7 +163,7 @@ setup_wait
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

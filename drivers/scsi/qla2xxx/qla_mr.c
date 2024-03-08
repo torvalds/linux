@@ -88,7 +88,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
-	 * non ISP abort time.
+	 * analn ISP abort time.
 	 */
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
@@ -140,7 +140,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	    "jiffies=%lx.\n", jiffies);
 
 	/* Wait for mbx cmd completion until timeout */
-	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
+	if ((!abort_active && io_lock_on) || IS_ANALPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 		QLAFX00_SET_HST_INTR(ha, ha->mbx_intr_code);
@@ -209,11 +209,11 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	/* Clean up */
 	ha->mcp32 = NULL;
 
-	if ((abort_active || !io_lock_on) && !IS_NOPOLLING_TYPE(ha)) {
+	if ((abort_active || !io_lock_on) && !IS_ANALPOLLING_TYPE(ha)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x113a,
 		    "checking for additional resp interrupt.\n");
 
-		/* polling mode for non isp_abort commands. */
+		/* polling mode for analn isp_abort commands. */
 		qla2x00_poll(ha->rsp_q_map[0]);
 	}
 
@@ -221,7 +221,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	    mcp->mb[0] != MBC_GEN_SYSTEM_ERROR) {
 		if (!io_lock_on || (mcp->flags & IOCTL_CMD) ||
 		    ha->flags.eeh_busy) {
-			/* not in dpc. schedule it for dpc to take over. */
+			/* analt in dpc. schedule it for dpc to take over. */
 			ql_dbg(ql_dbg_mbx, vha, 0x115d,
 			    "Timeout, schedule isp_abort_needed.\n");
 
@@ -767,13 +767,13 @@ qlafx00_iospace_config(struct qla_hw_data *ha)
 	    ioremap(pci_resource_start(ha->pdev, 0), BAR0_LEN_FX00);
 	if (!ha->cregbase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0128,
-		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
+		    "cananalt remap MMIO (%s), aborting\n", pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
 	if (!(pci_resource_flags(ha->pdev, 2) & IORESOURCE_MEM)) {
 		ql_log_pci(ql_log_warn, ha->pdev, 0x0129,
-		    "region #2 not an MMIO resource (%s), aborting\n",
+		    "region #2 analt an MMIO resource (%s), aborting\n",
 		    pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
@@ -788,7 +788,7 @@ qlafx00_iospace_config(struct qla_hw_data *ha)
 	    ioremap(pci_resource_start(ha->pdev, 2), BAR2_LEN_FX00);
 	if (!ha->iobase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x012b,
-		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
+		    "cananalt remap MMIO (%s), aborting\n", pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
@@ -802,7 +802,7 @@ qlafx00_iospace_config(struct qla_hw_data *ha)
 	return 0;
 
 iospace_error_exit:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void
@@ -907,7 +907,7 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 		    "aenmbx: 0x%x\n", aenmbx);
 
 		switch (aenmbx) {
-		case MBA_FW_NOT_STARTED:
+		case MBA_FW_ANALT_STARTED:
 		case MBA_FW_STARTING:
 			break;
 
@@ -942,10 +942,10 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 			if ((aenmbx & 0xFF00) == MBA_FW_INIT_INPROGRESS)
 				break;
 
-			/* If fw is apparently not ready. In order to continue,
+			/* If fw is apparently analt ready. In order to continue,
 			 * we might need to issue Mbox cmd, but the problem is
 			 * that the DoorBell vector values that come with the
-			 * 8060 AEN are most likely gone by now (and thus no
+			 * 8060 AEN are most likely gone by analw (and thus anal
 			 * bell would be rung on the fw side when mbox cmd is
 			 * issued). We have to therefore grab the 8060 AEN
 			 * shadow regs (filled in by FW when the last 8060
@@ -974,7 +974,7 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 			/* Get the FW state */
 			rval = qlafx00_get_firmware_state(vha, state);
 			if (rval != QLA_SUCCESS) {
-				/* Retry if timer has not expired */
+				/* Retry if timer has analt expired */
 				break;
 			}
 
@@ -1123,12 +1123,12 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 		return QLA_MEMORY_ALLOC_FAILED;
 
 	for_each_set_bit(tgt_id, (void *)ha->gid_list,
-	    QLAFX00_TGT_NODE_LIST_SIZE) {
+	    QLAFX00_TGT_ANALDE_LIST_SIZE) {
 
-		/* Send get target node info */
+		/* Send get target analde info */
 		new_fcport->tgt_id = tgt_id;
 		rval = qlafx00_fx_disc(vha, new_fcport,
-		    FXDISC_GET_TGT_NODE_INFO);
+		    FXDISC_GET_TGT_ANALDE_INFO);
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x208a,
 			    "Target info scan failed -- assuming zero-entry "
@@ -1146,7 +1146,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 			found++;
 
 			/*
-			 * If tgt_id is same and state FCS_ONLINE, nothing
+			 * If tgt_id is same and state FCS_ONLINE, analthing
 			 * changed.
 			 */
 			if (fcport->tgt_id == new_fcport->tgt_id &&
@@ -1162,15 +1162,15 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 			    "wwnn = %llx wwpn = %llx.\n",
 			    __func__, fcport->tgt_id,
 			    atomic_read(&fcport->state),
-			    (unsigned long long)wwn_to_u64(fcport->node_name),
+			    (unsigned long long)wwn_to_u64(fcport->analde_name),
 			    (unsigned long long)wwn_to_u64(fcport->port_name));
 
 			ql_log(ql_log_info, vha, 0x208c,
-			    "TGT-ID Announce(%s): Discovered tgt "
+			    "TGT-ID Ananalunce(%s): Discovered tgt "
 			    "id 0x%x wwnn = %llx "
 			    "wwpn = %llx.\n", __func__, new_fcport->tgt_id,
 			    (unsigned long long)
-			    wwn_to_u64(new_fcport->node_name),
+			    wwn_to_u64(new_fcport->analde_name),
 			    (unsigned long long)
 			    wwn_to_u64(new_fcport->port_name));
 
@@ -1182,7 +1182,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 				qla2x00_update_fcport(vha, fcport);
 			} else {
 				ql_log(ql_log_info, vha, 0x208e,
-				    " Existing TGT-ID %x did not get "
+				    " Existing TGT-ID %x did analt get "
 				    " offline event from firmware.\n",
 				    fcport->old_tgt_id);
 				qla2x00_mark_device_lost(vha, fcport, 0);
@@ -1196,7 +1196,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 		if (found)
 			continue;
 
-		/* If device was not in our fcports list, then add it. */
+		/* If device was analt in our fcports list, then add it. */
 		list_add_tail(&new_fcport->list, new_fcports);
 
 		/* Allocate a new replacement fcport. */
@@ -1211,7 +1211,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 
 /*
  * qlafx00_configure_all_targets
- *      Setup target devices with node ID's.
+ *      Setup target devices with analde ID's.
  *
  * Input:
  *      ha = adapter block pointer.
@@ -1228,7 +1228,7 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
 	LIST_HEAD(new_fcports);
 
 	rval = qlafx00_fx_disc(vha, &vha->hw->mr.fcport,
-	    FXDISC_GET_TGT_NODE_LIST);
+	    FXDISC_GET_TGT_ANALDE_LIST);
 	if (rval != QLA_SUCCESS) {
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		return rval;
@@ -1266,11 +1266,11 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
 		    "Attach new target id 0x%x wwnn = %llx "
 		    "wwpn = %llx.\n",
 		    fcport->tgt_id,
-		    (unsigned long long)wwn_to_u64(fcport->node_name),
+		    (unsigned long long)wwn_to_u64(fcport->analde_name),
 		    (unsigned long long)wwn_to_u64(fcport->port_name));
 	}
 
-	/* Free all new device structures not processed. */
+	/* Free all new device structures analt processed. */
 	list_for_each_entry_safe(fcport, rmptemp, &new_fcports, list) {
 		list_del(&fcport->list);
 		qla2x00_free_fcport(fcport);
@@ -1289,7 +1289,7 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
  * Returns:
  *      0 = success.
  *      1 = error.
- *      2 = database was full and device was not configured.
+ *      2 = database was full and device was analt configured.
  */
 int
 qlafx00_configure_devices(scsi_qla_host_t *vha)
@@ -1321,7 +1321,7 @@ qlafx00_configure_devices(scsi_qla_host_t *vha)
 		    "%s *** FAILED ***.\n", __func__);
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2093,
-		    "%s: exiting normally.\n", __func__);
+		    "%s: exiting analrmally.\n", __func__);
 	}
 	return rval;
 }
@@ -1363,7 +1363,7 @@ qlafx00_abort_isp_cleanup(scsi_qla_host_t *vha, bool critemp)
 
 	if (!ha->flags.eeh_busy) {
 		if (critemp) {
-			qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);
+			qla2x00_abort_all_cmds(vha, DID_ANAL_CONNECT << 16);
 		} else {
 			/* Requeue all commands in outstanding command list. */
 			qla2x00_abort_all_cmds(vha, DID_RESET << 16);
@@ -1441,8 +1441,8 @@ qlafx00_rescan_isp(scsi_qla_host_t *vha)
 	if (!status) {
 		vha->flags.online = 1;
 
-		/* if no cable then assume it's good */
-		if ((vha->device_flags & DFLG_NO_CABLE))
+		/* if anal cable then assume it's good */
+		if ((vha->device_flags & DFLG_ANAL_CABLE))
 			status = 0;
 		/* Register system information */
 		if (qlafx00_fx_disc(vha,
@@ -1713,7 +1713,7 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 					vha->flags.fw_tgt_reported = 1;
 				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			} else if (evt->u.aenfx.mbx[2] == 2) {
-				vha->device_flags |= DFLG_NO_CABLE;
+				vha->device_flags |= DFLG_ANAL_CABLE;
 				qla2x00_mark_all_devices_lost(vha);
 			}
 		}
@@ -1744,12 +1744,12 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 static void
 qlafx00_update_host_attr(scsi_qla_host_t *vha, struct port_info_data *pinfo)
 {
-	u64 port_name = 0, node_name = 0;
+	u64 port_name = 0, analde_name = 0;
 
 	port_name = (unsigned long long)wwn_to_u64(pinfo->port_name);
-	node_name = (unsigned long long)wwn_to_u64(pinfo->node_name);
+	analde_name = (unsigned long long)wwn_to_u64(pinfo->analde_name);
 
-	fc_host_node_name(vha->host) = node_name;
+	fc_host_analde_name(vha->host) = analde_name;
 	fc_host_port_name(vha->host) = port_name;
 	if (!pinfo->port_type)
 		vha->hw->current_topology = ISP_CFG_F;
@@ -1811,16 +1811,16 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		fdisc->u.fxiocb.rsp_len = QLAFX00_PORT_DATA_INFO;
 		fdisc->u.fxiocb.req_data = cpu_to_le32(fcport->port_id);
 		break;
-	case FXDISC_GET_TGT_NODE_INFO:
+	case FXDISC_GET_TGT_ANALDE_INFO:
 		fdisc->u.fxiocb.flags =
 		    SRB_FXDISC_RESP_DMA_VALID | SRB_FXDISC_REQ_DWRD_VALID;
-		fdisc->u.fxiocb.rsp_len = QLAFX00_TGT_NODE_INFO;
+		fdisc->u.fxiocb.rsp_len = QLAFX00_TGT_ANALDE_INFO;
 		fdisc->u.fxiocb.req_data = cpu_to_le32(fcport->tgt_id);
 		break;
-	case FXDISC_GET_TGT_NODE_LIST:
+	case FXDISC_GET_TGT_ANALDE_LIST:
 		fdisc->u.fxiocb.flags =
 		    SRB_FXDISC_RESP_DMA_VALID | SRB_FXDISC_REQ_DWRD_VALID;
-		fdisc->u.fxiocb.rsp_len = QLAFX00_TGT_NODE_LIST_SIZE;
+		fdisc->u.fxiocb.rsp_len = QLAFX00_TGT_ANALDE_LIST_SIZE;
 		break;
 	case FXDISC_REG_HOST_INFO:
 		fdisc->u.fxiocb.flags = SRB_FXDISC_REQ_DMA_VALID;
@@ -1828,7 +1828,7 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		p_sysid = utsname();
 		if (!p_sysid) {
 			ql_log(ql_log_warn, vha, 0x303c,
-			    "Not able to get the system information\n");
+			    "Analt able to get the system information\n");
 			goto done_free_sp;
 		}
 		break;
@@ -1852,9 +1852,9 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			phost_info->os_type = OS_TYPE_LINUX;
 			strscpy(phost_info->sysname, p_sysid->sysname,
 				sizeof(phost_info->sysname));
-			strscpy(phost_info->nodename, p_sysid->nodename,
-				sizeof(phost_info->nodename));
-			if (!strcmp(phost_info->nodename, "(none)"))
+			strscpy(phost_info->analdename, p_sysid->analdename,
+				sizeof(phost_info->analdename));
+			if (!strcmp(phost_info->analdename, "(analne)"))
 				ha->mr.host_info_resend = true;
 			strscpy(phost_info->release, p_sysid->release,
 				sizeof(phost_info->release));
@@ -1871,10 +1871,10 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			    "ISP%04X: Host registration with firmware\n",
 			    ha->pdev->device);
 			ql_dbg(ql_dbg_init, vha, 0x014a,
-			    "os_type = '%d', sysname = '%s', nodname = '%s'\n",
+			    "os_type = '%d', sysname = '%s', analdname = '%s'\n",
 			    phost_info->os_type,
 			    phost_info->sysname,
-			    phost_info->nodename);
+			    phost_info->analdename);
 			ql_dbg(ql_dbg_init, vha, 0x014b,
 			    "release = '%s', version = '%s'\n",
 			    phost_info->release,
@@ -1927,14 +1927,14 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		memcpy(&vha->hw->mr.fru_serial_num, pinfo->fru_serial_num,
 		    sizeof(vha->hw->mr.fru_serial_num));
 		vha->hw->mr.critical_temperature =
-		    (pinfo->nominal_temp_value) ?
-		    pinfo->nominal_temp_value : QLAFX00_CRITEMP_THRSHLD;
+		    (pinfo->analminal_temp_value) ?
+		    pinfo->analminal_temp_value : QLAFX00_CRITEMP_THRSHLD;
 		ha->mr.extended_io_enabled = (pinfo->enabled_capabilities &
 		    QLAFX00_EXTENDED_IO_EN_MASK) != 0;
 	} else if (fx_type == FXDISC_GET_PORT_INFO) {
 		struct port_info_data *pinfo =
 		    (struct port_info_data *) fdisc->u.fxiocb.rsp_addr;
-		memcpy(vha->node_name, pinfo->node_name, WWN_SIZE);
+		memcpy(vha->analde_name, pinfo->analde_name, WWN_SIZE);
 		memcpy(vha->port_name, pinfo->port_name, WWN_SIZE);
 		vha->d_id.b.domain = pinfo->port_id[0];
 		vha->d_id.b.area = pinfo->port_id[1];
@@ -1942,20 +1942,20 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		qlafx00_update_host_attr(vha, pinfo);
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0141,
 		    pinfo, 16);
-	} else if (fx_type == FXDISC_GET_TGT_NODE_INFO) {
-		struct qlafx00_tgt_node_info *pinfo =
-		    (struct qlafx00_tgt_node_info *) fdisc->u.fxiocb.rsp_addr;
-		memcpy(fcport->node_name, pinfo->tgt_node_wwnn, WWN_SIZE);
-		memcpy(fcport->port_name, pinfo->tgt_node_wwpn, WWN_SIZE);
+	} else if (fx_type == FXDISC_GET_TGT_ANALDE_INFO) {
+		struct qlafx00_tgt_analde_info *pinfo =
+		    (struct qlafx00_tgt_analde_info *) fdisc->u.fxiocb.rsp_addr;
+		memcpy(fcport->analde_name, pinfo->tgt_analde_wwnn, WWN_SIZE);
+		memcpy(fcport->port_name, pinfo->tgt_analde_wwpn, WWN_SIZE);
 		fcport->port_type = FCT_TARGET;
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0144,
 		    pinfo, 16);
-	} else if (fx_type == FXDISC_GET_TGT_NODE_LIST) {
-		struct qlafx00_tgt_node_info *pinfo =
-		    (struct qlafx00_tgt_node_info *) fdisc->u.fxiocb.rsp_addr;
+	} else if (fx_type == FXDISC_GET_TGT_ANALDE_LIST) {
+		struct qlafx00_tgt_analde_info *pinfo =
+		    (struct qlafx00_tgt_analde_info *) fdisc->u.fxiocb.rsp_addr;
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0146,
 		    pinfo, 16);
-		memcpy(vha->hw->gid_list, pinfo, QLAFX00_TGT_NODE_LIST_SIZE);
+		memcpy(vha->hw->gid_list, pinfo, QLAFX00_TGT_ANALDE_LIST_SIZE);
 	} else if (fx_type == FXDISC_ABORT_IOCTL)
 		fdisc->u.fxiocb.result =
 		    (fdisc->u.fxiocb.result ==
@@ -2005,7 +2005,7 @@ qlafx00_initialize_adapter(scsi_qla_host_t *vha)
 	ha->flags.eeh_busy = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
-	vha->device_flags = DFLG_NO_CABLE;
+	vha->device_flags = DFLG_ANAL_CABLE;
 	vha->dpc_flags = 0;
 	vha->flags.management_server_logged_in = 0;
 	ha->isp_abort_cnt = 0;
@@ -2036,7 +2036,7 @@ qlafx00_initialize_adapter(scsi_qla_host_t *vha)
 
 	/*
 	 * Allocate the array of outstanding commands
-	 * now that we know the firmware resources.
+	 * analw that we kanalw the firmware resources.
 	 */
 	rval = qla2x00_alloc_outstanding_cmds(ha, vha->req);
 	if (rval != QLA_SUCCESS)
@@ -2078,7 +2078,7 @@ qlafx00_get_host_speed(struct Scsi_Host *shost)
 {
 	struct qla_hw_data *ha = ((struct scsi_qla_host *)
 					(shost_priv(shost)))->hw;
-	u32 speed = FC_PORTSPEED_UNKNOWN;
+	u32 speed = FC_PORTSPEED_UNKANALWN;
 
 	switch (ha->link_data_rate) {
 	case QLAFX00_PORT_SPEED_2G:
@@ -2138,7 +2138,7 @@ qlafx00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3039,
 		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
-		    sp->vha->host_no, cp->device->id, cp->device->lun,
+		    sp->vha->host_anal, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x3049,
 		    cp->sense_buffer, sense_len);
@@ -2196,7 +2196,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (sp->type == SRB_FXIOCB_DCMD) {
 		iocb_job = &sp->u.iocb_cmd;
-		iocb_job->u.fxiocb.seq_number = pkt->seq_no;
+		iocb_job->u.fxiocb.seq_number = pkt->seq_anal;
 		iocb_job->u.fxiocb.fw_flags = pkt->fw_iotcl_flags;
 		iocb_job->u.fxiocb.result = pkt->status;
 		if (iocb_job->u.fxiocb.flags & SRB_FXDISC_RSP_DWRD_VALID)
@@ -2216,7 +2216,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		fstatus.reserved_2 = pkt->dataword_r_extra;
 		fstatus.res_count = pkt->residuallen;
 		fstatus.status = pkt->status;
-		fstatus.seq_number = pkt->seq_no;
+		fstatus.seq_number = pkt->seq_anal;
 		memcpy(fstatus.reserved_3,
 		    pkt->reserved_2, 20 * sizeof(uint8_t));
 
@@ -2420,7 +2420,7 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		    lscsi_status != cpu_to_le16((uint16_t)SAM_STAT_BUSY)) {
 			/*
 			 * scsi status of task set and busy are considered
-			 * to be task not completed.
+			 * to be task analt completed.
 			 */
 
 			ql_dbg(ql_dbg_io, fcport->vha, 0x3054,
@@ -2441,7 +2441,7 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 check_scsi_status:
 		/*
-		 * Check to see if SCSI Status is non zero. If so report SCSI
+		 * Check to see if SCSI Status is analn zero. If so report SCSI
 		 * Status.
 		 */
 		if (lscsi_status != 0) {
@@ -2504,7 +2504,7 @@ check_scsi_status:
 		    "tgt_id: 0x%x lscsi_status: 0x%x cdb=%10phN len=0x%x "
 		    "rsp_info=%p resid=0x%x fw_resid=0x%x sense_len=0x%x, "
 		    "par_sense_len=0x%x, rsp_info_len=0x%x\n",
-		    comp_status, scsi_status, res, vha->host_no,
+		    comp_status, scsi_status, res, vha->host_anal,
 		    cp->device->id, cp->device->lun, fcport->tgt_id,
 		    lscsi_status, cp->cmnd, scsi_bufflen(cp),
 		    rsp_info, resid_len, fw_resid_len, sense_len,
@@ -2536,13 +2536,13 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 
 	if (!sp) {
 		ql_dbg(ql_dbg_io, vha, 0x3037,
-		    "no SP, sp = %p\n", sp);
+		    "anal SP, sp = %p\n", sp);
 		return;
 	}
 
 	if (!GET_FW_SENSE_LEN(sp)) {
 		ql_dbg(ql_dbg_io, vha, 0x304b,
-		    "no fw sense data, sp = %p\n", sp);
+		    "anal fw sense data, sp = %p\n", sp);
 		return;
 	}
 	cp = GET_CMD_SP(sp);
@@ -2556,7 +2556,7 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 
 	if (!GET_CMD_SENSE_LEN(sp)) {
 		ql_dbg(ql_dbg_io, vha, 0x304c,
-		    "no sense data, sp = %p\n", sp);
+		    "anal sense data, sp = %p\n", sp);
 	} else {
 		sense_len = GET_CMD_SENSE_LEN(sp);
 		sense_ptr = GET_CMD_SENSE_PTR(sp);
@@ -2747,9 +2747,9 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 			    (struct ioctl_iocb_entry_fx00 *)pkt);
 			break;
 		default:
-			/* Type Not Supported. */
+			/* Type Analt Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5081,
-			    "Received unknown response pkt type %x "
+			    "Received unkanalwn response pkt type %x "
 			    "entry status=%x.\n",
 			    pkt->entry_type, pkt->entry_status);
 			break;
@@ -2761,7 +2761,7 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 }
 
 /**
- * qlafx00_async_event() - Process aynchronous events.
+ * qlafx00_async_event() - Process aynchroanalus events.
  * @vha: SCSI driver HA context
  */
 static void
@@ -2782,7 +2782,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 
 	case QLAFX00_MBA_SHUTDOWN_RQSTD:	/* Shutdown requested */
 		ql_dbg(ql_dbg_async, vha, 0x5076,
-		    "Asynchronous FW shutdown requested.\n");
+		    "Asynchroanalus FW shutdown requested.\n");
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 		break;
@@ -2792,7 +2792,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 		ha->aenmb[2] = rd_reg_dword(&reg->aenmailbox2);
 		ha->aenmb[3] = rd_reg_dword(&reg->aenmailbox3);
 		ql_dbg(ql_dbg_async, vha, 0x5077,
-		    "Asynchronous port Update received "
+		    "Asynchroanalus port Update received "
 		    "aenmb[0]: %x, aenmb[1]: %x, aenmb[2]: %x, aenmb[3]: %x\n",
 		    ha->aenmb[0], ha->aenmb[1], ha->aenmb[2], ha->aenmb[3]);
 		data_size = 4;
@@ -2800,21 +2800,21 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 
 	case QLAFX00_MBA_TEMP_OVER:	/* Over temperature event */
 		ql_log(ql_log_info, vha, 0x5085,
-		    "Asynchronous over temperature event received "
+		    "Asynchroanalus over temperature event received "
 		    "aenmb[0]: %x\n",
 		    ha->aenmb[0]);
 		break;
 
-	case QLAFX00_MBA_TEMP_NORM:	/* Normal temperature event */
+	case QLAFX00_MBA_TEMP_ANALRM:	/* Analrmal temperature event */
 		ql_log(ql_log_info, vha, 0x5086,
-		    "Asynchronous normal temperature event received "
+		    "Asynchroanalus analrmal temperature event received "
 		    "aenmb[0]: %x\n",
 		    ha->aenmb[0]);
 		break;
 
 	case QLAFX00_MBA_TEMP_CRIT:	/* Critical temperature event */
 		ql_log(ql_log_info, vha, 0x5083,
-		    "Asynchronous critical temperature event received "
+		    "Asynchroanalus critical temperature event received "
 		    "aenmb[0]: %x\n",
 		ha->aenmb[0]);
 		break;
@@ -2892,7 +2892,7 @@ qlafx00_intr_handler(int irq, void *dev_id)
 	if (!rsp) {
 		ql_log(ql_log_info, NULL, 0x507d,
 		    "%s: NULL response queue pointer.\n", __func__);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	ha = rsp->hw;
@@ -2987,8 +2987,8 @@ qlafx00_build_scsi_iocbs(srb_t *sp, struct cmd_type_7_fx00 *cmd_pkt,
 	/* Update entry type to indicate Command Type 3 IOCB */
 	lcmd_pkt->entry_type = FX00_COMMAND_TYPE_7;
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
 		lcmd_pkt->byte_count = cpu_to_le32(0);
 		return;
 	}
@@ -3041,7 +3041,7 @@ qlafx00_build_scsi_iocbs(srb_t *sp, struct cmd_type_7_fx00 *cmd_pkt,
  * qlafx00_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns analn-zero if a failure occurred, else zero.
  */
 int
 qlafx00_start_scsi(srb_t *sp)
@@ -3065,7 +3065,7 @@ qlafx00_start_scsi(srb_t *sp)
 	rsp = ha->rsp_q_map[0];
 	req = vha->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Acquire ring specific lock */
@@ -3208,7 +3208,7 @@ qlafx00_abort_iocb(srb_t *sp, struct abort_iocb_entry_fx00 *pabt_iocb)
 	abt_iocb.handle = make_handle(req->id, sp->handle);
 	abt_iocb.abort_handle = make_handle(req->id, fxio->u.abt.cmd_hndl);
 	abt_iocb.tgt_id_sts = cpu_to_le16(sp->fcport->tgt_id);
-	abt_iocb.req_que_no = cpu_to_le16(req->id);
+	abt_iocb.req_que_anal = cpu_to_le16(req->id);
 
 	memcpy(pabt_iocb, &abt_iocb,
 	    sizeof(struct abort_iocb_entry_fx00));

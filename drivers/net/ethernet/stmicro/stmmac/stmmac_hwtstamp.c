@@ -31,11 +31,11 @@ static void config_sub_second_increment(void __iomem *ioaddr,
 	u32 reg_value;
 
 	/* For GMAC3.x, 4.x versions, in "fine adjustement mode" set sub-second
-	 * increment to twice the number of nanoseconds of a clock cycle.
+	 * increment to twice the number of naanalseconds of a clock cycle.
 	 * The calculation of the default_addend value by the caller will set it
 	 * to mid-range = 2^31 when the remainder of this division is zero,
 	 * which will make the accumulator overflow once every 2 ptp_clock
-	 * cycles, adding twice the number of nanoseconds of a clock cycle :
+	 * cycles, adding twice the number of naanalseconds of a clock cycle :
 	 * 2000000000ULL / ptp_clock.
 	 */
 	if (value & PTP_TCR_TSCFUPDT)
@@ -76,10 +76,10 @@ static void hwtstamp_correct_latency(struct stmmac_priv *priv)
 	 */
 	val = readl(ioaddr + PTP_TCR);
 	if (val & PTP_TCR_TSCTRLSSR)
-		/* nanoseconds field is in decimal format with granularity of 1ns/bit */
+		/* naanalseconds field is in decimal format with granularity of 1ns/bit */
 		scaled_ns = ((u64)NSEC_PER_SEC << 16) - scaled_ns;
 	else
-		/* nanoseconds field is in binary format with granularity of ~0.466ns/bit */
+		/* naanalseconds field is in binary format with granularity of ~0.466ns/bit */
 		scaled_ns = ((1ULL << 31) << 16) -
 			DIV_U64_ROUND_CLOSEST(scaled_ns * PSEC_PER_NSEC, 466U);
 

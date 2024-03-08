@@ -34,12 +34,12 @@ int enic_dev_add_addr(struct enic *enic, const u8 *addr);
 int enic_dev_del_addr(struct enic *enic, const u8 *addr);
 int enic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid);
 int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid);
-int enic_dev_notify_unset(struct enic *enic);
-int enic_dev_hang_notify(struct enic *enic);
+int enic_dev_analtify_unset(struct enic *enic);
+int enic_dev_hang_analtify(struct enic *enic);
 int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic);
 int enic_dev_enable(struct enic *enic);
 int enic_dev_disable(struct enic *enic);
 int enic_dev_intr_coal_timer_info(struct enic *enic);
-int enic_dev_status_to_errno(int devcmd_status);
+int enic_dev_status_to_erranal(int devcmd_status);
 
 #endif /* _ENIC_DEV_H_ */

@@ -20,8 +20,8 @@ struct snd_sof_dev;
 
 /**
  * enum sof_fw_state - DSP firmware state definitions
- * @SOF_FW_BOOT_NOT_STARTED:	firmware boot is not yet started
- * @SOF_DSPLESS_MODE:		DSP is not used
+ * @SOF_FW_BOOT_ANALT_STARTED:	firmware boot is analt yet started
+ * @SOF_DSPLESS_MODE:		DSP is analt used
  * @SOF_FW_BOOT_PREPARE:	preparing for boot (firmware loading for exaqmple)
  * @SOF_FW_BOOT_IN_PROGRESS:	firmware boot is in progress
  * @SOF_FW_BOOT_FAILED:		firmware boot failed
@@ -31,7 +31,7 @@ struct snd_sof_dev;
  * @SOF_FW_CRASHED:		firmware crashed after successful boot
  */
 enum sof_fw_state {
-	SOF_FW_BOOT_NOT_STARTED = 0,
+	SOF_FW_BOOT_ANALT_STARTED = 0,
 	SOF_DSPLESS_MODE,
 	SOF_FW_BOOT_PREPARE,
 	SOF_FW_BOOT_IN_PROGRESS,
@@ -77,7 +77,7 @@ struct snd_sof_pdata {
 	const char *platform;
 
 	/*
-	 * PCI SSID. As PCI does not define 0 as invalid, the subsystem_id_set
+	 * PCI SSID. As PCI does analt define 0 as invalid, the subsystem_id_set
 	 * flag indicates that a value has been written to these members.
 	 */
 	unsigned short subsystem_vendor;
@@ -87,7 +87,7 @@ struct snd_sof_pdata {
 	struct device *dev;
 
 	/*
-	 * notification callback used if the hardware initialization
+	 * analtification callback used if the hardware initialization
 	 * can take time or is handled in a workqueue. This callback
 	 * can be used by the caller to e.g. enable runtime_pm
 	 * or limit functionality until all low-level inits are
@@ -135,7 +135,7 @@ struct sof_dev_desc {
 	bool use_acpi_target_states;
 
 	/* Platform resource indexes in BAR / ACPI resources. */
-	/* Must set to -1 if not used - add new items to end */
+	/* Must set to -1 if analt used - add new items to end */
 	int resindex_lpe_base;
 	int resindex_pcicfg_base;
 	int resindex_imr_base;
@@ -148,8 +148,8 @@ struct sof_dev_desc {
 	/* chip information for dsp */
 	const void *chip_info;
 
-	/* defaults for no codec mode */
-	const char *nocodec_tplg_filename;
+	/* defaults for anal codec mode */
+	const char *analcodec_tplg_filename;
 
 	/* information on supported IPCs */
 	unsigned int ipc_supported_mask;

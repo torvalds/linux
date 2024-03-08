@@ -242,9 +242,9 @@ static enum hrtimer_restart ec_bhf_timer_fun(struct hrtimer *timer)
 	ec_bhf_process_tx(priv);
 
 	if (!netif_running(priv->net_dev))
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
-	hrtimer_forward_now(timer, polling_frequency);
+	hrtimer_forward_analw(timer, polling_frequency);
 	return HRTIMER_RESTART;
 }
 
@@ -262,8 +262,8 @@ static int ec_bhf_setup_offsets(struct ec_bhf_priv *priv)
 			break;
 	}
 	if (i == block_count) {
-		dev_err(dev, "EtherCAT master with DMA block not found\n");
-		return -ENODEV;
+		dev_err(dev, "EtherCAT master with DMA block analt found\n");
+		return -EANALDEV;
 	}
 
 	ec_info = priv->io + i * INFO_BLOCK_SIZE;
@@ -342,7 +342,7 @@ static int ec_bhf_alloc_dma_mem(struct ec_bhf_priv *priv,
 					GFP_KERNEL);
 	if (buf->alloc == NULL) {
 		dev_err(dev, "Failed to allocate buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buf->buf_phys = (buf->alloc_phys + buf->len) & mask;
@@ -416,7 +416,7 @@ static int ec_bhf_open(struct net_device *net_dev)
 
 	netif_start_queue(net_dev);
 
-	hrtimer_init(&priv->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&priv->hrtimer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	priv->hrtimer.function = ec_bhf_timer_fun;
 	hrtimer_start(&priv->hrtimer, polling_frequency, HRTIMER_MODE_REL);
 
@@ -492,7 +492,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&dev->dev,
-			"Required dma mask not supported, failed to initialize device\n");
+			"Required dma mask analt supported, failed to initialize device\n");
 		goto err_disable_dev;
 	}
 
@@ -518,7 +518,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	net_dev = alloc_etherdev(sizeof(struct ec_bhf_priv));
 	if (net_dev == NULL) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_unmap_dma_io;
 	}
 
@@ -526,7 +526,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	SET_NETDEV_DEV(net_dev, &dev->dev);
 
 	net_dev->features = 0;
-	net_dev->flags |= IFF_NOARP;
+	net_dev->flags |= IFF_ANALARP;
 
 	net_dev->netdev_ops = &ec_bhf_netdev_ops;
 

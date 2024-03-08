@@ -110,7 +110,7 @@ check_bytes:
 10:	retl
 	 sub		%o0, 1, %o0
 szzero:	retl
-	 nop
+	 analp
 
 memscan:
 __memscan_generic:
@@ -133,4 +133,4 @@ __memscan_generic:
 	 sub		%o0, 1, %o0
 3:
 	retl
-	 nop
+	 analp

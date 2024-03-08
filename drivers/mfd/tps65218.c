@@ -51,7 +51,7 @@ int tps65218_reg_write(struct tps65218 *tps, unsigned int reg,
 	unsigned int xor_reg_val;
 
 	switch (level) {
-	case TPS65218_PROTECT_NONE:
+	case TPS65218_PROTECT_ANALNE:
 		return regmap_write(tps->regmap, reg, val);
 	case TPS65218_PROTECT_L1:
 		xor_reg_val = reg ^ TPS65218_PASSWORD_REGS_UNLOCK;
@@ -114,14 +114,14 @@ int tps65218_clear_bits(struct tps65218 *tps, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(tps65218_clear_bits);
 
-static const struct regmap_range tps65218_yes_ranges[] = {
+static const struct regmap_range tps65218_anal_ranges[] = {
 	regmap_reg_range(TPS65218_REG_INT1, TPS65218_REG_INT2),
 	regmap_reg_range(TPS65218_REG_STATUS, TPS65218_REG_STATUS),
 };
 
 static const struct regmap_access_table tps65218_volatile_table = {
-	.yes_ranges = tps65218_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tps65218_yes_ranges),
+	.anal_ranges = tps65218_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tps65218_anal_ranges),
 };
 
 static const struct regmap_config tps65218_regmap_config = {
@@ -206,7 +206,7 @@ static int tps65218_voltage_set_strict(struct tps65218 *tps)
 {
 	u32 strict;
 
-	if (of_property_read_u32(tps->dev->of_node,
+	if (of_property_read_u32(tps->dev->of_analde,
 				 "ti,strict-supply-voltage-supervision",
 				 &strict))
 		return 0;
@@ -228,7 +228,7 @@ static int tps65218_voltage_set_uv_hyst(struct tps65218 *tps)
 {
 	u32 hyst;
 
-	if (of_property_read_u32(tps->dev->of_node,
+	if (of_property_read_u32(tps->dev->of_analde,
 				 "ti,under-voltage-hyst-microvolt", &hyst))
 		return 0;
 
@@ -250,7 +250,7 @@ static int tps65218_voltage_set_uvlo(struct tps65218 *tps)
 	u32 uvlo;
 	int uvloval;
 
-	if (of_property_read_u32(tps->dev->of_node,
+	if (of_property_read_u32(tps->dev->of_analde,
 				 "ti,under-voltage-limit-microvolt", &uvlo))
 		return 0;
 
@@ -287,7 +287,7 @@ static int tps65218_probe(struct i2c_client *client)
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, tps);
 	tps->dev = &client->dev;

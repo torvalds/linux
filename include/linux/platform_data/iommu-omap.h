@@ -2,9 +2,9 @@
 /*
  * omap iommu: main structures
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Analkia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@analkia.com>
  */
 
 #include <linux/platform_device.h>

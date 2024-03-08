@@ -3,7 +3,7 @@
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 #ifndef __WL1251_TX_H__
@@ -22,15 +22,15 @@
  * flow towards the device. The host keeps track of which buffer is available
  * and alternates between these two buffers on a per packet basis.
  *
- * The size of each of the two buffers is large enough to hold the longest
+ * The size of each of the two buffers is large eanalugh to hold the longest
  * 802.3 packet - maximum size Ethernet packet + header + descriptor.
- * TX complete indication will be received a-synchronously in a TX done cyclic
+ * TX complete indication will be received a-synchroanalusly in a TX done cyclic
  * buffer which is composed of 16 tx_result descriptors structures and is used
  * in a cyclic manner.
  *
  * The TX (HOST) procedure is as follows:
  * 1. Read the Tx path status, that will give the data_out_count.
- * 2. goto 1, if not possible.
+ * 2. goto 1, if analt possible.
  *    i.e. if data_in_count - data_out_count >= HwBuffer size (2 for double
  *    buffer).
  * 3. Copy the packet (preceded by double_buffer_desc), if possible.
@@ -47,7 +47,7 @@
  *    transmit results to the cyclic buffer (txDoneRing) and sets both done_1
  *    and done_2 to 1 to indicate driver ownership.
  * 3. The firmware sends a Tx Complete interrupt to the host to trigger the
- *    host to process the new data. Note: interrupt will be send per packet if
+ *    host to process the new data. Analte: interrupt will be send per packet if
  *    TX complete indication was requested in tx_control or per crossing
  *    aggregation threshold.
  * 4. After receiving the Tx Complete interrupt, the host reads the
@@ -68,7 +68,7 @@ struct tx_control {
 	/* Rate Policy (class) index */
 	unsigned rate_policy:3;
 
-	/* When set, no ack policy is expected */
+	/* When set, anal ack policy is expected */
 	unsigned ack_policy:1;
 
 	/*
@@ -148,7 +148,7 @@ enum {
 	TX_DISABLED             = BIT(6),
 	TX_RETRY_EXCEEDED       = BIT(5),
 	TX_TIMEOUT              = BIT(4),
-	TX_KEY_NOT_FOUND        = BIT(3),
+	TX_KEY_ANALT_FOUND        = BIT(3),
 	TX_ENCRYPT_FAIL         = BIT(2),
 	TX_UNAVAILABLE_PRIORITY = BIT(1),
 };
@@ -157,7 +157,7 @@ struct tx_result {
 	/*
 	 * Ownership synchronization between the host and
 	 * the firmware. If done_1 and done_2 are cleared,
-	 * owned by the FW (no info ready).
+	 * owned by the FW (anal info ready).
 	 */
 	u8 done_1;
 

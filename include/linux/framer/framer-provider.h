@@ -25,12 +25,12 @@
  * @flags: OR-ed flags (FRAMER_FLAG_*) to ask for core functionality
  *          - @FRAMER_FLAG_POLL_STATUS:
  *            Ask the core to perform a polling to get the framer status and
- *            notify consumers on change.
- *            The framer should call @framer_notify_status_change() when it
+ *            analtify consumers on change.
+ *            The framer should call @framer_analtify_status_change() when it
  *            detects a status change. This is usually done using interrupts.
- *            If the framer cannot detect this change, it can ask the core for
+ *            If the framer cananalt detect this change, it can ask the core for
  *            a status polling. The core will call @get_status() periodically
- *            and, on change detected, it will notify the consumer.
+ *            and, on change detected, it will analtify the consumer.
  *            the @get_status()
  * @owner: the module owner containing the ops
  */
@@ -83,7 +83,7 @@ struct framer_ops {
 /**
  * struct framer_provider - represents the framer provider
  * @dev: framer provider device
- * @children: can be used to override the default (dev->of_node) child node
+ * @children: can be used to override the default (dev->of_analde) child analde
  * @owner: the module owner having of_xlate
  * @list: to maintain a linked list of framer providers
  * @of_xlate: function pointer to obtain framer instance from framer pointer
@@ -109,12 +109,12 @@ static inline void *framer_get_drvdata(struct framer *framer)
 #if IS_ENABLED(CONFIG_GENERIC_FRAMER)
 
 /* Create and destroy a framer */
-struct framer *framer_create(struct device *dev, struct device_node *node,
+struct framer *framer_create(struct device *dev, struct device_analde *analde,
 			     const struct framer_ops *ops);
 void framer_destroy(struct framer *framer);
 
 /* devm version */
-struct framer *devm_framer_create(struct device *dev, struct device_node *node,
+struct framer *devm_framer_create(struct device *dev, struct device_analde *analde,
 				  const struct framer_ops *ops);
 
 struct framer *framer_provider_simple_of_xlate(struct device *dev,
@@ -132,14 +132,14 @@ __devm_framer_provider_of_register(struct device *dev, struct module *owner,
 				   struct framer *(*of_xlate)(struct device *dev,
 							      struct of_phandle_args *args));
 
-void framer_notify_status_change(struct framer *framer);
+void framer_analtify_status_change(struct framer *framer);
 
 #else /* IS_ENABLED(CONFIG_GENERIC_FRAMER) */
 
-static inline struct framer *framer_create(struct device *dev, struct device_node *node,
+static inline struct framer *framer_create(struct device *dev, struct device_analde *analde,
 					   const struct framer_ops *ops)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline void framer_destroy(struct framer *framer)
@@ -147,16 +147,16 @@ static inline void framer_destroy(struct framer *framer)
 }
 
 /* devm version */
-static inline struct framer *devm_framer_create(struct device *dev, struct device_node *node,
+static inline struct framer *devm_framer_create(struct device *dev, struct device_analde *analde,
 						const struct framer_ops *ops)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline struct framer *framer_provider_simple_of_xlate(struct device *dev,
 							     struct of_phandle_args *args)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 static inline struct framer_provider *
@@ -164,7 +164,7 @@ __framer_provider_of_register(struct device *dev, struct module *owner,
 			      struct framer *(*of_xlate)(struct device *dev,
 							 struct of_phandle_args *args))
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
 void framer_provider_of_unregister(struct framer_provider *framer_provider)
@@ -176,10 +176,10 @@ __devm_framer_provider_of_register(struct device *dev, struct module *owner,
 				   struct framer *(*of_xlate)(struct device *dev,
 							      struct of_phandle_args *args))
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
-void framer_notify_status_change(struct framer *framer)
+void framer_analtify_status_change(struct framer *framer)
 {
 }
 

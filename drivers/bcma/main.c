@@ -137,22 +137,22 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-static struct device_node *bcma_of_find_child_device(struct device *parent,
+static struct device_analde *bcma_of_find_child_device(struct device *parent,
 						     struct bcma_device *core)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 
-	if (!parent->of_node)
+	if (!parent->of_analde)
 		return NULL;
 
-	for_each_child_of_node(parent->of_node, node) {
+	for_each_child_of_analde(parent->of_analde, analde) {
 		struct resource res;
-		ret = of_address_to_resource(node, 0, &res);
+		ret = of_address_to_resource(analde, 0, &res);
 		if (ret)
 			continue;
 		if (res.start == core->addr)
-			return node;
+			return analde;
 	}
 	return NULL;
 }
@@ -164,13 +164,13 @@ static int bcma_of_irq_parse(struct device *parent,
 	__be32 laddr[1];
 	int rc;
 
-	if (core->dev.of_node) {
-		rc = of_irq_parse_one(core->dev.of_node, num, out_irq);
+	if (core->dev.of_analde) {
+		rc = of_irq_parse_one(core->dev.of_analde, num, out_irq);
 		if (!rc)
 			return rc;
 	}
 
-	out_irq->np = parent->of_node;
+	out_irq->np = parent->of_analde;
 	out_irq->args_count = 1;
 	out_irq->args[0] = num;
 
@@ -184,7 +184,7 @@ static unsigned int bcma_of_get_irq(struct device *parent,
 	struct of_phandle_args out_irq;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent->of_node)
+	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent->of_analde)
 		return 0;
 
 	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
@@ -200,15 +200,15 @@ static unsigned int bcma_of_get_irq(struct device *parent,
 static void bcma_of_fill_device(struct device *parent,
 				struct bcma_device *core)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = bcma_of_find_child_device(parent, core);
-	if (node)
-		core->dev.of_node = node;
+	analde = bcma_of_find_child_device(parent, core);
+	if (analde)
+		core->dev.of_analde = analde;
 
 	core->irq = bcma_of_get_irq(parent, core, 0);
 
-	of_dma_configure(&core->dev, node, false);
+	of_dma_configure(&core->dev, analde, false);
 }
 
 unsigned int bcma_core_irq(struct bcma_device *core, int num)
@@ -281,7 +281,7 @@ static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 
 	err = device_add(&core->dev);
 	if (err) {
-		bcma_err(bus, "Could not register dev for core 0x%03X\n",
+		bcma_err(bus, "Could analt register dev for core 0x%03X\n",
 			 core->id.id);
 		return;
 	}
@@ -343,8 +343,8 @@ static int bcma_register_devices(struct bcma_bus *bus)
 	}
 #endif
 	err = bcma_gpio_init(&bus->drv_cc);
-	if (err == -ENOTSUPP)
-		bcma_debug(bus, "GPIO driver not activated\n");
+	if (err == -EANALTSUPP)
+		bcma_debug(bus, "GPIO driver analt activated\n");
 	else if (err) {
 		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
 		return err;
@@ -372,7 +372,7 @@ void bcma_unregister_cores(struct bcma_bus *bus)
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		platform_device_unregister(bus->drv_cc.watchdog);
 
-	/* Now no one uses internally-handled cores, we can free them */
+	/* Analw anal one uses internally-handled cores, we can free them */
 	list_for_each_entry_safe(core, tmp, &bus->cores, list) {
 		list_del(&core->list);
 		put_device(&core->dev);
@@ -406,7 +406,7 @@ int bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	if (bus->dev)
-		of_platform_default_populate(bus->dev->of_node, NULL, bus->dev);
+		of_platform_default_populate(bus->dev->of_analde, NULL, bus->dev);
 
 	/* Cores providing flash access go before SPROM init */
 	list_for_each_entry(core, &bus->cores, list) {
@@ -416,8 +416,8 @@ int bcma_bus_register(struct bcma_bus *bus)
 
 	/* Try to get SPROM */
 	err = bcma_sprom_get(bus);
-	if (err == -ENOENT) {
-		bcma_err(bus, "No SPROM available\n");
+	if (err == -EANALENT) {
+		bcma_err(bus, "Anal SPROM available\n");
 	} else if (err)
 		bcma_err(bus, "Failed to get SPROM: %d\n", err);
 
@@ -486,7 +486,7 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 	if (err == -EBUSY)
 		bcma_err(bus, "Some GPIOs are still in use.\n");
 	else if (err)
-		bcma_err(bus, "Can not unregister GPIO driver: %i\n", err);
+		bcma_err(bus, "Can analt unregister GPIO driver: %i\n", err);
 
 	bcma_core_chipcommon_b_free(&bus->drv_cc_b);
 
@@ -496,7 +496,7 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 /*
  * This is a special version of bus registration function designed for SoCs.
  * It scans bus and performs basic initialization of main cores only.
- * Please note it requires memory allocation, however it won't try to sleep.
+ * Please analte it requires memory allocation, however it won't try to sleep.
  */
 int __init bcma_bus_early_register(struct bcma_bus *bus)
 {

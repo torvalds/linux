@@ -29,7 +29,7 @@ static struct regmap_irq da9061_irqs[] = {
 	/* EVENT A */
 	[DA9061_IRQ_ONKEY] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
-		.mask = DA9062AA_M_NONKEY_MASK,
+		.mask = DA9062AA_M_ANALNKEY_MASK,
 	},
 	[DA9061_IRQ_WDG_WARN] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
@@ -93,7 +93,7 @@ static struct regmap_irq da9062_irqs[] = {
 	/* EVENT A */
 	[DA9062_IRQ_ONKEY] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
-		.mask = DA9062AA_M_NONKEY_MASK,
+		.mask = DA9062AA_M_ANALNKEY_MASK,
 	},
 	[DA9062_IRQ_ALARM] = {
 		.reg_offset = DA9062_REG_EVENT_A_OFFSET,
@@ -194,7 +194,7 @@ static const struct mfd_cell da9061_devs_irq[] = {
 		    "dlg,da9061-onkey"),
 };
 
-static const struct mfd_cell da9061_devs_noirq[] = {
+static const struct mfd_cell da9061_devs_analirq[] = {
 	MFD_CELL_OF("da9061-core", NULL, NULL, 0, 0, NULL),
 	MFD_CELL_OF("da9062-regulators", NULL, NULL, 0, 0, NULL),
 	MFD_CELL_OF("da9061-watchdog", NULL, NULL, 0, 0, "dlg,da9061-watchdog"),
@@ -252,7 +252,7 @@ static const struct mfd_cell da9062_devs_irq[] = {
 		    "dlg,da9062-gpio"),
 };
 
-static const struct mfd_cell da9062_devs_noirq[] = {
+static const struct mfd_cell da9062_devs_analirq[] = {
 	MFD_CELL_OF("da9062-core", NULL, NULL, 0, 0, NULL),
 	MFD_CELL_OF("da9062-regulators", NULL, NULL, 0, 0, NULL),
 	MFD_CELL_OF("da9062-watchdog", NULL, NULL, 0, 0, "dlg,da9062-watchdog"),
@@ -304,17 +304,17 @@ static int da9062_get_device_type(struct da9062 *chip)
 
 	ret = regmap_read(chip->regmap, DA9062AA_DEVICE_ID, &device_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read chip ID.\n");
+		dev_err(chip->dev, "Cananalt read chip ID.\n");
 		return -EIO;
 	}
 	if (device_id != DA9062_PMIC_DEVICE_ID) {
 		dev_err(chip->dev, "Invalid device ID: 0x%02x\n", device_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(chip->regmap, DA9062AA_VARIANT_ID, &variant_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read chip variant id.\n");
+		dev_err(chip->dev, "Cananalt read chip variant id.\n");
 		return -EIO;
 	}
 
@@ -328,7 +328,7 @@ static int da9062_get_device_type(struct da9062 *chip)
 		type = "DA9062";
 		break;
 	default:
-		type = "Unknown";
+		type = "Unkanalwn";
 		break;
 	}
 
@@ -340,8 +340,8 @@ static int da9062_get_device_type(struct da9062 *chip)
 
 	if (variant_mrc < DA9062_PMIC_VARIANT_MRC_AA) {
 		dev_err(chip->dev,
-			"Cannot support variant MRC: 0x%02X\n", variant_mrc);
-		return -ENODEV;
+			"Cananalt support variant MRC: 0x%02X\n", variant_mrc);
+		return -EANALDEV;
 	}
 
 	return ret;
@@ -444,18 +444,18 @@ static const struct regmap_range da9061_aa_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9061_aa_readable_table = {
-	.yes_ranges = da9061_aa_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_readable_ranges),
+	.anal_ranges = da9061_aa_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9061_aa_readable_ranges),
 };
 
 static const struct regmap_access_table da9061_aa_writeable_table = {
-	.yes_ranges = da9061_aa_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_writeable_ranges),
+	.anal_ranges = da9061_aa_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9061_aa_writeable_ranges),
 };
 
 static const struct regmap_access_table da9061_aa_volatile_table = {
-	.yes_ranges = da9061_aa_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_volatile_ranges),
+	.anal_ranges = da9061_aa_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9061_aa_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9061_range_cfg[] = {
@@ -550,18 +550,18 @@ static const struct regmap_range da9062_aa_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9062_aa_readable_table = {
-	.yes_ranges = da9062_aa_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_readable_ranges),
+	.anal_ranges = da9062_aa_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9062_aa_readable_ranges),
 };
 
 static const struct regmap_access_table da9062_aa_writeable_table = {
-	.yes_ranges = da9062_aa_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_writeable_ranges),
+	.anal_ranges = da9062_aa_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9062_aa_writeable_ranges),
 };
 
 static const struct regmap_access_table da9062_aa_volatile_table = {
-	.yes_ranges = da9062_aa_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_volatile_ranges),
+	.anal_ranges = da9062_aa_volatile_ranges,
+	.n_anal_ranges = ARRAY_SIZE(da9062_aa_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9062_range_cfg[] = {
@@ -601,7 +601,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->chip_type = (uintptr_t)i2c_get_match_data(i2c);
 
@@ -611,18 +611,18 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 	/* Start with a base configuration without IRQ */
 	switch (chip->chip_type) {
 	case COMPAT_TYPE_DA9061:
-		cell = da9061_devs_noirq;
-		cell_num = ARRAY_SIZE(da9061_devs_noirq);
+		cell = da9061_devs_analirq;
+		cell_num = ARRAY_SIZE(da9061_devs_analirq);
 		config = &da9061_regmap_config;
 		break;
 	case COMPAT_TYPE_DA9062:
-		cell = da9062_devs_noirq;
-		cell_num = ARRAY_SIZE(da9062_devs_noirq);
+		cell = da9062_devs_analirq;
+		cell_num = ARRAY_SIZE(da9062_devs_analirq);
 		config = &da9062_regmap_config;
 		break;
 	default:
 		dev_err(chip->dev, "Unrecognised chip type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chip->regmap = devm_regmap_init_i2c(i2c, config);
@@ -633,7 +633,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	/* If SMBus is not available and only I2C is possible, enter I2C mode */
+	/* If SMBus is analt available and only I2C is possible, enter I2C mode */
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
 		dev_info(chip->dev, "Entering I2C mode!\n");
 		ret = regmap_clear_bits(chip->regmap, DA9062AA_CONFIG_J,
@@ -646,7 +646,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 
 	ret = da9062_clear_fault_log(chip);
 	if (ret < 0)
-		dev_warn(chip->dev, "Cannot clear fault log\n");
+		dev_warn(chip->dev, "Cananalt clear fault log\n");
 
 	ret = da9062_get_device_type(chip);
 	if (ret)
@@ -682,11 +682,11 @@ static int da9062_i2c_probe(struct i2c_client *i2c)
 		irq_base = regmap_irq_chip_get_base(chip->regmap_irq);
 	}
 
-	ret = mfd_add_devices(chip->dev, PLATFORM_DEVID_NONE, cell,
+	ret = mfd_add_devices(chip->dev, PLATFORM_DEVID_ANALNE, cell,
 			      cell_num, NULL, irq_base,
 			      NULL);
 	if (ret) {
-		dev_err(chip->dev, "Cannot register child devices\n");
+		dev_err(chip->dev, "Cananalt register child devices\n");
 		if (i2c->irq)
 			regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
 		return ret;

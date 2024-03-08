@@ -43,7 +43,7 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
       - DMA channel selection mask. Bitmask that defines which hardware
         DMA channels (0 ... 6) will be registered with DmaEngine core.
         If bit is set to 1, the corresponding DMA channel will be registered.
-        DMA channels not selected by this mask will not be used by this device
+        DMA channels analt selected by this mask will analt be used by this device
         driver. Default value is 0x7f (use all channels).
 
 - 'pcie_mrrs'
@@ -60,10 +60,10 @@ fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
         correspond to MBOX0 - MBOX3. MBOX is under driver's control if the
         corresponding bit is set to '1'. Default value is 0x0f (= all).
 
-2. Known problems
+2. Kanalwn problems
 =================
 
-  None.
+  Analne.
 
 3. DMA Engine Support
 =====================
@@ -95,7 +95,7 @@ this driver will accept DMA-specific module parameter:
 5.  License
 ===========
 
-  Copyright(c) 2011 Integrated Device Technology, Inc. All rights reserved.
+  Copyright(c) 2011 Integrated Device Techanallogy, Inc. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the Free
@@ -108,5 +108,5 @@ this driver will accept DMA-specific module parameter:
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
+  this program; if analt, write to the Free Software Foundation, Inc.,
   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.

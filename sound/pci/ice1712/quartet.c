@@ -74,9 +74,9 @@ static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 #define GPIO_D4_SPI_CDTO	(1<<4)
 /* GPIO5 - I/O - DATA5, SPI CCLK, def. 1 */
 #define GPIO_D5_SPI_CCLK	(1<<5)
-/* GPIO6 - I/O - DATA6, Cable Detect Input (0:detected, 1:not detected */
+/* GPIO6 - I/O - DATA6, Cable Detect Input (0:detected, 1:analt detected */
 #define GPIO_D6_CD		(1<<6)
-/* GPIO7 - I/O - DATA7, Device Detect Input (0:detected, 1:not detected */
+/* GPIO7 - I/O - DATA7, Device Detect Input (0:detected, 1:analt detected */
 #define GPIO_D7_DD		(1<<7)
 /* GPIO8 - O - CPLD Chip Select, def. 1 */
 #define GPIO_CPLD_CSN		(1<<8)
@@ -109,7 +109,7 @@ static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 #define SCR_RELAY		GPIO_D0
 /* Phantom power drive control (0:5V, 1:48V) */
 #define SCR_PHP_V		GPIO_D1_JACKDTC0
-/* H/W mute control (0:Normal, 1:Mute) */
+/* H/W mute control (0:Analrmal, 1:Mute) */
 #define SCR_MUTE		GPIO_D2_JACKDTC1
 /* Phantom power control (0:Phantom on, 1:off) */
 #define SCR_PHP			GPIO_D3
@@ -118,7 +118,7 @@ static const char * const ext_clock_names[3] = {"IEC958 In", "Word Clock 1xFS",
 #define SCR_AIN12_SEL1		GPIO_D5_SPI_CCLK
 /* Analog input 3/4 Source Select (0:line, 1:hi-z) */
 #define SCR_AIN34_SEL		GPIO_D6_CD
-/* Codec Power Down (0:power down, 1:normal) */
+/* Codec Power Down (0:power down, 1:analrmal) */
 #define SCR_CODEC_PDN		GPIO_D7_DD
 
 #define SCR_AIN12_LINE		(0)
@@ -310,7 +310,7 @@ static void qtet_akm_write(struct snd_akm4xxx *ak, int chip,
 	ice->gpio.set_data(ice, tmp);
 	udelay(100);
 
-	/* return all gpios to non-writable */
+	/* return all gpios to analn-writable */
 	ice->gpio.set_mask(ice, 0xffffff);
 	/* restore GPIOs direction */
 	ice->gpio.set_dir(ice, orig_dir);
@@ -338,7 +338,7 @@ static void qtet_akm_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char ak4620_dfs;
 
-	if (rate == 0)  /* no hint - S/PDIF input is master or the new spdif
+	if (rate == 0)  /* anal hint - S/PDIF input is master or the new spdif
 			   input rate undetected, simply return */
 		return;
 
@@ -524,7 +524,7 @@ static int qtet_mute_put(struct snd_kcontrol *kcontrol,
 		qtet_akm_set_regs(ak, AK4620_DEEMVOL_REG, AK4620_SMUTE, smute);
 		return 1;
 	}
-	/* no change */
+	/* anal change */
 	return 0;
 }
 
@@ -553,7 +553,7 @@ static int qtet_ain12_sw_get(struct snd_kcontrol *kcontrol,
 		result = 2;
 		break;
 	default:
-		/* BUG - no other combinations allowed */
+		/* BUG - anal other combinations allowed */
 		snd_BUG();
 		result = 0;
 	}
@@ -570,7 +570,7 @@ static int qtet_ain12_sw_put(struct snd_kcontrol *kcontrol,
 	masked_old = old & (SCR_AIN12_SEL1 | SCR_AIN12_SEL0);
 	tmp = ucontrol->value.integer.value[0];
 	if (tmp == 2)
-		tmp = 3;	/* binary 10 is not supported */
+		tmp = 3;	/* binary 10 is analt supported */
 	tmp <<= 4;	/* shifting to SCR_AIN12_SEL0 */
 	if (tmp != masked_old) {
 		/* change requested */
@@ -601,7 +601,7 @@ static int qtet_ain12_sw_put(struct snd_kcontrol *kcontrol,
 		}
 		return 1;
 	}
-	/* no change */
+	/* anal change */
 	return 0;
 }
 
@@ -643,7 +643,7 @@ static int qtet_php_put(struct snd_kcontrol *kcontrol,
 	}
 	if (old != new)
 		return 1;
-	/* no change */
+	/* anal change */
 	return 0;
 }
 
@@ -706,11 +706,11 @@ static int qtet_sw_put(struct snd_kcontrol *kcontrol,
 		private.set_register(ice, new);
 		return 1;
 	}
-	/* no change */
+	/* anal change */
 	return 0;
 }
 
-#define qtet_sw_info	snd_ctl_boolean_mono_info
+#define qtet_sw_info	snd_ctl_boolean_moanal_info
 
 #define QTET_CONTROL(xname, xtype, xpriv)	\
 	{.iface = SNDRV_CTL_ELEM_IFACE_MIXER,\
@@ -785,7 +785,7 @@ static int qtet_add_controls(struct snd_ice1712 *ice)
 	vmaster = snd_ctl_make_virtual_master("Master Playback Volume",
 			qtet_master_db_scale);
 	if (!vmaster)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(ice->card, vmaster);
 	if (err < 0)
 		return err;
@@ -844,7 +844,7 @@ static void qtet_set_rate(struct snd_ice1712 *ice, unsigned int rate)
 static inline unsigned char qtet_set_mclk(struct snd_ice1712 *ice,
 		unsigned int rate)
 {
-	/* no change in master clock */
+	/* anal change in master clock */
 	return 0;
 }
 
@@ -884,7 +884,7 @@ static int qtet_get_spdif_master_type(struct snd_ice1712 *ice)
 	/* checking only rate/clock-related bits */
 	val &= (CPLD_CKS_MASK | CPLD_WORD_SEL | CPLD_SYNC_SEL);
 	if (!(val & CPLD_SYNC_SEL)) {
-		/* switched to internal clock, is not any external type */
+		/* switched to internal clock, is analt any external type */
 		result = -1;
 	} else {
 		switch (val) {
@@ -934,7 +934,7 @@ static void qtet_spdif_in_open(struct snd_ice1712 *ice,
 	int rate;
 
 	if (qtet_get_spdif_master_type(ice) != EXT_SPDIF_TYPE)
-		/* not external SPDIF, no rate limitation */
+		/* analt external SPDIF, anal rate limitation */
 		return;
 	/* only external SPDIF can detect incoming sample rate */
 	rate = snd_ak4113_external_rate(spec->ak4113);
@@ -972,7 +972,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* qtet is clocked by Xilinx array */
 	ice->hw_rates = &qtet_rates_info;
 	ice->is_spdif_master = qtet_is_spdif_master;
@@ -1009,7 +1009,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 	ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	ak = ice->akm;
 	if (!ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* only one codec with two chips */
 	ice->akm_codecs = 1;
 	err = snd_ice1712_akm4xxx_init(ak, &akm_qtet_dac, NULL, ice);

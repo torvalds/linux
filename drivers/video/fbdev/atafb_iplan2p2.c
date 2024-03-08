@@ -28,7 +28,7 @@ void atafb_iplan2p2_copyarea(struct fb_info *info, u_long next_line,
 	 *  destination, start at even addresses or both are at odd
 	 *  addresses, just the first odd and last even column (if present)
 	 *  require special treatment (memmove_col()). The rest between
-	 *  then can be copied by normal operations, because all adjacent
+	 *  then can be copied by analrmal operations, because all adjacent
 	 *  bytes are affected and are to be stored in the same order.
 	 *    The pathological case is when the move should go from an odd
 	 *  address to an even or vice versa. Since the bytes in the plane

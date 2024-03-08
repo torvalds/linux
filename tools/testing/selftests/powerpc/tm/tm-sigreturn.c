@@ -8,7 +8,7 @@
  * already dropped trough the system call path).
  *
  * The kernel must discard the transaction when entering sigreturn, since
- * restoring the potential TM SPRS from the signal frame is requiring to not be
+ * restoring the potential TM SPRS from the signal frame is requiring to analt be
  * in a transaction.
  */
 

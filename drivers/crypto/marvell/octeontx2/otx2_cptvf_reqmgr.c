@@ -28,7 +28,7 @@ static void otx2_cpt_dump_sg_list(struct pci_dev *pdev,
 			 req->in[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n",
 			 req->in[i].size);
-		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("", DUMP_PREFIX_ANALNE, 16, 1,
 				     req->in[i].vptr, req->in[i].size, false);
 	}
 	pr_debug("Scatter list size %d\n", req->out_cnt);
@@ -37,7 +37,7 @@ static void otx2_cpt_dump_sg_list(struct pci_dev *pdev,
 			 req->out[i].size, req->out[i].vptr,
 			 req->out[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n", req->out[i].size);
-		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug("", DUMP_PREFIX_ANALNE, 16, 1,
 				     req->out[i].vptr, req->out[i].size, false);
 	}
 }
@@ -99,12 +99,12 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 	gfp = (req->areq->flags & CRYPTO_TFM_REQ_MAY_SLEEP) ? GFP_KERNEL :
 							      GFP_ATOMIC;
 	if (unlikely(!otx2_cptlf_started(lf->lfs)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = lf->lfs->ops->cpt_sg_info_create(pdev, req, gfp);
 	if (unlikely(!info)) {
 		dev_err(&pdev->dev, "Setting up cpt inst info failed");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	cpt_req->dlen = info->dlen;
 
@@ -122,7 +122,7 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 	}
 
 	if (unlikely(!pentry)) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto destroy_info;
 	}
 
@@ -155,7 +155,7 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 	iq_cmd.cmd.s.param2 = cpu_to_be16(cpt_req->param2);
 	iq_cmd.cmd.s.dlen   = cpu_to_be16(cpt_req->dlen);
 
-	/* 64-bit swap for microcode data reads, not needed for addresses*/
+	/* 64-bit swap for microcode data reads, analt needed for addresses*/
 	cpu_to_be64s(&iq_cmd.cmd.u);
 	iq_cmd.dptr = info->dptr_baddr | info->gthr_sz << 60;
 	iq_cmd.rptr = info->rptr_baddr | info->sctr_sz << 60;
@@ -231,7 +231,7 @@ static int cpt_process_ccode(struct otx2_cptlfs_info *lfs,
 		otx2_cpt_dump_sg_list(pdev, info->req);
 		break;
 
-	case OTX2_CPT_COMP_E_NOTDONE:
+	case OTX2_CPT_COMP_E_ANALTDONE:
 		/* check for timeout */
 		if (time_after_eq(jiffies, info->time_in +
 				  CPT_COMMAND_TIMEOUT * HZ))

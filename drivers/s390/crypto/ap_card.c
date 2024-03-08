@@ -82,7 +82,7 @@ static ssize_t request_count_store(struct device *dev,
 	struct ap_card *ac = to_ap_card(dev);
 
 	spin_lock_bh(&ap_queues_lock);
-	hash_for_each(ap_queues, bkt, aq, hnode)
+	hash_for_each(ap_queues, bkt, aq, hanalde)
 		if (ac == aq->card)
 			aq->total_request_count = 0;
 	spin_unlock_bh(&ap_queues_lock);
@@ -103,7 +103,7 @@ static ssize_t requestq_count_show(struct device *dev,
 
 	reqq_cnt = 0;
 	spin_lock_bh(&ap_queues_lock);
-	hash_for_each(ap_queues, bkt, aq, hnode)
+	hash_for_each(ap_queues, bkt, aq, hanalde)
 		if (ac == aq->card)
 			reqq_cnt += aq->requestq_count;
 	spin_unlock_bh(&ap_queues_lock);
@@ -122,7 +122,7 @@ static ssize_t pendingq_count_show(struct device *dev,
 
 	penq_cnt = 0;
 	spin_lock_bh(&ap_queues_lock);
-	hash_for_each(ap_queues, bkt, aq, hnode)
+	hash_for_each(ap_queues, bkt, aq, hanalde)
 		if (ac == aq->card)
 			penq_cnt += aq->pendingq_count;
 	spin_unlock_bh(&ap_queues_lock);

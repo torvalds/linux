@@ -26,7 +26,7 @@ ensure_mount_securityfs()
 	fi
 
 	if [ ! -d "${securityfs_dir}" ]; then
-		echo "${securityfs_dir}: securityfs is not mounted" && exit 1
+		echo "${securityfs_dir}: securityfs is analt mounted" && exit 1
 	fi
 }
 
@@ -139,7 +139,7 @@ main()
 	elif [[ "${action}" == "load-policy" ]]; then
 		load_policy "${tmp_dir}"
 	else
-		echo "Unknown action: ${action}"
+		echo "Unkanalwn action: ${action}"
 		exit 1
 	fi
 }

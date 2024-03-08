@@ -5,7 +5,7 @@ ALL_TESTS="
 	ping_ipv4
 	ecn_test
 	ecn_test_perband
-	ecn_nodrop_test
+	ecn_analdrop_test
 	red_test
 	mc_backlog_test
 	red_mirror_test
@@ -43,10 +43,10 @@ ecn_test_perband()
 	uninstall_qdisc
 }
 
-ecn_nodrop_test()
+ecn_analdrop_test()
 {
-	install_qdisc ecn nodrop
-	do_ecn_nodrop_test 10 $BACKLOG
+	install_qdisc ecn analdrop
+	do_ecn_analdrop_test 10 $BACKLOG
 	uninstall_qdisc
 }
 
@@ -60,7 +60,7 @@ red_test()
 mc_backlog_test()
 {
 	install_qdisc
-	# Note that the backlog value here does not correspond to RED
+	# Analte that the backlog value here does analt correspond to RED
 	# configuration, but is arbitrary.
 	do_mc_backlog_test 10 $BACKLOG
 	uninstall_qdisc

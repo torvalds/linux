@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte
 #
 # system call numbers and entry vectors for parisc
 #
@@ -22,7 +22,7 @@
 12	common	chdir			sys_chdir
 13	32	time			sys_time32
 13	64	time			sys_time
-14	common	mknod			sys_mknod
+14	common	mkanald			sys_mkanald
 15	common	chmod			sys_chmod
 16	common	lchown			sys_lchown
 17	common	socket			sys_socket
@@ -177,8 +177,8 @@
 160	common	sched_get_priority_min	sys_sched_get_priority_min
 161	32	sched_rr_get_interval	sys_sched_rr_get_interval_time32
 161	64	sched_rr_get_interval	sys_sched_rr_get_interval
-162	32	nanosleep		sys_nanosleep_time32
-162	64	nanosleep		sys_nanosleep
+162	32	naanalsleep		sys_naanalsleep_time32
+162	64	naanalsleep		sys_naanalsleep
 163	common	mremap			sys_mremap
 164	common	setresuid		sys_setresuid
 165	common	getresuid		sys_getresuid
@@ -258,7 +258,7 @@
 231	64	mq_timedsend		sys_mq_timedsend
 232	32	mq_timedreceive		sys_mq_timedreceive_time32
 232	64	mq_timedreceive		sys_mq_timedreceive
-233	common	mq_notify		sys_mq_notify			compat_sys_mq_notify
+233	common	mq_analtify		sys_mq_analtify			compat_sys_mq_analtify
 234	common	mq_getsetattr		sys_mq_getsetattr		compat_sys_mq_getsetattr
 235	common	waitid			sys_waitid			compat_sys_waitid
 236	32	fadvise64_64		parisc_fadvise64_64
@@ -289,8 +289,8 @@
 256	64	clock_gettime		sys_clock_gettime
 257	32	clock_getres		sys_clock_getres_time32
 257	64	clock_getres		sys_clock_getres
-258	32	clock_nanosleep		sys_clock_nanosleep_time32
-258	64	clock_nanosleep		sys_clock_nanosleep
+258	32	clock_naanalsleep		sys_clock_naanalsleep_time32
+258	64	clock_naanalsleep		sys_clock_naanalsleep
 259	common	tgkill			sys_tgkill
 260	common	mbind			sys_mbind
 261	common	get_mempolicy		sys_get_mempolicy
@@ -301,9 +301,9 @@
 266	common	keyctl			sys_keyctl			compat_sys_keyctl
 267	common	ioprio_set		sys_ioprio_set
 268	common	ioprio_get		sys_ioprio_get
-269	common	inotify_init		sys_inotify_init
-270	common	inotify_add_watch	sys_inotify_add_watch
-271	common	inotify_rm_watch	sys_inotify_rm_watch
+269	common	ianaltify_init		sys_ianaltify_init
+270	common	ianaltify_add_watch	sys_ianaltify_add_watch
+271	common	ianaltify_rm_watch	sys_ianaltify_rm_watch
 272	common	migrate_pages		sys_migrate_pages
 273	32	pselect6		sys_pselect6_time32		compat_sys_pselect6_time32
 273	64	pselect6		sys_pselect6
@@ -311,7 +311,7 @@
 274	64	ppoll			sys_ppoll
 275	common	openat			sys_openat			compat_sys_openat
 276	common	mkdirat			sys_mkdirat
-277	common	mknodat			sys_mknodat
+277	common	mkanaldat			sys_mkanaldat
 278	common	fchownat		sys_fchownat
 279	32	futimesat		sys_futimesat_time32
 279	64	futimesat		sys_futimesat
@@ -354,7 +354,7 @@
 311	common	epoll_create1		sys_epoll_create1
 312	common	dup3			sys_dup3
 313	common	pipe2			parisc_pipe2
-314	common	inotify_init1		parisc_inotify_init1
+314	common	ianaltify_init1		parisc_ianaltify_init1
 315	common	preadv	sys_preadv	compat_sys_preadv
 316	common	pwritev	sys_pwritev	compat_sys_pwritev
 317	common	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
@@ -363,8 +363,8 @@
 319	64	recvmmsg		sys_recvmmsg
 320	common	accept4			sys_accept4
 321	common	prlimit64		sys_prlimit64
-322	common	fanotify_init		sys_fanotify_init
-323	common	fanotify_mark		sys_fanotify_mark		sys32_fanotify_mark
+322	common	faanaltify_init		sys_faanaltify_init
+323	common	faanaltify_mark		sys_faanaltify_mark		sys32_faanaltify_mark
 324	32	clock_adjtime		sys_clock_adjtime32
 324	64	clock_adjtime		sys_clock_adjtime
 325	common	name_to_handle_at	sys_name_to_handle_at
@@ -406,7 +406,7 @@
 404	32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
 406	32	clock_getres_time64		sys_clock_getres		sys_clock_getres
-407	32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+407	32	clock_naanalsleep_time64		sys_clock_naanalsleep		sys_clock_naanalsleep
 408	32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
 409	32	timer_settime64			sys_timer_settime		sys_timer_settime
 410	32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
@@ -448,7 +448,7 @@
 # 447 reserved for memfd_secret
 448	common	process_mrelease		sys_process_mrelease
 449	common	futex_waitv			sys_futex_waitv
-450	common	set_mempolicy_home_node		sys_set_mempolicy_home_node
+450	common	set_mempolicy_home_analde		sys_set_mempolicy_home_analde
 451	common	cachestat			sys_cachestat
 452	common	fchmodat2			sys_fchmodat2
 453	common	map_shadow_stack		sys_map_shadow_stack

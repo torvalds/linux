@@ -250,7 +250,7 @@ hfcsusb_ph_info(struct hfcsusb *hw)
 
 	phi = kzalloc(struct_size(phi, bch, dch->dev.nrbchan), GFP_ATOMIC);
 	if (!phi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phi->dch.ch.protocol = hw->protocol;
 	phi->dch.ch.Flags = dch->Flags;
@@ -404,7 +404,7 @@ hfc_l1callback(struct dchannel *dch, u_int cmd)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: unknown cmd %x\n",
+			printk(KERN_DEBUG "%s: %s: unkanalwn cmd %x\n",
 			       hw->name, __func__, cmd);
 		return -1;
 	}
@@ -421,7 +421,7 @@ open_dchannel(struct hfcsusb *hw, struct mISDNchannel *ch,
 		printk(KERN_DEBUG "%s: %s: dev(%d) open addr(%i) from %p\n",
 		       hw->name, __func__, hw->dch.dev.id, rq->adr.channel,
 		       __builtin_return_address(0));
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 
 	test_and_clear_bit(FLG_ACTIVE, &hw->dch.Flags);
@@ -451,7 +451,7 @@ open_dchannel(struct hfcsusb *hw, struct mISDNchannel *ch,
 		hw->initdone = 1;
 	} else {
 		if (rq->protocol != ch->protocol)
-			return -EPROTONOSUPPORT;
+			return -EPROTOANALSUPPORT;
 	}
 
 	if (((ch->protocol == ISDN_P_NT_S0) && (hw->dch.state == 3)) ||
@@ -460,7 +460,7 @@ open_dchannel(struct hfcsusb *hw, struct mISDNchannel *ch,
 			    0, NULL, GFP_KERNEL);
 	rq->ch = ch;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s: %s: cannot get module\n",
+		printk(KERN_WARNING "%s: %s: cananalt get module\n",
 		       hw->name, __func__);
 	return 0;
 }
@@ -472,7 +472,7 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 
 	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 
 	if (debug & DBG_HFC_CALL_TRACE)
@@ -486,7 +486,7 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 	rq->ch = &bch->ch;
 
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s: %s:cannot get module\n",
+		printk(KERN_WARNING "%s: %s:cananalt get module\n",
 		       hw->name, __func__);
 	return 0;
 }
@@ -506,7 +506,7 @@ channel_ctrl(struct hfcsusb *hw, struct mISDN_ctrl_req *cq)
 			MISDN_CTRL_DISCONNECT;
 		break;
 	default:
-		printk(KERN_WARNING "%s: %s: unknown Op %x\n",
+		printk(KERN_WARNING "%s: %s: unkanalwn Op %x\n",
 		       hw->name, __func__, cq->op);
 		ret = -EINVAL;
 		break;
@@ -560,7 +560,7 @@ hfc_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: unknown command %x\n",
+			printk(KERN_DEBUG "%s: %s: unkanalwn command %x\n",
 			       hw->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -693,17 +693,17 @@ hfcsusb_setup_bch(struct bchannel *bch, int protocol)
 
 	/* setup val for CON_HDLC */
 	conhdlc = 0;
-	if (protocol > ISDN_P_NONE)
+	if (protocol > ISDN_P_ANALNE)
 		conhdlc = 8;	/* enable FIFO */
 
 	switch (protocol) {
 	case (-1):	/* used for init */
 		bch->state = -1;
 		fallthrough;
-	case (ISDN_P_NONE):
-		if (bch->state == ISDN_P_NONE)
+	case (ISDN_P_ANALNE):
+		if (bch->state == ISDN_P_ANALNE)
 			return 0; /* already in idle state */
-		bch->state = ISDN_P_NONE;
+		bch->state = ISDN_P_ANALNE;
 		clear_bit(FLG_HDLC, &bch->Flags);
 		clear_bit(FLG_TRANSPARENT, &bch->Flags);
 		break;
@@ -718,12 +718,12 @@ hfcsusb_setup_bch(struct bchannel *bch, int protocol)
 		break;
 	default:
 		if (debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: prot not known %x\n",
+			printk(KERN_DEBUG "%s: %s: prot analt kanalwn %x\n",
 			       hw->name, __func__, protocol);
-		return -ENOPROTOOPT;
+		return -EANALPROTOOPT;
 	}
 
-	if (protocol >= ISDN_P_NONE) {
+	if (protocol >= ISDN_P_ANALNE) {
 		write_reg(hw, HFCUSB_FIFO, (bch->nr == 1) ? 0 : 2);
 		write_reg(hw, HFCUSB_CON_HDLC, conhdlc);
 		write_reg(hw, HFCUSB_INC_RES_F, 2);
@@ -744,7 +744,7 @@ hfcsusb_setup_bch(struct bchannel *bch, int protocol)
 		write_reg(hw, HFCUSB_SCTRL, sctrl);
 		write_reg(hw, HFCUSB_SCTRL_R, sctrl_r);
 
-		if (protocol > ISDN_P_NONE)
+		if (protocol > ISDN_P_ANALNE)
 			handle_led(hw, (bch->nr == 1) ? LED_B1_ON : LED_B2_ON);
 		else
 			handle_led(hw, (bch->nr == 1) ? LED_B1_OFF :
@@ -843,7 +843,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 		if (maxlen < 0) {
 			if (rx_skb)
 				skb_trim(rx_skb, 0);
-			pr_warn("%s.B%d: No bufferspace for %d bytes\n",
+			pr_warn("%s.B%d: Anal bufferspace for %d bytes\n",
 				hw->name, fifo->bch->nr, len);
 			spin_unlock_irqrestore(&hw->lock, flags);
 			return;
@@ -867,7 +867,7 @@ hfcsusb_rx_frame(struct usb_fifo *fifo, __u8 *data, unsigned int len,
 					fifo->ech->rx_skb = rx_skb;
 				skb_trim(rx_skb, 0);
 			} else {
-				printk(KERN_DEBUG "%s: %s: No mem for rx_skb\n",
+				printk(KERN_DEBUG "%s: %s: Anal mem for rx_skb\n",
 				       hw->name, __func__);
 				spin_unlock_irqrestore(&hw->lock, flags);
 				return;
@@ -1187,7 +1187,7 @@ tx_iso_complete(struct urb *urb)
 		    test_bit(FLG_FILLEMPTY, &fifo->bch->Flags))
 			fillempty = 1;
 	} else {
-		printk(KERN_DEBUG "%s: %s: neither BCH nor DCH\n",
+		printk(KERN_DEBUG "%s: %s: neither BCH analr DCH\n",
 		       hw->name, __func__);
 		spin_unlock_irqrestore(&hw->lock, flags);
 		return;
@@ -1245,7 +1245,7 @@ tx_iso_complete(struct urb *urb)
 			if (tx_skb)
 				remain = tx_skb->len - *tx_idx;
 			else if (fillempty)
-				remain = 15; /* > not complete */
+				remain = 15; /* > analt complete */
 			else
 				remain = 0;
 
@@ -1703,7 +1703,7 @@ setup_hfcsusb(struct hfcsusb *hw)
 		printk(KERN_DEBUG "%s: %s\n", hw->name, __func__);
 
 	if (!dmabuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = read_reg_atomic(hw, HFCUSB_CHIP_ID, dmabuf);
 
@@ -1712,7 +1712,7 @@ setup_hfcsusb(struct hfcsusb *hw)
 
 	/* check the chip id */
 	if (ret != 1) {
-		printk(KERN_DEBUG "%s: %s: cannot read chip id\n",
+		printk(KERN_DEBUG "%s: %s: cananalt read chip id\n",
 		       hw->name, __func__);
 		return 1;
 	}
@@ -1792,7 +1792,7 @@ deactivate_bchannel(struct bchannel *bch)
 	spin_lock_irqsave(&hw->lock, flags);
 	mISDN_clear_bchannel(bch);
 	spin_unlock_irqrestore(&hw->lock, flags);
-	hfcsusb_setup_bch(bch, ISDN_P_NONE);
+	hfcsusb_setup_bch(bch, ISDN_P_ANALNE);
 	hfcsusb_stop_endpoint(hw, bch->nr - 1);
 }
 
@@ -1818,7 +1818,7 @@ hfc_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
 		deactivate_bchannel(bch);
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -1827,7 +1827,7 @@ hfc_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown prim(%x)\n",
+		printk(KERN_WARNING "%s: unkanalwn prim(%x)\n",
 		       __func__, cmd);
 	}
 	return ret;
@@ -1933,13 +1933,13 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	printk(KERN_DEBUG
-	       "%s: interface(%d) actalt(%d) minor(%d) vend_idx(%d)\n",
+	       "%s: interface(%d) actalt(%d) mianalr(%d) vend_idx(%d)\n",
 	       __func__, ifnum, iface->desc.bAlternateSetting,
-	       intf->minor, vend_idx);
+	       intf->mianalr, vend_idx);
 
 	if (vend_idx == 0xffff) {
 		printk(KERN_WARNING
-		       "%s: no valid vendor found in USB descriptor\n",
+		       "%s: anal valid vendor found in USB descriptor\n",
 		       __func__);
 		return -EIO;
 	}
@@ -1975,7 +1975,7 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 					idx++;
 				attr = ep->desc.bmAttributes;
 
-				if (cmptbl[idx] != EP_NOP) {
+				if (cmptbl[idx] != EP_ANALP) {
 					if (cmptbl[idx] == EP_NUL)
 						cfg_found = 0;
 					if (attr == USB_ENDPOINT_XFER_INT
@@ -1997,7 +1997,7 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			}
 
 			for (i = 0; i < 16; i++)
-				if (cmptbl[i] != EP_NOP && cmptbl[i] != EP_NUL)
+				if (cmptbl[i] != EP_ANALP && cmptbl[i] != EP_NUL)
 					cfg_found = 0;
 
 			if (cfg_found) {
@@ -2012,14 +2012,14 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		alt_idx++;
 	}	/* (alt_idx < intf->num_altsetting) */
 
-	/* not found a valid USB Ta Endpoint config */
+	/* analt found a valid USB Ta Endpoint config */
 	if (small_match == -1)
 		return -EIO;
 
 	iface = iface_used;
 	hw = kzalloc(sizeof(struct hfcsusb), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;	/* got no mem */
+		return -EANALMEM;	/* got anal mem */
 	snprintf(hw->name, MISDN_MAX_IDLEN - 1, "%s", DRIVER_NAME);
 
 	ep = iface->endpoint;
@@ -2036,7 +2036,7 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		f = &hw->fifos[idx & 7];
 
 		/* init Endpoints */
-		if (vcf[idx] == EP_NOP || vcf[idx] == EP_NUL) {
+		if (vcf[idx] == EP_ANALP || vcf[idx] == EP_NUL) {
 			ep++;
 			continue;
 		}
@@ -2098,10 +2098,10 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	hw->ctrl_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!hw->ctrl_urb) {
-		pr_warn("%s: No memory for control urb\n",
+		pr_warn("%s: Anal memory for control urb\n",
 			driver_info->vend_name);
 		kfree(hw);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pr_info("%s: %s: detected \"%s\" (%s, if=%d alt=%d)\n",

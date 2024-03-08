@@ -12,7 +12,7 @@ KernelVersion:	2.6.29
 Contact:	dm-devel@redhat.com
 Description:	Device-mapper device UUID.
 		Read-only string containing DM-UUID or empty string
-		if DM-UUID is not set.
+		if DM-UUID is analt set.
 Users:		util-linux, device-mapper udev rules
 
 What:		/sys/block/dm-<num>/dm/suspended
@@ -34,7 +34,7 @@ Description:	Allow control over how long a request that is a
 		microseconds (ranging from 1 to 100000 usecs).
 		Setting this attribute to 0 (the default) will disable
 		request-based DM's merge heuristic and associated extra
-		accounting.  This attribute is not applicable to
+		accounting.  This attribute is analt applicable to
 		bio-based DM devices so it will only ever report 0 for
 		them.
 

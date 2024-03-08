@@ -17,7 +17,7 @@ void arch_handle_alternative(unsigned short feature, struct special_alt *alt)
 		 *
 		 * What we want to avoid is having both the original and the
 		 * alternative code flow at the same time, in that case we can
-		 * find paths that see the STAC but take the NOP instead of
+		 * find paths that see the STAC but take the ANALP instead of
 		 * CLAC and the other way around.
 		 */
 		if (opts.uaccess)
@@ -56,17 +56,17 @@ bool arch_support_alt_relocation(struct special_alt *special_alt,
  * 2. jmpq *[rodata addr](%rip)
  *
  *    This is caused by a rare GCC quirk, currently only seen in three driver
- *    functions in the kernel, only with certain obscure non-distro configs.
+ *    functions in the kernel, only with certain obscure analn-distro configs.
  *
  *    As part of an optimization, GCC makes a copy of an existing switch jump
  *    table, modifies it, and then hard-codes the jump (albeit with an indirect
  *    jump) to use a single entry in the table.  The rest of the jump table and
  *    some of its jump targets remain as dead code.
  *
- *    In such a case we can just crudely ignore all unreachable instruction
- *    warnings for the entire object file.  Ideally we would just ignore them
+ *    In such a case we can just crudely iganalre all unreachable instruction
+ *    warnings for the entire object file.  Ideally we would just iganalre them
  *    for the function, but that would require redesigning the code quite a
- *    bit.  And honestly that's just not worth doing: unreachable instruction
+ *    bit.  And honestly that's just analt worth doing: unreachable instruction
  *    warnings are of questionable value anyway, and this is such a rare issue.
  *
  * 3. mov [rodata addr],%reg1
@@ -83,7 +83,7 @@ bool arch_support_alt_relocation(struct special_alt *special_alt,
  *    TODO: Once we have DWARF CFI and smarter instruction decoding logic,
  *    ensure the same register is used in the mov and jump instructions.
  *
- *    NOTE: RETPOLINE made it harder still to decode dynamic jumps.
+ *    ANALTE: RETPOLINE made it harder still to decode dynamic jumps.
  */
 struct reloc *arch_find_switch_table(struct objtool_file *file,
 				    struct instruction *insn)
@@ -107,7 +107,7 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 
 	/*
 	 * Make sure the .rodata address isn't associated with a
-	 * symbol.  GCC jump tables are anonymous data.
+	 * symbol.  GCC jump tables are aanalnymous data.
 	 *
 	 * Also support C jump tables which are in the same format as
 	 * switch jump tables.  For objtool to recognize them, they
@@ -133,7 +133,7 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 	 * code behind.
 	 */
 	if (reloc_type(text_reloc) == R_X86_64_PC32)
-		file->ignore_unreachables = true;
+		file->iganalre_unreachables = true;
 
 	return rodata_reloc;
 }

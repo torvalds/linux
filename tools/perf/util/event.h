@@ -84,10 +84,10 @@ enum {
 	PERF_IP_FLAG_VMENTRY		|\
 	PERF_IP_FLAG_VMEXIT)
 
-#define PERF_MEM_DATA_SRC_NONE \
+#define PERF_MEM_DATA_SRC_ANALNE \
 	(PERF_MEM_S(OP, NA) |\
 	 PERF_MEM_S(LVL, NA) |\
-	 PERF_MEM_S(SNOOP, NA) |\
+	 PERF_MEM_S(SANALOP, NA) |\
 	 PERF_MEM_S(LOCK, NA) |\
 	 PERF_MEM_S(TLB, NA) |\
 	 PERF_MEM_S(LVLNUM, NA))
@@ -109,7 +109,7 @@ enum perf_synth_id {
 };
 
 /*
- * Raw data formats for synthesized events. Note that 4 bytes of padding are
+ * Raw data formats for synthesized events. Analte that 4 bytes of padding are
  * present to match the 'size' member of PERF_SAMPLE_RAW data which is always
  * 8-byte aligned. That means we must dereference raw_data with an offset of 4.
  * Refer perf_sample__synth_ptr() and perf_synth__raw_data().  It also means the
@@ -189,7 +189,7 @@ struct perf_synth_intel_cbr {
 		struct {
 			u32	cbr		:  8,
 				reserved1	:  8,
-				max_nonturbo	:  8,
+				max_analnturbo	:  8,
 				reserved2	:  8;
 		};
 		u32	flags;
@@ -365,8 +365,8 @@ int kallsyms__get_symbol_start(const char *kallsyms_filename,
 
 void event_attr_init(struct perf_event_attr *attr);
 
-int perf_event_paranoid(void);
-bool perf_event_paranoid_check(int max_level);
+int perf_event_paraanalid(void);
+bool perf_event_paraanalid_check(int max_level);
 
 extern int sysctl_perf_event_max_stack;
 extern int sysctl_perf_event_max_contexts_per_stack;

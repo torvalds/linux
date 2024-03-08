@@ -4,7 +4,7 @@
  * ASICs we intend to support with this driver:
  *
  * RTL8366   - The original version, apparently
- * RTL8369   - Similar enough to have the same datsheet as RTL8366
+ * RTL8369   - Similar eanalugh to have the same datsheet as RTL8366
  * RTL8366RB - Probably reads out "RTL8366 revision B", has a quite
  *             different register layout from the other two
  * RTL8366S  - Is this "RTL8366 super"?
@@ -122,12 +122,12 @@ static const struct regmap_config realtek_mdio_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.reg_read = realtek_mdio_read,
 	.reg_write = realtek_mdio_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.lock = realtek_mdio_lock,
 	.unlock = realtek_mdio_unlock,
 };
 
-static const struct regmap_config realtek_mdio_nolock_regmap_config = {
+static const struct regmap_config realtek_mdio_anallock_regmap_config = {
 	.reg_bits = 10, /* A4..A0 R4..R0 */
 	.val_bits = 16,
 	.reg_stride = 1,
@@ -136,7 +136,7 @@ static const struct regmap_config realtek_mdio_nolock_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.reg_read = realtek_mdio_read,
 	.reg_write = realtek_mdio_write,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.disable_locking = true,
 };
 
@@ -146,7 +146,7 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 	struct device *dev = &mdiodev->dev;
 	const struct realtek_variant *var;
 	struct regmap_config rc;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	var = of_device_get_match_data(dev);
@@ -157,7 +157,7 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 			    size_add(sizeof(*priv), var->chip_data_sz),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->map_lock);
 
@@ -170,10 +170,10 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 		return ret;
 	}
 
-	rc = realtek_mdio_nolock_regmap_config;
-	priv->map_nolock = devm_regmap_init(dev, NULL, priv, &rc);
-	if (IS_ERR(priv->map_nolock)) {
-		ret = PTR_ERR(priv->map_nolock);
+	rc = realtek_mdio_anallock_regmap_config;
+	priv->map_anallock = devm_regmap_init(dev, NULL, priv, &rc);
+	if (IS_ERR(priv->map_anallock)) {
+		ret = PTR_ERR(priv->map_anallock);
 		dev_err(dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
@@ -188,9 +188,9 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 	priv->cmd_write = var->cmd_write;
 	priv->ops = var->ops;
 
-	priv->write_reg_noack = realtek_mdio_write;
+	priv->write_reg_analack = realtek_mdio_write;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	dev_set_drvdata(dev, priv);
 
@@ -220,7 +220,7 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 
 	priv->ds = devm_kzalloc(dev, sizeof(*priv->ds), GFP_KERNEL);
 	if (!priv->ds)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->ds->dev = dev;
 	priv->ds->num_ports = priv->num_ports;

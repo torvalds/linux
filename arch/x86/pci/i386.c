@@ -10,7 +10,7 @@
  *
  * Drew's work was sponsored by:
  *	iX Multiuser Multitasking Magazine
- *	Hannover, Germany
+ *	Hananalver, Germany
  *	hm@ix.de
  *
  * Copyright 1997--2000 Martin Mares <mj@ucw.cz>
@@ -31,7 +31,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/memblock.h>
 
 #include <asm/memtype.h>
@@ -174,15 +174,15 @@ EXPORT_SYMBOL(pcibios_align_resource);
 
 /*
  *  Handle resources of PCI devices.  If the world were perfect, we could
- *  just allocate all the resource regions and do nothing more.  It isn't.
- *  On the other hand, we cannot just re-allocate all devices, as it would
- *  require us to know lots of host bridge internals.  So we attempt to
+ *  just allocate all the resource regions and do analthing more.  It isn't.
+ *  On the other hand, we cananalt just re-allocate all devices, as it would
+ *  require us to kanalw lots of host bridge internals.  So we attempt to
  *  keep as much of the original configuration as possible, but tweak it
  *  when it's found to be wrong.
  *
- *  Known BIOS problems we have to work around:
- *	- I/O or memory regions not configured
- *	- regions configured, but not enabled in the command register
+ *  Kanalwn BIOS problems we have to work around:
+ *	- I/O or memory regions analt configured
+ *	- regions configured, but analt enabled in the command register
  *	- bogus I/O addresses above 64K used
  *	- expansion ROMs left enabled (this may sound harmless, but given
  *	  the fact the PCI specs explicitly allow address decoders to be
@@ -201,7 +201,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  *	    if they weren't, they won't disturb allocation of other
  *	    resources.
  *	(4) Assign new addresses to resources which were either
- *	    not configured at all or misconfigured.  If explicitly
+ *	    analt configured at all or misconfigured.  If explicitly
  *	    requested by the user, configure expansion ROM address
  *	    as well.
  */
@@ -237,7 +237,7 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	/* Depth-First Search on bus tree */
 	if (bus->self)
 		pcibios_allocate_bridge_resources(bus->self);
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, analde)
 		pcibios_allocate_bus_resources(child);
 }
 
@@ -265,7 +265,7 @@ static void pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 			r = &dev->resource[idx];
 			if (r->parent)	/* Already allocated */
 				continue;
-			if (!r->start)	/* Address not assigned at all */
+			if (!r->start)	/* Address analt assigned at all */
 				continue;
 			if (r->flags & IORESOURCE_IO)
 				disabled = !(command & PCI_COMMAND_IO);
@@ -357,7 +357,7 @@ static int __init pcibios_assign_resources(void)
 	struct pci_bus *bus;
 
 	if (!(pci_probe & PCI_ASSIGN_ROMS))
-		list_for_each_entry(bus, &pci_root_buses, node)
+		list_for_each_entry(bus, &pci_root_buses, analde)
 			pcibios_allocate_rom_resources(bus);
 
 	pci_assign_unassigned_resources();
@@ -391,12 +391,12 @@ void __init pcibios_resource_survey(void)
 
 	DBG("PCI: Allocating resources\n");
 
-	list_for_each_entry(bus, &pci_root_buses, node)
+	list_for_each_entry(bus, &pci_root_buses, analde)
 		pcibios_allocate_bus_resources(bus);
 
-	list_for_each_entry(bus, &pci_root_buses, node)
+	list_for_each_entry(bus, &pci_root_buses, analde)
 		pcibios_allocate_resources(bus, 0);
-	list_for_each_entry(bus, &pci_root_buses, node)
+	list_for_each_entry(bus, &pci_root_buses, analde)
 		pcibios_allocate_resources(bus, 1);
 
 	e820__reserve_resources_late();

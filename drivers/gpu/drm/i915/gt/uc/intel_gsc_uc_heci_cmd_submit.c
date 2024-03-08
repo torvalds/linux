@@ -54,7 +54,7 @@ int intel_gsc_uc_heci_cmd_submit_packet(struct intel_gsc_uc *gsc, u64 addr_in,
 	int err;
 
 	if (!ce)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rq = i915_request_create(ce);
 	if (IS_ERR(rq))
@@ -84,7 +84,7 @@ out_rq:
 	if (!err) {
 		/*
 		 * Start timeout for i915_request_wait only after considering one possible
-		 * pending GSC-HECI submission cycle on the other (non-privileged) path.
+		 * pending GSC-HECI submission cycle on the other (analn-privileged) path.
 		 */
 		if (wait_for(i915_request_started(rq), GSC_HECI_REPLY_LATENCY_MS))
 			drm_dbg(&gsc_uc_to_gt(gsc)->i915->drm,
@@ -119,7 +119,7 @@ void intel_gsc_uc_heci_cmd_emit_mtl_header(struct intel_gsc_mtl_header *header,
 }
 
 static void
-emit_gsc_heci_pkt_nonpriv(u32 *cmd, struct intel_gsc_heci_non_priv_pkt *pkt)
+emit_gsc_heci_pkt_analnpriv(u32 *cmd, struct intel_gsc_heci_analn_priv_pkt *pkt)
 {
 	*cmd++ = GSC_HECI_CMD_PKT;
 	*cmd++ = lower_32_bits(pkt->addr_in);
@@ -133,9 +133,9 @@ emit_gsc_heci_pkt_nonpriv(u32 *cmd, struct intel_gsc_heci_non_priv_pkt *pkt)
 }
 
 int
-intel_gsc_uc_heci_cmd_submit_nonpriv(struct intel_gsc_uc *gsc,
+intel_gsc_uc_heci_cmd_submit_analnpriv(struct intel_gsc_uc *gsc,
 				     struct intel_context *ce,
-				     struct intel_gsc_heci_non_priv_pkt *pkt,
+				     struct intel_gsc_heci_analn_priv_pkt *pkt,
 				     u32 *cmd, int timeout_ms)
 {
 	struct intel_engine_cs *engine;
@@ -161,7 +161,7 @@ retry:
 		goto out_unpin_ce;
 	}
 
-	emit_gsc_heci_pkt_nonpriv(cmd, pkt);
+	emit_gsc_heci_pkt_analnpriv(cmd, pkt);
 
 	err = i915_vma_move_to_active(pkt->bb_vma, rq, 0);
 	if (err)
@@ -184,7 +184,7 @@ retry:
 	err = ce->engine->emit_flush(rq, 0);
 	if (err)
 		drm_err(&gsc_uc_to_gt(gsc)->i915->drm,
-			"Failed emit-flush for gsc-heci-non-priv-pkterr=%d\n", err);
+			"Failed emit-flush for gsc-heci-analn-priv-pkterr=%d\n", err);
 
 out_rq:
 	i915_request_get(rq);
@@ -201,7 +201,7 @@ out_rq:
 		 */
 		if (wait_for(i915_request_started(rq), GSC_HECI_REPLY_LATENCY_MS))
 			drm_dbg(&gsc_uc_to_gt(gsc)->i915->drm,
-				"Delay in gsc-heci-non-priv submission to gsccs-hw");
+				"Delay in gsc-heci-analn-priv submission to gsccs-hw");
 		if (i915_request_wait(rq, I915_WAIT_INTERRUPTIBLE,
 				      msecs_to_jiffies(timeout_ms)) < 0)
 			err = -ETIME;

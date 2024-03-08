@@ -8,20 +8,20 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Thermal idle cooling device
 
 maintainers:
-  - Daniel Lezcano <daniel.lezcano@linaro.org>
+  - Daniel Lezcaanal <daniel.lezcaanal@linaro.org>
 
 description: |
   The thermal idle cooling device allows the system to passively
   mitigate the temperature on the device by injecting idle cycles,
   forcing it to cool down.
 
-  This binding describes the thermal idle node.
+  This binding describes the thermal idle analde.
 
 properties:
-  $nodename:
+  $analdename:
     const: thermal-idle
     description: |
-      A thermal-idle node describes the idle cooling device properties to
+      A thermal-idle analde describes the idle cooling device properties to
       cool down efficiently the attached thermal zone.
 
   '#cooling-cells':
@@ -143,8 +143,8 @@ examples:
 
                     map1 {
                         trip = <&cpu_alert2>;
-                        cooling-device = <&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-                                         <&cpu_b1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+                        cooling-device = <&cpu_b0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+                                         <&cpu_b1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
                     };
                 };
             };

@@ -45,8 +45,8 @@ $defs:
   qcom-sm8650-lpass-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,lpass-lpi-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -54,7 +54,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           pattern: "^gpio([0-9]|1[0-9]|2[0-2])$"
 
@@ -90,8 +90,8 @@ examples:
         compatible = "qcom,sm8650-lpass-lpi-pinctrl";
         reg = <0x06e80000 0x20000>;
 
-        clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-                 <&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+        clocks = <&q6prmcc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>,
+                 <&q6prmcc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>;
         clock-names = "core", "audio";
 
         gpio-controller;

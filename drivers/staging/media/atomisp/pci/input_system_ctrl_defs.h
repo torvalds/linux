@@ -25,7 +25,7 @@
 /* --------------------------------------------------*/
 
 // Number of registers
-#define ISYS_CTRL_NOF_REGS                              23
+#define ISYS_CTRL_ANALF_REGS                              23
 
 // Register id's of MMIO slave accessible registers
 #define ISYS_CTRL_CAPT_START_ADDR_A_REG_ID              0
@@ -43,8 +43,8 @@
 #define ISYS_CTRL_INIT_REG_ID                           12
 #define ISYS_CTRL_LAST_COMMAND_REG_ID                   13
 #define ISYS_CTRL_NEXT_COMMAND_REG_ID                   14
-#define ISYS_CTRL_LAST_ACKNOWLEDGE_REG_ID               15
-#define ISYS_CTRL_NEXT_ACKNOWLEDGE_REG_ID               16
+#define ISYS_CTRL_LAST_ACKANALWLEDGE_REG_ID               15
+#define ISYS_CTRL_NEXT_ACKANALWLEDGE_REG_ID               16
 #define ISYS_CTRL_FSM_STATE_INFO_REG_ID                 17
 #define ISYS_CTRL_CAPT_A_FSM_STATE_INFO_REG_ID          18
 #define ISYS_CTRL_CAPT_B_FSM_STATE_INFO_REG_ID          19
@@ -66,10 +66,10 @@
 #define ISYS_CTRL_ACQ_MEM_REGION_SIZE_REG_RSTVAL         128
 #define ISYS_CTRL_ACQ_NUM_MEM_REGIONS_REG_RSTVAL         3
 #define ISYS_CTRL_INIT_REG_RSTVAL                        0
-#define ISYS_CTRL_LAST_COMMAND_REG_RSTVAL                15    //0x0000_000F (to signal non-valid cmd/ack after reset/soft-reset)
-#define ISYS_CTRL_NEXT_COMMAND_REG_RSTVAL                15    //0x0000_000F (to signal non-valid cmd/ack after reset/soft-reset)
-#define ISYS_CTRL_LAST_ACKNOWLEDGE_REG_RSTVAL            15    //0x0000_000F (to signal non-valid cmd/ack after reset/soft-reset)
-#define ISYS_CTRL_NEXT_ACKNOWLEDGE_REG_RSTVAL            15    //0x0000_000F (to signal non-valid cmd/ack after reset/soft-reset)
+#define ISYS_CTRL_LAST_COMMAND_REG_RSTVAL                15    //0x0000_000F (to signal analn-valid cmd/ack after reset/soft-reset)
+#define ISYS_CTRL_NEXT_COMMAND_REG_RSTVAL                15    //0x0000_000F (to signal analn-valid cmd/ack after reset/soft-reset)
+#define ISYS_CTRL_LAST_ACKANALWLEDGE_REG_RSTVAL            15    //0x0000_000F (to signal analn-valid cmd/ack after reset/soft-reset)
+#define ISYS_CTRL_NEXT_ACKANALWLEDGE_REG_RSTVAL            15    //0x0000_000F (to signal analn-valid cmd/ack after reset/soft-reset)
 #define ISYS_CTRL_FSM_STATE_INFO_REG_RSTVAL              0
 #define ISYS_CTRL_CAPT_A_FSM_STATE_INFO_REG_RSTVAL       0
 #define ISYS_CTRL_CAPT_B_FSM_STATE_INFO_REG_RSTVAL       0
@@ -93,8 +93,8 @@
 #define ISYS_CTRL_INIT_REG_WIDTH                         3
 #define ISYS_CTRL_LAST_COMMAND_REG_WIDTH                 32    /* slave data width */
 #define ISYS_CTRL_NEXT_COMMAND_REG_WIDTH                 32
-#define ISYS_CTRL_LAST_ACKNOWLEDGE_REG_WIDTH             32
-#define ISYS_CTRL_NEXT_ACKNOWLEDGE_REG_WIDTH             32
+#define ISYS_CTRL_LAST_ACKANALWLEDGE_REG_WIDTH             32
+#define ISYS_CTRL_NEXT_ACKANALWLEDGE_REG_WIDTH             32
 #define ISYS_CTRL_FSM_STATE_INFO_REG_WIDTH               32
 #define ISYS_CTRL_CAPT_A_FSM_STATE_INFO_REG_WIDTH        32
 #define ISYS_CTRL_CAPT_B_FSM_STATE_INFO_REG_WIDTH        32
@@ -114,7 +114,7 @@ InpSysCaptFramesAcq  1/0  [3:0] - 'b0000
 	   CaptA-'b0000
 	   CaptB-'b0001
 	   CaptC-'b0010
-[31:16] - NOF_frames
+[31:16] - ANALF_frames
 InpSysCaptFrameExt  2/0  [3:0] - 'b0001'
 [7:4] - CaptPortId,
 	   'b0000 - CaptA
@@ -123,7 +123,7 @@ InpSysCaptFrameExt  2/0  [3:0] - 'b0001'
 
   2/1  [31:0] - external capture address
 InpSysAcqFrame  2/0  [3:0] - 'b0010,
-[31:4] - NOF_ext_mem_words
+[31:4] - ANALF_ext_mem_words
   2/1  [31:0] - external memory read start address
 InpSysOverruleON  1/0  [3:0] - 'b0011,
 [7:4] - overrule port id (opid)
@@ -151,14 +151,14 @@ InpSysOverruleCmd  2/0  [3:0] - 'b0101,
 
   2/1  [31:0] - command token value for port opid
 
-acknowledge tokens:
+ackanalwledge tokens:
 
 InpSysAckCFA  1/0   [3:0] - 'b0000
  [7:4] - CaptPortId,
 	   CaptA-'b0000
 	   CaptB- 'b0001
 	   CaptC-'b0010
- [31:16] - NOF_frames
+ [31:16] - ANALF_frames
 InpSysAckCFE  1/0  [3:0] - 'b0001'
 [7:4] - CaptPortId,
 	   'b0000 - CaptA
@@ -190,11 +190,11 @@ InpSysAckOverrule  2/0  [3:0] - 'b0101,
 	   'b0011 - Acq
 	   'b0100 - DMA
 
-  2/1  [31:0] - acknowledge token value from port opid
+  2/1  [31:0] - ackanalwledge token value from port opid
 
 */
 
-/* Command and acknowledge tokens IDs */
+/* Command and ackanalwledge tokens IDs */
 #define ISYS_CTRL_CAPT_FRAMES_ACQ_TOKEN_ID        0 /* 0000b */
 #define ISYS_CTRL_CAPT_FRAME_EXT_TOKEN_ID         1 /* 0001b */
 #define ISYS_CTRL_ACQ_FRAME_TOKEN_ID              2 /* 0010b */
@@ -214,19 +214,19 @@ InpSysAckOverrule  2/0  [3:0] - 'b0101,
 #define ISYS_CTRL_TOKEN_ID_LSB                    0
 #define ISYS_CTRL_PORT_ID_TOKEN_MSB               7
 #define ISYS_CTRL_PORT_ID_TOKEN_LSB               4
-#define ISYS_CTRL_NOF_CAPT_TOKEN_MSB              31
-#define ISYS_CTRL_NOF_CAPT_TOKEN_LSB              16
-#define ISYS_CTRL_NOF_EXT_TOKEN_MSB               31
-#define ISYS_CTRL_NOF_EXT_TOKEN_LSB               8
+#define ISYS_CTRL_ANALF_CAPT_TOKEN_MSB              31
+#define ISYS_CTRL_ANALF_CAPT_TOKEN_LSB              16
+#define ISYS_CTRL_ANALF_EXT_TOKEN_MSB               31
+#define ISYS_CTRL_ANALF_EXT_TOKEN_LSB               8
 
 #define ISYS_CTRL_TOKEN_ID_IDX                    0
 #define ISYS_CTRL_TOKEN_ID_BITS                   (ISYS_CTRL_TOKEN_ID_MSB - ISYS_CTRL_TOKEN_ID_LSB + 1)
 #define ISYS_CTRL_PORT_ID_IDX                     (ISYS_CTRL_TOKEN_ID_IDX + ISYS_CTRL_TOKEN_ID_BITS)
 #define ISYS_CTRL_PORT_ID_BITS                    (ISYS_CTRL_PORT_ID_TOKEN_MSB - ISYS_CTRL_PORT_ID_TOKEN_LSB + 1)
-#define ISYS_CTRL_NOF_CAPT_IDX                    ISYS_CTRL_NOF_CAPT_TOKEN_LSB
-#define ISYS_CTRL_NOF_CAPT_BITS                   (ISYS_CTRL_NOF_CAPT_TOKEN_MSB - ISYS_CTRL_NOF_CAPT_TOKEN_LSB + 1)
-#define ISYS_CTRL_NOF_EXT_IDX                     ISYS_CTRL_NOF_EXT_TOKEN_LSB
-#define ISYS_CTRL_NOF_EXT_BITS                    (ISYS_CTRL_NOF_EXT_TOKEN_MSB - ISYS_CTRL_NOF_EXT_TOKEN_LSB + 1)
+#define ISYS_CTRL_ANALF_CAPT_IDX                    ISYS_CTRL_ANALF_CAPT_TOKEN_LSB
+#define ISYS_CTRL_ANALF_CAPT_BITS                   (ISYS_CTRL_ANALF_CAPT_TOKEN_MSB - ISYS_CTRL_ANALF_CAPT_TOKEN_LSB + 1)
+#define ISYS_CTRL_ANALF_EXT_IDX                     ISYS_CTRL_ANALF_EXT_TOKEN_LSB
+#define ISYS_CTRL_ANALF_EXT_BITS                    (ISYS_CTRL_ANALF_EXT_TOKEN_MSB - ISYS_CTRL_ANALF_EXT_TOKEN_LSB + 1)
 
 #define ISYS_CTRL_PORT_ID_CAPT_A                  0 /* device ID for capture unit A      */
 #define ISYS_CTRL_PORT_ID_CAPT_B                  1 /* device ID for capture unit B      */
@@ -237,8 +237,8 @@ InpSysAckOverrule  2/0  [3:0] - 'b0101,
 #define ISYS_CTRL_PORT_ID_DMA_CAPT_C              6 /* device ID for dma unit            */
 #define ISYS_CTRL_PORT_ID_DMA_ACQ                 7 /* device ID for dma unit            */
 
-#define ISYS_CTRL_NO_ACQ_ACK                      16 /* no ack from acquisition unit */
-#define ISYS_CTRL_NO_DMA_ACK                      0
-#define ISYS_CTRL_NO_CAPT_ACK                     16
+#define ISYS_CTRL_ANAL_ACQ_ACK                      16 /* anal ack from acquisition unit */
+#define ISYS_CTRL_ANAL_DMA_ACK                      0
+#define ISYS_CTRL_ANAL_CAPT_ACK                     16
 
 #endif /* _input_system_ctrl_defs_h */

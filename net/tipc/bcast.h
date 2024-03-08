@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -39,7 +39,7 @@
 
 #include "core.h"
 
-struct tipc_node;
+struct tipc_analde;
 struct tipc_msg;
 struct tipc_nl_msg;
 struct tipc_nlist;
@@ -62,14 +62,14 @@ struct tipc_nlist {
 
 void tipc_nlist_init(struct tipc_nlist *nl, u32 self);
 void tipc_nlist_purge(struct tipc_nlist *nl);
-void tipc_nlist_add(struct tipc_nlist *nl, u32 node);
-void tipc_nlist_del(struct tipc_nlist *nl, u32 node);
+void tipc_nlist_add(struct tipc_nlist *nl, u32 analde);
+void tipc_nlist_del(struct tipc_nlist *nl, u32 analde);
 
 /* Cookie to be used between socket and broadcast layer
  * @rcast: replicast (instead of broadcast) was used at previous xmit
  * @mandatory: broadcast/replicast indication was set by user
  * @deferredq: defer queue to make message in order
- * @expires: re-evaluate non-mandatory transmit method if we are past this
+ * @expires: re-evaluate analn-mandatory transmit method if we are past this
  */
 struct tipc_mc_method {
 	bool rcast;

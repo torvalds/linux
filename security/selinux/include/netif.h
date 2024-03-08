@@ -2,7 +2,7 @@
 /*
  * Network interface table.
  *
- * Network interfaces (devices) do not have a security field, so we
+ * Network interfaces (devices) do analt have a security field, so we
  * maintain a table associating each interface with a SID.
  *
  * Author: James Morris <jmorris@redhat.com>

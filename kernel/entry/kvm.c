@@ -8,7 +8,7 @@ static int xfer_to_guest_mode_work(struct kvm_vcpu *vcpu, unsigned long ti_work)
 	do {
 		int ret;
 
-		if (ti_work & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL)) {
+		if (ti_work & (_TIF_SIGPENDING | _TIF_ANALTIFY_SIGNAL)) {
 			kvm_handle_signal_exit(vcpu);
 			return -EINTR;
 		}
@@ -16,7 +16,7 @@ static int xfer_to_guest_mode_work(struct kvm_vcpu *vcpu, unsigned long ti_work)
 		if (ti_work & _TIF_NEED_RESCHED)
 			schedule();
 
-		if (ti_work & _TIF_NOTIFY_RESUME)
+		if (ti_work & _TIF_ANALTIFY_RESUME)
 			resume_user_mode_work(NULL);
 
 		ret = arch_xfer_to_guest_mode_handle_work(vcpu, ti_work);
@@ -37,7 +37,7 @@ int xfer_to_guest_mode_handle_work(struct kvm_vcpu *vcpu)
 	 * preemption enabled.
 	 *
 	 * KVM invokes xfer_to_guest_mode_work_pending() with interrupts
-	 * disabled in the inner loop before going into guest mode. No need
+	 * disabled in the inner loop before going into guest mode. Anal need
 	 * to disable interrupts here.
 	 */
 	ti_work = read_thread_flags();

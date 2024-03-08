@@ -52,7 +52,7 @@ struct wcd_clsh_ctrl {
 #define WCD9XXX_A_ANA_HPH_PWR_LEVEL_MASK		GENMASK(3, 2)
 #define WCD9XXX_A_ANA_HPH_PWR_LEVEL_UHQA		0x08
 #define WCD9XXX_A_ANA_HPH_PWR_LEVEL_LP			0x04
-#define WCD9XXX_A_ANA_HPH_PWR_LEVEL_NORMAL		0x0
+#define WCD9XXX_A_ANA_HPH_PWR_LEVEL_ANALRMAL		0x0
 #define WCD9XXX_A_CDC_CLSH_CRC				WCD9335_REG(0xC, 0x01)
 #define WCD9XXX_A_CDC_CLSH_CRC_CLK_EN_MASK		BIT(0)
 #define WCD9XXX_A_CDC_CLSH_CRC_CLK_ENABLE		BIT(0)
@@ -249,7 +249,7 @@ static void wcd_clsh_set_gain_path(struct wcd_clsh_ctrl *ctrl, int mode)
 	int val = 0;
 
 	switch (mode) {
-	case CLS_H_NORMAL:
+	case CLS_H_ANALRMAL:
 	case CLS_AB:
 		val = WCD9XXX_HPH_CONST_SEL_BYPASS;
 		break;
@@ -277,14 +277,14 @@ static void wcd_clsh_v2_set_hph_mode(struct snd_soc_component *comp, int mode)
 
 	res_val = WCD9XXX_CLASSH_CTRL_VCL_VREF_FILT_R_0KOHM;
 	switch (mode) {
-	case CLS_H_NORMAL:
+	case CLS_H_ANALRMAL:
 		res_val = WCD9XXX_CLASSH_CTRL_VCL_VREF_FILT_R_50KOHM;
-		val = WCD9XXX_A_ANA_HPH_PWR_LEVEL_NORMAL;
+		val = WCD9XXX_A_ANA_HPH_PWR_LEVEL_ANALRMAL;
 		gain = DAC_GAIN_0DB;
 		ipeak = WCD9XXX_CLASSH_CTRL_CCL_1_DELTA_IPEAK_50MA;
 		break;
 	case CLS_AB:
-		val = WCD9XXX_A_ANA_HPH_PWR_LEVEL_NORMAL;
+		val = WCD9XXX_A_ANA_HPH_PWR_LEVEL_ANALRMAL;
 		gain = DAC_GAIN_0DB;
 		ipeak = WCD9XXX_CLASSH_CTRL_CCL_1_DELTA_IPEAK_50MA;
 		break;
@@ -320,7 +320,7 @@ static void wcd_clsh_v3_set_hph_mode(struct snd_soc_component *component,
 	u8 val;
 
 	switch (mode) {
-	case CLS_H_NORMAL:
+	case CLS_H_ANALRMAL:
 		val = 0x00;
 		break;
 	case CLS_AB:
@@ -501,8 +501,8 @@ static void wcd_clsh_v3_state_aux(struct wcd_clsh_ctrl *ctrl, int req_state,
 	} else {
 		wcd_clsh_v3_buck_ctrl(component, ctrl, mode, false);
 		wcd_clsh_v3_flyback_ctrl(component, ctrl, mode, false);
-		wcd_clsh_v3_set_flyback_mode(component, CLS_H_NORMAL);
-		wcd_clsh_v3_set_buck_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_set_flyback_mode(component, CLS_H_ANALRMAL);
+		wcd_clsh_v3_set_buck_mode(component, CLS_H_ANALRMAL);
 	}
 }
 
@@ -512,7 +512,7 @@ static void wcd_clsh_state_lo(struct wcd_clsh_ctrl *ctrl, int req_state,
 	struct snd_soc_component *comp = ctrl->comp;
 
 	if (mode != CLS_AB) {
-		dev_err(comp->dev, "%s: LO cannot be in this mode: %d\n",
+		dev_err(comp->dev, "%s: LO cananalt be in this mode: %d\n",
 			__func__, mode);
 		return;
 	}
@@ -527,9 +527,9 @@ static void wcd_clsh_state_lo(struct wcd_clsh_ctrl *ctrl, int req_state,
 	} else {
 		wcd_clsh_buck_ctrl(ctrl, mode, false);
 		wcd_clsh_flyback_ctrl(ctrl, mode, false);
-		wcd_clsh_set_flyback_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_set_flyback_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_ANALRMAL);
 	}
 }
 
@@ -538,8 +538,8 @@ static void wcd_clsh_v3_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 {
 	struct snd_soc_component *component = ctrl->comp;
 
-	if (mode == CLS_H_NORMAL) {
-		dev_dbg(component->dev, "%s: Normal mode not applicable for hph_r\n",
+	if (mode == CLS_H_ANALRMAL) {
+		dev_dbg(component->dev, "%s: Analrmal mode analt applicable for hph_r\n",
 			__func__);
 		return;
 	}
@@ -554,14 +554,14 @@ static void wcd_clsh_v3_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_clsh_v3_buck_ctrl(component, ctrl, mode, true);
 		wcd_clsh_v3_set_hph_mode(component, mode);
 	} else {
-		wcd_clsh_v3_set_hph_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_set_hph_mode(component, CLS_H_ANALRMAL);
 
 		/* buck and flyback set to default mode and disable */
-		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_force_iq_ctl(component, CLS_H_NORMAL, false);
-		wcd_clsh_v3_set_flyback_mode(component, CLS_H_NORMAL);
-		wcd_clsh_v3_set_buck_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_force_iq_ctl(component, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_set_flyback_mode(component, CLS_H_ANALRMAL);
+		wcd_clsh_v3_set_buck_mode(component, CLS_H_ANALRMAL);
 	}
 }
 
@@ -570,8 +570,8 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 {
 	struct snd_soc_component *comp = ctrl->comp;
 
-	if (mode == CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: Normal mode not applicable for hph_r\n",
+	if (mode == CLS_H_ANALRMAL) {
+		dev_err(comp->dev, "%s: Analrmal mode analt applicable for hph_r\n",
 			__func__);
 		return;
 	}
@@ -581,7 +581,7 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, true);
 			/*
 			 * These K1 values depend on the Headphone Impedance
-			 * For now it is assumed to be 16 ohm
+			 * For analw it is assumed to be 16 ohm
 			 */
 			snd_soc_component_update_bits(comp,
 					WCD9XXX_A_CDC_CLSH_K1_MSB,
@@ -605,7 +605,7 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_clsh_v2_set_hph_mode(comp, mode);
 		wcd_clsh_set_gain_path(ctrl, mode);
 	} else {
-		wcd_clsh_v2_set_hph_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_v2_set_hph_mode(comp, CLS_H_ANALRMAL);
 
 		if (mode != CLS_AB) {
 			snd_soc_component_update_bits(comp,
@@ -615,11 +615,11 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, false);
 		}
 		/* buck and flyback set to default mode and disable */
-		wcd_clsh_buck_ctrl(ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_flyback_ctrl(ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_set_flyback_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_buck_ctrl(ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_flyback_ctrl(ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_set_flyback_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_ANALRMAL);
 	}
 }
 
@@ -628,8 +628,8 @@ static void wcd_clsh_v3_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 {
 	struct snd_soc_component *component = ctrl->comp;
 
-	if (mode == CLS_H_NORMAL) {
-		dev_dbg(component->dev, "%s: Normal mode not applicable for hph_l\n",
+	if (mode == CLS_H_ANALRMAL) {
+		dev_dbg(component->dev, "%s: Analrmal mode analt applicable for hph_l\n",
 			__func__);
 		return;
 	}
@@ -644,14 +644,14 @@ static void wcd_clsh_v3_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_clsh_v3_buck_ctrl(component, ctrl, mode, true);
 		wcd_clsh_v3_set_hph_mode(component, mode);
 	} else {
-		wcd_clsh_v3_set_hph_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_set_hph_mode(component, CLS_H_ANALRMAL);
 
 		/* set buck and flyback to Default Mode */
-		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_force_iq_ctl(component, CLS_H_NORMAL, false);
-		wcd_clsh_v3_set_flyback_mode(component, CLS_H_NORMAL);
-		wcd_clsh_v3_set_buck_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_force_iq_ctl(component, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_set_flyback_mode(component, CLS_H_ANALRMAL);
+		wcd_clsh_v3_set_buck_mode(component, CLS_H_ANALRMAL);
 	}
 }
 
@@ -660,8 +660,8 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 {
 	struct snd_soc_component *comp = ctrl->comp;
 
-	if (mode == CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: Normal mode not applicable for hph_l\n",
+	if (mode == CLS_H_ANALRMAL) {
+		dev_err(comp->dev, "%s: Analrmal mode analt applicable for hph_l\n",
 			__func__);
 		return;
 	}
@@ -671,7 +671,7 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, true);
 			/*
 			 * These K1 values depend on the Headphone Impedance
-			 * For now it is assumed to be 16 ohm
+			 * For analw it is assumed to be 16 ohm
 			 */
 			snd_soc_component_update_bits(comp,
 					WCD9XXX_A_CDC_CLSH_K1_MSB,
@@ -695,7 +695,7 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_clsh_v2_set_hph_mode(comp, mode);
 		wcd_clsh_set_gain_path(ctrl, mode);
 	} else {
-		wcd_clsh_v2_set_hph_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_v2_set_hph_mode(comp, CLS_H_ANALRMAL);
 
 		if (mode != CLS_AB) {
 			snd_soc_component_update_bits(comp,
@@ -705,11 +705,11 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, false);
 		}
 		/* set buck and flyback to Default Mode */
-		wcd_clsh_buck_ctrl(ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_flyback_ctrl(ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_set_flyback_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_buck_ctrl(ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_flyback_ctrl(ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_set_flyback_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_regulator_mode(comp, CLS_H_ANALRMAL);
 	}
 }
 
@@ -728,14 +728,14 @@ static void wcd_clsh_v3_state_ear(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_clsh_v3_buck_ctrl(component, ctrl, mode, true);
 		wcd_clsh_v3_set_hph_mode(component, mode);
 	} else {
-		wcd_clsh_v3_set_hph_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_set_hph_mode(component, CLS_H_ANALRMAL);
 
 		/* set buck and flyback to Default Mode */
-		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_NORMAL, false);
-		wcd_clsh_v3_force_iq_ctl(component, CLS_H_NORMAL, false);
-		wcd_clsh_v3_set_flyback_mode(component, CLS_H_NORMAL);
-		wcd_clsh_v3_set_buck_mode(component, CLS_H_NORMAL);
+		wcd_clsh_v3_flyback_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_buck_ctrl(component, ctrl, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_force_iq_ctl(component, CLS_H_ANALRMAL, false);
+		wcd_clsh_v3_set_flyback_mode(component, CLS_H_ANALRMAL);
+		wcd_clsh_v3_set_buck_mode(component, CLS_H_ANALRMAL);
 	}
 }
 
@@ -744,8 +744,8 @@ static void wcd_clsh_state_ear(struct wcd_clsh_ctrl *ctrl, int req_state,
 {
 	struct snd_soc_component *comp = ctrl->comp;
 
-	if (mode != CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: mode: %d cannot be used for EAR\n",
+	if (mode != CLS_H_ANALRMAL) {
+		dev_err(comp->dev, "%s: mode: %d cananalt be used for EAR\n",
 			__func__, mode);
 		return;
 	}
@@ -769,8 +769,8 @@ static void wcd_clsh_state_ear(struct wcd_clsh_ctrl *ctrl, int req_state,
 		wcd_enable_clsh_block(ctrl, false);
 		wcd_clsh_buck_ctrl(ctrl, mode, false);
 		wcd_clsh_flyback_ctrl(ctrl, mode, false);
-		wcd_clsh_set_flyback_mode(comp, CLS_H_NORMAL);
-		wcd_clsh_set_buck_mode(comp, CLS_H_NORMAL);
+		wcd_clsh_set_flyback_mode(comp, CLS_H_ANALRMAL);
+		wcd_clsh_set_buck_mode(comp, CLS_H_ANALRMAL);
 	}
 }
 
@@ -852,7 +852,7 @@ int wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl,
 		return 0;
 
 	if (!wcd_clsh_is_state_valid(nstate)) {
-		dev_err(comp->dev, "Class-H not a valid new state:\n");
+		dev_err(comp->dev, "Class-H analt a valid new state:\n");
 		return -EINVAL;
 	}
 
@@ -885,7 +885,7 @@ struct wcd_clsh_ctrl *wcd_clsh_ctrl_alloc(struct snd_soc_component *comp,
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ctrl->state = WCD_CLSH_STATE_IDLE;
 	ctrl->comp = comp;

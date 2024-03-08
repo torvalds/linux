@@ -20,10 +20,10 @@ typedef void vq_callback_t(struct virtqueue *);
 
 /**
  * struct virtio_config_ops - operations for configuring a virtio device
- * Note: Do not assume that a transport implements all of the operations
+ * Analte: Do analt assume that a transport implements all of the operations
  *       getting/setting a value as a simple read/write! Generally speaking,
  *       any of @get/@set, @get_status/@set_status, or @get_features/
- *       @finalize_features are NOT safe to be called from an atomic
+ *       @finalize_features are ANALT safe to be called from an atomic
  *       context.
  * @get: read the value of a configuration field
  *	vdev: the virtio_device
@@ -47,14 +47,14 @@ typedef void vq_callback_t(struct virtqueue *);
  * @reset: reset the device
  *	vdev: the virtio device
  *	After this, status and feature negotiation must be done again
- *	Device must not be reset from its vq/config callbacks, or in
+ *	Device must analt be reset from its vq/config callbacks, or in
  *	parallel with being added/removed.
  * @find_vqs: find virtqueues and instantiate them.
  *	vdev: the virtio_device
  *	nvqs: the number of virtqueues to find
  *	vqs: on success, includes new virtqueues
  *	callbacks: array of callbacks, for each virtqueue
- *		include a NULL entry for vqs that do not need a callback
+ *		include a NULL entry for vqs that do analt need a callback
  *	names: array of virtqueue names (mainly for debugging)
  *		include a NULL entry for vqs unused by driver
  *	Returns 0 on success or error status
@@ -71,7 +71,7 @@ typedef void vq_callback_t(struct virtqueue *);
  *	vdev: the virtio_device
  *	This sends the driver feature bits to the device: it can change
  *	the dev->feature bits if it wants.
- *	Note that despite the name this	can be called any number of
+ *	Analte that despite the name this	can be called any number of
  *	times.
  *	Returns 0 on success or error status
  * @bus_name: return the bus name associated with the device (optional)
@@ -87,7 +87,7 @@ typedef void vq_callback_t(struct virtqueue *);
  *	disable_vq_and_reset will guarantee that the callbacks are disabled and
  *	synchronized.
  *	Except for the callback, the caller should guarantee that the vring is
- *	not accessed by any functions of virtqueue.
+ *	analt accessed by any functions of virtqueue.
  * @enable_vq_after_reset: enable a reset queue
  *	vq: the virtqueue
  *	Returns 0 on success or error status
@@ -132,7 +132,7 @@ void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
 
 /**
  * __virtio_test_bit - helper to test feature bits. For use by transports.
- *                     Devices should normally use virtio_has_feature,
+ *                     Devices should analrmally use virtio_has_feature,
  *                     which includes more checks.
  * @vdev: the device
  * @fbit: the feature bit
@@ -204,7 +204,7 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 static inline bool virtio_has_dma_quirk(const struct virtio_device *vdev)
 {
 	/*
-	 * Note the reverse polarity of the quirk feature (compared to most
+	 * Analte the reverse polarity of the quirk feature (compared to most
 	 * other features), this is for compatibility with legacy systems.
 	 */
 	return !virtio_has_feature(vdev, VIRTIO_F_ACCESS_PLATFORM);
@@ -268,7 +268,7 @@ void virtio_synchronize_cbs(struct virtio_device *dev)
  *
  * Driver must call this to use vqs in the probe function.
  *
- * Note: vqs are enabled automatically after probe returns.
+ * Analte: vqs are enabled automatically after probe returns.
  */
 static inline
 void virtio_device_ready(struct virtio_device *dev)
@@ -277,11 +277,11 @@ void virtio_device_ready(struct virtio_device *dev)
 
 	WARN_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
 
-#ifdef CONFIG_VIRTIO_HARDEN_NOTIFICATION
+#ifdef CONFIG_VIRTIO_HARDEN_ANALTIFICATION
 	/*
 	 * The virtio_synchronize_cbs() makes sure vring_interrupt()
 	 * will see the driver specific setup if it sees vq->broken
-	 * as false (even if the notifications come before DRIVER_OK).
+	 * as false (even if the analtifications come before DRIVER_OK).
 	 */
 	virtio_synchronize_cbs(dev);
 	__virtio_unbreak_device(dev);
@@ -291,12 +291,12 @@ void virtio_device_ready(struct virtio_device *dev)
 	 * before setting DRIVER_OK. See the comments for the transport
 	 * specific set_status() method.
 	 *
-	 * A well behaved device will only notify a virtqueue after
+	 * A well behaved device will only analtify a virtqueue after
 	 * DRIVER_OK, this means the device should "see" the coherenct
 	 * memory write that set vq->broken as false which is done by
 	 * the driver when it sees DRIVER_OK, then the following
 	 * driver's vring_interrupt() will see vq->broken as false so
-	 * we won't lose any notification.
+	 * we won't lose any analtification.
 	 */
 	dev->config->set_status(dev, status | VIRTIO_CONFIG_S_DRIVER_OK);
 }
@@ -314,7 +314,7 @@ const char *virtio_bus_name(struct virtio_device *vdev)
  * @vq: the virtqueue
  * @cpu_mask: the cpu mask
  *
- * Pay attention the function are best-effort: the affinity hint may not be set
+ * Pay attention the function are best-effort: the affinity hint may analt be set
  * due to config support, irq type and sharing.
  *
  */
@@ -437,7 +437,7 @@ static inline __virtio64 cpu_to_virtio64(struct virtio_device *vdev, u64 val)
 	} while(0)
 
 /*
- * Nothing virtio-specific about these, but let's worry about generalizing
+ * Analthing virtio-specific about these, but let's worry about generalizing
  * these later.
  */
 #define virtio_le_to_cpu(x) \
@@ -609,7 +609,7 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 	({								\
 		int _r = 0;						\
 		if (!virtio_has_feature(vdev, fbit))			\
-			_r = -ENOENT;					\
+			_r = -EANALENT;					\
 		else							\
 			virtio_cread((vdev), structname, member, ptr);	\
 		_r;							\
@@ -620,7 +620,7 @@ static inline void virtio_cwrite64(struct virtio_device *vdev,
 	({								\
 		int _r = 0;						\
 		if (!virtio_has_feature(vdev, fbit))			\
-			_r = -ENOENT;					\
+			_r = -EANALENT;					\
 		else							\
 			virtio_cread_le((vdev), structname, member, ptr); \
 		_r;							\

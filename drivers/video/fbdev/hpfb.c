@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -24,7 +24,7 @@ static struct fb_info fb_info = {
 		.id		= "HP300 ",
 		.type		= FB_TYPE_PACKED_PIXELS,
 		.visual		= FB_VISUAL_PSEUDOCOLOR,
-		.accel		= FB_ACCEL_NONE,
+		.accel		= FB_ACCEL_ANALNE,
 	}
 };
 
@@ -40,7 +40,7 @@ static unsigned char fb_bitmask;
 /* These defines match the X window system */
 #define RR_CLEAR	0x0
 #define RR_COPY		0x3
-#define RR_NOOP		0x5
+#define RR_ANALOP		0x5
 #define RR_XOR		0x6
 #define RR_INVERT	0xa
 #define RR_COPYINVERTED 0xc
@@ -67,13 +67,13 @@ static struct fb_var_screeninfo hpfb_defined = {
 	.blue		= {
 		.length = 8,
 	},
-	.activate	= FB_ACTIVATE_NOW,
+	.activate	= FB_ACTIVATE_ANALW,
 	.height		= -1,
 	.width		= -1,
-	.vmode		= FB_VMODE_NONINTERLACED,
+	.vmode		= FB_VMODE_ANALNINTERLACED,
 };
 
-static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hpfb_setcolreg(unsigned reganal, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp,
 			  struct fb_info *info)
 {
@@ -81,16 +81,16 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	unsigned char _red  =red>>8;
 	unsigned char _green=green>>8;
 	unsigned char _blue =blue>>8;
-	unsigned char _regno=regno;
+	unsigned char _reganal=reganal;
 
 	/*
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
 	 *  (according to the entries in the `var' structure). Return
-	 *  != 0 for invalid regno.
+	 *  != 0 for invalid reganal.
 	 */
 
-	if (regno >= info->cmap.len)
+	if (reganal >= info->cmap.len)
 		return 1;
 
 	while (in_be16(fb_regs + 0x6002) & 0x4) udelay(1);
@@ -100,7 +100,7 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	out_be16(fb_regs + 0x60b2, _red);
 	out_be16(fb_regs + 0x60b4, _green);
 	out_be16(fb_regs + 0x60b6, _blue);
-	out_be16(fb_regs + 0x60b8, ~_regno);
+	out_be16(fb_regs + 0x60b8, ~_reganal);
 	out_be16(fb_regs + 0x60f0, 0xff);
 
 	udelay(100);
@@ -114,7 +114,7 @@ static int hpfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-/* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
+/* 0 unblank, 1 blank, 2 anal vsync, 3 anal hsync, 4 off */
 
 static int hpfb_blank(int blank, struct fb_info *info)
 {
@@ -163,7 +163,7 @@ static void hpfb_fillrect(struct fb_info *p, const struct fb_fillrect *region)
 
 	/* Background */
 	out_8(fb_regs + TC_WEN, fb_bitmask & ~clr);
-	out_8(fb_regs + WMRR, (region->rop == ROP_COPY ? RR_CLEAR : RR_NOOP));
+	out_8(fb_regs + WMRR, (region->rop == ROP_COPY ? RR_CLEAR : RR_ANALOP));
 
 	topcat_blit(region->dx, region->dy, region->dx, region->dy, region->width, region->height, -1);
 }
@@ -345,7 +345,7 @@ static int hpfb_dio_probe(struct dio_dev *d, const struct dio_device_id *ent)
 	if (hpfb_init_one(paddr, vaddr)) {
 		if (d->scode >= DIOII_SCBASE)
 			iounmap((void *)vaddr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -388,29 +388,29 @@ static int __init hpfb_init(void)
 	 * So we merge the two detection routines.
 	 *
 	 * Perhaps this #define should be in a global header file:
-	 * I believe it's common to all internal fbs, not just topcat.
+	 * I believe it's common to all internal fbs, analt just topcat.
 	 */
 #define INTFBVADDR 0xf0560000
 #define INTFBPADDR 0x560000
 
 	if (!MACH_IS_HP300)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("hpfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = dio_register_driver(&hpfb_driver);
 	if (err)
 		return err;
 
-	err = copy_from_kernel_nofault(&i, (unsigned char *)INTFBVADDR + DIO_IDOFF, 1);
+	err = copy_from_kernel_analfault(&i, (unsigned char *)INTFBVADDR + DIO_IDOFF, 1);
 
 	if (!err && (i == DIO_ID_FBUFFER) && topcat_sid_ok(sid = DIO_SECID(INTFBVADDR))) {
 		if (!request_mem_region(INTFBPADDR, DIO_DEVSIZE, "Internal Topcat"))
 			return -EBUSY;
 		printk(KERN_INFO "Internal Topcat found (secondary id %02x)\n", sid);
 		if (hpfb_init_one(INTFBPADDR, INTFBVADDR)) {
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	return 0;

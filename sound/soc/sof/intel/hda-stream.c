@@ -42,7 +42,7 @@ static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
 	else if (hstream->cstream)
 		rtd = hstream->cstream->private_data;
 	else
-		/* Non audio DMA user, like dma-trace */
+		/* Analn audio DMA user, like dma-trace */
 		return kasprintf(GFP_KERNEL, "-- (%s, stream_tag: %u)",
 				 hda_hstream_direction_str(hstream),
 				 hstream->stream_tag);
@@ -79,7 +79,7 @@ static int hda_setup_bdle(struct snd_sof_dev *sdev,
 		bdl->addr_h = cpu_to_le32(upper_32_bits(addr));
 		/* program BDL size */
 		chunk = snd_sgbuf_get_chunk_size(dmab, offset, size);
-		/* one BDLE should not cross 4K boundary */
+		/* one BDLE should analt cross 4K boundary */
 		if (bus->align_bdle_4k) {
 			u32 remain = 0x1000 - (offset & 0xfff);
 
@@ -134,8 +134,8 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	 * set IOC if don't use position IPC
 	 * and period_wakeup needed.
 	 */
-	ioc = hda->no_ipc_position ?
-	      !hstream->no_period_wakeup : 0;
+	ioc = hda->anal_ipc_position ?
+	      !hstream->anal_period_wakeup : 0;
 
 	for (i = 0; i < periods; i++) {
 		if (i == (periods - 1) && remain)
@@ -210,7 +210,7 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 
 	/* stream found ? */
 	if (!hext_stream) {
-		dev_err(sdev->dev, "error: no free %s streams\n",
+		dev_err(sdev->dev, "error: anal free %s streams\n",
 			direction == SNDRV_PCM_STREAM_PLAYBACK ?
 			"playback" : "capture");
 		return hext_stream;
@@ -220,8 +220,8 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 
 	/*
 	 * Prevent DMI Link L1 entry for streams that don't support it.
-	 * Workaround to address a known issue with host DMA that results
-	 * in xruns during pause/release in capture scenarios. This is not needed for the ACE IP.
+	 * Workaround to address a kanalwn issue with host DMA that results
+	 * in xruns during pause/release in capture scenarios. This is analt needed for the ACE IP.
 	 */
 	if (chip_info->hw_ip_version < SOF_INTEL_ACE_1_0 &&
 	    !(flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE)) {
@@ -277,9 +277,9 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 	}
 
 	if (!found) {
-		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
+		dev_err(sdev->dev, "%s: stream_tag %d analt opened!\n",
 			__func__, stream_tag);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -394,7 +394,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 		}
 		break;
 	default:
-		dev_err(sdev->dev, "error: unknown command: %d\n", cmd);
+		dev_err(sdev->dev, "error: unkanalwn command: %d\n", cmd);
 		return -EINVAL;
 	}
 
@@ -403,7 +403,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 
 		dev_err(sdev->dev,
 			"%s: cmd %d on %s: timeout on STREAM_SD_OFFSET read\n",
-			__func__, cmd, stream_name ? stream_name : "unknown stream");
+			__func__, cmd, stream_name ? stream_name : "unkanalwn stream");
 		kfree(stream_name);
 	}
 
@@ -421,13 +421,13 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 	u32 mask = 0x1 << hstream->index;
 
 	if (!hext_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
-		return -ENODEV;
+		dev_err(sdev->dev, "error: anal stream available\n");
+		return -EANALDEV;
 	}
 
 	if (!dmab) {
-		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
-		return -ENODEV;
+		dev_err(sdev->dev, "error: anal dma buffer allocated!\n");
+		return -EANALDEV;
 	}
 
 	if (hstream->posbuf)
@@ -484,7 +484,7 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 
 /*
  * prepare for common hdac registers settings, for both code loader
- * and normal stream.
+ * and analrmal stream.
  */
 int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			     struct hdac_ext_stream *hext_stream,
@@ -500,13 +500,13 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	u32 run;
 
 	if (!hext_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
-		return -ENODEV;
+		dev_err(sdev->dev, "error: anal stream available\n");
+		return -EANALDEV;
 	}
 
 	if (!dmab) {
-		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
-		return -ENODEV;
+		dev_err(sdev->dev, "error: anal dma buffer allocated!\n");
+		return -EANALDEV;
 	}
 
 	hstream = &hext_stream->hstream;
@@ -534,7 +534,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 		dev_err(sdev->dev,
 			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
-			__func__, stream_name ? stream_name : "unknown stream");
+			__func__, stream_name ? stream_name : "unkanalwn stream");
 		kfree(stream_name);
 		return ret;
 	}
@@ -576,7 +576,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 		dev_err(sdev->dev,
 			"%s: on %s: timeout on STREAM_SD_OFFSET read1\n",
-			__func__, stream_name ? stream_name : "unknown stream");
+			__func__, stream_name ? stream_name : "unkanalwn stream");
 		kfree(stream_name);
 		return ret;
 	}
@@ -607,7 +607,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/*
 	 * Recommended hardware programming sequence for HDAudio DMA format
-	 * on earlier platforms - this is not needed on newer platforms
+	 * on earlier platforms - this is analt needed on newer platforms
 	 *
 	 * 1. Put DMA into coupled mode by clearing PPCTL.PROCEN bit
 	 *    for corresponding stream index before the time of writing
@@ -722,7 +722,7 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 
 	trace_sof_intel_hda_dsp_check_stream_irq(sdev, status);
 
-	/* if Register inaccessible, ignore it.*/
+	/* if Register inaccessible, iganalre it.*/
 	if (status != 0xffffffff)
 		ret = true;
 
@@ -769,8 +769,8 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
 				continue;
 
-			/* Inform ALSA only in case not do that with IPC */
-			if (s->substream && sof_hda->no_ipc_position) {
+			/* Inform ALSA only in case analt do that with IPC */
+			if (s->substream && sof_hda->anal_ipc_position) {
 				snd_sof_pcm_period_elapsed(s->substream);
 			} else if (s->cstream) {
 				hda_dsp_compr_bytes_transferred(s, s->cstream->direction);
@@ -855,7 +855,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 				  &bus->posbuf);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: posbuffer dma alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -866,7 +866,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 				  PAGE_SIZE, &bus->rb);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: RB alloc failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* create capture and playback streams */
@@ -876,7 +876,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
 					  GFP_KERNEL);
 		if (!hda_stream)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		hda_stream->sdev = sdev;
 
@@ -925,7 +925,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 					  HDA_DSP_BDL_SIZE, &hstream->bdl);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: stream bdl dma alloc failed\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		hstream->posbuf = (__le32 *)(bus->posbuf.area +
@@ -982,11 +982,11 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 		/*
 		 * This legacy code, inherited from the Skylake driver,
 		 * mixes DPIB registers and DPIB DDR updates and
-		 * does not seem to follow any known hardware recommendations.
-		 * It's not clear e.g. why there is a different flow
+		 * does analt seem to follow any kanalwn hardware recommendations.
+		 * It's analt clear e.g. why there is a different flow
 		 * for capture and playback, the only information that matters is
 		 * what traffic class is used, and on all SOF-enabled platforms
-		 * only VC0 is supported so the work-around was likely not necessary
+		 * only VC0 is supported so the work-around was likely analt necessary
 		 * and quite possibly wrong.
 		 */
 
@@ -994,7 +994,7 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 		 * For Playback, Use DPIB register from HDA space which
 		 * reflects the actual data transferred.
 		 * For Capture, Use the position buffer for pointer, as DPIB
-		 * is not accurate enough, its update may be completed
+		 * is analt accurate eanalugh, its update may be completed
 		 * earlier than the data written to DDR.
 		 */
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -1012,7 +1012,7 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 			 * happens on frame boundary i.e. 20.833uSec for 48KHz.
 			 * 2. Perform a dummy Read to DPIB register to flush DMA
 			 * position value.
-			 * 3. Read the DMA Position from posbuf. Now the readback
+			 * 3. Read the DMA Position from posbuf. Analw the readback
 			 * value should be >= period boundary.
 			 */
 			if (can_sleep)
@@ -1043,7 +1043,7 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 		pos = snd_hdac_stream_get_pos_posbuf(hstream);
 		break;
 	default:
-		dev_err_once(sdev->dev, "hda_position_quirk value %d not supported\n",
+		dev_err_once(sdev->dev, "hda_position_quirk value %d analt supported\n",
 			     sof_hda_position_quirk);
 		pos = 0;
 		break;

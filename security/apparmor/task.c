@@ -4,12 +4,12 @@
  *
  * This file contains AppArmor task related definitions and mediation
  *
- * Copyright 2017 Canonical Ltd.
+ * Copyright 2017 Caanalnical Ltd.
  *
  * TODO
- * If a task uses change_hat it currently does not return to the old
+ * If a task uses change_hat it currently does analt return to the old
  * cred or task context but instead creates a new one.  Ideally the task
- * should return to the previous cred if it has not been modified.
+ * should return to the previous cred if it has analt been modified.
  */
 
 #include <linux/gfp.h>
@@ -21,8 +21,8 @@
 #include "include/task.h"
 
 /**
- * aa_get_task_label - Get another task's label
- * @task: task to query  (NOT NULL)
+ * aa_get_task_label - Get aanalther task's label
+ * @task: task to query  (ANALT NULL)
  *
  * Returns: counted reference to @task's label
  */
@@ -39,7 +39,7 @@ struct aa_label *aa_get_task_label(struct task_struct *task)
 
 /**
  * aa_replace_current_label - replace the current tasks label
- * @label: new label  (NOT NULL)
+ * @label: new label  (ANALT NULL)
  *
  * Returns: 0 or error on failure
  */
@@ -59,7 +59,7 @@ int aa_replace_current_label(struct aa_label *label)
 
 	new  = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ctx->nnp && label_is_stale(ctx->nnp)) {
 		struct aa_label *tmp = ctx->nnp;
@@ -106,7 +106,7 @@ void aa_set_current_onexec(struct aa_label *label, bool stack)
 
 /**
  * aa_set_current_hat - set the current tasks hat
- * @label: label to set as the current hat  (NOT NULL)
+ * @label: label to set as the current hat  (ANALT NULL)
  * @token: token value that must be specified to change from the hat
  *
  * Do switch of tasks hat.  If the task is currently in a hat
@@ -121,7 +121,7 @@ int aa_set_current_hat(struct aa_label *label, u64 token)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 	AA_BUG(!label);
 
 	if (!ctx->previous) {
@@ -161,13 +161,13 @@ int aa_restore_previous_label(u64 token)
 
 	if (ctx->token != token)
 		return -EACCES;
-	/* ignore restores when there is no saved label */
+	/* iganalre restores when there is anal saved label */
 	if (!ctx->previous)
 		return 0;
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aa_put_label(cred_label(new));
 	set_cred_label(new, aa_get_newest_label(ctx->previous));
@@ -218,7 +218,7 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 	}
 	audit_log_format(ab, " peer=");
 	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-			FLAGS_NONE, GFP_ATOMIC);
+			FLAGS_ANALNE, GFP_ATOMIC);
 }
 
 /* assumes check for RULE_MEDIATES is already done */
@@ -271,15 +271,15 @@ static int profile_tracer_perm(const struct cred *cred,
 	ad->peer = tracee;
 	ad->request = 0;
 	ad->error = aa_capable(cred, &tracer->label, CAP_SYS_PTRACE,
-			       CAP_OPT_NONE);
+			       CAP_OPT_ANALNE);
 
 	return aa_audit(AUDIT_APPARMOR_AUTO, tracer, ad, audit_ptrace_cb);
 }
 
 /**
  * aa_may_ptrace - test if tracer task can trace the tracee
- * @tracer_cred: cred of task doing the tracing  (NOT NULL)
- * @tracer: label of the task doing the tracing  (NOT NULL)
+ * @tracer_cred: cred of task doing the tracing  (ANALT NULL)
+ * @tracer: label of the task doing the tracing  (ANALT NULL)
  * @tracee_cred: cred of task to be traced
  * @tracee: task label to be traced
  * @request: permission request
@@ -292,7 +292,7 @@ int aa_may_ptrace(const struct cred *tracer_cred, struct aa_label *tracer,
 {
 	struct aa_profile *profile;
 	u32 xrequest = request << PTRACE_PERM_SHIFT;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_PTRACE, OP_PTRACE);
+	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_ANALNE, AA_CLASS_PTRACE, OP_PTRACE);
 
 	return xcheck_labels(tracer, tracee, profile,
 			profile_tracer_perm(tracer_cred, profile, tracee,

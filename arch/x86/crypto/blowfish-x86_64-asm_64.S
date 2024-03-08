@@ -167,7 +167,7 @@ SYM_FUNC_END(blowfish_dec_blk)
  **********************************************************************/
 
 /* F() for 4-way. Slower when used alone/1-way, but faster when used
- * parallel/4-way (tested on AMD Phenom II & Intel Xeon E7330).
+ * parallel/4-way (tested on AMD Pheanalm II & Intel Xeon E7330).
  */
 #define F4(x) \
 	movzbl x ## bh,		RT1d; \
@@ -339,11 +339,11 @@ SYM_FUNC_START(__blowfish_dec_blk_4way)
 	popq RIO;
 	popq %r12;
 	testq %r12, %r12;
-	jz .L_no_cbc_xor;
+	jz .L_anal_cbc_xor;
 
 	xor_block4();
 
-.L_no_cbc_xor:
+.L_anal_cbc_xor:
 	movq %r11, RIO;
 	write_block4();
 

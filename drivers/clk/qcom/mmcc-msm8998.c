@@ -2437,14 +2437,14 @@ static struct clk_branch fd_ahb_clk = {
 	},
 };
 
-static struct clk_branch mnoc_ahb_clk = {
+static struct clk_branch manalc_ahb_clk = {
 	.halt_reg = 0x5024,
 	.halt_check = BRANCH_HALT_SKIP,
 	.clkr = {
 		.enable_reg = 0x5024,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mnoc_ahb_clk",
+			.name = "manalc_ahb_clk",
 			.parent_hws = (const struct clk_hw *[]){ &ahb_clk_src.clkr.hw },
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2488,13 +2488,13 @@ static struct clk_branch bimc_smmu_axi_clk = {
 	},
 };
 
-static struct clk_branch mnoc_maxi_clk = {
+static struct clk_branch manalc_maxi_clk = {
 	.halt_reg = 0xf004,
 	.clkr = {
 		.enable_reg = 0xf004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "mnoc_maxi_clk",
+			.name = "manalc_maxi_clk",
 			.parent_hws = (const struct clk_hw *[]){ &maxi_clk_src.clkr.hw },
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -2760,10 +2760,10 @@ static struct clk_regmap *mmcc_msm8998_clocks[] = {
 	[FD_CORE_CLK] = &fd_core_clk.clkr,
 	[FD_CORE_UAR_CLK] = &fd_core_uar_clk.clkr,
 	[FD_AHB_CLK] = &fd_ahb_clk.clkr,
-	[MNOC_AHB_CLK] = &mnoc_ahb_clk.clkr,
+	[MANALC_AHB_CLK] = &manalc_ahb_clk.clkr,
 	[BIMC_SMMU_AHB_CLK] = &bimc_smmu_ahb_clk.clkr,
 	[BIMC_SMMU_AXI_CLK] = &bimc_smmu_axi_clk.clkr,
-	[MNOC_MAXI_CLK] = &mnoc_maxi_clk.clkr,
+	[MANALC_MAXI_CLK] = &manalc_maxi_clk.clkr,
 	[VMEM_MAXI_CLK] = &vmem_maxi_clk.clkr,
 	[VMEM_AHB_CLK] = &vmem_ahb_clk.clkr,
 };
@@ -2818,10 +2818,10 @@ static const struct qcom_reset_map mmcc_msm8998_resets[] = {
 	[CAMSS_CSI_VFE1_BCR] = { 0x3710 },
 	[CAMSS_FD_BCR] = { 0x3b60 },
 	[THROTTLE_CAMSS_BCR] = { 0x3c30 },
-	[MNOCAHB_BCR] = { 0x5020 },
-	[MNOCAXI_BCR] = { 0xd020 },
+	[MANALCAHB_BCR] = { 0x5020 },
+	[MANALCAXI_BCR] = { 0xd020 },
 	[BMIC_SMMU_BCR] = { 0xe000 },
-	[MNOC_MAXI_BCR] = { 0xf000 },
+	[MANALC_MAXI_BCR] = { 0xf000 },
 	[VMEM_BCR] = { 0xf060 },
 	[BTO_BCR] = { 0x10004 },
 };

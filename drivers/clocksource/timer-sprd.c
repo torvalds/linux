@@ -141,7 +141,7 @@ static struct timer_of to = {
 	},
 };
 
-static int __init sprd_timer_init(struct device_node *np)
+static int __init sprd_timer_init(struct device_analde *np)
 {
 	int ret;
 
@@ -187,10 +187,10 @@ static struct clocksource suspend_clocksource = {
 	.enable = sprd_suspend_timer_enable,
 	.disable = sprd_suspend_timer_disable,
 	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_ANALNSTOP,
 };
 
-static int __init sprd_suspend_timer_init(struct device_node *np)
+static int __init sprd_suspend_timer_init(struct device_analde *np)
 {
 	int ret;
 

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -22,11 +22,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -41,7 +41,7 @@
 #include "topsrv.h"
 #include "msg.h"
 #include "socket.h"
-#include "node.h"
+#include "analde.h"
 #include "name_table.h"
 #include "subscr.h"
 
@@ -61,12 +61,12 @@ enum mbr_state {
 };
 
 struct tipc_member {
-	struct rb_node tree_node;
+	struct rb_analde tree_analde;
 	struct list_head list;
 	struct list_head small_win;
 	struct sk_buff_head deferredq;
 	struct tipc_group *group;
-	u32 node;
+	u32 analde;
 	u32 port;
 	u32 instance;
 	enum mbr_state state;
@@ -164,8 +164,8 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 				     struct tipc_group_req *mreq,
 				     bool *group_is_open)
 {
-	u32 filter = TIPC_SUB_PORTS | TIPC_SUB_NO_STATUS;
-	bool global = mreq->scope != TIPC_NODE_SCOPE;
+	u32 filter = TIPC_SUB_PORTS | TIPC_SUB_ANAL_STATUS;
+	bool global = mreq->scope != TIPC_ANALDE_SCOPE;
 	struct tipc_group *grp;
 	u32 type = mreq->type;
 
@@ -186,7 +186,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
 	grp->open = group_is_open;
 	*grp->open = false;
-	filter |= global ? TIPC_SUB_CLUSTER_SCOPE : TIPC_SUB_NODE_SCOPE;
+	filter |= global ? TIPC_SUB_CLUSTER_SCOPE : TIPC_SUB_ANALDE_SCOPE;
 	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0,
 				    filter, &grp->subid))
 		return grp;
@@ -201,11 +201,11 @@ void tipc_group_join(struct net *net, struct tipc_group *grp, int *sk_rcvbuf)
 	struct sk_buff_head xmitq;
 
 	__skb_queue_head_init(&xmitq);
-	rbtree_postorder_for_each_entry_safe(m, tmp, tree, tree_node) {
+	rbtree_postorder_for_each_entry_safe(m, tmp, tree, tree_analde) {
 		tipc_group_proto_xmit(grp, m, GRP_JOIN_MSG, &xmitq);
 		tipc_group_update_member(m, 0);
 	}
-	tipc_node_distr_xmit(net, &xmitq);
+	tipc_analde_distr_xmit(net, &xmitq);
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);
 }
 
@@ -217,28 +217,28 @@ void tipc_group_delete(struct net *net, struct tipc_group *grp)
 
 	__skb_queue_head_init(&xmitq);
 
-	rbtree_postorder_for_each_entry_safe(m, tmp, tree, tree_node) {
+	rbtree_postorder_for_each_entry_safe(m, tmp, tree, tree_analde) {
 		tipc_group_proto_xmit(grp, m, GRP_LEAVE_MSG, &xmitq);
 		__skb_queue_purge(&m->deferredq);
 		list_del(&m->list);
 		kfree(m);
 	}
-	tipc_node_distr_xmit(net, &xmitq);
+	tipc_analde_distr_xmit(net, &xmitq);
 	tipc_nlist_purge(&grp->dests);
 	tipc_topsrv_kern_unsubscr(net, grp->subid);
 	kfree(grp);
 }
 
 static struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
-						  u32 node, u32 port)
+						  u32 analde, u32 port)
 {
-	struct rb_node *n = grp->members.rb_node;
-	u64 nkey, key = (u64)node << 32 | port;
+	struct rb_analde *n = grp->members.rb_analde;
+	u64 nkey, key = (u64)analde << 32 | port;
 	struct tipc_member *m;
 
 	while (n) {
-		m = container_of(n, struct tipc_member, tree_node);
-		nkey = (u64)m->node << 32 | m->port;
+		m = container_of(n, struct tipc_member, tree_analde);
+		nkey = (u64)m->analde << 32 | m->port;
 		if (key < nkey)
 			n = n->rb_left;
 		else if (key > nkey)
@@ -250,25 +250,25 @@ static struct tipc_member *tipc_group_find_member(struct tipc_group *grp,
 }
 
 static struct tipc_member *tipc_group_find_dest(struct tipc_group *grp,
-						u32 node, u32 port)
+						u32 analde, u32 port)
 {
 	struct tipc_member *m;
 
-	m = tipc_group_find_member(grp, node, port);
+	m = tipc_group_find_member(grp, analde, port);
 	if (m && tipc_group_is_receiver(m))
 		return m;
 	return NULL;
 }
 
-static struct tipc_member *tipc_group_find_node(struct tipc_group *grp,
-						u32 node)
+static struct tipc_member *tipc_group_find_analde(struct tipc_group *grp,
+						u32 analde)
 {
 	struct tipc_member *m;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	for (n = rb_first(&grp->members); n; n = rb_next(n)) {
-		m = container_of(n, struct tipc_member, tree_node);
-		if (m->node == node)
+		m = container_of(n, struct tipc_member, tree_analde);
+		if (m->analde == analde)
 			return m;
 	}
 	return NULL;
@@ -277,16 +277,16 @@ static struct tipc_member *tipc_group_find_node(struct tipc_group *grp,
 static int tipc_group_add_to_tree(struct tipc_group *grp,
 				  struct tipc_member *m)
 {
-	u64 nkey, key = (u64)m->node << 32 | m->port;
-	struct rb_node **n, *parent = NULL;
+	u64 nkey, key = (u64)m->analde << 32 | m->port;
+	struct rb_analde **n, *parent = NULL;
 	struct tipc_member *tmp;
 
-	n = &grp->members.rb_node;
+	n = &grp->members.rb_analde;
 	while (*n) {
-		tmp = container_of(*n, struct tipc_member, tree_node);
+		tmp = container_of(*n, struct tipc_member, tree_analde);
 		parent = *n;
-		tmp = container_of(parent, struct tipc_member, tree_node);
-		nkey = (u64)tmp->node << 32 | tmp->port;
+		tmp = container_of(parent, struct tipc_member, tree_analde);
+		nkey = (u64)tmp->analde << 32 | tmp->port;
 		if (key < nkey)
 			n = &(*n)->rb_left;
 		else if (key > nkey)
@@ -294,13 +294,13 @@ static int tipc_group_add_to_tree(struct tipc_group *grp,
 		else
 			return -EEXIST;
 	}
-	rb_link_node(&m->tree_node, parent, n);
-	rb_insert_color(&m->tree_node, &grp->members);
+	rb_link_analde(&m->tree_analde, parent, n);
+	rb_insert_color(&m->tree_analde, &grp->members);
 	return 0;
 }
 
 static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
-						    u32 node, u32 port,
+						    u32 analde, u32 port,
 						    u32 instance, int state)
 {
 	struct tipc_member *m;
@@ -313,7 +313,7 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	INIT_LIST_HEAD(&m->small_win);
 	__skb_queue_head_init(&m->deferredq);
 	m->group = grp;
-	m->node = node;
+	m->analde = analde;
 	m->port = port;
 	m->instance = instance;
 	m->bc_acked = grp->bc_snd_nxt - 1;
@@ -323,21 +323,21 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 		return NULL;
 	}
 	grp->member_cnt++;
-	tipc_nlist_add(&grp->dests, m->node);
+	tipc_nlist_add(&grp->dests, m->analde);
 	m->state = state;
 	return m;
 }
 
-void tipc_group_add_member(struct tipc_group *grp, u32 node,
+void tipc_group_add_member(struct tipc_group *grp, u32 analde,
 			   u32 port, u32 instance)
 {
-	tipc_group_create_member(grp, node, port, instance, MBR_PUBLISHED);
+	tipc_group_create_member(grp, analde, port, instance, MBR_PUBLISHED);
 }
 
 static void tipc_group_delete_member(struct tipc_group *grp,
 				     struct tipc_member *m)
 {
-	rb_erase(&m->tree_node, &grp->members);
+	rb_erase(&m->tree_analde, &grp->members);
 	grp->member_cnt--;
 
 	/* Check if we were waiting for replicast ack from this member */
@@ -348,9 +348,9 @@ static void tipc_group_delete_member(struct tipc_group *grp,
 	list_del_init(&m->small_win);
 	tipc_group_decr_active(grp, m);
 
-	/* If last member on a node, remove node from dest list */
-	if (!tipc_group_find_node(grp, m->node))
-		tipc_nlist_del(&grp->dests, m->node);
+	/* If last member on a analde, remove analde from dest list */
+	if (!tipc_group_find_analde(grp, m->analde))
+		tipc_nlist_del(&grp->dests, m->analde);
 
 	kfree(m);
 }
@@ -396,11 +396,11 @@ void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
 {
 	u16 prev = grp->bc_snd_nxt - 1;
 	struct tipc_member *m;
-	struct rb_node *n;
+	struct rb_analde *n;
 	u16 ackers = 0;
 
 	for (n = rb_first(&grp->members); n; n = rb_next(n)) {
-		m = container_of(n, struct tipc_member, tree_node);
+		m = container_of(n, struct tipc_member, tree_analde);
 		if (tipc_group_is_receiver(m)) {
 			tipc_group_update_member(m, len);
 			m->bc_acked = prev;
@@ -408,20 +408,20 @@ void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
 		}
 	}
 
-	/* Mark number of acknowledges to expect, if any */
+	/* Mark number of ackanalwledges to expect, if any */
 	if (ack)
 		grp->bc_ackers = ackers;
 	grp->bc_snd_nxt++;
 }
 
-bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
+bool tipc_group_cong(struct tipc_group *grp, u32 danalde, u32 dport,
 		     int len, struct tipc_member **mbr)
 {
 	struct sk_buff_head xmitq;
 	struct tipc_member *m;
 	int adv, state;
 
-	m = tipc_group_find_dest(grp, dnode, dport);
+	m = tipc_group_find_dest(grp, danalde, dport);
 	if (!tipc_group_is_receiver(m)) {
 		*mbr = NULL;
 		return false;
@@ -433,7 +433,7 @@ bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
 
 	*grp->open = false;
 
-	/* If not fully advertised, do it now to prevent mutual blocking */
+	/* If analt fully advertised, do it analw to prevent mutual blocking */
 	adv = m->advertised;
 	state = m->state;
 	if (state == MBR_JOINED && adv == ADV_IDLE)
@@ -444,7 +444,7 @@ bool tipc_group_cong(struct tipc_group *grp, u32 dnode, u32 dport,
 		return true;
 	__skb_queue_head_init(&xmitq);
 	tipc_group_proto_xmit(grp, m, GRP_ADV_MSG, &xmitq);
-	tipc_node_distr_xmit(grp->net, &xmitq);
+	tipc_analde_distr_xmit(grp->net, &xmitq);
 	return true;
 }
 
@@ -464,7 +464,7 @@ bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 	if (m->window >= len)
 		return false;
 
-	return tipc_group_cong(grp, m->node, m->port, len, &m);
+	return tipc_group_cong(grp, m->analde, m->port, len, &m);
 }
 
 /* tipc_group_sort_msg() - sort msg into queue by bcast sequence number
@@ -472,7 +472,7 @@ bool tipc_group_bc_cong(struct tipc_group *grp, int len)
 static void tipc_group_sort_msg(struct sk_buff *skb, struct sk_buff_head *defq)
 {
 	struct tipc_msg *_hdr, *hdr = buf_msg(skb);
-	u16 bc_seqno = msg_grp_bc_seqno(hdr);
+	u16 bc_seqanal = msg_grp_bc_seqanal(hdr);
 	struct sk_buff *_skb, *tmp;
 	int mtyp = msg_type(hdr);
 
@@ -480,12 +480,12 @@ static void tipc_group_sort_msg(struct sk_buff *skb, struct sk_buff_head *defq)
 	if (mtyp == TIPC_GRP_BCAST_MSG || mtyp == TIPC_GRP_MCAST_MSG) {
 		skb_queue_walk_safe(defq, _skb, tmp) {
 			_hdr = buf_msg(_skb);
-			if (!less(bc_seqno, msg_grp_bc_seqno(_hdr)))
+			if (!less(bc_seqanal, msg_grp_bc_seqanal(_hdr)))
 				continue;
 			__skb_queue_before(defq, _skb, skb);
 			return;
 		}
-		/* Bcast was not bypassed, - add to tail */
+		/* Bcast was analt bypassed, - add to tail */
 	}
 	/* Unicasts are never bypassed, - always add to tail */
 	__skb_queue_tail(defq, skb);
@@ -501,24 +501,24 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 	struct sk_buff_head *defq;
 	struct tipc_member *m;
 	struct tipc_msg *hdr;
-	u32 node, port;
+	u32 analde, port;
 	int mtyp, blks;
 
 	if (!skb)
 		return;
 
 	hdr = buf_msg(skb);
-	node =  msg_orignode(hdr);
+	analde =  msg_origanalde(hdr);
 	port = msg_origport(hdr);
 
 	if (!msg_in_group(hdr))
 		goto drop;
 
-	m = tipc_group_find_member(grp, node, port);
+	m = tipc_group_find_member(grp, analde, port);
 	if (!tipc_group_is_sender(m))
 		goto drop;
 
-	if (less(msg_grp_bc_seqno(hdr), m->bc_rcv_nxt))
+	if (less(msg_grp_bc_seqanal(hdr), m->bc_rcv_nxt))
 		goto drop;
 
 	TIPC_SKB_CB(skb)->orig_member = m->instance;
@@ -533,7 +533,7 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 		ack = false;
 		update = false;
 
-		if (more(msg_grp_bc_seqno(hdr), m->bc_rcv_nxt))
+		if (more(msg_grp_bc_seqanal(hdr), m->bc_rcv_nxt))
 			break;
 
 		/* Decide what to do with message */
@@ -578,14 +578,14 @@ void tipc_group_filter_msg(struct tipc_group *grp, struct sk_buff_head *inputq,
 		if (!update)
 			continue;
 
-		tipc_group_update_rcv_win(grp, blks, node, port, xmitq);
+		tipc_group_update_rcv_win(grp, blks, analde, port, xmitq);
 	}
 	return;
 drop:
 	kfree_skb(skb);
 }
 
-void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
+void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 analde,
 			       u32 port, struct sk_buff_head *xmitq)
 {
 	struct list_head *active = &grp->active;
@@ -594,7 +594,7 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 	int active_cnt = grp->active_cnt;
 	struct tipc_member *m, *rm, *pm;
 
-	m = tipc_group_find_member(grp, node, port);
+	m = tipc_group_find_member(grp, analde, port);
 	if (!m)
 		return;
 
@@ -624,7 +624,7 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 			tipc_group_proto_xmit(grp, rm, GRP_RECLAIM_MSG, xmitq);
 			break;
 		}
-		/* Nobody to reclaim from; - revert oldest pending to JOINED */
+		/* Analbody to reclaim from; - revert oldest pending to JOINED */
 		pm = list_first_entry(&grp->pending, struct tipc_member, list);
 		list_del_init(&pm->list);
 		pm->state = MBR_JOINED;
@@ -667,9 +667,9 @@ void tipc_group_update_rcv_win(struct tipc_group *grp, int blks, u32 node,
 
 static void tipc_group_create_event(struct tipc_group *grp,
 				    struct tipc_member *m,
-				    u32 event, u16 seqno,
+				    u32 event, u16 seqanal,
 				    struct sk_buff_head *inputq)
-{	u32 dnode = tipc_own_addr(grp->net);
+{	u32 danalde = tipc_own_addr(grp->net);
 	struct tipc_event evt;
 	struct sk_buff *skb;
 	struct tipc_msg *hdr;
@@ -679,13 +679,13 @@ static void tipc_group_create_event(struct tipc_group *grp,
 	evt.found_lower = m->instance;
 	evt.found_upper = m->instance;
 	evt.port.ref = m->port;
-	evt.port.node = m->node;
+	evt.port.analde = m->analde;
 	evt.s.seq.type = grp->type;
 	evt.s.seq.lower = m->instance;
 	evt.s.seq.upper = m->instance;
 
 	skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_GRP_MEMBER_EVT,
-			      GROUP_H_SIZE, sizeof(evt), dnode, m->node,
+			      GROUP_H_SIZE, sizeof(evt), danalde, m->analde,
 			      grp->portid, m->port, 0);
 	if (!skb)
 		return;
@@ -694,7 +694,7 @@ static void tipc_group_create_event(struct tipc_group *grp,
 	msg_set_nametype(hdr, grp->type);
 	msg_set_grp_evt(hdr, event);
 	msg_set_dest_droppable(hdr, true);
-	msg_set_grp_bc_seqno(hdr, seqno);
+	msg_set_grp_bc_seqanal(hdr, seqanal);
 	memcpy(msg_data(hdr), &evt, sizeof(evt));
 	TIPC_SKB_CB(skb)->orig_member = m->instance;
 	__skb_queue_tail(inputq, skb);
@@ -708,7 +708,7 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 	int adv = 0;
 
 	skb = tipc_msg_create(GROUP_PROTOCOL, mtyp, INT_H_SIZE, 0,
-			      m->node, tipc_own_addr(grp->net),
+			      m->analde, tipc_own_addr(grp->net),
 			      m->port, grp->portid, 0);
 	if (!skb)
 		return;
@@ -742,7 +742,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			  struct tipc_msg *hdr, struct sk_buff_head *inputq,
 			  struct sk_buff_head *xmitq)
 {
-	u32 node = msg_orignode(hdr);
+	u32 analde = msg_origanalde(hdr);
 	u32 port = msg_origport(hdr);
 	struct tipc_member *m, *pm;
 	u16 remitted, in_flight;
@@ -750,15 +750,15 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 	if (!grp)
 		return;
 
-	if (grp->scope == TIPC_NODE_SCOPE && node != tipc_own_addr(grp->net))
+	if (grp->scope == TIPC_ANALDE_SCOPE && analde != tipc_own_addr(grp->net))
 		return;
 
-	m = tipc_group_find_member(grp, node, port);
+	m = tipc_group_find_member(grp, analde, port);
 
 	switch (msg_type(hdr)) {
 	case GRP_JOIN_MSG:
 		if (!m)
-			m = tipc_group_create_member(grp, node, port,
+			m = tipc_group_create_member(grp, analde, port,
 						     0, MBR_JOINING);
 		if (!m)
 			return;
@@ -846,7 +846,7 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			tipc_group_proto_xmit(grp, pm, GRP_ADV_MSG, xmitq);
 		return;
 	default:
-		pr_warn("Received unknown GROUP_PROTO message\n");
+		pr_warn("Received unkanalwn GROUP_PROTO message\n");
 	}
 }
 
@@ -861,7 +861,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 {
 	struct tipc_event *evt = (void *)msg_data(hdr);
 	u32 instance = evt->found_lower;
-	u32 node = evt->port.node;
+	u32 analde = evt->port.analde;
 	u32 port = evt->port.ref;
 	int event = evt->event;
 	struct tipc_member *m;
@@ -873,16 +873,16 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 	net = grp->net;
 	self = tipc_own_addr(net);
-	if (!grp->loopback && node == self && port == grp->portid)
+	if (!grp->loopback && analde == self && port == grp->portid)
 		return;
 
-	m = tipc_group_find_member(grp, node, port);
+	m = tipc_group_find_member(grp, analde, port);
 
 	switch (event) {
 	case TIPC_PUBLISHED:
 		/* Send and wait for arrival of JOIN message if necessary */
 		if (!m) {
-			m = tipc_group_create_member(grp, node, port, instance,
+			m = tipc_group_create_member(grp, analde, port, instance,
 						     MBR_PUBLISHED);
 			if (!m)
 				break;
@@ -912,8 +912,8 @@ void tipc_group_member_evt(struct tipc_group *grp,
 		list_del_init(&m->list);
 		tipc_group_open(m, usr_wakeup);
 
-		/* Only send event if no LEAVE message can be expected */
-		if (!tipc_node_is_up(net, node))
+		/* Only send event if anal LEAVE message can be expected */
+		if (!tipc_analde_is_up(net, analde))
 			tipc_group_create_event(grp, m, TIPC_WITHDRAWN,
 						m->bc_rcv_nxt, inputq);
 		break;
@@ -925,7 +925,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 
 int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
 {
-	struct nlattr *group = nla_nest_start_noflag(skb, TIPC_NLA_SOCK_GROUP);
+	struct nlattr *group = nla_nest_start_analflag(skb, TIPC_NLA_SOCK_GROUP);
 
 	if (!group)
 		return -EMSGSIZE;
@@ -938,8 +938,8 @@ int tipc_group_fill_sock_diag(struct tipc_group *grp, struct sk_buff *skb)
 			grp->bc_snd_nxt))
 		goto group_msg_cancel;
 
-	if (grp->scope == TIPC_NODE_SCOPE)
-		if (nla_put_flag(skb, TIPC_NLA_SOCK_GROUP_NODE_SCOPE))
+	if (grp->scope == TIPC_ANALDE_SCOPE)
+		if (nla_put_flag(skb, TIPC_NLA_SOCK_GROUP_ANALDE_SCOPE))
 			goto group_msg_cancel;
 
 	if (grp->scope == TIPC_CLUSTER_SCOPE)

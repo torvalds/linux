@@ -2,7 +2,7 @@
 /*
  * FB driver for the SSD1305 OLED Controller
  *
- * based on SSD1306 driver by Noralf Tronnes
+ * based on SSD1306 driver by Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -29,7 +29,7 @@
  *      write_reg(par, val2);
  */
 
-/* Init sequence taken from the Adafruit SSD1306 Arduino library */
+/* Init sequence taken from the Adafruit SSD1306 Arduianal library */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
@@ -107,7 +107,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xA4);
 
 	/*
-	 * Set Normal Display
+	 * Set Analrmal Display
 	 *  0 in RAM: OFF in display panel
 	 *  1 in RAM: ON in display panel
 	 */

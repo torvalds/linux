@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: mptcp_pm
 protocol: genetlink-legacy
@@ -39,11 +39,11 @@ definitions:
         token
         A MPTCP connection has stopped.
      -
-      name: announced
+      name: ananalunced
       value: 6
       doc:
         token, rem_id, family, daddr4 | daddr6 [, dport]
-        A new address has been announced by the peer.
+        A new address has been ananalunced by the peer.
      -
       name: removed
       doc:
@@ -55,7 +55,7 @@ definitions:
       doc:
         token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 | daddr6, sport,
         dport, backup, if_idx [, error]
-        A new subflow has been established. 'error' should not be set.
+        A new subflow has been established. 'error' should analt be set.
      -
       name: sub-closed
       doc:
@@ -69,7 +69,7 @@ definitions:
       doc:
         token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 | daddr6, sport,
         dport, backup, if_idx [, error]
-        The priority of a subflow has changed. 'error' should not be set.
+        The priority of a subflow has changed. 'error' should analt be set.
      -
       name: listener-created
       value: 15
@@ -351,19 +351,19 @@ operations:
             - token
             - addr-remote
     -
-      name: announce
-      doc: announce new sf
+      name: ananalunce
+      doc: ananalunce new sf
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]
-      do: &announce-add
+      do: &ananalunce-add
         request:
           attributes:
             - addr
             - token
     -
       name: remove
-      doc: announce removal
+      doc: ananalunce removal
       attribute-set: attr
       dont-validate: [ strict ]
       flags: [ uns-admin-perm ]

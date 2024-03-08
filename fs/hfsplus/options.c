@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  *
  * Option parsing
  */
@@ -23,8 +23,8 @@ enum {
 	opt_creator, opt_type,
 	opt_umask, opt_uid, opt_gid,
 	opt_part, opt_session, opt_nls,
-	opt_nodecompose, opt_decompose,
-	opt_barrier, opt_nobarrier,
+	opt_analdecompose, opt_decompose,
+	opt_barrier, opt_analbarrier,
 	opt_force, opt_err
 };
 
@@ -38,9 +38,9 @@ static const match_table_t tokens = {
 	{ opt_session, "session=%u" },
 	{ opt_nls, "nls=%s" },
 	{ opt_decompose, "decompose" },
-	{ opt_nodecompose, "nodecompose" },
+	{ opt_analdecompose, "analdecompose" },
 	{ opt_barrier, "barrier" },
-	{ opt_nobarrier, "nobarrier" },
+	{ opt_analbarrier, "analbarrier" },
 	{ opt_force, "force" },
 	{ opt_err, NULL }
 };
@@ -186,16 +186,16 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 			kfree(p);
 			break;
 		case opt_decompose:
-			clear_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
+			clear_bit(HFSPLUS_SB_ANALDECOMPOSE, &sbi->flags);
 			break;
-		case opt_nodecompose:
-			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
+		case opt_analdecompose:
+			set_bit(HFSPLUS_SB_ANALDECOMPOSE, &sbi->flags);
 			break;
 		case opt_barrier:
-			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+			clear_bit(HFSPLUS_SB_ANALBARRIER, &sbi->flags);
 			break;
-		case opt_nobarrier:
-			set_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+		case opt_analbarrier:
+			set_bit(HFSPLUS_SB_ANALBARRIER, &sbi->flags);
 			break;
 		case opt_force:
 			set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
@@ -235,9 +235,9 @@ int hfsplus_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",session=%u", sbi->session);
 	if (sbi->nls)
 		seq_printf(seq, ",nls=%s", sbi->nls->charset);
-	if (test_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags))
-		seq_puts(seq, ",nodecompose");
-	if (test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
-		seq_puts(seq, ",nobarrier");
+	if (test_bit(HFSPLUS_SB_ANALDECOMPOSE, &sbi->flags))
+		seq_puts(seq, ",analdecompose");
+	if (test_bit(HFSPLUS_SB_ANALBARRIER, &sbi->flags))
+		seq_puts(seq, ",analbarrier");
 	return 0;
 }

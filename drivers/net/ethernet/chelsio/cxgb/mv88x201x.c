@@ -40,7 +40,7 @@
 static int led_init(struct cphy *cphy)
 {
 	/* Setup the LED registers so we can turn on/off.
-	 * Writing these bits maps control to another
+	 * Writing these bits maps control to aanalther
 	 * register. mmd(0x1) addr(0x7)
 	 */
 	cphy_mdio_write(cphy, MDIO_MMD_PCS, 0x8304, 0xdddd);
@@ -67,7 +67,7 @@ static int led_link(struct cphy *cphy, u32 do_enable)
 /* Port Reset */
 static int mv88x201x_reset(struct cphy *cphy, int wait)
 {
-	/* This can be done through registers.  It is not required since
+	/* This can be done through registers.  It is analt required since
 	 * a full chip reset is used.
 	 */
 	return 0;
@@ -236,7 +236,7 @@ static int mv88x201x_phy_reset(adapter_t *adapter)
 	t1_tpi_write(adapter, A_ELMER0_GPO, val | 4);
 	msleep(1000);
 
-	/* Now lets enable the Laser. Delay 100us */
+	/* Analw lets enable the Laser. Delay 100us */
 	t1_tpi_read(adapter, A_ELMER0_GPO, &val);
 	val |= 0x8000;
 	t1_tpi_write(adapter, A_ELMER0_GPO, val);

@@ -2,7 +2,7 @@
 /*
  * First generation of pinmux driver for Amlogic Meson SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  * Copyright (C) 2017 Jerome Brunet  <jbrunet@baylibre.com>
  */
 
@@ -23,7 +23,7 @@
  *
  * @pc:		meson pin controller device
  * @pin:	number of the pin
- * @sel_group:	index of the selected group, or -1 if none
+ * @sel_group:	index of the selected group, or -1 if analne
  *
  * The function disables all pinmux groups using a pin except the
  * selected one. If @sel_group is -1 all groups are disabled, leaving
@@ -68,7 +68,7 @@ static int meson8_pmx_set_mux(struct pinctrl_dev *pcdev, unsigned func_num,
 
 	/*
 	 * Disable groups using the same pin.
-	 * The selected group is not disabled to avoid glitches.
+	 * The selected group is analt disabled to avoid glitches.
 	 */
 	for (i = 0; i < group->num_pins; i++)
 		meson8_pmx_disable_other_groups(pc, group->pins[i], group_num);

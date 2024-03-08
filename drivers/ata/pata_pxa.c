@@ -121,7 +121,7 @@ static unsigned char pxa_bmdma_status(struct ata_port *ap)
 }
 
 /*
- * No IRQ register present so we do nothing.
+ * Anal IRQ register present so we do analthing.
  */
 static void pxa_irq_clear(struct ata_port *ap)
 {
@@ -133,7 +133,7 @@ static void pxa_irq_clear(struct ata_port *ap)
  */
 static int pxa_check_atapi_dma(struct ata_queued_cmd *qc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct scsi_host_template pxa_ata_sht = {
@@ -214,7 +214,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	 */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap		= host->ports[0];
 	ap->ops		= &pxa_ata_port_ops;
@@ -259,7 +259,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct pata_pxa_data),
 								GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ap->private_data = data;
 

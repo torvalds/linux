@@ -11,7 +11,7 @@ char _license[] SEC("license") = "GPL";
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(map_flags, BPF_F_ANAL_PREALLOC);
 	__type(key, int);
 	__type(value, long);
 } map_a SEC(".maps");
@@ -76,19 +76,19 @@ out:
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
-int no_lock(void *ctx)
+SEC("?fentry.s/" SYS_PREFIX "sys_naanalsleep")
+int anal_lock(void *ctx)
 {
 	struct task_struct *task, *real_parent;
 
-	/* old style ptr_to_btf_id is not allowed in sleepable */
+	/* old style ptr_to_btf_id is analt allowed in sleepable */
 	task = bpf_get_current_task_btf();
 	real_parent = task->real_parent;
 	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry.s/" SYS_PREFIX "sys_naanalsleep")
 int two_regions(void *ctx)
 {
 	struct task_struct *task, *real_parent;
@@ -108,7 +108,7 @@ out:
 }
 
 SEC("?fentry/" SYS_PREFIX "sys_getpgid")
-int non_sleepable_1(void *ctx)
+int analn_sleepable_1(void *ctx)
 {
 	struct task_struct *task, *real_parent;
 
@@ -124,7 +124,7 @@ out:
 }
 
 SEC("?fentry/" SYS_PREFIX "sys_getpgid")
-int non_sleepable_2(void *ctx)
+int analn_sleepable_2(void *ctx)
 {
 	struct task_struct *task, *real_parent;
 
@@ -142,7 +142,7 @@ out:
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry.s/" SYS_PREFIX "sys_naanalsleep")
 int task_acquire(void *ctx)
 {
 	struct task_struct *task, *real_parent, *gparent;
@@ -197,12 +197,12 @@ int miss_unlock(void *ctx)
 }
 
 SEC("?fentry/" SYS_PREFIX "sys_getpgid")
-int non_sleepable_rcu_mismatch(void *ctx)
+int analn_sleepable_rcu_mismatch(void *ctx)
 {
 	struct task_struct *task, *real_parent;
 
 	task = bpf_get_current_task_btf();
-	/* non-sleepable: missing bpf_rcu_read_unlock() in one path */
+	/* analn-sleepable: missing bpf_rcu_read_unlock() in one path */
 	bpf_rcu_read_lock();
 	real_parent = task->real_parent;
 	if (!real_parent)
@@ -257,7 +257,7 @@ int BPF_PROG(inproper_sleepable_kfunc, int cmd, union bpf_attr *attr, unsigned i
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry.s/" SYS_PREFIX "sys_naanalsleep")
 int nested_rcu_region(void *ctx)
 {
 	struct task_struct *task, *real_parent;
@@ -277,7 +277,7 @@ out:
 }
 
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
-int task_trusted_non_rcuptr(void *ctx)
+int task_trusted_analn_rcuptr(void *ctx)
 {
 	struct task_struct *task, *group_leader;
 
@@ -304,7 +304,7 @@ int task_untrusted_rcuptr(void *ctx)
 	return 0;
 }
 
-SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry.s/" SYS_PREFIX "sys_naanalsleep")
 int cross_rcu_region(void *ctx)
 {
 	struct task_struct *task, *real_parent;

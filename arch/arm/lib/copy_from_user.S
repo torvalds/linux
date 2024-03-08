@@ -28,7 +28,7 @@
  *
  * Return value:
  *
- *	Number of bytes NOT copied.
+ *	Number of bytes ANALT copied.
  */
 
 #ifdef CONFIG_CPU_USE_DOMAINS

@@ -29,8 +29,8 @@ that goes into great technical depth about the BPF Architecture.
    bpf_iterators
    bpf_licensing
    test_debug
-   clang-notes
-   linux-notes
+   clang-analtes
+   linux-analtes
    other
    redirect
 

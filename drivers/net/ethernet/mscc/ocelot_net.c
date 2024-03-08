@@ -202,7 +202,7 @@ int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
 	int port = priv->port.index;
 
 	if (!ingress)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
@@ -212,7 +212,7 @@ int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
 	case FLOW_CLS_STATS:
 		return ocelot_cls_flower_stats(ocelot, port, f, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -229,7 +229,7 @@ static int ocelot_setup_tc_cls_matchall_police(struct ocelot_port_private *priv,
 
 	if (!ingress) {
 		NL_SET_ERR_MSG_MOD(extack, "Only ingress is supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
@@ -247,7 +247,7 @@ static int ocelot_setup_tc_cls_matchall_police(struct ocelot_port_private *priv,
 
 	err = ocelot_port_policer_add(ocelot, port, &pol);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
+		NL_SET_ERR_MSG_MOD(extack, "Could analt add policer");
 		return err;
 	}
 
@@ -269,10 +269,10 @@ static int ocelot_setup_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
 	int err;
 
 	if (f->common.protocol != htons(ETH_P_ALL))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!flow_action_basic_hw_stats_check(action, extack))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	a = &action->entries[0];
 	if (!a->dev)
@@ -280,8 +280,8 @@ static int ocelot_setup_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
 
 	if (!ocelot_netdevice_dev_check(a->dev)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Destination not an ocelot port");
-		return -EOPNOTSUPP;
+				   "Destination analt an ocelot port");
+		return -EOPANALTSUPP;
 	}
 
 	other_priv = netdev_priv(a->dev);
@@ -310,7 +310,7 @@ static int ocelot_del_tc_cls_matchall_police(struct ocelot_port_private *priv,
 	err = ocelot_port_policer_del(ocelot, port);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Could not delete policer");
+				   "Could analt delete policer");
 		return err;
 	}
 
@@ -350,13 +350,13 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 		if (!flow_offload_has_one_action(&f->rule->action)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Only one action is supported");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		if (priv->tc.block_shared) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Matchall offloads not supported on shared blocks");
-			return -EOPNOTSUPP;
+					   "Matchall offloads analt supported on shared blocks");
+			return -EOPANALTSUPP;
 		}
 
 		action = &f->rule->action.entries[0];
@@ -373,7 +373,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 								   extack);
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		break;
@@ -387,12 +387,12 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 			return ocelot_del_tc_cls_matchall_mirred(priv, ingress,
 								 extack);
 		else
-			return -ENOENT;
+			return -EANALENT;
 
 		break;
 	case TC_CLSMATCHALL_STATS:
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -403,7 +403,7 @@ static int ocelot_setup_tc_block_cb(enum tc_setup_type type,
 	struct ocelot_port_private *priv = cb_priv;
 
 	if (!tc_cls_can_offload_and_chain0(priv->dev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
@@ -411,7 +411,7 @@ static int ocelot_setup_tc_block_cb(enum tc_setup_type type,
 	case TC_SETUP_CLSFLOWER:
 		return ocelot_setup_tc_cls_flower(priv, type_data, ingress);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -445,7 +445,7 @@ static int ocelot_setup_tc_block(struct ocelot_port_private *priv,
 	} else if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS) {
 		cb = ocelot_setup_tc_block_cb_eg;
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	f->driver_block_list = &ocelot_block_cb_list;
@@ -465,13 +465,13 @@ static int ocelot_setup_tc_block(struct ocelot_port_private *priv,
 	case FLOW_BLOCK_UNBIND:
 		block_cb = flow_block_cb_lookup(f->block, cb, priv);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -484,7 +484,7 @@ static int ocelot_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	case TC_SETUP_BLOCK:
 		return ocelot_setup_tc_block(priv, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -643,7 +643,7 @@ static int ocelot_enqueue_mact_action(struct ocelot *ocelot,
 	struct ocelot_mact_work_ctx *w = kmemdup(ctx, sizeof(*w), GFP_ATOMIC);
 
 	if (!w)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	w->ocelot = ocelot;
 	INIT_WORK(&w->work, ocelot_mact_work);
@@ -694,7 +694,7 @@ static void ocelot_set_rx_mode(struct net_device *dev)
 	 * forwarded to the CPU port.
 	 */
 	val = GENMASK(ocelot->num_phys_ports - 1, 0);
-	for_each_nonreserved_multicast_dest_pgid(ocelot, i)
+	for_each_analnreserved_multicast_dest_pgid(ocelot, i)
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);
 
 	__dev_mc_sync(dev, ocelot_mc_sync, ocelot_mc_unsync);
@@ -778,7 +778,7 @@ static int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
 	ndm->ndm_flags   = NTF_SELF;
 	ndm->ndm_type    = 0;
 	ndm->ndm_ifindex = dump->dev->ifindex;
-	ndm->ndm_state   = is_static ? NUD_NOARP : NUD_REACHABLE;
+	ndm->ndm_state   = is_static ? NUD_ANALARP : NUD_REACHABLE;
 
 	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, addr))
 		goto nla_put_failure;
@@ -857,7 +857,7 @@ static int ocelot_set_features(struct net_device *dev,
 	if ((dev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
 	    priv->tc.offload_cnt) {
 		netdev_err(dev,
-			   "Cannot disable HW TC offload while offloads active\n");
+			   "Cananalt disable HW TC offload while offloads active\n");
 		return -EBUSY;
 	}
 
@@ -1064,7 +1064,7 @@ static int ocelot_port_attr_set(struct net_device *dev, const void *ctx,
 		ocelot_port_bridge_flags(ocelot, port, attr->u.brport_flags);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -1192,7 +1192,7 @@ static int ocelot_port_obj_add(struct net_device *dev, const void *ctx,
 							SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -1223,7 +1223,7 @@ static int ocelot_port_obj_del(struct net_device *dev, const void *ctx,
 							SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return ret;
@@ -1349,7 +1349,7 @@ static int ocelot_netdevice_bridge_join(struct net_device *dev,
 	return 0;
 
 err_switchdev_sync:
-	switchdev_bridge_port_unoffload(brport_dev, priv,
+	switchdev_bridge_port_uanalffload(brport_dev, priv,
 					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 err_switchdev_offload:
@@ -1364,7 +1364,7 @@ static void ocelot_netdevice_pre_bridge_leave(struct net_device *dev,
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 
-	switchdev_bridge_port_unoffload(brport_dev, priv,
+	switchdev_bridge_port_uanalffload(brport_dev, priv,
 					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 }
@@ -1403,8 +1403,8 @@ static int ocelot_netdevice_lag_join(struct net_device *dev,
 	int err;
 
 	err = ocelot_port_lag_join(ocelot, port, bond, info, extack);
-	if (err == -EOPNOTSUPP)
-		/* Offloading not supported, fall back to software LAG */
+	if (err == -EOPANALTSUPP)
+		/* Offloading analt supported, fall back to software LAG */
 		return 0;
 
 	bridge_dev = netdev_master_upper_dev_get(bond);
@@ -1454,12 +1454,12 @@ static int ocelot_netdevice_lag_leave(struct net_device *dev,
 
 static int ocelot_netdevice_changeupper(struct net_device *dev,
 					struct net_device *brport_dev,
-					struct netdev_notifier_changeupper_info *info)
+					struct netdev_analtifier_changeupper_info *info)
 {
 	struct netlink_ext_ack *extack;
 	int err = 0;
 
-	extack = netdev_notifier_info_to_extack(&info->info);
+	extack = netdev_analtifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev)) {
 		if (info->linking)
@@ -1478,42 +1478,42 @@ static int ocelot_netdevice_changeupper(struct net_device *dev,
 			ocelot_netdevice_lag_leave(dev, info->upper_dev);
 	}
 
-	return notifier_from_errno(err);
+	return analtifier_from_erranal(err);
 }
 
 /* Treat CHANGEUPPER events on an offloaded LAG as individual CHANGEUPPER
  * events for the lower physical ports of the LAG.
- * If the LAG upper isn't offloaded, ignore its CHANGEUPPER events.
- * In case the LAG joined a bridge, notify that we are offloading it and can do
+ * If the LAG upper isn't offloaded, iganalre its CHANGEUPPER events.
+ * In case the LAG joined a bridge, analtify that we are offloading it and can do
  * forwarding in hardware towards it.
  */
 static int
 ocelot_netdevice_lag_changeupper(struct net_device *dev,
-				 struct netdev_notifier_changeupper_info *info)
+				 struct netdev_analtifier_changeupper_info *info)
 {
 	struct net_device *lower;
 	struct list_head *iter;
-	int err = NOTIFY_DONE;
+	int err = ANALTIFY_DONE;
 
 	netdev_for_each_lower_dev(dev, lower, iter) {
 		struct ocelot_port_private *priv = netdev_priv(lower);
 		struct ocelot_port *ocelot_port = &priv->port;
 
 		if (ocelot_port->bond != dev)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		err = ocelot_netdevice_changeupper(lower, dev, info);
 		if (err)
-			return notifier_from_errno(err);
+			return analtifier_from_erranal(err);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
 ocelot_netdevice_prechangeupper(struct net_device *dev,
 				struct net_device *brport_dev,
-				struct netdev_notifier_changeupper_info *info)
+				struct netdev_analtifier_changeupper_info *info)
 {
 	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
 		ocelot_netdevice_pre_bridge_leave(dev, brport_dev);
@@ -1521,30 +1521,30 @@ ocelot_netdevice_prechangeupper(struct net_device *dev,
 	if (netif_is_lag_master(info->upper_dev) && !info->linking)
 		ocelot_netdevice_pre_lag_leave(dev, info->upper_dev);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
 ocelot_netdevice_lag_prechangeupper(struct net_device *dev,
-				    struct netdev_notifier_changeupper_info *info)
+				    struct netdev_analtifier_changeupper_info *info)
 {
 	struct net_device *lower;
 	struct list_head *iter;
-	int err = NOTIFY_DONE;
+	int err = ANALTIFY_DONE;
 
 	netdev_for_each_lower_dev(dev, lower, iter) {
 		struct ocelot_port_private *priv = netdev_priv(lower);
 		struct ocelot_port *ocelot_port = &priv->port;
 
 		if (ocelot_port->bond != dev)
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 
 		err = ocelot_netdevice_prechangeupper(dev, lower, info);
 		if (err)
 			return err;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
@@ -1558,24 +1558,24 @@ ocelot_netdevice_changelowerstate(struct net_device *dev,
 	int port = priv->port.index;
 
 	if (!ocelot_port->bond)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (ocelot_port->lag_tx_active == is_active)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	ocelot_port_lag_change(ocelot, port, is_active);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static int ocelot_netdevice_event(struct notifier_block *unused,
+static int ocelot_netdevice_event(struct analtifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_PRECHANGEUPPER: {
-		struct netdev_notifier_changeupper_info *info = ptr;
+		struct netdev_analtifier_changeupper_info *info = ptr;
 
 		if (ocelot_netdevice_dev_check(dev))
 			return ocelot_netdevice_prechangeupper(dev, dev, info);
@@ -1586,7 +1586,7 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		break;
 	}
 	case NETDEV_CHANGEUPPER: {
-		struct netdev_notifier_changeupper_info *info = ptr;
+		struct netdev_analtifier_changeupper_info *info = ptr;
 
 		if (ocelot_netdevice_dev_check(dev))
 			return ocelot_netdevice_changeupper(dev, dev, info);
@@ -1597,7 +1597,7 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		break;
 	}
 	case NETDEV_CHANGELOWERSTATE: {
-		struct netdev_notifier_changelowerstate_info *info = ptr;
+		struct netdev_analtifier_changelowerstate_info *info = ptr;
 
 		if (!ocelot_netdevice_dev_check(dev))
 			break;
@@ -1609,17 +1609,17 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-struct notifier_block ocelot_netdevice_nb __read_mostly = {
-	.notifier_call = ocelot_netdevice_event,
+struct analtifier_block ocelot_netdevice_nb __read_mostly = {
+	.analtifier_call = ocelot_netdevice_event,
 };
 
-static int ocelot_switchdev_event(struct notifier_block *unused,
+static int ocelot_switchdev_event(struct analtifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -1627,20 +1627,20 @@ static int ocelot_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     ocelot_netdevice_dev_check,
 						     ocelot_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-struct notifier_block ocelot_switchdev_nb __read_mostly = {
-	.notifier_call = ocelot_switchdev_event,
+struct analtifier_block ocelot_switchdev_nb __read_mostly = {
+	.analtifier_call = ocelot_switchdev_event,
 };
 
-static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
+static int ocelot_switchdev_blocking_event(struct analtifier_block *unused,
 					   unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_analtifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -1649,24 +1649,24 @@ static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
 		err = switchdev_handle_port_obj_add(dev, ptr,
 						    ocelot_netdevice_dev_check,
 						    ocelot_port_obj_add);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = switchdev_handle_port_obj_del(dev, ptr,
 						    ocelot_netdevice_dev_check,
 						    ocelot_port_obj_del);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     ocelot_netdevice_dev_check,
 						     ocelot_port_attr_set);
-		return notifier_from_errno(err);
+		return analtifier_from_erranal(err);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
-	.notifier_call = ocelot_switchdev_blocking_event,
+struct analtifier_block ocelot_switchdev_blocking_nb __read_mostly = {
+	.analtifier_call = ocelot_switchdev_blocking_event,
 };
 
 static void vsc7514_phylink_mac_config(struct phylink_config *config,
@@ -1718,7 +1718,7 @@ static const struct phylink_mac_ops ocelot_phylink_ops = {
 };
 
 static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
-				      struct device_node *portnp)
+				      struct device_analde *portnp)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct ocelot_port_private *priv;
@@ -1759,11 +1759,11 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 		  priv->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&priv->phylink_config,
-				 of_fwnode_handle(portnp),
+				 of_fwanalde_handle(portnp),
 				 phy_mode, &ocelot_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
-		dev_err(dev, "Could not create phylink (%pe)\n", phylink);
+		dev_err(dev, "Could analt create phylink (%pe)\n", phylink);
 		return err;
 	}
 
@@ -1771,7 +1771,7 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 
 	err = phylink_of_phy_connect(phylink, portnp, 0);
 	if (err) {
-		dev_err(dev, "Could not connect to PHY: %pe\n", ERR_PTR(err));
+		dev_err(dev, "Could analt connect to PHY: %pe\n", ERR_PTR(err));
 		phylink_destroy(phylink);
 		priv->phylink = NULL;
 		return err;
@@ -1781,7 +1781,7 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 }
 
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
-		      struct device_node *portnp)
+		      struct device_analde *portnp)
 {
 	struct ocelot_port_private *priv;
 	struct ocelot_port *ocelot_port;
@@ -1790,7 +1790,7 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 
 	dev = alloc_etherdev(sizeof(struct ocelot_port_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, ocelot->dev);
 	priv = netdev_priv(dev);
 	priv->dev = dev;

@@ -2,7 +2,7 @@
 /*
  * Au1xxx counter0 (aka Time-Of-Year counter) RTC interface driver.
  *
- * Copyright (C) 2008 Manuel Lauss <mano@roarinelk.homelinux.net>
+ * Copyright (C) 2008 Manuel Lauss <maanal@roarinelk.homelinux.net>
  */
 
 /* All current Au1xxx SoCs have 2 counters fed by an external 32.768 kHz
@@ -10,7 +10,7 @@
  * used to count seconds since the beginning of the unix epoch.
  *
  * The counters must be configured and enabled by bootloader/board code;
- * no checks as to whether they really get a proper 32.768kHz clock are
+ * anal checks as to whether they really get a proper 32.768kHz clock are
  * made as this would take far too long.
  */
 
@@ -65,8 +65,8 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 
 	t = alchemy_rdsys(AU1000_SYS_CNTRCTRL);
 	if (!(t & CNTR_OK)) {
-		dev_err(&pdev->dev, "counters not working; aborting.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "counters analt working; aborting.\n");
+		return -EANALDEV;
 	}
 
 	/* set counter0 tickrate to 1Hz if necessary */

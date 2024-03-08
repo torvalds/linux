@@ -9,11 +9,11 @@ Krzysztof Halasa <khc@pm.waw.pl>
 
 Generic HDLC layer currently supports:
 
-1. Frame Relay (ANSI, CCITT, Cisco and no LMI)
+1. Frame Relay (ANSI, CCITT, Cisco and anal LMI)
 
-   - Normal (routed) and Ethernet-bridged (Ethernet device emulation)
+   - Analrmal (routed) and Ethernet-bridged (Ethernet device emulation)
      interfaces can share a single PVC.
-   - ARP support (no InARP support in the kernel - there is an
+   - ARP support (anal InARP support in the kernel - there is an
      experimental InARP user-space daemon available on:
      http://www.kernel.org/pub/linux/utils/net/hdlc/).
 
@@ -85,9 +85,9 @@ Setting protocol:
 
   nrz / nrzi / fm-mark / fm-space / manchester - sets transmission code
 
-  no-parity / crc16 / crc16-pr0 (CRC16 with preset zeros) / crc32-itu
+  anal-parity / crc16 / crc16-pr0 (CRC16 with preset zeros) / crc32-itu
 
-  crc16-itu (CRC16 with ITU-T polynomial) / crc16-itu-pr0 - sets parity
+  crc16-itu (CRC16 with ITU-T polyanalmial) / crc16-itu-pr0 - sets parity
 
 * hdlc-eth - Ethernet device emulation using HDLC. Parity and encoding
   as above.
@@ -99,17 +99,17 @@ Setting protocol:
   timeout - time in seconds after last received keepalive packet before
 	    we assume the link is down
 
-* ppp - sets synchronous PPP mode
+* ppp - sets synchroanalus PPP mode
 
 * x25 - sets X.25 mode
 
 * fr - Frame Relay mode
 
-  lmi ansi / ccitt / cisco / none - LMI (link management) type
+  lmi ansi / ccitt / cisco / analne - LMI (link management) type
 
   dce - Frame Relay DCE (network) side LMI instead of default DTE (user).
 
-  It has nothing to do with clocks!
+  It has analthing to do with clocks!
 
   - t391 - link integrity verification polling timer (in seconds) - user
   - t392 - polling verification timer (in seconds) - network
@@ -163,7 +163,7 @@ If you have a problem with N2, C101 or PLX200SYN card, you can issue the
 	sethdlc hdlc0 private
 
 The hardware driver has to be build with #define DEBUG_RINGS.
-Attaching this info to bug reports would be helpful. Anyway, let me know
+Attaching this info to bug reports would be helpful. Anyway, let me kanalw
 if you have problems using this.
 
 For patches and other info look at:

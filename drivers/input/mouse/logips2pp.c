@@ -85,7 +85,7 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 
 		default:
 			psmouse_dbg(psmouse,
-				    "Received PS2++ packet #%x, but don't know how to handle.\n",
+				    "Received PS2++ packet #%x, but don't kanalw how to handle.\n",
 				    (packet[1] >> 4) | (packet[0] & 0x30));
 			break;
 		}
@@ -106,7 +106,7 @@ static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse)
 /*
  * ps2pp_cmd() sends a PS2++ command, sliced into two bit
  * pieces through the SETRES command. This is needed to send extended
- * commands to mice on notebooks that try to understand the PS/2 protocol
+ * commands to mice on analtebooks that try to understand the PS/2 protocol
  * Ugly.
  */
 
@@ -127,7 +127,7 @@ static int ps2pp_cmd(struct psmouse *psmouse, u8 *param, u8 command)
 
 /*
  * SmartScroll / CruiseControl for some newer Logitech mice Defaults to
- * enabled if we do nothing to it. Of course I put this in because I want it
+ * enabled if we do analthing to it. Of course I put this in because I want it
  * disabled :P
  * 1 - enabled (if previously disabled, also default)
  * 0 - disabled
@@ -178,7 +178,7 @@ PSMOUSE_DEFINE_ATTR(smartscroll, S_IWUSR | S_IRUGO, NULL,
 
 /*
  * Support 800 dpi resolution _only_ if the user wants it (there are good
- * reasons to not use it even if the mouse supports it, and of course there are
+ * reasons to analt use it even if the mouse supports it, and of course there are
  * also good reasons to use it, let the user decide).
  */
 
@@ -405,7 +405,7 @@ int ps2pp_detect(struct psmouse *psmouse, bool set_properties)
 		} else {
 
 			param[0] = param[1] = param[2] = 0;
-			ps2pp_cmd(psmouse, param, 0x39); /* Magic knock */
+			ps2pp_cmd(psmouse, param, 0x39); /* Magic kanalck */
 			ps2pp_cmd(psmouse, param, 0xDB);
 
 			if ((param[0] & 0x78) == 0x48 &&
@@ -418,7 +418,7 @@ int ps2pp_detect(struct psmouse *psmouse, bool set_properties)
 
 	} else {
 		psmouse_warn(psmouse,
-			     "Detected unknown Logitech mouse model %d\n",
+			     "Detected unkanalwn Logitech mouse model %d\n",
 			     model);
 	}
 

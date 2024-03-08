@@ -16,7 +16,7 @@
 #define SOC_MAX_DTS_TRIPS	2
 
 enum intel_soc_dts_interrupt_type {
-	INTEL_SOC_DTS_INTERRUPT_NONE,
+	INTEL_SOC_DTS_INTERRUPT_ANALNE,
 	INTEL_SOC_DTS_INTERRUPT_APIC,
 	INTEL_SOC_DTS_INTERRUPT_MSI,
 	INTEL_SOC_DTS_INTERRUPT_SCI,
@@ -36,7 +36,7 @@ struct intel_soc_dts_sensor_entry {
 
 struct intel_soc_dts_sensors {
 	u32 tj_max;
-	spinlock_t intr_notify_lock;
+	spinlock_t intr_analtify_lock;
 	struct mutex dts_update_lock;
 	enum intel_soc_dts_interrupt_type intr_type;
 	struct intel_soc_dts_sensor_entry soc_dts[SOC_MAX_DTS_SENSORS];

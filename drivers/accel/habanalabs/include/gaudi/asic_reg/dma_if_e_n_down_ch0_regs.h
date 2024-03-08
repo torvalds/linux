@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DMA_IF_E_N_DOWN_CH0_REGS_H_
@@ -177,7 +177,7 @@
 
 #define mmDMA_IF_E_N_DOWN_CH0_NL_HBM_SEL_1                           0x4E1454
 
-#define mmDMA_IF_E_N_DOWN_CH0_NON_LIN_EN                             0x4E1480
+#define mmDMA_IF_E_N_DOWN_CH0_ANALN_LIN_EN                             0x4E1480
 
 #define mmDMA_IF_E_N_DOWN_CH0_NL_SRAM_BANK_0                         0x4E1500
 

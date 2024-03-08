@@ -60,7 +60,7 @@ static void gxl_enable_internal_mdio(struct gxl_mdio_mux *priv)
 	writel(val, priv->regs + ETH_REG3);
 	mdelay(10);
 
-	/* NOTE: The HW kept the phy id configurable at runtime.
+	/* ANALTE: The HW kept the phy id configurable at runtime.
 	 * The id below is arbitrary. It is the one used in the vendor code.
 	 * The only constraint is that it must match the one in
 	 * drivers/net/phy/meson-gxl.c to properly match the PHY.
@@ -120,7 +120,7 @@ static int gxl_mdio_mux_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -132,7 +132,7 @@ static int gxl_mdio_mux_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(rclk),
 				     "failed to get reference clock\n");
 
-	ret = mdio_mux_init(dev, dev->of_node, gxl_mdio_switch_fn,
+	ret = mdio_mux_init(dev, dev->of_analde, gxl_mdio_switch_fn,
 			    &priv->mux_handle, dev, NULL);
 	if (ret)
 		dev_err_probe(dev, ret, "mdio multiplexer init failed\n");

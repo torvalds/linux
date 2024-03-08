@@ -8,7 +8,7 @@
 #include "odm_precomp.h"
 
 static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] = {
-/*UNKNOWN, REALTEK_90, ALTEK_92SE	BROADCOM, LINK	ATHEROS,
+/*UNKANALWN, REALTEK_90, ALTEK_92SE	BROADCOM, LINK	ATHEROS,
  *CISCO, MERU, MARVELL, 92U_AP, SELF_AP
  */
 	0x4322, 0xa44f, 0x5e4322, 0xa42b, 0x5e4322, 0x4322,
@@ -16,14 +16,14 @@ static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] = {
 };
 
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
-/*UNKNOWN, REALTEK_90, REALTEK_92SE, BROADCOM, RALINK, ATHEROS,
+/*UNKANALWN, REALTEK_90, REALTEK_92SE, BROADCOM, RALINK, ATHEROS,
  *CISCO, MERU, MARVELL, 92U_AP, SELF_AP(DownLink/Tx)
  */
 	0x5e4322, 0xa44f, 0x5e4322, 0x5ea32b, 0x5ea422,	0x5ea322,
 	0x3ea430, 0x5ea42b, 0x5ea44f, 0x5e4322, 0x5e4322};
 
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] = {
-/*UNKNOWN, REALTEK_90, REALTEK_92SE, BROADCOM, RALINK, ATHEROS,
+/*UNKANALWN, REALTEK_90, REALTEK_92SE, BROADCOM, RALINK, ATHEROS,
  *CISCO, MERU, MARVELL, 92U_AP, SELF_AP(UpLink/Rx)
  */
 	0xa44f, 0x5ea44f, 0x5e4322, 0x5ea42b, 0xa44f, 0xa630,
@@ -36,7 +36,7 @@ void ODM_EdcaTurboInit(void *pDM_VOID)
 
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
-	Adapter->recvpriv.bIsAnyNonBEPkts = false;
+	Adapter->recvpriv.bIsAnyAnalnBEPkts = false;
 }	/*  ODM_InitEdcaTurbo */
 
 void odm_EdcaTurboCheck(void *pDM_VOID)
@@ -75,12 +75,12 @@ void odm_EdcaTurboCheckCE(void *pDM_VOID)
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
 
 	if (!pDM_Odm->bLinked) {
-		precvpriv->bIsAnyNonBEPkts = false;
+		precvpriv->bIsAnyAnalnBEPkts = false;
 		return;
 	}
 
 	if (pregpriv->wifi_spec == 1) {
-		precvpriv->bIsAnyNonBEPkts = false;
+		precvpriv->bIsAnyAnalnBEPkts = false;
 		return;
 	}
 
@@ -90,12 +90,12 @@ void odm_EdcaTurboCheckCE(void *pDM_VOID)
 	iot_peer = pmlmeinfo->assoc_AP_vendor;
 
 	if (iot_peer >=  HT_IOT_PEER_MAX) {
-		precvpriv->bIsAnyNonBEPkts = false;
+		precvpriv->bIsAnyAnalnBEPkts = false;
 		return;
 	}
 
 	/*  Check if the status needs to be changed. */
-	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
+	if ((bbtchange) || (!precvpriv->bIsAnyAnalnBEPkts)) {
 		cur_tx_bytes = pdvobjpriv->traffic_stat.cur_tx_bytes;
 		cur_rx_bytes = pdvobjpriv->traffic_stat.cur_rx_bytes;
 

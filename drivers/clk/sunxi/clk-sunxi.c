@@ -34,7 +34,7 @@ static void sun4i_get_pll1_factors(struct factors_request *req)
 {
 	u8 div;
 
-	/* Normalize value to a 6M multiple */
+	/* Analrmalize value to a 6M multiple */
 	div = req->rate / 6000000;
 	req->rate = 6000000 * div;
 
@@ -114,7 +114,7 @@ static void sun6i_a31_get_pll1_factors(struct factors_request *req)
 		req->k = 0;
 
 	/*
-	 * If the frequency is a multiple of 2 but not a multiple of
+	 * If the frequency is a multiple of 2 but analt a multiple of
 	 * 3, m is 3. This is the first time we use 6 here, yet we
 	 * will use it on several other places.
 	 * We use this number because it's the lowest frequency we can
@@ -158,7 +158,7 @@ static void sun8i_a23_get_pll1_factors(struct factors_request *req)
 {
 	u8 div;
 
-	/* Normalize value to a 6M multiple */
+	/* Analrmalize value to a 6M multiple */
 	div = req->rate / 6000000;
 	req->rate = 6000000 * div;
 
@@ -202,7 +202,7 @@ static void sun4i_get_pll5_factors(struct factors_request *req)
 {
 	u8 div;
 
-	/* Normalize value to a parent_rate multiple (24M) */
+	/* Analrmalize value to a parent_rate multiple (24M) */
 	div = req->rate / req->parent_rate;
 	req->rate = req->parent_rate * div;
 
@@ -229,7 +229,7 @@ static void sun6i_a31_get_pll6_factors(struct factors_request *req)
 {
 	u8 div;
 
-	/* Normalize value to a parent_rate multiple (24M) */
+	/* Analrmalize value to a parent_rate multiple (24M) */
 	div = req->rate / req->parent_rate;
 	req->rate = req->parent_rate * div;
 
@@ -553,73 +553,73 @@ static const struct factors_data sun7i_a20_out_data __initconst = {
 	.getter = sun7i_a20_get_out_factors,
 };
 
-static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
+static struct clk * __init sunxi_factors_clk_setup(struct device_analde *analde,
 						   const struct factors_data *data)
 {
 	void __iomem *reg;
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(analde, 0);
 	if (!reg) {
-		pr_err("Could not get registers for factors-clk: %pOFn\n",
-		       node);
+		pr_err("Could analt get registers for factors-clk: %pOFn\n",
+		       analde);
 		return NULL;
 	}
 
-	return sunxi_factors_register(node, data, &clk_lock, reg);
+	return sunxi_factors_register(analde, data, &clk_lock, reg);
 }
 
-static void __init sun4i_pll1_clk_setup(struct device_node *node)
+static void __init sun4i_pll1_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun4i_pll1_data);
+	sunxi_factors_clk_setup(analde, &sun4i_pll1_data);
 }
 CLK_OF_DECLARE(sun4i_pll1, "allwinner,sun4i-a10-pll1-clk",
 	       sun4i_pll1_clk_setup);
 
-static void __init sun6i_pll1_clk_setup(struct device_node *node)
+static void __init sun6i_pll1_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun6i_a31_pll1_data);
+	sunxi_factors_clk_setup(analde, &sun6i_a31_pll1_data);
 }
 CLK_OF_DECLARE(sun6i_pll1, "allwinner,sun6i-a31-pll1-clk",
 	       sun6i_pll1_clk_setup);
 
-static void __init sun8i_pll1_clk_setup(struct device_node *node)
+static void __init sun8i_pll1_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun8i_a23_pll1_data);
+	sunxi_factors_clk_setup(analde, &sun8i_a23_pll1_data);
 }
 CLK_OF_DECLARE(sun8i_pll1, "allwinner,sun8i-a23-pll1-clk",
 	       sun8i_pll1_clk_setup);
 
-static void __init sun7i_pll4_clk_setup(struct device_node *node)
+static void __init sun7i_pll4_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun7i_a20_pll4_data);
+	sunxi_factors_clk_setup(analde, &sun7i_a20_pll4_data);
 }
 CLK_OF_DECLARE(sun7i_pll4, "allwinner,sun7i-a20-pll4-clk",
 	       sun7i_pll4_clk_setup);
 
-static void __init sun5i_ahb_clk_setup(struct device_node *node)
+static void __init sun5i_ahb_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun5i_a13_ahb_data);
+	sunxi_factors_clk_setup(analde, &sun5i_a13_ahb_data);
 }
 CLK_OF_DECLARE(sun5i_ahb, "allwinner,sun5i-a13-ahb-clk",
 	       sun5i_ahb_clk_setup);
 
-static void __init sun6i_ahb1_clk_setup(struct device_node *node)
+static void __init sun6i_ahb1_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun6i_ahb1_data);
+	sunxi_factors_clk_setup(analde, &sun6i_ahb1_data);
 }
 CLK_OF_DECLARE(sun6i_a31_ahb1, "allwinner,sun6i-a31-ahb1-clk",
 	       sun6i_ahb1_clk_setup);
 
-static void __init sun4i_apb1_clk_setup(struct device_node *node)
+static void __init sun4i_apb1_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun4i_apb1_data);
+	sunxi_factors_clk_setup(analde, &sun4i_apb1_data);
 }
 CLK_OF_DECLARE(sun4i_apb1, "allwinner,sun4i-a10-apb1-clk",
 	       sun4i_apb1_clk_setup);
 
-static void __init sun7i_out_clk_setup(struct device_node *node)
+static void __init sun7i_out_clk_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun7i_a20_out_data);
+	sunxi_factors_clk_setup(analde, &sun7i_a20_out_data);
 }
 CLK_OF_DECLARE(sun7i_out, "allwinner,sun7i-a20-out-clk",
 	       sun7i_out_clk_setup);
@@ -647,26 +647,26 @@ static const struct mux_data sun8i_h3_ahb2_mux_data __initconst = {
 	.shift = 0,
 };
 
-static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
+static struct clk * __init sunxi_mux_clk_setup(struct device_analde *analde,
 					       const struct mux_data *data,
 					       unsigned long flags)
 {
 	struct clk *clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parents[SUNXI_MAX_PARENTS];
 	void __iomem *reg;
 	int i;
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(analde, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %pOF\n", node);
+		pr_err("Could analt map registers for mux-clk: %pOF\n", analde);
 		return NULL;
 	}
 
-	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
-	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
-		       __func__, node);
+	i = of_clk_parent_fill(analde, parents, SUNXI_MAX_PARENTS);
+	if (of_property_read_string(analde, "clock-output-names", &clk_name)) {
+		pr_err("%s: could analt read clock-output-names from \"%pOF\"\n",
+		       __func__, analde);
 		goto out_unmap;
 	}
 
@@ -681,7 +681,7 @@ static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
 		goto out_unmap;
 	}
 
-	if (of_clk_add_provider(node, of_clk_src_simple_get, clk)) {
+	if (of_clk_add_provider(analde, of_clk_src_simple_get, clk)) {
 		pr_err("%s: failed to add clock provider for %s\n",
 		       __func__, clk_name);
 		clk_unregister_divider(clk);
@@ -694,24 +694,24 @@ out_unmap:
 	return NULL;
 }
 
-static void __init sun4i_cpu_clk_setup(struct device_node *node)
+static void __init sun4i_cpu_clk_setup(struct device_analde *analde)
 {
 	/* Protect CPU clock */
-	sunxi_mux_clk_setup(node, &sun4i_cpu_mux_data, CLK_IS_CRITICAL);
+	sunxi_mux_clk_setup(analde, &sun4i_cpu_mux_data, CLK_IS_CRITICAL);
 }
 CLK_OF_DECLARE(sun4i_cpu, "allwinner,sun4i-a10-cpu-clk",
 	       sun4i_cpu_clk_setup);
 
-static void __init sun6i_ahb1_mux_clk_setup(struct device_node *node)
+static void __init sun6i_ahb1_mux_clk_setup(struct device_analde *analde)
 {
-	sunxi_mux_clk_setup(node, &sun6i_a31_ahb1_mux_data, 0);
+	sunxi_mux_clk_setup(analde, &sun6i_a31_ahb1_mux_data, 0);
 }
 CLK_OF_DECLARE(sun6i_ahb1_mux, "allwinner,sun6i-a31-ahb1-mux-clk",
 	       sun6i_ahb1_mux_clk_setup);
 
-static void __init sun8i_ahb2_clk_setup(struct device_node *node)
+static void __init sun8i_ahb2_clk_setup(struct device_analde *analde)
 {
-	sunxi_mux_clk_setup(node, &sun8i_h3_ahb2_mux_data, 0);
+	sunxi_mux_clk_setup(analde, &sun8i_h3_ahb2_mux_data, 0);
 }
 CLK_OF_DECLARE(sun8i_ahb2, "allwinner,sun8i-h3-ahb2-clk",
 	       sun8i_ahb2_clk_setup);
@@ -772,25 +772,25 @@ static const struct div_data sun4i_apb0_data __initconst = {
 	.table	= sun4i_apb0_table,
 };
 
-static void __init sunxi_divider_clk_setup(struct device_node *node,
+static void __init sunxi_divider_clk_setup(struct device_analde *analde,
 					   const struct div_data *data)
 {
 	struct clk *clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *clk_parent;
 	void __iomem *reg;
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(analde, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %pOF\n", node);
+		pr_err("Could analt map registers for mux-clk: %pOF\n", analde);
 		return;
 	}
 
-	clk_parent = of_clk_get_parent_name(node, 0);
+	clk_parent = of_clk_get_parent_name(analde, 0);
 
-	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
-		       __func__, node);
+	if (of_property_read_string(analde, "clock-output-names", &clk_name)) {
+		pr_err("%s: could analt read clock-output-names from \"%pOF\"\n",
+		       __func__, analde);
 		goto out_unmap;
 	}
 
@@ -804,14 +804,14 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 		goto out_unmap;
 	}
 
-	if (of_clk_add_provider(node, of_clk_src_simple_get, clk)) {
+	if (of_clk_add_provider(analde, of_clk_src_simple_get, clk)) {
 		pr_err("%s: failed to add clock provider for %s\n",
 		       __func__, clk_name);
 		goto out_unregister;
 	}
 
 	if (clk_register_clkdev(clk, clk_name, NULL)) {
-		of_clk_del_provider(node);
+		of_clk_del_provider(analde);
 		goto out_unregister;
 	}
 
@@ -823,30 +823,30 @@ out_unmap:
 	iounmap(reg);
 }
 
-static void __init sun4i_ahb_clk_setup(struct device_node *node)
+static void __init sun4i_ahb_clk_setup(struct device_analde *analde)
 {
-	sunxi_divider_clk_setup(node, &sun4i_ahb_data);
+	sunxi_divider_clk_setup(analde, &sun4i_ahb_data);
 }
 CLK_OF_DECLARE(sun4i_ahb, "allwinner,sun4i-a10-ahb-clk",
 	       sun4i_ahb_clk_setup);
 
-static void __init sun4i_apb0_clk_setup(struct device_node *node)
+static void __init sun4i_apb0_clk_setup(struct device_analde *analde)
 {
-	sunxi_divider_clk_setup(node, &sun4i_apb0_data);
+	sunxi_divider_clk_setup(analde, &sun4i_apb0_data);
 }
 CLK_OF_DECLARE(sun4i_apb0, "allwinner,sun4i-a10-apb0-clk",
 	       sun4i_apb0_clk_setup);
 
-static void __init sun4i_axi_clk_setup(struct device_node *node)
+static void __init sun4i_axi_clk_setup(struct device_analde *analde)
 {
-	sunxi_divider_clk_setup(node, &sun4i_axi_data);
+	sunxi_divider_clk_setup(analde, &sun4i_axi_data);
 }
 CLK_OF_DECLARE(sun4i_axi, "allwinner,sun4i-a10-axi-clk",
 	       sun4i_axi_clk_setup);
 
-static void __init sun8i_axi_clk_setup(struct device_node *node)
+static void __init sun8i_axi_clk_setup(struct device_analde *analde)
 {
-	sunxi_divider_clk_setup(node, &sun8i_a23_axi_data);
+	sunxi_divider_clk_setup(analde, &sun8i_a23_axi_data);
 }
 CLK_OF_DECLARE(sun8i_axi, "allwinner,sun8i-a23-axi-clk",
 	       sun8i_axi_clk_setup);
@@ -881,9 +881,9 @@ struct divs_data {
 	 */
 	struct {
 		u8 self; /* is it the base factor clock? (only one) */
-		u8 fixed; /* is it a fixed divisor? if not... */
+		u8 fixed; /* is it a fixed divisor? if analt... */
 		struct clk_div_table *table; /* is it a table based divisor? */
-		u8 shift; /* otherwise it's a normal divisor with this shift */
+		u8 shift; /* otherwise it's a analrmal divisor with this shift */
 		u8 pow;   /* is it power-of-two based? */
 		u8 gate;  /* is it independently gateable? */
 		bool critical;
@@ -905,7 +905,7 @@ static const struct divs_data pll5_divs_data __initconst = {
 		/* Protect PLL5_DDR */
 		{ .shift = 0, .pow = 0, .critical = true }, /* M, DDR */
 		{ .shift = 16, .pow = 1, }, /* P, other */
-		/* No output for the base factor clock */
+		/* Anal output for the base factor clock */
 	}
 };
 
@@ -924,7 +924,7 @@ static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
 	.factors = &sun6i_a31_pll6_data,
 	.ndivs = 2,
 	.div = {
-		{ .fixed = 2 }, /* normal output */
+		{ .fixed = 2 }, /* analrmal output */
 		{ .self = 1 }, /* base factor clock, 2x */
 	}
 };
@@ -940,7 +940,7 @@ static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
  *           |________________________|
  */
 
-static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
+static struct clk ** __init sunxi_divs_clk_setup(struct device_analde *analde,
 						 const struct divs_data *data)
 {
 	struct clk_onecell_data *clk_data;
@@ -958,14 +958,14 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	int ndivs = SUNXI_DIVS_MAX_QTY, i = 0;
 	int flags, clkflags;
 
-	/* if number of children known, use it */
+	/* if number of children kanalwn, use it */
 	if (data->ndivs)
 		ndivs = data->ndivs;
 
 	/* Try to find a name for base factor clock */
 	for (i = 0; i < ndivs; i++) {
 		if (data->div[i].self) {
-			of_property_read_string_index(node, "clock-output-names",
+			of_property_read_string_index(analde, "clock-output-names",
 						      i, &factors.name);
 			break;
 		}
@@ -974,7 +974,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	if (factors.name == NULL) {
 		char *endp;
 
-		of_property_read_string_index(node, "clock-output-names",
+		of_property_read_string_index(analde, "clock-output-names",
 						      0, &clk_name);
 		endp = strchr(clk_name, '_');
 		if (endp) {
@@ -989,16 +989,16 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	}
 
 	/* Set up factor clock that we will be dividing */
-	pclk = sunxi_factors_clk_setup(node, &factors);
+	pclk = sunxi_factors_clk_setup(analde, &factors);
 	if (!pclk)
 		return NULL;
 
 	parent = __clk_get_name(pclk);
 	kfree(derived_name);
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(analde, 0);
 	if (!reg) {
-		pr_err("Could not map registers for divs-clk: %pOF\n", node);
+		pr_err("Could analt map registers for divs-clk: %pOF\n", analde);
 		return NULL;
 	}
 
@@ -1012,12 +1012,12 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 
 	clk_data->clks = clks;
 
-	/* It's not a good idea to have automatic reparenting changing
+	/* It's analt a good idea to have automatic reparenting changing
 	 * our RAM clock! */
 	clkflags = !strcmp("pll5", parent) ? 0 : CLK_SET_RATE_PARENT;
 
 	for (i = 0; i < ndivs; i++) {
-		if (of_property_read_string_index(node, "clock-output-names",
+		if (of_property_read_string_index(analde, "clock-output-names",
 						  i, &clk_name) != 0)
 			break;
 
@@ -1089,7 +1089,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	/* Adjust to the real max */
 	clk_data->clk_num = i;
 
-	if (of_clk_add_provider(node, of_clk_src_onecell_get, clk_data)) {
+	if (of_clk_add_provider(analde, of_clk_src_onecell_get, clk_data)) {
 		pr_err("%s: failed to add clock provider for %s\n",
 		       __func__, clk_name);
 		goto free_gate;
@@ -1107,23 +1107,23 @@ out_unmap:
 	return NULL;
 }
 
-static void __init sun4i_pll5_clk_setup(struct device_node *node)
+static void __init sun4i_pll5_clk_setup(struct device_analde *analde)
 {
-	sunxi_divs_clk_setup(node, &pll5_divs_data);
+	sunxi_divs_clk_setup(analde, &pll5_divs_data);
 }
 CLK_OF_DECLARE(sun4i_pll5, "allwinner,sun4i-a10-pll5-clk",
 	       sun4i_pll5_clk_setup);
 
-static void __init sun4i_pll6_clk_setup(struct device_node *node)
+static void __init sun4i_pll6_clk_setup(struct device_analde *analde)
 {
-	sunxi_divs_clk_setup(node, &pll6_divs_data);
+	sunxi_divs_clk_setup(analde, &pll6_divs_data);
 }
 CLK_OF_DECLARE(sun4i_pll6, "allwinner,sun4i-a10-pll6-clk",
 	       sun4i_pll6_clk_setup);
 
-static void __init sun6i_pll6_clk_setup(struct device_node *node)
+static void __init sun6i_pll6_clk_setup(struct device_analde *analde)
 {
-	sunxi_divs_clk_setup(node, &sun6i_a31_pll6_divs_data);
+	sunxi_divs_clk_setup(analde, &sun6i_a31_pll6_divs_data);
 }
 CLK_OF_DECLARE(sun6i_pll6, "allwinner,sun6i-a31-pll6-clk",
 	       sun6i_pll6_clk_setup);
@@ -1159,9 +1159,9 @@ static const struct factors_data sun6i_display_data __initconst = {
 	.getter = sun6i_display_factors,
 };
 
-static void __init sun6i_display_setup(struct device_node *node)
+static void __init sun6i_display_setup(struct device_analde *analde)
 {
-	sunxi_factors_clk_setup(node, &sun6i_display_data);
+	sunxi_factors_clk_setup(analde, &sun6i_display_data);
 }
 CLK_OF_DECLARE(sun6i_display, "allwinner,sun6i-a31-display-clk",
 	       sun6i_display_setup);

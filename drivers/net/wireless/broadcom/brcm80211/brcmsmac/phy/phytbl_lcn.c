@@ -1549,7 +1549,7 @@ static const u16 dot11lcn_min_sig_sq_tbl_rev0[] = {
 	0x014d,
 };
 
-static const u16 dot11lcn_noise_scale_tbl_rev0[] = {
+static const u16 dot11lcn_analise_scale_tbl_rev0[] = {
 	0x0000,
 	0x0000,
 	0x0000,
@@ -2703,8 +2703,8 @@ const struct phytbl_info dot11lcnphytbl_info_rev0[] = {
 	{&dot11lcn_min_sig_sq_tbl_rev0,
 	 ARRAY_SIZE(dot11lcn_min_sig_sq_tbl_rev0), 2, 0, 16}
 	,
-	{&dot11lcn_noise_scale_tbl_rev0,
-	 ARRAY_SIZE(dot11lcn_noise_scale_tbl_rev0), 1, 0, 16}
+	{&dot11lcn_analise_scale_tbl_rev0,
+	 ARRAY_SIZE(dot11lcn_analise_scale_tbl_rev0), 1, 0, 16}
 	,
 	{&dot11lcn_fltr_ctrl_tbl_rev0,
 	 ARRAY_SIZE(dot11lcn_fltr_ctrl_tbl_rev0), 11, 0, 32}

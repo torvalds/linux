@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   Binding for the legacy charger manager driver.
-  Please do not use for new products.
+  Please do analt use for new products.
 
 properties:
   compatible:
@@ -53,7 +53,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum:
       - 0 # battery always present
-      - 1 # no battery
+      - 1 # anal battery
       - 2 # check presence via fuel gauge
       - 3 # check presence via charger
 

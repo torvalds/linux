@@ -119,7 +119,7 @@ EXPORT_SYMBOL(snd_akm4xxx_reset);
 
 
 /*
- * Volume conversion table for non-linear volumes
+ * Volume conversion table for analn-linear volumes
  * from -63.5dB (mute) to 0dB step 0.5dB
  *
  * Used for AK4524/AK4620 input/ouput attenuation, AK4528, and
@@ -181,7 +181,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 	};
 	static const unsigned char inits_ak4529[] = {
 		0x09, 0x01, /* 9: ATS=0, RSTN=1 */
-		0x0a, 0x3f, /* A: all power up, no zero/overflow detection */
+		0x0a, 0x3f, /* A: all power up, anal zero/overflow detection */
 		0x00, 0x0c, /* 0: TDM=0, 24bit I2S, SMUTE=0 */
 		0x01, 0x00, /* 1: ACKS=0, ADC, loop off */
 		0x02, 0xff, /* 2: LOUT1 muted */
@@ -199,7 +199,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x02, /* 1: reset and soft-mute */
 		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect,
 			     * disable DZF, sharp roll-off, RSTN#=0 */
-		0x02, 0x0e, /* 2: DA's power up, normal speed, RSTN#=0 */
+		0x02, 0x0e, /* 2: DA's power up, analrmal speed, RSTN#=0 */
 		// 0x02, 0x2e, /* quad speed */
 		0x03, 0x01, /* 3: de-emphasis off */
 		0x04, 0x00, /* 4: LOUT1 volume muted */
@@ -208,7 +208,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x07, 0x00, /* 7: ROUT2 volume muted */
 		0x08, 0x00, /* 8: LOUT3 volume muted */
 		0x09, 0x00, /* 9: ROUT3 volume muted */
-		0x0a, 0x00, /* a: DATT speed=0, ignore DZF */
+		0x0a, 0x00, /* a: DATT speed=0, iganalre DZF */
 		0x01, 0x01, /* 1: un-reset, unmute */
 		0xff, 0xff
 	};
@@ -216,7 +216,7 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x02, /* 1: reset and soft-mute */
 		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect,
 			     * disable DZF, sharp roll-off, RSTN#=0 */
-		0x02, 0x4e, /* 2: DA's power up, normal speed, RSTN#=0 */
+		0x02, 0x4e, /* 2: DA's power up, analrmal speed, RSTN#=0 */
 		/* 0x02, 0x6e,*/ /* quad speed */
 		0x03, 0x01, /* 3: de-emphasis off */
 		0x04, 0x00, /* 4: LOUT1 volume muted */
@@ -227,13 +227,13 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x09, 0x00, /* 9: ROUT3 volume muted */
 		0x0b, 0x00, /* b: LOUT4 volume muted */
 		0x0c, 0x00, /* c: ROUT4 volume muted */
-		0x0a, 0x00, /* a: DATT speed=0, ignore DZF */
+		0x0a, 0x00, /* a: DATT speed=0, iganalre DZF */
 		0x01, 0x01, /* 1: un-reset, unmute */
 		0xff, 0xff
 	};
 	static const unsigned char inits_ak4381[] = {
 		0x00, 0x0c, /* 0: mode3(i2s), disable auto-clock detect */
-		0x01, 0x02, /* 1: de-emphasis off, normal speed,
+		0x01, 0x02, /* 1: de-emphasis off, analrmal speed,
 			     * sharp roll-off, DZF off */
 		// 0x01, 0x12, /* quad speed */
 		0x02, 0x00, /* 2: DZF disabled */
@@ -243,11 +243,11 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0xff, 0xff
 	};
 	static const unsigned char inits_ak4620[] = {
-		0x00, 0x07, /* 0: normal */
+		0x00, 0x07, /* 0: analrmal */
 		0x01, 0x00, /* 0: reset */
 		0x01, 0x02, /* 1: RSTAD */
 		0x01, 0x03, /* 1: RSTDA */
-		0x01, 0x0f, /* 1: normal */
+		0x01, 0x0f, /* 1: analrmal */
 		0x02, 0x60, /* 2: 24bit I2S */
 		0x03, 0x01, /* 3: deemphasis off */
 		0x04, 0x00, /* 4: LIN muted */
@@ -487,7 +487,7 @@ static int snd_akm4xxx_deemphasis_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-#define ak4xxx_switch_info	snd_ctl_boolean_mono_info
+#define ak4xxx_switch_info	snd_ctl_boolean_moanal_info
 
 static int ak4xxx_switch_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
@@ -619,7 +619,7 @@ static int build_dac_controls(struct snd_akm4xxx *ak)
 			knew.get = ak4xxx_switch_get;
 			knew.put = ak4xxx_switch_put;
 			knew.access = 0;
-			/* register 1, bit 0 (SMUTE): 0 = normal operation,
+			/* register 1, bit 0 (SMUTE): 0 = analrmal operation,
 			   1 = mute */
 			knew.private_value =
 				AK_COMPOSE(idx/2, 1, 0, 0) | AK_INVERT;
@@ -718,7 +718,7 @@ static int build_adc_controls(struct snd_akm4xxx *ak)
 
 	mixer_ch = 0;
 	if (ak->type == SND_AK4528)
-		return 0;	/* no controls */
+		return 0;	/* anal controls */
 	for (idx = 0; idx < ak->num_adcs;) {
 		memset(&knew, 0, sizeof(knew));
 		if (! ak->adc_info || ! ak->adc_info[mixer_ch].name) {
@@ -766,7 +766,7 @@ static int build_adc_controls(struct snd_akm4xxx *ak)
 			knew.get = ak4xxx_switch_get;
 			knew.put = ak4xxx_switch_put;
 			knew.access = 0;
-			/* register 2, bit 0 (SMUTE): 0 = normal operation,
+			/* register 2, bit 0 (SMUTE): 0 = analrmal operation,
 			   1 = mute */
 			knew.private_value =
 				AK_COMPOSE(idx/2, 2, 0, 0) | AK_INVERT;

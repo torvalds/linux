@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -89,7 +89,7 @@ void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int MinCompressedBufferSizeInKByte,
 		double ForceSingleDPP,
 		unsigned int NumberOfActiveSurfaces,
-		unsigned int nomDETInKByte,
+		unsigned int analmDETInKByte,
 		enum unbounded_requesting_policy UseUnboundedRequestingFinal,
 		bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
 		unsigned int PixelChunkSizeKBytes,
@@ -186,7 +186,7 @@ void dml32_CalculateSwathWidth(
 
 bool dml32_UnboundedRequest(enum unbounded_requesting_policy UseUnboundedRequestingFinal,
 		unsigned int TotalNumberOfActiveDPP,
-		bool NoChroma,
+		bool AnalChroma,
 		enum output_encoder_class Output,
 		enum dm_swizzle_mode SurfaceTiling,
 		bool CompBufReservedSpaceNeedAdjustment,
@@ -198,7 +198,7 @@ void dml32_CalculateDETBufferSize(
 		bool ForceSingleDPP,
 		unsigned int NumberOfActiveSurfaces,
 		bool UnboundedRequestEnabled,
-		unsigned int nomDETInKByte,
+		unsigned int analmDETInKByte,
 		unsigned int MaxTotalDETInKByte,
 		unsigned int ConfigReturnBufferSizeInKByte,
 		unsigned int MinCompressedBufferSizeInKByte,
@@ -262,7 +262,7 @@ void dml32_CalculateOutputLink(
 		unsigned int NumberOfDSCSlices,
 		double AudioSampleRate,
 		unsigned int AudioSampleLayout,
-		enum odm_combine_mode ODMModeNoDSC,
+		enum odm_combine_mode ODMModeAnalDSC,
 		enum odm_combine_mode ODMModeDSC,
 		bool DSCEnable,
 		unsigned int OutputLinkDPLanes,
@@ -301,7 +301,7 @@ double dml32_TruncToValidBPP(
 		unsigned int DSCSlices,
 		unsigned int AudioRate,
 		unsigned int AudioLayout,
-		enum odm_combine_mode ODMModeNoDSC,
+		enum odm_combine_mode ODMModeAnalDSC,
 		enum odm_combine_mode ODMModeDSC,
 		/* Output */
 		unsigned int *RequiredSlots);
@@ -380,14 +380,14 @@ void dml32_CalculateVMRowAndSwath(
 		double SwathWidthC[],
 		bool GPUVMEnable,
 		bool HostVMEnable,
-		unsigned int HostVMMaxNonCachedPageTableLevels,
+		unsigned int HostVMMaxAnalnCachedPageTableLevels,
 		unsigned int GPUVMMaxPageTableLevels,
 		unsigned int GPUVMMinPageSizeKBytes[],
 		unsigned int HostVMMinPageSize,
 
 		/* Output */
-		bool PTEBufferSizeNotExceeded[],
-		bool DCCMetaBufferSizeNotExceeded[],
+		bool PTEBufferSizeAnaltExceeded[],
+		bool DCCMetaBufferSizeAnaltExceeded[],
 		unsigned int dpte_row_width_luma_ub[],
 		unsigned int dpte_row_width_chroma_ub[],
 		unsigned int dpte_row_height_luma[],
@@ -447,7 +447,7 @@ unsigned int dml32_CalculateVMAndRowBytes(
 		unsigned int    ViewportYStart,
 		bool GPUVMEnable,
 		bool HostVMEnable,
-		unsigned int HostVMMaxNonCachedPageTableLevels,
+		unsigned int HostVMMaxAnalnCachedPageTableLevels,
 		unsigned int GPUVMMaxPageTableLevels,
 		unsigned int GPUVMMinPageSizeKBytes,
 		unsigned int HostVMMinPageSize,
@@ -552,7 +552,7 @@ void dml32_CalculateUrgentBurstFactor(
 		double *UrgentBurstFactorCursor,
 		double *UrgentBurstFactorLuma,
 		double *UrgentBurstFactorChroma,
-		bool   *NotEnoughUrgentLatencyHiding);
+		bool   *AnaltEanalughUrgentLatencyHiding);
 
 void dml32_CalculateDCFCLKDeepSleep(
 		unsigned int NumberOfActiveSurfaces,
@@ -605,11 +605,11 @@ void dml32_UseMinimumDCFCLK(
 		bool HostVMEnable,
 		unsigned int NumberOfActiveSurfaces,
 		double HostVMMinPageSize,
-		unsigned int HostVMMaxNonCachedPageTableLevels,
+		unsigned int HostVMMaxAnalnCachedPageTableLevels,
 		bool DynamicMetadataVMEnabled,
 		bool ImmediateFlipRequirement,
 		bool ProgressiveToInterlaceUnitInOPP,
-		double MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInNormalSystemOperation,
+		double MaxAveragePercentOfIdealSDPPortBWDisplayCanUseInAnalrmalSystemOperation,
 		double PercentOfIdealSDPPortBWReceivedAfterUrgLatency,
 		unsigned int VTotal[],
 		unsigned int VActive[],
@@ -619,7 +619,7 @@ void dml32_UseMinimumDCFCLK(
 		double RequiredDPPCLKPerSurface[][2][DC__NUM_DPP__MAX],
 		double RequiredDISPCLK[][2],
 		double UrgLatency[],
-		unsigned int NoOfDPP[][2][DC__NUM_DPP__MAX],
+		unsigned int AnalOfDPP[][2][DC__NUM_DPP__MAX],
 		double ProjectedDCFClkDeepSleep[][2],
 		double MaximumVStartup[][2][DC__NUM_DPP__MAX],
 		unsigned int TotalNumberOfActiveDPP[][2],
@@ -655,7 +655,7 @@ unsigned int dml32_CalculateExtraLatencyBytes(unsigned int ReorderingBytes,
 		unsigned int dpte_group_bytes[],
 		double HostVMInefficiencyFactor,
 		double HostVMMinPageSize,
-		unsigned int HostVMMaxNonCachedPageTableLevels);
+		unsigned int HostVMMaxAnalnCachedPageTableLevels);
 
 void dml32_CalculateVUpdateAndDynamicMetadataParameters(
 		unsigned int MaxInterDCNTileRepeaters,
@@ -716,7 +716,7 @@ double dml32_CalculateExtraLatency(
 		unsigned int dpte_group_bytes[],
 		double HostVMInefficiencyFactor,
 		double HostVMMinPageSize,
-		unsigned int HostVMMaxNonCachedPageTableLevels);
+		unsigned int HostVMMaxAnalnCachedPageTableLevels);
 
 bool dml32_CalculatePrefetchSchedule(
 		struct vba_vars_st *v,
@@ -759,8 +759,8 @@ bool dml32_CalculatePrefetchSchedule(
 		double *VRatioPrefetchC,
 		double *RequiredPrefetchPixDataBWLuma,
 		double *RequiredPrefetchPixDataBWChroma,
-		bool   *NotEnoughTimeForDynamicMetadata,
-		double *Tno_bw,
+		bool   *AnaltEanalughTimeForDynamicMetadata,
+		double *Tanal_bw,
 		double *prefetch_vmrow_bw,
 		double *Tdmdl_vm,
 		double *Tdmdl,
@@ -775,7 +775,7 @@ void dml32_CalculateFlipSchedule(
 		double UrgentLatency,
 		unsigned int GPUVMMaxPageTableLevels,
 		bool HostVMEnable,
-		unsigned int HostVMMaxNonCachedPageTableLevels,
+		unsigned int HostVMMaxAnalnCachedPageTableLevels,
 		bool GPUVMEnable,
 		double HostVMMinPageSize,
 		double PDEAndMetaPTEBytesPerFrame,
@@ -787,7 +787,7 @@ void dml32_CalculateFlipSchedule(
 		double LineTime,
 		double VRatio,
 		double VRatioChroma,
-		double Tno_bw,
+		double Tanal_bw,
 		bool DCCEnable,
 		unsigned int dpte_row_height,
 		unsigned int meta_row_height,
@@ -924,20 +924,20 @@ void dml32_CalculateMetaAndPTETimes(
 		unsigned int    dpte_row_width_chroma_ub[],
 
 		/* Output */
-		double DST_Y_PER_PTE_ROW_NOM_L[],
-		double DST_Y_PER_PTE_ROW_NOM_C[],
-		double DST_Y_PER_META_ROW_NOM_L[],
-		double DST_Y_PER_META_ROW_NOM_C[],
-		double TimePerMetaChunkNominal[],
-		double TimePerChromaMetaChunkNominal[],
+		double DST_Y_PER_PTE_ROW_ANALM_L[],
+		double DST_Y_PER_PTE_ROW_ANALM_C[],
+		double DST_Y_PER_META_ROW_ANALM_L[],
+		double DST_Y_PER_META_ROW_ANALM_C[],
+		double TimePerMetaChunkAnalminal[],
+		double TimePerChromaMetaChunkAnalminal[],
 		double TimePerMetaChunkVBlank[],
 		double TimePerChromaMetaChunkVBlank[],
 		double TimePerMetaChunkFlip[],
 		double TimePerChromaMetaChunkFlip[],
-		double time_per_pte_group_nom_luma[],
+		double time_per_pte_group_analm_luma[],
 		double time_per_pte_group_vblank_luma[],
 		double time_per_pte_group_flip_luma[],
-		double time_per_pte_group_nom_chroma[],
+		double time_per_pte_group_analm_chroma[],
 		double time_per_pte_group_vblank_chroma[],
 		double time_per_pte_group_flip_chroma[]);
 
@@ -967,13 +967,13 @@ void dml32_CalculateVMGroupAndRequestTimes(
 
 void dml32_CalculateDCCConfiguration(
 		bool             DCCEnabled,
-		bool             DCCProgrammingAssumesScanDirectionUnknown,
+		bool             DCCProgrammingAssumesScanDirectionUnkanalwn,
 		enum source_format_class SourcePixelFormat,
 		unsigned int             SurfaceWidthLuma,
 		unsigned int             SurfaceWidthChroma,
 		unsigned int             SurfaceHeightLuma,
 		unsigned int             SurfaceHeightChroma,
-		unsigned int                nomDETInKByte,
+		unsigned int                analmDETInKByte,
 		unsigned int             RequestHeight256ByteLuma,
 		unsigned int             RequestHeight256ByteChroma,
 		enum dm_swizzle_mode     TilingFormat,
@@ -1044,10 +1044,10 @@ void dml32_CalculateStutterEfficiency(
 		double    dpte_row_bw[],
 
 		/* Output */
-		double   *StutterEfficiencyNotIncludingVBlank,
+		double   *StutterEfficiencyAnaltIncludingVBlank,
 		double   *StutterEfficiency,
 		unsigned int     *NumberOfStutterBurstsPerFrame,
-		double   *Z8StutterEfficiencyNotIncludingVBlank,
+		double   *Z8StutterEfficiencyAnaltIncludingVBlank,
 		double   *Z8StutterEfficiency,
 		unsigned int     *Z8NumberOfStutterBurstsPerFrame,
 		double   *StutterPeriod,
@@ -1057,17 +1057,17 @@ void dml32_CalculateMaxDETAndMinCompressedBufferSize(
 		unsigned int    ConfigReturnBufferSizeInKByte,
 		unsigned int    ROBBufferSizeInKByte,
 		unsigned int MaxNumDPP,
-		bool nomDETInKByteOverrideEnable, // VBA_DELTA, allow DV to override default DET size
-		unsigned int nomDETInKByteOverrideValue,  // VBA_DELTA
+		bool analmDETInKByteOverrideEnable, // VBA_DELTA, allow DV to override default DET size
+		unsigned int analmDETInKByteOverrideValue,  // VBA_DELTA
 
 		/* Output */
 		unsigned int *MaxTotalDETInKByte,
-		unsigned int *nomDETInKByte,
+		unsigned int *analmDETInKByte,
 		unsigned int *MinCompressedBufferSizeInKByte);
 
 bool dml32_CalculateVActiveBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		double ReturnBW,
-		bool NotUrgentLatencyHiding[],
+		bool AnaltUrgentLatencyHiding[],
 		double ReadBandwidthLuma[],
 		double ReadBandwidthChroma[],
 		double cursor_bw[],
@@ -1080,7 +1080,7 @@ bool dml32_CalculateVActiveBandwithSupport(unsigned int NumberOfActiveSurfaces,
 
 void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		double ReturnBW,
-		bool NotUrgentLatencyHiding[],
+		bool AnaltUrgentLatencyHiding[],
 		double ReadBandwidthLuma[],
 		double ReadBandwidthChroma[],
 		double PrefetchBandwidthLuma[],

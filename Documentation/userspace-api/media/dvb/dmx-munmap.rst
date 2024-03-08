@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.dmx
 
 .. _dmx-munmap:
@@ -14,7 +14,7 @@ dmx-munmap - Unmap device memory
 
 .. warning:: This API is still experimental.
 
-Synopsis
+Syanalpsis
 ========
 
 .. code-block:: c
@@ -45,8 +45,8 @@ Return Value
 ============
 
 On success :c:func:`munmap()` returns 0, on failure -1 and the
-``errno`` variable is set appropriately:
+``erranal`` variable is set appropriately:
 
 EINVAL
-    The ``start`` or ``length`` is incorrect, or no buffers have been
+    The ``start`` or ``length`` is incorrect, or anal buffers have been
     mapped yet.

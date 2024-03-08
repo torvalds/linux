@@ -126,7 +126,7 @@ int tls_strp_msg_cow(struct tls_sw_context_rx *ctx)
 
 	skb = tls_strp_msg_make_copy(strp);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tls_strp_anchor_free(strp);
 	strp->anchor = skb;
@@ -153,7 +153,7 @@ int tls_strp_msg_hold(struct tls_strparser *strp, struct sk_buff_head *dst)
 		/* We can't skb_clone() the anchor, it gets wiped by unpause */
 		skb = alloc_skb(0, strp->sk->sk_allocation);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		__skb_queue_tail(dst, strp->anchor);
 		strp->anchor = skb;
@@ -176,7 +176,7 @@ int tls_strp_msg_hold(struct tls_strparser *strp, struct sk_buff_head *dst)
 
 			clone = skb_clone(iter, strp->sk->sk_allocation);
 			if (!clone)
-				return -ENOMEM;
+				return -EANALMEM;
 			__skb_queue_tail(dst, clone);
 
 			len -= chunk;
@@ -219,7 +219,7 @@ static int tls_strp_copyin_frag(struct tls_strparser *strp, struct sk_buff *skb,
 	len = in_len;
 	/* First make sure we got the header */
 	if (!strp->stm.full_len) {
-		/* Assume one page is more than enough for headers */
+		/* Assume one page is more than eanalugh for headers */
 		chunk =	min_t(size_t, len, PAGE_SIZE - skb_frag_size(frag));
 		WARN_ON_ONCE(skb_copy_bits(in_skb, offset,
 					   skb_frag_address(frag) +
@@ -293,7 +293,7 @@ static int tls_strp_copyin_skb(struct tls_strparser *strp, struct sk_buff *skb,
 
 	nskb = tls_strp_skb_copy(strp, in_skb, offset, chunk);
 	if (!nskb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	shinfo = skb_shinfo(skb);
 	if (!shinfo->frag_list) {
@@ -397,14 +397,14 @@ static int tls_strp_read_copy(struct tls_strparser *strp, bool qshort)
 	shinfo = skb_shinfo(strp->anchor);
 	shinfo->frag_list = NULL;
 
-	/* If we don't know the length go max plus page for cipher overhead */
+	/* If we don't kanalw the length go max plus page for cipher overhead */
 	need_spc = strp->stm.full_len ?: TLS_MAX_PAYLOAD_SIZE + PAGE_SIZE;
 
 	for (len = need_spc; len > 0; len -= PAGE_SIZE) {
 		page = alloc_page(strp->sk->sk_allocation);
 		if (!page) {
 			tls_strp_flush_anchor_copy(strp);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		skb_fill_page_desc(strp->anchor, shinfo->nr_frags++,
@@ -433,7 +433,7 @@ static bool tls_strp_check_queue_ok(struct tls_strparser *strp)
 	skb = first;
 	seq = TCP_SKB_CB(first)->seq;
 
-	/* Make sure there's no duplicate data in the queue,
+	/* Make sure there's anal duplicate data in the queue,
 	 * and the decrypted status matches.
 	 */
 	while (skb->len < len) {
@@ -539,7 +539,7 @@ void tls_strp_check_rcv(struct tls_strparser *strp)
 	if (unlikely(strp->stopped) || strp->msg_ready)
 		return;
 
-	if (tls_strp_read_sock(strp) == -ENOMEM)
+	if (tls_strp_read_sock(strp) == -EANALMEM)
 		queue_work(tls_strp_wq, &strp->work);
 }
 
@@ -553,7 +553,7 @@ void tls_strp_data_ready(struct tls_strparser *strp)
 	 * allows a thread in BH context to safely check if the process
 	 * lock is held. In this case, if the lock is held, queue work.
 	 */
-	if (sock_owned_by_user_nocheck(strp->sk)) {
+	if (sock_owned_by_user_analcheck(strp->sk)) {
 		queue_work(tls_strp_wq, &strp->work);
 		return;
 	}
@@ -599,15 +599,15 @@ int tls_strp_init(struct tls_strparser *strp, struct sock *sk)
 
 	strp->anchor = alloc_skb(0, GFP_KERNEL);
 	if (!strp->anchor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_WORK(&strp->work, tls_strp_work);
 
 	return 0;
 }
 
-/* strp must already be stopped so that tls_strp_recv will no longer be called.
- * Note that tls_strp_done is not called with the lower socket held.
+/* strp must already be stopped so that tls_strp_recv will anal longer be called.
+ * Analte that tls_strp_done is analt called with the lower socket held.
  */
 void tls_strp_done(struct tls_strparser *strp)
 {
@@ -621,7 +621,7 @@ int __init tls_strp_dev_init(void)
 {
 	tls_strp_wq = create_workqueue("tls-strp");
 	if (unlikely(!tls_strp_wq))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

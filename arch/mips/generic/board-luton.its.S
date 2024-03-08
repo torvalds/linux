@@ -6,7 +6,7 @@
 			data = /incbin/("boot/dts/mscc/luton_pcb091.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};

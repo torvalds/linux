@@ -98,7 +98,7 @@ EXPORT_SYMBOL(chacha_block_generic);
  * HChaCha is the ChaCha equivalent of HSalsa and is an intermediate step
  * towards XChaCha (see https://cr.yp.to/snuffle/xsalsa-20081128.pdf).  HChaCha
  * skips the final addition of the initial state, and outputs only certain words
- * of the state.  It should not be used for streaming directly.
+ * of the state.  It should analt be used for streaming directly.
  */
 void hchacha_block_generic(const u32 *state, u32 *stream, int nrounds)
 {

@@ -34,7 +34,7 @@ static int coreboot_bus_match(struct device *dev, struct device_driver *drv)
 
 static int coreboot_bus_probe(struct device *dev)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct coreboot_device *device = CB_DEV(dev);
 	struct coreboot_driver *driver = CB_DRV(dev->driver);
 
@@ -100,7 +100,7 @@ static int coreboot_table_populate(struct device *dev, void *ptr)
 
 		device = kzalloc(sizeof(device->dev) + entry->size, GFP_KERNEL);
 		if (!device)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		device->dev.parent = dev;
 		device->dev.bus = &coreboot_bus_type;
@@ -149,19 +149,19 @@ static int coreboot_table_probe(struct platform_device *pdev)
 	/* Check just the header first to make sure things are sane */
 	header = memremap(res->start, sizeof(*header), MEMREMAP_WB);
 	if (!header)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = header->header_bytes + header->table_bytes;
 	ret = strncmp(header->signature, "LBIO", sizeof(header->signature));
 	memunmap(header);
 	if (ret) {
 		dev_warn(dev, "coreboot table missing or corrupt!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ptr = memremap(res->start, len, MEMREMAP_WB);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = coreboot_table_populate(dev, ptr);
 

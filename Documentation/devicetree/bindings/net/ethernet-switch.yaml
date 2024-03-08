@@ -15,16 +15,16 @@ description:
   Ethernet switches are multi-port Ethernet controllers. Each port has
   its own number and is represented as its own Ethernet controller.
   The minimum required functionality is to pass packets to software.
-  They may or may not be able to forward packets automonously between
+  They may or may analt be able to forward packets automoanalusly between
   ports.
 
 select: false
 
 allOf:
   # This condition is here to satisfy the case where certain device
-  # nodes have to preserve non-standard names because of
+  # analdes have to preserve analn-standard names because of
   # backward-compatibility with boot loaders inspecting certain
-  # node names.
+  # analde names.
   - if:
       properties:
         compatible:
@@ -34,11 +34,11 @@ allOf:
               - marvell,turris-mox-mv88e6190
     then:
       properties:
-        $nodename:
+        $analdename:
           pattern: "switch[0-3]@[0-3]+$"
     else:
       properties:
-        $nodename:
+        $analdename:
           pattern: "^(ethernet-)?switch(@.*)?$"
 
 patternProperties:

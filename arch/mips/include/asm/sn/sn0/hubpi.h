@@ -296,7 +296,7 @@
 #define PI_ERR_WRB	1
 #define PI_ERR_ANY_CRB	2
 
-/* Address masks in the error status and error stack are not the same */
+/* Address masks in the error status and error stack are analt the same */
 #define ERR_STK_ADDR_SHFT	7
 #define ERR_STAT0_ADDR_SHFT	3
 

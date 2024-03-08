@@ -1,17 +1,17 @@
 
-IBM Akebono board device tree
+IBM Akeboanal board device tree
 =============================
 
-The IBM Akebono board is a development board for the PPC476GTR SoC.
+The IBM Akeboanal board is a development board for the PPC476GTR SoC.
 
-0) The root node
+0) The root analde
 
    Required properties:
 
-   - model : "ibm,akebono".
-   - compatible : "ibm,akebono" , "ibm,476gtr".
+   - model : "ibm,akeboanal".
+   - compatible : "ibm,akeboanal" , "ibm,476gtr".
 
-1.a) The Secure Digital Host Controller Interface (SDHCI) node
+1.a) The Secure Digital Host Controller Interface (SDHCI) analde
 
   Represent the Secure Digital Host Controller Interfaces.
 
@@ -21,7 +21,7 @@ The IBM Akebono board is a development board for the PPC476GTR SoC.
    - reg : should contain the SDHCI registers location and length.
    - interrupts : should contain the SDHCI interrupt.
 
-1.b) The Advanced Host Controller Interface (AHCI) SATA node
+1.b) The Advanced Host Controller Interface (AHCI) SATA analde
 
   Represents the advanced host controller SATA interface.
 
@@ -31,22 +31,22 @@ The IBM Akebono board is a development board for the PPC476GTR SoC.
    - reg : should contain the AHCI registers location and length.
    - interrupts : should contain the AHCI interrupt.
 
-1.c) The FPGA node
+1.c) The FPGA analde
 
-  The Akebono board stores some board information such as the revision
-  number in an FPGA which is represented by this node.
+  The Akeboanal board stores some board information such as the revision
+  number in an FPGA which is represented by this analde.
 
   Required properties:
 
-   - compatible : should be "ibm,akebono-fpga".
+   - compatible : should be "ibm,akeboanal-fpga".
    - reg : should contain the FPGA registers location and length.
 
-1.d) The AVR node
+1.d) The AVR analde
 
-  The Akebono board has an Atmel AVR microprocessor attached to the I2C
+  The Akeboanal board has an Atmel AVR microprocessor attached to the I2C
   bus as a power controller for the board.
 
   Required properties:
 
-   - compatible : should be "ibm,akebono-avr".
+   - compatible : should be "ibm,akeboanal-avr".
    - reg : should contain the I2C bus address for the AVR.

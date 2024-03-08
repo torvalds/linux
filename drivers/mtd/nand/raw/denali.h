@@ -182,15 +182,15 @@
 #define ONFI_PGM_CACHE_TIMING_MODE		0x3b0
 #define     ONFI_PGM_CACHE_TIMING_MODE__VALUE		GENMASK(5, 0)
 
-#define ONFI_DEVICE_NO_OF_LUNS			0x3c0
-#define     ONFI_DEVICE_NO_OF_LUNS__NO_OF_LUNS		GENMASK(7, 0)
-#define     ONFI_DEVICE_NO_OF_LUNS__ONFI_DEVICE		BIT(8)
+#define ONFI_DEVICE_ANAL_OF_LUNS			0x3c0
+#define     ONFI_DEVICE_ANAL_OF_LUNS__ANAL_OF_LUNS		GENMASK(7, 0)
+#define     ONFI_DEVICE_ANAL_OF_LUNS__ONFI_DEVICE		BIT(8)
 
-#define ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_L	0x3d0
-#define     ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_L__VALUE	GENMASK(15, 0)
+#define ONFI_DEVICE_ANAL_OF_BLOCKS_PER_LUN_L	0x3d0
+#define     ONFI_DEVICE_ANAL_OF_BLOCKS_PER_LUN_L__VALUE	GENMASK(15, 0)
 
-#define ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_U	0x3e0
-#define     ONFI_DEVICE_NO_OF_BLOCKS_PER_LUN_U__VALUE	GENMASK(15, 0)
+#define ONFI_DEVICE_ANAL_OF_BLOCKS_PER_LUN_U	0x3e0
+#define     ONFI_DEVICE_ANAL_OF_BLOCKS_PER_LUN_U__VALUE	GENMASK(15, 0)
 
 #define FEATURES				0x3f0
 #define     FEATURES__N_BANKS				GENMASK(1, 0)
@@ -267,8 +267,8 @@
 #define DMA_ENABLE				0x700
 #define     DMA_ENABLE__FLAG				BIT(0)
 
-#define IGNORE_ECC_DONE				0x710
-#define     IGNORE_ECC_DONE__FLAG			BIT(0)
+#define IGANALRE_ECC_DONE				0x710
+#define     IGANALRE_ECC_DONE__FLAG			BIT(0)
 
 #define DMA_INTR				0x720
 #define DMA_INTR_EN				0x730
@@ -320,13 +320,13 @@ struct denali_chip_sel {
  * struct denali_chip - per-chip data of Denali NAND
  *
  * @chip:  base NAND chip structure
- * @node:  node to be used to associate this chip with the controller
+ * @analde:  analde to be used to associate this chip with the controller
  * @nsels: the number of CS lines of this chip
  * @sels:  the array of per-cs data
  */
 struct denali_chip {
 	struct nand_chip chip;
-	struct list_head node;
+	struct list_head analde;
 	unsigned int nsels;
 	struct denali_chip_sel sels[] __counted_by(nsels);
 };
@@ -352,7 +352,7 @@ struct denali_chip {
  * @active_bank:    active bank id
  * @nbanks:         the number of banks supported by this controller
  * @revision:       IP revision
- * @caps:           controller capabilities that cannot be detected run-time
+ * @caps:           controller capabilities that cananalt be detected run-time
  * @ecc_caps:       ECC engine capabilities
  * @host_read:      callback for read access of Host Data/Command Interface
  * @host_write:     callback for write access of Host Data/Command Interface

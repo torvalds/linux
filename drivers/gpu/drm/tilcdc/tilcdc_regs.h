@@ -48,7 +48,7 @@
 #define PALETTE_ONLY                             0x01
 #define DATA_ONLY                                0x02
 
-#define LCDC_MONO_8BIT_MODE                      BIT(9)
+#define LCDC_MOANAL_8BIT_MODE                      BIT(9)
 #define LCDC_RASTER_ORDER                        BIT(8)
 #define LCDC_TFT_MODE                            BIT(7)
 #define LCDC_V1_UNDERFLOW_INT_ENA                BIT(6)
@@ -57,7 +57,7 @@
 #define LCDC_V2_PL_INT_ENA                       BIT(6)
 #define LCDC_V1_SYNC_LOST_INT_ENA                BIT(5)
 #define LCDC_V1_FRAME_DONE_INT_ENA               BIT(3)
-#define LCDC_MONOCHROME_MODE                     BIT(1)
+#define LCDC_MOANALCHROME_MODE                     BIT(1)
 #define LCDC_RASTER_ENABLE                       BIT(0)
 #define LCDC_TFT_ALT_ENABLE                      BIT(23)
 #define LCDC_STN_565_ENABLE                      BIT(24)
@@ -122,7 +122,7 @@ static inline void tilcdc_write64(struct drm_device *dev, u32 reg, u64 data)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	volatile void __iomem *addr = priv->mmio + reg;
 
-#if defined(iowrite64) && !defined(iowrite64_is_nonatomic)
+#if defined(iowrite64) && !defined(iowrite64_is_analnatomic)
 	iowrite64(data, addr);
 #else
 	__iowmb();

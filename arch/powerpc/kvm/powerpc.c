@@ -7,7 +7,7 @@
  *          Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
@@ -190,7 +190,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 		vcpu->arch.shared_big_endian = shared_big_endian;
 #endif
 
-		if (!(param2 & MAGIC_PAGE_FLAG_NOT_MAPPED_NX)) {
+		if (!(param2 & MAGIC_PAGE_FLAG_ANALT_MAPPED_NX)) {
 			/*
 			 * Older versions of the Linux magic page code had
 			 * a bug where they would map their trampoline code
@@ -254,7 +254,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 {
 	int r = false;
 
-	/* We have to know what CPU to virtualize */
+	/* We have to kanalw what CPU to virtualize */
 	if (!vcpu->arch.pvr)
 		goto out;
 
@@ -262,7 +262,7 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 	if ((vcpu->arch.cpu_type != KVM_CPU_3S_64) && vcpu->arch.papr_enabled)
 		goto out;
 
-	/* HV KVM can only do PAPR mode for now */
+	/* HV KVM can only do PAPR mode for analw */
 	if (!vcpu->arch.papr_enabled && is_kvmppc_hv_enabled(vcpu->kvm))
 		goto out;
 
@@ -287,7 +287,7 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 	er = kvmppc_emulate_loadstore(vcpu);
 	switch (er) {
 	case EMULATE_DONE:
-		/* Future optimization: only reload non-volatiles if they were
+		/* Future optimization: only reload analn-volatiles if they were
 		 * actually modified. */
 		r = RESUME_GUEST_NV;
 		break;
@@ -296,9 +296,9 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 		break;
 	case EMULATE_DO_MMIO:
 		vcpu->run->exit_reason = KVM_EXIT_MMIO;
-		/* We must reload nonvolatiles because "update" load/store
+		/* We must reload analnvolatiles because "update" load/store
 		 * instructions modify register state. */
-		/* Future optimization: only reload non-volatiles if they were
+		/* Future optimization: only reload analn-volatiles if they were
 		 * actually modified. */
 		r = RESUME_HOST_NV;
 		break;
@@ -326,7 +326,7 @@ int kvmppc_emulate_mmio(struct kvm_vcpu *vcpu)
 					vcpu->arch.vaddr_accessed, dsisr);
 		} else {
 			/*
-			 * BookE does not send a SIGBUS on a bad
+			 * BookE does analt send a SIGBUS on a bad
 			 * fault, so use a Program interrupt instead
 			 * to avoid a fault loop.
 			 */
@@ -415,7 +415,7 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		return -EPERM;
 
 	if (!data && !pte.may_execute)
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	/* Magic page override */
 	if (kvmppc_supports_magic_page(vcpu) && mp_pa &&
@@ -464,7 +464,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto err_out;
 
 	if (!try_module_get(kvm_ops->owner))
-		return -ENOENT;
+		return -EANALENT;
 
 	kvm->arch.kvm_ops = kvm_ops;
 	r = kvmppc_core_init_vm(kvm);
@@ -507,7 +507,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 
 	if (kvm) {
 		/*
-		 * Hooray - we know which VM type we're running on. Depend on
+		 * Hooray - we kanalw which VM type we're running on. Depend on
 		 * that rather than the guess above.
 		 */
 		hv_enabled = is_kvmppc_hv_enabled(kvm);
@@ -570,7 +570,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		/*
 		 * We need XIVE to be enabled on the platform (implies
 		 * a POWER9 processor) and the PowerNV platform, as
-		 * nested is not yet supported.
+		 * nested is analt yet supported.
 		 */
 		r = xive_enabled() && !!cpu_has_feature(CPU_FTR_HVMODE) &&
 			kvmppc_xive_native_supported();
@@ -631,7 +631,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 #endif
 	case KVM_CAP_SYNC_MMU:
-		BUILD_BUG_ON(!IS_ENABLED(CONFIG_KVM_GENERIC_MMU_NOTIFIER));
+		BUILD_BUG_ON(!IS_ENABLED(CONFIG_KVM_GENERIC_MMU_ANALTIFIER));
 		r = 1;
 		break;
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -762,7 +762,7 @@ static enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 	vcpu = container_of(timer, struct kvm_vcpu, arch.dec_timer);
 	kvmppc_decrementer_func(vcpu);
 
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
@@ -798,7 +798,7 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
-	/* Make sure we're not using the vcpu anymore */
+	/* Make sure we're analt using the vcpu anymore */
 	hrtimer_cancel(&vcpu->arch.dec_timer);
 
 	switch (vcpu->arch.irq_type) {
@@ -833,7 +833,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 * vrsave (formerly usprg0) isn't used by Linux, but may
 	 * be used by the guest.
 	 *
-	 * On non-booke this is associated with Altivec and
+	 * On analn-booke this is associated with Altivec and
 	 * is handled by code in book3s.c.
 	 */
 	mtspr(SPRN_VRSAVE, vcpu->arch.vrsave);
@@ -852,8 +852,8 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 /*
  * irq_bypass_add_producer and irq_bypass_del_producer are only
  * useful if the architecture supports PCI passthrough.
- * irq_bypass_stop and irq_bypass_start are not needed and so
- * kvm_ops are not defined for them.
+ * irq_bypass_stop and irq_bypass_start are analt needed and so
+ * kvm_ops are analt defined for them.
  */
 bool kvm_arch_has_irq_bypass(void)
 {
@@ -2054,7 +2054,7 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp,
 			return -EFAULT;
 		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp,
@@ -2118,13 +2118,13 @@ vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 
 static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 {
-	u32 inst_nop = 0x60000000;
+	u32 inst_analp = 0x60000000;
 #ifdef CONFIG_KVM_BOOKE_HV
 	u32 inst_sc1 = 0x44000022;
 	pvinfo->hcall[0] = cpu_to_be32(inst_sc1);
-	pvinfo->hcall[1] = cpu_to_be32(inst_nop);
-	pvinfo->hcall[2] = cpu_to_be32(inst_nop);
-	pvinfo->hcall[3] = cpu_to_be32(inst_nop);
+	pvinfo->hcall[1] = cpu_to_be32(inst_analp);
+	pvinfo->hcall[2] = cpu_to_be32(inst_analp);
+	pvinfo->hcall[3] = cpu_to_be32(inst_analp);
 #else
 	u32 inst_lis = 0x3c000000;
 	u32 inst_ori = 0x60000000;
@@ -2138,12 +2138,12 @@ static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 	 *    lis r0, r0, KVM_SC_MAGIC_R0@h
 	 *    ori r0, KVM_SC_MAGIC_R0@l
 	 *    sc
-	 *    nop
+	 *    analp
 	 */
 	pvinfo->hcall[0] = cpu_to_be32(inst_lis | ((KVM_SC_MAGIC_R0 >> 16) & inst_imm_mask));
 	pvinfo->hcall[1] = cpu_to_be32(inst_ori | (KVM_SC_MAGIC_R0 & inst_imm_mask));
 	pvinfo->hcall[2] = cpu_to_be32(inst_sc);
-	pvinfo->hcall[3] = cpu_to_be32(inst_nop);
+	pvinfo->hcall[3] = cpu_to_be32(inst_analp);
 #endif
 
 	pvinfo->flags = KVM_PPC_PVINFO_FLAGS_EV_IDLE;
@@ -2261,7 +2261,7 @@ static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 	unsigned long rc;
 
 	if (!machine_is(pseries))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	rc = plpar_get_cpu_characteristics(&c);
 	if (rc == H_SUCCESS) {
@@ -2272,7 +2272,7 @@ static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 			KVM_PPC_CPU_CHAR_L1D_FLUSH_ORI30 |
 			KVM_PPC_CPU_CHAR_L1D_FLUSH_TRIG2 |
 			KVM_PPC_CPU_CHAR_L1D_THREAD_PRIV |
-			KVM_PPC_CPU_CHAR_BR_HINT_HONOURED |
+			KVM_PPC_CPU_CHAR_BR_HINT_HOANALURED |
 			KVM_PPC_CPU_CHAR_MTTRIG_THR_RECONF |
 			KVM_PPC_CPU_CHAR_COUNT_CACHE_DIS |
 			KVM_PPC_CPU_CHAR_BCCTR_FLUSH_ASSIST;
@@ -2286,38 +2286,38 @@ static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 #else
 static int pseries_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 {
-	return -ENOTTY;
+	return -EANALTTY;
 }
 #endif
 
-static inline bool have_fw_feat(struct device_node *fw_features,
+static inline bool have_fw_feat(struct device_analde *fw_features,
 				const char *state, const char *name)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	bool r = false;
 
 	np = of_get_child_by_name(fw_features, name);
 	if (np) {
 		r = of_property_read_bool(np, state);
-		of_node_put(np);
+		of_analde_put(np);
 	}
 	return r;
 }
 
 static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 {
-	struct device_node *np, *fw_features;
+	struct device_analde *np, *fw_features;
 	int r;
 
 	memset(cp, 0, sizeof(*cp));
 	r = pseries_get_cpu_char(cp);
-	if (r != -ENOTTY)
+	if (r != -EANALTTY)
 		return r;
 
-	np = of_find_node_by_name(NULL, "ibm,opal");
+	np = of_find_analde_by_name(NULL, "ibm,opal");
 	if (np) {
 		fw_features = of_get_child_by_name(np, "fw-features");
-		of_node_put(np);
+		of_analde_put(np);
 		if (!fw_features)
 			return 0;
 		if (have_fw_feat(fw_features, "enabled",
@@ -2366,7 +2366,7 @@ static int kvmppc_get_cpu_char(struct kvm_ppc_cpu_char *cp)
 			KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR |
 			KVM_PPC_CPU_BEHAV_FLUSH_COUNT_CACHE;
 
-		of_node_put(fw_features);
+		of_analde_put(fw_features);
 	}
 
 	return 0;
@@ -2489,7 +2489,7 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 	}
 #else /* CONFIG_PPC_BOOK3S_64 */
 	default:
-		r = -ENOTTY;
+		r = -EANALTTY;
 #endif
 	}
 out:
@@ -2506,11 +2506,11 @@ long kvmppc_alloc_lpid(void)
 	/* The host LPID must always be 0 (allocation starts at 1) */
 	lpid = ida_alloc_range(&lpid_inuse, 1, nr_lpids - 1, GFP_KERNEL);
 	if (lpid < 0) {
-		if (lpid == -ENOMEM)
+		if (lpid == -EANALMEM)
 			pr_err("%s: Out of memory\n", __func__);
 		else
-			pr_err("%s: No LPIDs free\n", __func__);
-		return -ENOMEM;
+			pr_err("%s: Anal LPIDs free\n", __func__);
+		return -EANALMEM;
 	}
 
 	return lpid;

@@ -14,7 +14,7 @@ description: |
   regulators, charger controller with fuel gauge, RTC, clock outputs, haptic
   motor driver, flash LED driver and Micro-USB Interface Controller.
 
-  The binding here is not complete and describes only regulator and charger
+  The binding here is analt complete and describes only regulator and charger
   controller parts.
 
 properties:
@@ -23,7 +23,7 @@ properties:
 
   charger-supply:
     description: |
-      Regulator node for charging current.
+      Regulator analde for charging current.
 
   interrupts:
     items:
@@ -37,7 +37,7 @@ properties:
     description: |
       A set of 8 voltage values in micro-volt (uV) units for buck1 when
       changing voltage using GPIO DVS.
-      If none of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
+      If analne of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
       specified, the max8997,pmic-buck[1/2/5]-dvs-voltage property should
       specify at least one voltage level (which would be a safe operating
       voltage).
@@ -49,7 +49,7 @@ properties:
     description: |
       A set of 8 voltage values in micro-volt (uV) units for buck2 when
       changing voltage using GPIO DVS.
-      If none of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
+      If analne of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
       specified, the max8997,pmic-buck[1/2/5]-dvs-voltage property should
       specify at least one voltage level (which would be a safe operating
       voltage).
@@ -61,7 +61,7 @@ properties:
     description: |
       A set of 8 voltage values in micro-volt (uV) units for buck5 when
       changing voltage using GPIO DVS.
-      If none of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
+      If analne of max8997,pmic-buck[1/2/5]-uses-gpio-dvs optional property is
       specified, the max8997,pmic-buck[1/2/5]-dvs-voltage property should
       specify at least one voltage level (which would be a safe operating
       voltage).
@@ -89,7 +89,7 @@ properties:
     description: |
       Default voltage setting selected from the possible 8 options selectable
       by the dvs gpios. The value of this property should be between 0 and 7.
-      If not specified or if out of range, the default value of this property
+      If analt specified or if out of range, the default value of this property
       is set to 0.
 
   max8997,pmic-buck125-dvs-gpios:
@@ -98,12 +98,12 @@ properties:
     description: |
       GPIO specifiers for three host gpio's used for DVS.
 
-  max8997,pmic-ignore-gpiodvs-side-effect:
+  max8997,pmic-iganalre-gpiodvs-side-effect:
     type: boolean
     description: |
       When GPIO-DVS mode is used for multiple bucks, changing the voltage value
-      of one of the bucks may affect that of another buck, which is the side
-      effect of the change (set_voltage).  Use this property to ignore such
+      of one of the bucks may affect that of aanalther buck, which is the side
+      effect of the change (set_voltage).  Use this property to iganalre such
       side effects and change the voltage.
 
   reg:
@@ -113,7 +113,7 @@ properties:
     type: object
     additionalProperties: false
     description:
-      List of child nodes that specify the regulators.
+      List of child analdes that specify the regulators.
 
     patternProperties:
       # 1-18 and 21 LDOs
@@ -297,7 +297,7 @@ examples:
             max8997,pmic-buck2-uses-gpio-dvs;
             max8997,pmic-buck5-uses-gpio-dvs;
 
-            max8997,pmic-ignore-gpiodvs-side-effect;
+            max8997,pmic-iganalre-gpiodvs-side-effect;
             max8997,pmic-buck125-default-dvs-idx = <0>;
 
             max8997,pmic-buck125-dvs-gpios = <&gpx0 5 GPIO_ACTIVE_HIGH>,

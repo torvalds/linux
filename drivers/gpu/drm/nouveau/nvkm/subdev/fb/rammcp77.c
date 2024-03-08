@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -67,7 +67,7 @@ mcp77_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	int ret;
 
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pram = &ram->base;
 
 	ret = nvkm_ram_ctor(&mcp77_ram_func, fb, NVKM_RAM_TYPE_STOLEN,
@@ -79,7 +79,7 @@ mcp77_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	ram->base.stolen = base;
 	nvkm_mm_fini(&ram->base.vram);
 
-	return nvkm_mm_init(&ram->base.vram, NVKM_RAM_MM_NORMAL,
+	return nvkm_mm_init(&ram->base.vram, NVKM_RAM_MM_ANALRMAL,
 			    rsvd_head >> NVKM_RAM_MM_SHIFT,
 			    (size - rsvd_head - rsvd_tail) >>
 			    NVKM_RAM_MM_SHIFT, 1);

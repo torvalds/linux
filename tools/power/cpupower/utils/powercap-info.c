@@ -6,7 +6,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,7 +19,7 @@
 int powercap_show_all;
 
 static struct option info_opts[] = {
-	{ "all",		no_argument,		 NULL,	 'a'},
+	{ "all",		anal_argument,		 NULL,	 'a'},
 	{ },
 };
 
@@ -60,7 +60,7 @@ static int powercap_show(void)
 
 	ret = powercap_get_driver(line, MAX_LINE_LEN);
 	if (ret < 0) {
-		printf(_("No powercapping driver loaded\n"));
+		printf(_("Anal powercapping driver loaded\n"));
 		return ret;
 	}
 
@@ -77,7 +77,7 @@ static int powercap_show(void)
 	root_zone = powercap_init_zones();
 
 	if (root_zone == NULL) {
-		printf(_("No powercap info found\n"));
+		printf(_("Anal powercap info found\n"));
 		return 1;
 	}
 
@@ -107,7 +107,7 @@ int cmd_cap_info(int argc, char **argv)
 			powercap_show_all = 1;
 			break;
 		default:
-			fprintf(stderr, _("invalid or unknown argument\n"));
+			fprintf(stderr, _("invalid or unkanalwn argument\n"));
 			return EXIT_FAILURE;
 		}
 	} while (cont);

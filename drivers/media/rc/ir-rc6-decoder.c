@@ -10,13 +10,13 @@
 /*
  * This decoder currently supports:
  * RC6-0-16	(standard toggle bit in header)
- * RC6-6A-20	(no toggle bit)
- * RC6-6A-24	(no toggle bit)
+ * RC6-6A-20	(anal toggle bit)
+ * RC6-6A-24	(anal toggle bit)
  * RC6-6A-32	(MCE version with toggle bit in body)
  */
 
 #define RC6_UNIT		444	/* microseconds */
-#define RC6_HEADER_NBITS	4	/* not including toggle bit */
+#define RC6_HEADER_NBITS	4	/* analt including toggle bit */
 #define RC6_0_NBITS		16
 #define RC6_6A_32_NBITS		32
 #define RC6_6A_NBITS		128	/* Variable 8..128 */
@@ -35,13 +35,13 @@
 #define RC6_6A_ZOTAC_CC		0x80340000 /* Zotac customer code */
 #define RC6_6A_KATHREIN_CC	0x80460000 /* Kathrein RCU-676 customer code */
 #ifndef CHAR_BIT
-#define CHAR_BIT 8	/* Normally in <limits.h> */
+#define CHAR_BIT 8	/* Analrmally in <limits.h> */
 #endif
 
 enum rc6_mode {
 	RC6_MODE_0,
 	RC6_MODE_6A,
-	RC6_MODE_UNKNOWN,
+	RC6_MODE_UNKANALWN,
 };
 
 enum rc6_state {
@@ -66,7 +66,7 @@ static enum rc6_mode rc6_mode(struct rc6_dec *data)
 			return RC6_MODE_6A;
 		fallthrough;
 	default:
-		return RC6_MODE_UNKNOWN;
+		return RC6_MODE_UNKANALWN;
 	}
 }
 
@@ -106,7 +106,7 @@ again:
 		if (!ev.pulse)
 			break;
 
-		/* Note: larger margin on first pulse since each RC6_UNIT
+		/* Analte: larger margin on first pulse since each RC6_UNIT
 		   is quite short and some hardware takes some time to
 		   adjust to the signal */
 		if (!eq_margin(ev.duration, RC6_PREFIX_PULSE, RC6_UNIT))
@@ -174,7 +174,7 @@ again:
 			data->wanted_bits = RC6_6A_NBITS;
 			break;
 		default:
-			dev_dbg(&dev->dev, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unkanalwn mode\n");
 			goto out;
 		}
 		goto again;
@@ -259,7 +259,7 @@ again:
 				protocol, scancode, toggle);
 			break;
 		default:
-			dev_dbg(&dev->dev, "RC6 unknown mode\n");
+			dev_dbg(&dev->dev, "RC6 unkanalwn mode\n");
 			goto out;
 		}
 
@@ -302,7 +302,7 @@ static const struct ir_raw_timings_manchester ir_rc6_timings[4] = {
  * @max:	maximum size of @events
  *
  * Returns:	The number of events written.
- *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		-EANALBUFS if there isn't eanalugh space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  *		-EINVAL if the scancode is ambiguous or invalid.
  */

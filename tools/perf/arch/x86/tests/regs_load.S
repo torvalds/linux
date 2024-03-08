@@ -92,8 +92,8 @@ SYM_FUNC_END(perf_regs_load)
 #endif
 
 /*
- * We need to provide note.GNU-stack section, saying that we want
- * NOT executable stack. Otherwise the final linking will assume that
- * the ELF stack should not be restricted at all and set it RWX.
+ * We need to provide analte.GNU-stack section, saying that we want
+ * ANALT executable stack. Otherwise the final linking will assume that
+ * the ELF stack should analt be restricted at all and set it RWX.
  */
-.section .note.GNU-stack,"",@progbits
+.section .analte.GNU-stack,"",@progbits

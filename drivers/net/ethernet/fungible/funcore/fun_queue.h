@@ -141,7 +141,7 @@ int fun_cq_create(struct fun_dev *fdev, u16 flags, u32 cqid, u32 rqid,
 		  u32 *cqidp, u32 __iomem **dbp);
 void *fun_alloc_ring_mem(struct device *dma_dev, size_t depth,
 			 size_t hw_desc_sz, size_t sw_desc_size, bool wb,
-			 int numa_node, dma_addr_t *dma_addr, void **sw_va,
+			 int numa_analde, dma_addr_t *dma_addr, void **sw_va,
 			 volatile __be64 **wb_va);
 void fun_free_ring_mem(struct device *dma_dev, size_t depth, size_t hw_desc_sz,
 		       bool wb, void *hw_va, dma_addr_t dma_addr, void *sw_va);

@@ -87,9 +87,9 @@ static __poll_t ts_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &wbuf->queue, wait);
 
 	if (!dvb_ringbuffer_empty(rbuf))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (dvb_ringbuffer_free(wbuf) >= 188)
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 
 	return mask;
 }
@@ -202,7 +202,7 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 		while (len >= 188) {
 			if (*((char *)buf) != 0x47) {
 				/*
-				 * no SYNC header, find new offset shift
+				 * anal SYNC header, find new offset shift
 				 * (max. 188 bytes, tsoff will be mod 188)
 				 */
 				tsoff = tsin_find_offset(buf, len);

@@ -23,7 +23,7 @@ struct midi_buffer {
 extern int line6_midibuf_bytes_used(struct midi_buffer *mb);
 extern int line6_midibuf_bytes_free(struct midi_buffer *mb);
 extern void line6_midibuf_destroy(struct midi_buffer *mb);
-extern int line6_midibuf_ignore(struct midi_buffer *mb, int length);
+extern int line6_midibuf_iganalre(struct midi_buffer *mb, int length);
 extern int line6_midibuf_init(struct midi_buffer *mb, int size, int split);
 extern int line6_midibuf_read(struct midi_buffer *mb, unsigned char *data,
 			      int length, int read_type);

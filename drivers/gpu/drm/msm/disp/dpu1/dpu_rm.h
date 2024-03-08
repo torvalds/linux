@@ -33,7 +33,7 @@ struct dpu_rm {
 	struct dpu_hw_blk *dspp_blks[DSPP_MAX - DSPP_0];
 	struct dpu_hw_blk *merge_3d_blks[MERGE_3D_MAX - MERGE_3D_0];
 	struct dpu_hw_blk *dsc_blks[DSC_MAX - DSC_0];
-	struct dpu_hw_sspp *hw_sspp[SSPP_MAX - SSPP_NONE];
+	struct dpu_hw_sspp *hw_sspp[SSPP_MAX - SSPP_ANALNE];
 	struct dpu_hw_blk *cdm_blk;
 };
 
@@ -116,7 +116,7 @@ static inline struct dpu_hw_wb *dpu_rm_get_wb(struct dpu_rm *rm, enum dpu_wb wb_
  */
 static inline struct dpu_hw_sspp *dpu_rm_get_sspp(struct dpu_rm *rm, enum dpu_sspp sspp_idx)
 {
-	return rm->hw_sspp[sspp_idx - SSPP_NONE];
+	return rm->hw_sspp[sspp_idx - SSPP_ANALNE];
 }
 
 #endif /* __DPU_RM_H__ */

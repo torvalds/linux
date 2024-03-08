@@ -66,7 +66,7 @@ Driver-specific Traps
      - Traps (exception) packets due to the malformed IPV4 header options
    * - ``ip_default_route``
      - ``trap``
-     - Traps packets that have no specific IP interface (IP to me) and no forwarding prefix
+     - Traps packets that have anal specific IP interface (IP to me) and anal forwarding prefix
    * - ``local_route``
      - ``trap``
      - Traps packets that have been send to one of switch IP interfaces addresses
@@ -115,7 +115,7 @@ Driver-specific Traps
    * - ``rxdma_drop``
      - ``drop``
      - Drops packets (RxDMA) due to the lack of ingress buffers etc.
-   * - ``port_no_vlan``
+   * - ``port_anal_vlan``
      - ``drop``
      - Drops packets due to faulty-configured network or due to internal bug (config issue).
    * - ``local_port``
@@ -138,4 +138,4 @@ Driver-specific Traps
      - Drops packets with zero (0) IPV4 source address.
    * - ``met_red``
      - ``drop``
-     - Drops non-conforming packets (dropped by Ingress policer, metering drop), e.g. packet rate exceeded configured bandwidth.
+     - Drops analn-conforming packets (dropped by Ingress policer, metering drop), e.g. packet rate exceeded configured bandwidth.

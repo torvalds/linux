@@ -5,7 +5,7 @@
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
  * Thanks goes to Ingo Molnar, for suggesting the idea.
- * Mathieu Desnoyers, for suggesting postponing the modifications.
+ * Mathieu Desanalyers, for suggesting postponing the modifications.
  * Arjan van de Ven, for keeping me straight, and explaining to me
  * the dangers of modifying code on the run.
  */
@@ -30,7 +30,7 @@
 
 #include <asm/kprobes.h>
 #include <asm/ftrace.h>
-#include <asm/nops.h>
+#include <asm/analps.h>
 #include <asm/text-patching.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -53,7 +53,7 @@ void ftrace_arch_code_modify_post_process(void)
     __releases(&text_mutex)
 {
 	/*
-	 * ftrace_make_{call,nop}() may be called during
+	 * ftrace_make_{call,analp}() may be called during
 	 * module load, and we need to finish the text_poke_queue()
 	 * that they do, here.
 	 */
@@ -62,15 +62,15 @@ void ftrace_arch_code_modify_post_process(void)
 	mutex_unlock(&text_mutex);
 }
 
-static const char *ftrace_nop_replace(void)
+static const char *ftrace_analp_replace(void)
 {
-	return x86_nops[5];
+	return x86_analps[5];
 }
 
 static const char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	/*
-	 * No need to translate into a callthunk. The trampoline does
+	 * Anal need to translate into a callthunk. The trampoline does
 	 * the depth accounting itself.
 	 */
 	return text_gen_insn(CALL_INSN_OPCODE, (void *)ip, (void *)addr);
@@ -81,14 +81,14 @@ static int ftrace_verify_code(unsigned long ip, const char *old_code)
 	char cur_code[MCOUNT_INSN_SIZE];
 
 	/*
-	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * Analte:
+	 * We are paraanalid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
 	 */
 	/* read the text we want to modify */
-	if (copy_from_kernel_nofault(cur_code, (void *)ip, MCOUNT_INSN_SIZE)) {
+	if (copy_from_kernel_analfault(cur_code, (void *)ip, MCOUNT_INSN_SIZE)) {
 		WARN_ON(1);
 		return -EFAULT;
 	}
@@ -124,20 +124,20 @@ ftrace_modify_code_direct(unsigned long ip, const char *old_code,
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+int ftrace_make_analp(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
 	const char *new, *old;
 
 	old = ftrace_call_replace(ip, addr);
-	new = ftrace_nop_replace();
+	new = ftrace_analp_replace();
 
 	/*
 	 * On boot up, and when modules are loaded, the MCOUNT_ADDR
-	 * is converted to a nop, and will never become MCOUNT_ADDR
+	 * is converted to a analp, and will never become MCOUNT_ADDR
 	 * again. This code is either running before SMP (on boot up)
 	 * or before the code will ever be executed (module load).
-	 * We do not want to use the breakpoint version in this case,
+	 * We do analt want to use the breakpoint version in this case,
 	 * just modify the code directly.
 	 */
 	if (addr == MCOUNT_ADDR)
@@ -147,7 +147,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long ad
 	 * x86 overrides ftrace_replace_code -- this function will never be used
 	 * in this case.
 	 */
-	WARN_ONCE(1, "invalid use of ftrace_make_nop");
+	WARN_ONCE(1, "invalid use of ftrace_make_analp");
 	return -EINVAL;
 }
 
@@ -156,7 +156,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned long ip = rec->ip;
 	const char *new, *old;
 
-	old = ftrace_nop_replace();
+	old = ftrace_analp_replace();
 	new = ftrace_call_replace(ip, addr);
 
 	/* Should only be called when module is loaded */
@@ -167,8 +167,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
  * Should never be called:
  *  As it is only called by __ftrace_replace_code() which is called by
  *  ftrace_replace_code() that x86 overrides, and by ftrace_update_code()
- *  which is called to turn mcount into nops or nops into function calls
- *  but not to convert a function from not using regs to one that uses
+ *  which is called to turn mcount into analps or analps into function calls
+ *  but analt to convert a function from analt using regs to one that uses
  *  regs, which ftrace_modify_call() is for.
  */
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
@@ -205,16 +205,16 @@ void ftrace_replace_code(int enable)
 		rec = ftrace_rec_iter_record(iter);
 
 		switch (ftrace_test_record(rec, enable)) {
-		case FTRACE_UPDATE_IGNORE:
+		case FTRACE_UPDATE_IGANALRE:
 		default:
 			continue;
 
 		case FTRACE_UPDATE_MAKE_CALL:
-			old = ftrace_nop_replace();
+			old = ftrace_analp_replace();
 			break;
 
 		case FTRACE_UPDATE_MODIFY_CALL:
-		case FTRACE_UPDATE_MAKE_NOP:
+		case FTRACE_UPDATE_MAKE_ANALP:
 			old = ftrace_call_replace(rec->ip, ftrace_get_addr_curr(rec));
 			break;
 		}
@@ -232,7 +232,7 @@ void ftrace_replace_code(int enable)
 		rec = ftrace_rec_iter_record(iter);
 
 		switch (ftrace_test_record(rec, enable)) {
-		case FTRACE_UPDATE_IGNORE:
+		case FTRACE_UPDATE_IGANALRE:
 		default:
 			continue;
 
@@ -241,8 +241,8 @@ void ftrace_replace_code(int enable)
 			new = ftrace_call_replace(rec->ip, ftrace_get_addr_new(rec));
 			break;
 
-		case FTRACE_UPDATE_MAKE_NOP:
-			new = ftrace_nop_replace();
+		case FTRACE_UPDATE_MAKE_ANALP:
+			new = ftrace_analp_replace();
 			break;
 		}
 
@@ -346,7 +346,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	size = end_offset - start_offset;
 
 	/*
-	 * Allocate enough size to store the ftrace_caller code,
+	 * Allocate eanalugh size to store the ftrace_caller code,
 	 * the iret , as well as the address of the ftrace_ops this
 	 * trampoline is used for.
 	 */
@@ -358,7 +358,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	npages = DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
 
 	/* Copy ftrace_caller onto the trampoline memory */
-	ret = copy_from_kernel_nofault(trampoline, (void *)start_offset, size);
+	ret = copy_from_kernel_analfault(trampoline, (void *)start_offset, size);
 	if (WARN_ON(ret < 0))
 		goto fail;
 
@@ -368,13 +368,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	else
 		memcpy(ip, retq, sizeof(retq));
 
-	/* No need to test direct calls on created trampolines */
+	/* Anal need to test direct calls on created trampolines */
 	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
-		/* NOP the jnz 1f; but make sure it's a 2 byte jnz */
+		/* ANALP the jnz 1f; but make sure it's a 2 byte jnz */
 		ip = trampoline + (jmp_offset - start_offset);
 		if (WARN_ON(*(char *)ip != 0x75))
 			goto fail;
-		ret = copy_from_kernel_nofault(ip, x86_nops[2], 2);
+		ret = copy_from_kernel_analfault(ip, x86_analps[2], 2);
 		if (ret < 0)
 			goto fail;
 	}
@@ -410,7 +410,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	mutex_lock(&text_mutex);
 	call_offset -= start_offset;
 	/*
-	 * No need to translate into a callthunk. The trampoline does
+	 * Anal need to translate into a callthunk. The trampoline does
 	 * the depth accounting before the call already.
 	 */
 	dest = ftrace_ops_get_func(ops);
@@ -419,7 +419,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	       CALL_INSN_SIZE);
 	mutex_unlock(&text_mutex);
 
-	/* ALLOC_TRAMP flags lets us know we created it */
+	/* ALLOC_TRAMP flags lets us kanalw we created it */
 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
 
 	set_memory_rox((unsigned long)trampoline, npages);
@@ -489,7 +489,7 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 
 	/*
 	 * The ftrace_ops caller may set up its own trampoline.
-	 * In such a case, this code must not modify it.
+	 * In such a case, this code must analt modify it.
 	 */
 	if (!(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
 		return;
@@ -511,7 +511,7 @@ static void *addr_from_call(void *ptr)
 	union text_poke_insn call;
 	int ret;
 
-	ret = copy_from_kernel_nofault(&call, ptr, CALL_INSN_SIZE);
+	ret = copy_from_kernel_analfault(&call, ptr, CALL_INSN_SIZE);
 	if (WARN_ON_ONCE(ret < 0))
 		return NULL;
 
@@ -525,7 +525,7 @@ static void *addr_from_call(void *ptr)
 }
 
 /*
- * If the ops->trampoline was not allocated, then it probably
+ * If the ops->trampoline was analt allocated, then it probably
  * has a static trampoline func, or is the ftrace caller itself.
  */
 static void *static_tramp_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
@@ -538,7 +538,7 @@ static void *static_tramp_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 #if !defined(CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS) && \
 	defined(CONFIG_FUNCTION_GRAPH_TRACER)
 		/*
-		 * We only know about function graph tracer setting as static
+		 * We only kanalw about function graph tracer setting as static
 		 * trampoline.
 		 */
 		if (ops->trampoline == FTRACE_GRAPH_ADDR)
@@ -631,7 +631,7 @@ void prepare_ftrace_return(unsigned long ip, unsigned long *parent,
 	 * virtual address.
 	 *
 	 * This check isn't as accurate as virt_addr_valid(), but it should be
-	 * good enough for this purpose, and it's fast.
+	 * good eanalugh for this purpose, and it's fast.
 	 */
 	if (unlikely((long)__builtin_frame_address(0) >= 0))
 		return;

@@ -26,7 +26,7 @@ static int sl3516_ce_rng_read(struct hwrng *rng, void *buf, size_t max, bool wai
 
 	err = pm_runtime_get_sync(ce->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(ce->dev);
+		pm_runtime_put_analidle(ce->dev);
 		return err;
 	}
 

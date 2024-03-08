@@ -39,7 +39,7 @@
 #define _ACAST64_
 #else
 #define _ACAST32_		(_ATYPE_)(_ATYPE32_)	/* widen if necessary */
-#define _ACAST64_		(_ATYPE64_)		/* do _not_ narrow */
+#define _ACAST64_		(_ATYPE64_)		/* do _analt_ narrow */
 #endif
 
 /*
@@ -58,7 +58,7 @@
 
 /*
  * Memory segments (64bit kernel mode addresses)
- * The compatibility segments use the full 64-bit sign extended value.  Note
+ * The compatibility segments use the full 64-bit sign extended value.  Analte
  * the R8000 doesn't have them so don't reference these in generic MIPS code.
  */
 #define XKUSEG			_CONST64_(0x0000000000000000)
@@ -111,13 +111,13 @@
 /*
  * Cache modes for XKPHYS address conversion macros
  */
-#define K_CALG_COH_EXCL1_NOL2	0
-#define K_CALG_COH_SHRL1_NOL2	1
+#define K_CALG_COH_EXCL1_ANALL2	0
+#define K_CALG_COH_SHRL1_ANALL2	1
 #define K_CALG_UNCACHED		2
-#define K_CALG_NONCOHERENT	3
+#define K_CALG_ANALNCOHERENT	3
 #define K_CALG_COH_EXCL		4
 #define K_CALG_COH_SHAREABLE	5
-#define K_CALG_NOTUSED		6
+#define K_CALG_ANALTUSED		6
 #define K_CALG_UNCACHED_ACCEL	7
 
 /*

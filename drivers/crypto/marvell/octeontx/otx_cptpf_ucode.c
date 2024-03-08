@@ -38,7 +38,7 @@ struct tar_hdr_t {
 	char uname[32];
 	char gname[32];
 	char devmajor[8];
-	char devminor[8];
+	char devmianalr[8];
 	char prefix[155];
 };
 
@@ -78,7 +78,7 @@ static struct otx_cpt_bitmap get_cores_bmap(struct device *dev,
 	}
 
 	if (!found)
-		dev_err(dev, "No engines reserved for engine group %d\n",
+		dev_err(dev, "Anal engines reserved for engine group %d\n",
 			eng_grp->idx);
 	return bmap;
 }
@@ -102,7 +102,7 @@ static void set_ucode_filename(struct otx_cpt_ucode *ucode,
 
 static char *get_eng_type_str(int eng_type)
 {
-	char *str = "unknown";
+	char *str = "unkanalwn";
 
 	switch (eng_type) {
 	case OTX_CPT_SE_TYPES:
@@ -118,7 +118,7 @@ static char *get_eng_type_str(int eng_type)
 
 static char *get_ucode_type_str(int ucode_type)
 {
-	char *str = "unknown";
+	char *str = "unkanalwn";
 
 	switch (ucode_type) {
 	case (1 << OTX_CPT_SE_TYPES):
@@ -190,7 +190,7 @@ static int cpt_set_ucode_base(struct otx_cpt_eng_grp_info *eng_grp, void *obj)
 		dma_addr = eng_grp->ucode[0].align_dma;
 
 	/*
-	 * Set UCODE_BASE only for the cores which are not used,
+	 * Set UCODE_BASE only for the cores which are analt used,
 	 * other cores should have already valid UCODE_BASE set
 	 */
 	for_each_set_bit(i, bmap.bits, bmap.size)
@@ -238,7 +238,7 @@ static int cpt_detach_and_disable_cores(struct otx_cpt_eng_grp_info *eng_grp,
 			}
 	} while (busy);
 
-	/* Disable the cores only if they are not used anymore */
+	/* Disable the cores only if they are analt used anymore */
 	reg = readq(cpt->reg_base + OTX_CPT_PF_EXE_CTL);
 	for_each_set_bit(i, bmap.bits, bmap.size)
 		if (!eng_grp->g->eng_ref_cnt[i])
@@ -290,7 +290,7 @@ static int process_tar_file(struct device *dev,
 
 	/*
 	 * If size is less than microcode header size then don't report
-	 * an error because it might not be microcode file, just process
+	 * an error because it might analt be microcode file, just process
 	 * next file from archive
 	 */
 	if (size < sizeof(struct otx_cpt_ucode_hdr))
@@ -299,7 +299,7 @@ static int process_tar_file(struct device *dev,
 	ucode_hdr = (struct otx_cpt_ucode_hdr *) data;
 	/*
 	 * If microcode version can't be found don't report an error
-	 * because it might not be microcode file, just process next file
+	 * because it might analt be microcode file, just process next file
 	 */
 	if (get_ucode_type(ucode_hdr, &ucode_type))
 		return 0;
@@ -319,7 +319,7 @@ static int process_tar_file(struct device *dev,
 
 	tar_info = kzalloc(sizeof(struct tar_ucode_info_t), GFP_KERNEL);
 	if (!tar_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tar_info->ucode_ptr = data;
 	set_ucode_filename(&tar_info->ucode, filename);
@@ -587,7 +587,7 @@ static void cpt_print_engines_mask(struct otx_cpt_eng_grp_info *eng_grp,
 
 	bmap = get_cores_bmap(dev, eng_grp);
 	if (!bmap.size) {
-		scnprintf(buf, size, "unknown");
+		scnprintf(buf, size, "unkanalwn");
 		return;
 	}
 	bitmap_to_arr32(mask, bmap.bits, bmap.size);
@@ -638,7 +638,7 @@ static void print_dbg_info(struct device *dev,
 				pr_debug("Mask: %8.8x %8.8x %8.8x %8.8x\n",
 					 mask[3], mask[2], mask[1], mask[0]);
 			} else
-				pr_debug("Slot%d not used\n", j);
+				pr_debug("Slot%d analt used\n", j);
 		}
 		if (grp->is_enabled) {
 			cpt_print_engines_mask(grp, dev, engs_mask,
@@ -731,7 +731,7 @@ static int do_reserve_engines(struct device *dev,
 	}
 
 	if (!engs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	engs->type = req_engs->type;
 	engs->count = req_engs->count;
@@ -868,7 +868,7 @@ static int copy_ucode_to_dma_mem(struct device *dev,
 				       &ucode->dma, GFP_KERNEL);
 	if (!ucode->va) {
 		dev_err(dev, "Unable to allocate space for microcode\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ucode->align_va = PTR_ALIGN(ucode->va, OTX_CPT_UCODE_ALIGNMENT);
 	ucode->align_dma = PTR_ALIGN(ucode->dma, OTX_CPT_UCODE_ALIGNMENT);
@@ -919,7 +919,7 @@ static int ucode_load(struct device *dev, struct otx_cpt_ucode *ucode,
 
 	ret = get_ucode_type(ucode_hdr, &ucode->type);
 	if (ret) {
-		dev_err(dev, "Microcode %s unknown type 0x%x\n",
+		dev_err(dev, "Microcode %s unkanalwn type 0x%x\n",
 			ucode->filename, ucode->type);
 		goto release_fw;
 	}
@@ -1107,7 +1107,7 @@ static int eng_grp_update_masks(struct device *dev,
 		}
 
 		if (cnt)
-			return -ENOSPC;
+			return -EANALSPC;
 
 		bitmap_copy(engs->bmap, tmp_bmap.bits, eng_grp->g->engs_num);
 	}
@@ -1190,7 +1190,7 @@ static int validate_1_ucode_scenario(struct device *dev,
 		if (!otx_cpt_uc_supports_eng_type(&eng_grp->ucode[0],
 						  engs[i].type)) {
 			dev_err(dev,
-				"Microcode %s does not support %s engines\n",
+				"Microcode %s does analt support %s engines\n",
 				eng_grp->ucode[0].filename,
 				get_eng_type_str(engs[i].type));
 			return -EINVAL;
@@ -1228,16 +1228,16 @@ static int create_engine_group(struct device *dev,
 	/* Validate if requested engine types are supported by this device */
 	for (i = 0; i < engs_cnt; i++)
 		if (!dev_supports_eng_type(eng_grps, engs[i].type)) {
-			dev_err(dev, "Device does not support %s engines\n",
+			dev_err(dev, "Device does analt support %s engines\n",
 				get_eng_type_str(engs[i].type));
 			return -EPERM;
 		}
 
-	/* Find engine group which is not used */
+	/* Find engine group which is analt used */
 	eng_grp = find_unused_eng_grp(eng_grps);
 	if (!eng_grp) {
 		dev_err(dev, "Error all engine groups are being used\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	/* Load ucode */
@@ -1259,7 +1259,7 @@ static int create_engine_group(struct device *dev,
 	if (ret)
 		goto err_ucode_unload;
 
-	/* Check if this group mirrors another existing engine group */
+	/* Check if this group mirrors aanalther existing engine group */
 	mirrored_eng_grp = find_mirrored_eng_grp(eng_grp);
 	if (mirrored_eng_grp) {
 		/* Setup mirroring */
@@ -1296,7 +1296,7 @@ static int create_engine_group(struct device *dev,
 		goto err_release_engs;
 
 	/*
-	 * If this engine group mirrors another engine group
+	 * If this engine group mirrors aanalther engine group
 	 * then we need to unload ucode as we will use ucode
 	 * from mirrored engine group
 	 */
@@ -1427,7 +1427,7 @@ static ssize_t ucode_load_store(struct device *dev,
 		}
 
 		if (!eng_grps->grp[del_grp_idx].is_enabled) {
-			dev_err(dev, "Error engine_group%d is not configured\n",
+			dev_err(dev, "Error engine_group%d is analt configured\n",
 				del_grp_idx);
 			ret = -EINVAL;
 			return ret;
@@ -1486,7 +1486,7 @@ int otx_cpt_try_create_default_eng_grps(struct pci_dev *pdev,
 		goto unlock_mutex;
 	eng_grps->is_first_try = true;
 
-	/* We create group for kcrypto only if no groups are configured */
+	/* We create group for kcrypto only if anal groups are configured */
 	for (i = 0; i < OTX_CPT_MAX_ENGINE_GROUPS; i++)
 		if (eng_grps->grp[i].is_enabled)
 			goto unlock_mutex;
@@ -1498,7 +1498,7 @@ int otx_cpt_try_create_default_eng_grps(struct pci_dev *pdev,
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown PF type %d\n", pf_type);
+		dev_err(&pdev->dev, "Unkanalwn PF type %d\n", pf_type);
 		ret = -EINVAL;
 		goto unlock_mutex;
 	}
@@ -1652,7 +1652,7 @@ int otx_cpt_init_eng_grps(struct pci_dev *pdev,
 				kcalloc(BITS_TO_LONGS(eng_grps->engs_num),
 					sizeof(long), GFP_KERNEL);
 			if (!grp->engs[j].bmap) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 		}
@@ -1670,7 +1670,7 @@ int otx_cpt_init_eng_grps(struct pci_dev *pdev,
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown PF type %d\n", pf_type);
+		dev_err(&pdev->dev, "Unkanalwn PF type %d\n", pf_type);
 		ret = -EINVAL;
 		goto err;
 	}

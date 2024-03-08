@@ -7,7 +7,7 @@
 #define __ASM_RISCV_VECTOR_H
 
 #include <linux/types.h>
-#include <uapi/asm-generic/errno.h>
+#include <uapi/asm-generic/erranal.h>
 
 #ifdef CONFIG_RISCV_ISA_V
 
@@ -266,7 +266,7 @@ bool riscv_v_vstate_ctrl_user_allowed(void);
 
 struct pt_regs;
 
-static inline int riscv_v_setup_vsize(void) { return -EOPNOTSUPP; }
+static inline int riscv_v_setup_vsize(void) { return -EOPANALTSUPP; }
 static __always_inline bool has_vector(void) { return false; }
 static inline bool riscv_v_first_use_handler(struct pt_regs *regs) { return false; }
 static inline bool riscv_v_vstate_query(struct pt_regs *regs) { return false; }

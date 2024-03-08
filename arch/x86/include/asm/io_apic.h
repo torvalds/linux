@@ -109,14 +109,14 @@ extern int mp_irq_entries;
 /* MP IRQ source entries */
 extern struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
-/* True if "noapic" boot option passed */
+/* True if "analapic" boot option passed */
 extern bool ioapic_is_disabled;
 
-/* 1 if "noapic" boot option passed */
-extern int noioapicquirk;
+/* 1 if "analapic" boot option passed */
+extern int analioapicquirk;
 
-/* -1 if "noapic" boot option passed */
-extern int noioapicreroute;
+/* -1 if "analapic" boot option passed */
+extern int analioapicreroute;
 
 extern u32 gsi_top;
 
@@ -140,7 +140,7 @@ extern void mask_ioapic_entries(void);
 extern int restore_ioapic_entries(void);
 
 extern void setup_ioapic_ids_from_mpc(void);
-extern void setup_ioapic_ids_from_mpc_nocheck(void);
+extern void setup_ioapic_ids_from_mpc_analcheck(void);
 
 extern int mp_find_ioapic(u32 gsi);
 extern int mp_find_ioapic_pin(int ioapic, u32 gsi);
@@ -153,7 +153,7 @@ extern int mp_unregister_ioapic(u32 gsi_base);
 extern int mp_ioapic_registered(u32 gsi_base);
 
 extern void ioapic_set_alloc_attr(struct irq_alloc_info *info,
-				  int node, int trigger, int polarity);
+				  int analde, int trigger, int polarity);
 
 extern void mp_save_irq(struct mpc_intsrc *m);
 
@@ -178,7 +178,7 @@ extern void print_IO_APICs(void);
 
 #define IO_APIC_IRQ(x)		0
 #define io_apic_assign_pci_irqs 0
-#define setup_ioapic_ids_from_mpc x86_init_noop
+#define setup_ioapic_ids_from_mpc x86_init_analop
 #define nr_ioapics		(0)
 static inline void ioapic_insert_resources(void) { }
 static inline int arch_early_ioapic_init(void) { return 0; }
@@ -195,13 +195,13 @@ static inline void mp_unmap_irq(int irq) { }
 
 static inline int save_ioapic_entries(void)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline void mask_ioapic_entries(void) { }
 static inline int restore_ioapic_entries(void)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline void mp_save_irq(struct mpc_intsrc *m) { }

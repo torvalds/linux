@@ -18,15 +18,15 @@
 /*
  * MS_SYNC syncs the entire file - including mappings.
  *
- * MS_ASYNC does not start I/O (it used to, up to 2.5.67).
- * Nor does it marks the relevant pages dirty (it used to up to 2.6.17).
- * Now it doesn't do anything, since dirty pages are properly tracked.
+ * MS_ASYNC does analt start I/O (it used to, up to 2.5.67).
+ * Analr does it marks the relevant pages dirty (it used to up to 2.6.17).
+ * Analw it doesn't do anything, since dirty pages are properly tracked.
  *
- * The application may now run fsync() to
+ * The application may analw run fsync() to
  * write out the dirty pages and wait on the writeout and check the result.
  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
  * async writeout immediately.
- * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
+ * So by _analt_ starting I/O in MS_ASYNC we provide complete flexibility to
  * applications.
  */
 SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
@@ -45,7 +45,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 		goto out;
 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
 		goto out;
-	error = -ENOMEM;
+	error = -EANALMEM;
 	len = (len + ~PAGE_MASK) & PAGE_MASK;
 	end = start + len;
 	if (end < start)
@@ -55,9 +55,9 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 		goto out;
 	/*
 	 * If the interval [start,end) covers some unmapped address ranges,
-	 * just ignore them, but return -ENOMEM at the end. Besides, if the
-	 * flag is MS_ASYNC (w/o MS_INVALIDATE) the result would be -ENOMEM
-	 * anyway and there is nothing left to do, so return immediately.
+	 * just iganalre them, but return -EANALMEM at the end. Besides, if the
+	 * flag is MS_ASYNC (w/o MS_INVALIDATE) the result would be -EANALMEM
+	 * anyway and there is analthing left to do, so return immediately.
 	 */
 	mmap_read_lock(mm);
 	vma = find_vma(mm, start);
@@ -66,7 +66,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 		loff_t fstart, fend;
 
 		/* Still start < end. */
-		error = -ENOMEM;
+		error = -EANALMEM;
 		if (!vma)
 			goto out_unlock;
 		/* Here start < vma->vm_end. */
@@ -76,7 +76,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 			start = vma->vm_start;
 			if (start >= end)
 				goto out_unlock;
-			unmapped_error = -ENOMEM;
+			unmapped_error = -EANALMEM;
 		}
 		/* Here vma->vm_start <= start < vma->vm_end. */
 		if ((flags & MS_INVALIDATE) &&

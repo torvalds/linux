@@ -5,7 +5,7 @@
 typedef u64 gct_id;
 typedef u64 gct6_handle;
 
-typedef struct __gct6_node {
+typedef struct __gct6_analde {
 	u8 type;	
 	u8 subtype;
 	u16 size;
@@ -29,31 +29,31 @@ typedef struct __gct6_node {
 	u64 fru_id;
 	u32 checksum;
 	u32 magic;	/* 'GLXY' */
-} gct6_node;
+} gct6_analde;
 
 typedef struct {
 	u8 type;	
 	u8 subtype;
-	void (*callout)(gct6_node *);
+	void (*callout)(gct6_analde *);
 } gct6_search_struct;
 
-#define GCT_NODE_MAGIC	  0x59584c47	/* 'GLXY' */
+#define GCT_ANALDE_MAGIC	  0x59584c47	/* 'GLXY' */
 
 /* 
- * node types 
+ * analde types 
  */
 #define GCT_TYPE_HOSE			0x0E
 
 /*
- * node subtypes
+ * analde subtypes
  */
 #define GCT_SUBTYPE_IO_PORT_MODULE	0x2C
 
-#define GCT_NODE_PTR(off) ((gct6_node *)((char *)hwrpb + 		\
+#define GCT_ANALDE_PTR(off) ((gct6_analde *)((char *)hwrpb + 		\
 					 hwrpb->frut_offset + 		\
 					 (gct6_handle)(off)))		\
 
-int gct6_find_nodes(gct6_node *, gct6_search_struct *);
+int gct6_find_analdes(gct6_analde *, gct6_search_struct *);
 
 #endif /* __ALPHA_GCT_H */
 

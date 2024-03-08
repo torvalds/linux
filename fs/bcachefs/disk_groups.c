@@ -68,7 +68,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 
 	sorted = kmalloc_array(nr_groups, sizeof(*sorted), GFP_KERNEL);
 	if (!sorted)
-		return -BCH_ERR_ENOMEM_disk_groups_validate;
+		return -BCH_ERR_EANALMEM_disk_groups_validate;
 
 	memcpy(sorted, groups->entries, nr_groups * sizeof(*sorted));
 	sort(sorted, nr_groups, sizeof(*sorted), group_cmp, NULL);
@@ -160,7 +160,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 	cpu_g = kzalloc(struct_size(cpu_g, entries, nr_groups), GFP_KERNEL);
 	if (!cpu_g)
-		return -BCH_ERR_ENOMEM_disk_groups_to_cpu;
+		return -BCH_ERR_EANALMEM_disk_groups_to_cpu;
 
 	cpu_g->nr = nr_groups;
 
@@ -311,7 +311,7 @@ static int __bch2_disk_group_add(struct bch_sb_handle *sb, unsigned parent,
 
 		groups = bch2_sb_field_resize(sb, disk_groups, u64s);
 		if (!groups)
-			return -BCH_ERR_ENOSPC_disk_label_add;
+			return -BCH_ERR_EANALSPC_disk_label_add;
 
 		nr_groups = disk_groups_nr(groups);
 	}
@@ -474,7 +474,7 @@ int __bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 	struct bch_member *mi;
 	int ret, v = -1;
 
-	if (!strlen(name) || !strcmp(name, "none"))
+	if (!strlen(name) || !strcmp(name, "analne"))
 		return 0;
 
 	v = bch2_disk_path_find_or_create(&c->disk_sb, name);
@@ -514,7 +514,7 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
 	if (!c)
 		return 0;
 
-	if (!strlen(val) || !strcmp(val, "none")) {
+	if (!strlen(val) || !strcmp(val, "analne")) {
 		*res = 0;
 		return 0;
 	}
@@ -545,7 +545,7 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 
 	switch (t.type) {
 	case TARGET_NULL:
-		prt_printf(out, "none");
+		prt_printf(out, "analne");
 		break;
 	case TARGET_DEV: {
 		struct bch_dev *ca;
@@ -583,7 +583,7 @@ static void bch2_target_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsi
 
 	switch (t.type) {
 	case TARGET_NULL:
-		prt_printf(out, "none");
+		prt_printf(out, "analne");
 		break;
 	case TARGET_DEV: {
 		struct bch_member m = bch2_sb_member_get(sb, t.dev);

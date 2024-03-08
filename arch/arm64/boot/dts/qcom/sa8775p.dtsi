@@ -211,14 +211,14 @@
 		};
 	};
 
-	aggre1_noc: interconnect-aggre1-noc {
-		compatible = "qcom,sa8775p-aggre1-noc";
+	aggre1_analc: interconnect-aggre1-analc {
+		compatible = "qcom,sa8775p-aggre1-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	aggre2_noc: interconnect-aggre2-noc {
-		compatible = "qcom,sa8775p-aggre2-noc";
+	aggre2_analc: interconnect-aggre2-analc {
+		compatible = "qcom,sa8775p-aggre2-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
@@ -229,32 +229,32 @@
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	config_noc: interconnect-config-noc {
-		compatible = "qcom,sa8775p-config-noc";
+	config_analc: interconnect-config-analc {
+		compatible = "qcom,sa8775p-config-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	dc_noc: interconnect-dc-noc {
-		compatible = "qcom,sa8775p-dc-noc";
+	dc_analc: interconnect-dc-analc {
+		compatible = "qcom,sa8775p-dc-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	gem_noc: interconnect-gem-noc {
-		compatible = "qcom,sa8775p-gem-noc";
+	gem_analc: interconnect-gem-analc {
+		compatible = "qcom,sa8775p-gem-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	gpdsp_anoc: interconnect-gpdsp-anoc {
-		compatible = "qcom,sa8775p-gpdsp-anoc";
+	gpdsp_aanalc: interconnect-gpdsp-aanalc {
+		compatible = "qcom,sa8775p-gpdsp-aanalc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	lpass_ag_noc: interconnect-lpass-ag-noc {
-		compatible = "qcom,sa8775p-lpass-ag-noc";
+	lpass_ag_analc: interconnect-lpass-ag-analc {
+		compatible = "qcom,sa8775p-lpass-ag-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
@@ -265,32 +265,32 @@
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	mmss_noc: interconnect-mmss-noc {
-		compatible = "qcom,sa8775p-mmss-noc";
+	mmss_analc: interconnect-mmss-analc {
+		compatible = "qcom,sa8775p-mmss-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	nspa_noc: interconnect-nspa-noc {
-		compatible = "qcom,sa8775p-nspa-noc";
+	nspa_analc: interconnect-nspa-analc {
+		compatible = "qcom,sa8775p-nspa-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	nspb_noc: interconnect-nspb-noc {
-		compatible = "qcom,sa8775p-nspb-noc";
+	nspb_analc: interconnect-nspb-analc {
+		compatible = "qcom,sa8775p-nspb-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	pcie_anoc: interconnect-pcie-anoc {
-		compatible = "qcom,sa8775p-pcie-anoc";
+	pcie_aanalc: interconnect-pcie-aanalc {
+		compatible = "qcom,sa8775p-pcie-aanalc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	system_noc: interconnect-system-noc {
-		compatible = "qcom,sa8775p-system-noc";
+	system_analc: interconnect-system-analc {
+		compatible = "qcom,sa8775p-system-analc";
 		#interconnect-cells = <2>;
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
@@ -327,135 +327,135 @@
 
 		sail_ss_mem: sail-ss@80000000 {
 			reg = <0x0 0x80000000 0x0 0x10000000>;
-			no-map;
+			anal-map;
 		};
 
 		hyp_mem: hyp@90000000 {
 			reg = <0x0 0x90000000 0x0 0x600000>;
-			no-map;
+			anal-map;
 		};
 
 		xbl_boot_mem: xbl-boot@90600000 {
 			reg = <0x0 0x90600000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_image_mem: aop-image@90800000 {
 			reg = <0x0 0x90800000 0x0 0x60000>;
-			no-map;
+			anal-map;
 		};
 
 		aop_cmd_db_mem: aop-cmd-db@90860000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x90860000 0x0 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		uefi_log: uefi-log@908b0000 {
 			reg = <0x0 0x908b0000 0x0 0x10000>;
-			no-map;
+			anal-map;
 		};
 
 		reserved_mem: reserved@908f0000 {
 			reg = <0x0 0x908f0000 0x0 0xf000>;
-			no-map;
+			anal-map;
 		};
 
 		secdata_apss_mem: secdata-apss@908ff000 {
 			reg = <0x0 0x908ff000 0x0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@90900000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x90900000 0x0 0x200000>;
-			no-map;
+			anal-map;
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		cpucp_fw_mem: cpucp-fw@90b00000 {
 			reg = <0x0 0x90b00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		lpass_machine_learning_mem: lpass-machine-learning@93b00000 {
 			reg = <0x0 0x93b00000 0x0 0xf00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_rpc_remote_heap_mem: adsp-rpc-remote-heap@94a00000 {
 			reg = <0x0 0x94a00000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_camera_mem: pil-camera@95200000 {
 			reg = <0x0 0x95200000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_adsp_mem: pil-adsp@95c00000 {
 			reg = <0x0 0x95c00000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gdsp0_mem: pil-gdsp0@97b00000 {
 			reg = <0x0 0x97b00000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gdsp1_mem: pil-gdsp1@99900000 {
 			reg = <0x0 0x99900000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_cdsp0_mem: pil-cdsp0@9b800000 {
 			reg = <0x0 0x9b800000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_gpu_mem: pil-gpu@9d600000 {
 			reg = <0x0 0x9d600000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_cdsp1_mem: pil-cdsp1@9d700000 {
 			reg = <0x0 0x9d700000 0x0 0x1e00000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_cvp_mem: pil-cvp@9f500000 {
 			reg = <0x0 0x9f500000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		pil_video_mem: pil-video@9fc00000 {
 			reg = <0x0 0x9fc00000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		hyptz_reserved_mem: hyptz-reserved@beb00000 {
 			reg = <0x0 0xbeb00000 0x0 0x11500000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_stat_mem: tz-stat@d0000000 {
 			reg = <0x0 0xd0000000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tags_mem: tags@d0100000 {
 			reg = <0x0 0xd0100000 0x0 0x1200000>;
-			no-map;
+			anal-map;
 		};
 
 		qtee_mem: qtee@d1300000 {
 			reg = <0x0 0xd1300000 0x0 0x500000>;
-			no-map;
+			anal-map;
 		};
 
 		trusted_apps_mem: trusted-apps@d1800000 {
 			reg = <0x0 0xd1800000 0x0 0x3900000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -520,9 +520,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -541,9 +541,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -562,9 +562,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -583,9 +583,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -604,9 +604,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -623,9 +623,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -646,9 +646,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -667,9 +667,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -686,8 +686,8 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>;
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core", "qup-config";
 				power-domains = <&rpmhpd SA8775P_CX>;
 				status = "disabled";
@@ -701,9 +701,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -724,9 +724,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -745,9 +745,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -766,9 +766,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -787,9 +787,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -808,9 +808,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_2 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -842,9 +842,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -863,9 +863,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -884,9 +884,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -905,9 +905,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -926,9 +926,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -947,9 +947,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -968,9 +968,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -989,9 +989,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1010,9 +1010,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1031,9 +1031,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1052,9 +1052,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1073,9 +1073,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_0 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1092,8 +1092,8 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_0 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>;
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_0 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core", "qup-config";
 				power-domains = <&rpmhpd SA8775P_CX>;
 				status = "disabled";
@@ -1122,9 +1122,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1143,9 +1143,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1164,9 +1164,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1185,9 +1185,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1206,9 +1206,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1227,9 +1227,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1246,8 +1246,8 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>;
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core", "qup-config";
 				power-domains = <&rpmhpd SA8775P_CX>;
 				status = "disabled";
@@ -1263,9 +1263,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1284,9 +1284,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1304,8 +1304,8 @@
 				interconnect-names = "qup-core", "qup-config";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 0
 						 &clk_virt SLAVE_QUP_CORE_1 0>,
-						<&gem_noc MASTER_APPSS_PROC 0
-						 &config_noc SLAVE_QUP_1 0>;
+						<&gem_analc MASTER_APPSS_PROC 0
+						 &config_analc SLAVE_QUP_1 0>;
 				power-domains = <&rpmhpd SA8775P_CX>;
 				operating-points-v2 = <&qup_opp_table_100mhz>;
 				status = "disabled";
@@ -1321,9 +1321,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1342,9 +1342,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1363,9 +1363,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1384,9 +1384,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1403,8 +1403,8 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>;
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core", "qup-config";
 				power-domains = <&rpmhpd SA8775P_CX>;
 				status = "disabled";
@@ -1420,9 +1420,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_1 QCOM_ICC_TAG_ALWAYS>,
-						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						 &config_noc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
-						<&aggre2_noc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
+						<&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						 &config_analc SLAVE_QUP_1 QCOM_ICC_TAG_ALWAYS>,
+						<&aggre2_analc MASTER_QUP_1 QCOM_ICC_TAG_ALWAYS
 						 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 						     "qup-config",
@@ -1454,9 +1454,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_3 QCOM_ICC_TAG_ALWAYS
 						&clk_virt SLAVE_QUP_CORE_3 QCOM_ICC_TAG_ALWAYS>,
-					   <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						&config_noc SLAVE_QUP_3 QCOM_ICC_TAG_ALWAYS>,
-					   <&aggre1_noc MASTER_QUP_3 QCOM_ICC_TAG_ALWAYS
+					   <&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						&config_analc SLAVE_QUP_3 QCOM_ICC_TAG_ALWAYS>,
+					   <&aggre1_analc MASTER_QUP_3 QCOM_ICC_TAG_ALWAYS
 						&mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 							 "qup-config",
@@ -1475,9 +1475,9 @@
 				clock-names = "se";
 				interconnects = <&clk_virt MASTER_QUP_CORE_3 QCOM_ICC_TAG_ALWAYS
 						&clk_virt SLAVE_QUP_CORE_3 QCOM_ICC_TAG_ALWAYS>,
-					   <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
-						&config_noc SLAVE_QUP_3 QCOM_ICC_TAG_ALWAYS>,
-					   <&aggre1_noc MASTER_QUP_3 QCOM_ICC_TAG_ALWAYS
+					   <&gem_analc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+						&config_analc SLAVE_QUP_3 QCOM_ICC_TAG_ALWAYS>,
+					   <&aggre1_analc MASTER_QUP_3 QCOM_ICC_TAG_ALWAYS
 						&mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
 				interconnect-names = "qup-core",
 							 "qup-config",
@@ -1503,7 +1503,7 @@
 			resets = <&gcc GCC_UFS_PHY_BCR>;
 			reset-names = "rst";
 			power-domains = <&gcc UFS_PHY_GDSC>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 			iommus = <&apps_smmu 0x100 0x0>;
 			dma-coherent;
 			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
@@ -1538,7 +1538,7 @@
 			compatible = "qcom,sa8775p-qmp-ufs-phy";
 			reg = <0x0 0x01d87000 0x0 0xe10>;
 			/*
-			 * Yes, GCC_EDP_REF_CLKREF_EN is correct in qref. It
+			 * Anal, GCC_EDP_REF_CLKREF_EN is correct in qref. It
 			 * enables the CXO clock to eDP *and* UFS PHY.
 			 */
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
@@ -1603,12 +1603,12 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
 				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "sleep", "mock_utmi";
+			clock-names = "cfg_analc", "core", "iface", "sleep", "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
@@ -1624,12 +1624,12 @@
 					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_PRIM_GDSC>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
-			interconnects = <&aggre1_noc MASTER_USB3_0 0 &mc_virt SLAVE_EBI1 0>,
-					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_0 0>;
+			interconnects = <&aggre1_analc MASTER_USB3_0 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_USB3_0 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			wakeup-source;
@@ -1690,12 +1690,12 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_SLEEP_CLK>,
 				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "sleep", "mock_utmi";
+			clock-names = "cfg_analc", "core", "iface", "sleep", "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_SEC_MASTER_CLK>;
@@ -1711,12 +1711,12 @@
 					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_SEC_GDSC>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 
 			resets = <&gcc GCC_USB30_SEC_BCR>;
 
-			interconnects = <&aggre1_noc MASTER_USB3_1 0 &mc_virt SLAVE_EBI1 0>,
-					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_1 0>;
+			interconnects = <&aggre1_analc MASTER_USB3_1 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_USB3_1 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			wakeup-source;
@@ -1753,12 +1753,12 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_CFG_NOC_USB2_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_ANALC_USB2_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB20_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB2_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB20_SLEEP_CLK>,
 				 <&gcc GCC_USB20_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "sleep", "mock_utmi";
+			clock-names = "cfg_analc", "core", "iface", "sleep", "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB20_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB20_MASTER_CLK>;
@@ -1772,12 +1772,12 @@
 					  "dm_hs_phy_irq";
 
 			power-domains = <&gcc USB20_PRIM_GDSC>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 
 			resets = <&gcc GCC_USB20_PRIM_BCR>;
 
-			interconnects = <&aggre1_noc MASTER_USB2 0 &mc_virt SLAVE_EBI1 0>,
-					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB2 0>;
+			interconnects = <&aggre1_analc MASTER_USB2 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_USB2 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
 			wakeup-source;
@@ -1814,23 +1814,23 @@
 			#power-domain-cells = <1>;
 		};
 
-		adreno_smmu: iommu@3da0000 {
-			compatible = "qcom,sa8775p-smmu-500", "qcom,adreno-smmu",
+		adreanal_smmu: iommu@3da0000 {
+			compatible = "qcom,sa8775p-smmu-500", "qcom,adreanal-smmu",
 				     "qcom,smmu-500", "arm,mmu-500";
 			reg = <0x0 0x03da0000 0x0 0x20000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <2>;
 			dma-coherent;
 			power-domains = <&gpucc GPU_CC_CX_GDSC>;
-			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
+			clocks = <&gcc GCC_GPU_MEMANALC_GFX_CLK>,
+				 <&gcc GCC_GPU_SANALC_DVM_GFX_CLK>,
 				 <&gpucc GPU_CC_AHB_CLK>,
 				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
 				 <&gpucc GPU_CC_CX_GMU_CLK>,
 				 <&gpucc GPU_CC_HUB_CX_INT_CLK>,
 				 <&gpucc GPU_CC_HUB_AON_CLK>;
-			clock-names = "gcc_gpu_memnoc_gfx_clk",
-				      "gcc_gpu_snoc_dvm_gfx_clk",
+			clock-names = "gcc_gpu_memanalc_gfx_clk",
+				      "gcc_gpu_sanalc_dvm_gfx_clk",
 				      "gpu_cc_ahb_clk",
 				      "gpu_cc_hlos1_vote_gpu_smmu_clk",
 				      "gpu_cc_cx_gmu_clk",
@@ -2352,16 +2352,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp-5 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp-5 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp-6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp-6 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp-7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp-7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp-8 {
@@ -3569,8 +3569,8 @@
 		assigned-clocks = <&gcc GCC_PCIE_0_AUX_CLK>;
 		assigned-clock-rates = <19200000>;
 
-		interconnects = <&pcie_anoc MASTER_PCIE_0 0 &mc_virt SLAVE_EBI1 0>,
-				<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_0 0>;
+		interconnects = <&pcie_aanalc MASTER_PCIE_0 0 &mc_virt SLAVE_EBI1 0>,
+				<&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_PCIE_0 0>;
 		interconnect-names = "pcie-mem", "cpu-pcie";
 
 		iommu-map = <0x0 &pcie_smmu 0x0000 0x1>,
@@ -3669,8 +3669,8 @@
 		assigned-clocks = <&gcc GCC_PCIE_1_AUX_CLK>;
 		assigned-clock-rates = <19200000>;
 
-		interconnects = <&pcie_anoc MASTER_PCIE_1 0 &mc_virt SLAVE_EBI1 0>,
-				<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_1 0>;
+		interconnects = <&pcie_aanalc MASTER_PCIE_1 0 &mc_virt SLAVE_EBI1 0>,
+				<&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_PCIE_1 0>;
 		interconnect-names = "pcie-mem", "cpu-pcie";
 
 		iommu-map = <0x0 &pcie_smmu 0x0080 0x1>,

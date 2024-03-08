@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Copyright (C) 2011 Novell Inc.
+ * Copyright (C) 2011 Analvell Inc.
  * Copyright (C) 2016 Red Hat, Inc.
  */
 
@@ -15,7 +15,7 @@ struct ovl_config {
 	bool index;
 	int uuid;
 	bool nfs_export;
-	int xino;
+	int xianal;
 	bool metacopy;
 	bool userxattr;
 	bool ovl_volatile;
@@ -33,8 +33,8 @@ struct ovl_sb {
 struct ovl_layer {
 	/* ovl_free_fs() relies on @mnt being the first member! */
 	struct vfsmount *mnt;
-	/* Trap in ovl inode cache */
-	struct inode *trap;
+	/* Trap in ovl ianalde cache */
+	struct ianalde *trap;
 	struct ovl_sb *fs;
 	/* Index of this layer in fs root (upper idx == 0) */
 	int idx;
@@ -73,26 +73,26 @@ struct ovl_fs {
 	/* creds of process who forced instantiation of super block */
 	const struct cred *creator_cred;
 	bool tmpfile;
-	bool noxattr;
-	bool nofh;
+	bool analxattr;
+	bool analfh;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
-	/* Traps in ovl inode cache */
-	struct inode *workbasedir_trap;
-	struct inode *workdir_trap;
-	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
-	int xino_mode;
-	/* For allocation of non-persistent inode numbers */
-	atomic_long_t last_ino;
+	/* Traps in ovl ianalde cache */
+	struct ianalde *workbasedir_trap;
+	struct ianalde *workdir_trap;
+	/* -1: disabled, 0: same fs, 1..32: number of unused ianal bits */
+	int xianal_mode;
+	/* For allocation of analn-persistent ianalde numbers */
+	atomic_long_t last_ianal;
 	/* Shared whiteout cache */
 	struct dentry *whiteout;
-	bool no_shared_whiteout;
+	bool anal_shared_whiteout;
 	/* r/o snapshot of upperdir sb's only taken on volatile mounts */
 	errseq_t errseq;
 };
 
-/* Number of lower layers, not including data-only layers */
+/* Number of lower layers, analt including data-only layers */
 static inline unsigned int ovl_numlowerlayer(struct ovl_fs *ofs)
 {
 	return ofs->numlayer - ofs->numdatalayer - 1;
@@ -159,7 +159,7 @@ static inline unsigned long *OVL_E_FLAGS(struct dentry *dentry)
 	return (unsigned long *) &dentry->d_fsdata;
 }
 
-struct ovl_inode {
+struct ovl_ianalde {
 	union {
 		struct ovl_dir_cache *cache;	/* directory */
 		const char *lowerdata_redirect;	/* regular file */
@@ -167,7 +167,7 @@ struct ovl_inode {
 	const char *redirect;
 	u64 version;
 	unsigned long flags;
-	struct inode vfs_inode;
+	struct ianalde vfs_ianalde;
 	struct dentry *__upperdentry;
 	struct ovl_entry *oe;
 
@@ -175,22 +175,22 @@ struct ovl_inode {
 	struct mutex lock;
 };
 
-static inline struct ovl_inode *OVL_I(struct inode *inode)
+static inline struct ovl_ianalde *OVL_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct ovl_inode, vfs_inode);
+	return container_of(ianalde, struct ovl_ianalde, vfs_ianalde);
 }
 
-static inline struct ovl_entry *OVL_I_E(struct inode *inode)
+static inline struct ovl_entry *OVL_I_E(struct ianalde *ianalde)
 {
-	return inode ? OVL_I(inode)->oe : NULL;
+	return ianalde ? OVL_I(ianalde)->oe : NULL;
 }
 
 static inline struct ovl_entry *OVL_E(struct dentry *dentry)
 {
-	return OVL_I_E(d_inode(dentry));
+	return OVL_I_E(d_ianalde(dentry));
 }
 
-static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
+static inline struct dentry *ovl_upperdentry_dereference(struct ovl_ianalde *oi)
 {
 	return READ_ONCE(oi->__upperdentry);
 }

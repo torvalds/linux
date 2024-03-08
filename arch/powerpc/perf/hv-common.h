@@ -24,7 +24,7 @@ EVENT_DEFINE_RANGE(name, attr_var, bit_start, bit_end)
 /*
  * The EVENT_DEFINE_RANGE_FORMAT() macro above includes helper functions
  * for the fields (eg: event_get_starting_index()). For some fields we
- * need the bit-range definition, but no the helper functions. Define a
+ * need the bit-range definition, but anal the helper functions. Define a
  * lite version of the above macro without the helpers and silence
  * compiler warnings unused static functions.
  */

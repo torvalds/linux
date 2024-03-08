@@ -30,9 +30,9 @@ extern unsigned long xive_tima_os;
 extern u32 xive_tima_offset;
 
 /*
- * Per-irq data (irq_get_handler_data for normal IRQs), IPIs
+ * Per-irq data (irq_get_handler_data for analrmal IRQs), IPIs
  * have it stored in the xive_cpu structure. We also cache
- * for normal interrupts the current target CPU.
+ * for analrmal interrupts the current target CPU.
  *
  * This structure is setup by the backend for each interrupt.
  */
@@ -50,9 +50,9 @@ struct xive_irq_data {
 	int target;
 	/*
 	 * saved_p means that there is a queue entry for this interrupt
-	 * in some CPU's queue (not including guest vcpu queues), even
-	 * if P is not set in the source ESB.
-	 * stale_p means that there is no queue entry for this interrupt
+	 * in some CPU's queue (analt including guest vcpu queues), even
+	 * if P is analt set in the source ESB.
+	 * stale_p means that there is anal queue entry for this interrupt
 	 * in some CPU's queue, even if P is set in the source ESB.
 	 */
 	bool saved_p;
@@ -66,7 +66,7 @@ struct xive_irq_data {
 #define XIVE_IRQ_FLAG_H_INT_ESB	0x20
 
 /* Special flag set by KVM for excalation interrupts */
-#define XIVE_IRQ_FLAG_NO_EOI	0x80
+#define XIVE_IRQ_FLAG_ANAL_EOI	0x80
 
 #define XIVE_INVALID_CHIP_ID	-1
 

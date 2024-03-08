@@ -86,7 +86,7 @@ static int gbaudio_request_button(struct gbaudio_module_info *module,
 	/* currently supports 4 buttons only */
 	if (!module->jack_type) {
 		dev_err_ratelimited(module->dev,
-				    "Jack not present. Bogus event!!\n");
+				    "Jack analt present. Bogus event!!\n");
 		return -EINVAL;
 	}
 
@@ -184,7 +184,7 @@ static int gb_audio_add_mgmt_connection(struct gbaudio_module_info *gbmodule,
 	if (gbmodule->mgmt_connection) {
 		dev_err(&bundle->dev,
 			"Can't have multiple Management connections\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
@@ -207,7 +207,7 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 
 	dai = devm_kzalloc(gbmodule->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create_offloaded(bundle,
 						    le16_to_cpu(cport_desc->id),
@@ -243,7 +243,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 
 	/* There should be at least one Management and one Data cport */
 	if (bundle->num_cports < 2)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * There can be only one Management connection and any number of data
@@ -251,7 +251,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	 */
 	gbmodule = devm_kzalloc(dev, sizeof(*gbmodule), GFP_KERNEL);
 	if (!gbmodule)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gbmodule->num_data_connections = bundle->num_cports - 1;
 	INIT_LIST_HEAD(&gbmodule->data_list);
@@ -284,7 +284,7 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 		default:
 			dev_err(dev, "Unsupported protocol: 0x%02x\n",
 				cport_desc->protocol_id);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto destroy_connections;
 		}
 	}

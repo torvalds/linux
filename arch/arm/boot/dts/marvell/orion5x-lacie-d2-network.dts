@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guianalt <sguianalt@lacie.com>
  */
 
 /dts-v1/;
@@ -97,7 +97,7 @@
 	devbus,keep-config;
 
 	/*
-	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * Currently the MTD code does analt recognize the MX29LV400CBCT
 	 * as a bottom-type device. This could cause risks of
 	 * accidentally erasing critical flash sectors. We thus define
 	 * a single, write-protected partition covering the whole
@@ -155,7 +155,7 @@
 		compatible = "gmt,g762";
 		reg = <0x3e>;
 
-		/* Not enough HW info */
+		/* Analt eanalugh HW info */
 		status = "disabled";
 	};
 
@@ -214,7 +214,7 @@
 	};
 
 	/*
-	 * Non MPP GPIOs:
+	 * Analn MPP GPIOs:
 	 *  GPIO 22: USB port 1 fuse (0 = Fail, 1 = Ok)
 	 *  GPIO 23: Blue front LED off
 	 *  GPIO 24: Inhibit board power off (0 = Disabled, 1 = Enabled)

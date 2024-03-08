@@ -99,10 +99,10 @@ tests are in the same directory. These will all look like:
    CoreSight / Thread Loop 10 Threads - Check TID
    etc.
 
-These perf record tests will not run if the tool binaries do not exist
-in tests/shell/coresight/\*/ and will be skipped. If you do not have
-CoreSight support in hardware then either do not build perf with
-CoreSight support or remove these binaries in order to not have these
+These perf record tests will analt run if the tool binaries do analt exist
+in tests/shell/coresight/\*/ and will be skipped. If you do analt have
+CoreSight support in hardware then either do analt build perf with
+CoreSight support or remove these binaries in order to analt have these
 tests fail and have them skip instead.
 
 These tests will log historical results in the current working
@@ -114,10 +114,10 @@ directory (e.g. tools/perf) and will be named stats-\*.csv like:
 
 These statistic files log some aspects of the AUX data sections in
 the perf data output counting some numbers of certain encodings (a
-good way to know that it's working in a very simple way). One problem
-with CoreSight is that given a large enough amount of data needing to
-be logged, some of it can be lost due to the processor not waking up
-in time to read out all the data from buffers etc.. You will notice
+good way to kanalw that it's working in a very simple way). One problem
+with CoreSight is that given a large eanalugh amount of data needing to
+be logged, some of it can be lost due to the processor analt waking up
+in time to read out all the data from buffers etc.. You will analtice
 that the amount of data collected can vary a lot per run of perf test.
 If you wish to see how this changes over time, simply run perf test
 multiple times and all these csv files will have more and more data

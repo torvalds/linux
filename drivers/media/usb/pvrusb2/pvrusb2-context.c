@@ -11,14 +11,14 @@
 #include "pvrusb2-debug.h"
 #include <linux/wait.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
 static struct pvr2_context *pvr2_context_exist_first;
 static struct pvr2_context *pvr2_context_exist_last;
-static struct pvr2_context *pvr2_context_notify_first;
-static struct pvr2_context *pvr2_context_notify_last;
+static struct pvr2_context *pvr2_context_analtify_first;
+static struct pvr2_context *pvr2_context_analtify_last;
 static DEFINE_MUTEX(pvr2_context_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(pvr2_context_sync_data);
 static DECLARE_WAIT_QUEUE_HEAD(pvr2_context_cleanup_data);
@@ -27,35 +27,35 @@ static int pvr2_context_cleaned_flag;
 static struct task_struct *pvr2_context_thread_ptr;
 
 
-static void pvr2_context_set_notify(struct pvr2_context *mp, int fl)
+static void pvr2_context_set_analtify(struct pvr2_context *mp, int fl)
 {
 	int signal_flag = 0;
 	mutex_lock(&pvr2_context_mutex);
 	if (fl) {
-		if (!mp->notify_flag) {
-			signal_flag = (pvr2_context_notify_first == NULL);
-			mp->notify_prev = pvr2_context_notify_last;
-			mp->notify_next = NULL;
-			pvr2_context_notify_last = mp;
-			if (mp->notify_prev) {
-				mp->notify_prev->notify_next = mp;
+		if (!mp->analtify_flag) {
+			signal_flag = (pvr2_context_analtify_first == NULL);
+			mp->analtify_prev = pvr2_context_analtify_last;
+			mp->analtify_next = NULL;
+			pvr2_context_analtify_last = mp;
+			if (mp->analtify_prev) {
+				mp->analtify_prev->analtify_next = mp;
 			} else {
-				pvr2_context_notify_first = mp;
+				pvr2_context_analtify_first = mp;
 			}
-			mp->notify_flag = !0;
+			mp->analtify_flag = !0;
 		}
 	} else {
-		if (mp->notify_flag) {
-			mp->notify_flag = 0;
-			if (mp->notify_next) {
-				mp->notify_next->notify_prev = mp->notify_prev;
+		if (mp->analtify_flag) {
+			mp->analtify_flag = 0;
+			if (mp->analtify_next) {
+				mp->analtify_next->analtify_prev = mp->analtify_prev;
 			} else {
-				pvr2_context_notify_last = mp->notify_prev;
+				pvr2_context_analtify_last = mp->analtify_prev;
 			}
-			if (mp->notify_prev) {
-				mp->notify_prev->notify_next = mp->notify_next;
+			if (mp->analtify_prev) {
+				mp->analtify_prev->analtify_next = mp->analtify_next;
 			} else {
-				pvr2_context_notify_first = mp->notify_next;
+				pvr2_context_analtify_first = mp->analtify_next;
 			}
 		}
 	}
@@ -68,7 +68,7 @@ static void pvr2_context_destroy(struct pvr2_context *mp)
 {
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (destroy)",mp);
 	pvr2_hdw_destroy(mp->hdw);
-	pvr2_context_set_notify(mp, 0);
+	pvr2_context_set_analtify(mp, 0);
 	mutex_lock(&pvr2_context_mutex);
 	if (mp->exist_next) {
 		mp->exist_next->exist_prev = mp->exist_prev;
@@ -90,9 +90,9 @@ static void pvr2_context_destroy(struct pvr2_context *mp)
 }
 
 
-static void pvr2_context_notify(struct pvr2_context *mp)
+static void pvr2_context_analtify(struct pvr2_context *mp)
 {
-	pvr2_context_set_notify(mp,!0);
+	pvr2_context_set_analtify(mp,!0);
 }
 
 
@@ -100,14 +100,14 @@ static void pvr2_context_check(struct pvr2_context *mp)
 {
 	struct pvr2_channel *ch1, *ch2;
 	pvr2_trace(PVR2_TRACE_CTXT,
-		   "pvr2_context %p (notify)", mp);
+		   "pvr2_context %p (analtify)", mp);
 	if (!mp->initialized_flag && !mp->disconnect_flag) {
 		mp->initialized_flag = !0;
 		pvr2_trace(PVR2_TRACE_CTXT,
 			   "pvr2_context %p (initialize)", mp);
 		/* Finish hardware initialization */
 		if (pvr2_hdw_initialize(mp->hdw,
-					(void (*)(void *))pvr2_context_notify,
+					(void (*)(void *))pvr2_context_analtify,
 					mp)) {
 			mp->video_stream.stream =
 				pvr2_hdw_get_video_stream(mp->hdw);
@@ -119,10 +119,10 @@ static void pvr2_context_check(struct pvr2_context *mp)
 			pvr2_trace(PVR2_TRACE_CTXT,
 				   "pvr2_context %p (thread skipping setup)",
 				   mp);
-			/* Even though initialization did not succeed,
+			/* Even though initialization did analt succeed,
 			   we're still going to continue anyway.  We need
 			   to do this in order to await the expected
-			   disconnect (which we will detect in the normal
+			   disconnect (which we will detect in the analrmal
 			   course of operation). */
 		}
 	}
@@ -153,13 +153,13 @@ static int pvr2_context_thread_func(void *foo)
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context thread start");
 
 	do {
-		while ((mp = pvr2_context_notify_first) != NULL) {
-			pvr2_context_set_notify(mp, 0);
+		while ((mp = pvr2_context_analtify_first) != NULL) {
+			pvr2_context_set_analtify(mp, 0);
 			pvr2_context_check(mp);
 		}
 		wait_event_interruptible(
 			pvr2_context_sync_data,
-			((pvr2_context_notify_first != NULL) ||
+			((pvr2_context_analtify_first != NULL) ||
 			 pvr2_context_shutok()));
 	} while (!pvr2_context_shutok());
 
@@ -183,7 +183,7 @@ int pvr2_context_global_init(void)
 	pvr2_context_thread_ptr = kthread_run(pvr2_context_thread_func,
 					      NULL,
 					      "pvrusb2-context");
-	return IS_ERR(pvr2_context_thread_ptr) ? -ENOMEM : 0;
+	return IS_ERR(pvr2_context_thread_ptr) ? -EANALMEM : 0;
 }
 
 
@@ -225,7 +225,7 @@ struct pvr2_context *pvr2_context_create(
 		mp = NULL;
 		goto done;
 	}
-	pvr2_context_set_notify(mp, !0);
+	pvr2_context_set_analtify(mp, !0);
  done:
 	return mp;
 }
@@ -260,7 +260,7 @@ static void pvr2_context_exit(struct pvr2_context *mp)
 		destroy_flag = !0;
 	}
 	mutex_unlock(&mp->mutex);
-	if (destroy_flag) pvr2_context_notify(mp);
+	if (destroy_flag) pvr2_context_analtify(mp);
 }
 
 
@@ -269,7 +269,7 @@ void pvr2_context_disconnect(struct pvr2_context *mp)
 	pvr2_hdw_disconnect(mp->hdw);
 	mp->disconnect_flag = !0;
 	if (!pvr2_context_shutok())
-		pvr2_context_notify(mp);
+		pvr2_context_analtify(mp);
 }
 
 
@@ -331,7 +331,7 @@ int pvr2_channel_limit_inputs(struct pvr2_channel *cp,unsigned int cmsk)
 	mmsk = pvr2_hdw_get_input_available(hdw);
 	cmsk &= mmsk;
 	if (cmsk == cp->input_mask) {
-		/* No change; nothing to do */
+		/* Anal change; analthing to do */
 		return 0;
 	}
 
@@ -355,7 +355,7 @@ int pvr2_channel_limit_inputs(struct pvr2_channel *cp,unsigned int cmsk)
 		tmsk &= cmsk;
 		if ((ret = pvr2_hdw_set_input_allowed(hdw,mmsk,tmsk)) != 0) {
 			/* Internal failure changing allowed list; probably
-			   should not happen, but react if it does. */
+			   should analt happen, but react if it does. */
 			break;
 		}
 		cp->input_mask = cmsk;

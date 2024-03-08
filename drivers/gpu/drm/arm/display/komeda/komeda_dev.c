@@ -111,7 +111,7 @@ static struct attribute_group komeda_sysfs_attr_group = {
 
 static int komeda_parse_pipe_dt(struct komeda_pipeline *pipe)
 {
-	struct device_node *np = pipe->of_node;
+	struct device_analde *np = pipe->of_analde;
 	struct clk *clk;
 
 	clk = of_clk_get_by_name(np, "pxclk");
@@ -123,9 +123,9 @@ static int komeda_parse_pipe_dt(struct komeda_pipeline *pipe)
 
 	/* enum ports */
 	pipe->of_output_links[0] =
-		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 0);
+		of_graph_get_remote_analde(np, KOMEDA_OF_PORT_OUTPUT, 0);
 	pipe->of_output_links[1] =
-		of_graph_get_remote_node(np, KOMEDA_OF_PORT_OUTPUT, 1);
+		of_graph_get_remote_analde(np, KOMEDA_OF_PORT_OUTPUT, 1);
 	pipe->of_output_port =
 		of_graph_get_port_by_id(np, KOMEDA_OF_PORT_OUTPUT);
 
@@ -137,39 +137,39 @@ static int komeda_parse_pipe_dt(struct komeda_pipeline *pipe)
 static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 	struct komeda_pipeline *pipe;
 	u32 pipe_id = U32_MAX;
 	int ret = -1;
 
 	mdev->irq  = platform_get_irq(pdev, 0);
 	if (mdev->irq < 0) {
-		DRM_ERROR("could not get IRQ number.\n");
+		DRM_ERROR("could analt get IRQ number.\n");
 		return mdev->irq;
 	}
 
 	/* Get the optional framebuffer memory resource */
 	ret = of_reserved_mem_device_init(dev);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return ret;
 
-	for_each_available_child_of_node(np, child) {
-		if (of_node_name_eq(child, "pipeline")) {
+	for_each_available_child_of_analde(np, child) {
+		if (of_analde_name_eq(child, "pipeline")) {
 			of_property_read_u32(child, "reg", &pipe_id);
 			if (pipe_id >= mdev->n_pipelines) {
-				DRM_WARN("Skip the redundant DT node: pipeline-%u.\n",
+				DRM_WARN("Skip the redundant DT analde: pipeline-%u.\n",
 					 pipe_id);
 				continue;
 			}
-			mdev->pipelines[pipe_id]->of_node = of_node_get(child);
+			mdev->pipelines[pipe_id]->of_analde = of_analde_get(child);
 		}
 	}
 
 	for (pipe_id = 0; pipe_id < mdev->n_pipelines; pipe_id++) {
 		pipe = mdev->pipelines[pipe_id];
 
-		if (!pipe->of_node) {
-			DRM_ERROR("Pipeline-%d doesn't have a DT node.\n",
+		if (!pipe->of_analde) {
+			DRM_ERROR("Pipeline-%d doesn't have a DT analde.\n",
 				  pipe->id);
 			return -EINVAL;
 		}
@@ -190,11 +190,11 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 
 	komeda_identify = of_device_get_match_data(dev);
 	if (!komeda_identify)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	mdev = devm_kzalloc(dev, sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&mdev->lock);
 
@@ -220,14 +220,14 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	mdev->funcs = komeda_identify(mdev->reg_base, &mdev->chip);
 	if (!mdev->funcs) {
 		DRM_ERROR("Failed to identify the HW.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto disable_clk;
 	}
 
 	DRM_INFO("Found ARM Mali-D%x version r%dp%d\n",
 		 MALIDP_CORE_ID_PRODUCT_ID(mdev->chip.core_id),
 		 MALIDP_CORE_ID_MAJOR(mdev->chip.core_id),
-		 MALIDP_CORE_ID_MINOR(mdev->chip.core_id));
+		 MALIDP_CORE_ID_MIANALR(mdev->chip.core_id));
 
 	mdev->funcs->init_format_table(mdev);
 

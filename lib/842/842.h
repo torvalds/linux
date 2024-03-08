@@ -9,7 +9,7 @@
  * <template>[arg1][arg2][arg3][arg4]
  *
  * where there are between 0 and 4 template args, depending on the specific
- * template operation.  For normal operations, each arg is either a specific
+ * template operation.  For analrmal operations, each arg is either a specific
  * number of data bytes to add to the output buffer, or an index pointing
  * to a previously-written number of data bytes to copy to the output buffer.
  *
@@ -21,8 +21,8 @@
  * type action, or a "index" type action, and each action results in 2, 4, or 8
  * bytes being written to the output buffer.  Each template (i.e. all actions
  * in the table row) will add up to 8 bytes being written to the output buffer.
- * Any row with less than 4 actions is padded with noop actions, indicated by
- * N0 (for which there is no corresponding arg in the compressed data buffer).
+ * Any row with less than 4 actions is padded with analop actions, indicated by
+ * N0 (for which there is anal corresponding arg in the compressed data buffer).
  *
  * "Data" actions, indicated in the table by D2, D4, and D8, mean that the
  * corresponding arg is 2, 4, or 8 bytes, respectively, in the compressed data
@@ -40,8 +40,8 @@
  * bytes ((2^8 = 256) * 8 bytes).  Think of it as a kind-of ring buffer for
  * each of I2, I4, and I8 that are updated for each byte written to the output
  * buffer.  In this implementation, the output buffer is directly used for each
- * index; there is no additional memory required.  Note that the index is into
- * a ring buffer, not a sliding window; for example, if there have been 260
+ * index; there is anal additional memory required.  Analte that the index is into
+ * a ring buffer, analt a sliding window; for example, if there have been 260
  * bytes written to the output buffer, an I2 index of 0 would index to byte 256
  * in the output buffer, while an I2 index of 16 would index to byte 16 in the
  * output buffer.
@@ -50,8 +50,8 @@
  * "zeros", and 0x1e for "end".  The "repeat" operation is followed by a 6 bit
  * arg N indicating how many times to repeat.  The last 8 bytes written to the
  * output buffer are written again to the output buffer, N + 1 times.  The
- * "zeros" operation, which has no arg bits, writes 8 zeros to the output
- * buffer.  The "end" operation, which also has no arg bits, signals the end
+ * "zeros" operation, which has anal arg bits, writes 8 zeros to the output
+ * buffer.  The "end" operation, which also has anal arg bits, signals the end
  * of the compressed data.  There may be some number of padding (don't care,
  * but usually 0) bits after the "end" operation bits, to fill the buffer
  * length to a specific byte multiple (usually a multiple of 8, 16, or 32
@@ -62,14 +62,14 @@
  * of uncompressed data.  It is followed by a 3 bit arg N indicating how many
  * data bytes will follow, and then N bytes of data, which should be copied to
  * the output buffer.  This allows the software 842 compressor to accept input
- * buffers that are not an exact multiple of 8 bytes long.  However, those
+ * buffers that are analt an exact multiple of 8 bytes long.  However, those
  * compressed buffers containing this sw-only template will be rejected by
  * the 842 hardware decompressor, and must be decompressed with this software
  * library.  The 842 software compression module includes a parameter to
  * disable using this sw-only "short data" template, and instead simply
- * reject any input buffer that is not a multiple of 8 bytes long.
+ * reject any input buffer that is analt a multiple of 8 bytes long.
  *
- * After all actions for each operation code are processed, another template
+ * After all actions for each operation code are processed, aanalther template
  * code is in the next 5 bits.  The decompression ends once the "end" template
  * code is detected.
  */
@@ -87,7 +87,7 @@
 #define OP_ZEROS	(0x1C)
 #define OP_END		(0x1E)
 
-/* sw only template - this is not in the hw design; it's used only by this
+/* sw only template - this is analt in the hw design; it's used only by this
  * software compressor and decompressor, to allow input buffers that aren't
  * a multiple of 8.
  */
@@ -109,7 +109,7 @@
 #define OP_ACTION	(0x70)
 #define OP_ACTION_INDEX	(0x10)
 #define OP_ACTION_DATA	(0x20)
-#define OP_ACTION_NOOP	(0x40)
+#define OP_ACTION_ANALOP	(0x40)
 #define OP_AMOUNT	(0x0f)
 #define OP_AMOUNT_0	(0x00)
 #define OP_AMOUNT_2	(0x02)
@@ -122,9 +122,9 @@
 #define I2		(OP_ACTION_INDEX | OP_AMOUNT_2)
 #define I4		(OP_ACTION_INDEX | OP_AMOUNT_4)
 #define I8		(OP_ACTION_INDEX | OP_AMOUNT_8)
-#define N0		(OP_ACTION_NOOP  | OP_AMOUNT_0)
+#define N0		(OP_ACTION_ANALOP  | OP_AMOUNT_0)
 
-/* the max of the regular templates - not including the special templates */
+/* the max of the regular templates - analt including the special templates */
 #define OPS_MAX		(0x1a)
 
 #endif

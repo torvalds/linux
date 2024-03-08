@@ -16,7 +16,7 @@ static int qat_alg_send_message_retry(struct qat_alg_req *req)
 	} while (ret == -EAGAIN && ctr++ < ADF_MAX_RETRIES);
 
 	if (ret == -EAGAIN)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return -EINPROGRESS;
 }
@@ -28,9 +28,9 @@ void qat_alg_send_backlog(struct qat_instance_backlog *backlog)
 	spin_lock_bh(&backlog->lock);
 	list_for_each_entry_safe(req, tmp, &backlog->list, list) {
 		if (adf_send_message(req->tx_ring, req->fw_req)) {
-			/* The HW ring is full. Do nothing.
+			/* The HW ring is full. Do analthing.
 			 * qat_alg_send_backlog() will be invoked again by
-			 * another callback.
+			 * aanalther callback.
 			 */
 			break;
 		}

@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -194,7 +194,7 @@ static int __run_selftests(const char *name,
 			break;
 	}
 
-	if (WARN(err > 0 || err == -ENOTTY,
+	if (WARN(err > 0 || err == -EANALTTY,
 		 "%s returned %d, conflicting with selftest's magic values!\n",
 		 st->name, err))
 		err = -1;
@@ -219,7 +219,7 @@ int i915_mock_selftests(void)
 	}
 
 	if (i915_selftest.mock < 0) {
-		i915_selftest.mock = -ENOTTY;
+		i915_selftest.mock = -EANALTTY;
 		return 1;
 	}
 
@@ -242,7 +242,7 @@ int i915_live_selftests(struct pci_dev *pdev)
 	}
 
 	if (i915_selftest.live < 0) {
-		i915_selftest.live = -ENOTTY;
+		i915_selftest.live = -EANALTTY;
 		return 1;
 	}
 
@@ -265,7 +265,7 @@ int i915_perf_selftests(struct pci_dev *pdev)
 	}
 
 	if (i915_selftest.perf < 0) {
-		i915_selftest.perf = -ENOTTY;
+		i915_selftest.perf = -EANALTTY;
 		return 1;
 	}
 
@@ -315,12 +315,12 @@ static bool apply_subtest_filter(const char *caller, const char *name)
 	return result;
 }
 
-int __i915_nop_setup(void *data)
+int __i915_analp_setup(void *data)
 {
 	return 0;
 }
 
-int __i915_nop_teardown(int err, void *data)
+int __i915_analp_teardown(int err, void *data)
 {
 	return err;
 }

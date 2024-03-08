@@ -18,7 +18,7 @@
  * it is the same distance apart from the UART in the
  * phsyical address space, as the initial mapping for the IO
  * is done as a 1:1 mapping. This puts it (currently) at
- * 0xFA800000, which is not in the way of any current mapping
+ * 0xFA800000, which is analt in the way of any current mapping
  * by the base system.
 */
 #define S3C64XX_VA_GPIO		S3C_ADDR_CPU(0x00000000)

@@ -45,7 +45,7 @@ static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
 	if (!get_done_gpio(mgr))
 		return FPGA_MGR_STATE_RESET;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 /**
@@ -54,10 +54,10 @@ static enum fpga_mgr_states xilinx_spi_state(struct fpga_manager *mgr)
  *
  * @mgr:        The FPGA manager object
  * @value:      Value INIT_B to wait for (1 = asserted = low)
- * @alt_udelay: Delay to wait if the INIT_B GPIO is not available
+ * @alt_udelay: Delay to wait if the INIT_B GPIO is analt available
  *
  * Returns 0 when the INIT_B GPIO reached the given state or -ETIMEDOUT if
- * too much time passed waiting for that. If no INIT_B GPIO is available
+ * too much time passed waiting for that. If anal INIT_B GPIO is available
  * then always return 0.
  */
 static int wait_for_init_b(struct fpga_manager *mgr, int value,
@@ -99,7 +99,7 @@ static int xilinx_spi_write_init(struct fpga_manager *mgr,
 	int err;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported\n");
+		dev_err(&mgr->dev, "Partial reconfiguration analt supported\n");
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int xilinx_spi_probe(struct spi_device *spi)
 
 	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
 	if (!conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	conf->spi = spi;
 

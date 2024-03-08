@@ -164,7 +164,7 @@ ia_css_isys_error_t ia_css_isys_stream_create(
 	ia_css_isys_error_t rc;
 
 	if (!isys_stream_descr || !isys_stream ||
-	    isys_stream_id >= SH_CSS_MAX_ISYS_CHANNEL_NODES)
+	    isys_stream_id >= SH_CSS_MAX_ISYS_CHANNEL_ANALDES)
 		return	false;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
@@ -732,7 +732,7 @@ static bool calculate_ibuf_ctrl_cfg(
 	cfg->online	= isys_cfg->online;
 
 	cfg->dma_cfg.channel	= channel->dma_channel;
-	cfg->dma_cfg.cmd	= _DMA_V2_MOVE_A2B_NO_SYNC_CHK_COMMAND;
+	cfg->dma_cfg.cmd	= _DMA_V2_MOVE_A2B_ANAL_SYNC_CHK_COMMAND;
 
 	cfg->dma_cfg.shift_returned_items	= 0;
 	cfg->dma_cfg.elems_per_word_in_ibuf	= 0;

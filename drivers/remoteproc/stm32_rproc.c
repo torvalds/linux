@@ -124,7 +124,7 @@ static int stm32_rproc_mem_alloc(struct rproc *rproc,
 	if (IS_ERR_OR_NULL(va)) {
 		dev_err(dev, "Unable to map memory region: %pad+0x%zx\n",
 			&mem->dma, mem->len);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Update memory entry va */
@@ -146,27 +146,27 @@ static int stm32_rproc_of_memory_translations(struct platform_device *pdev,
 					      struct stm32_rproc *ddata)
 {
 	struct device *parent, *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct stm32_rproc_mem *p_mems;
 	struct stm32_rproc_mem_ranges *mem_range;
 	int cnt, array_size, i, ret = 0;
 
 	parent = dev->parent;
-	np = parent->of_node;
+	np = parent->of_analde;
 
 	cnt = of_property_count_elems_of_size(np, "dma-ranges",
 					      sizeof(*mem_range));
 	if (cnt <= 0) {
-		dev_err(dev, "%s: dma-ranges property not defined\n", __func__);
+		dev_err(dev, "%s: dma-ranges property analt defined\n", __func__);
 		return -EINVAL;
 	}
 
 	p_mems = devm_kcalloc(dev, cnt, sizeof(*p_mems), GFP_KERNEL);
 	if (!p_mems)
-		return -ENOMEM;
+		return -EANALMEM;
 	mem_range = kcalloc(cnt, sizeof(*mem_range), GFP_KERNEL);
 	if (!mem_range)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	array_size = cnt * sizeof(struct stm32_rproc_mem_ranges) / sizeof(u32);
 
@@ -204,7 +204,7 @@ static int stm32_rproc_mbox_idx(struct rproc *rproc, const unsigned char *name)
 		if (!strncmp(ddata->mb[i].name, name, strlen(name)))
 			return i;
 	}
-	dev_err(&rproc->dev, "mailbox %s not found\n", name);
+	dev_err(&rproc->dev, "mailbox %s analt found\n", name);
 
 	return -EINVAL;
 }
@@ -212,7 +212,7 @@ static int stm32_rproc_mbox_idx(struct rproc *rproc, const unsigned char *name)
 static int stm32_rproc_prepare(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_iterator it;
 	struct rproc_mem_entry *mem;
 	struct reserved_mem *rmem;
@@ -222,29 +222,29 @@ static int stm32_rproc_prepare(struct rproc *rproc)
 	/* Register associated reserved memory regions */
 	of_phandle_iterator_init(&it, np, "memory-region", NULL, 0);
 	while (of_phandle_iterator_next(&it) == 0) {
-		rmem = of_reserved_mem_lookup(it.node);
+		rmem = of_reserved_mem_lookup(it.analde);
 		if (!rmem) {
-			of_node_put(it.node);
+			of_analde_put(it.analde);
 			dev_err(dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
 		if (stm32_rproc_pa_to_da(rproc, rmem->base, &da) < 0) {
-			of_node_put(it.node);
-			dev_err(dev, "memory region not valid %pa\n",
+			of_analde_put(it.analde);
+			dev_err(dev, "memory region analt valid %pa\n",
 				&rmem->base);
 			return -EINVAL;
 		}
 
-		/*  No need to map vdev buffer */
-		if (strcmp(it.node->name, "vdev0buffer")) {
+		/*  Anal need to map vdev buffer */
+		if (strcmp(it.analde->name, "vdev0buffer")) {
 			/* Register memory region */
 			mem = rproc_mem_entry_init(dev, NULL,
 						   (dma_addr_t)rmem->base,
 						   rmem->size, da,
 						   stm32_rproc_mem_alloc,
 						   stm32_rproc_mem_release,
-						   it.node->name);
+						   it.analde->name);
 
 			if (mem)
 				rproc_coredump_add_segment(rproc, da,
@@ -254,12 +254,12 @@ static int stm32_rproc_prepare(struct rproc *rproc)
 			mem = rproc_of_resm_mem_entry_init(dev, index,
 							   rmem->size,
 							   rmem->base,
-							   it.node->name);
+							   it.analde->name);
 		}
 
 		if (!mem) {
-			of_node_put(it.node);
-			return -ENOMEM;
+			of_analde_put(it.analde);
+			return -EANALMEM;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -272,7 +272,7 @@ static int stm32_rproc_prepare(struct rproc *rproc)
 static int stm32_rproc_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
 	if (rproc_elf_load_rsc_table(rproc, fw))
-		dev_warn(&rproc->dev, "no resource table found for this firmware\n");
+		dev_warn(&rproc->dev, "anal resource table found for this firmware\n");
 
 	return 0;
 }
@@ -297,8 +297,8 @@ static void stm32_rproc_mb_vq_work(struct work_struct *work)
 	if (rproc->state != RPROC_RUNNING)
 		goto unlock_mutex;
 
-	if (rproc_vq_interrupt(rproc, mb->vq_id) == IRQ_NONE)
-		dev_dbg(&rproc->dev, "no message found in vq%d\n", mb->vq_id);
+	if (rproc_vq_interrupt(rproc, mb->vq_id) == IRQ_ANALNE)
+		dev_dbg(&rproc->dev, "anal message found in vq%d\n", mb->vq_id);
 
 unlock_mutex:
 	mutex_unlock(&rproc->lock);
@@ -357,7 +357,7 @@ static const struct stm32_mbox stm32_rproc_mbox[MBOX_NB_MBX] = {
 		.client = {
 			.tx_block = true,
 			.tx_done = NULL,
-			.tx_tout = 200, /* 200 ms time out to detach should be fair enough */
+			.tx_tout = 200, /* 200 ms time out to detach should be fair eanalugh */
 		},
 	}
 };
@@ -389,7 +389,7 @@ static int stm32_rproc_request_mbox(struct rproc *rproc)
 					      name);
 				goto err_probe;
 			}
-			dev_warn(dev, "cannot get %s mbox\n", name);
+			dev_warn(dev, "cananalt get %s mbox\n", name);
 			ddata->mb[i].chan = NULL;
 		}
 		if (ddata->mb[i].vq_id >= 0) {
@@ -417,7 +417,7 @@ static int stm32_rproc_set_hold_boot(struct rproc *rproc, bool hold)
 	/*
 	 * Three ways to manage the hold boot
 	 * - using SCMI: the hold boot is managed as a reset,
-	 * - using Linux(no SCMI): the hold boot is managed as a syscon register
+	 * - using Linux(anal SCMI): the hold boot is managed as a syscon register
 	 * - using SMC call (deprecated): use SMC reset interface
 	 */
 
@@ -452,10 +452,10 @@ static void stm32_rproc_add_coredump_trace(struct rproc *rproc)
 	struct rproc_dump_segment *segment;
 	bool already_added;
 
-	list_for_each_entry(trace, &rproc->traces, node) {
+	list_for_each_entry(trace, &rproc->traces, analde) {
 		already_added = false;
 
-		list_for_each_entry(segment, &rproc->dump_segments, node) {
+		list_for_each_entry(segment, &rproc->dump_segments, analde) {
 			if (segment->da == trace->trace_mem.da) {
 				already_added = true;
 				break;
@@ -623,7 +623,7 @@ stm32_rproc_get_loaded_rsc_table(struct rproc *rproc, size_t *table_sz)
 	u32 rsc_da;
 	int err;
 
-	/* The resource table has already been mapped, nothing to do */
+	/* The resource table has already been mapped, analthing to do */
 	if (ddata->rsc_va)
 		goto done;
 
@@ -634,8 +634,8 @@ stm32_rproc_get_loaded_rsc_table(struct rproc *rproc, size_t *table_sz)
 	}
 
 	if (!rsc_da)
-		/* no rsc table */
-		return ERR_PTR(-ENOENT);
+		/* anal rsc table */
+		return ERR_PTR(-EANALENT);
 
 	err = stm32_rproc_da_to_pa(rproc, rsc_da, &rsc_pa);
 	if (err)
@@ -646,13 +646,13 @@ stm32_rproc_get_loaded_rsc_table(struct rproc *rproc, size_t *table_sz)
 		dev_err(dev, "Unable to map memory region: %pa+%x\n",
 			&rsc_pa, RSC_TBL_SIZE);
 		ddata->rsc_va = NULL;
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 done:
 	/*
 	 * Assuming the resource table fits in 1kB is fair.
-	 * Notice for the detach, that this 1 kB memory area has to be reserved in the coprocessor
+	 * Analtice for the detach, that this 1 kB memory area has to be reserved in the coprocessor
 	 * firmware for the resource table. On detach, the remoteproc core re-initializes this
 	 * entire area by overwriting it with the initial values stored in rproc->clean_table.
 	 */
@@ -681,7 +681,7 @@ static const struct of_device_id stm32_rproc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, stm32_rproc_match);
 
-static int stm32_rproc_get_syscon(struct device_node *np, const char *prop,
+static int stm32_rproc_get_syscon(struct device_analde *np, const char *prop,
 				  struct stm32_syscon *syscon)
 {
 	int err = 0;
@@ -707,7 +707,7 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 				struct stm32_rproc *ddata, bool *auto_boot)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct stm32_syscon tz;
 	unsigned int tzen;
 	int err, irq;
@@ -749,7 +749,7 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 	 *        reset-names = "mcu_rst", "hold_boot";
 	 * - using SMC call (deprecated): use SMC reset interface
 	 *    The DT "reset-mames" property is optional, "st,syscfg-tz" is required
-	 * - default(no SCMI, no SMC): the hold boot is managed as a syscon register
+	 * - default(anal SCMI, anal SMC): the hold boot is managed as a syscon register
 	 *    The DT "reset-mames" property is optional, "st,syscfg-holdboot" is required
 	 */
 
@@ -789,17 +789,17 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 
 	/*
 	 * See if we can check the M4 status, i.e if it was started
-	 * from the boot loader or not.
+	 * from the boot loader or analt.
 	 */
 	err = stm32_rproc_get_syscon(np, "st,syscfg-m4-state",
 				     &ddata->m4_state);
 	if (err) {
 		/* remember this */
 		ddata->m4_state.map = NULL;
-		/* no coprocessor state syscon (optional) */
-		dev_warn(dev, "m4 state not supported\n");
+		/* anal coprocessor state syscon (optional) */
+		dev_warn(dev, "m4 state analt supported\n");
 
-		/* no need to go further */
+		/* anal need to go further */
 		return 0;
 	}
 
@@ -807,8 +807,8 @@ static int stm32_rproc_parse_dt(struct platform_device *pdev,
 	err = stm32_rproc_get_syscon(np, "st,syscfg-rsc-tbl",
 				     &ddata->rsctbl);
 	if (err) {
-		/* no rsc table syscon (optional) */
-		dev_warn(dev, "rsc tbl syscon not supported\n");
+		/* anal rsc table syscon (optional) */
+		dev_warn(dev, "rsc tbl syscon analt supported\n");
 	}
 
 	return 0;
@@ -821,7 +821,7 @@ static int stm32_rproc_get_m4_status(struct stm32_rproc *ddata,
 	if (!ddata->m4_state.map) {
 		/*
 		 * We couldn't get the coprocessor's state, assume
-		 * it is not running.
+		 * it is analt running.
 		 */
 		*state = M4_STATE_OFF;
 		return 0;
@@ -834,7 +834,7 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct stm32_rproc *ddata;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct rproc *rproc;
 	unsigned int state;
 	int ret;
@@ -845,11 +845,11 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 
 	rproc = rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
 	if (!rproc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddata = rproc->priv;
 
-	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_ANALNE);
 
 	ret = stm32_rproc_parse_dt(pdev, ddata, &rproc->auto_boot);
 	if (ret)
@@ -869,8 +869,8 @@ static int stm32_rproc_probe(struct platform_device *pdev)
 	rproc->has_iommu = false;
 	ddata->workqueue = create_workqueue(dev_name(dev));
 	if (!ddata->workqueue) {
-		dev_err(dev, "cannot create workqueue\n");
-		ret = -ENOMEM;
+		dev_err(dev, "cananalt create workqueue\n");
+		ret = -EANALMEM;
 		goto free_resources;
 	}
 

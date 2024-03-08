@@ -15,7 +15,7 @@
 /*
  * DISC LOCKING
  *
- * The disc mutex is can be locked when acquiring rport locks, but may not
+ * The disc mutex is can be locked when acquiring rport locks, but may analt
  * be held when acquiring the lport lock. Refer to fc_lport.c for more
  * details.
  */
@@ -63,7 +63,7 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 }
 
 /**
- * fc_disc_recv_rscn_req() - Handle Registered State Change Notification (RSCN)
+ * fc_disc_recv_rscn_req() - Handle Registered State Change Analtification (RSCN)
  * @disc:  The discovery object to which the RSCN applies
  * @fp:	   The RSCN frame
  */
@@ -137,7 +137,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
-	 * If not doing a complete rediscovery, do GPN_ID on
+	 * If analt doing a complete rediscovery, do GPN_ID on
 	 * the individual ports mentioned in the list.
 	 * If any of these get an error, do a full rediscovery.
 	 * In any case, go through the list and free the entries.
@@ -152,7 +152,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 		FC_DISC_DBG(disc, "RSCN received: rediscovering\n");
 		fc_disc_restart(disc);
 	} else {
-		FC_DISC_DBG(disc, "RSCN received: not rediscovering. "
+		FC_DISC_DBG(disc, "RSCN received: analt rediscovering. "
 			    "redisc %d state %d in_prog %d\n",
 			    redisc, lport->state, disc->pending);
 	}
@@ -161,7 +161,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 reject:
 	FC_DISC_DBG(disc, "Received a bad RSCN frame\n");
 	rjt_data.reason = ELS_RJT_LOGIC;
-	rjt_data.explan = ELS_EXPL_NONE;
+	rjt_data.explan = ELS_EXPL_ANALNE;
 	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
@@ -171,7 +171,7 @@ reject:
  * @lport: The local port receiving the request
  * @fp:	   The request frame
  *
- * Locking Note: This function is called from the EM and will lock
+ * Locking Analte: This function is called from the EM and will lock
  *		 the disc_mutex before calling the handler for the
  *		 request.
  */
@@ -213,7 +213,7 @@ static void fc_disc_restart(struct fc_disc *disc)
 		return;
 
 	/*
-	 * Advance disc_id.  This is an arbitrary non-zero number that will
+	 * Advance disc_id.  This is an arbitrary analn-zero number that will
 	 * match the value in the fc_rport_priv after discovery for all
 	 * freshly-discovered remote ports.  Avoid wrapping to zero.
 	 */
@@ -419,10 +419,10 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 
 	/*
 	 * Handle full name records, including the one filled from above.
-	 * Normally, np == bp and plen == len, but from the partial case above,
+	 * Analrmally, np == bp and plen == len, but from the partial case above,
 	 * bp, len describe the overall buffer, and np, plen describe the
-	 * partial buffer, which if would usually be full now.
-	 * After the first time through the loop, things return to "normal".
+	 * partial buffer, which if would usually be full analw.
+	 * After the first time through the loop, things return to "analrmal".
 	 */
 	while (plen >= sizeof(*np)) {
 		ids.port_id = ntoh24(np->fp_fid);
@@ -438,7 +438,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
 				       "(%6.6x)\n", ids.port_id);
-				error = -ENOMEM;
+				error = -EANALMEM;
 			}
 		}
 
@@ -487,7 +487,7 @@ static void fc_disc_timeout(struct work_struct *work)
  * @fp:	    The GPN_FT response frame
  * @disc_arg: The discovery context
  *
- * Locking Note: This function is called without disc mutex held, and
+ * Locking Analte: This function is called without disc mutex held, and
  *		 should do all its processing with the mutex held
  */
 static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
@@ -496,7 +496,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_disc *disc = disc_arg;
 	struct fc_ct_hdr *cp;
 	struct fc_frame_header *fh;
-	enum fc_disc_event event = DISC_EV_NONE;
+	enum fc_disc_event event = DISC_EV_ANALNE;
 	unsigned int seq_cnt;
 	unsigned int len;
 	int error = 0;
@@ -548,7 +548,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 	}
 	if (error)
 		fc_disc_error(disc, ERR_PTR(error));
-	else if (event != DISC_EV_NONE)
+	else if (event != DISC_EV_ANALNE)
 		fc_disc_done(disc, event);
 	fc_frame_free(fp);
 	mutex_unlock(&disc->disc_mutex);
@@ -560,7 +560,7 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
  * @fp:	       The response frame
  * @rdata_arg: The remote port that sent the GPN_ID response
  *
- * Locking Note: This function is called without disc mutex held.
+ * Locking Analte: This function is called without disc mutex held.
  */
 static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 				void *rdata_arg)
@@ -649,11 +649,11 @@ static int fc_disc_gpn_id_req(struct fc_lport *lport,
 	fp = fc_frame_alloc(lport, sizeof(struct fc_ct_hdr) +
 			    sizeof(struct fc_ns_fid));
 	if (!fp)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, FC_NS_GPN_ID,
 				  fc_disc_gpn_id_resp, rdata,
 				  3 * lport->r_a_tov))
-		return -ENOMEM;
+		return -EANALMEM;
 	kref_get(&rdata->kref);
 	return 0;
 }
@@ -671,7 +671,7 @@ static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
 
 	rdata = fc_rport_create(lport, dp->port_id);
 	if (!rdata)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdata->disc_id = 0;
 	return fc_disc_gpn_id_req(lport, rdata);
 }

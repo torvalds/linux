@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI-SCI generic power domain
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 allOf:
   - $ref: /schemas/power/power-domain.yaml#
@@ -19,9 +19,9 @@ description: |
   between the host processor running an OS and the system controller happens
   through a protocol called TI System Control Interface (TI-SCI protocol).
 
-  This PM domain node represents the global PM domain managed by the TI-SCI
+  This PM domain analde represents the global PM domain managed by the TI-SCI
   controller. Since this relies on the TI SCI protocol to communicate with
-  the TI-SCI controller, it must be a child of the TI-SCI controller node.
+  the TI-SCI controller, it must be a child of the TI-SCI controller analde.
 
 properties:
   compatible:

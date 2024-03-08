@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -144,7 +144,7 @@ int kgd_arcturus_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -161,7 +161,7 @@ int kgd_arcturus_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_RPTR_HI,
 				m->sdmax_rlcx_rb_rptr_hi);
 
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 1);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 1);
 	if (read_user_wptr(mm, wptr64, data64)) {
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR,
 		       lower_32_bits(data64));
@@ -173,7 +173,7 @@ int kgd_arcturus_hqd_sdma_load(struct amdgpu_device *adev, void *mqd,
 		WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_WPTR_HI,
 		       m->sdmax_rlcx_rb_rptr_hi);
 	}
-	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MINOR_PTR_UPDATE, 0);
+	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_MIANALR_PTR_UPDATE, 0);
 
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE, m->sdmax_rlcx_rb_base);
 	WREG32(sdma_rlc_reg_offset + mmSDMA0_RLC0_RB_BASE_HI,
@@ -202,14 +202,14 @@ int kgd_arcturus_hqd_sdma_dump(struct amdgpu_device *adev,
 
 	*dump = kmalloc_array(HQD_N_REGS, sizeof(**dump), GFP_KERNEL);
 	if (*dump == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (reg = mmSDMA0_RLC0_RB_CNTL; reg <= mmSDMA0_RLC0_DOORBELL; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_STATUS; reg <= mmSDMA0_RLC0_CSA_ADDR_HI; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_IB_SUB_REMAIN;
-	     reg <= mmSDMA0_RLC0_MINOR_PTR_UPDATE; reg++)
+	     reg <= mmSDMA0_RLC0_MIANALR_PTR_UPDATE; reg++)
 		DUMP_REG(sdma_rlc_reg_offset + reg);
 	for (reg = mmSDMA0_RLC0_MIDCMD_DATA0;
 	     reg <= mmSDMA0_RLC0_MIDCMD_CNTL; reg++)
@@ -261,7 +261,7 @@ int kgd_arcturus_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC analt idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -340,9 +340,9 @@ out:
 }
 
 /*
- * restore_dbg_registers is ignored here but is a general interface requirement
+ * restore_dbg_registers is iganalred here but is a general interface requirement
  * for devices that support GFXOFF and where the RLC save/restore list
- * does not support hw registers for debugging i.e. the driver has to manually
+ * does analt support hw registers for debugging i.e. the driver has to manually
  * initialize the debug mode registers after it has disabled GFX off during the
  * debug session.
  */
@@ -366,7 +366,7 @@ static uint32_t kgd_arcturus_enable_debug_trap(struct amdgpu_device *adev,
 }
 
 /*
- * keep_trap_enabled is ignored here but is a general interface requirement
+ * keep_trap_enabled is iganalred here but is a general interface requirement
  * for devices that support multi-process debugging where the performance
  * overhead from trap temporary setup needs to be bypassed when the debug
  * session has ended.

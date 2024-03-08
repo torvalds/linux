@@ -2,7 +2,7 @@
 /*
  * Lite5200B board Device Tree Source
  *
- * Copyright 2006-2007 Secret Lab Technologies Ltd.
+ * Copyright 2006-2007 Secret Lab Techanallogies Ltd.
  * Grant Likely <grant.likely@secretlab.ca>
  */
 
@@ -69,7 +69,7 @@
 
 		// PSC3 in CODEC mode example
 		//i2s@2400 {		// PSC3
-		//	compatible = "fsl,mpc5200b-psc-i2s"; //not 5200 compatible
+		//	compatible = "fsl,mpc5200b-psc-i2s"; //analt 5200 compatible
 		//	cell-index = <2>;
 		//};
 

@@ -64,9 +64,9 @@ static void blk_register_tracepoints(void);
 static void blk_unregister_tracepoints(void);
 
 /*
- * Send out a notify message.
+ * Send out a analtify message.
  */
-static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+static void trace_analte(struct blk_trace *bt, pid_t pid, int action,
 		       const void *data, size_t len, u64 cgid)
 {
 	struct blk_io_trace *t;
@@ -112,10 +112,10 @@ record_it:
 }
 
 /*
- * Send out a notify for this process, if we haven't done so since a trace
+ * Send out a analtify for this process, if we haven't done so since a trace
  * started
  */
-static void trace_note_tsk(struct task_struct *tsk)
+static void trace_analte_tsk(struct task_struct *tsk)
 {
 	unsigned long flags;
 	struct blk_trace *bt;
@@ -123,29 +123,29 @@ static void trace_note_tsk(struct task_struct *tsk)
 	tsk->btrace_seq = blktrace_seq;
 	raw_spin_lock_irqsave(&running_trace_lock, flags);
 	list_for_each_entry(bt, &running_trace_list, running_list) {
-		trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm,
+		trace_analte(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm,
 			   sizeof(tsk->comm), 0);
 	}
 	raw_spin_unlock_irqrestore(&running_trace_lock, flags);
 }
 
-static void trace_note_time(struct blk_trace *bt)
+static void trace_analte_time(struct blk_trace *bt)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 	unsigned long flags;
 	u32 words[2];
 
 	/* need to check user space to see if this breaks in y2038 or y2106 */
-	ktime_get_real_ts64(&now);
-	words[0] = (u32)now.tv_sec;
-	words[1] = now.tv_nsec;
+	ktime_get_real_ts64(&analw);
+	words[0] = (u32)analw.tv_sec;
+	words[1] = analw.tv_nsec;
 
 	local_irq_save(flags);
-	trace_note(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words), 0);
+	trace_analte(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words), 0);
 	local_irq_restore(flags);
 }
 
-void __blk_trace_note_message(struct blk_trace *bt,
+void __blk_trace_analte_message(struct blk_trace *bt,
 		struct cgroup_subsys_state *css, const char *fmt, ...)
 {
 	int n;
@@ -159,10 +159,10 @@ void __blk_trace_note_message(struct blk_trace *bt,
 		return;
 
 	/*
-	 * If the BLK_TC_NOTIFY action mask isn't set, don't send any note
+	 * If the BLK_TC_ANALTIFY action mask isn't set, don't send any analte
 	 * message to the trace.
 	 */
-	if (!(bt->act_mask & BLK_TC_NOTIFY))
+	if (!(bt->act_mask & BLK_TC_ANALTIFY))
 		return;
 
 	local_irq_save(flags);
@@ -177,10 +177,10 @@ void __blk_trace_note_message(struct blk_trace *bt,
 	else
 		cgid = 1;
 #endif
-	trace_note(bt, current->pid, BLK_TN_MESSAGE, buf, n, cgid);
+	trace_analte(bt, current->pid, BLK_TN_MESSAGE, buf, n, cgid);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(__blk_trace_note_message);
+EXPORT_SYMBOL_GPL(__blk_trace_analte_message);
 
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 			 pid_t pid)
@@ -265,7 +265,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	}
 
 	if (unlikely(tsk->btrace_seq != blktrace_seq))
-		trace_note_tsk(tsk);
+		trace_analte_tsk(tsk);
 
 	/*
 	 * A word about the locking here - we disable interrupts to reserve
@@ -282,7 +282,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		t->time = ktime_to_ns(ktime_get());
 record_it:
 		/*
-		 * These two are not needed in ftrace as they are in the
+		 * These two are analt needed in ftrace as they are in the
 		 * generic trace_entry, filled by tracing_generic_entry_update,
 		 * but for the trace_event->bin() synthesizer benefit we do it
 		 * here too.
@@ -316,7 +316,7 @@ static void blk_trace_free(struct request_queue *q, struct blk_trace *bt)
 	relay_close(bt->rchan);
 
 	/*
-	 * If 'bt->dir' is not set, then both 'dropped' and 'msg' are created
+	 * If 'bt->dir' is analt set, then both 'dropped' and 'msg' are created
 	 * under 'q->debugfs_dir', thus lookup and remove them.
 	 */
 	if (!bt->dir) {
@@ -358,7 +358,7 @@ static int blk_trace_start(struct blk_trace *bt)
 	raw_spin_lock_irq(&running_trace_lock);
 	list_add(&bt->running_list, &running_trace_list);
 	raw_spin_unlock_irq(&running_trace_lock);
-	trace_note_time(bt);
+	trace_analte_time(bt);
 
 	return 0;
 }
@@ -443,7 +443,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 		return PTR_ERR(msg);
 
 	bt = filp->private_data;
-	__blk_trace_note_message(bt, NULL, "%s", msg);
+	__blk_trace_analte_message(bt, NULL, "%s", msg);
 	kfree(msg);
 
 	return count;
@@ -453,7 +453,7 @@ static const struct file_operations blk_msg_fops = {
 	.owner =	THIS_MODULE,
 	.open =		simple_open,
 	.write =	blk_msg_write,
-	.llseek =	noop_llseek,
+	.llseek =	analop_llseek,
 };
 
 /*
@@ -539,21 +539,21 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	 */
 	if (rcu_dereference_protected(q->blk_trace,
 				      lockdep_is_held(&q->debugfs_mutex))) {
-		pr_warn("Concurrent blktraces are not allowed on %s\n",
+		pr_warn("Concurrent blktraces are analt allowed on %s\n",
 			buts->name);
 		return -EBUSY;
 	}
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	bt->sequence = alloc_percpu(unsigned long);
 	if (!bt->sequence)
 		goto err;
 
-	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __alignof__(char));
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __aliganalf__(char));
 	if (!bt->msg_data)
 		goto err;
 
@@ -570,13 +570,13 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 
 	/*
 	 * As blktrace relies on debugfs for its interface the debugfs directory
-	 * is required, contrary to the usual mantra of not checking for debugfs
+	 * is required, contrary to the usual mantra of analt checking for debugfs
 	 * files or directories.
 	 */
 	if (IS_ERR_OR_NULL(dir)) {
-		pr_warn("debugfs_dir not present for %s so skipping\n",
+		pr_warn("debugfs_dir analt present for %s so skipping\n",
 			buts->name);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto err;
 	}
 
@@ -717,7 +717,7 @@ EXPORT_SYMBOL_GPL(blk_trace_startstop);
 /*
  * When reading or writing the blktrace sysfs files, the references to the
  * opened sysfs or device files should prevent the underlying block device
- * from being removed. So no further delete protection is really needed.
+ * from being removed. So anal further delete protection is really needed.
  */
 
 /**
@@ -756,7 +756,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 		ret = __blk_trace_remove(q);
 		break;
 	default:
-		ret = -ENOTTY;
+		ret = -EANALTTY;
 		break;
 	}
 
@@ -842,35 +842,35 @@ static void blk_add_trace_rq(struct request *rq, blk_status_t error,
 		what |= BLK_TC_ACT(BLK_TC_FS);
 
 	__blk_add_trace(bt, blk_rq_trace_sector(rq), nr_bytes, rq->cmd_flags,
-			what, blk_status_to_errno(error), 0, NULL, cgid);
+			what, blk_status_to_erranal(error), 0, NULL, cgid);
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_rq_insert(void *ignore, struct request *rq)
+static void blk_add_trace_rq_insert(void *iganalre, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_INSERT,
 			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_issue(void *ignore, struct request *rq)
+static void blk_add_trace_rq_issue(void *iganalre, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_ISSUE,
 			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_merge(void *ignore, struct request *rq)
+static void blk_add_trace_rq_merge(void *iganalre, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_BACKMERGE,
 			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_requeue(void *ignore, struct request *rq)
+static void blk_add_trace_rq_requeue(void *iganalre, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_REQUEUE,
 			 blk_trace_request_get_cgid(rq));
 }
 
-static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
+static void blk_add_trace_rq_complete(void *iganalre, struct request *rq,
 			blk_status_t error, unsigned int nr_bytes)
 {
 	blk_add_trace_rq(rq, error, nr_bytes, BLK_TA_COMPLETE,
@@ -906,41 +906,41 @@ static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_bio_bounce(void *ignore, struct bio *bio)
+static void blk_add_trace_bio_bounce(void *iganalre, struct bio *bio)
 {
 	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_BOUNCE, 0);
 }
 
-static void blk_add_trace_bio_complete(void *ignore,
+static void blk_add_trace_bio_complete(void *iganalre,
 				       struct request_queue *q, struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE,
-			  blk_status_to_errno(bio->bi_status));
+			  blk_status_to_erranal(bio->bi_status));
 }
 
-static void blk_add_trace_bio_backmerge(void *ignore, struct bio *bio)
+static void blk_add_trace_bio_backmerge(void *iganalre, struct bio *bio)
 {
 	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_BACKMERGE,
 			0);
 }
 
-static void blk_add_trace_bio_frontmerge(void *ignore, struct bio *bio)
+static void blk_add_trace_bio_frontmerge(void *iganalre, struct bio *bio)
 {
 	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_FRONTMERGE,
 			0);
 }
 
-static void blk_add_trace_bio_queue(void *ignore, struct bio *bio)
+static void blk_add_trace_bio_queue(void *iganalre, struct bio *bio)
 {
 	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_QUEUE, 0);
 }
 
-static void blk_add_trace_getrq(void *ignore, struct bio *bio)
+static void blk_add_trace_getrq(void *iganalre, struct bio *bio)
 {
 	blk_add_trace_bio(bio->bi_bdev->bd_disk->queue, bio, BLK_TA_GETRQ, 0);
 }
 
-static void blk_add_trace_plug(void *ignore, struct request_queue *q)
+static void blk_add_trace_plug(void *iganalre, struct request_queue *q)
 {
 	struct blk_trace *bt;
 
@@ -951,7 +951,7 @@ static void blk_add_trace_plug(void *ignore, struct request_queue *q)
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
+static void blk_add_trace_unplug(void *iganalre, struct request_queue *q,
 				    unsigned int depth, bool explicit)
 {
 	struct blk_trace *bt;
@@ -972,7 +972,7 @@ static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
 	rcu_read_unlock();
 }
 
-static void blk_add_trace_split(void *ignore, struct bio *bio, unsigned int pdu)
+static void blk_add_trace_split(void *iganalre, struct bio *bio, unsigned int pdu)
 {
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
 	struct blk_trace *bt;
@@ -984,7 +984,7 @@ static void blk_add_trace_split(void *ignore, struct bio *bio, unsigned int pdu)
 
 		__blk_add_trace(bt, bio->bi_iter.bi_sector,
 				bio->bi_iter.bi_size, bio->bi_opf, BLK_TA_SPLIT,
-				blk_status_to_errno(bio->bi_status),
+				blk_status_to_erranal(bio->bi_status),
 				sizeof(rpdu), &rpdu,
 				blk_trace_bio_get_cgid(q, bio));
 	}
@@ -993,14 +993,14 @@ static void blk_add_trace_split(void *ignore, struct bio *bio, unsigned int pdu)
 
 /**
  * blk_add_trace_bio_remap - Add a trace for a bio-remap operation
- * @ignore:	trace callback data parameter (not used)
+ * @iganalre:	trace callback data parameter (analt used)
  * @bio:	the source bio
  * @dev:	source device
  * @from:	source sector
  *
  * Called after a bio is remapped to a different device and/or sector.
  **/
-static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
+static void blk_add_trace_bio_remap(void *iganalre, struct bio *bio, dev_t dev,
 				    sector_t from)
 {
 	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
@@ -1020,14 +1020,14 @@ static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
 
 	__blk_add_trace(bt, bio->bi_iter.bi_sector, bio->bi_iter.bi_size,
 			bio->bi_opf, BLK_TA_REMAP,
-			blk_status_to_errno(bio->bi_status),
+			blk_status_to_erranal(bio->bi_status),
 			sizeof(r), &r, blk_trace_bio_get_cgid(q, bio));
 	rcu_read_unlock();
 }
 
 /**
  * blk_add_trace_rq_remap - Add a trace for a request-remap operation
- * @ignore:	trace callback data parameter (not used)
+ * @iganalre:	trace callback data parameter (analt used)
  * @rq:		the source request
  * @dev:	target device
  * @from:	source sector
@@ -1037,7 +1037,7 @@ static void blk_add_trace_bio_remap(void *ignore, struct bio *bio, dev_t dev,
  *     Add a trace for that action.
  *
  **/
-static void blk_add_trace_rq_remap(void *ignore, struct request *rq, dev_t dev,
+static void blk_add_trace_rq_remap(void *iganalre, struct request *rq, dev_t dev,
 				   sector_t from)
 {
 	struct blk_trace *bt;
@@ -1254,7 +1254,7 @@ static void blk_log_action_classic(struct trace_iterator *iter, const char *act,
 
 	trace_seq_printf(&iter->seq,
 			 "%3d,%-3d %2d %5d.%09lu %5u %2s %3s ",
-			 MAJOR(t->device), MINOR(t->device), iter->cpu,
+			 MAJOR(t->device), MIANALR(t->device), iter->cpu,
 			 secs, nsec_rem, iter->ent->pid, act, rwbs);
 }
 
@@ -1274,30 +1274,30 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 			cgroup_path_from_kernfs_id(id, blkcg_name_buf,
 				sizeof(blkcg_name_buf));
 			trace_seq_printf(&iter->seq, "%3d,%-3d %s %2s %3s ",
-				 MAJOR(t->device), MINOR(t->device),
+				 MAJOR(t->device), MIANALR(t->device),
 				 blkcg_name_buf, act, rwbs);
 		} else {
 			/*
-			 * The cgid portion used to be "INO,GEN".  Userland
-			 * builds a FILEID_INO32_GEN fid out of them and
+			 * The cgid portion used to be "IANAL,GEN".  Userland
+			 * builds a FILEID_IANAL32_GEN fid out of them and
 			 * opens the cgroup using open_by_handle_at(2).
-			 * While 32bit ino setups are still the same, 64bit
-			 * ones now use the 64bit ino as the whole ID and
-			 * no longer use generation.
+			 * While 32bit ianal setups are still the same, 64bit
+			 * ones analw use the 64bit ianal as the whole ID and
+			 * anal longer use generation.
 			 *
 			 * Regardless of the content, always output
-			 * "LOW32,HIGH32" so that FILEID_INO32_GEN fid can
-			 * be mapped back to @id on both 64 and 32bit ino
+			 * "LOW32,HIGH32" so that FILEID_IANAL32_GEN fid can
+			 * be mapped back to @id on both 64 and 32bit ianal
 			 * setups.  See __kernfs_fh_to_dentry().
 			 */
 			trace_seq_printf(&iter->seq,
 				 "%3d,%-3d %llx,%-llx %2s %3s ",
-				 MAJOR(t->device), MINOR(t->device),
+				 MAJOR(t->device), MIANALR(t->device),
 				 id & U32_MAX, id >> 32, act, rwbs);
 		}
 	} else
 		trace_seq_printf(&iter->seq, "%3d,%-3d %2s %3s ",
-				 MAJOR(t->device), MINOR(t->device), act, rwbs);
+				 MAJOR(t->device), MIANALR(t->device), act, rwbs);
 }
 
 static void blk_log_dump_pdu(struct trace_seq *s,
@@ -1382,7 +1382,7 @@ static void blk_log_remap(struct trace_seq *s, const struct trace_entry *ent, bo
 	trace_seq_printf(s, "%llu + %u <- (%d,%d) %llu\n",
 			 t_sector(ent), t_sec(ent),
 			 MAJOR(be32_to_cpu(__r->device_from)),
-			 MINOR(be32_to_cpu(__r->device_from)),
+			 MIANALR(be32_to_cpu(__r->device_from)),
 			 be64_to_cpu(__r->sector_from));
 }
 
@@ -1503,7 +1503,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
-		trace_seq_printf(s, "Unknown action %x\n", what);
+		trace_seq_printf(s, "Unkanalwn action %x\n", what);
 	else {
 		log_action(iter, what2act[what].act[long_act], has_cg);
 		what2act[what].print(s, iter->ent, has_cg);
@@ -1589,12 +1589,12 @@ static struct trace_event trace_blk_event = {
 static int __init init_blk_tracer(void)
 {
 	if (!register_trace_event(&trace_blk_event)) {
-		pr_warn("Warning: could not register block events\n");
+		pr_warn("Warning: could analt register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
-		pr_warn("Warning: could not register the block tracer\n");
+		pr_warn("Warning: could analt register the block tracer\n");
 		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}
@@ -1628,13 +1628,13 @@ static int blk_trace_setup_queue(struct request_queue *q,
 				 struct block_device *bdev)
 {
 	struct blk_trace *bt = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
 	if (!bt)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __alignof__(char));
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __aliganalf__(char));
 	if (!bt->msg_data)
 		goto free_bt;
 
@@ -1701,7 +1701,7 @@ static const struct {
 	{ BLK_TC_COMPLETE,	"complete"	},
 	{ BLK_TC_FS,		"fs"		},
 	{ BLK_TC_PC,		"pc"		},
-	{ BLK_TC_NOTIFY,	"notify"	},
+	{ BLK_TC_ANALTIFY,	"analtify"	},
 	{ BLK_TC_AHEAD,		"ahead"		},
 	{ BLK_TC_META,		"meta"		},
 	{ BLK_TC_DISCARD,	"discard"	},
@@ -1717,7 +1717,7 @@ static int blk_trace_str2mask(const char *str)
 
 	buf = kstrdup(str, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	s = strstrip(buf);
 
 	while (1) {

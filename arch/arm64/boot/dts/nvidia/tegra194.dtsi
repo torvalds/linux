@@ -90,8 +90,8 @@
 			gpio-ranges = <&pinmux 0 0 169>;
 		};
 
-		cbb-noc@2300000 {
-			compatible = "nvidia,tegra194-cbb-noc";
+		cbb-analc@2300000 {
+			compatible = "nvidia,tegra194-cbb-analc";
 			reg = <0x0 0x02300000 0x0 0x1000>;
 			interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
@@ -123,7 +123,7 @@
 					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
-					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+					nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				};
 			};
 
@@ -134,7 +134,7 @@
 					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
-					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+					nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
 				};
 			};
 		};
@@ -1535,8 +1535,8 @@
 			#phy-cells = <0>;
 		};
 
-		sce-noc@b600000 {
-			compatible = "nvidia,tegra194-sce-noc";
+		sce-analc@b600000 {
+			compatible = "nvidia,tegra194-sce-analc";
 			reg = <0x0 0xb600000 0x0 0x1000>;
 			interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
@@ -1545,8 +1545,8 @@
 			status = "okay";
 		};
 
-		rce-noc@be00000 {
-			compatible = "nvidia,tegra194-rce-noc";
+		rce-analc@be00000 {
+			compatible = "nvidia,tegra194-rce-analc";
 			reg = <0x0 0xbe00000 0x0 0x1000>;
 			interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
@@ -1711,8 +1711,8 @@
 			};
 		};
 
-		aon-noc@c600000 {
-			compatible = "nvidia,tegra194-aon-noc";
+		aon-analc@c600000 {
+			compatible = "nvidia,tegra194-aon-analc";
 			reg = <0x0 0xc600000 0x0 0x1000>;
 			interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
@@ -1720,8 +1720,8 @@
 			status = "okay";
 		};
 
-		bpmp-noc@d600000 {
-			compatible = "nvidia,tegra194-bpmp-noc";
+		bpmp-analc@d600000 {
+			compatible = "nvidia,tegra194-bpmp-analc";
 			reg = <0x0 0xd600000 0x0 0x1000>;
 			interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
@@ -2395,7 +2395,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x12 0x00000000 0x12 0x00000000 0x0 0x30000000>, /* prefetchable memory (768 MiB) */
-				 <0x02000000 0x0  0x40000000 0x12 0x30000000 0x0 0x0fff0000>, /* non-prefetchable memory (256 MiB - 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x12 0x30000000 0x0 0x0fff0000>, /* analn-prefetchable memory (256 MiB - 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x12 0x3fff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE1R &emc>,
@@ -2447,7 +2447,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x12 0x40000000 0x12 0x40000000 0x0 0x30000000>, /* prefetchable memory (768 MiB) */
-				 <0x02000000 0x0  0x40000000 0x12 0x70000000 0x0 0x0fff0000>, /* non-prefetchable memory (256 MiB - 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x12 0x70000000 0x0 0x0fff0000>, /* analn-prefetchable memory (256 MiB - 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x12 0x7fff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE2AR &emc>,
@@ -2499,7 +2499,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x12 0x80000000 0x12 0x80000000 0x0 0x30000000>, /* prefetchable memory (768 MiB) */
-				 <0x02000000 0x0  0x40000000 0x12 0xb0000000 0x0 0x0fff0000>, /* non-prefetchable memory (256 MiB + 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x12 0xb0000000 0x0 0x0fff0000>, /* analn-prefetchable memory (256 MiB + 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x12 0xbfff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE3R &emc>,
@@ -2551,7 +2551,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x14 0x00000000 0x14 0x00000000 0x3 0x40000000>, /* prefetchable memory (13 GiB) */
-				 <0x02000000 0x0  0x40000000 0x17 0x40000000 0x0 0xbfff0000>, /* non-prefetchable memory (3 GiB - 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x17 0x40000000 0x0 0xbfff0000>, /* analn-prefetchable memory (3 GiB - 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x17 0xffff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
@@ -2642,7 +2642,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x18 0x00000000 0x18 0x00000000 0x3 0x40000000>, /* prefetchable memory (13 GiB) */
-				 <0x02000000 0x0  0x40000000 0x1b 0x40000000 0x0 0xbfff0000>, /* non-prefetchable memory (3 GiB - 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x1b 0x40000000 0x0 0xbfff0000>, /* analn-prefetchable memory (3 GiB - 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x1b 0xffff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
@@ -2736,7 +2736,7 @@
 			bus-range = <0x0 0xff>;
 
 			ranges = <0x43000000 0x1c 0x00000000 0x1c 0x00000000 0x3 0x40000000>, /* prefetchable memory (13 GiB) */
-				 <0x02000000 0x0  0x40000000 0x1f 0x40000000 0x0 0xbfff0000>, /* non-prefetchable memory (3 GiB - 64 KiB) */
+				 <0x02000000 0x0  0x40000000 0x1f 0x40000000 0x0 0xbfff0000>, /* analn-prefetchable memory (3 GiB - 64 KiB) */
 				 <0x01000000 0x0  0x00000000 0x1f 0xffff0000 0x0 0x00010000>; /* downstream I/O (64 KiB) */
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
@@ -2795,7 +2795,7 @@
 			      <0x0 0x18000000 0x0 0x1000000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "stall", "nonstall";
+			interrupt-names = "stall", "analnstall";
 			clocks = <&bpmp TEGRA194_CLK_GPCCLK>,
 				 <&bpmp TEGRA194_CLK_GPU_PWR>,
 				 <&bpmp TEGRA194_CLK_FUSE>;
@@ -2832,7 +2832,7 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x40000000 0x50000>;
 
-		no-memory-wc;
+		anal-memory-wc;
 
 		cpu_bpmp_tx: sram@4e000 {
 			reg = <0x4e000 0x1000>;

@@ -308,7 +308,7 @@ config CRYPTO_SM4_ARM64_CE_GCM
 
 	  Architecture: arm64 using:
 	  - ARMv8 Crypto Extensions
-	  - PMULL (Polynomial Multiply Long) instructions
+	  - PMULL (Polyanalmial Multiply Long) instructions
 	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_CRCT10DIF_ARM64_CE
@@ -319,7 +319,7 @@ config CRYPTO_CRCT10DIF_ARM64_CE
 	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
 
 	  Architecture: arm64 using
-	  - PMULL (Polynomial Multiply Long) instructions
+	  - PMULL (Polyanalmial Multiply Long) instructions
 
 endmenu
 

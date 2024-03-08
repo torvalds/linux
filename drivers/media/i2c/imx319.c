@@ -9,7 +9,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 
 #define IMX319_REG_MODE_SELECT		0x0100
 #define IMX319_MODE_STANDBY		0x00
@@ -1868,7 +1868,7 @@ static int imx319_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	try_fmt->width = imx319->cur_mode->width;
 	try_fmt->height = imx319->cur_mode->height;
 	try_fmt->code = imx319_get_format_code(imx319);
-	try_fmt->field = V4L2_FIELD_NONE;
+	try_fmt->field = V4L2_FIELD_ANALNE;
 
 	mutex_unlock(&imx319->mutex);
 
@@ -1932,7 +1932,7 @@ static int imx319_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
+		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is analt handled",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -1993,7 +1993,7 @@ static void imx319_update_pad_format(struct imx319 *imx319,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = imx319_get_format_code(imx319);
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 }
 
 static int imx319_do_get_pad_format(struct imx319 *imx319,
@@ -2071,7 +2071,7 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(imx319->vblank, vblank_def);
 		h_blank = mode->llp - imx319->cur_mode->width;
 		/*
-		 * Currently hblank is not changeable.
+		 * Currently hblank is analt changeable.
 		 * So FPS control is done only by vblank.
 		 */
 		__v4l2_ctrl_modify_range(imx319->hblank, h_blank,
@@ -2181,7 +2181,7 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	__v4l2_ctrl_grab(imx319->vflip, enable);
 	__v4l2_ctrl_grab(imx319->hflip, enable);
 
@@ -2327,22 +2327,22 @@ error:
 static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 {
 	struct imx319_hwcfg *cfg;
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwanalde_handle *ep;
+	struct fwanalde_handle *fwanalde = dev_fwanalde(dev);
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return NULL;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return NULL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (ret)
 		goto out_err;
 
@@ -2350,7 +2350,7 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwanalde_property_read_u32(dev_fwanalde(dev), "clock-frequency",
 				       &cfg->ext_clk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
@@ -2359,14 +2359,14 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 
 	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
 	if (cfg->ext_clk != IMX319_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
+		dev_err(dev, "external clock %d is analt supported",
 			cfg->ext_clk);
 		goto out_err;
 	}
 
 	dev_dbg(dev, "num of link freqs: %d", bus_cfg.nr_of_link_frequencies);
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined");
+		dev_warn(dev, "anal link frequencies defined");
 		goto out_err;
 	}
 
@@ -2382,13 +2382,13 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 		dev_dbg(dev, "link_freq[%d] = %lld", i, cfg->link_freqs[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 	return cfg;
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
+	fwanalde_handle_put(ep);
 	return NULL;
 }
 
@@ -2401,7 +2401,7 @@ static int imx319_probe(struct i2c_client *client)
 
 	imx319 = devm_kzalloc(&client->dev, sizeof(*imx319), GFP_KERNEL);
 	if (!imx319)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&imx319->mutex);
 
@@ -2421,7 +2421,7 @@ static int imx319_probe(struct i2c_client *client)
 	imx319->hwcfg = imx319_get_hwcfg(&client->dev);
 	if (!imx319->hwcfg) {
 		dev_err(&client->dev, "failed to get hwcfg");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto error_probe;
 	}
 
@@ -2434,7 +2434,7 @@ static int imx319_probe(struct i2c_client *client)
 	}
 
 	if (i == imx319->hwcfg->nr_of_link_freqs) {
-		dev_err(&client->dev, "no link frequency supported");
+		dev_err(&client->dev, "anal link frequency supported");
 		ret = -EINVAL;
 		goto error_probe;
 	}
@@ -2450,7 +2450,7 @@ static int imx319_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	imx319->sd.internal_ops = &imx319_internal_ops;
-	imx319->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	imx319->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 		V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx319->sd.entity.ops = &imx319_subdev_entity_ops;
 	imx319->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

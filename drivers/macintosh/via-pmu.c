@@ -6,7 +6,7 @@
  * a 6805 microprocessor core whose primary function is to control
  * battery charging and system power on the PowerBook 3400 and 2400.
  * The PMU also controls the ADB (Apple Desktop Bus) which connects
- * to the keyboard and mouse, as well as the non-volatile RAM
+ * to the keyboard and mouse, as well as the analn-volatile RAM
  * and the RTC (real time clock) chip.
  *
  * Copyright (C) 1998 Paul Mackerras and Fabio Riccardi.
@@ -21,7 +21,7 @@
 #include <linux/stdarg.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched/signal.h>
@@ -96,11 +96,11 @@ static DEFINE_MUTEX(pmu_info_proc_mutex);
 #define PCR		(12*RS)		/* Peripheral control register */
 #define IFR		(13*RS)		/* Interrupt flag register */
 #define IER		(14*RS)		/* Interrupt enable register */
-#define ANH		(15*RS)		/* A-side data, no handshake */
+#define ANH		(15*RS)		/* A-side data, anal handshake */
 
 /* Bits in B data register: both active low */
 #ifdef CONFIG_PPC_PMAC
-#define TACK		0x08		/* Transfer acknowledge (input) */
+#define TACK		0x08		/* Transfer ackanalwledge (input) */
 #define TREQ		0x10		/* Transfer request (output) */
 #else
 #define TACK		0x02
@@ -147,14 +147,14 @@ static int data_index;
 static int data_len;
 static volatile int adb_int_pending;
 static volatile int disable_poll;
-static int pmu_kind = PMU_UNKNOWN;
+static int pmu_kind = PMU_UNKANALWN;
 static int pmu_fully_inited;
 static int pmu_has_adb;
 #ifdef CONFIG_PPC_PMAC
 static volatile unsigned char __iomem *via1;
 static volatile unsigned char __iomem *via2;
-static struct device_node *vias;
-static struct device_node *gpio_node;
+static struct device_analde *vias;
+static struct device_analde *gpio_analde;
 #endif
 static unsigned char __iomem *gpio_reg;
 static int gpio_irq = 0;
@@ -276,7 +276,7 @@ static const s8 pmu_data_len[256][2] = {
 };
 
 static char *pbook_type[] = {
-	"Unknown PowerBook",
+	"Unkanalwn PowerBook",
 	"PowerBook 2400/3400/3500(G3)",
 	"PowerBook G3 Series",
 	"1999 PowerBook G3",
@@ -292,7 +292,7 @@ int __init find_via_pmu(void)
 
 	if (pmu_state != uninitialized)
 		return 1;
-	vias = of_find_node_by_name(NULL, "via-pmu");
+	vias = of_find_analde_by_name(NULL, "via-pmu");
 	if (vias == NULL)
 		return 0;
 
@@ -310,7 +310,7 @@ int __init find_via_pmu(void)
 			PMU_INT_ADB |
 			PMU_INT_TICK;
 	
-	if (of_node_name_eq(vias->parent, "ohare") ||
+	if (of_analde_name_eq(vias->parent, "ohare") ||
 	    of_device_is_compatible(vias->parent, "ohare"))
 		pmu_kind = PMU_OHARE_BASED;
 	else if (of_device_is_compatible(vias->parent, "paddington"))
@@ -319,31 +319,31 @@ int __init find_via_pmu(void)
 		pmu_kind = PMU_HEATHROW_BASED;
 	else if (of_device_is_compatible(vias->parent, "Keylargo")
 		 || of_device_is_compatible(vias->parent, "K2-Keylargo")) {
-		struct device_node *gpiop;
-		struct device_node *adbp;
+		struct device_analde *gpiop;
+		struct device_analde *adbp;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
-		adbp = of_find_node_by_type(NULL, "adb");
+		adbp = of_find_analde_by_type(NULL, "adb");
 		pmu_has_adb = (adbp != NULL);
-		of_node_put(adbp);
+		of_analde_put(adbp);
 		pmu_intr_mask =	PMU_INT_PCEJECT |
 				PMU_INT_SNDBRT |
 				PMU_INT_ADB |
 				PMU_INT_TICK |
 				PMU_INT_ENVIRONMENT;
 		
-		gpiop = of_find_node_by_name(NULL, "gpio");
+		gpiop = of_find_analde_by_name(NULL, "gpio");
 		if (gpiop) {
 			if (!of_address_to_resource(gpiop, 0, &res))
 				gpio_reg = ioremap(res.start, 0x10);
-			of_node_put(gpiop);
+			of_analde_put(gpiop);
 		}
 		if (gpio_reg == NULL) {
 			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
 			goto fail;
 		}
 	} else
-		pmu_kind = PMU_UNKNOWN;
+		pmu_kind = PMU_UNKANALWN;
 
 	via1 = via2 = ioremap(taddr, 0x2000);
 	if (via1 == NULL) {
@@ -370,7 +370,7 @@ int __init find_via_pmu(void)
 	iounmap(gpio_reg);
 	gpio_reg = NULL;
  fail:
-	of_node_put(vias);
+	of_analde_put(vias);
 	vias = NULL;
 	pmu_state = uninitialized;
 	return 0;
@@ -378,7 +378,7 @@ int __init find_via_pmu(void)
 	if (macintosh_config->adb_type != MAC_ADB_PB2)
 		return 0;
 
-	pmu_kind = PMU_UNKNOWN;
+	pmu_kind = PMU_UNKANALWN;
 
 	pmu_has_adb = 1;
 
@@ -401,12 +401,12 @@ int __init find_via_pmu(void)
 #ifdef CONFIG_ADB
 static int pmu_probe(void)
 {
-	return pmu_state == uninitialized ? -ENODEV : 0;
+	return pmu_state == uninitialized ? -EANALDEV : 0;
 }
 
 static int pmu_init(void)
 {
-	return pmu_state == uninitialized ? -ENODEV : 0;
+	return pmu_state == uninitialized ? -EANALDEV : 0;
 }
 #endif /* CONFIG_ADB */
 
@@ -422,7 +422,7 @@ static int __init via_pmu_start(void)
 	unsigned int __maybe_unused irq;
 
 	if (pmu_state == uninitialized)
-		return -ENODEV;
+		return -EANALDEV;
 
 	batt_req.complete = 1;
 
@@ -430,29 +430,29 @@ static int __init via_pmu_start(void)
 	irq = irq_of_parse_and_map(vias, 0);
 	if (!irq) {
 		printk(KERN_ERR "via-pmu: can't map interrupt\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	/* We set IRQF_NO_SUSPEND because we don't want the interrupt
+	/* We set IRQF_ANAL_SUSPEND because we don't want the interrupt
 	 * to be disabled between the 2 passes of driver suspend, we
 	 * control our own disabling for that one
 	 */
-	if (request_irq(irq, via_pmu_interrupt, IRQF_NO_SUSPEND,
+	if (request_irq(irq, via_pmu_interrupt, IRQF_ANAL_SUSPEND,
 			"VIA-PMU", (void *)0)) {
 		printk(KERN_ERR "via-pmu: can't request irq %d\n", irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pmu_kind == PMU_KEYLARGO_BASED) {
-		gpio_node = of_find_node_by_name(NULL, "extint-gpio1");
-		if (gpio_node == NULL)
-			gpio_node = of_find_node_by_name(NULL,
+		gpio_analde = of_find_analde_by_name(NULL, "extint-gpio1");
+		if (gpio_analde == NULL)
+			gpio_analde = of_find_analde_by_name(NULL,
 							 "pmu-interrupt");
-		if (gpio_node)
-			gpio_irq = irq_of_parse_and_map(gpio_node, 0);
+		if (gpio_analde)
+			gpio_irq = irq_of_parse_and_map(gpio_analde, 0);
 
 		if (gpio_irq) {
 			if (request_irq(gpio_irq, gpio1_interrupt,
-					IRQF_NO_SUSPEND, "GPIO1 ADB",
+					IRQF_ANAL_SUSPEND, "GPIO1 ADB",
 					(void *)0))
 				printk(KERN_ERR "pmu: can't get irq %d"
 				       " (GPIO1)\n", gpio_irq);
@@ -464,16 +464,16 @@ static int __init via_pmu_start(void)
 	/* Enable interrupts */
 	out_8(&via1[IER], IER_SET | SR_INT | CB1_INT);
 #else
-	if (request_irq(IRQ_MAC_ADB_SR, via_pmu_interrupt, IRQF_NO_SUSPEND,
+	if (request_irq(IRQ_MAC_ADB_SR, via_pmu_interrupt, IRQF_ANAL_SUSPEND,
 			"VIA-PMU-SR", NULL)) {
 		pr_err("%s: couldn't get SR irq\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
-	if (request_irq(IRQ_MAC_ADB_CL, via_pmu_interrupt, IRQF_NO_SUSPEND,
+	if (request_irq(IRQ_MAC_ADB_CL, via_pmu_interrupt, IRQF_ANAL_SUSPEND,
 			"VIA-PMU-CL", NULL)) {
 		pr_err("%s: couldn't get CL irq\n", __func__);
 		free_irq(IRQ_MAC_ADB_SR, NULL);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 #endif /* !CONFIG_PPC_PMAC */
 
@@ -482,7 +482,7 @@ static int __init via_pmu_start(void)
 	/* Make sure PMU settle down before continuing. This is _very_ important
 	 * since the IDE probe may shut interrupts down for quite a bit of time. If
 	 * a PMU communication is pending while this happens, the PMU may timeout
-	 * Not that on Core99 machines, the PMU keeps sending us environement
+	 * Analt that on Core99 machines, the PMU keeps sending us environement
 	 * messages, we should find a way to either fix IDE or make it call
 	 * pmu_suspend() before masking interrupts. This can also happens while
 	 * scolling with some fbdevs.
@@ -502,7 +502,7 @@ arch_initcall(via_pmu_start);
 static int __init via_pmu_dev_init(void)
 {
 	if (pmu_state == uninitialized)
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Initialize backlight */
@@ -525,19 +525,19 @@ static int __init via_pmu_dev_init(void)
 		pmu_batteries[0].flags |= PMU_BATT_TYPE_SMART;
 		pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 	} else {
-		struct device_node* prim =
-			of_find_node_by_name(NULL, "power-mgt");
+		struct device_analde* prim =
+			of_find_analde_by_name(NULL, "power-mgt");
 		const u32 *prim_info = NULL;
 		if (prim)
 			prim_info = of_get_property(prim, "prim-info", NULL);
 		if (prim_info) {
-			/* Other stuffs here yet unknown */
+			/* Other stuffs here yet unkanalwn */
 			pmu_battery_count = (prim_info[6] >> 16) & 0xff;
 			pmu_batteries[0].flags |= PMU_BATT_TYPE_SMART;
 			if (pmu_battery_count > 1)
 				pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;
 		}
-		of_node_put(prim);
+		of_analde_put(prim);
 	}
 #endif /* CONFIG_PPC32 */
 
@@ -580,7 +580,7 @@ init_pmu(void)
 	timeout =  100000;
 	while (!req.complete) {
 		if (--timeout < 0) {
-			printk(KERN_ERR "init_pmu: no response from PMU\n");
+			printk(KERN_ERR "init_pmu: anal response from PMU\n");
 			return 0;
 		}
 		udelay(10);
@@ -759,7 +759,7 @@ static void
 done_battery_state_smart(struct adb_request* req)
 {
 	/* format:
-	 *  [0] : format of this structure (known: 3,4,5)
+	 *  [0] : format of this structure (kanalwn: 3,4,5)
 	 *  [1] : flags
 	 *  
 	 *  format 3 & 4:
@@ -863,8 +863,8 @@ static int pmu_irqstats_proc_show(struct seq_file *m, void *v)
 {
 	int i;
 	static const char *irq_names[NUM_IRQ_STATS] = {
-		"Unknown interrupt (type 0)",
-		"Unknown interrupt (type 1)",
+		"Unkanalwn interrupt (type 0)",
+		"Unkanalwn interrupt (type 1)",
 		"PC-Card eject button",
 		"Sound/Brightness button",
 		"ADB message",
@@ -912,7 +912,7 @@ static int pmu_options_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pmu_options_proc_open(struct inode *inode, struct file *file)
+static int pmu_options_proc_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, pmu_options_proc_show, NULL);
 }
@@ -1186,7 +1186,7 @@ wait_for_ack(void)
 	int timeout = 4000;
 	while ((in_8(&via2[B]) & TACK) == 0) {
 		if (--timeout < 0) {
-			printk(KERN_ERR "PMU not responding (!ack)\n");
+			printk(KERN_ERR "PMU analt responding (!ack)\n");
 			return;
 		}
 		udelay(10);
@@ -1286,7 +1286,7 @@ pmu_wait_complete(struct adb_request *req)
 
 /* This function loops until the PMU is idle and prevents it from
  * anwsering to ADB interrupts. pmu_request can still be called.
- * This is done to avoid spurrious shutdowns when we know we'll have
+ * This is done to avoid spurrious shutdowns when we kanalw we'll have
  * interrupts switched off for a long time
  */
 void
@@ -1312,7 +1312,7 @@ pmu_suspend(void)
 		spin_lock_irqsave(&pmu_lock, flags);
 		if (!adb_int_pending && pmu_state == idle && !req_awaiting_reply) {
 			if (gpio_irq >= 0)
-				disable_irq_nosync(gpio_irq);
+				disable_irq_analsync(gpio_irq);
 			out_8(&via1[IER], CB1_INT | IER_CLR);
 			spin_unlock_irqrestore(&pmu_lock, flags);
 			break;
@@ -1381,8 +1381,8 @@ next:
 
 	pmu_irq_stats[idx]++;
 
-	/* Note: for some reason, we get an interrupt with len=1,
-	 * data[0]==0 after each normal ADB interrupt, at least
+	/* Analte: for some reason, we get an interrupt with len=1,
+	 * data[0]==0 after each analrmal ADB interrupt, at least
 	 * on the Pismo. Still investigating...  --BenH
 	 */
 	switch (BIT(idx)) {
@@ -1416,7 +1416,7 @@ next:
 			 * XXX On the [23]400 the PMU gives us an up
 			 * event for keycodes 0x74 or 0x75 when the PC
 			 * card eject buttons are released, so we
-			 * ignore those events.
+			 * iganalre those events.
 			 */
 			if (!(pmu_kind == PMU_OHARE_BASED && len == 4
 			      && data[1] == 0x2c && data[3] == 0xff
@@ -1450,7 +1450,7 @@ next:
 			query_battery_state();
 		pmu_pass_intr(data, len);
 		/* len == 6 is probably a bad check. But how do I
-		 * know what PMU versions send what events here? */
+		 * kanalw what PMU versions send what events here? */
 		if (IS_ENABLED(CONFIG_ADB_PMU_EVENT) && len == 6) {
 			via_pmu_event(PMU_EVT_POWER, !!(data[1]&8));
 			via_pmu_event(PMU_EVT_LID, data[1]&1);
@@ -1473,7 +1473,7 @@ pmu_sr_intr(void)
 		printk(KERN_ERR "PMU: spurious SR intr (%x)\n", in_8(&via2[B]));
 		return NULL;
 	}
-	/* The ack may not yet be low when we get the interrupt */
+	/* The ack may analt yet be low when we get the interrupt */
 	while ((in_8(&via2[B]) & TACK) != 0)
 			;
 
@@ -1562,7 +1562,7 @@ pmu_sr_intr(void)
 		break;
 
 	default:
-		printk(KERN_ERR "via_pmu_interrupt: unknown state %d?\n",
+		printk(KERN_ERR "via_pmu_interrupt: unkanalwn state %d?\n",
 		       pmu_state);
 	}
 	return NULL;
@@ -1633,7 +1633,7 @@ recheck:
 			else if (int_data_state[1] == int_data_empty)
 				int_data_last = 1;
 			else
-				goto no_free_slot;
+				goto anal_free_slot;
 			pmu_state = intack;
 			int_data_state[int_data_last] = int_data_fill;
 			/* Sounds safer to make sure ACK is high before writing.
@@ -1645,7 +1645,7 @@ recheck:
 		} else if (current_req)
 			pmu_start();
 	}
-no_free_slot:			
+anal_free_slot:			
 	/* Mark the oldest buffer for flushing */
 	if (int_data_state[!int_data_last] == int_data_ready) {
 		int_data_state[!int_data_last] = int_data_flush;
@@ -1697,7 +1697,7 @@ gpio1_interrupt(int irq, void *arg)
 	if ((in_8(gpio_reg + 0x9) & 0x02) == 0) {
 		spin_lock_irqsave(&pmu_lock, flags);
 		if (gpio_irq_enabled > 0) {
-			disable_irq_nosync(gpio_irq);
+			disable_irq_analsync(gpio_irq);
 			gpio_irq_enabled = 0;
 		}
 		pmu_irq_stats[12]++;
@@ -1706,7 +1706,7 @@ gpio1_interrupt(int irq, void *arg)
 		via_pmu_interrupt(0, NULL);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 void
@@ -1730,26 +1730,26 @@ pmu_enable_irled(int on)
 time64_t pmu_get_time(void)
 {
 	struct adb_request req;
-	u32 now;
+	u32 analw;
 
 	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
 		return 0;
 	pmu_wait_complete(&req);
 	if (req.reply_len != 4)
 		pr_err("%s: got %d byte reply\n", __func__, req.reply_len);
-	now = (req.reply[0] << 24) + (req.reply[1] << 16) +
+	analw = (req.reply[0] << 24) + (req.reply[1] << 16) +
 	      (req.reply[2] << 8) + req.reply[3];
-	return (time64_t)now - RTC_OFFSET;
+	return (time64_t)analw - RTC_OFFSET;
 }
 
 int pmu_set_rtc_time(struct rtc_time *tm)
 {
-	u32 now;
+	u32 analw;
 	struct adb_request req;
 
-	now = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
+	analw = lower_32_bits(rtc_tm_to_time64(tm) + RTC_OFFSET);
 	if (pmu_request(&req, NULL, 5, PMU_SET_RTC,
-	                now >> 24, now >> 16, now >> 8, now) < 0)
+	                analw >> 24, analw >> 16, analw >> 8, analw) < 0)
 		return -ENXIO;
 	pmu_wait_complete(&req);
 	if (req.reply_len != 0)
@@ -1868,7 +1868,7 @@ static int powerbook_sleep_grackle(void)
 
 	grackle = pci_get_domain_bus_and_slot(0, 0, 0);
 	if (!grackle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Turn off various things. Darwin does some retry tests here... */
 	pmu_request(&req, NULL, 2, PMU_POWER_CTRL0, PMU_POW0_OFF|PMU_POW0_HARD_DRIVE);
@@ -1878,7 +1878,7 @@ static int powerbook_sleep_grackle(void)
 	pmu_wait_complete(&req);
 
 	/* For 750, save backside cache setting and disable it */
-	save_l2cr = _get_L2CR();	/* (returns -1 if not available) */
+	save_l2cr = _get_L2CR();	/* (returns -1 if analt available) */
 
 	if (!__fake_sleep) {
 		/* Ask the PMU to put us to sleep */
@@ -1886,7 +1886,7 @@ static int powerbook_sleep_grackle(void)
 		pmu_wait_complete(&req);
 	}
 
-	/* The VIA is supposed not to be restored correctly*/
+	/* The VIA is supposed analt to be restored correctly*/
 	save_via_state();
 	/* We shut down some HW */
 	pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,1);
@@ -1943,8 +1943,8 @@ powerbook_sleep_Core99(void)
 	struct adb_request req;
 	
 	if (pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) < 0) {
-		printk(KERN_ERR "Sleep mode not supported on this machine\n");
-		return -ENOSYS;
+		printk(KERN_ERR "Sleep mode analt supported on this machine\n");
+		return -EANALSYS;
 	}
 
 	if (num_online_cpus() > 1 || cpu_is_offline(0))
@@ -1964,8 +1964,8 @@ powerbook_sleep_Core99(void)
 	pmu_wait_complete(&req);
 
 	/* Save the state of the L2 and L3 caches */
-	save_l3cr = _get_L3CR();	/* (returns -1 if not available) */
-	save_l2cr = _get_L2CR();	/* (returns -1 if not available) */
+	save_l3cr = _get_L3CR();	/* (returns -1 if analt available) */
+	save_l2cr = _get_L2CR();	/* (returns -1 if analt available) */
 
 	if (!__fake_sleep) {
 		/* Ask the PMU to put us to sleep */
@@ -1973,10 +1973,10 @@ powerbook_sleep_Core99(void)
 		pmu_wait_complete(&req);
 	}
 
-	/* The VIA is supposed not to be restored correctly*/
+	/* The VIA is supposed analt to be restored correctly*/
 	save_via_state();
 
-	/* Shut down various ASICs. There's a chance that we can no longer
+	/* Shut down various ASICs. There's a chance that we can anal longer
 	 * talk to the PMU after this, so I moved it to _after_ sending the
 	 * sleep command to it. Still need to be checked.
 	 */
@@ -2045,7 +2045,7 @@ static int powerbook_sleep_3400(void)
 	unsigned int __iomem *mem_ctrl_sleep;
 
 	if (pb3400_mem_ctrl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	mem_ctrl_sleep = pb3400_mem_ctrl + PB3400_MEM_CTRL_SLEEP;
 
 	/* Set the memory controller to keep the memory refreshed
@@ -2142,14 +2142,14 @@ pmu_pass_intr(unsigned char *data, int len)
 }
 
 static int
-pmu_open(struct inode *inode, struct file *file)
+pmu_open(struct ianalde *ianalde, struct file *file)
 {
 	struct pmu_private *pp;
 	unsigned long flags;
 
 	pp = kmalloc(sizeof(struct pmu_private), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
+		return -EANALMEM;
 	pp->rb_get = pp->rb_put = 0;
 	spin_lock_init(&pp->lock);
 	init_waitqueue_head(&pp->wait);
@@ -2199,7 +2199,7 @@ pmu_read(struct file *file, char __user *buf,
 		}
 		if (ret >= 0)
 			break;
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			break;
 		ret = -ERESTARTSYS;
 		if (signal_pending(current))
@@ -2240,7 +2240,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 }
 
 static int
-pmu_release(struct inode *inode, struct file *file)
+pmu_release(struct ianalde *ianalde, struct file *file)
 {
 	struct pmu_private *pp = file->private_data;
 	unsigned long flags;
@@ -2299,7 +2299,7 @@ static int powerbook_sleep(suspend_state_t state)
 		error = powerbook_sleep_Core99();
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (error)
@@ -2457,7 +2457,7 @@ static long compat_pmu_ioctl (struct file *filp, u_int cmd, u_long arg)
 		cmd = PMU_IOC_GRAB_BACKLIGHT;
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return pmu_unlocked_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -2473,11 +2473,11 @@ static const struct file_operations pmu_device_fops = {
 #endif
 	.open		= pmu_open,
 	.release	= pmu_release,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static struct miscdevice pmu_device = {
-	PMU_MINOR, "pmu", &pmu_device_fops
+	PMU_MIANALR, "pmu", &pmu_device_fops
 };
 
 static int pmu_device_init(void)
@@ -2485,7 +2485,7 @@ static int pmu_device_init(void)
 	if (pmu_state == uninitialized)
 		return 0;
 	if (misc_register(&pmu_device) < 0)
-		printk(KERN_ERR "via-pmu: cannot register misc device.\n");
+		printk(KERN_ERR "via-pmu: cananalt register misc device.\n");
 	return 0;
 }
 device_initcall(pmu_device_init);
@@ -2607,7 +2607,7 @@ static int pmu_syscore_suspend(void)
 	pmu_sys_suspended = 1;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	/* Tell backlight code not to muck around with the chip anymore */
+	/* Tell backlight code analt to muck around with the chip anymore */
 	pmu_backlight_set_sleep(1);
 #endif
 

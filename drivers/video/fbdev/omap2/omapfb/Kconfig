@@ -31,7 +31,7 @@ config FB_OMAP2_NUM_FBS
 	depends on FB_OMAP2
 	help
 	  Select the number of framebuffers created. OMAP2/3 has 3 overlays
-	  so normally this would be 3.
+	  so analrmally this would be 3.
 
 source "drivers/video/fbdev/omap2/omapfb/dss/Kconfig"
 source "drivers/video/fbdev/omap2/omapfb/displays/Kconfig"

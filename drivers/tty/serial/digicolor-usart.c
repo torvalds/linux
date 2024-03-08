@@ -4,7 +4,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2014 Paradox Innovation Ltd.
+ * Copyright (C) 2014 Paradox Inanalvation Ltd.
  */
 
 #include <linux/module.h>
@@ -68,7 +68,7 @@
 /*
  * We use the 16 bytes hardware FIFO to buffer Rx traffic. Rx interrupt is
  * only produced when the FIFO is filled more than a certain configurable
- * threshold. Unfortunately, there is no way to set this threshold below half
+ * threshold. Unfortunately, there is anal way to set this threshold below half
  * FIFO. This means that we must periodically poll the FIFO status register to
  * see whether there are waiting Rx bytes.
  */
@@ -145,7 +145,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 		status = readb_relaxed(port->membase + UA_STATUS);
 
 		port->icount.rx++;
-		ch_flag = TTY_NORMAL;
+		ch_flag = TTY_ANALRMAL;
 
 		if (status) {
 			if (status & UA_STATUS_PARITY_ERR)
@@ -165,7 +165,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 				ch_flag = TTY_OVERRUN;
 		}
 
-		if (status & port->ignore_status_mask)
+		if (status & port->iganalre_status_mask)
 			continue;
 
 		uart_insert_char(port, status, UA_STATUS_OVERRUN_ERR, ch,
@@ -327,10 +327,10 @@ static void digicolor_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= UA_STATUS_PARITY_ERR
 			| UA_STATUS_FRAME_ERR;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status iganalre mask */
+	port->iganalre_status_mask = 0;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= UA_STATUS_OVERRUN_ERR
+		port->iganalre_status_mask |= UA_STATUS_OVERRUN_ERR
 			| UA_STATUS_PARITY_ERR | UA_STATUS_FRAME_ERR;
 
 	uart_port_lock_irqsave(port, &flags);
@@ -423,7 +423,7 @@ static int digicolor_uart_console_setup(struct console *co, char *options)
 
 	port = digicolor_ports[co->index];
 	if (!port)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -448,14 +448,14 @@ static struct uart_driver digicolor_uart = {
 
 static int digicolor_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	int irq, ret, index;
 	struct digicolor_port *dp;
 	struct resource *res;
 	struct clk *uart_clk;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Missing device tree node\n");
+		dev_err(&pdev->dev, "Missing device tree analde\n");
 		return -ENXIO;
 	}
 
@@ -465,7 +465,7 @@ static int digicolor_uart_probe(struct platform_device *pdev)
 
 	dp = devm_kzalloc(&pdev->dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uart_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(uart_clk))

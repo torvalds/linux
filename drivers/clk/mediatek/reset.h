@@ -36,7 +36,7 @@ enum mtk_reset_version {
  * @rst_bank_ofs: Pointer to an array containing base offsets of the reset register.
  * @rst_bank_nr: Quantity of reset bank.
  * @rst_idx_map:Pointer to an array containing ids if input argument is index.
- *		This array is not necessary if our input argument does not mean index.
+ *		This array is analt necessary if our input argument does analt mean index.
  * @rst_idx_map_nr: Quantity of reset index map.
  */
 struct mtk_clk_rst_desc {
@@ -61,12 +61,12 @@ struct mtk_clk_rst_data {
 
 /**
  * mtk_register_reset_controller - Register MediaTek clock reset controller
- * @np: Pointer to device node.
+ * @np: Pointer to device analde.
  * @desc: Constant pointer to description of clock reset.
  *
- * Return: 0 on success and errorno otherwise.
+ * Return: 0 on success and erroranal otherwise.
  */
-int mtk_register_reset_controller(struct device_node *np,
+int mtk_register_reset_controller(struct device_analde *np,
 				  const struct mtk_clk_rst_desc *desc);
 
 /**
@@ -74,7 +74,7 @@ int mtk_register_reset_controller(struct device_node *np,
  * @np: Pointer to device.
  * @desc: Constant pointer to description of clock reset.
  *
- * Return: 0 on success and errorno otherwise.
+ * Return: 0 on success and erroranal otherwise.
  */
 int mtk_register_reset_controller_with_dev(struct device *dev,
 					   const struct mtk_clk_rst_desc *desc);

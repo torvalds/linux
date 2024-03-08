@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -47,13 +47,13 @@
 #include "carl9170.h"
 #include "cmd.h"
 
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto offload.");
+static bool modparam_analhwcrypt;
+module_param_named(analhwcrypt, modparam_analhwcrypt, bool, 0444);
+MODULE_PARM_DESC(analhwcrypt, "Disable hardware crypto offload.");
 
-int modparam_noht;
-module_param_named(noht, modparam_noht, int, 0444);
-MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
+int modparam_analht;
+module_param_named(analht, modparam_analht, int, 0444);
+MODULE_PARM_DESC(analht, "Disable MPDU aggregation.");
 
 #define RATE(_bitrate, _hw_rate, _txpidx, _flags) {	\
 	.bitrate	= (_bitrate),			\
@@ -222,7 +222,7 @@ static void carl9170_flush(struct ar9170 *ar, bool drop_queued)
 		int i;
 
 		/*
-		 * We can only drop frames which have not been uploaded
+		 * We can only drop frames which have analt been uploaded
 		 * to the device yet.
 		 */
 
@@ -358,9 +358,9 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 	ar->erp_mode = CARL9170_ERP_AUTO;
 
 	/* Set "disable hw crypto offload" whenever the module parameter
-	 * nohwcrypt is true or if the firmware does not support it.
+	 * analhwcrypt is true or if the firmware does analt support it.
 	 */
-	ar->disable_offload = modparam_nohwcrypt |
+	ar->disable_offload = modparam_analhwcrypt |
 		ar->fw.disable_offload_fw;
 	ar->rx_software_decryption = ar->disable_offload;
 
@@ -397,12 +397,12 @@ static int carl9170_op_start(struct ieee80211_hw *hw)
 
 	/* Clear key-cache */
 	for (i = 0; i < AR9170_CAM_MAX_USER + 4; i++) {
-		err = carl9170_upload_key(ar, i, NULL, AR9170_ENC_ALG_NONE,
+		err = carl9170_upload_key(ar, i, NULL, AR9170_ENC_ALG_ANALNE,
 					  0, NULL, 0);
 		if (err)
 			goto out;
 
-		err = carl9170_upload_key(ar, i, NULL, AR9170_ENC_ALG_NONE,
+		err = carl9170_upload_key(ar, i, NULL, AR9170_ENC_ALG_ANALNE,
 					  1, NULL, 0);
 		if (err)
 			goto out;
@@ -509,11 +509,11 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 
 	/*
 	 * Sometimes, an error can trigger several different reset events.
-	 * By ignoring these *surplus* reset events, the device won't be
+	 * By iganalring these *surplus* reset events, the device won't be
 	 * killed again, right after it has recovered.
 	 */
 	if (atomic_inc_return(&ar->pending_restarts) > 1) {
-		dev_dbg(&ar->udev->dev, "ignoring restart (%d)\n", r);
+		dev_dbg(&ar->udev->dev, "iganalring restart (%d)\n", r);
 		return;
 	}
 
@@ -521,7 +521,7 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 
 	dev_err(&ar->udev->dev, "restart device (%d)\n", r);
 
-	if (!WARN_ON(r == CARL9170_RR_NO_REASON) ||
+	if (!WARN_ON(r == CARL9170_RR_ANAL_REASON) ||
 	    !WARN_ON(r >= __CARL9170_RR_LAST))
 		ar->last_reason = r;
 
@@ -570,19 +570,19 @@ static int carl9170_init_interface(struct ar9170 *ar,
 
 	/* We have to fall back to software crypto, whenever
 	 * the user choose to participates in an IBSS. HW
-	 * offload for IBSS RSN is not supported by this driver.
+	 * offload for IBSS RSN is analt supported by this driver.
 	 *
-	 * NOTE: If the previous main interface has already
+	 * ANALTE: If the previous main interface has already
 	 * disabled hw crypto offload, we have to keep this
 	 * previous disable_offload setting as it was.
-	 * Altough ideally, we should notify mac80211 and tell
-	 * it to forget about any HW crypto offload for now.
+	 * Altough ideally, we should analtify mac80211 and tell
+	 * it to forget about any HW crypto offload for analw.
 	 */
 	ar->disable_offload |= ((vif->type != NL80211_IFTYPE_STATION) &&
 	    (vif->type != NL80211_IFTYPE_AP));
 
 	/* The driver used to have P2P GO+CLIENT support,
-	 * but since this was dropped and we don't know if
+	 * but since this was dropped and we don't kanalw if
 	 * there are any gremlins lurking in the shadows,
 	 * so best we keep HW offload disabled for P2P.
 	 */
@@ -664,7 +664,7 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 	if (vif_id < 0) {
 		rcu_read_unlock();
 
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto unlock;
 	}
 
@@ -699,7 +699,7 @@ init:
 			struct carl9170_vif_info *old_main_priv =
 				(void *) old_main->drv_priv;
 			/* downgrade old main intf to slave intf.
-			 * NOTE: We are no longer under rcu_read_lock.
+			 * ANALTE: We are anal longer under rcu_read_lock.
 			 * But we are still holding ar->mutex, so the
 			 * vif data [id, addr] is safe.
 			 */
@@ -852,12 +852,12 @@ static void carl9170_ps_work(struct work_struct *work)
 	mutex_unlock(&ar->mutex);
 }
 
-static int carl9170_update_survey(struct ar9170 *ar, bool flush, bool noise)
+static int carl9170_update_survey(struct ar9170 *ar, bool flush, bool analise)
 {
 	int err;
 
-	if (noise) {
-		err = carl9170_get_noisefloor(ar);
+	if (analise) {
+		err = carl9170_get_analisefloor(ar);
 		if (err)
 			return err;
 	}
@@ -1165,12 +1165,12 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	u8 ktype;
 
 	if (ar->disable_offload || !vif)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Fall back to software encryption whenever the driver is connected
 	 * to more than one network.
 	 *
-	 * This is very unfortunate, because some machines cannot handle
+	 * This is very unfortunate, because some machines cananalt handle
 	 * the high througput speed in 802.11n networks.
 	 */
 
@@ -1187,7 +1187,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if ((vif->type != NL80211_IFTYPE_STATION &&
 	     vif->type != NL80211_IFTYPE_ADHOC) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -1204,13 +1204,13 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mutex_lock(&ar->mutex);
 	if (cmd == SET_KEY) {
 		if (!IS_STARTED(ar)) {
-			err = -EOPNOTSUPP;
+			err = -EOPANALTSUPP;
 			goto out;
 		}
 
@@ -1242,7 +1242,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				goto out;
 
 			/*
-			 * hardware is not capable generating MMIC
+			 * hardware is analt capable generating MMIC
 			 * of fragmented frames!
 			 */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
@@ -1263,7 +1263,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ar->usedkeys &= ~BIT(key->hw_key_idx);
 		} else {
 			err = carl9170_upload_key(ar, key->hw_key_idx, NULL,
-						  AR9170_ENC_ALG_NONE, 0,
+						  AR9170_ENC_ALG_ANALNE, 0,
 						  NULL, 0);
 			if (err)
 				goto out;
@@ -1271,7 +1271,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				err = carl9170_upload_key(ar, key->hw_key_idx,
 							  NULL,
-							  AR9170_ENC_ALG_NONE,
+							  AR9170_ENC_ALG_ANALNE,
 							  1, NULL, 0);
 				if (err)
 					goto out;
@@ -1294,7 +1294,7 @@ err_softw:
 		carl9170_set_operating_mode(ar);
 	}
 	mutex_unlock(&ar->mutex);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int carl9170_op_sta_add(struct ieee80211_hw *hw,
@@ -1310,7 +1310,7 @@ static int carl9170_op_sta_add(struct ieee80211_hw *hw,
 		if (sta->deflink.ht_cap.ampdu_density > 6) {
 			/*
 			 * HW does support 16us AMPDU density.
-			 * No HT-Xmit for station.
+			 * Anal HT-Xmit for station.
 			 */
 
 			return 0;
@@ -1404,18 +1404,18 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 	struct carl9170_sta_tid *tid_info;
 
-	if (modparam_noht)
-		return -EOPNOTSUPP;
+	if (modparam_analht)
+		return -EOPANALTSUPP;
 
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:
 		if (!sta_info->ht_sta)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		tid_info = kzalloc(sizeof(struct carl9170_sta_tid),
 				   GFP_KERNEL);
 		if (!tid_info)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		tid_info->hsn = tid_info->bsn = tid_info->snx = (*ssn);
 		tid_info->state = CARL9170_TID_STATE_PROGRESS;
@@ -1480,7 +1480,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1497,7 +1497,7 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 
 	input = devm_input_allocate_device(&ar->udev->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	snprintf(ar->wps.name, sizeof(ar->wps.name), "%s WPS Button",
 		 wiphy_name(ar->hw->wiphy));
@@ -1615,7 +1615,7 @@ static int carl9170_op_get_survey(struct ieee80211_hw *hw, int idx,
 
 	chan = ar->channel;
 	if (!chan)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (idx == chan->hw_value) {
 		mutex_lock(&ar->mutex);
@@ -1638,13 +1638,13 @@ static int carl9170_op_get_survey(struct ieee80211_hw *hw, int idx,
 			}
 		}
 	}
-	return -ENOENT;
+	return -EANALENT;
 
 found:
 	memcpy(survey, &ar->survey[idx], sizeof(*survey));
 
 	survey->channel = chan;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
+	survey->filled = SURVEY_INFO_ANALISE_DBM;
 
 	if (ar->channel == chan)
 		survey->filled |= SURVEY_INFO_IN_USE;
@@ -1684,21 +1684,21 @@ static int carl9170_op_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
+static void carl9170_op_sta_analtify(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
-				   enum sta_notify_cmd cmd,
+				   enum sta_analtify_cmd cmd,
 				   struct ieee80211_sta *sta)
 {
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
 
 	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
+	case STA_ANALTIFY_SLEEP:
 		sta_info->sleeping = true;
 		if (atomic_read(&sta_info->pending_frames))
 			ieee80211_sta_block_awake(hw, sta, true);
 		break;
 
-	case STA_NOTIFY_AWAKE:
+	case STA_ANALTIFY_AWAKE:
 		sta_info->sleeping = false;
 		break;
 	}
@@ -1728,7 +1728,7 @@ static const struct ieee80211_ops carl9170_ops = {
 	.set_key		= carl9170_op_set_key,
 	.sta_add		= carl9170_op_sta_add,
 	.sta_remove		= carl9170_op_sta_remove,
-	.sta_notify		= carl9170_op_sta_notify,
+	.sta_analtify		= carl9170_op_sta_analtify,
 	.get_survey		= carl9170_op_get_survey,
 	.get_stats		= carl9170_op_get_stats,
 	.ampdu_action		= carl9170_op_ampdu_action,
@@ -1750,11 +1750,11 @@ void *carl9170_alloc(size_t priv_size)
 
 	skb = __dev_alloc_skb(AR9170_RX_STREAM_MAX_SIZE, GFP_KERNEL);
 	if (!skb)
-		goto err_nomem;
+		goto err_analmem;
 
 	hw = ieee80211_alloc_hw(priv_size, &carl9170_ops);
 	if (!hw)
-		goto err_nomem;
+		goto err_analmem;
 
 	ar = hw->priv;
 	ar->hw = hw;
@@ -1816,7 +1816,7 @@ void *carl9170_alloc(size_t priv_size)
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
 
-	if (!modparam_noht) {
+	if (!modparam_analht) {
 		/*
 		 * see the comment above, why we allow the user
 		 * to disable HT by a module parameter.
@@ -1831,16 +1831,16 @@ void *carl9170_alloc(size_t priv_size)
 	hw->max_rates = CARL9170_TX_MAX_RATES;
 	hw->max_rate_tries = CARL9170_TX_USER_RATE_TRIES;
 
-	for (i = 0; i < ARRAY_SIZE(ar->noise); i++)
-		ar->noise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
+	for (i = 0; i < ARRAY_SIZE(ar->analise); i++)
+		ar->analise[i] = -95; /* ATH_DEFAULT_ANALISE_FLOOR */
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	return ar;
 
-err_nomem:
+err_analmem:
 	kfree_skb(skb);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 static int carl9170_read_eeprom(struct ar9170 *ar)
@@ -1884,7 +1884,7 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	int chans = 0;
 
 	if (ar->eeprom.length == cpu_to_le16(0xffff))
-		return -ENODATA;
+		return -EANALDATA;
 
 	rx_streams = hweight8(ar->eeprom.rx_mask);
 	tx_streams = hweight8(ar->eeprom.tx_mask);
@@ -1921,7 +1921,7 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	ar->survey = devm_kcalloc(&ar->udev->dev, chans,
 				  sizeof(struct survey_info), GFP_KERNEL);
 	if (!ar->survey)
-		return -ENOMEM;
+		return -EANALMEM;
 	ar->num_channels = chans;
 
 	regulatory->current_rd = le16_to_cpu(ar->eeprom.reg_domain[0]);
@@ -1932,13 +1932,13 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	return 0;
 }
 
-static void carl9170_reg_notifier(struct wiphy *wiphy,
+static void carl9170_reg_analtifier(struct wiphy *wiphy,
 				  struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ar9170 *ar = hw->priv;
 
-	ath_reg_notifier_apply(wiphy, request, &ar->common.regulatory);
+	ath_reg_analtifier_apply(wiphy, request, &ar->common.regulatory);
 }
 
 int carl9170_register(struct ar9170 *ar)
@@ -1948,7 +1948,7 @@ int carl9170_register(struct ar9170 *ar)
 
 	ar->mem_bitmap = devm_bitmap_zalloc(&ar->udev->dev, ar->fw.mem_blocks, GFP_KERNEL);
 	if (!ar->mem_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* try to read EEPROM, init MAC addr */
 	err = carl9170_read_eeprom(ar);
@@ -1960,11 +1960,11 @@ int carl9170_register(struct ar9170 *ar)
 		return err;
 
 	err = ath_regd_init(regulatory, ar->hw->wiphy,
-			    carl9170_reg_notifier);
+			    carl9170_reg_analtifier);
 	if (err)
 		return err;
 
-	if (modparam_noht) {
+	if (modparam_analht) {
 		carl9170_band_2GHz.ht_cap.ht_supported = false;
 		carl9170_band_5GHz.ht_cap.ht_supported = false;
 	}
@@ -1978,7 +1978,7 @@ int carl9170_register(struct ar9170 *ar)
 	if (err)
 		return err;
 
-	/* mac80211 interface is now registered */
+	/* mac80211 interface is analw registered */
 	ar->registered = true;
 
 	if (!ath_is_world_regd(regulatory))

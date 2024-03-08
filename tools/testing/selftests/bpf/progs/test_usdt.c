@@ -24,7 +24,7 @@ int usdt0(struct pt_regs *ctx)
 
 	usdt0_cookie = bpf_usdt_cookie(ctx);
 	usdt0_arg_cnt = bpf_usdt_arg_cnt(ctx);
-	/* should return -ENOENT for any arg_num */
+	/* should return -EANALENT for any arg_num */
 	usdt0_arg_ret = bpf_usdt_arg(ctx, bpf_get_prandom_u32(), &tmp);
 	return 0;
 }

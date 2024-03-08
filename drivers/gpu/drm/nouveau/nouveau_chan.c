@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,53 +27,53 @@
 #include <nvif/cl0002.h>
 #include <nvif/if0020.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_bo.h"
-#include "nouveau_chan.h"
-#include "nouveau_fence.h"
-#include "nouveau_abi16.h"
-#include "nouveau_vmm.h"
-#include "nouveau_svm.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_bo.h"
+#include "analuveau_chan.h"
+#include "analuveau_fence.h"
+#include "analuveau_abi16.h"
+#include "analuveau_vmm.h"
+#include "analuveau_svm.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
-int nouveau_vram_pushbuf;
-module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
+int analuveau_vram_pushbuf;
+module_param_named(vram_pushbuf, analuveau_vram_pushbuf, int, 0400);
 
 void
-nouveau_channel_kill(struct nouveau_channel *chan)
+analuveau_channel_kill(struct analuveau_channel *chan)
 {
 	atomic_set(&chan->killed, 1);
 	if (chan->fence)
-		nouveau_fence_context_kill(chan->fence, -ENODEV);
+		analuveau_fence_context_kill(chan->fence, -EANALDEV);
 }
 
 static int
-nouveau_channel_killed(struct nvif_event *event, void *repv, u32 repc)
+analuveau_channel_killed(struct nvif_event *event, void *repv, u32 repc)
 {
-	struct nouveau_channel *chan = container_of(event, typeof(*chan), kill);
-	struct nouveau_cli *cli = (void *)chan->user.client;
+	struct analuveau_channel *chan = container_of(event, typeof(*chan), kill);
+	struct analuveau_cli *cli = (void *)chan->user.client;
 
 	NV_PRINTK(warn, cli, "channel %d killed!\n", chan->chid);
 
 	if (unlikely(!atomic_read(&chan->killed)))
-		nouveau_channel_kill(chan);
+		analuveau_channel_kill(chan);
 
 	return NVIF_EVENT_DROP;
 }
 
 int
-nouveau_channel_idle(struct nouveau_channel *chan)
+analuveau_channel_idle(struct analuveau_channel *chan)
 {
 	if (likely(chan && chan->fence && !atomic_read(&chan->killed))) {
-		struct nouveau_cli *cli = (void *)chan->user.client;
-		struct nouveau_fence *fence = NULL;
+		struct analuveau_cli *cli = (void *)chan->user.client;
+		struct analuveau_fence *fence = NULL;
 		int ret;
 
-		ret = nouveau_fence_new(&fence, chan);
+		ret = analuveau_fence_new(&fence, chan);
 		if (!ret) {
-			ret = nouveau_fence_wait(fence, false, false);
-			nouveau_fence_unref(&fence);
+			ret = analuveau_fence_wait(fence, false, false);
+			analuveau_fence_unref(&fence);
 		}
 
 		if (ret) {
@@ -86,17 +86,17 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 }
 
 void
-nouveau_channel_del(struct nouveau_channel **pchan)
+analuveau_channel_del(struct analuveau_channel **pchan)
 {
-	struct nouveau_channel *chan = *pchan;
+	struct analuveau_channel *chan = *pchan;
 	if (chan) {
-		struct nouveau_cli *cli = (void *)chan->user.client;
+		struct analuveau_cli *cli = (void *)chan->user.client;
 
 		if (chan->fence)
-			nouveau_fence(chan->drm)->context_del(chan);
+			analuveau_fence(chan->drm)->context_del(chan);
 
 		if (cli)
-			nouveau_svmm_part(chan->vmm->svmm, chan->inst);
+			analuveau_svmm_part(chan->vmm->svmm, chan->inst);
 
 		nvif_object_dtor(&chan->blit);
 		nvif_object_dtor(&chan->nvsw);
@@ -106,29 +106,29 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->user);
 		nvif_mem_dtor(&chan->mem_userd);
 		nvif_object_dtor(&chan->push.ctxdma);
-		nouveau_vma_del(&chan->push.vma);
-		nouveau_bo_unmap(chan->push.buffer);
+		analuveau_vma_del(&chan->push.vma);
+		analuveau_bo_unmap(chan->push.buffer);
 		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
-			nouveau_bo_unpin(chan->push.buffer);
-		nouveau_bo_ref(NULL, &chan->push.buffer);
+			analuveau_bo_unpin(chan->push.buffer);
+		analuveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
 	}
 	*pchan = NULL;
 }
 
 static void
-nouveau_channel_kick(struct nvif_push *push)
+analuveau_channel_kick(struct nvif_push *push)
 {
-	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	struct analuveau_channel *chan = container_of(push, typeof(*chan), chan._push);
 	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
 	FIRE_RING(chan);
 	chan->chan._push.bgn = chan->chan._push.cur;
 }
 
 static int
-nouveau_channel_wait(struct nvif_push *push, u32 size)
+analuveau_channel_wait(struct nvif_push *push, u32 size)
 {
-	struct nouveau_channel *chan = container_of(push, typeof(*chan), chan._push);
+	struct analuveau_channel *chan = container_of(push, typeof(*chan), chan._push);
 	int ret;
 	chan->dma.cur = chan->dma.cur + (chan->chan._push.cur - chan->chan._push.bgn);
 	ret = RING_SPACE(chan, size);
@@ -142,39 +142,39 @@ nouveau_channel_wait(struct nvif_push *push, u32 size)
 }
 
 static int
-nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
-		     u32 size, struct nouveau_channel **pchan)
+analuveau_channel_prep(struct analuveau_drm *drm, struct nvif_device *device,
+		     u32 size, struct analuveau_channel **pchan)
 {
-	struct nouveau_cli *cli = (void *)device->object.client;
+	struct analuveau_cli *cli = (void *)device->object.client;
 	struct nv_dma_v0 args = {};
-	struct nouveau_channel *chan;
+	struct analuveau_channel *chan;
 	u32 target;
 	int ret;
 
 	chan = *pchan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan->device = device;
 	chan->drm = drm;
-	chan->vmm = nouveau_cli_vmm(cli);
+	chan->vmm = analuveau_cli_vmm(cli);
 	atomic_set(&chan->killed, 0);
 
 	/* allocate memory for dma push buffer */
-	target = NOUVEAU_GEM_DOMAIN_GART | NOUVEAU_GEM_DOMAIN_COHERENT;
-	if (nouveau_vram_pushbuf)
-		target = NOUVEAU_GEM_DOMAIN_VRAM;
+	target = ANALUVEAU_GEM_DOMAIN_GART | ANALUVEAU_GEM_DOMAIN_COHERENT;
+	if (analuveau_vram_pushbuf)
+		target = ANALUVEAU_GEM_DOMAIN_VRAM;
 
-	ret = nouveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
+	ret = analuveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(chan->push.buffer, target, false);
+		ret = analuveau_bo_pin(chan->push.buffer, target, false);
 		if (ret == 0)
-			ret = nouveau_bo_map(chan->push.buffer);
+			ret = analuveau_bo_map(chan->push.buffer);
 	}
 
 	if (ret) {
-		nouveau_channel_del(pchan);
+		analuveau_channel_del(pchan);
 		return ret;
 	}
 
@@ -182,8 +182,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	chan->chan._push.mem.object.client = &cli->base;
 	chan->chan._push.mem.object.name = "chanPush";
 	chan->chan._push.mem.object.map.ptr = chan->push.buffer->kmap.virtual;
-	chan->chan._push.wait = nouveau_channel_wait;
-	chan->chan._push.kick = nouveau_channel_kick;
+	chan->chan._push.wait = analuveau_channel_wait;
+	chan->chan._push.kick = analuveau_channel_kick;
 	chan->chan.push = &chan->chan._push;
 
 	/* create dma object covering the *entire* memory space that the
@@ -193,10 +193,10 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	chan->push.addr = chan->push.buffer->offset;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->push.buffer, chan->vmm,
+		ret = analuveau_vma_new(chan->push.buffer, chan->vmm,
 				      &chan->push.vma);
 		if (ret) {
-			nouveau_channel_del(pchan);
+			analuveau_channel_del(pchan);
 			return ret;
 		}
 
@@ -246,7 +246,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			       NV_DMA_FROM_MEMORY, &args, sizeof(args),
 			       &chan->push.ctxdma);
 	if (ret) {
-		nouveau_channel_del(pchan);
+		analuveau_channel_del(pchan);
 		return ret;
 	}
 
@@ -254,8 +254,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 }
 
 static int
-nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool priv, u64 runm,
-		     struct nouveau_channel **pchan)
+analuveau_channel_ctor(struct analuveau_drm *drm, struct nvif_device *device, bool priv, u64 runm,
+		     struct analuveau_channel **pchan)
 {
 	const struct nvif_mclass hosts[] = {
 		{  AMPERE_CHANNEL_GPFIFO_B, 0 },
@@ -279,8 +279,8 @@ nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool p
 		struct nvif_chan_v0 chan;
 		char name[TASK_COMM_LEN+16];
 	} args;
-	struct nouveau_cli *cli = (void *)device->object.client;
-	struct nouveau_channel *chan;
+	struct analuveau_cli *cli = (void *)device->object.client;
+	struct analuveau_channel *chan;
 	const u64 plength = 0x10000;
 	const u64 ioffset = plength;
 	const u64 ilength = 0x02000;
@@ -298,7 +298,7 @@ nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool p
 		size = ioffset + ilength;
 
 	/* allocate dma push buffer */
-	ret = nouveau_channel_prep(drm, device, size, &chan);
+	ret = analuveau_channel_prep(drm, device, size, &chan);
 	*pchan = chan;
 	if (ret)
 		return ret;
@@ -349,7 +349,7 @@ nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool p
 	ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0, hosts[cid].oclass,
 			       &args, sizeof(args), &chan->user);
 	if (ret) {
-		nouveau_channel_del(pchan);
+		analuveau_channel_del(pchan);
 		return ret;
 	}
 
@@ -361,10 +361,10 @@ nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool p
 }
 
 static int
-nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
+analuveau_channel_init(struct analuveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
-	struct nouveau_drm *drm = chan->drm;
+	struct analuveau_drm *drm = chan->drm;
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
@@ -382,13 +382,13 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		args.host.type = NVIF_CHAN_EVENT_V0_KILLED;
 
 		ret = nvif_event_ctor(&chan->user, "abi16ChanKilled", chan->chid,
-				      nouveau_channel_killed, false,
+				      analuveau_channel_killed, false,
 				      &args.base, sizeof(args), &chan->kill);
 		if (ret == 0)
 			ret = nvif_event_allow(&chan->kill);
 		if (ret) {
 			NV_ERROR(drm, "Failed to request channel kill "
-				      "notification: %d\n", ret);
+				      "analtification: %d\n", ret);
 			return ret;
 		}
 	}
@@ -465,11 +465,11 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	chan->dma.cur = chan->dma.put;
 	chan->dma.free = chan->dma.max - chan->dma.cur;
 
-	ret = PUSH_WAIT(chan->chan.push, NOUVEAU_DMA_SKIPS);
+	ret = PUSH_WAIT(chan->chan.push, ANALUVEAU_DMA_SKIPS);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
+	for (i = 0; i < ANALUVEAU_DMA_SKIPS; i++)
 		PUSH_DATA(chan->chan.push, 0x00000000);
 
 	/* allocate software object class (used for fences on <= nv05) */
@@ -489,44 +489,44 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* initialise synchronisation */
-	return nouveau_fence(chan->drm)->context_new(chan);
+	return analuveau_fence(chan->drm)->context_new(chan);
 }
 
 int
-nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
-		    bool priv, u64 runm, u32 vram, u32 gart, struct nouveau_channel **pchan)
+analuveau_channel_new(struct analuveau_drm *drm, struct nvif_device *device,
+		    bool priv, u64 runm, u32 vram, u32 gart, struct analuveau_channel **pchan)
 {
-	struct nouveau_cli *cli = (void *)device->object.client;
+	struct analuveau_cli *cli = (void *)device->object.client;
 	int ret;
 
-	ret = nouveau_channel_ctor(drm, device, priv, runm, pchan);
+	ret = analuveau_channel_ctor(drm, device, priv, runm, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "channel create, %d\n", ret);
 		return ret;
 	}
 
-	ret = nouveau_channel_init(*pchan, vram, gart);
+	ret = analuveau_channel_init(*pchan, vram, gart);
 	if (ret) {
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
-		nouveau_channel_del(pchan);
+		analuveau_channel_del(pchan);
 		return ret;
 	}
 
-	ret = nouveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
+	ret = analuveau_svmm_join((*pchan)->vmm->svmm, (*pchan)->inst);
 	if (ret)
-		nouveau_channel_del(pchan);
+		analuveau_channel_del(pchan);
 
 	return ret;
 }
 
 void
-nouveau_channels_fini(struct nouveau_drm *drm)
+analuveau_channels_fini(struct analuveau_drm *drm)
 {
 	kfree(drm->runl);
 }
 
 int
-nouveau_channels_init(struct nouveau_drm *drm)
+analuveau_channels_init(struct analuveau_drm *drm)
 {
 	struct {
 		struct nv_device_info_v1 m;
@@ -547,13 +547,13 @@ nouveau_channels_init(struct nouveau_drm *drm)
 	if (ret ||
 	    args.v.runlists.mthd == NV_DEVICE_INFO_INVALID || !args.v.runlists.data ||
 	    args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	drm->chan_nr = drm->chan_total = args.v.channels.data;
 	drm->runl_nr = fls64(args.v.runlists.data);
 	drm->runl = kcalloc(drm->runl_nr, sizeof(*drm->runl), GFP_KERNEL);
 	if (!drm->runl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (drm->chan_nr == 0) {
 		for (i = 0; i < drm->runl_nr; i++) {
@@ -565,7 +565,7 @@ nouveau_channels_init(struct nouveau_drm *drm)
 
 			ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
 			if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
-				return -ENODEV;
+				return -EANALDEV;
 
 			drm->runl[i].chan_nr = args.v.channels.data;
 			drm->runl[i].chan_id_base = drm->chan_total;

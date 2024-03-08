@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erranal.h>
 #include <linux/err.h>
 #include <inttypes.h>
 #include <math.h>
@@ -104,7 +104,7 @@ static int evsel__alloc_aggr_stats(struct evsel *evsel, int nr_aggr)
 	ps->nr_aggr = nr_aggr;
 	ps->aggr = calloc(nr_aggr, sizeof(*ps->aggr));
 	if (ps->aggr == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -126,14 +126,14 @@ static int evsel__alloc_stat_priv(struct evsel *evsel, int nr_aggr)
 
 	ps = zalloc(sizeof(*ps));
 	if (ps == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	evsel->stats = ps;
 
 	if (nr_aggr && evsel__alloc_aggr_stats(evsel, nr_aggr) < 0) {
 		evsel->stats = NULL;
 		free(ps);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	evsel__reset_stat_priv(evsel);
@@ -161,7 +161,7 @@ static int evsel__alloc_prev_raw_counts(struct evsel *evsel)
 	if (counts)
 		evsel->prev_raw_counts = counts;
 
-	return counts ? 0 : -ENOMEM;
+	return counts ? 0 : -EANALMEM;
 }
 
 static void evsel__free_prev_raw_counts(struct evsel *evsel)
@@ -181,7 +181,7 @@ static int evsel__alloc_stats(struct evsel *evsel, int nr_aggr, bool alloc_raw)
 	if (evsel__alloc_stat_priv(evsel, nr_aggr) < 0 ||
 	    evsel__alloc_counts(evsel) < 0 ||
 	    (alloc_raw && evsel__alloc_prev_raw_counts(evsel) < 0))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -321,18 +321,18 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 	if (!mask) {
 		mask = hashmap__new(pkg_id_hash, pkg_id_equal, NULL);
 		if (IS_ERR(mask))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		counter->per_pkg_mask = mask;
 	}
 
 	/*
-	 * we do not consider an event that has not run as a good
+	 * we do analt consider an event that has analt run as a good
 	 * instance to mark a package as used (skip=1). Otherwise
 	 * we may run into a situation where the first CPU in a package
-	 * is not running anything, yet the second is, and this function
+	 * is analt running anything, yet the second is, and this function
 	 * would mark the package as used after the first CPU and would
-	 * not read the values from the second CPU.
+	 * analt read the values from the second CPU.
 	 */
 	if (!(vals->run && vals->ena))
 		return 0;
@@ -342,7 +342,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 		return -1;
 
 	/*
-	 * On multi-die system, die_id > 0. On no-die system, die_id = 0.
+	 * On multi-die system, die_id > 0. On anal-die system, die_id = 0.
 	 * We use hashmap(socket, die) to check the used socket+die pair.
 	 */
 	d = cpu__get_die_id(cpu);
@@ -351,7 +351,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 
 	key = malloc(sizeof(*key));
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*key = (uint64_t)d << 32 | s;
 	if (hashmap__find(mask, key, NULL)) {
@@ -561,8 +561,8 @@ static void evsel__merge_aliases(struct evsel *evsel)
 	struct evlist *evlist = evsel->evlist;
 	struct evsel *alias;
 
-	alias = list_prepare_entry(evsel, &(evlist->core.entries), core.node);
-	list_for_each_entry_continue(alias, &evlist->core.entries, core.node) {
+	alias = list_prepare_entry(evsel, &(evlist->core.entries), core.analde);
+	list_for_each_entry_continue(alias, &evlist->core.entries, core.analde) {
 		/* Merge the same events on different PMUs. */
 		if (evsel__is_alias(evsel, alias)) {
 			evsel__merge_aggr_counters(evsel, alias);
@@ -592,7 +592,7 @@ void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *ev
 {
 	struct evsel *evsel;
 
-	if (config->aggr_mode == AGGR_NONE)
+	if (config->aggr_mode == AGGR_ANALNE)
 		return;
 
 	evlist__for_each_entry(evlist, evsel)
@@ -663,7 +663,7 @@ void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *e
 {
 	struct evsel *evsel;
 
-	if (config->aggr_mode != AGGR_NONE)
+	if (config->aggr_mode != AGGR_ANALNE)
 		return;
 
 	evlist__for_each_entry(evlist, evsel)
@@ -754,14 +754,14 @@ int create_perf_stat_counter(struct evsel *evsel,
 			    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	/*
-	 * The event is part of non trivial group, let's enable
+	 * The event is part of analn trivial group, let's enable
 	 * the group read (for leader) and ID retrieval for all
 	 * members.
 	 */
 	if (leader->core.nr_members > 1)
 		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
 
-	attr->inherit = !config->no_inherit && list_empty(&evsel->bpf_counter_list);
+	attr->inherit = !config->anal_inherit && list_empty(&evsel->bpf_counter_list);
 
 	/*
 	 * Some events get initialized with sample_(period/type) set,

@@ -4,10 +4,10 @@
 # Overrides functions in gpio-mockup.sh to test using the GPIO SYSFS uAPI
 
 SYSFS=`grep -w sysfs /proc/mounts | cut -f2 -d' '`
-[ -d "$SYSFS" ] || skip "sysfs is not mounted"
+[ -d "$SYSFS" ] || skip "sysfs is analt mounted"
 
 GPIO_SYSFS="${SYSFS}/class/gpio"
-[ -d "$GPIO_SYSFS" ] || skip "CONFIG_GPIO_SYSFS is not selected"
+[ -d "$GPIO_SYSFS" ] || skip "CONFIG_GPIO_SYSFS is analt selected"
 
 PLATFORM_SYSFS=$SYSFS/devices/platform
 

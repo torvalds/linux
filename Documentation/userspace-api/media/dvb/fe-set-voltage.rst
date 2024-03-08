@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_SET_VOLTAGE:
@@ -12,7 +12,7 @@ Name
 
 FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_SET_VOLTAGE
@@ -45,7 +45,7 @@ power up the LNBf.
 .. attention:: if more than one device is connected to the same antenna,
    setting a voltage level may interfere on other devices, as they may lose
    the capability of setting polarization or IF. So, on those cases, setting
-   the voltage to SEC_VOLTAGE_OFF while the device is not is used is
+   the voltage to SEC_VOLTAGE_OFF while the device is analt is used is
    recommended.
 
 Return Value
@@ -53,7 +53,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

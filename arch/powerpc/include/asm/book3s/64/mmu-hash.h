@@ -14,7 +14,7 @@
 
 /*
  * This is necessary to get the definition of PGTABLE_RANGE which we
- * need for various slices related matters. Note that this isn't the
+ * need for various slices related matters. Analte that this isn't the
  * complete pgtable.h but only a portion of it.
  */
 #include <asm/book3s/64/pgtable.h>
@@ -43,7 +43,7 @@
 #define SLB_VSID_B_1T		ASM_CONST(0x4000000000000000)
 #define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
 #define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
-#define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
+#define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* anal-execute */
 #define SLB_VSID_L		ASM_CONST(0x0000000000000100)
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
 #define SLB_VSID_LP		ASM_CONST(0x0000000000000030)
@@ -111,11 +111,11 @@
 #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
-#define PP_RWXX	0	/* Supervisor read/write, User none */
+#define PP_RWXX	0	/* Supervisor read/write, User analne */
 #define PP_RWRX 1	/* Supervisor read/write, User read */
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
-#define PP_RXXX	(HPTE_R_PP0 | 2)	/* Supervisor read, user none */
+#define PP_RXXX	(HPTE_R_PP0 | 2)	/* Supervisor read, user analne */
 
 /* Fields for tlbiel instruction in architecture 2.06 */
 #define TLBIEL_INVAL_SEL_MASK	0xc00	/* invalidation selector */
@@ -163,7 +163,7 @@ struct mmu_hash_ops {
 	int		(*resize_hpt)(unsigned long shift);
 	/*
 	 * Special for kexec.
-	 * To be called in real mode with interrupts disabled. No locks are
+	 * To be called in real mode with interrupts disabled. Anal locks are
 	 * taken as such, concurrent access on pre POWER5 hardware could result
 	 * in a deadlock.
 	 * The linear mapping is destroyed as well.
@@ -235,8 +235,8 @@ static inline unsigned long get_sllp_encoding(int psize)
  * encode page number shift.
  * in order to fit the 78 bit va in a 64 bit variable we shift the va by
  * 12 bits. This enable us to address upto 76 bit va.
- * For hpt hash from a va we can ignore the page size bits of va and for
- * hpte encoding we ignore up to 23 bits of va. So ignoring lower 12 bits ensure
+ * For hpt hash from a va we can iganalre the page size bits of va and for
+ * hpte encoding we iganalre up to 23 bits of va. So iganalring lower 12 bits ensure
  * we work in all cases including 4k page size.
  */
 #define VPN_SHIFT	12
@@ -310,7 +310,7 @@ extern u16 mmu_slb_size;
 extern unsigned long tce_alloc_start, tce_alloc_end;
 
 /*
- * If the processor supports 64k normal pages but not 64k cache
+ * If the processor supports 64k analrmal pages but analt 64k cache
  * inhibited pages, we have to be prepared to switch processes
  * to use 4k pages when they create cache-inhibited mappings.
  * If this is the case, mmu_ci_restrictions will be set to 1.
@@ -328,7 +328,7 @@ static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
 	unsigned long v;
 	/*
 	 * The AVA field omits the low-order 23 bits of the 78 bits VA.
-	 * These bits are not needed in the PTE, because the
+	 * These bits are analt needed in the PTE, because the
 	 * low-order b of these bits are part of the byte offset
 	 * into the virtual page and, if b < 23, the high-order
 	 * 23-b of these bits are always used in selecting the
@@ -404,7 +404,7 @@ static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
 static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
 					  int actual_psize)
 {
-	/* A 4K page needs no special encoding */
+	/* A 4K page needs anal special encoding */
 	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
 	else {
@@ -451,7 +451,7 @@ static inline unsigned long hpt_hash(unsigned long vpn,
 }
 
 #define HPTE_LOCAL_UPDATE	0x1
-#define HPTE_NOHPTE_UPDATE	0x2
+#define HPTE_ANALHPTE_UPDATE	0x2
 #define HPTE_USE_KERNEL_KEY	0x4
 
 long hpte_insert_repeating(unsigned long hash, unsigned long vpn, unsigned long pa,
@@ -567,11 +567,11 @@ static inline void slb_set_size(u16 size) { }
  */
 
 /*
- * Max Va bits we support as of now is 68 bits. We want 19 bit
+ * Max Va bits we support as of analw is 68 bits. We want 19 bit
  * context ID.
  * Restrictions:
- * GPU has restrictions of not able to access beyond 128TB
- * (47 bit effective address). We also cannot do more than 20bit PID.
+ * GPU has restrictions of analt able to access beyond 128TB
+ * (47 bit effective address). We also cananalt do more than 20bit PID.
  * For p4 and p5 which can only do 65 bit VA, we restrict our CONTEXT_BITS
  * to 16 bits (ie, we can only have 2^16 pids at the same time).
  */
@@ -584,7 +584,7 @@ static inline void slb_set_size(u16 size) { }
 #define ESID_BITS_1T_MASK	((1 << ESID_BITS_1T) - 1)
 
 /*
- * Now certain config support MAX_PHYSMEM more than 512TB. Hence we will need
+ * Analw certain config support MAX_PHYSMEM more than 512TB. Hence we will need
  * to use more than one context for linear mapping the kernel.
  * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
  * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
@@ -735,7 +735,7 @@ struct hash_mm_context {
 /*
  * The code below is equivalent to this function for arguments
  * < 2^VSID_BITS, which is all this should ever be called
- * with.  However gcc is not clever enough to compute the
+ * with.  However gcc is analt clever eanalugh to compute the
  * modulus (2^n-1) without a second multiply.
  */
 #define vsid_scramble(protovsid, size) \
@@ -757,7 +757,7 @@ static inline unsigned long vsid_scramble(unsigned long protovsid,
 	unsigned long vsid;
 	unsigned long vsid_modulus = ((1UL << vsid_bits) - 1);
 	/*
-	 * We have same multipler for both 256 and 1T segements now
+	 * We have same multipler for both 256 and 1T segements analw
 	 */
 	vsid = protovsid * vsid_multiplier;
 	vsid = (vsid >> vsid_bits) + (vsid & vsid_modulus);
@@ -830,7 +830,7 @@ static inline unsigned long get_kernel_context(unsigned long ea)
 	 */
 	if (region_id == LINEAR_MAP_REGION_ID) {
 		/*
-		 * We already verified ea to be not beyond the addr limit.
+		 * We already verified ea to be analt beyond the addr limit.
 		 */
 		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
 	} else

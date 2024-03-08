@@ -7,7 +7,7 @@
 
 #include <linux/fs.h> /* only for vma_is_dax() */
 
-vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf);
+vm_fault_t do_huge_pmd_aanalnymous_page(struct vm_fault *vmf);
 int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
 		  struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma);
@@ -68,11 +68,11 @@ extern struct kobj_attribute shmem_enabled_attr;
 #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
 
 /*
- * Mask of all large folio orders supported for anonymous THP; all orders up to
- * and including PMD_ORDER, except order-0 (which is not "huge") and order-1
+ * Mask of all large folio orders supported for aanalnymous THP; all orders up to
+ * and including PMD_ORDER, except order-0 (which is analt "huge") and order-1
  * (which is a limitation of the THP implementation).
  */
-#define THP_ORDERS_ALL_ANON	((BIT(PMD_ORDER + 1) - 1) & ~(BIT(0) | BIT(1)))
+#define THP_ORDERS_ALL_AANALN	((BIT(PMD_ORDER + 1) - 1) & ~(BIT(0) | BIT(1)))
 
 /*
  * Mask of all large folio orders supported for file THP.
@@ -82,7 +82,7 @@ extern struct kobj_attribute shmem_enabled_attr;
 /*
  * Mask of all large folio orders supported for THP.
  */
-#define THP_ORDERS_ALL		(THP_ORDERS_ALL_ANON | THP_ORDERS_ALL_FILE)
+#define THP_ORDERS_ALL		(THP_ORDERS_ALL_AANALN | THP_ORDERS_ALL_FILE)
 
 #define thp_vma_allowable_order(vma, vm_flags, smaps, in_pf, enforce_sysfs, order) \
 	(!!thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf, enforce_sysfs, BIT(order)))
@@ -97,9 +97,9 @@ extern struct kobj_attribute shmem_enabled_attr;
 #define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
 
 extern unsigned long transparent_hugepage_flags;
-extern unsigned long huge_anon_orders_always;
-extern unsigned long huge_anon_orders_madvise;
-extern unsigned long huge_anon_orders_inherit;
+extern unsigned long huge_aanaln_orders_always;
+extern unsigned long huge_aanaln_orders_madvise;
+extern unsigned long huge_aanaln_orders_inherit;
 
 static inline bool hugepage_global_enabled(void)
 {
@@ -117,13 +117,13 @@ static inline bool hugepage_global_always(void)
 static inline bool hugepage_flags_enabled(void)
 {
 	/*
-	 * We cover both the anon and the file-backed case here; we must return
-	 * true if globally enabled, even when all anon sizes are set to never.
-	 * So we don't need to look at huge_anon_orders_inherit.
+	 * We cover both the aanaln and the file-backed case here; we must return
+	 * true if globally enabled, even when all aanaln sizes are set to never.
+	 * So we don't need to look at huge_aanaln_orders_inherit.
 	 */
 	return hugepage_global_enabled() ||
-	       huge_anon_orders_always ||
-	       huge_anon_orders_madvise;
+	       huge_aanaln_orders_always ||
+	       huge_aanaln_orders_madvise;
 }
 
 static inline int highest_order(unsigned long orders)
@@ -144,7 +144,7 @@ static inline int next_order(unsigned long *orders, int prev)
  *     guaranteed to be order-aligned within the file, but we must
  *     check that the order-aligned addresses in the VMA map to
  *     order-aligned offsets within the file, else the hugepage will
- *     not be mappable.
+ *     analt be mappable.
  *   - For all vmas, check if the haddr is in an aligned hugepage
  *     area.
  */
@@ -154,8 +154,8 @@ static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
 	unsigned long hpage_size = PAGE_SIZE << order;
 	unsigned long haddr;
 
-	/* Don't have to check pgoff for anonymous vma */
-	if (!vma_is_anonymous(vma)) {
+	/* Don't have to check pgoff for aanalnymous vma */
+	if (!vma_is_aanalnymous(vma)) {
 		if (!IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
 				hpage_size >> PAGE_SHIFT))
 			return false;
@@ -198,15 +198,15 @@ static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
 
 static inline bool file_thp_enabled(struct vm_area_struct *vma)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
 	if (!vma->vm_file)
 		return false;
 
-	inode = vma->vm_file->f_inode;
+	ianalde = vma->vm_file->f_ianalde;
 
 	return (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS)) &&
-	       !inode_is_open_for_write(inode) && S_ISREG(inode->i_mode);
+	       !ianalde_is_open_for_write(ianalde) && S_ISREG(ianalde->i_mode);
 }
 
 unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
@@ -228,7 +228,7 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
  * bit at the corresponding bit position (bit-2 corresponds to order-2, bit-3
  * corresponds to order-3, etc). Order-0 is never considered a hugepage order.
  *
- * Return: bitfield of orders allowed for hugepage in the vma. 0 if no hugepage
+ * Return: bitfield of orders allowed for hugepage in the vma. 0 if anal hugepage
  * orders are allowed.
  */
 static inline
@@ -238,14 +238,14 @@ unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
 				       unsigned long orders)
 {
 	/* Optimization to check if required orders are enabled early. */
-	if (enforce_sysfs && vma_is_anonymous(vma)) {
-		unsigned long mask = READ_ONCE(huge_anon_orders_always);
+	if (enforce_sysfs && vma_is_aanalnymous(vma)) {
+		unsigned long mask = READ_ONCE(huge_aanaln_orders_always);
 
 		if (vm_flags & VM_HUGEPAGE)
-			mask |= READ_ONCE(huge_anon_orders_madvise);
+			mask |= READ_ONCE(huge_aanaln_orders_madvise);
 		if (hugepage_global_always() ||
 		    ((vm_flags & VM_HUGEPAGE) && hugepage_global_enabled()))
-			mask |= READ_ONCE(huge_anon_orders_inherit);
+			mask |= READ_ONCE(huge_aanaln_orders_inherit);
 
 		orders &= mask;
 		if (!orders)
@@ -311,7 +311,7 @@ spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma);
 
 static inline int is_swap_pmd(pmd_t pmd)
 {
-	return !pmd_none(pmd) && !pmd_present(pmd);
+	return !pmd_analne(pmd) && !pmd_present(pmd);
 }
 
 /* mmap_lock must be held on entry */

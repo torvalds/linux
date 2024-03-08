@@ -17,7 +17,7 @@ struct dpaa2_mac {
 	struct net_device *net_dev;
 	struct fsl_mc_io *mc_io;
 	struct dpmac_attr attr;
-	u16 ver_major, ver_minor;
+	u16 ver_major, ver_mianalr;
 	unsigned long features;
 
 	struct phylink_config phylink_config;
@@ -25,7 +25,7 @@ struct dpaa2_mac {
 	phy_interface_t if_mode;
 	enum dpmac_link_type if_link_type;
 	struct phylink_pcs *pcs;
-	struct fwnode_handle *fw_node;
+	struct fwanalde_handle *fw_analde;
 
 	struct phy *serdes_phy;
 };

@@ -11,7 +11,7 @@ void can_sjw_set_default(struct can_bittiming *bt)
 	if (bt->sjw)
 		return;
 
-	/* If user space provides no sjw, use sane default of phase_seg2 / 2 */
+	/* If user space provides anal sjw, use sane default of phase_seg2 / 2 */
 	bt->sjw = max(1U, min(bt->phase_seg1, bt->phase_seg2 / 2));
 }
 
@@ -124,7 +124,7 @@ can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *b
 			return 0;
 	}
 
-	NL_SET_ERR_MSG_FMT(extack, "bitrate %u bps not supported",
+	NL_SET_ERR_MSG_FMT(extack, "bitrate %u bps analt supported",
 			   bt->brp);
 
 	return -EINVAL;

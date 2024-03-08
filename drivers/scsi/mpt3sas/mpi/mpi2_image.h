@@ -182,7 +182,7 @@ typedef struct _MPI26_COMPONENT_IMAGE_HEADER {
 	U32 Signature2;					/*0x30 */
 	U32 HeaderSize;					/*0x34 */
 	U32 Crc;					/*0x38 */
-	U8 NotFlashImage;				/*0x3C */
+	U8 AnaltFlashImage;				/*0x3C */
 	U8 Compressed;					/*0x3D */
 	U16 Reserved3E;					/*0x3E */
 	U32 SecondaryFlashOffset;			/*0x40 */
@@ -239,7 +239,7 @@ typedef struct _MPI26_COMPONENT_IMAGE_HEADER {
 #define MPI26_IMAGE_HEADER_SIGNATURE2_OFFSET                   (0x30)
 #define MPI26_IMAGE_HEADER_HEADER_SIZE_OFFSET                  (0x34)
 #define MPI26_IMAGE_HEADER_CRC_OFFSET                          (0x38)
-#define MPI26_IMAGE_HEADER_NOT_FLASH_IMAGE_OFFSET              (0x3C)
+#define MPI26_IMAGE_HEADER_ANALT_FLASH_IMAGE_OFFSET              (0x3C)
 #define MPI26_IMAGE_HEADER_COMPRESSED_OFFSET                   (0x3D)
 #define MPI26_IMAGE_HEADER_SECONDARY_FLASH_OFFSET_OFFSET       (0x40)
 #define MPI26_IMAGE_HEADER_RMC_INTERFACE_VER_OFFSET            (0x4C)
@@ -469,7 +469,7 @@ Mpi25EncryptedHashEntry_t, *pMpi25EncryptedHashEntry_t;
 #define MPI25_HASH_ALGORITHM_SHA256             (0x01)
 
 #define MPI26_HASH_ALGORITHM_VER_MASK		(0xE0)
-#define MPI26_HASH_ALGORITHM_VER_NONE		(0x00)
+#define MPI26_HASH_ALGORITHM_VER_ANALNE		(0x00)
 #define MPI26_HASH_ALGORITHM_VER_SHA1		(0x20)
 #define MPI26_HASH_ALGORITHM_VER_SHA2		(0x40)
 #define MPI26_HASH_ALGORITHM_VER_SHA3		(0x60)

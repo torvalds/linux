@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/ipv6.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/un.h>
 #include <linux/uaccess.h>
@@ -116,9 +116,9 @@ static void p9_virtio_close(struct p9_client *client)
  * req_done - callback which signals activity from the server
  * @vq: virtio queue activity was received on
  *
- * This notifies us that the server has triggered some activity
+ * This analtifies us that the server has triggered some activity
  * on the virtio channel - most likely a response to request we
- * sent.  Figure out which requests now have responses and wake up
+ * sent.  Figure out which requests analw have responses and wake up
  * those threads.
  *
  * Bugs: could do with some additional sanity checking, but appears to work.
@@ -210,7 +210,7 @@ static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
  * @limit: maximum number of pages in sg list.
  * @pdata: a list of pages to add into sg.
  * @nr_pages: number of pages to pack into the scatter/gather list
- * @offs: amount of data in the beginning of first page _not_ to pack
+ * @offs: amount of data in the beginning of first page _analt_ to pack
  * @count: amount of data to pack into the scatter/gather list
  */
 static int
@@ -281,7 +281,7 @@ req_retry:
 	err = virtqueue_add_sgs(chan->vq, sgs, out_sgs, in_sgs, req,
 				GFP_ATOMIC);
 	if (err < 0) {
-		if (err == -ENOSPC) {
+		if (err == -EANALSPC) {
 			chan->ring_bufs_avail = 0;
 			spin_unlock_irqrestore(&chan->lock, flags);
 			err = wait_event_killable(*chan->vc_wq,
@@ -338,12 +338,12 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 		atomic_add(nr_pages, &vp_pinned);
 		return n;
 	} else {
-		/* kernel buffer, no need to pin pages */
+		/* kernel buffer, anal need to pin pages */
 		int index;
 		size_t len;
 		void *p;
 
-		/* we'd already checked that it's non-empty */
+		/* we'd already checked that it's analn-empty */
 		while (1) {
 			len = iov_iter_single_seg_count(data);
 			if (likely(len)) {
@@ -359,9 +359,9 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 			   (unsigned long)p / PAGE_SIZE;
 
 		*pages = kmalloc_array(nr_pages, sizeof(struct page *),
-				       GFP_NOFS);
+				       GFP_ANALFS);
 		if (!*pages)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*need_drop = 0;
 		p -= (*offs = offset_in_page(p));
@@ -383,7 +383,7 @@ static void handle_rerror(struct p9_req_t *req, int in_hdr_len,
 	unsigned size, n;
 	void *to = req->rc.sdata + in_hdr_len;
 
-	// Fits entirely into the static data?  Nothing to do.
+	// Fits entirely into the static data?  Analthing to do.
 	if (req->rc.size < in_hdr_len || !pages)
 		return;
 
@@ -449,8 +449,8 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 			outlen = n;
 		}
 		/* The size field of the message must include the length of the
-		 * header and the length of the data.  We didn't actually know
-		 * the length of the data until this point so add it in now.
+		 * header and the length of the data.  We didn't actually kanalw
+		 * the length of the data until this point so add it in analw.
 		 */
 		sz = cpu_to_le32(req->tc.size + outlen);
 		memcpy(&req->tc.sdata[0], &sz, sizeof(sz));
@@ -509,7 +509,7 @@ req_retry_pinned:
 	err = virtqueue_add_sgs(chan->vq, sgs, out_sgs, in_sgs, req,
 				GFP_ATOMIC);
 	if (err < 0) {
-		if (err == -ENOSPC) {
+		if (err == -EANALSPC) {
 			chan->ring_bufs_avail = 0;
 			spin_unlock_irqrestore(&chan->lock, flags);
 			err = wait_event_killable(*chan->vc_wq,
@@ -539,7 +539,7 @@ req_retry_pinned:
 		handle_rerror(req, in_hdr_len, offs, in_pages);
 
 	/*
-	 * Non kernel buffers are pinned, unpin them
+	 * Analn kernel buffers are pinned, unpin them
 	 */
 err_out:
 	if (need_drop) {
@@ -605,7 +605,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	chan = kmalloc(sizeof(struct virtio_chan), GFP_KERNEL);
 	if (!chan) {
 		pr_err("Failed to allocate virtio 9P channel\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -631,7 +631,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	}
 	tag = kzalloc(tag_len + 1, GFP_KERNEL);
 	if (!tag) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_vq;
 	}
 
@@ -644,7 +644,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	}
 	chan->vc_wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
 	if (!chan->vc_wq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_remove_file;
 	}
 	init_waitqueue_head(chan->vc_wq);
@@ -682,7 +682,7 @@ fail:
  * @devname: string identifying the channel to connect to (unused)
  * @args: args passed from sys_mount() for per-transport options (unused)
  *
- * This sets up a transport channel for 9p communication.  Right now
+ * This sets up a transport channel for 9p communication.  Right analw
  * we only match the first available channel, but eventually we could look up
  * alternate channels by matching devname versus a virtio_config entry.
  * We use a simple reference count mechanism to ensure that only a single
@@ -694,7 +694,7 @@ static int
 p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 {
 	struct virtio_chan *chan;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	int found = 0;
 
 	if (devname == NULL)
@@ -714,7 +714,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 	mutex_unlock(&virtio_9p_lock);
 
 	if (!found) {
-		pr_err("no channels available for device %s\n", devname);
+		pr_err("anal channels available for device %s\n", devname);
 		return ret;
 	}
 
@@ -798,7 +798,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	/*
 	 * We leave one entry for input and one entry for response
 	 * headers. We also skip one more entry to accommodate, address
-	 * that are not at page boundary, that can result in an extra
+	 * that are analt at page boundary, that can result in an extra
 	 * page in zero copy.
 	 */
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),

@@ -12,7 +12,7 @@
 #include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include "../pci.h"
 
 #if defined(CONFIG_PCI_HOST_THUNDER_PEM) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
@@ -23,7 +23,7 @@
 /*
  * Enhanced Configuration Access Mechanism (ECAM)
  *
- * N.B. This is a non-standard platform-specific ECAM bus shift value.  For
+ * N.B. This is a analn-standard platform-specific ECAM bus shift value.  For
  * standard values defined in the PCI Express Base Specification see
  * include/linux/pci-ecam.h.
  */
@@ -42,7 +42,7 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 	struct thunder_pem_pci *pem_pci = (struct thunder_pem_pci *)cfg->priv;
 
 	if (devfn != 0 || where >= 2048)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * 32-bit accesses only.  Write the address to the low order
@@ -96,7 +96,7 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 		read_val = 0x000f0000;
 		break;
 	case 0xbc:
-		/* EA, 1 entry, no next Cap */
+		/* EA, 1 entry, anal next Cap */
 		read_val = 0x00010014;
 		break;
 	case 0xc0:
@@ -141,7 +141,7 @@ static int thunder_pem_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	if (bus->number < cfg->busr.start ||
 	    bus->number > cfg->busr.end)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * The first device on the bus is the PEM PCIe bridge.
@@ -154,9 +154,9 @@ static int thunder_pem_config_read(struct pci_bus *bus, unsigned int devfn,
 }
 
 /*
- * Some of the w1c_bits below also include read-only or non-writable
+ * Some of the w1c_bits below also include read-only or analn-writable
  * reserved bits, this makes the code simpler and is OK as the bits
- * are not affected by writing zeros to them.
+ * are analt affected by writing zeros to them.
  */
 static u32 thunder_pem_bridge_w1c_bits(u64 where_aligned)
 {
@@ -221,7 +221,7 @@ static int thunder_pem_bridge_write(struct pci_bus *bus, unsigned int devfn,
 
 
 	if (devfn != 0 || where >= 2048)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	/*
 	 * 32-bit accesses only.  If the write is for a size smaller
@@ -254,7 +254,7 @@ static int thunder_pem_bridge_write(struct pci_bus *bus, unsigned int devfn,
 
 	/*
 	 * By expanding the write width to 32 bits, we may
-	 * inadvertently hit some W1C bits that were not intended to
+	 * inadvertently hit some W1C bits that were analt intended to
 	 * be written.  Calculate the mask that must be applied to the
 	 * data to be written to avoid these cases.
 	 */
@@ -290,7 +290,7 @@ static int thunder_pem_config_write(struct pci_bus *bus, unsigned int devfn,
 
 	if (bus->number < cfg->busr.start ||
 	    bus->number > cfg->busr.end)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 	/*
 	 * The first device on the bus is the PEM PCIe bridge.
 	 * Special case its config access.
@@ -310,11 +310,11 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 
 	pem_pci = devm_kzalloc(dev, sizeof(*pem_pci), GFP_KERNEL);
 	if (!pem_pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pem_pci->pem_reg_base = devm_ioremap(dev, res_pem->start, 0x10000);
 	if (!pem_pci->pem_reg_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The MSI-X BAR for the PEM and AER interrupts is located at
@@ -334,10 +334,10 @@ static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 
 #define PEM_RES_BASE		0x87e0c0000000ULL
-#define PEM_NODE_MASK		GENMASK_ULL(45, 44)
+#define PEM_ANALDE_MASK		GENMASK_ULL(45, 44)
 #define PEM_INDX_MASK		GENMASK_ULL(26, 24)
-#define PEM_MIN_DOM_IN_NODE	4
-#define PEM_MAX_DOM_IN_NODE	10
+#define PEM_MIN_DOM_IN_ANALDE	4
+#define PEM_MAX_DOM_IN_ANALDE	10
 
 static void thunder_pem_reserve_range(struct device *dev, int seg,
 				      struct resource *r)
@@ -357,21 +357,21 @@ static void thunder_pem_reserve_range(struct device *dev, int seg,
 		kfree(regionid);
 
 	dev_info(dev, "%pR %s reserved\n", r,
-		 res ? "has been" : "could not be");
+		 res ? "has been" : "could analt be");
 }
 
 static void thunder_pem_legacy_fw(struct acpi_pci_root *root,
 				 struct resource *res_pem)
 {
-	int node = acpi_get_node(root->device->handle);
+	int analde = acpi_get_analde(root->device->handle);
 	int index;
 
-	if (node == NUMA_NO_NODE)
-		node = 0;
+	if (analde == NUMA_ANAL_ANALDE)
+		analde = 0;
 
-	index = root->segment - PEM_MIN_DOM_IN_NODE;
-	index -= node * PEM_MAX_DOM_IN_NODE;
-	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_NODE_MASK, node) |
+	index = root->segment - PEM_MIN_DOM_IN_ANALDE;
+	index -= analde * PEM_MAX_DOM_IN_ANALDE;
+	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_ANALDE_MASK, analde) |
 					FIELD_PREP(PEM_INDX_MASK, index);
 	res_pem->flags = IORESOURCE_MEM;
 }
@@ -386,7 +386,7 @@ static int thunder_pem_acpi_init(struct pci_config_window *cfg)
 
 	res_pem = devm_kzalloc(&adev->dev, sizeof(*res_pem), GFP_KERNEL);
 	if (!res_pem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = acpi_get_rc_resources(dev, "CAVA02B", root->segment, res_pem);
 
@@ -431,7 +431,7 @@ static int thunder_pem_platform_init(struct pci_config_window *cfg)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res_pem;
 
-	if (!dev->of_node)
+	if (!dev->of_analde)
 		return -EINVAL;
 
 	/*

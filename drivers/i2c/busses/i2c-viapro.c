@@ -11,23 +11,23 @@
    Supports the following VIA south bridges:
 
    Chip name          PCI ID  REV     I2C block
-   VT82C596A          0x3050             no
-   VT82C596B          0x3051             no
-   VT82C686A          0x3057  0x30       no
-   VT82C686B          0x3057  0x40       yes
-   VT8231             0x8235             no?
-   VT8233             0x3074             yes
-   VT8233A            0x3147             yes?
-   VT8235             0x3177             yes
-   VT8237R            0x3227             yes
-   VT8237A            0x3337             yes
-   VT8237S            0x3372             yes
-   VT8251             0x3287             yes
-   CX700              0x8324             yes
-   VX800/VX820        0x8353             yes
-   VX855/VX875        0x8409             yes
+   VT82C596A          0x3050             anal
+   VT82C596B          0x3051             anal
+   VT82C686A          0x3057  0x30       anal
+   VT82C686B          0x3057  0x40       anal
+   VT8231             0x8235             anal?
+   VT8233             0x3074             anal
+   VT8233A            0x3147             anal?
+   VT8235             0x3177             anal
+   VT8237R            0x3227             anal
+   VT8237A            0x3337             anal
+   VT8237S            0x3372             anal
+   VT8251             0x3287             anal
+   CX700              0x8324             anal
+   VX800/VX820        0x8353             anal
+   VX855/VX875        0x8409             anal
 
-   Note: we assume there can only be one device, with one SMBus interface.
+   Analte: we assume there can only be one device, with one SMBus interface.
 */
 
 #include <linux/module.h>
@@ -174,7 +174,7 @@ static int vt596_transaction(u8 size)
 
 	if (temp & 0x04) {
 		result = -ENXIO;
-		dev_dbg(&vt596_adapter.dev, "No response\n");
+		dev_dbg(&vt596_adapter.dev, "Anal response\n");
 	}
 
 	/* Resetting status register */
@@ -186,7 +186,7 @@ static int vt596_transaction(u8 size)
 	return result;
 }
 
-/* Return negative errno on error, 0 on success */
+/* Return negative erranal on error, 0 on success */
 static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		unsigned short flags, char read_write, u8 command,
 		int size, union i2c_smbus_data *data)
@@ -283,7 +283,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 exit_unsupported:
 	dev_warn(&vt596_adapter.dev, "Unsupported transaction %d\n",
 		 size);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static u32 vt596_func(struct i2c_adapter *adapter)
@@ -329,10 +329,10 @@ static int vt596_probe(struct pci_dev *pdev,
 		    (vt596_smba & 0x0001)) {
 			SMBHSTCFG = 0x84;
 		} else {
-			/* no matches at all */
-			dev_err(&pdev->dev, "Cannot configure "
+			/* anal matches at all */
+			dev_err(&pdev->dev, "Cananalt configure "
 				"SMBus I/O Base address\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -341,18 +341,18 @@ static int vt596_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "SMBus base address "
 			"uninitialized - upgrade BIOS or use "
 			"force_addr=0xaddr\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 found:
 	error = acpi_check_region(vt596_smba, 8, vt596_driver.name);
 	if (error)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_region(vt596_smba, 8, vt596_driver.name)) {
 		dev_err(&pdev->dev, "SMBus region 0x%x already in use!\n",
 			vt596_smba);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_read_config_byte(pdev, SMBHSTCFG, &temp);
@@ -366,7 +366,7 @@ found:
 			 "address 0x%04x!\n", vt596_smba);
 	} else if (!(temp & 0x01)) {
 		if (force) {
-			/* NOTE: This assumes I/O space and other allocations
+			/* ANALTE: This assumes I/O space and other allocations
 			 * WERE done by the Bios!  Don't complain if your
 			 * hardware does weird things after enabling this.
 			 * :') Check for Bios updates before resorting to
@@ -376,9 +376,9 @@ found:
 			dev_info(&pdev->dev, "Enabling SMBus device\n");
 		} else {
 			dev_err(&pdev->dev, "SMBUS: Error: Host SMBus "
-				"controller not enabled! - upgrade BIOS or "
+				"controller analt enabled! - upgrade BIOS or "
 				"use force=1\n");
-			error = -ENODEV;
+			error = -EANALDEV;
 			goto release_region;
 		}
 	}
@@ -423,7 +423,7 @@ found:
 	 * to this pci device.  We don't really want to have control over the
 	 * pci device, we only wanted to read as few register values from it.
 	 */
-	return -ENODEV;
+	return -EANALDEV;
 
 release_region:
 	release_region(vt596_smba, 8);

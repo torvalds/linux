@@ -12,7 +12,7 @@
  *   Analog chip: AK4524 (partially via Philip's 74HCT125)
  *   Digital receiver: CS8414-CS (supported in this release)
  *		PHASE 22 revision 2.0 and Terrasoniq/Musonik TS22PCI have CS8416
- *		(support status unknown, please test and report)
+ *		(support status unkanalwn, please test and report)
  *
  *   Envy connects to AK4524
  *	- CS directly from GPIO 10
@@ -101,7 +101,7 @@ static const struct snd_ak4xxx_private akm_phase22_priv = {
 	.clk_mask =	1 << 5,
 	.cs_mask =	1 << 10,
 	.cs_addr =	1 << 10,
-	.cs_none =	0,
+	.cs_analne =	0,
 	.add_flags = 	1 << 3,
 	.mask_flags =	0,
 };
@@ -128,7 +128,7 @@ static int phase22_init(struct snd_ice1712 *ice)
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	ak = ice->akm;
 	if (!ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_PHASE22:
@@ -246,7 +246,7 @@ static unsigned short wm_get(struct snd_ice1712 *ice, int reg)
 /*
  * set the register value of WM codec
  */
-static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
+static void wm_put_analcache(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
 	phase28_spi_write(ice, PHASE28_WM_CS, (reg << 9) | (val & 0x1ff), 16);
 }
@@ -256,7 +256,7 @@ static void wm_put_nocache(struct snd_ice1712 *ice, int reg, unsigned short val)
  */
 static void wm_put(struct snd_ice1712 *ice, int reg, unsigned short val)
 {
-	wm_put_nocache(ice, reg, val);
+	wm_put_analcache(ice, reg, val);
 	reg <<= 1;
 	ice->akm[0].images[reg] = val >> 8;
 	ice->akm[0].images[reg + 1] = val;
@@ -274,13 +274,13 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index,
 			(master & ~WM_VOL_MUTE)) / 127) & WM_VOL_MAX];
 
 	wm_put(ice, index, nvol);
-	wm_put_nocache(ice, index, 0x180 | nvol);
+	wm_put_analcache(ice, index, 0x180 | nvol);
 }
 
 /*
  * DAC mute control
  */
-#define wm_pcm_mute_info	snd_ctl_boolean_mono_info
+#define wm_pcm_mute_info	snd_ctl_boolean_moanal_info
 
 static int wm_pcm_mute_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -367,14 +367,14 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol,
 static int phase28_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits_phase28[] = {
-		/* These come first to reduce init pop noise */
+		/* These come first to reduce init pop analise */
 		0x1b, 0x044,	/* ADC Mux (AC'97 source) */
 		0x1c, 0x00B,	/* Out Mux1 (VOUT1 = DAC+AUX, VOUT2 = DAC) */
 		0x1d, 0x009,	/* Out Mux2 (VOUT2 = DAC, VOUT3 = DAC) */
 
 		0x18, 0x000,	/* All power-up */
 
-		0x16, 0x122,	/* I2S, normal polarity, 24bit */
+		0x16, 0x122,	/* I2S, analrmal polarity, 24bit */
 		0x17, 0x022,	/* 256fs, slave mode */
 		0x00, 0,	/* DAC1 analog mute */
 		0x01, 0,	/* DAC2 analog mute */
@@ -394,10 +394,10 @@ static int phase28_init(struct snd_ice1712 *ice)
 		0x0f, 0xff,	/* DAC7 digital full */
 		0x10, 0xff,	/* DAC8 digital full */
 		0x11, 0x1ff,	/* master digital full */
-		0x12, 0x000,	/* phase normal */
+		0x12, 0x000,	/* phase analrmal */
 		0x13, 0x090,	/* unmute DAC L/R */
 		0x14, 0x000,	/* all unmute */
-		0x15, 0x000,	/* no deemphasis, no ZFLG */
+		0x15, 0x000,	/* anal deemphasis, anal ZFLG */
 		0x19, 0x000,	/* -12dB ADC/L */
 		0x1a, 0x000,	/* -12dB ADC/R */
 		(unsigned short)-1
@@ -414,14 +414,14 @@ static int phase28_init(struct snd_ice1712 *ice)
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->spec = spec;
 
 	/* Initialize analog chips */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	ak = ice->akm;
 	if (!ak)
-		return -ENOMEM;
+		return -EANALMEM;
 	ice->akm_codecs = 1;
 
 	snd_ice1712_gpio_set_dir(ice, 0x5fffff); /* fix this for time being */
@@ -662,7 +662,7 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	if (ovol != nvol) {
 		wm_put(ice, WM_DAC_DIG_MASTER_ATTEN, nvol); /* prelatch */
 		/* update */
-		wm_put_nocache(ice, WM_DAC_DIG_MASTER_ATTEN, nvol | 0x100);
+		wm_put_analcache(ice, WM_DAC_DIG_MASTER_ATTEN, nvol | 0x100);
 		change = 1;
 	}
 	snd_ice1712_restore_gpio_status(ice);
@@ -672,7 +672,7 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol,
 /*
  * Deemphasis
  */
-#define phase28_deemp_info	snd_ctl_boolean_mono_info
+#define phase28_deemp_info	snd_ctl_boolean_moanal_info
 
 static int phase28_deemp_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)

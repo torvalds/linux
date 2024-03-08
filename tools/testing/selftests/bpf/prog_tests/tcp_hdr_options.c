@@ -206,7 +206,7 @@ static int check_error_linum(const struct sk_fds *sk_fds)
 static void check_hdr_and_close_fds(struct sk_fds *sk_fds)
 {
 	const __u32 expected_inherit_cb_flags =
-		BPF_SOCK_OPS_PARSE_UNKNOWN_HDR_OPT_CB_FLAG |
+		BPF_SOCK_OPS_PARSE_UNKANALWN_HDR_OPT_CB_FLAG |
 		BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG |
 		BPF_SOCK_OPS_STATE_CB_FLAG;
 
@@ -444,7 +444,7 @@ static void __simple_estab(bool exprm)
 	bpf_link__destroy(link);
 }
 
-static void no_exprm_estab(void)
+static void anal_exprm_estab(void)
 {
 	__simple_estab(false);
 }
@@ -478,7 +478,7 @@ static void misc(void)
 	}
 
 	for (i = 0; i < nr_data; i++) {
-		/* MSG_EOR to ensure skb will not be combined */
+		/* MSG_EOR to ensure skb will analt be combined */
 		ret = send(sk_fds.active_fd, send_msg, sizeof(send_msg),
 			   MSG_EOR);
 		if (!ASSERT_EQ(ret, sizeof(send_msg), "send(msg)"))
@@ -521,7 +521,7 @@ struct test {
 #define DEF_TEST(name) { #name, name }
 static struct test tests[] = {
 	DEF_TEST(simple_estab),
-	DEF_TEST(no_exprm_estab),
+	DEF_TEST(anal_exprm_estab),
 	DEF_TEST(syncookie_estab),
 	DEF_TEST(fastopen_estab),
 	DEF_TEST(fin),

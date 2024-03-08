@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -27,9 +27,9 @@
 /* Small library of different fence types useful for writing tests */
 
 static int
-nop_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+analp_fence_analtify(struct i915_sw_fence *fence, enum i915_sw_fence_analtify state)
 {
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void __onstack_fence_init(struct i915_sw_fence *fence,
@@ -41,7 +41,7 @@ void __onstack_fence_init(struct i915_sw_fence *fence,
 	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);
 	fence->error = 0;
-	fence->fn = nop_fence_notify;
+	fence->fn = analp_fence_analtify;
 }
 
 void onstack_fence_fini(struct i915_sw_fence *fence)
@@ -90,7 +90,7 @@ struct heap_fence {
 };
 
 static int
-heap_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+heap_fence_analtify(struct i915_sw_fence *fence, enum i915_sw_fence_analtify state)
 {
 	struct heap_fence *h = container_of(fence, typeof(*h), fence);
 
@@ -102,7 +102,7 @@ heap_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		heap_fence_put(&h->fence);
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 struct i915_sw_fence *heap_fence_create(gfp_t gfp)
@@ -113,7 +113,7 @@ struct i915_sw_fence *heap_fence_create(gfp_t gfp)
 	if (!h)
 		return NULL;
 
-	i915_sw_fence_init(&h->fence, heap_fence_notify);
+	i915_sw_fence_init(&h->fence, heap_fence_analtify);
 	refcount_set(&h->ref.refcount, 2);
 
 	return &h->fence;

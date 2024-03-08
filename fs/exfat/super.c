@@ -23,7 +23,7 @@
 #include "exfat_fs.h"
 
 static char exfat_default_iocharset[] = CONFIG_EXFAT_DEFAULT_IOCHARSET;
-static struct kmem_cache *exfat_inode_cachep;
+static struct kmem_cache *exfat_ianalde_cachep;
 
 static void exfat_free_iocharset(struct exfat_sb_info *sbi)
 {
@@ -49,7 +49,7 @@ static int exfat_sync_fs(struct super_block *sb, int wait)
 	if (!wait)
 		return 0;
 
-	/* If there are some dirty buffers in the bdev inode */
+	/* If there are some dirty buffers in the bdev ianalde */
 	mutex_lock(&sbi->s_lock);
 	sync_blockdev(sb->s_bdev);
 	if (exfat_clear_volume_dirty(sb))
@@ -92,7 +92,7 @@ static int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flags)
 	/* retain persistent-flags */
 	new_flags |= sbi->vol_flags_persistent;
 
-	/* flags are not changed */
+	/* flags are analt changed */
 	if (sbi->vol_flags == new_flags)
 		return 0;
 
@@ -167,28 +167,28 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
-static struct inode *exfat_alloc_inode(struct super_block *sb)
+static struct ianalde *exfat_alloc_ianalde(struct super_block *sb)
 {
-	struct exfat_inode_info *ei;
+	struct exfat_ianalde_info *ei;
 
-	ei = alloc_inode_sb(sb, exfat_inode_cachep, GFP_NOFS);
+	ei = alloc_ianalde_sb(sb, exfat_ianalde_cachep, GFP_ANALFS);
 	if (!ei)
 		return NULL;
 
 	init_rwsem(&ei->truncate_lock);
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void exfat_free_inode(struct inode *inode)
+static void exfat_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(exfat_inode_cachep, EXFAT_I(inode));
+	kmem_cache_free(exfat_ianalde_cachep, EXFAT_I(ianalde));
 }
 
 static const struct super_operations exfat_sops = {
-	.alloc_inode	= exfat_alloc_inode,
-	.free_inode	= exfat_free_inode,
-	.write_inode	= exfat_write_inode,
-	.evict_inode	= exfat_evict_inode,
+	.alloc_ianalde	= exfat_alloc_ianalde,
+	.free_ianalde	= exfat_free_ianalde,
+	.write_ianalde	= exfat_write_ianalde,
+	.evict_ianalde	= exfat_evict_ianalde,
 	.put_super	= exfat_put_super,
 	.sync_fs	= exfat_sync_fs,
 	.statfs		= exfat_statfs,
@@ -326,16 +326,16 @@ static void exfat_hash_init(struct super_block *sb)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	int i;
 
-	spin_lock_init(&sbi->inode_hash_lock);
+	spin_lock_init(&sbi->ianalde_hash_lock);
 	for (i = 0; i < EXFAT_HASH_SIZE; i++)
-		INIT_HLIST_HEAD(&sbi->inode_hashtable[i]);
+		INIT_HLIST_HEAD(&sbi->ianalde_hashtable[i]);
 }
 
-static int exfat_read_root(struct inode *inode)
+static int exfat_read_root(struct ianalde *ianalde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct exfat_inode_info *ei = EXFAT_I(inode);
+	struct exfat_ianalde_info *ei = EXFAT_I(ianalde);
 	struct exfat_chain cdir;
 	int num_subdirs, num_clu = 0;
 
@@ -348,34 +348,34 @@ static int exfat_read_root(struct inode *inode)
 	ei->hint_bmap.off = EXFAT_EOF_CLUSTER;
 	ei->hint_stat.eidx = 0;
 	ei->hint_stat.clu = sbi->root_dir;
-	ei->hint_femp.eidx = EXFAT_HINT_NONE;
+	ei->hint_femp.eidx = EXFAT_HINT_ANALNE;
 
 	exfat_chain_set(&cdir, sbi->root_dir, 0, ALLOC_FAT_CHAIN);
 	if (exfat_count_num_clusters(sb, &cdir, &num_clu))
 		return -EIO;
-	i_size_write(inode, num_clu << sbi->cluster_size_bits);
+	i_size_write(ianalde, num_clu << sbi->cluster_size_bits);
 
 	num_subdirs = exfat_count_dir_entries(sb, &cdir);
 	if (num_subdirs < 0)
 		return -EIO;
-	set_nlink(inode, num_subdirs + EXFAT_MIN_SUBDIR);
+	set_nlink(ianalde, num_subdirs + EXFAT_MIN_SUBDIR);
 
-	inode->i_uid = sbi->options.fs_uid;
-	inode->i_gid = sbi->options.fs_gid;
-	inode_inc_iversion(inode);
-	inode->i_generation = 0;
-	inode->i_mode = exfat_make_mode(sbi, EXFAT_ATTR_SUBDIR, 0777);
-	inode->i_op = &exfat_dir_inode_operations;
-	inode->i_fop = &exfat_dir_operations;
+	ianalde->i_uid = sbi->options.fs_uid;
+	ianalde->i_gid = sbi->options.fs_gid;
+	ianalde_inc_iversion(ianalde);
+	ianalde->i_generation = 0;
+	ianalde->i_mode = exfat_make_mode(sbi, EXFAT_ATTR_SUBDIR, 0777);
+	ianalde->i_op = &exfat_dir_ianalde_operations;
+	ianalde->i_fop = &exfat_dir_operations;
 
-	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >> 9;
+	ianalde->i_blocks = round_up(i_size_read(ianalde), sbi->cluster_size) >> 9;
 	ei->i_pos = ((loff_t)sbi->root_dir << 32) | 0xffffffff;
-	ei->i_size_aligned = i_size_read(inode);
-	ei->i_size_ondisk = i_size_read(inode);
+	ei->i_size_aligned = i_size_read(ianalde);
+	ei->i_size_ondisk = i_size_read(ianalde);
 
-	exfat_save_attr(inode, EXFAT_ATTR_SUBDIR);
-	ei->i_crtime = simple_inode_init_ts(inode);
-	exfat_truncate_inode_atime(inode);
+	exfat_save_attr(ianalde, EXFAT_ATTR_SUBDIR);
+	ei->i_crtime = simple_ianalde_init_ts(ianalde);
+	exfat_truncate_ianalde_atime(ianalde);
 	return 0;
 }
 
@@ -511,7 +511,7 @@ static int exfat_read_boot_sector(struct super_block *sb)
 	}
 
 	if (sbi->vol_flags & VOLUME_DIRTY)
-		exfat_warn(sb, "Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
+		exfat_warn(sb, "Volume was analt properly unmounted. Some data may be corrupt. Please run fsck.");
 	if (sbi->vol_flags & MEDIA_FAILURE)
 		exfat_warn(sb, "Medium has reported failures. Some data may be lost.");
 
@@ -619,18 +619,18 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct exfat_sb_info *sbi = sb->s_fs_info;
 	struct exfat_mount_options *opts = &sbi->options;
-	struct inode *root_inode;
+	struct ianalde *root_ianalde;
 	int err;
 
 	if (opts->allow_utime == (unsigned short)-1)
 		opts->allow_utime = ~opts->fs_dmask & 0022;
 
 	if (opts->discard && !bdev_max_discard_sectors(sb->s_bdev)) {
-		exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
+		exfat_warn(sb, "mounting with \"discard\" option, but the device does analt support discard");
 		opts->discard = 0;
 	}
 
-	sb->s_flags |= SB_NODIRATIME;
+	sb->s_flags |= SB_ANALDIRATIME;
 	sb->s_magic = EXFAT_SUPER_MAGIC;
 	sb->s_op = &exfat_sops;
 
@@ -644,7 +644,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 		goto check_nls_io;
 	}
 
-	/* set up enough so that it can read an inode */
+	/* set up eanalugh so that it can read an ianalde */
 	exfat_hash_init(sb);
 
 	if (!strcmp(sbi->options.iocharset, "utf8"))
@@ -652,7 +652,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	else {
 		sbi->nls_io = load_nls(sbi->options.iocharset);
 		if (!sbi->nls_io) {
-			exfat_err(sb, "IO charset %s not found",
+			exfat_err(sb, "IO charset %s analt found",
 				  sbi->options.iocharset);
 			err = -EINVAL;
 			goto free_table;
@@ -664,35 +664,35 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	else
 		sb->s_d_op = &exfat_dentry_ops;
 
-	root_inode = new_inode(sb);
-	if (!root_inode) {
-		exfat_err(sb, "failed to allocate root inode");
-		err = -ENOMEM;
+	root_ianalde = new_ianalde(sb);
+	if (!root_ianalde) {
+		exfat_err(sb, "failed to allocate root ianalde");
+		err = -EANALMEM;
 		goto free_table;
 	}
 
-	root_inode->i_ino = EXFAT_ROOT_INO;
-	inode_set_iversion(root_inode, 1);
-	err = exfat_read_root(root_inode);
+	root_ianalde->i_ianal = EXFAT_ROOT_IANAL;
+	ianalde_set_iversion(root_ianalde, 1);
+	err = exfat_read_root(root_ianalde);
 	if (err) {
-		exfat_err(sb, "failed to initialize root inode");
-		goto put_inode;
+		exfat_err(sb, "failed to initialize root ianalde");
+		goto put_ianalde;
 	}
 
-	exfat_hash_inode(root_inode, EXFAT_I(root_inode)->i_pos);
-	insert_inode_hash(root_inode);
+	exfat_hash_ianalde(root_ianalde, EXFAT_I(root_ianalde)->i_pos);
+	insert_ianalde_hash(root_ianalde);
 
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_ianalde);
 	if (!sb->s_root) {
 		exfat_err(sb, "failed to get the root dentry");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_table;
 	}
 
 	return 0;
 
-put_inode:
-	iput(root_inode);
+put_ianalde:
+	iput(root_ianalde);
 	sb->s_root = NULL;
 
 free_table:
@@ -724,7 +724,7 @@ static void exfat_free(struct fs_context *fc)
 
 static int exfat_reconfigure(struct fs_context *fc)
 {
-	fc->sb_flags |= SB_NODIRATIME;
+	fc->sb_flags |= SB_ANALDIRATIME;
 
 	/* volume flag will be updated in exfat_sync_fs */
 	sync_filesystem(fc->root->d_sb);
@@ -744,7 +744,7 @@ static int exfat_init_fs_context(struct fs_context *fc)
 
 	sbi = kzalloc(sizeof(struct exfat_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&sbi->s_lock);
 	mutex_init(&sbi->bitmap_lock);
@@ -791,16 +791,16 @@ static struct file_system_type exfat_fs_type = {
 	.fs_flags		= FS_REQUIRES_DEV,
 };
 
-static void exfat_inode_init_once(void *foo)
+static void exfat_ianalde_init_once(void *foo)
 {
-	struct exfat_inode_info *ei = (struct exfat_inode_info *)foo;
+	struct exfat_ianalde_info *ei = (struct exfat_ianalde_info *)foo;
 
 	spin_lock_init(&ei->cache_lru_lock);
 	ei->nr_caches = 0;
 	ei->cache_valid_id = EXFAT_CACHE_VALID + 1;
 	INIT_LIST_HEAD(&ei->cache_lru);
-	INIT_HLIST_NODE(&ei->i_hash_fat);
-	inode_init_once(&ei->vfs_inode);
+	INIT_HLIST_ANALDE(&ei->i_hash_fat);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
 static int __init init_exfat_fs(void)
@@ -811,12 +811,12 @@ static int __init init_exfat_fs(void)
 	if (err)
 		return err;
 
-	exfat_inode_cachep = kmem_cache_create("exfat_inode_cache",
-			sizeof(struct exfat_inode_info),
+	exfat_ianalde_cachep = kmem_cache_create("exfat_ianalde_cache",
+			sizeof(struct exfat_ianalde_info),
 			0, SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
-			exfat_inode_init_once);
-	if (!exfat_inode_cachep) {
-		err = -ENOMEM;
+			exfat_ianalde_init_once);
+	if (!exfat_ianalde_cachep) {
+		err = -EANALMEM;
 		goto shutdown_cache;
 	}
 
@@ -827,7 +827,7 @@ static int __init init_exfat_fs(void)
 	return 0;
 
 destroy_cache:
-	kmem_cache_destroy(exfat_inode_cachep);
+	kmem_cache_destroy(exfat_ianalde_cachep);
 shutdown_cache:
 	exfat_cache_shutdown();
 	return err;
@@ -836,11 +836,11 @@ shutdown_cache:
 static void __exit exit_exfat_fs(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(exfat_inode_cachep);
+	kmem_cache_destroy(exfat_ianalde_cachep);
 	unregister_filesystem(&exfat_fs_type);
 	exfat_cache_shutdown();
 }

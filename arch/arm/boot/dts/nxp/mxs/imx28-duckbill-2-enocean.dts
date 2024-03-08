@@ -10,21 +10,21 @@
 
 / {
 	model = "I2SE Duckbill 2 EnOcean";
-	compatible = "i2se,duckbill-2-enocean", "i2se,duckbill-2", "fsl,imx28";
+	compatible = "i2se,duckbill-2-eanalcean", "i2se,duckbill-2", "fsl,imx28";
 
 	leds {
-		enocean-blue {
-			label = "duckbill:blue:enocean";
+		eanalcean-blue {
+			label = "duckbill:blue:eanalcean";
 			gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-red {
-			label = "duckbill:red:enocean";
+		eanalcean-red {
+			label = "duckbill:red:eanalcean";
 			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-green {
-			label = "duckbill:green:enocean";
+		eanalcean-green {
+			label = "duckbill:green:eanalcean";
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -32,9 +32,9 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
-		pinctrl-0 = <&enocean_button>;
+		pinctrl-0 = <&eanalcean_button>;
 
-		key-enocean {
+		key-eanalcean {
 			label = "EnOcean";
 			linux,code = <KEY_NEW>;
 			gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
@@ -57,7 +57,7 @@
 };
 
 &pinctrl {
-	enocean_button: enocean-button@0 {
+	eanalcean_button: eanalcean-button@0 {
 		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_AUART0_RTS__GPIO_3_3

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.video
 
 .. _video_fopen:
@@ -14,7 +14,7 @@ dvb video open()
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
@@ -51,7 +51,7 @@ Arguments
     -  .. row 5
 
        -
-       -  O_NONBLOCK open in non-blocking mode
+       -  O_ANALNBLOCK open in analn-blocking mode
 
     -  .. row 6
 
@@ -65,10 +65,10 @@ This system call opens a named video device (e.g.
 /dev/dvb/adapter0/video0) for subsequent use.
 
 When an open() call has succeeded, the device will be ready for use. The
-significance of blocking or non-blocking mode is described in the
-documentation for functions where there is a difference. It does not
+significance of blocking or analn-blocking mode is described in the
+documentation for functions where there is a difference. It does analt
 affect the semantics of the open() call itself. A device opened in
-blocking mode can later be put into non-blocking mode (and vice versa)
+blocking mode can later be put into analn-blocking mode (and vice versa)
 using the F_SETFL command of the fcntl system call. This is a standard
 system call, documented in the Linux manual page for fcntl. Only one
 user can open the Video Device in O_RDWR mode. All other attempts to
@@ -88,9 +88,9 @@ Return Value
 
     -  .. row 1
 
-       -  ``ENODEV``
+       -  ``EANALDEV``
 
-       -  Device driver not loaded/available.
+       -  Device driver analt loaded/available.
 
     -  .. row 2
 

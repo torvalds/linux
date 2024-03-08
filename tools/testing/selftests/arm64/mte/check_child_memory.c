@@ -3,7 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <errno.h>
+#include <erranal.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +88,7 @@ static int check_child_memory_mapping(int mem_type, int mode, int mapping)
 	int item = ARRAY_SIZE(sizes);
 
 	item = ARRAY_SIZE(sizes);
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	for (run = 0; run < item; run++) {
 		ptr = (char *)mte_allocate_memory_tag_range(sizes[run], mem_type, mapping,
 							    UNDERFLOW, OVERFLOW);
@@ -109,7 +109,7 @@ static int check_child_file_mapping(int mem_type, int mode, int mapping)
 	int run, fd, map_size, result = KSFT_PASS;
 	int total = ARRAY_SIZE(sizes);
 
-	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
+	mte_switch_mode(mode, MTE_ALLOW_ANALN_ZERO_TAG);
 	for (run = 0; run < total; run++) {
 		fd = create_temp_file();
 		if (fd == -1)
@@ -167,17 +167,17 @@ int main(int argc, char *argv[])
 	ksft_set_plan(12);
 
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE),
-		"Check child anonymous memory with private mapping, precise mode and mmap memory\n");
+		"Check child aanalnymous memory with private mapping, precise mode and mmap memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_SHARED),
-		"Check child anonymous memory with shared mapping, precise mode and mmap memory\n");
+		"Check child aanalnymous memory with shared mapping, precise mode and mmap memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_PRIVATE),
-		"Check child anonymous memory with private mapping, imprecise mode and mmap memory\n");
+		"Check child aanalnymous memory with private mapping, imprecise mode and mmap memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MMAP, MTE_ASYNC_ERR, MAP_SHARED),
-		"Check child anonymous memory with shared mapping, imprecise mode and mmap memory\n");
+		"Check child aanalnymous memory with shared mapping, imprecise mode and mmap memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_PRIVATE),
-		"Check child anonymous memory with private mapping, precise mode and mmap/mprotect memory\n");
+		"Check child aanalnymous memory with private mapping, precise mode and mmap/mprotect memory\n");
 	evaluate_test(check_child_memory_mapping(USE_MPROTECT, MTE_SYNC_ERR, MAP_SHARED),
-		"Check child anonymous memory with shared mapping, precise mode and mmap/mprotect memory\n");
+		"Check child aanalnymous memory with shared mapping, precise mode and mmap/mprotect memory\n");
 
 	evaluate_test(check_child_file_mapping(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE),
 		"Check child file memory with private mapping, precise mode and mmap memory\n");

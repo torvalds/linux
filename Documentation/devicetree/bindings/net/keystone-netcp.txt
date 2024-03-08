@@ -99,33 +99,33 @@ Required properties:
 			- mac<->phy mode: 1
 			- mac<->mac forced mode: 2
 			- mac<->fiber mode: 3
-			- mac<->phy mode with no mdio: 4
+			- mac<->phy mode with anal mdio: 4
 			- 10Gb mac<->phy mode : 10
 			- 10Gb mac<->mac forced mode : 11
 ----phy-handle:	phandle to PHY device
 
-- cpts:		sub-node time synchronization (CPTS) submodule configuration
+- cpts:		sub-analde time synchronization (CPTS) submodule configuration
 -- clocks:	CPTS reference clock. Should point on cpts-refclk-mux clock.
 -- clock-names: should be "cpts"
--- cpts-refclk-mux: multiplexer clock definition sub-node for CPTS reference (RFTCLK) clock
+-- cpts-refclk-mux: multiplexer clock definition sub-analde for CPTS reference (RFTCLK) clock
 --- #clock-cells: should be 0
 --- clocks:	list of CPTS reference (RFTCLK) clock's parents as defined in Data manual
 --- ti,mux-tbl: array of multiplexer indexes as defined in Data manual
 --- assigned-clocks: should point on cpts-refclk-mux clock
 --- assigned-clock-parents: should point on required RFTCLK clock parent to be selected
 -- cpts_clock_mult: (optional) Numerator to convert input clock ticks
-		into nanoseconds
--- cpts_clock_shift: (optional) Denominator to convert input clock ticks into
-		nanoseconds.
+		into naanalseconds
+-- cpts_clock_shift: (optional) Deanalminator to convert input clock ticks into
+		naanalseconds.
 		Mult and shift will be calculated basing on CPTS
 		rftclk frequency if both cpts_clock_shift and
-		cpts_clock_mult properties are not provided.
+		cpts_clock_mult properties are analt provided.
 
 Optional properties:
 - enable-ale:	NetCP driver keeps the address learning feature in the ethernet
 		switch module disabled. This attribute is to enable the address
 		learning.
-- secondary-slave-ports:	specification for each of the switch port not be
+- secondary-slave-ports:	specification for each of the switch port analt be
 				registered as a network interface. NetCP driver
 				will only initialize these ports and attach PHY
 				driver to them if needed.
@@ -157,7 +157,7 @@ Optional properties:
 
 The MAC address will be determined using the optional properties defined in
 ethernet.txt and only if efuse-mac is set to 0. If all of the optional MAC
-address properties are not present, then the driver will use a random MAC
+address properties are analt present, then the driver will use a random MAC
 address.
 
 Example binding:

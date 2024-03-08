@@ -42,9 +42,9 @@ struct cmd_priv {
 	struct completion terminate_cmdthread_comp;
 	struct  __queue	cmd_queue;
 	u8 cmd_seq;
-	u8 *cmd_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8 *cmd_buf;	/*shall be analn-paged, and 4 bytes aligned*/
 	u8 *cmd_allocated_buf;
-	u8 *rsp_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8 *rsp_buf;	/*shall be analn-paged, and 4 bytes aligned*/
 	u8 *rsp_allocated_buf;
 	u32 cmd_issued_cnt;
 	u32 cmd_done_cnt;
@@ -63,12 +63,12 @@ struct evt_obj {
 struct	evt_priv {
 	struct  __queue	evt_queue;
 	u8	event_seq;
-	u8	*evt_buf;	/*shall be non-paged, and 4 bytes aligned*/
+	u8	*evt_buf;	/*shall be analn-paged, and 4 bytes aligned*/
 	u8	*evt_allocated_buf;
 	u32	evt_done_cnt;
 };
 
-#define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
+#define init_h2fwcmd_w_parm_anal_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -89,7 +89,7 @@ int r8712_init_evt_priv(struct evt_priv *pevtpriv);
 void r8712_free_evt_priv(struct evt_priv *pevtpriv);
 
 enum rtl871x_drvint_cid {
-	NONE_WK_CID,
+	ANALNE_WK_CID,
 	WDG_WK_CID,
 	MAX_WK_CID
 };
@@ -102,7 +102,7 @@ enum RFINTFS {
 
 /*
  * Caller Mode: Infra, Ad-HoC(C)
- * Notes: To enter USB suspend mode
+ * Analtes: To enter USB suspend mode
  * Command Mode
  */
 struct usb_suspend_parm {
@@ -111,7 +111,7 @@ struct usb_suspend_parm {
 
 /*
  * Caller Mode: Infra, Ad-HoC(C)
- * Notes: To disconnect the current associated BSS
+ * Analtes: To disconnect the current associated BSS
  * Command Mode
  */
 struct disconnect_parm {
@@ -120,7 +120,7 @@ struct disconnect_parm {
 
 /*
  * Caller Mode: AP, Ad-HoC, Infra
- * Notes: To set the NIC mode of RTL8711
+ * Analtes: To set the NIC mode of RTL8711
  * Command Mode
  * The definition of mode:
  *
@@ -139,7 +139,7 @@ struct	setopmode_parm {
 
 /*
  * Caller Mode: AP, Ad-HoC, Infra
- * Notes: To ask RTL8711 performing site-survey
+ * Analtes: To ask RTL8711 performing site-survey
  * Command-Event Mode
  */
 struct sitesurvey_parm {
@@ -151,7 +151,7 @@ struct sitesurvey_parm {
 
 /*
  * Caller Mode: Any
- * Notes: To set the auth type of RTL8711. open/shared/802.1x
+ * Analtes: To set the auth type of RTL8711. open/shared/802.1x
  * Command Mode
  */
 struct setauth_parm {
@@ -171,7 +171,7 @@ struct setauth_parm {
  * when 802.1x ==> keyid > 2 ==> unicast key
  */
 struct setkey_parm {
-	u8	algorithm;	/* encryption algorithm, could be none, wep40,
+	u8	algorithm;	/* encryption algorithm, could be analne, wep40,
 				 * TKIP, CCMP, wep104
 				 */
 	u8	keyid;
@@ -239,7 +239,7 @@ struct del_assocsta_parm {
 /*
  *	Caller Mode: AP/Ad-HoC(M)
  *
- *	Notes: To notify fw that given staid has changed its power state
+ *	Analtes: To analtify fw that given staid has changed its power state
  *
  *	Command Mode
  *
@@ -253,7 +253,7 @@ struct setstapwrstate_parm {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To setup the basic rate of RTL8711
+ *	Analtes: To setup the basic rate of RTL8711
  *
  *	Command Mode
  *
@@ -265,7 +265,7 @@ struct	setbasicrate_parm {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To read the current basic rate
+ *	Analtes: To read the current basic rate
  *
  *	Command-Rsp Mode
  *
@@ -281,7 +281,7 @@ struct getbasicrate_rsp {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To setup the data rate of RTL8711
+ *	Analtes: To setup the data rate of RTL8711
  *
  *	Command Mode
  *
@@ -302,7 +302,7 @@ enum _RT_CHANNEL_DOMAIN {
 	RT_CHANNEL_DOMAIN_ISRAEL = 7,
 	RT_CHANNEL_DOMAIN_TELEC = 8,
 
-	/* Be compatible with old channel plan. No good! */
+	/* Be compatible with old channel plan. Anal good! */
 	RT_CHANNEL_DOMAIN_MIC = 9,
 	RT_CHANNEL_DOMAIN_GLOBAL_DOAMIN = 10,
 	RT_CHANNEL_DOMAIN_WORLD_WIDE_13 = 11,
@@ -322,7 +322,7 @@ struct SetChannelPlan_param {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To read the current data rate
+ *	Analtes: To read the current data rate
  *
  *	Command-Rsp Mode
  *
@@ -344,7 +344,7 @@ struct getdatarate_rsp {
  *	Ad-HoC(C): Like STA
  *
  *
- *	Notes: To set the phy capability of the NIC
+ *	Analtes: To set the phy capability of the NIC
  *
  *	Command Mode
  *
@@ -353,7 +353,7 @@ struct getdatarate_rsp {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To set the channel/modem/band
+ *	Analtes: To set the channel/modem/band
  *	This command will be used when channel/modem/band is changed.
  *
  *	Command Mode
@@ -362,7 +362,7 @@ struct getdatarate_rsp {
 /*
  *	Caller Mode: Any
  *
- *	Notes: To get the current setting of channel/modem/band
+ *	Analtes: To get the current setting of channel/modem/band
  *
  *	Command-Rsp Mode
  *
@@ -419,7 +419,7 @@ struct getrfintfs_parm {
 };
 
 /*
- *	Notes: This command is used for H2C/C2H loopback testing
+ *	Analtes: This command is used for H2C/C2H loopback testing
  *
  *	mac[0] == 0
  *	==> CMD mode, return H2C_SUCCESS.
@@ -567,7 +567,7 @@ struct setpwrmode_parm  {
 				   * driver  when it receives bcn_pass_cnt
 				   * beacons.
 				   */
-	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ no limit.*/
+	u8	bcn_to;		  /* beacon TO (ms). ¡§=0¡¨ anal limit.*/
 	u16	bcn_itv;
 	u8	app_itv; /* only for VOIP mode. */
 	u8	awake_bcn_itv;
@@ -615,13 +615,13 @@ struct getrxretrycnt_rsp {
 	unsigned long rx_retrycnt;
 };
 
-/*to get BCNOK,BCNERR count*/
-struct getbcnokcnt_parm {
+/*to get BCANALK,BCNERR count*/
+struct getbcanalkcnt_parm {
 	unsigned int rsvd;
 };
 
-struct getbcnokcnt_rsp {
-	unsigned long bcnokcnt;
+struct getbcanalkcnt_rsp {
+	unsigned long bcanalkcnt;
 };
 
 struct getbcnerrcnt_parm {
@@ -700,7 +700,7 @@ struct DisconnectCtrlEx_param {
  * Result:
  * 0x00: success
  * 0x01: success, and check Response.
- * 0x02: cmd ignored due to duplicated sequence number
+ * 0x02: cmd iganalred due to duplicated sequence number
  * 0x03: cmd dropped due to invalid cmd code
  * 0x04: reserved.
  */

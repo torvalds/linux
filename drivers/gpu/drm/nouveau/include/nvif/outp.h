@@ -59,9 +59,9 @@ int nvif_outp_ctor(struct nvif_disp *, const char *name, int id, struct nvif_out
 void nvif_outp_dtor(struct nvif_outp *);
 
 enum nvif_outp_detect_status {
-	NOT_PRESENT,
+	ANALT_PRESENT,
 	PRESENT,
-	UNKNOWN,
+	UNKANALWN,
 };
 
 enum nvif_outp_detect_status nvif_outp_detect(struct nvif_outp *);
@@ -99,7 +99,7 @@ int nvif_outp_dp_aux_pwr(struct nvif_outp *, bool enable);
 int nvif_outp_dp_aux_xfer(struct nvif_outp *, u8 type, u8 *size, u32 addr, u8 *data);
 
 struct nvif_outp_dp_rate {
-	int dpcd; /* -1 for non-indexed rates */
+	int dpcd; /* -1 for analn-indexed rates */
 	u32 rate;
 };
 

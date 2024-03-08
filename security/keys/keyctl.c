@@ -38,7 +38,7 @@ static const unsigned char keyrings_capabilities[2] = {
 	       ),
 	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME |
 	       KEYCTL_CAPS1_NS_KEY_TAG |
-	       (IS_ENABLED(CONFIG_KEY_NOTIFICATIONS)	? KEYCTL_CAPS1_NOTIFICATIONS : 0)
+	       (IS_ENABLED(CONFIG_KEY_ANALTIFICATIONS)	? KEYCTL_CAPS1_ANALTIFICATIONS : 0)
 	       ),
 };
 
@@ -112,7 +112,7 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
 	payload = NULL;
 
 	if (plen) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		payload = kvmalloc(plen, GFP_KERNEL);
 		if (!payload)
 			goto error2;
@@ -159,8 +159,8 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
  * If a key is found, it will be attached to the destination keyring if there's
  * one specified and the serial number of the key will be returned.
  *
- * If no key is found, /sbin/request-key will be invoked if _callout_info is
- * non-NULL in an attempt to create a key.  The _callout_info string will be
+ * If anal key is found, /sbin/request-key will be invoked if _callout_info is
+ * analn-NULL in an attempt to create a key.  The _callout_info string will be
  * passed to /sbin/request-key to aid with completing the request.  If the
  * _callout_info string is "" then it will be changed to "-".
  */
@@ -277,10 +277,10 @@ error:
 /*
  * Join a (named) session keyring.
  *
- * Create and join an anonymous session keyring or join a named session
+ * Create and join an aanalnymous session keyring or join a named session
  * keyring, creating it if necessary.  A named session keyring must have Search
  * permission for it to be joined.  Session keyrings without this permit will
- * be skipped over.  It is not permitted for userspace to create or join
+ * be skipped over.  It is analt permitted for userspace to create or join
  * keyrings whose name begin with a dot.
  *
  * If successful, the ID of the joined session keyring will be returned.
@@ -319,8 +319,8 @@ error:
  * updating for this to work.  A negative key can be positively instantiated
  * with this call.
  *
- * If successful, 0 will be returned.  If the key type does not support
- * updating, then -EOPNOTSUPP will be returned.
+ * If successful, 0 will be returned.  If the key type does analt support
+ * updating, then -EOPANALTSUPP will be returned.
  */
 long keyctl_update_key(key_serial_t id,
 		       const void __user *_payload,
@@ -337,7 +337,7 @@ long keyctl_update_key(key_serial_t id,
 	/* pull the payload in if one was supplied */
 	payload = NULL;
 	if (plen) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		payload = kvmalloc(plen, GFP_KERNEL);
 		if (!payload)
 			goto error;
@@ -372,7 +372,7 @@ error:
  * and any links to the key will be automatically garbage collected after a
  * certain amount of time (/proc/sys/kernel/keys/gc_delay).
  *
- * Keys with KEY_FLAG_KEEP set should not be revoked.
+ * Keys with KEY_FLAG_KEEP set should analt be revoked.
  *
  * If successful, 0 is returned.
  */
@@ -413,7 +413,7 @@ error:
  * The key and any links to the key will be automatically garbage collected
  * immediately.
  *
- * Keys with KEY_FLAG_KEEP set should not be invalidated.
+ * Keys with KEY_FLAG_KEEP set should analt be invalidated.
  *
  * If successful, 0 is returned.
  */
@@ -461,7 +461,7 @@ error:
  * Clear the specified keyring, creating an empty process keyring if one of the
  * special keyring IDs is used.
  *
- * The keyring must grant the caller Write permission and not have
+ * The keyring must grant the caller Write permission and analt have
  * KEY_FLAG_KEEP set for this to work.  If successful, 0 will be returned.
  */
 long keyctl_keyring_clear(key_serial_t ringid)
@@ -502,7 +502,7 @@ error:
 }
 
 /*
- * Create a link from a keyring to a key if there's no matching key in the
+ * Create a link from a keyring to a key if there's anal matching key in the
  * keyring, otherwise replace the link to the matching key with a link to the
  * new key.
  *
@@ -542,10 +542,10 @@ error:
  * Unlink a key from a keyring.
  *
  * The keyring must grant the caller Write permission for this to work; the key
- * itself need not grant the caller anything.  If the last link to a key is
+ * itself need analt grant the caller anything.  If the last link to a key is
  * removed then that key will be scheduled for destruction.
  *
- * Keys or keyrings with KEY_FLAG_KEEP set should not be unlinked.
+ * Keys or keyrings with KEY_FLAG_KEEP set should analt be unlinked.
  *
  * If successful, 0 will be returned.
  */
@@ -583,12 +583,12 @@ error:
 }
 
 /*
- * Move a link to a key from one keyring to another, displacing any matching
+ * Move a link to a key from one keyring to aanalther, displacing any matching
  * key from the destination keyring.
  *
  * The key must grant the caller Link permission and both keyrings must grant
  * the caller Write permission.  There must also be a link in the from keyring
- * to the key.  If both keyrings are the same, nothing is done.
+ * to the key.  If both keyrings are the same, analthing is done.
  *
  * If successful, 0 will be returned.
  */
@@ -676,7 +676,7 @@ okay:
 	desclen = strlen(key->description);
 
 	/* calculate how much information we're going to return */
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	infobuf = kasprintf(GFP_KERNEL,
 			    "%s;%d;%d;%08x;",
 			    key->type->name,
@@ -766,7 +766,7 @@ long keyctl_keyring_search(key_serial_t ringid,
 
 		/* treat lack or presence of a negative key the same */
 		if (ret == -EAGAIN)
-			ret = -ENOKEY;
+			ret = -EANALKEY;
 		goto error5;
 	}
 
@@ -833,7 +833,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	/* find the key first */
 	key_ref = lookup_user_key(keyid, 0, KEY_DEFER_PERM_CHECK);
 	if (IS_ERR(key_ref)) {
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 		goto out;
 	}
 
@@ -859,10 +859,10 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 		goto key_put_out;
 	}
 
-	/* the key is probably readable - now try to read it */
+	/* the key is probably readable - analw try to read it */
 can_read_key:
 	if (!key->type->read) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto key_put_out;
 	}
 
@@ -892,7 +892,7 @@ can_read_key:
 		if (key_data_len) {
 			key_data = kvmalloc(key_data_len, GFP_KERNEL);
 			if (!key_data) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto key_put_out;
 			}
 		}
@@ -901,7 +901,7 @@ can_read_key:
 
 		/*
 		 * Read methods will just return the required length without
-		 * any copying if the provided length isn't large enough.
+		 * any copying if the provided length isn't large eanalugh.
 		 */
 		if (ret <= 0 || ret > buflen)
 			break;
@@ -935,10 +935,10 @@ out:
  * Change the ownership of a key
  *
  * The key must grant the caller Setattr permission for this to work, though
- * the key need not be fully instantiated yet.  For the UID to be changed, or
- * for the GID to be changed to a group the caller is not a member of, the
+ * the key need analt be fully instantiated yet.  For the UID to be changed, or
+ * for the GID to be changed to a group the caller is analt a member of, the
  * caller must have sysadmin capability.  If either uid or gid is -1 then that
- * attribute is not changed.
+ * attribute is analt changed.
  *
  * If the UID is to be changed, the new user must have sufficient quota to
  * accept the key.  The quota deduction will be removed from the old user to
@@ -998,7 +998,7 @@ long keyctl_chown_key(key_serial_t id, uid_t user, gid_t group)
 
 	/* change the UID */
 	if (user != (uid_t) -1 && !uid_eq(uid, key->uid)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		newowner = key_user_lookup(uid);
 		if (!newowner)
 			goto error_put;
@@ -1044,7 +1044,7 @@ long keyctl_chown_key(key_serial_t id, uid_t user, gid_t group)
 	if (group != (gid_t) -1)
 		key->gid = gid;
 
-	notify_key(key, NOTIFY_KEY_SETATTR, 0);
+	analtify_key(key, ANALTIFY_KEY_SETATTR, 0);
 	ret = 0;
 
 error_put:
@@ -1066,7 +1066,7 @@ quota_overrun:
  * Change the permission mask on a key.
  *
  * The key must grant the caller Setattr permission for this to work, though
- * the key need not be fully instantiated yet.  If the caller does not have
+ * the key need analt be fully instantiated yet.  If the caller does analt have
  * sysadmin capability, it may only change the permission on keys that it owns.
  */
 long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
@@ -1092,10 +1092,10 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	ret = -EACCES;
 	down_write(&key->sem);
 
-	/* if we're not the sysadmin, we can only change a key that we own */
+	/* if we're analt the sysadmin, we can only change a key that we own */
 	if (uid_eq(key->uid, current_fsuid()) || capable(CAP_SYS_ADMIN)) {
 		key->perm = perm;
-		notify_key(key, NOTIFY_KEY_SETATTR, 0);
+		analtify_key(key, ANALTIFY_KEY_SETATTR, 0);
 		ret = 0;
 	}
 
@@ -1121,7 +1121,7 @@ static long get_instantiation_keyring(key_serial_t ringid,
 	if (ringid == 0)
 		return 0;
 
-	/* if a specific keyring is nominated by ID, then use that */
+	/* if a specific keyring is analminated by ID, then use that */
 	if (ringid > 0) {
 		dkref = lookup_user_key(ringid, KEY_LOOKUP_CREATE, KEY_NEED_WRITE);
 		if (IS_ERR(dkref))
@@ -1140,7 +1140,7 @@ static long get_instantiation_keyring(key_serial_t ringid,
 		return 0;
 	}
 
-	return -ENOKEY;
+	return -EANALKEY;
 }
 
 /*
@@ -1152,7 +1152,7 @@ static int keyctl_change_reqkey_auth(struct key *key)
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	key_put(new->request_key_auth);
 	new->request_key_auth = key_get(key);
@@ -1165,7 +1165,7 @@ static int keyctl_change_reqkey_auth(struct key *key)
  * destination keyring if one is given.
  *
  * The caller must have the appropriate instantiation permit set for this to
- * work (see keyctl_assume_authority).  No other permissions are required.
+ * work (see keyctl_assume_authority).  Anal other permissions are required.
  *
  * If successful, 0 will be returned.
  */
@@ -1204,7 +1204,7 @@ static long keyctl_instantiate_key_common(key_serial_t id,
 	payload = NULL;
 
 	if (from) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		payload = kvmalloc(plen, GFP_KERNEL);
 		if (!payload)
 			goto error;
@@ -1242,7 +1242,7 @@ error:
  * destination keyring if one is given.
  *
  * The caller must have the appropriate instantiation permit set for this to
- * work (see keyctl_assume_authority).  No other permissions are required.
+ * work (see keyctl_assume_authority).  Anal other permissions are required.
  *
  * If successful, 0 will be returned.
  */
@@ -1271,7 +1271,7 @@ long keyctl_instantiate_key(key_serial_t id,
  * the destination keyring if one is given.
  *
  * The caller must have the appropriate instantiation permit set for this to
- * work (see keyctl_assume_authority).  No other permissions are required.
+ * work (see keyctl_assume_authority).  Anal other permissions are required.
  *
  * If successful, 0 will be returned.
  */
@@ -1301,19 +1301,19 @@ long keyctl_instantiate_key_iov(key_serial_t id,
  * the key into the destination keyring if one is given.
  *
  * The caller must have the appropriate instantiation permit set for this to
- * work (see keyctl_assume_authority).  No other permissions are required.
+ * work (see keyctl_assume_authority).  Anal other permissions are required.
  *
  * The key and any links to the key will be automatically garbage collected
  * after the timeout expires.
  *
  * Negative keys are used to rate limit repeated request_key() calls by causing
- * them to return -ENOKEY until the negative key expires.
+ * them to return -EANALKEY until the negative key expires.
  *
  * If successful, 0 will be returned.
  */
 long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
 {
-	return keyctl_reject_key(id, timeout, ENOKEY, ringid);
+	return keyctl_reject_key(id, timeout, EANALKEY, ringid);
 }
 
 /*
@@ -1321,7 +1321,7 @@ long keyctl_negate_key(key_serial_t id, unsigned timeout, key_serial_t ringid)
  * code and link the key into the destination keyring if one is given.
  *
  * The caller must have the appropriate instantiation permit set for this to
- * work (see keyctl_assume_authority).  No other permissions are required.
+ * work (see keyctl_assume_authority).  Anal other permissions are required.
  *
  * The key and any links to the key will be automatically garbage collected
  * after the timeout expires.
@@ -1343,10 +1343,10 @@ long keyctl_reject_key(key_serial_t id, unsigned timeout, unsigned error,
 
 	/* must be a valid error code and mustn't be a kernel special */
 	if (error <= 0 ||
-	    error >= MAX_ERRNO ||
+	    error >= MAX_ERRANAL ||
 	    error == ERESTARTSYS ||
-	    error == ERESTARTNOINTR ||
-	    error == ERESTARTNOHAND ||
+	    error == ERESTARTANALINTR ||
+	    error == ERESTARTANALHAND ||
 	    error == ERESTART_RESTARTBLOCK)
 		return -EINVAL;
 
@@ -1396,12 +1396,12 @@ long keyctl_set_reqkey_keyring(int reqkey_defl)
 
 	old_setting = current_cred_xxx(jit_keyring);
 
-	if (reqkey_defl == KEY_REQKEY_DEFL_NO_CHANGE)
+	if (reqkey_defl == KEY_REQKEY_DEFL_ANAL_CHANGE)
 		return old_setting;
 
 	new = prepare_creds();
 	if (!new)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (reqkey_defl) {
 	case KEY_REQKEY_DEFL_THREAD_KEYRING:
@@ -1423,7 +1423,7 @@ long keyctl_set_reqkey_keyring(int reqkey_defl)
 	case KEY_REQKEY_DEFL_REQUESTOR_KEYRING:
 		goto set;
 
-	case KEY_REQKEY_DEFL_NO_CHANGE:
+	case KEY_REQKEY_DEFL_ANAL_CHANGE:
 	case KEY_REQKEY_DEFL_GROUP_KEYRING:
 	default:
 		ret = -EINVAL;
@@ -1449,7 +1449,7 @@ error:
  * the current time.  The key and any links to the key will be automatically
  * garbage collected after the timeout expires.
  *
- * Keys with KEY_FLAG_KEEP set should not be timed out.
+ * Keys with KEY_FLAG_KEEP set should analt be timed out.
  *
  * If successful, 0 is returned.
  */
@@ -1487,7 +1487,7 @@ okay:
 		ret = -EPERM;
 	} else {
 		key_set_timeout(key, timeout);
-		notify_key(key, NOTIFY_KEY_SETATTR, 0);
+		analtify_key(key, ANALTIFY_KEY_SETATTR, 0);
 	}
 	key_put(key);
 
@@ -1587,7 +1587,7 @@ long keyctl_get_security(key_serial_t keyid,
 	key = key_ref_to_ptr(key_ref);
 	ret = security_key_getsecurity(key, &context);
 	if (ret == 0) {
-		/* if no information was returned, give userspace an empty
+		/* if anal information was returned, give userspace an empty
 		 * string */
 		ret = 1;
 		if (buffer && buflen > 0 &&
@@ -1635,10 +1635,10 @@ long keyctl_session_to_parent(void)
 	if (IS_ERR(keyring_r))
 		return PTR_ERR(keyring_r);
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 
 	/* our parent is going to need a new cred struct, a new tgcred struct
-	 * and new security data, so we allocate them here to prevent ENOMEM in
+	 * and new security data, so we allocate them here to prevent EANALMEM in
 	 * our parent */
 	cred = cred_alloc_blank();
 	if (!cred)
@@ -1667,7 +1667,7 @@ long keyctl_session_to_parent(void)
 		goto unlock;
 
 	/* the parent and the child must have different session keyrings or
-	 * there's no point */
+	 * there's anal point */
 	mycred = current_cred();
 	pcred = __task_cred(parent);
 	if (mycred == pcred ||
@@ -1721,7 +1721,7 @@ error_keyring:
  *
  * The requested type name may be a NULL pointer to reject all attempts
  * to link to the keyring.  In this case, _restriction must also be NULL.
- * Otherwise, both _type and _restriction must be non-NULL.
+ * Otherwise, both _type and _restriction must be analn-NULL.
  *
  * Returns 0 if successful.
  */
@@ -1763,7 +1763,7 @@ error:
 	return ret;
 }
 
-#ifdef CONFIG_KEY_NOTIFICATIONS
+#ifdef CONFIG_KEY_ANALTIFICATIONS
 /*
  * Watch for changes to a key.
  *
@@ -1793,7 +1793,7 @@ long keyctl_watch_key(key_serial_t id, int watch_queue_fd, int watch_id)
 	}
 
 	if (watch_id >= 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (!key->watchers) {
 			wlist = kzalloc(sizeof(*wlist), GFP_KERNEL);
 			if (!wlist)
@@ -1845,7 +1845,7 @@ err_key:
 	key_put(key);
 	return ret;
 }
-#endif /* CONFIG_KEY_NOTIFICATIONS */
+#endif /* CONFIG_KEY_ANALTIFICATIONS */
 
 /*
  * Get keyrings subsystem capabilities.
@@ -2020,6 +2020,6 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		return keyctl_watch_key((key_serial_t)arg2, (int)arg3, (int)arg4);
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL v2");
 
 /* esd CAN message flags - dlc field */
 #define ESD_USB_RTR	BIT(4)
-#define ESD_USB_NO_BRS	BIT(4)
+#define ESD_USB_ANAL_BRS	BIT(4)
 #define ESD_USB_ESI	BIT(5)
 #define ESD_USB_FD	BIT(7)
 
@@ -56,12 +56,12 @@ MODULE_LICENSE("GPL v2");
 #define ESD_USB_IDMASK	GENMASK(28, 0)
 
 /* esd CAN event ids */
-#define ESD_USB_EV_CAN_ERROR_EXT	2 /* CAN controller specific diagnostic data */
+#define ESD_USB_EV_CAN_ERROR_EXT	2 /* CAN controller specific diaganalstic data */
 
 /* baudrate message flags */
 #define ESD_USB_LOM	BIT(30) /* Listen Only Mode */
 #define ESD_USB_UBR	BIT(31) /* User Bit Rate (controller BTR) in bits 0..27 */
-#define ESD_USB_NO_BAUDRATE	GENMASK(30, 0) /* bit rate unconfigured */
+#define ESD_USB_ANAL_BAUDRATE	GENMASK(30, 0) /* bit rate unconfigured */
 
 /* bit timing esd CAN-USB */
 #define ESD_USB_2_TSEG1_SHIFT	16
@@ -100,7 +100,7 @@ MODULE_LICENSE("GPL v2");
 #define ESD_USB_3_BAUDRATE_MODE_DISABLE		0 /* remove from bus */
 #define ESD_USB_3_BAUDRATE_MODE_INDEX		1 /* ESD (CiA) bit rate idx */
 #define ESD_USB_3_BAUDRATE_MODE_BTR_CTRL	2 /* BTR values (controller)*/
-#define ESD_USB_3_BAUDRATE_MODE_BTR_CANONICAL	3 /* BTR values (canonical) */
+#define ESD_USB_3_BAUDRATE_MODE_BTR_CAANALNICAL	3 /* BTR values (caanalnical) */
 #define ESD_USB_3_BAUDRATE_MODE_NUM		4 /* numerical bit rate */
 #define ESD_USB_3_BAUDRATE_MODE_AUTOBAUD	5 /* autobaud */
 
@@ -160,7 +160,7 @@ struct esd_usb_tx_msg {
 	u8 cmd;
 	u8 net;
 	u8 dlc;
-	u32 hnd;	/* opaque handle, not used by device */
+	u32 hnd;	/* opaque handle, analt used by device */
 	__le32 id; /* upper 3 bits contain flags */
 	union {
 		u8 data[CAN_MAX_DLEN];
@@ -173,7 +173,7 @@ struct esd_usb_tx_done_msg {
 	u8 cmd;
 	u8 net;
 	u8 status;
-	u32 hnd;	/* opaque handle, not used by device */
+	u32 hnd;	/* opaque handle, analt used by device */
 	__le32 ts;
 };
 
@@ -193,7 +193,7 @@ struct esd_usb_set_baudrate_msg {
 	__le32 baud;
 };
 
-/* CAN-USB/3 baudrate configuration, used for nominal as well as for data bit rate */
+/* CAN-USB/3 baudrate configuration, used for analminal as well as for data bit rate */
 struct esd_usb_3_baudrate_cfg {
 	__le16 brp;	/* bit rate pre-scaler */
 	__le16 tseg1;	/* time segment before sample point */
@@ -233,7 +233,7 @@ struct esd_usb_3_set_baudrate_msg_x {
 	__le16 mode;	/* mode word, see ESD_USB_3_BAUDRATE_MODE_xxx */
 	__le16 flags;	/* control flags, see ESD_USB_3_BAUDRATE_FLAG_xxx */
 	struct esd_usb_3_tdc_cfg tdc;	/* TDC configuration */
-	struct esd_usb_3_baudrate_cfg nom;	/* nominal bit rate */
+	struct esd_usb_3_baudrate_cfg analm;	/* analminal bit rate */
 	struct esd_usb_3_baudrate_cfg data;	/* data bit rate */
 };
 
@@ -425,7 +425,7 @@ static void esd_usb_rx_can_msg(struct esd_usb_net_priv *priv,
 			/* masking by 0x0F is already done within can_fd_dlc2len() */
 			cfd->len = can_fd_dlc2len(msg->rx.dlc);
 			len = cfd->len;
-			if ((msg->rx.dlc & ESD_USB_NO_BRS) == 0)
+			if ((msg->rx.dlc & ESD_USB_ANAL_BRS) == 0)
 				cfd->flags |= CANFD_BRS;
 			if (msg->rx.dlc & ESD_USB_ESI)
 				cfd->flags |= CANFD_ESI;
@@ -488,7 +488,7 @@ static void esd_usb_read_bulk_callback(struct urb *urb)
 	case 0: /* success */
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -EPIPE:
 	case -EPROTO:
 	case -ESHUTDOWN:
@@ -540,7 +540,7 @@ resubmit_urb:
 			  esd_usb_read_bulk_callback, dev);
 
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
-	if (retval == -ENODEV) {
+	if (retval == -EANALDEV) {
 		for (i = 0; i < dev->net_count; i++) {
 			if (dev->nets[i])
 				netif_device_detach(dev->nets[i]->netdev);
@@ -653,7 +653,7 @@ static int esd_usb_setup_rx_urbs(struct esd_usb *dev)
 		/* create a URB, and a buffer for it */
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -661,8 +661,8 @@ static int esd_usb_setup_rx_urbs(struct esd_usb *dev)
 					 &buf_dma);
 		if (!buf) {
 			dev_warn(dev->udev->dev.parent,
-				 "No memory left for USB buffer\n");
-			err = -ENOMEM;
+				 "Anal memory left for USB buffer\n");
+			err = -EANALMEM;
 			goto freeurb;
 		}
 
@@ -672,7 +672,7 @@ static int esd_usb_setup_rx_urbs(struct esd_usb *dev)
 				  usb_rcvbulkpipe(dev->udev, 1),
 				  buf, ESD_USB_RX_BUFFER_SIZE,
 				  esd_usb_read_bulk_callback, dev);
-		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 		usb_anchor_urb(urb, &dev->rx_submitted);
 
 		err = usb_submit_urb(urb, GFP_KERNEL);
@@ -719,7 +719,7 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -755,7 +755,7 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 out:
-	if (err == -ENODEV)
+	if (err == -EANALDEV)
 		netif_device_detach(netdev);
 	if (err)
 		netdev_err(netdev, "couldn't start device: %d\n", err);
@@ -833,16 +833,16 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 	if (!urb) {
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nourbmem;
+		goto analurbmem;
 	}
 
 	buf = usb_alloc_coherent(dev->udev, size, GFP_ATOMIC,
 				 &urb->transfer_dma);
 	if (!buf) {
-		netdev_err(netdev, "No memory left for USB buffer\n");
+		netdev_err(netdev, "Anal memory left for USB buffer\n");
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nobufmem;
+		goto analbufmem;
 	}
 
 	msg = (union esd_usb_msg *)buf;
@@ -857,7 +857,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 		msg->tx.dlc |= ESD_USB_FD;
 
 		if ((cfd->flags & CANFD_BRS) == 0)
-			msg->tx.dlc |= ESD_USB_NO_BRS;
+			msg->tx.dlc |= ESD_USB_ANAL_BRS;
 	} else {
 		msg->tx.dlc = can_get_cc_dlc((struct can_frame *)cfd, priv->can.ctrlmode);
 
@@ -892,14 +892,14 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 	context->priv = priv;
 	context->echo_index = i;
 
-	/* hnd must not be 0 - MSB is stripped in txdone handling */
+	/* hnd must analt be 0 - MSB is stripped in txdone handling */
 	msg->tx.hnd = BIT(31) | i; /* returned in TX done message */
 
 	usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 2), buf,
 			  msg->hdr.len * sizeof(u32), /* convert to # of bytes */
 			  esd_usb_write_bulk_callback, context);
 
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	urb->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 
 	usb_anchor_urb(urb, &priv->tx_submitted);
 
@@ -920,7 +920,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 
 		stats->tx_dropped++;
 
-		if (err == -ENODEV)
+		if (err == -EANALDEV)
 			netif_device_detach(netdev);
 		else
 			netdev_warn(netdev, "failed tx_urb %d\n", err);
@@ -940,10 +940,10 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 releasebuf:
 	usb_free_coherent(dev->udev, size, buf, urb->transfer_dma);
 
-nobufmem:
+analbufmem:
 	usb_free_urb(urb);
 
-nourbmem:
+analurbmem:
 	return ret;
 }
 
@@ -955,7 +955,7 @@ static int esd_usb_close(struct net_device *netdev)
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disable all IDs (see esd_usb_start()) */
 	msg->hdr.cmd = ESD_USB_CMD_IDADD;
@@ -972,7 +972,7 @@ static int esd_usb_close(struct net_device *netdev)
 	msg->hdr.cmd = ESD_USB_CMD_SETBAUD;
 	msg->setbaud.net = priv->index;
 	msg->setbaud.rsvd = 0;
-	msg->setbaud.baud = cpu_to_le32(ESD_USB_NO_BAUDRATE);
+	msg->setbaud.baud = cpu_to_le32(ESD_USB_ANAL_BAUDRATE);
 	if (esd_usb_send_msg(priv->usb, msg) < 0)
 		netdev_err(netdev, "sending setbaud message failed\n");
 
@@ -1021,7 +1021,7 @@ static int esd_usb_2_set_bittiming(struct net_device *netdev)
 	int sjw_shift;
 
 	canbtr = ESD_USB_UBR;
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		canbtr |= ESD_USB_LOM;
 
 	canbtr |= (bt->brp - 1) & (btc->brp_max - 1);
@@ -1044,7 +1044,7 @@ static int esd_usb_2_set_bittiming(struct net_device *netdev)
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->hdr.len = sizeof(struct esd_usb_set_baudrate_msg) / sizeof(u32); /* # of 32bit words */
 	msg->hdr.cmd = ESD_USB_CMD_SETBAUD;
@@ -1060,11 +1060,11 @@ static int esd_usb_2_set_bittiming(struct net_device *netdev)
 	return err;
 }
 
-/* Nominal bittiming constants, see
+/* Analminal bittiming constants, see
  * Microchip SAM E70/S70/V70/V71, Data Sheet, Rev. G - 07/2022
- * 48.6.8 MCAN Nominal Bit Timing and Prescaler Register
+ * 48.6.8 MCAN Analminal Bit Timing and Prescaler Register
  */
-static const struct can_bittiming_const esd_usb_3_nom_bittiming_const = {
+static const struct can_bittiming_const esd_usb_3_analm_bittiming_const = {
 	.name = "esd_usb_3",
 	.tseg1_min = 2,
 	.tseg1_max = 256,
@@ -1094,10 +1094,10 @@ static const struct can_bittiming_const esd_usb_3_data_bittiming_const = {
 
 static int esd_usb_3_set_bittiming(struct net_device *netdev)
 {
-	const struct can_bittiming_const *nom_btc = &esd_usb_3_nom_bittiming_const;
+	const struct can_bittiming_const *analm_btc = &esd_usb_3_analm_bittiming_const;
 	const struct can_bittiming_const *data_btc = &esd_usb_3_data_bittiming_const;
 	struct esd_usb_net_priv *priv = netdev_priv(netdev);
-	struct can_bittiming *nom_bt = &priv->can.bittiming;
+	struct can_bittiming *analm_bt = &priv->can.bittiming;
 	struct can_bittiming *data_bt = &priv->can.data_bittiming;
 	struct esd_usb_3_set_baudrate_msg_x *baud_x;
 	union esd_usb_msg *msg;
@@ -1106,24 +1106,24 @@ static int esd_usb_3_set_bittiming(struct net_device *netdev)
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	baud_x = &msg->setbaud_x;
 
-	/* Canonical is the most reasonable mode for SocketCAN on CAN-USB/3 ... */
-	baud_x->mode = cpu_to_le16(ESD_USB_3_BAUDRATE_MODE_BTR_CANONICAL);
+	/* Caanalnical is the most reasonable mode for SocketCAN on CAN-USB/3 ... */
+	baud_x->mode = cpu_to_le16(ESD_USB_3_BAUDRATE_MODE_BTR_CAANALNICAL);
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTEANALNLY)
 		flags |= ESD_USB_3_BAUDRATE_FLAG_LOM;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		flags |= ESD_USB_3_BAUDRATE_FLAG_TRS;
 
-	baud_x->nom.brp = cpu_to_le16(nom_bt->brp & (nom_btc->brp_max - 1));
-	baud_x->nom.sjw = cpu_to_le16(nom_bt->sjw & (nom_btc->sjw_max - 1));
-	baud_x->nom.tseg1 = cpu_to_le16((nom_bt->prop_seg + nom_bt->phase_seg1)
-					& (nom_btc->tseg1_max - 1));
-	baud_x->nom.tseg2 = cpu_to_le16(nom_bt->phase_seg2 & (nom_btc->tseg2_max - 1));
+	baud_x->analm.brp = cpu_to_le16(analm_bt->brp & (analm_btc->brp_max - 1));
+	baud_x->analm.sjw = cpu_to_le16(analm_bt->sjw & (analm_btc->sjw_max - 1));
+	baud_x->analm.tseg1 = cpu_to_le16((analm_bt->prop_seg + analm_bt->phase_seg1)
+					& (analm_btc->tseg1_max - 1));
+	baud_x->analm.tseg2 = cpu_to_le16(analm_bt->phase_seg2 & (analm_btc->tseg2_max - 1));
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		baud_x->data.brp = cpu_to_le16(data_bt->brp & (data_btc->brp_max - 1));
@@ -1178,7 +1178,7 @@ static int esd_usb_set_mode(struct net_device *netdev, enum can_mode mode)
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1195,7 +1195,7 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 	netdev = alloc_candev(sizeof(*priv), ESD_USB_MAX_TX_URBS);
 	if (!netdev) {
 		dev_err(&intf->dev, "couldn't alloc candev\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -1212,7 +1212,7 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 	priv->index = index;
 
 	priv->can.state = CAN_STATE_STOPPED;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTENONLY |
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_LISTEANALNLY |
 		CAN_CTRLMODE_CC_LEN8_DLC |
 		CAN_CTRLMODE_BERR_REPORTING;
 
@@ -1221,7 +1221,7 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 		priv->can.clock.freq = ESD_USB_3_CAN_CLOCK;
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_FD;
-		priv->can.bittiming_const = &esd_usb_3_nom_bittiming_const;
+		priv->can.bittiming_const = &esd_usb_3_analm_bittiming_const;
 		priv->can.data_bittiming_const = &esd_usb_3_data_bittiming_const;
 		priv->can.do_set_bittiming = esd_usb_3_set_bittiming;
 		priv->can.do_set_data_bittiming = esd_usb_3_set_bittiming;
@@ -1257,7 +1257,7 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 	if (err) {
 		dev_err(&intf->dev, "couldn't register CAN device: %d\n", err);
 		free_candev(netdev);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -1282,7 +1282,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto done;
 	}
 
@@ -1294,7 +1294,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 
 	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_msg;
 	}
 
@@ -1313,7 +1313,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 
 	err = esd_usb_wait_msg(dev, msg);
 	if (err < 0) {
-		dev_err(&intf->dev, "no version message answer\n");
+		dev_err(&intf->dev, "anal version message answer\n");
 		goto free_msg;
 	}
 

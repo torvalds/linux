@@ -15,7 +15,7 @@ description: |
 
     mux-ctrl-list ::= <single-mux-ctrl> [mux-ctrl-list]
     single-mux-ctrl ::= <mux-ctrl-phandle> [mux-ctrl-specifier]
-    mux-ctrl-phandle : phandle to mux controller node
+    mux-ctrl-phandle : phandle to mux controller analde
     mux-ctrl-specifier : array of #mux-control-cells specifying the
                          given mux controller (controller specific)
 

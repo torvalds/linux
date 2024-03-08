@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 
 #define TARGET_HW_I2C_CLOCK 50
 
-/* these are a limitation of ProcessI2cChannelTransaction not the hw */
+/* these are a limitation of ProcessI2cChannelTransaction analt the hw */
 #define ATOM_MAX_HW_I2C_WRITE 3
 #define ATOM_MAX_HW_I2C_READ  255
 
@@ -121,7 +121,7 @@ int radeon_atom_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		p = &msgs[i];
 		remaining = p->len;
 		buffer_offset = 0;
-		/* max_bytes are a limitation of ProcessI2cChannelTransaction not the hw */
+		/* max_bytes are a limitation of ProcessI2cChannelTransaction analt the hw */
 		if (p->flags & I2C_M_RD) {
 			max_bytes = ATOM_MAX_HW_I2C_READ;
 			flags = HW_I2C_READ;

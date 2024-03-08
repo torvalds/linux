@@ -146,7 +146,7 @@ mt7921_pm_set(void *data, u64 val)
 	struct mt76_connac_pm *pm = &dev->pm;
 
 	if (mt76_is_usb(&dev->mt76))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -193,7 +193,7 @@ mt7921_deep_sleep_set(void *data, u64 val)
 	bool enable = !!val;
 
 	if (mt76_is_usb(&dev->mt76))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mt792x_mutex_acquire(dev);
 	if (pm->ds_enable_user == enable)
@@ -267,7 +267,7 @@ int mt7921_init_debugfs(struct mt792x_dev *dev)
 
 	dir = mt76_register_debugfs_fops(&dev->mphy, &fops_regval);
 	if (!dir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mt76_is_mmio(&dev->mt76))
 		debugfs_create_devm_seqfile(dev->mt76.dev, "xmit-queues",

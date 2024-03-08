@@ -58,7 +58,7 @@ EXPORT_SYMBOL_GPL(dpbp_open);
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPBP object
  *
- * After this function is called, no further operations are
+ * After this function is called, anal further operations are
  * allowed on the object without opening a new control session.
  *
  * Return:	'0' on Success; Error code otherwise.

@@ -33,7 +33,7 @@ qla4xxx_read_flash(struct bsg_job *bsg_job)
 	}
 
 	if (ha->flash_state != QLFLASH_WAITING) {
-		ql4_printk(KERN_ERR, ha, "%s: another flash operation "
+		ql4_printk(KERN_ERR, ha, "%s: aanalther flash operation "
 			   "active\n", __func__);
 		rval = -EBUSY;
 		goto leave;
@@ -48,7 +48,7 @@ qla4xxx_read_flash(struct bsg_job *bsg_job)
 	if (!flash) {
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
 			   "data\n", __func__);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto leave;
 	}
 
@@ -99,7 +99,7 @@ qla4xxx_update_flash(struct bsg_job *bsg_job)
 	}
 
 	if (ha->flash_state != QLFLASH_WAITING) {
-		ql4_printk(KERN_ERR, ha, "%s: another flash operation "
+		ql4_printk(KERN_ERR, ha, "%s: aanalther flash operation "
 			   "active\n", __func__);
 		rval = -EBUSY;
 		goto leave;
@@ -115,7 +115,7 @@ qla4xxx_update_flash(struct bsg_job *bsg_job)
 	if (!flash) {
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
 			   "data\n", __func__);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto leave;
 	}
 
@@ -228,7 +228,7 @@ qla4xxx_read_nvram(struct bsg_job *bsg_job)
 	len = bsg_job->reply_payload.payload_len;
 	total_len = offset + len;
 
-	/* total len should not be greater than max NVRAM size */
+	/* total len should analt be greater than max NVRAM size */
 	if ((is_qla4010(ha) && total_len > QL4010_NVRAM_SIZE) ||
 	    ((is_qla4022(ha) || is_qla4032(ha)) &&
 	     total_len > QL40X2_NVRAM_SIZE)) {
@@ -243,7 +243,7 @@ qla4xxx_read_nvram(struct bsg_job *bsg_job)
 	if (!nvram) {
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for nvram "
 			   "data\n", __func__);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto leave;
 	}
 
@@ -299,7 +299,7 @@ qla4xxx_update_nvram(struct bsg_job *bsg_job)
 	len = bsg_job->request_payload.payload_len;
 	total_len = offset + len;
 
-	/* total len should not be greater than max NVRAM size */
+	/* total len should analt be greater than max NVRAM size */
 	if ((is_qla4010(ha) && total_len > QL4010_NVRAM_SIZE) ||
 	    ((is_qla4022(ha) || is_qla4032(ha)) &&
 	     total_len > QL40X2_NVRAM_SIZE)) {
@@ -314,7 +314,7 @@ qla4xxx_update_nvram(struct bsg_job *bsg_job)
 	if (!nvram) {
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for flash "
 			   "data\n", __func__);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto leave;
 	}
 
@@ -421,7 +421,7 @@ qla4xxx_bsg_get_acb(struct bsg_job *bsg_job)
 	if (!acb) {
 		ql4_printk(KERN_ERR, ha, "%s: dma alloc failed for acb "
 			   "data\n", __func__);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto leave;
 	}
 
@@ -509,44 +509,44 @@ static int qla4_83xx_wait_for_loopback_config_comp(struct scsi_qla_host *ha,
 	int status = QLA_SUCCESS;
 
 	if (!wait_for_completion_timeout(&ha->idc_comp, (IDC_COMP_TOV * HZ))) {
-		ql4_printk(KERN_INFO, ha, "%s: IDC Complete notification not received, Waiting for another %d timeout",
+		ql4_printk(KERN_INFO, ha, "%s: IDC Complete analtification analt received, Waiting for aanalther %d timeout",
 			   __func__, ha->idc_extend_tmo);
 		if (ha->idc_extend_tmo) {
 			if (!wait_for_completion_timeout(&ha->idc_comp,
 						(ha->idc_extend_tmo * HZ))) {
-				ha->notify_idc_comp = 0;
-				ha->notify_link_up_comp = 0;
-				ql4_printk(KERN_WARNING, ha, "%s: Aborting: IDC Complete notification not received",
+				ha->analtify_idc_comp = 0;
+				ha->analtify_link_up_comp = 0;
+				ql4_printk(KERN_WARNING, ha, "%s: Aborting: IDC Complete analtification analt received",
 					   __func__);
 				status = QLA_ERROR;
 				goto exit_wait;
 			} else {
 				DEBUG2(ql4_printk(KERN_INFO, ha,
-						  "%s: IDC Complete notification received\n",
+						  "%s: IDC Complete analtification received\n",
 						  __func__));
 			}
 		}
 	} else {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
-				  "%s: IDC Complete notification received\n",
+				  "%s: IDC Complete analtification received\n",
 				  __func__));
 	}
-	ha->notify_idc_comp = 0;
+	ha->analtify_idc_comp = 0;
 
 	if (wait_for_link) {
 		if (!wait_for_completion_timeout(&ha->link_up_comp,
 						 (IDC_COMP_TOV * HZ))) {
-			ha->notify_link_up_comp = 0;
-			ql4_printk(KERN_WARNING, ha, "%s: Aborting: LINK UP notification not received",
+			ha->analtify_link_up_comp = 0;
+			ql4_printk(KERN_WARNING, ha, "%s: Aborting: LINK UP analtification analt received",
 				   __func__);
 			status = QLA_ERROR;
 			goto exit_wait;
 		} else {
 			DEBUG2(ql4_printk(KERN_INFO, ha,
-					  "%s: LINK UP notification received\n",
+					  "%s: LINK UP analtification received\n",
 					  __func__));
 		}
-		ha->notify_link_up_comp = 0;
+		ha->analtify_link_up_comp = 0;
 	}
 
 exit_wait:
@@ -570,7 +570,7 @@ static int qla4_83xx_pre_loopback_config(struct scsi_qla_host *ha,
 
 	if ((config & ENABLE_INTERNAL_LOOPBACK) ||
 	    (config & ENABLE_EXTERNAL_LOOPBACK)) {
-		ql4_printk(KERN_INFO, ha, "%s: Loopback diagnostics already in progress. Invalid request\n",
+		ql4_printk(KERN_INFO, ha, "%s: Loopback diaganalstics already in progress. Invalid request\n",
 			   __func__);
 		goto exit_pre_loopback_config;
 	}
@@ -586,16 +586,16 @@ static int qla4_83xx_pre_loopback_config(struct scsi_qla_host *ha,
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: New port config=%08X\n",
 			  __func__, config));
 
-	ha->notify_idc_comp = 1;
-	ha->notify_link_up_comp = 1;
+	ha->analtify_idc_comp = 1;
+	ha->analtify_link_up_comp = 1;
 
 	/* get the link state */
 	qla4xxx_get_firmware_state(ha);
 
 	status = qla4_83xx_set_port_config(ha, &config);
 	if (status != QLA_SUCCESS) {
-		ha->notify_idc_comp = 0;
-		ha->notify_link_up_comp = 0;
+		ha->analtify_idc_comp = 0;
+		ha->analtify_link_up_comp = 0;
 		goto exit_pre_loopback_config;
 	}
 exit_pre_loopback_config:
@@ -630,9 +630,9 @@ static int qla4_83xx_post_loopback_config(struct scsi_qla_host *ha,
 			  "%s: Restore default port config=%08X\n", __func__,
 			  config));
 
-	ha->notify_idc_comp = 1;
+	ha->analtify_idc_comp = 1;
 	if (ha->addl_fw_state & FW_ADDSTATE_LINK_UP)
-		ha->notify_link_up_comp = 1;
+		ha->analtify_link_up_comp = 1;
 
 	status = qla4_83xx_set_port_config(ha, &config);
 	if (status != QLA_SUCCESS) {
@@ -666,7 +666,7 @@ static void qla4xxx_execute_diag_loopback_cmd(struct bsg_job *bsg_job)
 	bsg_reply->reply_payload_rcv_len = 0;
 
 	if (test_bit(AF_LOOPBACK, &ha->flags)) {
-		ql4_printk(KERN_INFO, ha, "%s: Loopback Diagnostics already in progress. Invalid Request\n",
+		ql4_printk(KERN_INFO, ha, "%s: Loopback Diaganalstics already in progress. Invalid Request\n",
 			   __func__);
 		bsg_reply->result = DID_ERROR << 16;
 		goto exit_loopback_cmd;
@@ -845,7 +845,7 @@ int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job)
 		bsg_reply->reply_payload_rcv_len = 0;
 		bsg_job_done(bsg_job, bsg_reply->result,
 			     bsg_reply->reply_payload_rcv_len);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 }
 
@@ -868,5 +868,5 @@ int qla4xxx_bsg_request(struct bsg_job *bsg_job)
 			   __func__, bsg_req->msgcode);
 	}
 
-	return -ENOSYS;
+	return -EANALSYS;
 }

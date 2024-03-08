@@ -19,14 +19,14 @@
  *		conversions)
  *   [2] - DMA channel (optional)
  *
- * Tested with lab-pc-1200.  For the older Lab-PC+, not all input
+ * Tested with lab-pc-1200.  For the older Lab-PC+, analt all input
  * ranges and analog references will work, the available ranges/arefs
  * will depend on how you have configured the jumpers on your board
  * (see your owner's manual).
  *
  * Kernel-level ISA plug-and-play support for the lab-pc-1200 boards
- * has not yet been added to the driver, mainly due to the fact that
- * I don't know the device id numbers. If you have one of these boards,
+ * has analt yet been added to the driver, mainly due to the fact that
+ * I don't kanalw the device id numbers. If you have one of these boards,
  * please file a bug report at https://comedi.org/ so I can get the
  * necessary information from you.
  *

@@ -14,7 +14,7 @@
 
 #define MX8MQ_IOMUXC_PMIC_STBY_REQ_CCMSRCGPCMIX_PMIC_STBY_REQ               0x014 0x27C 0x000 0x0 0x0
 #define MX8MQ_IOMUXC_PMIC_ON_REQ_SNVSMIX_PMIC_ON_REQ                        0x018 0x280 0x000 0x0 0x0
-#define MX8MQ_IOMUXC_ONOFF_SNVSMIX_ONOFF                                    0x01C 0x284 0x000 0x0 0x0
+#define MX8MQ_IOMUXC_OANALFF_SNVSMIX_OANALFF                                    0x01C 0x284 0x000 0x0 0x0
 #define MX8MQ_IOMUXC_POR_B_SNVSMIX_POR_B                                    0x020 0x288 0x000 0x0 0x0
 #define MX8MQ_IOMUXC_RTC_RESET_B_SNVSMIX_RTC_RESET_B                        0x024 0x28C 0x000 0x0 0x0
 #define MX8MQ_IOMUXC_GPIO1_IO00_GPIO1_IO0                                   0x028 0x290 0x000 0x0 0x0

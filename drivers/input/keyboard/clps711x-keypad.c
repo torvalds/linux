@@ -94,9 +94,9 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
+	priv->syscon = syscon_regmap_lookup_by_phandle(dev->of_analde, "syscon");
 	if (IS_ERR(priv->syscon))
 		return PTR_ERR(priv->syscon);
 
@@ -108,7 +108,7 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 				priv->row_count, sizeof(*priv->gpio_data),
 				GFP_KERNEL);
 	if (!priv->gpio_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->row_shift = get_count_order(CLPS711X_KEYPAD_COL_COUNT);
 
@@ -126,7 +126,7 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_set_drvdata(input, priv);
 

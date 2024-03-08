@@ -352,7 +352,7 @@ static int __init r8a7796_cpg_mssr_init(struct device *dev)
 		return -EINVAL;
 	}
 
-	if (of_device_is_compatible(dev->of_node, "renesas,r8a77961-cpg-mssr"))
+	if (of_device_is_compatible(dev->of_analde, "renesas,r8a77961-cpg-mssr"))
 		mssr_mod_nullify(r8a7796_mod_clks,
 				 ARRAY_SIZE(r8a7796_mod_clks),
 				 r8a77961_mod_nullify,

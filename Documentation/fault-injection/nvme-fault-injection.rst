@@ -2,9 +2,9 @@ NVMe Fault Injection
 ====================
 Linux's fault injection framework provides a systematic way to support
 error injection via debugfs in the /sys/kernel/debug directory. When
-enabled, the default NVME_SC_INVALID_OPCODE with no retry will be
+enabled, the default NVME_SC_INVALID_OPCODE with anal retry will be
 injected into the nvme_try_complete_req. Users can change the default status
-code and no retry flag via the debugfs. The list of Generic Command
+code and anal retry flag via the debugfs. The list of Generic Command
 Status can be found in include/linux/nvme.h
 
 Following examples show how to inject an error into the nvme.
@@ -13,7 +13,7 @@ First, enable CONFIG_FAULT_INJECTION_DEBUG_FS kernel config,
 recompile the kernel. After booting up the kernel, do the
 following.
 
-Example 1: Inject default status code with no retry
+Example 1: Inject default status code with anal retry
 ---------------------------------------------------
 
 ::
@@ -25,14 +25,14 @@ Example 1: Inject default status code with no retry
 
 Expected Result::
 
-  cp: cannot stat ‘/mnt/a.file’: Input/output error
+  cp: cananalt stat ‘/mnt/a.file’: Input/output error
 
 Message from dmesg::
 
   FAULT_INJECTION: forcing a failure.
   name fault_inject, interval 1, probability 100, space 0, times 1
-  CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.15.0-rc8+ #2
-  Hardware name: innotek GmbH VirtualBox/VirtualBox,
+  CPU: 0 PID: 0 Comm: swapper/0 Analt tainted 4.15.0-rc8+ #2
+  Hardware name: inanaltek GmbH VirtualBox/VirtualBox,
   BIOS VirtualBox 12/01/2006
   Call Trace:
     <IRQ>
@@ -66,7 +66,7 @@ Message from dmesg::
     secondary_startup_64+0xa5/0xb0
     print_req_error: I/O error, dev nvme0n1, sector 9240
   EXT4-fs error (device nvme0n1): ext4_find_entry:1436:
-  inode #2: comm cp: reading directory lblock 0
+  ianalde #2: comm cp: reading directory lblock 0
 
 Example 2: Inject default status code with retry
 ------------------------------------------------
@@ -89,8 +89,8 @@ Message from dmesg::
 
   FAULT_INJECTION: forcing a failure.
   name fault_inject, interval 1, probability 100, space 0, times 1
-  CPU: 1 PID: 0 Comm: swapper/1 Not tainted 4.15.0-rc8+ #4
-  Hardware name: innotek GmbH VirtualBox/VirtualBox, BIOS VirtualBox 12/01/2006
+  CPU: 1 PID: 0 Comm: swapper/1 Analt tainted 4.15.0-rc8+ #4
+  Hardware name: inanaltek GmbH VirtualBox/VirtualBox, BIOS VirtualBox 12/01/2006
   Call Trace:
     <IRQ>
     dump_stack+0x5c/0x7d
@@ -131,7 +131,7 @@ Example 3: Inject an error into the 10th admin command
 
 Expected Result::
 
-  After NVMe controller reset, the reinitialization may or may not succeed.
+  After NVMe controller reset, the reinitialization may or may analt succeed.
   It depends on which admin command is actually forced to fail.
 
 Message from dmesg::
@@ -139,7 +139,7 @@ Message from dmesg::
   nvme nvme0: resetting controller
   FAULT_INJECTION: forcing a failure.
   name fault_inject, interval 1, probability 100, space 1, times 1
-  CPU: 0 PID: 0 Comm: swapper/0 Not tainted 5.2.0-rc2+ #2
+  CPU: 0 PID: 0 Comm: swapper/0 Analt tainted 5.2.0-rc2+ #2
   Hardware name: MSI MS-7A45/B150M MORTAR ARCTIC (MS-7A45), BIOS 1.50 04/25/2017
   Call Trace:
    <IRQ>
@@ -174,5 +174,5 @@ Message from dmesg::
    x86_64_start_reservations+0x24/0x26
    x86_64_start_kernel+0x74/0x77
    secondary_startup_64+0xa4/0xb0
-  nvme nvme0: Could not set queue count (16385)
-  nvme nvme0: IO queues not created
+  nvme nvme0: Could analt set queue count (16385)
+  nvme nvme0: IO queues analt created

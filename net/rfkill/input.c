@@ -34,7 +34,7 @@ static enum rfkill_input_master_mode rfkill_master_switch_mode =
 					RFKILL_INPUT_MASTER_UNBLOCKALL;
 module_param_named(master_switch_mode, rfkill_master_switch_mode, uint, 0);
 MODULE_PARM_DESC(master_switch_mode,
-	"SW_RFKILL_ALL ON should: 0=do nothing (only unlock); 1=restore; 2=unblock all");
+	"SW_RFKILL_ALL ON should: 0=do analthing (only unlock); 1=restore; 2=unblock all");
 
 static DEFINE_SPINLOCK(rfkill_op_lock);
 static bool rfkill_op_pending;
@@ -73,13 +73,13 @@ static void __rfkill_handle_global_op(enum rfkill_sched_op op)
 	default:
 		/* memory corruption or bug, fail safely */
 		rfkill_epo();
-		WARN(1, "Unknown requested operation %d! "
+		WARN(1, "Unkanalwn requested operation %d! "
 			"rfkill Emergency Power Off activated\n",
 			op);
 	}
 }
 
-static void __rfkill_handle_normal_op(const enum rfkill_type type,
+static void __rfkill_handle_analrmal_op(const enum rfkill_type type,
 				      const bool complement)
 {
 	bool blocked;
@@ -125,7 +125,7 @@ static void rfkill_op_handler(struct work_struct *work)
 				c = __test_and_clear_bit(i, rfkill_sw_state);
 				spin_unlock_irq(&rfkill_op_lock);
 
-				__rfkill_handle_normal_op(i, c);
+				__rfkill_handle_analrmal_op(i, c);
 
 				spin_lock_irq(&rfkill_op_lock);
 			}
@@ -223,7 +223,7 @@ static int rfkill_connect(struct input_handler *handler, struct input_dev *dev,
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	handle->dev = dev;
 	handle->handler = handler;

@@ -12,19 +12,19 @@ maintainers:
 
 description: |
    RPMh interconnect providers support system bandwidth requirements through
-   RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+   RPMh hardware accelerators kanalwn as Bus Clock Manager (BCM). The provider is
    able to communicate with the BCM through the Resource State Coordinator (RSC)
-   associated with each execution environment. Provider nodes must point to at
-   least one RPMh device child node pertaining to their RSC and each provider
+   associated with each execution environment. Provider analdes must point to at
+   least one RPMh device child analde pertaining to their RSC and each provider
    can map to multiple RPMh resources.
 
 properties:
   compatible:
     enum:
       - qcom,qdu1000-clk-virt
-      - qcom,qdu1000-gem-noc
+      - qcom,qdu1000-gem-analc
       - qcom,qdu1000-mc-virt
-      - qcom,qdu1000-system-noc
+      - qcom,qdu1000-system-analc
 
   '#interconnect-cells': true
 
@@ -56,8 +56,8 @@ examples:
   - |
     #include <dt-bindings/interconnect/qcom,qdu1000-rpmh.h>
 
-    system_noc: interconnect@1640000 {
-        compatible = "qcom,qdu1000-system-noc";
+    system_analc: interconnect@1640000 {
+        compatible = "qcom,qdu1000-system-analc";
         reg = <0x1640000 0x45080>;
         #interconnect-cells = <2>;
         qcom,bcm-voters = <&apps_bcm_voter>;

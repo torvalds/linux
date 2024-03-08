@@ -25,7 +25,7 @@ typedef s16		compat_nlink_t;
 
 struct compat_stat {
 	compat_dev_t	st_dev;
-	compat_ino_t	st_ino;
+	compat_ianal_t	st_ianal;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
 	__compat_uid32_t	st_uid;
@@ -56,7 +56,7 @@ struct compat_ipc64_perm {
 	compat_mode_t mode;
 	unsigned int seq;
 	unsigned int __pad2;
-	unsigned long __unused1;	/* yes they really are 64bit pads */
+	unsigned long __unused1;	/* anal they really are 64bit pads */
 	unsigned long __unused2;
 };
 

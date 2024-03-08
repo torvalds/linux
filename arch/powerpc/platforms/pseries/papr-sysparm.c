@@ -2,7 +2,7 @@
 
 #define pr_fmt(fmt)	"papr-sysparm: " fmt
 
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/bug.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -45,7 +45,7 @@ static void papr_sysparm_buf_set_length(struct papr_sysparm_buf *buf, size_t len
 /*
  * For use on buffers returned from ibm,get-system-parameter before
  * returning them to callers. Ensures the encoded length of valid data
- * cannot overrun buf->val[].
+ * cananalt overrun buf->val[].
  */
 static void papr_sysparm_buf_clamp_length(struct papr_sysparm_buf *buf)
 {
@@ -60,7 +60,7 @@ static bool papr_sysparm_buf_can_submit(const struct papr_sysparm_buf *buf)
 {
 	/*
 	 * Firmware ought to reject buffer lengths that exceed the
-	 * maximum specified in PAPR, but there's no reason for the
+	 * maximum specified in PAPR, but there's anal reason for the
 	 * kernel to allow them either.
 	 */
 	if (papr_sysparm_buf_get_length(buf) > sizeof(buf->val))
@@ -84,14 +84,14 @@ static bool papr_sysparm_buf_can_submit(const struct papr_sysparm_buf *buf)
  * work area, the caller-supplied buffer is copied unmodified into the
  * work area before calling ibm,get-system-parameter.
  *
- * A defined parameter may not be implemented on a given system, and
- * some implemented parameters may not be available to all partitions
+ * A defined parameter may analt be implemented on a given system, and
+ * some implemented parameters may analt be available to all partitions
  * on a system. A parameter's disposition may change at any time due
  * to system configuration changes or partition migration.
  *
  * Context: This function may sleep.
  *
- * Return: 0 on success, -errno otherwise. @buf is unmodified on error.
+ * Return: 0 on success, -erranal otherwise. @buf is unmodified on error.
  */
 int papr_sysparm_get(papr_sysparm_t param, struct papr_sysparm_buf *buf)
 {
@@ -105,8 +105,8 @@ int papr_sysparm_get(papr_sysparm_t param, struct papr_sysparm_buf *buf)
 	if (WARN_ON(!buf))
 		return -EFAULT;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	if (!papr_sysparm_buf_can_submit(buf))
 		return -EINVAL;
@@ -127,10 +127,10 @@ int papr_sysparm_get(papr_sysparm_t param, struct papr_sysparm_buf *buf)
 		memcpy(buf, rtas_work_area_raw_buf(work_area), sizeof(*buf));
 		papr_sysparm_buf_clamp_length(buf);
 		break;
-	case -3: /* parameter not implemented */
-		ret = -EOPNOTSUPP;
+	case -3: /* parameter analt implemented */
+		ret = -EOPANALTSUPP;
 		break;
-	case -9002: /* this partition not authorized to retrieve this parameter */
+	case -9002: /* this partition analt authorized to retrieve this parameter */
 		ret = -EPERM;
 		break;
 	case -9999: /* "parameter error" e.g. the buffer is too small */
@@ -161,8 +161,8 @@ int papr_sysparm_set(papr_sysparm_t param, const struct papr_sysparm_buf *buf)
 	if (WARN_ON(!buf))
 		return -EFAULT;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return -ENOENT;
+	if (token == RTAS_UNKANALWN_SERVICE)
+		return -EANALENT;
 
 	if (!papr_sysparm_buf_can_submit(buf))
 		return -EINVAL;
@@ -180,10 +180,10 @@ int papr_sysparm_set(papr_sysparm_t param, const struct papr_sysparm_buf *buf)
 	case 0:
 		ret = 0;
 		break;
-	case -3: /* parameter not supported */
-		ret = -EOPNOTSUPP;
+	case -3: /* parameter analt supported */
+		ret = -EOPANALTSUPP;
 		break;
-	case -9002: /* this partition not authorized to modify this parameter */
+	case -9002: /* this partition analt authorized to modify this parameter */
 		ret = -EPERM;
 		break;
 	case -9999: /* "parameter error" e.g. invalid input data */
@@ -224,7 +224,7 @@ papr_sysparm_buf_from_user(const struct papr_sysparm_io_block __user *user_iob)
 
 	kern_spbuf = papr_sysparm_buf_alloc();
 	if (!kern_spbuf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	papr_sysparm_buf_set_length(kern_spbuf, len);
 
@@ -326,7 +326,7 @@ static long papr_sysparm_ioctl(struct file *filp, unsigned int ioctl, unsigned l
 			ret = -EBADF;
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 	return ret;
@@ -337,7 +337,7 @@ static const struct file_operations papr_sysparm_ops = {
 };
 
 static struct miscdevice papr_sysparm_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "papr-sysparm",
 	.fops = &papr_sysparm_ops,
 };
@@ -345,7 +345,7 @@ static struct miscdevice papr_sysparm_dev = {
 static __init int papr_sysparm_init(void)
 {
 	if (!rtas_function_implemented(RTAS_FN_IBM_GET_SYSTEM_PARAMETER))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return misc_register(&papr_sysparm_dev);
 }

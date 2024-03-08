@@ -5,7 +5,7 @@
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
 
-#define SUNXI_FACTORS_NOT_APPLICABLE	(0)
+#define SUNXI_FACTORS_ANALT_APPLICABLE	(0)
 
 struct clk_factors_config {
 	u8 nshift;
@@ -51,15 +51,15 @@ struct clk_factors {
 	struct clk_gate *gate;
 };
 
-struct clk *sunxi_factors_register(struct device_node *node,
+struct clk *sunxi_factors_register(struct device_analde *analde,
 				   const struct factors_data *data,
 				   spinlock_t *lock,
 				   void __iomem *reg);
-struct clk *sunxi_factors_register_critical(struct device_node *node,
+struct clk *sunxi_factors_register_critical(struct device_analde *analde,
 					    const struct factors_data *data,
 					    spinlock_t *lock,
 					    void __iomem *reg);
 
-void sunxi_factors_unregister(struct device_node *node, struct clk *clk);
+void sunxi_factors_unregister(struct device_analde *analde, struct clk *clk);
 
 #endif

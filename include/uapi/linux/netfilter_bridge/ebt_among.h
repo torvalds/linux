@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_BRIDGE_EBT_AMONG_H
 #define __LINUX_BRIDGE_EBT_AMONG_H
 
@@ -10,13 +10,13 @@
 /* Grzegorz Borowiak <grzes@gnu.univ.gda.pl> 2003
  * 
  * Write-once-read-many hash table, used for checking if a given
- * MAC address belongs to a set or not and possibly for checking
+ * MAC address belongs to a set or analt and possibly for checking
  * if it is related with a given IPv4 address.
  *
  * The hash value of an address is its last byte.
  * 
  * In real-world ethernet addresses, values of the last byte are
- * evenly distributed and there is no need to consider other bytes.
+ * evenly distributed and there is anal need to consider other bytes.
  * It would only slow the routines down.
  *
  * For MAC address comparison speedup reasons, we introduce a trick.
@@ -29,7 +29,7 @@
  * of 3 first bytes. So first we compare 4 last bytes of addresses and
  * if they are the same we compare 2 first.
  *
- * Yes, it is a memory overhead, but in 2003 AD, who cares?
+ * Anal, it is a memory overhead, but in 2003 AD, who cares?
  */
 
 struct ebt_mac_wormhash_tuple {

@@ -90,7 +90,7 @@ static int vxcan_open(struct net_device *dev)
 	struct net_device *peer = rtnl_dereference(priv->peer);
 
 	if (!peer)
-		return -ENOTCONN;
+		return -EANALTCONN;
 
 	if (peer->flags & IFF_UP) {
 		netif_carrier_on(dev);
@@ -127,7 +127,7 @@ static int vxcan_get_iflink(const struct net_device *dev)
 
 static int vxcan_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* Do not allow changing the MTU while running */
+	/* Do analt allow changing the MTU while running */
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 
@@ -160,7 +160,7 @@ static void vxcan_setup(struct net_device *dev)
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	dev->netdev_ops		= &vxcan_netdev_ops;
 	dev->ethtool_ops	= &vxcan_ethtool_ops;
 	dev->needs_free_netdev	= true;
@@ -269,9 +269,9 @@ static void vxcan_dellink(struct net_device *dev, struct list_head *head)
 	priv = netdev_priv(dev);
 	peer = rtnl_dereference(priv->peer);
 
-	/* Note : dellink() is called from default_device_exit_batch(),
+	/* Analte : dellink() is called from default_device_exit_batch(),
 	 * before a rcu_synchronize() point. The devices are guaranteed
-	 * not being freed before one RCU grace period.
+	 * analt being freed before one RCU grace period.
 	 */
 	RCU_INIT_POINTER(priv->peer, NULL);
 	unregister_netdevice_queue(dev, head);

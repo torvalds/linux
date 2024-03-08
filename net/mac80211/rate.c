@@ -143,7 +143,7 @@ int ieee80211_rate_control_register(const struct rate_control_ops *ops)
 	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (alg == NULL) {
 		mutex_unlock(&rate_ctrl_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	alg->ops = ops;
 
@@ -205,12 +205,12 @@ ieee80211_rate_control_ops_get(const char *name)
 
 	ops = ieee80211_try_rate_control_ops_get(alg_name);
 	if (!ops && name)
-		/* try default if specific alg requested but not found */
+		/* try default if specific alg requested but analt found */
 		ops = ieee80211_try_rate_control_ops_get(ieee80211_default_rc_algo);
 
-	/* Note: check for > 0 is intentional to avoid clang warning */
+	/* Analte: check for > 0 is intentional to avoid clang warning */
 	if (!ops && (strlen(CONFIG_MAC80211_RC_DEFAULT) > 0))
-		/* try built-in one if specific alg requested but not found */
+		/* try built-in one if specific alg requested but analt found */
 		ops = ieee80211_try_rate_control_ops_get(CONFIG_MAC80211_RC_DEFAULT);
 
 	kernel_param_unlock(THIS_MODULE);
@@ -298,17 +298,17 @@ void ieee80211_check_rate_mask(struct ieee80211_link_data *link)
 		return;
 
 	sdata_dbg(sdata,
-		  "no overlap between basic rates (0x%x) and user mask (0x%x on band %d) - clearing the latter",
+		  "anal overlap between basic rates (0x%x) and user mask (0x%x on band %d) - clearing the latter",
 		  basic_rates, user_mask, band);
 	sdata->rc_rateidx_mask[band] = (1 << sband->n_bitrates) - 1;
 }
 
-static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
+static bool rc_anal_data_or_anal_ack_use_min(struct ieee80211_tx_rate_control *txrc)
 {
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	return (info->flags & (IEEE80211_TX_CTL_NO_ACK |
+	return (info->flags & (IEEE80211_TX_CTL_ANAL_ACK |
 			       IEEE80211_TX_CTL_USE_MINRATE)) ||
 		!ieee80211_is_tx_data(skb);
 }
@@ -327,7 +327,7 @@ static void rc_send_low_basicrate(struct ieee80211_tx_rate *rate,
 	}
 
 	if (basic_rates == 0)
-		return; /* assume basic rates unknown and accept rate */
+		return; /* assume basic rates unkanalwn and accept rate */
 	if (rate->idx < 0)
 		return;
 	if (basic_rates & (1 << rate->idx))
@@ -340,7 +340,7 @@ static void rc_send_low_basicrate(struct ieee80211_tx_rate *rate,
 		}
 	}
 
-	/* could not find a basic rate; use original selection */
+	/* could analt find a basic rate; use original selection */
 }
 
 static void __rate_control_send_low(struct ieee80211_hw *hw,
@@ -360,7 +360,7 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 	}
 
 	if ((sband->band == NL80211_BAND_2GHZ) &&
-	    (info->flags & IEEE80211_TX_CTL_NO_CCK_RATE))
+	    (info->flags & IEEE80211_TX_CTL_ANAL_CCK_RATE))
 		rate_flags |= IEEE80211_RATE_ERP_G;
 
 	info->control.rates[0].idx = 0;
@@ -378,14 +378,14 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 		break;
 	}
 	WARN_ONCE(i == sband->n_bitrates,
-		  "no supported rates for sta %pM (0x%x, band %d) in rate_mask 0x%x with flags 0x%x\n",
+		  "anal supported rates for sta %pM (0x%x, band %d) in rate_mask 0x%x with flags 0x%x\n",
 		  sta ? sta->addr : NULL,
 		  sta ? sta->deflink.supp_rates[sband->band] : -1,
 		  sband->band,
 		  rate_mask, rate_flags);
 
 	info->control.rates[0].count =
-		(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
+		(info->flags & IEEE80211_TX_CTL_ANAL_ACK) ?
 		1 : hw->max_rate_tries;
 
 	info->control.skip_table = 1;
@@ -401,7 +401,7 @@ static bool rate_control_send_low(struct ieee80211_sta *pubsta,
 	int mcast_rate;
 	bool use_basicrate = false;
 
-	if (!pubsta || rc_no_data_or_no_ack_use_min(txrc)) {
+	if (!pubsta || rc_anal_data_or_anal_ack_use_min(txrc)) {
 		__rate_control_send_low(txrc->hw, sband, pubsta, info,
 					txrc->rate_idx_mask);
 
@@ -580,7 +580,7 @@ static void rate_idx_match_mask(s8 *rate_idx, u16 *rate_flags,
 
 		/* if HT BSS, and we handle a data frame, also try HT rates */
 		switch (chan_width) {
-		case NL80211_CHAN_WIDTH_20_NOHT:
+		case NL80211_CHAN_WIDTH_20_ANALHT:
 		case NL80211_CHAN_WIDTH_5:
 		case NL80211_CHAN_WIDTH_10:
 			return;
@@ -604,7 +604,7 @@ static void rate_idx_match_mask(s8 *rate_idx, u16 *rate_flags,
 	}
 
 	/*
-	 * Uh.. No suitable rate exists. This should not really happen with
+	 * Uh.. Anal suitable rate exists. This should analt really happen with
 	 * sane TX rate mask configurations. However, should someone manage to
 	 * configure supported rates and TX rate mask in incompatible way,
 	 * allow the frame to be transmitted with whatever the rate control
@@ -624,8 +624,8 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 
 	/*
 	 * Set up the RTS/CTS rate as the fastest basic rate
-	 * that is not faster than the data rate unless there
-	 * is no basic rate slower than the data rate, in which
+	 * that is analt faster than the data rate unless there
+	 * is anal basic rate slower than the data rate, in which
 	 * case we pick the slowest basic rate
 	 *
 	 * XXX: Should this check all retry rates?
@@ -641,7 +641,7 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 			/* must be a basic rate */
 			if (!(basic_rates & BIT(i)))
 				continue;
-			/* must not be faster than the data rate */
+			/* must analt be faster than the data rate */
 			if (sband->bitrates[i].bitrate > rate->bitrate)
 				continue;
 			/* maximum */
@@ -655,7 +655,7 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 
 	for (i = 0; i < max_rates; i++) {
 		/*
-		 * make sure there's no valid rate following
+		 * make sure there's anal valid rate following
 		 * an invalid one, just in case drivers don't
 		 * take the API seriously to stop at -1.
 		 */
@@ -669,7 +669,7 @@ static void rate_fixup_ratelist(struct ieee80211_vif *vif,
 		}
 
 		/*
-		 * For now assume MCS is already set up correctly, this
+		 * For analw assume MCS is already set up correctly, this
 		 * needs to be fixed.
 		 */
 		if (rates[i].flags & IEEE80211_TX_RC_MCS) {
@@ -789,7 +789,7 @@ static bool rate_control_cap_mask(struct ieee80211_sub_if_data *sdata,
 		__le16 sta_vht_cap;
 		u16 sta_vht_mask[NL80211_VHT_NSS_MAX];
 
-		/* Filter out rates that the STA does not support */
+		/* Filter out rates that the STA does analt support */
 		*mask &= sta->deflink.supp_rates[sband->band];
 		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
 			mcs_mask[i] &= sta->deflink.ht_cap.mcs.rx_mask[i];
@@ -954,9 +954,9 @@ int rate_control_set_rates(struct ieee80211_hw *hw,
 		return -EINVAL;
 	rate_control_apply_mask_ratetbl(sta, sband, rates);
 	/*
-	 * mac80211 guarantees that this function will not be called
+	 * mac80211 guarantees that this function will analt be called
 	 * concurrently, so the following RCU access is safe, even without
-	 * extra locking. This can not be checked easily, so we just set
+	 * extra locking. This can analt be checked easily, so we just set
 	 * the condition to true.
 	 */
 	old = rcu_dereference_protected(pubsta->rates, true);
@@ -993,7 +993,7 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	if (!ref) {
 		wiphy_warn(local->hw.wiphy,
 			   "Failed to select rate control algorithm\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	WARN_ON(local->rate_ctrl);

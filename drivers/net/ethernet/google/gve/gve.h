@@ -71,9 +71,9 @@
 #define GVE_MAX_TX_BUFS_PER_PKT (DIV_ROUND_UP(GVE_DQO_TX_MAX, GVE_TX_BUF_SIZE_DQO))
 
 /* If number of free/recyclable buffers are less than this threshold; driver
- * allocs and uses a non-qpl page on the receive path of DQO QPL to free
+ * allocs and uses a analn-qpl page on the receive path of DQO QPL to free
  * up buffers.
- * Value is set big enough to post at least 3 64K LRO packet via 2K buffer to NIC.
+ * Value is set big eanalugh to post at least 3 64K LRO packet via 2K buffer to NIC.
  */
 #define GVE_DQO_QPL_ONDEMAND_ALLOC_THRESHOLD 96
 
@@ -81,7 +81,7 @@
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
 	dma_addr_t bus; /* the bus for the desc_ring */
-	u8 seqno; /* the next expected seqno for this desc*/
+	u8 seqanal; /* the next expected seqanal for this desc*/
 };
 
 /* The page info for a single slot in the RX data queue */
@@ -131,13 +131,13 @@ struct gve_rx_compl_queue_dqo {
 	struct gve_rx_compl_desc_dqo *desc_ring;
 	dma_addr_t bus;
 
-	/* Number of slots which did not have a buffer posted yet. We should not
+	/* Number of slots which did analt have a buffer posted yet. We should analt
 	 * post more buffers than the queue size to avoid HW overrunning the
 	 * queue.
 	 */
 	int num_free_slots;
 
-	/* HW uses a "generation bit" to notify SW of new descriptors. When a
+	/* HW uses a "generation bit" to analtify SW of new descriptors. When a
 	 * descriptor's generation bit is different from the current generation,
 	 * that descriptor is ready to be consumed by SW.
 	 */
@@ -163,7 +163,7 @@ struct gve_rx_buf_state_dqo {
 	 */
 	u32 last_single_ref_offset;
 
-	/* Linked list index to next element in the list, or -1 if none */
+	/* Linked list index to next element in the list, or -1 if analne */
 	s16 next;
 };
 
@@ -177,7 +177,7 @@ struct gve_index_list {
  * reconstructed using the information in this structure.
  */
 struct gve_rx_ctx {
-	/* head and tail of skb chain for the current packet or NULL if none */
+	/* head and tail of skb chain for the current packet or NULL if analne */
 	struct sk_buff *skb_head;
 	struct sk_buff *skb_tail;
 	u32 total_size;
@@ -240,7 +240,7 @@ struct gve_rx_ring {
 			 * buf_states, or -1 if empty.
 			 *
 			 * This list contains buf_states which have buffers
-			 * which cannot be reused yet.
+			 * which cananalt be reused yet.
 			 */
 			struct gve_index_list used_buf_states;
 
@@ -274,7 +274,7 @@ struct gve_rx_ring {
 	u64 xdp_alloc_fails;
 	u64 xdp_actions[GVE_XDP_ACTIONS];
 	u32 q_num; /* queue index */
-	u32 ntfy_id; /* notification block index */
+	u32 ntfy_id; /* analtification block index */
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
 	dma_addr_t q_resources_bus; /* dma address for the queue resources */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
@@ -303,7 +303,7 @@ struct gve_tx_iovec {
 };
 
 /* Tracks the memory in the fifo occupied by the skb. Mapped 1:1 to a desc
- * ring entry but only used for a pkt_desc not a seg_desc
+ * ring entry but only used for a pkt_desc analt a seg_desc
  */
 struct gve_tx_buffer_state {
 	union {
@@ -341,7 +341,7 @@ union gve_tx_desc_dqo {
 
 enum gve_packet_state {
 	/* Packet is in free list, available to be allocated.
-	 * This should always be zero since state is not explicitly initialized.
+	 * This should always be zero since state is analt explicitly initialized.
 	 */
 	GVE_PACKET_STATE_UNALLOCATED,
 	/* Packet is expecting a regular data completion or miss completion */
@@ -350,7 +350,7 @@ enum gve_packet_state {
 	 * re-injection completion.
 	 */
 	GVE_PACKET_STATE_PENDING_REINJECT_COMPL,
-	/* No valid completion received within the specified timeout. */
+	/* Anal valid completion received within the specified timeout. */
 	GVE_PACKET_STATE_TIMED_OUT_COMPL,
 };
 
@@ -373,10 +373,10 @@ struct gve_tx_pending_packet_dqo {
 
 	u16 num_bufs;
 
-	/* Linked list index to next element in the list, or -1 if none */
+	/* Linked list index to next element in the list, or -1 if analne */
 	s16 next;
 
-	/* Linked list index to prev element in the list, or -1 if none.
+	/* Linked list index to prev element in the list, or -1 if analne.
 	 * Used for tracking either outstanding miss completions or prematurely
 	 * freed packets.
 	 */
@@ -388,7 +388,7 @@ struct gve_tx_pending_packet_dqo {
 	u8 state;
 
 	/* If packet is an outstanding miss completion, then the packet is
-	 * freed if the corresponding re-injection completion is not received
+	 * freed if the corresponding re-injection completion is analt received
 	 * before kernel jiffies exceeds timeout_jiffies.
 	 */
 	unsigned long timeout_jiffies;
@@ -485,7 +485,7 @@ struct gve_tx_ring {
 			atomic_t hw_tx_head;
 
 			/* List to track pending packets which received a miss
-			 * completion but not a corresponding reinjection.
+			 * completion but analt a corresponding reinjection.
 			 */
 			struct gve_index_list miss_completions;
 
@@ -566,7 +566,7 @@ struct gve_tx_ring {
 	u32 stop_queue; /* count of queue stops */
 	u32 wake_queue; /* count of queue wakes */
 	u32 queue_timeout; /* count of queue timeouts */
-	u32 ntfy_id; /* notification block index */
+	u32 ntfy_id; /* analtification block index */
 	u32 last_kick_msec; /* Last time the queue was kicked */
 	dma_addr_t bus; /* dma address of the descr ring */
 	dma_addr_t q_resources_bus; /* dma address of the queue resources */
@@ -583,7 +583,7 @@ struct gve_tx_ring {
 /* Wraps the info for one irq including the napi struct and the queues
  * associated with that irq.
  */
-struct gve_notify_block {
+struct gve_analtify_block {
 	__be32 *irq_db_index; /* pointer to idx into Bar2 */
 	char name[IFNAMSIZ + 16]; /* name registered with the kernel */
 	struct napi_struct napi; /* kernel napi struct for this block */
@@ -624,7 +624,7 @@ struct gve_ptype_lut {
 
 /* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
  * when the entire configure_device_resources command is zeroed out and the
- * queue_format is not specified.
+ * queue_format is analt specified.
  */
 enum gve_queue_format {
 	GVE_QUEUE_FORMAT_UNSPECIFIED	= 0x0,
@@ -639,7 +639,7 @@ struct gve_priv {
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
 	struct gve_rx_ring *rx; /* array of rx_cfg.num_queues */
 	struct gve_queue_page_list *qpls; /* array of num qpls */
-	struct gve_notify_block *ntfy_blocks; /* array of num_ntfy_blks */
+	struct gve_analtify_block *ntfy_blocks; /* array of num_ntfy_blks */
 	struct gve_irq_db *irq_db_indices; /* array of num_ntfy_blks */
 	dma_addr_t irq_db_indices_bus;
 	struct msix_entry *msix_vectors; /* array of num_ntfy_blks + 1 */
@@ -892,7 +892,7 @@ static inline void gve_clear_report_stats(struct gve_priv *priv)
 /* Returns the address of the ntfy_blocks irq doorbell
  */
 static inline __be32 __iomem *gve_irq_doorbell(struct gve_priv *priv,
-					       struct gve_notify_block *block)
+					       struct gve_analtify_block *block)
 {
 	return &priv->db_bar2[be32_to_cpu(*block->irq_db_index)];
 }
@@ -1049,8 +1049,8 @@ int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 		     void *data, int len, void *frame_p);
 void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid);
-bool gve_tx_poll(struct gve_notify_block *block, int budget);
-bool gve_xdp_poll(struct gve_notify_block *block, int budget);
+bool gve_tx_poll(struct gve_analtify_block *block, int budget);
+bool gve_xdp_poll(struct gve_analtify_block *block, int budget);
 int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings);
 void gve_tx_free_rings_gqi(struct gve_priv *priv, int start_id, int num_rings);
 u32 gve_tx_load_event_counter(struct gve_priv *priv,
@@ -1058,7 +1058,7 @@ u32 gve_tx_load_event_counter(struct gve_priv *priv,
 bool gve_tx_clean_pending(struct gve_priv *priv, struct gve_tx_ring *tx);
 /* rx handling */
 void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
-int gve_rx_poll(struct gve_notify_block *block, int budget);
+int gve_rx_poll(struct gve_analtify_block *block, int budget);
 bool gve_rx_work_pending(struct gve_rx_ring *rx);
 int gve_rx_alloc_rings(struct gve_priv *priv);
 void gve_rx_free_rings_gqi(struct gve_priv *priv);

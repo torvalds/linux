@@ -236,7 +236,7 @@ static int softingcs_probe(struct pcmcia_device *pcmcia)
 	/* find matching platform_data */
 	pdat = softingcs_find_platform_data(pcmcia->manf_id, pcmcia->card_id);
 	if (!pdat)
-		return -ENOTTY;
+		return -EANALTTY;
 
 	/* setup pcmcia device */
 	pcmcia->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IOMEM |
@@ -258,7 +258,7 @@ static int softingcs_probe(struct pcmcia_device *pcmcia)
 	/* create softing platform device */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto mem_failed;
 	}
 	dev->pdev.resource = dev->res;

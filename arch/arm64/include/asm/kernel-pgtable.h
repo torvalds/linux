@@ -15,7 +15,7 @@
 /*
  * The linear mapping and the start of memory are both 2M aligned (per
  * the arm64 booting.txt requirements). Hence we can use section mapping
- * with 4K (section size = 2M) but not with 16K (section size = 32M) or
+ * with 4K (section size = 2M) but analt with 16K (section size = 32M) or
  * 64K (section size = 512M).
  */
 
@@ -24,7 +24,7 @@
  * image. Both require pgd, pud (4 levels only) and pmd tables to (section)
  * map the kernel. With the 64K page configuration, swapper and idmap need to
  * map to pte level. The swapper also maps the FDT (see __create_page_tables
- * for more information). Note that the number of ID map translation levels
+ * for more information). Analte that the number of ID map translation levels
  * could be increased on the fly if system RAM is out of reach for the default
  * VA range, so pages required to map highest possible PA are reserved in all
  * cases.
@@ -96,10 +96,10 @@
 #define SWAPPER_PMD_FLAGS	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S | PTE_UXN)
 
 #ifdef CONFIG_ARM64_4K_PAGES
-#define SWAPPER_RW_MMUFLAGS	(PMD_ATTRINDX(MT_NORMAL) | SWAPPER_PMD_FLAGS | PTE_WRITE)
+#define SWAPPER_RW_MMUFLAGS	(PMD_ATTRINDX(MT_ANALRMAL) | SWAPPER_PMD_FLAGS | PTE_WRITE)
 #define SWAPPER_RX_MMUFLAGS	(SWAPPER_RW_MMUFLAGS | PMD_SECT_RDONLY)
 #else
-#define SWAPPER_RW_MMUFLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
+#define SWAPPER_RW_MMUFLAGS	(PTE_ATTRINDX(MT_ANALRMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
 #define SWAPPER_RX_MMUFLAGS	(SWAPPER_RW_MMUFLAGS | PTE_RDONLY)
 #endif
 

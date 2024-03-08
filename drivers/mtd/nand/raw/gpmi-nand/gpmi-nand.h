@@ -91,7 +91,7 @@ struct gpmi_devdata {
 /**
  * struct gpmi_nfc_hardware_timing - GPMI hardware timing parameters.
  * @must_apply_timings:        Whether controller timings have already been
- *                             applied or not (useful only while there is
+ *                             applied or analt (useful only while there is
  *                             support for only one chip select)
  * @clk_rate:                  The clock rate that must be used to derive the
  *                             following parameters

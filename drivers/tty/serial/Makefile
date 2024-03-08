@@ -11,7 +11,7 @@ obj-$(CONFIG_SERIAL_EARLYCON_SEMIHOST) += earlycon-semihost.o
 obj-$(CONFIG_SERIAL_EARLYCON_RISCV_SBI) += earlycon-riscv-sbi.o
 
 # These Sparc drivers have to appear before others such as 8250
-# which share ttySx minor node space.  Otherwise console device
+# which share ttySx mianalr analde space.  Otherwise console device
 # names change and other unplesantries.
 obj-$(CONFIG_SERIAL_SUNCORE) += suncore.o
 obj-$(CONFIG_SERIAL_SUNHV) += sunhv.o
@@ -21,7 +21,7 @@ obj-$(CONFIG_SERIAL_SUNSAB) += sunsab.o
 
 obj-$(CONFIG_SERIAL_21285) += 21285.o
 
-# Now bring in any enabled 8250/16450/16550 type drivers.
+# Analw bring in any enabled 8250/16450/16550 type drivers.
 obj-y += 8250/
 
 obj-$(CONFIG_SERIAL_ALTERA_JTAGUART)	+= altera_jtaguart.o
@@ -65,7 +65,7 @@ obj-$(CONFIG_SERIAL_OMAP)		+= omap-serial.o
 obj-$(CONFIG_SERIAL_OWL)		+= owl-uart.o
 obj-$(CONFIG_SERIAL_PCH_UART)		+= pch_uart.o
 obj-$(CONFIG_SERIAL_PIC32)		+= pic32_uart.o
-obj-$(CONFIG_SERIAL_PXA_NON8250)	+= pxa.o
+obj-$(CONFIG_SERIAL_PXA_ANALN8250)	+= pxa.o
 obj-$(CONFIG_SERIAL_PMACZILOG)		+= pmac_zilog.o
 obj-$(CONFIG_SERIAL_QCOM_GENI)		+= qcom_geni_serial.o
 obj-$(CONFIG_SERIAL_QE)			+= ucc_uart.o

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -54,13 +54,13 @@ static const struct clk_mgr_mask disp_clk_mask = {
 };
 
 static const struct state_dependent_clocks dce112_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
+/*ClocksStateInvalid - should analt be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+/*ClocksStateUltraLow - currently by HW design team analt supposed to be used*/
 { .display_clk_khz = 389189, .pixel_clk_khz = 346672 },
 /*ClocksStateLow*/
 { .display_clk_khz = 459000, .pixel_clk_khz = 400000 },
-/*ClocksStateNominal*/
+/*ClocksStateAnalminal*/
 { .display_clk_khz = 667000, .pixel_clk_khz = 600000 },
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1132000, .pixel_clk_khz = 600000 } };
@@ -90,11 +90,11 @@ int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz)
 	actual_clock = dce_clk_params.target_clock_frequency;
 
 	/*
-	 * from power down, we need mark the clock state as ClocksStateNominal
+	 * from power down, we need mark the clock state as ClocksStateAnalminal
 	 * from HWReset, so when resume we will call pplib voltage regulator.
 	 */
 	if (requested_clk_khz == 0)
-		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_ANALMINAL;
 
 	/*Program DP ref Clock*/
 	/*VBIOS will determine DPREFCLK frequency, so we don't set it*/
@@ -144,11 +144,11 @@ int dce112_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_clk_khz)
 	actual_clock = dce_clk_params.target_clock_frequency;
 
 	/*
-	 * from power down, we need mark the clock state as ClocksStateNominal
+	 * from power down, we need mark the clock state as ClocksStateAnalminal
 	 * from HWReset, so when resume we will call pplib voltage regulator.
 	 */
 	if (requested_clk_khz == 0)
-		clk_mgr->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
+		clk_mgr->cur_min_clks_state = DM_PP_CLOCKS_STATE_ANALMINAL;
 
 
 	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {

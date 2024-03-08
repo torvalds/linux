@@ -21,7 +21,7 @@ maintainers:
   - Tim Harvey <tharvey@gateworks.com>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "gsc@[0-9a-f]{1,2}"
   compatible:
     const: gw,gsc

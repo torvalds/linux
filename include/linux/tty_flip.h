@@ -67,7 +67,7 @@ static inline size_t tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
 	struct tty_buffer *tb = port->buf.tail;
 	int change;
 
-	change = !tb->flags && (flag != TTY_NORMAL);
+	change = !tb->flags && (flag != TTY_ANALRMAL);
 	if (!change && tb->used < tb->size) {
 		if (tb->flags)
 			*flag_buf_ptr(tb, tb->used) = flag;
@@ -80,7 +80,7 @@ static inline size_t tty_insert_flip_char(struct tty_port *port, u8 ch, u8 flag)
 static inline size_t tty_insert_flip_string(struct tty_port *port,
 					    const u8 *chars, size_t size)
 {
-	return tty_insert_flip_string_fixed_flag(port, chars, TTY_NORMAL, size);
+	return tty_insert_flip_string_fixed_flag(port, chars, TTY_ANALRMAL, size);
 }
 
 size_t tty_ldisc_receive_buf(struct tty_ldisc *ld, const u8 *p, const u8 *f,

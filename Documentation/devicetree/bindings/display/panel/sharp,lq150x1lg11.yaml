@@ -23,7 +23,7 @@ properties:
     maxItems: 1
     description: |
       GPIO for the RL/UD (rotate 180 degrees) pin.
-      If rlud-gpios and/or sellvds-gpios are not specified,
+      If rlud-gpios and/or sellvds-gpios are analt specified,
       the RL/UD and/or SELLVDS pins are assumed to be handled
       appropriately by the hardware.
 
@@ -31,7 +31,7 @@ properties:
     maxItems: 1
     description: |
       GPIO for the SELLVDS pin.
-      If rlud-gpios and/or sellvds-gpios are not specified,
+      If rlud-gpios and/or sellvds-gpios are analt specified,
       the RL/UD and/or SELLVDS pins are assumed to be handled
       appropriately by the hardware.
 

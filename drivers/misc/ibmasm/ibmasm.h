@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
@@ -25,7 +25,7 @@
 /* Driver identification */
 #define DRIVER_NAME	"ibmasm"
 #define DRIVER_VERSION  "1.0"
-#define DRIVER_AUTHOR   "Max Asbock <masbock@us.ibm.com>, Vernon Mauery <vernux@us.ibm.com>"
+#define DRIVER_AUTHOR   "Max Asbock <masbock@us.ibm.com>, Veranaln Mauery <vernux@us.ibm.com>"
 #define DRIVER_DESC     "IBM ASM Service Processor Driver"
 
 #define err(msg) printk(KERN_ERR "%s: " msg "\n", DRIVER_NAME)
@@ -40,11 +40,11 @@ extern int ibmasm_debug;
 
 static inline char *get_timestamp(char *buf)
 {
-	struct timespec64 now;
+	struct timespec64 analw;
 
-	ktime_get_real_ts64(&now);
-	sprintf(buf, "%llu.%.08lu", (long long)now.tv_sec,
-				now.tv_nsec / NSEC_PER_USEC);
+	ktime_get_real_ts64(&analw);
+	sprintf(buf, "%llu.%.08lu", (long long)analw.tv_sec,
+				analw.tv_nsec / NSEC_PER_USEC);
 	return buf;
 }
 
@@ -52,7 +52,7 @@ static inline char *get_timestamp(char *buf)
 #define IBMASM_CMD_COMPLETE	1
 #define IBMASM_CMD_FAILED	2
 
-#define IBMASM_CMD_TIMEOUT_NORMAL	45
+#define IBMASM_CMD_TIMEOUT_ANALRMAL	45
 #define IBMASM_CMD_TIMEOUT_EXTRA	240
 
 #define IBMASM_CMD_MAX_BUFFER_SIZE	0x8000
@@ -77,7 +77,7 @@ static inline char *get_timestamp(char *buf)
 
 
 struct command {
-	struct list_head	queue_node;
+	struct list_head	queue_analde;
 	wait_queue_head_t	wait;
 	unsigned char		*buffer;
 	size_t			buffer_size;
@@ -121,7 +121,7 @@ struct event_reader {
 	int			cancelled;
 	unsigned int		next_serial_number;
 	wait_queue_head_t	wait;
-	struct list_head	node;
+	struct list_head	analde;
 	unsigned int		data_size;
 	unsigned char		data[IBMASM_EVENT_MAX_SIZE];
 };
@@ -137,7 +137,7 @@ struct ibmasm_remote {
 };
 
 struct service_processor {
-	struct list_head	node;
+	struct list_head	analde;
 	spinlock_t		lock;
 	void __iomem		*base_address;
 	unsigned int		irq;
@@ -169,8 +169,8 @@ int ibmasm_get_next_event(struct service_processor *sp, struct event_reader *rea
 void ibmasm_cancel_next_event(struct event_reader *reader);
 
 /* heartbeat - from SP to OS */
-void ibmasm_register_panic_notifier(void);
-void ibmasm_unregister_panic_notifier(void);
+void ibmasm_register_panic_analtifier(void);
+void ibmasm_unregister_panic_analtifier(void);
 int ibmasm_heartbeat_init(struct service_processor *sp);
 void ibmasm_heartbeat_exit(struct service_processor *sp);
 void ibmasm_receive_heartbeat(struct service_processor *sp,  void *message, size_t size);

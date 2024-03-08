@@ -10,7 +10,7 @@ if [ -z "$load" ]; then
 	load=`perf list | grep mem_uops_retired.all_loads`
 fi
 if [ -z "$load" ]; then
-	echo "There is no event to count all retired load instructions/uops."
+	echo "There is anal event to count all retired load instructions/uops."
 	exit 1
 fi
 

@@ -32,8 +32,8 @@ enum {
 	 (1ul << ND_CMD_SET_CONFIG_DATA) | \
 	 (1ul << ND_CMD_CALL))
 
-#define NFIT_DIMM_HANDLE(node, socket, imc, chan, dimm)			\
-	(((node & 0xfff) << 16) | ((socket & 0xf) << 12)		\
+#define NFIT_DIMM_HANDLE(analde, socket, imc, chan, dimm)			\
+	(((analde & 0xfff) << 16) | ((socket & 0xf) << 12)		\
 	 | ((imc & 0xf) << 8) | ((chan & 0xf) << 4) | (dimm & 0xf))
 
 static DEFINE_SPINLOCK(ndtest_lock);
@@ -422,7 +422,7 @@ static int ndtest_create_region(struct ndtest_priv *p,
 	ndr_desc = &_ndr_desc;
 
 	if (!ndtest_alloc_resource(p, region->size, &res.start))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res.end = res.start + region->size - 1;
 	ndr_desc->mapping = mappings;
@@ -437,7 +437,7 @@ static int ndtest_create_region(struct ndtest_priv *p,
 
 	nd_set = devm_kzalloc(&p->pdev.dev, sizeof(*nd_set), GFP_KERNEL);
 	if (!nd_set)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nd_set->cookie1 = cpu_to_le64(uuid[0]);
 	nd_set->cookie2 = cpu_to_le64(uuid[1]);
@@ -674,7 +674,7 @@ static ssize_t flags_show(struct device *dev,
 
 	seq_buf_init(&s, buf, PAGE_SIZE);
 	if (flags & PAPR_PMEM_UNARMED_MASK)
-		seq_buf_printf(&s, "not_armed ");
+		seq_buf_printf(&s, "analt_armed ");
 
 	if (flags & PAPR_PMEM_BAD_SHUTDOWN_MASK)
 		seq_buf_printf(&s, "flush_fail ");
@@ -686,7 +686,7 @@ static ssize_t flags_show(struct device *dev,
 		seq_buf_printf(&s, "save_fail ");
 
 	if (flags & PAPR_PMEM_SMART_EVENT_MASK)
-		seq_buf_printf(&s, "smart_notify ");
+		seq_buf_printf(&s, "smart_analtify ");
 
 
 	if (seq_buf_used(&s))
@@ -746,8 +746,8 @@ static int ndtest_dimm_register(struct ndtest_priv *priv,
 					     0, dimm, dimm_attribute_groups,
 					     "test_dimm%d", id);
 	if (!dimm->dev) {
-		pr_err("Could not create dimm device attributes\n");
-		return -ENOMEM;
+		pr_err("Could analt create dimm device attributes\n");
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -764,7 +764,7 @@ static int ndtest_nvdimm_init(struct ndtest_priv *p)
 		d->id = id = p->config->dimm_start + i;
 		res = ndtest_alloc_resource(p, LABEL_SIZE, NULL);
 		if (!res)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		d->label_area = res;
 		sprintf(d->label_area, "label%d", id);
@@ -772,15 +772,15 @@ static int ndtest_nvdimm_init(struct ndtest_priv *p)
 
 		if (!ndtest_alloc_resource(p, d->size,
 					   &p->dimm_dma[id]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!ndtest_alloc_resource(p, LABEL_SIZE,
 					   &p->label_dma[id]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (!ndtest_alloc_resource(p, LABEL_SIZE,
 					   &p->dcr_dma[id]))
-			return -ENOMEM;
+			return -EANALMEM;
 
 		d->address = p->dimm_dma[id];
 
@@ -797,18 +797,18 @@ static ssize_t compatible_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(compatible);
 
-static struct attribute *of_node_attributes[] = {
+static struct attribute *of_analde_attributes[] = {
 	&dev_attr_compatible.attr,
 	NULL
 };
 
-static const struct attribute_group of_node_attribute_group = {
-	.name = "of_node",
-	.attrs = of_node_attributes,
+static const struct attribute_group of_analde_attribute_group = {
+	.name = "of_analde",
+	.attrs = of_analde_attributes,
 };
 
 static const struct attribute_group *ndtest_attribute_groups[] = {
-	&of_node_attribute_group,
+	&of_analde_attribute_group,
 	NULL,
 };
 
@@ -824,7 +824,7 @@ static int ndtest_bus_register(struct ndtest_priv *p)
 	p->bus = nvdimm_bus_register(&p->pdev.dev, &p->bus_desc);
 	if (!p->bus) {
 		dev_err(&p->pdev.dev, "Error creating nvdimm bus %pOF\n", p->dn);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -845,7 +845,7 @@ static int ndtest_probe(struct platform_device *pdev)
 
 	p = to_ndtest_priv(&pdev->dev);
 	if (ndtest_bus_register(p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p->dcr_dma = devm_kcalloc(&p->pdev.dev, NUM_DCR,
 				 sizeof(dma_addr_t), GFP_KERNEL);
@@ -928,14 +928,14 @@ static __init int ndtest_init(void)
 	if (rc)
 		goto err_register;
 
-	ndtest_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
+	ndtest_pool = gen_pool_create(ilog2(SZ_4M), NUMA_ANAL_ANALDE);
 	if (!ndtest_pool) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_register;
 	}
 
-	if (gen_pool_add(ndtest_pool, SZ_4G, SZ_4G, NUMA_NO_NODE)) {
-		rc = -ENOMEM;
+	if (gen_pool_add(ndtest_pool, SZ_4G, SZ_4G, NUMA_ANAL_ANALDE)) {
+		rc = -EANALMEM;
 		goto err_register;
 	}
 
@@ -946,7 +946,7 @@ static __init int ndtest_init(void)
 
 		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 		if (!priv) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err_register;
 		}
 

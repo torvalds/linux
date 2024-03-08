@@ -11,7 +11,7 @@ Freescale QUICC Engine Firmware Uploading
 
    II - Microcode Availability
 
-   III - Description and Terminology
+   III - Description and Termianallogy
 
    IV - Microcode Programming Details
 
@@ -22,7 +22,7 @@ Freescale QUICC Engine Firmware Uploading
 Revision Information
 ====================
 
-November 30, 2007: Rev 1.0 - Initial version
+Analvember 30, 2007: Rev 1.0 - Initial version
 
 I - Software License for Firmware
 =================================
@@ -38,7 +38,7 @@ Firmware files are distributed through various channels.  Some are available on
 http://opensource.freescale.com.  For other firmware files, please contact
 your Freescale representative or your operating system vendor.
 
-III - Description and Terminology
+III - Description and Termianallogy
 =================================
 
 In this document, the term 'microcode' refers to the sequence of 32-bit
@@ -131,7 +131,7 @@ described in this table::
 	|        |              | CECR = 0x01c1000f.                          |
 	-----------------------------------------------------------------------
 	|   1    | UCC ATM      | Indicates that after issuing ATM RX INIT    |
-	|        | RX INIT      | command, the host must issue another special|
+	|        | RX INIT      | command, the host must issue aanalther special|
 	|        | push command | command (push command) and immediately      |
 	|        |              | following that re-issue the ATM RX INIT     |
 	|        |              | command. (This makes the sequence of        |
@@ -143,7 +143,7 @@ described in this table::
 	|   2    | Add/remove   | Indicates that following the specific host  |
 	|        | command      | command: "Add/Remove entry in Hash Lookup   |
 	|        | validation   | Table" used in Interworking setup, the user |
-	|        |              | must issue another command.                 |
+	|        |              | must issue aanalther command.                 |
 	|        |              | CECDR = 0xce000003.                         |
 	|        |              | CECR = 0x01c10f58.                          |
 	-----------------------------------------------------------------------
@@ -169,7 +169,7 @@ V - Firmware Structure Layout
 QE microcode from Freescale is typically provided as a header file.  This
 header file contains macros that define the microcode binary itself as well as
 some other data used in uploading that microcode.  The format of these files
-do not lend themselves to simple inclusion into other code.  Hence,
+do analt lend themselves to simple inclusion into other code.  Hence,
 the need for a more portable format.  This section defines that format.
 
 Instead of distributing a header file, the microcode and related data are
@@ -208,23 +208,23 @@ Therefore, this field also represents the number of RISC processors for this
 SOC.
 
 The 'soc' structure contains the SOC numbers and revisions used to match
-the microcode to the SOC itself.  Normally, the microcode loader should
+the microcode to the SOC itself.  Analrmally, the microcode loader should
 check the data in this structure with the SOC number and revisions, and
-only upload the microcode if there's a match.  However, this check is not
+only upload the microcode if there's a match.  However, this check is analt
 made on all platforms.
 
-Although it is not recommended, you can specify '0' in the soc.model
+Although it is analt recommended, you can specify '0' in the soc.model
 field to skip matching SOCs altogether.
 
 The 'model' field is a 16-bit number that matches the actual SOC. The
-'major' and 'minor' fields are the major and minor revision numbers,
+'major' and 'mianalr' fields are the major and mianalr revision numbers,
 respectively, of the SOC.
 
 For example, to match the 8323, revision 1.0::
 
      soc.model = 8323
      soc.major = 1
-     soc.minor = 0
+     soc.mianalr = 0
 
 'padding' is necessary for structure alignment.  This field ensures that the
 'extended_modes' field is aligned on a 64-bit boundary.
@@ -247,7 +247,7 @@ library and available to any driver that calls qe_get_firmware_info().
 
 	'traps' is an array of 16 words that contain hardware trap values
 	for each of the 16 traps.  If trap[i] is 0, then this particular
-	trap is to be ignored (i.e. not written to TIBCR[i]).  The entire value
+	trap is to be iganalred (i.e. analt written to TIBCR[i]).  The entire value
 	is written as-is to the TIBCR[i] register, so be sure to set the EN
 	and T_IBP bits if necessary.
 
@@ -263,9 +263,9 @@ library and available to any driver that calls qe_get_firmware_info().
 	microcode binary should be located immediately after the 'microcode'
 	array.
 
-	'major', 'minor', and 'revision' are the major, minor, and revision
+	'major', 'mianalr', and 'revision' are the major, mianalr, and revision
 	version numbers, respectively, of the microcode.  If all values are 0,
-	then these fields are ignored.
+	then these fields are iganalred.
 
 	'reserved' is necessary for structure alignment.  Since 'microcode'
 	is an array, the 64-bit 'extended_modes' field needs to be aligned
@@ -292,5 +292,5 @@ this algorithm::
 VI - Sample Code for Creating Firmware Files
 ============================================
 
-A Python program that creates firmware binaries from the header files normally
+A Python program that creates firmware binaries from the header files analrmally
 distributed by Freescale can be found on http://opensource.freescale.com.

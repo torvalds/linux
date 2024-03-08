@@ -15,7 +15,7 @@
  * Updated: Wed, 11 Feb 2015 11:37:18 +0000
  * Status: untested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: analt applicable, uses PCI auto config
  *
  * All supported devices share the same PCI device ID and are treated as a
  * PCI-6216 with 16 analog output channels.  On a PCI-6208, the upper 8

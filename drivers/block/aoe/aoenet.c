@@ -17,7 +17,7 @@
 
 static char *aoe_errlist[] =
 {
-	"no such error",
+	"anal such error",
 	"unrecognized command code",
 	"bad argument parameter",
 	"device unavailable",
@@ -60,7 +60,7 @@ tx(int id) __must_hold(&txlock)
 		spin_unlock_irq(&txlock);
 		ifp = skb->dev;
 		if (dev_queue_xmit(skb) == NET_XMIT_DROP && net_ratelimit())
-			pr_warn("aoe: packet could not be sent on %s.  %s\n",
+			pr_warn("aoe: packet could analt be sent on %s.  %s\n",
 				ifp ? ifp->name : "netif",
 				"consider increasing tx_queue_len");
 		spin_lock_irq(&txlock);
@@ -163,7 +163,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 				"%s%d.%d@%s; ecode=%d '%s'\n",
 				"aoe: error packet from ",
 				get_unaligned_be16(&h->major),
-				h->minor, skb->dev->name,
+				h->mianalr, skb->dev->name,
 				h->err, aoe_errlist[n]);
 		goto exit;
 	}
@@ -179,7 +179,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 	default:
 		if (h->cmd >= AOECMD_VEND_MIN)
 			break;	/* don't complain about vendor commands */
-		pr_info("aoe: unknown AoE command type 0x%02x\n", h->cmd);
+		pr_info("aoe: unkanalwn AoE command type 0x%02x\n", h->cmd);
 		break;
 	}
 

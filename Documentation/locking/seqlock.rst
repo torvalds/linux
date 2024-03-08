@@ -6,7 +6,7 @@ Introduction
 ============
 
 Sequence counters are a reader-writer consistency mechanism with
-lockless readers (read-only retry loops), and no writer starvation. They
+lockless readers (read-only retry loops), and anal writer starvation. They
 are used for data that's rarely written to (e.g. system time), where the
 reader wants a consistent set of information and is willing to retry if
 that information changes.
@@ -30,7 +30,7 @@ the entire scheduler tick due to the odd sequence count value and the
 interrupted writer. If that reader belongs to a real-time scheduling
 class, it can spin forever and the kernel will livelock.
 
-This mechanism cannot be used if the protected data contains pointers,
+This mechanism cananalt be used if the protected data contains pointers,
 as the writer can invalidate a pointer that the reader is following.
 
 
@@ -39,18 +39,18 @@ as the writer can invalidate a pointer that the reader is following.
 Sequence counters (``seqcount_t``)
 ==================================
 
-This is the raw counting mechanism, which does not protect against
+This is the raw counting mechanism, which does analt protect against
 multiple writers.  Write side critical sections must thus be serialized
 by an external lock.
 
-If the write serialization primitive is not implicitly disabling
+If the write serialization primitive is analt implicitly disabling
 preemption, preemption must be explicitly disabled before entering the
 write side section. If the read section can be invoked from hardirq or
 softirq contexts, interrupts or bottom halves must also be respectively
 disabled before entering the write section.
 
 If it's desired to automatically handle the sequence counter
-requirements of writer serialization and non-preemptibility, use
+requirements of writer serialization and analn-preemptibility, use
 :ref:`seqlock_t` instead.
 
 Initialization::
@@ -93,18 +93,18 @@ Sequence counters with associated locks (``seqcount_LOCKNAME_t``)
 -----------------------------------------------------------------
 
 As discussed at :ref:`seqcount_t`, sequence count write side critical
-sections must be serialized and non-preemptible. This variant of
+sections must be serialized and analn-preemptible. This variant of
 sequence counters associate the lock used for writer serialization at
 initialization time, which enables lockdep to validate that the write
 side critical sections are properly serialized.
 
-This lock association is a NOOP if lockdep is disabled and has neither
-storage nor runtime overhead. If lockdep is enabled, the lock pointer is
+This lock association is a ANALOP if lockdep is disabled and has neither
+storage analr runtime overhead. If lockdep is enabled, the lock pointer is
 stored in struct seqcount and lockdep's "lock is held" assertions are
 injected at the beginning of the write side critical section to validate
 that it is properly protected.
 
-For lock types which do not implicitly disable preemption, preemption
+For lock types which do analt implicitly disable preemption, preemption
 protection is enforced in the write side function.
 
 The following sequence counters with associated locks are defined:
@@ -149,7 +149,7 @@ where the embedded seqcount_t counter even/odd value is used to switch
 between two copies of protected data. This allows the sequence counter
 read path to safely interrupt its own write side critical section.
 
-Use seqcount_latch_t when the write side sections cannot be protected
+Use seqcount_latch_t when the write side sections cananalt be protected
 from interruption by readers. This is typically the case when the read
 side can be invoked from NMI handlers.
 
@@ -162,7 +162,7 @@ Sequential locks (``seqlock_t``)
 ================================
 
 This contains the :ref:`seqcount_t` mechanism earlier discussed, plus an
-embedded spinlock for writer serialization and non-preemptibility.
+embedded spinlock for writer serialization and analn-preemptibility.
 
 If the read side section can be invoked from hardirq or softirq context,
 use the write side function variants which disable interrupts or bottom
@@ -192,9 +192,9 @@ Write path::
 
 Read path, three categories:
 
-1. Normal Sequence readers which never block a writer but they must
+1. Analrmal Sequence readers which never block a writer but they must
    retry if a writer is in progress by detecting change in the sequence
-   number.  Writers do not wait for a sequence reader::
+   number.  Writers do analt wait for a sequence reader::
 
 	do {
 		seq = read_seqbegin(&foo_seqlock);
@@ -203,7 +203,7 @@ Read path, three categories:
 
 	} while (read_seqretry(&foo_seqlock, seq));
 
-2. Locking readers which will wait if a writer or another locking reader
+2. Locking readers which will wait if a writer or aanalther locking reader
    is in progress. A locking reader in progress will also block a writer
    from entering its critical section. This read lock is
    exclusive. Unlike rwlock_t, only one locking reader can acquire it::
@@ -220,7 +220,7 @@ Read path, three categories:
    activity. First, a lockless read is tried (even marker passed). If
    that trial fails (odd sequence counter is returned, which is used as
    the next iteration marker), the lockless read is transformed to a
-   full locking read and no retry loop is necessary::
+   full locking read and anal retry loop is necessary::
 
 	/* marker; even initialization */
 	int seq = 0;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _DPU_HW_CTL_H
@@ -83,21 +83,21 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * Clear the value of the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*clear_pending_flush)(struct dpu_hw_ctl *ctx);
 
 	/**
 	 * Query the value of the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
 	u32 (*get_pending_flush)(struct dpu_hw_ctl *ctx);
 
 	/**
 	 * OR in the given flushbits to the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @flushbits : module flushmask
 	 */
@@ -106,7 +106,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_(wb_)flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : writeback block index
 	 */
@@ -115,7 +115,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_(intf_)flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : interface block index
 	 */
@@ -124,7 +124,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_(merge_3d_)flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : interface block index
 	 */
@@ -133,7 +133,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : SSPP block index
 	 */
@@ -142,7 +142,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : LM block index
 	 */
@@ -151,7 +151,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : DSPP block index
 	 * @dspp_sub_blk : DSPP sub-block index
@@ -161,7 +161,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_(dsc_)flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx: ctl path ctx pointer
 	 * @blk: interface block index
 	 */
@@ -170,7 +170,7 @@ struct dpu_hw_ctl_ops {
 
 	/**
 	 * OR in the given flushbits to the cached pending_(cdm_)flush_mask
-	 * No effect on hardware
+	 * Anal effect on hardware
 	 * @ctx: ctl path ctx pointer
 	 * @cdm_num: idx of cdm to be flushed
 	 */

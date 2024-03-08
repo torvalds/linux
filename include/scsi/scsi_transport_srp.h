@@ -17,7 +17,7 @@ struct srp_rport_identifiers {
 /**
  * enum srp_rport_state - SRP transport layer state
  * @SRP_RPORT_RUNNING:   Transport layer operational.
- * @SRP_RPORT_BLOCKED:   Transport layer not operational; fast I/O fail timer
+ * @SRP_RPORT_BLOCKED:   Transport layer analt operational; fast I/O fail timer
  *                       is running and I/O has been blocked.
  * @SRP_RPORT_FAIL_FAST: Fast I/O fail timer has expired; fail I/O fast.
  * @SRP_RPORT_LOST:      Port is being removed.
@@ -77,13 +77,13 @@ struct srp_rport {
  * struct srp_function_template
  *
  * Fields that are only relevant for SRP initiator drivers:
- * @has_rport_state: Whether or not to create the state, fast_io_fail_tmo and
+ * @has_rport_state: Whether or analt to create the state, fast_io_fail_tmo and
  *     dev_loss_tmo sysfs attribute for an rport.
  * @reset_timer_if_blocked: Whether or srp_timed_out() should reset the command
  *     timer if the device on which it has been queued is blocked.
- * @reconnect_delay: If not NULL, points to the default reconnect_delay value.
- * @fast_io_fail_tmo: If not NULL, points to the default fast_io_fail_tmo value.
- * @dev_loss_tmo: If not NULL, points to the default dev_loss_tmo value.
+ * @reconnect_delay: If analt NULL, points to the default reconnect_delay value.
+ * @fast_io_fail_tmo: If analt NULL, points to the default fast_io_fail_tmo value.
+ * @dev_loss_tmo: If analt NULL, points to the default dev_loss_tmo value.
  * @reconnect: Callback function for reconnecting to the target. See also
  *     srp_reconnect_rport().
  * @terminate_rport_io: Callback function for terminating all outstanding I/O
@@ -138,7 +138,7 @@ static inline int srp_chkready(struct srp_rport *rport)
 	case SRP_RPORT_FAIL_FAST:
 		return DID_TRANSPORT_FAILFAST << 16;
 	case SRP_RPORT_LOST:
-		return DID_NO_CONNECT << 16;
+		return DID_ANAL_CONNECT << 16;
 	}
 }
 

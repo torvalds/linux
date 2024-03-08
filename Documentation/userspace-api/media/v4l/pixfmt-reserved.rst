@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _pixfmt-reserved:
 
@@ -6,7 +6,7 @@
 Reserved Format Identifiers
 ***************************
 
-These formats are not defined by this specification, they are just
+These formats are analt defined by this specification, they are just
 listed for reference and to avoid naming conflicts. If you want to
 register your own format, send an e-mail to the linux-media mailing list
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__
@@ -37,7 +37,7 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_DV``
       - 'dvsd'
-      - unknown
+      - unkanalwn
     * .. _V4L2-PIX-FMT-ET61X251:
 
       - ``V4L2_PIX_FMT_ET61X251``
@@ -158,8 +158,8 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_WNVA``
       - 'WNVA'
-      - Used by the Winnov Videum driver,
-	`http://www.thedirks.org/winnov/ <http://www.thedirks.org/winnov/>`__
+      - Used by the Winanalv Videum driver,
+	`http://www.thedirks.org/winanalv/ <http://www.thedirks.org/winanalv/>`__
     * .. _V4L2-PIX-FMT-TM6000:
 
       - ``V4L2_PIX_FMT_TM6000``
@@ -183,7 +183,7 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_YYUV``
       - 'YYUV'
-      - unknown
+      - unkanalwn
     * .. _V4L2-PIX-FMT-Y4:
 
       - ``V4L2_PIX_FMT_Y4``
@@ -269,7 +269,7 @@ please make a proposal on the linux-media mailing list.
         macroblocks will be compressed.
 
         The implementation is based on AST2600 A3 datasheet, revision 0.9, which
-        is not publicly available. Or you can reference Video stream data format
+        is analt publicly available. Or you can reference Video stream data format
         – ASPEED mode compression of SDK_User_Guide which available on
         `github <https://github.com/AspeedTech-BMC/openbmc/releases/>`__.
 
@@ -297,4 +297,4 @@ please make a proposal on the linux-media mailing list.
         Encoding).
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize

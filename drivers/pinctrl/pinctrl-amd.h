@@ -55,7 +55,7 @@
 #define ACTIVE_LEVEL_LOW	0x1UL
 #define ACTIVE_LEVEL_BOTH	0x2UL
 
-#define DB_TYPE_NO_DEBOUNCE               0x0UL
+#define DB_TYPE_ANAL_DEBOUNCE               0x0UL
 #define DB_TYPE_PRESERVE_LOW_GLITCH       0x1UL
 #define DB_TYPE_PRESERVE_HIGH_GLITCH      0x2UL
 #define DB_TYPE_REMOVE_GLITCH             0x3UL

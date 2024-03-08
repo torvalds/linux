@@ -309,7 +309,7 @@ int pcap_adc_async(struct pcap_chip *pcap, u8 bank, u32 flags, u8 ch[],
 	/* This will be freed after we have a result */
 	req = kmalloc(sizeof(struct pcap_adc_request), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->bank = bank;
 	req->flags = flags;
@@ -378,7 +378,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 
 	pdev = platform_device_alloc(subdev->name, subdev->id);
 	if (!pdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdev->dev.parent = &pcap->spi->dev;
 	pdev->dev.platform_data = subdev->platform_data;
@@ -417,7 +417,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	struct pcap_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct pcap_chip *pcap;
 	int i, adc_irq;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	/* platform data is required */
 	if (!pdata)
@@ -425,7 +425,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 
 	pcap = devm_kzalloc(&spi->dev, sizeof(*pcap), GFP_KERNEL);
 	if (!pcap) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ret;
 	}
 
@@ -448,7 +448,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	pcap->irq_base = pdata->irq_base;
 	pcap->workqueue = create_singlethread_workqueue("pcapd");
 	if (!pcap->workqueue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&spi->dev, "can't create pcap thread\n");
 		goto ret;
 	}
@@ -462,7 +462,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	for (i = pcap->irq_base; i < (pcap->irq_base + PCAP_NIRQS); i++) {
 		irq_set_chip_and_handler(i, &pcap_irq_chip, handle_simple_irq);
 		irq_set_chip_data(i, pcap);
-		irq_clear_status_flags(i, IRQ_NOREQUEST | IRQ_NOPROBE);
+		irq_clear_status_flags(i, IRQ_ANALREQUEST | IRQ_ANALPROBE);
 	}
 
 	/* mask/ack all PCAP interrupts */

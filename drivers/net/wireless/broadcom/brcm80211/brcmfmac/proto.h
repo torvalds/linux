@@ -52,7 +52,7 @@ static inline int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	struct brcmf_if *tmp = NULL;
 
 	/* assure protocol is always called with
-	 * non-null initialized pointer.
+	 * analn-null initialized pointer.
 	 */
 	if (ifp)
 		*ifp = NULL;

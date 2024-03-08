@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 series register access through I2C
  *
- * Copyright (C) 2018-2019 Microchip Technology Inc.
+ * Copyright (C) 2018-2019 Microchip Techanallogy Inc.
  */
 
 #include <linux/i2c.h>
@@ -12,7 +12,7 @@
 
 #include "ksz_common.h"
 
-KSZ_REGMAP_TABLE(ksz9477, not_used, 16, 0, 0);
+KSZ_REGMAP_TABLE(ksz9477, analt_used, 16, 0, 0);
 
 static int ksz9477_i2c_probe(struct i2c_client *i2c)
 {
@@ -22,7 +22,7 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c)
 
 	dev = ksz_switch_alloc(&i2c->dev, i2c);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz9477_regmap_config[i];
@@ -42,7 +42,7 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c)
 
 	ret = ksz_switch_register(dev);
 
-	/* Main DSA driver may not be started yet. */
+	/* Main DSA driver may analt be started yet. */
 	if (ret)
 		return ret;
 

@@ -43,14 +43,14 @@ Description:	Kernel Samepage Merging daemon sysfs interface
 
 		See Documentation/mm/ksm.rst for more information.
 
-What:		/sys/kernel/mm/ksm/merge_across_nodes
+What:		/sys/kernel/mm/ksm/merge_across_analdes
 Date:		January 2013
 KernelVersion:	3.9
 Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-Description:	Control merging pages across different NUMA nodes.
+Description:	Control merging pages across different NUMA analdes.
 
-		When it is set to 0 only pages from the same node are merged,
-		otherwise pages from all nodes can be merged together (default).
+		When it is set to 0 only pages from the same analde are merged,
+		otherwise pages from all analdes can be merged together (default).
 
 What:		/sys/kernel/mm/ksm/general_profit
 Date:		April 2023

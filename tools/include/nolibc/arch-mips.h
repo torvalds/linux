@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * MIPS specific definitions for NOLIBC
+ * MIPS specific definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_ARCH_MIPS_H
-#define _NOLIBC_ARCH_MIPS_H
+#ifndef _ANALLIBC_ARCH_MIPS_H
+#define _ANALLIBC_ARCH_MIPS_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -17,7 +17,7 @@
 /* Syscalls for MIPS ABI O32 :
  *   - WARNING! there's always a delayed slot!
  *   - WARNING again, the syntax is different, registers take a '$' and numbers
- *     do not.
+ *     do analt.
  *   - registers are 32-bit
  *   - stack is 8-byte aligned
  *   - syscall number is passed in v0 (starts at 0xfa0).
@@ -27,14 +27,14 @@
  *     preserved. See: https://www.linux-mips.org/wiki/Syscall as well as
  *     scall32-o32.S in the kernel sources.
  *   - the system call is performed by calling "syscall"
- *   - syscall return comes in v0, and register a3 needs to be checked to know
- *     if an error occurred, in which case errno is in v0.
+ *   - syscall return comes in v0, and register a3 needs to be checked to kanalw
+ *     if an error occurred, in which case erranal is in v0.
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
  */
 
-#define _NOLIBC_SYSCALL_CLOBBERLIST \
+#define _ANALLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "cc", "at", "v1", "hi", "lo", \
 	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"
 
@@ -49,7 +49,7 @@
 		"addiu $sp, $sp, 32\n"                                        \
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "r"(_num)                                                   \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -67,7 +67,7 @@
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1)                                                  \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -86,7 +86,7 @@
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2)                                      \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -106,7 +106,7 @@
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3)                          \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -126,7 +126,7 @@
 		: "=r" (_num), "=r"(_arg4)                                    \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4)              \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -148,7 +148,7 @@
 		: "=r" (_num), "=r"(_arg4)                                    \
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -173,19 +173,19 @@
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \
 		  "r"(_arg6)                                                  \
-		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
+		: _ANALLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
 
-/* startup code, note that it's called __start on MIPS */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector __start(void)
+/* startup code, analte that it's called __start on MIPS */
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector __start(void)
 {
 	__asm__ volatile (
 		".set push\n"
-		".set noreorder\n"
+		".set analreorder\n"
 		"bal 1f\n"               /* prime $ra for .cpload                            */
-		"nop\n"
+		"analp\n"
 		"1:\n"
 		".cpload $ra\n"
 		"move  $a0, $sp\n"       /* save stack pointer to $a0, as arg1 of _start_c */
@@ -195,10 +195,10 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 		"and   $sp, $sp, $t0\n"  /* $sp must be 8-byte aligned                     */
 		"addiu $sp, $sp, -16\n"  /* the callee expects to save a0..a3 there        */
 		"jal   _start_c\n"       /* transfer to c runtime                          */
-		" nop\n"                 /* delayed slot                                   */
+		" analp\n"                 /* delayed slot                                   */
 		".set pop\n"
 	);
 	__builtin_unreachable();
 }
 
-#endif /* _NOLIBC_ARCH_MIPS_H */
+#endif /* _ANALLIBC_ARCH_MIPS_H */

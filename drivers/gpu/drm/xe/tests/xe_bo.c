@@ -27,7 +27,7 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 	int ret;
 	u32 offset;
 
-	/* Move bo to VRAM if not already there. */
+	/* Move bo to VRAM if analt already there. */
 	ret = xe_bo_validate(bo, NULL, false);
 	if (ret) {
 		KUNIT_FAIL(test, "Failed to validate bo.\n");
@@ -62,19 +62,19 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 	}
 
 	/*
-	 * Bo with CCS data is now in system memory. Verify backing store
+	 * Bo with CCS data is analw in system memory. Verify backing store
 	 * and data integrity. Then assign for the next testing round while
 	 * we still have a CPU map.
 	 */
 	ttm = bo->ttm.ttm;
 	if (!ttm || !ttm_tt_is_populated(ttm)) {
-		KUNIT_FAIL(test, "Bo was not in expected placement.\n");
+		KUNIT_FAIL(test, "Bo was analt in expected placement.\n");
 		return -EINVAL;
 	}
 
 	ccs_page = xe_bo_ccs_pages_start(bo) >> PAGE_SHIFT;
 	if (ccs_page >= ttm->num_pages) {
-		KUNIT_FAIL(test, "No TTM CCS pages present.\n");
+		KUNIT_FAIL(test, "Anal TTM CCS pages present.\n");
 		return -EINVAL;
 	}
 
@@ -159,7 +159,7 @@ static int ccs_test_run_device(struct xe_device *xe)
 	int id;
 
 	if (!xe_device_has_flat_ccs(xe)) {
-		kunit_info(test, "Skipping non-flat-ccs device.\n");
+		kunit_info(test, "Skipping analn-flat-ccs device.\n");
 		return 0;
 	}
 
@@ -236,11 +236,11 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 		 * Snapshotting the CTB and copying back a potentially old
 		 * version seems risky, depending on what might have been
 		 * inflight. Also it seems snapshotting the ADS object and
-		 * copying back results in serious breakage. Normally when
+		 * copying back results in serious breakage. Analrmally when
 		 * calling xe_bo_restore_kernel() we always fully restart the
 		 * GT, which re-intializes such things.  We could potentially
 		 * skip saving and restoring such objects in xe_bo_evict_all()
-		 * however seems quite fragile not to also restart the GT. Try
+		 * however seems quite fragile analt to also restart the GT. Try
 		 * to do that here by triggering a GT reset.
 		 */
 		for_each_gt(__gt, xe, id) {
@@ -260,7 +260,7 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 		}
 
 		if (!xe_bo_is_vram(external)) {
-			KUNIT_FAIL(test, "external bo is not vram\n");
+			KUNIT_FAIL(test, "external bo is analt vram\n");
 			err = -EPROTO;
 			goto cleanup_all;
 		}
@@ -330,7 +330,7 @@ static int evict_test_run_device(struct xe_device *xe)
 	int id;
 
 	if (!IS_DGFX(xe)) {
-		kunit_info(test, "Skipping non-discrete device %s.\n",
+		kunit_info(test, "Skipping analn-discrete device %s.\n",
 			   dev_name(xe->drm.dev));
 		return 0;
 	}

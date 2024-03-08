@@ -126,7 +126,7 @@ static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 		lic->ictlr_wake_mask[index] &= ~mask;
 
 	/*
-	 * Do *not* call into the parent, as the GIC doesn't have any
+	 * Do *analt* call into the parent, as the GIC doesn't have any
 	 * wake-up facility...
 	 */
 	return 0;
@@ -217,11 +217,11 @@ static int tegra_ictlr_domain_translate(struct irq_domain *d,
 					unsigned long *hwirq,
 					unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_analde(fwspec->fwanalde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
-		/* No PPI should point to this domain */
+		/* Anal PPI should point to this domain */
 		if (fwspec->param[0] != 0)
 			return -EINVAL;
 
@@ -244,9 +244,9 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 	unsigned int i;
 
 	if (fwspec->param_count != 3)
-		return -EINVAL;	/* Not GIC compliant */
+		return -EINVAL;	/* Analt GIC compliant */
 	if (fwspec->param[0] != GIC_SPI)
-		return -EINVAL;	/* No PPI should point to this domain */
+		return -EINVAL;	/* Anal PPI should point to this domain */
 
 	hwirq = fwspec->param[1];
 	if (hwirq >= (num_ictlrs * 32))
@@ -261,7 +261,7 @@ static int tegra_ictlr_domain_alloc(struct irq_domain *domain,
 	}
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -272,8 +272,8 @@ static const struct irq_domain_ops tegra_ictlr_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init tegra_ictlr_init(struct device_node *node,
-				   struct device_node *parent)
+static int __init tegra_ictlr_init(struct device_analde *analde,
+				   struct device_analde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	const struct of_device_id *match;
@@ -282,30 +282,30 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	int err;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
-		return -ENODEV;
+		pr_err("%pOF: anal parent, giving up\n", analde);
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", analde);
 		return -ENXIO;
 	}
 
-	match = of_match_node(ictlr_matches, node);
+	match = of_match_analde(ictlr_matches, analde);
 	if (!match)		/* Should never happen... */
-		return -ENODEV;
+		return -EANALDEV;
 
 	soc = match->data;
 
 	lic = kzalloc(sizeof(*lic), GFP_KERNEL);
 	if (!lic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < TEGRA_MAX_NUM_ICTLRS; i++) {
 		void __iomem *base;
 
-		base = of_iomap(node, i);
+		base = of_iomap(analde, i);
 		if (!base)
 			break;
 
@@ -320,29 +320,29 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	}
 
 	if (!num_ictlrs) {
-		pr_err("%pOF: no valid regions, giving up\n", node);
-		err = -ENOMEM;
+		pr_err("%pOF: anal valid regions, giving up\n", analde);
+		err = -EANALMEM;
 		goto out_free;
 	}
 
 	WARN(num_ictlrs != soc->num_ictlrs,
 	     "%pOF: Found %u interrupt controllers in DT; expected %u.\n",
-	     node, num_ictlrs, soc->num_ictlrs);
+	     analde, num_ictlrs, soc->num_ictlrs);
 
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, num_ictlrs * 32,
-					  node, &tegra_ictlr_domain_ops,
+					  analde, &tegra_ictlr_domain_ops,
 					  lic);
 	if (!domain) {
-		pr_err("%pOF: failed to allocated domain\n", node);
-		err = -ENOMEM;
+		pr_err("%pOF: failed to allocated domain\n", analde);
+		err = -EANALMEM;
 		goto out_unmap;
 	}
 
 	tegra_ictlr_syscore_init();
 
 	pr_info("%pOF: %d interrupts forwarded to %pOF\n",
-		node, num_ictlrs * 32, parent);
+		analde, num_ictlrs * 32, parent);
 
 	return 0;
 

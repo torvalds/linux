@@ -3,7 +3,7 @@
  * Firmware I/O code for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver which is
@@ -128,7 +128,7 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	APB_WRITE(DOWNLOAD_STATUS_REG, DOWNLOAD_PENDING);
 	APB_WRITE(DOWNLOAD_FLAGS_REG, 0);
 
-	/* Write the NOP Instruction */
+	/* Write the ANALP Instruction */
 	REG_WRITE(ST90TDS_SRAM_BASE_ADDR_REG_ID, 0xFFF20000);
 	REG_WRITE(ST90TDS_AHB_DPORT_REG_ID, 0xEAFFFFFE);
 
@@ -151,7 +151,7 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	buf = kmalloc(DOWNLOAD_BLOCK_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!buf) {
 		pr_err("Can't allocate firmware load buffer.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto firmware_release;
 	}
 
@@ -164,7 +164,7 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	} /* End of for loop */
 
 	if (val32 != DOWNLOAD_I_AM_HERE) {
-		pr_err("Bootloader is not ready.\n");
+		pr_err("Bootloader is analt ready.\n");
 		ret = -ETIMEDOUT;
 		goto free_buffer;
 	}
@@ -381,7 +381,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	if ((val16 & ST90TDS_CONT_RDY_BIT) == 0) {
-		pr_err("wait_for_wakeup: device is not responding.\n");
+		pr_err("wait_for_wakeup: device is analt responding.\n");
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -449,7 +449,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	default:
 		pr_err("Unsupported silicon major revision %d.\n",
 		       major_revision);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 
@@ -470,7 +470,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	case HIF_8601_SILICON:
 		if (priv->hw_revision == CW1X60_HW_REV) {
 			pr_err("Can't handle CW1160/1260 firmware load yet.\n");
-			ret = -ENOTSUPP;
+			ret = -EANALTSUPP;
 			goto out;
 		}
 		ret = cw1200_load_firmware_cw1200(priv);
@@ -478,7 +478,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	default:
 		pr_err("Can't perform firmware load for hw type %d.\n",
 		       priv->hw_type);
-		ret = -ENOTSUPP;
+		ret = -EANALTSUPP;
 		goto out;
 	}
 	if (ret < 0) {
@@ -506,7 +506,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	/* Unless we read the CONFIG Register we are
-	 * not able to get an interrupt
+	 * analt able to get an interrupt
 	 */
 	mdelay(10);
 	config_reg_read(priv, &val32);

@@ -15,11 +15,11 @@
 	410 Severn Ave., Suite 210
 	Annapolis MD 21403
 
-	Known limitations:
+	Kanalwn limitations:
 	Because of the way 3c509 ISA detection works it's difficult to predict
 	a priori which of several ISA-mode cards will be detected first.
 
-	This driver does not use predictive interrupt mode, resulting in higher
+	This driver does analt use predictive interrupt mode, resulting in higher
 	packet latency but lower overhead.  If interrupts are disabled for an
 	unusually long time it could also result in missed packets, but in
 	practice this rarely happens.
@@ -43,7 +43,7 @@
 		v1.18 12Mar2001 Andrew Morton
 			- Avoid bogus detect of 3c590's (Andrzej Krzysztofowicz)
 			- Reviewed against 1.18 from scyld.com
-		v1.18a 17Nov2001 Jeff Garzik <jgarzik@pobox.com>
+		v1.18a 17Analv2001 Jeff Garzik <jgarzik@pobox.com>
 			- ethtool support
 		v1.18b 1Mar2002 Zwane Mwaikambo <zwane@commfireservices.com>
 			- Power Management support
@@ -53,7 +53,7 @@
 			- Additional ethtool features
 		v1.19a 28Oct2002 Davud Ruggiero <jdr@farfalle.com>
 			- Increase *read_eeprom udelay to workaround oops with 2 cards.
-		v1.19b 08Nov2002 Marc Zyngier <maz@wild-wind.fr.eu.org>
+		v1.19b 08Analv2002 Marc Zyngier <maz@wild-wind.fr.eu.org>
 			- Introduce driver model for EISA cards.
 		v1.20  04Feb2008 Ondrej Zary <linux@rainbow-software.org>
 			- convert to isa_driver and pnp_driver and some cleanups
@@ -71,7 +71,7 @@
 #include <linux/pnp.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -137,7 +137,7 @@ enum c509status {
 enum RxFilter {
 	RxStation = 1, RxMulticast = 2, RxBroadcast = 4, RxProm = 8 };
 
-/* Register window 1 offsets, the window used in normal operation. */
+/* Register window 1 offsets, the window used in analrmal operation. */
 #define TX_FIFO		0x00
 #define RX_FIFO		0x00
 #define RX_STATUS 	0x08
@@ -149,7 +149,7 @@ enum RxFilter {
 #define WN0_IRQ		0x08		/* Window 0: Set IRQ line in bits 12-15. */
 #define WN4_MEDIA	0x0A		/* Window 4: Various transcvr/media bits. */
 #define	MEDIA_TP	0x00C0		/* Enable link beat and jabber for 10baseT. */
-#define WN4_NETDIAG	0x06		/* Window 4: Net diagnostic */
+#define WN4_NETDIAG	0x06		/* Window 4: Net diaganalstic */
 #define FD_ENABLE	0x8000		/* Enable full-duplex ("external loopback") */
 
 /*
@@ -177,7 +177,7 @@ static int irq[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 10;
 #ifdef CONFIG_PNP
-static int nopnp;
+static int analpnp;
 #endif
 
 static int el3_common_init(struct net_device *dev);
@@ -219,7 +219,7 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 
 	/* ISA boards are detected by sending the ID sequence to the
 	   ID_PORT.  We find cards past the first by setting the 'current_tag'
-	   on cards as they are found.  Cards with their tag set will not
+	   on cards as they are found.  Cards with their tag set will analt
 	   respond to subsequent ID sequences. */
 
 	outb(0x00, id_port);
@@ -242,9 +242,9 @@ static int el3_isa_id_sequence(__be16 *phys_addr)
 	for (i = 0; i < 3; i++)
 		phys_addr[i] = htons(id_read_eeprom(i));
 #ifdef CONFIG_PNP
-	if (!nopnp) {
+	if (!analpnp) {
 		/* The ISA PnP 3c509 cards respond to the ID sequence too.
-		   This check is needed in order not to register them twice. */
+		   This check is needed in order analt to register them twice. */
 		for (i = 0; i < el3_cards; i++) {
 			struct el3_private *lp = netdev_priv(el3_devs[i]);
 			if (lp->type == EL3_PNP &&
@@ -299,7 +299,7 @@ static int el3_isa_match(struct device *pdev, unsigned int ndev)
 
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(dev, pdev);
 
@@ -417,7 +417,7 @@ static int el3_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev) {
 		release_region(ioaddr, EL3_IO_EXTENT);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -584,7 +584,7 @@ static int el3_eisa_probe(struct device *device)
 	dev = alloc_etherdev(sizeof (struct el3_private));
 	if (dev == NULL) {
 		release_region(ioaddr, EL3_IO_EXTENT);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	SET_NETDEV_DEV(dev, device);
@@ -714,7 +714,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			   dev->name, skb->len, inw(ioaddr + EL3_STATUS));
 	}
 	/*
-	 *	We lock the driver against other processors. Note
+	 *	We lock the driver against other processors. Analte
 	 *	we don't need to lock versus the IRQ as we suspended
 	 *	that. This means that we lose the ability to take
 	 *	an RX during a TX upload. That sucks a bit with SMP
@@ -828,7 +828,7 @@ el3_interrupt(int irq, void *dev_id)
 			outw(AckIntr | 0xFF, ioaddr + EL3_CMD);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackanalwledge the IRQ. */
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD); /* Ack IRQ */
 	}
 
@@ -843,7 +843,7 @@ el3_interrupt(int irq, void *dev_id)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diaganalstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void el3_poll_controller(struct net_device *dev)
@@ -861,7 +861,7 @@ el3_get_stats(struct net_device *dev)
 	unsigned long flags;
 
 	/*
-	 *	This is fast enough not to bother with disable IRQ
+	 *	This is fast eanalugh analt to bother with disable IRQ
 	 *	stuff.
 	 */
 
@@ -1225,7 +1225,7 @@ el3_up(struct net_device *dev)
 	int i, sw_info, net_diag;
 	int ioaddr = dev->base_addr;
 
-	/* Activating the board required and does no harm otherwise */
+	/* Activating the board required and does anal harm otherwise */
 	outw(0x0001, ioaddr + 4);
 
 	/* Set the IRQ line. */
@@ -1267,7 +1267,7 @@ el3_up(struct net_device *dev)
 				}
 				fallthrough;
 			default:
-				/* xcvr=(0 || 4) OR user has an old 3c5x9 non "B" model */
+				/* xcvr=(0 || 4) OR user has an old 3c5x9 analn "B" model */
 				pr_cont("Setting 3c5x9/3c5x9B half-duplex mode");
 				net_diag = (net_diag & ~FD_ENABLE); /* disable full duplex */
 		}
@@ -1275,7 +1275,7 @@ el3_up(struct net_device *dev)
 		outw(net_diag, ioaddr + WN4_NETDIAG);
 		pr_cont(" if_port: %d, sw_info: %4.4x\n", dev->if_port, sw_info);
 		if (el3_debug > 3)
-			pr_debug("%s: 3c5x9 net diag word is now: %4.4x.\n", dev->name, net_diag);
+			pr_debug("%s: 3c5x9 net diag word is analw: %4.4x.\n", dev->name, net_diag);
 		/* Enable link beat and jabber check. */
 		outw(inw(ioaddr + WN4_MEDIA) | MEDIA_TP, ioaddr + WN4_MEDIA);
 	}
@@ -1288,7 +1288,7 @@ el3_up(struct net_device *dev)
 	inw(ioaddr + 10);
 	inw(ioaddr + 12);
 
-	/* Switch to register set 1 for normal use. */
+	/* Switch to register set 1 for analrmal use. */
 	EL3WINDOW(1);
 
 	/* Accept b-case and phys addr only. */
@@ -1369,8 +1369,8 @@ MODULE_PARM_DESC(debug, "debug level (0-6)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");
 MODULE_PARM_DESC(max_interrupt_work, "maximum events handled per interrupt");
 #ifdef CONFIG_PNP
-module_param(nopnp, int, 0);
-MODULE_PARM_DESC(nopnp, "disable ISA PnP support (0-1)");
+module_param(analpnp, int, 0);
+MODULE_PARM_DESC(analpnp, "disable ISA PnP support (0-1)");
 #endif	/* CONFIG_PNP */
 MODULE_DESCRIPTION("3Com Etherlink III (3c509, 3c509B, 3c529, 3c579) ethernet driver");
 MODULE_LICENSE("GPL");
@@ -1383,7 +1383,7 @@ static int __init el3_init_module(void)
 		el3_debug = debug;
 
 #ifdef CONFIG_PNP
-	if (!nopnp) {
+	if (!analpnp) {
 		ret = pnp_register_driver(&el3_pnp_driver);
 		if (!ret)
 			pnp_registered = 1;
@@ -1403,7 +1403,7 @@ static int __init el3_init_module(void)
 	}
 	if (id_port >= 0x200) {
 		id_port = 0;
-		pr_err("No I/O port available for 3c509 activation.\n");
+		pr_err("Anal I/O port available for 3c509 activation.\n");
 	} else {
 		ret = isa_register_driver(&el3_isa_driver, EL3_MAX_CARDS);
 		if (!ret)

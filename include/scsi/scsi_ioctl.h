@@ -5,7 +5,7 @@
 #define SCSI_IOCTL_SEND_COMMAND 1
 #define SCSI_IOCTL_TEST_UNIT_READY 2
 #define SCSI_IOCTL_BENCHMARK_COMMAND 3
-#define SCSI_IOCTL_SYNC 4			/* Request synchronous parameters */
+#define SCSI_IOCTL_SYNC 4			/* Request synchroanalus parameters */
 #define SCSI_IOCTL_START_UNIT 5
 #define SCSI_IOCTL_STOP_UNIT 6
 /* The door lock/unlock constants are compatible with Sun constants for

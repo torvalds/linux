@@ -37,7 +37,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x72); /* RGB colour */
 	write_reg(par, 0xa1, 0x00); /* Set Display Start Line */
 	write_reg(par, 0xa2, 0x00); /* Set Display Offset */
-	write_reg(par, 0xa4); /* NORMALDISPLAY */
+	write_reg(par, 0xa4); /* ANALRMALDISPLAY */
 	write_reg(par, 0xa8, 0x3f); /* Set multiplex */
 	write_reg(par, 0xad, 0x8e); /* Set master */
 	/* write_reg(par, 0xb0, 0x0b);  Set power mode */

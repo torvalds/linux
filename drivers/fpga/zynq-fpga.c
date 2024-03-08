@@ -117,7 +117,7 @@
 /* Enable global resets */
 #define FPGA_RST_ALL_MASK		0xf
 /* Disable global resets */
-#define FPGA_RST_NONE_MASK		0x0
+#define FPGA_RST_ANALNE_MASK		0x0
 
 struct zynq_fpga_priv {
 	int irq;
@@ -173,8 +173,8 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 		len = sg_dma_len(priv->cur_sg);
 		if (priv->dma_elm + 1 == priv->dma_nelms) {
 			/* The last transfer waits for the PCAP to finish too,
-			 * notice this also changes the irq_mask to ignore
-			 * IXR_DMA_DONE_MASK which ensures we do not trigger
+			 * analtice this also changes the irq_mask to iganalre
+			 * IXR_DMA_DONE_MASK which ensures we do analt trigger
 			 * the completion too early.
 			 */
 			addr |= DMA_SRC_LAST_TRANSFER;
@@ -193,7 +193,7 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 	/* Once the first transfer is queued we can turn on the ISR, future
 	 * calls to zynq_step_dma will happen from the ISR context. The
 	 * dma_lock spinlock guarantees this handover is done coherently, the
-	 * ISR enable is put at the end to avoid another CPU spinning in the
+	 * ISR enable is put at the end to avoid aanalther CPU spinning in the
 	 * ISR on this lock.
 	 */
 	if (first && priv->cur_sg) {
@@ -201,7 +201,7 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 				  IXR_DMA_DONE_MASK | IXR_ERROR_FLAGS_MASK);
 	} else if (!priv->cur_sg) {
 		/* The last transfer changes to DMA & PCAP mode since we do
-		 * not want to continue until everything has been flushed into
+		 * analt want to continue until everything has been flushed into
 		 * the PCAP.
 		 */
 		zynq_fpga_set_irq(priv,
@@ -267,7 +267,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 		ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
 		if (!(ctrl & CTRL_SEC_EN_MASK)) {
 			dev_err(&mgr->dev,
-				"System not secure, can't use encrypted bitstreams\n");
+				"System analt secure, can't use encrypted bitstreams\n");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -277,7 +277,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		if (!zynq_fpga_has_sync(buf, count)) {
 			dev_err(&mgr->dev,
-				"Invalid bitstream, could not find a sync word. Bitstream must be a byte swapped .bin file\n");
+				"Invalid bitstream, could analt find a sync word. Bitstream must be a byte swapped .bin file\n");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -296,7 +296,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 		/* create a rising edge on PCFG_INIT. PCFG_INIT follows
 		 * PCFG_PROG_B, so we need to poll it after setting PCFG_PROG_B
 		 * to make sure the rising edge actually happens.
-		 * Note: PCFG_PROG_B is low active, sequence as described in
+		 * Analte: PCFG_PROG_B is low active, sequence as described in
 		 * UG585 v1.10 page 211
 		 */
 		ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
@@ -344,7 +344,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	/* set configuration register with following options:
 	 * - enable PCAP interface
-	 * - set throughput for maximum speed (if bistream not encrypted)
+	 * - set throughput for maximum speed (if bistream analt encrypted)
 	 * - set CPU in user mode
 	 */
 	ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
@@ -358,11 +358,11 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 				 | ctrl));
 
 
-	/* We expect that the command queue is empty right now. */
+	/* We expect that the command queue is empty right analw. */
 	status = zynq_fpga_read(priv, STATUS_OFFSET);
 	if ((status & STATUS_DMA_Q_F) ||
 	    (status & STATUS_DMA_Q_E) != STATUS_DMA_Q_E) {
-		dev_err(&mgr->dev, "DMA command queue not right\n");
+		dev_err(&mgr->dev, "DMA command queue analt right\n");
 		err = -EBUSY;
 		goto out_err;
 	}
@@ -409,7 +409,7 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr, struct sg_table *sgt)
 	    dma_map_sg(mgr->dev.parent, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
 	if (priv->dma_nelms == 0) {
 		dev_err(&mgr->dev, "Unable to DMA map (TO_DEVICE)\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* enable clock */
@@ -455,7 +455,7 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr, struct sg_table *sgt)
 		if (timeout == 0)
 			why = "DMA timed out";
 		else
-			why = "DMA did not complete";
+			why = "DMA did analt complete";
 		err = -EIO;
 		goto out_report;
 	}
@@ -515,7 +515,7 @@ static int zynq_fpga_ops_write_complete(struct fpga_manager *mgr,
 
 		/* deassert AXI interface resets */
 		regmap_write(priv->slcr, SLCR_FPGA_RST_CTRL_OFFSET,
-			     FPGA_RST_NONE_MASK);
+			     FPGA_RST_ANALNE_MASK);
 	}
 
 	return 0;
@@ -531,7 +531,7 @@ static enum fpga_mgr_states zynq_fpga_ops_state(struct fpga_manager *mgr)
 
 	err = clk_enable(priv->clk);
 	if (err)
-		return FPGA_MGR_STATE_UNKNOWN;
+		return FPGA_MGR_STATE_UNKANALWN;
 
 	intr_status = zynq_fpga_read(priv, INT_STS_OFFSET);
 	clk_disable(priv->clk);
@@ -539,7 +539,7 @@ static enum fpga_mgr_states zynq_fpga_ops_state(struct fpga_manager *mgr)
 	if (intr_status & IXR_PCFG_DONE_MASK)
 		return FPGA_MGR_STATE_OPERATING;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static const struct fpga_manager_ops zynq_fpga_ops = {
@@ -559,14 +559,14 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&priv->dma_lock);
 
 	priv->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
-	priv->slcr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->slcr = syscon_regmap_lookup_by_phandle(dev->of_analde,
 		"syscon");
 	if (IS_ERR(priv->slcr)) {
 		dev_err(dev, "unable to get zynq-slcr regmap\n");
@@ -582,7 +582,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(dev, "ref_clk");
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
-				     "input clock not found\n");
+				     "input clock analt found\n");
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {

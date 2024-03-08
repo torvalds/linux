@@ -31,9 +31,9 @@ struct mv643xx_eth_shared_platform_data {
 
 #define MV643XX_ETH_PHY_ADDR_DEFAULT	0
 #define MV643XX_ETH_PHY_ADDR(x)		(0x80 | (x))
-#define MV643XX_ETH_PHY_NONE		0xff
+#define MV643XX_ETH_PHY_ANALNE		0xff
 
-struct device_node;
+struct device_analde;
 struct mv643xx_eth_platform_data {
 	/*
 	 * Pointer back to our parent instance, and our port number.
@@ -42,10 +42,10 @@ struct mv643xx_eth_platform_data {
 	int			port_number;
 
 	/*
-	 * Whether a PHY is present, and if yes, at which address.
+	 * Whether a PHY is present, and if anal, at which address.
 	 */
 	int			phy_addr;
-	struct device_node	*phy_node;
+	struct device_analde	*phy_analde;
 
 	/*
 	 * Use this MAC address if it is valid, overriding the
@@ -69,13 +69,13 @@ struct mv643xx_eth_platform_data {
 	int			tx_queue_count;
 
 	/*
-	 * Override default RX/TX queue sizes if nonzero.
+	 * Override default RX/TX queue sizes if analnzero.
 	 */
 	int			rx_queue_size;
 	int			tx_queue_size;
 
 	/*
-	 * Use on-chip SRAM for RX/TX descriptors if size is nonzero
+	 * Use on-chip SRAM for RX/TX descriptors if size is analnzero
 	 * and sufficient to contain all descriptors for the requested
 	 * ring sizes.
 	 */

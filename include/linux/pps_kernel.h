@@ -71,7 +71,7 @@ extern const struct attribute_group *pps_groups[];
 /*
  * Internal functions.
  *
- * These are not actually part of the exported API, but this is a
+ * These are analt actually part of the exported API, but this is a
  * convenient header file to put them in.
  */
 
@@ -108,7 +108,7 @@ static inline void pps_get_ts(struct pps_event_time *ts)
 #endif
 }
 
-/* Subtract known time delay from PPS event time(s) */
+/* Subtract kanalwn time delay from PPS event time(s) */
 static inline void pps_sub_ts(struct pps_event_time *ts, struct timespec64 delta)
 {
 	ts->ts_real = timespec64_sub(ts->ts_real, delta);

@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(analw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  *
@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -37,7 +37,7 @@
 #define VCHIQ_MMAL_MAX_COMPONENTS 64
 
 /*
- * Timeout for synchronous msg responses in seconds.
+ * Timeout for synchroanalus msg responses in seconds.
  * Helpful to increase this if stopping in the VPU debugger.
  */
 #define SYNC_MSG_TIMEOUT       3
@@ -46,7 +46,7 @@
 
 #ifdef DEBUG
 static const char *const msg_type_names[] = {
-	"UNKNOWN",
+	"UNKANALWN",
 	"QUIT",
 	"SERVICE_CLOSED",
 	"GET_VERSION",
@@ -77,7 +77,7 @@ static const char *const msg_type_names[] = {
 #endif
 
 static const char *const port_action_type_names[] = {
-	"UNKNOWN",
+	"UNKANALWN",
 	"ENABLE",
 	"DISABLE",
 	"FLUSH",
@@ -115,7 +115,7 @@ static const char *const port_action_type_names[] = {
 
 struct vchiq_mmal_instance;
 
-/* normal message context */
+/* analrmal message context */
 struct mmal_msg_context {
 	struct vchiq_mmal_instance *instance;
 
@@ -157,7 +157,7 @@ struct mmal_msg_context {
 			u32 msg_len;
 			/* completion upon reply */
 			struct completion cmplt;
-		} sync;		/* synchronous response */
+		} sync;		/* synchroanalus response */
 	} u;
 
 };
@@ -191,7 +191,7 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
 
 	if (!msg_context)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Create an ID that will be passed along with our message so
 	 * that when we service the VCHI reply, we can look up what
@@ -244,7 +244,7 @@ static void event_to_host_cb(struct vchiq_mmal_instance *instance,
 
 /* workqueue scheduled callback
  *
- * we do this because it is important we do not call any other vchiq
+ * we do this because it is important we do analt call any other vchiq
  * sync calls from within the message delivery thread
  */
 static void buffer_work_cb(struct work_struct *work)
@@ -254,7 +254,7 @@ static void buffer_work_cb(struct work_struct *work)
 	struct mmal_buffer *buffer = msg_context->u.bulk.buffer;
 
 	if (!buffer) {
-		pr_err("%s: ctx: %p, No mmal buffer to pass details\n",
+		pr_err("%s: ctx: %p, Anal mmal buffer to pass details\n",
 		       __func__, msg_context);
 		return;
 	}
@@ -319,12 +319,12 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 	rd_len = msg->u.buffer_from_host.buffer_header.length;
 
 	if (!msg_context->u.bulk.buffer) {
-		pr_err("bulk.buffer not configured - error in buffer_from_host\n");
+		pr_err("bulk.buffer analt configured - error in buffer_from_host\n");
 
 		/* todo: this is a serious error, we should never have
 		 * committed a buffer_to_host operation to the mmal
 		 * port without the buffer to back it up (underflow
-		 * handling) and there is no obvious way to deal with
+		 * handling) and there is anal obvious way to deal with
 		 * this - how is the mmal servie going to react when
 		 * we fail to do the xfer and reschedule a buffer when
 		 * it arrives? perhaps a starved flag to indicate a
@@ -334,10 +334,10 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 		return -EINVAL;
 	}
 
-	/* ensure we do not overrun the available buffer */
+	/* ensure we do analt overrun the available buffer */
 	if (rd_len > msg_context->u.bulk.buffer->buffer_size) {
 		rd_len = msg_context->u.bulk.buffer->buffer_size;
-		pr_warn("short read as not enough receive buffer space\n");
+		pr_warn("short read as analt eanalugh receive buffer space\n");
 		/* todo: is this the correct response, what happens to
 		 * the rest of the message data?
 		 */
@@ -385,7 +385,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 
 	/* get context */
 	if (!buf->msg_context) {
-		pr_err("%s: msg_context not allocated, buf %p\n", __func__,
+		pr_err("%s: msg_context analt allocated, buf %p\n", __func__,
 		       buf);
 		return -EINVAL;
 	}
@@ -423,17 +423,17 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	m.u.buffer_from_host.buffer_header.data =
 		(u32)(unsigned long)buf->buffer;
 	m.u.buffer_from_host.buffer_header.alloc_size = buf->buffer_size;
-	m.u.buffer_from_host.buffer_header.length = 0;	/* nothing used yet */
-	m.u.buffer_from_host.buffer_header.offset = 0;	/* no offset */
-	m.u.buffer_from_host.buffer_header.flags = 0;	/* no flags */
-	m.u.buffer_from_host.buffer_header.pts = MMAL_TIME_UNKNOWN;
-	m.u.buffer_from_host.buffer_header.dts = MMAL_TIME_UNKNOWN;
+	m.u.buffer_from_host.buffer_header.length = 0;	/* analthing used yet */
+	m.u.buffer_from_host.buffer_header.offset = 0;	/* anal offset */
+	m.u.buffer_from_host.buffer_header.flags = 0;	/* anal flags */
+	m.u.buffer_from_host.buffer_header.pts = MMAL_TIME_UNKANALWN;
+	m.u.buffer_from_host.buffer_header.dts = MMAL_TIME_UNKANALWN;
 
 	/* clear buffer type specific data */
 	memset(&m.u.buffer_from_host.buffer_header_type_specific, 0,
 	       sizeof(m.u.buffer_from_host.buffer_header_type_specific));
 
-	/* no payload in message */
+	/* anal payload in message */
 	m.u.buffer_from_host.payload_in_message = 0;
 
 	vchiq_use_service(instance->vchiq_instance, instance->service_handle);
@@ -493,12 +493,12 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 					 * completion will trigger callback
 					 */
 		} else {
-			/* do callback with empty buffer - not EOS though */
+			/* do callback with empty buffer - analt EOS though */
 			msg_context->u.bulk.status = 0;
 			msg_context->u.bulk.buffer_used = 0;
 		}
 	} else if (msg->u.buffer_from_host.payload_in_message == 0) {
-		/* data is not in message, queue a bulk receive */
+		/* data is analt in message, queue a bulk receive */
 		msg_context->u.bulk.status =
 		    bulk_receive(instance, msg, msg_context);
 		if (msg_context->u.bulk.status == 0)
@@ -609,7 +609,7 @@ static int service_callback(struct vchiq_instance *vchiq_instance,
 			msg_context->u.sync.msg_len = msg_len;
 
 			/* todo: should this check (completion_done()
-			 * == 1) for no one waiting? or do we need a
+			 * == 1) for anal one waiting? or do we need a
 			 * flag to tell us the completion has been
 			 * interrupted so we can free the message and
 			 * its context. This probably also solves the
@@ -617,7 +617,7 @@ static int service_callback(struct vchiq_instance *vchiq_instance,
 			 * below
 			 */
 
-			/* complete message so caller knows it happened */
+			/* complete message so caller kanalws it happened */
 			complete(&msg_context->u.sync.cmplt);
 			break;
 		}
@@ -634,7 +634,7 @@ static int service_callback(struct vchiq_instance *vchiq_instance,
 
 	case VCHIQ_SERVICE_CLOSED:
 		/* TODO: consider if this requires action if received when
-		 * driver is not explicitly closing the service
+		 * driver is analt explicitly closing the service
 		 */
 		break;
 
@@ -646,7 +646,7 @@ static int service_callback(struct vchiq_instance *vchiq_instance,
 	return 0;
 }
 
-static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
+static int send_synchroanalus_mmal_msg(struct vchiq_mmal_instance *instance,
 				     struct mmal_msg *msg,
 				     unsigned int payload_len,
 				     struct mmal_msg **msg_out,
@@ -656,7 +656,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 	int ret;
 	unsigned long timeout;
 
-	/* payload size must not cause message to exceed max size */
+	/* payload size must analt cause message to exceed max size */
 	if (payload_len >
 	    (MMAL_MSG_MAX_SIZE - sizeof(struct mmal_msg_header))) {
 		pr_err("payload length %d exceeds max:%d\n", payload_len,
@@ -745,8 +745,8 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 			 port->es.video.crop.width, port->es.video.crop.height);
 		pr_debug("		 : framerate %d/%d  aspect %d/%d\n",
 			 port->es.video.frame_rate.numerator,
-			 port->es.video.frame_rate.denominator,
-			 port->es.video.par.numerator, port->es.video.par.denominator);
+			 port->es.video.frame_rate.deanalminator,
+			 port->es.video.par.numerator, port->es.video.par.deanalminator);
 	}
 }
 
@@ -805,7 +805,7 @@ static int port_info_set(struct vchiq_mmal_instance *instance,
 	memcpy(&m.u.port_info_set.extradata, port->format.extradata,
 	       port->format.extradata_size);
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.port_info_set),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -844,7 +844,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	m.u.port_info_get.port_type = port->type;
 	m.u.port_info_get.index = port->index;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.port_info_get),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -870,7 +870,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	port->handle = rmsg->u.port_info_get_reply.port_handle;
 
 	/* port type and index cached to use on port info set because
-	 * it does not use a port handle
+	 * it does analt use a port handle
 	 */
 	port->type = rmsg->u.port_info_get_reply.port_type;
 	port->index = rmsg->u.port_info_get_reply.port_index;
@@ -940,7 +940,7 @@ static int create_component(struct vchiq_mmal_instance *instance,
 	strncpy(m.u.component_create.name, name,
 		sizeof(m.u.component_create.name));
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.component_create),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -984,7 +984,7 @@ static int destroy_component(struct vchiq_mmal_instance *instance,
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DESTROY;
 	m.u.component_destroy.component_handle = component->handle;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.component_destroy),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1017,7 +1017,7 @@ static int enable_component(struct vchiq_mmal_instance *instance,
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_ENABLE;
 	m.u.component_enable.component_handle = component->handle;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.component_enable),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1049,7 +1049,7 @@ static int disable_component(struct vchiq_mmal_instance *instance,
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DISABLE;
 	m.u.component_disable.component_handle = component->handle;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.component_disable),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1072,7 +1072,7 @@ release_msg:
 
 /* get version of mmal implementation */
 static int get_version(struct vchiq_mmal_instance *instance,
-		       u32 *major_out, u32 *minor_out)
+		       u32 *major_out, u32 *mianalr_out)
 {
 	int ret;
 	struct mmal_msg m;
@@ -1081,7 +1081,7 @@ static int get_version(struct vchiq_mmal_instance *instance,
 
 	m.h.type = MMAL_MSG_TYPE_GET_VERSION;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.version),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1094,7 +1094,7 @@ static int get_version(struct vchiq_mmal_instance *instance,
 	}
 
 	*major_out = rmsg->u.version.major;
-	*minor_out = rmsg->u.version.minor;
+	*mianalr_out = rmsg->u.version.mianalr;
 
 release_msg:
 	vchiq_release_message(instance->vchiq_instance, instance->service_handle, rmsg_handle);
@@ -1119,7 +1119,7 @@ static int port_action_port(struct vchiq_mmal_instance *instance,
 
 	port_to_mmal_msg(port, &m.u.port_action_port.port);
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.port_action_port),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1166,7 +1166,7 @@ static int port_action_handle(struct vchiq_mmal_instance *instance,
 	    connect_component_handle;
 	m.u.port_action_handle.connect_port_handle = connect_port_handle;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(m.u.port_action_handle),
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1209,7 +1209,7 @@ static int port_parameter_set(struct vchiq_mmal_instance *instance,
 	m.u.port_parameter_set.size = (2 * sizeof(u32)) + value_size;
 	memcpy(&m.u.port_parameter_set.value, value, value_size);
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					(4 * sizeof(u32)) + value_size,
 					&rmsg, &rmsg_handle);
 	if (ret)
@@ -1249,7 +1249,7 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 	m.u.port_parameter_get.id = parameter_id;
 	m.u.port_parameter_get.size = (2 * sizeof(u32)) + *value_size;
 
-	ret = send_synchronous_mmal_msg(instance, &m,
+	ret = send_synchroanalus_mmal_msg(instance, &m,
 					sizeof(struct
 					       mmal_msg_port_parameter_get),
 					&rmsg, &rmsg_handle);
@@ -1327,8 +1327,8 @@ static int port_disable(struct vchiq_mmal_instance *instance,
 			if (port->buffer_cb) {
 				mmalbuf->length = 0;
 				mmalbuf->mmal_flags = 0;
-				mmalbuf->dts = MMAL_TIME_UNKNOWN;
-				mmalbuf->pts = MMAL_TIME_UNKNOWN;
+				mmalbuf->dts = MMAL_TIME_UNKANALWN;
+				mmalbuf->pts = MMAL_TIME_UNKANALWN;
 				port->buffer_cb(instance,
 						port, 0, mmalbuf);
 			}
@@ -1460,7 +1460,7 @@ int vchiq_mmal_port_enable(struct vchiq_mmal_instance *instance,
 	if (mutex_lock_interruptible(&instance->vchiq_mutex))
 		return -EINTR;
 
-	/* already enabled - noop */
+	/* already enabled - analop */
 	if (port->enabled) {
 		ret = 0;
 		goto unlock;
@@ -1499,7 +1499,7 @@ int vchiq_mmal_port_disable(struct vchiq_mmal_instance *instance,
 EXPORT_SYMBOL_GPL(vchiq_mmal_port_disable);
 
 /* ports will be connected in a tunneled manner so data buffers
- * are not handled by client.
+ * are analt handled by client.
  */
 int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 				   struct vchiq_mmal_port *src,
@@ -1518,7 +1518,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 			goto release_unlock;
 		}
 
-		/* do not need to disable the destination port as they
+		/* do analt need to disable the destination port as they
 		 * are connected and it is done automatically
 		 */
 
@@ -1535,9 +1535,9 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 	}
 
 	if (!dst) {
-		/* do not make new connection */
+		/* do analt make new connection */
 		ret = 0;
-		pr_debug("not making new connection\n");
+		pr_debug("analt making new connection\n");
 		goto release_unlock;
 	}
 
@@ -1550,7 +1550,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 	dst->es.video.crop.width = src->es.video.crop.width;
 	dst->es.video.crop.height = src->es.video.crop.height;
 	dst->es.video.frame_rate.numerator = src->es.video.frame_rate.numerator;
-	dst->es.video.frame_rate.denominator = src->es.video.frame_rate.denominator;
+	dst->es.video.frame_rate.deanalminator = src->es.video.frame_rate.deanalminator;
 
 	/* set new format */
 	ret = port_info_set(instance, dst);
@@ -1659,13 +1659,13 @@ int vchiq_mmal_component_init(struct vchiq_mmal_instance *instance,
 
 	/* We need a handle to reference back to our component structure.
 	 * Use the array index in instance->component rather than rolling
-	 * another IDR.
+	 * aanalther IDR.
 	 */
 	component->client_component = idx;
 
 	ret = create_component(instance, component, name);
 	if (ret < 0) {
-		pr_err("%s: failed to create component %d (Not enough GPU mem?)\n",
+		pr_err("%s: failed to create component %d (Analt eanalugh GPU mem?)\n",
 		       __func__, ret);
 		goto unlock;
 	}
@@ -1807,14 +1807,14 @@ int vchiq_mmal_component_disable(struct vchiq_mmal_instance *instance,
 EXPORT_SYMBOL_GPL(vchiq_mmal_component_disable);
 
 int vchiq_mmal_version(struct vchiq_mmal_instance *instance,
-		       u32 *major_out, u32 *minor_out)
+		       u32 *major_out, u32 *mianalr_out)
 {
 	int ret;
 
 	if (mutex_lock_interruptible(&instance->vchiq_mutex))
 		return -EINTR;
 
-	ret = get_version(instance, major_out, minor_out);
+	ret = get_version(instance, major_out, mianalr_out);
 
 	mutex_unlock(&instance->vchiq_mutex);
 
@@ -1854,7 +1854,7 @@ EXPORT_SYMBOL_GPL(vchiq_mmal_finalise);
 int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 {
 	int status;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	struct vchiq_mmal_instance *instance;
 	struct vchiq_instance *vchiq_instance;
 	struct vchiq_service_params_kernel params = {
@@ -1872,7 +1872,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	/* ensure the header structure has packed to the correct size */
 	BUILD_BUG_ON(sizeof(struct mmal_msg_header) != 24);
 
-	/* ensure message structure does not exceed maximum length */
+	/* ensure message structure does analt exceed maximum length */
 	BUILD_BUG_ON(sizeof(struct mmal_msg) > MMAL_MSG_MAX_SIZE);
 
 	/* mmal port struct is correct size */
@@ -1896,7 +1896,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
 	if (!instance) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_shutdown_vchiq;
 	}
 

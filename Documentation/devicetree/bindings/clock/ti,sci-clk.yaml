@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI-SCI clock controller
 
 maintainers:
-  - Nishanth Menon <nm@ti.com>
+  - Nishanth Meanaln <nm@ti.com>
 
 description: |
   Some TI SoCs contain a system controller (like the Power Management Micro
@@ -16,12 +16,12 @@ description: |
   between the host processor running an OS and the system controller happens
   through a protocol called TI System Control Interface (TI-SCI protocol).
 
-  This clock controller node uses the TI SCI protocol to perform various clock
+  This clock controller analde uses the TI SCI protocol to perform various clock
   management of various hardware modules (devices) present on the SoC. This
-  node must be a child node of the associated TI-SCI system controller node.
+  analde must be a child analde of the associated TI-SCI system controller analde.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^clock-controller$"
 
   compatible:

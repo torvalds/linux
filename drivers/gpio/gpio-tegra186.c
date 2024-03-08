@@ -47,7 +47,7 @@
 #define TEGRA186_GPIO_ENABLE_CONFIG 0x00
 #define  TEGRA186_GPIO_ENABLE_CONFIG_ENABLE BIT(0)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_OUT BIT(1)
-#define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_NONE (0x0 << 2)
+#define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_ANALNE (0x0 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_LEVEL (0x1 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_SINGLE_EDGE (0x2 << 2)
 #define  TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_DOUBLE_EDGE (0x3 << 2)
@@ -208,7 +208,7 @@ static int tegra186_gpio_get_direction(struct gpio_chip *chip,
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
 	if (value & TEGRA186_GPIO_ENABLE_CONFIG_OUT)
@@ -226,7 +226,7 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = readl(base + TEGRA186_GPIO_OUTPUT_CONTROL);
 	value |= TEGRA186_GPIO_OUTPUT_CONTROL_FLOATED;
@@ -281,7 +281,7 @@ static int tegra186_gpio_en_hw_ts(struct gpio_chip *gc, u32 offset,
 
 	gpio = gpiochip_get_data(gc);
 	if (!gpio)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -316,7 +316,7 @@ static int tegra186_gpio_dis_hw_ts(struct gpio_chip *gc, u32 offset,
 
 	gpio = gpiochip_get_data(gc);
 	if (!gpio)
-		return -ENODEV;
+		return -EANALDEV;
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -345,7 +345,7 @@ static int tegra186_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
 	if (value & TEGRA186_GPIO_ENABLE_CONFIG_OUT)
@@ -389,7 +389,7 @@ static int tegra186_gpio_set_config(struct gpio_chip *chip,
 		return -ENXIO;
 
 	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	debounce = pinconf_to_config_argument(config);
 
@@ -416,19 +416,19 @@ static int tegra186_gpio_add_pin_ranges(struct gpio_chip *chip)
 {
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	struct pinctrl_dev *pctldev;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int i, j;
 	int err;
 
 	if (!gpio->soc->pinmux || gpio->soc->num_pin_ranges == 0)
 		return 0;
 
-	np = of_find_compatible_node(NULL, NULL, gpio->soc->pinmux);
+	np = of_find_compatible_analde(NULL, NULL, gpio->soc->pinmux);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pctldev = of_pinctrl_get(np);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!pctldev)
 		return -EPROBE_DEFER;
 
@@ -546,14 +546,14 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int type)
 
 	base = tegra186_gpio_get_base(gpio, data->hwirq);
 	if (WARN_ON(base == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK;
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_LEVEL;
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		break;
 
 	case IRQ_TYPE_EDGE_RISING:
@@ -639,7 +639,7 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 
 		base = gpio->base + port->bank * 0x1000 + port->port * 0x200;
 
-		/* skip ports that are not associated with this bank */
+		/* skip ports that are analt associated with this bank */
 		for (j = 0; j < gpio->num_irqs_per_bank; j++) {
 			if (parent == gpio->irq[port->bank * gpio->num_irqs_per_bank + j])
 				break;
@@ -699,7 +699,7 @@ static int tegra186_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = chip->irq.parent_domain->fwnode;
+	fwspec->fwanalde = chip->irq.parent_domain->fwanalde;
 	fwspec->param_count = 3;
 	fwspec->param[0] = gpio->soc->instance;
 	fwspec->param[1] = parent_hwirq;
@@ -819,13 +819,13 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	unsigned int i, j, offset;
 	struct gpio_irq_chip *irq;
 	struct tegra_gpio *gpio;
-	struct device_node *np;
+	struct device_analde *np;
 	char **names;
 	int err;
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->soc = device_get_match_data(&pdev->dev);
 	gpio->gpio.label = gpio->soc->name;
@@ -866,7 +866,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->irq = devm_kcalloc(&pdev->dev, gpio->num_irq, sizeof(*gpio->irq),
 				 GFP_KERNEL);
 	if (!gpio->irq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < gpio->num_irq; i++) {
 		err = platform_get_irq(pdev, i);
@@ -899,7 +899,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	names = devm_kcalloc(gpio->gpio.parent, gpio->gpio.ngpio,
 			     sizeof(*names), GFP_KERNEL);
 	if (!names)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, offset = 0; i < gpio->soc->num_ports; i++) {
 		const struct tegra_gpio_port *port = &gpio->soc->ports[i];
@@ -909,7 +909,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 			name = devm_kasprintf(gpio->gpio.parent, GFP_KERNEL,
 					      "P%s.%02x", port->name, j);
 			if (!name)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			names[offset + j] = name;
 		}
@@ -926,19 +926,19 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	irq = &gpio->gpio.irq;
 	gpio_irq_chip_set_chip(irq, &tegra186_gpio_irq_chip);
-	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->fwanalde = of_analde_to_fwanalde(pdev->dev.of_analde);
 	irq->child_to_parent_hwirq = tegra186_gpio_child_to_parent_hwirq;
 	irq->populate_parent_alloc_arg = tegra186_gpio_populate_parent_fwspec;
 	irq->child_offset_to_irq = tegra186_gpio_child_offset_to_irq;
 	irq->child_irq_domain_ops.translate = tegra186_gpio_irq_domain_translate;
 	irq->handler = handle_simple_irq;
-	irq->default_type = IRQ_TYPE_NONE;
+	irq->default_type = IRQ_TYPE_ANALNE;
 	irq->parent_handler = tegra186_gpio_irq;
 	irq->parent_handler_data = gpio;
 	irq->num_parents = gpio->num_irq;
 
 	/*
-	 * To simplify things, use a single interrupt per bank for now. Some
+	 * To simplify things, use a single interrupt per bank for analw. Some
 	 * chips support up to 8 interrupts per bank, which can be useful to
 	 * distribute the load and decrease the processing latency for GPIOs
 	 * but it also requires a more complicated interrupt routing than we
@@ -948,7 +948,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		irq->parents = devm_kcalloc(&pdev->dev, gpio->num_banks,
 					    sizeof(*irq->parents), GFP_KERNEL);
 		if (!irq->parents)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < gpio->num_banks; i++)
 			irq->parents[i] = gpio->irq[i * gpio->num_irqs_per_bank];
@@ -962,23 +962,23 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	if (gpio->soc->num_irqs_per_bank > 1)
 		tegra186_gpio_init_route_mapping(gpio);
 
-	np = of_find_matching_node(NULL, tegra186_pmc_of_match);
+	np = of_find_matching_analde(NULL, tegra186_pmc_of_match);
 	if (np) {
 		if (of_device_is_available(np)) {
 			irq->parent_domain = irq_find_host(np);
-			of_node_put(np);
+			of_analde_put(np);
 
 			if (!irq->parent_domain)
 				return -EPROBE_DEFER;
 		} else {
-			of_node_put(np);
+			of_analde_put(np);
 		}
 	}
 
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
 				sizeof(*irq->map), GFP_KERNEL);
 	if (!irq->map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, offset = 0; i < gpio->soc->num_ports; i++) {
 		const struct tegra_gpio_port *port = &gpio->soc->ports[i];

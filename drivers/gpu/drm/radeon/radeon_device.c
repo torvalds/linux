@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -347,7 +347,7 @@ static int radeon_doorbell_init(struct radeon_device *rdev)
 
 	rdev->doorbell.ptr = ioremap(rdev->doorbell.base, rdev->doorbell.num_doorbells * sizeof(u32));
 	if (rdev->doorbell.ptr == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	DRM_INFO("doorbell mmio base: 0x%08X\n", (uint32_t)rdev->doorbell.base);
 	DRM_INFO("doorbell mmio size: %u\n", (unsigned)rdev->doorbell.size);
@@ -495,7 +495,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
-	if (radeon_no_wb == 1) {
+	if (radeon_anal_wb == 1) {
 		rdev->wb.enabled = false;
 	} else {
 		if (rdev->flags & RADEON_IS_AGP) {
@@ -533,7 +533,7 @@ int radeon_wb_init(struct radeon_device *rdev)
  * as parameter (which is so far either PCI aperture address or
  * for IGP TOM base address).
  *
- * If there is not enough space to fit the unvisible VRAM in the 32bits
+ * If there is analt eanalugh space to fit the unvisible VRAM in the 32bits
  * address space then we limit the VRAM size to the aperture.
  *
  * If we are using AGP and if the AGP aperture doesn't allow us to have
@@ -542,24 +542,24 @@ int radeon_wb_init(struct radeon_device *rdev)
  *
  * This function will never fails, worst case are limiting VRAM.
  *
- * Note: GTT start, end, size should be initialized before calling this
+ * Analte: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  *
- * Note 1: We don't explicitly enforce VRAM start to be aligned on VRAM size,
+ * Analte 1: We don't explicitly enforce VRAM start to be aligned on VRAM size,
  * this shouldn't be a problem as we are using the PCI aperture as a reference.
  * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
- * not IGP.
+ * analt IGP.
  *
- * Note 2: we use mc_vram_size as on some board we need to program the mc to
+ * Analte 2: we use mc_vram_size as on some board we need to program the mc to
  * cover the whole aperture even if VRAM size is inferior to aperture size
- * Novell bug 204882 + along with lots of ubuntu ones
+ * Analvell bug 204882 + along with lots of ubuntu ones
  *
- * Note 3: when limiting vram it's safe to overwritte real_vram_size because
- * we are not in case where real_vram_size is inferior to mc_vram_size (ie
- * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * Analte 3: when limiting vram it's safe to overwritte real_vram_size because
+ * we are analt in case where real_vram_size is inferior to mc_vram_size (ie
+ * analte afected by bogus hw of Analvell bug 204882 + along with lots of ubuntu
  * ones)
  *
- * Note 4: IGP TOM addr should be the same as the aperture addr, we don't
+ * Analte 4: IGP TOM addr should be the same as the aperture addr, we don't
  * explicitly check for that thought.
  *
  * FIXME: when reducing VRAM size align new size on power of 2.
@@ -633,7 +633,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  *
  * Check if the asic has been passed through to a VM (all asics).
  * Used at driver startup.
- * Returns true if virtual or false if not.
+ * Returns true if virtual or false if analt.
  */
 bool radeon_device_is_virtual(void)
 {
@@ -651,7 +651,7 @@ bool radeon_device_is_virtual(void)
  *
  * Check if the asic has been initialized (all asics).
  * Used at driver startup.
- * Returns true if initialized or false if not.
+ * Returns true if initialized or false if analt.
  */
 bool radeon_card_posted(struct radeon_device *rdev)
 {
@@ -668,7 +668,7 @@ bool radeon_card_posted(struct radeon_device *rdev)
 	    (rdev->family < CHIP_R600))
 		return false;
 
-	if (ASIC_IS_NODCE(rdev))
+	if (ASIC_IS_ANALDCE(rdev))
 		goto check_memsize;
 
 	/* first check CRTCs */
@@ -746,9 +746,9 @@ void radeon_update_bandwidth_info(struct radeon_device *rdev)
  *
  * @rdev: radeon_device pointer
  *
- * Check if the asic is initialized and if not, attempt to initialize
+ * Check if the asic is initialized and if analt, attempt to initialize
  * it (all asics).
- * Returns true if initialized or false if not.
+ * Returns true if initialized or false if analt.
  */
 bool radeon_boot_test_post_card(struct radeon_device *rdev)
 {
@@ -756,14 +756,14 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
 		return true;
 
 	if (rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU analt posted. posting analw...\n");
 		if (rdev->is_atom_bios)
 			atom_asic_init(rdev->mode_info.atom_context);
 		else
 			radeon_combios_asic_init(rdev->ddev);
 		return true;
 	} else {
-		dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+		dev_err(rdev->dev, "Card analt posted and anal BIOS - iganalring\n");
 		return false;
 	}
 }
@@ -776,7 +776,7 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
  * Allocate the dummy page used by the driver (all asics).
  * This dummy page is used by the driver as a filler for gart entries
  * when pages are taken out of the GART
- * Returns 0 on sucess, -ENOMEM on failure.
+ * Returns 0 on sucess, -EANALMEM on failure.
  */
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
@@ -784,14 +784,14 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 		return 0;
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
 	if (rdev->dummy_page.page == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev->dummy_page.addr = dma_map_page(&rdev->pdev->dev, rdev->dummy_page.page,
 					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(&rdev->pdev->dev, rdev->dummy_page.addr)) {
 		dev_err(&rdev->pdev->dev, "Failed to DMA MAP the dummy page\n");
 		__free_page(rdev->dummy_page.page);
 		rdev->dummy_page.page = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	rdev->dummy_page.entry = radeon_gart_get_page_entry(rdev->dummy_page.addr,
 							    RADEON_GART_PAGE_DUMMY);
@@ -968,7 +968,7 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
  *
  * Initializes the driver info and register access callbacks for the
  * ATOM interpreter (r4xx+).
- * Returns 0 on sucess, -ENOMEM on failure.
+ * Returns 0 on sucess, -EANALMEM on failure.
  * Called at driver startup.
  */
 int radeon_atombios_init(struct radeon_device *rdev)
@@ -977,7 +977,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
 
 	if (!atom_card_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdev->mode_info.atom_card_info = atom_card_info;
 	atom_card_info->dev = rdev->ddev;
@@ -1000,7 +1000,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	rdev->mode_info.atom_context = atom_parse(atom_card_info, rdev->bios);
 	if (!rdev->mode_info.atom_context) {
 		radeon_atombios_fini(rdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&rdev->mode_info.atom_context->mutex);
@@ -1082,9 +1082,9 @@ static unsigned int radeon_vga_set_decode(struct pci_dev *pdev, bool state)
 	radeon_vga_set_state(rdev, state);
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
-		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+		       VGA_RSRC_ANALRMAL_IO | VGA_RSRC_ANALRMAL_MEM;
 	else
-		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+		return VGA_RSRC_ANALRMAL_IO | VGA_RSRC_ANALRMAL_MEM;
 }
 
 /**
@@ -1220,7 +1220,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("radeon: switched on\n");
-		/* don't suspend or resume card normally */
+		/* don't suspend or resume card analrmally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
 		radeon_resume_kms(dev, true, true);
@@ -1243,7 +1243,7 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
  *
  * Callback for the switcheroo driver.  Check of the switcheroo
  * state can be changed.
- * Returns true if the state can be changed, false if not.
+ * Returns true if the state can be changed, false if analt.
  */
 static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 {
@@ -1252,7 +1252,7 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
-	 * completely racy anyway. So don't bother with locking for now.
+	 * completely racy anyway. So don't bother with locking for analw.
 	 */
 	return atomic_read(&dev->open_count) == 0;
 }
@@ -1374,7 +1374,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	r = dma_set_mask_and_coherent(&rdev->pdev->dev, DMA_BIT_MASK(dma_bits));
 	if (r) {
-		pr_warn("radeon: No suitable DMA available\n");
+		pr_warn("radeon: Anal suitable DMA available\n");
 		return r;
 	}
 	rdev->need_swiotlb = drm_need_swiotlb(dma_bits);
@@ -1402,7 +1402,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	}
 	rdev->rmmio = ioremap(rdev->rmmio_base, rdev->rmmio_size);
 	if (rdev->rmmio == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* doorbell bar mapping */
 	if (rdev->family >= CHIP_BONAIRE)
@@ -1424,7 +1424,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	/* this will fail for cards that aren't VGA class devices, just
-	 * ignore it */
+	 * iganalre it */
 	vga_client_register(rdev->pdev, radeon_vga_set_decode);
 
 	if (rdev->flags & RADEON_IS_PX)
@@ -1442,7 +1442,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	radeon_gem_debugfs_init(rdev);
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
-		/* Acceleration not working on AGP card try again
+		/* Acceleration analt working on AGP card try again
 		 * with fallback to PCI or PCIE GART
 		 */
 		radeon_asic_reset(rdev);
@@ -1460,7 +1460,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
 	/*
-	 * Turks/Thames GPU will freeze whole laptop if DPM is not restarted
+	 * Turks/Thames GPU will freeze whole laptop if DPM is analt restarted
 	 * after the CP ring have chew one packet at least. Hence here we stop
 	 * and restart DPM after the radeon_ib_ring_tests().
 	 */
@@ -1497,7 +1497,7 @@ int radeon_device_init(struct radeon_device *rdev,
 failed:
 	/* balance pm_runtime_get_sync() in radeon_driver_unload_kms() */
 	if (radeon_is_px(ddev))
-		pm_runtime_put_noidle(ddev->dev);
+		pm_runtime_put_analidle(ddev->dev);
 	if (runtime)
 		vga_switcheroo_fini_domain_pm_ops(rdev->dev);
 	return r;
@@ -1554,7 +1554,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 	int i, r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rdev = dev->dev_private;

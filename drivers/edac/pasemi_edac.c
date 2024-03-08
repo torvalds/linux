@@ -38,7 +38,7 @@
 #define   MCDEBUG_ERRCNT1_SBE_CNT_OVRFLO	0x00000080
 #define MCDEBUG_ERRLOG1A			0x738
 #define   MCDEBUG_ERRLOG1A_MERR_TYPE_M		0x30000000
-#define   MCDEBUG_ERRLOG1A_MERR_TYPE_NONE	0x00000000
+#define   MCDEBUG_ERRLOG1A_MERR_TYPE_ANALNE	0x00000000
 #define   MCDEBUG_ERRLOG1A_MERR_TYPE_SBE	0x10000000
 #define   MCDEBUG_ERRLOG1A_MERR_TYPE_MBE	0x20000000
 #define   MCDEBUG_ERRLOG1A_MERR_TYPE_RFL	0x30000000
@@ -170,7 +170,7 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		csrow->page_mask = 0;
 		dimm->grain = PASEMI_EDAC_ERROR_GRAIN;
 		dimm->mtype = MEM_DDR;
-		dimm->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKANALWN;
 		dimm->edac_mode = edac_mode;
 	}
 	return 0;
@@ -185,7 +185,7 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 
 	pci_read_config_dword(pdev, MCCFG_MCEN, &mcen);
 	if (!(mcen & MCCFG_MCEN_MMC_EN))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * We should think about enabling other error detection later on
@@ -206,7 +206,7 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 	mci = edac_mc_alloc(system_mmc_id++, ARRAY_SIZE(layers), layers,
 			    0);
 	if (mci == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci_read_config_dword(pdev, MCCFG_ERRCOR, &errcor);
 	errcor |= MCCFG_ERRCOR_RNK_FAIL_DET_EN |
@@ -215,11 +215,11 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR | MEM_FLAG_RDDR;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = (errcor & MCCFG_ERRCOR_ECC_GEN_EN) ?
 		((errcor & MCCFG_ERRCOR_ECC_CRR_EN) ?
 		 (EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_EC) :
-		EDAC_FLAG_NONE;
+		EDAC_FLAG_ANALNE;
 	mci->mod_name = MODULE_NAME;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_name = "pasemi,pwrficient-mc";
@@ -235,7 +235,7 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 				    (mci->edac_cap & EDAC_FLAG_SECDED) ?
 				    EDAC_SECDED :
 				    ((mci->edac_cap & EDAC_FLAG_EC) ?
-				     EDAC_EC : EDAC_NONE)))
+				     EDAC_EC : EDAC_ANALNE)))
 		goto fail;
 
 	/*
@@ -251,7 +251,7 @@ static int pasemi_edac_probe(struct pci_dev *pdev,
 
 fail:
 	edac_mc_free(mci);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void pasemi_edac_remove(struct pci_dev *pdev)

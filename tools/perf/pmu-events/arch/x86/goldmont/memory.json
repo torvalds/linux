@@ -3,7 +3,7 @@
         "BriefDescription": "Machine clears due to memory ordering issue",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PublicDescription": "Counts machine clears due to memory ordering issues.  This occurs when a snoop request happens and the machine is uncertain if memory ordering will be preserved as another core is in the process of modifying the data.",
+        "PublicDescription": "Counts machine clears due to memory ordering issues.  This occurs when a sanalop request happens and the machine is uncertain if memory ordering will be preserved as aanalther core is in the process of modifying the data.",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
     },

@@ -48,7 +48,7 @@ static int voltage_failsafe_off;
 static int set_max_voltage;
 
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
-static int ignore_acpi_limit;
+static int iganalre_acpi_limit;
 
 static struct acpi_processor_performance *eps_acpi_cpu_perf;
 
@@ -58,13 +58,13 @@ static int eps_acpi_init(void)
 	eps_acpi_cpu_perf = kzalloc(sizeof(*eps_acpi_cpu_perf),
 				      GFP_KERNEL);
 	if (!eps_acpi_cpu_perf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!zalloc_cpumask_var(&eps_acpi_cpu_perf->shared_cpu_map,
 								GFP_KERNEL)) {
 		kfree(eps_acpi_cpu_perf);
 		eps_acpi_cpu_perf = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (acpi_processor_register_performance(eps_acpi_cpu_perf, 0)) {
@@ -119,7 +119,7 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		i++;
 		if (unlikely(i > 64)) {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 	/* Set new multiplier and voltage */
@@ -131,7 +131,7 @@ static int eps_set_state(struct eps_cpu_data *centaur,
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		i++;
 		if (unlikely(i > 64)) {
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	} while (lo & ((1 << 16) | (1 << 17)));
 
@@ -158,7 +158,7 @@ static int eps_target(struct cpufreq_policy *policy, unsigned int index)
 	int ret;
 
 	if (unlikely(eps_cpu[cpu] == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 	centaur = eps_cpu[cpu];
 
 	/* Make frequency transition */
@@ -189,7 +189,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 #endif
 
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check brand */
 	pr_info("Detected VIA ");
@@ -222,7 +222,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		break;
 	case EPS_BRAND_C3:
 		pr_cont("C3\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Enable Enhanced PowerSaver */
 	rdmsrl(MSR_IA32_MISC_ENABLE, val);
@@ -233,7 +233,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		rdmsrl(MSR_IA32_MISC_ENABLE, val);
 		if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 			pr_info("Can't enable Enhanced PowerSaver\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -285,7 +285,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	/* Check for ACPI processor speed limit */
-	if (!ignore_acpi_limit && !eps_acpi_init()) {
+	if (!iganalre_acpi_limit && !eps_acpi_init()) {
 		if (!acpi_processor_get_bios_limit(policy->cpu, &limit)) {
 			pr_info("ACPI limit %u.%uGHz\n",
 				limit/1000000,
@@ -324,7 +324,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	centaur = kzalloc(struct_size(centaur, freq_table, states + 1),
 			  GFP_KERNEL);
 	if (!centaur)
-		return -ENOMEM;
+		return -EANALMEM;
 	eps_cpu[0] = centaur;
 
 	/* Copy basic values */
@@ -392,7 +392,7 @@ MODULE_DEVICE_TABLE(x86cpu, eps_cpu_id);
 static int __init eps_init(void)
 {
 	if (!x86_match_cpu(eps_cpu_id) || boot_cpu_data.x86_model < 10)
-		return -ENODEV;
+		return -EANALDEV;
 	if (cpufreq_register_driver(&eps_driver))
 		return -EINVAL;
 	return 0;
@@ -410,8 +410,8 @@ MODULE_PARM_DESC(freq_failsafe_off, "Disable current vs max frequency check");
 module_param(voltage_failsafe_off, int, 0644);
 MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
-module_param(ignore_acpi_limit, int, 0644);
-MODULE_PARM_DESC(ignore_acpi_limit, "Don't check ACPI's processor speed limit");
+module_param(iganalre_acpi_limit, int, 0644);
+MODULE_PARM_DESC(iganalre_acpi_limit, "Don't check ACPI's processor speed limit");
 #endif
 module_param(set_max_voltage, int, 0644);
 MODULE_PARM_DESC(set_max_voltage, "Set maximum CPU voltage (mV) C7-M only");

@@ -61,7 +61,7 @@ void bch_btree_verify(struct btree *b)
 
 	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
 
-	bch_btree_node_read_done(v);
+	bch_btree_analde_read_done(v);
 	sorted = v->keys.set->data;
 
 	if (inmemory->keys != sorted->keys ||
@@ -88,7 +88,7 @@ void bch_btree_verify(struct btree *b)
 			bch_dump_bset(&b->keys, i, block);
 		}
 
-		pr_err("*** block %zu not written\n",
+		pr_err("*** block %zu analt written\n",
 		       ((void *) i - (void *) ondisk) / block_bytes(b->c->cache));
 
 		for (j = 0; j < inmemory->keys; j++)
@@ -112,7 +112,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	struct bio_vec bv, cbv;
 	struct bvec_iter iter, citer = { 0 };
 
-	check = bio_kmalloc(nr_segs, GFP_NOIO);
+	check = bio_kmalloc(nr_segs, GFP_ANALIO);
 	if (!check)
 		return;
 	bio_init(check, bio->bi_bdev, check->bi_inline_vecs, nr_segs,
@@ -121,7 +121,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 	check->bi_iter.bi_size = bio->bi_iter.bi_size;
 
 	bch_bio_map(check, NULL);
-	if (bch_bio_alloc_pages(check, GFP_NOIO))
+	if (bch_bio_alloc_pages(check, GFP_ANALIO))
 		goto out_put;
 
 	submit_bio_wait(check);
@@ -204,14 +204,14 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static int bch_dump_open(struct inode *inode, struct file *file)
+static int bch_dump_open(struct ianalde *ianalde, struct file *file)
 {
-	struct cache_set *c = inode->i_private;
+	struct cache_set *c = ianalde->i_private;
 	struct dump_iterator *i;
 
 	i = kzalloc(sizeof(struct dump_iterator), GFP_KERNEL);
 	if (!i)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	file->private_data = i;
 	i->c = c;
@@ -221,7 +221,7 @@ static int bch_dump_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bch_dump_release(struct inode *inode, struct file *file)
+static int bch_dump_release(struct ianalde *ianalde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -256,7 +256,7 @@ void __init bch_debug_init(void)
 {
 	/*
 	 * it is unnecessary to check return value of
-	 * debugfs_create_file(), we should not care
+	 * debugfs_create_file(), we should analt care
 	 * about this.
 	 */
 	bcache_debug = debugfs_create_dir("bcache", NULL);

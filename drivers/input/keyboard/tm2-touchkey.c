@@ -38,7 +38,7 @@ struct touchkey_variant {
 	u8 base_reg;
 	u8 cmd_led_on;
 	u8 cmd_led_off;
-	bool no_reg;
+	bool anal_reg;
 	bool fixed_regulator;
 };
 
@@ -68,7 +68,7 @@ static const struct touchkey_variant midas_touchkey_variant = {
 };
 
 static struct touchkey_variant aries_touchkey_variant = {
-	.no_reg = true,
+	.anal_reg = true,
 	.fixed_regulator = true,
 	.cmd_led_on = ARIES_TOUCHKEY_CMD_LED_ON,
 	.cmd_led_off = ARIES_TOUCHKEY_CMD_LED_OFF,
@@ -101,7 +101,7 @@ static int tm2_touchkey_led_brightness_set(struct led_classdev *led_dev,
 	if (!touchkey->variant->fixed_regulator)
 		regulator_set_voltage(touchkey->vdd, volt, volt);
 
-	return touchkey->variant->no_reg ?
+	return touchkey->variant->anal_reg ?
 		i2c_smbus_write_byte(touchkey->client, data) :
 		i2c_smbus_write_byte_data(touchkey->client,
 					  touchkey->variant->base_reg, data);
@@ -137,7 +137,7 @@ static irqreturn_t tm2_touchkey_irq_handler(int irq, void *devid)
 	int index;
 	int i;
 
-	if (touchkey->variant->no_reg)
+	if (touchkey->variant->anal_reg)
 		data = i2c_smbus_read_byte(touchkey->client);
 	else
 		data = i2c_smbus_read_byte_data(touchkey->client,
@@ -182,7 +182,7 @@ out:
 
 static int tm2_touchkey_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct tm2_touchkey_data *touchkey;
 	int error;
 	int i;
@@ -195,7 +195,7 @@ static int tm2_touchkey_probe(struct i2c_client *client)
 
 	touchkey = devm_kzalloc(&client->dev, sizeof(*touchkey), GFP_KERNEL);
 	if (!touchkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	touchkey->client = client;
 	i2c_set_clientdata(client, touchkey);
@@ -244,7 +244,7 @@ static int tm2_touchkey_probe(struct i2c_client *client)
 	touchkey->input_dev = devm_input_allocate_device(&client->dev);
 	if (!touchkey->input_dev) {
 		dev_err(&client->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	touchkey->input_dev->name = TM2_TOUCHKEY_DEV_NAME;

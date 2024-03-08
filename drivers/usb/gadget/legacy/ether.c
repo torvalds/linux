@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * ether.c -- Ethernet gadget driver, with CDC and non-CDC options
+ * ether.c -- Ethernet gadget driver, with CDC and analn-CDC options
  *
  * Copyright (C) 2003-2005,2008 David Brownell
  * Copyright (C) 2003-2004 Robert Schwebel, Benedikt Spranger
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008 Analkia Corporation
  */
 
 /* #define VERBOSE_DEBUG */
@@ -23,7 +23,7 @@
 
 
 /*
- * Ethernet gadget driver -- with CDC and non-CDC options
+ * Ethernet gadget driver -- with CDC and analn-CDC options
  * Builds on hardware support for a full duplex link.
  *
  * CDC Ethernet is the standard USB solution for sending Ethernet frames
@@ -37,15 +37,15 @@
  * "CDC EEM" (Ethernet Emulation Model) is starting to spread.
  *
  * There's some hardware that can't talk CDC ECM.  We make that hardware
- * implement a "minimalist" vendor-agnostic CDC core:  same framing, but
+ * implement a "minimalist" vendor-aganalstic CDC core:  same framing, but
  * link-level setup only requires activating the configuration.  Only the
- * endpoint descriptors, and product/vendor IDs, are relevant; no control
+ * endpoint descriptors, and product/vendor IDs, are relevant; anal control
  * operations are available.  Linux supports it, but other host operating
- * systems may not.  (This is a subset of CDC Ethernet.)
+ * systems may analt.  (This is a subset of CDC Ethernet.)
  *
  * It turns out that if you add a few descriptors to that "CDC Subset",
  * (Windows) host side drivers from MCCI can treat it as one submode of
- * a proprietary scheme called "SAFE" ... without needing to know about
+ * a proprietary scheme called "SAFE" ... without needing to kanalw about
  * specific product/vendor IDs.  So we do that, making it easier to use
  * those MS-Windows drivers.  Those added descriptors make it resemble a
  * CDC MDLM device, but they don't change device behavior at all.  (See
@@ -72,8 +72,8 @@
  *		can_support_ecm()
  *
  * returns false, in which case it supports the CDC Subset.  By default,
- * that returns true; most hardware has no problems with CDC ECM, that's
- * a good default.  Previous versions of this driver had no default; this
+ * that returns true; most hardware has anal problems with CDC ECM, that's
+ * a good default.  Previous versions of this driver had anal default; this
  * version changes that, removing overhead for new controller support.
  *
  *	IF YOUR HARDWARE CAN'T SUPPORT CDC ECM, UPDATE THAT ROUTINE!
@@ -105,11 +105,11 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 USB_ETHERNET_MODULE_PARAMETERS();
 
-/* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+/* DO ANALT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
+ * Instead:  allocate your own, using analrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techanallogies for donating this product ID.
  * It's for devices with only CDC Ethernet configurations.
  */
 #define CDC_VENDOR_NUM		0x0525	/* NetChip */
@@ -118,21 +118,21 @@ USB_ETHERNET_MODULE_PARAMETERS();
 /* For hardware that can't talk CDC, we use the same vendor ID that
  * ARM Linux has used for ethernet-over-usb, both with sa1100 and
  * with pxa250.  We're protocol-compatible, if the host-side drivers
- * use the endpoint descriptors.  bcdDevice (version) is nonzero, so
+ * use the endpoint descriptors.  bcdDevice (version) is analnzero, so
  * drivers that need to hard-wire endpoint numbers have a hook.
  *
  * The protocol is a minimal subset of CDC Ether, which works on any bulk
- * hardware that's not deeply broken ... even on hardware that can't talk
- * RNDIS (like SA-1100, with no interrupt endpoint, or anything that
+ * hardware that's analt deeply broken ... even on hardware that can't talk
+ * RNDIS (like SA-1100, with anal interrupt endpoint, or anything that
  * doesn't handle control-OUT).
  */
 #define	SIMPLE_VENDOR_NUM	0x049f
 #define	SIMPLE_PRODUCT_NUM	0x505a
 
 /* For hardware that can talk RNDIS and either of the above protocols,
- * use this ID ... the windows INF files will know it.  Unless it's
+ * use this ID ... the windows INF files will kanalw it.  Unless it's
  * used with CDC Ethernet, Linux 2.4 hosts will need updates to choose
- * the non-RNDIS configuration.
+ * the analn-RNDIS configuration.
  */
 #define RNDIS_VENDOR_NUM	0x0525	/* NetChip */
 #define RNDIS_PRODUCT_NUM	0xa4a2	/* Ethernet/RNDIS Gadget */
@@ -163,7 +163,7 @@ static struct usb_device_descriptor device_desc = {
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
 	/* .iProduct = DYNAMIC */
-	/* NO SERIAL NUMBER */
+	/* ANAL SERIAL NUMBER */
 	.bNumConfigurations =	1,
 };
 
@@ -201,7 +201,7 @@ static struct usb_function *f_rndis;
 /*-------------------------------------------------------------------------*/
 
 /*
- * We may not have an RNDIS configuration, but if we do it needs to be
+ * We may analt have an RNDIS configuration, but if we do it needs to be
  * the first one present.  That's to make Microsoft's drivers happy,
  * and to follow DOCSIS 1.0 (cable modem standard).
  */
@@ -389,7 +389,7 @@ static int eth_bind(struct usb_composite_dev *cdev)
 		device_desc.bNumConfigurations = 2;
 	}
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... analte that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
@@ -404,7 +404,7 @@ static int eth_bind(struct usb_composite_dev *cdev)
 
 		usb_desc = usb_otg_descriptor_alloc(gadget);
 		if (!usb_desc) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto fail1;
 		}
 		usb_otg_descriptor_init(gadget, usb_desc);

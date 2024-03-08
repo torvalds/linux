@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * This code is dual-licensed under both GPLv2 and 3-clause BSD. What follows is
- * the license notice for both respectively.
+ * the license analtice for both respectively.
  *
  *******************************************************************************
  *
@@ -23,23 +23,23 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright analtice,
  * this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * 2. Redistributions in binary form must reproduce the above copyright analtice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the copyright holder nor the names of its contributors
+ * 3. Neither the name of the copyright holder analr the names of its contributors
  * may be used to endorse or promote products derived from this software without
  * specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -83,7 +83,7 @@
 
 /* spi constants */
 #define CA8210_SPI_BUF_SIZE 256
-#define CA8210_SYNC_TIMEOUT 1000     /* Timeout for synchronous commands [ms] */
+#define CA8210_SYNC_TIMEOUT 1000     /* Timeout for synchroanalus commands [ms] */
 
 /* test interface constants */
 #define CA8210_TEST_INT_FILE_NAME "ca8210_test"
@@ -130,10 +130,10 @@
 #define MAC_AUTO_REQUEST_SECURITY_LEVEL   (0x78)
 #define MAC_AUTO_REQUEST_KEY_ID_MODE      (0x79)
 
-#define NS_IEEE_ADDRESS                   (0xFF) /* Non-standard IEEE address */
+#define NS_IEEE_ADDRESS                   (0xFF) /* Analn-standard IEEE address */
 
 /* MAC Address Mode Definitions */
-#define MAC_MODE_NO_ADDR                (0x00)
+#define MAC_MODE_ANAL_ADDR                (0x00)
 #define MAC_MODE_SHORT_ADDR             (0x02)
 #define MAC_MODE_LONG_ADDR              (0x03)
 
@@ -187,7 +187,7 @@
 /* SPI command IDs */
 /* bit indicating a confirm or indication from slave to master */
 #define SPI_S2M                            (0x20)
-/* bit indicating a synchronous message */
+/* bit indicating a synchroanalus message */
 #define SPI_SYN                            (0x40)
 
 /* SPI command definitions */
@@ -299,16 +299,16 @@ struct ca8210_test {
  * @last_dsn:               sequence number of last data packet received, for
  *                           resend detection
  * @test:                   test interface data section for this instance
- * @async_tx_pending:       true if an asynchronous transmission was started and
- *                           is not complete
+ * @async_tx_pending:       true if an asynchroanalus transmission was started and
+ *                           is analt complete
  * @sync_command_response:  pointer to buffer to fill with sync response
- * @ca8210_is_awake:        nonzero if ca8210 is initialised, ready for comms
- * @sync_down:              counts number of downstream synchronous commands
- * @sync_up:                counts number of upstream synchronous commands
+ * @ca8210_is_awake:        analnzero if ca8210 is initialised, ready for comms
+ * @sync_down:              counts number of downstream synchroanalus commands
+ * @sync_up:                counts number of upstream synchroanalus commands
  * @spi_transfer_complete:  completion object for a single spi_transfer
- * @sync_exchange_complete: completion object for a complete synchronous API
+ * @sync_exchange_complete: completion object for a complete synchroanalus API
  *                          exchange
- * @promiscuous:            whether the ca8210 is in promiscuous mode or not
+ * @promiscuous:            whether the ca8210 is in promiscuous mode or analt
  * @retries:                records how many times the current pending spi
  *                          transfer has been retried
  */
@@ -366,7 +366,7 @@ struct ca8210_platform_data {
 
 /**
  * struct fulladdr - full MAC addressing information structure
- * @mode:    address mode (none, short, extended)
+ * @mode:    address mode (analne, short, extended)
  * @pan_id:  16-bit LE pan id
  * @address: LE address, variable length as specified by mode
  *
@@ -519,8 +519,8 @@ static int link_to_linux_err(int link_status)
 	case IEEE802154_DENIED:
 		return -EACCES;
 	case IEEE802154_BEACON_LOST:
-	case IEEE802154_NO_ACK:
-	case IEEE802154_NO_BEACON:
+	case IEEE802154_ANAL_ACK:
+	case IEEE802154_ANAL_BEACON:
 		return -ENETUNREACH;
 	case IEEE802154_CHANNEL_ACCESS_FAILURE:
 	case IEEE802154_TX_ACTIVE:
@@ -541,18 +541,18 @@ static int link_to_linux_err(int link_status)
 	case IEEE802154_ON_TIME_TOO_LONG:
 	case IEEE802154_INVALID_INDEX:
 		return -EINVAL;
-	case IEEE802154_NO_DATA:
-		return -ENODATA;
-	case IEEE802154_NO_SHORT_ADDRESS:
+	case IEEE802154_ANAL_DATA:
+		return -EANALDATA;
+	case IEEE802154_ANAL_SHORT_ADDRESS:
 		return -EFAULT;
 	case IEEE802154_PAN_ID_CONFLICT:
 		return -EADDRINUSE;
 	case IEEE802154_TRANSACTION_EXPIRED:
 		return -ETIME;
 	case IEEE802154_TRANSACTION_OVERFLOW:
-		return -ENOBUFS;
+		return -EANALBUFS;
 	case IEEE802154_UNAVAILABLE_KEY:
-		return -ENOKEY;
+		return -EANALKEY;
 	case IEEE802154_INVALID_ADDRESS:
 		return -ENXIO;
 	case IEEE802154_TRACKING_OFF:
@@ -596,7 +596,7 @@ static int ca8210_test_int_driver_write(
 
 	fifo_buffer = kmemdup(buf, len, GFP_KERNEL);
 	if (!fifo_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	kfifo_in(&test->up_fifo, &fifo_buffer, 4);
 	wake_up_interruptible(&priv->test.readq);
 
@@ -645,7 +645,7 @@ static void ca8210_reset_send(struct spi_device *spi, unsigned int ms)
 	if (status == 0) {
 		dev_crit(
 			&spi->dev,
-			"Fatal: No wakeup from ca8210 after reset!\n"
+			"Fatal: Anal wakeup from ca8210 after reset!\n"
 		);
 	}
 
@@ -733,54 +733,54 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 			queue_work(priv->mlme_workqueue, &mlme_reset_wpc->work);
 		}
 	} else if (buf[0] == SPI_HWME_WAKEUP_INDICATION) {
-		dev_notice(
+		dev_analtice(
 			&priv->spi->dev,
 			"Wakeup indication received, reason:\n"
 		);
 		switch (buf[2]) {
 		case 0:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power Up / System Reset\n"
 			);
 			break;
 		case 1:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Watchdog Timer Time-Out\n"
 			);
 			break;
 		case 2:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power-Off by Sleep Timer Time-Out\n");
 			break;
 		case 3:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power-Off by GPIO Activity\n"
 			);
 			break;
 		case 4:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Transceiver woken up from Standby by Sleep Timer Time-Out\n"
 			);
 			break;
 		case 5:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Transceiver woken up from Standby by GPIO Activity\n"
 			);
 			break;
 		case 6:
-			dev_notice(
+			dev_analtice(
 				&priv->spi->dev,
 				"Sleep-Timer Time-Out in Active Mode\n"
 			);
 			break;
 		default:
-			dev_warn(&priv->spi->dev, "Wakeup reason unknown\n");
+			dev_warn(&priv->spi->dev, "Wakeup reason unkanalwn\n");
 			break;
 		}
 		complete(&priv->ca8210_is_awake);
@@ -877,7 +877,7 @@ static int ca8210_spi_transfer(
 
 	if (!spi) {
 		pr_crit("NULL spi device passed to %s\n", __func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = spi_get_drvdata(spi);
@@ -887,7 +887,7 @@ static int ca8210_spi_transfer(
 
 	cas_ctl = kzalloc(sizeof(*cas_ctl), GFP_ATOMIC);
 	if (!cas_ctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cas_ctl->priv = priv;
 	memset(cas_ctl->tx_buf, SPI_IDLE, CA8210_SPI_BUF_SIZE);
@@ -933,11 +933,11 @@ static int ca8210_spi_transfer(
  * ca8210_spi_exchange() - Exchange API/SAP commands with the radio
  * @buf:         Octet array of command being sent downstream
  * @len:         length of buf
- * @response:    buffer for storing synchronous response
+ * @response:    buffer for storing synchroanalus response
  * @device_ref:  spi_device pointer for ca8210
  *
  * Effectively calls ca8210_spi_transfer to write buf[] to the spi, then for
- * synchronous commands waits for the corresponding response to be read from
+ * synchroanalus commands waits for the corresponding response to be read from
  * the spi before returning. The response is written to the response parameter.
  *
  * Return: 0 or linux error code
@@ -1003,7 +1003,7 @@ static int ca8210_spi_exchange(
 	} else if (wait_remaining == 0) {
 		dev_err(
 			&spi->dev,
-			"Synchronous confirm timeout\n"
+			"Synchroanalus confirm timeout\n"
 		);
 		status = -ETIME;
 	}
@@ -1020,7 +1020,7 @@ cleanup:
  *
  * This function is called when the irq line from the ca8210 is asserted,
  * signifying that the ca8210 has a message to send upstream to us. Starts the
- * asynchronous spi read.
+ * asynchroanalus spi read.
  *
  * Return: irq return code
  */
@@ -1057,7 +1057,7 @@ static int (*cascoda_api_downstream)(
  * @sfr_page:    SFR Page
  * @sfr_address: SFR Address
  * @sfr_value:   SFR Value
- * @device_ref:  Nondescript pointer to target device
+ * @device_ref:  Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of TDME-SETSFR.confirm
  */
@@ -1092,7 +1092,7 @@ static u8 tdme_setsfr_request_sync(
 	if (response.command_id != SPI_TDME_SETSFR_CONFIRM) {
 		dev_crit(
 			&spi->dev,
-			"sync response to SPI_TDME_SETSFR_REQUEST was not SPI_TDME_SETSFR_CONFIRM, it was %d\n",
+			"sync response to SPI_TDME_SETSFR_REQUEST was analt SPI_TDME_SETSFR_CONFIRM, it was %d\n",
 			response.command_id
 		);
 		return IEEE802154_SYSTEM_ERROR;
@@ -1103,7 +1103,7 @@ static u8 tdme_setsfr_request_sync(
 
 /**
  * tdme_chipinit() - TDME Chip Register Default Initialisation Macro
- * @device_ref: Nondescript pointer to target device
+ * @device_ref: Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of API calls
  */
@@ -1192,7 +1192,7 @@ finish:
 /**
  * tdme_channelinit() - TDME Channel Register Default Initialisation Macro (Tx)
  * @channel:    802.15.4 channel to initialise chip for
- * @device_ref: Nondescript pointer to target device
+ * @device_ref: Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of API calls
  */
@@ -1231,7 +1231,7 @@ static u8 tdme_channelinit(u8 channel, void *device_ref)
 }
 
 /**
- * tdme_checkpibattribute() - Checks Attribute Values that are not checked in
+ * tdme_checkpibattribute() - Checks Attribute Values that are analt checked in
  *                            MAC
  * @pib_attribute:        Attribute Number
  * @pib_attribute_length: Attribute length
@@ -1332,10 +1332,10 @@ static u8 tdme_checkpibattribute(
 /**
  * tdme_settxpower() - Sets the tx power for MLME_SET phyTransmitPower
  * @txp:        Transmit Power
- * @device_ref: Nondescript pointer to target device
+ * @device_ref: Analndescript pointer to target device
  *
- * Normalised to 802.15.4 Definition (6-bit, signed):
- * Bit 7-6: not used
+ * Analrmalised to 802.15.4 Definition (6-bit, signed):
+ * Bit 7-6: analt used
  * Bit 5-0: tx power (-32 - +31 dB)
  *
  * Return: 802.15.4 status code of api calls
@@ -1422,7 +1422,7 @@ static u8 tdme_settxpower(u8 txp, void *device_ref)
  * @msdu_handle:      Handle of Data
  * @tx_options:       Tx Options Bit Field
  * @security:         Pointer to Security Structure or NULL
- * @device_ref:       Nondescript pointer to target device
+ * @device_ref:       Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of action
  */
@@ -1445,7 +1445,7 @@ static u8 mcps_data_request(
 	command.command_id = SPI_MCPS_DATA_REQUEST;
 	command.pdata.data_req.src_addr_mode = src_addr_mode;
 	command.pdata.data_req.dst.mode = dst_address_mode;
-	if (dst_address_mode != MAC_MODE_NO_ADDR) {
+	if (dst_address_mode != MAC_MODE_ANAL_ADDR) {
 		command.pdata.data_req.dst.pan_id[0] = LS_BYTE(dst_pan_id);
 		command.pdata.data_req.dst.pan_id[1] = MS_BYTE(dst_pan_id);
 		if (dst_address_mode == MAC_MODE_SHORT_ADDR) {
@@ -1488,7 +1488,7 @@ static u8 mcps_data_request(
 /**
  * mlme_reset_request_sync() - MLME_RESET_request/confirm according to API Spec
  * @set_default_pib: Set defaults in PIB
- * @device_ref:      Nondescript pointer to target device
+ * @device_ref:      Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of MLME-RESET.confirm
  */
@@ -1538,7 +1538,7 @@ static u8 mlme_reset_request_sync(
  * @pib_attribute_index:  Index within Attribute if an Array
  * @pib_attribute_length: Attribute length
  * @pib_attribute_value:  Pointer to Attribute Value
- * @device_ref:           Nondescript pointer to target device
+ * @device_ref:           Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of MLME-SET.confirm
  */
@@ -1553,7 +1553,7 @@ static u8 mlme_set_request_sync(
 	u8 status;
 	struct mac_message command, response;
 
-	/* pre-check the validity of pib_attribute values that are not checked
+	/* pre-check the validity of pib_attribute values that are analt checked
 	 * in MAC
 	 */
 	if (tdme_checkpibattribute(
@@ -1608,7 +1608,7 @@ static u8 mlme_set_request_sync(
  * @hw_attribute:        Attribute Number
  * @hw_attribute_length: Attribute length
  * @hw_attribute_value:  Pointer to Attribute Value
- * @device_ref:          Nondescript pointer to target device
+ * @device_ref:          Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of HWME-SET.confirm
  */
@@ -1650,7 +1650,7 @@ static u8 hwme_set_request_sync(
  * @hw_attribute:        Attribute Number
  * @hw_attribute_length: Attribute length
  * @hw_attribute_value:  Pointer to Attribute Value
- * @device_ref:          Nondescript pointer to target device
+ * @device_ref:          Analndescript pointer to target device
  *
  * Return: 802.15.4 status code of HWME-GET.confirm
  */
@@ -1694,7 +1694,7 @@ static u8 hwme_get_request_sync(
 /* Network driver operation */
 
 /**
- * ca8210_async_xmit_complete() - Called to announce that an asynchronous
+ * ca8210_async_xmit_complete() - Called to ananalunce that an asynchroanalus
  *                                transmission has finished
  * @hw:          ieee802154_hw of ca8210 that has finished exchange
  * @msduhandle:  Identifier of transmission that has completed
@@ -1767,7 +1767,7 @@ static int ca8210_skb_rx(
 	/* Allocate mtu size buffer for every rx packet */
 	skb = dev_alloc_skb(IEEE802154_MTU + sizeof(hdr));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, sizeof(hdr));
 
@@ -1865,7 +1865,7 @@ static int ca8210_net_rx(struct ieee802154_hw *hw, u8 *command, size_t len)
 		if (command[26] == priv->last_dsn) {
 			dev_dbg(
 				&priv->spi->dev,
-				"DSN %d resend received, ignoring...\n",
+				"DSN %d resend received, iganalring...\n",
 				command[26]
 			);
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -1953,7 +1953,7 @@ static int ca8210_start(struct ieee802154_hw *hw)
 	struct ca8210_priv *priv = hw->priv;
 
 	priv->last_dsn = -1;
-	/* Turn receiver on when idle for now just to test rx */
+	/* Turn receiver on when idle for analw just to test rx */
 	rx_on_when_idle = 1;
 	status = mlme_set_request_sync(
 		MAC_RX_ON_WHEN_IDLE,
@@ -1999,7 +1999,7 @@ static void ca8210_stop(struct ieee802154_hw *hw)
 }
 
 /**
- * ca8210_xmit_async() - Asynchronously transmits a given socket buffer using
+ * ca8210_xmit_async() - Asynchroanalusly transmits a given socket buffer using
  *                       the ca8210
  * @hw:   ieee802154_hw of ca8210 to transmit from
  * @skb:  Socket buffer to transmit
@@ -2079,7 +2079,7 @@ static int ca8210_set_channel(
  * @filt:     Filtering parameters
  * @changed:  Bitmap representing which parameters to change
  *
- * Effectively just sets the actual addressing information identifying this node
+ * Effectively just sets the actual addressing information identifying this analde
  * as all filtering is performed by the ca8210 as detailed in the IEEE 802.15.4
  * 2006 specification.
  *
@@ -2293,7 +2293,7 @@ static int ca8210_set_csma_params(
  * @hw:       ieee802154_hw of target ca8210
  * @retries:  Number of retries
  *
- * Sets the number of times to retry a transmission if no acknowledgment was
+ * Sets the number of times to retry a transmission if anal ackanalwledgment was
  * received from the other end when one was requested.
  *
  * Return: 0 or linux error code
@@ -2363,14 +2363,14 @@ static const struct ieee802154_ops ca8210_phy_ops = {
 
 /**
  * ca8210_test_int_open() - Opens the test interface to the userspace
- * @inodp:  inode representation of file interface
+ * @ianaldp:  ianalde representation of file interface
  * @filp:   file interface
  *
  * Return: 0 or linux error code
  */
-static int ca8210_test_int_open(struct inode *inodp, struct file *filp)
+static int ca8210_test_int_open(struct ianalde *ianaldp, struct file *filp)
 {
-	struct ca8210_priv *priv = inodp->i_private;
+	struct ca8210_priv *priv = ianaldp->i_private;
 
 	filp->private_data = priv;
 	return 0;
@@ -2380,7 +2380,7 @@ static int ca8210_test_int_open(struct inode *inodp, struct file *filp)
  * ca8210_test_check_upstream() - Checks a command received from the upstream
  *                                testing interface for required action
  * @buf:        Buffer containing command to check
- * @device_ref: Nondescript pointer to target device
+ * @device_ref: Analndescript pointer to target device
  *
  * Return: 0 or linux error code
  */
@@ -2467,7 +2467,7 @@ static ssize_t ca8210_test_int_user_write(
 	if (ret) {
 		dev_err(
 			&priv->spi->dev,
-			"%d bytes could not be copied from userspace\n",
+			"%d bytes could analt be copied from userspace\n",
 			ret
 		);
 		return -EIO;
@@ -2475,7 +2475,7 @@ static ssize_t ca8210_test_int_user_write(
 	if (len != command[1] + 2) {
 		dev_err(
 			&priv->spi->dev,
-			"write len does not match packet length field\n"
+			"write len does analt match packet length field\n"
 		);
 		return -EBADE;
 	}
@@ -2508,11 +2508,11 @@ static ssize_t ca8210_test_int_user_write(
  *                               message from the ca8210 drivers
  * @filp:  file interface
  * @buf:   Buffer to write message to
- * @len:   length of message to read (ignored)
+ * @len:   length of message to read (iganalred)
  * @offp:  file offset
  *
- * If the O_NONBLOCK flag was set when opening the file then this function will
- * not block, i.e. it will return if the fifo is empty. Otherwise the function
+ * If the O_ANALNBLOCK flag was set when opening the file then this function will
+ * analt block, i.e. it will return if the fifo is empty. Otherwise the function
  * will block, i.e. wait until new data arrives.
  *
  * Return: number of bytes read
@@ -2527,10 +2527,10 @@ static ssize_t ca8210_test_int_user_read(
 	int i, cmdlen;
 	struct ca8210_priv *priv = filp->private_data;
 	unsigned char *fifo_buffer;
-	unsigned long bytes_not_copied;
+	unsigned long bytes_analt_copied;
 
-	if (filp->f_flags & O_NONBLOCK) {
-		/* Non-blocking mode */
+	if (filp->f_flags & O_ANALNBLOCK) {
+		/* Analn-blocking mode */
 		if (kfifo_is_empty(&priv->test.up_fifo))
 			return 0;
 	} else {
@@ -2549,14 +2549,14 @@ static ssize_t ca8210_test_int_user_read(
 		return 0;
 	}
 	cmdlen = fifo_buffer[1];
-	bytes_not_copied = cmdlen + 2;
+	bytes_analt_copied = cmdlen + 2;
 
-	bytes_not_copied = copy_to_user(buf, fifo_buffer, bytes_not_copied);
-	if (bytes_not_copied > 0) {
+	bytes_analt_copied = copy_to_user(buf, fifo_buffer, bytes_analt_copied);
+	if (bytes_analt_copied > 0) {
 		dev_err(
 			&priv->spi->dev,
-			"%lu bytes could not be copied to user space!\n",
-			bytes_not_copied
+			"%lu bytes could analt be copied to user space!\n",
+			bytes_analt_copied
 		);
 	}
 
@@ -2616,7 +2616,7 @@ static __poll_t ca8210_test_int_poll(
 
 	poll_wait(filp, &priv->test.readq, ptable);
 	if (!kfifo_is_empty(&priv->test.up_fifo))
-		return_flags |= (EPOLLIN | EPOLLRDNORM);
+		return_flags |= (EPOLLIN | EPOLLRDANALRM);
 	if (wait_event_interruptible(
 		priv->test.readq,
 		!kfifo_is_empty(&priv->test.up_fifo))) {
@@ -2650,16 +2650,16 @@ static int ca8210_get_platform_data(
 {
 	int ret = 0;
 
-	if (!spi_device->dev.of_node)
+	if (!spi_device->dev.of_analde)
 		return -EINVAL;
 
 	pdata->extclockenable = of_property_read_bool(
-		spi_device->dev.of_node,
+		spi_device->dev.of_analde,
 		"extclock-enable"
 	);
 	if (pdata->extclockenable) {
 		ret = of_property_read_u32(
-			spi_device->dev.of_node,
+			spi_device->dev.of_analde,
 			"extclock-freq",
 			&pdata->extclockfreq
 		);
@@ -2667,7 +2667,7 @@ static int ca8210_get_platform_data(
 			return ret;
 
 		ret = of_property_read_u32(
-			spi_device->dev.of_node,
+			spi_device->dev.of_analde,
 			"extclock-gpio",
 			&pdata->extclockgpio
 		);
@@ -2737,7 +2737,7 @@ static int ca8210_config_extern_clk(
  */
 static int ca8210_register_ext_clock(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_analde *np = spi->dev.of_analde;
 	struct ca8210_priv *priv = spi_get_drvdata(spi);
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
@@ -2772,7 +2772,7 @@ static void ca8210_unregister_ext_clock(struct spi_device *spi)
 	if (IS_ERR_OR_NULL(priv->clk))
 		return;
 
-	of_clk_del_provider(spi->dev.of_node);
+	of_clk_del_provider(spi->dev.of_analde);
 	clk_unregister(priv->clk);
 	dev_info(&spi->dev, "External clock unregistered\n");
 }
@@ -2789,7 +2789,7 @@ static int ca8210_reset_init(struct spi_device *spi)
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
 	pdata->gpio_reset = of_get_named_gpio(
-		spi->dev.of_node,
+		spi->dev.of_analde,
 		"reset-gpio",
 		0
 	);
@@ -2798,7 +2798,7 @@ static int ca8210_reset_init(struct spi_device *spi)
 	if (ret < 0) {
 		dev_crit(
 			&spi->dev,
-			"Reset GPIO %d did not set to output mode\n",
+			"Reset GPIO %d did analt set to output mode\n",
 			pdata->gpio_reset
 		);
 	}
@@ -2818,7 +2818,7 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
 	pdata->gpio_irq = of_get_named_gpio(
-		spi->dev.of_node,
+		spi->dev.of_analde,
 		"irq-gpio",
 		0
 	);
@@ -2827,7 +2827,7 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 	if (pdata->irq_id < 0) {
 		dev_crit(
 			&spi->dev,
-			"Could not get irq for gpio pin %d\n",
+			"Could analt get irq for gpio pin %d\n",
 			pdata->gpio_irq
 		);
 		gpio_free(pdata->gpio_irq);
@@ -2863,7 +2863,7 @@ static int ca8210_dev_com_init(struct ca8210_priv *priv)
 	);
 	if (!priv->mlme_workqueue) {
 		dev_crit(&priv->spi->dev, "alloc of mlme_workqueue failed!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->irq_workqueue = alloc_ordered_workqueue(
@@ -2873,7 +2873,7 @@ static int ca8210_dev_com_init(struct ca8210_priv *priv)
 	if (!priv->irq_workqueue) {
 		dev_crit(&priv->spi->dev, "alloc of irq_workqueue failed!\n");
 		destroy_workqueue(priv->mlme_workqueue);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -2950,25 +2950,25 @@ static void ca8210_hw_setup(struct ieee802154_hw *ca8210_hw)
 static int ca8210_test_interface_init(struct ca8210_priv *priv)
 {
 	struct ca8210_test *test = &priv->test;
-	char node_name[32];
+	char analde_name[32];
 
 	snprintf(
-		node_name,
-		sizeof(node_name),
+		analde_name,
+		sizeof(analde_name),
 		"ca8210@%d_%d",
 		priv->spi->master->bus_num,
 		spi_get_chipselect(priv->spi, 0)
 	);
 
 	test->ca8210_dfs_spi_int = debugfs_create_file(
-		node_name,
+		analde_name,
 		0600, /* S_IRUSR | S_IWUSR */
 		NULL,
 		priv,
 		&test_int_fops
 	);
 
-	debugfs_create_symlink("ca8210", NULL, node_name);
+	debugfs_create_symlink("ca8210", NULL, analde_name);
 	init_waitqueue_head(&test->readq);
 	return kfifo_alloc(
 		&test->up_fifo,
@@ -3057,7 +3057,7 @@ static int ca8210_probe(struct spi_device *spi_device)
 	hw = ieee802154_alloc_hw(sizeof(struct ca8210_priv), &ca8210_phy_ops);
 	if (!hw) {
 		dev_crit(&spi_device->dev, "ieee802154_alloc_hw failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -3087,7 +3087,7 @@ static int ca8210_probe(struct spi_device *spi_device)
 
 	pdata = kmalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 

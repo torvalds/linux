@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2021, SberDevices. All Rights Reserved.
  *
- * Author: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
+ * Author: Viktor Prutyaanalv <viktor.prutyaanalv@phystech.edu>
  */
 
 #include <linux/device.h>
@@ -256,7 +256,7 @@ static int meson_irtx_transmit(struct rc_dev *rc, unsigned int *buf,
 
 	tx_buf = kmalloc_array(len, sizeof(u32), GFP_KERNEL);
 	if (!tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	meson_irtx_fill_buf(ir, tx_buf, buf, len);
 	dev_dbg(ir->dev, "TX buffer filled, length = %u\n", len);
@@ -282,15 +282,15 @@ static int meson_irtx_transmit(struct rc_dev *rc, unsigned int *buf,
 static int meson_irtx_mod_clock_probe(struct meson_irtx *ir,
 				      unsigned int *clk_nr)
 {
-	struct device_node *np = ir->dev->of_node;
+	struct device_analde *np = ir->dev->of_analde;
 	struct clk *clock;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	clock = devm_clk_get(ir->dev, "xtal");
 	if (IS_ERR(clock) || clk_prepare_enable(clock))
-		return -ENODEV;
+		return -EANALDEV;
 
 	*clk_nr = IRB_MOD_XTAL3_CLK;
 	ir->clk_rate = clk_get_rate(clock) / 3;
@@ -316,7 +316,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 
 	ir = devm_kzalloc(dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ir->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ir->reg_base))
@@ -324,7 +324,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ir->dev = dev;
 	ir->carrier = MIRTX_DEFAULT_CARRIER;
@@ -347,7 +347,7 @@ static int meson_irtx_probe(struct platform_device *pdev)
 
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW_TX);
 	if (!rc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc->driver_name = DRIVER_NAME;
 	rc->device_name = DEVICE_NAME;
@@ -384,5 +384,5 @@ static struct platform_driver meson_irtx_pd = {
 module_platform_driver(meson_irtx_pd);
 
 MODULE_DESCRIPTION("Meson IR TX driver");
-MODULE_AUTHOR("Viktor Prutyanov <viktor.prutyanov@phystech.edu>");
+MODULE_AUTHOR("Viktor Prutyaanalv <viktor.prutyaanalv@phystech.edu>");
 MODULE_LICENSE("GPL");

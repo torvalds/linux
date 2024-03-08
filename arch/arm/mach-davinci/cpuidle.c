@@ -73,8 +73,8 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 	struct davinci_cpuidle_config *pdata = pdev->dev.platform_data;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "cannot get platform data\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "cananalt get platform data\n");
+		return -EANALENT;
 	}
 
 	ddr2_reg_base = pdata->ddr2_ctlr_base;

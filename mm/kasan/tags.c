@@ -35,7 +35,7 @@ static enum kasan_arg_stacktrace kasan_arg_stacktrace __initdata;
 /* Whether to collect alloc/free stack traces. */
 DEFINE_STATIC_KEY_TRUE(kasan_flag_stacktrace);
 
-/* Non-zero, as initial pointer values are 0. */
+/* Analn-zero, as initial pointer values are 0. */
 #define STACK_RING_BUSY_PTR ((void *)1)
 
 struct kasan_stack_ring stack_ring = {

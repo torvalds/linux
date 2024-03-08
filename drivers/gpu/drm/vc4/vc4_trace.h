@@ -14,42 +14,42 @@
 #define TRACE_SYSTEM vc4
 #define TRACE_INCLUDE_FILE vc4_trace
 
-TRACE_EVENT(vc4_wait_for_seqno_begin,
-	    TP_PROTO(struct drm_device *dev, uint64_t seqno, uint64_t timeout),
-	    TP_ARGS(dev, seqno, timeout),
+TRACE_EVENT(vc4_wait_for_seqanal_begin,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqanal, uint64_t timeout),
+	    TP_ARGS(dev, seqanal, timeout),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqanal)
 			     __field(u64, timeout)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqanal = seqanal;
 			   __entry->timeout = timeout;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu, timeout=%llu",
-		      __entry->dev, __entry->seqno, __entry->timeout)
+	    TP_printk("dev=%u, seqanal=%llu, timeout=%llu",
+		      __entry->dev, __entry->seqanal, __entry->timeout)
 );
 
-TRACE_EVENT(vc4_wait_for_seqno_end,
-	    TP_PROTO(struct drm_device *dev, uint64_t seqno),
-	    TP_ARGS(dev, seqno),
+TRACE_EVENT(vc4_wait_for_seqanal_end,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqanal),
+	    TP_ARGS(dev, seqanal),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqanal)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqanal = seqanal;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu",
-		      __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqanal=%llu",
+		      __entry->dev, __entry->seqanal)
 );
 
 TRACE_EVENT(vc4_submit_cl_ioctl,
@@ -79,14 +79,14 @@ TRACE_EVENT(vc4_submit_cl_ioctl,
 
 TRACE_EVENT(vc4_submit_cl,
 	    TP_PROTO(struct drm_device *dev, bool is_render,
-		     uint64_t seqno,
+		     uint64_t seqanal,
 		     u32 ctnqba, u32 ctnqea),
-	    TP_ARGS(dev, is_render, seqno, ctnqba, ctnqea),
+	    TP_ARGS(dev, is_render, seqanal, ctnqba, ctnqea),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(bool, is_render)
-			     __field(u64, seqno)
+			     __field(u64, seqanal)
 			     __field(u32, ctnqba)
 			     __field(u32, ctnqea)
 			     ),
@@ -94,57 +94,57 @@ TRACE_EVENT(vc4_submit_cl,
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
 			   __entry->is_render = is_render;
-			   __entry->seqno = seqno;
+			   __entry->seqanal = seqanal;
 			   __entry->ctnqba = ctnqba;
 			   __entry->ctnqea = ctnqea;
 			   ),
 
-	    TP_printk("dev=%u, %s, seqno=%llu, 0x%08x..0x%08x",
+	    TP_printk("dev=%u, %s, seqanal=%llu, 0x%08x..0x%08x",
 		      __entry->dev,
 		      __entry->is_render ? "RCL" : "BCL",
-		      __entry->seqno,
+		      __entry->seqanal,
 		      __entry->ctnqba,
 		      __entry->ctnqea)
 );
 
 TRACE_EVENT(vc4_bcl_end_irq,
 	    TP_PROTO(struct drm_device *dev,
-		     uint64_t seqno),
-	    TP_ARGS(dev, seqno),
+		     uint64_t seqanal),
+	    TP_ARGS(dev, seqanal),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqanal)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqanal = seqanal;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu",
+	    TP_printk("dev=%u, seqanal=%llu",
 		      __entry->dev,
-		      __entry->seqno)
+		      __entry->seqanal)
 );
 
 TRACE_EVENT(vc4_rcl_end_irq,
 	    TP_PROTO(struct drm_device *dev,
-		     uint64_t seqno),
-	    TP_ARGS(dev, seqno),
+		     uint64_t seqanal),
+	    TP_ARGS(dev, seqanal),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqanal)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqanal = seqanal;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu",
+	    TP_printk("dev=%u, seqanal=%llu",
 		      __entry->dev,
-		      __entry->seqno)
+		      __entry->seqanal)
 );
 
 #endif /* _VC4_TRACE_H_ */

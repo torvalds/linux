@@ -9,7 +9,7 @@
 #include <linux/tracepoint.h>
 
 
-TRACE_EVENT(ocxl_mmu_notifier_range,
+TRACE_EVENT(ocxl_mmu_analtifier_range,
 	TP_PROTO(unsigned long start, unsigned long end, unsigned long pidr),
 	TP_ARGS(start, end, pidr),
 
@@ -32,7 +32,7 @@ TRACE_EVENT(ocxl_mmu_notifier_range,
 	)
 );
 
-TRACE_EVENT(ocxl_init_mmu_notifier,
+TRACE_EVENT(ocxl_init_mmu_analtifier,
 	TP_PROTO(int pasid, unsigned long pidr),
 	TP_ARGS(pasid, pidr),
 
@@ -52,7 +52,7 @@ TRACE_EVENT(ocxl_init_mmu_notifier,
 	)
 );
 
-TRACE_EVENT(ocxl_release_mmu_notifier,
+TRACE_EVENT(ocxl_release_mmu_analtifier,
 	TP_PROTO(int pasid, unsigned long pidr),
 	TP_ARGS(pasid, pidr),
 

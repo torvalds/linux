@@ -27,7 +27,7 @@ MODULE_PARM_DESC(xfer_debug, "Enable xfer debug");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-/* Known requests (Cypress FX2 firmware + az6007 "private" ones*/
+/* Kanalwn requests (Cypress FX2 firmware + az6007 "private" ones*/
 
 #define FX2_OED			0xb5
 #define AZ6007_READ_DATA	0xb7
@@ -53,7 +53,7 @@ static struct drxk_config terratec_h7_drxk = {
 	.dynamic_clk = true,
 	.single_master = true,
 	.enable_merr_cfg = true,
-	.no_i2c_bridge = false,
+	.anal_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,
 	.qam_demod_parameter_count = 2,
@@ -66,7 +66,7 @@ static struct drxk_config cablestar_hdci_drxk = {
 	.dynamic_clk = true,
 	.single_master = true,
 	.enable_merr_cfg = true,
-	.no_i2c_bridge = false,
+	.anal_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,
 	.qam_demod_parameter_count = 2,
@@ -116,7 +116,7 @@ static int __az6007_read(struct usb_device *udev, u8 req, u16 value,
 		printk(KERN_DEBUG "az6007: IN  req: %02x, value: %04x, index: %04x\n",
 		       req, value, index);
 		print_hex_dump_bytes("az6007: payload: ",
-				     DUMP_PREFIX_NONE, b, blen);
+				     DUMP_PREFIX_ANALNE, b, blen);
 	}
 
 	return ret;
@@ -147,13 +147,13 @@ static int __az6007_write(struct usb_device *udev, u8 req, u16 value,
 		printk(KERN_DEBUG "az6007: OUT req: %02x, value: %04x, index: %04x\n",
 		       req, value, index);
 		print_hex_dump_bytes("az6007: payload: ",
-				     DUMP_PREFIX_NONE, b, blen);
+				     DUMP_PREFIX_ANALNE, b, blen);
 	}
 
 	if (blen > 64) {
 		pr_err("az6007: tried to write %d bytes, but I2C max size is 64 bytes\n",
 		       blen);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = usb_control_msg(udev,
@@ -185,17 +185,17 @@ static int az6007_write(struct dvb_usb_device *d, u8 req, u16 value,
 	return ret;
 }
 
-static int az6007_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int az6007_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 
-	pr_debug("%s: %s\n", __func__, onoff ? "enable" : "disable");
+	pr_debug("%s: %s\n", __func__, oanalff ? "enable" : "disable");
 
-	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
+	return az6007_write(d, 0xbc, oanalff, 0, NULL, 0);
 }
 
 #if IS_ENABLED(CONFIG_RC_CORE)
-/* remote control stuff (does not work with my box) */
+/* remote control stuff (does analt work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *st = d_to_priv(d);
@@ -264,7 +264,7 @@ static int az6007_ci_read_attribute_mem(struct dvb_ca_en50221 *ca,
 
 	b = kmalloc(12, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&state->ca_mutex);
 
@@ -337,7 +337,7 @@ static int az6007_ci_read_cam_control(struct dvb_ca_en50221 *ca,
 
 	b = kmalloc(12, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&state->ca_mutex);
 
@@ -410,7 +410,7 @@ static int CI_CamReady(struct dvb_ca_en50221 *ca, int slot)
 
 	b = kmalloc(12, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = 0xC8;
 	value = 0;
@@ -526,7 +526,7 @@ static int az6007_ci_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int o
 
 	b = kmalloc(12, GFP_KERNEL);
 	if (!b)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_lock(&state->ca_mutex);
 
 	req = 0xC5;
@@ -599,7 +599,7 @@ static int az6007_ci_init(struct dvb_usb_adapter *adap)
 				  0, /* flags */
 				  1);/* n_slots */
 	if (ret != 0) {
-		pr_err("Cannot initialize CI: Error %d.\n", ret);
+		pr_err("Cananalt initialize CI: Error %d.\n", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -686,7 +686,7 @@ static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int az6007_power_ctrl(struct dvb_usb_device *d, int oanalff)
 {
 	struct az6007_device_state *state = d_to_priv(d);
 	int ret;
@@ -730,7 +730,7 @@ static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 		return 0;
 	}
 
-	if (!onoff)
+	if (!oanalff)
 		return 0;
 
 	az6007_write(d, AZ6007_POWER, 0, 0, NULL, 0);
@@ -852,7 +852,7 @@ static int az6007_identify_state(struct dvb_usb_device *d, const char **name)
 
 	mac = kmalloc(6, GFP_ATOMIC);
 	if (!mac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Try to read the mac address */
 	ret = __az6007_read(d->udev, AZ6007_READ_DATA, 6, 0, mac, 6);
@@ -972,7 +972,7 @@ static struct usb_driver az6007_usb_driver = {
 	.id_table	= az6007_usb_table,
 	.probe		= dvb_usbv2_probe,
 	.disconnect	= az6007_usb_disconnect,
-	.no_dynamic_id	= 1,
+	.anal_dynamic_id	= 1,
 	.soft_unbind	= 1,
 	/*
 	 * FIXME: need to implement reset_resume, likely with

@@ -34,7 +34,7 @@ Required properties:
 - mux-int-port     : The internal port of the i.MX audio muxer (AUDMUX)
 - mux-ext-port     : The external port of the i.MX audio muxer (AUDMIX)
 
-Note: The AUDMUX port numbering should start at 1, which is consistent with
+Analte: The AUDMUX port numbering should start at 1, which is consistent with
 hardware manual.
 
 Example:

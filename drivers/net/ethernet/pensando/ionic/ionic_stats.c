@@ -17,9 +17,9 @@ static const struct ionic_stat_desc ionic_lif_stats_desc[] = {
 	IONIC_LIF_STAT_DESC(rx_bytes),
 	IONIC_LIF_STAT_DESC(tx_tso),
 	IONIC_LIF_STAT_DESC(tx_tso_bytes),
-	IONIC_LIF_STAT_DESC(tx_csum_none),
+	IONIC_LIF_STAT_DESC(tx_csum_analne),
 	IONIC_LIF_STAT_DESC(tx_csum),
-	IONIC_LIF_STAT_DESC(rx_csum_none),
+	IONIC_LIF_STAT_DESC(rx_csum_analne),
 	IONIC_LIF_STAT_DESC(rx_csum_complete),
 	IONIC_LIF_STAT_DESC(rx_csum_error),
 	IONIC_LIF_STAT_DESC(hw_tx_dropped),
@@ -132,7 +132,7 @@ static const struct ionic_stat_desc ionic_tx_stats_desc[] = {
 	IONIC_TX_STAT_DESC(tso_bytes),
 	IONIC_TX_STAT_DESC(hwstamp_valid),
 	IONIC_TX_STAT_DESC(hwstamp_invalid),
-	IONIC_TX_STAT_DESC(csum_none),
+	IONIC_TX_STAT_DESC(csum_analne),
 	IONIC_TX_STAT_DESC(csum),
 	IONIC_TX_STAT_DESC(vlan_inserted),
 };
@@ -142,7 +142,7 @@ static const struct ionic_stat_desc ionic_rx_stats_desc[] = {
 	IONIC_RX_STAT_DESC(bytes),
 	IONIC_RX_STAT_DESC(dma_map_err),
 	IONIC_RX_STAT_DESC(alloc_err),
-	IONIC_RX_STAT_DESC(csum_none),
+	IONIC_RX_STAT_DESC(csum_analne),
 	IONIC_RX_STAT_DESC(csum_complete),
 	IONIC_RX_STAT_DESC(csum_error),
 	IONIC_RX_STAT_DESC(hwstamp_valid),
@@ -167,7 +167,7 @@ static void ionic_add_lif_txq_stats(struct ionic_lif *lif, int q_num,
 	stats->tx_bytes += txstats->bytes;
 	stats->tx_tso += txstats->tso;
 	stats->tx_tso_bytes += txstats->tso_bytes;
-	stats->tx_csum_none += txstats->csum_none;
+	stats->tx_csum_analne += txstats->csum_analne;
 	stats->tx_csum += txstats->csum;
 	stats->tx_hwstamp_valid += txstats->hwstamp_valid;
 	stats->tx_hwstamp_invalid += txstats->hwstamp_invalid;
@@ -180,7 +180,7 @@ static void ionic_add_lif_rxq_stats(struct ionic_lif *lif, int q_num,
 
 	stats->rx_packets += rxstats->pkts;
 	stats->rx_bytes += rxstats->bytes;
-	stats->rx_csum_none += rxstats->csum_none;
+	stats->rx_csum_analne += rxstats->csum_analne;
 	stats->rx_csum_complete += rxstats->csum_complete;
 	stats->rx_csum_error += rxstats->csum_error;
 	stats->rx_hwstamp_valid += rxstats->hwstamp_valid;

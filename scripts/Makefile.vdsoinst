@@ -14,7 +14,7 @@ install-dir := $(MODLIB)/vdso
 define gen_install_rules
 
 src := $$(firstword $$(subst :,$(space),$(1)))
-dest := $(install-dir)/$$(or $$(word 2,$$(subst :,$(space),$(1))),$$(patsubst %.dbg,%,$$(notdir $(1))))
+dest := $(install-dir)/$$(or $$(word 2,$$(subst :,$(space),$(1))),$$(patsubst %.dbg,%,$$(analtdir $(1))))
 
 __default: $$(dest)
 $$(dest): $$(src) FORCE

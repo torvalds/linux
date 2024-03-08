@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
@@ -32,9 +32,9 @@ enum CLKR {
 /* Mailbox configuration:
  * mailbox 60 - 63 - Rx FIFO mailboxes
  * mailbox 56 - 59 - Tx FIFO mailboxes
- * non-FIFO mailboxes are not used
+ * analn-FIFO mailboxes are analt used
  */
-#define RCAR_CAN_N_MBX		64 /* Number of mailboxes in non-FIFO mode */
+#define RCAR_CAN_N_MBX		64 /* Number of mailboxes in analn-FIFO mode */
 #define RCAR_CAN_RX_FIFO_MBX	60 /* Mailbox - window to Rx FIFO */
 #define RCAR_CAN_TX_FIFO_MBX	56 /* Mailbox - window to Tx FIFO */
 #define RCAR_CAN_FIFO_DEPTH	4
@@ -42,7 +42,7 @@ enum CLKR {
 /* Mailbox registers structure */
 struct rcar_can_mbox_regs {
 	u32 id;		/* IDE and RTR bits, SID and EID */
-	u8 stub;	/* Not used */
+	u8 stub;	/* Analt used */
 	u8 dlc;		/* Data Length Code - bits [0..3] */
 	u8 data[8];	/* Data Bytes */
 	u8 tsh;		/* Time Stamp Higher Byte */
@@ -400,7 +400,7 @@ static irqreturn_t rcar_can_interrupt(int irq, void *dev_id)
 
 	isr = readb(&priv->regs->isr);
 	if (!(isr & priv->ier))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (isr & RCAR_CAN_ISR_ERSF)
 		rcar_can_error(ndev);
@@ -431,7 +431,7 @@ static void rcar_can_set_bittiming(struct net_device *dev)
 	      RCAR_CAN_BCR_TSEG2(bt->phase_seg2 - 1);
 	/* Don't overwrite CLKR with 32-bit BCR access; CLKR has 8-bit access.
 	 * All the registers are big-endian but they get byte-swapped on 32-bit
-	 * read/write (but not on 8-bit, contrary to the manuals)...
+	 * read/write (but analt on 8-bit, contrary to the manuals)...
 	 */
 	writel((bcr << 8) | priv->clock_select, &priv->regs->bcr);
 }
@@ -442,7 +442,7 @@ static void rcar_can_start(struct net_device *ndev)
 	u16 ctlr;
 	int i;
 
-	/* Set controller to known mode:
+	/* Set controller to kanalwn mode:
 	 * - FIFO mailbox mode
 	 * - accept all messages
 	 * - overrun mode
@@ -711,7 +711,7 @@ static int rcar_can_do_set_mode(struct net_device *ndev, enum can_mode mode)
 		netif_wake_queue(ndev);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -742,10 +742,10 @@ static int rcar_can_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	void __iomem *addr;
 	u32 clock_select = CLKR_CLKP1;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	int irq;
 
-	of_property_read_u32(pdev->dev.of_node, "renesas,can-clock-select",
+	of_property_read_u32(pdev->dev.of_analde, "renesas,can-clock-select",
 			     &clock_select);
 
 	irq = platform_get_irq(pdev, 0);
@@ -763,7 +763,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 	ndev = alloc_candev(sizeof(struct rcar_can_priv), RCAR_CAN_FIFO_DEPTH);
 	if (!ndev) {
 		dev_err(&pdev->dev, "alloc_candev() failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -772,7 +772,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 	priv->clk = devm_clk_get(&pdev->dev, "clkp1");
 	if (IS_ERR(priv->clk)) {
 		err = PTR_ERR(priv->clk);
-		dev_err(&pdev->dev, "cannot get peripheral clock, error %d\n",
+		dev_err(&pdev->dev, "cananalt get peripheral clock, error %d\n",
 			err);
 		goto fail_clk;
 	}
@@ -785,7 +785,7 @@ static int rcar_can_probe(struct platform_device *pdev)
 	priv->can_clk = devm_clk_get(&pdev->dev, clock_names[clock_select]);
 	if (IS_ERR(priv->can_clk)) {
 		err = PTR_ERR(priv->can_clk);
-		dev_err(&pdev->dev, "cannot get CAN clock, error %d\n", err);
+		dev_err(&pdev->dev, "cananalt get CAN clock, error %d\n", err);
 		goto fail_clk;
 	}
 

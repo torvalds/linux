@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -25,11 +25,11 @@
 
 /* binary driver only executes this path if the condition (a) is true
  * for any configuration (combination of rammap+ramcfg+timing) that
- * can be reached on a given card.  for now, we will execute the branch
+ * can be reached on a given card.  for analw, we will execute the branch
  * unconditionally in the hope that a "false everywhere" in the bios
  * tables doesn't actually mean "don't touch this".
  */
-#define NOTE00(a) 1
+#define ANALTE00(a) 1
 
 int
 nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
@@ -50,7 +50,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 		l3 = !ram->next->bios.ramcfg_11_07_02;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	switch (ram->next->bios.timing_ver) {
@@ -64,7 +64,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 		ds =  ram->next->bios.timing_20_2f_03;
 		break;
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	if (WL < 1 || WL > 7 || CL < 5 || CL > 36 || WR < 4 || WR > 35)
@@ -84,7 +84,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	ram->mr[1] |= (ds & 0x03) << 0;
 
 	/* this seems wrong, alternate field used for the broadcast
-	 * on nuts vs non-nuts configs..  meh, it matches for now.
+	 * on nuts vs analn-nuts configs..  meh, it matches for analw.
 	 */
 	ram->mr1_nuts = ram->mr[1];
 	if (nuts) {
@@ -106,7 +106,7 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	ram->mr[6] |= (vo & 0xff) << 4;
 	ram->mr[6] |= (pd & 0x01) << 0;
 
-	if (NOTE00(vr)) {
+	if (ANALTE00(vr)) {
 		ram->mr[7] &= ~0x300;
 		ram->mr[7] |= (vr & 0x03) << 8;
 	}

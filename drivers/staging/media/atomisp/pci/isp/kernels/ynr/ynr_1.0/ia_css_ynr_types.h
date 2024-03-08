@@ -17,11 +17,11 @@
 #define __IA_CSS_YNR_TYPES_H
 
 /* @file
-* CSS-API header file for Noise Reduction (BNR) and YCC Noise Reduction (YNR,CNR).
+* CSS-API header file for Analise Reduction (BNR) and YCC Analise Reduction (YNR,CNR).
 */
 
-/* Configuration used by Bayer Noise Reduction (BNR) and
- *  YCC Noise Reduction (YNR,CNR).
+/* Configuration used by Bayer Analise Reduction (BNR) and
+ *  YCC Analise Reduction (YNR,CNR).
  *
  *  ISP block: BNR1, YNR1, CNR1
  *  ISP1: BNR1,YNR1,CNR1 are used.
@@ -29,10 +29,10 @@
  *        BNR1,YNR2,CNR2 are used for Still.
  */
 struct ia_css_nr_config {
-	ia_css_u0_16 bnr_gain;	   /** Strength of noise reduction (BNR).
+	ia_css_u0_16 bnr_gain;	   /** Strength of analise reduction (BNR).
 				u0.16, [0,65535],
 				default 14336(0.21875), ineffective 0 */
-	ia_css_u0_16 ynr_gain;	   /** Strength of noise reduction (YNR).
+	ia_css_u0_16 ynr_gain;	   /** Strength of analise reduction (YNR).
 				u0.16, [0,65535],
 				default 14336(0.21875), ineffective 0 */
 	ia_css_u0_16 direction;    /** Sensitivity of edge (BNR).
@@ -61,7 +61,7 @@ struct ia_css_ee_config {
 	ia_css_u5_11 gain;	  /** The strength of sharpness.
 					u5.11, [0,65535],
 					default 8192(4.0), ineffective 0 */
-	ia_css_u8_8 threshold;    /** The threshold that divides noises from
+	ia_css_u8_8 threshold;    /** The threshold that divides analises from
 					edge.
 					u8.8, [0,65535],
 					default 256(1.0), ineffective 65535 */

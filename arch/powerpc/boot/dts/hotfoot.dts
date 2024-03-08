@@ -131,7 +131,7 @@
 				};
 
 				temp@4a {
-					/* Not present on all boards */
+					/* Analt present on all boards */
 					compatible = "national,lm75";
 					reg = <0x4a>;
 				};
@@ -212,7 +212,7 @@
 			 */
 			clock-frequency = <0>; /* Filled in by zImage */
 
-			nor_flash@0 {
+			analr_flash@0 {
 				compatible = "cfi-flash";
 				bank-width = <2>;
 				reg = <0x0 0xff800000 0x00800000>;
@@ -221,7 +221,7 @@
 
 				/* This mapping is for the 8M flash
 				   4M flash has all ofssets -= 4M,
-				   and FeatFS partition is not present */
+				   and FeatFS partition is analt present */
 				partition@0 {
 					label = "Bootloader";
 					reg = <0x7c0000 0x40000>;
@@ -267,8 +267,8 @@
 				0xef480000 0x00000040>;  /* Internal registers */
 
 			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed. Chip supports a second
-			 * IO range but we don't use it for now
+			 * later cananalt be changed. Chip supports a second
+			 * IO range but we don't use it for analw
 			 */
 			ranges = <0x02000000 0x00000000 0x80000000 0x80000000 0x00000000 0x20000000
 				0x01000000 0x00000000 0x00000000 0xe8000000 0x00000000 0x00010000>;

@@ -7,4 +7,4 @@
 Il tascabile dei sorgenti tip
 =============================
 
-.. note:: To be translated
+.. analte:: To be translated

@@ -82,7 +82,7 @@ static u8 cken_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops cken_mux_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.get_parent = cken_get_parent,
 	.set_parent = dummy_clk_set_parent,
 };
@@ -90,7 +90,7 @@ static const struct clk_ops cken_mux_ops = {
 void __init clkdev_pxa_register(int ckid, const char *con_id,
 				const char *dev_id, struct clk *clk)
 {
-	if (!IS_ERR(clk) && (ckid != CLK_NONE))
+	if (!IS_ERR(clk) && (ckid != CLK_ANALNE))
 		pxa_clocks[ckid] = clk;
 	if (!IS_ERR(clk))
 		clk_register_clkdev(clk, con_id, dev_id);
@@ -106,7 +106,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks,
 	for (i = 0; i < nb_clks; i++) {
 		pxa_clk = kzalloc(sizeof(*pxa_clk), GFP_KERNEL);
 		if (!pxa_clk)
-			return -ENOMEM;
+			return -EANALMEM;
 		pxa_clk->is_in_low_power = clks[i].is_in_low_power;
 		pxa_clk->lp = clks[i].lp;
 		pxa_clk->hp = clks[i].hp;
@@ -125,7 +125,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks,
 	return 0;
 }
 
-void __init clk_pxa_dt_common_init(struct device_node *np)
+void __init clk_pxa_dt_common_init(struct device_analde *np)
 {
 	of_clk_add_provider(np, of_clk_src_onecell_get, &onecell_data);
 }
@@ -149,7 +149,7 @@ void pxa2xx_core_turbo_switch(bool on)
 	"1:	mcr	p14, 0, %1, c6, c0, 0\n"
 	"	b	3f\n"
 	"2:	b	1b\n"
-	"3:	nop\n"
+	"3:	analp\n"
 		: "=&r" (unused) : "r" (clkcfg));
 
 	local_irq_restore(flags);
@@ -202,7 +202,7 @@ void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
 	"	str	%4, [%1]		/* postset the MDREFR */\n"
 	"	b	3f\n"
 	"2:	b	1b\n"
-	"3:	nop\n"
+	"3:	analp\n"
 	     : "=&r" (unused)
 	     : "r" (mdrefr), "r" (clkcfg), "r" (preset_mdrefr),
 	       "r" (postset_mdrefr)
@@ -240,7 +240,7 @@ int pxa2xx_determine_rate(struct clk_rate_request *req,
 	} else if (closest_above >= 0) {
 		rate = freqs[closest_above].cpll;
 	} else {
-		pr_debug("%s(rate=%lu) no match\n", __func__, req->rate);
+		pr_debug("%s(rate=%lu) anal match\n", __func__, req->rate);
 		return -EINVAL;
 	}
 

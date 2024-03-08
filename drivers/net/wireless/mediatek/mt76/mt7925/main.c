@@ -26,7 +26,7 @@ mt7925_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 		if (i < nss)
 			mcs_map |= (IEEE80211_HE_MCS_SUPPORT_0_11 << (i * 2));
 		else
-			mcs_map |= (IEEE80211_HE_MCS_NOT_SUPPORTED << (i * 2));
+			mcs_map |= (IEEE80211_HE_MCS_ANALT_SUPPORTED << (i * 2));
 	}
 
 	he_cap->has_he = true;
@@ -111,11 +111,11 @@ mt7925_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 			IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484;
 		he_cap_elem->phy_cap_info[9] |=
 			IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
-			IEEE80211_HE_PHY_CAP9_NON_TRIGGERED_CQI_FEEDBACK |
+			IEEE80211_HE_PHY_CAP9_ANALN_TRIGGERED_CQI_FEEDBACK |
 			IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU |
 			IEEE80211_HE_PHY_CAP9_RX_1024_QAM_LESS_THAN_242_TONE_RU |
 			IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_COMP_SIGB |
-			IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_NON_COMP_SIGB;
+			IEEE80211_HE_PHY_CAP9_RX_FULL_BW_SU_USING_MU_WITH_ANALN_COMP_SIGB;
 		break;
 	default:
 		break;
@@ -133,8 +133,8 @@ mt7925_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 		mt76_connac_gen_ppe_thresh(he_cap->ppe_thres, nss);
 	} else {
 		he_cap_elem->phy_cap_info[9] |=
-			u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
-				       IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_MASK);
+			u8_encode_bits(IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_16US,
+				       IEEE80211_HE_PHY_CAP9_ANALMINAL_PKT_PADDING_MASK);
 	}
 
 	if (band == NL80211_BAND_6GHZ) {
@@ -206,9 +206,9 @@ mt7925_init_eht_caps(struct mt792x_phy *phy, enum nl80211_band band,
 			       IEEE80211_EHT_PHY_CAP4_MAX_NC_MASK);
 
 	eht_cap_elem->phy_cap_info[5] =
-		IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
-		u8_encode_bits(IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_16US,
-			       IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK) |
+		IEEE80211_EHT_PHY_CAP5_ANALN_TRIG_CQI_FEEDBACK |
+		u8_encode_bits(IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_16US,
+			       IEEE80211_EHT_PHY_CAP5_COMMON_ANALMINAL_PKT_PAD_MASK) |
 		u8_encode_bits(u8_get_bits(0x11, GENMASK(1, 0)),
 			       IEEE80211_EHT_PHY_CAP5_MAX_NUM_SUPP_EHT_LTF_MASK);
 
@@ -220,8 +220,8 @@ mt7925_init_eht_caps(struct mt792x_phy *phy, enum nl80211_band band,
 		u8_encode_bits(val, IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_MASK);
 
 	eht_cap_elem->phy_cap_info[7] =
-		IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_80MHZ |
-		IEEE80211_EHT_PHY_CAP7_NON_OFDMA_UL_MU_MIMO_160MHZ |
+		IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_80MHZ |
+		IEEE80211_EHT_PHY_CAP7_ANALN_OFDMA_UL_MU_MIMO_160MHZ |
 		IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_80MHZ |
 		IEEE80211_EHT_PHY_CAP7_MU_BEAMFORMER_160MHZ;
 
@@ -330,7 +330,7 @@ mt7925_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mvif->mt76.idx = __ffs64(~dev->mt76.vif_mask);
 	if (mvif->mt76.idx >= MT792x_MAX_INTERFACES) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -489,7 +489,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	u8 *wcid_keyidx = &wcid->hw_key_idx;
 	int idx = key->keyidx, err = 0;
 
-	/* The hardware does not support per-STA RX GTK, fallback
+	/* The hardware does analt support per-STA RX GTK, fallback
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -497,7 +497,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* fall back to sw encryption for unsupported ciphers */
 	switch (key->cipher) {
@@ -508,7 +508,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (!mvif->wep_sta)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -518,7 +518,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_SMS4:
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	mt792x_mutex_acquire(dev);
@@ -763,7 +763,7 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT792x_WTBL_STA - 1);
 	if (idx < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	INIT_LIST_HEAD(&msta->wcid.poll_list);
 	msta->vif = mvif;
@@ -789,7 +789,7 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 					false);
 
 	ret = mt7925_mcu_sta_update(dev, sta, vif, true,
-				    MT76_STA_INFO_STATE_NONE);
+				    MT76_STA_INFO_STATE_ANALNE);
 	if (ret)
 		return ret;
 
@@ -833,7 +833,7 @@ void mt7925_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 
-	mt7925_mcu_sta_update(dev, sta, vif, false, MT76_STA_INFO_STATE_NONE);
+	mt7925_mcu_sta_update(dev, sta, vif, false, MT76_STA_INFO_STATE_ANALNE);
 	mt7925_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
@@ -1293,7 +1293,7 @@ mt7925_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 
 	err = mt7925_mcu_sta_update(dev, NULL, vif, true,
-				    MT76_STA_INFO_STATE_NONE);
+				    MT76_STA_INFO_STATE_ANALNE);
 out:
 	mt792x_mutex_release(dev);
 

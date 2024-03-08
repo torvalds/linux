@@ -247,19 +247,19 @@ static void __init aic5_hw_init(struct irq_domain *domain)
 
 	/*
 	 * Perform 8 End Of Interrupt Command to make sure AIC
-	 * will not Lock out nIRQ
+	 * will analt Lock out nIRQ
 	 */
 	for (i = 0; i < 8; i++)
 		irq_reg_writel(gc, 0, AT91_AIC5_EOICR);
 
 	/*
 	 * Spurious Interrupt ID in Spurious Vector Register.
-	 * When there is no current interrupt, the IRQ Vector Register
+	 * When there is anal current interrupt, the IRQ Vector Register
 	 * reads the value stored in AIC_SPU
 	 */
 	irq_reg_writel(gc, 0xffffffff, AT91_AIC5_SPU);
 
-	/* No debugging in AIC: Debug (Protect) Control Register */
+	/* Anal debugging in AIC: Debug (Protect) Control Register */
 	irq_reg_writel(gc, 0, AT91_AIC5_DCR);
 
 	/* Disable and clear all interrupts initially */
@@ -272,7 +272,7 @@ static void __init aic5_hw_init(struct irq_domain *domain)
 }
 
 static int aic5_irq_domain_xlate(struct irq_domain *d,
-				 struct device_node *ctrlr,
+				 struct device_analde *ctrlr,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_type)
@@ -323,8 +323,8 @@ static const struct of_device_id aic5_irq_fixups[] __initconst = {
 	{ /* sentinel */ },
 };
 
-static int __init aic5_of_init(struct device_node *node,
-			       struct device_node *parent,
+static int __init aic5_of_init(struct device_analde *analde,
+			       struct device_analde *parent,
 			       int nirqs)
 {
 	struct irq_chip_generic *gc;
@@ -338,7 +338,7 @@ static int __init aic5_of_init(struct device_node *node,
 	if (aic5_domain)
 		return -EEXIST;
 
-	domain = aic_common_of_init(node, &aic5_irq_ops, "atmel-aic5",
+	domain = aic_common_of_init(analde, &aic5_irq_ops, "atmel-aic5",
 				    nirqs, aic5_irq_fixups);
 	if (IS_ERR(domain))
 		return PTR_ERR(domain);
@@ -366,43 +366,43 @@ static int __init aic5_of_init(struct device_node *node,
 
 #define NR_SAMA5D2_IRQS		77
 
-static int __init sama5d2_aic5_of_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init sama5d2_aic5_of_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
 #ifdef CONFIG_PM
 	smr_cache = kcalloc(DIV_ROUND_UP(NR_SAMA5D2_IRQS, 32) * 32,
 			    sizeof(*smr_cache), GFP_KERNEL);
 	if (!smr_cache)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 
-	return aic5_of_init(node, parent, NR_SAMA5D2_IRQS);
+	return aic5_of_init(analde, parent, NR_SAMA5D2_IRQS);
 }
 IRQCHIP_DECLARE(sama5d2_aic5, "atmel,sama5d2-aic", sama5d2_aic5_of_init);
 
 #define NR_SAMA5D3_IRQS		48
 
-static int __init sama5d3_aic5_of_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init sama5d3_aic5_of_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
-	return aic5_of_init(node, parent, NR_SAMA5D3_IRQS);
+	return aic5_of_init(analde, parent, NR_SAMA5D3_IRQS);
 }
 IRQCHIP_DECLARE(sama5d3_aic5, "atmel,sama5d3-aic", sama5d3_aic5_of_init);
 
 #define NR_SAMA5D4_IRQS		68
 
-static int __init sama5d4_aic5_of_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init sama5d4_aic5_of_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
-	return aic5_of_init(node, parent, NR_SAMA5D4_IRQS);
+	return aic5_of_init(analde, parent, NR_SAMA5D4_IRQS);
 }
 IRQCHIP_DECLARE(sama5d4_aic5, "atmel,sama5d4-aic", sama5d4_aic5_of_init);
 
 #define NR_SAM9X60_IRQS		50
 
-static int __init sam9x60_aic5_of_init(struct device_node *node,
-				       struct device_node *parent)
+static int __init sam9x60_aic5_of_init(struct device_analde *analde,
+				       struct device_analde *parent)
 {
-	return aic5_of_init(node, parent, NR_SAM9X60_IRQS);
+	return aic5_of_init(analde, parent, NR_SAM9X60_IRQS);
 }
 IRQCHIP_DECLARE(sam9x60_aic5, "microchip,sam9x60-aic", sam9x60_aic5_of_init);

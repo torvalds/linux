@@ -10,12 +10,12 @@ Background
 "BPF" was originally introduced as BSD Packet Filter in
 http://www.tcpdump.org/papers/bpf-usenix93.pdf. The corresponding instruction
 set and its implementation came from BSD with BSD license. That original
-instruction set is now known as "classic BPF".
+instruction set is analw kanalwn as "classic BPF".
 
 However an instruction set is a specification for machine-language interaction,
-similar to a programming language.  It is not a code. Therefore, the
+similar to a programming language.  It is analt a code. Therefore, the
 application of a BSD license may be misleading in a certain context, as the
-instruction set may enjoy no copyright protection.
+instruction set may enjoy anal copyright protection.
 
 * eBPF (extended BPF) instruction set continues to be BSD
 
@@ -70,7 +70,7 @@ intends to use. If any function is marked as "GPL only," the corresponding
 module or program has to have GPL compatible license.
 
 Loading BPF program into the Linux kernel is similar to loading a kernel
-module. BPF is loaded at run time and not statically linked to the Linux
+module. BPF is loaded at run time and analt statically linked to the Linux
 kernel. BPF program loading follows the same license checking rules as kernel
 modules. BPF programs can be proprietary if they don't use "GPL only" BPF
 helper functions.
@@ -82,7 +82,7 @@ registration step of LSM and TCP congestion control modules of the Linux
 kernel is done through EXPORT_SYMBOL_GPL kernel functions. In that sense LSM
 and struct_ops BPF programs are implicitly calling "GPL only" functions.
 The same restriction applies to BPF programs that call kernel functions
-directly via unstable interface also known as "kfunc".
+directly via unstable interface also kanalwn as "kfunc".
 
 Packaging BPF programs with user space applications
 ====================================================

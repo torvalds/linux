@@ -5,7 +5,7 @@ utrap_trap:		/* %g3=handler,%g4=level */
 	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	ldx		[%g6 + TI_UTRAPS], %g1
 	brnz,pt		%g1, invoke_utrap
-	 nop
+	 analp
 
 	ba,pt		%xcc, etrap
 	 rd		%pc, %g7

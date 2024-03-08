@@ -50,7 +50,7 @@ static DEFINE_SPINLOCK(zpci_domain_lock);
 	min(((unsigned long) ZPCI_NR_DEVICES * PCI_STD_NUM_BARS / 2),	\
 	    ZPCI_IOMAP_MAX_ENTRIES)
 
-unsigned int s390_pci_no_rid;
+unsigned int s390_pci_anal_rid;
 
 static DEFINE_SPINLOCK(zpci_iomap_lock);
 static unsigned long *zpci_iomap_bitmap;
@@ -166,7 +166,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 
 	zdev->fmb = kmem_cache_zalloc(zdev_fmb_cache, GFP_KERNEL);
 	if (!zdev->fmb)
-		return -ENOMEM;
+		return -EANALMEM;
 	WARN_ON((u64) zdev->fmb & 0xf);
 
 	/* reset software counters */
@@ -389,7 +389,7 @@ static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
-	return (zdev) ? zpci_cfg_load(zdev, where, val, size) : -ENODEV;
+	return (zdev) ? zpci_cfg_load(zdev, where, val, size) : -EANALDEV;
 }
 
 static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
@@ -397,7 +397,7 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
-	return (zdev) ? zpci_cfg_store(zdev, where, val, size) : -ENODEV;
+	return (zdev) ? zpci_cfg_store(zdev, where, val, size) : -EANALDEV;
 }
 
 static struct pci_ops pci_root_ops = {
@@ -454,7 +454,7 @@ static int zpci_alloc_iomap(struct zpci_dev *zdev)
 	entry = find_first_zero_bit(zpci_iomap_bitmap, ZPCI_IOMAP_ENTRIES);
 	if (entry == ZPCI_IOMAP_ENTRIES) {
 		spin_unlock(&zpci_iomap_lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	set_bit(entry, zpci_iomap_bitmap);
 	spin_unlock(&zpci_iomap_lock);
@@ -551,7 +551,7 @@ int zpci_setup_bus_resources(struct zpci_dev *zdev)
 		res = __alloc_res(zdev, addr, size, flags);
 		if (!res) {
 			zpci_free_iomap(zdev, entry);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		zdev->bars[i].res = res;
 	}
@@ -590,7 +590,7 @@ int pcibios_device_add(struct pci_dev *pdev)
 	/* The pdev has a reference to the zdev via its bus */
 	zpci_zdev_get(zdev);
 	if (pdev->is_physfn)
-		pdev->no_vf_scan = 1;
+		pdev->anal_vf_scan = 1;
 
 	pdev->dev.groups = zpci_attr_groups;
 	zpci_map_resources(pdev);
@@ -665,7 +665,7 @@ int zpci_alloc_domain(int domain)
 	if (zpci_unique_uid) {
 		if (domain)
 			return __zpci_register_domain(domain);
-		pr_warn("UID checking was active but no UID is provided: switching to automatic domain allocation\n");
+		pr_warn("UID checking was active but anal UID is provided: switching to automatic domain allocation\n");
 		update_uid_checking(false);
 	}
 	return __zpci_alloc_domain();
@@ -701,7 +701,7 @@ int zpci_disable_device(struct zpci_dev *zdev)
 	if (!cc) {
 		zpci_update_fh(zdev, fh);
 	} else if (cc == CLP_RC_SETPCIFN_ALRDY) {
-		pr_info("Disabling PCI function %08x had no effect as it was already disabled\n",
+		pr_info("Disabling PCI function %08x had anal effect as it was already disabled\n",
 			zdev->fid);
 		/* Function is already disabled - update handle */
 		rc = clp_refresh_fh(zdev->fid, &fh);
@@ -733,7 +733,7 @@ EXPORT_SYMBOL_GPL(zpci_disable_device);
  * and enabling the function via e.g.pci_enablde_device_flags().The caller
  * must guard against concurrent reset attempts.
  *
- * In most cases this function should not be called directly but through
+ * In most cases this function should analt be called directly but through
  * pci_reset_function() or pci_reset_bus() which handle the save/restore and
  * locking.
  *
@@ -793,7 +793,7 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	zpci_dbg(1, "add fid:%x, fh:%x, c:%d\n", fid, fh, state);
 	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
 	if (!zdev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* FID and Function Handle are the static/dynamic identifiers */
 	zdev->fid = fid;
@@ -860,7 +860,7 @@ int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh)
  * zpci_deconfigure_device() - Deconfigure a zpci_dev
  * @zdev: The zpci_dev to configure
  *
- * Deconfigure a zPCI function that is currently configured and possibly known
+ * Deconfigure a zPCI function that is currently configured and possibly kanalwn
  * to the common code PCI subsystem.
  * If any failure occurs the device is left as is.
  *
@@ -892,10 +892,10 @@ int zpci_deconfigure_device(struct zpci_dev *zdev)
  * zpci_device_reserved() - Mark device as resverved
  * @zdev: the zpci_dev that was reserved
  *
- * Handle the case that a given zPCI function was reserved by another system.
- * After a call to this function the zpci_dev can not be found via
+ * Handle the case that a given zPCI function was reserved by aanalther system.
+ * After a call to this function the zpci_dev can analt be found via
  * get_zdev_by_fid() anymore but may still be accessible via existing
- * references though it will not be functional anymore.
+ * references though it will analt be functional anymore.
  */
 void zpci_device_reserved(struct zpci_dev *zdev)
 {
@@ -903,7 +903,7 @@ void zpci_device_reserved(struct zpci_dev *zdev)
 		zpci_exit_slot(zdev);
 	/*
 	 * Remove device from zpci_list as it is going away. This also
-	 * makes sure we ignore subsequent zPCI events for this device.
+	 * makes sure we iganalre subsequent zPCI events for this device.
 	 */
 	spin_lock(&zpci_list_lock);
 	list_del(&zdev->entry);
@@ -1014,11 +1014,11 @@ int zpci_reset_load_store_blocked(struct zpci_dev *zdev)
 
 static int zpci_mem_init(void)
 {
-	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
-		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
+	BUILD_BUG_ON(!is_power_of_2(__aliganalf__(struct zpci_fmb)) ||
+		     __aliganalf__(struct zpci_fmb) < sizeof(struct zpci_fmb));
 
 	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
-					   __alignof__(struct zpci_fmb), 0, NULL);
+					   __aliganalf__(struct zpci_fmb), 0, NULL);
 	if (!zdev_fmb_cache)
 		goto error_fmb;
 
@@ -1041,7 +1041,7 @@ error_iomap_bitmap:
 error_iomap:
 	kmem_cache_destroy(zdev_fmb_cache);
 error_fmb:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void zpci_mem_exit(void)
@@ -1061,7 +1061,7 @@ char * __init pcibios_setup(char *str)
 		s390_pci_probe = 0;
 		return NULL;
 	}
-	if (!strcmp(str, "nomio")) {
+	if (!strcmp(str, "analmio")) {
 		S390_lowcore.machine_flags &= ~MACHINE_FLAG_PCI_MIO;
 		return NULL;
 	}
@@ -1069,8 +1069,8 @@ char * __init pcibios_setup(char *str)
 		s390_pci_force_floating = 1;
 		return NULL;
 	}
-	if (!strcmp(str, "norid")) {
-		s390_pci_no_rid = 1;
+	if (!strcmp(str, "analrid")) {
+		s390_pci_anal_rid = 1;
 		return NULL;
 	}
 	return str;
@@ -1089,7 +1089,7 @@ static int __init pci_base_init(void)
 		return 0;
 
 	if (!test_facility(69) || !test_facility(71)) {
-		pr_info("PCI is not supported because CPU facilities 69 or 71 are not available\n");
+		pr_info("PCI is analt supported because CPU facilities 69 or 71 are analt available\n");
 		return 0;
 	}
 

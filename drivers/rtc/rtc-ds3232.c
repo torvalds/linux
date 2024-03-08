@@ -176,7 +176,7 @@ static int ds3232_set_time(struct device *dev, struct rtc_time *time)
 /*
  * DS3232 has two alarm, we only use alarm1
  * According to linux specification, only support one-shot alarm
- * no periodic alarm mode
+ * anal periodic alarm mode
  */
 static int ds3232_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
@@ -209,7 +209,7 @@ out:
 }
 
 /*
- * linux rtc-module does not support wday alarm
+ * linux rtc-module does analt support wday alarm
  * and only 24h time mode supported indeed
  */
 static int ds3232_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -280,7 +280,7 @@ static int ds3232_update_alarm(struct device *dev, unsigned int enabled)
 
 /*
  * Temperature sensor support for ds3232/ds3234 devices.
- * A user-initiated temperature conversion is not started by this function,
+ * A user-initiated temperature conversion is analt started by this function,
  * so the temperature is updated once every 64 seconds.
  */
 static int ds3232_hwmon_read_temp(struct device *dev, long int *mC)
@@ -332,7 +332,7 @@ static int ds3232_hwmon_read(struct device *dev,
 		err = ds3232_hwmon_read_temp(dev, temp);
 		break;
 	default:
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		break;
 	}
 
@@ -496,7 +496,7 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	ds3232 = devm_kzalloc(dev, sizeof(*ds3232), GFP_KERNEL);
 	if (!ds3232)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ds3232->regmap = regmap;
 	ds3232->irq = irq;
@@ -545,7 +545,7 @@ static int ds3232_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev)) {
 		if (enable_irq_wake(ds3232->irq))
-			dev_warn_once(dev, "Cannot set wakeup source\n");
+			dev_warn_once(dev, "Cananalt set wakeup source\n");
 	}
 
 	return 0;

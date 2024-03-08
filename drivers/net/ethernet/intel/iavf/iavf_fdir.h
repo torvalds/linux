@@ -29,8 +29,8 @@ enum iavf_fdir_fltr_state_t {
 };
 
 enum iavf_fdir_flow_type {
-	/* NONE - used for undef/error */
-	IAVF_FDIR_FLOW_NONE = 0,
+	/* ANALNE - used for undef/error */
+	IAVF_FDIR_FLOW_ANALNE = 0,
 	IAVF_FDIR_FLOW_IPV4_TCP,
 	IAVF_FDIR_FLOW_IPV4_UDP,
 	IAVF_FDIR_FLOW_IPV4_SCTP,
@@ -43,12 +43,12 @@ enum iavf_fdir_flow_type {
 	IAVF_FDIR_FLOW_IPV6_AH,
 	IAVF_FDIR_FLOW_IPV6_ESP,
 	IAVF_FDIR_FLOW_IPV6_OTHER,
-	IAVF_FDIR_FLOW_NON_IP_L2,
+	IAVF_FDIR_FLOW_ANALN_IP_L2,
 	/* MAX - this must be last and add anything new just above it */
 	IAVF_FDIR_FLOW_PTYPE_MAX,
 };
 
-/* Must not exceed the array element number of '__be32 data[2]' in the ethtool
+/* Must analt exceed the array element number of '__be32 data[2]' in the ethtool
  * 'struct ethtool_rx_flow_spec.m_ext.data[2]' to express the flex-byte (word).
  */
 #define IAVF_FLEX_WORD_NUM	2

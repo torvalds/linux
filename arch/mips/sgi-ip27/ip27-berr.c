@@ -39,7 +39,7 @@ static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 	st1.pi_stat1_word = errst1;
 
 	if (!st0.pi_stat0_fmt.s0_valid) {
-		pr_info("Hub does not contain valid error information\n");
+		pr_info("Hub does analt contain valid error information\n");
 		return;
 	}
 

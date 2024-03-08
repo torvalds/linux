@@ -244,7 +244,7 @@
 			#size-cells = <0>;
 			reg = <6>;
 			/*
-			 * Not Connected
+			 * Analt Connected
 			 */
 		};
 		i2csw_7: i2c@7 {
@@ -491,10 +491,10 @@
 	status = "okay";
 };
 
-/* SD0 only supports 3.3V, no level shifter */
+/* SD0 only supports 3.3V, anal level shifter */
 &sdhci0 {
 	status = "okay";
-	no-1-8-v;
+	anal-1-8-v;
 	disable-wp;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci0_default>;
@@ -507,7 +507,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci1_default>;
 	xlnx,mio-bank = <0>;
-	non-removable;
+	analn-removable;
 	disable-wp;
 	cap-power-off-card;
 	mmc-pwrseq = <&sdio_pwrseq>;

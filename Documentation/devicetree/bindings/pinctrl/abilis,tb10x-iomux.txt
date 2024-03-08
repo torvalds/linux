@@ -12,13 +12,13 @@ Required properties
 Function definitions
 --------------------
 
-Functions are defined (and referenced) by sub-nodes of the pin controller.
-Every sub-node defines exactly one function (implying a set of pins).
+Functions are defined (and referenced) by sub-analdes of the pin controller.
+Every sub-analde defines exactly one function (implying a set of pins).
 Every function is associated to one named pin group inside the pin controller
 driver and these names are used to associate pin group predefinitions to pin
-controller sub-nodes.
+controller sub-analdes.
 
-Required function definition subnode properties:
+Required function definition subanalde properties:
   - abilis,function: should be set to the name of the function's pin group.
 
 The following pin groups are available:
@@ -35,7 +35,7 @@ The following pin groups are available:
   - SPI ports: spi1, spi3
   - JTAG: jtag
 
-All other ports of the chip are not multiplexed and thus not managed by this
+All other ports of the chip are analt multiplexed and thus analt managed by this
 driver.
 
 

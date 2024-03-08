@@ -4,7 +4,7 @@
  *
  * Xen platform PCI device driver
  *
- * Authors: ssmith@xensource.com and stefano.stabellini@eu.citrix.com
+ * Authors: ssmith@xensource.com and stefaanal.stabellini@eu.citrix.com
  *
  * Copyright (c) 2005, Intel Corporation.
  * Copyright (c) 2007, XenSource Inc.
@@ -53,7 +53,7 @@ static uint64_t get_callback_via(struct pci_dev *pdev)
 
 	pin = pdev->pin;
 
-	/* We don't know the GSI. Specify the PCI INTx line instead. */
+	/* We don't kanalw the GSI. Specify the PCI INTx line instead. */
 	return ((uint64_t)HVM_PARAM_CALLBACK_TYPE_PCI_INTX <<
 			  HVM_CALLBACK_VIA_TYPE_SHIFT) |
 		((uint64_t)pci_domain_nr(pdev->bus) << 32) |
@@ -70,7 +70,7 @@ static irqreturn_t do_hvm_evtchn_intr(int irq, void *dev_id)
 static int xen_allocate_irq(struct pci_dev *pdev)
 {
 	return request_irq(pdev->irq, do_hvm_evtchn_intr,
-			IRQF_NOBALANCING | IRQF_SHARED,
+			IRQF_ANALBALANCING | IRQF_SHARED,
 			"xen-platform-pci", pdev);
 }
 
@@ -99,7 +99,7 @@ static int platform_pci_probe(struct pci_dev *pdev,
 	unsigned long grant_frames;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	i = pci_enable_device(pdev);
 	if (i)
@@ -111,8 +111,8 @@ static int platform_pci_probe(struct pci_dev *pdev,
 	mmio_len = pci_resource_len(pdev, 1);
 
 	if (mmio_addr == 0 || ioaddr == 0) {
-		dev_err(&pdev->dev, "no resources found\n");
-		ret = -ENOENT;
+		dev_err(&pdev->dev, "anal resources found\n");
+		ret = -EANALENT;
 		goto pci_out;
 	}
 
@@ -178,7 +178,7 @@ static const struct pci_device_id platform_pci_tbl[] = {
 };
 
 static const struct dev_pm_ops platform_pm_ops = {
-	.resume_noirq =   platform_pci_resume,
+	.resume_analirq =   platform_pci_resume,
 };
 
 static struct pci_driver platform_driver = {

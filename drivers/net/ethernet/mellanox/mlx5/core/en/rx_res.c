@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2021, Mellanox Technologies inc. All rights reserved. */
+/* Copyright (c) 2021, Mellaanalx Techanallogies inc. All rights reserved. */
 
 #include "rx_res.h"
 #include "channels.h"
@@ -76,10 +76,10 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int i
 			break;
 
 	if (i == MLX5E_MAX_NUM_RSS)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
-			     &res->pkt_merge_param, MLX5E_RSS_INIT_NO_TIRS, init_nch,
+			     &res->pkt_merge_param, MLX5E_RSS_INIT_ANAL_TIRS, init_nch,
 			     res->max_nch);
 	if (IS_ERR(rss))
 		return PTR_ERR(rss);
@@ -175,7 +175,7 @@ static void mlx5e_rx_res_rss_disable(struct mlx5e_rx_res *res)
 	}
 }
 
-/* Updates the indirection table SW shadow, does not update the HW resources yet */
+/* Updates the indirection table SW shadow, does analt update the HW resources yet */
 void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int nch)
 {
 	WARN_ON_ONCE(res->rss_active);
@@ -192,7 +192,7 @@ int mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
 
 	rss = res->rss[rss_idx];
 	if (!rss)
-		return -ENOENT;
+		return -EANALENT;
 
 	return mlx5e_rss_get_rxfh(rss, indir, key, hfunc);
 }
@@ -207,7 +207,7 @@ int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
 
 	rss = res->rss[rss_idx];
 	if (!rss)
-		return -ENOENT;
+		return -EANALENT;
 
 	return mlx5e_rss_set_rxfh(rss, indir, key, hfunc, res->rss_rqns, res->rss_nch);
 }
@@ -222,7 +222,7 @@ int mlx5e_rx_res_rss_get_hash_fields(struct mlx5e_rx_res *res, u32 rss_idx,
 
 	rss = res->rss[rss_idx];
 	if (!rss)
-		return -ENOENT;
+		return -EANALENT;
 
 	return mlx5e_rss_get_hash_fields(rss, tt);
 }
@@ -237,7 +237,7 @@ int mlx5e_rx_res_rss_set_hash_fields(struct mlx5e_rx_res *res, u32 rss_idx,
 
 	rss = res->rss[rss_idx];
 	if (!rss)
-		return -ENOENT;
+		return -EANALENT;
 
 	return mlx5e_rss_set_hash_fields(rss, tt, rx_hash_fields);
 }
@@ -265,7 +265,7 @@ int mlx5e_rx_res_rss_index(struct mlx5e_rx_res *res, struct mlx5e_rss *rss)
 		if (rss == res->rss[i])
 			return i;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 struct mlx5e_rss *mlx5e_rx_res_rss_get(struct mlx5e_rx_res *res, u32 rss_idx)
@@ -310,11 +310,11 @@ static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res->channels = kvcalloc(res->max_nch, sizeof(*res->channels), GFP_KERNEL);
 	if (!res->channels) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -373,14 +373,14 @@ static int mlx5e_rx_res_ptp_init(struct mlx5e_rx_res *res)
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = mlx5e_rqt_init_direct(&res->ptp.rqt, res->mdev, false, res->drop_rqn,
 				    mlx5e_rqt_size(res->mdev, res->max_nch));
 	if (err)
 		goto out;
 
-	/* Separated from the channels RQs, does not share pkt_merge state with them */
+	/* Separated from the channels RQs, does analt share pkt_merge state with them */
 	mlx5e_tir_builder_build_rqt(builder, res->mdev->mlx5e_res.hw_objs.td.tdn,
 				    mlx5e_rqt_get_rqtn(&res->ptp.rqt),
 				    inner_ft_support);
@@ -429,7 +429,7 @@ mlx5e_rx_res_create(struct mlx5_core_dev *mdev, enum mlx5e_rx_res_features featu
 
 	res = mlx5e_rx_res_alloc(mdev, max_nch);
 	if (!res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	res->mdev = mdev;
 	res->features = features;
@@ -603,7 +603,7 @@ int mlx5e_rx_res_packet_merge_set_param(struct mlx5e_rx_res *res,
 
 	builder = mlx5e_tir_builder_alloc(true);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	down_write(&res->pkt_merge_param_sem);
 	res->pkt_merge_param = *pkt_merge_param;
@@ -653,7 +653,7 @@ int mlx5e_rx_res_tls_tir_create(struct mlx5e_rx_res *res, unsigned int rxq,
 
 	builder = mlx5e_tir_builder_alloc(false);
 	if (!builder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rqtn = mlx5e_rx_res_get_rqtn_direct(res, rxq);
 

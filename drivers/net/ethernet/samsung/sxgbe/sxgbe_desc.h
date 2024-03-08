@@ -18,12 +18,12 @@ struct sxgbe_extra_stats;
 enum tdes_csum_insertion {
 	cic_disabled		= 0,	/* Checksum Insertion Control */
 	cic_only_ip		= 1,	/* Only IP header */
-	/* IP header but pseudoheader is not calculated */
-	cic_no_pseudoheader	= 2,
+	/* IP header but pseudoheader is analt calculated */
+	cic_anal_pseudoheader	= 2,
 	cic_full		= 3,	/* IP header and pseudoheader */
 };
 
-struct sxgbe_tx_norm_desc {
+struct sxgbe_tx_analrm_desc {
 	u64 tdes01; /* buf1 address */
 	union {
 		/* TX Read-Format Desc 2,3 */
@@ -65,7 +65,7 @@ struct sxgbe_tx_norm_desc {
 	} tdes23;
 };
 
-struct sxgbe_rx_norm_desc {
+struct sxgbe_rx_analrm_desc {
 	union {
 		u64 rdes01; /* buf1 address */
 		union {
@@ -108,7 +108,7 @@ struct sxgbe_rx_norm_desc {
 			u32 err_summary:1;
 			u32 err_l2_type:4;
 			u32 layer34_pkt_type:4;
-			u32 no_coagulation_pkt:1;
+			u32 anal_coagulation_pkt:1;
 			u32 in_seq_pkt:1;
 			u32 rss_valid:1;
 			u32 context_des_avail:1;
@@ -156,48 +156,48 @@ struct sxgbe_rx_ctxt_desc {
 
 struct sxgbe_desc_ops {
 	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc)(struct sxgbe_tx_norm_desc *p);
+	void (*init_tx_desc)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Invoked by the xmit function to prepare the tx descriptor */
-	void (*tx_desc_enable_tse)(struct sxgbe_tx_norm_desc *p, u8 is_tse,
+	void (*tx_desc_enable_tse)(struct sxgbe_tx_analrm_desc *p, u8 is_tse,
 				   u32 total_hdr_len, u32 tcp_hdr_len,
 				   u32 tcp_payload_len);
 
 	/* Assign buffer lengths for descriptor */
-	void (*prepare_tx_desc)(struct sxgbe_tx_norm_desc *p, u8 is_fd,
+	void (*prepare_tx_desc)(struct sxgbe_tx_analrm_desc *p, u8 is_fd,
 				int buf1_len, int pkt_len, int cksum);
 
 	/* Set VLAN control information */
-	void (*tx_vlanctl_desc)(struct sxgbe_tx_norm_desc *p, int vlan_ctl);
+	void (*tx_vlanctl_desc)(struct sxgbe_tx_analrm_desc *p, int vlan_ctl);
 
 	/* Set the owner of the descriptor */
-	void (*set_tx_owner)(struct sxgbe_tx_norm_desc *p);
+	void (*set_tx_owner)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Get the owner of the descriptor */
-	int (*get_tx_owner)(struct sxgbe_tx_norm_desc *p);
+	int (*get_tx_owner)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Invoked by the xmit function to close the tx descriptor */
-	void (*close_tx_desc)(struct sxgbe_tx_norm_desc *p);
+	void (*close_tx_desc)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Clean the tx descriptor as soon as the tx irq is received */
-	void (*release_tx_desc)(struct sxgbe_tx_norm_desc *p);
+	void (*release_tx_desc)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Clear interrupt on tx frame completion. When this bit is
 	 * set an interrupt happens as soon as the frame is transmitted
 	 */
-	void (*clear_tx_ic)(struct sxgbe_tx_norm_desc *p);
+	void (*clear_tx_ic)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Last tx segment reports the transmit status */
-	int (*get_tx_ls)(struct sxgbe_tx_norm_desc *p);
+	int (*get_tx_ls)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Get the buffer size from the descriptor */
-	int (*get_tx_len)(struct sxgbe_tx_norm_desc *p);
+	int (*get_tx_len)(struct sxgbe_tx_analrm_desc *p);
 
 	/* Set tx timestamp enable bit */
-	void (*tx_enable_tstamp)(struct sxgbe_tx_norm_desc *p);
+	void (*tx_enable_tstamp)(struct sxgbe_tx_analrm_desc *p);
 
 	/* get tx timestamp status */
-	int (*get_tx_timestamp_status)(struct sxgbe_tx_norm_desc *p);
+	int (*get_tx_timestamp_status)(struct sxgbe_tx_analrm_desc *p);
 
 	/* TX Context Descripto Specific */
 	void (*tx_ctxt_desc_set_ctxt)(struct sxgbe_tx_ctxt_desc *p);
@@ -246,29 +246,29 @@ struct sxgbe_desc_ops {
 	int (*get_tx_ctxt_cde)(struct sxgbe_tx_ctxt_desc *p);
 
 	/* DMA RX descriptor ring initialization */
-	void (*init_rx_desc)(struct sxgbe_rx_norm_desc *p, int disable_rx_ic,
+	void (*init_rx_desc)(struct sxgbe_rx_analrm_desc *p, int disable_rx_ic,
 			     int mode, int end);
 
 	/* Get own bit */
-	int (*get_rx_owner)(struct sxgbe_rx_norm_desc *p);
+	int (*get_rx_owner)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Set own bit */
-	void (*set_rx_owner)(struct sxgbe_rx_norm_desc *p);
+	void (*set_rx_owner)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Set Interrupt on completion bit */
-	void (*set_rx_int_on_com)(struct sxgbe_rx_norm_desc *p);
+	void (*set_rx_int_on_com)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Get the receive frame size */
-	int (*get_rx_frame_len)(struct sxgbe_rx_norm_desc *p);
+	int (*get_rx_frame_len)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Return first Descriptor status */
-	int (*get_rx_fd_status)(struct sxgbe_rx_norm_desc *p);
+	int (*get_rx_fd_status)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Return first Descriptor status */
-	int (*get_rx_ld_status)(struct sxgbe_rx_norm_desc *p);
+	int (*get_rx_ld_status)(struct sxgbe_rx_analrm_desc *p);
 
 	/* Return the reception status looking at the RDES1 */
-	int (*rx_wbstatus)(struct sxgbe_rx_norm_desc *p,
+	int (*rx_wbstatus)(struct sxgbe_rx_analrm_desc *p,
 			   struct sxgbe_extra_stats *x, int *checksum);
 
 	/* Get own bit */

@@ -509,8 +509,8 @@
 		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
-		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
-			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		interrupts = <0 IRQ_TYPE_ANALNE>, /* fifoevent */
+			     <1 IRQ_TYPE_ANALNE>;	/* termcount */
 		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		ti,nand-xfer-type = "prefetch-dma";
 		ti,nand-ecc-opt = "bch8";
@@ -744,7 +744,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins &wlan_pins>;
-	non-removable;
+	analn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 

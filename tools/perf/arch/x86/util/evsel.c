@@ -25,11 +25,11 @@ bool evsel__sys_has_perf_metrics(const struct evsel *evsel)
 
 	/*
 	 * The PERF_TYPE_RAW type is the core PMU type, e.g., "cpu" PMU
-	 * on a non-hybrid machine, "cpu_core" PMU on a hybrid machine.
+	 * on a analn-hybrid machine, "cpu_core" PMU on a hybrid machine.
 	 * The slots event is only available for the core PMU, which
 	 * supports the perf metrics feature.
 	 * Checking both the PERF_TYPE_RAW type and the slots event
-	 * should be good enough to detect the perf metrics feature.
+	 * should be good eanalugh to detect the perf metrics feature.
 	 */
 	if ((evsel->core.attr.type == PERF_TYPE_RAW) &&
 	    perf_pmus__have_event(pmu_name, "slots"))
@@ -56,9 +56,9 @@ int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 	if (event < PERF_COUNT_HW_MAX && evsel__hw_names[event])
 		event_name = evsel__hw_names[event];
 	else
-		event_name = "unknown-hardware";
+		event_name = "unkanalwn-hardware";
 
-	/* The PMU type is not required for the non-hybrid platform. */
+	/* The PMU type is analt required for the analn-hybrid platform. */
 	if (!pmu)
 		return  scnprintf(bf, size, "%s", event_name);
 
@@ -71,7 +71,7 @@ static void ibs_l3miss_warn(void)
 {
 	pr_warning(
 "WARNING: Hw internally resets sampling period when L3 Miss Filtering is enabled\n"
-"and tagged operation does not cause L3 Miss. This causes sampling period skew.\n");
+"and tagged operation does analt cause L3 Miss. This causes sampling period skew.\n");
 }
 
 void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr)

@@ -196,7 +196,7 @@
 	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_vcc_io>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

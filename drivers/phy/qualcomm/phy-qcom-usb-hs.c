@@ -11,7 +11,7 @@
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
 #include <linux/extcon.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define ULPI_PWR_CLK_MNG_REG		0x88
 # define ULPI_PWR_OTG_COMP_DISABLE	BIT(0)
@@ -36,7 +36,7 @@ struct qcom_usb_hs_phy {
 	struct reset_control *reset;
 	struct ulpi_seq *init_seq;
 	struct extcon_dev *vbus_edev;
-	struct notifier_block vbus_notify;
+	struct analtifier_block vbus_analtify;
 };
 
 static int qcom_usb_hs_phy_set_mode(struct phy *phy,
@@ -89,13 +89,13 @@ static int qcom_usb_hs_phy_set_mode(struct phy *phy,
 }
 
 static int
-qcom_usb_hs_phy_vbus_notifier(struct notifier_block *nb, unsigned long event,
+qcom_usb_hs_phy_vbus_analtifier(struct analtifier_block *nb, unsigned long event,
 			      void *ptr)
 {
 	struct qcom_usb_hs_phy *uphy;
 	u8 addr;
 
-	uphy = container_of(nb, struct qcom_usb_hs_phy, vbus_notify);
+	uphy = container_of(nb, struct qcom_usb_hs_phy, vbus_analtify);
 
 	if (event)
 		addr = ULPI_SET(ULPI_MISC_A);
@@ -157,10 +157,10 @@ static int qcom_usb_hs_phy_power_on(struct phy *phy)
 	if (uphy->vbus_edev) {
 		state = extcon_get_state(uphy->vbus_edev, EXTCON_USB);
 		/* setup initial state */
-		qcom_usb_hs_phy_vbus_notifier(&uphy->vbus_notify, state,
+		qcom_usb_hs_phy_vbus_analtifier(&uphy->vbus_analtify, state,
 					      uphy->vbus_edev);
-		ret = extcon_register_notifier(uphy->vbus_edev, EXTCON_USB,
-					       &uphy->vbus_notify);
+		ret = extcon_register_analtifier(uphy->vbus_edev, EXTCON_USB,
+					       &uphy->vbus_analtify);
 		if (ret)
 			goto err_ulpi;
 	}
@@ -182,8 +182,8 @@ static int qcom_usb_hs_phy_power_off(struct phy *phy)
 	struct qcom_usb_hs_phy *uphy = phy_get_drvdata(phy);
 
 	if (uphy->vbus_edev)
-		extcon_unregister_notifier(uphy->vbus_edev, EXTCON_USB,
-					   &uphy->vbus_notify);
+		extcon_unregister_analtifier(uphy->vbus_edev, EXTCON_USB,
+					   &uphy->vbus_analtify);
 	regulator_disable(uphy->v3p3);
 	regulator_disable(uphy->v1p8);
 	clk_disable_unprepare(uphy->sleep_clk);
@@ -211,18 +211,18 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 
 	uphy = devm_kzalloc(&ulpi->dev, sizeof(*uphy), GFP_KERNEL);
 	if (!uphy)
-		return -ENOMEM;
+		return -EANALMEM;
 	ulpi_set_drvdata(ulpi, uphy);
 	uphy->ulpi = ulpi;
 
-	size = of_property_count_u8_elems(ulpi->dev.of_node, "qcom,init-seq");
+	size = of_property_count_u8_elems(ulpi->dev.of_analde, "qcom,init-seq");
 	if (size < 0)
 		size = 0;
 	uphy->init_seq = devm_kmalloc_array(&ulpi->dev, (size / 2) + 1,
 					   sizeof(*uphy->init_seq), GFP_KERNEL);
 	if (!uphy->init_seq)
-		return -ENOMEM;
-	ret = of_property_read_u8_array(ulpi->dev.of_node, "qcom,init-seq",
+		return -EANALMEM;
+	ret = of_property_read_u8_array(ulpi->dev.of_analde, "qcom,init-seq",
 					(u8 *)uphy->init_seq, size);
 	if (ret && size)
 		return ret;
@@ -252,19 +252,19 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 		uphy->reset = NULL;
 	}
 
-	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_node,
+	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_analde,
 				    &qcom_usb_hs_phy_ops);
 	if (IS_ERR(uphy->phy))
 		return PTR_ERR(uphy->phy);
 
 	uphy->vbus_edev = extcon_get_edev_by_phandle(&ulpi->dev, 0);
 	if (IS_ERR(uphy->vbus_edev)) {
-		if (PTR_ERR(uphy->vbus_edev) != -ENODEV)
+		if (PTR_ERR(uphy->vbus_edev) != -EANALDEV)
 			return PTR_ERR(uphy->vbus_edev);
 		uphy->vbus_edev = NULL;
 	}
 
-	uphy->vbus_notify.notifier_call = qcom_usb_hs_phy_vbus_notifier;
+	uphy->vbus_analtify.analtifier_call = qcom_usb_hs_phy_vbus_analtifier;
 	phy_set_drvdata(uphy->phy, uphy);
 
 	p = devm_of_phy_provider_register(&ulpi->dev, of_phy_simple_xlate);

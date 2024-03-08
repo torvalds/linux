@@ -176,7 +176,7 @@ tegra_powergate_add(struct tegra_bpmp *bpmp,
 
 	powergate = devm_kzalloc(bpmp->dev, sizeof(*powergate), GFP_KERNEL);
 	if (!powergate)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	powergate->id = info->id;
 	powergate->bpmp = bpmp;
@@ -227,7 +227,7 @@ tegra_bpmp_probe_powergates(struct tegra_bpmp *bpmp,
 
 	powergates = kcalloc(max_id + 1, sizeof(*powergates), GFP_KERNEL);
 	if (!powergates)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (id = 0; id <= max_id; id++) {
 		struct tegra_powergate_info *info = &powergates[count];
@@ -261,7 +261,7 @@ static int tegra_bpmp_add_powergates(struct tegra_bpmp *bpmp,
 
 	domains = kcalloc(count, sizeof(*domains), GFP_KERNEL);
 	if (!domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		powergate = tegra_powergate_add(bpmp, &powergates[i]);
@@ -307,7 +307,7 @@ static void tegra_bpmp_remove_powergates(struct tegra_bpmp *bpmp)
 static struct generic_pm_domain *
 tegra_powergate_xlate(struct of_phandle_args *spec, void *data)
 {
-	struct generic_pm_domain *domain = ERR_PTR(-ENOENT);
+	struct generic_pm_domain *domain = ERR_PTR(-EANALENT);
 	struct genpd_onecell_data *genpd = data;
 	unsigned int i;
 
@@ -326,7 +326,7 @@ tegra_powergate_xlate(struct of_phandle_args *spec, void *data)
 
 int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
 {
-	struct device_node *np = bpmp->dev->of_node;
+	struct device_analde *np = bpmp->dev->of_analde;
 	struct tegra_powergate_info *powergates;
 	struct device *dev = bpmp->dev;
 	unsigned int count, i;

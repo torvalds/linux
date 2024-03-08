@@ -25,7 +25,7 @@ properties:
 
   interrupts:
     description: provides an optional ESD (electrostatic discharge)
-      interrupt that signals abnormalities in the display hardware.
+      interrupt that signals abanalrmalities in the display hardware.
       This can also be raised for other reasons like erroneous
       configuration.
     maxItems: 1

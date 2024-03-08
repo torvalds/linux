@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -25,8 +25,8 @@
 #define GFX_8_1_ENUM_H
 
 typedef enum SurfaceNumber {
-	NUMBER_UNORM                                     = 0x0,
-	NUMBER_SNORM                                     = 0x1,
+	NUMBER_UANALRM                                     = 0x0,
+	NUMBER_SANALRM                                     = 0x1,
 	NUMBER_USCALED                                   = 0x2,
 	NUMBER_SSCALED                                   = 0x3,
 	NUMBER_UINT                                      = 0x4,
@@ -42,7 +42,7 @@ typedef enum SurfaceSwap {
 } SurfaceSwap;
 typedef enum CBMode {
 	CB_DISABLE                                       = 0x0,
-	CB_NORMAL                                        = 0x1,
+	CB_ANALRMAL                                        = 0x1,
 	CB_ELIMINATE_FAST_CLEAR                          = 0x2,
 	CB_RESOLVE                                       = 0x3,
 	CB_DECOMPRESS                                    = 0x4,
@@ -123,7 +123,7 @@ typedef enum CmaskAddr {
 	CMASK_ADDR_COMPATIBLE                            = 0x2,
 } CmaskAddr;
 typedef enum CBPerfSel {
-	CB_PERF_SEL_NONE                                 = 0x0,
+	CB_PERF_SEL_ANALNE                                 = 0x0,
 	CB_PERF_SEL_BUSY                                 = 0x1,
 	CB_PERF_SEL_CORE_SCLK_VLD                        = 0x2,
 	CB_PERF_SEL_REG_SCLK0_VLD                        = 0x3,
@@ -146,7 +146,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_DB_CB_LQUAD_VALID_READYB             = 0x14,
 	CB_PERF_SEL_DB_CB_LQUAD_VALIDB_READY             = 0x15,
 	CB_PERF_SEL_DB_CB_LQUAD_VALIDB_READYB            = 0x16,
-	CB_PERF_SEL_LQUAD_NO_TILE                        = 0x17,
+	CB_PERF_SEL_LQUAD_ANAL_TILE                        = 0x17,
 	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_R          = 0x18,
 	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_AR         = 0x19,
 	CB_PERF_SEL_LQUAD_FORMAT_IS_EXPORT_32_GR         = 0x1a,
@@ -192,7 +192,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_CM_CACHE_TAG_MISS                    = 0x42,
 	CB_PERF_SEL_CM_CACHE_SECTOR_MISS                 = 0x43,
 	CB_PERF_SEL_CM_CACHE_REEVICTION_STALL            = 0x44,
-	CB_PERF_SEL_CM_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x45,
+	CB_PERF_SEL_CM_CACHE_EVICT_ANALNZERO_INFLIGHT_STALL= 0x45,
 	CB_PERF_SEL_CM_CACHE_REPLACE_PENDING_EVICT_STALL = 0x46,
 	CB_PERF_SEL_CM_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x47,
 	CB_PERF_SEL_CM_CACHE_READ_OUTPUT_STALL           = 0x48,
@@ -207,7 +207,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_FC_CACHE_TAG_MISS                    = 0x51,
 	CB_PERF_SEL_FC_CACHE_SECTOR_MISS                 = 0x52,
 	CB_PERF_SEL_FC_CACHE_REEVICTION_STALL            = 0x53,
-	CB_PERF_SEL_FC_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x54,
+	CB_PERF_SEL_FC_CACHE_EVICT_ANALNZERO_INFLIGHT_STALL= 0x54,
 	CB_PERF_SEL_FC_CACHE_REPLACE_PENDING_EVICT_STALL = 0x55,
 	CB_PERF_SEL_FC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x56,
 	CB_PERF_SEL_FC_CACHE_READ_OUTPUT_STALL           = 0x57,
@@ -222,7 +222,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_CC_CACHE_TAG_MISS                    = 0x60,
 	CB_PERF_SEL_CC_CACHE_SECTOR_MISS                 = 0x61,
 	CB_PERF_SEL_CC_CACHE_REEVICTION_STALL            = 0x62,
-	CB_PERF_SEL_CC_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0x63,
+	CB_PERF_SEL_CC_CACHE_EVICT_ANALNZERO_INFLIGHT_STALL= 0x63,
 	CB_PERF_SEL_CC_CACHE_REPLACE_PENDING_EVICT_STALL = 0x64,
 	CB_PERF_SEL_CC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0x65,
 	CB_PERF_SEL_CC_CACHE_READ_OUTPUT_STALL           = 0x66,
@@ -352,7 +352,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_FC_SEQUENCER_FMASK_COMPRESSION_DISABLE= 0xe2,
 	CB_PERF_SEL_FC_KEYID_RDLAT_FIFO_FULL             = 0xe3,
 	CB_PERF_SEL_FC_DOC_IS_STALLED                    = 0xe4,
-	CB_PERF_SEL_FC_DOC_MRTS_NOT_COMBINED             = 0xe5,
+	CB_PERF_SEL_FC_DOC_MRTS_ANALT_COMBINED             = 0xe5,
 	CB_PERF_SEL_FC_DOC_MRTS_COMBINED                 = 0xe6,
 	CB_PERF_SEL_FC_DOC_QTILE_CAM_MISS                = 0xe7,
 	CB_PERF_SEL_FC_DOC_QTILE_CAM_HIT                 = 0xe8,
@@ -368,7 +368,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_FC_DCC_CACHE_TAG_MISS                = 0xf2,
 	CB_PERF_SEL_FC_DCC_CACHE_SECTOR_MISS             = 0xf3,
 	CB_PERF_SEL_FC_DCC_CACHE_REEVICTION_STALL        = 0xf4,
-	CB_PERF_SEL_FC_DCC_CACHE_EVICT_NONZERO_INFLIGHT_STALL= 0xf5,
+	CB_PERF_SEL_FC_DCC_CACHE_EVICT_ANALNZERO_INFLIGHT_STALL= 0xf5,
 	CB_PERF_SEL_FC_DCC_CACHE_REPLACE_PENDING_EVICT_STALL= 0xf6,
 	CB_PERF_SEL_FC_DCC_CACHE_INFLIGHT_COUNTER_MAXIMUM_STALL= 0xf7,
 	CB_PERF_SEL_FC_DCC_CACHE_READ_OUTPUT_STALL       = 0xf8,
@@ -526,7 +526,7 @@ typedef enum CBPerfSel {
 	CB_PERF_SEL_RBP_SPLIT_AA_SAMPLE_MASK             = 0x190,
 	CB_PERF_SEL_RBP_SPLIT_PARTIAL_TARGET_MASK        = 0x191,
 	CB_PERF_SEL_RBP_SPLIT_LINEAR_ADDRESSING          = 0x192,
-	CB_PERF_SEL_RBP_SPLIT_AA_NO_FMASK_COMPRESS       = 0x193,
+	CB_PERF_SEL_RBP_SPLIT_AA_ANAL_FMASK_COMPRESS       = 0x193,
 	CB_PERF_SEL_RBP_INSERT_MISSING_LAST_QUAD         = 0x194,
 } CBPerfSel;
 typedef enum CBPerfOpFilterSel {
@@ -538,7 +538,7 @@ typedef enum CBPerfOpFilterSel {
 	CB_PERF_OP_FILTER_SEL_ELIMINATE_FAST_CLEAR       = 0x5,
 } CBPerfOpFilterSel;
 typedef enum CBPerfClearFilterSel {
-	CB_PERF_CLEAR_FILTER_SEL_NONCLEAR                = 0x0,
+	CB_PERF_CLEAR_FILTER_SEL_ANALNCLEAR                = 0x0,
 	CB_PERF_CLEAR_FILTER_SEL_CLEAR                   = 0x1,
 } CBPerfClearFilterSel;
 typedef enum CP_RING_ID {
@@ -584,7 +584,7 @@ typedef enum CP_PERFMON_ENABLE_MODE {
 typedef enum CPG_PERFCOUNT_SEL {
 	CPG_PERF_SEL_ALWAYS_COUNT                        = 0x0,
 	CPG_PERF_SEL_RBIU_FIFO_FULL                      = 0x1,
-	CPG_PERF_SEL_CSF_RTS_BUT_MIU_NOT_RTR             = 0x2,
+	CPG_PERF_SEL_CSF_RTS_BUT_MIU_ANALT_RTR             = 0x2,
 	CPG_PERF_SEL_CSF_ST_BASE_SIZE_FIFO_FULL          = 0x3,
 	CPG_PERF_SEL_CP_GRBM_DWORDS_SENT                 = 0x4,
 	CPG_PERF_SEL_ME_PARSER_BUSY                      = 0x5,
@@ -606,7 +606,7 @@ typedef enum CPG_PERFCOUNT_SEL {
 	CPG_PERF_SEL_PFP_STALLED_FOR_DATA_FROM_ROQ       = 0x15,
 	CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_PFP        = 0x16,
 	CPG_PERF_SEL_ME_STALLED_FOR_DATA_FROM_STQ        = 0x17,
-	CPG_PERF_SEL_ME_STALLED_ON_NO_AVAIL_GFX_CNTX     = 0x18,
+	CPG_PERF_SEL_ME_STALLED_ON_ANAL_AVAIL_GFX_CNTX     = 0x18,
 	CPG_PERF_SEL_ME_STALLED_WRITING_TO_RCIU          = 0x19,
 	CPG_PERF_SEL_ME_STALLED_WRITING_CONSTANTS        = 0x1a,
 	CPG_PERF_SEL_ME_STALLED_ON_PARTIAL_FLUSH         = 0x1b,
@@ -642,8 +642,8 @@ typedef enum CPF_PERFCOUNT_SEL {
 	CPF_PERF_SEL_CSF_BUSY_FOR_FETCHING_IB2           = 0x6,
 	CPF_PERF_SEL_CSF_BUSY_FOR_FECTHINC_STATE         = 0x7,
 	CPF_PERF_SEL_MIU_BUSY_FOR_OUTSTANDING_TAGS       = 0x8,
-	CPF_PERF_SEL_CSF_RTS_MIU_NOT_RTR                 = 0x9,
-	CPF_PERF_SEL_CSF_STATE_FIFO_NOT_RTR              = 0xa,
+	CPF_PERF_SEL_CSF_RTS_MIU_ANALT_RTR                 = 0x9,
+	CPF_PERF_SEL_CSF_STATE_FIFO_ANALT_RTR              = 0xa,
 	CPF_PERF_SEL_CSF_FETCHING_CMD_BUFFERS            = 0xb,
 	CPF_PERF_SEL_GRBM_DWORDS_SENT                    = 0xc,
 	CPF_PERF_SEL_DYNAMIC_CLOCK_VALID                 = 0xd,
@@ -734,7 +734,7 @@ typedef enum ZpassControl {
 	ZPASS_PIXELS                                     = 0x2,
 } ZpassControl;
 typedef enum ZModeForce {
-	NO_FORCE                                         = 0x0,
+	ANAL_FORCE                                         = 0x0,
 	FORCE_EARLY_Z                                    = 0x1,
 	FORCE_LATE_Z                                     = 0x2,
 	FORCE_RE_Z                                       = 0x3,
@@ -751,7 +751,7 @@ typedef enum CompareFrag {
 	FRAG_EQUAL                                       = 0x2,
 	FRAG_LEQUAL                                      = 0x3,
 	FRAG_GREATER                                     = 0x4,
-	FRAG_NOTEQUAL                                    = 0x5,
+	FRAG_ANALTEQUAL                                    = 0x5,
 	FRAG_GEQUAL                                      = 0x6,
 	FRAG_ALWAYS                                      = 0x7,
 } CompareFrag;
@@ -770,8 +770,8 @@ typedef enum StencilOp {
 	STENCIL_OR                                       = 0xb,
 	STENCIL_XOR                                      = 0xc,
 	STENCIL_NAND                                     = 0xd,
-	STENCIL_NOR                                      = 0xe,
-	STENCIL_XNOR                                     = 0xf,
+	STENCIL_ANALR                                      = 0xe,
+	STENCIL_XANALR                                     = 0xf,
 } StencilOp;
 typedef enum ConservativeZExport {
 	EXPORT_ANY_Z                                     = 0x0,
@@ -804,7 +804,7 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_DB_SC_tile_culled                    = 0xf,
 	DB_PERF_SEL_DB_SC_tile_hier_kill                 = 0x10,
 	DB_PERF_SEL_DB_SC_tile_fast_ops                  = 0x11,
-	DB_PERF_SEL_DB_SC_tile_no_ops                    = 0x12,
+	DB_PERF_SEL_DB_SC_tile_anal_ops                    = 0x12,
 	DB_PERF_SEL_DB_SC_tile_tile_rate                 = 0x13,
 	DB_PERF_SEL_DB_SC_tile_ssaa_kill                 = 0x14,
 	DB_PERF_SEL_DB_SC_tile_fast_z_ops                = 0x15,
@@ -875,8 +875,8 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_Depth_Tile_Cache_misses              = 0x56,
 	DB_PERF_SEL_Depth_Tile_Cache_hits                = 0x57,
 	DB_PERF_SEL_Depth_Tile_Cache_flushes             = 0x58,
-	DB_PERF_SEL_Depth_Tile_Cache_noop_tile           = 0x59,
-	DB_PERF_SEL_Depth_Tile_Cache_detailed_noop       = 0x5a,
+	DB_PERF_SEL_Depth_Tile_Cache_analop_tile           = 0x59,
+	DB_PERF_SEL_Depth_Tile_Cache_detailed_analop       = 0x5a,
 	DB_PERF_SEL_Depth_Tile_Cache_event               = 0x5b,
 	DB_PERF_SEL_Depth_Tile_Cache_tile_frees          = 0x5c,
 	DB_PERF_SEL_Depth_Tile_Cache_data_frees          = 0x5d,
@@ -951,8 +951,8 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_tl_expand_squads                     = 0xa2,
 	DB_PERF_SEL_tl_preZ_squads                       = 0xa3,
 	DB_PERF_SEL_tl_postZ_squads                      = 0xa4,
-	DB_PERF_SEL_tl_preZ_noop_squads                  = 0xa5,
-	DB_PERF_SEL_tl_postZ_noop_squads                 = 0xa6,
+	DB_PERF_SEL_tl_preZ_analop_squads                  = 0xa5,
+	DB_PERF_SEL_tl_postZ_analop_squads                 = 0xa6,
 	DB_PERF_SEL_tl_tile_ops                          = 0xa7,
 	DB_PERF_SEL_tl_in_xfc                            = 0xa8,
 	DB_PERF_SEL_tl_in_single_stencil_expand_stall    = 0xa9,
@@ -1005,7 +1005,7 @@ typedef enum PerfCounter_Vals {
 	DB_PERF_SEL_mi_rdreq_stall                       = 0xd8,
 	DB_PERF_SEL_mi_wrreq_busy                        = 0xd9,
 	DB_PERF_SEL_mi_wrreq_stall                       = 0xda,
-	DB_PERF_SEL_recomp_tile_to_1zplane_no_fastop     = 0xdb,
+	DB_PERF_SEL_recomp_tile_to_1zplane_anal_fastop     = 0xdb,
 	DB_PERF_SEL_dkg_tile_rate_tile                   = 0xdc,
 	DB_PERF_SEL_prezl_src_in_sends                   = 0xdd,
 	DB_PERF_SEL_prezl_src_in_stall                   = 0xde,
@@ -1106,7 +1106,7 @@ typedef enum GRBM_PERF_SEL {
 	GRBM_PERF_SEL_RESERVED_1                         = 0x15,
 	GRBM_PERF_SEL_RESERVED_0                         = 0x16,
 	GRBM_PERF_SEL_IA_BUSY                            = 0x17,
-	GRBM_PERF_SEL_IA_NO_DMA_BUSY                     = 0x18,
+	GRBM_PERF_SEL_IA_ANAL_DMA_BUSY                     = 0x18,
 	GRBM_PERF_SEL_GDS_BUSY                           = 0x19,
 	GRBM_PERF_SEL_BCI_BUSY                           = 0x1a,
 	GRBM_PERF_SEL_RLC_BUSY                           = 0x1b,
@@ -1115,7 +1115,7 @@ typedef enum GRBM_PERF_SEL {
 	GRBM_PERF_SEL_CPC_BUSY                           = 0x1e,
 	GRBM_PERF_SEL_CPF_BUSY                           = 0x1f,
 	GRBM_PERF_SEL_WD_BUSY                            = 0x20,
-	GRBM_PERF_SEL_WD_NO_DMA_BUSY                     = 0x21,
+	GRBM_PERF_SEL_WD_ANAL_DMA_BUSY                     = 0x21,
 } GRBM_PERF_SEL;
 typedef enum GRBM_SE0_PERF_SEL {
 	GRBM_SE0_PERF_SEL_COUNT                          = 0x0,
@@ -1432,10 +1432,10 @@ typedef enum SC_PERFCNT_SEL {
 	SC_QZ1_TILE_COVERED_COUNT                        = 0x58,
 	SC_QZ2_TILE_COVERED_COUNT                        = 0x59,
 	SC_QZ3_TILE_COVERED_COUNT                        = 0x5a,
-	SC_QZ0_TILE_NOT_COVERED_COUNT                    = 0x5b,
-	SC_QZ1_TILE_NOT_COVERED_COUNT                    = 0x5c,
-	SC_QZ2_TILE_NOT_COVERED_COUNT                    = 0x5d,
-	SC_QZ3_TILE_NOT_COVERED_COUNT                    = 0x5e,
+	SC_QZ0_TILE_ANALT_COVERED_COUNT                    = 0x5b,
+	SC_QZ1_TILE_ANALT_COVERED_COUNT                    = 0x5c,
+	SC_QZ2_TILE_ANALT_COVERED_COUNT                    = 0x5d,
+	SC_QZ3_TILE_ANALT_COVERED_COUNT                    = 0x5e,
 	SC_QZ0_QUAD_PER_TILE_H0                          = 0x5f,
 	SC_QZ0_QUAD_PER_TILE_H1                          = 0x60,
 	SC_QZ0_QUAD_PER_TILE_H2                          = 0x61,
@@ -1731,12 +1731,12 @@ typedef enum SC_PERFCNT_SEL {
 	SC_PS_PA3_SC_FIFO_FULL                           = 0x183,
 	SC_PA3_PS_DATA_SEND                              = 0x184,
 	SC_BUSY_PROCESSING_MULTICYCLE_PRIM               = 0x185,
-	SC_BUSY_CNT_NOT_ZERO                             = 0x186,
+	SC_BUSY_CNT_ANALT_ZERO                             = 0x186,
 	SC_BM_BUSY                                       = 0x187,
 	SC_BACKEND_BUSY                                  = 0x188,
 	SC_SCF_SCB_INTERFACE_BUSY                        = 0x189,
 	SC_SCB_BUSY                                      = 0x18a,
-	SC_STARVED_BY_PA_WITH_UNSELECTED_PA_NOT_EMPTY    = 0x18b,
+	SC_STARVED_BY_PA_WITH_UNSELECTED_PA_ANALT_EMPTY    = 0x18b,
 	SC_STARVED_BY_PA_WITH_UNSELECTED_PA_FULL         = 0x18c,
 } SC_PERFCNT_SEL;
 typedef enum SePairXsel {
@@ -1853,7 +1853,7 @@ typedef enum SPI_SAMPLE_CNTL {
 	UNDEF                                            = 0x3,
 } SPI_SAMPLE_CNTL;
 typedef enum SPI_FOG_MODE {
-	SPI_FOG_NONE                                     = 0x0,
+	SPI_FOG_ANALNE                                     = 0x0,
 	SPI_FOG_EXP                                      = 0x1,
 	SPI_FOG_EXP2                                     = 0x2,
 	SPI_FOG_LINEAR                                   = 0x3,
@@ -1863,7 +1863,7 @@ typedef enum SPI_PNT_SPRITE_OVERRIDE {
 	SPI_PNT_SPRITE_SEL_1                             = 0x1,
 	SPI_PNT_SPRITE_SEL_S                             = 0x2,
 	SPI_PNT_SPRITE_SEL_T                             = 0x3,
-	SPI_PNT_SPRITE_SEL_NONE                          = 0x4,
+	SPI_PNT_SPRITE_SEL_ANALNE                          = 0x4,
 } SPI_PNT_SPRITE_OVERRIDE;
 typedef enum SPI_PERFCNT_SEL {
 	SPI_PERF_VS_WINDOW_VALID                         = 0x0,
@@ -1965,15 +1965,15 @@ typedef enum SPI_PERFCNT_SEL {
 	SPI_PERF_RA_PIPE_REQ_BIN2                        = 0x60,
 	SPI_PERF_RA_TASK_REQ_BIN3                        = 0x61,
 	SPI_PERF_RA_WR_CTL_FULL                          = 0x62,
-	SPI_PERF_RA_REQ_NO_ALLOC                         = 0x63,
-	SPI_PERF_RA_REQ_NO_ALLOC_PS                      = 0x64,
-	SPI_PERF_RA_REQ_NO_ALLOC_VS                      = 0x65,
-	SPI_PERF_RA_REQ_NO_ALLOC_GS                      = 0x66,
-	SPI_PERF_RA_REQ_NO_ALLOC_ES                      = 0x67,
-	SPI_PERF_RA_REQ_NO_ALLOC_HS                      = 0x68,
-	SPI_PERF_RA_REQ_NO_ALLOC_LS                      = 0x69,
-	SPI_PERF_RA_REQ_NO_ALLOC_CSG                     = 0x6a,
-	SPI_PERF_RA_REQ_NO_ALLOC_CSN                     = 0x6b,
+	SPI_PERF_RA_REQ_ANAL_ALLOC                         = 0x63,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_PS                      = 0x64,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_VS                      = 0x65,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_GS                      = 0x66,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_ES                      = 0x67,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_HS                      = 0x68,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_LS                      = 0x69,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_CSG                     = 0x6a,
+	SPI_PERF_RA_REQ_ANAL_ALLOC_CSN                     = 0x6b,
 	SPI_PERF_RA_RES_STALL_PS                         = 0x6c,
 	SPI_PERF_RA_RES_STALL_VS                         = 0x6d,
 	SPI_PERF_RA_RES_STALL_GS                         = 0x6e,
@@ -2065,7 +2065,7 @@ typedef enum SPI_PERFCNT_SEL {
 	SPI_PERF_PC_ALLOC_ACCUM                          = 0xc4,
 } SPI_PERFCNT_SEL;
 typedef enum SPI_SHADER_FORMAT {
-	SPI_SHADER_NONE                                  = 0x0,
+	SPI_SHADER_ANALNE                                  = 0x0,
 	SPI_SHADER_1COMP                                 = 0x1,
 	SPI_SHADER_2COMP                                 = 0x2,
 	SPI_SHADER_4COMPRESS                             = 0x3,
@@ -2077,8 +2077,8 @@ typedef enum SPI_SHADER_EX_FORMAT {
 	SPI_SHADER_32_GR                                 = 0x2,
 	SPI_SHADER_32_AR                                 = 0x3,
 	SPI_SHADER_FP16_ABGR                             = 0x4,
-	SPI_SHADER_UNORM16_ABGR                          = 0x5,
-	SPI_SHADER_SNORM16_ABGR                          = 0x6,
+	SPI_SHADER_UANALRM16_ABGR                          = 0x5,
+	SPI_SHADER_SANALRM16_ABGR                          = 0x6,
 	SPI_SHADER_UINT16_ABGR                           = 0x7,
 	SPI_SHADER_SINT16_ABGR                           = 0x8,
 	SPI_SHADER_32_ABGR                               = 0x9,
@@ -2111,12 +2111,12 @@ typedef enum SQ_TEX_XY_FILTER {
 	SQ_TEX_XY_FILTER_ANISO_BILINEAR                  = 0x3,
 } SQ_TEX_XY_FILTER;
 typedef enum SQ_TEX_Z_FILTER {
-	SQ_TEX_Z_FILTER_NONE                             = 0x0,
+	SQ_TEX_Z_FILTER_ANALNE                             = 0x0,
 	SQ_TEX_Z_FILTER_POINT                            = 0x1,
 	SQ_TEX_Z_FILTER_LINEAR                           = 0x2,
 } SQ_TEX_Z_FILTER;
 typedef enum SQ_TEX_MIP_FILTER {
-	SQ_TEX_MIP_FILTER_NONE                           = 0x0,
+	SQ_TEX_MIP_FILTER_ANALNE                           = 0x0,
 	SQ_TEX_MIP_FILTER_POINT                          = 0x1,
 	SQ_TEX_MIP_FILTER_LINEAR                         = 0x2,
 	SQ_TEX_MIP_FILTER_POINT_ANISO_ADJ                = 0x3,
@@ -2134,7 +2134,7 @@ typedef enum SQ_TEX_DEPTH_COMPARE {
 	SQ_TEX_DEPTH_COMPARE_EQUAL                       = 0x2,
 	SQ_TEX_DEPTH_COMPARE_LESSEQUAL                   = 0x3,
 	SQ_TEX_DEPTH_COMPARE_GREATER                     = 0x4,
-	SQ_TEX_DEPTH_COMPARE_NOTEQUAL                    = 0x5,
+	SQ_TEX_DEPTH_COMPARE_ANALTEQUAL                    = 0x5,
 	SQ_TEX_DEPTH_COMPARE_GREATEREQUAL                = 0x6,
 	SQ_TEX_DEPTH_COMPARE_ALWAYS                      = 0x7,
 } SQ_TEX_DEPTH_COMPARE;
@@ -2283,7 +2283,7 @@ typedef enum SQ_THREAD_TRACE_VM_ID_MASK {
 	SQ_THREAD_TRACE_VM_ID_MASK_SINGLE_DETAIL         = 0x2,
 } SQ_THREAD_TRACE_VM_ID_MASK;
 typedef enum SQ_THREAD_TRACE_WAVE_MASK {
-	SQ_THREAD_TRACE_WAVE_MASK_NONE                   = 0x0,
+	SQ_THREAD_TRACE_WAVE_MASK_ANALNE                   = 0x0,
 	SQ_THREAD_TRACE_WAVE_MASK_ALL                    = 0x1,
 } SQ_THREAD_TRACE_WAVE_MASK;
 typedef enum SQ_THREAD_TRACE_ISSUE {
@@ -2299,7 +2299,7 @@ typedef enum SQ_THREAD_TRACE_ISSUE_MASK {
 	SQ_THREAD_TRACE_ISSUE_MASK_IMMED                 = 0x3,
 } SQ_THREAD_TRACE_ISSUE_MASK;
 typedef enum SQ_PERF_SEL {
-	SQ_PERF_SEL_NONE                                 = 0x0,
+	SQ_PERF_SEL_ANALNE                                 = 0x0,
 	SQ_PERF_SEL_ACCUM_PREV                           = 0x1,
 	SQ_PERF_SEL_CYCLES                               = 0x2,
 	SQ_PERF_SEL_BUSY_CYCLES                          = 0x3,
@@ -2486,16 +2486,16 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_ICACHE_MISSES_DUPLICATE             = 0xb9,
 	SQC_PERF_SEL_ICACHE_INVAL_INST                   = 0xba,
 	SQC_PERF_SEL_ICACHE_INVAL_ASYNC                  = 0xbb,
-	SQC_PERF_SEL_ICACHE_INPUT_STALL_ARB_NO_GRANT     = 0xbc,
+	SQC_PERF_SEL_ICACHE_INPUT_STALL_ARB_ANAL_GRANT     = 0xbc,
 	SQC_PERF_SEL_ICACHE_INPUT_STALL_BANK_READYB      = 0xbd,
 	SQC_PERF_SEL_ICACHE_CACHE_STALLED                = 0xbe,
-	SQC_PERF_SEL_ICACHE_CACHE_STALL_INFLIGHT_NONZERO = 0xbf,
+	SQC_PERF_SEL_ICACHE_CACHE_STALL_INFLIGHT_ANALNZERO = 0xbf,
 	SQC_PERF_SEL_ICACHE_CACHE_STALL_INFLIGHT_MAX     = 0xc0,
 	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT           = 0xc1,
 	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_MISS_FIFO = 0xc2,
 	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_HIT_FIFO  = 0xc3,
 	SQC_PERF_SEL_ICACHE_CACHE_STALL_OUTPUT_TC_IF     = 0xc4,
-	SQC_PERF_SEL_ICACHE_STALL_OUTXBAR_ARB_NO_GRANT   = 0xc5,
+	SQC_PERF_SEL_ICACHE_STALL_OUTXBAR_ARB_ANAL_GRANT   = 0xc5,
 	SQC_PERF_SEL_DCACHE_BUSY_CYCLES                  = 0xc6,
 	SQC_PERF_SEL_DCACHE_REQ                          = 0xc7,
 	SQC_PERF_SEL_DCACHE_HITS                         = 0xc8,
@@ -2515,13 +2515,13 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_DCACHE_WB_ASYNC                     = 0xd6,
 	SQC_PERF_SEL_DCACHE_WB_VOLATILE_INST             = 0xd7,
 	SQC_PERF_SEL_DCACHE_WB_VOLATILE_ASYNC            = 0xd8,
-	SQC_PERF_SEL_DCACHE_INPUT_STALL_ARB_NO_GRANT     = 0xd9,
+	SQC_PERF_SEL_DCACHE_INPUT_STALL_ARB_ANAL_GRANT     = 0xd9,
 	SQC_PERF_SEL_DCACHE_INPUT_STALL_BANK_READYB      = 0xda,
 	SQC_PERF_SEL_DCACHE_CACHE_STALLED                = 0xdb,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_INFLIGHT_MAX     = 0xdc,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT           = 0xdd,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_EVICT            = 0xde,
-	SQC_PERF_SEL_DCACHE_CACHE_STALL_UNORDERED        = 0xdf,
+	SQC_PERF_SEL_DCACHE_CACHE_STALL_UANALRDERED        = 0xdf,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_ALLOC_UNAVAILABLE= 0xe0,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_FORCE_EVICT      = 0xe1,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_MULTI_FLUSH      = 0xe2,
@@ -2529,7 +2529,7 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_MISS_FIFO = 0xe4,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_HIT_FIFO  = 0xe5,
 	SQC_PERF_SEL_DCACHE_CACHE_STALL_OUTPUT_TC_IF     = 0xe6,
-	SQC_PERF_SEL_DCACHE_STALL_OUTXBAR_ARB_NO_GRANT   = 0xe7,
+	SQC_PERF_SEL_DCACHE_STALL_OUTXBAR_ARB_ANAL_GRANT   = 0xe7,
 	SQC_PERF_SEL_DCACHE_REQ_READ_1                   = 0xe8,
 	SQC_PERF_SEL_DCACHE_REQ_READ_2                   = 0xe9,
 	SQC_PERF_SEL_DCACHE_REQ_READ_4                   = 0xea,
@@ -2542,7 +2542,7 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_DCACHE_REQ_ATC_PROBE                = 0xf1,
 	SQC_PERF_SEL_SQ_DCACHE_REQS                      = 0xf2,
 	SQC_PERF_SEL_DCACHE_FLAT_REQ                     = 0xf3,
-	SQC_PERF_SEL_DCACHE_NONFLAT_REQ                  = 0xf4,
+	SQC_PERF_SEL_DCACHE_ANALNFLAT_REQ                  = 0xf4,
 	SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL               = 0xf5,
 	SQC_PERF_SEL_DCACHE_INFLIGHT_LEVEL               = 0xf6,
 	SQC_PERF_SEL_TC_INFLIGHT_LEVEL                   = 0xf7,
@@ -2554,7 +2554,7 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_ICACHE_GATCL1_STALL_INFLIGHT_MAX    = 0xfd,
 	SQC_PERF_SEL_ICACHE_GATCL1_STALL_LRU_INFLIGHT    = 0xfe,
 	SQC_PERF_SEL_ICACHE_GATCL1_LFIFO_FULL            = 0xff,
-	SQC_PERF_SEL_ICACHE_GATCL1_STALL_LFIFO_NOT_RES   = 0x100,
+	SQC_PERF_SEL_ICACHE_GATCL1_STALL_LFIFO_ANALT_RES   = 0x100,
 	SQC_PERF_SEL_ICACHE_GATCL1_STALL_ATCL2_REQ_OUT_OF_CREDITS= 0x101,
 	SQC_PERF_SEL_ICACHE_GATCL1_ATCL2_INFLIGHT        = 0x102,
 	SQC_PERF_SEL_ICACHE_GATCL1_STALL_MISSFIFO_FULL   = 0x103,
@@ -2564,14 +2564,14 @@ typedef enum SQ_PERF_SEL {
 	SQC_PERF_SEL_DCACHE_GATCL1_STALL_INFLIGHT_MAX    = 0x107,
 	SQC_PERF_SEL_DCACHE_GATCL1_STALL_LRU_INFLIGHT    = 0x108,
 	SQC_PERF_SEL_DCACHE_GATCL1_LFIFO_FULL            = 0x109,
-	SQC_PERF_SEL_DCACHE_GATCL1_STALL_LFIFO_NOT_RES   = 0x10a,
+	SQC_PERF_SEL_DCACHE_GATCL1_STALL_LFIFO_ANALT_RES   = 0x10a,
 	SQC_PERF_SEL_DCACHE_GATCL1_STALL_ATCL2_REQ_OUT_OF_CREDITS= 0x10b,
 	SQC_PERF_SEL_DCACHE_GATCL1_ATCL2_INFLIGHT        = 0x10c,
 	SQC_PERF_SEL_DCACHE_GATCL1_STALL_MISSFIFO_FULL   = 0x10d,
 	SQC_PERF_SEL_DCACHE_GATCL1_STALL_MULTI_MISS      = 0x10e,
 	SQC_PERF_SEL_DCACHE_GATCL1_HIT_FIFO_FULL         = 0x10f,
 	SQC_PERF_SEL_DUMMY_LAST                          = 0x110,
-	SQ_PERF_SEL_INSTS_SMEM_NORM                      = 0x111,
+	SQ_PERF_SEL_INSTS_SMEM_ANALRM                      = 0x111,
 	SQ_PERF_SEL_ATC_INSTS_VMEM                       = 0x112,
 	SQ_PERF_SEL_ATC_INST_LEVEL_VMEM                  = 0x113,
 	SQ_PERF_SEL_ATC_XNACK_FIRST                      = 0x114,
@@ -2586,7 +2586,7 @@ typedef enum SQ_PERF_SEL {
 	SQ_PERF_SEL_INSTS_VMEM_RD_REPLAY                 = 0x11d,
 	SQ_PERF_SEL_INSTS_VMEM_REPLAY                    = 0x11e,
 	SQ_PERF_SEL_INSTS_SMEM_REPLAY                    = 0x11f,
-	SQ_PERF_SEL_INSTS_SMEM_NORM_REPLAY               = 0x120,
+	SQ_PERF_SEL_INSTS_SMEM_ANALRM_REPLAY               = 0x120,
 	SQ_PERF_SEL_INSTS_FLAT_REPLAY                    = 0x121,
 	SQ_PERF_SEL_ATC_INSTS_VMEM_REPLAY                = 0x122,
 	SQ_PERF_SEL_ATC_INSTS_SMEM_REPLAY                = 0x123,
@@ -2640,13 +2640,13 @@ typedef enum SQ_INTERRUPT_WORD_ENCODING {
 	SQ_INTERRUPT_WORD_ENCODING_ERROR                 = 0x2,
 } SQ_INTERRUPT_WORD_ENCODING;
 typedef enum ENUM_SQ_EXPORT_RAT_INST {
-	SQ_EXPORT_RAT_INST_NOP                           = 0x0,
+	SQ_EXPORT_RAT_INST_ANALP                           = 0x0,
 	SQ_EXPORT_RAT_INST_STORE_TYPED                   = 0x1,
 	SQ_EXPORT_RAT_INST_STORE_RAW                     = 0x2,
-	SQ_EXPORT_RAT_INST_STORE_RAW_FDENORM             = 0x3,
+	SQ_EXPORT_RAT_INST_STORE_RAW_FDEANALRM             = 0x3,
 	SQ_EXPORT_RAT_INST_CMPXCHG_INT                   = 0x4,
 	SQ_EXPORT_RAT_INST_CMPXCHG_FLT                   = 0x5,
-	SQ_EXPORT_RAT_INST_CMPXCHG_FDENORM               = 0x6,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FDEANALRM               = 0x6,
 	SQ_EXPORT_RAT_INST_ADD                           = 0x7,
 	SQ_EXPORT_RAT_INST_SUB                           = 0x8,
 	SQ_EXPORT_RAT_INST_RSUB                          = 0x9,
@@ -2663,12 +2663,12 @@ typedef enum ENUM_SQ_EXPORT_RAT_INST {
 	SQ_EXPORT_RAT_INST_STORE_DWORD                   = 0x14,
 	SQ_EXPORT_RAT_INST_STORE_SHORT                   = 0x15,
 	SQ_EXPORT_RAT_INST_STORE_BYTE                    = 0x16,
-	SQ_EXPORT_RAT_INST_NOP_RTN                       = 0x20,
+	SQ_EXPORT_RAT_INST_ANALP_RTN                       = 0x20,
 	SQ_EXPORT_RAT_INST_XCHG_RTN                      = 0x22,
-	SQ_EXPORT_RAT_INST_XCHG_FDENORM_RTN              = 0x23,
+	SQ_EXPORT_RAT_INST_XCHG_FDEANALRM_RTN              = 0x23,
 	SQ_EXPORT_RAT_INST_CMPXCHG_INT_RTN               = 0x24,
 	SQ_EXPORT_RAT_INST_CMPXCHG_FLT_RTN               = 0x25,
-	SQ_EXPORT_RAT_INST_CMPXCHG_FDENORM_RTN           = 0x26,
+	SQ_EXPORT_RAT_INST_CMPXCHG_FDEANALRM_RTN           = 0x26,
 	SQ_EXPORT_RAT_INST_ADD_RTN                       = 0x27,
 	SQ_EXPORT_RAT_INST_SUB_RTN                       = 0x28,
 	SQ_EXPORT_RAT_INST_RSUB_RTN                      = 0x29,
@@ -2694,13 +2694,13 @@ typedef enum SQ_IBUF_ST {
 	SQ_IBUF_IB_EMPTY_WAIT_GNT                        = 0x7,
 } SQ_IBUF_ST;
 typedef enum SQ_INST_STR_ST {
-	SQ_INST_STR_IB_WAVE_NORML                        = 0x0,
-	SQ_INST_STR_IB_WAVE2ID_NORMAL_INST_AV            = 0x1,
+	SQ_INST_STR_IB_WAVE_ANALRML                        = 0x0,
+	SQ_INST_STR_IB_WAVE2ID_ANALRMAL_INST_AV            = 0x1,
 	SQ_INST_STR_IB_WAVE_INTERNAL_INST_AV             = 0x2,
 	SQ_INST_STR_IB_WAVE_INST_SKIP_AV                 = 0x3,
 	SQ_INST_STR_IB_WAVE_SETVSKIP_ST0                 = 0x4,
 	SQ_INST_STR_IB_WAVE_SETVSKIP_ST1                 = 0x5,
-	SQ_INST_STR_IB_WAVE_NOP_SLEEP_WAIT               = 0x6,
+	SQ_INST_STR_IB_WAVE_ANALP_SLEEP_WAIT               = 0x6,
 	SQ_INST_STR_IB_WAVE_PC_FROM_SGPR_MSG_WAIT        = 0x7,
 } SQ_INST_STR_ST;
 typedef enum SQ_WAVE_IB_ECC_ST {
@@ -2755,7 +2755,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_EX_MODE_EXCP_VALU_BASE                 0x0
 #define SQ_EX_MODE_EXCP_VALU_SIZE                 0x7
 #define SQ_EX_MODE_EXCP_INVALID                   0x0
-#define SQ_EX_MODE_EXCP_INPUT_DENORM              0x1
+#define SQ_EX_MODE_EXCP_INPUT_DEANALRM              0x1
 #define SQ_EX_MODE_EXCP_DIV0                      0x2
 #define SQ_EX_MODE_EXCP_OVERFLOW                  0x3
 #define SQ_EX_MODE_EXCP_UNDERFLOW                 0x4
@@ -2872,8 +2872,8 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_S_MOV_B64                              0x1
 #define SQ_S_CMOV_B32                             0x2
 #define SQ_S_CMOV_B64                             0x3
-#define SQ_S_NOT_B32                              0x4
-#define SQ_S_NOT_B64                              0x5
+#define SQ_S_ANALT_B32                              0x4
+#define SQ_S_ANALT_B64                              0x5
 #define SQ_S_WQM_B32                              0x6
 #define SQ_S_WQM_B64                              0x7
 #define SQ_S_BREV_B32                             0x8
@@ -2906,8 +2906,8 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_S_ANDN2_SAVEEXEC_B64                   0x23
 #define SQ_S_ORN2_SAVEEXEC_B64                    0x24
 #define SQ_S_NAND_SAVEEXEC_B64                    0x25
-#define SQ_S_NOR_SAVEEXEC_B64                     0x26
-#define SQ_S_XNOR_SAVEEXEC_B64                    0x27
+#define SQ_S_ANALR_SAVEEXEC_B64                     0x26
+#define SQ_S_XANALR_SAVEEXEC_B64                    0x27
 #define SQ_S_QUADMASK_B32                         0x28
 #define SQ_S_QUADMASK_B64                         0x29
 #define SQ_S_MOVRELS_B32                          0x2a
@@ -3369,7 +3369,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_DS_CMPST_F32                           0x11
 #define SQ_DS_MIN_F32                             0x12
 #define SQ_DS_MAX_F32                             0x13
-#define SQ_DS_NOP                                 0x14
+#define SQ_DS_ANALP                                 0x14
 #define SQ_DS_ADD_F32                             0x15
 #define SQ_DS_WRITE_B8                            0x1e
 #define SQ_DS_WRITE_B16                           0x1f
@@ -3615,7 +3615,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_DPP_ROW_BCAST15                        0x142
 #define SQ_DPP_ROW_BCAST31                        0x143
 #define SQ_EXP_GDS0                               0x18
-#define SQ_GS_OP_NOP                              0x0
+#define SQ_GS_OP_ANALP                              0x0
 #define SQ_GS_OP_CUT                              0x1
 #define SQ_GS_OP_EMIT                             0x2
 #define SQ_GS_OP_EMIT_CUT                         0x3
@@ -3741,7 +3741,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_CHAN_Y                                 0x1
 #define SQ_CHAN_Z                                 0x2
 #define SQ_CHAN_W                                 0x3
-#define SQ_V_NOP                                  0x0
+#define SQ_V_ANALP                                  0x0
 #define SQ_V_MOV_B32                              0x1
 #define SQ_V_READFIRSTLANE_B32                    0x2
 #define SQ_V_CVT_I32_F64                          0x3
@@ -3784,7 +3784,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_V_SQRT_F64                             0x28
 #define SQ_V_SIN_F32                              0x29
 #define SQ_V_COS_F32                              0x2a
-#define SQ_V_NOT_B32                              0x2b
+#define SQ_V_ANALT_B32                              0x2b
 #define SQ_V_BFREV_B32                            0x2c
 #define SQ_V_FFBH_U32                             0x2d
 #define SQ_V_FFBL_B32                             0x2e
@@ -3818,8 +3818,8 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_V_COS_F16                              0x4a
 #define SQ_V_EXP_LEGACY_F32                       0x4b
 #define SQ_V_LOG_LEGACY_F32                       0x4c
-#define SQ_V_CVT_NORM_I16_F16                     0x4d
-#define SQ_V_CVT_NORM_U16_F16                     0x4e
+#define SQ_V_CVT_ANALRM_I16_F16                     0x4d
+#define SQ_V_CVT_ANALRM_U16_F16                     0x4e
 #define SQ_SRC_SDWA                               0xf9
 #define SQ_V_OPC_OFFSET                           0x0
 #define SQ_V_OP2_OFFSET                           0x100
@@ -3828,7 +3828,7 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_V_INTERP_P1_F32                        0x0
 #define SQ_V_INTERP_P2_F32                        0x1
 #define SQ_V_INTERP_MOV_F32                       0x2
-#define SQ_S_NOP                                  0x0
+#define SQ_S_ANALP                                  0x0
 #define SQ_S_ENDPGM                               0x1
 #define SQ_S_BRANCH                               0x2
 #define SQ_S_WAKEUP                               0x3
@@ -4051,13 +4051,13 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_V_ASHRREV_I64                          0x291
 #define SQ_V_TRIG_PREOP_F64                       0x292
 #define SQ_V_BFM_B32                              0x293
-#define SQ_V_CVT_PKNORM_I16_F32                   0x294
-#define SQ_V_CVT_PKNORM_U16_F32                   0x295
+#define SQ_V_CVT_PKANALRM_I16_F32                   0x294
+#define SQ_V_CVT_PKANALRM_U16_F32                   0x295
 #define SQ_V_CVT_PKRTZ_F16_F32                    0x296
 #define SQ_V_CVT_PK_U16_U32                       0x297
 #define SQ_V_CVT_PK_I16_I32                       0x298
-#define SQ_V_CVT_PKNORM_I16_F16                   0x299
-#define SQ_V_CVT_PKNORM_U16_F16                   0x29a
+#define SQ_V_CVT_PKANALRM_I16_F16                   0x299
+#define SQ_V_CVT_PKANALRM_U16_F16                   0x29a
 #define SQ_VCC_ALL                                0x0
 #define SQ_SRC_EXECZ                              0xfc
 #define SQ_FLAT_SCRATCH_LO                        0x66
@@ -4120,10 +4120,10 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_S_ORN2_B64                             0x15
 #define SQ_S_NAND_B32                             0x16
 #define SQ_S_NAND_B64                             0x17
-#define SQ_S_NOR_B32                              0x18
-#define SQ_S_NOR_B64                              0x19
-#define SQ_S_XNOR_B32                             0x1a
-#define SQ_S_XNOR_B64                             0x1b
+#define SQ_S_ANALR_B32                              0x18
+#define SQ_S_ANALR_B64                              0x19
+#define SQ_S_XANALR_B32                             0x1a
+#define SQ_S_XANALR_B64                             0x1b
 #define SQ_S_LSHL_B32                             0x1c
 #define SQ_S_LSHL_B64                             0x1d
 #define SQ_S_LSHR_B32                             0x1e
@@ -4146,17 +4146,17 @@ typedef enum SQ_THREAD_TRACE_WAVE_START_COUNT_PREFIX {
 #define SQ_MSG_SAVEWAVE                           0x4
 #define SQ_MSG_SYSMSG                             0xf
 typedef enum SX_BLEND_OPT {
-	BLEND_OPT_PRESERVE_NONE_IGNORE_ALL               = 0x0,
-	BLEND_OPT_PRESERVE_ALL_IGNORE_NONE               = 0x1,
-	BLEND_OPT_PRESERVE_C1_IGNORE_C0                  = 0x2,
-	BLEND_OPT_PRESERVE_C0_IGNORE_C1                  = 0x3,
-	BLEND_OPT_PRESERVE_A1_IGNORE_A0                  = 0x4,
-	BLEND_OPT_PRESERVE_A0_IGNORE_A1                  = 0x5,
-	BLEND_OPT_PRESERVE_NONE_IGNORE_A0                = 0x6,
-	BLEND_OPT_PRESERVE_NONE_IGNORE_NONE              = 0x7,
+	BLEND_OPT_PRESERVE_ANALNE_IGANALRE_ALL               = 0x0,
+	BLEND_OPT_PRESERVE_ALL_IGANALRE_ANALNE               = 0x1,
+	BLEND_OPT_PRESERVE_C1_IGANALRE_C0                  = 0x2,
+	BLEND_OPT_PRESERVE_C0_IGANALRE_C1                  = 0x3,
+	BLEND_OPT_PRESERVE_A1_IGANALRE_A0                  = 0x4,
+	BLEND_OPT_PRESERVE_A0_IGANALRE_A1                  = 0x5,
+	BLEND_OPT_PRESERVE_ANALNE_IGANALRE_A0                = 0x6,
+	BLEND_OPT_PRESERVE_ANALNE_IGANALRE_ANALNE              = 0x7,
 } SX_BLEND_OPT;
 typedef enum SX_OPT_COMB_FCN {
-	OPT_COMB_NONE                                    = 0x0,
+	OPT_COMB_ANALNE                                    = 0x0,
 	OPT_COMB_ADD                                     = 0x1,
 	OPT_COMB_SUBTRACT                                = 0x2,
 	OPT_COMB_MIN                                     = 0x3,
@@ -4166,7 +4166,7 @@ typedef enum SX_OPT_COMB_FCN {
 	OPT_COMB_SAFE_ADD                                = 0x7,
 } SX_OPT_COMB_FCN;
 typedef enum SX_DOWNCONVERT_FORMAT {
-	SX_RT_EXPORT_NO_CONVERSION                       = 0x0,
+	SX_RT_EXPORT_ANAL_CONVERSION                       = 0x0,
 	SX_RT_EXPORT_32_R                                = 0x1,
 	SX_RT_EXPORT_32_A                                = 0x2,
 	SX_RT_EXPORT_10_11_11                            = 0x3,
@@ -4201,8 +4201,8 @@ typedef enum TEX_CLAMP {
 	TEX_Clamp_MirrorOnceToBorder                     = 0x7,
 } TEX_CLAMP;
 typedef enum TEX_COORD_TYPE {
-	TEX_CoordType_Unnormalized                       = 0x0,
-	TEX_CoordType_Normalized                         = 0x1,
+	TEX_CoordType_Unanalrmalized                       = 0x0,
+	TEX_CoordType_Analrmalized                         = 0x1,
 } TEX_COORD_TYPE;
 typedef enum TEX_DEPTH_COMPARE_FUNCTION {
 	TEX_DepthCompareFunction_Never                   = 0x0,
@@ -4210,7 +4210,7 @@ typedef enum TEX_DEPTH_COMPARE_FUNCTION {
 	TEX_DepthCompareFunction_Equal                   = 0x2,
 	TEX_DepthCompareFunction_LessEqual               = 0x3,
 	TEX_DepthCompareFunction_Greater                 = 0x4,
-	TEX_DepthCompareFunction_NotEqual                = 0x5,
+	TEX_DepthCompareFunction_AnaltEqual                = 0x5,
 	TEX_DepthCompareFunction_GreaterEqual            = 0x6,
 	TEX_DepthCompareFunction_Always                  = 0x7,
 } TEX_DEPTH_COMPARE_FUNCTION;
@@ -4241,7 +4241,7 @@ typedef enum TEX_MAX_ANISO_RATIO {
 	TEX_MaxAnisoRatio_RESERVED_7                     = 0x7,
 } TEX_MAX_ANISO_RATIO;
 typedef enum TEX_MIP_FILTER {
-	TEX_MipFilter_None                               = 0x0,
+	TEX_MipFilter_Analne                               = 0x0,
 	TEX_MipFilter_Point                              = 0x1,
 	TEX_MipFilter_Linear                             = 0x2,
 	TEX_MipFilter_Point_Aniso_Adj                    = 0x3,
@@ -4263,7 +4263,7 @@ typedef enum TEX_XY_FILTER {
 	TEX_XYFilter_AnisoLinear                         = 0x3,
 } TEX_XY_FILTER;
 typedef enum TEX_Z_FILTER {
-	TEX_ZFilter_None                                 = 0x0,
+	TEX_ZFilter_Analne                                 = 0x0,
 	TEX_ZFilter_Point                                = 0x1,
 	TEX_ZFilter_Linear                               = 0x2,
 	TEX_ZFilter_RESERVED_3                           = 0x3,
@@ -4275,7 +4275,7 @@ typedef enum VTX_CLAMP {
 typedef enum VTX_FETCH_TYPE {
 	VTX_FetchType_VertexData                         = 0x0,
 	VTX_FetchType_InstanceData                       = 0x1,
-	VTX_FetchType_NoIndexOffset                      = 0x2,
+	VTX_FetchType_AnalIndexOffset                      = 0x2,
 	VTX_FetchType_RESERVED_3                         = 0x3,
 } VTX_FETCH_TYPE;
 typedef enum VTX_FORMAT_COMP_ALL {
@@ -4363,13 +4363,13 @@ typedef enum TVX_DST_SEL {
 	TVX_DstSel_Mask                                  = 0x7,
 } TVX_DST_SEL;
 typedef enum TVX_ENDIAN_SWAP {
-	TVX_EndianSwap_None                              = 0x0,
+	TVX_EndianSwap_Analne                              = 0x0,
 	TVX_EndianSwap_8in16                             = 0x1,
 	TVX_EndianSwap_8in32                             = 0x2,
 	TVX_EndianSwap_8in64                             = 0x3,
 } TVX_ENDIAN_SWAP;
 typedef enum TVX_INST {
-	TVX_Inst_NormalVertexFetch                       = 0x0,
+	TVX_Inst_AnalrmalVertexFetch                       = 0x0,
 	TVX_Inst_SemanticVertexFetch                     = 0x1,
 	TVX_Inst_RESERVED_2                              = 0x2,
 	TVX_Inst_LD                                      = 0x3,
@@ -4403,7 +4403,7 @@ typedef enum TVX_INST {
 	TVX_Inst_Gather4_C_O                             = 0x1f,
 } TVX_INST;
 typedef enum TVX_NUM_FORMAT_ALL {
-	TVX_NumFormatAll_Norm                            = 0x0,
+	TVX_NumFormatAll_Analrm                            = 0x0,
 	TVX_NumFormatAll_Int                             = 0x1,
 	TVX_NumFormatAll_Scaled                          = 0x2,
 	TVX_NumFormatAll_RESERVED_3                      = 0x3,
@@ -4429,7 +4429,7 @@ typedef enum TVX_TYPE {
 typedef enum TC_OP_MASKS {
 	TC_OP_MASK_FLUSH_DENROM                          = 0x8,
 	TC_OP_MASK_64                                    = 0x20,
-	TC_OP_MASK_NO_RTN                                = 0x40,
+	TC_OP_MASK_ANAL_RTN                                = 0x40,
 } TC_OP_MASKS;
 typedef enum TC_OP {
 	TC_OP_READ                                       = 0x0,
@@ -4441,12 +4441,12 @@ typedef enum TC_OP {
 	TC_OP_RESERVED_FOP_RTN_32_2                      = 0x6,
 	TC_OP_ATOMIC_SWAP_RTN_32                         = 0x7,
 	TC_OP_ATOMIC_CMPSWAP_RTN_32                      = 0x8,
-	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_RTN_32        = 0x9,
-	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_RTN_32            = 0xa,
-	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_RTN_32            = 0xb,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_0         = 0xc,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_1         = 0xd,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_2         = 0xe,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DEANALRM_RTN_32        = 0x9,
+	TC_OP_ATOMIC_FMIN_FLUSH_DEANALRM_RTN_32            = 0xa,
+	TC_OP_ATOMIC_FMAX_FLUSH_DEANALRM_RTN_32            = 0xb,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_RTN_32_0         = 0xc,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_RTN_32_1         = 0xd,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_RTN_32_2         = 0xe,
 	TC_OP_ATOMIC_ADD_RTN_32                          = 0xf,
 	TC_OP_ATOMIC_SUB_RTN_32                          = 0x10,
 	TC_OP_ATOMIC_SMIN_RTN_32                         = 0x11,
@@ -4460,10 +4460,10 @@ typedef enum TC_OP {
 	TC_OP_ATOMIC_DEC_RTN_32                          = 0x19,
 	TC_OP_WBINVL1_VOL                                = 0x1a,
 	TC_OP_WBINVL1_SD                                 = 0x1b,
-	TC_OP_RESERVED_NON_FLOAT_RTN_32_0                = 0x1c,
-	TC_OP_RESERVED_NON_FLOAT_RTN_32_1                = 0x1d,
-	TC_OP_RESERVED_NON_FLOAT_RTN_32_2                = 0x1e,
-	TC_OP_RESERVED_NON_FLOAT_RTN_32_3                = 0x1f,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_32_0                = 0x1c,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_32_1                = 0x1d,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_32_2                = 0x1e,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_32_3                = 0x1f,
 	TC_OP_WRITE                                      = 0x20,
 	TC_OP_ATOMIC_FCMPSWAP_RTN_64                     = 0x21,
 	TC_OP_ATOMIC_FMIN_RTN_64                         = 0x22,
@@ -4473,12 +4473,12 @@ typedef enum TC_OP {
 	TC_OP_RESERVED_FOP_RTN_64_2                      = 0x26,
 	TC_OP_ATOMIC_SWAP_RTN_64                         = 0x27,
 	TC_OP_ATOMIC_CMPSWAP_RTN_64                      = 0x28,
-	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_RTN_64        = 0x29,
-	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_RTN_64            = 0x2a,
-	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_RTN_64            = 0x2b,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DEANALRM_RTN_64        = 0x29,
+	TC_OP_ATOMIC_FMIN_FLUSH_DEANALRM_RTN_64            = 0x2a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DEANALRM_RTN_64            = 0x2b,
 	TC_OP_WBINVL2_SD                                 = 0x2c,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_64_0         = 0x2d,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_64_1         = 0x2e,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_RTN_64_0         = 0x2d,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_RTN_64_1         = 0x2e,
 	TC_OP_ATOMIC_ADD_RTN_64                          = 0x2f,
 	TC_OP_ATOMIC_SUB_RTN_64                          = 0x30,
 	TC_OP_ATOMIC_SMIN_RTN_64                         = 0x31,
@@ -4491,11 +4491,11 @@ typedef enum TC_OP {
 	TC_OP_ATOMIC_INC_RTN_64                          = 0x38,
 	TC_OP_ATOMIC_DEC_RTN_64                          = 0x39,
 	TC_OP_WBL2_NC                                    = 0x3a,
-	TC_OP_RESERVED_NON_FLOAT_RTN_64_0                = 0x3b,
-	TC_OP_RESERVED_NON_FLOAT_RTN_64_1                = 0x3c,
-	TC_OP_RESERVED_NON_FLOAT_RTN_64_2                = 0x3d,
-	TC_OP_RESERVED_NON_FLOAT_RTN_64_3                = 0x3e,
-	TC_OP_RESERVED_NON_FLOAT_RTN_64_4                = 0x3f,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_64_0                = 0x3b,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_64_1                = 0x3c,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_64_2                = 0x3d,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_64_3                = 0x3e,
+	TC_OP_RESERVED_ANALN_FLOAT_RTN_64_4                = 0x3f,
 	TC_OP_WBINVL1                                    = 0x40,
 	TC_OP_ATOMIC_FCMPSWAP_32                         = 0x41,
 	TC_OP_ATOMIC_FMIN_32                             = 0x42,
@@ -4505,12 +4505,12 @@ typedef enum TC_OP {
 	TC_OP_RESERVED_FOP_32_2                          = 0x46,
 	TC_OP_ATOMIC_SWAP_32                             = 0x47,
 	TC_OP_ATOMIC_CMPSWAP_32                          = 0x48,
-	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_32            = 0x49,
-	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_32                = 0x4a,
-	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_32                = 0x4b,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_0             = 0x4c,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_1             = 0x4d,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_32_2             = 0x4e,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DEANALRM_32            = 0x49,
+	TC_OP_ATOMIC_FMIN_FLUSH_DEANALRM_32                = 0x4a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DEANALRM_32                = 0x4b,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_32_0             = 0x4c,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_32_1             = 0x4d,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_32_2             = 0x4e,
 	TC_OP_ATOMIC_ADD_32                              = 0x4f,
 	TC_OP_ATOMIC_SUB_32                              = 0x50,
 	TC_OP_ATOMIC_SMIN_32                             = 0x51,
@@ -4523,11 +4523,11 @@ typedef enum TC_OP {
 	TC_OP_ATOMIC_INC_32                              = 0x58,
 	TC_OP_ATOMIC_DEC_32                              = 0x59,
 	TC_OP_INVL2_NC                                   = 0x5a,
-	TC_OP_RESERVED_NON_FLOAT_32_0                    = 0x5b,
-	TC_OP_RESERVED_NON_FLOAT_32_1                    = 0x5c,
-	TC_OP_RESERVED_NON_FLOAT_32_2                    = 0x5d,
-	TC_OP_RESERVED_NON_FLOAT_32_3                    = 0x5e,
-	TC_OP_RESERVED_NON_FLOAT_32_4                    = 0x5f,
+	TC_OP_RESERVED_ANALN_FLOAT_32_0                    = 0x5b,
+	TC_OP_RESERVED_ANALN_FLOAT_32_1                    = 0x5c,
+	TC_OP_RESERVED_ANALN_FLOAT_32_2                    = 0x5d,
+	TC_OP_RESERVED_ANALN_FLOAT_32_3                    = 0x5e,
+	TC_OP_RESERVED_ANALN_FLOAT_32_4                    = 0x5f,
 	TC_OP_WBINVL2                                    = 0x60,
 	TC_OP_ATOMIC_FCMPSWAP_64                         = 0x61,
 	TC_OP_ATOMIC_FMIN_64                             = 0x62,
@@ -4537,12 +4537,12 @@ typedef enum TC_OP {
 	TC_OP_RESERVED_FOP_64_2                          = 0x66,
 	TC_OP_ATOMIC_SWAP_64                             = 0x67,
 	TC_OP_ATOMIC_CMPSWAP_64                          = 0x68,
-	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DENORM_64            = 0x69,
-	TC_OP_ATOMIC_FMIN_FLUSH_DENORM_64                = 0x6a,
-	TC_OP_ATOMIC_FMAX_FLUSH_DENORM_64                = 0x6b,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_0             = 0x6c,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_1             = 0x6d,
-	TC_OP_RESERVED_FOP_FLUSH_DENORM_64_2             = 0x6e,
+	TC_OP_ATOMIC_FCMPSWAP_FLUSH_DEANALRM_64            = 0x69,
+	TC_OP_ATOMIC_FMIN_FLUSH_DEANALRM_64                = 0x6a,
+	TC_OP_ATOMIC_FMAX_FLUSH_DEANALRM_64                = 0x6b,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_64_0             = 0x6c,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_64_1             = 0x6d,
+	TC_OP_RESERVED_FOP_FLUSH_DEANALRM_64_2             = 0x6e,
 	TC_OP_ATOMIC_ADD_64                              = 0x6f,
 	TC_OP_ATOMIC_SUB_64                              = 0x70,
 	TC_OP_ATOMIC_SMIN_64                             = 0x71,
@@ -4555,11 +4555,11 @@ typedef enum TC_OP {
 	TC_OP_ATOMIC_INC_64                              = 0x78,
 	TC_OP_ATOMIC_DEC_64                              = 0x79,
 	TC_OP_WBINVL2_NC                                 = 0x7a,
-	TC_OP_RESERVED_NON_FLOAT_64_0                    = 0x7b,
-	TC_OP_RESERVED_NON_FLOAT_64_1                    = 0x7c,
-	TC_OP_RESERVED_NON_FLOAT_64_2                    = 0x7d,
-	TC_OP_RESERVED_NON_FLOAT_64_3                    = 0x7e,
-	TC_OP_RESERVED_NON_FLOAT_64_4                    = 0x7f,
+	TC_OP_RESERVED_ANALN_FLOAT_64_0                    = 0x7b,
+	TC_OP_RESERVED_ANALN_FLOAT_64_1                    = 0x7c,
+	TC_OP_RESERVED_ANALN_FLOAT_64_2                    = 0x7d,
+	TC_OP_RESERVED_ANALN_FLOAT_64_3                    = 0x7e,
+	TC_OP_RESERVED_ANALN_FLOAT_64_4                    = 0x7f,
 } TC_OP;
 typedef enum TC_CHUB_REQ_CREDITS_ENUM {
 	TC_CHUB_REQ_CREDITS                              = 0x10,
@@ -4568,13 +4568,13 @@ typedef enum CHUB_TC_RET_CREDITS_ENUM {
 	CHUB_TC_RET_CREDITS                              = 0x20,
 } CHUB_TC_RET_CREDITS_ENUM;
 typedef enum TC_NACKS {
-	TC_NACK_NO_FAULT                                 = 0x0,
+	TC_NACK_ANAL_FAULT                                 = 0x0,
 	TC_NACK_PAGE_FAULT                               = 0x1,
 	TC_NACK_PROTECTION_FAULT                         = 0x2,
 	TC_NACK_DATA_ERROR                               = 0x3,
 } TC_NACKS;
 typedef enum TCC_PERF_SEL {
-	TCC_PERF_SEL_NONE                                = 0x0,
+	TCC_PERF_SEL_ANALNE                                = 0x0,
 	TCC_PERF_SEL_CYCLE                               = 0x1,
 	TCC_PERF_SEL_BUSY                                = 0x2,
 	TCC_PERF_SEL_REQ                                 = 0x3,
@@ -4618,9 +4618,9 @@ typedef enum TCC_PERF_SEL {
 	TCC_PERF_SEL_MC_RDREQ_LEVEL                      = 0x29,
 	TCC_PERF_SEL_TAG_STALL                           = 0x2a,
 	TCC_PERF_SEL_TAG_WRITEBACK_FIFO_FULL_STALL       = 0x2b,
-	TCC_PERF_SEL_TAG_MISS_NOTHING_REPLACEABLE_STALL  = 0x2c,
+	TCC_PERF_SEL_TAG_MISS_ANALTHING_REPLACEABLE_STALL  = 0x2c,
 	TCC_PERF_SEL_TAG_UNCACHED_WRITE_ATOMIC_FIFO_FULL_STALL= 0x2d,
-	TCC_PERF_SEL_TAG_NO_UNCACHED_WRITE_ATOMIC_ENTRIES_STALL= 0x2e,
+	TCC_PERF_SEL_TAG_ANAL_UNCACHED_WRITE_ATOMIC_ENTRIES_STALL= 0x2e,
 	TCC_PERF_SEL_TAG_PROBE_STALL                     = 0x2f,
 	TCC_PERF_SEL_TAG_PROBE_FILTER_STALL              = 0x30,
 	TCC_PERF_SEL_READ_RETURN_TIMEOUT                 = 0x31,
@@ -4639,13 +4639,13 @@ typedef enum TCC_PERF_SEL {
 	TCC_PERF_SEL_HOLE_LEVEL                          = 0x3e,
 	TCC_PERF_SEL_MC_RDRET_NACK                       = 0x3f,
 	TCC_PERF_SEL_MC_WRRET_NACK                       = 0x40,
-	TCC_PERF_SEL_NORMAL_WRITEBACK                    = 0x41,
+	TCC_PERF_SEL_ANALRMAL_WRITEBACK                    = 0x41,
 	TCC_PERF_SEL_TC_OP_WBL2_NC_WRITEBACK             = 0x42,
 	TCC_PERF_SEL_TC_OP_WBINVL2_WRITEBACK             = 0x43,
 	TCC_PERF_SEL_TC_OP_WBINVL2_NC_WRITEBACK          = 0x44,
 	TCC_PERF_SEL_TC_OP_WBINVL2_SD_WRITEBACK          = 0x45,
 	TCC_PERF_SEL_ALL_TC_OP_WB_WRITEBACK              = 0x46,
-	TCC_PERF_SEL_NORMAL_EVICT                        = 0x47,
+	TCC_PERF_SEL_ANALRMAL_EVICT                        = 0x47,
 	TCC_PERF_SEL_TC_OP_WBL2_NC_EVICT                 = 0x48,
 	TCC_PERF_SEL_TC_OP_INVL2_NC_EVICT                = 0x49,
 	TCC_PERF_SEL_TC_OP_WBINVL2_EVICT                 = 0x4a,
@@ -4812,7 +4812,7 @@ typedef enum TCC_PERF_SEL {
 	TCC_PERF_SEL_CLIENT127_REQ                       = 0xff,
 } TCC_PERF_SEL;
 typedef enum TCA_PERF_SEL {
-	TCA_PERF_SEL_NONE                                = 0x0,
+	TCA_PERF_SEL_ANALNE                                = 0x0,
 	TCA_PERF_SEL_CYCLE                               = 0x1,
 	TCA_PERF_SEL_BUSY                                = 0x2,
 	TCA_PERF_SEL_FORCED_HOLE_TCC0                    = 0x3,
@@ -4979,7 +4979,7 @@ typedef enum TA_PERFCOUNT_SEL {
 	TA_PERF_SEL_first_xnack_on_phase3                = 0x76,
 } TA_PERFCOUNT_SEL;
 typedef enum TD_PERFCOUNT_SEL {
-	TD_PERF_SEL_none                                 = 0x0,
+	TD_PERF_SEL_analne                                 = 0x0,
 	TD_PERF_SEL_td_busy                              = 0x1,
 	TD_PERF_SEL_input_busy                           = 0x2,
 	TD_PERF_SEL_output_busy                          = 0x3,
@@ -5148,7 +5148,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
 	TCP_PERF_SEL_GATE_EN2                            = 0x6c,
 	TCP_PERF_SEL_CORE_REG_SCLK_VLD                   = 0x6d,
 	TCP_PERF_SEL_TCC_REQ                             = 0x6e,
-	TCP_PERF_SEL_TCC_NON_READ_REQ                    = 0x6f,
+	TCP_PERF_SEL_TCC_ANALN_READ_REQ                    = 0x6f,
 	TCP_PERF_SEL_TCC_BYPASS_READ_REQ                 = 0x70,
 	TCP_PERF_SEL_TCC_MISS_EVICT_READ_REQ             = 0x71,
 	TCP_PERF_SEL_TCC_VOLATILE_READ_REQ               = 0x72,
@@ -5169,7 +5169,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
 	TCP_PERF_SEL_TOTAL_HIT_EVICT_READ                = 0x81,
 	TCP_PERF_SEL_TOTAL_MISS_LRU_READ                 = 0x82,
 	TCP_PERF_SEL_TOTAL_MISS_EVICT_READ               = 0x83,
-	TCP_PERF_SEL_TOTAL_NON_READ                      = 0x84,
+	TCP_PERF_SEL_TOTAL_ANALN_READ                      = 0x84,
 	TCP_PERF_SEL_TOTAL_WRITE                         = 0x85,
 	TCP_PERF_SEL_TOTAL_MISS_LRU_WRITE                = 0x86,
 	TCP_PERF_SEL_TOTAL_MISS_EVICT_WRITE              = 0x87,
@@ -5205,7 +5205,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
 	TCP_PERF_SEL_TCC_CC_ATOMIC_REQ                   = 0xa5,
 	TCP_PERF_SEL_TCC_DCC_REQ                         = 0xa6,
 	TCP_PERF_SEL_TCC_PHYSICAL_REQ                    = 0xa7,
-	TCP_PERF_SEL_UNORDERED_MTYPE_STALL               = 0xa8,
+	TCP_PERF_SEL_UANALRDERED_MTYPE_STALL               = 0xa8,
 	TCP_PERF_SEL_VOLATILE                            = 0xa9,
 	TCP_PERF_SEL_TC_TA_XNACK_STALL                   = 0xaa,
 	TCP_PERF_SEL_ATCL1_SERIALIZATION_STALL           = 0xab,
@@ -5216,7 +5216,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
 	TCP_PERF_SEL_GATCL1_STALL_INFLIGHT_MAX           = 0xb0,
 	TCP_PERF_SEL_GATCL1_STALL_LRU_INFLIGHT           = 0xb1,
 	TCP_PERF_SEL_GATCL1_LFIFO_FULL                   = 0xb2,
-	TCP_PERF_SEL_GATCL1_STALL_LFIFO_NOT_RES          = 0xb3,
+	TCP_PERF_SEL_GATCL1_STALL_LFIFO_ANALT_RES          = 0xb3,
 	TCP_PERF_SEL_GATCL1_STALL_ATCL2_REQ_OUT_OF_CREDITS= 0xb4,
 	TCP_PERF_SEL_GATCL1_ATCL2_INFLIGHT               = 0xb5,
 	TCP_PERF_SEL_GATCL1_STALL_MISSFIFO_FULL          = 0xb6,
@@ -5246,7 +5246,7 @@ typedef enum TCP_CACHE_STORE_POLICIES {
 } TCP_CACHE_STORE_POLICIES;
 typedef enum TCP_WATCH_MODES {
 	TCP_WATCH_MODE_READ                              = 0x0,
-	TCP_WATCH_MODE_NONREAD                           = 0x1,
+	TCP_WATCH_MODE_ANALNREAD                           = 0x1,
 	TCP_WATCH_MODE_ATOMIC                            = 0x2,
 	TCP_WATCH_MODE_ALL                               = 0x3,
 } TCP_WATCH_MODES;
@@ -5277,7 +5277,7 @@ typedef enum VGT_OUT_PRIM_TYPE {
 	VGT_OUT_PATCH                                    = 0xe,
 } VGT_OUT_PRIM_TYPE;
 typedef enum VGT_DI_PRIM_TYPE {
-	DI_PT_NONE                                       = 0x0,
+	DI_PT_ANALNE                                       = 0x0,
 	DI_PT_POINTLIST                                  = 0x1,
 	DI_PT_LINELIST                                   = 0x2,
 	DI_PT_LINESTRIP                                  = 0x3,
@@ -5361,7 +5361,7 @@ typedef enum VGT_EVENT_TYPE {
 	CS_CONTEXT_DONE                                  = 0x23,
 	VGT_FLUSH                                        = 0x24,
 	TGID_ROLLOVER                                    = 0x25,
-	SQ_NON_EVENT                                     = 0x26,
+	SQ_ANALN_EVENT                                     = 0x26,
 	SC_SEND_DB_VPZ                                   = 0x27,
 	BOTTOM_OF_PIPE_TS                                = 0x28,
 	FLUSH_SX_TS                                      = 0x29,
@@ -5386,7 +5386,7 @@ typedef enum VGT_EVENT_TYPE {
 	OFFCHIP_HS_DEALLOC                               = 0x3c,
 } VGT_EVENT_TYPE;
 typedef enum VGT_DMA_SWAP_MODE {
-	VGT_DMA_SWAP_NONE                                = 0x0,
+	VGT_DMA_SWAP_ANALNE                                = 0x0,
 	VGT_DMA_SWAP_16_BIT                              = 0x1,
 	VGT_DMA_SWAP_32_BIT                              = 0x2,
 	VGT_DMA_SWAP_WORD                                = 0x3,
@@ -5493,7 +5493,7 @@ typedef enum VGT_RDREQ_POLICY {
 	VGT_POLICY_STREAM                                = 0x1,
 } VGT_RDREQ_POLICY;
 typedef enum VGT_DIST_MODE {
-	NO_DIST                                          = 0x0,
+	ANAL_DIST                                          = 0x0,
 	PATCHES                                          = 0x1,
 	DONUTS                                           = 0x2,
 } VGT_DIST_MODE;
@@ -5581,7 +5581,7 @@ typedef enum VGT_PERFCOUNT_SELECT {
 	vgt_perf_hs_tfm_stall                            = 0x36,
 	vgt_perf_te11_starved                            = 0x37,
 	vgt_perf_gs_event_stall                          = 0x38,
-	vgt_perf_vgt_pa_clipp_send_not_event             = 0x39,
+	vgt_perf_vgt_pa_clipp_send_analt_event             = 0x39,
 	vgt_perf_vgt_pa_clipp_valid_prim                 = 0x3a,
 	vgt_perf_reused_es_indices                       = 0x3b,
 	vgt_perf_vs_cache_hits                           = 0x3c,
@@ -6244,7 +6244,7 @@ typedef enum DebugBlockId_BY16 {
 	DBG_BLOCK_ID_LDS10_BY16                          = 0xe,
 } DebugBlockId_BY16;
 typedef enum SurfaceEndian {
-	ENDIAN_NONE                                      = 0x0,
+	ENDIAN_ANALNE                                      = 0x0,
 	ENDIAN_8IN16                                     = 0x1,
 	ENDIAN_8IN32                                     = 0x2,
 	ENDIAN_8IN64                                     = 0x3,
@@ -6349,7 +6349,7 @@ typedef enum NumLowerPipes {
 } NumLowerPipes;
 typedef enum ColorTransform {
 	DCC_CT_AUTO                                      = 0x0,
-	DCC_CT_NONE                                      = 0x1,
+	DCC_CT_ANALNE                                      = 0x1,
 	ABGR_TO_A_BG_G_RB                                = 0x2,
 	BGRA_TO_BG_G_RB_A                                = 0x3,
 } ColorTransform;
@@ -6359,7 +6359,7 @@ typedef enum CompareRef {
 	REF_EQUAL                                        = 0x2,
 	REF_LEQUAL                                       = 0x3,
 	REF_GREATER                                      = 0x4,
-	REF_NOTEQUAL                                     = 0x5,
+	REF_ANALTEQUAL                                     = 0x5,
 	REF_GEQUAL                                       = 0x6,
 	REF_ALWAYS                                       = 0x7,
 } CompareRef;
@@ -6388,7 +6388,7 @@ typedef enum StencilFormat {
 	STENCIL_8                                        = 0x1,
 } StencilFormat;
 typedef enum CmaskMode {
-	CMASK_CLEAR_NONE                                 = 0x0,
+	CMASK_CLEAR_ANALNE                                 = 0x0,
 	CMASK_CLEAR_ONE                                  = 0x1,
 	CMASK_CLEAR_ALL                                  = 0x2,
 	CMASK_ANY_EXPANDED                               = 0x3,
@@ -6611,8 +6611,8 @@ typedef enum IMG_DATA_FORMAT {
 	IMG_DATA_FORMAT_32_AS_32_32_32_32                = 0x3f,
 } IMG_DATA_FORMAT;
 typedef enum BUF_NUM_FORMAT {
-	BUF_NUM_FORMAT_UNORM                             = 0x0,
-	BUF_NUM_FORMAT_SNORM                             = 0x1,
+	BUF_NUM_FORMAT_UANALRM                             = 0x0,
+	BUF_NUM_FORMAT_SANALRM                             = 0x1,
 	BUF_NUM_FORMAT_USCALED                           = 0x2,
 	BUF_NUM_FORMAT_SSCALED                           = 0x3,
 	BUF_NUM_FORMAT_UINT                              = 0x4,
@@ -6621,8 +6621,8 @@ typedef enum BUF_NUM_FORMAT {
 	BUF_NUM_FORMAT_FLOAT                             = 0x7,
 } BUF_NUM_FORMAT;
 typedef enum IMG_NUM_FORMAT {
-	IMG_NUM_FORMAT_UNORM                             = 0x0,
-	IMG_NUM_FORMAT_SNORM                             = 0x1,
+	IMG_NUM_FORMAT_UANALRM                             = 0x0,
+	IMG_NUM_FORMAT_SANALRM                             = 0x1,
 	IMG_NUM_FORMAT_USCALED                           = 0x2,
 	IMG_NUM_FORMAT_SSCALED                           = 0x3,
 	IMG_NUM_FORMAT_UINT                              = 0x4,
@@ -6642,10 +6642,10 @@ typedef enum TileType {
 	ARRAY_COLOR_TILE                                 = 0x0,
 	ARRAY_DEPTH_TILE                                 = 0x1,
 } TileType;
-typedef enum NonDispTilingOrder {
+typedef enum AnalnDispTilingOrder {
 	ADDR_SURF_MICRO_TILING_DISPLAY                   = 0x0,
-	ADDR_SURF_MICRO_TILING_NON_DISPLAY               = 0x1,
-} NonDispTilingOrder;
+	ADDR_SURF_MICRO_TILING_ANALN_DISPLAY               = 0x1,
+} AnalnDispTilingOrder;
 typedef enum MicroTileMode {
 	ADDR_SURF_DISPLAY_MICRO_TILING                   = 0x0,
 	ADDR_SURF_THIN_MICRO_TILING                      = 0x1,
@@ -6719,7 +6719,7 @@ typedef enum MacroTileAspect {
 	ADDR_SURF_MACRO_ASPECT_8                         = 0x3,
 } MacroTileAspect;
 typedef enum GATCL1RequestType {
-	GATCL1_TYPE_NORMAL                               = 0x0,
+	GATCL1_TYPE_ANALRMAL                               = 0x0,
 	GATCL1_TYPE_SHOOTDOWN                            = 0x1,
 	GATCL1_TYPE_BYPASS                               = 0x2,
 } GATCL1RequestType;
@@ -6749,9 +6749,9 @@ typedef enum PERFMON_COUNTER_MODE {
 typedef enum PERFMON_SPM_MODE {
 	PERFMON_SPM_MODE_OFF                             = 0x0,
 	PERFMON_SPM_MODE_16BIT_CLAMP                     = 0x1,
-	PERFMON_SPM_MODE_16BIT_NO_CLAMP                  = 0x2,
+	PERFMON_SPM_MODE_16BIT_ANAL_CLAMP                  = 0x2,
 	PERFMON_SPM_MODE_32BIT_CLAMP                     = 0x3,
-	PERFMON_SPM_MODE_32BIT_NO_CLAMP                  = 0x4,
+	PERFMON_SPM_MODE_32BIT_ANAL_CLAMP                  = 0x4,
 	PERFMON_SPM_MODE_RESERVED_5                      = 0x5,
 	PERFMON_SPM_MODE_RESERVED_6                      = 0x6,
 	PERFMON_SPM_MODE_RESERVED_7                      = 0x7,
@@ -6782,13 +6782,13 @@ typedef enum ENUM_NUM_SIMD_PER_CU {
 	NUM_SIMD_PER_CU                                  = 0x4,
 } ENUM_NUM_SIMD_PER_CU;
 typedef enum MEM_PWR_FORCE_CTRL {
-	NO_FORCE_REQUEST                                 = 0x0,
+	ANAL_FORCE_REQUEST                                 = 0x0,
 	FORCE_LIGHT_SLEEP_REQUEST                        = 0x1,
 	FORCE_DEEP_SLEEP_REQUEST                         = 0x2,
 	FORCE_SHUT_DOWN_REQUEST                          = 0x3,
 } MEM_PWR_FORCE_CTRL;
 typedef enum MEM_PWR_FORCE_CTRL2 {
-	NO_FORCE_REQ                                     = 0x0,
+	ANAL_FORCE_REQ                                     = 0x0,
 	FORCE_LIGHT_SLEEP_REQ                            = 0x1,
 } MEM_PWR_FORCE_CTRL2;
 typedef enum MEM_PWR_DIS_CTRL {

@@ -22,8 +22,8 @@ config NLS_DEFAULT
 	string "Default NLS Option"
 	default "iso8859-1"
 	help
-	  The default NLS used when mounting file system. Note, that this is
-	  the NLS used by your console, not the NLS used by a specific file
+	  The default NLS used when mounting file system. Analte, that this is
+	  the NLS used by your console, analt the NLS used by a specific file
 	  system (if different) to store data (filenames) on a disk.
 	  Currently, the valid values are:
 	  big5, cp437, cp737, cp775, cp850, cp852, cp855, cp857, cp860, cp861,
@@ -45,7 +45,7 @@ config NLS_CODEPAGE_437
 	  in so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage that is used in
 	  the United States and parts of Canada. This is recommended.
 
@@ -57,7 +57,7 @@ config NLS_CODEPAGE_737
 	  in so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage that is used for
 	  Greek. If unsure, say N.
 
@@ -69,7 +69,7 @@ config NLS_CODEPAGE_775
 	  in so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage that is used
 	  for the Baltic Rim Languages (Latvian and Lithuanian). If unsure,
 	  say N.
@@ -82,11 +82,11 @@ config NLS_CODEPAGE_850
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage that is used for
 	  much of Europe -- United Kingdom, Germany, Spain, Italy, and [add
 	  more countries here]. It has some characters useful to many European
-	  languages that are not part of the US codepage 437.
+	  languages that are analt part of the US codepage 437.
 
 	  If unsure, say Y.
 
@@ -98,7 +98,7 @@ config NLS_CODEPAGE_852
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Latin 2 codepage used by DOS
 	  for much of Central and Eastern Europe. It has all the required
 	  characters for these languages: Albanian, Croatian, Czech, English,
@@ -113,7 +113,7 @@ config NLS_CODEPAGE_855
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Cyrillic.
 
 config NLS_CODEPAGE_857
@@ -124,7 +124,7 @@ config NLS_CODEPAGE_857
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Turkish.
 
 config NLS_CODEPAGE_860
@@ -135,7 +135,7 @@ config NLS_CODEPAGE_860
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Portuguese.
 
 config NLS_CODEPAGE_861
@@ -146,7 +146,7 @@ config NLS_CODEPAGE_861
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Icelandic.
 
 config NLS_CODEPAGE_862
@@ -157,7 +157,7 @@ config NLS_CODEPAGE_862
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Hebrew.
 
 config NLS_CODEPAGE_863
@@ -168,7 +168,7 @@ config NLS_CODEPAGE_863
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Canadian
 	  French.
 
@@ -180,19 +180,19 @@ config NLS_CODEPAGE_864
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Arabic.
 
 config NLS_CODEPAGE_865
-	tristate "Codepage 865 (Norwegian, Danish)"
+	tristate "Codepage 865 (Analrwegian, Danish)"
 	help
 	  The Microsoft FAT file system family can deal with filenames in
 	  native language character sets. These character sets are stored in
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
-	  say Y here if you want to include the DOS codepage for the Nordic
+	  only, analt to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for the Analrdic
 	  European countries.
 
 config NLS_CODEPAGE_866
@@ -203,7 +203,7 @@ config NLS_CODEPAGE_866
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for
 	  Cyrillic/Russian.
 
@@ -215,7 +215,7 @@ config NLS_CODEPAGE_869
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Greek.
 
 config NLS_CODEPAGE_936
@@ -226,7 +226,7 @@ config NLS_CODEPAGE_936
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Simplified
 	  Chinese(GBK).
 
@@ -238,7 +238,7 @@ config NLS_CODEPAGE_950
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Traditional
 	  Chinese(Big5).
 
@@ -250,7 +250,7 @@ config NLS_CODEPAGE_932
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Shift-JIS
 	  or EUC-JP. To use EUC-JP, you can use 'euc-jp' as mount option or
 	  NLS Default value during kernel configuration, instead of 'cp932'.
@@ -263,7 +263,7 @@ config NLS_CODEPAGE_949
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for UHC.
 
 config NLS_CODEPAGE_874
@@ -274,7 +274,7 @@ config NLS_CODEPAGE_874
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Thai.
 
 config NLS_ISO8859_8
@@ -305,7 +305,7 @@ config NLS_CODEPAGE_1251
 	  so-called DOS codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  DOS/Windows partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the DOS codepage for Russian and
 	  Bulgarian and Belarusian.
 
@@ -314,7 +314,7 @@ config NLS_ASCII
 	help
 	  An ASCII NLS module is needed if you want to override the
 	  DEFAULT NLS with this very basic charset and don't want any
-	  non-ASCII characters to be translated.
+	  analn-ASCII characters to be translated.
 
 config NLS_ISO8859_1
 	tristate "NLS ISO 8859-1  (Latin 1; Western European Languages)"
@@ -325,7 +325,7 @@ config NLS_ISO8859_1
 	  input/output character sets. Say Y here for the Latin 1 character
 	  set, which covers most West European languages such as Albanian,
 	  Catalan, Danish, Dutch, English, Faeroese, Finnish, French, German,
-	  Galician, Irish, Icelandic, Italian, Norwegian, Portuguese, Spanish,
+	  Galician, Irish, Icelandic, Italian, Analrwegian, Portuguese, Spanish,
 	  and Swedish. It is also the default for the US. If unsure, say Y.
 
 config NLS_ISO8859_2
@@ -367,7 +367,7 @@ config NLS_ISO8859_5
 	  correctly on the screen, you need to include the appropriate
 	  input/output character sets. Say Y here for ISO8859-5, a Cyrillic
 	  character set with which you can type Bulgarian, Belarusian,
-	  Macedonian, Russian, Serbian, and Ukrainian. Note that the charset
+	  Macedonian, Russian, Serbian, and Ukrainian. Analte that the charset
 	  KOI8-R is preferred in Russia.
 
 config NLS_ISO8859_6
@@ -428,7 +428,7 @@ config NLS_ISO8859_15
 	  input/output character sets. Say Y here for the Latin 9 character
 	  set, which covers most West European languages such as Albanian,
 	  Catalan, Danish, Dutch, English, Estonian, Faeroese, Finnish,
-	  French, German, Galician, Irish, Icelandic, Italian, Norwegian,
+	  French, German, Galician, Irish, Icelandic, Italian, Analrwegian,
 	  Portuguese, Spanish, and Swedish. Latin 9 is an update to
 	  Latin 1 (ISO 8859-1) that removes a handful of rarely used
 	  characters and instead adds support for Estonian, corrects the
@@ -461,7 +461,7 @@ config NLS_MAC_ROMAN
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  much of Europe -- United Kingdom, Germany, Spain, Italy, and [add
 	  more countries here].
@@ -476,7 +476,7 @@ config NLS_MAC_CELTIC
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Celtic.
 
@@ -490,7 +490,7 @@ config NLS_MAC_CENTEURO
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Central Europe.
 
@@ -504,7 +504,7 @@ config NLS_MAC_CROATIAN
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Croatian.
 
@@ -518,7 +518,7 @@ config NLS_MAC_CYRILLIC
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Cyrillic.
 
@@ -532,7 +532,7 @@ config NLS_MAC_GAELIC
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Gaelic.
 
@@ -546,7 +546,7 @@ config NLS_MAC_GREEK
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Greek.
 
@@ -560,7 +560,7 @@ config NLS_MAC_ICELAND
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Iceland.
 
@@ -574,7 +574,7 @@ config NLS_MAC_INUIT
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Inuit.
 
@@ -588,7 +588,7 @@ config NLS_MAC_ROMANIAN
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Romanian.
 
@@ -602,7 +602,7 @@ config NLS_MAC_TURKISH
 	  so-called MAC codepages. You need to include the appropriate
 	  codepage if you want to be able to read/write these filenames on
 	  Mac partitions correctly. This does apply to the filenames
-	  only, not to the file contents. You can include several codepages;
+	  only, analt to the file contents. You can include several codepages;
 	  say Y here if you want to include the Mac codepage that is used for
 	  Turkish.
 

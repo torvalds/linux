@@ -21,14 +21,14 @@
 #define GET_SYSTEM_STATUS 0x00
 
 struct nvec_power {
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct delayed_work poller;
 	struct nvec_chip *nvec;
 	int on;
 	int bat_present;
 	int bat_status;
-	int bat_voltage_now;
-	int bat_current_now;
+	int bat_voltage_analw;
+	int bat_current_analw;
 	int bat_current_avg;
 	int time_remain;
 	int charge_full_design;
@@ -81,24 +81,24 @@ struct bat_response {
 static struct power_supply *nvec_bat_psy;
 static struct power_supply *nvec_psy;
 
-static int nvec_power_notifier(struct notifier_block *nb,
+static int nvec_power_analtifier(struct analtifier_block *nb,
 			       unsigned long event_type, void *data)
 {
 	struct nvec_power *power =
-	    container_of(nb, struct nvec_power, notifier);
+	    container_of(nb, struct nvec_power, analtifier);
 	struct bat_response *res = data;
 
 	if (event_type != NVEC_SYS)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (res->sub_type == 0) {
 		if (power->on != res->plu) {
 			power->on = res->plu;
 			power_supply_changed(nvec_psy);
 		}
-		return NOTIFY_STOP;
+		return ANALTIFY_STOP;
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static const int bat_init[] = {
@@ -117,16 +117,16 @@ static void get_bat_mfg_data(struct nvec_power *power)
 	}
 }
 
-static int nvec_power_bat_notifier(struct notifier_block *nb,
+static int nvec_power_bat_analtifier(struct analtifier_block *nb,
 				   unsigned long event_type, void *data)
 {
 	struct nvec_power *power =
-	    container_of(nb, struct nvec_power, notifier);
+	    container_of(nb, struct nvec_power, analtifier);
 	struct bat_response *res = data;
 	int status_changed = 0;
 
 	if (event_type != NVEC_BAT)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	switch (res->sub_type) {
 	case SLOT_STATUS:
@@ -141,7 +141,7 @@ static int nvec_power_bat_notifier(struct notifier_block *nb,
 			switch ((res->plc[0] >> 1) & 3) {
 			case 0:
 				power->bat_status =
-				    POWER_SUPPLY_STATUS_NOT_CHARGING;
+				    POWER_SUPPLY_STATUS_ANALT_CHARGING;
 				break;
 			case 1:
 				power->bat_status =
@@ -152,27 +152,27 @@ static int nvec_power_bat_notifier(struct notifier_block *nb,
 				    POWER_SUPPLY_STATUS_DISCHARGING;
 				break;
 			default:
-				power->bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
+				power->bat_status = POWER_SUPPLY_STATUS_UNKANALWN;
 			}
 		} else {
 			if (power->bat_present == 1)
 				status_changed = 1;
 
 			power->bat_present = 0;
-			power->bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
+			power->bat_status = POWER_SUPPLY_STATUS_UNKANALWN;
 		}
 		power->bat_cap = res->plc[1];
 		if (status_changed)
 			power_supply_changed(nvec_bat_psy);
 		break;
 	case VOLTAGE:
-		power->bat_voltage_now = res->plu * 1000;
+		power->bat_voltage_analw = res->plu * 1000;
 		break;
 	case TIME_REMAINING:
 		power->time_remain = res->plu * 3600;
 		break;
 	case CURRENT:
-		power->bat_current_now = res->pls * 1000;
+		power->bat_current_analw = res->pls * 1000;
 		break;
 	case AVERAGE_CURRENT:
 		power->bat_current_avg = res->pls * 1000;
@@ -208,15 +208,15 @@ static int nvec_power_bat_notifier(struct notifier_block *nb,
 		 * some.
 		 */
 		if (!strncmp(power->bat_type, "Li", 30))
-			power->bat_type_enum = POWER_SUPPLY_TECHNOLOGY_LION;
+			power->bat_type_enum = POWER_SUPPLY_TECHANALLOGY_LION;
 		else
-			power->bat_type_enum = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+			power->bat_type_enum = POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 		break;
 	default:
-		return NOTIFY_STOP;
+		return ANALTIFY_STOP;
 	}
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 static int nvec_power_get_property(struct power_supply *psy,
@@ -251,16 +251,16 @@ static int nvec_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = power->bat_present;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = power->bat_voltage_now;
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = power->bat_voltage_analw;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = power->bat_current_now;
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+		val->intval = power->bat_current_analw;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = power->bat_current_avg;
 		break;
-	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW:
 		val->intval = power->time_remain;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
@@ -272,7 +272,7 @@ static int nvec_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 		val->intval = power->critical_capacity;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
 		val->intval = power->capacity_remain;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
@@ -284,7 +284,7 @@ static int nvec_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = power->bat_model;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
 		val->intval = power->bat_type_enum;
 		break;
 	default:
@@ -301,20 +301,20 @@ static enum power_supply_property nvec_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 #ifdef EC_FULL_DIAG
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_ANALW,
 #endif
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_EMPTY,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_MODEL_NAME,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 };
 
 static char *nvec_power_supplied_to[] = {
@@ -377,9 +377,9 @@ static int nvec_power_probe(struct platform_device *pdev)
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config psy_cfg = {};
 
-	power = devm_kzalloc(&pdev->dev, sizeof(struct nvec_power), GFP_NOWAIT);
+	power = devm_kzalloc(&pdev->dev, sizeof(struct nvec_power), GFP_ANALWAIT);
 	if (!power)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&pdev->dev, power);
 	power->nvec = nvec;
@@ -391,7 +391,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 		psy_cfg.supplied_to = nvec_power_supplied_to;
 		psy_cfg.num_supplicants = ARRAY_SIZE(nvec_power_supplied_to);
 
-		power->notifier.notifier_call = nvec_power_notifier;
+		power->analtifier.analtifier_call = nvec_power_analtifier;
 
 		INIT_DELAYED_WORK(&power->poller, nvec_power_poll);
 		schedule_delayed_work(&power->poller, msecs_to_jiffies(5000));
@@ -400,13 +400,13 @@ static int nvec_power_probe(struct platform_device *pdev)
 		psy = &nvec_bat_psy;
 		psy_desc = &nvec_bat_psy_desc;
 
-		power->notifier.notifier_call = nvec_power_bat_notifier;
+		power->analtifier.analtifier_call = nvec_power_bat_analtifier;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	nvec_register_notifier(nvec, &power->notifier, NVEC_SYS);
+	nvec_register_analtifier(nvec, &power->analtifier, NVEC_SYS);
 
 	if (pdev->id == BAT)
 		get_bat_mfg_data(power);
@@ -421,7 +421,7 @@ static void nvec_power_remove(struct platform_device *pdev)
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&power->poller);
-	nvec_unregister_notifier(power->nvec, &power->notifier);
+	nvec_unregister_analtifier(power->nvec, &power->analtifier);
 	switch (pdev->id) {
 	case AC:
 		power_supply_unregister(nvec_psy);

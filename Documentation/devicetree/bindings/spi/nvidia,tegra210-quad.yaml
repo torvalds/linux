@@ -88,7 +88,7 @@ examples:
         dma-names = "rx", "tx";
 
         flash@0 {
-            compatible = "jedec,spi-nor";
+            compatible = "jedec,spi-analr";
             reg = <0>;
             spi-max-frequency = <104000000>;
             spi-tx-bus-width = <2>;

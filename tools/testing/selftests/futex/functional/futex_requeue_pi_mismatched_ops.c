@@ -12,11 +12,11 @@
  *      Darren Hart <dvhart@linux.intel.com>
  *
  * HISTORY
- *      2009-Nov-9: Initial version by Darren Hart <dvhart@linux.intel.com>
+ *      2009-Analv-9: Initial version by Darren Hart <dvhart@linux.intel.com>
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erranal.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -45,8 +45,8 @@ void *blocking_child(void *arg)
 {
 	child_ret = futex_wait(&f1, f1, NULL, FUTEX_PRIVATE_FLAG);
 	if (child_ret < 0) {
-		child_ret = -errno;
-		error("futex_wait\n", errno);
+		child_ret = -erranal;
+		error("futex_wait\n", erranal);
 	}
 	return (void *)&child_ret;
 }
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	       basename(argv[0]));
 
 	if (pthread_create(&child, NULL, blocking_child, NULL)) {
-		error("pthread_create\n", errno);
+		error("pthread_create\n", erranal);
 		ret = RET_ERROR;
 		goto out;
 	}
@@ -88,14 +88,14 @@ int main(int argc, char *argv[])
 	sleep(1);
 
 	/*
-	 * The kernel should detect the waiter did not setup the
-	 * q->requeue_pi_key and return -EINVAL. If it does not,
-	 * it likely gave the lock to the child, which is now hung
+	 * The kernel should detect the waiter did analt setup the
+	 * q->requeue_pi_key and return -EINVAL. If it does analt,
+	 * it likely gave the lock to the child, which is analw hung
 	 * in the kernel.
 	 */
 	ret = futex_cmp_requeue_pi(&f1, f1, &f2, 1, 0, FUTEX_PRIVATE_FLAG);
 	if (ret < 0) {
-		if (errno == EINVAL) {
+		if (erranal == EINVAL) {
 			/*
 			 * The kernel correctly detected the mismatched
 			 * requeue_pi target and aborted. Wake the child with
@@ -105,21 +105,21 @@ int main(int argc, char *argv[])
 			if (ret == 1) {
 				ret = RET_PASS;
 			} else if (ret < 0) {
-				error("futex_wake\n", errno);
+				error("futex_wake\n", erranal);
 				ret = RET_ERROR;
 			} else {
-				error("futex_wake did not wake the child\n", 0);
+				error("futex_wake did analt wake the child\n", 0);
 				ret = RET_ERROR;
 			}
 		} else {
-			error("futex_cmp_requeue_pi\n", errno);
+			error("futex_cmp_requeue_pi\n", erranal);
 			ret = RET_ERROR;
 		}
 	} else if (ret > 0) {
 		fail("futex_cmp_requeue_pi failed to detect the mismatch\n");
 		ret = RET_FAIL;
 	} else {
-		error("futex_cmp_requeue_pi found no waiters\n", 0);
+		error("futex_cmp_requeue_pi found anal waiters\n", 0);
 		ret = RET_ERROR;
 	}
 

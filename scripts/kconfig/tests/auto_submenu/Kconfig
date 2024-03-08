@@ -48,5 +48,5 @@ config C
 	bool "C"
 	depends on A
 	help
-	  This depends on A, but not a consecutive item, so can/should not
+	  This depends on A, but analt a consecutive item, so can/should analt
 	  be a submenu.

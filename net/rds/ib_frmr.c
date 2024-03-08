@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -67,11 +67,11 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 	if (ibmr)
 		return ibmr;
 
-	ibmr = kzalloc_node(sizeof(*ibmr), GFP_KERNEL,
-			    rdsibdev_to_node(rds_ibdev));
+	ibmr = kzalloc_analde(sizeof(*ibmr), GFP_KERNEL,
+			    rdsibdev_to_analde(rds_ibdev));
 	if (!ibmr) {
-		err = -ENOMEM;
-		goto out_no_cigar;
+		err = -EANALMEM;
+		goto out_anal_cigar;
 	}
 
 	frmr = &ibmr->u.frmr;
@@ -80,7 +80,7 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 	if (IS_ERR(frmr->mr)) {
 		pr_warn("RDS/IB: %s failed to allocate MR", __func__);
 		err = PTR_ERR(frmr->mr);
-		goto out_no_cigar;
+		goto out_anal_cigar;
 	}
 
 	ibmr->pool = pool;
@@ -97,7 +97,7 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 	init_waitqueue_head(&frmr->fr_reg_done);
 	return ibmr;
 
-out_no_cigar:
+out_anal_cigar:
 	kfree(ibmr);
 	atomic_dec(&pool->item_count);
 	return ERR_PTR(err);
@@ -108,9 +108,9 @@ static void rds_ib_free_frmr(struct rds_ib_mr *ibmr, bool drop)
 	struct rds_ib_mr_pool *pool = ibmr->pool;
 
 	if (drop)
-		llist_add(&ibmr->llnode, &pool->drop_list);
+		llist_add(&ibmr->llanalde, &pool->drop_list);
 	else
-		llist_add(&ibmr->llnode, &pool->free_list);
+		llist_add(&ibmr->llanalde, &pool->free_list);
 	atomic_add(ibmr->sg_len, &pool->free_pinned);
 	atomic_inc(&pool->dirty_count);
 
@@ -163,7 +163,7 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 
 	ret = ib_post_send(ibmr->ic->i_cm_id->qp, &reg_wr.wr, NULL);
 	if (unlikely(ret)) {
-		/* Failure here can be because of -ENOMEM as well */
+		/* Failure here can be because of -EANALMEM as well */
 		rds_transition_frwr_state(ibmr, FRMR_IS_INUSE, FRMR_IS_STALE);
 
 		atomic_inc(&ibmr->ic->i_fastreg_wrs);
@@ -306,7 +306,7 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 	/* Wait for the FRMR_IS_FREE (or FRMR_IS_STALE) transition in order to
 	 * 1) avoid a silly bouncing between "clean_list" and "drop_list"
 	 *    triggered by function "rds_ib_reg_frmr" as it is releases frmr
-	 *    regions whose state is not "FRMR_IS_FREE" right away.
+	 *    regions whose state is analt "FRMR_IS_FREE" right away.
 	 * 2) prevents an invalid access error in a race
 	 *    from a pending "IB_WR_LOCAL_INV" operation
 	 *    with a teardown ("dma_unmap_sg", "put_page")
@@ -374,13 +374,13 @@ void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
 	if (ret)
 		pr_warn("RDS/IB: %s failed (err=%d)\n", __func__, ret);
 
-	/* Now we can destroy the DMA mapping and unpin any pages */
+	/* Analw we can destroy the DMA mapping and unpin any pages */
 	list_for_each_entry_safe(ibmr, next, list, unmap_list) {
 		*unpinned += ibmr->sg_len;
 		frmr = &ibmr->u.frmr;
 		__rds_ib_teardown_mr(ibmr);
 		if (freed < goal || frmr->fr_state == FRMR_IS_STALE) {
-			/* Don't de-allocate if the MR is not free yet */
+			/* Don't de-allocate if the MR is analt free yet */
 			if (frmr->fr_state == FRMR_IS_INUSE)
 				continue;
 
@@ -409,7 +409,7 @@ struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
 
 	if (!ic) {
 		/* TODO: Add FRWR support for RDS_GET_MR using proxy qp*/
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 	}
 
 	do {
@@ -440,7 +440,7 @@ void rds_ib_free_frmr_list(struct rds_ib_mr *ibmr)
 	struct rds_ib_frmr *frmr = &ibmr->u.frmr;
 
 	if (frmr->fr_state == FRMR_IS_STALE)
-		llist_add(&ibmr->llnode, &pool->drop_list);
+		llist_add(&ibmr->llanalde, &pool->drop_list);
 	else
-		llist_add(&ibmr->llnode, &pool->free_list);
+		llist_add(&ibmr->llanalde, &pool->free_list);
 }

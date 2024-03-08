@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2003-2008 Geert Uytterhoeven
  *
- *  NOTES:
+ *  ANALTES:
  *    - This code was inspired by Scout's C2P tutorial
  *    - It assumes to run on a big endian system
  *

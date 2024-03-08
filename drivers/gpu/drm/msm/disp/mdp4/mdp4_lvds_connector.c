@@ -10,7 +10,7 @@
 struct mdp4_lvds_connector {
 	struct drm_connector base;
 	struct drm_encoder *encoder;
-	struct device_node *panel_node;
+	struct device_analde *panel_analde;
 	struct drm_panel *panel;
 };
 #define to_mdp4_lvds_connector(x) container_of(x, struct mdp4_lvds_connector, base)
@@ -23,7 +23,7 @@ static enum drm_connector_status mdp4_lvds_connector_detect(
 
 	if (!mdp4_lvds_connector->panel) {
 		mdp4_lvds_connector->panel =
-			of_drm_find_panel(mdp4_lvds_connector->panel_node);
+			of_drm_find_panel(mdp4_lvds_connector->panel_analde);
 		if (IS_ERR(mdp4_lvds_connector->panel))
 			mdp4_lvds_connector->panel = NULL;
 	}
@@ -92,17 +92,17 @@ static const struct drm_connector_helper_funcs mdp4_lvds_connector_helper_funcs 
 
 /* initialize connector */
 struct drm_connector *mdp4_lvds_connector_init(struct drm_device *dev,
-		struct device_node *panel_node, struct drm_encoder *encoder)
+		struct device_analde *panel_analde, struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct mdp4_lvds_connector *mdp4_lvds_connector;
 
 	mdp4_lvds_connector = kzalloc(sizeof(*mdp4_lvds_connector), GFP_KERNEL);
 	if (!mdp4_lvds_connector)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mdp4_lvds_connector->encoder = encoder;
-	mdp4_lvds_connector->panel_node = panel_node;
+	mdp4_lvds_connector->panel_analde = panel_analde;
 
 	connector = &mdp4_lvds_connector->base;
 

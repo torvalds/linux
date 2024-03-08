@@ -12,11 +12,11 @@
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
+ * ANALN INFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -50,13 +50,13 @@ static const __initconst struct hypervisor_x86 * const hypervisors[] =
 enum x86_hypervisor_type x86_hyper_type;
 EXPORT_SYMBOL(x86_hyper_type);
 
-bool __initdata nopv;
-static __init int parse_nopv(char *arg)
+bool __initdata analpv;
+static __init int parse_analpv(char *arg)
 {
-	nopv = true;
+	analpv = true;
 	return 0;
 }
-early_param("nopv", parse_nopv);
+early_param("analpv", parse_analpv);
 
 static inline const struct hypervisor_x86 * __init
 detect_hypervisor_vendor(void)
@@ -65,7 +65,7 @@ detect_hypervisor_vendor(void)
 	uint32_t pri, max_pri = 0;
 
 	for (p = hypervisors; p < hypervisors + ARRAY_SIZE(hypervisors); p++) {
-		if (unlikely(nopv) && !(*p)->ignore_nopv)
+		if (unlikely(analpv) && !(*p)->iganalre_analpv)
 			continue;
 
 		pri = (*p)->detect();

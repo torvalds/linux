@@ -72,7 +72,7 @@ void flush_icache_mm_range(struct mm_struct *mm,
 	mask = &mm->context.icache_stale_mask;
 	cpumask_setall(mask);
 
-	/* Flush this hart's I$ now, and mark it as flushed. */
+	/* Flush this hart's I$ analw, and mark it as flushed. */
 	cpu = smp_processor_id();
 	cpumask_clear_cpu(cpu, mask);
 	local_icache_inv_all(NULL);
@@ -81,7 +81,7 @@ void flush_icache_mm_range(struct mm_struct *mm,
 	 * Flush the I$ of other harts concurrently executing, and mark them as
 	 * flushed.
 	 */
-	cpumask_andnot(&others, mm_cpumask(mm), cpumask_of(cpu));
+	cpumask_andanalt(&others, mm_cpumask(mm), cpumask_of(cpu));
 
 	if (mm != current->active_mm || !cpumask_empty(&others)) {
 		on_each_cpu_mask(&others, local_icache_inv_all, NULL, 1);

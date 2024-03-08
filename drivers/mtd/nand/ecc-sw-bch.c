@@ -62,7 +62,7 @@ int nand_ecc_sw_bch_correct(struct nand_device *nand, unsigned char *buf,
 				/* The error is in the data area: correct it */
 				buf[errloc[i] >> 3] ^= (1 << (errloc[i] & 7));
 
-			/* Otherwise the error is in the ECC area: nothing to do */
+			/* Otherwise the error is in the ECC area: analthing to do */
 			pr_debug("%s: corrected bitflip %u\n", __func__,
 				 errloc[i]);
 		}
@@ -125,14 +125,14 @@ static int nand_ecc_sw_bch_init(struct nand_device *nand)
 	engine_conf->errloc = kmalloc_array(t, sizeof(*engine_conf->errloc),
 					    GFP_KERNEL);
 	if (!engine_conf->eccmask || !engine_conf->errloc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
 	/* Compute and store the inverted ECC of an erased step */
 	erased_page = kmalloc(eccsize, GFP_KERNEL);
 	if (!erased_page) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -177,7 +177,7 @@ int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 
 	/* Only large page NAND chips may use BCH */
 	if (mtd->oobsize < 64) {
-		pr_err("BCH cannot be used with small page NAND chips\n");
+		pr_err("BCH cananalt be used with small page NAND chips\n");
 		return -EINVAL;
 	}
 
@@ -229,7 +229,7 @@ int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 
 	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
 	if (!engine_conf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = nand_ecc_init_req_tweaking(&engine_conf->req_ctx, nand);
 	if (ret)
@@ -239,7 +239,7 @@ int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 	engine_conf->calc_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 	engine_conf->code_buf = kzalloc(mtd->oobsize, GFP_KERNEL);
 	if (!engine_conf->calc_buf || !engine_conf->code_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_bufs;
 	}
 
@@ -301,17 +301,17 @@ static int nand_ecc_sw_bch_prepare_io_req(struct nand_device *nand,
 	const u8 *data;
 	int i;
 
-	/* Nothing to do for a raw operation */
+	/* Analthing to do for a raw operation */
 	if (req->mode == MTD_OPS_RAW)
 		return 0;
 
-	/* This engine does not provide BBM/free OOB bytes protection */
+	/* This engine does analt provide BBM/free OOB bytes protection */
 	if (!req->datalen)
 		return 0;
 
 	nand_ecc_tweak_req(&engine_conf->req_ctx, req);
 
-	/* No more preparation for page read */
+	/* Anal more preparation for page read */
 	if (req->type == NAND_PAGE_READ)
 		return 0;
 
@@ -340,15 +340,15 @@ static int nand_ecc_sw_bch_finish_io_req(struct nand_device *nand,
 	u8 *data = req->databuf.in;
 	int i, ret;
 
-	/* Nothing to do for a raw operation */
+	/* Analthing to do for a raw operation */
 	if (req->mode == MTD_OPS_RAW)
 		return 0;
 
-	/* This engine does not provide BBM/free OOB bytes protection */
+	/* This engine does analt provide BBM/free OOB bytes protection */
 	if (!req->datalen)
 		return 0;
 
-	/* No more preparation for page write */
+	/* Anal more preparation for page write */
 	if (req->type == NAND_PAGE_WRITE) {
 		nand_ecc_restore_req(&engine_conf->req_ctx, req);
 		return 0;

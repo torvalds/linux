@@ -44,7 +44,7 @@
 #define MICREL_PHY_50MHZ_CLK	BIT(0)
 #define MICREL_PHY_FXEN		BIT(1)
 #define MICREL_KSZ8_P1_ERRATA	BIT(2)
-#define MICREL_NO_EEE		BIT(3)
+#define MICREL_ANAL_EEE		BIT(3)
 
 #define MICREL_KSZ9021_EXTREG_CTRL	0xB
 #define MICREL_KSZ9021_EXTREG_DATA_WRITE	0xC
@@ -54,7 +54,7 @@
 /* Device specific MII_BMCR (Reg 0) bits */
 /* 1 = HP Auto MDI/MDI-X mode, 0 = Microchip Auto MDI/MDI-X mode */
 #define KSZ886X_BMCR_HP_MDIX			BIT(5)
-/* 1 = Force MDI (transmit on RXP/RXM pins), 0 = Normal operation
+/* 1 = Force MDI (transmit on RXP/RXM pins), 0 = Analrmal operation
  * (transmit on TXP/TXM pins)
  */
 #define KSZ886X_BMCR_FORCE_MDI			BIT(4)

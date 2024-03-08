@@ -1,5 +1,5 @@
 =====================================================================
-Everything you never wanted to know about kobjects, ksets, and ktypes
+Everything you never wanted to kanalw about kobjects, ksets, and ktypes
 =====================================================================
 
 :Author: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -9,7 +9,7 @@ Based on an original article by Jon Corbet for lwn.net written October 1,
 2003 and located at https://lwn.net/Articles/51437/
 
 Part of the difficulty in understanding the driver model - and the kobject
-abstraction upon which it is built - is that there is no obvious starting
+abstraction upon which it is built - is that there is anal obvious starting
 place. Dealing with kobjects requires understanding a few different types,
 all of which make reference to each other. In an attempt to make things
 easier, we'll take a multi-pass approach, starting with vague terms and
@@ -21,13 +21,13 @@ some terms we will be working with.
    objects to be arranged into hierarchies), a specific type, and,
    usually, a representation in the sysfs virtual filesystem.
 
-   Kobjects are generally not interesting on their own; instead, they are
+   Kobjects are generally analt interesting on their own; instead, they are
    usually embedded within some other structure which contains the stuff
    the code is really interested in.
 
-   No structure should **EVER** have more than one kobject embedded within it.
+   Anal structure should **EVER** have more than one kobject embedded within it.
    If it does, the reference counting for the object is sure to be messed
-   up and incorrect, and your code will be buggy.  So do not do this.
+   up and incorrect, and your code will be buggy.  So do analt do this.
 
  - A ktype is the type of object that embeds a kobject.  Every structure
    that embeds a kobject needs a corresponding ktype.  The ktype controls
@@ -36,7 +36,7 @@ some terms we will be working with.
  - A kset is a group of kobjects.  These kobjects can be of the same ktype
    or belong to different ktypes.  The kset is the basic container type for
    collections of kobjects. Ksets contain their own kobjects, but you can
-   safely ignore that implementation detail as the kset core code handles
+   safely iganalre that implementation detail as the kset core code handles
    this kobject automatically.
 
    When you see a sysfs directory full of other directories, generally each
@@ -55,8 +55,8 @@ a larger, domain-specific object.  To this end, kobjects will be found
 embedded in other structures.  If you are used to thinking of things in
 object-oriented terms, kobjects can be seen as a top-level, abstract class
 from which other classes are derived.  A kobject implements a set of
-capabilities which are not particularly useful by themselves, but are
-nice to have in other objects.  The C language does not allow for the
+capabilities which are analt particularly useful by themselves, but are
+nice to have in other objects.  The C language does analt allow for the
 direct expression of inheritance, so other techniques - such as structure
 embedding - must be used.
 
@@ -140,7 +140,7 @@ the name of the kobject, call kobject_rename()::
 
     int kobject_rename(struct kobject *kobj, const char *new_name);
 
-kobject_rename() does not perform any locking or have a solid notion of
+kobject_rename() does analt perform any locking or have a solid analtion of
 what names are valid so the caller must provide their own sanity checking
 and serialization.
 
@@ -154,7 +154,7 @@ kobject_name()::
     const char *kobject_name(const struct kobject * kobj);
 
 There is a helper function to both initialize and add the kobject to the
-kernel at the same time, called surprisingly enough kobject_init_and_add()::
+kernel at the same time, called surprisingly eanalugh kobject_init_and_add()::
 
     int kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
                              struct kobject *parent, const char *fmt, ...);
@@ -167,7 +167,7 @@ Uevents
 =======
 
 After a kobject has been registered with the kobject core, you need to
-announce to the world that it has been created.  This can be done with a
+ananalunce to the world that it has been created.  This can be done with a
 call to kobject_uevent()::
 
     int kobject_uevent(struct kobject *kobj, enum kobject_action action);
@@ -179,7 +179,7 @@ for them when this call happens.
 
 When the kobject is removed from the kernel (details on how to do that are
 below), the uevent for **KOBJ_REMOVE** will be automatically created by the
-kobject core, so the caller does not have to worry about doing that by
+kobject core, so the caller does analt have to worry about doing that by
 hand.
 
 
@@ -198,11 +198,11 @@ A successful call to kobject_get() will increment the kobject's reference
 counter and return the pointer to the kobject.
 
 When a reference is released, the call to kobject_put() will decrement the
-reference count and, possibly, free the object. Note that kobject_init()
+reference count and, possibly, free the object. Analte that kobject_init()
 sets the reference count to one, so the code which sets up the kobject will
 need to do a kobject_put() eventually to release that reference.
 
-Because kobjects are dynamic, they must not be declared statically or on
+Because kobjects are dynamic, they must analt be declared statically or on
 the stack, but instead, always allocated dynamically.  Future versions of
 the kernel will contain a run-time check for kobjects that are created
 statically and will warn the developer of this improper usage.
@@ -217,7 +217,7 @@ Creating "simple" kobjects
 ==========================
 
 Sometimes all that a developer wants is a way to create a simple directory
-in the sysfs hierarchy, and not have to mess with the whole complication of
+in the sysfs hierarchy, and analt have to mess with the whole complication of
 ksets, show and store functions, and other details.  This is the one
 exception where a single kobject should be created.  To create such an
 entry, use the function::
@@ -235,7 +235,7 @@ or::
     int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
 
 Both types of attributes used here, with a kobject that has been created
-with the kobject_create_and_add(), can be of type kobj_attribute, so no
+with the kobject_create_and_add(), can be of type kobj_attribute, so anal
 special custom attribute is needed to be created.
 
 See the example module, ``samples/kobject/kobject-example.c`` for an
@@ -248,16 +248,16 @@ ktypes and release methods
 
 One important thing still missing from the discussion is what happens to a
 kobject when its reference count reaches zero. The code which created the
-kobject generally does not know when that will happen; if it did, there
+kobject generally does analt kanalw when that will happen; if it did, there
 would be little point in using a kobject in the first place. Even
 predictable object lifecycles become more complicated when sysfs is brought
 in as other portions of the kernel can get a reference on any kobject that
 is registered in the system.
 
-The end result is that a structure protected by a kobject cannot be freed
-before its reference count goes to zero. The reference count is not under
+The end result is that a structure protected by a kobject cananalt be freed
+before its reference count goes to zero. The reference count is analt under
 the direct control of the code which created the kobject. So that code must
-be notified asynchronously whenever the last reference to one of its
+be analtified asynchroanalusly whenever the last reference to one of its
 kobjects goes away.
 
 Once you registered your kobject via kobject_add(), you must never use
@@ -265,7 +265,7 @@ kfree() to free it directly. The only safe way is to use kobject_put(). It
 is good practice to always use kobject_put() after kobject_init() to avoid
 errors creeping in.
 
-This notification is done through a kobject's release() method. Usually
+This analtification is done through a kobject's release() method. Usually
 such a method has a form like::
 
     void my_object_release(struct kobject *kobj)
@@ -276,11 +276,11 @@ such a method has a form like::
             kfree(mine);
     }
 
-One important point cannot be overstated: every kobject must have a
+One important point cananalt be overstated: every kobject must have a
 release() method, and the kobject must persist (in a consistent state)
-until that method is called. If these constraints are not met, the code is
-flawed. Note that the kernel will warn you if you forget to provide a
-release() method.  Do not try to get rid of this warning by providing an
+until that method is called. If these constraints are analt met, the code is
+flawed. Analte that the kernel will warn you if you forget to provide a
+release() method.  Do analt try to get rid of this warning by providing an
 "empty" release function.
 
 If all your cleanup function needs to do is call kfree(), then you must
@@ -288,11 +288,11 @@ create a wrapper function which uses container_of() to upcast to the correct
 type (as shown in the example above) and then calls kfree() on the overall
 structure.
 
-Note, the name of the kobject is available in the release function, but it
-must NOT be changed within this callback.  Otherwise there will be a memory
+Analte, the name of the kobject is available in the release function, but it
+must ANALT be changed within this callback.  Otherwise there will be a memory
 leak in the kobject core, which makes people unhappy.
 
-Interestingly, the release() method is not stored in the kobject itself;
+Interestingly, the release() method is analt stored in the kobject itself;
 instead, it is associated with the ktype. So let us introduce struct
 kobj_type::
 
@@ -323,8 +323,8 @@ ksets
 =====
 
 A kset is merely a collection of kobjects that want to be associated with
-each other.  There is no restriction that they be of the same ktype, but be
-very careful if they are not.
+each other.  There is anal restriction that they be of the same ktype, but be
+very careful if they are analt.
 
 A kset serves these functions:
 
@@ -341,7 +341,7 @@ A kset serves these functions:
 
 In object-oriented terms, "kset" is the top-level container class; ksets
 contain their own kobject, but that kobject is managed by the kset code and
-should not be manipulated by any other user.
+should analt be manipulated by any other user.
 
 A kset keeps its children in a standard kernel linked list.  Kobjects point
 back to their containing kset via their kset field. In almost all cases,
@@ -380,7 +380,7 @@ associated with it, it can use the struct kset_uevent_ops to handle it::
 
 The filter function allows a kset to prevent a uevent from being emitted to
 userspace for a specific kobject.  If the function returns 0, the uevent
-will not be emitted.
+will analt be emitted.
 
 The name function will be called to override the default name of the kset
 that the uevent sends to userspace.  By default, the name will be the same
@@ -389,14 +389,14 @@ as the kset itself, but this function, if present, can override that name.
 The uevent function will be called when the uevent is about to be sent to
 userspace to allow more environment variables to be added to the uevent.
 
-One might ask how, exactly, a kobject is added to a kset, given that no
+One might ask how, exactly, a kobject is added to a kset, given that anal
 functions which perform that function have been presented.  The answer is
 that this task is handled by kobject_add().  When a kobject is passed to
 kobject_add(), its kset member should point to the kset to which the
 kobject will belong.  kobject_add() will handle the rest.
 
-If the kobject belonging to a kset has no parent kobject set, it will be
-added to the kset's directory.  Not all members of a kset do necessarily
+If the kobject belonging to a kset has anal parent kobject set, it will be
+added to the kset's directory.  Analt all members of a kset do necessarily
 live in the kset directory.  If an explicit parent kobject is assigned
 before the kobject is added, the kobject is registered with the kset, but
 added below the parent kobject.
@@ -412,10 +412,10 @@ all of the memory allocated by this kobject.  If a ``KOBJ_ADD`` uevent has been
 sent for the object, a corresponding ``KOBJ_REMOVE`` uevent will be sent, and
 any other sysfs housekeeping will be handled for the caller properly.
 
-If you need to do a two-stage delete of the kobject (say you are not
+If you need to do a two-stage delete of the kobject (say you are analt
 allowed to sleep when you need to destroy the object), then call
 kobject_del() which will unregister the kobject from sysfs.  This makes the
-kobject "invisible", but it is not cleaned up, and the reference count of
+kobject "invisible", but it is analt cleaned up, and the reference count of
 the object is still the same.  At a later time call kobject_put() to finish
 the cleanup of the memory associated with the kobject.
 

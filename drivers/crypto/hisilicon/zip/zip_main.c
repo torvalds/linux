@@ -414,7 +414,7 @@ static const struct kernel_param_ops zip_uacce_mode_ops = {
  * uacce_mode = 0 means zip only register to crypto,
  * uacce_mode = 1 means zip both register to crypto and uacce.
  */
-static u32 uacce_mode = UACCE_MODE_NOUACCE;
+static u32 uacce_mode = UACCE_MODE_ANALUACCE;
 module_param_cb(uacce_mode, &zip_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
@@ -451,12 +451,12 @@ static const struct pci_device_id hisi_zip_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
-int zip_create_qps(struct hisi_qp **qps, int qp_num, int node)
+int zip_create_qps(struct hisi_qp **qps, int qp_num, int analde)
 {
-	if (node == NUMA_NO_NODE)
-		node = cpu_to_node(smp_processor_id());
+	if (analde == NUMA_ANAL_ANALDE)
+		analde = cpu_to_analde(smp_processor_id());
 
-	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
+	return hisi_qm_alloc_qps_analde(&zip_devices, qp_num, 0, analde, qps);
 }
 
 bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)
@@ -629,7 +629,7 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_MASK_ALL,
 		       qm->io_base + HZIP_CORE_INT_MASK_REG);
-		dev_info(&qm->pdev->dev, "Does not support hw error handle\n");
+		dev_info(&qm->pdev->dev, "Does analt support hw error handle\n");
 		return;
 	}
 
@@ -736,7 +736,7 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 		return 0;
 
 	if (count >= HZIP_BUF_SIZE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	len = simple_write_to_buffer(tbuf, HZIP_BUF_SIZE - 1, pos, buf, count);
 	if (len < 0)
@@ -828,7 +828,7 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 
 		regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
 		if (!regset)
-			return -ENOENT;
+			return -EANALENT;
 
 		regset->regs = hzip_dfx_regs;
 		regset->nregs = ARRAY_SIZE(hzip_dfx_regs);
@@ -964,7 +964,7 @@ static int hisi_zip_show_last_regs_init(struct hisi_qm *qm)
 	debug->last_words = kcalloc(core_dfx_regs_num * zip_core_num + com_dfx_regs_num,
 				    sizeof(unsigned int), GFP_KERNEL);
 	if (!debug->last_words)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < com_dfx_regs_num; i++) {
 		io_base = qm->io_base + hzip_com_dfx_regs[i].offset;
@@ -1147,7 +1147,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 	ctrl = devm_kzalloc(&qm->pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hisi_zip->ctrl = ctrl;
 	ctrl->hisi_zip = hisi_zip;
@@ -1182,7 +1182,7 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 	size = ARRAY_SIZE(zip_pre_store_caps);
 	zip_cap = devm_kzalloc(&pdev->dev, sizeof(*zip_cap) * size, GFP_KERNEL);
 	if (!zip_cap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < size; i++) {
 		zip_cap[i].type = zip_pre_store_caps[i];
@@ -1217,11 +1217,11 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 			set_bit(QM_MODULE_PARAM, &qm->misc_ctl);
 	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V1) {
 		/*
-		 * have no way to get qm configure in VM in v1 hardware,
+		 * have anal way to get qm configure in VM in v1 hardware,
 		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
 		 * to trigger only one VF in v1 hardware.
 		 *
-		 * v2 hardware has no such problem.
+		 * v2 hardware has anal such problem.
 		 */
 		qm->qp_base = HZIP_PF_DEF_Q_NUM;
 		qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
@@ -1287,7 +1287,7 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hisi_zip = devm_kzalloc(&pdev->dev, sizeof(*hisi_zip), GFP_KERNEL);
 	if (!hisi_zip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qm = &hisi_zip->qm;
 
@@ -1342,7 +1342,7 @@ err_qm_alg_unregister:
 err_qm_del_list:
 	hisi_qm_del_list(qm, &zip_devices);
 	hisi_zip_debugfs_exit(qm);
-	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_qm_stop(qm, QM_ANALRMAL);
 
 err_dev_err_uninit:
 	hisi_zip_show_last_regs_uninit(qm);
@@ -1367,7 +1367,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 		hisi_qm_sriov_disable(pdev, true);
 
 	hisi_zip_debugfs_exit(qm);
-	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_qm_stop(qm, QM_ANALRMAL);
 	hisi_zip_show_last_regs_uninit(qm);
 	hisi_qm_dev_err_uninit(qm);
 	hisi_zip_qm_uninit(qm);

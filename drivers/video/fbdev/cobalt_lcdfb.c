@@ -3,7 +3,7 @@
  *  Cobalt/SEAD3 LCD frame buffer driver.
  *
  *  Copyright (C) 2008  Yoichi Yuasa <yuasa@linux-mips.org>
- *  Copyright (C) 2012  MIPS Technologies, Inc.
+ *  Copyright (C) 2012  MIPS Techanallogies, Inc.
  */
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -117,9 +117,9 @@ static const struct fb_fix_screeninfo cobalt_lcdfb_fix = {
 	.id		= "cobalt-lcd",
 	.type		= FB_TYPE_TEXT,
 	.type_aux	= FB_AUX_TEXT_MDA,
-	.visual		= FB_VISUAL_MONO01,
+	.visual		= FB_VISUAL_MOANAL01,
 	.line_length	= LCD_XRES_MAX,
-	.accel		= FB_ACCEL_NONE,
+	.accel		= FB_ACCEL_ANALNE,
 };
 
 static ssize_t cobalt_lcdfb_read(struct fb_info *info, char __user *buf,
@@ -130,7 +130,7 @@ static ssize_t cobalt_lcdfb_read(struct fb_info *info, char __user *buf,
 	int len, retval = 0;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pos = *ppos;
 	if (pos >= LCD_CHARS_MAX || count == 0)
@@ -179,7 +179,7 @@ static ssize_t cobalt_lcdfb_write(struct fb_info *info, const char __user *buf,
 	int len, retval = 0;
 
 	if (!info->screen_base)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pos = *ppos;
 	if (pos >= LCD_CHARS_MAX || count == 0)
@@ -293,7 +293,7 @@ static int cobalt_lcdfb_probe(struct platform_device *dev)
 
 	info = framebuffer_alloc(0, &dev->dev);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -306,7 +306,7 @@ static int cobalt_lcdfb_probe(struct platform_device *dev)
 					 info->screen_size);
 	if (!info->screen_base) {
 		framebuffer_release(info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	info->fbops = &cobalt_lcd_fbops;

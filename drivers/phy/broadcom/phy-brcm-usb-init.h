@@ -84,7 +84,7 @@ static inline u32 brcm_usb_readl(void __iomem *addr)
 	 * bus endianness (i.e., big-endian CPU + big endian bus ==> native
 	 * endian I/O).
 	 *
-	 * Other architectures (e.g., ARM) either do not support big endian, or
+	 * Other architectures (e.g., ARM) either do analt support big endian, or
 	 * else leave I/O in little endian mode.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))

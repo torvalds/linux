@@ -178,7 +178,7 @@ static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 
 	if (!strncmp(buf, "add ", 4)) {
 		if (add_match_busid(busid) < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		pr_debug("add busid %s\n", busid);
 		return count;
@@ -186,7 +186,7 @@ static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 
 	if (!strncmp(buf, "del ", 4)) {
 		if (del_match_busid(busid) < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		pr_debug("del busid %s\n", busid);
 		return count;
@@ -217,7 +217,7 @@ static void stub_device_rebind(void)
 	struct bus_id_priv *busid_priv;
 	int i;
 
-	/* update status to STUB_BUSID_OTHER so probe ignores the device */
+	/* update status to STUB_BUSID_OTHER so probe iganalres the device */
 	spin_lock(&busid_table_lock);
 	for (i = 0; i < MAX_BUSID; i++) {
 		if (busid_table[i].name[0] &&
@@ -228,7 +228,7 @@ static void stub_device_rebind(void)
 	}
 	spin_unlock(&busid_table_lock);
 
-	/* now run rebind - no need to hold locks. driver files are removed */
+	/* analw run rebind - anal need to hold locks. driver files are removed */
 	for (i = 0; i < MAX_BUSID; i++) {
 		if (busid_table[i].name[0] &&
 		    busid_table[i].shutdown_busid) {
@@ -254,9 +254,9 @@ static ssize_t rebind_store(struct device_driver *dev, const char *buf,
 
 	bid = get_busid_priv(buf);
 	if (!bid)
-		return -ENODEV;
+		return -EANALDEV;
 
-	/* mark the device for deletion so probe ignores it during rescan */
+	/* mark the device for deletion so probe iganalres it during rescan */
 	bid->status = STUB_BUSID_OTHER;
 	/* release the busid lock */
 	put_busid_priv(bid);
@@ -368,7 +368,7 @@ static int __init usbip_host_init(void)
 	stub_priv_cache = KMEM_CACHE(stub_priv, SLAB_HWCACHE_ALIGN);
 	if (!stub_priv_cache) {
 		pr_err("kmem_cache_create failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = usb_register_device_driver(&stub_driver, THIS_MODULE);

@@ -10,7 +10,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/entry-common.h>
 #include <linux/hardirq.h>
 #include <linux/log2.h>
@@ -77,9 +77,9 @@ int nmi_alloc_mcesa(u64 *mcesad)
 	size = MACHINE_HAS_GS ? MCESA_MAX_SIZE : MCESA_MIN_SIZE;
 	origin = kmalloc(size, GFP_KERNEL);
 	if (!origin)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* The pointer is stored with mcesa_bits ORed in */
-	kmemleak_not_leak(origin);
+	kmemleak_analt_leak(origin);
 	*mcesad = __pa(origin);
 	if (MACHINE_HAS_GS)
 		*mcesad |= ilog2(MCESA_MAX_SIZE);
@@ -116,7 +116,7 @@ static __always_inline char *u64_to_hex(char *dest, u64 val)
 	return dest;
 }
 
-static notrace void s390_handle_damage(void)
+static analtrace void s390_handle_damage(void)
 {
 	union ctlreg0 cr0, cr0_new;
 	char message[100];
@@ -130,7 +130,7 @@ static notrace void s390_handle_damage(void)
 
 	/*
 	 * Disable low address protection and make machine check new PSW a
-	 * disabled wait PSW. Any additional machine check cannot be handled.
+	 * disabled wait PSW. Any additional machine check cananalt be handled.
 	 */
 	local_ctl_store(0, &cr0.reg);
 	cr0_new = cr0;
@@ -151,7 +151,7 @@ static notrace void s390_handle_damage(void)
 	disabled_wait();
 	while (1);
 }
-NOKPROBE_SYMBOL(s390_handle_damage);
+ANALKPROBE_SYMBOL(s390_handle_damage);
 
 /*
  * Main machine check handler function. Will be called with interrupts disabled
@@ -179,14 +179,14 @@ void s390_handle_mcck(void)
 	 * (actually until the machine is powered off, or the problem is gone)
 	 * So we just stop listening for the WARNING MCH and avoid continuously
 	 * being interrupted.  One caveat is however, that we must do this per
-	 * processor and cannot use the smp version of ctl_clear_bit().
+	 * processor and cananalt use the smp version of ctl_clear_bit().
 	 * On VM we only get one interrupt per virtally presented machinecheck.
 	 * Though one suffices, we may get one interrupt per (virtual) cpu.
 	 */
 	if (mcck.warning) {	/* WARNING pending ? */
 		static int mchchk_wng_posted = 0;
 
-		/* Use single cpu clear, as we cannot handle smp here. */
+		/* Use single cpu clear, as we cananalt handle smp here. */
 		local_ctl_clear_bit(14, CR14_WARNING_SUBMASK_BIT);
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
@@ -208,7 +208,7 @@ void s390_handle_mcck(void)
  * returns 0 if register contents could be validated
  * returns 1 otherwise
  */
-static int notrace s390_validate_registers(union mci mci)
+static int analtrace s390_validate_registers(union mci mci)
 {
 	struct mcesa *mcesa;
 	void *fpt_save_area;
@@ -263,7 +263,7 @@ static int notrace s390_validate_registers(union mci mci)
 		union ctlreg0 cr0;
 
 		/*
-		 * The vector validity must only be checked if not running a
+		 * The vector validity must only be checked if analt running a
 		 * KVM guest. For KVM guests the machine check is forwarded by
 		 * KVM and it is the responsibility of the guest to take
 		 * appropriate actions. The host vector or FPU values have been
@@ -300,14 +300,14 @@ static int notrace s390_validate_registers(union mci mci)
 			 * - machine check in kernel or userspace
 			 * - machine check while running SIE (KVM guest)
 			 * For kernel or userspace the userspace values of
-			 * guarded storage control can not be recreated, the
+			 * guarded storage control can analt be recreated, the
 			 * process must be terminated.
-			 * For SIE the guest values of guarded storage can not
+			 * For SIE the guest values of guarded storage can analt
 			 * be recreated. This is either due to a bug or due to
 			 * GS being disabled in the guest. The guest will be
-			 * notified by KVM code and the guests machine check
+			 * analtified by KVM code and the guests machine check
 			 * handling must take care of this.  The host values
-			 * are saved by KVM and are not affected.
+			 * are saved by KVM and are analt affected.
 			 */
 			if (!test_cpu_flag(CIF_MCCK_GUEST))
 				kill_task = 1;
@@ -330,12 +330,12 @@ static int notrace s390_validate_registers(union mci mci)
 
 	return kill_task;
 }
-NOKPROBE_SYMBOL(s390_validate_registers);
+ANALKPROBE_SYMBOL(s390_validate_registers);
 
 /*
  * Backup the guest's machine check info to its description block
  */
-static void notrace s390_backup_mcck_info(struct pt_regs *regs)
+static void analtrace s390_backup_mcck_info(struct pt_regs *regs)
 {
 	struct mcck_volatile_info *mcck_backup;
 	struct sie_page *sie_page;
@@ -355,7 +355,7 @@ static void notrace s390_backup_mcck_info(struct pt_regs *regs)
 	mcck_backup->failing_storage_address
 			= S390_lowcore.failing_storage_address;
 }
-NOKPROBE_SYMBOL(s390_backup_mcck_info);
+ANALKPROBE_SYMBOL(s390_backup_mcck_info);
 
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
@@ -363,12 +363,12 @@ NOKPROBE_SYMBOL(s390_backup_mcck_info);
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
 
-#define MCCK_CODE_NO_GUEST	(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE)
+#define MCCK_CODE_ANAL_GUEST	(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE)
 
 /*
  * machine check handler.
  */
-void notrace s390_do_machine_check(struct pt_regs *regs)
+void analtrace s390_do_machine_check(struct pt_regs *regs)
 {
 	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
@@ -487,12 +487,12 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 
 	/*
 	 * If there are only Channel Report Pending and External Damage
-	 * machine checks, they will not be reinjected into the guest
+	 * machine checks, they will analt be reinjected into the guest
 	 * because they refer to host conditions only.
 	 */
 	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);
 	if (test_cpu_flag(CIF_MCCK_GUEST) &&
-	(mcck_dam_code & MCCK_CODE_NO_GUEST) != mcck_dam_code) {
+	(mcck_dam_code & MCCK_CODE_ANAL_GUEST) != mcck_dam_code) {
 		/* Set exit reason code for host's later handling */
 		*((long *)(regs->gprs[15] + __SF_SIE_REASON)) = -EINTR;
 	}
@@ -503,7 +503,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 
 	irqentry_nmi_exit(regs, irq_state);
 }
-NOKPROBE_SYMBOL(s390_do_machine_check);
+ANALKPROBE_SYMBOL(s390_do_machine_check);
 
 static int __init machine_check_init(void)
 {

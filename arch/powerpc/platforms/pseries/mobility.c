@@ -2,7 +2,7 @@
 /*
  * Support for Partition Mobility/Migration
  *
- * Copyright (C) 2010 Nathan Fontenot
+ * Copyright (C) 2010 Nathan Fonteanalt
  * Copyright (C) 2010 IBM Corporation
  */
 
@@ -39,12 +39,12 @@ struct update_props_workarea {
 	__be32 nprops;
 } __packed;
 
-#define NODE_ACTION_MASK	0xff000000
-#define NODE_COUNT_MASK		0x00ffffff
+#define ANALDE_ACTION_MASK	0xff000000
+#define ANALDE_COUNT_MASK		0x00ffffff
 
-#define DELETE_DT_NODE	0x01000000
-#define UPDATE_DT_NODE	0x02000000
-#define ADD_DT_NODE	0x03000000
+#define DELETE_DT_ANALDE	0x01000000
+#define UPDATE_DT_ANALDE	0x02000000
+#define ADD_DT_ANALDE	0x03000000
 
 #define MIGRATION_SCOPE	(1)
 #define PRRN_SCOPE -2
@@ -87,35 +87,35 @@ static int mobility_rtas_call(int token, char *buf, s32 scope)
 	return rc;
 }
 
-static int delete_dt_node(struct device_node *dn)
+static int delete_dt_analde(struct device_analde *dn)
 {
-	struct device_node *pdn;
+	struct device_analde *pdn;
 	bool is_platfac;
 
 	pdn = of_get_parent(dn);
-	is_platfac = of_node_is_type(dn, "ibm,platform-facilities") ||
-		     of_node_is_type(pdn, "ibm,platform-facilities");
-	of_node_put(pdn);
+	is_platfac = of_analde_is_type(dn, "ibm,platform-facilities") ||
+		     of_analde_is_type(pdn, "ibm,platform-facilities");
+	of_analde_put(pdn);
 
 	/*
-	 * The drivers that bind to nodes in the platform-facilities
-	 * hierarchy don't support node removal, and the removal directive
+	 * The drivers that bind to analdes in the platform-facilities
+	 * hierarchy don't support analde removal, and the removal directive
 	 * from firmware is always followed by an add of an equivalent
-	 * node. The capability (e.g. RNG, encryption, compression)
-	 * represented by the node is never interrupted by the migration.
-	 * So ignore changes to this part of the tree.
+	 * analde. The capability (e.g. RNG, encryption, compression)
+	 * represented by the analde is never interrupted by the migration.
+	 * So iganalre changes to this part of the tree.
 	 */
 	if (is_platfac) {
-		pr_notice("ignoring remove operation for %pOFfp\n", dn);
+		pr_analtice("iganalring remove operation for %pOFfp\n", dn);
 		return 0;
 	}
 
-	pr_debug("removing node %pOFfp\n", dn);
-	dlpar_detach_node(dn);
+	pr_debug("removing analde %pOFfp\n", dn);
+	dlpar_detach_analde(dn);
 	return 0;
 }
 
-static int update_dt_property(struct device_node *dn, struct property **prop,
+static int update_dt_property(struct device_analde *dn, struct property **prop,
 			      const char *name, u32 vd, char *value)
 {
 	struct property *new_prop = *prop;
@@ -136,7 +136,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 		/* partial property fixup */
 		char *new_data = kzalloc(new_prop->length + vd, GFP_KERNEL);
 		if (!new_data)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(new_data, new_prop->value, new_prop->length);
 		memcpy(new_data + new_prop->length, value, vd);
@@ -147,12 +147,12 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	} else {
 		new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
 		if (!new_prop)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		new_prop->name = kstrdup(name, GFP_KERNEL);
 		if (!new_prop->name) {
 			kfree(new_prop);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		new_prop->length = vd;
@@ -160,7 +160,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 		if (!new_prop->value) {
 			kfree(new_prop->name);
 			kfree(new_prop);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		memcpy(new_prop->value, value, vd);
@@ -168,7 +168,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	}
 
 	if (!more) {
-		pr_debug("updating node %pOF property %s\n", dn, name);
+		pr_debug("updating analde %pOF property %s\n", dn, name);
 		of_update_property(dn, new_prop);
 		*prop = NULL;
 	}
@@ -176,7 +176,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	return 0;
 }
 
-static int update_dt_node(struct device_node *dn, s32 scope)
+static int update_dt_analde(struct device_analde *dn, s32 scope)
 {
 	struct update_props_workarea *upwa;
 	struct property *prop = NULL;
@@ -188,12 +188,12 @@ static int update_dt_node(struct device_node *dn, s32 scope)
 	u32 vd;
 
 	update_properties_token = rtas_function_token(RTAS_FN_IBM_UPDATE_PROPERTIES);
-	if (update_properties_token == RTAS_UNKNOWN_SERVICE)
+	if (update_properties_token == RTAS_UNKANALWN_SERVICE)
 		return -EINVAL;
 
 	rtas_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!rtas_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	upwa = (struct update_props_workarea *)&rtas_buf[0];
 	upwa->phandle = cpu_to_be32(dn->phandle);
@@ -207,10 +207,10 @@ static int update_dt_node(struct device_node *dn, s32 scope)
 		prop_data = rtas_buf + sizeof(*upwa);
 		nprops = be32_to_cpu(upwa->nprops);
 
-		/* On the first call to ibm,update-properties for a node the
+		/* On the first call to ibm,update-properties for a analde the
 		 * first property value descriptor contains an empty
 		 * property name, the property value length encoded as u32,
-		 * and the property value is the node path being updated.
+		 * and the property value is the analde path being updated.
 		 */
 		if (*prop_data == 0) {
 			prop_data++;
@@ -229,7 +229,7 @@ static int update_dt_node(struct device_node *dn, s32 scope)
 
 			switch (vd) {
 			case 0x00000000:
-				/* name only property, nothing to do */
+				/* name only property, analthing to do */
 				break;
 
 			case 0x80000000:
@@ -260,33 +260,33 @@ static int update_dt_node(struct device_node *dn, s32 scope)
 	return 0;
 }
 
-static int add_dt_node(struct device_node *parent_dn, __be32 drc_index)
+static int add_dt_analde(struct device_analde *parent_dn, __be32 drc_index)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int rc;
 
 	dn = dlpar_configure_connector(drc_index, parent_dn);
 	if (!dn)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * Since delete_dt_node() ignores this node type, this is the
-	 * necessary counterpart. We also know that a platform-facilities
-	 * node returned from dlpar_configure_connector() has children
-	 * attached, and dlpar_attach_node() only adds the parent, leaking
-	 * the children. So ignore these on the add side for now.
+	 * Since delete_dt_analde() iganalres this analde type, this is the
+	 * necessary counterpart. We also kanalw that a platform-facilities
+	 * analde returned from dlpar_configure_connector() has children
+	 * attached, and dlpar_attach_analde() only adds the parent, leaking
+	 * the children. So iganalre these on the add side for analw.
 	 */
-	if (of_node_is_type(dn, "ibm,platform-facilities")) {
-		pr_notice("ignoring add operation for %pOF\n", dn);
-		dlpar_free_cc_nodes(dn);
+	if (of_analde_is_type(dn, "ibm,platform-facilities")) {
+		pr_analtice("iganalring add operation for %pOF\n", dn);
+		dlpar_free_cc_analdes(dn);
 		return 0;
 	}
 
-	rc = dlpar_attach_node(dn, parent_dn);
+	rc = dlpar_attach_analde(dn, parent_dn);
 	if (rc)
-		dlpar_free_cc_nodes(dn);
+		dlpar_free_cc_analdes(dn);
 
-	pr_debug("added node %pOFfp\n", dn);
+	pr_debug("added analde %pOFfp\n", dn);
 
 	return rc;
 }
@@ -295,36 +295,36 @@ static int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	__be32 *data;
-	int update_nodes_token;
+	int update_analdes_token;
 	int rc;
 
-	update_nodes_token = rtas_function_token(RTAS_FN_IBM_UPDATE_NODES);
-	if (update_nodes_token == RTAS_UNKNOWN_SERVICE)
+	update_analdes_token = rtas_function_token(RTAS_FN_IBM_UPDATE_ANALDES);
+	if (update_analdes_token == RTAS_UNKANALWN_SERVICE)
 		return 0;
 
 	rtas_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
 	if (!rtas_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
-		rc = mobility_rtas_call(update_nodes_token, rtas_buf, scope);
+		rc = mobility_rtas_call(update_analdes_token, rtas_buf, scope);
 		if (rc && rc != 1)
 			break;
 
 		data = (__be32 *)rtas_buf + 4;
-		while (be32_to_cpu(*data) & NODE_ACTION_MASK) {
+		while (be32_to_cpu(*data) & ANALDE_ACTION_MASK) {
 			int i;
-			u32 action = be32_to_cpu(*data) & NODE_ACTION_MASK;
-			u32 node_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
+			u32 action = be32_to_cpu(*data) & ANALDE_ACTION_MASK;
+			u32 analde_count = be32_to_cpu(*data) & ANALDE_COUNT_MASK;
 
 			data++;
 
-			for (i = 0; i < node_count; i++) {
-				struct device_node *np;
+			for (i = 0; i < analde_count; i++) {
+				struct device_analde *np;
 				__be32 phandle = *data++;
 				__be32 drc_index;
 
-				np = of_find_node_by_phandle(be32_to_cpu(phandle));
+				np = of_find_analde_by_phandle(be32_to_cpu(phandle));
 				if (!np) {
 					pr_warn("Failed lookup: phandle 0x%x for action 0x%x\n",
 						be32_to_cpu(phandle), action);
@@ -332,19 +332,19 @@ static int pseries_devicetree_update(s32 scope)
 				}
 
 				switch (action) {
-				case DELETE_DT_NODE:
-					delete_dt_node(np);
+				case DELETE_DT_ANALDE:
+					delete_dt_analde(np);
 					break;
-				case UPDATE_DT_NODE:
-					update_dt_node(np, scope);
+				case UPDATE_DT_ANALDE:
+					update_dt_analde(np, scope);
 					break;
-				case ADD_DT_NODE:
+				case ADD_DT_ANALDE:
 					drc_index = *data++;
-					add_dt_node(np, drc_index);
+					add_dt_analde(np, drc_index);
 					break;
 				}
 
-				of_node_put(np);
+				of_analde_put(np);
 				cond_resched();
 			}
 		}
@@ -370,7 +370,7 @@ void post_mobility_fixup(void)
 
 	/*
 	 * It's common for the destination firmware to replace cache
-	 * nodes.  Release all of the cacheinfo hierarchy's references
+	 * analdes.  Release all of the cacheinfo hierarchy's references
 	 * before updating the device tree.
 	 */
 	cacheinfo_teardown();
@@ -408,7 +408,7 @@ static int poll_vasi_state(u64 handle, unsigned long *res)
 		ret = -EINVAL;
 		break;
 	case H_FUNCTION:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	case H_HARDWARE:
 	default:
@@ -446,7 +446,7 @@ static int wait_for_vasi_session_suspending(u64 handle)
 	 * Proceed even if H_VASI_STATE is unavailable. If H_JOIN or
 	 * ibm,suspend-me are also unimplemented, we'll recover then.
 	 */
-	if (ret == -EOPNOTSUPP)
+	if (ret == -EOPANALTSUPP)
 		ret = 0;
 
 	return ret;
@@ -495,7 +495,7 @@ static void prod_single(unsigned int target_cpu)
 	int hwid;
 
 	hwid = get_hard_smp_processor_id(target_cpu);
-	hvrc = plpar_hcall_norets(H_PROD, hwid);
+	hvrc = plpar_hcall_analrets(H_PROD, hwid);
 	if (hvrc == H_SUCCESS)
 		return;
 	pr_err_ratelimited("H_PROD of CPU %u (hwid %d) error: %ld\n",
@@ -537,7 +537,7 @@ static int do_suspend(void)
 	 * The destination processor model may have fewer SLB entries
 	 * than the source. We reduce mmu_slb_size to a safe minimum
 	 * before suspending in order to minimize the possibility of
-	 * programming non-existent entries on the destination. If
+	 * programming analn-existent entries on the destination. If
 	 * suspend fails, we restore it before returning. On success
 	 * the OF reconfig path will update it from the new device
 	 * tree after resuming on the destination.
@@ -560,7 +560,7 @@ static int do_suspend(void)
  *           the first increment (i.e. sets it to 1) is responsible for
  *           waking the other threads.
  * @done: False if join/suspend is in progress. True if the operation is
- *        complete (successful or not).
+ *        complete (successful or analt).
  */
 struct pseries_suspend_info {
 	atomic_t counter;
@@ -577,7 +577,7 @@ static int do_join(void *arg)
 retry:
 	/* Must ensure MSR.EE off for H_JOIN. */
 	hard_irq_disable();
-	hvrc = plpar_hcall_norets(H_JOIN);
+	hvrc = plpar_hcall_analrets(H_JOIN);
 
 	switch (hvrc) {
 	case H_CONTINUE:
@@ -660,7 +660,7 @@ static void pseries_cancel_migration(u64 handle, int err)
 	detail = abs(err) & 0xffffff;
 	reason_code = (entity << 24) | detail;
 
-	hvrc = plpar_hcall_norets(H_VASI_SIGNAL, handle,
+	hvrc = plpar_hcall_analrets(H_VASI_SIGNAL, handle,
 				  H_VASI_SIGNAL_CANCEL, reason_code);
 	if (hvrc)
 		pr_err("H_VASI_SIGNAL error: %ld\n", hvrc);
@@ -695,10 +695,10 @@ static int pseries_suspend(u64 handle)
 		 *
 		 * A better design would allow drivers etc to prepare
 		 * for the suspend and avoid conditions which prevent
-		 * the suspend from succeeding. For now, we have this
+		 * the suspend from succeeding. For analw, we have this
 		 * mitigation.
 		 */
-		pr_notice("Partition suspend attempt %u of %u error: %d\n",
+		pr_analtice("Partition suspend attempt %u of %u error: %d\n",
 			  attempt, max_attempts, ret);
 
 		if (attempt == max_attempts)
@@ -707,16 +707,16 @@ static int pseries_suspend(u64 handle)
 		vasi_err = poll_vasi_state(handle, &vasi_state);
 		if (vasi_err == 0) {
 			if (vasi_state != H_VASI_SUSPENDING) {
-				pr_notice("VASI state %lu after failed suspend\n",
+				pr_analtice("VASI state %lu after failed suspend\n",
 					  vasi_state);
 				break;
 			}
-		} else if (vasi_err != -EOPNOTSUPP) {
+		} else if (vasi_err != -EOPANALTSUPP) {
 			pr_err("VASI state poll error: %d", vasi_err);
 			break;
 		}
 
-		pr_notice("Will retry partition suspend after %u ms\n",
+		pr_analtice("Will retry partition suspend after %u ms\n",
 			  retry_interval_ms);
 
 		msleep(retry_interval_ms);
@@ -737,9 +737,9 @@ static int pseries_migrate_partition(u64 handle)
 #endif
 	/*
 	 * When the migration is initiated, the hypervisor changes VAS
-	 * mappings to prepare before OS gets the notification and
+	 * mappings to prepare before OS gets the analtification and
 	 * closes all VAS windows. NX generates continuous faults during
-	 * this time and the user space can not differentiate these
+	 * this time and the user space can analt differentiate these
 	 * faults from the migration event. So reduce this time window
 	 * by closing VAS windows at the beginning of this function.
 	 */
@@ -814,7 +814,7 @@ static int __init mobility_sysfs_init(void)
 
 	mobility_kobj = kobject_create_and_add("mobility", kernel_kobj);
 	if (!mobility_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = sysfs_create_file(mobility_kobj, &class_attr_migration.attr);
 	if (rc)

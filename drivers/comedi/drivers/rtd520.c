@@ -13,9 +13,9 @@
  * Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8,
  *   PCI4520 (PCI4520), PCI4520-8
  * Author: Dan Christian
- * Status: Works. Only tested on DM7520-8. Not SMP safe.
+ * Status: Works. Only tested on DM7520-8. Analt SMP safe.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  */
 
 /*
@@ -46,7 +46,7 @@
  * Call them and ask for the register level manual.
  * PCI chip: http://www.plxtech.com/products/io/pci9080
  *
- * Notes:
+ * Analtes:
  * This board is memory mapped. There is some IO stuff, but it isn't needed.
  *
  * I use a pretty loose naming style within the driver (rtd_blah).
@@ -74,7 +74,7 @@
  * (single channel, 64K read buffer). I get random system lockups when
  * using DMA with ALI-15xx based systems. I haven't been able to test
  * any other chipsets. The lockups happen soon after the start of an
- * acquistion, not in the middle of a long run.
+ * acquistion, analt in the middle of a long run.
  *
  * Without DMA, you can do 620Khz sampling with 20% idle on a 400Mhz K6-2
  * (with a 256K read buffer).
@@ -95,18 +95,18 @@
  */
 #define LAS0_USER_IO		0x0008	/* User I/O */
 #define LAS0_ADC		0x0010	/* FIFO Status/Software A/D Start */
-#define FS_DAC1_NOT_EMPTY	BIT(0)	/* DAC1 FIFO not empty */
+#define FS_DAC1_ANALT_EMPTY	BIT(0)	/* DAC1 FIFO analt empty */
 #define FS_DAC1_HEMPTY		BIT(1)	/* DAC1 FIFO half empty */
-#define FS_DAC1_NOT_FULL	BIT(2)	/* DAC1 FIFO not full */
-#define FS_DAC2_NOT_EMPTY	BIT(4)	/* DAC2 FIFO not empty */
+#define FS_DAC1_ANALT_FULL	BIT(2)	/* DAC1 FIFO analt full */
+#define FS_DAC2_ANALT_EMPTY	BIT(4)	/* DAC2 FIFO analt empty */
 #define FS_DAC2_HEMPTY		BIT(5)	/* DAC2 FIFO half empty */
-#define FS_DAC2_NOT_FULL	BIT(6)	/* DAC2 FIFO not full */
-#define FS_ADC_NOT_EMPTY	BIT(8)	/* ADC FIFO not empty */
+#define FS_DAC2_ANALT_FULL	BIT(6)	/* DAC2 FIFO analt full */
+#define FS_ADC_ANALT_EMPTY	BIT(8)	/* ADC FIFO analt empty */
 #define FS_ADC_HEMPTY		BIT(9)	/* ADC FIFO half empty */
-#define FS_ADC_NOT_FULL		BIT(10)	/* ADC FIFO not full */
-#define FS_DIN_NOT_EMPTY	BIT(12)	/* DIN FIFO not empty */
+#define FS_ADC_ANALT_FULL		BIT(10)	/* ADC FIFO analt full */
+#define FS_DIN_ANALT_EMPTY	BIT(12)	/* DIN FIFO analt empty */
 #define FS_DIN_HEMPTY		BIT(13)	/* DIN FIFO half empty */
-#define FS_DIN_NOT_FULL		BIT(14)	/* DIN FIFO not full */
+#define FS_DIN_ANALT_FULL		BIT(14)	/* DIN FIFO analt full */
 #define LAS0_UPDATE_DAC(x)	(0x0014 + ((x) * 0x4))	/* D/Ax Update (w) */
 #define LAS0_DAC		0x0024	/* Software Simultaneous Update (w) */
 #define LAS0_PACER		0x0028	/* Software Pacer Start/Stop */
@@ -197,14 +197,14 @@
 
 /*
  * We really only need 2 buffers.  More than that means being much
- * smarter about knowing which ones are full.
+ * smarter about kanalwing which ones are full.
  */
 #define DMA_CHAIN_COUNT 2	/* max DMA segments/buffers in a ring (min 2) */
 
 /* Target period for periodic transfers.  This sets the user read latency. */
-/* Note: There are certain rates where we give this up and transfer 1/2 FIFO */
+/* Analte: There are certain rates where we give this up and transfer 1/2 FIFO */
 /* If this is too low, efficiency is poor */
-#define TRANS_TARGET_PERIOD 10000000	/* 10 ms (in nanoseconds) */
+#define TRANS_TARGET_PERIOD 10000000	/* 10 ms (in naanalseconds) */
 
 /* Set a practical limit on how long a list to support (affects memory use) */
 /* The board support a channel list up to the FIFO length (1K or 8K) */
@@ -217,14 +217,14 @@
 #define RTD_CLOCK_RATE	8000000	/* 8Mhz onboard clock */
 #define RTD_CLOCK_BASE	125	/* clock period in ns */
 
-/* Note: these speed are slower than the spec, but fit the counter resolution*/
-#define RTD_MAX_SPEED	1625	/* when sampling, in nanoseconds */
+/* Analte: these speed are slower than the spec, but fit the counter resolution*/
+#define RTD_MAX_SPEED	1625	/* when sampling, in naanalseconds */
 /* max speed if we don't have to wait for settling */
-#define RTD_MAX_SPEED_1	875	/* if single channel, in nanoseconds */
+#define RTD_MAX_SPEED_1	875	/* if single channel, in naanalseconds */
 
-#define RTD_MIN_SPEED	2097151875	/* (24bit counter) in nanoseconds */
-/* min speed when only 1 channel (no burst counter) */
-#define RTD_MIN_SPEED_1	5000000	/* 200Hz, in nanoseconds */
+#define RTD_MIN_SPEED	2097151875	/* (24bit counter) in naanalseconds */
+/* min speed when only 1 channel (anal burst counter) */
+#define RTD_MIN_SPEED_1	5000000	/* 200Hz, in naanalseconds */
 
 /* Setup continuous ring of 1/2 FIFO transfers.  See RTD manual p91 */
 #define DMA_MODE_BITS (\
@@ -368,9 +368,9 @@ struct rtd_private {
  * Given a desired period and the clock period (both in ns), return the
  * proper counter value (divider-1). Sets the original period to be the
  * true value.
- * Note: you have to check if the value is larger than the counter range!
+ * Analte: you have to check if the value is larger than the counter range!
  */
-static int rtd_ns_to_timer_base(unsigned int *nanosec,
+static int rtd_ns_to_timer_base(unsigned int *naanalsec,
 				unsigned int flags, int base)
 {
 	int divider;
@@ -378,24 +378,24 @@ static int rtd_ns_to_timer_base(unsigned int *nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = DIV_ROUND_CLOSEST(*nanosec, base);
+		divider = DIV_ROUND_CLOSEST(*naanalsec, base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divider = (*nanosec) / base;
+		divider = (*naanalsec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = DIV_ROUND_UP(*nanosec, base);
+		divider = DIV_ROUND_UP(*naanalsec, base);
 		break;
 	}
 	if (divider < 2)
 		divider = 2;	/* min is divide by 2 */
 
 	/*
-	 * Note: we don't check for max, because different timers
+	 * Analte: we don't check for max, because different timers
 	 * have different ranges
 	 */
 
-	*nanosec = base * divider;
+	*naanalsec = base * divider;
 	return divider - 1;	/* countdown is divisor+1 */
 }
 
@@ -421,7 +421,7 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 
 	r |= chan & 0xf;
 
-	/* Note: we also setup the channel list bipolar flag array */
+	/* Analte: we also setup the channel list bipolar flag array */
 	if (range < board->range_bip10) {
 		/* +-5 range */
 		r |= 0x000;
@@ -523,7 +523,7 @@ static int rtd_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = readl(dev->mmio + LAS0_ADC);
-	if (status & FS_ADC_NOT_EMPTY)
+	if (status & FS_ADC_ANALT_EMPTY)
 		return 0;
 	return -EBUSY;
 }
@@ -615,15 +615,15 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 	u16 fifo_status;
 
 	if (!dev->attached)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	fifo_status = readl(dev->mmio + LAS0_ADC);
 	/* check for FIFO full, this automatically halts the ADC! */
-	if (!(fifo_status & FS_ADC_NOT_FULL))	/* 0 -> full */
+	if (!(fifo_status & FS_ADC_ANALT_FULL))	/* 0 -> full */
 		goto xfer_abort;
 
 	status = readw(dev->mmio + LAS0_IT);
-	/* if interrupt was not caused by our board, or handled above */
+	/* if interrupt was analt caused by our board, or handled above */
 	if (status == 0)
 		return IRQ_HANDLED;
 
@@ -632,7 +632,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 		 * since the priority interrupt controller may have queued
 		 * a sample counter interrupt, even though we have already
 		 * finished, we must handle the possibility that there is
-		 * no data here
+		 * anal data here
 		 */
 		if (!(fifo_status & FS_ADC_HEMPTY)) {
 			/* FIFO half full */
@@ -642,8 +642,8 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 			if (devpriv->ai_count == 0)
 				goto xfer_done;
 		} else if (devpriv->xfer_count > 0) {
-			if (fifo_status & FS_ADC_NOT_EMPTY) {
-				/* FIFO not empty */
+			if (fifo_status & FS_ADC_ANALT_EMPTY) {
+				/* FIFO analt empty */
 				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
 					goto xfer_abort;
 
@@ -692,13 +692,13 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -719,8 +719,8 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* Note: these are time periods, not actual rates */
-		if (cmd->chanlist_len == 1) {	/* no scanning */
+		/* Analte: these are time periods, analt actual rates */
+		if (cmd->chanlist_len == 1) {	/* anal scanning */
 			if (comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
@@ -755,7 +755,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->chanlist_len == 1) {	/* no scanning */
+		if (cmd->chanlist_len == 1) {	/* anal scanning */
 			if (comedi_check_trigger_arg_min(&cmd->convert_arg,
 							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
@@ -793,7 +793,7 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -861,7 +861,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel((devpriv->fifosz / 2 - 1) & 0xffff, dev->mmio + LAS0_ACNT);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* scan_begin_arg is in nanoseconds */
+		/* scan_begin_arg is in naanalseconds */
 		/* find out how many samples to wait before transferring */
 		if (cmd->flags & CMDF_WAKE_EOS) {
 			/*
@@ -896,7 +896,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			writel((devpriv->xfer_count - 1) & 0xffff,
 			       dev->mmio + LAS0_ACNT);
 		}
-	} else {		/* unknown timing, just use 1/2 FIFO */
+	} else {		/* unkanalwn timing, just use 1/2 FIFO */
 		devpriv->xfer_count = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
@@ -917,7 +917,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 		break;
 
-	case TRIG_NONE:	/* stop when cancel is called */
+	case TRIG_ANALNE:	/* stop when cancel is called */
 		devpriv->ai_count = -1;	/* read forever */
 		break;
 	}
@@ -959,7 +959,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* end configuration */
 
 	/*
-	 * This doesn't seem to work.  There is no way to clear an interrupt
+	 * This doesn't seem to work.  There is anal way to clear an interrupt
 	 * that the priority controller has queued!
 	 */
 	writew(~0, dev->mmio + LAS0_CLEAR);
@@ -969,7 +969,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* transfer every N samples */
 	writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
 
-	/* BUG: start_src is ASSUMED to be TRIG_NOW */
+	/* BUG: start_src is ASSUMED to be TRIG_ANALW */
 	/* BUG? it seems like things are running before the "start" */
 	readl(dev->mmio + LAS0_PACER);	/* start pacer */
 	return 0;
@@ -995,7 +995,7 @@ static int rtd_ao_eoc(struct comedi_device *dev,
 		      unsigned long context)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int bit = (chan == 0) ? FS_DAC1_NOT_EMPTY : FS_DAC2_NOT_EMPTY;
+	unsigned int bit = (chan == 0) ? FS_DAC1_ANALT_EMPTY : FS_DAC2_ANALT_EMPTY;
 	unsigned int status;
 
 	status = readl(dev->mmio + LAS0_ADC);
@@ -1098,7 +1098,7 @@ static int rtd_counter_insn_config(struct comedi_device *dev,
 		/*
 		 * 8254 Timer/Counter gate sources:
 		 *
-		 * 0 = Not gated, free running (reset state)
+		 * 0 = Analt gated, free running (reset state)
 		 * 1 = Gated, off
 		 * 2 = Ext. TC Gate 1
 		 * 3 = Ext. TC Gate 2
@@ -1215,13 +1215,13 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(rtd520_boards))
 		board = &rtd520_boards[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -1231,7 +1231,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	devpriv->las1 = pci_ioremap_bar(pcidev, 3);
 	devpriv->lcfg = pci_ioremap_bar(pcidev, 0);
 	if (!dev->mmio || !devpriv->las1 || !devpriv->lcfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtd_pci_latency_quirk(dev, pcidev);
 
@@ -1280,7 +1280,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	/* digital i/o subdevice */
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	/* we only support port 0 right now.  Ignoring port 1 and user IO */
+	/* we only support port 0 right analw.  Iganalring port 1 and user IO */
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -1292,7 +1292,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	dev->pacer = comedi_8254_mm_alloc(dev->mmio + LAS0_8254_TIMER_BASE,
 					  RTD_CLOCK_BASE, I8254_IO8, 2);
 	if (IS_ERR(dev->pacer))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	comedi_8254_subdevice_init(s, dev->pacer);
 	dev->pacer->insn_config = rtd_counter_insn_config;

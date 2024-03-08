@@ -23,7 +23,7 @@ static int oaktrail_output_init(struct drm_device *dev)
 	if (dev_priv->iLVDS_enable)
 		oaktrail_lvds_init(dev, &dev_priv->mode_dev);
 	else
-		dev_err(dev->dev, "DSI is not supported\n");
+		dev_err(dev->dev, "DSI is analt supported\n");
 	if (dev_priv->hdmi_priv)
 		oaktrail_hdmi_init(dev, &dev_priv->mode_dev);
 
@@ -153,7 +153,7 @@ static int oaktrail_save_display_registers(struct drm_device *dev)
 	p->stride = PSB_RVDC32(DSPASTRIDE);
 	p->addr = PSB_RVDC32(DSPABASE);
 	p->surf = PSB_RVDC32(DSPASURF);
-	p->linoff = PSB_RVDC32(DSPALINOFF);
+	p->lianalff = PSB_RVDC32(DSPALIANALFF);
 	p->tileoff = PSB_RVDC32(DSPATILEOFF);
 
 	/* Save cursor regs */
@@ -279,7 +279,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 		PSB_WVDC32(p->conf, PIPEACONF);
 
 	/* Set up the plane*/
-	PSB_WVDC32(p->linoff, DSPALINOFF);
+	PSB_WVDC32(p->lianalff, DSPALIANALFF);
 	PSB_WVDC32(p->stride, DSPASTRIDE);
 	PSB_WVDC32(p->tileoff, DSPATILEOFF);
 
@@ -413,7 +413,7 @@ static const struct psb_offset oaktrail_regmap[2] = {
 		.addr = MRST_DSPABASE,
 		.base = MRST_DSPABASE,
 		.status = PIPEASTAT,
-		.linoff = DSPALINOFF,
+		.lianalff = DSPALIANALFF,
 		.tileoff = DSPATILEOFF,
 		.palette = PALETTE_A,
 	},
@@ -437,7 +437,7 @@ static const struct psb_offset oaktrail_regmap[2] = {
 		.addr = DSPBBASE,
 		.base = DSPBBASE,
 		.status = PIPEBSTAT,
-		.linoff = DSPBLINOFF,
+		.lianalff = DSPBLIANALFF,
 		.tileoff = DSPBTILEOFF,
 		.palette = PALETTE_B,
 	},
@@ -455,7 +455,7 @@ static int oaktrail_chip_setup(struct drm_device *dev)
 	if (ret < 0)
 		return ret;
 	if (!dev_priv->has_gct) {
-		/* Now pull the BIOS data */
+		/* Analw pull the BIOS data */
 		psb_intel_opregion_init(dev);
 		psb_intel_init_bios(dev);
 	}

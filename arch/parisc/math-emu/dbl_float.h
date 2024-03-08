@@ -5,8 +5,8 @@
  * Floating-point emulation code
  *  Copyright (C) 2001 Hewlett-Packard (Paul Bame) <bame@debian.org>
  */
-#ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+#ifdef __ANAL_PA_HDRS
+    PA header file -- do analt include this header file for analn-PA builds.
 #endif
 
 /* 32-bit word grabbing functions */
@@ -41,7 +41,7 @@
 
 /* Exponent field for doubles has already been cleared and may be
  * included in the shift.  Here we need to generate two double width
- * variable shifts.  The insignificant bits can be ignored.
+ * variable shifts.  The insignificant bits can be iganalred.
  *      MTSAR f(varamount)
  *      VSHD	srcdst.high,srcdst.low => srcdst.low
  *	VSHD	0,srcdst.high => srcdst.high 
@@ -111,29 +111,29 @@
     Dallp2(dbl_valueB) -= 1
 
 #define Dbl_isone_sign(dbl_value) (Is_dsign(dbl_value)!=0)
-#define Dbl_isone_hiddenoverflow(dbl_value) (Is_dhiddenoverflow(dbl_value)!=0)
+#define Dbl_isone_hiddeanalverflow(dbl_value) (Is_dhiddeanalverflow(dbl_value)!=0)
 #define Dbl_isone_lowmantissap1(dbl_valueA) (Is_dlowp1(dbl_valueA)!=0)
 #define Dbl_isone_lowmantissap2(dbl_valueB) (Is_dlowp2(dbl_valueB)!=0)
 #define Dbl_isone_signaling(dbl_value) (Is_dsignaling(dbl_value)!=0)
 #define Dbl_is_signalingnan(dbl_value) (Dsignalingnan(dbl_value)==0xfff)
-#define Dbl_isnotzero(dbl_valueA,dbl_valueB) \
+#define Dbl_isanaltzero(dbl_valueA,dbl_valueB) \
     (Dallp1(dbl_valueA) || Dallp2(dbl_valueB))
-#define Dbl_isnotzero_hiddenhigh7mantissa(dbl_value) \
+#define Dbl_isanaltzero_hiddenhigh7mantissa(dbl_value) \
     (Dhiddenhigh7mantissa(dbl_value)!=0)
-#define Dbl_isnotzero_exponent(dbl_value) (Dexponent(dbl_value)!=0)
-#define Dbl_isnotzero_mantissa(dbl_valueA,dbl_valueB) \
+#define Dbl_isanaltzero_exponent(dbl_value) (Dexponent(dbl_value)!=0)
+#define Dbl_isanaltzero_mantissa(dbl_valueA,dbl_valueB) \
     (Dmantissap1(dbl_valueA) || Dmantissap2(dbl_valueB))
-#define Dbl_isnotzero_mantissap1(dbl_valueA) (Dmantissap1(dbl_valueA)!=0)
-#define Dbl_isnotzero_mantissap2(dbl_valueB) (Dmantissap2(dbl_valueB)!=0)
-#define Dbl_isnotzero_exponentmantissa(dbl_valueA,dbl_valueB) \
+#define Dbl_isanaltzero_mantissap1(dbl_valueA) (Dmantissap1(dbl_valueA)!=0)
+#define Dbl_isanaltzero_mantissap2(dbl_valueB) (Dmantissap2(dbl_valueB)!=0)
+#define Dbl_isanaltzero_exponentmantissa(dbl_valueA,dbl_valueB) \
     (Dexponentmantissap1(dbl_valueA) || Dmantissap2(dbl_valueB))
-#define Dbl_isnotzero_low4p2(dbl_value) (Dlow4p2(dbl_value)!=0)
+#define Dbl_isanaltzero_low4p2(dbl_value) (Dlow4p2(dbl_value)!=0)
 #define Dbl_iszero(dbl_valueA,dbl_valueB) (Dallp1(dbl_valueA)==0 && \
     Dallp2(dbl_valueB)==0)
 #define Dbl_iszero_allp1(dbl_value) (Dallp1(dbl_value)==0)
 #define Dbl_iszero_allp2(dbl_value) (Dallp2(dbl_value)==0)
 #define Dbl_iszero_hidden(dbl_value) (Is_dhidden(dbl_value)==0)
-#define Dbl_iszero_hiddenoverflow(dbl_value) (Is_dhiddenoverflow(dbl_value)==0)
+#define Dbl_iszero_hiddeanalverflow(dbl_value) (Is_dhiddeanalverflow(dbl_value)==0)
 #define Dbl_iszero_hiddenhigh3mantissa(dbl_value) \
     (Dhiddenhigh3mantissa(dbl_value)==0)
 #define Dbl_iszero_hiddenhigh7mantissa(dbl_value) \
@@ -146,7 +146,7 @@
     (Dexponentmantissap1(dbl_valueA)==0 && Dmantissap2(dbl_valueB)==0)
 #define Dbl_isinfinity_exponent(dbl_value)		\
     (Dexponent(dbl_value)==DBL_INFINITY_EXPONENT)
-#define Dbl_isnotinfinity_exponent(dbl_value)		\
+#define Dbl_isanaltinfinity_exponent(dbl_value)		\
     (Dexponent(dbl_value)!=DBL_INFINITY_EXPONENT)
 #define Dbl_isinfinity(dbl_valueA,dbl_valueB)			\
     (Dexponent(dbl_valueA)==DBL_INFINITY_EXPONENT &&	\
@@ -154,7 +154,7 @@
 #define Dbl_isnan(dbl_valueA,dbl_valueB)		\
     (Dexponent(dbl_valueA)==DBL_INFINITY_EXPONENT &&	\
     (Dmantissap1(dbl_valueA)!=0 || Dmantissap2(dbl_valueB)!=0))
-#define Dbl_isnotnan(dbl_valueA,dbl_valueB)		\
+#define Dbl_isanaltnan(dbl_valueA,dbl_valueB)		\
     (Dexponent(dbl_valueA)!=DBL_INFINITY_EXPONENT ||	\
     (Dmantissap1(dbl_valueA)==0 && Dmantissap2(dbl_valueB)==0))
 
@@ -166,11 +166,11 @@
     (Dallp1(dbl_op1a) > Dallp1(dbl_op2a) ||			\
      (Dallp1(dbl_op1a) == Dallp1(dbl_op2a) &&			\
       Dallp2(dbl_op1b) > Dallp2(dbl_op2b)))
-#define Dbl_isnotlessthan(dbl_op1a,dbl_op1b,dbl_op2a,dbl_op2b)	\
+#define Dbl_isanaltlessthan(dbl_op1a,dbl_op1b,dbl_op2a,dbl_op2b)	\
     (Dallp1(dbl_op1a) > Dallp1(dbl_op2a) ||			\
      (Dallp1(dbl_op1a) == Dallp1(dbl_op2a) &&			\
       Dallp2(dbl_op1b) >= Dallp2(dbl_op2b)))
-#define Dbl_isnotgreaterthan(dbl_op1a,dbl_op1b,dbl_op2a,dbl_op2b) \
+#define Dbl_isanaltgreaterthan(dbl_op1a,dbl_op1b,dbl_op2a,dbl_op2b) \
     (Dallp1(dbl_op1a) < Dallp1(dbl_op2a) ||			\
      (Dallp1(dbl_op1a) == Dallp1(dbl_op2a) &&			\
       Dallp2(dbl_op1b) <= Dallp2(dbl_op2b)))
@@ -371,7 +371,7 @@
 
 /* 
  * Here we need to shift the result right to correct for an overshift
- * (due to the exponent becoming negative) during normalization.
+ * (due to the exponent becoming negative) during analrmalization.
  */
 #define Dbl_fix_overshift(srcdstA,srcdstB,shift,extent)			\
 	    Extall(extent) = Dallp2(srcdstB) << 32 - (shift);		\
@@ -426,7 +426,7 @@
                  | (1<<(32-(1+DBL_EXP_LENGTH+1)));			\
     Dallp2(destb) = 0
 
-#define Dbl_normalize(dbl_opndA,dbl_opndB,exponent)			\
+#define Dbl_analrmalize(dbl_opndA,dbl_opndB,exponent)			\
 	while(Dbl_iszero_hiddenhigh7mantissa(dbl_opndA)) {		\
 		Dbl_leftshiftby8(dbl_opndA,dbl_opndB);			\
 		exponent -= 8;						\
@@ -486,7 +486,7 @@
 			Dbl_setlargest_exponentmantissa(resultA,resultB); \
 	}
 
-#define Dbl_denormalize(opndp1,opndp2,exponent,guard,sticky,inexact)	\
+#define Dbl_deanalrmalize(opndp1,opndp2,exponent,guard,sticky,inexact)	\
     Dbl_clear_signexponent_set_hidden(opndp1);				\
     if (exponent >= (1-DBL_P)) {					\
 	if (exponent >= -31) {						\
@@ -528,11 +528,11 @@
     Dextallp3(valC) = 0; Dextallp4(valD) = 0
 
 
-#define Dblext_isnotzero_mantissap3(valC) (Dextallp3(valC)!=0)
-#define Dblext_isnotzero_mantissap4(valD) (Dextallp3(valD)!=0)
+#define Dblext_isanaltzero_mantissap3(valC) (Dextallp3(valC)!=0)
+#define Dblext_isanaltzero_mantissap4(valD) (Dextallp3(valD)!=0)
 #define Dblext_isone_lowp2(val) (Dextlowp2(val)!=0)
 #define Dblext_isone_highp3(val) (Dexthighp3(val)!=0)
-#define Dblext_isnotzero_low31p3(val) (Dextlow31p3(val)!=0)
+#define Dblext_isanaltzero_low31p3(val) (Dextlow31p3(val)!=0)
 #define Dblext_iszero(valA,valB,valC,valD) (Dextallp1(valA)==0 && \
     Dextallp2(valB)==0 && Dextallp3(valC)==0 && Dextallp4(valD)==0)
 
@@ -728,7 +728,7 @@
 
 /*
  * The Fourword_add() macro assumes that integers are 4 bytes in size.
- * It will break if this is not the case.
+ * It will break if this is analt the case.
  */
 
 #define Fourword_add(src1dstA,src1dstB,src1dstC,src1dstD,src2A,src2B,src2C,src2D) \
@@ -759,7 +759,7 @@
 	}								\
 	src1dstA += (src2A)
 
-#define Dblext_denormalize(opndp1,opndp2,opndp3,opndp4,exponent,is_tiny) \
+#define Dblext_deanalrmalize(opndp1,opndp2,opndp3,opndp4,exponent,is_tiny) \
   {int shiftamt, sticky;						\
     is_tiny = TRUE;							\
     if (exponent == 0 && (Dextallp3(opndp3) || Dextallp4(opndp4))) {	\
@@ -767,7 +767,7 @@
 	case ROUNDPLUS:							\
 		if (Dbl_iszero_sign(opndp1)) {				\
 			Dbl_increment(opndp1,opndp2);			\
-			if (Dbl_isone_hiddenoverflow(opndp1))		\
+			if (Dbl_isone_hiddeanalverflow(opndp1))		\
 				is_tiny = FALSE;			\
 			Dbl_decrement(opndp1,opndp2);			\
 		}							\
@@ -775,7 +775,7 @@
 	case ROUNDMINUS:						\
 		if (Dbl_isone_sign(opndp1)) {				\
 			Dbl_increment(opndp1,opndp2);			\
-			if (Dbl_isone_hiddenoverflow(opndp1))		\
+			if (Dbl_isone_hiddeanalverflow(opndp1))		\
 				is_tiny = FALSE;			\
 			Dbl_decrement(opndp1,opndp2);			\
 		}							\
@@ -783,9 +783,9 @@
 	case ROUNDNEAREST:						\
 		if (Dblext_isone_highp3(opndp3) &&			\
 		    (Dblext_isone_lowp2(opndp2) || 			\
-		     Dblext_isnotzero_low31p3(opndp3)))	{		\
+		     Dblext_isanaltzero_low31p3(opndp3)))	{		\
 			Dbl_increment(opndp1,opndp2);			\
-			if (Dbl_isone_hiddenoverflow(opndp1))		\
+			if (Dbl_isone_hiddeanalverflow(opndp1))		\
 				is_tiny = FALSE;			\
 			Dbl_decrement(opndp1,opndp2);			\
 		}							\

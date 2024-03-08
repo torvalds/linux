@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,18 +48,18 @@
  * &drm_gpuva mappings within a GPU's virtual address space.
  *
  * The &drm_gpuvm structure contains a special &drm_gpuva representing the
- * portion of VA space reserved by the kernel. This node is initialized together
+ * portion of VA space reserved by the kernel. This analde is initialized together
  * with the GPU VA manager instance and removed when the GPU VA manager is
  * destroyed.
  *
  * In a typical application drivers would embed struct drm_gpuvm and
  * struct drm_gpuva within their own driver specific structures, there won't be
- * any memory allocations of its own nor memory allocations of &drm_gpuva
+ * any memory allocations of its own analr memory allocations of &drm_gpuva
  * entries.
  *
  * The data structures needed to store &drm_gpuvas within the &drm_gpuvm are
  * contained within struct drm_gpuva already. Hence, for inserting &drm_gpuva
- * entries from within dma-fence signalling critical sections it is enough to
+ * entries from within dma-fence signalling critical sections it is eanalugh to
  * pre-allocate the &drm_gpuva structures.
  *
  * &drm_gem_objects which are private to a single VM can share a common
@@ -80,7 +80,7 @@
  * This is ensured by the API through drm_gpuvm_bo_obtain() and
  * drm_gpuvm_bo_obtain_prealloc() which first look into the corresponding
  * &drm_gem_object list of &drm_gpuvm_bos for an existing instance of this
- * particular combination. If not existent a new instance is created and linked
+ * particular combination. If analt existent a new instance is created and linked
  * to the &drm_gem_object.
  *
  * &drm_gpuvm_bo structures, since unique for a given &drm_gpuvm, are also used
@@ -121,7 +121,7 @@
  * Depending on how the new GPU VA mapping intersects with the existent mappings
  * of the GPU VA space the &drm_gpuvm_ops callbacks contain an arbitrary amount
  * of unmap operations, a maximum of two remap operations and a single map
- * operation. The caller might receive no callback at all if no operation is
+ * operation. The caller might receive anal callback at all if anal operation is
  * required, e.g. if the requested mapping already exists in the exact same way.
  *
  * The single map operation represents the original map operation requested by
@@ -138,7 +138,7 @@
  * one unmap operation and one or two map operations, such that drivers can
  * derive the page table update delta accordingly.
  *
- * Note that there can't be more than two existent mappings to split up, one at
+ * Analte that there can't be more than two existent mappings to split up, one at
  * the beginning and one at the end of the new mapping, hence there is a
  * maximum of two remap operations.
  *
@@ -230,9 +230,9 @@
  *	     0     a     2
  *	new: |-----------| (bo_offset=n)
  *
- *    .. note::
+ *    .. analte::
  *       We expect to see the same result for a request with a different BO
- *       and/or non-contiguous BO offset.
+ *       and/or analn-contiguous BO offset.
  *
  *
  * 5) Requested mapping's range is a left aligned subset of the existent one,
@@ -250,9 +250,9 @@
  *	     0  b  1  a' 2
  *	new: |-----|-----| (b.bo_offset=n, a.bo_offset=n+1)
  *
- *    .. note::
+ *    .. analte::
  *       We expect to see the same result for a request with a different BO
- *       and/or non-contiguous BO offset.
+ *       and/or analn-contiguous BO offset.
  *
  *
  * 6) Existent mapping is a superset of the requested mapping. Split it up, but
@@ -379,9 +379,9 @@
  *	      0     a     2
  *	 new: |-----------| (bo_offset=n)
  *
- *     .. note::
+ *     .. analte::
  *        We expect to see the same result for a request with a different bo
- *        and/or non-contiguous bo_offset.
+ *        and/or analn-contiguous bo_offset.
  *
  *
  * 14) Existent mapping is a centered subset of the requested one, hence
@@ -398,9 +398,9 @@
  *	      0        a       3
  *	 new: |----------------| (bo_offset=n)
  *
- *     .. note::
+ *     .. analte::
  *        We expect to see the same result for a request with a different bo
- *        and/or non-contiguous bo_offset.
+ *        and/or analn-contiguous bo_offset.
  *
  *
  * 15) Existent mappings is overlapped at the beginning by the requested mapping
@@ -422,13 +422,13 @@
 /**
  * DOC: Locking
  *
- * In terms of managing &drm_gpuva entries DRM GPUVM does not take care of
+ * In terms of managing &drm_gpuva entries DRM GPUVM does analt take care of
  * locking itself, it is the drivers responsibility to take care about locking.
  * Drivers might want to protect the following operations: inserting, removing
  * and iterating &drm_gpuva objects as well as generating all kinds of
  * operations, such as split / merge or prefetch.
  *
- * DRM GPUVM also does not take care of the locking of the backing
+ * DRM GPUVM also does analt take care of the locking of the backing
  * &drm_gem_object buffers GPU VA lists and &drm_gpuvm_bo abstractions by
  * itself; drivers are responsible to enforce mutual exclusion using either the
  * GEMs dma_resv lock or alternatively a driver specific external lock. For the
@@ -457,7 +457,7 @@
  * lists. If &DRM_GPUVM_RESV_PROTECTED is set, internal locking is disabled and
  * the corresponding lockdep checks are enabled. This is an optimization for
  * drivers which are capable of taking the corresponding &dma_resv locks and
- * hence do not require internal locking.
+ * hence do analt require internal locking.
  */
 
 /**
@@ -469,7 +469,7 @@
  *
  * The below code is strictly limited to illustrate the generic usage pattern.
  * To maintain simplicitly, it doesn't make use of any abstractions for common
- * code, different (asyncronous) stages with fence signalling critical paths,
+ * code, different (asyncroanalus) stages with fence signalling critical paths,
  * any other helpers or error handling in terms of freeing memory and dropping
  * previously taken locks.
  *
@@ -601,7 +601,7 @@
  *		ctx.next_va = kzalloc(sizeof(*ctx.next_va), GFP_KERNEL);
  *		ctx.vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
  *		if (!ctx.new_va || !ctx.prev_va || !ctx.next_va || !vm_bo) {
- *			ret = -ENOMEM;
+ *			ret = -EANALMEM;
  *			goto out;
  *		}
  *
@@ -726,7 +726,7 @@
  * iterator releases the lock immediately after picking the first element from the
  * list, hence list insertion and deletion can happen concurrently.
  *
- * It is not allowed to re-assign the vm_bo pointer from inside this loop.
+ * It is analt allowed to re-assign the vm_bo pointer from inside this loop.
  *
  * Typical use:
  *
@@ -744,7 +744,7 @@
  *	restore_vm_bo_list(gpuvm, <list_name>, &my_local_list);
  *
  *
- * Only used for internal list iterations, not meant to be exposed to the outside
+ * Only used for internal list iterations, analt meant to be exposed to the outside
  * world.
  */
 #define for_each_vm_bo_in_list(__gpuvm, __list_name, __local_list, __vm_bo)	\
@@ -865,15 +865,15 @@ __drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
 				&(__vm_bo)->list.entry.__list_name,		\
 				false)
 
-#define to_drm_gpuva(__node)	container_of((__node), struct drm_gpuva, rb.node)
+#define to_drm_gpuva(__analde)	container_of((__analde), struct drm_gpuva, rb.analde)
 
-#define GPUVA_START(node) ((node)->va.addr)
-#define GPUVA_LAST(node) ((node)->va.addr + (node)->va.range - 1)
+#define GPUVA_START(analde) ((analde)->va.addr)
+#define GPUVA_LAST(analde) ((analde)->va.addr + (analde)->va.range - 1)
 
-/* We do not actually use drm_gpuva_it_next(), tell the compiler to not complain
+/* We do analt actually use drm_gpuva_it_next(), tell the compiler to analt complain
  * about this.
  */
-INTERVAL_TREE_DEFINE(struct drm_gpuva, rb.node, u64, rb.__subtree_last,
+INTERVAL_TREE_DEFINE(struct drm_gpuva, rb.analde, u64, rb.__subtree_last,
 		     GPUVA_START, GPUVA_LAST, static __maybe_unused,
 		     drm_gpuva_it)
 
@@ -907,11 +907,11 @@ drm_gpuvm_in_mm_range(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
 }
 
 static bool
-drm_gpuvm_in_kernel_node(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
+drm_gpuvm_in_kernel_analde(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
 {
 	u64 end = addr + range;
-	u64 kstart = gpuvm->kernel_alloc_node.va.addr;
-	u64 krange = gpuvm->kernel_alloc_node.va.range;
+	u64 kstart = gpuvm->kernel_alloc_analde.va.addr;
+	u64 krange = gpuvm->kernel_alloc_analde.va.range;
 	u64 kend = kstart + krange;
 
 	return krange && addr < kend && kstart < end;
@@ -934,7 +934,7 @@ drm_gpuvm_range_valid(struct drm_gpuvm *gpuvm,
 {
 	return !drm_gpuvm_check_overflow(addr, range) &&
 	       drm_gpuvm_in_mm_range(gpuvm, addr, range) &&
-	       !drm_gpuvm_in_kernel_node(gpuvm, addr, range);
+	       !drm_gpuvm_in_kernel_analde(gpuvm, addr, range);
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_range_valid);
 
@@ -990,7 +990,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_resv_object_alloc);
  *
  * The &drm_gpuvm must be initialized with this function before use.
  *
- * Note that @gpuvm must be cleared to 0 before calling this function. The given
+ * Analte that @gpuvm must be cleared to 0 before calling this function. The given
  * &name is expected to be managed by the surrounding driver structures.
  */
 void
@@ -1013,7 +1013,7 @@ drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
 
 	kref_init(&gpuvm->kref);
 
-	gpuvm->name = name ? name : "unknown";
+	gpuvm->name = name ? name : "unkanalwn";
 	gpuvm->flags = flags;
 	gpuvm->ops = ops;
 	gpuvm->drm = drm;
@@ -1025,14 +1025,14 @@ drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
 	gpuvm->mm_start = start_offset;
 	gpuvm->mm_range = range;
 
-	memset(&gpuvm->kernel_alloc_node, 0, sizeof(struct drm_gpuva));
+	memset(&gpuvm->kernel_alloc_analde, 0, sizeof(struct drm_gpuva));
 	if (reserve_range) {
-		gpuvm->kernel_alloc_node.va.addr = reserve_offset;
-		gpuvm->kernel_alloc_node.va.range = reserve_range;
+		gpuvm->kernel_alloc_analde.va.addr = reserve_offset;
+		gpuvm->kernel_alloc_analde.va.range = reserve_range;
 
 		if (likely(!drm_gpuvm_warn_check_overflow(gpuvm, reserve_offset,
 							  reserve_range)))
-			__drm_gpuva_insert(gpuvm, &gpuvm->kernel_alloc_node);
+			__drm_gpuva_insert(gpuvm, &gpuvm->kernel_alloc_analde);
 	}
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_init);
@@ -1042,11 +1042,11 @@ drm_gpuvm_fini(struct drm_gpuvm *gpuvm)
 {
 	gpuvm->name = NULL;
 
-	if (gpuvm->kernel_alloc_node.va.range)
-		__drm_gpuva_remove(&gpuvm->kernel_alloc_node);
+	if (gpuvm->kernel_alloc_analde.va.range)
+		__drm_gpuva_remove(&gpuvm->kernel_alloc_analde);
 
 	drm_WARN(gpuvm->drm, !RB_EMPTY_ROOT(&gpuvm->rb.tree.rb_root),
-		 "GPUVA tree is not empty, potentially leaking memory.\n");
+		 "GPUVA tree is analt empty, potentially leaking memory.\n");
 
 	drm_WARN(gpuvm->drm, !list_empty(&gpuvm->extobj.list),
 		 "Extobj list should be empty.\n");
@@ -1171,8 +1171,8 @@ drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
  * Using this function directly, it is the drivers responsibility to call
  * drm_exec_init() and drm_exec_fini() accordingly.
  *
- * Note: This function is safe against concurrent insertion and removal of
- * external objects, however it is not safe against concurrent usage itself.
+ * Analte: This function is safe against concurrent insertion and removal of
+ * external objects, however it is analt safe against concurrent usage itself.
  *
  * Drivers need to make sure to protect this case with either an outer VM lock
  * or by calling drm_gpuvm_prepare_vm() before this function within the
@@ -1418,7 +1418,7 @@ drm_gpuvm_validate(struct drm_gpuvm *gpuvm, struct drm_exec *exec)
 	const struct drm_gpuvm_ops *ops = gpuvm->ops;
 
 	if (unlikely(!ops || !ops->vm_bo_validate))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (drm_gpuvm_resv_protected(gpuvm))
 		return drm_gpuvm_validate_locked(gpuvm, exec);
@@ -1534,7 +1534,7 @@ drm_gpuvm_bo_destroy(struct kref *kref)
  * function can potentially let the reference count drop to zero the caller must
  * hold the dma-resv or driver specific GEM gpuva lock.
  *
- * This function may only be called from non-atomic context.
+ * This function may only be called from analn-atomic context.
  *
  * Returns: true if vm_bo was destroyed, false otherwise.
  */
@@ -1594,7 +1594,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_find);
  *
  * Find the &drm_gpuvm_bo representing the combination of the given
  * &drm_gpuvm and &drm_gem_object. If found, increases the reference
- * count of the &drm_gpuvm_bo accordingly. If not found, allocates a new
+ * count of the &drm_gpuvm_bo accordingly. If analt found, allocates a new
  * &drm_gpuvm_bo.
  *
  * A new &drm_gpuvm_bo is added to the GEMs gpuva list.
@@ -1613,7 +1613,7 @@ drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
 
 	vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
 	if (!vm_bo)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drm_gem_gpuva_assert_lock_held(obj);
 	list_add_tail(&vm_bo->list.entry.gem, &obj->gpuva.list);
@@ -1630,12 +1630,12 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain);
  * Find the &drm_gpuvm_bo representing the combination of the given
  * &drm_gpuvm and &drm_gem_object. If found, increases the reference
  * count of the found &drm_gpuvm_bo accordingly, while the @__vm_bo reference
- * count is decreased. If not found @__vm_bo is returned without further
+ * count is decreased. If analt found @__vm_bo is returned without further
  * increase of the reference count.
  *
  * A new &drm_gpuvm_bo is added to the GEMs gpuva list.
  *
- * Returns: a pointer to the found &drm_gpuvm_bo or @__vm_bo if no existing
+ * Returns: a pointer to the found &drm_gpuvm_bo or @__vm_bo if anal existing
  * &drm_gpuvm_bo was found
  */
 struct drm_gpuvm_bo *
@@ -1663,7 +1663,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain_prealloc);
  * extobj list
  * @vm_bo: The &drm_gpuvm_bo to add to its &drm_gpuvm's the extobj list.
  *
- * Adds the given @vm_bo to its &drm_gpuvm's extobj list if not on the list
+ * Adds the given @vm_bo to its &drm_gpuvm's extobj list if analt on the list
  * already and if the corresponding &drm_gem_object is an external object,
  * actually.
  */
@@ -1699,7 +1699,7 @@ drm_gpuvm_bo_evict(struct drm_gpuvm_bo *vm_bo, bool evict)
 	dma_resv_assert_held(obj->resv);
 	vm_bo->evicted = evict;
 
-	/* Can't add external objects to the evicted list directly if not using
+	/* Can't add external objects to the evicted list directly if analt using
 	 * internal spinlocks, since in this case the evicted list is protected
 	 * with the VM's common dma-resv lock.
 	 */
@@ -1717,7 +1717,7 @@ static int
 __drm_gpuva_insert(struct drm_gpuvm *gpuvm,
 		   struct drm_gpuva *va)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 	struct list_head *head;
 
 	if (drm_gpuva_it_iter_first(&gpuvm->rb.tree,
@@ -1729,9 +1729,9 @@ __drm_gpuva_insert(struct drm_gpuvm *gpuvm,
 
 	drm_gpuva_it_insert(va, &gpuvm->rb.tree);
 
-	node = rb_prev(&va->rb.node);
-	if (node)
-		head = &(to_drm_gpuva(node))->rb.entry;
+	analde = rb_prev(&va->rb.analde);
+	if (analde)
+		head = &(to_drm_gpuva(analde))->rb.entry;
 	else
 		head = &gpuvm->rb.list;
 
@@ -1770,7 +1770,7 @@ drm_gpuva_insert(struct drm_gpuvm *gpuvm,
 		/* Take a reference of the GPUVM for the successfully inserted
 		 * drm_gpuva. We can't take the reference in
 		 * __drm_gpuva_insert() itself, since we don't want to increse
-		 * the reference count for the GPUVM's kernel_alloc_node.
+		 * the reference count for the GPUVM's kernel_alloc_analde.
 		 */
 		drm_gpuvm_get(gpuvm);
 
@@ -1800,9 +1800,9 @@ drm_gpuva_remove(struct drm_gpuva *va)
 {
 	struct drm_gpuvm *gpuvm = va->vm;
 
-	if (unlikely(va == &gpuvm->kernel_alloc_node)) {
+	if (unlikely(va == &gpuvm->kernel_alloc_analde)) {
 		drm_WARN(gpuvm->drm, 1,
-			 "Can't destroy kernel reserved node.\n");
+			 "Can't destroy kernel reserved analde.\n");
 		return;
 	}
 
@@ -1933,10 +1933,10 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find);
  *
  * Find the adjacent &drm_gpuva before the GPU VA with given &start address.
  *
- * Note that if there is any free space between the GPU VA mappings no mapping
+ * Analte that if there is any free space between the GPU VA mappings anal mapping
  * is returned.
  *
- * Returns: a pointer to the found &drm_gpuva or NULL if none was found
+ * Returns: a pointer to the found &drm_gpuva or NULL if analne was found
  */
 struct drm_gpuva *
 drm_gpuva_find_prev(struct drm_gpuvm *gpuvm, u64 start)
@@ -1955,10 +1955,10 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find_prev);
  *
  * Find the adjacent &drm_gpuva after the GPU VA with given &end address.
  *
- * Note that if there is any free space between the GPU VA mappings no mapping
+ * Analte that if there is any free space between the GPU VA mappings anal mapping
  * is returned.
  *
- * Returns: a pointer to the found &drm_gpuva or NULL if none was found
+ * Returns: a pointer to the found &drm_gpuva or NULL if analne was found
  */
 struct drm_gpuva *
 drm_gpuva_find_next(struct drm_gpuvm *gpuvm, u64 end)
@@ -2313,7 +2313,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
  *
  * Drivers may use these callbacks to update the GPU VA space right away within
  * the callback. In case the driver decides to copy and store the operations for
- * later processing neither this function nor &drm_gpuvm_sm_unmap is allowed to
+ * later processing neither this function analr &drm_gpuvm_sm_unmap is allowed to
  * be called before the &drm_gpuvm's view of the GPU VA space was
  * updated with the previous set of operations. To update the
  * &drm_gpuvm's view of the GPU VA space drm_gpuva_insert(),
@@ -2321,7 +2321,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
  * used.
  *
  * A sequence of callbacks can contain map, unmap and remap operations, but
- * the sequence of callbacks might also be empty if no operation is required,
+ * the sequence of callbacks might also be empty if anal operation is required,
  * e.g. if the requested mapping already exists in the exact same way.
  *
  * There can be an arbitrary amount of unmap operations, a maximum of two remap
@@ -2361,7 +2361,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map);
  *
  * Drivers may use these callbacks to update the GPU VA space right away within
  * the callback. In case the driver decides to copy and store the operations for
- * later processing neither this function nor &drm_gpuvm_sm_map is allowed to be
+ * later processing neither this function analr &drm_gpuvm_sm_map is allowed to be
  * called before the &drm_gpuvm's view of the GPU VA space was updated
  * with the previous set of operations. To update the &drm_gpuvm's view
  * of the GPU VA space drm_gpuva_insert(), drm_gpuva_destroy_locked() and/or
@@ -2472,7 +2472,7 @@ err_free_prev:
 err_free_op:
 	gpuva_op_free(gpuvm, op);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static const struct drm_gpuvm_ops gpuvm_list_ops = {
@@ -2494,14 +2494,14 @@ static const struct drm_gpuvm_ops gpuvm_list_ops = {
  *
  * The list can be iterated with &drm_gpuva_for_each_op and must be processed
  * in the given order. It can contain map, unmap and remap operations, but it
- * also can be empty if no operation is required, e.g. if the requested mapping
+ * also can be empty if anal operation is required, e.g. if the requested mapping
  * already exists is the exact same way.
  *
  * There can be an arbitrary amount of unmap operations, a maximum of two remap
  * operations and a single map operation. The latter one represents the original
  * map operation requested by the caller.
  *
- * Note that before calling this function again with another mapping request it
+ * Analte that before calling this function again with aanalther mapping request it
  * is necessary to update the &drm_gpuvm's view of the GPU VA space. The
  * previously obtained operations must be either processed or abandoned. To
  * update the &drm_gpuvm's view of the GPU VA space drm_gpuva_insert(),
@@ -2527,7 +2527,7 @@ drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (unlikely(!ops))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ops->list);
 
@@ -2565,7 +2565,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map_ops_create);
  * There can be an arbitrary amount of unmap operations and a maximum of two
  * remap operations.
  *
- * Note that before calling this function again with another range to unmap it
+ * Analte that before calling this function again with aanalther range to unmap it
  * is necessary to update the &drm_gpuvm's view of the GPU VA space. The
  * previously obtained operations must be processed or abandoned. To update the
  * &drm_gpuvm's view of the GPU VA space drm_gpuva_insert(),
@@ -2590,7 +2590,7 @@ drm_gpuvm_sm_unmap_ops_create(struct drm_gpuvm *gpuvm,
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (unlikely(!ops))
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ops->list);
 
@@ -2640,14 +2640,14 @@ drm_gpuvm_prefetch_ops_create(struct drm_gpuvm *gpuvm,
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ops->list);
 
 	drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
 		op = gpuva_op_alloc(gpuvm);
 		if (!op) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_ops;
 		}
 
@@ -2694,14 +2694,14 @@ drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (!ops)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&ops->list);
 
 	drm_gpuvm_bo_for_each_va(va, vm_bo) {
 		op = gpuva_op_alloc(vm_bo->vm);
 		if (!op) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_ops;
 		}
 

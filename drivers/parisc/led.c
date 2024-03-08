@@ -40,7 +40,7 @@ static unsigned char lastleds;		/* LED state from most recent update */
 static unsigned char lcd_new_text;
 static unsigned char lcd_text[20];
 static unsigned char lcd_text_default[20];
-static unsigned char lcd_no_led_support; /* KittyHawk doesn't support LED on its LCD */
+static unsigned char lcd_anal_led_support; /* KittyHawk doesn't support LED on its LCD */
 
 struct lcd_block {
 	unsigned char command;	/* stores the command byte      */
@@ -49,7 +49,7 @@ struct lcd_block {
 };
 
 /* Structure returned by PDC_RETURN_CHASSIS_INFO */
-/* NOTE: we use unsigned long:16 two times, since the following member
+/* ANALTE: we use unsigned long:16 two times, since the following member
    lcd_cmd_reg_addr needs to be 64bit aligned on 64bit PA2.0-machines */
 struct pdc_chassis_lcd_info_ret_block {
 	unsigned long model:16;		/* DISPLAY_MODEL_XXXX */
@@ -59,7 +59,7 @@ struct pdc_chassis_lcd_info_ret_block {
 	unsigned int min_cmd_delay;	/* delay in uS after cmd-write (LCD only) */
 	unsigned char reset_cmd1;	/* command #1 for writing LCD string (LCD only) */
 	unsigned char reset_cmd2;	/* command #2 for writing LCD string (LCD only) */
-	unsigned char act_enable;	/* 0 = no activity (LCD only) */
+	unsigned char act_enable;	/* 0 = anal activity (LCD only) */
 	struct lcd_block heartbeat;
 	struct lcd_block disk_io;
 	struct lcd_block lan_rcv;
@@ -77,7 +77,7 @@ struct pdc_chassis_lcd_info_ret_block {
 static struct pdc_chassis_lcd_info_ret_block
 lcd_info __attribute__((aligned(8)))  =
 {
-	.model =		DISPLAY_MODEL_NONE,
+	.model =		DISPLAY_MODEL_ANALNE,
 	.lcd_width =		16,
 	.lcd_cmd_reg_addr =	KITTYHAWK_LCD_CMD,
 	.lcd_data_reg_addr =	KITTYHAWK_LCD_DATA,
@@ -95,7 +95,7 @@ lcd_info __attribute__((aligned(8)))  =
 static void (*led_func_ptr) (unsigned char);
 
 
-static void lcd_print_now(void)
+static void lcd_print_analw(void)
 {
 	int i;
 	char *str = lcd_text;
@@ -132,9 +132,9 @@ void lcd_print(const char *str)
 		strscpy(lcd_text, str, sizeof(lcd_text));
 	lcd_new_text = 1;
 
-	/* print now if LCD without any LEDs */
+	/* print analw if LCD without any LEDs */
 	if (led_type == LED_HAS_LCD)
-		lcd_print_now();
+		lcd_print_analw();
 }
 
 #define	LED_DATA	0x01	/* data to shift (0:on 1:off) */
@@ -203,21 +203,21 @@ static void led_LCD_driver(unsigned char leds)
 	}
 	latest_leds = leds;
 
-	lcd_print_now();
+	lcd_print_analw();
 }
 
 
 /**
  *	lcd_system_halt()
  *
- *	@nb: pointer to the notifier_block structure
+ *	@nb: pointer to the analtifier_block structure
  *	@event: the event (SYS_RESTART, SYS_HALT or SYS_POWER_OFF)
- *	@buf: pointer to a buffer (not used)
+ *	@buf: pointer to a buffer (analt used)
  *
- *	Called by the reboot notifier chain at shutdown. Stops all
+ *	Called by the reboot analtifier chain at shutdown. Stops all
  *	LED/LCD activities.
  */
-static int lcd_system_halt(struct notifier_block *nb, unsigned long event, void *buf)
+static int lcd_system_halt(struct analtifier_block *nb, unsigned long event, void *buf)
 {
 	const char *txt;
 
@@ -228,16 +228,16 @@ static int lcd_system_halt(struct notifier_block *nb, unsigned long event, void 
 				break;
 	case SYS_POWER_OFF:	txt = "SYSTEM POWER OFF";
 				break;
-	default:		return NOTIFY_DONE;
+	default:		return ANALTIFY_DONE;
 	}
 
 	lcd_print(txt);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block lcd_system_halt_notifier = {
-	.notifier_call = lcd_system_halt,
+static struct analtifier_block lcd_system_halt_analtifier = {
+	.analtifier_call = lcd_system_halt,
 };
 
 static void set_led(struct led_classdev *led_cdev, enum led_brightness brightness);
@@ -283,7 +283,7 @@ static int hppa_led_generic_probe(struct platform_device *pdev,
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++) {
 		struct led_classdev *lp = &p->leds[i].led_cdev;
@@ -295,7 +295,7 @@ static int hppa_led_generic_probe(struct platform_device *pdev,
 		lp->default_trigger = types[i].default_trigger;
 		err = led_classdev_register(&pdev->dev, lp);
 		if (err) {
-			dev_err(&pdev->dev, "Could not register %s LED\n",
+			dev_err(&pdev->dev, "Could analt register %s LED\n",
 			       lp->name);
 			for (i--; i >= 0; i--)
 				led_classdev_unregister(&p->leds[i].led_cdev);
@@ -400,12 +400,12 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 	if (led_func_ptr || !data_reg)
 		return 1;
 
-	/* No LEDs when running in QEMU */
+	/* Anal LEDs when running in QEMU */
 	if (running_on_qemu)
 		return 1;
 
 	lcd_info.model = model;		/* store the values */
-	LCD_CMD_REG = (cmd_reg == LED_CMD_REG_NONE) ? 0 : cmd_reg;
+	LCD_CMD_REG = (cmd_reg == LED_CMD_REG_ANALNE) ? 0 : cmd_reg;
 
 	switch (lcd_info.model) {
 	case DISPLAY_MODEL_LCD:
@@ -413,7 +413,7 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 		pr_info("led: LCD display at %#lx and %#lx\n",
 			LCD_CMD_REG , LCD_DATA_REG);
 		led_func_ptr = led_LCD_driver;
-		if (lcd_no_led_support)
+		if (lcd_anal_led_support)
 			led_type = LED_HAS_LCD;
 		else
 			led_type = LED_HAS_LCD | LED_HAS_LED;
@@ -435,13 +435,13 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 		break;
 
 	default:
-		pr_err("led: Unknown LCD/LED model type %d\n", lcd_info.model);
+		pr_err("led: Unkanalwn LCD/LED model type %d\n", lcd_info.model);
 		return 1;
 	}
 
 	platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 
-	return register_reboot_notifier(&lcd_system_halt_notifier);
+	return register_reboot_analtifier(&lcd_system_halt_analtifier);
 }
 
 /**
@@ -472,8 +472,8 @@ static int __init early_led_init(void)
 	case 0x58B:		/* KittyHawk DC2 100 (K200) */
 		pr_info("LCD on KittyHawk-Machine found.\n");
 		lcd_info.model = DISPLAY_MODEL_LCD;
-		/* KittyHawk has no LED support on its LCD, so skip LED detection */
-		lcd_no_led_support = 1;
+		/* KittyHawk has anal LED support on its LCD, so skip LED detection */
+		lcd_anal_led_support = 1;
 		goto found;	/* use the preinitialized values of lcd_info */
 	}
 
@@ -482,38 +482,38 @@ static int __init early_led_init(void)
 
 	ret = pdc_chassis_info(&chassis_info, &lcd_info, sizeof(lcd_info));
 	if (ret != PDC_OK) {
-not_found:
-		lcd_info.model = DISPLAY_MODEL_NONE;
+analt_found:
+		lcd_info.model = DISPLAY_MODEL_ANALNE;
 		return 1;
 	}
 
 	/* check the results. Some machines have a buggy PDC */
 	if (chassis_info.actcnt <= 0 || chassis_info.actcnt != chassis_info.maxcnt)
-		goto not_found;
+		goto analt_found;
 
 	switch (lcd_info.model) {
 	case DISPLAY_MODEL_LCD:		/* LCD display */
 		if (chassis_info.actcnt <
 			offsetof(struct pdc_chassis_lcd_info_ret_block, _pad)-1)
-			goto not_found;
+			goto analt_found;
 		if (!lcd_info.act_enable) {
-			/* PDC tells LCD should not be used. */
-			goto not_found;
+			/* PDC tells LCD should analt be used. */
+			goto analt_found;
 		}
 		break;
 
-	case DISPLAY_MODEL_NONE:	/* no LED or LCD available */
-		goto not_found;
+	case DISPLAY_MODEL_ANALNE:	/* anal LED or LCD available */
+		goto analt_found;
 
 	case DISPLAY_MODEL_LASI:	/* Lasi style 8 bit LED display */
 		if (chassis_info.actcnt != 8 && chassis_info.actcnt != 32)
-			goto not_found;
+			goto analt_found;
 		break;
 
 	default:
-		pr_warn("PDC reported unknown LCD/LED model %d\n",
+		pr_warn("PDC reported unkanalwn LCD/LED model %d\n",
 		       lcd_info.model);
-		goto not_found;
+		goto analt_found;
 	}
 
 found:
@@ -527,7 +527,7 @@ arch_initcall(early_led_init);
  *
  *	Register_led_regions() registers the LCD/LED regions for /procfs.
  *	At bootup - where the initialisation of the LCD/LED often happens
- *	not all internal structures of request_region() are properly set up,
+ *	analt all internal structures of request_region() are properly set up,
  *	so that we delay the led-registration until after busdevices_init()
  *	has been executed.
  */

@@ -2,10 +2,10 @@
 /*
  * drivers/media/radio/radio-si476x.c -- V4L2 driver for SI476X chips
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inanalvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiranalv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiranalv <andrew.smiranalv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -158,7 +158,7 @@ static struct v4l2_ctrl_config si476x_ctrls[] = {
 	 *	#V4L2_CID_SI476X_SNR_THRESHOLD
 	 *	- Signal's RSSI(in dBuV) must be greater than
 	 *	#V4L2_CID_SI476X_RSSI_THRESHOLD
-	 *	- Signal's frequency deviation(in units of 2ppm) must not be
+	 *	- Signal's frequency deviation(in units of 2ppm) must analt be
 	 *	more than #V4L2_CID_SI476X_MAX_TUNE_ERROR
 	 */
 	[SI476X_IDX_RSSI_THRESHOLD] = {
@@ -191,7 +191,7 @@ static struct v4l2_ctrl_config si476x_ctrls[] = {
 
 	/*
 	 * #V4L2_CID_SI476X_HARMONICS_COUNT -- number of harmonics
-	 * built-in power-line noise supression filter is to reject
+	 * built-in power-line analise supression filter is to reject
 	 * during AM-mode operation.
 	 */
 	[SI476X_IDX_HARMONICS_COUNT] = {
@@ -255,7 +255,7 @@ struct si476x_radio;
  *
  * This table holds pointers to functions implementing particular
  * operations depending on the mode in which the tuner chip was
- * configured to start. If the function is not supported
+ * configured to start. If the function is analt supported
  * corresponding element is set to #NULL.
  *
  * @tune_freq: Tune chip to a specific frequency
@@ -305,7 +305,7 @@ struct si476x_radio {
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct si476x_core  *core;
-	/* This field should not be accesses unless core lock is held */
+	/* This field should analt be accesses unless core lock is held */
 	const struct si476x_radio_ops *ops;
 
 	struct dentry	*debugfs;
@@ -409,7 +409,7 @@ static int si476x_radio_g_tuner(struct file *file, void *priv,
 		else
 			strscpy(tuner->name, "AM/FM", sizeof(tuner->name));
 
-		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO
+		tuner->rxsubchans = V4L2_TUNER_SUB_MOANAL | V4L2_TUNER_SUB_STEREO
 			| V4L2_TUNER_SUB_RDS;
 		tuner->capability |= V4L2_TUNER_CAP_RDS
 			| V4L2_TUNER_CAP_RDS_BLOCK_IO
@@ -454,7 +454,7 @@ static int si476x_radio_s_tuner(struct file *file, void *priv,
 	if (tuner->index != 0)
 		return -EINVAL;
 
-	if (tuner->audmode == V4L2_TUNER_MODE_MONO ||
+	if (tuner->audmode == V4L2_TUNER_MODE_MOANAL ||
 	    tuner->audmode == V4L2_TUNER_MODE_STEREO)
 		radio->audmode = tuner->audmode;
 	else
@@ -511,7 +511,7 @@ static int si476x_radio_pretune(struct si476x_radio *radio,
 		.zifsr		= false,
 		.hd		= false,
 		.injside	= SI476X_INJSIDE_AUTO,
-		.tunemode	= SI476X_TM_VALIDATED_NORMAL_TUNE,
+		.tunemode	= SI476X_TM_VALIDATED_ANALRMAL_TUNE,
 		.smoothmetrics	= SI476X_SM_INITIALIZE_AUDIO,
 		.antcap		= 0,
 	};
@@ -610,7 +610,7 @@ static int si476x_radio_change_func(struct si476x_radio *radio,
 	err = si476x_core_stop(radio->core, soft);
 	if (err < 0) {
 		/*
-		 * OK, if the chip does not want to play nice let's
+		 * OK, if the chip does analt want to play nice let's
 		 * try to reset it in more brutal way
 		 */
 		soft = false;
@@ -628,7 +628,7 @@ static int si476x_radio_change_func(struct si476x_radio *radio,
 		return err;
 
 	/*
-	 * No need to do the rest of manipulations for the bootlader
+	 * Anal need to do the rest of manipulations for the bootlader
 	 * mode
 	 */
 	if (func != SI476X_FUNC_FM_RECEIVER &&
@@ -714,7 +714,7 @@ static int si476x_radio_s_frequency(struct file *file, void *priv,
 	args.hd			= false;
 	args.injside		= SI476X_INJSIDE_AUTO;
 	args.freq		= v4l2_to_si476x(radio->core, freq);
-	args.tunemode		= SI476X_TM_VALIDATED_NORMAL_TUNE;
+	args.tunemode		= SI476X_TM_VALIDATED_ANALRMAL_TUNE;
 	args.smoothmetrics	= SI476X_SM_INITIALIZE_AUDIO;
 	args.antcap		= 0;
 
@@ -733,7 +733,7 @@ static int si476x_radio_s_hw_freq_seek(struct file *file, void *priv,
 	u32 rangelow = seek->rangelow, rangehigh = seek->rangehigh;
 	struct si476x_radio *radio = video_drvdata(file);
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EAGAIN;
 
 	if (seek->tuner != 0 ||
@@ -836,7 +836,7 @@ static int si476x_radio_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 				retval = 0;
 				break;
 			} else {
-				retval = -ENOTTY;
+				retval = -EANALTTY;
 				break;
 			}
 		}
@@ -969,7 +969,7 @@ static int si476x_radio_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		if (si476x_core_is_in_am_receiver_mode(radio->core)) {
 			/*
-			 * Diversity cannot be configured while tuner
+			 * Diversity cananalt be configured while tuner
 			 * is in AM mode so save the changes and carry on.
 			 */
 			radio->core->diversity_mode = mode;
@@ -1089,9 +1089,9 @@ static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,
 
 	struct si476x_radio *radio = video_drvdata(file);
 
-	/* block if no new data available */
+	/* block if anal new data available */
 	if (kfifo_is_empty(&radio->core->rds_fifo)) {
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EWOULDBLOCK;
 
 		rval = wait_event_interruptible(radio->core->rds_read_queue,
@@ -1101,7 +1101,7 @@ static ssize_t si476x_radio_fops_read(struct file *file, char __user *buf,
 			return -EINTR;
 
 		if (!atomic_read(&radio->core->is_alive))
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	fifo_len = kfifo_len(&radio->core->rds_fifo);
@@ -1126,7 +1126,7 @@ static __poll_t si476x_radio_fops_poll(struct file *file,
 	__poll_t req_events = poll_requested_events(pts);
 	__poll_t err = v4l2_ctrl_poll(file, pts);
 
-	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDANALRM)) {
 		if (atomic_read(&radio->core->is_alive))
 			poll_wait(file, &radio->core->rds_read_queue, pts);
 
@@ -1134,7 +1134,7 @@ static __poll_t si476x_radio_fops_poll(struct file *file,
 			err = EPOLLHUP;
 
 		if (!kfifo_is_empty(&radio->core->rds_fifo))
-			err = EPOLLIN | EPOLLRDNORM;
+			err = EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return err;
@@ -1190,7 +1190,7 @@ static ssize_t si476x_radio_read_acf_blob(struct file *file,
 	if (radio->ops->acf_status)
 		err = radio->ops->acf_status(radio->core, &report);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	si476x_core_unlock(radio->core);
 
 	if (err < 0)
@@ -1219,7 +1219,7 @@ static ssize_t si476x_radio_read_rds_blckcnt_blob(struct file *file,
 		err = radio->ops->rds_blckcnt(radio->core, true,
 					       &report);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	si476x_core_unlock(radio->core);
 
 	if (err < 0)
@@ -1247,7 +1247,7 @@ static ssize_t si476x_radio_read_agc_blob(struct file *file,
 	if (radio->ops->rds_blckcnt)
 		err = radio->ops->agc_status(radio->core, &report);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	si476x_core_unlock(radio->core);
 
 	if (err < 0)
@@ -1282,7 +1282,7 @@ static ssize_t si476x_radio_read_rsq_blob(struct file *file,
 	if (radio->ops->rds_blckcnt)
 		err = radio->ops->rsq_status(radio->core, &args, &report);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	si476x_core_unlock(radio->core);
 
 	if (err < 0)
@@ -1317,7 +1317,7 @@ static ssize_t si476x_radio_read_rsq_primary_blob(struct file *file,
 	if (radio->ops->rds_blckcnt)
 		err = radio->ops->rsq_status(radio->core, &args, &report);
 	else
-		err = -ENOENT;
+		err = -EANALENT;
 	si476x_core_unlock(radio->core);
 
 	if (err < 0)
@@ -1367,7 +1367,7 @@ static int si476x_radio_add_new_custom(struct si476x_radio *radio,
 	rval = radio->ctrl_handler.error;
 	if (ctrl == NULL && rval)
 		dev_err(radio->v4l2dev.dev,
-			"Could not initialize '%s' control %d\n",
+			"Could analt initialize '%s' control %d\n",
 			si476x_ctrls[idx].name, rval);
 
 	return rval;
@@ -1383,7 +1383,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 
 	radio = devm_kzalloc(&pdev->dev, sizeof(*radio), GFP_KERNEL);
 	if (!radio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	radio->core = i2c_mfd_cell_to_core(&pdev->dev);
 
@@ -1391,7 +1391,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 
 	rval = v4l2_device_register(&pdev->dev, &radio->v4l2dev);
 	if (rval) {
-		dev_err(&pdev->dev, "Cannot register v4l2_device.\n");
+		dev_err(&pdev->dev, "Cananalt register v4l2_device.\n");
 		return rval;
 	}
 
@@ -1425,7 +1425,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 					      0, 0);
 		rval = radio->ctrl_handler.error;
 		if (ctrl == NULL && rval) {
-			dev_err(&pdev->dev, "Could not initialize V4L2_CID_POWER_LINE_FREQUENCY control %d\n",
+			dev_err(&pdev->dev, "Could analt initialize V4L2_CID_POWER_LINE_FREQUENCY control %d\n",
 				rval);
 			goto exit;
 		}
@@ -1454,7 +1454,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 				      V4L2_DEEMPHASIS_75_uS, 0, 0);
 	rval = radio->ctrl_handler.error;
 	if (ctrl == NULL && rval) {
-		dev_err(&pdev->dev, "Could not initialize V4L2_CID_TUNE_DEEMPHASIS control %d\n",
+		dev_err(&pdev->dev, "Could analt initialize V4L2_CID_TUNE_DEEMPHASIS control %d\n",
 			rval);
 		goto exit;
 	}
@@ -1464,7 +1464,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 				 0, 1, 1, 1);
 	rval = radio->ctrl_handler.error;
 	if (ctrl == NULL && rval) {
-		dev_err(&pdev->dev, "Could not initialize V4L2_CID_RDS_RECEPTION control %d\n",
+		dev_err(&pdev->dev, "Could analt initialize V4L2_CID_RDS_RECEPTION control %d\n",
 			rval);
 		goto exit;
 	}
@@ -1484,7 +1484,7 @@ static int si476x_radio_probe(struct platform_device *pdev)
 	/* register video device */
 	rval = video_register_device(&radio->videodev, VFL_TYPE_RADIO, -1);
 	if (rval < 0) {
-		dev_err(&pdev->dev, "Could not register video device\n");
+		dev_err(&pdev->dev, "Could analt register video device\n");
 		goto exit;
 	}
 
@@ -1517,6 +1517,6 @@ static struct platform_driver si476x_radio_driver = {
 };
 module_platform_driver(si476x_radio_driver);
 
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("Driver for Si4761/64/68 AM/FM Radio MFD Cell");
 MODULE_LICENSE("GPL");

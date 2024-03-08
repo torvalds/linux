@@ -74,7 +74,7 @@ static void ascii_filter(char *d, const char *s)
 static ssize_t get_modalias(char *buffer, size_t buffer_size)
 {
 	/*
-	 * Note new fields need to be added at the end to keep compatibility
+	 * Analte new fields need to be added at the end to keep compatibility
 	 * with udev's hwdb which does matches on "`cat dmi/id/modalias`*".
 	 */
 	static const struct mafield {
@@ -96,7 +96,7 @@ static ssize_t get_modalias(char *buffer, size_t buffer_size)
 		{ "ct",  DMI_CHASSIS_TYPE },
 		{ "cvr", DMI_CHASSIS_VERSION },
 		{ "sku", DMI_PRODUCT_SKU },
-		{ NULL,  DMI_NONE }
+		{ NULL,  DMI_ANALNE }
 	};
 
 	ssize_t l, left;
@@ -160,11 +160,11 @@ static int dmi_dev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	ssize_t len;
 
 	if (add_uevent_var(env, "MODALIAS="))
-		return -ENOMEM;
+		return -EANALMEM;
 	len = get_modalias(&env->buf[env->buflen - 1],
 			   sizeof(env->buf) - env->buflen);
 	if (len >= (sizeof(env->buf) - env->buflen))
-		return -ENOMEM;
+		return -EANALMEM;
 	env->buflen += len;
 	return 0;
 }
@@ -183,13 +183,13 @@ static struct device *dmi_dev;
 	if (dmi_get_system_info(_field)) \
 		sys_dmi_attributes[i++] = &sys_dmi_##_name##_attr.dev_attr.attr;
 
-/* In a separate function to keep gcc 3.2 happy - do NOT merge this in
+/* In a separate function to keep gcc 3.2 happy - do ANALT merge this in
    dmi_id_init! */
 static void __init dmi_id_init_attr_table(void)
 {
 	int i;
 
-	/* Not necessarily all DMI fields are available on all
+	/* Analt necessarily all DMI fields are available on all
 	 * systems, hence let's built an attribute table of just
 	 * what's available */
 	i = 0;
@@ -223,7 +223,7 @@ static int __init dmi_id_init(void)
 	int ret;
 
 	if (!dmi_available)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dmi_id_init_attr_table();
 
@@ -233,7 +233,7 @@ static int __init dmi_id_init(void)
 
 	dmi_dev = kzalloc(sizeof(*dmi_dev), GFP_KERNEL);
 	if (!dmi_dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_class_unregister;
 	}
 

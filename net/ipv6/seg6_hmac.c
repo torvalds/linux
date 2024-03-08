@@ -6,7 +6,7 @@
  *  David Lebrun <david.lebrun@uclouvain.be>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -63,7 +63,7 @@ static void seg6_free_hi(void *ptr, void *arg)
 }
 
 static const struct rhashtable_params rht_params = {
-	.head_offset		= offsetof(struct seg6_hmac_info, node),
+	.head_offset		= offsetof(struct seg6_hmac_info, analde),
 	.key_offset		= offsetof(struct seg6_hmac_info, hmackeyid),
 	.key_len		= sizeof(u32),
 	.automatic_shrinking	= true,
@@ -125,7 +125,7 @@ static int __do_hmac(struct seg6_hmac_info *hinfo, const char *text, u8 psize,
 
 	algo = __hmac_get_algo(hinfo->alg_id);
 	if (!algo)
-		return -ENOENT;
+		return -EANALENT;
 
 	tfm = *this_cpu_ptr(algo->tfms);
 
@@ -133,7 +133,7 @@ static int __do_hmac(struct seg6_hmac_info *hinfo, const char *text, u8 psize,
 	if (dgsize > outlen) {
 		pr_debug("sr-ipv6: __do_hmac: digest size too big (%d / %d)\n",
 			 dgsize, outlen);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ret = crypto_shash_setkey(tfm, hinfo->secret, hinfo->slen);
@@ -165,7 +165,7 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	int plen, i, dgsize, wrsize;
 	char *ring, *off;
 
-	/* a 160-byte buffer for digest output allows to store highest known
+	/* a 160-byte buffer for digest output allows to store highest kanalwn
 	 * hash function (RadioGatun) with up to 1216 bits
 	 */
 
@@ -248,11 +248,11 @@ bool seg6_hmac_validate_skb(struct sk_buff *skb)
 
 	tlv = seg6_get_tlv_hmac(srh);
 
-	/* mandatory check but no tlv */
+	/* mandatory check but anal tlv */
 	if (idev->cnf.seg6_require_hmac > 0 && !tlv)
 		return false;
 
-	/* no check */
+	/* anal check */
 	if (idev->cnf.seg6_require_hmac < 0)
 		return true;
 
@@ -260,7 +260,7 @@ bool seg6_hmac_validate_skb(struct sk_buff *skb)
 	if (idev->cnf.seg6_require_hmac == 0 && !tlv)
 		return true;
 
-	/* now, seg6_require_hmac >= 0 && tlv */
+	/* analw, seg6_require_hmac >= 0 && tlv */
 
 	hinfo = seg6_hmac_info_lookup(net, be32_to_cpu(tlv->hmackeyid));
 	if (!hinfo)
@@ -293,7 +293,7 @@ int seg6_hmac_info_add(struct net *net, u32 key, struct seg6_hmac_info *hinfo)
 	struct seg6_pernet_data *sdata = seg6_pernet(net);
 	int err;
 
-	err = rhashtable_lookup_insert_fast(&sdata->hmac_infos, &hinfo->node,
+	err = rhashtable_lookup_insert_fast(&sdata->hmac_infos, &hinfo->analde,
 					    rht_params);
 
 	return err;
@@ -304,13 +304,13 @@ int seg6_hmac_info_del(struct net *net, u32 key)
 {
 	struct seg6_pernet_data *sdata = seg6_pernet(net);
 	struct seg6_hmac_info *hinfo;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	hinfo = rhashtable_lookup_fast(&sdata->hmac_infos, &key, rht_params);
 	if (!hinfo)
 		goto out;
 
-	err = rhashtable_remove_fast(&sdata->hmac_infos, &hinfo->node,
+	err = rhashtable_remove_fast(&sdata->hmac_infos, &hinfo->analde,
 				     rht_params);
 	if (err)
 		goto out;
@@ -327,7 +327,7 @@ int seg6_push_hmac(struct net *net, struct in6_addr *saddr,
 {
 	struct seg6_hmac_info *hinfo;
 	struct sr6_tlv_hmac *tlv;
-	int err = -ENOENT;
+	int err = -EANALENT;
 
 	tlv = seg6_get_tlv_hmac(srh);
 	if (!tlv)
@@ -364,7 +364,7 @@ static int seg6_hmac_init_algo(void)
 		algo = &hmac_algos[i];
 		algo->tfms = alloc_percpu(struct crypto_shash *);
 		if (!algo->tfms)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for_each_possible_cpu(cpu) {
 			tfm = crypto_alloc_shash(algo->name, 0, 0);
@@ -381,13 +381,13 @@ static int seg6_hmac_init_algo(void)
 
 		algo->shashs = alloc_percpu(struct shash_desc *);
 		if (!algo->shashs)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for_each_possible_cpu(cpu) {
-			shash = kzalloc_node(shsize, GFP_KERNEL,
-					     cpu_to_node(cpu));
+			shash = kzalloc_analde(shsize, GFP_KERNEL,
+					     cpu_to_analde(cpu));
 			if (!shash)
-				return -ENOMEM;
+				return -EANALMEM;
 			*per_cpu_ptr(algo->shashs, cpu) = shash;
 		}
 	}

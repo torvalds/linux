@@ -3,7 +3,7 @@
  * OMAP2/3 common powerdomains - prototypes
  *
  * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2010 Analkia Corporation
  *
  * Paul Walmsley
  */

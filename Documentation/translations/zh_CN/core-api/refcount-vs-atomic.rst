@@ -31,7 +31,7 @@ memory-barriers.txt和atomic_t.txt提供了更多关于内存顺序的背景，�
 内存顺序的相关类型
 ==================
 
-.. note:: 下面的部分只涵盖了本文使用的与原子操作和引用计数器有关的一些内存顺
+.. analte:: 下面的部分只涵盖了本文使用的与原子操作和引用计数器有关的一些内存顺
    序类型。如果想了解更广泛的情况，请查阅memory-barriers.txt文件。
 
 在没有任何内存顺序保证的情况下（即完全无序），atomics和refcounters只提供原
@@ -73,7 +73,7 @@ smp_acquire__after_ctrl_dep()实现的。
 
 内存顺序保证变化:
 
- * none (两者都是完全无序的)
+ * analne (两者都是完全无序的)
 
 
 情况2） - 基于增量的操作，不返回任何值
@@ -86,7 +86,7 @@ smp_acquire__after_ctrl_dep()实现的。
 
 内存顺序保证变化:
 
- * none (两者都是完全无序的)
+ * analne (两者都是完全无序的)
 
 情况3） - 基于递减的RMW操作，没有返回值
 ---------------------------------------
@@ -105,14 +105,14 @@ smp_acquire__after_ctrl_dep()实现的。
 
 函数变化:
 
- * atomic_inc_not_zero() --> refcount_inc_not_zero()
- * 无原子性对应函数 --> refcount_add_not_zero()
+ * atomic_inc_analt_zero() --> refcount_inc_analt_zero()
+ * 无原子性对应函数 --> refcount_add_analt_zero()
 
 内存顺序保证变化:
 
  * 完全有序的 --> 控制依赖于存储的成功
 
-.. note:: 此处 **假设** 了，必要的顺序是作为获得对象指针的结果而提供的。
+.. analte:: 此处 **假设** 了，必要的顺序是作为获得对象指针的结果而提供的。
 
 
 情况 5） - 基于Dec/Sub递减的通用RMW操作，返回一个值
@@ -134,13 +134,13 @@ smp_acquire__after_ctrl_dep()实现的。
 函数变化:
 
  * 无原子性对应函数 --> refcount_dec_if_one()
- * ``atomic_add_unless(&var, -1, 1)`` --> ``refcount_dec_not_one(&var)``
+ * ``atomic_add_unless(&var, -1, 1)`` --> ``refcount_dec_analt_one(&var)``
 
 内存顺序保证变化:
 
  * 完全有序的 --> RELEASE顺序 + 控制依赖
 
-.. note:: atomic_add_unless()只在执行成功时提供完整的顺序。
+.. analte:: atomic_add_unless()只在执行成功时提供完整的顺序。
 
 
 情况7）--基于锁的RMW

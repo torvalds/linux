@@ -32,7 +32,7 @@ static int bpa_rs600_read_byte_data(struct i2c_client *client, int page, int reg
 			ret &= ~(PB_FAN_2_INSTALLED | PB_FAN_2_PULSE_MASK);
 		break;
 	default:
-		ret = -ENODATA;
+		ret = -EANALDATA;
 		break;
 	}
 
@@ -118,7 +118,7 @@ static int bpa_rs600_read_word_data(struct i2c_client *client, int page, int pha
 		if (reg >= PMBUS_VIRT_BASE)
 			ret = -ENXIO;
 		else
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		break;
 	}
 
@@ -164,7 +164,7 @@ static int bpa_rs600_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA
 				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_MFR_MODEL, buf);
 	if (ret < 0) {
@@ -179,7 +179,7 @@ static int bpa_rs600_probe(struct i2c_client *client)
 	if (!mid->name[0]) {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported Manufacturer Model '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return pmbus_do_probe(client, &bpa_rs600_info);

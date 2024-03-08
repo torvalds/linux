@@ -26,10 +26,10 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_ds_init_one_object
  *
- * PARAMETERS:  obj_handle      - Node for the object
+ * PARAMETERS:  obj_handle      - Analde for the object
  *              level           - Current nesting level
  *              context         - Points to a init info struct
- *              return_value    - Not used
+ *              return_value    - Analt used
  *
  * RETURN:      Status
  *
@@ -48,18 +48,18 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 {
 	struct acpi_init_walk_info *info =
 	    (struct acpi_init_walk_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_ENTRY();
 
 	/*
-	 * We are only interested in NS nodes owned by the table that
+	 * We are only interested in NS analdes owned by the table that
 	 * was just loaded
 	 */
-	if (node->owner_id != info->owner_id) {
+	if (analde->owner_id != info->owner_id) {
 		return (AE_OK);
 	}
 
@@ -75,7 +75,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 			ACPI_EXCEPTION((AE_INFO, status,
 					"During Region initialization %p [%4.4s]",
 					obj_handle,
-					acpi_ut_get_node_name(obj_handle)));
+					acpi_ut_get_analde_name(obj_handle)));
 		}
 
 		info->op_region_count++;
@@ -84,19 +84,19 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	case ACPI_TYPE_METHOD:
 		/*
 		 * Auto-serialization support. We will examine each method that is
-		 * not_serialized to determine if it creates any Named objects. If
+		 * analt_serialized to determine if it creates any Named objects. If
 		 * it does, it will be marked serialized to prevent problems if
 		 * the method is entered by two or more threads and an attempt is
 		 * made to create the same named object twice -- which results in
 		 * an AE_ALREADY_EXISTS exception and method abort.
 		 */
 		info->method_count++;
-		obj_desc = acpi_ns_get_attached_object(node);
+		obj_desc = acpi_ns_get_attached_object(analde);
 		if (!obj_desc) {
 			break;
 		}
 
-		/* Ignore if already serialized */
+		/* Iganalre if already serialized */
 
 		if (obj_desc->method.info_flags & ACPI_METHOD_SERIALIZED) {
 			info->serial_method_count++;
@@ -107,7 +107,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 			/* Parse/scan method and serialize it if necessary */
 
-			acpi_ds_auto_serialize_method(node, obj_desc);
+			acpi_ds_auto_serialize_method(analde, obj_desc);
 			if (obj_desc->method.
 			    info_flags & ACPI_METHOD_SERIALIZED) {
 
@@ -119,7 +119,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 			}
 		}
 
-		info->non_serial_method_count++;
+		info->analn_serial_method_count++;
 		break;
 
 	case ACPI_TYPE_DEVICE:
@@ -133,7 +133,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	}
 
 	/*
-	 * We ignore errors from above, and always return OK, since
+	 * We iganalre errors from above, and always return OK, since
 	 * we don't want to abort the walk on a single error.
 	 */
 	return (AE_OK);
@@ -144,18 +144,18 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  * FUNCTION:    acpi_ds_initialize_objects
  *
  * PARAMETERS:  table_desc      - Descriptor for parent ACPI table
- *              start_node      - Root of subtree to be initialized.
+ *              start_analde      - Root of subtree to be initialized.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any
+ * DESCRIPTION: Walk the namespace starting at "StartAnalde" and perform any
  *              necessary initialization on the objects found therein
  *
  ******************************************************************************/
 
 acpi_status
 acpi_ds_initialize_objects(u32 table_index,
-			   struct acpi_namespace_node *start_node)
+			   struct acpi_namespace_analde *start_analde)
 {
 	acpi_status status;
 	struct acpi_init_walk_info info;
@@ -182,12 +182,12 @@ acpi_ds_initialize_objects(u32 table_index,
 	/* Walk entire namespace from the supplied root */
 
 	/*
-	 * We don't use acpi_walk_namespace since we do not want to acquire
+	 * We don't use acpi_walk_namespace since we do analt want to acquire
 	 * the namespace reader lock.
 	 */
 	status =
-	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
-				   ACPI_NS_WALK_NO_UNLOCK,
+	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_analde, ACPI_UINT32_MAX,
+				   ACPI_NS_WALK_ANAL_UNLOCK,
 				   acpi_ds_init_one_object, NULL, &info, NULL);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
@@ -209,12 +209,12 @@ acpi_ds_initialize_objects(u32 table_index,
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "Table [%4.4s: %-8.8s] (id %.2X) - %4u Objects with %3u Devices, "
-			      "%3u Regions, %4u Methods (%u/%u/%u Serial/Non/Cvt)\n",
+			      "%3u Regions, %4u Methods (%u/%u/%u Serial/Analn/Cvt)\n",
 			      table->signature, table->oem_table_id, owner_id,
 			      info.object_count, info.device_count,
 			      info.op_region_count, info.method_count,
 			      info.serial_method_count,
-			      info.non_serial_method_count,
+			      info.analn_serial_method_count,
 			      info.serialized_method_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "%u Methods, %u Regions\n",

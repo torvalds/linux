@@ -23,10 +23,10 @@ select:
     - compatible
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^eeprom@[0-9a-f]{1,2}$"
 
-  # There are multiple known vendors who manufacture EEPROM chips compatible
+  # There are multiple kanalwn vendors who manufacture EEPROM chips compatible
   # with Atmel's AT24. The compatible string requires either a single item
   # if the memory comes from Atmel (in which case the vendor part must be
   # 'atmel') or two items with the same 'model' part where the vendor part of
@@ -147,7 +147,7 @@ properties:
     description:
       The length of the pagesize for writing. Please consult the
       manual of your device, that value varies a lot. A wrong value
-      may result in data loss! If not specified, a safety value of
+      may result in data loss! If analt specified, a safety value of
       '1' is used which will be very slow.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 8, 16, 32, 64, 128, 256]
@@ -163,10 +163,10 @@ properties:
     description:
       Total eeprom size in bytes.
 
-  no-read-rollover:
+  anal-read-rollover:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      Indicates that the multi-address eeprom does not automatically roll
+      Indicates that the multi-address eeprom does analt automatically roll
       over reads to the next slave address. Please consult the manual of
       your device.
 

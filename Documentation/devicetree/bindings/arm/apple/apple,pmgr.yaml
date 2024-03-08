@@ -12,11 +12,11 @@ maintainers:
 description: |
   Apple SoCs include PMGR blocks responsible for power management,
   which can control various clocks, resets, power states, and
-  performance features. This node represents the PMGR as a syscon,
-  with sub-nodes representing individual features.
+  performance features. This analde represents the PMGR as a syscon,
+  with sub-analdes representing individual features.
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^power-management@[0-9a-f]+$"
 
   compatible:

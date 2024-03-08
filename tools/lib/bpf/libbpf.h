@@ -25,28 +25,28 @@ extern "C" {
 #endif
 
 LIBBPF_API __u32 libbpf_major_version(void);
-LIBBPF_API __u32 libbpf_minor_version(void);
+LIBBPF_API __u32 libbpf_mianalr_version(void);
 LIBBPF_API const char *libbpf_version_string(void);
 
-enum libbpf_errno {
-	__LIBBPF_ERRNO__START = 4000,
+enum libbpf_erranal {
+	__LIBBPF_ERRANAL__START = 4000,
 
 	/* Something wrong in libelf */
-	LIBBPF_ERRNO__LIBELF = __LIBBPF_ERRNO__START,
-	LIBBPF_ERRNO__FORMAT,	/* BPF object format invalid */
-	LIBBPF_ERRNO__KVERSION,	/* Incorrect or no 'version' section */
-	LIBBPF_ERRNO__ENDIAN,	/* Endian mismatch */
-	LIBBPF_ERRNO__INTERNAL,	/* Internal error in libbpf */
-	LIBBPF_ERRNO__RELOC,	/* Relocation failed */
-	LIBBPF_ERRNO__LOAD,	/* Load program failure for unknown reason */
-	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
-	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
-	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
-	LIBBPF_ERRNO__PROGTYPE,	/* Kernel doesn't support this program type */
-	LIBBPF_ERRNO__WRNGPID,	/* Wrong pid in netlink message */
-	LIBBPF_ERRNO__INVSEQ,	/* Invalid netlink sequence */
-	LIBBPF_ERRNO__NLPARSE,	/* netlink parsing error */
-	__LIBBPF_ERRNO__END,
+	LIBBPF_ERRANAL__LIBELF = __LIBBPF_ERRANAL__START,
+	LIBBPF_ERRANAL__FORMAT,	/* BPF object format invalid */
+	LIBBPF_ERRANAL__KVERSION,	/* Incorrect or anal 'version' section */
+	LIBBPF_ERRANAL__ENDIAN,	/* Endian mismatch */
+	LIBBPF_ERRANAL__INTERNAL,	/* Internal error in libbpf */
+	LIBBPF_ERRANAL__RELOC,	/* Relocation failed */
+	LIBBPF_ERRANAL__LOAD,	/* Load program failure for unkanalwn reason */
+	LIBBPF_ERRANAL__VERIFY,	/* Kernel verifier blocks program loading */
+	LIBBPF_ERRANAL__PROG2BIG,	/* Program too big */
+	LIBBPF_ERRANAL__KVER,	/* Incorrect kernel version */
+	LIBBPF_ERRANAL__PROGTYPE,	/* Kernel doesn't support this program type */
+	LIBBPF_ERRANAL__WRNGPID,	/* Wrong pid in netlink message */
+	LIBBPF_ERRANAL__INVSEQ,	/* Invalid netlink sequence */
+	LIBBPF_ERRANAL__NLPARSE,	/* netlink parsing error */
+	__LIBBPF_ERRANAL__END,
 };
 
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
@@ -56,7 +56,7 @@ LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
  * value into a textual representation.
  * @param t The attach type.
  * @return Pointer to a static string identifying the attach type. NULL is
- * returned for unknown **bpf_attach_type** values.
+ * returned for unkanalwn **bpf_attach_type** values.
  */
 LIBBPF_API const char *libbpf_bpf_attach_type_str(enum bpf_attach_type t);
 
@@ -65,7 +65,7 @@ LIBBPF_API const char *libbpf_bpf_attach_type_str(enum bpf_attach_type t);
  * into a textual representation.
  * @param t The link type.
  * @return Pointer to a static string identifying the link type. NULL is
- * returned for unknown **bpf_link_type** values.
+ * returned for unkanalwn **bpf_link_type** values.
  */
 LIBBPF_API const char *libbpf_bpf_link_type_str(enum bpf_link_type t);
 
@@ -74,7 +74,7 @@ LIBBPF_API const char *libbpf_bpf_link_type_str(enum bpf_link_type t);
  * into a textual representation.
  * @param t The map type.
  * @return Pointer to a static string identifying the map type. NULL is
- * returned for unknown **bpf_map_type** values.
+ * returned for unkanalwn **bpf_map_type** values.
  */
 LIBBPF_API const char *libbpf_bpf_map_type_str(enum bpf_map_type t);
 
@@ -83,7 +83,7 @@ LIBBPF_API const char *libbpf_bpf_map_type_str(enum bpf_map_type t);
  * value into a textual representation.
  * @param t The program type.
  * @return Pointer to a static string identifying the program type. NULL is
- * returned for unknown **bpf_prog_type** values.
+ * returned for unkanalwn **bpf_prog_type** values.
  */
 LIBBPF_API const char *libbpf_bpf_prog_type_str(enum bpf_prog_type t);
 
@@ -119,7 +119,7 @@ struct bpf_object_open_opts {
 	 *   name and will override default "<addr>-<buf-size>" name;
 	 */
 	const char *object_name;
-	/* parse map definitions non-strictly, allowing extra attributes/data */
+	/* parse map definitions analn-strictly, allowing extra attributes/data */
 	bool relaxed_maps;
 	/* maps that set the 'pinning' attribute in their definition will have
 	 * their pin_path attribute set to a file in this directory, and be
@@ -127,7 +127,7 @@ struct bpf_object_open_opts {
 	 */
 	const char *pin_root_path;
 
-	__u32 :32; /* stub out now removed attach_prog_fd */
+	__u32 :32; /* stub out analw removed attach_prog_fd */
 
 	/* Additional kernel config content that augments and overrides
 	 * system Kconfig for CONFIG_xxx externs.
@@ -136,14 +136,14 @@ struct bpf_object_open_opts {
 	/* Path to the custom BTF to be used for BPF CO-RE relocations.
 	 * This custom BTF completely replaces the use of vmlinux BTF
 	 * for the purpose of CO-RE relocations.
-	 * NOTE: any other BPF feature (e.g., fentry/fexit programs,
+	 * ANALTE: any other BPF feature (e.g., fentry/fexit programs,
 	 * struct_ops, etc) will need actual kernel BTF at /sys/kernel/btf/vmlinux.
 	 */
 	const char *btf_custom_path;
 	/* Pointer to a buffer for storing kernel logs for applicable BPF
 	 * commands. Valid kernel_log_size has to be specified as well and are
 	 * passed-through to bpf() syscall. Keep in mind that kernel might
-	 * fail operation with -ENOSPC error if provided buffer is too small
+	 * fail operation with -EANALSPC error if provided buffer is too small
 	 * to contain entire log output.
 	 * See the comment below for kernel_log_level for interaction between
 	 * log_buf and log_level settings.
@@ -188,7 +188,7 @@ struct bpf_object_open_opts {
  * into memory.
  * @param path BPF object file path.
  * @return pointer to the new bpf_object; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 
@@ -200,7 +200,7 @@ LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
  * @param opts options for how to load the bpf object, this parameter is
  * optional and can be set to NULL
  * @return pointer to the new bpf_object; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_object *
 bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts);
@@ -213,7 +213,7 @@ bpf_object__open_file(const char *path, const struct bpf_object_open_opts *opts)
  * @param obj_buf_sz number of bytes in the buffer
  * @param opts options for how to load the bpf object
  * @return pointer to the new bpf_object; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
@@ -224,7 +224,7 @@ bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
  * @param obj Pointer to a valid BPF object instance returned by
  * **bpf_object__open*()** APIs
  * @return 0, on success; negative error code, otherwise, error code is
- * stored in errno
+ * stored in erranal
  */
 LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 
@@ -244,7 +244,7 @@ LIBBPF_API void bpf_object__close(struct bpf_object *obj);
  *
  * If `path` is NULL `bpf_map__pin` (which is being used on each map)
  * will use the pin_path attribute of each map. In this case, maps that
- * don't have a pin_path set will be ignored.
+ * don't have a pin_path set will be iganalred.
  */
 LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
 
@@ -257,7 +257,7 @@ LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
  *
  * If `path` is NULL `bpf_map__unpin` (which is being used on each map)
  * will use the pin_path attribute of each map. In this case, maps that
- * don't have a pin_path set will be ignored.
+ * don't have a pin_path set will be iganalred.
  */
 LIBBPF_API int bpf_object__unpin_maps(struct bpf_object *obj,
 				      const char *path);
@@ -321,7 +321,7 @@ struct bpf_insn;
  * @return a pointer to an array of BPF instructions that belong to the
  * specified BPF program
  *
- * Returned pointer is always valid and not NULL. Number of `struct bpf_insn`
+ * Returned pointer is always valid and analt NULL. Number of `struct bpf_insn`
  * pointed to can be fetched using **bpf_program__insn_cnt()** API.
  *
  * Keep in mind, libbpf can modify and append/delete BPF program's
@@ -340,7 +340,7 @@ LIBBPF_API const struct bpf_insn *bpf_program__insns(const struct bpf_program *p
  * @brief **bpf_program__set_insns()** can set BPF program's underlying
  * BPF instructions.
  *
- * WARNING: This is a very advanced libbpf API and users need to know
+ * WARNING: This is a very advanced libbpf API and users need to kanalw
  * what they are doing. This should be used from prog_prepare_load_fn
  * callback only.
  *
@@ -358,7 +358,7 @@ LIBBPF_API int bpf_program__set_insns(struct bpf_program *prog,
  * that form specified BPF program.
  * @param prog BPF program for which to return number of BPF instructions
  *
- * See **bpf_program__insns()** documentation for notes on how libbpf can
+ * See **bpf_program__insns()** documentation for analtes on how libbpf can
  * change instructions and their count during different phases of
  * **bpf_object** lifetime.
  */
@@ -437,7 +437,7 @@ LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
  *
  * @param prog BPF program to attach
  * @return Reference to the newly created BPF link; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  *
  * This is supported for:
  *   - kprobe/kretprobe (depends on SEC() definition)
@@ -470,8 +470,8 @@ bpf_program__attach_perf_event_opts(const struct bpf_program *prog, int pfd,
 /**
  * enum probe_attach_mode - the mode to attach kprobe/uprobe
  *
- * force libbpf to attach kprobe/uprobe in specific mode, -ENOTSUP will
- * be returned if it is not supported by the kernel.
+ * force libbpf to attach kprobe/uprobe in specific mode, -EANALTSUP will
+ * be returned if it is analt supported by the kernel.
  */
 enum probe_attach_mode {
 	/* attach probe in latest supported mode by kernel */
@@ -604,15 +604,15 @@ struct bpf_ksyscall_opts {
  * attach specified program using kprobe/kretprobe mechanism.
  *
  * **bpf_program__attach_ksyscall()** is an API counterpart of declarative
- * **SEC("ksyscall/<syscall>")** annotation of BPF programs.
+ * **SEC("ksyscall/<syscall>")** ananaltation of BPF programs.
  *
  * At the moment **SEC("ksyscall")** and **bpf_program__attach_ksyscall()** do
- * not handle all the calling convention quirks for mmap(), clone() and compat
+ * analt handle all the calling convention quirks for mmap(), clone() and compat
  * syscalls. It also only attaches to "native" syscall interfaces. If host
  * system supports compat syscalls or defines 32-bit syscalls in 64-bit
  * kernel, such syscall interfaces won't be attached to by libbpf.
  *
- * These limitations may or may not change in the future. Therefore it is
+ * These limitations may or may analt change in the future. Therefore it is
  * recommended to use SEC("kprobe") for these syscalls or if working with
  * compat and 32-bit interfaces is required.
  *
@@ -620,7 +620,7 @@ struct bpf_ksyscall_opts {
  * @param syscall_name Symbolic name of the syscall (e.g., "bpf")
  * @param opts Additional options (see **struct bpf_ksyscall_opts**)
  * @return Reference to the newly created BPF link; or NULL is returned on
- * error, error code is stored in errno
+ * error, error code is stored in erranal
  */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_ksyscall(const struct bpf_program *prog,
@@ -666,7 +666,7 @@ struct bpf_uprobe_opts {
  * @param binary_path Path to binary that contains the function symbol
  * @param func_offset Offset within the binary of the function symbol
  * @return Reference to the newly created BPF link; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe(const struct bpf_program *prog, bool retprobe,
@@ -685,7 +685,7 @@ bpf_program__attach_uprobe(const struct bpf_program *prog, bool retprobe,
  * @param func_offset Offset within the binary of the function symbol
  * @param opts Options for altering program attachment
  * @return Reference to the newly created BPF link; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
@@ -715,7 +715,7 @@ struct bpf_usdt_opts {
  * @param usdt_name USDT probe name
  * @param opts Options for altering program attachment
  * @return Reference to the newly created BPF link; or NULL is returned on error,
- * error code is stored in errno
+ * error code is stored in erranal
  */
 LIBBPF_API struct bpf_link *
 bpf_program__attach_usdt(const struct bpf_program *prog,
@@ -838,11 +838,11 @@ LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
  * type of the passed BPF program.
  * @param prog BPF program to set the program type for
  * @param type program type to set the BPF map to have
- * @return error code; or 0 if no error. An error occurs
+ * @return error code; or 0 if anal error. An error occurs
  * if the object is already loaded.
  *
  * This must be called before the BPF object is loaded,
- * otherwise it has no effect and an error is returned.
+ * otherwise it has anal effect and an error is returned.
  */
 LIBBPF_API int bpf_program__set_type(struct bpf_program *prog,
 				     enum bpf_prog_type type);
@@ -856,11 +856,11 @@ bpf_program__expected_attach_type(const struct bpf_program *prog);
  * auto-detection of attachment when programs are loaded.
  * @param prog BPF program to set the attach type for
  * @param type attach type to set the BPF map to have
- * @return error code; or 0 if no error. An error occurs
+ * @return error code; or 0 if anal error. An error occurs
  * if the object is already loaded.
  *
  * This must be called before the BPF object is loaded,
- * otherwise it has no effect and an error is returned.
+ * otherwise it has anal effect and an error is returned.
  */
 LIBBPF_API int
 bpf_program__set_expected_attach_type(struct bpf_program *prog,
@@ -887,7 +887,7 @@ LIBBPF_API int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf,
  *   - freplace.
  * @param prog BPF program to set the attach type for
  * @param type attach type to set the BPF map to have
- * @return error code; or 0 if no error occurred.
+ * @return error code; or 0 if anal error occurred.
  */
 LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,
@@ -960,9 +960,9 @@ LIBBPF_API int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries);
 /* get/set map flags */
 LIBBPF_API __u32 bpf_map__map_flags(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_map_flags(struct bpf_map *map, __u32 flags);
-/* get/set map NUMA node */
-LIBBPF_API __u32 bpf_map__numa_node(const struct bpf_map *map);
-LIBBPF_API int bpf_map__set_numa_node(struct bpf_map *map, __u32 numa_node);
+/* get/set map NUMA analde */
+LIBBPF_API __u32 bpf_map__numa_analde(const struct bpf_map *map);
+LIBBPF_API int bpf_map__set_numa_analde(struct bpf_map *map, __u32 numa_analde);
 /* get/set map key size */
 LIBBPF_API __u32 bpf_map__key_size(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_key_size(struct bpf_map *map, __u32 size);
@@ -998,7 +998,7 @@ LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 LIBBPF_API void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
 
 /**
- * @brief **bpf_map__is_internal()** tells the caller whether or not the
+ * @brief **bpf_map__is_internal()** tells the caller whether or analt the
  * passed map is a special map created by libbpf automatically for things like
  * global variables, __ksym externs, Kconfig values, etc
  * @param map the bpf_map
@@ -1008,7 +1008,7 @@ LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
 
 /**
  * @brief **bpf_map__set_pin_path()** sets the path attribute that tells where the
- * BPF map should be pinned. This does not actually create the 'pin'.
+ * BPF map should be pinned. This does analt actually create the 'pin'.
  * @param map The bpf_map
  * @param path The path
  * @return 0, on success; negative error, otherwise
@@ -1024,7 +1024,7 @@ LIBBPF_API int bpf_map__set_pin_path(struct bpf_map *map, const char *path);
 LIBBPF_API const char *bpf_map__pin_path(const struct bpf_map *map);
 
 /**
- * @brief **bpf_map__is_pinned()** tells the caller whether or not the
+ * @brief **bpf_map__is_pinned()** tells the caller whether or analt the
  * passed map has been pinned via a 'pin' file.
  * @param map The bpf_map
  * @return true, if the map is pinned; false, otherwise
@@ -1041,7 +1041,7 @@ LIBBPF_API bool bpf_map__is_pinned(const struct bpf_map *map);
  * @return 0, on success; negative error, otherwise
  *
  * If `path` is NULL the maps `pin_path` attribute will be used. If this is
- * also NULL, an error will be returned and the map will not be pinned.
+ * also NULL, an error will be returned and the map will analt be pinned.
  */
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
 
@@ -1071,7 +1071,7 @@ LIBBPF_API struct bpf_map *bpf_map__inner_map(struct bpf_map *map);
  * @param value_sz size in byte of value data memory; it has to match BPF map
  * definition's **value_size**. For per-CPU BPF maps value size has to be
  * a product of BPF map value size and number of possible CPUs in the system
- * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * (could be fetched with **libbpf_num_possible_cpus()**). Analte also that for
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
@@ -1095,7 +1095,7 @@ LIBBPF_API int bpf_map__lookup_elem(const struct bpf_map *map,
  * @param value_sz size in byte of value data memory; it has to match BPF map
  * definition's **value_size**. For per-CPU BPF maps value size has to be
  * a product of BPF map value size and number of possible CPUs in the system
- * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * (could be fetched with **libbpf_num_possible_cpus()**). Analte also that for
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
@@ -1134,7 +1134,7 @@ LIBBPF_API int bpf_map__delete_elem(const struct bpf_map *map,
  * @param value_sz size in byte of value data memory; it has to match BPF map
  * definition's **value_size**. For per-CPU BPF maps value size has to be
  * a product of BPF map value size and number of possible CPUs in the system
- * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * (could be fetched with **libbpf_num_possible_cpus()**). Analte also that for
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
@@ -1156,7 +1156,7 @@ LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
  * fetch the first key
  * @param next_key pointer to memory to write next key into
  * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
- * @return 0, on success; -ENOENT if **cur_key** is the last key in BPF map;
+ * @return 0, on success; -EANALENT if **cur_key** is the last key in BPF map;
  * negative error, otherwise
  *
  * **bpf_map__get_next_key()** is high-level equivalent of
@@ -1273,7 +1273,7 @@ LIBBPF_API int ring_buffer__epoll_fd(const struct ring_buffer *rb);
  * @param idx An index into the ringbuffers contained within the ringbuffer
  * manager object. The index is 0-based and corresponds to the order in which
  * ring_buffer__add was called.
- * @return A ringbuffer object on success; NULL and errno set if the index is
+ * @return A ringbuffer object on success; NULL and erranal set if the index is
  * invalid.
  */
 LIBBPF_API struct ring *ring_buffer__ring(struct ring_buffer *rb,
@@ -1299,12 +1299,12 @@ LIBBPF_API unsigned long ring__producer_pos(const struct ring *r);
 
 /**
  * @brief **ring__avail_data_size()** returns the number of bytes in the
- * ringbuffer not yet consumed. This has no locking associated with it, so it
+ * ringbuffer analt yet consumed. This has anal locking associated with it, so it
  * can be inaccurate if operations are ongoing while this is called. However, it
  * should still show the correct trend over the long-term.
  *
  * @param r A ringbuffer object.
- * @return The number of bytes not yet consumed.
+ * @return The number of bytes analt yet consumed.
  */
 LIBBPF_API size_t ring__avail_data_size(const struct ring *r);
 
@@ -1349,7 +1349,7 @@ struct user_ring_buffer_opts {
  *
  * @param map_fd A file descriptor to a BPF_MAP_TYPE_USER_RINGBUF map.
  * @param opts Options for how the ring buffer should be created.
- * @return A user ring buffer on success; NULL and errno being set on a
+ * @return A user ring buffer on success; NULL and erranal being set on a
  * failure.
  */
 LIBBPF_API struct user_ring_buffer *
@@ -1361,13 +1361,13 @@ user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts);
  * @param rb A pointer to a user ring buffer.
  * @param size The size of the sample, in bytes.
  * @return A pointer to an 8-byte aligned reserved region of the user ring
- * buffer; NULL, and errno being set if a sample could not be reserved.
+ * buffer; NULL, and erranal being set if a sample could analt be reserved.
  *
- * This function is *not* thread safe, and callers must synchronize accessing
+ * This function is *analt* thread safe, and callers must synchronize accessing
  * this function if there are multiple producers.  If a size is requested that
- * is larger than the size of the entire ring buffer, errno will be set to
+ * is larger than the size of the entire ring buffer, erranal will be set to
  * E2BIG and NULL is returned. If the ring buffer could accommodate the size,
- * but currently does not have enough space, errno is set to ENOSPC and NULL is
+ * but currently does analt have eanalugh space, erranal is set to EANALSPC and NULL is
  * returned.
  *
  * After initializing the sample, callers must invoke
@@ -1386,30 +1386,30 @@ LIBBPF_API void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 si
  * should block when waiting for a sample. -1 causes the caller to block
  * indefinitely.
  * @return A pointer to an 8-byte aligned reserved region of the user ring
- * buffer; NULL, and errno being set if a sample could not be reserved.
+ * buffer; NULL, and erranal being set if a sample could analt be reserved.
  *
- * This function is *not* thread safe, and callers must synchronize
+ * This function is *analt* thread safe, and callers must synchronize
  * accessing this function if there are multiple producers
  *
  * If **timeout_ms** is -1, the function will block indefinitely until a sample
- * becomes available. Otherwise, **timeout_ms** must be non-negative, or errno
- * is set to EINVAL, and NULL is returned. If **timeout_ms** is 0, no blocking
+ * becomes available. Otherwise, **timeout_ms** must be analn-negative, or erranal
+ * is set to EINVAL, and NULL is returned. If **timeout_ms** is 0, anal blocking
  * will occur and the function will return immediately after attempting to
  * reserve a sample.
  *
- * If **size** is larger than the size of the entire ring buffer, errno is set
+ * If **size** is larger than the size of the entire ring buffer, erranal is set
  * to E2BIG and NULL is returned. If the ring buffer could accommodate
- * **size**, but currently does not have enough space, the caller will block
+ * **size**, but currently does analt have eanalugh space, the caller will block
  * until at most **timeout_ms** has elapsed. If insufficient space is available
- * at that time, errno is set to ENOSPC, and NULL is returned.
+ * at that time, erranal is set to EANALSPC, and NULL is returned.
  *
  * The kernel guarantees that it will wake up this thread to check if
  * sufficient space is available in the ring buffer at least once per
  * invocation of the **bpf_ringbuf_drain()** helper function, provided that at
- * least one sample is consumed, and the BPF program did not invoke the
- * function with BPF_RB_NO_WAKEUP. A wakeup may occur sooner than that, but the
- * kernel does not guarantee this. If the helper function is invoked with
- * BPF_RB_FORCE_WAKEUP, a wakeup event will be sent even if no sample is
+ * least one sample is consumed, and the BPF program did analt invoke the
+ * function with BPF_RB_ANAL_WAKEUP. A wakeup may occur sooner than that, but the
+ * kernel does analt guarantee this. If the helper function is invoked with
+ * BPF_RB_FORCE_WAKEUP, a wakeup event will be sent even if anal sample is
  * consumed.
  *
  * When a sample of size **size** is found within **timeout_ms**, a pointer to
@@ -1427,7 +1427,7 @@ LIBBPF_API void *user_ring_buffer__reserve_blocking(struct user_ring_buffer *rb,
  * @param rb The user ring buffer.
  * @param sample A reserved sample.
  *
- * It is not necessary to synchronize amongst multiple producers when invoking
+ * It is analt necessary to synchronize amongst multiple producers when invoking
  * this function.
  */
 LIBBPF_API void user_ring_buffer__submit(struct user_ring_buffer *rb, void *sample);
@@ -1437,7 +1437,7 @@ LIBBPF_API void user_ring_buffer__submit(struct user_ring_buffer *rb, void *samp
  * @param rb The user ring buffer.
  * @param sample A reserved sample.
  *
- * It is not necessary to synchronize amongst multiple producers when invoking
+ * It is analt necessary to synchronize amongst multiple producers when invoking
  * this function.
  */
 LIBBPF_API void user_ring_buffer__discard(struct user_ring_buffer *rb, void *sample);
@@ -1474,7 +1474,7 @@ struct perf_buffer_opts {
  * @param lost_cb function called when record loss has occurred
  * @param ctx user-provided extra context passed into *sample_cb* and *lost_cb*
  * @return a new instance of struct perf_buffer on success, NULL on error with
- * *errno* containing an error code
+ * *erranal* containing an error code
  */
 LIBBPF_API struct perf_buffer *
 perf_buffer__new(int map_fd, size_t page_cnt,
@@ -1555,7 +1555,7 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
 /*
  * Probe for supported system features
  *
- * Note that running many of these probes in a short amount of time can cause
+ * Analte that running many of these probes in a short amount of time can cause
  * the kernel to reach the maximal size of lockable memory allowed for the
  * user, causing subsequent probes to fail. In this case, the caller may want
  * to adjust that limit with setrlimit().
@@ -1567,7 +1567,7 @@ bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
  * @param prog_type BPF program type to detect kernel support for
  * @param opts reserved for future extensibility, should be NULL
  * @return 1, if given program type is supported; 0, if given program type is
- * not supported; negative error code if feature detection failed or can't be
+ * analt supported; negative error code if feature detection failed or can't be
  * performed
  *
  * Make sure the process has required set of CAP_* permissions (or runs as
@@ -1580,7 +1580,7 @@ LIBBPF_API int libbpf_probe_bpf_prog_type(enum bpf_prog_type prog_type, const vo
  * @param map_type BPF map type to detect kernel support for
  * @param opts reserved for future extensibility, should be NULL
  * @return 1, if given map type is supported; 0, if given map type is
- * not supported; negative error code if feature detection failed or can't be
+ * analt supported; negative error code if feature detection failed or can't be
  * performed
  *
  * Make sure the process has required set of CAP_* permissions (or runs as
@@ -1594,7 +1594,7 @@ LIBBPF_API int libbpf_probe_bpf_map_type(enum bpf_map_type map_type, const void 
  * @param helper_id BPF helper ID (enum bpf_func_id) to check support for
  * @param opts reserved for future extensibility, should be NULL
  * @return 1, if given combination of program type and helper is supported; 0,
- * if the combination is not supported; negative error code if feature
+ * if the combination is analt supported; negative error code if feature
  * detection for provided input arguments failed or can't be performed
  *
  * Make sure the process has required set of CAP_* permissions (or runs as
@@ -1699,8 +1699,8 @@ LIBBPF_API int bpf_object__gen_loader(struct bpf_object *obj,
 				      struct gen_loader_opts *opts);
 
 enum libbpf_tristate {
-	TRI_NO = 0,
-	TRI_YES = 1,
+	TRI_ANAL = 0,
+	TRI_ANAL = 1,
 	TRI_MODULE = 2,
 };
 
@@ -1744,8 +1744,8 @@ typedef int (*libbpf_prog_prepare_load_fn_t)(struct bpf_program *prog,
 					     struct bpf_prog_load_opts *opts, long cookie);
 
 /* Called during skeleton attach or through bpf_program__attach(). If
- * auto-attach is not supported, callback should return 0 and set link to
- * NULL (it's not considered an error during skeleton attach, but it will be
+ * auto-attach is analt supported, callback should return 0 and set link to
+ * NULL (it's analt considered an error during skeleton attach, but it will be
  * an error for bpf_program__attach() calls). On error, error should be
  * returned directly and link set to NULL. On success, return 0 and set link
  * to a valid struct bpf_link.
@@ -1765,15 +1765,15 @@ struct libbpf_prog_handler_opts {
 	 */
 	long cookie;
 	/* BPF program initialization callback (see libbpf_prog_setup_fn_t).
-	 * Callback is optional, pass NULL if it's not necessary.
+	 * Callback is optional, pass NULL if it's analt necessary.
 	 */
 	libbpf_prog_setup_fn_t prog_setup_fn;
 	/* BPF program loading callback (see libbpf_prog_prepare_load_fn_t).
-	 * Callback is optional, pass NULL if it's not necessary.
+	 * Callback is optional, pass NULL if it's analt necessary.
 	 */
 	libbpf_prog_prepare_load_fn_t prog_prepare_load_fn;
 	/* BPF program attach callback (see libbpf_prog_attach_fn_t).
-	 * Callback is optional, pass NULL if it's not necessary.
+	 * Callback is optional, pass NULL if it's analt necessary.
 	 */
 	libbpf_prog_attach_fn_t prog_attach_fn;
 };
@@ -1786,7 +1786,7 @@ struct libbpf_prog_handler_opts {
  * @param prog_type BPF program type associated with specified section
  * @param exp_attach_type Expected BPF attach type associated with specified section
  * @param opts optional cookie, callbacks, and other extra options
- * @return Non-negative handler ID is returned on success. This handler ID has
+ * @return Analn-negative handler ID is returned on success. This handler ID has
  * to be passed to *libbpf_unregister_prog_handler()* to unregister such
  * custom handler. Negative error code is returned on error.
  *
@@ -1811,8 +1811,8 @@ struct libbpf_prog_handler_opts {
  * (i.e., it's possible to have custom SEC("perf_event/LLC-load-misses")
  * handler).
  *
- * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
- * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * Analte, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are analt thread-safe. User needs
  * to ensure synchronization if there is a risk of running this API from
  * multiple threads simultaneously.
  */
@@ -1827,8 +1827,8 @@ LIBBPF_API int libbpf_register_prog_handler(const char *sec,
  * after successful registration
  * @return 0 on success, negative error code if handler isn't found
  *
- * Note, like much of global libbpf APIs (e.g., libbpf_set_print(),
- * libbpf_set_strict_mode(), etc)) these APIs are not thread-safe. User needs
+ * Analte, like much of global libbpf APIs (e.g., libbpf_set_print(),
+ * libbpf_set_strict_mode(), etc)) these APIs are analt thread-safe. User needs
  * to ensure synchronization if there is a risk of running this API from
  * multiple threads simultaneously.
  */

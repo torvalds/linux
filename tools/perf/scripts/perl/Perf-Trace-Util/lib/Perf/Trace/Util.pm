@@ -67,7 +67,7 @@ __END__
 
 Perf::Trace::Util - Perl extension for perf script
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
   use Perf::Trace::Util;
 

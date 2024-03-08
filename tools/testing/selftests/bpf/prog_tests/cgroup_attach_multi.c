@@ -17,14 +17,14 @@ static int prog_load_cnt(int verdict, int val)
 	if (map_fd < 0)
 		map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
 	if (map_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erranal));
 		return -1;
 	}
 
 	cgroup_storage_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL,
 				sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (cgroup_storage_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erranal));
 		return -1;
 	}
 
@@ -32,7 +32,7 @@ static int prog_load_cnt(int verdict, int val)
 		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE, NULL,
 		sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (percpu_cgroup_storage_fd < 0) {
-		printf("failed to create map '%s'\n", strerror(errno));
+		printf("failed to create map '%s'\n", strerror(erranal));
 		return -1;
 	}
 
@@ -115,7 +115,7 @@ void serial_test_cgroup_attach_multi(void)
 
 	if (CHECK(bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_MULTI),
-		  "prog0_attach_to_cg1_multi", "errno=%d\n", errno))
+		  "prog0_attach_to_cg1_multi", "erranal=%d\n", erranal))
 		goto err;
 
 	if (CHECK(!bpf_prog_attach(allow_prog[0], cg1, BPF_CGROUP_INET_EGRESS,
@@ -125,26 +125,26 @@ void serial_test_cgroup_attach_multi(void)
 
 	if (CHECK(bpf_prog_attach(allow_prog[1], cg1, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_MULTI),
-		  "prog1_attach_to_cg1_multi", "errno=%d\n", errno))
+		  "prog1_attach_to_cg1_multi", "erranal=%d\n", erranal))
 		goto err;
 
 	if (CHECK(bpf_prog_attach(allow_prog[2], cg2, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_OVERRIDE),
-		  "prog2_attach_to_cg2_override", "errno=%d\n", errno))
+		  "prog2_attach_to_cg2_override", "erranal=%d\n", erranal))
 		goto err;
 
 	if (CHECK(bpf_prog_attach(allow_prog[3], cg3, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_ALLOW_MULTI),
-		  "prog3_attach_to_cg3_multi", "errno=%d\n", errno))
+		  "prog3_attach_to_cg3_multi", "erranal=%d\n", erranal))
 		goto err;
 
 	if (CHECK(bpf_prog_attach(allow_prog[4], cg4, BPF_CGROUP_INET_EGRESS,
 			    BPF_F_ALLOW_OVERRIDE),
-		  "prog4_attach_to_cg4_override", "errno=%d\n", errno))
+		  "prog4_attach_to_cg4_override", "erranal=%d\n", erranal))
 		goto err;
 
 	if (CHECK(bpf_prog_attach(allow_prog[5], cg5, BPF_CGROUP_INET_EGRESS, 0),
-		  "prog5_attach_to_cg5_none", "errno=%d\n", errno))
+		  "prog5_attach_to_cg5_analne", "erranal=%d\n", erranal))
 		goto err;
 
 	CHECK_FAIL(system(PING_CMD));
@@ -162,13 +162,13 @@ void serial_test_cgroup_attach_multi(void)
 	CHECK_FAIL(prog_cnt != 4);
 	CHECK_FAIL(attach_flags != 0);
 	saved_prog_id = prog_ids[0];
-	/* check enospc handling */
+	/* check eanalspc handling */
 	prog_ids[0] = 0;
 	prog_cnt = 2;
 	CHECK_FAIL(bpf_prog_query(cg5, BPF_CGROUP_INET_EGRESS,
 				  BPF_F_QUERY_EFFECTIVE, &attach_flags,
 				  prog_ids, &prog_cnt) >= 0);
-	CHECK_FAIL(errno != ENOSPC);
+	CHECK_FAIL(erranal != EANALSPC);
 	CHECK_FAIL(prog_cnt != 4);
 	/* check that prog_ids are returned even when buffer is too small */
 	CHECK_FAIL(prog_ids[0] != saved_prog_id);
@@ -181,7 +181,7 @@ void serial_test_cgroup_attach_multi(void)
 
 	/* detach bottom program and ping again */
 	if (CHECK(bpf_prog_detach2(-1, cg5, BPF_CGROUP_INET_EGRESS),
-		  "prog_detach_from_cg5", "errno=%d\n", errno))
+		  "prog_detach_from_cg5", "erranal=%d\n", erranal))
 		goto err;
 
 	value = 0;
@@ -198,14 +198,14 @@ void serial_test_cgroup_attach_multi(void)
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_override", "unexpected success\n"))
 		goto err;
-	CHECK_FAIL(errno != EINVAL);
+	CHECK_FAIL(erranal != EINVAL);
 
 	attach_opts.flags = BPF_F_REPLACE;
 	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
-		  "fail_prog_replace_no_multi", "unexpected success\n"))
+		  "fail_prog_replace_anal_multi", "unexpected success\n"))
 		goto err;
-	CHECK_FAIL(errno != EINVAL);
+	CHECK_FAIL(erranal != EINVAL);
 
 	attach_opts.flags = BPF_F_ALLOW_MULTI | BPF_F_REPLACE;
 	attach_opts.replace_prog_fd = -1;
@@ -213,28 +213,28 @@ void serial_test_cgroup_attach_multi(void)
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_bad_fd", "unexpected success\n"))
 		goto err;
-	CHECK_FAIL(errno != EBADF);
+	CHECK_FAIL(erranal != EBADF);
 
-	/* replacing a program that is not attached to cgroup should fail  */
+	/* replacing a program that is analt attached to cgroup should fail  */
 	attach_opts.replace_prog_fd = allow_prog[3];
 	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
-		  "fail_prog_replace_no_ent", "unexpected success\n"))
+		  "fail_prog_replace_anal_ent", "unexpected success\n"))
 		goto err;
-	CHECK_FAIL(errno != ENOENT);
+	CHECK_FAIL(erranal != EANALENT);
 
 	/* replace 1st from the top program */
 	attach_opts.replace_prog_fd = allow_prog[0];
 	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
-		  "prog_replace", "errno=%d\n", errno))
+		  "prog_replace", "erranal=%d\n", erranal))
 		goto err;
 
 	/* replace program with itself */
 	attach_opts.replace_prog_fd = allow_prog[6];
 	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
-		  "prog_replace", "errno=%d\n", errno))
+		  "prog_replace", "erranal=%d\n", erranal))
 		goto err;
 
 	value = 0;
@@ -249,7 +249,7 @@ void serial_test_cgroup_attach_multi(void)
 		goto err;
 
 	if (CHECK(bpf_prog_detach2(allow_prog[3], cg3, BPF_CGROUP_INET_EGRESS),
-		  "prog3_detach_from_cg3", "errno=%d\n", errno))
+		  "prog3_detach_from_cg3", "erranal=%d\n", erranal))
 		goto err;
 
 	value = 0;
@@ -260,7 +260,7 @@ void serial_test_cgroup_attach_multi(void)
 
 	/* detach 2nd from bottom program and ping again */
 	if (CHECK(bpf_prog_detach2(-1, cg4, BPF_CGROUP_INET_EGRESS),
-		  "prog_detach_from_cg4", "errno=%d\n", errno))
+		  "prog_detach_from_cg4", "erranal=%d\n", erranal))
 		goto err;
 
 	value = 0;

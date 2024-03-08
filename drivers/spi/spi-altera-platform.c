@@ -11,7 +11,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/altera.h>
@@ -22,7 +22,7 @@
 #define DRV_NAME "spi_altera"
 
 enum altera_spi_type {
-	ALTERA_SPI_TYPE_UNKNOWN,
+	ALTERA_SPI_TYPE_UNKANALWN,
 	ALTERA_SPI_TYPE_SUBDEV,
 };
 
@@ -37,10 +37,10 @@ static int altera_spi_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct altera_spi_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	enum altera_spi_type type = ALTERA_SPI_TYPE_UNKNOWN;
+	enum altera_spi_type type = ALTERA_SPI_TYPE_UNKANALWN;
 	struct altera_spi *hw;
 	struct spi_controller *host;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 	u16 i;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(struct altera_spi));
@@ -68,7 +68,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 		host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	}
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 
 	hw = spi_controller_get_devdata(host);
 	hw->dev = &pdev->dev;
@@ -149,7 +149,7 @@ MODULE_DEVICE_TABLE(of, altera_spi_match);
 #endif /* CONFIG_OF */
 
 static const struct platform_device_id altera_spi_ids[] = {
-	{ DRV_NAME,		ALTERA_SPI_TYPE_UNKNOWN },
+	{ DRV_NAME,		ALTERA_SPI_TYPE_UNKANALWN },
 	{ "subdev_spi_altera",	ALTERA_SPI_TYPE_SUBDEV },
 	{ }
 };

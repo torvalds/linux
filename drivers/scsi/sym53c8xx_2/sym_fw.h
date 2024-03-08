@@ -40,7 +40,7 @@
 	SYM_GEN_A(s, idle)		SYM_GEN_A(s, ungetjob)		\
 	SYM_GEN_A(s, reselect)						\
 	SYM_GEN_A(s, resel_tag)		SYM_GEN_A(s, resel_dsa)		\
-	SYM_GEN_A(s, resel_no_tag)					\
+	SYM_GEN_A(s, resel_anal_tag)					\
 	SYM_GEN_A(s, data_in)		SYM_GEN_A(s, data_in2)		\
 	SYM_GEN_A(s, data_out)		SYM_GEN_A(s, data_out2)		\
 	SYM_GEN_A(s, pm0_data)		SYM_GEN_A(s, pm1_data)
@@ -49,7 +49,7 @@
  *  Macro used to generate interfaces for script B.
  */
 #define SYM_GEN_FW_B(s)							\
-	SYM_GEN_B(s, no_data)						\
+	SYM_GEN_B(s, anal_data)						\
 	SYM_GEN_B(s, sel_for_abort)	SYM_GEN_B(s, sel_for_abort_1)	\
 	SYM_GEN_B(s, msg_bad)		SYM_GEN_B(s, msg_weird)		\
 	SYM_GEN_B(s, wdtr_resp)		SYM_GEN_B(s, send_wdtr)		\
@@ -65,7 +65,7 @@
  *  Macro used to generate interfaces for script Z.
  */
 #define SYM_GEN_FW_Z(s)							\
-	SYM_GEN_Z(s, snooptest)		SYM_GEN_Z(s, snoopend)
+	SYM_GEN_Z(s, sanaloptest)		SYM_GEN_Z(s, sanalopend)
 
 /*
  *  Generates structure interface that contains 
@@ -106,7 +106,7 @@ struct sym_fwz_ba {
 #undef	SYM_GEN_Z
 
 /*
- *  Let cc know about the name of the controller data structure.
+ *  Let cc kanalw about the name of the controller data structure.
  *  We need this for function prototype declarations just below.
  */
 struct sym_hcb;
@@ -162,8 +162,8 @@ struct sym_fw {
  *  RADDR_1 generates a reference to a script processor register.
  *  RADDR_2 generates a reference to a script processor register
  *          with offset.
- *  PADDR_A generates a reference to another part of script A.
- *  PADDR_B generates a reference to another part of script B.
+ *  PADDR_A generates a reference to aanalther part of script A.
+ *  PADDR_B generates a reference to aanalther part of script B.
  *
  *  SYM_GEN_PADDR_A and SYM_GEN_PADDR_B are used to define respectively 
  *  the PADDR_A and PADDR_B macros for each firmware by setting argument 

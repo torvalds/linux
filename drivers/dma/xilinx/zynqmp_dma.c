@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/pm_runtime.h>
 
 #include "../dmaengine.h"
@@ -166,7 +166,7 @@ struct zynqmp_dma_desc_ll {
  * @src: Source address for simple mode dma
  * @dst: Destination address for simple mode dma
  * @len: Transfer length for simple mode dma
- * @node: Node in the channel descriptor list
+ * @analde: Analde in the channel descriptor list
  * @tx_list: List head for the current transfer
  * @async_tx: Async transaction descriptor
  * @src_v: Virtual address of the src descriptor
@@ -178,7 +178,7 @@ struct zynqmp_dma_desc_sw {
 	u64 src;
 	u64 dst;
 	u32 len;
-	struct list_head node;
+	struct list_head analde;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
 	struct zynqmp_dma_desc_ll *src_v;
@@ -203,7 +203,7 @@ struct zynqmp_dma_desc_sw {
  * @desc_free_cnt: Descriptor available count
  * @dev: The dma device
  * @irq: Channel IRQ
- * @is_dmacoherent: Tells whether dma operations are coherent or not
+ * @is_dmacoherent: Tells whether dma operations are coherent or analt
  * @tasklet: Cleanup work after irq
  * @idle : Channel status;
  * @desc_size: Size of the low level descriptor
@@ -379,17 +379,17 @@ static dma_cookie_t zynqmp_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	if (!list_empty(&chan->pending_list)) {
 		desc = list_last_entry(&chan->pending_list,
-				     struct zynqmp_dma_desc_sw, node);
+				     struct zynqmp_dma_desc_sw, analde);
 		if (!list_empty(&desc->tx_list))
 			desc = list_last_entry(&desc->tx_list,
-					       struct zynqmp_dma_desc_sw, node);
+					       struct zynqmp_dma_desc_sw, analde);
 		desc->src_v->nxtdscraddr = new->src_p;
 		desc->src_v->ctrl &= ~ZYNQMP_DMA_DESC_CTRL_STOP;
 		desc->dst_v->nxtdscraddr = new->dst_p;
 		desc->dst_v->ctrl &= ~ZYNQMP_DMA_DESC_CTRL_STOP;
 	}
 
-	list_add_tail(&new->node, &chan->pending_list);
+	list_add_tail(&new->analde, &chan->pending_list);
 	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	return cookie;
@@ -409,8 +409,8 @@ zynqmp_dma_get_descriptor(struct zynqmp_dma_chan *chan)
 
 	spin_lock_irqsave(&chan->lock, irqflags);
 	desc = list_first_entry(&chan->free_list,
-				struct zynqmp_dma_desc_sw, node);
-	list_del(&desc->node);
+				struct zynqmp_dma_desc_sw, analde);
+	list_del(&desc->analde);
 	spin_unlock_irqrestore(&chan->lock, irqflags);
 
 	INIT_LIST_HEAD(&desc->tx_list);
@@ -432,10 +432,10 @@ static void zynqmp_dma_free_descriptor(struct zynqmp_dma_chan *chan,
 	struct zynqmp_dma_desc_sw *child, *next;
 
 	chan->desc_free_cnt++;
-	list_move_tail(&sdesc->node, &chan->free_list);
-	list_for_each_entry_safe(child, next, &sdesc->tx_list, node) {
+	list_move_tail(&sdesc->analde, &chan->free_list);
+	list_for_each_entry_safe(child, next, &sdesc->tx_list, analde) {
 		chan->desc_free_cnt++;
-		list_move_tail(&child->node, &chan->free_list);
+		list_move_tail(&child->analde, &chan->free_list);
 	}
 }
 
@@ -449,7 +449,7 @@ static void zynqmp_dma_free_desc_list(struct zynqmp_dma_chan *chan,
 {
 	struct zynqmp_dma_desc_sw *desc, *next;
 
-	list_for_each_entry_safe(desc, next, list, node)
+	list_for_each_entry_safe(desc, next, list, analde)
 		zynqmp_dma_free_descriptor(chan, desc);
 }
 
@@ -472,7 +472,7 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 	chan->sw_desc_pool = kcalloc(ZYNQMP_DMA_NUM_DESCS, sizeof(*desc),
 				     GFP_KERNEL);
 	if (!chan->sw_desc_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chan->idle = true;
 	chan->desc_free_cnt = ZYNQMP_DMA_NUM_DESCS;
@@ -483,7 +483,7 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 		desc = chan->sw_desc_pool + i;
 		dma_async_tx_descriptor_init(&desc->async_tx, &chan->common);
 		desc->async_tx.tx_submit = zynqmp_dma_tx_submit;
-		list_add_tail(&desc->node, &chan->free_list);
+		list_add_tail(&desc->analde, &chan->free_list);
 	}
 
 	chan->desc_pool_v = dma_alloc_coherent(chan->dev,
@@ -491,7 +491,7 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 					       ZYNQMP_DMA_NUM_DESCS),
 					       &chan->desc_pool_p, GFP_KERNEL);
 	if (!chan->desc_pool_v)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ZYNQMP_DMA_NUM_DESCS; i++) {
 		desc = chan->sw_desc_pool + i;
@@ -585,7 +585,7 @@ static void zynqmp_dma_start_transfer(struct zynqmp_dma_chan *chan)
 	zynqmp_dma_config(chan);
 
 	desc = list_first_entry_or_null(&chan->pending_list,
-					struct zynqmp_dma_desc_sw, node);
+					struct zynqmp_dma_desc_sw, analde);
 	if (!desc)
 		return;
 
@@ -606,7 +606,7 @@ static void zynqmp_dma_chan_desc_cleanup(struct zynqmp_dma_chan *chan)
 
 	spin_lock_irqsave(&chan->lock, irqflags);
 
-	list_for_each_entry_safe(desc, next, &chan->done_list, node) {
+	list_for_each_entry_safe(desc, next, &chan->done_list, analde) {
 		struct dmaengine_desc_callback cb;
 
 		dmaengine_desc_get_callback(&desc->async_tx, &cb);
@@ -632,12 +632,12 @@ static void zynqmp_dma_complete_descriptor(struct zynqmp_dma_chan *chan)
 	struct zynqmp_dma_desc_sw *desc;
 
 	desc = list_first_entry_or_null(&chan->active_list,
-					struct zynqmp_dma_desc_sw, node);
+					struct zynqmp_dma_desc_sw, analde);
 	if (!desc)
 		return;
-	list_del(&desc->node);
+	list_del(&desc->analde);
 	dma_cookie_complete(&desc->async_tx);
-	list_add_tail(&desc->node, &chan->done_list);
+	list_add_tail(&desc->analde, &chan->done_list);
 }
 
 /**
@@ -710,13 +710,13 @@ static void zynqmp_dma_reset(struct zynqmp_dma_chan *chan)
  * @irq: IRQ number
  * @data: Pointer to the ZynqMP DMA channel structure
  *
- * Return: IRQ_HANDLED/IRQ_NONE
+ * Return: IRQ_HANDLED/IRQ_ANALNE
  */
 static irqreturn_t zynqmp_dma_irq_handler(int irq, void *data)
 {
 	struct zynqmp_dma_chan *chan = (struct zynqmp_dma_chan *)data;
 	u32 isr, imr, status;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	isr = readl(chan->regs + ZYNQMP_DMA_ISR);
 	imr = readl(chan->regs + ZYNQMP_DMA_IMR);
@@ -835,7 +835,7 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 	spin_lock_irqsave(&chan->lock, irqflags);
 	if (desc_cnt > chan->desc_free_cnt) {
 		spin_unlock_irqrestore(&chan->lock, irqflags);
-		dev_dbg(chan->dev, "chan %p descs are not available\n", chan);
+		dev_dbg(chan->dev, "chan %p descs are analt available\n", chan);
 		return NULL;
 	}
 	chan->desc_free_cnt = chan->desc_free_cnt - desc_cnt;
@@ -856,7 +856,7 @@ static struct dma_async_tx_descriptor *zynqmp_dma_prep_memcpy(
 		if (!first)
 			first = new;
 		else
-			list_add_tail(&new->node, &first->tx_list);
+			list_add_tail(&new->analde, &first->tx_list);
 	} while (len);
 
 	zynqmp_dma_desc_config_eod(chan, desc);
@@ -877,7 +877,7 @@ static void zynqmp_dma_chan_remove(struct zynqmp_dma_chan *chan)
 	if (chan->irq)
 		devm_free_irq(chan->zdev->dev, chan->irq, chan);
 	tasklet_kill(&chan->tasklet);
-	list_del(&chan->common.device_node);
+	list_del(&chan->common.device_analde);
 }
 
 /**
@@ -891,12 +891,12 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 			   struct platform_device *pdev)
 {
 	struct zynqmp_dma_chan *chan;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	int err;
 
 	chan = devm_kzalloc(zdev->dev, sizeof(*chan), GFP_KERNEL);
 	if (!chan)
-		return -ENOMEM;
+		return -EANALMEM;
 	chan->dev = zdev->dev;
 	chan->zdev = zdev;
 
@@ -907,7 +907,7 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 	chan->bus_width = ZYNQMP_DMA_BUS_WIDTH_64;
 	chan->dst_burst_len = ZYNQMP_DMA_MAX_DST_BURST_LEN;
 	chan->src_burst_len = ZYNQMP_DMA_MAX_SRC_BURST_LEN;
-	err = of_property_read_u32(node, "xlnx,bus-width", &chan->bus_width);
+	err = of_property_read_u32(analde, "xlnx,bus-width", &chan->bus_width);
 	if (err < 0) {
 		dev_err(&pdev->dev, "missing xlnx,bus-width property\n");
 		return err;
@@ -919,7 +919,7 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 		return -EINVAL;
 	}
 
-	chan->is_dmacoherent =  of_property_read_bool(node, "dma-coherent");
+	chan->is_dmacoherent =  of_property_read_bool(analde, "dma-coherent");
 	zdev->chan = chan;
 	tasklet_setup(&chan->tasklet, zynqmp_dma_do_tasklet);
 	spin_lock_init(&chan->lock);
@@ -930,7 +930,7 @@ static int zynqmp_dma_chan_probe(struct zynqmp_dma_device *zdev,
 
 	dma_cookie_init(&chan->common);
 	chan->common.device = &zdev->common;
-	list_add_tail(&chan->common.device_node, &zdev->common.channels);
+	list_add_tail(&chan->common.device_analde, &zdev->common.channels);
 
 	zynqmp_dma_init(chan);
 	chan->irq = platform_get_irq(pdev, 0);
@@ -1056,14 +1056,14 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 
 	zdev = devm_kzalloc(&pdev->dev, sizeof(*zdev), GFP_KERNEL);
 	if (!zdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	zdev->dev = &pdev->dev;
 	INIT_LIST_HEAD(&zdev->common.channels);
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
 	if (ret) {
-		dev_err(&pdev->dev, "DMA not available for address range\n");
+		dev_err(&pdev->dev, "DMA analt available for address range\n");
 		return ret;
 	}
 	dma_cap_set(DMA_MEMCPY, zdev->common.cap_mask);
@@ -1082,12 +1082,12 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	zdev->clk_main = devm_clk_get(&pdev->dev, "clk_main");
 	if (IS_ERR(zdev->clk_main))
 		return dev_err_probe(&pdev->dev, PTR_ERR(zdev->clk_main),
-				     "main clock not found.\n");
+				     "main clock analt found.\n");
 
 	zdev->clk_apb = devm_clk_get(&pdev->dev, "clk_apb");
 	if (IS_ERR(zdev->clk_apb))
 		return dev_err_probe(&pdev->dev, PTR_ERR(zdev->clk_apb),
-				     "apb clock not found.\n");
+				     "apb clock analt found.\n");
 
 	platform_set_drvdata(pdev, zdev);
 	pm_runtime_set_autosuspend_delay(zdev->dev, ZDMA_PM_TIMEOUT);
@@ -1119,7 +1119,7 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 		goto free_chan_resources;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 of_zynqmp_dma_xlate, zdev);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "Unable to register DMA to DT\n");
@@ -1151,7 +1151,7 @@ static void zynqmp_dma_remove(struct platform_device *pdev)
 {
 	struct zynqmp_dma_device *zdev = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&zdev->common);
 
 	zynqmp_dma_chan_remove(zdev->chan);

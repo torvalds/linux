@@ -33,7 +33,7 @@ struct xcopy_op {
 	sector_t dst_lba;
 	unsigned short stdi;
 	unsigned short dtdi;
-	unsigned short nolb;
+	unsigned short anallb;
 
 	u32 xop_data_bytes;
 	u32 xop_data_nents;

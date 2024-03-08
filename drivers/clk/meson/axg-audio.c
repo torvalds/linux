@@ -321,7 +321,7 @@ static const struct clk_parent_data lrclk_pad_ctrl_parent_data[] = {
 
 #define AUD_TDM_PAD_CTRL(_name, _reg, _shift, _parents)		\
 	AUD_MUX(_name, _reg, 0x7, _shift, 0, _parents,		\
-		CLK_SET_RATE_NO_REPARENT)
+		CLK_SET_RATE_ANAL_REPARENT)
 
 /* Common Clocks */
 static struct clk_regmap ddr_arb =
@@ -735,7 +735,7 @@ static struct clk_regmap sm1_aud_top = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sm1_aud_top_parents,
 		.num_parents = ARRAY_SIZE(sm1_aud_top_parents),
-		.flags = CLK_SET_RATE_NO_REPARENT,
+		.flags = CLK_SET_RATE_ANAL_REPARENT,
 	},
 };
 
@@ -1803,19 +1803,19 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Stop here if there is no reset */
+	/* Stop here if there is anal reset */
 	if (!data->reset_num)
 		return 0;
 
 	rst = devm_kzalloc(dev, sizeof(*rst), GFP_KERNEL);
 	if (!rst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rst->map = map;
 	rst->offset = data->reset_offset;
 	rst->rstc.nr_resets = data->reset_num;
 	rst->rstc.ops = &axg_audio_rstc_ops;
-	rst->rstc.of_node = dev->of_node;
+	rst->rstc.of_analde = dev->of_analde;
 	rst->rstc.owner = THIS_MODULE;
 
 	return devm_reset_controller_register(dev, &rst->rstc);

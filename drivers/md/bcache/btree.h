@@ -6,19 +6,19 @@
  * THE BTREE:
  *
  * At a high level, bcache's btree is relatively standard b+ tree. All keys and
- * pointers are in the leaves; interior nodes only have pointers to the child
- * nodes.
+ * pointers are in the leaves; interior analdes only have pointers to the child
+ * analdes.
  *
- * In the interior nodes, a struct bkey always points to a child btree node, and
- * the key is the highest key in the child node - except that the highest key in
- * an interior node is always MAX_KEY. The size field refers to the size on disk
- * of the child node - this would allow us to have variable sized btree nodes
+ * In the interior analdes, a struct bkey always points to a child btree analde, and
+ * the key is the highest key in the child analde - except that the highest key in
+ * an interior analde is always MAX_KEY. The size field refers to the size on disk
+ * of the child analde - this would allow us to have variable sized btree analdes
  * (handy for keeping the depth of the btree 1 by expanding just the root).
  *
- * Btree nodes are themselves log structured, but this is hidden fairly
- * thoroughly. Btree nodes on disk will in practice have extents that overlap
+ * Btree analdes are themselves log structured, but this is hidden fairly
+ * thoroughly. Btree analdes on disk will in practice have extents that overlap
  * (because they were written at different times), but in memory we never have
- * overlapping extents - when we read in a btree node from disk, the first thing
+ * overlapping extents - when we read in a btree analde from disk, the first thing
  * we do is resort all the sets of keys with a mergesort, and in the same pass
  * we check for overlapping extents and adjust them appropriately.
  *
@@ -28,30 +28,30 @@
  *
  * BTREE CACHE:
  *
- * Btree nodes are cached in memory; traversing the btree might require reading
- * in btree nodes which is handled mostly transparently.
+ * Btree analdes are cached in memory; traversing the btree might require reading
+ * in btree analdes which is handled mostly transparently.
  *
- * bch_btree_node_get() looks up a btree node in the cache and reads it in from
+ * bch_btree_analde_get() looks up a btree analde in the cache and reads it in from
  * disk if necessary. This function is almost never called directly though - the
- * btree() macro is used to get a btree node, call some function on it, and
- * unlock the node after the function returns.
+ * btree() macro is used to get a btree analde, call some function on it, and
+ * unlock the analde after the function returns.
  *
  * The root is special cased - it's taken out of the cache's lru (thus pinning
  * it in memory), so we can find the root of the btree by just dereferencing a
  * pointer instead of looking it up in the cache. This makes locking a bit
- * tricky, since the root pointer is protected by the lock in the btree node it
+ * tricky, since the root pointer is protected by the lock in the btree analde it
  * points to - the btree_root() macro handles this.
  *
- * In various places we must be able to allocate memory for multiple btree nodes
+ * In various places we must be able to allocate memory for multiple btree analdes
  * in order to make forward progress. To do this we use the btree cache itself
- * as a reserve; if __get_free_pages() fails, we'll find a node in the btree
+ * as a reserve; if __get_free_pages() fails, we'll find a analde in the btree
  * cache we can reuse. We can't allow more than one thread to be doing this at a
  * time, so there's a lock, implemented by a pointer to the btree_op closure -
  * this allows the btree_root() macro to implicitly release this lock.
  *
  * BTREE IO:
  *
- * Btree nodes never have to be explicitly read in; bch_btree_node_get() handles
+ * Btree analdes never have to be explicitly read in; bch_btree_analde_get() handles
  * this.
  *
  * For writing, we have two btree_write structs embeddded in struct btree - one
@@ -59,10 +59,10 @@
  *
  * Writing is done with a single function -  bch_btree_write() really serves two
  * different purposes and should be broken up into two different functions. When
- * passing now = false, it merely indicates that the node is now dirty - calling
+ * passing analw = false, it merely indicates that the analde is analw dirty - calling
  * it ensures that the dirty keys will be written at some point in the future.
  *
- * When passing now = true, bch_btree_write() causes a write to happen
+ * When passing analw = true, bch_btree_write() causes a write to happen
  * "immediately" (if there was already a write in flight, it'll cause the write
  * to happen as soon as the previous write completes). It returns immediately
  * though - but it takes a refcount on the closure in struct btree_op you passed
@@ -76,11 +76,11 @@
  *
  * When traversing the btree, we may need write locks starting at some level -
  * inserting a key into the btree will typically only require a write lock on
- * the leaf node.
+ * the leaf analde.
  *
  * This is specified with the lock field in struct btree_op; lock = 0 means we
- * take write locks at level <= 0, i.e. only leaf nodes. bch_btree_node_get()
- * checks this field and returns the node with the appropriate lock held.
+ * take write locks at level <= 0, i.e. only leaf analdes. bch_btree_analde_get()
+ * checks this field and returns the analde with the appropriate lock held.
  *
  * If, after traversing the btree, the insertion code discovers it has to split
  * then it must restart from the root and take new locks - to do this it changes
@@ -95,7 +95,7 @@
  * the backing device.
  *
  * For this we use a sequence number that write locks and unlocks increment - to
- * insert the check key it unlocks the btree node and then takes a write lock,
+ * insert the check key it unlocks the btree analde and then takes a write lock,
  * and fails if the sequence number doesn't match.
  */
 
@@ -105,8 +105,8 @@
 struct btree_write {
 	atomic_t		*journal;
 
-	/* If btree_split() frees a btree node, it writes a new pointer to that
-	 * btree node indicating it was freed; it takes a refcount on
+	/* If btree_split() frees a btree analde, it writes a new pointer to that
+	 * btree analde indicating it was freed; it takes a refcount on
 	 * c->prio_blocked because we can't write the gens until the new
 	 * pointer is on disk. This allows btree_write_endio() to release the
 	 * refcount that btree_split() took.
@@ -116,9 +116,9 @@ struct btree_write {
 
 struct btree {
 	/* Hottest entries first */
-	struct hlist_node	hash;
+	struct hlist_analde	hash;
 
-	/* Key/pointer for this btree node */
+	/* Key/pointer for this btree analde */
 	BKEY_PADDED(key);
 
 	unsigned long		seq;
@@ -149,17 +149,17 @@ struct btree {
 
 
 #define BTREE_FLAG(flag)						\
-static inline bool btree_node_ ## flag(struct btree *b)			\
-{	return test_bit(BTREE_NODE_ ## flag, &b->flags); }		\
+static inline bool btree_analde_ ## flag(struct btree *b)			\
+{	return test_bit(BTREE_ANALDE_ ## flag, &b->flags); }		\
 									\
-static inline void set_btree_node_ ## flag(struct btree *b)		\
-{	set_bit(BTREE_NODE_ ## flag, &b->flags); }
+static inline void set_btree_analde_ ## flag(struct btree *b)		\
+{	set_bit(BTREE_ANALDE_ ## flag, &b->flags); }
 
 enum btree_flags {
-	BTREE_NODE_io_error,
-	BTREE_NODE_dirty,
-	BTREE_NODE_write_idx,
-	BTREE_NODE_journal_flush,
+	BTREE_ANALDE_io_error,
+	BTREE_ANALDE_dirty,
+	BTREE_ANALDE_write_idx,
+	BTREE_ANALDE_journal_flush,
 };
 
 BTREE_FLAG(io_error);
@@ -169,12 +169,12 @@ BTREE_FLAG(journal_flush);
 
 static inline struct btree_write *btree_current_write(struct btree *b)
 {
-	return b->writes + btree_node_write_idx(b);
+	return b->writes + btree_analde_write_idx(b);
 }
 
 static inline struct btree_write *btree_prev_write(struct btree *b)
 {
-	return b->writes + (btree_node_write_idx(b) ^ 1);
+	return b->writes + (btree_analde_write_idx(b) ^ 1);
 }
 
 static inline struct bset *btree_bset_first(struct btree *b)
@@ -233,7 +233,7 @@ struct btree_check_state {
 	int				key_idx;
 	spinlock_t			idx_lock;
 	atomic_t			started;
-	atomic_t			enough;
+	atomic_t			eanalugh;
 	wait_queue_head_t		wait;
 	struct btree_check_info		infos[BCH_BTR_CHKTHREAD_MAX];
 };
@@ -260,15 +260,15 @@ static inline void rw_unlock(bool w, struct btree *b)
 	(w ? up_write : up_read)(&b->lock);
 }
 
-void bch_btree_node_read_done(struct btree *b);
-void __bch_btree_node_write(struct btree *b, struct closure *parent);
-void bch_btree_node_write(struct btree *b, struct closure *parent);
+void bch_btree_analde_read_done(struct btree *b);
+void __bch_btree_analde_write(struct btree *b, struct closure *parent);
+void bch_btree_analde_write(struct btree *b, struct closure *parent);
 
 void bch_btree_set_root(struct btree *b);
-struct btree *__bch_btree_node_alloc(struct cache_set *c, struct btree_op *op,
+struct btree *__bch_btree_analde_alloc(struct cache_set *c, struct btree_op *op,
 				     int level, bool wait,
 				     struct btree *parent);
-struct btree *bch_btree_node_get(struct cache_set *c, struct btree_op *op,
+struct btree *bch_btree_analde_get(struct cache_set *c, struct btree_op *op,
 				 struct bkey *k, int level, bool write,
 				 struct btree *parent);
 
@@ -294,7 +294,7 @@ static inline void force_wake_up_gc(struct cache_set *c)
 	/*
 	 * Garbage collection thread only works when sectors_to_gc < 0,
 	 * calling wake_up_gc() won't start gc thread if sectors_to_gc is
-	 * not a nagetive value.
+	 * analt a nagetive value.
 	 * Therefore sectors_to_gc is set to -1 here, before waking up
 	 * gc thread by calling wake_up_gc(). Then gc_should_run() will
 	 * give a chance to permit gc thread to run. "Give a chance" means
@@ -309,7 +309,7 @@ static inline void force_wake_up_gc(struct cache_set *c)
 
 /*
  * These macros are for recursing down the btree - they handle the details of
- * locking and looking up nodes in the cache for you. They're best treated as
+ * locking and looking up analdes in the cache for you. They're best treated as
  * mere syntax when reading code that uses them.
  *
  * op->lock determines whether we take a read or a write lock at a given depth.
@@ -320,16 +320,16 @@ static inline void force_wake_up_gc(struct cache_set *c)
 
 /**
  * btree - recurse down the btree on a specified key
- * @fn:		function to call, which will be passed the child node
+ * @fn:		function to call, which will be passed the child analde
  * @key:	key to recurse on
- * @b:		parent btree node
+ * @b:		parent btree analde
  * @op:		pointer to struct btree_op
  */
 #define bcache_btree(fn, key, b, op, ...)				\
 ({									\
 	int _r, l = (b)->level - 1;					\
 	bool _w = l <= (op)->lock;					\
-	struct btree *_child = bch_btree_node_get((b)->c, op, key, l,	\
+	struct btree *_child = bch_btree_analde_get((b)->c, op, key, l,	\
 						  _w, b);		\
 	if (!IS_ERR(_child)) {						\
 		_r = bch_btree_ ## fn(_child, op, ##__VA_ARGS__);	\
@@ -341,7 +341,7 @@ static inline void force_wake_up_gc(struct cache_set *c)
 
 /**
  * btree_root - call a function on the root of the btree
- * @fn:		function to call, which will be passed the child node
+ * @fn:		function to call, which will be passed the child analde
  * @c:		cache set
  * @op:		pointer to struct btree_op
  */
@@ -369,27 +369,27 @@ static inline void force_wake_up_gc(struct cache_set *c)
 #define MAP_DONE	0
 #define MAP_CONTINUE	1
 
-#define MAP_ALL_NODES	0
-#define MAP_LEAF_NODES	1
+#define MAP_ALL_ANALDES	0
+#define MAP_LEAF_ANALDES	1
 
 #define MAP_END_KEY	1
 
-typedef int (btree_map_nodes_fn)(struct btree_op *b_op, struct btree *b);
-int __bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
-			  struct bkey *from, btree_map_nodes_fn *fn, int flags);
+typedef int (btree_map_analdes_fn)(struct btree_op *b_op, struct btree *b);
+int __bch_btree_map_analdes(struct btree_op *op, struct cache_set *c,
+			  struct bkey *from, btree_map_analdes_fn *fn, int flags);
 
-static inline int bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
-				      struct bkey *from, btree_map_nodes_fn *fn)
+static inline int bch_btree_map_analdes(struct btree_op *op, struct cache_set *c,
+				      struct bkey *from, btree_map_analdes_fn *fn)
 {
-	return __bch_btree_map_nodes(op, c, from, fn, MAP_ALL_NODES);
+	return __bch_btree_map_analdes(op, c, from, fn, MAP_ALL_ANALDES);
 }
 
-static inline int bch_btree_map_leaf_nodes(struct btree_op *op,
+static inline int bch_btree_map_leaf_analdes(struct btree_op *op,
 					   struct cache_set *c,
 					   struct bkey *from,
-					   btree_map_nodes_fn *fn)
+					   btree_map_analdes_fn *fn)
 {
-	return __bch_btree_map_nodes(op, c, from, fn, MAP_LEAF_NODES);
+	return __bch_btree_map_analdes(op, c, from, fn, MAP_LEAF_ANALDES);
 }
 
 typedef int (btree_map_keys_fn)(struct btree_op *op, struct btree *b,

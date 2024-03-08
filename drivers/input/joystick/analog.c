@@ -167,7 +167,7 @@ static void analog_decode(struct analog *analog, int *axes, int *initial, int bu
 static int analog_cooked_read(struct analog_port *port)
 {
 	struct gameport *gameport = port->gameport;
-	ktime_t time[4], start, loop, now;
+	ktime_t time[4], start, loop, analw;
 	unsigned int loopout, timeout;
 	unsigned char data[4], this, last;
 	unsigned long flags;
@@ -178,29 +178,29 @@ static int analog_cooked_read(struct analog_port *port)
 
 	local_irq_save(flags);
 	gameport_trigger(gameport);
-	now = ktime_get();
+	analw = ktime_get();
 	local_irq_restore(flags);
 
-	start = now;
+	start = analw;
 	this = port->mask;
 	i = 0;
 
 	do {
-		loop = now;
+		loop = analw;
 		last = this;
 
 		local_irq_disable();
 		this = gameport_read(gameport) & port->mask;
-		now = ktime_get();
+		analw = ktime_get();
 		local_irq_restore(flags);
 
-		if ((last ^ this) && (ktime_sub(now, loop) < loopout)) {
+		if ((last ^ this) && (ktime_sub(analw, loop) < loopout)) {
 			data[i] = last ^ this;
-			time[i] = now;
+			time[i] = analw;
 			i++;
 		}
 
-	} while (this && (i < 4) && (ktime_sub(now, start) < timeout));
+	} while (this && (i < 4) && (ktime_sub(analw, start) < timeout));
 
 	this <<= 4;
 
@@ -373,7 +373,7 @@ static int analog_init_device(struct analog_port *port, struct analog *analog, i
 
 	analog->dev = input_dev = input_allocate_device();
 	if (!input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev->name = analog->name;
 	input_dev->phys = analog->phys;
@@ -462,8 +462,8 @@ static int analog_init_masks(struct analog_port *port)
 		return -1;
 
 	if ((port->mask & 3) != 3 && port->mask != 0xc) {
-		printk(KERN_WARNING "analog.c: Unknown joystick device found  "
-			"(data=%#x, %s), probably not analog joystick.\n",
+		printk(KERN_WARNING "analog.c: Unkanalwn joystick device found  "
+			"(data=%#x, %s), probably analt analog joystick.\n",
 			port->mask, port->gameport->phys);
 		return -1;
 	}
@@ -583,7 +583,7 @@ static int analog_connect(struct gameport *gameport, struct gameport_driver *drv
 	int err;
 
 	if (!(port = kzalloc(sizeof(struct analog_port), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = analog_init_port(gameport, drv, port);
 	if (err)
@@ -636,7 +636,7 @@ struct analog_types {
 };
 
 static struct analog_types analog_types[] = {
-	{ "none",	0x00000000 },
+	{ "analne",	0x00000000 },
 	{ "auto",	0x000000ff },
 	{ "2btn",	0x0000003f },
 	{ "y-joy",	0x0cc00033 },

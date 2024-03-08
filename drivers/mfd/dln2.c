@@ -63,7 +63,7 @@ struct dln2_rx_context {
 	/* completion used to wait for a response */
 	struct completion done;
 
-	/* if non-NULL the URB contains the response */
+	/* if analn-NULL the URB contains the response */
 	struct urb *urb;
 
 	/* if true then this context is used to wait for a response */
@@ -127,7 +127,7 @@ int dln2_register_event_cb(struct platform_device *pdev, u16 id,
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->id = id;
 	entry->callback = event_cb;
@@ -181,7 +181,7 @@ void dln2_unregister_event_cb(struct platform_device *pdev, u16 id)
 EXPORT_SYMBOL(dln2_unregister_event_cb);
 
 /*
- * Returns true if a valid transfer slot is found. In this case the URB must not
+ * Returns true if a valid transfer slot is found. In this case the URB must analt
  * be resubmitted immediately in dln2_rx as we need the data when dln2_transfer
  * is woke up. It will be resubmitted there.
  */
@@ -246,14 +246,14 @@ static void dln2_rx(struct urb *urb)
 		/* success */
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 	case -EPIPE:
 		/* this urb is terminated, clean up */
 		dev_dbg(dev, "urb shutting down with status %d\n", urb->status);
 		return;
 	default:
-		dev_dbg(dev, "nonzero urb status received %d\n", urb->status);
+		dev_dbg(dev, "analnzero urb status received %d\n", urb->status);
 		goto out;
 	}
 
@@ -334,7 +334,7 @@ static int dln2_send_wait(struct dln2_dev *dln2, u16 handle, u16 cmd, u16 echo,
 
 	buf = dln2_prep_buf(handle, cmd, echo, obuf, &len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_bulk_msg(dln2->usb_dev,
 			   usb_sndbulkpipe(dln2->usb_dev, dln2->ep_out),
@@ -351,7 +351,7 @@ static bool find_free_slot(struct dln2_dev *dln2, u16 handle, int *slot)
 	unsigned long flags;
 
 	if (dln2->disconnect) {
-		*slot = -ENODEV;
+		*slot = -EANALDEV;
 		return true;
 	}
 
@@ -379,7 +379,7 @@ static int alloc_rx_slot(struct dln2_dev *dln2, u16 handle)
 	int slot;
 
 	/*
-	 * No need to timeout here, the wait is bounded by the timeout in
+	 * Anal need to timeout here, the wait is bounded by the timeout in
 	 * _dln2_transfer.
 	 */
 	ret = wait_event_interruptible(dln2->mod_rx_slots[handle].wq,
@@ -440,7 +440,7 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 	if (!dln2->disconnect)
 		dln2->active_transfers++;
 	else
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	spin_unlock(&dln2->disconnect_lock);
 
 	if (ret)
@@ -470,11 +470,11 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 	}
 
 	if (dln2->disconnect) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_free_rx_slot;
 	}
 
-	/* if we got here we know that the response header has been checked */
+	/* if we got here we kanalw that the response header has been checked */
 	rsp = rxc->urb->transfer_buffer;
 	size = le16_to_cpu(rsp->hdr.size);
 
@@ -541,29 +541,29 @@ static int dln2_check_hw(struct dln2_dev *dln2)
 		return -EREMOTEIO;
 
 	if (le32_to_cpu(hw_type) != DLN2_HW_ID) {
-		dev_err(&dln2->interface->dev, "Device ID 0x%x not supported\n",
+		dev_err(&dln2->interface->dev, "Device ID 0x%x analt supported\n",
 			le32_to_cpu(hw_type));
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
 }
 
-static int dln2_print_serialno(struct dln2_dev *dln2)
+static int dln2_print_serialanal(struct dln2_dev *dln2)
 {
 	int ret;
-	__le32 serial_no;
-	int len = sizeof(serial_no);
+	__le32 serial_anal;
+	int len = sizeof(serial_anal);
 	struct device *dev = &dln2->interface->dev;
 
 	ret = _dln2_transfer(dln2, DLN2_HANDLE_CTRL, CMD_GET_DEVICE_SN, NULL, 0,
-			     &serial_no, &len);
+			     &serial_anal, &len);
 	if (ret < 0)
 		return ret;
-	if (len < sizeof(serial_no))
+	if (len < sizeof(serial_anal))
 		return -EREMOTEIO;
 
-	dev_info(dev, "Diolan DLN2 serial %u\n", le32_to_cpu(serial_no));
+	dev_info(dev, "Diolan DLN2 serial %u\n", le32_to_cpu(serial_anal));
 
 	return 0;
 }
@@ -576,7 +576,7 @@ static int dln2_hw_init(struct dln2_dev *dln2)
 	if (ret < 0)
 		return ret;
 
-	return dln2_print_serialno(dln2);
+	return dln2_print_serialanal(dln2);
 }
 
 static void dln2_free_rx_urbs(struct dln2_dev *dln2)
@@ -613,11 +613,11 @@ static int dln2_setup_rx_urbs(struct dln2_dev *dln2,
 	for (i = 0; i < DLN2_MAX_URBS; i++) {
 		dln2->rx_buf[i] = kmalloc(rx_max_size, GFP_KERNEL);
 		if (!dln2->rx_buf[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dln2->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!dln2->rx_urb[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		usb_fill_bulk_urb(dln2->rx_urb[i], dln2->usb_dev,
 				  usb_rcvbulkpipe(dln2->usb_dev, dln2->ep_in),
@@ -772,7 +772,7 @@ static int dln2_probe(struct usb_interface *interface,
 	int i, j;
 
 	if (hostif->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = usb_find_common_endpoints(hostif, &epin, &epout, NULL, NULL);
 	if (ret)
@@ -780,7 +780,7 @@ static int dln2_probe(struct usb_interface *interface,
 
 	dln2 = kzalloc(sizeof(*dln2), GFP_KERNEL);
 	if (!dln2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dln2->ep_out = epout->bEndpointAddress;
 	dln2->ep_in = epin->bEndpointAddress;
@@ -846,7 +846,7 @@ static int dln2_resume(struct usb_interface *iface)
 
 	dln2->disconnect = false;
 
-	return dln2_start_rx_urbs(dln2, GFP_NOIO);
+	return dln2_start_rx_urbs(dln2, GFP_ANALIO);
 }
 
 static const struct usb_device_id dln2_table[] = {

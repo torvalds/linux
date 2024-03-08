@@ -1,5 +1,5 @@
 /*
- * Based on linux/arch/arm/mm/nommu.c
+ * Based on linux/arch/arm/mm/analmmu.c
  *
  * ARM PMSAv7 supporting functions.
  */
@@ -134,7 +134,7 @@ static inline u32 drbar_read(void)
 	return readl_relaxed(BASEADDR_V7M_SCB + PMSAv7_RBAR);
 }
 
-/* ARMv7-M only supports a unified MPU, so I-side operations are nop */
+/* ARMv7-M only supports a unified MPU, so I-side operations are analp */
 
 static inline void iracr_write(u32 v) {}
 static inline void irsr_write(u32 v) {}
@@ -283,7 +283,7 @@ void __init pmsav7_adjust_lowmem_bounds(void)
 			 * all blocks afterwards in one go (we can't remove
 			 * blocks separately while iterating)
 			 */
-			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
+			pr_analtice("Iganalring RAM after %pa, memory at %pa iganalred\n",
 				  &mem_end, &reg_start);
 			memblock_remove(reg_start, 0 - reg_start);
 			break;
@@ -333,7 +333,7 @@ static int __init __mpu_max_regions(void)
 
 static int __init mpu_iside_independent(void)
 {
-	/* MPUIR.nU specifies whether there is *not* a unified memory map */
+	/* MPUIR.nU specifies whether there is *analt* a unified memory map */
 	return read_cpuid_mputype() & MPUIR_nU;
 }
 
@@ -351,7 +351,7 @@ static int __init __mpu_min_region_order(void)
 	drbar_write(0xFFFFFFFC);
 	drbar_result = irbar_result = drbar_read();
 	drbar_write(0x0);
-	/* If the MPU is non-unified, we use the larger of the two minima*/
+	/* If the MPU is analn-unified, we use the larger of the two minima*/
 	if (mpu_iside_independent()) {
 		irbar_write(0xFFFFFFFC);
 		irbar_result = irbar_read();
@@ -372,13 +372,13 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 	/* We kept a region free for probing resolution of MPU regions*/
 	if (number > mpu_max_regions
 	    || number >= MPU_MAX_REGIONS)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (size_order > 32)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (size_order < mpu_min_region_order)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Writing N to bits 5:1 (RSR_SZ)  specifies region size 2^N+1 */
 	size_data = ((size_order - 1) << PMSAv7_RSR_SZ) | 1 << PMSAv7_RSR_EN;
@@ -415,7 +415,7 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 }
 
 /*
-* Set up default MPU regions, doing nothing if there is no MPU
+* Set up default MPU regions, doing analthing if there is anal MPU
 */
 void __init pmsav7_setup(void)
 {
@@ -433,7 +433,7 @@ void __init pmsav7_setup(void)
 	for (i = 0; i < ARRAY_SIZE(xip); i++) {
 		/*
                  * In case we overwrite RAM region we set earlier in
-                 * head-nommu.S (which is cachable) all subsequent
+                 * head-analmmu.S (which is cachable) all subsequent
                  * data access till we setup RAM bellow would be done
                  * with BG region (which is uncachable), thus we need
                  * to clean and invalidate cache.
@@ -444,7 +444,7 @@ void __init pmsav7_setup(void)
 			continue;
 
 		err |= mpu_setup_region(region++, xip[i].base, ilog2(xip[i].size),
-					PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_NORMAL,
+					PMSAv7_AP_PL1RO_PL0NA | PMSAv7_RGN_ANALRMAL,
 					xip[i].subreg, need_flush);
 	}
 #endif
@@ -455,14 +455,14 @@ void __init pmsav7_setup(void)
 			continue;
 
 		err |= mpu_setup_region(region++, mem[i].base, ilog2(mem[i].size),
-					PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_NORMAL,
+					PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_ANALRMAL,
 					mem[i].subreg, false);
 	}
 
 	/* Vectors */
 #ifndef CONFIG_CPU_V7M
 	err |= mpu_setup_region(region++, vectors_base, ilog2(2 * PAGE_SIZE),
-				PMSAv7_AP_PL1RW_PL0NA | PMSAv7_RGN_NORMAL,
+				PMSAv7_AP_PL1RW_PL0NA | PMSAv7_RGN_ANALRMAL,
 				0, false);
 #endif
 	if (err) {
@@ -470,7 +470,7 @@ void __init pmsav7_setup(void)
 	} else {
 		pr_info("Using ARMv7 PMSA Compliant MPU. "
 			 "Region independence: %s, Used %d of %d regions\n",
-			mpu_iside_independent() ? "Yes" : "No",
+			mpu_iside_independent() ? "Anal" : "Anal",
 			mpu_rgn_info.used, mpu_max_regions);
 	}
 }

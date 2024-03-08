@@ -10,7 +10,7 @@
  * PCI Firmware Specification Revision 3.1 section 4.6.7 (DSM for Naming a
  * PCI or PCI Express Device Under Operating Systems) defines an instance
  * number and string name. This code retrieves them and exports them to sysfs.
- * If the system firmware does not provide the ACPI _DSM (Device Specific
+ * If the system firmware does analt provide the ACPI _DSM (Device Specific
  * Method), then the SMBIOS type 41 instance number and string is exported to
  * sysfs.
  *
@@ -50,7 +50,7 @@ static bool device_has_acpi_name(struct device *dev)
 
 #ifdef CONFIG_DMI
 enum smbios_attr_enum {
-	SMBIOS_ATTR_NONE = 0,
+	SMBIOS_ATTR_ANALNE = 0,
 	SMBIOS_ATTR_LABEL_SHOW,
 	SMBIOS_ATTR_INSTANCE_SHOW,
 };
@@ -121,7 +121,7 @@ static umode_t smbios_attr_is_visible(struct kobject *kobj, struct attribute *a,
 	if (device_has_acpi_name(dev))
 		return 0;
 
-	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_NONE))
+	if (!find_smbios_instance_string(pdev, NULL, SMBIOS_ATTR_ANALNE))
 		return 0;
 
 	return a->mode;
@@ -174,7 +174,7 @@ static int dsm_get_label(struct device *dev, char *buf,
 	     tmp[1].type == ACPI_TYPE_BUFFER)) {
 		/*
 		 * The second string element is optional even when
-		 * this _DSM is implemented; when not implemented,
+		 * this _DSM is implemented; when analt implemented,
 		 * this entry must return a null string.
 		 */
 		if (attr == ACPI_ATTR_INDEX_SHOW) {

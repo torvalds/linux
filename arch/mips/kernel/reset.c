@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2001, 06 by Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -47,7 +47,7 @@ static void machine_hang(void)
 	while (true) {
 		if (cpu_has_mips_r) {
 			/*
-			 * We know that the wait instruction is supported so
+			 * We kanalw that the wait instruction is supported so
 			 * make use of it directly, leaving interrupts
 			 * disabled.
 			 */

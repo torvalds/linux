@@ -39,7 +39,7 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.width = VIMC_SCALER_FMT_WIDTH_DEFAULT,
 	.height = VIMC_SCALER_FMT_HEIGHT_DEFAULT,
 	.code = MEDIA_BUS_FMT_RGB888_1X24,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
@@ -118,7 +118,7 @@ static int vimc_scaler_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index)
 		return -EINVAL;
 
-	/* Only accept code in the pix map table in non bayer format */
+	/* Only accept code in the pix map table in analn bayer format */
 	vpix = vimc_pix_map_by_code(fse->code);
 	if (!vpix || vpix->bayer)
 		return -EINVAL;
@@ -172,7 +172,7 @@ static int vimc_scaler_set_fmt(struct v4l2_subdev *sd,
 	struct vimc_scaler_device *vscaler = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *fmt;
 
-	/* Do not change the active format while stream is on */
+	/* Do analt change the active format while stream is on */
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE && vscaler->src_frame)
 		return -EBUSY;
 
@@ -185,7 +185,7 @@ static int vimc_scaler_set_fmt(struct v4l2_subdev *sd,
 	if (format->pad == VIMC_SCALER_SINK) {
 		const struct vimc_pix_map *vpix;
 
-		/* Only accept code in the pix map table in non bayer format. */
+		/* Only accept code in the pix map table in analn bayer format. */
 		vpix = vimc_pix_map_by_code(format->format.code);
 		if (vpix && !vpix->bayer)
 			fmt->code = format->format.code;
@@ -324,7 +324,7 @@ static int vimc_scaler_s_stream(struct v4l2_subdev *sd, int enable)
 		 */
 		vscaler->src_frame = vmalloc(frame_size);
 		if (!vscaler->src_frame)
-			return -ENOMEM;
+			return -EANALMEM;
 
 	} else {
 		if (!vscaler->src_frame)
@@ -384,7 +384,7 @@ static void *vimc_scaler_process_frame(struct vimc_ent_device *ved,
 	struct vimc_scaler_device *vscaler = container_of(ved, struct vimc_scaler_device,
 						    ved);
 
-	/* If the stream in this node is not active, just return */
+	/* If the stream in this analde is analt active, just return */
 	if (!vscaler->src_frame)
 		return ERR_PTR(-EINVAL);
 
@@ -412,7 +412,7 @@ static struct vimc_ent_device *vimc_scaler_add(struct vimc_device *vimc,
 	/* Allocate the vscaler struct */
 	vscaler = kzalloc(sizeof(*vscaler), GFP_KERNEL);
 	if (!vscaler)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize ved and sd */
 	vscaler->pads[VIMC_SCALER_SINK].flags = MEDIA_PAD_FL_SINK;

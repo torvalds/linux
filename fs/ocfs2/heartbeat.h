@@ -10,20 +10,20 @@
 #ifndef OCFS2_HEARTBEAT_H
 #define OCFS2_HEARTBEAT_H
 
-void ocfs2_init_node_maps(struct ocfs2_super *osb);
+void ocfs2_init_analde_maps(struct ocfs2_super *osb);
 
-void ocfs2_do_node_down(int node_num, void *data);
+void ocfs2_do_analde_down(int analde_num, void *data);
 
-/* node map functions - used to keep track of mounted and in-recovery
- * nodes. */
-void ocfs2_node_map_set_bit(struct ocfs2_super *osb,
-			    struct ocfs2_node_map *map,
+/* analde map functions - used to keep track of mounted and in-recovery
+ * analdes. */
+void ocfs2_analde_map_set_bit(struct ocfs2_super *osb,
+			    struct ocfs2_analde_map *map,
 			    int bit);
-void ocfs2_node_map_clear_bit(struct ocfs2_super *osb,
-			      struct ocfs2_node_map *map,
+void ocfs2_analde_map_clear_bit(struct ocfs2_super *osb,
+			      struct ocfs2_analde_map *map,
 			      int bit);
-int ocfs2_node_map_test_bit(struct ocfs2_super *osb,
-			    struct ocfs2_node_map *map,
+int ocfs2_analde_map_test_bit(struct ocfs2_super *osb,
+			    struct ocfs2_analde_map *map,
 			    int bit);
 
 #endif /* OCFS2_HEARTBEAT_H */

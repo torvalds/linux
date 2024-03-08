@@ -177,7 +177,7 @@ const char *arch_vma_name(struct vm_area_struct *vma)
  *
  * On 32bit this only checks whether @addr + @len is <= TASK_SIZE.
  *
- * On 64bit with 5-level page tables another sanity check is required
+ * On 64bit with 5-level page tables aanalther sanity check is required
  * because mappings requested by mmap(@addr, 0) which cross the 47-bit
  * virtual address boundary can cause the following theoretical issue:
  *
@@ -187,23 +187,23 @@ const char *arch_vma_name(struct vm_area_struct *vma)
  *
  *  With 4-level paging this request succeeds, but the resulting mapping
  *  address will always be within the 47-bit virtual address space, because
- *  the hint address does not result in a valid mapping and is
- *  ignored. Hence applications which are not prepared to handle virtual
+ *  the hint address does analt result in a valid mapping and is
+ *  iganalred. Hence applications which are analt prepared to handle virtual
  *  addresses above 47-bit work correctly.
  *
  *  With 5-level paging this request would be granted and result in a
  *  mapping which crosses the border of the 47-bit virtual address
- *  space. If the application cannot handle addresses above 47-bit this
- *  will lead to misbehaviour and hard to diagnose failures.
+ *  space. If the application cananalt handle addresses above 47-bit this
+ *  will lead to misbehaviour and hard to diaganalse failures.
  *
- * Therefore ignore address hints which would result in a mapping crossing
+ * Therefore iganalre address hints which would result in a mapping crossing
  * the 47-bit virtual address boundary.
  *
- * Note, that in the same scenario with MAP_FIXED the behaviour is
+ * Analte, that in the same scenario with MAP_FIXED the behaviour is
  * different. The request with @addr < 47-bit and @addr + @len > 47-bit
  * fails on a 4-level paging machine but succeeds on a 5-level paging
- * machine. It is reasonable to expect that an application does not rely on
- * the failure of such a fixed mapping request, so the restriction is not
+ * machine. It is reasonable to expect that an application does analt rely on
+ * the failure of such a fixed mapping request, so the restriction is analt
  * applied.
  */
 bool mmap_address_hint_valid(unsigned long addr, unsigned long len)
@@ -229,11 +229,11 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
 }
 
 /*
- * Only allow root to set high MMIO mappings to PROT_NONE.
- * This prevents an unpriv. user to set them to PROT_NONE and invert
+ * Only allow root to set high MMIO mappings to PROT_ANALNE.
+ * This prevents an unpriv. user to set them to PROT_ANALNE and invert
  * them, then pointing to valid memory for L1TF speculation.
  *
- * Note: for locked down kernels may want to disable the root override.
+ * Analte: for locked down kernels may want to disable the root override.
  */
 bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot)
 {

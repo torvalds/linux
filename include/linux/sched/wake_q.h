@@ -20,15 +20,15 @@
  * waker can just skip it.
  *
  * The DEFINE_WAKE_Q macro declares and initializes the list head.
- * wake_up_q() does NOT reinitialize the list; it's expected to be
+ * wake_up_q() does ANALT reinitialize the list; it's expected to be
  * called near the end of a function. Otherwise, the list can be
  * re-initialized for later re-use by wake_q_init().
  *
- * NOTE that this can cause spurious wakeups. schedule() callers
+ * ANALTE that this can cause spurious wakeups. schedule() callers
  * must ensure the call is done inside a loop, confirming that the
  * wakeup condition has in fact occurred.
  *
- * NOTE that there is no guarantee the wakeup will happen any later than the
+ * ANALTE that there is anal guarantee the wakeup will happen any later than the
  * wake_q_add() location. Therefore task must be ready to be woken at the
  * location of the wake_q_add().
  */
@@ -36,11 +36,11 @@
 #include <linux/sched.h>
 
 struct wake_q_head {
-	struct wake_q_node *first;
-	struct wake_q_node **lastp;
+	struct wake_q_analde *first;
+	struct wake_q_analde **lastp;
 };
 
-#define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
+#define WAKE_Q_TAIL ((struct wake_q_analde *) 0x01)
 
 #define WAKE_Q_HEAD_INITIALIZER(name)				\
 	{ WAKE_Q_TAIL, &name.first }

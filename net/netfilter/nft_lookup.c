@@ -139,12 +139,12 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 		priv->dreg_set = true;
 	} else if (set->flags & NFT_SET_MAP) {
 		/* Map given, but user asks for lookup only (i.e. to
-		 * ignore value assoicated with key).
+		 * iganalre value assoicated with key).
 		 *
-		 * This makes no sense for anonymous maps since they are
+		 * This makes anal sense for aanalnymous maps since they are
 		 * scoped to the rule, but for named sets this can be useful.
 		 */
-		if (set->flags & NFT_SET_ANONYMOUS)
+		if (set->flags & NFT_SET_AANALNYMOUS)
 			return -EINVAL;
 	}
 

@@ -11,7 +11,7 @@
 #include "xfs_da_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_acl.h"
@@ -23,7 +23,7 @@
 /*
  * Get permission to use log-assisted atomic exchange of file extents.
  *
- * Callers must not be running any transactions or hold any inode locks, and
+ * Callers must analt be running any transactions or hold any ianalde locks, and
  * they must release the permission by calling xlog_drop_incompat_feat
  * when they're done.
  */
@@ -47,13 +47,13 @@ xfs_attr_grab_log_assist(
 		return 0;
 
 	/*
-	 * Check if the filesystem featureset is new enough to set this log
+	 * Check if the filesystem featureset is new eanalugh to set this log
 	 * incompat feature bit.  Strictly speaking, the minimum requirement is
 	 * a V5 filesystem for the superblock field, but we'll require rmap
 	 * or reflink to avoid having to deal with really old kernels.
 	 */
 	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp)) {
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 		goto drop_incompat;
 	}
 
@@ -124,10 +124,10 @@ xfs_attr_change(
 
 static int
 xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
-		struct inode *inode, const char *name, void *value, size_t size)
+		struct ianalde *ianalde, const char *name, void *value, size_t size)
 {
 	struct xfs_da_args	args = {
-		.dp		= XFS_I(inode),
+		.dp		= XFS_I(ianalde),
 		.attr_filter	= handler->flags,
 		.name		= name,
 		.namelen	= strlen(name),
@@ -136,7 +136,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 	};
 	int			error;
 
-	if (xfs_ifork_zapped(XFS_I(inode), XFS_ATTR_FORK))
+	if (xfs_ifork_zapped(XFS_I(ianalde), XFS_ATTR_FORK))
 		return -EIO;
 
 	error = xfs_attr_get(&args);
@@ -148,11 +148,11 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 static int
 xfs_xattr_set(const struct xattr_handler *handler,
 	      struct mnt_idmap *idmap, struct dentry *unused,
-	      struct inode *inode, const char *name, const void *value,
+	      struct ianalde *ianalde, const char *name, const void *value,
 	      size_t size, int flags)
 {
 	struct xfs_da_args	args = {
-		.dp		= XFS_I(inode),
+		.dp		= XFS_I(ianalde),
 		.attr_filter	= handler->flags,
 		.attr_flags	= flags,
 		.name		= name,
@@ -164,13 +164,13 @@ xfs_xattr_set(const struct xattr_handler *handler,
 
 	error = xfs_attr_change(&args);
 	if (!error && (handler->flags & XFS_ATTR_ROOT))
-		xfs_forget_acl(inode, name);
+		xfs_forget_acl(ianalde, name);
 	return error;
 }
 
 static const struct xattr_handler xfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.flags	= 0, /* no flags implies user namespace */
+	.flags	= 0, /* anal flags implies user namespace */
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
@@ -207,7 +207,7 @@ __xfs_xattr_put_listent(
 	char *offset;
 	int arraytop;
 
-	if (context->count < 0 || context->seen_enough)
+	if (context->count < 0 || context->seen_eanalugh)
 		return;
 
 	if (!context->buffer)
@@ -216,7 +216,7 @@ __xfs_xattr_put_listent(
 	arraytop = context->count + prefix_len + namelen + 1;
 	if (arraytop > context->firstu) {
 		context->count = -1;	/* insufficient space */
-		context->seen_enough = 1;
+		context->seen_eanalugh = 1;
 		return;
 	}
 	offset = context->buffer + context->count;
@@ -294,17 +294,17 @@ xfs_vn_listxattr(
 	size_t		size)
 {
 	struct xfs_attr_list_context context;
-	struct inode	*inode = d_inode(dentry);
+	struct ianalde	*ianalde = d_ianalde(dentry);
 	int		error;
 
-	if (xfs_ifork_zapped(XFS_I(inode), XFS_ATTR_FORK))
+	if (xfs_ifork_zapped(XFS_I(ianalde), XFS_ATTR_FORK))
 		return -EIO;
 
 	/*
 	 * First read the regular on-disk attributes.
 	 */
 	memset(&context, 0, sizeof(context));
-	context.dp = XFS_I(inode);
+	context.dp = XFS_I(ianalde);
 	context.resynch = 1;
 	context.buffer = size ? data : NULL;
 	context.bufsize = size;

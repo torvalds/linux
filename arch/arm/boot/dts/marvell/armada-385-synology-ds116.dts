@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Device Tree file for Synology DS116 NAS
+ * Device Tree file for Syanallogy DS116 NAS
  *
  * Copyright (C) 2017 Willy Tarreau <w@1wt.eu>
  */
@@ -10,7 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Synology DS116";
+	model = "Syanallogy DS116";
 	compatible = "marvell,a385-gp", "marvell,armada385", "marvell,armada380";
 
 	chosen {
@@ -51,7 +51,7 @@
 			serial@12100 {
 				/* A PIC16F1829 is connected to uart1 at 9600 bps,
 				 * and takes single-character orders :
-				 *   "1" : power off // already handled by the poweroff node
+				 *   "1" : power off // already handled by the poweroff analde
 				 *   "2" : short beep
 				 *   "3" : long beep
 				 *   "4" : turn the power LED ON
@@ -70,7 +70,7 @@
 			};
 
 			poweroff@12100 {
-				compatible = "synology,power-off";
+				compatible = "syanallogy,power-off";
 				reg = <0x12100 0x100>;
 				clocks = <&coreclk 0>;
 			};
@@ -158,13 +158,13 @@
 	};
 
 	usb3_0_phy: usb3_0_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_usb3_0_vbus>;
 		#phy-cells = <0>;
 	};
 
 	usb3_1_phy: usb3_1_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_usb3_1_vbus>;
 		#phy-cells = <0>;
 	};
@@ -226,15 +226,15 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "macronix,mx25l6405d", "jedec,spi-nor";
+		compatible = "macronix,mx25l6405d", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;
 
-		/* Note: there is a redboot partition table despite u-boot
+		/* Analte: there is a redboot partition table despite u-boot
 		 * being used. The names presented here are the same as those
 		 * found in the FIS directory. There is also a small device
-		 * tree in the last 64kB of the RedBoot partition which is not
+		 * tree in the last 64kB of the RedBoot partition which is analt
 		 * enumerated. The MAC address and the serial number are listed
 		 * in the "vendor" partition.
 		 */

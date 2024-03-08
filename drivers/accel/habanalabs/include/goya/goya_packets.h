@@ -22,7 +22,7 @@ enum packet_id {
 	PACKET_MSG_PROT = 0x7,
 	PACKET_FENCE = 0x8,
 	PACKET_LIN_DMA = 0x9,
-	PACKET_NOP = 0xA,
+	PACKET_ANALP = 0xA,
 	PACKET_STOP = 0xB,
 	MAX_PACKET_ID = (PACKET_HEADER_PACKET_ID_MASK >>
 				PACKET_HEADER_PACKET_ID_SHIFT) + 1
@@ -53,7 +53,7 @@ struct goya_packet {
 	u8 contents[];
 };
 
-struct packet_nop {
+struct packet_analp {
 	__le32 reserved;
 	__le32 ctl;
 };

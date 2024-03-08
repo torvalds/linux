@@ -24,7 +24,7 @@ enum {
 };
 
 enum {
-	I2S_HD_NORMAL = 0,
+	I2S_HD_ANALRMAL = 0,
 	I2S_HD_LOW_JITTER = 1,
 };
 
@@ -102,7 +102,7 @@ static struct mtk_afe_i2s_priv *get_i2s_priv_by_name(struct mtk_base_afe *afe,
 
 /* low jitter control */
 static const char * const mt8186_i2s_hd_str[] = {
-	"Normal", "Low_Jitter"
+	"Analrmal", "Low_Jitter"
 };
 
 static const struct soc_enum mt8186_i2s_enum[] = {
@@ -163,7 +163,7 @@ static const struct snd_kcontrol_new mtk_dai_i2s_controls[] = {
 /* dai component */
 /* i2s virtual mux to output widget */
 static const char * const i2s_mux_map[] = {
-	"Normal", "Dummy_Widget",
+	"Analrmal", "Dummy_Widget",
 };
 
 static int i2s_mux_map_value[] = {
@@ -171,7 +171,7 @@ static int i2s_mux_map_value[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL(i2s_mux_map_enum,
-					      SND_SOC_NOPM,
+					      SND_SOC_ANALPM,
 					      0,
 					      1,
 					      i2s_mux_map,
@@ -191,7 +191,7 @@ static const struct snd_kcontrol_new i2s3_out_mux_control =
 
 /* i2s in lpbk */
 static const char * const i2s_lpbk_mux_map[] = {
-	"Normal", "Lpbk",
+	"Analrmal", "Lpbk",
 };
 
 static int i2s_lpbk_mux_map_value[] = {
@@ -442,17 +442,17 @@ static int mtk_mclk_en_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
 	SND_SOC_DAPM_INPUT("CONNSYS"),
 
-	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S1_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s1_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s1_ch2_mix)),
 
-	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH1", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch1_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch1_mix)),
-	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I2S3_CH2", SND_SOC_ANALPM, 0, 0,
 			   mtk_i2s3_ch2_mix,
 			   ARRAY_SIZE(mtk_i2s3_ch2_mix)),
 
@@ -489,49 +489,49 @@ static const struct snd_soc_dapm_widget mtk_dai_i2s_widgets[] = {
 
 	/* i2s mclk en */
 	SND_SOC_DAPM_SUPPLY_S(I2S0_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S1_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S2_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(I2S3_MCLK_EN_W_NAME, SUPPLY_SEQ_I2S_MCLK_EN,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_mclk_en_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* apll */
 	SND_SOC_DAPM_SUPPLY_S(APLL1_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY_S(APLL2_W_NAME, SUPPLY_SEQ_APLL,
-			      SND_SOC_NOPM, 0, 0,
+			      SND_SOC_ANALPM, 0, 0,
 			      mtk_apll_event,
 			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* allow i2s on without codec on */
 	SND_SOC_DAPM_OUTPUT("I2S_DUMMY_OUT"),
 	SND_SOC_DAPM_MUX("I2S1_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s1_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s1_out_mux_control),
 	SND_SOC_DAPM_MUX("I2S3_Out_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s3_out_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s3_out_mux_control),
 	SND_SOC_DAPM_INPUT("I2S_DUMMY_IN"),
 	SND_SOC_DAPM_MUX("I2S0_In_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s0_in_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s0_in_mux_control),
 	SND_SOC_DAPM_MUX("I2S2_In_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s2_in_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s2_in_mux_control),
 
 	/* i2s in lpbk */
 	SND_SOC_DAPM_MUX("I2S0_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s0_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s0_lpbk_mux_control),
 	SND_SOC_DAPM_MUX("I2S2_Lpbk_Mux",
-			 SND_SOC_NOPM, 0, 0, &i2s2_lpbk_mux_control),
+			 SND_SOC_ANALPM, 0, 0, &i2s2_lpbk_mux_control),
 };
 
 static int mtk_afe_i2s_share_connect(struct snd_soc_dapm_widget *source,
@@ -819,7 +819,7 @@ static int mtk_dai_connsys_i2s_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %d\n",
 		__func__, dai->id, substream->stream, rate);
 
-	/* non-inverse, i2s mode, slave, 16bits, from connsys */
+	/* analn-inverse, i2s mode, slave, 16bits, from connsys */
 	i2s_con |= 0 << INV_PAD_CTRL_SFT;
 	i2s_con |= I2S_FMT_I2S << I2S_FMT_SFT;
 	i2s_con |= 1 << I2S_SRC_SFT;
@@ -849,9 +849,9 @@ static int mtk_dai_connsys_i2s_hw_params(struct snd_pcm_substream *substream,
 	regmap_write(afe->regmap, AFE_ASRC_2CH_CON6, 0x7ef4);
 	regmap_write(afe->regmap, AFE_ASRC_2CH_CON5, 0xff5986);
 
-	/* 0:Stereo 1:Mono */
+	/* 0:Stereo 1:Moanal */
 	regmap_update_bits(afe->regmap, AFE_ASRC_2CH_CON2,
-			   CHSET_IS_MONO_MASK_SFT, 0);
+			   CHSET_IS_MOANAL_MASK_SFT, 0);
 
 	return 0;
 }
@@ -973,7 +973,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 				   0xffffeffa, i2s_con);
 		break;
 	default:
-		dev_err(afe->dev, "%s(), id %d not support\n",
+		dev_err(afe->dev, "%s(), id %d analt support\n",
 			__func__, i2s_id);
 		return -EINVAL;
 	}
@@ -1022,7 +1022,7 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	if (apll_rate % freq != 0) {
-		dev_err(afe->dev, "%s(), APLL cannot generate freq Hz", __func__);
+		dev_err(afe->dev, "%s(), APLL cananalt generate freq Hz", __func__);
 		return -EINVAL;
 	}
 
@@ -1208,7 +1208,7 @@ int mt8186_dai_i2s_register(struct mtk_base_afe *afe)
 
 	dai = devm_kzalloc(afe->dev, sizeof(*dai), GFP_KERNEL);
 	if (!dai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	list_add(&dai->list, &afe->sub_dais);
 

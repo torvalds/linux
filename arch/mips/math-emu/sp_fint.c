@@ -42,7 +42,7 @@ union ieee754sp ieee754sp_fint(int x)
 			SPXSRSX1();
 		}
 	} else {
-		/* normalize in grs extended single precision
+		/* analrmalize in grs extended single precision
 		 */
 		while ((xm >> (SP_FBITS + 3)) == 0) {
 			xm <<= 1;

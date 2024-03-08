@@ -62,8 +62,8 @@ interference from other threads and IRQs.
 Tracer options
 ---------------------
 
-The timerlat tracer is built on top of osnoise tracer.
-So its configuration is also done in the osnoise/ config
+The timerlat tracer is built on top of osanalise tracer.
+So its configuration is also done in the osanalise/ config
 directory. The timerlat configs are:
 
  - cpus: CPUs at which a timerlat thread will execute.
@@ -78,41 +78,41 @@ directory. The timerlat configs are:
    after the *thread context* event, or at the IRQ handler if *stop_tracing_us*
    is hit.
 
-timerlat and osnoise
+timerlat and osanalise
 ----------------------------
 
-The timerlat can also take advantage of the osnoise: traceevents.
+The timerlat can also take advantage of the osanalise: traceevents.
 For example::
 
         [root@f32 ~]# cd /sys/kernel/tracing/
         [root@f32 tracing]# echo timerlat > current_tracer
-        [root@f32 tracing]# echo 1 > events/osnoise/enable
-        [root@f32 tracing]# echo 25 > osnoise/stop_tracing_total_us
+        [root@f32 tracing]# echo 1 > events/osanalise/enable
+        [root@f32 tracing]# echo 25 > osanalise/stop_tracing_total_us
         [root@f32 tracing]# tail -10 trace
              cc1-87882   [005] d..h...   548.771078: #402268 context    irq timer_latency     13585 ns
-             cc1-87882   [005] dNLh1..   548.771082: irq_noise: local_timer:236 start 548.771077442 duration 7597 ns
-             cc1-87882   [005] dNLh2..   548.771099: irq_noise: qxl:21 start 548.771085017 duration 7139 ns
-             cc1-87882   [005] d...3..   548.771102: thread_noise:      cc1:87882 start 548.771078243 duration 9909 ns
+             cc1-87882   [005] dNLh1..   548.771082: irq_analise: local_timer:236 start 548.771077442 duration 7597 ns
+             cc1-87882   [005] dNLh2..   548.771099: irq_analise: qxl:21 start 548.771085017 duration 7139 ns
+             cc1-87882   [005] d...3..   548.771102: thread_analise:      cc1:87882 start 548.771078243 duration 9909 ns
       timerlat/5-1035    [005] .......   548.771104: #402268 context thread timer_latency     39960 ns
 
-In this case, the root cause of the timer latency does not point to a
+In this case, the root cause of the timer latency does analt point to a
 single cause but to multiple ones. Firstly, the timer IRQ was delayed
 for 13 us, which may point to a long IRQ disabled section (see IRQ
 stacktrace section). Then the timer interrupt that wakes up the timerlat
 thread took 7597 ns, and the qxl:21 device IRQ took 7139 ns. Finally,
-the cc1 thread noise took 9909 ns of time before the context switch.
+the cc1 thread analise took 9909 ns of time before the context switch.
 Such pieces of evidence are useful for the developer to use other
 tracing methods to figure out how to debug and optimize the system.
 
 It is worth mentioning that the *duration* values reported
-by the osnoise: events are *net* values. For example, the
-thread_noise does not include the duration of the overhead caused
+by the osanalise: events are *net* values. For example, the
+thread_analise does analt include the duration of the overhead caused
 by the IRQ execution (which indeed accounted for 12736 ns). But
 the values reported by the timerlat tracer (timerlat_latency)
 are *gross* values.
 
 The art below illustrates a CPU timeline and how the timerlat tracer
-observes it at the top and the osnoise: events at the bottom. Each "-"
+observes it at the top and the osanalise: events at the bottom. Each "-"
 in the timelines means circa 1 us, and the time moves ==>::
 
       External     timer irq                   thread
@@ -125,31 +125,31 @@ in the timelines means circa 1 us, and the time moves ==>::
                        ^                         ^
   ========================================================================
                     [tmr irq]  [dev irq]
-  [another thread...^       v..^       v.......][timerlat/ thread]  <-- CPU timeline
+  [aanalther thread...^       v..^       v.......][timerlat/ thread]  <-- CPU timeline
   =========================================================================
                     |-------|  |-------|
                             |--^       v-------|
                             |          |       |
-                            |          |       + thread_noise: 9909 ns
-                            |          +-> irq_noise: 6139 ns
-                            +-> irq_noise: 7597 ns
+                            |          |       + thread_analise: 9909 ns
+                            |          +-> irq_analise: 6139 ns
+                            +-> irq_analise: 7597 ns
 
 IRQ stacktrace
 ---------------------------
 
-The osnoise/print_stack option is helpful for the cases in which a thread
-noise causes the major factor for the timer latency, because of preempt or
+The osanalise/print_stack option is helpful for the cases in which a thread
+analise causes the major factor for the timer latency, because of preempt or
 irq disabled. For example::
 
-        [root@f32 tracing]# echo 500 > osnoise/stop_tracing_total_us
-        [root@f32 tracing]# echo 500 > osnoise/print_stack
+        [root@f32 tracing]# echo 500 > osanalise/stop_tracing_total_us
+        [root@f32 tracing]# echo 500 > osanalise/print_stack
         [root@f32 tracing]# echo timerlat > current_tracer
         [root@f32 tracing]# tail -21 per_cpu/cpu7/trace
-          insmod-1026    [007] dN.h1..   200.201948: irq_noise: local_timer:236 start 200.201939376 duration 7872 ns
+          insmod-1026    [007] dN.h1..   200.201948: irq_analise: local_timer:236 start 200.201939376 duration 7872 ns
           insmod-1026    [007] d..h1..   200.202587: #29800 context    irq timer_latency      1616 ns
-          insmod-1026    [007] dN.h2..   200.202598: irq_noise: local_timer:236 start 200.202586162 duration 11855 ns
-          insmod-1026    [007] dN.h3..   200.202947: irq_noise: local_timer:236 start 200.202939174 duration 7318 ns
-          insmod-1026    [007] d...3..   200.203444: thread_noise:   insmod:1026 start 200.202586933 duration 838681 ns
+          insmod-1026    [007] dN.h2..   200.202598: irq_analise: local_timer:236 start 200.202586162 duration 11855 ns
+          insmod-1026    [007] dN.h3..   200.202947: irq_analise: local_timer:236 start 200.202939174 duration 7318 ns
+          insmod-1026    [007] d...3..   200.203444: thread_analise:   insmod:1026 start 200.202586933 duration 838681 ns
       timerlat/7-1001    [007] .......   200.203445: #29800 context thread timer_latency    859978 ns
       timerlat/7-1001    [007] ....1..   200.203446: <stack trace>
   => timerlat_irq
@@ -186,17 +186,17 @@ User-space interface
 
 Timerlat allows user-space threads to use timerlat infra-structure to
 measure scheduling latency. This interface is accessible via a per-CPU
-file descriptor inside $tracing_dir/osnoise/per_cpu/cpu$ID/timerlat_fd.
+file descriptor inside $tracing_dir/osanalise/per_cpu/cpu$ID/timerlat_fd.
 
 This interface is accessible under the following conditions:
 
  - timerlat tracer is enable
- - osnoise workload option is set to NO_OSNOISE_WORKLOAD
+ - osanalise workload option is set to ANAL_OSANALISE_WORKLOAD
  - The user-space thread is affined to a single processor
  - The thread opens the file associated with its single processor
  - Only one thread can access the file at a time
 
-The open() syscall will fail if any of these conditions are not met.
+The open() syscall will fail if any of these conditions are analt met.
 After opening the file descriptor, the user space can read from it.
 
 The read() system call will run a timerlat code that will arm the
@@ -240,12 +240,12 @@ Here is an basic example of user-space code for timerlat::
 		return 1;
 
 	snprintf(buffer, sizeof(buffer),
-		"/sys/kernel/tracing/osnoise/per_cpu/cpu%ld/timerlat_fd",
+		"/sys/kernel/tracing/osanalise/per_cpu/cpu%ld/timerlat_fd",
 		cpu);
 
 	timerlat_fd = open(buffer, O_RDONLY);
 	if (timerlat_fd < 0) {
-		printf("error opening %s: %s\n", buffer, strerror(errno));
+		printf("error opening %s: %s\n", buffer, strerror(erranal));
 		exit(1);
 	}
 

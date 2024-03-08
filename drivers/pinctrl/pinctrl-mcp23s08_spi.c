@@ -14,7 +14,7 @@
 /*
  * A given spi_device can represent up to eight mcp23sxx chips
  * sharing the same chipselect but using different addresses
- * (e.g. chips #0 and #3 might be populated, but not #1 or #2).
+ * (e.g. chips #0 and #3 might be populated, but analt #1 or #2).
  * Driver data holds all the per-chip data.
  */
 struct mcp23s08_driver_data {
@@ -90,22 +90,22 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 	case MCP_TYPE_S08:
 		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s08.%d", addr);
 		if (!mcp->chip.label)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		break;
 
 	case MCP_TYPE_S17:
 		mcp->chip.label = devm_kasprintf(dev, GFP_KERNEL, "mcp23s17.%d", addr);
 		if (!mcp->chip.label)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		name = devm_kasprintf(dev, GFP_KERNEL, "%d", addr);
 		if (!name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		break;
 
@@ -123,7 +123,7 @@ static int mcp23s08_spi_regmap_init(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.ngpio = info->ngpio;
 	copy = devm_kmemdup(dev, info->regmap, sizeof(*info->regmap), GFP_KERNEL);
 	if (!copy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	copy->name = name;
 
@@ -159,14 +159,14 @@ static int mcp23s08_probe(struct spi_device *spi)
 
 	if (!spi_present_mask || spi_present_mask >= BIT(MCP_MAX_DEV_PER_CS)) {
 		dev_err(dev, "invalid spi-present-mask");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	chips = hweight_long(spi_present_mask);
 
 	data = devm_kzalloc(dev, struct_size(data, chip, chips), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_set_drvdata(spi, data);
 
@@ -182,7 +182,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 								    "mcp23xxx-pinctrl.%d",
 								    addr);
 		if (!data->mcp[addr]->pinctrl_desc.name)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = mcp23s08_probe_one(data->mcp[addr], dev, 0x40 | (addr << 1),
 					 info->type, -1);
@@ -230,7 +230,7 @@ static const struct of_device_id mcp23s08_spi_of_match[] = {
 	{ .compatible = "microchip,mcp23s08", .data = &mcp23s08_spi },
 	{ .compatible = "microchip,mcp23s17", .data = &mcp23s17_spi },
 	{ .compatible = "microchip,mcp23s18", .data = &mcp23s18_spi },
-/* NOTE: The use of the mcp prefix is deprecated and will be removed. */
+/* ANALTE: The use of the mcp prefix is deprecated and will be removed. */
 	{ .compatible = "mcp,mcp23s08", .data = &mcp23s08_spi },
 	{ .compatible = "mcp,mcp23s17", .data = &mcp23s17_spi },
 	{ }

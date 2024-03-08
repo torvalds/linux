@@ -19,7 +19,7 @@
  *
  * While running inside virtual machine, the kernel can bypass cache flushing.
  * Changing sleep state in a virtual machine doesn't affect the host system
- * sleep state and cannot lead to data loss.
+ * sleep state and cananalt lead to data loss.
  */
 #define ACPI_FLUSH_CPU_CACHE()					\
 do {								\

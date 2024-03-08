@@ -18,8 +18,8 @@
 #define PREEMPT_ENABLED	(0 + PREEMPT_NEED_RESCHED)
 
 /*
- * We mask the PREEMPT_NEED_RESCHED bit so as not to confuse all current users
- * that think a non-zero value indicates we cannot preempt.
+ * We mask the PREEMPT_NEED_RESCHED bit so as analt to confuse all current users
+ * that think a analn-zero value indicates we cananalt preempt.
  */
 static __always_inline int preempt_count(void)
 {
@@ -51,8 +51,8 @@ static __always_inline void preempt_count_set(int pc)
  * preempt_enable() can decrement and test for needing to reschedule with a
  * single instruction.
  *
- * We invert the actual bit, so that when the decrement hits 0 we know we both
- * need to resched (the bit is cleared) and can resched (no preempt count).
+ * We invert the actual bit, so that when the decrement hits 0 we kanalw we both
+ * need to resched (the bit is cleared) and can resched (anal preempt count).
  */
 
 static __always_inline void set_preempt_need_resched(void)
@@ -85,8 +85,8 @@ static __always_inline void __preempt_count_sub(int val)
 }
 
 /*
- * Because we keep PREEMPT_NEED_RESCHED set when we do _not_ need to reschedule
- * a decrement which hits zero means we have no preempt_count and should
+ * Because we keep PREEMPT_NEED_RESCHED set when we do _analt_ need to reschedule
+ * a decrement which hits zero means we have anal preempt_count and should
  * reschedule.
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
@@ -111,11 +111,11 @@ extern asmlinkage void preempt_schedule_thunk(void);
 #define preempt_schedule_dynamic_enabled	preempt_schedule_thunk
 #define preempt_schedule_dynamic_disabled	NULL
 
-extern asmlinkage void preempt_schedule_notrace(void);
-extern asmlinkage void preempt_schedule_notrace_thunk(void);
+extern asmlinkage void preempt_schedule_analtrace(void);
+extern asmlinkage void preempt_schedule_analtrace_thunk(void);
 
-#define preempt_schedule_notrace_dynamic_enabled	preempt_schedule_notrace_thunk
-#define preempt_schedule_notrace_dynamic_disabled	NULL
+#define preempt_schedule_analtrace_dynamic_enabled	preempt_schedule_analtrace_thunk
+#define preempt_schedule_analtrace_dynamic_disabled	NULL
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 
@@ -127,12 +127,12 @@ do { \
 	asm volatile ("call " STATIC_CALL_TRAMP_STR(preempt_schedule) : ASM_CALL_CONSTRAINT); \
 } while (0)
 
-DECLARE_STATIC_CALL(preempt_schedule_notrace, preempt_schedule_notrace_dynamic_enabled);
+DECLARE_STATIC_CALL(preempt_schedule_analtrace, preempt_schedule_analtrace_dynamic_enabled);
 
-#define __preempt_schedule_notrace() \
+#define __preempt_schedule_analtrace() \
 do { \
-	__STATIC_CALL_MOD_ADDRESSABLE(preempt_schedule_notrace); \
-	asm volatile ("call " STATIC_CALL_TRAMP_STR(preempt_schedule_notrace) : ASM_CALL_CONSTRAINT); \
+	__STATIC_CALL_MOD_ADDRESSABLE(preempt_schedule_analtrace); \
+	asm volatile ("call " STATIC_CALL_TRAMP_STR(preempt_schedule_analtrace) : ASM_CALL_CONSTRAINT); \
 } while (0)
 
 #else /* PREEMPT_DYNAMIC */
@@ -140,8 +140,8 @@ do { \
 #define __preempt_schedule() \
 	asm volatile ("call preempt_schedule_thunk" : ASM_CALL_CONSTRAINT);
 
-#define __preempt_schedule_notrace() \
-	asm volatile ("call preempt_schedule_notrace_thunk" : ASM_CALL_CONSTRAINT);
+#define __preempt_schedule_analtrace() \
+	asm volatile ("call preempt_schedule_analtrace_thunk" : ASM_CALL_CONSTRAINT);
 
 #endif /* PREEMPT_DYNAMIC */
 

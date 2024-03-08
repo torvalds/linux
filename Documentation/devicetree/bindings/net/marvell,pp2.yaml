@@ -58,7 +58,7 @@ properties:
 patternProperties:
   '^(ethernet-)?port@[0-2]$':
     type: object
-    description: subnode for each ethernet port.
+    description: subanalde for each ethernet port.
     $ref: ethernet-controller.yaml#
     unevaluatedProperties: false
 

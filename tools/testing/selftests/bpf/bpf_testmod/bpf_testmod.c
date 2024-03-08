@@ -41,44 +41,44 @@ struct bpf_testmod_struct_arg_4 {
 
 __bpf_hook_start();
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_1(struct bpf_testmod_struct_arg_2 a, int b, int c) {
 	bpf_testmod_test_struct_arg_result = a.a + a.b  + b + c;
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_2(int a, struct bpf_testmod_struct_arg_2 b, int c) {
 	bpf_testmod_test_struct_arg_result = a + b.a + b.b + c;
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_3(int a, int b, struct bpf_testmod_struct_arg_2 c) {
 	bpf_testmod_test_struct_arg_result = a + b + c.a + c.b;
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_4(struct bpf_testmod_struct_arg_1 a, int b,
 			      int c, int d, struct bpf_testmod_struct_arg_2 e) {
 	bpf_testmod_test_struct_arg_result = a.a + b + c + d + e.a + e.b;
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_5(void) {
 	bpf_testmod_test_struct_arg_result = 1;
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_6(struct bpf_testmod_struct_arg_3 *a) {
 	bpf_testmod_test_struct_arg_result = a->b[0];
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_7(u64 a, void *b, short c, int d, void *e,
 			      struct bpf_testmod_struct_arg_4 f)
 {
@@ -87,7 +87,7 @@ bpf_testmod_test_struct_arg_7(u64 a, void *b, short c, int d, void *e,
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_struct_arg_8(u64 a, void *b, short c, int d, void *e,
 			      struct bpf_testmod_struct_arg_4 f, int g)
 {
@@ -96,7 +96,7 @@ bpf_testmod_test_struct_arg_8(u64 a, void *b, short c, int d, void *e,
 	return bpf_testmod_test_struct_arg_result;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_arg_ptr_to_struct(struct bpf_testmod_struct_arg_1 *a) {
 	bpf_testmod_test_struct_arg_result = a->a;
 	return bpf_testmod_test_struct_arg_result;
@@ -152,7 +152,7 @@ struct bpf_testmod_btf_type_tag_3 {
 	struct bpf_testmod_btf_type_tag_1 __percpu *p;
 };
 
-noinline int
+analinline int
 bpf_testmod_test_btf_type_tag_user_1(struct bpf_testmod_btf_type_tag_1 __user *arg) {
 	BTF_TYPE_EMIT(func_proto_typedef);
 	BTF_TYPE_EMIT(func_proto_typedef_nested1);
@@ -160,24 +160,24 @@ bpf_testmod_test_btf_type_tag_user_1(struct bpf_testmod_btf_type_tag_1 __user *a
 	return arg->a;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_btf_type_tag_user_2(struct bpf_testmod_btf_type_tag_2 *arg) {
 	return arg->p->a;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_btf_type_tag_percpu_1(struct bpf_testmod_btf_type_tag_1 __percpu *arg) {
 	return arg->a;
 }
 
-noinline int
+analinline int
 bpf_testmod_test_btf_type_tag_percpu_2(struct bpf_testmod_btf_type_tag_3 *arg) {
 	return arg->p->a;
 }
 
-noinline int bpf_testmod_loop_test(int n)
+analinline int bpf_testmod_loop_test(int n)
 {
-	/* Make sum volatile, so smart compilers, such as clang, will not
+	/* Make sum volatile, so smart compilers, such as clang, will analt
 	 * optimize the code by removing the loop.
 	 */
 	volatile int sum = 0;
@@ -191,15 +191,15 @@ noinline int bpf_testmod_loop_test(int n)
 	return sum;
 }
 
-__weak noinline struct file *bpf_testmod_return_ptr(int arg)
+__weak analinline struct file *bpf_testmod_return_ptr(int arg)
 {
 	static struct file f = {};
 
 	switch (arg) {
 	case 1: return (void *)EINVAL;		/* user addr */
 	case 2: return (void *)0xcafe4a11;	/* user addr */
-	case 3: return (void *)-EINVAL;		/* canonical, but invalid */
-	case 4: return (void *)(1ull << 60);	/* non-canonical and invalid */
+	case 3: return (void *)-EINVAL;		/* caanalnical, but invalid */
+	case 4: return (void *)(1ull << 60);	/* analn-caanalnical and invalid */
 	case 5: return (void *)~(1ull << 30);	/* trigger extable */
 	case 6: return &f;			/* valid addr */
 	case 7: return (void *)((long)&f | 1);	/* kernel tricks */
@@ -207,28 +207,28 @@ __weak noinline struct file *bpf_testmod_return_ptr(int arg)
 	}
 }
 
-noinline int bpf_testmod_fentry_test1(int a)
+analinline int bpf_testmod_fentry_test1(int a)
 {
 	return a + 1;
 }
 
-noinline int bpf_testmod_fentry_test2(int a, u64 b)
+analinline int bpf_testmod_fentry_test2(int a, u64 b)
 {
 	return a + b;
 }
 
-noinline int bpf_testmod_fentry_test3(char a, int b, u64 c)
+analinline int bpf_testmod_fentry_test3(char a, int b, u64 c)
 {
 	return a + b + c;
 }
 
-noinline int bpf_testmod_fentry_test7(u64 a, void *b, short c, int d,
+analinline int bpf_testmod_fentry_test7(u64 a, void *b, short c, int d,
 				      void *e, char f, int g)
 {
 	return a + (long)b + c + d + (long)e + f + g;
 }
 
-noinline int bpf_testmod_fentry_test11(u64 a, void *b, short c, int d,
+analinline int bpf_testmod_fentry_test11(u64 a, void *b, short c, int d,
 				       void *e, char f, int g,
 				       unsigned int h, long i, __u64 j,
 				       unsigned long k)
@@ -238,7 +238,7 @@ noinline int bpf_testmod_fentry_test11(u64 a, void *b, short c, int d,
 
 int bpf_testmod_fentry_ok;
 
-noinline ssize_t
+analinline ssize_t
 bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 		      struct bin_attribute *bin_attr,
 		      char *buf, loff_t off, size_t len)
@@ -307,9 +307,9 @@ out:
 	return -EIO; /* always fail */
 }
 EXPORT_SYMBOL(bpf_testmod_test_read);
-ALLOW_ERROR_INJECTION(bpf_testmod_test_read, ERRNO);
+ALLOW_ERROR_INJECTION(bpf_testmod_test_read, ERRANAL);
 
-noinline ssize_t
+analinline ssize_t
 bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 		      struct bin_attribute *bin_attr,
 		      char *buf, loff_t off, size_t len)
@@ -325,9 +325,9 @@ bpf_testmod_test_write(struct file *file, struct kobject *kobj,
 	return -EIO; /* always fail */
 }
 EXPORT_SYMBOL(bpf_testmod_test_write);
-ALLOW_ERROR_INJECTION(bpf_testmod_test_write, ERRNO);
+ALLOW_ERROR_INJECTION(bpf_testmod_test_write, ERRANAL);
 
-noinline int bpf_fentry_shadow_test(int a)
+analinline int bpf_fentry_shadow_test(int a)
 {
 	return a + 2;
 }
@@ -368,7 +368,7 @@ __bpf_kfunc struct sock *bpf_kfunc_call_test3(struct sock *sk)
 	return sk;
 }
 
-__bpf_kfunc long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
+__bpf_kfunc long analinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
 {
 	/* Provoke the compiler to assume that the caller has sign-extended a,
 	 * b and c on platforms where this is required (e.g. s390x).

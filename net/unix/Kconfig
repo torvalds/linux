@@ -10,11 +10,11 @@ config UNIX
 	  sockets are the standard Unix mechanism for establishing and
 	  accessing network connections.  Many commonly used programs such as
 	  the X Window system and syslog use these sockets even if your
-	  machine is not connected to any network.  Unless you are working on
+	  machine is analt connected to any network.  Unless you are working on
 	  an embedded system or something similar, you therefore definitely
 	  want to say Y here.
 
-	  Say Y unless you know what you are doing.
+	  Say Y unless you kanalw what you are doing.
 
 config UNIX_SCM
 	bool

@@ -87,7 +87,7 @@ static int max8952_set_voltage_sel(struct regulator_dev *rdev,
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
 
 	if (!max8952->vid0_gpiod || !max8952->vid1_gpiod) {
-		/* DVS not supported */
+		/* DVS analt supported */
 		return -EPERM;
 	}
 
@@ -124,7 +124,7 @@ MODULE_DEVICE_TABLE(of, max8952_dt_match);
 static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 {
 	struct max8952_platform_data *pd;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int ret;
 	int i;
 
@@ -133,12 +133,12 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 		return NULL;
 
 	if (of_property_read_u32(np, "max8952,default-mode", &pd->default_mode))
-		dev_warn(dev, "Default mode not specified, assuming 0\n");
+		dev_warn(dev, "Default mode analt specified, assuming 0\n");
 
 	ret = of_property_read_u32_array(np, "max8952,dvs-mode-microvolt",
 					pd->dvs_mode, ARRAY_SIZE(pd->dvs_mode));
 	if (ret) {
-		dev_err(dev, "max8952,dvs-mode-microvolt property not specified");
+		dev_err(dev, "max8952,dvs-mode-microvolt property analt specified");
 		return NULL;
 	}
 
@@ -151,10 +151,10 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 	}
 
 	if (of_property_read_u32(np, "max8952,sync-freq", &pd->sync_freq))
-		dev_warn(dev, "max8952,sync-freq property not specified, defaulting to 26MHz\n");
+		dev_warn(dev, "max8952,sync-freq property analt specified, defaulting to 26MHz\n");
 
 	if (of_property_read_u32(np, "max8952,ramp-speed", &pd->ramp_speed))
-		dev_warn(dev, "max8952,ramp-speed property not specified, defaulting to 32mV/us\n");
+		dev_warn(dev, "max8952,ramp-speed property analt specified, defaulting to 32mV/us\n");
 
 	pd->reg_data = of_get_regulator_init_data(dev, np, &regulator);
 	if (!pd->reg_data) {
@@ -183,7 +183,7 @@ static int max8952_pmic_probe(struct i2c_client *client)
 
 	int ret = 0;
 
-	if (client->dev.of_node)
+	if (client->dev.of_analde)
 		pdata = max8952_parse_dt(&client->dev);
 
 	if (!pdata) {
@@ -197,7 +197,7 @@ static int max8952_pmic_probe(struct i2c_client *client)
 	max8952 = devm_kzalloc(&client->dev, sizeof(struct max8952_data),
 			       GFP_KERNEL);
 	if (!max8952)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	max8952->client = client;
 	max8952->pdata = pdata;
@@ -205,15 +205,15 @@ static int max8952_pmic_probe(struct i2c_client *client)
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
-	config.of_node = client->dev.of_node;
+	config.of_analde = client->dev.of_analde;
 
 	if (pdata->reg_data->constraints.boot_on)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_LOW;
-	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+	gflags |= GPIOD_FLAGS_BIT_ANALNEXCLUSIVE;
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do analt use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	gpiod = gpiod_get_optional(&client->dev,
@@ -251,7 +251,7 @@ static int max8952_pmic_probe(struct i2c_client *client)
 	/* If either VID GPIO is missing just disable this */
 	if (!max8952->vid0_gpiod || !max8952->vid1_gpiod) {
 		dev_warn(&client->dev, "VID0/1 gpio invalid: "
-			 "DVS not available.\n");
+			 "DVS analt available.\n");
 		max8952->vid0 = 0;
 		max8952->vid1 = 0;
 		/* Make sure if we have any descriptors they get set to low */
@@ -264,12 +264,12 @@ static int max8952_pmic_probe(struct i2c_client *client)
 		max8952_write_reg(max8952, MAX8952_REG_CONTROL, 0x60);
 
 		dev_err(&client->dev, "DVS modes disabled because VID0 and VID1"
-				" do not have proper controls.\n");
+				" do analt have proper controls.\n");
 	} else {
 		/*
 		 * Disable Pulldown on EN, VID0, VID1 to reduce
 		 * leakage current of MAX8952 assuming that MAX8952
-		 * is turned on (EN==1). Note that without having VID0/1
+		 * is turned on (EN==1). Analte that without having VID0/1
 		 * properly connected, turning pulldown off can be
 		 * problematic. Thus, turn this off only when they are
 		 * controllable by GPIO.
@@ -316,7 +316,7 @@ static struct i2c_driver max8952_pmic_driver = {
 	.probe		= max8952_pmic_probe,
 	.driver		= {
 		.name	= "max8952",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(max8952_dt_match),
 	},
 	.id_table	= max8952_ids,

@@ -46,7 +46,7 @@ Linux内存管理文档
    hwpoison
    hugetlbfs_reserv
    memory-model
-   mmu_notifier
+   mmu_analtifier
    numa
    overcommit-accounting
    page_frags

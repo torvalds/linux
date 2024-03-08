@@ -3,7 +3,7 @@
  * budget-av.c: driver for the SAA7146 based Budget DVB cards
  *              with analog video in
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huanalld <michael@mihu.de>
  *
  * CI interface support (c) 2004 Olivier Gournet <ogournet@anevia.com> &
  *                               Andrew de Quincey <adq_dvb@lidskialf.net>
@@ -32,7 +32,7 @@
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -42,7 +42,7 @@
 
 #define DEBICICAM		0x02420000
 
-#define SLOTSTATUS_NONE         1
+#define SLOTSTATUS_ANALNE         1
 #define SLOTSTATUS_PRESENT      2
 #define SLOTSTATUS_RESET        4
 #define SLOTSTATUS_READY        8
@@ -238,7 +238,7 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 	dprintk(1, "ciintf_slot_shutdown\n");
 
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTB);
-	budget_av->slot_status = SLOTSTATUS_NONE;
+	budget_av->slot_status = SLOTSTATUS_ANALNE;
 
 	return 0;
 }
@@ -269,11 +269,11 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 
 	/* test the card detect line - needs to be done carefully
 	 * since it never goes high for some CAMs on this interface (e.g. topuptv) */
-	if (budget_av->slot_status == SLOTSTATUS_NONE) {
+	if (budget_av->slot_status == SLOTSTATUS_ANALNE) {
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 		udelay(1);
 		if (saa7146_read(saa, PSR) & MASK_06) {
-			if (budget_av->slot_status == SLOTSTATUS_NONE) {
+			if (budget_av->slot_status == SLOTSTATUS_ANALNE) {
 				budget_av->slot_status = SLOTSTATUS_PRESENT;
 				pr_info("cam inserted A\n");
 			}
@@ -282,19 +282,19 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	}
 
 	/* We also try and read from IO memory to work round the above detection bug. If
-	 * there is no CAM, we will get a timeout. Only done if there is no cam
+	 * there is anal CAM, we will get a timeout. Only done if there is anal cam
 	 * present, since this test actually breaks some cams :(
 	 *
-	 * if the CI interface is not open, we also do the above test since we
+	 * if the CI interface is analt open, we also do the above test since we
 	 * don't care if the cam has problems - we'll be resetting it on open() anyway */
-	if ((budget_av->slot_status == SLOTSTATUS_NONE) || (!open)) {
+	if ((budget_av->slot_status == SLOTSTATUS_ANALNE) || (!open)) {
 		saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
 		result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1);
-		if ((result >= 0) && (budget_av->slot_status == SLOTSTATUS_NONE)) {
+		if ((result >= 0) && (budget_av->slot_status == SLOTSTATUS_ANALNE)) {
 			budget_av->slot_status = SLOTSTATUS_PRESENT;
 			pr_info("cam inserted B\n");
 		} else if (result < 0) {
-			if (budget_av->slot_status != SLOTSTATUS_NONE) {
+			if (budget_av->slot_status != SLOTSTATUS_ANALNE) {
 				ciintf_slot_shutdown(ca, slot);
 				pr_info("cam ejected 5\n");
 				return 0;
@@ -302,7 +302,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		}
 	}
 
-	/* read from attribute memory in reset/ready state to know when the CAM is ready */
+	/* read from attribute memory in reset/ready state to kanalw when the CAM is ready */
 	if (budget_av->slot_status == SLOTSTATUS_RESET) {
 		result = ciintf_read_attribute_mem(ca, slot, 0);
 		if (result == 0x1d) {
@@ -311,7 +311,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	}
 
 	/* work out correct return code */
-	if (budget_av->slot_status != SLOTSTATUS_NONE) {
+	if (budget_av->slot_status != SLOTSTATUS_ANALNE) {
 		if (budget_av->slot_status & SLOTSTATUS_READY) {
 			return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
 		}
@@ -347,7 +347,7 @@ static int ciintf_init(struct budget_av *budget_av)
 	budget_av->ca.poll_slot_status = ciintf_poll_slot_status;
 	budget_av->ca.data = budget_av;
 	budget_av->budget.ci_present = 1;
-	budget_av->slot_status = SLOTSTATUS_NONE;
+	budget_av->slot_status = SLOTSTATUS_ANALNE;
 
 	if ((result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
 					  &budget_av->ca, 0, 1)) != 0) {
@@ -419,8 +419,8 @@ static int saa7113_init(struct budget_av *budget_av)
 	msleep(200);
 
 	if (i2c_writereg(&budget->i2c_adap, 0x4a, 0x01, 0x08) != 1) {
-		dprintk(1, "saa7113 not found on KNC card\n");
-		return -ENODEV;
+		dprintk(1, "saa7113 analt found on KNC card\n");
+		return -EANALDEV;
 	}
 
 	dprintk(1, "saa7113 detected and initializing\n");
@@ -440,7 +440,7 @@ static int saa7113_setinput(struct budget_av *budget_av, int input)
 	struct budget *budget = &budget_av->budget;
 
 	if (1 != budget_av->has_saa7113)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (input == 1) {
 		i2c_writereg(&budget->i2c_adap, 0x4a, 0x02, 0xc7);
@@ -528,11 +528,11 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0x03, 0x00,
 	0x04, 0x7d,		/* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,		/* I2CT = 0, SCLT = 1, SDAT = 1 */
-	0x06, 0x40,		/* DAC not used, set to high impendance mode */
+	0x06, 0x40,		/* DAC analt used, set to high impendance mode */
 	0x07, 0x00,		/* DAC LSB */
 	0x08, 0x40,		/* DiSEqC off */
 	0x09, 0x00,		/* FIFO */
-	0x0c, 0x51,		/* OP1 ctl = Normal, OP1 val = 1 (LNB Power ON) */
+	0x0c, 0x51,		/* OP1 ctl = Analrmal, OP1 val = 1 (LNB Power ON) */
 	0x0d, 0x82,		/* DC offset compensation = ON, beta_agc1 = 2 */
 	0x0e, 0x23,		/* alpha_tmg = 2, beta_tmg = 3 */
 	0x10, 0x3f,		// AGC2  0x3d
@@ -549,7 +549,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0x21, 0x00,
 	0x22, 0x00,
 	0x23, 0x00,
-	0x28, 0x00,		// out imp: normal  out type: parallel FEC mode:0
+	0x28, 0x00,		// out imp: analrmal  out type: parallel FEC mode:0
 	0x29, 0x1e,		// 1/2 threshold
 	0x2a, 0x14,		// 2/3 threshold
 	0x2b, 0x0f,		// 3/4 threshold
@@ -1109,7 +1109,7 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.demod_address		= 0x68,
 //	.ts_output_mode		= STB0899_OUT_PARALLEL,	/* types = SERIAL/PARALLEL	*/
 	.block_sync_mode	= STB0899_SYNC_FORCED,	/* DSS, SYNC_FORCED/UNSYNCED	*/
-//	.ts_pfbit_toggle	= STB0899_MPEG_NORMAL,	/* DirecTV, MPEG toggling seq	*/
+//	.ts_pfbit_toggle	= STB0899_MPEG_ANALRMAL,	/* DirecTV, MPEG toggling seq	*/
 
 	.xtal_freq		= 27000000,
 	.inversion		= IQ_SWAP_OFF,
@@ -1117,8 +1117,8 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 90000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esanal_ave		= STB0899_DVBS2_ESANAL_AVE,
+	.esanal_quant		= STB0899_DVBS2_ESANAL_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -1332,7 +1332,7 @@ static void frontend_init(struct budget_av *budget_av)
 	}
 
 	if (fe == NULL) {
-		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was analt found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,
@@ -1440,7 +1440,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	dprintk(2, "dev: %p\n", dev);
 
 	if (!(budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	budget_av->has_saa7113 = 0;
 	budget_av->budget.ci_present = 0;
@@ -1464,7 +1464,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		err = saa7146_vv_init(dev, &vv_data);
 		if (err != 0) {
 			/* fixme: proper cleanup here */
-			ERR("cannot init vv subsystem\n");
+			ERR("cananalt init vv subsystem\n");
 			return err;
 		}
 		vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
@@ -1473,7 +1473,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_VIDEO))) {
 			/* fixme: proper cleanup here */
-			ERR("cannot register capture v4l2 device\n");
+			ERR("cananalt register capture v4l2 device\n");
 			saa7146_vv_release(dev);
 			return err;
 		}
@@ -1490,7 +1490,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	mac = budget_av->budget.dvb_adapter.proposed_mac;
 	if (i2c_readregs(&budget_av->budget.i2c_adap, 0xa0, 0x30, mac, 6)) {
-		pr_err("KNC1-%d: Could not read MAC from KNC1 card\n",
+		pr_err("KNC1-%d: Could analt read MAC from KNC1 card\n",
 		       budget_av->budget.dvb_adapter.num);
 		eth_zero_addr(mac);
 	} else {
@@ -1619,5 +1619,5 @@ module_init(budget_av_init);
 module_exit(budget_av_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
+MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Huanalld, others");
 MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");

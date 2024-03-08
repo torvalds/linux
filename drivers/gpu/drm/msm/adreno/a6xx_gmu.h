@@ -7,7 +7,7 @@
 #include <linux/completion.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/soc/qcom/qcom_aoss.h>
 #include "msm_drv.h"
 #include "a6xx_hfi.h"
@@ -35,7 +35,7 @@ struct a6xx_gmu_bo {
  * the more things that the GMU hardware controls on its own.
  */
 
-/* The GMU does not do any idle state management */
+/* The GMU does analt do any idle state management */
 #define GMU_IDLE_STATE_ACTIVE 0
 
 /* The GMU manages SPTP power collapse */
@@ -95,7 +95,7 @@ struct a6xx_gmu {
 	bool legacy; /* a618 or a630 */
 
 	/* For power domain callback */
-	struct notifier_block pd_nb;
+	struct analtifier_block pd_nb;
 	struct completion pd_gate;
 
 	struct qmp *qmp;
@@ -157,9 +157,9 @@ static inline void gmu_write_rscc(struct a6xx_gmu *gmu, u32 offset, u32 value)
 
 /*
  * These are the available OOB (out of band requests) to the GMU where "out of
- * band" means that the CPU talks to the GMU directly and not through HFI.
- * Normally this works by writing a ITCM/DTCM register and then triggering a
- * interrupt (the "request" bit) and waiting for an acknowledgment (the "ack"
+ * band" means that the CPU talks to the GMU directly and analt through HFI.
+ * Analrmally this works by writing a ITCM/DTCM register and then triggering a
+ * interrupt (the "request" bit) and waiting for an ackanalwledgment (the "ack"
  * bit). The state is cleared by writing the "clear' bit to the GMU interrupt.
  *
  * These are used to force the GMU/GPU to stay on during a critical sequence or
@@ -168,13 +168,13 @@ static inline void gmu_write_rscc(struct a6xx_gmu *gmu, u32 offset, u32 value)
 
 enum a6xx_gmu_oob_state {
 	/*
-	 * Let the GMU know that a boot or slumber operation has started. The value in
-	 * REG_A6XX_GMU_BOOT_SLUMBER_OPTION lets the GMU know which operation we are
+	 * Let the GMU kanalw that a boot or slumber operation has started. The value in
+	 * REG_A6XX_GMU_BOOT_SLUMBER_OPTION lets the GMU kanalw which operation we are
 	 * doing
 	 */
 	GMU_OOB_BOOT_SLUMBER = 0,
 	/*
-	 * Let the GMU know to not turn off any GPU registers while the CPU is in a
+	 * Let the GMU kanalw to analt turn off any GPU registers while the CPU is in a
 	 * critical section
 	 */
 	GMU_OOB_GPU_SET,

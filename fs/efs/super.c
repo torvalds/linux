@@ -64,48 +64,48 @@ static struct pt_types sgi_pt_types[] = {
 };
 
 
-static struct kmem_cache * efs_inode_cachep;
+static struct kmem_cache * efs_ianalde_cachep;
 
-static struct inode *efs_alloc_inode(struct super_block *sb)
+static struct ianalde *efs_alloc_ianalde(struct super_block *sb)
 {
-	struct efs_inode_info *ei;
-	ei = alloc_inode_sb(sb, efs_inode_cachep, GFP_KERNEL);
+	struct efs_ianalde_info *ei;
+	ei = alloc_ianalde_sb(sb, efs_ianalde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_ianalde;
 }
 
-static void efs_free_inode(struct inode *inode)
+static void efs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
+	kmem_cache_free(efs_ianalde_cachep, IANALDE_INFO(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct efs_inode_info *ei = (struct efs_inode_info *) foo;
+	struct efs_ianalde_info *ei = (struct efs_ianalde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	efs_inode_cachep = kmem_cache_create("efs_inode_cache",
-				sizeof(struct efs_inode_info), 0,
+	efs_ianalde_cachep = kmem_cache_create("efs_ianalde_cache",
+				sizeof(struct efs_ianalde_info), 0,
 				SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
 				SLAB_ACCOUNT, init_once);
-	if (efs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (efs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(efs_inode_cachep);
+	kmem_cache_destroy(efs_ianalde_cachep);
 }
 
 static int efs_remount(struct super_block *sb, int *flags, char *data)
@@ -116,14 +116,14 @@ static int efs_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations efs_superblock_operations = {
-	.alloc_inode	= efs_alloc_inode,
-	.free_inode	= efs_free_inode,
+	.alloc_ianalde	= efs_alloc_ianalde,
+	.free_ianalde	= efs_free_ianalde,
 	.statfs		= efs_statfs,
 	.remount_fs	= efs_remount,
 };
 
 static const struct export_operations efs_export_ops = {
-	.encode_fh	= generic_encode_ino32_fh,
+	.encode_fh	= generic_encode_ianal32_fh,
 	.fh_to_dentry	= efs_fh_to_dentry,
 	.fh_to_parent	= efs_fh_to_parent,
 	.get_parent	= efs_get_parent,
@@ -132,7 +132,7 @@ static const struct export_operations efs_export_ops = {
 static int __init init_efs_fs(void) {
 	int err;
 	pr_info(EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
-	err = init_inodecache();
+	err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&efs_fs_type);
@@ -140,14 +140,14 @@ static int __init init_efs_fs(void) {
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
 
 static void __exit exit_efs_fs(void) {
 	unregister_filesystem(&efs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 module_init(init_efs_fs)
@@ -211,7 +211,7 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 				 i, (int)be32_to_cpu(vh->vh_pt[i].pt_firstlbn),
 				 (int)be32_to_cpu(vh->vh_pt[i].pt_nblks),
 				 pt_type, (pt_entry->pt_name) ?
-				 pt_entry->pt_name : "unknown");
+				 pt_entry->pt_name : "unkanalwn");
 		}
 #endif
 		if (IS_EFS(pt_type)) {
@@ -221,11 +221,11 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 	}
 
 	if (slice == -1) {
-		pr_notice("partition table contained no EFS partitions\n");
+		pr_analtice("partition table contained anal EFS partitions\n");
 #ifdef DEBUG
 	} else {
 		pr_info("using slice %d (type %s, offset 0x%x)\n", slice,
-			(pt_entry->pt_name) ? pt_entry->pt_name : "unknown",
+			(pt_entry->pt_name) ? pt_entry->pt_name : "unkanalwn",
 			sblock);
 #endif
 	}
@@ -242,8 +242,8 @@ static int efs_validate_super(struct efs_sb_info *sb, struct efs_super *super) {
 	sb->first_block  = be32_to_cpu(super->fs_firstcg);
 	sb->group_size   = be32_to_cpu(super->fs_cgfsize);
 	sb->data_free    = be32_to_cpu(super->fs_tfree);
-	sb->inode_free   = be32_to_cpu(super->fs_tinode);
-	sb->inode_blocks = be16_to_cpu(super->fs_cgisize);
+	sb->ianalde_free   = be32_to_cpu(super->fs_tianalde);
+	sb->ianalde_blocks = be16_to_cpu(super->fs_cgisize);
 	sb->total_groups = be16_to_cpu(super->fs_ncg);
     
 	return 0;    
@@ -253,18 +253,18 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 {
 	struct efs_sb_info *sb;
 	struct buffer_head *bh;
-	struct inode *root;
+	struct ianalde *root;
 
  	sb = kzalloc(sizeof(struct efs_sb_info), GFP_KERNEL);
 	if (!sb)
-		return -ENOMEM;
+		return -EANALMEM;
 	s->s_fs_info = sb;
 	s->s_time_min = 0;
 	s->s_time_max = U32_MAX;
  
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
-		pr_err("device does not support %d byte blocks\n",
+		pr_err("device does analt support %d byte blocks\n",
 			EFS_BLOCKSIZE);
 		return -EINVAL;
 	}
@@ -273,7 +273,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	bh = sb_bread(s, 0);
 
 	if (!bh) {
-		pr_err("cannot read volume header\n");
+		pr_err("cananalt read volume header\n");
 		return -EIO;
 	}
 
@@ -291,7 +291,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
-		pr_err("cannot read superblock\n");
+		pr_err("cananalt read superblock\n");
 		return -EIO;
 	}
 		
@@ -313,16 +313,16 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 	s->s_op   = &efs_superblock_operations;
 	s->s_export_op = &efs_export_ops;
-	root = efs_iget(s, EFS_ROOTINODE);
+	root = efs_iget(s, EFS_ROOTIANALDE);
 	if (IS_ERR(root)) {
-		pr_err("get root inode failed\n");
+		pr_err("get root ianalde failed\n");
 		return PTR_ERR(root);
 	}
 
 	s->s_root = d_make_root(root);
 	if (!(s->s_root)) {
 		pr_err("get root dentry failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -336,13 +336,13 @@ static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
 	buf->f_type    = EFS_SUPER_MAGIC;	/* efs magic number */
 	buf->f_bsize   = EFS_BLOCKSIZE;		/* blocksize */
 	buf->f_blocks  = sbi->total_groups *	/* total data blocks */
-			(sbi->group_size - sbi->inode_blocks);
+			(sbi->group_size - sbi->ianalde_blocks);
 	buf->f_bfree   = sbi->data_free;	/* free data blocks */
-	buf->f_bavail  = sbi->data_free;	/* free blocks for non-root */
-	buf->f_files   = sbi->total_groups *	/* total inodes */
-			sbi->inode_blocks *
-			(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
-	buf->f_ffree   = sbi->inode_free;	/* free inodes */
+	buf->f_bavail  = sbi->data_free;	/* free blocks for analn-root */
+	buf->f_files   = sbi->total_groups *	/* total ianaldes */
+			sbi->ianalde_blocks *
+			(EFS_BLOCKSIZE / sizeof(struct efs_dianalde));
+	buf->f_ffree   = sbi->ianalde_free;	/* free ianaldes */
 	buf->f_fsid    = u64_to_fsid(id);
 	buf->f_namelen = EFS_MAXNAMELEN;	/* max filename length */
 

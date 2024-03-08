@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -57,12 +57,12 @@ static int error_log_cnt;
 /*
  * Since we use 32 bit RTAS, the physical address of this must be below
  * 4G or else bad things happen. Allocate this in the kernel data and
- * make it big enough.
+ * make it big eanalugh.
  */
 static unsigned char logdata[RTAS_ERROR_LOG_MAX];
 
 static char *rtas_type[] = {
-	"Unknown", "Retry", "TCE Error", "Internal Device Failure",
+	"Unkanalwn", "Retry", "TCE Error", "Internal Device Failure",
 	"Timeout", "Data Parity", "Address Parity", "Cache Parity",
 	"Address Invalid", "ECC Uncorrected", "ECC Corrupted",
 };
@@ -84,7 +84,7 @@ static char *rtas_event_type(int type)
 		case RTAS_TYPE_DEALLOC:
 			return "Resource Deallocation Event";
 		case RTAS_TYPE_DUMP:
-			return "Dump Notification Event";
+			return "Dump Analtification Event";
 		case RTAS_TYPE_PRRN:
 			return "Platform Resource Reassignment Event";
 		case RTAS_TYPE_HOTPLUG:
@@ -184,7 +184,7 @@ static int log_rtas_len(char * buf)
 /*
  * First write to nvram, if fatal error, that is the only
  * place we log the info.  The error will be picked up
- * on the next reboot by rtasd.  If not fatal, run the
+ * on the next reboot by rtasd.  If analt fatal, run the
  * method for the type of error.  Currently, only RTAS
  * errors have methods implemented, but in the future
  * there might be a need to store data in nvram before a
@@ -229,7 +229,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 
 	/*
 	 * rtas errors can occur during boot, and we do want to capture
-	 * those somewhere, even if nvram isn't ready (why not?), and even
+	 * those somewhere, even if nvram isn't ready (why analt?), and even
 	 * if rtasd isn't ready. Put them into the boot log, at least.
 	 */
 	if ((err_type & ERR_TYPE_MASK) == ERR_TYPE_RTAS_LOG)
@@ -279,21 +279,21 @@ static void handle_rtas_event(const struct rtas_error_log *log)
 		return;
 
 	if (rtas_error_type(log) == RTAS_TYPE_PRRN)
-		pr_info_ratelimited("Platform resource reassignment ignored.\n");
+		pr_info_ratelimited("Platform resource reassignment iganalred.\n");
 }
 
-static int rtas_log_open(struct inode * inode, struct file * file)
+static int rtas_log_open(struct ianalde * ianalde, struct file * file)
 {
 	return 0;
 }
 
-static int rtas_log_release(struct inode * inode, struct file * file)
+static int rtas_log_release(struct ianalde * ianalde, struct file * file)
 {
 	return 0;
 }
 
 /* This will check if all events are logged, if they are then, we
- * know that we can safely clear the events in NVRAM.
+ * kanalw that we can safely clear the events in NVRAM.
  * Next we'll sit and wait for something else to log.
  */
 static ssize_t rtas_log_read(struct file * file, char __user * buf,
@@ -314,13 +314,13 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 
 	tmp = kmalloc(count, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&rtasd_log_lock, s);
 
-	/* if it's 0, then we know we got the last one (the one in NVRAM) */
+	/* if it's 0, then we kanalw we got the last one (the one in NVRAM) */
 	while (rtas_log_size == 0) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			spin_unlock_irqrestore(&rtasd_log_lock, s);
 			error = -EAGAIN;
 			goto out;
@@ -328,7 +328,7 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 
 		if (!logging_enabled) {
 			spin_unlock_irqrestore(&rtasd_log_lock, s);
-			error = -ENODATA;
+			error = -EANALDATA;
 			goto out;
 		}
 #ifdef CONFIG_PPC64
@@ -359,7 +359,7 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
 	poll_wait(file, &rtas_log_wait, wait);
 	if (rtas_log_size)
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -368,7 +368,7 @@ static const struct proc_ops rtas_log_proc_ops = {
 	.proc_poll	= rtas_log_poll,
 	.proc_open	= rtas_log_open,
 	.proc_release	= rtas_log_release,
-	.proc_lseek	= noop_llseek,
+	.proc_lseek	= analop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -381,11 +381,11 @@ static int enable_surveillance(int timeout)
 		return 0;
 
 	if (error == -EINVAL) {
-		printk(KERN_DEBUG "rtasd: surveillance not supported\n");
+		printk(KERN_DEBUG "rtasd: surveillance analt supported\n");
 		return 0;
 	}
 
-	printk(KERN_ERR "rtasd: could not update surveillance\n");
+	printk(KERN_ERR "rtasd: could analt update surveillance\n");
 	return -1;
 }
 
@@ -464,7 +464,7 @@ static void __init retrieve_nvram_error_log(void)
 	memset(logdata, 0, rtas_error_log_max);
 	rc = nvram_read_error_log(logdata, rtas_error_log_max,
 	                          &err_type, &error_log_cnt);
-	/* We can use rtas_log_buf now */
+	/* We can use rtas_log_buf analw */
 	logging_enabled = 1;
 	if (!rc) {
 		if (err_type != ERR_FLAG_ALREADY_LOGGED) {
@@ -505,22 +505,22 @@ static int __init rtas_event_scan_init(void)
 	if (!machine_is(pseries) && !machine_is(chrp))
 		return 0;
 
-	/* No RTAS */
+	/* Anal RTAS */
 	event_scan = rtas_function_token(RTAS_FN_EVENT_SCAN);
-	if (event_scan == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "rtasd: No event-scan on system\n");
-		return -ENODEV;
+	if (event_scan == RTAS_UNKANALWN_SERVICE) {
+		printk(KERN_INFO "rtasd: Anal event-scan on system\n");
+		return -EANALDEV;
 	}
 
 	err = of_property_read_u32(rtas.dev, "rtas-event-scan-rate", &rtas_event_scan_rate);
 	if (err) {
-		printk(KERN_ERR "rtasd: no rtas-event-scan-rate on system\n");
-		return -ENODEV;
+		printk(KERN_ERR "rtasd: anal rtas-event-scan-rate on system\n");
+		return -EANALDEV;
 	}
 
 	if (!rtas_event_scan_rate) {
 		/* Broken firmware: take a rate of zero to mean don't scan */
-		printk(KERN_DEBUG "rtasd: scan rate is 0, not scanning\n");
+		printk(KERN_DEBUG "rtasd: scan rate is 0, analt scanning\n");
 		return 0;
 	}
 
@@ -531,8 +531,8 @@ static int __init rtas_event_scan_init(void)
 	rtas_log_buf = vmalloc(array_size(LOG_NUMBER,
 					  rtas_error_log_buffer_max));
 	if (!rtas_log_buf) {
-		printk(KERN_ERR "rtasd: no memory\n");
-		return -ENOMEM;
+		printk(KERN_ERR "rtasd: anal memory\n");
+		return -EANALMEM;
 	}
 
 	start_event_scan();
@@ -549,7 +549,7 @@ static int __init rtas_init(void)
 		return 0;
 
 	if (!rtas_log_buf)
-		return -ENODEV;
+		return -EANALDEV;
 
 	entry = proc_create("powerpc/rtas/error_log", 0400, NULL,
 			    &rtas_log_proc_ops);

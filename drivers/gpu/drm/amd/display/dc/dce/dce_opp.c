@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -86,7 +86,7 @@ enum {
  * @param   : parameters   interface parameters
  *  @return void
  *
- *  @note
+ *  @analte
  *
  *  @see
  *
@@ -150,7 +150,7 @@ static void dce60_set_truncation(
 		struct dce110_opp *opp110,
 		const struct bit_depth_reduction_params *params)
 {
-	/* DCE6 has no FMT_TRUNCATE_MODE bit in FMT_BIT_DEPTH_CONTROL reg */
+	/* DCE6 has anal FMT_TRUNCATE_MODE bit in FMT_BIT_DEPTH_CONTROL reg */
 
 	/*Disable truncation*/
 	REG_UPDATE_2(FMT_BIT_DEPTH_CONTROL,
@@ -187,13 +187,13 @@ static void dce60_set_truncation(
  *	2) set spatial dithering depth: 0 for 18bpp or 1 for 24bpp
  *	3) set random seed
  *	4) set random mode
- *		lfsr is reset every frame or not reset
+ *		lfsr is reset every frame or analt reset
  *		RGB dithering method
  *		0: RGB data are all dithered with x^28+x^3+1
  *		1: R data is dithered with x^28+x^3+1
  *		G data is dithered with x^28+X^9+1
  *		B data is dithered with x^28+x^13+1
- *		enable high pass filter or not
+ *		enable high pass filter or analt
  *	5) enable spatical dithering
  */
 static void set_spatial_dither(
@@ -317,7 +317,7 @@ static void set_temporal_dither(
 		FMT_50FRC_SEL, 0,
 		FMT_75FRC_SEL, 0);
 
-	/* no 10bpc dither on DCE11*/
+	/* anal 10bpc dither on DCE11*/
 	if (params->flags.FRAME_MODULATION_ENABLED == 0 ||
 		params->flags.FRAME_MODULATION_DEPTH == 2)
 		return;
@@ -353,7 +353,7 @@ static void set_temporal_dither(
 
 /*
  *	Set Clamping
- *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
+ *	1) Set clamping format based on bpc - 0 for 6bpc (Anal clamping)
  *		1 for 8 bpc
  *		2 for 10 bpc
  *		3 for 12 bpc
@@ -413,7 +413,7 @@ void dce110_opp_set_clamping(
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /*
  *	Set Clamping for DCE6 parts
- *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
+ *	1) Set clamping format based on bpc - 0 for 6bpc (Anal clamping)
  *		1 for 8 bpc
  *		2 for 10 bpc
  *		3 for 12 bpc
@@ -499,7 +499,7 @@ static void set_pixel_encoding(
 #if defined(CONFIG_DRM_AMD_DC_SI)
 /*
  *	dce60_set_pixel_encoding
- *	DCE6 has no FMT_SUBSAMPLING_{MODE,ORDER} bits in FMT_CONTROL reg
+ *	DCE6 has anal FMT_SUBSAMPLING_{MODE,ORDER} bits in FMT_CONTROL reg
  *	Set Pixel Encoding
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2

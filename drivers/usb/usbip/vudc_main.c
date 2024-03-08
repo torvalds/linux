@@ -30,15 +30,15 @@ static LIST_HEAD(vudc_devices);
 
 static int __init vudc_init(void)
 {
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	int i;
 	struct vudc_device *udc_dev = NULL, *udc_dev2 = NULL;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vudc_number < 1) {
-		pr_err("Number of emulated UDC must be no less than 1");
+		pr_err("Number of emulated UDC must be anal less than 1");
 		return -EINVAL;
 	}
 
@@ -49,7 +49,7 @@ static int __init vudc_init(void)
 	for (i = 0; i < vudc_number; i++) {
 		udc_dev = alloc_vudc_device(i);
 		if (!udc_dev) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			goto cleanup;
 		}
 

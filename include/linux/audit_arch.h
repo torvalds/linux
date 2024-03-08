@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* audit_arch.h -- Arch layer specific support for audit
  *
- * Copyright 2021 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2021 Red Hat Inc., Durham, Analrth Carolina.
  * All Rights Reserved.
  *
  * Author: Richard Guy Briggs <rgb@redhat.com>

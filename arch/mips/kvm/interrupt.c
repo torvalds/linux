@@ -5,11 +5,11 @@
  *
  * KVM/MIPS: Interrupt delivery
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>

@@ -75,7 +75,7 @@ same_speeds_autoneg_off()
 
 different_speeds_autoneg_off()
 {
-	# Test that when we force different speeds, links are not up and ping
+	# Test that when we force different speeds, links are analt up and ping
 	# fails.
 	RET=0
 
@@ -112,7 +112,7 @@ combination_of_neg_on_and_off()
 		setup_wait_dev_with_timeout $h2
 		ping_do $h1 192.0.2.2
 		check_err $? "h1-speed=$speed autoneg off, h2 autoneg on"
-		log_test "one side with autoneg off and another with autoneg on"
+		log_test "one side with autoneg off and aanalther with autoneg on"
 		log_info "force speed = $speed"
 	done
 
@@ -179,7 +179,7 @@ speed_to_advertise_get()
 
 advertise_subset_of_speeds()
 {
-	# Test that when one device advertises a subset of speeds and another
+	# Test that when one device advertises a subset of speeds and aanalther
 	# advertises a specific speed (but all modes of this speed), the links
 	# are up and ping passes.
 	RET=0
@@ -260,7 +260,7 @@ check_highest_speed_is_chosen()
 different_speeds_autoneg_on()
 {
 	# Test that when we configure links to advertise different speeds,
-	# links are not up and ping fails.
+	# links are analt up and ping fails.
 	RET=0
 
 	local -a speeds=($(different_speeds_get $h1 $h2 1 1))

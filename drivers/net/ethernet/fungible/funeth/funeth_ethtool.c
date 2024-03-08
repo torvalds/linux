@@ -5,7 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/nvme.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/rtnetlink.h>
 #include "funeth.h"
@@ -86,7 +86,7 @@ static const char * const txq_stat_names[] = {
 	"tx_tls_encrypted_packets",
 	"tx_tls_encrypted_bytes",
 	"tx_tls_ooo",
-	"tx_tls_drop_no_sync_data",
+	"tx_tls_drop_anal_sync_data",
 };
 
 static const char * const xdpq_stat_names[] = {
@@ -162,8 +162,8 @@ static void fun_link_modes_to_ethtool(u64 modes,
 		ADD_LINK_MODE(100000baseSR2_Full);
 		ADD_LINK_MODE(100000baseLR2_ER2_FR2_Full);
 	}
-	if (modes & FUN_PORT_CAP_FEC_NONE)
-		ADD_LINK_MODE(FEC_NONE);
+	if (modes & FUN_PORT_CAP_FEC_ANALNE)
+		ADD_LINK_MODE(FEC_ANALNE);
 	if (modes & FUN_PORT_CAP_FEC_FC)
 		ADD_LINK_MODE(FEC_BASER);
 	if (modes & FUN_PORT_CAP_FEC_RS)
@@ -188,7 +188,7 @@ static void set_asym_pause(u64 advertising, struct ethtool_link_ksettings *ks)
 static unsigned int fun_port_type(unsigned int xcvr)
 {
 	if (!xcvr)
-		return PORT_NONE;
+		return PORT_ANALNE;
 
 	switch (xcvr & 7) {
 	case FUN_XCVR_BASET:
@@ -212,7 +212,7 @@ static int fun_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_zero_link_mode(ks, advertising);
 	ethtool_link_ksettings_zero_link_mode(ks, lp_advertising);
 
-	/* Link settings change asynchronously, take a consistent snapshot */
+	/* Link settings change asynchroanalusly, take a consistent snapshot */
 	do {
 		seq = read_seqcount_begin(&fp->link_seq);
 		link_up = netif_carrier_ok(netdev);
@@ -227,8 +227,8 @@ static int fun_get_link_ksettings(struct net_device *netdev,
 		fun_link_modes_to_ethtool(lp_advertising,
 					  ks->link_modes.lp_advertising);
 	} else {
-		ks->base.speed = SPEED_UNKNOWN;
-		ks->base.duplex = DUPLEX_UNKNOWN;
+		ks->base.speed = SPEED_UNKANALWN;
+		ks->base.duplex = DUPLEX_UNKANALWN;
 	}
 
 	ks->base.autoneg = (fp->advertising & FUN_PORT_CAP_AUTONEG) ?
@@ -311,7 +311,7 @@ static int fun_change_advert(struct funeth_priv *fp, u64 new_advert)
 }
 
 #define FUN_PORT_CAP_FEC_MASK \
-	(FUN_PORT_CAP_FEC_NONE | FUN_PORT_CAP_FEC_FC | FUN_PORT_CAP_FEC_RS)
+	(FUN_PORT_CAP_FEC_ANALNE | FUN_PORT_CAP_FEC_FC | FUN_PORT_CAP_FEC_RS)
 
 static int fun_set_link_ksettings(struct net_device *netdev,
 				  const struct ethtool_link_ksettings *ks)
@@ -322,7 +322,7 @@ static int fun_set_link_ksettings(struct net_device *netdev,
 
 	/* eswitch ports don't support mode changes */
 	if (fp->port_caps & FUN_PORT_CAP_VPORT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ks->base.duplex == DUPLEX_HALF)
 		return -EINVAL;
@@ -369,10 +369,10 @@ static int fun_set_pauseparam(struct net_device *netdev,
 	u64 new_advert;
 
 	if (fp->port_caps & FUN_PORT_CAP_VPORT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	/* Forcing PAUSE settings with AN enabled is unsupported. */
 	if (!pause->autoneg && (fp->advertising & FUN_PORT_CAP_AUTONEG))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (pause->autoneg && !(fp->advertising & FUN_PORT_CAP_AUTONEG))
 		return -EINVAL;
 	if (pause->tx_pause && !(fp->port_caps & FUN_PORT_CAP_TX_PAUSE))
@@ -394,7 +394,7 @@ static int fun_restart_an(struct net_device *netdev)
 	struct funeth_priv *fp = netdev_priv(netdev);
 
 	if (!(fp->advertising & FUN_PORT_CAP_AUTONEG))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return fun_port_write_cmd(fp, FUN_ADMIN_PORT_KEY_ADVERT,
 				  FUN_PORT_CAP_AUTONEG);
@@ -407,9 +407,9 @@ static int fun_set_phys_id(struct net_device *netdev,
 	unsigned int beacon;
 
 	if (fp->port_caps & FUN_PORT_CAP_VPORT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (state != ETHTOOL_ID_ACTIVE && state != ETHTOOL_ID_INACTIVE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	beacon = state == ETHTOOL_ID_ACTIVE ? FUN_PORT_LED_BEACON_ON :
 					      FUN_PORT_LED_BEACON_OFF;
@@ -955,7 +955,7 @@ static int fun_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	default:
 		break;
 	}
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int fun_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
@@ -983,7 +983,7 @@ static int fun_get_rxfh(struct net_device *netdev,
 	const struct funeth_priv *fp = netdev_priv(netdev);
 
 	if (!fp->rss_cfg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (rxfh->indir)
 		memcpy(rxfh->indir, fp->indir_table,
@@ -1008,9 +1008,9 @@ static int fun_set_rxfh(struct net_device *netdev,
 	enum fun_eth_hash_alg algo;
 
 	if (!fp->rss_cfg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	if (rxfh->hfunc == ETH_RSS_HASH_NO_CHANGE)
+	if (rxfh->hfunc == ETH_RSS_HASH_ANAL_CHANGE)
 		algo = fp->hash_algo;
 	else if (rxfh->hfunc == ETH_RSS_HASH_CRC32)
 		algo = FUN_ETH_RSS_ALG_CRC32;
@@ -1049,7 +1049,7 @@ static int fun_get_ts_info(struct net_device *netdev,
 				SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->phc_index = -1;
 	info->tx_types = BIT(HWTSTAMP_TX_OFF);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_ANALNE) | BIT(HWTSTAMP_FILTER_ALL);
 	return 0;
 }
 
@@ -1058,7 +1058,7 @@ static unsigned int to_ethtool_fec(unsigned int fun_fec)
 	unsigned int fec = 0;
 
 	if (fun_fec == FUN_PORT_FEC_NA)
-		fec |= ETHTOOL_FEC_NONE;
+		fec |= ETHTOOL_FEC_ANALNE;
 	if (fun_fec & FUN_PORT_FEC_OFF)
 		fec |= ETHTOOL_FEC_OFF;
 	if (fun_fec & FUN_PORT_FEC_RS)
@@ -1097,7 +1097,7 @@ static int fun_set_fecparam(struct net_device *netdev,
 		fec_mode = FUN_PORT_FEC_AUTO;
 		break;
 	case ETHTOOL_FEC_OFF:
-		if (!(fp->port_caps & FUN_PORT_CAP_FEC_NONE))
+		if (!(fp->port_caps & FUN_PORT_CAP_FEC_ANALNE))
 			return -EINVAL;
 		fec_mode = FUN_PORT_FEC_OFF;
 		break;
@@ -1132,7 +1132,7 @@ static int fun_get_port_module_page(struct net_device *netdev,
 	if (fp->port_caps & FUN_PORT_CAP_VPORT) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Specified port is virtual, only physical ports have modules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	cmd.req.common = FUN_ADMIN_REQ_COMMON_INIT2(FUN_ADMIN_OP_PORT,

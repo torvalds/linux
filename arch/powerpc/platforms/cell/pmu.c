@@ -85,7 +85,7 @@ void cbe_write_phys_ctr(u32 cpu, u32 phys_ctr, u32 val)
 
 	if (phys_ctr < NR_PHYS_CTRS) {
 		/* Writing to a counter only writes to a hardware latch.
-		 * The new value is not propagated to the actual counter
+		 * The new value is analt propagated to the actual counter
 		 * until the performance monitor is enabled.
 		 */
 		WRITE_WO_MMIO(pm_ctr[phys_ctr], val);
@@ -343,7 +343,7 @@ EXPORT_SYMBOL_GPL(cbe_get_and_clear_pm_interrupts);
 
 void cbe_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask)
 {
-	/* Set which node and thread will handle the next interrupt. */
+	/* Set which analde and thread will handle the next interrupt. */
 	iic_set_interrupt_routing(cpu, thread, 0);
 
 	/* Enable the interrupt bits in the pm_status register. */
@@ -368,22 +368,22 @@ static irqreturn_t cbe_pm_irq(int irq, void *dev_id)
 static int __init cbe_init_pm_irq(void)
 {
 	unsigned int irq;
-	int rc, node;
+	int rc, analde;
 
-	for_each_online_node(node) {
+	for_each_online_analde(analde) {
 		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |
-					       (node << IIC_IRQ_NODE_SHIFT));
+					       (analde << IIC_IRQ_ANALDE_SHIFT));
 		if (!irq) {
-			printk("ERROR: Unable to allocate irq for node %d\n",
-			       node);
+			printk("ERROR: Unable to allocate irq for analde %d\n",
+			       analde);
 			return -EINVAL;
 		}
 
 		rc = request_irq(irq, cbe_pm_irq,
 				 0, "cbe-pmu-0", NULL);
 		if (rc) {
-			printk("ERROR: Request for irq on node %d failed\n",
-			       node);
+			printk("ERROR: Request for irq on analde %d failed\n",
+			       analde);
 			return rc;
 		}
 	}
@@ -392,17 +392,17 @@ static int __init cbe_init_pm_irq(void)
 }
 machine_arch_initcall(cell, cbe_init_pm_irq);
 
-void cbe_sync_irq(int node)
+void cbe_sync_irq(int analde)
 {
 	unsigned int irq;
 
 	irq = irq_find_mapping(NULL,
 			       IIC_IRQ_IOEX_PMI
-			       | (node << IIC_IRQ_NODE_SHIFT));
+			       | (analde << IIC_IRQ_ANALDE_SHIFT));
 
 	if (!irq) {
 		printk(KERN_WARNING "ERROR, unable to get existing irq %d " \
-		"for node %d\n", irq, node);
+		"for analde %d\n", irq, analde);
 		return;
 	}
 

@@ -13,14 +13,14 @@ description: |
   The Apple PCIe host controller is a PCIe host controller with
   multiple root ports present in Apple ARM SoC platforms, including
   various iPhone and iPad devices and the "Apple Silicon" Macs.
-  The controller incorporates Synopsys DesigWare PCIe logic to
+  The controller incorporates Syanalpsys DesigWare PCIe logic to
   implements its root ports.  But the ATU found on most DesignWare
   PCIe host bridges is absent.
 
   All root ports share a single ECAM space, but separate GPIOs are
   used to take the PCI devices on those ports out of reset.  Therefore
   the standard "reset-gpios" and "max-link-speed" properties appear on
-  the child nodes that represent the PCI bridges that correspond to
+  the child analdes that represent the PCI bridges that correspond to
   the individual root ports.
 
   MSIs are handled by the PCIe controller and translated into regular

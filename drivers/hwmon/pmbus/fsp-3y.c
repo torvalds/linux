@@ -8,7 +8,7 @@
  * David Brownell (and later adopted by Jan Kundrát). The device has some sort of a timing issue
  * when switching pages, details are explained in the code. The driver support is limited. It
  * exposes only the values, that have been tested to work correctly. Unsupported values either
- * aren't supported by the devices or their encondings are unknown.
+ * aren't supported by the devices or their encondings are unkanalwn.
  */
 
 #include <linux/delay.h>
@@ -94,8 +94,8 @@ static int set_page(struct i2c_client *client, int page_log)
 		 * Testing showed that the device has a timing issue. After
 		 * setting a page, it takes a while, before the device actually
 		 * gives the correct values from the correct page. 20 ms was
-		 * tested to be enough to not give wrong values (15 ms wasn't
-		 * enough).
+		 * tested to be eanalugh to analt give wrong values (15 ms wasn't
+		 * eanalugh).
 		 */
 		usleep_range(20000, 30000);
 	}
@@ -110,7 +110,7 @@ static int fsp3y_read_byte_data(struct i2c_client *client, int page, int reg)
 	int rv;
 
 	/*
-	 * Inject an exponent for non-compliant YH5151-E.
+	 * Inject an exponent for analn-compliant YH5151-E.
 	 */
 	if (data->vout_linear_11 && reg == PMBUS_VOUT_MODE)
 		return 0x1A;
@@ -132,7 +132,7 @@ static int fsp3y_read_word_data(struct i2c_client *client, int page, int phase, 
 	 * This masks commands which weren't tested to work correctly. Some of
 	 * the masked commands return 0xFFFF. These would probably get tagged as
 	 * invalid by pmbus_core. Other ones do return values which might be
-	 * useful (that is, they are not 0xFFFF), but their encoding is unknown,
+	 * useful (that is, they are analt 0xFFFF), but their encoding is unkanalwn,
 	 * and so they are unsupported.
 	 */
 	switch (reg) {
@@ -161,7 +161,7 @@ static int fsp3y_read_word_data(struct i2c_client *client, int page, int phase, 
 		return rv;
 
 	/*
-	 * Handle YH-5151E non-compliant linear11 vout voltage.
+	 * Handle YH-5151E analn-compliant linear11 vout voltage.
 	 */
 	if (data->vout_linear_11 && reg == PMBUS_READ_VOUT)
 		rv = sign_extend32(rv, 10) & 0xffff;
@@ -219,7 +219,7 @@ static int fsp3y_detect(struct i2c_client *client)
 	}
 
 	dev_err(&client->dev, "Unsupported model %.*s\n", rv, buf);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct i2c_device_id fsp3y_id[] = {
@@ -236,7 +236,7 @@ static int fsp3y_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(struct fsp3y_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->chip = fsp3y_detect(client);
 	if (data->chip < 0)
@@ -257,7 +257,7 @@ static int fsp3y_probe(struct i2c_client *client)
 	/*
 	 * YH-5151E sometimes reports vout in linear11 and sometimes in
 	 * linear16. This depends on the exact individual piece of hardware. One
-	 * YH-5151E can use linear16 and another might use linear11 instead.
+	 * YH-5151E can use linear16 and aanalther might use linear11 instead.
 	 *
 	 * The format can be recognized by reading VOUT_MODE - if it doesn't
 	 * report a valid exponent, then vout uses linear11. Otherwise, the

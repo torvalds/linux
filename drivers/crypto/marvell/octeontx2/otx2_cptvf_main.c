@@ -62,7 +62,7 @@ static int cptvf_register_interrupts(struct otx2_cptvf_dev *cptvf)
 	ret = otx2_cpt_send_ready_msg(&cptvf->pfvf_mbox, cptvf->pdev);
 	if (ret) {
 		dev_warn(&cptvf->pdev->dev,
-			 "PF not responding to mailbox, deferring probe\n");
+			 "PF analt responding to mailbox, deferring probe\n");
 		cptvf_disable_pfvf_mbox_intrs(cptvf);
 		return -EPROBE_DEFER;
 	}
@@ -79,7 +79,7 @@ static int cptvf_pfvf_mbox_init(struct otx2_cptvf_dev *cptvf)
 		alloc_ordered_workqueue("cpt_pfvf_mailbox",
 					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptvf->pfvf_mbox_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (test_bit(CN10K_MBOX, &cptvf->cap_flag)) {
 		/* For cn10k platform, VF mailbox region is in its BAR2
@@ -95,7 +95,7 @@ static int cptvf_pfvf_mbox_init(struct otx2_cptvf_dev *cptvf)
 							size);
 		if (!cptvf->pfvf_mbox_base) {
 			dev_err(&pdev->dev, "Unable to map BAR4\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_wqe;
 		}
 	}
@@ -152,7 +152,7 @@ static int init_tasklet_work(struct otx2_cptlfs_info *lfs)
 	for (i = 0; i < lfs->lfs_num; i++) {
 		wqe = kzalloc(sizeof(struct otx2_cptlf_wqe), GFP_KERNEL);
 		if (!wqe) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto cleanup_tasklet;
 		}
 
@@ -192,7 +192,7 @@ static int alloc_pending_queues(struct otx2_cptlfs_info *lfs)
 
 		lfs->lf[i].pqueue.head = kzalloc(size, GFP_KERNEL);
 		if (!lfs->lf[i].pqueue.head) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -271,8 +271,8 @@ static int cptvf_lf_init(struct otx2_cptvf_dev *cptvf)
 		return ret;
 
 	if (cptvf->lfs.kcrypto_eng_grp_num == OTX2_CPT_INVALID_CRYPTO_ENG_GRP) {
-		dev_err(dev, "Engine group for kernel crypto not available\n");
-		ret = -ENOENT;
+		dev_err(dev, "Engine group for kernel crypto analt available\n");
+		ret = -EANALENT;
 		return ret;
 	}
 	eng_grp_msk = 1 << cptvf->lfs.kcrypto_eng_grp_num;
@@ -345,7 +345,7 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 
 	cptvf = devm_kzalloc(dev, sizeof(*cptvf), GFP_KERNEL);
 	if (!cptvf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {

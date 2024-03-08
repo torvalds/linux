@@ -19,7 +19,7 @@ static int qla_edif_sadb_delete_sa_index(fc_port_t *fcport, uint16_t nport_handl
 		uint16_t sa_index);
 static int qla_pur_get_pending(scsi_qla_host_t *, fc_port_t *, struct bsg_job *);
 
-struct edb_node {
+struct edb_analde {
 	struct  list_head	list;
 	uint32_t		ntype;
 	union {
@@ -49,32 +49,32 @@ const char *sc_to_str(uint16_t cmd)
 		if (cmd == e->cmd)
 			return e->str;
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
-static struct edb_node *qla_edb_getnext(scsi_qla_host_t *vha)
+static struct edb_analde *qla_edb_getnext(scsi_qla_host_t *vha)
 {
 	unsigned long   flags;
-	struct edb_node *edbnode = NULL;
+	struct edb_analde *edbanalde = NULL;
 
 	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
 
-	/* db nodes are fifo - no qualifications done */
+	/* db analdes are fifo - anal qualifications done */
 	if (!list_empty(&vha->e_dbell.head)) {
-		edbnode = list_first_entry(&vha->e_dbell.head,
-					   struct edb_node, list);
-		list_del_init(&edbnode->list);
+		edbanalde = list_first_entry(&vha->e_dbell.head,
+					   struct edb_analde, list);
+		list_del_init(&edbanalde->list);
 	}
 
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
 
-	return edbnode;
+	return edbanalde;
 }
 
-static void qla_edb_node_free(scsi_qla_host_t *vha, struct edb_node *node)
+static void qla_edb_analde_free(scsi_qla_host_t *vha, struct edb_analde *analde)
 {
-	list_del_init(&node->list);
-	kfree(node);
+	list_del_init(&analde->list);
+	kfree(analde);
 }
 
 static struct edif_list_entry *qla_edif_list_find_sa_index(fc_port_t *fcport,
@@ -91,7 +91,7 @@ static struct edif_list_entry *qla_edif_list_find_sa_index(fc_port_t *fcport,
 	return NULL;
 }
 
-/* timeout called when no traffic and delayed rx sa_index delete */
+/* timeout called when anal traffic and delayed rx sa_index delete */
 static void qla2x00_sa_replace_iocb_timeout(struct timer_list *t)
 {
 	struct edif_list_entry *edif_entry = from_timer(edif_entry, t, timer);
@@ -106,17 +106,17 @@ static void qla2x00_sa_replace_iocb_timeout(struct timer_list *t)
 	    __func__, edif_entry->handle, fcport->port_name, fcport->d_id.b24);
 
 	/*
-	 * if delete_sa_index is valid then no one has serviced this
+	 * if delete_sa_index is valid then anal one has serviced this
 	 * delayed delete
 	 */
 	spin_lock_irqsave(&fcport->edif.indx_list_lock, flags);
 
 	/*
 	 * delete_sa_index is invalidated when we find the new sa_index in
-	 * the incoming data stream.  If it is not invalidated then we are
-	 * still looking for the new sa_index because there is no I/O and we
+	 * the incoming data stream.  If it is analt invalidated then we are
+	 * still looking for the new sa_index because there is anal I/O and we
 	 * need to just force the rx delete and move on.  Otherwise
-	 * we could get another rekey which will result in an error 66.
+	 * we could get aanalther rekey which will result in an error 66.
 	 */
 	if (edif_entry->delete_sa_index != INVALID_EDIF_SA_INDEX) {
 		uint16_t delete_sa_index = edif_entry->delete_sa_index;
@@ -141,7 +141,7 @@ static void qla2x00_sa_replace_iocb_timeout(struct timer_list *t)
 
 		} else {
 			ql_dbg(ql_dbg_edif, vha, 0x3063,
-			    "%s: sa_ctl not found for delete_sa_index: %d\n",
+			    "%s: sa_ctl analt found for delete_sa_index: %d\n",
 			    __func__, edif_entry->delete_sa_index);
 		}
 	} else {
@@ -168,14 +168,14 @@ static int qla_edif_list_add_sa_update_index(fc_port_t *fcport,
 	}
 
 	/*
-	 * This is the normal path - there should be no existing entry
+	 * This is the analrmal path - there should be anal existing entry
 	 * when update is called.  The exception is at startup
 	 * when update is called for the first two sa_indexes
 	 * followed by a delete of the first sa_index
 	 */
 	entry = kzalloc((sizeof(struct edif_list_entry)), GFP_ATOMIC);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&entry->next);
 	entry->handle = handle;
@@ -221,7 +221,7 @@ qla_edif_sa_ctl_init(scsi_qla_host_t *vha, struct fc_port  *fcport)
 {
 	ql_dbg(ql_dbg_edif, vha, 0x2058,
 	    "Init SA_CTL List for fcport - nn %8phN pn %8phN portid=%06x.\n",
-	    fcport->node_name, fcport->port_name, fcport->d_id.b24);
+	    fcport->analde_name, fcport->port_name, fcport->d_id.b24);
 
 	fcport->edif.tx_rekey_cnt = 0;
 	fcport->edif.rx_rekey_cnt = 0;
@@ -240,12 +240,12 @@ fc_port_t *fcport)
 
 	if (!vha->hw->flags.edif_enabled) {
 		ql_dbg(ql_dbg_edif, vha, 0x9105,
-		    "%s edif not enabled\n", __func__);
+		    "%s edif analt enabled\n", __func__);
 		goto done;
 	}
 	if (DBELL_INACTIVE(vha)) {
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s doorbell not enabled\n", __func__);
+		    "%s doorbell analt enabled\n", __func__);
 		goto done;
 	}
 
@@ -297,16 +297,16 @@ qla2x00_find_fcport_by_pid(scsi_qla_host_t *vha, port_id_t *id)
 static bool
 qla_edif_app_check(scsi_qla_host_t *vha, struct app_id appid)
 {
-	/* check that the app is allow/known to the driver */
+	/* check that the app is allow/kanalwn to the driver */
 
 	if (appid.app_vid != EDIF_APP_ID) {
-		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app id not ok (%x)",
+		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app id analt ok (%x)",
 		    __func__, appid.app_vid);
 		return false;
 	}
 
 	if (appid.version != EDIF_VERSION1) {
-		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app version is not ok (%x)",
+		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s app version is analt ok (%x)",
 		    __func__, appid.version);
 		return false;
 	}
@@ -387,7 +387,7 @@ static void __qla2x00_release_all_sadb(struct scsi_qla_host *vha,
 			qla_edif_free_sa_ctl(fcport, sa_ctl, sa_ctl->index);
 		} else {
 			ql_dbg(ql_dbg_edif, vha, 0x3063,
-			    "%s: sa_ctl NOT freed, sa_ctl: %p\n", __func__, sa_ctl);
+			    "%s: sa_ctl ANALT freed, sa_ctl: %p\n", __func__, sa_ctl);
 		}
 
 		/* Release the index */
@@ -523,7 +523,7 @@ static int qla_delete_n2n_sess_and_wait(scsi_qla_host_t *vha)
 }
 
 /**
- * qla_edif_app_start:  application has announce its present
+ * qla_edif_app_start:  application has ananalunce its present
  * @vha: host adapter pointer
  * @bsg_job: user request
  *
@@ -550,7 +550,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	     __func__, appstart.app_info.app_vid, appstart.app_start_flags);
 
 	if (DBELL_INACTIVE(vha)) {
-		/* mark doorbell as active since an app is now present */
+		/* mark doorbell as active since an app is analw present */
 		vha->e_dbell.db_flags |= EDB_ACTIVE;
 	} else {
 		goto out;
@@ -563,7 +563,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		if (vha->hw->flags.n2n_fw_acc_sec) {
 			bool link_bounce = false;
 			/*
-			 * While authentication app was not running, remote device
+			 * While authentication app was analt running, remote device
 			 * could still try to login with this local port.  Let's
 			 * reset the session, reconnect and re-authenticate.
 			 */
@@ -585,7 +585,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
 			ql_dbg(ql_dbg_edif, vha, 0x2058,
 			       "FCSP - nn %8phN pn %8phN portid=%06x.\n",
-			       fcport->node_name, fcport->port_name,
+			       fcport->analde_name, fcport->port_name,
 			       fcport->d_id.b24);
 			ql_dbg(ql_dbg_edif, vha, 0xf084,
 			       "%s: se_sess %p / sess %p from port %8phC "
@@ -610,7 +610,7 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (fcport->scan_state != QLA_FCPORT_FOUND)
 				continue;
 
-			if (fcport->port_type == FCT_UNKNOWN &&
+			if (fcport->port_type == FCT_UNKANALWN &&
 			    !fcport->fc4_features)
 				rval = qla24xx_async_gffid(vha, fcport, true);
 
@@ -629,17 +629,17 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	}
 
-	if (vha->pur_cinfo.enode_flags != ENODE_ACTIVE) {
-		/* mark as active since an app is now present */
-		vha->pur_cinfo.enode_flags = ENODE_ACTIVE;
+	if (vha->pur_cinfo.eanalde_flags != EANALDE_ACTIVE) {
+		/* mark as active since an app is analw present */
+		vha->pur_cinfo.eanalde_flags = EANALDE_ACTIVE;
 	} else {
-		ql_dbg(ql_dbg_edif, vha, 0x911f, "%s enode already active\n",
+		ql_dbg(ql_dbg_edif, vha, 0x911f, "%s eanalde already active\n",
 		     __func__);
 	}
 
 out:
 	appreply.host_support_edif = vha->hw->flags.edif_enabled;
-	appreply.edif_enode_active = vha->pur_cinfo.enode_flags;
+	appreply.edif_eanalde_active = vha->pur_cinfo.eanalde_flags;
 	appreply.edif_edb_active = vha->e_dbell.db_flags;
 	appreply.version = EDIF_VERSION1;
 
@@ -660,7 +660,7 @@ out:
 }
 
 /**
- * qla_edif_app_stop - app has announced it's exiting.
+ * qla_edif_app_stop - app has ananalunced it's exiting.
  * @vha: host adapter pointer
  * @bsg_job: user space command pointer
  *
@@ -681,10 +681,10 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	ql_dbg(ql_dbg_edif, vha, 0x911d, "%s Stopping APP: app_vid=%x\n",
 	    __func__, appstop.app_info.app_vid);
 
-	/* Call db stop and enode stop functions */
+	/* Call db stop and eanalde stop functions */
 
 	/* if we leave this running short waits are operational < 16 secs */
-	qla_enode_stop(vha);        /* stop enode */
+	qla_eanalde_stop(vha);        /* stop eanalde */
 	qla_edb_stop(vha);          /* stop db */
 
 	list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list) {
@@ -715,7 +715,7 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
 	SET_DID_STATUS(bsg_reply->result, DID_OK);
 
-	/* no return interface to app - it assumes we cleaned up ok */
+	/* anal return interface to app - it assumes we cleaned up ok */
 
 	return 0;
 }
@@ -728,7 +728,7 @@ qla_edif_app_chk_sa_update(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	if (!(fcport->edif.rx_sa_set && fcport->edif.tx_sa_set)) {
 		ql_dbg(ql_dbg_edif, vha, 0x911e,
-		    "%s: wwpn %8phC Both SA indexes has not been SET TX %d, RX %d.\n",
+		    "%s: wwpn %8phC Both SA indexes has analt been SET TX %d, RX %d.\n",
 		    __func__, fcport->port_name, fcport->edif.tx_sa_set,
 		    fcport->edif.rx_sa_set);
 		appplogireply->prli_status = 0;
@@ -813,7 +813,7 @@ qla_edif_app_authok(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	/* make sure in AUTH_PENDING or else reject */
 	if (fcport->disc_state != DSC_LOGIN_AUTH_PEND) {
 		ql_dbg(ql_dbg_edif, vha, 0x911e,
-		    "%s wwpn %8phC is not in auth pending state (%x)\n",
+		    "%s wwpn %8phC is analt in auth pending state (%x)\n",
 		    __func__, fcport->port_name, fcport->disc_state);
 		SET_DID_STATUS(bsg_reply->result, DID_OK);
 		appplogireply.prli_status = 0;
@@ -825,7 +825,7 @@ qla_edif_app_authok(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	fcport->edif.authok = 1;
 	if (!(fcport->edif.rx_sa_set && fcport->edif.tx_sa_set)) {
 		ql_dbg(ql_dbg_edif, vha, 0x911e,
-		    "%s: wwpn %8phC Both SA indexes has not been SET TX %d, RX %d.\n",
+		    "%s: wwpn %8phC Both SA indexes has analt been SET TX %d, RX %d.\n",
 		    __func__, fcport->port_name, fcport->edif.tx_sa_set,
 		    fcport->edif.rx_sa_set);
 		SET_DID_STATUS(bsg_reply->result, DID_OK);
@@ -859,7 +859,7 @@ errstate_exit:
 
 /**
  * qla_edif_app_authfail - authentication by app has failed.  Driver is given
- *   notice to tear down current session.
+ *   analtice to tear down current session.
  * @vha: host adapter pointer
  * @bsg_job: user request
  */
@@ -985,7 +985,7 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 				if (fcport->scan_state != QLA_FCPORT_FOUND)
 					continue;
 
-				if (fcport->port_type == FCT_UNKNOWN &&
+				if (fcport->port_type == FCT_UNKANALWN &&
 				    !fcport->fc4_features)
 					rval = qla24xx_async_gffid(vha, fcport,
 								   true);
@@ -1001,7 +1001,7 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			app_reply->ports[pcnt].version = EDIF_VERSION1;
 			app_reply->ports[pcnt].remote_type =
-				VND_CMD_RTYPE_UNKNOWN;
+				VND_CMD_RTYPE_UNKANALWN;
 			if (fcport->port_type & (FCT_NVME_TARGET | FCT_TARGET))
 				app_reply->ports[pcnt].remote_type |=
 					VND_CMD_RTYPE_TARGET;
@@ -1013,7 +1013,7 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			ql_dbg(ql_dbg_edif, vha, 0x2058,
 			    "Found FC_SP fcport - nn %8phN pn %8phN pcnt %d portid=%06x secure %d.\n",
-			    fcport->node_name, fcport->port_name, pcnt,
+			    fcport->analde_name, fcport->port_name, pcnt,
 			    fcport->d_id.b24, fcport->flags & FCF_FCSP_DEVICE);
 
 			switch (fcport->edif.auth_state) {
@@ -1080,7 +1080,7 @@ qla_edif_app_getstats(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	    sizeof(struct app_sinfo_req));
 	if (app_req.num_ports == 0) {
 		ql_dbg(ql_dbg_async, vha, 0x911d,
-		   "%s app did not indicate number of ports to return\n",
+		   "%s app did analt indicate number of ports to return\n",
 		    __func__);
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		rval = -1;
@@ -1170,40 +1170,40 @@ static int qla_edif_consume_dbell(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	struct fc_bsg_reply	*bsg_reply = bsg_job->reply;
 	u32 sg_skip, reply_payload_len;
 	bool keep;
-	struct edb_node *dbnode = NULL;
+	struct edb_analde *dbanalde = NULL;
 	struct edif_app_dbell ap;
 	int dat_size = 0;
 
 	sg_skip = 0;
 	reply_payload_len = bsg_job->reply_payload.payload_len;
 
-	while ((reply_payload_len - sg_skip) >= sizeof(struct edb_node)) {
-		dbnode = qla_edb_getnext(vha);
-		if (dbnode) {
+	while ((reply_payload_len - sg_skip) >= sizeof(struct edb_analde)) {
+		dbanalde = qla_edb_getnext(vha);
+		if (dbanalde) {
 			keep = true;
 			dat_size = 0;
-			ap.event_code = dbnode->ntype;
-			switch (dbnode->ntype) {
+			ap.event_code = dbanalde->ntype;
+			switch (dbanalde->ntype) {
 			case VND_CMD_AUTH_STATE_SESSION_SHUTDOWN:
 			case VND_CMD_AUTH_STATE_NEEDED:
-				ap.port_id = dbnode->u.plogi_did;
+				ap.port_id = dbanalde->u.plogi_did;
 				dat_size += sizeof(ap.port_id);
 				break;
 			case VND_CMD_AUTH_STATE_ELS_RCVD:
-				ap.port_id = dbnode->u.els_sid;
+				ap.port_id = dbanalde->u.els_sid;
 				dat_size += sizeof(ap.port_id);
 				break;
 			case VND_CMD_AUTH_STATE_SAUPDATE_COMPL:
-				ap.port_id = dbnode->u.sa_aen.port_id;
-				memcpy(&ap.event_data, &dbnode->u,
+				ap.port_id = dbanalde->u.sa_aen.port_id;
+				memcpy(&ap.event_data, &dbanalde->u,
 				    sizeof(struct edif_sa_update_aen));
 				dat_size += sizeof(struct edif_sa_update_aen);
 				break;
 			default:
 				keep = false;
 				ql_log(ql_log_warn, vha, 0x09102,
-					"%s unknown DB type=%d %p\n",
-					__func__, dbnode->ntype, dbnode);
+					"%s unkanalwn DB type=%d %p\n",
+					__func__, dbanalde->ntype, dbanalde);
 				break;
 			}
 			ap.event_data_size = dat_size;
@@ -1216,9 +1216,9 @@ static int qla_edif_consume_dbell(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			ql_dbg(ql_dbg_edif, vha, 0x09102,
 				"%s Doorbell consumed : type=%d %p\n",
-				__func__, dbnode->ntype, dbnode);
+				__func__, dbanalde->ntype, dbanalde);
 
-			kfree(dbnode);
+			kfree(dbanalde);
 		} else {
 			break;
 		}
@@ -1316,7 +1316,7 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	if (!vha->hw->flags.edif_enabled ||
 		test_bit(VPORT_DELETE, &vha->dpc_flags)) {
 		ql_dbg(level, vha, 0x911d,
-		    "%s edif not enabled or vp delete. bsg ptr done %p. dpc_flags %lx\n",
+		    "%s edif analt enabled or vp delete. bsg ptr done %p. dpc_flags %lx\n",
 		    __func__, bsg_job, vha->dpc_flags);
 
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
@@ -1364,7 +1364,7 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 		done = false;
 		break;
 	default:
-		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s unknown cmd=%x\n",
+		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s unkanalwn cmd=%x\n",
 		    __func__,
 		    bsg_request->rqst_data.h_vendor.vendor_cmd[1]);
 		rval = EXT_STATUS_INVALID_PARAM;
@@ -1480,10 +1480,10 @@ qla24xx_check_sadb_avail_slot(struct bsg_job *bsg_job, fc_port_t *fcport,
 
 	/* map the spi to an sa_index */
 	sa_index = qla_edif_sadb_get_sa_index(fcport, sa_frame);
-	if (sa_index == RX_DELETE_NO_EDIF_SA_INDEX) {
+	if (sa_index == RX_DELETE_ANAL_EDIF_SA_INDEX) {
 		/* process rx delete */
 		ql_dbg(ql_dbg_edif, fcport->vha, 0x3063,
-		    "%s: rx delete for lid 0x%x, spi 0x%x, no entry found\n",
+		    "%s: rx delete for lid 0x%x, spi 0x%x, anal entry found\n",
 		    __func__, fcport->loop_id, sa_frame->spi);
 
 		/* build and send the aen */
@@ -1495,7 +1495,7 @@ qla24xx_check_sadb_avail_slot(struct bsg_job *bsg_job, fc_port_t *fcport,
 		    QL_VND_RX_SA_KEY, fcport);
 
 		/* force a return of good bsg status; */
-		return RX_DELETE_NO_EDIF_SA_INDEX;
+		return RX_DELETE_ANAL_EDIF_SA_INDEX;
 	} else if (sa_index == INVALID_EDIF_SA_INDEX) {
 		ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
 		    "%s: Failed to get sa_index for spi 0x%x, dir: %d\n",
@@ -1564,14 +1564,14 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 
 	/* Check if host is online */
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x70a1, "Host is not online\n");
+		ql_log(ql_log_warn, vha, 0x70a1, "Host is analt online\n");
 		rval = -EIO;
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		goto done;
 	}
 
 	if (DBELL_INACTIVE(vha)) {
-		ql_log(ql_log_warn, vha, 0x70a1, "App not started\n");
+		ql_log(ql_log_warn, vha, 0x70a1, "App analt started\n");
 		rval = -EIO;
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		goto done;
@@ -1595,18 +1595,18 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 		ql_dbg(ql_dbg_edif, vha, 0x70a3, "Failed to find port= %06x\n",
 		    sa_frame.port_id.b24);
 		rval = -EINVAL;
-		SET_DID_STATUS(bsg_reply->result, DID_NO_CONNECT);
+		SET_DID_STATUS(bsg_reply->result, DID_ANAL_CONNECT);
 		goto done;
 	}
 
 	/* make sure the nport_handle is valid */
-	if (fcport->loop_id == FC_NO_LOOP_ID) {
+	if (fcport->loop_id == FC_ANAL_LOOP_ID) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e1,
-		    "%s: %8phN lid=FC_NO_LOOP_ID, spi: 0x%x, DS %d, returning NO_CONNECT\n",
+		    "%s: %8phN lid=FC_ANAL_LOOP_ID, spi: 0x%x, DS %d, returning ANAL_CONNECT\n",
 		    __func__, fcport->port_name, sa_frame.spi,
 		    fcport->disc_state);
 		rval = -EINVAL;
-		SET_DID_STATUS(bsg_reply->result, DID_NO_CONNECT);
+		SET_DID_STATUS(bsg_reply->result, DID_ANAL_CONNECT);
 		goto done;
 	}
 
@@ -1623,7 +1623,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 		goto done;
 
 	/* rx delete failure */
-	} else if (result == RX_DELETE_NO_EDIF_SA_INDEX) {
+	} else if (result == RX_DELETE_ANAL_EDIF_SA_INDEX) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e1,
 		    "%s: %8phN, skipping rx delete.\n",
 		    __func__, fcport->port_name);
@@ -1645,20 +1645,20 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 		/*
 		 * make sure we have an existing rx key, otherwise just process
 		 * this as a straight delete just like TX
-		 * This is NOT a normal case, it indicates an error recovery or key cleanup
+		 * This is ANALT a analrmal case, it indicates an error recovery or key cleanup
 		 * by the ipsec code above us.
 		 */
 		edif_entry = qla_edif_list_find_sa_index(fcport, fcport->loop_id);
 		if (!edif_entry) {
 			ql_dbg(ql_dbg_edif, vha, 0x911d,
-			    "%s: WARNING: no active sa_index for nport_handle 0x%x, forcing delete for sa_index 0x%x\n",
+			    "%s: WARNING: anal active sa_index for nport_handle 0x%x, forcing delete for sa_index 0x%x\n",
 			    __func__, fcport->loop_id, sa_index);
 			goto force_rx_delete;
 		}
 
 		/*
 		 * if we have a forced delete for rx, remove the sa_index from the edif list
-		 * and proceed with normal delete.  The rx delay timer should not be running
+		 * and proceed with analrmal delete.  The rx delay timer should analt be running
 		 */
 		if ((sa_frame.flags & SAU_FLG_FORCE_DELETE) == SAU_FLG_FORCE_DELETE) {
 			qla_edif_list_delete_sa_index(fcport, edif_entry);
@@ -1672,7 +1672,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 		/*
 		 * delayed rx delete
 		 *
-		 * if delete_sa_index is not invalid then there is already
+		 * if delete_sa_index is analt invalid then there is already
 		 * a delayed index in progress, return bsg bad status
 		 */
 		if (edif_entry->delete_sa_index != INVALID_EDIF_SA_INDEX) {
@@ -1715,7 +1715,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 
 		/*
 		 * Start the timer when we queue the delayed rx delete.
-		 * This is an activity timer that goes off if we have not
+		 * This is an activity timer that goes off if we have analt
 		 * received packets with the new sa_index
 		 */
 		add_timer(&edif_entry->timer);
@@ -1740,7 +1740,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 
 	/*
 	 * rx index and update
-	 * add the index to the list and continue with normal update
+	 * add the index to the list and continue with analrmal update
 	 */
 	} else if (((sa_frame.flags & SAU_FLG_TX) == 0) &&
 	    ((sa_frame.flags & SAU_FLG_INV) == 0)) {
@@ -1751,7 +1751,7 @@ qla24xx_sadb_update(struct bsg_job *bsg_job)
 
 		/*
 		 * add the update rx sa index to the hash so we can look for it
-		 * in the rsp queue and continue normally
+		 * in the rsp queue and continue analrmally
 		 */
 
 		ql_dbg(ql_dbg_edif, vha, 0x911d,
@@ -1778,7 +1778,7 @@ force_rx_delete:
 	 */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
 		goto done;
 	}
@@ -1840,27 +1840,27 @@ done:
 }
 
 static void
-qla_enode_free(scsi_qla_host_t *vha, struct enode *node)
+qla_eanalde_free(scsi_qla_host_t *vha, struct eanalde *analde)
 {
-	node->ntype = N_UNDEF;
-	kfree(node);
+	analde->ntype = N_UNDEF;
+	kfree(analde);
 }
 
 /**
- * qla_enode_init - initialize enode structs & lock
+ * qla_eanalde_init - initialize eanalde structs & lock
  * @vha: host adapter pointer
  *
  * should only be called when driver attaching
  */
 void
-qla_enode_init(scsi_qla_host_t *vha)
+qla_eanalde_init(scsi_qla_host_t *vha)
 {
 	struct	qla_hw_data *ha = vha->hw;
 	char	name[32];
 
-	if (vha->pur_cinfo.enode_flags == ENODE_ACTIVE) {
+	if (vha->pur_cinfo.eanalde_flags == EANALDE_ACTIVE) {
 		/* list still active - error */
-		ql_dbg(ql_dbg_edif, vha, 0x09102, "%s enode still active\n",
+		ql_dbg(ql_dbg_edif, vha, 0x09102, "%s eanalde still active\n",
 		    __func__);
 		return;
 	}
@@ -1874,50 +1874,50 @@ qla_enode_init(scsi_qla_host_t *vha)
 }
 
 /**
- * qla_enode_stop - stop and clear and enode data
+ * qla_eanalde_stop - stop and clear and eanalde data
  * @vha: host adapter pointer
  *
- * called when app notified it is exiting
+ * called when app analtified it is exiting
  */
 void
-qla_enode_stop(scsi_qla_host_t *vha)
+qla_eanalde_stop(scsi_qla_host_t *vha)
 {
 	unsigned long flags;
-	struct enode *node, *q;
+	struct eanalde *analde, *q;
 
-	if (vha->pur_cinfo.enode_flags != ENODE_ACTIVE) {
-		/* doorbell list not enabled */
+	if (vha->pur_cinfo.eanalde_flags != EANALDE_ACTIVE) {
+		/* doorbell list analt enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s enode not active\n", __func__);
+		    "%s eanalde analt active\n", __func__);
 		return;
 	}
 
 	/* grab lock so list doesn't move */
 	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
 
-	vha->pur_cinfo.enode_flags &= ~ENODE_ACTIVE; /* mark it not active */
+	vha->pur_cinfo.eanalde_flags &= ~EANALDE_ACTIVE; /* mark it analt active */
 
 	/* hopefully this is a null list at this point */
-	list_for_each_entry_safe(node, q, &vha->pur_cinfo.head, list) {
+	list_for_each_entry_safe(analde, q, &vha->pur_cinfo.head, list) {
 		ql_dbg(ql_dbg_edif, vha, 0x910f,
-		    "%s freeing enode type=%x, cnt=%x\n", __func__, node->ntype,
-		    node->dinfo.nodecnt);
-		list_del_init(&node->list);
-		qla_enode_free(vha, node);
+		    "%s freeing eanalde type=%x, cnt=%x\n", __func__, analde->ntype,
+		    analde->dinfo.analdecnt);
+		list_del_init(&analde->list);
+		qla_eanalde_free(vha, analde);
 	}
 	spin_unlock_irqrestore(&vha->pur_cinfo.pur_lock, flags);
 }
 
-static void qla_enode_clear(scsi_qla_host_t *vha, port_id_t portid)
+static void qla_eanalde_clear(scsi_qla_host_t *vha, port_id_t portid)
 {
 	unsigned    long flags;
-	struct enode    *e, *tmp;
+	struct eanalde    *e, *tmp;
 	struct purexevent   *purex;
-	LIST_HEAD(enode_list);
+	LIST_HEAD(eanalde_list);
 
-	if (vha->pur_cinfo.enode_flags != ENODE_ACTIVE) {
+	if (vha->pur_cinfo.eanalde_flags != EANALDE_ACTIVE) {
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		       "%s enode not active\n", __func__);
+		       "%s eanalde analt active\n", __func__);
 		return;
 	}
 	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
@@ -1931,49 +1931,49 @@ static void qla_enode_clear(scsi_qla_host_t *vha, port_id_t portid)
 			    purex->pur_info.pur_bytes_rcvd);
 
 			list_del_init(&e->list);
-			list_add_tail(&e->list, &enode_list);
+			list_add_tail(&e->list, &eanalde_list);
 		}
 	}
 	spin_unlock_irqrestore(&vha->pur_cinfo.pur_lock, flags);
 
-	list_for_each_entry_safe(e, tmp, &enode_list, list) {
+	list_for_each_entry_safe(e, tmp, &eanalde_list, list) {
 		list_del_init(&e->list);
-		qla_enode_free(vha, e);
+		qla_eanalde_free(vha, e);
 	}
 }
 
 /*
- *  allocate enode struct and populate buffer
- *  returns: enode pointer with buffers
+ *  allocate eanalde struct and populate buffer
+ *  returns: eanalde pointer with buffers
  *           NULL on error
  */
-static struct enode *
-qla_enode_alloc(scsi_qla_host_t *vha, uint32_t ntype)
+static struct eanalde *
+qla_eanalde_alloc(scsi_qla_host_t *vha, uint32_t ntype)
 {
-	struct enode		*node;
+	struct eanalde		*analde;
 	struct purexevent	*purex;
 
-	node = kzalloc(RX_ELS_SIZE, GFP_ATOMIC);
-	if (!node)
+	analde = kzalloc(RX_ELS_SIZE, GFP_ATOMIC);
+	if (!analde)
 		return NULL;
 
-	purex = &node->u.purexinfo;
-	purex->msgp = (u8 *)(node + 1);
+	purex = &analde->u.purexinfo;
+	purex->msgp = (u8 *)(analde + 1);
 	purex->msgp_len = ELS_MAX_PAYLOAD;
 
-	node->ntype = ntype;
-	INIT_LIST_HEAD(&node->list);
-	return node;
+	analde->ntype = ntype;
+	INIT_LIST_HEAD(&analde->list);
+	return analde;
 }
 
 static void
-qla_enode_add(scsi_qla_host_t *vha, struct enode *ptr)
+qla_eanalde_add(scsi_qla_host_t *vha, struct eanalde *ptr)
 {
 	unsigned long flags;
 
 	ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x9109,
-	    "%s add enode for type=%x, cnt=%x\n",
-	    __func__, ptr->ntype, ptr->dinfo.nodecnt);
+	    "%s add eanalde for type=%x, cnt=%x\n",
+	    __func__, ptr->ntype, ptr->dinfo.analdecnt);
 
 	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
 	list_add_tail(&ptr->list, &vha->pur_cinfo.head);
@@ -1982,11 +1982,11 @@ qla_enode_add(scsi_qla_host_t *vha, struct enode *ptr)
 	return;
 }
 
-static struct enode *
-qla_enode_find(scsi_qla_host_t *vha, uint32_t ntype, uint32_t p1, uint32_t p2)
+static struct eanalde *
+qla_eanalde_find(scsi_qla_host_t *vha, uint32_t ntype, uint32_t p1, uint32_t p2)
 {
-	struct enode		*node_rtn = NULL;
-	struct enode		*list_node, *q;
+	struct eanalde		*analde_rtn = NULL;
+	struct eanalde		*list_analde, *q;
 	unsigned long		flags;
 	uint32_t		sid;
 	struct purexevent	*purex;
@@ -1994,23 +1994,23 @@ qla_enode_find(scsi_qla_host_t *vha, uint32_t ntype, uint32_t p1, uint32_t p2)
 	/* secure the list from moving under us */
 	spin_lock_irqsave(&vha->pur_cinfo.pur_lock, flags);
 
-	list_for_each_entry_safe(list_node, q, &vha->pur_cinfo.head, list) {
+	list_for_each_entry_safe(list_analde, q, &vha->pur_cinfo.head, list) {
 
-		/* node type determines what p1 and p2 are */
-		purex = &list_node->u.purexinfo;
+		/* analde type determines what p1 and p2 are */
+		purex = &list_analde->u.purexinfo;
 		sid = p1;
 
 		if (purex->pur_info.pur_sid.b24 == sid) {
 			/* found it and its complete */
-			node_rtn = list_node;
-			list_del(&list_node->list);
+			analde_rtn = list_analde;
+			list_del(&list_analde->list);
 			break;
 		}
 	}
 
 	spin_unlock_irqrestore(&vha->pur_cinfo.pur_lock, flags);
 
-	return node_rtn;
+	return analde_rtn;
 }
 
 /**
@@ -2024,24 +2024,24 @@ static int
 qla_pur_get_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
 	struct bsg_job *bsg_job)
 {
-	struct enode		*ptr;
+	struct eanalde		*ptr;
 	struct purexevent	*purex;
 	struct qla_bsg_auth_els_reply *rpl =
 	    (struct qla_bsg_auth_els_reply *)bsg_job->reply;
 
 	bsg_job->reply_len = sizeof(*rpl);
 
-	ptr = qla_enode_find(vha, N_PUREX, fcport->d_id.b24, PUR_GET);
+	ptr = qla_eanalde_find(vha, N_PUREX, fcport->d_id.b24, PUR_GET);
 	if (!ptr) {
 		ql_dbg(ql_dbg_edif, vha, 0x9111,
-		    "%s no enode data found for %8phN sid=%06x\n",
+		    "%s anal eanalde data found for %8phN sid=%06x\n",
 		    __func__, fcport->port_name, fcport->d_id.b24);
 		SET_DID_STATUS(rpl->r.result, DID_IMM_RETRY);
 		return -EIO;
 	}
 
 	/*
-	 * enode is now off the linked list and is ours to deal with
+	 * eanalde is analw off the linked list and is ours to deal with
 	 */
 	purex = &ptr->u.purexinfo;
 
@@ -2054,8 +2054,8 @@ qla_pur_get_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
 		bsg_job->reply_payload.sg_cnt, purex->msgp,
 		purex->pur_info.pur_bytes_rcvd, 0);
 
-	/* data copy / passback completed - destroy enode */
-	qla_enode_free(vha, ptr);
+	/* data copy / passback completed - destroy eanalde */
+	qla_eanalde_free(vha, ptr);
 
 	return 0;
 }
@@ -2081,7 +2081,7 @@ qla_els_reject_iocb(scsi_qla_host_t *vha, struct qla_qpair *qp,
 	    a->ox_id, a->sid.b24, a->did.b24);
 	ql_dump_buffer(ql_dbg_edif + ql_dbg_verbose, vha, 0x0185,
 	    vha->hw->elsrej.c, sizeof(*vha->hw->elsrej.c));
-	/* flush iocb to mem before notifying hw doorbell */
+	/* flush iocb to mem before analtifying hw doorbell */
 	wmb();
 	qla2x00_start_iocbs(vha, qp->req);
 	return 0;
@@ -2093,7 +2093,7 @@ qla_edb_init(scsi_qla_host_t *vha)
 	if (DBELL_ACTIVE(vha)) {
 		/* list already init'd - error */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "edif db already initialized, cannot reinit\n");
+		    "edif db already initialized, cananalt reinit\n");
 		return;
 	}
 
@@ -2105,14 +2105,14 @@ qla_edb_init(scsi_qla_host_t *vha)
 static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
 {
 	unsigned long flags;
-	struct edb_node *e, *tmp;
+	struct edb_analde *e, *tmp;
 	port_id_t sid;
 	LIST_HEAD(edb_list);
 
 	if (DBELL_INACTIVE(vha)) {
-		/* doorbell list not enabled */
+		/* doorbell list analt enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		       "%s doorbell not enabled\n", __func__);
+		       "%s doorbell analt enabled\n", __func__);
 		return;
 	}
 
@@ -2132,13 +2132,13 @@ static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
 			continue;
 		default:
 			ql_log(ql_log_warn, vha, 0x09102,
-			       "%s unknown node type: %x\n", __func__, e->ntype);
+			       "%s unkanalwn analde type: %x\n", __func__, e->ntype);
 			sid.b24 = 0;
 			break;
 		}
 		if (sid.b24 == portid.b24) {
 			ql_dbg(ql_dbg_edif, vha, 0x910f,
-			       "%s free doorbell event : node type = %x %p\n",
+			       "%s free doorbell event : analde type = %x %p\n",
 			       __func__, e->ntype, e);
 			list_del_init(&e->list);
 			list_add_tail(&e->list, &edb_list);
@@ -2147,7 +2147,7 @@ static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
 
 	list_for_each_entry_safe(e, tmp, &edb_list, list)
-		qla_edb_node_free(vha, e);
+		qla_edb_analde_free(vha, e);
 }
 
 /* function called when app is stopping */
@@ -2156,59 +2156,59 @@ void
 qla_edb_stop(scsi_qla_host_t *vha)
 {
 	unsigned long flags;
-	struct edb_node *node, *q;
+	struct edb_analde *analde, *q;
 
 	if (DBELL_INACTIVE(vha)) {
-		/* doorbell list not enabled */
+		/* doorbell list analt enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s doorbell not enabled\n", __func__);
+		    "%s doorbell analt enabled\n", __func__);
 		return;
 	}
 
 	/* grab lock so list doesn't move */
 	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
 
-	vha->e_dbell.db_flags &= ~EDB_ACTIVE; /* mark it not active */
+	vha->e_dbell.db_flags &= ~EDB_ACTIVE; /* mark it analt active */
 	/* hopefully this is a null list at this point */
-	list_for_each_entry_safe(node, q, &vha->e_dbell.head, list) {
+	list_for_each_entry_safe(analde, q, &vha->e_dbell.head, list) {
 		ql_dbg(ql_dbg_edif, vha, 0x910f,
-		    "%s freeing edb_node type=%x\n",
-		    __func__, node->ntype);
-		qla_edb_node_free(vha, node);
+		    "%s freeing edb_analde type=%x\n",
+		    __func__, analde->ntype);
+		qla_edb_analde_free(vha, analde);
 	}
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
 
 	qla_edif_dbell_bsg_done(vha);
 }
 
-static struct edb_node *
-qla_edb_node_alloc(scsi_qla_host_t *vha, uint32_t ntype)
+static struct edb_analde *
+qla_edb_analde_alloc(scsi_qla_host_t *vha, uint32_t ntype)
 {
-	struct edb_node	*node;
+	struct edb_analde	*analde;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
-	if (!node) {
+	analde = kzalloc(sizeof(*analde), GFP_ATOMIC);
+	if (!analde) {
 		/* couldn't get space */
 		ql_dbg(ql_dbg_edif, vha, 0x9100,
-		    "edb node unable to be allocated\n");
+		    "edb analde unable to be allocated\n");
 		return NULL;
 	}
 
-	node->ntype = ntype;
-	INIT_LIST_HEAD(&node->list);
-	return node;
+	analde->ntype = ntype;
+	INIT_LIST_HEAD(&analde->list);
+	return analde;
 }
 
-/* adds a already allocated enode to the linked list */
+/* adds a already allocated eanalde to the linked list */
 static bool
-qla_edb_node_add(scsi_qla_host_t *vha, struct edb_node *ptr)
+qla_edb_analde_add(scsi_qla_host_t *vha, struct edb_analde *ptr)
 {
 	unsigned long		flags;
 
 	if (DBELL_INACTIVE(vha)) {
-		/* doorbell list not enabled */
+		/* doorbell list analt enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s doorbell not enabled\n", __func__);
+		    "%s doorbell analt enabled\n", __func__);
 		return false;
 	}
 
@@ -2224,28 +2224,28 @@ void
 qla_edb_eventcreate(scsi_qla_host_t *vha, uint32_t dbtype,
 	uint32_t data, uint32_t data2, fc_port_t	*sfcport)
 {
-	struct edb_node	*edbnode;
+	struct edb_analde	*edbanalde;
 	fc_port_t *fcport = sfcport;
 	port_id_t id;
 
 	if (!vha->hw->flags.edif_enabled) {
-		/* edif not enabled */
+		/* edif analt enabled */
 		return;
 	}
 
 	if (DBELL_INACTIVE(vha)) {
 		if (fcport)
 			fcport->edif.auth_state = dbtype;
-		/* doorbell list not enabled */
+		/* doorbell list analt enabled */
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s doorbell not enabled (type=%d\n", __func__, dbtype);
+		    "%s doorbell analt enabled (type=%d\n", __func__, dbtype);
 		return;
 	}
 
-	edbnode = qla_edb_node_alloc(vha, dbtype);
-	if (!edbnode) {
+	edbanalde = qla_edb_analde_alloc(vha, dbtype);
+	if (!edbanalde) {
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s unable to alloc db node\n", __func__);
+		    "%s unable to alloc db analde\n", __func__);
 		return;
 	}
 
@@ -2259,45 +2259,45 @@ qla_edb_eventcreate(scsi_qla_host_t *vha, uint32_t dbtype,
 		fcport = qla2x00_find_fcport_by_pid(vha, &id);
 		if (!fcport) {
 			ql_dbg(ql_dbg_edif, vha, 0x09102,
-			    "%s can't find fcport for sid= 0x%x - ignoring\n",
+			    "%s can't find fcport for sid= 0x%x - iganalring\n",
 			__func__, id.b24);
-			kfree(edbnode);
+			kfree(edbanalde);
 			return;
 		}
 	}
 
-	/* populate the edb node */
+	/* populate the edb analde */
 	switch (dbtype) {
 	case VND_CMD_AUTH_STATE_NEEDED:
 	case VND_CMD_AUTH_STATE_SESSION_SHUTDOWN:
-		edbnode->u.plogi_did.b24 = fcport->d_id.b24;
+		edbanalde->u.plogi_did.b24 = fcport->d_id.b24;
 		break;
 	case VND_CMD_AUTH_STATE_ELS_RCVD:
-		edbnode->u.els_sid.b24 = fcport->d_id.b24;
+		edbanalde->u.els_sid.b24 = fcport->d_id.b24;
 		break;
 	case VND_CMD_AUTH_STATE_SAUPDATE_COMPL:
-		edbnode->u.sa_aen.port_id = fcport->d_id;
-		edbnode->u.sa_aen.status =  data;
-		edbnode->u.sa_aen.key_type =  data2;
-		edbnode->u.sa_aen.version = EDIF_VERSION1;
+		edbanalde->u.sa_aen.port_id = fcport->d_id;
+		edbanalde->u.sa_aen.status =  data;
+		edbanalde->u.sa_aen.key_type =  data2;
+		edbanalde->u.sa_aen.version = EDIF_VERSION1;
 		break;
 	default:
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-			"%s unknown type: %x\n", __func__, dbtype);
-		kfree(edbnode);
-		edbnode = NULL;
+			"%s unkanalwn type: %x\n", __func__, dbtype);
+		kfree(edbanalde);
+		edbanalde = NULL;
 		break;
 	}
 
-	if (edbnode) {
-		if (!qla_edb_node_add(vha, edbnode)) {
+	if (edbanalde) {
+		if (!qla_edb_analde_add(vha, edbanalde)) {
 			ql_dbg(ql_dbg_edif, vha, 0x09102,
-			    "%s unable to add dbnode\n", __func__);
-			kfree(edbnode);
+			    "%s unable to add dbanalde\n", __func__);
+			kfree(edbanalde);
 			return;
 		}
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s Doorbell produced : type=%d %p\n", __func__, dbtype, edbnode);
+		    "%s Doorbell produced : type=%d %p\n", __func__, dbtype, edbanalde);
 		qla_edif_dbell_bsg_done(vha);
 		if (fcport)
 			fcport->edif.auth_state = dbtype;
@@ -2334,7 +2334,7 @@ qla_edif_timer(scsi_qla_host_t *vha)
 		qla_edif_dbell_bsg_done(vha);
 }
 
-static void qla_noop_sp_done(srb_t *sp, int res)
+static void qla_analop_sp_done(srb_t *sp, int res)
 {
 	sp->fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	/* ref: INIT */
@@ -2361,7 +2361,7 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 	if (!sa_ctl) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e6,
 		    "sa_ctl allocation failed\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		return rval;
 	}
 
@@ -2372,7 +2372,7 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 	if (!sp) {
 		ql_dbg(ql_dbg_edif, vha, 0x70e6,
 		 "SRB allocation failed\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto done;
 	}
 
@@ -2398,7 +2398,7 @@ qla24xx_issue_sa_replace_iocb(scsi_qla_host_t *vha, struct qla_work_evt *e)
 	sp->name = "SA_REPLACE";
 	sp->fcport = fcport;
 	sp->free = qla2x00_rel_sp;
-	sp->done = qla_noop_sp_done;
+	sp->done = qla_analop_sp_done;
 
 	rval = qla2x00_start_sp(sp);
 
@@ -2515,7 +2515,7 @@ qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
 	sa_update_iocb->port_id[1] = sp->fcport->d_id.b.area;
 	sa_update_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 
-	/* Invalidate the index. salt, spi, control & key are ignore */
+	/* Invalidate the index. salt, spi, control & key are iganalre */
 	sa_update_iocb->flags = SA_FLAG_INVALIDATE;
 	sa_update_iocb->salt = 0;
 	sa_update_iocb->spi = 0;
@@ -2534,7 +2534,7 @@ qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
 void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 {
 	struct purex_entry_24xx *p = *pkt;
-	struct enode		*ptr;
+	struct eanalde		*ptr;
 	int		sid;
 	u16 totlen;
 	struct purexevent	*purex;
@@ -2578,18 +2578,18 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	}
 
 	if (!vha->hw->flags.edif_enabled) {
-		/* edif support not enabled */
-		ql_dbg(ql_dbg_edif, vha, 0x910e, "%s edif not enabled\n",
+		/* edif support analt enabled */
+		ql_dbg(ql_dbg_edif, vha, 0x910e, "%s edif analt enabled\n",
 		    __func__);
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
 		__qla_consume_iocb(vha, pkt, rsp);
 		return;
 	}
 
-	ptr = qla_enode_alloc(vha, N_PUREX);
+	ptr = qla_eanalde_alloc(vha, N_PUREX);
 	if (!ptr) {
 		ql_dbg(ql_dbg_edif, vha, 0x09109,
-		    "WARNING: enode alloc failed for sid=%x\n",
+		    "WARNING: eanalde alloc failed for sid=%x\n",
 		    sid);
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
 		__qla_consume_iocb(vha, pkt, rsp);
@@ -2612,7 +2612,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 		purex->msgp_len);
 	if (rc) {
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
-		qla_enode_free(vha, ptr);
+		qla_eanalde_free(vha, ptr);
 		return;
 	}
 	beid.al_pa = purex->pur_info.pur_did.b.al_pa;
@@ -2625,7 +2625,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 		    __func__, purex->pur_info.pur_did.b24);
 
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
-		qla_enode_free(vha, ptr);
+		qla_eanalde_free(vha, ptr);
 		return;
 	}
 
@@ -2637,7 +2637,7 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 		    fcport ? fcport->d_id.b24 : 0);
 
 		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
-		qla_enode_free(host, ptr);
+		qla_eanalde_free(host, ptr);
 		return;
 	}
 
@@ -2650,15 +2650,15 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 		a.tx_addr = 0;
 		a.control_flags = EPD_RX_XCHG;  /* EPD_RX_XCHG = terminate cmd */
 		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
-		qla_enode_free(host, ptr);
-		/* send logo to let remote port knows to tear down session */
+		qla_eanalde_free(host, ptr);
+		/* send logo to let remote port kanalws to tear down session */
 		fcport->send_els_logo = 1;
 		qlt_schedule_sess_for_deletion(fcport);
 		return;
 	}
 
-	/* add the local enode to the list */
-	qla_enode_add(host, ptr);
+	/* add the local eanalde to the list */
+	qla_eanalde_add(host, ptr);
 
 	ql_dbg(ql_dbg_edif, host, 0x0910c,
 	    "%s COMPLETE purex->pur_info.pur_bytes_rcvd =%xh s:%06x -> d:%06x xchg=%xh\n",
@@ -2742,7 +2742,7 @@ static int qla_edif_sadb_delete_sa_index(fc_port_t *fcport, uint16_t nport_handl
 	entry = qla_edif_sadb_find_sa_index_entry(nport_handle, sa_list);
 	if (!entry) {
 		ql_dbg(ql_dbg_edif, vha, 0x3063,
-		    "%s: no entry found for nport_handle 0x%x\n",
+		    "%s: anal entry found for nport_handle 0x%x\n",
 		    __func__, nport_handle);
 		return -1;
 	}
@@ -2791,7 +2791,7 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 
 	if (!sp) {
 		ql_dbg(ql_dbg_edif, v, 0x3063,
-			"%s: no sp found for pkt\n", __func__);
+			"%s: anal sp found for pkt\n", __func__);
 		return;
 	}
 	/* use sp->vha due to npiv */
@@ -2821,7 +2821,7 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 	}
 
 	/*
-	 * dig the nport handle out of the iocb, fcport->loop_id can not be trusted
+	 * dig the nport handle out of the iocb, fcport->loop_id can analt be trusted
 	 * to be correct during cleanup sa_update iocbs.
 	 */
 	nport_handle = sp->fcport->loop_id;
@@ -2872,8 +2872,8 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 	} else if ((pkt->entry_status == 0) && (pkt->u.comp_sts == 0) &&
 	    old_sa_deleted) {
 		/*
-		 * Note: Wa are only keeping track of latest SA,
-		 * so we know when we can start enableing encryption per I/O.
+		 * Analte: Wa are only keeping track of latest SA,
+		 * so we kanalw when we can start enableing encryption per I/O.
 		 * If all SA's get deleted, let FW reject the IOCB.
 
 		 * TODO: edif: don't set enabled here I think
@@ -2927,7 +2927,7 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
 			qla_edif_free_sa_ctl(sp->fcport, sa_ctl, sa_ctl->index);
 		} else {
 			ql_dbg(ql_dbg_edif, vha, 0x3063,
-			    "%s: sa_ctl NOT freed, sa_ctl: %p\n",
+			    "%s: sa_ctl ANALT freed, sa_ctl: %p\n",
 			    __func__, sa_ctl);
 		}
 		ql_dbg(ql_dbg_edif, vha, 0x3063,
@@ -2962,7 +2962,7 @@ qla28xx_sa_update_iocb_entry(scsi_qla_host_t *v, struct req_que *req,
  * qla28xx_start_scsi_edif() - Send a SCSI type 6 command to the ISP
  * @sp: command to send to the ISP
  *
- * Return: non-zero if a failure occurred, else zero.
+ * Return: analn-zero if a failure occurred, else zero.
  */
 int
 qla28xx_start_scsi_edif(srb_t *sp)
@@ -2991,7 +2991,7 @@ qla28xx_start_scsi_edif(srb_t *sp)
 	/* Setup device pointers. */
 	cmd = GET_CMD_SP(sp);
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kanalw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
@@ -3070,7 +3070,7 @@ qla28xx_start_scsi_edif(srb_t *sp)
 			 * multiple of 4
 			 */
 			ql_log(ql_log_warn, vha, 0x3012,
-			    "scsi cmd len %d not multiple of 4 for cmd=%p.\n",
+			    "scsi cmd len %d analt multiple of 4 for cmd=%p.\n",
 			    cmd->cmd_len, cmd);
 			goto queuing_error_fcp_cmnd;
 		}
@@ -3091,10 +3091,10 @@ qla28xx_start_scsi_edif(srb_t *sp)
 	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
 
-	/* No data transfer */
-	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_NONE) {
+	/* Anal data transfer */
+	if (!scsi_bufflen(cmd) || cmd->sc_data_direction == DMA_ANALNE) {
 		cmd_pkt->byte_count = cpu_to_le32(0);
-		goto no_dsds;
+		goto anal_dsds;
 	}
 
 	/* Set transfer direction */
@@ -3140,7 +3140,7 @@ qla28xx_start_scsi_edif(srb_t *sp)
 		avail_dsds--;
 	}
 
-no_dsds:
+anal_dsds:
 	/* Set NPORT-ID and LUN number*/
 	cmd_pkt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	cmd_pkt->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -3273,11 +3273,11 @@ static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
 	if (!entry) {
 		if ((sa_frame->flags & (SAU_FLG_TX | SAU_FLG_INV)) == SAU_FLG_INV) {
 			ql_dbg(ql_dbg_edif, vha, 0x3063,
-			    "%s: rx delete request with no entry\n", __func__);
-			return RX_DELETE_NO_EDIF_SA_INDEX;
+			    "%s: rx delete request with anal entry\n", __func__);
+			return RX_DELETE_ANAL_EDIF_SA_INDEX;
 		}
 
-		/* if there is no entry for this nport, add one */
+		/* if there is anal entry for this nport, add one */
 		entry = kzalloc((sizeof(struct edif_sa_index_entry)), GFP_ATOMIC);
 		if (!entry)
 			return INVALID_EDIF_SA_INDEX;
@@ -3327,7 +3327,7 @@ static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
 	/* both slots are used */
 	if (free_slot == -1) {
 		ql_dbg(ql_dbg_edif, vha, 0x3063,
-		    "%s: WARNING: No free slots in sadb for nport_handle 0x%x, spi: 0x%x\n",
+		    "%s: WARNING: Anal free slots in sadb for nport_handle 0x%x, spi: 0x%x\n",
 		    __func__, entry->handle, sa_frame->spi);
 		ql_dbg(ql_dbg_edif, vha, 0x3063,
 		    "%s: Slot 0  spi: 0x%x  sa_index: %d,  Slot 1  spi: 0x%x  sa_index: %d\n",
@@ -3385,7 +3385,7 @@ int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha)
 	if (!ha->edif_tx_sa_id_map) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0009,
 		    "Unable to allocate memory for sadb tx.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ha->edif_rx_sa_id_map =
@@ -3395,7 +3395,7 @@ int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha)
 		ha->edif_tx_sa_id_map = NULL;
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0009,
 		    "Unable to allocate memory for sadb rx.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	return 0;
 }
@@ -3423,11 +3423,11 @@ static void __chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
 	edif_entry = qla_edif_list_find_sa_index(fcport, nport_handle);
 	if (!edif_entry) {
 		spin_unlock_irqrestore(&fcport->edif.indx_list_lock, flags);
-		return;		/* no pending delete for this handle */
+		return;		/* anal pending delete for this handle */
 	}
 
 	/*
-	 * check for no pending delete for this index or iocb does not
+	 * check for anal pending delete for this index or iocb does analt
 	 * match rx sa_index
 	 */
 	if (edif_entry->delete_sa_index == INVALID_EDIF_SA_INDEX ||
@@ -3478,7 +3478,7 @@ static void __chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
 		    nport_handle, sa_ctl);
 	} else {
 		ql_dbg(ql_dbg_edif, vha, 0x3063,
-		    "%s: POST SA DELETE sa_ctl not found for delete_sa_index: %d\n",
+		    "%s: POST SA DELETE sa_ctl analt found for delete_sa_index: %d\n",
 		    __func__, delete_sa_index);
 	}
 }
@@ -3559,7 +3559,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	fcport = qla2x00_find_fcport_by_pid(vha, &d_id);
 	if (!fcport) {
 		ql_dbg(ql_dbg_edif, vha, 0x911a,
-		    "%s fcport not find online portid=%06x.\n",
+		    "%s fcport analt find online portid=%06x.\n",
 		    __func__, d_id.b24);
 		SET_DID_STATUS(bsg_reply->result, DID_ERROR);
 		return -EIO;
@@ -3570,14 +3570,14 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 	if (EDIF_SESS_DELETE(fcport)) {
 		ql_dbg(ql_dbg_edif, vha, 0x910d,
-		    "%s ELS code %x, no loop id.\n", __func__,
+		    "%s ELS code %x, anal loop id.\n", __func__,
 		    bsg_request->rqst_data.r_els.els_code);
 		SET_DID_STATUS(bsg_reply->result, DID_BAD_TARGET);
 		return -ENXIO;
 	}
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7005, "Host not online.\n");
+		ql_log(ql_log_warn, vha, 0x7005, "Host analt online.\n");
 		SET_DID_STATUS(bsg_reply->result, DID_BAD_TARGET);
 		rval = -EIO;
 		goto done;
@@ -3586,7 +3586,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	/* pass through is supported only for ISP 4Gb or higher */
 	if (!IS_FWI2_CAPABLE(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7001,
-		    "ELS passthru not supported for ISP23xx based adapters.\n");
+		    "ELS passthru analt supported for ISP23xx based adapters.\n");
 		SET_DID_STATUS(bsg_reply->result, DID_BAD_TARGET);
 		rval = -EPERM;
 		goto done;
@@ -3596,7 +3596,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	if (!sp) {
 		ql_dbg(ql_dbg_user, vha, 0x7004,
 		    "Failed get sp pid=%06x\n", fcport->d_id.b24);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
 		goto done;
 	}
@@ -3608,7 +3608,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		ql_dbg(ql_dbg_user, vha, 0x7005,
 		    "Failed allocate request dma len=%x\n",
 		    bsg_job->request_payload.payload_len);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
 		goto done_free_sp;
 	}
@@ -3620,7 +3620,7 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 		ql_dbg(ql_dbg_user, vha, 0x7006,
 		    "Failed allocate response dma len=%x\n",
 		    bsg_job->reply_payload.payload_len);
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		SET_DID_STATUS(bsg_reply->result, DID_IMM_RETRY);
 		goto done_free_remap_req;
 	}
@@ -3629,8 +3629,8 @@ int qla_edif_process_els(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	    sp->remap.req.len);
 	sp->remap.remapped = true;
 
-	sp->type = SRB_ELS_CMD_HST_NOLOGIN;
-	sp->name = "SPCN_BSG_HST_NOLOGIN";
+	sp->type = SRB_ELS_CMD_HST_ANALLOGIN;
+	sp->name = "SPCN_BSG_HST_ANALLOGIN";
 	sp->u.bsg_cmd.bsg_job = bsg_job;
 	qla_parse_auth_els_ctl(sp);
 
@@ -3710,5 +3710,5 @@ void qla_edif_clear_appdata(struct scsi_qla_host *vha, struct fc_port *fcport)
 		return;
 
 	qla_edb_clear(vha, fcport->d_id);
-	qla_enode_clear(vha, fcport->d_id);
+	qla_eanalde_clear(vha, fcport->d_id);
 }

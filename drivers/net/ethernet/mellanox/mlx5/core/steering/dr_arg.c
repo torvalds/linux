@@ -50,9 +50,9 @@ static int dr_arg_pool_alloc_objs(struct dr_arg_pool *pool)
 		      object_range);
 
 	if (pool->log_chunk_size > object_range) {
-		mlx5dr_err(pool->dmn, "Required chunk size (%d) is not supported\n",
+		mlx5dr_err(pool->dmn, "Required chunk size (%d) is analt supported\n",
 			   pool->log_chunk_size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	num_of_objects = (1 << (object_range - pool->log_chunk_size));
@@ -70,13 +70,13 @@ static int dr_arg_pool_alloc_objs(struct dr_arg_pool *pool)
 	for (i = 0; i < num_of_objects; i++) {
 		arg_obj = kzalloc(sizeof(*arg_obj), GFP_KERNEL);
 		if (!arg_obj) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto clean_arg_obj;
 		}
 
 		arg_obj->log_chunk_size = pool->log_chunk_size;
 
-		list_add_tail(&arg_obj->list_node, &cur_list);
+		list_add_tail(&arg_obj->list_analde, &cur_list);
 
 		arg_obj->obj_id = obj_id;
 		arg_obj->obj_offset = i * (1 << pool->log_chunk_size);
@@ -87,8 +87,8 @@ static int dr_arg_pool_alloc_objs(struct dr_arg_pool *pool)
 
 clean_arg_obj:
 	mlx5dr_cmd_destroy_modify_header_arg(pool->dmn->mdev, obj_id);
-	list_for_each_entry_safe(arg_obj, tmp_arg, &cur_list, list_node) {
-		list_del(&arg_obj->list_node);
+	list_for_each_entry_safe(arg_obj, tmp_arg, &cur_list, list_analde) {
+		list_del(&arg_obj->list_analde);
 		kfree(arg_obj);
 	}
 	return ret;
@@ -108,11 +108,11 @@ static struct mlx5dr_arg_obj *dr_arg_pool_get_arg_obj(struct dr_arg_pool *pool)
 
 	arg_obj = list_first_entry_or_null(&pool->free_list,
 					   struct mlx5dr_arg_obj,
-					   list_node);
+					   list_analde);
 	WARN(!arg_obj, "couldn't get dr arg obj from pool");
 
 	if (arg_obj)
-		list_del_init(&arg_obj->list_node);
+		list_del_init(&arg_obj->list_analde);
 
 out:
 	mutex_unlock(&pool->mutex);
@@ -123,7 +123,7 @@ static void dr_arg_pool_put_arg_obj(struct dr_arg_pool *pool,
 				    struct mlx5dr_arg_obj *arg_obj)
 {
 	mutex_lock(&pool->mutex);
-	list_add(&arg_obj->list_node, &pool->free_list);
+	list_add(&arg_obj->list_analde, &pool->free_list);
 	mutex_unlock(&pool->mutex);
 }
 
@@ -157,8 +157,8 @@ static void dr_arg_pool_destroy(struct dr_arg_pool *pool)
 {
 	struct mlx5dr_arg_obj *arg_obj, *tmp_arg;
 
-	list_for_each_entry_safe(arg_obj, tmp_arg, &pool->free_list, list_node) {
-		list_del(&arg_obj->list_node);
+	list_for_each_entry_safe(arg_obj, tmp_arg, &pool->free_list, list_analde) {
+		list_del(&arg_obj->list_analde);
 		if (!arg_obj->obj_offset) /* the first in range */
 			mlx5dr_cmd_destroy_modify_header_arg(pool->dmn->mdev, arg_obj->obj_id);
 		kfree(arg_obj);

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #define DPMFlags_ACP_Enabled                      0x00000008
 #define DPMFlags_ForceHighestValid                0x40000000
 
-/* Do not change the following, it is also defined in SMU8.h */
+/* Do analt change the following, it is also defined in SMU8.h */
 #define SMU_EnabledFeatureScoreboard_AcpDpmOn     0x00000001
 #define SMU_EnabledFeatureScoreboard_SclkDpmOn    0x00200000
 #define SMU_EnabledFeatureScoreboard_UvdDpmOn     0x01000000
@@ -119,7 +119,7 @@ struct pp_disable_nbpslo_flags {
 
 
 enum smu10_pstate_previous_action {
-	DO_NOTHING = 1,
+	DO_ANALTHING = 1,
 	FORCE_HIGH,
 	CANCEL_FORCE_HIGH
 };
@@ -226,7 +226,7 @@ struct smu10_hwmgr {
 	uint32_t is_nb_dpm_enabled;
 	uint32_t is_voltage_island_enabled;
 	uint32_t disable_smu_acp_s3_handshake;
-	uint32_t disable_notify_smu_vpu_recovery;
+	uint32_t disable_analtify_smu_vpu_recovery;
 	bool                           in_vpu_recovery;
 	bool pg_acp_init;
 	uint8_t disp_config;
@@ -259,7 +259,7 @@ struct smu10_hwmgr {
 	struct smu10_dpm_entry uvd_dpm;
 	struct smu10_dpm_entry vce_dpm;
 	struct smu10_dpm_entry acp_dpm;
-	bool acp_power_up_no_dsp;
+	bool acp_power_up_anal_dsp;
 
 	uint32_t max_sclk_level;
 	uint32_t num_of_clk_entries;

@@ -40,7 +40,7 @@ unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
  *
  * Returns true on success, false otherwise.
  *
- * Returns true if @ptr is not NULL and quota not exceeded, false otherwise.
+ * Returns true if @ptr is analt NULL and quota analt exceeded, false otherwise.
  *
  * Caller holds tomoyo_policy_lock mutex.
  */
@@ -73,7 +73,7 @@ bool tomoyo_memory_ok(void *ptr)
  */
 void *tomoyo_commit_ok(void *data, const unsigned int size)
 {
-	void *ptr = kzalloc(size, GFP_NOFS | __GFP_NOWARN);
+	void *ptr = kzalloc(size, GFP_ANALFS | __GFP_ANALWARN);
 
 	if (tomoyo_memory_ok(ptr)) {
 		memmove(ptr, data, size);
@@ -170,7 +170,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 		atomic_inc(&ptr->head.users);
 		goto out;
 	}
-	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS | __GFP_NOWARN);
+	ptr = kzalloc(sizeof(*ptr) + len, GFP_ANALFS | __GFP_ANALWARN);
 	if (tomoyo_memory_ok(ptr)) {
 		ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
 		memmove((char *) ptr->entry.name, name, len);

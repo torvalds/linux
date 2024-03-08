@@ -40,18 +40,18 @@ void intel_gt_pm_debugfs_forcewake_user_release(struct intel_gt *gt)
 	atomic_dec(&gt->user_wakeref);
 }
 
-static int forcewake_user_open(struct inode *inode, struct file *file)
+static int forcewake_user_open(struct ianalde *ianalde, struct file *file)
 {
-	struct intel_gt *gt = inode->i_private;
+	struct intel_gt *gt = ianalde->i_private;
 
 	intel_gt_pm_debugfs_forcewake_user_open(gt);
 
 	return 0;
 }
 
-static int forcewake_user_release(struct inode *inode, struct file *file)
+static int forcewake_user_release(struct ianalde *ianalde, struct file *file)
 {
-	struct intel_gt *gt = inode->i_private;
+	struct intel_gt *gt = ianalde->i_private;
 
 	intel_gt_pm_debugfs_forcewake_user_release(gt);
 
@@ -94,7 +94,7 @@ static int vlv_drpc(struct seq_file *m)
 	rcctl1 = intel_uncore_read(uncore, GEN6_RC_CONTROL);
 
 	seq_printf(m, "RC6 Enabled: %s\n",
-		   str_yes_no(rcctl1 & (GEN7_RC_CTL_TO_MODE |
+		   str_anal_anal(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
 	seq_printf(m, "Multi-threaded Forcewake Request: 0x%x\n", mt_fwake_req);
 	seq_printf(m, "Render Power Well: %s\n",
@@ -131,19 +131,19 @@ static int gen6_drpc(struct seq_file *m)
 		snb_pcode_read(gt->uncore, GEN6_PCODE_READ_RC6VIDS, &rc6vids, NULL);
 
 	seq_printf(m, "RC1e Enabled: %s\n",
-		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
+		   str_anal_anal(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
-		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
+		   str_anal_anal(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
 	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Well Gating Enabled: %s\n",
-			   str_yes_no(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
+			   str_anal_anal(gen9_powergate_enable & GEN9_RENDER_PG_ENABLE));
 		seq_printf(m, "Media Well Gating Enabled: %s\n",
-			   str_yes_no(gen9_powergate_enable & GEN9_MEDIA_PG_ENABLE));
+			   str_anal_anal(gen9_powergate_enable & GEN9_MEDIA_PG_ENABLE));
 	}
 	seq_printf(m, "Deep RC6 Enabled: %s\n",
-		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
+		   str_anal_anal(rcctl1 & GEN6_RC_CTL_RC6p_ENABLE));
 	seq_printf(m, "Deepest RC6 Enabled: %s\n",
-		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6pp_ENABLE));
+		   str_anal_anal(rcctl1 & GEN6_RC_CTL_RC6pp_ENABLE));
 	seq_puts(m, "Current RC state: ");
 	switch (gt_core_status & GEN6_RCn_MASK) {
 	case GEN6_RC0:
@@ -162,12 +162,12 @@ static int gen6_drpc(struct seq_file *m)
 		seq_puts(m, "RC7\n");
 		break;
 	default:
-		seq_puts(m, "Unknown\n");
+		seq_puts(m, "Unkanalwn\n");
 		break;
 	}
 
 	seq_printf(m, "Core Power Down: %s\n",
-		   str_yes_no(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+		   str_anal_anal(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
 	seq_printf(m, "Multi-threaded Forcewake Request: 0x%x\n", mt_fwake_req);
 	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Power Well: %s\n",
@@ -178,7 +178,7 @@ static int gen6_drpc(struct seq_file *m)
 			    GEN9_PWRGT_MEDIA_STATUS_MASK) ? "Up" : "Down");
 	}
 
-	/* Not exactly sure what this is */
+	/* Analt exactly sure what this is */
 	intel_rc6_print_residency(m, "RC6 \"Locked to RPn\" residency since boot:",
 				  INTEL_RC6_RES_RC6_LOCKED);
 	intel_rc6_print_residency(m, "RC6 residency since boot:", INTEL_RC6_RES_RC6);
@@ -209,16 +209,16 @@ static int ilk_drpc(struct seq_file *m)
 	crstandvid = intel_uncore_read16(uncore, CRSTANDVID);
 
 	seq_printf(m, "HD boost: %s\n",
-		   str_yes_no(rgvmodectl & MEMMODE_BOOST_EN));
+		   str_anal_anal(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
 		   (rgvmodectl & MEMMODE_BOOST_FREQ_MASK) >>
 		   MEMMODE_BOOST_FREQ_SHIFT);
 	seq_printf(m, "HW control enabled: %s\n",
-		   str_yes_no(rgvmodectl & MEMMODE_HWIDLE_EN));
+		   str_anal_anal(rgvmodectl & MEMMODE_HWIDLE_EN));
 	seq_printf(m, "SW control enabled: %s\n",
-		   str_yes_no(rgvmodectl & MEMMODE_SWMODE_EN));
+		   str_anal_anal(rgvmodectl & MEMMODE_SWMODE_EN));
 	seq_printf(m, "Gated voltage change: %s\n",
-		   str_yes_no(rgvmodectl & MEMMODE_RCLK_GATE));
+		   str_anal_anal(rgvmodectl & MEMMODE_RCLK_GATE));
 	seq_printf(m, "Starting frequency: P%d\n",
 		   (rgvmodectl & MEMMODE_FSTART_MASK) >> MEMMODE_FSTART_SHIFT);
 	seq_printf(m, "Max P-state: P%d\n",
@@ -227,7 +227,7 @@ static int ilk_drpc(struct seq_file *m)
 	seq_printf(m, "RS1 VID: %d\n", (crstandvid & 0x3f));
 	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
 	seq_printf(m, "Render standby enabled: %s\n",
-		   str_yes_no(!(rstdbyctl & RCX_SW_EXIT)));
+		   str_anal_anal(!(rstdbyctl & RCX_SW_EXIT)));
 	seq_puts(m, "Current RS state: ");
 	switch (rstdbyctl & RSX_STATUS_MASK) {
 	case RSX_STATUS_ON:
@@ -249,7 +249,7 @@ static int ilk_drpc(struct seq_file *m)
 		seq_puts(m, "RC3 (RC6+)\n");
 		break;
 	default:
-		seq_puts(m, "unknown\n");
+		seq_puts(m, "unkanalwn\n");
 		break;
 	}
 
@@ -272,13 +272,13 @@ static int mtl_drpc(struct seq_file *m)
 						 GEN9_PWRGT_DOMAIN_STATUS);
 
 	seq_printf(m, "RC6 Enabled: %s\n",
-		   str_yes_no(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
+		   str_anal_anal(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
 	if (gt->type == GT_MEDIA) {
 		seq_printf(m, "Media Well Gating Enabled: %s\n",
-			   str_yes_no(mtl_powergate_enable & GEN9_MEDIA_PG_ENABLE));
+			   str_anal_anal(mtl_powergate_enable & GEN9_MEDIA_PG_ENABLE));
 	} else {
 		seq_printf(m, "Render Well Gating Enabled: %s\n",
-			   str_yes_no(mtl_powergate_enable & GEN9_RENDER_PG_ENABLE));
+			   str_anal_anal(mtl_powergate_enable & GEN9_RENDER_PG_ENABLE));
 	}
 
 	seq_puts(m, "Current RC state: ");
@@ -290,7 +290,7 @@ static int mtl_drpc(struct seq_file *m)
 		seq_puts(m, "RC6\n");
 		break;
 	default:
-		seq_puts(m, "Unknown\n");
+		seq_puts(m, "Unkanalwn\n");
 		break;
 	}
 
@@ -315,7 +315,7 @@ static int drpc_show(struct seq_file *m, void *unused)
 	struct intel_gt *gt = m->private;
 	struct drm_i915_private *i915 = gt->i915;
 	intel_wakeref_t wakeref;
-	int err = -ENODEV;
+	int err = -EANALDEV;
 
 	with_intel_runtime_pm(gt->uncore->rpm, wakeref) {
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
@@ -356,11 +356,11 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 
 		rpmodectl = intel_uncore_read(uncore, GEN6_RP_CONTROL);
 		drm_printf(p, "Video Turbo Mode: %s\n",
-			   str_yes_no(rpmodectl & GEN6_RP_MEDIA_TURBO));
+			   str_anal_anal(rpmodectl & GEN6_RP_MEDIA_TURBO));
 		drm_printf(p, "HW control enabled: %s\n",
-			   str_yes_no(rpmodectl & GEN6_RP_ENABLE));
+			   str_anal_anal(rpmodectl & GEN6_RP_ENABLE));
 		drm_printf(p, "SW control enabled: %s\n",
-			   str_yes_no((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) == GEN6_RP_MEDIA_SW_MODE));
+			   str_anal_anal((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) == GEN6_RP_MEDIA_SW_MODE));
 
 		vlv_punit_get(i915);
 		freq_sts = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
@@ -389,7 +389,7 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 	} else if (GRAPHICS_VER(i915) >= 6) {
 		gen6_rps_frequency_dump(rps, p);
 	} else {
-		drm_puts(p, "no P-state info available\n");
+		drm_puts(p, "anal P-state info available\n");
 	}
 
 	drm_printf(p, "Current CD clock frequency: %d kHz\n", i915->display.cdclk.hw.cdclk);
@@ -420,7 +420,7 @@ static int llc_show(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 	int gpu_freq, ia_freq;
 
-	seq_printf(m, "LLC: %s\n", str_yes_no(HAS_LLC(i915)));
+	seq_printf(m, "LLC: %s\n", str_anal_anal(HAS_LLC(i915)));
 	seq_printf(m, "%s: %uMB\n", edram ? "eDRAM" : "eLLC",
 		   i915->edram_size_mb);
 
@@ -471,7 +471,7 @@ static const char *rps_power_to_str(unsigned int power)
 	};
 
 	if (power >= ARRAY_SIZE(strings) || !strings[power])
-		return "unknown";
+		return "unkanalwn";
 
 	return strings[power];
 }
@@ -483,11 +483,11 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	struct intel_rps *rps = &gt->rps;
 
 	seq_printf(m, "RPS enabled? %s\n",
-		   str_yes_no(intel_rps_is_enabled(rps)));
+		   str_anal_anal(intel_rps_is_enabled(rps)));
 	seq_printf(m, "RPS active? %s\n",
-		   str_yes_no(intel_rps_is_active(rps)));
+		   str_anal_anal(intel_rps_is_active(rps)));
 	seq_printf(m, "GPU busy? %s, %llums\n",
-		   str_yes_no(gt->awake),
+		   str_anal_anal(gt->awake),
 		   ktime_to_ms(intel_gt_get_awake_time(gt)));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));

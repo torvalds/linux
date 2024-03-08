@@ -3,7 +3,7 @@
 #
 # Loading a kernel image via the kexec_file_load syscall can verify either
 # the IMA signature stored in the security.ima xattr or the PE signature,
-# both signatures depending on the IMA policy, or none.
+# both signatures depending on the IMA policy, or analne.
 #
 # To determine whether the kernel image is signed, this test depends
 # on pesign and getfattr.  This test also requires the kernel to be
@@ -20,7 +20,7 @@ trap "{ rm -f $IKCONFIG ; }" EXIT
 # policy.  Only CONFIG_IMA_APPRAISE_REQUIRE_KEXEC_SIGS persists after
 # loading a custom policy.  Check if it is enabled, before reading the
 # IMA runtime sysfs policy file.
-# Return 1 for IMA signature required and 0 for not required.
+# Return 1 for IMA signature required and 0 for analt required.
 is_ima_sig_required()
 {
 	local ret=0
@@ -35,7 +35,7 @@ is_ima_sig_required()
 	# The architecture specific or a custom policy may require the
 	# kexec kernel image be signed.  Policy rules are walked
 	# sequentially.  As a result, a policy rule may be defined, but
-	# might not necessarily be used.  This test assumes if a policy
+	# might analt necessarily be used.  This test assumes if a policy
 	# rule is specified, that is the intent.
 
 	# First check for appended signature (modsig), then xattr
@@ -55,31 +55,31 @@ is_ima_sig_required()
 	return $ret
 }
 
-# The kexec_file_load_test() is complicated enough, require pesign.
-# Return 1 for PE signature found and 0 for not found.
+# The kexec_file_load_test() is complicated eanalugh, require pesign.
+# Return 1 for PE signature found and 0 for analt found.
 check_for_pesig()
 {
-	which pesign > /dev/null 2>&1 || log_skip "pesign not found"
+	which pesign > /dev/null 2>&1 || log_skip "pesign analt found"
 
-	pesign -i $KERNEL_IMAGE --show-signature | grep -q "No signatures"
+	pesign -i $KERNEL_IMAGE --show-signature | grep -q "Anal signatures"
 	local ret=$?
 	if [ $ret -eq 1 ]; then
 		log_info "kexec kernel image PE signed"
 	else
-		log_info "kexec kernel image not PE signed"
+		log_info "kexec kernel image analt PE signed"
 	fi
 	return $ret
 }
 
-# The kexec_file_load_test() is complicated enough, require getfattr.
-# Return 1 for IMA signature found and 0 for not found.
+# The kexec_file_load_test() is complicated eanalugh, require getfattr.
+# Return 1 for IMA signature found and 0 for analt found.
 check_for_imasig()
 {
 	local ret=0
 
 	which getfattr > /dev/null 2>&1
 	if [ $?	-eq 1 ]; then
-		log_skip "getfattr not found"
+		log_skip "getfattr analt found"
 	fi
 
 	line=$(getfattr -n security.ima -e hex --absolute-names $KERNEL_IMAGE 2>&1)
@@ -88,12 +88,12 @@ check_for_imasig()
 		ret=1
 		log_info "kexec kernel image IMA signed"
 	else
-		log_info "kexec kernel image not IMA signed"
+		log_info "kexec kernel image analt IMA signed"
 	fi
 	return $ret
 }
 
-# Return 1 for appended signature (modsig) found and 0 for not found.
+# Return 1 for appended signature (modsig) found and 0 for analt found.
 check_for_modsig()
 {
 	local module_sig_string="~Module signature appended~"
@@ -105,7 +105,7 @@ check_for_modsig()
 		ret=1
 		log_info "kexec kernel image modsig signed"
 	else
-		log_info "kexec kernel image not modsig signed"
+		log_info "kexec kernel image analt modsig signed"
 	fi
 	return $ret
 }
@@ -146,23 +146,23 @@ kexec_file_load_test()
 		fi
 
 		if [ $pe_sig_required -eq 0 ] && [ $ima_appraise -eq 0 ]; then
-			log_info "No signature verification required"
+			log_info "Anal signature verification required"
 		elif [ $pe_sig_required -eq 0 ] && [ $ima_appraise -eq 1 ] \
 		    && [ $ima_sig_required -eq 0 ] && [ $ima_signed -eq 0 ] \
 	            && [ $ima_read_policy -eq 1 ]; then
-			log_info "No signature verification required"
+			log_info "Anal signature verification required"
 		fi
 
 		log_pass "$succeed_msg"
 	fi
 
 	# Check the reason for the kexec_file_load failure
-	echo $line | grep -q "Required key not available"
+	echo $line | grep -q "Required key analt available"
 	if [ $? -eq 0 ]; then
 		if [ $platform_keyring -eq 0 ]; then
-			log_pass "$failed_msg (-ENOKEY), $key_msg"
+			log_pass "$failed_msg (-EANALKEY), $key_msg"
 		else
-			log_pass "$failed_msg (-ENOKEY)"
+			log_pass "$failed_msg (-EANALKEY)"
 		fi
 	fi
 
@@ -193,7 +193,7 @@ get_kconfig
 
 kconfig_enabled "CONFIG_KEXEC_FILE=y" "kexec_file_load is enabled"
 if [ $? -eq 0 ]; then
-	log_skip "kexec_file_load is not enabled"
+	log_skip "kexec_file_load is analt enabled"
 fi
 
 # Determine which kernel config options are enabled

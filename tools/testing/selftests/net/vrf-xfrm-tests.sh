@@ -4,7 +4,7 @@
 # Various combinations of VRF with xfrms and qdisc.
 
 source lib.sh
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=anal
 VERBOSE=0
 ret=0
 
@@ -46,7 +46,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -97,7 +97,7 @@ create_vrf()
 	ip ${ns} -6 route add vrf ${vrf} unreachable default metric 8192
 
 	ip ${ns} addr add 127.0.0.1/8 dev ${vrf}
-	ip ${ns} -6 addr add ::1 dev ${vrf} nodad
+	ip ${ns} -6 addr add ::1 dev ${vrf} analdad
 
 	ip ${ns} ru del pref 0
 	ip ${ns} ru add pref 32765 from all lookup local
@@ -163,8 +163,8 @@ connect_ns()
 	fi
 
 	if [ "${ns1_addr6}" != "-" ]; then
-		ip ${ns1arg} addr add dev ${ns1_dev} ${ns1_addr6} nodad
-		ip ${ns2arg} addr add dev ${ns2_dev} ${ns2_addr6} nodad
+		ip ${ns1arg} addr add dev ${ns1_dev} ${ns1_addr6} analdad
+		ip ${ns2arg} addr add dev ${ns2_dev} ${ns2_addr6} analdad
 	fi
 }
 
@@ -342,11 +342,11 @@ run_tests()
 {
 	cleanup_xfrm
 
-	# no IPsec
+	# anal IPsec
 	run_cmd_host1 ip vrf exec ${VRF} ping -c1 -w1 ${HOST2_4}
-	log_test $? 0 "IPv4 no xfrm policy"
+	log_test $? 0 "IPv4 anal xfrm policy"
 	run_cmd_host1 ip vrf exec ${VRF} ${ping6} -c1 -w1 ${HOST2_6}
-	log_test $? 0 "IPv6 no xfrm policy"
+	log_test $? 0 "IPv6 anal xfrm policy"
 
 	# xfrm without VRF in sel
 	setup_xfrm ${HOST1_4} ${HOST2_4} ${HOST1_6} ${HOST2_6}
@@ -357,8 +357,8 @@ run_tests()
 	cleanup_xfrm
 
 	# xfrm with VRF in sel
-	# Known failure: ipv4 resets the flow oif after the lookup. Fix is
-	# not straightforward.
+	# Kanalwn failure: ipv4 resets the flow oif after the lookup. Fix is
+	# analt straightforward.
 	# setup_xfrm ${HOST1_4} ${HOST2_4} ${HOST1_6} ${HOST2_6} "dev ${VRF}"
 	# run_cmd_host1 ip vrf exec ${VRF} ping -c1 -w1 ${HOST2_4}
 	# log_test $? 0 "IPv4 xfrm policy with VRF in selector"
@@ -367,7 +367,7 @@ run_tests()
 	cleanup_xfrm
 
 	# xfrm with enslaved device in sel
-	# Known failures: combined with the above, __xfrm{4,6}_selector_match
+	# Kanalwn failures: combined with the above, __xfrm{4,6}_selector_match
 	# needs to consider both l3mdev and enslaved device index.
 	# setup_xfrm ${HOST1_4} ${HOST2_4} ${HOST1_6} ${HOST2_6} "dev eth0"
 	# run_cmd_host1 ip vrf exec ${VRF} ping -c1 -w1 ${HOST2_4}
@@ -406,7 +406,7 @@ EOF
 while getopts :pv o
 do
 	case $o in
-		p) PAUSE_ON_FAIL=yes;;
+		p) PAUSE_ON_FAIL=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -417,7 +417,7 @@ cleanup 2>/dev/null
 setup
 
 echo
-echo "No qdisc on VRF device"
+echo "Anal qdisc on VRF device"
 run_tests
 
 run_cmd_host1 tc qdisc add dev ${VRF} root netem delay 100ms

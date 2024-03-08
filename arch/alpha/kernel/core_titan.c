@@ -36,7 +36,7 @@ struct
 } saved_config[4] __attribute__((common));
 
 /*
- * Is PChip 1 present? No need to query it more than once.
+ * Is PChip 1 present? Anal need to query it more than once.
  */
 static int titan_pchip1_present;
 
@@ -80,13 +80,13 @@ titan_write_tig(int offset, u8 value)
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore analt safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
- * Note that all config space accesses use Type 1 address format.
+ * Analte that all config space accesses use Type 1 address format.
  *
- * Note also that type 1 is determined by non-zero bus number.
+ * Analte also that type 1 is determined by analn-zero bus number.
  *
  * Type 1:
  *
@@ -102,7 +102,7 @@ titan_write_tig(int offset, u8 value)
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., SCSI and Ethernet).
  * 
@@ -123,7 +123,7 @@ mk_conf_addr(struct pci_bus *pbus, unsigned int device_fn, int where,
 		 "pci_addr=0x%p, type1=0x%p)\n",
 		 bus, device_fn, where, pci_addr, type1));
 
-	if (!pbus->parent) /* No parent means peer PCI bus. */
+	if (!pbus->parent) /* Anal parent means peer PCI bus. */
 		bus = 0;
         *type1 = (bus != 0);
 
@@ -143,7 +143,7 @@ titan_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -168,7 +168,7 @@ titan_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-		return PCIBIOS_DEVICE_NOT_FOUND;
+		return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -214,7 +214,7 @@ titan_pci_tbi(struct pci_controller *hose, dma_addr_t start, dma_addr_t end)
 
 	/* We can invalidate up to 8 tlb entries in a go.  The flush
 	   matches against <31:16> in the pci address.  
-	   Note that gtlbi* and atlbi* are in the same place in the g_port
+	   Analte that gtlbi* and atlbi* are in the same place in the g_port
 	   and a_port, respectively, so the g_port offset can be used
 	   even if hose is an a_port */
 	csr = &port->port_specific.g.gtlbia.csr;
@@ -309,7 +309,7 @@ titan_init_one_pachip_port(titan_pachip_port *port, int index)
 	/*
 	 * Set up the PCI to main memory translation windows.
 	 *
-	 * Note: Window 3 on Titan is Scatter-Gather ONLY.
+	 * Analte: Window 3 on Titan is Scatter-Gather ONLY.
 	 *
 	 * Window 0 is scatter-gather 8MB at 8MB (for isa)
 	 * Window 1 is direct access 1GB at 2GB
@@ -511,7 +511,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 		 */
 		area = get_vm_area(size, VM_IOREMAP);
 		if (!area) {
-			printk("ioremap failed... no vm_area...\n");
+			printk("ioremap failed... anal vm_area...\n");
 			return NULL;
 		}
 
@@ -521,7 +521,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 		    baddr += PAGE_SIZE, vaddr += PAGE_SIZE) {
 			pfn = ptes[baddr >> PAGE_SHIFT];
 			if (!(pfn & 1)) {
-				printk("ioremap failed... pte not valid...\n");
+				printk("ioremap failed... pte analt valid...\n");
 				vfree(area->addr);
 				return NULL;
 			}
@@ -592,11 +592,11 @@ titan_agp_setup(alpha_agp_info *agp)
 	struct titan_agp_aperture *aper;
 
 	if (!alpha_agpgart_size)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aper = kmalloc(sizeof(struct titan_agp_aperture), GFP_KERNEL);
 	if (aper == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	aper->arena = agp->hose->sg_pci;
 	aper->pg_count = alpha_agpgart_size / PAGE_SIZE;
@@ -605,7 +605,7 @@ titan_agp_setup(alpha_agp_info *agp)
 	if (aper->pg_start < 0) {
 		printk(KERN_ERR "Failed to reserve AGP memory\n");
 		kfree(aper);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	agp->aperture.bus_base = 
@@ -710,7 +710,7 @@ titan_agp_translate(alpha_agp_info *agp, dma_addr_t addr)
 
 	pte = aper->arena->ptes[baddr >> PAGE_SHIFT];
 	if (!(pte & 1)) {
-		printk("%s: pte not valid\n", __func__);
+		printk("%s: pte analt valid\n", __func__);
 		return -EINVAL;
 	}
 
@@ -772,7 +772,7 @@ titan_agp_info(void)
 	agp->ops = &titan_agp_ops;
 
 	/*
-	 * Aperture - not configured until ops.setup().
+	 * Aperture - analt configured until ops.setup().
 	 *
 	 * FIXME - should we go ahead and allocate it here?
 	 */

@@ -126,7 +126,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 	rt5682 = devm_kzalloc(&i2c->dev, sizeof(struct rt5682_priv),
 		GFP_KERNEL);
 	if (!rt5682)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, rt5682);
 
@@ -182,8 +182,8 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 	regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
 	if (val != DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5682\n", val);
-		return -ENODEV;
+			"Device with ID register %x is analt rt5682\n", val);
+		return -EANALDEV;
 	}
 
 	mutex_init(&rt5682->calibrate_mutex);
@@ -328,7 +328,7 @@ static struct i2c_driver rt5682_i2c_driver = {
 		.name = "rt5682",
 		.of_match_table = rt5682_of_match,
 		.acpi_match_table = rt5682_acpi_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = rt5682_i2c_probe,
 	.remove = rt5682_i2c_remove,

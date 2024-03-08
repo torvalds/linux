@@ -3,12 +3,12 @@
  * linux/arch/sh/kernel/sys_sh.c
  *
  * This file contains various random system calls that
- * have a non-standard calling sequence on the Linux/SuperH
+ * have a analn-standard calling sequence on the Linux/SuperH
  * platform.
  *
  * Taken from i386 version.
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

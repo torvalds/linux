@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -97,7 +97,7 @@ static struct mtk_mdp_pix_limit mtk_mdp_size_min = {
 	.target_rot_en_h	= 16,
 };
 
-/* align size for normal raster scan pixel format */
+/* align size for analrmal raster scan pixel format */
 static struct mtk_mdp_pix_align mtk_mdp_rs_align = {
 	.org_w			= 2,
 	.org_h			= 2,
@@ -191,7 +191,7 @@ static const struct mtk_mdp_fmt *mtk_mdp_try_fmt_mplane(struct mtk_mdp_ctx *ctx,
 		return NULL;
 	}
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->pixelformat = fmt->pixelformat;
 	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
 		pix_mp->colorspace = ctx->colorspace;
@@ -641,7 +641,7 @@ static int mtk_mdp_m2m_g_fmt_mplane(struct file *file, void *fh,
 
 	pix_mp->width = frame->width;
 	pix_mp->height = frame->height;
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->pixelformat = frame->fmt->pixelformat;
 	pix_mp->num_planes = frame->fmt->num_planes;
 	pix_mp->colorspace = ctx->colorspace;
@@ -1057,7 +1057,7 @@ static int mtk_mdp_m2m_open(struct file *file)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (mutex_lock_interruptible(&mdp->lock)) {
 		ret = -ERESTARTSYS;
@@ -1182,7 +1182,7 @@ int mtk_mdp_register_m2m_device(struct mtk_mdp_dev *mdp)
 	mdp->vdev = video_device_alloc();
 	if (!mdp->vdev) {
 		dev_err(dev, "failed to allocate video device\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_video_alloc;
 	}
 	mdp->vdev->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;

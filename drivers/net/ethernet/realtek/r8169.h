@@ -68,7 +68,7 @@ enum mac_version {
 	/* support for RTL_GIGA_MAC_VER_60 has been removed */
 	RTL_GIGA_MAC_VER_61,
 	RTL_GIGA_MAC_VER_63,
-	RTL_GIGA_MAC_NONE
+	RTL_GIGA_MAC_ANALNE
 };
 
 struct rtl8169_private;

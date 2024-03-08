@@ -3,7 +3,7 @@
  *   Driver for KeyStream 11b/g wireless LAN
  *
  *   Copyright (c) 2005-2008 KeyStream Corp.
- *   Copyright (C) 2009 Renesas Technology Corp.
+ *   Copyright (C) 2009 Renesas Techanallogy Corp.
  */
 
 #ifndef _KS_WLAN_IOCTL_H

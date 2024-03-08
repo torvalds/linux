@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -39,11 +39,11 @@ int monitor_device(const char *device_name,
 
 	ret = asprintf(&chrdev_name, "/dev/%s", device_name);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfd = open(chrdev_name, 0);
 	if (cfd == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto exit_free_name;
 	}
@@ -92,11 +92,11 @@ int monitor_device(const char *device_name,
 
 		ret = read(lfd, &event, sizeof(event));
 		if (ret == -1) {
-			if (errno == -EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erranal == -EAGAIN) {
+				fprintf(stderr, "analthing available\n");
 				continue;
 			} else {
-				ret = -errno;
+				ret = -erranal;
 				fprintf(stderr, "Failed to read event (%d)\n",
 					ret);
 				break;
@@ -109,8 +109,8 @@ int monitor_device(const char *device_name,
 			break;
 		}
 		fprintf(stdout, "GPIO EVENT at %" PRIu64 " on line %d (%d|%d) ",
-			(uint64_t)event.timestamp_ns, event.offset, event.line_seqno,
-			event.seqno);
+			(uint64_t)event.timestamp_ns, event.offset, event.line_seqanal,
+			event.seqanal);
 		switch (event.id) {
 		case GPIO_V2_LINE_EVENT_RISING_EDGE:
 			fprintf(stdout, "rising edge");
@@ -119,7 +119,7 @@ int monitor_device(const char *device_name,
 			fprintf(stdout, "falling edge");
 			break;
 		default:
-			fprintf(stdout, "unknown event");
+			fprintf(stdout, "unkanalwn event");
 		}
 		fprintf(stdout, "\n");
 
@@ -152,7 +152,7 @@ void print_usage(void)
 		"  -w         Report the wall-clock time for events\n"
 		"  -t         Report the hardware timestamp for events\n"
 		"  -b <n>     Debounce the line with period n microseconds\n"
-		" [-c <n>]    Do <n> loops (optional, infinite loop if not stated)\n"
+		" [-c <n>]    Do <n> loops (optional, infinite loop if analt stated)\n"
 		"  -?         This helptext\n"
 		"\n"
 		"Example:\n"
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 	if (!(config.flags & EDGE_FLAGS)) {
-		printf("No flags specified, listening on both rising and "
+		printf("Anal flags specified, listening on both rising and "
 		       "falling edges\n");
 		config.flags |= EDGE_FLAGS;
 	}

@@ -48,7 +48,7 @@ void bch2_topology_error(struct bch_fs *);
 })
 
 /*
- * Later we might want to mark only the particular device inconsistent, not the
+ * Later we might want to mark only the particular device inconsistent, analt the
  * entire filesystem:
  */
 
@@ -104,9 +104,9 @@ struct fsck_err_state {
 
 enum bch_fsck_flags {
 	FSCK_CAN_FIX		= 1 << 0,
-	FSCK_CAN_IGNORE		= 1 << 1,
+	FSCK_CAN_IGANALRE		= 1 << 1,
 	FSCK_NEED_FSCK		= 1 << 2,
-	FSCK_NO_RATELIMIT	= 1 << 3,
+	FSCK_ANAL_RATELIMIT	= 1 << 3,
 };
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
@@ -124,7 +124,7 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 				 __VA_ARGS__);				\
 									\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
-	    _ret != -BCH_ERR_fsck_ignore) {				\
+	    _ret != -BCH_ERR_fsck_iganalre) {				\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
@@ -134,16 +134,16 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 
 /* These macros return true if error should be fixed: */
 
-/* XXX: mark in superblock that filesystem contains errors, if we ignore: */
+/* XXX: mark in superblock that filesystem contains errors, if we iganalre: */
 
 #define __fsck_err_on(cond, c, _flags, _err_type, ...)			\
 	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false)
 
 #define need_fsck_err_on(cond, c, _err_type, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
+	__fsck_err_on(cond, c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
 
 #define need_fsck_err(c, _err_type, ...)				\
-	__fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
+	__fsck_err(c, FSCK_CAN_IGANALRE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
 
 #define mustfix_fsck_err(c, _err_type, ...)				\
 	__fsck_err(c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
@@ -152,10 +152,10 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 	__fsck_err_on(cond, c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
 
 #define fsck_err(c, _err_type, ...)					\
-	__fsck_err(c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+	__fsck_err(c, FSCK_CAN_FIX|FSCK_CAN_IGANALRE, _err_type, __VA_ARGS__)
 
 #define fsck_err_on(cond, c, _err_type, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGANALRE, _err_type, __VA_ARGS__)
 
 __printf(4, 0)
 static inline void bch2_bkey_fsck_err(struct bch_fs *c,

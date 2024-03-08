@@ -35,8 +35,8 @@ struct dm_cell_key {
 };
 
 /*
- * The range of a key (block_end - block_begin) must not
- * exceed BIO_PRISON_MAX_RANGE.  Also the range must not
+ * The range of a key (block_end - block_begin) must analt
+ * exceed BIO_PRISON_MAX_RANGE.  Also the range must analt
  * cross a similarly sized boundary.
  *
  * Must be a power of 2.
@@ -50,7 +50,7 @@ struct dm_cell_key {
  */
 struct dm_bio_prison_cell {
 	struct list_head user_list;	/* for client use */
-	struct rb_node node;
+	struct rb_analde analde;
 
 	struct dm_cell_key key;
 	struct bio *holder;
@@ -65,7 +65,7 @@ void dm_bio_prison_destroy(struct dm_bio_prison *prison);
  * Eventually all bio prison clients should manage their own cell memory.
  *
  * Like mempool_alloc(), dm_bio_prison_alloc_cell() can only fail if called
- * in interrupt context or passed GFP_NOWAIT.
+ * in interrupt context or passed GFP_ANALWAIT.
  */
 struct dm_bio_prison_cell *dm_bio_prison_alloc_cell(struct dm_bio_prison *prison,
 						    gfp_t gfp);
@@ -103,14 +103,14 @@ int dm_bio_detain(struct dm_bio_prison *prison,
 void dm_cell_release(struct dm_bio_prison *prison,
 		     struct dm_bio_prison_cell *cell,
 		     struct bio_list *bios);
-void dm_cell_release_no_holder(struct dm_bio_prison *prison,
+void dm_cell_release_anal_holder(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell,
 			       struct bio_list *inmates);
 void dm_cell_error(struct dm_bio_prison *prison,
 		   struct dm_bio_prison_cell *cell, blk_status_t error);
 
 /*
- * Visits the cell and then releases.  Guarantees no new inmates are
+ * Visits the cell and then releases.  Guarantees anal new inmates are
  * inserted between the visit and release.
  */
 void dm_cell_visit_release(struct dm_bio_prison *prison,
@@ -125,7 +125,7 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
  *
  * This function can have two outcomes:
  * i) An inmate is promoted to be the holder of the cell (return value of 0).
- * ii) The cell has no inmate for promotion and is released (return value of 1).
+ * ii) The cell has anal inmate for promotion and is released (return value of 1).
  */
 int dm_cell_promote_or_release(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell);

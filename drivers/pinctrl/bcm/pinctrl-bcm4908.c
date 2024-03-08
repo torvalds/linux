@@ -406,7 +406,7 @@ static const struct pinctrl_ops bcm4908_pinctrl_ops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -478,7 +478,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 
 	bcm4908_pinctrl = devm_kzalloc(dev, sizeof(*bcm4908_pinctrl), GFP_KERNEL);
 	if (!bcm4908_pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pctldesc = &bcm4908_pinctrl->pctldesc;
 	platform_set_drvdata(pdev, bcm4908_pinctrl);
 
@@ -502,7 +502,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 
 	pins = devm_kcalloc(dev, BCM4908_NUM_PINS, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < BCM4908_NUM_PINS; i++) {
 		pins[i].number = i;
 		pins[i].name = pin_names[i];
@@ -526,7 +526,7 @@ static int bcm4908_pinctrl_probe(struct platform_device *pdev)
 
 		pins = devm_kcalloc(dev, group->num_pins, sizeof(*pins), GFP_KERNEL);
 		if (!pins)
-			return -ENOMEM;
+			return -EANALMEM;
 		for (j = 0; j < group->num_pins; j++)
 			pins[j] = group->pins[j].number;
 

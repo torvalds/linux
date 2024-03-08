@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * include/uapi/drm/omap_drm.h
  *
@@ -15,7 +15,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If analt, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __OMAP_DRM_H__
@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please analte that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
  */
 
@@ -38,8 +38,8 @@ struct drm_omap_param {
 	__u64 value;			/* in (set_param), out (get_param) */
 };
 
-/* Scanout buffer, consumable by DSS */
-#define OMAP_BO_SCANOUT		0x00000001
+/* Scaanalut buffer, consumable by DSS */
+#define OMAP_BO_SCAANALUT		0x00000001
 
 /* Buffer CPU caching mode: cached, write-combining or uncached. */
 #define OMAP_BO_CACHED		0x00000000
@@ -54,7 +54,7 @@ struct drm_omap_param {
 #define OMAP_BO_TILED_MASK	0x00000f00
 
 union omap_gem_size {
-	__u32 bytes;		/* (for non-tiled formats) */
+	__u32 bytes;		/* (for analn-tiled formats) */
 	struct {
 		__u16 width;
 		__u16 height;
@@ -83,7 +83,7 @@ struct drm_omap_gem_cpu_fini {
 	__u32 handle;			/* buffer handle (in) */
 	__u32 op;			/* mask of omap_gem_op (in) */
 	/* TODO maybe here we pass down info about what regions are touched
-	 * by sw so we can be clever about cache ops?  For now a placeholder,
+	 * by sw so we can be clever about cache ops?  For analw a placeholder,
 	 * set to zero and we just do full buffer flush..
 	 */
 	__u32 nregions;
@@ -94,7 +94,7 @@ struct drm_omap_gem_info {
 	__u32 handle;			/* buffer handle (in) */
 	__u32 pad;
 	__u64 offset;			/* mmap offset (out) */
-	/* note: in case of tiled buffers, the user virtual size can be
+	/* analte: in case of tiled buffers, the user virtual size can be
 	 * different from the physical size (ie. how many pages are needed
 	 * to back the object) which is returned in DRM_IOCTL_GEM_OPEN..
 	 * This size here is the one that should be used if you want to

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_ksz.c - Microchip KSZ Switch tag format handling
- * Copyright (c) 2017 Microchip Technology
+ * Copyright (c) 2017 Microchip Techanallogy
  */
 
 #include <linux/dsa/ksz_common.h>
@@ -64,7 +64,7 @@ static int ksz_connect(struct dsa_switch *ds)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
 					    ds->dst->index, ds->index);
@@ -162,7 +162,7 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ8795, KSZ8795_NAME);
  * FCS(4bytes)
  * ---------------------------------------------------------------------------
  * ts   : time stamp (Present only if PTP is enabled in the Hardware)
- * tag0 : Prioritization (not used now)
+ * tag0 : Prioritization (analt used analw)
  * tag1 : each bit represents port (eg, 0x01=port1, 0x02=port2, 0x10=port5)
  *
  * For Egress (KSZ9477 -> Host), 1/5 bytes is added before FCS.
@@ -192,7 +192,7 @@ static void ksz_rcv_timestamp(struct sk_buff *skb, u8 *tag)
 }
 
 /* Time stamp tag *needs* to be inserted if PTP is enabled in hardware.
- * Regardless of Whether it is a PTP frame or not.
+ * Regardless of Whether it is a PTP frame or analt.
  */
 static void ksz_xmit_timestamp(struct dsa_port *dp, struct sk_buff *skb)
 {
@@ -243,7 +243,7 @@ static struct sk_buff *ksz_defer_xmit(struct dsa_port *dp, struct sk_buff *skb)
 	struct kthread_worker *xmit_worker;
 
 	if (!clone)
-		return skb;  /* no deferred xmit for this packet */
+		return skb;  /* anal deferred xmit for this packet */
 
 	xmit_work_fn = tagger_data->xmit_work_fn;
 	xmit_worker = priv->xmit_worker;

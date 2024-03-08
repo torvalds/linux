@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_CORE_H
@@ -121,7 +121,7 @@ enum ath12k_hw_rev {
 
 enum ath12k_firmware_mode {
 	/* the default mode, standard 802.11 functionality */
-	ATH12K_FIRMWARE_MODE_NORMAL,
+	ATH12K_FIRMWARE_MODE_ANALRMAL,
 
 	/* factory tests etc */
 	ATH12K_FIRMWARE_MODE_FTM,
@@ -238,9 +238,9 @@ struct ath12k_vif {
 			u32 ssid_len;
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			bool hidden_ssid;
-			/* P2P_IE with NoA attribute for P2P_GO case */
-			u32 noa_len;
-			u8 *noa_data;
+			/* P2P_IE with AnalA attribute for P2P_GO case */
+			u32 anala_len;
+			u8 *anala_data;
 		} ap;
 	} u;
 
@@ -295,7 +295,7 @@ struct ath12k_rx_peer_stats {
 	u64 udp_msdu_count;
 	u64 other_msdu_count;
 	u64 ampdu_msdu_count;
-	u64 non_ampdu_msdu_count;
+	u64 analn_ampdu_msdu_count;
 	u64 stbc_count;
 	u64 beamformed_count;
 	u64 mcs_count[HAL_RX_MAX_MCS + 1];
@@ -434,8 +434,8 @@ enum ath12k_state {
 	/* Add other states as required */
 };
 
-/* Antenna noise floor */
-#define ATH12K_DEFAULT_NOISE_FLOOR -95
+/* Antenna analise floor */
+#define ATH12K_DEFAULT_ANALISE_FLOOR -95
 
 struct ath12k_fw_stats {
 	u32 pdev_id;
@@ -486,7 +486,7 @@ struct ath12k {
 		bool is_roc;
 		int vdev_id;
 		int roc_freq;
-		bool roc_notify;
+		bool roc_analtify;
 	} scan;
 
 	struct {
@@ -508,7 +508,7 @@ struct ath12k {
 	u32 num_stations;
 	u32 max_num_stations;
 	bool monitor_present;
-	/* To synchronize concurrent synchronous mac80211 callback operations,
+	/* To synchronize concurrent synchroanalus mac80211 callback operations,
 	 * concurrent debugfs configuration and concurrent FW statistics events.
 	 */
 	struct mutex conf_mutex;
@@ -749,7 +749,7 @@ struct ath12k_base {
 	 */
 	struct ieee80211_regdomain *default_regd[MAX_RADIOS];
 	/* This regd is set during dynamic country setting
-	 * This may or may not be used during the runtime
+	 * This may or may analt be used during the runtime
 	 */
 	struct ieee80211_regdomain *new_regd[MAX_RADIOS];
 
@@ -832,7 +832,7 @@ static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 		return "aborting";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 static inline struct ath12k_skb_cb *ATH12K_SKB_CB(struct sk_buff *skb)
@@ -879,7 +879,7 @@ static inline const char *ath12k_bus_str(enum ath12k_bus bus)
 		return "pci";
 	}
 
-	return "unknown";
+	return "unkanalwn";
 }
 
 #endif /* _CORE_H_ */

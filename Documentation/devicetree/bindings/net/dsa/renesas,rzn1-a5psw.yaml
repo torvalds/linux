@@ -70,7 +70,7 @@ properties:
           pcs-handle:
             maxItems: 1
             description:
-              phandle pointing to a PCS sub-node compatible with
+              phandle pointing to a PCS sub-analde compatible with
               renesas,rzn1-miic.yaml#
 
 unevaluatedProperties: false

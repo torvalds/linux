@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2023 Advanced Micro Devices, Inc */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
 
 #include "core.h"
 
-int pdsc_err_to_errno(enum pds_core_status_code code)
+int pdsc_err_to_erranal(enum pds_core_status_code code)
 {
 	switch (code) {
 	case PDS_RC_SUCCESS:
@@ -16,16 +16,16 @@ int pdsc_err_to_errno(enum pds_core_status_code code)
 	case PDS_RC_EQTYPE:
 	case PDS_RC_EQID:
 	case PDS_RC_EINVAL:
-	case PDS_RC_ENOSUPP:
+	case PDS_RC_EANALSUPP:
 		return -EINVAL;
 	case PDS_RC_EPERM:
 		return -EPERM;
-	case PDS_RC_ENOENT:
-		return -ENOENT;
+	case PDS_RC_EANALENT:
+		return -EANALENT;
 	case PDS_RC_EAGAIN:
 		return -EAGAIN;
-	case PDS_RC_ENOMEM:
-		return -ENOMEM;
+	case PDS_RC_EANALMEM:
+		return -EANALMEM;
 	case PDS_RC_EFAULT:
 		return -EFAULT;
 	case PDS_RC_EBUSY:
@@ -33,11 +33,11 @@ int pdsc_err_to_errno(enum pds_core_status_code code)
 	case PDS_RC_EEXIST:
 		return -EEXIST;
 	case PDS_RC_EVFID:
-		return -ENODEV;
+		return -EANALDEV;
 	case PDS_RC_ECLIENT:
 		return -ECHILD;
-	case PDS_RC_ENOSPC:
-		return -ENOSPC;
+	case PDS_RC_EANALSPC:
+		return -EANALSPC;
 	case PDS_RC_ERANGE:
 		return -ERANGE;
 	case PDS_RC_BAD_ADDR:
@@ -109,8 +109,8 @@ static void pdsc_devcmd_clean(struct pdsc *pdsc)
 static const char *pdsc_devcmd_str(int opcode)
 {
 	switch (opcode) {
-	case PDS_CORE_CMD_NOP:
-		return "PDS_CORE_CMD_NOP";
+	case PDS_CORE_CMD_ANALP:
+		return "PDS_CORE_CMD_ANALP";
 	case PDS_CORE_CMD_IDENTIFY:
 		return "PDS_CORE_CMD_IDENTIFY";
 	case PDS_CORE_CMD_RESET:
@@ -122,7 +122,7 @@ static const char *pdsc_devcmd_str(int opcode)
 	case PDS_CORE_CMD_FW_CONTROL:
 		return "PDS_CORE_CMD_FW_CONTROL";
 	default:
-		return "PDS_CORE_CMD_UNKNOWN";
+		return "PDS_CORE_CMD_UNKANALWN";
 	}
 }
 
@@ -171,7 +171,7 @@ static int pdsc_devcmd_wait(struct pdsc *pdsc, u8 opcode, int max_seconds)
 	}
 
 	status = pdsc_devcmd_status(pdsc);
-	err = pdsc_err_to_errno(status);
+	err = pdsc_err_to_erranal(status);
 	if (err && err != -EAGAIN)
 		dev_err(dev, "DEVCMD %d %s failed, status=%d err %d %pe\n",
 			opcode, pdsc_devcmd_str(opcode), status, err,
@@ -296,7 +296,7 @@ static int pdsc_identify(struct pdsc *pdsc)
 	mutex_unlock(&pdsc->devcmd_lock);
 
 	if (err) {
-		dev_err(pdsc->dev, "Cannot identify device: %pe\n",
+		dev_err(pdsc->dev, "Cananalt identify device: %pe\n",
 			ERR_PTR(err));
 		return err;
 	}
@@ -335,14 +335,14 @@ int pdsc_dev_init(struct pdsc *pdsc)
 
 	pdsc_debugfs_add_ident(pdsc);
 
-	/* Now we can reserve interrupts */
+	/* Analw we can reserve interrupts */
 	nintrs = le32_to_cpu(pdsc->dev_ident.nintrs);
 	nintrs = min_t(unsigned int, num_online_cpus(), nintrs);
 
 	/* Get intr_info struct array for tracking */
 	pdsc->intr_info = kcalloc(nintrs, sizeof(*pdsc->intr_info), GFP_KERNEL);
 	if (!pdsc->intr_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -350,7 +350,7 @@ int pdsc_dev_init(struct pdsc *pdsc)
 	if (err != nintrs) {
 		dev_err(pdsc->dev, "Can't get %d intrs from OS: %pe\n",
 			nintrs, ERR_PTR(err));
-		err = -ENOSPC;
+		err = -EANALSPC;
 		goto err_out;
 	}
 	pdsc->nintrs = nintrs;

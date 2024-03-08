@@ -16,11 +16,11 @@ description: |
   cluster and GPU temperatures. This binding describes the thermal
   sensor that is exposed by BPMP.
 
-  The BPMP thermal node must be located directly inside the main BPMP
-  node. See ../firmware/nvidia,tegra186-bpmp.yaml for details of the
+  The BPMP thermal analde must be located directly inside the main BPMP
+  analde. See ../firmware/nvidia,tegra186-bpmp.yaml for details of the
   BPMP binding.
 
-  This node represents a thermal sensor. See
+  This analde represents a thermal sensor. See
 
     Documentation/devicetree/bindings/thermal/thermal-sensor.yaml
 

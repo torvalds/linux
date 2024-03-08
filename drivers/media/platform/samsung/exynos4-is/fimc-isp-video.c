@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * FIMC-IS ISP video input and video output DMA interface driver
  *
@@ -14,7 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -27,7 +27,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyanals-fimc.h>
 
 #include "common.h"
 #include "media-dev.h"
@@ -88,7 +88,7 @@ static int isp_video_capture_start_streaming(struct vb2_queue *q,
 
 
 	dma->cmd = DMA_OUTPUT_COMMAND_ENABLE;
-	dma->notify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_ENABLE;
+	dma->analtify_dma_done = DMA_OUTPUT_ANALTIFY_DMA_DONE_ENABLE;
 	dma->buffer_address = is->is_dma_p_region +
 				DMA2_OUTPUT_ADDR_ARRAY_OFFS;
 	dma->buffer_number = video->reqbufs_count;
@@ -128,7 +128,7 @@ static void isp_video_capture_stop_streaming(struct vb2_queue *q)
 		return;
 
 	dma->cmd = DMA_OUTPUT_COMMAND_DISABLE;
-	dma->notify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE;
+	dma->analtify_dma_done = DMA_OUTPUT_ANALTIFY_DMA_DONE_DISABLE;
 	dma->buffer_number = 0;
 	dma->buffer_address = 0;
 	dma->dma_out_mask = 0;
@@ -169,7 +169,7 @@ static int isp_video_capture_buffer_prepare(struct vb2_buffer *vb)
 		vb2_set_plane_payload(vb, i, size);
 	}
 
-	/* Check if we get one of the already known buffers. */
+	/* Check if we get one of the already kanalwn buffers. */
 	if (test_bit(ST_ISP_VID_CAP_BUF_PREP, &isp->state)) {
 		dma_addr_t dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 		int i;
@@ -264,7 +264,7 @@ static const struct vb2_ops isp_video_capture_qops = {
 static int isp_video_open(struct file *file)
 {
 	struct fimc_isp *isp = video_drvdata(file);
-	struct exynos_video_entity *ve = &isp->video_capture.ve;
+	struct exyanals_video_entity *ve = &isp->video_capture.ve;
 	struct media_entity *me = &ve->vdev.entity;
 	int ret;
 
@@ -342,7 +342,7 @@ static const struct v4l2_file_operations isp_video_fops = {
 };
 
 /*
- * Video node ioctl operations
+ * Video analde ioctl operations
  */
 static int isp_video_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
@@ -391,7 +391,7 @@ static void __isp_video_try_fmt(struct fimc_isp *isp,
 		*fmt = __fmt;
 
 	pixm->colorspace = V4L2_COLORSPACE_SRGB;
-	pixm->field = V4L2_FIELD_NONE;
+	pixm->field = V4L2_FIELD_ANALNE;
 	pixm->num_planes = __fmt->memplanes;
 	pixm->pixelformat = __fmt->fourcc;
 	/*
@@ -466,7 +466,7 @@ static int isp_video_pipeline_validate(struct fimc_isp *isp)
 			break;
 		sink_fmt.pad = pad->index;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sink_fmt);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			return -EPIPE;
 
 		/* Retrieve format at the source pad */
@@ -477,7 +477,7 @@ static int isp_video_pipeline_validate(struct fimc_isp *isp)
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 		src_fmt.pad = pad->index;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &src_fmt);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -EANALIOCTLCMD)
 			return -EPIPE;
 
 		if (src_fmt.format.width != sink_fmt.format.width ||
@@ -493,7 +493,7 @@ static int isp_video_streamon(struct file *file, void *priv,
 				      enum v4l2_buf_type type)
 {
 	struct fimc_isp *isp = video_drvdata(file);
-	struct exynos_video_entity *ve = &isp->video_capture.ve;
+	struct exyanals_video_entity *ve = &isp->video_capture.ve;
 	int ret;
 
 	ret = video_device_pipeline_start(&ve->vdev, &ve->pipe->mp);
@@ -544,7 +544,7 @@ static int isp_video_reqbufs(struct file *file, void *priv,
 	if (rb->count && rb->count < FIMC_ISP_REQ_BUFS_MIN) {
 		rb->count = 0;
 		vb2_ioctl_reqbufs(file, priv, rb);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	}
 
 	isp->video_capture.reqbufs_count = rb->count;
@@ -579,7 +579,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		iv = &isp->video_capture;
 	else
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_init(&isp->video_lock);
 	INIT_LIST_HEAD(&iv->pending_buf_q);
@@ -598,7 +598,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct isp_video_buf);
 	q->drv_priv = isp;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock = &isp->video_lock;
 	q->dev = &isp->pdev->dev;
 
@@ -613,7 +613,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	vdev->fops = &isp_video_fops;
 	vdev->ioctl_ops = &isp_video_ioctl_ops;
 	vdev->v4l2_dev = v4l2_dev;
-	vdev->minor = -1;
+	vdev->mianalr = -1;
 	vdev->release = video_device_release_empty;
 	vdev->lock = &isp->video_lock;
 	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE_MPLANE;
@@ -632,7 +632,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	}
 
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
-		  vdev->name, video_device_node_name(vdev));
+		  vdev->name, video_device_analde_name(vdev));
 
 	return 0;
 }
@@ -640,7 +640,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 void fimc_isp_video_device_unregister(struct fimc_isp *isp,
 				      enum v4l2_buf_type type)
 {
-	struct exynos_video_entity *ve;
+	struct exyanals_video_entity *ve;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		ve = &isp->video_capture.ve;

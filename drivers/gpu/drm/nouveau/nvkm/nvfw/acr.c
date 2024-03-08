@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -126,8 +126,8 @@ flcn_acr_desc_dump(struct nvkm_subdev *subdev, struct flcn_acr_desc *hdr)
 	nvkm_debug(subdev, "\twprOffset    : 0x%x\n", hdr->wpr_offset);
 	nvkm_debug(subdev, "\tmmuMemRange  : 0x%x\n",
 		   hdr->mmu_mem_range);
-	nvkm_debug(subdev, "\tnoRegions    : %d\n",
-		   hdr->regions.no_regions);
+	nvkm_debug(subdev, "\tanalRegions    : %d\n",
+		   hdr->regions.anal_regions);
 
 	for (i = 0; i < ARRAY_SIZE(hdr->regions.region_props); i++) {
 		nvkm_debug(subdev, "\tregion[%d]    :\n", i);
@@ -169,8 +169,8 @@ flcn_acr_desc_v1_dump(struct nvkm_subdev *subdev, struct flcn_acr_desc_v1 *hdr)
 	nvkm_debug(subdev, "\twprOffset           : 0x%x\n", hdr->wpr_offset);
 	nvkm_debug(subdev, "\tmmuMemoryRange      : 0x%x\n",
 		   hdr->mmu_memory_range);
-	nvkm_debug(subdev, "\tnoRegions           : %d\n",
-		   hdr->regions.no_regions);
+	nvkm_debug(subdev, "\tanalRegions           : %d\n",
+		   hdr->regions.anal_regions);
 
 	for (i = 0; i < ARRAY_SIZE(hdr->regions.region_props); i++) {
 		nvkm_debug(subdev, "\tregion[%d]           :\n", i);

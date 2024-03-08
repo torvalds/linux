@@ -14,7 +14,7 @@ description:
   Sophgo SoC-based boards
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     oneOf:

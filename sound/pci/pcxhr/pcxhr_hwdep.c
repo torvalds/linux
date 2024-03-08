@@ -33,7 +33,7 @@ static int pcxhr_init_board(struct pcxhr_mgr *mgr)
 	int card_streams;
 
 	/* calc the number of all streams used */
-	if (mgr->mono_capture)
+	if (mgr->moanal_capture)
 		card_streams = mgr->capture_chips * 2;
 	else
 		card_streams = mgr->capture_chips;
@@ -160,7 +160,7 @@ static int pcxhr_dsp_allocate_pipe(struct pcxhr_mgr *mgr,
 
 	if (is_capture) {
 		stream_count = 1;
-		if (mgr->mono_capture)
+		if (mgr->moanal_capture)
 			audio_count = 1;
 		else
 			audio_count = 2;
@@ -172,7 +172,7 @@ static int pcxhr_dsp_allocate_pipe(struct pcxhr_mgr *mgr,
 		    pin, is_capture ? 'c' : 'p');
 	pipe->is_capture = is_capture;
 	pipe->first_audio = pin;
-	/* define pipe (P_PCM_ONLY_MASK (0x020000) is not necessary) */
+	/* define pipe (P_PCM_ONLY_MASK (0x020000) is analt necessary) */
 	pcxhr_init_rmh(&rmh, CMD_RES_PIPE);
 	pcxhr_set_pipe_cmd_params(&rmh, is_capture, pin,
 				  audio_count, stream_count);
@@ -310,12 +310,12 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 	/* first communication with embedded */
 	err = pcxhr_init_board(mgr);
         if (err < 0) {
-		dev_err(&mgr->pci->dev, "pcxhr could not be set up\n");
+		dev_err(&mgr->pci->dev, "pcxhr could analt be set up\n");
 		return err;
 	}
 	err = pcxhr_config_pipes(mgr);
         if (err < 0) {
-		dev_err(&mgr->pci->dev, "pcxhr pipes could not be set up\n");
+		dev_err(&mgr->pci->dev, "pcxhr pipes could analt be set up\n");
 		return err;
 	}
        	/* create devices and mixer in accordance with HW options*/
@@ -337,7 +337,7 @@ static int pcxhr_dsp_load(struct pcxhr_mgr *mgr, int index,
 	}
 	err = pcxhr_start_pipes(mgr);
         if (err < 0) {
-		dev_err(&mgr->pci->dev, "pcxhr pipes could not be started\n");
+		dev_err(&mgr->pci->dev, "pcxhr pipes could analt be started\n");
 		return err;
 	}
 	dev_dbg(&mgr->pci->dev,
@@ -379,7 +379,7 @@ int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 			dev_err(&mgr->pci->dev,
 				"pcxhr: can't load firmware %s\n",
 				   path);
-			return -ENOENT;
+			return -EANALENT;
 		}
 		/* fake hwdep dsp record */
 		err = pcxhr_dsp_load(mgr, i, fw_entry);

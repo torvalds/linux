@@ -6,7 +6,7 @@
 #ifndef _XE_UC_FW_H_
 #define _XE_UC_FW_H_
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "xe_macros.h"
 #include "xe_uc_fw_abi.h"
@@ -35,7 +35,7 @@ static inline
 const char *xe_uc_fw_status_repr(enum xe_uc_fw_status status)
 {
 	switch (status) {
-	case XE_UC_FIRMWARE_NOT_SUPPORTED:
+	case XE_UC_FIRMWARE_ANALT_SUPPORTED:
 		return "N/A";
 	case XE_UC_FIRMWARE_UNINITIALIZED:
 		return "UNINITIALIZED";
@@ -66,16 +66,16 @@ const char *xe_uc_fw_status_repr(enum xe_uc_fw_status status)
 static inline int xe_uc_fw_status_to_error(enum xe_uc_fw_status status)
 {
 	switch (status) {
-	case XE_UC_FIRMWARE_NOT_SUPPORTED:
-		return -ENODEV;
+	case XE_UC_FIRMWARE_ANALT_SUPPORTED:
+		return -EANALDEV;
 	case XE_UC_FIRMWARE_UNINITIALIZED:
 		return -EACCES;
 	case XE_UC_FIRMWARE_DISABLED:
 		return -EPERM;
 	case XE_UC_FIRMWARE_MISSING:
-		return -ENOENT;
+		return -EANALENT;
 	case XE_UC_FIRMWARE_ERROR:
-		return -ENOEXEC;
+		return -EANALEXEC;
 	case XE_UC_FIRMWARE_INIT_FAIL:
 	case XE_UC_FIRMWARE_LOAD_FAIL:
 		return -EIO;
@@ -114,7 +114,7 @@ __xe_uc_fw_status(struct xe_uc_fw *uc_fw)
 
 static inline bool xe_uc_fw_is_supported(struct xe_uc_fw *uc_fw)
 {
-	return __xe_uc_fw_status(uc_fw) != XE_UC_FIRMWARE_NOT_SUPPORTED;
+	return __xe_uc_fw_status(uc_fw) != XE_UC_FIRMWARE_ANALT_SUPPORTED;
 }
 
 static inline bool xe_uc_fw_is_enabled(struct xe_uc_fw *uc_fw)

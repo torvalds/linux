@@ -7,7 +7,7 @@
 #define BTRFS_TRANSACTION_H
 
 #include <linux/refcount.h>
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 #include "delayed-ref.h"
 #include "ctree.h"
 #include "misc.h"
@@ -28,7 +28,7 @@ enum btrfs_trans_state {
 
 #define BTRFS_TRANS_HAVE_FREE_BGS	0
 #define BTRFS_TRANS_DIRTY_BG_RUN	1
-#define BTRFS_TRANS_CACHE_ENOSPC	2
+#define BTRFS_TRANS_CACHE_EANALSPC	2
 
 struct btrfs_transaction {
 	u64 transid;
@@ -61,7 +61,7 @@ struct btrfs_transaction {
 	struct list_head dirty_bgs;
 
 	/*
-	 * There is no explicit lock which protects io_bgs, rather its
+	 * There is anal explicit lock which protects io_bgs, rather its
 	 * consistency is implied by the fact that all the sites which modify
 	 * it do so under some form of transaction critical section, namely:
 	 *
@@ -105,16 +105,16 @@ enum {
 	ENUM_BIT(__TRANS_START),
 	ENUM_BIT(__TRANS_ATTACH),
 	ENUM_BIT(__TRANS_JOIN),
-	ENUM_BIT(__TRANS_JOIN_NOLOCK),
+	ENUM_BIT(__TRANS_JOIN_ANALLOCK),
 	ENUM_BIT(__TRANS_DUMMY),
-	ENUM_BIT(__TRANS_JOIN_NOSTART),
+	ENUM_BIT(__TRANS_JOIN_ANALSTART),
 };
 
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
 #define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
-#define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
-#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
+#define TRANS_JOIN_ANALLOCK	(__TRANS_JOIN_ANALLOCK)
+#define TRANS_JOIN_ANALSTART	(__TRANS_JOIN_ANALSTART)
 
 #define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
@@ -148,16 +148,16 @@ struct btrfs_trans_handle {
 };
 
 /*
- * The abort status can be changed between calls and is not protected by locks.
+ * The abort status can be changed between calls and is analt protected by locks.
  * This accepts btrfs_transaction and btrfs_trans_handle as types. Once it's
- * set to a non-zero value it does not change, so the macro should be in checks
- * but is not necessary for further reads of the value.
+ * set to a analn-zero value it does analt change, so the macro should be in checks
+ * but is analt necessary for further reads of the value.
  */
 #define TRANS_ABORTED(trans)		(unlikely(READ_ONCE((trans)->aborted)))
 
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
-	struct inode *dir;
+	struct ianalde *dir;
 	struct btrfs_root *root;
 	struct btrfs_root_item *root_item;
 	struct btrfs_root *snap;
@@ -167,20 +167,20 @@ struct btrfs_pending_snapshot {
 	struct btrfs_block_rsv block_rsv;
 	/* extra metadata reservation for relocation */
 	int error;
-	/* Preallocated anonymous block device number */
-	dev_t anon_dev;
+	/* Preallocated aanalnymous block device number */
+	dev_t aanaln_dev;
 	bool readonly;
 	struct list_head list;
 };
 
-static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
-					      struct btrfs_inode *inode)
+static inline void btrfs_set_ianalde_last_trans(struct btrfs_trans_handle *trans,
+					      struct btrfs_ianalde *ianalde)
 {
-	spin_lock(&inode->lock);
-	inode->last_trans = trans->transaction->transid;
-	inode->last_sub_trans = btrfs_get_root_log_transid(inode->root);
-	inode->last_log_commit = inode->last_sub_trans - 1;
-	spin_unlock(&inode->lock);
+	spin_lock(&ianalde->lock);
+	ianalde->last_trans = trans->transaction->transid;
+	ianalde->last_sub_trans = btrfs_get_root_log_transid(ianalde->root);
+	ianalde->last_log_commit = ianalde->last_sub_trans - 1;
+	spin_unlock(&ianalde->lock);
 }
 
 /*
@@ -242,7 +242,7 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					unsigned int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *root);
-struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_analstart(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);

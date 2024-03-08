@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -66,7 +66,7 @@
 #define EAPOL4_CONFIRM                  1
 #define PROBEREQ_CONFIRM                2
 #define CARD_READY_IND                  0x00
-#define SLEEP_NOTIFY_IND                0x06
+#define SLEEP_ANALTIFY_IND                0x06
 #define RSI_TX_STATUS_TYPE		15
 #define RSI_TX_STATUS			12
 
@@ -209,14 +209,14 @@
 #define RSI_DESC_VAP_ID_MASK		0xC000u
 #define RSI_DESC_VAP_ID_OFST		14
 #define RSI_DATA_DESC_MAC_BBP_INFO	BIT(0)
-#define RSI_DATA_DESC_NO_ACK_IND	BIT(9)
+#define RSI_DATA_DESC_ANAL_ACK_IND	BIT(9)
 #define RSI_DATA_DESC_QOS_EN		BIT(12)
-#define RSI_DATA_DESC_NORMAL_FRAME	0x00
+#define RSI_DATA_DESC_ANALRMAL_FRAME	0x00
 #define RSI_DATA_DESC_DTIM_BEACON_GATED_FRAME	BIT(10)
 #define RSI_DATA_DESC_BEACON_FRAME	BIT(11)
 #define RSI_DATA_DESC_DTIM_BEACON	(BIT(10) | BIT(11))
 #define RSI_DATA_DESC_INSERT_TSF	BIT(15)
-#define RSI_DATA_DESC_INSERT_SEQ_NO	BIT(2)
+#define RSI_DATA_DESC_INSERT_SEQ_ANAL	BIT(2)
 
 #ifdef CONFIG_PM
 #define RSI_WOW_ANY			BIT(1)
@@ -252,7 +252,7 @@ enum peer_type {
 extern struct ieee80211_rate rsi_rates[12];
 extern const u16 rsi_mcsrates[8];
 
-enum sta_notify_events {
+enum sta_analtify_events {
 	STA_CONNECTED = 0,
 	STA_DISCONNECTED,
 	STA_TX_ADDBA_DONE,
@@ -271,7 +271,7 @@ enum cmd_frame_type {
 	WAKEUP_SLEEP_REQUEST,
 	SCAN_REQUEST,
 	TSF_UPDATE,
-	PEER_NOTIFY,
+	PEER_ANALTIFY,
 	BLOCK_HW_QUEUE,
 	SET_KEY_REQ,
 	AUTO_RATE_IND,
@@ -319,7 +319,7 @@ struct rsi_xtended_desc {
 };
 
 struct rsi_cmd_desc_dword0 {
-	__le16 len_qno;
+	__le16 len_qanal;
 	u8 frame_type;
 	u8 misc_flags;
 };
@@ -361,7 +361,7 @@ struct rsi_boot_params_9116 {
 	struct bootup_params_9116 bootup_params;
 } __packed;
 
-struct rsi_peer_notify {
+struct rsi_peer_analtify {
 	struct rsi_cmd_desc desc;
 	u8 mac_addr[6];
 	__le16 command;
@@ -578,13 +578,13 @@ struct rsi_radio_caps {
 				    RSI_GPIO_2_ULP | \
 				    RSI_GPIO_PUSH_BUTTON_ULP_WAKEUP);
 struct rsi_config_vals {
-	__le16 len_qno;
+	__le16 len_qanal;
 	u8 pkt_type;
 	u8 misc_flags;
 	__le16 reserved1[6];
 	u8 lp_ps_handshake;
 	u8 ulp_ps_handshake;
-	u8 sleep_config_params; /* 0 for no handshake,
+	u8 sleep_config_params; /* 0 for anal handshake,
 				 * 1 for GPIO based handshake,
 				 * 2 packet handshake
 				 */
@@ -608,7 +608,7 @@ struct rsi_config_vals {
 #define RSI_EEPROM_LEN_MASK			0xFFF00000
 
 struct rsi_eeprom_read_frame {
-	__le16 len_qno;
+	__le16 len_qanal;
 	u8 pkt_type;
 	u8 misc_flags;
 	__le32 pkt_info;
@@ -680,7 +680,7 @@ struct rsi_wlan_9116_features {
 	__le32 feature_enable;
 };
 
-static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
+static inline u32 rsi_get_queueanal(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
 }
@@ -705,9 +705,9 @@ static inline u8 rsi_get_channel(u8 *addr)
 	return *(char *)(addr + 15);
 }
 
-static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
+static inline void rsi_set_len_qanal(__le16 *addr, u16 len, u8 qanal)
 {
-	*addr = cpu_to_le16(len | ((qno & 7) << 12));
+	*addr = cpu_to_le16(len | ((qanal & 7) << 12));
 }
 
 int rsi_handle_card_ready(struct rsi_common *common, u8 *msg);
@@ -724,8 +724,8 @@ int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
-int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
-				  u8 notify_event, const unsigned char *bssid,
+int rsi_hal_send_sta_analtify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 analtify_event, const unsigned char *bssid,
 				  u8 qos_enable, u16 aid, u16 sta_id,
 				  struct ieee80211_vif *vif);
 void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,

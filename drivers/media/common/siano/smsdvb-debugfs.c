@@ -224,9 +224,9 @@ static void smsdvb_print_isdb_stats_ex(struct smsdvb_debugfs *debug_data,
 	wake_up(&debug_data->stats_queue);
 }
 
-static int smsdvb_stats_open(struct inode *inode, struct file *file)
+static int smsdvb_stats_open(struct ianalde *ianalde, struct file *file)
 {
-	struct smsdvb_client_t *client = inode->i_private;
+	struct smsdvb_client_t *client = ianalde->i_private;
 	struct smsdvb_debugfs *debug_data = client->debug_data;
 
 	kref_get(&debug_data->refcount);
@@ -277,7 +277,7 @@ static __poll_t smsdvb_stats_poll(struct file *file, poll_table *wait)
 	rc = smsdvb_stats_wait_read(debug_data);
 	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
 
-	return rc > 0 ? EPOLLIN | EPOLLRDNORM : 0;
+	return rc > 0 ? EPOLLIN | EPOLLRDANALRM : 0;
 }
 
 static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,
@@ -288,7 +288,7 @@ static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,
 
 	kref_get(&debug_data->refcount);
 
-	if (file->f_flags & O_NONBLOCK) {
+	if (file->f_flags & O_ANALNBLOCK) {
 		rc = smsdvb_stats_wait_read(debug_data);
 		if (!rc) {
 			rc = -EWOULDBLOCK;
@@ -323,7 +323,7 @@ ret:
 	return rc;
 }
 
-static int smsdvb_stats_release(struct inode *inode, struct file *file)
+static int smsdvb_stats_release(struct ianalde *ianalde, struct file *file)
 {
 	struct smsdvb_debugfs *debug_data = file->private_data;
 
@@ -356,11 +356,11 @@ int smsdvb_debugfs_create(struct smsdvb_client_t *client)
 	struct smsdvb_debugfs *debug_data;
 
 	if (!smsdvb_debugfs_usb_root || !coredev->is_usb_device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	debug_data = kzalloc(sizeof(*client->debug_data), GFP_KERNEL);
 	if (!debug_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	client->debugfs = debugfs_create_dir(coredev->devpath,
 					     smsdvb_debugfs_usb_root);
@@ -401,18 +401,18 @@ void smsdvb_debugfs_register(void)
 	struct dentry *d;
 
 	/*
-	 * FIXME: This was written to debug Siano USB devices. So, it creates
-	 * the debugfs node under <debugfs>/usb.
-	 * A similar logic would be needed for Siano sdio devices, but, in that
-	 * case, usb_debug_root is not a good choice.
+	 * FIXME: This was written to debug Siaanal USB devices. So, it creates
+	 * the debugfs analde under <debugfs>/usb.
+	 * A similar logic would be needed for Siaanal sdio devices, but, in that
+	 * case, usb_debug_root is analt a good choice.
 	 *
-	 * Perhaps the right fix here would be to create another sysfs root
-	 * node for sdio-based boards, but this may need some logic at sdio
+	 * Perhaps the right fix here would be to create aanalther sysfs root
+	 * analde for sdio-based boards, but this may need some logic at sdio
 	 * subsystem.
 	 */
 	d = debugfs_create_dir("smsdvb", usb_debug_root);
 	if (IS_ERR_OR_NULL(d)) {
-		pr_err("Couldn't create sysfs node for smsdvb\n");
+		pr_err("Couldn't create sysfs analde for smsdvb\n");
 		return;
 	}
 	smsdvb_debugfs_usb_root = d;

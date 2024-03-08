@@ -22,8 +22,8 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
-#include <linux/nodemask.h>
-#include <linux/node.h>
+#include <linux/analdemask.h>
+#include <linux/analde.h>
 #include <asm/sysinfo.h>
 
 #define PTF_HORIZONTAL	(0UL)
@@ -237,7 +237,7 @@ int topology_set_cpu_management(int fc)
 	int cpu, rc;
 
 	if (!MACHINE_HAS_TOPOLOGY)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (fc)
 		rc = ptf(PTF_VERTICAL);
 	else
@@ -245,7 +245,7 @@ int topology_set_cpu_management(int fc)
 	if (rc)
 		return -EBUSY;
 	for_each_possible_cpu(cpu)
-		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKANALWN);
 	return rc;
 }
 
@@ -444,7 +444,7 @@ static ssize_t cpu_polarization_show(struct device *dev,
 		count = sprintf(buf, "vertical:high\n");
 		break;
 	default:
-		count = sprintf(buf, "unknown\n");
+		count = sprintf(buf, "unkanalwn\n");
 		break;
 	}
 	mutex_unlock(&smp_cpu_state_mutex);

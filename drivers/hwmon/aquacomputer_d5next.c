@@ -163,7 +163,7 @@ static u16 d5next_sensor_fan_offsets[] = { D5NEXT_PUMP_OFFSET, D5NEXT_FAN_OFFSET
 static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };	/* Pump and fan speed (from 0-100%) */
 
 /* Specs of the Aquastream Ultimate pump */
-/* Pump does not follow the standard structure, so only consider the fan */
+/* Pump does analt follow the standard structure, so only consider the fan */
 #define AQUASTREAMULT_NUM_FANS		1
 #define AQUASTREAMULT_NUM_SENSORS	2
 
@@ -648,7 +648,7 @@ static void aqc_delay_ctrl_report(struct aqc_data *priv)
 {
 	/*
 	 * If previous read or write is too close to this one, delay the current operation
-	 * to give the device enough time to process the previous one.
+	 * to give the device eanalugh time to process the previous one.
 	 */
 	if (priv->ctrl_report_delay) {
 		s64 delta = ktime_ms_delta(ktime_get(), priv->last_ctrl_report_op);
@@ -669,7 +669,7 @@ static int aqc_get_ctrl_data(struct aqc_data *priv)
 	ret = hid_hw_raw_request(priv->hdev, priv->ctrl_report_id, priv->buffer, priv->buffer_size,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret < 0)
-		ret = -ENODATA;
+		ret = -EANALDATA;
 
 	priv->last_ctrl_report_op = ktime_get();
 
@@ -684,7 +684,7 @@ static int aqc_send_ctrl_data(struct aqc_data *priv)
 
 	aqc_delay_ctrl_report(priv);
 
-	/* Checksum is not needed for Aquaero */
+	/* Checksum is analt needed for Aquaero */
 	if (priv->kind != aquaero) {
 		/* Init and xorout value for CRC-16/USB is 0xffff */
 		checksum = crc16(0xffff, priv->buffer + priv->checksum_start,
@@ -954,7 +954,7 @@ static int aqc_legacy_read(struct aqc_data *priv)
 		sensor_value = get_unaligned_le16(priv->buffer + priv->temp_sensor_start_offset +
 						  i * AQC_SENSOR_SIZE);
 		if (sensor_value == AQC_SENSOR_NA)
-			priv->temp_input[i] = -ENODATA;
+			priv->temp_input[i] = -EANALDATA;
 		else
 			priv->temp_input[i] = sensor_value * 10;
 	}
@@ -1025,9 +1025,9 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			/* Legacy devices require manual reads */
 			ret = aqc_legacy_read(priv);
 			if (ret < 0)
-				return -ENODATA;
+				return -EANALDATA;
 		} else {
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	}
 
@@ -1035,8 +1035,8 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			if (priv->temp_input[channel] == -ENODATA)
-				return -ENODATA;
+			if (priv->temp_input[channel] == -EANALDATA)
+				return -EANALDATA;
 
 			*val = priv->temp_input[channel];
 			break;
@@ -1056,8 +1056,8 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
-			if (priv->speed_input[channel] == -ENODATA)
-				return -ENODATA;
+			if (priv->speed_input[channel] == -EANALDATA)
+				return -EANALDATA;
 
 			*val = priv->speed_input[channel];
 			break;
@@ -1110,7 +1110,7 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		*val = priv->current_input[channel];
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1121,17 +1121,17 @@ static int aqc_read_string(struct device *dev, enum hwmon_sensor_types type, u32
 {
 	struct aqc_data *priv = dev_get_drvdata(dev);
 
-	/* Number of sensors that are not calculated */
-	int num_non_calc_sensors = priv->num_temp_sensors + priv->num_virtual_temp_sensors;
+	/* Number of sensors that are analt calculated */
+	int num_analn_calc_sensors = priv->num_temp_sensors + priv->num_virtual_temp_sensors;
 
 	switch (type) {
 	case hwmon_temp:
 		if (channel < priv->num_temp_sensors) {
 			*str = priv->temp_label[channel];
 		} else {
-			if (priv->kind == aquaero && channel >= num_non_calc_sensors)
+			if (priv->kind == aquaero && channel >= num_analn_calc_sensors)
 				*str =
-				    priv->calc_virt_temp_label[channel - num_non_calc_sensors];
+				    priv->calc_virt_temp_label[channel - num_analn_calc_sensors];
 			else
 				*str = priv->virtual_temp_label[channel - priv->num_temp_sensors];
 		}
@@ -1149,7 +1149,7 @@ static int aqc_read_string(struct device *dev, enum hwmon_sensor_types type, u32
 		*str = priv->current_label[channel];
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1178,7 +1178,7 @@ static int aqc_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 				return ret;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_fan:
@@ -1245,7 +1245,7 @@ static int aqc_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -1356,7 +1356,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 						  priv->temp_sensor_start_offset +
 						  i * AQC_SENSOR_SIZE);
 		if (sensor_value == AQC_SENSOR_NA)
-			priv->temp_input[i] = -ENODATA;
+			priv->temp_input[i] = -EANALDATA;
 		else
 			priv->temp_input[i] = sensor_value * 10;
 	}
@@ -1367,7 +1367,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 						  priv->virtual_temp_sensor_start_offset +
 						  j * AQC_SENSOR_SIZE);
 		if (sensor_value == AQC_SENSOR_NA)
-			priv->temp_input[i] = -ENODATA;
+			priv->temp_input[i] = -EANALDATA;
 		else
 			priv->temp_input[i] = sensor_value * 10;
 		i++;
@@ -1409,7 +1409,7 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 					priv->calc_virt_temp_sensor_start_offset +
 					j * AQC_SENSOR_SIZE);
 			if (sensor_value == AQC_SENSOR_NA)
-				priv->temp_input[i] = -ENODATA;
+				priv->temp_input[i] = -EANALDATA;
 			else
 				priv->temp_input[i] = sensor_value * 10;
 			i++;
@@ -1431,9 +1431,9 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 		priv->voltage_input[3] = get_unaligned_be16(data + D5NEXT_12V_VOLTAGE) * 10;
 		break;
 	case highflownext:
-		/* If external temp sensor is not connected, its power reading is also N/A */
-		if (priv->temp_input[1] == -ENODATA)
-			priv->power_input[0] = -ENODATA;
+		/* If external temp sensor is analt connected, its power reading is also N/A */
+		if (priv->temp_input[1] == -EANALDATA)
+			priv->power_input[0] = -EANALDATA;
 		else
 			priv->power_input[0] =
 			    get_unaligned_be16(data + HIGHFLOWNEXT_POWER) * 1000000;
@@ -1455,16 +1455,16 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 
 		priv->speed_input[1] = get_unaligned_be16(data + LEAKSHIELD_PUMP_RPM_IN);
 		if (priv->speed_input[1] == AQC_SENSOR_NA)
-			priv->speed_input[1] = -ENODATA;
+			priv->speed_input[1] = -EANALDATA;
 
 		priv->speed_input[2] = get_unaligned_be16(data + LEAKSHIELD_FLOW_IN);
 		if (priv->speed_input[2] == AQC_SENSOR_NA)
-			priv->speed_input[2] = -ENODATA;
+			priv->speed_input[2] = -EANALDATA;
 
 		priv->speed_input[3] = get_unaligned_be16(data + LEAKSHIELD_RESERVOIR_VOLUME);
 		priv->speed_input[4] = get_unaligned_be16(data + LEAKSHIELD_RESERVOIR_FILLED);
 
-		/* Second temp sensor is not positioned after the first one, read it here */
+		/* Second temp sensor is analt positioned after the first one, read it here */
 		priv->temp_input[1] = get_unaligned_be16(data + LEAKSHIELD_TEMPERATURE_2) * 10;
 		break;
 	default:
@@ -1532,7 +1532,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->hdev = hdev;
 	hid_set_drvdata(hdev, priv);
@@ -1557,7 +1557,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * Aquaero presents itself as three HID devices under the same product ID:
 		 * "aquaero keyboard/mouse", "aquaero System Control" and "aquaero Device",
 		 * which is the one we want to communicate with. Unlike most other Aquacomputer
-		 * devices, Aquaero does not return meaningful data when explicitly requested
+		 * devices, Aquaero does analt return meaningful data when explicitly requested
 		 * using GET_FEATURE_REPORT.
 		 *
 		 * The difference between "aquaero Device" and the other two is in the collections
@@ -1565,7 +1565,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * their respective collections set to 1, while the real device has it set to 0.
 		 */
 		if (hdev->collection[1].type != 0) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail_and_close;
 		}
 
@@ -1724,7 +1724,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * the other one acts as a keyboard
 		 */
 		if (hdev->type != 2) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto fail_and_close;
 		}
 
@@ -1849,7 +1849,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	priv->buffer = devm_kzalloc(&hdev->dev, priv->buffer_size, GFP_KERNEL);
 	if (!priv->buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail_and_close;
 	}
 
@@ -1921,7 +1921,7 @@ static void __exit aqc_exit(void)
 	hid_unregister_driver(&aqc_driver);
 }
 
-/* Request to initialize after the HID bus to ensure it's not being loaded before */
+/* Request to initialize after the HID bus to ensure it's analt being loaded before */
 late_initcall(aqc_init);
 module_exit(aqc_exit);
 

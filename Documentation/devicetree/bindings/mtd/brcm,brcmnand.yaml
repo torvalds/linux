@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Broadcom STB NAND Controller
 
 maintainers:
-  - Brian Norris <computersforpeace@gmail.com>
+  - Brian Analrris <computersforpeace@gmail.com>
   - Kamal Dasu <kdasu.kdev@gmail.com>
 
 description: |
@@ -17,9 +17,9 @@ description: |
   is paired with a custom DMA engine (inventively named "Flash DMA") which
   supports basic PROGRAM and READ functions, among other features.
 
-  This controller was originally designed for STB SoCs (BCM7xxx) but is now
+  This controller was originally designed for STB SoCs (BCM7xxx) but is analw
   available on a variety of Broadcom SoCs, including some BCM3xxx, BCM63xx, and
-  iProc/Cygnus. Its history includes several similar (but not fully register
+  iProc/Cygnus. Its history includes several similar (but analt fully register
   compatible) versions.
 
   -- Additional SoC-specific NAND controller properties --
@@ -29,12 +29,12 @@ description: |
   bits with which to control the 8 exposed NAND interrupts, as well as hardware
   for configuring the endianness of the data bus. On some SoCs, these features
   are handled via standard, modular components (e.g., their interrupts look like
-  a normal IRQ chip), but on others, they are controlled in unique and
+  a analrmal IRQ chip), but on others, they are controlled in unique and
   interesting ways, sometimes with registers that lump multiple NAND-related
   functions together. The former case can be described simply by the standard
-  interrupts properties in the main controller node. But for the latter
+  interrupts properties in the main controller analde. But for the latter
   exceptional cases, we define additional 'compatible' properties and associated
-  register resources within the NAND controller node above.
+  register resources within the NAND controller analde above.
 
 properties:
   compatible:
@@ -124,7 +124,7 @@ patternProperties:
 
       brcm,nand-oob-sector-size:
         description: |
-          integer, to denote the spare area sector size
+          integer, to deanalte the spare area sector size
           expected for the ECC layout in use. This size, in
           addition to the strength and step-size,
           determines how the hardware BCH engine will lay

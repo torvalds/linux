@@ -4,13 +4,13 @@
  * for more details.
  *
  * A small micro-assembler. It is intentionally kept simple, does only
- * support a subset of instructions, and does not try to hide pipeline
+ * support a subset of instructions, and does analt try to hide pipeline
  * effects like branch delay slots.
  *
  * Copyright (C) 2004, 2005, 2006, 2008	 Thiemo Seufer
  * Copyright (C) 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012, 2013  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012, 2013  MIPS Techanallogies, Inc.  All rights reserved.
  */
 
 enum fields {
@@ -59,7 +59,7 @@ enum opcode {
 	insn_lddir, insn_ldpte, insn_ldx, insn_lh, insn_lhu, insn_ll, insn_lld,
 	insn_lui, insn_lw, insn_lwu, insn_lwx, insn_mfc0, insn_mfhc0, insn_mfhi,
 	insn_mflo, insn_modu, insn_movn, insn_movz, insn_mtc0, insn_mthc0,
-	insn_mthi, insn_mtlo, insn_mul, insn_multu, insn_mulu, insn_muhu, insn_nor,
+	insn_mthi, insn_mtlo, insn_mul, insn_multu, insn_mulu, insn_muhu, insn_analr,
 	insn_or, insn_ori, insn_pref, insn_rfe, insn_rotr, insn_sb, insn_sc,
 	insn_scd, insn_seleqz, insn_selnez, insn_sd, insn_sh, insn_sll,
 	insn_sllv, insn_slt, insn_slti, insn_sltiu, insn_sltu, insn_sra,
@@ -345,7 +345,7 @@ I_u3u1u2(_mul)
 I_u1u2(_multu)
 I_u3u1u2(_mulu)
 I_u3u1u2(_muhu)
-I_u3u1u2(_nor)
+I_u3u1u2(_analr)
 I_u3u1u2(_or)
 I_u2u1u3(_ori)
 I_0(_rfe)

@@ -13,10 +13,10 @@
  * The iomap space on 32-bit PA-RISC is intended to look like this:
  * 00000000-7fffffff virtual mapped IO
  * 80000000-8fffffff ISA/EISA port space that can't be virtually mapped
- * 90000000-9fffffff Dino port space
+ * 90000000-9fffffff Dianal port space
  * a0000000-afffffff Astro port space
  * b0000000-bfffffff PAT port space
- * c0000000-cfffffff non-swapped memory IO
+ * c0000000-cfffffff analn-swapped memory IO
  * f0000000-ffffffff legacy IO memory pointers
  *
  * For the moment, here's what it looks like:
@@ -30,7 +30,7 @@
 
 /*
  * Technically, this should be 'if (VMALLOC_START < addr < VMALLOC_END),
- * but that's slow and we know it'll be within the first 2GB.
+ * but that's slow and we kanalw it'll be within the first 2GB.
  */
 #ifdef CONFIG_64BIT
 #define INDIRECT_ADDR(addr)	(((unsigned long)(addr) & 1UL<<63) != 0)
@@ -69,7 +69,7 @@ struct iomap_ops {
 	void (*write32r)(void __iomem *, const void *, unsigned long);
 };
 
-/* Generic ioport ops.  To be replaced later by specific dino/elroy/wax code */
+/* Generic ioport ops.  To be replaced later by specific dianal/elroy/wax code */
 
 #define ADDR2PORT(addr) ((unsigned long __force)(addr) & 0xffffff)
 

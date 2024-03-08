@@ -16,7 +16,7 @@ enum irdma_pble_level {
 };
 
 enum irdma_alloc_type {
-	PBLE_NO_ALLOC	  = 0,
+	PBLE_ANAL_ALLOC	  = 0,
 	PBLE_SD_CONTIGOUS = 1,
 	PBLE_SD_PAGED	  = 2,
 };

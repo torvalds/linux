@@ -36,21 +36,21 @@ void blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 
 /**
- * blk_mq_hw_queue_to_node - Look up the memory node for a hardware queue index
+ * blk_mq_hw_queue_to_analde - Look up the memory analde for a hardware queue index
  * @qmap: CPU to hardware queue map.
  * @index: hardware queue index.
  *
- * We have no quick way of doing reverse lookups. This is only used at
+ * We have anal quick way of doing reverse lookups. This is only used at
  * queue init time, so runtime isn't important.
  */
-int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int index)
+int blk_mq_hw_queue_to_analde(struct blk_mq_queue_map *qmap, unsigned int index)
 {
 	int i;
 
 	for_each_possible_cpu(i) {
 		if (index == qmap->mq_map[i])
-			return cpu_to_node(i);
+			return cpu_to_analde(i);
 	}
 
-	return NUMA_NO_NODE;
+	return NUMA_ANAL_ANALDE;
 }

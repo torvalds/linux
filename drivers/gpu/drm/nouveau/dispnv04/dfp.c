@@ -11,13 +11,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -27,11 +27,11 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
-#include "nouveau_encoder.h"
-#include "nouveau_connector.h"
-#include "nouveau_crtc.h"
+#include "analuveau_drv.h"
+#include "analuveau_reg.h"
+#include "analuveau_encoder.h"
+#include "analuveau_connector.h"
+#include "analuveau_crtc.h"
 #include "hw.h"
 #include "nvreg.h"
 
@@ -55,7 +55,7 @@ static inline bool is_fpc_off(uint32_t fpc)
 int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_output *dcbent)
 {
 	/* special case of nv_read_tmds to find crtc associated with an output.
-	 * this does not give a correct answer for off-chip dvi, but there's no
+	 * this does analt give a correct answer for off-chip dvi, but there's anal
 	 * use for such an answer anyway
 	 */
 	int ramdac = (dcbent->or & DCB_OUTPUT_C) >> 2;
@@ -69,7 +69,7 @@ void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_output *dcbent,
 			int head, bool dl)
 {
 	/* The BIOS scripts don't do this for us, sadly
-	 * Luckily we do know the values ;-)
+	 * Luckily we do kanalw the values ;-)
 	 *
 	 * head < 0 indicates we wish to force a setting with the overrideval
 	 * (for VT restore etc.)
@@ -114,11 +114,11 @@ void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc;
-	struct nouveau_crtc *nv_crtc;
+	struct analuveau_crtc *nv_crtc;
 	uint32_t *fpc;
 
 	if (mode == DRM_MODE_DPMS_ON) {
-		nv_crtc = nouveau_crtc(encoder->crtc);
+		nv_crtc = analuveau_crtc(encoder->crtc);
 		fpc = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index].fp_control;
 
 		if (is_fpc_off(*fpc)) {
@@ -129,14 +129,14 @@ void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
 			*fpc = nv_crtc->dpms_saved_fp_control;
 		}
 
-		nv_crtc->fp_users |= 1 << nouveau_encoder(encoder)->dcb->index;
+		nv_crtc->fp_users |= 1 << analuveau_encoder(encoder)->dcb->index;
 		NVWriteRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_FP_TG_CONTROL, *fpc);
 	} else {
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-			nv_crtc = nouveau_crtc(crtc);
+			nv_crtc = analuveau_crtc(crtc);
 			fpc = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index].fp_control;
 
-			nv_crtc->fp_users &= ~(1 << nouveau_encoder(encoder)->dcb->index);
+			nv_crtc->fp_users &= ~(1 << analuveau_encoder(encoder)->dcb->index);
 			if (!is_fpc_off(*fpc) && !nv_crtc->fp_users) {
 				nv_crtc->dpms_saved_fp_control = *fpc;
 				/* cut the FP output */
@@ -152,7 +152,7 @@ void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
 static struct drm_encoder *get_tmds_slave(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
 	struct drm_encoder *slave;
 
 	if (dcb->type != DCB_OUTPUT_TMDS || dcb->location == DCB_LOC_ON_CHIP)
@@ -164,12 +164,12 @@ static struct drm_encoder *get_tmds_slave(struct drm_encoder *encoder)
 	 * always hard-wired to a reasonable configuration using straps,
 	 * and the other one needs to be programmed.
 	 *
-	 * I don't think there's a way to know which is which, even the
+	 * I don't think there's a way to kanalw which is which, even the
 	 * blob programs the one exposed via I2C for *both* heads, so
 	 * let's do the same.
 	 */
 	list_for_each_entry(slave, &dev->mode_config.encoder_list, head) {
-		struct dcb_output *slave_dcb = nouveau_encoder(slave)->dcb;
+		struct dcb_output *slave_dcb = analuveau_encoder(slave)->dcb;
 
 		if (slave_dcb->type == DCB_OUTPUT_TMDS && get_slave_funcs(slave) &&
 		    slave_dcb->tmdsconf.slave_addr == dcb->tmdsconf.slave_addr)
@@ -183,12 +183,12 @@ static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_connector *nv_connector =
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
+	struct analuveau_connector *nv_connector =
 		nv04_encoder_get_connector(nv_encoder);
 
 	if (!nv_connector->native_mode ||
-	    nv_connector->scaling_mode == DRM_MODE_SCALE_NONE ||
+	    nv_connector->scaling_mode == DRM_MODE_SCALE_ANALNE ||
 	    mode->hdisplay > nv_connector->native_mode->hdisplay ||
 	    mode->vdisplay > nv_connector->native_mode->vdisplay) {
 		nv_encoder->mode = *adjusted_mode;
@@ -202,7 +202,7 @@ static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
 }
 
 static void nv04_dfp_prepare_sel_clk(struct drm_device *dev,
-				     struct nouveau_encoder *nv_encoder, int head)
+				     struct analuveau_encoder *nv_encoder, int head)
 {
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	uint32_t bits1618 = nv_encoder->dcb->or & DCB_OUTPUT_A ? 0x10000 : 0x40000;
@@ -227,9 +227,9 @@ static void nv04_dfp_prepare_sel_clk(struct drm_device *dev,
 	 *
 	 * nv40 (observations from bios behaviour and mmio traces):
 	 * 	bits 4&6	as for nv30
-	 * 	bits 5&7	head dependent as for bits 4&6, but do not appear with 4&6;
+	 * 	bits 5&7	head dependent as for bits 4&6, but do analt appear with 4&6;
 	 * 			maybe a different spread mode
-	 * 	bits 8&10	seen on dual-link dvi outputs, purpose unknown (set by POST scripts)
+	 * 	bits 8&10	seen on dual-link dvi outputs, purpose unkanalwn (set by POST scripts)
 	 * 	The logic behind turning spread spectrum on/off in the first place,
 	 * 	and which bit-pair to use, is unclear on nv40 (for earlier cards, the fp table
 	 * 	entry has the necessary info)
@@ -244,10 +244,10 @@ static void nv04_dfp_prepare_sel_clk(struct drm_device *dev,
 
 static void nv04_dfp_prepare(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = analuveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *crtcstate = nv04_display(dev)->mode_reg.crtc_reg;
 	uint8_t *cr_lcd = &crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX];
 	uint8_t *cr_lcd_oth = &crtcstate[head ^ 1].CRTC[NV_CIO_CRE_LCD__INDEX];
@@ -282,13 +282,13 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 			      struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_crtc *nv_crtc = analuveau_crtc(encoder->crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 	struct nv04_crtc_reg *savep = &nv04_display(dev)->saved_reg.crtc_reg[nv_crtc->index];
-	struct nouveau_connector *nv_connector = nouveau_crtc_connector_get(nv_crtc);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_connector *nv_connector = analuveau_crtc_connector_get(nv_crtc);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_display_mode *output_mode = &nv_encoder->mode;
 	struct drm_connector *connector = &nv_connector->base;
 	const struct drm_framebuffer *fb = encoder->crtc->primary->fb;
@@ -319,7 +319,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	regp->fp_vert_regs[FP_VALID_START] = 0;
 	regp->fp_vert_regs[FP_VALID_END] = output_mode->vdisplay - 1;
 
-	/* bit26: a bit seen on some g7x, no as yet discernable purpose */
+	/* bit26: a bit seen on some g7x, anal as yet discernable purpose */
 	regp->fp_control = NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |
 			   (savep->fp_control & (1 << 26 | NV_PRAMDAC_FP_TG_CONTROL_READ_PROG));
 	/* Deal with vsync/hsync polarity */
@@ -329,7 +329,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	if (output_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS;
 	/* panel scaling first, as native would get set otherwise */
-	if (nv_connector->scaling_mode == DRM_MODE_SCALE_NONE ||
+	if (nv_connector->scaling_mode == DRM_MODE_SCALE_ANALNE ||
 	    nv_connector->scaling_mode == DRM_MODE_SCALE_CENTER)	/* panel handles it */
 		regp->fp_control |= NV_PRAMDAC_FP_TG_CONTROL_MODE_CENTER;
 	else if (adjusted_mode->hdisplay == output_mode->hdisplay &&
@@ -348,7 +348,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 		    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 			duallink = (((u8 *)nv_connector->edid)[121] == 2);
 		} else {
-			nouveau_bios_parse_lvds_table(dev, output_mode->clock,
+			analuveau_bios_parse_lvds_table(dev, output_mode->clock,
 						      &duallink, &dummy);
 		}
 
@@ -446,12 +446,12 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 static void nv04_dfp_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_crtc *nv_crtc = analuveau_crtc(encoder->crtc);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct dcb_output *dcbe = nv_encoder->dcb;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = analuveau_crtc(encoder->crtc)->index;
 	struct drm_encoder *slave_encoder;
 
 	if (dcbe->type == DCB_OUTPUT_TMDS)
@@ -487,7 +487,7 @@ static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
 {
 #ifdef __powerpc__
 	struct drm_device *dev = encoder->dev;
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &analuveau_drm(dev)->client.device.object;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	/* BIOS scripts usually take care of the backlight, thanks
@@ -515,8 +515,8 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	bool was_powersaving = is_powersaving_dpms(nv_encoder->last_dpms);
 
 	if (nv_encoder->last_dpms == mode)
@@ -530,10 +530,10 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 		return;
 
 	if (nv_encoder->dcb->lvdsconf.use_power_scripts) {
-		/* when removing an output, crtc may not be set, but PANEL_OFF
+		/* when removing an output, crtc may analt be set, but PANEL_OFF
 		 * must still be run
 		 */
-		int head = crtc ? nouveau_crtc(crtc)->index :
+		int head = crtc ? analuveau_crtc(crtc)->index :
 			   nv04_dfp_get_bound_head(dev, nv_encoder->dcb);
 
 		if (mode == DRM_MODE_DPMS_ON) {
@@ -541,7 +541,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 					 LVDS_PANEL_ON, nv_encoder->mode.clock);
 		} else
 			/* pxclk of 0 is fine for PANEL_OFF, and for a
-			 * disconnected LVDS encoder there is no native_mode
+			 * disconnected LVDS encoder there is anal native_mode
 			 */
 			call_lvds_script(dev, nv_encoder->dcb, head,
 					 LVDS_PANEL_OFF, 0);
@@ -551,7 +551,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 	nv04_dfp_update_fp_control(encoder, mode);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		nv04_dfp_prepare_sel_clk(dev, nv_encoder, nouveau_crtc(crtc)->index);
+		nv04_dfp_prepare_sel_clk(dev, nv_encoder, analuveau_crtc(crtc)->index);
 	else {
 		nv04_display(dev)->mode_reg.sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK);
 		nv04_display(dev)->mode_reg.sel_clk &= ~0xf0;
@@ -561,8 +561,8 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 
 static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_drm *drm = analuveau_drm(encoder->dev);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	if (nv_encoder->last_dpms == mode)
 		return;
@@ -577,7 +577,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 
 static void nv04_dfp_save(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 
 	if (nv_two_heads(dev))
@@ -587,12 +587,12 @@ static void nv04_dfp_save(struct drm_encoder *encoder)
 
 static void nv04_dfp_restore(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	int head = nv_encoder->restore.head;
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_LVDS) {
-		struct nouveau_connector *connector =
+		struct analuveau_connector *connector =
 			nv04_encoder_get_connector(nv_encoder);
 
 		if (connector && connector->native_mode)
@@ -601,7 +601,7 @@ static void nv04_dfp_restore(struct drm_encoder *encoder)
 					 connector->native_mode->clock);
 
 	} else if (nv_encoder->dcb->type == DCB_OUTPUT_TMDS) {
-		int clock = nouveau_hw_pllvals_to_clk
+		int clock = analuveau_hw_pllvals_to_clk
 					(&nv04_display(dev)->saved_reg.crtc_reg[head].pllvals);
 
 		run_tmds_table(dev, nv_encoder->dcb, head, clock);
@@ -612,7 +612,7 @@ static void nv04_dfp_restore(struct drm_encoder *encoder)
 
 static void nv04_dfp_destroy(struct drm_encoder *encoder)
 {
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct analuveau_encoder *nv_encoder = analuveau_encoder(encoder);
 
 	if (get_slave_funcs(encoder))
 		get_slave_funcs(encoder)->destroy(encoder);
@@ -624,8 +624,8 @@ static void nv04_dfp_destroy(struct drm_encoder *encoder)
 static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct dcb_output *dcb = nouveau_encoder(encoder)->dcb;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_output *dcb = analuveau_encoder(encoder)->dcb;
+	struct analuveau_drm *drm = analuveau_drm(dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus = nvkm_i2c_bus_find(i2c, NVKM_I2C_BUS_PRI);
 	struct nvkm_i2c_bus_probe info[] = {
@@ -679,7 +679,7 @@ int
 nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct nouveau_encoder *nv_encoder = NULL;
+	struct analuveau_encoder *nv_encoder = NULL;
 	struct drm_encoder *encoder;
 	int type;
 
@@ -698,7 +698,7 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nv_encoder->enc_save = nv04_dfp_save;
 	nv_encoder->enc_restore = nv04_dfp_restore;

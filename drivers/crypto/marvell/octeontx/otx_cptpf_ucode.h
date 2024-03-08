@@ -118,12 +118,12 @@ struct otx_cpt_engs_rsvd {
 struct otx_cpt_mirror_info {
 	int is_ena;	/*
 			 * is mirroring enabled, it is set only for engine
-			 * group which mirrors another engine group
+			 * group which mirrors aanalther engine group
 			 */
 	int idx;	/*
 			 * index of engine group which is mirrored by this
 			 * group, set only for engine group which mirrors
-			 * another group
+			 * aanalther group
 			 */
 	int ref_count;	/*
 			 * number of times this engine group is mirrored by

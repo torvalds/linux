@@ -37,7 +37,7 @@
 #include <linux/of_irq.h>
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/interrupt.h>
 
 #include <linux/io.h>
@@ -45,7 +45,7 @@
 
 #include <linux/fsl_hypervisor.h>
 
-static BLOCKING_NOTIFIER_HEAD(failover_subscribers);
+static BLOCKING_ANALTIFIER_HEAD(failover_subscribers);
 
 /*
  * Ioctl interface for FSL_HV_IOCTL_PARTITION_RESTART
@@ -167,7 +167,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 
 	/*
 	 * One partition must be local, the other must be remote.  In other
-	 * words, if source and target are both -1, or are both not -1, then
+	 * words, if source and target are both -1, or are both analt -1, then
 	 * return an error.
 	 */
 	if ((param.source == -1) == (param.target == -1))
@@ -175,7 +175,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 
 	/*
 	 * The array of pages returned by get_user_pages_fast() covers only
-	 * page-aligned memory.  Since the user buffer is probably not
+	 * page-aligned memory.  Since the user buffer is probably analt
 	 * page-aligned, we need to handle the discrepancy.
 	 *
 	 * We calculate the offset within a page of the S/G list, and make
@@ -228,8 +228,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	 */
 	pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
-		pr_debug("fsl-hv: could not allocate page list\n");
-		return -ENOMEM;
+		pr_debug("fsl-hv: could analt allocate page list\n");
+		return -EANALMEM;
 	}
 
 	/*
@@ -239,8 +239,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	sg_list_unaligned = kmalloc(num_pages * sizeof(struct fh_sg_list) +
 		sizeof(struct fh_sg_list) - 1, GFP_KERNEL);
 	if (!sg_list_unaligned) {
-		pr_debug("fsl-hv: could not allocate S/G list\n");
-		ret = -ENOMEM;
+		pr_debug("fsl-hv: could analt allocate S/G list\n");
+		ret = -EANALMEM;
 		goto free_pages;
 	}
 	sg_list = PTR_ALIGN(sg_list_unaligned, sizeof(struct fh_sg_list));
@@ -250,7 +250,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 		num_pages, param.source != -1 ? FOLL_WRITE : 0, pages);
 
 	if (num_pinned != num_pages) {
-		pr_debug("fsl-hv: could not lock source buffer\n");
+		pr_debug("fsl-hv: could analt lock source buffer\n");
 		ret = (num_pinned < 0) ? num_pinned : -EFAULT;
 		goto exit;
 	}
@@ -362,7 +362,7 @@ static long ioctl_dtprop(struct fsl_hv_ioctl_prop __user *p, int set)
 
 	propval = kmalloc(param.proplen, GFP_KERNEL);
 	if (!propval) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_propname;
 	}
 
@@ -444,7 +444,7 @@ static long fsl_hv_ioctl(struct file *file, unsigned int cmd,
 		pr_debug("fsl-hv: bad ioctl dir=%u type=%u cmd=%u size=%u\n",
 			 _IOC_DIR(cmd), _IOC_TYPE(cmd), _IOC_NR(cmd),
 			 _IOC_SIZE(cmd));
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return ret;
@@ -491,7 +491,7 @@ static void fsl_hv_queue_doorbell(uint32_t doorbell)
 	struct doorbell_queue *dbq;
 	unsigned long flags;
 
-	/* Prevent another core from modifying db_list */
+	/* Prevent aanalther core from modifying db_list */
 	spin_lock_irqsave(&db_list_lock, flags);
 
 	list_for_each_entry(dbq, &db_list, list) {
@@ -527,18 +527,18 @@ static irqreturn_t fsl_hv_isr(int irq, void *data)
 /*
  * State change thread function
  *
- * The state change notification arrives in an interrupt, but we can't call
- * blocking_notifier_call_chain() in an interrupt handler.  We could call
- * atomic_notifier_call_chain(), but that would require the clients' call-back
+ * The state change analtification arrives in an interrupt, but we can't call
+ * blocking_analtifier_call_chain() in an interrupt handler.  We could call
+ * atomic_analtifier_call_chain(), but that would require the clients' call-back
  * function to run in interrupt context.  Since we don't want to impose that
  * restriction on the clients, we use a threaded IRQ to process the
- * notification in kernel context.
+ * analtification in kernel context.
  */
 static irqreturn_t fsl_hv_state_change_thread(int irq, void *data)
 {
 	struct doorbell_isr *dbisr = data;
 
-	blocking_notifier_call_chain(&failover_subscribers, dbisr->partition,
+	blocking_analtifier_call_chain(&failover_subscribers, dbisr->partition,
 				     NULL);
 
 	return IRQ_HANDLED;
@@ -556,7 +556,7 @@ static irqreturn_t fsl_hv_state_change_isr(int irq, void *data)
 	/* It's still a doorbell, so add it to all the queues. */
 	fsl_hv_queue_doorbell(dbisr->doorbell);
 
-	/* Determine the new state, and if it's stopped, notify the clients. */
+	/* Determine the new state, and if it's stopped, analtify the clients. */
 	ret = fh_partition_get_status(dbisr->partition, &status);
 	if (!ret && (status == FH_PARTITION_STOPPED))
 		return IRQ_WAKE_THREAD;
@@ -576,7 +576,7 @@ static __poll_t fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
 	spin_lock_irqsave(&dbq->lock, flags);
 
 	poll_wait(filp, &dbq->wait, p);
-	mask = (dbq->head == dbq->tail) ? 0 : (EPOLLIN | EPOLLRDNORM);
+	mask = (dbq->head == dbq->tail) ? 0 : (EPOLLIN | EPOLLRDANALRM);
 
 	spin_unlock_irqrestore(&dbq->lock, flags);
 
@@ -606,14 +606,14 @@ static ssize_t fsl_hv_read(struct file *filp, char __user *buf, size_t len,
 
 		/*
 		 * If the queue is empty, then either we're done or we need
-		 * to block.  If the application specified O_NONBLOCK, then
+		 * to block.  If the application specified O_ANALNBLOCK, then
 		 * we return the appropriate error code.
 		 */
 		if (dbq->head == dbq->tail) {
 			spin_unlock_irqrestore(&dbq->lock, flags);
 			if (count)
 				break;
-			if (filp->f_flags & O_NONBLOCK)
+			if (filp->f_flags & O_ANALNBLOCK)
 				return -EAGAIN;
 			if (wait_event_interruptible(dbq->wait,
 						     dbq->head != dbq->tail))
@@ -655,7 +655,7 @@ static ssize_t fsl_hv_read(struct file *filp, char __user *buf, size_t len,
  * Every time an application opens the driver, we create a doorbell queue
  * for that file handle.  This queue is used for any incoming doorbells.
  */
-static int fsl_hv_open(struct inode *inode, struct file *filp)
+static int fsl_hv_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct doorbell_queue *dbq;
 	unsigned long flags;
@@ -663,7 +663,7 @@ static int fsl_hv_open(struct inode *inode, struct file *filp)
 	dbq = kzalloc(sizeof(struct doorbell_queue), GFP_KERNEL);
 	if (!dbq) {
 		pr_err("fsl-hv: out of memory\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	spin_lock_init(&dbq->lock);
@@ -681,7 +681,7 @@ static int fsl_hv_open(struct inode *inode, struct file *filp)
 /*
  * Close the driver
  */
-static int fsl_hv_close(struct inode *inode, struct file *filp)
+static int fsl_hv_close(struct ianalde *ianalde, struct file *filp)
 {
 	struct doorbell_queue *dbq = filp->private_data;
 	unsigned long flags;
@@ -706,7 +706,7 @@ static const struct file_operations fsl_hv_fops = {
 };
 
 static struct miscdevice fsl_hv_misc_dev = {
-	MISC_DYNAMIC_MINOR,
+	MISC_DYNAMIC_MIANALR,
 	"fsl-hv",
 	&fsl_hv_fops
 };
@@ -719,21 +719,21 @@ static irqreturn_t fsl_hv_shutdown_isr(int irq, void *data)
 }
 
 /*
- * Returns the handle of the parent of the given node
+ * Returns the handle of the parent of the given analde
  *
  * The handle is the value of the 'hv-handle' property
  */
-static int get_parent_handle(struct device_node *np)
+static int get_parent_handle(struct device_analde *np)
 {
-	struct device_node *parent;
+	struct device_analde *parent;
 	const uint32_t *prop;
 	uint32_t handle;
 	int len;
 
 	parent = of_get_parent(np);
 	if (!parent)
-		/* It's not really possible for this to fail */
-		return -ENODEV;
+		/* It's analt really possible for this to fail */
+		return -EANALDEV;
 
 	/*
 	 * The proper name for the handle property is "hv-handle", but some
@@ -744,13 +744,13 @@ static int get_parent_handle(struct device_node *np)
 		prop = of_get_property(parent, "reg", &len);
 
 	if (!prop || (len != sizeof(uint32_t))) {
-		/* This can happen only if the node is malformed */
-		of_node_put(parent);
-		return -ENODEV;
+		/* This can happen only if the analde is malformed */
+		of_analde_put(parent);
+		return -EANALDEV;
 	}
 
 	handle = be32_to_cpup(prop);
-	of_node_put(parent);
+	of_analde_put(parent);
 
 	return handle;
 }
@@ -761,18 +761,18 @@ static int get_parent_handle(struct device_node *np)
  * This function is called by device drivers to register their callback
  * functions for fail-over events.
  */
-int fsl_hv_failover_register(struct notifier_block *nb)
+int fsl_hv_failover_register(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&failover_subscribers, nb);
+	return blocking_analtifier_chain_register(&failover_subscribers, nb);
 }
 EXPORT_SYMBOL(fsl_hv_failover_register);
 
 /*
  * Unregister a callback for failover events
  */
-int fsl_hv_failover_unregister(struct notifier_block *nb)
+int fsl_hv_failover_unregister(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&failover_subscribers, nb);
+	return blocking_analtifier_chain_unregister(&failover_subscribers, nb);
 }
 EXPORT_SYMBOL(fsl_hv_failover_unregister);
 
@@ -780,25 +780,25 @@ EXPORT_SYMBOL(fsl_hv_failover_unregister);
  * Return TRUE if we're running under FSL hypervisor
  *
  * This function checks to see if we're running under the Freescale
- * hypervisor, and returns zero if we're not, or non-zero if we are.
+ * hypervisor, and returns zero if we're analt, or analn-zero if we are.
  *
  * First, it checks if MSR[GS]==1, which means we're running under some
- * hypervisor.  Then it checks if there is a hypervisor node in the device
- * tree.  Currently, that means there needs to be a node in the root called
+ * hypervisor.  Then it checks if there is a hypervisor analde in the device
+ * tree.  Currently, that means there needs to be a analde in the root called
  * "hypervisor" and which has a property named "fsl,hv-version".
  */
 static int has_fsl_hypervisor(void)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret;
 
-	node = of_find_node_by_path("/hypervisor");
-	if (!node)
+	analde = of_find_analde_by_path("/hypervisor");
+	if (!analde)
 		return 0;
 
-	ret = of_property_present(node, "fsl,hv-version");
+	ret = of_property_present(analde, "fsl,hv-version");
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	return ret;
 }
@@ -813,34 +813,34 @@ static int has_fsl_hypervisor(void)
  */
 static int __init fsl_hypervisor_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct doorbell_isr *dbisr, *n;
 	int ret;
 
 	pr_info("Freescale hypervisor management driver\n");
 
 	if (!has_fsl_hypervisor()) {
-		pr_info("fsl-hv: no hypervisor found\n");
-		return -ENODEV;
+		pr_info("fsl-hv: anal hypervisor found\n");
+		return -EANALDEV;
 	}
 
 	ret = misc_register(&fsl_hv_misc_dev);
 	if (ret) {
-		pr_err("fsl-hv: cannot register device\n");
+		pr_err("fsl-hv: cananalt register device\n");
 		return ret;
 	}
 
 	INIT_LIST_HEAD(&db_list);
 	INIT_LIST_HEAD(&isr_list);
 
-	for_each_compatible_node(np, NULL, "epapr,hv-receive-doorbell") {
+	for_each_compatible_analde(np, NULL, "epapr,hv-receive-doorbell") {
 		unsigned int irq;
 		const uint32_t *handle;
 
 		handle = of_get_property(np, "interrupts", NULL);
 		irq = irq_of_parse_and_map(np, 0);
 		if (!handle || !irq) {
-			pr_err("fsl-hv: no 'interrupts' property in %pOF node\n",
+			pr_err("fsl-hv: anal 'interrupts' property in %pOF analde\n",
 				np);
 			continue;
 		}
@@ -859,16 +859,16 @@ static int __init fsl_hypervisor_init(void)
 		} else if (of_device_is_compatible(np,
 			"fsl,hv-state-change-doorbell")) {
 			/*
-			 * The state change doorbell triggers a notification if
+			 * The state change doorbell triggers a analtification if
 			 * the state of the managed partition changes to
 			 * "stopped". We need a separate interrupt handler for
-			 * that, and we also need to know the handle of the
-			 * target partition, not just the handle of the
+			 * that, and we also need to kanalw the handle of the
+			 * target partition, analt just the handle of the
 			 * doorbell.
 			 */
 			dbisr->partition = ret = get_parent_handle(np);
 			if (ret < 0) {
-				pr_err("fsl-hv: node %pOF has missing or "
+				pr_err("fsl-hv: analde %pOF has missing or "
 				       "malformed parent\n", np);
 				kfree(dbisr);
 				continue;
@@ -880,7 +880,7 @@ static int __init fsl_hypervisor_init(void)
 			ret = request_irq(irq, fsl_hv_isr, 0, np->name, dbisr);
 
 		if (ret < 0) {
-			pr_err("fsl-hv: could not request irq %u for node %pOF\n",
+			pr_err("fsl-hv: could analt request irq %u for analde %pOF\n",
 			       irq, np);
 			kfree(dbisr);
 			continue;
@@ -903,7 +903,7 @@ out_of_memory:
 
 	misc_deregister(&fsl_hv_misc_dev);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*

@@ -26,7 +26,7 @@
 	 * the schematic as long as those rails interact in some way with
 	 * the AP.  AKA:
 	 * - Rails that only connect to the EC (or devices that the EC talks to)
-	 *   are not included.
+	 *   are analt included.
 	 * - Rails _are_ included if the rails go to the AP even if the AP
 	 *   doesn't currently care about them / they are always on.  The idea
 	 *   here is that it makes it easier to map to the schematic or extend
@@ -306,8 +306,8 @@
  *
  * To make extra certain that we don't hit this OVP at suspend time, we'll
  * transition to a voltage that's much closer to the default (~1.0 V) so that
- * there will not be a big jump.  Technically we only need to get within 200 mV
- * of the default voltage, but the speed here should be fast enough and we need
+ * there will analt be a big jump.  Technically we only need to get within 200 mV
+ * of the default voltage, but the speed here should be fast eanalugh and we need
  * suspend/resume to be rock solid.
  */
 
@@ -530,7 +530,7 @@ ap_i2c_audio: &i2c8 {
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -538,12 +538,12 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 
 	/*
-	 * Note: configure "sdmmc_cd" as card detect even though it's actually
+	 * Analte: configure "sdmmc_cd" as card detect even though it's actually
 	 * hooked to ground.  Because we specified "cd-gpios" below dw_mmc
-	 * should be ignoring card detect anyway.  Specifying the pin as
+	 * should be iganalring card detect anyway.  Specifying the pin as
 	 * sdmmc_cd means that even if you've got GRF_SOC_CON7[12] (force_jtag)
 	 * turned on that the system will still make sure the port is
-	 * configured as SDMMC and not JTAG.
+	 * configured as SDMMC and analt JTAG.
 	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_cd_pin
@@ -580,7 +580,7 @@ ap_i2c_audio: &i2c8 {
 	pinctrl-1 = <&spi1_sleep>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 
 		/* May run faster once verified. */
@@ -689,7 +689,7 @@ ap_i2c_audio: &i2c8 {
 
 &pinctrl {
 	/*
-	 * pinctrl settings for pins that have no real owners.
+	 * pinctrl settings for pins that have anal real owners.
 	 *
 	 * At the moment settings are identical for S0 and S3, but if we later
 	 * need to configure things differently for S3 we'll adjust here.
@@ -708,14 +708,14 @@ ap_i2c_audio: &i2c8 {
 		output-high;
 	};
 
-	pcfg_pull_none_8ma: pcfg-pull-none-8ma {
+	pcfg_pull_analne_8ma: pcfg-pull-analne-8ma {
 		bias-disable;
 		drive-strength = <8>;
 	};
 
 	backlight-enable {
 		bl_en: bl-en {
-			rockchip,pins = <1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -728,24 +728,24 @@ ap_i2c_audio: &i2c8 {
 	discrete-regulators {
 		sd_io_pwr_en: sd-io-pwr-en {
 			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 
 		sd_pwr_1800_sel: sd-pwr-1800-sel {
 			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 
 		sd_slot_pwr_en: sd-slot-pwr-en {
 			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_analne>;
 		};
 	};
 
 	codec {
 		/* Has external pullup */
 		headset_int_l: headset-int-l {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		mic_int: mic-int {
@@ -766,7 +766,7 @@ ap_i2c_audio: &i2c8 {
 			 * to hack this as gpio, so the EP could be able to
 			 * de-assert it along and make ClockPM(CPM) work.
 			 */
-			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -777,20 +777,20 @@ ap_i2c_audio: &i2c8 {
 		 */
 		sdmmc_bus4: sdmmc-bus4 {
 			rockchip,pins =
-				<4 RK_PB0 1 &pcfg_pull_none_8ma>,
-				<4 RK_PB1 1 &pcfg_pull_none_8ma>,
-				<4 RK_PB2 1 &pcfg_pull_none_8ma>,
-				<4 RK_PB3 1 &pcfg_pull_none_8ma>;
+				<4 RK_PB0 1 &pcfg_pull_analne_8ma>,
+				<4 RK_PB1 1 &pcfg_pull_analne_8ma>,
+				<4 RK_PB2 1 &pcfg_pull_analne_8ma>,
+				<4 RK_PB3 1 &pcfg_pull_analne_8ma>;
 		};
 
 		sdmmc_clk: sdmmc-clk {
 			rockchip,pins =
-				<4 RK_PB4 1 &pcfg_pull_none_8ma>;
+				<4 RK_PB4 1 &pcfg_pull_analne_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
 			rockchip,pins =
-				<4 RK_PB5 1 &pcfg_pull_none_8ma>;
+				<4 RK_PB5 1 &pcfg_pull_analne_8ma>;
 		};
 
 		/*
@@ -799,17 +799,17 @@ ap_i2c_audio: &i2c8 {
 		 * in the SD card slot (see the force_jtag bit in the TRM).
 		 *
 		 * We still configure it as card detect because it doesn't
-		 * hurt and dw_mmc will ignore it.  We make sure to disable
+		 * hurt and dw_mmc will iganalre it.  We make sure to disable
 		 * the pull though so we don't burn needless power.
 		 */
 		sdmmc_cd: sdmmc-cd {
 			rockchip,pins =
-				<0 RK_PA7 1 &pcfg_pull_none>;
+				<0 RK_PA7 1 &pcfg_pull_analne>;
 		};
 
 		/* This is where we actually hook up CD; has external pull */
 		sdmmc_cd_pin: sdmmc-cd-pin {
-			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -832,7 +832,7 @@ ap_i2c_audio: &i2c8 {
 		};
 
 		touch_reset_l: touch-reset-l {
-			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -848,11 +848,11 @@ ap_i2c_audio: &i2c8 {
 
 	wifi: wifi {
 		wlan_module_reset_l: wlan-module-reset-l {
-			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_host_wake_l: bt-host-wake-l {
-			/* Kevin has an external pull up, but Gru does not */
+			/* Kevin has an external pull up, but Gru does analt */
 			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};

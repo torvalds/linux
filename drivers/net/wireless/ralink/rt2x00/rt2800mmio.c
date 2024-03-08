@@ -134,7 +134,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	/*
-	 * Unfortunately we don't know the cipher type used during
+	 * Unfortunately we don't kanalw the cipher type used during
 	 * decryption. This prevents us from correct providing
 	 * correct statistics through debugfs.
 	 */
@@ -162,7 +162,7 @@ void rt2800mmio_fill_rxdone(struct queue_entry *entry,
 			 * In order to check the Michael Mic, the packet must have
 			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
 			 * flag to initiate MMIC countermeasures if the decoded flag
-			 * has not been set.
+			 * has analt been set.
 			 */
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 
@@ -333,7 +333,7 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 	rt2x00mmio_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
@@ -365,7 +365,7 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 		tasklet_schedule(&rt2x00dev->autowake_tasklet);
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right analw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -590,7 +590,7 @@ void rt2800mmio_queue_init(struct data_queue *queue)
 
 	case QID_BEACON:
 		queue->limit = 8;
-		queue->data_size = 0; /* No DMA required for beacons */
+		queue->data_size = 0; /* Anal DMA required for beacons */
 		queue->desc_size = TXD_DESC_SIZE;
 		queue->winfo_size = txwi_size;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
@@ -779,7 +779,7 @@ EXPORT_SYMBOL_GPL(rt2800mmio_init_registers);
  */
 int rt2800mmio_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	/* Wait for DMA, ignore error until we initialize queues. */
+	/* Wait for DMA, iganalre error until we initialize queues. */
 	rt2800_wait_wpdma_ready(rt2x00dev);
 
 	if (unlikely(rt2800mmio_init_queues(rt2x00dev)))
@@ -802,7 +802,7 @@ static void rt2800mmio_work_txdone(struct work_struct *work)
 
 		tasklet_disable(&rt2x00dev->txstatus_tasklet);
 		rt2800_txdone(rt2x00dev, UINT_MAX);
-		rt2800_txdone_nostatus(rt2x00dev);
+		rt2800_txdone_analstatus(rt2x00dev);
 		tasklet_enable(&rt2x00dev->txstatus_tasklet);
 	}
 
@@ -828,7 +828,7 @@ static enum hrtimer_restart rt2800mmio_tx_sta_fifo_timeout(struct hrtimer *timer
 	else
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 out:
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 int rt2800mmio_probe_hw(struct rt2x00_dev *rt2x00dev)

@@ -36,7 +36,7 @@ static int ip_vs_rr_del_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest)
 
 	spin_lock_bh(&svc->sched_lock);
 	p = (struct list_head *) svc->sched_data;
-	/* dest is already unlinked, so p->prev is not valid but
+	/* dest is already unlinked, so p->prev is analt valid but
 	 * p->next is valid, use it to reach previous entry.
 	 */
 	if (p == &dest->n_list)
@@ -75,14 +75,14 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 				goto stop;
 		}
 		pass++;
-		/* Previous dest could be unlinked, do not loop forever.
-		 * If we stay at head there is no need for 2nd pass.
+		/* Previous dest could be unlinked, do analt loop forever.
+		 * If we stay at head there is anal need for 2nd pass.
 		 */
 	} while (pass < 2 && p != &svc->destinations);
 
 stop:
 	spin_unlock_bh(&svc->sched_lock);
-	ip_vs_scheduler_err(svc, "no destination available");
+	ip_vs_scheduler_err(svc, "anal destination available");
 	return NULL;
 
   out:

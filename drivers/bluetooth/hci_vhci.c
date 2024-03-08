@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
 
@@ -284,7 +284,7 @@ static int vhci_setup(struct hci_dev *hdev)
 
 static void vhci_coredump(struct hci_dev *hdev)
 {
-	/* No need to do anything */
+	/* Anal need to do anything */
 }
 
 static void vhci_coredump_hdr(struct hci_dev *hdev, struct sk_buff *skb)
@@ -340,7 +340,7 @@ static ssize_t force_devcd_write(struct file *file, const char __user *user_buf,
 	data_size = count - offsetof(struct devcoredump_test_data, data);
 	skb = alloc_skb(data_size, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 	skb_put_data(skb, &dump_data.data, data_size);
 
 	hci_devcd_register(hdev, vhci_coredump, vhci_coredump_hdr, NULL);
@@ -366,7 +366,7 @@ static ssize_t force_devcd_write(struct file *file, const char __user *user_buf,
 		hci_devcd_abort(hdev);
 		break;
 	case HCI_DEVCOREDUMP_TIMEOUT:
-		/* Do nothing */
+		/* Do analthing */
 		break;
 	default:
 		return -EINVAL;
@@ -401,12 +401,12 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 
 	skb = bt_skb_alloc(4, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	data->hdev = hdev;
@@ -423,7 +423,7 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	hdev->get_codec_config_data = vhci_get_codec_config_data;
 	hdev->wakeup = vhci_wakeup;
 	hdev->setup = vhci_setup;
-	set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+	set_bit(HCI_QUIRK_ANALN_PERSISTENT_SETUP, &hdev->quirks);
 
 	/* bit 6 is for external configuration */
 	if (opcode & 0x40)
@@ -496,7 +496,7 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 
 	skb = bt_skb_alloc(len, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!copy_from_iter_full(skb_put(skb, len), len, from)) {
 		kfree_skb(skb);
@@ -513,7 +513,7 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 	case HCI_ISODATA_PKT:
 		if (!data->hdev) {
 			kfree_skb(skb);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		hci_skb_pkt_type(skb) = pkt_type;
@@ -595,7 +595,7 @@ static ssize_t vhci_read(struct file *file,
 			break;
 		}
 
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -624,9 +624,9 @@ static __poll_t vhci_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &data->read_wait, wait);
 
 	if (!skb_queue_empty(&data->readq))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 
-	return EPOLLOUT | EPOLLWRNORM;
+	return EPOLLOUT | EPOLLWRANALRM;
 }
 
 static void vhci_open_timeout(struct work_struct *work)
@@ -637,13 +637,13 @@ static void vhci_open_timeout(struct work_struct *work)
 	vhci_create_device(data, amp ? HCI_AMP : HCI_PRIMARY);
 }
 
-static int vhci_open(struct inode *inode, struct file *file)
+static int vhci_open(struct ianalde *ianalde, struct file *file)
 {
 	struct vhci_data *data;
 
 	data = kzalloc(sizeof(struct vhci_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&data->readq);
 	init_waitqueue_head(&data->read_wait);
@@ -653,14 +653,14 @@ static int vhci_open(struct inode *inode, struct file *file)
 	INIT_WORK(&data->suspend_work, vhci_suspend_work);
 
 	file->private_data = data;
-	nonseekable_open(inode, file);
+	analnseekable_open(ianalde, file);
 
 	schedule_delayed_work(&data->open_timeout, msecs_to_jiffies(1000));
 
 	return 0;
 }
 
-static int vhci_release(struct inode *inode, struct file *file)
+static int vhci_release(struct ianalde *ianalde, struct file *file)
 {
 	struct vhci_data *data = file->private_data;
 	struct hci_dev *hdev;
@@ -689,13 +689,13 @@ static const struct file_operations vhci_fops = {
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 static struct miscdevice vhci_miscdev = {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
-	.minor	= VHCI_MINOR,
+	.mianalr	= VHCI_MIANALR,
 };
 module_misc_device(vhci_miscdev);
 
@@ -707,4 +707,4 @@ MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("devname:vhci");
-MODULE_ALIAS_MISCDEV(VHCI_MINOR);
+MODULE_ALIAS_MISCDEV(VHCI_MIANALR);

@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 #ifndef __MAILBOX_H__
 #define __MAILBOX_H__
@@ -27,7 +27,7 @@
 #define OCTEON_PF_CHANGED_VF_MACADDR	0x4
 #define OCTEON_GET_VF_STATS		0x8
 
-/*Macro for Read acknowldgement*/
+/*Macro for Read ackanalwldgement*/
 #define OCTEON_PFVFACK			0xffffffffffffffffULL
 #define OCTEON_PFVFSIG			0x1122334455667788ULL
 #define OCTEON_PFVFERR			0xDEADDEADDEADDEADULL
@@ -65,7 +65,7 @@ typedef void (*octeon_mbox_callback_t)(struct octeon_device *,
 struct octeon_mbox_cmd {
 	union octeon_mbox_message msg;
 	u64 data[OCTEON_MBOX_DATA_MAX];
-	u32 q_no;
+	u32 q_anal;
 	u32 recv_len;
 	u32 recv_status;
 	octeon_mbox_callback_t fn;
@@ -88,7 +88,7 @@ struct octeon_mbox {
 
 	struct octeon_device *oct_dev;
 
-	u32 q_no;
+	u32 q_anal;
 
 	enum octeon_mbox_state state;
 
@@ -120,6 +120,6 @@ int octeon_mbox_read(struct octeon_mbox *mbox);
 int octeon_mbox_write(struct octeon_device *oct,
 		      struct octeon_mbox_cmd *mbox_cmd);
 int octeon_mbox_process_message(struct octeon_mbox *mbox);
-int octeon_mbox_cancel(struct octeon_device *oct, int q_no);
+int octeon_mbox_cancel(struct octeon_device *oct, int q_anal);
 
 #endif

@@ -38,7 +38,7 @@ struct wil_platform_ops {
 	int (*suspend)(void *handle, bool keep_device_power);
 	int (*resume)(void *handle, bool device_powered_on);
 	void (*uninit)(void *handle);
-	int (*notify)(void *handle, enum wil_platform_event evt);
+	int (*analtify)(void *handle, enum wil_platform_event evt);
 	int (*get_capa)(void *handle);
 	void (*set_features)(void *handle, int features);
 };
@@ -66,7 +66,7 @@ struct wil_platform_rops {
  *	driver will fill this structure with function pointers.
  * @rops - structure with callbacks from platform driver to
  *	this driver. The platform driver copies the structure to
- *	its own storage. Can be NULL if this driver does not
+ *	its own storage. Can be NULL if this driver does analt
  *	support crash recovery.
  * @wil_handle - context for this driver that will be passed
  *      when platform driver invokes one of the callbacks in

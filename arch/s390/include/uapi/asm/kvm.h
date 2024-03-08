@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_KVM_S390_H
 #define __LINUX_KVM_S390_H
 /*
@@ -81,7 +81,7 @@ struct kvm_s390_io_adapter_req {
 #define KVM_S390_VM_MEM_CLR_CMMA	1
 #define KVM_S390_VM_MEM_LIMIT_SIZE	2
 
-#define KVM_S390_NO_MEM_LIMIT		U64_MAX
+#define KVM_S390_ANAL_MEM_LIMIT		U64_MAX
 
 /* kvm attributes for KVM_S390_VM_TOD */
 #define KVM_S390_VM_TOD_LOW		0
@@ -151,7 +151,7 @@ struct kvm_s390_vm_cpu_subfunc {
 	__u8 kmf[16];		/* with MSA4 */
 	__u8 kmo[16];		/* with MSA4 */
 	__u8 pcc[16];		/* with MSA4 */
-	__u8 ppno[16];		/* with MSA5 */
+	__u8 ppanal[16];		/* with MSA5 */
 	__u8 kma[16];		/* with MSA8 */
 	__u8 kdsa[16];		/* with MSA9 */
 	__u8 sortl[32];		/* with STFLE.150 */
@@ -283,7 +283,7 @@ struct kvm_sync_regs {
 	__u8 reserved2 : 7;
 	__u8 padding1[51];	/* riccb needs to be 64byte aligned */
 	__u8 riccb[64];		/* runtime instrumentation controls block */
-	__u64 diag318;		/* diagnose 0x318 info */
+	__u64 diag318;		/* diaganalse 0x318 info */
 	__u8 padding2[184];	/* sdnx needs to be 256byte aligned */
 	union {
 		__u8 sdnx[SDNXL];  /* state description annex */

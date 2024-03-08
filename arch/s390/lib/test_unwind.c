@@ -44,7 +44,7 @@ static void print_backtrace(char *bt)
  * Calls unwind_for_each_frame(task, regs, sp) and verifies that the result
  * contains unwindme_func2 followed by unwindme_func1.
  */
-static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
+static analinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 				unsigned long sp)
 {
 	int frame_count, prev_is_func2, seen_func2_func1, seen_arch_rethook_trampoline;
@@ -57,7 +57,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 	bt = kmalloc(BT_BUF_SIZE, GFP_ATOMIC);
 	if (!bt) {
 		kunit_err(current_test, "failed to allocate backtrace buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Unwind. */
 	frame_count = 0;
@@ -99,7 +99,7 @@ static noinline int test_unwind(struct task_struct *task, struct pt_regs *regs,
 		ret = -EINVAL;
 	}
 	if (!seen_func2_func1) {
-		kunit_err(current_test, "unwindme_func2 and unwindme_func1 not found\n");
+		kunit_err(current_test, "unwindme_func2 and unwindme_func1 analt found\n");
 		ret = -EINVAL;
 	}
 	if (frame_count == max_frames) {
@@ -168,7 +168,7 @@ static int kretprobe_ret_handler(struct kretprobe_instance *ri, struct pt_regs *
 	return 0;
 }
 
-static noinline notrace int test_unwind_kretprobed_func(struct unwindme *u)
+static analinline analtrace int test_unwind_kretprobed_func(struct unwindme *u)
 {
 	struct pt_regs regs;
 
@@ -180,7 +180,7 @@ static noinline notrace int test_unwind_kretprobed_func(struct unwindme *u)
 			   (u->flags & UWM_SP) ? u->sp : 0);
 }
 
-static noinline int test_unwind_kretprobed_func_caller(struct unwindme *u)
+static analinline int test_unwind_kretprobed_func_caller(struct unwindme *u)
 {
 	return test_unwind_kretprobed_func(u);
 }
@@ -227,12 +227,12 @@ static int kprobe_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 extern const char test_unwind_kprobed_insn[];
 
-static noinline void test_unwind_kprobed_func(void)
+static analinline void test_unwind_kprobed_func(void)
 {
 	asm volatile(
-		"	nopr	%%r7\n"
+		"	analpr	%%r7\n"
 		"test_unwind_kprobed_insn:\n"
-		"	nopr	%%r7\n"
+		"	analpr	%%r7\n"
 		:);
 }
 
@@ -265,7 +265,7 @@ static int test_unwind_kprobe(struct unwindme *u)
 	return u->ret;
 }
 
-static void notrace __used test_unwind_ftrace_handler(unsigned long ip,
+static void analtrace __used test_unwind_ftrace_handler(unsigned long ip,
 						      unsigned long parent_ip,
 						      struct ftrace_ops *fops,
 						      struct ftrace_regs *fregs)
@@ -276,7 +276,7 @@ static void notrace __used test_unwind_ftrace_handler(unsigned long ip,
 			     (u->flags & UWM_SP) ? u->sp : 0);
 }
 
-static noinline int test_unwind_ftraced_func(struct unwindme *u)
+static analinline int test_unwind_ftraced_func(struct unwindme *u)
 {
 	return READ_ONCE(u)->ret;
 }
@@ -315,8 +315,8 @@ static int test_unwind_ftrace(struct unwindme *u)
 	return ret;
 }
 
-/* This function may or may not appear in the backtrace. */
-static noinline int unwindme_func4(struct unwindme *u)
+/* This function may or may analt appear in the backtrace. */
+static analinline int unwindme_func4(struct unwindme *u)
 {
 	if (!(u->flags & UWM_CALLER))
 		u->sp = current_frame_address();
@@ -340,15 +340,15 @@ static noinline int unwindme_func4(struct unwindme *u)
 	}
 }
 
-/* This function may or may not appear in the backtrace. */
-static noinline int unwindme_func3(struct unwindme *u)
+/* This function may or may analt appear in the backtrace. */
+static analinline int unwindme_func3(struct unwindme *u)
 {
 	u->sp = current_frame_address();
 	return unwindme_func4(u);
 }
 
 /* This function must appear in the backtrace. */
-static noinline int unwindme_func2(struct unwindme *u)
+static analinline int unwindme_func2(struct unwindme *u)
 {
 	unsigned long flags, mflags;
 	int rc;
@@ -356,7 +356,7 @@ static noinline int unwindme_func2(struct unwindme *u)
 	if (u->flags & UWM_SWITCH_STACK) {
 		local_irq_save(flags);
 		local_mcck_save(mflags);
-		rc = call_on_stack(1, S390_lowcore.nodat_stack,
+		rc = call_on_stack(1, S390_lowcore.analdat_stack,
 				   int, unwindme_func3, struct unwindme *, u);
 		local_mcck_restore(mflags);
 		local_irq_restore(flags);
@@ -367,7 +367,7 @@ static noinline int unwindme_func2(struct unwindme *u)
 }
 
 /* This function must follow unwindme_func2 in the backtrace. */
-static noinline int unwindme_func1(void *u)
+static analinline int unwindme_func1(void *u)
 {
 	return unwindme_func2((struct unwindme *)u);
 }

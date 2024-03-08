@@ -29,14 +29,14 @@ struct emac_platform_data {
 	/*
 	 * phy_id can be one of the following:
 	 *   - NULL		: use the first phy on the bus,
-	 *   - ""		: force to 100/full, no mdio control
+	 *   - ""		: force to 100/full, anal mdio control
 	 *   - "<bus>:<addr>"	: use the specified bus and phy
 	 */
 	const char *phy_id;
 
 	u8 rmii_en;
 	u8 version;
-	bool no_bd_ram;
+	bool anal_bd_ram;
 	void (*interrupt_enable) (void);
 	void (*interrupt_disable) (void);
 };

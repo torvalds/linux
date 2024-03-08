@@ -22,7 +22,7 @@
 			device_type = "cpu";
 			/*
 			 * Since the board has pluggable CPU modules, we
-			 * cannot define a proper compatible here. Let the
+			 * cananalt define a proper compatible here. Let the
 			 * boot loader fill in the apropriate compatible
 			 * string if necessary.
 			 */

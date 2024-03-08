@@ -24,20 +24,20 @@ struct mnt_pcp {
 };
 
 struct mountpoint {
-	struct hlist_node m_hash;
+	struct hlist_analde m_hash;
 	struct dentry *m_dentry;
 	struct hlist_head m_list;
 	int m_count;
 };
 
 struct mount {
-	struct hlist_node mnt_hash;
+	struct hlist_analde mnt_hash;
 	struct mount *mnt_parent;
 	struct dentry *mnt_mountpoint;
 	struct vfsmount mnt;
 	union {
 		struct rcu_head mnt_rcu;
-		struct llist_node mnt_llist;
+		struct llist_analde mnt_llist;
 	};
 #ifdef CONFIG_SMP
 	struct mnt_pcp __percpu *mnt_pcp;
@@ -50,7 +50,7 @@ struct mount {
 	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 	union {
-		struct rb_node mnt_node;	/* Under ns->mounts */
+		struct rb_analde mnt_analde;	/* Under ns->mounts */
 		struct list_head mnt_list;
 	};
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
@@ -61,13 +61,13 @@ struct mount {
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	struct mountpoint *mnt_mp;	/* where is it mounted */
 	union {
-		struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
-		struct hlist_node mnt_umount;
+		struct hlist_analde mnt_mp_list;	/* list mounts with the same mountpoint */
+		struct hlist_analde mnt_umount;
 	};
 	struct list_head mnt_umounting; /* list entry for umount propagation */
-#ifdef CONFIG_FSNOTIFY
-	struct fsnotify_mark_connector __rcu *mnt_fsnotify_marks;
-	__u32 mnt_fsnotify_mask;
+#ifdef CONFIG_FSANALTIFY
+	struct fsanaltify_mark_connector __rcu *mnt_fsanaltify_marks;
+	__u32 mnt_fsanaltify_mask;
 #endif
 	int mnt_id;			/* mount identifier, reused */
 	u64 mnt_id_unique;		/* mount ID unique until reboot */
@@ -91,7 +91,7 @@ static inline int mnt_has_parent(struct mount *mnt)
 
 static inline int is_mounted(struct vfsmount *mnt)
 {
-	/* neither detached nor internal? */
+	/* neither detached analr internal? */
 	return !IS_ERR_OR_NULL(real_mount(mnt)->mnt_ns);
 }
 
@@ -138,7 +138,7 @@ static inline bool is_local_mountpoint(struct dentry *dentry)
 	return __is_local_mountpoint(dentry);
 }
 
-static inline bool is_anon_ns(struct mnt_namespace *ns)
+static inline bool is_aanaln_ns(struct mnt_namespace *ns)
 {
 	return ns->seq == 0;
 }
@@ -147,7 +147,7 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 {
 	WARN_ON(!(mnt->mnt.mnt_flags & MNT_ONRB));
 	mnt->mnt.mnt_flags &= ~MNT_ONRB;
-	rb_erase(&mnt->mnt_node, &mnt->mnt_ns->mounts);
+	rb_erase(&mnt->mnt_analde, &mnt->mnt_ns->mounts);
 	list_add_tail(&mnt->mnt_list, dt_list);
 }
 

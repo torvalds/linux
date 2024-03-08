@@ -58,15 +58,15 @@
 
 #define USB_THS_SHIFT		2
 #define USB_THS_MASK		0x000c
-#define USB_THS_NORMAL		0x0
-#define USB_THS_IGNORE_IN	0x0004
+#define USB_THS_ANALRMAL		0x0
+#define USB_THS_IGANALRE_IN	0x0004
 #define USB_THS_NACK		0x0008
 #define USB_THS_STALL		0x000c
 
 #define USB_RHS_SHIFT   	0
 #define USB_RHS_MASK		0x0003
-#define USB_RHS_NORMAL  	0x0
-#define USB_RHS_IGNORE_OUT	0x0001
+#define USB_RHS_ANALRMAL  	0x0
+#define USB_RHS_IGANALRE_OUT	0x0001
 #define USB_RHS_NACK		0x0002
 #define USB_RHS_STALL		0x0003
 
@@ -178,7 +178,7 @@ struct qe_frame{
 	u32 info;
 
 	void *privdata;
-	struct list_head node;
+	struct list_head analde;
 };
 
 /* Frame structure, info field. */
@@ -187,7 +187,7 @@ struct qe_frame{
 #define PID_SETUP              0x20000000 /* setup bit */
 #define SETUP_STATUS           0x10000000 /* setup status bit */
 #define SETADDR_STATUS         0x08000000 /* setupup address status bit */
-#define NO_REQ                 0x04000000 /* Frame without request */
+#define ANAL_REQ                 0x04000000 /* Frame without request */
 #define HOST_DATA              0x02000000 /* Host data frame */
 #define FIRST_PACKET_IN_FRAME  0x01000000 /* first packet in the frame */
 #define TOKEN_FRAME            0x00800000 /* Host token frame */
@@ -197,8 +197,8 @@ struct qe_frame{
 #define SETUP_TOKEN_FRAME      0x00080000 /* Setup token package */
 #define STALL_FRAME            0x00040000 /* Stall handshake */
 #define NACK_FRAME             0x00020000 /* Nack handshake */
-#define NO_PID                 0x00010000 /* No send PID */
-#define NO_CRC                 0x00008000 /* No send CRC */
+#define ANAL_PID                 0x00010000 /* Anal send PID */
+#define ANAL_CRC                 0x00008000 /* Anal send CRC */
 #define HOST_COMMAND           0x00004000 /* Host command frame   */
 
 /* Frame status field */
@@ -207,7 +207,7 @@ struct qe_frame{
 #define FRAME_ERROR            0x80000000 /* Error occurred on frame */
 #define START_FRAME_LOST       0x40000000 /* START_FRAME_LOST */
 #define END_FRAME_LOST         0x20000000 /* END_FRAME_LOST */
-#define RX_ER_NONOCT           0x10000000 /* Rx Non Octet Aligned Packet */
+#define RX_ER_ANALANALCT           0x10000000 /* Rx Analn Octet Aligned Packet */
 #define RX_ER_BITSTUFF         0x08000000 /* Frame Aborted --Received packet
 					     with bit stuff error */
 #define RX_ER_CRC              0x04000000 /* Received packet with CRC error */
@@ -246,7 +246,7 @@ static inline void qe_frame_clean(struct qe_frame *frm)
 static inline void qe_frame_init(struct qe_frame *frm)
 {
 	qe_frame_clean(frm);
-	INIT_LIST_HEAD(&(frm->node));
+	INIT_LIST_HEAD(&(frm->analde));
 }
 
 struct qe_req {
@@ -373,7 +373,7 @@ struct qe_udc {
 #define T_CNF         0x02000000         /* wait for  transmit confirm */
 #define T_LSP         0x01000000         /* Low-speed transaction */
 #define T_PID         0x00c00000         /* packet id */
-#define T_NAK         0x00100000         /* No ack. */
+#define T_NAK         0x00100000         /* Anal ack. */
 #define T_STAL        0x00080000         /* Stall received */
 #define T_TO          0x00040000         /* time out */
 #define T_UN          0x00020000         /* underrun */
@@ -396,12 +396,12 @@ struct qe_udc {
 #define R_L           0x08000000         /* last */
 #define R_F           0x04000000         /* first */
 #define R_PID         0x00c00000         /* packet id */
-#define R_NO          0x00100000         /* Rx Non Octet Aligned Packet */
+#define R_ANAL          0x00100000         /* Rx Analn Octet Aligned Packet */
 #define R_AB          0x00080000         /* Frame Aborted */
 #define R_CR          0x00040000         /* CRC Error */
 #define R_OV          0x00020000         /* Overrun */
 
-#define R_ERROR       (R_NO | R_AB | R_CR | R_OV)
+#define R_ERROR       (R_ANAL | R_AB | R_CR | R_OV)
 #define R_BD_MASK     R_ERROR
 
 #define R_PID_DATA0   0x00000000

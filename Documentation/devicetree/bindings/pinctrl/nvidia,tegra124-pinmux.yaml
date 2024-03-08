@@ -152,7 +152,7 @@ examples:
             sdmmc4_clk_pcc4 {
                 nvidia,pins = "sdmmc4_clk_pcc4";
                 nvidia,function = "sdmmc4";
-                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+                nvidia,pull = <TEGRA_PIN_PULL_ANALNE>;
                 nvidia,tristate = <TEGRA_PIN_DISABLE>;
             };
 

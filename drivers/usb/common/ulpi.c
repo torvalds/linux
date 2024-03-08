@@ -61,12 +61,12 @@ static int ulpi_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
 	if (add_uevent_var(env, "MODALIAS=ulpi:v%04xp%04x",
 			   ulpi->id.vendor, ulpi->id.product))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -75,7 +75,7 @@ static int ulpi_probe(struct device *dev)
 	struct ulpi_driver *drv = to_ulpi_driver(dev->driver);
 	int ret;
 
-	ret = of_clk_set_defaults(dev->of_node, false);
+	ret = of_clk_set_defaults(dev->of_analde, false);
 	if (ret < 0)
 		return ret;
 
@@ -107,7 +107,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	struct ulpi *ulpi = to_ulpi_dev(dev);
 
 	len = of_device_modalias(dev, buf, PAGE_SIZE);
-	if (len != -ENODEV)
+	if (len != -EANALDEV)
 		return len;
 
 	return sprintf(buf, "ulpi:v%04xp%04x\n",
@@ -131,7 +131,7 @@ static const struct attribute_group *ulpi_dev_attr_groups[] = {
 
 static void ulpi_dev_release(struct device *dev)
 {
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 	kfree(to_ulpi_dev(dev));
 }
 
@@ -178,24 +178,24 @@ EXPORT_SYMBOL_GPL(ulpi_unregister_driver);
 
 static int ulpi_of_register(struct ulpi *ulpi)
 {
-	struct device_node *np = NULL, *child;
+	struct device_analde *np = NULL, *child;
 	struct device *parent;
 
 	/* Find a ulpi bus underneath the parent or the grandparent */
 	parent = ulpi->dev.parent;
-	if (parent->of_node)
-		np = of_get_child_by_name(parent->of_node, "ulpi");
-	else if (parent->parent && parent->parent->of_node)
-		np = of_get_child_by_name(parent->parent->of_node, "ulpi");
+	if (parent->of_analde)
+		np = of_get_child_by_name(parent->of_analde, "ulpi");
+	else if (parent->parent && parent->parent->of_analde)
+		np = of_get_child_by_name(parent->parent->of_analde, "ulpi");
 	if (!np)
 		return 0;
 
 	child = of_get_next_available_child(np, NULL);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!child)
 		return -EINVAL;
 
-	ulpi->dev.of_node = child;
+	ulpi->dev.of_analde = child;
 
 	return 0;
 }
@@ -229,7 +229,7 @@ static int ulpi_read_id(struct ulpi *ulpi)
 	request_module("ulpi:v%04xp%04x", ulpi->id.vendor, ulpi->id.product);
 	return 0;
 err:
-	of_request_module(ulpi->dev.of_node);
+	of_request_module(ulpi->dev.of_analde);
 	return 0;
 }
 
@@ -291,7 +291,7 @@ static int ulpi_register(struct device *dev, struct ulpi *ulpi)
 
 	ret = ulpi_read_id(ulpi);
 	if (ret) {
-		of_node_put(ulpi->dev.of_node);
+		of_analde_put(ulpi->dev.of_analde);
 		return ret;
 	}
 
@@ -326,7 +326,7 @@ struct ulpi *ulpi_register_interface(struct device *dev,
 
 	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
 	if (!ulpi)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ulpi->ops = ops;
 

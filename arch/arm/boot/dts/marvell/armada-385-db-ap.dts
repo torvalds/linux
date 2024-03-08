@@ -170,7 +170,7 @@
 	};
 
 	usb3_phy: usb3_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		vcc-supply = <&reg_xhci0_vbus>;
 		#phy-cells = <0>;
 	};
@@ -195,7 +195,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p128", "jedec,spi-nor";
+		compatible = "st,m25p128", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <54000000>;
 	};

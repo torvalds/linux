@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
@@ -141,7 +141,7 @@ static void lx_set_dotpll(u32 pllval)
 
 	udelay(100);
 
-	/* Now, loop for the lock bit */
+	/* Analw, loop for the lock bit */
 
 	for (i = 0; i < 1000; i++) {
 		rdmsr(MSR_GLCP_DOTPLL, dotpll_lo, dotpll_hi);
@@ -182,7 +182,7 @@ static void lx_graphics_disable(struct fb_info *info)
 	struct lxfb_par *par = info->par;
 	unsigned int val, gcfg;
 
-	/* Note:  This assumes that the video is in a quitet state */
+	/* Analte:  This assumes that the video is in a quitet state */
 
 	write_vp(par, VP_A1T, 0);
 	write_vp(par, VP_A2T, 0);
@@ -459,7 +459,7 @@ void lx_set_mode(struct fb_info *info)
 		break;
 	}
 
-	/* Now - set up the timings */
+	/* Analw - set up the timings */
 
 	hactive = info->var.xres;
 	hblankstart = hactive;
@@ -502,7 +502,7 @@ void lx_set_mode(struct fb_info *info)
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
-void lx_set_palette_reg(struct fb_info *info, unsigned regno,
+void lx_set_palette_reg(struct fb_info *info, unsigned reganal,
 			unsigned red, unsigned green, unsigned blue)
 {
 	struct lxfb_par *par = info->par;
@@ -514,7 +514,7 @@ void lx_set_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_ADDRESS, reganal);
 	write_dc(par, DC_PAL_DATA, val);
 }
 
@@ -529,7 +529,7 @@ int lx_blank_display(struct fb_info *info, int blank_mode)
 	case FB_BLANK_UNBLANK:
 		blank = 0; hsync = 1; vsync = 1;
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		blank = 1; hsync = 1; vsync = 1;
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
@@ -740,7 +740,7 @@ static void lx_restore_video_proc(struct lxfb_par *par)
 		case VP_PDR:
 		case VP_CCS:
 		case VP_RSVD_0:
-		/* case VP_VDC: */ /* why should this not be restored? */
+		/* case VP_VDC: */ /* why should this analt be restored? */
 		case VP_RSVD_1:
 		case VP_CRC32:
 			/* don't restore these registers */
@@ -788,12 +788,12 @@ static void lx_restore_regs(struct lxfb_par *par)
 
 	/* control the panel */
 	if (par->fp[FP_PM] & FP_PM_P) {
-		/* power on the panel if not already power{ed,ing} on */
+		/* power on the panel if analt already power{ed,ing} on */
 		if (!(read_fp(par, FP_PM) &
 				(FP_PM_PANEL_ON|FP_PM_PANEL_PWR_UP)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);
 	} else {
-		/* power down the panel if not already power{ed,ing} down */
+		/* power down the panel if analt already power{ed,ing} down */
 		if (!(read_fp(par, FP_PM) &
 				(FP_PM_PANEL_OFF|FP_PM_PANEL_PWR_DOWN)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);

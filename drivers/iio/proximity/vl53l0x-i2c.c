@@ -226,7 +226,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -235,7 +235,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data->vdd_supply = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(data->vdd_supply))
@@ -245,7 +245,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 	data->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(data->reset_gpio))
 		return dev_err_probe(&client->dev, PTR_ERR(data->reset_gpio),
-				     "Cannot get reset GPIO\n");
+				     "Cananalt get reset GPIO\n");
 
 	error = vl53l0x_power_on(data);
 	if (error)

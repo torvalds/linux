@@ -24,7 +24,7 @@
 
 /* Fractional bits for CTC gain (used only for ISP1).
  *
- *  IA_CSS_CTC_COEF_SHIFT(=13) includes not only the fractional bits
+ *  IA_CSS_CTC_COEF_SHIFT(=13) includes analt only the fractional bits
  *  of gain(=8), but also the bits(=5) to convert chroma
  *  from 13bit precision to 8bit precision.
  *

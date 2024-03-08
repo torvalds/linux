@@ -2,7 +2,7 @@
 //
 // simple-card-utils.c
 //
-// Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2016 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
@@ -33,14 +33,14 @@ static void simple_fixup_sample_fmt(struct simple_util_data *data,
 	for (i = 0; i < ARRAY_SIZE(of_sample_fmt_table); i++) {
 		if (!strcmp(data->convert_sample_format,
 			    of_sample_fmt_table[i].fmt)) {
-			snd_mask_none(mask);
+			snd_mask_analne(mask);
 			snd_mask_set(mask, of_sample_fmt_table[i].val);
 			break;
 		}
 	}
 }
 
-void simple_util_parse_convert(struct device_node *np,
+void simple_util_parse_convert(struct device_analde *np,
 			       char *prefix,
 			       struct simple_util_data *data)
 {
@@ -79,23 +79,23 @@ bool simple_util_is_convert_required(const struct simple_util_data *data)
 EXPORT_SYMBOL_GPL(simple_util_is_convert_required);
 
 int simple_util_parse_daifmt(struct device *dev,
-			     struct device_node *node,
-			     struct device_node *codec,
+			     struct device_analde *analde,
+			     struct device_analde *codec,
 			     char *prefix,
 			     unsigned int *retfmt)
 {
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_analde *bitclkmaster = NULL;
+	struct device_analde *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_daifmt_parse_format(node, prefix);
+	daifmt = snd_soc_daifmt_parse_format(analde, prefix);
 
-	snd_soc_daifmt_parse_clock_provider_as_phandle(node, prefix, &bitclkmaster, &framemaster);
+	snd_soc_daifmt_parse_clock_provider_as_phandle(analde, prefix, &bitclkmaster, &framemaster);
 	if (!bitclkmaster && !framemaster) {
 		/*
-		 * No dai-link level and master setting was not found from
-		 * sound node level, revert back to legacy DT parsing and
-		 * take the settings from codec node.
+		 * Anal dai-link level and master setting was analt found from
+		 * sound analde level, revert back to legacy DT parsing and
+		 * take the settings from codec analde.
 		 */
 		dev_dbg(dev, "Revert to legacy daifmt parsing\n");
 
@@ -105,8 +105,8 @@ int simple_util_parse_daifmt(struct device *dev,
 				((codec == bitclkmaster) << 4) | (codec == framemaster));
 	}
 
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
+	of_analde_put(bitclkmaster);
+	of_analde_put(framemaster);
 
 	*retfmt = daifmt;
 
@@ -114,7 +114,7 @@ int simple_util_parse_daifmt(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_daifmt);
 
-int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
+int simple_util_parse_tdm_width_map(struct device *dev, struct device_analde *np,
 				    struct simple_util_dai *dai)
 {
 	u32 *array_values, *p;
@@ -131,15 +131,15 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 
 	dai->tdm_width_map = devm_kcalloc(dev, n, sizeof(*dai->tdm_width_map), GFP_KERNEL);
 	if (!dai->tdm_width_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	array_values = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
 	if (!array_values)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32_array(np, "dai-tdm-slot-width-map", array_values, n);
 	if (ret < 0) {
-		dev_err(dev, "Could not read dai-tdm-slot-width-map: %d\n", ret);
+		dev_err(dev, "Could analt read dai-tdm-slot-width-map: %d\n", ret);
 		goto out;
 	}
 
@@ -165,7 +165,7 @@ int simple_util_set_dailink_name(struct device *dev,
 {
 	va_list ap;
 	char *name = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	va_start(ap, fmt);
 	name = devm_kvasprintf(dev, GFP_KERNEL, fmt, ap);
@@ -223,7 +223,7 @@ static void simple_clk_disable(struct simple_util_dai *dai)
 }
 
 int simple_util_parse_clk(struct device *dev,
-			  struct device_node *node,
+			  struct device_analde *analde,
 			  struct simple_util_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc)
 {
@@ -236,23 +236,23 @@ int simple_util_parse_clk(struct device *dev,
 	 *  or "system-clock-frequency = <xxx>"
 	 *  or device's module clock.
 	 */
-	clk = devm_get_clk_from_child(dev, node, NULL);
+	clk = devm_get_clk_from_child(dev, analde, NULL);
 	simple_dai->clk_fixed = of_property_read_bool(
-		node, "system-clock-fixed");
+		analde, "system-clock-fixed");
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 
 		simple_dai->clk = clk;
-	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
+	} else if (!of_property_read_u32(analde, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 		simple_dai->clk_fixed = true;
 	} else {
-		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
+		clk = devm_get_clk_from_child(dev, dlc->of_analde, NULL);
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
 
-	if (of_property_read_bool(node, "system-clock-direction-out"))
+	if (of_property_read_bool(analde, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
 
 	return 0;
@@ -307,7 +307,7 @@ int simple_util_startup(struct snd_pcm_substream *substream)
 		unsigned int fixed_rate = fixed_sysclk / props->mclk_fs;
 
 		if (fixed_sysclk % props->mclk_fs) {
-			dev_err(rtd->dev, "fixed sysclk %u not divisible by mclk_fs %u\n",
+			dev_err(rtd->dev, "fixed sysclk %u analt divisible by mclk_fs %u\n",
 				fixed_sysclk, props->mclk_fs);
 			ret = -EINVAL;
 			goto codec_err;
@@ -416,7 +416,7 @@ static int simple_set_tdm(struct snd_soc_dai *dai,
 				       simple_dai->rx_slot_mask,
 				       slot_count,
 				       slot_width);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(dai->dev, "simple-card: set_tdm_slot error: %d\n", ret);
 		return ret;
 	}
@@ -461,19 +461,19 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 		for_each_rtd_components(rtd, i, component) {
 			ret = snd_soc_component_set_sysclk(component, 0, 0,
 							   mclk, SND_SOC_CLOCK_IN);
-			if (ret && ret != -ENOTSUPP)
+			if (ret && ret != -EANALTSUPP)
 				return ret;
 		}
 
 		for_each_rtd_codec_dais(rtd, i, sdai) {
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_IN);
-			if (ret && ret != -ENOTSUPP)
+			if (ret && ret != -EANALTSUPP)
 				return ret;
 		}
 
 		for_each_rtd_cpu_dais(rtd, i, sdai) {
 			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_OUT);
-			if (ret && ret != -ENOTSUPP)
+			if (ret && ret != -EANALTSUPP)
 				return ret;
 		}
 	}
@@ -530,7 +530,7 @@ static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simp
 	if (simple_dai->sysclk) {
 		ret = snd_soc_dai_set_sysclk(dai, 0, simple_dai->sysclk,
 					     simple_dai->clk_direction);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dai->dev, "simple-card: set_sysclk error\n");
 			return ret;
 		}
@@ -542,7 +542,7 @@ static int simple_init_dai(struct snd_soc_dai *dai, struct simple_util_dai *simp
 					       simple_dai->rx_slot_mask,
 					       simple_dai->slots,
 					       simple_dai->slot_width);
-		if (ret && ret != -ENOTSUPP) {
+		if (ret && ret != -EANALTSUPP) {
 			dev_err(dai->dev, "simple-card: set_tdm_slot error\n");
 			return ret;
 		}
@@ -565,12 +565,12 @@ static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
-	/* Do nothing if it already has Codec2Codec settings */
+	/* Do analthing if it already has Codec2Codec settings */
 	if (dai_link->c2c_params)
 		return 0;
 
-	/* Do nothing if it was DPCM :: BE */
-	if (dai_link->no_pcm)
+	/* Do analthing if it was DPCM :: BE */
+	if (dai_link->anal_pcm)
 		return 0;
 
 	/* Only Codecs */
@@ -587,13 +587,13 @@ static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	if (ret < 0) {
-		dev_err(rtd->dev, "simple-card: no valid dai_link params\n");
+		dev_err(rtd->dev, "simple-card: anal valid dai_link params\n");
 		return ret;
 	}
 
 	c2c_params = devm_kzalloc(rtd->dev, sizeof(*c2c_params), GFP_KERNEL);
 	if (!c2c_params)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	c2c_params->formats		= hw.formats;
 	c2c_params->rates		= hw.rates;
@@ -634,7 +634,7 @@ int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(simple_util_dai_init);
 
-void simple_util_canonicalize_platform(struct snd_soc_dai_link_component *platforms,
+void simple_util_caanalnicalize_platform(struct snd_soc_dai_link_component *platforms,
 				       struct snd_soc_dai_link_component *cpus)
 {
 	/*
@@ -645,19 +645,19 @@ void simple_util_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 	 *
 	 * Let's assume Platform is same as CPU if it doesn't identify Platform on DT.
 	 * see
-	 *	simple-card.c :: simple_count_noml()
+	 *	simple-card.c :: simple_count_analml()
 	 */
-	if (!platforms->of_node)
+	if (!platforms->of_analde)
 		snd_soc_dlc_use_cpu_as_platform(platforms, cpus);
 }
-EXPORT_SYMBOL_GPL(simple_util_canonicalize_platform);
+EXPORT_SYMBOL_GPL(simple_util_caanalnicalize_platform);
 
-void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
+void simple_util_caanalnicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links)
 {
 	/*
 	 * In soc_bind_dai_link() will check cpu name after
-	 * of_node matching if dai_link has cpu_dai_name.
+	 * of_analde matching if dai_link has cpu_dai_name.
 	 * but, it will never match if name was created by
 	 * fmt_single_name() remove cpu_dai_name if cpu_args
 	 * was 0. See:
@@ -667,7 +667,7 @@ void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 	if (is_single_links)
 		cpus->dai_name = NULL;
 }
-EXPORT_SYMBOL_GPL(simple_util_canonicalize_cpu);
+EXPORT_SYMBOL_GPL(simple_util_caanalnicalize_cpu);
 
 void simple_util_clean_reference(struct snd_soc_card *card)
 {
@@ -678,9 +678,9 @@ void simple_util_clean_reference(struct snd_soc_card *card)
 
 	for_each_card_prelinks(card, i, dai_link) {
 		for_each_link_cpus(dai_link, j, cpu)
-			of_node_put(cpu->of_node);
+			of_analde_put(cpu->of_analde);
 		for_each_link_codecs(dai_link, j, codec)
-			of_node_put(codec->of_node);
+			of_analde_put(codec->of_analde);
 	}
 }
 EXPORT_SYMBOL_GPL(simple_util_clean_reference);
@@ -688,7 +688,7 @@ EXPORT_SYMBOL_GPL(simple_util_clean_reference);
 int simple_util_parse_routing(struct snd_soc_card *card,
 			      char *prefix)
 {
-	struct device_node *node = card->dev->of_node;
+	struct device_analde *analde = card->dev->of_analde;
 	char prop[128];
 
 	if (!prefix)
@@ -696,7 +696,7 @@ int simple_util_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop))
+	if (!of_property_read_bool(analde, prop))
 		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
@@ -706,7 +706,7 @@ EXPORT_SYMBOL_GPL(simple_util_parse_routing);
 int simple_util_parse_widgets(struct snd_soc_card *card,
 			      char *prefix)
 {
-	struct device_node *node = card->dev->of_node;
+	struct device_analde *analde = card->dev->of_analde;
 	char prop[128];
 
 	if (!prefix)
@@ -714,10 +714,10 @@ int simple_util_parse_widgets(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
 
-	if (of_property_read_bool(node, prop))
+	if (of_property_read_bool(analde, prop))
 		return snd_soc_of_parse_audio_simple_widgets(card, prop);
 
-	/* no widgets is not error */
+	/* anal widgets is analt error */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_widgets);
@@ -752,7 +752,7 @@ int simple_util_init_jack(struct snd_soc_card *card,
 	if (!prefix)
 		prefix = "";
 
-	sjack->gpio.gpio = -ENOENT;
+	sjack->gpio.gpio = -EANALENT;
 
 	if (is_hp) {
 		snprintf(prop, sizeof(prop), "%shp-det", prefix);
@@ -817,7 +817,7 @@ int simple_util_init_aux_jacks(struct simple_util_priv *priv, char *prefix)
 	priv->aux_jacks = devm_kcalloc(card->dev, num,
 				       sizeof(struct snd_soc_jack), GFP_KERNEL);
 	if (!priv->aux_jacks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for_each_card_auxs(card, component) {
 		char id[128];
@@ -858,7 +858,7 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
 	if (!dai_props || !dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * dais (= CPU+Codec)
@@ -877,12 +877,12 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
 	dlcs = devm_kcalloc(dev, dlc_num, sizeof(*dlcs), GFP_KERNEL);
 	if (!dais || !dlcs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (cnf_num) {
 		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
@@ -901,7 +901,7 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 
 	for (i = 0; i < li->link; i++) {
 		if (li->num[i].cpus) {
-			/* Normal CPU */
+			/* Analrmal CPU */
 			dai_link[i].cpus	= dlcs;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= li->num[i].cpus;
@@ -917,7 +917,7 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 		}
 
 		if (li->num[i].codecs) {
-			/* Normal Codec */
+			/* Analrmal Codec */
 			dai_link[i].codecs	= dlcs;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= li->num[i].codecs;
@@ -982,17 +982,17 @@ int graph_util_card_probe(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_GPL(graph_util_card_probe);
 
-int graph_util_is_ports0(struct device_node *np)
+int graph_util_is_ports0(struct device_analde *np)
 {
-	struct device_node *port, *ports, *ports0, *top;
+	struct device_analde *port, *ports, *ports0, *top;
 	int ret;
 
 	/* np is "endpoint" or "port" */
-	if (of_node_name_eq(np, "endpoint")) {
+	if (of_analde_name_eq(np, "endpoint")) {
 		port = of_get_parent(np);
 	} else {
 		port = np;
-		of_node_get(port);
+		of_analde_get(port);
 	}
 
 	ports	= of_get_parent(port);
@@ -1001,26 +1001,26 @@ int graph_util_is_ports0(struct device_node *np)
 
 	ret = ports0 == ports;
 
-	of_node_put(port);
-	of_node_put(ports);
-	of_node_put(ports0);
-	of_node_put(top);
+	of_analde_put(port);
+	of_analde_put(ports);
+	of_analde_put(ports0);
+	of_analde_put(top);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(graph_util_is_ports0);
 
-static int graph_get_dai_id(struct device_node *ep)
+static int graph_get_dai_id(struct device_analde *ep)
 {
-	struct device_node *node;
-	struct device_node *endpoint;
+	struct device_analde *analde;
+	struct device_analde *endpoint;
 	struct of_endpoint info;
 	int i, id;
 	int ret;
 
 	/* use driver specified DAI ID if exist */
 	ret = snd_soc_get_dai_id(ep);
-	if (ret != -ENOTSUPP)
+	if (ret != -EANALTSUPP)
 		return ret;
 
 	/* use endpoint/port reg if exist */
@@ -1028,45 +1028,45 @@ static int graph_get_dai_id(struct device_node *ep)
 	if (ret == 0) {
 		/*
 		 * Because it will count port/endpoint if it doesn't have "reg".
-		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * But, we can't judge whether it has "anal reg", or "reg = <0>"
 		 * only of_graph_parse_endpoint().
 		 * We need to check "reg" property
 		 */
 		if (of_property_present(ep,   "reg"))
 			return info.id;
 
-		node = of_get_parent(ep);
-		ret = of_property_present(node, "reg");
-		of_node_put(node);
+		analde = of_get_parent(ep);
+		ret = of_property_present(analde, "reg");
+		of_analde_put(analde);
 		if (ret)
 			return info.port;
 	}
-	node = of_graph_get_port_parent(ep);
+	analde = of_graph_get_port_parent(ep);
 
 	/*
-	 * Non HDMI sound case, counting port/endpoint on its DT
-	 * is enough. Let's count it.
+	 * Analn HDMI sound case, counting port/endpoint on its DT
+	 * is eanalugh. Let's count it.
 	 */
 	i = 0;
 	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
+	for_each_endpoint_of_analde(analde, endpoint) {
 		if (endpoint == ep)
 			id = i;
 		i++;
 	}
 
-	of_node_put(node);
+	of_analde_put(analde);
 
 	if (id < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return id;
 }
 
-int graph_util_parse_dai(struct device *dev, struct device_node *ep,
+int graph_util_parse_dai(struct device *dev, struct device_analde *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct of_phandle_args args = {};
 	struct snd_soc_dai *dai;
 	int ret;
@@ -1074,10 +1074,10 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	if (!ep)
 		return 0;
 
-	node = of_graph_get_port_parent(ep);
+	analde = of_graph_get_port_parent(ep);
 
 	/*
-	 * Try to find from DAI node
+	 * Try to find from DAI analde
 	 */
 	args.np = ep;
 	dai = snd_soc_get_dai_via_args(&args);
@@ -1085,21 +1085,21 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 		dlc->dai_name = snd_soc_dai_name_get(dai);
 		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
 		if (!dlc->dai_args)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		goto parse_dai_end;
 	}
 
 	/* Get dai->name */
-	args.np		= node;
+	args.np		= analde;
 	args.args[0]	= graph_get_dai_id(ep);
-	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
+	args.args_count	= (of_graph_get_endpoint_count(analde) > 1);
 
 	/*
 	 * FIXME
 	 *
 	 * Here, dlc->dai_name is pointer to CPU/Codec DAI name.
-	 * If user unbinded CPU or Codec driver, but not for Sound Card,
+	 * If user unbinded CPU or Codec driver, but analt for Sound Card,
 	 * dlc->dai_name is keeping unbinded CPU or Codec
 	 * driver's pointer.
 	 *
@@ -1116,19 +1116,19 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	 */
 	ret = snd_soc_get_dlc(&args, dlc);
 	if (ret < 0) {
-		of_node_put(node);
+		of_analde_put(analde);
 		return ret;
 	}
 
 parse_dai_end:
 	if (is_single_link)
-		*is_single_link = of_graph_get_endpoint_count(node) == 1;
+		*is_single_link = of_graph_get_endpoint_count(analde) == 1;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_dai);
 
-int graph_util_parse_link_direction(struct device_node *np,
+int graph_util_parse_link_direction(struct device_analde *np,
 				    bool *playback_only, bool *capture_only)
 {
 	bool is_playback_only = false;
@@ -1148,6 +1148,6 @@ int graph_util_parse_link_direction(struct device_node *np,
 EXPORT_SYMBOL_GPL(graph_util_parse_link_direction);
 
 /* Module information */
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
 MODULE_LICENSE("GPL v2");

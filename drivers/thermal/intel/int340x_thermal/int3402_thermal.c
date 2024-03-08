@@ -20,7 +20,7 @@ struct int3402_thermal_data {
 	struct int34x_thermal_zone *int340x_zone;
 };
 
-static void int3402_notify(acpi_handle handle, u32 event, void *data)
+static void int3402_analtify(acpi_handle handle, u32 event, void *data)
 {
 	struct int3402_thermal_data *priv = data;
 
@@ -46,19 +46,19 @@ static int int3402_thermal_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!acpi_has_method(adev->handle, "_TMP"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	d = devm_kzalloc(&pdev->dev, sizeof(*d), GFP_KERNEL);
 	if (!d)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	d->int340x_zone = int340x_thermal_zone_add(adev, NULL);
 	if (IS_ERR(d->int340x_zone))
 		return PTR_ERR(d->int340x_zone);
 
-	ret = acpi_install_notify_handler(adev->handle,
-					  ACPI_DEVICE_NOTIFY,
-					  int3402_notify,
+	ret = acpi_install_analtify_handler(adev->handle,
+					  ACPI_DEVICE_ANALTIFY,
+					  int3402_analtify,
 					  d);
 	if (ret) {
 		int340x_thermal_zone_remove(d->int340x_zone);
@@ -75,8 +75,8 @@ static void int3402_thermal_remove(struct platform_device *pdev)
 {
 	struct int3402_thermal_data *d = platform_get_drvdata(pdev);
 
-	acpi_remove_notify_handler(d->handle,
-				   ACPI_DEVICE_NOTIFY, int3402_notify);
+	acpi_remove_analtify_handler(d->handle,
+				   ACPI_DEVICE_ANALTIFY, int3402_analtify);
 	int340x_thermal_zone_remove(d->int340x_zone);
 }
 

@@ -271,14 +271,14 @@ static int ads5121_chipselect_init(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(chip);
-	struct device_node *dn;
+	struct device_analde *dn;
 
-	dn = of_find_compatible_node(NULL, NULL, "fsl,mpc5121ads-cpld");
+	dn = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121ads-cpld");
 	if (dn) {
 		prv->csreg = of_iomap(dn, 0);
-		of_node_put(dn);
+		of_analde_put(dn);
 		if (!prv->csreg)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* CPLD Register 9 controls NAND /CE Lines */
 		prv->csreg += 9;
@@ -331,7 +331,7 @@ static void mpc5121_nfc_command(struct nand_chip *chip, unsigned command,
 		mpc5121_nfc_send_prog_page(mtd);
 		break;
 	/*
-	 * NFC does not support sub-page reads and writes,
+	 * NFC does analt support sub-page reads and writes,
 	 * so emulate them using full page transfers.
 	 */
 	case NAND_CMD_READ0:
@@ -403,7 +403,7 @@ static void mpc5121_nfc_copy_spare(struct mtd_info *mtd, uint offset,
 	 * Each chunk is placed into separate spare memory area, using
 	 * first (spare_size / num_of_chunks) bytes of the buffer.
 	 *
-	 * For NAND device in which the spare area is not divided fully
+	 * For NAND device in which the spare area is analt divided fully
 	 * by the number of chunks, number of used bytes in each spare
 	 * buffer is rounded down to the nearest even number of bytes,
 	 * and all remaining bytes are added to the last used spare area.
@@ -508,7 +508,7 @@ static u8 mpc5121_nfc_read_byte(struct nand_chip *chip)
  * Read NFC configuration from Reset Config Word
  *
  * NFC is configured during reset in basis of information stored
- * in Reset Config Word. There is no other way to set NAND block
+ * in Reset Config Word. There is anal other way to set NAND block
  * size, spare size and bus width.
  */
 static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
@@ -516,7 +516,7 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mpc5121_nfc_prv *prv = nand_get_controller_data(chip);
 	struct mpc512x_reset_module *rm;
-	struct device_node *rmnode;
+	struct device_analde *rmanalde;
 	uint rcw_pagesize = 0;
 	uint rcw_sparesize = 0;
 	uint rcw_width;
@@ -524,16 +524,16 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 	uint romloc, ps;
 	int ret = 0;
 
-	rmnode = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-reset");
-	if (!rmnode) {
+	rmanalde = of_find_compatible_analde(NULL, NULL, "fsl,mpc5121-reset");
+	if (!rmanalde) {
 		dev_err(prv->dev, "Missing 'fsl,mpc5121-reset' "
-					"node in device tree!\n");
-		return -ENODEV;
+					"analde in device tree!\n");
+		return -EANALDEV;
 	}
 
-	rm = of_iomap(rmnode, 0);
+	rm = of_iomap(rmanalde, 0);
 	if (!rm) {
-		dev_err(prv->dev, "Error mapping reset module node!\n");
+		dev_err(prv->dev, "Error mapping reset module analde!\n");
 		ret = -EBUSY;
 		goto out;
 	}
@@ -578,14 +578,14 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 	if (rcw_width == 2)
 		chip->options |= NAND_BUSWIDTH_16;
 
-	dev_notice(prv->dev, "Configured for "
+	dev_analtice(prv->dev, "Configured for "
 				"%u-bit NAND, page size %u "
 				"with %u spare.\n",
 				rcw_width * 8, rcw_pagesize,
 				rcw_sparesize);
 	iounmap(rm);
 out:
-	of_node_put(rmnode);
+	of_analde_put(rmanalde);
 	return ret;
 }
 
@@ -602,7 +602,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 static int mpc5121_nfc_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -614,7 +614,7 @@ static const struct nand_controller_ops mpc5121_nfc_ops = {
 
 static int mpc5121_nfc_probe(struct platform_device *op)
 {
-	struct device_node *dn = op->dev.of_node;
+	struct device_analde *dn = op->dev.of_analde;
 	struct clk *clk;
 	struct device *dev = &op->dev;
 	struct mpc5121_nfc_prv *prv;
@@ -622,7 +622,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
-	const __be32 *chips_no;
+	const __be32 *chips_anal;
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
@@ -633,13 +633,13 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	 */
 	rev = (mfspr(SPRN_SVR) >> 4) & 0xF;
 	if ((rev != 2) && (rev != 3)) {
-		dev_err(dev, "SoC revision %u is not supported!\n", rev);
+		dev_err(dev, "SoC revision %u is analt supported!\n", rev);
 		return -ENXIO;
 	}
 
 	prv = devm_kzalloc(dev, sizeof(*prv), GFP_KERNEL);
 	if (!prv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = &prv->chip;
 	mtd = nand_to_mtd(chip);
@@ -650,7 +650,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 
 	mtd->dev.parent = dev;
 	nand_set_controller_data(chip, prv);
-	nand_set_flash_node(chip, dn);
+	nand_set_flash_analde(chip, dn);
 	prv->dev = dev;
 
 	/* Read NFC configuration from Reset Config Word */
@@ -672,8 +672,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 		return retval;
 	}
 
-	chips_no = of_get_property(dn, "chips", &len);
-	if (!chips_no || len != sizeof(*chips_no)) {
+	chips_anal = of_get_property(dn, "chips", &len);
+	if (!chips_anal || len != sizeof(*chips_anal)) {
 		dev_err(dev, "Invalid/missing 'chips' property!\n");
 		return -EINVAL;
 	}
@@ -689,7 +689,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	prv->regs = devm_ioremap(dev, regs_paddr, regs_size);
 	if (!prv->regs) {
 		dev_err(dev, "Error mapping memory region!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mtd->name = "MPC5121 NAND";
@@ -699,8 +699,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->legacy.read_buf = mpc5121_nfc_read_buf;
 	chip->legacy.write_buf = mpc5121_nfc_write_buf;
 	chip->legacy.select_chip = mpc5121_nfc_select_chip;
-	chip->legacy.set_features = nand_get_set_features_notsupp;
-	chip->legacy.get_features = nand_get_set_features_notsupp;
+	chip->legacy.set_features = nand_get_set_features_analtsupp;
+	chip->legacy.get_features = nand_get_set_features_analtsupp;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Support external chip-select logic on ADS5121 board */
@@ -770,9 +770,9 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	/* Detect NAND chips */
-	retval = nand_scan(chip, be32_to_cpup(chips_no));
+	retval = nand_scan(chip, be32_to_cpup(chips_anal));
 	if (retval) {
-		dev_err(dev, "NAND Flash not found !\n");
+		dev_err(dev, "NAND Flash analt found !\n");
 		goto error;
 	}
 

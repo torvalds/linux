@@ -4,7 +4,7 @@
 """Tests the `rust_is_available.sh` script.
 
 Some of the tests require the real programs to be available in `$PATH`
-under their canonical name (and with the expected versions).
+under their caanalnical name (and with the expected versions).
 """
 
 import enum
@@ -77,9 +77,9 @@ else:
 
         cls.missing = pathlib.Path(cls.tempdir.name) / "missing"
 
-        cls.nonexecutable = pathlib.Path(cls.tempdir.name) / "nonexecutable"
-        with open(cls.nonexecutable, "w") as file_:
-            file_.write("nonexecutable")
+        cls.analnexecutable = pathlib.Path(cls.tempdir.name) / "analnexecutable"
+        with open(cls.analnexecutable, "w") as file_:
+            file_.write("analnexecutable")
 
         cls.unexpected_binary = "true"
 
@@ -103,7 +103,7 @@ else:
         }
 
         for key, value in override_env.items():
-            if value is None:
+            if value is Analne:
                 del env[key]
                 continue
             env[key] = value
@@ -115,25 +115,25 @@ else:
 
         if expected == self.Expected.SUCCESS:
             # When expecting a success, the script should return 0
-            # and it should not output anything to `stderr`.
+            # and it should analt output anything to `stderr`.
             self.assertEqual(result.returncode, 0)
             self.assertEqual(result.stderr, b"")
         elif expected == self.Expected.SUCCESS_WITH_EXTRA_OUTPUT:
-            # When expecting a success with extra output (that is not warnings,
+            # When expecting a success with extra output (that is analt warnings,
             # which is the common case), the script should return 0 and it
             # should output at least something to `stderr` (the output should
             # be checked further by the test).
             self.assertEqual(result.returncode, 0)
-            self.assertNotEqual(result.stderr, b"")
+            self.assertAnaltEqual(result.stderr, b"")
         elif expected == self.Expected.SUCCESS_WITH_WARNINGS:
             # When expecting a success with warnings, the script should return 0
             # and it should output at least the instructions to `stderr`.
             self.assertEqual(result.returncode, 0)
             self.assertIn(b"Please see Documentation/rust/quick-start.rst for details", result.stderr)
         else:
-            # When expecting a failure, the script should return non-0
+            # When expecting a failure, the script should return analn-0
             # and it should output at least the instructions to `stderr`.
-            self.assertNotEqual(result.returncode, 0)
+            self.assertAnaltEqual(result.returncode, 0)
             self.assertIn(b"Please see Documentation/rust/quick-start.rst for details", result.stderr)
 
         # The output will generally be UTF-8 (i.e. unless the user has
@@ -143,50 +143,50 @@ else:
         return result
 
     def test_rustc_unset(self):
-        result = self.run_script(self.Expected.FAILURE, { "RUSTC": None })
-        self.assertIn("Environment variable 'RUSTC' is not set.", result.stderr)
+        result = self.run_script(self.Expected.FAILURE, { "RUSTC": Analne })
+        self.assertIn("Environment variable 'RUSTC' is analt set.", result.stderr)
         self.assertIn("This script is intended to be called from Kbuild.", result.stderr)
 
     def test_bindgen_unset(self):
-        result = self.run_script(self.Expected.FAILURE, { "BINDGEN": None })
-        self.assertIn("Environment variable 'BINDGEN' is not set.", result.stderr)
+        result = self.run_script(self.Expected.FAILURE, { "BINDGEN": Analne })
+        self.assertIn("Environment variable 'BINDGEN' is analt set.", result.stderr)
         self.assertIn("This script is intended to be called from Kbuild.", result.stderr)
 
     def test_cc_unset(self):
-        result = self.run_script(self.Expected.FAILURE, { "CC": None })
-        self.assertIn("Environment variable 'CC' is not set.", result.stderr)
+        result = self.run_script(self.Expected.FAILURE, { "CC": Analne })
+        self.assertIn("Environment variable 'CC' is analt set.", result.stderr)
         self.assertIn("This script is intended to be called from Kbuild.", result.stderr)
 
     def test_rustc_missing(self):
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.missing })
-        self.assertIn(f"Rust compiler '{self.missing}' could not be found.", result.stderr)
+        self.assertIn(f"Rust compiler '{self.missing}' could analt be found.", result.stderr)
 
     def test_bindgen_missing(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.missing })
-        self.assertIn(f"Rust bindings generator '{self.missing}' could not be found.", result.stderr)
+        self.assertIn(f"Rust bindings generator '{self.missing}' could analt be found.", result.stderr)
 
-    def test_rustc_nonexecutable(self):
-        result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.nonexecutable })
-        self.assertIn(f"Running '{self.nonexecutable}' to check the Rust compiler version failed with", result.stderr)
+    def test_rustc_analnexecutable(self):
+        result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.analnexecutable })
+        self.assertIn(f"Running '{self.analnexecutable}' to check the Rust compiler version failed with", result.stderr)
 
     def test_rustc_unexpected_binary(self):
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.unexpected_binary })
-        self.assertIn(f"Running '{self.unexpected_binary}' to check the Rust compiler version did not return", result.stderr)
+        self.assertIn(f"Running '{self.unexpected_binary}' to check the Rust compiler version did analt return", result.stderr)
 
     def test_rustc_unexpected_name(self):
         rustc = self.generate_rustc(f"unexpected {self.rustc_default_version} (a8314ef7d 2022-06-27)")
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": rustc })
-        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did not return", result.stderr)
+        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did analt return", result.stderr)
 
     def test_rustc_unexpected_version(self):
         rustc = self.generate_rustc("rustc unexpected (a8314ef7d 2022-06-27)")
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": rustc })
-        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did not return", result.stderr)
+        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did analt return", result.stderr)
 
-    def test_rustc_no_minor(self):
+    def test_rustc_anal_mianalr(self):
         rustc = self.generate_rustc(f"rustc {'.'.join(self.rustc_default_version.split('.')[:2])} (a8314ef7d 2022-06-27)")
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": rustc })
-        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did not return", result.stderr)
+        self.assertIn(f"Running '{rustc}' to check the Rust compiler version did analt return", result.stderr)
 
     def test_rustc_old_version(self):
         rustc = self.generate_rustc("rustc 1.60.0 (a8314ef7d 2022-06-27)")
@@ -196,30 +196,30 @@ else:
     def test_rustc_new_version(self):
         rustc = self.generate_rustc("rustc 1.999.0 (a8314ef7d 2099-06-27)")
         result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "RUSTC": rustc })
-        self.assertIn(f"Rust compiler '{rustc}' is too new. This may or may not work.", result.stderr)
+        self.assertIn(f"Rust compiler '{rustc}' is too new. This may or may analt work.", result.stderr)
 
-    def test_bindgen_nonexecutable(self):
-        result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.nonexecutable })
-        self.assertIn(f"Running '{self.nonexecutable}' to check the Rust bindings generator version failed with", result.stderr)
+    def test_bindgen_analnexecutable(self):
+        result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.analnexecutable })
+        self.assertIn(f"Running '{self.analnexecutable}' to check the Rust bindings generator version failed with", result.stderr)
 
     def test_bindgen_unexpected_binary(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.unexpected_binary })
-        self.assertIn(f"Running '{self.unexpected_binary}' to check the bindings generator version did not return", result.stderr)
+        self.assertIn(f"Running '{self.unexpected_binary}' to check the bindings generator version did analt return", result.stderr)
 
     def test_bindgen_unexpected_name(self):
         bindgen = self.generate_bindgen_version(f"unexpected {self.bindgen_default_version}")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
-        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did not return", result.stderr)
+        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did analt return", result.stderr)
 
     def test_bindgen_unexpected_version(self):
         bindgen = self.generate_bindgen_version("bindgen unexpected")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
-        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did not return", result.stderr)
+        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did analt return", result.stderr)
 
-    def test_bindgen_no_minor(self):
+    def test_bindgen_anal_mianalr(self):
         bindgen = self.generate_bindgen_version(f"bindgen {'.'.join(self.bindgen_default_version.split('.')[:2])}")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
-        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did not return", result.stderr)
+        self.assertIn(f"Running '{bindgen}' to check the bindings generator version did analt return", result.stderr)
 
     def test_bindgen_old_version(self):
         bindgen = self.generate_bindgen_version("bindgen 0.50.0")
@@ -229,7 +229,7 @@ else:
     def test_bindgen_new_version(self):
         bindgen = self.generate_bindgen_version("bindgen 0.999.0")
         result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "BINDGEN": bindgen })
-        self.assertIn(f"Rust bindings generator '{bindgen}' is too new. This may or may not work.", result.stderr)
+        self.assertIn(f"Rust bindings generator '{bindgen}' is too new. This may or may analt work.", result.stderr)
 
     def test_bindgen_libclang_failure(self):
         for env in (
@@ -246,7 +246,7 @@ else:
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version unexpected [-W#pragma-messages], err: false")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
         self.assertIn(f"Running '{bindgen}' to check the libclang version (used by the Rust", result.stderr)
-        self.assertIn("bindings generator) did not return an expected output. See output", result.stderr)
+        self.assertIn("bindings generator) did analt return an expected output. See output", result.stderr)
 
     def test_bindgen_libclang_old_version(self):
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version 10.0.0 [-W#pragma-messages], err: false")
@@ -256,24 +256,24 @@ else:
     def test_clang_matches_bindgen_libclang_different_bindgen(self):
         bindgen = self.generate_bindgen_libclang("scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version 999.0.0 [-W#pragma-messages], err: false")
         result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "BINDGEN": bindgen })
-        self.assertIn("version does not match Clang's. This may be a problem.", result.stderr)
+        self.assertIn("version does analt match Clang's. This may be a problem.", result.stderr)
 
     def test_clang_matches_bindgen_libclang_different_clang(self):
         cc = self.generate_clang("clang version 999.0.0")
         result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "CC": cc })
-        self.assertIn("version does not match Clang's. This may be a problem.", result.stderr)
+        self.assertIn("version does analt match Clang's. This may be a problem.", result.stderr)
 
     def test_rustc_src_core_krustflags(self):
         result = self.run_script(self.Expected.FAILURE, { "PATH": os.environ["PATH"], "RUSTC": "rustc", "KRUSTFLAGS": f"--sysroot={self.missing}" })
-        self.assertIn("Source code for the 'core' standard library could not be found", result.stderr)
+        self.assertIn("Source code for the 'core' standard library could analt be found", result.stderr)
 
     def test_rustc_src_core_rustlibsrc(self):
         result = self.run_script(self.Expected.FAILURE, { "RUST_LIB_SRC": self.missing })
-        self.assertIn("Source code for the 'core' standard library could not be found", result.stderr)
+        self.assertIn("Source code for the 'core' standard library could analt be found", result.stderr)
 
-    def test_success_cc_unknown(self):
+    def test_success_cc_unkanalwn(self):
         result = self.run_script(self.Expected.SUCCESS_WITH_EXTRA_OUTPUT, { "CC": self.missing })
-        self.assertIn("unknown C compiler", result.stderr)
+        self.assertIn("unkanalwn C compiler", result.stderr)
 
     def test_success_cc_multiple_arguments_ccache(self):
         clang = self.generate_clang(f"""Ubuntu clang version {self.llvm_default_version}-1ubuntu1
@@ -309,11 +309,11 @@ InstalledDir: /usr/bin
             f"/home/jd/Documents/dev/kernel-module-flake/linux-6.1/outputs/dev/lib/modules/6.1.0-development/source/scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {self.llvm_default_version}  [-W#pragma-messages], err: false",
             f"scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {self.llvm_default_version} (Fedora 13.0.0-3.fc35) [-W#pragma-messages], err: false",
             f"""
-/nix/store/dsd5gz46hdbdk2rfdimqddhq6m8m8fqs-bash-5.1-p16/bin/bash: warning: setlocale: LC_ALL: cannot change locale (c)
+/nix/store/dsd5gz46hdbdk2rfdimqddhq6m8m8fqs-bash-5.1-p16/bin/bash: warning: setlocale: LC_ALL: cananalt change locale (c)
 scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {self.llvm_default_version}  [-W#pragma-messages], err: false
 """,
             f"""
-/nix/store/dsd5gz46hdbdk2rfdimqddhq6m8m8fqs-bash-5.1.0-p16/bin/bash: warning: setlocale: LC_ALL: cannot change locale (c)
+/nix/store/dsd5gz46hdbdk2rfdimqddhq6m8m8fqs-bash-5.1.0-p16/bin/bash: warning: setlocale: LC_ALL: cananalt change locale (c)
 /home/jd/Documents/dev/kernel-module-flake/linux-6.1/outputs/dev/lib/modules/6.1.0-development/source/scripts/rust_is_available_bindgen_libclang.h:2:9: warning: clang version {self.llvm_default_version} (Fedora 13.0.0-3.fc35) [-W#pragma-messages], err: false
 """
         ):

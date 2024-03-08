@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,8 +14,8 @@
 #include "cgroup_util.h"
 
 /*
- * Kill the given cgroup and wait for the inotify signal.
- * If there are no events in 10 seconds, treat this as an error.
+ * Kill the given cgroup and wait for the ianaltify signal.
+ * If there are anal events in 10 seconds, treat this as an error.
  * Then check that the cgroup is in the desired state.
  */
 static int cg_kill_wait(const char *cgroup)
@@ -68,7 +68,7 @@ static int test_cgkill_simple(const char *root)
 		goto cleanup;
 
 	for (i = 0; i < 100; i++)
-		pids[i] = cg_run_nowait(cgroup, child_fn, NULL);
+		pids[i] = cg_run_analwait(cgroup, child_fn, NULL);
 
 	if (cg_wait_for_proc_count(cgroup, 100))
 		goto cleanup;
@@ -161,11 +161,11 @@ static int test_cgkill_tree(const char *root)
 		if (cg_create(cgroup[i]))
 			goto cleanup;
 
-	pids[0] = cg_run_nowait(cgroup[2], child_fn, NULL);
-	pids[1] = cg_run_nowait(cgroup[7], child_fn, NULL);
-	pids[2] = cg_run_nowait(cgroup[9], child_fn, NULL);
-	pids[3] = cg_run_nowait(cgroup[9], child_fn, NULL);
-	pids[4] = cg_run_nowait(cgroup[9], child_fn, NULL);
+	pids[0] = cg_run_analwait(cgroup[2], child_fn, NULL);
+	pids[1] = cg_run_analwait(cgroup[7], child_fn, NULL);
+	pids[2] = cg_run_analwait(cgroup[9], child_fn, NULL);
+	pids[3] = cg_run_analwait(cgroup[9], child_fn, NULL);
+	pids[4] = cg_run_analwait(cgroup[9], child_fn, NULL);
 
 	/*
 	 * Wait until all child processes will enter
@@ -178,7 +178,7 @@ static int test_cgkill_tree(const char *root)
 		goto cleanup;
 
 	/*
-	 * Kill A and check that we get an empty notification.
+	 * Kill A and check that we get an empty analtification.
 	 */
 	if (cg_kill_wait(cgroup[0]))
 		goto cleanup;
@@ -232,7 +232,7 @@ static int test_cgkill_forkbomb(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	pid = cg_run_nowait(cgroup, forkbomb_fn, NULL);
+	pid = cg_run_analwait(cgroup, forkbomb_fn, NULL);
 	if (pid < 0)
 		goto cleanup;
 

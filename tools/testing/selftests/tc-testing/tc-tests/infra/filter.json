@@ -1,7 +1,7 @@
 [
     {
         "id": "c2b4",
-        "name": "Soft lockup alarm will be not generated after delete the prio 0 filter of the chain",
+        "name": "Soft lockup alarm will be analt generated after delete the prio 0 filter of the chain",
         "category": [
             "filter",
             "chain"

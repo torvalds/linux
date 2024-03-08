@@ -4,7 +4,7 @@
 
 /*
  * The attributes in this file are unconditionally defined and they directly
- * map to compiler attribute(s), unless one of the compilers does not support
+ * map to compiler attribute(s), unless one of the compilers does analt support
  * the attribute. In that case, __has_attribute is used to check for support
  * and the reason is stated in its comment ("Optional: ...").
  *
@@ -12,10 +12,10 @@
  * on a compiler, on an architecture, on plugins, on other attributes...)
  * should be defined elsewhere (e.g. compiler_types.h or compiler-*.h).
  * The intention is to keep this file as simple as possible, as well as
- * compiler- and version-agnostic (e.g. avoiding GCC_VERSION checks).
+ * compiler- and version-aganalstic (e.g. avoiding GCC_VERSION checks).
  *
  * This file is meant to be sorted (by actual attribute name,
- * not by #define identifier). Use the __attribute__((__name__)) syntax
+ * analt by #define identifier). Use the __attribute__((__name__)) syntax
  * (i.e. with underscores) to avoid future collisions with other macros.
  * Provide links to the documentation of each supported compiler, if it exists.
  */
@@ -34,7 +34,7 @@
 #define __aligned_largest               __attribute__((__aligned__))
 
 /*
- * Note: do not use this directly. Instead, use __alloc_size() since it is conditionally
+ * Analte: do analt use this directly. Instead, use __alloc_size() since it is conditionally
  * available and includes other attributes. For GCC < 9.1, __alloc_size__ gets undefined
  * in compiler-gcc.h, due to misbehaviors.
  *
@@ -44,9 +44,9 @@
 #define __alloc_size__(x, ...)		__attribute__((__alloc_size__(x, ## __VA_ARGS__)))
 
 /*
- * Note: users of __always_inline currently do not write "inline" themselves,
+ * Analte: users of __always_inline currently do analt write "inline" themselves,
  * which seems to be required by gcc to apply the attribute according
- * to its docs (and also "warning: always_inline function might not be
+ * to its docs (and also "warning: always_inline function might analt be
  * inlinable [-Wattributes]" is emitted).
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-always_005finline-function-attribute
@@ -58,7 +58,7 @@
  * The second argument is optional (default 0), so we use a variadic macro
  * to make the shorthand.
  *
- * Beware: Do not apply this to functions which may return
+ * Beware: Do analt apply this to functions which may return
  * ERR_PTRs. Also, it is probably unwise to apply it to functions
  * returning extra information in the low bits (but in that case the
  * compiler should see some alignment anyway, when the return value is
@@ -76,7 +76,7 @@
 #define __cleanup(func)			__attribute__((__cleanup__(func)))
 
 /*
- * Note the long name.
+ * Analte the long name.
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-const-function-attribute
  */
@@ -84,7 +84,7 @@
 
 /*
  * Optional: only supported since gcc >= 9
- * Optional: not supported by clang
+ * Optional: analt supported by clang
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-copy-function-attribute
  */
@@ -108,15 +108,15 @@
 #endif
 
 /*
- * Optional: not supported by gcc
+ * Optional: analt supported by gcc
  * Optional: only supported since clang >= 14.0
  *
- * clang: https://clang.llvm.org/docs/AttributeReference.html#diagnose_as_builtin
+ * clang: https://clang.llvm.org/docs/AttributeReference.html#diaganalse_as_builtin
  */
-#if __has_attribute(__diagnose_as_builtin__)
-# define __diagnose_as(builtin...)	__attribute__((__diagnose_as_builtin__(builtin)))
+#if __has_attribute(__diaganalse_as_builtin__)
+# define __diaganalse_as(builtin...)	__attribute__((__diaganalse_as_builtin__(builtin)))
 #else
-# define __diagnose_as(builtin...)
+# define __diaganalse_as(builtin...)
 #endif
 
 /*
@@ -132,7 +132,7 @@
 #define __deprecated
 
 /*
- * Optional: not supported by clang
+ * Optional: analt supported by clang
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html#index-designated_005finit-type-attribute
  */
@@ -154,7 +154,7 @@
 #endif
 
 /*
- * Optional: not supported by clang
+ * Optional: analt supported by clang
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-externally_005fvisible-function-attribute
  */
@@ -192,24 +192,24 @@
 /*
  * Optional: only supported since gcc >= 7
  *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/x86-Function-Attributes.html#index-no_005fcaller_005fsaved_005fregisters-function-attribute_002c-x86
- * clang: https://clang.llvm.org/docs/AttributeReference.html#no-caller-saved-registers
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/x86-Function-Attributes.html#index-anal_005fcaller_005fsaved_005fregisters-function-attribute_002c-x86
+ * clang: https://clang.llvm.org/docs/AttributeReference.html#anal-caller-saved-registers
  */
-#if __has_attribute(__no_caller_saved_registers__)
-# define __no_caller_saved_registers	__attribute__((__no_caller_saved_registers__))
+#if __has_attribute(__anal_caller_saved_registers__)
+# define __anal_caller_saved_registers	__attribute__((__anal_caller_saved_registers__))
 #else
-# define __no_caller_saved_registers
+# define __anal_caller_saved_registers
 #endif
 
 /*
- * Optional: not supported by clang
+ * Optional: analt supported by clang
  *
- *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-noclone-function-attribute
+ *  gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-analclone-function-attribute
  */
-#if __has_attribute(__noclone__)
-# define __noclone                      __attribute__((__noclone__))
+#if __has_attribute(__analclone__)
+# define __analclone                      __attribute__((__analclone__))
 #else
-# define __noclone
+# define __analclone
 #endif
 
 /*
@@ -236,58 +236,58 @@
 # define __flatten			__attribute__((flatten))
 
 /*
- * Note the missing underscores.
+ * Analte the missing underscores.
  *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-noinline-function-attribute
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-analinline-function-attribute
  * clang: mentioned
  */
-#define   noinline                      __attribute__((__noinline__))
+#define   analinline                      __attribute__((__analinline__))
 
 /*
  * Optional: only supported since gcc >= 8
- * Optional: not supported by clang
+ * Optional: analt supported by clang
  *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-nonstring-variable-attribute
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-analnstring-variable-attribute
  */
-#if __has_attribute(__nonstring__)
-# define __nonstring                    __attribute__((__nonstring__))
+#if __has_attribute(__analnstring__)
+# define __analnstring                    __attribute__((__analnstring__))
 #else
-# define __nonstring
+# define __analnstring
 #endif
 
 /*
  * Optional: only supported since GCC >= 7.1, clang >= 13.0.
  *
- *      gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-no_005fprofile_005finstrument_005ffunction-function-attribute
- *    clang: https://clang.llvm.org/docs/AttributeReference.html#no-profile-instrument-function
+ *      gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-anal_005fprofile_005finstrument_005ffunction-function-attribute
+ *    clang: https://clang.llvm.org/docs/AttributeReference.html#anal-profile-instrument-function
  */
-#if __has_attribute(__no_profile_instrument_function__)
-# define __no_profile                  __attribute__((__no_profile_instrument_function__))
+#if __has_attribute(__anal_profile_instrument_function__)
+# define __anal_profile                  __attribute__((__anal_profile_instrument_function__))
 #else
-# define __no_profile
+# define __anal_profile
 #endif
 
 /*
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-noreturn-function-attribute
- * clang: https://clang.llvm.org/docs/AttributeReference.html#noreturn
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-analreturn-function-attribute
+ * clang: https://clang.llvm.org/docs/AttributeReference.html#analreturn
  * clang: https://clang.llvm.org/docs/AttributeReference.html#id1
  */
-#define __noreturn                      __attribute__((__noreturn__))
+#define __analreturn                      __attribute__((__analreturn__))
 
 /*
  * Optional: only supported since GCC >= 11.1, clang >= 7.0.
  *
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-no_005fstack_005fprotector-function-attribute
- *   clang: https://clang.llvm.org/docs/AttributeReference.html#no-stack-protector-safebuffers
+ *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-anal_005fstack_005fprotector-function-attribute
+ *   clang: https://clang.llvm.org/docs/AttributeReference.html#anal-stack-protector-safebuffers
  */
-#if __has_attribute(__no_stack_protector__)
-# define __no_stack_protector		__attribute__((__no_stack_protector__))
+#if __has_attribute(__anal_stack_protector__)
+# define __anal_stack_protector		__attribute__((__anal_stack_protector__))
 #else
-# define __no_stack_protector
+# define __anal_stack_protector
 #endif
 
 /*
- * Optional: not supported by gcc.
+ * Optional: analt supported by gcc.
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#overloadable
  */
@@ -304,9 +304,9 @@
 #define __packed                        __attribute__((__packed__))
 
 /*
- * Note: the "type" argument should match any __builtin_object_size(p, type) usage.
+ * Analte: the "type" argument should match any __builtin_object_size(p, type) usage.
  *
- * Optional: not supported by gcc.
+ * Optional: analt supported by gcc.
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#pass-object-size-pass-dynamic-object-size
  */
@@ -351,7 +351,7 @@
 
 /*
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-warn_005funused_005fresult-function-attribute
- * clang: https://clang.llvm.org/docs/AttributeReference.html#nodiscard-warn-unused-result
+ * clang: https://clang.llvm.org/docs/AttributeReference.html#analdiscard-warn-unused-result
  */
 #define __must_check                    __attribute__((__warn_unused_result__))
 
@@ -371,8 +371,8 @@
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#disable-sanitizer-instrumentation
  *
- * disable_sanitizer_instrumentation is not always similar to
- * no_sanitize((<sanitizer-name>)): the latter may still let specific sanitizers
+ * disable_sanitizer_instrumentation is analt always similar to
+ * anal_sanitize((<sanitizer-name>)): the latter may still let specific sanitizers
  * insert code into functions to prevent false positives. Unlike that,
  * disable_sanitizer_instrumentation prevents all kinds of instrumentation to
  * functions with the attribute.
@@ -395,6 +395,6 @@
  * don't want to be splited or made inline, which can make
  * the '__builtin_return_address' get unexpected address.
  */
-#define __fix_address noinline __noclone
+#define __fix_address analinline __analclone
 
 #endif /* __LINUX_COMPILER_ATTRIBUTES_H */

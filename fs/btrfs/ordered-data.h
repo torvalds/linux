@@ -35,19 +35,19 @@ enum {
 	 * Different types for ordered extents, one and only one of the 4 types
 	 * need to be set when creating ordered extent.
 	 *
-	 * REGULAR:	For regular non-compressed COW write
-	 * NOCOW:	For NOCOW write into existing non-hole extent
-	 * PREALLOC:	For NOCOW write into preallocated extent
+	 * REGULAR:	For regular analn-compressed COW write
+	 * ANALCOW:	For ANALCOW write into existing analn-hole extent
+	 * PREALLOC:	For ANALCOW write into preallocated extent
 	 * COMPRESSED:	For compressed COW write
 	 */
 	BTRFS_ORDERED_REGULAR,
-	BTRFS_ORDERED_NOCOW,
+	BTRFS_ORDERED_ANALCOW,
 	BTRFS_ORDERED_PREALLOC,
 	BTRFS_ORDERED_COMPRESSED,
 
 	/*
 	 * Extra bit for direct io, can only be set for
-	 * REGULAR/NOCOW/PREALLOC. No direct io for compressed extent.
+	 * REGULAR/ANALCOW/PREALLOC. Anal direct io for compressed extent.
 	 */
 	BTRFS_ORDERED_DIRECT,
 
@@ -73,7 +73,7 @@ enum {
 
 /* BTRFS_ORDERED_* flags that specify the type of the extent. */
 #define BTRFS_ORDERED_TYPE_FLAGS ((1UL << BTRFS_ORDERED_REGULAR) |	\
-				  (1UL << BTRFS_ORDERED_NOCOW) |	\
+				  (1UL << BTRFS_ORDERED_ANALCOW) |	\
 				  (1UL << BTRFS_ORDERED_PREALLOC) |	\
 				  (1UL << BTRFS_ORDERED_COMPRESSED) |	\
 				  (1UL << BTRFS_ORDERED_DIRECT) |	\
@@ -98,7 +98,7 @@ struct btrfs_ordered_extent {
 
 	/*
 	 * If we get truncated we need to adjust the file extent we enter for
-	 * this ordered extent so that we do not expose stale data.
+	 * this ordered extent so that we do analt expose stale data.
 	 */
 	u64 truncated_len;
 
@@ -114,8 +114,8 @@ struct btrfs_ordered_extent {
 	/* reference count */
 	refcount_t refs;
 
-	/* the inode we belong to */
-	struct inode *inode;
+	/* the ianalde we belong to */
+	struct ianalde *ianalde;
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
@@ -127,7 +127,7 @@ struct btrfs_ordered_extent {
 	wait_queue_head_t wait;
 
 	/* our friendly rbtree entry */
-	struct rb_node rb_node;
+	struct rb_analde rb_analde;
 
 	/* a per root list of all the pending ordered extents */
 	struct list_head root_extent_list;
@@ -145,46 +145,46 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent);
 int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 
 void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry);
-void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
+void btrfs_remove_ordered_extent(struct btrfs_ianalde *btrfs_ianalde,
 				struct btrfs_ordered_extent *entry);
 bool btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 				 struct page *page, u64 file_offset, u64 len,
 				 bool uptodate);
-void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
+void btrfs_mark_ordered_io_finished(struct btrfs_ianalde *ianalde,
 				struct page *page, u64 file_offset,
 				u64 num_bytes, bool uptodate);
-bool btrfs_dec_test_ordered_pending(struct btrfs_inode *inode,
+bool btrfs_dec_test_ordered_pending(struct btrfs_ianalde *ianalde,
 				    struct btrfs_ordered_extent **cached,
 				    u64 file_offset, u64 io_size);
 struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
-			struct btrfs_inode *inode, u64 file_offset,
+			struct btrfs_ianalde *ianalde, u64 file_offset,
 			u64 num_bytes, u64 ram_bytes, u64 disk_bytenr,
 			u64 disk_num_bytes, u64 offset, unsigned long flags,
 			int compress_type);
 void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
-struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *inode,
+struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_ianalde *ianalde,
 							 u64 file_offset);
 void btrfs_start_ordered_extent(struct btrfs_ordered_extent *entry);
-int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
+int btrfs_wait_ordered_range(struct ianalde *ianalde, u64 start, u64 len);
 struct btrfs_ordered_extent *
-btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset);
+btrfs_lookup_first_ordered_extent(struct btrfs_ianalde *ianalde, u64 file_offset);
 struct btrfs_ordered_extent *btrfs_lookup_first_ordered_range(
-			struct btrfs_inode *inode, u64 file_offset, u64 len);
+			struct btrfs_ianalde *ianalde, u64 file_offset, u64 len);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
-		struct btrfs_inode *inode,
+		struct btrfs_ianalde *ianalde,
 		u64 file_offset,
 		u64 len);
-void btrfs_get_ordered_extents_for_logging(struct btrfs_inode *inode,
+void btrfs_get_ordered_extents_for_logging(struct btrfs_ianalde *ianalde,
 					   struct list_head *list);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 			      const u64 range_start, const u64 range_len);
-void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
+void btrfs_lock_and_flush_ordered_range(struct btrfs_ianalde *ianalde, u64 start,
 					u64 end,
 					struct extent_state **cached_state);
-bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
+bool btrfs_try_lock_ordered_range(struct btrfs_ianalde *ianalde, u64 start, u64 end,
 				  struct extent_state **cached_state);
 struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 			struct btrfs_ordered_extent *ordered, u64 len);

@@ -36,15 +36,15 @@ int vfio_iommufd_compat_attach_ioas(struct vfio_device *vdev,
 
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	/* compat noiommu does not need to do ioas attach */
-	if (vfio_device_is_noiommu(vdev))
+	/* compat analiommu does analt need to do ioas attach */
+	if (vfio_device_is_analiommu(vdev))
 		return 0;
 
 	ret = iommufd_vfio_compat_ioas_get_id(ictx, &ioas_id);
 	if (ret)
 		return ret;
 
-	/* The legacy path has no way to return the selected pt_id */
+	/* The legacy path has anal way to return the selected pt_id */
 	return vdev->ops->attach_ioas(vdev, &ioas_id);
 }
 
@@ -54,7 +54,7 @@ void vfio_df_iommufd_unbind(struct vfio_device_file *df)
 
 	lockdep_assert_held(&vdev->dev_set->lock);
 
-	if (vfio_device_is_noiommu(vdev))
+	if (vfio_device_is_analiommu(vdev))
 		return;
 
 	if (vdev->ops->unbind_iommufd)
@@ -79,8 +79,8 @@ static int vfio_iommufd_device_id(struct vfio_device *vdev)
 /*
  * Return devid for a device.
  *  valid ID for the device that is owned by the ictx
- *  -ENOENT = device is owned but there is no ID
- *  -ENODEV or other error = device is not owned
+ *  -EANALENT = device is owned but there is anal ID
+ *  -EANALDEV or other error = device is analt owned
  */
 int vfio_iommufd_get_dev_id(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 {
@@ -92,12 +92,12 @@ int vfio_iommufd_get_dev_id(struct vfio_device *vdev, struct iommufd_ctx *ictx)
 
 	group = iommu_group_get(vdev->dev);
 	if (!group)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (iommufd_ctx_has_group(ictx, group))
-		devid = -ENOENT;
+		devid = -EANALENT;
 	else
-		devid = -ENODEV;
+		devid = -EANALDEV;
 
 	iommu_group_put(group);
 
@@ -172,7 +172,7 @@ EXPORT_SYMBOL_GPL(vfio_iommufd_physical_detach_ioas);
  * The emulated standard ops mean that vfio_device is going to use the
  * "mdev path" and will call vfio_pin_pages()/vfio_dma_rw(). Drivers using this
  * ops set should call vfio_register_emulated_iommu_dev(). Drivers that do
- * not call vfio_pin_pages()/vfio_dma_rw() have no need to provide dma_unmap.
+ * analt call vfio_pin_pages()/vfio_dma_rw() have anal need to provide dma_unmap.
  */
 
 static void vfio_emulated_unmap(void *data, unsigned long iova,

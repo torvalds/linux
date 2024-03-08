@@ -29,7 +29,7 @@ static int mock_phys_object(void *arg)
 	if (!i915_gem_object_has_struct_page(obj)) {
 		i915_gem_object_unlock(obj);
 		err = -EINVAL;
-		pr_err("shmem has no struct page\n");
+		pr_err("shmem has anal struct page\n");
 		goto out_obj;
 	}
 
@@ -41,13 +41,13 @@ static int mock_phys_object(void *arg)
 	}
 
 	if (i915_gem_object_has_struct_page(obj)) {
-		pr_err("i915_gem_object_attach_phys did not create a phys object\n");
+		pr_err("i915_gem_object_attach_phys did analt create a phys object\n");
 		err = -EINVAL;
 		goto out_obj;
 	}
 
 	if (!atomic_read(&obj->mm.pages_pin_count)) {
-		pr_err("i915_gem_object_attach_phys did not pin its phys pages\n");
+		pr_err("i915_gem_object_attach_phys did analt pin its phys pages\n");
 		err = -EINVAL;
 		goto out_obj;
 	}
@@ -78,7 +78,7 @@ int i915_gem_phys_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = i915_subtests(tests, i915);
 

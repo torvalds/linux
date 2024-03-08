@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
@@ -307,7 +307,7 @@ i2c_au1550_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct i2c_au1550_data),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->psc_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(priv->psc_base))
@@ -321,7 +321,7 @@ i2c_au1550_probe(struct platform_device *pdev)
 	priv->adap.dev.parent = &pdev->dev;
 	strscpy(priv->adap.name, "Au1xxx PSC I2C", sizeof(priv->adap.name));
 
-	/* Now, set up the PSC for SMBus PIO mode. */
+	/* Analw, set up the PSC for SMBus PIO mode. */
 	i2c_au1550_setup(priv);
 
 	ret = i2c_add_numbered_adapter(&priv->adap);

@@ -74,7 +74,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket,
 
 static unsigned int override_bios;
 module_param(override_bios, uint, 0000);
-MODULE_PARM_DESC(override_bios, "yenta ignore bios resource allocation");
+MODULE_PARM_DESC(override_bios, "yenta iganalre bios resource allocation");
 
 /*
  * Generate easy-to-use ways of reading a cardbus sockets
@@ -363,7 +363,7 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		exca_writeb(socket, I365_INTCTL, reg);
 
 		reg = exca_readb(socket, I365_POWER) & (I365_VCC_MASK|I365_VPP1_MASK);
-		reg |= I365_PWR_NORESET;
+		reg |= I365_PWR_ANALRESET;
 		if (state->flags & SS_PWR_AUTO)
 			reg |= I365_PWR_AUTO;
 		if (state->flags & SS_OUTPUT_ENA)
@@ -371,7 +371,7 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		if (exca_readb(socket, I365_POWER) != reg)
 			exca_writeb(socket, I365_POWER, reg);
 
-		/* CSC interrupt: no ISA irq for CSC */
+		/* CSC interrupt: anal ISA irq for CSC */
 		reg = exca_readb(socket, I365_CSCINT);
 		reg &= I365_CSC_IRQ_MASK;
 		reg |= I365_CSC_DETECT;
@@ -519,7 +519,7 @@ static irqreturn_t yenta_interrupt(int irq, void *dev_id)
 	csc = exca_readb(socket, I365_CSC);
 
 	if (!(cb_event || csc))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	events = (cb_event & (CB_CD1EVENT | CB_CD2EVENT)) ? SS_DETECT : 0 ;
 	events |= (csc & I365_CSC_DETECT) ? SS_DETECT : 0;
@@ -571,7 +571,7 @@ static void yenta_interrogate(struct yenta_socket *socket)
 
 	state = cb_readl(socket, CB_SOCKET_STATE);
 	if (!(state & (CB_5VCARD | CB_3VCARD | CB_XVCARD | CB_YVCARD)) ||
-	    (state & (CB_CDETECT1 | CB_CDETECT2 | CB_NOTACARD | CB_BADVCCREQ)) ||
+	    (state & (CB_CDETECT1 | CB_CDETECT2 | CB_ANALTACARD | CB_BADVCCREQ)) ||
 	    ((state & (CB_16BITCARD | CB_CBCARD)) == (CB_16BITCARD | CB_CBCARD)))
 		cb_writel(socket, CB_SOCKET_FORCE, CB_CVSTEST);
 }
@@ -612,7 +612,7 @@ static int yenta_sock_suspend(struct pcmcia_socket *sock)
  * Use an adaptive allocation for the memory resource,
  * sometimes the memory behind pci bridges is limited:
  * 1/8 of the size of the io window of the parent.
- * max 4 MB, min 16 kB. We try very hard to not get below
+ * max 4 MB, min 16 kB. We try very hard to analt get below
  * the "ACC" values, though.
  */
 #define BRIDGE_MEM_MAX (4*1024*1024)
@@ -716,7 +716,7 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 		if (pci_claim_resource(dev, nr) == 0)
 			return 0;
 		dev_info(&dev->dev,
-			 "Preassigned resource %d busy or not available, reconfiguring...\n",
+			 "Preassigned resource %d busy or analt available, reconfiguring...\n",
 			 nr);
 	}
 
@@ -731,7 +731,7 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 			    (yenta_search_res(socket, res, BRIDGE_MEM_ACC)) ||
 			    (yenta_search_res(socket, res, BRIDGE_MEM_MIN)))
 				return 1;
-			/* Approximating prefetchable by non-prefetchable */
+			/* Approximating prefetchable by analn-prefetchable */
 			res->flags = IORESOURCE_MEM;
 		}
 		if ((yenta_search_res(socket, res, BRIDGE_MEM_MAX)) ||
@@ -741,7 +741,7 @@ static int yenta_allocate_res(struct yenta_socket *socket, int nr, unsigned type
 	}
 
 	dev_info(&dev->dev,
-		 "no resource of type %x available, trying to continue...\n",
+		 "anal resource of type %x available, trying to continue...\n",
 		 type);
 	res->start = res->end = res->flags = 0;
 	return 0;
@@ -979,7 +979,7 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /* probes the PCI interrupt, use only on override functions */
@@ -1068,7 +1068,7 @@ static void yenta_config_init(struct yenta_socket *socket)
 	/*
 	 * Set up the bridging state:
 	 *  - enable write posting.
-	 *  - memory window 0 prefetchable, window 1 non-prefetchable
+	 *  - memory window 0 prefetchable, window 1 analn-prefetchable
 	 *  - PCI interrupts enabled if a PCI interrupt exists..
 	 */
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL);
@@ -1100,7 +1100,7 @@ static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 
 	/* Check bus numbers are already set up correctly: */
 	if (bridge_to_fix->busn_res.end >= cardbus_bridge->busn_res.end)
-		return; /* The subordinate number is ok, nothing to do */
+		return; /* The subordinate number is ok, analthing to do */
 
 	if (!bridge_to_fix->parent)
 		return; /* Root bridges are ok */
@@ -1110,7 +1110,7 @@ static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 
 	/* check the bus ranges of all sibling bridges to prevent overlap */
 	list_for_each_entry(sibling, &bridge_to_fix->parent->children,
-			node) {
+			analde) {
 		/*
 		 * If the sibling has a higher secondary bus number
 		 * and it's secondary is equal or smaller than our
@@ -1122,7 +1122,7 @@ static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
 			upper_limit = sibling->busn_res.start - 1;
 	}
 
-	/* Show that the wanted subordinate number is not possible: */
+	/* Show that the wanted subordinate number is analt possible: */
 	if (cardbus_bridge->busn_res.end > upper_limit)
 		dev_warn(&cardbus_bridge->dev,
 			 "Upper limit for fixing this bridge's parent bridge: #%02x\n",
@@ -1166,17 +1166,17 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * Bail out if so.
 	 */
 	if (!dev->subordinate) {
-		dev_err(&dev->dev, "no bus associated! (try 'pci=assign-busses')\n");
-		return -ENODEV;
+		dev_err(&dev->dev, "anal bus associated! (try 'pci=assign-busses')\n");
+		return -EANALDEV;
 	}
 
 	socket = kzalloc(sizeof(struct yenta_socket), GFP_KERNEL);
 	if (!socket)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* prepare pcmcia_socket */
 	socket->socket.ops = &yenta_socket_operations;
-	socket->socket.resource_ops = &pccard_nonstatic_ops;
+	socket->socket.resource_ops = &pccard_analnstatic_ops;
 	socket->socket.dev.parent = &dev->dev;
 	socket->socket.driver_data = socket;
 	socket->socket.owner = THIS_MODULE;
@@ -1201,8 +1201,8 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto disable;
 
 	if (!pci_resource_start(dev, 0)) {
-		dev_err(&dev->dev, "No cardbus resource!\n");
-		ret = -ENODEV;
+		dev_err(&dev->dev, "Anal cardbus resource!\n");
+		ret = -EANALDEV;
 		goto release;
 	}
 
@@ -1212,7 +1212,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 */
 	socket->base = ioremap(pci_resource_start(dev, 0), 0x1000);
 	if (!socket->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -1246,12 +1246,12 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* We must finish initialization here */
 
 	if (!socket->cb_irq || request_irq(socket->cb_irq, yenta_interrupt, IRQF_SHARED, "yenta", socket)) {
-		/* No IRQ or request_irq failed. Poll */
+		/* Anal IRQ or request_irq failed. Poll */
 		socket->cb_irq = 0; /* But zero is a valid IRQ number. */
 		timer_setup(&socket->poll_timer, yenta_interrupt_wrapper, 0);
 		mod_timer(&socket->poll_timer, jiffies + HZ);
 		dev_info(&dev->dev,
-			 "no PCI IRQ, CardBus support disabled for this socket.\n");
+			 "anal PCI IRQ, CardBus support disabled for this socket.\n");
 		dev_info(&dev->dev,
 			 "check your BIOS CardBus, BIOS IRQ or ACPI settings.\n");
 	} else {
@@ -1300,7 +1300,7 @@ static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int yenta_dev_suspend_noirq(struct device *dev)
+static int yenta_dev_suspend_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct yenta_socket *socket = pci_get_drvdata(pdev);
@@ -1319,7 +1319,7 @@ static int yenta_dev_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int yenta_dev_resume_noirq(struct device *dev)
+static int yenta_dev_resume_analirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct yenta_socket *socket = pci_get_drvdata(pdev);
@@ -1344,7 +1344,7 @@ static int yenta_dev_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops yenta_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(yenta_dev_suspend_noirq, yenta_dev_resume_noirq)
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(yenta_dev_suspend_analirq, yenta_dev_resume_analirq)
 };
 
 #define YENTA_PM_OPS	(&yenta_pm_ops)

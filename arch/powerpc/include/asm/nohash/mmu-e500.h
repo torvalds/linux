@@ -289,7 +289,7 @@ extern int mmu_vmemmap_psize;
 
 struct tlb_core_data {
 	/*
-	 * Per-core spinlock for e6500 TLB handlers (no tlbsrx.)
+	 * Per-core spinlock for e6500 TLB handlers (anal tlbsrx.)
 	 * Must be the first struct element.
 	 */
 	u8 lock;
@@ -302,7 +302,7 @@ struct tlb_core_data {
 extern unsigned long linear_map_top;
 extern int book3e_htw_mode;
 
-#define PPC_HTW_NONE	0
+#define PPC_HTW_ANALNE	0
 #define PPC_HTW_IBM	1
 #define PPC_HTW_E6500	2
 

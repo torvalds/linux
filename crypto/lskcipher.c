@@ -60,7 +60,7 @@ static int lskcipher_setkey_unaligned(struct crypto_lskcipher *tfm,
 	absize = keylen + alignmask;
 	buffer = kmalloc(absize, GFP_ATOMIC);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
@@ -103,12 +103,12 @@ static int crypto_lskcipher_crypt_unaligned(
 
 	tiv = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 	if (!tiv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(tiv, iv, ivsize + statesize);
 
 	p = kmalloc(PAGE_SIZE, GFP_ATOMIC);
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!p)
 		goto out;
 
@@ -219,7 +219,7 @@ static int crypto_lskcipher_crypt_sg(struct skcipher_request *req,
 	if (req->base.flags & CRYPTO_SKCIPHER_REQ_CONT)
 		flags |= CRYPTO_LSKCIPHER_FLAG_CONT;
 
-	if (!(req->base.flags & CRYPTO_SKCIPHER_REQ_NOTFINAL))
+	if (!(req->base.flags & CRYPTO_SKCIPHER_REQ_ANALTFINAL))
 		flags |= CRYPTO_LSKCIPHER_FLAG_FINAL;
 
 	err = skcipher_walk_virt(&walk, req, false);
@@ -309,7 +309,7 @@ static int __maybe_unused crypto_lskcipher_report(
 	memset(&rblkcipher, 0, sizeof(rblkcipher));
 
 	strscpy(rblkcipher.type, "lskcipher", sizeof(rblkcipher.type));
-	strscpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
+	strscpy(rblkcipher.geniv, "<analne>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = skcipher->co.min_keysize;
@@ -565,7 +565,7 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spawn = lskcipher_instance_ctx(inst);
 	err = crypto_grab_lskcipher(spawn,
@@ -573,7 +573,7 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 				    cipher_name, 0, mask);
 
 	ecb_name[0] = 0;
-	if (err == -ENOENT && !!memcmp(tmpl->name, "ecb", 4)) {
+	if (err == -EANALENT && !!memcmp(tmpl->name, "ecb", 4)) {
 		err = -ENAMETOOLONG;
 		if (snprintf(ecb_name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)

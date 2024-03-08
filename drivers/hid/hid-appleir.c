@@ -4,13 +4,13 @@
  *
  * Original driver written by James McKenzie
  * Ported to recent 2.6 kernel versions by Greg Kroah-Hartman <gregkh@suse.de>
- * Updated to support newer remotes by Bastien Nocera <hadess@hadess.net>
+ * Updated to support newer remotes by Bastien Analcera <hadess@hadess.net>
  * Ported to HID subsystem by Benjamin Tissoires <benjamin.tissoires@gmail.com>
  *
  * Copyright (C) 2006 James McKenzie
  * Copyright (C) 2008 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2008 Novell Inc.
- * Copyright (C) 2010, 2012 Bastien Nocera <hadess@hadess.net>
+ * Copyright (C) 2008 Analvell Inc.
+ * Copyright (C) 2010, 2012 Bastien Analcera <hadess@hadess.net>
  * Copyright (C) 2013 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  * Copyright (C) 2013 Red Hat Inc. All Rights Reserved
  */
@@ -67,7 +67,7 @@ MODULE_LICENSE("GPL");
  */
 
 /*
- * Bastien Nocera's remote
+ * Bastien Analcera's remote
  * 25 87 ee 91 5f	followed by
  * 25 87 ee 91 05	gives you >"
  *
@@ -137,7 +137,7 @@ static int get_key(int data)
 	 * 0x5e or 0x5f (   >"   )	key: 15		-> KEY_PLAYPAUSE
 	 *
 	 * Packets starting with 0x5 are part of a two-packets message,
-	 * we notify the caller by sending a negative value.
+	 * we analtify the caller by sending a negative value.
 	 */
 	int key = (data >> 1) & KEY_MASK;
 
@@ -285,7 +285,7 @@ static int appleir_probe(struct hid_device *hid, const struct hid_device_id *id)
 
 	appleir = devm_kzalloc(&hid->dev, sizeof(struct appleir), GFP_KERNEL);
 	if (!appleir)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	appleir->hid = hid;
 

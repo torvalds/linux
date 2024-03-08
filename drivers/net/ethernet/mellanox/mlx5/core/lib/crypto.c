@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include "mlx5_core.h"
 #include "lib/crypto.h"
@@ -35,10 +35,10 @@ struct mlx5_crypto_dek_pool {
 	int in_use_deks; /* the number of being used keys in this pool */
 	struct mutex lock; /* protect the following lists, and the bulks */
 	struct list_head partial_list; /* some of keys are available */
-	struct list_head full_list; /* no available keys */
+	struct list_head full_list; /* anal available keys */
 	struct list_head avail_list; /* all keys are available to use */
 
-	/* No in-used keys, and all need to be synced.
+	/* Anal in-used keys, and all need to be synced.
 	 * These bulks will be put to avail list after sync.
 	 */
 	struct list_head sync_list;
@@ -61,12 +61,12 @@ struct mlx5_crypto_dek_bulk {
 	int in_use_deks; /* the number of keys being used, with in_use bit 1 */
 	struct list_head entry;
 
-	/* 0: not being used by any user, 1: otherwise */
+	/* 0: analt being used by any user, 1: otherwise */
 	unsigned long *in_use;
 
 	/* The bits are set when they are used, and reset after crypto_sync
-	 * is executed. So, the value 0 means the key is newly created, or not
-	 * used after sync, and 1 means it is in use, or freed but not synced
+	 * is executed. So, the value 0 means the key is newly created, or analt
+	 * used after sync, and 1 means it is in use, or freed but analt synced
 	 */
 	unsigned long *need_sync;
 };
@@ -295,18 +295,18 @@ mlx5_crypto_dek_bulk_create(struct mlx5_crypto_dek_pool *pool)
 
 	bulk = kzalloc(sizeof(*bulk), GFP_KERNEL);
 	if (!bulk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	num_deks = 1 << dek_priv->log_dek_obj_range;
 	bulk->need_sync = bitmap_zalloc(num_deks, GFP_KERNEL);
 	if (!bulk->need_sync) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
 	bulk->in_use = bitmap_zalloc(num_deks, GFP_KERNEL);
 	if (!bulk->in_use) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -435,7 +435,7 @@ static int mlx5_crypto_dek_free_locked(struct mlx5_crypto_dek_pool *pool,
 	old_val = test_and_clear_bit(obj_offset, bulk->in_use);
 	WARN_ON_ONCE(!old_val);
 	if (!old_val) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out_free;
 	}
 	pool->in_use_deks--;
@@ -613,7 +613,7 @@ struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_
 
 	dek = kzalloc(sizeof(*dek), GFP_KERNEL);
 	if (!dek)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!dek_priv) {
 		err = mlx5_crypto_create_dek_key(mdev, key, sz_bytes,
@@ -685,7 +685,7 @@ mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pool->mdev = mdev;
 	pool->key_purpose = key_purpose;
@@ -750,7 +750,7 @@ struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev)
 
 	dek_priv = kzalloc(sizeof(*dek_priv), GFP_KERNEL);
 	if (!dek_priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dek_priv->mdev = mdev;
 	dek_priv->log_dek_obj_range = min_t(int, 12,

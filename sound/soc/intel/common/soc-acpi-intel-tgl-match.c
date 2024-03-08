@@ -319,7 +319,7 @@ static const struct snd_soc_acpi_link_adr tgl_3_in_1_default[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr tgl_3_in_1_mono_amp[] = {
+static const struct snd_soc_acpi_link_adr tgl_3_in_1_moanal_amp[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_0_adr),
@@ -381,7 +381,7 @@ static const struct snd_soc_acpi_link_adr tgl_3_in_1_sdca[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr tgl_3_in_1_sdca_mono[] = {
+static const struct snd_soc_acpi_link_adr tgl_3_in_1_sdca_moanal[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
@@ -533,7 +533,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_machines);
 
-/* this table is used when there is no I2S codec present */
+/* this table is used when there is anal I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 	/* mockup tests need to be first */
 	{
@@ -546,13 +546,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.link_mask = BIT(0) | BIT(1) | BIT(3),
 		.links = sdw_mockup_headset_1amp_mic,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt711-rt1308-mono-rt715.tplg",
+		.sof_tplg_filename = "sof-tgl-rt711-rt1308-moanal-rt715.tplg",
 	},
 	{
 		.link_mask = BIT(0) | BIT(1) | BIT(2),
 		.links = sdw_mockup_mic_headset_1amp,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt715-rt711-rt1308-mono.tplg",
+		.sof_tplg_filename = "sof-tgl-rt715-rt711-rt1308-moanal.tplg",
 	},
 	{
 		.link_mask = 0xF, /* 4 active links required */
@@ -564,7 +564,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.link_mask = 0x7,
 		.links = tgl_sdw_rt711_link1_rt1308_link2_rt715_link0,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt715-rt711-rt1308-mono.tplg",
+		.sof_tplg_filename = "sof-tgl-rt715-rt711-rt1308-moanal.tplg",
 	},
 	{
 		.link_mask = 0xB,
@@ -581,13 +581,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 	{
 		/*
 		 * link_mask should be 0xB, but all links are enabled by BIOS.
-		 * This entry will be selected if there is no rt1308 exposed
+		 * This entry will be selected if there is anal rt1308 exposed
 		 * on link2 since it will fail to match the above entry.
 		 */
 		.link_mask = 0xF,
-		.links = tgl_3_in_1_mono_amp,
+		.links = tgl_3_in_1_moanal_amp,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt711-rt1308-mono-rt715.tplg",
+		.sof_tplg_filename = "sof-tgl-rt711-rt1308-moanal-rt715.tplg",
 	},
 	{
 		.link_mask = 0xF, /* 4 active links required */
@@ -598,14 +598,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 	{
 		/*
 		 * link_mask should be 0xB, but all links are enabled by BIOS.
-		 * This entry will be selected if there is no rt1316 amplifier exposed
+		 * This entry will be selected if there is anal rt1316 amplifier exposed
 		 * on link2 since it will fail to match the above entry.
 		 */
 
 		.link_mask = 0xF, /* 4 active links required */
-		.links = tgl_3_in_1_sdca_mono,
+		.links = tgl_3_in_1_sdca_moanal,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-tgl-rt711-l0-rt1316-l1-mono-rt714-l3.tplg",
+		.sof_tplg_filename = "sof-tgl-rt711-l0-rt1316-l1-moanal-rt714-l3.tplg",
 	},
 
 	{

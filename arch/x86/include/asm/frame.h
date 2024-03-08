@@ -6,7 +6,7 @@
 
 /*
  * These are stack frame creation macros.  They should be used by every
- * callable non-leaf asm function to make kernel stack traces more reliable.
+ * callable analn-leaf asm function to make kernel stack traces more reliable.
  */
 
 #ifdef CONFIG_FRAME_POINTER
@@ -29,7 +29,7 @@
  * is just setting the LSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
- * NOTE: This macro must be used *after* PUSH_AND_CLEAR_REGS because it corrupts
+ * ANALTE: This macro must be used *after* PUSH_AND_CLEAR_REGS because it corrupts
  * the original rbp.
  */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
@@ -42,7 +42,7 @@
  * is just clearing the MSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
- * NOTE: This macro must be used *after* SAVE_ALL because it corrupts the
+ * ANALTE: This macro must be used *after* SAVE_ALL because it corrupts the
  * original ebp.
  */
 .macro ENCODE_FRAME_POINTER

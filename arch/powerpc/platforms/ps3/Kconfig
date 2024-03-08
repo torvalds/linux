@@ -7,7 +7,7 @@ config PPC_PS3
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select HAVE_PCI
-	select IRQ_DOMAIN_NOMAP
+	select IRQ_DOMAIN_ANALMAP
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.  Enabling this
@@ -24,10 +24,10 @@ config PS3_ADVANCED
 	help
 	  This gives you access to some advanced options for the PS3. The
 	  defaults should be fine for most users, but these options may make
-	  it possible to better control the kernel configuration if you know
+	  it possible to better control the kernel configuration if you kanalw
 	  what you are doing.
 
-	  Note that the answer to this question won't directly affect the
+	  Analte that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about these options.
 
@@ -145,7 +145,7 @@ config PS3_FLASH
 
 	  As this driver needs a fixed buffer of 256 KiB of memory, it can
 	  be disabled on the kernel command line using "ps3flash=off", to
-	  not allocate this fixed buffer.
+	  analt allocate this fixed buffer.
 
 config PS3_VRAM
 	tristate "PS3 Video RAM Storage Driver"

@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_DISHNETWORK_SEND_LEGACY_CMD:
@@ -12,7 +12,7 @@ Name
 
 FE_DISHNETWORK_SEND_LEGACY_CMD
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_DISHNETWORK_SEND_LEGACY_CMD
@@ -33,9 +33,9 @@ Description
 
 .. warning::
    This is a very obscure legacy command, used only at stv0299
-   driver. Should not be used on newer drivers.
+   driver. Should analt be used on newer drivers.
 
-It provides a non-standard method for selecting Diseqc voltage on the
+It provides a analn-standard method for selecting Diseqc voltage on the
 frontend, for Dish Network legacy switches.
 
 As support for this ioctl were added in 2004, this means that such
@@ -46,7 +46,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

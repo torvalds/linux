@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/export.h>
@@ -10,7 +10,7 @@
 #include <asm/cpu.h>
 #include <asm/regdef.h>
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 SYM_FUNC_START(memmove)
 	blt	a0, a1, __memcpy	/* dst < src, memcpy */
@@ -22,8 +22,8 @@ SYM_FUNC_ALIAS(__memmove, memmove)
 EXPORT_SYMBOL(memmove)
 EXPORT_SYMBOL(__memmove)
 
-_ASM_NOKPROBE(memmove)
-_ASM_NOKPROBE(__memmove)
+_ASM_ANALKPROBE(memmove)
+_ASM_ANALKPROBE(__memmove)
 
 SYM_FUNC_START(__rmemcpy)
 	/*
@@ -32,7 +32,7 @@ SYM_FUNC_START(__rmemcpy)
 	ALTERNATIVE	"b __rmemcpy_generic", \
 			"b __rmemcpy_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(__rmemcpy)
-_ASM_NOKPROBE(__rmemcpy)
+_ASM_ANALKPROBE(__rmemcpy)
 
 /*
  * void *__rmemcpy_generic(void *dst, const void *src, size_t n)
@@ -58,7 +58,7 @@ SYM_FUNC_START(__rmemcpy_generic)
 2:	move	a0, a3
 	jr	ra
 SYM_FUNC_END(__rmemcpy_generic)
-_ASM_NOKPROBE(__rmemcpy_generic)
+_ASM_ANALKPROBE(__rmemcpy_generic)
 
 /*
  * void *__rmemcpy_fast(void *dst, const void *src, size_t n)
@@ -144,4 +144,4 @@ SYM_FUNC_START(__rmemcpy_fast)
 	/* return */
 	jr	ra
 SYM_FUNC_END(__rmemcpy_fast)
-_ASM_NOKPROBE(__rmemcpy_fast)
+_ASM_ANALKPROBE(__rmemcpy_fast)

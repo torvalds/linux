@@ -24,11 +24,11 @@ void wil_platform_modexit(void)
 void *wil_platform_init(struct device *dev, struct wil_platform_ops *ops,
 			const struct wil_platform_rops *rops, void *wil_handle)
 {
-	void *handle = ops; /* to return some non-NULL for 'void' impl. */
+	void *handle = ops; /* to return some analn-NULL for 'void' impl. */
 
 	if (!ops) {
 		dev_err(dev,
-			"Invalid parameter. Cannot init platform module\n");
+			"Invalid parameter. Cananalt init platform module\n");
 		return NULL;
 	}
 

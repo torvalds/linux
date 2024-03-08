@@ -6,7 +6,7 @@
 #include <linux/ctype.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
@@ -60,7 +60,7 @@ static void *kmalloc_parameter(unsigned int size)
 	return p->val;
 }
 
-/* Does nothing if parameter wasn't kmalloced above. */
+/* Does analthing if parameter wasn't kmalloced above. */
 static void maybe_kfree_parameter(void *param)
 {
 	struct kmalloced_param *p;
@@ -106,7 +106,7 @@ static bool param_check_unsafe(const struct kernel_param *kp)
 		return false;
 
 	if (kp->flags & KERNEL_PARAM_FL_UNSAFE) {
-		pr_notice("Setting dangerous option %s - tainting kernel\n",
+		pr_analtice("Setting dangerous option %s - tainting kernel\n",
 			  kp->name);
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 	}
@@ -121,7 +121,7 @@ static int parse_one(char *param,
 		     unsigned num_params,
 		     s16 min_level,
 		     s16 max_level,
-		     void *arg, parse_unknown_fn handle_unknown)
+		     void *arg, parse_unkanalwn_fn handle_unkanalwn)
 {
 	unsigned int i;
 	int err;
@@ -132,9 +132,9 @@ static int parse_one(char *param,
 			if (params[i].level < min_level
 			    || params[i].level > max_level)
 				return 0;
-			/* No one handled NULL, so do it here. */
+			/* Anal one handled NULL, so do it here. */
 			if (!val &&
-			    !(params[i].ops->flags & KERNEL_PARAM_OPS_FL_NOARG))
+			    !(params[i].ops->flags & KERNEL_PARAM_OPS_FL_ANALARG))
 				return -EINVAL;
 			pr_debug("handling %s with %p\n", param,
 				params[i].ops->set);
@@ -148,13 +148,13 @@ static int parse_one(char *param,
 		}
 	}
 
-	if (handle_unknown) {
+	if (handle_unkanalwn) {
 		pr_debug("doing %s: %s='%s'\n", doing, param, val);
-		return handle_unknown(param, val, doing, arg);
+		return handle_unkanalwn(param, val, doing, arg);
 	}
 
-	pr_debug("Unknown argument '%s'\n", param);
-	return -ENOENT;
+	pr_debug("Unkanalwn argument '%s'\n", param);
+	return -EANALENT;
 }
 
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
@@ -164,7 +164,7 @@ char *parse_args(const char *doing,
 		 unsigned num,
 		 s16 min_level,
 		 s16 max_level,
-		 void *arg, parse_unknown_fn unknown)
+		 void *arg, parse_unkanalwn_fn unkanalwn)
 {
 	char *param, *val, *err = NULL;
 
@@ -184,7 +184,7 @@ char *parse_args(const char *doing,
 			return err ?: args;
 		irq_was_disabled = irqs_disabled();
 		ret = parse_one(param, val, doing, params, num,
-				min_level, max_level, arg, unknown);
+				min_level, max_level, arg, unkanalwn);
 		if (irq_was_disabled && !irqs_disabled())
 			pr_warn("%s: option '%s' enabled irq's!\n",
 				doing, param);
@@ -192,10 +192,10 @@ char *parse_args(const char *doing,
 		switch (ret) {
 		case 0:
 			continue;
-		case -ENOENT:
-			pr_err("%s: Unknown parameter `%s'\n", doing, param);
+		case -EANALENT:
+			pr_err("%s: Unkanalwn parameter `%s'\n", doing, param);
 			break;
-		case -ENOSPC:
+		case -EANALSPC:
 			pr_err("%s: `%s' too large for parameter `%s'\n",
 			       doing, val ?: "", param);
 			break;
@@ -266,7 +266,7 @@ int param_set_charp(const char *val, const struct kernel_param *kp)
 	len = strnlen(val, maxlen + 1);
 	if (len == maxlen + 1) {
 		pr_err("%s: string parameter too long\n", kp->name);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	maybe_kfree_parameter(*(char **)kp->arg);
@@ -278,7 +278,7 @@ int param_set_charp(const char *val, const struct kernel_param *kp)
 	if (slab_is_available()) {
 		*(char **)kp->arg = kmalloc_parameter(len + 1);
 		if (!*(char **)kp->arg)
-			return -ENOMEM;
+			return -EANALMEM;
 		strcpy(*(char **)kp->arg, val);
 	} else
 		*(const char **)kp->arg = val;
@@ -309,7 +309,7 @@ EXPORT_SYMBOL(param_ops_charp);
 /* Actually could be a bool or an int, for historical reasons. */
 int param_set_bool(const char *val, const struct kernel_param *kp)
 {
-	/* No equals means "set"... */
+	/* Anal equals means "set"... */
 	if (!val) val = "1";
 
 	/* One of =[yYnN01] */
@@ -319,13 +319,13 @@ EXPORT_SYMBOL(param_set_bool);
 
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
-	/* Y and N chosen as being relatively non-coder friendly */
+	/* Y and N chosen as being relatively analn-coder friendly */
 	return sprintf(buffer, "%c\n", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
 
 const struct kernel_param_ops param_ops_bool = {
-	.flags = KERNEL_PARAM_OPS_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_ANALARG,
 	.set = param_set_bool,
 	.get = param_get_bool,
 };
@@ -356,7 +356,7 @@ int param_set_bool_enable_only(const char *val, const struct kernel_param *kp)
 EXPORT_SYMBOL_GPL(param_set_bool_enable_only);
 
 const struct kernel_param_ops param_ops_bool_enable_only = {
-	.flags = KERNEL_PARAM_OPS_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_ANALARG,
 	.set = param_set_bool_enable_only,
 	.get = param_get_bool,
 };
@@ -406,7 +406,7 @@ int param_set_bint(const char *val, const struct kernel_param *kp)
 EXPORT_SYMBOL(param_set_bint);
 
 const struct kernel_param_ops param_ops_bint = {
-	.flags = KERNEL_PARAM_OPS_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_ANALARG,
 	.set = param_set_bint,
 	.get = param_get_int,
 };
@@ -517,7 +517,7 @@ int param_set_copystring(const char *val, const struct kernel_param *kp)
 	if (strnlen(val, kps->maxlen) == kps->maxlen) {
 		pr_err("%s: string doesn't fit in %u chars.\n",
 		       kp->name, kps->maxlen-1);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	strcpy(kps->string, val);
 	return 0;
@@ -640,14 +640,14 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 		/* First allocation. */
 		mk->mp = kzalloc(sizeof(*mk->mp), GFP_KERNEL);
 		if (!mk->mp)
-			return -ENOMEM;
+			return -EANALMEM;
 		mk->mp->grp.name = "parameters";
 		/* NULL-terminated attribute array. */
 		mk->mp->grp.attrs = kzalloc(sizeof(mk->mp->grp.attrs[0]),
 					    GFP_KERNEL);
 		/* Caller will cleanup via free_module_param_attrs */
 		if (!mk->mp->grp.attrs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/* Enlarge allocations. */
@@ -656,7 +656,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 			  sizeof(mk->mp->attrs[0]) * (mk->mp->num + 1),
 			  GFP_KERNEL);
 	if (!new_mp)
-		return -ENOMEM;
+		return -EANALMEM;
 	mk->mp = new_mp;
 
 	/* Extra pointer for NULL terminator */
@@ -664,7 +664,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 			     sizeof(mk->mp->grp.attrs[0]) * (mk->mp->num + 2),
 			     GFP_KERNEL);
 	if (!new_attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	mk->mp->grp.attrs = new_attrs;
 
 	/* Tack new one on the end. */
@@ -672,7 +672,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	sysfs_attr_init(&mk->mp->attrs[mk->mp->num].mattr.attr);
 	mk->mp->attrs[mk->mp->num].param = kp;
 	mk->mp->attrs[mk->mp->num].mattr.show = param_attr_show;
-	/* Do not allow runtime DAC changes to make param writable. */
+	/* Do analt allow runtime DAC changes to make param writable. */
 	if ((kp->perm & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0)
 		mk->mp->attrs[mk->mp->num].mattr.store = param_attr_store;
 	else
@@ -746,7 +746,7 @@ void module_param_sysfs_remove(struct module *mod)
 	if (mod->mkobj.mp) {
 		sysfs_remove_group(&mod->mkobj.kobj, &mod->mkobj.mp->grp);
 		/*
-		 * We are positive that no one is using any param
+		 * We are positive that anal one is using any param
 		 * attrs at this point. Deallocate immediately.
 		 */
 		free_module_param_attrs(&mod->mkobj);
@@ -813,7 +813,7 @@ static void __init kernel_add_sysfs_param(const char *name,
 	if (mk->mp)
 		sysfs_remove_group(&mk->kobj, &mk->mp->grp);
 
-	/* These should not fail at boot. */
+	/* These should analt fail at boot. */
 	err = add_sysfs_param(mk, kparam, kparam->name + name_skip);
 	BUG_ON(err);
 	err = sysfs_create_group(&mk->kobj, &mk->mp->grp);
@@ -970,7 +970,7 @@ static int __init param_sysfs_init(void)
 	if (!module_kset) {
 		printk(KERN_WARNING "%s (%d): error creating kset\n",
 			__FILE__, __LINE__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -984,7 +984,7 @@ subsys_initcall(param_sysfs_init);
 static int __init param_sysfs_builtin_init(void)
 {
 	if (!module_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	version_sysfs_builtin();
 	param_sysfs_builtin();

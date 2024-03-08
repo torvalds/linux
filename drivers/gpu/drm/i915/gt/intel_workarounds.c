@@ -20,7 +20,7 @@
  * DOC: Hardware workarounds
  *
  * Hardware workarounds are register programming documented to be executed in
- * the driver that fall outside of the normal programming sequences for a
+ * the driver that fall outside of the analrmal programming sequences for a
  * platform. There are some basic categories of workarounds, depending on
  * how/when they are applied:
  *
@@ -49,7 +49,7 @@
  *   Workarounds for registers specific to RCS and CCS should be implemented in
  *   rcs_engine_wa_init() and ccs_engine_wa_init(), respectively; those for
  *   registers belonging to BCS, VCS or VECS should be implemented in
- *   xcs_engine_wa_init(). Workarounds for registers not belonging to a specific
+ *   xcs_engine_wa_init(). Workarounds for registers analt belonging to a specific
  *   engine's MMIO range but that are part of of the common RCS/CCS reset domain
  *   should be implemented in general_render_compute_wa_init().
  *
@@ -82,14 +82,14 @@
  *   #. BB_PER_CTX_PTR: A batchbuffer is provided in the default context,
  *      pointing the hardware to a buffer to continue executing after the
  *      engine registers are restored in a context restore sequence. This is
- *      currently not used in the driver.
+ *      currently analt used in the driver.
  *
- * - Other:  There are WAs that, due to their nature, cannot be applied from a
+ * - Other:  There are WAs that, due to their nature, cananalt be applied from a
  *   central place. Those are peppered around the rest of the code, as needed.
  *   Workarounds related to the display IP are the main example.
  *
  * .. [1] Technically, some registers are powercontext saved & restored, so they
- *    survive a suspend/resume. In practice, writing them again is not too
+ *    survive a suspend/resume. In practice, writing them again is analt too
  *    costly and simplifies things, so it's the approach taken in the driver.
  */
 
@@ -156,7 +156,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*wa),
 				     GFP_KERNEL);
 		if (!list) {
-			drm_err(&i915->drm, "No space for workaround init!\n");
+			drm_err(&i915->drm, "Anal space for workaround init!\n");
 			return;
 		}
 
@@ -360,18 +360,18 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN,
 			 PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
-	/* Use Force Non-Coherent whenever executing a 3D context. This is a
+	/* Use Force Analn-Coherent whenever executing a 3D context. This is a
 	 * workaround for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
-	/* WaForceEnableNonCoherent:bdw,chv */
+	/* WaForceEnableAnalnCoherent:bdw,chv */
 	/* WaHdcDisableFetchWhenMasked:bdw,chv */
 	wa_masked_en(wal, HDC_CHICKEN0,
-		     HDC_DONOT_FETCH_MEM_WHEN_MASKED |
-		     HDC_FORCE_NON_COHERENT);
+		     HDC_DOANALT_FETCH_MEM_WHEN_MASKED |
+		     HDC_FORCE_ANALN_COHERENT);
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
-	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
+	 * "The Hierarchical Z RAW Stall Optimization allows analn-overlapping
 	 *  polygons in the same 8x4 pixel/sample area to be processed without
 	 *  stalling waiting for the earlier ones to write to Hierarchical Z
 	 *  buffer."
@@ -387,7 +387,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * BSpec recommends 8x4 when MSAA is used,
 	 * however in practice 16x4 seems fastest.
 	 *
-	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * Analte that PS/WM thread counts depend on the WIZ hashing
 	 * disable bit, which we don't touch here, but it's good
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
@@ -418,8 +418,8 @@ static void bdw_ctx_workarounds_init(struct intel_engine_cs *engine,
 			 GEN8_SAMPLER_POWER_BYPASS_DIS);
 
 	wa_masked_en(wal, HDC_CHICKEN0,
-		     /* WaForceContextSaveRestoreNonCoherent:bdw */
-		     HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+		     /* WaForceContextSaveRestoreAnalnCoherent:bdw */
+		     HDC_FORCE_CONTEXT_SAVE_RESTORE_ANALN_COHERENT |
 		     /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 		     (IS_BROADWELL_GT3(i915) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 }
@@ -475,27 +475,27 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	wa_mcr_masked_dis(wal, GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
-	/* WaForceContextSaveRestoreNonCoherent:skl,bxt,kbl,cfl */
+	/* WaForceContextSaveRestoreAnalnCoherent:skl,bxt,kbl,cfl */
 	wa_masked_en(wal, HDC_CHICKEN0,
-		     HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
-		     HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE);
+		     HDC_FORCE_CONTEXT_SAVE_RESTORE_ANALN_COHERENT |
+		     HDC_FORCE_CSR_ANALN_COHERENT_OVR_DISABLE);
 
-	/* WaForceEnableNonCoherent and WaDisableHDCInvalidation are
-	 * both tied to WaForceContextSaveRestoreNonCoherent
+	/* WaForceEnableAnalnCoherent and WaDisableHDCInvalidation are
+	 * both tied to WaForceContextSaveRestoreAnalnCoherent
 	 * in some hsds for skl. We keep the tie for all gen9. The
 	 * documentation is a bit hazy and so we want to get common behaviour,
-	 * even though there is no clear evidence we would need both on kbl/bxt.
+	 * even though there is anal clear evidence we would need both on kbl/bxt.
 	 * This area has been source of system hangs so we play it safe
 	 * and mimic the skl regardless of what bspec says.
 	 *
-	 * Use Force Non-Coherent whenever executing a 3D context. This
+	 * Use Force Analn-Coherent whenever executing a 3D context. This
 	 * is a workaround for a possible hang in the unlikely event
 	 * a TLB invalidation occurs during a PSD flush.
 	 */
 
-	/* WaForceEnableNonCoherent:skl,bxt,kbl,cfl */
+	/* WaForceEnableAnalnCoherent:skl,bxt,kbl,cfl */
 	wa_masked_en(wal, HDC_CHICKEN0,
-		     HDC_FORCE_NON_COHERENT);
+		     HDC_FORCE_ANALN_COHERENT);
 
 	/* WaDisableSamplerPowerBypassForSOPingPong:skl,bxt,kbl,cfl */
 	if (IS_SKYLAKE(i915) ||
@@ -515,7 +515,7 @@ static void gen9_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * still able to use more fine-grained preemption levels, since in
 	 * WaEnablePreemptionGranularityControlByUMD we're whitelisting the
 	 * per-ctx register. As such, WaDisable{3D,GPGPU}MidCmdPreemption are
-	 * not real HW workarounds, but merely a way to start using preemption
+	 * analt real HW workarounds, but merely a way to start using preemption
 	 * while maintaining old contract with userspace.
 	 */
 
@@ -640,14 +640,14 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_1406697149 (WaDisableBankHangMode:icl) */
 	wa_write(wal, GEN8_L3CNTLREG, GEN8_ERRDETBCTRL);
 
-	/* WaForceEnableNonCoherent:icl
-	 * This is not the same workaround as in early Gen9 platforms, where
+	/* WaForceEnableAnalnCoherent:icl
+	 * This is analt the same workaround as in early Gen9 platforms, where
 	 * lacking this could cause system hangs, but coherency performance
 	 * overhead is high and only a few compute workloads really need it
-	 * (the register is whitelisted in hardware now, so UMDs can opt in
+	 * (the register is whitelisted in hardware analw, so UMDs can opt in
 	 * for coherency if they have a good reason).
 	 */
-	wa_mcr_masked_en(wal, ICL_HDC_MODE, HDC_FORCE_NON_COHERENT);
+	wa_mcr_masked_en(wal, ICL_HDC_MODE, HDC_FORCE_ANALN_COHERENT);
 
 	/* WaEnableFloatBlendOptimization:icl */
 	wa_mcr_add(wal, GEN10_CACHE_MODE_SS, 0,
@@ -720,16 +720,16 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * need to program it even on those that don't explicitly list that
 	 * workaround.
 	 *
-	 * Note that the programming of GEN12_FF_MODE2 is further modified
+	 * Analte that the programming of GEN12_FF_MODE2 is further modified
 	 * according to the FF_MODE2 guidance given by Wa_1608008084.
 	 * Wa_1608008084 tells us the FF_MODE2 register will return the wrong
 	 * value when read from the CPU.
 	 *
 	 * The default value for this register is zero for all fields.
 	 * So instead of doing a RMW we should just write the desired values
-	 * for TDS and GS timers. Note that since the readback can't be trusted,
-	 * the clear mask is just set to ~0 to make sure other bits are not
-	 * inadvertently set. For the same reason read verification is ignored.
+	 * for TDS and GS timers. Analte that since the readback can't be trusted,
+	 * the clear mask is just set to ~0 to make sure other bits are analt
+	 * inadvertently set. For the same reason read verification is iganalred.
 	 */
 	wa_add(wal,
 	       GEN12_FF_MODE2,
@@ -836,14 +836,14 @@ static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
 	 * tgl+ meaning that breaks backward compatibility, but allows nesting
 	 * into 3rd-level batchbuffers.  When this new capability was first
 	 * added in TGL, it remained off by default unless a context
-	 * intentionally opted in to the new behavior.  However Xe_HPG now
+	 * intentionally opted in to the new behavior.  However Xe_HPG analw
 	 * flips this on by default and requires that we explicitly opt out if
 	 * we don't want the new behavior.
 	 *
 	 * From a SW perspective, we want to maintain the backward-compatible
 	 * behavior for userspace, so we'll apply a fake workaround to set it
 	 * back to the legacy behavior on platforms where the hardware default
-	 * is to break compatibility.  At the moment there is no Linux
+	 * is to break compatibility.  At the moment there is anal Linux
 	 * userspace that utilizes third-level batchbuffers, so this will avoid
 	 * userspace from needing to make any changes.  using the legacy
 	 * meaning is the correct thing to do.  If/when we have userspace
@@ -859,7 +859,7 @@ static void gen12_ctx_gt_mocs_init(struct intel_engine_cs *engine,
 	u8 mocs;
 
 	/*
-	 * Some blitter commands do not have a field for MOCS, those
+	 * Some blitter commands do analt have a field for MOCS, those
 	 * commands will use MOCS index pointed by BLIT_CCTL.
 	 * BLIT_CCTL registers are needed to be programmed to un-cached.
 	 */
@@ -899,7 +899,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	/* Applies to all engines */
 	/*
-	 * Fake workarounds are not the actual workaround but
+	 * Fake workarounds are analt the actual workaround but
 	 * programming of context registers using workaround framework.
 	 */
 	if (GRAPHICS_VER(i915) >= 12)
@@ -911,11 +911,11 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	if (IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 71)))
 		xelpg_ctx_workarounds_init(engine, wal);
 	else if (IS_PONTEVECCHIO(i915))
-		; /* noop; none at this time */
+		; /* analop; analne at this time */
 	else if (IS_DG2(i915))
 		dg2_ctx_workarounds_init(engine, wal);
 	else if (IS_XEHPSDV(i915))
-		; /* noop; none at this time */
+		; /* analop; analne at this time */
 	else if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
 	else if (GRAPHICS_VER(i915) == 12)
@@ -986,7 +986,7 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
 		u32 val;
 
-		/* Skip reading the register if it's not really needed */
+		/* Skip reading the register if it's analt really needed */
 		if (wa->masked_reg || (wa->clr | wa->set) == U32_MAX) {
 			val = wa->set;
 		} else {
@@ -1000,7 +1000,7 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 		*cs++ = i915_mmio_reg_offset(wa->reg);
 		*cs++ = val;
 	}
-	*cs++ = MI_NOOP;
+	*cs++ = MI_ANALOP;
 
 	intel_uncore_forcewake_put__locked(uncore, fw);
 	spin_unlock(&uncore->lock);
@@ -1290,8 +1290,8 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	int i;
 
 	/*
-	 * On Xe_HP the steering increases in complexity. There are now several
-	 * more units that require steering and we're not guaranteed to be able
+	 * On Xe_HP the steering increases in complexity. There are analw several
+	 * more units that require steering and we're analt guaranteed to be able
 	 * to find a common setting for all of them. These are:
 	 * - GSLICE (fusable)
 	 * - DSS (sub-unit within gslice; fusable)
@@ -1309,7 +1309,7 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * a valid sliceid value.  DSS steering is the only type of steering
 	 * that utilizes the 'subsliceid' bits.
 	 *
-	 * Also note that, even though the steering domain is called "GSlice"
+	 * Also analte that, even though the steering domain is called "GSlice"
 	 * and it is encoded in the register using the gslice format, the spec
 	 * says that the combined (geometry | compute) fuse should be used to
 	 * select the steering.
@@ -1377,7 +1377,7 @@ pvc_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	/*
 	 * Setup implicit steering for COMPUTE and DSS ranges to the first
-	 * non-fused-off DSS.  All other types of MCR registers will be
+	 * analn-fused-off DSS.  All other types of MCR registers will be
 	 * explicitly steered.
 	 */
 	dss = intel_sseu_find_first_xehp_dss(&gt->info.sseu, 0, 0);
@@ -1398,7 +1398,7 @@ icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 			 GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
 
 	/* Wa_1405766107:icl
-	 * Formerly known as WaCL2SFHalfMaxAlloc
+	 * Formerly kanalwn as WaCL2SFHalfMaxAlloc
 	 */
 	wa_write_or(wal,
 		    GEN11_LSN_UNSLCVC,
@@ -1406,14 +1406,14 @@ icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 		    GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
 
 	/* Wa_220166154:icl
-	 * Formerly known as WaDisCtxReload
+	 * Formerly kanalwn as WaDisCtxReload
 	 */
 	wa_write_or(wal,
 		    GEN8_GAMW_ECO_DEV_RW_IA,
 		    GAMW_ECO_DEV_CTX_RELOAD_DISABLE);
 
 	/* Wa_1406463099:icl
-	 * Formerly known as WaGamTlbPendError
+	 * Formerly kanalwn as WaGamTlbPendError
 	 */
 	wa_write_or(wal,
 		    GAMT_CHKN_BIT_REG,
@@ -1444,7 +1444,7 @@ icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/*
-	 * This is not a documented workaround, but rather an optimization
+	 * This is analt a documented workaround, but rather an optimization
 	 * to reduce sampler power.
 	 */
 	wa_mcr_write_clr(wal, GEN10_DFR_RATIO_EN_AND_CHICKEN, DFR_DISABLE);
@@ -1489,7 +1489,7 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * Firmware on some gen12 platforms locks the MISCCPCTL register,
 	 * preventing i915 from modifying it for this workaround.  Skip the
 	 * readback verification for this workaround on debug builds; if the
-	 * workaround doesn't stick due to firmware behavior, it's not an error
+	 * workaround doesn't stick due to firmware behavior, it's analt an error
 	 * that we want CI to flag.
 	 */
 	wa_add(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE,
@@ -1523,7 +1523,7 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_18011725039:xehpsdv */
 	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
 		wa_mcr_masked_dis(wal, MLTICTXCTL, TDONRENDER);
-		wa_mcr_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
+		wa_mcr_write_or(wal, L3SQCREG1_CCS0, FLUSHALLANALNCOH);
 	}
 
 	/* Wa_16011155590:xehpsdv */
@@ -1577,7 +1577,7 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 			INVALIDATION_BROADCAST_MODE_DIS | GLOBAL_INVALIDATION_MODE);
 
 	/* Wa_14010670810:xehpsdv */
-	wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
+	wa_mcr_write_or(wal, XEHP_L3ANALDEARBCFG, XEHP_LNESPARE);
 }
 
 static void
@@ -1619,7 +1619,7 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 			INVALIDATION_BROADCAST_MODE_DIS | GLOBAL_INVALIDATION_MODE);
 
 	/* Wa_14010648519:dg2 */
-	wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
+	wa_mcr_write_or(wal, XEHP_L3ANALDEARBCFG, XEHP_LNESPARE);
 }
 
 static void
@@ -1659,7 +1659,7 @@ xelpg_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	}
 
 	/*
-	 * Unlike older platforms, we no longer setup implicit steering here;
+	 * Unlike older platforms, we anal longer setup implicit steering here;
 	 * all MCR accesses are explicitly steered.
 	 */
 	debug_dump_steering(gt);
@@ -1686,7 +1686,7 @@ xelpmp_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * Wa_14018778641
 	 * Wa_18018781329
 	 *
-	 * Note that although these registers are MCR on the primary
+	 * Analte that although these registers are MCR on the primary
 	 * GT, the media GT's versions are regular singleton registers.
 	 */
 	wa_write_or(wal, XELPMP_GSC_MOD_CTRL, FORCE_MISS_FTLB);
@@ -1704,7 +1704,7 @@ xelpmp_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
  * times.
  *
  * The programming in this function is for settings that persist through
- * engine resets and also are not part of any engine's register state context.
+ * engine resets and also are analt part of any engine's register state context.
  * I.e., settings that only need to be re-applied in the event of a full GT
  * reset.
  */
@@ -1901,15 +1901,15 @@ bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 }
 
 __maybe_unused
-static bool is_nonpriv_flags_valid(u32 flags)
+static bool is_analnpriv_flags_valid(u32 flags)
 {
 	/* Check only valid flag bits are set */
-	if (flags & ~RING_FORCE_TO_NONPRIV_MASK_VALID)
+	if (flags & ~RING_FORCE_TO_ANALNPRIV_MASK_VALID)
 		return false;
 
 	/* NB: Only 3 out of 4 enum values are valid for access field */
-	if ((flags & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
-	    RING_FORCE_TO_NONPRIV_ACCESS_INVALID)
+	if ((flags & RING_FORCE_TO_ANALNPRIV_ACCESS_MASK) ==
+	    RING_FORCE_TO_ANALNPRIV_ACCESS_INVALID)
 		return false;
 
 	return true;
@@ -1922,10 +1922,10 @@ whitelist_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 		.reg = reg
 	};
 
-	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
+	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_ANALNPRIV_SLOTS))
 		return;
 
-	if (GEM_DEBUG_WARN_ON(!is_nonpriv_flags_valid(flags)))
+	if (GEM_DEBUG_WARN_ON(!is_analnpriv_flags_valid(flags)))
 		return;
 
 	wa.reg.reg |= flags;
@@ -1940,10 +1940,10 @@ whitelist_mcr_reg_ext(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 flags)
 		.is_mcr = 1,
 	};
 
-	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_NONPRIV_SLOTS))
+	if (GEM_DEBUG_WARN_ON(wal->count >= RING_MAX_ANALNPRIV_SLOTS))
 		return;
 
-	if (GEM_DEBUG_WARN_ON(!is_nonpriv_flags_valid(flags)))
+	if (GEM_DEBUG_WARN_ON(!is_analnpriv_flags_valid(flags)))
 		return;
 
 	wa.mcr_reg.reg |= flags;
@@ -1953,13 +1953,13 @@ whitelist_mcr_reg_ext(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 flags)
 static void
 whitelist_reg(struct i915_wa_list *wal, i915_reg_t reg)
 {
-	whitelist_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_ACCESS_RW);
+	whitelist_reg_ext(wal, reg, RING_FORCE_TO_ANALNPRIV_ACCESS_RW);
 }
 
 static void
 whitelist_mcr_reg(struct i915_wa_list *wal, i915_mcr_reg_t reg)
 {
-	whitelist_mcr_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_ACCESS_RW);
+	whitelist_mcr_reg_ext(wal, reg, RING_FORCE_TO_ANALNPRIV_ACCESS_RW);
 }
 
 static void gen9_whitelist_build(struct i915_wa_list *w)
@@ -2036,15 +2036,15 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 	/*
 	 * WaAllowPMDepthAndInvocationCountAccessFromUMD:cfl,whl,cml,aml
 	 *
-	 * This covers 4 register which are next to one another :
+	 * This covers 4 register which are next to one aanalther :
 	 *   - PS_INVOCATION_COUNT
 	 *   - PS_INVOCATION_COUNT_UDW
 	 *   - PS_DEPTH_COUNT
 	 *   - PS_DEPTH_COUNT_UDW
 	 */
 	whitelist_reg_ext(w, PS_INVOCATION_COUNT,
-			  RING_FORCE_TO_NONPRIV_ACCESS_RD |
-			  RING_FORCE_TO_NONPRIV_RANGE_4);
+			  RING_FORCE_TO_ANALNPRIV_ACCESS_RD |
+			  RING_FORCE_TO_ANALNPRIV_RANGE_4);
 }
 
 static void allow_read_ctx_timestamp(struct intel_engine_cs *engine)
@@ -2054,7 +2054,7 @@ static void allow_read_ctx_timestamp(struct intel_engine_cs *engine)
 	if (engine->class != RENDER_CLASS)
 		whitelist_reg_ext(w,
 				  RING_CTX_TIMESTAMP(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD);
 }
 
 static void cml_whitelist_build(struct intel_engine_cs *engine)
@@ -2084,27 +2084,27 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		/*
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:icl
 		 *
-		 * This covers 4 register which are next to one another :
+		 * This covers 4 register which are next to one aanalther :
 		 *   - PS_INVOCATION_COUNT
 		 *   - PS_INVOCATION_COUNT_UDW
 		 *   - PS_DEPTH_COUNT
 		 *   - PS_DEPTH_COUNT_UDW
 		 */
 		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD |
-				  RING_FORCE_TO_NONPRIV_RANGE_4);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD |
+				  RING_FORCE_TO_ANALNPRIV_RANGE_4);
 		break;
 
 	case VIDEO_DECODE_CLASS:
 		/* hucStatusRegOffset */
 		whitelist_reg_ext(w, _MMIO(0x2000 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD);
 		/* hucUKernelHdrInfoRegOffset */
 		whitelist_reg_ext(w, _MMIO(0x2014 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD);
 		/* hucStatus2RegOffset */
 		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD);
 		break;
 
 	default:
@@ -2124,15 +2124,15 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		 * WaAllowPMDepthAndInvocationCountAccessFromUMD:tgl
 		 * Wa_1408556865:tgl
 		 *
-		 * This covers 4 registers which are next to one another :
+		 * This covers 4 registers which are next to one aanalther :
 		 *   - PS_INVOCATION_COUNT
 		 *   - PS_INVOCATION_COUNT_UDW
 		 *   - PS_DEPTH_COUNT
 		 *   - PS_DEPTH_COUNT_UDW
 		 */
 		whitelist_reg_ext(w, PS_INVOCATION_COUNT,
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD |
-				  RING_FORCE_TO_NONPRIV_RANGE_4);
+				  RING_FORCE_TO_ANALNPRIV_ACCESS_RD |
+				  RING_FORCE_TO_ANALNPRIV_RANGE_4);
 
 		/*
 		 * Wa_1808121037:tgl
@@ -2144,7 +2144,7 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		/* Wa_1806527549:tgl */
 		whitelist_reg(w, HIZ_CHICKEN);
 
-		/* Required by recommended tuning setting (not a workaround) */
+		/* Required by recommended tuning setting (analt a workaround) */
 		whitelist_reg(w, GEN11_COMMON_SLICE_CHICKEN3);
 
 		break;
@@ -2159,7 +2159,7 @@ static void dg2_whitelist_build(struct intel_engine_cs *engine)
 
 	switch (engine->class) {
 	case RENDER_CLASS:
-		/* Required by recommended tuning setting (not a workaround) */
+		/* Required by recommended tuning setting (analt a workaround) */
 		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
 
 		break;
@@ -2174,16 +2174,16 @@ static void blacklist_trtt(struct intel_engine_cs *engine)
 
 	/*
 	 * Prevent read/write access to [0x4400, 0x4600) which covers
-	 * the TRTT range across all engines. Note that normally userspace
-	 * cannot access the other engines' trtt control, but for simplicity
+	 * the TRTT range across all engines. Analte that analrmally userspace
+	 * cananalt access the other engines' trtt control, but for simplicity
 	 * we cover the entire range on each engine.
 	 */
 	whitelist_reg_ext(w, _MMIO(0x4400),
-			  RING_FORCE_TO_NONPRIV_DENY |
-			  RING_FORCE_TO_NONPRIV_RANGE_64);
+			  RING_FORCE_TO_ANALNPRIV_DENY |
+			  RING_FORCE_TO_ANALNPRIV_RANGE_64);
 	whitelist_reg_ext(w, _MMIO(0x4500),
-			  RING_FORCE_TO_NONPRIV_DENY |
-			  RING_FORCE_TO_NONPRIV_RANGE_64);
+			  RING_FORCE_TO_ANALNPRIV_DENY |
+			  RING_FORCE_TO_ANALNPRIV_RANGE_64);
 }
 
 static void pvc_whitelist_build(struct intel_engine_cs *engine)
@@ -2198,7 +2198,7 @@ static void xelpg_whitelist_build(struct intel_engine_cs *engine)
 
 	switch (engine->class) {
 	case RENDER_CLASS:
-		/* Required by recommended tuning setting (not a workaround) */
+		/* Required by recommended tuning setting (analt a workaround) */
 		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
 
 		break;
@@ -2215,7 +2215,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	wa_init_start(w, engine->gt, "whitelist", engine->name);
 
 	if (engine->gt->type == GT_MEDIA)
-		; /* none yet */
+		; /* analne yet */
 	else if (IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 70), IP_VER(12, 71)))
 		xelpg_whitelist_build(engine);
 	else if (IS_PONTEVECCHIO(i915))
@@ -2223,7 +2223,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	else if (IS_DG2(i915))
 		dg2_whitelist_build(engine);
 	else if (IS_XEHPSDV(i915))
-		; /* none needed */
+		; /* analne needed */
 	else if (GRAPHICS_VER(i915) == 12)
 		tgl_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2261,19 +2261,19 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		intel_uncore_write(uncore,
-				   RING_FORCE_TO_NONPRIV(base, i),
+				   RING_FORCE_TO_ANALNPRIV(base, i),
 				   i915_mmio_reg_offset(wa->reg));
 
 	/* And clear the rest just in case of garbage */
-	for (; i < RING_MAX_NONPRIV_SLOTS; i++)
+	for (; i < RING_MAX_ANALNPRIV_SLOTS; i++)
 		intel_uncore_write(uncore,
-				   RING_FORCE_TO_NONPRIV(base, i),
-				   i915_mmio_reg_offset(RING_NOPID(base)));
+				   RING_FORCE_TO_ANALNPRIV(base, i),
+				   i915_mmio_reg_offset(RING_ANALPID(base)));
 }
 
 /*
  * engine_fake_wa_init(), a place holder to program the registers
- * which are not part of an official workaround defined by the
+ * which are analt part of an official workaround defined by the
  * hardware team.
  * Adding programming of those register inside workaround will
  * allow utilizing wa framework to proper application and verification.
@@ -2418,14 +2418,14 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 
 	if (GRAPHICS_VER(i915) == 11) {
-		/* This is not an Wa. Enable for better image quality */
+		/* This is analt an Wa. Enable for better image quality */
 		wa_masked_en(wal,
 			     _3D_CHICKEN3,
 			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
 
 		/*
 		 * Wa_1405543622:icl
-		 * Formerly known as WaGAPZPriorityScheme
+		 * Formerly kanalwn as WaGAPZPriorityScheme
 		 */
 		wa_write_or(wal,
 			    GEN8_GARBCNTL,
@@ -2433,7 +2433,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/*
 		 * Wa_1604223664:icl
-		 * Formerly known as WaL3BankAddressHashing
+		 * Formerly kanalwn as WaL3BankAddressHashing
 		 */
 		wa_write_clr_set(wal,
 				 GEN8_GARBCNTL,
@@ -2446,7 +2446,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/*
 		 * Wa_1405733216:icl
-		 * Formerly known as WaDisableCleanEvicts
+		 * Formerly kanalwn as WaDisableCleanEvicts
 		 */
 		wa_mcr_write_or(wal,
 				GEN8_L3SQCREG4,
@@ -2499,30 +2499,30 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	 *   MI_LOAD_REGISTER_IMMEDIATE instructions placed in a batch buffer)
 	 *   which allows different userspace drivers/clients to select
 	 *   different settings, or to change those settings on the fly in
-	 *   response to runtime needs.  This option was known by name
+	 *   response to runtime needs.  This option was kanalwn by name
 	 *   "FtrPerCtxtPreemptionGranularityControl" at one time, although
-	 *   that name is somewhat misleading as other non-granularity
+	 *   that name is somewhat misleading as other analn-granularity
 	 *   preemption settings are also impacted by this decision.
 	 *
 	 * On Linux, our policy has always been to let userspace drivers
 	 * control preemption granularity/settings (Option 2).  This was
 	 * originally mandatory on gen9 to prevent ABI breakage (old gen9
 	 * userspace developed before object-level preemption was enabled would
-	 * not behave well if i915 were to go with Option 1 and enable that
+	 * analt behave well if i915 were to go with Option 1 and enable that
 	 * preemption in a global manner).  On gen9 each context would have
 	 * object-level preemption disabled by default (see
 	 * WaDisable3DMidCmdPreemption in gen9_ctx_workarounds_init), but
 	 * userspace drivers could opt-in to object-level preemption as they
 	 * saw fit.  For post-gen9 platforms, we continue to utilize Option 2;
-	 * even though it is no longer necessary for ABI compatibility when
+	 * even though it is anal longer necessary for ABI compatibility when
 	 * enabling a new platform, it does ensure that userspace will be able
 	 * to implement any workarounds that show up requiring temporary
 	 * adjustments to preemption behavior at runtime.
 	 *
-	 * Notes/Workarounds:
+	 * Analtes/Workarounds:
 	 *  - Wa_14015141709:  On DG2 and early steppings of MTL,
-	 *      CS_CHICKEN1[0] does not disable object-level preemption as
-	 *      it is supposed to (nor does CS_DEBUG_MODE1[0] if we had been
+	 *      CS_CHICKEN1[0] does analt disable object-level preemption as
+	 *      it is supposed to (analr does CS_DEBUG_MODE1[0] if we had been
 	 *      using Option 1).  Effectively this means userspace is unable
 	 *      to disable object-level preemption on these platforms/steppings
 	 *      despite the setting here.
@@ -2583,9 +2583,9 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 		/* Disable atomics in L3 to prevent unrecoverable hangs */
 		wa_write_clr_set(wal, GEN9_SCRATCH_LNCF1,
-				 GEN9_LNCF_NONIA_COHERENT_ATOMICS_ENABLE, 0);
+				 GEN9_LNCF_ANALNIA_COHERENT_ATOMICS_ENABLE, 0);
 		wa_mcr_write_clr_set(wal, GEN8_L3SQCREG4,
-				     GEN8_LQSQ_NONIA_COHERENT_ATOMICS_ENABLE, 0);
+				     GEN8_LQSQ_ANALNIA_COHERENT_ATOMICS_ENABLE, 0);
 		wa_mcr_write_clr_set(wal, GEN9_SCRATCH1,
 				     EVICTION_PERF_FIX_ENABLE, 0);
 	}
@@ -2683,7 +2683,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * BSpec recommends 8x4 when MSAA is used,
 		 * however in practice 16x4 seems fastest.
 		 *
-		 * Note that PS/WM thread counts depend on the WIZ hashing
+		 * Analte that PS/WM thread counts depend on the WIZ hashing
 		 * disable bit, which we don't touch here, but it's good
 		 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 		 */
@@ -2727,7 +2727,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     /*
 			      * Bspec says:
 			      * "This bit must be set if 3DSTATE_CLIP clip mode is set
-			      * to normal and 3DSTATE_SF number of SF output attributes
+			      * to analrmal and 3DSTATE_SF number of SF output attributes
 			      * is more than 16."
 			      */
 			     _3D_CHICKEN3_SF_DISABLE_PIPELINED_ATTR_FETCH);
@@ -2736,7 +2736,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * BSpec recommends 8x4 when MSAA is used,
 		 * however in practice 16x4 seems fastest.
 		 *
-		 * Note that PS/WM thread counts depend on the WIZ hashing
+		 * Analte that PS/WM thread counts depend on the WIZ hashing
 		 * disable bit, which we don't touch here, but it's good
 		 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 		 */
@@ -2752,7 +2752,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset. LRA replacement
-		 *  policy is not supported."
+		 *  policy is analt supported."
 		 */
 		wa_masked_dis(wal,
 			      CACHE_MODE_0,
@@ -2770,7 +2770,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		/*
 		 * Disable CONSTANT_BUFFER before it is loaded from the context
 		 * image. For as it is loaded, it is executed and the stored
-		 * address may no longer be valid, leading to a GPU hang.
+		 * address may anal longer be valid, leading to a GPU hang.
 		 *
 		 * This imposes the requirement that userspace reload their
 		 * CONSTANT_BUFFER on every batch, fortunately a requirement
@@ -2817,7 +2817,7 @@ ccs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
  * the GuC save/restore lists, re-applied at the right times, and checked for
  * any conflicting programming requested by real workarounds.
  *
- * Programming settings should be added here only if their registers are not
+ * Programming settings should be added here only if their registers are analt
  * part of an engine's register state context.  If a register is part of a
  * context, then any tuning settings should be programmed in an appropriate
  * function invoked by __intel_engine_init_ctx_wa().
@@ -2862,7 +2862,7 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 	add_render_compute_tuning_settings(gt, wal);
 
 	if (GRAPHICS_VER(i915) >= 11) {
-		/* This is not a Wa (although referred to as
+		/* This is analt a Wa (although referred to as
 		 * WaSetInidrectStateOverride in places), this allows
 		 * applications that reference sampler states through
 		 * the BindlessSamplerStateBaseAddress to have their
@@ -2953,7 +2953,7 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 		/*
 		 * Wa_22012654132
 		 *
-		 * Note that register 0xE420 is write-only and cannot be read
+		 * Analte that register 0xE420 is write-only and cananalt be read
 		 * back for verification on DG2 (due to Wa_14012342262), so
 		 * we need to explicitly skip the readback.
 		 */
@@ -3069,8 +3069,8 @@ static bool mcr_range(struct drm_i915_private *i915, u32 offset)
 
 	/*
 	 * Registers in these ranges are affected by the MCR selector
-	 * which only controls CPU initiated MMIO. Routing does not
-	 * work for CS access so we cannot verify them on this path.
+	 * which only controls CPU initiated MMIO. Routing does analt
+	 * work for CS access so we cananalt verify them on this path.
 	 */
 	for (i = 0; mcr_ranges[i].start; i++)
 		if (offset >= mcr_ranges[i].start &&

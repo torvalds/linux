@@ -35,7 +35,7 @@ allOf:
       required:
         - power-domains
         - required-opps
-  - not:
+  - analt:
       required:
         - gpio
         - gpios

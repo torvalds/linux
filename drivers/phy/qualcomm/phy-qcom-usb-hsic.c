@@ -109,7 +109,7 @@ static int qcom_usb_hsic_phy_probe(struct ulpi *ulpi)
 
 	uphy = devm_kzalloc(&ulpi->dev, sizeof(*uphy), GFP_KERNEL);
 	if (!uphy)
-		return -ENOMEM;
+		return -EANALMEM;
 	ulpi_set_drvdata(ulpi, uphy);
 
 	uphy->ulpi = ulpi;
@@ -129,7 +129,7 @@ static int qcom_usb_hsic_phy_probe(struct ulpi *ulpi)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_node,
+	uphy->phy = devm_phy_create(&ulpi->dev, ulpi->dev.of_analde,
 				    &qcom_usb_hsic_phy_ops);
 	if (IS_ERR(uphy->phy))
 		return PTR_ERR(uphy->phy);

@@ -292,7 +292,7 @@ static const struct snd_soc_dai_ops sta529_dai_ops = {
 	.hw_params	=	sta529_hw_params,
 	.set_fmt	=	sta529_set_dai_fmt,
 	.mute_stream	=	sta529_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver sta529_dai = {
@@ -343,7 +343,7 @@ static int sta529_i2c_probe(struct i2c_client *i2c)
 
 	sta529 = devm_kzalloc(&i2c->dev, sizeof(struct sta529), GFP_KERNEL);
 	if (!sta529)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sta529->regmap = devm_regmap_init_i2c(i2c, &sta529_regmap);
 	if (IS_ERR(sta529->regmap)) {

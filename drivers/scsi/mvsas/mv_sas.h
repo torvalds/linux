@@ -32,7 +32,7 @@
 
 #define DRV_NAME		"mvsas"
 #define DRV_VERSION		"0.8.16"
-#define MVS_ID_NOT_MAPPED	0x7f
+#define MVS_ID_ANALT_MAPPED	0x7f
 #define WIDE_PORT_MAX_PHY		4
 #define mv_printk(fmt, arg ...)	\
 	printk(KERN_DEBUG"%s %d:" fmt, __FILE__, __LINE__, ## arg)
@@ -40,7 +40,7 @@
 #define mv_dprintk(format, arg...)	\
 	printk(KERN_DEBUG"%s %d:" format, __FILE__, __LINE__, ## arg)
 #else
-#define mv_dprintk(format, arg...) no_printk(format, ## arg)
+#define mv_dprintk(format, arg...) anal_printk(format, ## arg)
 #endif
 #define MV_MAX_U32			0xffffffff
 
@@ -73,7 +73,7 @@ extern const struct mvs_dispatch mvs_94xx_dispatch;
 	(SATA_RECEIVED_FIS_LIST(reg_set) + 0x00)
 
 enum dev_status {
-	MVS_DEV_NORMAL = 0x0,
+	MVS_DEV_ANALRMAL = 0x0,
 	MVS_DEV_EH	= 0x1,
 };
 
@@ -153,7 +153,7 @@ struct mvs_dispatch {
 	void (*dma_fix)(struct mvs_info *mvi, u32 phy_mask,
 				int buf_len, int from, void *prd);
 	void (*tune_interrupt)(struct mvs_info *mvi, u32 time);
-	void (*non_spec_ncq_error)(struct mvs_info *mvi);
+	void (*analn_spec_ncq_error)(struct mvs_info *mvi);
 	int (*gpio_write)(struct mvs_prv_info *mvs_prv, u8 reg_type,
 			u8 reg_index, u8 reg_count, u8 *write_data);
 
@@ -444,9 +444,9 @@ int mvs_I_T_nexus_reset(struct domain_device *dev);
 int mvs_query_task(struct sas_task *task);
 void mvs_release_task(struct mvs_info *mvi,
 			struct domain_device *dev);
-void mvs_do_release_task(struct mvs_info *mvi, int phy_no,
+void mvs_do_release_task(struct mvs_info *mvi, int phy_anal,
 			struct domain_device *dev);
-void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events);
+void mvs_int_port(struct mvs_info *mvi, int phy_anal, u32 events);
 void mvs_update_phyinfo(struct mvs_info *mvi, int i, int get_st);
 int mvs_int_rx(struct mvs_info *mvi, bool self_clear);
 struct mvs_device *mvs_find_dev_by_reg_set(struct mvs_info *mvi, u8 reg_set);

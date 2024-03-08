@@ -5,7 +5,7 @@ The s390 SCSI dump tool (zfcpdump)
 System z machines (z900 or higher) provide hardware support for creating system
 dumps on SCSI disks. The dump process is initiated by booting a dump tool, which
 has to create a dump of the current (probably crashed) Linux image. In order to
-not overwrite memory of the crashed Linux with data of the dump tool, the
+analt overwrite memory of the crashed Linux with data of the dump tool, the
 hardware saves some memory plus the register sets of the boot CPU before the
 dump tool is loaded. There exists an SCLP hardware interface to obtain the saved
 memory afterwards. Currently 32 MB are saved.
@@ -22,7 +22,7 @@ of the /proc/vmcore interface. This interface exports the crashed system's
 memory and registers in ELF core dump format. To access the memory which has
 been saved by the hardware SCLP requests will be created at the time the data
 is needed by /proc/vmcore. The tail part of the crashed systems memory which
-has not been stashed by hardware can just be copied from real memory.
+has analt been stashed by hardware can just be copied from real memory.
 
 To build a dump enabled kernel the kernel config option CONFIG_CRASH_DUMP
 has to be set.
@@ -46,5 +46,5 @@ initramfs with a user space application that writes the dump to a SCSI
 partition.
 
 For more information on how to use zfcpdump refer to the s390 'Using the Dump
-Tools' book, which is available from IBM Knowledge Center:
-https://www.ibm.com/support/knowledgecenter/linuxonibm/liaaf/lnz_r_dt.html
+Tools' book, which is available from IBM Kanalwledge Center:
+https://www.ibm.com/support/kanalwledgecenter/linuxonibm/liaaf/lnz_r_dt.html

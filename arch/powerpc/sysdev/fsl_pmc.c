@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
@@ -58,9 +58,9 @@ static const struct platform_suspend_ops pmc_suspend_ops = {
 
 static int pmc_probe(struct platform_device *ofdev)
 {
-	pmc_regs = of_iomap(ofdev->dev.of_node, 0);
+	pmc_regs = of_iomap(ofdev->dev.of_analde, 0);
 	if (!pmc_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmc_dev = &ofdev->dev;
 	suspend_set_ops(&pmc_suspend_ops);

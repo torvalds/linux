@@ -23,7 +23,7 @@ static int cpm_gpio_probe(struct platform_device *ofdev)
 	int (*gp_add)(struct device *dev) = of_device_get_match_data(dev);
 
 	if (!gp_add)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return gp_add(dev);
 }

@@ -34,7 +34,7 @@ void test_rdonly_maps(void)
 		return;
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "obj_load", "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	bss_map = bpf_object__find_map_by_name(obj, ".bss");
@@ -48,7 +48,7 @@ void test_rdonly_maps(void)
 			continue;
 
 		prog = bpf_object__find_program_by_name(obj, t->prog_name);
-		if (CHECK(!prog, "find_prog", "prog '%s' not found\n",
+		if (CHECK(!prog, "find_prog", "prog '%s' analt found\n",
 			  t->prog_name))
 			goto cleanup;
 

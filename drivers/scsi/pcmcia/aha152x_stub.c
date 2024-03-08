@@ -8,7 +8,7 @@
     aha152x_cs.c 1.54 2000/06/12 21:27:25
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may analt use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -25,10 +25,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and analt to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the analtice
+    and other provisions required by the GPL.  If you do analt delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
     
@@ -64,14 +64,14 @@
 static int host_id = 7;
 static int reconnect = 1;
 static int parity = 1;
-static int synchronous = 1;
+static int synchroanalus = 1;
 static int reset_delay = 100;
 static int ext_trans = 0;
 
 module_param(host_id, int, 0);
 module_param(reconnect, int, 0);
 module_param(parity, int, 0);
-module_param(synchronous, int, 0);
+module_param(synchroanalus, int, 0);
 module_param(reset_delay, int, 0);
 module_param(ext_trans, int, 0);
 
@@ -96,7 +96,7 @@ static int aha152x_probe(struct pcmcia_device *link)
 
     /* Create new SCSI device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return -ENOMEM;
+    if (!info) return -EANALMEM;
     info->p_dev = link;
     link->priv = info;
 
@@ -168,14 +168,14 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     s.scsiid      = host_id;
     s.reconnect   = reconnect;
     s.parity      = parity;
-    s.synchronous = synchronous;
+    s.synchroanalus = synchroanalus;
     s.delay       = reset_delay;
     if (ext_trans)
         s.ext_trans = ext_trans;
 
     host = aha152x_probe_one(&s);
     if (host == NULL) {
-	printk(KERN_INFO "aha152x_cs: no SCSI devices found\n");
+	printk(KERN_INFO "aha152x_cs: anal SCSI devices found\n");
 	goto failed;
     }
 
@@ -185,7 +185,7 @@ static int aha152x_config_cs(struct pcmcia_device *link)
 
 failed:
     aha152x_release_cs(link);
-    return -ENODEV;
+    return -EANALDEV;
 }
 
 static void aha152x_release_cs(struct pcmcia_device *link)
@@ -207,10 +207,10 @@ static int aha152x_resume(struct pcmcia_device *link)
 
 static const struct pcmcia_device_id aha152x_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("New Media", "SCSI", "Bus Toaster", 0xcdf7e4cc, 0x35f26476, 0xa8851d6e),
-	PCMCIA_DEVICE_PROD_ID123("NOTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID123("ANALTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
 	PCMCIA_DEVICE_PROD_ID12("Adaptec, Inc.", "APA-1460 SCSI Host Adapter", 0x24ba9738, 0x3a3c3d20),
 	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Multimedia Sound/SCSI", 0x085a850b, 0x80a6535c),
-	PCMCIA_DEVICE_PROD_ID12("NOTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD", 0xad89c6e8, 0x5f9a615b),
+	PCMCIA_DEVICE_PROD_ID12("ANALTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD", 0xad89c6e8, 0x5f9a615b),
 	PCMCIA_DEVICE_NULL,
 };
 MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);

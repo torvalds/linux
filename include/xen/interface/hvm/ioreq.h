@@ -10,7 +10,7 @@
 #define IOREQ_READ      1
 #define IOREQ_WRITE     0
 
-#define STATE_IOREQ_NONE        0
+#define STATE_IOREQ_ANALNE        0
 #define STATE_IOREQ_READY       1
 #define STATE_IOREQ_INPROCESS   2
 #define STATE_IORESP_READY      3
@@ -23,7 +23,7 @@
 
 /*
  * VMExit dispatcher should cooperate with instruction decoder to
- * prepare this structure and notify service OS and DM by sending
+ * prepare this structure and analtify service OS and DM by sending
  * virq.
  *
  * For I/O type IOREQ_TYPE_PCI_CONFIG, the physical address is formatted
@@ -37,7 +37,7 @@ struct ioreq {
 	uint64_t data;          /* data (or paddr of data) */
 	uint32_t count;         /* for rep prefixes */
 	uint32_t size;          /* size in bytes */
-	uint32_t vp_eport;      /* evtchn for notifications to/from device model */
+	uint32_t vp_eport;      /* evtchn for analtifications to/from device model */
 	uint16_t _pad0;
 	uint8_t state:4;
 	uint8_t data_is_ptr:1;  /* if 1, data above is the guest paddr

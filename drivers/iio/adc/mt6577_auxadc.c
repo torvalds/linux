@@ -263,7 +263,7 @@ static int mt6577_auxadc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc_dev));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc_dev = iio_priv(indio_dev);
 	indio_dev->name = dev_name(&pdev->dev);

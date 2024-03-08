@@ -13,7 +13,7 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more details.
  ***********************************************************************/
 /*!  \file  octeon_droq.h
  *   \brief Implementation of Octeon Output queues. "Output" is with
@@ -46,7 +46,7 @@ struct octeon_droq_desc {
 
 /** Information about packet DMA'ed by Octeon.
  *  The format of the information available at Info Pointer after Octeon
- *  has posted a packet. Not all descriptors have valid information. Only
+ *  has posted a packet. Analt all descriptors have valid information. Only
  *  the Info field of the first descriptor for a packet has information
  *  about the packet.
  */
@@ -98,11 +98,11 @@ struct oct_droq_stats {
 	/** Bytes received by this queue. */
 	u64 bytes_received;
 
-	/** Packets dropped due to no dispatch function. */
-	u64 dropped_nodispatch;
+	/** Packets dropped due to anal dispatch function. */
+	u64 dropped_analdispatch;
 
-	/** Packets dropped due to no memory available. */
-	u64 dropped_nomem;
+	/** Packets dropped due to anal memory available. */
+	u64 dropped_analmem;
 
 	/** Packets dropped due to large number of pkts to process. */
 	u64 dropped_toomany;
@@ -130,7 +130,7 @@ struct oct_droq_stats {
 #define    MAX_RECV_BUFS    64
 
 /** Receive Packet format used when dispatching output queue packets
- *  with non-raw opcodes.
+ *  with analn-raw opcodes.
  *  The received packet will be sent to the upper layers using this
  *  structure which is passed as a parameter to the dispatch function
  */
@@ -159,7 +159,7 @@ struct octeon_recv_pkt {
 /** The first parameter of a dispatch function.
  *  For a raw mode opcode, the driver dispatches with the device
  *  pointer in this structure.
- *  For non-raw mode opcode, the driver dispatches the recv_pkt
+ *  For analn-raw mode opcode, the driver dispatches the recv_pkt
  *  created to contain the buffers with data received from Octeon.
  *  ---------------------
  *  |     *recv_pkt ----|---
@@ -235,7 +235,7 @@ struct octeon_droq_ops {
 	u32 poll_mode;
 
 	/** Flag indicating if the DROQ handler should drop packets that
-	 *  it cannot handle in one iteration. Set by caller.
+	 *  it cananalt handle in one iteration. Set by caller.
 	 */
 	u32 drop_on_max;
 };
@@ -245,7 +245,7 @@ struct octeon_droq_ops {
  *  Octeon DROQ.
  */
 struct octeon_droq {
-	u32 q_no;
+	u32 q_anal;
 
 	u32 pkt_count;
 
@@ -281,7 +281,7 @@ struct octeon_droq {
 
 	/** The max number of descriptors in DROQ without a buffer.
 	 * This field is used to keep track of empty space threshold. If the
-	 * refill_count reaches this value, the DROQ cannot accept a max-sized
+	 * refill_count reaches this value, the DROQ cananalt accept a max-sized
 	 * (64K) packet.
 	 */
 	u32 max_empty_descs;
@@ -330,12 +330,12 @@ struct octeon_droq {
  *   base addr, num desc etc in Octeon registers.
  *
  * @param  oct_dev    - pointer to the octeon device structure
- * @param  q_no       - droq no. ranges from 0 - 3.
+ * @param  q_anal       - droq anal. ranges from 0 - 3.
  * @param app_ctx     - pointer to application context
  * @return Success: 0    Failure: 1
  */
 int octeon_init_droq(struct octeon_device *oct_dev,
-		     u32 q_no,
+		     u32 q_anal,
 		     u32 num_descs,
 		     u32 desc_size,
 		     void *app_ctx);
@@ -344,36 +344,36 @@ int octeon_init_droq(struct octeon_device *oct_dev,
  *  Frees the space for descriptor ring for the droq.
  *
  *  @param oct_dev - pointer to the octeon device structure
- *  @param q_no    - droq no. ranges from 0 - 3.
+ *  @param q_anal    - droq anal. ranges from 0 - 3.
  *  @return:    Success: 0    Failure: 1
  */
-int octeon_delete_droq(struct octeon_device *oct_dev, u32 q_no);
+int octeon_delete_droq(struct octeon_device *oct_dev, u32 q_anal);
 
 /** Register a change in droq operations. The ops field has a pointer to a
  * function which will called by the DROQ handler for all packets arriving
- * on output queues given by q_no irrespective of the type of packet.
+ * on output queues given by q_anal irrespective of the type of packet.
  * The ops field also has a flag which if set tells the DROQ handler to
  * drop packets if it receives more than what it can process in one
  * invocation of the handler.
  * @param oct       - octeon device
- * @param q_no      - octeon output queue number (0 <= q_no <= MAX_OCTEON_DROQ-1
+ * @param q_anal      - octeon output queue number (0 <= q_anal <= MAX_OCTEON_DROQ-1
  * @param ops       - the droq_ops settings for this queue
- * @return          - 0 on success, -ENODEV or -EINVAL on error.
+ * @return          - 0 on success, -EANALDEV or -EINVAL on error.
  */
 int
 octeon_register_droq_ops(struct octeon_device *oct,
-			 u32 q_no,
+			 u32 q_anal,
 			 struct octeon_droq_ops *ops);
 
 /** Resets the function pointer and flag settings made by
  * octeon_register_droq_ops(). After this routine is called, the DROQ handler
  * will lookup dispatch function for each arriving packet on the output queue
- * given by q_no.
+ * given by q_anal.
  * @param oct       - octeon device
- * @param q_no      - octeon output queue number (0 <= q_no <= MAX_OCTEON_DROQ-1
- * @return          - 0 on success, -ENODEV or -EINVAL on error.
+ * @param q_anal      - octeon output queue number (0 <= q_anal <= MAX_OCTEON_DROQ-1
+ * @return          - 0 on success, -EANALDEV or -EINVAL on error.
  */
-int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no);
+int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_anal);
 
 /**   Register a dispatch function for a opcode/subcode. The driver will call
  *    this dispatch function when it receives a packet with the given
@@ -399,7 +399,7 @@ void octeon_droq_print_stats(void);
 
 u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq);
 
-int octeon_create_droq(struct octeon_device *oct, u32 q_no,
+int octeon_create_droq(struct octeon_device *oct, u32 q_anal,
 		       u32 num_descs, u32 desc_size, void *app_ctx);
 
 int octeon_droq_process_packets(struct octeon_device *oct,
@@ -409,7 +409,7 @@ int octeon_droq_process_packets(struct octeon_device *oct,
 int octeon_droq_process_poll_pkts(struct octeon_device *oct,
 				  struct octeon_droq *droq, u32 budget);
 
-int octeon_enable_irq(struct octeon_device *oct, u32 q_no);
+int octeon_enable_irq(struct octeon_device *oct, u32 q_anal);
 
 int octeon_retry_droq_refill(struct octeon_droq *droq);
 

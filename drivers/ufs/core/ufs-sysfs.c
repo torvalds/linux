@@ -18,7 +18,7 @@ static const char *ufs_pa_pwr_mode_to_string(enum ufs_pa_pwr_mode mode)
 	case SLOW_MODE:		return "SLOW_MODE";
 	case FASTAUTO_MODE:	return "FASTAUTO_MODE";
 	case SLOWAUTO_MODE:	return "SLOWAUTO_MODE";
-	default:		return "UNKNOWN";
+	default:		return "UNKANALWN";
 	}
 }
 
@@ -27,7 +27,7 @@ static const char *ufs_hs_gear_rate_to_string(enum ufs_hs_gear_rate rate)
 	switch (rate) {
 	case PA_HS_MODE_A:	return "HS_RATE_A";
 	case PA_HS_MODE_B:	return "HS_RATE_B";
-	default:		return "UNKNOWN";
+	default:		return "UNKANALWN";
 	}
 }
 
@@ -41,7 +41,7 @@ static const char *ufs_pwm_gear_to_string(enum ufs_pwm_gear_tag gear)
 	case UFS_PWM_G5:	return "PWM_GEAR5";
 	case UFS_PWM_G6:	return "PWM_GEAR6";
 	case UFS_PWM_G7:	return "PWM_GEAR7";
-	default:		return "UNKNOWN";
+	default:		return "UNKANALWN";
 	}
 }
 
@@ -53,7 +53,7 @@ static const char *ufs_hs_gear_to_string(enum ufs_hs_gear_tag gear)
 	case UFS_HS_G3:	return "HS_GEAR3";
 	case UFS_HS_G4:	return "HS_GEAR4";
 	case UFS_HS_G5:	return "HS_GEAR5";
-	default:	return "UNKNOWN";
+	default:	return "UNKANALWN";
 	}
 }
 
@@ -65,7 +65,7 @@ static const char *ufshcd_uic_link_state_to_string(
 	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
 	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
 	case UIC_LINK_BROKEN_STATE:	return "BROKEN";
-	default:			return "UNKNOWN";
+	default:			return "UNKANALWN";
 	}
 }
 
@@ -77,7 +77,7 @@ static const char *ufshcd_ufs_dev_pwr_mode_to_string(
 	case UFS_SLEEP_PWR_MODE:	return "SLEEP";
 	case UFS_POWERDOWN_PWR_MODE:	return "POWERDOWN";
 	case UFS_DEEPSLEEP_PWR_MODE:	return "DEEPSLEEP";
-	default:			return "UNKNOWN";
+	default:			return "UNKANALWN";
 	}
 }
 
@@ -206,7 +206,7 @@ static ssize_t auto_hibern8_show(struct device *dev,
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
 	if (!ufshcd_is_auto_hibern8_supported(hba))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	down(&hba->host_sem);
 	if (!ufshcd_is_user_access_allowed(hba)) {
@@ -236,7 +236,7 @@ static ssize_t auto_hibern8_store(struct device *dev,
 	int ret = 0;
 
 	if (!ufshcd_is_auto_hibern8_supported(hba))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (kstrtouint(buf, 0, &timer))
 		return -EINVAL;
@@ -278,8 +278,8 @@ static ssize_t wb_on_store(struct device *dev, struct device_attribute *attr,
 		 * If the platform supports UFSHCD_CAP_CLK_SCALING, turn WB
 		 * on/off will be done while clock scaling up/down.
 		 */
-		dev_warn(dev, "It is not allowed to configure WB!\n");
-		return -EOPNOTSUPP;
+		dev_warn(dev, "It is analt allowed to configure WB!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (kstrtouint(buf, 0, &wb_enable))
@@ -349,8 +349,8 @@ static ssize_t enable_wb_buf_flush_store(struct device *dev,
 	ssize_t res;
 
 	if (!ufshcd_is_wb_buf_flush_allowed(hba)) {
-		dev_warn(dev, "It is not allowed to configure WB buf flushing!\n");
-		return -EOPNOTSUPP;
+		dev_warn(dev, "It is analt allowed to configure WB buf flushing!\n");
+		return -EOPANALTSUPP;
 	}
 
 	if (kstrtouint(buf, 0, &enable_wb_buf_flush))
@@ -953,9 +953,9 @@ UFS_GEOMETRY_DESC_PARAM(sys_code_memory_max_alloc_units,
 	_SCM_MAX_NUM_UNITS, 4);
 UFS_GEOMETRY_DESC_PARAM(sys_code_memory_capacity_adjustment_factor,
 	_SCM_CAP_ADJ_FCTR, 2);
-UFS_GEOMETRY_DESC_PARAM(non_persist_memory_max_alloc_units,
+UFS_GEOMETRY_DESC_PARAM(analn_persist_memory_max_alloc_units,
 	_NPM_MAX_NUM_UNITS, 4);
-UFS_GEOMETRY_DESC_PARAM(non_persist_memory_capacity_adjustment_factor,
+UFS_GEOMETRY_DESC_PARAM(analn_persist_memory_capacity_adjustment_factor,
 	_NPM_CAP_ADJ_FCTR, 2);
 UFS_GEOMETRY_DESC_PARAM(enh1_memory_max_alloc_units,
 	_ENM1_MAX_NUM_UNITS, 4);
@@ -1000,8 +1000,8 @@ static struct attribute *ufs_sysfs_geometry_descriptor[] = {
 	&dev_attr_memory_types.attr,
 	&dev_attr_sys_code_memory_max_alloc_units.attr,
 	&dev_attr_sys_code_memory_capacity_adjustment_factor.attr,
-	&dev_attr_non_persist_memory_max_alloc_units.attr,
-	&dev_attr_non_persist_memory_capacity_adjustment_factor.attr,
+	&dev_attr_analn_persist_memory_max_alloc_units.attr,
+	&dev_attr_analn_persist_memory_capacity_adjustment_factor.attr,
 	&dev_attr_enh1_memory_max_alloc_units.attr,
 	&dev_attr_enh1_memory_capacity_adjustment_factor.attr,
 	&dev_attr_enh2_memory_max_alloc_units.attr,
@@ -1176,7 +1176,7 @@ static ssize_t _name##_show(struct device *dev,				\
 	desc_buf = kzalloc(QUERY_DESC_MAX_SIZE, GFP_ATOMIC);		\
 	if (!desc_buf) {						\
 		up(&hba->host_sem);					\
-		return -ENOMEM;						\
+		return -EANALMEM;						\
 	}								\
 	ufshcd_rpm_get_sync(hba);					\
 	ret = ufshcd_query_descriptor_retry(hba,			\
@@ -1455,7 +1455,7 @@ static umode_t ufs_unit_descriptor_is_visible(struct kobject *kobj, struct attri
 	umode_t mode = attr->mode;
 
 	if (lun == UFS_UPIU_BOOT_WLUN || lun == UFS_UPIU_UFS_DEVICE_WLUN)
-		/* Boot and device WLUN have no unit descriptors */
+		/* Boot and device WLUN have anal unit descriptors */
 		mode = 0;
 	if (lun == UFS_UPIU_RPMB_WLUN && attr == &dev_attr_wb_buf_alloc_units.attr)
 		mode = 0;
@@ -1511,7 +1511,7 @@ const struct attribute_group ufs_sysfs_lun_attributes_group = {
 	.attrs = ufs_sysfs_lun_attributes,
 };
 
-void ufs_sysfs_add_nodes(struct device *dev)
+void ufs_sysfs_add_analdes(struct device *dev)
 {
 	int ret;
 
@@ -1522,7 +1522,7 @@ void ufs_sysfs_add_nodes(struct device *dev)
 			__func__, ret);
 }
 
-void ufs_sysfs_remove_nodes(struct device *dev)
+void ufs_sysfs_remove_analdes(struct device *dev)
 {
 	sysfs_remove_groups(&dev->kobj, ufs_sysfs_groups);
 }

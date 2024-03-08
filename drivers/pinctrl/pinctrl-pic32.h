@@ -3,7 +3,7 @@
  * PIC32 pinctrl driver
  *
  * Joshua Henderson, <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #ifndef PINCTRL_PINCTRL_PIC32_H
 #define PINCTRL_PINCTRL_PIC32_H

@@ -318,7 +318,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 block, u32 stage)
  * between the virtual queues in the chip.
  *
  * The values were derived for each PCI max payload and max request size.
- * since max payload and max request size are only known at run time,
+ * since max payload and max request size are only kanalwn at run time,
  * this is done as a separate init stage.
  */
 
@@ -716,7 +716,7 @@ static void bnx2x_ilt_boundry_init_op(struct bnx2x *bp,
 	u32 end_reg = 0;
 
 	/* The boundary is either SET or INIT,
-	   CLEAR => SET and for now SET ~~ INIT */
+	   CLEAR => SET and for analw SET ~~ INIT */
 
 	/* find the appropriate regs */
 	if (CHIP_IS_E1(bp)) {

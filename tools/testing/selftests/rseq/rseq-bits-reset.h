@@ -2,7 +2,7 @@
 /*
  * rseq-bits-reset.h
  *
- * (C) Copyright 2016-2022 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2022 - Mathieu Desanalyers <mathieu.desanalyers@efficios.com>
  */
 
 #undef RSEQ_TEMPLATE_IDENTIFIER

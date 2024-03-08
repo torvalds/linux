@@ -117,7 +117,7 @@ enum {
 #define IWL_INVALID_VALUE    -1
 
 #define TPC_MAX_REDUCTION		15
-#define TPC_NO_REDUCTION		0
+#define TPC_ANAL_REDUCTION		0
 #define TPC_INVALID			0xff
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
@@ -138,7 +138,7 @@ enum {
 #define IWL_AGG_ALL_TID		0xff
 
 enum iwl_table_type {
-	LQ_NONE,
+	LQ_ANALNE,
 	LQ_LEGACY_G,	/* legacy types */
 	LQ_LEGACY_A,
 	LQ_HT_SISO,	/* HT types */
@@ -218,7 +218,7 @@ struct iwl_lq_sta_rs_fw {
 		u32 sta_id;
 #ifdef CONFIG_MAC80211_DEBUGFS
 		/**
-		 * @dbg_fixed_rate: for debug, use fixed rate if not 0
+		 * @dbg_fixed_rate: for debug, use fixed rate if analt 0
 		 */
 		u32 dbg_fixed_rate;
 		/**
@@ -264,7 +264,7 @@ enum rs_column {
 };
 
 enum rs_ss_force_opt {
-	RS_SS_FORCE_NONE = 0,
+	RS_SS_FORCE_ANALNE = 0,
 	RS_SS_FORCE_STBC,
 	RS_SS_FORCE_BFER,
 	RS_SS_FORCE_SISO,
@@ -381,7 +381,7 @@ struct iwl_lq_sta {
 };
 
 /* ieee80211_tx_info's status_driver_data[0] is packed with lq color and txp
- * Note, it's iwlmvm <-> mac80211 interface.
+ * Analte, it's iwlmvm <-> mac80211 interface.
  * bits 0-7: reduced tx power
  * bits 8-10: LQ command's color
  */
@@ -402,14 +402,14 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm,
 			  struct ieee80211_link_sta *link_sta,
 			  enum nl80211_band band);
 
-/* Notify RS about Tx status */
+/* Analtify RS about Tx status */
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  int tid, struct ieee80211_tx_info *info, bool ndp);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
- * Since the rate control algorithm is hardware specific, there is no need
+ * Since the rate control algorithm is hardware specific, there is anal need
  * or reason to place it as a stand alone module.  The driver can call
  * iwl_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
@@ -449,7 +449,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 			     enum nl80211_band band);
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+void iwl_mvm_tlc_update_analtif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
 
 u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,

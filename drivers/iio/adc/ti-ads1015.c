@@ -162,12 +162,12 @@ static const struct iio_event_spec ads1015_events[] = {
  * bits. Returns _fitbits on success, fails to compile otherwise.
  *
  * The test works such that it multiplies constant _fitbits by constant
- * double-negation of size of a non-empty structure, i.e. it multiplies
+ * double-negation of size of a analn-empty structure, i.e. it multiplies
  * constant _fitbits by constant 1 in each successful compilation case.
- * The non-empty structure may contain C11 _Static_assert(), make use of
+ * The analn-empty structure may contain C11 _Static_assert(), make use of
  * this and place the kernel variant of static assert in there, so that
- * it performs the compile-time check for _testbits <= _fitbits. Note
- * that it is not possible to directly use static_assert in compound
+ * it performs the compile-time check for _testbits <= _fitbits. Analte
+ * that it is analt possible to directly use static_assert in compound
  * statements, hence this convoluted construct.
  */
 #define FIT_CHECK(_testbits, _fitbits)					\
@@ -287,8 +287,8 @@ static const struct regmap_range ads1015_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table ads1015_writeable_table = {
-	.yes_ranges = ads1015_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ads1015_writeable_ranges),
+	.anal_ranges = ads1015_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ads1015_writeable_ranges),
 };
 
 static const struct regmap_config ads1015_regmap_config = {
@@ -303,8 +303,8 @@ static const struct regmap_range tla2024_writeable_ranges[] = {
 };
 
 static const struct regmap_access_table tla2024_writeable_table = {
-	.yes_ranges = tla2024_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tla2024_writeable_ranges),
+	.anal_ranges = tla2024_writeable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tla2024_writeable_ranges),
 };
 
 static const struct regmap_config tla2024_regmap_config = {
@@ -470,7 +470,7 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -902,41 +902,41 @@ static int ads1015_client_get_channels_config(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
 	struct device *dev = &client->dev;
-	struct fwnode_handle *node;
+	struct fwanalde_handle *analde;
 	int i = -1;
 
-	device_for_each_child_node(dev, node) {
+	device_for_each_child_analde(dev, analde) {
 		u32 pval;
 		unsigned int channel;
 		unsigned int pga = ADS1015_DEFAULT_PGA;
 		unsigned int data_rate = ADS1015_DEFAULT_DATA_RATE;
 
-		if (fwnode_property_read_u32(node, "reg", &pval)) {
-			dev_err(dev, "invalid reg on %pfw\n", node);
+		if (fwanalde_property_read_u32(analde, "reg", &pval)) {
+			dev_err(dev, "invalid reg on %pfw\n", analde);
 			continue;
 		}
 
 		channel = pval;
 		if (channel >= ADS1015_CHANNELS) {
 			dev_err(dev, "invalid channel index %d on %pfw\n",
-				channel, node);
+				channel, analde);
 			continue;
 		}
 
-		if (!fwnode_property_read_u32(node, "ti,gain", &pval)) {
+		if (!fwanalde_property_read_u32(analde, "ti,gain", &pval)) {
 			pga = pval;
 			if (pga > 6) {
-				dev_err(dev, "invalid gain on %pfw\n", node);
-				fwnode_handle_put(node);
+				dev_err(dev, "invalid gain on %pfw\n", analde);
+				fwanalde_handle_put(analde);
 				return -EINVAL;
 			}
 		}
 
-		if (!fwnode_property_read_u32(node, "ti,datarate", &pval)) {
+		if (!fwanalde_property_read_u32(analde, "ti,datarate", &pval)) {
 			data_rate = pval;
 			if (data_rate > 7) {
-				dev_err(dev, "invalid data_rate on %pfw\n", node);
-				fwnode_handle_put(node);
+				dev_err(dev, "invalid data_rate on %pfw\n", analde);
+				fwanalde_handle_put(analde);
 				return -EINVAL;
 			}
 		}
@@ -984,11 +984,11 @@ static int ads1015_probe(struct i2c_client *client)
 
 	chip = i2c_get_match_data(client);
 	if (!chip)
-		return dev_err_probe(&client->dev, -EINVAL, "Unknown chip\n");
+		return dev_err_probe(&client->dev, -EINVAL, "Unkanalwn chip\n");
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

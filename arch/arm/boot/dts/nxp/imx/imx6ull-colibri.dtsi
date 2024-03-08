@@ -323,7 +323,7 @@
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>; /* MMC_CD */
 	disable-wp;
 	keep-power-in-suspend;
-	no-1-8-v;
+	anal-1-8-v;
 	vqmmc-supply = <&reg_sd1_vqmmc>;
 	wakeup-source;
 };

@@ -4,8 +4,8 @@
  *
  * Silicon Labs Si4713 FM Radio Transmitter I2C commands.
  *
- * Copyright (c) 2009 Nokia Corporation
- * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
+ * Copyright (c) 2009 Analkia Corporation
+ * Contact: Eduardo Valentin <eduardo.valentin@analkia.com>
  */
 
 #include <linux/completion.h>
@@ -28,7 +28,7 @@ module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level (0 - 2)");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@nokia.com>");
+MODULE_AUTHOR("Eduardo Valentin <eduardo.valentin@analkia.com>");
 MODULE_DESCRIPTION("I2C driver for Si4713 FM Radio Transmitter");
 MODULE_VERSION("0.0.1");
 
@@ -200,7 +200,7 @@ static int si4713_send_command(struct si4713_device *sdev, const u8 command,
 	int err;
 
 	if (!client->adapter)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* First send the command and its arguments */
 	data1[0] = command;
@@ -324,7 +324,7 @@ static int si4713_write_property(struct si4713_device *sdev, u16 prop, u16 val)
 			__func__, prop, val, resp[0]);
 
 	/*
-	 * As there is no command response for SET_PROPERTY,
+	 * As there is anal command response for SET_PROPERTY,
 	 * wait Tcomp time to finish before proceed, in order
 	 * to have property properly set.
 	 */
@@ -616,7 +616,7 @@ static int si4713_tx_tune_power(struct si4713_device *sdev, u8 power,
 }
 
 /*
- * si4713_tx_tune_measure - Enters receive mode and measures the received noise
+ * si4713_tx_tune_measure - Enters receive mode and measures the received analise
  *			level in units of dBuV on the selected frequency.
  *			The Frequency must be between 76 and 108 MHz in 10 kHz
  *			units and steps of 50 kHz. The command also sets the
@@ -668,7 +668,7 @@ static int si4713_tx_tune_measure(struct si4713_device *sdev, u16 frequency,
  * si4713_tx_tune_status- Returns the status of the tx_tune_freq, tx_tune_mea or
  *			tx_tune_power commands. This command return the current
  *			frequency, output voltage in dBuV, the antenna tunning
- *			capacitance value and the received noise level. The
+ *			capacitance value and the received analise level. The
  *			command also clears the stcint interrupt bit when the
  *			first bit of its arguments is high.
  * @sdev: si4713_device structure for the device we are communicating
@@ -676,11 +676,11 @@ static int si4713_tx_tune_measure(struct si4713_device *sdev, u16 frequency,
  * @frequency: returned frequency
  * @power: returned power
  * @antcap: returned antenna capacitance
- * @noise: returned noise level
+ * @analise: returned analise level
  */
 static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 					u16 *frequency,	u8 *power,
-					u8 *antcap, u8 *noise)
+					u8 *antcap, u8 *analise)
 {
 	int err;
 	u8 val[SI4713_TXSTATUS_NRESP];
@@ -702,10 +702,10 @@ static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 		sdev->frequency = *frequency;
 		*power = val[5];
 		*antcap = val[6];
-		*noise = val[7];
+		*analise = val[7];
 		v4l2_dbg(1, debug, &sdev->sd,
 			 "%s: response: %d x 10 kHz (power %d, antcap %d, rnl %d)\n",
-			 __func__, *frequency, *power, *antcap, *noise);
+			 __func__, *frequency, *power, *antcap, *analise);
 	}
 
 	return err;
@@ -911,7 +911,7 @@ static int si4713_update_tune_status(struct si4713_device *sdev)
 	if (rval < 0)
 		goto exit;
 
-/*	TODO: check that power_level and antenna_capacitor really are not
+/*	TODO: check that power_level and antenna_capacitor really are analt
 	changed by the hardware. If they are, then these controls should become
 	volatiles.
 	sdev->power_level = p;
@@ -983,7 +983,7 @@ static int si4713_choose_econtrol_action(struct si4713_device *sdev, u32 id,
 		*bit = 13;
 		*mask = 1 << 13;
 		break;
-	case V4L2_CID_RDS_TX_MONO_STEREO:
+	case V4L2_CID_RDS_TX_MOANAL_STEREO:
 		*property = SI4713_TX_RDS_PS_MISC;
 		*bit = 12;
 		*mask = 1 << 12;
@@ -993,7 +993,7 @@ static int si4713_choose_econtrol_action(struct si4713_device *sdev, u32 id,
 		*bit = 10;
 		*mask = 1 << 10;
 		break;
-	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT:
+	case V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT:
 		*property = SI4713_TX_RDS_PS_MISC;
 		*bit = 4;
 		*mask = 1 << 4;
@@ -1065,7 +1065,7 @@ static int si4713_setup(struct si4713_device *sdev)
 	if (sdev->stereo)
 		vm.txsubchans = V4L2_TUNER_SUB_STEREO;
 	else
-		vm.txsubchans = V4L2_TUNER_SUB_MONO;
+		vm.txsubchans = V4L2_TUNER_SUB_MOANAL;
 	if (sdev->rds_enabled)
 		vm.txsubchans |= V4L2_TUNER_SUB_RDS;
 	si4713_s_modulator(&sdev->sd, &vm);
@@ -1215,7 +1215,7 @@ static int si4713_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-/* si4713_ioctl - deal with private ioctls (only rnl for now) */
+/* si4713_ioctl - deal with private ioctls (only rnl for analw) */
 static long si4713_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct si4713_device *sdev = to_si4713_device(sd);
@@ -1244,8 +1244,8 @@ static long si4713_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 
 	default:
-		/* nothing */
-		rval = -ENOIOCTLCMD;
+		/* analthing */
+		rval = -EANALIOCTLCMD;
 	}
 
 	return rval;
@@ -1258,7 +1258,7 @@ static int si4713_g_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 	int rval = 0;
 
 	if (!sdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vm->index > 0)
 		return -EINVAL;
@@ -1282,11 +1282,11 @@ static int si4713_g_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 		sdev->stereo = get_status_bit(comp_en, 1, 1 << 1);
 	}
 
-	/* Report current audio mode: mono or stereo */
+	/* Report current audio mode: moanal or stereo */
 	if (sdev->stereo)
 		vm->txsubchans = V4L2_TUNER_SUB_STEREO;
 	else
-		vm->txsubchans = V4L2_TUNER_SUB_MONO;
+		vm->txsubchans = V4L2_TUNER_SUB_MOANAL;
 
 	/* Report rds feature status */
 	if (sdev->rds_enabled)
@@ -1306,15 +1306,15 @@ static int si4713_s_modulator(struct v4l2_subdev *sd, const struct v4l2_modulato
 	u32 p;
 
 	if (!sdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (vm->index > 0)
 		return -EINVAL;
 
-	/* Set audio mode: mono or stereo */
+	/* Set audio mode: moanal or stereo */
 	if (vm->txsubchans & V4L2_TUNER_SUB_STEREO)
 		stereo = 1;
-	else if (vm->txsubchans & V4L2_TUNER_SUB_MONO)
+	else if (vm->txsubchans & V4L2_TUNER_SUB_MOANAL)
 		stereo = 0;
 	else
 		return -EINVAL;
@@ -1432,7 +1432,7 @@ static int si4713_probe(struct i2c_client *client)
 	struct si4713_device *sdev;
 	struct v4l2_ctrl_handler *hdl;
 	struct si4713_platform_data *pdata = client->dev.platform_data;
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct radio_si4713_platform_data si4713_pdev_pdata;
 	struct platform_device *si4713_pdev;
 	int rval;
@@ -1440,7 +1440,7 @@ static int si4713_probe(struct i2c_client *client)
 	sdev = devm_kzalloc(&client->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(&client->dev, "Failed to alloc video device.\n");
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto exit;
 	}
 
@@ -1458,7 +1458,7 @@ static int si4713_probe(struct i2c_client *client)
 		if (rval == -EPROBE_DEFER)
 			goto exit;
 
-		dev_dbg(&client->dev, "no vdd regulator found: %d\n", rval);
+		dev_dbg(&client->dev, "anal vdd regulator found: %d\n", rval);
 		sdev->vdd = NULL;
 	}
 
@@ -1468,7 +1468,7 @@ static int si4713_probe(struct i2c_client *client)
 		if (rval == -EPROBE_DEFER)
 			goto exit;
 
-		dev_dbg(&client->dev, "no vio regulator found: %d\n", rval);
+		dev_dbg(&client->dev, "anal vio regulator found: %d\n", rval);
 		sdev->vio = NULL;
 	}
 
@@ -1490,11 +1490,11 @@ static int si4713_probe(struct i2c_client *client)
 	sdev->rds_art_head = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_RDS_TX_ARTIFICIAL_HEAD, 0, 1, 1, 0);
 	sdev->rds_stereo = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
-			V4L2_CID_RDS_TX_MONO_STEREO, 0, 1, 1, 1);
+			V4L2_CID_RDS_TX_MOANAL_STEREO, 0, 1, 1, 1);
 	sdev->rds_tp = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_RDS_TX_TRAFFIC_PROGRAM, 0, 1, 1, 0);
 	sdev->rds_ta = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
-			V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT, 0, 1, 1, 0);
+			V4L2_CID_RDS_TX_TRAFFIC_ANANALUNCEMENT, 0, 1, 1, 0);
 	sdev->rds_ms = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
 			V4L2_CID_RDS_TX_MUSIC_SPEECH, 0, 1, 1, 1);
 	sdev->rds_dyn_pty = v4l2_ctrl_new_std(hdl, &si4713_ctrl_ops,
@@ -1576,12 +1576,12 @@ static int si4713_probe(struct i2c_client *client)
 			si4713_handler, IRQF_TRIGGER_FALLING,
 			client->name, sdev);
 		if (rval < 0) {
-			v4l2_err(&sdev->sd, "Could not request IRQ\n");
+			v4l2_err(&sdev->sd, "Could analt request IRQ\n");
 			goto free_ctrls;
 		}
 		v4l2_dbg(1, debug, &sdev->sd, "IRQ requested.\n");
 	} else {
-		v4l2_warn(&sdev->sd, "IRQ not configured. Using timeouts.\n");
+		v4l2_warn(&sdev->sd, "IRQ analt configured. Using timeouts.\n");
 	}
 
 	rval = si4713_initialize(sdev);
@@ -1595,7 +1595,7 @@ static int si4713_probe(struct i2c_client *client)
 
 	si4713_pdev = platform_device_alloc("radio-si4713", -1);
 	if (!si4713_pdev) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto put_main_pdev;
 	}
 

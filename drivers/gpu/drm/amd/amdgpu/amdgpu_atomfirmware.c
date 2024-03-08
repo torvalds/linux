@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -41,7 +41,7 @@ union firmware_info {
  *
  * @adev: amdgpu_device pointer
  *
- * Return firmware_capability in firmwareinfo table on success or 0 if not
+ * Return firmware_capability in firmwareinfo table on success or 0 if analt
  */
 uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *adev)
 {
@@ -73,7 +73,7 @@ uint32_t amdgpu_atomfirmware_query_firmware_capability(struct amdgpu_device *ade
  *
  * @adev: amdgpu_device pointer
  *
- * Return true if gpu virtualization is supported or false if not
+ * Return true if gpu virtualization is supported or false if analt
  */
 bool amdgpu_atomfirmware_gpu_virtualization_supported(struct amdgpu_device *adev)
 {
@@ -148,7 +148,7 @@ static int amdgpu_atomfirmware_allocate_fb_v2_2(struct amdgpu_device *adev,
 			  drv_size);
 
 	if (amdgpu_sriov_vf(adev) &&
-	    ((fw_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION <<
+	    ((fw_start_addr & (ATOM_VRAM_BLOCK_NEEDS_ANAL_RESERVATION <<
 		ATOM_VRAM_OPERATION_FLAGS_SHIFT)) == 0)) {
 		/* Firmware request VRAM reservation for SR-IOV */
 		adev->mman.fw_vram_usage_start_offset = (fw_start_addr &
@@ -157,7 +157,7 @@ static int amdgpu_atomfirmware_allocate_fb_v2_2(struct amdgpu_device *adev,
 	}
 
 	if (amdgpu_sriov_vf(adev) &&
-	    ((drv_start_addr & (ATOM_VRAM_BLOCK_NEEDS_NO_RESERVATION <<
+	    ((drv_start_addr & (ATOM_VRAM_BLOCK_NEEDS_ANAL_RESERVATION <<
 		ATOM_VRAM_OPERATION_FLAGS_SHIFT)) == 0)) {
 		/* driver request VRAM reservation for SR-IOV */
 		adev->mman.drv_vram_usage_start_offset = (drv_start_addr &
@@ -202,7 +202,7 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 	/* allocate some scratch memory */
 	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
 	if (!ctx->scratch)
-		return -ENOMEM;
+		return -EANALMEM;
 	ctx->scratch_size_bytes = usage_bytes;
 	return 0;
 }
@@ -263,7 +263,7 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 			vram_type = AMDGPU_VRAM_TYPE_LPDDR5;
 			break;
 		default:
-			vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+			vram_type = AMDGPU_VRAM_TYPE_UNKANALWN;
 			break;
 		}
 	} else {
@@ -280,7 +280,7 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 			vram_type = AMDGPU_VRAM_TYPE_GDDR6;
 			break;
 		default:
-			vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+			vram_type = AMDGPU_VRAM_TYPE_UNKANALWN;
 			break;
 		}
 	}
@@ -491,7 +491,7 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 
 /*
  * Return true if vbios enabled ecc by default, if umc info table is available
- * or false if ecc is not enabled or umc info table is not available
+ * or false if ecc is analt enabled or umc info table is analt available
  */
 bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
 {
@@ -558,7 +558,7 @@ bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Return true if vbios supports sram ecc or false if not
+ * Return true if vbios supports sram ecc or false if analt
  */
 bool amdgpu_atomfirmware_sram_ecc_supported(struct amdgpu_device *adev)
 {
@@ -574,7 +574,7 @@ bool amdgpu_atomfirmware_sram_ecc_supported(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Return true if vbios supports dynamic boot config or false if not
+ * Return true if vbios supports dynamic boot config or false if analt
  */
 bool amdgpu_atomfirmware_dynamic_boot_config_supported(struct amdgpu_device *adev)
 {
@@ -588,11 +588,11 @@ bool amdgpu_atomfirmware_dynamic_boot_config_supported(struct amdgpu_device *ade
 /**
  * amdgpu_atomfirmware_ras_rom_addr -- Get the RAS EEPROM addr from VBIOS
  * @adev: amdgpu_device pointer
- * @i2c_address: pointer to u8; if not NULL, will contain
+ * @i2c_address: pointer to u8; if analt NULL, will contain
  *    the RAS EEPROM address if the function returns true
  *
  * Return true if VBIOS supports RAS EEPROM address reporting,
- * else return false. If true and @i2c_address is not NULL,
+ * else return false. If true and @i2c_address is analt NULL,
  * will contain the RAS ROM address.
  */
 bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev,
@@ -624,7 +624,7 @@ bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev,
 			 * we'll drop the first "if (firm...)" and only
 			 * leave the check for the pointer.
 			 *
-			 * The reason this works right now is because
+			 * The reason this works right analw is because
 			 * ras_rom_i2c_slave_addr contains the EEPROM
 			 * device type qualifier 1010b in the top 4
 			 * bits.
@@ -834,7 +834,7 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Return true if two stage mem training is supported or false if not
+ * Return true if two stage mem training is supported or false if analt
  */
 bool amdgpu_atomfirmware_mem_training_supported(struct amdgpu_device *adev)
 {
@@ -884,7 +884,7 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
  * Helper function to execute asic_init table
  *
  * @adev: amdgpu_device pointer
- * @fb_reset: flag to indicate whether fb is reset or not
+ * @fb_reset: flag to indicate whether fb is reset or analt
  *
  * Return 0 if succeed, otherwise failed
  */
@@ -929,7 +929,7 @@ int amdgpu_atomfirmware_asic_init(struct amdgpu_device *adev, bool fb_reset)
 			memset(&asic_init_ps_v2_1, 0, sizeof(asic_init_ps_v2_1));
 			asic_init_ps_v2_1.param.engineparam.sclkfreqin10khz = bootup_sclk_in10khz;
 			asic_init_ps_v2_1.param.memparam.mclkfreqin10khz = bootup_mclk_in10khz;
-			asic_init_ps_v2_1.param.engineparam.engineflag = b3NORMAL_ENGINE_INIT;
+			asic_init_ps_v2_1.param.engineparam.engineflag = b3ANALRMAL_ENGINE_INIT;
 			if (!fb_reset)
 				asic_init_ps_v2_1.param.memparam.memflag = b3DRAM_SELF_REFRESH_EXIT;
 			else

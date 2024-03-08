@@ -39,8 +39,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 	return (*ptr & (0x80000000u >> nr)) != 0;
 }
 
-#define AP_RESPONSE_NORMAL		     0x00
-#define AP_RESPONSE_Q_NOT_AVAIL		     0x01
+#define AP_RESPONSE_ANALRMAL		     0x00
+#define AP_RESPONSE_Q_ANALT_AVAIL		     0x01
 #define AP_RESPONSE_RESET_IN_PROGRESS	     0x02
 #define AP_RESPONSE_DECONFIGURED	     0x03
 #define AP_RESPONSE_CHECKSTOPPED	     0x04
@@ -48,21 +48,21 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESPONSE_INVALID_ADDRESS	     0x06
 #define AP_RESPONSE_OTHERWISE_CHANGED	     0x07
 #define AP_RESPONSE_INVALID_GISA	     0x08
-#define AP_RESPONSE_Q_BOUND_TO_ANOTHER	     0x09
+#define AP_RESPONSE_Q_BOUND_TO_AANALTHER	     0x09
 #define AP_RESPONSE_STATE_CHANGE_IN_PROGRESS 0x0A
-#define AP_RESPONSE_Q_NOT_BOUND		     0x0B
+#define AP_RESPONSE_Q_ANALT_BOUND		     0x0B
 #define AP_RESPONSE_Q_FULL		     0x10
-#define AP_RESPONSE_NO_PENDING_REPLY	     0x10
+#define AP_RESPONSE_ANAL_PENDING_REPLY	     0x10
 #define AP_RESPONSE_INDEX_TOO_BIG	     0x11
-#define AP_RESPONSE_NO_FIRST_PART	     0x13
+#define AP_RESPONSE_ANAL_FIRST_PART	     0x13
 #define AP_RESPONSE_MESSAGE_TOO_BIG	     0x15
-#define AP_RESPONSE_REQ_FAC_NOT_INST	     0x16
+#define AP_RESPONSE_REQ_FAC_ANALT_INST	     0x16
 #define AP_RESPONSE_Q_BIND_ERROR	     0x30
-#define AP_RESPONSE_Q_NOT_AVAIL_FOR_ASSOC    0x31
-#define AP_RESPONSE_Q_NOT_EMPTY		     0x32
+#define AP_RESPONSE_Q_ANALT_AVAIL_FOR_ASSOC    0x31
+#define AP_RESPONSE_Q_ANALT_EMPTY		     0x32
 #define AP_RESPONSE_BIND_LIMIT_EXCEEDED	     0x33
 #define AP_RESPONSE_INVALID_ASSOC_SECRET     0x34
-#define AP_RESPONSE_ASSOC_SECRET_NOT_UNIQUE  0x35
+#define AP_RESPONSE_ASSOC_SECRET_ANALT_UNIQUE  0x35
 #define AP_RESPONSE_ASSOC_FAILED	     0x36
 #define AP_RESPONSE_INVALID_DOMAIN	     0x42
 
@@ -106,7 +106,7 @@ enum ap_sm_wait {
 	AP_SM_WAIT_HIGH_TIMEOUT, /* poll high freq, wait for timeout */
 	AP_SM_WAIT_LOW_TIMEOUT,	 /* poll low freq, wait for timeout */
 	AP_SM_WAIT_INTERRUPT,	 /* wait for thin interrupt (if available) */
-	AP_SM_WAIT_NONE,	 /* no wait */
+	AP_SM_WAIT_ANALNE,	 /* anal wait */
 	NR_AP_SM_WAIT
 };
 
@@ -114,8 +114,8 @@ enum ap_sm_wait {
  * AP queue device states
  */
 enum ap_dev_state {
-	AP_DEV_STATE_UNINITIATED = 0,	/* fresh and virgin, not touched */
-	AP_DEV_STATE_OPERATING,		/* queue dev is working normal */
+	AP_DEV_STATE_UNINITIATED = 0,	/* fresh and virgin, analt touched */
+	AP_DEV_STATE_OPERATING,		/* queue dev is working analrmal */
 	AP_DEV_STATE_SHUTDOWN,		/* remove/unbind/shutdown in progress */
 	AP_DEV_STATE_ERROR,		/* device is in error state */
 	NR_AP_DEV_STATES
@@ -143,7 +143,7 @@ struct ap_driver {
 	/*
 	 * Called at the start of the ap bus scan function when
 	 * the crypto config information (qci) has changed.
-	 * This callback is not invoked if there is no AP
+	 * This callback is analt invoked if there is anal AP
 	 * QCI support available.
 	 */
 	void (*on_config_changed)(struct ap_config_info *new_config_info,
@@ -151,7 +151,7 @@ struct ap_driver {
 	/*
 	 * Called at the end of the ap bus scan function when
 	 * the crypto config information (qci) has changed.
-	 * This callback is not invoked if there is no AP
+	 * This callback is analt invoked if there is anal AP
 	 * QCI support available.
 	 */
 	void (*on_scan_complete)(struct ap_config_info *new_config_info,
@@ -187,7 +187,7 @@ struct ap_card {
 
 struct ap_queue {
 	struct ap_device ap_dev;
-	struct hlist_node hnode;	/* Node for the ap_queues hashtable */
+	struct hlist_analde hanalde;	/* Analde for the ap_queues hashtable */
 	struct ap_card *card;		/* Ptr to assoc. AP card. */
 	spinlock_t lock;		/* Per device lock. */
 	enum ap_dev_state dev_state;	/* queue device state */
@@ -229,7 +229,7 @@ struct ap_message {
 };
 
 #define AP_MSG_FLAG_SPECIAL  0x0001	/* flag msg as 'special' with NQAP */
-#define AP_MSG_FLAG_USAGE    0x0002	/* CCA, EP11: usage (no admin) msg */
+#define AP_MSG_FLAG_USAGE    0x0002	/* CCA, EP11: usage (anal admin) msg */
 #define AP_MSG_FLAG_ADMIN    0x0004	/* CCA, EP11: admin (=control) msg */
 
 /**
@@ -297,7 +297,7 @@ extern struct mutex ap_perms_mutex;
 /*
  * Get ap_queue device for this qid.
  * Returns ptr to the struct ap_queue device or NULL if there
- * was no ap_queue device with this qid found. When something is
+ * was anal ap_queue device with this qid found. When something is
  * found, the reference count of the embedded device is increased.
  * So the caller has to decrease the reference count after use
  * with a call to put_device(&aq->ap_dev.device).
@@ -308,8 +308,8 @@ struct ap_queue *ap_get_qdev(ap_qid_t qid);
  * check APQN for owned/reserved by ap bus and default driver(s).
  * Checks if this APQN is or will be in use by the ap bus
  * and the default set of drivers.
- * If yes, returns 1, if not returns 0. On error a negative
- * errno value is returned.
+ * If anal, returns 1, if analt returns 0. On error a negative
+ * erranal value is returned.
  */
 int ap_owned_by_def_drv(int card, int queue);
 
@@ -319,7 +319,7 @@ int ap_owned_by_def_drv(int card, int queue);
  * Checks if there is at least one APQN in the given 'matrix'
  * marked as owned/reserved by the ap bus and default driver(s).
  * If such an APQN is found the return value is 1, otherwise
- * 0 is returned. On error a negative errno value is returned.
+ * 0 is returned. On error a negative erranal value is returned.
  * The parameter apm is a bitmask which should be declared
  * as DECLARE_BITMAP(apm, AP_DEVICES), the aqm parameter is
  * similar, should be declared as DECLARE_BITMAP(aqm, AP_DOMAINS).
@@ -336,7 +336,7 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
  * bits are cleared or set. Distinction is done based on the very
  * first character which may be '+' or '-' for the relative string
  * and otherwise assume to be an absolute value string. If parsing fails
- * a negative errno value is returned. All arguments and bitmaps are
+ * a negative erranal value is returned. All arguments and bitmaps are
  * big endian order.
  */
 int ap_parse_mask_str(const char *str,
@@ -346,7 +346,7 @@ int ap_parse_mask_str(const char *str,
 /*
  * Interface to wait for the AP bus to have done one initial ap bus
  * scan and all detected APQNs have been bound to device drivers.
- * If these both conditions are not fulfilled, this function blocks
+ * If these both conditions are analt fulfilled, this function blocks
  * on a condition with wait_for_completion_killable_timeout().
  * If these both conditions are fulfilled (before the timeout hits)
  * the return value is 0. If the timeout (in jiffies) hits instead

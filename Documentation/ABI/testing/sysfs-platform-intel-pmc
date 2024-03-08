@@ -17,6 +17,6 @@ Description:
 
 		Writing bit 20 value to the etr3 will induce
 		a platform "global reset" upon consequent platform reset,
-		in case the register is not locked.
+		in case the register is analt locked.
 		The "global reset bit" should be locked on a production
 		system and the file is in read-only mode.

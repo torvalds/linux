@@ -38,7 +38,7 @@ int ip_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb, un
 	else
 		saddr = 0;
 
-	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
+	/* some analn-standard hacks like ipt_REJECT.c:send_reset() can cause
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	fl4.daddr = iph->daddr;
@@ -77,7 +77,7 @@ int ip_route_me_harder(struct net *net, struct sock *sk, struct sk_buff *skb, un
 	if (skb_headroom(skb) < hh_len &&
 	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
 				0, GFP_ATOMIC))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

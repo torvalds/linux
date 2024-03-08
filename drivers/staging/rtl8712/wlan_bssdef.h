@@ -30,13 +30,13 @@ enum NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
 	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax /* not a real type, defined as an upper bound*/
+	Ndis802_11NetworkTypeMax /* analt a real type, defined as an upper bound*/
 };
 
 struct NDIS_802_11_CONFIGURATION_FH {
 	u32 Length;             /* Length of structure */
 	u32 HopPattern;         /* As defined by 802.11, MSB set */
-	u32 HopSet;             /* to one if non-802.11 */
+	u32 HopSet;             /* to one if analn-802.11 */
 	u32 DwellTime;          /* units are Kusec */
 };
 
@@ -55,8 +55,8 @@ struct NDIS_802_11_CONFIGURATION {
 enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
-	Ndis802_11InfrastructureMax, /*Not a real value,defined as upper bound*/
+	Ndis802_11AutoUnkanalwn,
+	Ndis802_11InfrastructureMax, /*Analt a real value,defined as upper bound*/
 	Ndis802_11APMode
 };
 
@@ -89,8 +89,8 @@ enum NDIS_802_11_AUTHENTICATION_MODE {
 	Ndis802_11AuthModeAutoSwitch,
 	Ndis802_11AuthModeWPA,
 	Ndis802_11AuthModeWPAPSK,
-	Ndis802_11AuthModeWPANone,
-	Ndis802_11AuthModeMax      /* Not a real mode, defined as upper bound */
+	Ndis802_11AuthModeWPAAnalne,
+	Ndis802_11AuthModeMax      /* Analt a real mode, defined as upper bound */
 };
 
 enum {
@@ -100,8 +100,8 @@ enum {
 	Ndis802_11EncryptionDisabled = Ndis802_11WEPDisabled,
 	Ndis802_11WEPKeyAbsent,
 	Ndis802_11Encryption1KeyAbsent = Ndis802_11WEPKeyAbsent,
-	Ndis802_11WEPNotSupported,
-	Ndis802_11EncryptionNotSupported = Ndis802_11WEPNotSupported,
+	Ndis802_11WEPAnaltSupported,
+	Ndis802_11EncryptionAnaltSupported = Ndis802_11WEPAnaltSupported,
 	Ndis802_11Encryption2Enabled,
 	Ndis802_11Encryption2KeyAbsent,
 	Ndis802_11Encryption3Enabled,
@@ -182,7 +182,7 @@ struct NDIS_802_11_WEP {
 struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/*refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;		/* set to fixed when not to be removed asi
+	int	fixed;		/* set to fixed when analt to be removed asi
 				 * site-surveying
 				 */
 	unsigned int	last_scanned; /*timestamp for the network */
@@ -198,7 +198,7 @@ enum VRTL_CARRIER_SENSE {
 };
 
 enum VCS_TYPE {
-	NONE_VCS,
+	ANALNE_VCS,
 	RTS_CTS,
 	CTS_TO_SELF
 };
@@ -210,7 +210,7 @@ enum VCS_TYPE {
 #define PWR_VOIP 4
 
 enum UAPSD_MAX_SP {
-	NO_LIMIT,
+	ANAL_LIMIT,
 	TWO_MSDU,
 	FOUR_MSDU,
 	SIX_MSDU

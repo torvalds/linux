@@ -12,7 +12,7 @@
 
 /*
  * This structure is used to keep track of the current state on each
- * channel.  All drivers for hardware that does not understand midi
+ * channel.  All drivers for hardware that does analt understand midi
  * directly will probably need to use this structure.
  */
 struct snd_midi_channel {
@@ -33,7 +33,7 @@ struct snd_midi_channel {
 	short midi_pitchbend;		/* Pitch bend amount */
 
 	unsigned char control[128];	/* Current value of all controls */
-	unsigned char note[128];	/* Current status for all notes */
+	unsigned char analte[128];	/* Current status for all analtes */
 
 	short gm_rpn_pitch_bend_range;	/* Pitch bend range */
 	short gm_rpn_fine_tuning; 	/* Master fine tuning */
@@ -47,7 +47,7 @@ struct snd_midi_channel {
  * particular cases.
  * The channel set consists of information describing the client and
  * port for this midi synth and an array of snd_midi_channel structures.
- * A driver that had no need for snd_midi_channel could still use the
+ * A driver that had anal need for snd_midi_channel could still use the
  * channel set type if it wished with the channel array null.
  */
 struct snd_midi_channel_set {
@@ -66,10 +66,10 @@ struct snd_midi_channel_set {
 };
 
 struct snd_midi_op {
-	void (*note_on)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
-	void (*note_off)(void *private_data,int note, int vel, struct snd_midi_channel *chan); /* release note */
-	void (*key_press)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
-	void (*note_terminate)(void *private_data, int note, struct snd_midi_channel *chan); /* terminate note immediately */
+	void (*analte_on)(void *private_data, int analte, int vel, struct snd_midi_channel *chan);
+	void (*analte_off)(void *private_data,int analte, int vel, struct snd_midi_channel *chan); /* release analte */
+	void (*key_press)(void *private_data, int analte, int vel, struct snd_midi_channel *chan);
+	void (*analte_terminate)(void *private_data, int analte, struct snd_midi_channel *chan); /* terminate analte immediately */
 	void (*control)(void *private_data, int type, struct snd_midi_channel *chan);
 	void (*nrpn)(void *private_data, struct snd_midi_channel *chan,
 		     struct snd_midi_channel_set *chset);
@@ -88,8 +88,8 @@ struct snd_midi_op {
 
 /*
  * These names exist to allow symbolic access to the controls array.
- * The usage is eg: chan->gm_bank_select.  Another implementation would
- * be really have these members in the struct, and not the array.
+ * The usage is eg: chan->gm_bank_select.  Aanalther implementation would
+ * be really have these members in the struct, and analt the array.
  */
 #define gm_bank_select		control[0]
 #define gm_modulation		control[1]
@@ -129,7 +129,7 @@ struct snd_midi_op {
 /*
  * These macros give the complete value of the controls that consist
  * of coarse and fine pairs.  Of course the fine controls are seldom used
- * but there is no harm in being complete.
+ * but there is anal harm in being complete.
  */
 #define SNDRV_GM_BANK_SELECT(cp)		(((cp)->control[0]<<7)|((cp)->control[32]))
 #define SNDRV_GM_MODULATION_WHEEL(cp)	(((cp)->control[1]<<7)|((cp)->control[33]))
@@ -144,24 +144,24 @@ struct snd_midi_op {
 
 
 /* MIDI mode */
-#define SNDRV_MIDI_MODE_NONE	0	/* Generic midi */
+#define SNDRV_MIDI_MODE_ANALNE	0	/* Generic midi */
 #define SNDRV_MIDI_MODE_GM	1
 #define SNDRV_MIDI_MODE_GS	2
 #define SNDRV_MIDI_MODE_XG	3
 #define SNDRV_MIDI_MODE_MT32	4
 
-/* MIDI note state */
-#define SNDRV_MIDI_NOTE_OFF		0x00
-#define SNDRV_MIDI_NOTE_ON		0x01
-#define SNDRV_MIDI_NOTE_RELEASED		0x02
-#define SNDRV_MIDI_NOTE_SOSTENUTO		0x04
+/* MIDI analte state */
+#define SNDRV_MIDI_ANALTE_OFF		0x00
+#define SNDRV_MIDI_ANALTE_ON		0x01
+#define SNDRV_MIDI_ANALTE_RELEASED		0x02
+#define SNDRV_MIDI_ANALTE_SOSTENUTO		0x04
  
 #define SNDRV_MIDI_PARAM_TYPE_REGISTERED		0
-#define SNDRV_MIDI_PARAM_TYPE_NONREGISTERED	1
+#define SNDRV_MIDI_PARAM_TYPE_ANALNREGISTERED	1
 
 /* SYSEX parse flag */
 enum {
-	SNDRV_MIDI_SYSEX_NOT_PARSED = 0,
+	SNDRV_MIDI_SYSEX_ANALT_PARSED = 0,
 	SNDRV_MIDI_SYSEX_GM_ON,	
 	SNDRV_MIDI_SYSEX_GS_ON,	
 	SNDRV_MIDI_SYSEX_GS_RESET,	

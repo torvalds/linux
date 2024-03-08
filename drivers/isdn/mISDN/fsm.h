@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- * Author       Karsten Keil <kkeil@novell.com>
+ * Author       Karsten Keil <kkeil@analvell.com>
  *
  * Thanks to    Jan den Ouden
  *              Fritz Elfert
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #ifndef _MISDN_FSM_H
@@ -34,7 +34,7 @@ struct FsmInst {
 	void (*printdebug) (struct FsmInst *, char *, ...);
 };
 
-struct FsmNode {
+struct FsmAnalde {
 	int state, event;
 	void (*routine) (struct FsmInst *, int, void *);
 };
@@ -46,7 +46,7 @@ struct FsmTimer {
 	void *arg;
 };
 
-extern int mISDN_FsmNew(struct Fsm *, struct FsmNode *, int);
+extern int mISDN_FsmNew(struct Fsm *, struct FsmAnalde *, int);
 extern void mISDN_FsmFree(struct Fsm *);
 extern int mISDN_FsmEvent(struct FsmInst *, int , void *);
 extern void mISDN_FsmChangeState(struct FsmInst *, int);

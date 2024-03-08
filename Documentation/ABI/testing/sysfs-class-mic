@@ -80,7 +80,7 @@ Description:
 		Possible values are:
 
 		==========  ===================================================
-		"nop"       shutdown status is not applicable, when the card OS
+		"analp"       shutdown status is analt applicable, when the card OS
 			    is "online"
 		"crashed"   Shutdown because of a HW or SW crash.
 		"halted"    Shutdown because of a halt command.
@@ -171,8 +171,8 @@ Description:
 		The MIC drivers detect and inform user space about card crashes
 		via a heartbeat mechanism (see the description of
 		shutdown_status above). User space can turn off this
-		notification by setting heartbeat_enable to 0 and enable it by
-		setting this entry to 1. If this notification is disabled it is
+		analtification by setting heartbeat_enable to 0 and enable it by
+		setting this entry to 1. If this analtification is disabled it is
 		the responsibility of user space to detect card crashes via
 		alternative means such as a network ping. This setting is
 		enabled by default.

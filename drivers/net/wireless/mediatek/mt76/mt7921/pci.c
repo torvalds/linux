@@ -229,7 +229,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_hw_txp),
-		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ |
+		.drv_flags = MT_DRV_TXWI_ANAL_FREE | MT_DRV_HW_MGMT_TXQ |
 			     MT_DRV_AMSDU_OFFLOAD,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
@@ -301,13 +301,13 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	ops = mt792x_get_mac80211_ops(&pdev->dev, &mt7921_ops,
 				      (void *)id->driver_data, &features);
 	if (!ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_pci_vec;
 	}
 
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_pci_vec;
 	}
 
@@ -327,7 +327,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	bus_ops = devm_kmemdup(dev->mt76.dev, dev->bus_ops, sizeof(*bus_ops),
 			       GFP_KERNEL);
 	if (!bus_ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_dev;
 	}
 

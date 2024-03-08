@@ -51,10 +51,10 @@ static u8 acpi_ex_interpreter_trace_enabled(char *name)
 	 *
 	 * 1. If the tracer is started, acpi_gbl_trace_method_object should have
 	 *    been filled by the trace starter
-	 * 2. If the tracer is not started, acpi_gbl_trace_method_name should be
+	 * 2. If the tracer is analt started, acpi_gbl_trace_method_name should be
 	 *    matched if it is specified
 	 * 3. If the tracer is oneshot style, acpi_gbl_trace_method_name should
-	 *    not be cleared by the trace stopper during the first match
+	 *    analt be cleared by the trace stopper during the first match
 	 */
 	if (acpi_gbl_trace_method_object) {
 		return (TRUE);
@@ -121,7 +121,7 @@ static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type)
  *              aml                 - Executed AML address
  *              pathname            - Object path
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Internal interpreter execution trace.
  *
@@ -151,19 +151,19 @@ acpi_ex_trace_point(acpi_trace_event_type type,
  *
  * FUNCTION:    acpi_ex_start_trace_method
  *
- * PARAMETERS:  method_node         - Node of the method
+ * PARAMETERS:  method_analde         - Analde of the method
  *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if analt yet executing
  *                                    a method.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Start control method execution trace
  *
  ******************************************************************************/
 
 void
-acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_start_trace_method(struct acpi_namespace_analde *method_analde,
 			   union acpi_operand_object *obj_desc,
 			   struct acpi_walk_state *walk_state)
 {
@@ -172,8 +172,8 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 
 	ACPI_FUNCTION_NAME(ex_start_trace_method);
 
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	if (method_analde) {
+		pathname = acpi_ns_get_analrmalized_pathname(method_analde, TRUE);
 	}
 
 	enabled = acpi_ex_interpreter_trace_enabled(pathname);
@@ -208,19 +208,19 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
  *
  * FUNCTION:    acpi_ex_stop_trace_method
  *
- * PARAMETERS:  method_node         - Node of the method
+ * PARAMETERS:  method_analde         - Analde of the method
  *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if analt yet executing
  *                                    a method.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Stop control method execution trace
  *
  ******************************************************************************/
 
 void
-acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
+acpi_ex_stop_trace_method(struct acpi_namespace_analde *method_analde,
 			  union acpi_operand_object *obj_desc,
 			  struct acpi_walk_state *walk_state)
 {
@@ -229,8 +229,8 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 
 	ACPI_FUNCTION_NAME(ex_stop_trace_method);
 
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
+	if (method_analde) {
+		pathname = acpi_ns_get_analrmalized_pathname(method_analde, TRUE);
 	}
 
 	enabled = acpi_ex_interpreter_trace_enabled(NULL);
@@ -266,10 +266,10 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
  * FUNCTION:    acpi_ex_start_trace_opcode
  *
  * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if analt yet executing
  *                                    a method.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Start opcode execution trace
  *
@@ -294,10 +294,10 @@ acpi_ex_start_trace_opcode(union acpi_parse_object *op,
  * FUNCTION:    acpi_ex_stop_trace_opcode
  *
  * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
+ *              walk_state          - current state, NULL if analt yet executing
  *                                    a method.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Stop opcode execution trace
  *

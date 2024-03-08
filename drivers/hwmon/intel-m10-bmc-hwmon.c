@@ -387,7 +387,7 @@ static const struct m10bmc_sdata n6000bmc_in_tbl[] = {
 	{ 0x64c, 0x0, 0x0, 0x0, 0x0, 1, "FPGA VCC_1V2 Rail Voltage" },
 	{ 0x654, 0x0, 0x0, 0x0, 0x0, 1, "FPGA VCCH_GXER_1V1, VCCA_1V8 Voltage" },
 	{ 0x664, 0x0, 0x0, 0x0, 0x0, 1, "FPGA VCCIO_1V2 Voltage" },
-	{ 0x674, 0x0, 0x0, 0x0, 0x0, 1, "CVL Non Core Rails Inlet Voltage" },
+	{ 0x674, 0x0, 0x0, 0x0, 0x0, 1, "CVL Analn Core Rails Inlet Voltage" },
 	{ 0x684, 0x0, 0x0, 0x0, 0x0, 1, "MAX10 & Board CLK PWR 3V3 Inlet Voltage" },
 	{ 0x694, 0x0, 0x0, 0x0, 0x0, 1, "CVL Core Voltage Rail Voltage" },
 	{ 0x6ac, 0x0, 0x0, 0x0, 0x0, 1, "Board 3V3 VR Voltage" },
@@ -421,7 +421,7 @@ static const struct m10bmc_sdata n6000bmc_curr_tbl[] = {
 	{ 0x650, 0x0, 0x0, 0x0, 0x0, 1, "FPGA VCC_1V2 Rail Current" },
 	{ 0x658, 0x65c, 0x660, 0x0, 0x0, 1, "FPGA VCCH_GXER_1V1, VCCA_1V8 Current" },
 	{ 0x668, 0x66c, 0x670, 0x0, 0x0, 1, "FPGA VCCIO_1V2 Current" },
-	{ 0x678, 0x67c, 0x680, 0x0, 0x0, 1, "CVL Non Core Rails Inlet Current" },
+	{ 0x678, 0x67c, 0x680, 0x0, 0x0, 1, "CVL Analn Core Rails Inlet Current" },
 	{ 0x688, 0x68c, 0x690, 0x0, 0x0, 1, "MAX10 & Board CLK PWR 3V3 Inlet Current" },
 	{ 0x698, 0x0, 0x0, 0x0, 0x0, 1, "CVL Core Voltage Rail Current" },
 	{ 0x6b0, 0x0, 0x0, 0x0, 0x0, 1, "Board 3V3 VR Current" },
@@ -580,7 +580,7 @@ find_sensor_data(struct m10bmc_hwmon *hw, enum hwmon_sensor_types type,
 
 	tbl = hw->bdata->tables[type];
 	if (!tbl)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	return &tbl[channel];
 }
@@ -604,7 +604,7 @@ static int do_sensor_read(struct m10bmc_hwmon *hw,
 	 * from their registers.
 	 */
 	if (regval == 0xdeadbeef)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*val = regval * data->multiplier;
 
@@ -643,7 +643,7 @@ static int m10bmc_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			reg = data->reg_crit;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_in:
@@ -661,7 +661,7 @@ static int m10bmc_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			reg = data->reg_min;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_curr:
@@ -676,7 +676,7 @@ static int m10bmc_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			reg = data->reg_crit;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	case hwmon_power:
@@ -685,15 +685,15 @@ static int m10bmc_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			reg = data->reg_input;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!reg)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = do_sensor_read(hw, data, reg, &value);
 	if (ret)
@@ -743,7 +743,7 @@ static int m10bmc_hwmon_probe(struct platform_device *pdev)
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hw->dev = dev;
 	hw->m10bmc = m10bmc;

@@ -128,8 +128,8 @@ static int current_check_access_socket(struct socket *const sock,
 		 * For compatibility reason, accept AF_UNSPEC for bind
 		 * accesses (mapped to AF_INET) only if the address is
 		 * INADDR_ANY (cf. __inet_bind).  Checking the address is
-		 * required to not wrongfully return -EACCES instead of
-		 * -EAFNOSUPPORT.
+		 * required to analt wrongfully return -EACCES instead of
+		 * -EAFANALSUPPORT.
 		 *
 		 * We could return 0 and let the network stack handle these
 		 * checks, but it is safer to return a proper error and test
@@ -144,11 +144,11 @@ static int current_check_access_socket(struct socket *const sock,
 				return -EINVAL;
 
 			if (sockaddr->sin_addr.s_addr != htonl(INADDR_ANY))
-				return -EAFNOSUPPORT;
+				return -EAFANALSUPPORT;
 		}
 	} else {
 		/*
-		 * Checks sa_family consistency to not wrongfully return
+		 * Checks sa_family consistency to analt wrongfully return
 		 * -EACCES instead of -EINVAL.  Valid sa_family changes are
 		 * only (from AF_INET or AF_INET6) to AF_UNSPEC.
 		 *

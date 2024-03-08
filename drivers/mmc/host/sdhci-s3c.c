@@ -55,7 +55,7 @@
 
 #define S3C_SDHCI_CTRL2_DFCNT_MASK		(0x3 << 9)
 #define S3C_SDHCI_CTRL2_DFCNT_SHIFT		(9)
-#define S3C_SDHCI_CTRL2_DFCNT_NONE		(0x0 << 9)
+#define S3C_SDHCI_CTRL2_DFCNT_ANALNE		(0x0 << 9)
 #define S3C_SDHCI_CTRL2_DFCNT_4SDCLK		(0x1 << 9)
 #define S3C_SDHCI_CTRL2_DFCNT_16SDCLK		(0x2 << 9)
 #define S3C_SDHCI_CTRL2_DFCNT_64SDCLK		(0x3 << 9)
@@ -111,7 +111,7 @@
  * @clk_io: The clock for the internal bus interface.
  * @clk_rates: Clock frequencies.
  * @clk_bus: The clocks that are available for the SD/MMC bus clock.
- * @no_divider: No or non-standard internal clock divider.
+ * @anal_divider: Anal or analn-standard internal clock divider.
  */
 struct sdhci_s3c {
 	struct sdhci_host	*host;
@@ -125,21 +125,21 @@ struct sdhci_s3c {
 	struct clk		*clk_bus[MAX_BUS_CLK];
 	unsigned long		clk_rates[MAX_BUS_CLK];
 
-	bool			no_divider;
+	bool			anal_divider;
 };
 
 /**
  * struct sdhci_s3c_drv_data - S3C SDHCI platform specific driver data
  * @sdhci_quirks: sdhci host specific quirks.
- * @no_divider: no or non-standard internal clock divider.
+ * @anal_divider: anal or analn-standard internal clock divider.
  *
  * Specifies platform specific configuration of sdhci controller.
- * Note: A structure for driver specific platform data is used for future
+ * Analte: A structure for driver specific platform data is used for future
  * expansion of its usage.
  */
 struct sdhci_s3c_drv_data {
 	unsigned int	sdhci_quirks;
-	bool		no_divider;
+	bool		anal_divider;
 };
 
 static inline struct sdhci_s3c *to_s3c(struct sdhci_host *host)
@@ -186,10 +186,10 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 		return UINT_MAX;
 
 	/*
-	 * If controller uses a non-standard clock division, find the best clock
+	 * If controller uses a analn-standard clock division, find the best clock
 	 * speed possible with selected clock source and skip the division.
 	 */
-	if (ourhost->no_divider) {
+	if (ourhost->anal_divider) {
 		rate = clk_round_rate(clksrc, wanted);
 		return wanted - rate;
 	}
@@ -280,7 +280,7 @@ static void sdhci_s3c_set_clock(struct sdhci_host *host, unsigned int clock)
 	ctrl |= (S3C64XX_SDHCI_CTRL2_ENSTAASYNCCLR |
 		  S3C64XX_SDHCI_CTRL2_ENCMDCNFMSK |
 		  S3C_SDHCI_CTRL2_ENFBCLKRX |
-		  S3C_SDHCI_CTRL2_DFCNT_NONE |
+		  S3C_SDHCI_CTRL2_DFCNT_ANALNE |
 		  S3C_SDHCI_CTRL2_ENCLKOUTHOLD);
 	writel(ctrl, host->ioaddr + S3C_SDHCI_CONTROL2);
 
@@ -427,26 +427,26 @@ static struct sdhci_ops sdhci_s3c_ops = {
 static int sdhci_s3c_parse_dt(struct device *dev,
 		struct sdhci_host *host, struct s3c_sdhci_platdata *pdata)
 {
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	u32 max_width;
 
-	/* if the bus-width property is not specified, assume width as 1 */
-	if (of_property_read_u32(node, "bus-width", &max_width))
+	/* if the bus-width property is analt specified, assume width as 1 */
+	if (of_property_read_u32(analde, "bus-width", &max_width))
 		max_width = 1;
 	pdata->max_width = max_width;
 
 	/* get the card detection method */
-	if (of_property_read_bool(node, "broken-cd")) {
-		pdata->cd_type = S3C_SDHCI_CD_NONE;
+	if (of_property_read_bool(analde, "broken-cd")) {
+		pdata->cd_type = S3C_SDHCI_CD_ANALNE;
 		return 0;
 	}
 
-	if (of_property_read_bool(node, "non-removable")) {
+	if (of_property_read_bool(analde, "analn-removable")) {
 		pdata->cd_type = S3C_SDHCI_CD_PERMANENT;
 		return 0;
 	}
 
-	if (of_get_named_gpio(node, "cd-gpios", 0))
+	if (of_get_named_gpio(analde, "cd-gpios", 0))
 		return 0;
 
 	/* assuming internal card detect that will be configured by pinctrl */
@@ -465,7 +465,7 @@ static inline const struct sdhci_s3c_drv_data *sdhci_s3c_get_driver_data(
 			struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_analde)
 		return of_device_get_match_data(&pdev->dev);
 #endif
 	return (const struct sdhci_s3c_drv_data *)
@@ -481,9 +481,9 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	struct sdhci_s3c *sc;
 	int ret, irq, ptr, clks;
 
-	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
-		dev_err(dev, "no device data specified\n");
-		return -ENOENT;
+	if (!pdev->dev.platform_data && !pdev->dev.of_analde) {
+		dev_err(dev, "anal device data specified\n");
+		return -EANALENT;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -499,11 +499,11 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pdata_io_clk;
 	}
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_analde) {
 		ret = sdhci_s3c_parse_dt(&pdev->dev, host, pdata);
 		if (ret)
 			goto err_pdata_io_clk;
@@ -547,8 +547,8 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 
 	if (clks == 0) {
 		dev_err(dev, "failed to find any bus clocks\n");
-		ret = -ENOENT;
-		goto err_no_busclks;
+		ret = -EANALENT;
+		goto err_anal_busclks;
 	}
 
 	host->ioaddr = devm_platform_ioremap_resource(pdev, 0);
@@ -568,11 +568,11 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->irq = irq;
 
 	/* Setup quirks for the controller */
-	host->quirks |= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC;
-	host->quirks |= SDHCI_QUIRK_NO_HISPD_BIT;
+	host->quirks |= SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC;
+	host->quirks |= SDHCI_QUIRK_ANAL_HISPD_BIT;
 	if (drv_data) {
 		host->quirks |= drv_data->sdhci_quirks;
-		sc->no_divider = drv_data->no_divider;
+		sc->anal_divider = drv_data->anal_divider;
 	}
 
 #ifndef CONFIG_MMC_SDHCI_S3C_DMA
@@ -583,10 +583,10 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 
 #endif /* CONFIG_MMC_SDHCI_S3C_DMA */
 
-	/* It seems we do not get an DATA transfer complete on non-busy
-	 * transfers, not sure if this is a problem with this specific
+	/* It seems we do analt get an DATA transfer complete on analn-busy
+	 * transfers, analt sure if this is a problem with this specific
 	 * SDHCI block, or a missing configuration that needs to be set. */
-	host->quirks |= SDHCI_QUIRK_NO_BUSY_IRQ;
+	host->quirks |= SDHCI_QUIRK_ANAL_BUSY_IRQ;
 
 	/* This host supports the Auto CMD12 */
 	host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
@@ -594,12 +594,12 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	/* Samsung SoCs need BROKEN_ADMA_ZEROLEN_DESC */
 	host->quirks |= SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC;
 
-	if (pdata->cd_type == S3C_SDHCI_CD_NONE ||
+	if (pdata->cd_type == S3C_SDHCI_CD_ANALNE ||
 	    pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
 	if (pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
-		host->mmc->caps = MMC_CAP_NONREMOVABLE;
+		host->mmc->caps = MMC_CAP_ANALNREMOVABLE;
 
 	switch (pdata->max_width) {
 	case 8:
@@ -620,10 +620,10 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->quirks |= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK;
 
 	/*
-	 * If controller does not have internal clock divider,
+	 * If controller does analt have internal clock divider,
 	 * we can use overriding functions instead of default.
 	 */
-	if (sc->no_divider) {
+	if (sc->anal_divider) {
 		sdhci_s3c_ops.set_clock = sdhci_cmu_set_clock;
 		sdhci_s3c_ops.get_min_clock = sdhci_cmu_get_min_clock;
 		sdhci_s3c_ops.get_max_clock = sdhci_cmu_get_max_clock;
@@ -639,7 +639,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_iganalre_children(&pdev->dev, 1);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
@@ -658,7 +658,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
  err_req_regs:
 	pm_runtime_disable(&pdev->dev);
 
- err_no_busclks:
+ err_anal_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
  err_pdata_io_clk:
@@ -758,14 +758,14 @@ static const struct platform_device_id sdhci_s3c_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, sdhci_s3c_driver_ids);
 
 #ifdef CONFIG_OF
-static const struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
-	.no_divider = true,
+static const struct sdhci_s3c_drv_data exyanals4_sdhci_drv_data = {
+	.anal_divider = true,
 };
 
 static const struct of_device_id sdhci_s3c_dt_match[] = {
 	{ .compatible = "samsung,s3c6410-sdhci", },
-	{ .compatible = "samsung,exynos4210-sdhci",
-		.data = &exynos4_sdhci_drv_data },
+	{ .compatible = "samsung,exyanals4210-sdhci",
+		.data = &exyanals4_sdhci_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdhci_s3c_dt_match);
@@ -777,7 +777,7 @@ static struct platform_driver sdhci_s3c_driver = {
 	.id_table	= sdhci_s3c_driver_ids,
 	.driver		= {
 		.name	= "s3c-sdhci",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(sdhci_s3c_dt_match),
 		.pm	= &sdhci_s3c_pmops,
 	},

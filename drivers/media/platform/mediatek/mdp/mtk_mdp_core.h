@@ -46,8 +46,8 @@ struct mtk_mdp_pix_align {
 
 /**
  * struct mtk_mdp_fmt - the driver's internal color format data
- * @pixelformat: the fourcc code for this format, 0 if not applicable
- * @num_planes: number of physically non-contiguous data planes
+ * @pixelformat: the fourcc code for this format, 0 if analt applicable
+ * @num_planes: number of physically analn-contiguous data planes
  * @num_comp: number of logical data planes
  * @depth: per plane driver's private 'number of bits per pixel'
  * @row_depth: per plane driver's private 'number of bits per pixel per row'

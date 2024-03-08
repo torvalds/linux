@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/lcd.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/fb.h>
@@ -24,13 +24,13 @@
  * framebuffer driver. We're looking if that important event is blanking,
  * and if it is, we're switching lcd power as well ...
  */
-static int fb_notifier_callback(struct notifier_block *self,
+static int fb_analtifier_callback(struct analtifier_block *self,
 				 unsigned long event, void *data)
 {
 	struct lcd_device *ld;
 	struct fb_event *evdata = data;
 
-	ld = container_of(self, struct lcd_device, fb_notif);
+	ld = container_of(self, struct lcd_device, fb_analtif);
 	if (!ld->ops)
 		return 0;
 
@@ -50,14 +50,14 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 static int lcd_register_fb(struct lcd_device *ld)
 {
-	memset(&ld->fb_notif, 0, sizeof(ld->fb_notif));
-	ld->fb_notif.notifier_call = fb_notifier_callback;
-	return fb_register_client(&ld->fb_notif);
+	memset(&ld->fb_analtif, 0, sizeof(ld->fb_analtif));
+	ld->fb_analtif.analtifier_call = fb_analtifier_callback;
+	return fb_register_client(&ld->fb_analtif);
 }
 
 static void lcd_unregister_fb(struct lcd_device *ld)
 {
-	fb_unregister_client(&ld->fb_notif);
+	fb_unregister_client(&ld->fb_analtif);
 }
 #else
 static int lcd_register_fb(struct lcd_device *ld)
@@ -197,7 +197,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 
 	new_ld = kzalloc(sizeof(struct lcd_device), GFP_KERNEL);
 	if (!new_ld)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&new_ld->ops_lock);
 	mutex_init(&new_ld->update_lock);
@@ -282,7 +282,7 @@ struct lcd_device *devm_lcd_device_register(struct device *dev,
 
 	ptr = devres_alloc(devm_lcd_device_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	lcd = lcd_device_register(name, parent, devdata, ops);
 	if (!IS_ERR(lcd)) {
@@ -301,8 +301,8 @@ EXPORT_SYMBOL(devm_lcd_device_register);
  * @dev: the device to unregister
  * @ld: the lcd device to unregister
  *
- * Deallocated a lcd allocated with devm_lcd_device_register(). Normally
- * this function will not need to be called and the resource management
+ * Deallocated a lcd allocated with devm_lcd_device_register(). Analrmally
+ * this function will analt need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_lcd_device_unregister(struct device *dev, struct lcd_device *ld)
@@ -325,7 +325,7 @@ static int __init lcd_class_init(void)
 {
 	lcd_class = class_create("lcd");
 	if (IS_ERR(lcd_class)) {
-		pr_warn("Unable to create backlight class; errno = %ld\n",
+		pr_warn("Unable to create backlight class; erranal = %ld\n",
 			PTR_ERR(lcd_class));
 		return PTR_ERR(lcd_class);
 	}

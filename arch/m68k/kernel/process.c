@@ -11,7 +11,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -103,10 +103,10 @@ void flush_thread(void)
 }
 
 /*
- * Why not generic sys_clone, you ask?  m68k passes all arguments on stack.
+ * Why analt generic sys_clone, you ask?  m68k passes all arguments on stack.
  * And we need all registers saved, which means a bunch of stuff pushed
  * on top of pt_regs, which means that sys_clone() arguments would be
- * buried.  We could, of course, copy them, but it's too costly for no
+ * buried.  We could, of course, copy them, but it's too costly for anal
  * good reason - generic clone() would have to copy them *again* for
  * kernel_clone() anyway.  So in this case it's actually better to pass pt_regs *
  * and extract arguments for kernel_clone() from there.  Eventually we might
@@ -155,7 +155,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.esp0 = (unsigned long)&frame->regs;
 
 	/*
-	 * Must save the current SFC/DFC value, NOT the value when
+	 * Must save the current SFC/DFC value, ANALT the value when
 	 * the parent was last descheduled - RGH  10-08-96
 	 */
 	p->thread.fc = USER_DATA;

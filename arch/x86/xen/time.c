@@ -3,7 +3,7 @@
  * Xen time implementation.
  *
  * This is implemented in terms of a clocksource driver which uses
- * the hypervisor clock as a nanosecond timebase, and a clockevent
+ * the hypervisor clock as a naanalsecond timebase, and a clockevent
  * driver which uses the hypervisor's timer mechanism.
  *
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
@@ -40,7 +40,7 @@ static unsigned long xen_tsc_khz(void)
 	struct pvclock_vcpu_time_info *info =
 		&HYPERVISOR_shared_info->vcpu_info[0].time;
 
-	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+	setup_force_cpu_cap(X86_FEATURE_TSC_KANALWN_FREQ);
 	return pvclock_tsc_khz(info);
 }
 
@@ -49,10 +49,10 @@ static u64 xen_clocksource_read(void)
         struct pvclock_vcpu_time_info *src;
 	u64 ret;
 
-	preempt_disable_notrace();
+	preempt_disable_analtrace();
 	src = &__this_cpu_read(xen_vcpu)->time;
 	ret = pvclock_clocksource_read(src);
-	preempt_enable_notrace();
+	preempt_enable_analtrace();
 	return ret;
 }
 
@@ -61,13 +61,13 @@ static u64 xen_clocksource_get_cycles(struct clocksource *cs)
 	return xen_clocksource_read();
 }
 
-static noinstr u64 xen_sched_clock(void)
+static analinstr u64 xen_sched_clock(void)
 {
         struct pvclock_vcpu_time_info *src;
 	u64 ret;
 
 	src = &__this_cpu_read(xen_vcpu)->time;
-	ret = pvclock_clocksource_read_nowd(src);
+	ret = pvclock_clocksource_read_analwd(src);
 	ret -= xen_sched_clock_offset;
 
 	return ret;
@@ -84,74 +84,74 @@ static void xen_read_wallclock(struct timespec64 *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-static void xen_get_wallclock(struct timespec64 *now)
+static void xen_get_wallclock(struct timespec64 *analw)
 {
-	xen_read_wallclock(now);
+	xen_read_wallclock(analw);
 }
 
-static int xen_set_wallclock(const struct timespec64 *now)
+static int xen_set_wallclock(const struct timespec64 *analw)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+static int xen_pvclock_gtod_analtify(struct analtifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
 	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
-	struct timespec64 now;
+	struct timespec64 analw;
 	struct timekeeper *tk = priv;
 	static bool settime64_supported = true;
 	int ret;
 
-	now.tv_sec = tk->xtime_sec;
-	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+	analw.tv_sec = tk->xtime_sec;
+	analw.tv_nsec = (long)(tk->tkr_moanal.xtime_nsec >> tk->tkr_moanal.shift);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
-		return NOTIFY_OK;
+	if (!was_set && timespec64_compare(&analw, &next_sync) < 0)
+		return ANALTIFY_OK;
 
 again:
 	if (settime64_supported) {
 		op.cmd = XENPF_settime64;
 		op.u.settime64.mbz = 0;
-		op.u.settime64.secs = now.tv_sec;
-		op.u.settime64.nsecs = now.tv_nsec;
+		op.u.settime64.secs = analw.tv_sec;
+		op.u.settime64.nsecs = analw.tv_nsec;
 		op.u.settime64.system_time = xen_clocksource_read();
 	} else {
 		op.cmd = XENPF_settime32;
-		op.u.settime32.secs = now.tv_sec;
-		op.u.settime32.nsecs = now.tv_nsec;
+		op.u.settime32.secs = analw.tv_sec;
+		op.u.settime32.nsecs = analw.tv_nsec;
 		op.u.settime32.system_time = xen_clocksource_read();
 	}
 
 	ret = HYPERVISOR_platform_op(&op);
 
-	if (ret == -ENOSYS && settime64_supported) {
+	if (ret == -EANALSYS && settime64_supported) {
 		settime64_supported = false;
 		goto again;
 	}
 	if (ret < 0)
-		return NOTIFY_BAD;
+		return ANALTIFY_BAD;
 
 	/*
 	 * Move the next drift compensation time 11 minutes
 	 * ahead. That's emulating the sync_cmos_clock() update for
 	 * the hardware RTC.
 	 */
-	next_sync = now;
+	next_sync = analw;
 	next_sync.tv_sec += 11 * 60;
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block xen_pvclock_gtod_notifier = {
-	.notifier_call = xen_pvclock_gtod_notify,
+static struct analtifier_block xen_pvclock_gtod_analtifier = {
+	.analtifier_call = xen_pvclock_gtod_analtify,
 };
 
 static int xen_cs_enable(struct clocksource *cs)
@@ -176,16 +176,16 @@ static struct clocksource xen_clocksource __read_mostly = {
 
    The old timer_op one works with all released versions of Xen prior
    to version 3.0.4.  This version of the hypervisor provides a
-   single-shot timer with nanosecond resolution.  However, sharing the
+   single-shot timer with naanalsecond resolution.  However, sharing the
    same event channel is a 100Hz tick which is delivered while the
    vcpu is running.  We don't care about or use this tick, but it will
    cause the core time code to think the timer fired too soon, and
    will end up resetting it each time.  It could be filtered, but
-   doing so has complications when the ktime clocksource is not yet
+   doing so has complications when the ktime clocksource is analt yet
    the xen clocksource (ie, at boot time).
 
    The new vcpu_op-based timer interface allows the tick timer period
-   to be changed or turned off.  The tick timer is not useful as a
+   to be changed or turned off.  The tick timer is analt useful as a
    periodic timer because events are only delivered to running vcpus.
    The one-shot timer can report when a timeout is in the past, so
    set_next_event is capable of returning -ETIME when appropriate.
@@ -221,8 +221,8 @@ static int xen_timerop_set_next_event(unsigned long delta,
 	if (HYPERVISOR_set_timer_op(get_abs_timeout(delta)) < 0)
 		BUG();
 
-	/* We may have missed the deadline, but there's no real way of
-	   knowing for sure.  If the event was in the past, then we'll
+	/* We may have missed the deadline, but there's anal real way of
+	   kanalwing for sure.  If the event was in the past, then we'll
 	   get an immediate interrupt. */
 
 	return 0;
@@ -321,7 +321,7 @@ static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 	struct clock_event_device *evt = this_cpu_ptr(&xen_clock_events.evt);
 	irqreturn_t ret;
 
-	ret = IRQ_NONE;
+	ret = IRQ_ANALNE;
 	if (evt->event_handler) {
 		evt->event_handler(evt);
 		ret = IRQ_HANDLED;
@@ -356,7 +356,7 @@ void xen_setup_timer(int cpu)
 	snprintf(xevt->name, sizeof(xevt->name), "timer%d", cpu);
 
 	irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, xen_timer_interrupt,
-				      IRQF_PERCPU|IRQF_NOBALANCING|IRQF_TIMER|
+				      IRQF_PERCPU|IRQF_ANALBALANCING|IRQF_TIMER|
 				      IRQF_FORCE_RESUME|IRQF_EARLY_RESUME,
 				      xevt->name, NULL);
 	(void)xen_set_irq_priority(irq, XEN_IRQ_PRIORITY_MAX);
@@ -404,7 +404,7 @@ void xen_save_time_memory_area(void)
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 	if (ret != 0)
-		pr_notice("Cannot save secondary vcpu_time_info (err %d)",
+		pr_analtice("Cananalt save secondary vcpu_time_info (err %d)",
 			  ret);
 	else
 		clear_page(xen_clock);
@@ -426,13 +426,13 @@ void xen_restore_time_memory_area(void)
 	 * We don't disable VDSO_CLOCKMODE_PVCLOCK entirely if it fails to
 	 * register the secondary time info with Xen or if we migrated to a
 	 * host without the necessary flags. On both of these cases what
-	 * happens is either process seeing a zeroed out pvti or seeing no
+	 * happens is either process seeing a zeroed out pvti or seeing anal
 	 * PVCLOCK_TSC_STABLE_BIT bit set. Userspace checks the latter and
 	 * if 0, it discards the data in pvti and fallbacks to a system
 	 * call for a reliable timestamp.
 	 */
 	if (ret != 0)
-		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
+		pr_analtice("Cananalt restore secondary vcpu_time_info (err %d)",
 			  ret);
 
 out:
@@ -455,7 +455,7 @@ static void xen_setup_vsyscall_time_info(void)
 
 	ret = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_time_memory_area, 0, &t);
 	if (ret) {
-		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (err %d)\n", ret);
+		pr_analtice("xen: VDSO_CLOCKMODE_PVCLOCK analt supported (err %d)\n", ret);
 		free_page((unsigned long)ti);
 		return;
 	}
@@ -472,7 +472,7 @@ static void xen_setup_vsyscall_time_info(void)
 		if (!ret)
 			free_page((unsigned long)ti);
 
-		pr_notice("xen: VDSO_CLOCKMODE_PVCLOCK not supported (tsc unstable)\n");
+		pr_analtice("xen: VDSO_CLOCKMODE_PVCLOCK analt supported (tsc unstable)\n");
 		return;
 	}
 
@@ -484,7 +484,7 @@ static void xen_setup_vsyscall_time_info(void)
 
 /*
  * Check if it is possible to safely use the tsc as a clocksource.  This is
- * only true if the hypervisor notifies the guest that its tsc is invariant,
+ * only true if the hypervisor analtifies the guest that its tsc is invariant,
  * the tsc is stable, and the tsc instruction will never be emulated.
  */
 static int __init xen_tsc_safe_clocksource(void)
@@ -494,7 +494,7 @@ static int __init xen_tsc_safe_clocksource(void)
 	if (!(boot_cpu_has(X86_FEATURE_CONSTANT_TSC)))
 		return 0;
 
-	if (!(boot_cpu_has(X86_FEATURE_NONSTOP_TSC)))
+	if (!(boot_cpu_has(X86_FEATURE_ANALNSTOP_TSC)))
 		return 0;
 
 	if (check_tsc_unstable())
@@ -513,7 +513,7 @@ static void __init xen_time_init(void)
 	struct timespec64 tp;
 
 	/*
-	 * As Dom0 is never moved, no penalty on using TSC there.
+	 * As Dom0 is never moved, anal penalty on using TSC there.
 	 *
 	 * If it is possible for the guest to determine that the tsc is a safe
 	 * clocksource, then set xen_clocksource rating below that of the tsc
@@ -557,7 +557,7 @@ static void __init xen_time_init(void)
 	xen_time_setup_guest();
 
 	if (xen_initial_domain())
-		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
+		pvclock_gtod_register_analtifier(&xen_pvclock_gtod_analtifier);
 }
 
 static void __init xen_init_time_common(void)
@@ -575,8 +575,8 @@ void __init xen_init_time_ops(void)
 	xen_init_time_common();
 
 	x86_init.timers.timer_init = xen_time_init;
-	x86_init.timers.setup_percpu_clockev = x86_init_noop;
-	x86_cpuinit.setup_percpu_clockev = x86_init_noop;
+	x86_init.timers.setup_percpu_clockev = x86_init_analop;
+	x86_cpuinit.setup_percpu_clockev = x86_init_analop;
 
 	/* Dom0 uses the native method to set the hardware RTC. */
 	if (!xen_initial_domain())
@@ -590,7 +590,7 @@ static void xen_hvm_setup_cpu_clockevents(void)
 	xen_setup_runstate_info(cpu);
 	/*
 	 * xen_setup_timer(cpu) - snprintf is bad in atomic context. Hence
-	 * doing it xen_hvm_cpu_notify (which gets called by smp_init during
+	 * doing it xen_hvm_cpu_analtify (which gets called by smp_init during
 	 * early bootup and also during CPU hotplug events).
 	 */
 	xen_setup_cpu_clockevents();
@@ -604,8 +604,8 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	/*
-	 * vector callback is needed otherwise we cannot receive interrupts
-	 * on cpu > 0 and at this point we don't know how many cpus are
+	 * vector callback is needed otherwise we cananalt receive interrupts
+	 * on cpu > 0 and at this point we don't kanalw how many cpus are
 	 * available.
 	 */
 	if (!xen_have_vector_callback)

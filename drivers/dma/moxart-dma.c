@@ -56,7 +56,7 @@
 #define APB_DMA_DEST_MASK			0x7000
 
 /*
- * 000: No increment
+ * 000: Anal increment
  * 001: +1 (Burst=0), +4  (Burst=1)
  * 010: +2 (Burst=0), +8  (Burst=1)
  * 011: +4 (Burst=0), +16 (Burst=1)
@@ -85,13 +85,13 @@
  * The request line number is a property of the DMA controller itself,
  * e.g. MMC must always request channels where dma_slave_config->slave_id is 5.
  *
- * 0:    No request / Grant signal
+ * 0:    Anal request / Grant signal
  * 1-15: Request    / Grant signal
  */
-#define APB_DMA_SOURCE_REQ_NO			0x1000000
-#define APB_DMA_SOURCE_REQ_NO_MASK		0xf000000
-#define APB_DMA_DEST_REQ_NO			0x10000
-#define APB_DMA_DEST_REQ_NO_MASK		0xf0000
+#define APB_DMA_SOURCE_REQ_ANAL			0x1000000
+#define APB_DMA_SOURCE_REQ_ANAL_MASK		0xf000000
+#define APB_DMA_DEST_REQ_ANAL			0x10000
+#define APB_DMA_DEST_REQ_ANAL_MASK		0xf0000
 
 #define APB_DMA_DATA_WIDTH			0x100000
 #define APB_DMA_DATA_WIDTH_MASK			0x300000
@@ -138,7 +138,7 @@ struct moxart_chan {
 	bool				allocated;
 	bool				error;
 	int				ch_num;
-	unsigned int			line_reqno;
+	unsigned int			line_reqanal;
 	unsigned int			sgidx;
 };
 
@@ -218,7 +218,7 @@ static int moxart_slave_config(struct dma_chan *chan,
 	ctrl = readl(ch->base + REG_OFF_CTRL);
 	ctrl |= APB_DMA_BURST_MODE;
 	ctrl &= ~(APB_DMA_DEST_MASK | APB_DMA_SOURCE_MASK);
-	ctrl &= ~(APB_DMA_DEST_REQ_NO_MASK | APB_DMA_SOURCE_REQ_NO_MASK);
+	ctrl &= ~(APB_DMA_DEST_REQ_ANAL_MASK | APB_DMA_SOURCE_REQ_ANAL_MASK);
 
 	switch (ch->cfg.src_addr_width) {
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
@@ -249,13 +249,13 @@ static int moxart_slave_config(struct dma_chan *chan,
 	if (ch->cfg.direction == DMA_MEM_TO_DEV) {
 		ctrl &= ~APB_DMA_DEST_SELECT;
 		ctrl |= APB_DMA_SOURCE_SELECT;
-		ctrl |= (ch->line_reqno << 16 &
-			 APB_DMA_DEST_REQ_NO_MASK);
+		ctrl |= (ch->line_reqanal << 16 &
+			 APB_DMA_DEST_REQ_ANAL_MASK);
 	} else {
 		ctrl |= APB_DMA_DEST_SELECT;
 		ctrl &= ~APB_DMA_SOURCE_SELECT;
-		ctrl |= (ch->line_reqno << 24 &
-			 APB_DMA_SOURCE_REQ_NO_MASK);
+		ctrl |= (ch->line_reqanal << 24 &
+			 APB_DMA_SOURCE_REQ_ANAL_MASK);
 	}
 
 	writel(ctrl, ch->base + REG_OFF_CTRL);
@@ -337,7 +337,7 @@ static struct dma_chan *moxart_of_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	ch = to_moxart_dma_chan(chan);
-	ch->line_reqno = dma_spec->args[0];
+	ch->line_reqanal = dma_spec->args[0];
 
 	return chan;
 }
@@ -424,7 +424,7 @@ static void moxart_dma_start_desc(struct dma_chan *chan)
 		return;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	ch->desc = to_moxart_dma_desc(&vd->tx);
 	ch->sgidx = 0;
@@ -561,7 +561,7 @@ static irqreturn_t moxart_dma_interrupt(int irq, void *devid)
 static int moxart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	void __iomem *dma_base_addr;
 	int ret, i;
 	unsigned int irq;
@@ -570,11 +570,11 @@ static int moxart_probe(struct platform_device *pdev)
 
 	mdc = devm_kzalloc(dev, sizeof(*mdc), GFP_KERNEL);
 	if (!mdc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(analde, 0);
 	if (!irq) {
-		dev_err(dev, "no IRQ resource\n");
+		dev_err(dev, "anal IRQ resource\n");
 		return -EINVAL;
 	}
 
@@ -617,7 +617,7 @@ static int moxart_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(node, moxart_of_xlate, mdc);
+	ret = of_dma_controller_register(analde, moxart_of_xlate, mdc);
 	if (ret) {
 		dev_err(dev, "of_dma_controller_register failed\n");
 		dma_async_device_unregister(&mdc->dma_slave);
@@ -637,8 +637,8 @@ static void moxart_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&m->dma_slave);
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_analde)
+		of_dma_controller_free(pdev->dev.of_analde);
 }
 
 static const struct of_device_id moxart_dma_match[] = {

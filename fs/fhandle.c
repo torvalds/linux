@@ -7,7 +7,7 @@
 #include <linux/namei.h>
 #include <linux/exportfs.h>
 #include <linux/fs_struct.h>
-#include <linux/fsnotify.h>
+#include <linux/fsanaltify.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
@@ -28,7 +28,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	 * the file handle if decodeable file handle was requested.
 	 */
 	if (!exportfs_can_encode_fh(path->dentry->d_sb->s_export_op, fh_flags))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle)))
 		return -EFAULT;
@@ -39,12 +39,12 @@ static long do_sys_name_to_handle(const struct path *path,
 	handle = kmalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
 			 GFP_KERNEL);
 	if (!handle)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* convert handle size to multiple of sizeof(u32) */
 	handle_dwords = f_handle.handle_bytes >> 2;
 
-	/* we ask for a non connectable maybe decodeable file handle */
+	/* we ask for a analn connectable maybe decodeable file handle */
 	retval = exportfs_encode_fh(path->dentry,
 				    (struct fid *)handle->f_handle,
 				    &handle_dwords, fh_flags);
@@ -55,15 +55,15 @@ static long do_sys_name_to_handle(const struct path *path,
 	if ((handle->handle_bytes > f_handle.handle_bytes) ||
 	    (retval == FILEID_INVALID) || (retval < 0)) {
 		/* As per old exportfs_encode_fh documentation
-		 * we could return ENOSPC to indicate overflow
+		 * we could return EANALSPC to indicate overflow
 		 * But file system returned 255 always. So handle
 		 * both the values
 		 */
-		if (retval == FILEID_INVALID || retval == -ENOSPC)
+		if (retval == FILEID_INVALID || retval == -EANALSPC)
 			retval = -EOVERFLOW;
 		/*
 		 * set the handle size to zero so we copy only
-		 * non variable part of the file_handle
+		 * analn variable part of the file_handle
 		 */
 		handle_bytes = 0;
 	} else
@@ -79,16 +79,16 @@ static long do_sys_name_to_handle(const struct path *path,
 
 /**
  * sys_name_to_handle_at: convert name to handle
- * @dfd: directory relative to which name is interpreted if not absolute
+ * @dfd: directory relative to which name is interpreted if analt absolute
  * @name: name that should be converted to handle.
  * @handle: resulting file handle
  * @mnt_id: mount id of the file system containing the file
- * @flag: flag value to indicate whether to follow symlink or not
+ * @flag: flag value to indicate whether to follow symlink or analt
  *        and whether a decodable file handle is required.
  *
  * @handle->handle_size indicate the space available to store the
- * variable part of the file handle in bytes. If there is not
- * enough space, the field is updated to return the minimum
+ * variable part of the file handle in bytes. If there is analt
+ * eanalugh space, the field is updated to return the minimum
  * value required.
  */
 SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
@@ -195,7 +195,7 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 	handle = kmalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
 			 GFP_KERNEL);
 	if (!handle) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_err;
 	}
 	/* copy the full handle */

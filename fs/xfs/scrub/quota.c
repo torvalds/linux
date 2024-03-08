@@ -12,7 +12,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_bmap.h"
@@ -46,14 +46,14 @@ xchk_setup_quota(
 	int			error;
 
 	if (!XFS_IS_QUOTA_ON(sc->mp))
-		return -ENOENT;
+		return -EANALENT;
 
 	dqtype = xchk_quota_to_dqtype(sc);
 	if (dqtype == 0)
 		return -EINVAL;
 
 	if (!xfs_this_quota_on(sc->mp, dqtype))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
@@ -62,7 +62,7 @@ xchk_setup_quota(
 	if (error)
 		return error;
 
-	error = xchk_install_live_inode(sc, xfs_quota_inode(sc->mp, dqtype));
+	error = xchk_install_live_ianalde(sc, xfs_quota_ianalde(sc->mp, dqtype));
 	if (error)
 		return error;
 
@@ -108,9 +108,9 @@ xchk_quota_item_bmap(
 		return 0;
 	}
 
-	if (!xfs_verify_fsbno(mp, irec.br_startblock))
+	if (!xfs_verify_fsbanal(mp, irec.br_startblock))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-	if (XFS_FSB_TO_DADDR(mp, irec.br_startblock) != dq->q_blkno)
+	if (XFS_FSB_TO_DADDR(mp, irec.br_startblock) != dq->q_blkanal)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	if (!xfs_bmap_is_written_extent(&irec))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
@@ -145,7 +145,7 @@ xchk_quota_item(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 	xfs_fileoff_t		offset;
-	xfs_ino_t		fs_icount;
+	xfs_ianal_t		fs_icount;
 	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
@@ -190,9 +190,9 @@ xchk_quota_item(
 	if (dq->q_blk.softlimit > dq->q_blk.hardlimit)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	if (dq->q_ino.hardlimit > M_IGEO(mp)->maxicount)
+	if (dq->q_ianal.hardlimit > M_IGEO(mp)->maxicount)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
-	if (dq->q_ino.softlimit > dq->q_ino.hardlimit)
+	if (dq->q_ianal.softlimit > dq->q_ianal.hardlimit)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	if (dq->q_rtb.hardlimit > mp->m_sb.sb_rblocks)
@@ -206,7 +206,7 @@ xchk_quota_item(
 	/*
 	 * Check that usage doesn't exceed physical limits.  However, on
 	 * a reflink filesystem we're allowed to exceed physical space
-	 * if there are no quota limits.
+	 * if there are anal quota limits.
 	 */
 	if (xfs_has_reflink(mp)) {
 		if (mp->m_sb.sb_dblocks < dq->q_blk.count)
@@ -217,7 +217,7 @@ xchk_quota_item(
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK,
 					offset);
 	}
-	if (dq->q_ino.count > fs_icount || dq->q_rtb.count > mp->m_sb.sb_rblocks)
+	if (dq->q_ianal.count > fs_icount || dq->q_rtb.count > mp->m_sb.sb_rblocks)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	/*
@@ -232,8 +232,8 @@ xchk_quota_item(
 	    dq->q_blk.count > dq->q_blk.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
-	if (dq->q_ino.hardlimit != 0 &&
-	    dq->q_ino.count > dq->q_ino.hardlimit)
+	if (dq->q_ianal.hardlimit != 0 &&
+	    dq->q_ianal.count > dq->q_ianal.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
 	if (dq->q_rtb.hardlimit != 0 &&
@@ -241,7 +241,7 @@ xchk_quota_item(
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 
 	xchk_quota_item_timer(sc, offset, &dq->q_blk);
-	xchk_quota_item_timer(sc, offset, &dq->q_ino);
+	xchk_quota_item_timer(sc, offset, &dq->q_ianal);
 	xchk_quota_item_timer(sc, offset, &dq->q_rtb);
 
 out:
@@ -264,7 +264,7 @@ xchk_quota_data_fork(
 	int			error = 0;
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_ianalde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -314,13 +314,13 @@ xchk_quota(
 		goto out;
 
 	/*
-	 * Check all the quota items.  Now that we've checked the quota inode
+	 * Check all the quota items.  Analw that we've checked the quota ianalde
 	 * data fork we have to drop ILOCK_EXCL to use the regular dquot
 	 * functions.
 	 */
 	xchk_iunlock(sc, sc->ilock_flags);
 
-	/* Now look for things that the quota verifiers won't complain about. */
+	/* Analw look for things that the quota verifiers won't complain about. */
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
 		error = xchk_quota_item(&sqi, dq);

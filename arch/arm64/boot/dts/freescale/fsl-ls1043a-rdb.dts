@@ -66,12 +66,12 @@
 	status = "okay";
 	#address-cells = <2>;
 	#size-cells = <1>;
-	/* NOR, NAND Flashes and FPGA on board */
+	/* ANALR, NAND Flashes and FPGA on board */
 	ranges = <0x0 0x0 0x0 0x60000000 0x08000000
 		  0x1 0x0 0x0 0x7e800000 0x00010000
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 
-		nor@0,0 {
+		analr@0,0 {
 			compatible = "cfi-flash";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -101,7 +101,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128a13", "jedec,spi-nor";  /* 16MB */
+		compatible = "n25q128a13", "jedec,spi-analr";  /* 16MB */
 		reg = <0>;
 		spi-max-frequency = <1000000>; /* input clock */
 		fsl,spi-cs-sck-delay = <100>;

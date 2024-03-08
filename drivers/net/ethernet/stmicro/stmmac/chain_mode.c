@@ -4,7 +4,7 @@
 
   Copyright(C) 2011  STMicroelectronics Ltd
 
-  It defines all the functions used to handle the normal/enhanced
+  It defines all the functions used to handle the analrmal/enhanced
   descriptors in case of the DMA is configured to work in chained or
   in ring mode.
 
@@ -17,7 +17,7 @@
 static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 		     int csum)
 {
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int analpaged_len = skb_headlen(skb);
 	struct stmmac_priv *priv = tx_q->priv_data;
 	unsigned int entry = tx_q->cur_tx;
 	unsigned int bmax, des2;
@@ -31,7 +31,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 	else
 		bmax = BUF_SIZE_2KiB;
 
-	len = nopaged_len - bmax;
+	len = analpaged_len - bmax;
 
 	des2 = dma_map_single(priv->device, skb->data,
 			      bmax, DMA_TO_DEVICE);
@@ -40,7 +40,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 		return -1;
 	tx_q->tx_skbuff_dma[entry].buf = des2;
 	tx_q->tx_skbuff_dma[entry].len = bmax;
-	/* do not close the descriptor and do not set own bit */
+	/* do analt close the descriptor and do analt set own bit */
 	stmmac_prepare_tx_desc(priv, desc, 1, bmax, csum, STMMAC_CHAIN_MODE,
 			0, false, skb->len);
 
@@ -71,7 +71,7 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 				return -1;
 			tx_q->tx_skbuff_dma[entry].buf = des2;
 			tx_q->tx_skbuff_dma[entry].len = len;
-			/* last descriptor can be set now */
+			/* last descriptor can be set analw */
 			stmmac_prepare_tx_desc(priv, desc, 0, len, csum,
 					STMMAC_CHAIN_MODE, 1, true, skb->len);
 			len = 0;
@@ -130,7 +130,7 @@ static void refill_desc3(struct stmmac_rx_queue *rx_q, struct dma_desc *p)
 	struct stmmac_priv *priv = rx_q->priv_data;
 
 	if (priv->hwts_rx_en && !priv->extend_desc)
-		/* NOTE: Device will overwrite des3 with timestamp value if
+		/* ANALTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
 		 */
@@ -147,7 +147,7 @@ static void clean_desc3(struct stmmac_tx_queue *tx_q, struct dma_desc *p)
 
 	if (tx_q->tx_skbuff_dma[entry].last_segment && !priv->extend_desc &&
 	    priv->hwts_tx_en)
-		/* NOTE: Device will overwrite des3 with timestamp value if
+		/* ANALTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
 		 */

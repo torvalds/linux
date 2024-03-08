@@ -19,7 +19,7 @@ const struct nla_policy ethnl_cable_test_act_policy[] = {
 static int ethnl_cable_test_started(struct phy_device *phydev, u8 cmd)
 {
 	struct sk_buff *skb;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	void *ehdr;
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
@@ -70,14 +70,14 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 
 	dev = req_info.dev;
 	if (!dev->phydev) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_dev_put;
 	}
 
 	rtnl_lock();
 	ops = ethtool_phy_ops;
 	if (!ops || !ops->start_cable_test) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_rtnl;
 	}
 
@@ -102,7 +102,7 @@ out_dev_put:
 
 int ethnl_cable_test_alloc(struct phy_device *phydev, u8 cmd)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* One TDR sample occupies 20 bytes. For a 150 meter cable,
 	 * with four pairs, around 12K is needed.
@@ -322,7 +322,7 @@ int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info)
 
 	dev = req_info.dev;
 	if (!dev->phydev) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_dev_put;
 	}
 
@@ -334,7 +334,7 @@ int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info)
 	rtnl_lock();
 	ops = ethtool_phy_ops;
 	if (!ops || !ops->start_cable_test_tdr) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out_rtnl;
 	}
 

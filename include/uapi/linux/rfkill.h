@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -29,7 +29,7 @@
 /**
  * enum rfkill_type - type of rfkill switch.
  *
- * @RFKILL_TYPE_ALL: toggles all switches (requests only - not a switch type)
+ * @RFKILL_TYPE_ALL: toggles all switches (requests only - analt a switch type)
  * @RFKILL_TYPE_WLAN: switch is on a 802.11 wireless network device.
  * @RFKILL_TYPE_BLUETOOTH: switch is on a bluetooth device.
  * @RFKILL_TYPE_UWB: switch is on a ultra wideband device.
@@ -72,11 +72,11 @@ enum rfkill_operation {
 /**
  * enum rfkill_hard_block_reasons - hard block reasons
  * @RFKILL_HARD_BLOCK_SIGNAL: the hardware rfkill signal is active
- * @RFKILL_HARD_BLOCK_NOT_OWNER: the NIC is not owned by the host
+ * @RFKILL_HARD_BLOCK_ANALT_OWNER: the NIC is analt owned by the host
  */
 enum rfkill_hard_block_reasons {
 	RFKILL_HARD_BLOCK_SIGNAL	= 1 << 0,
-	RFKILL_HARD_BLOCK_NOT_OWNER	= 1 << 1,
+	RFKILL_HARD_BLOCK_ANALT_OWNER	= 1 << 1,
 };
 
 /**
@@ -133,18 +133,18 @@ struct rfkill_event_ext {
  *
  * Originally, we had planned to allow backward and forward compatible
  * changes by just adding fields at the end of the structure that are
- * then not reported on older kernels on read(), and not written to by
+ * then analt reported on older kernels on read(), and analt written to by
  * older kernels on write(), with the kernel reporting the size it did
  * accept as the result.
  *
  * This would have allowed userspace to detect on read() and write()
  * which kernel structure version it was dealing with, and if was just
- * recompiled it would have gotten the new fields, but obviously not
+ * recompiled it would have gotten the new fields, but obviously analt
  * accessed them, but things should've continued to work.
  *
  * Unfortunately, while actually exercising this mechanism to add the
- * hard block reasons field, we found that userspace (notably systemd)
- * did all kinds of fun things not in line with this scheme:
+ * hard block reasons field, we found that userspace (analtably systemd)
+ * did all kinds of fun things analt in line with this scheme:
  *
  * 1. treat the (expected) short writes as an error;
  * 2. ask to read sizeof(struct rfkill_event) but then compare the
@@ -152,7 +152,7 @@ struct rfkill_event_ext {
  *    mismatch as an error.
  *
  * As a consequence, just recompiling with a new struct version caused
- * things to no longer work correctly on old and new kernels.
+ * things to anal longer work correctly on old and new kernels.
  *
  * Hence, we've rolled back &struct rfkill_event to the original version
  * and added &struct rfkill_event_ext. This effectively reverts to the
@@ -172,17 +172,17 @@ struct rfkill_event_ext {
  *
  * 1. accept short writes, optionally using them to detect that it's
  *    running on an older kernel;
- * 2. accept short reads, knowing that this means it's running on an
+ * 2. accept short reads, kanalwing that this means it's running on an
  *    older kernel;
- * 3. treat reads that are as long as requested as acceptable, not
+ * 3. treat reads that are as long as requested as acceptable, analt
  *    checking against RFKILL_EVENT_SIZE_V1 or such.
  */
 #define RFKILL_EVENT_SIZE_V1	sizeof(struct rfkill_event)
 
 /* ioctl for turning off rfkill-input (if present) */
 #define RFKILL_IOC_MAGIC	'R'
-#define RFKILL_IOC_NOINPUT	1
-#define RFKILL_IOCTL_NOINPUT	_IO(RFKILL_IOC_MAGIC, RFKILL_IOC_NOINPUT)
+#define RFKILL_IOC_ANALINPUT	1
+#define RFKILL_IOCTL_ANALINPUT	_IO(RFKILL_IOC_MAGIC, RFKILL_IOC_ANALINPUT)
 #define RFKILL_IOC_MAX_SIZE	2
 #define RFKILL_IOCTL_MAX_SIZE	_IOW(RFKILL_IOC_MAGIC, RFKILL_IOC_MAX_SIZE, __u32)
 

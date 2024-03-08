@@ -31,10 +31,10 @@ EXPORT_SYMBOL_GPL(bcom_sram);	/* needed for inline functions */
 /* ======================================================================== */
 /* Public API                                                               */
 /* ======================================================================== */
-/* DO NOT USE in interrupts, if needed in irq handler, we should use the
+/* DO ANALT USE in interrupts, if needed in irq handler, we should use the
    _irqsave version of the spin_locks */
 
-int bcom_sram_init(struct device_node *sram_node, char *owner)
+int bcom_sram_init(struct device_analde *sram_analde, char *owner)
 {
 	int rv;
 	const u32 *regaddr_p;
@@ -52,14 +52,14 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	if (!bcom_sram) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
 			"Couldn't allocate internal state !\n", owner);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Get address and size of the sram */
-	rv = of_address_to_resource(sram_node, 0, &res);
+	rv = of_address_to_resource(sram_analde, 0, &res);
 	if (rv) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
-			"Invalid device node !\n", owner);
+			"Invalid device analde !\n", owner);
 		goto error_free;
 	}
 
@@ -75,14 +75,14 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	}
 
 	/* Map SRAM */
-		/* sram is not really __iomem */
+		/* sram is analt really __iomem */
 	bcom_sram->base_virt = (void *)ioremap(res.start, resource_size(&res));
 
 	if (!bcom_sram->base_virt) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
 			"Map error SRAM zone 0x%08lx (0x%0x)!\n",
 			owner, (long)bcom_sram->base_phys, bcom_sram->size );
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto error_release;
 	}
 
@@ -92,7 +92,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	/* Attach the free zones */
 #if 0
 	/* Currently disabled ... for future use only */
-	reg_addr_p = of_get_property(sram_node, "available", &psize);
+	reg_addr_p = of_get_property(sram_analde, "available", &psize);
 #else
 	regaddr_p = NULL;
 	psize = 0;
@@ -104,7 +104,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	} else {
 		/* Attach each zone independently */
 		while (psize >= 2 * sizeof(u32)) {
-			phys_addr_t zbase = of_translate_address(sram_node, regaddr_p);
+			phys_addr_t zbase = of_translate_address(sram_analde, regaddr_p);
 			rh_attach_region(bcom_sram->rh, zbase - bcom_sram->base_phys, regaddr_p[1]);
 			regaddr_p += 2;
 			psize -= 2 * sizeof(u32);

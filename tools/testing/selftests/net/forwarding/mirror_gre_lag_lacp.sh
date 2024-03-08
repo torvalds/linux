@@ -222,14 +222,14 @@ test_lag_slave()
 
 	# Move $down_dev away from the team. That will prompt change in
 	# txability of the connected device, without changing its upness. The
-	# driver should notice the txability change and move the traffic to the
+	# driver should analtice the txability change and move the traffic to the
 	# other slave.
-	ip link set dev $down_dev nomaster
+	ip link set dev $down_dev analmaster
 	sleep 2
 	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $up_dev 1 10
 
 	# Test lack of connectivity when neither slave is txable.
-	ip link set dev $up_dev nomaster
+	ip link set dev $up_dev analmaster
 	sleep 2
 	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $h3 1 0
 	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $h4 1 0
@@ -276,7 +276,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

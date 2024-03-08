@@ -2,7 +2,7 @@
  *  linux/arch/arm/vfp/vfpdouble.c
  *
  * This code is derived in part from John R. Housers softfloat library, which
- * carries the following notice:
+ * carries the following analtice:
  *
  * ===========================================================================
  * This C source file is part of the SoftFloat IEC/IEEE Floating-point
@@ -25,8 +25,8 @@
  * AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
  *
  * Derivative works are acceptable, even for commercial purposes, so long as
- * (1) they include prominent notice that the work is derivative, and (2) they
- * include prominent notice akin to these three paragraphs for those parts of
+ * (1) they include prominent analtice that the work is derivative, and (2) they
+ * include prominent analtice akin to these three paragraphs for those parts of
  * this code that are retained.
  * ===========================================================================
  */
@@ -51,23 +51,23 @@ static void vfp_double_dump(const char *str, struct vfp_double *d)
 		 str, d->sign != 0, d->exponent, d->significand);
 }
 
-static void vfp_double_normalise_denormal(struct vfp_double *vd)
+static void vfp_double_analrmalise_deanalrmal(struct vfp_double *vd)
 {
 	int bits = 31 - fls(vd->significand >> 32);
 	if (bits == 31)
 		bits = 63 - fls(vd->significand);
 
-	vfp_double_dump("normalise_denormal: in", vd);
+	vfp_double_dump("analrmalise_deanalrmal: in", vd);
 
 	if (bits) {
 		vd->exponent -= bits - 1;
 		vd->significand <<= bits;
 	}
 
-	vfp_double_dump("normalise_denormal: out", vd);
+	vfp_double_dump("analrmalise_deanalrmal: out", vd);
 }
 
-u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func)
+u32 vfp_double_analrmaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func)
 {
 	u64 significand, incr;
 	int exponent, shift, underflow;
@@ -103,7 +103,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 #ifdef DEBUG
 	vd->exponent = exponent;
 	vd->significand = significand;
-	vfp_double_dump("pack: normalised", vd);
+	vfp_double_dump("pack: analrmalised", vd);
 #endif
 
 	/*
@@ -155,7 +155,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 
 	/*
 	 * If any of the low bits (which will be shifted out of the
-	 * number) are non-zero, the result is inexact.
+	 * number) are analn-zero, the result is inexact.
 	 */
 	if (significand & ((1 << (VFP_DOUBLE_LOW_BITS + 1)) - 1))
 		exceptions |= FPSCR_IXC;
@@ -297,10 +297,10 @@ static u32 vfp_double_fsqrt(int dd, int unused, int dm, u32 fpscr)
 		goto sqrt_copy;
 
 	/*
-	 * Normalise a denormalised number
+	 * Analrmalise a deanalrmalised number
 	 */
-	if (tm & VFP_DENORMAL)
-		vfp_double_normalise_denormal(&vdm);
+	if (tm & VFP_DEANALRMAL)
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	/*
 	 * sqrt(<0) = invalid
@@ -325,7 +325,7 @@ static u32 vfp_double_fsqrt(int dd, int unused, int dm, u32 fpscr)
 	vfp_double_dump("sqrt estimate2", &vdd);
 
 	/*
-	 * And now adjust.
+	 * And analw adjust.
 	 */
 	if ((vdd.significand & VFP_DOUBLE_LOW_BITS_MASK) <= 5) {
 		if (vdd.significand < 2) {
@@ -346,14 +346,14 @@ static u32 vfp_double_fsqrt(int dd, int unused, int dm, u32 fpscr)
 	}
 	vdd.significand = vfp_shiftright64jamming(vdd.significand, 1);
 
-	return vfp_double_normaliseround(dd, &vdd, fpscr, 0, "fsqrt");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, 0, "fsqrt");
 }
 
 /*
  * Equal	:= ZC
  * Less than	:= N
  * Greater than	:= C
- * Unordered	:= CV
+ * Uanalrdered	:= CV
  */
 static u32 vfp_compare(int dd, int signal_on_qnan, int dm, u32 fpscr)
 {
@@ -453,8 +453,8 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	if (tm == VFP_SNAN)
 		exceptions = FPSCR_IOC;
 
-	if (tm & VFP_DENORMAL)
-		vfp_double_normalise_denormal(&vdm);
+	if (tm & VFP_DEANALRMAL)
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	vsd.sign = vdm.sign;
 	vsd.significand = vfp_hi64to32jamming(vdm.significand);
@@ -472,7 +472,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	else
 		vsd.exponent = vdm.exponent - (1023 - 127);
 
-	return vfp_single_normaliseround(sd, &vsd, fpscr, exceptions, "fcvts");
+	return vfp_single_analrmaliseround(sd, &vsd, fpscr, exceptions, "fcvts");
 
  pack_nan:
 	vfp_put_float(vfp_single_pack(&vsd), sd);
@@ -488,7 +488,7 @@ static u32 vfp_double_fuito(int dd, int unused, int dm, u32 fpscr)
 	vdm.exponent = 1023 + 63 - 1;
 	vdm.significand = (u64)m;
 
-	return vfp_double_normaliseround(dd, &vdm, fpscr, 0, "fuito");
+	return vfp_double_analrmaliseround(dd, &vdm, fpscr, 0, "fuito");
 }
 
 static u32 vfp_double_fsito(int dd, int unused, int dm, u32 fpscr)
@@ -500,7 +500,7 @@ static u32 vfp_double_fsito(int dd, int unused, int dm, u32 fpscr)
 	vdm.exponent = 1023 + 63 - 1;
 	vdm.significand = vdm.sign ? -m : m;
 
-	return vfp_double_normaliseround(dd, &vdm, fpscr, 0, "fsito");
+	return vfp_double_analrmaliseround(dd, &vdm, fpscr, 0, "fsito");
 }
 
 static u32 vfp_double_ftoui(int sd, int unused, int dm, u32 fpscr)
@@ -513,10 +513,10 @@ static u32 vfp_double_ftoui(int sd, int unused, int dm, u32 fpscr)
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 
 	/*
-	 * Do we have a denormalised number?
+	 * Do we have a deanalrmalised number?
 	 */
 	tm = vfp_double_type(&vdm);
-	if (tm & VFP_DENORMAL)
+	if (tm & VFP_DEANALRMAL)
 		exceptions |= FPSCR_IDC;
 
 	if (tm & VFP_NAN)
@@ -593,10 +593,10 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	vfp_double_dump("VDM", &vdm);
 
 	/*
-	 * Do we have denormalised number?
+	 * Do we have deanalrmalised number?
 	 */
 	tm = vfp_double_type(&vdm);
-	if (tm & VFP_DENORMAL)
+	if (tm & VFP_DEANALRMAL)
 		exceptions |= FPSCR_IDC;
 
 	if (tm & VFP_NAN) {
@@ -680,7 +680,7 @@ static struct op fops_ext[32] = {
 
 
 static u32
-vfp_double_fadd_nonnumber(struct vfp_double *vdd, struct vfp_double *vdn,
+vfp_double_fadd_analnnumber(struct vfp_double *vdd, struct vfp_double *vdn,
 			  struct vfp_double *vdm, u32 fpscr)
 {
 	struct vfp_double *vdp;
@@ -736,8 +736,8 @@ vfp_double_add(struct vfp_double *vdd, struct vfp_double *vdn,
 	}
 
 	/*
-	 * Ensure that 'n' is the largest magnitude number.  Note that
-	 * if 'n' and 'm' have equal exponents, we do not swap them.
+	 * Ensure that 'n' is the largest magnitude number.  Analte that
+	 * if 'n' and 'm' have equal exponents, we do analt swap them.
 	 * This ensures that NaN propagation works correctly.
 	 */
 	if (vdn->exponent < vdm->exponent) {
@@ -747,11 +747,11 @@ vfp_double_add(struct vfp_double *vdd, struct vfp_double *vdn,
 	}
 
 	/*
-	 * Is 'n' an infinity or a NaN?  Note that 'm' may be a number,
+	 * Is 'n' an infinity or a NaN?  Analte that 'm' may be a number,
 	 * infinity or a NaN here.
 	 */
 	if (vdn->exponent == 2047)
-		return vfp_double_fadd_nonnumber(vdd, vdn, vdm, fpscr);
+		return vfp_double_fadd_analnnumber(vdd, vdn, vdm, fpscr);
 
 	/*
 	 * We have two proper numbers, where 'vdn' is the larger magnitude.
@@ -794,8 +794,8 @@ vfp_double_multiply(struct vfp_double *vdd, struct vfp_double *vdn,
 	vfp_double_dump("VDM", vdm);
 
 	/*
-	 * Ensure that 'n' is the largest magnitude number.  Note that
-	 * if 'n' and 'm' have equal exponents, we do not swap them.
+	 * Ensure that 'n' is the largest magnitude number.  Analte that
+	 * if 'n' and 'm' have equal exponents, we do analt swap them.
 	 * This ensures that NaN propagation works correctly.
 	 */
 	if (vdn->exponent < vdm->exponent) {
@@ -855,11 +855,11 @@ vfp_double_multiply_accumulate(int dd, int dn, int dm, u32 fpscr, u32 negate, ch
 
 	vfp_double_unpack(&vdn, vfp_get_double(dn));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	if (vdm.exponent == 0 && vdm.significand)
-		vfp_double_normalise_denormal(&vdm);
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	exceptions = vfp_double_multiply(&vdp, &vdn, &vdm, fpscr);
 	if (negate & NEG_MULTIPLY)
@@ -867,13 +867,13 @@ vfp_double_multiply_accumulate(int dd, int dn, int dm, u32 fpscr, u32 negate, ch
 
 	vfp_double_unpack(&vdn, vfp_get_double(dd));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 	if (negate & NEG_SUBTRACT)
 		vdn.sign = vfp_sign_negate(vdn.sign);
 
 	exceptions |= vfp_double_add(&vdd, &vdn, &vdp, fpscr);
 
-	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, func);
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, exceptions, func);
 }
 
 /*
@@ -922,14 +922,14 @@ static u32 vfp_double_fmul(int dd, int dn, int dm, u32 fpscr)
 
 	vfp_double_unpack(&vdn, vfp_get_double(dn));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	if (vdm.exponent == 0 && vdm.significand)
-		vfp_double_normalise_denormal(&vdm);
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	exceptions = vfp_double_multiply(&vdd, &vdn, &vdm, fpscr);
-	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, "fmul");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, exceptions, "fmul");
 }
 
 /*
@@ -942,16 +942,16 @@ static u32 vfp_double_fnmul(int dd, int dn, int dm, u32 fpscr)
 
 	vfp_double_unpack(&vdn, vfp_get_double(dn));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	if (vdm.exponent == 0 && vdm.significand)
-		vfp_double_normalise_denormal(&vdm);
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	exceptions = vfp_double_multiply(&vdd, &vdn, &vdm, fpscr);
 	vdd.sign = vfp_sign_negate(vdd.sign);
 
-	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, "fnmul");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, exceptions, "fnmul");
 }
 
 /*
@@ -964,15 +964,15 @@ static u32 vfp_double_fadd(int dd, int dn, int dm, u32 fpscr)
 
 	vfp_double_unpack(&vdn, vfp_get_double(dn));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	if (vdm.exponent == 0 && vdm.significand)
-		vfp_double_normalise_denormal(&vdm);
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	exceptions = vfp_double_add(&vdd, &vdn, &vdm, fpscr);
 
-	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, "fadd");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, exceptions, "fadd");
 }
 
 /*
@@ -985,11 +985,11 @@ static u32 vfp_double_fsub(int dd, int dn, int dm, u32 fpscr)
 
 	vfp_double_unpack(&vdn, vfp_get_double(dn));
 	if (vdn.exponent == 0 && vdn.significand)
-		vfp_double_normalise_denormal(&vdn);
+		vfp_double_analrmalise_deanalrmal(&vdn);
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	if (vdm.exponent == 0 && vdm.significand)
-		vfp_double_normalise_denormal(&vdm);
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	/*
 	 * Subtraction is like addition, but with a negated operand.
@@ -998,7 +998,7 @@ static u32 vfp_double_fsub(int dd, int dn, int dm, u32 fpscr)
 
 	exceptions = vfp_double_add(&vdd, &vdn, &vdm, fpscr);
 
-	return vfp_double_normaliseround(dd, &vdd, fpscr, exceptions, "fsub");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, exceptions, "fsub");
 }
 
 /*
@@ -1055,10 +1055,10 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
 	if (tm & VFP_INFINITY || tn & VFP_ZERO)
 		goto zero;
 
-	if (tn & VFP_DENORMAL)
-		vfp_double_normalise_denormal(&vdn);
-	if (tm & VFP_DENORMAL)
-		vfp_double_normalise_denormal(&vdm);
+	if (tn & VFP_DEANALRMAL)
+		vfp_double_analrmalise_deanalrmal(&vdn);
+	if (tm & VFP_DEANALRMAL)
+		vfp_double_analrmalise_deanalrmal(&vdm);
 
 	/*
 	 * Ok, we have two numbers, we can perform division.
@@ -1080,7 +1080,7 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
 		}
 		vdd.significand |= (reml != 0);
 	}
-	return vfp_double_normaliseround(dd, &vdd, fpscr, 0, "fdiv");
+	return vfp_double_analrmaliseround(dd, &vdd, fpscr, 0, "fdiv");
 
  vdn_nan:
 	exceptions = vfp_propagate_nan(&vdd, &vdn, &vdm, fpscr);
@@ -1139,7 +1139,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	fop = (op == FOP_EXT) ? &fops_ext[FEXT_TO_IDX(inst)] : &fops[FOP_TO_IDX(op)];
 
 	/*
-	 * fcvtds takes an sN register number as destination, not dN.
+	 * fcvtds takes an sN register number as destination, analt dN.
 	 * It also always operates on scalars.
 	 */
 	if (fop->flags & OP_SD)
@@ -1148,7 +1148,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		dest = vfp_get_dd(inst);
 
 	/*
-	 * f[us]ito takes a sN operand, not a dN operand.
+	 * f[us]ito takes a sN operand, analt a dN operand.
 	 */
 	if (fop->flags & OP_SM)
 		dm = vfp_get_sm(inst);

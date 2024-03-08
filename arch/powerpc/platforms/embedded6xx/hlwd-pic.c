@@ -113,7 +113,7 @@ static unsigned int __hlwd_pic_get_irq(struct irq_domain *h)
 	irq_status = in_be32(io_base + HW_BROADWAY_ICR) &
 		     in_be32(io_base + HW_BROADWAY_IMR);
 	if (irq_status == 0)
-		return 0;	/* no more IRQs pending */
+		return 0;	/* anal more IRQs pending */
 
 	return __ffs(irq_status);
 }
@@ -153,7 +153,7 @@ static void __hlwd_quiesce(void __iomem *io_base)
 	out_be32(io_base + HW_BROADWAY_ICR, 0xffffffff);
 }
 
-static struct irq_domain *__init hlwd_pic_init(struct device_node *np)
+static struct irq_domain *__init hlwd_pic_init(struct device_analde *np)
 {
 	struct irq_domain *irq_domain;
 	struct resource res;
@@ -162,7 +162,7 @@ static struct irq_domain *__init hlwd_pic_init(struct device_node *np)
 
 	retval = of_address_to_resource(np, 0, &res);
 	if (retval) {
-		pr_err("no io memory range found\n");
+		pr_err("anal io memory range found\n");
 		return NULL;
 	}
 	io_base = ioremap(res.start, resource_size(&res));
@@ -200,11 +200,11 @@ unsigned int hlwd_pic_get_irq(void)
 void __init hlwd_pic_probe(void)
 {
 	struct irq_domain *host;
-	struct device_node *np;
+	struct device_analde *np;
 	const u32 *interrupts;
 	int cascade_virq;
 
-	for_each_compatible_node(np, NULL, "nintendo,hollywood-pic") {
+	for_each_compatible_analde(np, NULL, "nintendo,hollywood-pic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			host = hlwd_pic_init(np);
@@ -214,7 +214,7 @@ void __init hlwd_pic_probe(void)
 			irq_set_chained_handler(cascade_virq,
 						hlwd_pic_irq_cascade);
 			hlwd_irq_host = host;
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}

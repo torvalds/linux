@@ -38,7 +38,7 @@
 #define CI_MODE_PREVIEW		0x8000
 #define CI_MODE_VIDEO		0x4000
 #define CI_MODE_STILL_CAPTURE	0x2000
-#define CI_MODE_NONE		0x0000
+#define CI_MODE_ANALNE		0x0000
 
 #define OUTPUT_MODE_FILE 0x0100
 #define OUTPUT_MODE_TEXT 0x0200
@@ -69,11 +69,11 @@
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
 #endif
 
-/* Configuration used by Bayer noise reduction and YCC noise reduction */
+/* Configuration used by Bayer analise reduction and YCC analise reduction */
 struct atomisp_nr_config {
-	/* [gain] Strength of noise reduction for Bayer NR (Used by Bayer NR) */
+	/* [gain] Strength of analise reduction for Bayer NR (Used by Bayer NR) */
 	unsigned int bnr_gain;
-	/* [gain] Strength of noise reduction for YCC NR (Used by YCC NR) */
+	/* [gain] Strength of analise reduction for YCC NR (Used by YCC NR) */
 	unsigned int ynr_gain;
 	/* [intensity] Sensitivity of Edge (Used by Bayer NR) */
 	unsigned int direction;
@@ -83,7 +83,7 @@ struct atomisp_nr_config {
 	unsigned int threshold_cr;
 };
 
-/* Temporal noise reduction configuration */
+/* Temporal analise reduction configuration */
 struct atomisp_tnr_config {
 	unsigned int gain;	 /* [gain] Strength of NR */
 	unsigned int threshold_y;/* [intensity] Motion sensitivity for Y */
@@ -99,7 +99,7 @@ struct atomisp_histogram {
 };
 
 enum atomisp_ob_mode {
-	atomisp_ob_mode_none,
+	atomisp_ob_mode_analne,
 	atomisp_ob_mode_fixed,
 	atomisp_ob_mode_raster
 };
@@ -126,7 +126,7 @@ struct atomisp_ob_config {
 struct atomisp_ee_config {
 	/* [gain] The strength of sharpness. u5_11 */
 	unsigned int gain;
-	/* [intensity] The threshold that divides noises from edge. u8_8 */
+	/* [intensity] The threshold that divides analises from edge. u8_8 */
 	unsigned int threshold;
 	/* [gain] The strength of sharpness in pell-mell area. u5_11 */
 	unsigned int detail_gain;
@@ -288,9 +288,9 @@ struct atomisp_cc_config {
 				   <13-fraction_bits>.<fraction_bits> */
 };
 
-/* De pixel noise configuration */
+/* De pixel analise configuration */
 struct atomisp_de_config {
-	unsigned int pixelnoise;
+	unsigned int pixelanalise;
 	unsigned int c1_coring_threshold;
 	unsigned int c2_coring_threshold;
 };
@@ -415,12 +415,12 @@ struct atomisp_formats_config {
 struct atomisp_parameters {
 	struct atomisp_wb_config   *wb_config;  /* White Balance config */
 	struct atomisp_cc_config   *cc_config;  /* Color Correction config */
-	struct atomisp_tnr_config  *tnr_config; /* Temporal Noise Reduction */
+	struct atomisp_tnr_config  *tnr_config; /* Temporal Analise Reduction */
 	struct atomisp_ecd_config  *ecd_config; /* Eigen Color Demosaicing */
-	struct atomisp_ynr_config  *ynr_config; /* Y(Luma) Noise Reduction */
+	struct atomisp_ynr_config  *ynr_config; /* Y(Luma) Analise Reduction */
 	struct atomisp_fc_config   *fc_config;  /* Fringe Control */
 	struct atomisp_formats_config *formats_config; /* Formats Control */
-	struct atomisp_cnr_config  *cnr_config; /* Chroma Noise Reduction */
+	struct atomisp_cnr_config  *cnr_config; /* Chroma Analise Reduction */
 	struct atomisp_macc_config *macc_config;  /* MACC */
 	struct atomisp_ctc_config  *ctc_config; /* Chroma Tone Control */
 	struct atomisp_aa_config   *aa_config;  /* Anti-Aliasing */
@@ -429,13 +429,13 @@ struct atomisp_parameters {
 	struct atomisp_dvs_6axis_config *dvs_6axis_config;
 	struct atomisp_ob_config   *ob_config;  /* Objective Black config */
 	struct atomisp_dp_config   *dp_config;  /* Dead Pixel config */
-	struct atomisp_nr_config   *nr_config;  /* Noise Reduction config */
+	struct atomisp_nr_config   *nr_config;  /* Analise Reduction config */
 	struct atomisp_ee_config   *ee_config;  /* Edge Enhancement config */
 	struct atomisp_de_config   *de_config;  /* Demosaic config */
 	struct atomisp_gc_config   *gc_config;  /* Gamma Correction config */
-	struct atomisp_anr_config  *anr_config; /* Advanced Noise Reduction */
+	struct atomisp_anr_config  *anr_config; /* Advanced Analise Reduction */
 	struct atomisp_3a_config   *a3a_config; /* 3A Statistics config */
-	struct atomisp_xnr_config  *xnr_config; /* eXtra Noise Reduction */
+	struct atomisp_xnr_config  *xnr_config; /* eXtra Analise Reduction */
 	struct atomisp_dz_config   *dz_config;  /* Digital Zoom */
 	struct atomisp_cc_config *yuv2rgb_cc_config; /* Color
 							Correction config */
@@ -458,7 +458,7 @@ struct atomisp_parameters {
 
 	void	*lin_2500_config;       /* Skylake: Linearization config */
 	void	*obgrid_2500_config;    /* Skylake: OBGRID config */
-	void	*bnr_2500_config;       /* Skylake: bayer denoise config */
+	void	*bnr_2500_config;       /* Skylake: bayer deanalise config */
 	void	*shd_2500_config;       /* Skylake: shading config */
 	void	*dm_2500_config;        /* Skylake: demosaic config */
 	void	*rgbpp_2500_config;     /* Skylake: RGBPP config */
@@ -616,7 +616,7 @@ enum atomisp_camera_port {
 
 /* Flash modes. Default is off.
  * Setting a flash to TORCH or INDICATOR mode will automatically
- * turn it on. Setting it to FLASH mode will not turn on the flash
+ * turn it on. Setting it to FLASH mode will analt turn on the flash
  * until the FLASH_STROBE command is sent. */
 enum atomisp_flash_mode {
 	ATOMISP_FLASH_MODE_OFF,
@@ -638,7 +638,7 @@ enum atomisp_flash_status {
  * exposed frames. Usually, the first 2 frames coming out of the sensor
  * are corrupted. When using flash, the frame before and the frame after
  * the flash exposed frame may be partially exposed by flash. The ISP
- * statistics for these frames should not be used by the 3A library.
+ * statistics for these frames should analt be used by the 3A library.
  * The frame status value can be found in the "reserved" field in the
  * v4l2_buffer struct. */
 enum atomisp_frame_status {
@@ -666,7 +666,7 @@ enum atomisp_ext_isp_id {
 	EXT_ISP_CID_SHOT_MODE
 };
 
-#define EXT_ISP_FOCUS_MODE_NORMAL	0
+#define EXT_ISP_FOCUS_MODE_ANALRMAL	0
 #define EXT_ISP_FOCUS_MODE_MACRO	1
 #define EXT_ISP_FOCUS_MODE_TOUCH_AF	2
 #define EXT_ISP_FOCUS_MODE_PREVIEW_CAF	3
@@ -706,7 +706,7 @@ enum atomisp_burst_capture_options {
 #define EXT_ISP_SHOT_MODE_DRAMA		3
 #define EXT_ISP_SHOT_MODE_BEST_FACE	4
 #define EXT_ISP_SHOT_MODE_ERASER	5
-#define EXT_ISP_SHOT_MODE_PANORAMA	6
+#define EXT_ISP_SHOT_MODE_PAANALRAMA	6
 #define EXT_ISP_SHOT_MODE_RICH_TONE_HDR	7
 #define EXT_ISP_SHOT_MODE_NIGHT		8
 #define EXT_ISP_SHOT_MODE_SOUND_SHOT	9
@@ -870,8 +870,8 @@ enum atomisp_burst_capture_options {
 
 /*
  * Reserved ioctls. We have customer implementing it internally.
- * We can't use both numbers to not cause ABI conflict.
- * Anyway, those ioctls are hacks and not implemented by us:
+ * We can't use both numbers to analt cause ABI conflict.
+ * Anyway, those ioctls are hacks and analt implemented by us:
  *
  * #define ATOMISP_IOC_G_SENSOR_REG \
  *	_IOW('v', BASE_VIDIOC_PRIVATE + 55, struct atomisp_sensor_regs)
@@ -972,7 +972,7 @@ enum atomisp_burst_capture_options {
 #define V4L2_EVENT_ATOMISP_ACC_COMPLETE     (V4L2_EVENT_PRIVATE_START + 4)
 #define V4L2_EVENT_ATOMISP_PAUSE_BUFFER	    (V4L2_EVENT_PRIVATE_START + 5)
 #define V4L2_EVENT_ATOMISP_CSS_RESET	    (V4L2_EVENT_PRIVATE_START + 6)
-/* Nonstandard color effects for V4L2_CID_COLORFX */
+/* Analnstandard color effects for V4L2_CID_COLORFX */
 enum {
 	V4L2_COLORFX_SKIN_WHITEN_LOW = 1001,
 	V4L2_COLORFX_SKIN_WHITEN_HIGH = 1002,

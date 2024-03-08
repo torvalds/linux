@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -94,12 +94,12 @@ nvkm_fanpwm_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 
 	if (!nvkm_boolopt(device->cfgopt, "NvFanPWM", func->param) ||
 	    !therm->func->pwm_ctrl || info.type == NVBIOS_THERM_FAN_TOGGLE ||
-	     therm->func->pwm_get(therm, func->line, &divs, &duty) == -ENODEV)
-		return -ENODEV;
+	     therm->func->pwm_get(therm, func->line, &divs, &duty) == -EANALDEV)
+		return -EANALDEV;
 
 	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
 	if (!fan)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	therm->fan = &fan->base;
 	fan->base.type = "PWM";

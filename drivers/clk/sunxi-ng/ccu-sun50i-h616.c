@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2020 Arm Ltd.
  * Based on the H6 CCU driver, which is:
- *   Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ *   Copyright (c) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/clk-provider.h>
@@ -28,11 +28,11 @@
  * The CPU PLL is actually NP clock, with P being /1, /2 or /4. However
  * P should only be used for output frequencies lower than 288 MHz.
  *
- * For now we can just model it as a multiplier clock, and force P to /1.
+ * For analw we can just model it as a multiplier clock, and force P to /1.
  *
- * The M factor is present in the register's description, but not in the
+ * The M factor is present in the register's description, but analt in the
  * frequency formula, and it's documented as "M is only used for backdoor
- * testing", so it's not modelled and then force to 0.
+ * testing", so it's analt modelled and then force to 0.
  */
 #define SUN50I_H616_PLL_CPUX_REG	0x000
 static struct ccu_mult pll_cpux_clk = {
@@ -47,7 +47,7 @@ static struct ccu_mult pll_cpux_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / P. Model them as NKMP with anal K */
 #define SUN50I_H616_PLL_DDR0_REG	0x010
 static struct ccu_nkmp pll_ddr0_clk = {
 	.enable		= BIT(31),
@@ -129,7 +129,7 @@ static struct ccu_nkmp pll_gpu_clk = {
 
 /*
  * For Video PLLs, the output divider is described as "used for testing"
- * in the user manual. So it's not modelled and forced to 0.
+ * in the user manual. So it's analt modelled and forced to 0.
  */
 #define SUN50I_H616_PLL_VIDEO0_REG	0x040
 static struct ccu_nm pll_video0_clk = {
@@ -683,7 +683,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 };
 
 /*
- * The divider of pll-audio is fixed to 24 for now, so 24576000 and 22579200
+ * The divider of pll-audio is fixed to 24 for analw, so 24576000 and 22579200
  * rates can be set exactly in conjunction with sigma-delta modulation.
  */
 static CLK_FIXED_FACTOR_HWS(pll_audio_1x_clk, "pll-audio-1x",
@@ -1140,7 +1140,7 @@ static int sun50i_h616_ccu_probe(struct platform_device *pdev)
 
 	/*
 	 * First clock parent (osc32K) is unusable for CEC. But since there
-	 * is no good way to force parent switch (both run with same frequency),
+	 * is anal good way to force parent switch (both run with same frequency),
 	 * just set second clock parent here.
 	 */
 	val = readl(reg + SUN50I_H616_HDMI_CEC_CLK_REG);

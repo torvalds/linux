@@ -54,13 +54,13 @@ static void br_message_age_timer_expired(struct timer_list *t)
 		return;
 
 	br_info(br, "port %u(%s) neighbor %.2x%.2x.%pM lost\n",
-		(unsigned int) p->port_no, p->dev->name,
+		(unsigned int) p->port_anal, p->dev->name,
 		id->prio[0], id->prio[1], &id->addr);
 
 	/*
-	 * According to the spec, the message age timer cannot be
+	 * According to the spec, the message age timer cananalt be
 	 * running when we are the root bridge. So..  this was_root
-	 * check is redundant. I'm leaving it in for now, though.
+	 * check is redundant. I'm leaving it in for analw, though.
 	 */
 	spin_lock(&br->lock);
 	if (p->state == BR_STATE_DISABLED)
@@ -82,7 +82,7 @@ static void br_forward_delay_timer_expired(struct timer_list *t)
 	struct net_bridge *br = p->br;
 
 	br_debug(br, "port %u(%s) forward delay timer\n",
-		 (unsigned int) p->port_no, p->dev->name);
+		 (unsigned int) p->port_anal, p->dev->name);
 	spin_lock(&br->lock);
 	if (p->state == BR_STATE_LISTENING) {
 		br_set_state(p, BR_STATE_LEARNING);
@@ -95,7 +95,7 @@ static void br_forward_delay_timer_expired(struct timer_list *t)
 		netif_carrier_on(br->dev);
 	}
 	rcu_read_lock();
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_analtify(RTM_NEWLINK, NULL, p);
 	rcu_read_unlock();
 	spin_unlock(&br->lock);
 }
@@ -130,7 +130,7 @@ static void br_hold_timer_expired(struct timer_list *t)
 	struct net_bridge_port *p = from_timer(p, t, hold_timer);
 
 	br_debug(p->br, "port %u(%s) hold timer expired\n",
-		 (unsigned int) p->port_no, p->dev->name);
+		 (unsigned int) p->port_anal, p->dev->name);
 
 	spin_lock(&p->br->lock);
 	if (p->config_pending)

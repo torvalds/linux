@@ -790,8 +790,8 @@ enum pmic_id {
 #define TPS6594_BIT_WD_FIRST_OK				BIT(5)
 #define TPS6594_BIT_WD_BAD_EVENT			BIT(6)
 
-/* CRC8 polynomial for I2C & SPI protocols */
-#define TPS6594_CRC8_POLYNOMIAL	0x07
+/* CRC8 polyanalmial for I2C & SPI protocols */
+#define TPS6594_CRC8_POLYANALMIAL	0x07
 
 /* IRQs */
 enum tps6594_irqs {

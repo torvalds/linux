@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>

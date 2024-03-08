@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_S390_NOSPEC_ASM_H
-#define _ASM_S390_NOSPEC_ASM_H
+#ifndef _ASM_S390_ANALSPEC_ASM_H
+#define _ASM_S390_ANALSPEC_ASM_H
 
 #include <linux/linkage.h>
 #include <asm/dwarf.h>
@@ -129,4 +129,4 @@
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _ASM_S390_NOSPEC_ASM_H */
+#endif /* _ASM_S390_ANALSPEC_ASM_H */

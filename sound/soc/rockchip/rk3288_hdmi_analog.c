@@ -92,14 +92,14 @@ static int rk_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
 				     SND_SOC_CLOCK_OUT);
 
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(codec_dai->dev, "Can't set cpu clock %d\n", ret);
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 				     SND_SOC_CLOCK_IN);
-	if (ret && ret != -ENOTSUPP) {
+	if (ret && ret != -EANALTSUPP) {
 		dev_err(codec_dai->dev, "Can't set codec clock %d\n", ret);
 		return ret;
 	}
@@ -119,7 +119,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 	struct device *dev = card->dev;
 
 	/* Enable optional Headset Jack detection */
-	if (of_property_present(dev->of_node, "rockchip,hp-det-gpios")) {
+	if (of_property_present(dev->of_analde, "rockchip,hp-det-gpios")) {
 		rk_hp_jack_gpio.gpiod_dev = dev;
 		snd_soc_card_jack_new_pins(runtime->card, "Headphone Jack",
 					   SND_JACK_HEADPHONE, &headphone_jack,
@@ -167,14 +167,14 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card = &snd_soc_card_rk;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct rk_drvdata *machine;
 	struct of_phandle_args args;
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct rk_drvdata),
 			       GFP_KERNEL);
 	if (!machine)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->dev = &pdev->dev;
 
@@ -189,10 +189,10 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.codecs[0].of_node = of_parse_phandle(np,
+	rk_dailink.codecs[0].of_analde = of_parse_phandle(np,
 							"rockchip,audio-codec",
 							0);
-	if (!rk_dailink.codecs[0].of_node) {
+	if (!rk_dailink.codecs[0].of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -211,15 +211,15 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rk_dailink.cpus->of_node = of_parse_phandle(np, "rockchip,i2s-controller",
+	rk_dailink.cpus->of_analde = of_parse_phandle(np, "rockchip,i2s-controller",
 						  0);
-	if (!rk_dailink.cpus->of_node) {
+	if (!rk_dailink.cpus->of_analde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
+	rk_dailink.platforms->of_analde = rk_dailink.cpus->of_analde;
 
 	ret = snd_soc_of_parse_audio_routing(card, "rockchip,routing");
 	if (ret) {

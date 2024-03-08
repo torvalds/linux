@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_rtalloc.h"
 #include "xfs_iwalk.h"
 #include "xfs_itable.h"
@@ -62,37 +62,37 @@ xfs_find_handle(
 {
 	int			hsize;
 	xfs_handle_t		handle;
-	struct inode		*inode;
+	struct ianalde		*ianalde;
 	struct fd		f = {NULL};
 	struct path		path;
 	int			error;
-	struct xfs_inode	*ip;
+	struct xfs_ianalde	*ip;
 
 	if (cmd == XFS_IOC_FD_TO_HANDLE) {
 		f = fdget(hreq->fd);
 		if (!f.file)
 			return -EBADF;
-		inode = file_inode(f.file);
+		ianalde = file_ianalde(f.file);
 	} else {
 		error = user_path_at(AT_FDCWD, hreq->path, 0, &path);
 		if (error)
 			return error;
-		inode = d_inode(path.dentry);
+		ianalde = d_ianalde(path.dentry);
 	}
-	ip = XFS_I(inode);
+	ip = XFS_I(ianalde);
 
 	/*
-	 * We can only generate handles for inodes residing on a XFS filesystem,
+	 * We can only generate handles for ianaldes residing on a XFS filesystem,
 	 * and only for regular files, directories or symbolic links.
 	 */
 	error = -EINVAL;
-	if (inode->i_sb->s_magic != XFS_SB_MAGIC)
+	if (ianalde->i_sb->s_magic != XFS_SB_MAGIC)
 		goto out_put;
 
 	error = -EBADF;
-	if (!S_ISREG(inode->i_mode) &&
-	    !S_ISDIR(inode->i_mode) &&
-	    !S_ISLNK(inode->i_mode))
+	if (!S_ISREG(ianalde->i_mode) &&
+	    !S_ISDIR(ianalde->i_mode) &&
+	    !S_ISLNK(ianalde->i_mode))
 		goto out_put;
 
 
@@ -108,8 +108,8 @@ xfs_find_handle(
 		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
 					sizeof(handle.ha_fid.fid_len);
 		handle.ha_fid.fid_pad = 0;
-		handle.ha_fid.fid_gen = inode->i_generation;
-		handle.ha_fid.fid_ino = ip->i_ino;
+		handle.ha_fid.fid_gen = ianalde->i_generation;
+		handle.ha_fid.fid_ianal = ip->i_ianal;
 		hsize = sizeof(xfs_handle_t);
 	}
 
@@ -129,7 +129,7 @@ xfs_find_handle(
 }
 
 /*
- * No need to do permission checks on the various pathname components
+ * Anal need to do permission checks on the various pathname components
  * as the handle operations are privileged.
  */
 STATIC int
@@ -155,8 +155,8 @@ xfs_handle_to_dentry(
 	/*
 	 * Only allow handle opens under a directory.
 	 */
-	if (!S_ISDIR(file_inode(parfilp)->i_mode))
-		return ERR_PTR(-ENOTDIR);
+	if (!S_ISDIR(file_ianalde(parfilp)->i_mode))
+		return ERR_PTR(-EANALTDIR);
 
 	if (hlen != sizeof(xfs_handle_t))
 		return ERR_PTR(-EINVAL);
@@ -167,11 +167,11 @@ xfs_handle_to_dentry(
 		return ERR_PTR(-EINVAL);
 
 	memset(&fid, 0, sizeof(struct fid));
-	fid.ino = handle.ha_fid.fid_ino;
+	fid.ianal = handle.ha_fid.fid_ianal;
 	fid.gen = handle.ha_fid.fid_gen;
 
 	return exportfs_decode_fh(parfilp->f_path.mnt, (struct fid *)&fid, 3,
-			FILEID_INO32_GEN | XFS_FILEID_TYPE_64FLAG,
+			FILEID_IANAL32_GEN | XFS_FILEID_TYPE_64FLAG,
 			xfs_handle_acceptable, NULL);
 }
 
@@ -193,7 +193,7 @@ xfs_open_by_handle(
 	int			fd;
 	int			permflag;
 	struct file		*filp;
-	struct inode		*inode;
+	struct ianalde		*ianalde;
 	struct dentry		*dentry;
 	fmode_t			fmode;
 	struct path		path;
@@ -204,10 +204,10 @@ xfs_open_by_handle(
 	dentry = xfs_handlereq_to_dentry(parfilp, hreq);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-	inode = d_inode(dentry);
+	ianalde = d_ianalde(dentry);
 
 	/* Restrict xfs_open_by_handle to directories & regular files. */
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))) {
+	if (!(S_ISREG(ianalde->i_mode) || S_ISDIR(ianalde->i_mode))) {
 		error = -EPERM;
 		goto out_dput;
 	}
@@ -219,18 +219,18 @@ xfs_open_by_handle(
 	permflag = hreq->oflags;
 	fmode = OPEN_FMODE(permflag);
 	if ((!(permflag & O_APPEND) || (permflag & O_TRUNC)) &&
-	    (fmode & FMODE_WRITE) && IS_APPEND(inode)) {
+	    (fmode & FMODE_WRITE) && IS_APPEND(ianalde)) {
 		error = -EPERM;
 		goto out_dput;
 	}
 
-	if ((fmode & FMODE_WRITE) && IS_IMMUTABLE(inode)) {
+	if ((fmode & FMODE_WRITE) && IS_IMMUTABLE(ianalde)) {
 		error = -EPERM;
 		goto out_dput;
 	}
 
 	/* Can't write directories. */
-	if (S_ISDIR(inode->i_mode) && (fmode & FMODE_WRITE)) {
+	if (S_ISDIR(ianalde->i_mode) && (fmode & FMODE_WRITE)) {
 		error = -EISDIR;
 		goto out_dput;
 	}
@@ -250,9 +250,9 @@ xfs_open_by_handle(
 		return PTR_ERR(filp);
 	}
 
-	if (S_ISREG(inode->i_mode)) {
-		filp->f_flags |= O_NOATIME;
-		filp->f_mode |= FMODE_NOCMTIME;
+	if (S_ISREG(ianalde->i_mode)) {
+		filp->f_flags |= O_ANALATIME;
+		filp->f_mode |= FMODE_ANALCMTIME;
 	}
 
 	fd_install(fd, filp);
@@ -314,7 +314,7 @@ xfs_ioc_attr_put_listent(
 	struct xfs_attrlist_ent	*aep;
 	int			arraytop;
 
-	ASSERT(!context->seen_enough);
+	ASSERT(!context->seen_eanalugh);
 	ASSERT(context->count >= 0);
 	ASSERT(context->count < (ATTR_MAX_VALUELEN/8));
 	ASSERT(context->firstu >= sizeof(*alist));
@@ -335,7 +335,7 @@ xfs_ioc_attr_put_listent(
 	if (context->firstu < arraytop) {
 		trace_xfs_attr_list_full(context);
 		alist->al_more = 1;
-		context->seen_enough = 1;
+		context->seen_eanalugh = 1;
 		return;
 	}
 
@@ -372,7 +372,7 @@ xfs_attr_flags(
 
 int
 xfs_ioc_attr_list(
-	struct xfs_inode		*dp,
+	struct xfs_ianalde		*dp,
 	void __user			*ubuf,
 	size_t				bufsize,
 	int				flags,
@@ -403,13 +403,13 @@ xfs_ioc_attr_list(
 	if (context.cursor.pad1 || context.cursor.pad2)
 		return -EINVAL;
 	if (!context.cursor.initted &&
-	    (context.cursor.hashval || context.cursor.blkno ||
+	    (context.cursor.hashval || context.cursor.blkanal ||
 	     context.cursor.offset))
 		return -EINVAL;
 
 	buffer = kvzalloc(bufsize, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Initialize the output buffer.
@@ -446,7 +446,7 @@ xfs_attrlist_by_handle(
 {
 	struct xfs_fsop_attrlist_handlereq al_hreq;
 	struct dentry		*dentry;
-	int			error = -ENOMEM;
+	int			error = -EANALMEM;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -457,7 +457,7 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	error = xfs_ioc_attr_list(XFS_I(d_inode(dentry)), al_hreq.buffer,
+	error = xfs_ioc_attr_list(XFS_I(d_ianalde(dentry)), al_hreq.buffer,
 				  al_hreq.buflen, al_hreq.flags, &p->pos);
 	dput(dentry);
 	return error;
@@ -465,14 +465,14 @@ xfs_attrlist_by_handle(
 
 static int
 xfs_attrmulti_attr_get(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	unsigned char		*name,
 	unsigned char		__user *ubuf,
 	uint32_t		*len,
 	uint32_t		flags)
 {
 	struct xfs_da_args	args = {
-		.dp		= XFS_I(inode),
+		.dp		= XFS_I(ianalde),
 		.attr_filter	= xfs_attr_filter(flags),
 		.attr_flags	= xfs_attr_flags(flags),
 		.name		= name,
@@ -499,14 +499,14 @@ out_kfree:
 
 static int
 xfs_attrmulti_attr_set(
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	unsigned char		*name,
 	const unsigned char	__user *ubuf,
 	uint32_t		len,
 	uint32_t		flags)
 {
 	struct xfs_da_args	args = {
-		.dp		= XFS_I(inode),
+		.dp		= XFS_I(ianalde),
 		.attr_filter	= xfs_attr_filter(flags),
 		.attr_flags	= xfs_attr_flags(flags),
 		.name		= name,
@@ -514,7 +514,7 @@ xfs_attrmulti_attr_set(
 	};
 	int			error;
 
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
+	if (IS_IMMUTABLE(ianalde) || IS_APPEND(ianalde))
 		return -EPERM;
 
 	if (ubuf) {
@@ -528,7 +528,7 @@ xfs_attrmulti_attr_set(
 
 	error = xfs_attr_change(&args);
 	if (!error && (flags & XFS_IOC_ATTR_ROOT))
-		xfs_forget_acl(inode, name);
+		xfs_forget_acl(ianalde, name);
 	kfree(args.value);
 	return error;
 }
@@ -536,7 +536,7 @@ xfs_attrmulti_attr_set(
 int
 xfs_ioc_attrmulti_one(
 	struct file		*parfilp,
-	struct inode		*inode,
+	struct ianalde		*ianalde,
 	uint32_t		opcode,
 	void __user		*uname,
 	void __user		*value,
@@ -555,7 +555,7 @@ xfs_ioc_attrmulti_one(
 
 	switch (opcode) {
 	case ATTR_OP_GET:
-		error = xfs_attrmulti_attr_get(inode, name, value, len, flags);
+		error = xfs_attrmulti_attr_get(ianalde, name, value, len, flags);
 		break;
 	case ATTR_OP_REMOVE:
 		value = NULL;
@@ -565,7 +565,7 @@ xfs_ioc_attrmulti_one(
 		error = mnt_want_write_file(parfilp);
 		if (error)
 			break;
-		error = xfs_attrmulti_attr_set(inode, name, value, *len, flags);
+		error = xfs_attrmulti_attr_set(ianalde, name, value, *len, flags);
 		mnt_drop_write_file(parfilp);
 		break;
 	default:
@@ -615,7 +615,7 @@ xfs_attrmulti_by_handle(
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
 		ops[i].am_error = xfs_ioc_attrmulti_one(parfilp,
-				d_inode(dentry), ops[i].am_opcode,
+				d_ianalde(dentry), ops[i].am_opcode,
 				ops[i].am_attrname, ops[i].am_attrvalue,
 				&ops[i].am_length, ops[i].am_flags);
 	}
@@ -648,12 +648,12 @@ xfs_fsinumbers_fmt(
 	struct xfs_ibulk		*breq,
 	const struct xfs_inumbers	*igrp)
 {
-	struct xfs_inogrp		ig1;
+	struct xfs_ianalgrp		ig1;
 
-	xfs_inumbers_to_inogrp(&ig1, igrp);
-	if (copy_to_user(breq->ubuffer, &ig1, sizeof(struct xfs_inogrp)))
+	xfs_inumbers_to_ianalgrp(&ig1, igrp);
+	if (copy_to_user(breq->ubuffer, &ig1, sizeof(struct xfs_ianalgrp)))
 		return -EFAULT;
-	return xfs_ibulk_advance(breq, sizeof(struct xfs_inogrp));
+	return xfs_ibulk_advance(breq, sizeof(struct xfs_ianalgrp));
 }
 
 STATIC int
@@ -662,14 +662,14 @@ xfs_ioc_fsbulkstat(
 	unsigned int		cmd,
 	void			__user *arg)
 {
-	struct xfs_mount	*mp = XFS_I(file_inode(file))->i_mount;
+	struct xfs_mount	*mp = XFS_I(file_ianalde(file))->i_mount;
 	struct xfs_fsop_bulkreq	bulkreq;
 	struct xfs_ibulk	breq = {
 		.mp		= mp,
 		.idmap		= file_mnt_idmap(file),
 		.ocount		= 0,
 	};
-	xfs_ino_t		lastino;
+	xfs_ianal_t		lastianal;
 	int			error;
 
 	/* done = 1 if there are more stats to get and if bulkstat */
@@ -684,7 +684,7 @@ xfs_ioc_fsbulkstat(
 	if (copy_from_user(&bulkreq, arg, sizeof(struct xfs_fsop_bulkreq)))
 		return -EFAULT;
 
-	if (copy_from_user(&lastino, bulkreq.lastip, sizeof(__s64)))
+	if (copy_from_user(&lastianal, bulkreq.lastip, sizeof(__s64)))
 		return -EFAULT;
 
 	if (bulkreq.icount <= 0)
@@ -697,35 +697,35 @@ xfs_ioc_fsbulkstat(
 	breq.icount = bulkreq.icount;
 
 	/*
-	 * FSBULKSTAT_SINGLE expects that *lastip contains the inode number
+	 * FSBULKSTAT_SINGLE expects that *lastip contains the ianalde number
 	 * that we want to stat.  However, FSINUMBERS and FSBULKSTAT expect
-	 * that *lastip contains either zero or the number of the last inode to
+	 * that *lastip contains either zero or the number of the last ianalde to
 	 * be examined by the previous call and return results starting with
-	 * the next inode after that.  The new bulk request back end functions
-	 * take the inode to start with, so we have to compute the startino
-	 * parameter from lastino to maintain correct function.  lastino == 0
-	 * is a special case because it has traditionally meant "first inode
+	 * the next ianalde after that.  The new bulk request back end functions
+	 * take the ianalde to start with, so we have to compute the startianal
+	 * parameter from lastianal to maintain correct function.  lastianal == 0
+	 * is a special case because it has traditionally meant "first ianalde
 	 * in filesystem".
 	 */
 	if (cmd == XFS_IOC_FSINUMBERS) {
-		breq.startino = lastino ? lastino + 1 : 0;
+		breq.startianal = lastianal ? lastianal + 1 : 0;
 		error = xfs_inumbers(&breq, xfs_fsinumbers_fmt);
-		lastino = breq.startino - 1;
+		lastianal = breq.startianal - 1;
 	} else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE) {
-		breq.startino = lastino;
+		breq.startianal = lastianal;
 		breq.icount = 1;
 		error = xfs_bulkstat_one(&breq, xfs_fsbulkstat_one_fmt);
 	} else {	/* XFS_IOC_FSBULKSTAT */
-		breq.startino = lastino ? lastino + 1 : 0;
+		breq.startianal = lastianal ? lastianal + 1 : 0;
 		error = xfs_bulkstat(&breq, xfs_fsbulkstat_one_fmt);
-		lastino = breq.startino - 1;
+		lastianal = breq.startianal - 1;
 	}
 
 	if (error)
 		return error;
 
 	if (bulkreq.lastip != NULL &&
-	    copy_to_user(bulkreq.lastip, &lastino, sizeof(xfs_ino_t)))
+	    copy_to_user(bulkreq.lastip, &lastianal, sizeof(xfs_ianal_t)))
 		return -EFAULT;
 
 	if (bulkreq.ocount != NULL &&
@@ -749,7 +749,7 @@ xfs_bulkstat_fmt(
 /*
  * Check the incoming bulk request @hdr from userspace and initialize the
  * internal @breq bulk request appropriately.  Returns 0 if the bulk request
- * should proceed; -ECANCELED if there's nothing to do; or the usual
+ * should proceed; -ECANCELED if there's analthing to do; or the usual
  * negative error code.
  */
 static int
@@ -764,24 +764,24 @@ xfs_bulk_ireq_setup(
 	    memchr_inv(hdr->reserved, 0, sizeof(hdr->reserved)))
 		return -EINVAL;
 
-	breq->startino = hdr->ino;
+	breq->startianal = hdr->ianal;
 	breq->ubuffer = ubuffer;
 	breq->icount = hdr->icount;
 	breq->ocount = 0;
 	breq->flags = 0;
 
 	/*
-	 * The @ino parameter is a special value, so we must look it up here.
-	 * We're not allowed to have IREQ_AGNO, and we only return one inode
+	 * The @ianal parameter is a special value, so we must look it up here.
+	 * We're analt allowed to have IREQ_AGANAL, and we only return one ianalde
 	 * worth of data.
 	 */
 	if (hdr->flags & XFS_BULK_IREQ_SPECIAL) {
-		if (hdr->flags & XFS_BULK_IREQ_AGNO)
+		if (hdr->flags & XFS_BULK_IREQ_AGANAL)
 			return -EINVAL;
 
-		switch (hdr->ino) {
+		switch (hdr->ianal) {
 		case XFS_BULK_IREQ_SPECIAL_ROOT:
-			breq->startino = mp->m_sb.sb_rootino;
+			breq->startianal = mp->m_sb.sb_rootianal;
 			break;
 		default:
 			return -EINVAL;
@@ -790,29 +790,29 @@ xfs_bulk_ireq_setup(
 	}
 
 	/*
-	 * The IREQ_AGNO flag means that we only want results from a given AG.
-	 * If @hdr->ino is zero, we start iterating in that AG.  If @hdr->ino is
-	 * beyond the specified AG then we return no results.
+	 * The IREQ_AGANAL flag means that we only want results from a given AG.
+	 * If @hdr->ianal is zero, we start iterating in that AG.  If @hdr->ianal is
+	 * beyond the specified AG then we return anal results.
 	 */
-	if (hdr->flags & XFS_BULK_IREQ_AGNO) {
-		if (hdr->agno >= mp->m_sb.sb_agcount)
+	if (hdr->flags & XFS_BULK_IREQ_AGANAL) {
+		if (hdr->aganal >= mp->m_sb.sb_agcount)
 			return -EINVAL;
 
-		if (breq->startino == 0)
-			breq->startino = XFS_AGINO_TO_INO(mp, hdr->agno, 0);
-		else if (XFS_INO_TO_AGNO(mp, breq->startino) < hdr->agno)
+		if (breq->startianal == 0)
+			breq->startianal = XFS_AGIANAL_TO_IANAL(mp, hdr->aganal, 0);
+		else if (XFS_IANAL_TO_AGANAL(mp, breq->startianal) < hdr->aganal)
 			return -EINVAL;
 
 		breq->flags |= XFS_IBULK_SAME_AG;
 
-		/* Asking for an inode past the end of the AG?  We're done! */
-		if (XFS_INO_TO_AGNO(mp, breq->startino) > hdr->agno)
+		/* Asking for an ianalde past the end of the AG?  We're done! */
+		if (XFS_IANAL_TO_AGANAL(mp, breq->startianal) > hdr->aganal)
 			return -ECANCELED;
-	} else if (hdr->agno)
+	} else if (hdr->aganal)
 		return -EINVAL;
 
-	/* Asking for an inode past the end of the FS?  We're done! */
-	if (XFS_INO_TO_AGNO(mp, breq->startino) >= mp->m_sb.sb_agcount)
+	/* Asking for an ianalde past the end of the FS?  We're done! */
+	if (XFS_IANAL_TO_AGANAL(mp, breq->startianal) >= mp->m_sb.sb_agcount)
 		return -ECANCELED;
 
 	if (hdr->flags & XFS_BULK_IREQ_NREXT64)
@@ -830,7 +830,7 @@ xfs_bulk_ireq_teardown(
 	struct xfs_bulk_ireq	*hdr,
 	struct xfs_ibulk	*breq)
 {
-	hdr->ino = breq->startino;
+	hdr->ianal = breq->startianal;
 	hdr->ocount = breq->ocount;
 }
 
@@ -841,7 +841,7 @@ xfs_ioc_bulkstat(
 	unsigned int			cmd,
 	struct xfs_bulkstat_req __user	*arg)
 {
-	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
+	struct xfs_mount		*mp = XFS_I(file_ianalde(file))->i_mount;
 	struct xfs_bulk_ireq		hdr;
 	struct xfs_ibulk		breq = {
 		.mp			= mp,
@@ -982,12 +982,12 @@ xfs_ioc_ag_geometry(
 }
 
 /*
- * Linux extended inode flags interface.
+ * Linux extended ianalde flags interface.
  */
 
 static void
 xfs_fill_fsxattr(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	int			whichfork,
 	struct fileattr		*fa)
 {
@@ -1025,7 +1025,7 @@ xfs_fill_fsxattr(
 
 STATIC int
 xfs_ioc_fsgetxattra(
-	xfs_inode_t		*ip,
+	xfs_ianalde_t		*ip,
 	void			__user *arg)
 {
 	struct fileattr		fa;
@@ -1042,10 +1042,10 @@ xfs_fileattr_get(
 	struct dentry		*dentry,
 	struct fileattr		*fa)
 {
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
+	struct xfs_ianalde	*ip = XFS_I(d_ianalde(dentry));
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	xfs_fill_fsxattr(ip, XFS_DATA_FORK, fa);
@@ -1056,7 +1056,7 @@ xfs_fileattr_get(
 
 STATIC uint16_t
 xfs_flags2diflags(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	unsigned int		xflags)
 {
 	/* can't set PREALLOC this way, just preserve it */
@@ -1069,19 +1069,19 @@ xfs_flags2diflags(
 		di_flags |= XFS_DIFLAG_APPEND;
 	if (xflags & FS_XFLAG_SYNC)
 		di_flags |= XFS_DIFLAG_SYNC;
-	if (xflags & FS_XFLAG_NOATIME)
-		di_flags |= XFS_DIFLAG_NOATIME;
-	if (xflags & FS_XFLAG_NODUMP)
-		di_flags |= XFS_DIFLAG_NODUMP;
-	if (xflags & FS_XFLAG_NODEFRAG)
-		di_flags |= XFS_DIFLAG_NODEFRAG;
+	if (xflags & FS_XFLAG_ANALATIME)
+		di_flags |= XFS_DIFLAG_ANALATIME;
+	if (xflags & FS_XFLAG_ANALDUMP)
+		di_flags |= XFS_DIFLAG_ANALDUMP;
+	if (xflags & FS_XFLAG_ANALDEFRAG)
+		di_flags |= XFS_DIFLAG_ANALDEFRAG;
 	if (xflags & FS_XFLAG_FILESTREAM)
 		di_flags |= XFS_DIFLAG_FILESTREAM;
 	if (S_ISDIR(VFS_I(ip)->i_mode)) {
 		if (xflags & FS_XFLAG_RTINHERIT)
 			di_flags |= XFS_DIFLAG_RTINHERIT;
-		if (xflags & FS_XFLAG_NOSYMLINKS)
-			di_flags |= XFS_DIFLAG_NOSYMLINKS;
+		if (xflags & FS_XFLAG_ANALSYMLINKS)
+			di_flags |= XFS_DIFLAG_ANALSYMLINKS;
 		if (xflags & FS_XFLAG_EXTSZINHERIT)
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 		if (xflags & FS_XFLAG_PROJINHERIT)
@@ -1098,7 +1098,7 @@ xfs_flags2diflags(
 
 STATIC uint64_t
 xfs_flags2diflags2(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	unsigned int		xflags)
 {
 	uint64_t		di_flags2 =
@@ -1117,14 +1117,14 @@ xfs_flags2diflags2(
 static int
 xfs_ioctl_setattr_xflags(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	bool			rtflag = (fa->fsx_xflags & FS_XFLAG_REALTIME);
 	uint64_t		i_flags2;
 
-	if (rtflag != XFS_IS_REALTIME_INODE(ip)) {
+	if (rtflag != XFS_IS_REALTIME_IANALDE(ip)) {
 		/* Can't change realtime flag if any extents are allocated. */
 		if (ip->i_df.if_nextents || ip->i_delayed_blks)
 			return -EINVAL;
@@ -1137,13 +1137,13 @@ xfs_ioctl_setattr_xflags(
 			return -EINVAL;
 
 		/* Clear reflink if we are actually able to set the rt flag. */
-		if (xfs_is_reflink_inode(ip))
+		if (xfs_is_reflink_ianalde(ip))
 			ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 	}
 
-	/* diflags2 only valid for v3 inodes. */
+	/* diflags2 only valid for v3 ianaldes. */
 	i_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
-	if (i_flags2 && !xfs_has_v3inodes(mp))
+	if (i_flags2 && !xfs_has_v3ianaldes(mp))
 		return -EINVAL;
 
 	ip->i_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
@@ -1152,27 +1152,27 @@ xfs_ioctl_setattr_xflags(
 	xfs_diflags_to_iflags(ip, false);
 
 	/*
-	 * Make the stable writes flag match that of the device the inode
+	 * Make the stable writes flag match that of the device the ianalde
 	 * resides on when flipping the RT flag.
 	 */
-	if (rtflag != XFS_IS_REALTIME_INODE(ip) && S_ISREG(VFS_I(ip)->i_mode))
+	if (rtflag != XFS_IS_REALTIME_IANALDE(ip) && S_ISREG(VFS_I(ip)->i_mode))
 		xfs_update_stable_writes(ip);
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_ianalde(tp, ip, XFS_ILOG_CORE);
 	XFS_STATS_INC(mp, xs_ig_attrchg);
 	return 0;
 }
 
 static void
 xfs_ioctl_setattr_prepare_dax(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct inode            *inode = VFS_I(ip);
+	struct ianalde            *ianalde = VFS_I(ip);
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(ianalde->i_mode))
 		return;
 
 	if (xfs_has_dax_always(mp) || xfs_has_dax_never(mp))
@@ -1182,18 +1182,18 @@ xfs_ioctl_setattr_prepare_dax(
 	    !(ip->i_diflags2 & XFS_DIFLAG2_DAX)) ||
 	    (!(fa->fsx_xflags & FS_XFLAG_DAX) &&
 	     (ip->i_diflags2 & XFS_DIFLAG2_DAX)))
-		d_mark_dontcache(inode);
+		d_mark_dontcache(ianalde);
 }
 
 /*
  * Set up the transaction structure for the setattr operation, checking that we
  * have permission to do so. On success, return a clean transaction and the
- * inode locked exclusively ready for further operation specific checks. On
- * failure, return an error without modifying or locking the inode.
+ * ianalde locked exclusively ready for further operation specific checks. On
+ * failure, return an error without modifying or locking the ianalde.
  */
 static struct xfs_trans *
 xfs_ioctl_setattr_get_trans(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct xfs_dquot	*pdqp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1207,7 +1207,7 @@ xfs_ioctl_setattr_get_trans(
 		goto out_error;
 
 	error = xfs_trans_alloc_ichange(ip, NULL, NULL, pdqp,
-			has_capability_noaudit(current, CAP_FOWNER), &tp);
+			has_capability_analaudit(current, CAP_FOWNER), &tp);
 	if (error)
 		goto out_error;
 
@@ -1222,11 +1222,11 @@ out_error:
 
 /*
  * Validate a proposed extent size hint.  For regular files, the hint can only
- * be changed if no extents are allocated.
+ * be changed if anal extents are allocated.
  */
 static int
 xfs_ioctl_setattr_check_extsize(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1246,7 +1246,7 @@ xfs_ioctl_setattr_check_extsize(
 	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
 
 	/*
-	 * Inode verifiers do not check that the extent size hint is an integer
+	 * Ianalde verifiers do analt check that the extent size hint is an integer
 	 * multiple of the rt extent size on a directory with both rtinherit
 	 * and extszinherit flags set.  Don't let sysadmins misconfigure
 	 * directories.
@@ -1260,7 +1260,7 @@ xfs_ioctl_setattr_check_extsize(
 			return -EINVAL;
 	}
 
-	failaddr = xfs_inode_validate_extsize(ip->i_mount,
+	failaddr = xfs_ianalde_validate_extsize(ip->i_mount,
 			XFS_B_TO_FSB(mp, fa->fsx_extsize),
 			VFS_I(ip)->i_mode, new_diflags);
 	return failaddr != NULL ? -EINVAL : 0;
@@ -1268,7 +1268,7 @@ xfs_ioctl_setattr_check_extsize(
 
 static int
 xfs_ioctl_setattr_check_cowextsize(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1285,7 +1285,7 @@ xfs_ioctl_setattr_check_cowextsize(
 	new_diflags = xfs_flags2diflags(ip, fa->fsx_xflags);
 	new_diflags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
 
-	failaddr = xfs_inode_validate_cowextsize(ip->i_mount,
+	failaddr = xfs_ianalde_validate_cowextsize(ip->i_mount,
 			XFS_B_TO_FSB(mp, fa->fsx_cowextsize),
 			VFS_I(ip)->i_mode, new_diflags, new_diflags2);
 	return failaddr != NULL ? -EINVAL : 0;
@@ -1293,13 +1293,13 @@ xfs_ioctl_setattr_check_cowextsize(
 
 static int
 xfs_ioctl_setattr_check_projid(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fileattr		*fa)
 {
 	if (!fa->fsx_valid)
 		return 0;
 
-	/* Disallow 32bit project ids if 32bit IDs are not enabled. */
+	/* Disallow 32bit project ids if 32bit IDs are analt enabled. */
 	if (fa->fsx_projid > (uint16_t)-1 &&
 	    !xfs_has_projid32(ip->i_mount))
 		return -EINVAL;
@@ -1312,7 +1312,7 @@ xfs_fileattr_set(
 	struct dentry		*dentry,
 	struct fileattr		*fa)
 {
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
+	struct xfs_ianalde	*ip = XFS_I(d_ianalde(dentry));
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	struct xfs_dquot	*pdqp = NULL;
@@ -1322,13 +1322,13 @@ xfs_fileattr_set(
 	trace_xfs_ioctl_setattr(ip);
 
 	if (d_is_special(dentry))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	if (!fa->fsx_valid) {
 		if (fa->flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL |
-				  FS_NOATIME_FL | FS_NODUMP_FL |
+				  FS_ANALATIME_FL | FS_ANALDUMP_FL |
 				  FS_SYNC_FL | FS_DAX_FL | FS_PROJINHERIT_FL))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 
 	error = xfs_ioctl_setattr_check_projid(ip, fa);
@@ -1339,7 +1339,7 @@ xfs_fileattr_set(
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
 	 * before we start any other transactions. Trying to do this later
 	 * is messy. We don't care to take a readlock to look at the ids
-	 * in inode here, because we can't hold it across the trans_reserve.
+	 * in ianalde here, because we can't hold it across the trans_reserve.
 	 * If the IDs do change before we take the ilock, we're covered
 	 * because the i_*dquot fields will get updated anyway.
 	 */
@@ -1382,7 +1382,7 @@ xfs_fileattr_set(
 	 */
 
 	if ((VFS_I(ip)->i_mode & (S_ISUID|S_ISGID)) &&
-	    !capable_wrt_inode_uidgid(idmap, VFS_I(ip), CAP_FSETID))
+	    !capable_wrt_ianalde_uidgid(idmap, VFS_I(ip), CAP_FSETID))
 		VFS_I(ip)->i_mode &= ~(S_ISUID|S_ISGID);
 
 	/* Change the ownerships and register project quota modifications */
@@ -1396,15 +1396,15 @@ xfs_fileattr_set(
 
 	/*
 	 * Only set the extent size hint if we've already determined that the
-	 * extent size hint should be set on the inode. If no extent size flags
-	 * are set on the inode then unconditionally clear the extent size hint.
+	 * extent size hint should be set on the ianalde. If anal extent size flags
+	 * are set on the ianalde then unconditionally clear the extent size hint.
 	 */
 	if (ip->i_diflags & (XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
 		ip->i_extsize = XFS_B_TO_FSB(mp, fa->fsx_extsize);
 	else
 		ip->i_extsize = 0;
 
-	if (xfs_has_v3inodes(mp)) {
+	if (xfs_has_v3ianaldes(mp)) {
 		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
 			ip->i_cowextsize = XFS_B_TO_FSB(mp, fa->fsx_cowextsize);
 		else
@@ -1415,7 +1415,7 @@ skip_xattr:
 	error = xfs_trans_commit(tp);
 
 	/*
-	 * Release any dquot(s) the inode had kept before chown.
+	 * Release any dquot(s) the ianalde had kept before chown.
 	 */
 	xfs_qm_dqrele(olddquot);
 	xfs_qm_dqrele(pdqp);
@@ -1483,13 +1483,13 @@ xfs_ioc_getbmap(
 	if (bmx.bmv_count < 2)
 		return -EINVAL;
 	if (bmx.bmv_count >= INT_MAX / recsize)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf = kvcalloc(bmx.bmv_count, sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	error = xfs_getbmap(XFS_I(file_inode(file)), &bmx, buf);
+	error = xfs_getbmap(XFS_I(file_ianalde(file)), &bmx, buf);
 	if (error)
 		goto out_free_buf;
 
@@ -1512,7 +1512,7 @@ out_free_buf:
 
 STATIC int
 xfs_ioc_getfsmap(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct fsmap_head	__user *arg)
 {
 	struct xfs_fsmap_head	xhead = {0};
@@ -1545,7 +1545,7 @@ xfs_ioc_getfsmap(
 				PAGE_SIZE / sizeof(struct fsmap));
 		recs = kvcalloc(count, sizeof(struct fsmap), GFP_KERNEL);
 		if (!recs)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	xhead.fmh_iflags = head.fmh_iflags;
@@ -1570,7 +1570,7 @@ xfs_ioc_getfsmap(
 		switch (error) {
 		case 0:
 			/*
-			 * There are no more records in the result set.  Copy
+			 * There are anal more records in the result set.  Copy
 			 * whatever we got to userspace and break out.
 			 */
 			done = true;
@@ -1579,7 +1579,7 @@ xfs_ioc_getfsmap(
 			/*
 			 * The internal memory buffer is full.  Copy whatever
 			 * records we got to userspace and go again if we have
-			 * not yet filled the userspace buffer.
+			 * analt yet filled the userspace buffer.
 			 */
 			error = 0;
 			break;
@@ -1613,7 +1613,7 @@ xfs_ioc_getfsmap(
 	} while (!done && head.fmh_entries < head.fmh_count);
 
 	/*
-	 * If there are no more records in the query result set and we're not
+	 * If there are anal more records in the query result set and we're analt
 	 * in counting mode, mark the last record returned with the LAST flag.
 	 */
 	if (done && head.fmh_count > 0 && head.fmh_entries > 0) {
@@ -1668,7 +1668,7 @@ int
 xfs_ioc_swapext(
 	xfs_swapext_t	*sxp)
 {
-	xfs_inode_t     *ip, *tip;
+	xfs_ianalde_t     *ip, *tip;
 	struct fd	f, tmp;
 	int		error = 0;
 
@@ -1699,15 +1699,15 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
-	if (IS_SWAPFILE(file_inode(f.file)) ||
-	    IS_SWAPFILE(file_inode(tmp.file))) {
+	if (IS_SWAPFILE(file_ianalde(f.file)) ||
+	    IS_SWAPFILE(file_ianalde(tmp.file))) {
 		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
 	/*
-	 * We need to ensure that the fds passed in point to XFS inodes
-	 * before we cast and access them as XFS structures as we have no
+	 * We need to ensure that the fds passed in point to XFS ianaldes
+	 * before we cast and access them as XFS structures as we have anal
 	 * control over what the user passes us here.
 	 */
 	if (f.file->f_op != &xfs_file_operations ||
@@ -1716,15 +1716,15 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
-	ip = XFS_I(file_inode(f.file));
-	tip = XFS_I(file_inode(tmp.file));
+	ip = XFS_I(file_ianalde(f.file));
+	tip = XFS_I(file_ianalde(tmp.file));
 
 	if (ip->i_mount != tip->i_mount) {
 		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
-	if (ip->i_ino == tip->i_ino) {
+	if (ip->i_ianal == tip->i_ianal) {
 		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
@@ -1752,7 +1752,7 @@ xfs_ioc_getlabel(
 	struct xfs_sb		*sbp = &mp->m_sb;
 	char			label[XFSLABEL_MAX + 1];
 
-	/* Paranoia */
+	/* Paraanalia */
 	BUILD_BUG_ON(sizeof(sbp->sb_fname) > FSLABEL_MAX);
 
 	/* 1 larger than sb_fname, so this ensures a trailing NUL char */
@@ -1801,8 +1801,8 @@ xfs_ioc_setlabel(
 	spin_unlock(&mp->m_sb_lock);
 
 	/*
-	 * Now we do several things to satisfy userspace.
-	 * In addition to normal logging of the primary superblock, we also
+	 * Analw we do several things to satisfy userspace.
+	 * In addition to analrmal logging of the primary superblock, we also
 	 * immediately write these changes to sector zero for the primary, then
 	 * update all backup supers (as xfs_db does for a label change), then
 	 * invalidate the block device page cache.  This is so that any prior
@@ -1878,7 +1878,7 @@ xfs_ioctl_getset_resblocks(
 	unsigned int		cmd,
 	void __user		*arg)
 {
-	struct xfs_mount	*mp = XFS_I(file_inode(filp))->i_mount;
+	struct xfs_mount	*mp = XFS_I(file_ianalde(filp))->i_mount;
 	struct xfs_fsop_resblks	fsop = { };
 	int			error;
 
@@ -1917,8 +1917,8 @@ xfs_ioctl_fs_counts(
 	struct xfs_fsop_counts __user	*uarg)
 {
 	struct xfs_fsop_counts	out = {
-		.allocino = percpu_counter_read_positive(&mp->m_icount),
-		.freeino  = percpu_counter_read_positive(&mp->m_ifree),
+		.allocianal = percpu_counter_read_positive(&mp->m_icount),
+		.freeianal  = percpu_counter_read_positive(&mp->m_ifree),
 		.freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
 				xfs_fdblocks_unavailable(mp),
 		.freertx  = percpu_counter_read_positive(&mp->m_frextents),
@@ -1939,7 +1939,7 @@ xfs_ioctl_fs_counts(
 #define XFS_IOC_FREESP64	_IOW ('X', 37, struct xfs_flock64)
 
 /*
- * Note: some of the ioctl's return positive numbers as a
+ * Analte: some of the ioctl's return positive numbers as a
  * byte count indicating success, such as readlink_by_handle.
  * So we don't "sign flip" like most other routines.  This means
  * true errors need to be returned as a negative value.
@@ -1950,8 +1950,8 @@ xfs_file_ioctl(
 	unsigned int		cmd,
 	unsigned long		p)
 {
-	struct inode		*inode = file_inode(filp);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct ianalde		*ianalde = file_ianalde(filp);
+	struct xfs_ianalde	*ip = XFS_I(ianalde);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = (void __user *)p;
 	int			error;
@@ -1972,9 +1972,9 @@ xfs_file_ioctl(
 		xfs_warn_once(mp,
 	"%s should use fallocate; XFS_IOC_{ALLOC,FREE}SP ioctl unsupported",
 				current->comm);
-		return -ENOTTY;
+		return -EANALTTY;
 	case XFS_IOC_DIOINFO: {
-		struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+		struct xfs_buftarg	*target = xfs_ianalde_buftarg(ip);
 		struct dioattr		da;
 
 		da.d_mem =  da.d_miniosz = target->bt_logical_sectorsize;
@@ -2006,7 +2006,7 @@ xfs_file_ioctl(
 		return xfs_ioc_ag_geometry(mp, arg);
 
 	case XFS_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int __user *)arg);
+		return put_user(ianalde->i_generation, (int __user *)arg);
 
 	case XFS_IOC_FSGETXATTRA:
 		return xfs_ioc_fsgetxattra(ip, arg);
@@ -2170,6 +2170,6 @@ xfs_file_ioctl(
 	}
 
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }

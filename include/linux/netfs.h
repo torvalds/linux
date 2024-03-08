@@ -37,7 +37,7 @@ enum netfs_sreq_ref_trace;
  * @folio: The folio.
  *
  * Call this function before writing a folio to a local cache.  Starting a
- * second write before the first one finishes is not allowed.
+ * second write before the first one finishes is analt allowed.
  */
 static inline void folio_start_fscache(struct folio *folio)
 {
@@ -63,7 +63,7 @@ static inline void folio_end_fscache(struct folio *folio)
  * @folio: The folio.
  *
  * If this folio is currently being written to a local cache, wait for
- * the write to finish.  Another write may start after this one finishes,
+ * the write to finish.  Aanalther write may start after this one finishes,
  * unless the caller holds the folio lock.
  */
 static inline void folio_wait_fscache(struct folio *folio)
@@ -77,7 +77,7 @@ static inline void folio_wait_fscache(struct folio *folio)
  *
  * If this folio is currently being written to a local cache, wait
  * for the write to finish or for a fatal signal to be received.
- * Another write may start after this one finishes, unless the caller
+ * Aanalther write may start after this one finishes, unless the caller
  * holds the folio lock.
  *
  * Return:
@@ -127,28 +127,28 @@ typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
 				      bool was_async);
 
 /*
- * Per-inode context.  This wraps the VFS inode.
+ * Per-ianalde context.  This wraps the VFS ianalde.
  */
-struct netfs_inode {
-	struct inode		inode;		/* The VFS inode */
+struct netfs_ianalde {
+	struct ianalde		ianalde;		/* The VFS ianalde */
 	const struct netfs_request_ops *ops;
 #if IS_ENABLED(CONFIG_FSCACHE)
 	struct fscache_cookie	*cache;
 #endif
 	loff_t			remote_i_size;	/* Size of the remote file */
-	loff_t			zero_point;	/* Size after which we assume there's no data
+	loff_t			zero_point;	/* Size after which we assume there's anal data
 						 * on the server */
 	unsigned long		flags;
 #define NETFS_ICTX_ODIRECT	0		/* The file has DIO in progress */
-#define NETFS_ICTX_UNBUFFERED	1		/* I/O should not use the pagecache */
+#define NETFS_ICTX_UNBUFFERED	1		/* I/O should analt use the pagecache */
 #define NETFS_ICTX_WRITETHROUGH	2		/* Write-through caching */
-#define NETFS_ICTX_NO_WRITE_STREAMING	3	/* Don't engage in write-streaming */
+#define NETFS_ICTX_ANAL_WRITE_STREAMING	3	/* Don't engage in write-streaming */
 };
 
 /*
  * A netfs group - for instance a ceph snap.  This is marked on dirty pages and
  * pages marked with a group must be flushed before they can be written under
- * the domain of another group.
+ * the domain of aanalther group.
  */
 struct netfs_group {
 	refcount_t		ref;
@@ -222,13 +222,13 @@ struct netfs_io_subrequest {
 #define NETFS_SREQ_CLEAR_TAIL		1	/* Set if the rest of the read should be cleared */
 #define NETFS_SREQ_SHORT_IO		2	/* Set if the I/O was short */
 #define NETFS_SREQ_SEEK_DATA_READ	3	/* Set if ->read() should SEEK_DATA first */
-#define NETFS_SREQ_NO_PROGRESS		4	/* Set if we didn't manage to read any data */
+#define NETFS_SREQ_ANAL_PROGRESS		4	/* Set if we didn't manage to read any data */
 #define NETFS_SREQ_ONDEMAND		5	/* Set if it's from on-demand read mode */
 };
 
 enum netfs_io_origin {
 	NETFS_READAHEAD,		/* This read was triggered by readahead */
-	NETFS_READPAGE,			/* This read is a synchronous read */
+	NETFS_READPAGE,			/* This read is a synchroanalus read */
 	NETFS_READ_FOR_WRITE,		/* This read is to prepare a write */
 	NETFS_WRITEBACK,		/* This write was triggered by writepages */
 	NETFS_WRITETHROUGH,		/* This write was made by netfs_perform_write() */
@@ -248,7 +248,7 @@ struct netfs_io_request {
 		struct work_struct work;
 		struct rcu_head rcu;
 	};
-	struct inode		*inode;		/* The file being accessed */
+	struct ianalde		*ianalde;		/* The file being accessed */
 	struct address_space	*mapping;	/* The mapping being accessed */
 	struct kiocb		*iocb;		/* AIO completion vector */
 	struct netfs_cache_resources cache_resources;
@@ -260,8 +260,8 @@ struct netfs_io_request {
 	struct bio_vec		*direct_bv;	/* DIO buffer list (when handling iovec-iter) */
 	unsigned int		direct_bv_count; /* Number of elements in direct_bv[] */
 	unsigned int		debug_id;
-	unsigned int		rsize;		/* Maximum read size (0 for none) */
-	unsigned int		wsize;		/* Maximum write size (0 for none) */
+	unsigned int		rsize;		/* Maximum read size (0 for analne) */
+	unsigned int		wsize;		/* Maximum write size (0 for analne) */
 	unsigned int		subreq_counter;	/* Next subreq->debug_index */
 	atomic_t		nr_outstanding;	/* Number of ops in progress */
 	atomic_t		nr_copy_ops;	/* Number of copy-to-cache ops in progress */
@@ -274,18 +274,18 @@ struct netfs_io_request {
 	bool			direct_bv_unpin; /* T if direct_bv[] must be unpinned */
 	loff_t			i_size;		/* Size of the file */
 	loff_t			start;		/* Start position */
-	pgoff_t			no_unlock_folio; /* Don't unlock this folio after read */
+	pgoff_t			anal_unlock_folio; /* Don't unlock this folio after read */
 	refcount_t		ref;
 	unsigned long		flags;
 #define NETFS_RREQ_INCOMPLETE_IO	0	/* Some ioreqs terminated short or with error */
 #define NETFS_RREQ_COPY_TO_CACHE	1	/* Need to write to the cache */
-#define NETFS_RREQ_NO_UNLOCK_FOLIO	2	/* Don't unlock no_unlock_folio on completion */
+#define NETFS_RREQ_ANAL_UNLOCK_FOLIO	2	/* Don't unlock anal_unlock_folio on completion */
 #define NETFS_RREQ_DONT_UNLOCK_FOLIOS	3	/* Don't unlock the folios on completion */
 #define NETFS_RREQ_FAILED		4	/* The request failed */
 #define NETFS_RREQ_IN_PROGRESS		5	/* Unlocked when the request completes */
 #define NETFS_RREQ_WRITE_TO_CACHE	7	/* Need to write to the cache */
 #define NETFS_RREQ_UPLOAD_TO_SERVER	8	/* Need to write to the server */
-#define NETFS_RREQ_NONBLOCK		9	/* Don't block if possible (O_NONBLOCK) */
+#define NETFS_RREQ_ANALNBLOCK		9	/* Don't block if possible (O_ANALNBLOCK) */
 #define NETFS_RREQ_BLOCKED		10	/* We blocked */
 	const struct netfs_request_ops *netfs_ops;
 	void (*cleanup)(struct netfs_io_request *req);
@@ -311,7 +311,7 @@ struct netfs_request_ops {
 	void (*done)(struct netfs_io_request *rreq);
 
 	/* Modification handling */
-	void (*update_i_size)(struct inode *inode, loff_t i_size);
+	void (*update_i_size)(struct ianalde *ianalde, loff_t i_size);
 
 	/* Write request handling */
 	void (*create_write_requests)(struct netfs_io_request *wreq,
@@ -323,7 +323,7 @@ struct netfs_request_ops {
  * How to handle reading from a hole.
  */
 enum netfs_read_from_hole {
-	NETFS_READ_HOLE_IGNORE,
+	NETFS_READ_HOLE_IGANALRE,
 	NETFS_READ_HOLE_CLEAR,
 	NETFS_READ_HOLE_FAIL,
 };
@@ -365,7 +365,7 @@ struct netfs_cache_ops {
 	 */
 	int (*prepare_write)(struct netfs_cache_resources *cres,
 			     loff_t *_start, size_t *_len, size_t upper_len,
-			     loff_t i_size, bool no_space_allocated_yet);
+			     loff_t i_size, bool anal_space_allocated_yet);
 
 	/* Prepare an on-demand read operation, shortening it to a cached/uncached
 	 * boundary as appropriate.
@@ -373,7 +373,7 @@ struct netfs_cache_ops {
 	enum netfs_io_source (*prepare_ondemand_read)(struct netfs_cache_resources *cres,
 						      loff_t start, size_t *_len,
 						      loff_t i_size,
-						      unsigned long *_flags, ino_t ino);
+						      unsigned long *_flags, ianal_t ianal);
 
 	/* Query the occupancy of the cache in a region, returning where the
 	 * next chunk of data starts and how long it is.
@@ -400,14 +400,14 @@ ssize_t netfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from);
 struct readahead_control;
 void netfs_readahead(struct readahead_control *);
 int netfs_read_folio(struct file *, struct folio *);
-int netfs_write_begin(struct netfs_inode *, struct file *,
+int netfs_write_begin(struct netfs_ianalde *, struct file *,
 		      struct address_space *, loff_t pos, unsigned int len,
 		      struct folio **, void **fsdata);
 int netfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 bool netfs_dirty_folio(struct address_space *mapping, struct folio *folio);
-int netfs_unpin_writeback(struct inode *inode, struct writeback_control *wbc);
-void netfs_clear_inode_writeback(struct inode *inode, const void *aux);
+int netfs_unpin_writeback(struct ianalde *ianalde, struct writeback_control *wbc);
+void netfs_clear_ianalde_writeback(struct ianalde *ianalde, const void *aux);
 void netfs_invalidate_folio(struct folio *folio, size_t offset, size_t length);
 bool netfs_release_folio(struct folio *folio, gfp_t gfp);
 int netfs_launder_folio(struct folio *folio);
@@ -433,40 +433,40 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 				       bool was_async);
 void netfs_queue_write_request(struct netfs_io_subrequest *subreq);
 
-int netfs_start_io_read(struct inode *inode);
-void netfs_end_io_read(struct inode *inode);
-int netfs_start_io_write(struct inode *inode);
-void netfs_end_io_write(struct inode *inode);
-int netfs_start_io_direct(struct inode *inode);
-void netfs_end_io_direct(struct inode *inode);
+int netfs_start_io_read(struct ianalde *ianalde);
+void netfs_end_io_read(struct ianalde *ianalde);
+int netfs_start_io_write(struct ianalde *ianalde);
+void netfs_end_io_write(struct ianalde *ianalde);
+int netfs_start_io_direct(struct ianalde *ianalde);
+void netfs_end_io_direct(struct ianalde *ianalde);
 
 /**
- * netfs_inode - Get the netfs inode context from the inode
- * @inode: The inode to query
+ * netfs_ianalde - Get the netfs ianalde context from the ianalde
+ * @ianalde: The ianalde to query
  *
- * Get the netfs lib inode context from the network filesystem's inode.  The
- * context struct is expected to directly follow on from the VFS inode struct.
+ * Get the netfs lib ianalde context from the network filesystem's ianalde.  The
+ * context struct is expected to directly follow on from the VFS ianalde struct.
  */
-static inline struct netfs_inode *netfs_inode(struct inode *inode)
+static inline struct netfs_ianalde *netfs_ianalde(struct ianalde *ianalde)
 {
-	return container_of(inode, struct netfs_inode, inode);
+	return container_of(ianalde, struct netfs_ianalde, ianalde);
 }
 
 /**
- * netfs_inode_init - Initialise a netfslib inode context
- * @ctx: The netfs inode to initialise
+ * netfs_ianalde_init - Initialise a netfslib ianalde context
+ * @ctx: The netfs ianalde to initialise
  * @ops: The netfs's operations list
  * @use_zero_point: True to use the zero_point read optimisation
  *
  * Initialise the netfs library context struct.  This is expected to follow on
- * directly from the VFS inode struct.
+ * directly from the VFS ianalde struct.
  */
-static inline void netfs_inode_init(struct netfs_inode *ctx,
+static inline void netfs_ianalde_init(struct netfs_ianalde *ctx,
 				    const struct netfs_request_ops *ops,
 				    bool use_zero_point)
 {
 	ctx->ops = ops;
-	ctx->remote_i_size = i_size_read(&ctx->inode);
+	ctx->remote_i_size = i_size_read(&ctx->ianalde);
 	ctx->zero_point = LLONG_MAX;
 	ctx->flags = 0;
 #if IS_ENABLED(CONFIG_FSCACHE)
@@ -475,19 +475,19 @@ static inline void netfs_inode_init(struct netfs_inode *ctx,
 	/* ->releasepage() drives zero_point */
 	if (use_zero_point) {
 		ctx->zero_point = ctx->remote_i_size;
-		mapping_set_release_always(ctx->inode.i_mapping);
+		mapping_set_release_always(ctx->ianalde.i_mapping);
 	}
 }
 
 /**
- * netfs_resize_file - Note that a file got resized
- * @ctx: The netfs inode being resized
+ * netfs_resize_file - Analte that a file got resized
+ * @ctx: The netfs ianalde being resized
  * @new_i_size: The new file size
  * @changed_on_server: The change was applied to the server
  *
  * Inform the netfs lib that a file got resized so that it can adjust its state.
  */
-static inline void netfs_resize_file(struct netfs_inode *ctx, loff_t new_i_size,
+static inline void netfs_resize_file(struct netfs_ianalde *ctx, loff_t new_i_size,
 				     bool changed_on_server)
 {
 	if (changed_on_server)
@@ -497,12 +497,12 @@ static inline void netfs_resize_file(struct netfs_inode *ctx, loff_t new_i_size,
 }
 
 /**
- * netfs_i_cookie - Get the cache cookie from the inode
- * @ctx: The netfs inode to query
+ * netfs_i_cookie - Get the cache cookie from the ianalde
+ * @ctx: The netfs ianalde to query
  *
- * Get the caching cookie (if enabled) from the network filesystem's inode.
+ * Get the caching cookie (if enabled) from the network filesystem's ianalde.
  */
-static inline struct fscache_cookie *netfs_i_cookie(struct netfs_inode *ctx)
+static inline struct fscache_cookie *netfs_i_cookie(struct netfs_ianalde *ctx)
 {
 #if IS_ENABLED(CONFIG_FSCACHE)
 	return ctx->cache;

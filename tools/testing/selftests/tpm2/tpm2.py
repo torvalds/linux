@@ -9,7 +9,7 @@ import unittest
 import fcntl
 import select
 
-TPM2_ST_NO_SESSIONS = 0x8001
+TPM2_ST_ANAL_SESSIONS = 0x8001
 TPM2_ST_SESSIONS = 0x8002
 
 TPM2_CC_FIRST = 0x01FF
@@ -107,7 +107,7 @@ TPM2_VER1_ERRORS = {
     0x051: "TPM_RC_CPHASH",
     0x052: "TPM_RC_PARENT",
     0x053: "TPM_RC_NEEDS_TEST",
-    0x054: "TPM_RC_NO_RESULT",
+    0x054: "TPM_RC_ANAL_RESULT",
     0x055: "TPM_RC_SENSITIVE",
     0x07F: "RC_MAX_FM0",
 }
@@ -126,7 +126,7 @@ TPM2_FMT1_ERRORS = {
     0x00C: "TPM_RC_KDF",
     0x00D: "TPM_RC_RANGE",
     0x00E: "TPM_RC_AUTH_FAIL",
-    0x00F: "TPM_RC_NONCE",
+    0x00F: "TPM_RC_ANALNCE",
     0x010: "TPM_RC_PP",
     0x012: "TPM_RC_SCHEME",
     0x015: "TPM_RC_SIZE",
@@ -177,7 +177,7 @@ TPM2_WARN_ERRORS = {
     0x021: "TPM_RC_LOCKOUT",
     0x022: "TPM_RC_RETRY",
     0x023: "TPM_RC_NV_UNAVAILABLE",
-    0x7F: "TPM_RC_NOT_USED",
+    0x7F: "TPM_RC_ANALT_USED",
 }
 
 RC_VER1 = 0x100
@@ -200,7 +200,7 @@ NAME_ALG_MAP = {
 }
 
 
-class UnknownAlgorithmIdError(Exception):
+class UnkanalwnAlgorithmIdError(Exception):
     def __init__(self, alg):
         self.alg = alg
 
@@ -208,7 +208,7 @@ class UnknownAlgorithmIdError(Exception):
         return '0x%0x' % (alg)
 
 
-class UnknownAlgorithmNameError(Exception):
+class UnkanalwnAlgorithmNameError(Exception):
     def __init__(self, name):
         self.name = name
 
@@ -216,7 +216,7 @@ class UnknownAlgorithmNameError(Exception):
         return name
 
 
-class UnknownPCRBankError(Exception):
+class UnkanalwnPCRBankError(Exception):
     def __init__(self, alg):
         self.alg = alg
 
@@ -230,13 +230,13 @@ class ProtocolError(Exception):
         self.rc = rc
 
         if (rc & RC_FMT1) == RC_FMT1:
-            self.name = TPM2_FMT1_ERRORS.get(rc & 0x3f, "TPM_RC_UNKNOWN")
+            self.name = TPM2_FMT1_ERRORS.get(rc & 0x3f, "TPM_RC_UNKANALWN")
         elif (rc & RC_WARN) == RC_WARN:
-            self.name = TPM2_WARN_ERRORS.get(rc & 0x7f, "TPM_RC_UNKNOWN")
+            self.name = TPM2_WARN_ERRORS.get(rc & 0x7f, "TPM_RC_UNKANALWN")
         elif (rc & RC_VER1) == RC_VER1:
-            self.name = TPM2_VER1_ERRORS.get(rc & 0x7f, "TPM_RC_UNKNOWN")
+            self.name = TPM2_VER1_ERRORS.get(rc & 0x7f, "TPM_RC_UNKANALWN")
         else:
-            self.name = TPM2_VER0_ERRORS.get(rc & 0x7f, "TPM_RC_UNKNOWN")
+            self.name = TPM2_VER0_ERRORS.get(rc & 0x7f, "TPM_RC_UNKANALWN")
 
     def __str__(self):
         if self.cc:
@@ -248,21 +248,21 @@ class ProtocolError(Exception):
 class AuthCommand(object):
     """TPMS_AUTH_COMMAND"""
 
-    def __init__(self, session_handle=TPM2_RS_PW, nonce=bytes(),
+    def __init__(self, session_handle=TPM2_RS_PW, analnce=bytes(),
                  session_attributes=0, hmac=bytes()):
         self.session_handle = session_handle
-        self.nonce = nonce
+        self.analnce = analnce
         self.session_attributes = session_attributes
         self.hmac = hmac
 
     def __bytes__(self):
-        fmt = '>I H%us B H%us' % (len(self.nonce), len(self.hmac))
-        return struct.pack(fmt, self.session_handle, len(self.nonce),
-                           self.nonce, self.session_attributes, len(self.hmac),
+        fmt = '>I H%us B H%us' % (len(self.analnce), len(self.hmac))
+        return struct.pack(fmt, self.session_handle, len(self.analnce),
+                           self.analnce, self.session_attributes, len(self.hmac),
                            self.hmac)
 
     def __len__(self):
-        fmt = '>I H%us B H%us' % (len(self.nonce), len(self.hmac))
+        fmt = '>I H%us B H%us' % (len(self.analnce), len(self.hmac))
         return struct.calcsize(fmt)
 
 
@@ -324,22 +324,22 @@ class Public(object):
 
 def get_digest_size(alg):
     ds = ALG_DIGEST_SIZE_MAP.get(alg)
-    if not ds:
-        raise UnknownAlgorithmIdError(alg)
+    if analt ds:
+        raise UnkanalwnAlgorithmIdError(alg)
     return ds
 
 
 def get_hash_function(alg):
     f = ALG_HASH_FUNCTION_MAP.get(alg)
-    if not f:
-        raise UnknownAlgorithmIdError(alg)
+    if analt f:
+        raise UnkanalwnAlgorithmIdError(alg)
     return f
 
 
 def get_algorithm(name):
     alg = NAME_ALG_MAP.get(name)
-    if not alg:
-        raise UnknownAlgorithmNameError(name)
+    if analt alg:
+        raise UnkanalwnAlgorithmNameError(name)
     return alg
 
 
@@ -354,7 +354,7 @@ def hex_dump(d):
 class Client:
     FLAG_DEBUG = 0x01
     FLAG_SPACE = 0x02
-    FLAG_NONBLOCK = 0x04
+    FLAG_ANALNBLOCK = 0x04
     TPM_IOC_NEW_SPACE = 0xa200
 
     def __init__(self, flags = 0):
@@ -365,9 +365,9 @@ class Client:
         else:
             self.tpm = open('/dev/tpmrm0', 'r+b', buffering=0)
 
-        if (self.flags & Client.FLAG_NONBLOCK):
+        if (self.flags & Client.FLAG_ANALNBLOCK):
             flags = fcntl.fcntl(self.tpm, fcntl.F_GETFL)
-            flags |= os.O_NONBLOCK
+            flags |= os.O_ANALNBLOCK
             fcntl.fcntl(self.tpm, fcntl.F_SETFL, flags)
             self.tpm_poll = select.poll()
 
@@ -381,13 +381,13 @@ class Client:
     def send_cmd(self, cmd):
         self.tpm.write(cmd)
 
-        if (self.flags & Client.FLAG_NONBLOCK):
+        if (self.flags & Client.FLAG_ANALNBLOCK):
             self.tpm_poll.register(self.tpm, select.POLLIN)
             self.tpm_poll.poll(10000)
 
         rsp = self.tpm.read()
 
-        if (self.flags & Client.FLAG_NONBLOCK):
+        if (self.flags & Client.FLAG_ANALNBLOCK):
             self.tpm_poll.unregister(self.tpm)
 
         if (self.flags & Client.FLAG_DEBUG) != 0:
@@ -411,7 +411,7 @@ class Client:
 
         fmt = '>HII IHB%us' % (pcrsel_len)
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_PCR_READ,
                           1,
@@ -430,7 +430,7 @@ class Client:
 
         digest_cnt = struct.unpack('>I', rsp[:4])[0]
         if digest_cnt == 0:
-            return None
+            return Analne
         rsp = rsp[6:]
 
         return rsp
@@ -457,7 +457,7 @@ class Client:
     def start_auth_session(self, session_type, name_alg = TPM2_ALG_SHA1):
         fmt = '>HII IIH16sHBHH'
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_START_AUTH_SESSION,
                           TPM2_RH_NULL,
@@ -478,8 +478,8 @@ class Client:
 
         for i in pcrs:
             pcr = self.read_pcr(i, bank_alg)
-            if pcr is None:
-                return None
+            if pcr is Analne:
+                return Analne
             x += pcr
 
         return f(bytearray(x)).digest()
@@ -488,8 +488,8 @@ class Client:
                    name_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(name_alg)
         dig = self.__calc_pcr_digest(pcrs, bank_alg, name_alg)
-        if not dig:
-            raise UnknownPCRBankError(bank_alg)
+        if analt dig:
+            raise UnkanalwnPCRBankError(bank_alg)
 
         pcrsel_len = max((max(pcrs) >> 3) + 1, 3)
         pcrsel = [0] * pcrsel_len
@@ -499,7 +499,7 @@ class Client:
 
         fmt = '>HII IH%usIHB3s' % ds
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_POLICY_PCR,
                           handle,
@@ -514,7 +514,7 @@ class Client:
     def policy_password(self, handle):
         fmt = '>HII I'
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_POLICY_PASSWORD,
                           handle)
@@ -524,7 +524,7 @@ class Client:
     def get_policy_digest(self, handle):
         fmt = '>HII I'
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_POLICY_GET_DIGEST,
                           handle)
@@ -534,7 +534,7 @@ class Client:
     def flush_context(self, handle):
         fmt = '>HIII'
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_FLUSH_CONTEXT,
                           handle)
@@ -589,10 +589,10 @@ class Client:
     def seal(self, parent_key, data, auth_value, policy_dig,
              name_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(name_alg)
-        assert(not policy_dig or ds == len(policy_dig))
+        assert(analt policy_dig or ds == len(policy_dig))
 
         attributes = 0
-        if not policy_dig:
+        if analt policy_dig:
             attributes |= Public.USER_WITH_AUTH
             policy_dig = bytes()
 
@@ -691,7 +691,7 @@ class Client:
         fmt = '>HII III'
 
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_GET_CAPABILITY,
                           cap, pt, cnt)
@@ -724,7 +724,7 @@ class Client:
         fmt = '>HII III'
 
         cmd = struct.pack(fmt,
-                          TPM2_ST_NO_SESSIONS,
+                          TPM2_ST_ANAL_SESSIONS,
                           struct.calcsize(fmt),
                           TPM2_CC_GET_CAPABILITY,
                           TPM2_CAP_PCRS, 0, 1)

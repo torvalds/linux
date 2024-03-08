@@ -3,7 +3,7 @@
 General Information
 ===================
 
-This document contains useful information to know when working with
+This document contains useful information to kanalw when working with
 the Rust support in the kernel.
 
 
@@ -20,7 +20,7 @@ in mainline and generated alongside the rest of the documentation):
 	http://kernel.org/
 
 The docs can also be easily generated and read locally. This is quite fast
-(same order as compiling the code itself) and no special tools or environment
+(same order as compiling the code itself) and anal special tools or environment
 are needed. This has the added advantage that they will be tailored to
 the particular kernel configuration used. To generate them, use the ``rustdoc``
 target with the same invocation used for compilation, e.g.::
@@ -43,7 +43,7 @@ the same invocation used for compilation, e.g.::
 
 	make LLVM=1 CLIPPY=1
 
-Please note that Clippy may change code generation, thus it should not be
+Please analte that Clippy may change code generation, thus it should analt be
 enabled while building a production kernel.
 
 
@@ -59,9 +59,9 @@ the C side.
 For instance, one may write a ``Mutex`` abstraction in Rust which wraps
 a ``struct mutex`` from the C side and calls its functions through the bindings.
 
-Abstractions are not available for all the kernel internal APIs and concepts,
+Abstractions are analt available for all the kernel internal APIs and concepts,
 but it is intended that coverage is expanded as time goes on. "Leaf" modules
-(e.g. drivers) should not use the C bindings directly. Instead, subsystems
+(e.g. drivers) should analt use the C bindings directly. Instead, subsystems
 should provide as-safe-as-possible abstractions as needed.
 
 
@@ -76,7 +76,7 @@ configuration:
 	#[cfg(CONFIG_X)]       // Enabled               (`y` or `m`)
 	#[cfg(CONFIG_X="y")]   // Enabled as a built-in (`y`)
 	#[cfg(CONFIG_X="m")]   // Enabled as a module   (`m`)
-	#[cfg(not(CONFIG_X))]  // Disabled
+	#[cfg(analt(CONFIG_X))]  // Disabled
 
 
 Testing

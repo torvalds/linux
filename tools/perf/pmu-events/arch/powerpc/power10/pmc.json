@@ -7,7 +7,7 @@
   {
     "EventCode": "0x1000A",
     "EventName": "PM_PMC3_REWIND",
-    "BriefDescription": "The speculative event selected for PMC3 rewinds and the counter for PMC3 is not charged."
+    "BriefDescription": "The speculative event selected for PMC3 rewinds and the counter for PMC3 is analt charged."
   },
   {
     "EventCode": "0x10010",
@@ -27,7 +27,7 @@
   {
     "EventCode": "0x10020",
     "EventName": "PM_PMC4_REWIND",
-    "BriefDescription": "The speculative event selected for PMC4 rewinds and the counter for PMC4 is not charged."
+    "BriefDescription": "The speculative event selected for PMC4 rewinds and the counter for PMC4 is analt charged."
   },
   {
     "EventCode": "0x10022",
@@ -46,8 +46,8 @@
   },
   {
     "EventCode": "0x1F15E",
-    "EventName": "PM_MRK_START_PROBE_NOP_CMPL",
-    "BriefDescription": "Marked Start probe nop (AND R0,R0,R0) completed."
+    "EventName": "PM_MRK_START_PROBE_ANALP_CMPL",
+    "BriefDescription": "Marked Start probe analp (AND R0,R0,R0) completed."
   },
   {
     "EventCode": "0x1006C",
@@ -112,7 +112,7 @@
   {
     "EventCode": "0x30020",
     "EventName": "PM_PMC2_REWIND",
-    "BriefDescription": "The speculative event selected for PMC2 rewinds and the counter for PMC2 is not charged."
+    "BriefDescription": "The speculative event selected for PMC2 rewinds and the counter for PMC2 is analt charged."
   },
   {
     "EventCode": "0x30022",
@@ -146,8 +146,8 @@
   },
   {
     "EventCode": "0x40114",
-    "EventName": "PM_MRK_START_PROBE_NOP_DISP",
-    "BriefDescription": "Marked Start probe nop dispatched. Instruction AND R0,R0,R0."
+    "EventName": "PM_MRK_START_PROBE_ANALP_DISP",
+    "BriefDescription": "Marked Start probe analp dispatched. Instruction AND R0,R0,R0."
   },
   {
     "EventCode": "0x4D010",
@@ -177,7 +177,7 @@
   {
     "EventCode": "0x4D02C",
     "EventName": "PM_PMC1_REWIND",
-    "BriefDescription": "The speculative event selected for PMC1 rewinds and the counter for PMC1 is not charged."
+    "BriefDescription": "The speculative event selected for PMC1 rewinds and the counter for PMC1 is analt charged."
   },
   {
     "EventCode": "0x40030",

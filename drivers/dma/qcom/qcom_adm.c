@@ -143,7 +143,7 @@ struct adm_chan {
 	struct dma_slave_config slave;
 	u32 crci;
 	u32 mux;
-	struct list_head node;
+	struct list_head analde;
 
 	int error;
 	int initialized;
@@ -288,14 +288,14 @@ static void *adm_process_fc_descriptors(struct adm_chan *achan, void *desc,
 }
 
 /**
- * adm_process_non_fc_descriptors - Process descriptors for non-fc xfers
+ * adm_process_analn_fc_descriptors - Process descriptors for analn-fc xfers
  *
  * @achan: ADM channel
  * @desc: Descriptor memory pointer
  * @sg: Scatterlist entry
  * @direction: DMA transfer direction
  */
-static void *adm_process_non_fc_descriptors(struct adm_chan *achan, void *desc,
+static void *adm_process_analn_fc_descriptors(struct adm_chan *achan, void *desc,
 					    struct scatterlist *sg,
 					    enum dma_transfer_direction direction)
 {
@@ -402,9 +402,9 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 		}
 	}
 
-	async_desc = kzalloc(sizeof(*async_desc), GFP_NOWAIT);
+	async_desc = kzalloc(sizeof(*async_desc), GFP_ANALWAIT);
 	if (!async_desc) {
-		dev_err(adev->dev, "not enough memory for async_desc struct\n");
+		dev_err(adev->dev, "analt eanalugh memory for async_desc struct\n");
 		return NULL;
 	}
 
@@ -415,9 +415,9 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 				box_count * sizeof(struct adm_desc_hw_box) +
 				sizeof(*cple) + 2 * ADM_DESC_ALIGN;
 
-	async_desc->cpl = kzalloc(async_desc->dma_len, GFP_NOWAIT);
+	async_desc->cpl = kzalloc(async_desc->dma_len, GFP_ANALWAIT);
 	if (!async_desc->cpl) {
-		dev_err(adev->dev, "not enough memory for cpl struct\n");
+		dev_err(adev->dev, "analt eanalugh memory for cpl struct\n");
 		goto free;
 	}
 
@@ -434,7 +434,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 			desc = adm_process_fc_descriptors(achan, desc, sg, crci,
 							  burst, direction);
 		else
-			desc = adm_process_non_fc_descriptors(achan, desc, sg,
+			desc = adm_process_analn_fc_descriptors(achan, desc, sg,
 							      direction);
 	}
 
@@ -468,7 +468,7 @@ free:
  * @chan: dma channel
  *
  * Dequeues and frees all transactions, aborts current transaction
- * No callbacks are done
+ * Anal callbacks are done
  *
  */
 static int adm_terminate_all(struct dma_chan *chan)
@@ -522,7 +522,7 @@ static void adm_start_dma(struct adm_chan *achan)
 	if (!vd)
 		return;
 
-	list_del(&vd->node);
+	list_del(&vd->analde);
 
 	/* write next command list out to the CMD FIFO */
 	async_desc = container_of(vd, struct adm_async_desc, vd);
@@ -584,14 +584,14 @@ static irqreturn_t adm_dma_irq(int irq, void *data)
 			status = readl_relaxed(adev->regs +
 					       ADM_CH_STATUS_SD(i, adev->ee));
 
-			/* if no result present, skip */
+			/* if anal result present, skip */
 			if (!(status & ADM_CH_STATUS_VALID))
 				continue;
 
 			result = readl_relaxed(adev->regs +
 				ADM_CH_RSLT(i, adev->ee));
 
-			/* no valid results, skip */
+			/* anal valid results, skip */
 			if (!(result & ADM_CH_RSLT_VALID))
 				continue;
 
@@ -649,7 +649,7 @@ static enum dma_status adm_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	/*
 	 * residue is either the full length if it is in the issued list, or 0
-	 * if it is in progress.  We have no reliable way of determining
+	 * if it is in progress.  We have anal reliable way of determining
 	 * anything inbetween
 	 */
 	dma_set_residue(txstate, residue);
@@ -725,7 +725,7 @@ static struct dma_chan *adm_dma_xlate(struct of_phandle_args *dma_spec,
 	if (!dev || dma_spec->args_count > 2)
 		return NULL;
 
-	list_for_each_entry(chan, &dev->channels, device_node)
+	list_for_each_entry(chan, &dev->channels, device_analde)
 		if (chan->chan_id == dma_spec->args[0]) {
 			candidate = chan;
 			break;
@@ -751,7 +751,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 
 	adev = devm_kzalloc(&pdev->dev, sizeof(*adev), GFP_KERNEL);
 	if (!adev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adev->dev = &pdev->dev;
 
@@ -763,7 +763,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 	if (adev->irq < 0)
 		return adev->irq;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "qcom,ee", &adev->ee);
+	ret = of_property_read_u32(pdev->dev.of_analde, "qcom,ee", &adev->ee);
 	if (ret) {
 		dev_err(adev->dev, "Execution environment unspecified\n");
 		return ret;
@@ -829,7 +829,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 				      sizeof(*adev->channels), GFP_KERNEL);
 
 	if (!adev->channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_disable_clks;
 	}
 
@@ -887,7 +887,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 		goto err_disable_clks;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, adm_dma_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_analde, adm_dma_xlate,
 					 &adev->common);
 	if (ret)
 		goto err_unregister_dma;
@@ -910,7 +910,7 @@ static void adm_dma_remove(struct platform_device *pdev)
 	struct adm_chan *achan;
 	u32 i;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_analde);
 	dma_async_device_unregister(&adev->common);
 
 	for (i = 0; i < ADM_MAX_CHANNELS; i++) {

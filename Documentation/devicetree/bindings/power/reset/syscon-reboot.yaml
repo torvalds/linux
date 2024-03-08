@@ -13,11 +13,11 @@ description: |+
   This is a generic reset driver using syscon to map the reset register.
   The reset is generally performed with a write to the reset register
   defined by the SYSCON register map base plus the offset with the value and
-  mask defined in the reboot node. Default will be little endian mode, 32 bit
-  access only. The SYSCON registers map is normally retrieved from the
-  parental dt-node. So the SYSCON reboot node should be represented as a
-  sub-node of a "syscon", "simple-mfd" node. Though the regmap property
-  pointing to the system controller node is also supported.
+  mask defined in the reboot analde. Default will be little endian mode, 32 bit
+  access only. The SYSCON registers map is analrmally retrieved from the
+  parental dt-analde. So the SYSCON reboot analde should be represented as a
+  sub-analde of a "syscon", "simple-mfd" analde. Though the regmap property
+  pointing to the system controller analde is also supported.
 
 properties:
   compatible:
@@ -35,8 +35,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     deprecated: true
     description: |
-      Phandle to the register map node. This property is deprecated in favor of
-      the syscon-reboot node been a child of a system controller node.
+      Phandle to the register map analde. This property is deprecated in favor of
+      the syscon-reboot analde been a child of a system controller analde.
 
   value:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -54,7 +54,7 @@ additionalProperties: false
 allOf:
   - $ref: restart-handler.yaml#
   - if:
-      not:
+      analt:
         required:
           - mask
     then:
@@ -65,7 +65,7 @@ examples:
   - |
     reboot {
         compatible = "syscon-reboot";
-        regmap = <&regmapnode>;
+        regmap = <&regmapanalde>;
         offset = <0x0>;
         mask = <0x1>;
     };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Performance counter support for POWER5+/++ (not POWER5) processors.
+ * Performance counter support for POWER5+/++ (analt POWER5) processors.
  *
  * Copyright 2009 Paul Mackerras, IBM Corporation.
  */
@@ -86,7 +86,7 @@
  *     44-45: GRS_L3SEL value
  *     41-44: GRS_MCSEL value
  *     39-40: GRS_FABSEL value
- *	Note that these match up with their bit positions in MMCR1
+ *	Analte that these match up with their bit positions in MMCR1
  *
  * T0 - TTM0 constraint
  *     36-37: TTM0SEL value (0=FPU, 2=IFU, 3=ISU1) 0x30_0000_0000
@@ -302,7 +302,7 @@ static int power5p_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 		 * This doesn't include alternatives that don't provide
 		 * any extra flexibility in assigning PMCs (e.g.
 		 * 0x100005 for PM_RUN_CYC vs. 0xf for PM_CYC).
-		 * Note that even with these additional alternatives
+		 * Analte that even with these additional alternatives
 		 * we never end up with more than 3 alternatives for any event.
 		 */
 		j = nalt;
@@ -398,7 +398,7 @@ static unsigned char direct_event_is_marked[0x28] = {
 
 /*
  * Returns 1 if event counts things relating to marked instructions
- * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
+ * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if analt.
  */
 static int power5p_marked_instr_event(u64 event)
 {
@@ -619,7 +619,7 @@ static int power5p_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means analt supported, -1 means analnsensical, other values
  * are event codes.
  */
 static u64 power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
@@ -653,7 +653,7 @@ static u64 power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
 	},
-	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(ANALDE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	-1,		-1		},
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
@@ -682,7 +682,7 @@ int __init init_power5p_pmu(void)
 	unsigned int pvr = mfspr(SPRN_PVR);
 
 	if (PVR_VER(pvr) != PVR_POWER5p)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return register_power_pmu(&power5p_pmu);
 }

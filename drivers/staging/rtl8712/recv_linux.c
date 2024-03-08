@@ -45,7 +45,7 @@ int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 	precvbuf->irp_pending = false;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!precvbuf->purb)
-		res = -ENOMEM;
+		res = -EANALMEM;
 	precvbuf->pskb = NULL;
 	precvbuf->pallocated_buf = NULL;
 	precvbuf->pbuf = NULL;
@@ -108,7 +108,7 @@ void r8712_recv_indicatepkt(struct _adapter *adapter,
 	if ((attrib->tcpchk_valid == 1) && (attrib->tcp_chkrpt == 1))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_ANALNE;
 	skb->dev = adapter->pnetdev;
 	skb->protocol = eth_type_trans(skb, adapter->pnetdev);
 	netif_rx(skb);

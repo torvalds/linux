@@ -123,31 +123,31 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.inherit_sync.max
 	},
 	{
-		.procname	= "inherit_nodump",
-		.data		= &xfs_params.inherit_nodump.val,
+		.procname	= "inherit_analdump",
+		.data		= &xfs_params.inherit_analdump.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nodump.min,
-		.extra2		= &xfs_params.inherit_nodump.max
+		.extra1		= &xfs_params.inherit_analdump.min,
+		.extra2		= &xfs_params.inherit_analdump.max
 	},
 	{
-		.procname	= "inherit_noatime",
-		.data		= &xfs_params.inherit_noatim.val,
+		.procname	= "inherit_analatime",
+		.data		= &xfs_params.inherit_analatim.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_noatim.min,
-		.extra2		= &xfs_params.inherit_noatim.max
+		.extra1		= &xfs_params.inherit_analatim.min,
+		.extra2		= &xfs_params.inherit_analatim.max
 	},
 	{
-		.procname	= "inherit_nosymlinks",
-		.data		= &xfs_params.inherit_nosym.val,
+		.procname	= "inherit_analsymlinks",
+		.data		= &xfs_params.inherit_analsym.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nosym.min,
-		.extra2		= &xfs_params.inherit_nosym.max
+		.extra1		= &xfs_params.inherit_analsym.min,
+		.extra2		= &xfs_params.inherit_analsym.max
 	},
 	{
 		.procname	= "rotorstep",
@@ -159,13 +159,13 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.rotorstep.max
 	},
 	{
-		.procname	= "inherit_nodefrag",
-		.data		= &xfs_params.inherit_nodfrg.val,
+		.procname	= "inherit_analdefrag",
+		.data		= &xfs_params.inherit_analdfrg.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nodfrg.min,
-		.extra2		= &xfs_params.inherit_nodfrg.max
+		.extra1		= &xfs_params.inherit_analdfrg.min,
+		.extra2		= &xfs_params.inherit_analdfrg.max
 	},
 	{
 		.procname	= "filestream_centisecs",
@@ -213,7 +213,7 @@ xfs_sysctl_register(void)
 {
 	xfs_table_header = register_sysctl("fs/xfs", xfs_table);
 	if (!xfs_table_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

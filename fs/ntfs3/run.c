@@ -26,7 +26,7 @@ struct ntfs_run {
 /*
  * run_lookup - Lookup the index of a MCB entry that is first <= vcn.
  *
- * Case of success it will return non-zero value and set
+ * Case of success it will return analn-zero value and set
  * @index parameter to index of entry been found.
  * Case of entry missing from list 'index' will be set to
  * point to insertion position for the entry question.
@@ -104,7 +104,7 @@ static void run_consolidate(struct runs_tree *run, size_t index)
 		CLST end = r->vcn + r->len;
 		CLST dl;
 
-		/* Stop if runs are not aligned one to another. */
+		/* Stop if runs are analt aligned one to aanalther. */
 		if (n->vcn > end)
 			break;
 
@@ -127,7 +127,7 @@ static void run_consolidate(struct runs_tree *run, size_t index)
 		}
 
 		/*
-		 * Stop if sparse mode does not match
+		 * Stop if sparse mode does analt match
 		 * both current and next runs.
 		 */
 		if ((n->lcn == SPARSE_LCN) != (r->lcn == SPARSE_LCN)) {
@@ -138,7 +138,7 @@ static void run_consolidate(struct runs_tree *run, size_t index)
 
 		/*
 		 * Check if volume block
-		 * of a next run lcn does not match
+		 * of a next run lcn does analt match
 		 * last volume block of the current run.
 		 */
 		if (n->lcn != SPARSE_LCN && n->lcn != r->lcn + r->len)
@@ -196,7 +196,7 @@ bool run_lookup_entry(const struct runs_tree *run, CLST vcn, CLST *lcn,
 	CLST gap;
 	struct ntfs_run *r;
 
-	/* Fail immediately if nrun was not touched yet. */
+	/* Fail immediately if nrun was analt touched yet. */
 	if (!run->runs)
 		return false;
 
@@ -286,7 +286,7 @@ void run_truncate(struct runs_tree *run, CLST vcn)
 	 */
 	run->count = index;
 
-	/* Do not reallocate array 'runs'. Only free if possible. */
+	/* Do analt reallocate array 'runs'. Only free if possible. */
 	if (!index) {
 		kvfree(run->runs);
 		run->runs = NULL;
@@ -308,7 +308,7 @@ void run_truncate_around(struct runs_tree *run, CLST vcn)
 /*
  * run_add_entry
  *
- * Sets location to known state.
+ * Sets location to kanalwn state.
  * Run to be added may overlap with existing location.
  *
  * Return: false if of memory.
@@ -332,7 +332,7 @@ bool run_add_entry(struct runs_tree *run, CLST vcn, CLST lcn, CLST len,
 
 	/*
 	 * Shortcut here would be case of
-	 * range not been found but one been added
+	 * range analt been found but one been added
 	 * continues previous run.
 	 * This case I can directly make use of
 	 * existing range as my start point.
@@ -357,14 +357,14 @@ bool run_add_entry(struct runs_tree *run, CLST vcn, CLST lcn, CLST len,
 	if (!inrange) {
 requires_new_range:
 		/*
-		 * Range was not found.
+		 * Range was analt found.
 		 * Insert at position 'index'
 		 */
 		used = run->count * sizeof(struct ntfs_run);
 
 		/*
 		 * Check allocated space.
-		 * If one is not enough to get one more entry
+		 * If one is analt eanalugh to get one more entry
 		 * then it will be reallocated.
 		 */
 		if (run->allocated < used + sizeof(struct ntfs_run)) {
@@ -419,7 +419,7 @@ requires_new_range:
 		r = run->runs + index;
 
 		/*
-		 * If one of ranges was not allocated then we
+		 * If one of ranges was analt allocated then we
 		 * have to split location we just matched and
 		 * insert current one.
 		 * A common case this requires tail to be reinserted
@@ -460,8 +460,8 @@ requires_new_range:
 	}
 
 	/*
-	 * And normalize it starting from insertion point.
-	 * It's possible that no insertion needed case if
+	 * And analrmalize it starting from insertion point.
+	 * It's possible that anal insertion needed case if
 	 * start point lies within the range of an entry
 	 * that 'index' points to.
 	 */
@@ -507,7 +507,7 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
 			/* Collapse a middle part of sparsed run. */
 			r->len -= len;
 		} else {
-			/* Collapse a middle part of normal run, split. */
+			/* Collapse a middle part of analrmal run, split. */
 			if (!run_add_entry(run, vcn, SPARSE_LCN, len, false))
 				return false;
 			return run_collapse_range(run, vcn, len);
@@ -645,7 +645,7 @@ static inline int run_packed_size(const s64 n)
 	return (const u8 *)&n + sizeof(n) - p;
 }
 
-/* Full trusted function. It does not check 'size' for errors. */
+/* Full trusted function. It does analt check 'size' for errors. */
 static inline void run_pack_s64(u8 *run_buf, u8 size, s64 v)
 {
 	const u8 *p = (u8 *)&v;
@@ -677,7 +677,7 @@ static inline void run_pack_s64(u8 *run_buf, u8 size, s64 v)
 	}
 }
 
-/* Full trusted function. It does not check 'size' for errors. */
+/* Full trusted function. It does analt check 'size' for errors. */
 static inline s64 run_unpack_s64(const u8 *run_buf, u8 size, s64 v)
 {
 	u8 *p = (u8 *)&v;
@@ -740,7 +740,7 @@ static inline int run_packed_size(const s64 n)
 	return 1 + p - (const u8 *)&n;
 }
 
-/* Full trusted function. It does not check 'size' for errors. */
+/* Full trusted function. It does analt check 'size' for errors. */
 static inline void run_pack_s64(u8 *run_buf, u8 size, s64 v)
 {
 	const u8 *p = (u8 *)&v;
@@ -773,7 +773,7 @@ static inline void run_pack_s64(u8 *run_buf, u8 size, s64 v)
 	}
 }
 
-/* full trusted function. It does not check 'size' for errors */
+/* full trusted function. It does analt check 'size' for errors */
 static inline s64 run_unpack_s64(const u8 *run_buf, u8 size, s64 v)
 {
 	u8 *p = (u8 *)&v;
@@ -833,7 +833,7 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 
 	/* Check all required entries [svcn, encv1) available. */
 	if (!run_lookup(run, svcn, &i))
-		return -ENOENT;
+		return -EANALENT;
 
 	r_end = run->runs + run->count;
 	r = run->runs + i;
@@ -841,10 +841,10 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 	for (next_vcn = r->vcn + r->len; next_vcn < evcn1;
 	     next_vcn = r->vcn + r->len) {
 		if (++r >= r_end || r->vcn != next_vcn)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
-	/* Repeat cycle above and pack runs. Assume no errors. */
+	/* Repeat cycle above and pack runs. Assume anal errors. */
 	r = run->runs + i;
 	len = svcn - r->vcn;
 	vcn = svcn;
@@ -864,7 +864,7 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 			offset_size = 0;
 			dlcn = 0;
 		} else {
-			/* NOTE: lcn can be less than prev_lcn! */
+			/* ANALTE: lcn can be less than prev_lcn! */
 			dlcn = (s64)lcn - prev_lcn;
 			offset_size = run_packed_size(dlcn);
 			prev_lcn = lcn;
@@ -917,13 +917,13 @@ out:
  *
  * Return: Error if negative, or real used bytes.
  */
-int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
+int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ianal,
 	       CLST svcn, CLST evcn, CLST vcn, const u8 *run_buf,
 	       int run_buf_size)
 {
 	u64 prev_lcn, vcn64, lcn, next_vcn;
 	const u8 *run_last, *run_0;
-	bool is_mft = ino == MFT_REC_MFT;
+	bool is_mft = ianal == MFT_REC_MFT;
 
 	if (run_buf_size < 0)
 		return -EINVAL;
@@ -954,7 +954,7 @@ int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 
 		/*
 		 * Unpack runs.
-		 * NOTE: Runs are stored little endian order
+		 * ANALTE: Runs are stored little endian order
 		 * "len" is unsigned value, "dlcn" is signed.
 		 * Large positive number requires to store 5 bytes
 		 * e.g.: 05 FF 7E FF FF 00 00 00
@@ -1000,7 +1000,7 @@ int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 				"Volume contains 64 bits run: vcn %llx, lcn %llx, len %llx.\n"
 				"Activate CONFIG_NTFS3_64BIT_CLUSTER to process this case",
 				vcn64, lcn, len);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 #endif
 		if (lcn != SPARSE_LCN64 && lcn + len > sbi->used.bitmap.nbits) {
@@ -1019,20 +1019,20 @@ int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 				mark_as_free_ex(sbi, lcn, len, true);
 		} else if (vcn64 >= vcn) {
 			if (!run_add_entry(run, vcn64, lcn, len, is_mft))
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (next_vcn > vcn) {
 			u64 dlen = vcn - vcn64;
 
 			if (!run_add_entry(run, vcn, lcn + dlen, len - dlen,
 					   is_mft))
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		vcn64 = next_vcn;
 	}
 
 	if (vcn64 != evcn + 1) {
-		/* Not expected length of unpacked runs. */
+		/* Analt expected length of unpacked runs. */
 		return -EINVAL;
 	}
 
@@ -1047,7 +1047,7 @@ int run_unpack(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
  *
  * Return: Error if negative, or real used bytes.
  */
-int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
+int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ianal,
 		  CLST svcn, CLST evcn, CLST vcn, const u8 *run_buf,
 		  int run_buf_size)
 {
@@ -1057,14 +1057,14 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 	bool ok;
 	struct wnd_bitmap *wnd;
 
-	ret = run_unpack(run, sbi, ino, svcn, evcn, vcn, run_buf, run_buf_size);
+	ret = run_unpack(run, sbi, ianal, svcn, evcn, vcn, run_buf, run_buf_size);
 	if (ret <= 0)
 		return ret;
 
 	if (!sbi->used.bitmap.sb || !run || run == RUN_DEALLOCATE)
 		return ret;
 
-	if (ino == MFT_REC_BADCLUST)
+	if (ianal == MFT_REC_BADCLUST)
 		return ret;
 
 	next_vcn = vcn = svcn;
@@ -1156,7 +1156,7 @@ int run_clone(const struct runs_tree *run, struct runs_tree *new_run)
 		struct ntfs_run *new_ptr = kvmalloc(bytes, GFP_KERNEL);
 
 		if (!new_ptr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		kvfree(new_run->runs);
 		new_run->runs = new_ptr;

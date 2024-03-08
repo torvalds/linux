@@ -5,11 +5,11 @@
 |	exception.
 |
 | Invoked when the user program encounters a floating-point
-| op-code that hardware does not support.  Trap vector# 11
+| op-code that hardware does analt support.  Trap vector# 11
 | (See table 8-1 MC68030 User's Manual).
 |
 |
-| Note: An fsave for an unimplemented inst. will create a short
+| Analte: An fsave for an unimplemented inst. will create a short
 | fsave stack.
 |
 |  Input: 1. Six word stack frame for unimplemented inst, four word
@@ -68,9 +68,9 @@ uni_2:
 	bsrl		do_func		|do the function
 	fsave		-(%a7)		|capture possible exc state
 	tstb		STORE_FLG(%a6)
-	bnes		no_store	|if STORE_FLG is set, no store
+	bnes		anal_store	|if STORE_FLG is set, anal store
 	bsrl		sto_res		|store the result in user space
-no_store:
+anal_store:
 	bral		gen_except	|post any exceptions and return
 
 	|end

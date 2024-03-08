@@ -33,7 +33,7 @@ nfsacl_size(struct posix_acl *acl_access, struct posix_acl *acl_default)
 }
 
 extern int
-nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct ianalde *ianalde,
 	      struct posix_acl *acl, int encode_entries, int typeflag);
 extern int
 nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
@@ -42,7 +42,7 @@ extern bool
 nfs_stream_decode_acl(struct xdr_stream *xdr, unsigned int *aclcnt,
 		      struct posix_acl **pacl);
 extern bool
-nfs_stream_encode_acl(struct xdr_stream *xdr, struct inode *inode,
+nfs_stream_encode_acl(struct xdr_stream *xdr, struct ianalde *ianalde,
 		      struct posix_acl *acl, int encode_entries, int typeflag);
 
 #endif  /* __LINUX_NFSACL_H */

@@ -45,7 +45,7 @@ int handle_getpid(void)
 
 	find_addr_ret = bpf_find_vma(task, addr, check_vma, &data, 0);
 
-	/* this should return -ENOENT */
+	/* this should return -EANALENT */
 	find_zero_ret = bpf_find_vma(task, 0, check_vma, &data, 0);
 	return 0;
 }

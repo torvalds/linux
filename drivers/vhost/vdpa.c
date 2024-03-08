@@ -20,7 +20,7 @@
 #include <linux/iommu.h>
 #include <linux/uuid.h>
 #include <linux/vdpa.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/vhost.h>
 
 #include "vhost.h"
@@ -32,12 +32,12 @@ enum {
 	(1ULL << VHOST_BACKEND_F_IOTLB_ASID),
 };
 
-#define VHOST_VDPA_DEV_MAX (1U << MINORBITS)
+#define VHOST_VDPA_DEV_MAX (1U << MIANALRBITS)
 
 #define VHOST_VDPA_IOTLB_BUCKETS 16
 
 struct vhost_vdpa_as {
-	struct hlist_node hash_link;
+	struct hlist_analde hash_link;
 	struct vhost_iotlb iotlb;
 	u32 id;
 };
@@ -54,7 +54,7 @@ struct vhost_vdpa {
 	atomic_t opened;
 	u32 nvqs;
 	int virtio_id;
-	int minor;
+	int mianalr;
 	struct eventfd_ctx *config_ctx;
 	int in_batch;
 	struct vdpa_iova_range range;
@@ -152,7 +152,7 @@ static int vhost_vdpa_remove_as(struct vhost_vdpa *v, u32 asid)
 	vhost_vdpa_iotlb_unmap(v, &as->iotlb, 0ULL, 0ULL - 1, asid);
 	/*
 	 * Devices with vendor specific IOMMU may need to restore
-	 * iotlb to the initial or default state, which cannot be
+	 * iotlb to the initial or default state, which cananalt be
 	 * cleaned up in the all range unmap call above. Give them
 	 * a chance to clean up or reset the map to the desired
 	 * state.
@@ -368,7 +368,7 @@ static long vhost_vdpa_get_config(struct vhost_vdpa *v,
 		return -EINVAL;
 	buf = kvzalloc(config.len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdpa_get_config(vdpa, config.off, buf, config.len);
 
@@ -472,7 +472,7 @@ static long vhost_vdpa_set_features(struct vhost_vdpa *v, u64 __user *featurep)
 	int i;
 
 	/*
-	 * It's not allowed to change the features after they have
+	 * It's analt allowed to change the features after they have
 	 * been negotiated.
 	 */
 	if (ops->get_status(vdpa) & VIRTIO_CONFIG_S_FEATURES_OK)
@@ -484,7 +484,7 @@ static long vhost_vdpa_set_features(struct vhost_vdpa *v, u64 __user *featurep)
 	if (vdpa_set_features(vdpa, features))
 		return -EINVAL;
 
-	/* let the vqs know what has been configured */
+	/* let the vqs kanalw what has been configured */
 	actual_features = ops->get_driver_features(vdpa);
 	for (i = 0; i < d->nvqs; ++i) {
 		struct vhost_virtqueue *vq = d->vqs[i];
@@ -584,10 +584,10 @@ static long vhost_vdpa_get_vqs_count(struct vhost_vdpa *v, u32 __user *argp)
 	return 0;
 }
 
-/* After a successful return of ioctl the device must not process more
+/* After a successful return of ioctl the device must analt process more
  * virtqueue descriptors. The device can answer to read or writes of config
- * fields as if it were not suspended. In particular, writing to "queue_enable"
- * with a value of 1 will not make the device start processing buffers.
+ * fields as if it were analt suspended. In particular, writing to "queue_enable"
+ * with a value of 1 will analt make the device start processing buffers.
  */
 static long vhost_vdpa_suspend(struct vhost_vdpa *v)
 {
@@ -596,7 +596,7 @@ static long vhost_vdpa_suspend(struct vhost_vdpa *v)
 	int ret;
 
 	if (!ops->suspend)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ops->suspend(vdpa);
 	if (!ret)
@@ -616,7 +616,7 @@ static long vhost_vdpa_resume(struct vhost_vdpa *v)
 	int ret;
 
 	if (!ops->resume)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = ops->resume(vdpa);
 	if (!ret)
@@ -642,9 +642,9 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		return r;
 
 	if (idx >= v->nvqs)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
-	idx = array_index_nospec(idx, v->nvqs);
+	idx = array_index_analspec(idx, v->nvqs);
 	vq = &v->vqs[idx];
 
 	switch (cmd) {
@@ -655,7 +655,7 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		return 0;
 	case VHOST_VDPA_GET_VRING_GROUP:
 		if (!ops->get_vq_group)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		s.index = idx;
 		s.num = ops->get_vq_group(vdpa, idx);
 		if (s.num >= vdpa->ngroups)
@@ -665,7 +665,7 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		return 0;
 	case VHOST_VDPA_GET_VRING_DESC_GROUP:
 		if (!vhost_vdpa_has_desc_group(v))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		s.index = idx;
 		s.num = ops->get_vq_desc_group(vdpa, idx);
 		if (s.num >= vdpa->ngroups)
@@ -679,7 +679,7 @@ static long vhost_vdpa_vring_ioctl(struct vhost_vdpa *v, unsigned int cmd,
 		if (s.num >= vdpa->nas)
 			return -EINVAL;
 		if (!ops->set_group_asid)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		return ops->set_group_asid(vdpa, idx, s.num);
 	case VHOST_GET_VRING_BASE:
 		r = ops->get_vq_state(v->vdpa, idx, &vq_state);
@@ -769,22 +769,22 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 				 BIT_ULL(VHOST_BACKEND_F_SUSPEND) |
 				 BIT_ULL(VHOST_BACKEND_F_RESUME) |
 				 BIT_ULL(VHOST_BACKEND_F_ENABLE_AFTER_DRIVER_OK)))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_SUSPEND)) &&
 		     !vhost_vdpa_can_suspend(v))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_RESUME)) &&
 		     !vhost_vdpa_can_resume(v))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_DESC_ASID)) &&
 		    !(features & BIT_ULL(VHOST_BACKEND_F_IOTLB_ASID)))
 			return -EINVAL;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_DESC_ASID)) &&
 		     !vhost_vdpa_has_desc_group(v))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if ((features & BIT_ULL(VHOST_BACKEND_F_IOTLB_PERSIST)) &&
 		     !vhost_vdpa_has_persistent_map(v))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		vhost_set_backend_features(&v->vdev, features);
 		return 0;
 	}
@@ -827,7 +827,7 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		break;
 	case VHOST_SET_LOG_BASE:
 	case VHOST_SET_LOG_FD:
-		r = -ENOIOCTLCMD;
+		r = -EANALIOCTLCMD;
 		break;
 	case VHOST_VDPA_SET_CONFIG_CALL:
 		r = vhost_vdpa_set_config_call(v, argp);
@@ -863,7 +863,7 @@ static long vhost_vdpa_unlocked_ioctl(struct file *filep,
 		break;
 	default:
 		r = vhost_dev_ioctl(&v->vdev, cmd, argp);
-		if (r == -ENOIOCTLCMD)
+		if (r == -EANALIOCTLCMD)
 			r = vhost_vdpa_vring_ioctl(v, cmd, argp);
 		break;
 	}
@@ -1043,7 +1043,7 @@ static int vhost_vdpa_va_map(struct vhost_vdpa *v,
 
 		map_file = kzalloc(sizeof(*map_file), GFP_KERNEL);
 		if (!map_file) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 		offset = (vma->vm_pgoff << PAGE_SHIFT) + uaddr - vma->vm_start;
@@ -1086,7 +1086,7 @@ static int vhost_vdpa_pa_map(struct vhost_vdpa *v,
 	/* Limit the use of memory for bookkeeping */
 	page_list = (struct page **) __get_free_page(GFP_KERNEL);
 	if (!page_list)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (perm & VHOST_ACCESS_WO)
 		gup_flags |= FOLL_WRITE;
@@ -1101,7 +1101,7 @@ static int vhost_vdpa_pa_map(struct vhost_vdpa *v,
 
 	lock_limit = PFN_DOWN(rlimit(RLIMIT_MEMLOCK));
 	if (npages + atomic64_read(&dev->mm->pinned_vm) > lock_limit) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1118,7 +1118,7 @@ static int vhost_vdpa_pa_map(struct vhost_vdpa *v,
 				ret = pinned;
 			} else {
 				unpin_user_pages(page_list, pinned);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			}
 			goto out;
 		}
@@ -1252,7 +1252,7 @@ static int vhost_vdpa_process_iotlb_msg(struct vhost_dev *dev, u32 asid,
 				 v->batch_asid, asid);
 		}
 		if (!iotlb)
-			dev_err(&v->dev, "no iotlb for asid %d\n", asid);
+			dev_err(&v->dev, "anal iotlb for asid %d\n", asid);
 		r = -EINVAL;
 		goto unlock;
 	}
@@ -1311,8 +1311,8 @@ static int vhost_vdpa_alloc_domain(struct vhost_vdpa *v)
 
 	if (!device_iommu_capable(dma_dev, IOMMU_CAP_CACHE_COHERENCY)) {
 		dev_warn_once(&v->dev,
-			      "Failed to allocate domain, device is not IOMMU cache coherent capable\n");
-		return -ENOTSUPP;
+			      "Failed to allocate domain, device is analt IOMMU cache coherent capable\n");
+		return -EANALTSUPP;
 	}
 
 	v->domain = iommu_domain_alloc(bus);
@@ -1378,7 +1378,7 @@ static void vhost_vdpa_cleanup(struct vhost_vdpa *v)
 	v->vdev.vqs = NULL;
 }
 
-static int vhost_vdpa_open(struct inode *inode, struct file *filep)
+static int vhost_vdpa_open(struct ianalde *ianalde, struct file *filep)
 {
 	struct vhost_vdpa *v;
 	struct vhost_dev *dev;
@@ -1386,7 +1386,7 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 	int r, opened;
 	u32 i, nvqs;
 
-	v = container_of(inode->i_cdev, struct vhost_vdpa, cdev);
+	v = container_of(ianalde->i_cdev, struct vhost_vdpa, cdev);
 
 	opened = atomic_cmpxchg(&v->opened, 0, 1);
 	if (opened)
@@ -1399,7 +1399,7 @@ static int vhost_vdpa_open(struct inode *inode, struct file *filep)
 
 	vqs = kmalloc_array(nvqs, sizeof(*vqs), GFP_KERNEL);
 	if (!vqs) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 
@@ -1436,7 +1436,7 @@ static void vhost_vdpa_clean_irq(struct vhost_vdpa *v)
 		vhost_vdpa_unsetup_vq_irq(v, i);
 }
 
-static int vhost_vdpa_release(struct inode *inode, struct file *filep)
+static int vhost_vdpa_release(struct ianalde *ianalde, struct file *filep)
 {
 	struct vhost_vdpa *v = filep->private_data;
 	struct vhost_dev *d = &v->vdev;
@@ -1463,19 +1463,19 @@ static vm_fault_t vhost_vdpa_fault(struct vm_fault *vmf)
 	struct vhost_vdpa *v = vmf->vma->vm_file->private_data;
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
-	struct vdpa_notification_area notify;
+	struct vdpa_analtification_area analtify;
 	struct vm_area_struct *vma = vmf->vma;
 	u16 index = vma->vm_pgoff;
 
-	notify = ops->get_vq_notification(vdpa, index);
+	analtify = ops->get_vq_analtification(vdpa, index);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 	if (remap_pfn_range(vma, vmf->address & PAGE_MASK,
-			    PFN_DOWN(notify.addr), PAGE_SIZE,
+			    PFN_DOWN(analtify.addr), PAGE_SIZE,
 			    vma->vm_page_prot))
 		return VM_FAULT_SIGBUS;
 
-	return VM_FAULT_NOPAGE;
+	return VM_FAULT_ANALPAGE;
 }
 
 static const struct vm_operations_struct vhost_vdpa_vm_ops = {
@@ -1487,7 +1487,7 @@ static int vhost_vdpa_mmap(struct file *file, struct vm_area_struct *vma)
 	struct vhost_vdpa *v = vma->vm_file->private_data;
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
-	struct vdpa_notification_area notify;
+	struct vdpa_analtification_area analtify;
 	unsigned long index = vma->vm_pgoff;
 
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
@@ -1498,18 +1498,18 @@ static int vhost_vdpa_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 	if (index > 65535)
 		return -EINVAL;
-	if (!ops->get_vq_notification)
-		return -ENOTSUPP;
+	if (!ops->get_vq_analtification)
+		return -EANALTSUPP;
 
 	/* To be safe and easily modelled by userspace, We only
 	 * support the doorbell which sits on the page boundary and
-	 * does not share the page with other registers.
+	 * does analt share the page with other registers.
 	 */
-	notify = ops->get_vq_notification(vdpa, index);
-	if (notify.addr & (PAGE_SIZE - 1))
+	analtify = ops->get_vq_analtification(vdpa, index);
+	if (analtify.addr & (PAGE_SIZE - 1))
 		return -EINVAL;
-	if (vma->vm_end - vma->vm_start != notify.size)
-		return -ENOTSUPP;
+	if (vma->vm_end - vma->vm_start != analtify.size)
+		return -EANALTSUPP;
 
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &vhost_vdpa_vm_ops;
@@ -1534,7 +1534,7 @@ static void vhost_vdpa_release_dev(struct device *device)
 	struct vhost_vdpa *v =
 	       container_of(device, struct vhost_vdpa, dev);
 
-	ida_simple_remove(&vhost_vdpa_ida, v->minor);
+	ida_simple_remove(&vhost_vdpa_ida, v->mianalr);
 	kfree(v->vqs);
 	kfree(v);
 }
@@ -1543,7 +1543,7 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 {
 	const struct vdpa_config_ops *ops = vdpa->config;
 	struct vhost_vdpa *v;
-	int minor;
+	int mianalr;
 	int i, r;
 
 	/* We can't support platform IOMMU device with more than 1
@@ -1551,21 +1551,21 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	 */
 	if (!ops->set_map && !ops->dma_map &&
 	    (vdpa->ngroups > 1 || vdpa->nas > 1))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	v = kzalloc(sizeof(*v), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!v)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	minor = ida_simple_get(&vhost_vdpa_ida, 0,
+	mianalr = ida_simple_get(&vhost_vdpa_ida, 0,
 			       VHOST_VDPA_DEV_MAX, GFP_KERNEL);
-	if (minor < 0) {
+	if (mianalr < 0) {
 		kfree(v);
-		return minor;
+		return mianalr;
 	}
 
 	atomic_set(&v->opened, 0);
-	v->minor = minor;
+	v->mianalr = mianalr;
 	v->vdpa = vdpa;
 	v->nvqs = vdpa->nvqs;
 	v->virtio_id = ops->get_device_id(vdpa);
@@ -1573,15 +1573,15 @@ static int vhost_vdpa_probe(struct vdpa_device *vdpa)
 	device_initialize(&v->dev);
 	v->dev.release = vhost_vdpa_release_dev;
 	v->dev.parent = &vdpa->dev;
-	v->dev.devt = MKDEV(MAJOR(vhost_vdpa_major), minor);
+	v->dev.devt = MKDEV(MAJOR(vhost_vdpa_major), mianalr);
 	v->vqs = kmalloc_array(v->nvqs, sizeof(struct vhost_virtqueue),
 			       GFP_KERNEL);
 	if (!v->vqs) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err;
 	}
 
-	r = dev_set_name(&v->dev, "vhost-vdpa-%u", minor);
+	r = dev_set_name(&v->dev, "vhost-vdpa-%u", mianalr);
 	if (r)
 		goto err;
 

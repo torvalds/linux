@@ -5,7 +5,7 @@ MMUv3 initialization sequence
 The code in the initialize_mmu macro sets up MMUv3 memory mapping
 identically to MMUv2 fixed memory mapping. Depending on
 CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX symbol this code is
-located in addresses it was linked for (symbol undefined), or not
+located in addresses it was linked for (symbol undefined), or analt
 (symbol defined), so it needs to be position-independent.
 
 The code has the following assumptions:
@@ -47,22 +47,22 @@ The scheme below assumes that the kernel is loaded below 0x40000000.
  ====== =====  =====  =====  =====   ====== =====  =====
 
 The default location of IO peripherals is above 0xf0000000. This may be changed
-using a "ranges" property in a device tree simple-bus node. See the Devicetree
+using a "ranges" property in a device tree simple-bus analde. See the Devicetree
 Specification, section 4.5 for details on the syntax and semantics of
-simple-bus nodes. The following limitations apply:
+simple-bus analdes. The following limitations apply:
 
-1. Only top level simple-bus nodes are considered
+1. Only top level simple-bus analdes are considered
 
-2. Only one (first) simple-bus node is considered
+2. Only one (first) simple-bus analde is considered
 
-3. Empty "ranges" properties are not supported
+3. Empty "ranges" properties are analt supported
 
 4. Only the first triplet in the "ranges" property is considered
 
 5. The parent-bus-address value is rounded down to the nearest 256MB boundary
 
 6. The IO area covers the entire 256MB segment of parent-bus-address; the
-   "ranges" triplet length field is ignored
+   "ranges" triplet length field is iganalred
 
 
 MMUv3 address space layouts.

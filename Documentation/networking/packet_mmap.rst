@@ -25,7 +25,7 @@ Please send your comments to
 Why use PACKET_MMAP
 ===================
 
-Non PACKET_MMAP capture process (plain AF_PACKET) is very
+Analn PACKET_MMAP capture process (plain AF_PACKET) is very
 inefficient. It uses very limited buffers and requires one system call to
 capture each packet, it requires two if you want to get packet's timestamp
 (like libpcap always does).
@@ -33,7 +33,7 @@ capture each packet, it requires two if you want to get packet's timestamp
 On the other hand PACKET_MMAP is very efficient. PACKET_MMAP provides a size
 configurable circular buffer mapped in user space that can be used to either
 send or receive packets. This way reading packets just needs to wait for them,
-most of the time there is no need to issue a single system call. Concerning
+most of the time there is anal need to issue a single system call. Concerning
 transmission, multiple packets can be sent through one system call to get the
 highest bandwidth. By using a shared buffer between the kernel and the user
 also has the benefit of minimizing packet copies.
@@ -84,7 +84,7 @@ the same way with or without PACKET_MMAP::
 
 where mode is SOCK_RAW for the raw interface were link level
 information can be captured or SOCK_DGRAM for the cooked
-interface where link level information capture is not
+interface where link level information capture is analt
 supported and a link level pseudo-header is provided
 by the kernel.
 
@@ -131,7 +131,7 @@ In this case, you also need to bind(2) the TX_RING with sll_protocol = 0
 set. Otherwise, htons(ETH_P_ALL) or any other protocol, for example.
 
 Binding the socket to your network interface is mandatory (with zero copy) to
-know the header size of frames used in the circular buffer.
+kanalw the header size of frames used in the circular buffer.
 
 As capture, each frame contains two parts::
 
@@ -214,7 +214,7 @@ related meta-information like timestamps without requiring a system call.
 
 Frames are grouped in blocks. Each block is a physically contiguous
 region of memory and holds tp_block_size/tp_frame_size frames. The total number
-of blocks is tp_block_nr. Note that tp_frame_nr is a redundant parameter because::
+of blocks is tp_block_nr. Analte that tp_frame_nr is a redundant parameter because::
 
     frames_per_block = tp_block_size/tp_frame_size
 
@@ -242,7 +242,7 @@ we will get the following buffer structure::
     +---------+---------+    +---------+---------+
 
 A frame can be of any size with the only condition it can fit in a block. A block
-can only hold an integer number of frames, or in other words, a frame cannot
+can only hold an integer number of frames, or in other words, a frame cananalt
 be spawned across two blocks, so there are some details you have to take into
 account when choosing the frame_size. See "Mapping and use of the circular
 buffer (ring)".
@@ -357,20 +357,20 @@ and a value for <frame size> of 2048 bytes. These parameters will yield::
 and hence the buffer will have a 262144 MiB size. So it can hold
 262144 MiB / 2048 bytes = 134217728 frames
 
-Actually, this buffer size is not possible with an i386 architecture.
+Actually, this buffer size is analt possible with an i386 architecture.
 Remember that the memory is allocated in kernel space, in the case of
 an i386 kernel's memory size is limited to 1GiB.
 
-All memory allocations are not freed until the socket is closed. The memory
+All memory allocations are analt freed until the socket is closed. The memory
 allocations are done with GFP_KERNEL priority, this basically means that
 the allocation can wait and swap other process' memory in order to allocate
-the necessary memory, so normally limits can be reached.
+the necessary memory, so analrmally limits can be reached.
 
 Other constraints
 -----------------
 
 If you check the source code you will see that what I draw here as a frame
-is not only the link level frame. At the beginning of each frame there is a
+is analt only the link level frame. At the beginning of each frame there is a
 header called struct tpacket_hdr used in PACKET_MMAP to hold link level's frame
 meta information like timestamp. So what we draw here a frame it's really
 the following (from include/linux/if_packet.h)::
@@ -396,7 +396,7 @@ The following are conditions that are checked in packet_set_ring
    - tp_frame_size must be a multiple of TPACKET_ALIGNMENT
    - tp_frame_nr   must be exactly frames_per_block*tp_block_nr
 
-Note that tp_block_size should be chosen to be a power of two or there will
+Analte that tp_block_size should be chosen to be a power of two or there will
 be a waste of memory.
 
 Mapping and use of the circular buffer (ring)
@@ -410,9 +410,9 @@ just one call to mmap is needed::
     mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 
 If tp_frame_size is a divisor of tp_block_size frames will be
-contiguously spaced by tp_frame_size bytes. If not, each
+contiguously spaced by tp_frame_size bytes. If analt, each
 tp_block_size/tp_frame_size frames there will be a gap between
-the frames. This is because a frame cannot be spawn across two
+the frames. This is because a frame cananalt be spawn across two
 blocks.
 
 To use one socket for capture and transmission, the mapping of both the
@@ -430,7 +430,7 @@ after the RX one.
 
 At the beginning of each frame there is an status field (see
 struct tpacket_hdr). If this field is 0 means that the frame is ready
-to be used for the kernel, If not, there is a frame the user can read
+to be used for the kernel, If analt, there is a frame the user can read
 and the following flags apply:
 
 Capture process
@@ -440,7 +440,7 @@ From include/linux/if_packet.h::
 
      #define TP_STATUS_COPY          (1 << 1)
      #define TP_STATUS_LOSING        (1 << 2)
-     #define TP_STATUS_CSUMNOTREADY  (1 << 3)
+     #define TP_STATUS_CSUMANALTREADY  (1 << 3)
      #define TP_STATUS_CSUM_VALID    (1 << 7)
 
 ======================  =======================================================
@@ -454,23 +454,23 @@ TP_STATUS_COPY		This flag indicates that the frame (and associated
 			the PACKET_COPY_THRESH option.
 
 			The number of frames that can be buffered to
-			be read with recvfrom is limited like a normal socket.
+			be read with recvfrom is limited like a analrmal socket.
 			See the SO_RCVBUF option in the socket (7) man page.
 
 TP_STATUS_LOSING	indicates there were packet drops from last time
 			statistics where checked with getsockopt() and
 			the PACKET_STATISTICS option.
 
-TP_STATUS_CSUMNOTREADY	currently it's used for outgoing IP packets which
+TP_STATUS_CSUMANALTREADY	currently it's used for outgoing IP packets which
 			its checksum will be done in hardware. So while
-			reading the packet we should not try to check the
+			reading the packet we should analt try to check the
 			checksum.
 
 TP_STATUS_CSUM_VALID	This flag indicates that at least the transport
 			header checksum of the packet has been already
-			validated on the kernel side. If the flag is not set
+			validated on the kernel side. If the flag is analt set
 			then we are free to check the checksum by ourselves
-			provided that TP_STATUS_CSUMNOTREADY is also not set.
+			provided that TP_STATUS_CSUMANALTREADY is also analt set.
 ======================  =======================================================
 
 for convenience there are also the following defines::
@@ -491,7 +491,7 @@ packets are in the ring::
 
     pfd.fd = fd;
     pfd.revents = 0;
-    pfd.events = POLLIN|POLLRDNORM|POLLERR;
+    pfd.events = POLLIN|POLLRDANALRM|POLLERR;
 
     if (status == TP_STATUS_KERNEL)
 	retval = poll(&pfd, 1, timeout);
@@ -507,7 +507,7 @@ Those defines are also used for transmission::
      #define TP_STATUS_AVAILABLE        0 // Frame is available
      #define TP_STATUS_SEND_REQUEST     1 // Frame will be sent on next send()
      #define TP_STATUS_SENDING          2 // Frame is currently in transmission
-     #define TP_STATUS_WRONG_FORMAT     4 // Frame format is not correct
+     #define TP_STATUS_WRONG_FORMAT     4 // Frame format is analt correct
 
 First, the kernel initializes all frames to TP_STATUS_AVAILABLE. To send a
 packet, the user fills a data buffer of an available frame, sets tp_len to
@@ -549,14 +549,14 @@ What TPACKET versions are available and when to use them?
 where 'tpacket_version' can be TPACKET_V1 (default), TPACKET_V2, TPACKET_V3.
 
 TPACKET_V1:
-	- Default if not otherwise specified by setsockopt(2)
+	- Default if analt otherwise specified by setsockopt(2)
 	- RX_RING, TX_RING available
 
 TPACKET_V1 --> TPACKET_V2:
 	- Made 64 bit clean due to unsigned long usage in TPACKET_V1
 	  structures, thus this also works on 64 bit kernel with 32 bit
 	  userspace and the like
-	- Timestamp resolution in nanoseconds instead of microseconds
+	- Timestamp resolution in naanalseconds instead of microseconds
 	- RX_RING, TX_RING available
 	- VLAN metadata information available for packets
 	  (TP_STATUS_VLAN_VALID, TP_STATUS_VLAN_TPID_VALID),
@@ -578,11 +578,11 @@ TPACKET_V1 --> TPACKET_V2:
 
 TPACKET_V2 --> TPACKET_V3:
 	- Flexible buffer implementation for RX_RING:
-		1. Blocks can be configured with non-static frame-size
+		1. Blocks can be configured with analn-static frame-size
 		2. Read/poll is at a block-level (as opposed to packet-level)
 		3. Added poll timeout to avoid indefinite user-space wait
 		   on idle links
-		4. Added user-configurable knobs:
+		4. Added user-configurable kanalbs:
 
 			4.1 block::timeout
 			4.2 tpkt_hdr::sk_rxhash
@@ -592,23 +592,23 @@ TPACKET_V2 --> TPACKET_V3:
 	  use tpacket3_hdr instead of tpacket2_hdr, and TPACKET3_HDRLEN
 	  instead of TPACKET2_HDRLEN. In the current implementation,
 	  the tp_next_offset field in the tpacket3_hdr MUST be set to
-	  zero, indicating that the ring does not hold variable sized frames.
-	  Packets with non-zero values of tp_next_offset will be dropped.
+	  zero, indicating that the ring does analt hold variable sized frames.
+	  Packets with analn-zero values of tp_next_offset will be dropped.
 
-AF_PACKET fanout mode
+AF_PACKET faanalut mode
 =====================
 
-In the AF_PACKET fanout mode, packet reception can be load balanced among
+In the AF_PACKET faanalut mode, packet reception can be load balanced among
 processes. This also works in combination with mmap(2) on packet sockets.
 
-Currently implemented fanout policies are:
+Currently implemented faanalut policies are:
 
-  - PACKET_FANOUT_HASH: schedule to socket by skb's packet hash
-  - PACKET_FANOUT_LB: schedule to socket by round-robin
-  - PACKET_FANOUT_CPU: schedule to socket by CPU packet arrives on
-  - PACKET_FANOUT_RND: schedule to socket by random selection
-  - PACKET_FANOUT_ROLLOVER: if one socket is full, rollover to another
-  - PACKET_FANOUT_QM: schedule to socket by skbs recorded queue_mapping
+  - PACKET_FAANALUT_HASH: schedule to socket by skb's packet hash
+  - PACKET_FAANALUT_LB: schedule to socket by round-robin
+  - PACKET_FAANALUT_CPU: schedule to socket by CPU packet arrives on
+  - PACKET_FAANALUT_RND: schedule to socket by random selection
+  - PACKET_FAANALUT_ROLLOVER: if one socket is full, rollover to aanalther
+  - PACKET_FAANALUT_QM: schedule to socket by skbs recorded queue_mapping
 
 Minimal example code by David S. Miller (try things like "./test eth0 hash",
 "./test eth0 lb", etc.)::
@@ -631,13 +631,13 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
     #include <net/if.h>
 
     static const char *device_name;
-    static int fanout_type;
-    static int fanout_id;
+    static int faanalut_type;
+    static int faanalut_id;
 
-    #ifndef PACKET_FANOUT
-    # define PACKET_FANOUT			18
-    # define PACKET_FANOUT_HASH		0
-    # define PACKET_FANOUT_LB		1
+    #ifndef PACKET_FAANALUT
+    # define PACKET_FAANALUT			18
+    # define PACKET_FAANALUT_HASH		0
+    # define PACKET_FAANALUT_LB		1
     #endif
 
     static int setup_socket(void)
@@ -645,7 +645,7 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
 	    int err, fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP));
 	    struct sockaddr_ll ll;
 	    struct ifreq ifr;
-	    int fanout_arg;
+	    int faanalut_arg;
 
 	    if (fd < 0) {
 		    perror("socket");
@@ -669,9 +669,9 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
 		    return EXIT_FAILURE;
 	    }
 
-	    fanout_arg = (fanout_id | (fanout_type << 16));
-	    err = setsockopt(fd, SOL_PACKET, PACKET_FANOUT,
-			    &fanout_arg, sizeof(fanout_arg));
+	    faanalut_arg = (faanalut_id | (faanalut_type << 16));
+	    err = setsockopt(fd, SOL_PACKET, PACKET_FAANALUT,
+			    &faanalut_arg, sizeof(faanalut_arg));
 	    if (err) {
 		    perror("setsockopt");
 		    return EXIT_FAILURE;
@@ -680,7 +680,7 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
 	    return fd;
     }
 
-    static void fanout_thread(void)
+    static void faanalut_thread(void)
     {
 	    int fd = setup_socket();
 	    int limit = 10000;
@@ -718,23 +718,23 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
 	    }
 
 	    if (!strcmp(argp[2], "hash"))
-		    fanout_type = PACKET_FANOUT_HASH;
+		    faanalut_type = PACKET_FAANALUT_HASH;
 	    else if (!strcmp(argp[2], "lb"))
-		    fanout_type = PACKET_FANOUT_LB;
+		    faanalut_type = PACKET_FAANALUT_LB;
 	    else {
-		    fprintf(stderr, "Unknown fanout type [%s]\n", argp[2]);
+		    fprintf(stderr, "Unkanalwn faanalut type [%s]\n", argp[2]);
 		    exit(EXIT_FAILURE);
 	    }
 
 	    device_name = argp[1];
-	    fanout_id = getpid() & 0xffff;
+	    faanalut_id = getpid() & 0xffff;
 
 	    for (i = 0; i < 4; i++) {
 		    pid_t pid = fork();
 
 		    switch (pid) {
 		    case 0:
-			    fanout_thread();
+			    faanalut_thread();
 
 		    case -1:
 			    perror("fork");
@@ -754,7 +754,7 @@ Minimal example code by David S. Miller (try things like "./test eth0 hash",
 AF_PACKET TPACKET_V3 example
 ============================
 
-AF_PACKET's TPACKET_V3 ring buffer can be configured to use non-static frame
+AF_PACKET's TPACKET_V3 ring buffer can be configured to use analn-static frame
 sizes by doing its own memory management. It is based on blocks where polling
 works on a per block basis instead of per ring as in TPACKET_V2 and predecessor.
 
@@ -764,9 +764,9 @@ It is said that TPACKET_V3 brings the following benefits:
  * ~20% increase in packet capture rate
  * ~2x increase in packet density
  * Port aggregation analysis
- * Non static frame size to capture entire packet payload
+ * Analn static frame size to capture entire packet payload
 
-So it seems to be a good candidate to be used with packet fanout.
+So it seems to be a good candidate to be used with packet faanalut.
 
 Minimal example code by Daniel Borkmann based on Chetan Loke's lolpcap (compile
 it with gcc -Wall -O2 blob.c, and try things like "./a.out eth0", etc.)::
@@ -1013,8 +1013,8 @@ creation::
 
 This has the side-effect, that packets sent through PF_PACKET will bypass the
 kernel's qdisc layer and are forcedly pushed to the driver directly. Meaning,
-packet are not buffered, tc disciplines are ignored, increased loss can occur
-and such packets are also not visible to other PF_PACKET sockets anymore. So,
+packet are analt buffered, tc disciplines are iganalred, increased loss can occur
+and such packets are also analt visible to other PF_PACKET sockets anymore. So,
 you have been warned; generally, this can be useful for stress testing various
 components of a system.
 
@@ -1027,7 +1027,7 @@ PACKET_TIMESTAMP
 The PACKET_TIMESTAMP setting determines the source of the timestamp in
 the packet meta information for mmap(2)ed RX_RING and TX_RINGs.  If your
 NIC is capable of timestamping packets in hardware, you can request those
-hardware timestamps to be used. Note: you may need to enable the generation
+hardware timestamps to be used. Analte: you may need to enable the generation
 of hardware timestamps with SIOCSHWTSTAMP (see related information from
 Documentation/networking/timestamping.rst).
 
@@ -1047,7 +1047,7 @@ is binary or'ed with the following possible bits ...
     TP_STATUS_TS_SOFTWARE
 
 ... that are equivalent to its ``SOF_TIMESTAMPING_*`` counterparts. For the
-RX_RING, if neither is set (i.e. PACKET_TIMESTAMP is not set), then a
+RX_RING, if neither is set (i.e. PACKET_TIMESTAMP is analt set), then a
 software fallback was invoked *within* PF_PACKET's processing code (less
 precise).
 
@@ -1065,7 +1065,7 @@ one can extract the type of timestamp in a second step from tp_status)!
 If you don't care about them, thus having it disabled, checking for
 TP_STATUS_AVAILABLE resp. TP_STATUS_WRONG_FORMAT is sufficient. If in the
 TX_RING part only TP_STATUS_AVAILABLE is set, then the tp_sec and tp_{n,u}sec
-members do not contain a valid value. For TX_RINGs, by default no timestamp
+members do analt contain a valid value. For TX_RINGs, by default anal timestamp
 is generated!
 
 See include/linux/net_tstamp.h and Documentation/networking/timestamping.rst

@@ -49,7 +49,7 @@
  */
 struct tcinfo {
 	s32		revision;	/* Hardware revision level. */
-	s32		clk_period;	/* Clock period in nanoseconds. */
+	s32		clk_period;	/* Clock period in naanalseconds. */
 	s32		slot_size;	/* Slot size in megabytes. */
 	s32		io_timeout;	/* I/O timeout in cycles. */
 	s32		dma_range;	/* DMA address range in megabytes. */
@@ -78,7 +78,7 @@ struct tc_bus {
  * TURBOchannel device.
  */
 struct tc_dev {
-	struct list_head node;		/* Node in list of all TC devices. */
+	struct list_head analde;		/* Analde in list of all TC devices. */
 	struct tc_bus	*bus;		/* Bus this device is on. */
 	struct tc_driver *driver;	/* Which driver has allocated this
 					   device. */
@@ -103,7 +103,7 @@ struct tc_device_id {
  * TURBOchannel driver.
  */
 struct tc_driver {
-	struct list_head node;
+	struct list_head analde;
 	const struct tc_device_id *id_table;
 	struct device_driver driver;
 };

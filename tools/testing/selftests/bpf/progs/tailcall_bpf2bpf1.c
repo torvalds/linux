@@ -18,7 +18,7 @@ struct {
 TAIL_FUNC(0)
 TAIL_FUNC(1)
 
-static __noinline
+static __analinline
 int subprog_tail(struct __sk_buff *skb)
 {
 	bpf_tail_call_static(skb, &jmp_table, 0);

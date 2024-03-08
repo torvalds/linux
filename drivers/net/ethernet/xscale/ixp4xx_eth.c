@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2007 Krzysztof Halasa <khc@pm.waw.pl>
  *
- * Ethernet port config (0x00 is not present on IXP42X):
+ * Ethernet port config (0x00 is analt present on IXP42X):
  *
  * logical port		0x00		0x10		0x20
  * NPE			0 (NPE-A)	1 (NPE-B)	2 (NPE-C)
@@ -147,7 +147,7 @@
 #define NPE_PC_SETBSSIDTABLE		0x13
 #define NPE_ADDRESS_FILTER_CONFIG	0x14
 #define NPE_APPENDFCSCONFIG		0x15
-#define NPE_NOTIFY_MAC_RECOVERY_DONE	0x16
+#define NPE_ANALTIFY_MAC_RECOVERY_DONE	0x16
 #define NPE_MAC_RECOVERY_START		0x17
 
 
@@ -276,7 +276,7 @@ static inline void memcpy_swab32(u32 *dest, u32 *src, int cnt)
 static DEFINE_SPINLOCK(mdio_lock);
 static struct eth_regs __iomem *mdio_regs; /* mdio command and status only */
 static struct mii_bus *mdio_bus;
-static struct device_node *mdio_bus_np;
+static struct device_analde *mdio_bus_np;
 static int ports_open;
 static struct port *npe_port_tab[MAX_NPES];
 static struct dma_pool *dma_pool;
@@ -416,7 +416,7 @@ static int hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
 		return -ERANGE;
 
 	switch (cfg.rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		port->hwts_rx_en = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -450,7 +450,7 @@ static int hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
 
 	switch (port->hwts_rx_en) {
 	case 0:
-		cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+		cfg.rx_filter = HWTSTAMP_FILTER_ANALNE;
 		break;
 	case PTP_SLAVE_MODE:
 		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_SYNC;
@@ -472,7 +472,7 @@ static int ixp4xx_mdio_cmd(struct mii_bus *bus, int phy_id, int location,
 	int cycles = 0;
 
 	if (__raw_readl(&mdio_regs->mdio_command[3]) & 0x80) {
-		printk(KERN_ERR "%s: MII not ready to transmit\n", bus->name);
+		printk(KERN_ERR "%s: MII analt ready to transmit\n", bus->name);
 		return -1;
 	}
 
@@ -553,7 +553,7 @@ static int ixp4xx_mdio_register(struct eth_regs __iomem *regs)
 	int err;
 
 	if (!(mdio_bus = mdiobus_alloc()))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdio_regs = regs;
 	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
@@ -649,7 +649,7 @@ static inline int queue_get_desc(unsigned int queue, struct port *port,
 	if (!(phys = qmgr_get_entry(queue)))
 		return -1;
 
-	phys &= ~0x1F; /* mask out non-address bits */
+	phys &= ~0x1F; /* mask out analn-address bits */
 	tab_phys = is_tx ? tx_desc_phys(port, 0) : rx_desc_phys(port, 0);
 	tab = is_tx ? tx_desc_ptr(port, 0) : rx_desc_ptr(port, 0);
 	n_desc = (phys - tab_phys) / sizeof(struct desc);
@@ -722,7 +722,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_below_low_watermark(rxq) &&
-			    napi_schedule(napi)) { /* not empty again */
+			    napi_schedule(napi)) { /* analt empty again */
 #if DEBUG_RX
 				netdev_debug(dev, "eth_poll napi_schedule succeeded\n");
 #endif
@@ -795,9 +795,9 @@ static int eth_poll(struct napi_struct *napi, int budget)
 	}
 
 #if DEBUG_RX
-	netdev_debug(dev, "eth_poll(): end, not all work done\n");
+	netdev_debug(dev, "eth_poll(): end, analt all work done\n");
 #endif
-	return received;		/* not all work done */
+	return received;		/* analt all work done */
 }
 
 
@@ -818,13 +818,13 @@ static void eth_txdone_irq(void *unused)
 		BUG_ON(npe_id >= MAX_NPES);
 		port = npe_port_tab[npe_id];
 		BUG_ON(!port);
-		phys &= ~0x1F; /* mask out non-address bits */
+		phys &= ~0x1F; /* mask out analn-address bits */
 		n_desc = (phys - tx_desc_phys(port, 0)) / sizeof(struct desc);
 		BUG_ON(n_desc >= TX_DESCS);
 		desc = tx_desc_ptr(port, n_desc);
 		debug_desc(phys, desc);
 
-		if (port->tx_buff_tab[n_desc]) { /* not the draining packet */
+		if (port->tx_buff_tab[n_desc]) { /* analt the draining packet */
 			port->netdev->stats.tx_packets++;
 			port->netdev->stats.tx_bytes += desc->pkt_len;
 
@@ -872,7 +872,7 @@ static netdev_tx_t eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	len = skb->len;
 #ifdef __ARMEB__
-	offset = 0; /* no need to keep alignment */
+	offset = 0; /* anal need to keep alignment */
 	bytes = len;
 	mem = skb->data;
 #else
@@ -1039,7 +1039,7 @@ static int ixp4xx_get_ts_info(struct net_device *dev,
 		(1 << HWTSTAMP_TX_OFF) |
 		(1 << HWTSTAMP_TX_ON);
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 		(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ);
 	return 0;
@@ -1120,12 +1120,12 @@ static int init_queues(struct port *port)
 		dma_pool = dma_pool_create(DRV_NAME, &port->netdev->dev,
 					   POOL_ALLOC_SIZE, 32, 0);
 		if (!dma_pool)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	port->desc_tab = dma_pool_zalloc(dma_pool, GFP_KERNEL, &port->desc_tab_phys);
 	if (!port->desc_tab)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(port->rx_buff_tab, 0, sizeof(port->rx_buff_tab)); /* tables */
 	memset(port->tx_buff_tab, 0, sizeof(port->tx_buff_tab));
 
@@ -1136,11 +1136,11 @@ static int init_queues(struct port *port)
 		void *data;
 #ifdef __ARMEB__
 		if (!(buff = netdev_alloc_skb(port->netdev, RX_BUFF_SIZE)))
-			return -ENOMEM;
+			return -EANALMEM;
 		data = buff->data;
 #else
 		if (!(buff = kmalloc(RX_BUFF_SIZE, GFP_KERNEL)))
-			return -ENOMEM;
+			return -EANALMEM;
 		data = buff;
 #endif
 		desc->buf_len = MAX_MRU;
@@ -1205,7 +1205,7 @@ static int ixp4xx_do_change_mtu(struct net_device *dev, int new_mtu)
 	msg.cmd = NPE_SETMAXFRAMELENGTHS;
 	msg.eth_id = port->id;
 
-	/* Firmware wants to know buffer size in 64 byte chunks */
+	/* Firmware wants to kanalw buffer size in 64 byte chunks */
 	msg.byte2 = chunks << 8;
 	msg.byte3 = chunks << 8;
 
@@ -1251,7 +1251,7 @@ static int eth_open(struct net_device *dev)
 			return err;
 
 		if (npe_recv_message(npe, &msg, "ETH_GET_STATUS")) {
-			netdev_err(dev, "%s not responding\n", npe_name(npe));
+			netdev_err(dev, "%s analt responding\n", npe_name(npe));
 			return -EIO;
 		}
 		port->firmware[0] = msg.byte4;
@@ -1314,7 +1314,7 @@ static int eth_open(struct net_device *dev)
 	__raw_writel(0x80, &port->regs->slot_time);
 	__raw_writel(0x01, &port->regs->int_clock_threshold);
 
-	/* Populate queues with buffers, no failure after this point */
+	/* Populate queues with buffers, anal failure after this point */
 	for (i = 0; i < TX_DESCS; i++)
 		queue_put_desc(port->plat->txreadyq,
 			       tx_desc_phys(port, i), tx_desc_ptr(port, i));
@@ -1332,10 +1332,10 @@ static int eth_open(struct net_device *dev)
 	eth_set_mcast_list(dev);
 	netif_start_queue(dev);
 
-	qmgr_set_irq(port->plat->rxq, QUEUE_IRQ_SRC_NOT_EMPTY,
+	qmgr_set_irq(port->plat->rxq, QUEUE_IRQ_SRC_ANALT_EMPTY,
 		     eth_rx_irq, dev);
 	if (!ports_open) {
-		qmgr_set_irq(TXDONE_QUEUE, QUEUE_IRQ_SRC_NOT_EMPTY,
+		qmgr_set_irq(TXDONE_QUEUE, QUEUE_IRQ_SRC_ANALT_EMPTY,
 			     eth_txdone_irq, NULL);
 		qmgr_enable_irq(TXDONE_QUEUE);
 	}
@@ -1442,10 +1442,10 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 
 static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct of_phandle_args queue_spec;
 	struct of_phandle_args npe_spec;
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	struct eth_plat_info *plat;
 	u8 mac[ETH_ALEN];
 	int ret;
@@ -1457,7 +1457,7 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 	ret = of_parse_phandle_with_fixed_args(np, "intel,npe-handle", 1, 0,
 					       &npe_spec);
 	if (ret) {
-		dev_err(dev, "no NPE engine specified\n");
+		dev_err(dev, "anal NPE engine specified\n");
 		return NULL;
 	}
 	/* NPE ID 0x00, 0x10, 0x20... */
@@ -1468,14 +1468,14 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 	if (mdio_np) {
 		plat->has_mdio = true;
 		mdio_bus_np = mdio_np;
-		/* DO NOT put the mdio_np, it will be used */
+		/* DO ANALT put the mdio_np, it will be used */
 	}
 
 	/* Get the rx queue as a resource from queue manager */
 	ret = of_parse_phandle_with_fixed_args(np, "queue-rx", 1, 0,
 					       &queue_spec);
 	if (ret) {
-		dev_err(dev, "no rx queue phandle\n");
+		dev_err(dev, "anal rx queue phandle\n");
 		return NULL;
 	}
 	plat->rxq = queue_spec.args[0];
@@ -1484,7 +1484,7 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 	ret = of_parse_phandle_with_fixed_args(np, "queue-txready", 1, 0,
 					       &queue_spec);
 	if (ret) {
-		dev_err(dev, "no txready queue phandle\n");
+		dev_err(dev, "anal txready queue phandle\n");
 		return NULL;
 	}
 	plat->txreadyq = queue_spec.args[0];
@@ -1502,7 +1502,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 {
 	struct phy_device *phydev = NULL;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct eth_plat_info *plat;
 	struct net_device *ndev;
 	struct port *port;
@@ -1510,10 +1510,10 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	plat = ixp4xx_of_get_platdata(dev);
 	if (!plat)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(ndev = devm_alloc_etherdev(dev, sizeof(struct port))))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	SET_NETDEV_DEV(ndev, dev);
 	port = netdev_priv(ndev);
@@ -1534,7 +1534,7 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 			return err;
 		}
 	}
-	/* If the instance with the MDIO bus has not yet appeared,
+	/* If the instance with the MDIO bus has analt yet appeared,
 	 * defer probing until it gets probed.
 	 */
 	if (!mdio_bus)
@@ -1572,8 +1572,8 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	phydev = of_phy_get_and_connect(ndev, np, ixp4xx_adjust_link);
 	if (!phydev) {
-		err = -ENODEV;
-		dev_err(dev, "no phydev\n");
+		err = -EANALDEV;
+		dev_err(dev, "anal phydev\n");
 		goto err_free_mem;
 	}
 

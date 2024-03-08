@@ -2,7 +2,7 @@
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/debugfs.h>
 
 #include "snic.h"
@@ -12,7 +12,7 @@
  *
  * Description:
  * When Debugfs is configured this routine sets up fnic debugfs
- * filesystem. If not already created. this routine will crate the
+ * filesystem. If analt already created. this routine will crate the
  * fnic directory and statistics directory for trace buffer and
  * stats logging
  */
@@ -45,10 +45,10 @@ snic_debugfs_term(void)
  * snic_reset_stats_open - Open the reset_stats file
  */
 static int
-snic_reset_stats_open(struct inode *inode, struct file *filp)
+snic_reset_stats_open(struct ianalde *ianalde, struct file *filp)
 {
-	SNIC_BUG_ON(!inode->i_private);
-	filp->private_data = inode->i_private;
+	SNIC_BUG_ON(!ianalde->i_private);
+	filp->private_data = ianalde->i_private;
 
 	return 0;
 }
@@ -127,7 +127,7 @@ snic_reset_stats_write(struct file *filp,
 
 	if (snic->reset_stats) {
 		/* Skip variable is used to avoid descrepancies to Num IOs
-		 * and IO Completions stats. Skip incrementing No IO Compls
+		 * and IO Completions stats. Skip incrementing Anal IO Compls
 		 * for pending active IOs after reset_stats
 		 */
 		atomic64_set(&snic->io_cmpl_skip,
@@ -151,7 +151,7 @@ snic_reset_stats_write(struct file *filp,
 }
 
 static int
-snic_reset_stats_release(struct inode *inode, struct file *filp)
+snic_reset_stats_release(struct ianalde *ianalde, struct file *filp)
 {
 	filp->private_data = NULL;
 
@@ -183,7 +183,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "Total IOs                   : %lld\n"
 		   "IOs Completed               : %lld\n"
 		   "IOs Failed                  : %lld\n"
-		   "IOs Not Found               : %lld\n"
+		   "IOs Analt Found               : %lld\n"
 		   "Memory Alloc Failures       : %lld\n"
 		   "REQs Null                   : %lld\n"
 		   "SCSI Cmd Pointers Null      : %lld\n"
@@ -197,7 +197,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->io.num_ios),
 		   (u64) atomic64_read(&stats->io.compl),
 		   (u64) atomic64_read(&stats->io.fail),
-		   (u64) atomic64_read(&stats->io.io_not_found),
+		   (u64) atomic64_read(&stats->io.io_analt_found),
 		   (u64) atomic64_read(&stats->io.alloc_fail),
 		   (u64) atomic64_read(&stats->io.req_null),
 		   (u64) atomic64_read(&stats->io.sc_null),
@@ -230,13 +230,13 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "Aborts Fail                 : %lld\n"
 		   "Aborts Driver Timeout       : %lld\n"
 		   "Abort FW Timeout            : %lld\n"
-		   "Abort IO NOT Found          : %lld\n"
+		   "Abort IO ANALT Found          : %lld\n"
 		   "Abort Queuing Failed        : %lld\n",
 		   (u64) atomic64_read(&stats->abts.num),
 		   (u64) atomic64_read(&stats->abts.fail),
 		   (u64) atomic64_read(&stats->abts.drv_tmo),
 		   (u64) atomic64_read(&stats->abts.fw_tmo),
-		   (u64) atomic64_read(&stats->abts.io_not_found),
+		   (u64) atomic64_read(&stats->abts.io_analt_found),
 		   (u64) atomic64_read(&stats->abts.q_fail));
 
 	/* Dump Reset Stats */
@@ -272,7 +272,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		(u64) atomic64_read(&stats->fw.scsi_errs));
 
 
-	/* Dump Miscellenous Stats */
+	/* Dump Miscelleanalus Stats */
 	seq_printf(sfp,
 		   "\n---------------------------------------------\n"
 		   "\t\t Other Statistics\n"
@@ -286,7 +286,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "Last Ack Time               : %llu (%8llu.%09lu)\n"
 		   "Ack ISRs                    : %llu\n"
 		   "IO Cmpl ISRs                : %llu\n"
-		   "Err Notify ISRs             : %llu\n"
+		   "Err Analtify ISRs             : %llu\n"
 		   "Max CQ Entries              : %lld\n"
 		   "Data Count Mismatch         : %lld\n"
 		   "IOs w/ Timeout Status       : %lld\n"
@@ -297,14 +297,14 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "Queue Ramp Up               : %lld\n"
 		   "Queue Ramp Down             : %lld\n"
 		   "Queue Last Queue Depth      : %lld\n"
-		   "Target Not Ready            : %lld\n",
+		   "Target Analt Ready            : %lld\n",
 		   (u64) stats->misc.last_isr_time,
 		   last_isr_tms.tv_sec, last_isr_tms.tv_nsec,
 		   (u64)stats->misc.last_ack_time,
 		   last_ack_tms.tv_sec, last_ack_tms.tv_nsec,
 		   (u64) atomic64_read(&stats->misc.ack_isr_cnt),
 		   (u64) atomic64_read(&stats->misc.cmpl_isr_cnt),
-		   (u64) atomic64_read(&stats->misc.errnotify_isr_cnt),
+		   (u64) atomic64_read(&stats->misc.erranaltify_isr_cnt),
 		   (u64) atomic64_read(&stats->misc.max_cq_ents),
 		   (u64) atomic64_read(&stats->misc.data_cnt_mismat),
 		   (u64) atomic64_read(&stats->misc.io_tmo),
@@ -315,7 +315,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->misc.qsz_rampup),
 		   (u64) atomic64_read(&stats->misc.qsz_rampdown),
 		   (u64) atomic64_read(&stats->misc.last_qsz),
-		   (u64) atomic64_read(&stats->misc.tgt_not_rdy));
+		   (u64) atomic64_read(&stats->misc.tgt_analt_rdy));
 
 	return 0;
 }
@@ -343,7 +343,7 @@ void snic_stats_debugfs_init(struct snic *snic)
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "host%d", snic->shost->host_no);
+	snprintf(name, sizeof(name), "host%d", snic->shost->host_anal);
 
 	snic->stats_host = debugfs_create_dir(name, snic_glob->stats_root);
 

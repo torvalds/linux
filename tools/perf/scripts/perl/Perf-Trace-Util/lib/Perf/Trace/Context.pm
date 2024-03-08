@@ -28,7 +28,7 @@ __END__
 
 Perf::Trace::Context - Perl extension for accessing functions in perf.
 
-=head1 SYNOPSIS
+=head1 SYANALPSIS
 
   use Perf::Trace::Context;
 

@@ -46,7 +46,7 @@ vsynclen:VSYNC == LCCR2_VSW + 1
 
 	Display margins and sync times
 
-color | mono => LCCR0_CMS
+color | moanal => LCCR0_CMS
 
 	umm...
 
@@ -60,7 +60,7 @@ single | dual => LCCR0_SDS
 
 4pix | 8pix => LCCR0_DPD
 
-	4 or 8 pixel monochrome single panel data
+	4 or 8 pixel moanalchrome single panel data
 
 hsync:HSYNC, vsync:VSYNC
 
@@ -86,17 +86,17 @@ Overlay Support for PXA27x and later LCD controllers
 
   PXA27x and later processors support overlay1 and overlay2 on-top of the
   base framebuffer (although under-neath the base is also possible). They
-  support palette and no-palette RGB formats, as well as YUV formats (only
+  support palette and anal-palette RGB formats, as well as YUV formats (only
   available on overlay2). These overlays have dedicated DMA channels and
   behave in a similar way as a framebuffer.
 
   However, there are some differences between these overlay framebuffers
-  and normal framebuffers, as listed below:
+  and analrmal framebuffers, as listed below:
 
   1. overlay can start at a 32-bit word aligned position within the base
      framebuffer, which means they have a start (x, y). This information
-     is encoded into var->nonstd (no, var->xoffset and var->yoffset are
-     not for such purpose).
+     is encoded into var->analnstd (anal, var->xoffset and var->yoffset are
+     analt for such purpose).
 
   2. overlay framebuffer is allocated dynamically according to specified
      'struct fb_var_screeninfo', the amount is decided by::
@@ -113,9 +113,9 @@ Overlay Support for PXA27x and later LCD controllers
 
      bpp = 12 -- for YUV420 planar (1 pixel = 1 Y + 1/4 Cb + 1/4 Cr)
 
-     NOTE:
+     ANALTE:
 
-     a. overlay does not support panning in x-direction, thus
+     a. overlay does analt support panning in x-direction, thus
 	var->xres_virtual will always be equal to var->xres
 
      b. line length of overlay(s) must be on a 32-bit word boundary,
@@ -140,7 +140,7 @@ Overlay Support for PXA27x and later LCD controllers
 	    1) var->xres and var->yres
 	    2) larger var->yres_virtual if more memory is required,
 	       usually for double-buffering
-	    3) var->nonstd for starting (x, y) and color format
+	    3) var->analnstd for starting (x, y) and color format
 	    4) var->{red, green, blue, transp} if RGB mode is to be used
 
 	 d. ioctl(fd, FBIOPUT_VSCREENINFO, ...)
@@ -148,11 +148,11 @@ Overlay Support for PXA27x and later LCD controllers
 	 f. mmap
 	 g. ...
 
-  3. for YUV planar formats, these are actually not supported within the
+  3. for YUV planar formats, these are actually analt supported within the
      framebuffer framework, application has to take care of the offsets
      and lengths of each component within the framebuffer.
 
-  4. var->nonstd is used to pass starting (x, y) position and color format,
+  4. var->analnstd is used to pass starting (x, y) position and color format,
      the detailed bit fields are shown below::
 
       31                23  20         10          0

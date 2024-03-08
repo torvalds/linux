@@ -94,10 +94,10 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 
 	ng = net_alloc_generic();
 	if (!ng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
-	 * Some synchronisation notes:
+	 * Some synchronisation analtes:
 	 *
 	 * The net_generic explores the net->gen array inside rcu
 	 * read section. Besides once set the net->gen->ptr[x]
@@ -119,7 +119,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 static int ops_init(const struct pernet_operations *ops, struct net *net)
 {
 	struct net_generic *ng;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	void *data = NULL;
 
 	if (ops->id && ops->size) {
@@ -199,8 +199,8 @@ static int alloc_netid(struct net *net, struct net *peer, int reqid)
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
- * function returns the id so that idr_for_each() stops. Because we cannot
- * returns the id 0 (idr_for_each() will not stop), we return the magic value
+ * function returns the id so that idr_for_each() stops. Because we cananalt
+ * returns the id 0 (idr_for_each() will analt stop), we return the magic value
  * NET_ID_ZERO (-1) for it.
  */
 #define NET_ID_ZERO -1
@@ -222,12 +222,12 @@ static int __peernet2id(const struct net *net, struct net *peer)
 	if (id > 0)
 		return id;
 
-	return NETNSA_NSID_NOT_ASSIGNED;
+	return NETNSA_NSID_ANALT_ASSIGNED;
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
+static void rtnl_net_analtifyid(struct net *net, int cmd, int id, u32 portid,
 			      struct nlmsghdr *nlh, gfp_t gfp);
-/* This function returns the id of a peer netns. If no id is assigned, one will
+/* This function returns the id of a peer netns. If anal id is assigned, one will
  * be allocated and returned.
  */
 int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
@@ -235,7 +235,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	int id;
 
 	if (refcount_read(&net->ns.count) == 0)
-		return NETNSA_NSID_NOT_ASSIGNED;
+		return NETNSA_NSID_ANALT_ASSIGNED;
 
 	spin_lock_bh(&net->nsid_lock);
 	id = __peernet2id(net, peer);
@@ -251,7 +251,7 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 	 */
 	if (!maybe_get_net(peer)) {
 		spin_unlock_bh(&net->nsid_lock);
-		return NETNSA_NSID_NOT_ASSIGNED;
+		return NETNSA_NSID_ANALT_ASSIGNED;
 	}
 
 	id = alloc_netid(net, peer, -1);
@@ -259,9 +259,9 @@ int peernet2id_alloc(struct net *net, struct net *peer, gfp_t gfp)
 
 	put_net(peer);
 	if (id < 0)
-		return NETNSA_NSID_NOT_ASSIGNED;
+		return NETNSA_NSID_ANALT_ASSIGNED;
 
-	rtnl_net_notifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
+	rtnl_net_analtifyid(net, RTM_NEWNSID, id, 0, NULL, gfp);
 
 	return id;
 }
@@ -305,10 +305,10 @@ struct net *get_net_ns_by_id(const struct net *net, int id)
 }
 EXPORT_SYMBOL_GPL(get_net_ns_by_id);
 
-/* init code that must occur even if setup_net() is not called. */
+/* init code that must occur even if setup_net() is analt called. */
 static __net_init void preinit_net(struct net *net)
 {
-	ref_tracker_dir_init(&net->notrefcnt_tracker, 128, "net notrefcnt");
+	ref_tracker_dir_init(&net->analtrefcnt_tracker, 128, "net analtrefcnt");
 }
 
 /*
@@ -348,7 +348,7 @@ out:
 
 out_undo:
 	/* Walk through the list backwards calling the exit functions
-	 * for the pernet modules whose init functions did not fail.
+	 * for the pernet modules whose init functions did analt fail.
 	 */
 	list_add(&net->exit_list, &net_exit_list);
 	saved_ops = ops;
@@ -388,7 +388,7 @@ static struct pernet_operations net_defaults_ops = {
 static __init int net_defaults_init(void)
 {
 	if (register_pernet_subsys(&net_defaults_ops))
-		panic("Cannot initialize net default settings");
+		panic("Cananalt initialize net default settings");
 
 	return 0;
 }
@@ -448,8 +448,8 @@ static void net_free(struct net *net)
 	if (refcount_dec_and_test(&net->passive)) {
 		kfree(rcu_access_pointer(net->gen));
 
-		/* There should not be any trackers left there. */
-		ref_tracker_dir_exit(&net->notrefcnt_tracker);
+		/* There should analt be any trackers left there. */
+		ref_tracker_dir_exit(&net->analtrefcnt_tracker);
 
 		kmem_cache_free(net_cachep, net);
 	}
@@ -475,11 +475,11 @@ struct net *copy_net_ns(unsigned long flags,
 
 	ucounts = inc_net_namespaces(user_ns);
 	if (!ucounts)
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(-EANALSPC);
 
 	net = net_alloc();
 	if (!net) {
-		rv = -ENOMEM;
+		rv = -EANALMEM;
 		goto dec_ucounts;
 	}
 
@@ -543,7 +543,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 	/* This function is only called from cleanup_net() work,
 	 * and this work is the only process, that may delete
 	 * a net from net_namespace_list. So, when the below
-	 * is executing, the list may only grow. Thus, we do not
+	 * is executing, the list may only grow. Thus, we do analt
 	 * use for_each_net_rcu() or net_rwsem.
 	 */
 	for_each_net(tmp) {
@@ -555,7 +555,7 @@ static void unhash_nsid(struct net *net, struct net *last)
 			idr_remove(&tmp->netns_ids, id);
 		spin_unlock_bh(&tmp->nsid_lock);
 		if (id >= 0)
-			rtnl_net_notifyid(tmp, RTM_DELNSID, id, 0, NULL,
+			rtnl_net_analtifyid(tmp, RTM_DELNSID, id, 0, NULL,
 					  GFP_KERNEL);
 		if (tmp == last)
 			break;
@@ -571,7 +571,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp, *last;
-	struct llist_node *net_kill_list;
+	struct llist_analde *net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
@@ -583,12 +583,12 @@ static void cleanup_net(struct work_struct *work)
 	down_write(&net_rwsem);
 	llist_for_each_entry(net, net_kill_list, cleanup_list)
 		list_del_rcu(&net->list);
-	/* Cache last net. After we unlock rtnl, no one new net
+	/* Cache last net. After we unlock rtnl, anal one new net
 	 * added to net_namespace_list can assign nsid pointer
 	 * to a net from net_kill_list (see peernet2id_alloc()).
 	 * So, we skip them in unhash_nsid().
 	 *
-	 * Note, that unhash_nsid() does not delete nsid links
+	 * Analte, that unhash_nsid() does analt delete nsid links
 	 * between net_kill_list's nets, as they've already
 	 * deleted from net_namespace_list. But, this would be
 	 * useless anyway, as netns_ids are destroyed there.
@@ -606,8 +606,8 @@ static void cleanup_net(struct work_struct *work)
 		ops_pre_exit_list(ops, &net_exit_list);
 
 	/*
-	 * Another CPU might be rcu-iterating the list, wait for it.
-	 * This needs to be before calling the exit() notifiers, so
+	 * Aanalther CPU might be rcu-iterating the list, wait for it.
+	 * This needs to be before calling the exit() analtifiers, so
 	 * the rcu_barrier() below isn't sufficient alone.
 	 * Also the pre_exit() and exit() methods need this barrier.
 	 */
@@ -623,7 +623,7 @@ static void cleanup_net(struct work_struct *work)
 
 	up_read(&pernet_ops_rwsem);
 
-	/* Ensure there are no outstanding rcu callbacks using this
+	/* Ensure there are anal outstanding rcu callbacks using this
 	 * network namespace.
 	 */
 	rcu_barrier();
@@ -688,7 +688,7 @@ struct net *get_net_ns_by_fd(int fd)
 		return ERR_PTR(-EBADF);
 
 	if (proc_ns_file(f.file)) {
-		struct ns_common *ns = get_proc_ns(file_inode(f.file));
+		struct ns_common *ns = get_proc_ns(file_ianalde(f.file));
 		if (ns->ops == &netns_operations)
 			net = get_net(container_of(ns, struct net, ns));
 	}
@@ -740,7 +740,7 @@ static struct pernet_operations __net_initdata net_ns_ops = {
 };
 
 static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
-	[NETNSA_NONE]		= { .type = NLA_UNSPEC },
+	[NETNSA_ANALNE]		= { .type = NLA_UNSPEC },
 	[NETNSA_NSID]		= { .type = NLA_S32 },
 	[NETNSA_PID]		= { .type = NLA_U32 },
 	[NETNSA_FD]		= { .type = NLA_U32 },
@@ -795,10 +795,10 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = alloc_netid(net, peer, nsid);
 	spin_unlock_bh(&net->nsid_lock);
 	if (err >= 0) {
-		rtnl_net_notifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
+		rtnl_net_analtifyid(net, RTM_NEWNSID, err, NETLINK_CB(skb).portid,
 				  nlh, GFP_KERNEL);
 		err = 0;
-	} else if (err == -ENOSPC && nsid >= 0) {
+	} else if (err == -EANALSPC && nsid >= 0) {
 		err = -EEXIST;
 		NL_SET_BAD_ATTR(extack, tb[NETNSA_NSID]);
 		NL_SET_ERR_MSG(extack, "The specified nsid is already used");
@@ -918,7 +918,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 	} else if (tb[NETNSA_NSID]) {
 		peer = get_net_ns_by_id(net, nla_get_s32(tb[NETNSA_NSID]));
 		if (!peer)
-			peer = ERR_PTR(-ENOENT);
+			peer = ERR_PTR(-EANALENT);
 		nla = tb[NETNSA_NSID];
 	} else {
 		NL_SET_ERR_MSG(extack, "Peer netns reference is missing");
@@ -948,7 +948,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
 	if (!msg) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1074,7 +1074,7 @@ end:
 	return err < 0 ? err : skb->len;
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
+static void rtnl_net_analtifyid(struct net *net, int cmd, int id, u32 portid,
 			      struct nlmsghdr *nlh, gfp_t gfp)
 {
 	struct net_fill_args fillargs = {
@@ -1084,7 +1084,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
 		.nsid = id,
 	};
 	struct sk_buff *msg;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	msg = nlmsg_new(rtnl_net_get_size(), gfp);
 	if (!msg)
@@ -1094,7 +1094,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
 	if (err < 0)
 		goto err_out;
 
-	rtnl_notify(msg, net, portid, RTNLGRP_NSID, nlh, gfp);
+	rtnl_analtify(msg, net, portid, RTNLGRP_NSID, nlh, gfp);
 	return;
 
 err_out:
@@ -1118,7 +1118,7 @@ static void __init netns_ipv4_struct_check(void)
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_tx,
 				      sysctl_tcp_min_snd_mss);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_tx,
-				      sysctl_tcp_notsent_lowat);
+				      sysctl_tcp_analtsent_lowat);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_tx,
 				      sysctl_tcp_limit_output_bytes);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct netns_ipv4, netns_ipv4_read_tx,
@@ -1160,12 +1160,12 @@ void __init net_ns_init(void)
 	/* Create workqueue for cleanup */
 	netns_wq = create_singlethread_workqueue("netns");
 	if (!netns_wq)
-		panic("Could not create netns workq");
+		panic("Could analt create netns workq");
 #endif
 
 	ng = net_alloc_generic();
 	if (!ng)
-		panic("Could not allocate generic netns");
+		panic("Could analt allocate generic netns");
 
 	rcu_assign_pointer(init_net.gen, ng);
 
@@ -1175,13 +1175,13 @@ void __init net_ns_init(void)
 	down_write(&pernet_ops_rwsem);
 	preinit_net(&init_net);
 	if (setup_net(&init_net, &init_user_ns))
-		panic("Could not setup the initial network namespace");
+		panic("Could analt setup the initial network namespace");
 
 	init_net_initialized = true;
 	up_write(&pernet_ops_rwsem);
 
 	if (register_pernet_subsys(&net_ns_ops))
-		panic("Could not register network namespace subsystems");
+		panic("Could analt register network namespace subsystems");
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);
@@ -1208,7 +1208,7 @@ static int __register_pernet_operations(struct list_head *list,
 	list_add_tail(&ops->list, list);
 	if (ops->init || (ops->id && ops->size)) {
 		/* We held write locked pernet_ops_rwsem, and parallel
-		 * setup_net() and cleanup_net() are not possible.
+		 * setup_net() and cleanup_net() are analt possible.
 		 */
 		for_each_net(net) {
 			error = ops_init(ops, net);

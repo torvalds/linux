@@ -4,7 +4,7 @@
  *
  * LaCie 2Big Network NAS setup
  *
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guianalt <sguianalt@lacie.com>
  */
 
 #include <linux/kernel.h>
@@ -31,14 +31,14 @@
  ****************************************************************************/
 
 /*
- * 512KB NOR flash Device bus boot chip select
+ * 512KB ANALR flash Device bus boot chip select
  */
 
-#define NET2BIG_NOR_BOOT_BASE		0xfff80000
-#define NET2BIG_NOR_BOOT_SIZE		SZ_512K
+#define NET2BIG_ANALR_BOOT_BASE		0xfff80000
+#define NET2BIG_ANALR_BOOT_SIZE		SZ_512K
 
 /*****************************************************************************
- * 512KB NOR Flash on Boot Device
+ * 512KB ANALR Flash on Boot Device
  ****************************************************************************/
 
 /*
@@ -54,27 +54,27 @@ static struct mtd_partition net2big_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data net2big_nor_flash_data = {
+static struct physmap_flash_data net2big_analr_flash_data = {
 	.width		= 1,
 	.parts		= net2big_partitions,
 	.nr_parts	= ARRAY_SIZE(net2big_partitions),
 };
 
-static struct resource net2big_nor_flash_resource = {
+static struct resource net2big_analr_flash_resource = {
 	.flags			= IORESOURCE_MEM,
-	.start			= NET2BIG_NOR_BOOT_BASE,
-	.end			= NET2BIG_NOR_BOOT_BASE
-					+ NET2BIG_NOR_BOOT_SIZE - 1,
+	.start			= NET2BIG_ANALR_BOOT_BASE,
+	.end			= NET2BIG_ANALR_BOOT_BASE
+					+ NET2BIG_ANALR_BOOT_SIZE - 1,
 };
 
-static struct platform_device net2big_nor_flash = {
+static struct platform_device net2big_analr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &net2big_nor_flash_data,
+		.platform_data	= &net2big_analr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &net2big_nor_flash_resource,
+	.resource		= &net2big_analr_flash_resource,
 };
 
 /*****************************************************************************
@@ -197,7 +197,7 @@ err_free_1:
  *       1        |       0        |  off
  *       ?        |       1        |  on
  *
- * Notes: The blue and the red front LED's can't be on at the same time.
+ * Analtes: The blue and the red front LED's can't be on at the same time.
  *        Blue LED have priority.
  */
 
@@ -396,9 +396,9 @@ static void __init net2big_init(void)
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
-				    NET2BIG_NOR_BOOT_BASE,
-				    NET2BIG_NOR_BOOT_SIZE);
-	platform_device_register(&net2big_nor_flash);
+				    NET2BIG_ANALR_BOOT_BASE,
+				    NET2BIG_ANALR_BOOT_SIZE);
+	platform_device_register(&net2big_analr_flash);
 
 	platform_device_register(&net2big_gpio_buttons);
 	net2big_gpio_leds_init();
@@ -414,7 +414,7 @@ static void __init net2big_init(void)
 	else
 		pr_err("net2big: failed to configure power-off GPIO\n");
 
-	pr_notice("net2big: Flash writing is not yet supported.\n");
+	pr_analtice("net2big: Flash writing is analt yet supported.\n");
 }
 
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */

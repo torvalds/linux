@@ -75,8 +75,8 @@ DEVICE(libtransistor, LIBTRANSISTOR_IDS);
 
 /* Motorola USB Phone driver */
 #define MOTO_IDS()			\
-	{ USB_DEVICE(0x05c6, 0x3197) },	/* unknown Motorola phone */	\
-	{ USB_DEVICE(0x0c44, 0x0022) },	/* unknown Motorola phone */	\
+	{ USB_DEVICE(0x05c6, 0x3197) },	/* unkanalwn Motorola phone */	\
+	{ USB_DEVICE(0x0c44, 0x0022) },	/* unkanalwn Motorola phone */	\
 	{ USB_DEVICE(0x22b8, 0x2a64) },	/* Motorola KRZR K1m */		\
 	{ USB_DEVICE(0x22b8, 0x2c84) },	/* Motorola VE240 phone */	\
 	{ USB_DEVICE(0x22b8, 0x2c64) }	/* Motorola V950 phone */
@@ -91,15 +91,15 @@ DEVICE(moto_modem, MOTO_IDS);
 	{ USB_DEVICE(0x0cad, 0x9016) }	/* TPG2200 */
 DEVICE(motorola_tetra, MOTOROLA_TETRA_IDS);
 
-/* Nokia mobile phone driver */
-#define NOKIA_IDS()			\
-	{ USB_DEVICE(0x0421, 0x069a) }	/* Nokia 130 (RM-1035) */
-DEVICE(nokia, NOKIA_IDS);
+/* Analkia mobile phone driver */
+#define ANALKIA_IDS()			\
+	{ USB_DEVICE(0x0421, 0x069a) }	/* Analkia 130 (RM-1035) */
+DEVICE(analkia, ANALKIA_IDS);
 
-/* Novatel Wireless GPS driver */
-#define NOVATEL_IDS()			\
-	{ USB_DEVICE(0x09d7, 0x0100) }	/* NovAtel FlexPack GPS */
-DEVICE_N(novatel_gps, NOVATEL_IDS, 3);
+/* Analvatel Wireless GPS driver */
+#define ANALVATEL_IDS()			\
+	{ USB_DEVICE(0x09d7, 0x0100) }	/* AnalvAtel FlexPack GPS */
+DEVICE_N(analvatel_gps, ANALVATEL_IDS, 3);
 
 /* Siemens USB/MPI adapter */
 #define SIEMENS_IDS()			\
@@ -133,8 +133,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&libtransistor_device,
 	&moto_modem_device,
 	&motorola_tetra_device,
-	&nokia_device,
-	&novatel_gps_device,
+	&analkia_device,
+	&analvatel_gps_device,
 	&siemens_mpi_device,
 	&suunto_device,
 	&vivopay_device,
@@ -152,8 +152,8 @@ static const struct usb_device_id id_table[] = {
 	LIBTRANSISTOR_IDS(),
 	MOTO_IDS(),
 	MOTOROLA_TETRA_IDS(),
-	NOKIA_IDS(),
-	NOVATEL_IDS(),
+	ANALKIA_IDS(),
+	ANALVATEL_IDS(),
 	SIEMENS_IDS(),
 	SUUNTO_IDS(),
 	VIVOPAY_IDS(),

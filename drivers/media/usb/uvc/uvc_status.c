@@ -26,7 +26,7 @@ static bool uvc_input_has_button(struct uvc_device *dev)
 
 	/*
 	 * The device has button events if both bTriggerSupport and
-	 * bTriggerUsage are one. Otherwise the camera button does not
+	 * bTriggerUsage are one. Otherwise the camera button does analt
 	 * exist or is handled automatically by the camera without host
 	 * driver or client application intervention.
 	 */
@@ -49,7 +49,7 @@ static int uvc_input_init(struct uvc_device *dev)
 
 	input = input_allocate_device();
 	if (input == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_make_path(dev->udev, dev->input_phys, sizeof(dev->input_phys));
 	strlcat(dev->input_phys, "/button", sizeof(dev->input_phys));
@@ -208,7 +208,7 @@ static void uvc_status_complete(struct urb *urb)
 	case 0:
 		break;
 
-	case -ENOENT:		/* usb_kill_urb() called. */
+	case -EANALENT:		/* usb_kill_urb() called. */
 	case -ECONNRESET:	/* usb_unlink_urb() called. */
 	case -ESHUTDOWN:	/* The endpoint is being disabled. */
 	case -EPROTO:		/* Device is disconnected (reported by some host controllers). */
@@ -216,7 +216,7 @@ static void uvc_status_complete(struct urb *urb)
 
 	default:
 		dev_warn(&dev->udev->dev,
-			 "Non-zero status (%d) in status completion handler.\n",
+			 "Analn-zero status (%d) in status completion handler.\n",
 			 urb->status);
 		return;
 	}
@@ -237,7 +237,7 @@ static void uvc_status_complete(struct urb *urb)
 		}
 
 		default:
-			uvc_dbg(dev, STATUS, "Unknown status event type %u\n",
+			uvc_dbg(dev, STATUS, "Unkanalwn status event type %u\n",
 				dev->status->bStatusType);
 			break;
 		}
@@ -264,12 +264,12 @@ int uvc_status_init(struct uvc_device *dev)
 
 	dev->status = kzalloc(sizeof(*dev->status), GFP_KERNEL);
 	if (!dev->status)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->int_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->int_urb) {
 		kfree(dev->status);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe = usb_rcvintpipe(dev->udev, ep->desc.bEndpointAddress);
@@ -315,16 +315,16 @@ void uvc_status_stop(struct uvc_device *dev)
 	struct uvc_ctrl_work *w = &dev->async_ctrl;
 
 	/*
-	 * Prevent the asynchronous control handler from requeing the URB. The
+	 * Prevent the asynchroanalus control handler from requeing the URB. The
 	 * barrier is needed so the flush_status change is visible to other
-	 * CPUs running the asynchronous handler before usb_kill_urb() is
+	 * CPUs running the asynchroanalus handler before usb_kill_urb() is
 	 * called below.
 	 */
 	smp_store_release(&dev->flush_status, true);
 
 	/*
-	 * Cancel any pending asynchronous work. If any status event was queued,
-	 * process it synchronously.
+	 * Cancel any pending asynchroanalus work. If any status event was queued,
+	 * process it synchroanalusly.
 	 */
 	if (cancel_work_sync(&w->work))
 		uvc_ctrl_status_event(w->chain, w->ctrl, w->data);
@@ -333,7 +333,7 @@ void uvc_status_stop(struct uvc_device *dev)
 	usb_kill_urb(dev->int_urb);
 
 	/*
-	 * The URB completion handler may have queued asynchronous work. This
+	 * The URB completion handler may have queued asynchroanalus work. This
 	 * won't resubmit the URB as flush_status is set, but it needs to be
 	 * cancelled before returning or it could then race with a future
 	 * uvc_status_start() call.
@@ -342,8 +342,8 @@ void uvc_status_stop(struct uvc_device *dev)
 		uvc_ctrl_status_event(w->chain, w->ctrl, w->data);
 
 	/*
-	 * From this point, there are no events on the queue and the status URB
-	 * is dead. No events will be queued until uvc_status_start() is called.
+	 * From this point, there are anal events on the queue and the status URB
+	 * is dead. Anal events will be queued until uvc_status_start() is called.
 	 * The barrier is needed to make sure that flush_status is visible to
 	 * uvc_ctrl_status_event_work() when uvc_status_start() will be called
 	 * again.

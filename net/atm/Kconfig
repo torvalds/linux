@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Asynchronous Transfer Mode (ATM)
+# Asynchroanalus Transfer Mode (ATM)
 #
 
 config ATM
-	tristate "Asynchronous Transfer Mode (ATM)"
+	tristate "Asynchroanalus Transfer Mode (ATM)"
 	help
-	  ATM is a high-speed networking technology for Local Area Networks
+	  ATM is a high-speed networking techanallogy for Local Area Networks
 	  and Wide Area Networks.  It uses a fixed packet size and is
 	  connection oriented, allowing for the negotiation of minimum
 	  bandwidth requirements.
@@ -15,7 +15,7 @@ config ATM
 	  ATM networking card. If you have that, say Y here and to the driver
 	  of your ATM card below.
 
-	  Note that you need a set of user-space programs to actually make use
+	  Analte that you need a set of user-space programs to actually make use
 	  of ATM.  See the file <file:Documentation/networking/atm.rst> for
 	  further details.
 
@@ -28,12 +28,12 @@ config ATM_CLIP
 	  network, you will typically either say Y here or to "LAN Emulation
 	  (LANE)" below.
 
-config ATM_CLIP_NO_ICMP
-	bool "Do NOT send ICMP if no neighbour"
+config ATM_CLIP_ANAL_ICMP
+	bool "Do ANALT send ICMP if anal neighbour"
 	depends on ATM_CLIP
 	help
-	  Normally, an "ICMP host unreachable" message is sent if a neighbour
-	  cannot be reached because there is no VC to it in the kernel's
+	  Analrmally, an "ICMP host unreachable" message is sent if a neighbour
+	  cananalt be reached because there is anal VC to it in the kernel's
 	  ATMARP table. This may cause problems when ATMARP table entries are
 	  briefly removed during revalidation. If you say Y here, packets to
 	  such neighbours are silently discarded instead.
@@ -43,7 +43,7 @@ config ATM_LANE
 	depends on ATM
 	help
 	  LAN Emulation emulates services of existing LANs across an ATM
-	  network. Besides operating as a normal ATM end station client, Linux
+	  network. Besides operating as a analrmal ATM end station client, Linux
 	  LANE client can also act as an proxy client bridging packets between
 	  ELAN and Ethernet segments. You need LANE if you want to try MPOA.
 
@@ -70,5 +70,5 @@ config ATM_BR2684_IPFILTER
 	depends on ATM_BR2684
 	help
 	  This is an experimental mechanism for users who need to terminate a
-	  large number of IP-only vcc's.  Do not enable this unless you are sure
-	  you know what you are doing.
+	  large number of IP-only vcc's.  Do analt enable this unless you are sure
+	  you kanalw what you are doing.

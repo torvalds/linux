@@ -64,11 +64,11 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii4_default>;
-	no-hw-checksum;
+	anal-hw-checksum;
 	use-ncsi;
 	mlx,multi-host;
 	ncsi-ctrl,start-redo-probe;
-	ncsi-ctrl,no-channel-monitor;
+	ncsi-ctrl,anal-channel-monitor;
 	ncsi-package = <1>;
 	ncsi-channel = <1>;
 	ncsi-rexmit = <1>;

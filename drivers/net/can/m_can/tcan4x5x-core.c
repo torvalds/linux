@@ -90,7 +90,7 @@
 #define TCAN4X5X_MODE_SEL_MASK (BIT(7) | BIT(6))
 #define TCAN4X5X_MODE_SLEEP 0x00
 #define TCAN4X5X_MODE_STANDBY BIT(6)
-#define TCAN4X5X_MODE_NORMAL BIT(7)
+#define TCAN4X5X_MODE_ANALRMAL BIT(7)
 
 #define TCAN4X5X_DISABLE_WAKE_MSK	(BIT(31) | BIT(30))
 #define TCAN4X5X_DISABLE_INH_MSK	BIT(9)
@@ -127,7 +127,7 @@ static const struct tcan4x5x_version_info tcan4x5x_versions[] = {
 		.name = "4553",
 		.id2_register = 0x33353534,
 	},
-	/* generic version with no id2_register at the end */
+	/* generic version with anal id2_register at the end */
 	[TCAN4X5X] = {
 		.name = "generic",
 		.has_wake_pin = true,
@@ -263,7 +263,7 @@ static int tcan4x5x_init(struct m_can_classdev *cdev)
 		return ret;
 
 	ret = regmap_update_bits(tcan4x5x->regmap, TCAN4X5X_CONFIG,
-				 TCAN4X5X_MODE_SEL_MASK, TCAN4X5X_MODE_NORMAL);
+				 TCAN4X5X_MODE_SEL_MASK, TCAN4X5X_MODE_ANALRMAL);
 	if (ret)
 		return ret;
 
@@ -297,8 +297,8 @@ static const struct tcan4x5x_version_info
 		return ERR_PTR(ret);
 
 	if (val != TCAN4X5X_DEV_ID1_TCAN) {
-		dev_err(&priv->spi->dev, "Not a tcan device %x\n", val);
-		return ERR_PTR(-ENODEV);
+		dev_err(&priv->spi->dev, "Analt a tcan device %x\n", val);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ret = regmap_read(priv->regmap, TCAN4X5X_DEV_ID2, &val);
@@ -376,7 +376,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 	mcan_class = m_can_class_allocate_dev(&spi->dev,
 					      sizeof(struct tcan4x5x_priv));
 	if (!mcan_class)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = m_can_check_mram_cfg(mcan_class, TCAN4X5X_MRAM_SIZE);
 	if (ret)
@@ -394,7 +394,7 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 
 	m_can_class_get_clocks(mcan_class);
 	if (IS_ERR(mcan_class->cclk)) {
-		dev_err(&spi->dev, "no CAN clock source defined\n");
+		dev_err(&spi->dev, "anal CAN clock source defined\n");
 		freq = TCAN4X5X_EXT_CLK_DEF;
 	} else {
 		freq = clk_get_rate(mcan_class->cclk);

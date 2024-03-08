@@ -22,7 +22,7 @@ Optional properties:
 				is enabled.
  - cirrus,enable-soft-reset:
 	The CS4271 requires its LRCLK and MCLK to be stable before its RESET
-	line is de-asserted. That also means that clocks cannot be changed
+	line is de-asserted. That also means that clocks cananalt be changed
 	without putting the chip back into hardware reset, which also requires
 	a complete re-initialization of all registers.
 
@@ -30,7 +30,7 @@ Optional properties:
 	in the MODE2 register. This workaround can be enabled with this DT
 	property.
 
-	Note that this is not needed in case the clocks are stable
+	Analte that this is analt needed in case the clocks are stable
 	throughout the entire runtime of the codec.
 
  - vd-supply:	Digital power

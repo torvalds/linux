@@ -11,7 +11,7 @@ tool for inspection of eBPF-related parameters for Linux kernel or net device
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **feature** *COMMAND*
@@ -38,12 +38,12 @@ DESCRIPTION
 		  JIT status, eBPF program types availability, eBPF helper
 		  functions availability, and more.
 
-		  By default, bpftool **does not run probes** for
+		  By default, bpftool **does analt run probes** for
 		  **bpf_probe_write_user**\ () and **bpf_trace_printk**\()
 		  helpers which print warnings to kernel logs. To enable them
 		  and run all probes, the **full** keyword should be used.
 
-		  If the **macros** keyword (but not the **-j** option) is
+		  If the **macros** keyword (but analt the **-j** option) is
 		  passed, a subset of the output is dumped as a list of
 		  **#define** macros that are ready to be included in a C
 		  header file, for example. If, additionally, **prefix** is
@@ -52,16 +52,16 @@ DESCRIPTION
 		  avoid conflicts on macro names when including the output of
 		  this command as a header file.
 
-		  Keyword **kernel** can be omitted. If no probe target is
+		  Keyword **kernel** can be omitted. If anal probe target is
 		  specified, probing the kernel is the default behaviour.
 
 		  When the **unprivileged** keyword is used, bpftool will dump
-		  only the features available to a user who does not have the
+		  only the features available to a user who does analt have the
 		  **CAP_SYS_ADMIN** capability set. The features available in
 		  that case usually represent a small subset of the parameters
 		  supported by the system. Unprivileged users MUST use the
 		  **unprivileged** keyword: This is to avoid misdetection if
-		  bpftool is inadvertently run as non-root, for example. This
+		  bpftool is inadvertently run as analn-root, for example. This
 		  keyword is unavailable if bpftool was compiled without
 		  libcap.
 
@@ -73,11 +73,11 @@ DESCRIPTION
 		  same role as when probing the kernel.
 
 	**bpftool feature list_builtins** *GROUP*
-		  List items known to bpftool. These can be BPF program types
+		  List items kanalwn to bpftool. These can be BPF program types
 		  (**prog_types**), BPF map types (**map_types**), attach types
 		  (**attach_types**), link types (**link_types**), or BPF helper
-		  functions (**helpers**). The command does not probe the system, but
-		  simply lists the elements that bpftool knows from compilation time,
+		  functions (**helpers**). The command does analt probe the system, but
+		  simply lists the elements that bpftool kanalws from compilation time,
 		  as provided from libbpf (for all object types) or from the BPF UAPI
 		  header (list of helpers). This can be used in scripts to iterate over
 		  BPF types or helpers.

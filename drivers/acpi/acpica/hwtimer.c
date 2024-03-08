@@ -106,7 +106,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_timer)
  *              transitions (unlike many CPU timestamp counters) -- making it
  *              a versatile and accurate timer.
  *
- *              Note that this function accommodates only a single timer
+ *              Analte that this function accommodates only a single timer
  *              rollover. Thus for 24-bit timers, this function should only
  *              be used for calculating durations less than ~4.6 seconds
  *              (~20 minutes for 32-bit timers) -- calculations below:

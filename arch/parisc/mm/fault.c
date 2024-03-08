@@ -42,7 +42,7 @@ int show_unhandled_signals = 1;
  *    operation.
  *
  *    This function assumes that the given instruction is a memory access
- *    instruction (i.e. you should really only call it if you know that
+ *    instruction (i.e. you should really only call it if you kanalw that
  *    the instruction has generated some sort of a memory access fault).
  *
  * Returns:
@@ -85,7 +85,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 			 * The significance of bits 20,21 in the FDC
 			 * instruction is:
 			 *
-			 *   00  Flush data cache (normal instruction behavior)
+			 *   00  Flush data cache (analrmal instruction behavior)
 			 *   01  Graphics flush write  (IO space -> VM)
 			 *   10  Graphics flush read   (VM -> IO space)
 			 *   11  Graphics flush read/write (VM <-> IO space)
@@ -99,7 +99,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 			 * If bits 23 through 25 are all 1's it is one of
 			 * the above two instructions and is a write.
 			 *
-			 * Note: With the limited bits we are looking at,
+			 * Analte: With the limited bits we are looking at,
 			 * this will also catch PROBEW and PROBEWI. However,
 			 * these should never get in here because they don't
 			 * generate exceptions of the type:
@@ -122,9 +122,9 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 
 #if 0
 /* This is the treewalk to find a vma which is the highest that has
- * a start < addr.  We're using find_vma_prev instead right now, but
+ * a start < addr.  We're using find_vma_prev instead right analw, but
  * we might want to use this at some point in the future.  Probably
- * not, but I want it committed to CVS so I don't lose it :-)
+ * analt, but I want it committed to CVS so I don't lose it :-)
  */
 			while (tree != vm_avl_empty) {
 				if (tree->vm_start > addr) {
@@ -172,7 +172,7 @@ int fixup_exception(struct pt_regs *regs)
 		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
 		regs->iaoq[0] &= ~3;
 		/*
-		 * NOTE: In some cases the faulting instruction
+		 * ANALTE: In some cases the faulting instruction
 		 * may be in the delay slot of a branch. We
 		 * don't want to take the branch, so we don't
 		 * increment iaoq[1], instead we set it to be
@@ -211,8 +211,8 @@ static const char * const trap_description[] = {
 	[13] =	"Conditional trap",
 	[14] =	"FP Assist Exception trap",
 	[15] =	"Data TLB miss fault",
-	[16] =	"Non-access ITLB miss fault",
-	[17] =	"Non-access DTLB miss fault",
+	[16] =	"Analn-access ITLB miss fault",
+	[17] =	"Analn-access DTLB miss fault",
 	[18] =	"Data memory protection/unaligned access trap",
 	[19] =	"Data memory break trap",
 	[20] =	"TLB dirty bit trap",
@@ -231,7 +231,7 @@ const char *trap_name(unsigned long code)
 	if (code < ARRAY_SIZE(trap_description))
 		t = trap_description[code];
 
-	return t ? t : "Unknown trap";
+	return t ? t : "Unkanalwn trap";
 }
 
 /*
@@ -278,8 +278,8 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	tsk = current;
 	mm = tsk->mm;
 	if (!mm) {
-		msg = "Page fault: no context";
-		goto no_context;
+		msg = "Page fault: anal context";
+		goto anal_context;
 	}
 
 	flags = FAULT_FLAG_DEFAULT;
@@ -298,7 +298,7 @@ retry:
 			goto bad_area;
 		vma = expand_stack(mm, address);
 		if (!vma)
-			goto bad_area_nosemaphore;
+			goto bad_area_analsemaphore;
 	}
 
 /*
@@ -320,7 +320,7 @@ retry:
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs)) {
 			msg = "Page fault: fault signal on kernel memory";
-			goto no_context;
+			goto anal_context;
 		}
 		return;
 	}
@@ -346,7 +346,7 @@ retry:
 	}
 	if (fault & VM_FAULT_RETRY) {
 		/*
-		 * No need to mmap_read_unlock(mm) as we would
+		 * Anal need to mmap_read_unlock(mm) as we would
 		 * have already released it in __lock_page_or_retry
 		 * in mm/filemap.c.
 		 */
@@ -362,23 +362,23 @@ retry:
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	if (user_mode(regs)) {
-		int signo, si_code;
+		int siganal, si_code;
 
 		switch (code) {
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
 			    address < vma->vm_start || address >= vma->vm_end) {
-				signo = SIGSEGV;
+				siganal = SIGSEGV;
 				si_code = SEGV_MAPERR;
 				break;
 			}
 
 			/* send SIGSEGV for wrong permissions */
 			if ((vma->vm_flags & acc_type) != acc_type) {
-				signo = SIGSEGV;
+				siganal = SIGSEGV;
 				si_code = SEGV_ACCERR;
 				break;
 			}
@@ -387,13 +387,13 @@ bad_area_nosemaphore:
 			fallthrough;
 		case 17:	/* NA data TLB miss / page fault */
 		case 18:	/* Unaligned access - PCXS only */
-			signo = SIGBUS;
+			siganal = SIGBUS;
 			si_code = (code == 18) ? BUS_ADRALN : BUS_ADRERR;
 			break;
-		case 16:	/* Non-access instruction TLB miss fault */
+		case 16:	/* Analn-access instruction TLB miss fault */
 		case 26:	/* PCXL: Data memory access rights trap */
 		default:
-			signo = SIGSEGV;
+			siganal = SIGSEGV;
 			si_code = (code == 26) ? SEGV_ACCERR : SEGV_MAPERR;
 			break;
 		}
@@ -420,12 +420,12 @@ bad_area_nosemaphore:
 #endif
 		show_signal_msg(regs, code, address, tsk, vma);
 
-		force_sig_fault(signo, si_code, (void __user *) address);
+		force_sig_fault(siganal, si_code, (void __user *) address);
 		return;
 	}
 	msg = "Page fault: bad address";
 
-no_context:
+anal_context:
 
 	if (!user_mode(regs) && fixup_exception(regs)) {
 		return;
@@ -437,15 +437,15 @@ out_of_memory:
 	mmap_read_unlock(mm);
 	if (!user_mode(regs)) {
 		msg = "Page fault: out of memory";
-		goto no_context;
+		goto anal_context;
 	}
 	pagefault_out_of_memory();
 }
 
-/* Handle non-access data TLB miss faults.
+/* Handle analn-access data TLB miss faults.
  *
  * For probe instructions, accesses to userspace are considered allowed
- * if they lie in a valid VMA and the access type matches. We are not
+ * if they lie in a valid VMA and the access type matches. We are analt
  * allowed to handle MM faults here so there may be situations where an
  * actual access would fail even though a probe was successful.
  */

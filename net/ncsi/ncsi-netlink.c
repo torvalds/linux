@@ -43,7 +43,7 @@ static struct ncsi_dev_priv *ndp_from_ifindex(struct net *net, u32 ifindex)
 
 	dev = dev_get_by_index(net, ifindex);
 	if (!dev) {
-		pr_err("NCSI netlink: No device for ifindex %u\n", ifindex);
+		pr_err("NCSI netlink: Anal device for ifindex %u\n", ifindex);
 		return NULL;
 	}
 
@@ -72,12 +72,12 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_FORCED);
 
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.major);
-	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MINOR, nc->version.minor);
+	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MIANALR, nc->version.mianalr);
 	nla_put_string(skb, NCSI_CHANNEL_ATTR_VERSION_STR, nc->version.fw_name);
 
-	vid_nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
+	vid_nest = nla_nest_start_analflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
 	if (!vid_nest)
-		return -ENOMEM;
+		return -EANALMEM;
 	ncf = &nc->vlan_filter;
 	i = -1;
 	while ((i = find_next_bit((void *)&ncf->bitmap, ncf->n_vids,
@@ -101,17 +101,17 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 	int rc;
 
 	if (id > ndp->package_num - 1) {
-		netdev_info(ndp->ndev.dev, "NCSI: No package with id %u\n", id);
-		return -ENODEV;
+		netdev_info(ndp->ndev.dev, "NCSI: Anal package with id %u\n", id);
+		return -EANALDEV;
 	}
 
 	found = false;
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
 		if (np->id != id)
 			continue;
-		pnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR);
+		pnest = nla_nest_start_analflag(skb, NCSI_PKG_ATTR);
 		if (!pnest)
-			return -ENOMEM;
+			return -EANALMEM;
 		rc = nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
 		if (rc) {
 			nla_nest_cancel(skb, pnest);
@@ -119,17 +119,17 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 		}
 		if ((0x1 << np->id) == ndp->package_whitelist)
 			nla_put_flag(skb, NCSI_PKG_ATTR_FORCED);
-		cnest = nla_nest_start_noflag(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
+		cnest = nla_nest_start_analflag(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
 		if (!cnest) {
 			nla_nest_cancel(skb, pnest);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
-			nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR);
+			nest = nla_nest_start_analflag(skb, NCSI_CHANNEL_ATTR);
 			if (!nest) {
 				nla_nest_cancel(skb, cnest);
 				nla_nest_cancel(skb, pnest);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			rc = ncsi_write_channel_info(skb, ndp, nc);
 			if (rc) {
@@ -146,7 +146,7 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 	}
 
 	if (!found)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -172,11 +172,11 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 	ndp = ndp_from_ifindex(genl_info_net(info),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
 			  &ncsi_genl_family, 0, NCSI_CMD_PKG_INFO);
@@ -187,7 +187,7 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 
-	attr = nla_nest_start_noflag(skb, NCSI_ATTR_PACKAGE_LIST);
+	attr = nla_nest_start_analflag(skb, NCSI_ATTR_PACKAGE_LIST);
 	if (!attr) {
 		kfree_skb(skb);
 		return -EMSGSIZE;
@@ -232,7 +232,7 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 			       nla_get_u32(attrs[NCSI_ATTR_IFINDEX]));
 
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	package_id = cb->args[0];
 	package = NULL;
@@ -250,7 +250,7 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 		goto err;
 	}
 
-	attr = nla_nest_start_noflag(skb, NCSI_ATTR_PACKAGE_LIST);
+	attr = nla_nest_start_analflag(skb, NCSI_ATTR_PACKAGE_LIST);
 	if (!attr) {
 		rc = -EMSGSIZE;
 		goto err;
@@ -292,7 +292,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 	package = NULL;
@@ -301,7 +301,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 		if (np->id == package_id)
 			package = np;
 	if (!package) {
-		/* The user has set a package that does not exist */
+		/* The user has set a package that does analt exist */
 		return -ERANGE;
 	}
 
@@ -315,7 +315,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 			}
 		if (!channel) {
 			netdev_info(ndp->ndev.dev,
-				    "NCSI: Channel %u does not exist!\n",
+				    "NCSI: Channel %u does analt exist!\n",
 				    channel_id);
 			return -ERANGE;
 		}
@@ -368,7 +368,7 @@ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Reset any whitelists and disable multi mode */
 	spin_lock_irqsave(&ndp->lock, flags);
@@ -430,7 +430,7 @@ static int ncsi_send_cmd_nl(struct sk_buff *msg, struct genl_info *info)
 	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -444,7 +444,7 @@ static int ncsi_send_cmd_nl(struct sk_buff *msg, struct genl_info *info)
 
 	len = nla_len(info->attrs[NCSI_ATTR_DATA]);
 	if (len < sizeof(struct ncsi_pkt_hdr)) {
-		netdev_info(ndp->ndev.dev, "NCSI: no command to send %u\n",
+		netdev_info(ndp->ndev.dev, "NCSI: anal command to send %u\n",
 			    package_id);
 		ret = -EINVAL;
 		goto out_netlink;
@@ -492,7 +492,7 @@ int ncsi_send_netlink_rsp(struct ncsi_request *nr,
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(skb, nr->snd_portid, nr->snd_seq,
 			  &ncsi_genl_family, 0, NCSI_CMD_SEND_CMD);
@@ -531,7 +531,7 @@ int ncsi_send_netlink_timeout(struct ncsi_request *nr,
 
 	skb = genlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(skb, nr->snd_portid, nr->snd_seq,
 			  &ncsi_genl_family, 0, NCSI_CMD_SEND_CMD);
@@ -573,7 +573,7 @@ int ncsi_send_netlink_err(struct net_device *dev,
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	net = dev_net(dev);
 
@@ -607,7 +607,7 @@ static int ncsi_set_package_mask_nl(struct sk_buff *msg,
 	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	spin_lock_irqsave(&ndp->lock, flags);
 	if (nla_get_flag(info->attrs[NCSI_ATTR_MULTI_FLAG])) {
@@ -662,7 +662,7 @@ static int ncsi_set_channel_mask_nl(struct sk_buff *msg,
 	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
 			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
 	if (!ndp)
-		return -ENODEV;
+		return -EANALDEV;
 
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 	package = NULL;

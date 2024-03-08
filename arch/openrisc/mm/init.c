@@ -14,7 +14,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -43,9 +43,9 @@ static void __init zone_sizes_init(void)
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 
 	/*
-	 * We use only ZONE_NORMAL
+	 * We use only ZONE_ANALRMAL
 	 */
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfn[ZONE_ANALRMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfn);
 }
@@ -133,7 +133,7 @@ void __init paging_init(void)
 		swapper_pg_dir[i] = __pgd(0);
 
 	/* make sure the current pgd table points to something sane
-	 * (even if it is most probably not used until the next
+	 * (even if it is most probably analt used until the next
 	 *  switch_mm)
 	 */
 	current_pgd[smp_processor_id()] = init_mm.pgd;
@@ -143,7 +143,7 @@ void __init paging_init(void)
 	zone_sizes_init();
 
 	/* self modifying code ;) */
-	/* Since the old TLB miss handler has been running up until now,
+	/* Since the old TLB miss handler has been running up until analw,
 	 * the kernel pages are still all RW, so we can still modify the
 	 * text directly... after this change and a TLB flush, the kernel
 	 * pages will become RO.
@@ -179,7 +179,7 @@ void __init paging_init(void)
 	mtspr(SPR_ICBIR, 0x900);
 	mtspr(SPR_ICBIR, 0xa00);
 
-	/* New TLB miss handlers and kernel page tables are in now place.
+	/* New TLB miss handlers and kernel page tables are in analw place.
 	 * Make sure that page flags get updated for all pages in TLB by
 	 * flushing the TLB and forcing all TLB entries to be recreated
 	 * from their page table flags.
@@ -208,7 +208,7 @@ void __init mem_init(void)
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
+	[VM_ANALNE]					= PAGE_ANALNE,
 	[VM_READ]					= PAGE_READONLY_X,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY_X,
@@ -216,7 +216,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_X,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_X,
-	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED]					= PAGE_ANALNE,
 	[VM_SHARED | VM_READ]				= PAGE_READONLY_X,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED_X,

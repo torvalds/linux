@@ -61,7 +61,7 @@
 #define KVM_REQ_EPR_EXIT	KVM_ARCH_REQ(1)
 #define KVM_REQ_PENDING_TIMER	KVM_ARCH_REQ(2)
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 
 #define HPTEG_CACHE_NUM			(1 << 15)
 #define HPTEG_HASH_BITS_PTE		13
@@ -346,7 +346,7 @@ struct kvm_arch {
 
 /*
  * Values for vcore_state.
- * Note that these are arranged such that lower values
+ * Analte that these are arranged such that lower values
  * (< VCORE_SLEEPING) don't require stolen time accounting
  * on load/unload, and higher values do.
  */
@@ -453,7 +453,7 @@ struct kvmppc_passthru_irqmap {
 #define KVMPPC_BOOKE_MAX_DAC	2
 
 /* KVMPPC_EPR_USER takes precedence over KVMPPC_EPR_KERNEL */
-#define KVMPPC_EPR_NONE		0 /* EPR not supported */
+#define KVMPPC_EPR_ANALNE		0 /* EPR analt supported */
 #define KVMPPC_EPR_USER		1 /* exit to userspace to fill EPR */
 #define KVMPPC_EPR_KERNEL	2 /* in-kernel irqchip */
 
@@ -480,7 +480,7 @@ struct mmio_hpte_cache {
 	unsigned int index;
 };
 
-#define KVMPPC_VSX_COPY_NONE		0
+#define KVMPPC_VSX_COPY_ANALNE		0
 #define KVMPPC_VSX_COPY_WORD		1
 #define KVMPPC_VSX_COPY_DWORD		2
 #define KVMPPC_VSX_COPY_DWORD_LOAD_DUMP	3
@@ -875,7 +875,7 @@ struct kvm_vcpu_arch {
 #define VCPU_VSX_VR(vcpu, i)		((vcpu)->arch.vr.vr[i])
 
 /* Values for vcpu->arch.state */
-#define KVMPPC_VCPU_NOTREADY		0
+#define KVMPPC_VCPU_ANALTREADY		0
 #define KVMPPC_VCPU_RUNNABLE		1
 #define KVMPPC_VCPU_BUSY_IN_HOST	2
 

@@ -47,7 +47,7 @@ struct cdx_dev_params {
  *		on the CDX bus.
  * @cdx: The CDX controller to register
  *
- * Return: -errno on failure, 0 on success.
+ * Return: -erranal on failure, 0 on success.
  */
 int cdx_register_controller(struct cdx_controller *cdx);
 
@@ -64,7 +64,7 @@ void cdx_unregister_controller(struct cdx_controller *cdx);
  *		Linux generic device.
  * @dev_params: device parameters associated with the device to be created.
  *
- * Return: -errno on failure, 0 on success.
+ * Return: -erranal on failure, 0 on success.
  */
 int cdx_device_add(struct cdx_dev_params *dev_params);
 

@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_PDMA0_QM_AXUSER_SECURED_REGS_H_
@@ -26,7 +26,7 @@
 
 #define mmPDMA0_QM_AXUSER_SECURED_HB_STRONG_ORDER 0x4C8AB08
 
-#define mmPDMA0_QM_AXUSER_SECURED_HB_NO_SNOOP 0x4C8AB0C
+#define mmPDMA0_QM_AXUSER_SECURED_HB_ANAL_SANALOP 0x4C8AB0C
 
 #define mmPDMA0_QM_AXUSER_SECURED_HB_WR_REDUCTION 0x4C8AB10
 

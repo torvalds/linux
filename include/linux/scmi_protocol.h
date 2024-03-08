@@ -10,7 +10,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 
 #define SCMI_MAX_STR_SIZE		64
@@ -22,7 +22,7 @@
  *
  * @major_ver: Major ABI version. Change here implies risk of backward
  *	compatibility break.
- * @minor_ver: Minor ABI version. Change here implies new feature addition,
+ * @mianalr_ver: Mianalr ABI version. Change here implies new feature addition,
  *	or compatible change in ABI.
  * @num_protocols: Number of protocols that are implemented, excluding the
  *	base protocol.
@@ -33,7 +33,7 @@
  */
 struct scmi_revision_info {
 	u16 major_ver;
-	u16 minor_ver;
+	u16 mianalr_ver;
 	u8 num_protocols;
 	u8 num_agents;
 	u32 impl_ver;
@@ -45,8 +45,8 @@ struct scmi_clock_info {
 	char name[SCMI_MAX_STR_SIZE];
 	unsigned int enable_latency;
 	bool rate_discrete;
-	bool rate_changed_notifications;
-	bool rate_change_requested_notifications;
+	bool rate_changed_analtifications;
+	bool rate_change_requested_analtifications;
 	union {
 		struct {
 			int num_rates;
@@ -135,7 +135,7 @@ struct scmi_perf_domain_info {
  *	to sustained performance level mapping
  * @est_power_get: gets the estimated power cost for a given performance domain
  *	at a given frequency
- * @fast_switch_possible: indicates if fast DVFS switching is possible or not
+ * @fast_switch_possible: indicates if fast DVFS switching is possible or analt
  *	for a given device
  * @power_scale_mw_get: indicates if the power values provided are in milliWatts
  *	or in some other (abstract) scale
@@ -200,7 +200,7 @@ struct scmi_power_proto_ops {
  *
  * @value: The signed value sensor read.
  * @timestamp: An unsigned timestamp for the sensor read, as provided by
- *	       SCMI platform. Set to zero when not available.
+ *	       SCMI platform. Set to zero when analt available.
  */
 struct scmi_sensor_reading {
 	long long value;
@@ -227,12 +227,12 @@ struct scmi_range_attrs {
  * @extended_attrs: Flag to indicate the presence of additional extended
  *		    attributes for this axes.
  * @resolution: Extended attribute representing the resolution of the axes.
- *		Set to 0 if not reported by this axes.
+ *		Set to 0 if analt reported by this axes.
  * @exponent: Extended attribute representing the power-of-10 multiplier that
- *	      is applied to the resolution field. Set to 0 if not reported by
+ *	      is applied to the resolution field. Set to 0 if analt reported by
  *	      this axes.
  * @attrs: Extended attributes representing minimum and maximum values
- *	   measurable by this axes. Set to 0 if not reported by this sensor.
+ *	   measurable by this axes. Set to 0 if analt reported by this sensor.
  */
 struct scmi_sensor_axis_info {
 	unsigned int id;
@@ -287,8 +287,8 @@ struct scmi_sensor_intervals_info {
  * @type: Sensor type. Chosen amongst one of @enum scmi_sensor_class.
  * @scale: Power-of-10 multiplier applied to the sensor unit.
  * @num_trip_points: Number of maximum configurable trip points.
- * @async: Flag for asynchronous read support.
- * @update: Flag for continuouos update notification support.
+ * @async: Flag for asynchroanalus read support.
+ * @update: Flag for continuouos update analtification support.
  * @timestamped: Flag for timestamped read support.
  * @tstamp_scale: Power-of-10 multiplier applied to the sensor timestamps to
  *		  represent it in seconds.
@@ -305,18 +305,18 @@ struct scmi_sensor_intervals_info {
  * @sensor_power: Extended attribute representing the average power
  *		  consumed by the sensor in microwatts (uW) when it is active.
  *		  Reported here only for scalar sensors.
- *		  Set to 0 if not reported by this sensor.
+ *		  Set to 0 if analt reported by this sensor.
  * @resolution: Extended attribute representing the resolution of the sensor.
  *		Reported here only for scalar sensors.
- *		Set to 0 if not reported by this sensor.
+ *		Set to 0 if analt reported by this sensor.
  * @exponent: Extended attribute representing the power-of-10 multiplier that is
  *	      applied to the resolution field.
  *	      Reported here only for scalar sensors.
- *	      Set to 0 if not reported by this sensor.
+ *	      Set to 0 if analt reported by this sensor.
  * @scalar_attrs: Extended attributes representing minimum and maximum
  *		  measurable values by this sensor.
  *		  Reported here only for scalar sensors.
- *		  Set to 0 if not reported by this sensor.
+ *		  Set to 0 if analt reported by this sensor.
  */
 struct scmi_sensor_info {
 	unsigned int id;
@@ -374,7 +374,7 @@ struct scmi_sensor_info {
  * DSP0249 (Platform Level Data Model specification)
  */
 enum scmi_sensor_class {
-	NONE = 0x0,
+	ANALNE = 0x0,
 	UNSPEC = 0x1,
 	TEMPERATURE_C = 0x2,
 	TEMPERATURE_F = 0x3,
@@ -542,7 +542,7 @@ enum scmi_voltage_level_mode {
  *	         supported voltage level
  * @negative_volts_allowed: True if any of the entries of @levels_uv represent
  *			    a negative voltage.
- * @async_level_set: True when the voltage domain supports asynchronous level
+ * @async_level_set: True when the voltage domain supports asynchroanalus level
  *		     set commands.
  * @name: name assigned to the Voltage Domain by platform
  * @num_levels: number of total entries in @levels_uv.
@@ -593,16 +593,16 @@ struct scmi_voltage_proto_ops {
  * struct scmi_powercap_info  - Describe one available Powercap domain
  *
  * @id: Domain ID as advertised by the platform.
- * @notify_powercap_cap_change: CAP change notification support.
- * @notify_powercap_measurement_change: MEASUREMENTS change notifications
+ * @analtify_powercap_cap_change: CAP change analtification support.
+ * @analtify_powercap_measurement_change: MEASUREMENTS change analtifications
  *				       support.
- * @async_powercap_cap_set: Asynchronous CAP set support.
+ * @async_powercap_cap_set: Asynchroanalus CAP set support.
  * @powercap_cap_config: CAP configuration support.
  * @powercap_monitoring: Monitoring (measurements) support.
  * @powercap_pai_config: PAI configuration support.
  * @powercap_scale_mw: Domain reports power data in milliwatt units.
  * @powercap_scale_uw: Domain reports power data in microwatt units.
- *		       Note that, when both @powercap_scale_mw and
+ *		       Analte that, when both @powercap_scale_mw and
  *		       @powercap_scale_uw are set to false, the domain
  *		       reports power data on an abstract linear scale.
  * @name: name assigned to the Powercap Domain by platform.
@@ -613,17 +613,17 @@ struct scmi_voltage_proto_ops {
  * @max_power_cap: Maximum configurable CAP.
  * @power_cap_step: Step size between two consecutive CAP values.
  * @sustainable_power: Maximum sustainable power consumption for this domain
- *		       under normal conditions.
+ *		       under analrmal conditions.
  * @accuracy: The accuracy with which the power is measured and reported in
  *	      integral multiples of 0.001 percent.
  * @parent_id: Identifier of the containing parent power capping domain, or the
- *	       value 0xFFFFFFFF if this powercap domain is a root domain not
+ *	       value 0xFFFFFFFF if this powercap domain is a root domain analt
  *	       contained in any other domain.
  */
 struct scmi_powercap_info {
 	unsigned int id;
-	bool notify_powercap_cap_change;
-	bool notify_powercap_measurement_change;
+	bool analtify_powercap_cap_change;
+	bool analtify_powercap_measurement_change;
 	bool async_powercap_cap_set;
 	bool powercap_cap_config;
 	bool powercap_monitoring;
@@ -655,19 +655,19 @@ struct scmi_powercap_info {
  *	     On SCMI platforms supporting powercap zone disabling, this could
  *	     report a zero value for a zone where powercapping is disabled.
  * @cap_set: set the CAP value for the specified domain to the provided value;
- *	     if the domain supports setting the CAP with an asynchronous command
- *	     this request will finally trigger an asynchronous transfer, but, if
- *	     @ignore_dresp here is set to true, this call will anyway return
+ *	     if the domain supports setting the CAP with an asynchroanalus command
+ *	     this request will finally trigger an asynchroanalus transfer, but, if
+ *	     @iganalre_dresp here is set to true, this call will anyway return
  *	     immediately without waiting for the related delayed response.
- *	     Note that the powercap requested value must NOT be zero, even if
+ *	     Analte that the powercap requested value must ANALT be zero, even if
  *	     the platform supports disabling a powercap by setting its cap to
  *	     zero (since SCMI v3.2): there are dedicated operations that should
  *	     be used for that. (@cap_enable_set/get)
  * @cap_enable_set: enable or disable the powercapping on the specified domain,
  *		    if supported by the SCMI platform implementation.
- *		    Note that, by the SCMI specification, the platform can
- *		    silently ignore our disable request and decide to enforce
- *		    anyway some other powercap value requested by another agent
+ *		    Analte that, by the SCMI specification, the platform can
+ *		    silently iganalre our disable request and decide to enforce
+ *		    anyway some other powercap value requested by aanalther agent
  *		    on the system: for this reason @cap_get and @cap_enable_get
  *		    will always report the final platform view of the powercaps.
  * @cap_enable_get: get the current CAP enable status for the specified domain.
@@ -677,19 +677,19 @@ struct scmi_powercap_info {
  *		      specified domain and the related PAI upon which is
  *		      calculated.
  * @measurements_threshold_set: set the desired low and high power thresholds
- *				to be used when registering for notification
- *				of type POWERCAP_MEASUREMENTS_NOTIFY with this
+ *				to be used when registering for analtification
+ *				of type POWERCAP_MEASUREMENTS_ANALTIFY with this
  *				powercap domain.
- *				Note that this must be called at least once
+ *				Analte that this must be called at least once
  *				before registering any callback with the usual
- *				@scmi_notify_ops; moreover, in case this method
- *				is called with measurement notifications already
+ *				@scmi_analtify_ops; moreover, in case this method
+ *				is called with measurement analtifications already
  *				enabled it will also trigger, transparently, a
  *				proper update of the power thresholds configured
  *				in the SCMI backend server.
  * @measurements_threshold_get: get the currently configured low and high power
  *				thresholds used when registering callbacks for
- *				notification POWERCAP_MEASUREMENTS_NOTIFY.
+ *				analtification POWERCAP_MEASUREMENTS_ANALTIFY.
  */
 struct scmi_powercap_proto_ops {
 	int (*num_domains_get)(const struct scmi_protocol_handle *ph);
@@ -698,7 +698,7 @@ struct scmi_powercap_proto_ops {
 	int (*cap_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 		       u32 *power_cap);
 	int (*cap_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
-		       u32 power_cap, bool ignore_dresp);
+		       u32 power_cap, bool iganalre_dresp);
 	int (*cap_enable_set)(const struct scmi_protocol_handle *ph,
 			      u32 domain_id, bool enable);
 	int (*cap_enable_get)(const struct scmi_protocol_handle *ph,
@@ -718,62 +718,62 @@ struct scmi_powercap_proto_ops {
 };
 
 /**
- * struct scmi_notify_ops  - represents notifications' operations provided by
+ * struct scmi_analtify_ops  - represents analtifications' operations provided by
  * SCMI core
- * @devm_event_notifier_register: Managed registration of a notifier_block for
+ * @devm_event_analtifier_register: Managed registration of a analtifier_block for
  *				  the requested event
- * @devm_event_notifier_unregister: Managed unregistration of a notifier_block
+ * @devm_event_analtifier_unregister: Managed unregistration of a analtifier_block
  *				    for the requested event
- * @event_notifier_register: Register a notifier_block for the requested event
- * @event_notifier_unregister: Unregister a notifier_block for the requested
+ * @event_analtifier_register: Register a analtifier_block for the requested event
+ * @event_analtifier_unregister: Unregister a analtifier_block for the requested
  *			       event
  *
- * A user can register/unregister its own notifier_block against the wanted
+ * A user can register/unregister its own analtifier_block against the wanted
  * platform instance regarding the desired event identified by the
  * tuple: (proto_id, evt_id, src_id) using the provided register/unregister
  * interface where:
  *
  * @sdev: The scmi_device to use when calling the devres managed ops devm_
- * @handle: The handle identifying the platform instance to use, when not
+ * @handle: The handle identifying the platform instance to use, when analt
  *	    calling the managed ops devm_
  * @proto_id: The protocol ID as in SCMI Specification
  * @evt_id: The message ID of the desired event as in SCMI Specification
  * @src_id: A pointer to the desired source ID if different sources are
  *	    possible for the protocol (like domain_id, sensor_id...etc)
  *
- * @src_id can be provided as NULL if it simply does NOT make sense for
+ * @src_id can be provided as NULL if it simply does ANALT make sense for
  * the protocol at hand, OR if the user is explicitly interested in
- * receiving notifications from ANY existent source associated to the
+ * receiving analtifications from ANY existent source associated to the
  * specified proto_id / evt_id.
  *
- * Received notifications are finally delivered to the registered users,
- * invoking the callback provided with the notifier_block *nb as follows:
+ * Received analtifications are finally delivered to the registered users,
+ * invoking the callback provided with the analtifier_block *nb as follows:
  *
  *	int user_cb(nb, evt_id, report)
  *
  * with:
  *
- * @nb: The notifier block provided by the user
+ * @nb: The analtifier block provided by the user
  * @evt_id: The message ID of the delivered event
  * @report: A custom struct describing the specific event delivered
  */
-struct scmi_notify_ops {
-	int (*devm_event_notifier_register)(struct scmi_device *sdev,
+struct scmi_analtify_ops {
+	int (*devm_event_analtifier_register)(struct scmi_device *sdev,
 					    u8 proto_id, u8 evt_id,
 					    const u32 *src_id,
-					    struct notifier_block *nb);
-	int (*devm_event_notifier_unregister)(struct scmi_device *sdev,
+					    struct analtifier_block *nb);
+	int (*devm_event_analtifier_unregister)(struct scmi_device *sdev,
 					      u8 proto_id, u8 evt_id,
 					      const u32 *src_id,
-					      struct notifier_block *nb);
-	int (*event_notifier_register)(const struct scmi_handle *handle,
+					      struct analtifier_block *nb);
+	int (*event_analtifier_register)(const struct scmi_handle *handle,
 				       u8 proto_id, u8 evt_id,
 				       const u32 *src_id,
-				       struct notifier_block *nb);
-	int (*event_notifier_unregister)(const struct scmi_handle *handle,
+				       struct analtifier_block *nb);
+	int (*event_analtifier_unregister)(const struct scmi_handle *handle,
 					 u8 proto_id, u8 evt_id,
 					 const u32 *src_id,
-					 struct notifier_block *nb);
+					 struct analtifier_block *nb);
 };
 
 /**
@@ -791,12 +791,12 @@ struct scmi_notify_ops {
  *			 instance handle is configured to support atomic
  *			 transactions for commands.
  *			 Some users of the SCMI stack in the upper layers could
- *			 be interested to know if they can assume SCMI
+ *			 be interested to kanalw if they can assume SCMI
  *			 command transactions associated to this handle will
  *			 never sleep and act accordingly.
  *			 An optional atomic threshold value could be returned
  *			 where configured.
- * @notify_ops: pointer to set of notifications related operations
+ * @analtify_ops: pointer to set of analtifications related operations
  */
 struct scmi_handle {
 	struct device *dev;
@@ -811,7 +811,7 @@ struct scmi_handle {
 	bool (*is_transport_atomic)(const struct scmi_handle *handle,
 				    unsigned int *atomic_threshold);
 
-	const struct scmi_notify_ops *notify_ops;
+	const struct scmi_analtify_ops *analtify_ops;
 };
 
 enum scmi_std_protocol {
@@ -908,8 +908,8 @@ struct scmi_protocol;
 int scmi_protocol_register(const struct scmi_protocol *proto);
 void scmi_protocol_unregister(const struct scmi_protocol *proto);
 
-/* SCMI Notification API - Custom Event Reports */
-enum scmi_notification_events {
+/* SCMI Analtification API - Custom Event Reports */
+enum scmi_analtification_events {
 	SCMI_EVENT_POWER_STATE_CHANGED = 0x0,
 	SCMI_EVENT_CLOCK_RATE_CHANGED = 0x0,
 	SCMI_EVENT_CLOCK_RATE_CHANGE_REQUESTED = 0x1,
@@ -919,7 +919,7 @@ enum scmi_notification_events {
 	SCMI_EVENT_SENSOR_UPDATE = 0x1,
 	SCMI_EVENT_RESET_ISSUED = 0x0,
 	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
-	SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER = 0x0,
+	SCMI_EVENT_SYSTEM_POWER_STATE_ANALTIFIER = 0x0,
 	SCMI_EVENT_POWERCAP_CAP_CHANGED = 0x0,
 	SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED = 0x1,
 };
@@ -931,14 +931,14 @@ struct scmi_power_state_changed_report {
 	unsigned int	power_state;
 };
 
-struct scmi_clock_rate_notif_report {
+struct scmi_clock_rate_analtif_report {
 	ktime_t			timestamp;
 	unsigned int		agent_id;
 	unsigned int		clock_id;
 	unsigned long long	rate;
 };
 
-struct scmi_system_power_state_notifier_report {
+struct scmi_system_power_state_analtifier_report {
 	ktime_t		timestamp;
 	unsigned int	agent_id;
 #define SCMI_SYSPOWER_IS_REQUEST_GRACEFUL(flags)	((flags) & BIT(0))

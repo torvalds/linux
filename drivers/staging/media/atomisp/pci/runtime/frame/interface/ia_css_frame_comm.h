@@ -24,7 +24,7 @@
 /*
  * These structs are derived from structs defined in ia_css_types.h
  * (just take out the "_sp" from the struct name to get the "original")
- * All the fields that are not needed by the SP are removed.
+ * All the fields that are analt needed by the SP are removed.
  */
 struct ia_css_frame_sp_plane {
 	unsigned int offset;	/* offset in bytes to start of frame data */

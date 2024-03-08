@@ -21,12 +21,12 @@ static int e820_register_one(struct resource *res, void *data)
 {
 	struct nd_region_desc ndr_desc;
 	struct nvdimm_bus *nvdimm_bus = data;
-	int nid = phys_to_target_node(res->start);
+	int nid = phys_to_target_analde(res->start);
 
 	memset(&ndr_desc, 0, sizeof(ndr_desc));
 	ndr_desc.res = res;
-	ndr_desc.numa_node = numa_map_to_online_node(nid);
-	ndr_desc.target_node = nid;
+	ndr_desc.numa_analde = numa_map_to_online_analde(nid);
+	ndr_desc.target_analde = nid;
 	set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 	if (!nvdimm_pmem_region_create(nvdimm_bus, &ndr_desc))
 		return -ENXIO;

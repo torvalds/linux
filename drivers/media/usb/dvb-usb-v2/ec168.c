@@ -47,7 +47,7 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 		request = DEMOD_RW;
 		break;
 	default:
-		dev_err(&d->udev->dev, "%s: unknown command=%02x\n",
+		dev_err(&d->udev->dev, "%s: unkanalwn command=%02x\n",
 				KBUILD_MODNAME, req->cmd);
 		ret = -EINVAL;
 		goto error;
@@ -55,7 +55,7 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 
 	buf = kmalloc(req->size, GFP_KERNEL);
 	if (!buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -116,7 +116,7 @@ static int ec168_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
 			if (msg[i].addr == ec168_ec100_config.demod_address) {
 				if (msg[i].len < 1) {
-					i = -EOPNOTSUPP;
+					i = -EOPANALTSUPP;
 					break;
 				}
 				req.cmd = READ_DEMOD;
@@ -127,16 +127,16 @@ static int ec168_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				ret = ec168_ctrl_msg(d, &req);
 				i += 2;
 			} else {
-				dev_err(&d->udev->dev, "%s: I2C read not " \
+				dev_err(&d->udev->dev, "%s: I2C read analt " \
 						"implemented\n",
 						KBUILD_MODNAME);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				i += 2;
 			}
 		} else {
 			if (msg[i].addr == ec168_ec100_config.demod_address) {
 				if (msg[i].len < 1) {
-					i = -EOPNOTSUPP;
+					i = -EOPANALTSUPP;
 					break;
 				}
 				req.cmd = WRITE_DEMOD;
@@ -148,7 +148,7 @@ static int ec168_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				i += 1;
 			} else {
 				if (msg[i].len < 1) {
-					i = -EOPNOTSUPP;
+					i = -EOPANALTSUPP;
 					break;
 				}
 				req.cmd = WRITE_I2C;
@@ -242,7 +242,7 @@ static int ec168_download_firmware(struct dvb_usb_device *d,
 	if (ret)
 		goto error;
 
-	/* really needed - no idea what does */
+	/* really needed - anal idea what does */
 	req.cmd = GPIO;
 	req.value = 0;
 	req.index = 0x0206;
@@ -265,7 +265,7 @@ error:
 }
 
 static struct ec100_config ec168_ec100_config = {
-	.demod_address = 0xff, /* not real address, demod is integrated */
+	.demod_address = 0xff, /* analt real address, demod is integrated */
 };
 
 static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
@@ -276,7 +276,7 @@ static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe[0] = dvb_attach(ec100_attach, &ec168_ec100_config,
 			&d->i2c_adap);
 	if (adap->fe[0] == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -304,16 +304,16 @@ static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	return dvb_attach(mxl5005s_attach, adap->fe[0], &d->i2c_adap,
-			&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
+			&ec168_mxl5003s_config) == NULL ? -EANALDEV : 0;
 }
 
-static int ec168_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int ec168_streaming_ctrl(struct dvb_frontend *fe, int oanalff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct ec168_req req = {STREAMING_CTRL, 0x7f01, 0x0202, 0, NULL};
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&d->udev->dev, "%s: oanalff=%d\n", __func__, oanalff);
 
-	if (onoff)
+	if (oanalff)
 		req.index = 0x0102;
 	return ec168_ctrl_msg(d, &req);
 }
@@ -366,7 +366,7 @@ static struct usb_driver ec168_driver = {
 	.disconnect = dvb_usbv2_disconnect,
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
-	.no_dynamic_id = 1,
+	.anal_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

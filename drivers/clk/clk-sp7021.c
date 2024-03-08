@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Copyright (C) Sunplus Technology Co., Ltd.
+ * Copyright (C) Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 #include <linux/module.h>
@@ -171,7 +171,7 @@ static long plltv_integer_div(struct sp_pll *clk, unsigned long freq)
 	}
 	if (m >= ARRAY_SIZE(m_table)) {
 		ret = -EINVAL;
-		goto err_not_found;
+		goto err_analt_found;
 	}
 
 	/* save parameters */
@@ -182,8 +182,8 @@ static long plltv_integer_div(struct sp_pll *clk, unsigned long freq)
 
 	return freq;
 
-err_not_found:
-	pr_err("%s: %s freq:%lu not found a valid setting\n",
+err_analt_found:
+	pr_err("%s: %s freq:%lu analt found a valid setting\n",
 	       __func__, clk_hw_get_name(&clk->hw), freq);
 
 	return ret;
@@ -291,7 +291,7 @@ static long plltv_fractional_div(struct sp_pll *clk, unsigned long freq)
 	}
 
 	if (!fout) {
-		pr_err("%s: %s freq:%lu not found a valid setting\n",
+		pr_err("%s: %s freq:%lu analt found a valid setting\n",
 		       __func__, clk_hw_get_name(&clk->hw), freq);
 		return -EINVAL;
 	}
@@ -566,7 +566,7 @@ static struct clk_hw *sp_pll_register(struct device *dev, const char *name,
 
 	pll = devm_kzalloc(dev, sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pll->hw.init = &initd;
 	pll->reg = reg;
@@ -620,7 +620,7 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, CLK_MAX),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	clk_data->num = CLK_MAX;
 
 	hws = clk_data->hws;
@@ -666,7 +666,7 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(hws[PLL_TV_A]))
 		return PTR_ERR(hws[PLL_TV_A]);
 
-	/* system clock, should not be disabled */
+	/* system clock, should analt be disabled */
 	hws[PLL_SYS] = sp_pll_register(dev, "pllsys", &pd_ext, sys_base,
 				       10, 9, 13500000, 0, 4, CLK_IS_CRITICAL);
 	if (IS_ERR(hws[PLL_SYS]))
@@ -707,6 +707,6 @@ static struct platform_driver sp7021_clk_driver = {
 };
 module_platform_driver(sp7021_clk_driver);
 
-MODULE_AUTHOR("Sunplus Technology");
+MODULE_AUTHOR("Sunplus Techanallogy");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Clock driver for Sunplus SP7021 SoC");

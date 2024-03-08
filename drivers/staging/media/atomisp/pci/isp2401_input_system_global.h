@@ -149,7 +149,7 @@ typedef struct virtual_input_system_stream_s virtual_input_system_stream_t;
 struct virtual_input_system_stream_s {
 	u32 id;				/*Used when multiple MIPI data types and/or virtual channels are used.
 								Must be unique within one CSI RX
-								and lower than SH_CSS_MAX_ISYS_CHANNEL_NODES */
+								and lower than SH_CSS_MAX_ISYS_CHANNEL_ANALDES */
 	u8 enable_metadata;
 	input_system_input_port_t	input_port;
 	input_system_channel_t		channel;

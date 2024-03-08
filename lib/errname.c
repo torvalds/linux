@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/build_bug.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/errname.h>
 #include <linux/kernel.h>
 #include <linux/math.h>
 
 /*
- * Ensure these tables do not accidentally become gigantic if some
- * huge errno makes it in. On most architectures, the first table will
+ * Ensure these tables do analt accidentally become gigantic if some
+ * huge erranal makes it in. On most architectures, the first table will
  * only have about 140 entries, but mips and parisc have more sparsely
- * allocated errnos (with EHWPOISON = 257 on parisc, and EDQUOT = 1133
+ * allocated erranals (with EHWPOISON = 257 on parisc, and EDQUOT = 1133
  * on mips), so this wastes a bit of space on those - though we
  * special case the EDQUOT case.
  */
@@ -18,9 +18,9 @@ static const char *names_0[] = {
 	E(E2BIG),
 	E(EACCES),
 	E(EADDRINUSE),
-	E(EADDRNOTAVAIL),
+	E(EADDRANALTAVAIL),
 	E(EADV),
-	E(EAFNOSUPPORT),
+	E(EAFANALSUPPORT),
 	E(EAGAIN), /* EWOULDBLOCK */
 	E(EALREADY),
 	E(EBADE),
@@ -92,47 +92,47 @@ static const char *names_0[] = {
 	E(ENETRESET),
 	E(ENETUNREACH),
 	E(ENFILE),
-	E(ENOANO),
-	E(ENOBUFS),
-	E(ENOCSI),
-	E(ENODATA),
-	E(ENODEV),
-	E(ENOENT),
-	E(ENOEXEC),
-	E(ENOKEY),
-	E(ENOLCK),
-	E(ENOLINK),
-	E(ENOMEDIUM),
-	E(ENOMEM),
-	E(ENOMSG),
-	E(ENONET),
-	E(ENOPKG),
-	E(ENOPROTOOPT),
-	E(ENOSPC),
-	E(ENOSR),
-	E(ENOSTR),
-	E(ENOSYS),
-	E(ENOTBLK),
-	E(ENOTCONN),
-	E(ENOTDIR),
-	E(ENOTEMPTY),
-	E(ENOTNAM),
-	E(ENOTRECOVERABLE),
-	E(ENOTSOCK),
-	E(ENOTTY),
-	E(ENOTUNIQ),
+	E(EANALAANAL),
+	E(EANALBUFS),
+	E(EANALCSI),
+	E(EANALDATA),
+	E(EANALDEV),
+	E(EANALENT),
+	E(EANALEXEC),
+	E(EANALKEY),
+	E(EANALLCK),
+	E(EANALLINK),
+	E(EANALMEDIUM),
+	E(EANALMEM),
+	E(EANALMSG),
+	E(EANALNET),
+	E(EANALPKG),
+	E(EANALPROTOOPT),
+	E(EANALSPC),
+	E(EANALSR),
+	E(EANALSTR),
+	E(EANALSYS),
+	E(EANALTBLK),
+	E(EANALTCONN),
+	E(EANALTDIR),
+	E(EANALTEMPTY),
+	E(EANALTNAM),
+	E(EANALTRECOVERABLE),
+	E(EANALTSOCK),
+	E(EANALTTY),
+	E(EANALTUNIQ),
 	E(ENXIO),
-	E(EOPNOTSUPP),
+	E(EOPANALTSUPP),
 	E(EOVERFLOW),
 	E(EOWNERDEAD),
 	E(EPERM),
-	E(EPFNOSUPPORT),
+	E(EPFANALSUPPORT),
 	E(EPIPE),
 #ifdef EPROCLIM
 	E(EPROCLIM),
 #endif
 	E(EPROTO),
-	E(EPROTONOSUPPORT),
+	E(EPROTOANALSUPPORT),
 	E(EPROTOTYPE),
 	E(ERANGE),
 	E(EREMCHG),
@@ -148,7 +148,7 @@ static const char *names_0[] = {
 	E(ERREMOTE),
 #endif
 	E(ESHUTDOWN),
-	E(ESOCKTNOSUPPORT),
+	E(ESOCKTANALSUPPORT),
 	E(ESPIPE),
 	E(ESRCH),
 	E(ESRMNT),
@@ -177,18 +177,18 @@ static_assert(EAGAIN == EWOULDBLOCK); /* everywhere */
 #define E(err) [err - 512 + BUILD_BUG_ON_ZERO(err < 512 || err > 550)] = "-" #err
 static const char *names_512[] = {
 	E(ERESTARTSYS),
-	E(ERESTARTNOINTR),
-	E(ERESTARTNOHAND),
-	E(ENOIOCTLCMD),
+	E(ERESTARTANALINTR),
+	E(ERESTARTANALHAND),
+	E(EANALIOCTLCMD),
 	E(ERESTART_RESTARTBLOCK),
 	E(EPROBE_DEFER),
 	E(EOPENSTALE),
-	E(ENOPARAM),
+	E(EANALPARAM),
 
 	E(EBADHANDLE),
-	E(ENOTSYNC),
+	E(EANALTSYNC),
 	E(EBADCOOKIE),
-	E(ENOTSUPP),
+	E(EANALTSUPP),
 	E(ETOOSMALL),
 	E(ESERVERFAULT),
 	E(EBADTYPE),

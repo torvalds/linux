@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techanallogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -112,7 +112,7 @@ enum cmdq_cmd_type {
 };
 
 enum completion_request {
-	NO_CEQ  = 0,
+	ANAL_CEQ  = 0,
 	CEQ_SET = 1,
 };
 
@@ -133,7 +133,7 @@ int hinic_alloc_cmdq_buf(struct hinic_cmdqs *cmdqs,
 				       &cmdq_buf->dma_addr);
 	if (!cmdq_buf->buf) {
 		dev_err(&pdev->dev, "Failed to allocate cmd from the pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -347,7 +347,7 @@ static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
 	/* Keep doorbell index correct. bh - for tasklet(ceq). */
 	spin_lock_bh(&cmdq->cmdq_lock);
 
-	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and not shadow*/
+	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and analt shadow*/
 	hw_wqe = hinic_get_wqe(wq, WQE_LCMD_SIZE, &curr_prod_idx);
 	if (IS_ERR(hw_wqe)) {
 		spin_unlock_bh(&cmdq->cmdq_lock);
@@ -377,7 +377,7 @@ static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
 	/* The data that is written to HW should be in Big Endian Format */
 	hinic_cpu_to_be32(&cmdq_wqe, WQE_LCMD_SIZE);
 
-	/* CMDQ WQE is not shadow, therefore wqe will be written to wq */
+	/* CMDQ WQE is analt shadow, therefore wqe will be written to wq */
 	cmdq_wqe_fill(curr_cmdq_wqe, &cmdq_wqe);
 
 	cmdq_set_db(cmdq, HINIC_CMDQ_SYNC, next_prod_idx);
@@ -426,7 +426,7 @@ static int cmdq_set_arm_bit(struct hinic_cmdq *cmdq, void *buf_in,
 	/* Keep doorbell index correct */
 	spin_lock(&cmdq->cmdq_lock);
 
-	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and not shadow*/
+	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and analt shadow*/
 	hw_wqe = hinic_get_wqe(wq, WQE_SCMD_SIZE, &curr_prod_idx);
 	if (IS_ERR(hw_wqe)) {
 		spin_unlock(&cmdq->cmdq_lock);
@@ -451,7 +451,7 @@ static int cmdq_set_arm_bit(struct hinic_cmdq *cmdq, void *buf_in,
 	/* The data that is written to HW should be in Big Endian Format */
 	hinic_cpu_to_be32(&cmdq_wqe, WQE_SCMD_SIZE);
 
-	/* cmdq wqe is not shadow, therefore wqe will be written to wq */
+	/* cmdq wqe is analt shadow, therefore wqe will be written to wq */
 	cmdq_wqe_fill(curr_cmdq_wqe, &cmdq_wqe);
 
 	cmdq_set_db(cmdq, HINIC_CMDQ_SYNC, next_prod_idx);
@@ -748,12 +748,12 @@ static int init_cmdq(struct hinic_cmdq *cmdq, struct hinic_wq *wq,
 
 	cmdq->done = vzalloc(array_size(sizeof(*cmdq->done), wq->q_depth));
 	if (!cmdq->done)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmdq->errcode = vzalloc(array_size(sizeof(*cmdq->errcode),
 					   wq->q_depth));
 	if (!cmdq->errcode) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_errcode;
 	}
 
@@ -796,7 +796,7 @@ static int init_cmdqs_ctxt(struct hinic_hwdev *hwdev,
 	cmdq_ctxts = devm_kcalloc(&pdev->dev, HINIC_MAX_CMDQ_TYPES,
 				  sizeof(*cmdq_ctxts), GFP_KERNEL);
 	if (!cmdq_ctxts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
 
@@ -886,12 +886,12 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 					       HINIC_CMDQ_BUF_SIZE,
 					       HINIC_CMDQ_BUF_SIZE, 0);
 	if (!cmdqs->cmdq_buf_pool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmdqs->saved_wqs = devm_kcalloc(&pdev->dev, HINIC_MAX_CMDQ_TYPES,
 					sizeof(*cmdqs->saved_wqs), GFP_KERNEL);
 	if (!cmdqs->saved_wqs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_saved_wqs;
 	}
 

@@ -6,13 +6,13 @@
 # for more details.
 #
 
-LDFLAGS_vmlinux := -z norelro
+LDFLAGS_vmlinux := -z analrelro
 ifeq ($(CONFIG_RELOCATABLE),y)
-	LDFLAGS_vmlinux += -shared -Bsymbolic -z notext --emit-relocs
+	LDFLAGS_vmlinux += -shared -Bsymbolic -z analtext --emit-relocs
 	KBUILD_CFLAGS += -fPIE
 endif
 ifeq ($(CONFIG_DYNAMIC_FTRACE),y)
-	LDFLAGS_vmlinux += --no-relax
+	LDFLAGS_vmlinux += --anal-relax
 	KBUILD_CPPFLAGS += -DCC_USING_PATCHABLE_FUNCTION_ENTRY
 ifeq ($(CONFIG_RISCV_ISA_C),y)
 	CC_FLAGS_FTRACE := -fpatchable-function-entry=4
@@ -44,16 +44,16 @@ else
 endif
 
 ifndef CONFIG_RISCV_USE_LINKER_RELAXATION
-	KBUILD_CFLAGS += -mno-relax
-	KBUILD_AFLAGS += -mno-relax
+	KBUILD_CFLAGS += -manal-relax
+	KBUILD_AFLAGS += -manal-relax
 ifndef CONFIG_AS_IS_LLVM
-	KBUILD_CFLAGS += -Wa,-mno-relax
-	KBUILD_AFLAGS += -Wa,-mno-relax
+	KBUILD_CFLAGS += -Wa,-manal-relax
+	KBUILD_AFLAGS += -Wa,-manal-relax
 endif
 endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK),y)
-	KBUILD_LDFLAGS += --no-relax-gp
+	KBUILD_LDFLAGS += --anal-relax-gp
 endif
 
 # ISA string setting
@@ -74,12 +74,12 @@ endif
 riscv-march-$(CONFIG_TOOLCHAIN_HAS_ZIHINTPAUSE) := $(riscv-march-y)_zihintpause
 
 # Remove F,D,V from isa string for all. Keep extensions between "fd" and "v" by
-# matching non-v and non-multi-letter extensions out with the filter ([^v_]*)
+# matching analn-v and analn-multi-letter extensions out with the filter ([^v_]*)
 KBUILD_CFLAGS += -march=$(shell echo $(riscv-march-y) | sed -E 's/(rv32ima|rv64ima)fd([^v_]*)v?/\1\2/')
 
 KBUILD_AFLAGS += -march=$(riscv-march-y)
 
-KBUILD_CFLAGS += -mno-save-restore
+KBUILD_CFLAGS += -manal-save-restore
 KBUILD_CFLAGS += -DCONFIG_PAGE_OFFSET=$(CONFIG_PAGE_OFFSET)
 
 ifeq ($(CONFIG_CMODEL_MEDLOW),y)
@@ -90,17 +90,17 @@ ifeq ($(CONFIG_CMODEL_MEDANY),y)
 endif
 
 # Avoid generating .eh_frame sections.
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables -fno-unwind-tables
+KBUILD_CFLAGS += -fanal-asynchroanalus-unwind-tables -fanal-unwind-tables
 
-# The RISC-V attributes frequently cause compatibility issues and provide no
+# The RISC-V attributes frequently cause compatibility issues and provide anal
 # information, so just turn them off.
-KBUILD_CFLAGS += $(call cc-option,-mno-riscv-attribute)
-KBUILD_AFLAGS += $(call cc-option,-mno-riscv-attribute)
-KBUILD_CFLAGS += $(call as-option,-Wa$(comma)-mno-arch-attr)
-KBUILD_AFLAGS += $(call as-option,-Wa$(comma)-mno-arch-attr)
+KBUILD_CFLAGS += $(call cc-option,-manal-riscv-attribute)
+KBUILD_AFLAGS += $(call cc-option,-manal-riscv-attribute)
+KBUILD_CFLAGS += $(call as-option,-Wa$(comma)-manal-arch-attr)
+KBUILD_AFLAGS += $(call as-option,-Wa$(comma)-manal-arch-attr)
 
-KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-relax)
-KBUILD_AFLAGS_MODULE += $(call as-option,-Wa$(comma)-mno-relax)
+KBUILD_CFLAGS_MODULE += $(call cc-option,-manal-relax)
+KBUILD_AFLAGS_MODULE += $(call as-option,-Wa$(comma)-manal-relax)
 
 # GCC versions that support the "-mstrict-align" option default to allowing
 # unaligned accesses.  While unaligned accesses are explicitly allowed in the
@@ -161,7 +161,7 @@ endif
 endif
 BOOT_TARGETS := Image Image.gz loader loader.bin xipImage vmlinuz.efi
 
-all:	$(notdir $(KBUILD_IMAGE))
+all:	$(analtdir $(KBUILD_IMAGE))
 
 loader.bin: loader
 Image.gz loader vmlinuz.efi: Image
@@ -191,6 +191,6 @@ PHONY += rv32_defconfig
 rv32_defconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile defconfig 32-bit.config
 
-PHONY += rv32_nommu_virt_defconfig
-rv32_nommu_virt_defconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile nommu_virt_defconfig 32-bit.config
+PHONY += rv32_analmmu_virt_defconfig
+rv32_analmmu_virt_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile analmmu_virt_defconfig 32-bit.config

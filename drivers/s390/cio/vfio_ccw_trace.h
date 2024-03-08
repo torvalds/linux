@@ -26,7 +26,7 @@ TRACE_EVENT(vfio_ccw_chp_event,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, sch_no)
+		__field(u16, sch_anal)
 		__field(int, mask)
 		__field(int, event)
 	),
@@ -34,7 +34,7 @@ TRACE_EVENT(vfio_ccw_chp_event,
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->sch_no = schid.sch_no;
+		__entry->sch_anal = schid.sch_anal;
 		__entry->mask = mask;
 		__entry->event = event;
 	),
@@ -42,7 +42,7 @@ TRACE_EVENT(vfio_ccw_chp_event,
 	TP_printk("schid=%x.%x.%04x mask=0x%x event=%d",
 		  __entry->cssid,
 		  __entry->ssid,
-		  __entry->sch_no,
+		  __entry->sch_anal,
 		  __entry->mask,
 		  __entry->event)
 );
@@ -50,31 +50,31 @@ TRACE_EVENT(vfio_ccw_chp_event,
 TRACE_EVENT(vfio_ccw_fsm_async_request,
 	TP_PROTO(struct subchannel_id schid,
 		 int command,
-		 int errno),
-	TP_ARGS(schid, command, errno),
+		 int erranal),
+	TP_ARGS(schid, command, erranal),
 
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, sch_no)
+		__field(u16, sch_anal)
 		__field(int, command)
-		__field(int, errno)
+		__field(int, erranal)
 	),
 
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->sch_no = schid.sch_no;
+		__entry->sch_anal = schid.sch_anal;
 		__entry->command = command;
-		__entry->errno = errno;
+		__entry->erranal = erranal;
 	),
 
-	TP_printk("schid=%x.%x.%04x command=0x%x errno=%d",
+	TP_printk("schid=%x.%x.%04x command=0x%x erranal=%d",
 		  __entry->cssid,
 		  __entry->ssid,
-		  __entry->sch_no,
+		  __entry->sch_anal,
 		  __entry->command,
-		  __entry->errno)
+		  __entry->erranal)
 );
 
 TRACE_EVENT(vfio_ccw_fsm_event,
@@ -84,7 +84,7 @@ TRACE_EVENT(vfio_ccw_fsm_event,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schanal)
 		__field(int, state)
 		__field(int, event)
 	),
@@ -92,45 +92,45 @@ TRACE_EVENT(vfio_ccw_fsm_event,
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
+		__entry->schanal = schid.sch_anal;
 		__entry->state = state;
 		__entry->event = event;
 	),
 
 	TP_printk("schid=%x.%x.%04x state=%d event=%d",
-		__entry->cssid, __entry->ssid, __entry->schno,
+		__entry->cssid, __entry->ssid, __entry->schanal,
 		__entry->state,
 		__entry->event)
 );
 
 TRACE_EVENT(vfio_ccw_fsm_io_request,
-	TP_PROTO(int fctl, struct subchannel_id schid, int errno, char *errstr),
-	TP_ARGS(fctl, schid, errno, errstr),
+	TP_PROTO(int fctl, struct subchannel_id schid, int erranal, char *errstr),
+	TP_ARGS(fctl, schid, erranal, errstr),
 
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, sch_no)
+		__field(u16, sch_anal)
 		__field(int, fctl)
-		__field(int, errno)
+		__field(int, erranal)
 		__field(char*, errstr)
 	),
 
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->sch_no = schid.sch_no;
+		__entry->sch_anal = schid.sch_anal;
 		__entry->fctl = fctl;
-		__entry->errno = errno;
+		__entry->erranal = erranal;
 		__entry->errstr = errstr;
 	),
 
-	TP_printk("schid=%x.%x.%04x fctl=0x%x errno=%d info=%s",
+	TP_printk("schid=%x.%x.%04x fctl=0x%x erranal=%d info=%s",
 		  __entry->cssid,
 		  __entry->ssid,
-		  __entry->sch_no,
+		  __entry->sch_anal,
 		  __entry->fctl,
-		  __entry->errno,
+		  __entry->erranal,
 		  __entry->errstr)
 );
 

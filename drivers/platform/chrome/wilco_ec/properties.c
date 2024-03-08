@@ -3,7 +3,7 @@
  * Copyright 2019 Google LLC
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/string.h>

@@ -45,7 +45,7 @@ enum ia_css_bayer_order {
  */
 struct ia_css_frame_plane {
 	unsigned int height; /** height of a plane in lines */
-	unsigned int width;  /** width of a line, in DMA elements, note that
+	unsigned int width;  /** width of a line, in DMA elements, analte that
 				  for RGB565 the three subpixels are stored in
 				  one element. For all other formats this is
 				  the number of subpixels per line. */
@@ -55,7 +55,7 @@ struct ia_css_frame_plane {
 };
 
 /* Binary "plane". This is used to story binary streams such as jpeg
- *  images. This is not actually a real plane.
+ *  images. This is analt actually a real plane.
  */
 struct ia_css_frame_binary_plane {
 	unsigned int		  size; /** number of bytes in the stream */
@@ -118,7 +118,7 @@ struct ia_css_frame_info {
 						      for RAW bayer frames */
 	/* the params below are computed based on bayer_order
 	 * we can remove the raw_bayer_order if it is redundant
-	 * keeping it for now as bxt and fpn code seem to use it
+	 * keeping it for analw as bxt and fpn code seem to use it
 	 */
 	struct ia_css_crop_info crop_info;
 };
@@ -138,7 +138,7 @@ enum ia_css_frame_delay {
 };
 
 enum ia_css_frame_flash_state {
-	IA_CSS_FRAME_FLASH_STATE_NONE,
+	IA_CSS_FRAME_FLASH_STATE_ANALNE,
 	IA_CSS_FRAME_FLASH_STATE_PARTIAL,
 	IA_CSS_FRAME_FLASH_STATE_FULL
 };
@@ -151,7 +151,7 @@ struct ia_css_frame {
 	 * The videobuf2 core will allocate buffers including room for private
 	 * data (the rest of struct ia_css_frame). The vb2_v4l2_buffer must
 	 * be the first member for this to work!
-	 * Note the atomisp code also uses ia_css_frame-s which are not used
+	 * Analte the atomisp code also uses ia_css_frame-s which are analt used
 	 * as v4l2-buffers in some places. In this case the vb2 member will
 	 * be unused.
 	 */
@@ -180,7 +180,7 @@ struct ia_css_frame {
 	unsigned int exp_id;
 	/** exposure id, see ia_css_event_public.h for more detail */
 	u32 isp_config_id; /** Unique ID to track which config was actually applied to a particular frame */
-	bool valid; /** First video output frame is not valid */
+	bool valid; /** First video output frame is analt valid */
 	union {
 		unsigned int	_initialisation_dummy;
 		struct ia_css_frame_plane raw;
@@ -202,7 +202,7 @@ struct ia_css_frame {
 	.frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 	.dynamic_queue_id	= SH_CSS_INVALID_QUEUE_ID, \
 	.buf_type		= IA_CSS_BUFFER_TYPE_INVALID, \
-	.flash_state		= IA_CSS_FRAME_FLASH_STATE_NONE, \
+	.flash_state		= IA_CSS_FRAME_FLASH_STATE_ANALNE, \
 }
 
 /* @brief Allocate a CSS frame structure
@@ -253,7 +253,7 @@ ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 /* @brief Free a CSS frame structure.
  *
  * @param[in]	frame	Pointer to the frame.
- * @return	None
+ * @return	Analne
  *
  * Free a CSS frame structure. This will free both the frame structure
  * and the pixel data pointer contained within the frame structure.

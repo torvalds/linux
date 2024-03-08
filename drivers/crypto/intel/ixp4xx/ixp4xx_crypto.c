@@ -2,7 +2,7 @@
 /*
  * Intel IXP4xx NPE-C crypto driver
  *
- * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@innominate.com>
+ * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@inanalminate.com>
  */
 
 #include <linux/platform_device.h>
@@ -44,7 +44,7 @@
 #define NPE_OP_CCM_ENABLE    0x04
 #define NPE_OP_CRYPT_ENABLE  0x08
 #define NPE_OP_HASH_ENABLE   0x10
-#define NPE_OP_NOT_IN_PLACE  0x20
+#define NPE_OP_ANALT_IN_PLACE  0x20
 #define NPE_OP_HMAC_DISABLE  0x40
 #define NPE_OP_CRYPT_ENCRYPT 0x80
 
@@ -158,7 +158,7 @@ struct aead_ctx {
 	struct buffer_desc *src;
 	struct buffer_desc *dst;
 	struct scatterlist ivlist;
-	/* used when the hmac is not on one sg entry */
+	/* used when the hmac is analt on one sg entry */
 	u8 *hmac_virt;
 	int encrypt;
 };
@@ -183,7 +183,7 @@ struct ixp_ctx {
 	int enckey_len;
 	u8 enckey[MAX_KEYLEN];
 	u8 salt[MAX_IVLEN];
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 analnce[CTR_RFC3686_ANALNCE_SIZE];
 	unsigned int salted;
 	atomic_t configuring;
 	struct completion completion;
@@ -270,7 +270,7 @@ static int setup_crypt_desc(void)
 					NPE_QLEN * sizeof(struct crypt_ctl),
 					&crypt_phys, GFP_ATOMIC);
 	if (!crypt_virt)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -452,9 +452,9 @@ static void crypto_done_action(unsigned long arg)
 
 static int init_ixp_crypto(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	u32 msg[2] = { 0, 0 };
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	u32 npe_id;
 
 	dev_info(dev, "probing...\n");
@@ -467,24 +467,24 @@ static int init_ixp_crypto(struct device *dev)
 		ret = of_parse_phandle_with_fixed_args(np, "intel,npe-handle",
 						       1, 0, &npe_spec);
 		if (ret) {
-			dev_err(dev, "no NPE engine specified\n");
-			return -ENODEV;
+			dev_err(dev, "anal NPE engine specified\n");
+			return -EANALDEV;
 		}
 		npe_id = npe_spec.args[0];
 
 		ret = of_parse_phandle_with_fixed_args(np, "queue-rx", 1, 0,
 						       &queue_spec);
 		if (ret) {
-			dev_err(dev, "no rx queue phandle\n");
-			return -ENODEV;
+			dev_err(dev, "anal rx queue phandle\n");
+			return -EANALDEV;
 		}
 		recv_qid = queue_spec.args[0];
 
 		ret = of_parse_phandle_with_fixed_args(np, "queue-txready", 1, 0,
 						       &queue_spec);
 		if (ret) {
-			dev_err(dev, "no txready queue phandle\n");
-			return -ENODEV;
+			dev_err(dev, "anal txready queue phandle\n");
+			return -EANALDEV;
 		}
 		send_qid = queue_spec.args[0];
 	} else {
@@ -526,16 +526,16 @@ static int init_ixp_crypto(struct device *dev)
 		break;
 	default:
 		dev_err(dev, "Firmware of %s lacks crypto support\n", npe_name(npe_c));
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto npe_release;
 	}
 	/* buffer_pool will also be used to sometimes store the hmac,
-	 * so assure it is large enough
+	 * so assure it is large eanalugh
 	 */
 	BUILD_BUG_ON(SHA1_DIGEST_SIZE > sizeof(struct buffer_desc));
 	buffer_pool = dma_pool_create("buffer", dev, sizeof(struct buffer_desc),
 				      32, 0);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (!buffer_pool)
 		goto err;
 
@@ -553,14 +553,14 @@ static int init_ixp_crypto(struct device *dev)
 		qmgr_release_queue(send_qid);
 		goto err;
 	}
-	qmgr_set_irq(recv_qid, QUEUE_IRQ_SRC_NOT_EMPTY, irqhandler, NULL);
+	qmgr_set_irq(recv_qid, QUEUE_IRQ_SRC_ANALT_EMPTY, irqhandler, NULL);
 	tasklet_init(&crypto_done_tasklet, crypto_done_action, 0);
 
 	qmgr_enable_irq(recv_qid);
 	return 0;
 
 npe_error:
-	dev_err(dev, "%s not responding\n", npe_name(npe_c));
+	dev_err(dev, "%s analt responding\n", npe_name(npe_c));
 	ret = -EIO;
 err:
 	dma_pool_destroy(ctx_pool);
@@ -599,7 +599,7 @@ static int init_sa_dir(struct ix_sa_dir *dir)
 {
 	dir->npe_ctx = dma_pool_alloc(ctx_pool, GFP_KERNEL, &dir->npe_ctx_phys);
 	if (!dir->npe_ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset_sa_dir(dir);
 	return 0;
@@ -635,7 +635,7 @@ static int init_tfm_ablk(struct crypto_skcipher *tfm)
 
 	ctx->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->fallback_tfm)) {
-		pr_err("ERROR: Cannot allocate fallback for %s %ld\n",
+		pr_err("ERROR: Cananalt allocate fallback for %s %ld\n",
 			name, PTR_ERR(ctx->fallback_tfm));
 		return PTR_ERR(ctx->fallback_tfm);
 	}
@@ -691,11 +691,11 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	BUILD_BUG_ON(NPE_CTX_LEN < HMAC_PAD_BLOCKLEN);
 	pad = dma_pool_alloc(ctx_pool, GFP_KERNEL, &pad_phys);
 	if (!pad)
-		return -ENOMEM;
+		return -EANALMEM;
 	buf = dma_pool_alloc(buffer_pool, GFP_KERNEL, &buf_phys);
 	if (!buf) {
 		dma_pool_free(ctx_pool, pad, pad_phys);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	crypt = get_crypt_desc_emerg();
 	if (!crypt) {
@@ -940,14 +940,14 @@ static int ablk_rfc3686_setkey(struct crypto_skcipher *tfm, const u8 *key,
 {
 	struct ixp_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	/* the nonce is stored in bytes at end of key */
-	if (key_len < CTR_RFC3686_NONCE_SIZE)
+	/* the analnce is stored in bytes at end of key */
+	if (key_len < CTR_RFC3686_ANALNCE_SIZE)
 		return -EINVAL;
 
-	memcpy(ctx->nonce, key + (key_len - CTR_RFC3686_NONCE_SIZE),
-	       CTR_RFC3686_NONCE_SIZE);
+	memcpy(ctx->analnce, key + (key_len - CTR_RFC3686_ANALNCE_SIZE),
+	       CTR_RFC3686_ANALNCE_SIZE);
 
-	key_len -= CTR_RFC3686_NONCE_SIZE;
+	key_len -= CTR_RFC3686_ANALNCE_SIZE;
 	return ablk_setkey(tfm, key, key_len);
 }
 
@@ -999,7 +999,7 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 
 	crypt = get_crypt_desc();
 	if (!crypt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypt->data.ablk_req = req;
 	crypt->crypto_ctx = dir->npe_ctx_phys;
@@ -1018,7 +1018,7 @@ static int ablk_perform(struct skcipher_request *req, int encrypt)
 	if (req->src != req->dst) {
 		struct buffer_desc dst_hook;
 
-		crypt->mode |= NPE_OP_NOT_IN_PLACE;
+		crypt->mode |= NPE_OP_ANALT_IN_PLACE;
 		/* This was never tested by Intel
 		 * for more than one dst buffer, I think. */
 		req_ctx->dst = NULL;
@@ -1050,7 +1050,7 @@ free_buf_dest:
 		free_buf_chain(dev, req_ctx->dst, crypt->dst_buf);
 
 	crypt->ctl_flags = CTL_FLAG_UNUSED;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int ablk_encrypt(struct skcipher_request *req)
@@ -1072,11 +1072,11 @@ static int ablk_rfc3686_crypt(struct skcipher_request *req)
 	int ret;
 
 	/* set up counter block */
-	memcpy(iv, ctx->nonce, CTR_RFC3686_NONCE_SIZE);
-	memcpy(iv + CTR_RFC3686_NONCE_SIZE, info, CTR_RFC3686_IV_SIZE);
+	memcpy(iv, ctx->analnce, CTR_RFC3686_ANALNCE_SIZE);
+	memcpy(iv + CTR_RFC3686_ANALNCE_SIZE, info, CTR_RFC3686_IV_SIZE);
 
 	/* initialize counter portion of counter block */
-	*(__be32 *)(iv + CTR_RFC3686_NONCE_SIZE + CTR_RFC3686_IV_SIZE) =
+	*(__be32 *)(iv + CTR_RFC3686_ANALNCE_SIZE + CTR_RFC3686_IV_SIZE) =
 		cpu_to_be32(1);
 
 	req->iv = iv;
@@ -1119,7 +1119,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	}
 	crypt = get_crypt_desc();
 	if (!crypt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crypt->data.aead_req = req;
 	crypt->crypto_ctx = dir->npe_ctx_phys;
@@ -1151,7 +1151,7 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	if (req->src != req->dst) {
 		struct buffer_desc dst_hook;
 
-		crypt->mode |= NPE_OP_NOT_IN_PLACE;
+		crypt->mode |= NPE_OP_ANALT_IN_PLACE;
 		src_direction = DMA_TO_DEVICE;
 
 		buf = chainup_buffers(dev, req->dst, crypt->auth_len,
@@ -1197,7 +1197,7 @@ free_buf_dst:
 free_buf_src:
 	free_buf_chain(dev, req_ctx->src, crypt->src_buf);
 	crypt->ctl_flags = CTL_FLAG_UNUSED;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
@@ -1597,6 +1597,6 @@ static struct platform_driver ixp_crypto_driver = {
 module_platform_driver(ixp_crypto_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Christian Hohnstaedt <chohnstaedt@innominate.com>");
+MODULE_AUTHOR("Christian Hohnstaedt <chohnstaedt@inanalminate.com>");
 MODULE_DESCRIPTION("IXP4xx hardware crypto");
 

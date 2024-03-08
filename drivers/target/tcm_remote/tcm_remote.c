@@ -64,7 +64,7 @@ static char *tcm_remote_dump_proto_id(struct tcm_remote_hba *remote_hba)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkanalwn";
 }
 
 static int tcm_remote_port_link(
@@ -115,7 +115,7 @@ static struct se_portal_group *tcm_remote_make_tpg(
 	ret = core_tpg_register(wwn, &remote_tpg->remote_se_tpg,
 				remote_hba->remote_proto_id);
 	if (ret < 0)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pr_debug("TCM_Remote_ConfigFS: Allocated Emulated %s Target Port %s,t,0x%04lx\n",
 		 tcm_remote_dump_proto_id(remote_hba),
@@ -158,7 +158,7 @@ static struct se_wwn *tcm_remote_make_wwn(
 
 	remote_hba = kzalloc(sizeof(*remote_hba), GFP_KERNEL);
 	if (!remote_hba)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/*
 	 * Determine the emulated Protocol Identifier and Target Port Name
@@ -262,7 +262,7 @@ static void __exit tcm_remote_fabric_exit(void)
 }
 
 MODULE_DESCRIPTION("TCM virtual remote target");
-MODULE_AUTHOR("Dmitry Bogdanov <d.bogdanov@yadro.com>");
+MODULE_AUTHOR("Dmitry Bogdaanalv <d.bogdaanalv@yadro.com>");
 MODULE_LICENSE("GPL");
 module_init(tcm_remote_fabric_init);
 module_exit(tcm_remote_fabric_exit);

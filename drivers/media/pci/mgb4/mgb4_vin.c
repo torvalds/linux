@@ -144,9 +144,9 @@ static int get_timings(struct mgb4_vin_dev *vindev,
 	u32 resolution = mgb4_read_reg(video, regs->resolution);
 
 	if (!(status & (1U << 2)))
-		return -ENOLCK;
+		return -EANALLCK;
 	if (!(status & (3 << 9)))
-		return -ENOLINK;
+		return -EANALLINK;
 
 	memset(timings, 0, sizeof(*timings));
 	timings->type = V4L2_DV_BT_656_1120;
@@ -170,11 +170,11 @@ static int get_timings(struct mgb4_vin_dev *vindev,
 static void return_all_buffers(struct mgb4_vin_dev *vindev,
 			       enum vb2_buffer_state state)
 {
-	struct mgb4_frame_buffer *buf, *node;
+	struct mgb4_frame_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vindev->qlock, flags);
-	list_for_each_entry_safe(buf, node, &vindev->buf_list, list) {
+	list_for_each_entry_safe(buf, analde, &vindev->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -190,7 +190,7 @@ static int queue_setup(struct vb2_queue *q, unsigned int *nbuffers,
 	 * vindev->timings.bt.height * 4;
 
 	/*
-	 * If I/O reconfiguration is in process, do not allow to start
+	 * If I/O reconfiguration is in process, do analt allow to start
 	 * the queue. See video_source_store() in mgb4_sysfs_out.c for
 	 * details.
 	 */
@@ -381,9 +381,9 @@ static int vidioc_enum_frameintervals(struct file *file, void *priv,
 		return -EINVAL;
 
 	ival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
-	ival->stepwise.min.denominator = 60;
+	ival->stepwise.min.deanalminator = 60;
 	ival->stepwise.min.numerator = 1;
-	ival->stepwise.max.denominator = 1;
+	ival->stepwise.max.deanalminator = 1;
 	ival->stepwise.max.numerator = 1;
 	ival->stepwise.step = ival->stepwise.max;
 
@@ -397,7 +397,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_ABGR32;
 	f->fmt.pix.width = vindev->timings.bt.width;
 	f->fmt.pix.height = vindev->timings.bt.height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_RAW;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width + vindev->padding) * 4;
 	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline * f->fmt.pix.height;
@@ -412,7 +412,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_ABGR32;
 	f->fmt.pix.width = vindev->timings.bt.width;
 	f->fmt.pix.height = vindev->timings.bt.height;
-	f->fmt.pix.field = V4L2_FIELD_NONE;
+	f->fmt.pix.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_RAW;
 	f->fmt.pix.bytesperline = max(f->fmt.pix.width * 4,
 				      ALIGN_DOWN(f->fmt.pix.bytesperline, 4));
@@ -455,9 +455,9 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	status = mgb4_read_reg(video, vindev->config->regs.status);
 	if (!(status & (1U << 2)))
-		i->status |= V4L2_IN_ST_NO_SYNC;
+		i->status |= V4L2_IN_ST_ANAL_SYNC;
 	if (!(status & (3 << 9)))
-		i->status |= V4L2_IN_ST_NO_SIGNAL;
+		i->status |= V4L2_IN_ST_ANAL_SIGNAL;
 
 	return 0;
 }
@@ -496,7 +496,7 @@ static int vidioc_parm(struct file *file, void *priv,
 	const struct mgb4_vin_regs *regs = &vindev->config->regs;
 	struct v4l2_fract timeperframe = {
 		.numerator = mgb4_read_reg(video, regs->frame_period),
-		.denominator = 125000000,
+		.deanalminator = 125000000,
 	};
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -641,7 +641,7 @@ static void dma_transfer(struct work_struct *work)
 	} else {
 		buf->vb.vb2_buf.timestamp = ktime_get_ns();
 		buf->vb.sequence = vindev->sequence++;
-		buf->vb.field = V4L2_FIELD_NONE;
+		buf->vb.field = V4L2_FIELD_ANALNE;
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 }
@@ -848,7 +848,7 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 	vindev->queue.ops = &queue_ops;
 	vindev->queue.mem_ops = &vb2_dma_sg_memops;
 	vindev->queue.gfp_flags = GFP_DMA32;
-	vindev->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vindev->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	vindev->queue.min_queued_buffers = 2;
 	vindev->queue.drv_priv = vindev;
 	vindev->queue.lock = &vindev->lock;

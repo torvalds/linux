@@ -72,7 +72,7 @@ static int lbs_mesh_config_send(struct lbs_private *priv,
 	int ret;
 
 	if (!(priv->fwcapinfo & FW_CAPINFO_PERSISTENT_CONFIG))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = __lbs_mesh_config_send(priv, cmd, action, type);
 	return ret;
@@ -248,7 +248,7 @@ static ssize_t prb_rsp_limit_store(struct device *dev,
 	if (ret)
 		return ret;
 	if (retry_limit > 15)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	mesh_access.data[0] = cpu_to_le32(CMD_ACT_SET);
@@ -350,7 +350,7 @@ static int mesh_get_default_parameters(struct device *dev,
 				   CMD_TYPE_MESH_GET_DEFAULTS);
 
 	if (ret)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	memcpy(defs, &cmd.data[0], sizeof(struct mrvl_mesh_defaults));
 
@@ -454,12 +454,12 @@ static ssize_t boottime_store(struct device *dev,
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* A too small boot time will result in the device booting into
-	 * standalone (no-host) mode before the host can take control of it,
+	 * standalone (anal-host) mode before the host can take control of it,
 	 * so the change will be hard to revert.  This may be a desired
 	 * feature (e.g to configure a very fast boot time for devices that
-	 * will not be attached to a host), but dangerous.  So I'm enforcing a
+	 * will analt be attached to a host), but dangerous.  So I'm enforcing a
 	 * lower limit of 20 seconds:  remove and recompile the driver if this
-	 * does not work for you.
+	 * does analt work for you.
 	 */
 	datum = (datum < 20) ? 20 : datum;
 	cmd.data[0] = datum;
@@ -835,13 +835,13 @@ static const struct attribute_group mesh_ie_group = {
 void lbs_init_mesh(struct lbs_private *priv)
 {
 	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
-	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
+	/* 5.0.16p0 9.0.0.p0 is kanalwn to ANALT support any mesh */
 	/* 5.110.22 have mesh command with 0xa3 command id */
 	/* 10.0.0.p0 FW brings in mesh config command with different id */
 	/* Check FW version MSB and initialize mesh_fw_ver */
 	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5) {
 		/* Enable mesh, if supported, and work out which TLV it uses.
-		   0x100 + 291 is an unofficial value used in 5.110.20.pXX
+		   0x100 + 291 is an uanalfficial value used in 5.110.20.pXX
 		   0x100 + 37 is the official value used in 5.110.21.pXX
 		   but we check them in that order because 20.pXX doesn't
 		   give an error -- it just silently fails. */
@@ -850,7 +850,7 @@ void lbs_init_mesh(struct lbs_private *priv)
 		   doesn't match the existing channel. But only if the TLV
 		   is correct. If the channel is wrong, _BOTH_ versions will
 		   give an error to 0x100+291, and allow 0x100+37 to succeed.
-		   It's just that 5.110.20.pXX will not have done anything
+		   It's just that 5.110.20.pXX will analt have done anything
 		   useful */
 
 		priv->mesh_tlv = TLV_TYPE_OLD_MESH_ID;
@@ -863,7 +863,7 @@ void lbs_init_mesh(struct lbs_private *priv)
 	if ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
 		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK)) {
 		/* 10.0.0.pXX new firmwares should succeed with TLV
-		 * 0x100+37; Do not invoke command with old TLV.
+		 * 0x100+37; Do analt invoke command with old TLV.
 		 */
 		priv->mesh_tlv = TLV_TYPE_MESH_ID;
 		if (lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, 1))
@@ -879,7 +879,7 @@ void lbs_start_mesh(struct lbs_private *priv)
 	lbs_add_mesh(priv);
 
 	if (device_create_file(&priv->dev->dev, &dev_attr_lbs_mesh))
-		netdev_err(priv->dev, "cannot register lbs_mesh attribute\n");
+		netdev_err(priv->dev, "cananalt register lbs_mesh attribute\n");
 }
 
 int lbs_deinit_mesh(struct lbs_private *priv)
@@ -986,14 +986,14 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	mesh_wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!mesh_wdev) {
 		lbs_deb_mesh("init mshX wireless device failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
 
-	mesh_dev = alloc_netdev(0, "msh%d", NET_NAME_UNKNOWN, ether_setup);
+	mesh_dev = alloc_netdev(0, "msh%d", NET_NAME_UNKANALWN, ether_setup);
 	if (!mesh_dev) {
 		lbs_deb_mesh("init mshX device failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_wdev;
 	}
 
@@ -1025,7 +1025,7 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	/* Register virtual mesh interface */
 	ret = register_netdev(mesh_dev);
 	if (ret) {
-		pr_err("cannot register mshX virtual interface\n");
+		pr_err("cananalt register mshX virtual interface\n");
 		goto err_free_netdev;
 	}
 
@@ -1098,8 +1098,8 @@ void lbs_mesh_set_txpd(struct lbs_private *priv,
 static const char mesh_stat_strings[MESH_STATS_NUM][ETH_GSTRING_LEN] = {
 	"drop_duplicate_bcast",
 	"drop_ttl_zero",
-	"drop_no_fwd_route",
-	"drop_no_buffers",
+	"drop_anal_fwd_route",
+	"drop_anal_buffers",
 	"fwded_unicast_cnt",
 	"fwded_bcast_cnt",
 	"drop_blind_table",
@@ -1123,8 +1123,8 @@ void lbs_mesh_ethtool_get_stats(struct net_device *dev,
 
 	priv->mstats.fwd_drop_rbt = le32_to_cpu(mesh_access.data[0]);
 	priv->mstats.fwd_drop_ttl = le32_to_cpu(mesh_access.data[1]);
-	priv->mstats.fwd_drop_noroute = le32_to_cpu(mesh_access.data[2]);
-	priv->mstats.fwd_drop_nobuf = le32_to_cpu(mesh_access.data[3]);
+	priv->mstats.fwd_drop_analroute = le32_to_cpu(mesh_access.data[2]);
+	priv->mstats.fwd_drop_analbuf = le32_to_cpu(mesh_access.data[3]);
 	priv->mstats.fwd_unicast_cnt = le32_to_cpu(mesh_access.data[4]);
 	priv->mstats.fwd_bcast_cnt = le32_to_cpu(mesh_access.data[5]);
 	priv->mstats.drop_blind = le32_to_cpu(mesh_access.data[6]);
@@ -1132,8 +1132,8 @@ void lbs_mesh_ethtool_get_stats(struct net_device *dev,
 
 	data[0] = priv->mstats.fwd_drop_rbt;
 	data[1] = priv->mstats.fwd_drop_ttl;
-	data[2] = priv->mstats.fwd_drop_noroute;
-	data[3] = priv->mstats.fwd_drop_nobuf;
+	data[2] = priv->mstats.fwd_drop_analroute;
+	data[3] = priv->mstats.fwd_drop_analbuf;
 	data[4] = priv->mstats.fwd_unicast_cnt;
 	data[5] = priv->mstats.fwd_bcast_cnt;
 	data[6] = priv->mstats.drop_blind;
@@ -1147,7 +1147,7 @@ int lbs_mesh_ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_STATS && dev == priv->mesh_dev)
 		return MESH_STATS_NUM;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 void lbs_mesh_ethtool_get_strings(struct net_device *dev,

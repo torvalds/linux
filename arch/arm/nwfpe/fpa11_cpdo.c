@@ -22,10 +22,10 @@ unsigned int EmulateCPDO(const unsigned int opcode)
 	unsigned int nType, nDest, nRc;
 	struct roundingData roundData;
 
-	/* Get the destination size.  If not valid let Linux perform
+	/* Get the destination size.  If analt valid let Linux perform
 	   an invalid instruction trap. */
 	nDest = getDestinationSize(opcode);
-	if (typeNone == nDest)
+	if (typeAnalne == nDest)
 		return 0;
 
 	roundData.mode = SetRoundingMode(opcode);
@@ -72,7 +72,7 @@ unsigned int EmulateCPDO(const unsigned int opcode)
 
 	if (nRc != 0) {
 		/* If the operation succeeded, check to see if the result in the
-		   destination register is the correct size.  If not force it
+		   destination register is the correct size.  If analt force it
 		   to be. */
 
 		fpa11->fType[getFd(opcode)] = nDest;

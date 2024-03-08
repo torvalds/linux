@@ -8,7 +8,7 @@
 
 /* keep in sync with the definition in main.h */
 enum bpf_obj_type {
-	BPF_OBJ_UNKNOWN,
+	BPF_OBJ_UNKANALWN,
 	BPF_OBJ_PROG,
 	BPF_OBJ_MAP,
 	BPF_OBJ_LINK,
@@ -33,7 +33,7 @@ extern const void bpf_map_fops __ksym;
 extern const void bpf_prog_fops __ksym;
 extern const void btf_fops __ksym;
 
-const volatile enum bpf_obj_type obj_type = BPF_OBJ_UNKNOWN;
+const volatile enum bpf_obj_type obj_type = BPF_OBJ_UNKANALWN;
 
 static __always_inline __u32 get_obj_id(void *ent, enum bpf_obj_type type)
 {

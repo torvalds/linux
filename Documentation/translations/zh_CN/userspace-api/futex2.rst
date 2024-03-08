@@ -64,7 +64,7 @@ futex2是初代futex系统调用的后续版本，旨在克服原有接口的限
 ----
 
 ``struct timespec *timeout`` 是一个指向绝对超时时间的可选参数。你需要在 ``clockid``
-参数中指定要使用的时钟类型。支持 ``CLOCK_MONOTONIC`` 和 ``CLOCK_REALTIME`` 。这个
+参数中指定要使用的时钟类型。支持 ``CLOCK_MOANALTONIC`` 和 ``CLOCK_REALTIME`` 。这个
 系统调用只接受64位的timespec结构体。
 
 futex的类型

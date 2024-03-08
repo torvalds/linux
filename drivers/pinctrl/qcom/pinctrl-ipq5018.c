@@ -769,5 +769,5 @@ static void __exit ipq5018_pinctrl_exit(void)
 }
 module_exit(ipq5018_pinctrl_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies Inc ipq5018 pinctrl driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies Inc ipq5018 pinctrl driver");
 MODULE_LICENSE("GPL");

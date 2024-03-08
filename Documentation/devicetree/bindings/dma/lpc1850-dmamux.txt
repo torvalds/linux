@@ -11,7 +11,7 @@ Required properties:
 - dma-requests:	Number of DMA requests for the mux
 - dma-masters:	phandle pointing to the DMA controller
 
-The DMA controller node need to have the following poroperties:
+The DMA controller analde need to have the following poroperties:
 - dma-requests:	Number of DMA requests the controller can handle
 
 Example:

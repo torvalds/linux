@@ -103,7 +103,7 @@ static inline bool is_simm13(unsigned int value)
 #define LDPTRI		(LDPTR | IMMED)
 #define ST32I		(ST32 | IMMED)
 
-#define emit_nop()		\
+#define emit_analp()		\
 do {				\
 	*prog++ = SETHI(0, G0);	\
 } while (0)
@@ -151,7 +151,7 @@ do {								\
 	 *	OP	r_A, r_TMP, r_A
 	 *
 	 * depending upon whether K fits in a signed 13-bit
-	 * immediate instruction field.  Emit nothing if K
+	 * immediate instruction field.  Emit analthing if K
 	 * is zero.
 	 */
 #define emit_alu_K(OPCODE, K)					\
@@ -241,7 +241,7 @@ do {	*prog++ = ST32I | RS1(SP) | S13(BIAS - (OFF)) | RD(SRC);	\
 do {	void *_here = image + addrs[i] - 8;		\
 	unsigned int _off = (void *)(FUNC) - _here;	\
 	*prog++ = CALL | (((_off) >> 2) & 0x3fffffff);	\
-	emit_nop();					\
+	emit_analp();					\
 } while (0)
 
 #define emit_branch(BR_OPC, DEST)			\
@@ -294,7 +294,7 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
 #define emit_release_stack(SZ) \
 	*prog++ = (ADD | IMMED | RS1(SP) | S13(SZ) | RD(SP))
 
-/* A note about branch offset calculations.  The addrs[] array,
+/* A analte about branch offset calculations.  The addrs[] array,
  * indexed by BPF instruction, records the address after all the
  * sparc instructions emitted for that BPF instruction.
  *
@@ -308,7 +308,7 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
  *	destination - (addrs[i] - 8)
  *
  * This "addrs[i] - 8" is the address of the branch itself or
- * what "." would be in assembler notation.  The "8" part is
+ * what "." would be in assembler analtation.  The "8" part is
  * how we take into consideration the branch and it's delay
  * slot mentioned above.
  *
@@ -351,7 +351,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	for (pass = 0; pass < 10; pass++) {
 		u8 seen_or_pass0 = (pass == 0) ? (SEEN_XREG | SEEN_DATAREF | SEEN_MEM) : seen;
 
-		/* no prologue/epilogue for trivial filters (RET something) */
+		/* anal prologue/epilogue for trivial filters (RET something) */
 		proglen = 0;
 		prog = temp;
 
@@ -453,9 +453,9 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				 * three instructions between a %y
 				 * register write and the first use.
 				 */
-				emit_nop();
-				emit_nop();
-				emit_nop();
+				emit_analp();
+				emit_analp();
+				emit_analp();
 				emit_alu_K(DIV, K);
 				break;
 			case BPF_ALU | BPF_DIV | BPF_X:	/* A /= X; */
@@ -463,10 +463,10 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				if (pc_ret0 > 0) {
 					t_offset = addrs[pc_ret0 - 1];
 					emit_branch(BE, t_offset + 20);
-					emit_nop(); /* delay slot */
+					emit_analp(); /* delay slot */
 				} else {
 					emit_branch_off(BNE, 16);
-					emit_nop();
+					emit_analp();
 					emit_jump(cleanup_addr + 20);
 					emit_clear(r_A);
 				}
@@ -475,9 +475,9 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				 * three instructions between a %y
 				 * register write and the first use.
 				 */
-				emit_nop();
-				emit_nop();
-				emit_nop();
+				emit_analp();
+				emit_analp();
+				emit_analp();
 				emit_alu_X(DIV);
 				break;
 			case BPF_ALU | BPF_NEG:
@@ -496,7 +496,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				if (seen_or_pass0) {
 					if (i != flen - 1) {
 						emit_jump(cleanup_addr);
-						emit_nop();
+						emit_analp();
 						break;
 					}
 					if (seen_or_pass0 & SEEN_MEM) {
@@ -532,7 +532,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_skb_loadptr(dev, r_A);
 				emit_cmpi(r_A, 0);
 				emit_branch(BE_PTR, cleanup_addr + 4);
-				emit_nop();
+				emit_analp();
 				emit_load32(r_A, struct net_device, ifindex, r_A);
 				break;
 			case BPF_ANC | SKF_AD_MARK:
@@ -545,7 +545,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_skb_loadptr(dev, r_A);
 				emit_cmpi(r_A, 0);
 				emit_branch(BE_PTR, cleanup_addr + 4);
-				emit_nop();
+				emit_analp();
 				emit_load16(r_A, struct net_device, type, r_A);
 				break;
 			case BPF_ANC | SKF_AD_RXHASH:
@@ -558,7 +558,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_skb_load32(vlan_all, r_A);
 				emit_cmpi(r_A, 0);
 				emit_branch_off(BE, 12);
-				emit_nop();
+				emit_analp();
 				emit_loadimm(1, r_A);
 				break;
 			case BPF_LD | BPF_W | BPF_LEN:
@@ -631,7 +631,7 @@ common_load_ind:		seen |= SEEN_DATAREF | SEEN_XREG;
 				goto common_load_ind;
 			case BPF_JMP | BPF_JA:
 				emit_jump(addrs[i + K]);
-				emit_nop();
+				emit_analp();
 				break;
 
 #define COND_SEL(CODE, TOP, FOP)	\
@@ -655,7 +655,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 				/* same targets, can avoid doing the test :) */
 				if (filter[i].jt == filter[i].jf) {
 					emit_jump(t_offset);
-					emit_nop();
+					emit_analp();
 					break;
 				}
 
@@ -693,15 +693,15 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 					if (filter[i].jf)
 						t_offset += 8;
 					emit_branch(t_op, t_offset);
-					emit_nop(); /* delay slot */
+					emit_analp(); /* delay slot */
 					if (filter[i].jf) {
 						emit_jump(f_offset);
-						emit_nop();
+						emit_analp();
 					}
 					break;
 				}
 				emit_branch(f_op, f_offset);
-				emit_nop(); /* delay slot */
+				emit_analp(); /* delay slot */
 				break;
 
 			default:

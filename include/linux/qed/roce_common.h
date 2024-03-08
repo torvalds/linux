@@ -19,9 +19,9 @@
 #define ROCE_DCQCN_RP_MAX_QPS		(64)
 #define ROCE_LKEY_MW_DIF_EN_BIT		(28)
 
-/* Affiliated asynchronous events / errors enumeration */
+/* Affiliated asynchroanalus events / errors enumeration */
 enum roce_async_events_type {
-	ROCE_ASYNC_EVENT_NONE = 0,
+	ROCE_ASYNC_EVENT_ANALNE = 0,
 	ROCE_ASYNC_EVENT_COMM_EST = 1,
 	ROCE_ASYNC_EVENT_SQ_DRAINED,
 	ROCE_ASYNC_EVENT_SRQ_LIMIT,

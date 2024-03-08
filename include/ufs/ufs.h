@@ -17,7 +17,7 @@
 #include <linux/time64.h>
 
 /*
- * Using static_assert() is not allowed in UAPI header files. Hence the check
+ * Using static_assert() is analt allowed in UAPI header files. Hence the check
  * in this header file of the size of struct utp_upiu_header.
  */
 static_assert(sizeof(struct utp_upiu_header) == 12);
@@ -33,7 +33,7 @@ static_assert(sizeof(struct utp_upiu_header) == 12);
 /*
  * UFS device may have standard LUs and LUN id could be from 0x00 to
  * 0x7F. Standard LUs use "Peripheral Device Addressing Format".
- * UFS device may also have the Well Known LUs (also referred as W-LU)
+ * UFS device may also have the Well Kanalwn LUs (also referred as W-LU)
  * which again could be from 0x00 to 0x7F. For W-LUs, device only use
  * the "Extended Addressing Format" which means the W-LUNs would be
  * from 0xc100 (SCSI_W_LUN_BASE) onwards.
@@ -57,7 +57,7 @@ static_assert(sizeof(struct utp_upiu_header) == 12);
  */
 #define EHS_OFFSET_IN_RESPONSE 32
 
-/* Well known logical unit id in LUN field of UPIU */
+/* Well kanalwn logical unit id in LUN field of UPIU */
 enum {
 	UFS_UPIU_REPORT_LUNS_WLUN	= 0x81,
 	UFS_UPIU_UFS_DEVICE_WLUN	= 0xD0,
@@ -81,7 +81,7 @@ enum {
 
 /* UTP UPIU Transaction Codes Initiator to Target */
 enum upiu_request_transaction {
-	UPIU_TRANSACTION_NOP_OUT	= 0x00,
+	UPIU_TRANSACTION_ANALP_OUT	= 0x00,
 	UPIU_TRANSACTION_COMMAND	= 0x01,
 	UPIU_TRANSACTION_DATA_OUT	= 0x02,
 	UPIU_TRANSACTION_TASK_REQ	= 0x04,
@@ -90,7 +90,7 @@ enum upiu_request_transaction {
 
 /* UTP UPIU Transaction Codes Target to Initiator */
 enum upiu_response_transaction {
-	UPIU_TRANSACTION_NOP_IN		= 0x20,
+	UPIU_TRANSACTION_ANALP_IN		= 0x20,
 	UPIU_TRANSACTION_RESPONSE	= 0x21,
 	UPIU_TRANSACTION_DATA_IN	= 0x22,
 	UPIU_TRANSACTION_TASK_RSP	= 0x24,
@@ -101,7 +101,7 @@ enum upiu_response_transaction {
 
 /* UPIU Read/Write flags. See also table "UPIU Flags" in the UFS standard. */
 enum {
-	UPIU_CMD_FLAGS_NONE	= 0x00,
+	UPIU_CMD_FLAGS_ANALNE	= 0x00,
 	UPIU_CMD_FLAGS_CP	= 0x04,
 	UPIU_CMD_FLAGS_WRITE	= 0x20,
 	UPIU_CMD_FLAGS_READ	= 0x40,
@@ -366,19 +366,19 @@ enum {
 
 /*
  * Logical Unit Write Protect
- * 00h: LU not write protected
+ * 00h: LU analt write protected
  * 01h: LU write protected when fPowerOnWPEn =1
  * 02h: LU permanently write protected when fPermanentWPEn =1
  */
 enum ufs_lu_wp_type {
-	UFS_LU_NO_WP		= 0x00,
+	UFS_LU_ANAL_WP		= 0x00,
 	UFS_LU_POWER_ON_WP	= 0x01,
 	UFS_LU_PERM_WP		= 0x02,
 };
 
 /* bActiveICCLevel parameter current units */
 enum {
-	UFSHCD_NANO_AMP		= 0,
+	UFSHCD_NAANAL_AMP		= 0,
 	UFSHCD_MICRO_AMP	= 1,
 	UFSHCD_MILI_AMP		= 2,
 	UFSHCD_AMP		= 3,
@@ -386,9 +386,9 @@ enum {
 
 /* Possible values for dExtendedUFSFeaturesSupport */
 enum {
-	UFS_DEV_LOW_TEMP_NOTIF		= BIT(4),
-	UFS_DEV_HIGH_TEMP_NOTIF		= BIT(5),
-	UFS_DEV_EXT_TEMP_NOTIF		= BIT(6),
+	UFS_DEV_LOW_TEMP_ANALTIF		= BIT(4),
+	UFS_DEV_HIGH_TEMP_ANALTIF		= BIT(5),
+	UFS_DEV_EXT_TEMP_ANALTIF		= BIT(6),
 	UFS_DEV_HPB_SUPPORT		= BIT(7),
 	UFS_DEV_WRITE_BOOSTER_SUP	= BIT(8),
 	UFS_DEV_EXT_IID_SUP		= BIT(16),
@@ -426,8 +426,8 @@ enum {
 
 /* Background operation status */
 enum bkops_status {
-	BKOPS_STATUS_NO_OP               = 0x0,
-	BKOPS_STATUS_NON_CRITICAL        = 0x1,
+	BKOPS_STATUS_ANAL_OP               = 0x0,
+	BKOPS_STATUS_ANALN_CRITICAL        = 0x1,
 	BKOPS_STATUS_PERF_IMPACT         = 0x2,
 	BKOPS_STATUS_CRITICAL            = 0x3,
 	BKOPS_STATUS_MAX		 = BKOPS_STATUS_CRITICAL,
@@ -435,7 +435,7 @@ enum bkops_status {
 
 /* UTP QUERY Transaction Specific Fields OpCode */
 enum query_opcode {
-	UPIU_QUERY_OPCODE_NOP		= 0x0,
+	UPIU_QUERY_OPCODE_ANALP		= 0x0,
 	UPIU_QUERY_OPCODE_READ_DESC	= 0x1,
 	UPIU_QUERY_OPCODE_WRITE_DESC	= 0x2,
 	UPIU_QUERY_OPCODE_READ_ATTR	= 0x3,
@@ -458,8 +458,8 @@ enum ufs_ref_clk_freq {
 /* Query response result code */
 enum {
 	QUERY_RESULT_SUCCESS                    = 0x00,
-	QUERY_RESULT_NOT_READABLE               = 0xF6,
-	QUERY_RESULT_NOT_WRITEABLE              = 0xF7,
+	QUERY_RESULT_ANALT_READABLE               = 0xF6,
+	QUERY_RESULT_ANALT_WRITEABLE              = 0xF7,
 	QUERY_RESULT_ALREADY_WRITTEN            = 0xF8,
 	QUERY_RESULT_INVALID_LENGTH             = 0xF9,
 	QUERY_RESULT_INVALID_VALUE              = 0xFA,
@@ -487,10 +487,10 @@ enum {
 /* Task management service response */
 enum {
 	UPIU_TASK_MANAGEMENT_FUNC_COMPL		= 0x00,
-	UPIU_TASK_MANAGEMENT_FUNC_NOT_SUPPORTED = 0x04,
+	UPIU_TASK_MANAGEMENT_FUNC_ANALT_SUPPORTED = 0x04,
 	UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED	= 0x08,
 	UPIU_TASK_MANAGEMENT_FUNC_FAILED	= 0x05,
-	UPIU_INCORRECT_LOGICAL_UNIT_NO		= 0x09,
+	UPIU_INCORRECT_LOGICAL_UNIT_ANAL		= 0x09,
 };
 
 /* UFS device power modes */

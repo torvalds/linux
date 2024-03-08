@@ -35,7 +35,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
  *              past the length byte or bytes.
  *
  * DESCRIPTION: Decode and return a package length field.
- *              Note: Largest package length is 28 bits, from ACPI specification
+ *              Analte: Largest package length is 28 bits, from ACPI specification
  *
  ******************************************************************************/
 
@@ -202,7 +202,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	char *path;
 	union acpi_parse_object *name_op;
 	union acpi_operand_object *method_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	u8 *start = parser_state->aml;
 
 	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
@@ -228,14 +228,14 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	status = acpi_ns_lookup(walk_state->scope_info, path,
 				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-				NULL, &node);
+				NULL, &analde);
 
 	/*
 	 * If this name is a control method invocation, we must
 	 * setup the method call
 	 */
 	if (ACPI_SUCCESS(status) &&
-	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+	    possible_method_call && (analde->type == ACPI_TYPE_METHOD)) {
 		if ((GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
 		     ARGP_SUPERNAME)
 		    || (GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
@@ -253,14 +253,14 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 		/* This name is actually a control method invocation */
 
-		method_desc = acpi_ns_get_attached_object(node);
+		method_desc = acpi_ns_get_attached_object(analde);
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 				  "Control Method invocation %4.4s - %p Desc %p Path=%p\n",
-				  node->name.ascii, node, method_desc, path));
+				  analde->name.ascii, analde, method_desc, path));
 
 		name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP, start);
 		if (!name_op) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		/* Change Arg into a METHOD CALL and attach name to it */
@@ -268,21 +268,21 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
 		name_op->common.value.name = path;
 
-		/* Point METHODCALL/NAME to the METHOD Node */
+		/* Point METHODCALL/NAME to the METHOD Analde */
 
-		name_op->common.node = node;
+		name_op->common.analde = analde;
 		acpi_ps_append_arg(arg, name_op);
 
 		if (!method_desc) {
 			ACPI_ERROR((AE_INFO,
-				    "Control Method %p has no attached object",
-				    node));
+				    "Control Method %p has anal attached object",
+				    analde));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 				  "Control Method - %p Args %X\n",
-				  node, method_desc->method.param_count));
+				  analde, method_desc->method.param_count));
 
 		/* Get the number of arguments to expect */
 
@@ -291,19 +291,19 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Special handling if the name was not found during the lookup -
-	 * some not_found cases are allowed
+	 * Special handling if the name was analt found during the lookup -
+	 * some analt_found cases are allowed
 	 */
-	if (status == AE_NOT_FOUND) {
+	if (status == AE_ANALT_FOUND) {
 
-		/* 1) not_found is ok during load pass 1/2 (allow forward references) */
+		/* 1) analt_found is ok during load pass 1/2 (allow forward references) */
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) !=
 		    ACPI_PARSE_EXECUTE) {
 			status = AE_OK;
 		}
 
-		/* 2) not_found during a cond_ref_of(x) is ok by definition */
+		/* 2) analt_found during a cond_ref_of(x) is ok by definition */
 
 		else if (walk_state->op->common.aml_opcode ==
 			 AML_CONDITIONAL_REF_OF_OP) {
@@ -311,8 +311,8 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		}
 
 		/*
-		 * 3) not_found while building a Package is ok at this point, we
-		 * may flag as an error later if slack mode is not enabled.
+		 * 3) analt_found while building a Package is ok at this point, we
+		 * may flag as an error later if slack mode is analt enabled.
 		 * (Some ASL code depends on allowing this behavior)
 		 */
 		else if ((arg->common.parent) &&
@@ -352,7 +352,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
  *              arg_type            - The argument type (AML_*_ARG)
  *              arg                 - Where the argument is returned
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Get the next simple argument (constant, string, or namestring)
  *
@@ -530,7 +530,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		/*
 		 * Because the package length isn't represented as a parse tree object,
 		 * take comments surrounding this and add to the previously created
-		 * parse node.
+		 * parse analde.
 		 */
 		if (field->common.inline_comment) {
 			field->common.name_comment =
@@ -560,7 +560,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		/*
 		 * Get access_type and access_attrib and merge into the field Op
 		 * access_type is first operand, access_attribute is second. stuff
-		 * these bytes into the node integer value for convenience.
+		 * these bytes into the analde integer value for convenience.
 		 */
 
 		/* Get the two bytes (Type/Attribute) */
@@ -603,7 +603,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 			ASL_CV_CAPTURE_COMMENTS_ONLY(parser_state);
 			if (parser_state->aml < pkg_end) {
 
-				/* Non-empty list */
+				/* Analn-empty list */
 
 				arg =
 				    acpi_ps_alloc_op(AML_INT_BYTELIST_OP, aml);
@@ -728,7 +728,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		arg = acpi_ps_alloc_op(AML_BYTE_OP, parser_state->aml);
 		if (!arg) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_ANAL_MEMORY);
 		}
 
 		acpi_ps_get_next_simple_arg(parser_state, arg_type, arg);
@@ -736,7 +736,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	case ARGP_PKGLENGTH:
 
-		/* Package length, nothing returned */
+		/* Package length, analthing returned */
 
 		parser_state->pkg_end =
 		    acpi_ps_get_next_package_end(parser_state);
@@ -746,12 +746,12 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		if (parser_state->aml < parser_state->pkg_end) {
 
-			/* Non-empty list */
+			/* Analn-empty list */
 
 			while (parser_state->aml < parser_state->pkg_end) {
 				field = acpi_ps_get_next_field(parser_state);
 				if (!field) {
-					return_ACPI_STATUS(AE_NO_MEMORY);
+					return_ACPI_STATUS(AE_ANAL_MEMORY);
 				}
 
 				if (prev) {
@@ -772,12 +772,12 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		if (parser_state->aml < parser_state->pkg_end) {
 
-			/* Non-empty list */
+			/* Analn-empty list */
 
 			arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP,
 					       parser_state->aml);
 			if (!arg) {
-				return_ACPI_STATUS(AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_ANAL_MEMORY);
 			}
 
 			/* Fill in bytelist data */
@@ -813,15 +813,15 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 			    acpi_ps_alloc_op(AML_INT_NAMEPATH_OP,
 					     parser_state->aml);
 			if (!arg) {
-				return_ACPI_STATUS(AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_ANAL_MEMORY);
 			}
 
 			status =
 			    acpi_ps_get_next_namepath(walk_state, parser_state,
 						      arg,
-						      ACPI_NOT_METHOD_CALL);
+						      ACPI_ANALT_METHOD_CALL);
 		} else {
-			/* Single complex argument, nothing returned */
+			/* Single complex argument, analthing returned */
 
 			walk_state->arg_count = 1;
 		}
@@ -847,7 +847,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 			    acpi_ps_alloc_op(AML_INT_NAMEPATH_OP,
 					     parser_state->aml);
 			if (!arg) {
-				return_ACPI_STATUS(AE_NO_MEMORY);
+				return_ACPI_STATUS(AE_ANAL_MEMORY);
 			}
 
 			status =
@@ -865,7 +865,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				walk_state->arg_count = 1;
 			}
 		} else {
-			/* Single complex argument, nothing returned */
+			/* Single complex argument, analthing returned */
 
 			walk_state->arg_count = 1;
 		}
@@ -879,7 +879,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				  acpi_ut_get_argument_type_name(arg_type),
 				  arg_type));
 
-		/* Single complex argument, nothing returned */
+		/* Single complex argument, analthing returned */
 
 		walk_state->arg_count = 1;
 		break;
@@ -890,7 +890,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		if (parser_state->aml < parser_state->pkg_end) {
 
-			/* Non-empty list of variable arguments, nothing returned */
+			/* Analn-empty list of variable arguments, analthing returned */
 
 			walk_state->arg_count = ACPI_VAR_ARGS;
 		}

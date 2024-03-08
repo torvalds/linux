@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
 /*
- * RISCV (32 and 64) specific definitions for NOLIBC
+ * RISCV (32 and 64) specific definitions for ANALLIBC
  * Copyright (C) 2017-2022 Willy Tarreau <w@1wt.eu>
  */
 
-#ifndef _NOLIBC_ARCH_RISCV_H
-#define _NOLIBC_ARCH_RISCV_H
+#ifndef _ANALLIBC_ARCH_RISCV_H
+#define _ANALLIBC_ARCH_RISCV_H
 
 #include "compiler.h"
 #include "crt.h"
@@ -140,11 +140,11 @@
 })
 
 /* startup code */
-void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
+void __attribute__((weak, analreturn, optimize("Os", "omit-frame-pointer"))) __anal_stack_protector _start(void)
 {
 	__asm__ volatile (
 		".option push\n"
-		".option norelax\n"
+		".option analrelax\n"
 		"lla  gp, __global_pointer$\n"
 		".option pop\n"
 		"mv   a0, sp\n"           /* save stack pointer to a0, as arg1 of _start_c */
@@ -154,4 +154,4 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 	__builtin_unreachable();
 }
 
-#endif /* _NOLIBC_ARCH_RISCV_H */
+#endif /* _ANALLIBC_ARCH_RISCV_H */

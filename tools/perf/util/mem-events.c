@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -68,10 +68,10 @@ int perf_mem_events__parse(const char *str)
 	char *buf;
 	int j;
 
-	/* We need buffer that we know we can write to. */
+	/* We need buffer that we kanalw we can write to. */
 	buf = malloc(strlen(str) + 1);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strcpy(buf, str);
 
@@ -96,7 +96,7 @@ int perf_mem_events__parse(const char *str)
 	if (found)
 		return 0;
 
-	pr_err("failed: event '%s' not found, use '-e list' to get list of available events\n", str);
+	pr_err("failed: event '%s' analt found, use '-e list' to get list of available events\n", str);
 	return -1;
 }
 
@@ -119,7 +119,7 @@ int perf_mem_events__init(void)
 	int j;
 
 	if (!mnt)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
@@ -133,7 +133,7 @@ int perf_mem_events__init(void)
 			continue;
 
 		/*
-		 * Scan all PMUs not just core ones, since perf mem/c2c on
+		 * Scan all PMUs analt just core ones, since perf mem/c2c on
 		 * platforms like AMD uses IBS OP PMU which is independent
 		 * of core PMU.
 		 */
@@ -146,7 +146,7 @@ int perf_mem_events__init(void)
 		}
 	}
 
-	return found ? 0 : -ENOENT;
+	return found ? 0 : -EANALENT;
 }
 
 void perf_mem_events__list(void)
@@ -173,7 +173,7 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!perf_mem_event__supported(mnt, pmu, e)) {
-			pr_err("failed: event '%s' not supported\n",
+			pr_err("failed: event '%s' analt supported\n",
 			       perf_mem_events__name(idx, pmu->name));
 		}
 	}
@@ -193,7 +193,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 
 		if (perf_pmus__num_mem_pmus() == 1) {
 			if (!e->supported) {
-				pr_err("failed: event '%s' not supported\n",
+				pr_err("failed: event '%s' analt supported\n",
 				       perf_mem_events__name(j, NULL));
 				return -1;
 			}
@@ -311,11 +311,11 @@ static const char * const mem_hops[] = {
 	"N/A",
 	/*
 	 * While printing, 'Remote' will be added to represent
-	 * 'Remote core, same node' accesses as remote field need
+	 * 'Remote core, same analde' accesses as remote field need
 	 * to be set with mem_hops field.
 	 */
-	"core, same node",
-	"node, same socket",
+	"core, same analde",
+	"analde, same socket",
 	"socket, same board",
 	"board",
 };
@@ -339,7 +339,7 @@ static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_inf
 	else if (op & PERF_MEM_OP_EXEC)
 		l = scnprintf(out, sz, "EXEC");
 	else
-		l = scnprintf(out, sz, "No");
+		l = scnprintf(out, sz, "Anal");
 
 	return l;
 }
@@ -413,15 +413,15 @@ na:
 	return 3;
 }
 
-static const char * const snoop_access[] = {
+static const char * const sanalop_access[] = {
 	"N/A",
-	"None",
+	"Analne",
 	"Hit",
 	"Miss",
 	"HitM",
 };
 
-static const char * const snoopx_access[] = {
+static const char * const sanalopx_access[] = {
 	"Fwd",
 	"Peer",
 };
@@ -429,29 +429,29 @@ static const char * const snoopx_access[] = {
 int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
-	u64 m = PERF_MEM_SNOOP_NA;
+	u64 m = PERF_MEM_SANALOP_NA;
 
 	sz -= 1; /* -1 for null termination */
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_snoop;
+		m = mem_info->data_src.mem_sanalop;
 
-	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(sanalop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 		if (l) {
 			strcat(out, " or ");
 			l += 4;
 		}
-		l += scnprintf(out + l, sz - l, snoop_access[i]);
+		l += scnprintf(out + l, sz - l, sanalop_access[i]);
 	}
 
 	m = 0;
 	if (mem_info)
-		m = mem_info->data_src.mem_snoopx;
+		m = mem_info->data_src.mem_sanalopx;
 
-	for (i = 0; m && i < ARRAY_SIZE(snoopx_access); i++, m >>= 1) {
+	for (i = 0; m && i < ARRAY_SIZE(sanalopx_access); i++, m >>= 1) {
 		if (!(m & 0x1))
 			continue;
 
@@ -459,7 +459,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 			strcat(out, " or ");
 			l += 4;
 		}
-		l += scnprintf(out + l, sz - l, snoopx_access[i]);
+		l += scnprintf(out + l, sz - l, sanalopx_access[i]);
 	}
 
 	if (*out == '\0')
@@ -479,9 +479,9 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	if (mask & PERF_MEM_LOCK_NA)
 		l = scnprintf(out, sz, "N/A");
 	else if (mask & PERF_MEM_LOCK_LOCKED)
-		l = scnprintf(out, sz, "Yes");
+		l = scnprintf(out, sz, "Anal");
 	else
-		l = scnprintf(out, sz, "No");
+		l = scnprintf(out, sz, "Anal");
 
 	return l;
 }
@@ -535,16 +535,16 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 daddr  = mi->daddr.addr;
 	u64 op     = data_src->mem_op;
 	u64 lvl    = data_src->mem_lvl;
-	u64 snoop  = data_src->mem_snoop;
-	u64 snoopx = data_src->mem_snoopx;
+	u64 sanalop  = data_src->mem_sanalop;
+	u64 sanalopx = data_src->mem_sanalopx;
 	u64 lock   = data_src->mem_lock;
 	u64 blk    = data_src->mem_blk;
 	/*
-	 * Skylake might report unknown remote level via this
+	 * Skylake might report unkanalwn remote level via this
 	 * bit, consider it when evaluating remote HITMs.
 	 *
-	 * Incase of power, remote field can also be used to denote cache
-	 * accesses from the another core of same node. Hence, setting
+	 * Incase of power, remote field can also be used to deanalte cache
+	 * accesses from the aanalther core of same analde. Hence, setting
 	 * mrem only when HOPS is zero along with set remote field.
 	 */
 	bool mrem  = (data_src->mem_remote && !data_src->mem_hops);
@@ -576,7 +576,7 @@ do {				\
 		stats->load++;
 
 		if (!daddr) {
-			stats->ld_noadrs++;
+			stats->ld_analadrs++;
 			return -1;
 		}
 
@@ -588,22 +588,22 @@ do {				\
 			if (lvl & P(LVL, L2)) {
 				stats->ld_l2hit++;
 
-				if (snoopx & P(SNOOPX, PEER))
+				if (sanalopx & P(SANALOPX, PEER))
 					PEER_INC(lcl_peer);
 			}
 			if (lvl & P(LVL, L3 )) {
-				if (snoop & P(SNOOP, HITM))
+				if (sanalop & P(SANALOP, HITM))
 					HITM_INC(lcl_hitm);
 				else
 					stats->ld_llchit++;
 
-				if (snoopx & P(SNOOPX, PEER))
+				if (sanalopx & P(SANALOPX, PEER))
 					PEER_INC(lcl_peer);
 			}
 
 			if (lvl & P(LVL, LOC_RAM)) {
 				stats->lcl_dram++;
-				if (snoop & P(SNOOP, HIT))
+				if (sanalop & P(SANALOP, HIT))
 					stats->ld_shared++;
 				else
 					stats->ld_excl++;
@@ -613,7 +613,7 @@ do {				\
 			    (lvl & P(LVL, REM_RAM2)) ||
 			     mrem) {
 				stats->rmt_dram++;
-				if (snoop & P(SNOOP, HIT))
+				if (sanalop & P(SANALOP, HIT))
 					stats->ld_shared++;
 				else
 					stats->ld_excl++;
@@ -623,11 +623,11 @@ do {				\
 		if ((lvl & P(LVL, REM_CCE1)) ||
 		    (lvl & P(LVL, REM_CCE2)) ||
 		     mrem) {
-			if (snoop & P(SNOOP, HIT)) {
+			if (sanalop & P(SANALOP, HIT)) {
 				stats->rmt_hit++;
-			} else if (snoop & P(SNOOP, HITM)) {
+			} else if (sanalop & P(SANALOP, HITM)) {
 				HITM_INC(rmt_hitm);
-			} else if (snoopx & P(SNOOPX, PEER)) {
+			} else if (sanalopx & P(SANALOPX, PEER)) {
 				stats->rmt_hit++;
 				PEER_INC(rmt_peer);
 			}
@@ -641,7 +641,7 @@ do {				\
 		stats->store++;
 
 		if (!daddr) {
-			stats->st_noadrs++;
+			stats->st_analadrs++;
 			return -1;
 		}
 
@@ -655,12 +655,12 @@ do {				\
 			stats->st_na++;
 	} else {
 		/* unparsable data_src? */
-		stats->noparse++;
+		stats->analparse++;
 		return -1;
 	}
 
 	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
-		stats->nomap++;
+		stats->analmap++;
 		return -1;
 	}
 
@@ -676,7 +676,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->locks		+= add->locks;
 	stats->store		+= add->store;
 	stats->st_uncache	+= add->st_uncache;
-	stats->st_noadrs	+= add->st_noadrs;
+	stats->st_analadrs	+= add->st_analadrs;
 	stats->st_l1hit		+= add->st_l1hit;
 	stats->st_l1miss	+= add->st_l1miss;
 	stats->st_na		+= add->st_na;
@@ -686,7 +686,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->ld_uncache	+= add->ld_uncache;
 	stats->ld_io		+= add->ld_io;
 	stats->ld_miss		+= add->ld_miss;
-	stats->ld_noadrs	+= add->ld_noadrs;
+	stats->ld_analadrs	+= add->ld_analadrs;
 	stats->ld_fbhit		+= add->ld_fbhit;
 	stats->ld_l1hit		+= add->ld_l1hit;
 	stats->ld_l2hit		+= add->ld_l2hit;
@@ -702,6 +702,6 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->rmt_dram		+= add->rmt_dram;
 	stats->blk_data		+= add->blk_data;
 	stats->blk_addr		+= add->blk_addr;
-	stats->nomap		+= add->nomap;
-	stats->noparse		+= add->noparse;
+	stats->analmap		+= add->analmap;
+	stats->analparse		+= add->analparse;
 }

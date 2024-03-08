@@ -15,7 +15,7 @@ struct {
 
 SEC("socket")
 __description("invalid map_fd for function call")
-__failure __msg("fd 0 is not pointing to valid bpf_map")
+__failure __msg("fd 0 is analt pointing to valid bpf_map")
 __failure_unpriv
 __naked void map_fd_for_function_call(void)
 {

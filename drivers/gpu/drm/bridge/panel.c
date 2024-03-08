@@ -62,12 +62,12 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 	struct drm_connector *connector = &panel_bridge->connector;
 	int ret;
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Missing encoder\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	drm_connector_helper_add(connector,
@@ -101,7 +101,7 @@ static void panel_bridge_detach(struct drm_bridge *bridge)
 	struct drm_connector *connector = &panel_bridge->connector;
 
 	/*
-	 * Cleanup the connector if we know it was initialized.
+	 * Cleanup the connector if we kanalw it was initialized.
 	 *
 	 * FIXME: This wouldn't be needed if the panel_bridge structure was
 	 * allocated with drmm_kzalloc(). This might be tricky since the
@@ -242,7 +242,7 @@ EXPORT_SYMBOL(drm_bridge_is_panel);
  * drm_panel_bridge_add - Creates a &drm_bridge and &drm_connector that
  * just calls the appropriate functions from &drm_panel.
  *
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be analn-NULL.
  *
  * For drivers converting from directly using drm_panel: The expected
  * usage pattern is that during either encoder module probe or DSI
@@ -250,22 +250,22 @@ EXPORT_SYMBOL(drm_bridge_is_panel);
  * drm_of_find_panel_or_bridge().  drm_panel_bridge_add() is used to
  * wrap that panel in the new bridge, and the result can then be
  * passed to drm_bridge_attach().  The drm_panel_prepare() and related
- * functions can be dropped from the encoder driver (they're now
+ * functions can be dropped from the encoder driver (they're analw
  * called by the KMS helpers before calling into the encoder), along
  * with connector creation.  When done with the bridge (after
  * drm_mode_config_cleanup() if the bridge has already been attached), then
  * drm_panel_bridge_remove() to free it.
  *
  * The connector type is set to @panel->connector_type, which must be set to a
- * known type. Calling this function with a panel whose connector type is
- * DRM_MODE_CONNECTOR_Unknown will return ERR_PTR(-EINVAL).
+ * kanalwn type. Calling this function with a panel whose connector type is
+ * DRM_MODE_CONNECTOR_Unkanalwn will return ERR_PTR(-EINVAL).
  *
  * See devm_drm_panel_bridge_add() for an automatically managed version of this
  * function.
  */
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel)
 {
-	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unknown))
+	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unkanalwn))
 		return ERR_PTR(-EINVAL);
 
 	return drm_panel_bridge_add_typed(panel, panel->connector_type);
@@ -275,13 +275,13 @@ EXPORT_SYMBOL(drm_panel_bridge_add);
 /**
  * drm_panel_bridge_add_typed - Creates a &drm_bridge and &drm_connector with
  * an explicit connector type.
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be analn-NULL.
  * @connector_type: The connector type (DRM_MODE_CONNECTOR_*)
  *
  * This is just like drm_panel_bridge_add(), but forces the connector type to
  * @connector_type instead of infering it from the panel.
  *
- * This function is deprecated and should not be used in new drivers. Use
+ * This function is deprecated and should analt be used in new drivers. Use
  * drm_panel_bridge_add() instead, and fix panel drivers as necessary if they
  * don't report a connector type.
  */
@@ -296,13 +296,13 @@ struct drm_bridge *drm_panel_bridge_add_typed(struct drm_panel *panel,
 	panel_bridge = devm_kzalloc(panel->dev, sizeof(*panel_bridge),
 				    GFP_KERNEL);
 	if (!panel_bridge)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	panel_bridge->connector_type = connector_type;
 	panel_bridge->panel = panel;
 
 	panel_bridge->bridge.funcs = &panel_bridge_bridge_funcs;
-	panel_bridge->bridge.of_node = panel->dev->of_node;
+	panel_bridge->bridge.of_analde = panel->dev->of_analde;
 	panel_bridge->bridge.ops = DRM_BRIDGE_OP_MODES;
 	panel_bridge->bridge.type = connector_type;
 
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(drm_panel_bridge_remove);
  * @connector: The connector to be set panel orientation.
  * @bridge: The drm_bridge to be transformed to panel bridge.
  *
- * Returns 0 on success, negative errno on failure.
+ * Returns 0 on success, negative erranal on failure.
  */
 int drm_panel_bridge_set_orientation(struct drm_connector *connector,
 				     struct drm_bridge *bridge)
@@ -367,7 +367,7 @@ static void devm_drm_panel_bridge_release(struct device *dev, void *res)
  * devm_drm_panel_bridge_add - Creates a managed &drm_bridge and &drm_connector
  * that just calls the appropriate functions from &drm_panel.
  * @dev: device to tie the bridge lifetime to
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be analn-NULL.
  *
  * This is the managed version of drm_panel_bridge_add() which automatically
  * calls drm_panel_bridge_remove() when @dev is unbound.
@@ -375,7 +375,7 @@ static void devm_drm_panel_bridge_release(struct device *dev, void *res)
 struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
 					     struct drm_panel *panel)
 {
-	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unknown))
+	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unkanalwn))
 		return ERR_PTR(-EINVAL);
 
 	return devm_drm_panel_bridge_add_typed(dev, panel,
@@ -387,13 +387,13 @@ EXPORT_SYMBOL(devm_drm_panel_bridge_add);
  * devm_drm_panel_bridge_add_typed - Creates a managed &drm_bridge and
  * &drm_connector with an explicit connector type.
  * @dev: device to tie the bridge lifetime to
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be analn-NULL.
  * @connector_type: The connector type (DRM_MODE_CONNECTOR_*)
  *
  * This is just like devm_drm_panel_bridge_add(), but forces the connector type
  * to @connector_type instead of infering it from the panel.
  *
- * This function is deprecated and should not be used in new drivers. Use
+ * This function is deprecated and should analt be used in new drivers. Use
  * devm_drm_panel_bridge_add() instead, and fix panel drivers as necessary if
  * they don't report a connector type.
  */
@@ -406,7 +406,7 @@ struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
 	ptr = devres_alloc(devm_drm_panel_bridge_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bridge = drm_panel_bridge_add_typed(panel, connector_type);
 	if (IS_ERR(bridge)) {
@@ -436,7 +436,7 @@ static void drmm_drm_panel_bridge_release(struct drm_device *drm, void *ptr)
  *                         appropriate functions from &drm_panel.
  *
  * @drm: DRM device to tie the bridge lifetime to
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be analn-NULL.
  *
  * This is the DRM-managed version of drm_panel_bridge_add() which
  * automatically calls drm_panel_bridge_remove() when @dev is cleaned
@@ -486,11 +486,11 @@ EXPORT_SYMBOL(drm_panel_bridge_connector);
 /**
  * devm_drm_of_get_bridge - Return next bridge in the chain
  * @dev: device to tie the bridge lifetime to
- * @np: device tree node containing encoder output ports
- * @port: port in the device tree node
- * @endpoint: endpoint in the device tree node
+ * @np: device tree analde containing encoder output ports
+ * @port: port in the device tree analde
+ * @endpoint: endpoint in the device tree analde
  *
- * Given a DT node's port and endpoint number, finds the connected node
+ * Given a DT analde's port and endpoint number, finds the connected analde
  * and returns the associated bridge if any, or creates and returns a
  * drm panel bridge instance if a panel is connected.
  *
@@ -498,7 +498,7 @@ EXPORT_SYMBOL(drm_panel_bridge_connector);
  * otherwise.
  */
 struct drm_bridge *devm_drm_of_get_bridge(struct device *dev,
-					  struct device_node *np,
+					  struct device_analde *np,
 					  u32 port, u32 endpoint)
 {
 	struct drm_bridge *bridge;
@@ -520,11 +520,11 @@ EXPORT_SYMBOL(devm_drm_of_get_bridge);
 /**
  * drmm_of_get_bridge - Return next bridge in the chain
  * @drm: device to tie the bridge lifetime to
- * @np: device tree node containing encoder output ports
- * @port: port in the device tree node
- * @endpoint: endpoint in the device tree node
+ * @np: device tree analde containing encoder output ports
+ * @port: port in the device tree analde
+ * @endpoint: endpoint in the device tree analde
  *
- * Given a DT node's port and endpoint number, finds the connected node
+ * Given a DT analde's port and endpoint number, finds the connected analde
  * and returns the associated bridge if any, or creates and returns a
  * drm panel bridge instance if a panel is connected.
  *
@@ -532,7 +532,7 @@ EXPORT_SYMBOL(devm_drm_of_get_bridge);
  * pointer otherwise.
  */
 struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm,
-				      struct device_node *np,
+				      struct device_analde *np,
 				      u32 port, u32 endpoint)
 {
 	struct drm_bridge *bridge;

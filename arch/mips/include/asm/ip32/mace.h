@@ -147,10 +147,10 @@ struct mace_audio {
 
 /* register definitions for parallel port DMA */
 struct mace_parport {
-	/* 0 - do nothing,
+	/* 0 - do analthing,
 	 * 1 - pulse terminal count to the device after buffer is drained */
 #define MACEPAR_CONTEXT_LASTFLAG	BIT(63)
-	/* Should not cross 4K page boundary */
+	/* Should analt cross 4K page boundary */
 #define MACEPAR_CONTEXT_DATA_BOUND	0x0000000000001000UL
 #define MACEPAR_CONTEXT_DATALEN_MASK	0x00000fff00000000UL
 #define MACEPAR_CONTEXT_DATALEN_SHIFT	32
@@ -174,7 +174,7 @@ struct mace_parport {
 	/* Counter of bytes left */
 #define MACEPAR_DIAG_CTRMASK		0x0000000000003ffcUL
 #define MACEPAR_DIAG_CTRSHIFT		2
-	volatile u64 diagnostic;	/* RO: diagnostic register */
+	volatile u64 diaganalstic;	/* RO: diaganalstic register */
 };
 
 /* ISA Control and DMA registers */

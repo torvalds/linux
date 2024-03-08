@@ -2,7 +2,7 @@
 /*
  * phonet.c -- USB CDC Phonet host driver
  *
- * Copyright (C) 2008-2009 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2008-2009 Analkia Corporation. All rights reserved.
  *
  * Author: Rémi Denis-Courmont
  */
@@ -93,7 +93,7 @@ static void tx_complete(struct urb *req)
 		dev->stats.tx_bytes += skb->len;
 		break;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		dev->stats.tx_aborted_errors++;
@@ -119,9 +119,9 @@ static int rx_submit(struct usbpn_dev *pnd, struct urb *req, gfp_t gfp_flags)
 	struct page *page;
 	int err;
 
-	page = __dev_alloc_page(gfp_flags | __GFP_NOMEMALLOC);
+	page = __dev_alloc_page(gfp_flags | __GFP_ANALMEMALLOC);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_fill_bulk_urb(req, pnd->usb, pnd->rx_pipe, page_address(page),
 				PAGE_SIZE, rx_complete, dev);
@@ -180,7 +180,7 @@ static void rx_complete(struct urb *req)
 		}
 		goto resubmit;
 
-	case -ENOENT:
+	case -EANALENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		req = NULL;
@@ -223,7 +223,7 @@ static int usbpn_open(struct net_device *dev)
 		if (!req || rx_submit(pnd, req, GFP_KERNEL)) {
 			usb_free_urb(req);
 			usbpn_close(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		pnd->urbs[i] = req;
 	}
@@ -263,7 +263,7 @@ static int usbpn_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 		req->ifr_phonet_autoconf.device = PN_DEV_PC;
 		return 0;
 	}
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static const struct net_device_ops usbpn_ops = {
@@ -281,7 +281,7 @@ static void usbpn_setup(struct net_device *dev)
 	dev->netdev_ops		= &usbpn_ops;
 	dev->header_ops		= &phonet_header_ops;
 	dev->type		= ARPHRD_PHONET;
-	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags		= IFF_POINTOPOINT | IFF_ANALARP;
 	dev->mtu		= PHONET_MAX_MTU;
 	dev->min_mtu		= PHONET_MIN_MTU;
 	dev->max_mtu		= PHONET_MAX_MTU;
@@ -301,7 +301,7 @@ static const struct usb_device_id usbpn_ids[] = {
 		.match_flags = USB_DEVICE_ID_MATCH_VENDOR
 			| USB_DEVICE_ID_MATCH_INT_CLASS
 			| USB_DEVICE_ID_MATCH_INT_SUBCLASS,
-		.idVendor = 0x0421, /* Nokia */
+		.idVendor = 0x0421, /* Analkia */
 		.bInterfaceClass = USB_CLASS_COMM,
 		.bInterfaceSubClass = 0xFE,
 	},
@@ -337,7 +337,7 @@ static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	data_intf = usb_ifnum_to_if(usbdev, union_header->bSlaveInterface0);
 	if (data_intf == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 	/* Data interface has one inactive and one active setting */
 	if (data_intf->num_altsetting != 2)
 		return -EINVAL;
@@ -352,9 +352,9 @@ static int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *i
 		return -EINVAL;
 
 	dev = alloc_netdev(struct_size(pnd, urbs, rxq_size), ifname,
-			   NET_NAME_UNKNOWN, usbpn_setup);
+			   NET_NAME_UNKANALWN, usbpn_setup);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pnd = netdev_priv(dev);
 	SET_NETDEV_DEV(dev, &intf->dev);

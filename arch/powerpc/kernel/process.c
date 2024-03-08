@@ -10,7 +10,7 @@
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -87,7 +87,7 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 	/*
 	 * If we are saving the current thread's registers, and the
 	 * thread is in a transactional state, set the TIF_RESTORE_TM
-	 * bit so that we know to restore the registers before
+	 * bit so that we kanalw to restore the registers before
 	 * returning to userspace.
 	 */
 	if (tsk == current && tsk->thread.regs &&
@@ -115,8 +115,8 @@ static int __init enable_strict_msr_control(char *str)
 }
 early_param("ppc_strict_facility_enable", enable_strict_msr_control);
 
-/* notrace because it's called by restore_math */
-unsigned long notrace msr_check_and_set(unsigned long bits)
+/* analtrace because it's called by restore_math */
+unsigned long analtrace msr_check_and_set(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -133,8 +133,8 @@ unsigned long notrace msr_check_and_set(unsigned long bits)
 }
 EXPORT_SYMBOL_GPL(msr_check_and_set);
 
-/* notrace because it's called by restore_math */
-void notrace __msr_check_and_clear(unsigned long bits)
+/* analtrace because it's called by restore_math */
+void analtrace __msr_check_and_clear(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -181,7 +181,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	if (tsk->thread.regs) {
 		/*
 		 * We need to disable preemption here because if we didn't,
-		 * another process could get scheduled after the regs->msr
+		 * aanalther process could get scheduled after the regs->msr
 		 * test but before we have finished saving the FP registers
 		 * to the thread_struct.  That process could take over the
 		 * FPU, and then when we get scheduled again we would store
@@ -217,8 +217,8 @@ void enable_kernel_fp(void)
 		/*
 		 * If a thread has already been reclaimed then the
 		 * checkpointed registers are on the CPU but have definitely
-		 * been saved by the reclaim code. Don't need to and *cannot*
-		 * giveup as this would save  to the 'live' structure not the
+		 * been saved by the reclaim code. Don't need to and *cananalt*
+		 * giveup as this would save  to the 'live' structure analt the
 		 * checkpointed structure.
 		 */
 		if (!MSR_TM_ACTIVE(cpumsr) &&
@@ -268,8 +268,8 @@ void enable_kernel_altivec(void)
 		/*
 		 * If a thread has already been reclaimed then the
 		 * checkpointed registers are on the CPU but have definitely
-		 * been saved by the reclaim code. Don't need to and *cannot*
-		 * giveup as this would save  to the 'live' structure not the
+		 * been saved by the reclaim code. Don't need to and *cananalt*
+		 * giveup as this would save  to the 'live' structure analt the
 		 * checkpointed structure.
 		 */
 		if (!MSR_TM_ACTIVE(cpumsr) &&
@@ -339,8 +339,8 @@ void enable_kernel_vsx(void)
 		/*
 		 * If a thread has already been reclaimed then the
 		 * checkpointed registers are on the CPU but have definitely
-		 * been saved by the reclaim code. Don't need to and *cannot*
-		 * giveup as this would save  to the 'live' structure not the
+		 * been saved by the reclaim code. Don't need to and *cananalt*
+		 * giveup as this would save  to the 'live' structure analt the
 		 * checkpointed structure.
 		 */
 		if (!MSR_TM_ACTIVE(cpumsr) &&
@@ -506,15 +506,15 @@ static void do_restore_vsx(void) { }
 
 /*
  * The exception exit path calls restore_math() with interrupts hard disabled
- * but the soft irq state not "reconciled". ftrace code that calls
+ * but the soft irq state analt "reconciled". ftrace code that calls
  * local_irq_save/restore causes warnings.
  *
  * Rather than complicate the exit path, just don't trace restore_math. This
  * could be done by having ftrace entry code check for this un-reconciled
- * condition where MSR[EE]=0 and PACA_IRQ_HARD_DIS is not set, and
+ * condition where MSR[EE]=0 and PACA_IRQ_HARD_DIS is analt set, and
  * temporarily fix it up for the duration of the ftrace call.
  */
-void notrace restore_math(struct pt_regs *regs)
+void analtrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 	unsigned long new_msr = 0;
@@ -523,7 +523,7 @@ void notrace restore_math(struct pt_regs *regs)
 
 	/*
 	 * new_msr tracks the facilities that are to be restored. Only reload
-	 * if the bit is not set in the user MSR (if it is set, the registers
+	 * if the bit is analt set in the user MSR (if it is set, the registers
 	 * are live for the user thread).
 	 */
 	if ((!(msr & MSR_FP)) && should_restore_fp())
@@ -611,12 +611,12 @@ void do_send_trap(struct pt_regs *regs, unsigned long address,
 		  unsigned long error_code, int breakpt)
 {
 	current->thread.trap_nr = TRAP_HWBKPT;
-	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
-			11, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
+			11, SIGSEGV) == ANALTIFY_STOP)
 		return;
 
 	/* Deliver the signal to userspace */
-	force_sig_ptrace_errno_trap(breakpt, /* breakpoint or watchpoint id */
+	force_sig_ptrace_erranal_trap(breakpt, /* breakpoint or watchpoint id */
 				    (void __user *)address);
 }
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
@@ -632,7 +632,7 @@ static void do_break_handler(struct pt_regs *regs)
 	int i;
 
 	/*
-	 * If underneath hw supports only one watchpoint, we know it
+	 * If underneath hw supports only one watchpoint, we kanalw it
 	 * caused exception. 8xx also falls into this category.
 	 */
 	if (nr_wp_slots() == 1) {
@@ -661,8 +661,8 @@ static void do_break_handler(struct pt_regs *regs)
 DEFINE_INTERRUPT_HANDLER(do_break)
 {
 	current->thread.trap_nr = TRAP_HWBKPT;
-	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, regs->dsisr,
-			11, SIGSEGV) == NOTIFY_STOP)
+	if (analtify_die(DIE_DABR_MATCH, "dabr_match", regs, regs->dsisr,
+			11, SIGSEGV) == ANALTIFY_STOP)
 		return;
 
 	if (debugger_break_match(regs))
@@ -670,9 +670,9 @@ DEFINE_INTERRUPT_HANDLER(do_break)
 
 	/*
 	 * We reach here only when watchpoint exception is generated by ptrace
-	 * event (or hw is buggy!). Now if CONFIG_HAVE_HW_BREAKPOINT is set,
+	 * event (or hw is buggy!). Analw if CONFIG_HAVE_HW_BREAKPOINT is set,
 	 * watchpoint is already handled by hw_breakpoint_handler() so we don't
-	 * have to do anything. But when CONFIG_HAVE_HW_BREAKPOINT is not set,
+	 * have to do anything. But when CONFIG_HAVE_HW_BREAKPOINT is analt set,
 	 * we need to manually handle the watchpoint here.
 	 */
 	if (!IS_ENABLED(CONFIG_HAVE_HW_BREAKPOINT))
@@ -785,7 +785,7 @@ static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
 		return false;
 	if (a->len != b->len)
 		return false;
-	/* no need to check hw_len. it's calculated from address and len */
+	/* anal need to check hw_len. it's calculated from address and len */
 	return true;
 }
 
@@ -935,13 +935,13 @@ static void tm_reclaim_thread(struct thread_struct *thr, uint8_t cause)
 	/*
 	 * Use the current MSR TM suspended bit to track if we have
 	 * checkpointed state outstanding.
-	 * On signal delivery, we'd normally reclaim the checkpointed
+	 * On signal delivery, we'd analrmally reclaim the checkpointed
 	 * state to obtain stack pointer (see:get_tm_stackpointer()).
 	 * This will then directly return to userspace without going
 	 * through __switch_to(). However, if the stack frame is bad,
 	 * we need to exit this thread which calls __switch_to() which
 	 * will again attempt to reclaim the already saved tm state.
-	 * Hence we need to check that we've not already reclaimed
+	 * Hence we need to check that we've analt already reclaimed
 	 * this state.
 	 * We do this using the current MSR, rather tracking it in
 	 * some specific thread_struct bit, as it has the additional
@@ -963,7 +963,7 @@ static void tm_reclaim_thread(struct thread_struct *thr, uint8_t cause)
 	 * and the aborted transaction sees the correct state. We use
 	 * ckpt_regs.msr here as that's what tm_reclaim will use to
 	 * determine if it's going to write the checkpointed state or
-	 * not. So either this will write the checkpointed registers,
+	 * analt. So either this will write the checkpointed registers,
 	 * or reclaim will. Similarly for VMX.
 	 */
 	if ((thr->ckpt_regs.msr & MSR_FP) == 0)
@@ -1014,10 +1014,10 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 		 tsk->pid);
 
 out_and_saveregs:
-	/* Always save the regs here, even if a transaction's not active.
+	/* Always save the regs here, even if a transaction's analt active.
 	 * This context-switches a thread's TM info SPRs.  We do it here to
 	 * be consistent with the restore path (in recheckpoint) which
-	 * cannot happen later in _switch().
+	 * cananalt happen later in _switch().
 	 */
 	tm_save_sprs(thr);
 }
@@ -1039,7 +1039,7 @@ void tm_recheckpoint(struct thread_struct *thread)
 	hard_irq_disable();
 
 	/* The TM SPRs are restored here, so that TEXASR.FS can be set
-	 * before the trecheckpoint and no explosion occurs.
+	 * before the trecheckpoint and anal explosion occurs.
 	 */
 	tm_restore_sprs(thread);
 
@@ -1055,7 +1055,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 
 	/* Recheckpoint the registers of the thread we're about to switch to.
 	 *
-	 * If the task was using FP, we non-lazily reload both the original and
+	 * If the task was using FP, we analn-lazily reload both the original and
 	 * the speculative FP register states.  This is because the kernel
 	 * doesn't see if/when a TM rollback occurs, so if we take an FP
 	 * unavailable later, we are unable to determine which set of FP regs
@@ -1076,7 +1076,7 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 
 	/*
 	 * The checkpointed state has been restored but the live state has
-	 * not, ensure all the math functionality is turned off to trigger
+	 * analt, ensure all the math functionality is turned off to trigger
 	 * restore_math() to reload.
 	 */
 	new->thread.regs->msr &= ~(MSR_FP | MSR_VEC | MSR_VSX);
@@ -1114,8 +1114,8 @@ static inline void __switch_to_tm(struct task_struct *prev,
  * and keep the FP/VMX/VSX state loaded while ever the transaction
  * continues.  The reason is that if we didn't, and subsequently
  * got a FP/VMX/VSX unavailable interrupt inside a transaction,
- * we don't know whether it's the same transaction, and thus we
- * don't know which of the checkpointed state and the transactional
+ * we don't kanalw whether it's the same transaction, and thus we
+ * don't kanalw which of the checkpointed state and the transactional
  * state to use.
  */
 void restore_tm_state(struct pt_regs *regs)
@@ -1175,7 +1175,7 @@ static inline void save_sprs(struct thread_struct *t)
 		t->fscr = mfspr(SPRN_FSCR);
 
 		/*
-		 * Note that the TAR is not available for use in the kernel.
+		 * Analte that the TAR is analt available for use in the kernel.
 		 * (To provide this, the TAR should be backed up/restored on
 		 * exception entry/exit instead, and be in pt_regs.  FIXME,
 		 * this should be in pt_regs anyway (for debug).)
@@ -1296,11 +1296,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	/*
 	 * On POWER9 the copy-paste buffer can only paste into
-	 * foreign real addresses, so unprivileged processes can not
+	 * foreign real addresses, so unprivileged processes can analt
 	 * see the data or use it in any way unless they have
 	 * foreign real mappings. If the new process has the foreign
 	 * real address mappings, we must issue a cp_abort to clear
-	 * any state and prevent snooping, corruption or a covert
+	 * any state and prevent sanaloping, corruption or a covert
 	 * channel. ISA v3.1 supports paste into local memory.
 	 */
 	if (new->mm && (cpu_has_feature(CPU_FTR_ARCH_31) ||
@@ -1357,7 +1357,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	last = _switch(old_thread, new_thread);
 
 	/*
-	 * Nothing after _switch will be run for newly created tasks,
+	 * Analthing after _switch will be run for newly created tasks,
 	 * because they switch directly to ret_from_fork/ret_from_kernel_thread
 	 * etc. Code added here should have a comment explaining why that is
 	 * okay.
@@ -1380,7 +1380,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	/*
 	 * Math facilities are masked out of the child MSR in copy_thread.
-	 * A new task does not need to restore_math because it will
+	 * A new task does analt need to restore_math because it will
 	 * demand fault them.
 	 */
 	if (current->thread.regs)
@@ -1412,7 +1412,7 @@ static void show_instructions(struct pt_regs *regs)
 	for (i = 0; i < NR_INSN_TO_PRINT; i++) {
 		int instr;
 
-		if (get_kernel_nofault(instr, (const void *)pc)) {
+		if (get_kernel_analfault(instr, (const void *)pc)) {
 			pr_cont("XXXXXXXX ");
 		} else {
 			if (nip == pc)
@@ -1432,7 +1432,7 @@ void show_user_instructions(struct pt_regs *regs)
 	unsigned long pc;
 	int n = NR_INSN_TO_PRINT;
 	struct seq_buf s;
-	char buf[96]; /* enough for 8 times 9 + 2 chars */
+	char buf[96]; /* eanalugh for 8 times 9 + 2 chars */
 
 	pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
@@ -1446,7 +1446,7 @@ void show_user_instructions(struct pt_regs *regs)
 		for (i = 0; i < 8 && n; i++, n--, pc += sizeof(int)) {
 			int instr;
 
-			if (copy_from_user_nofault(&instr, (void __user *)pc,
+			if (copy_from_user_analfault(&instr, (void __user *)pc,
 					sizeof(instr))) {
 				seq_buf_printf(&s, "XXXXXXXX ");
 				continue;
@@ -1622,8 +1622,8 @@ void arch_setup_new_exec(void)
 		hash__setup_new_exec();
 #endif
 	/*
-	 * If we exec out of a kernel thread then thread.regs will not be
-	 * set.  Do it now.
+	 * If we exec out of a kernel thread then thread.regs will analt be
+	 * set.  Do it analw.
 	 */
 	if (!current->thread.regs) {
 		struct pt_regs *regs = task_stack_page(current) + THREAD_SIZE;
@@ -1639,14 +1639,14 @@ void arch_setup_new_exec(void)
 #ifdef CONFIG_PPC64
 /*
  * Assign a TIDR (thread ID) for task @t and set it in the thread
- * structure. For now, we only support setting TIDR for 'current' task.
+ * structure. For analw, we only support setting TIDR for 'current' task.
  *
  * Since the TID value is a truncated form of it PID, it is possible
  * (but unlikely) for 2 threads to have the same TID. In the unlikely event
  * that 2 threads share the same TID and are waiting, one of the following
  * cases will happen:
  *
- * 1. The correct thread is running, the wrong thread is not
+ * 1. The correct thread is running, the wrong thread is analt
  * In this situation, the correct thread is woken and proceeds to pass it's
  * condition check.
  *
@@ -1656,7 +1656,7 @@ void arch_setup_new_exec(void)
  * by a condition check, which will pass for the correct thread and fail
  * for the wrong thread, or they will execute the condition check immediately.
  *
- * 3. The wrong thread is running, the correct thread is not
+ * 3. The wrong thread is running, the correct thread is analt
  * The wrong thread will be woken, but will fail it's condition check and
  * re-execute wait. The correct thread, when scheduled, will execute either
  * it's condition check (which will pass), or wait, which returns immediately
@@ -1665,7 +1665,7 @@ void arch_setup_new_exec(void)
  *
  * 4. Both threads are running
  * Both threads will be woken. The wrong thread will fail it's condition check
- * and execute another wait, while the correct thread will pass it's condition
+ * and execute aanalther wait, while the correct thread will pass it's condition
  * check.
  *
  * @t: the task to set the thread ID for
@@ -1766,7 +1766,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		((unsigned long *)sp)[0] = 0;
 
 		f = start_kernel_thread;
-		p->thread.regs = NULL;	/* no user register state */
+		p->thread.regs = NULL;	/* anal user register state */
 		clear_tsk_compat_task(p);
 	} else {
 		/* user thread */
@@ -1838,7 +1838,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	kregs->nip = ppc_function_entry(f);
 	if (unlikely(args->fn)) {
 		/*
-		 * Put kthread fn, arg parameters in non-volatile GPRs in the
+		 * Put kthread fn, arg parameters in analn-volatile GPRs in the
 		 * switch frame so they are loaded by _switch before it returns
 		 * to ret_from_kernel_thread.
 		 */
@@ -1859,10 +1859,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.vr_save_area = NULL;
 #endif
 #if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
-	p->thread.kuap = KUAP_NONE;
+	p->thread.kuap = KUAP_ANALNE;
 #endif
 #if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
-	p->thread.pid = MMU_NO_CONTEXT;
+	p->thread.pid = MMU_ANAL_CONTEXT;
 #endif
 
 	setup_ksp_vsid(p, sp);
@@ -1899,7 +1899,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/*
 	 * Clear any transactional state, we're exec()ing. The cause is
-	 * not important as there will never be a recheckpoint so it's not
+	 * analt important as there will never be a recheckpoint so it's analt
 	 * user visible.
 	 */
 	if (MSR_TM_SUSPENDED(mfmsr()))
@@ -1922,7 +1922,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		unsigned long entry;
 
 		if (is_elf2_task()) {
-			/* Look ma, no function descriptors! */
+			/* Look ma, anal function descriptors! */
 			entry = start;
 
 			/*
@@ -2040,11 +2040,11 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 		}
 	}
 
-	/* on a CONFIG_SPE this does not hurt us.  The bits that
-	 * __pack_fe01 use do not overlap with bits used for
+	/* on a CONFIG_SPE this does analt hurt us.  The bits that
+	 * __pack_fe01 use do analt overlap with bits used for
 	 * PR_FP_EXC_SW_ENABLE.  Additionally, the MSR[FE0,FE1] bits
 	 * on CONFIG_SPE implementations are reserved so writing to
-	 * them does not change anything */
+	 * them does analt change anything */
 	if (val > PR_FP_EXC_PRECISE)
 		return -EINVAL;
 	tsk->thread.fpexc_mode = __pack_fe01(val);
@@ -2232,11 +2232,11 @@ static unsigned long ___get_wchan(struct task_struct *p)
 		return 0;
 
 	do {
-		sp = READ_ONCE_NOCHECK(*(unsigned long *)sp);
+		sp = READ_ONCE_ANALCHECK(*(unsigned long *)sp);
 		if (!validate_sp(sp, p) || task_is_running(p))
 			return 0;
 		if (count > 0) {
-			ip = READ_ONCE_NOCHECK(((unsigned long *)sp)[STACK_FRAME_LR_SAVE]);
+			ip = READ_ONCE_ANALCHECK(((unsigned long *)sp)[STACK_FRAME_LR_SAVE]);
 			if (!in_sched_functions(ip))
 				return ip;
 		}
@@ -2262,7 +2262,7 @@ static bool empty_user_regs(struct pt_regs *regs, struct task_struct *tsk)
 {
 	unsigned long stack_page;
 
-	// A non-empty pt_regs should never have a zero MSR or TRAP value.
+	// A analn-empty pt_regs should never have a zero MSR or TRAP value.
 	if (regs->msr || regs->trap)
 		return false;
 
@@ -2276,7 +2276,7 @@ static bool empty_user_regs(struct pt_regs *regs, struct task_struct *tsk)
 
 static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
-void __no_sanitize_address show_stack(struct task_struct *tsk,
+void __anal_sanitize_address show_stack(struct task_struct *tsk,
 				      unsigned long *stack,
 				      const char *loglvl)
 {
@@ -2327,7 +2327,7 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 		 * We look for the "regs" marker in the current frame.
 		 *
 		 * STACK_SWITCH_FRAME_SIZE being the smallest frame that
-		 * could hold a pt_regs, if that does not fit then it can't
+		 * could hold a pt_regs, if that does analt fit then it can't
 		 * have regs.
 		 */
 		if (validate_sp_size(sp, tsk, STACK_SWITCH_FRAME_SIZE)
@@ -2357,14 +2357,14 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 
 #ifdef CONFIG_PPC64
 /* Called with hard IRQs off */
-void notrace __ppc64_runlatch_on(void)
+void analtrace __ppc64_runlatch_on(void)
 {
 	struct thread_info *ti = current_thread_info();
 
 	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
 		/*
 		 * Least significant bit (RUN) is the only writable bit of
-		 * the CTRL register, so we can avoid mfspr. 2.06 is not the
+		 * the CTRL register, so we can avoid mfspr. 2.06 is analt the
 		 * earliest ISA where this is the case, but it's convenient.
 		 */
 		mtspr(SPRN_CTRLT, CTRL_RUNLATCH);
@@ -2384,7 +2384,7 @@ void notrace __ppc64_runlatch_on(void)
 }
 
 /* Called with hard IRQs off */
-void notrace __ppc64_runlatch_off(void)
+void analtrace __ppc64_runlatch_off(void)
 {
 	struct thread_info *ti = current_thread_info();
 
@@ -2404,7 +2404,7 @@ void notrace __ppc64_runlatch_off(void)
 
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }

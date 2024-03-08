@@ -38,7 +38,7 @@ properties:
 
   vref-supply:
     description:
-      If not supplied devices will use internal regulators.
+      If analt supplied devices will use internal regulators.
 
 required:
   - compatible

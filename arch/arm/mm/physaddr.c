@@ -15,7 +15,7 @@
 static inline bool __virt_addr_valid(unsigned long x)
 {
 	/*
-	 * high_memory does not get immediately defined, and there
+	 * high_memory does analt get immediately defined, and there
 	 * are early callers of __pa() against PAGE_OFFSET
 	 */
 	if (!high_memory && x >= PAGE_OFFSET)
@@ -25,8 +25,8 @@ static inline bool __virt_addr_valid(unsigned long x)
 		return true;
 
 	/*
-	 * MAX_DMA_ADDRESS is a virtual address that may not correspond to an
-	 * actual physical address. Enough code relies on __pa(MAX_DMA_ADDRESS)
+	 * MAX_DMA_ADDRESS is a virtual address that may analt correspond to an
+	 * actual physical address. Eanalugh code relies on __pa(MAX_DMA_ADDRESS)
 	 * that we just need to work around it and always return true.
 	 */
 	if (x == MAX_DMA_ADDRESS)
@@ -38,10 +38,10 @@ static inline bool __virt_addr_valid(unsigned long x)
 phys_addr_t __virt_to_phys(unsigned long x)
 {
 	WARN(!__virt_addr_valid(x),
-	     "virt_to_phys used for non-linear address: %pK (%pS)\n",
+	     "virt_to_phys used for analn-linear address: %pK (%pS)\n",
 	     (void *)x, (void *)x);
 
-	return __virt_to_phys_nodebug(x);
+	return __virt_to_phys_analdebug(x);
 }
 EXPORT_SYMBOL(__virt_to_phys);
 
@@ -53,6 +53,6 @@ phys_addr_t __phys_addr_symbol(unsigned long x)
 	VIRTUAL_BUG_ON(x < (unsigned long)KERNEL_START ||
 		       x > (unsigned long)KERNEL_END);
 
-	return __pa_symbol_nodebug(x);
+	return __pa_symbol_analdebug(x);
 }
 EXPORT_SYMBOL(__phys_addr_symbol);

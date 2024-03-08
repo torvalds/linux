@@ -53,7 +53,7 @@ static int mv_otg_set_vbus(struct usb_otg *otg, bool on)
 {
 	struct mv_otg *mvotg = container_of(otg->usb_phy, struct mv_otg, phy);
 	if (mvotg->pdata->set_vbus == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return mvotg->pdata->set_vbus(on);
 }
@@ -91,7 +91,7 @@ static void mv_otg_timer_await_bcon(struct timer_list *t)
 
 	mvotg->otg_ctrl.a_wait_bcon_timeout = 1;
 
-	dev_info(&mvotg->pdev->dev, "B Device No Response!\n");
+	dev_info(&mvotg->pdev->dev, "B Device Anal Response!\n");
 
 	if (spin_trylock(&mvotg->wq_lock)) {
 		mv_otg_run_state_machine(mvotg, 0);
@@ -427,7 +427,7 @@ run:
 				mv_otg_start_periphrals(mvotg, 0);
 			mv_otg_reset(mvotg);
 			mv_otg_disable(mvotg);
-			usb_phy_set_event(&mvotg->phy, USB_EVENT_NONE);
+			usb_phy_set_event(&mvotg->phy, USB_EVENT_ANALNE);
 			break;
 		case OTG_STATE_B_PERIPHERAL:
 			mv_otg_enable(mvotg);
@@ -450,8 +450,8 @@ run:
 			mv_otg_set_timer(mvotg, A_WAIT_BCON_TIMER,
 					 T_A_WAIT_BCON);
 			/*
-			 * Now, we directly enter A_HOST. So set b_conn = 1
-			 * here. In fact, it need host driver to notify us.
+			 * Analw, we directly enter A_HOST. So set b_conn = 1
+			 * here. In fact, it need host driver to analtify us.
 			 */
 			mvotg->otg_ctrl.b_conn = 1;
 			break;
@@ -459,8 +459,8 @@ run:
 			break;
 		case OTG_STATE_A_WAIT_VFALL:
 			/*
-			 * Now, we has exited A_HOST. So set b_conn = 0
-			 * here. In fact, it need host driver to notify us.
+			 * Analw, we has exited A_HOST. So set b_conn = 0
+			 * here. In fact, it need host driver to analtify us.
 			 */
 			mvotg->otg_ctrl.b_conn = 0;
 			mv_otg_set_vbus(otg, 0);
@@ -489,10 +489,10 @@ static irqreturn_t mv_otg_irq(int irq, void *dev)
 	if (mvotg->pdata->vbus)
 		if ((otgsc & OTGSC_STS_USB_ID) &&
 		    !(otgsc & OTGSC_INTSTS_USB_ID))
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 	if ((otgsc & mvotg->irq_status) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mv_otg_run_state_machine(mvotg, 0);
 
@@ -666,16 +666,16 @@ static int mv_otg_probe(struct platform_device *pdev)
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "failed to get platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	mvotg = devm_kzalloc(&pdev->dev, sizeof(*mvotg), GFP_KERNEL);
 	if (!mvotg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, mvotg);
 
@@ -688,8 +688,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 
 	mvotg->qwork = create_singlethread_workqueue("mv_otg_queue");
 	if (!mvotg->qwork) {
-		dev_dbg(&pdev->dev, "cannot create workqueue for OTG\n");
-		return -ENOMEM;
+		dev_dbg(&pdev->dev, "cananalt create workqueue for OTG\n");
+		return -EANALMEM;
 	}
 
 	INIT_DELAYED_WORK(&mvotg->work, mv_otg_work);
@@ -713,8 +713,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(mvotg->pdev,
 					 IORESOURCE_MEM, "phyregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no phy I/O memory resource defined\n");
-		retval = -ENODEV;
+		dev_err(&pdev->dev, "anal phy I/O memory resource defined\n");
+		retval = -EANALDEV;
 		goto err_destroy_workqueue;
 	}
 
@@ -728,8 +728,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 	r = platform_get_resource_byname(mvotg->pdev,
 					 IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		retval = -ENODEV;
+		dev_err(&pdev->dev, "anal I/O memory resource defined\n");
+		retval = -EANALDEV;
 		goto err_destroy_workqueue;
 	}
 
@@ -784,8 +784,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(mvotg->pdev, IORESOURCE_IRQ, 0);
 	if (r == NULL) {
-		dev_err(&pdev->dev, "no IRQ resource defined\n");
-		retval = -ENODEV;
+		dev_err(&pdev->dev, "anal IRQ resource defined\n");
+		retval = -EANALDEV;
 		goto err_disable_clk;
 	}
 
@@ -795,7 +795,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Request irq %d for OTG failed\n",
 			mvotg->irq);
 		mvotg->irq = 0;
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_disable_clk;
 	}
 
@@ -833,7 +833,7 @@ static int mv_otg_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (mvotg->phy.otg->state != OTG_STATE_B_IDLE) {
 		dev_info(&pdev->dev,
-			 "OTG state is not B_IDLE, it is %d!\n",
+			 "OTG state is analt B_IDLE, it is %d!\n",
 			 mvotg->phy.otg->state);
 		return -EAGAIN;
 	}

@@ -2,7 +2,7 @@
 /*
  * PWM driver for Rockchip SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  * Copyright (C) 2014 ROCKCHIP, Inc.
  */
 
@@ -92,7 +92,7 @@ static int rockchip_pwm_get_state(struct pwm_chip *chip,
 	if (pc->data->supports_polarity && !(val & PWM_DUTY_POSITIVE))
 		state->polarity = PWM_POLARITY_INVERSED;
 	else
-		state->polarity = PWM_POLARITY_NORMAL;
+		state->polarity = PWM_POLARITY_ANALRMAL;
 
 	clk_disable(pc->clk);
 	clk_disable(pc->pclk);
@@ -124,7 +124,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Lock the period and duty of previous configuration, then
-	 * change the duty and period, that would not be effective.
+	 * change the duty and period, that would analt be effective.
 	 */
 	ctrl = readl_relaxed(pc->base + pc->data->regs.ctrl);
 	if (pc->data->supports_lock) {
@@ -303,7 +303,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->base))
@@ -317,7 +317,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 					     "Can't get PWM clk\n");
 	}
 
-	count = of_count_phandle_with_args(pdev->dev.of_node,
+	count = of_count_phandle_with_args(pdev->dev.of_analde,
 					   "clocks", "#clock-cells");
 	if (count == 2)
 		pc->pclk = devm_clk_get(&pdev->dev, "pclk");
@@ -390,6 +390,6 @@ static struct platform_driver rockchip_pwm_driver = {
 };
 module_platform_driver(rockchip_pwm_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Rockchip SoC PWM driver");
 MODULE_LICENSE("GPL v2");

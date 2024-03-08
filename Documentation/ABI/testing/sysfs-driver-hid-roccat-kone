@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/actual_dpi
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/actual_dpi
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	It is possible to switch the dpi setting of the mouse with the
@@ -22,7 +22,7 @@ Description:	It is possible to switch the dpi setting of the mouse with the
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/actual_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/actual_profile
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the number of the actual profile.
@@ -30,7 +30,7 @@ Description:	When read, this file returns the number of the actual profile.
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/firmware_version
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/firmware_version
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the raw integer version number of the
@@ -42,7 +42,7 @@ Description:	When read, this file returns the raw integer version number of the
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/profile[1-5]
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/profile[1-5]
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
@@ -61,7 +61,7 @@ Description:	The mouse can store 5 profiles which can be switched by the
 		store.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/settings
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/settings
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns the settings stored in the mouse.
@@ -73,7 +73,7 @@ Description:	When read, this file returns the settings stored in the mouse.
 		data.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/startup_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/startup_profile
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The integer value of this attribute ranges from 1 to 5.
@@ -85,7 +85,7 @@ Description:	The integer value of this attribute ranges from 1 to 5.
 		and the mouse activates this profile immediately.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/tcu
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/tcu
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse has a "Tracking Control Unit" which lets the user
@@ -100,7 +100,7 @@ Description:	The mouse has a "Tracking Control Unit" which lets the user
 
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<minor>/weight
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/kone/roccatkone<mianalr>/weight
 Date:		March 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can be equipped with one of four supplied weights
@@ -114,7 +114,7 @@ Description:	The mouse can be equipped with one of four supplied weights
 		===== ======
 		VALUE WEIGHT
 		===== ======
-		0     none
+		0     analne
 		1     5g
 		2     10g
 		3     15g

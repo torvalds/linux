@@ -67,12 +67,12 @@ static int ip6t_nat_register_lookups(struct net *net)
 
 	table = xt_find_table(net, NFPROTO_IPV6, "nat");
 	if (WARN_ON_ONCE(!table))
-		return -ENOENT;
+		return -EANALENT;
 
 	xt_nat_net = net_generic(net, ip6table_nat_net_id);
 	ops = kmemdup(nf_nat_ipv6_ops, sizeof(nf_nat_ipv6_ops), GFP_KERNEL);
 	if (!ops)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(nf_nat_ipv6_ops); i++) {
 		ops[i].priv = table;
@@ -112,7 +112,7 @@ static int ip6table_nat_table_init(struct net *net)
 
 	repl = ip6t_alloc_initial_table(&nf_nat_ipv6_table);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ip6t_register_table(net, &nf_nat_ipv6_table, repl,
 				  NULL);
 	if (ret < 0) {

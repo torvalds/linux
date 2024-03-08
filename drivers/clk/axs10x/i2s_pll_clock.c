@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Synopsys AXS10X SDP I2S PLL clock driver
+ * Syanalpsys AXS10X SDP I2S PLL clock driver
  *
- * Copyright (C) 2016 Synopsys
+ * Copyright (C) 2016 Syanalpsys
  */
 
 #include <linux/platform_device.h>
@@ -163,7 +163,7 @@ static const struct clk_ops i2s_pll_ops = {
 static int i2s_pll_clk_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	const char *clk_name;
 	const char *parent_name;
 	struct clk *clk;
@@ -172,17 +172,17 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 
 	pll_clk = devm_kzalloc(dev, sizeof(*pll_clk), GFP_KERNEL);
 	if (!pll_clk)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_clk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pll_clk->base))
 		return PTR_ERR(pll_clk->base);
 
 	memset(&init, 0, sizeof(init));
-	clk_name = node->name;
+	clk_name = analde->name;
 	init.name = clk_name;
 	init.ops = &i2s_pll_ops;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	pll_clk->hw.init = &init;
@@ -195,12 +195,12 @@ static int i2s_pll_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 	}
 
-	return of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	return of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 }
 
 static void i2s_pll_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 }
 
 static const struct of_device_id i2s_pll_clk_id[] = {
@@ -219,6 +219,6 @@ static struct platform_driver i2s_pll_clk_driver = {
 };
 module_platform_driver(i2s_pll_clk_driver);
 
-MODULE_AUTHOR("Jose Abreu <joabreu@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10X SDP I2S PLL Clock Driver");
+MODULE_AUTHOR("Jose Abreu <joabreu@syanalpsys.com>");
+MODULE_DESCRIPTION("Syanalpsys AXS10X SDP I2S PLL Clock Driver");
 MODULE_LICENSE("GPL v2");

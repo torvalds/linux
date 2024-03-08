@@ -4,10 +4,10 @@
 #define __CPUIDLE_PSCI_H
 
 struct device;
-struct device_node;
+struct device_analde;
 
 void psci_set_domain_state(u32 state);
-int psci_dt_parse_state_node(struct device_node *np, u32 *state);
+int psci_dt_parse_state_analde(struct device_analde *np, u32 *state);
 
 #ifdef CONFIG_ARM_PSCI_CPUIDLE_DOMAIN
 

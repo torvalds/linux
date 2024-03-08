@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  *
  * The Sparx5 Chip Register Model can be browsed at this location:
  * https://github.com/microchip-ung/sparx-5_reginfo
@@ -227,7 +227,7 @@ static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx
 	db_hw->dataptr = dma_addr;
 	packet_size = FDMA_DCB_STATUS_BLOCKL(db_hw->status);
 	skb_put(skb, packet_size);
-	/* Now do the normal processing of the skb */
+	/* Analw do the analrmal processing of the skb */
 	sparx5_ifh_parse((u32 *)skb->data, &fi);
 	/* Map to port netdev */
 	port = fi.src_port < SPX5_PORTS ?  sparx5->ports[fi.src_port] : NULL;
@@ -246,7 +246,7 @@ static bool sparx5_fdma_rx_get_frame(struct sparx5 *sparx5, struct sparx5_rx *rx
 	/* Everything we see on an interface that is in the HW bridge
 	 * has already been forwarded
 	 */
-	if (test_bit(port->portno, sparx5->bridge_mask))
+	if (test_bit(port->portanal, sparx5->bridge_mask))
 		skb->offload_fwd_mark = 1;
 	skb->dev->stats.rx_bytes += skb->len;
 	skb->dev->stats.rx_packets++;
@@ -352,18 +352,18 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 	size = ALIGN(size, PAGE_SIZE);
 	rx->dcb_entries = devm_kzalloc(sparx5->dev, size, GFP_KERNEL);
 	if (!rx->dcb_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 	rx->dma = virt_to_phys(rx->dcb_entries);
 	rx->last_entry = rx->dcb_entries;
 	rx->db_index = 0;
 	rx->dcb_index = 0;
-	/* Now for each dcb allocate the db */
+	/* Analw for each dcb allocate the db */
 	for (idx = 0; idx < FDMA_DCB_MAX; ++idx) {
 		dcb = &rx->dcb_entries[idx];
 		dcb->info = 0;
 		/* For each db allocate an skb and map skb data pointer to the DB
 		 * dataptr. In this way when the frame is received the skb->data
-		 * will contain the frame, so no memcpy is needed
+		 * will contain the frame, so anal memcpy is needed
 		 */
 		for (jdx = 0; jdx < FDMA_RX_DCB_MAX_DBS; ++jdx) {
 			struct sparx5_db_hw *db_hw = &dcb->db[jdx];
@@ -372,7 +372,7 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 
 			skb = sparx5_fdma_rx_alloc_skb(rx);
 			if (!skb)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			dma_addr = virt_to_phys(skb->data);
 			db_hw->dataptr = dma_addr;
@@ -399,11 +399,11 @@ static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 	size = ALIGN(size, PAGE_SIZE);
 	tx->curr_entry = devm_kzalloc(sparx5->dev, size, GFP_KERNEL);
 	if (!tx->curr_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 	tx->dma = virt_to_phys(tx->curr_entry);
 	tx->first_entry = tx->curr_entry;
 	INIT_LIST_HEAD(&tx->db_list);
-	/* Now for each dcb allocate the db */
+	/* Analw for each dcb allocate the db */
 	for (idx = 0; idx < FDMA_DCB_MAX; ++idx) {
 		dcb = &tx->curr_entry[idx];
 		dcb->info = 0;
@@ -418,13 +418,13 @@ static int sparx5_fdma_tx_alloc(struct sparx5 *sparx5)
 						FDMA_XTR_BUFFER_SIZE,
 						GFP_KERNEL);
 			if (!cpu_addr)
-				return -ENOMEM;
+				return -EANALMEM;
 			phys = virt_to_phys(cpu_addr);
 			db_hw->dataptr = phys;
 			db_hw->status = 0;
 			db = devm_kzalloc(sparx5->dev, sizeof(*db), GFP_KERNEL);
 			if (!db)
-				return -ENOMEM;
+				return -EANALMEM;
 			db->cpu_addr = cpu_addr;
 			list_add_tail(&db->list, &tx->db_list);
 		}
@@ -487,7 +487,7 @@ irqreturn_t sparx5_fdma_handler(int irq, void *args)
 static void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
 {
 	const int byte_swap = 1;
-	int portno;
+	int portanal;
 	int urgency;
 
 	/* Change mode to fdma extraction and injection */
@@ -500,24 +500,24 @@ static void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
 		sparx5, QS_INJ_GRP_CFG(INJ_QUEUE));
 
 	/* CPU ports capture setup */
-	for (portno = SPX5_PORT_CPU_0; portno <= SPX5_PORT_CPU_1; portno++) {
-		/* ASM CPU port: No preamble, IFH, enable padding */
+	for (portanal = SPX5_PORT_CPU_0; portanal <= SPX5_PORT_CPU_1; portanal++) {
+		/* ASM CPU port: Anal preamble, IFH, enable padding */
 		spx5_wr(ASM_PORT_CFG_PAD_ENA_SET(1) |
-			ASM_PORT_CFG_NO_PREAMBLE_ENA_SET(1) |
+			ASM_PORT_CFG_ANAL_PREAMBLE_ENA_SET(1) |
 			ASM_PORT_CFG_INJ_FORMAT_CFG_SET(1), /* 1 = IFH */
-			sparx5, ASM_PORT_CFG(portno));
+			sparx5, ASM_PORT_CFG(portanal));
 
 		/* Reset WM cnt to unclog queued frames */
 		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR_SET(1),
 			 DSM_DEV_TX_STOP_WM_CFG_DEV_TX_CNT_CLR,
 			 sparx5,
-			 DSM_DEV_TX_STOP_WM_CFG(portno));
+			 DSM_DEV_TX_STOP_WM_CFG(portanal));
 
 		/* Set Disassembler Stop Watermark level */
 		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV_TX_STOP_WM_SET(100),
 			 DSM_DEV_TX_STOP_WM_CFG_DEV_TX_STOP_WM,
 			 sparx5,
-			 DSM_DEV_TX_STOP_WM_CFG(portno));
+			 DSM_DEV_TX_STOP_WM_CFG(portanal));
 
 		/* Enable port in queue system */
 		urgency = sparx5_port_fwd_urg(sparx5, SPEED_2500);
@@ -526,7 +526,7 @@ static void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
 			 QFWD_SWITCH_PORT_MODE_PORT_ENA |
 			 QFWD_SWITCH_PORT_MODE_FWD_URGENCY,
 			 sparx5,
-			 QFWD_SWITCH_PORT_MODE(portno));
+			 QFWD_SWITCH_PORT_MODE(portanal));
 
 		/* Disable Disassembler buffer underrun watchdog
 		 * to avoid truncated packets in XTR
@@ -534,13 +534,13 @@ static void sparx5_fdma_injection_mode(struct sparx5 *sparx5)
 		spx5_rmw(DSM_BUF_CFG_UNDERFLOW_WATCHDOG_DIS_SET(1),
 			 DSM_BUF_CFG_UNDERFLOW_WATCHDOG_DIS,
 			 sparx5,
-			 DSM_BUF_CFG(portno));
+			 DSM_BUF_CFG(portanal));
 
 		/* Disabling frame aging */
 		spx5_rmw(HSCH_PORT_MODE_AGE_DIS_SET(1),
 			 HSCH_PORT_MODE_AGE_DIS,
 			 sparx5,
-			 HSCH_PORT_MODE(portno));
+			 HSCH_PORT_MODE(portanal));
 	}
 }
 
@@ -566,12 +566,12 @@ int sparx5_fdma_start(struct sparx5 *sparx5)
 	sparx5_fdma_tx_init(sparx5, &sparx5->tx, FDMA_INJ_CHANNEL);
 	err = sparx5_fdma_rx_alloc(sparx5);
 	if (err) {
-		dev_err(sparx5->dev, "Could not allocate RX buffers: %d\n", err);
+		dev_err(sparx5->dev, "Could analt allocate RX buffers: %d\n", err);
 		return err;
 	}
 	err = sparx5_fdma_tx_alloc(sparx5);
 	if (err) {
-		dev_err(sparx5->dev, "Could not allocate TX buffers: %d\n", err);
+		dev_err(sparx5->dev, "Could analt allocate TX buffers: %d\n", err);
 		return err;
 	}
 	return err;

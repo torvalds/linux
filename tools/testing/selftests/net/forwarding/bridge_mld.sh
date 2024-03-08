@@ -6,7 +6,7 @@ ALL_TESTS="mldv2include_test mldv2inc_allow_test mldv2inc_is_include_test mldv2i
 	   mldv2exc_is_exclude_test mldv2exc_to_exclude_test mldv2inc_block_test \
 	   mldv2exc_block_test mldv2exc_timeout_test mldv2star_ex_auto_add_test"
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="anal"
 TEST_GROUP="ff02::cc"
 TEST_GROUP_MAC="33:33:00:00:00:cc"
 
@@ -86,7 +86,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge mcast_snooping 1 mcast_query_response_interval 100 \
+	ip link add dev br0 type bridge mcast_sanaloping 1 mcast_query_response_interval 100 \
 					mcast_mld_version 2 mcast_startup_query_interval 300 \
 					mcast_querier 1
 
@@ -143,7 +143,7 @@ mldv2include_prepare()
 	local X=("2001:db8:1::1" "2001:db8:1::2" "2001:db8:1::3")
 
 	ip link set dev br0 type bridge mcast_mld_version 2
-	check_err $? "Could not change bridge MLD version to 2"
+	check_err $? "Could analt change bridge MLD version to 2"
 
 	$MZ $host1_if $MZPKT_IS_INC -q
 	sleep 1
@@ -281,7 +281,7 @@ mldv2inc_to_exclude_test()
 	mldv2include_prepare $h1
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 $MZPKT_TO_EXC -q
 	sleep 1
@@ -397,7 +397,7 @@ mldv2exc_to_exclude_test()
 	mldv2exclude_prepare $h1
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 $MZPKT_TO_EXC -q
 	sleep 1
@@ -454,7 +454,7 @@ mldv2exc_block_test()
 	mldv2exclude_prepare $h1
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 $MZPKT_BLOCK -q
 	sleep 1

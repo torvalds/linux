@@ -167,18 +167,18 @@ static const struct config_entry config_table[] = {
 #endif
 
 /*
- * CoffeeLake, CannonLake, CometLake, IceLake, TigerLake, AlderLake,
+ * CoffeeLake, CananalnLake, CometLake, IceLake, TigerLake, AlderLake,
  * RaptorLake use legacy HDAudio driver except for Google Chromebooks
  * and when DMICs are present. Two cases are required since Coreboot
- * does not expose NHLT tables.
+ * does analt expose NHLT tables.
  *
- * When the Chromebook quirk is not present, it's based on information
- * that no such device exists. When the quirk is present, it could be
+ * When the Chromebook quirk is analt present, it's based on information
+ * that anal such device exists. When the quirk is present, it could be
  * either based on product information or a placeholder.
  */
 
-/* Cannonlake */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
+/* Cananalnlake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_CANANALNLAKE)
 	{
 		.flags = FLAG_SOF,
 		.device = PCI_DEVICE_ID_INTEL_HDA_CNL_LP,
@@ -614,7 +614,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 
 	/*
 	 * Legacy devices don't have a PCI-based DSP and use HDaudio
-	 * for HDMI/DP support, ignore kernel parameter
+	 * for HDMI/DP support, iganalre kernel parameter
 	 */
 	switch (pci->device) {
 	case PCI_DEVICE_ID_INTEL_HDA_BDW:
@@ -631,7 +631,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 
 	/*
 	 * detect DSP by checking class/subclass/prog-id information
-	 * class=04 subclass 03 prog-if 00: no DSP, use legacy driver
+	 * class=04 subclass 03 prog-if 00: anal DSP, use legacy driver
 	 * class=04 subclass 01 prog-if 00: DSP is present
 	 *  (and may be required e.g. for DMIC or SSP support)
 	 * class=04 subclass 03 prog-if 80: use DSP or legacy mode
@@ -639,7 +639,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (pci->class == 0x040300)
 		return SND_INTEL_DSP_DRIVER_LEGACY;
 	if (pci->class != 0x040100 && pci->class != 0x040380) {
-		dev_err(&pci->dev, "Unknown PCI class/subclass/prog-if information (0x%06x) found, selecting HDAudio legacy driver\n", pci->class);
+		dev_err(&pci->dev, "Unkanalwn PCI class/subclass/prog-if information (0x%06x) found, selecting HDAudio legacy driver\n", pci->class);
 		return SND_INTEL_DSP_DRIVER_LEGACY;
 	}
 
@@ -653,7 +653,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (cfg->flags & FLAG_SOF) {
 		if (cfg->flags & FLAG_SOF_ONLY_IF_SOUNDWIRE &&
 		    snd_intel_dsp_check_soundwire(pci) > 0) {
-			dev_info(&pci->dev, "SoundWire enabled on CannonLake+ platform, using SOF driver\n");
+			dev_info(&pci->dev, "SoundWire enabled on CananalnLake+ platform, using SOF driver\n");
 			return SND_INTEL_DSP_DRIVER_SOF;
 		}
 		if (cfg->flags & FLAG_SOF_ONLY_IF_DMIC &&
@@ -721,7 +721,7 @@ static const struct config_entry acpi_config_table[] = {
 		.acpi_hid = "INT3438"
 	},
 #endif
-/* Haswell - not supported by SOF but added for consistency */
+/* Haswell - analt supported by SOF but added for consistency */
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_CATPT)
 	{
 		.flags = FLAG_SST,
@@ -752,7 +752,7 @@ int snd_intel_acpi_dsp_driver_probe(struct device *dev, const u8 acpi_hid[ACPI_I
 		return dsp_driver;
 
 	if (dsp_driver == SND_INTEL_DSP_DRIVER_LEGACY) {
-		dev_warn(dev, "dsp_driver parameter %d not supported, using automatic detection\n",
+		dev_warn(dev, "dsp_driver parameter %d analt supported, using automatic detection\n",
 			 SND_INTEL_DSP_DRIVER_LEGACY);
 	}
 

@@ -6,7 +6,7 @@ ksft_skip=4
 
 #
 # To test memfd_create with hugetlbfs, there needs to be hpages_test
-# huge pages free.  Attempt to allocate enough pages to test.
+# huge pages free.  Attempt to allocate eanalugh pages to test.
 #
 hpages_test=8
 
@@ -20,7 +20,7 @@ while read name size unit; do
 done < /proc/meminfo
 
 #
-# If not enough free huge pages for test, attempt to increase
+# If analt eanalugh free huge pages for test, attempt to increase
 #
 if [ -n "$freepgs" ] && [ $freepgs -lt $hpages_test ]; then
 	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
@@ -41,15 +41,15 @@ if [ -n "$freepgs" ] && [ $freepgs -lt $hpages_test ]; then
 fi
 
 #
-# If still not enough huge pages available, exit.  But, give back any huge
+# If still analt eanalugh huge pages available, exit.  But, give back any huge
 # pages potentially allocated above.
 #
 if [ $freepgs -lt $hpages_test ]; then
-	# nr_hugepgs non-zero only if we attempted to increase
+	# nr_hugepgs analn-zero only if we attempted to increase
 	if [ -n "$nr_hugepgs" ]; then
 		echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
 	fi
-	printf "Not enough huge pages available (%d < %d)\n" \
+	printf "Analt eanalugh huge pages available (%d < %d)\n" \
 		$freepgs $needpgs
 	exit $ksft_skip
 fi

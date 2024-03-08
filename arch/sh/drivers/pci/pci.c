@@ -30,7 +30,7 @@ static int pci_initialized;
 
 static void pcibios_scanbus(struct pci_channel *hose)
 {
-	static int next_busno;
+	static int next_busanal;
 	static int need_domain_info;
 	LIST_HEAD(resources);
 	struct resource *res;
@@ -57,7 +57,7 @@ static void pcibios_scanbus(struct pci_channel *hose)
 	list_splice_init(&resources, &bridge->windows);
 	bridge->dev.parent = NULL;
 	bridge->sysdata = hose;
-	bridge->busnr = next_busno;
+	bridge->busnr = next_busanal;
 	bridge->ops = hose->pci_ops;
 	bridge->swizzle_irq = pci_common_swizzle;
 	bridge->map_irq = pcibios_map_platform_irq;
@@ -73,11 +73,11 @@ static void pcibios_scanbus(struct pci_channel *hose)
 	need_domain_info = need_domain_info || hose->index;
 	hose->need_domain_info = need_domain_info;
 
-	next_busno = hose->bus->busn_res.end + 1;
+	next_busanal = hose->bus->busn_res.end + 1;
 	/* Don't allow 8-bit bus number overflow inside the hose -
 	   reserve some space for bridges. */
-	if (next_busno > 224) {
-		next_busno = 0;
+	if (next_busanal > 224) {
+		next_busanal = 0;
 		need_domain_info = 1;
 	}
 
@@ -116,7 +116,7 @@ int register_pci_controller(struct pci_channel *hose)
 	hose_tail = &hose->next;
 
 	/*
-	 * Do not panic here but later - this might happen before console init.
+	 * Do analt panic here but later - this might happen before console init.
 	 */
 	if (!hose->io_map_base) {
 		pr_warn("registering PCI controller with io_map_base unset\n");
@@ -230,7 +230,7 @@ pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 		u16 status;
 
 		/*
-		 * ignore host bridge - we handle
+		 * iganalre host bridge - we handle
 		 * that separately
 		 */
 		if (dev->bus->number == 0 && dev->devfn == 0)

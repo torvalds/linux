@@ -14,7 +14,7 @@
 #
 # Setup scenarios for measuring ingress qdisc (with invalid dst_mac):
 # ------------------------------------------------------------------
-# (1) no ingress (uses static_key_false(&ingress_needed))
+# (1) anal ingress (uses static_key_false(&ingress_needed))
 #
 # (2) ingress on other dev (change ingress_needed and calls
 #     handle_ing() but exit early)
@@ -72,7 +72,7 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     pg_set $dev "count $COUNT"
     pg_set $dev "pkt_size $PKT_SIZE"
     pg_set $dev "delay $DELAY"
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"

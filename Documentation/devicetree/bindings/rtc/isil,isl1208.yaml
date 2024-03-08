@@ -12,7 +12,7 @@ maintainers:
 
 description:
   ISL12X9 have additional pins EVIN and EVDET for tamper detection, while the
-  ISL1208 and ISL1218 do not.
+  ISL1208 and ISL1218 do analt.
 
 properties:
   compatible:
@@ -51,7 +51,7 @@ properties:
     enum: [ 0, 1 ]
     description: |
       Enable or disable internal pull on EVIN pin
-      Default will leave the non-volatile configuration of the pullup
+      Default will leave the analn-volatile configuration of the pullup
       as is.
         <0> : Enables internal pull-up on evin pin
         <1> : Disables internal pull-up on evin pin

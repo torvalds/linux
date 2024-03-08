@@ -52,7 +52,7 @@ l0_%=:	r6 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test2 direct ld/st")
-__failure __msg("cannot be accessed directly")
+__failure __msg("cananalt be accessed directly")
 __failure_unpriv __msg_unpriv("")
 __naked void lock_test2_direct_ld_st(void)
 {
@@ -85,7 +85,7 @@ l0_%=:	r6 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test3 direct ld/st")
-__failure __msg("cannot be accessed directly")
+__failure __msg("cananalt be accessed directly")
 __failure_unpriv __msg_unpriv("")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void lock_test3_direct_ld_st(void)
@@ -119,7 +119,7 @@ l0_%=:	r6 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test4 direct ld/st")
-__failure __msg("cannot be accessed directly")
+__failure __msg("cananalt be accessed directly")
 __failure_unpriv __msg_unpriv("")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void lock_test4_direct_ld_st(void)
@@ -153,7 +153,7 @@ l0_%=:	r6 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test5 call within a locked region")
-__failure __msg("calls are not allowed")
+__failure __msg("calls are analt allowed")
 __failure_unpriv __msg_unpriv("")
 __naked void call_within_a_locked_region(void)
 {
@@ -255,7 +255,7 @@ l1_%=:	r1 = r6;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test8 double lock")
-__failure __msg("calls are not allowed")
+__failure __msg("calls are analt allowed")
 __failure_unpriv __msg_unpriv("")
 __naked void spin_lock_test8_double_lock(void)
 {
@@ -359,7 +359,7 @@ l0_%=:	r6 = r0;					\
 	: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void lock_in_subprog_without_unlock__1(void)
 {
 	asm volatile ("					\
@@ -497,7 +497,7 @@ __naked void check_ids_similar_id_mappings(void)
 	/* r6 = ktime_get_ns() */			\
 	call %[bpf_ktime_get_ns];			\
 	r6 = r0;					\
-	/* if r6 > r7 goto +5      ; no new information about the state is derived from\
+	/* if r6 > r7 goto +5      ; anal new information about the state is derived from\
 	 *                         ; this check, thus produced verifier states differ\
 	 *                         ; only in 'insn_idx'	\
 	 * spin_lock(r8)				\

@@ -72,7 +72,7 @@ static struct memtype *memtype_match(u64 start, u64 end, int match_type)
 		entry_match = interval_iter_next(entry_match, start, end-1);
 	}
 
-	return NULL; /* Returns NULL if there is no match */
+	return NULL; /* Returns NULL if there is anal match */
 }
 
 static int memtype_check_conflict(u64 start, u64 end,
@@ -135,8 +135,8 @@ struct memtype *memtype_erase(u64 start, u64 end)
 	/*
 	 * Since the memtype_rbroot tree allows overlapping ranges,
 	 * memtype_erase() checks with EXACT_MATCH first, i.e. free
-	 * a whole node for the munmap case.  If no such entry is found,
-	 * it then checks with END_MATCH, i.e. shrink the size of a node
+	 * a whole analde for the munmap case.  If anal such entry is found,
+	 * it then checks with END_MATCH, i.e. shrink the size of a analde
 	 * from the end for the mremap case.
 	 */
 	entry_old = memtype_match(start, end, MEMTYPE_EXACT_MATCH);
@@ -147,10 +147,10 @@ struct memtype *memtype_erase(u64 start, u64 end)
 	}
 
 	if (entry_old->start == start) {
-		/* munmap: erase this node */
+		/* munmap: erase this analde */
 		interval_remove(entry_old, &memtype_rbroot);
 	} else {
-		/* mremap: update the end value of this node */
+		/* mremap: update the end value of this analde */
 		interval_remove(entry_old, &memtype_rbroot);
 		entry_old->end = start;
 		interval_insert(entry_old, &memtype_rbroot);

@@ -23,7 +23,7 @@
 	};
 
 	panel {
-		compatible = "multi-inno,mi1010ait-1cp";
+		compatible = "multi-inanal,mi1010ait-1cp";
 		backlight = <&backlight>;
 		power-supply = <&reg_3v3>;
 

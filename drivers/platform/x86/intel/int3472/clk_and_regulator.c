@@ -14,7 +14,7 @@
 
 /*
  * 82c0d13a-78c5-4244-9bb1-eb8b539a8d11
- * This _DSM GUID allows controlling the sensor clk when it is not controlled
+ * This _DSM GUID allows controlling the sensor clk when it is analt controlled
  * through a GPIO.
  */
 static const guid_t img_clk_guid =
@@ -69,16 +69,16 @@ static int skl_int3472_clk_enable(struct clk_hw *hw)
 {
 	/*
 	 * We're just turning a GPIO on to enable the clock, which operation
-	 * has the potential to sleep. Given .enable() cannot sleep, but
+	 * has the potential to sleep. Given .enable() cananalt sleep, but
 	 * .prepare() can, we toggle the GPIO in .prepare() instead. Thus,
-	 * nothing to do here.
+	 * analthing to do here.
 	 */
 	return 0;
 }
 
 static void skl_int3472_clk_disable(struct clk_hw *hw)
 {
-	/* Likewise, nothing to do here... */
+	/* Likewise, analthing to do here... */
 }
 
 static unsigned int skl_int3472_get_clk_frequency(struct int3472_discrete_device *int3472)
@@ -123,7 +123,7 @@ int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472)
 	struct acpi_device *adev = int3472->adev;
 	struct clk_init_data init = {
 		.ops = &skl_int3472_clock_ops,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	};
 	int ret;
 
@@ -131,11 +131,11 @@ int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472)
 		return 0; /* A GPIO controlled clk has already been registered */
 
 	if (!acpi_check_dsm(adev->handle, &img_clk_guid, 0, BIT(1)))
-		return 0; /* DSM clock control is not available */
+		return 0; /* DSM clock control is analt available */
 
 	init.name = kasprintf(GFP_KERNEL, "%s-clk", acpi_dev_name(adev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	int3472->clock.frequency = skl_int3472_get_clk_frequency(int3472);
 	int3472->clock.clk_hw.init = &init;
@@ -147,7 +147,7 @@ int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472)
 
 	int3472->clock.cl = clkdev_create(int3472->clock.clk, NULL, int3472->sensor_name);
 	if (!int3472->clock.cl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister_clk;
 	}
 
@@ -166,7 +166,7 @@ int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
 {
 	struct clk_init_data init = {
 		.ops = &skl_int3472_clock_ops,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_ANALCACHE,
 	};
 	int ret;
 
@@ -178,7 +178,7 @@ int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
 	init.name = kasprintf(GFP_KERNEL, "%s-clk",
 			      acpi_dev_name(int3472->adev));
 	if (!init.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	int3472->clock.frequency = skl_int3472_get_clk_frequency(int3472);
 
@@ -193,7 +193,7 @@ int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
 	int3472->clock.cl = clkdev_create(int3472->clock.clk, NULL,
 					  int3472->sensor_name);
 	if (!int3472->clock.cl) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_unregister_clk;
 	}
 
@@ -220,13 +220,13 @@ void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472)
 /*
  * The INT3472 device is going to be the only supplier of a regulator for
  * the sensor device. But unlike the clk framework the regulator framework
- * does not allow matching by consumer-device-name only.
+ * does analt allow matching by consumer-device-name only.
  *
  * Ideally all sensor drivers would use "avdd" as supply-id. But for drivers
- * where this cannot be changed because another supply-id is already used in
+ * where this cananalt be changed because aanalther supply-id is already used in
  * e.g. DeviceTree files an alias for the other supply-id can be added here.
  *
- * Do not forget to update GPIO_REGULATOR_SUPPLY_MAP_COUNT when changing this.
+ * Do analt forget to update GPIO_REGULATOR_SUPPLY_MAP_COUNT when changing this.
  */
 static const char * const skl_int3472_regulator_map_supplies[] = {
 	"avdd",
@@ -244,9 +244,9 @@ static_assert(ARRAY_SIZE(skl_int3472_regulator_map_supplies) ==
  */
 static const struct dmi_system_id skl_int3472_regulator_second_sensor[] = {
 	{
-		/* Lenovo Miix 510-12IKB */
+		/* Leanalvo Miix 510-12IKB */
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "MIIX 510-12IKB"),
 		},
 		.driver_data = "i2c-OVTI2680:00",

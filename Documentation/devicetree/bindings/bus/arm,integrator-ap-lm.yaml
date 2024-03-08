@@ -15,7 +15,7 @@ description: The Integrator/AP is a prototyping platform and as such has a
   determine if a logic module is connected at index 0, 1, 2 or 3. The logic
   module connector is described in this binding. The logic modules per se
   then have their own specific per-module bindings and they will be described
-  as subnodes under this logic module extension bus.
+  as subanaldes under this logic module extension bus.
 
 properties:
   "#address-cells":
@@ -33,7 +33,7 @@ properties:
 
 patternProperties:
   "^bus(@[0-9a-f]*)?$":
-    description: Nodes on the Logic Module bus represent logic modules
+    description: Analdes on the Logic Module bus represent logic modules
       and are named with bus. The first module is at 0xc0000000, the second
       at 0xd0000000 and so on until the top of the memory of the system at
       0xffffffff. All information about the memory used by the module is

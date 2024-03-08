@@ -33,7 +33,7 @@ enum sti_mixer_status {
  * @regs: mixer registers
  * @id: id of the mixer
  * @drm_crtc: crtc object link to the mixer
- * @status: to know the status of the mixer
+ * @status: to kanalw the status of the mixer
  */
 struct sti_mixer {
 	struct device *dev;
@@ -58,7 +58,7 @@ int sti_mixer_active_video_area(struct sti_mixer *mixer,
 
 void sti_mixer_set_background_status(struct sti_mixer *mixer, bool enable);
 
-void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_minor *minor);
+void sti_mixer_debugfs_init(struct sti_mixer *mixer, struct drm_mianalr *mianalr);
 
 /* depth in Cross-bar control = z order */
 #define GAM_MIXER_NB_DEPTH_LEVEL 6

@@ -14,7 +14,7 @@ description:
   The Timebase watchdog timer(WDT) is a free-running 32 bit counter.
   WDT uses a dual-expiration architecture. After one expiration of
   the timeout interval, an interrupt is generated and the WDT state
-  bit is set to one in the status register. If the state bit is not
+  bit is set to one in the status register. If the state bit is analt
   cleared (by writing a one to the state bit) before the next
   expiration of the timeout interval, a WDT reset is generated.
 
@@ -46,7 +46,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
     description: If watchdog is configured as enable once,
-                 then the watchdog cannot be disabled after
+                 then the watchdog cananalt be disabled after
                  it has been enabled.
 
 required:

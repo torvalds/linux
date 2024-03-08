@@ -21,25 +21,25 @@ int __indirect_read_config(struct pci_controller *hose,
 {
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no, reg;
+	u32 bus_anal, reg;
 
-	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
-		if (bus_number != hose->first_busno)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_ANAL_PCIE_LINK) {
+		if (bus_number != hose->first_busanal)
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 		if (devfn != 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus_number, devfn))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
-		if (bus_number != hose->first_busno)
+		if (bus_number != hose->first_busanal)
 			cfg_type = 1;
 
-	bus_no = (bus_number == hose->first_busno) ?
-			hose->self_busno : bus_number;
+	bus_anal = (bus_number == hose->first_busanal) ?
+			hose->self_busanal : bus_number;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
 		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
@@ -47,14 +47,14 @@ int __indirect_read_config(struct pci_controller *hose,
 		reg = offset & 0xfc;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
-		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_anal << 16) |
 			 (devfn << 8) | reg | cfg_type));
 	else
-		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_anal << 16) |
 			 (devfn << 8) | reg | cfg_type));
 
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	cfg_data = hose->cfg_data + (offset & 3);
@@ -87,25 +87,25 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	volatile void __iomem *cfg_data;
 	u8 cfg_type = 0;
-	u32 bus_no, reg;
+	u32 bus_anal, reg;
 
-	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK) {
-		if (bus->number != hose->first_busno)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_ANAL_PCIE_LINK) {
+		if (bus->number != hose->first_busanal)
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 		if (devfn != 0)
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 	}
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
-			return PCIBIOS_DEVICE_NOT_FOUND;
+			return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SET_CFG_TYPE)
-		if (bus->number != hose->first_busno)
+		if (bus->number != hose->first_busanal)
 			cfg_type = 1;
 
-	bus_no = (bus->number == hose->first_busno) ?
-			hose->self_busno : bus->number;
+	bus_anal = (bus->number == hose->first_busanal) ?
+			hose->self_busanal : bus->number;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG)
 		reg = ((offset & 0xf00) << 16) | (offset & 0xfc);
@@ -113,16 +113,16 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 		reg = offset & 0xfc;
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_BIG_ENDIAN)
-		out_be32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_be32(hose->cfg_addr, (0x80000000 | (bus_anal << 16) |
 			 (devfn << 8) | reg | cfg_type));
 	else
-		out_le32(hose->cfg_addr, (0x80000000 | (bus_no << 16) |
+		out_le32(hose->cfg_addr, (0x80000000 | (bus_anal << 16) |
 			 (devfn << 8) | reg | cfg_type));
 
 	/* suppress setting of PCI_PRIMARY_BUS */
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS)
 		if ((offset == PCI_PRIMARY_BUS) &&
-			(bus->number == hose->first_busno))
+			(bus->number == hose->first_busanal))
 		val &= 0xffffff00;
 
 	/* Workaround for PCI_28 Errata in 440EPx/GRx */
@@ -132,7 +132,7 @@ int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
 	}
 
 	/*
-	 * Note: the caller has already checked that offset is
+	 * Analte: the caller has already checked that offset is
 	 * suitably aligned and that len is 1, 2 or 4.
 	 */
 	cfg_data = hose->cfg_data + (offset & 3);

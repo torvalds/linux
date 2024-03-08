@@ -119,9 +119,9 @@ static void get_clocks(void)
 					   pllFwdDivB : pllFwdDiv) *
 		    pllFbkDiv) / pllFwdDivB);
 
-	np = find_node_by_alias("serial0");
+	np = find_analde_by_alias("serial0");
 	if (getprop(np, "current-speed", &baud, sizeof(baud)) != sizeof(baud))
-		fatal("no current-speed property\n\r");
+		fatal("anal current-speed property\n\r");
 
 	udiv = 256;			/* Assume lowest possible serial clk */
 	div = plloutb / (16 * baud); /* total divisor */

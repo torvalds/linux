@@ -36,7 +36,7 @@
  * response data is included in the event.
  *
  * The protocol requires one response to be delivered for every request; a
- * request should not be sent unless the response for the previous request
+ * request should analt be sent unless the response for the previous request
  * has been received (either by polling shared memory, or by receiving
  * an event).
  */
@@ -53,8 +53,8 @@
 #define MCDI_HEADER_SEQ_WIDTH		4
 #define MCDI_HEADER_RSVD_LBN		20
 #define MCDI_HEADER_RSVD_WIDTH		1
-#define MCDI_HEADER_NOT_EPOCH_LBN	21
-#define MCDI_HEADER_NOT_EPOCH_WIDTH	1
+#define MCDI_HEADER_ANALT_EPOCH_LBN	21
+#define MCDI_HEADER_ANALT_EPOCH_WIDTH	1
 #define MCDI_HEADER_ERROR_LBN		22
 #define MCDI_HEADER_ERROR_WIDTH		1
 #define MCDI_HEADER_RESPONSE_LBN	23
@@ -74,7 +74,7 @@
 /*
  * The MC can generate events for two reasons:
  *   - To advance a shared memory request if XFLAGS_EVREQ was set
- *   - As a notification (link state, i2c event), controlled
+ *   - As a analtification (link state, i2c event), controlled
  *     via MC_CMD_LOG_CTRL
  *
  * Both events share a common structure:
@@ -82,7 +82,7 @@
  *  0      32     33      36    44     52     60
  * | Data | Cont | Level | Src | Code | Rsvd |
  *           |
- *           \ There is another event pending in this notification
+ *           \ There is aanalther event pending in this analtification
  *
  * If Code==CMDDONE, then the fields are further interpreted as:
  *
@@ -90,7 +90,7 @@
  *   - LEVEL==ERR     Command failed
  *
  *    0     8         16      24     32
- *   | Seq | Datalen | Errno | Rsvd |
+ *   | Seq | Datalen | Erranal | Rsvd |
  *
  *   These fields are taken directly out of the standard MCDI header, i.e.,
  *   LEVEL==ERR, Datalen == 0 => Reboot
@@ -98,7 +98,7 @@
  * Events can be squirted out of the UART (using LOG_CTRL) without a
  * MCDI header.  An event can be distinguished from a MCDI response by
  * examining the first byte which is 0xc0.  This corresponds to the
- * non-existent MCDI command MC_CMD_DEBUG_LOG.
+ * analn-existent MCDI command MC_CMD_DEBUG_LOG.
  *
  *      0         7        8
  *     | command | Resync |     = 0xc0
@@ -114,16 +114,16 @@
  */
 
 /*
- * the errno value may be followed by the (0-based) number of the
- * first argument that could not be processed.
+ * the erranal value may be followed by the (0-based) number of the
+ * first argument that could analt be processed.
  */
 #define MC_CMD_ERR_ARG_OFST		4
 
 /* MC_CMD_ERR MCDI error codes. */
-/* Operation not permitted. */
+/* Operation analt permitted. */
 #define MC_CMD_ERR_EPERM		0x1
-/* Non-existent command target */
-#define MC_CMD_ERR_ENOENT		0x2
+/* Analn-existent command target */
+#define MC_CMD_ERR_EANALENT		0x2
 /* assert() has killed the MC */
 #define MC_CMD_ERR_EINTR		0x4
 /* I/O failure */
@@ -133,53 +133,53 @@
 /* Try again */
 #define MC_CMD_ERR_EAGAIN		0xb
 /* Out of memory */
-#define MC_CMD_ERR_ENOMEM		0xc
-/* Caller does not hold required locks */
+#define MC_CMD_ERR_EANALMEM		0xc
+/* Caller does analt hold required locks */
 #define MC_CMD_ERR_EACCES		0xd
 /* Resource is currently unavailable (e.g. lock contention) */
 #define MC_CMD_ERR_EBUSY		0x10
-/* No such device */
-#define MC_CMD_ERR_ENODEV		0x13
+/* Anal such device */
+#define MC_CMD_ERR_EANALDEV		0x13
 /* Invalid argument to target */
 #define MC_CMD_ERR_EINVAL		0x16
-/* No space */
-#define MC_CMD_ERR_ENOSPC		0x1c
+/* Anal space */
+#define MC_CMD_ERR_EANALSPC		0x1c
 /* Read-only */
 #define MC_CMD_ERR_EROFS		0x1e
 /* Broken pipe */
 #define MC_CMD_ERR_EPIPE		0x20
 /* Out of range */
 #define MC_CMD_ERR_ERANGE		0x22
-/* Non-recursive resource is already acquired */
+/* Analn-recursive resource is already acquired */
 #define MC_CMD_ERR_EDEADLK		0x23
-/* Operation not implemented */
-#define MC_CMD_ERR_ENOSYS		0x26
+/* Operation analt implemented */
+#define MC_CMD_ERR_EANALSYS		0x26
 /* Operation timed out */
 #define MC_CMD_ERR_ETIME		0x3e
 /* Link has been severed */
-#define MC_CMD_ERR_ENOLINK		0x43
+#define MC_CMD_ERR_EANALLINK		0x43
 /* Protocol error */
 #define MC_CMD_ERR_EPROTO		0x47
 /* Bad message */
 #define MC_CMD_ERR_EBADMSG		0x4a
-/* Operation not supported */
-#define MC_CMD_ERR_ENOTSUP		0x5f
-/* Address not available */
-#define MC_CMD_ERR_EADDRNOTAVAIL	0x63
-/* Not connected */
-#define MC_CMD_ERR_ENOTCONN		0x6b
+/* Operation analt supported */
+#define MC_CMD_ERR_EANALTSUP		0x5f
+/* Address analt available */
+#define MC_CMD_ERR_EADDRANALTAVAIL	0x63
+/* Analt connected */
+#define MC_CMD_ERR_EANALTCONN		0x6b
 /* Operation already in progress */
 #define MC_CMD_ERR_EALREADY		0x72
-/* Stale handle. The handle references resource that no longer exists */
+/* Stale handle. The handle references resource that anal longer exists */
 #define MC_CMD_ERR_ESTALE		0x74
 /* Resource allocation failed. */
 #define MC_CMD_ERR_ALLOC_FAIL		0x1000
-/* V-adaptor not found. */
-#define MC_CMD_ERR_NO_VADAPTOR		0x1001
-/* EVB port not found. */
-#define MC_CMD_ERR_NO_EVB_PORT		0x1002
-/* V-switch not found. */
-#define MC_CMD_ERR_NO_VSWITCH		0x1003
+/* V-adaptor analt found. */
+#define MC_CMD_ERR_ANAL_VADAPTOR		0x1001
+/* EVB port analt found. */
+#define MC_CMD_ERR_ANAL_EVB_PORT		0x1002
+/* V-switch analt found. */
+#define MC_CMD_ERR_ANAL_VSWITCH		0x1003
 /* Too many VLAN tags. */
 #define MC_CMD_ERR_VLAN_LIMIT		0x1004
 /* Bad PCI function number. */
@@ -192,53 +192,53 @@
 #define MC_CMD_ERR_BAD_VPORT_TYPE	0x1008
 /* MAC address exists. */
 #define MC_CMD_ERR_MAC_EXIST		0x1009
-/* Slave core not present */
-#define MC_CMD_ERR_SLAVE_NOT_PRESENT	0x100a
+/* Slave core analt present */
+#define MC_CMD_ERR_SLAVE_ANALT_PRESENT	0x100a
 /* The datapath is disabled. */
 #define MC_CMD_ERR_DATAPATH_DISABLED	0x100b
-/* The requesting client is not a function */
-#define MC_CMD_ERR_CLIENT_NOT_FN	0x100c
+/* The requesting client is analt a function */
+#define MC_CMD_ERR_CLIENT_ANALT_FN	0x100c
 /*
  * The requested operation might require the command to be passed between
  * MCs, and the transport doesn't support that. Should only ever been seen over
  * the UART.
  */
-#define MC_CMD_ERR_NO_PRIVILEGE		0x1013
+#define MC_CMD_ERR_ANAL_PRIVILEGE		0x1013
 /*
- * Workaround 26807 could not be turned on/off because some functions
+ * Workaround 26807 could analt be turned on/off because some functions
  * have already installed filters. See the comment at
  * MC_CMD_WORKAROUND_BUG26807. May also returned for other operations such as
  * sub-variant switching.
  */
 #define MC_CMD_ERR_FILTERS_PRESENT	0x1014
 /* The clock whose frequency you've attempted to set doesn't exist */
-#define MC_CMD_ERR_NO_CLOCK		0x1015
+#define MC_CMD_ERR_ANAL_CLOCK		0x1015
 /*
  * Returned by MC_CMD_TESTASSERT if the action that should have caused an
  * assertion failed to do so.
  */
 #define MC_CMD_ERR_UNREACHABLE		0x1016
 /*
- * This command needs to be processed in the background but there were no
+ * This command needs to be processed in the background but there were anal
  * resources to do so. Send it again after a command has completed.
  */
 #define MC_CMD_ERR_QUEUE_FULL		0x1017
 /*
- * The operation could not be completed because the PCIe link has gone
+ * The operation could analt be completed because the PCIe link has gone
  * away. This error code is never expected to be returned over the TLP
  * transport.
  */
-#define MC_CMD_ERR_NO_PCIE		0x1018
+#define MC_CMD_ERR_ANAL_PCIE		0x1018
 /*
- * The operation could not be completed because the datapath has gone
+ * The operation could analt be completed because the datapath has gone
  * away. This is distinct from MC_CMD_ERR_DATAPATH_DISABLED in that the
  * datapath absence may be temporary
  */
-#define MC_CMD_ERR_NO_DATAPATH		0x1019
-/* The operation could not complete because some VIs are allocated */
+#define MC_CMD_ERR_ANAL_DATAPATH		0x1019
+/* The operation could analt complete because some VIs are allocated */
 #define MC_CMD_ERR_VIS_PRESENT		0x101a
 /*
- * The operation could not complete because some PIO buffers are
+ * The operation could analt complete because some PIO buffers are
  * allocated
  */
 #define MC_CMD_ERR_PIOBUFS_PRESENT	0x101b
@@ -249,7 +249,7 @@
  * CDX bus hosts devices (functions) that are implemented using the Composable
  * DMA subsystem and directly mapped into the memory space of the FGPA PSX
  * Application Processors (APUs). As such, they only apply to the PSX APU side,
- * not the host (PCIe). Unlike PCIe, these devices have no native configuration
+ * analt the host (PCIe). Unlike PCIe, these devices have anal native configuration
  * space or enumeration mechanism, so this message set provides a minimal
  * interface for discovery and management (bus reset, FLR, BME) of such
  * devices. This command returns the number of CDX buses present in the system.
@@ -296,8 +296,8 @@
 #define MC_CMD_CDX_BUS_ENUM_DEVICES_OUT_LEN			4
 /*
  * Number of devices present on the bus. Devices on the bus are numbered 0 to
- * DEVICE_COUNT-1. Returns EAGAIN if number of devices unknown or if the target
- * devices are not ready (e.g. undergoing a bus reset)
+ * DEVICE_COUNT-1. Returns EAGAIN if number of devices unkanalwn or if the target
+ * devices are analt ready (e.g. undergoing a bus reset)
  */
 #define MC_CMD_CDX_BUS_ENUM_DEVICES_OUT_DEVICE_COUNT_OFST	0
 #define MC_CMD_CDX_BUS_ENUM_DEVICES_OUT_DEVICE_COUNT_LEN	4
@@ -313,7 +313,7 @@
  * to e.g. a PL reload / bus reset), in which case the caller is expected to
  * restart the enumeration loop. MMIO addresses are specified in terms of bus
  * addresses (prior to any potential IOMMU translation). For versal-net, these
- * are equivalent to APU physical addresses. Implementation note - for this to
+ * are equivalent to APU physical addresses. Implementation analte - for this to
  * work, the implementation needs to keep state (generation count) per client.
  */
 #define MC_CMD_CDX_BUS_GET_DEVICE_CONFIG					0x3
@@ -460,13 +460,13 @@
  * MC_CMD_CDX_BUS_DOWN
  * Asserting reset on the CDX bus causes all devices on the bus to be quiesced.
  * DMA bus mastering is disabled and any pending DMA request are flushed. Once
- * the response is returned, the devices are guaranteed to no longer issue DMA
+ * the response is returned, the devices are guaranteed to anal longer issue DMA
  * requests or raise MSI interrupts. Further device MMIO accesses may have
  * undefined results. While the bus reset is asserted, any of the enumeration
  * or device configuration MCDIs will fail with EAGAIN. It is only legal to
  * reload the relevant PL region containing CDX devices if the corresponding CDX
  * bus is in reset. Depending on the implementation, the firmware may or may
- * not enforce this restriction and it is up to the caller to make sure this
+ * analt enforce this restriction and it is up to the caller to make sure this
  * requirement is satisfied.
  */
 #define MC_CMD_CDX_BUS_DOWN					0x4
@@ -479,7 +479,7 @@
 #define MC_CMD_CDX_BUS_DOWN_IN_BUS_LEN		4
 
 /*
- * MC_CMD_CDX_BUS_DOWN_OUT msgresponse: The bus is quiesced, no further
+ * MC_CMD_CDX_BUS_DOWN_OUT msgresponse: The bus is quiesced, anal further
  * upstream traffic for devices on this bus.
  */
 #define MC_CMD_CDX_BUS_DOWN_OUT_LEN			0
@@ -506,7 +506,7 @@
 #define MC_CMD_CDX_BUS_UP_IN_BUS_OFST		0
 #define MC_CMD_CDX_BUS_UP_IN_BUS_LEN		4
 
-/* MC_CMD_CDX_BUS_UP_OUT msgresponse: The bus can now be enumerated. */
+/* MC_CMD_CDX_BUS_UP_OUT msgresponse: The bus can analw be enumerated. */
 #define MC_CMD_CDX_BUS_UP_OUT_LEN			0
 
 /***********************************/
@@ -540,15 +540,15 @@
 /*
  * MC_CMD_CDX_DEVICE_CONTROL_SET
  * If BUS_MASTER is set to disabled, device DMA and interrupts are quiesced.
- * Pending DMA requests and MSI interrupts are flushed and no further DMA or
+ * Pending DMA requests and MSI interrupts are flushed and anal further DMA or
  * interrupts are issued after this command returns. If BUS_MASTER is set to
  * enabled, device is allowed to initiate DMA. Whether interrupts are enabled
- * also depends on the value of MSI_ENABLE bit. Note that, in this case, the
+ * also depends on the value of MSI_ENABLE bit. Analte that, in this case, the
  * device may start DMA before the host receives and processes the MCDI
- * response. MSI_ENABLE masks or unmasks device interrupts only. Note that for
+ * response. MSI_ENABLE masks or unmasks device interrupts only. Analte that for
  * interrupts to be delivered to the host, both BUS_MASTER and MSI_ENABLE needs
  * to be set. MMIO_REGIONS_ENABLE enables or disables host accesses to device
- * MMIO regions. Note that an implementation is allowed to permanently set this
+ * MMIO regions. Analte that an implementation is allowed to permanently set this
  * bit to 1, in which case MC_CMD_CDX_DEVICE_CONTROL_GET will always return 1
  * for this bit, regardless of the value set here.
  */
@@ -637,7 +637,7 @@
 #define MC_CMD_V2_EXTN_IN_MESSAGE_TYPE_WIDTH		4
 /*
  * enum: MCDI command directed to versal-net. MCDI responses of this type
- * are not defined.
+ * are analt defined.
  */
 #define MC_CMD_V2_EXTN_IN_MCDI_MESSAGE_TYPE_PLATFORM	0x2
 

@@ -19,7 +19,7 @@
  *  06-06-00  01.00.01  Update version number for 1.0 release.
  *  06-08-00  01.00.02  Added MPI_SCSI_RSP_INFO_ definitions.
  *  11-02-00  01.01.01  Original release for post 1.0 work.
- *  12-04-00  01.01.02  Added MPI_SCSIIO_CONTROL_NO_DISCONNECT.
+ *  12-04-00  01.01.02  Added MPI_SCSIIO_CONTROL_ANAL_DISCONNECT.
  *  02-20-01  01.01.03  Started using MPI_POINTER.
  *  03-27-01  01.01.04  Added structure offset comments.
  *  04-10-01  01.01.05  Added new MsgFlag for MSG_SCSI_TASK_MGMT.
@@ -56,7 +56,7 @@
  *  03-27-06  01.05.07  Added Task Management type of Clear ACA.
  *  10-11-06  01.05.08  Shortened define for Task Management type of Clear ACA.
  *  02-28-07  01.05.09  Defined two new MsgFlags bits for SCSI Task Management
- *                      Request: Do Not Send Task IU and Soft Reset Option.
+ *                      Request: Do Analt Send Task IU and Soft Reset Option.
  *  --------------------------------------------------------------------------
  */
 
@@ -119,7 +119,7 @@ typedef struct _MSG_SCSI_IO_REQUEST
 /* SCSI IO Control bits */
 
 #define MPI_SCSIIO_CONTROL_DATADIRECTION_MASK   (0x03000000)
-#define MPI_SCSIIO_CONTROL_NODATATRANSFER       (0x00000000)
+#define MPI_SCSIIO_CONTROL_ANALDATATRANSFER       (0x00000000)
 #define MPI_SCSIIO_CONTROL_WRITE                (0x01000000)
 #define MPI_SCSIIO_CONTROL_READ                 (0x02000000)
 
@@ -132,7 +132,7 @@ typedef struct _MSG_SCSI_IO_REQUEST
 #define MPI_SCSIIO_CONTROL_ORDEREDQ             (0x00000200)
 #define MPI_SCSIIO_CONTROL_ACAQ                 (0x00000400)
 #define MPI_SCSIIO_CONTROL_UNTAGGED             (0x00000500)
-#define MPI_SCSIIO_CONTROL_NO_DISCONNECT        (0x00000700)
+#define MPI_SCSIIO_CONTROL_ANAL_DISCONNECT        (0x00000700)
 
 #define MPI_SCSIIO_CONTROL_TASKMANAGE_MASK      (0x00FF0000)
 #define MPI_SCSIIO_CONTROL_OBSOLETE             (0x00800000)
@@ -184,7 +184,7 @@ typedef struct _MSG_SCSI_IO_REPLY
 #define MPI_SCSI_STATUS_ACA_ACTIVE              (0x30)
 
 #define MPI_SCSI_STATUS_FCPEXT_DEVICE_LOGGED_OUT    (0x80)
-#define MPI_SCSI_STATUS_FCPEXT_NO_LINK              (0x81)
+#define MPI_SCSI_STATUS_FCPEXT_ANAL_LINK              (0x81)
 #define MPI_SCSI_STATUS_FCPEXT_UNASSIGNED           (0x82)
 
 
@@ -192,7 +192,7 @@ typedef struct _MSG_SCSI_IO_REPLY
 
 #define MPI_SCSI_STATE_AUTOSENSE_VALID          (0x01)
 #define MPI_SCSI_STATE_AUTOSENSE_FAILED         (0x02)
-#define MPI_SCSI_STATE_NO_SCSI_STATUS           (0x04)
+#define MPI_SCSI_STATE_ANAL_SCSI_STATUS           (0x04)
 #define MPI_SCSI_STATE_TERMINATED               (0x08)
 #define MPI_SCSI_STATE_RESPONSE_INFO_VALID      (0x10)
 #define MPI_SCSI_STATE_QUEUE_TAG_REJECTED       (0x20)
@@ -208,7 +208,7 @@ typedef struct _MSG_SCSI_IO_REPLY
 #define MPI_SCSI_RSP_INFO_TASK_MGMT_FAILED      (0x05000000)
 #define MPI_SCSI_RSP_INFO_SPI_LQ_INVALID_TYPE   (0x06000000)
 
-#define MPI_SCSI_TASKTAG_UNKNOWN                (0xFFFF)
+#define MPI_SCSI_TASKTAG_UNKANALWN                (0xFFFF)
 
 
 /****************************************************************************/
@@ -325,7 +325,7 @@ typedef struct _MSG_SCSI_IO32_REQUEST
 
 /* SCSI IO 32 Control bits */
 #define MPI_SCSIIO32_CONTROL_DATADIRECTION_MASK     (0x03000000)
-#define MPI_SCSIIO32_CONTROL_NODATATRANSFER         (0x00000000)
+#define MPI_SCSIIO32_CONTROL_ANALDATATRANSFER         (0x00000000)
 #define MPI_SCSIIO32_CONTROL_WRITE                  (0x01000000)
 #define MPI_SCSIIO32_CONTROL_READ                   (0x02000000)
 #define MPI_SCSIIO32_CONTROL_BIDIRECTIONAL          (0x03000000)
@@ -339,7 +339,7 @@ typedef struct _MSG_SCSI_IO32_REQUEST
 #define MPI_SCSIIO32_CONTROL_ORDEREDQ               (0x00000200)
 #define MPI_SCSIIO32_CONTROL_ACAQ                   (0x00000400)
 #define MPI_SCSIIO32_CONTROL_UNTAGGED               (0x00000500)
-#define MPI_SCSIIO32_CONTROL_NO_DISCONNECT          (0x00000700)
+#define MPI_SCSIIO32_CONTROL_ANAL_DISCONNECT          (0x00000700)
 
 #define MPI_SCSIIO32_CONTROL_TASKMANAGE_MASK        (0x00FF0000)
 #define MPI_SCSIIO32_CONTROL_OBSOLETE               (0x00800000)
@@ -353,7 +353,7 @@ typedef struct _MSG_SCSI_IO32_REQUEST
 
 /* SCSI IO 32 EEDPFlags */
 #define MPI_SCSIIO32_EEDPFLAGS_MASK_OP              (0x0007)
-#define MPI_SCSIIO32_EEDPFLAGS_NOOP_OP              (0x0000)
+#define MPI_SCSIIO32_EEDPFLAGS_ANALOP_OP              (0x0000)
 #define MPI_SCSIIO32_EEDPFLAGS_CHK_OP               (0x0001)
 #define MPI_SCSIIO32_EEDPFLAGS_STRIP_OP             (0x0002)
 #define MPI_SCSIIO32_EEDPFLAGS_CHKRM_OP             (0x0003)
@@ -435,7 +435,7 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_TASKTYPE_CLR_ACA               (0x08)
 
 /* MsgFlags bits */
-#define MPI_SCSITASKMGMT_MSGFLAGS_DO_NOT_SEND_TASK_IU   (0x01)
+#define MPI_SCSITASKMGMT_MSGFLAGS_DO_ANALT_SEND_TASK_IU   (0x01)
 
 #define MPI_SCSITASKMGMT_MSGFLAGS_TARGET_RESET_OPTION   (0x00)
 #define MPI_SCSITASKMGMT_MSGFLAGS_LIP_RESET_OPTION      (0x02)
@@ -465,7 +465,7 @@ typedef struct _MSG_SCSI_TASK_MGMT_REPLY
 /* ResponseCode values */
 #define MPI_SCSITASKMGMT_RSP_TM_COMPLETE                (0x00)
 #define MPI_SCSITASKMGMT_RSP_INVALID_FRAME              (0x02)
-#define MPI_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED           (0x04)
+#define MPI_SCSITASKMGMT_RSP_TM_ANALT_SUPPORTED           (0x04)
 #define MPI_SCSITASKMGMT_RSP_TM_FAILED                  (0x05)
 #define MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED               (0x08)
 #define MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN             (0x09)
@@ -505,7 +505,7 @@ typedef struct _MSG_SEP_REQUEST
 #define MPI_SEP_REQ_FLAGS_BUS_TARGETID_ADDRESS          (0x00)
 
 /* SlotStatus bits for MSG_SEP_REQUEST */
-#define MPI_SEP_REQ_SLOTSTATUS_NO_ERROR                 (0x00000001)
+#define MPI_SEP_REQ_SLOTSTATUS_ANAL_ERROR                 (0x00000001)
 #define MPI_SEP_REQ_SLOTSTATUS_DEV_FAULTY               (0x00000002)
 #define MPI_SEP_REQ_SLOTSTATUS_DEV_REBUILDING           (0x00000004)
 #define MPI_SEP_REQ_SLOTSTATUS_IN_FAILED_ARRAY          (0x00000008)
@@ -521,7 +521,7 @@ typedef struct _MSG_SEP_REQUEST
 #define MPI_SEP_REQ_SLOTSTATUS_IDENTIFY_REQUEST         (0x00020000)
 #define MPI_SEP_REQ_SLOTSTATUS_REQUEST_REMOVE           (0x00040000)
 #define MPI_SEP_REQ_SLOTSTATUS_REQUEST_INSERT           (0x00080000)
-#define MPI_SEP_REQ_SLOTSTATUS_DO_NOT_MOVE              (0x00400000)
+#define MPI_SEP_REQ_SLOTSTATUS_DO_ANALT_MOVE              (0x00400000)
 #define MPI_SEP_REQ_SLOTSTATUS_ACTIVE                   (0x00800000)
 #define MPI_SEP_REQ_SLOTSTATUS_B_ENABLE_BYPASS          (0x04000000)
 #define MPI_SEP_REQ_SLOTSTATUS_A_ENABLE_BYPASS          (0x08000000)
@@ -551,7 +551,7 @@ typedef struct _MSG_SEP_REPLY
   SEPReply_t, MPI_POINTER pSEPReply_t;
 
 /* SlotStatus bits for MSG_SEP_REPLY */
-#define MPI_SEP_REPLY_SLOTSTATUS_NO_ERROR               (0x00000001)
+#define MPI_SEP_REPLY_SLOTSTATUS_ANAL_ERROR               (0x00000001)
 #define MPI_SEP_REPLY_SLOTSTATUS_DEV_FAULTY             (0x00000002)
 #define MPI_SEP_REPLY_SLOTSTATUS_DEV_REBUILDING         (0x00000004)
 #define MPI_SEP_REPLY_SLOTSTATUS_IN_FAILED_ARRAY        (0x00000008)
@@ -568,7 +568,7 @@ typedef struct _MSG_SEP_REPLY
 #define MPI_SEP_REPLY_SLOTSTATUS_IDENTIFY_REQUEST       (0x00020000)
 #define MPI_SEP_REPLY_SLOTSTATUS_REMOVE_READY           (0x00040000)
 #define MPI_SEP_REPLY_SLOTSTATUS_INSERT_READY           (0x00080000)
-#define MPI_SEP_REPLY_SLOTSTATUS_DO_NOT_REMOVE          (0x00400000)
+#define MPI_SEP_REPLY_SLOTSTATUS_DO_ANALT_REMOVE          (0x00400000)
 #define MPI_SEP_REPLY_SLOTSTATUS_ACTIVE                 (0x00800000)
 #define MPI_SEP_REPLY_SLOTSTATUS_B_BYPASS_ENABLED       (0x01000000)
 #define MPI_SEP_REPLY_SLOTSTATUS_A_BYPASS_ENABLED       (0x02000000)

@@ -41,9 +41,9 @@
  * NX P8 workbook, section 4.9, table 4-28
  * "Function Code Definitions for 842 Memory Compression"
  */
-#define CCW_FC_842_COMP_NOCRC	(0)
+#define CCW_FC_842_COMP_ANALCRC	(0)
 #define CCW_FC_842_COMP_CRC	(1)
-#define CCW_FC_842_DECOMP_NOCRC	(2)
+#define CCW_FC_842_DECOMP_ANALCRC	(2)
 #define CCW_FC_842_DECOMP_CRC	(3)
 #define CCW_FC_842_MOVE		(4)
 
@@ -69,7 +69,7 @@
 #define CSB_CC_RD_EXTERNAL_DUP3	(91)
 /* These are specific to NX */
 /* 842 codes */
-#define CSB_CC_TPBC_GT_SPBC	(64) /* no error, but >1 comp ratio */
+#define CSB_CC_TPBC_GT_SPBC	(64) /* anal error, but >1 comp ratio */
 #define CSB_CC_CRC_MISMATCH	(65) /* decomp crc mismatch */
 #define CSB_CC_TEMPL_INVALID	(66) /* decomp invalid template value */
 #define CSB_CC_TEMPL_OVERFLOW	(67) /* decomp template shows data after end */
@@ -78,7 +78,7 @@
 /* asym crypt codes */
 #define CSB_CC_MINV_OVERFLOW	(128)
 /*
- * HW error - Job did not finish in the maximum time allowed.
+ * HW error - Job did analt finish in the maximum time allowed.
  * Job terminated.
  */
 #define CSB_CC_HW_EXPIRED_TIMER		(224)
@@ -86,14 +86,14 @@
 #define CSB_CC_HYP_RESERVE_START	(240)
 #define CSB_CC_HYP_RESERVE_END		(253)
 #define CSB_CC_HYP_RESERVE_P9_END	(251)
-/* No valid interrupt server (P9 or later). */
-#define CSB_CC_HYP_RESERVE_NO_INTR_SERVER	(252)
-#define CSB_CC_HYP_NO_HW		(254)
+/* Anal valid interrupt server (P9 or later). */
+#define CSB_CC_HYP_RESERVE_ANAL_INTR_SERVER	(252)
+#define CSB_CC_HYP_ANAL_HW		(254)
 #define CSB_CC_HYP_HANG_ABORTED		(255)
 
 /* CCB Completion Modes (CM) for 842
  * NX P8 workbook, section 4.3, figure 4-5
- * "CRB Details - Normal Cop_Req (CL=00, C=1)"
+ * "CRB Details - Analrmal Cop_Req (CL=00, C=1)"
  */
 #define CCB_CM_EXTRA_WRITE	(CCB_CM0_ALL_COMPLETIONS & CCB_CM12_STORE)
 #define CCB_CM_INTERRUPT	(CCB_CM0_ALL_COMPLETIONS & CCB_CM12_INTERRUPT)
@@ -114,8 +114,8 @@ static inline unsigned long nx842_get_pa(void *addr)
  * may have varying requirements.  The constraints are:
  *   @alignment:	All buffers should be aligned to this
  *   @multiple:		All buffer lengths should be a multiple of this
- *   @minimum:		Buffer lengths must not be less than this amount
- *   @maximum:		Buffer lengths must not be more than this amount
+ *   @minimum:		Buffer lengths must analt be less than this amount
+ *   @maximum:		Buffer lengths must analt be more than this amount
  *
  * The constraints apply to all buffers and lengths, both input and output,
  * for both compression and decompression, except for the minimum which
@@ -126,7 +126,7 @@ static inline unsigned long nx842_get_pa(void *addr)
  *
  * The driver may succeed even if these constraints are violated;
  * however the driver can return failure or suffer reduced performance
- * if any constraint is not met.
+ * if any constraint is analt met.
  */
 struct nx842_constraints {
 	int alignment;
@@ -158,7 +158,7 @@ struct nx842_crypto_header_group {
 
 struct nx842_crypto_header {
 	__be16 magic;		/* NX842_CRYPTO_MAGIC */
-	__be16 ignore;		/* decompressed end bytes to ignore */
+	__be16 iganalre;		/* decompressed end bytes to iganalre */
 	u8 groups;		/* total groups in this header */
 	struct nx842_crypto_header_group group[];
 } __packed;

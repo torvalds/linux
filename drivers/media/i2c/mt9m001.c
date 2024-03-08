@@ -79,7 +79,7 @@ static const struct mt9m001_datafmt mt9m001_colour_fmts[] = {
 	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
-static const struct mt9m001_datafmt mt9m001_monochrome_fmts[] = {
+static const struct mt9m001_datafmt mt9m001_moanalchrome_fmts[] = {
 	/* Order important - see above */
 	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
 	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
@@ -173,7 +173,7 @@ static int mt9m001_init(struct i2c_client *client)
 		 */
 		{ MT9M001_RESET, 1 },
 		{ MT9M001_RESET, 0 },
-		/* Disable chip, synchronous option update */
+		/* Disable chip, synchroanalus option update */
 		{ MT9M001_OUTPUT_CONTROL, 0 }
 	};
 
@@ -225,7 +225,7 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret)
 			goto put_unlock;
 
-		/* Switch to master "normal" mode */
+		/* Switch to master "analrmal" mode */
 		ret = reg_write(client, MT9M001_OUTPUT_CONTROL, 2);
 		if (ret < 0)
 			goto put_unlock;
@@ -334,7 +334,7 @@ static int mt9m001_get_fmt(struct v4l2_subdev *sd,
 	mf->height	= mt9m001->rect.height;
 	mf->code	= mt9m001->fmt->code;
 	mf->colorspace	= mt9m001->fmt->colorspace;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
 	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
@@ -358,7 +358,7 @@ static int mt9m001_s_fmt(struct v4l2_subdev *sd,
 	};
 	int ret;
 
-	/* No support for scaling so far, just crop. TODO: use skipping */
+	/* Anal support for scaling so far, just crop. TODO: use skipping */
 	ret = mt9m001_set_selection(sd, NULL, &sel);
 	if (!ret) {
 		mf->width	= mt9m001->rect.width;
@@ -398,7 +398,7 @@ static int mt9m001_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	mf->colorspace	= fmt->colorspace;
-	mf->field	= V4L2_FIELD_NONE;
+	mf->field	= V4L2_FIELD_ANALNE;
 	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
 	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
@@ -597,13 +597,13 @@ static int mt9m001_video_probe(struct i2c_client *client)
 		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_colour_fmts);
 		break;
 	case 0x8431:
-		mt9m001->fmts = mt9m001_monochrome_fmts;
-		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_monochrome_fmts);
+		mt9m001->fmts = mt9m001_moanalchrome_fmts;
+		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_moanalchrome_fmts);
 		break;
 	default:
 		dev_err(&client->dev,
-			"No MT9M001 chip detected, register read %x\n", data);
-		ret = -ENODEV;
+			"Anal MT9M001 chip detected, register read %x\n", data);
+		ret = -EANALDEV;
 		goto done;
 	}
 
@@ -662,7 +662,7 @@ static int mt9m001_init_state(struct v4l2_subdev *sd,
 	try_fmt->height		= MT9M001_MAX_HEIGHT;
 	try_fmt->code		= mt9m001->fmts[0].code;
 	try_fmt->colorspace	= mt9m001->fmts[0].colorspace;
-	try_fmt->field		= V4L2_FIELD_NONE;
+	try_fmt->field		= V4L2_FIELD_ANALNE;
 	try_fmt->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	try_fmt->quantization	= V4L2_QUANTIZATION_DEFAULT;
 	try_fmt->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
@@ -741,7 +741,7 @@ static int mt9m001_probe(struct i2c_client *client)
 
 	mt9m001 = devm_kzalloc(&client->dev, sizeof(*mt9m001), GFP_KERNEL);
 	if (!mt9m001)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt9m001->clk = devm_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9m001->clk))
@@ -759,7 +759,7 @@ static int mt9m001_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&mt9m001->subdev, client, &mt9m001_subdev_ops);
 	mt9m001->subdev.internal_ops = &mt9m001_internal_ops;
-	mt9m001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	mt9m001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 				 V4L2_SUBDEV_FL_HAS_EVENTS;
 	v4l2_ctrl_handler_init(&mt9m001->hdl, 4);
 	v4l2_ctrl_new_std(&mt9m001->hdl, &mt9m001_ctrl_ops,
@@ -846,7 +846,7 @@ static void mt9m001_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 	mt9m001_power_off(&client->dev);
 
 	v4l2_ctrl_handler_free(&mt9m001->hdl);

@@ -10,13 +10,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -44,7 +44,7 @@
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_work.h>
 #include <drm/i915_hdcp_interface.h>
-#include <media/cec-notifier.h>
+#include <media/cec-analtifier.h>
 
 #include "i915_vma.h"
 #include "i915_vma_types.h"
@@ -84,7 +84,7 @@ enum intel_output_type {
 };
 
 enum hdmi_force_audio {
-	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
+	HDMI_AUDIO_OFF_DVI = -2,	/* anal aux data for HDMI-DVI converter */
 	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
 	HDMI_AUDIO_AUTO,		/* trust EDID */
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
@@ -104,15 +104,15 @@ struct intel_fb_view {
 	 * list is created along with the view type (gtt.type) specific
 	 * i915_vma object and contains the list of FB object pages (reordered
 	 * in the rotated view) that are visible in the view.
-	 * In the normal view the FB object's backing store sg list is used
-	 * directly and hence the remap information here is not used.
+	 * In the analrmal view the FB object's backing store sg list is used
+	 * directly and hence the remap information here is analt used.
 	 */
 	struct i915_gtt_view gtt;
 
 	/*
 	 * The GTT view (gtt.type) specific information for each FB color
-	 * plane. In the normal GTT view all formats (up to 4 color planes),
-	 * in the rotated and remapped GTT view all no-CCS formats (up to 2
+	 * plane. In the analrmal GTT view all formats (up to 4 color planes),
+	 * in the rotated and remapped GTT view all anal-CCS formats (up to 2
 	 * color planes) are supported.
 	 *
 	 * The view information shared by all FB color planes in the FB,
@@ -128,7 +128,7 @@ struct intel_fb_view {
 		 *   pixels for 90/270 degree rotation
 		 */
 		unsigned int mapping_stride;
-		unsigned int scanout_stride;
+		unsigned int scaanalut_stride;
 	} color_plane[4];
 };
 
@@ -137,7 +137,7 @@ struct intel_framebuffer {
 	struct intel_frontbuffer *frontbuffer;
 
 	/* Params to remap the FB pages and program the plane registers in each view. */
-	struct intel_fb_view normal_view;
+	struct intel_fb_view analrmal_view;
 	union {
 		struct intel_fb_view rotated_view;
 		struct intel_fb_view remapped_view;
@@ -210,7 +210,7 @@ struct intel_encoder {
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	/* Reconstructs the equivalent mode flags for the current hardware
 	 * state. This must be called _after_ display->get_pipe_config has
-	 * pre-filled the pipe config. Note that intel_encoder->base.crtc must
+	 * pre-filled the pipe config. Analte that intel_encoder->base.crtc must
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_state *pipe_config);
@@ -265,7 +265,7 @@ struct intel_encoder {
 			     const struct intel_crtc_state *crtc_state);
 	void (*disable_clock)(struct intel_encoder *encoder);
 	/*
-	 * Returns whether the port clock is enabled or not.
+	 * Returns whether the port clock is enabled or analt.
 	 */
 	bool (*is_clock_enabled)(struct intel_encoder *encoder);
 	/*
@@ -298,7 +298,7 @@ struct intel_panel_bl_funcs {
 };
 
 enum drrs_type {
-	DRRS_TYPE_NONE,
+	DRRS_TYPE_ANALNE,
 	DRRS_TYPE_STATIC,
 	DRRS_TYPE_SEAMLESS,
 };
@@ -520,7 +520,7 @@ struct intel_hdcp_shim {
 	/*
 	 * Implementation of DP HDCP2.2 Errata for the communication of stream
 	 * type to Receivers. In DP HDCP2.2 Stream type is one of the input to
-	 * the HDCP2.2 Cipher for En/De-Cryption. Not applicable for HDMI.
+	 * the HDCP2.2 Cipher for En/De-Cryption. Analt applicable for HDMI.
 	 */
 	int (*config_stream_type)(struct intel_connector *connector,
 				  bool is_repeater, u8 type);
@@ -546,7 +546,7 @@ struct intel_hdcp {
 	bool hdcp_encrypted;
 
 	/* HDCP2.2 related definitions */
-	/* Flag indicates whether this connector supports HDCP2.2 or not. */
+	/* Flag indicates whether this connector supports HDCP2.2 or analt. */
 	bool hdcp2_supported;
 
 	/* HDCP2.2 Encryption status */
@@ -730,7 +730,7 @@ struct intel_plane_state {
 
 	/*
 	 * scaler_id
-	 *    = -1 : not using a scaler
+	 *    = -1 : analt using a scaler
 	 *    >=  0 : using a scalers
 	 *
 	 * plane requiring a scaler:
@@ -740,7 +740,7 @@ struct intel_plane_state {
 	 *   - scaler_id indicates the scaler it got assigned.
 	 *
 	 * plane doesn't require a scaler:
-	 *   - this can happen when scaling is no more required or plane simply
+	 *   - this can happen when scaling is anal more required or plane simply
 	 *     got disabled.
 	 *   - During check_plane, corresponding bit is reset in
 	 *     crtc_state->scaler_state.scaler_users by calling helper function
@@ -763,7 +763,7 @@ struct intel_plane_state {
 	 * If set don't update use the linked plane's state for updating
 	 * this plane during atomic commit with the update_slave() callback.
 	 *
-	 * It's also used by the watermark code to ignore wm calculations on
+	 * It's also used by the watermark code to iganalre wm calculations on
 	 * this plane. They're calculated by the linked plane's wm code.
 	 */
 	u32 planar_slave;
@@ -775,7 +775,7 @@ struct intel_plane_state {
 	/* Clear Color Value */
 	u64 ccval;
 
-	const char *no_fbc_reason;
+	const char *anal_fbc_reason;
 };
 
 struct intel_initial_plane_config {
@@ -833,7 +833,7 @@ struct intel_crtc_scaler_state {
 #define I915_MODE_FLAG_DSI_USE_TE0 (1<<3)
 /* Flag to use TE from DSI1 instead of VBI in command mode */
 #define I915_MODE_FLAG_DSI_USE_TE1 (1<<4)
-/* Flag to indicate mipi dsi periodic command mode where we do not get TE */
+/* Flag to indicate mipi dsi periodic command mode where we do analt get TE */
 #define I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE (1<<5)
 /* Do tricks to make vblank timestamps sane with VRR? */
 #define I915_MODE_FLAG_VRR (1<<6)
@@ -859,7 +859,7 @@ struct skl_wm_level {
 	u16 blocks;
 	u8 lines;
 	bool enable;
-	bool ignore_lines;
+	bool iganalre_lines;
 	bool can_sagv;
 };
 
@@ -898,7 +898,7 @@ struct vlv_fifo_state {
 };
 
 enum g4x_wm_level {
-	G4X_WM_LEVEL_NORMAL,
+	G4X_WM_LEVEL_ANALRMAL,
 	G4X_WM_LEVEL_SR,
 	G4X_WM_LEVEL_HPLL,
 	NUM_G4X_WM_LEVELS,
@@ -918,20 +918,20 @@ struct intel_crtc_wm_state {
 		/*
 		 * raw:
 		 * The "raw" watermark values produced by the formula
-		 * given the plane's current state. They do not consider
+		 * given the plane's current state. They do analt consider
 		 * how much FIFO is actually allocated for each plane.
 		 *
 		 * optimal:
 		 * The "optimal" watermark values given the current
 		 * state of the planes and the amount of FIFO
-		 * allocated to each, ignoring any previous state
+		 * allocated to each, iganalring any previous state
 		 * of the planes.
 		 *
 		 * intermediate:
 		 * The "intermediate" watermark values when transitioning
 		 * between the old and new "optimal" values. Used when
 		 * the watermark registers are single buffered and hence
-		 * their state changes asynchronously with regards to the
+		 * their state changes asynchroanalusly with regards to the
 		 * actual plane registers. These are essentially the
 		 * worst case combination of the old and new "optimal"
 		 * watermarks, which are therefore safe to use when the
@@ -957,7 +957,7 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* not inverted */
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* analt inverted */
 			struct vlv_wm_state intermediate; /* inverted */
 			struct vlv_wm_state optimal; /* inverted */
 			struct vlv_fifo_state fifo_state;
@@ -1064,7 +1064,7 @@ struct intel_crtc_state {
 	 * Use the pipe_mode for calculations like watermarks, pipe
 	 * scaler, and bandwidth.
 	 *
-	 * Use adjusted_mode for things that need to know the full
+	 * Use adjusted_mode for things that need to kanalw the full
 	 * mode on the transcoder, which spans all pipes.
 	 */
 	struct {
@@ -1083,7 +1083,7 @@ struct intel_crtc_state {
 	/**
 	 * quirks - bitfield with hw state readout quirks
 	 *
-	 * For various reasons the hw state readout code might not be able to
+	 * For various reasons the hw state readout code might analt be able to
 	 * completely faithfully read out the current state. These cases are
 	 * tracked with quirk flags so that fastboot and state checker can act
 	 * accordingly.
@@ -1115,7 +1115,7 @@ struct intel_crtc_state {
 	 */
 	unsigned int pixel_rate;
 
-	/* Whether to set up the PCH/FDI. Note that we never allow sharing
+	/* Whether to set up the PCH/FDI. Analte that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
 
@@ -1167,7 +1167,7 @@ struct intel_crtc_state {
 	bool sdvo_tv_clock;
 
 	/*
-	 * crtc bandwidth limit, don't increase pipe bpp or clock if not really
+	 * crtc bandwidth limit, don't increase pipe bpp or clock if analt really
 	 * required. This is set in the 2nd loop of calling encoder's
 	 * ->compute_config if the first pick doesn't work out.
 	 */
@@ -1209,7 +1209,7 @@ struct intel_crtc_state {
 	struct intel_link_m_n dp_m2_n2;
 	bool has_drrs;
 
-	/* PSR is supported but might not be enabled due the lack of enabled planes */
+	/* PSR is supported but might analt be enabled due the lack of enabled planes */
 	bool has_psr;
 	bool has_psr2;
 	bool enable_psr2_sel_fetch;
@@ -1381,7 +1381,7 @@ struct intel_crtc_state {
 	/*
 	 * Forward Error Correction.
 	 *
-	 * Note: This will be false for 128b/132b, which will always have FEC
+	 * Analte: This will be false for 128b/132b, which will always have FEC
 	 * enabled automatically.
 	 */
 	bool fec_enable;
@@ -1421,7 +1421,7 @@ struct intel_crtc_state {
 };
 
 enum intel_pipe_crc_source {
-	INTEL_PIPE_CRC_SOURCE_NONE,
+	INTEL_PIPE_CRC_SOURCE_ANALNE,
 	INTEL_PIPE_CRC_SOURCE_PLANE1,
 	INTEL_PIPE_CRC_SOURCE_PLANE2,
 	INTEL_PIPE_CRC_SOURCE_PLANE3,
@@ -1544,8 +1544,8 @@ struct intel_plane {
 	struct intel_fbc *fbc;
 
 	/*
-	 * NOTE: Do not place new plane state fields here (e.g., when adding
-	 * new plane properties).  New runtime state should now be placed in
+	 * ANALTE: Do analt place new plane state fields here (e.g., when adding
+	 * new plane properties).  New runtime state should analw be placed in
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
@@ -1561,8 +1561,8 @@ struct intel_plane {
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
-	/* Write all non-self arming plane registers */
-	void (*update_noarm)(struct intel_plane *plane,
+	/* Write all analn-self arming plane registers */
+	void (*update_analarm)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
 	/* Write all self-arming plane registers */
@@ -1610,7 +1610,7 @@ struct intel_hdmi {
 		int max_tmds_clock;
 	} dp_dual_mode;
 	struct intel_connector *attached_connector;
-	struct cec_notifier *cec_notifier;
+	struct cec_analtifier *cec_analtifier;
 };
 
 struct intel_dp_mst_encoder;
@@ -1712,7 +1712,7 @@ struct intel_psr {
 	u8 fast_wake_lines;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
-	bool sink_not_reliable;
+	bool sink_analt_reliable;
 	bool irq_aux_error;
 	u16 su_w_granularity;
 	u16 su_y_granularity;

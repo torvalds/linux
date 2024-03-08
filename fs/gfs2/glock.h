@@ -18,7 +18,7 @@ enum {
 	Opt_jid,
 	Opt_id,
 	Opt_first,
-	Opt_nodir,
+	Opt_analdir,
 	Opt_err,
 };
 
@@ -27,8 +27,8 @@ enum {
  */
 
 #define LM_TYPE_RESERVED	0x00
-#define LM_TYPE_NONDISK		0x01
-#define LM_TYPE_INODE		0x02
+#define LM_TYPE_ANALNDISK		0x01
+#define LM_TYPE_IANALDE		0x02
 #define LM_TYPE_RGRP		0x03
 #define LM_TYPE_META		0x04
 #define LM_TYPE_IOPEN		0x05
@@ -40,8 +40,8 @@ enum {
 /*
  * lm_lock() states
  *
- * SHARED is compatible with SHARED, not with DEFERRED or EX.
- * DEFERRED is compatible with DEFERRED, not with SHARED or EX.
+ * SHARED is compatible with SHARED, analt with DEFERRED or EX.
+ * DEFERRED is compatible with DEFERRED, analt with SHARED or EX.
  */
 
 #define LM_ST_UNLOCKED		0
@@ -56,35 +56,35 @@ enum {
  * Don't wait to acquire the lock if it can't be granted immediately.
  *
  * LM_FLAG_TRY_1CB
- * Send one blocking callback if TRY is set and the lock is not granted.
+ * Send one blocking callback if TRY is set and the lock is analt granted.
  *
- * LM_FLAG_NOEXP
+ * LM_FLAG_ANALEXP
  * GFS sets this flag on lock requests it makes while doing journal recovery.
- * These special requests should not be blocked due to the recovery like
+ * These special requests should analt be blocked due to the recovery like
  * ordinary locks would be.
  *
  * LM_FLAG_ANY
  * A SHARED request may also be granted in DEFERRED, or a DEFERRED request may
  * also be granted in SHARED.  The preferred state is whichever is compatible
- * with other granted locks, or the specified state if no other locks exist.
+ * with other granted locks, or the specified state if anal other locks exist.
  *
- * LM_FLAG_NODE_SCOPE
- * This holder agrees to share the lock within this node. In other words,
+ * LM_FLAG_ANALDE_SCOPE
+ * This holder agrees to share the lock within this analde. In other words,
  * the glock is held in EX mode according to DLM, but local holders on the
- * same node can share it.
+ * same analde can share it.
  */
 
 #define LM_FLAG_TRY		0x0001
 #define LM_FLAG_TRY_1CB		0x0002
-#define LM_FLAG_NOEXP		0x0004
+#define LM_FLAG_ANALEXP		0x0004
 #define LM_FLAG_ANY		0x0008
-#define LM_FLAG_NODE_SCOPE	0x0020
+#define LM_FLAG_ANALDE_SCOPE	0x0020
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100
-#define GL_NOPID		0x0200
-#define GL_NOCACHE		0x0400
-#define GL_NOBLOCK		0x0800
+#define GL_ANALPID		0x0200
+#define GL_ANALCACHE		0x0400
+#define GL_ANALBLOCK		0x0800
   
 /*
  * lm_async_cb return flags
@@ -224,7 +224,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
  * @flags: the modifier flags
  * @gh: the holder structure
  *
- * Returns: 0, GLR_*, or errno
+ * Returns: 0, GLR_*, or erranal
  */
 
 static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
@@ -281,7 +281,7 @@ static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
 	return !list_empty(&gh->gh_list);
 }
 
-void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);
-bool gfs2_inode_already_deleted(struct gfs2_glock *gl, u64 generation);
+void gfs2_ianalde_remember_delete(struct gfs2_glock *gl, u64 generation);
+bool gfs2_ianalde_already_deleted(struct gfs2_glock *gl, u64 generation);
 
 #endif /* __GLOCK_DOT_H__ */

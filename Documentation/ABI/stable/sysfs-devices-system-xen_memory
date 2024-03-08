@@ -33,7 +33,7 @@ KernelVersion:	2.6.39
 Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
 		The time (in seconds) to wait between attempts to
-		increase the balloon.  Each time the balloon cannot be
+		increase the balloon.  Each time the balloon cananalt be
 		increased, 'schedule_delay' is increased (until
 		'max_schedule_delay' is reached at which point it
 		will use the max value).
@@ -73,7 +73,7 @@ Date:		April 2008
 KernelVersion:	2.6.26
 Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
-		Amount (in KiB) of low (or normal) memory in the
+		Amount (in KiB) of low (or analrmal) memory in the
 		balloon.
 
 What:		/sys/devices/system/xen_memory/xen_memory0/scrub_pages

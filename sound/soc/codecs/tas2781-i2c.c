@@ -234,7 +234,7 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 	prof_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
 		sizeof(prof_ctrls[0]), GFP_KERNEL);
 	if (!prof_ctrls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -242,7 +242,7 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 	name = devm_kzalloc(tas_priv->dev, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 		GFP_KERNEL);
 	if (!name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "Speaker Profile Id");
@@ -331,7 +331,7 @@ static int tasdevice_dsp_create_ctrls(
 	dsp_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
 		sizeof(dsp_ctrls[0]), GFP_KERNEL);
 	if (!dsp_ctrls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -341,7 +341,7 @@ static int tasdevice_dsp_create_ctrls(
 	conf_name = devm_kzalloc(tas_priv->dev, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
 		GFP_KERNEL);
 	if (!prog_name || !conf_name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -446,8 +446,8 @@ static int tasdevice_dapm_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget tasdevice_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("ASI", "ASI Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT_E("ASI OUT", "ASI Capture", 0, SND_SOC_NOPM,
+	SND_SOC_DAPM_AIF_IN("ASI", "ASI Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT_E("ASI OUT", "ASI Capture", 0, SND_SOC_ANALPM,
 		0, 0, tasdevice_dapm_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SPK("SPK", tasdevice_dapm_event),
@@ -469,7 +469,7 @@ static int tasdevice_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	if (tas_priv->fw_state != TASDEVICE_DSP_FW_ALL_OK) {
-		dev_err(tas_priv->dev, "DSP bin file not loaded\n");
+		dev_err(tas_priv->dev, "DSP bin file analt loaded\n");
 		ret = -EINVAL;
 	}
 
@@ -623,7 +623,7 @@ static void tasdevice_parse_dt(struct tasdevice_priv *tas_priv)
 		tas_priv->irq_info.irq_gpio =
 			acpi_dev_gpio_irq_get(ACPI_COMPANION(&client->dev), 0);
 	} else {
-		struct device_node *np = tas_priv->dev->of_node;
+		struct device_analde *np = tas_priv->dev->of_analde;
 #ifdef CONFIG_OF
 		const __be32 *reg, *reg_end;
 		int len, sw, aw;
@@ -689,7 +689,7 @@ static int tasdevice_i2c_probe(struct i2c_client *i2c)
 
 	tas_priv = tasdevice_kzalloc(i2c);
 	if (!tas_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&i2c->dev, tas_priv);
 
@@ -697,7 +697,7 @@ static int tasdevice_i2c_probe(struct i2c_client *i2c)
 		acpi_id = acpi_match_device(i2c->dev.driver->acpi_match_table,
 				&i2c->dev);
 		if (!acpi_id) {
-			dev_err(&i2c->dev, "No driver data\n");
+			dev_err(&i2c->dev, "Anal driver data\n");
 			ret = -EINVAL;
 			goto err;
 		}

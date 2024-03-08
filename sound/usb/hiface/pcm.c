@@ -39,7 +39,7 @@ struct pcm_substream {
 };
 
 enum { /* pcm streaming states */
-	STREAM_DISABLED, /* no pcm streaming */
+	STREAM_DISABLED, /* anal pcm streaming */
 	STREAM_STARTING, /* pcm streaming requested, waiting to become ready */
 	STREAM_RUNNING,  /* pcm streaming running */
 	STREAM_STOPPING
@@ -311,8 +311,8 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 	if (rt->panic || rt->stream_state == STREAM_STOPPING)
 		return;
 
-	if (unlikely(usb_urb->status == -ENOENT ||	/* unlinked */
-		     usb_urb->status == -ENODEV ||	/* device removed */
+	if (unlikely(usb_urb->status == -EANALENT ||	/* unlinked */
+		     usb_urb->status == -EANALDEV ||	/* device removed */
 		     usb_urb->status == -ECONNRESET ||	/* unlinked */
 		     usb_urb->status == -ESHUTDOWN)) {	/* device disabled */
 		goto out_fail;
@@ -323,7 +323,7 @@ static void hiface_pcm_out_urb_handler(struct urb *usb_urb)
 		wake_up(&rt->stream_wait_queue);
 	}
 
-	/* now send our playback data (if a free out urb was found) */
+	/* analw send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
 	spin_lock_irqsave(&sub->lock, flags);
 	if (sub->active)
@@ -370,10 +370,10 @@ static int hiface_pcm_open(struct snd_pcm_substream *alsa_sub)
 	}
 
 	if (rt->extra_freq) {
-		alsa_rt->hw.rates |= SNDRV_PCM_RATE_KNOT;
+		alsa_rt->hw.rates |= SNDRV_PCM_RATE_KANALT;
 		alsa_rt->hw.rate_max = 384000;
 
-		/* explicit constraints needed as we added SNDRV_PCM_RATE_KNOT */
+		/* explicit constraints needed as we added SNDRV_PCM_RATE_KANALT */
 		ret = snd_pcm_hw_constraint_list(alsa_sub->runtime, 0,
 						 SNDRV_PCM_HW_PARAM_RATE,
 						 &constraints_extra_rates);
@@ -423,7 +423,7 @@ static int hiface_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	if (rt->panic)
 		return -EPIPE;
 	if (!sub)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_lock(&rt->stream_mutex);
 
@@ -457,7 +457,7 @@ static int hiface_pcm_trigger(struct snd_pcm_substream *alsa_sub, int cmd)
 	if (rt->panic)
 		return -EPIPE;
 	if (!sub)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -513,7 +513,7 @@ static int hiface_pcm_init_urb(struct pcm_urb *urb,
 
 	urb->buffer = kzalloc(PCM_PACKET_SIZE, GFP_KERNEL);
 	if (!urb->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb_fill_bulk_urb(&urb->instance, chip->dev,
 			  usb_sndbulkpipe(chip->dev, ep), (void *)urb->buffer,
@@ -567,7 +567,7 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 
 	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 	if (!rt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rt->chip = chip;
 	rt->stream_state = STREAM_DISABLED;
@@ -587,7 +587,7 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 
 	ret = snd_pcm_new(chip->card, "USB-SPDIF Audio", 0, 1, 0, &pcm);
 	if (ret < 0) {
-		dev_err(&chip->dev->dev, "Cannot create pcm instance\n");
+		dev_err(&chip->dev->dev, "Cananalt create pcm instance\n");
 		goto error;
 	}
 

@@ -242,10 +242,10 @@
 			map0 {
 				trip = <&pmic_alert0>;
 				cooling-device =
-					<&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-					<&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-					<&A35_2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-					<&A35_3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&A35_0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+					<&A35_1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+					<&A35_2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+					<&A35_3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 			};
 		};
 	};
@@ -257,9 +257,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 

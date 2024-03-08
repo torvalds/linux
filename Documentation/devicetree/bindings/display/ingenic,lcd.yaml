@@ -10,7 +10,7 @@ maintainers:
   - Paul Cercueil <paul@crapouillou.net>
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^lcd-controller@[0-9a-f]+$"
 
   compatible:

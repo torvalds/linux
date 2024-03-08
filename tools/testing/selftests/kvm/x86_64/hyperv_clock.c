@@ -40,12 +40,12 @@ static inline u64 mul_u64_u64_shr64(u64 a, u64 b)
 	return rh.ll;
 }
 
-static inline void nop_loop(void)
+static inline void analp_loop(void)
 {
 	int i;
 
 	for (i = 0; i < 100000000; i++)
-		asm volatile("nop");
+		asm volatile("analp");
 }
 
 static inline void check_tsc_msr_rdtsc(void)
@@ -60,7 +60,7 @@ static inline void check_tsc_msr_rdtsc(void)
 	r1 = rdtsc();
 	t1 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	r1 = (r1 + rdtsc()) / 2;
-	nop_loop();
+	analp_loop();
 	r2 = rdtsc();
 	t2 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	r2 = (r2 + rdtsc()) / 2;
@@ -91,7 +91,7 @@ static inline void check_tsc_msr_tsc_page(struct ms_hyperv_tsc_page *tsc_page)
 
 	/* 10 ms tolerance */
 	GUEST_ASSERT(r1 >= t1 && r1 - t1 < 100000);
-	nop_loop();
+	analp_loop();
 
 	t2 = get_tscpage_ts(tsc_page);
 	r2 = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
@@ -138,7 +138,7 @@ static void guest_main(struct ms_hyperv_tsc_page *tsc_page, vm_paddr_t tsc_page_
 
 	GUEST_ASSERT(tsc_page->tsc_offset != tsc_offset);
 
-	nop_loop();
+	analp_loop();
 
 	/*
 	 * Enable Re-enlightenment and check that TSC page stays constant across
@@ -179,18 +179,18 @@ static void host_check_tsc_msr_rdtsc(struct kvm_vcpu *vcpu)
 	s64 delta_ns;
 
 	tsc_freq = vcpu_get_msr(vcpu, HV_X64_MSR_TSC_FREQUENCY);
-	TEST_ASSERT(tsc_freq > 0, "TSC frequency must be nonzero");
+	TEST_ASSERT(tsc_freq > 0, "TSC frequency must be analnzero");
 
 	/* For increased accuracy, take mean rdtsc() before and afrer ioctl */
 	r1 = rdtsc();
 	t1 = vcpu_get_msr(vcpu, HV_X64_MSR_TIME_REF_COUNT);
 	r1 = (r1 + rdtsc()) / 2;
-	nop_loop();
+	analp_loop();
 	r2 = rdtsc();
 	t2 = vcpu_get_msr(vcpu, HV_X64_MSR_TIME_REF_COUNT);
 	r2 = (r2 + rdtsc()) / 2;
 
-	TEST_ASSERT(t2 > t1, "Time reference MSR is not monotonic (%ld <= %ld)", t1, t2);
+	TEST_ASSERT(t2 > t1, "Time reference MSR is analt moanaltonic (%ld <= %ld)", t1, t2);
 
 	/* HV_X64_MSR_TIME_REF_COUNT is in 100ns */
 	delta_ns = ((t2 - t1) * 100) - ((r2 - r1) * 1000000000 / tsc_freq);
@@ -199,7 +199,7 @@ static void host_check_tsc_msr_rdtsc(struct kvm_vcpu *vcpu)
 
 	/* 1% tolerance */
 	TEST_ASSERT(delta_ns * 100 < (t2 - t1) * 100,
-		    "Elapsed time does not match (MSR=%ld, TSC=%ld)",
+		    "Elapsed time does analt match (MSR=%ld, TSC=%ld)",
 		    (t2 - t1) * 100, (r2 - r1) * 1000000000 / tsc_freq);
 }
 
@@ -233,7 +233,7 @@ int main(void)
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			REPORT_GUEST_ASSERT(uc);
-			/* NOT REACHED */
+			/* ANALT REACHED */
 		case UCALL_SYNC:
 			break;
 		case UCALL_DONE:
@@ -242,7 +242,7 @@ int main(void)
 				    stage);
 			goto out;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 
 		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&

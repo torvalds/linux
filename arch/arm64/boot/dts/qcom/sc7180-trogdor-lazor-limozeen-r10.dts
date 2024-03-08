@@ -18,7 +18,7 @@
 	compatible = "google,lazor-sku4", "google,lazor-sku15", "qcom,sc7180";
 };
 
-/delete-node/ &ap_ts;
+/delete-analde/ &ap_ts;
 
 &ap_ts_pen_1v8 {
 	ap_ts: touchscreen@10 {

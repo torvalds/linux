@@ -275,11 +275,11 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	if (fs) {
 		if (new) {
 			rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
-				    "skb should not be ready before first segment start\n");
+				    "skb should analt be ready before first segment start\n");
 			goto err_sync_device;
 		}
 		if (desc_info->ready) {
-			rtw89_warn(rtwdev, "desc info should not be ready before first segment start\n");
+			rtw89_warn(rtwdev, "desc info should analt be ready before first segment start\n");
 			goto err_sync_device;
 		}
 
@@ -296,7 +296,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	} else {
 		offset = sizeof(struct rtw89_pci_rxbd_info);
 		if (!new) {
-			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "no last skb\n");
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "anal last skb\n");
 			goto err_sync_device;
 		}
 	}
@@ -306,7 +306,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	rtw89_pci_rxbd_increase(rx_ring, 1);
 
 	if (!desc_info->ready) {
-		rtw89_warn(rtwdev, "no rx desc information\n");
+		rtw89_warn(rtwdev, "anal rx desc information\n");
 		goto err_free_resource;
 	}
 	if (ls) {
@@ -388,8 +388,8 @@ static void rtw89_pci_tx_status(struct rtw89_dev *rtwdev,
 	info = IEEE80211_SKB_CB(skb);
 	ieee80211_tx_info_clear_status(info);
 
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		info->flags |= IEEE80211_TX_STAT_ANALACK_TRANSMITTED;
 	if (tx_status == RTW89_TX_DONE) {
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		tx_ring->tx_acked++;
@@ -425,7 +425,7 @@ static void rtw89_pci_reclaim_txbd(struct rtw89_dev *rtwdev, struct rtw89_pci_tx
 	while (cnt--) {
 		txwd = list_first_entry_or_null(&tx_ring->busy_pages, struct rtw89_pci_tx_wd, list);
 		if (!txwd) {
-			rtw89_warn(rtwdev, "No busy txwd pages available\n");
+			rtw89_warn(rtwdev, "Anal busy txwd pages available\n");
 			break;
 		}
 
@@ -466,10 +466,10 @@ static void rtw89_pci_release_txwd_skb(struct rtw89_dev *rtwdev,
 	if (!list_empty(&txwd->list)) {
 		rtw89_pci_reclaim_txbd(rtwdev, tx_ring);
 		/* In low power mode, RPP can receive before updating of TX BD.
-		 * In normal mode, it should not happen so give it a warning.
+		 * In analrmal mode, it should analt happen so give it a warning.
 		 */
 		if (!rtwpci->low_power && !list_empty(&txwd->list))
-			rtw89_warn(rtwdev, "queue %d txwd %d is not idle\n",
+			rtw89_warn(rtwdev, "queue %d txwd %d is analt idle\n",
 				   txch, seq);
 	}
 
@@ -503,7 +503,7 @@ static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev,
 	txch = rtw89_core_get_ch_dma(rtwdev, qsel);
 
 	if (txch == RTW89_TXCH_CH12) {
-		rtw89_warn(rtwdev, "should no fwcmd release report\n");
+		rtw89_warn(rtwdev, "should anal fwcmd release report\n");
 		return;
 	}
 
@@ -560,7 +560,7 @@ static u32 rtw89_pci_release_tx_skbs(struct rtw89_dev *rtwdev,
 
 	rx_info = RTW89_PCI_RX_SKB_CB(skb);
 	if (!rx_info->fs || !rx_info->ls) {
-		rtw89_err(rtwdev, "cannot process RP frame not set FS/LS\n");
+		rtw89_err(rtwdev, "cananalt process RP frame analt set FS/LS\n");
 		return cnt;
 	}
 
@@ -817,10 +817,10 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 		rtw89_pci_isr_rxd_unavail(rtwdev, rtwpci);
 
 	if (unlikely(isrs.halt_c2h_isrs & gen_def->isr_halt_c2h))
-		rtw89_ser_notify(rtwdev, rtw89_mac_get_err_status(rtwdev));
+		rtw89_ser_analtify(rtwdev, rtw89_mac_get_err_status(rtwdev));
 
 	if (unlikely(isrs.halt_c2h_isrs & gen_def->isr_wdt_timeout))
-		rtw89_ser_notify(rtwdev, MAC_AX_ERR_L2_ERR_WDT_TIMEOUT_INT);
+		rtw89_ser_analtify(rtwdev, MAC_AX_ERR_L2_ERR_WDT_TIMEOUT_INT);
 
 	if (unlikely(rtwpci->under_recovery))
 		goto enable_intr;
@@ -1010,7 +1010,7 @@ static u32 rtw89_pci_get_avail_txbd_num(struct rtw89_pci_tx_ring *ring)
 {
 	struct rtw89_pci_dma_ring *bd_ring = &ring->bd_ring;
 
-	/* reserved 1 desc check ring is full or not */
+	/* reserved 1 desc check ring is full or analt */
 	if (bd_ring->rp > bd_ring->wp)
 		return bd_ring->rp - bd_ring->wp - 1;
 
@@ -1033,7 +1033,7 @@ u32 __rtw89_pci_check_and_reclaim_tx_fwcmd_resource(struct rtw89_dev *rtwdev)
 }
 
 static
-u32 __rtw89_pci_check_and_reclaim_tx_resource_noio(struct rtw89_dev *rtwdev,
+u32 __rtw89_pci_check_and_reclaim_tx_resource_analio(struct rtw89_dev *rtwdev,
 						   u8 txch)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
@@ -1084,7 +1084,7 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	min_cnt = min(bd_cnt, wd_cnt);
 	if (min_cnt == 0) {
 		/* This message can be frequently shown in low power mode or
-		 * high traffic with small FIFO chips, and we have recognized it as normal
+		 * high traffic with small FIFO chips, and we have recognized it as analrmal
 		 * behavior, so print with mask RTW89_DBG_TXRX in these situations.
 		 */
 		if (rtwpci->low_power || chip->small_fifo_size)
@@ -1093,7 +1093,7 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 			debug_mask = RTW89_DBG_UNEXP;
 
 		rtw89_debug(rtwdev, debug_mask,
-			    "still no tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
+			    "still anal tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
 			    wd_cnt, bd_cnt);
 	}
 
@@ -1107,7 +1107,7 @@ static u32 rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 						   u8 txch)
 {
 	if (rtwdev->hci.paused)
-		return __rtw89_pci_check_and_reclaim_tx_resource_noio(rtwdev, txch);
+		return __rtw89_pci_check_and_reclaim_tx_resource_analio(rtwdev, txch);
 
 	if (txch == RTW89_TXCH_CH12)
 		return __rtw89_pci_check_and_reclaim_tx_fwcmd_resource(rtwdev);
@@ -1385,8 +1385,8 @@ static int rtw89_pci_txbd_submit(struct rtw89_dev *rtwdev,
 
 	txwd = rtw89_pci_dequeue_txwd(tx_ring);
 	if (!txwd) {
-		rtw89_err(rtwdev, "no available TXWD\n");
-		ret = -ENOSPC;
+		rtw89_err(rtwdev, "anal available TXWD\n");
+		ret = -EANALSPC;
 		goto err;
 	}
 
@@ -1435,8 +1435,8 @@ static int rtw89_pci_tx_write(struct rtw89_dev *rtwdev, struct rtw89_core_tx_req
 
 	n_avail_txbd = rtw89_pci_get_avail_txbd_num(tx_ring);
 	if (n_avail_txbd == 0) {
-		rtw89_err(rtwdev, "no available TXBD\n");
-		ret = -ENOSPC;
+		rtw89_err(rtwdev, "anal available TXBD\n");
+		ret = -EANALSPC;
 		goto err_unlock;
 	}
 
@@ -1679,7 +1679,7 @@ static void rtw89_pci_ops_switch_mode(struct rtw89_dev *rtwdev, bool low_power)
 
 	WARN(!rtwdev->hci.paused, "HCI isn't paused\n");
 
-	cfg = low_power ? RTW89_PCI_INTR_MASK_LOW_POWER : RTW89_PCI_INTR_MASK_NORMAL;
+	cfg = low_power ? RTW89_PCI_INTR_MASK_LOW_POWER : RTW89_PCI_INTR_MASK_ANALRMAL;
 	rtw89_chip_config_intr_mask(rtwdev, cfg);
 	rtw89_pci_switch_bd_idx_addr(rtwdev, low_power);
 }
@@ -2034,8 +2034,8 @@ static int rtw89_pci_auto_refclk_cal(struct rtw89_dev *rtwdev, bool autook_en)
 	} else if (FIELD_GET(RTW89_PCIE_PHY_RATE_MASK, val8) == 0x2) {
 		phy_rate = PCIE_PHY_GEN2;
 	} else {
-		rtw89_err(rtwdev, "[ERR]PCIe PHY rate %#x not support\n", val8);
-		return -EOPNOTSUPP;
+		rtw89_err(rtwdev, "[ERR]PCIe PHY rate %#x analt support\n", val8);
+		return -EOPANALTSUPP;
 	}
 	/* Disable L1BD */
 	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_L1_CTRL, &bdr_ori);
@@ -2374,11 +2374,11 @@ static void rtw89_pci_set_dbg(struct rtw89_dev *rtwdev)
 		return;
 
 	rtw89_write32_set(rtwdev, R_AX_PCIE_DBG_CTRL,
-			  B_AX_ASFF_FULL_NO_STK | B_AX_EN_STUCK_DBG);
+			  B_AX_ASFF_FULL_ANAL_STK | B_AX_EN_STUCK_DBG);
 
 	if (rtwdev->chip->chip_id == RTL8852A)
 		rtw89_write32_set(rtwdev, R_AX_PCIE_EXP_CTRL,
-				  B_AX_EN_CHKDSC_NO_RX_STUCK);
+				  B_AX_EN_CHKDSC_ANAL_RX_STUCK);
 }
 
 static void rtw89_pci_set_keep_reg(struct rtw89_dev *rtwdev)
@@ -2492,7 +2492,7 @@ static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
 	if (txbd_trunc_mode == MAC_AX_BD_TRUNC) {
 		if (chip_id == RTL8852A && cv == CHIP_CBV)
 			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_TX_TRUNC_MODE);
-	} else if (txbd_trunc_mode == MAC_AX_BD_NORM) {
+	} else if (txbd_trunc_mode == MAC_AX_BD_ANALRM) {
 		if (chip_id == RTL8852A || chip_id == RTL8852B)
 			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_TX_TRUNC_MODE);
 	}
@@ -2500,7 +2500,7 @@ static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
 	if (rxbd_trunc_mode == MAC_AX_BD_TRUNC) {
 		if (chip_id == RTL8852A && cv == CHIP_CBV)
 			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RX_TRUNC_MODE);
-	} else if (rxbd_trunc_mode == MAC_AX_BD_NORM) {
+	} else if (rxbd_trunc_mode == MAC_AX_BD_ANALRM) {
 		if (chip_id == RTL8852A || chip_id == RTL8852B)
 			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RX_TRUNC_MODE);
 	}
@@ -2554,7 +2554,7 @@ static int rtw89_pci_mode_op(struct rtw89_dev *rtwdev)
 		rtw89_write32_set(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
 				  B_AX_HOST_ADDR_INFO_8B_SEL);
 		rtw89_write32_clr(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
-	} else if (txbd_trunc_mode == MAC_AX_BD_NORM) {
+	} else if (txbd_trunc_mode == MAC_AX_BD_ANALRM) {
 		rtw89_write32_clr(rtwdev, R_AX_TX_ADDRESS_INFO_MODE_SETTING,
 				  B_AX_HOST_ADDR_INFO_8B_SEL);
 		rtw89_write32_set(rtwdev, R_AX_PKTIN_SETTING, B_AX_WD_ADDR_INFO_LENGTH);
@@ -2674,7 +2674,7 @@ int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en)
 		return -EINVAL;
 
 	rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_HW_EN | B_AX_LTR_EN |
-						   B_AX_LTR_WD_NOEMP_CHK);
+						   B_AX_LTR_WD_ANALEMP_CHK);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_SPACE_IDX_MASK,
 			   PCI_LTR_SPC_500US);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_IDLE_TIMER_IDX_MASK,
@@ -2722,7 +2722,7 @@ int rtw89_pci_ltr_set_v1(struct rtw89_dev *rtwdev, bool en)
 
 	if (en)
 		rtw89_write32_set(rtwdev, R_AX_LTR_CTRL_0,
-				  B_AX_LTR_WD_NOEMP_CHK_V1 | B_AX_LTR_HW_EN);
+				  B_AX_LTR_WD_ANALEMP_CHK_V1 | B_AX_LTR_HW_EN);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_0, B_AX_LTR_IDLE_TIMER_IDX_MASK,
 			   PCI_LTR_IDLE_TIMER_3_2MS);
 	rtw89_write32_mask(rtwdev, R_AX_LTR_CTRL_1, B_AX_LTR_RX0_TH_MASK, 0x28);
@@ -2995,7 +2995,7 @@ static int rtw89_pci_alloc_tx_wd_ring(struct rtw89_dev *rtwdev,
 
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&wd_ring->free_pages);
 	wd_ring->head = head;
@@ -3049,7 +3049,7 @@ static int rtw89_pci_alloc_tx_ring(struct rtw89_dev *rtwdev,
 
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_wd_ring;
 	}
 
@@ -3131,7 +3131,7 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 
 	head = dma_alloc_coherent(&pdev->dev, ring_sz, &dma, GFP_KERNEL);
 	if (!head) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -3152,7 +3152,7 @@ static int rtw89_pci_alloc_rx_ring(struct rtw89_dev *rtwdev,
 	for (i = 0; i < len; i++) {
 		skb = dev_alloc_skb(buf_sz);
 		if (!skb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free;
 		}
 
@@ -3509,7 +3509,7 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 		phy_offset = R_RAC_DIRECT_OFFSET_G2;
 		val16 = rtw89_read16(rtwdev, phy_offset + RAC_ANA10 * RAC_MULT);
 		rtw89_write16_set(rtwdev, phy_offset + RAC_ANA10 * RAC_MULT,
-				  val16 | B_PCIE_BIT_PINOUT_DIS);
+				  val16 | B_PCIE_BIT_PIANALUT_DIS);
 		rtw89_write16_set(rtwdev, phy_offset + RAC_ANA19 * RAC_MULT,
 				  val16 & ~B_PCIE_BIT_RD_SEL);
 
@@ -3530,7 +3530,7 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 				  R_RAC_DIRECT_OFFSET_G1 + RAC_ANA0C * RAC_MULT,
 				  B_PCIE_BIT_PSAVE);
 	} else {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	rtw89_write16_set(rtwdev, phy_offset + RAC_ANA0C * RAC_MULT,
 			  B_PCIE_BIT_PSAVE);
@@ -3656,10 +3656,10 @@ static void rtw89_pci_link_cfg(struct rtw89_dev *rtwdev)
 	 *
 	 * These functions are implemented by two HW modules associated,
 	 * one is responsible to access PCIE configuration space to
-	 * follow the host settings, and another is in charge of doing
+	 * follow the host settings, and aanalther is in charge of doing
 	 * CLKREQ/ASPM mechanisms, it is default disabled. Because sometimes
-	 * the host does not support it, and due to some reasons or wrong
-	 * settings (ex. CLKREQ# not Bi-Direction), it could lead to device
+	 * the host does analt support it, and due to some reasons or wrong
+	 * settings (ex. CLKREQ# analt Bi-Direction), it could lead to device
 	 * loss if HW misbehaves on the link.
 	 *
 	 * Hence it's designed that driver should first check the PCIE
@@ -4013,7 +4013,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					  info->chip);
 	if (!rtwdev) {
 		dev_err(&pdev->dev, "failed to allocate hw\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pci_info = info->bus.pci;

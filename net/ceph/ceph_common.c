@@ -31,12 +31,12 @@
 
 
 /*
- * Module compatibility interface.  For now it doesn't do anything,
+ * Module compatibility interface.  For analw it doesn't do anything,
  * but its existence signals a certain level of functionality.
  *
  * The data buffer is used to pass information both to and from
  * libceph.  The return value indicates whether libceph determines
- * it is compatible with the caller (from another kernel module),
+ * it is compatible with the caller (from aanalther kernel module),
  * given the provided data.
  *
  * The data pointer can be null.
@@ -92,9 +92,9 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_OSD_MAP: return "osd_map";
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
-	case CEPH_MSG_WATCH_NOTIFY: return "watch_notify";
+	case CEPH_MSG_WATCH_ANALTIFY: return "watch_analtify";
 	case CEPH_MSG_OSD_BACKOFF: return "osd_backoff";
-	default: return "unknown";
+	default: return "unkanalwn";
 	}
 }
 EXPORT_SYMBOL(ceph_msg_type_name);
@@ -244,19 +244,19 @@ enum {
 	Opt_crc,
 	Opt_cephx_require_signatures,
 	Opt_cephx_sign_messages,
-	Opt_tcp_nodelay,
+	Opt_tcp_analdelay,
 	Opt_abort_on_full,
 	Opt_rxbounce,
 };
 
 enum {
-	Opt_read_from_replica_no,
+	Opt_read_from_replica_anal,
 	Opt_read_from_replica_balance,
 	Opt_read_from_replica_localize,
 };
 
 static const struct constant_table ceph_param_read_from_replica[] = {
-	{"no",		Opt_read_from_replica_no},
+	{"anal",		Opt_read_from_replica_anal},
 	{"balance",	Opt_read_from_replica_balance},
 	{"localize",	Opt_read_from_replica_localize},
 	{}
@@ -282,9 +282,9 @@ static const struct constant_table ceph_param_ms_mode[] = {
 static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
 	__fsparam	(NULL, "cephx_require_signatures", Opt_cephx_require_signatures,
-			 fs_param_neg_with_no|fs_param_deprecated, NULL),
-	fsparam_flag_no ("cephx_sign_messages",		Opt_cephx_sign_messages),
-	fsparam_flag_no ("crc",				Opt_crc),
+			 fs_param_neg_with_anal|fs_param_deprecated, NULL),
+	fsparam_flag_anal ("cephx_sign_messages",		Opt_cephx_sign_messages),
+	fsparam_flag_anal ("crc",				Opt_crc),
 	fsparam_string	("crush_location",		Opt_crush_location),
 	fsparam_string	("fsid",			Opt_fsid),
 	fsparam_string	("ip",				Opt_ip),
@@ -300,8 +300,8 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_enum	("ms_mode",			Opt_ms_mode,
 			 ceph_param_ms_mode),
 	fsparam_string	("secret",			Opt_secret),
-	fsparam_flag_no ("share",			Opt_share),
-	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
+	fsparam_flag_anal ("share",			Opt_share),
+	fsparam_flag_anal ("tcp_analdelay",			Opt_tcp_analdelay),
 	{}
 };
 
@@ -327,8 +327,8 @@ struct ceph_options *ceph_alloc_options(void)
 	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
 	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
 	opt->read_from_replica = CEPH_READ_FROM_REPLICA_DEFAULT;
-	opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
-	opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+	opt->con_modes[0] = CEPH_CON_MODE_UNKANALWN;
+	opt->con_modes[1] = CEPH_CON_MODE_UNKANALWN;
 	return opt;
 }
 EXPORT_SYMBOL(ceph_alloc_options);
@@ -365,8 +365,8 @@ static int get_secret(struct ceph_crypto_key *dst, const char *name,
 		   errors; don't even try, but still printk */
 		key_err = PTR_ERR(ukey);
 		switch (key_err) {
-		case -ENOKEY:
-			error_plog(log, "Failed due to key not found: %s",
+		case -EANALKEY:
+			error_plog(log, "Failed due to key analt found: %s",
 			       name);
 			break;
 		case -EKEYEXPIRED:
@@ -458,7 +458,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 
 		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 		if (!opt->key)
-			return -ENOMEM;
+			return -EANALMEM;
 		err = ceph_crypto_key_unarmor(opt->key, param->string);
 		if (err) {
 			error_plog(&log, "Failed to parse secret: %d", err);
@@ -471,7 +471,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 
 		opt->key = kzalloc(sizeof(*opt->key), GFP_KERNEL);
 		if (!opt->key)
-			return -ENOMEM;
+			return -EANALMEM;
 		return get_secret(opt->key, param->string, &log);
 	case Opt_crush_location:
 		ceph_clear_crush_locs(&opt->crush_locs);
@@ -485,7 +485,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		break;
 	case Opt_read_from_replica:
 		switch (result.uint_32) {
-		case Opt_read_from_replica_no:
+		case Opt_read_from_replica_anal:
 			opt->read_from_replica = 0;
 			break;
 		case Opt_read_from_replica_balance:
@@ -501,16 +501,16 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_ms_mode:
 		switch (result.uint_32) {
 		case Opt_ms_mode_legacy:
-			opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
-			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			opt->con_modes[0] = CEPH_CON_MODE_UNKANALWN;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKANALWN;
 			break;
 		case Opt_ms_mode_crc:
 			opt->con_modes[0] = CEPH_CON_MODE_CRC;
-			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKANALWN;
 			break;
 		case Opt_ms_mode_secure:
 			opt->con_modes[0] = CEPH_CON_MODE_SECURE;
-			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKANALWN;
 			break;
 		case Opt_ms_mode_prefer_crc:
 			opt->con_modes[0] = CEPH_CON_MODE_CRC;
@@ -526,14 +526,14 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		break;
 
 	case Opt_osdkeepalivetimeout:
-		/* 0 isn't well defined right now, reject it */
+		/* 0 isn't well defined right analw, reject it */
 		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
 			goto out_of_range;
 		opt->osd_keepalive_timeout =
 		    msecs_to_jiffies(result.uint_32 * 1000);
 		break;
 	case Opt_osd_idle_ttl:
-		/* 0 isn't well defined right now, reject it */
+		/* 0 isn't well defined right analw, reject it */
 		if (result.uint_32 < 1 || result.uint_32 > INT_MAX / 1000)
 			goto out_of_range;
 		opt->osd_idle_ttl = msecs_to_jiffies(result.uint_32 * 1000);
@@ -554,33 +554,33 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 
 	case Opt_share:
 		if (!result.negated)
-			opt->flags &= ~CEPH_OPT_NOSHARE;
+			opt->flags &= ~CEPH_OPT_ANALSHARE;
 		else
-			opt->flags |= CEPH_OPT_NOSHARE;
+			opt->flags |= CEPH_OPT_ANALSHARE;
 		break;
 	case Opt_crc:
 		if (!result.negated)
-			opt->flags &= ~CEPH_OPT_NOCRC;
+			opt->flags &= ~CEPH_OPT_ANALCRC;
 		else
-			opt->flags |= CEPH_OPT_NOCRC;
+			opt->flags |= CEPH_OPT_ANALCRC;
 		break;
 	case Opt_cephx_require_signatures:
 		if (!result.negated)
-			warn_plog(&log, "Ignoring cephx_require_signatures");
+			warn_plog(&log, "Iganalring cephx_require_signatures");
 		else
-			warn_plog(&log, "Ignoring nocephx_require_signatures, use nocephx_sign_messages");
+			warn_plog(&log, "Iganalring analcephx_require_signatures, use analcephx_sign_messages");
 		break;
 	case Opt_cephx_sign_messages:
 		if (!result.negated)
-			opt->flags &= ~CEPH_OPT_NOMSGSIGN;
+			opt->flags &= ~CEPH_OPT_ANALMSGSIGN;
 		else
-			opt->flags |= CEPH_OPT_NOMSGSIGN;
+			opt->flags |= CEPH_OPT_ANALMSGSIGN;
 		break;
-	case Opt_tcp_nodelay:
+	case Opt_tcp_analdelay:
 		if (!result.negated)
-			opt->flags |= CEPH_OPT_TCP_NODELAY;
+			opt->flags |= CEPH_OPT_TCP_ANALDELAY;
 		else
-			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
+			opt->flags &= ~CEPH_OPT_TCP_ANALDELAY;
 		break;
 
 	case Opt_abort_on_full:
@@ -606,7 +606,7 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 {
 	struct ceph_options *opt = client->options;
 	size_t pos = m->count;
-	struct rb_node *n;
+	struct rb_analde *n;
 
 	if (opt->name) {
 		seq_puts(m, "name=");
@@ -619,8 +619,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 	if (!RB_EMPTY_ROOT(&opt->crush_locs)) {
 		seq_puts(m, "crush_location=");
 		for (n = rb_first(&opt->crush_locs); ; ) {
-			struct crush_loc_node *loc =
-			    rb_entry(n, struct crush_loc_node, cl_node);
+			struct crush_loc_analde *loc =
+			    rb_entry(n, struct crush_loc_analde, cl_analde);
 
 			seq_printf(m, "%s:%s", loc->cl_loc.cl_type_name,
 				   loc->cl_loc.cl_name);
@@ -637,12 +637,12 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 	} else if (opt->read_from_replica == CEPH_OSD_FLAG_LOCALIZE_READS) {
 		seq_puts(m, "read_from_replica=localize,");
 	}
-	if (opt->con_modes[0] != CEPH_CON_MODE_UNKNOWN) {
+	if (opt->con_modes[0] != CEPH_CON_MODE_UNKANALWN) {
 		if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
-		    opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+		    opt->con_modes[1] == CEPH_CON_MODE_UNKANALWN) {
 			seq_puts(m, "ms_mode=crc,");
 		} else if (opt->con_modes[0] == CEPH_CON_MODE_SECURE &&
-			   opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+			   opt->con_modes[1] == CEPH_CON_MODE_UNKANALWN) {
 			seq_puts(m, "ms_mode=secure,");
 		} else if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
 			   opt->con_modes[1] == CEPH_CON_MODE_SECURE) {
@@ -655,14 +655,14 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 
 	if (opt->flags & CEPH_OPT_FSID)
 		seq_printf(m, "fsid=%pU,", &opt->fsid);
-	if (opt->flags & CEPH_OPT_NOSHARE)
-		seq_puts(m, "noshare,");
-	if (opt->flags & CEPH_OPT_NOCRC)
-		seq_puts(m, "nocrc,");
-	if (opt->flags & CEPH_OPT_NOMSGSIGN)
-		seq_puts(m, "nocephx_sign_messages,");
-	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
-		seq_puts(m, "notcp_nodelay,");
+	if (opt->flags & CEPH_OPT_ANALSHARE)
+		seq_puts(m, "analshare,");
+	if (opt->flags & CEPH_OPT_ANALCRC)
+		seq_puts(m, "analcrc,");
+	if (opt->flags & CEPH_OPT_ANALMSGSIGN)
+		seq_puts(m, "analcephx_sign_messages,");
+	if ((opt->flags & CEPH_OPT_TCP_ANALDELAY) == 0)
+		seq_puts(m, "analtcp_analdelay,");
 	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
 		seq_puts(m, "abort_on_full,");
 	if (opt->flags & CEPH_OPT_RXBOUNCE)
@@ -716,7 +716,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	client->private = private;
 	client->options = opt;
@@ -729,7 +729,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT;
 	client->required_features = CEPH_FEATURES_REQUIRED_DEFAULT;
 
-	if (!ceph_test_opt(client, NOMSGSIGN))
+	if (!ceph_test_opt(client, ANALMSGSIGN))
 		client->required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	/* msgr */
@@ -779,7 +779,7 @@ EXPORT_SYMBOL(ceph_destroy_client);
 
 void ceph_reset_client_addr(struct ceph_client *client)
 {
-	ceph_messenger_reset_nonce(&client->msgr);
+	ceph_messenger_reset_analnce(&client->msgr);
 	ceph_monc_reopen_session(&client->monc);
 	ceph_osdc_reopen_osds(&client->osdc);
 }
@@ -833,7 +833,7 @@ EXPORT_SYMBOL(__ceph_open_session);
 int ceph_open_session(struct ceph_client *client)
 {
 	int ret;
-	unsigned long started = jiffies;  /* note the start time */
+	unsigned long started = jiffies;  /* analte the start time */
 
 	dout("open_session start\n");
 	mutex_lock(&client->mount_mutex);

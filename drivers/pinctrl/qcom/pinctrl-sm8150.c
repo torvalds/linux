@@ -8,14 +8,14 @@
 #include "pinctrl-msm.h"
 
 static const char * const sm8150_tiles[] = {
-	"north",
+	"analrth",
 	"south",
 	"east",
 	"west"
 };
 
 enum {
-	NORTH,
+	ANALRTH,
 	SOUTH,
 	EAST,
 	WEST
@@ -71,7 +71,7 @@ enum {
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
 		.intr_target_reg = 0,			\
-		.tile = NORTH,				\
+		.tile = ANALRTH,				\
 		.mux_bit = -1,				\
 		.pull_bit = pull,			\
 		.drv_bit = drv,				\
@@ -1305,10 +1305,10 @@ static const struct pinfunction sm8150_functions[] = {
 };
 
 /*
- * Every pin is maintained as a single group, and missing or non-existing pin
+ * Every pin is maintained as a single group, and missing or analn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would analt be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sm8150_groups[] = {
 	[0] = PINGROUP(0, SOUTH, qup0, _, _, _, _, _, _, _, _),
@@ -1319,19 +1319,19 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[5] = PINGROUP(5, SOUTH, qup6, rgmii, _, _, _, _, _, _, _),
 	[6] = PINGROUP(6, SOUTH, qup6, rgmii, qup_l6, _, _, _, _, _, _),
 	[7] = PINGROUP(7, SOUTH, qup6, rgmii, qup_l5, _, _, _, _, _, _),
-	[8] = PINGROUP(8, NORTH, mdp_vsync, _, _, _, _, _, _, _, _),
-	[9] = PINGROUP(9, NORTH, mdp_vsync, edp_lcd, qup10, _, _, _, _, _, _),
-	[10] = PINGROUP(10, NORTH, mdp_vsync, m_voc, edp_hot, qup10, _, _, _, _, _),
-	[11] = PINGROUP(11, NORTH, qup10, _, _, _, _, _, _, _, _),
-	[12] = PINGROUP(12, NORTH, qup10, _, _, _, _, _, _, _, _),
-	[13] = PINGROUP(13, NORTH, cam_mclk, qdss, _, _, _, _, _, _, _),
-	[14] = PINGROUP(14, NORTH, cam_mclk, qdss, _, _, _, _, _, _, _),
-	[15] = PINGROUP(15, NORTH, cam_mclk, qdss, _, _, _, _, _, _, _),
-	[16] = PINGROUP(16, NORTH, cam_mclk, qdss, _, _, _, _, _, _, _),
-	[17] = PINGROUP(17, NORTH, cci_i2c, qdss, _, _, _, _, _, _, _),
-	[18] = PINGROUP(18, NORTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
-	[19] = PINGROUP(19, NORTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
-	[20] = PINGROUP(20, NORTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
+	[8] = PINGROUP(8, ANALRTH, mdp_vsync, _, _, _, _, _, _, _, _),
+	[9] = PINGROUP(9, ANALRTH, mdp_vsync, edp_lcd, qup10, _, _, _, _, _, _),
+	[10] = PINGROUP(10, ANALRTH, mdp_vsync, m_voc, edp_hot, qup10, _, _, _, _, _),
+	[11] = PINGROUP(11, ANALRTH, qup10, _, _, _, _, _, _, _, _),
+	[12] = PINGROUP(12, ANALRTH, qup10, _, _, _, _, _, _, _, _),
+	[13] = PINGROUP(13, ANALRTH, cam_mclk, qdss, _, _, _, _, _, _, _),
+	[14] = PINGROUP(14, ANALRTH, cam_mclk, qdss, _, _, _, _, _, _, _),
+	[15] = PINGROUP(15, ANALRTH, cam_mclk, qdss, _, _, _, _, _, _, _),
+	[16] = PINGROUP(16, ANALRTH, cam_mclk, qdss, _, _, _, _, _, _, _),
+	[17] = PINGROUP(17, ANALRTH, cci_i2c, qdss, _, _, _, _, _, _, _),
+	[18] = PINGROUP(18, ANALRTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
+	[19] = PINGROUP(19, ANALRTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
+	[20] = PINGROUP(20, ANALRTH, cci_i2c, phase_flag, _, qdss, _, _, _, _, _),
 	[21] = PINGROUP(21, EAST, cci_timer0, gcc_gp2, qdss, _, _, _, _, _, _),
 	[22] = PINGROUP(22, EAST, cci_timer1, gcc_gp3, qdss, _, _, _, _, _, _),
 	[23] = PINGROUP(23, EAST, cci_timer2, qup18, qdss, _, _, _, _, _, _),
@@ -1342,18 +1342,18 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[28] = PINGROUP(28, EAST, qup15, qdss, _, _, _, _, _, _, _),
 	[29] = PINGROUP(29, EAST, qup15, qdss, _, _, _, _, _, _, _),
 	[30] = PINGROUP(30, EAST, qup15, qdss, _, _, _, _, _, _, _),
-	[31] = PINGROUP(31, NORTH, cci_i2c, qdss, _, _, _, _, _, _, _),
-	[32] = PINGROUP(32, NORTH, cci_i2c, qdss, _, _, _, _, _, _, _),
-	[33] = PINGROUP(33, NORTH, cci_i2c, qup_l5, qdss, _, _, _, _, _, _),
-	[34] = PINGROUP(34, NORTH, cci_i2c, qup_l6, _, _, _, _, _, _, _),
-	[35] = PINGROUP(35, NORTH, pci_e0, _, _, _, _, _, _, _, _),
-	[36] = PINGROUP(36, NORTH, pci_e0, _, _, _, _, _, _, _, _),
-	[37] = PINGROUP(37, NORTH, qup_l4, agera_pll, _, _, _, _, _, _, _),
+	[31] = PINGROUP(31, ANALRTH, cci_i2c, qdss, _, _, _, _, _, _, _),
+	[32] = PINGROUP(32, ANALRTH, cci_i2c, qdss, _, _, _, _, _, _, _),
+	[33] = PINGROUP(33, ANALRTH, cci_i2c, qup_l5, qdss, _, _, _, _, _, _),
+	[34] = PINGROUP(34, ANALRTH, cci_i2c, qup_l6, _, _, _, _, _, _, _),
+	[35] = PINGROUP(35, ANALRTH, pci_e0, _, _, _, _, _, _, _, _),
+	[36] = PINGROUP(36, ANALRTH, pci_e0, _, _, _, _, _, _, _, _),
+	[37] = PINGROUP(37, ANALRTH, qup_l4, agera_pll, _, _, _, _, _, _, _),
 	[38] = PINGROUP(38, SOUTH, usb_phy, _, _, _, _, _, _, _, _),
-	[39] = PINGROUP(39, NORTH, qup9, qdss, _, _, _, _, _, _, _),
-	[40] = PINGROUP(40, NORTH, qup9, qdss, _, _, _, _, _, _, _),
-	[41] = PINGROUP(41, NORTH, qup9, qdss, _, _, _, _, _, _, _),
-	[42] = PINGROUP(42, NORTH, qup9, qdss, _, _, _, _, _, _, _),
+	[39] = PINGROUP(39, ANALRTH, qup9, qdss, _, _, _, _, _, _, _),
+	[40] = PINGROUP(40, ANALRTH, qup9, qdss, _, _, _, _, _, _, _),
+	[41] = PINGROUP(41, ANALRTH, qup9, qdss, _, _, _, _, _, _, _),
+	[42] = PINGROUP(42, ANALRTH, qup9, qdss, _, _, _, _, _, _, _),
 	[43] = PINGROUP(43, EAST, qup13, _, _, _, _, _, _, _, _),
 	[44] = PINGROUP(44, EAST, qup13, _, _, _, _, _, _, _, _),
 	[45] = PINGROUP(45, EAST, qup13, qdss_cti, _, _, _, _, _, _, _),
@@ -1394,28 +1394,28 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[80] = PINGROUP(80, SOUTH, _, _, phase_flag, _, _, _, _, _, _),
 	[81] = PINGROUP(81, SOUTH, _, _, _, nav_pps, nav_pps, qup_l4, mdp_vsync, emac_pps, _),
 	[82] = PINGROUP(82, SOUTH, _, _, _, nav_pps, nav_pps, qup_l5, mdp_vsync, _, _),
-	[83] = PINGROUP(83, NORTH, qup12, qup16, _, qdss, _, _, _, _, _),
-	[84] = PINGROUP(84, NORTH, qup12, qup16, _, _, _, _, _, _, _),
-	[85] = PINGROUP(85, NORTH, qup12, qup16, _, _, _, _, _, _, _),
-	[86] = PINGROUP(86, NORTH, qup12, qup16, _, _, _, _, _, _, _),
+	[83] = PINGROUP(83, ANALRTH, qup12, qup16, _, qdss, _, _, _, _, _),
+	[84] = PINGROUP(84, ANALRTH, qup12, qup16, _, _, _, _, _, _, _),
+	[85] = PINGROUP(85, ANALRTH, qup12, qup16, _, _, _, _, _, _, _),
+	[86] = PINGROUP(86, ANALRTH, qup12, qup16, _, _, _, _, _, _, _),
 	[87] = PINGROUP(87, EAST, _, _, _, _, _, _, _, _, _),
-	[88] = PINGROUP(88, NORTH, tsif1, qup8, qspi_cs, tgu_ch3, _, _, _, _, _),
-	[89] = PINGROUP(89, NORTH, tsif1, qup8, qspi0, mdp_vsync0, mdp_vsync1, mdp_vsync2, mdp_vsync3, tgu_ch0, _),
-	[90] = PINGROUP(90, NORTH, tsif1, qup8, qspi1, sdc4, phase_flag, tgu_ch1, _, _, wlan1_adc1),
-	[91] = PINGROUP(91, NORTH, tsif1, qup8, qspi2, sdc4, vfr_1, phase_flag, tgu_ch2, _, _),
-	[92] = PINGROUP(92, NORTH, tsif2, qup11, qspi_clk, sdc4, phase_flag, _, wlan2_adc1, _, _),
-	[93] = PINGROUP(93, NORTH, tsif2, qup11, qspi3, sdc4, phase_flag, _, wlan2_adc0, _, _),
-	[94] = PINGROUP(94, NORTH, tsif2, qup11, qspi_cs, sdc4, phase_flag, _, _, _, _),
-	[95] = PINGROUP(95, NORTH, tsif2, qup11, sdc4, qup_l4, _, _, _, _, _),
-	[96] = PINGROUP(96, NORTH, tsif2, qup_l5, phase_flag, _, _, _, _, _, _),
-	[97] = PINGROUP(97, NORTH, sd_write, tsif1, qup_l6, _, _, _, _, _, _),
+	[88] = PINGROUP(88, ANALRTH, tsif1, qup8, qspi_cs, tgu_ch3, _, _, _, _, _),
+	[89] = PINGROUP(89, ANALRTH, tsif1, qup8, qspi0, mdp_vsync0, mdp_vsync1, mdp_vsync2, mdp_vsync3, tgu_ch0, _),
+	[90] = PINGROUP(90, ANALRTH, tsif1, qup8, qspi1, sdc4, phase_flag, tgu_ch1, _, _, wlan1_adc1),
+	[91] = PINGROUP(91, ANALRTH, tsif1, qup8, qspi2, sdc4, vfr_1, phase_flag, tgu_ch2, _, _),
+	[92] = PINGROUP(92, ANALRTH, tsif2, qup11, qspi_clk, sdc4, phase_flag, _, wlan2_adc1, _, _),
+	[93] = PINGROUP(93, ANALRTH, tsif2, qup11, qspi3, sdc4, phase_flag, _, wlan2_adc0, _, _),
+	[94] = PINGROUP(94, ANALRTH, tsif2, qup11, qspi_cs, sdc4, phase_flag, _, _, _, _),
+	[95] = PINGROUP(95, ANALRTH, tsif2, qup11, sdc4, qup_l4, _, _, _, _, _),
+	[96] = PINGROUP(96, ANALRTH, tsif2, qup_l5, phase_flag, _, _, _, _, _, _),
+	[97] = PINGROUP(97, ANALRTH, sd_write, tsif1, qup_l6, _, _, _, _, _, _),
 	[98] = PINGROUP(98, SOUTH, qup7, ddr_bist, ddr_pxi3, _, _, _, _, _, _),
 	[99] = PINGROUP(99, SOUTH, qup7, ddr_bist, atest_usb13, ddr_pxi1, _, _, _, _, _),
 	[100] = PINGROUP(100, SOUTH, qup7, pll_bypassnl, atest_usb12, ddr_pxi1, _, _, _, _, _),
 	[101] = PINGROUP(101, SOUTH, qup7, pll_reset, ddr_pxi3, _, _, _, _, _, _),
-	[102] = PINGROUP(102, NORTH, pci_e1, _, _, _, _, _, _, _, _),
-	[103] = PINGROUP(103, NORTH, pci_e1, _, _, _, _, _, _, _, _),
-	[104] = PINGROUP(104, NORTH, _, _, _, _, _, _, _, _, _),
+	[102] = PINGROUP(102, ANALRTH, pci_e1, _, _, _, _, _, _, _, _),
+	[103] = PINGROUP(103, ANALRTH, pci_e1, _, _, _, _, _, _, _, _),
+	[104] = PINGROUP(104, ANALRTH, _, _, _, _, _, _, _, _, _),
 	[105] = PINGROUP(105, WEST, uim2, _, _, _, _, _, _, _, _),
 	[106] = PINGROUP(106, WEST, uim2, _, _, _, _, _, _, _, _),
 	[107] = PINGROUP(107, WEST, uim2, _, _, _, _, _, _, _, _),
@@ -1480,12 +1480,12 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[166] = PINGROUP(166, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
 	[167] = PINGROUP(167, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
 	[168] = PINGROUP(168, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
-	[169] = PINGROUP(169, NORTH, _, _, _, _, _, _, _, _, _),
-	[170] = PINGROUP(170, NORTH, _, _, _, _, _, _, _, _, _),
-	[171] = PINGROUP(171, NORTH, _, _, _, _, _, _, _, _, _),
-	[172] = PINGROUP(172, NORTH, _, _, _, _, _, _, _, _, _),
-	[173] = PINGROUP(173, NORTH, _, _, _, _, _, _, _, _, _),
-	[174] = PINGROUP(174, NORTH, _, _, _, _, _, _, _, _, _),
+	[169] = PINGROUP(169, ANALRTH, _, _, _, _, _, _, _, _, _),
+	[170] = PINGROUP(170, ANALRTH, _, _, _, _, _, _, _, _, _),
+	[171] = PINGROUP(171, ANALRTH, _, _, _, _, _, _, _, _, _),
+	[172] = PINGROUP(172, ANALRTH, _, _, _, _, _, _, _, _, _),
+	[173] = PINGROUP(173, ANALRTH, _, _, _, _, _, _, _, _, _),
+	[174] = PINGROUP(174, ANALRTH, _, _, _, _, _, _, _, _, _),
 	[175] = UFS_RESET(ufs_reset, 0xB6000),
 	[176] = SDC_QDSD_PINGROUP(sdc2_clk, 0xB2000, 14, 6),
 	[177] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xB2000, 11, 3),

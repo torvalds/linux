@@ -5,7 +5,7 @@ NAME
 ----
 perf-mem - Profile memory accesses
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf mem' [<options>] (record [<command>] | report)
@@ -19,13 +19,13 @@ from it, into perf.data. Perf record options are accepted and are passed through
 right set of options to display a memory access profile. By default, loads
 and stores are sampled. Use the -t option to limit to loads or stores.
 
-Note that on Intel systems the memory latency reported is the use-latency,
-not the pure load (or store latency). Use latency includes any pipeline
+Analte that on Intel systems the memory latency reported is the use-latency,
+analt the pure load (or store latency). Use latency includes any pipeline
 queueing delays in addition to the memory subsystem latency.
 
 On Arm64 this uses SPE to sample load and store operations, therefore hardware
 and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.
-Due to the statistical nature of SPE sampling, not every memory operation will
+Due to the statistical nature of SPE sampling, analt every memory operation will
 be sampled.
 
 OPTIONS
@@ -58,7 +58,7 @@ OPTIONS
 -C::
 --cpu=<cpu>::
 	Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
-        comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2. Default
+        comma-separated list with anal space: 0,1. Ranges of CPUs are specified with -: 0-2. Default
         is to monitor all CPUS.
 -U::
 --hide-unresolved::
@@ -91,7 +91,7 @@ RECORD OPTIONS
 
 --ldlat <n>::
 	Specify desired latency for loads event. Supported on Intel and Arm64
-	processors only. Ignored on other archs.
+	processors only. Iganalred on other archs.
 
 In addition, for report all perf report options are valid, and for record
 all perf record options.

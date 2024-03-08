@@ -287,7 +287,7 @@ static int fxls8962af_read_avail(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		*vals = (int *)fxls8962af_scale_table;
 		*length = ARRAY_SIZE(fxls8962af_scale_table) * 2;
 		return IIO_AVAIL_LIST;
@@ -307,11 +307,11 @@ static int fxls8962af_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	}
 }
 
@@ -372,7 +372,7 @@ static unsigned int fxls8962af_read_full_scale(struct fxls8962af_data *data,
 
 	*val = fxls8962af_scale_table[range_idx][1];
 
-	return IIO_VAL_INT_PLUS_NANO;
+	return IIO_VAL_INT_PLUS_NAANAL;
 }
 
 static int fxls8962af_set_samp_freq(struct fxls8962af_data *data, u32 val,
@@ -682,7 +682,7 @@ fxls8962af_write_event_config(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		/* Not in buffered mode so disable power */
+		/* Analt in buffered mode so disable power */
 		ret = fxls8962af_power_off(data);
 
 		iio_device_release_direct_mode(indio_dev);
@@ -799,7 +799,7 @@ static int fxls8962af_reset(struct fxls8962af_data *data)
 	return ret;
 }
 
-static int __fxls8962af_fifo_set_mode(struct fxls8962af_data *data, bool onoff)
+static int __fxls8962af_fifo_set_mode(struct fxls8962af_data *data, bool oanalff)
 {
 	int ret;
 
@@ -812,7 +812,7 @@ static int __fxls8962af_fifo_set_mode(struct fxls8962af_data *data, bool onoff)
 
 	return regmap_update_bits(data->regmap, FXLS8962AF_BUF_CONFIG1,
 				  FXLS8962AF_BC1_BUF_MODE_MASK,
-				  FXLS8962AF_BC1_BUF_MODE_PREP(onoff));
+				  FXLS8962AF_BC1_BUF_MODE_PREP(oanalff));
 }
 
 static int fxls8962af_buffer_preenable(struct iio_dev *indio_dev)
@@ -1029,12 +1029,12 @@ static irqreturn_t fxls8962af_interrupt(int irq, void *p)
 
 	ret = regmap_read(data->regmap, FXLS8962AF_INT_STATUS, &reg);
 	if (ret)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & FXLS8962AF_INT_STATUS_SRC_BUF) {
 		ret = fxls8962af_fifo_flush(indio_dev);
 		if (ret < 0)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		return IRQ_HANDLED;
 	}
@@ -1042,12 +1042,12 @@ static irqreturn_t fxls8962af_interrupt(int irq, void *p)
 	if (reg & FXLS8962AF_INT_STATUS_SRC_SDCD_OT) {
 		ret = fxls8962af_event_interrupt(indio_dev);
 		if (ret < 0)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static void fxls8962af_pm_disable(void *dev_ptr)
@@ -1057,17 +1057,17 @@ static void fxls8962af_pm_disable(void *dev_ptr)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	fxls8962af_standby(iio_priv(indio_dev));
 }
 
-static void fxls8962af_get_irq(struct device_node *of_node,
+static void fxls8962af_get_irq(struct device_analde *of_analde,
 			       enum fxls8962af_int_pin *pin)
 {
 	int irq;
 
-	irq = of_irq_get_byname(of_node, "INT2");
+	irq = of_irq_get_byname(of_analde, "INT2");
 	if (irq > 0) {
 		*pin = FXLS8962AF_PIN_INT2;
 		return;
@@ -1086,7 +1086,7 @@ static int fxls8962af_irq_setup(struct iio_dev *indio_dev, int irq)
 	u8 int_pin_sel;
 	int ret;
 
-	fxls8962af_get_irq(dev->of_node, &int_pin);
+	fxls8962af_get_irq(dev->of_analde, &int_pin);
 	switch (int_pin) {
 	case FXLS8962AF_PIN_INT1:
 		int_pin_sel = FXLS8962AF_INT_PIN_SEL_INT1;
@@ -1152,7 +1152,7 @@ int fxls8962af_core_probe(struct device *dev, struct regmap *regmap, int irq)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);

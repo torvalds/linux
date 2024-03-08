@@ -55,7 +55,7 @@ The MAX2175 driver implements the following driver-specific controls:
       - This configures VHF band with a sample rate of 2.048 million
         samples/sec with a 32.768 MHz sck.
 
-    * - ``"North America modes"``
+    * - ``"Analrth America modes"``
     * - ``"FM 1.0" (0)``
       - This configures FM band with a sample rate of 0.7441875 million
         samples/sec with a 14.88375 MHz sck.

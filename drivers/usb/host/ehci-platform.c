@@ -60,7 +60,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	ehci->has_synopsys_hc_bug = pdata->has_synopsys_hc_bug;
+	ehci->has_syanalpsys_hc_bug = pdata->has_syanalpsys_hc_bug;
 
 	if (pdata->pre_setup) {
 		retval = pdata->pre_setup(hcd);
@@ -73,10 +73,10 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	if (pdata->no_io_watchdog)
+	if (pdata->anal_io_watchdog)
 		ehci->need_io_watchdog = 0;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "brcm,xgs-iproc-ehci"))
+	if (of_device_is_compatible(pdev->dev.of_analde, "brcm,xgs-iproc-ehci"))
 		ehci_writel(ehci, BCM_USB_FIFO_THRESHOLD,
 			    &ehci->regs->brcm_insnreg[1]);
 
@@ -192,7 +192,7 @@ static void quirk_poll_work(struct work_struct *work)
 	if (!quirk_poll_check_port_status(ehci))
 		return;
 
-	ehci_dbg(ehci, "%s: detected getting stuck. rebind now!\n", __func__);
+	ehci_dbg(ehci, "%s: detected getting stuck. rebind analw!\n", __func__);
 	quirk_poll_rebind_companion(ehci);
 }
 
@@ -204,7 +204,7 @@ static void quirk_poll_timer(struct timer_list *t)
 
 	if (quirk_poll_check_port_status(ehci)) {
 		/*
-		 * Now scheduling the work for testing the port more. Note that
+		 * Analw scheduling the work for testing the port more. Analte that
 		 * updating the status is possible to be delayed when
 		 * reconnection. So, this uses delayed work with 5 ms delay
 		 * to avoid misdetection.
@@ -243,7 +243,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	int err, irq, clk = 0;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Use reasonable defaults so platforms don't have to provide these
@@ -266,37 +266,37 @@ static int ehci_platform_probe(struct platform_device *dev)
 	hcd = usb_create_hcd(&ehci_platform_hc_driver, &dev->dev,
 			     dev_name(&dev->dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(dev, hcd);
 	dev->dev.platform_data = pdata;
 	priv = hcd_to_ehci_priv(hcd);
 	ehci = hcd_to_ehci(hcd);
 
-	if (pdata == &ehci_platform_defaults && dev->dev.of_node) {
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-regs"))
+	if (pdata == &ehci_platform_defaults && dev->dev.of_analde) {
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian-regs"))
 			ehci->big_endian_mmio = 1;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-desc"))
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian-desc"))
 			ehci->big_endian_desc = 1;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian"))
 			ehci->big_endian_mmio = ehci->big_endian_desc = 1;
 
-		if (of_property_read_bool(dev->dev.of_node, "spurious-oc"))
+		if (of_property_read_bool(dev->dev.of_analde, "spurious-oc"))
 			ehci->spurious_oc = 1;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_property_read_bool(dev->dev.of_analde,
 					  "needs-reset-on-resume"))
 			priv->reset_on_resume = true;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_property_read_bool(dev->dev.of_analde,
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
 
-		if (of_device_is_compatible(dev->dev.of_node,
+		if (of_device_is_compatible(dev->dev.of_analde,
 					    "aspeed,ast2500-ehci") ||
-		    of_device_is_compatible(dev->dev.of_node,
+		    of_device_is_compatible(dev->dev.of_analde,
 					    "aspeed,ast2600-ehci"))
 			ehci->is_aspeed = 1;
 
@@ -304,7 +304,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 			priv->quirk_poll = true;
 
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
-			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
+			priv->clks[clk] = of_clk_get(dev->dev.of_analde, clk);
 			if (IS_ERR(priv->clks[clk])) {
 				err = PTR_ERR(priv->clks[clk]);
 				if (err == -EPROBE_DEFER)
@@ -339,7 +339,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 	if (ehci->big_endian_mmio) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_MMIO not set\n");
+			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_MMIO analt set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}
@@ -347,7 +347,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 #ifndef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
 	if (ehci->big_endian_desc) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_DESC not set\n");
+			"Error: CONFIG_USB_EHCI_BIG_ENDIAN_DESC analt set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}
@@ -367,7 +367,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	hcd->tpl_support = of_usb_host_tpl_support(dev->dev.of_node);
+	hcd->tpl_support = of_usb_host_tpl_support(dev->dev.of_analde);
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
@@ -515,14 +515,14 @@ static struct platform_driver ehci_platform_driver = {
 		.pm	= pm_ptr(&ehci_platform_pm_ops),
 		.of_match_table = vt8500_ehci_ids,
 		.acpi_match_table = ACPI_PTR(ehci_acpi_match),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	}
 };
 
 static int __init ehci_platform_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ehci_platform_driver);

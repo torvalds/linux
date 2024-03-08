@@ -10,7 +10,7 @@ Required properties:
 - reg : Should contain DMA registers location and length
 - interrupts : First item should be DMA interrupt, second one is optional and
     should contain DMA Error interrupt
-- #dma-cells : Has to be 1. imx-dma does not support anything else.
+- #dma-cells : Has to be 1. imx-dma does analt support anything else.
 
 Optional properties:
 - dma-channels : Number of DMA channels supported. Should be 16.

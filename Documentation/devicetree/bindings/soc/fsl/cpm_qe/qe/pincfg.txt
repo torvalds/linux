@@ -1,4 +1,4 @@
-* Pin configuration nodes
+* Pin configuration analdes
 
 Required properties:
 - pio-map : array of pin configurations.  Each pin is defined by 6
@@ -13,7 +13,7 @@ Required properties:
      2 = The pin is an input
      3 = The pin is I/O
 
-  - open_drain : indicates the pin is normal or wired-OR:
+  - open_drain : indicates the pin is analrmal or wired-OR:
 
      0 = The pin is actively driven as an output
      1 = The pin is an open-drain driver. As an output, the pin is

@@ -50,36 +50,36 @@ static int __init ppc460ex_canyonlands_fixup(void)
 {
 	u8 __iomem *bcsr ;
 	void __iomem *vaddr;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "amcc,ppc460ex-bcsr");
+	np = of_find_compatible_analde(NULL, NULL, "amcc,ppc460ex-bcsr");
 	if (!np) {
-		printk(KERN_ERR "failed did not find amcc, ppc460ex bcsr node\n");
-		return -ENODEV;
+		printk(KERN_ERR "failed did analt find amcc, ppc460ex bcsr analde\n");
+		return -EANALDEV;
 	}
 
 	bcsr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!bcsr) {
-		printk(KERN_CRIT "Could not remap bcsr\n");
-		ret = -ENODEV;
+		printk(KERN_CRIT "Could analt remap bcsr\n");
+		ret = -EANALDEV;
 		goto err_bcsr;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,ppc4xx-gpio");
+	np = of_find_compatible_analde(NULL, NULL, "ibm,ppc4xx-gpio");
 	if (!np) {
-		printk(KERN_ERR "failed did not find ibm,ppc4xx-gpio node\n");
-		return -ENODEV;
+		printk(KERN_ERR "failed did analt find ibm,ppc4xx-gpio analde\n");
+		return -EANALDEV;
 	}
 
 	vaddr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!vaddr) {
-		printk(KERN_CRIT "Could not get gpio node address\n");
-		ret = -ENODEV;
+		printk(KERN_CRIT "Could analt get gpio analde address\n");
+		ret = -EANALDEV;
 		goto err_gpio;
 	}
 	/* Disable USB, through the BCSR7 bits */

@@ -179,8 +179,8 @@ struct decoded_addr {
 	u64 sub_channel_addr;
 };
 
-struct ecclog_node {
-	struct llist_node llnode;
+struct ecclog_analde {
+	struct llist_analde llanalde;
 	int mc;
 	u64 ecclog;
 };
@@ -269,17 +269,17 @@ static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 
 	if (pci_read_config_dword(pdev, MCHBAR_OFFSET, &u.v_lo)) {
 		igen6_printk(KERN_ERR, "Failed to read lower MCHBAR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pci_read_config_dword(pdev, MCHBAR_OFFSET + 4, &u.v_hi)) {
 		igen6_printk(KERN_ERR, "Failed to read upper MCHBAR\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (!(u.v & MCHBAR_EN)) {
 		igen6_printk(KERN_ERR, "MCHBAR is disabled\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	*mchbar = MCHBAR_BASE(u.v);
@@ -612,7 +612,7 @@ static enum dev_type get_width(int dimm_l, u32 mad_dimm)
 	case 2:
 		return DEV_X32;
 	default:
-		return DEV_UNKNOWN;
+		return DEV_UNKANALWN;
 	}
 }
 
@@ -632,7 +632,7 @@ static enum mem_type get_memory_type(u32 mad_inter)
 	case 4:
 		return MEM_WIO2;
 	default:
-		return MEM_UNKNOWN;
+		return MEM_UNKANALWN;
 	}
 }
 
@@ -729,7 +729,7 @@ static struct gen_pool *ecclog_gen_pool_create(void)
 {
 	struct gen_pool *pool;
 
-	pool = gen_pool_create(ilog2(sizeof(struct ecclog_node)), -1);
+	pool = gen_pool_create(ilog2(sizeof(struct ecclog_analde)), -1);
 	if (!pool)
 		return NULL;
 
@@ -743,15 +743,15 @@ static struct gen_pool *ecclog_gen_pool_create(void)
 
 static int ecclog_gen_pool_add(int mc, u64 ecclog)
 {
-	struct ecclog_node *node;
+	struct ecclog_analde *analde;
 
-	node = (void *)gen_pool_alloc(ecclog_pool, sizeof(*node));
-	if (!node)
-		return -ENOMEM;
+	analde = (void *)gen_pool_alloc(ecclog_pool, sizeof(*analde));
+	if (!analde)
+		return -EANALMEM;
 
-	node->mc = mc;
-	node->ecclog = ecclog;
-	llist_add(&node->llnode, &ecclog_llist);
+	analde->mc = mc;
+	analde->ecclog = ecclog;
+	llist_add(&analde->llanalde, &ecclog_llist);
 
 	return 0;
 }
@@ -838,9 +838,9 @@ static int ecclog_handler(void)
 
 static void ecclog_work_cb(struct work_struct *work)
 {
-	struct ecclog_node *node, *tmp;
+	struct ecclog_analde *analde, *tmp;
 	struct mem_ctl_info *mci;
-	struct llist_node *head;
+	struct llist_analde *head;
 	struct decoded_addr res;
 	u64 eaddr;
 
@@ -848,27 +848,27 @@ static void ecclog_work_cb(struct work_struct *work)
 	if (!head)
 		return;
 
-	llist_for_each_entry_safe(node, tmp, head, llnode) {
+	llist_for_each_entry_safe(analde, tmp, head, llanalde) {
 		memset(&res, 0, sizeof(res));
 		if (res_cfg->err_addr)
-			eaddr = res_cfg->err_addr(node->ecclog);
+			eaddr = res_cfg->err_addr(analde->ecclog);
 		else
-			eaddr = ECC_ERROR_LOG_ADDR(node->ecclog) <<
+			eaddr = ECC_ERROR_LOG_ADDR(analde->ecclog) <<
 				ECC_ERROR_LOG_ADDR_SHIFT;
-		res.mc	     = node->mc;
+		res.mc	     = analde->mc;
 		res.sys_addr = res_cfg->err_addr_to_sys_addr(eaddr, res.mc);
 		res.imc_addr = res_cfg->err_addr_to_imc_addr(eaddr, res.mc);
 
 		mci = igen6_pvt->imc[res.mc].mci;
 
-		edac_dbg(2, "MC %d, ecclog = 0x%llx\n", node->mc, node->ecclog);
+		edac_dbg(2, "MC %d, ecclog = 0x%llx\n", analde->mc, analde->ecclog);
 		igen6_mc_printk(mci, KERN_DEBUG, "HANDLING IBECC MEMORY ERROR\n");
 		igen6_mc_printk(mci, KERN_DEBUG, "ADDR 0x%llx ", res.sys_addr);
 
 		if (!igen6_decode(&res))
-			igen6_output_error(&res, mci, node->ecclog);
+			igen6_output_error(&res, mci, analde->ecclog);
 
-		gen_pool_free(ecclog_pool, (unsigned long)node, sizeof(*node));
+		gen_pool_free(ecclog_pool, (unsigned long)analde, sizeof(*analde));
 	}
 }
 
@@ -906,22 +906,22 @@ static int ecclog_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 	return NMI_HANDLED;
 }
 
-static int ecclog_mce_handler(struct notifier_block *nb, unsigned long val,
+static int ecclog_mce_handler(struct analtifier_block *nb, unsigned long val,
 			      void *data)
 {
 	struct mce *mce = (struct mce *)data;
 	char *type;
 
 	if (mce->kflags & MCE_HANDLED_CEC)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/*
-	 * Ignore unless this is a memory related error.
+	 * Iganalre unless this is a memory related error.
 	 * We don't check the bit MCI_STATUS_ADDRV of MCi_STATUS here,
 	 * since this bit isn't set on some CPU (e.g., Tiger Lake UP3).
 	 */
 	if ((mce->status & 0xefff) >> 7 != 1)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (mce->mcgstatus & MCG_STATUS_MCIP)
 		type = "Exception";
@@ -938,22 +938,22 @@ static int ecclog_mce_handler(struct notifier_block *nb, unsigned long val,
 		 mce->cpuvendor, mce->cpuid, mce->time,
 		 mce->socketid, mce->apicid);
 	/*
-	 * We just use the Machine Check for the memory error notification.
+	 * We just use the Machine Check for the memory error analtification.
 	 * Each memory controller is associated with an IBECC instance.
 	 * Directly read and clear the error information(error address and
-	 * error type) on all the IBECC instances so that we know on which
+	 * error type) on all the IBECC instances so that we kanalw on which
 	 * memory controller the memory error(s) occurred.
 	 */
 	if (!ecclog_handler())
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	mce->kflags |= MCE_HANDLED_EDAC;
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block ecclog_mce_dec = {
-	.notifier_call	= ecclog_mce_handler,
+static struct analtifier_block ecclog_mce_dec = {
+	.analtifier_call	= ecclog_mce_handler,
 	.priority	= MCE_PRIO_EDAC,
 };
 
@@ -1023,7 +1023,7 @@ static int igen6_get_dimm_config(struct mem_ctl_info *mci)
 
 		if (ndimms && !ecc) {
 			igen6_printk(KERN_ERR, "MC%d In-Band ECC is disabled\n", mc);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -1120,7 +1120,7 @@ static int igen6_pci_setup(struct pci_dev *pdev, u64 *mchbar)
 	edac_dbg(2, "\n");
 
 	if (!res_cfg->ibecc_available(pdev)) {
-		edac_dbg(2, "No In-Band ECC IP\n");
+		edac_dbg(2, "Anal In-Band ECC IP\n");
 		goto fail;
 	}
 
@@ -1157,7 +1157,7 @@ static int igen6_pci_setup(struct pci_dev *pdev, u64 *mchbar)
 
 	return 0;
 fail:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int igen6_register_mci(int mc, u64 mchbar, struct pci_dev *pdev)
@@ -1174,7 +1174,7 @@ static int igen6_register_mci(int mc, u64 mchbar, struct pci_dev *pdev)
 	window = ioremap(mchbar, MCHBAR_SIZE);
 	if (!window) {
 		igen6_printk(KERN_ERR, "Failed to ioremap 0x%llx\n", mchbar);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	layers[0].type = EDAC_MC_LAYER_CHANNEL;
@@ -1186,13 +1186,13 @@ static int igen6_register_mci(int mc, u64 mchbar, struct pci_dev *pdev)
 
 	mci = edac_mc_alloc(mc, ARRAY_SIZE(layers), layers, 0);
 	if (!mci) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail;
 	}
 
 	mci->ctl_name = kasprintf(GFP_KERNEL, "Intel_client_SoC MC#%d", mc);
 	if (!mci->ctl_name) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail2;
 	}
 
@@ -1213,7 +1213,7 @@ static int igen6_register_mci(int mc, u64 mchbar, struct pci_dev *pdev)
 	 *
 	 * To make mci->pdev unique, assign pci_dev->dev to mci->pdev
 	 * for the first memory controller and assign a unique imc->dev
-	 * to mci->pdev for each non-first memory controller.
+	 * to mci->pdev for each analn-first memory controller.
 	 */
 	mci->pdev = mc ? &imc->dev : &pdev->dev;
 	imc->mc	= mc;
@@ -1296,7 +1296,7 @@ static int igen6_mem_slice_setup(u64 mchbar)
 	cmf = ioremap(base, size);
 	if (!cmf) {
 		igen6_printk(KERN_ERR, "Failed to ioremap cmf 0x%llx\n", base);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ms_hash = readq(cmf + offset);
@@ -1347,7 +1347,7 @@ static int igen6_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	igen6_pvt = kzalloc(sizeof(*igen6_pvt), GFP_KERNEL);
 	if (!igen6_pvt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res_cfg = (struct res_config *)ent->driver_data;
 
@@ -1369,7 +1369,7 @@ static int igen6_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ecclog_pool = ecclog_gen_pool_create();
 	if (!ecclog_pool) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto fail2;
 	}
 

@@ -43,7 +43,7 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 
 	/* In the event of icmp, we're only guaranteed to have the first 8
 	 * bytes of the transport header, so we only check the rest of the
-	 * TCP packet for non-ICMP packets
+	 * TCP packet for analn-ICMP packets
 	 */
 	if (likely(!ip_vs_iph_icmp(iph))) {
 		th = skb_header_pointer(skb, iph->len, sizeof(_tcph), &_tcph);
@@ -62,7 +62,7 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		return 0;
 	}
 
-	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
+	/* Anal !th->ack check to allow scheduling on SYN+ACK for Active FTP */
 
 	if (likely(!ip_vs_iph_inverse(iph)))
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
@@ -72,7 +72,7 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {
-		int ignored;
+		int iganalred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -87,9 +87,9 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &iganalred, iph);
+		if (!*cpp && iganalred <= 0) {
+			if (!iganalred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -193,7 +193,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = cp->app ?
-					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
+					 CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
@@ -276,7 +276,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = cp->app ?
-					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
+					 CHECKSUM_UNNECESSARY : CHECKSUM_ANALNE;
 	} else {
 		/* full checksum calculation */
 		tcph->check = 0;
@@ -313,7 +313,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 		tcphoff = ip_hdrlen(skb);
 
 	switch (skb->ip_summed) {
-	case CHECKSUM_NONE:
+	case CHECKSUM_ANALNE:
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
 		fallthrough;
 	case CHECKSUM_COMPLETE:
@@ -341,7 +341,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 			}
 		break;
 	default:
-		/* No need to checksum. */
+		/* Anal need to checksum. */
 		break;
 	}
 
@@ -363,7 +363,7 @@ static const int tcp_state_off[IP_VS_DIR_LAST] = {
  *	Timeout table[state]
  */
 static const int tcp_timeouts[IP_VS_TCP_S_LAST+1] = {
-	[IP_VS_TCP_S_NONE]		=	2*HZ,
+	[IP_VS_TCP_S_ANALNE]		=	2*HZ,
 	[IP_VS_TCP_S_ESTABLISHED]	=	15*60*HZ,
 	[IP_VS_TCP_S_SYN_SENT]		=	2*60*HZ,
 	[IP_VS_TCP_S_SYN_RECV]		=	1*60*HZ,
@@ -378,7 +378,7 @@ static const int tcp_timeouts[IP_VS_TCP_S_LAST+1] = {
 };
 
 static const char *const tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
-	[IP_VS_TCP_S_NONE]		=	"NONE",
+	[IP_VS_TCP_S_ANALNE]		=	"ANALNE",
 	[IP_VS_TCP_S_ESTABLISHED]	=	"ESTABLISHED",
 	[IP_VS_TCP_S_SYN_SENT]		=	"SYN_SENT",
 	[IP_VS_TCP_S_SYN_RECV]		=	"SYN_RECV",
@@ -393,7 +393,7 @@ static const char *const tcp_state_name_table[IP_VS_TCP_S_LAST+1] = {
 };
 
 static const bool tcp_state_active_table[IP_VS_TCP_S_LAST] = {
-	[IP_VS_TCP_S_NONE]		=	false,
+	[IP_VS_TCP_S_ANALNE]		=	false,
 	[IP_VS_TCP_S_ESTABLISHED]	=	true,
 	[IP_VS_TCP_S_SYN_SENT]		=	true,
 	[IP_VS_TCP_S_SYN_RECV]		=	true,
@@ -406,7 +406,7 @@ static const bool tcp_state_active_table[IP_VS_TCP_S_LAST] = {
 	[IP_VS_TCP_S_SYNACK]		=	true,
 };
 
-#define sNO IP_VS_TCP_S_NONE
+#define sANAL IP_VS_TCP_S_ANALNE
 #define sES IP_VS_TCP_S_ESTABLISHED
 #define sSS IP_VS_TCP_S_SYN_SENT
 #define sSR IP_VS_TCP_S_SYN_RECV
@@ -438,21 +438,21 @@ static bool tcp_state_active(int state)
 
 static struct tcp_states_t tcp_states[] = {
 /*	INPUT */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSR, sES, sES, sSR, sSR, sSR, sSR, sSR, sSR, sSR, sSR }},
 /*fin*/ {{sCL, sCW, sSS, sTW, sTW, sTW, sCL, sCW, sLA, sLI, sTW }},
 /*ack*/ {{sES, sES, sSS, sES, sFW, sTW, sCL, sCW, sCL, sLI, sES }},
 /*rst*/ {{sCL, sCL, sCL, sSR, sCL, sCL, sCL, sCL, sLA, sLI, sSR }},
 
 /*	OUTPUT */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSS, sES, sSS, sSR, sSS, sSS, sSS, sSS, sSS, sLI, sSR }},
 /*fin*/ {{sTW, sFW, sSS, sTW, sFW, sTW, sCL, sTW, sLA, sLI, sTW }},
 /*ack*/ {{sES, sES, sSS, sES, sFW, sTW, sCL, sCW, sLA, sES, sES }},
 /*rst*/ {{sCL, sCL, sSS, sCL, sCL, sTW, sCL, sCL, sCL, sCL, sCL }},
 
 /*	INPUT-ONLY */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSR, sES, sES, sSR, sSR, sSR, sSR, sSR, sSR, sSR, sSR }},
 /*fin*/ {{sCL, sFW, sSS, sTW, sFW, sTW, sCL, sCW, sLA, sLI, sTW }},
 /*ack*/ {{sES, sES, sSS, sES, sFW, sTW, sCL, sCW, sCL, sLI, sES }},
@@ -461,21 +461,21 @@ static struct tcp_states_t tcp_states[] = {
 
 static struct tcp_states_t tcp_states_dos[] = {
 /*	INPUT */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSR, sES, sES, sSR, sSR, sSR, sSR, sSR, sSR, sSR, sSA }},
 /*fin*/ {{sCL, sCW, sSS, sTW, sTW, sTW, sCL, sCW, sLA, sLI, sSA }},
 /*ack*/ {{sES, sES, sSS, sSR, sFW, sTW, sCL, sCW, sCL, sLI, sSA }},
 /*rst*/ {{sCL, sCL, sCL, sSR, sCL, sCL, sCL, sCL, sLA, sLI, sCL }},
 
 /*	OUTPUT */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSS, sES, sSS, sSA, sSS, sSS, sSS, sSS, sSS, sLI, sSA }},
 /*fin*/ {{sTW, sFW, sSS, sTW, sFW, sTW, sCL, sTW, sLA, sLI, sTW }},
 /*ack*/ {{sES, sES, sSS, sES, sFW, sTW, sCL, sCW, sLA, sES, sES }},
 /*rst*/ {{sCL, sCL, sSS, sCL, sCL, sTW, sCL, sCL, sCL, sCL, sCL }},
 
 /*	INPUT-ONLY */
-/*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
+/*        sANAL, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSA, sES, sES, sSR, sSA, sSA, sSA, sSA, sSA, sSA, sSA }},
 /*fin*/ {{sCL, sFW, sSS, sTW, sFW, sTW, sCL, sCW, sLA, sLI, sTW }},
 /*ack*/ {{sES, sES, sSS, sES, sFW, sTW, sCL, sCW, sCL, sLI, sES }},
@@ -489,7 +489,7 @@ static void tcp_timeout_change(struct ip_vs_proto_data *pd, int flags)
 	/*
 	** FIXME: change secure_tcp to independent sysctl var
 	** or make it per-service or per-app because it is valid
-	** for most if not for all of the applications. Something
+	** for most if analt for all of the applications. Something
 	** like "capabilities" (flags) for each object.
 	*/
 	pd->tcp_state_table = (on ? tcp_states_dos : tcp_states);
@@ -518,11 +518,11 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 
 	/*
 	 *    Update state offset to INPUT_ONLY if necessary
-	 *    or delete NO_OUTPUT flag if output packet detected
+	 *    or delete ANAL_OUTPUT flag if output packet detected
 	 */
-	if (cp->flags & IP_VS_CONN_F_NOOUTPUT) {
+	if (cp->flags & IP_VS_CONN_F_ANALOUTPUT) {
 		if (state_off == TCP_DIR_OUTPUT)
-			cp->flags &= ~IP_VS_CONN_F_NOOUTPUT;
+			cp->flags &= ~IP_VS_CONN_F_ANALOUTPUT;
 		else
 			state_off = TCP_DIR_INPUT_ONLY;
 	}
@@ -702,7 +702,7 @@ void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp)
 }
 
 /* ---------------------------------------------
- *   timeouts is netns related now.
+ *   timeouts is netns related analw.
  * ---------------------------------------------
  */
 static int __ip_vs_tcp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)
@@ -711,7 +711,7 @@ static int __ip_vs_tcp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd
 	pd->timeout_table = ip_vs_create_timeout_table((int *)tcp_timeouts,
 							sizeof(tcp_timeouts));
 	if (!pd->timeout_table)
-		return -ENOMEM;
+		return -EANALMEM;
 	pd->tcp_state_table = tcp_states;
 	return 0;
 }

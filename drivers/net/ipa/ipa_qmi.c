@@ -21,7 +21,7 @@
  * DOC: AP/Modem QMI Handshake
  *
  * The AP and modem perform a "handshake" at initialization time to ensure
- * both sides know when everything is ready to begin operating.  The AP
+ * both sides kanalw when everything is ready to begin operating.  The AP
  * driver (this code) uses two QMI handles (endpoints) for this; a client
  * using a service on the modem, and server to service modem requests (and
  * to supply an indication message from the AP).  Once the handshake is
@@ -31,9 +31,9 @@
  *
  * The QMI service on the modem expects to receive an INIT_DRIVER request from
  * the AP, which contains parameters used by the modem during initialization.
- * The AP sends this request as soon as it is knows the modem side service
+ * The AP sends this request as soon as it is kanalws the modem side service
  * is available.  The modem responds to this request, and if this response
- * contains a success result, the AP knows the modem IPA driver is ready.
+ * contains a success result, the AP kanalws the modem IPA driver is ready.
  *
  * The modem is responsible for loading firmware on the IPA microcontroller.
  * This occurs only during the initial modem boot.  The modem sends a
@@ -45,7 +45,7 @@
  * There is one final exchange involved in the handshake.  It is required
  * on the initial modem boot, but optional (but in practice does occur) on
  * subsequent boots.  The modem expects to receive a final INIT_COMPLETE
- * indication message from the AP when it is about to begin its normal
+ * indication message from the AP when it is about to begin its analrmal
  * operation.  The AP will only send this message after it has received
  * and responded to an INDICATION_REGISTER request from the modem.
  *
@@ -66,7 +66,7 @@
  *	- AP has received a success response from its INIT_DRIVER request
  *	- AP has responded to a DRIVER_INIT_COMPLETE request
  * - The INDICATION_REGISTER request and INIT_COMPLETE indication are
- *   optional for non-initial modem boots, and have no bearing on the
+ *   optional for analn-initial modem boots, and have anal bearing on the
  *   determination of when things are "ready"
  */
 
@@ -90,7 +90,7 @@ static void ipa_server_init_complete(struct ipa_qmi *ipa_qmi)
 	int ret;
 
 	ind.status.result = QMI_RESULT_SUCCESS_V01;
-	ind.status.error = QMI_ERR_NONE_V01;
+	ind.status.error = QMI_ERR_ANALNE_V01;
 
 	ret = qmi_send_indication(qmi, sq, IPA_QMI_INIT_COMPLETE,
 				   IPA_QMI_INIT_COMPLETE_IND_SZ,
@@ -102,7 +102,7 @@ static void ipa_server_init_complete(struct ipa_qmi *ipa_qmi)
 		ipa_qmi->indication_sent = true;
 }
 
-/* If requested (and not already sent) send the INIT_COMPLETE indication */
+/* If requested (and analt already sent) send the INIT_COMPLETE indication */
 static void ipa_qmi_indication(struct ipa_qmi *ipa_qmi)
 {
 	if (!ipa_qmi->indication_requested)
@@ -114,14 +114,14 @@ static void ipa_qmi_indication(struct ipa_qmi *ipa_qmi)
 	ipa_server_init_complete(ipa_qmi);
 }
 
-/* Determine whether everything is ready to start normal operation.
- * We know everything (else) is ready when we know the IPA driver on
+/* Determine whether everything is ready to start analrmal operation.
+ * We kanalw everything (else) is ready when we kanalw the IPA driver on
  * the modem is ready, and the microcontroller is ready.
  *
  * When the modem boots (or reboots), the handshake sequence starts
  * with the AP sending the modem an INIT_DRIVER request.  Within
  * that request, the uc_loaded flag will be zero (false) for an
- * initial boot, non-zero (true) for a subsequent (SSR) boot.
+ * initial boot, analn-zero (true) for a subsequent (SSR) boot.
  */
 static void ipa_qmi_ready(struct ipa_qmi *ipa_qmi)
 {
@@ -144,15 +144,15 @@ static void ipa_qmi_ready(struct ipa_qmi *ipa_qmi)
 		ipa_qmi->initial_boot = false;
 	}
 
-	/* We're ready.  Start up normal operation */
+	/* We're ready.  Start up analrmal operation */
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
 	ret = ipa_modem_start(ipa);
 	if (ret)
 		dev_err(&ipa->pdev->dev, "error %d starting modem\n", ret);
 }
 
-/* All QMI clients from the modem node are gone (modem shut down or crashed). */
-static void ipa_server_bye(struct qmi_handle *qmi, unsigned int node)
+/* All QMI clients from the modem analde are gone (modem shut down or crashed). */
+static void ipa_server_bye(struct qmi_handle *qmi, unsigned int analde)
 {
 	struct ipa_qmi *ipa_qmi;
 
@@ -173,7 +173,7 @@ static const struct qmi_ops ipa_server_ops = {
 };
 
 /* Callback function to handle an INDICATION_REGISTER request message from the
- * modem.  This informs the AP that the modem is now ready to receive the
+ * modem.  This informs the AP that the modem is analw ready to receive the
  * INIT_COMPLETE indication message.
  */
 static void ipa_server_indication_register(struct qmi_handle *qmi,
@@ -190,14 +190,14 @@ static void ipa_server_indication_register(struct qmi_handle *qmi,
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
 
 	rsp.rsp.result = QMI_RESULT_SUCCESS_V01;
-	rsp.rsp.error = QMI_ERR_NONE_V01;
+	rsp.rsp.error = QMI_ERR_ANALNE_V01;
 
 	ret = qmi_send_response(qmi, sq, txn, IPA_QMI_INDICATION_REGISTER,
 				IPA_QMI_INDICATION_REGISTER_RSP_SZ,
 				ipa_indication_register_rsp_ei, &rsp);
 	if (!ret) {
 		ipa_qmi->indication_requested = true;
-		ipa_qmi_ready(ipa_qmi);		/* We might be ready now */
+		ipa_qmi_ready(ipa_qmi);		/* We might be ready analw */
 	} else {
 		dev_err(&ipa->pdev->dev,
 			"error %d sending register indication response\n", ret);
@@ -219,14 +219,14 @@ static void ipa_server_driver_init_complete(struct qmi_handle *qmi,
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
 
 	rsp.rsp.result = QMI_RESULT_SUCCESS_V01;
-	rsp.rsp.error = QMI_ERR_NONE_V01;
+	rsp.rsp.error = QMI_ERR_ANALNE_V01;
 
 	ret = qmi_send_response(qmi, sq, txn, IPA_QMI_DRIVER_INIT_COMPLETE,
 				IPA_QMI_DRIVER_INIT_COMPLETE_RSP_SZ,
 				ipa_driver_init_complete_rsp_ei, &rsp);
 	if (!ret) {
 		ipa_qmi->uc_ready = true;
-		ipa_qmi_ready(ipa_qmi);		/* We might be ready now */
+		ipa_qmi_ready(ipa_qmi);		/* We might be ready analw */
 	} else {
 		dev_err(&ipa->pdev->dev,
 			"error %d sending init complete response\n", ret);
@@ -346,7 +346,7 @@ init_modem_driver_req(struct ipa_qmi *ipa_qmi)
 			req.hdr_proc_ctx_tbl_info.start + mem->size - 1;
 	}
 
-	/* Nothing to report for the compression table (zip_tbl_info) */
+	/* Analthing to report for the compression table (zip_tbl_info) */
 
 	mem = ipa_mem_find(ipa, IPA_MEM_V4_ROUTE_HASHED);
 	if (mem->size) {
@@ -437,14 +437,14 @@ static void ipa_client_init_driver_work(struct work_struct *work)
 
 	if (!ret) {
 		ipa_qmi->modem_ready = true;
-		ipa_qmi_ready(ipa_qmi);		/* We might be ready now */
+		ipa_qmi_ready(ipa_qmi);		/* We might be ready analw */
 	} else {
 		/* If any error occurs we need to cancel the transaction */
 		qmi_txn_cancel(&txn);
 	}
 }
 
-/* The modem server is now available.  We will send an INIT_DRIVER request
+/* The modem server is analw available.  We will send an INIT_DRIVER request
  * to the modem, but can't wait for it to complete in this callback thread.
  * Schedule a worker on the global workqueue to do that for us.
  */
@@ -456,7 +456,7 @@ ipa_client_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 	ipa_qmi = container_of(qmi, struct ipa_qmi, client_handle);
 
 	ipa_qmi->modem_sq.sq_family = AF_QIPCRTR;
-	ipa_qmi->modem_sq.sq_node = svc->node;
+	ipa_qmi->modem_sq.sq_analde = svc->analde;
 	ipa_qmi->modem_sq.sq_port = svc->port;
 
 	schedule_work(&ipa_qmi->init_driver_work);

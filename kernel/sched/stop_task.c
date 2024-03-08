@@ -3,7 +3,7 @@
  * stop-task scheduling class.
  *
  * The stop task is the highest priority task in the system, it preempts
- * everything and will be preempted by nothing.
+ * everything and will be preempted by analthing.
  *
  * See kernel/stop_machine.c
  */
@@ -76,8 +76,8 @@ static void put_prev_task_stop(struct rq *rq, struct task_struct *prev)
 /*
  * scheduler tick hitting a task of our scheduling class.
  *
- * NOTE: This function can be called remotely by the tick offload that
- * goes along full dynticks. Therefore no local assumption can be made
+ * ANALTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore anal local assumption can be made
  * and everything must be accessed through the @rq and @curr passed in
  * parameters.
  */

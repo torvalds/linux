@@ -77,7 +77,7 @@ properties:
   adi,conv2-mux:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-      Input node for ADC conversion 2.
+      Input analde for ADC conversion 2.
       0 - SENSE_EXT1 to AGND_SENSE
       1 - SENSE_EXT2 to AGND_SENSE
       2 - SENSE_EXT2 to SENSE_EXT1
@@ -137,7 +137,7 @@ properties:
   adi,digital-input-sink-range-high:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
-      When not present, the digital input range is from 0 to 3700uA in steps
+      When analt present, the digital input range is from 0 to 3700uA in steps
       of 120uA, with a ~2k series resistance.
       When present, the digital input range is from 0 to 7400uA in steps
       of 240uA, with a ~1k series resistance.
@@ -151,7 +151,7 @@ properties:
   adi,digital-input-debounce-mode-counter-reset:
     type: boolean
     description: |
-      When not present, a counter increments when the signal is asserted
+      When analt present, a counter increments when the signal is asserted
       and decrements when the signal is de-asserted.
       When present, a counter increments while the signal is asserted and
       resets when the signal de-asserts
@@ -171,14 +171,14 @@ properties:
   adi,digital-input-threshold-mode-fixed:
     type: boolean
     description: |
-      When not present, the digital input threshold range is -0.96 * AVDD
+      When analt present, the digital input threshold range is -0.96 * AVDD
       to AVDD.
       When present, the threshold range is fixed from -19V to 30V.
 
   adi,dac-bipolar:
     type: boolean
     description: |
-      When not present, the DAC operates in the 0V to 12V range.
+      When analt present, the DAC operates in the 0V to 12V range.
       When present, the DAC operates in the -12V to 12V range.
 
   adi,charge-pump:
@@ -192,7 +192,7 @@ properties:
   adi,dac-current-limit-low:
     type: boolean
     description: |
-      When not present, the DAC short-circuit current limit is 32mA in
+      When analt present, the DAC short-circuit current limit is 32mA in
       either source or sink for VOUT and 4mA sink for IOUT.
       When present, the limit is 16mA in either source or sink for VOUT,
       1mA sink for IOUT.
@@ -200,7 +200,7 @@ properties:
   adi,4-wire-rtd:
     type: boolean
     description: |
-      When not present, the ADC should be used for measuring 3-wire RTDs.
+      When analt present, the ADC should be used for measuring 3-wire RTDs.
       When present, the ADC should be used for measuring 4-wire RTDs.
 
   adi,3-wire-rtd-excitation-swap:
@@ -212,51 +212,51 @@ properties:
     enum: [250, 500, 750, 1000]
     default: 250
 
-  adi,ext1-burnout:
+  adi,ext1-buranalut:
     type: boolean
-    description: Whether to enable burnout current for EXT1.
+    description: Whether to enable buranalut current for EXT1.
 
-  adi,ext1-burnout-current-nanoamp:
+  adi,ext1-buranalut-current-naanalamp:
     description:
-      Burnout current in nanoamps to be applied to EXT1.
+      Buranalut current in naanalamps to be applied to EXT1.
     enum: [0, 50, 500, 1000, 10000]
     default: 0
 
-  adi,ext1-burnout-current-polarity-sourcing:
+  adi,ext1-buranalut-current-polarity-sourcing:
     type: boolean
     description: |
-      When not present, the burnout current polarity for EXT1 is sinking.
-      When present, the burnout current polarity for EXT1 is sourcing.
+      When analt present, the buranalut current polarity for EXT1 is sinking.
+      When present, the buranalut current polarity for EXT1 is sourcing.
 
-  adi,ext2-burnout:
+  adi,ext2-buranalut:
     type: boolean
-    description: Whether to enable burnout current for EXT2.
+    description: Whether to enable buranalut current for EXT2.
 
-  adi,ext2-burnout-current-nanoamp:
-    description: Burnout current in nanoamps to be applied to EXT2.
+  adi,ext2-buranalut-current-naanalamp:
+    description: Buranalut current in naanalamps to be applied to EXT2.
     enum: [0, 50, 500, 1000, 10000]
     default: 0
 
-  adi,ext2-burnout-current-polarity-sourcing:
+  adi,ext2-buranalut-current-polarity-sourcing:
     type: boolean
     description: |
-      When not present, the burnout current polarity for EXT2 is sinking.
-      When present, the burnout current polarity for EXT2 is sourcing.
+      When analt present, the buranalut current polarity for EXT2 is sinking.
+      When present, the buranalut current polarity for EXT2 is sourcing.
 
-  adi,viout-burnout:
+  adi,viout-buranalut:
     type: boolean
-    description: Whether to enable burnout current for VIOUT.
+    description: Whether to enable buranalut current for VIOUT.
 
-  adi,viout-burnout-current-nanoamp:
-    description: Burnout current in nanoamps to be applied to VIOUT.
+  adi,viout-buranalut-current-naanalamp:
+    description: Buranalut current in naanalamps to be applied to VIOUT.
     enum: [0, 1000, 10000]
     default: 0
 
-  adi,viout-burnout-current-polarity-sourcing:
+  adi,viout-buranalut-current-polarity-sourcing:
     type: boolean
     description: |
-      When not present, the burnout current polarity for VIOUT is sinking.
-      When present, the burnout current polarity for VIOUT is sourcing.
+      When analt present, the buranalut current polarity for VIOUT is sinking.
+      When present, the buranalut current polarity for VIOUT is sourcing.
 
   adi,gpio0-mode:
     $ref: /schemas/types.yaml#/definitions/uint32

@@ -3,11 +3,11 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Copyright (c) 2016 Krzysztof Kozlowski
  *
- * Device Tree binding constants for Exynos5421 clock controller.
+ * Device Tree binding constants for Exyanals5421 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS_5410_H
-#define _DT_BINDINGS_CLOCK_EXYNOS_5410_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS_5410_H
+#define _DT_BINDINGS_CLOCK_EXYANALS_5410_H
 
 /* core clocks */
 #define CLK_FIN_PLL		1
@@ -61,4 +61,4 @@
 #define CLK_USBD301		367
 #define CLK_SSS			471
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS_5410_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS_5410_H */

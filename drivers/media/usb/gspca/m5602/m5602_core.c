@@ -3,7 +3,7 @@
  * USB Driver for ALi m5602 based webcams
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -165,7 +165,7 @@ int m5602_write_sensor(struct sd *sd, const u8 address,
 	struct usb_device *udev = sd->gspca_dev.dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
 
-	/* No sensor with a data width larger than 16 bits has yet been seen */
+	/* Anal sensor with a data width larger than 16 bits has yet been seen */
 	if (len > sd->sensor->i2c_regW || !len)
 		return -EINVAL;
 
@@ -249,7 +249,7 @@ static int m5602_probe_sensor(struct sd *sd)
 	/* More sensor probe function goes here */
 	pr_info("Failed to find a sensor\n");
 	sd->sensor = NULL;
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int m5602_configure(struct gspca_dev *gspca_dev,

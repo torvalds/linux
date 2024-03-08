@@ -1,33 +1,33 @@
 // SPDX-License-Identifier: MIT
 
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_dma.h"
-#include "nouveau_exec.h"
-#include "nouveau_abi16.h"
-#include "nouveau_chan.h"
-#include "nouveau_sched.h"
-#include "nouveau_uvmm.h"
+#include "analuveau_drv.h"
+#include "analuveau_gem.h"
+#include "analuveau_mem.h"
+#include "analuveau_dma.h"
+#include "analuveau_exec.h"
+#include "analuveau_abi16.h"
+#include "analuveau_chan.h"
+#include "analuveau_sched.h"
+#include "analuveau_uvmm.h"
 
 /**
  * DOC: Overview
  *
- * Nouveau's VM_BIND / EXEC UAPI consists of three ioctls: DRM_NOUVEAU_VM_INIT,
- * DRM_NOUVEAU_VM_BIND and DRM_NOUVEAU_EXEC.
+ * Analuveau's VM_BIND / EXEC UAPI consists of three ioctls: DRM_ANALUVEAU_VM_INIT,
+ * DRM_ANALUVEAU_VM_BIND and DRM_ANALUVEAU_EXEC.
  *
  * In order to use the UAPI firstly a user client must initialize the VA space
- * using the DRM_NOUVEAU_VM_INIT ioctl specifying which region of the VA space
+ * using the DRM_ANALUVEAU_VM_INIT ioctl specifying which region of the VA space
  * should be managed by the kernel and which by the UMD.
  *
- * The DRM_NOUVEAU_VM_BIND ioctl provides clients an interface to manage the
+ * The DRM_ANALUVEAU_VM_BIND ioctl provides clients an interface to manage the
  * userspace-managable portion of the VA space. It provides operations to map
- * and unmap memory. Mappings may be flagged as sparse. Sparse mappings are not
- * backed by a GEM object and the kernel will ignore GEM handles provided
+ * and unmap memory. Mappings may be flagged as sparse. Sparse mappings are analt
+ * backed by a GEM object and the kernel will iganalre GEM handles provided
  * alongside a sparse mapping.
  *
  * Userspace may request memory backed mappings either within or outside of the
- * bounds (but not crossing those bounds) of a previously mapped sparse
+ * bounds (but analt crossing those bounds) of a previously mapped sparse
  * mapping. Subsequently requested memory backed mappings within a sparse
  * mapping will take precedence over the corresponding range of the sparse
  * mapping. If such memory backed mappings are unmapped the kernel will make
@@ -35,7 +35,7 @@
  * Requests to unmap a sparse mapping that still contains memory backed mappings
  * will result in those memory backed mappings being unmapped first.
  *
- * Unmap requests are not bound to the range of existing mappings and can even
+ * Unmap requests are analt bound to the range of existing mappings and can even
  * overlap the bounds of sparse mappings. For such a request the kernel will
  * make sure to unmap all memory backed mappings within the given range,
  * splitting up memory backed mappings which are only partially contained
@@ -46,8 +46,8 @@
  * backed mappings being mapped and unmapped, either within a single or multiple
  * VM_BIND ioctl calls, there are some restrictions for sparse mappings.
  *
- * The kernel does not permit to:
- *   - unmap non-existent sparse mappings
+ * The kernel does analt permit to:
+ *   - unmap analn-existent sparse mappings
  *   - unmap a sparse mapping and map a new sparse mapping overlapping the range
  *     of the previously unmapped sparse mapping within the same VM_BIND ioctl
  *   - unmap a sparse mapping and map new memory backed mappings overlapping the
@@ -55,24 +55,24 @@
  *     ioctl
  *
  * When using the VM_BIND ioctl to request the kernel to map memory to a given
- * virtual address in the GPU's VA space there is no guarantee that the actual
+ * virtual address in the GPU's VA space there is anal guarantee that the actual
  * mappings are created in the GPU's MMU. If the given memory is swapped out
  * at the time the bind operation is executed the kernel will stash the mapping
  * details into it's internal alloctor and create the actual MMU mappings once
  * the memory is swapped back in. While this is transparent for userspace, it is
  * guaranteed that all the backing memory is swapped back in and all the memory
  * mappings, as requested by userspace previously, are actually mapped once the
- * DRM_NOUVEAU_EXEC ioctl is called to submit an exec job.
+ * DRM_ANALUVEAU_EXEC ioctl is called to submit an exec job.
  *
- * A VM_BIND job can be executed either synchronously or asynchronously. If
- * exectued asynchronously, userspace may provide a list of syncobjs this job
+ * A VM_BIND job can be executed either synchroanalusly or asynchroanalusly. If
+ * exectued asynchroanalusly, userspace may provide a list of syncobjs this job
  * will wait for and/or a list of syncobj the kernel will signal once the
- * VM_BIND job finished execution. If executed synchronously the ioctl will
- * block until the bind job is finished. For synchronous jobs the kernel will
- * not permit any syncobjs submitted to the kernel.
+ * VM_BIND job finished execution. If executed synchroanalusly the ioctl will
+ * block until the bind job is finished. For synchroanalus jobs the kernel will
+ * analt permit any syncobjs submitted to the kernel.
  *
- * To execute a push buffer the UAPI provides the DRM_NOUVEAU_EXEC ioctl. EXEC
- * jobs are always executed asynchronously, and, equal to VM_BIND jobs, provide
+ * To execute a push buffer the UAPI provides the DRM_ANALUVEAU_EXEC ioctl. EXEC
+ * jobs are always executed asynchroanalusly, and, equal to VM_BIND jobs, provide
  * the option to synchronize them with syncobjs.
  *
  * Besides that, EXEC jobs can be scheduled for a specified channel to execute on.
@@ -84,26 +84,26 @@
  */
 
 static int
-nouveau_exec_job_submit(struct nouveau_job *job,
+analuveau_exec_job_submit(struct analuveau_job *job,
 			struct drm_gpuvm_exec *vme)
 {
-	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
-	struct nouveau_cli *cli = job->cli;
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
+	struct analuveau_exec_job *exec_job = to_analuveau_exec_job(job);
+	struct analuveau_cli *cli = job->cli;
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(cli);
 	int ret;
 
-	/* Create a new fence, but do not emit yet. */
-	ret = nouveau_fence_create(&exec_job->fence, exec_job->chan);
+	/* Create a new fence, but do analt emit yet. */
+	ret = analuveau_fence_create(&exec_job->fence, exec_job->chan);
 	if (ret)
 		return ret;
 
-	nouveau_uvmm_lock(uvmm);
+	analuveau_uvmm_lock(uvmm);
 	ret = drm_gpuvm_exec_lock(vme);
 	if (ret) {
-		nouveau_uvmm_unlock(uvmm);
+		analuveau_uvmm_unlock(uvmm);
 		return ret;
 	}
-	nouveau_uvmm_unlock(uvmm);
+	analuveau_uvmm_unlock(uvmm);
 
 	ret = drm_gpuvm_exec_validate(vme);
 	if (ret) {
@@ -115,7 +115,7 @@ nouveau_exec_job_submit(struct nouveau_job *job,
 }
 
 static void
-nouveau_exec_job_armed_submit(struct nouveau_job *job,
+analuveau_exec_job_armed_submit(struct analuveau_job *job,
 			      struct drm_gpuvm_exec *vme)
 {
 	drm_gpuvm_exec_resv_add_fence(vme, job->done_fence,
@@ -124,29 +124,29 @@ nouveau_exec_job_armed_submit(struct nouveau_job *job,
 }
 
 static struct dma_fence *
-nouveau_exec_job_run(struct nouveau_job *job)
+analuveau_exec_job_run(struct analuveau_job *job)
 {
-	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
-	struct nouveau_channel *chan = exec_job->chan;
-	struct nouveau_fence *fence = exec_job->fence;
+	struct analuveau_exec_job *exec_job = to_analuveau_exec_job(job);
+	struct analuveau_channel *chan = exec_job->chan;
+	struct analuveau_fence *fence = exec_job->fence;
 	int i, ret;
 
-	ret = nouveau_dma_wait(chan, exec_job->push.count + 1, 16);
+	ret = analuveau_dma_wait(chan, exec_job->push.count + 1, 16);
 	if (ret) {
 		NV_PRINTK(err, job->cli, "nv50cal_space: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 
 	for (i = 0; i < exec_job->push.count; i++) {
-		struct drm_nouveau_exec_push *p = &exec_job->push.s[i];
-		bool no_prefetch = p->flags & DRM_NOUVEAU_EXEC_PUSH_NO_PREFETCH;
+		struct drm_analuveau_exec_push *p = &exec_job->push.s[i];
+		bool anal_prefetch = p->flags & DRM_ANALUVEAU_EXEC_PUSH_ANAL_PREFETCH;
 
-		nv50_dma_push(chan, p->va, p->va_len, no_prefetch);
+		nv50_dma_push(chan, p->va, p->va_len, anal_prefetch);
 	}
 
-	ret = nouveau_fence_emit(fence);
+	ret = analuveau_fence_emit(fence);
 	if (ret) {
-		nouveau_fence_unref(&exec_job->fence);
+		analuveau_fence_unref(&exec_job->fence);
 		NV_PRINTK(err, job->cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
 		return ERR_PTR(ret);
@@ -161,12 +161,12 @@ nouveau_exec_job_run(struct nouveau_job *job)
 }
 
 static void
-nouveau_exec_job_free(struct nouveau_job *job)
+analuveau_exec_job_free(struct analuveau_job *job)
 {
-	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
+	struct analuveau_exec_job *exec_job = to_analuveau_exec_job(job);
 
-	nouveau_job_done(job);
-	nouveau_job_free(job);
+	analuveau_job_done(job);
+	analuveau_job_free(job);
 
 	kfree(exec_job->fence);
 	kfree(exec_job->push.s);
@@ -174,41 +174,41 @@ nouveau_exec_job_free(struct nouveau_job *job)
 }
 
 static enum drm_gpu_sched_stat
-nouveau_exec_job_timeout(struct nouveau_job *job)
+analuveau_exec_job_timeout(struct analuveau_job *job)
 {
-	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
-	struct nouveau_channel *chan = exec_job->chan;
+	struct analuveau_exec_job *exec_job = to_analuveau_exec_job(job);
+	struct analuveau_channel *chan = exec_job->chan;
 
 	if (unlikely(!atomic_read(&chan->killed)))
-		nouveau_channel_kill(chan);
+		analuveau_channel_kill(chan);
 
 	NV_PRINTK(warn, job->cli, "job timeout, channel %d killed!\n",
 		  chan->chid);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_ANALMINAL;
 }
 
-static struct nouveau_job_ops nouveau_exec_job_ops = {
-	.submit = nouveau_exec_job_submit,
-	.armed_submit = nouveau_exec_job_armed_submit,
-	.run = nouveau_exec_job_run,
-	.free = nouveau_exec_job_free,
-	.timeout = nouveau_exec_job_timeout,
+static struct analuveau_job_ops analuveau_exec_job_ops = {
+	.submit = analuveau_exec_job_submit,
+	.armed_submit = analuveau_exec_job_armed_submit,
+	.run = analuveau_exec_job_run,
+	.free = analuveau_exec_job_free,
+	.timeout = analuveau_exec_job_timeout,
 };
 
 int
-nouveau_exec_job_init(struct nouveau_exec_job **pjob,
-		      struct nouveau_exec_job_args *__args)
+analuveau_exec_job_init(struct analuveau_exec_job **pjob,
+		      struct analuveau_exec_job_args *__args)
 {
-	struct nouveau_exec_job *job;
-	struct nouveau_job_args args = {};
+	struct analuveau_exec_job *job;
+	struct analuveau_job_args args = {};
 	int i, ret;
 
 	for (i = 0; i < __args->push.count; i++) {
-		struct drm_nouveau_exec_push *p = &__args->push.s[i];
+		struct drm_analuveau_exec_push *p = &__args->push.s[i];
 
 		if (unlikely(p->va_len > NV50_DMA_PUSH_MAX_LENGTH)) {
-			NV_PRINTK(err, nouveau_cli(__args->file_priv),
+			NV_PRINTK(err, analuveau_cli(__args->file_priv),
 				  "pushbuf size exceeds limit: 0x%x max 0x%x\n",
 				  p->va_len, NV50_DMA_PUSH_MAX_LENGTH);
 			return -EINVAL;
@@ -217,7 +217,7 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 
 	job = *pjob = kzalloc(sizeof(*job), GFP_KERNEL);
 	if (!job)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	job->push.count = __args->push.count;
 	if (__args->push.count) {
@@ -226,7 +226,7 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 				      __args->push.count,
 				      GFP_KERNEL);
 		if (!job->push.s) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_job;
 		}
 	}
@@ -244,10 +244,10 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 	args.out_sync.count = __args->out_sync.count;
 	args.out_sync.s = __args->out_sync.s;
 
-	args.ops = &nouveau_exec_job_ops;
+	args.ops = &analuveau_exec_job_ops;
 	args.resv_usage = DMA_RESV_USAGE_WRITE;
 
-	ret = nouveau_job_init(&job->base, &args);
+	ret = analuveau_job_init(&job->base, &args);
 	if (ret)
 		goto err_free_pushs;
 
@@ -263,31 +263,31 @@ err_free_job:
 }
 
 static int
-nouveau_exec(struct nouveau_exec_job_args *args)
+analuveau_exec(struct analuveau_exec_job_args *args)
 {
-	struct nouveau_exec_job *job;
+	struct analuveau_exec_job *job;
 	int ret;
 
-	ret = nouveau_exec_job_init(&job, args);
+	ret = analuveau_exec_job_init(&job, args);
 	if (ret)
 		return ret;
 
-	ret = nouveau_job_submit(&job->base);
+	ret = analuveau_job_submit(&job->base);
 	if (ret)
 		goto err_job_fini;
 
 	return 0;
 
 err_job_fini:
-	nouveau_job_fini(&job->base);
+	analuveau_job_fini(&job->base);
 	return ret;
 }
 
 static int
-nouveau_exec_ucopy(struct nouveau_exec_job_args *args,
-		   struct drm_nouveau_exec *req)
+analuveau_exec_ucopy(struct analuveau_exec_job_args *args,
+		   struct drm_analuveau_exec *req)
 {
-	struct drm_nouveau_sync **s;
+	struct drm_analuveau_sync **s;
 	u32 inc = req->wait_count;
 	u64 ins = req->wait_ptr;
 	u32 outc = req->sig_count;
@@ -335,7 +335,7 @@ err_free_ins:
 }
 
 static void
-nouveau_exec_ufree(struct nouveau_exec_job_args *args)
+analuveau_exec_ufree(struct analuveau_exec_job_args *args)
 {
 	u_free(args->push.s);
 	u_free(args->in_sync.s);
@@ -343,24 +343,24 @@ nouveau_exec_ufree(struct nouveau_exec_job_args *args)
 }
 
 int
-nouveau_exec_ioctl_exec(struct drm_device *dev,
+analuveau_exec_ioctl_exec(struct drm_device *dev,
 			void *data,
 			struct drm_file *file_priv)
 {
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_abi16_chan *chan16;
-	struct nouveau_channel *chan = NULL;
-	struct nouveau_exec_job_args args = {};
-	struct drm_nouveau_exec *req = data;
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_abi16_chan *chan16;
+	struct analuveau_channel *chan = NULL;
+	struct analuveau_exec_job_args args = {};
+	struct drm_analuveau_exec *req = data;
 	int push_max, ret = 0;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* abi16 locks already */
-	if (unlikely(!nouveau_cli_uvmm(cli)))
-		return nouveau_abi16_put(abi16, -ENOSYS);
+	if (unlikely(!analuveau_cli_uvmm(cli)))
+		return analuveau_abi16_put(abi16, -EANALSYS);
 
 	list_for_each_entry(chan16, &abi16->channels, head) {
 		if (chan16->chan->chid == req->channel) {
@@ -370,22 +370,22 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	}
 
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return analuveau_abi16_put(abi16, -EANALENT);
 
 	if (unlikely(atomic_read(&chan->killed)))
-		return nouveau_abi16_put(abi16, -ENODEV);
+		return analuveau_abi16_put(abi16, -EANALDEV);
 
 	if (!chan->dma.ib_max)
-		return nouveau_abi16_put(abi16, -ENOSYS);
+		return analuveau_abi16_put(abi16, -EANALSYS);
 
-	push_max = nouveau_exec_push_max_from_ib_max(chan->dma.ib_max);
+	push_max = analuveau_exec_push_max_from_ib_max(chan->dma.ib_max);
 	if (unlikely(req->push_count > push_max)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
 			  req->push_count, push_max);
-		return nouveau_abi16_put(abi16, -EINVAL);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	}
 
-	ret = nouveau_exec_ucopy(&args, req);
+	ret = analuveau_exec_ucopy(&args, req);
 	if (ret)
 		goto out;
 
@@ -393,12 +393,12 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	args.file_priv = file_priv;
 	args.chan = chan;
 
-	ret = nouveau_exec(&args);
+	ret = analuveau_exec(&args);
 	if (ret)
 		goto out_free_args;
 
 out_free_args:
-	nouveau_exec_ufree(&args);
+	analuveau_exec_ufree(&args);
 out:
-	return nouveau_abi16_put(abi16, ret);
+	return analuveau_abi16_put(abi16, ret);
 }

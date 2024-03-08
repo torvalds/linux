@@ -6,7 +6,7 @@
  * "Big Core" Processors (Branded as Core, Xeon, etc...)
  *
  * While adding a new CPUID for a new microarchitecture, add a new
- * group to keep logically sorted out in chronological order. Within
+ * group to keep logically sorted out in chroanallogical order. Within
  * that group keep the CPUID for the variants sorted by model number.
  *
  * The defined symbol names have the following form:
@@ -16,7 +16,7 @@
  *		is assumed to be "_CORE" (and should be omitted). Other values
  *		currently in use are _ATOM and _XEON_PHI
  * MICROARCH	Is the code name for the micro-architecture for this core.
- *		N.B. Not the platform name.
+ *		N.B. Analt the platform name.
  * OPTDIFF	If needed, a short string to differentiate by market segment.
  *
  *		Common OPTDIFFs:
@@ -91,7 +91,7 @@
 #define INTEL_FAM6_COMETLAKE		0xA5	/* Sky Lake             */
 #define INTEL_FAM6_COMETLAKE_L		0xA6	/* Sky Lake             */
 
-#define INTEL_FAM6_CANNONLAKE_L		0x66	/* Palm Cove */
+#define INTEL_FAM6_CANANALNLAKE_L		0x66	/* Palm Cove */
 
 #define INTEL_FAM6_ICELAKE_X		0x6A	/* Sunny Cove */
 #define INTEL_FAM6_ICELAKE_D		0x6C	/* Sunny Cove */
@@ -150,7 +150,7 @@
 #define INTEL_FAM6_ATOM_GOLDMONT	0x5C /* Apollo Lake */
 #define INTEL_FAM6_ATOM_GOLDMONT_D	0x5F /* Denverton */
 
-/* Note: the micro-architecture is "Goldmont Plus" */
+/* Analte: the micro-architecture is "Goldmont Plus" */
 #define INTEL_FAM6_ATOM_GOLDMONT_PLUS	0x7A /* Gemini Lake */
 
 #define INTEL_FAM6_ATOM_TREMONT_D	0x86 /* Jacobsville */

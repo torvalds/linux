@@ -31,7 +31,7 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -245,7 +245,7 @@ etherh_getifstat(struct net_device *dev)
 }
 
 /*
- * Configure the interface.  Note that we ignore the other
+ * Configure the interface.  Analte that we iganalre the other
  * parts of ifmap, since its mostly meaningless for this driver.
  */
 static int etherh_set_config(struct net_device *dev, struct ifmap *map)
@@ -271,7 +271,7 @@ static int etherh_set_config(struct net_device *dev, struct ifmap *map)
 }
 
 /*
- * Reset the 8390 (hard reset).  Note that we can't actually do this.
+ * Reset the 8390 (hard reset).  Analte that we can't actually do this.
  */
 static void
 etherh_reset(struct net_device *dev)
@@ -279,11 +279,11 @@ etherh_reset(struct net_device *dev)
 	struct ei_device *ei_local = netdev_priv(dev);
 	void __iomem *addr = (void __iomem *)dev->base_addr;
 
-	writeb(E8390_NODMA+E8390_PAGE0+E8390_STOP, addr);
+	writeb(E8390_ANALDMA+E8390_PAGE0+E8390_STOP, addr);
 
 	/*
 	 * See if we need to change the interface type.
-	 * Note that we use 'interface_num' as a flag
+	 * Analte that we use 'interface_num' as a flag
 	 * to indicate that we need to change the media.
 	 */
 	if (dev->flags & IFF_AUTOMEDIA && ei_local->interface_num) {
@@ -327,7 +327,7 @@ etherh_block_output (struct net_device *dev, int count, const unsigned char *buf
 	dma_base = etherh_priv(dev)->dma_base;
 
 	count = (count + 1) & ~1;
-	writeb (E8390_NODMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
+	writeb (E8390_ANALDMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
 
 	writeb (0x42, addr + EN0_RCNTLO);
 	writeb (0x00, addr + EN0_RCNTHI);
@@ -386,7 +386,7 @@ etherh_block_input (struct net_device *dev, int count, struct sk_buff *skb, int 
 	dma_base = etherh_priv(dev)->dma_base;
 
 	buf = skb->data;
-	writeb (E8390_NODMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
+	writeb (E8390_ANALDMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
 	writeb (count, addr + EN0_RCNTLO);
 	writeb (count >> 8, addr + EN0_RCNTHI);
 	writeb (ring_offset, addr + EN0_RSARLO);
@@ -425,7 +425,7 @@ etherh_get_header (struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_p
 	addr = (void __iomem *)dev->base_addr;
 	dma_base = etherh_priv(dev)->dma_base;
 
-	writeb (E8390_NODMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
+	writeb (E8390_ANALDMA | E8390_PAGE0 | E8390_START, addr + E8390_CMD);
 	writeb (sizeof (*hdr), addr + EN0_RCNTLO);
 	writeb (0, addr + EN0_RCNTHI);
 	writeb (0, addr + EN0_RSARLO);
@@ -447,7 +447,7 @@ etherh_get_header (struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_p
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is analn-reboot way to recover if something goes wrong.
  */
 static int
 etherh_open(struct net_device *dev)
@@ -460,12 +460,12 @@ etherh_open(struct net_device *dev)
 	/*
 	 * Make sure that we aren't going to change the
 	 * media type on the next reset - we are about to
-	 * do automedia manually now.
+	 * do automedia manually analw.
 	 */
 	ei_local->interface_num = 0;
 
 	/*
-	 * If we are doing automedia detection, do it now.
+	 * If we are doing automedia detection, do it analw.
 	 * This is more reliable than the 8390's detection.
 	 */
 	if (dev->flags & IFF_AUTOMEDIA) {
@@ -508,7 +508,7 @@ static int etherh_addr(char *addr, struct expansion_card *ec)
 	if (!ecard_readchunk(&cd, ec, 0xf5, 0)) {
 		printk(KERN_ERR "%s: unable to read module description string\n",
 		       dev_name(&ec->dev));
-		goto no_addr;
+		goto anal_addr;
 	}
 
 	s = strchr(cd.d.string, '(');
@@ -528,8 +528,8 @@ static int etherh_addr(char *addr, struct expansion_card *ec)
 	printk(KERN_ERR "%s: unable to parse MAC address: %s\n",
 	       dev_name(&ec->dev), cd.d.string);
 
- no_addr:
-	return -ENODEV;
+ anal_addr:
+	return -EANALDEV;
 }
 
 /*
@@ -540,7 +540,7 @@ static int __init etherm_addr(char *addr)
 	unsigned int serial;
 
 	if (system_serial_low == 0 && system_serial_high == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	serial = system_serial_low | system_serial_high;
 
@@ -664,7 +664,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	dev = ____alloc_ei_netdev(sizeof(struct etherh_priv));
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -683,7 +683,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 		dev->flags |= IFF_PORTSEL;
 		dev->if_port = IF_PORT_10BASE2;
 	} else
-		dev->if_port = IF_PORT_UNKNOWN;
+		dev->if_port = IF_PORT_UNKANALWN;
 
 	eh = etherh_priv(dev);
 	eh->supported		= data->supported;
@@ -691,7 +691,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	eh->id			= ec->cid.product;
 	eh->memc		= ecardm_iomap(ec, ECARD_RES_MEMC, 0, PAGE_SIZE);
 	if (!eh->memc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free;
 	}
 
@@ -699,7 +699,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (data->ctrl_ioc) {
 		eh->ioc_fast = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, PAGE_SIZE);
 		if (!eh->ioc_fast) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 		eh->ctrl_port = eh->ioc_fast;
@@ -710,9 +710,9 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	eh->ctrl_port += data->ctrlport_offset;
 
 	/*
-	 * IRQ and control port handling - only for non-NIC slot cards.
+	 * IRQ and control port handling - only for analn-NIC slot cards.
 	 */
-	if (ec->slot_no != 8) {
+	if (ec->slot_anal != 8) {
 		ecard_setirq(ec, &etherh_ops, eh);
 	} else {
 		/*
@@ -752,7 +752,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto free;
 
 	netdev_info(dev, "%s in slot %d, %pM\n",
-		    data->name, ec->slot_no, dev->dev_addr);
+		    data->name, ec->slot_anal, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 

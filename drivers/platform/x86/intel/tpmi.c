@@ -14,7 +14,7 @@
  * on the target CPU to read or write. Also the RAPL features vary between
  * CPU models, and hence lot of model specific code. Here TPMI provides an
  * architectural interface by providing hierarchical tables and fields,
- * which will not need any model specific implementation.
+ * which will analt need any model specific implementation.
  *
  * The TPMI interface uses a PCI VSEC structure to expose the location of
  * MMIO region.
@@ -35,14 +35,14 @@
  * field from the VSEC header.
  *
  * Each TPMI PM feature has one entry in the PFS with a unique TPMI
- * ID and its access details. The TPMI driver creates device nodes
+ * ID and its access details. The TPMI driver creates device analdes
  * for the supported PM features.
  *
  * The names of the devices created by the TPMI driver start with the
  * "intel_vsec.tpmi-" prefix which is followed by a specific name of the
  * given PM feature (for example, "intel_vsec.tpmi-rapl.0").
  *
- * The device nodes are create by using interface "intel_vsec_add_aux()"
+ * The device analdes are create by using interface "intel_vsec_add_aux()"
  * provided by the Intel VSEC driver.
  */
 
@@ -130,7 +130,7 @@ struct intel_tpmi_info {
  * @pkg:	CPU Package id
  * @reserved:	Reserved for future use
  * @lock:	When set to 1 the register is locked and becomes read-only
- *		until next reset. Not for use by the OS driver.
+ *		until next reset. Analt for use by the OS driver.
  *
  * The structure to read hardware provided mapping information.
  */
@@ -147,9 +147,9 @@ struct tpmi_info_header {
  * struct tpmi_feature_state - Structure to read hardware state of a feature
  * @enabled:	Enable state of a feature, 1: enabled, 0: disabled
  * @reserved_1:	Reserved for future use
- * @write_blocked: Writes are blocked means all write operations are ignored
+ * @write_blocked: Writes are blocked means all write operations are iganalred
  * @read_blocked: Reads are blocked means will read 0xFFs
- * @pcs_select:	Interface used by out of band software, not used in OS
+ * @pcs_select:	Interface used by out of band software, analt used in OS
  * @reserved_2:	Reserved for future use
  * @id:		TPMI ID of the feature
  * @reserved_3:	Reserved for future use
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_at_index, INTEL_TPMI);
 #define TPMI_CONTROL_STATUS_RB		BIT_ULL(0)
 
 #define TPMI_CONTROL_STATUS_OWNER	GENMASK_ULL(5, 4)
-#define TPMI_OWNER_NONE			0
+#define TPMI_OWNER_ANALNE			0
 #define TPMI_OWNER_IN_BAND		1
 
 #define TPMI_CONTROL_STATUS_CPL		BIT_ULL(6)
@@ -277,8 +277,8 @@ static int tpmi_read_feature_status(struct intel_tpmi_info *tpmi_info, int featu
 
 	mutex_lock(&tpmi_dev_lock);
 
-	/* Wait for owner bit set to 0 (none) */
-	ret = tpmi_wait_for_owner(tpmi_info, TPMI_OWNER_NONE);
+	/* Wait for owner bit set to 0 (analne) */
+	ret = tpmi_wait_for_owner(tpmi_info, TPMI_OWNER_ANALNE);
 	if (ret)
 		goto err_unlock;
 
@@ -404,7 +404,7 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	off = pfs->vsec_offset;
 
@@ -415,7 +415,7 @@ static int tpmi_mem_dump_show(struct seq_file *s, void *unused)
 
 		mem = ioremap(off, size);
 		if (!mem) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -478,7 +478,7 @@ static ssize_t mem_write(struct file *file, const char __user *userbuf, size_t l
 
 	mem = ioremap(pfs->vsec_offset + punit * size, size);
 	if (!mem) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock_mem_write;
 	}
 
@@ -502,9 +502,9 @@ static int mem_write_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int mem_write_open(struct inode *inode, struct file *file)
+static int mem_write_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, mem_write_show, inode->i_private);
+	return single_open(file, mem_write_show, ianalde->i_private);
 }
 
 static const struct file_operations mem_write_ops = {
@@ -595,24 +595,24 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 		return ret;
 
 	/*
-	 * If not enabled, continue to look at other features in the PFS, so return -EOPNOTSUPP.
-	 * This will not cause failure of loading of this driver.
+	 * If analt enabled, continue to look at other features in the PFS, so return -EOPANALTSUPP.
+	 * This will analt cause failure of loading of this driver.
 	 */
 	if (!feature_state.enabled)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	name = intel_tpmi_name(pfs->pfs_header.tpmi_id);
 	if (!name)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	res = kcalloc(pfs->pfs_header.num_entries, sizeof(*res), GFP_KERNEL);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	feature_vsec_dev = kzalloc(sizeof(*feature_vsec_dev), GFP_KERNEL);
 	if (!feature_vsec_dev) {
 		kfree(res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	snprintf(feature_id_name, sizeof(feature_id_name), "tpmi-%s", name);
@@ -633,7 +633,7 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	feature_vsec_dev->ida = &intel_vsec_tpmi_ida;
 
 	/*
-	 * intel_vsec_add_aux() is resource managed, no explicit
+	 * intel_vsec_add_aux() is resource managed, anal explicit
 	 * delete is required on error or on module unload.
 	 * feature_vsec_dev and res memory are also freed as part of
 	 * device deletion.
@@ -654,10 +654,10 @@ static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 		 * Fail, if the supported features fails to create device,
 		 * otherwise, continue. Even if one device failed to create,
 		 * fail the loading of driver. Since intel_vsec_add_aux()
-		 * is resource managed, no clean up is required for the
+		 * is resource managed, anal clean up is required for the
 		 * successfully created devices.
 		 */
-		if (ret && ret != -EOPNOTSUPP)
+		if (ret && ret != -EOPANALTSUPP)
 			return ret;
 	}
 
@@ -675,7 +675,7 @@ static int tpmi_process_info(struct intel_tpmi_info *tpmi_info,
 	info_mem = ioremap(pfs->vsec_offset + TPMI_INFO_BUS_INFO_OFFSET,
 			   pfs->pfs_header.entry_size * sizeof(u32) - TPMI_INFO_BUS_INFO_OFFSET);
 	if (!info_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(&header, info_mem, sizeof(header));
 
@@ -695,7 +695,7 @@ static int tpmi_fetch_pfs_header(struct intel_tpmi_pm_feature *pfs, u64 start, i
 
 	pfs_mem = ioremap(start, size);
 	if (!pfs_mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy_fromio(&pfs->pfs_header, pfs_mem, sizeof(pfs->pfs_header));
 
@@ -716,7 +716,7 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 
 	tpmi_info = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_info), GFP_KERNEL);
 	if (!tpmi_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpmi_info->vsec_dev = vsec_dev;
 	tpmi_info->feature_count = vsec_dev->num_resources;
@@ -726,7 +726,7 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 						sizeof(*tpmi_info->tpmi_features),
 						GFP_KERNEL);
 	if (!tpmi_info->tpmi_features)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vsec_dev->num_resources; i++) {
 		struct intel_tpmi_pm_feature *pfs;
@@ -757,9 +757,9 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 
 		/*
 		 * Process TPMI_INFO to get PCI device to CPU package ID.
-		 * Device nodes for TPMI features are not created in this
+		 * Device analdes for TPMI features are analt created in this
 		 * for loop. So, the mapping information will be available
-		 * when actual device nodes created outside this
+		 * when actual device analdes created outside this
 		 * loop via tpmi_create_devices().
 		 */
 		if (pfs->pfs_header.tpmi_id == TPMI_INFO_ID)

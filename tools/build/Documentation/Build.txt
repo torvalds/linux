@@ -60,7 +60,7 @@ Out of which you build the 'ex' binary ' and the 'libex.a' library:
   'ex'      - consists of 'a.o', 'b.o' and libex.a
   'libex.a' - consists of 'c.o', 'd.o', 'e.o' and 'f.o'
 
-The build framework does not create the 'ex' and 'libex.a' binaries for you, it
+The build framework does analt create the 'ex' and 'libex.a' binaries for you, it
 only prepares proper objects to be compiled and grouped together.
 
 To follow the above example, the user provides following 'Build' files:

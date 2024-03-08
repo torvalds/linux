@@ -64,7 +64,7 @@
 #define KBC_ROW_SHIFT	3
 
 enum tegra_pin_type {
-	PIN_CFG_IGNORE,
+	PIN_CFG_IGANALRE,
 	PIN_CFG_COL,
 	PIN_CFG_ROW,
 };
@@ -163,7 +163,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 
 			scancodes[num_down] = scancode;
 			keycodes[num_down] = kbc->keycode[scancode];
-			/* If driver uses Fn map, do not report the Fn key. */
+			/* If driver uses Fn map, do analt report the Fn key. */
 			if ((keycodes[num_down] == KEY_FN) && kbc->use_fn_map)
 				fn_keypress = true;
 			else
@@ -177,7 +177,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	 * Matrix keyboard designs are prone to keyboard ghosting.
 	 * Ghosting occurs if there are 3 keys such that -
 	 * any 2 of the 3 keys share a row, and any 2 of them share a column.
-	 * If so ignore the key presses for this iteration.
+	 * If so iganalre the key presses for this iteration.
 	 */
 	if (kbc->use_ghost_filter && num_down >= 3) {
 		for (i = 0; i < num_down; i++) {
@@ -212,7 +212,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 		}
 	}
 
-	/* Ignore the key presses for this iteration? */
+	/* Iganalre the key presses for this iteration? */
 	if (key_in_same_col && key_in_same_row)
 		return;
 
@@ -254,7 +254,7 @@ static void tegra_kbc_keypress_timer(struct timer_list *t)
 		tegra_kbc_report_keys(kbc);
 
 		/*
-		 * If more than one keys are pressed we need not wait
+		 * If more than one keys are pressed we need analt wait
 		 * for the repoll delay.
 		 */
 		dly = (val == 1) ? kbc->repoll_dly : 1;
@@ -311,7 +311,7 @@ static void tegra_kbc_setup_wakekeys(struct tegra_kbc *kbc, bool filter)
 	int i;
 	unsigned int rst_val;
 
-	/* Either mask all keys or none. */
+	/* Either mask all keys or analne. */
 	rst_val = (filter && !kbc->wakeup) ? ~0 : 0;
 
 	for (i = 0; i < kbc->hw_support->max_rows; i++)
@@ -344,7 +344,7 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 			col_cfg |= ((kbc->pin_cfg[i].num << 1) | 1) << c_shft;
 			break;
 
-		case PIN_CFG_IGNORE:
+		case PIN_CFG_IGANALRE:
 			break;
 		}
 
@@ -472,7 +472,7 @@ static bool tegra_kbc_check_pin_cfg(const struct tegra_kbc *kbc,
 			}
 			break;
 
-		case PIN_CFG_IGNORE:
+		case PIN_CFG_IGANALRE:
 			break;
 
 		default:
@@ -488,7 +488,7 @@ static bool tegra_kbc_check_pin_cfg(const struct tegra_kbc *kbc,
 
 static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 {
-	struct device_node *np = kbc->dev->of_node;
+	struct device_analde *np = kbc->dev->of_analde;
 	u32 prop;
 	int i;
 	u32 num_rows = 0;
@@ -511,14 +511,14 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 		kbc->wakeup = true;
 
 	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-row-pins not found\n");
-		return -ENOENT;
+		dev_err(kbc->dev, "property nvidia,kbc-row-pins analt found\n");
+		return -EANALENT;
 	}
 	num_rows = proplen / sizeof(u32);
 
 	if (!of_get_property(np, "nvidia,kbc-col-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-col-pins not found\n");
-		return -ENOENT;
+		dev_err(kbc->dev, "property nvidia,kbc-col-pins analt found\n");
+		return -EANALENT;
 	}
 	num_cols = proplen / sizeof(u32);
 
@@ -535,31 +535,31 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	}
 
 	if (!of_get_property(np, "linux,keymap", &proplen)) {
-		dev_err(kbc->dev, "property linux,keymap not found\n");
-		return -ENOENT;
+		dev_err(kbc->dev, "property linux,keymap analt found\n");
+		return -EANALENT;
 	}
 
 	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
 		dev_err(kbc->dev,
-			"keypad rows/columns not properly specified\n");
+			"keypad rows/columns analt properly specified\n");
 		return -EINVAL;
 	}
 
-	/* Set all pins as non-configured */
+	/* Set all pins as analn-configured */
 	for (i = 0; i < kbc->num_rows_and_columns; i++)
-		kbc->pin_cfg[i].type = PIN_CFG_IGNORE;
+		kbc->pin_cfg[i].type = PIN_CFG_IGANALRE;
 
 	ret = of_property_read_u32_array(np, "nvidia,kbc-row-pins",
 				rows_cfg, num_rows);
 	if (ret < 0) {
-		dev_err(kbc->dev, "Rows configurations are not proper\n");
+		dev_err(kbc->dev, "Rows configurations are analt proper\n");
 		return -EINVAL;
 	}
 
 	ret = of_property_read_u32_array(np, "nvidia,kbc-col-pins",
 				cols_cfg, num_cols);
 	if (ret < 0) {
-		dev_err(kbc->dev, "Cols configurations are not proper\n");
+		dev_err(kbc->dev, "Cols configurations are analt proper\n");
 		return -EINVAL;
 	}
 
@@ -606,7 +606,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	kbc = devm_kzalloc(&pdev->dev, sizeof(*kbc), GFP_KERNEL);
 	if (!kbc) {
 		dev_err(&pdev->dev, "failed to alloc memory for kbc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	kbc->dev = &pdev->dev;
@@ -632,7 +632,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	kbc->idev = devm_input_allocate_device(&pdev->dev);
 	if (!kbc->idev) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	timer_setup(&kbc->timer, tegra_kbc_keypress_timer, 0);
@@ -688,7 +688,7 @@ static int tegra_kbc_probe(struct platform_device *pdev)
 	input_set_drvdata(kbc->idev, kbc);
 
 	err = devm_request_irq(&pdev->dev, kbc->irq, tegra_kbc_isr,
-			       IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
+			       IRQF_TRIGGER_HIGH | IRQF_ANAL_AUTOEN,
 			       pdev->name, kbc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to request keyboard IRQ\n");

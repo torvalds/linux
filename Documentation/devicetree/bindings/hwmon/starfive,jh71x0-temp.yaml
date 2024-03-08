@@ -10,7 +10,7 @@ maintainers:
   - Emil Renner Berthing <kernel@esmil.dk>
 
 description: |
-  StarFive Technology Co. JH71x0 embedded temperature sensor
+  StarFive Techanallogy Co. JH71x0 embedded temperature sensor
 
 properties:
   compatible:

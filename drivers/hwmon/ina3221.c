@@ -168,7 +168,7 @@ static inline int ina3221_summation_shunt_resistor(struct ina3221_data *ina)
 			/* Found the reference shunt resistor value */
 			shunt_resistor = input[i].shunt_resistor;
 		} else {
-			/* No summation if resistor values are different */
+			/* Anal summation if resistor values are different */
 			if (shunt_resistor != input[i].shunt_resistor)
 				return 0;
 		}
@@ -270,7 +270,7 @@ static int ina3221_read_chip(struct device *dev, u32 attr, long *val)
 		*val = DIV_ROUND_CLOSEST(*val, 1000);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -291,7 +291,7 @@ static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 	switch (attr) {
 	case hwmon_in_input:
 		if (!ina3221_is_enabled(ina, channel))
-			return -ENODATA;
+			return -EANALDATA;
 
 		/* Write CONFIG register to trigger a single-shot measurement */
 		if (ina->single_shot) {
@@ -317,7 +317,7 @@ static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 		*val = ina3221_is_enabled(ina, channel);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -348,7 +348,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 	switch (attr) {
 	case hwmon_curr_input:
 		if (!ina3221_is_enabled(ina, channel))
-			return -ENODATA;
+			return -EANALDATA;
 
 		/* Write CONFIG register to trigger a single-shot measurement */
 		if (ina->single_shot) {
@@ -364,7 +364,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 	case hwmon_curr_crit:
 	case hwmon_curr_max:
 		if (!resistance_uo)
-			return -ENODATA;
+			return -EANALDATA;
 
 		ret = ina3221_read_value(ina, reg, &regval);
 		if (ret)
@@ -377,7 +377,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 		return 0;
 	case hwmon_curr_crit_alarm:
 	case hwmon_curr_max_alarm:
-		/* No actual register read if channel is disabled */
+		/* Anal actual register read if channel is disabled */
 		if (!ina3221_is_enabled(ina, channel)) {
 			/* Return 0 for alert flags */
 			*val = 0;
@@ -389,7 +389,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 		*val = regval;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -431,7 +431,7 @@ static int ina3221_write_chip(struct device *dev, u32 attr, long val)
 		ina->reg_config = tmp;
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -450,7 +450,7 @@ static int ina3221_write_curr(struct device *dev, u32 attr,
 		resistance_uo = input[channel].shunt_resistor;
 
 	if (!resistance_uo)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* clamp current */
 	current_ma = clamp_val(val,
@@ -465,7 +465,7 @@ static int ina3221_write_curr(struct device *dev, u32 attr,
 	/*
 	 * Formula to convert voltage_uv to register value:
 	 *     regval = (voltage_uv / scale) << shift
-	 * Note:
+	 * Analte:
 	 *     The scale is 40uV for all shunt voltage registers
 	 *     Shunt Voltage Sum register left-shifts 1 bit
 	 *     All other Shunt Voltage registers shift 3 bits
@@ -491,7 +491,7 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 
 	config = enable ? mask : 0;
 
-	/* Bypass if enable status is not being changed */
+	/* Bypass if enable status is analt being changed */
 	if (config_old == config)
 		return 0;
 
@@ -549,7 +549,7 @@ static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = ina3221_read_curr(dev, attr, channel, val);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -578,7 +578,7 @@ static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
 		ret = ina3221_write_curr(dev, attr, channel, val);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -618,7 +618,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 			return 0;
 		}
 	case hwmon_in:
-		/* Ignore in0_ */
+		/* Iganalre in0_ */
 		if (channel == 0)
 			return 0;
 
@@ -628,7 +628,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 				input = &ina->inputs[channel - 1];
 			else if (channel == 7)
 				return 0444;
-			/* Hide label node if label is not provided */
+			/* Hide label analde if label is analt provided */
 			return (input && input->label) ? 0444 : 0;
 		case hwmon_in_input:
 			return 0444;
@@ -747,15 +747,15 @@ static struct attribute *ina3221_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ina3221);
 
-static const struct regmap_range ina3221_yes_ranges[] = {
+static const struct regmap_range ina3221_anal_ranges[] = {
 	regmap_reg_range(INA3221_CONFIG, INA3221_BUS3),
 	regmap_reg_range(INA3221_SHUNT_SUM, INA3221_SHUNT_SUM),
 	regmap_reg_range(INA3221_MASK_ENABLE, INA3221_MASK_ENABLE),
 };
 
 static const struct regmap_access_table ina3221_volatile_table = {
-	.yes_ranges = ina3221_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ina3221_yes_ranges),
+	.anal_ranges = ina3221_anal_ranges,
+	.n_anal_ranges = ARRAY_SIZE(ina3221_anal_ranges),
 };
 
 static const struct regmap_config ina3221_regmap_config = {
@@ -767,7 +767,7 @@ static const struct regmap_config ina3221_regmap_config = {
 };
 
 static int ina3221_probe_child_from_dt(struct device *dev,
-				       struct device_node *child,
+				       struct device_analde *child,
 				       struct ina3221_data *ina)
 {
 	struct ina3221_input *input;
@@ -812,20 +812,20 @@ static int ina3221_probe_child_from_dt(struct device *dev,
 
 static int ina3221_probe_from_dt(struct device *dev, struct ina3221_data *ina)
 {
-	const struct device_node *np = dev->of_node;
-	struct device_node *child;
+	const struct device_analde *np = dev->of_analde;
+	struct device_analde *child;
 	int ret;
 
-	/* Compatible with non-DT platforms */
+	/* Compatible with analn-DT platforms */
 	if (!np)
 		return 0;
 
 	ina->single_shot = of_property_read_bool(np, "ti,single-shot");
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = ina3221_probe_child_from_dt(dev, child, ina);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}
@@ -843,7 +843,7 @@ static int ina3221_probe(struct i2c_client *client)
 
 	ina = devm_kzalloc(dev, sizeof(*ina), GFP_KERNEL);
 	if (!ina)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ina->regmap = devm_regmap_init_i2c(client, &ina3221_regmap_config);
 	if (IS_ERR(ina->regmap)) {
@@ -930,9 +930,9 @@ static int ina3221_probe(struct i2c_client *client)
 fail:
 	pm_runtime_disable(ina->pm_dev);
 	pm_runtime_set_suspended(ina->pm_dev);
-	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
+	/* pm_runtime_put_analidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
-		pm_runtime_put_noidle(ina->pm_dev);
+		pm_runtime_put_analidle(ina->pm_dev);
 	mutex_destroy(&ina->lock);
 
 	return ret;
@@ -948,9 +948,9 @@ static void ina3221_remove(struct i2c_client *client)
 	pm_runtime_disable(ina->pm_dev);
 	pm_runtime_set_suspended(ina->pm_dev);
 
-	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
+	/* pm_runtime_put_analidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
-		pm_runtime_put_noidle(ina->pm_dev);
+		pm_runtime_put_analidle(ina->pm_dev);
 
 	mutex_destroy(&ina->lock);
 }
@@ -1005,9 +1005,9 @@ static int ina3221_resume(struct device *dev)
 	/* Initialize summation channel control */
 	if (ina->summation_shunt_resistor) {
 		/*
-		 * Sum only channels that are not disabled for summation.
+		 * Sum only channels that are analt disabled for summation.
 		 * Shunt measurements of disconnected channels should
-		 * be 0, so it does not matter for summation.
+		 * be 0, so it does analt matter for summation.
 		 */
 		ret = regmap_update_bits(ina->regmap, INA3221_MASK_ENABLE,
 					 INA3221_MASK_ENABLE_SCC_MASK,

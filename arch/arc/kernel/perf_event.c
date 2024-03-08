@@ -3,9 +3,9 @@
 // Linux performance counter support for ARC CPUs.
 // This code is inspired by the perf support of various other architectures.
 //
-// Copyright (C) 2013-2018 Synopsys, Inc. (www.synopsys.com)
+// Copyright (C) 2013-2018 Syanalpsys, Inc. (www.syanalpsys.com)
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -23,14 +23,14 @@
  * PERF_COUNT_HW_STALLED_CYCLES_BACKEND
  * PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
  *	The ARC 700 can either measure stalls per pipeline stage, or all stalls
- *	combined; for now we assign all stalls to STALLED_CYCLES_BACKEND
+ *	combined; for analw we assign all stalls to STALLED_CYCLES_BACKEND
  *	and all pipeline flushes (e.g. caused by mispredicts, etc.) to
  *	STALLED_CYCLES_FRONTEND.
  *
  *	We could start multiple performance counters and combine everything
  *	afterwards, but that makes it complicated.
  *
- *	Note that I$ cache misses aren't counted by either of the two!
+ *	Analte that I$ cache misses aren't counted by either of the two!
  */
 
 /*
@@ -125,7 +125,7 @@ static const unsigned int arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = 
 			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_EDTLB,
 		},
-			/* DTLB LD/ST Miss not segregated by h/w*/
+			/* DTLB LD/ST Miss analt segregated by h/w*/
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
@@ -163,7 +163,7 @@ static const unsigned int arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = 
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
 		},
 	},
-	[C(NODE)] = {
+	[C(ANALDE)] = {
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,
@@ -250,7 +250,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder
-	 * So for now just record the user PC
+	 * So for analw just record the user PC
 	 */
 	perf_callchain_store(entry, instruction_pointer(regs));
 }
@@ -258,7 +258,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 static struct arc_pmu *arc_pmu;
 static DEFINE_PER_CPU(struct arc_pmu_cpu, arc_pmu_cpu);
 
-/* read counter #idx; note that counter# != event# on ARC! */
+/* read counter #idx; analte that counter# != event# on ARC! */
 static u64 arc_pmu_read_counter(int idx)
 {
 	u32 tmp;
@@ -286,7 +286,7 @@ static void arc_perf_event_update(struct perf_event *event,
 
 	/*
 	 * We aren't afraid of hwc->prev_count changing beneath our feet
-	 * because there's no way for us to re-enter this function anytime.
+	 * because there's anal way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
 	local64_add(delta, &event->count);
@@ -316,7 +316,7 @@ static int arc_pmu_cache_event(u64 config)
 	ret = arc_pmu_cache_map[cache_type][cache_op][cache_result];
 
 	if (ret == CACHE_OP_UNSUPPORTED)
-		return -ENOENT;
+		return -EANALENT;
 
 	pr_debug("init cache event: type/op/result %d/%d/%d with h/w %d \'%s\'\n",
 		 cache_type, cache_op, cache_result, ret,
@@ -352,9 +352,9 @@ static int arc_pmu_event_init(struct perf_event *event)
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		if (event->attr.config >= PERF_COUNT_HW_MAX)
-			return -ENOENT;
+			return -EANALENT;
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
-			return -ENOENT;
+			return -EANALENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
 		pr_debug("init event %d with h/w %08x \'%s\'\n",
 			 (int)event->attr.config, (int)hwc->config,
@@ -372,7 +372,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 
 	case PERF_TYPE_RAW:
 		if (event->attr.config >= arc_pmu->n_events)
-			return -ENOENT;
+			return -EANALENT;
 
 		hwc->config |= event->attr.config;
 		pr_debug("init raw event with idx %lld \'%s\'\n",
@@ -382,7 +382,7 @@ static int arc_pmu_event_init(struct perf_event *event)
 		return 0;
 
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 }
 
@@ -445,7 +445,7 @@ static int arc_pmu_event_set_period(struct perf_event *event)
 
 /*
  * Assigns hardware counter to hardware condition.
- * Note that there is no separate start/stop mechanism;
+ * Analte that there is anal separate start/stop mechanism;
  * stopping is achieved by assigning the 'never' condition
  */
 static void arc_pmu_start(struct perf_event *event, int flags)
@@ -482,7 +482,7 @@ static void arc_pmu_stop(struct perf_event *event, int flags)
 	if (is_sampling_event(event)) {
 		/*
 		 * Reset interrupt flag by writing of 1. This is required
-		 * to make sure pending interrupt was not left.
+		 * to make sure pending interrupt was analt left.
 		 */
 		write_aux_reg(ARC_REG_PCT_INT_ACT, BIT(idx));
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
@@ -587,7 +587,7 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 		/*
 		 * On reset of "interrupt active" bit corresponding
 		 * "interrupt enable" bit gets automatically reset as well.
-		 * Now we need to re-enable interrupt for the counter.
+		 * Analw we need to re-enable interrupt for the counter.
 		 */
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
 			read_aux_reg(ARC_REG_PCT_INT_CTRL) | BIT(idx));
@@ -616,7 +616,7 @@ done:
 
 static irqreturn_t arc_pmu_intr(int irq, void *dev)
 {
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 #endif /* CONFIG_ISA_ARCV2 */
@@ -625,7 +625,7 @@ static void arc_cpu_pmu_irq_init(void *data)
 {
 	int irq = *(int *)data;
 
-	enable_percpu_irq(irq, IRQ_TYPE_NONE);
+	enable_percpu_irq(irq, IRQ_TYPE_ANALNE);
 
 	/* Clear all pending interrupt flags */
 	write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
@@ -677,17 +677,17 @@ static int arc_pmu_raw_alloc(struct device *dev)
 	arc_pmu->attr = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
 		sizeof(*arc_pmu->attr), GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arc_pmu->attrs = devm_kmalloc_array(dev, arc_pmu->n_events + 1,
 		sizeof(*arc_pmu->attrs), GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arc_pmu->raw_entry = devm_kmalloc_array(dev, arc_pmu->n_events,
 		sizeof(*arc_pmu->raw_entry), GFP_KERNEL | __GFP_ZERO);
 	if (!arc_pmu->raw_entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -738,25 +738,25 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	READ_BCR(ARC_REG_PCT_BUILD, pct_bcr);
 	if (!pct_bcr.v) {
-		pr_err("This core does not have performance counters!\n");
-		return -ENODEV;
+		pr_err("This core does analt have performance counters!\n");
+		return -EANALDEV;
 	}
 	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
 	if (WARN_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS))
 		return -EINVAL;
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
-	if (WARN(!cc_bcr.v, "Counters exist but No countable conditions?"))
+	if (WARN(!cc_bcr.v, "Counters exist but Anal countable conditions?"))
 		return -EINVAL;
 
 	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
 	if (!arc_pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	arc_pmu->n_events = cc_bcr.c;
 
 	if (arc_pmu_raw_alloc(&pdev->dev))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	has_interrupts = is_isa_arcv2() ? pct_bcr.i : 0;
 
@@ -819,7 +819,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (irq == -1)
-		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
 
 	/*
 	 * perf parser doesn't really like '-' symbol in events name, so let's
@@ -846,5 +846,5 @@ static struct platform_driver arc_pmu_driver = {
 module_platform_driver(arc_pmu_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mischa Jonker <mjonker@synopsys.com>");
+MODULE_AUTHOR("Mischa Jonker <mjonker@syanalpsys.com>");
 MODULE_DESCRIPTION("ARC PMU driver");

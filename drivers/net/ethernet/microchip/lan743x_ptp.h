@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Copyright (C) 2018 Microchip Technology Inc. */
+/* Copyright (C) 2018 Microchip Techanallogy Inc. */
 
 #ifndef _LAN743X_PTP_H
 #define _LAN743X_PTP_H
@@ -44,7 +44,7 @@ void lan743x_ptp_isr(void *context);
 bool lan743x_ptp_request_tx_timestamp(struct lan743x_adapter *adapter);
 void lan743x_ptp_unrequest_tx_timestamp(struct lan743x_adapter *adapter);
 void lan743x_ptp_tx_timestamp_skb(struct lan743x_adapter *adapter,
-				  struct sk_buff *skb, bool ignore_sync);
+				  struct sk_buff *skb, bool iganalre_sync);
 int lan743x_ptp_init(struct lan743x_adapter *adapter);
 int lan743x_ptp_open(struct lan743x_adapter *adapter);
 void lan743x_ptp_close(struct lan743x_adapter *adapter);
@@ -90,7 +90,7 @@ struct lan743x_ptp {
 	spinlock_t	tx_ts_lock;
 	int pending_tx_timestamps;
 	struct sk_buff *tx_ts_skb_queue[LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS];
-	unsigned int	tx_ts_ignore_sync_queue;
+	unsigned int	tx_ts_iganalre_sync_queue;
 	int tx_ts_skb_queue_size;
 	u32 tx_ts_seconds_queue[LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS];
 	u32 tx_ts_nseconds_queue[LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS];

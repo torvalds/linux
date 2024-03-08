@@ -10,9 +10,9 @@ struct pdsc_wait_context {
 	struct completion wait_completion;
 };
 
-static int pdsc_process_notifyq(struct pdsc_qcq *qcq)
+static int pdsc_process_analtifyq(struct pdsc_qcq *qcq)
 {
-	union pds_core_notifyq_comp *comp;
+	union pds_core_analtifyq_comp *comp;
 	struct pdsc *pdsc = qcq->pdsc;
 	struct pdsc_cq *cq = &qcq->cq;
 	struct pdsc_cq_info *cq_info;
@@ -27,24 +27,24 @@ static int pdsc_process_notifyq(struct pdsc_qcq *qcq)
 
 		switch (ecode) {
 		case PDS_EVENT_LINK_CHANGE:
-			dev_info(pdsc->dev, "NotifyQ LINK_CHANGE ecode %d eid %lld\n",
+			dev_info(pdsc->dev, "AnaltifyQ LINK_CHANGE ecode %d eid %lld\n",
 				 ecode, eid);
-			pdsc_notify(PDS_EVENT_LINK_CHANGE, comp);
+			pdsc_analtify(PDS_EVENT_LINK_CHANGE, comp);
 			break;
 
 		case PDS_EVENT_RESET:
-			dev_info(pdsc->dev, "NotifyQ RESET ecode %d eid %lld\n",
+			dev_info(pdsc->dev, "AnaltifyQ RESET ecode %d eid %lld\n",
 				 ecode, eid);
-			pdsc_notify(PDS_EVENT_RESET, comp);
+			pdsc_analtify(PDS_EVENT_RESET, comp);
 			break;
 
 		case PDS_EVENT_XCVR:
-			dev_info(pdsc->dev, "NotifyQ XCVR ecode %d eid %lld\n",
+			dev_info(pdsc->dev, "AnaltifyQ XCVR ecode %d eid %lld\n",
 				 ecode, eid);
 			break;
 
 		default:
-			dev_info(pdsc->dev, "NotifyQ ecode %d eid %lld\n",
+			dev_info(pdsc->dev, "AnaltifyQ ecode %d eid %lld\n",
 				 ecode, eid);
 			break;
 		}
@@ -69,7 +69,7 @@ static bool pdsc_adminq_inc_if_up(struct pdsc *pdsc)
 	    pdsc->state & BIT_ULL(PDSC_S_FW_DEAD))
 		return false;
 
-	return refcount_inc_not_zero(&pdsc->adminq_refcnt);
+	return refcount_inc_analt_zero(&pdsc->adminq_refcnt);
 }
 
 void pdsc_process_adminq(struct pdsc_qcq *qcq)
@@ -84,18 +84,18 @@ void pdsc_process_adminq(struct pdsc_qcq *qcq)
 	int aq_work = 0;
 	int credits;
 
-	/* Don't process AdminQ when it's not up */
+	/* Don't process AdminQ when it's analt up */
 	if (!pdsc_adminq_inc_if_up(pdsc)) {
 		dev_err(pdsc->dev, "%s: called while adminq is unavailable\n",
 			__func__);
 		return;
 	}
 
-	/* Check for NotifyQ event */
-	nq_work = pdsc_process_notifyq(&pdsc->notifyqcq);
+	/* Check for AnaltifyQ event */
+	nq_work = pdsc_process_analtifyq(&pdsc->analtifyqcq);
 
 	/* Check for empty queue, which can happen if the interrupt was
-	 * for a NotifyQ event and there are no new AdminQ completions.
+	 * for a AnaltifyQ event and there are anal new AdminQ completions.
 	 */
 	if (q->tail_idx == q->head_idx)
 		goto credits;
@@ -148,7 +148,7 @@ irqreturn_t pdsc_adminq_isr(int irq, void *data)
 	struct pdsc *pdsc = data;
 	struct pdsc_qcq *qcq;
 
-	/* Don't process AdminQ when it's not up */
+	/* Don't process AdminQ when it's analt up */
 	if (!pdsc_adminq_inc_if_up(pdsc)) {
 		dev_err(pdsc->dev, "%s: called while adminq is unavailable\n",
 			__func__);
@@ -185,7 +185,7 @@ static int __pdsc_adminq_post(struct pdsc *pdsc,
 	else
 		avail -= q->head_idx + 1;
 	if (!avail) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err_out_unlock;
 	}
 
@@ -195,10 +195,10 @@ static int __pdsc_adminq_post(struct pdsc *pdsc,
 			u8 fw_status =
 				ioread8(&pdsc->info_regs->fw_status);
 
-			dev_info(pdsc->dev, "%s: post failed - fw not running %#02x:\n",
+			dev_info(pdsc->dev, "%s: post failed - fw analt running %#02x:\n",
 				 __func__, fw_status);
 		} else {
-			dev_info(pdsc->dev, "%s: post failed - BARs not setup\n",
+			dev_info(pdsc->dev, "%s: post failed - BARs analt setup\n",
 				 __func__);
 		}
 		ret = -ENXIO;
@@ -276,17 +276,17 @@ int pdsc_adminq_post(struct pdsc *pdsc,
 				u8 fw_status =
 					ioread8(&pdsc->info_regs->fw_status);
 
-				dev_dbg(pdsc->dev, "%s: post wait failed - fw not running %#02x:\n",
+				dev_dbg(pdsc->dev, "%s: post wait failed - fw analt running %#02x:\n",
 					__func__, fw_status);
 			} else {
-				dev_dbg(pdsc->dev, "%s: post wait failed - BARs not setup\n",
+				dev_dbg(pdsc->dev, "%s: post wait failed - BARs analt setup\n",
 					__func__);
 			}
 			err = -ENXIO;
 			break;
 		}
 
-		/* When fast_poll is not requested, prevent aggressive polling
+		/* When fast_poll is analt requested, prevent aggressive polling
 		 * on failures due to timeouts by doing exponential back off.
 		 */
 		if (!fast_poll && poll_interval < PDSC_ADMINQ_MAX_POLL_INTERVAL)
@@ -305,7 +305,7 @@ int pdsc_adminq_post(struct pdsc *pdsc,
 			 comp, sizeof(*comp), true);
 
 	if (remaining && comp->status)
-		err = pdsc_err_to_errno(comp->status);
+		err = pdsc_err_to_erranal(comp->status);
 
 err_out:
 	if (err) {

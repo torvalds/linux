@@ -360,8 +360,8 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	non-removable;
-	no-1-8-v;
+	analn-removable;
+	anal-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

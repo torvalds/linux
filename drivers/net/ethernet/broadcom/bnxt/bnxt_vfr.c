@@ -155,13 +155,13 @@ static int bnxt_vf_rep_setup_tc_block_cb(enum tc_setup_type type,
 
 	if (!bnxt_tc_flower_enabled(vf_rep->bp) ||
 	    !tc_cls_can_offload_and_chain0(bp->dev, type_data))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		return bnxt_tc_setup_flower(bp, vf_fid, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -179,7 +179,7 @@ static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 						  bnxt_vf_rep_setup_tc_block_cb,
 						  vf_rep, vf_rep, true);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -215,7 +215,7 @@ static int bnxt_vf_rep_get_phys_port_name(struct net_device *dev, char *buf,
 	rc = snprintf(buf, len, "pf%dvf%d", PCI_FUNC(pf_pdev->devfn),
 		      vf_rep->vf_idx);
 	if (rc >= len)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
@@ -231,7 +231,7 @@ static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
 
 	/* as only PORT_PARENT_ID is supported currently use common code
-	 * between PF and VF-rep for now.
+	 * between PF and VF-rep for analw.
 	 */
 	return bnxt_get_port_parent_id(vf_rep->bp->dev, ppid);
 }
@@ -374,7 +374,7 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 }
 
 /* Free the VF-Reps in firmware, during firmware hot-reset processing.
- * Note that the VF-Rep netdevs are still active (not unregistered) during
+ * Analte that the VF-Rep netdevs are still active (analt unregistered) during
  * this process. As the mode transition from SWITCHDEV to LEGACY happens
  * under the rtnl_lock() this routine is safe under the rtnl_lock().
  */
@@ -396,12 +396,12 @@ static int bnxt_alloc_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	/* get cfa handles from FW */
 	if (hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx, &vf_rep->tx_cfa_action,
 			       &vf_rep->rx_cfa_code))
-		return -ENOLINK;
+		return -EANALLINK;
 
 	cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
 	vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX, GFP_KERNEL);
 	if (!vf_rep->dst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* only cfa_action is needed to mux a packet while TXing */
 	vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
@@ -411,7 +411,7 @@ static int bnxt_alloc_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 }
 
 /* Allocate the VF-Reps in firmware, during firmware hot-reset processing.
- * Note that the VF-Rep netdevs are still active (not unregistered) during
+ * Analte that the VF-Rep netdevs are still active (analt unregistered) during
  * this process. As the mode transition from SWITCHDEV to LEGACY happens
  * under the rtnl_lock() this routine is safe under the rtnl_lock().
  */
@@ -496,17 +496,17 @@ int bnxt_vf_reps_create(struct bnxt *bp)
 	int rc, i;
 
 	if (!(bp->flags & BNXT_FLAG_DSN_VALID))
-		return -ENODEV;
+		return -EANALDEV;
 
 	bp->vf_reps = kcalloc(num_vfs, sizeof(vf_rep), GFP_KERNEL);
 	if (!bp->vf_reps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* storage for cfa_code to vf-idx mapping */
 	cfa_code_map = kmalloc_array(MAX_CFA_CODE, sizeof(*bp->cfa_code_map),
 				     GFP_KERNEL);
 	if (!cfa_code_map) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 	for (i = 0; i < MAX_CFA_CODE; i++)
@@ -515,7 +515,7 @@ int bnxt_vf_reps_create(struct bnxt *bp)
 	for (i = 0; i < num_vfs; i++) {
 		dev = alloc_etherdev(sizeof(*vf_rep));
 		if (!dev) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto err;
 		}
 
@@ -533,7 +533,7 @@ int bnxt_vf_reps_create(struct bnxt *bp)
 		bnxt_vf_rep_netdev_init(bp, vf_rep, dev);
 		rc = register_netdev(dev);
 		if (rc) {
-			/* no need for unregister_netdev in cleanup */
+			/* anal need for unregister_netdev in cleanup */
 			dev->netdev_ops = NULL;
 			goto err;
 		}
@@ -580,8 +580,8 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (bp->hwrm_spec_code < 0x10803) {
-			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
-			return -ENOTSUPP;
+			netdev_warn(bp->dev, "FW does analt support SRIOV E-Switch SWITCHDEV mode\n");
+			return -EANALTSUPP;
 		}
 
 		/* Create representors for existing VFs */

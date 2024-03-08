@@ -12,7 +12,7 @@
 u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		return IWL_PHY_CHANNEL_MODE20;
 	case NL80211_CHAN_WIDTH_40:
@@ -42,7 +42,7 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 	if (offs == 0) {
 		/*
 		 * The FW is expected to check the control channel position only
-		 * when in HT/VHT and the channel width is not 20MHz. Return
+		 * when in HT/VHT and the channel width is analt 20MHz. Return
 		 * this value as the default one.
 		 */
 		return 0;
@@ -90,7 +90,7 @@ static void iwl_mvm_phy_ctxt_set_rxchain(struct iwl_mvm *mvm,
 	/* In scenarios where we only ever use a single-stream rates,
 	 * i.e. legacy 11b/g/a associations, single-stream APs or even
 	 * static SMPS, enable both chains to get diversity, improving
-	 * the case where we're far enough from the AP that attenuation
+	 * the case where we're far eanalugh from the AP that attenuation
 	 * between the two antennas is sufficiently different to impact
 	 * performance.
 	 */
@@ -233,8 +233,8 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
 					   0, len, &cmd);
 	} else {
-		IWL_ERR(mvm, "PHY ctxt cmd error ver %d not supported\n", ver);
-		return -EOPNOTSUPP;
+		IWL_ERR(mvm, "PHY ctxt cmd error ver %d analt supported\n", ver);
+		return -EOPANALTSUPP;
 	}
 
 
@@ -296,7 +296,7 @@ void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 /*
  * Send a command to modify the PHY context based on the current HW
- * configuration. Note that the function does not check that the configuration
+ * configuration. Analte that the function does analt check that the configuration
  * changed.
  */
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
@@ -356,7 +356,7 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 	if (ctxt->ref)
 		return;
 
-	cfg80211_chandef_create(&chandef, ctxt->channel, NL80211_CHAN_NO_HT);
+	cfg80211_chandef_create(&chandef, ctxt->channel, NL80211_CHAN_ANAL_HT);
 
 	iwl_mvm_phy_ctxt_apply(mvm, ctxt, &chandef, 1, 1,
 			       FW_CTXT_ACTION_REMOVE);
@@ -381,7 +381,7 @@ int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm)
 	unsigned long phy_ctxt_counter = 0;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
+						   IEEE80211_IFACE_ITER_ANALRMAL,
 						   iwl_mvm_binding_iterator,
 						   &phy_ctxt_counter);
 

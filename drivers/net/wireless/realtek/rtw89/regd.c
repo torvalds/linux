@@ -57,7 +57,7 @@ static const struct rtw89_regd rtw89_regd_map[] = {
 	COUNTRY_REGD("MT", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
 	COUNTRY_REGD("MC", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
 	COUNTRY_REGD("NL", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
-	COUNTRY_REGD("NO", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
+	COUNTRY_REGD("ANAL", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
 	COUNTRY_REGD("PL", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
 	COUNTRY_REGD("PT", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
 	COUNTRY_REGD("SK", RTW89_ETSI, RTW89_ETSI, RTW89_ETSI),
@@ -279,7 +279,7 @@ static const char rtw89_alpha2_list_eu[][3] = {
 	"MT",
 	"MC",
 	"NL",
-	"NO",
+	"ANAL",
 	"PL",
 	"PT",
 	"SK",
@@ -354,7 +354,7 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_59G_EN, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "acpi: cannot eval unii 4: %d\n", ret);
+			    "acpi: cananalt eval unii 4: %d\n", ret);
 		goto bottom;
 	}
 
@@ -396,7 +396,7 @@ static void __rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev, bool block,
 
 	index = rtw89_regd_get_index_by_name(alpha2);
 	if (index == RTW89_REGD_MAX_COUNTRY_NUM) {
-		rtw89_debug(rtwdev, RTW89_DBG_REGD, "%s: unknown alpha2 %c%c\n",
+		rtw89_debug(rtwdev, RTW89_DBG_REGD, "%s: unkanalwn alpha2 %c%c\n",
 			    __func__, alpha2[0], alpha2[1]);
 		return;
 	}
@@ -420,7 +420,7 @@ static void rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev)
 	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6G_BP, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "acpi: cannot eval policy 6ghz: %d\n", ret);
+			    "acpi: cananalt eval policy 6ghz: %d\n", ret);
 		return;
 	}
 
@@ -437,7 +437,7 @@ static void rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev)
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "%s: unknown policy mode: %d\n", __func__,
+			    "%s: unkanalwn policy mode: %d\n", __func__,
 			    ptr->policy_mode);
 		goto out;
 	}
@@ -475,7 +475,7 @@ static void rtw89_regd_setup_6ghz(struct rtw89_dev *rtwdev, struct wiphy *wiphy)
 	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6G_DIS, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "acpi: cannot eval 6ghz: %d\n", ret);
+			    "acpi: cananalt eval 6ghz: %d\n", ret);
 		goto bottom;
 	}
 
@@ -523,12 +523,12 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 	rtw89_regd_setup_unii4(rtwdev, wiphy);
 	rtw89_regd_setup_6ghz(rtwdev, wiphy);
 
-	wiphy->reg_notifier = rtw89_regd_notifier;
+	wiphy->reg_analtifier = rtw89_regd_analtifier;
 	return 0;
 }
 
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
-		    void (*reg_notifier)(struct wiphy *wiphy,
+		    void (*reg_analtifier)(struct wiphy *wiphy,
 					 struct regulatory_request *request))
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
@@ -544,8 +544,8 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 	chip_regd = rtw89_regd_find_reg_by_name(rtwdev->efuse.country_code);
 	if (!rtw89_regd_is_ww(chip_regd)) {
 		rtwdev->regulatory.regd = chip_regd;
-		/* Ignore country ie if there is a country domain programmed in chip */
-		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+		/* Iganalre country ie if there is a country domain programmed in chip */
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGANALRE;
 		wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 
 		ret = regulatory_hint(rtwdev->hw->wiphy,
@@ -589,25 +589,25 @@ static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
 		sband->channels[i].flags |= IEEE80211_CHAN_DISABLED;
 }
 
-static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
+static void rtw89_regd_analtifier_apply(struct rtw89_dev *rtwdev,
 				      struct wiphy *wiphy,
 				      struct regulatory_request *request)
 {
 	rtwdev->regulatory.regd = rtw89_regd_find_reg_by_name(request->alpha2);
-	/* This notification might be set from the system of distros,
-	 * and it does not expect the regulatory will be modified by
+	/* This analtification might be set from the system of distros,
+	 * and it does analt expect the regulatory will be modified by
 	 * connecting to an AP (i.e. country ie).
 	 */
 	if (request->initiator == NL80211_REGDOM_SET_BY_USER &&
 	    !rtw89_regd_is_ww(rtwdev->regulatory.regd))
-		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE;
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGANALRE;
 	else
-		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
+		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGANALRE;
 
 	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
 }
 
-void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw89_regd_analtifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtw89_dev *rtwdev = hw->priv;
@@ -617,10 +617,10 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 
 	if (wiphy->regd) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "There is a country domain programmed in chip, ignore notifications\n");
+			    "There is a country domain programmed in chip, iganalre analtifications\n");
 		goto exit;
 	}
-	rtw89_regd_notifier_apply(rtwdev, wiphy, request);
+	rtw89_regd_analtifier_apply(rtwdev, wiphy, request);
 	rtw89_debug_regd(rtwdev, rtwdev->regulatory.regd,
 			 "get from initiator %d, alpha2",
 			 request->initiator);

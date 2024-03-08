@@ -108,7 +108,7 @@ static struct clk *clk_reg_prcc(const char *name,
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	clk->base = ioremap(phy_base, SZ_4K);
 	if (!clk->base)
@@ -135,7 +135,7 @@ unmap_clk:
 free_clk:
 	kfree(clk);
 	pr_err("clk_prcc: %s failed to register clk\n", __func__);
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 struct clk *clk_reg_prcc_pclk(const char *name,

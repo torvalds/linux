@@ -22,7 +22,7 @@ int damon_modules_new_paddr_ctx_target(struct damon_ctx **ctxp,
 
 	ctx = damon_new_ctx();
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (damon_select_ops(ctx, DAMON_OPS_PADDR)) {
 		damon_destroy_ctx(ctx);
@@ -32,7 +32,7 @@ int damon_modules_new_paddr_ctx_target(struct damon_ctx **ctxp,
 	target = damon_new_target();
 	if (!target) {
 		damon_destroy_ctx(ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	damon_add_target(ctx, target);
 

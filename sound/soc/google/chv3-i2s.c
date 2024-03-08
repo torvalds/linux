@@ -26,7 +26,7 @@
  *
  * The workaround to this problem is to "lie" to ALSA that the hw_pointer
  * is one frame behind what it actually is (see chv3_dma_pointer). This
- * way, ALSA will not try to fill up the entire buffer, and all callbacks
+ * way, ALSA will analt try to fill up the entire buffer, and all callbacks
  * are wait-free.
  */
 
@@ -115,7 +115,7 @@ static irqreturn_t chv3_i2s_isr(int irq, void *data)
 
 	reg = readl(i2s->iobase_irq + I2S_IRQ_CLR);
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & I2S_IRQ_RX_BIT)
 		snd_pcm_period_elapsed(i2s->rx_substream);
@@ -286,7 +286,7 @@ static int chv3_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2s->iobase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2s->iobase))

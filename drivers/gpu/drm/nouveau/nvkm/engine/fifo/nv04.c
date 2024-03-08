@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -82,7 +82,7 @@ nv04_chan_stop(struct nvkm_chan *chan)
 		nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
-	/* restore normal operation, after disabling dma mode */
+	/* restore analrmal operation, after disabling dma mode */
 	nvkm_mask(device, NV04_PFIFO_MODE, BIT(chan->id), 0);
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&fifo->lock, flags);
@@ -264,7 +264,7 @@ static const char *
 nv_dma_state_err(u32 state)
 {
 	static const char * const desc[] = {
-		"NONE", "CALL_SUBR_ACTIVE", "INVALID_MTHD", "RET_SUBR_INACTIVE",
+		"ANALNE", "CALL_SUBR_ACTIVE", "INVALID_MTHD", "RET_SUBR_INACTIVE",
 		"INVALID_CMD", "IB_EMPTY"/* NV50+ */, "MEM_FAULT", "UNK"
 	};
 	return desc[(state >> 29) & 0x7];
@@ -311,8 +311,8 @@ nv04_fifo_intr_cache_error(struct nvkm_fifo *fifo, u32 chid, u32 get)
 	int ptr;
 
 	/* NV_PFIFO_CACHE1_GET actually goes to 0xffc before wrapping on my
-	 * G80 chips, but CACHE1 isn't big enough for this much data.. Tests
-	 * show that it wraps around to the start at GET=0x800.. No clue as to
+	 * G80 chips, but CACHE1 isn't big eanalugh for this much data.. Tests
+	 * show that it wraps around to the start at GET=0x800.. Anal clue as to
 	 * why..
 	 */
 	ptr = (get & 0x7ff) >> 2;
@@ -330,7 +330,7 @@ nv04_fifo_intr_cache_error(struct nvkm_fifo *fifo, u32 chid, u32 get)
 		chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
 		nvkm_error(subdev, "CACHE_ERROR - "
 			   "ch %d [%s] subc %d mthd %04x data %08x\n",
-			   chid, chan ? chan->name : "unknown",
+			   chid, chan ? chan->name : "unkanalwn",
 			   (mthd >> 13) & 7, mthd & 0x1ffc, data);
 		nvkm_chan_put(&chan, flags);
 	}
@@ -364,7 +364,7 @@ nv04_fifo_intr_dma_pusher(struct nvkm_fifo *fifo, u32 chid)
 	const char *name;
 
 	chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
-	name = chan ? chan->name : "unknown";
+	name = chan ? chan->name : "unkanalwn";
 	if (device->card_type == NV_50) {
 		u32 ho_get = nvkm_rd32(device, 0x003328);
 		u32 ho_put = nvkm_rd32(device, 0x003320);
@@ -447,7 +447,7 @@ nv04_fifo_intr(struct nvkm_inth *inth)
 
 		if (stat & 0x40000000) {
 			nvkm_wr32(device, 0x002100, 0x40000000);
-			nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
+			nvkm_event_ntfy(&fifo->analnstall.event, 0, NVKM_FIFO_ANALNSTALL_EVENT);
 			stat &= ~0x40000000;
 		}
 	}

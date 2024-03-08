@@ -13,10 +13,10 @@ clocks : 	Phandle of the clock used by the thermal sensor.
 Optional parameters:
 -------------------
 
-reg : 		For non-sysconf based sensors, this should be the physical base
+reg : 		For analn-sysconf based sensors, this should be the physical base
 		address and length of the sensor's registers.
 interrupts :	Standard way to define interrupt number.
-		  NB: For thermal sensor's for which no interrupt has been
+		  NB: For thermal sensor's for which anal interrupt has been
 		  defined, a polling delay of 1000ms will be used to read the
 		  temperature from device.
 

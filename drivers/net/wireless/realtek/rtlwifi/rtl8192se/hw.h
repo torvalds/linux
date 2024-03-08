@@ -5,7 +5,7 @@
 #define __REALTEK_PCI92SE_HW_H__
 
 #define MSR_LINK_MANAGED   2
-#define MSR_LINK_NONE      0
+#define MSR_LINK_ANALNE      0
 #define MSR_LINK_SHIFT     0
 #define MSR_LINK_ADHOC     1
 #define MSR_LINK_MASTER    3

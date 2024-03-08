@@ -169,7 +169,7 @@ static int xtmr_manager_probe(struct platform_device *pdev)
 	xtmr_manager = devm_kzalloc(&pdev->dev, sizeof(*xtmr_manager),
 				    GFP_KERNEL);
 	if (!xtmr_manager)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xtmr_manager->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xtmr_manager->regs))
@@ -177,7 +177,7 @@ static int xtmr_manager_probe(struct platform_device *pdev)
 
 	xtmr_manager->phys_baseaddr = res->start;
 
-	err = of_property_read_u32(pdev->dev.of_node, "xlnx,magic1",
+	err = of_property_read_u32(pdev->dev.of_analde, "xlnx,magic1",
 				   &xtmr_manager->magic1);
 	if (err < 0) {
 		dev_err(&pdev->dev, "unable to read xlnx,magic1 property");

@@ -5,7 +5,7 @@
  */
 #define _GNU_SOURCE
 #include <assert.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,19 +19,19 @@
 #include <asm/sigcontext.h>
 
 static int inherit = 0;
-static int no_inherit = 0;
+static int anal_inherit = 0;
 static int force = 0;
 static unsigned long vl;
 static int set_ctl = PR_SVE_SET_VL;
 static int get_ctl = PR_SVE_GET_VL;
 
 static const struct option options[] = {
-	{ "force",	no_argument, NULL, 'f' },
-	{ "inherit",	no_argument, NULL, 'i' },
-	{ "max",	no_argument, NULL, 'M' },
-	{ "no-inherit",	no_argument, &no_inherit, 1 },
-	{ "sme",	no_argument, NULL, 's' },
-	{ "help",	no_argument, NULL, '?' },
+	{ "force",	anal_argument, NULL, 'f' },
+	{ "inherit",	anal_argument, NULL, 'i' },
+	{ "max",	anal_argument, NULL, 'M' },
+	{ "anal-inherit",	anal_argument, &anal_inherit, 1 },
+	{ "sme",	anal_argument, NULL, 's' },
+	{ "help",	anal_argument, NULL, '?' },
 	{}
 };
 
@@ -60,7 +60,7 @@ static int parse_options(int argc, char **argv)
 		default:	goto error;
 		}
 
-	if (inherit && no_inherit)
+	if (inherit && anal_inherit)
 		goto error;
 
 	if (!vl) {
@@ -68,15 +68,15 @@ static int parse_options(int argc, char **argv)
 		if (optind >= argc)
 			goto error;
 
-		errno = 0;
+		erranal = 0;
 		vl = strtoul(argv[optind], &rest, 0);
 		if (*rest) {
 			vl = ULONG_MAX;
-			errno = EINVAL;
+			erranal = EINVAL;
 		}
-		if (vl == ULONG_MAX && errno) {
+		if (vl == ULONG_MAX && erranal) {
 			fprintf(stderr, "%s: %s: %s\n",
-				program_name, argv[optind], strerror(errno));
+				program_name, argv[optind], strerror(erranal));
 			goto error;
 		}
 
@@ -92,7 +92,7 @@ static int parse_options(int argc, char **argv)
 error:
 	fprintf(stderr,
 		"Usage: %s [-f | --force] "
-		"[-i | --inherit | --no-inherit] "
+		"[-i | --inherit | --anal-inherit] "
 		"{-M | --max | <vector length>} "
 		"<command> [<arguments> ...]\n",
 		program_name);
@@ -101,7 +101,7 @@ error:
 
 int main(int argc, char **argv)
 {
-	int ret = 126;	/* same as sh(1) command-not-executable error */
+	int ret = 126;	/* same as sh(1) command-analt-executable error */
 	long flags;
 	char *path;
 	int t, e;
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 	}
 
 	if (!(getauxval(AT_HWCAP) & HWCAP_SVE)) {
-		fprintf(stderr, "%s: Scalable Vector Extension not present\n",
+		fprintf(stderr, "%s: Scalable Vector Extension analt present\n",
 			program_name);
 
 		if (!force)
@@ -134,14 +134,14 @@ int main(int argc, char **argv)
 	t = prctl(set_ctl, vl | flags);
 	if (t < 0) {
 		fprintf(stderr, "%s: PR_SVE_SET_VL: %s\n",
-			program_name, strerror(errno));
+			program_name, strerror(erranal));
 		goto error;
 	}
 
 	t = prctl(get_ctl);
 	if (t == -1) {
 		fprintf(stderr, "%s: PR_SVE_GET_VL: %s\n",
-			program_name, strerror(errno));
+			program_name, strerror(erranal));
 		goto error;
 	}
 	flags = PR_SVE_VL_LEN_MASK;
@@ -151,11 +151,11 @@ int main(int argc, char **argv)
 	path = argv[optind];
 
 	execvp(path, &argv[optind]);
-	e = errno;
-	if (errno == ENOENT)
-		ret = 127;	/* same as sh(1) not-found error */
+	e = erranal;
+	if (erranal == EANALENT)
+		ret = 127;	/* same as sh(1) analt-found error */
 	fprintf(stderr, "%s: %s: %s\n", program_name, path, strerror(e));
 
 error:
-	return ret;		/* same as sh(1) not-executable error */
+	return ret;		/* same as sh(1) analt-executable error */
 }

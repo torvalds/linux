@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -79,17 +79,17 @@ static enum dc_irq_source to_dal_irq_source_dcn314(struct irq_service *irq_servi
 		return DC_IRQ_SOURCE_PFLIP5;
 	case DCN_1_0__SRCID__HUBP5_FLIP_INTERRUPT:
 		return DC_IRQ_SOURCE_PFLIP6;
-	case DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE1;
-	case DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG1_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE2;
-	case DCN_1_0__SRCID__OTG2_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG2_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE3;
-	case DCN_1_0__SRCID__OTG3_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG3_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE4;
-	case DCN_1_0__SRCID__OTG4_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG4_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE5;
-	case DCN_1_0__SRCID__OTG5_IHC_V_UPDATE_NO_LOCK_INTERRUPT:
+	case DCN_1_0__SRCID__OTG5_IHC_V_UPDATE_ANAL_LOCK_INTERRUPT:
 		return DC_IRQ_SOURCE_VUPDATE6;
 	case DCN_1_0__SRCID__DMCUB_OUTBOX_LOW_PRIORITY_READY_INT:
 		return DC_IRQ_SOURCE_DMCUB_OUTBOX;
@@ -172,7 +172,7 @@ static struct irq_source_info_funcs pflip_irq_info_funcs = {
 	.ack = NULL
 };
 
-static struct irq_source_info_funcs vupdate_no_lock_irq_info_funcs = {
+static struct irq_source_info_funcs vupdate_anal_lock_irq_info_funcs = {
 	.set = NULL,
 	.ack = NULL
 };
@@ -260,15 +260,15 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 		.funcs = &pflip_irq_info_funcs\
 	}
 
-/* vupdate_no_lock_int_entry maps to DC_IRQ_SOURCE_VUPDATEx, to match semantic
+/* vupdate_anal_lock_int_entry maps to DC_IRQ_SOURCE_VUPDATEx, to match semantic
  * of DCE's DC_IRQ_SOURCE_VUPDATEx.
  */
-#define vupdate_no_lock_int_entry(reg_num)\
+#define vupdate_anal_lock_int_entry(reg_num)\
 	[DC_IRQ_SOURCE_VUPDATE1 + reg_num] = {\
 		IRQ_REG_ENTRY(OTG, reg_num,\
-			OTG_GLOBAL_SYNC_STATUS, VUPDATE_NO_LOCK_INT_EN,\
-			OTG_GLOBAL_SYNC_STATUS, VUPDATE_NO_LOCK_EVENT_CLEAR),\
-		.funcs = &vupdate_no_lock_irq_info_funcs\
+			OTG_GLOBAL_SYNC_STATUS, VUPDATE_ANAL_LOCK_INT_EN,\
+			OTG_GLOBAL_SYNC_STATUS, VUPDATE_ANAL_LOCK_EVENT_CLEAR),\
+		.funcs = &vupdate_anal_lock_irq_info_funcs\
 	}
 
 #define vblank_int_entry(reg_num)\
@@ -388,10 +388,10 @@ irq_source_info_dcn314[DAL_IRQ_SOURCES_NUMBER] = {
 	dc_underflow_int_entry(6),
 	[DC_IRQ_SOURCE_DMCU_SCP] = dummy_irq_entry(),
 	[DC_IRQ_SOURCE_VBIOS_SW] = dummy_irq_entry(),
-	vupdate_no_lock_int_entry(0),
-	vupdate_no_lock_int_entry(1),
-	vupdate_no_lock_int_entry(2),
-	vupdate_no_lock_int_entry(3),
+	vupdate_anal_lock_int_entry(0),
+	vupdate_anal_lock_int_entry(1),
+	vupdate_anal_lock_int_entry(2),
+	vupdate_anal_lock_int_entry(3),
 	vblank_int_entry(0),
 	vblank_int_entry(1),
 	vblank_int_entry(2),

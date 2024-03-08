@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC0_CFG_MASKS_H_
@@ -755,9 +755,9 @@
 #define TPC0_CFG_SFLAGS_V_SHIFT                                      0
 #define TPC0_CFG_SFLAGS_V_MASK                                       0xF
 
-/* TPC0_CFG_LFSR_POLYNOM */
-#define TPC0_CFG_LFSR_POLYNOM_V_SHIFT                                0
-#define TPC0_CFG_LFSR_POLYNOM_V_MASK                                 0xFFFFFFFF
+/* TPC0_CFG_LFSR_POLYANALM */
+#define TPC0_CFG_LFSR_POLYANALM_V_SHIFT                                0
+#define TPC0_CFG_LFSR_POLYANALM_V_MASK                                 0xFFFFFFFF
 
 /* TPC0_CFG_STATUS */
 #define TPC0_CFG_STATUS_SCALAR_PIPE_EMPTY_SHIFT                      1
@@ -766,8 +766,8 @@
 #define TPC0_CFG_STATUS_VECTOR_PIPE_EMPTY_MASK                       0x4
 #define TPC0_CFG_STATUS_IQ_EMPTY_SHIFT                               3
 #define TPC0_CFG_STATUS_IQ_EMPTY_MASK                                0x8
-#define TPC0_CFG_STATUS_NO_INFLIGH_MEM_ACCESSES_SHIFT                4
-#define TPC0_CFG_STATUS_NO_INFLIGH_MEM_ACCESSES_MASK                 0x10
+#define TPC0_CFG_STATUS_ANAL_INFLIGH_MEM_ACCESSES_SHIFT                4
+#define TPC0_CFG_STATUS_ANAL_INFLIGH_MEM_ACCESSES_MASK                 0x10
 
 /* TPC0_CFG_CFG_BASE_ADDRESS_HIGH */
 #define TPC0_CFG_CFG_BASE_ADDRESS_HIGH_V_SHIFT                       0

@@ -11,7 +11,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_scrub.h"
@@ -26,7 +26,7 @@
 /*
  * Online Scrub and Repair
  *
- * Traditionally, XFS (the kernel driver) did not know how to check or
+ * Traditionally, XFS (the kernel driver) did analt kanalw how to check or
  * repair on-disk data structures.  That task was left to the xfs_check
  * and xfs_repair tools, both of which require taking the filesystem
  * offline for a thorough but time consuming examination.  Online
@@ -45,10 +45,10 @@
  * structures will lock the AG headers (AGI, AGF, AGFL), iterate the
  * metadata structure, and perform any relevant cross-referencing before
  * unlocking the AG and returning the results to userspace.  These
- * scrubbers must not keep an AG locked for too long to avoid tying up
- * the block and inode allocators.
+ * scrubbers must analt keep an AG locked for too long to avoid tying up
+ * the block and ianalde allocators.
  *
- * Block maps and b-trees rooted in an inode present a special challenge
+ * Block maps and b-trees rooted in an ianalde present a special challenge
  * because they can involve extents from any AG.  The general scrubber
  * structure of lock -> check -> xref -> unlock still holds, but AG
  * locking order rules /must/ be obeyed to avoid deadlocks.  The
@@ -59,7 +59,7 @@
  * out to the top level, lock all the AGs in order, and retry the scrub.
  *
  * For file data (directories, extended attributes, symlinks) scrub, we
- * can simply lock the inode and walk the data.  For btree data
+ * can simply lock the ianalde and walk the data.  For btree data
  * (directories and attributes) we follow the same btree-scrubbing
  * strategy outlined previously to check the records.
  *
@@ -68,18 +68,18 @@
  * travelling down a btree involves locking the current buffer at each
  * tree level.  If a pointer should somehow point back to a buffer that
  * we've already examined, we will deadlock due to the second buffer
- * locking attempt.  Note however that grabbing a buffer in transaction
+ * locking attempt.  Analte however that grabbing a buffer in transaction
  * context links the locked buffer to the transaction.  If we try to
  * re-grab the buffer in the context of the same transaction, we avoid
  * the second lock attempt and continue.  Between the verifier and the
- * scrubber, something will notice that something is amiss and report
+ * scrubber, something will analtice that something is amiss and report
  * the corruption.  Therefore, each scrubber will allocate an empty
  * transaction, attach buffers to it, and cancel the transaction at the
- * end of the scrub run.  Cancelling a non-dirty transaction simply
+ * end of the scrub run.  Cancelling a analn-dirty transaction simply
  * unlocks the buffers.
  *
  * There are four pieces of data that scrub can communicate to
- * userspace.  The first is the error code (errno), which can be used to
+ * userspace.  The first is the error code (erranal), which can be used to
  * communicate operational errors in performing the scrub.  There are
  * also three flags that can be set in the scrub context.  If the data
  * structure itself is corrupt, the CORRUPT flag will be set.  If
@@ -88,11 +88,11 @@
  *
  * We perform secondary validation of filesystem metadata by
  * cross-referencing every record with all other available metadata.
- * For example, for block mapping extents, we verify that there are no
- * records in the free space and inode btrees corresponding to that
+ * For example, for block mapping extents, we verify that there are anal
+ * records in the free space and ianalde btrees corresponding to that
  * space extent and that there is a corresponding entry in the reverse
- * mapping btree.  Inconsistent metadata is noted by setting the
- * XCORRUPT flag; btree query function errors are noted by setting the
+ * mapping btree.  Inconsistent metadata is analted by setting the
+ * XCORRUPT flag; btree query function errors are analted by setting the
  * XFAIL flag and deleting the cursor to prevent further attempts to
  * cross-reference with a defective btree.
  *
@@ -100,7 +100,7 @@
  * program can ask the kernel to apply some tender loving care (TLC) to
  * the metadata object by setting the REPAIR flag and re-calling the
  * scrub ioctl.  "Corruption" is defined by metadata violating the
- * on-disk specification; operations cannot continue if the violation is
+ * on-disk specification; operations cananalt continue if the violation is
  * left untreated.  It is possible for XFS to continue if an object is
  * "suboptimal", however performance may be degraded.  Repairs are
  * usually performed by rebuilding the metadata entirely out of
@@ -110,11 +110,11 @@
  * Generally speaking, the repair code has the following code structure:
  * Lock -> scrub -> repair -> commit -> re-lock -> re-scrub -> unlock.
  * The first check helps us figure out if we need to rebuild or simply
- * optimize the structure so that the rebuild knows what to do.  The
+ * optimize the structure so that the rebuild kanalws what to do.  The
  * second check evaluates the completeness of the repair; that is what
  * is reported to userspace.
  *
- * A quick note on symbol prefixes:
+ * A quick analte on symbol prefixes:
  * - "xfs_" are general XFS symbols.
  * - "xchk_" are symbols related to metadata checking.
  * - "xrep_" are symbols related to metadata repair.
@@ -127,7 +127,7 @@
  * probe the kernel's abilities to scrub (and repair) the metadata.  We
  * do this by validating the ioctl inputs from userspace, preparing the
  * filesystem for a scrub (or a repair) operation, and immediately
- * returning to userspace.  Userspace can use the returned errno and
+ * returning to userspace.  Userspace can use the returned erranal and
  * structure state to decide (in broad terms) if scrub/repair are
  * supported by the running kernel.
  */
@@ -204,7 +204,7 @@ xchk_teardown(
 
 static const struct xchk_meta_ops meta_scrub_ops[] = {
 	[XFS_SCRUB_TYPE_PROBE] = {	/* ioctl presence test */
-		.type	= ST_NONE,
+		.type	= ST_ANALNE,
 		.setup	= xchk_setup_fs,
 		.scrub	= xchk_probe,
 		.repair = xrep_probe,
@@ -233,7 +233,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.scrub	= xchk_agi,
 		.repair	= xrep_agi,
 	},
-	[XFS_SCRUB_TYPE_BNOBT] = {	/* bnobt */
+	[XFS_SCRUB_TYPE_BANALBT] = {	/* banalbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_allocbt,
 		.scrub	= xchk_allocbt,
@@ -247,18 +247,18 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.repair	= xrep_allocbt,
 		.repair_eval = xrep_revalidate_allocbt,
 	},
-	[XFS_SCRUB_TYPE_INOBT] = {	/* inobt */
+	[XFS_SCRUB_TYPE_IANALBT] = {	/* ianalbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_iallocbt,
 		.scrub	= xchk_iallocbt,
 		.repair	= xrep_iallocbt,
 		.repair_eval = xrep_revalidate_iallocbt,
 	},
-	[XFS_SCRUB_TYPE_FINOBT] = {	/* finobt */
+	[XFS_SCRUB_TYPE_FIANALBT] = {	/* fianalbt */
 		.type	= ST_PERAG,
 		.setup	= xchk_setup_ag_iallocbt,
 		.scrub	= xchk_iallocbt,
-		.has	= xfs_has_finobt,
+		.has	= xfs_has_fianalbt,
 		.repair	= xrep_iallocbt,
 		.repair_eval = xrep_revalidate_iallocbt,
 	},
@@ -267,7 +267,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.setup	= xchk_setup_ag_rmapbt,
 		.scrub	= xchk_rmapbt,
 		.has	= xfs_has_rmapbt,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_REFCNTBT] = {	/* refcountbt */
 		.type	= ST_PERAG,
@@ -276,53 +276,53 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.has	= xfs_has_reflink,
 		.repair	= xrep_refcountbt,
 	},
-	[XFS_SCRUB_TYPE_INODE] = {	/* inode record */
-		.type	= ST_INODE,
-		.setup	= xchk_setup_inode,
-		.scrub	= xchk_inode,
-		.repair	= xrep_inode,
+	[XFS_SCRUB_TYPE_IANALDE] = {	/* ianalde record */
+		.type	= ST_IANALDE,
+		.setup	= xchk_setup_ianalde,
+		.scrub	= xchk_ianalde,
+		.repair	= xrep_ianalde,
 	},
-	[XFS_SCRUB_TYPE_BMBTD] = {	/* inode data fork */
-		.type	= ST_INODE,
-		.setup	= xchk_setup_inode_bmap,
+	[XFS_SCRUB_TYPE_BMBTD] = {	/* ianalde data fork */
+		.type	= ST_IANALDE,
+		.setup	= xchk_setup_ianalde_bmap,
 		.scrub	= xchk_bmap_data,
 		.repair	= xrep_bmap_data,
 	},
-	[XFS_SCRUB_TYPE_BMBTA] = {	/* inode attr fork */
-		.type	= ST_INODE,
-		.setup	= xchk_setup_inode_bmap,
+	[XFS_SCRUB_TYPE_BMBTA] = {	/* ianalde attr fork */
+		.type	= ST_IANALDE,
+		.setup	= xchk_setup_ianalde_bmap,
 		.scrub	= xchk_bmap_attr,
 		.repair	= xrep_bmap_attr,
 	},
-	[XFS_SCRUB_TYPE_BMBTC] = {	/* inode CoW fork */
-		.type	= ST_INODE,
-		.setup	= xchk_setup_inode_bmap,
+	[XFS_SCRUB_TYPE_BMBTC] = {	/* ianalde CoW fork */
+		.type	= ST_IANALDE,
+		.setup	= xchk_setup_ianalde_bmap,
 		.scrub	= xchk_bmap_cow,
 		.repair	= xrep_bmap_cow,
 	},
 	[XFS_SCRUB_TYPE_DIR] = {	/* directory */
-		.type	= ST_INODE,
+		.type	= ST_IANALDE,
 		.setup	= xchk_setup_directory,
 		.scrub	= xchk_directory,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_XATTR] = {	/* extended attributes */
-		.type	= ST_INODE,
+		.type	= ST_IANALDE,
 		.setup	= xchk_setup_xattr,
 		.scrub	= xchk_xattr,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_SYMLINK] = {	/* symbolic link */
-		.type	= ST_INODE,
+		.type	= ST_IANALDE,
 		.setup	= xchk_setup_symlink,
 		.scrub	= xchk_symlink,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_PARENT] = {	/* parent pointers */
-		.type	= ST_INODE,
+		.type	= ST_IANALDE,
 		.setup	= xchk_setup_parent,
 		.scrub	= xchk_parent,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
 		.type	= ST_FS,
@@ -334,7 +334,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.type	= ST_FS,
 		.setup	= xchk_setup_rtsummary,
 		.scrub	= xchk_rtsummary,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 	[XFS_SCRUB_TYPE_UQUOTA] = {	/* user quota */
 		.type	= ST_FS,
@@ -358,7 +358,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.type	= ST_FS,
 		.setup	= xchk_setup_fscounters,
 		.scrub	= xchk_fscounters,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_analtsupported,
 	},
 };
 
@@ -379,8 +379,8 @@ xchk_validate_inputs(
 	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
 		goto out;
 
-	error = -ENOENT;
-	/* Do we know about this type of metadata? */
+	error = -EANALENT;
+	/* Do we kanalw about this type of metadata? */
 	if (sm->sm_type >= XFS_SCRUB_TYPE_NR)
 		goto out;
 	ops = &meta_scrub_ops[sm->sm_type];
@@ -393,25 +393,25 @@ xchk_validate_inputs(
 	error = -EINVAL;
 	/* restricting fields must be appropriate for type */
 	switch (ops->type) {
-	case ST_NONE:
+	case ST_ANALNE:
 	case ST_FS:
-		if (sm->sm_ino || sm->sm_gen || sm->sm_agno)
+		if (sm->sm_ianal || sm->sm_gen || sm->sm_aganal)
 			goto out;
 		break;
 	case ST_PERAG:
-		if (sm->sm_ino || sm->sm_gen ||
-		    sm->sm_agno >= mp->m_sb.sb_agcount)
+		if (sm->sm_ianal || sm->sm_gen ||
+		    sm->sm_aganal >= mp->m_sb.sb_agcount)
 			goto out;
 		break;
-	case ST_INODE:
-		if (sm->sm_agno || (sm->sm_gen && !sm->sm_ino))
+	case ST_IANALDE:
+		if (sm->sm_aganal || (sm->sm_gen && !sm->sm_ianal))
 			goto out;
 		break;
 	default:
 		goto out;
 	}
 
-	/* No rebuild without repair. */
+	/* Anal rebuild without repair. */
 	if ((sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD) &&
 	    !(sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR))
 		return -EINVAL;
@@ -419,11 +419,11 @@ xchk_validate_inputs(
 	/*
 	 * We only want to repair read-write v5+ filesystems.  Defer the check
 	 * for ops->repair until after our scrub confirms that we need to
-	 * perform repairs so that we avoid failing due to not supporting
+	 * perform repairs so that we avoid failing due to analt supporting
 	 * repairing an object that doesn't need repairs.
 	 */
 	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) {
-		error = -EOPNOTSUPP;
+		error = -EOPANALTSUPP;
 		if (!xfs_has_crc(mp))
 			goto out;
 
@@ -454,7 +454,7 @@ static inline void xchk_postmortem(struct xfs_scrub *sc)
 static inline void xchk_postmortem(struct xfs_scrub *sc)
 {
 	/*
-	 * Userspace asked us to scrub something, it's broken, and we have no
+	 * Userspace asked us to scrub something, it's broken, and we have anal
 	 * way of fixing it.  Scream in the logs.
 	 */
 	if (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
@@ -472,21 +472,21 @@ xfs_scrub_metadata(
 {
 	struct xchk_stats_run		run = { };
 	struct xfs_scrub		*sc;
-	struct xfs_mount		*mp = XFS_I(file_inode(file))->i_mount;
+	struct xfs_mount		*mp = XFS_I(file_ianalde(file))->i_mount;
 	u64				check_start;
 	int				error = 0;
 
 	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
 		(sizeof(struct xchk_meta_ops) * XFS_SCRUB_TYPE_NR));
 
-	trace_xchk_start(XFS_I(file_inode(file)), sm, error);
+	trace_xchk_start(XFS_I(file_ianalde(file)), sm, error);
 
-	/* Forbidden if we are shut down or mounted norecovery. */
+	/* Forbidden if we are shut down or mounted analrecovery. */
 	error = -ESHUTDOWN;
 	if (xfs_is_shutdown(mp))
 		goto out;
-	error = -ENOTRECOVERABLE;
-	if (xfs_has_norecovery(mp))
+	error = -EANALTRECOVERABLE;
+	if (xfs_has_analrecovery(mp))
 		goto out;
 
 	error = xchk_validate_inputs(mp, sm);
@@ -498,7 +498,7 @@ xfs_scrub_metadata(
 
 	sc = kzalloc(sizeof(struct xfs_scrub), XCHK_GFP_FLAGS);
 	if (!sc) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto out;
 	}
 
@@ -530,7 +530,7 @@ retry_op:
 		goto out_teardown;
 
 	/* Scrub for errors. */
-	check_start = xchk_stats_now();
+	check_start = xchk_stats_analw();
 	if ((sc->flags & XREP_ALREADY_FIXED) && sc->ops->repair_eval != NULL)
 		error = sc->ops->repair_eval(sc);
 	else
@@ -551,8 +551,8 @@ retry_op:
 		 * report that back to userspace.
 		 */
 		if (!xrep_will_attempt(sc)) {
-			sc->sm->sm_flags |= XFS_SCRUB_OFLAG_NO_REPAIR_NEEDED;
-			goto out_nofix;
+			sc->sm->sm_flags |= XFS_SCRUB_OFLAG_ANAL_REPAIR_NEEDED;
+			goto out_analfix;
 		}
 
 		/*
@@ -575,16 +575,16 @@ retry_op:
 		}
 	}
 
-out_nofix:
+out_analfix:
 	xchk_postmortem(sc);
 out_teardown:
 	error = xchk_teardown(sc, error);
 out_sc:
-	if (error != -ENOENT)
+	if (error != -EANALENT)
 		xchk_stats_merge(mp, sm, &run);
 	kfree(sc);
 out:
-	trace_xchk_done(XFS_I(file_inode(file)), sm, error);
+	trace_xchk_done(XFS_I(file_ianalde(file)), sm, error);
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC) {
 		sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 		error = 0;

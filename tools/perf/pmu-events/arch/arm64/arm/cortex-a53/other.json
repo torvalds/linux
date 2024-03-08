@@ -18,7 +18,7 @@
   {
         "EventCode": "0xD1",
         "EventName": "L1D_CACHE_ERR",
-        "BriefDescription": "L1 Data Cache (data, tag or dirty) memory error, correctable or non-correctable"
+        "BriefDescription": "L1 Data Cache (data, tag or dirty) memory error, correctable or analn-correctable"
   },
   {
         "EventCode": "0xD2",

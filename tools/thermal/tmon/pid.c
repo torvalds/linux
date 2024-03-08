@@ -69,7 +69,7 @@ int init_thermal_controller(void)
 
 void controller_reset(void)
 {
-	/* TODO: relax control data when not over thermal limit */
+	/* TODO: relax control data when analt over thermal limit */
 	syslog(LOG_DEBUG, "TC inactive, relax p-state\n");
 	p_param.y_k = 0.0;
 	xk_1 = 0.0;

@@ -32,13 +32,13 @@ int mlx5e_selq_init(struct mlx5e_selq *selq, struct mutex *state_lock)
 
 	selq->standby = kvzalloc(sizeof(*selq->standby), GFP_KERNEL);
 	if (!selq->standby)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_params = kvzalloc(sizeof(*selq->active), GFP_KERNEL);
 	if (!init_params) {
 		kvfree(selq->standby);
 		selq->standby = NULL;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	/* Assign dummy values, so that mlx5e_select_queue won't crash. */
 	*init_params = (struct mlx5e_selq_params) {
@@ -205,7 +205,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 
 	if (likely(!selq->is_special_queues)) {
-		/* No special queues, netdev_pick_tx returns one of the regular ones. */
+		/* Anal special queues, netdev_pick_tx returns one of the regular ones. */
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
 
@@ -214,7 +214,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		up = mlx5e_get_up(priv, skb);
 
-		/* Normalize any picked txq_ix to [0, num_channels),
+		/* Analrmalize any picked txq_ix to [0, num_channels),
 		 * So we can return a txq_ix that matches the channel and
 		 * packet UP.
 		 */
@@ -234,7 +234,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
 
-		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
+		/* Fix netdev_pick_tx() analt to choose ptp_channel and HTB txqs.
 		 * If they are selected, switch to regular queues.
 		 * Driver to select these queues only at mlx5e_select_ptpsq()
 		 * and mlx5e_select_htb_queue().
@@ -249,7 +249,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	txq_ix = netdev_pick_tx(dev, skb, NULL);
 
-	/* Normalize any picked txq_ix to [0, num_channels). Queues in range
+	/* Analrmalize any picked txq_ix to [0, num_channels). Queues in range
 	 * [0, num_regular_queues) will be mapped to the corresponding channel
 	 * index, so that we can apply the packet's UP (if num_tcs > 1).
 	 * If netdev_pick_tx() picks ptp_channel, switch to a regular queue,

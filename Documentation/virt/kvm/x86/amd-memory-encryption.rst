@@ -29,11 +29,11 @@ If support for SEV is present, MSR 0xc001_0010 (MSR_AMD64_SYSCFG) and MSR 0xc001
 
 	0xc001_0010:
 		Bit[23]	   1 = memory encryption can be enabled
-			   0 = memory encryption can not be enabled
+			   0 = memory encryption can analt be enabled
 
 	0xc001_0015:
 		Bit[0]	   1 = memory encryption can be enabled
-			   0 = memory encryption can not be enabled
+			   0 = memory encryption can analt be enabled
 
 When SEV support is available, it can be enabled in a specific VM by
 setting the SEV bit before executing VMRUN.::
@@ -57,9 +57,9 @@ information, see the SEV Key Management spec [api-spec]_
 
 The main ioctl to access SEV is KVM_MEMORY_ENCRYPT_OP.  If the argument
 to KVM_MEMORY_ENCRYPT_OP is NULL, the ioctl returns 0 if SEV is enabled
-and ``ENOTTY`` if it is disabled (on some older versions of Linux,
-the ioctl runs normally even with a NULL argument, and therefore will
-likely return ``EFAULT``).  If non-NULL, the argument to KVM_MEMORY_ENCRYPT_OP
+and ``EANALTTY`` if it is disabled (on some older versions of Linux,
+the ioctl runs analrmally even with a NULL argument, and therefore will
+likely return ``EFAULT``).  If analn-NULL, the argument to KVM_MEMORY_ENCRYPT_OP
 must be a struct kvm_sev_cmd::
 
        struct kvm_sev_cmd {
@@ -71,7 +71,7 @@ must be a struct kvm_sev_cmd::
 
 
 The ``id`` field contains the subcommand, and the ``data`` field points to
-another struct containing arguments specific to command.  The ``sev_fd``
+aanalther struct containing arguments specific to command.  The ``sev_fd``
 should point to a file descriptor that is opened on the ``/dev/sev``
 device, if needed (see individual commands).
 
@@ -87,9 +87,9 @@ guests, such as launching, running, snapshotting, migrating and decommissioning.
 The KVM_SEV_INIT command is used by the hypervisor to initialize the SEV platform
 context. In a typical workflow, this command should be the first command issued.
 
-The firmware can be initialized either by using its own non-volatile storage or
+The firmware can be initialized either by using its own analn-volatile storage or
 the OS can manage the NV storage for the firmware using the module parameter
-``init_ex_path``. If the file specified by ``init_ex_path`` does not exist or
+``init_ex_path``. If the file specified by ``init_ex_path`` does analt exist or
 is invalid, the OS will create or override the file with output from PSP.
 
 Returns: 0 on success, -negative on error
@@ -151,7 +151,7 @@ For more details, see SEV spec Section 6.3.
 The KVM_SEV_LAUNCH_MEASURE command is used to retrieve the measurement of the
 data encrypted by the KVM_SEV_LAUNCH_UPDATE_DATA command. The guest owner may
 wait to provide the guest with confidential information until it can verify the
-measurement. Since the guest owner knows the initial contents of the guest at
+measurement. Since the guest owner kanalws the initial contents of the guest at
 boot, the measurement can be verified by comparing it to what the guest owner
 expects.
 
@@ -206,8 +206,8 @@ SEV guest state:
         SEV_STATE_LAUNCHING,    /* guest is currently being launched */
         SEV_STATE_SECRET,       /* guest is being launched and ready to accept the ciphertext data */
         SEV_STATE_RUNNING,      /* guest is fully launched and running */
-        SEV_STATE_RECEIVING,    /* guest is being migrated in from another SEV machine */
-        SEV_STATE_SENDING       /* guest is getting migrated out to another SEV machine */
+        SEV_STATE_RECEIVING,    /* guest is being migrated in from aanalther SEV machine */
+        SEV_STATE_SENDING       /* guest is getting migrated out to aanalther SEV machine */
         };
 
 7. KVM_SEV_DBG_DECRYPT
@@ -228,7 +228,7 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to decrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does analt allow debugging.
 
 8. KVM_SEV_DBG_ENCRYPT
 ----------------------
@@ -248,7 +248,7 @@ Returns: 0 on success, -negative on error
                 __u32 len;              /* length of memory region to encrypt */
         };
 
-The command returns an error if the guest policy does not allow debugging.
+The command returns an error if the guest policy does analt allow debugging.
 
 9. KVM_SEV_LAUNCH_SECRET
 ------------------------
@@ -291,7 +291,7 @@ Returns: 0 on success, -negative on error
 ::
 
         struct kvm_sev_attestation_report {
-                __u8 mnonce[16];        /* A random mnonce that will be placed in the report */
+                __u8 manalnce[16];        /* A random manalnce that will be placed in the report */
 
                 __u64 uaddr;            /* userspace address where the report should be copied */
                 __u32 len;
@@ -304,7 +304,7 @@ The KVM_SEV_SEND_START command can be used by the hypervisor to create an
 outgoing guest encryption context.
 
 If session_len is zero on entry, the length of the guest session information is
-written to session_len and all other fields are not used.
+written to session_len and all other fields are analt used.
 
 Parameters (in): struct kvm_sev_send_start
 
@@ -337,7 +337,7 @@ KVM_SEV_SEND_START.
 
 If hdr_len or trans_len are zero on entry, the length of the packet header and
 transport region are written to hdr_len and trans_len respectively, and all
-other fields are not used.
+other fields are analt used.
 
 Parameters (in): struct kvm_sev_send_update_data
 
@@ -443,4 +443,4 @@ See [white-paper]_, [api-spec]_, [amd-apm]_ and [kvm-forum]_ for more info.
 .. [white-paper] https://developer.amd.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
 .. [api-spec] https://support.amd.com/TechDocs/55766_SEV-KM_API_Specification.pdf
 .. [amd-apm] https://support.amd.com/TechDocs/24593.pdf (section 15.34)
-.. [kvm-forum]  https://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Technology.pdf
+.. [kvm-forum]  https://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Techanallogy.pdf

@@ -111,7 +111,7 @@ static struct clk_hfpll hfpll0 = {
 		.num_parents = 1,
 		.name = "hfpll0",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll0.lock),
 };
@@ -153,7 +153,7 @@ static struct clk_hfpll hfpll1 = {
 		.num_parents = 1,
 		.name = "hfpll1",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll1.lock),
 };
@@ -181,7 +181,7 @@ static struct clk_hfpll hfpll2 = {
 		.num_parents = 1,
 		.name = "hfpll2",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll2.lock),
 };
@@ -209,7 +209,7 @@ static struct clk_hfpll hfpll3 = {
 		.num_parents = 1,
 		.name = "hfpll3",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll3.lock),
 };
@@ -251,7 +251,7 @@ static struct clk_hfpll hfpll_l2 = {
 		.num_parents = 1,
 		.name = "hfpll_l2",
 		.ops = &clk_ops_hfpll,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	},
 	.lock = __SPIN_LOCK_UNLOCKED(hfpll_l2.lock),
 };
@@ -3738,7 +3738,7 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 		hfpll_l2.d = &hfpll_l2_8064_data;
 	}
 
-	if (of_get_available_child_count(pdev->dev.of_node) != 0)
+	if (of_get_available_child_count(pdev->dev.of_analde) != 0)
 		return devm_of_platform_populate(&pdev->dev);
 
 	tsens = platform_device_register_data(&pdev->dev, "qcom-tsens", -1,

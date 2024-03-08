@@ -214,7 +214,7 @@ extern ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
  * @buf: Buffer to write.
  * @len: Length of buffer (currently limited to 65535 bytes max).
  *
- * Return: Number of bytes written, or -EFAULT, -ENOMEM, -EINVAL.
+ * Return: Number of bytes written, or -EFAULT, -EANALMEM, -EINVAL.
  */
 extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf,
 					size_t len);
@@ -230,11 +230,11 @@ extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf,
  *
  * Return: Number of bytes read, or -EFAULT.
  *
- * .. note::
+ * .. analte::
  *
- *    unlike dvb_ringbuffer_read(), this does **NOT** update the read pointer
+ *    unlike dvb_ringbuffer_read(), this does **ANALT** update the read pointer
  *    in the ringbuffer. You must use dvb_ringbuffer_pkt_dispose() to mark a
- *    packet as no longer required.
+ *    packet as anal longer required.
  */
 extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf,
 					    size_t idx,
@@ -243,7 +243,7 @@ extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf,
 
 /**
  * dvb_ringbuffer_pkt_read - Read from a packet in the ringbuffer.
- * Note: unlike dvb_ringbuffer_read_user(), this DOES update the read pointer
+ * Analte: unlike dvb_ringbuffer_read_user(), this DOES update the read pointer
  * in the ringbuffer.
  *
  * @rbuf: Ringbuffer concerned.
@@ -272,7 +272,7 @@ extern void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx);
  * @idx: Previous packet index, or -1 to return the first packet index.
  * @pktlen: On success, will be updated to contain the length of the packet
  *          in bytes.
- * returns Packet index (if >=0), or -1 if no packets available.
+ * returns Packet index (if >=0), or -1 if anal packets available.
  */
 extern ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf,
 				       size_t idx, size_t *pktlen);

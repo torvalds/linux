@@ -31,7 +31,7 @@ void default_idle(void)
 	clear_bl_bit();
 }
 
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
 	play_dead();
 }

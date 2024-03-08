@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/file.h>
 #include <linux/io_uring/cmd.h>
 #include <linux/security.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 
 #include <uapi/linux/io_uring.h>
 #include <asm/ioctls.h>
@@ -24,7 +24,7 @@ static void io_uring_cmd_del_cancelable(struct io_uring_cmd *cmd,
 
 	cmd->flags &= ~IORING_URING_CMD_CANCELABLE;
 	io_ring_submit_lock(ctx, issue_flags);
-	hlist_del(&req->hash_node);
+	hlist_del(&req->hash_analde);
 	io_ring_submit_unlock(ctx, issue_flags);
 }
 
@@ -33,9 +33,9 @@ static void io_uring_cmd_del_cancelable(struct io_uring_cmd *cmd,
  * will try to cancel this issued command by sending ->uring_cmd() with
  * issue_flags of IO_URING_F_CANCEL.
  *
- * The command is guaranteed to not be done when calling ->uring_cmd()
+ * The command is guaranteed to analt be done when calling ->uring_cmd()
  * with IO_URING_F_CANCEL, but it is driver's responsibility to deal
- * with race between io_uring canceling and normal completion.
+ * with race between io_uring canceling and analrmal completion.
  */
 void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
@@ -46,7 +46,7 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 	if (!(cmd->flags & IORING_URING_CMD_CANCELABLE)) {
 		cmd->flags |= IORING_URING_CMD_CANCELABLE;
 		io_ring_submit_lock(ctx, issue_flags);
-		hlist_add_head(&req->hash_node, &ctx->cancelable_uring_cmd);
+		hlist_add_head(&req->hash_analde, &ctx->cancelable_uring_cmd);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }
@@ -135,9 +135,9 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->buf_index = READ_ONCE(sqe->buf_index);
 		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
 			return -EFAULT;
-		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+		index = array_index_analspec(req->buf_index, ctx->nr_user_bufs);
 		req->imu = ctx->user_bufs[index];
-		io_req_set_rsrc_node(req, ctx, 0);
+		io_req_set_rsrc_analde(req, ctx, 0);
 	}
 	ioucmd->sqe = sqe;
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
@@ -152,7 +152,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	if (!file->f_op->uring_cmd)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = security_uring_cmd(ioucmd);
 	if (ret)
@@ -166,7 +166,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		issue_flags |= IO_URING_F_COMPAT;
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!file->f_op->uring_cmd_iopoll)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		issue_flags |= IO_URING_F_IOPOLL;
 		req->iopoll_completed = 0;
 	}
@@ -175,7 +175,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret == -EAGAIN) {
 		if (!req_has_async_data(req)) {
 			if (io_alloc_async_data(req))
-				return -ENOMEM;
+				return -EANALMEM;
 			io_uring_cmd_prep_async(req);
 		}
 		return -EAGAIN;
@@ -210,7 +210,7 @@ static inline int io_uring_cmd_getsockopt(struct socket *sock,
 
 	level = READ_ONCE(cmd->sqe->level);
 	if (level != SOL_SOCKET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	optval = u64_to_user_ptr(READ_ONCE(cmd->sqe->optval));
 	optname = READ_ONCE(cmd->sqe->optname);
@@ -254,7 +254,7 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	int ret, arg = 0;
 
 	if (!prot || !prot->ioctl)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	switch (cmd->sqe->cmd_op) {
 	case SOCKET_URING_OP_SIOCINQ:
@@ -272,7 +272,7 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	case SOCKET_URING_OP_SETSOCKOPT:
 		return io_uring_cmd_setsockopt(sock, cmd, issue_flags);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_sock);

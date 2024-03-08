@@ -47,7 +47,7 @@ static int bq27xxx_battery_hdq_read(struct bq27xxx_device_info *di, u8 reg,
 
 	if (!single) {
 		/*
-		 * Make sure the value has not changed in between reading the
+		 * Make sure the value has analt changed in between reading the
 		 * lower and the upper part
 		 */
 		upper = w1_bq27000_read(sl, reg + 1);
@@ -78,7 +78,7 @@ static int bq27xxx_battery_hdq_add_slave(struct w1_slave *sl)
 
 	di = devm_kzalloc(&sl->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&sl->dev, di);
 

@@ -9,7 +9,7 @@
 #
 
 #
-# Assign safe dummy values if these variables are not defined,
+# Assign safe dummy values if these variables are analt defined,
 # in order to suppress error message.
 #
 CONFIG_PAGE_OFFSET	?= 0x80000000
@@ -96,7 +96,7 @@ $(obj)/uImage.lzo: $(obj)/vmlinux.bin.lzo FORCE
 	$(call if_changed,uimage,lzo)
 
 $(obj)/uImage.bin: $(obj)/vmlinux.bin FORCE
-	$(call if_changed,uimage,none)
+	$(call if_changed,uimage,analne)
 
 OBJCOPYFLAGS_vmlinux.srec := -I binary -O srec
 $(obj)/vmlinux.srec: $(obj)/compressed/vmlinux FORCE
@@ -107,7 +107,7 @@ $(obj)/uImage.srec: $(obj)/uImage FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/uImage: $(obj)/uImage.$(suffix_y)
-	@ln -sf $(notdir $<) $@
+	@ln -sf $(analtdir $<) $@
 	@echo '  Image $@ is ready'
 
 export CONFIG_PAGE_OFFSET CONFIG_MEMORY_START CONFIG_BOOT_LINK_OFFSET \

@@ -55,6 +55,6 @@ SECTIONS
 		*(.pdr)
 		*(.reginfo)
 		*(.comment)
-		*(.note)
+		*(.analte)
 	}
 }

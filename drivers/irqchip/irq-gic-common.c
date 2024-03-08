@@ -12,7 +12,7 @@
 
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
-void gic_enable_of_quirks(const struct device_node *np,
+void gic_enable_of_quirks(const struct device_analde *np,
 			  const struct gic_quirk *quirks, void *data)
 {
 	for (; quirks->desc; quirks++) {
@@ -75,8 +75,8 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	 * the interrupt. If we fail to write a new configuration for
 	 * an SPI then WARN and return an error. If we fail to write the
 	 * configuration for a PPI this is most likely because the GIC
-	 * does not allow us to set the configuration or we are in a
-	 * non-secure mode, and hence it may not be catastrophic.
+	 * does analt allow us to set the configuration or we are in a
+	 * analn-secure mode, and hence it may analt be catastrophic.
 	 */
 	writel_relaxed(val, base + confoff);
 	if (readl_relaxed(base + confoff) != val)

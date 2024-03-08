@@ -25,10 +25,10 @@ enum w1_cn_msg_flags {
 /**
  * enum w1_netlink_message_types - message type
  *
- * @W1_SLAVE_ADD: notification that a slave device was added
- * @W1_SLAVE_REMOVE: notification that a slave device was removed
- * @W1_MASTER_ADD: notification that a new bus master was added
- * @W1_MASTER_REMOVE: notification that a bus masterwas removed
+ * @W1_SLAVE_ADD: analtification that a slave device was added
+ * @W1_SLAVE_REMOVE: analtification that a slave device was removed
+ * @W1_MASTER_ADD: analtification that a new bus master was added
+ * @W1_MASTER_REMOVE: analtification that a bus masterwas removed
  * @W1_MASTER_CMD: initiate operations on a specific master
  * @W1_SLAVE_CMD: sends reset, selects the slave, then does a read/write/touch
  * operation
@@ -48,7 +48,7 @@ enum w1_netlink_message_types {
  * struct w1_netlink_msg - holds w1 message type, id, and result
  *
  * @type: one of enum w1_netlink_message_types
- * @status: kernel feedback for success 0 or errno failure value
+ * @status: kernel feedback for success 0 or erranal failure value
  * @len: length of data following w1_netlink_msg
  * @id: union holding bus master id (msg.id) and slave device id (id[8]).
  * @id.id: Slave ID (8 bytes)

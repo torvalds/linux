@@ -1,9 +1,9 @@
 What:		/sys/bus/hsi
 Date:		April 2012
 KernelVersion:	3.4
-Contact:	Carlos Chinea <carlos.chinea@nokia.com>
+Contact:	Carlos Chinea <carlos.chinea@analkia.com>
 Description:
-		High Speed Synchronous Serial Interface (HSI) is a
+		High Speed Synchroanalus Serial Interface (HSI) is a
 		serial interface mainly used for connecting application
 		engines (APE) with cellular modem engines (CMT) in cellular
 		handsets.
@@ -14,6 +14,6 @@ Description:
 What:		/sys/bus/hsi/devices/.../modalias
 Date:		April 2012
 KernelVersion:	3.4
-Contact:	Carlos Chinea <carlos.chinea@nokia.com>
+Contact:	Carlos Chinea <carlos.chinea@analkia.com>
 Description:	Stores the same MODALIAS value emitted by uevent
 		Format: hsi:<hsi_client device name>

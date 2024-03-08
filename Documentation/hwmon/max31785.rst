@@ -25,10 +25,10 @@ For dual-rotor configurations the MAX31785A exposes the second rotor tachometer
 readings in attributes fan[5-8]_input. By contrast the MAX31785 only exposes
 the slowest rotor measurement, and does so in the fan[1-4]_input attributes.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does analt probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

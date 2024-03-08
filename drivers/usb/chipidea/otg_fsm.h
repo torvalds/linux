@@ -83,7 +83,7 @@ static inline int ci_otg_fsm_work(struct ci_hdrc *ci)
 
 static inline irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 {
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static inline void ci_hdrc_otg_fsm_start(struct ci_hdrc *ci)

@@ -15,7 +15,7 @@ config INTC_USERIMASK
 	  masking.
 
 	  SH-4A and newer interrupt blocks all support a special shadowed
-	  page with all non-masking registers obscured when mapped in to
+	  page with all analn-masking registers obscured when mapped in to
 	  userspace. This is primarily for use by userspace device
 	  drivers that are using special priority levels.
 

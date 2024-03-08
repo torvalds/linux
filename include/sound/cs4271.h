@@ -13,7 +13,7 @@ struct cs4271_platform_data {
 
 	/*
 	 * The CS4271 requires its LRCLK and MCLK to be stable before its RESET
-	 * line is de-asserted. That also means that clocks cannot be changed
+	 * line is de-asserted. That also means that clocks cananalt be changed
 	 * without putting the chip back into hardware reset, which also requires
 	 * a complete re-initialization of all registers.
 	 *
@@ -21,7 +21,7 @@ struct cs4271_platform_data {
 	 * in the MODE2 register. This workaround can be enabled with the
 	 * following flag.
 	 *
-	 * Note that this is not needed in case the clocks are stable
+	 * Analte that this is analt needed in case the clocks are stable
 	 * throughout the entire runtime of the codec.
 	 */
 	bool enable_soft_reset;

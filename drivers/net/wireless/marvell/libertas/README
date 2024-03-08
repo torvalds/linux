@@ -142,7 +142,7 @@ subscribed_events
 	Value field specifies the consecutive failure count threshold which
 	triggers the generation of the MAX_FAIL event. Once this event is
 	generated, the consecutive failure count is reset to 0.
-	At initialization, the MAX_FAIL event is NOT subscribed by
+	At initialization, the MAX_FAIL event is ANALT subscribed by
 	default.
 
 	high_rssi
@@ -222,12 +222,12 @@ setuserscan
        matches with the new scan data:
             echo "type=1 keep=1" > setuserscan
 
-    All entries in the scan table (not just the new scan data when keep=1)
+    All entries in the scan table (analt just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.
 
 hostsleep
 	This command is used to enable/disable host sleep.
-	Note: Host sleep parameters should be configured using
+	Analte: Host sleep parameters should be configured using
 	"ethtool -s ethX wol X" command before enabling host sleep.
 
 	Path: /sys/kernel/debug/libertas_wireless/ethX/

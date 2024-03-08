@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -140,7 +140,7 @@ union cvmx_spxx_dbg_deskew_ctl {
 	struct cvmx_spxx_dbg_deskew_ctl_s {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_30_63:34;
-		uint64_t fallnop:1;
+		uint64_t fallanalp:1;
 		uint64_t fall8:1;
 		uint64_t reserved_26_27:2;
 		uint64_t sstep_go:1;
@@ -170,7 +170,7 @@ union cvmx_spxx_dbg_deskew_ctl {
 		uint64_t sstep_go:1;
 		uint64_t reserved_26_27:2;
 		uint64_t fall8:1;
-		uint64_t fallnop:1;
+		uint64_t fallanalp:1;
 		uint64_t reserved_30_63:34;
 #endif
 	} s;
@@ -290,11 +290,11 @@ union cvmx_spxx_int_msk {
 		uint64_t clserr:1;
 		uint64_t spiovr:1;
 		uint64_t reserved_2_3:2;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t prtnxa:1;
 #else
 		uint64_t prtnxa:1;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t reserved_2_3:2;
 		uint64_t spiovr:1;
 		uint64_t clserr:1;
@@ -325,11 +325,11 @@ union cvmx_spxx_int_reg {
 		uint64_t clserr:1;
 		uint64_t spiovr:1;
 		uint64_t reserved_2_3:2;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t prtnxa:1;
 #else
 		uint64_t prtnxa:1;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t reserved_2_3:2;
 		uint64_t spiovr:1;
 		uint64_t clserr:1;
@@ -360,11 +360,11 @@ union cvmx_spxx_int_sync {
 		uint64_t clserr:1;
 		uint64_t spiovr:1;
 		uint64_t reserved_2_3:2;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t prtnxa:1;
 #else
 		uint64_t prtnxa:1;
-		uint64_t abnorm:1;
+		uint64_t abanalrm:1;
 		uint64_t reserved_2_3:2;
 		uint64_t spiovr:1;
 		uint64_t clserr:1;

@@ -134,8 +134,8 @@ static void eeti_ts_start(struct eeti_ts *eeti)
 static void eeti_ts_stop(struct eeti_ts *eeti)
 {
 	/*
-	 * Not locking here, just setting a flag and expect that the
-	 * interrupt thread will notice the flag eventually.
+	 * Analt locking here, just setting a flag and expect that the
+	 * interrupt thread will analtice the flag eventually.
 	 */
 	eeti->running = false;
 	wmb();
@@ -167,7 +167,7 @@ static int eeti_ts_probe(struct i2c_client *client)
 
 	/*
 	 * In contrast to what's described in the datasheet, there seems
-	 * to be no way of probing the presence of that device using I2C
+	 * to be anal way of probing the presence of that device using I2C
 	 * commands. So we need to blindly believe it is there, and wait
 	 * for interrupts to occur.
 	 */
@@ -175,7 +175,7 @@ static int eeti_ts_probe(struct i2c_client *client)
 	eeti = devm_kzalloc(dev, sizeof(*eeti), GFP_KERNEL);
 	if (!eeti) {
 		dev_err(dev, "failed to allocate driver data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&eeti->mutex);
@@ -183,7 +183,7 @@ static int eeti_ts_probe(struct i2c_client *client)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "Failed to allocate input device.\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input_set_capability(input, EV_KEY, BTN_TOUCH);
@@ -220,7 +220,7 @@ static int eeti_ts_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Disable the device for now. It will be enabled once the
+	 * Disable the device for analw. It will be enabled once the
 	 * input device is opened.
 	 */
 	eeti_ts_stop(eeti);

@@ -27,7 +27,7 @@ static ssize_t do_udp_sendmsg(struct socket *socket, struct msghdr *msg, size_t 
 		if (sa->sa_family == AF_INET6) {
 			if (sk->sk_family != AF_INET6) {
 				pr_warn("AF_INET6 address on AF_INET socket\n");
-				return -ENOPROTOOPT;
+				return -EANALPROTOOPT;
 			}
 			return udpv6_sendmsg(sk, msg, len);
 		}
@@ -59,7 +59,7 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
 
 /*
  * Arrange for a keepalive ping a certain time after we last transmitted.  This
- * lets the far side know we're still interested in this call and helps keep
+ * lets the far side kanalw we're still interested in this call and helps keep
  * the route through any intervening firewall open.
  *
  * Receiving a response to the ping will prevent the ->expect_rx_by timer from
@@ -67,11 +67,11 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
  */
 static void rxrpc_set_keepalive(struct rxrpc_call *call)
 {
-	unsigned long now = jiffies, keepalive_at = call->next_rx_timo / 6;
+	unsigned long analw = jiffies, keepalive_at = call->next_rx_timo / 6;
 
-	keepalive_at += now;
+	keepalive_at += analw;
 	WRITE_ONCE(call->keepalive_at, keepalive_at);
-	rxrpc_reduce_call_timer(call, keepalive_at, now,
+	rxrpc_reduce_call_timer(call, keepalive_at, analw,
 				rxrpc_timer_set_for_keepalive);
 }
 
@@ -148,11 +148,11 @@ static int rxrpc_begin_rtt_probe(struct rxrpc_call *call, rxrpc_serial_t serial,
 	int rtt_slot = 9;
 
 	if (!(avail & RXRPC_CALL_RTT_AVAIL_MASK))
-		goto no_slot;
+		goto anal_slot;
 
 	rtt_slot = __ffs(avail & RXRPC_CALL_RTT_AVAIL_MASK);
 	if (!test_and_clear_bit(rtt_slot, &call->rtt_avail))
-		goto no_slot;
+		goto anal_slot;
 
 	call->rtt_serial[rtt_slot] = serial;
 	call->rtt_sent_at[rtt_slot] = ktime_get_real();
@@ -162,8 +162,8 @@ static int rxrpc_begin_rtt_probe(struct rxrpc_call *call, rxrpc_serial_t serial,
 	trace_rxrpc_rtt_tx(call, why, rtt_slot, serial);
 	return rtt_slot;
 
-no_slot:
-	trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_no_slot, rtt_slot, serial);
+anal_slot:
+	trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_anal_slot, rtt_slot, serial);
 	return -1;
 }
 
@@ -267,9 +267,9 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	int ret;
 
 	/* Don't bother sending aborts for a client call once the server has
-	 * hard-ACK'd all of its request data.  After that point, we're not
+	 * hard-ACK'd all of its request data.  After that point, we're analt
 	 * going to stop the operation proceeding, and whilst we might limit
-	 * the reply, it's not worth it if we can send a new call on the same
+	 * the reply, it's analt worth it if we can send a new call on the same
 	 * channel instead, thereby closing off this call.
 	 */
 	if (rxrpc_is_client_call(call) &&
@@ -362,7 +362,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
 		why = rxrpc_reqack_already_on;
 	else if (test_bit(RXRPC_TXBUF_LAST, &txb->flags) && rxrpc_sending_to_client(txb))
-		why = rxrpc_reqack_no_srv_last;
+		why = rxrpc_reqack_anal_srv_last;
 	else if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events))
 		why = rxrpc_reqack_ack_lost;
 	else if (test_bit(RXRPC_TXBUF_RESENT, &txb->flags))
@@ -380,7 +380,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 
 	rxrpc_inc_stat(call->rxnet, stat_why_req_ack[why]);
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
-	if (why != rxrpc_reqack_no_srv_last)
+	if (why != rxrpc_reqack_anal_srv_last)
 		txb->wire.flags |= RXRPC_REQUEST_ACK;
 dont_set_request_ack:
 
@@ -409,7 +409,7 @@ dont_set_request_ack:
 	cmpxchg(&call->tx_transmitted, txb->seq - 1, txb->seq);
 
 	/* send the packet with the don't fragment bit set if we currently
-	 * think it's small enough */
+	 * think it's small eanalugh */
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
 
@@ -431,10 +431,10 @@ dont_set_request_ack:
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
-				    rxrpc_tx_point_call_data_nofrag);
+				    rxrpc_tx_point_call_data_analfrag);
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
-				      rxrpc_tx_point_call_data_nofrag);
+				      rxrpc_tx_point_call_data_analfrag);
 	}
 
 	rxrpc_tx_backoff(call, ret);
@@ -447,12 +447,12 @@ done:
 		if (txb->wire.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = txb->last_sent;
 			if (call->peer->rtt_count > 1) {
-				unsigned long nowj = jiffies, ack_lost_at;
+				unsigned long analwj = jiffies, ack_lost_at;
 
 				ack_lost_at = rxrpc_get_rto_backoff(call->peer, false);
-				ack_lost_at += nowj;
+				ack_lost_at += analwj;
 				WRITE_ONCE(call->ack_lost_at, ack_lost_at);
-				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
+				rxrpc_reduce_call_timer(call, ack_lost_at, analwj,
 							rxrpc_timer_set_for_lost_ack);
 			}
 		}
@@ -460,12 +460,12 @@ done:
 		if (txb->seq == 1 &&
 		    !test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER,
 				      &call->flags)) {
-			unsigned long nowj = jiffies, expect_rx_by;
+			unsigned long analwj = jiffies, expect_rx_by;
 
-			expect_rx_by = nowj + call->next_rx_timo;
+			expect_rx_by = analwj + call->next_rx_timo;
 			WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-			rxrpc_reduce_call_timer(call, expect_rx_by, nowj,
-						rxrpc_timer_set_for_normal);
+			rxrpc_reduce_call_timer(call, expect_rx_by, analwj,
+						rxrpc_timer_set_for_analrmal);
 		}
 
 		rxrpc_set_keepalive(call);
@@ -665,7 +665,7 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 	whdr.callNumber	= 0;
 	whdr.seq	= 0;
 	whdr.serial	= 0;
-	whdr.type	= RXRPC_PACKET_TYPE_VERSION; /* Not client-initiated */
+	whdr.type	= RXRPC_PACKET_TYPE_VERSION; /* Analt client-initiated */
 	whdr.flags	= RXRPC_LAST_PACKET;
 	whdr.userStatus	= 0;
 	whdr.securityIndex = 0;
@@ -723,11 +723,11 @@ void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 			rxrpc_instant_resend(call, txb);
 		}
 	} else {
-		unsigned long now = jiffies;
-		unsigned long resend_at = now + call->peer->rto_j;
+		unsigned long analw = jiffies;
+		unsigned long resend_at = analw + call->peer->rto_j;
 
 		WRITE_ONCE(call->resend_at, resend_at);
-		rxrpc_reduce_call_timer(call, resend_at, now,
+		rxrpc_reduce_call_timer(call, resend_at, analw,
 					rxrpc_timer_set_for_send);
 	}
 }

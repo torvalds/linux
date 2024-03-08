@@ -2,7 +2,7 @@
 /*
  * Linux GPIOlib driver for the VIA VX855 integrated southbridge GPIO
  *
- * Copyright (C) 2009 VIA Technologies, Inc.
+ * Copyright (C) 2009 VIA Techanallogies, Inc.
  * Copyright (C) 2010 One Laptop per Child
  * Author: Harald Welte <HaraldWelte@viatech.com>
  * All rights reserved.
@@ -88,7 +88,7 @@ static int vx855gpio_direction_input(struct gpio_chip *gpio,
 	if (nr < NR_VX855_GPI)
 		return 0;
 
-	/* Real GPO bits cannot be put in output direction */
+	/* Real GPO bits cananalt be put in output direction */
 	if (nr < NR_VX855_GPInO)
 		return -EINVAL;
 
@@ -134,7 +134,7 @@ static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
 	unsigned long flags;
 	u_int32_t reg_out;
 
-	/* True GPI cannot be switched to output mode */
+	/* True GPI cananalt be switched to output mode */
 	if (nr < NR_VX855_GPI)
 		return;
 
@@ -158,12 +158,12 @@ static void vx855gpio_set(struct gpio_chip *gpio, unsigned int nr,
 static int vx855gpio_direction_output(struct gpio_chip *gpio,
 				      unsigned int nr, int val)
 {
-	/* True GPI cannot be switched to output mode */
+	/* True GPI cananalt be switched to output mode */
 	if (nr < NR_VX855_GPI)
 		return -EINVAL;
 
 	/* True GPO don't need to be switched to output mode,
-	 * and GPIO are open-drain, i.e. also need no switching,
+	 * and GPIO are open-drain, i.e. also need anal switching,
 	 * so all we do is set the level */
 	vx855gpio_set(gpio, nr, val);
 
@@ -175,20 +175,20 @@ static int vx855gpio_set_config(struct gpio_chip *gpio, unsigned int nr,
 {
 	enum pin_config_param param = pinconf_to_config_param(config);
 
-	/* The GPI cannot be single-ended */
+	/* The GPI cananalt be single-ended */
 	if (nr < NR_VX855_GPI)
 		return -EINVAL;
 
 	/* The GPO's are push-pull */
 	if (nr < NR_VX855_GPInO) {
 		if (param != PIN_CONFIG_DRIVE_PUSH_PULL)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		return 0;
 	}
 
 	/* The GPIO's are open drain */
 	if (param != PIN_CONFIG_DRIVE_OPEN_DRAIN)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return 0;
 }
@@ -238,7 +238,7 @@ static int vx855gpio_probe(struct platform_device *pdev)
 
 	vg = devm_kzalloc(&pdev->dev, sizeof(*vg), GFP_KERNEL);
 	if (!vg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_info(&pdev->dev, "found VX855 GPIO controller\n");
 	vg->io_gpi = res_gpi->start;
@@ -249,8 +249,8 @@ static int vx855gpio_probe(struct platform_device *pdev)
 	 * A single byte is used to control various GPIO ports on the VX855,
 	 * and in the case of the OLPC XO-1.5, some of those ports are used
 	 * for switches that are interpreted and exposed through ACPI. ACPI
-	 * will have reserved the region, so our own reservation will not
-	 * succeed. Ignore and continue.
+	 * will have reserved the region, so our own reservation will analt
+	 * succeed. Iganalre and continue.
 	 */
 
 	if (!devm_request_region(&pdev->dev, res_gpi->start,

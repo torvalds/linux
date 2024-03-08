@@ -13,7 +13,7 @@
  *
  *	Copyright (C) 2005 Torsten Koschorrek <koschorrek at synertronixx.de
  *	Copyright (C) 2005 Matthias Blaschke <blaschke at synertronixx.de
- *	Copyright (C) 2007 RightHand Technologies, Inc.
+ *	Copyright (C) 2007 RightHand Techanallogies, Inc.
  *	Copyright (C) 2008 Darius Augulis <darius.augulis at teltonika.lt>
  *
  *	Copyright 2013 Freescale Semiconductor, Inc.
@@ -29,7 +29,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -57,7 +57,7 @@
 /*
  * Enable DMA if transfer byte size is bigger than this threshold.
  * As the hardware request, it must bigger than 4 bytes.\
- * I have set '16' here, maybe it's not the best but I think it's
+ * I have set '16' here, maybe it's analt the best but I think it's
  * the appropriate.
  */
 #define DMA_THRESHOLD	16
@@ -200,7 +200,7 @@ struct imx_i2c_dma {
 struct imx_i2c_struct {
 	struct i2c_adapter	adapter;
 	struct clk		*clk;
-	struct notifier_block	clk_change_nb;
+	struct analtifier_block	clk_change_nb;
 	void __iomem		*base;
 	wait_queue_head_t	queue;
 	unsigned long		i2csr;
@@ -361,7 +361,7 @@ static void i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
 		ret = PTR_ERR(dma->chan_tx);
-		if (ret != -ENODEV && ret != -EPROBE_DEFER)
+		if (ret != -EANALDEV && ret != -EPROBE_DEFER)
 			dev_err(dev, "can't request DMA tx channel (%d)\n", ret);
 		goto fail_al;
 	}
@@ -380,7 +380,7 @@ static void i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 	dma->chan_rx = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan_rx)) {
 		ret = PTR_ERR(dma->chan_rx);
-		if (ret != -ENODEV && ret != -EPROBE_DEFER)
+		if (ret != -EANALDEV && ret != -EPROBE_DEFER)
 			dev_err(dev, "can't request DMA rx channel (%d)\n", ret);
 		goto fail_tx;
 	}
@@ -440,7 +440,7 @@ static int i2c_imx_dma_xfer(struct imx_i2c_struct *i2c_imx,
 					dma->dma_len, dma->dma_transfer_dir,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc) {
-		dev_err(dev, "Not able to get desc for DMA xfer\n");
+		dev_err(dev, "Analt able to get desc for DMA xfer\n");
 		goto err_desc;
 	}
 
@@ -526,7 +526,7 @@ static int i2c_imx_trx_complete(struct imx_i2c_struct *i2c_imx, bool atomic)
 		 * The formula for the poll timeout is documented in the RM
 		 * Rev.5 on page 1878:
 		 *     T_min = 10/F_scl
-		 * Set the value hard as it is done for the non-atomic use-case.
+		 * Set the value hard as it is done for the analn-atomic use-case.
 		 * Use 10 kHz for the calculation since this is the minimum
 		 * allowed SMBus frequency. Also add an offset of 100us since it
 		 * turned out that the I2SR_IIF bit isn't set correctly within
@@ -561,8 +561,8 @@ static int i2c_imx_trx_complete(struct imx_i2c_struct *i2c_imx, bool atomic)
 static int i2c_imx_acked(struct imx_i2c_struct *i2c_imx)
 {
 	if (imx_i2c_read_reg(i2c_imx, IMX_I2C_I2SR) & I2SR_RXAK) {
-		dev_dbg(&i2c_imx->adapter.dev, "<%s> No ACK\n", __func__);
-		return -ENXIO;  /* No ACK */
+		dev_dbg(&i2c_imx->adapter.dev, "<%s> Anal ACK\n", __func__);
+		return -ENXIO;  /* Anal ACK */
 	}
 
 	dev_dbg(&i2c_imx->adapter.dev, "<%s> ACK received\n", __func__);
@@ -618,10 +618,10 @@ static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 #endif
 }
 
-static int i2c_imx_clk_notifier_call(struct notifier_block *nb,
+static int i2c_imx_clk_analtifier_call(struct analtifier_block *nb,
 				     unsigned long action, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_analtifier_data *ndata = data;
 	struct imx_i2c_struct *i2c_imx = container_of(nb,
 						      struct imx_i2c_struct,
 						      clk_change_nb);
@@ -629,7 +629,7 @@ static int i2c_imx_clk_notifier_call(struct notifier_block *nb,
 	if (action & POST_RATE_CHANGE)
 		i2c_imx_set_clk(i2c_imx, ndata->new_rate);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int i2c_imx_start(struct imx_i2c_struct *i2c_imx, bool atomic)
@@ -682,7 +682,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx, bool atomic)
 	if (is_imx1_i2c(i2c_imx)) {
 		/*
 		 * This delay caused by an i.MXL hardware bug.
-		 * If no (or too short) delay, no "STOP" bit will be generated.
+		 * If anal (or too short) delay, anal "STOP" bit will be generated.
 		 */
 		udelay(i2c_imx->disable_delay);
 	}
@@ -697,7 +697,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx, bool atomic)
 
 /*
  * Enable bus idle interrupts
- * Note: IBIC register will be cleared after disabled i2c module.
+ * Analte: IBIC register will be cleared after disabled i2c module.
  * All of layerscape series SoCs support IBIC register.
  */
 static void i2c_imx_enable_bus_idle(struct imx_i2c_struct *i2c_imx)
@@ -741,7 +741,7 @@ static void i2c_imx_slave_finish_op(struct imx_i2c_struct *i2c_imx)
 	}
 }
 
-/* Returns true if the timer should be restarted, false if not. */
+/* Returns true if the timer should be restarted, false if analt. */
 static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 					unsigned int status, unsigned int ctl)
 {
@@ -754,13 +754,13 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 	}
 
 	if (!(status & I2SR_IBB)) {
-		/* No master on the bus, that could mean a stop condition. */
+		/* Anal master on the bus, that could mean a stop condition. */
 		i2c_imx_slave_finish_op(i2c_imx);
 		return IRQ_HANDLED;
 	}
 
 	if (!(status & I2SR_ICF))
-		/* Data transfer still in progress, ignore this. */
+		/* Data transfer still in progress, iganalre this. */
 		goto out;
 
 	if (status & I2SR_IAAS) { /* Addressed as a slave */
@@ -814,14 +814,14 @@ static irqreturn_t i2c_imx_slave_handle(struct imx_i2c_struct *i2c_imx,
 
 out:
 	/*
-	 * No need to check the return value here.  If it returns 0 or
+	 * Anal need to check the return value here.  If it returns 0 or
 	 * 1, then everything is fine.  If it returns -1, then the
 	 * timer is running in the handler.  This will still work,
 	 * though it may be redone (or already have been done) by the
 	 * timer function.
 	 */
 	hrtimer_try_to_cancel(&i2c_imx->slave_timer);
-	hrtimer_forward_now(&i2c_imx->slave_timer, I2C_IMX_CHECK_DELAY);
+	hrtimer_forward_analw(&i2c_imx->slave_timer, I2C_IMX_CHECK_DELAY);
 	hrtimer_restart(&i2c_imx->slave_timer);
 	return IRQ_HANDLED;
 }
@@ -838,7 +838,7 @@ static enum hrtimer_restart i2c_imx_slave_timeout(struct hrtimer *t)
 	ctl = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
 	i2c_imx_slave_handle(i2c_imx, status, ctl);
 	spin_unlock_irqrestore(&i2c_imx->slave_lock, flags);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void i2c_imx_slave_init(struct imx_i2c_struct *i2c_imx)
@@ -945,7 +945,7 @@ static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
 	}
 	spin_unlock_irqrestore(&i2c_imx->slave_lock, flags);
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int i2c_imx_dma_write(struct imx_i2c_struct *i2c_imx,
@@ -1069,7 +1069,7 @@ static int i2c_imx_dma_read(struct imx_i2c_struct *i2c_imx,
 	if (is_lastmsg) {
 		/*
 		 * It must generate STOP before read I2DR to prevent
-		 * controller from generating another clock cycle
+		 * controller from generating aanalther clock cycle
 		 */
 		dev_dbg(dev, "<%s> clear MSTA\n", __func__);
 		temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);
@@ -1160,7 +1160,7 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs,
 
 	/*
 	 * Reset the I2CR_TXAK flag initially for SMBus block read since the
-	 * length is unknown
+	 * length is unkanalwn
 	 */
 	if ((msgs->len - 1) || block_data)
 		temp &= ~I2CR_TXAK;
@@ -1199,7 +1199,7 @@ static int i2c_imx_read(struct imx_i2c_struct *i2c_imx, struct i2c_msg *msgs,
 			if (is_lastmsg) {
 				/*
 				 * It must generate STOP before read I2DR to prevent
-				 * controller from generating another clock cycle
+				 * controller from generating aanalther clock cycle
 				 */
 				dev_dbg(&i2c_imx->adapter.dev,
 					"<%s> clear MSTA\n", __func__);
@@ -1252,7 +1252,7 @@ static int i2c_imx_xfer_common(struct i2c_adapter *adapter,
 	result = i2c_imx_start(i2c_imx, atomic);
 	if (result) {
 		/*
-		 * Bus recovery uses gpiod_get_value_cansleep() which is not
+		 * Bus recovery uses gpiod_get_value_cansleep() which is analt
 		 * allowed within atomic context.
 		 */
 		if (!atomic && i2c_imx->adapter.bus_recovery_info) {
@@ -1384,7 +1384,7 @@ static void i2c_imx_unprepare_recovery(struct i2c_adapter *adap)
  * We switch SCL and SDA to their GPIO function and do some bitbanging
  * for bus recovery. These alternative pinmux settings can be
  * described in the device tree by a separate pinctrl state "gpio". If
- * this is missing this is not a big problem, the only implication is
+ * this is missing this is analt a big problem, the only implication is
  * that we can't do bus recovery.
  */
 static int i2c_imx_init_recovery_info(struct imx_i2c_struct *i2c_imx,
@@ -1394,11 +1394,11 @@ static int i2c_imx_init_recovery_info(struct imx_i2c_struct *i2c_imx,
 
 	i2c_imx->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (!i2c_imx->pinctrl) {
-		dev_info(&pdev->dev, "pinctrl unavailable, bus recovery not supported\n");
+		dev_info(&pdev->dev, "pinctrl unavailable, bus recovery analt supported\n");
 		return 0;
 	}
 	if (IS_ERR(i2c_imx->pinctrl)) {
-		dev_info(&pdev->dev, "can't get pinctrl, bus recovery not supported\n");
+		dev_info(&pdev->dev, "can't get pinctrl, bus recovery analt supported\n");
 		return PTR_ERR(i2c_imx->pinctrl);
 	}
 
@@ -1466,10 +1466,10 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	phy_addr = (dma_addr_t)res->start;
 	i2c_imx = devm_kzalloc(&pdev->dev, sizeof(*i2c_imx), GFP_KERNEL);
 	if (!i2c_imx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&i2c_imx->slave_lock);
-	hrtimer_init(&i2c_imx->slave_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&i2c_imx->slave_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_ABS);
 	i2c_imx->slave_timer.function = i2c_imx_slave_timeout;
 
 	match = device_get_match_data(&pdev->dev);
@@ -1485,7 +1485,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->adapter.algo		= &i2c_imx_algo;
 	i2c_imx->adapter.dev.parent	= &pdev->dev;
 	i2c_imx->adapter.nr		= pdev->id;
-	i2c_imx->adapter.dev.of_node	= pdev->dev.of_node;
+	i2c_imx->adapter.dev.of_analde	= pdev->dev.of_analde;
 	i2c_imx->base			= base;
 	ACPI_COMPANION_SET(&i2c_imx->adapter.dev, ACPI_COMPANION(&pdev->dev));
 
@@ -1522,26 +1522,26 @@ static int i2c_imx_probe(struct platform_device *pdev)
 
 	/* Set up clock divider */
 	i2c_imx->bitrate = I2C_MAX_STANDARD_MODE_FREQ;
-	ret = of_property_read_u32(pdev->dev.of_node,
+	ret = of_property_read_u32(pdev->dev.of_analde,
 				   "clock-frequency", &i2c_imx->bitrate);
 	if (ret < 0 && pdata && pdata->bitrate)
 		i2c_imx->bitrate = pdata->bitrate;
-	i2c_imx->clk_change_nb.notifier_call = i2c_imx_clk_notifier_call;
-	clk_notifier_register(i2c_imx->clk, &i2c_imx->clk_change_nb);
+	i2c_imx->clk_change_nb.analtifier_call = i2c_imx_clk_analtifier_call;
+	clk_analtifier_register(i2c_imx->clk, &i2c_imx->clk_change_nb);
 	i2c_imx_set_clk(i2c_imx, clk_get_rate(i2c_imx->clk));
 
 	i2c_imx_reset_regs(i2c_imx);
 
 	/* Init optional bus recovery function */
 	ret = i2c_imx_init_recovery_info(i2c_imx, pdev);
-	/* Give it another chance if pinctrl used is not ready yet */
+	/* Give it aanalther chance if pinctrl used is analt ready yet */
 	if (ret == -EPROBE_DEFER)
-		goto clk_notifier_unregister;
+		goto clk_analtifier_unregister;
 
 	/* Add I2C adapter */
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
 	if (ret < 0)
-		goto clk_notifier_unregister;
+		goto clk_analtifier_unregister;
 
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
@@ -1557,11 +1557,11 @@ static int i2c_imx_probe(struct platform_device *pdev)
 
 	return 0;   /* Return OK */
 
-clk_notifier_unregister:
-	clk_notifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
+clk_analtifier_unregister:
+	clk_analtifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
 	free_irq(irq, i2c_imx);
 rpm_disable:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -1592,12 +1592,12 @@ static void i2c_imx_remove(struct platform_device *pdev)
 		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2SR);
 	}
 
-	clk_notifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
+	clk_analtifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
 		free_irq(irq, i2c_imx);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 

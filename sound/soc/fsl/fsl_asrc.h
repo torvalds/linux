@@ -236,9 +236,9 @@
 #define ASRMCRi_RSYNIFi_SHIFT		11
 #define ASRMCRi_RSYNIFi_MASK		(1 << ASRMCRi_RSYNIFi_SHIFT)
 #define ASRMCRi_RSYNIFi			(1 << ASRMCRi_RSYNIFi_SHIFT)
-#define ASRMCRi_RSYNOFi_SHIFT		10
-#define ASRMCRi_RSYNOFi_MASK		(1 << ASRMCRi_RSYNOFi_SHIFT)
-#define ASRMCRi_RSYNOFi			(1 << ASRMCRi_RSYNOFi_SHIFT)
+#define ASRMCRi_RSYANALFi_SHIFT		10
+#define ASRMCRi_RSYANALFi_MASK		(1 << ASRMCRi_RSYANALFi_SHIFT)
+#define ASRMCRi_RSYANALFi			(1 << ASRMCRi_RSYANALFi_SHIFT)
 #define ASRMCRi_INFIFO_THRESHOLD_WIDTH	6
 #define ASRMCRi_INFIFO_THRESHOLD_SHIFT	0
 #define ASRMCRi_INFIFO_THRESHOLD_MASK	(((1 << ASRMCRi_INFIFO_THRESHOLD_WIDTH) - 1) << ASRMCRi_INFIFO_THRESHOLD_SHIFT)
@@ -285,7 +285,7 @@
 #define ASRC_PAIR_MAX_NUM	(ASRC_PAIR_C + 1)
 
 enum asrc_inclk {
-	INCLK_NONE = 0x03,
+	INCLK_ANALNE = 0x03,
 	INCLK_ESAI_RX = 0x00,
 	INCLK_SSI1_RX = 0x01,
 	INCLK_SSI2_RX = 0x02,
@@ -325,7 +325,7 @@ enum asrc_inclk {
 };
 
 enum asrc_outclk {
-	OUTCLK_NONE = 0x03,
+	OUTCLK_ANALNE = 0x03,
 	OUTCLK_ESAI_TX = 0x00,
 	OUTCLK_SSI1_TX = 0x01,
 	OUTCLK_SSI2_TX = 0x02,
@@ -428,7 +428,7 @@ struct dma_block {
 /**
  * fsl_asrc_soc_data: soc specific data
  *
- * @use_edma: using edma as dma device or not
+ * @use_edma: using edma as dma device or analt
  * @channel_bits: width of ASRCNCR register for each pair
  */
 struct fsl_asrc_soc_data {

@@ -102,9 +102,9 @@ static void t7xx_dpmaif_irq_cb(struct dpmaif_isr_para *isr_para)
 			break;
 
 		case DPF_INTR_UL_DRB_EMPTY:
-		case DPF_INTR_UL_MD_NOTREADY:
-		case DPF_INTR_UL_MD_PWR_NOTREADY:
-			/* No need to log an error for these */
+		case DPF_INTR_UL_MD_ANALTREADY:
+		case DPF_INTR_UL_MD_PWR_ANALTREADY:
+			/* Anal need to log an error for these */
 			break;
 
 		case DPF_INTR_DL_BATCNT_LEN_ERR:
@@ -119,12 +119,12 @@ static void t7xx_dpmaif_irq_cb(struct dpmaif_isr_para *isr_para)
 
 		case DPF_INTR_DL_Q0_PITCNT_LEN_ERR:
 			dev_err_ratelimited(dev, "DL interrupt: DLQ0 PIT count length error\n");
-			t7xx_dpmaif_dlq_unmask_pitcnt_len_err_intr(hw_info, DPF_RX_QNO_DFT);
+			t7xx_dpmaif_dlq_unmask_pitcnt_len_err_intr(hw_info, DPF_RX_QANAL_DFT);
 			break;
 
 		case DPF_INTR_DL_Q1_PITCNT_LEN_ERR:
 			dev_err_ratelimited(dev, "DL interrupt: DLQ1 PIT count length error\n");
-			t7xx_dpmaif_dlq_unmask_pitcnt_len_err_intr(hw_info, DPF_RX_QNO1);
+			t7xx_dpmaif_dlq_unmask_pitcnt_len_err_intr(hw_info, DPF_RX_QANAL1);
 			break;
 
 		case DPF_INTR_DL_DONE:
@@ -134,7 +134,7 @@ static void t7xx_dpmaif_irq_cb(struct dpmaif_isr_para *isr_para)
 			break;
 
 		default:
-			dev_err_ratelimited(dev, "DL interrupt error: unknown type : %d\n",
+			dev_err_ratelimited(dev, "DL interrupt error: unkanalwn type : %d\n",
 					    intr_status.intr_types[i]);
 		}
 	}
@@ -171,8 +171,8 @@ static void t7xx_dpmaif_isr_parameter_init(struct dpmaif_ctrl *dpmaif_ctrl)
 	struct dpmaif_isr_para *isr_para;
 	unsigned char i;
 
-	dpmaif_ctrl->rxq_int_mapping[DPF_RX_QNO0] = DPMAIF_INT;
-	dpmaif_ctrl->rxq_int_mapping[DPF_RX_QNO1] = DPMAIF2_INT;
+	dpmaif_ctrl->rxq_int_mapping[DPF_RX_QANAL0] = DPMAIF_INT;
+	dpmaif_ctrl->rxq_int_mapping[DPF_RX_QANAL1] = DPMAIF2_INT;
 
 	for (i = 0; i < DPMAIF_RXQ_NUM; i++) {
 		isr_para = &dpmaif_ctrl->isr_para[i];
@@ -211,16 +211,16 @@ static int t7xx_dpmaif_rxtx_sw_allocs(struct dpmaif_ctrl *dpmaif_ctrl)
 	struct dpmaif_tx_queue *tx_q;
 	int ret, rx_idx, tx_idx, i;
 
-	ret = t7xx_dpmaif_bat_alloc(dpmaif_ctrl, &dpmaif_ctrl->bat_req, BAT_TYPE_NORMAL);
+	ret = t7xx_dpmaif_bat_alloc(dpmaif_ctrl, &dpmaif_ctrl->bat_req, BAT_TYPE_ANALRMAL);
 	if (ret) {
-		dev_err(dpmaif_ctrl->dev, "Failed to allocate normal BAT table: %d\n", ret);
+		dev_err(dpmaif_ctrl->dev, "Failed to allocate analrmal BAT table: %d\n", ret);
 		return ret;
 	}
 
 	ret = t7xx_dpmaif_bat_alloc(dpmaif_ctrl, &dpmaif_ctrl->bat_frag, BAT_TYPE_FRAG);
 	if (ret) {
 		dev_err(dpmaif_ctrl->dev, "Failed to allocate frag BAT table: %d\n", ret);
-		goto err_free_normal_bat;
+		goto err_free_analrmal_bat;
 	}
 
 	for (rx_idx = 0; rx_idx < DPMAIF_RXQ_NUM; rx_idx++) {
@@ -270,7 +270,7 @@ err_free_rxq:
 
 	t7xx_dpmaif_bat_free(dpmaif_ctrl, &dpmaif_ctrl->bat_frag);
 
-err_free_normal_bat:
+err_free_analrmal_bat:
 	t7xx_dpmaif_bat_free(dpmaif_ctrl, &dpmaif_ctrl->bat_req);
 
 	return ret;
@@ -336,7 +336,7 @@ static int t7xx_dpmaif_start(struct dpmaif_ctrl *dpmaif_ctrl)
 	ret = t7xx_dpmaif_rx_frag_alloc(dpmaif_ctrl, &dpmaif_ctrl->bat_frag, buf_cnt, true);
 	if (ret) {
 		dev_err(dpmaif_ctrl->dev, "Failed to allocate frag RX buffer: %d\n", ret);
-		goto err_free_normal_bat;
+		goto err_free_analrmal_bat;
 	}
 
 	for (i = 0; i < DPMAIF_TXQ_NUM; i++) {
@@ -371,7 +371,7 @@ static int t7xx_dpmaif_start(struct dpmaif_ctrl *dpmaif_ctrl)
 err_free_frag_bat:
 	t7xx_dpmaif_bat_free(rxq->dpmaif_ctrl, rxq->bat_frag);
 
-err_free_normal_bat:
+err_free_analrmal_bat:
 	t7xx_dpmaif_bat_free(rxq->dpmaif_ctrl, rxq->bat_req);
 
 	return ret;
@@ -421,10 +421,10 @@ static int t7xx_dpmaif_suspend(struct t7xx_pci_dev *t7xx_dev, void *param)
 
 static void t7xx_dpmaif_unmask_dlq_intr(struct dpmaif_ctrl *dpmaif_ctrl)
 {
-	int qno;
+	int qanal;
 
-	for (qno = 0; qno < DPMAIF_RXQ_NUM; qno++)
-		t7xx_dpmaif_dlq_unmask_rx_done(&dpmaif_ctrl->hw_info, qno);
+	for (qanal = 0; qanal < DPMAIF_RXQ_NUM; qanal++)
+		t7xx_dpmaif_dlq_unmask_rx_done(&dpmaif_ctrl->hw_info, qanal);
 }
 
 static void t7xx_dpmaif_start_txrx_qs(struct dpmaif_ctrl *dpmaif_ctrl)
@@ -523,7 +523,7 @@ int t7xx_dpmaif_md_state_callback(struct dpmaif_ctrl *dpmaif_ctrl, enum md_state
  * t7xx_dpmaif_hif_init() - Initialize data path.
  * @t7xx_dev: MTK context structure.
  * @callbacks: Callbacks implemented by the network layer to handle RX skb and
- *	       event notifications.
+ *	       event analtifications.
  *
  * Allocate and initialize datapath control block.
  * Register datapath ISR, TX and RX resources.

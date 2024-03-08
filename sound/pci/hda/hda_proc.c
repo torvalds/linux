@@ -18,7 +18,7 @@ static int dump_coef = -1;
 module_param(dump_coef, int, 0644);
 MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1=auto, 0=disable, 1=enable)");
 
-/* always use noncached version */
+/* always use analncached version */
 #define param_read(codec, nid, parm) \
 	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
 
@@ -31,17 +31,17 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		[AC_WID_AUD_SEL] = "Audio Selector",
 		[AC_WID_PIN] = "Pin Complex",
 		[AC_WID_POWER] = "Power Widget",
-		[AC_WID_VOL_KNB] = "Volume Knob Widget",
+		[AC_WID_VOL_KNB] = "Volume Kanalb Widget",
 		[AC_WID_BEEP] = "Beep Generator Widget",
 		[AC_WID_VENDOR] = "Vendor Defined Widget",
 	};
 	if (wid_value == -1)
-		return "UNKNOWN Widget";
+		return "UNKANALWN Widget";
 	wid_value &= 0xf;
 	if (names[wid_value])
 		return names[wid_value];
 	else
-		return "UNKNOWN Widget";
+		return "UNKANALWN Widget";
 }
 
 static void print_nid_array(struct snd_info_buffer *buffer,
@@ -108,7 +108,7 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 		    (caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT);
 }
 
-/* is this a stereo widget or a stereo-to-mono mix? */
+/* is this a stereo widget or a stereo-to-moanal mix? */
 static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid,
 			   int dir, unsigned int wcaps, int indices)
 {
@@ -116,7 +116,7 @@ static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid,
 
 	if (wcaps & AC_WCAP_STEREO)
 		return true;
-	/* check for a stereo-to-mono mix; it must be:
+	/* check for a stereo-to-moanal mix; it must be:
 	 * only a single connection, only for input, and only a mixer widget
 	 */
 	if (indices != 1 || dir != HDA_INPUT ||
@@ -213,7 +213,7 @@ static void print_pcm_caps(struct snd_info_buffer *buffer,
 static const char *get_jack_connection(u32 cfg)
 {
 	static const char * const names[16] = {
-		"Unknown", "1/8", "1/4", "ATAPI",
+		"Unkanalwn", "1/8", "1/4", "ATAPI",
 		"RCA", "Optical","Digital", "Analog",
 		"DIN", "XLR", "RJ11", "Comb",
 		NULL, NULL, NULL, "Other"
@@ -222,13 +222,13 @@ static const char *get_jack_connection(u32 cfg)
 	if (names[cfg])
 		return names[cfg];
 	else
-		return "UNKNOWN";
+		return "UNKANALWN";
 }
 
 static const char *get_jack_color(u32 cfg)
 {
 	static const char * const names[16] = {
-		"Unknown", "Black", "Grey", "Blue",
+		"Unkanalwn", "Black", "Grey", "Blue",
 		"Green", "Red", "Orange", "Yellow",
 		"Purple", "Pink", NULL, NULL,
 		NULL, NULL, "White", "Other",
@@ -237,7 +237,7 @@ static const char *get_jack_color(u32 cfg)
 	if (names[cfg])
 		return names[cfg];
 	else
-		return "UNKNOWN";
+		return "UNKANALWN";
 }
 
 /*
@@ -268,7 +268,7 @@ static const char *get_jack_location(u32 cfg)
 		if (cfg == specials_idx[i])
 			return specials[i];
 	}
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 /*
@@ -388,12 +388,12 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		    (caps & AC_DEFCFG_DEF_ASSOC) >> AC_DEFCFG_ASSOC_SHIFT,
 		    caps & AC_DEFCFG_SEQUENCE);
 	if (((caps & AC_DEFCFG_MISC) >> AC_DEFCFG_MISC_SHIFT) &
-	    AC_DEFCFG_MISC_NO_PRESENCE) {
-		/* Miscellaneous bit indicates external hardware does not
+	    AC_DEFCFG_MISC_ANAL_PRESENCE) {
+		/* Miscellaneous bit indicates external hardware does analt
 		 * support presence detection even if the pin complex
 		 * indicates it is supported.
 		 */
-		snd_iprintf(buffer, "    Misc = NO_PRESENCE\n");
+		snd_iprintf(buffer, "    Misc = ANAL_PRESENCE\n");
 	}
 }
 
@@ -435,14 +435,14 @@ static void print_pin_ctls(struct snd_info_buffer *buffer,
 	snd_iprintf(buffer, "\n");
 }
 
-static void print_vol_knob(struct snd_info_buffer *buffer,
+static void print_vol_kanalb(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int cap = param_read(codec, nid, AC_PAR_VOL_KNB_CAP);
-	snd_iprintf(buffer, "  Volume-Knob: delta=%d, steps=%d, ",
+	snd_iprintf(buffer, "  Volume-Kanalb: delta=%d, steps=%d, ",
 		    (cap >> 7) & 1, cap & 0x7f);
 	cap = snd_hda_codec_read(codec, nid, 0,
-				 AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
+				 AC_VERB_GET_VOLUME_KANALB_CONTROL, 0);
 	snd_iprintf(buffer, "direct=%d, val=%d\n",
 		    (cap >> 7) & 1, cap & 0x7f);
 }
@@ -483,9 +483,9 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 	if (digi1 & AC_DIG1_EMPHASIS)
 		snd_iprintf(buffer, " Preemphasis");
 	if (digi1 & AC_DIG1_COPYRIGHT)
-		snd_iprintf(buffer, " Non-Copyright");
-	if (digi1 & AC_DIG1_NONAUDIO)
-		snd_iprintf(buffer, " Non-Audio");
+		snd_iprintf(buffer, " Analn-Copyright");
+	if (digi1 & AC_DIG1_ANALNAUDIO)
+		snd_iprintf(buffer, " Analn-Audio");
 	if (digi1 & AC_DIG1_PROFESSIONAL)
 		snd_iprintf(buffer, " Pro");
 	if (digi1 & AC_DIG1_LEVEL)
@@ -506,7 +506,7 @@ static const char *get_pwr_state(u32 state)
 	};
 	if (state < ARRAY_SIZE(buf))
 		return buf[state];
-	return "UNKNOWN";
+	return "UNKANALWN";
 }
 
 static void print_power_state(struct snd_info_buffer *buffer,
@@ -582,7 +582,7 @@ static void print_proc_caps(struct snd_info_buffer *buffer,
 	if (!can_dump_coef(codec))
 		return;
 
-	/* Note: This is racy - another process could run in parallel and change
+	/* Analte: This is racy - aanalther process could run in parallel and change
 	   the coef index too. */
 	oldindex = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_COEF_INDEX, 0);
 	for (i = 0; i < ncoeff; i++) {
@@ -753,7 +753,7 @@ static void print_codec_core_info(struct hdac_device *codec,
 		snd_iprintf(buffer, "%s %s\n",
 			    codec->vendor_name, codec->chip_name);
 	else
-		snd_iprintf(buffer, "Not Set\n");
+		snd_iprintf(buffer, "Analt Set\n");
 	snd_iprintf(buffer, "Address: %d\n", codec->addr);
 	if (codec->afg)
 		snd_iprintf(buffer, "AFG Function Id: 0x%x (unsol %u)\n",
@@ -768,7 +768,7 @@ static void print_codec_core_info(struct hdac_device *codec,
 	if (codec->mfg)
 		snd_iprintf(buffer, "Modem Function Group: 0x%x\n", codec->mfg);
 	else
-		snd_iprintf(buffer, "No Modem Function Group found\n");
+		snd_iprintf(buffer, "Anal Modem Function Group found\n");
 }
 
 static void print_codec_info(struct snd_info_entry *entry,
@@ -776,7 +776,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 {
 	struct hda_codec *codec = entry->private_data;
 	hda_nid_t nid, fg;
-	int i, nodes;
+	int i, analdes;
 
 	print_codec_core_info(&codec->core, buffer);
 	fg = codec->core.afg;
@@ -789,11 +789,11 @@ static void print_codec_info(struct snd_info_entry *entry,
 	print_amp_caps(buffer, codec, fg, HDA_INPUT);
 	snd_iprintf(buffer, "Default Amp-Out caps: ");
 	print_amp_caps(buffer, codec, fg, HDA_OUTPUT);
-	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", fg);
+	snd_iprintf(buffer, "State of AFG analde 0x%02x:\n", fg);
 	print_power_state(buffer, codec, fg);
 
-	nodes = snd_hda_get_sub_nodes(codec, fg, &nid);
-	if (! nid || nodes < 0) {
+	analdes = snd_hda_get_sub_analdes(codec, fg, &nid);
+	if (! nid || analdes < 0) {
 		snd_iprintf(buffer, "Invalid AFG subtree\n");
 		snd_hda_power_down(codec);
 		return;
@@ -803,14 +803,14 @@ static void print_codec_info(struct snd_info_entry *entry,
 	if (codec->proc_widget_hook)
 		codec->proc_widget_hook(buffer, codec, fg);
 
-	for (i = 0; i < nodes; i++, nid++) {
+	for (i = 0; i < analdes; i++, nid++) {
 		unsigned int wid_caps =
 			param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		hda_nid_t *conn = NULL;
 		int conn_len = 0;
 
-		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
+		snd_iprintf(buffer, "Analde 0x%02x [%s] wcaps 0x%x:", nid,
 			    get_wid_type_name(wid_type), wid_caps);
 		if (wid_caps & AC_WCAP_STEREO) {
 			unsigned int chans = get_wcaps_channels(wid_caps);
@@ -819,7 +819,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			else
 				snd_iprintf(buffer, " %d-Channels", chans);
 		} else
-			snd_iprintf(buffer, " Mono");
+			snd_iprintf(buffer, " Moanal");
 		if (wid_caps & AC_WCAP_DIGITAL)
 			snd_iprintf(buffer, " Digital");
 		if (wid_caps & AC_WCAP_IN_AMP)
@@ -838,7 +838,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		print_nid_array(buffer, codec, nid, &codec->nids);
 		print_nid_pcms(buffer, codec, nid);
 
-		/* volume knob is a special widget that always have connection
+		/* volume kanalb is a special widget that always have connection
 		 * list
 		 */
 		if (wid_type == AC_WID_VOL_KNB)
@@ -892,7 +892,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			break;
 		}
 		case AC_WID_VOL_KNB:
-			print_vol_knob(buffer, codec, nid);
+			print_vol_kanalb(buffer, codec, nid);
 			break;
 		case AC_WID_AUD_OUT:
 		case AC_WID_AUD_IN:

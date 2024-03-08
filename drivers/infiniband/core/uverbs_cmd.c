@@ -2,7 +2,7 @@
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
- * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
+ * Copyright (c) 2006 Mellaanalx Techanallogies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -15,18 +15,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -101,7 +101,7 @@ static int uverbs_request(struct uverbs_attr_bundle *attrs, void *req,
 	} else if (attrs->ucore.inlen > req_len) {
 		if (!ib_is_buffer_cleared(attrs->ucore.inbuf + req_len,
 					  attrs->ucore.inlen - req_len))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -133,7 +133,7 @@ static int uverbs_request_start(struct uverbs_attr_bundle *attrs,
 				size_t req_len)
 {
 	if (attrs->ucore.inlen < req_len)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(req, attrs->ucore.inbuf, req_len))
 		return -EFAULT;
@@ -147,7 +147,7 @@ static int uverbs_request_next(struct uverbs_req_iter *iter, void *val,
 			       size_t len)
 {
 	if (iter->cur + len > iter->end)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (copy_from_user(val, iter->cur, len))
 		return -EFAULT;
@@ -162,7 +162,7 @@ static const void __user *uverbs_request_next_ptr(struct uverbs_req_iter *iter,
 	const void __user *res = iter->cur;
 
 	if (iter->cur + len > iter->end)
-		return (void __force __user *)ERR_PTR(-ENOSPC);
+		return (void __force __user *)ERR_PTR(-EANALSPC);
 	iter->cur += len;
 	return res;
 }
@@ -170,14 +170,14 @@ static const void __user *uverbs_request_next_ptr(struct uverbs_req_iter *iter,
 static int uverbs_request_finish(struct uverbs_req_iter *iter)
 {
 	if (!ib_is_buffer_cleared(iter->cur, iter->end - iter->cur))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	return 0;
 }
 
 /*
  * When calling a destroy function during an error unwind we need to pass in
  * the udata that is sanitized of all user arguments. Ie from the driver
- * perspective it looks like no udata was passed.
+ * perspective it looks like anal udata was passed.
  */
 struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
 {
@@ -216,7 +216,7 @@ int ib_alloc_ucontext(struct uverbs_attr_bundle *attrs)
 
 	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
 	if (!ucontext)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ucontext->device = ib_dev;
 	ucontext->ufile = ufile;
@@ -328,7 +328,7 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	struct ib_device *ib_dev = ucontext->device;
 
 	resp->fw_ver		= attr->fw_ver;
-	resp->node_guid		= ib_dev->node_guid;
+	resp->analde_guid		= ib_dev->analde_guid;
 	resp->sys_image_guid	= attr->sys_image_guid;
 	resp->max_mr_size	= attr->max_mr_size;
 	resp->page_size_cap	= attr->page_size_cap;
@@ -435,7 +435,7 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 
 	pd = rdma_zalloc_drv_obj(ib_dev, ib_pd);
 	if (!pd) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -478,33 +478,33 @@ static int ib_uverbs_dealloc_pd(struct uverbs_attr_bundle *attrs)
 }
 
 struct xrcd_table_entry {
-	struct rb_node  node;
+	struct rb_analde  analde;
 	struct ib_xrcd *xrcd;
-	struct inode   *inode;
+	struct ianalde   *ianalde;
 };
 
 static int xrcd_table_insert(struct ib_uverbs_device *dev,
-			    struct inode *inode,
+			    struct ianalde *ianalde,
 			    struct ib_xrcd *xrcd)
 {
 	struct xrcd_table_entry *entry, *scan;
-	struct rb_node **p = &dev->xrcd_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &dev->xrcd_tree.rb_analde;
+	struct rb_analde *parent = NULL;
 
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry->xrcd  = xrcd;
-	entry->inode = inode;
+	entry->ianalde = ianalde;
 
 	while (*p) {
 		parent = *p;
-		scan = rb_entry(parent, struct xrcd_table_entry, node);
+		scan = rb_entry(parent, struct xrcd_table_entry, analde);
 
-		if (inode < scan->inode) {
+		if (ianalde < scan->ianalde) {
 			p = &(*p)->rb_left;
-		} else if (inode > scan->inode) {
+		} else if (ianalde > scan->ianalde) {
 			p = &(*p)->rb_right;
 		} else {
 			kfree(entry);
@@ -512,24 +512,24 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 		}
 	}
 
-	rb_link_node(&entry->node, parent, p);
-	rb_insert_color(&entry->node, &dev->xrcd_tree);
-	igrab(inode);
+	rb_link_analde(&entry->analde, parent, p);
+	rb_insert_color(&entry->analde, &dev->xrcd_tree);
+	igrab(ianalde);
 	return 0;
 }
 
 static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
-						  struct inode *inode)
+						  struct ianalde *ianalde)
 {
 	struct xrcd_table_entry *entry;
-	struct rb_node *p = dev->xrcd_tree.rb_node;
+	struct rb_analde *p = dev->xrcd_tree.rb_analde;
 
 	while (p) {
-		entry = rb_entry(p, struct xrcd_table_entry, node);
+		entry = rb_entry(p, struct xrcd_table_entry, analde);
 
-		if (inode < entry->inode)
+		if (ianalde < entry->ianalde)
 			p = p->rb_left;
-		else if (inode > entry->inode)
+		else if (ianalde > entry->ianalde)
 			p = p->rb_right;
 		else
 			return entry;
@@ -538,11 +538,11 @@ static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
 	return NULL;
 }
 
-static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *inode)
+static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct ianalde *ianalde)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, ianalde);
 	if (!entry)
 		return NULL;
 
@@ -550,14 +550,14 @@ static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *ino
 }
 
 static void xrcd_table_delete(struct ib_uverbs_device *dev,
-			      struct inode *inode)
+			      struct ianalde *ianalde)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, ianalde);
 	if (entry) {
-		iput(inode);
-		rb_erase(&entry->node, &dev->xrcd_tree);
+		iput(ianalde);
+		rb_erase(&entry->analde, &dev->xrcd_tree);
 		kfree(entry);
 	}
 }
@@ -569,7 +569,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	struct ib_uverbs_open_xrcd	cmd;
 	struct ib_uxrcd_object         *obj;
 	struct ib_xrcd                 *xrcd = NULL;
-	struct inode                   *inode = NULL;
+	struct ianalde                   *ianalde = NULL;
 	int				new_xrcd = 0;
 	struct ib_device *ib_dev;
 	struct fd f = {};
@@ -589,10 +589,10 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 			goto err_tree_mutex_unlock;
 		}
 
-		inode = file_inode(f.file);
-		xrcd = find_xrcd(ibudev, inode);
+		ianalde = file_ianalde(f.file);
+		xrcd = find_xrcd(ibudev, ianalde);
 		if (!xrcd && !(cmd.oflags & O_CREAT)) {
-			/* no file descriptor. Need CREATE flag */
+			/* anal file descriptor. Need CREATE flag */
 			ret = -EAGAIN;
 			goto err_tree_mutex_unlock;
 		}
@@ -611,7 +611,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	}
 
 	if (!xrcd) {
-		xrcd = ib_alloc_xrcd_user(ib_dev, inode, &attrs->driver_udata);
+		xrcd = ib_alloc_xrcd_user(ib_dev, ianalde, &attrs->driver_udata);
 		if (IS_ERR(xrcd)) {
 			ret = PTR_ERR(xrcd);
 			goto err;
@@ -622,10 +622,10 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	atomic_set(&obj->refcnt, 0);
 	obj->uobject.object = xrcd;
 
-	if (inode) {
+	if (ianalde) {
 		if (new_xrcd) {
-			/* create new inode/xrcd table entry */
-			ret = xrcd_table_insert(ibudev, inode, xrcd);
+			/* create new ianalde/xrcd table entry */
+			ret = xrcd_table_insert(ibudev, ianalde, xrcd);
 			if (ret)
 				goto err_dealloc_xrcd;
 		}
@@ -672,12 +672,12 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why,
 			   struct uverbs_attr_bundle *attrs)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int ret;
 	struct ib_uverbs_device *dev = attrs->ufile->device;
 
-	inode = xrcd->inode;
-	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
+	ianalde = xrcd->ianalde;
+	if (ianalde && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
 	ret = ib_dealloc_xrcd_user(xrcd, &attrs->driver_udata);
@@ -686,8 +686,8 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 		return ret;
 	}
 
-	if (inode)
-		xrcd_table_delete(dev, inode);
+	if (ianalde)
+		xrcd_table_delete(dev, ianalde);
 
 	return 0;
 }
@@ -782,7 +782,7 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 		return -EINVAL;
 
 	if (cmd.flags & ~IB_MR_REREG_SUPPORTED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if ((cmd.flags & IB_MR_REREG_TRANS) &&
 	    (cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
@@ -931,7 +931,7 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 
 	mw = rdma_zalloc_drv_obj(ib_dev, ib_mw);
 	if (!mw) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_put;
 	}
 
@@ -1038,7 +1038,7 @@ static int create_cq(struct uverbs_attr_bundle *attrs,
 
 	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
 	if (!cq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_file;
 	}
 	cq->device        = ib_dev;
@@ -1227,9 +1227,9 @@ out_put:
 	return ret;
 }
 
-static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
+static int ib_uverbs_req_analtify_cq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_req_notify_cq cmd;
+	struct ib_uverbs_req_analtify_cq cmd;
 	struct ib_cq                  *cq;
 	int ret;
 
@@ -1241,7 +1241,7 @@ static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
 	if (!cq)
 		return -EINVAL;
 
-	ib_req_notify_cq(cq, cmd.solicited_only ?
+	ib_req_analtify_cq(cq, cmd.solicited_only ?
 			 IB_CQ_SOLICITED : IB_CQ_NEXT_COMP);
 
 	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
@@ -1282,7 +1282,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	struct ib_device		*device;
 	struct ib_pd			*pd = NULL;
 	struct ib_xrcd			*xrcd = NULL;
-	struct ib_uobject		*xrcd_uobj = ERR_PTR(-ENOENT);
+	struct ib_uobject		*xrcd_uobj = ERR_PTR(-EANALENT);
 	struct ib_cq			*scq = NULL, *rcq = NULL;
 	struct ib_srq			*srq = NULL;
 	struct ib_qp			*qp;
@@ -1650,7 +1650,7 @@ static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs)
 	attr      = kmalloc(sizeof *attr, GFP_KERNEL);
 	init_attr = kmalloc(sizeof *init_attr, GFP_KERNEL);
 	if (!attr || !init_attr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1711,7 +1711,7 @@ out:
 	return ret;
 }
 
-/* Remove ignored fields set in the attribute mask */
+/* Remove iganalred fields set in the attribute mask */
 static int modify_qp_mask(enum ib_qp_type qp_type, int mask)
 {
 	switch (qp_type) {
@@ -1757,7 +1757,7 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd->base.qp_handle,
 			       attrs);
@@ -1780,9 +1780,9 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 
 		if (cmd->base.attr_mask & IB_QP_STATE &&
 		    cmd->base.qp_state == IB_QPS_RTR) {
-		/* We are in INIT->RTR TRANSITION (if we are not,
+		/* We are in INIT->RTR TRANSITION (if we are analt,
 		 * this transition will be rejected in subsequent checks).
-		 * In the INIT->RTR transition, we cannot have IB_QP_PORT set,
+		 * In the INIT->RTR transition, we cananalt have IB_QP_PORT set,
 		 * but the IB_QP_STATE flag is required.
 		 *
 		 * Since kernel 3.14 (commit dbf727de7440), the uverbs driver,
@@ -1799,18 +1799,18 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 				goto release_qp;
 			}
 		} else {
-		/* We are in SQD->SQD. (If we are not, this transition will
+		/* We are in SQD->SQD. (If we are analt, this transition will
 		 * be rejected later in the verbs layer checks).
 		 * Check for both IB_QP_PORT and IB_QP_AV, these can be set
 		 * together in the SQD->SQD transition.
 		 *
 		 * If only IP_QP_AV was set, add in IB_QP_PORT as well (the
-		 * verbs layer driver does not track primary port changes
+		 * verbs layer driver does analt track primary port changes
 		 * resulting from path migration. Thus, in SQD, if the primary
 		 * AV is modified, the primary port should also be modified).
 		 *
-		 * Note that in this transition, the IB_QP_STATE flag
-		 * is not allowed.
+		 * Analte that in this transition, the IB_QP_STATE flag
+		 * is analt allowed.
 		 */
 			if (((cmd->base.attr_mask & (IB_QP_AV | IB_QP_PORT))
 			     == (IB_QP_AV | IB_QP_PORT)) &&
@@ -1868,8 +1868,8 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 		attr->qp_access_flags = cmd->base.qp_access_flags;
 	if (cmd->base.attr_mask & IB_QP_PKEY_INDEX)
 		attr->pkey_index = cmd->base.pkey_index;
-	if (cmd->base.attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
-		attr->en_sqd_async_notify = cmd->base.en_sqd_async_notify;
+	if (cmd->base.attr_mask & IB_QP_EN_SQD_ASYNC_ANALTIFY)
+		attr->en_sqd_async_analtify = cmd->base.en_sqd_async_analtify;
 	if (cmd->base.attr_mask & IB_QP_MAX_QP_RD_ATOMIC)
 		attr->max_rd_atomic = cmd->base.max_rd_atomic;
 	if (cmd->base.attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
@@ -1924,7 +1924,7 @@ static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs)
 		return ret;
 
 	if (cmd.base.attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return modify_qp(attrs, &cmd);
 }
@@ -1943,10 +1943,10 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs)
 
 	/*
 	 * Last bit is reserved for extending the attr_mask by
-	 * using another field.
+	 * using aanalther field.
 	 */
 	if (cmd.base.attr_mask & ~(IB_QP_ATTR_STANDARD_BITS | IB_QP_RATE_LIMIT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = modify_qp(attrs, &cmd);
 	if (ret)
@@ -2023,7 +2023,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 
 	user_wr = kmalloc(cmd.wqe_size, GFP_KERNEL);
 	if (!user_wr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
 	if (!qp) {
@@ -2058,7 +2058,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 			next_size = sizeof(*ud);
 			ud = alloc_wr(next_size, user_wr->num_sge);
 			if (!ud) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_put;
 			}
 
@@ -2081,7 +2081,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 			next_size = sizeof(*rdma);
 			rdma = alloc_wr(next_size, user_wr->num_sge);
 			if (!rdma) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_put;
 			}
 
@@ -2096,7 +2096,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 			next_size = sizeof(*atomic);
 			atomic = alloc_wr(next_size, user_wr->num_sge);
 			if (!atomic) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_put;
 			}
 
@@ -2112,7 +2112,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 			next_size = sizeof(*next);
 			next = alloc_wr(next_size, user_wr->num_sge);
 			if (!next) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_put;
 			}
 		} else {
@@ -2213,7 +2213,7 @@ ib_uverbs_unmarshall_recv(struct uverbs_req_iter *iter, u32 wr_count,
 
 	user_wr = kmalloc(wqe_size, GFP_KERNEL);
 	if (!user_wr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	sg_ind = 0;
 	last = NULL;
@@ -2240,7 +2240,7 @@ ib_uverbs_unmarshall_recv(struct uverbs_req_iter *iter, u32 wr_count,
 				       user_wr->num_sge * sizeof(struct ib_sge),
 			       GFP_KERNEL);
 		if (!next) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 
@@ -2496,7 +2496,7 @@ static int ib_uverbs_attach_mcast(struct uverbs_attr_bundle *attrs)
 
 	mcast = kmalloc(sizeof *mcast, GFP_KERNEL);
 	if (!mcast) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_put;
 	}
 
@@ -2661,7 +2661,7 @@ static int kern_spec_to_ib_spec_action(struct uverbs_attr_bundle *attrs,
 	case IB_FLOW_SPEC_ACTION_HANDLE:
 		if (kern_spec->action.size !=
 		    sizeof(struct ib_uverbs_flow_spec_action_handle))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		ib_spec->action.act = uobj_get_obj_read(flow_action,
 							UVERBS_OBJECT_FLOW_ACTION,
 							kern_spec->action.handle,
@@ -2895,7 +2895,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 		return err;
 
 	if (cmd.comp_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	obj = (struct ib_uwq_object *)uobj_alloc(UVERBS_OBJECT_WQ, attrs,
 						 &ib_dev);
@@ -2978,7 +2978,7 @@ static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs)
 		return ret;
 
 	if (cmd.comp_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	uobj = uobj_get_destroy(UVERBS_OBJECT_WQ, cmd.wq_handle, attrs);
@@ -3065,7 +3065,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 		return err;
 
 	if (cmd.comp_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (cmd.log_ind_tbl_size > IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE)
 		return -EINVAL;
@@ -3074,7 +3074,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	wqs_handles = kcalloc(num_wq_handles, sizeof(*wqs_handles),
 			      GFP_KERNEL);
 	if (!wqs_handles)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = uverbs_request_next(&iter, wqs_handles,
 				  num_wq_handles * sizeof(__u32));
@@ -3087,7 +3087,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 
 	wqs = kcalloc(num_wq_handles, sizeof(*wqs), GFP_KERNEL);
 	if (!wqs) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto  err_free;
 	}
 
@@ -3112,7 +3112,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 
 	rwq_ind_tbl = rdma_zalloc_drv_obj(ib_dev, ib_rwq_ind_table);
 	if (!rwq_ind_tbl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_uobj;
 	}
 
@@ -3168,7 +3168,7 @@ static int ib_uverbs_ex_destroy_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 		return ret;
 
 	if (cmd.comp_mask)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_RWQ_IND_TBL,
 				    cmd.ind_tbl_handle, attrs);
@@ -3224,7 +3224,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 		kern_flow_attr = kmalloc(sizeof(*kern_flow_attr) + cmd.flow_attr.size,
 					 GFP_KERNEL);
 		if (!kern_flow_attr)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		*kern_flow_attr = cmd.flow_attr;
 		err = uverbs_request_next(&iter, &kern_flow_attr->flow_specs,
@@ -3264,12 +3264,12 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 	flow_attr = kzalloc(struct_size(flow_attr, flows,
 				cmd.flow_attr.num_of_specs), GFP_KERNEL);
 	if (!flow_attr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_put;
 	}
 	uflow_res = flow_resources_alloc(cmd.flow_attr.num_of_specs);
 	if (!uflow_res) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free_flow_attr;
 	}
 
@@ -3664,7 +3664,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 		return -EINVAL;
 
 	if (cmd.attr_mask > IB_CQ_MODERATE)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (!cq)
@@ -3684,7 +3684,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
  *
  * If udata is present then both the request and response structs have a
  * trailing driver_data flex array. In this case the size of the base struct
- * cannot be changed.
+ * cananalt be changed.
  */
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
@@ -3712,7 +3712,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 
 /*
  * The _EX versions are for use with WRITE_EX and allow the last struct member
- * to be specified. Buffers that do not include that member will be rejected.
+ * to be specified. Buffers that do analt include that member will be rejected.
  */
 #define UAPI_DEF_WRITE_IO_EX(req, req_last_member, resp, resp_last_member)     \
 	.write.has_resp = 1,                                                   \
@@ -3767,10 +3767,10 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 					  struct ib_uverbs_poll_cq_resp),
 			UAPI_DEF_METHOD_NEEDS_FN(poll_cq)),
 		DECLARE_UVERBS_WRITE(
-			IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
-			ib_uverbs_req_notify_cq,
-			UAPI_DEF_WRITE_I(struct ib_uverbs_req_notify_cq),
-			UAPI_DEF_METHOD_NEEDS_FN(req_notify_cq)),
+			IB_USER_VERBS_CMD_REQ_ANALTIFY_CQ,
+			ib_uverbs_req_analtify_cq,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_req_analtify_cq),
+			UAPI_DEF_METHOD_NEEDS_FN(req_analtify_cq)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_RESIZE_CQ,
 				     ib_uverbs_resize_cq,
 				     UAPI_DEF_WRITE_UDATA_IO(

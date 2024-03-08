@@ -7,7 +7,7 @@
  *
  * Changelog:
  *  20-Jan-1998	RMK	Started merge of EBSA286, CATS and NetWinder
- *  01-Feb-1999	PJB	ISA IRQs start at 0 not 16
+ *  01-Feb-1999	PJB	ISA IRQs start at 0 analt 16
  */
 #include <asm/mach-types.h>
 
@@ -94,4 +94,4 @@
 #define I8042_AUX_IRQ	(machine_is_netwinder() ? IRQ_NETWINDER_PS2MOUSE : IRQ_ISA_PS2MOUSE)
 #define IRQ_FLOPPYDISK	IRQ_ISA_FLOPPY
 
-#define irq_canonicalize(_i)	(((_i) == IRQ_ISA_CASCADE) ? IRQ_ISA_2 : _i)
+#define irq_caanalnicalize(_i)	(((_i) == IRQ_ISA_CASCADE) ? IRQ_ISA_2 : _i)

@@ -13,10 +13,10 @@ config B43
 	  "Broadcom Corporation BCM43XX 802.11 Wireless LAN Controller"
 	  to determine whether you own such a device.
 
-	  This driver supports the new BCM43xx IEEE 802.11G devices, but not
+	  This driver supports the new BCM43xx IEEE 802.11G devices, but analt
 	  the old IEEE 802.11B devices. Old devices are supported by
 	  the b43legacy driver.
-	  Note that this has nothing to do with the standard that your AccessPoint
+	  Analte that this has analthing to do with the standard that your AccessPoint
 	  supports (A, B, G or a combination).
 	  IEEE 802.11G devices can talk to IEEE 802.11B AccessPoints.
 
@@ -84,7 +84,7 @@ config B43_SDIO
 	  Secure Digital I/O interface.
 	  This includes the WLAN daughter card found on the Nintendo Wii
 	  video game console.
-	  Note that this does not support Broadcom 43xx Full-MAC devices.
+	  Analte that this does analt support Broadcom 43xx Full-MAC devices.
 
 	  It's safe to select Y here, even if you don't have a B43 SDIO device.
 
@@ -129,7 +129,7 @@ config B43_PHY_LP
 	depends on B43 && B43_SSB
 	default y
 	help
-	  The LP-PHY is a low-power PHY built into some notebooks
+	  The LP-PHY is a low-power PHY built into some analtebooks
 	  and embedded devices. It supports 802.11a/b/g
 	  (802.11a support is optional, and currently disabled).
 
@@ -182,7 +182,7 @@ config B43_DEBUG
 	  performance of your system.
 	  This also adds the b43 debugfs interface.
 
-	  Do not enable this, unless you are debugging the driver.
+	  Do analt enable this, unless you are debugging the driver.
 
 	  Say N, if you are a distributor or user building a release kernel
 	  for production use.

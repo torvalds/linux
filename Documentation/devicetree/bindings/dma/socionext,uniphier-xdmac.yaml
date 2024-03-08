@@ -32,7 +32,7 @@ properties:
     description: |
       DMA request from clients consists of 2 cells:
         1. Channel index
-        2. Transfer request factor number, If no transfer factor, use 0.
+        2. Transfer request factor number, If anal transfer factor, use 0.
            The number is SoC-specific, and this should be specified with
            relation to the device to use the DMA controller.
 

@@ -144,7 +144,7 @@ void qla4_8xxx_dump_peg_reg(struct scsi_qla_host *ha)
 			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n"
 			   " PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n"
 			   " PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n"
-			   " PEG_NET_4_PC: 0x%x\n", ha->host_no, __func__,
+			   " PEG_NET_4_PC: 0x%x\n", ha->host_anal, __func__,
 			   ha->pdev->device, halt_status1, halt_status2,
 			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c),
 			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c),
@@ -155,7 +155,7 @@ void qla4_8xxx_dump_peg_reg(struct scsi_qla_host *ha)
 		ql4_printk(KERN_INFO, ha,
 			   "scsi(%ld): %s, ISP%04x Dumping hw/fw registers:\n"
 			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n",
-			   ha->host_no, __func__, ha->pdev->device,
+			   ha->host_anal, __func__, ha->pdev->device,
 			   halt_status1, halt_status2);
 	}
 }

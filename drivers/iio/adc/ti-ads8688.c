@@ -20,7 +20,7 @@
 #include <linux/iio/sysfs.h>
 
 #define ADS8688_CMD_REG(x)		(x << 8)
-#define ADS8688_CMD_REG_NOOP		0x00
+#define ADS8688_CMD_REG_ANALOP		0x00
 #define ADS8688_CMD_REG_RST		0x85
 #define ADS8688_CMD_REG_MAN_CH(chan)	(0xC0 | (4 * chan))
 #define ADS8688_CMD_DONT_CARE_BITS	16
@@ -229,7 +229,7 @@ static int ads8688_read(struct iio_dev *indio_dev, unsigned int chan)
 	tmp <<= ADS8688_CMD_DONT_CARE_BITS;
 	st->data[0].d32 = cpu_to_be32(tmp);
 
-	tmp = ADS8688_CMD_REG(ADS8688_CMD_REG_NOOP);
+	tmp = ADS8688_CMD_REG(ADS8688_CMD_REG_ANALOP);
 	tmp <<= ADS8688_CMD_DONT_CARE_BITS;
 	st->data[1].d32 = cpu_to_be32(tmp);
 
@@ -264,7 +264,7 @@ static int ads8688_read_raw(struct iio_dev *indio_dev,
 		*val = 0;
 		*val2 = scale_mv;
 		mutex_unlock(&st->lock);
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		offset = ads8688_range_def[st->range[chan->channel]].offset;
 		*val = offset;
@@ -298,7 +298,7 @@ static int ads8688_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&st->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		/* If the offset is 0 the ±2.5 * VREF mode is not available */
+		/* If the offset is 0 the ±2.5 * VREF mode is analt available */
 		offset = ads8688_range_def[st->range[chan->channel]].offset;
 		if (offset == 0 && val2 == ads8688_range_def[0].scale * st->vref_mv) {
 			mutex_unlock(&st->lock);
@@ -326,7 +326,7 @@ static int ads8688_write_raw(struct iio_dev *indio_dev,
 		}
 
 		/*
-		 * If the device are in ±2.5 * VREF mode, it's not allowed to
+		 * If the device are in ±2.5 * VREF mode, it's analt allowed to
 		 * switch to a mode where the offset is 0
 		 */
 		if (val == 0 &&
@@ -362,7 +362,7 @@ static int ads8688_write_raw_get_fmt(struct iio_dev *indio_dev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		return IIO_VAL_INT;
 	}
@@ -395,7 +395,7 @@ static irqreturn_t ads8688_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 			iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -419,7 +419,7 @@ static int ads8688_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

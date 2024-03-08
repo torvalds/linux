@@ -25,7 +25,7 @@ static void guest_bsp_vcpu(void *arg)
 	GUEST_DONE();
 }
 
-static void guest_not_bsp_vcpu(void *arg)
+static void guest_analt_bsp_vcpu(void *arg)
 {
 	GUEST_SYNC(1);
 
@@ -39,7 +39,7 @@ static void test_set_bsp_busy(struct kvm_vcpu *vcpu, const char *msg)
 	int r = __vm_ioctl(vcpu->vm, KVM_SET_BOOT_CPU_ID,
 			   (void *)(unsigned long)vcpu->id);
 
-	TEST_ASSERT(r == -1 && errno == EBUSY, "KVM_SET_BOOT_CPU_ID set %s", msg);
+	TEST_ASSERT(r == -1 && erranal == EBUSY, "KVM_SET_BOOT_CPU_ID set %s", msg);
 }
 
 static void run_vcpu(struct kvm_vcpu *vcpu)
@@ -85,7 +85,7 @@ static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
 
 	for (i = 0; i < nr_vcpus; i++)
 		vcpus[i] = vm_vcpu_add(vm, i, i == bsp_vcpu_id ? guest_bsp_vcpu :
-								 guest_not_bsp_vcpu);
+								 guest_analt_bsp_vcpu);
 	return vm;
 }
 

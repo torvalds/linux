@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* linux/arch/arm/mach-exynos4/mct.c
+/* linux/arch/arm/mach-exyanals4/mct.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Exynos4 MCT(Multi-Core Timer) support
+ * Exyanals4 MCT(Multi-Core Timer) support
 */
 
 #include <linux/interrupt.h>
@@ -21,20 +21,20 @@
 #include <linux/clocksource.h>
 #include <linux/sched_clock.h>
 
-#define EXYNOS4_MCTREG(x)		(x)
-#define EXYNOS4_MCT_G_CNT_L		EXYNOS4_MCTREG(0x100)
-#define EXYNOS4_MCT_G_CNT_U		EXYNOS4_MCTREG(0x104)
-#define EXYNOS4_MCT_G_CNT_WSTAT		EXYNOS4_MCTREG(0x110)
-#define EXYNOS4_MCT_G_COMP0_L		EXYNOS4_MCTREG(0x200)
-#define EXYNOS4_MCT_G_COMP0_U		EXYNOS4_MCTREG(0x204)
-#define EXYNOS4_MCT_G_COMP0_ADD_INCR	EXYNOS4_MCTREG(0x208)
-#define EXYNOS4_MCT_G_TCON		EXYNOS4_MCTREG(0x240)
-#define EXYNOS4_MCT_G_INT_CSTAT		EXYNOS4_MCTREG(0x244)
-#define EXYNOS4_MCT_G_INT_ENB		EXYNOS4_MCTREG(0x248)
-#define EXYNOS4_MCT_G_WSTAT		EXYNOS4_MCTREG(0x24C)
-#define _EXYNOS4_MCT_L_BASE		EXYNOS4_MCTREG(0x300)
-#define EXYNOS4_MCT_L_BASE(x)		(_EXYNOS4_MCT_L_BASE + (0x100 * (x)))
-#define EXYNOS4_MCT_L_MASK		(0xffffff00)
+#define EXYANALS4_MCTREG(x)		(x)
+#define EXYANALS4_MCT_G_CNT_L		EXYANALS4_MCTREG(0x100)
+#define EXYANALS4_MCT_G_CNT_U		EXYANALS4_MCTREG(0x104)
+#define EXYANALS4_MCT_G_CNT_WSTAT		EXYANALS4_MCTREG(0x110)
+#define EXYANALS4_MCT_G_COMP0_L		EXYANALS4_MCTREG(0x200)
+#define EXYANALS4_MCT_G_COMP0_U		EXYANALS4_MCTREG(0x204)
+#define EXYANALS4_MCT_G_COMP0_ADD_INCR	EXYANALS4_MCTREG(0x208)
+#define EXYANALS4_MCT_G_TCON		EXYANALS4_MCTREG(0x240)
+#define EXYANALS4_MCT_G_INT_CSTAT		EXYANALS4_MCTREG(0x244)
+#define EXYANALS4_MCT_G_INT_ENB		EXYANALS4_MCTREG(0x248)
+#define EXYANALS4_MCT_G_WSTAT		EXYANALS4_MCTREG(0x24C)
+#define _EXYANALS4_MCT_L_BASE		EXYANALS4_MCTREG(0x300)
+#define EXYANALS4_MCT_L_BASE(x)		(_EXYANALS4_MCT_L_BASE + (0x100 * (x)))
+#define EXYANALS4_MCT_L_MASK		(0xffffff00)
 
 #define MCT_L_TCNTB_OFFSET		(0x00)
 #define MCT_L_ICNTB_OFFSET		(0x08)
@@ -89,7 +89,7 @@ struct mct_clock_event_device {
 	char name[11];
 };
 
-static void exynos4_mct_write(unsigned int value, unsigned long offset)
+static void exyanals4_mct_write(unsigned int value, unsigned long offset)
 {
 	unsigned long stat_addr;
 	u32 mask;
@@ -97,9 +97,9 @@ static void exynos4_mct_write(unsigned int value, unsigned long offset)
 
 	writel_relaxed(value, reg_base + offset);
 
-	if (likely(offset >= EXYNOS4_MCT_L_BASE(0))) {
-		stat_addr = (offset & EXYNOS4_MCT_L_MASK) + MCT_L_WSTAT_OFFSET;
-		switch (offset & ~EXYNOS4_MCT_L_MASK) {
+	if (likely(offset >= EXYANALS4_MCT_L_BASE(0))) {
+		stat_addr = (offset & EXYANALS4_MCT_L_MASK) + MCT_L_WSTAT_OFFSET;
+		switch (offset & ~EXYANALS4_MCT_L_MASK) {
 		case MCT_L_TCON_OFFSET:
 			mask = 1 << 3;		/* L_TCON write status */
 			break;
@@ -114,28 +114,28 @@ static void exynos4_mct_write(unsigned int value, unsigned long offset)
 		}
 	} else {
 		switch (offset) {
-		case EXYNOS4_MCT_G_TCON:
-			stat_addr = EXYNOS4_MCT_G_WSTAT;
+		case EXYANALS4_MCT_G_TCON:
+			stat_addr = EXYANALS4_MCT_G_WSTAT;
 			mask = 1 << 16;		/* G_TCON write status */
 			break;
-		case EXYNOS4_MCT_G_COMP0_L:
-			stat_addr = EXYNOS4_MCT_G_WSTAT;
+		case EXYANALS4_MCT_G_COMP0_L:
+			stat_addr = EXYANALS4_MCT_G_WSTAT;
 			mask = 1 << 0;		/* G_COMP0_L write status */
 			break;
-		case EXYNOS4_MCT_G_COMP0_U:
-			stat_addr = EXYNOS4_MCT_G_WSTAT;
+		case EXYANALS4_MCT_G_COMP0_U:
+			stat_addr = EXYANALS4_MCT_G_WSTAT;
 			mask = 1 << 1;		/* G_COMP0_U write status */
 			break;
-		case EXYNOS4_MCT_G_COMP0_ADD_INCR:
-			stat_addr = EXYNOS4_MCT_G_WSTAT;
+		case EXYANALS4_MCT_G_COMP0_ADD_INCR:
+			stat_addr = EXYANALS4_MCT_G_WSTAT;
 			mask = 1 << 2;		/* G_COMP0_ADD_INCR w status */
 			break;
-		case EXYNOS4_MCT_G_CNT_L:
-			stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
+		case EXYANALS4_MCT_G_CNT_L:
+			stat_addr = EXYANALS4_MCT_G_CNT_WSTAT;
 			mask = 1 << 0;		/* G_CNT_L write status */
 			break;
-		case EXYNOS4_MCT_G_CNT_U:
-			stat_addr = EXYNOS4_MCT_G_CNT_WSTAT;
+		case EXYANALS4_MCT_G_CNT_U:
+			stat_addr = EXYANALS4_MCT_G_CNT_WSTAT;
 			mask = 1 << 1;		/* G_CNT_U write status */
 			break;
 		default:
@@ -154,88 +154,88 @@ static void exynos4_mct_write(unsigned int value, unsigned long offset)
 }
 
 /* Clocksource handling */
-static void exynos4_mct_frc_start(void)
+static void exyanals4_mct_frc_start(void)
 {
 	u32 reg;
 
-	reg = readl_relaxed(reg_base + EXYNOS4_MCT_G_TCON);
+	reg = readl_relaxed(reg_base + EXYANALS4_MCT_G_TCON);
 	reg |= MCT_G_TCON_START;
-	exynos4_mct_write(reg, EXYNOS4_MCT_G_TCON);
+	exyanals4_mct_write(reg, EXYANALS4_MCT_G_TCON);
 }
 
 /**
- * exynos4_read_count_64 - Read all 64-bits of the global counter
+ * exyanals4_read_count_64 - Read all 64-bits of the global counter
  *
  * This will read all 64-bits of the global counter taking care to make sure
- * that the upper and lower half match.  Note that reading the MCT can be quite
- * slow (hundreds of nanoseconds) so you should use the 32-bit (lower half
+ * that the upper and lower half match.  Analte that reading the MCT can be quite
+ * slow (hundreds of naanalseconds) so you should use the 32-bit (lower half
  * only) version when possible.
  *
  * Returns the number of cycles in the global counter.
  */
-static u64 exynos4_read_count_64(void)
+static u64 exyanals4_read_count_64(void)
 {
 	unsigned int lo, hi;
-	u32 hi2 = readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_U);
+	u32 hi2 = readl_relaxed(reg_base + EXYANALS4_MCT_G_CNT_U);
 
 	do {
 		hi = hi2;
-		lo = readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_L);
-		hi2 = readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_U);
+		lo = readl_relaxed(reg_base + EXYANALS4_MCT_G_CNT_L);
+		hi2 = readl_relaxed(reg_base + EXYANALS4_MCT_G_CNT_U);
 	} while (hi != hi2);
 
 	return ((u64)hi << 32) | lo;
 }
 
 /**
- * exynos4_read_count_32 - Read the lower 32-bits of the global counter
+ * exyanals4_read_count_32 - Read the lower 32-bits of the global counter
  *
  * This will read just the lower 32-bits of the global counter.  This is marked
- * as notrace so it can be used by the scheduler clock.
+ * as analtrace so it can be used by the scheduler clock.
  *
  * Returns the number of cycles in the global counter (lower 32 bits).
  */
-static u32 notrace exynos4_read_count_32(void)
+static u32 analtrace exyanals4_read_count_32(void)
 {
-	return readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_L);
+	return readl_relaxed(reg_base + EXYANALS4_MCT_G_CNT_L);
 }
 
-static u64 exynos4_frc_read(struct clocksource *cs)
+static u64 exyanals4_frc_read(struct clocksource *cs)
 {
-	return exynos4_read_count_32();
+	return exyanals4_read_count_32();
 }
 
-static void exynos4_frc_resume(struct clocksource *cs)
+static void exyanals4_frc_resume(struct clocksource *cs)
 {
-	exynos4_mct_frc_start();
+	exyanals4_mct_frc_start();
 }
 
 static struct clocksource mct_frc = {
 	.name		= "mct-frc",
 	.rating		= MCT_CLKSOURCE_RATING,
-	.read		= exynos4_frc_read,
+	.read		= exyanals4_frc_read,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-	.resume		= exynos4_frc_resume,
+	.resume		= exyanals4_frc_resume,
 };
 
-static u64 notrace exynos4_read_sched_clock(void)
+static u64 analtrace exyanals4_read_sched_clock(void)
 {
-	return exynos4_read_count_32();
+	return exyanals4_read_count_32();
 }
 
 #if defined(CONFIG_ARM)
-static struct delay_timer exynos4_delay_timer;
+static struct delay_timer exyanals4_delay_timer;
 
-static cycles_t exynos4_read_current_timer(void)
+static cycles_t exyanals4_read_current_timer(void)
 {
 	BUILD_BUG_ON_MSG(sizeof(cycles_t) != sizeof(u32),
 			 "cycles_t needs to move to 32-bit for ARM64 usage");
-	return exynos4_read_count_32();
+	return exyanals4_read_count_32();
 }
 #endif
 
-static int __init exynos4_clocksource_init(bool frc_shared)
+static int __init exyanals4_clocksource_init(bool frc_shared)
 {
 	/*
 	 * When the frc is shared, the main processer should have already
@@ -244,66 +244,66 @@ static int __init exynos4_clocksource_init(bool frc_shared)
 	if (frc_shared)
 		mct_frc.resume = NULL;
 	else
-		exynos4_mct_frc_start();
+		exyanals4_mct_frc_start();
 
 #if defined(CONFIG_ARM)
-	exynos4_delay_timer.read_current_timer = &exynos4_read_current_timer;
-	exynos4_delay_timer.freq = clk_rate;
-	register_current_timer_delay(&exynos4_delay_timer);
+	exyanals4_delay_timer.read_current_timer = &exyanals4_read_current_timer;
+	exyanals4_delay_timer.freq = clk_rate;
+	register_current_timer_delay(&exyanals4_delay_timer);
 #endif
 
 	if (clocksource_register_hz(&mct_frc, clk_rate))
 		panic("%s: can't register clocksource\n", mct_frc.name);
 
-	sched_clock_register(exynos4_read_sched_clock, 32, clk_rate);
+	sched_clock_register(exyanals4_read_sched_clock, 32, clk_rate);
 
 	return 0;
 }
 
-static void exynos4_mct_comp0_stop(void)
+static void exyanals4_mct_comp0_stop(void)
 {
 	unsigned int tcon;
 
-	tcon = readl_relaxed(reg_base + EXYNOS4_MCT_G_TCON);
+	tcon = readl_relaxed(reg_base + EXYANALS4_MCT_G_TCON);
 	tcon &= ~(MCT_G_TCON_COMP0_ENABLE | MCT_G_TCON_COMP0_AUTO_INC);
 
-	exynos4_mct_write(tcon, EXYNOS4_MCT_G_TCON);
-	exynos4_mct_write(0, EXYNOS4_MCT_G_INT_ENB);
+	exyanals4_mct_write(tcon, EXYANALS4_MCT_G_TCON);
+	exyanals4_mct_write(0, EXYANALS4_MCT_G_INT_ENB);
 }
 
-static void exynos4_mct_comp0_start(bool periodic, unsigned long cycles)
+static void exyanals4_mct_comp0_start(bool periodic, unsigned long cycles)
 {
 	unsigned int tcon;
 	u64 comp_cycle;
 
-	tcon = readl_relaxed(reg_base + EXYNOS4_MCT_G_TCON);
+	tcon = readl_relaxed(reg_base + EXYANALS4_MCT_G_TCON);
 
 	if (periodic) {
 		tcon |= MCT_G_TCON_COMP0_AUTO_INC;
-		exynos4_mct_write(cycles, EXYNOS4_MCT_G_COMP0_ADD_INCR);
+		exyanals4_mct_write(cycles, EXYANALS4_MCT_G_COMP0_ADD_INCR);
 	}
 
-	comp_cycle = exynos4_read_count_64() + cycles;
-	exynos4_mct_write((u32)comp_cycle, EXYNOS4_MCT_G_COMP0_L);
-	exynos4_mct_write((u32)(comp_cycle >> 32), EXYNOS4_MCT_G_COMP0_U);
+	comp_cycle = exyanals4_read_count_64() + cycles;
+	exyanals4_mct_write((u32)comp_cycle, EXYANALS4_MCT_G_COMP0_L);
+	exyanals4_mct_write((u32)(comp_cycle >> 32), EXYANALS4_MCT_G_COMP0_U);
 
-	exynos4_mct_write(0x1, EXYNOS4_MCT_G_INT_ENB);
+	exyanals4_mct_write(0x1, EXYANALS4_MCT_G_INT_ENB);
 
 	tcon |= MCT_G_TCON_COMP0_ENABLE;
-	exynos4_mct_write(tcon , EXYNOS4_MCT_G_TCON);
+	exyanals4_mct_write(tcon , EXYANALS4_MCT_G_TCON);
 }
 
-static int exynos4_comp_set_next_event(unsigned long cycles,
+static int exyanals4_comp_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
 {
-	exynos4_mct_comp0_start(false, cycles);
+	exyanals4_mct_comp0_start(false, cycles);
 
 	return 0;
 }
 
 static int mct_set_state_shutdown(struct clock_event_device *evt)
 {
-	exynos4_mct_comp0_stop();
+	exyanals4_mct_comp0_stop();
 	return 0;
 }
 
@@ -313,8 +313,8 @@ static int mct_set_state_periodic(struct clock_event_device *evt)
 
 	cycles_per_jiffy = (((unsigned long long)NSEC_PER_SEC / HZ * evt->mult)
 			    >> evt->shift);
-	exynos4_mct_comp0_stop();
-	exynos4_mct_comp0_start(true, cycles_per_jiffy);
+	exyanals4_mct_comp0_stop();
+	exyanals4_mct_comp0_start(true, cycles_per_jiffy);
 	return 0;
 }
 
@@ -323,7 +323,7 @@ static struct clock_event_device mct_comp_device = {
 	.features		= CLOCK_EVT_FEAT_PERIODIC |
 				  CLOCK_EVT_FEAT_ONESHOT,
 	.rating			= 250,
-	.set_next_event		= exynos4_comp_set_next_event,
+	.set_next_event		= exyanals4_comp_set_next_event,
 	.set_state_periodic	= mct_set_state_periodic,
 	.set_state_shutdown	= mct_set_state_shutdown,
 	.set_state_oneshot	= mct_set_state_shutdown,
@@ -331,23 +331,23 @@ static struct clock_event_device mct_comp_device = {
 	.tick_resume		= mct_set_state_shutdown,
 };
 
-static irqreturn_t exynos4_mct_comp_isr(int irq, void *dev_id)
+static irqreturn_t exyanals4_mct_comp_isr(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	exynos4_mct_write(0x1, EXYNOS4_MCT_G_INT_CSTAT);
+	exyanals4_mct_write(0x1, EXYANALS4_MCT_G_INT_CSTAT);
 
 	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
 }
 
-static int exynos4_clockevent_init(void)
+static int exyanals4_clockevent_init(void)
 {
 	mct_comp_device.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&mct_comp_device, clk_rate,
 					0xf, 0xffffffff);
-	if (request_irq(mct_irqs[MCT_G0_IRQ], exynos4_mct_comp_isr,
+	if (request_irq(mct_irqs[MCT_G0_IRQ], exyanals4_mct_comp_isr,
 			IRQF_TIMER | IRQF_IRQPOLL, "mct_comp_irq",
 			&mct_comp_device))
 		pr_err("%s: request_irq() failed\n", "mct_comp_irq");
@@ -358,7 +358,7 @@ static int exynos4_clockevent_init(void)
 static DEFINE_PER_CPU(struct mct_clock_event_device, percpu_mct_tick);
 
 /* Clock event handling */
-static void exynos4_mct_tick_stop(struct mct_clock_event_device *mevt)
+static void exyanals4_mct_tick_stop(struct mct_clock_event_device *mevt)
 {
 	unsigned long tmp;
 	unsigned long mask = MCT_L_TCON_INT_START | MCT_L_TCON_TIMER_START;
@@ -367,45 +367,45 @@ static void exynos4_mct_tick_stop(struct mct_clock_event_device *mevt)
 	tmp = readl_relaxed(reg_base + offset);
 	if (tmp & mask) {
 		tmp &= ~mask;
-		exynos4_mct_write(tmp, offset);
+		exyanals4_mct_write(tmp, offset);
 	}
 }
 
-static void exynos4_mct_tick_start(unsigned long cycles,
+static void exyanals4_mct_tick_start(unsigned long cycles,
 				   struct mct_clock_event_device *mevt)
 {
 	unsigned long tmp;
 
-	exynos4_mct_tick_stop(mevt);
+	exyanals4_mct_tick_stop(mevt);
 
 	tmp = (1 << 31) | cycles;	/* MCT_L_UPDATE_ICNTB */
 
 	/* update interrupt count buffer */
-	exynos4_mct_write(tmp, mevt->base + MCT_L_ICNTB_OFFSET);
+	exyanals4_mct_write(tmp, mevt->base + MCT_L_ICNTB_OFFSET);
 
 	/* enable MCT tick interrupt */
-	exynos4_mct_write(0x1, mevt->base + MCT_L_INT_ENB_OFFSET);
+	exyanals4_mct_write(0x1, mevt->base + MCT_L_INT_ENB_OFFSET);
 
 	tmp = readl_relaxed(reg_base + mevt->base + MCT_L_TCON_OFFSET);
 	tmp |= MCT_L_TCON_INT_START | MCT_L_TCON_TIMER_START |
 	       MCT_L_TCON_INTERVAL_MODE;
-	exynos4_mct_write(tmp, mevt->base + MCT_L_TCON_OFFSET);
+	exyanals4_mct_write(tmp, mevt->base + MCT_L_TCON_OFFSET);
 }
 
-static void exynos4_mct_tick_clear(struct mct_clock_event_device *mevt)
+static void exyanals4_mct_tick_clear(struct mct_clock_event_device *mevt)
 {
 	/* Clear the MCT tick interrupt */
 	if (readl_relaxed(reg_base + mevt->base + MCT_L_INT_CSTAT_OFFSET) & 1)
-		exynos4_mct_write(0x1, mevt->base + MCT_L_INT_CSTAT_OFFSET);
+		exyanals4_mct_write(0x1, mevt->base + MCT_L_INT_CSTAT_OFFSET);
 }
 
-static int exynos4_tick_set_next_event(unsigned long cycles,
+static int exyanals4_tick_set_next_event(unsigned long cycles,
 				       struct clock_event_device *evt)
 {
 	struct mct_clock_event_device *mevt;
 
 	mevt = container_of(evt, struct mct_clock_event_device, evt);
-	exynos4_mct_tick_start(cycles, mevt);
+	exyanals4_mct_tick_start(cycles, mevt);
 	return 0;
 }
 
@@ -414,8 +414,8 @@ static int set_state_shutdown(struct clock_event_device *evt)
 	struct mct_clock_event_device *mevt;
 
 	mevt = container_of(evt, struct mct_clock_event_device, evt);
-	exynos4_mct_tick_stop(mevt);
-	exynos4_mct_tick_clear(mevt);
+	exyanals4_mct_tick_stop(mevt);
+	exyanals4_mct_tick_clear(mevt);
 	return 0;
 }
 
@@ -427,12 +427,12 @@ static int set_state_periodic(struct clock_event_device *evt)
 	mevt = container_of(evt, struct mct_clock_event_device, evt);
 	cycles_per_jiffy = (((unsigned long long)NSEC_PER_SEC / HZ * evt->mult)
 			    >> evt->shift);
-	exynos4_mct_tick_stop(mevt);
-	exynos4_mct_tick_start(cycles_per_jiffy, mevt);
+	exyanals4_mct_tick_stop(mevt);
+	exyanals4_mct_tick_start(cycles_per_jiffy, mevt);
 	return 0;
 }
 
-static irqreturn_t exynos4_mct_tick_isr(int irq, void *dev_id)
+static irqreturn_t exyanals4_mct_tick_isr(int irq, void *dev_id)
 {
 	struct mct_clock_event_device *mevt = dev_id;
 	struct clock_event_device *evt = &mevt->evt;
@@ -443,16 +443,16 @@ static irqreturn_t exynos4_mct_tick_isr(int irq, void *dev_id)
 	 * without explicit stopping.
 	 */
 	if (!clockevent_state_periodic(&mevt->evt))
-		exynos4_mct_tick_stop(mevt);
+		exyanals4_mct_tick_stop(mevt);
 
-	exynos4_mct_tick_clear(mevt);
+	exyanals4_mct_tick_clear(mevt);
 
 	evt->event_handler(evt);
 
 	return IRQ_HANDLED;
 }
 
-static int exynos4_mct_starting_cpu(unsigned int cpu)
+static int exyanals4_mct_starting_cpu(unsigned int cpu)
 {
 	struct mct_clock_event_device *mevt =
 		per_cpu_ptr(&percpu_mct_tick, cpu);
@@ -462,7 +462,7 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 
 	evt->name = mevt->name;
 	evt->cpumask = cpumask_of(cpu);
-	evt->set_next_event = exynos4_tick_set_next_event;
+	evt->set_next_event = exyanals4_tick_set_next_event;
 	evt->set_state_periodic = set_state_periodic;
 	evt->set_state_shutdown = set_state_shutdown;
 	evt->set_state_oneshot = set_state_shutdown;
@@ -472,7 +472,7 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 			CLOCK_EVT_FEAT_PERCPU;
 	evt->rating = MCT_CLKEVENTS_RATING;
 
-	exynos4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
+	exyanals4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
 
 	if (mct_int_type == MCT_INT_SPI) {
 
@@ -490,7 +490,7 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int exynos4_mct_dying_cpu(unsigned int cpu)
+static int exyanals4_mct_dying_cpu(unsigned int cpu)
 {
 	struct mct_clock_event_device *mevt =
 		per_cpu_ptr(&percpu_mct_tick, cpu);
@@ -499,15 +499,15 @@ static int exynos4_mct_dying_cpu(unsigned int cpu)
 	evt->set_state_shutdown(evt);
 	if (mct_int_type == MCT_INT_SPI) {
 		if (evt->irq != -1)
-			disable_irq_nosync(evt->irq);
-		exynos4_mct_write(0x1, mevt->base + MCT_L_INT_CSTAT_OFFSET);
+			disable_irq_analsync(evt->irq);
+		exyanals4_mct_write(0x1, mevt->base + MCT_L_INT_CSTAT_OFFSET);
 	} else {
 		disable_percpu_irq(mct_irqs[MCT_L0_IRQ]);
 	}
 	return 0;
 }
 
-static int __init exynos4_timer_resources(struct device_node *np)
+static int __init exyanals4_timer_resources(struct device_analde *np)
 {
 	struct clk *mct_clk, *tick_clk;
 
@@ -529,13 +529,13 @@ static int __init exynos4_timer_resources(struct device_node *np)
 }
 
 /**
- * exynos4_timer_interrupts - initialize MCT interrupts
- * @np: device node for MCT
+ * exyanals4_timer_interrupts - initialize MCT interrupts
+ * @np: device analde for MCT
  * @int_type: interrupt type, MCT_INT_PPI or MCT_INT_SPI
  * @local_idx: array mapping CPU numbers to local timer indices
  * @nr_local: size of @local_idx array
  */
-static int __init exynos4_timer_interrupts(struct device_node *np,
+static int __init exyanals4_timer_interrupts(struct device_analde *np,
 					   unsigned int int_type,
 					   const u32 *local_idx,
 					   size_t nr_local)
@@ -554,7 +554,7 @@ static int __init exynos4_timer_interrupts(struct device_node *np,
 	 */
 	nr_irqs = of_irq_count(np);
 	if (nr_irqs > ARRAY_SIZE(mct_irqs)) {
-		pr_err("exynos-mct: too many (%d) interrupts configured in DT\n",
+		pr_err("exyanals-mct: too many (%d) interrupts configured in DT\n",
 			nr_irqs);
 		nr_irqs = ARRAY_SIZE(mct_irqs);
 	}
@@ -564,7 +564,7 @@ static int __init exynos4_timer_interrupts(struct device_node *np,
 	if (mct_int_type == MCT_INT_PPI) {
 
 		err = request_percpu_irq(mct_irqs[MCT_L0_IRQ],
-					 exynos4_mct_tick_isr, "MCT",
+					 exyanals4_mct_tick_isr, "MCT",
 					 &percpu_mct_tick);
 		WARN(err, "MCT: can't request IRQ %d (%d)\n",
 		     mct_irqs[MCT_L0_IRQ], err);
@@ -587,12 +587,12 @@ static int __init exynos4_timer_interrupts(struct device_node *np,
 				break;
 			mct_irq = mct_irqs[irq_idx];
 
-			irq_set_status_flags(mct_irq, IRQ_NOAUTOEN);
+			irq_set_status_flags(mct_irq, IRQ_ANALAUTOEN);
 			if (request_irq(mct_irq,
-					exynos4_mct_tick_isr,
-					IRQF_TIMER | IRQF_NOBALANCING,
+					exyanals4_mct_tick_isr,
+					IRQF_TIMER | IRQF_ANALBALANCING,
 					pcpu_mevt->name, pcpu_mevt)) {
-				pr_err("exynos-mct: cannot register IRQ (cpu%d)\n",
+				pr_err("exyanals-mct: cananalt register IRQ (cpu%d)\n",
 									cpu);
 
 				continue;
@@ -609,14 +609,14 @@ static int __init exynos4_timer_interrupts(struct device_node *np,
 			goto out_irq;
 		}
 
-		mevt->base = EXYNOS4_MCT_L_BASE(local_idx[cpu]);
+		mevt->base = EXYANALS4_MCT_L_BASE(local_idx[cpu]);
 	}
 
 	/* Install hotplug callbacks which configure the timer on this CPU */
-	err = cpuhp_setup_state(CPUHP_AP_EXYNOS4_MCT_TIMER_STARTING,
-				"clockevents/exynos4/mct_timer:starting",
-				exynos4_mct_starting_cpu,
-				exynos4_mct_dying_cpu);
+	err = cpuhp_setup_state(CPUHP_AP_EXYANALS4_MCT_TIMER_STARTING,
+				"clockevents/exyanals4/mct_timer:starting",
+				exyanals4_mct_starting_cpu,
+				exyanals4_mct_dying_cpu);
 	if (err)
 		goto out_irq;
 
@@ -639,7 +639,7 @@ out_irq:
 	return err;
 }
 
-static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
+static int __init mct_init_dt(struct device_analde *np, unsigned int int_type)
 {
 	bool frc_shared = of_property_read_bool(np, "samsung,frc-shared");
 	u32 local_idx[MCT_NR_LOCAL] = {0};
@@ -665,37 +665,37 @@ static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 			local_idx[i] = i;
 	}
 
-	ret = exynos4_timer_resources(np);
+	ret = exyanals4_timer_resources(np);
 	if (ret)
 		return ret;
 
-	ret = exynos4_timer_interrupts(np, int_type, local_idx, nr_local);
+	ret = exyanals4_timer_interrupts(np, int_type, local_idx, nr_local);
 	if (ret)
 		return ret;
 
-	ret = exynos4_clocksource_init(frc_shared);
+	ret = exyanals4_clocksource_init(frc_shared);
 	if (ret)
 		return ret;
 
 	/*
 	 * When the FRC is shared with a main processor, this secondary
-	 * processor cannot use the global comparator.
+	 * processor cananalt use the global comparator.
 	 */
 	if (frc_shared)
 		return 0;
 
-	return exynos4_clockevent_init();
+	return exyanals4_clockevent_init();
 }
 
 
-static int __init mct_init_spi(struct device_node *np)
+static int __init mct_init_spi(struct device_analde *np)
 {
 	return mct_init_dt(np, MCT_INT_SPI);
 }
 
-static int __init mct_init_ppi(struct device_node *np)
+static int __init mct_init_ppi(struct device_analde *np)
 {
 	return mct_init_dt(np, MCT_INT_PPI);
 }
-TIMER_OF_DECLARE(exynos4210, "samsung,exynos4210-mct", mct_init_spi);
-TIMER_OF_DECLARE(exynos4412, "samsung,exynos4412-mct", mct_init_ppi);
+TIMER_OF_DECLARE(exyanals4210, "samsung,exyanals4210-mct", mct_init_spi);
+TIMER_OF_DECLARE(exyanals4412, "samsung,exyanals4412-mct", mct_init_ppi);

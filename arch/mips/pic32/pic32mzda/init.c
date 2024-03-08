@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson, joshua.henderson@microchip.com
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techanallogy Inc.  All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -27,12 +27,12 @@ void __init plat_mem_setup(void)
 
 	dtb = get_fdt();
 	if (!dtb) {
-		pr_err("pic32: no DTB found.\n");
+		pr_err("pic32: anal DTB found.\n");
 		return;
 	}
 
 	/*
-	 * Load the builtin device tree. This causes the chosen node to be
+	 * Load the builtin device tree. This causes the chosen analde to be
 	 * parsed resulting in our memory appearing.
 	 */
 	__dt_setup_arch(dtb);
@@ -89,26 +89,26 @@ static struct of_dev_auxdata pic32_auxdata_lookup[] __initdata = {
 
 static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 {
-	struct device_node *root, *np;
+	struct device_analde *root, *np;
 	struct resource res;
 
-	root = of_find_node_by_path("/");
+	root = of_find_analde_by_path("/");
 
 	for (; lookup->compatible; lookup++) {
-		np = of_find_compatible_node(NULL, NULL, lookup->compatible);
+		np = of_find_compatible_analde(NULL, NULL, lookup->compatible);
 		if (np) {
 			lookup->name = (char *)np->name;
 			if (lookup->phys_addr) {
-				of_node_put(np);
+				of_analde_put(np);
 				continue;
 			}
 			if (!of_address_to_resource(np, 0, &res))
 				lookup->phys_addr = res.start;
-			of_node_put(np);
+			of_analde_put(np);
 		}
 	}
 
-	of_node_put(root);
+	of_analde_put(root);
 
 	return 0;
 }
@@ -116,7 +116,7 @@ static int __init pic32_of_prepare_platform_data(struct of_dev_auxdata *lookup)
 static int __init plat_of_setup(void)
 {
 	if (!of_have_populated_dt())
-		panic("Device tree not present");
+		panic("Device tree analt present");
 
 	pic32_of_prepare_platform_data(pic32_auxdata_lookup);
 	if (of_platform_default_populate(NULL, pic32_auxdata_lookup, NULL))

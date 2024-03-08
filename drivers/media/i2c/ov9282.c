@@ -15,7 +15,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* Streaming Mode */
@@ -124,7 +124,7 @@ struct ov9282_reg_list {
  * struct ov9282_mode - ov9282 sensor mode structure
  * @width: Frame width
  * @height: Frame height
- * @hblank_min: Minimum horizontal blanking in lines for non-continuous[0] and
+ * @hblank_min: Minimum horizontal blanking in lines for analn-continuous[0] and
  *		continuous[1] clock modes
  * @vblank: Vertical blanking in lines
  * @vblank_min: Minimum vertical blanking in lines
@@ -161,7 +161,7 @@ struct ov9282_mode {
  * @again_ctrl: Pointer to analog gain control
  * @pixel_rate: Pointer to pixel rate control
  * @vblank: Vertical blanking in lines
- * @noncontinuous_clock: Selection of CSI2 noncontinuous clock mode
+ * @analncontinuous_clock: Selection of CSI2 analncontinuous clock mode
  * @cur_mode: Pointer to current selected sensor mode
  * @code: Mbus code currently selected
  * @mutex: Mutex for serializing sensor controls
@@ -183,7 +183,7 @@ struct ov9282 {
 	};
 	struct v4l2_ctrl *pixel_rate;
 	u32 vblank;
-	bool noncontinuous_clock;
+	bool analncontinuous_clock;
 	const struct ov9282_mode *cur_mode;
 	u32 code;
 	struct mutex mutex;
@@ -196,7 +196,7 @@ static const s64 link_freq[] = {
 /*
  * Common registers
  *
- * Note: Do NOT include a software reset (0x0103, 0x01) in any of these
+ * Analte: Do ANALT include a software reset (0x0103, 0x01) in any of these
  * register arrays as some settings are written as part of ov9282_power_on,
  * and the reset will clear them.
  */
@@ -399,8 +399,8 @@ static const struct ov9282_mode supported_modes[] = {
 		.link_freq_idx = 0,
 		.crop = {
 			/*
-			 * Note that this mode takes the top 720 lines from the
-			 * 800 of the sensor. It does not take a middle crop.
+			 * Analte that this mode takes the top 720 lines from the
+			 * 800 of the sensor. It does analt take a middle crop.
 			 */
 			.left = OV9282_PIXEL_ARRAY_LEFT,
 			.top = OV9282_PIXEL_ARRAY_TOP,
@@ -562,7 +562,7 @@ static int ov9282_update_controls(struct ov9282 *ov9282,
 	if (ret)
 		return ret;
 
-	hblank_min = mode->hblank_min[ov9282->noncontinuous_clock ? 0 : 1];
+	hblank_min = mode->hblank_min[ov9282->analncontinuous_clock ? 0 : 1];
 	ret =  __v4l2_ctrl_modify_range(ov9282->hblank_ctrl, hblank_min,
 					OV9282_TIMING_HTS_MAX - mode->width, 1,
 					hblank_min);
@@ -788,11 +788,11 @@ static void ov9282_fill_pad_format(struct ov9282 *ov9282,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 	fmt->format.code = code;
-	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.field = V4L2_FIELD_ANALNE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_ANALNE;
 }
 
 /**
@@ -1064,7 +1064,7 @@ error_unlock:
  * ov9282_detect() - Detect ov9282 sensor
  * @ov9282: pointer to ov9282 device
  *
- * Return: 0 if successful, -EIO if sensor id does not match
+ * Return: 0 if successful, -EIO if sensor id does analt match
  */
 static int ov9282_detect(struct ov9282 *ov9282)
 {
@@ -1104,16 +1104,16 @@ static int ov9282_configure_regulators(struct ov9282 *ov9282)
  */
 static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(ov9282->dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwanalde_handle *fwanalde = dev_fwanalde(ov9282->dev);
+	struct v4l2_fwanalde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
+	struct fwanalde_handle *ep;
 	unsigned long rate;
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwanalde)
 		return -ENXIO;
 
 	/* Request optional reset pin */
@@ -1128,7 +1128,7 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	/* Get sensor input clock */
 	ov9282->inclk = devm_clk_get(ov9282->dev, NULL);
 	if (IS_ERR(ov9282->inclk)) {
-		dev_err(ov9282->dev, "could not get inclk");
+		dev_err(ov9282->dev, "could analt get inclk");
 		return PTR_ERR(ov9282->inclk);
 	}
 
@@ -1143,28 +1143,28 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwanalde_graph_get_next_endpoint(fwanalde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwanalde_handle_put(ep);
 	if (ret)
 		return ret;
 
-	ov9282->noncontinuous_clock =
-		bus_cfg.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+	ov9282->analncontinuous_clock =
+		bus_cfg.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV9282_NUM_DATA_LANES) {
 		dev_err(ov9282->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is analt supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(ov9282->dev, "no link frequencies defined");
+		dev_err(ov9282->dev, "anal link frequencies defined");
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
@@ -1176,7 +1176,7 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	ret = -EINVAL;
 
 done_endpoint_free:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwanalde_endpoint_free(&bus_cfg);
 
 	return ret;
 }
@@ -1240,7 +1240,7 @@ static int ov9282_power_on(struct device *dev)
 	usleep_range(400, 600);
 
 	ret = ov9282_write_reg(ov9282, OV9282_REG_MIPI_CTRL00, 1,
-			       ov9282->noncontinuous_clock ?
+			       ov9282->analncontinuous_clock ?
 					OV9282_GATED_CLOCK : 0);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to write MIPI_CTRL00");
@@ -1289,7 +1289,7 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov9282->ctrl_handler;
 	const struct ov9282_mode *mode = ov9282->cur_mode;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	u32 hblank_min;
 	u32 lpfr;
 	int ret;
@@ -1351,7 +1351,7 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 	if (ov9282->link_freq_ctrl)
 		ov9282->link_freq_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	hblank_min = mode->hblank_min[ov9282->noncontinuous_clock ? 0 : 1];
+	hblank_min = mode->hblank_min[ov9282->analncontinuous_clock ? 0 : 1];
 	ov9282->hblank_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 						&ov9282_ctrl_ops,
 						V4L2_CID_HBLANK,
@@ -1359,10 +1359,10 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 						OV9282_TIMING_HTS_MAX - mode->width,
 						1, hblank_min);
 
-	ret = v4l2_fwnode_device_parse(ov9282->dev, &props);
+	ret = v4l2_fwanalde_device_parse(ov9282->dev, &props);
 	if (!ret) {
 		/* Failure sets ctrl_hdlr->error, which we check afterwards anyway */
-		v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov9282_ctrl_ops,
+		v4l2_ctrl_new_fwanalde_properties(ctrl_hdlr, &ov9282_ctrl_ops,
 						&props);
 	}
 
@@ -1391,7 +1391,7 @@ static int ov9282_probe(struct i2c_client *client)
 
 	ov9282 = devm_kzalloc(&client->dev, sizeof(*ov9282), GFP_KERNEL);
 	if (!ov9282)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ov9282->dev = &client->dev;
 
@@ -1403,7 +1403,7 @@ static int ov9282_probe(struct i2c_client *client)
 
 	ret = ov9282_parse_hw_config(ov9282);
 	if (ret) {
-		dev_err(ov9282->dev, "HW configuration is not supported");
+		dev_err(ov9282->dev, "HW configuration is analt supported");
 		return ret;
 	}
 
@@ -1434,7 +1434,7 @@ static int ov9282_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	ov9282->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	ov9282->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov9282->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 

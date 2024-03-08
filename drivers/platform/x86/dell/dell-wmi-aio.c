@@ -70,7 +70,7 @@ static bool dell_wmi_aio_event_check(u8 *buffer, int length)
 	return false;
 }
 
-static void dell_wmi_aio_notify(u32 value, void *context)
+static void dell_wmi_aio_analtify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -124,7 +124,7 @@ static int __init dell_wmi_aio_input_setup(void)
 	dell_wmi_aio_input_dev = input_allocate_device();
 
 	if (!dell_wmi_aio_input_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dell_wmi_aio_input_dev->name = "Dell AIO WMI hotkeys";
 	dell_wmi_aio_input_dev->phys = "wmi/input0";
@@ -166,7 +166,7 @@ static int __init dell_wmi_aio_init(void)
 
 	guid = dell_wmi_aio_find();
 	if (!guid) {
-		pr_warn("No known WMI GUID found\n");
+		pr_warn("Anal kanalwn WMI GUID found\n");
 		return -ENXIO;
 	}
 
@@ -174,9 +174,9 @@ static int __init dell_wmi_aio_init(void)
 	if (err)
 		return err;
 
-	err = wmi_install_notify_handler(guid, dell_wmi_aio_notify, NULL);
+	err = wmi_install_analtify_handler(guid, dell_wmi_aio_analtify, NULL);
 	if (err) {
-		pr_err("Unable to register notify handler - %d\n", err);
+		pr_err("Unable to register analtify handler - %d\n", err);
 		input_unregister_device(dell_wmi_aio_input_dev);
 		return err;
 	}
@@ -189,7 +189,7 @@ static void __exit dell_wmi_aio_exit(void)
 	const char *guid;
 
 	guid = dell_wmi_aio_find();
-	wmi_remove_notify_handler(guid);
+	wmi_remove_analtify_handler(guid);
 	input_unregister_device(dell_wmi_aio_input_dev);
 }
 

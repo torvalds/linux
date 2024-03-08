@@ -42,11 +42,11 @@ struct xe_mmio_range {
  *
  * During driver startup, we initialize the steering control register to
  * direct reads to a slice/subslice that are valid for the 'subslice' class
- * of multicast registers.  If another type of steering does not have any
+ * of multicast registers.  If aanalther type of steering does analt have any
  * overlap in valid steering targets with 'subslice' style registers, we will
  * need to explicitly re-steer reads of registers of the other type.
  *
- * Only the replication types that may need additional non-default steering
+ * Only the replication types that may need additional analn-default steering
  * are listed here.
  */
 enum xe_steering_type {
@@ -59,7 +59,7 @@ enum xe_steering_type {
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that
-	 * will always return a non-terminated value at instance (0, 0).  We'll
+	 * will always return a analn-terminated value at instance (0, 0).  We'll
 	 * lump those all into a single category to keep things simple.
 	 */
 	INSTANCE0,
@@ -85,9 +85,9 @@ enum xe_steering_type {
 		 struct xe_gt * : gt_to_tile(gt__)->xe)
 
 /**
- * struct xe_gt - A "Graphics Technology" unit of the GPU
+ * struct xe_gt - A "Graphics Techanallogy" unit of the GPU
  *
- * A GT ("Graphics Technology") is the subset of a GPU primarily responsible
+ * A GT ("Graphics Techanallogy") is the subset of a GPU primarily responsible
  * for implementing the graphics, compute, and/or media IP.  It encapsulates
  * the hardware engines, programmable execution units, and GuC.   Each GT has
  * its own handling of power management (RC6+forcewake) and multicast register
@@ -152,13 +152,13 @@ struct xe_gt {
 
 	/** @tlb_invalidation: TLB invalidation state */
 	struct {
-		/** @seqno: TLB invalidation seqno, protected by CT lock */
-#define TLB_INVALIDATION_SEQNO_MAX	0x100000
-		int seqno;
+		/** @seqanal: TLB invalidation seqanal, protected by CT lock */
+#define TLB_INVALIDATION_SEQANAL_MAX	0x100000
+		int seqanal;
 		/**
-		 * @seqno_recv: last received TLB invalidation seqno, protected by CT lock
+		 * @seqanal_recv: last received TLB invalidation seqanal, protected by CT lock
 		 */
-		int seqno_recv;
+		int seqanal_recv;
 		/**
 		 * @pending_fences: list of pending fences waiting TLB
 		 * invaliations, protected by CT lock
@@ -166,7 +166,7 @@ struct xe_gt {
 		struct list_head pending_fences;
 		/**
 		 * @pending_lock: protects @pending_fences and updating
-		 * @seqno_recv.
+		 * @seqanal_recv.
 		 */
 		spinlock_t pending_lock;
 		/**
@@ -177,10 +177,10 @@ struct xe_gt {
 		/** @fence_context: context for TLB invalidation fences */
 		u64 fence_context;
 		/**
-		 * @fence_seqno: seqno to TLB invalidation fences, protected by
+		 * @fence_seqanal: seqanal to TLB invalidation fences, protected by
 		 * tlb_invalidation.lock
 		 */
-		u32 fence_seqno;
+		u32 fence_seqanal;
 		/** @lock: protects TLB invalidation fences */
 		spinlock_t lock;
 	} tlb_invalidation;
@@ -198,7 +198,7 @@ struct xe_gt {
 		/**
 		 * @bb_pool: Pool from which batchbuffers, for USM operations
 		 * (e.g. migrations, fixing page tables), are allocated.
-		 * Dedicated pool needed so USM operations to not get blocked
+		 * Dedicated pool needed so USM operations to analt get blocked
 		 * behind any user operations which may have resulted in a
 		 * fault.
 		 */
@@ -214,7 +214,7 @@ struct xe_gt {
 		struct workqueue_struct *acc_wq;
 		/**
 		 * @pf_queue: Page fault queue used to sync faults so faults can
-		 * be processed not under the GuC CT lock. The queue is sized so
+		 * be processed analt under the GuC CT lock. The queue is sized so
 		 * it can sync all possible faults (1 per physical engine).
 		 * Multiple queues exists for page faults from different VMs are
 		 * be processed in parallel.
@@ -242,7 +242,7 @@ struct xe_gt {
 #define NUM_PF_QUEUE	4
 		} pf_queue[NUM_PF_QUEUE];
 		/**
-		 * @acc_queue: Same as page fault queue, cannot process access
+		 * @acc_queue: Same as page fault queue, cananalt process access
 		 * counters under CT lock.
 		 */
 		struct acc_queue {

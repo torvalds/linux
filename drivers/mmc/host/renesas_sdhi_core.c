@@ -83,7 +83,7 @@ static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 			val = HOST_MODE_GEN3_16BIT;
 		break;
 	default:
-		/* nothing to do */
+		/* analthing to do */
 		return;
 	}
 
@@ -101,7 +101,7 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 		return ret;
 
 	/*
-	 * The clock driver may not know what maximum frequency
+	 * The clock driver may analt kanalw what maximum frequency
 	 * actually works, so it should be set with the max-frequency
 	 * property which will already have been read to f_max.  If it
 	 * was missing, assume the current frequency is the maximum.
@@ -132,7 +132,7 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	int i;
 
 	/*
-	 * We simply return the current rate if a) we are not on a R-Car Gen2+
+	 * We simply return the current rate if a) we are analt on a R-Car Gen2+
 	 * SoC (may work for others, but untested) or b) if the SCC needs its
 	 * clock during tuning, so we don't change the external clock setup.
 	 */
@@ -150,10 +150,10 @@ static unsigned int renesas_sdhi_clk_update(struct tmio_mmc_host *host,
 	new_clock = wanted_clock << clkh_shift;
 
 	/*
-	 * We want the bus clock to be as close as possible to, but no
+	 * We want the bus clock to be as close as possible to, but anal
 	 * greater than, new_clock.  As we can divide by 1 << i for
 	 * any i in [0, 9] we want the input clock to be as close as
-	 * possible, but no greater than, new_clock << i.
+	 * possible, but anal greater than, new_clock << i.
 	 *
 	 * Add an upper limit of 1/1024 rate higher to the clock rate to fix
 	 * clk rate jumping to lower rate due to rounding error (eg: RZ/G2L has
@@ -228,7 +228,7 @@ static void renesas_sdhi_set_clock(struct tmio_mmc_host *host,
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
 out:
-	/* HW engineers overrode docs: no sleep needed on R-Car2+ */
+	/* HW engineers overrode docs: anal sleep needed on R-Car2+ */
 	if (!(host->pdata->flags & TMIO_MMC_MIN_RCAR2))
 		usleep_range(10000, 11000);
 }
@@ -509,7 +509,7 @@ static void renesas_sdhi_adjust_hs400_mode_enable(struct tmio_mmc_host *host)
 			       SH_MOBILE_SDHI_SCC_TMPPORT_MANUAL_MODE |
 			       priv->adjust_hs400_calib_table[calib_code]);
 
-	/* set offset value to TMPPORT3, hardcoded to OFFSET0 (= 0x3) for now */
+	/* set offset value to TMPPORT3, hardcoded to OFFSET0 (= 0x3) for analw */
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_TMPPORT3, 0x3);
 
 	/* adjustment done, clear flag */
@@ -582,7 +582,7 @@ static void renesas_sdhi_reset(struct tmio_mmc_host *host, bool preserve)
 	if (!preserve) {
 		if (priv->rstc) {
 			reset_control_reset(priv->rstc);
-			/* Unknown why but without polling reset status, it will hang */
+			/* Unkanalwn why but without polling reset status, it will hang */
 			read_poll_timeout(reset_control_status, ret, ret == 0, 1, 100,
 					  false, priv->rstc);
 			/* At least SDHI_VER_GEN2_SDR50 needs manual release of reset */
@@ -685,7 +685,7 @@ static int renesas_sdhi_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	priv->tap_num = renesas_sdhi_init_tuning(host);
 	if (!priv->tap_num)
-		return 0; /* Tuning is not supported */
+		return 0; /* Tuning is analt supported */
 
 	if (priv->tap_num * 2 >= sizeof(priv->taps) * BITS_PER_BYTE) {
 		dev_err(&host->pdev->dev,
@@ -736,13 +736,13 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
 		u32 bad_taps = priv->quirks ? priv->quirks->hs400_bad_taps : 0;
 		/*
-		 * With HS400, the DAT signal is based on DS, not CLK.
+		 * With HS400, the DAT signal is based on DS, analt CLK.
 		 * Therefore, use only CMD status.
 		 */
 		u32 smpcmp = sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_SMPCMP) &
 					   SH_MOBILE_SDHI_SCC_SMPCMP_CMD_ERR;
 		if (!smpcmp) {
-			return false;	/* no error in CMD signal */
+			return false;	/* anal error in CMD signal */
 		} else if (smpcmp == SH_MOBILE_SDHI_SCC_SMPCMP_CMD_REQUP) {
 			new_tap++;
 			error_tap--;
@@ -754,7 +754,7 @@ static bool renesas_sdhi_manual_correction(struct tmio_mmc_host *host, bool use_
 		}
 
 		/*
-		 * When new_tap is a bad tap, we cannot change. Then, we compare
+		 * When new_tap is a bad tap, we cananalt change. Then, we compare
 		 * with the HS200 tuning result. When smpcmp[error_tap] is OK,
 		 * we can at least retune.
 		 */
@@ -813,7 +813,7 @@ static bool renesas_sdhi_check_scc_error(struct tmio_mmc_host *host,
 
 	if (((mrq->cmd->error == -ETIMEDOUT) ||
 	     (mrq->data && mrq->data->error == -ETIMEDOUT)) &&
-	    ((host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
+	    ((host->mmc->caps & MMC_CAP_ANALNREMOVABLE) ||
 	     (host->ops.get_cd && host->ops.get_cd(host->mmc))))
 		ret |= true;
 
@@ -875,7 +875,7 @@ static int renesas_sdhi_multi_io_quirk(struct mmc_card *card,
 	 * multiple block read of one or two blocks,
 	 * depending on the timing with which the
 	 * response register is read, the response
-	 * value may not be read properly.
+	 * value may analt be read properly.
 	 * Use single block read for this HW bug
 	 */
 	if ((direction == MMC_DATA_READ) &&
@@ -922,7 +922,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct renesas_sdhi),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->quirks = quirks;
 	mmc_data = &priv->mmc_data;
@@ -930,26 +930,26 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk), "cannot get clock");
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk), "cananalt get clock");
 
 	priv->clkh = devm_clk_get_optional(&pdev->dev, "clkh");
 	if (IS_ERR(priv->clkh))
-		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clkh), "cannot get clkh");
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clkh), "cananalt get clkh");
 
 	/*
 	 * Some controllers provide a 2nd clock just to run the internal card
 	 * detection logic. Unfortunately, the existing driver architecture does
-	 * not support a separation of clocks for runtime PM usage. When
+	 * analt support a separation of clocks for runtime PM usage. When
 	 * native hotplug is used, the tmio driver assumes that the core
-	 * must continue to run for card detect to stay active, so we cannot
+	 * must continue to run for card detect to stay active, so we cananalt
 	 * disable it.
-	 * Additionally, it is prohibited to supply a clock to the core but not
+	 * Additionally, it is prohibited to supply a clock to the core but analt
 	 * to the card detect circuit. That leaves us with if separate clocks
 	 * are presented, we must treat them both as virtually 1 clock.
 	 */
 	priv->clk_cd = devm_clk_get_optional(&pdev->dev, "cd");
 	if (IS_ERR(priv->clk_cd))
-		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk_cd), "cannot get cd clock");
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk_cd), "cananalt get cd clock");
 
 	priv->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(priv->rstc))
@@ -995,7 +995,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
 	if (mmc_can_gpio_ro(host->mmc))
-		mmc_data->capabilities2 &= ~MMC_CAP2_NO_WRITE_PROTECT;
+		mmc_data->capabilities2 &= ~MMC_CAP2_ANAL_WRITE_PROTECT;
 
 	/* SDR speeds are only available on Gen2+ */
 	if (mmc_data->flags & TMIO_MMC_MIN_RCAR2) {
@@ -1010,7 +1010,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->sdcard_irq_mask_all = TMIO_MASK_ALL;
 	}
 
-	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
+	/* Orginally registers were 16 bit apart, could be 32 or 64 analwadays */
 	if (!host->bus_shift && resource_size(res) > 0x100) /* old way to determine the shift */
 		host->bus_shift = 1;
 
@@ -1049,11 +1049,11 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		goto efree;
 
 	ver = sd_ctrl_read16(host, CTL_VERSION);
-	/* GEN2_SDR104 is first known SDHI to use 32bit block count */
+	/* GEN2_SDR104 is first kanalwn SDHI to use 32bit block count */
 	if (ver < SDHI_VER_GEN2_SDR104 && mmc_data->max_blk_count > U16_MAX)
 		mmc_data->max_blk_count = U16_MAX;
 
-	/* One Gen2 SDHI incarnation does NOT have a CBSY bit */
+	/* One Gen2 SDHI incarnation does ANALT have a CBSY bit */
 	if (ver == SDHI_VER_GEN2_SDR50)
 		mmc_data->flags &= ~TMIO_MMC_HAVE_CBSY;
 
@@ -1093,7 +1093,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		}
 
 		if (!hit)
-			dev_warn(&host->pdev->dev, "Unknown clock rate for tuning\n");
+			dev_warn(&host->pdev->dev, "Unkanalwn clock rate for tuning\n");
 
 		host->check_retune = renesas_sdhi_check_scc_error;
 		host->ops.execute_tuning = renesas_sdhi_execute_tuning;

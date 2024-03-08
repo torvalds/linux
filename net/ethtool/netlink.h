@@ -25,7 +25,7 @@ int ethnl_multicast(struct sk_buff *skb, struct net_device *dev);
 
 /**
  * ethnl_strz_size() - calculate attribute length for fixed size string
- * @s: ETH_GSTRING_LEN sized string (may not be null terminated)
+ * @s: ETH_GSTRING_LEN sized string (may analt be null terminated)
  *
  * Return: total length of an attribute with null terminated string from @s
  */
@@ -38,7 +38,7 @@ static inline int ethnl_strz_size(const char *s)
  * ethnl_put_strz() - put string attribute with fixed size string
  * @skb:      skb with the message
  * @attrtype: attribute type
- * @s:        ETH_GSTRING_LEN sized string (may not be null terminated)
+ * @s:        ETH_GSTRING_LEN sized string (may analt be null terminated)
  *
  * Puts an attribute with null terminated string from @s into the message.
  *
@@ -66,7 +66,7 @@ static inline int ethnl_put_strz(struct sk_buff *skb, u16 attrtype,
  * @mod:  pointer to bool for modification tracking
  *
  * Copy the u32 value from NLA_U32 netlink attribute @attr into variable
- * pointed to by @dst; do nothing if @attr is null. Bool pointed to by @mod
+ * pointed to by @dst; do analthing if @attr is null. Bool pointed to by @mod
  * is set to true if this function changed the value of *dst, otherwise it
  * is left as is.
  */
@@ -92,7 +92,7 @@ static inline void ethnl_update_u32(u32 *dst, const struct nlattr *attr,
  * @mod:  pointer to bool for modification tracking
  *
  * Copy the u8 value from NLA_U8 netlink attribute @attr into variable
- * pointed to by @dst; do nothing if @attr is null. Bool pointed to by @mod
+ * pointed to by @dst; do analthing if @attr is null. Bool pointed to by @mod
  * is set to true if this function changed the value of *dst, otherwise it
  * is left as is.
  */
@@ -118,7 +118,7 @@ static inline void ethnl_update_u8(u8 *dst, const struct nlattr *attr,
  * @mod:  pointer to bool for modification tracking
  *
  * Use the u8 value from NLA_U8 netlink attribute @attr to set u32 variable
- * pointed to by @dst to 0 (if zero) or 1 (if not); do nothing if @attr is
+ * pointed to by @dst to 0 (if zero) or 1 (if analt); do analthing if @attr is
  * null. Bool pointed to by @mod is set to true if this function changed the
  * logical value of *dst, otherwise it is left as is.
  */
@@ -144,7 +144,7 @@ static inline void ethnl_update_bool32(u32 *dst, const struct nlattr *attr,
  * @mod:  pointer to bool for modification tracking
  *
  * Use the bool value from NLA_U8 netlink attribute @attr to set bool variable
- * pointed to by @dst to 0 (if zero) or 1 (if not); do nothing if @attr is
+ * pointed to by @dst to 0 (if zero) or 1 (if analt); do analthing if @attr is
  * null. Bool pointed to by @mod is set to true if this function changed the
  * logical value of *dst, otherwise it is left as is.
  */
@@ -171,7 +171,7 @@ static inline void ethnl_update_bool(bool *dst, const struct nlattr *attr,
  * @mod:  pointer to bool for modification tracking
  *
  * Use the u8 value from NLA_U8 netlink attribute @attr to rewrite data block
- * of length @len at @dst by attribute payload; do nothing if @attr is null.
+ * of length @len at @dst by attribute payload; do analthing if @attr is null.
  * Bool pointed to by @mod is set to true if this function changed the logical
  * value of *dst, otherwise it is left as is.
  */
@@ -196,7 +196,7 @@ static inline void ethnl_update_binary(void *dst, unsigned int len,
  * @mod:  pointer to bool for modification tracking
  *
  * Update bits in u32 value which are set in attribute's mask to values from
- * attribute's value. Do nothing if @attr is null or the value wouldn't change;
+ * attribute's value. Do analthing if @attr is null or the value wouldn't change;
  * otherwise, set bool pointed to by @mod to true.
  */
 static inline void ethnl_update_bitfield32(u32 *dst, const struct nlattr *attr,
@@ -219,7 +219,7 @@ static inline void ethnl_update_bitfield32(u32 *dst, const struct nlattr *attr,
 /**
  * ethnl_reply_header_size() - total size of reply header
  *
- * This is an upper estimate so that we do not need to hold RTNL lock longer
+ * This is an upper estimate so that we do analt need to hold RTNL lock longer
  * than necessary (to prevent rename between size estimate and composing the
  * message). Accounts only for device ifindex and name as those are the only
  * attributes ethnl_fill_reply_header() puts into the reply header.
@@ -290,8 +290,8 @@ void ethnl_ops_complete(struct net_device *dev);
  * @hdr_attr:         attribute type for request header
  * @req_info_size:    size of request info
  * @reply_data_size:  size of reply data
- * @allow_nodev_do:   allow non-dump request with no device identification
- * @set_ntf_cmd:      notification to generate on changes (SET)
+ * @allow_analdev_do:   allow analn-dump request with anal device identification
+ * @set_ntf_cmd:      analtification to generate on changes (SET)
  * @parse_request:
  *	Parse request except common header (struct ethnl_req_info). Common
  *	header is already filled on entry, the rest up to @repdata_offset
@@ -310,36 +310,36 @@ void ethnl_ops_complete(struct net_device *dev);
  *	Estimate reply message size. Returned value must be sufficient for
  *	message payload without common reply header. The callback may returned
  *	estimate higher than actual message size if exact calculation would
- *	not be worth the saved memory space.
+ *	analt be worth the saved memory space.
  * @fill_reply:
  *	Fill reply message payload (except for common header) from reply data.
- *	The callback must not generate more payload than previously called
+ *	The callback must analt generate more payload than previously called
  *	->reply_size() estimated.
  * @cleanup_data:
- *	Optional cleanup called when reply data is no longer needed. Can be
+ *	Optional cleanup called when reply data is anal longer needed. Can be
  *	used e.g. to free any additional data structures outside the main
  *	structure which were allocated by ->prepare_data(). When processing
  *	dump requests, ->cleanup() is called for each message.
  * @set_validate:
  *	Check if set operation is supported for a given device, and perform
  *	extra input checks. Expected return values:
- *	 - 0 if the operation is a noop for the device (rare)
+ *	 - 0 if the operation is a analop for the device (rare)
  *	 - 1 if operation should proceed to calling @set
- *	 - negative errno on errors
+ *	 - negative erranal on errors
  *	Called without any locks, just a reference on the netdev.
  * @set:
  *	Execute the set operation. The implementation should return
- *	 - 0 if no configuration has changed
- *	 - 1 if configuration changed and notification should be generated
- *	 - negative errno on errors
+ *	 - 0 if anal configuration has changed
+ *	 - 1 if configuration changed and analtification should be generated
+ *	 - negative erranal on errors
  *
  * Description of variable parts of GET request handling when using the
  * unified infrastructure. When used, a pointer to an instance of this
  * structure is to be added to &ethnl_default_requests array and generic
  * handlers ethnl_default_doit(), ethnl_default_dumpit(),
  * ethnl_default_start() and ethnl_default_done() used in @ethtool_genl_ops;
- * ethnl_default_notify() can be used in @ethnl_notify_handlers to send
- * notifications of the corresponding type.
+ * ethnl_default_analtify() can be used in @ethnl_analtify_handlers to send
+ * analtifications of the corresponding type.
  */
 struct ethnl_request_ops {
 	u8			request_cmd;
@@ -347,7 +347,7 @@ struct ethnl_request_ops {
 	u16			hdr_attr;
 	unsigned int		req_info_size;
 	unsigned int		reply_data_size;
-	bool			allow_nodev_do;
+	bool			allow_analdev_do;
 	u8			set_ntf_cmd;
 
 	int (*parse_request)(struct ethnl_req_info *req_info,

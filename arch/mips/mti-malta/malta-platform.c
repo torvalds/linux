@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2006, 07 MIPS Technologies, Inc.
+ * Copyright (C) 2006, 07 MIPS Techanallogies, Inc.
  *   written by Ralf Baechle (ralf@linux-mips.org)
  *     written by Ralf Baechle <ralf@linux-mips.org>
  *
@@ -13,7 +13,7 @@
  * 1. Probe driver for the Malta's UART ports:
  *
  *   o 2 ports in the SMC SuperIO
- *   o 1 port in the CBUS UART, a discrete 16550 which normally is only used
+ *   o 1 port in the CBUS UART, a discrete 16550 which analrmally is only used
  *     for bringups.
  *
  * We don't use 8250_platform.c on Malta as it would result in the CBUS

@@ -22,7 +22,7 @@
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_erl0.h"
-#include "iscsi_target_nodeattrib.h"
+#include "iscsi_target_analdeattrib.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
@@ -280,16 +280,16 @@ out:
 static ssize_t iscsi_nacl_attrib_##name##_show(struct config_item *item,\
 		char *page)						\
 {									\
-	struct se_node_acl *se_nacl = attrib_to_nacl(item);		\
-	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);		\
-	return sysfs_emit(page, "%u\n", nacl->node_attrib.name);		\
+	struct se_analde_acl *se_nacl = attrib_to_nacl(item);		\
+	struct iscsi_analde_acl *nacl = to_iscsi_nacl(se_nacl);		\
+	return sysfs_emit(page, "%u\n", nacl->analde_attrib.name);		\
 }									\
 									\
 static ssize_t iscsi_nacl_attrib_##name##_store(struct config_item *item,\
 		const char *page, size_t count)				\
 {									\
-	struct se_node_acl *se_nacl = attrib_to_nacl(item);		\
-	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);		\
+	struct se_analde_acl *se_nacl = attrib_to_nacl(item);		\
+	struct iscsi_analde_acl *nacl = to_iscsi_nacl(se_nacl);		\
 	u32 val;							\
 	int ret;							\
 									\
@@ -308,8 +308,8 @@ CONFIGFS_ATTR(iscsi_nacl_attrib_, name)
 ISCSI_NACL_ATTR(dataout_timeout);
 ISCSI_NACL_ATTR(dataout_timeout_retries);
 ISCSI_NACL_ATTR(default_erl);
-ISCSI_NACL_ATTR(nopin_timeout);
-ISCSI_NACL_ATTR(nopin_response_timeout);
+ISCSI_NACL_ATTR(analpin_timeout);
+ISCSI_NACL_ATTR(analpin_response_timeout);
 ISCSI_NACL_ATTR(random_datain_pdu_offsets);
 ISCSI_NACL_ATTR(random_datain_seq_offsets);
 ISCSI_NACL_ATTR(random_r2t_offsets);
@@ -317,17 +317,17 @@ ISCSI_NACL_ATTR(random_r2t_offsets);
 static ssize_t iscsi_nacl_attrib_authentication_show(struct config_item *item,
 		char *page)
 {
-	struct se_node_acl *se_nacl = attrib_to_nacl(item);
-	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);
+	struct se_analde_acl *se_nacl = attrib_to_nacl(item);
+	struct iscsi_analde_acl *nacl = to_iscsi_nacl(se_nacl);
 
-	return sysfs_emit(page, "%d\n", nacl->node_attrib.authentication);
+	return sysfs_emit(page, "%d\n", nacl->analde_attrib.authentication);
 }
 
 static ssize_t iscsi_nacl_attrib_authentication_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = attrib_to_nacl(item);
-	struct iscsi_node_acl *nacl = to_iscsi_nacl(se_nacl);
+	struct se_analde_acl *se_nacl = attrib_to_nacl(item);
+	struct iscsi_analde_acl *nacl = to_iscsi_nacl(se_nacl);
 	s32 val;
 	int ret;
 
@@ -337,7 +337,7 @@ static ssize_t iscsi_nacl_attrib_authentication_store(struct config_item *item,
 	if (val != 0 && val != 1 && val != NA_AUTHENTICATION_INHERITED)
 		return -EINVAL;
 
-	nacl->node_attrib.authentication = val;
+	nacl->analde_attrib.authentication = val;
 
 	return count;
 }
@@ -348,8 +348,8 @@ static struct configfs_attribute *lio_target_nacl_attrib_attrs[] = {
 	&iscsi_nacl_attrib_attr_dataout_timeout,
 	&iscsi_nacl_attrib_attr_dataout_timeout_retries,
 	&iscsi_nacl_attrib_attr_default_erl,
-	&iscsi_nacl_attrib_attr_nopin_timeout,
-	&iscsi_nacl_attrib_attr_nopin_response_timeout,
+	&iscsi_nacl_attrib_attr_analpin_timeout,
+	&iscsi_nacl_attrib_attr_analpin_response_timeout,
 	&iscsi_nacl_attrib_attr_random_datain_pdu_offsets,
 	&iscsi_nacl_attrib_attr_random_datain_seq_offsets,
 	&iscsi_nacl_attrib_attr_random_r2t_offsets,
@@ -363,10 +363,10 @@ static struct configfs_attribute *lio_target_nacl_attrib_attrs[] = {
 
 #define __DEF_NACL_AUTH_STR(prefix, name, flags)			\
 static ssize_t __iscsi_##prefix##_##name##_show(			\
-	struct iscsi_node_acl *nacl,					\
+	struct iscsi_analde_acl *nacl,					\
 	char *page)							\
 {									\
-	struct iscsi_node_auth *auth = &nacl->node_auth;		\
+	struct iscsi_analde_auth *auth = &nacl->analde_auth;		\
 									\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
@@ -374,11 +374,11 @@ static ssize_t __iscsi_##prefix##_##name##_show(			\
 }									\
 									\
 static ssize_t __iscsi_##prefix##_##name##_store(			\
-	struct iscsi_node_acl *nacl,					\
+	struct iscsi_analde_acl *nacl,					\
 	const char *page,						\
 	size_t count)							\
 {									\
-	struct iscsi_node_auth *auth = &nacl->node_auth;		\
+	struct iscsi_analde_auth *auth = &nacl->analde_auth;		\
 									\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
@@ -404,13 +404,13 @@ static ssize_t __iscsi_##prefix##_##name##_store(			\
 static ssize_t iscsi_nacl_auth_##name##_show(struct config_item *item,	\
 		char *page)						\
 {									\
-	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	struct se_analde_acl *nacl = auth_to_nacl(item);			\
 	return __iscsi_nacl_auth_##name##_show(to_iscsi_nacl(nacl), page);	\
 }									\
 static ssize_t iscsi_nacl_auth_##name##_store(struct config_item *item,	\
 		const char *page, size_t count)				\
 {									\
-	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	struct se_analde_acl *nacl = auth_to_nacl(item);			\
 	return __iscsi_nacl_auth_##name##_store(to_iscsi_nacl(nacl),	\
 						page, count); \
 }									\
@@ -427,10 +427,10 @@ DEF_NACL_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
 
 #define __DEF_NACL_AUTH_INT(prefix, name)				\
 static ssize_t __iscsi_##prefix##_##name##_show(				\
-	struct iscsi_node_acl *nacl,					\
+	struct iscsi_analde_acl *nacl,					\
 	char *page)							\
 {									\
-	struct iscsi_node_auth *auth = &nacl->node_auth;		\
+	struct iscsi_analde_auth *auth = &nacl->analde_auth;		\
 									\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
@@ -443,7 +443,7 @@ static ssize_t __iscsi_##prefix##_##name##_show(				\
 static ssize_t iscsi_nacl_auth_##name##_show(struct config_item *item,	\
 		char *page)						\
 {									\
-	struct se_node_acl *nacl = auth_to_nacl(item);			\
+	struct se_analde_acl *nacl = auth_to_nacl(item);			\
 	return __iscsi_nacl_auth_##name##_show(to_iscsi_nacl(nacl), page);	\
 }									\
 									\
@@ -468,7 +468,7 @@ static struct configfs_attribute *lio_target_nacl_auth_attrs[] = {
 static ssize_t iscsi_nacl_param_##name##_show(struct config_item *item,	\
 		char *page)						\
 {									\
-	struct se_node_acl *se_nacl = param_to_nacl(item);		\
+	struct se_analde_acl *se_nacl = param_to_nacl(item);		\
 	struct iscsit_session *sess;					\
 	struct se_session *se_sess;					\
 	ssize_t rb;							\
@@ -477,7 +477,7 @@ static ssize_t iscsi_nacl_param_##name##_show(struct config_item *item,	\
 	se_sess = se_nacl->nacl_sess;					\
 	if (!se_sess) {							\
 		rb = snprintf(page, PAGE_SIZE,				\
-			"No Active iSCSI Session\n");			\
+			"Anal Active iSCSI Session\n");			\
 	} else {							\
 		sess = se_sess->fabric_sess_ptr;			\
 		rb = snprintf(page, PAGE_SIZE, "%u\n",			\
@@ -523,7 +523,7 @@ static struct configfs_attribute *lio_target_nacl_param_attrs[] = {
 
 static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	struct se_analde_acl *se_nacl = acl_to_nacl(item);
 	struct iscsit_session *sess;
 	struct iscsit_conn *conn;
 	struct se_session *se_sess;
@@ -533,7 +533,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (!se_sess) {
-		rb += sysfs_emit_at(page, rb, "No active iSCSI Session for Initiator"
+		rb += sysfs_emit_at(page, rb, "Anal active iSCSI Session for Initiator"
 			" Endpoint: %s\n", se_nacl->initiatorname);
 	} else {
 		sess = se_sess->fabric_sess_ptr;
@@ -548,7 +548,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 			      sess->sid, sess->isid, sess->tsih);
 		rb += sysfs_emit_at(page, rb, "SessionType: %s\n",
 				(sess->sess_ops->SessionType) ?
-				"Discovery" : "Normal");
+				"Discovery" : "Analrmal");
 		rb += sysfs_emit_at(page, rb, "Session State: ");
 		switch (sess->session_state) {
 		case TARG_SESS_STATE_FREE:
@@ -567,7 +567,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 			rb += sysfs_emit_at(page, rb, "TARG_SESS_STATE_IN_CONTINUE\n");
 			break;
 		default:
-			rb += sysfs_emit_at(page, rb, "ERROR: Unknown Session"
+			rb += sysfs_emit_at(page, rb, "ERROR: Unkanalwn Session"
 					" State!\n");
 			break;
 		}
@@ -621,7 +621,7 @@ static ssize_t lio_target_nacl_info_show(struct config_item *item, char *page)
 				break;
 			default:
 				rb += sysfs_emit_at(page, rb,
-					"ERROR: Unknown Connection State!\n");
+					"ERROR: Unkanalwn Connection State!\n");
 				break;
 			}
 
@@ -647,7 +647,7 @@ static ssize_t lio_target_nacl_cmdsn_depth_show(struct config_item *item,
 static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	struct se_analde_acl *se_nacl = acl_to_nacl(item);
 	struct se_portal_group *se_tpg = se_nacl->se_tpg;
 	struct iscsi_portal_group *tpg = to_iscsi_tpg(se_tpg);
 	struct config_item *acl_ci, *tpg_ci, *wwn_ci;
@@ -682,7 +682,7 @@ static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
 	if (iscsit_get_tpg(tpg) < 0)
 		return -EINVAL;
 
-	ret = core_tpg_set_initiator_node_queue_depth(se_nacl, cmdsn_depth);
+	ret = core_tpg_set_initiator_analde_queue_depth(se_nacl, cmdsn_depth);
 
 	pr_debug("LIO_Target_ConfigFS: %s/%s Set CmdSN Window: %u for"
 		"InitiatorName: %s\n", config_item_name(wwn_ci),
@@ -701,10 +701,10 @@ static ssize_t lio_target_nacl_tag_show(struct config_item *item, char *page)
 static ssize_t lio_target_nacl_tag_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	struct se_analde_acl *se_nacl = acl_to_nacl(item);
 	int ret;
 
-	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
+	ret = core_tpg_set_initiator_analde_tag(se_nacl->se_tpg, se_nacl, page);
 
 	if (ret < 0)
 		return ret;
@@ -722,14 +722,14 @@ static struct configfs_attribute *lio_target_initiator_attrs[] = {
 	NULL,
 };
 
-static int lio_target_init_nodeacl(struct se_node_acl *se_nacl,
+static int lio_target_init_analdeacl(struct se_analde_acl *se_nacl,
 		const char *name)
 {
-	struct iscsi_node_acl *acl = to_iscsi_nacl(se_nacl);
+	struct iscsi_analde_acl *acl = to_iscsi_nacl(se_nacl);
 
-	config_group_init_type_name(&acl->node_stat_grps.iscsi_sess_stats_group,
+	config_group_init_type_name(&acl->analde_stat_grps.iscsi_sess_stats_group,
 			"iscsi_sess_stats", &iscsi_stat_sess_cit);
-	configfs_add_default_group(&acl->node_stat_grps.iscsi_sess_stats_group,
+	configfs_add_default_group(&acl->analde_stat_grps.iscsi_sess_stats_group,
 			&se_nacl->acl_fabric_stat_group);
 	return 0;
 }
@@ -783,7 +783,7 @@ CONFIGFS_ATTR(iscsi_tpg_attrib_, name)
 
 DEF_TPG_ATTRIB(authentication);
 DEF_TPG_ATTRIB(login_timeout);
-DEF_TPG_ATTRIB(generate_node_acls);
+DEF_TPG_ATTRIB(generate_analde_acls);
 DEF_TPG_ATTRIB(default_cmdsn_depth);
 DEF_TPG_ATTRIB(cache_dynamic_acls);
 DEF_TPG_ATTRIB(demo_mode_write_protect);
@@ -798,7 +798,7 @@ DEF_TPG_ATTRIB(login_keys_workaround);
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_attr_authentication,
 	&iscsi_tpg_attrib_attr_login_timeout,
-	&iscsi_tpg_attrib_attr_generate_node_acls,
+	&iscsi_tpg_attrib_attr_generate_analde_acls,
 	&iscsi_tpg_attrib_attr_default_cmdsn_depth,
 	&iscsi_tpg_attrib_attr_cache_dynamic_acls,
 	&iscsi_tpg_attrib_attr_demo_mode_write_protect,
@@ -821,7 +821,7 @@ static ssize_t __iscsi_##prefix##_##name##_show(struct se_portal_group *se_tpg,	
 		char *page)							\
 {										\
 	struct iscsi_portal_group *tpg = to_iscsi_tpg(se_tpg);			\
-	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+	struct iscsi_analde_auth *auth = &tpg->tpg_demo_auth;			\
 										\
 	if (!capable(CAP_SYS_ADMIN))						\
 		return -EPERM;							\
@@ -833,7 +833,7 @@ static ssize_t __iscsi_##prefix##_##name##_store(struct se_portal_group *se_tpg,
 		const char *page, size_t count)					\
 {										\
 	struct iscsi_portal_group *tpg = to_iscsi_tpg(se_tpg);			\
-	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+	struct iscsi_analde_auth *auth = &tpg->tpg_demo_auth;			\
 										\
 	if (!capable(CAP_SYS_ADMIN))						\
 		return -EPERM;							\
@@ -880,7 +880,7 @@ static ssize_t __iscsi_##prefix##_##name##_show(struct se_portal_group *se_tpg,	
 		char *page)								\
 {										\
 	struct iscsi_portal_group *tpg = to_iscsi_tpg(se_tpg);			\
-	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+	struct iscsi_analde_auth *auth = &tpg->tpg_demo_auth;			\
 										\
 	if (!capable(CAP_SYS_ADMIN))						\
 		return -EPERM;							\
@@ -945,7 +945,7 @@ static ssize_t iscsi_tpg_param_##name##_store(struct config_item *item, \
 									\
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);				\
 	if (!buf)							\
-		return -ENOMEM;						\
+		return -EANALMEM;						\
 	len = snprintf(buf, PAGE_SIZE, "%s=%s", __stringify(name), page);	\
 	if (isspace(buf[len-1]))					\
 		buf[len-1] = '\0'; /* Kill newline */			\
@@ -1151,7 +1151,7 @@ static ssize_t lio_target_wwn_cpus_allowed_list_show(
 static ssize_t lio_target_wwn_cpus_allowed_list_store(
 		struct config_item *item, const char *page, size_t count)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char *orig;
 	cpumask_var_t new_allowed_cpumask;
 
@@ -1194,7 +1194,7 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 		return ERR_CAST(tiqn);
 
 	pr_debug("LIO_Target_ConfigFS: REGISTER -> %s\n", tiqn->tiqn);
-	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated Node:"
+	pr_debug("LIO_Target_ConfigFS: REGISTER -> Allocated Analde:"
 			" %s\n", name);
 	return &tiqn->tiqn_wwn;
 }
@@ -1279,7 +1279,7 @@ DEF_DISC_AUTH_INT(authenticate_target);
 static ssize_t iscsi_disc_enforce_discovery_auth_show(struct config_item *item,
 		char *page)
 {
-	struct iscsi_node_auth *discovery_auth = &iscsit_global->discovery_acl.node_auth;
+	struct iscsi_analde_auth *discovery_auth = &iscsit_global->discovery_acl.analde_auth;
 
 	return sysfs_emit(page, "%d\n", discovery_auth->enforce_discovery_auth);
 }
@@ -1319,19 +1319,19 @@ static ssize_t iscsi_disc_enforce_discovery_auth_store(struct config_item *item,
 			return -EINVAL;
 
 		discovery_tpg->tpg_attrib.authentication = 1;
-		iscsit_global->discovery_acl.node_auth.enforce_discovery_auth = 1;
+		iscsit_global->discovery_acl.analde_auth.enforce_discovery_auth = 1;
 		pr_debug("LIO-CORE[0] Successfully enabled"
 			" authentication enforcement for iSCSI"
 			" Discovery TPG\n");
 	} else {
 		/*
-		 * Reset the AuthMethod key to CHAP,None
+		 * Reset the AuthMethod key to CHAP,Analne
 		 */
-		if (iscsi_update_param_value(param, "CHAP,None") < 0)
+		if (iscsi_update_param_value(param, "CHAP,Analne") < 0)
 			return -EINVAL;
 
 		discovery_tpg->tpg_attrib.authentication = 0;
-		iscsit_global->discovery_acl.node_auth.enforce_discovery_auth = 0;
+		iscsit_global->discovery_acl.analde_auth.enforce_discovery_auth = 0;
 		pr_debug("LIO-CORE[0] Successfully disabled"
 			" authentication enforcement for iSCSI"
 			" Discovery TPG\n");
@@ -1447,7 +1447,7 @@ static u32 lio_tpg_get_default_depth(struct se_portal_group *se_tpg)
 
 static int lio_tpg_check_demo_mode(struct se_portal_group *se_tpg)
 {
-	return to_iscsi_tpg(se_tpg)->tpg_attrib.generate_node_acls;
+	return to_iscsi_tpg(se_tpg)->tpg_attrib.generate_analde_acls;
 }
 
 static int lio_tpg_check_demo_mode_cache(struct se_portal_group *se_tpg)
@@ -1516,14 +1516,14 @@ static u32 lio_tpg_get_inst_index(struct se_portal_group *se_tpg)
 	return to_iscsi_tpg(se_tpg)->tpg_tiqn->tiqn_index;
 }
 
-static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
+static void lio_set_default_analde_attributes(struct se_analde_acl *se_acl)
 {
-	struct iscsi_node_acl *acl = to_iscsi_nacl(se_acl);
+	struct iscsi_analde_acl *acl = to_iscsi_nacl(se_acl);
 	struct se_portal_group *se_tpg = se_acl->se_tpg;
 	struct iscsi_portal_group *tpg = to_iscsi_tpg(se_tpg);
 
-	acl->node_attrib.nacl = acl;
-	iscsit_set_default_node_attribues(acl, tpg);
+	acl->analde_attrib.nacl = acl;
+	iscsit_set_default_analde_attribues(acl, tpg);
 }
 
 static int lio_check_stop_free(struct se_cmd *se_cmd)
@@ -1543,7 +1543,7 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.module				= THIS_MODULE,
 	.fabric_alias			= "iscsi",
 	.fabric_name			= "iSCSI",
-	.node_acl_size			= sizeof(struct iscsi_node_acl),
+	.analde_acl_size			= sizeof(struct iscsi_analde_acl),
 	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,
 	.tpg_get_tag			= lio_tpg_get_tag,
 	.tpg_get_default_depth		= lio_tpg_get_default_depth,
@@ -1561,7 +1561,7 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.sess_get_index			= lio_sess_get_index,
 	.sess_get_initiator_sid		= lio_sess_get_initiator_sid,
 	.write_pending			= lio_write_pending,
-	.set_default_node_attributes	= lio_set_default_node_attributes,
+	.set_default_analde_attributes	= lio_set_default_analde_attributes,
 	.get_cmd_state			= iscsi_get_cmd_state,
 	.queue_data_in			= lio_queue_data_in,
 	.queue_status			= lio_queue_status,
@@ -1575,7 +1575,7 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
 	.fabric_make_np			= lio_target_call_addnptotpg,
 	.fabric_drop_np			= lio_target_call_delnpfromtpg,
-	.fabric_init_nodeacl		= lio_target_init_nodeacl,
+	.fabric_init_analdeacl		= lio_target_init_analdeacl,
 
 	.tfc_discovery_attrs		= lio_target_discovery_auth_attrs,
 	.tfc_wwn_attrs			= lio_target_wwn_attrs,

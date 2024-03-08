@@ -93,7 +93,7 @@ static inline void lockdep_assert_wait_lock_held(struct mutex *lock)
 static inline struct rt_mutex_waiter *
 __ww_waiter_first(struct rt_mutex *lock)
 {
-	struct rb_node *n = rb_first(&lock->rtmutex.waiters.rb_root);
+	struct rb_analde *n = rb_first(&lock->rtmutex.waiters.rb_root);
 	if (!n)
 		return NULL;
 	return rb_entry(n, struct rt_mutex_waiter, tree.entry);
@@ -102,7 +102,7 @@ __ww_waiter_first(struct rt_mutex *lock)
 static inline struct rt_mutex_waiter *
 __ww_waiter_next(struct rt_mutex *lock, struct rt_mutex_waiter *w)
 {
-	struct rb_node *n = rb_next(&w->tree.entry);
+	struct rb_analde *n = rb_next(&w->tree.entry);
 	if (!n)
 		return NULL;
 	return rb_entry(n, struct rt_mutex_waiter, tree.entry);
@@ -111,7 +111,7 @@ __ww_waiter_next(struct rt_mutex *lock, struct rt_mutex_waiter *w)
 static inline struct rt_mutex_waiter *
 __ww_waiter_prev(struct rt_mutex *lock, struct rt_mutex_waiter *w)
 {
-	struct rb_node *n = rb_prev(&w->tree.entry);
+	struct rb_analde *n = rb_prev(&w->tree.entry);
 	if (!n)
 		return NULL;
 	return rb_entry(n, struct rt_mutex_waiter, tree.entry);
@@ -120,7 +120,7 @@ __ww_waiter_prev(struct rt_mutex *lock, struct rt_mutex_waiter *w)
 static inline struct rt_mutex_waiter *
 __ww_waiter_last(struct rt_mutex *lock)
 {
-	struct rb_node *n = rb_last(&lock->rtmutex.waiters.rb_root);
+	struct rb_analde *n = rb_last(&lock->rtmutex.waiters.rb_root);
 	if (!n)
 		return NULL;
 	return rb_entry(n, struct rt_mutex_waiter, tree.entry);
@@ -183,14 +183,14 @@ ww_mutex_lock_acquired(struct ww_mutex *ww, struct ww_acquire_ctx *ww_ctx)
 #ifdef DEBUG_WW_MUTEXES
 	/*
 	 * If this WARN_ON triggers, you used ww_mutex_lock to acquire,
-	 * but released with a normal mutex_unlock in this call.
+	 * but released with a analrmal mutex_unlock in this call.
 	 *
 	 * This should never happen, always use ww_mutex_unlock.
 	 */
 	DEBUG_LOCKS_WARN_ON(ww->ctx);
 
 	/*
-	 * Not quite done after calling ww_acquire_done() ?
+	 * Analt quite done after calling ww_acquire_done() ?
 	 */
 	DEBUG_LOCKS_WARN_ON(ww_ctx->done_acquire);
 
@@ -315,7 +315,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 
 	/*
 	 * Can have !owner because of __mutex_unlock_slowpath(), but if owner,
-	 * it cannot go away because we'll have FLAG_WAITERS set and hold
+	 * it cananalt go away because we'll have FLAG_WAITERS set and hold
 	 * wait_lock.
 	 */
 	if (!owner)
@@ -349,7 +349,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
  * This relies on never mixing wait-die/wound-wait on the same wait-list;
  * which is currently ensured by that being a ww_class property.
  *
- * The current task must not be on the wait list.
+ * The current task must analt be on the wait list.
  */
 static void
 __ww_mutex_check_waiters(struct MUTEX *lock, struct ww_acquire_ctx *ww_ctx)
@@ -371,7 +371,7 @@ __ww_mutex_check_waiters(struct MUTEX *lock, struct ww_acquire_ctx *ww_ctx)
 }
 
 /*
- * After acquiring lock with fastpath, where we do not hold wait_lock, set ctx
+ * After acquiring lock with fastpath, where we do analt hold wait_lock, set ctx
  * and wake up any waiters so they can recheck.
  */
 static __always_inline void
@@ -516,7 +516,7 @@ __ww_mutex_add_waiter(struct MUTEX_WAITER *waiter,
 		if (__ww_ctx_less(ww_ctx, cur->ww_ctx)) {
 			/*
 			 * Wait-Die: if we find an older context waiting, there
-			 * is no point in queueing behind it, as we'd have to
+			 * is anal point in queueing behind it, as we'd have to
 			 * die the moment it would acquire the lock.
 			 */
 			if (is_wait_die) {

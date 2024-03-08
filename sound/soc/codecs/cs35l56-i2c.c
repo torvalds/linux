@@ -24,7 +24,7 @@ static int cs35l56_i2c_probe(struct i2c_client *client)
 
 	cs35l56 = devm_kzalloc(dev, sizeof(struct cs35l56_private), GFP_KERNEL);
 	if (!cs35l56)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cs35l56->base.dev = dev;
 	cs35l56->base.can_hibernate = true;

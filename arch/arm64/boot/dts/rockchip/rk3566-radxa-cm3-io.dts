@@ -104,7 +104,7 @@
 		     &gmac1m0_rx_bus2
 		     &gmac1m0_rgmii_clk
 		     &gmac1m0_rgmii_bus
-		     &gmac1m0_clkinout>;
+		     &gmac1m0_clkianalut>;
 	snps,reset-gpio = <&gpio4 RK_PC2 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
@@ -148,73 +148,73 @@
 		gmac1m0_miim: gmac1m0-miim {
 			rockchip,pins =
 				/* gmac1_mdcm0 */
-				<3 RK_PC4 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PC4 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_mdiom0 */
-				<3 RK_PC5 3 &pcfg_pull_none_drv_level_15>;
+				<3 RK_PC5 3 &pcfg_pull_analne_drv_level_15>;
 		};
 
 		gmac1m0_rx_bus2: gmac1m0-rx-bus2 {
 			rockchip,pins =
 				/* gmac1_rxd0m0 */
-				<3 RK_PB1 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PB1 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_rxd1m0 */
-				<3 RK_PB2 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PB2 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_rxdvcrsm0 */
-				<3 RK_PB3 3 &pcfg_pull_none_drv_level_15>;
+				<3 RK_PB3 3 &pcfg_pull_analne_drv_level_15>;
 		};
 
 		gmac1m0_tx_bus2: gmac1m0-tx-bus2 {
 			rockchip,pins =
 				/* gmac1_txd0m0 */
-				<3 RK_PB5 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PB5 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_txd1m0 */
-				<3 RK_PB6 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PB6 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_txenm0 */
-				<3 RK_PB7 3 &pcfg_pull_none_drv_level_15>;
+				<3 RK_PB7 3 &pcfg_pull_analne_drv_level_15>;
 		};
 
 		gmac1m0_rgmii_clk: gmac1m0-rgmii-clk {
 			rockchip,pins =
 				/* gmac1_rxclkm0 */
-				<3 RK_PA7 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PA7 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_txclkm0 */
-				<3 RK_PA6 3 &pcfg_pull_none_drv_level_15>;
+				<3 RK_PA6 3 &pcfg_pull_analne_drv_level_15>;
 		};
 
 		gmac1m0_rgmii_bus: gmac1m0-rgmii-bus {
 			rockchip,pins =
 				/* gmac1_rxd2m0 */
-				<3 RK_PA4 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PA4 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_rxd3m0 */
-				<3 RK_PA5 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PA5 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_txd2m0 */
-				<3 RK_PA2 3 &pcfg_pull_none_drv_level_15>,
+				<3 RK_PA2 3 &pcfg_pull_analne_drv_level_15>,
 				/* gmac1_txd3m0 */
-				<3 RK_PA3 3 &pcfg_pull_none_drv_level_15>;
+				<3 RK_PA3 3 &pcfg_pull_analne_drv_level_15>;
 		};
 
-		gmac1m0_clkinout: gmac1m0-clkinout {
+		gmac1m0_clkianalut: gmac1m0-clkianalut {
 			rockchip,pins =
-				/* gmac1_mclkinoutm0 */
-				<3 RK_PC0 3 &pcfg_pull_none_drv_level_15>;
+				/* gmac1_mclkianalutm0 */
+				<3 RK_PC0 3 &pcfg_pull_analne_drv_level_15>;
 		};
 	};
 
 	leds {
 		pi_nled_activity: pi-nled-activity {
-			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	sdcard {
 		sdmmc_pwren: sdmmc-pwren {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_usb30_en_h: vcc5v0-host-en-h {
-			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };

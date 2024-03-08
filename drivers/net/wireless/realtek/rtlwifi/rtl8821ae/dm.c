@@ -94,7 +94,7 @@ static const u32 rtl8821ae_txscaling_table[TXSCALE_TABLE_SIZE] = {
 };
 
 static const u32 edca_setting_dl[PEER_MAX] = {
-	0xa44f,		/* 0 UNKNOWN */
+	0xa44f,		/* 0 UNKANALWN */
 	0x5ea44f,	/* 1 REALTEK_90 */
 	0x5e4322,	/* 2 REALTEK_92SE */
 	0x5ea42b,		/* 3 BROAD	*/
@@ -105,7 +105,7 @@ static const u32 edca_setting_dl[PEER_MAX] = {
 };
 
 static const u32 edca_setting_ul[PEER_MAX] = {
-	0x5e4322,	/* 0 UNKNOWN */
+	0x5e4322,	/* 0 UNKANALWN */
 	0xa44f,		/* 1 REALTEK_90 */
 	0x5ea44f,	/* 2 REALTEK_92SE */
 	0x5ea32b,	/* 3 BROAD */
@@ -351,7 +351,7 @@ void rtl8821ae_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 
@@ -430,7 +430,7 @@ static void rtl8821ae_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 	if ((mac->link_state < MAC80211_LINKED) &&
 	    (rtlpriv->dm.entry_min_undec_sm_pwdb == 0)) {
 		rtl_dm_dig->min_undec_pwdb_for_dm = 0;
-		pr_debug("rtl8821ae: Not connected to any AP\n");
+		pr_debug("rtl8821ae: Analt connected to any AP\n");
 	}
 	if (mac->link_state >= MAC80211_LINKED) {
 		if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -691,12 +691,12 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 	} else {
 		dm_digtable->rx_gain_max = dm_dig_max;
 		dig_min_0 = dm_dig_min;
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "No Link\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "Anal Link\n");
 	}
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
 		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
-			"Abnormally false alarm case.\n");
+			"Abanalrmally false alarm case.\n");
 
 		if (dm_digtable->large_fa_hit != 3)
 			dm_digtable->large_fa_hit++;
@@ -728,13 +728,13 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 					dm_digtable->rx_gain_min =
 						dig_min_0;
 					rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
-						"Normal Case: At Lower Bound\n");
+						"Analrmal Case: At Lower Bound\n");
 				} else {
 					dm_digtable->forbidden_igi--;
 					dm_digtable->rx_gain_min =
 					  (dm_digtable->forbidden_igi + 1);
 					rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
-						"Normal Case: Approach Lower Bound\n");
+						"Analrmal Case: Approach Lower Bound\n");
 				}
 			} else {
 				dm_digtable->large_fa_hit = 0;
@@ -843,7 +843,7 @@ static void rtl8821ae_dm_common_info_self_update(struct ieee80211_hw *hw)
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_ADHOC ||
 	    rtlpriv->mac80211.opmode == NL80211_IFTYPE_MESH_POINT) {
 		spin_lock_bh(&rtlpriv->locks.entry_list_lock);
-		cnt = list_count_nodes(&rtlpriv->entry_list);
+		cnt = list_count_analdes(&rtlpriv->entry_list);
 		spin_unlock_bh(&rtlpriv->locks.entry_list_lock);
 
 		if (cnt == 1)
@@ -1143,7 +1143,7 @@ u8 rtl8821ae_hw_rate_to_mrate(struct ieee80211_hw *hw, u8 rate)
 		break;
 	default:
 		rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-			"HwRateToMRate8812(): Non supported Rate [%x]!!!\n",
+			"HwRateToMRate8812(): Analn supported Rate [%x]!!!\n",
 			rate);
 		break;
 	}
@@ -1156,11 +1156,11 @@ u8 rtl8821ae_hw_rate_to_mrate(struct ieee80211_hw *hw, u8 rate)
  * Overview:	88E change all channel tx power accordign to flag.
  *				OFDM & CCK are all different.
  *
- * Input:		NONE
+ * Input:		ANALNE
  *
- * Output:		NONE
+ * Output:		ANALNE
  *
- * Return:		NONE
+ * Return:		ANALNE
  *
  * Revised History:
  *	When		Who		Remark
@@ -1507,7 +1507,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 			thermal_value_avg_count++;
 		}
 	}
-	/*Calculate Average ThermalValue after average enough times*/
+	/*Calculate Average ThermalValue after average eanalugh times*/
 	if (thermal_value_avg_count) {
 		thermal_value = (u8)(thermal_value_avg /
 				thermal_value_avg_count);
@@ -1518,7 +1518,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 
 	/*5. Calculate delta, delta_LCK, delta_IQK.
 	 *"delta" here is used to determine whether
-	 *thermal value changes or not.
+	 *thermal value changes or analt.
 	 */
 	delta = (thermal_value > rtldm->thermalvalue) ?
 		(thermal_value - rtldm->thermalvalue) :
@@ -1717,7 +1717,7 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 		 *Always TRUE after Tx Power is adjusted by power tracking.
 		 *
 		 *2012/04/23 MH According to Luke's suggestion,
-		 *we can not write BB digital
+		 *we can analt write BB digital
 		 *to increase TX power. Otherwise, EVM will be bad.
 		 *
 		 *2012/04/25 MH Add for tx power tracking to set
@@ -1725,28 +1725,28 @@ void rtl8812ae_dm_txpower_tracking_callback_thermalmeter(
 		 */
 		if (thermal_value > rtldm->thermalvalue) {
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Increasing(A): delta_pi: %d , delta_t: %d, Now_t: %d,EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Increasing(A): delta_pi: %d , delta_t: %d, Analw_t: %d,EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_A],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
 				rtldm->thermalvalue);
 
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Increasing(B): delta_pi: %d ,delta_t: %d, Now_t: %d, EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Increasing(B): delta_pi: %d ,delta_t: %d, Analw_t: %d, EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_B],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
 				rtldm->thermalvalue);
 		} else if (thermal_value < rtldm->thermalvalue) { /*Low temperature*/
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Decreasing(A): delta_pi: %d , delta_t: %d, Now_t: %d, EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Decreasing(A): delta_pi: %d , delta_t: %d, Analw_t: %d, EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_A],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
 				rtldm->thermalvalue);
 
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Decreasing(B): delta_pi: %d , delta_t: %d, Now_t: %d, EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Decreasing(B): delta_pi: %d , delta_t: %d, Analw_t: %d, EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_B],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
@@ -1835,11 +1835,11 @@ static void rtl8821ae_get_delta_swing_table(struct ieee80211_hw *hw,
  * Overview:	88E change all channel tx power accordign to flag.
  *				OFDM & CCK are all different.
  *
- * Input:		NONE
+ * Input:		ANALNE
  *
- * Output:		NONE
+ * Output:		ANALNE
  *
- * Return:		NONE
+ * Return:		ANALNE
  *
  * Revised History:
  *	When		Who		Remark
@@ -2073,7 +2073,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 			thermal_value_avg_count++;
 		}
 	}
-	/*Calculate Average ThermalValue after average enough times*/
+	/*Calculate Average ThermalValue after average eanalugh times*/
 	if (thermal_value_avg_count) {
 		thermal_value = (u8)(thermal_value_avg /
 				thermal_value_avg_count);
@@ -2084,7 +2084,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 
 	/*5. Calculate delta, delta_LCK, delta_IQK.
 	 *"delta" here is used to determine whether
-	 * thermal value changes or not.
+	 * thermal value changes or analt.
 	 */
 	delta = (thermal_value > rtldm->thermalvalue) ?
 		(thermal_value - rtldm->thermalvalue) :
@@ -2249,7 +2249,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 		/*Always TRUE after Tx Power is adjusted by power tracking.*/
 		/*
 		 *  2012/04/23 MH According to Luke's suggestion,
-		 *  we can not write BB digital
+		 *  we can analt write BB digital
 		 *  to increase TX power. Otherwise, EVM will be bad.
 		 *
 		 *  2012/04/25 MH Add for tx power tracking to
@@ -2257,14 +2257,14 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 		 */
 		if (thermal_value > rtldm->thermalvalue) {
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Increasing(A): delta_pi: %d , delta_t: %d,Now_t: %d, EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Increasing(A): delta_pi: %d , delta_t: %d,Analw_t: %d, EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_A],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
 				rtldm->thermalvalue);
 		} else if (thermal_value < rtldm->thermalvalue) { /*Low temperature*/
 			rtl_dbg(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-				"Temperature Decreasing(A): delta_pi: %d , delta_t: %d, Now_t: %d, EFUSE_t: %d, Last_t: %d\n",
+				"Temperature Decreasing(A): delta_pi: %d , delta_t: %d, Analw_t: %d, EFUSE_t: %d, Last_t: %d\n",
 				rtldm->power_index_offset[RF90_PATH_A],
 				delta, thermal_value,
 				rtlefuse->eeprom_thermalmeter,
@@ -2361,7 +2361,7 @@ static void rtl8821ae_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		rtl_dbg(rtlpriv, COMP_RATE, DBG_LOUD,
-			"driver does not control rate adaptive mask\n");
+			"driver does analt control rate adaptive mask\n");
 		return;
 	}
 
@@ -2495,9 +2495,9 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		"Original BE PARAM: 0x%x\n",
 		rtl_read_dword(rtlpriv, DM_REG_EDCA_BE_11N));
 
-	if (rtlpriv->dm.dbginfo.num_non_be_pkt > 0x100)
-		rtlpriv->dm.is_any_nonbepkts = true;
-	rtlpriv->dm.dbginfo.num_non_be_pkt = 0;
+	if (rtlpriv->dm.dbginfo.num_analn_be_pkt > 0x100)
+		rtlpriv->dm.is_any_analnbepkts = true;
+	rtlpriv->dm.dbginfo.num_analn_be_pkt = 0;
 
 	/*===============================
 	 * list parameter for different platform
@@ -2513,7 +2513,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 
 	iot_peer = rtlpriv->mac80211.vendor;
 	b_bias_on_rx = false;
-	b_edca_turbo_on = ((!rtlpriv->dm.is_any_nonbepkts) &&
+	b_edca_turbo_on = ((!rtlpriv->dm.is_any_analnbepkts) &&
 			   (!rtlpriv->dm.disable_framebursting)) ?
 			   true : false;
 
@@ -2526,8 +2526,8 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 	rtl_dbg(rtlpriv, COMP_TURBO, DBG_LOUD,
-		"bIsAnyNonBEPkts : 0x%x  bDisableFrameBursting : 0x%x\n",
-		rtlpriv->dm.is_any_nonbepkts,
+		"bIsAnyAnalnBEPkts : 0x%x  bDisableFrameBursting : 0x%x\n",
+		rtlpriv->dm.is_any_analnbepkts,
 		rtlpriv->dm.disable_framebursting);
 
 	rtl_dbg(rtlpriv, COMP_TURBO, DBG_LOUD,
@@ -2567,7 +2567,7 @@ static void rtl8821ae_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		rtlpriv->dm.current_turbo_edca = false;
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_analnbepkts = false;
 	rtldm->last_tx_ok_cnt = rtlpriv->stats.txbytesunicast;
 	rtldm->last_rx_ok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -2623,7 +2623,7 @@ static void rtl8821ae_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 			rtldm->atc_status = ATC_STATUS_ON;
 		}
 
-		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "No link!!\n");
+		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD, "Anal link!!\n");
 		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
 			"atc_status = %d\n", rtldm->atc_status);
 
@@ -2648,7 +2648,7 @@ static void rtl8821ae_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 		cfo_khz_b = (int)(rtldm->cfo_tail[1] * 3125) / 1280;
 		packet_count = rtldm->packet_count;
 
-		/*2.No new packet*/
+		/*2.Anal new packet*/
 		if (packet_count == rtldm->packet_count_pre) {
 			rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
 				"packet counter doesn't change\n");
@@ -2670,7 +2670,7 @@ static void rtl8821ae_dm_dynamic_atc_switch(struct ieee80211_hw *hw)
 			"cfo_khz_a = %dkHz, cfo_khz_b = %dkHz, cfo_ave = %dkHz\n",
 			cfo_khz_a, cfo_khz_b, cfo_ave);
 
-		/*4.Avoid abnormal large CFO*/
+		/*4.Avoid abanalrmal large CFO*/
 		cfo_ave_diff = (rtldm->cfo_ave_pre >= cfo_ave) ?
 						(rtldm->cfo_ave_pre - cfo_ave) :
 						(cfo_ave - rtldm->cfo_ave_pre);

@@ -36,7 +36,7 @@ to_display_connector(struct drm_bridge *bridge)
 static int display_connector_attach(struct drm_bridge *bridge,
 				    enum drm_bridge_attach_flags flags)
 {
-	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;
+	return flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR ? 0 : -EINVAL;
 }
 
 static enum drm_connector_status
@@ -62,7 +62,7 @@ display_connector_detect(struct drm_bridge *bridge)
 	case DRM_MODE_CONNECTOR_HDMIB:
 		/*
 		 * For DVI and HDMI connectors a DDC probe failure indicates
-		 * that no cable is connected.
+		 * that anal cable is connected.
 		 */
 		return connector_status_disconnected;
 
@@ -71,13 +71,13 @@ display_connector_detect(struct drm_bridge *bridge)
 	case DRM_MODE_CONNECTOR_VGA:
 	default:
 		/*
-		 * Composite and S-Video connectors have no other detection
+		 * Composite and S-Video connectors have anal other detection
 		 * mean than the HPD GPIO. For VGA connectors, even if we have
 		 * an I2C bus, we can't assume that the cable is disconnected
 		 * if drm_probe_ddc fails, as some cables don't wire the DDC
 		 * pins.
 		 */
-		return connector_status_unknown;
+		return connector_status_unkanalwn;
 	}
 }
 
@@ -135,7 +135,7 @@ static u32 *display_connector_get_output_bus_fmts(struct drm_bridge *bridge,
  * Since this bridge is tied to the connector, it acts like a passthrough,
  * so concerning the input bus formats, either pass the bus formats from the
  * previous bridge or MEDIA_BUS_FMT_FIXED (like select_bus_fmt_recursive())
- * when atomic_get_input_bus_fmts is not supported.
+ * when atomic_get_input_bus_fmts is analt supported.
  * This supports negotiation if the bridge chain has all bits in place.
  */
 static u32 *display_connector_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -185,7 +185,7 @@ static irqreturn_t display_connector_hpd_irq(int irq, void *arg)
 	struct display_connector *conn = arg;
 	struct drm_bridge *bridge = &conn->bridge;
 
-	drm_bridge_hpd_notify(bridge, display_connector_detect(bridge));
+	drm_bridge_hpd_analtify(bridge, display_connector_detect(bridge));
 
 	return IRQ_HANDLED;
 }
@@ -196,7 +196,7 @@ static int display_connector_get_supply(struct platform_device *pdev,
 {
 	conn->supply = devm_regulator_get_optional(&pdev->dev, name);
 
-	if (conn->supply == ERR_PTR(-ENODEV))
+	if (conn->supply == ERR_PTR(-EANALDEV))
 		conn->supply = NULL;
 
 	return PTR_ERR_OR_ZERO(conn->supply);
@@ -211,7 +211,7 @@ static int display_connector_probe(struct platform_device *pdev)
 
 	conn = devm_kzalloc(&pdev->dev, sizeof(*conn), GFP_KERNEL);
 	if (!conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, conn);
 
@@ -222,8 +222,8 @@ static int display_connector_probe(struct platform_device *pdev)
 	case DRM_MODE_CONNECTOR_DVII: {
 		bool analog, digital;
 
-		analog = of_property_read_bool(pdev->dev.of_node, "analog");
-		digital = of_property_read_bool(pdev->dev.of_node, "digital");
+		analog = of_property_read_bool(pdev->dev.of_analde, "analog");
+		digital = of_property_read_bool(pdev->dev.of_analde, "digital");
 		if (analog && !digital) {
 			conn->bridge.type = DRM_MODE_CONNECTOR_DVIA;
 		} else if (!analog && digital) {
@@ -231,7 +231,7 @@ static int display_connector_probe(struct platform_device *pdev)
 		} else if (analog && digital) {
 			conn->bridge.type = DRM_MODE_CONNECTOR_DVII;
 		} else {
-			dev_err(&pdev->dev, "DVI connector with no type\n");
+			dev_err(&pdev->dev, "DVI connector with anal type\n");
 			return -EINVAL;
 		}
 		break;
@@ -240,10 +240,10 @@ static int display_connector_probe(struct platform_device *pdev)
 	case DRM_MODE_CONNECTOR_HDMIA: {
 		const char *hdmi_type;
 
-		ret = of_property_read_string(pdev->dev.of_node, "type",
+		ret = of_property_read_string(pdev->dev.of_analde, "type",
 					      &hdmi_type);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "HDMI connector with no type\n");
+			dev_err(&pdev->dev, "HDMI connector with anal type\n");
 			return -EINVAL;
 		}
 
@@ -271,7 +271,7 @@ static int display_connector_probe(struct platform_device *pdev)
 	conn->bridge.interlace_allowed = true;
 
 	/* Get the optional connector label. */
-	of_property_read_string(pdev->dev.of_node, "label", &label);
+	of_property_read_string(pdev->dev.of_analde, "label", &label);
 
 	/*
 	 * Get the HPD GPIO for DVI, HDMI and DP connectors. If the GPIO can provide
@@ -309,17 +309,17 @@ static int display_connector_probe(struct platform_device *pdev)
 	if (type == DRM_MODE_CONNECTOR_DVII ||
 	    type == DRM_MODE_CONNECTOR_HDMIA ||
 	    type == DRM_MODE_CONNECTOR_VGA) {
-		struct device_node *phandle;
+		struct device_analde *phandle;
 
-		phandle = of_parse_phandle(pdev->dev.of_node, "ddc-i2c-bus", 0);
+		phandle = of_parse_phandle(pdev->dev.of_analde, "ddc-i2c-bus", 0);
 		if (phandle) {
-			conn->bridge.ddc = of_get_i2c_adapter_by_node(phandle);
-			of_node_put(phandle);
+			conn->bridge.ddc = of_get_i2c_adapter_by_analde(phandle);
+			of_analde_put(phandle);
 			if (!conn->bridge.ddc)
 				return -EPROBE_DEFER;
 		} else {
 			dev_dbg(&pdev->dev,
-				"No I2C bus specified, disabling EDID readout\n");
+				"Anal I2C bus specified, disabling EDID readout\n");
 		}
 	}
 
@@ -358,7 +358,7 @@ static int display_connector_probe(struct platform_device *pdev)
 	}
 
 	conn->bridge.funcs = &display_connector_bridge_funcs;
-	conn->bridge.of_node = pdev->dev.of_node;
+	conn->bridge.of_analde = pdev->dev.of_analde;
 
 	if (conn->bridge.ddc)
 		conn->bridge.ops |= DRM_BRIDGE_OP_EDID

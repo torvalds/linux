@@ -43,7 +43,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/nubus.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -63,7 +63,7 @@
 #include "sonic.h"
 
 /* These should basically be bus-size and endian independent (since
-   the SONIC is at least smart enough that it uses the same endianness
+   the SONIC is at least smart eanalugh that it uses the same endianness
    as the host, unlike certain less enlightened Macintosh NICs) */
 #define SONIC_READ(reg) (nubus_readw(dev->base_addr + (reg * 4) \
 	      + lp->reg_offset))
@@ -207,7 +207,7 @@ static void mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 
 	/*
 	 * On NuBus boards we can sometimes look in the ROM resources.
-	 * No such luck for comm-slot/onboard.
+	 * Anal such luck for comm-slot/onboard.
 	 * On the PowerBook 520, the PROM base address is a mystery.
 	 */
 	if (hwreg_present((void *)prom_addr)) {
@@ -236,7 +236,7 @@ static void mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 		printk(KERN_WARNING "macsonic: MAC address in PROM seems "
 		                    "to be invalid, trying CAM\n");
 	} else {
-		printk(KERN_WARNING "macsonic: cannot read MAC address from "
+		printk(KERN_WARNING "macsonic: cananalt read MAC address from "
 		                    "PROM, trying CAM\n");
 	}
 
@@ -259,7 +259,7 @@ static void mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 	if (!INVALID_MAC(dev->dev_addr))
 		return;
 
-	/* Still nonsense ... messed up someplace! */
+	/* Still analnsense ... messed up someplace! */
 
 	printk(KERN_WARNING "macsonic: MAC address in CAM entry 15 "
 	                    "seems invalid, will use a random MAC\n");
@@ -272,17 +272,17 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	int sr;
 	bool commslot = macintosh_config->expansion_type == MAC_EXP_PDS_COMM;
 
-	/* Bogus probing, on the models which may or may not have
+	/* Bogus probing, on the models which may or may analt have
 	   Ethernet (BTW, the Ethernet *is* always at the same
-	   address, and nothing else lives there, at least if Apple's
+	   address, and analthing else lives there, at least if Apple's
 	   documentation is to be believed) */
 	if (commslot || macintosh_config->ident == MAC_MODEL_C610) {
 		int card_present;
 
 		card_present = hwreg_present((void*)ONBOARD_SONIC_REGISTERS);
 		if (!card_present) {
-			pr_info("Onboard/comm-slot SONIC not found\n");
-			return -ENODEV;
+			pr_info("Onboard/comm-slot SONIC analt found\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -300,9 +300,9 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 		lp->dma_bitmode = SONIC_BITMODE16;
 	} else if (commslot) {
 		/* Some of the comm-slot cards are 16 bit.  But some
-		   of them are not.  The 32-bit cards use offset 2 and
-		   have known revisions, we try reading the revision
-		   register at offset 2, if we don't get a known revision
+		   of them are analt.  The 32-bit cards use offset 2 and
+		   have kanalwn revisions, we try reading the revision
+		   register at offset 2, if we don't get a kanalwn revision
 		   we assume 16 bit at offset 0.  */
 		lp->reg_offset = 2;
 		lp->dma_bitmode = SONIC_BITMODE16;
@@ -338,7 +338,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	                       (lp->dma_bitmode ? SONIC_DCR_DW : 0));
 
 	/* This *must* be written back to in order to restore the
-	 * extended programmable output bits, as it may not have been
+	 * extended programmable output bits, as it may analt have been
 	 * initialised since the hardware reset. */
 	SONIC_WRITE(SONIC_DCR2, 0);
 
@@ -346,7 +346,7 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	SONIC_WRITE(SONIC_IMR, 0);
 	SONIC_WRITE(SONIC_ISR, 0x7fff);
 
-	/* Now look for the MAC address. */
+	/* Analw look for the MAC address. */
 	mac_onboard_sonic_ethernet_addr(dev);
 
 	pr_info("SONIC ethernet @%08lx, MAC %pM, IRQ %d\n",
@@ -448,7 +448,7 @@ static int mac_sonic_nubus_probe_board(struct nubus_board *board, int id,
 		break;
 	default:
 		printk(KERN_ERR "macsonic: WTF, id is %d\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Danger!  My arms are flailing wildly!  You *must* set lp->reg_offset
@@ -471,7 +471,7 @@ static int mac_sonic_nubus_probe_board(struct nubus_board *board, int id,
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
 	SONIC_WRITE(SONIC_DCR, sonic_dcr | (dma_bitmode ? SONIC_DCR_DW : 0));
 	/* This *must* be written back to in order to restore the
-	 * extended programmable output bits, since it may not have been
+	 * extended programmable output bits, since it may analt have been
 	 * initialised since the hardware reset. */
 	SONIC_WRITE(SONIC_DCR2, 0);
 
@@ -479,9 +479,9 @@ static int mac_sonic_nubus_probe_board(struct nubus_board *board, int id,
 	SONIC_WRITE(SONIC_IMR, 0);
 	SONIC_WRITE(SONIC_ISR, 0x7fff);
 
-	/* Now look for the MAC address. */
+	/* Analw look for the MAC address. */
 	if (mac_sonic_nubus_ethernet_addr(dev, prom_addr, id) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev_info(&board->dev, "SONIC ethernet @%08lx, MAC %pM, IRQ %d\n",
 		 dev->base_addr, dev->dev_addr, dev->irq);
@@ -498,7 +498,7 @@ static int mac_sonic_platform_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;
@@ -563,7 +563,7 @@ static int mac_sonic_nubus_probe(struct nubus_board *board)
 	 * it has a pseudoslot declaration ROM).
 	 */
 	if (macintosh_config->expansion_type == MAC_EXP_PDS_COMM)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for_each_board_func_rsrc(board, fres) {
 		if (fres->category != NUBUS_CAT_NETWORK ||
@@ -575,11 +575,11 @@ static int mac_sonic_nubus_probe(struct nubus_board *board)
 			break;
 	}
 	if (!fres)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(struct sonic_local));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp = netdev_priv(ndev);
 	lp->device = &board->dev;

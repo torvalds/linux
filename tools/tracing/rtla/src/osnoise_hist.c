@@ -9,15 +9,15 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <time.h>
 #include <sched.h>
 
 #include "utils.h"
-#include "osnoise.h"
+#include "osanalise.h"
 
-struct osnoise_hist_params {
+struct osanalise_hist_params {
 	char			*cpus;
 	cpu_set_t		monitored_cpus;
 	char			*trace_output;
@@ -37,15 +37,15 @@ struct osnoise_hist_params {
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 
-	char			no_header;
-	char			no_summary;
-	char			no_index;
+	char			anal_header;
+	char			anal_summary;
+	char			anal_index;
 	char			with_zeros;
 	int			bucket_size;
 	int			entries;
 };
 
-struct osnoise_hist_cpu {
+struct osanalise_hist_cpu {
 	int			*samples;
 	int			count;
 
@@ -55,19 +55,19 @@ struct osnoise_hist_cpu {
 
 };
 
-struct osnoise_hist_data {
+struct osanalise_hist_data {
 	struct tracefs_hist	*trace_hist;
-	struct osnoise_hist_cpu	*hist;
+	struct osanalise_hist_cpu	*hist;
 	int			entries;
 	int			bucket_size;
 	int			nr_cpus;
 };
 
 /*
- * osnoise_free_histogram - free runtime data
+ * osanalise_free_histogram - free runtime data
  */
 static void
-osnoise_free_histogram(struct osnoise_hist_data *data)
+osanalise_free_histogram(struct osanalise_hist_data *data)
 {
 	int cpu;
 
@@ -85,12 +85,12 @@ osnoise_free_histogram(struct osnoise_hist_data *data)
 }
 
 /*
- * osnoise_alloc_histogram - alloc runtime data
+ * osanalise_alloc_histogram - alloc runtime data
  */
-static struct osnoise_hist_data
-*osnoise_alloc_histogram(int nr_cpus, int entries, int bucket_size)
+static struct osanalise_hist_data
+*osanalise_alloc_histogram(int nr_cpus, int entries, int bucket_size)
 {
-	struct osnoise_hist_data *data;
+	struct osanalise_hist_data *data;
 	int cpu;
 
 	data = calloc(1, sizeof(*data));
@@ -118,15 +118,15 @@ static struct osnoise_hist_data
 	return data;
 
 cleanup:
-	osnoise_free_histogram(data);
+	osanalise_free_histogram(data);
 	return NULL;
 }
 
-static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
+static void osanalise_hist_update_multiple(struct osanalise_tool *tool, int cpu,
 					 unsigned long long duration, int count)
 {
-	struct osnoise_hist_params *params = tool->params;
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_params *params = tool->params;
+	struct osanalise_hist_data *data = tool->data;
 	unsigned long long total_duration;
 	int entries = data->entries;
 	int bucket;
@@ -152,23 +152,23 @@ static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 }
 
 /*
- * osnoise_destroy_trace_hist - disable events used to collect histogram
+ * osanalise_destroy_trace_hist - disable events used to collect histogram
  */
-static void osnoise_destroy_trace_hist(struct osnoise_tool *tool)
+static void osanalise_destroy_trace_hist(struct osanalise_tool *tool)
 {
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_data *data = tool->data;
 
 	tracefs_hist_pause(tool->trace.inst, data->trace_hist);
 	tracefs_hist_destroy(tool->trace.inst, data->trace_hist);
 }
 
 /*
- * osnoise_init_trace_hist - enable events used to collect histogram
+ * osanalise_init_trace_hist - enable events used to collect histogram
  */
-static int osnoise_init_trace_hist(struct osnoise_tool *tool)
+static int osanalise_init_trace_hist(struct osanalise_tool *tool)
 {
-	struct osnoise_hist_params *params = tool->params;
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_params *params = tool->params;
+	struct osanalise_hist_data *data = tool->data;
 	int bucket_size;
 	char buff[128];
 	int retval = 0;
@@ -179,8 +179,8 @@ static int osnoise_init_trace_hist(struct osnoise_tool *tool)
 	bucket_size = params->output_divisor * params->bucket_size;
 	snprintf(buff, sizeof(buff), "duration.buckets=%d", bucket_size);
 
-	data->trace_hist = tracefs_hist_alloc(tool->trace.tep, "osnoise", "sample_threshold",
-			buff, TRACEFS_HIST_KEY_NORMAL);
+	data->trace_hist = tracefs_hist_alloc(tool->trace.tep, "osanalise", "sample_threshold",
+			buff, TRACEFS_HIST_KEY_ANALRMAL);
 	if (!data->trace_hist)
 		return 1;
 
@@ -195,22 +195,22 @@ static int osnoise_init_trace_hist(struct osnoise_tool *tool)
 	return 0;
 
 out_err:
-	osnoise_destroy_trace_hist(tool);
+	osanalise_destroy_trace_hist(tool);
 	return 1;
 }
 
 /*
- * osnoise_read_trace_hist - parse histogram file and file osnoise histogram
+ * osanalise_read_trace_hist - parse histogram file and file osanalise histogram
  */
-static void osnoise_read_trace_hist(struct osnoise_tool *tool)
+static void osanalise_read_trace_hist(struct osanalise_tool *tool)
 {
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_data *data = tool->data;
 	long long cpu, counter, duration;
 	char *content, *position;
 
 	tracefs_hist_pause(tool->trace.inst, data->trace_hist);
 
-	content = tracefs_event_file_read(tool->trace.inst, "osnoise",
+	content = tracefs_event_file_read(tool->trace.inst, "osanalise",
 					  "sample_threshold",
 					  "hist", NULL);
 	if (!content)
@@ -242,34 +242,34 @@ static void osnoise_read_trace_hist(struct osnoise_tool *tool)
 		if (counter == -1)
 			err_msg("error reading counter from histogram\n");
 
-		osnoise_hist_update_multiple(tool, cpu, duration, counter);
+		osanalise_hist_update_multiple(tool, cpu, duration, counter);
 	}
 	free(content);
 }
 
 /*
- * osnoise_hist_header - print the header of the tracer to the output
+ * osanalise_hist_header - print the header of the tracer to the output
  */
-static void osnoise_hist_header(struct osnoise_tool *tool)
+static void osanalise_hist_header(struct osanalise_tool *tool)
 {
-	struct osnoise_hist_params *params = tool->params;
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_params *params = tool->params;
+	struct osanalise_hist_data *data = tool->data;
 	struct trace_seq *s = tool->trace.seq;
 	char duration[26];
 	int cpu;
 
-	if (params->no_header)
+	if (params->anal_header)
 		return;
 
 	get_duration(tool->start_time, duration, sizeof(duration));
-	trace_seq_printf(s, "# RTLA osnoise histogram\n");
+	trace_seq_printf(s, "# RTLA osanalise histogram\n");
 	trace_seq_printf(s, "# Time unit is %s (%s)\n",
-			params->output_divisor == 1 ? "nanoseconds" : "microseconds",
+			params->output_divisor == 1 ? "naanalseconds" : "microseconds",
 			params->output_divisor == 1 ? "ns" : "us");
 
 	trace_seq_printf(s, "# Duration: %s\n", duration);
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(s, "Index");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -288,19 +288,19 @@ static void osnoise_hist_header(struct osnoise_tool *tool)
 }
 
 /*
- * osnoise_print_summary - print the summary of the hist data to the output
+ * osanalise_print_summary - print the summary of the hist data to the output
  */
 static void
-osnoise_print_summary(struct osnoise_hist_params *params,
+osanalise_print_summary(struct osanalise_hist_params *params,
 		       struct trace_instance *trace,
-		       struct osnoise_hist_data *data)
+		       struct osanalise_hist_data *data)
 {
 	int cpu;
 
-	if (params->no_summary)
+	if (params->anal_summary)
 		return;
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(trace->seq, "count:");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -314,7 +314,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(trace->seq, "min:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -329,7 +329,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(trace->seq, "avg:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -347,7 +347,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 	}
 	trace_seq_printf(trace->seq, "\n");
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(trace->seq, "max:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -366,22 +366,22 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 }
 
 /*
- * osnoise_print_stats - print data for all CPUs
+ * osanalise_print_stats - print data for all CPUs
  */
 static void
-osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *tool)
+osanalise_print_stats(struct osanalise_hist_params *params, struct osanalise_tool *tool)
 {
-	struct osnoise_hist_data *data = tool->data;
+	struct osanalise_hist_data *data = tool->data;
 	struct trace_instance *trace = &tool->trace;
 	int bucket, cpu;
 	int total;
 
-	osnoise_hist_header(tool);
+	osanalise_hist_header(tool);
 
 	for (bucket = 0; bucket < data->entries; bucket++) {
 		total = 0;
 
-		if (!params->no_index)
+		if (!params->anal_index)
 			trace_seq_printf(trace->seq, "%-6d",
 					 bucket * data->bucket_size);
 
@@ -406,7 +406,7 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 		trace_seq_reset(trace->seq);
 	}
 
-	if (!params->no_index)
+	if (!params->anal_index)
 		trace_seq_printf(trace->seq, "over: ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
@@ -423,58 +423,58 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 	trace_seq_do_printf(trace->seq);
 	trace_seq_reset(trace->seq);
 
-	osnoise_print_summary(params, trace, data);
+	osanalise_print_summary(params, trace, data);
 }
 
 /*
- * osnoise_hist_usage - prints osnoise hist usage message
+ * osanalise_hist_usage - prints osanalise hist usage message
  */
-static void osnoise_hist_usage(char *usage)
+static void osanalise_hist_usage(char *usage)
 {
 	int i;
 
 	static const char * const msg[] = {
 		"",
-		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
+		"  usage: rtla osanalise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
 		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
-		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros] [-C[=cgroup_name]]",
+		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-b N] [-E N] [--anal-header] [--anal-summary] \\",
+		"	  [--anal-index] [--with-zeros] [-C[=cgroup_name]]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
-		"	  -p/--period us: osnoise period in us",
-		"	  -r/--runtime us: osnoise runtime in us",
+		"	  -p/--period us: osanalise period in us",
+		"	  -r/--runtime us: osanalise runtime in us",
 		"	  -s/--stop us: stop trace if a single sample is higher than the argument in us",
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
-		"	  -T/--threshold us: the minimum delta to be considered a noise",
-		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
+		"	  -T/--threshold us: the minimum delta to be considered a analise",
+		"	  -c/--cpus cpu-list: list of cpus to run osanalise threads",
 		"	  -H/--house-keeping cpus: run rtla control threads only on the given cpus",
-		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if anal cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
-		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
+		"	  -t/--trace[=file]: save the stopped trace to [file|osanalise_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <filter>: enable a trace event filter to the previous -e event",
 		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
 		"	  -b/--bucket-size N: set the histogram bucket size (default 1)",
 		"	  -E/--entries N: set the number of entries of the histogram (default 256)",
-		"	     --no-header: do not print header",
-		"	     --no-summary: do not print summary",
-		"	     --no-index: do not print index",
+		"	     --anal-header: do analt print header",
+		"	     --anal-summary: do analt print summary",
+		"	     --anal-index: do analt print index",
 		"	     --with-zeros: print zero only entries",
 		"	  -P/--priority o:prio|r:prio|f:prio|d:runtime:period: set scheduling parameters",
 		"		o:prio - use SCHED_OTHER with prio",
 		"		r:prio - use SCHED_RR with prio",
 		"		f:prio - use SCHED_FIFO with prio",
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
-		"						       in nanoseconds",
+		"						       in naanalseconds",
 		NULL,
 	};
 
 	if (usage)
 		fprintf(stderr, "%s\n", usage);
 
-	fprintf(stderr, "rtla osnoise hist: a per-cpu histogram of the OS noise (version %s)\n",
+	fprintf(stderr, "rtla osanalise hist: a per-cpu histogram of the OS analise (version %s)\n",
 			VERSION);
 
 	for (i = 0; msg[i]; i++)
@@ -487,12 +487,12 @@ static void osnoise_hist_usage(char *usage)
 }
 
 /*
- * osnoise_hist_parse_args - allocs, parse and fill the cmd line parameters
+ * osanalise_hist_parse_args - allocs, parse and fill the cmd line parameters
  */
-static struct osnoise_hist_params
-*osnoise_hist_parse_args(int argc, char *argv[])
+static struct osanalise_hist_params
+*osanalise_hist_parse_args(int argc, char *argv[])
 {
-	struct osnoise_hist_params *params;
+	struct osanalise_hist_params *params;
 	struct trace_events *tevent;
 	int retval;
 	int c;
@@ -513,10 +513,10 @@ static struct osnoise_hist_params
 			{"entries",		required_argument,	0, 'E'},
 			{"cpus",		required_argument,	0, 'c'},
 			{"cgroup",		optional_argument,	0, 'C'},
-			{"debug",		no_argument,		0, 'D'},
+			{"debug",		anal_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
 			{"house-keeping",	required_argument,		0, 'H'},
-			{"help",		no_argument,		0, 'h'},
+			{"help",		anal_argument,		0, 'h'},
 			{"period",		required_argument,	0, 'p'},
 			{"priority",		required_argument,	0, 'P'},
 			{"runtime",		required_argument,	0, 'r'},
@@ -525,10 +525,10 @@ static struct osnoise_hist_params
 			{"trace",		optional_argument,	0, 't'},
 			{"event",		required_argument,	0, 'e'},
 			{"threshold",		required_argument,	0, 'T'},
-			{"no-header",		no_argument,		0, '0'},
-			{"no-summary",		no_argument,		0, '1'},
-			{"no-index",		no_argument,		0, '2'},
-			{"with-zeros",		no_argument,		0, '3'},
+			{"anal-header",		anal_argument,		0, '0'},
+			{"anal-summary",		anal_argument,		0, '1'},
+			{"anal-index",		anal_argument,		0, '2'},
+			{"with-zeros",		anal_argument,		0, '3'},
 			{"trigger",		required_argument,	0, '4'},
 			{"filter",		required_argument,	0, '5'},
 			{0, 0, 0, 0}
@@ -553,18 +553,18 @@ static struct osnoise_hist_params
 			params->threshold = 1;
 
 			/* set trace */
-			params->trace_output = "osnoise_trace.txt";
+			params->trace_output = "osanalise_trace.txt";
 
 			break;
 		case 'b':
 			params->bucket_size = get_llong_from_str(optarg);
 			if ((params->bucket_size == 0) || (params->bucket_size >= 1000000))
-				osnoise_hist_usage("Bucket size needs to be > 0 and <= 1000000\n");
+				osanalise_hist_usage("Bucket size needs to be > 0 and <= 1000000\n");
 			break;
 		case 'c':
 			retval = parse_cpu_set(optarg, &params->monitored_cpus);
 			if (retval)
-				osnoise_hist_usage("\nInvalid -c cpu list\n");
+				osanalise_hist_usage("\nInvalid -c cpu list\n");
 			params->cpus = optarg;
 			break;
 		case 'C':
@@ -583,7 +583,7 @@ static struct osnoise_hist_params
 		case 'd':
 			params->duration = parse_seconds_duration(optarg);
 			if (!params->duration)
-				osnoise_hist_usage("Invalid -D duration\n");
+				osanalise_hist_usage("Invalid -D duration\n");
 			break;
 		case 'e':
 			tevent = trace_event_alloc(optarg);
@@ -600,11 +600,11 @@ static struct osnoise_hist_params
 		case 'E':
 			params->entries = get_llong_from_str(optarg);
 			if ((params->entries < 10) || (params->entries > 9999999))
-				osnoise_hist_usage("Entries must be > 10 and < 9999999\n");
+				osanalise_hist_usage("Entries must be > 10 and < 9999999\n");
 			break;
 		case 'h':
 		case '?':
-			osnoise_hist_usage(NULL);
+			osanalise_hist_usage(NULL);
 			break;
 		case 'H':
 			params->hk_cpus = 1;
@@ -617,18 +617,18 @@ static struct osnoise_hist_params
 		case 'p':
 			params->period = get_llong_from_str(optarg);
 			if (params->period > 10000000)
-				osnoise_hist_usage("Period longer than 10 s\n");
+				osanalise_hist_usage("Period longer than 10 s\n");
 			break;
 		case 'P':
 			retval = parse_prio(optarg, &params->sched_param);
 			if (retval == -1)
-				osnoise_hist_usage("Invalid -P priority");
+				osanalise_hist_usage("Invalid -P priority");
 			params->set_sched = 1;
 			break;
 		case 'r':
 			params->runtime = get_llong_from_str(optarg);
 			if (params->runtime < 100)
-				osnoise_hist_usage("Runtime shorter than 100 us\n");
+				osanalise_hist_usage("Runtime shorter than 100 us\n");
 			break;
 		case 's':
 			params->stop_us = get_llong_from_str(optarg);
@@ -644,16 +644,16 @@ static struct osnoise_hist_params
 				/* skip = */
 				params->trace_output = &optarg[1];
 			else
-				params->trace_output = "osnoise_trace.txt";
+				params->trace_output = "osanalise_trace.txt";
 			break;
-		case '0': /* no header */
-			params->no_header = 1;
+		case '0': /* anal header */
+			params->anal_header = 1;
 			break;
-		case '1': /* no summary */
-			params->no_summary = 1;
+		case '1': /* anal summary */
+			params->anal_summary = 1;
 			break;
-		case '2': /* no index */
-			params->no_index = 1;
+		case '2': /* anal index */
+			params->anal_index = 1;
 			break;
 		case '3': /* with zeros */
 			params->with_zeros = 1;
@@ -666,7 +666,7 @@ static struct osnoise_hist_params
 					exit(EXIT_FAILURE);
 				}
 			} else {
-				osnoise_hist_usage("--trigger requires a previous -e\n");
+				osanalise_hist_usage("--trigger requires a previous -e\n");
 			}
 			break;
 		case '5': /* filter */
@@ -677,11 +677,11 @@ static struct osnoise_hist_params
 					exit(EXIT_FAILURE);
 				}
 			} else {
-				osnoise_hist_usage("--filter requires a previous -e\n");
+				osanalise_hist_usage("--filter requires a previous -e\n");
 			}
 			break;
 		default:
-			osnoise_hist_usage("Invalid option");
+			osanalise_hist_usage("Invalid option");
 		}
 	}
 
@@ -690,17 +690,17 @@ static struct osnoise_hist_params
 		exit(EXIT_FAILURE);
 	}
 
-	if (params->no_index && !params->with_zeros)
-		osnoise_hist_usage("no-index set and with-zeros not set - it does not make sense");
+	if (params->anal_index && !params->with_zeros)
+		osanalise_hist_usage("anal-index set and with-zeros analt set - it does analt make sense");
 
 	return params;
 }
 
 /*
- * osnoise_hist_apply_config - apply the hist configs to the initialized tool
+ * osanalise_hist_apply_config - apply the hist configs to the initialized tool
  */
 static int
-osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params *params)
+osanalise_hist_apply_config(struct osanalise_tool *tool, struct osanalise_hist_params *params)
 {
 	int retval;
 
@@ -708,7 +708,7 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 		params->sleep_time = 1;
 
 	if (params->cpus) {
-		retval = osnoise_set_cpus(tool->context, params->cpus);
+		retval = osanalise_set_cpus(tool->context, params->cpus);
 		if (retval) {
 			err_msg("Failed to apply CPUs config\n");
 			goto out_err;
@@ -716,7 +716,7 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 	}
 
 	if (params->runtime || params->period) {
-		retval = osnoise_set_runtime_period(tool->context,
+		retval = osanalise_set_runtime_period(tool->context,
 						    params->runtime,
 						    params->period);
 		if (retval) {
@@ -726,7 +726,7 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 	}
 
 	if (params->stop_us) {
-		retval = osnoise_set_stop_us(tool->context, params->stop_us);
+		retval = osanalise_set_stop_us(tool->context, params->stop_us);
 		if (retval) {
 			err_msg("Failed to set stop us\n");
 			goto out_err;
@@ -734,7 +734,7 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 	}
 
 	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
+		retval = osanalise_set_stop_total_us(tool->context, params->stop_total_us);
 		if (retval) {
 			err_msg("Failed to set stop total us\n");
 			goto out_err;
@@ -742,7 +742,7 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 	}
 
 	if (params->threshold) {
-		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
+		retval = osanalise_set_tracing_thresh(tool->context, params->threshold);
 		if (retval) {
 			err_msg("Failed to set tracing_thresh\n");
 			goto out_err;
@@ -758,11 +758,11 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 		}
 	} else if (params->cpus) {
 		/*
-		 * Even if the user do not set a house-keeping CPU, try to
+		 * Even if the user do analt set a house-keeping CPU, try to
 		 * move rtla to a CPU set different to the one where the user
 		 * set the workload to run.
 		 *
-		 * No need to check results as this is an automatic attempt.
+		 * Anal need to check results as this is an automatic attempt.
 		 */
 		auto_house_keeping(&params->monitored_cpus);
 	}
@@ -774,21 +774,21 @@ out_err:
 }
 
 /*
- * osnoise_init_hist - initialize a osnoise hist tool with parameters
+ * osanalise_init_hist - initialize a osanalise hist tool with parameters
  */
-static struct osnoise_tool
-*osnoise_init_hist(struct osnoise_hist_params *params)
+static struct osanalise_tool
+*osanalise_init_hist(struct osanalise_hist_params *params)
 {
-	struct osnoise_tool *tool;
+	struct osanalise_tool *tool;
 	int nr_cpus;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
-	tool = osnoise_init_tool("osnoise_hist");
+	tool = osanalise_init_tool("osanalise_hist");
 	if (!tool)
 		return NULL;
 
-	tool->data = osnoise_alloc_histogram(nr_cpus, params->entries, params->bucket_size);
+	tool->data = osanalise_alloc_histogram(nr_cpus, params->entries, params->bucket_size);
 	if (!tool->data)
 		goto out_err;
 
@@ -797,7 +797,7 @@ static struct osnoise_tool
 	return tool;
 
 out_err:
-	osnoise_destroy_tool(tool);
+	osanalise_destroy_tool(tool);
 	return NULL;
 }
 
@@ -808,10 +808,10 @@ static void stop_hist(int sig)
 }
 
 /*
- * osnoise_hist_set_signals - handles the signal to stop the tool
+ * osanalise_hist_set_signals - handles the signal to stop the tool
  */
 static void
-osnoise_hist_set_signals(struct osnoise_hist_params *params)
+osanalise_hist_set_signals(struct osanalise_hist_params *params)
 {
 	signal(SIGINT, stop_hist);
 	if (params->duration) {
@@ -820,45 +820,45 @@ osnoise_hist_set_signals(struct osnoise_hist_params *params)
 	}
 }
 
-int osnoise_hist_main(int argc, char *argv[])
+int osanalise_hist_main(int argc, char *argv[])
 {
-	struct osnoise_hist_params *params;
-	struct osnoise_tool *record = NULL;
-	struct osnoise_tool *tool = NULL;
+	struct osanalise_hist_params *params;
+	struct osanalise_tool *record = NULL;
+	struct osanalise_tool *tool = NULL;
 	struct trace_instance *trace;
 	int return_value = 1;
 	int retval;
 
-	params = osnoise_hist_parse_args(argc, argv);
+	params = osanalise_hist_parse_args(argc, argv);
 	if (!params)
 		exit(1);
 
-	tool = osnoise_init_hist(params);
+	tool = osanalise_init_hist(params);
 	if (!tool) {
-		err_msg("Could not init osnoise hist\n");
+		err_msg("Could analt init osanalise hist\n");
 		goto out_exit;
 	}
 
-	retval = osnoise_hist_apply_config(tool, params);
+	retval = osanalise_hist_apply_config(tool, params);
 	if (retval) {
-		err_msg("Could not apply config\n");
+		err_msg("Could analt apply config\n");
 		goto out_destroy;
 	}
 
 	trace = &tool->trace;
 
-	retval = enable_osnoise(trace);
+	retval = enable_osanalise(trace);
 	if (retval) {
-		err_msg("Failed to enable osnoise tracer\n");
+		err_msg("Failed to enable osanalise tracer\n");
 		goto out_destroy;
 	}
 
-	retval = osnoise_init_trace_hist(tool);
+	retval = osanalise_init_trace_hist(tool);
 	if (retval)
 		goto out_destroy;
 
 	if (params->set_sched) {
-		retval = set_comm_sched_attr("osnoise/", &params->sched_param);
+		retval = set_comm_sched_attr("osanalise/", &params->sched_param);
 		if (retval) {
 			err_msg("Failed to set sched parameters\n");
 			goto out_free;
@@ -874,7 +874,7 @@ int osnoise_hist_main(int argc, char *argv[])
 	}
 
 	if (params->trace_output) {
-		record = osnoise_init_trace_tool("osnoise");
+		record = osanalise_init_trace_tool("osanalise");
 		if (!record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;
@@ -900,7 +900,7 @@ int osnoise_hist_main(int argc, char *argv[])
 	trace_instance_start(trace);
 
 	tool->start_time = time(NULL);
-	osnoise_hist_set_signals(params);
+	osanalise_hist_set_signals(params);
 
 	while (!stop_tracing) {
 		sleep(params->sleep_time);
@@ -920,14 +920,14 @@ int osnoise_hist_main(int argc, char *argv[])
 			break;
 	}
 
-	osnoise_read_trace_hist(tool);
+	osanalise_read_trace_hist(tool);
 
-	osnoise_print_stats(params, tool);
+	osanalise_print_stats(params, tool);
 
 	return_value = 0;
 
 	if (trace_is_off(&tool->trace, &record->trace)) {
-		printf("rtla osnoise hit stop tracing\n");
+		printf("rtla osanalise hit stop tracing\n");
 		if (params->trace_output) {
 			printf("  Saving trace to %s\n", params->trace_output);
 			save_trace_to_file(record->trace.inst, params->trace_output);
@@ -938,10 +938,10 @@ out_hist:
 	trace_events_destroy(&record->trace, params->events);
 	params->events = NULL;
 out_free:
-	osnoise_free_histogram(tool->data);
+	osanalise_free_histogram(tool->data);
 out_destroy:
-	osnoise_destroy_tool(record);
-	osnoise_destroy_tool(tool);
+	osanalise_destroy_tool(record);
+	osanalise_destroy_tool(tool);
 	free(params);
 out_exit:
 	exit(return_value);

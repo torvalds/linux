@@ -15,7 +15,7 @@
 enum /* firmware state of device */
 {
 	FW_READY = 0,
-	FW_NOT_READY = 1
+	FW_ANALT_READY = 1
 };
 
 int usb6fire_fw_init(struct usb_interface *intf);

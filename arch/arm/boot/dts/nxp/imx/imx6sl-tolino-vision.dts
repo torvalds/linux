@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device tree for the Tolino Vison ebook reader
+ * Device tree for the Tolianal Vison ebook reader
  *
  * Name on mainboard is: 37NB-E60Q30+4A3
  * Serials start with: 6032
@@ -16,8 +16,8 @@
 #include "imx6sl.dtsi"
 
 / {
-	model = "Tolino Vision";
-	compatible = "kobo,tolino-vision", "fsl,imx6sl";
+	model = "Tolianal Vision";
+	compatible = "kobo,tolianal-vision", "fsl,imx6sl";
 
 	aliases {
 		mmc0 = &usdhc4;
@@ -165,7 +165,7 @@
 
 &snvs_rtc {
 	/*
-	 * We are using the RTC in the PMIC, but this one is not disabled
+	 * We are using the RTC in the PMIC, but this one is analt disabled
 	 * in imx6sl.dtsi.
 	 */
 	status = "disabled";
@@ -206,7 +206,7 @@
 	vmmc-supply = <&reg_wifi>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	cap-power-off-card;
-	non-removable;
+	analn-removable;
 	status = "okay";
 
 	/* CyberTan WC121 (BCM43362) SDIO WiFi */
@@ -219,8 +219,8 @@
 	pinctrl-2 = <&pinctrl_usdhc4_200mhz>;
 	pinctrl-3 = <&pinctrl_usdhc4_sleep>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	status = "okay";
 
 	/* internal eMMC */

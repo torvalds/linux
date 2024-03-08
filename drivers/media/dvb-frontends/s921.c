@@ -48,7 +48,7 @@ struct s921_state {
 
 /*
  * Various tuner defaults need to be established for a given frequency kHz.
- * fixme: The bounds on the bands do not match the doc in real life.
+ * fixme: The bounds on the bands do analt match the doc in real life.
  * fixme: Some of them have been moved, other might need adjustment.
  */
 static struct s921_bandselect_val {
@@ -361,7 +361,7 @@ static int s921_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	dprintk("status = %04x\n", regstatus);
 
-	/* Full Sync - We don't know what each bit means on regs 0x81/0x82 */
+	/* Full Sync - We don't kanalw what each bit means on regs 0x81/0x82 */
 	if ((regstatus & 0xff) == 0x40) {
 		*status = FE_HAS_SIGNAL  |
 			  FE_HAS_CARRIER |
@@ -369,7 +369,7 @@ static int s921_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			  FE_HAS_SYNC    |
 			  FE_HAS_LOCK;
 	} else if (regstatus & 0x40) {
-		/* This is close to Full Sync, but not enough to get useful info */
+		/* This is close to Full Sync, but analt eanalugh to get useful info */
 		*status = FE_HAS_SIGNAL  |
 			  FE_HAS_CARRIER |
 			  FE_HAS_VITERBI |
@@ -414,7 +414,7 @@ static int s921_set_frontend(struct dvb_frontend *fe)
 
 	dprintk("\n");
 
-	/* FIXME: We don't know how to use non-auto mode */
+	/* FIXME: We don't kanalw how to use analn-auto mode */
 
 	rc = s921_pll_tune(fe);
 	if (rc < 0)

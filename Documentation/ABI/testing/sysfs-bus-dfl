@@ -2,7 +2,7 @@ What:		/sys/bus/dfl/devices/dfl_dev.X/type
 Date:		Aug 2020
 KernelVersion:	5.10
 Contact:	Xu Yilun <yilun.xu@intel.com>
-Description:	Read-only. It returns type of DFL FIU of the device. Now DFL
+Description:	Read-only. It returns type of DFL FIU of the device. Analw DFL
 		supports 2 FIU types, 0 for FME, 1 for PORT.
 
 		Format: 0x%x

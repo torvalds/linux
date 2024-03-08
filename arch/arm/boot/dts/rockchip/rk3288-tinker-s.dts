@@ -15,7 +15,7 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_pwr &emmc_bus8>;
 	max-frequency = <150000000>;

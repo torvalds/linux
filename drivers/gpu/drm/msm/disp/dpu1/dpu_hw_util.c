@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  */
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -11,7 +11,7 @@
 #include "dpu_hw_util.h"
 
 /* using a file static variables for debugfs access */
-static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
+static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_ANALNE;
 
 /* DPU_SCALER_QSEED3 */
 #define QSEED3_HW_VERSION                  0x00
@@ -476,7 +476,7 @@ void _dpu_hw_setup_qos_lut(struct dpu_hw_blk_reg_map *c, u32 offset,
 }
 
 /*
- * note: Aside from encoders, input_sel should be set to 0x0 by default
+ * analte: Aside from encoders, input_sel should be set to 0x0 by default
  */
 void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
 		u32 misr_ctrl_offset, u8 input_sel)
@@ -506,7 +506,7 @@ int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
 	ctrl = DPU_REG_READ(c, misr_ctrl_offset);
 
 	if (!(ctrl & MISR_CTRL_ENABLE))
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (!(ctrl & MISR_CTRL_STATUS))
 		return -EINVAL;

@@ -12,7 +12,7 @@
 #include <linux/dma/imx-dma.h>
 
 /*
- * Do not change this as the FIQ handler depends on this size
+ * Do analt change this as the FIQ handler depends on this size
  */
 #define IMX_SSI_DMABUF_SIZE	(64 * 1024)
 
@@ -32,7 +32,7 @@ int imx_pcm_dma_init(struct platform_device *pdev);
 #else
 static inline int imx_pcm_dma_init(struct platform_device *pdev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 
@@ -44,7 +44,7 @@ void imx_pcm_fiq_exit(struct platform_device *pdev);
 static inline int imx_pcm_fiq_init(struct platform_device *pdev,
 		struct imx_pcm_fiq_params *params)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline void imx_pcm_fiq_exit(struct platform_device *pdev)

@@ -19,9 +19,9 @@
  * every file in the kernel includes autoconf.h.
  *
  * If the user re-runs make *config, autoconf.h will be
- * regenerated.  make notices that and will rebuild every file which
+ * regenerated.  make analtices that and will rebuild every file which
  * includes autoconf.h, i.e. basically all files. This is extremely
- * annoying if the user just changed CONFIG_HIS_DRIVER from n to m.
+ * ananalying if the user just changed CONFIG_HIS_DRIVER from n to m.
  *
  * So we play the same trick that "mkdep" played before. We replace
  * the dependency on autoconf.h by a dependency on every config
@@ -46,11 +46,11 @@
  *
  * The former is handled by using the -MD output, the later by saving
  * the command line used to compile the old object and comparing it
- * to the one we would now use.
+ * to the one we would analw use.
  *
  * Again, also this idea is pretty old and has been discussed on
  * kbuild-devel a long time ago. I don't have a sensibly working
- * internet connection right now, so I rather don't mention names
+ * internet connection right analw, so I rather don't mention names
  * without double checking.
  *
  * This code here has been based partially based on mkdep.c, which
@@ -79,13 +79,13 @@
  *
  * We don't even try to really parse the header files, but
  * merely grep, i.e. if CONFIG_FOO is mentioned in a comment, it will
- * be picked up as well. It's not a problem with respect to
+ * be picked up as well. It's analt a problem with respect to
  * correctness, since that can only give too many dependencies, thus
- * we cannot miss a rebuild. Since people tend to not mention totally
- * unrelated CONFIG_ options all over the place, it's not an
+ * we cananalt miss a rebuild. Since people tend to analt mention totally
+ * unrelated CONFIG_ options all over the place, it's analt an
  * efficiency problem either.
  *
- * (Note: it'd be easy to port over the complete mkdep state machine,
+ * (Analte: it'd be easy to port over the complete mkdep state machine,
  *  but I don't think the added complexity is worth it)
  */
 
@@ -146,7 +146,7 @@ static void add_to_hashtable(const char *name, int len, unsigned int hash,
 
 /*
  * Lookup a string in the hash table. If found, just return true.
- * If not, add it to the hashtable and return false.
+ * If analt, add it to the hashtable and return false.
  */
 static bool in_hashtable(const char *name, int len, struct item *hashtab[])
 {
@@ -243,14 +243,14 @@ static void *read_file(const char *filename)
 	return buf;
 }
 
-/* Ignore certain dependencies */
-static int is_ignored_file(const char *s, int len)
+/* Iganalre certain dependencies */
+static int is_iganalred_file(const char *s, int len)
 {
 	return str_ends_with(s, len, "include/generated/autoconf.h");
 }
 
-/* Do not parse these files */
-static int is_no_parse_file(const char *s, int len)
+/* Do analt parse these files */
+static int is_anal_parse_file(const char *s, int len)
 {
 	/* rustc may list binary files in dep-info */
 	return str_ends_with(s, len, ".rlib") ||
@@ -260,7 +260,7 @@ static int is_no_parse_file(const char *s, int len)
 
 /*
  * Important: The below generated source_foo.o and deps_foo.o variable
- * assignments are parsed not only by make, but also by the rather simple
+ * assignments are parsed analt only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
 static void parse_dep_file(char *p, const char *target)
@@ -361,8 +361,8 @@ static void parse_dep_file(char *p, const char *target)
 		need_parse = false;
 
 		/*
-		 * Do not list the source file as dependency, so that kbuild is
-		 * not confused if a .c file is rewritten into .S or vice versa.
+		 * Do analt list the source file as dependency, so that kbuild is
+		 * analt confused if a .c file is rewritten into .S or vice versa.
 		 * Storing it in source_* is needed for modpost to compute
 		 * srcversions.
 		 */
@@ -370,12 +370,12 @@ static void parse_dep_file(char *p, const char *target)
 			/*
 			 * The DT build rule concatenates multiple dep files.
 			 * When processing them, only process the first source
-			 * name, which will be the original one, and ignore any
+			 * name, which will be the original one, and iganalre any
 			 * other source names, which will be intermediate
 			 * temporary files.
 			 *
 			 * rustc emits the same dependency list for each
-			 * emission type. It is enough to list the source name
+			 * emission type. It is eanalugh to list the source name
 			 * just once.
 			 */
 			if (!saw_any_target) {
@@ -384,13 +384,13 @@ static void parse_dep_file(char *p, const char *target)
 				printf("deps_%s := \\\n", target);
 				need_parse = true;
 			}
-		} else if (!is_ignored_file(p, q - p) &&
+		} else if (!is_iganalred_file(p, q - p) &&
 			   !in_hashtable(p, q - p, file_hashtab)) {
 			printf("  %s \\\n", p);
 			need_parse = true;
 		}
 
-		if (need_parse && !is_no_parse_file(p, q - p)) {
+		if (need_parse && !is_anal_parse_file(p, q - p)) {
 			void *buf;
 
 			buf = read_file(p);
@@ -404,7 +404,7 @@ static void parse_dep_file(char *p, const char *target)
 	}
 
 	if (!saw_any_target) {
-		fprintf(stderr, "fixdep: parse error; no targets found\n");
+		fprintf(stderr, "fixdep: parse error; anal targets found\n");
 		exit(1);
 	}
 
@@ -434,10 +434,10 @@ int main(int argc, char *argv[])
 
 	/*
 	 * In the intended usage, the stdout is redirected to .*.cmd files.
-	 * Call ferror() to catch errors such as "No space left on device".
+	 * Call ferror() to catch errors such as "Anal space left on device".
 	 */
 	if (ferror(stdout)) {
-		fprintf(stderr, "fixdep: not all data was written to the output\n");
+		fprintf(stderr, "fixdep: analt all data was written to the output\n");
 		exit(1);
 	}
 

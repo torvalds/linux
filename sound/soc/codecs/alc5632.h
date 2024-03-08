@@ -4,7 +4,7 @@
 *
 * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
 *
-* Authors:  Leon Romanovsky <leon@leon.nu>
+* Authors:  Leon Romaanalvsky <leon@leon.nu>
 *           Andrey Danin <danindrey@mail.ru>
 *           Ilya Petrov <ilya.muromec@gmail.com>
 *           Marc Dietrich <marvin24@gmx.de>
@@ -29,7 +29,7 @@
 #define ALC5632_MIC_VOL				0x0E /* mic in vol */
 /* stero dac/mic routing */
 #define ALC5632_MIC_ROUTING_CTRL		0x10
-#define ALC5632_MIC_ROUTE_MONOMIX		(1 << 0)
+#define ALC5632_MIC_ROUTE_MOANALMIX		(1 << 0)
 #define ALC5632_MIC_ROUTE_SPK			(1 << 1)
 #define ALC5632_MIC_ROUTE_HP			(1 << 2)
 
@@ -45,7 +45,7 @@
 #define ALC5632_ADC_REC_AUX			(1 << 3)
 #define ALC5632_ADC_REC_HP			(1 << 2)
 #define ALC5632_ADC_REC_SPK			(1 << 1)
-#define ALC5632_ADC_REC_MONOMIX			(1 << 0)
+#define ALC5632_ADC_REC_MOANALMIX			(1 << 0)
 
 #define ALC5632_VOICE_DAC_VOL			0x18 /* voice dac vol */
 #define ALC5632_I2S_OUT_CTL				0x1A /* undocumented reg. found in path scheme */
@@ -89,7 +89,7 @@
 /* 0:voice, 1:main */
 #define ALC5632_DAI_MAIN_I2S_SYSCLK_SEL		(1 <<  8)
 #define ALC5632_DAI_MAIN_I2S_BCLK_POL_CTRL	(1 <<  7)
-/* 0:normal, 1:invert */
+/* 0:analrmal, 1:invert */
 #define ALC5632_DAI_MAIN_I2S_LRCK_INV		(1 <<  6)
 #define ALC5632_DAI_I2S_DL_MASK			(3 <<  2)
 #define ALC5632_DAI_I2S_DL_8			(3 <<  2)
@@ -111,9 +111,9 @@
 #define ALC5632_DAI_HPF_CLK_CTRL		(1 << 13)
 /* 0:main, 1:voice */
 #define ALC5632_DAI_VOICE_I2S_SYSCLK_SEL	(1 <<  8)
-/* 0:normal, 1:invert */
+/* 0:analrmal, 1:invert */
 #define ALC5632_DAI_VOICE_VBCLK_SYSCLK_SEL	(1 <<  7)
-/* 0:normal, 1:invert */
+/* 0:analrmal, 1:invert */
 #define ALC5632_DAI_VOICE_I2S_LR_INV		(1 <<  6)
 #define ALC5632_DAI_VOICE_DL_MASK		(3 <<  2)
 #define ALC5632_DAI_VOICE_DL_16			(0 <<  2)
@@ -158,7 +158,7 @@
 #define ALC5632_PWR_ADD2_L_HP_MIXER		(1 <<  5)
 #define ALC5632_PWR_ADD2_R_HP_MIXER		(1 <<  4)
 #define ALC5632_PWR_ADD2_SPK_MIXER		(1 <<  3)
-#define ALC5632_PWR_ADD2_MONO_MIXER		(1 <<  2)
+#define ALC5632_PWR_ADD2_MOANAL_MIXER		(1 <<  2)
 #define ALC5632_PWR_ADD2_L_ADC_REC_MIXER	(1 <<  1)
 #define ALC5632_PWR_ADD2_R_ADC_REC_MIXER	(1 <<  0)
 

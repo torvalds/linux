@@ -35,7 +35,7 @@ static struct ctl_table page_table_sysctl[] = {
 
 static int __init page_table_register_sysctl(void)
 {
-	return register_sysctl("vm", page_table_sysctl) ? 0 : -ENOMEM;
+	return register_sysctl("vm", page_table_sysctl) ? 0 : -EANALMEM;
 }
 __initcall(page_table_register_sysctl);
 
@@ -98,8 +98,8 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 
 	/*
 	 * This routine gets called with mmap_lock lock held and there is
-	 * no reason to optimize for the case of otherwise. However, if
-	 * that would ever change, the below check will let us know.
+	 * anal reason to optimize for the case of otherwise. However, if
+	 * that would ever change, the below check will let us kanalw.
 	 */
 	VM_BUG_ON(asce_limit != mm->context.asce_limit);
 
@@ -130,7 +130,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 err_pgd:
 	crst_table_free(mm, p4d);
 err_p4d:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 #ifdef CONFIG_PGSTE
@@ -205,7 +205,7 @@ void __tlb_remove_table(void *table)
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static void pte_free_now(struct rcu_head *head)
+static void pte_free_analw(struct rcu_head *head)
 {
 	struct ptdesc *ptdesc = container_of(head, struct ptdesc, pt_rcu_head);
 
@@ -216,9 +216,9 @@ void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
 {
 	struct ptdesc *ptdesc = virt_to_ptdesc(pgtable);
 
-	call_rcu(&ptdesc->pt_rcu_head, pte_free_now);
+	call_rcu(&ptdesc->pt_rcu_head, pte_free_analw);
 	/*
-	 * THPs are not allowed for KVM guests. Warn if pgste ever reaches here.
+	 * THPs are analt allowed for KVM guests. Warn if pgste ever reaches here.
 	 * Turn to the generic pte_free_defer() version once gmap is removed.
 	 */
 	WARN_ON_ONCE(mm_has_pgste(mm));
@@ -227,7 +227,7 @@ void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
 
 /*
  * Base infrastructure required to generate basic asces, region, segment,
- * and page tables that do not make use of enhanced features like EDAT1.
+ * and page tables that do analt make use of enhanced features like EDAT1.
  */
 
 static struct kmem_cache *base_pgt_cache;
@@ -321,7 +321,7 @@ static int base_segment_walk(unsigned long *origin, unsigned long addr,
 				continue;
 			table = base_pgt_alloc();
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 			*ste = __pa(table) | _SEGMENT_ENTRY;
 		}
 		table = __va(*ste & _SEGMENT_ENTRY_ORIGIN);
@@ -350,7 +350,7 @@ static int base_region3_walk(unsigned long *origin, unsigned long addr,
 				continue;
 			table = base_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 			*rtte = __pa(table) | _REGION3_ENTRY;
 		}
 		table = __va(*rtte & _REGION_ENTRY_ORIGIN);
@@ -378,7 +378,7 @@ static int base_region2_walk(unsigned long *origin, unsigned long addr,
 				continue;
 			table = base_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 			*rste = __pa(table) | _REGION2_ENTRY;
 		}
 		table = __va(*rste & _REGION_ENTRY_ORIGIN);
@@ -406,7 +406,7 @@ static int base_region1_walk(unsigned long *origin, unsigned long addr,
 				continue;
 			table = base_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!table)
-				return -ENOMEM;
+				return -EANALMEM;
 			*rfte = __pa(table) | _REGION1_ENTRY;
 		}
 		table = __va(*rfte & _REGION_ENTRY_ORIGIN);
@@ -460,7 +460,7 @@ static int base_pgt_cache_init(void)
 	if (!base_pgt_cache)
 		base_pgt_cache = kmem_cache_create("base_pgt", sz, sz, 0, NULL);
 	mutex_unlock(&base_pgt_cache_mutex);
-	return base_pgt_cache ? 0 : -ENOMEM;
+	return base_pgt_cache ? 0 : -EANALMEM;
 }
 
 /**
@@ -470,11 +470,11 @@ static int base_pgt_cache_init(void)
  *
  * Generate an asce, including all required region, segment and page tables,
  * that can be used to access the virtual kernel mapping. The difference is
- * that the returned asce does not make use of any enhanced DAT features like
+ * that the returned asce does analt make use of any enhanced DAT features like
  * e.g. large pages. This is required for some I/O functions that pass an
  * asce, like e.g. some service call requests.
  *
- * Note: the returned asce may NEVER be attached to any cpu. It may only be
+ * Analte: the returned asce may NEVER be attached to any cpu. It may only be
  *	 used for I/O requests. tlb entries that might result because the
  *	 asce was attached to a cpu won't be cleared.
  */

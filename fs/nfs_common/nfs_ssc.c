@@ -22,7 +22,7 @@ EXPORT_SYMBOL_GPL(nfs_ssc_client_tbl);
  * @ops: NFS_V4 ops to be installed
  *
  * Return values:
- *   None
+ *   Analne
  */
 void nfs42_ssc_register(const struct nfs4_ssc_client_ops *ops)
 {
@@ -36,7 +36,7 @@ EXPORT_SYMBOL_GPL(nfs42_ssc_register);
  * @ops: ops to be uninstalled
  *
  * Return values:
- *   None
+ *   Analne
  */
 void nfs42_ssc_unregister(const struct nfs4_ssc_client_ops *ops)
 {
@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(nfs42_ssc_unregister);
  * @ops: NFS_FS ops to be installed
  *
  * Return values:
- *   None
+ *   Analne
  */
 void nfs_ssc_register(const struct nfs_ssc_client_ops *ops)
 {
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(nfs_ssc_register);
  * @ops: ops to be uninstalled
  *
  * Return values:
- *   None
+ *   Analne
  */
 void nfs_ssc_unregister(const struct nfs_ssc_client_ops *ops)
 {

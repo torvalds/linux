@@ -71,7 +71,7 @@ static ssize_t vpd_attrib_read(struct file *filp, struct kobject *kobp,
  * The VPD specification supports only [a-zA-Z0-9_]+ characters in key names but
  * old firmware versions may have entries like "S/N" which are problematic when
  * exporting them as sysfs attributes. These keys present in old firmwares are
- * ignored.
+ * iganalred.
  *
  * Returns VPD_OK for a valid key name, VPD_FAIL otherwise.
  *
@@ -109,11 +109,11 @@ static int vpd_section_attrib_add(const u8 *key, u32 key_len,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->key = kstrndup(key, key_len, GFP_KERNEL);
 	if (!info->key) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_info;
 	}
 
@@ -186,14 +186,14 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 
 	sec->baseaddr = memremap(physaddr, size, MEMREMAP_WB);
 	if (!sec->baseaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sec->name = name;
 
 	/* We want to export the raw partition with name ${name}_raw */
 	sec->raw_name = kasprintf(GFP_KERNEL, "%s_raw", name);
 	if (!sec->raw_name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_memunmap;
 	}
 
@@ -252,13 +252,13 @@ static int vpd_sections_init(phys_addr_t physaddr)
 
 	temp = memremap(physaddr, sizeof(struct vpd_cbmem), MEMREMAP_WB);
 	if (!temp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(&header, temp, sizeof(struct vpd_cbmem));
 	memunmap(temp);
 
 	if (header.magic != VPD_CBMEM_MAGIC)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (header.ro_size) {
 		ret = vpd_section_init("ro", &ro_vpd,
@@ -287,7 +287,7 @@ static int vpd_probe(struct coreboot_device *dev)
 
 	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
 	if (!vpd_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = vpd_sections_init(dev->cbmem_ref.cbmem_addr);
 	if (ret) {

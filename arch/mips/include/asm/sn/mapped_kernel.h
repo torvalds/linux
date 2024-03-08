@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * File created by Kanoj Sarcar 06/06/00.
+ * File created by Kaanalj Sarcar 06/06/00.
  * Copyright 2000 Silicon Graphics, Inc.
  */
 #ifndef __ASM_SN_MAPPED_KERNEL_H
@@ -9,7 +9,7 @@
 #include <linux/mmzone.h>
 
 /*
- * Note on how mapped kernels work: the text and data section is
+ * Analte on how mapped kernels work: the text and data section is
  * compiled at cksseg segment (LOADADDR = 0xc001c000), and the
  * init/setup/data section gets a 16M virtual address bump in the
  * ld.script file (so that tlblo0 and tlblo1 maps the sections).
@@ -20,7 +20,7 @@
  * sets the entry point into kernel_entry using a xkphys address,
  * but instead of using 0xa800000001160000, it uses the address
  * 0xa800000000160000, which is where it physically loaded that
- * code. So no jumps can be done before we have switched to using
+ * code. So anal jumps can be done before we have switched to using
  * cksseg addresses.
  */
 #include <asm/addrspace.h>

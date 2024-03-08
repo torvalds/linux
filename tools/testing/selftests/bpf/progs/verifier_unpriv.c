@@ -346,7 +346,7 @@ __naked void spill_fill_of_ctx_4(void)
 
 SEC("tc")
 __description("unpriv: spill/fill of different pointers stx")
-__failure __msg("same insn cannot be used with different pointers")
+__failure __msg("same insn cananalt be used with different pointers")
 __naked void fill_of_different_pointers_stx(void)
 {
 	asm volatile ("					\
@@ -373,7 +373,7 @@ l1_%=:	r1 = *(u64*)(r6 + 0);				\
  */
 SEC("tc")
 __description("unpriv: spill/fill of different pointers st")
-__failure __msg("same insn cannot be used with different pointers")
+__failure __msg("same insn cananalt be used with different pointers")
 __naked void fill_of_different_pointers_st(void)
 {
 	asm volatile ("					\
@@ -438,7 +438,7 @@ l2_%=:	r0 = 0;						\
 SEC("tc")
 __description("unpriv: spill/fill of different pointers stx - leak sock")
 __failure
-//.errstr = "same insn cannot be used with different pointers",
+//.errstr = "same insn cananalt be used with different pointers",
 __msg("Unreleased reference")
 __naked void different_pointers_stx_leak_sock(void)
 {
@@ -473,7 +473,7 @@ l1_%=:	/* struct __sk_buff *skb = *target; */		\
 
 SEC("tc")
 __description("unpriv: spill/fill of different pointers stx - sock and ctx (read)")
-__failure __msg("same insn cannot be used with different pointers")
+__failure __msg("same insn cananalt be used with different pointers")
 __naked void stx_sock_and_ctx_read(void)
 {
 	asm volatile ("					\
@@ -511,8 +511,8 @@ l2_%=:	r0 = 0;						\
 SEC("tc")
 __description("unpriv: spill/fill of different pointers stx - sock and ctx (write)")
 __failure
-//.errstr = "same insn cannot be used with different pointers",
-__msg("cannot write into sock")
+//.errstr = "same insn cananalt be used with different pointers",
+__msg("cananalt write into sock")
 __naked void stx_sock_and_ctx_write(void)
 {
 	asm volatile ("					\

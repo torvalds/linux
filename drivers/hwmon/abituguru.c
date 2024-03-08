@@ -4,8 +4,8 @@
  */
 /*
  * This driver supports the sensor part of the first and second revision of
- * the custom Abit uGuru chip found on Abit uGuru motherboards. Note: because
- * of lack of specs the CPU/RAM voltage & frequency control is not supported!
+ * the custom Abit uGuru chip found on Abit uGuru motherboards. Analte: because
+ * of lack of specs the CPU/RAM voltage & frequency control is analt supported!
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,9 +35,9 @@
  * Warning if you increase one of the 2 MAX defines below to 10 or higher you
  * should adjust the belonging _NAMES_LENGTH macro for the 2 digit number!
  */
-/* max nr of sensors in bank2, currently mb's with max 6 fans are known */
+/* max nr of sensors in bank2, currently mb's with max 6 fans are kanalwn */
 #define ABIT_UGURU_MAX_BANK2_SENSORS		6
-/* max nr of pwm outputs, currently mb's with max 5 pwm outputs are known */
+/* max nr of pwm outputs, currently mb's with max 5 pwm outputs are kanalwn */
 #define ABIT_UGURU_MAX_PWMS			5
 /* uGuru sensor bank 1 flags */			     /* Alarm if: */
 #define ABIT_UGURU_TEMP_HIGH_ALARM_ENABLE	0x01 /*  temp over warn */
@@ -67,13 +67,13 @@
 #define ABIT_UGURU_WAIT_TIMEOUT			125
 /*
  * However sometimes older versions of the uGuru seem to be distracted and they
- * do not respond for a long time. To handle this we sleep before each of the
+ * do analt respond for a long time. To handle this we sleep before each of the
  * last ABIT_UGURU_WAIT_TIMEOUT_SLEEP tries.
  */
 #define ABIT_UGURU_WAIT_TIMEOUT_SLEEP		5
 /*
- * Normally all expected status in abituguru_ready, are reported after the
- * first read, but sometimes not and we need to poll.
+ * Analrmally all expected status in abituguru_ready, are reported after the
+ * first read, but sometimes analt and we need to poll.
  */
 #define ABIT_UGURU_READY_TIMEOUT		5
 /* Maximum 3 retries on timedout reads/writes, delay 200 ms before retrying */
@@ -118,7 +118,7 @@
 
 /*
  * All the macros below are named identical to the oguru and oguru2 programs
- * reverse engineered by Olle Sandberg, hence the names might not be 100%
+ * reverse engineered by Olle Sandberg, hence the names might analt be 100%
  * logical. I could come up with better names, but I prefer keeping the names
  * identical so that this driver can be compared with his work more easily.
  */
@@ -150,7 +150,7 @@ static const u8 abituguru_bank2_max_threshold = 50;
  */
 static const int abituguru_pwm_settings_multiplier[5] = { 0, 1, 1, 1000, 1000 };
 /*
- * Min / Max allowed values for pwm_settings. Note: pwm1 (CPU fan) is a
+ * Min / Max allowed values for pwm_settings. Analte: pwm1 (CPU fan) is a
  * special case the minimum allowed pwm% setting for this is 30% (77) on
  * some MB's this special case is handled in the code!
  */
@@ -169,7 +169,7 @@ MODULE_PARM_DESC(bank1_types, "Bank1 sensortype autodetection override:\n"
 	"   -1 autodetect\n"
 	"    0 volt sensor\n"
 	"    1 temp sensor\n"
-	"    2 not connected");
+	"    2 analt connected");
 static int fan_sensors;
 module_param(fan_sensors, int, 0);
 MODULE_PARM_DESC(fan_sensors, "Number of fan sensors on the uGuru "
@@ -183,7 +183,7 @@ MODULE_PARM_DESC(pwms, "Number of PWMs on the uGuru "
 static int verbose = 2;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "How verbose should the driver be? (0-3):\n"
-	"   0 normal output\n"
+	"   0 analrmal output\n"
 	"   1 + verbose error reporting\n"
 	"   2 + sensors type probing info\n"
 	"   3 + retryable error reporting");
@@ -207,7 +207,7 @@ struct abituguru_data {
 
 	/*
 	 * The sysfs attr and their names are generated automatically, for bank1
-	 * we cannot use a predefined array because we don't know beforehand
+	 * we cananalt use a predefined array because we don't kanalw beforehand
 	 * of a sensor is a volt or a temp sensor, for bank2 and the pwms its
 	 * easier todo things the same way.  For in sensors we have 9 (temp 7)
 	 * sysfs entries per sensor, for bank2 and pwms 6.
@@ -288,12 +288,12 @@ static int abituguru_ready(struct abituguru_data *data)
 		return -EIO;
 	}
 
-	/* Cmd port MUST be read now and should contain 0xAC */
+	/* Cmd port MUST be read analw and should contain 0xAC */
 	while (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
 			ABIT_UGURU_DEBUG(1,
-			   "CMD reg does not hold 0xAC after ready command\n");
+			   "CMD reg does analt hold 0xAC after ready command\n");
 			return -EIO;
 		}
 		msleep(0);
@@ -328,7 +328,7 @@ static int abituguru_send_address(struct abituguru_data *data,
 	u8 bank_addr, u8 sensor_addr, int retries)
 {
 	/*
-	 * assume the caller does error handling itself if it has not requested
+	 * assume the caller does error handling itself if it has analt requested
 	 * any retries, and thus be quiet.
 	 */
 	int report_errors = retries;
@@ -336,7 +336,7 @@ static int abituguru_send_address(struct abituguru_data *data,
 	for (;;) {
 		/*
 		 * Make sure the uguru is ready and then send the bank address,
-		 * after this the uguru is no longer "ready".
+		 * after this the uguru is anal longer "ready".
 		 */
 		if (abituguru_ready(data) != 0)
 			return -EIO;
@@ -431,7 +431,7 @@ static int abituguru_write(struct abituguru_data *data,
 	}
 
 	/*
-	 * Now we need to wait till the chip is ready to be read again,
+	 * Analw we need to wait till the chip is ready to be read again,
 	 * so that we can read 0xAC as confirmation that our write has
 	 * succeeded.
 	 */
@@ -442,11 +442,11 @@ static int abituguru_write(struct abituguru_data *data,
 		return -EIO;
 	}
 
-	/* Cmd port MUST be read now and should contain 0xAC */
+	/* Cmd port MUST be read analw and should contain 0xAC */
 	while (inb_p(data->addr + ABIT_UGURU_CMD) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU_DEBUG(1, "CMD reg does not hold 0xAC after "
+			ABIT_UGURU_DEBUG(1, "CMD reg does analt hold 0xAC after "
 				"write (bank: %d, sensor: %d)\n",
 				(int)bank_addr, (int)sensor_addr);
 			return -EIO;
@@ -462,7 +462,7 @@ static int abituguru_write(struct abituguru_data *data,
 
 /*
  * Detect sensor type. Temp and Volt sensors are enabled with
- * different masks and will ignore enable masks not meant for them.
+ * different masks and will iganalre enable masks analt meant for them.
  * This enables us to test what kind of sensor we're dealing with.
  * By setting the alarm thresholds so that we will always get an
  * alarm for sensor type X and then enabling the sensor as sensor type
@@ -473,7 +473,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 				   u8 sensor_addr)
 {
 	u8 val, test_flag, buf[3];
-	int i, ret = -ENODEV; /* error is the most common used retval :| */
+	int i, ret = -EANALDEV; /* error is the most common used retval :| */
 
 	/* If overriden by the user return the user selected type */
 	if (bank1_types[sensor_addr] >= ABIT_UGURU_IN_SENSOR &&
@@ -487,7 +487,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* First read the sensor and the current settings */
 	if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1, sensor_addr, &val,
 			1, ABIT_UGURU_MAX_RETRIES) != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Test val is sane / usable for sensor type detection. */
 	if ((val < 10u) || (val > 250u)) {
@@ -495,9 +495,9 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 			"unable to determine sensor type, skipping sensor\n",
 			(int)sensor_addr, (int)val);
 		/*
-		 * assume no sensor is there for sensors for which we can't
+		 * assume anal sensor is there for sensors for which we can't
 		 * determine the sensor type because their reading is too close
-		 * to their limits, this usually means no sensor is there.
+		 * to their limits, this usually means anal sensor is there.
 		 */
 		return ABIT_UGURU_NC;
 	}
@@ -524,7 +524,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 			buf, 3) != 3)
 		goto abituguru_detect_bank1_sensor_type_exit;
 	/*
-	 * Now we need 20 ms to give the uguru time to read the sensors
+	 * Analw we need 20 ms to give the uguru time to read the sensors
 	 * and raise a voltage alarm
 	 */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -544,14 +544,14 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
 			ABIT_UGURU_DEBUG(2, "  alarm raised during volt "
-				"sensor test, but volt range flag not set\n");
+				"sensor test, but volt range flag analt set\n");
 	} else
-		ABIT_UGURU_DEBUG(2, "  alarm not raised during volt sensor "
+		ABIT_UGURU_DEBUG(2, "  alarm analt raised during volt sensor "
 			"test\n");
 
 	/*
 	 * Temp sensor test, enable sensor as a temp sensor, set beep value
-	 * ridiculously low (but not too low, otherwise uguru ignores it).
+	 * ridiculously low (but analt too low, otherwise uguru iganalres it).
 	 * If its a temp sensor this should always give us an alarm.
 	 */
 	buf[0] = ABIT_UGURU_TEMP_HIGH_ALARM_ENABLE;
@@ -561,7 +561,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 			buf, 3) != 3)
 		goto abituguru_detect_bank1_sensor_type_exit;
 	/*
-	 * Now we need 50 ms to give the uguru time to read the sensors
+	 * Analw we need 50 ms to give the uguru time to read the sensors
 	 * and raise a temp alarm
 	 */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -581,9 +581,9 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 			goto abituguru_detect_bank1_sensor_type_exit;
 		} else
 			ABIT_UGURU_DEBUG(2, "  alarm raised during temp "
-				"sensor test, but temp high flag not set\n");
+				"sensor test, but temp high flag analt set\n");
 	} else
-		ABIT_UGURU_DEBUG(2, "  alarm not raised during temp sensor "
+		ABIT_UGURU_DEBUG(2, "  alarm analt raised during temp sensor "
 			"test\n");
 
 	ret = ABIT_UGURU_NC;
@@ -599,9 +599,9 @@ abituguru_detect_bank1_sensor_type_exit:
 				3) == 3)
 			break;
 	if (i == 3) {
-		pr_err("Fatal error could not restore original settings. %s %s\n",
+		pr_err("Fatal error could analt restore original settings. %s %s\n",
 		       never_happen, report_this);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return ret;
 }
@@ -609,24 +609,24 @@ abituguru_detect_bank1_sensor_type_exit:
 /*
  * These functions try to find out how many sensors there are in bank2 and how
  * many pwms there are. The purpose of this is to make sure that we don't give
- * the user the possibility to change settings for non-existent sensors / pwm.
+ * the user the possibility to change settings for analn-existent sensors / pwm.
  * The uGuru will happily read / write whatever memory happens to be after the
- * memory storing the PWM settings when reading/writing to a PWM which is not
- * there. Notice even if we detect a PWM which doesn't exist we normally won't
+ * memory storing the PWM settings when reading/writing to a PWM which is analt
+ * there. Analtice even if we detect a PWM which doesn't exist we analrmally won't
  * write to it, unless the user tries to change the settings.
  *
- * Although the uGuru allows reading (settings) from non existing bank2
+ * Although the uGuru allows reading (settings) from analn existing bank2
  * sensors, my version of the uGuru does seem to stop writing to them, the
  * write function above aborts in this case with:
- * "CMD reg does not hold 0xAC after write"
+ * "CMD reg does analt hold 0xAC after write"
  *
- * Notice these 2 tests are non destructive iow read-only tests, otherwise
+ * Analtice these 2 tests are analn destructive iow read-only tests, otherwise
  * they would defeat their purpose. Although for the bank2_sensors detection a
  * read/write test would be feasible because of the reaction above, I've
  * however opted to stay on the safe side.
  */
 static void
-abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
+abituguru_detect_anal_bank2_sensors(struct abituguru_data *data)
 {
 	int i;
 
@@ -641,7 +641,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 	ABIT_UGURU_DEBUG(2, "detecting number of fan sensors\n");
 	for (i = 0; i < ABIT_UGURU_MAX_BANK2_SENSORS; i++) {
 		/*
-		 * 0x89 are the known used bits:
+		 * 0x89 are the kanalwn used bits:
 		 * -0x80 enable shutdown
 		 * -0x08 enable beep
 		 * -0x01 enable alarm
@@ -649,7 +649,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		 * 0x40 (bit 6) is also high for some of the fans??
 		 */
 		if (data->bank2_settings[i][0] & ~0xC9) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does analt seem "
 				"to be a fan sensor: settings[0] = %02X\n",
 				i, (unsigned int)data->bank2_settings[i][0]);
 			break;
@@ -658,7 +658,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		/* check if the threshold is within the allowed range */
 		if (data->bank2_settings[i][1] <
 				abituguru_bank2_min_threshold) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does analt seem "
 				"to be a fan sensor: the threshold (%d) is "
 				"below the minimum (%d)\n", i,
 				(int)data->bank2_settings[i][1],
@@ -667,7 +667,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		}
 		if (data->bank2_settings[i][1] >
 				abituguru_bank2_max_threshold) {
-			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does analt seem "
 				"to be a fan sensor: the threshold (%d) is "
 				"above the maximum (%d)\n", i,
 				(int)data->bank2_settings[i][1],
@@ -682,7 +682,7 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 }
 
 static void
-abituguru_detect_no_pwms(struct abituguru_data *data)
+abituguru_detect_anal_pwms(struct abituguru_data *data)
 {
 	int i, j;
 
@@ -701,7 +701,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 		 * the other bits should be 0
 		 */
 		if (data->pwm_settings[i][0] & ~0x8F) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  pwm channel %d does analt seem "
 				"to be a pwm channel: settings[0] = %02X\n",
 				i, (unsigned int)data->pwm_settings[i][0]);
 			break;
@@ -718,8 +718,8 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 				break;
 		}
 		if (j == data->bank1_sensors[ABIT_UGURU_TEMP_SENSOR]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
-				"to be a pwm channel: %d is not a valid temp "
+			ABIT_UGURU_DEBUG(2, "  pwm channel %d does analt seem "
+				"to be a pwm channel: %d is analt a valid temp "
 				"sensor address\n", i,
 				data->pwm_settings[i][0] & 0x0F);
 			break;
@@ -735,27 +735,27 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 				min = abituguru_pwm_min[j];
 			if (data->pwm_settings[i][j] < min) {
 				ABIT_UGURU_DEBUG(2, "  pwm channel %d does "
-					"not seem to be a pwm channel: "
+					"analt seem to be a pwm channel: "
 					"setting %d (%d) is below the minimum "
 					"value (%d)\n", i, j,
 					(int)data->pwm_settings[i][j],
 					(int)min);
-				goto abituguru_detect_no_pwms_exit;
+				goto abituguru_detect_anal_pwms_exit;
 			}
 			if (data->pwm_settings[i][j] > abituguru_pwm_max[j]) {
 				ABIT_UGURU_DEBUG(2, "  pwm channel %d does "
-					"not seem to be a pwm channel: "
+					"analt seem to be a pwm channel: "
 					"setting %d (%d) is above the maximum "
 					"value (%d)\n", i, j,
 					(int)data->pwm_settings[i][j],
 					(int)abituguru_pwm_max[j]);
-				goto abituguru_detect_no_pwms_exit;
+				goto abituguru_detect_anal_pwms_exit;
 			}
 		}
 
 		/* check that min temp < max temp and min pwm < max pwm */
 		if (data->pwm_settings[i][1] >= data->pwm_settings[i][2]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  pwm channel %d does analt seem "
 				"to be a pwm channel: min pwm (%d) >= "
 				"max pwm (%d)\n", i,
 				(int)data->pwm_settings[i][1],
@@ -763,7 +763,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 			break;
 		}
 		if (data->pwm_settings[i][3] >= data->pwm_settings[i][4]) {
-			ABIT_UGURU_DEBUG(2, "  pwm channel %d does not seem "
+			ABIT_UGURU_DEBUG(2, "  pwm channel %d does analt seem "
 				"to be a pwm channel: min temp (%d) >= "
 				"max temp (%d)\n", i,
 				(int)data->pwm_settings[i][3],
@@ -772,7 +772,7 @@ abituguru_detect_no_pwms(struct abituguru_data *data)
 		}
 	}
 
-abituguru_detect_no_pwms_exit:
+abituguru_detect_anal_pwms_exit:
 	data->pwms = i;
 	ABIT_UGURU_DEBUG(2, " found: %d PWM outputs\n", (int)data->pwms);
 }
@@ -1257,7 +1257,7 @@ static struct sensor_device_attribute_2 abituguru_sysfs_attr[] = {
 static int abituguru_probe(struct platform_device *pdev)
 {
 	struct abituguru_data *data;
-	int i, j, used, sysfs_names_free, sysfs_attr_i, res = -ENODEV;
+	int i, j, used, sysfs_names_free, sysfs_attr_i, res = -EANALDEV;
 	char *sysfs_filename;
 
 	/*
@@ -1271,7 +1271,7 @@ static int abituguru_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
 	mutex_init(&data->update_lock);
@@ -1301,9 +1301,9 @@ static int abituguru_probe(struct platform_device *pdev)
 			goto abituguru_probe_error;
 	}
 	/*
-	 * Note: We don't know how many bank2 sensors / pwms there really are,
+	 * Analte: We don't kanalw how many bank2 sensors / pwms there really are,
 	 * but in order to "detect" this we need to read the maximum amount
-	 * anyways. If we read sensors/pwms not there we'll just read crap
+	 * anyways. If we read sensors/pwms analt there we'll just read crap
 	 * this can't hurt. We need the detection because we don't want
 	 * unwanted writes, which will hurt!
 	 */
@@ -1358,7 +1358,7 @@ static int abituguru_probe(struct platform_device *pdev)
 		data->bank1_sensors[res]++;
 	}
 	/* Detect number of sensors and fill the sysfs attr for bank2 (fans) */
-	abituguru_detect_no_bank2_sensors(data);
+	abituguru_detect_anal_bank2_sensors(data);
 	for (i = 0; i < data->bank2_sensors; i++) {
 		for (j = 0; j < ARRAY_SIZE(abituguru_sysfs_fan_templ); j++) {
 			used = snprintf(sysfs_filename, sysfs_names_free,
@@ -1375,7 +1375,7 @@ static int abituguru_probe(struct platform_device *pdev)
 		}
 	}
 	/* Detect number of sensors and fill the sysfs attr for pwms */
-	abituguru_detect_no_pwms(data);
+	abituguru_detect_anal_pwms(data);
 	for (i = 0; i < data->pwms; i++) {
 		for (j = 0; j < ARRAY_SIZE(abituguru_sysfs_pwm_templ); j++) {
 			used = snprintf(sysfs_filename, sysfs_names_free,
@@ -1445,7 +1445,7 @@ static struct abituguru_data *abituguru_update_device(struct device *dev)
 {
 	int i, err;
 	struct abituguru_data *data = dev_get_drvdata(dev);
-	/* fake a complete successful read if no update necessary. */
+	/* fake a complete successful read if anal update necessary. */
 	char success = 1;
 
 	mutex_lock(&data->update_lock);
@@ -1477,7 +1477,7 @@ static struct abituguru_data *abituguru_update_device(struct device *dev)
 LEAVE_UPDATE:
 		/* handle timeout condition */
 		if (!success && (err == -EBUSY || err >= 0)) {
-			/* No overflow please */
+			/* Anal overflow please */
 			if (data->update_timeouts < 255u)
 				data->update_timeouts++;
 			if (data->update_timeouts <= ABIT_UGURU_MAX_TIMEOUTS) {
@@ -1506,7 +1506,7 @@ static int abituguru_suspend(struct device *dev)
 {
 	struct abituguru_data *data = dev_get_drvdata(dev);
 	/*
-	 * make sure all communications with the uguru are done and no new
+	 * make sure all communications with the uguru are done and anal new
 	 * ones are started
 	 */
 	mutex_lock(&data->update_lock);
@@ -1550,7 +1550,7 @@ static int __init abituguru_detect(void)
 	    ((cmd_val == 0x00) || (cmd_val == 0xAC)))
 		return ABIT_UGURU_BASE;
 
-	ABIT_UGURU_DEBUG(2, "no Abit uGuru found, data = 0x%02X, cmd = "
+	ABIT_UGURU_DEBUG(2, "anal Abit uGuru found, data = 0x%02X, cmd = "
 		"0x%02X\n", (unsigned int)data_val, (unsigned int)cmd_val);
 
 	if (force) {
@@ -1558,8 +1558,8 @@ static int __init abituguru_detect(void)
 		return ABIT_UGURU_BASE;
 	}
 
-	/* No uGuru found */
-	return -ENODEV;
+	/* Anal uGuru found */
+	return -EANALDEV;
 }
 
 static struct platform_device *abituguru_pdev;
@@ -1570,10 +1570,10 @@ static int __init abituguru_init(void)
 	struct resource res = { .flags = IORESOURCE_IO };
 	const char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 
-	/* safety check, refuse to load on non Abit motherboards */
+	/* safety check, refuse to load on analn Abit motherboards */
 	if (!force && (!board_vendor ||
 			strcmp(board_vendor, "http://www.abit.com.tw/")))
-		return -ENODEV;
+		return -EANALDEV;
 
 	address = abituguru_detect();
 	if (address < 0)
@@ -1586,7 +1586,7 @@ static int __init abituguru_init(void)
 	abituguru_pdev = platform_device_alloc(ABIT_UGURU_NAME, address);
 	if (!abituguru_pdev) {
 		pr_err("Device allocation failed\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit_driver_unregister;
 	}
 

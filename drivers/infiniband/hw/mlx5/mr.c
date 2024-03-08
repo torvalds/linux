@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellaanalx Techanallogies. All rights reserved.
  * Copyright (c) 2020, Intel Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -132,7 +132,7 @@ static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 
 static void create_mkey_warn(struct mlx5_ib_dev *dev, int status, void *out)
 {
-	if (status == -ENXIO) /* core driver is not available */
+	if (status == -ENXIO) /* core driver is analt available */
 		return;
 
 	mlx5_ib_warn(dev, "async reg mr failed. status %d\n", status);
@@ -153,7 +153,7 @@ static int push_mkey_locked(struct mlx5_cache_ent *ent, u32 mkey)
 	    ent->mkeys_queue.num_pages * NUM_MKEYS_PER_PAGE) {
 		page = kzalloc(sizeof(*page), GFP_ATOMIC);
 		if (!page)
-			return -ENOMEM;
+			return -EANALMEM;
 		ent->mkeys_queue.num_pages++;
 		list_add_tail(&page->list, &ent->mkeys_queue.pages_list);
 	} else {
@@ -253,7 +253,7 @@ static void set_cache_mkc(struct mlx5_cache_ent *ent, void *mkc)
 	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
 }
 
-/* Asynchronously schedule new MRs to be populated in the cache. */
+/* Asynchroanalusly schedule new MRs to be populated in the cache. */
 static int add_keys(struct mlx5_cache_ent *ent, unsigned int num)
 {
 	struct mlx5r_async_create_mkey *async_create;
@@ -265,7 +265,7 @@ static int add_keys(struct mlx5_cache_ent *ent, unsigned int num)
 		async_create = kzalloc(sizeof(struct mlx5r_async_create_mkey),
 				       GFP_KERNEL);
 		if (!async_create)
-			return -ENOMEM;
+			return -EANALMEM;
 		mkc = MLX5_ADDR_OF(create_mkey_in, async_create->in,
 				   memory_key_mkey_entry);
 		set_cache_mkc(ent, mkc);
@@ -297,7 +297,7 @@ free_async_create:
 	return err;
 }
 
-/* Synchronously create a MR in the cache */
+/* Synchroanalusly create a MR in the cache */
 static int create_cache_mkey(struct mlx5_cache_ent *ent, u32 *mkey)
 {
 	size_t inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
@@ -307,7 +307,7 @@ static int create_cache_mkey(struct mlx5_cache_ent *ent, u32 *mkey)
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	set_cache_mkc(ent, mkc);
 
@@ -379,7 +379,7 @@ static ssize_t size_write(struct file *filp, const char __user *buf,
 
 	/*
 	 * Target is the new value of total_mrs the user requests, however we
-	 * cannot free MRs that are in use. Compute the target value for stored
+	 * cananalt free MRs that are in use. Compute the target value for stored
 	 * mkeys.
 	 */
 	spin_lock_irq(&ent->mkeys_queue.lock);
@@ -474,12 +474,12 @@ static const struct file_operations limit_fops = {
 static bool someone_adding(struct mlx5_mkey_cache *cache)
 {
 	struct mlx5_cache_ent *ent;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	bool ret;
 
 	mutex_lock(&cache->rb_lock);
-	for (node = rb_first(&cache->rb_root); node; node = rb_next(node)) {
-		ent = rb_entry(node, struct mlx5_cache_ent, node);
+	for (analde = rb_first(&cache->rb_root); analde; analde = rb_next(analde)) {
+		ent = rb_entry(analde, struct mlx5_cache_ent, analde);
 		spin_lock_irq(&ent->mkeys_queue.lock);
 		ret = ent->mkeys_queue.ci < ent->limit;
 		spin_unlock_irq(&ent->mkeys_queue.lock);
@@ -548,7 +548,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 			/*
 			 * EAGAIN only happens if there are pending MRs, so we
 			 * will be rescheduled when storing them. The only
-			 * failure path here is ENOMEM.
+			 * failure path here is EANALMEM.
 			 */
 			if (err != -EAGAIN) {
 				mlx5_ib_warn(
@@ -564,7 +564,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 
 		/*
 		 * The remove_cache_mr() logic is performed as garbage
-		 * collection task. Such task is intended to be run when no
+		 * collection task. Such task is intended to be run when anal
 		 * other active processes are running.
 		 *
 		 * The need_resched() will return TRUE if there are user tasks
@@ -628,13 +628,13 @@ static int cache_ent_key_cmp(struct mlx5r_cache_rb_key key1,
 static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 				 struct mlx5_cache_ent *ent)
 {
-	struct rb_node **new = &cache->rb_root.rb_node, *parent = NULL;
+	struct rb_analde **new = &cache->rb_root.rb_analde, *parent = NULL;
 	struct mlx5_cache_ent *cur;
 	int cmp;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new analde */
 	while (*new) {
-		cur = rb_entry(*new, struct mlx5_cache_ent, node);
+		cur = rb_entry(*new, struct mlx5_cache_ent, analde);
 		parent = *new;
 		cmp = cache_ent_key_cmp(cur->rb_key, ent->rb_key);
 		if (cmp > 0)
@@ -647,9 +647,9 @@ static int mlx5_cache_ent_insert(struct mlx5_mkey_cache *cache,
 		}
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&ent->node, parent, new);
-	rb_insert_color(&ent->node, &cache->rb_root);
+	/* Add new analde and rebalance tree. */
+	rb_link_analde(&ent->analde, parent, new);
+	rb_insert_color(&ent->analde, &cache->rb_root);
 
 	return 0;
 }
@@ -658,22 +658,22 @@ static struct mlx5_cache_ent *
 mkey_cache_ent_from_rb_key(struct mlx5_ib_dev *dev,
 			   struct mlx5r_cache_rb_key rb_key)
 {
-	struct rb_node *node = dev->cache.rb_root.rb_node;
+	struct rb_analde *analde = dev->cache.rb_root.rb_analde;
 	struct mlx5_cache_ent *cur, *smallest = NULL;
 	int cmp;
 
 	/*
 	 * Find the smallest ent with order >= requested_order.
 	 */
-	while (node) {
-		cur = rb_entry(node, struct mlx5_cache_ent, node);
+	while (analde) {
+		cur = rb_entry(analde, struct mlx5_cache_ent, analde);
 		cmp = cache_ent_key_cmp(cur->rb_key, rb_key);
 		if (cmp > 0) {
 			smallest = cur;
-			node = node->rb_left;
+			analde = analde->rb_left;
 		}
 		if (cmp < 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		if (cmp == 0)
 			return cur;
 	}
@@ -695,7 +695,7 @@ static struct mlx5_ib_mr *_mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_irq(&ent->mkeys_queue.lock);
 	ent->in_use++;
@@ -759,7 +759,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	struct mlx5_cache_ent *ent = mkey_cache_ent_from_rb_key(dev, rb_key);
 
 	if (!ent)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	return _mlx5_mr_cache_alloc(dev, ent, access_flags);
 }
@@ -832,7 +832,7 @@ static int mlx5r_mkeys_init(struct mlx5_cache_ent *ent)
 
 	page = kzalloc(sizeof(*page), GFP_KERNEL);
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&ent->mkeys_queue.pages_list);
 	spin_lock_init(&ent->mkeys_queue.lock);
 	list_add_tail(&page->list, &ent->mkeys_queue.pages_list);
@@ -862,7 +862,7 @@ mlx5r_cache_create_ent_locked(struct mlx5_ib_dev *dev,
 
 	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
 	if (!ent)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = mlx5r_mkeys_init(ent);
 	if (ret)
@@ -909,14 +909,14 @@ static void remove_ent_work_func(struct work_struct *work)
 {
 	struct mlx5_mkey_cache *cache;
 	struct mlx5_cache_ent *ent;
-	struct rb_node *cur;
+	struct rb_analde *cur;
 
 	cache = container_of(work, struct mlx5_mkey_cache,
 			     remove_ent_dwork.work);
 	mutex_lock(&cache->rb_lock);
 	cur = rb_last(&cache->rb_root);
 	while (cur) {
-		ent = rb_entry(cur, struct mlx5_cache_ent, node);
+		ent = rb_entry(cur, struct mlx5_cache_ent, analde);
 		cur = rb_prev(cur);
 		mutex_unlock(&cache->rb_lock);
 
@@ -942,7 +942,7 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 		.access_mode = MLX5_MKC_ACCESS_MODE_MTT,
 	};
 	struct mlx5_cache_ent *ent;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	int ret;
 	int i;
 
@@ -953,7 +953,7 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 	cache->wq = alloc_ordered_workqueue("mkey_cache", WQ_MEM_RECLAIM);
 	if (!cache->wq) {
 		mlx5_ib_warn(dev, "failed to create work queue\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mlx5_cmd_init_async_ctx(dev->mdev, &dev->async_ctx);
@@ -974,8 +974,8 @@ int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 		goto err;
 
 	mutex_unlock(&cache->rb_lock);
-	for (node = rb_first(root); node; node = rb_next(node)) {
-		ent = rb_entry(node, struct mlx5_cache_ent, node);
+	for (analde = rb_first(root); analde; analde = rb_next(analde)) {
+		ent = rb_entry(analde, struct mlx5_cache_ent, analde);
 		spin_lock_irq(&ent->mkeys_queue.lock);
 		queue_adjust_cache_locked(ent);
 		spin_unlock_irq(&ent->mkeys_queue.lock);
@@ -994,15 +994,15 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	struct rb_root *root = &dev->cache.rb_root;
 	struct mlx5_cache_ent *ent;
-	struct rb_node *node;
+	struct rb_analde *analde;
 
 	if (!dev->cache.wq)
 		return;
 
 	mutex_lock(&dev->cache.rb_lock);
 	cancel_delayed_work(&dev->cache.remove_ent_dwork);
-	for (node = rb_first(root); node; node = rb_next(node)) {
-		ent = rb_entry(node, struct mlx5_cache_ent, node);
+	for (analde = rb_first(root); analde; analde = rb_next(analde)) {
+		ent = rb_entry(analde, struct mlx5_cache_ent, analde);
 		spin_lock_irq(&ent->mkeys_queue.lock);
 		ent->disabled = true;
 		spin_unlock_irq(&ent->mkeys_queue.lock);
@@ -1011,7 +1011,7 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 	mutex_unlock(&dev->cache.rb_lock);
 
 	/*
-	 * After all entries are disabled and will not reschedule on WQ,
+	 * After all entries are disabled and will analt reschedule on WQ,
 	 * flush it and all async commands.
 	 */
 	flush_workqueue(dev->cache.wq);
@@ -1019,14 +1019,14 @@ void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_mkey_cache_debugfs_cleanup(dev);
 	mlx5_cmd_cleanup_async_ctx(&dev->async_ctx);
 
-	/* At this point all entries are disabled and have no concurrent work. */
+	/* At this point all entries are disabled and have anal concurrent work. */
 	mutex_lock(&dev->cache.rb_lock);
-	node = rb_first(root);
-	while (node) {
-		ent = rb_entry(node, struct mlx5_cache_ent, node);
-		node = rb_next(node);
+	analde = rb_first(root);
+	while (analde) {
+		ent = rb_entry(analde, struct mlx5_cache_ent, analde);
+		analde = rb_next(analde);
 		clean_keys(dev, ent);
-		rb_erase(&ent->node, root);
+		rb_erase(&ent->analde, root);
 		mlx5r_mkeys_uninit(ent);
 		kfree(ent);
 	}
@@ -1047,11 +1047,11 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -1148,7 +1148,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	rb_key.access_flags = get_unchangeable_access_flags(dev, access_flags);
 	ent = mkey_cache_ent_from_rb_key(dev, rb_key);
 	/*
-	 * If the MR can't come from the cache then synchronously create an uncached
+	 * If the MR can't come from the cache then synchroanalusly create an uncached
 	 * one.
 	 */
 	if (!ent) {
@@ -1194,7 +1194,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 		return ERR_PTR(-EINVAL);
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->ibmr.pd = pd;
 	mr->access_flags = access_flags;
@@ -1206,7 +1206,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 			 roundup(ib_umem_num_dma_blocks(umem, page_size), 2);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_1;
 	}
 	pas = (__be64 *)MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
@@ -1277,11 +1277,11 @@ static struct ib_mr *mlx5_ib_get_dm_mr(struct ib_pd *pd, u64 start_addr,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -1320,8 +1320,8 @@ int mlx5_ib_advise_mr(struct ib_pd *pd,
 {
 	if (advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH &&
 	    advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
-	    advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_NO_FAULT)
-		return -EOPNOTSUPP;
+	    advice != IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_ANAL_FAULT)
+		return -EOPANALTSUPP;
 
 	return mlx5_ib_advise_mr_prefetch(pd, advice, flags,
 					 sg_list, num_sge);
@@ -1414,7 +1414,7 @@ static struct ib_mr *create_user_odp_mr(struct ib_pd *pd, u64 start, u64 length,
 	int err;
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	err = mlx5r_odp_create_eq(dev, &dev->odp_pf_eq);
 	if (err)
@@ -1470,7 +1470,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct ib_umem *umem;
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mlx5_ib_dbg(dev, "start 0x%llx, iova 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, iova, length, access_flags);
@@ -1500,7 +1500,7 @@ static void mlx5_ib_dmabuf_invalidate_cb(struct dma_buf_attachment *attach)
 
 static struct dma_buf_attach_ops mlx5_ib_dmabuf_attach_ops = {
 	.allow_peer2peer = 1,
-	.move_notify = mlx5_ib_dmabuf_invalidate_cb,
+	.move_analtify = mlx5_ib_dmabuf_invalidate_cb,
 };
 
 struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
@@ -1515,7 +1515,7 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM) ||
 	    !IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mlx5_ib_dbg(dev,
 		    "offset 0x%llx, virt_addr 0x%llx, length 0x%llx, fd %d, access_flags 0x%x\n",
@@ -1631,7 +1631,7 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 	err = mlx5r_umr_update_mr_pas(mr, upd_flags);
 	if (err) {
 		/*
-		 * The MR is revoked at this point so there is no issue to free
+		 * The MR is revoked at this point so there is anal issue to free
 		 * new_umem.
 		 */
 		mr->umem = old_umem;
@@ -1654,7 +1654,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	int err;
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	mlx5_ib_dbg(
 		dev,
@@ -1662,7 +1662,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		start, iova, length, new_access_flags);
 
 	if (flags & ~(IB_MR_REREG_TRANS | IB_MR_REREG_PD | IB_MR_REREG_ACCESS))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (!(flags & IB_MR_REREG_ACCESS))
 		new_access_flags = mr->access_flags;
@@ -1681,7 +1681,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 				return ERR_PTR(err);
 			return NULL;
 		}
-		/* DM or ODP MR's don't have a normal umem so we can't re-use it */
+		/* DM or ODP MR's don't have a analrmal umem so we can't re-use it */
 		if (!mr->umem || is_odp_mr(mr) || is_dmabuf_mr(mr))
 			goto recreate;
 
@@ -1732,7 +1732,7 @@ struct ib_mr *mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	}
 
 	/*
-	 * Everything else has no state we can preserve, just create a new MR
+	 * Everything else has anal state we can preserve, just create a new MR
 	 * from scratch
 	 */
 recreate:
@@ -1761,13 +1761,13 @@ mlx5_alloc_priv_descs(struct ib_device *device,
 
 	mr->descs_alloc = kzalloc(size + add_size, GFP_KERNEL);
 	if (!mr->descs_alloc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mr->descs = PTR_ALIGN(mr->descs_alloc, MLX5_UMR_ALIGN);
 
 	mr->desc_map = dma_map_single(ddev, mr->descs, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, mr->desc_map)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1812,7 +1812,7 @@ static int cache_ent_find_and_store(struct mlx5_ib_dev *dev,
 		if (ent->rb_key.ndescs == mr->mmkey.rb_key.ndescs) {
 			if (ent->disabled) {
 				mutex_unlock(&cache->rb_lock);
-				return -EOPNOTSUPP;
+				return -EOPANALTSUPP;
 			}
 			mr->mmkey.cache_ent = ent;
 			spin_lock_irq(&mr->mmkey.cache_ent->mkeys_queue.lock);
@@ -1843,7 +1843,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	/*
 	 * Any async use of the mr must hold the refcount, once the refcount
-	 * goes to zero no other thread, such as ODP page faults, prefetch, any
+	 * goes to zero anal other thread, such as ODP page faults, prefetch, any
 	 * UMR activity, etc can touch the mkey. Thus it is safe to destroy it.
 	 */
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING) &&
@@ -1971,14 +1971,14 @@ static struct mlx5_ib_mr *mlx5_ib_alloc_pi_mr(struct ib_pd *pd,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->ibmr.pd = pd;
 	mr->ibmr.device = pd->device;
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -2028,7 +2028,7 @@ static int mlx5_alloc_integrity_descs(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 
 	mr->sig = kzalloc(sizeof(*mr->sig), GFP_KERNEL);
 	if (!mr->sig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* create mem & wire PSVs */
 	err = mlx5_core_create_psv(dev->mdev, to_mpd(pd)->pdn, 2, psv_index);
@@ -2108,11 +2108,11 @@ static struct ib_mr *__mlx5_ib_alloc_mr(struct ib_pd *pd,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -2182,18 +2182,18 @@ int mlx5_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 		return err;
 
 	if (req.comp_mask || req.reserved1 || req.reserved2)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (udata->inlen > sizeof(req) &&
 	    !ib_is_udata_cleared(udata, sizeof(req),
 				 udata->inlen - sizeof(req)))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ndescs = req.num_klms ? roundup(req.num_klms, 4) : roundup(1, 4);
 
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 
@@ -2270,7 +2270,7 @@ int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 	if (check_mask & IB_MR_CHECK_SIG_STATUS) {
 		if (!mmr->sig) {
 			ret = -EINVAL;
-			pr_err("signature status check requested on a non-signature enabled MR\n");
+			pr_err("signature status check requested on a analn-signature enabled MR\n");
 			goto done;
 		}
 
@@ -2395,7 +2395,7 @@ static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
 	__be64 *descs;
 
 	if (unlikely(mr->mmkey.ndescs == mr->max_descs))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	descs = mr->descs;
 	descs[mr->mmkey.ndescs++] = cpu_to_be64(addr | MLX5_EN_RD | MLX5_EN_WR);
@@ -2409,7 +2409,7 @@ static int mlx5_set_page_pi(struct ib_mr *ibmr, u64 addr)
 	__be64 *descs;
 
 	if (unlikely(mr->mmkey.ndescs + mr->meta_ndescs == mr->max_descs))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	descs = mr->descs;
 	descs[mr->mmkey.ndescs + mr->meta_ndescs++] =
@@ -2534,7 +2534,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	mr->meta_ndescs = 0;
 	mr->pi_iova = 0;
 	/*
-	 * As a performance optimization, if possible, there is no need to
+	 * As a performance optimization, if possible, there is anal need to
 	 * perform UMR operation to register the data/metadata buffers.
 	 * First try to map the sg lists to PA descriptors with local_dma_lkey.
 	 * Fallback to UMR only in case of a failure.
@@ -2545,7 +2545,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	if (n == data_sg_nents + meta_sg_nents)
 		goto out;
 	/*
-	 * As a performance optimization, if possible, there is no need to map
+	 * As a performance optimization, if possible, there is anal need to map
 	 * the sg lists to KLM descriptors. First try to map the sg lists to MTT
 	 * descriptors and fallback to KLM only in case of a failure.
 	 * It's more efficient for the HW to work with MTT descriptors
@@ -2564,7 +2564,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 				     data_sg_offset, meta_sg, meta_sg_nents,
 				     meta_sg_offset);
 	if (unlikely(n != data_sg_nents + meta_sg_nents))
-		return -ENOMEM;
+		return -EANALMEM;
 
 out:
 	/* This is zero-based memory region */

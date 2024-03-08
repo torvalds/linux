@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _jpeg-controls:
 
@@ -37,7 +37,7 @@ JPEG Control IDs
     :stub-columns: 0
 
     * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_444``
-      - No chroma subsampling, each pixel has Y, Cr and Cb values.
+      - Anal chroma subsampling, each pixel has Y, Cr and Cb values.
     * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_422``
       - Horizontally subsample Cr, Cb components by a factor of 2.
     * - ``V4L2_JPEG_CHROMA_SUBSAMPLING_420``
@@ -59,7 +59,7 @@ JPEG Control IDs
     interval unit is MCU (Minimum Coded Unit) and its value is contained
     in DRI (Define Restart Interval) marker. If
     ``V4L2_CID_JPEG_RESTART_INTERVAL`` control is set to 0, DRI and RSTm
-    markers will not be inserted.
+    markers will analt be inserted.
 
 .. _jpeg-quality-control:
 
@@ -73,7 +73,7 @@ JPEG Control IDs
     driver to 0.
 
     The value range of this control is driver-specific. Only positive,
-    non-zero values are meaningful. The recommended range is 1 - 100,
+    analn-zero values are meaningful. The recommended range is 1 - 100,
     where larger values correspond to better image quality.
 
 .. _jpeg-active-marker-control:

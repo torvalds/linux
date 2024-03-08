@@ -70,7 +70,7 @@ struct erofs_mount_opts {
 	/* strategy of sync decompression (0 - auto, 1 - force on, 2 - force off) */
 	unsigned int sync_decompress;
 
-	/* threshold for decompression synchronously */
+	/* threshold for decompression synchroanalusly */
 	unsigned int max_sync_decompress_pages;
 #endif
 	unsigned int mount_opt;
@@ -108,11 +108,11 @@ struct erofs_domain {
 
 struct erofs_fscache {
 	struct fscache_cookie *cookie;
-	struct inode *inode;	/* anonymous inode for the blob */
+	struct ianalde *ianalde;	/* aanalnymous ianalde for the blob */
 
 	/* used for share domain mode */
 	struct erofs_domain *domain;
-	struct list_head node;
+	struct list_head analde;
 	refcount_t ref;
 	char *name;
 };
@@ -132,15 +132,15 @@ struct erofs_sb_info {
 	/* managed XArray arranged in physical block number */
 	struct xarray managed_pslots;
 
-	unsigned int shrinker_run_no;
+	unsigned int shrinker_run_anal;
 	u16 available_compr_algs;
 
-	/* pseudo inode to manage cached pages */
-	struct inode *managed_cache;
+	/* pseudo ianalde to manage cached pages */
+	struct ianalde *managed_cache;
 
 	struct erofs_sb_lz4_info lz4;
 #endif	/* CONFIG_EROFS_FS_ZIP */
-	struct inode *packed_inode;
+	struct ianalde *packed_ianalde;
 	struct erofs_dev_context *devs;
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
@@ -157,18 +157,18 @@ struct erofs_sb_info {
 #endif
 	u16 device_id_mask;	/* valid bits of device id to be used */
 
-	unsigned char islotbits;	/* inode slot unit size in bit shift */
+	unsigned char islotbits;	/* ianalde slot unit size in bit shift */
 	unsigned char blkszbits;	/* filesystem block size in bit shift */
 
 	u32 sb_size;			/* total superblock size */
 	u32 build_time_nsec;
 	u64 build_time;
 
-	/* what we really care is nid, rather than ino.. */
+	/* what we really care is nid, rather than ianal.. */
 	erofs_nid_t root_nid;
 	erofs_nid_t packed_nid;
 	/* used for statfs, f_files - f_favail */
-	u64 inos;
+	u64 ianals;
 
 	u8 uuid[16];                    /* 128-bit uuid for volume */
 	u8 volume_name[16];             /* volume name */
@@ -188,7 +188,7 @@ struct erofs_sb_info {
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
-#define EROFS_I_SB(inode) ((struct erofs_sb_info *)(inode)->i_sb->s_fs_info)
+#define EROFS_I_SB(ianalde) ((struct erofs_sb_info *)(ianalde)->i_sb->s_fs_info)
 
 /* Mount flags set via mount options or defaults */
 #define EROFS_MOUNT_XATTR_USER		0x00000010
@@ -218,12 +218,12 @@ struct erofs_workgroup {
 };
 
 enum erofs_kmap_type {
-	EROFS_NO_KMAP,		/* don't map the buffer */
+	EROFS_ANAL_KMAP,		/* don't map the buffer */
 	EROFS_KMAP,		/* use kmap_local_page() to map the buffer */
 };
 
 struct erofs_buf {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct page *page;
 	void *base;
 	enum erofs_kmap_type kmap_type;
@@ -262,14 +262,14 @@ EROFS_FEATURE_FUNCS(xattr_filter, compat, COMPAT_XATTR_FILTER)
 #define EROFS_I_BL_XATTR_BIT	(BITS_PER_LONG - 1)
 #define EROFS_I_BL_Z_BIT	(BITS_PER_LONG - 2)
 
-struct erofs_inode {
+struct erofs_ianalde {
 	erofs_nid_t nid;
 
 	/* atomic flags (including bitlocks) */
 	unsigned long flags;
 
 	unsigned char datalayout;
-	unsigned char inode_isize;
+	unsigned char ianalde_isize;
 	unsigned int xattr_isize;
 
 	unsigned int xattr_name_filter;
@@ -298,52 +298,52 @@ struct erofs_inode {
 		};
 #endif	/* CONFIG_EROFS_FS_ZIP */
 	};
-	/* the corresponding vfs inode */
-	struct inode vfs_inode;
+	/* the corresponding vfs ianalde */
+	struct ianalde vfs_ianalde;
 };
 
-#define EROFS_I(ptr)	container_of(ptr, struct erofs_inode, vfs_inode)
+#define EROFS_I(ptr)	container_of(ptr, struct erofs_ianalde, vfs_ianalde)
 
-static inline erofs_off_t erofs_iloc(struct inode *inode)
+static inline erofs_off_t erofs_iloc(struct ianalde *ianalde)
 {
-	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
+	struct erofs_sb_info *sbi = EROFS_I_SB(ianalde);
 
-	return erofs_pos(inode->i_sb, sbi->meta_blkaddr) +
-		(EROFS_I(inode)->nid << sbi->islotbits);
+	return erofs_pos(ianalde->i_sb, sbi->meta_blkaddr) +
+		(EROFS_I(ianalde)->nid << sbi->islotbits);
 }
 
-static inline unsigned int erofs_inode_version(unsigned int ifmt)
+static inline unsigned int erofs_ianalde_version(unsigned int ifmt)
 {
 	return (ifmt >> EROFS_I_VERSION_BIT) & EROFS_I_VERSION_MASK;
 }
 
-static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)
+static inline unsigned int erofs_ianalde_datalayout(unsigned int ifmt)
 {
 	return (ifmt >> EROFS_I_DATALAYOUT_BIT) & EROFS_I_DATALAYOUT_MASK;
 }
 
 /*
- * Different from grab_cache_page_nowait(), reclaiming is never triggered
+ * Different from grab_cache_page_analwait(), reclaiming is never triggered
  * when allocating new pages.
  */
 static inline
-struct page *erofs_grab_cache_page_nowait(struct address_space *mapping,
+struct page *erofs_grab_cache_page_analwait(struct address_space *mapping,
 					  pgoff_t index)
 {
 	return pagecache_get_page(mapping, index,
-			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
+			FGP_LOCK|FGP_CREAT|FGP_ANALFS|FGP_ANALWAIT,
 			readahead_gfp_mask(mapping) & ~__GFP_RECLAIM);
 }
 
 /* Has a disk mapping */
 #define EROFS_MAP_MAPPED	0x0001
-/* Located in metadata (could be copied from bd_inode) */
+/* Located in metadata (could be copied from bd_ianalde) */
 #define EROFS_MAP_META		0x0002
 /* The extent is encoded */
 #define EROFS_MAP_ENCODED	0x0004
 /* The length of extent is full */
 #define EROFS_MAP_FULL_MAPPED	0x0008
-/* Located in the special packed inode */
+/* Located in the special packed ianalde */
 #define EROFS_MAP_FRAGMENT	0x0010
 /* The extent refers to partial decompressed data */
 #define EROFS_MAP_PARTIAL_REF	0x0020
@@ -364,7 +364,7 @@ struct erofs_map_blocks {
  * approach instead if possible since it's more metadata lightweight.)
  */
 #define EROFS_GET_BLOCKS_FIEMAP		0x0001
-/* Used to map the whole extent if non-negligible data is requested for LZMA */
+/* Used to map the whole extent if analn-negligible data is requested for LZMA */
 #define EROFS_GET_BLOCKS_READMORE	0x0002
 /* Used to map tail extent for tailpacking inline or fragment pcluster */
 #define EROFS_GET_BLOCKS_FINDTAIL	0x0004
@@ -392,10 +392,10 @@ extern const struct address_space_operations erofs_raw_access_aops;
 extern const struct address_space_operations z_erofs_aops;
 extern const struct address_space_operations erofs_fscache_access_aops;
 
-extern const struct inode_operations erofs_generic_iops;
-extern const struct inode_operations erofs_symlink_iops;
-extern const struct inode_operations erofs_fast_symlink_iops;
-extern const struct inode_operations erofs_dir_iops;
+extern const struct ianalde_operations erofs_generic_iops;
+extern const struct ianalde_operations erofs_symlink_iops;
+extern const struct ianalde_operations erofs_fast_symlink_iops;
+extern const struct ianalde_operations erofs_dir_iops;
 
 extern const struct file_operations erofs_file_fops;
 extern const struct file_operations erofs_dir_fops;
@@ -404,7 +404,7 @@ extern const struct iomap_ops z_erofs_iomap_report_ops;
 
 /* flags for erofs_fscache_register_cookie() */
 #define EROFS_REG_COOKIE_SHARE		0x0001
-#define EROFS_REG_COOKIE_NEED_NOEXIST	0x0002
+#define EROFS_REG_COOKIE_NEED_ANALEXIST	0x0002
 
 void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 			  erofs_off_t *offset, int *lengthp);
@@ -416,14 +416,14 @@ void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb);
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 			 erofs_blk_t blkaddr, enum erofs_kmap_type type);
 int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *dev);
-int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int erofs_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len);
-int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map);
-struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid);
+int erofs_map_blocks(struct ianalde *ianalde, struct erofs_map_blocks *map);
+struct ianalde *erofs_iget(struct super_block *sb, erofs_nid_t nid);
 int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  struct kstat *stat, u32 request_mask,
 		  unsigned int query_flags);
-int erofs_namei(struct inode *dir, const struct qstr *name,
+int erofs_namei(struct ianalde *dir, const struct qstr *name,
 		erofs_nid_t *nid, unsigned int *d_type);
 
 static inline void *erofs_vm_map_ram(struct page **pages, unsigned int count)
@@ -469,7 +469,7 @@ int __init z_erofs_init_zip_subsystem(void);
 void z_erofs_exit_zip_subsystem(void);
 int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 				       struct erofs_workgroup *egrp);
-int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
+int z_erofs_map_blocks_iter(struct ianalde *ianalde, struct erofs_map_blocks *map,
 			    int flags);
 void *erofs_get_pcpubuf(unsigned int requiredpages);
 void erofs_put_pcpubuf(void *ptr);
@@ -516,7 +516,7 @@ void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache);
 #else
 static inline int erofs_fscache_register_fs(struct super_block *sb)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void erofs_fscache_unregister_fs(struct super_block *sb) {}
 
@@ -524,7 +524,7 @@ static inline
 struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 					char *name, unsigned int flags)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache)

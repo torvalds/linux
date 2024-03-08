@@ -24,7 +24,7 @@
 
 
 /*  *********************************************************************
-    *  Some general notes:
+    *  Some general analtes:
     *
     *  For the most part, when there is more than one peripheral
     *  of the same type on the SOC, the constants below will be
@@ -146,7 +146,7 @@
 #define DMA_TX			    1
 #define MAC_NUM_DMACHAN		    2		    /* channels per direction */
 
-/* XXX: not correct; depends on SOC type.  */
+/* XXX: analt correct; depends on SOC type.  */
 #define MAC_NUM_PORTS		    3
 
 #define A_MAC_CHANNEL_BASE(macnum)		    \
@@ -204,7 +204,7 @@
 #define R_MAC_RMON_EX_COL		0x00000018
 #define R_MAC_RMON_FCS_ERROR		0x00000020
 #define R_MAC_RMON_TX_ABORT		0x00000028
-/* Counter #6 (0x30) now reserved */
+/* Counter #6 (0x30) analw reserved */
 #define R_MAC_RMON_TX_BAD		0x00000038
 #define R_MAC_RMON_TX_GOOD		0x00000040
 #define R_MAC_RMON_TX_RUNT		0x00000048
@@ -372,7 +372,7 @@
 
 
 /*  *********************************************************************
-    * Synchronous Serial Registers
+    * Synchroanalus Serial Registers
     ********************************************************************* */
 
 

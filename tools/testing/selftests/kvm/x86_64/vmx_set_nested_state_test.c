@@ -12,7 +12,7 @@
 #include "processor.h"
 #include "vmx.h"
 
-#include <errno.h>
+#include <erranal.h>
 #include <linux/kvm.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -31,29 +31,29 @@ void test_nested_state(struct kvm_vcpu *vcpu, struct kvm_nested_state *state)
 	vcpu_nested_state_set(vcpu, state);
 }
 
-void test_nested_state_expect_errno(struct kvm_vcpu *vcpu,
+void test_nested_state_expect_erranal(struct kvm_vcpu *vcpu,
 				    struct kvm_nested_state *state,
-				    int expected_errno)
+				    int expected_erranal)
 {
 	int rv;
 
 	rv = __vcpu_nested_state_set(vcpu, state);
-	TEST_ASSERT(rv == -1 && errno == expected_errno,
-		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i errno: %s (%d)",
-		strerror(expected_errno), expected_errno, rv, strerror(errno),
-		errno);
+	TEST_ASSERT(rv == -1 && erranal == expected_erranal,
+		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i erranal: %s (%d)",
+		strerror(expected_erranal), expected_erranal, rv, strerror(erranal),
+		erranal);
 }
 
 void test_nested_state_expect_einval(struct kvm_vcpu *vcpu,
 				     struct kvm_nested_state *state)
 {
-	test_nested_state_expect_errno(vcpu, state, EINVAL);
+	test_nested_state_expect_erranal(vcpu, state, EINVAL);
 }
 
 void test_nested_state_expect_efault(struct kvm_vcpu *vcpu,
 				     struct kvm_nested_state *state)
 {
-	test_nested_state_expect_errno(vcpu, state, EFAULT);
+	test_nested_state_expect_erranal(vcpu, state, EFAULT);
 }
 
 void set_revision_id_for_vmcs12(struct kvm_nested_state *state,
@@ -98,14 +98,14 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	test_nested_state_expect_einval(vcpu, state);
 
 	/*
-	 * We cannot virtualize anything if the guest does not have VMX
+	 * We cananalt virtualize anything if the guest does analt have VMX
 	 * enabled.
 	 */
 	set_default_vmx_state(state, state_sz);
 	test_nested_state_expect_einval(vcpu, state);
 
 	/*
-	 * We cannot virtualize anything if the guest does not have VMX
+	 * We cananalt virtualize anything if the guest does analt have VMX
 	 * enabled.  We expect KVM_SET_NESTED_STATE to return 0 if vmxon_pa
 	 * is set to -1ull, but the flags must be zero.
 	 */
@@ -125,7 +125,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
-	 * setting the nested state. When the eVMCS flag is not set, the
+	 * setting the nested state. When the eVMCS flag is analt set, the
 	 * expected return value is '0'.
 	 */
 	set_default_vmx_state(state, state_sz);
@@ -145,7 +145,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 		test_nested_state(vcpu, state);
 	}
 
-	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
+	/* It is invalid to have vmxon_pa == -1ull and SMM flags analn-zero. */
 	state->hdr.vmx.smm.flags = 1;
 	test_nested_state_expect_einval(vcpu, state);
 
@@ -160,7 +160,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	state->flags = 0;
 	test_nested_state_expect_einval(vcpu, state);
 
-	/* It is invalid to have vmxon_pa set to a non-page aligned address. */
+	/* It is invalid to have vmxon_pa set to a analn-page aligned address. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = 1;
 	test_nested_state_expect_einval(vcpu, state);
@@ -192,7 +192,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	test_nested_state_expect_einval(vcpu, state);
 
 	/*
-	 * Size must be large enough to fit kvm_nested_state and vmcs12
+	 * Size must be large eanalugh to fit kvm_nested_state and vmcs12
 	 * if VMCS12 physical address is set
 	 */
 	set_default_vmx_state(state, state_sz);
@@ -208,13 +208,13 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * KVM_SET_NESTED_STATE succeeds with invalid VMCS
-	 * contents but L2 not running.
+	 * contents but L2 analt running.
 	 */
 	set_default_vmx_state(state, state_sz);
 	state->flags = 0;
 	test_nested_state(vcpu, state);
 
-	/* Invalid flags are rejected, even if no VMCS loaded. */
+	/* Invalid flags are rejected, even if anal VMCS loaded. */
 	set_default_vmx_state(state, state_sz);
 	state->size = sizeof(*state);
 	state->flags = 0;
@@ -222,7 +222,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	state->hdr.vmx.flags = ~0;
 	test_nested_state_expect_einval(vcpu, state);
 
-	/* vmxon_pa cannot be the same address as vmcs_pa. */
+	/* vmxon_pa cananalt be the same address as vmcs_pa. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = 0;
 	state->hdr.vmx.vmcs12_pa = 0;
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
 
 	/*
-	 * AMD currently does not implement set_nested_state, so for now we
+	 * AMD currently does analt implement set_nested_state, so for analw we
 	 * just early out.
 	 */
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
 	/* Passing a NULL kvm_nested_state causes a EFAULT. */
 	test_nested_state_expect_efault(vcpu, NULL);
 
-	/* 'size' cannot be smaller than sizeof(kvm_nested_state). */
+	/* 'size' cananalt be smaller than sizeof(kvm_nested_state). */
 	set_default_state(&state);
 	state.size = 0;
 	test_nested_state_expect_einval(vcpu, &state);

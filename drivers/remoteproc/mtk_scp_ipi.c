@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(scp_memcpy_aligned);
  * @scp:	mtk_scp structure
  * @id:		IPI ID
  *
- * Note: This should not be used by drivers other than mtk_scp.
+ * Analte: This should analt be used by drivers other than mtk_scp.
  */
 void scp_ipi_lock(struct mtk_scp *scp, u32 id)
 {
@@ -130,7 +130,7 @@ EXPORT_SYMBOL_GPL(scp_ipi_lock);
  * @scp:	mtk_scp structure
  * @id:		IPI ID
  *
- * Note: This should not be used by drivers other than mtk_scp.
+ * Analte: This should analt be used by drivers other than mtk_scp.
  */
 void scp_ipi_unlock(struct mtk_scp *scp, u32 id)
 {

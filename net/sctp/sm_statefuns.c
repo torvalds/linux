@@ -4,7 +4,7 @@
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
  * Copyright (c) 2001-2002 Intel Corp.
- * Copyright (c) 2002      Nokia Corp.
+ * Copyright (c) 2002      Analkia Corp.
  *
  * This is part of the SCTP Linux Kernel Implementation.
  *
@@ -20,8 +20,8 @@
  *    Mathew Kotowsky       <kotowsky@sctp.org>
  *    Sridhar Samudrala     <samudrala@us.ibm.com>
  *    Jon Grimm             <jgrimm@us.ibm.com>
- *    Hui Huang 	    <hui.huang@nokia.com>
- *    Dajiang Zhang 	    <dajiang.zhang@nokia.com>
+ *    Hui Huang 	    <hui.huang@analkia.com>
+ *    Dajiang Zhang 	    <dajiang.zhang@analkia.com>
  *    Daisy Chang	    <daisyc@us.ibm.com>
  *    Ardelle Fan	    <ardelle.fan@intel.com>
  *    Ryan Layer	    <rmlayer@us.ibm.com>
@@ -202,9 +202,9 @@ static inline bool sctp_err_chunk_valid(struct sctp_chunk *chunk)
  *
  * Section: 4 (C) (diagram), 9.2
  * Upon reception of the SHUTDOWN COMPLETE chunk the endpoint will verify
- * that it is in SHUTDOWN-ACK-SENT state, if it is not the chunk should be
+ * that it is in SHUTDOWN-ACK-SENT state, if it is analt the chunk should be
  * discarded. If the endpoint is in the SHUTDOWN-ACK-SENT state the endpoint
- * should stop the T2-shutdown timer and remove all knowledge of the
+ * should stop the T2-shutdown timer and remove all kanalwledge of the
  * association (and thus the association enters the CLOSED state).
  *
  * Verification Tag: 8.5.1(C), sctpimpguide 2.41.
@@ -212,13 +212,13 @@ static inline bool sctp_err_chunk_valid(struct sctp_chunk *chunk)
  * ...
  * - The receiver of a SHUTDOWN COMPLETE shall accept the packet
  *   if the Verification Tag field of the packet matches its own tag and
- *   the T bit is not set
+ *   the T bit is analt set
  *   OR
  *   it is set to its peer's tag and the T bit is set in the Chunk
  *   Flags.
  *   Otherwise, the receiver MUST silently discard the packet
- *   and take no further action.  An endpoint MUST ignore the
- *   SHUTDOWN COMPLETE if it is not in the SHUTDOWN-ACK-SENT state.
+ *   and take anal further action.  An endpoint MUST iganalre the
+ *   SHUTDOWN COMPLETE if it is analt in the SHUTDOWN-ACK-SENT state.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -242,7 +242,7 @@ enum sctp_disposition sctp_sf_do_4_C(struct net *net,
 
 	/* RFC 2960 6.10 Bundling
 	 *
-	 * An endpoint MUST NOT bundle INIT, INIT ACK or
+	 * An endpoint MUST ANALT bundle INIT, INIT ACK or
 	 * SHUTDOWN COMPLETE with any other chunks.
 	 */
 	if (!chunk->singleton)
@@ -255,10 +255,10 @@ enum sctp_disposition sctp_sf_do_4_C(struct net *net,
 
 	/* RFC 2960 10.2 SCTP-to-ULP
 	 *
-	 * H) SHUTDOWN COMPLETE notification
+	 * H) SHUTDOWN COMPLETE analtification
 	 *
 	 * When SCTP completes the shutdown procedures (section 9.2) this
-	 * notification is passed to the upper layer.
+	 * analtification is passed to the upper layer.
 	 */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_SHUTDOWN_COMP,
 					     0, 0, 0, NULL, GFP_ATOMIC);
@@ -268,9 +268,9 @@ enum sctp_disposition sctp_sf_do_4_C(struct net *net,
 
 	/* Upon reception of the SHUTDOWN COMPLETE chunk the endpoint
 	 * will verify that it is in SHUTDOWN-ACK-SENT state, if it is
-	 * not the chunk should be discarded. If the endpoint is in
+	 * analt the chunk should be discarded. If the endpoint is in
 	 * the SHUTDOWN-ACK-SENT state the endpoint should stop the
-	 * T2-shutdown timer and remove all knowledge of the
+	 * T2-shutdown timer and remove all kanalwledge of the
 	 * association (and thus the association enters the CLOSED
 	 * state).
 	 */
@@ -292,10 +292,10 @@ enum sctp_disposition sctp_sf_do_4_C(struct net *net,
 }
 
 /*
- * Respond to a normal INIT chunk.
+ * Respond to a analrmal INIT chunk.
  * We are the side that is being asked for an association.
  *
- * Section: 5.1 Normal Establishment of an Association, B
+ * Section: 5.1 Analrmal Establishment of an Association, B
  * B) "Z" shall respond immediately with an INIT ACK chunk.  The
  *    destination IP address of the INIT ACK MUST be set to the source
  *    IP address of the INIT to which this INIT ACK is responding.  In
@@ -327,7 +327,7 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 	int len;
 
 	/* 6.10 Bundling
-	 * An endpoint MUST NOT bundle INIT, INIT ACK or
+	 * An endpoint MUST ANALT bundle INIT, INIT ACK or
 	 * SHUTDOWN COMPLETE with any other chunks.
 	 *
 	 * IG Section 2.11.2
@@ -339,7 +339,7 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the INIT chunk has a valid length.
-	 * Normally, this would cause an ABORT with a Protocol Violation
+	 * Analrmally, this would cause an ABORT with a Protocol Violation
 	 * error, but since we don't have an association, we'll
 	 * just discard the packet.
 	 */
@@ -392,7 +392,7 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 				SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
 				return SCTP_DISPOSITION_CONSUME;
 			} else {
-				return SCTP_DISPOSITION_NOMEM;
+				return SCTP_DISPOSITION_ANALMEM;
 			}
 		} else {
 			return sctp_sf_tabort_8_4_8(net, ep, asoc, type, arg,
@@ -408,7 +408,7 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 
 	new_asoc = sctp_make_temp_asoc(ep, chunk, GFP_ATOMIC);
 	if (!new_asoc)
-		goto nomem;
+		goto analmem;
 
 	/* Update socket peer label if first association. */
 	if (security_sctp_assoc_request(new_asoc, chunk->skb)) {
@@ -419,18 +419,18 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 	if (sctp_assoc_set_bind_addr_from_ep(new_asoc,
 					     sctp_scope(sctp_source(chunk)),
 					     GFP_ATOMIC) < 0)
-		goto nomem_init;
+		goto analmem_init;
 
 	/* The call, sctp_process_init(), can fail on memory allocation.  */
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
 			       (struct sctp_init_chunk *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
-		goto nomem_init;
+		goto analmem_init;
 
 	/* B) "Z" shall respond immediately with an INIT ACK chunk.  */
 
-	/* If there are errors need to be reported for unknown parameters,
-	 * make sure to reserve enough room in the INIT ACK for them.
+	/* If there are errors need to be reported for unkanalwn parameters,
+	 * make sure to reserve eanalugh room in the INIT ACK for them.
 	 */
 	len = 0;
 	if (err_chunk)
@@ -439,16 +439,16 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 
 	repl = sctp_make_init_ack(new_asoc, chunk, GFP_ATOMIC, len);
 	if (!repl)
-		goto nomem_init;
+		goto analmem_init;
 
-	/* If there are errors need to be reported for unknown parameters,
+	/* If there are errors need to be reported for unkanalwn parameters,
 	 * include them in the outgoing INIT ACK as "Unrecognized parameter"
 	 * parameter.
 	 */
 	if (err_chunk) {
 		/* Get the "Unrecognized parameter" parameter(s) out of the
 		 * ERROR chunk generated by sctp_verify_init(). Since the
-		 * error cause code for "unknown parameter" and the
+		 * error cause code for "unkanalwn parameter" and the
 		 * "Unrecognized parameter" type is the same, we can
 		 * construct the parameters in INIT ACK by copying the
 		 * ERROR causes over.
@@ -468,8 +468,8 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
 	/*
-	 * Note:  After sending out INIT ACK with the State Cookie parameter,
-	 * "Z" MUST NOT allocate any resources, nor keep any states for the
+	 * Analte:  After sending out INIT ACK with the State Cookie parameter,
+	 * "Z" MUST ANALT allocate any resources, analr keep any states for the
 	 * new association.  Otherwise, "Z" will be vulnerable to resource
 	 * attacks.
 	 */
@@ -477,27 +477,27 @@ enum sctp_disposition sctp_sf_do_5_1B_init(struct net *net,
 
 	return SCTP_DISPOSITION_DELETE_TCB;
 
-nomem_init:
+analmem_init:
 	sctp_association_free(new_asoc);
-nomem:
+analmem:
 	if (err_chunk)
 		sctp_chunk_free(err_chunk);
-	return SCTP_DISPOSITION_NOMEM;
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
- * Respond to a normal INIT ACK chunk.
+ * Respond to a analrmal INIT ACK chunk.
  * We are the side that is initiating the association.
  *
- * Section: 5.1 Normal Establishment of an Association, C
+ * Section: 5.1 Analrmal Establishment of an Association, C
  * C) Upon reception of the INIT ACK from "Z", "A" shall stop the T1-init
  *    timer and leave COOKIE-WAIT state. "A" shall then send the State
  *    Cookie received in the INIT ACK chunk in a COOKIE ECHO chunk, start
  *    the T1-cookie timer, and enter the COOKIE-ECHOED state.
  *
- *    Note: The COOKIE ECHO chunk can be bundled with any pending outbound
+ *    Analte: The COOKIE ECHO chunk can be bundled with any pending outbound
  *    DATA chunks, but it MUST be the first chunk in the packet and
- *    until the COOKIE ACK is returned the sender MUST NOT send any
+ *    until the COOKIE ACK is returned the sender MUST ANALT send any
  *    other packets to the peer.
  *
  * Verification Tag: 3.3.3
@@ -529,7 +529,7 @@ enum sctp_disposition sctp_sf_do_5_1C_ack(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* 6.10 Bundling
-	 * An endpoint MUST NOT bundle INIT, INIT ACK or
+	 * An endpoint MUST ANALT bundle INIT, INIT ACK or
 	 * SHUTDOWN COMPLETE with any other chunks.
 	 */
 	if (!chunk->singleton)
@@ -548,11 +548,11 @@ enum sctp_disposition sctp_sf_do_5_1C_ack(struct net *net,
 			      (struct sctp_init_chunk *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 
-		enum sctp_error error = SCTP_ERROR_NO_RESOURCE;
+		enum sctp_error error = SCTP_ERROR_ANAL_RESOURCE;
 
 		/* This chunk contains fatal error. It is to be discarded.
-		 * Send an ABORT, with causes.  If there are no causes,
-		 * then there wasn't enough memory.  Just terminate
+		 * Send an ABORT, with causes.  If there are anal causes,
+		 * then there wasn't eanalugh memory.  Just terminate
 		 * the association.
 		 */
 		if (err_chunk) {
@@ -573,9 +573,9 @@ enum sctp_disposition sctp_sf_do_5_1C_ack(struct net *net,
 		}
 
 		/* SCTP-AUTH, Section 6.3:
-		 *    It should be noted that if the receiver wants to tear
+		 *    It should be analted that if the receiver wants to tear
 		 *    down an association in an authenticated way only, the
-		 *    handling of malformed packets should not result in
+		 *    handling of malformed packets should analt result in
 		 *    tearing down the association.
 		 *
 		 * This means that if we only want to abort associations
@@ -591,7 +591,7 @@ enum sctp_disposition sctp_sf_do_5_1C_ack(struct net *net,
 						asoc, chunk->transport);
 	}
 
-	/* Tag the variable length parameters.  Note that we never
+	/* Tag the variable length parameters.  Analte that we never
 	 * convert the parameters in an INIT chunk.
 	 */
 	chunk->param_hdr.v = skb_pull(chunk->skb, sizeof(struct sctp_inithdr));
@@ -624,7 +624,7 @@ enum sctp_disposition sctp_sf_do_5_1C_ack(struct net *net,
 	 * INIT ACK chunk in a COOKIE ECHO chunk, ...
 	 */
 	/* If there is any errors to report, send the ERROR chunk generated
-	 * for unknown parameters as well.
+	 * for unkanalwn parameters as well.
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_COOKIE_ECHO,
 			SCTP_CHUNK(err_chunk));
@@ -643,7 +643,7 @@ static bool sctp_auth_chunk_verify(struct net *net, struct sctp_chunk *chunk,
 	/* SCTP-AUTH:  auth_chunk pointer is only set when the cookie-echo
 	 * is supposed to be authenticated and we have to do delayed
 	 * authentication.  We've just recreated the association using
-	 * the information in the cookie and now it's much easier to
+	 * the information in the cookie and analw it's much easier to
 	 * do the authentication.
 	 */
 
@@ -661,22 +661,22 @@ static bool sctp_auth_chunk_verify(struct net *net, struct sctp_chunk *chunk,
 	skb_pull(chunk->auth_chunk, sizeof(struct sctp_chunkhdr));
 	auth.transport = chunk->transport;
 
-	return sctp_sf_authenticate(asoc, &auth) == SCTP_IERROR_NO_ERROR;
+	return sctp_sf_authenticate(asoc, &auth) == SCTP_IERROR_ANAL_ERROR;
 }
 
 /*
- * Respond to a normal COOKIE ECHO chunk.
+ * Respond to a analrmal COOKIE ECHO chunk.
  * We are the side that is being asked for an association.
  *
- * Section: 5.1 Normal Establishment of an Association, D
+ * Section: 5.1 Analrmal Establishment of an Association, D
  * D) Upon reception of the COOKIE ECHO chunk, Endpoint "Z" will reply
  *    with a COOKIE ACK chunk after building a TCB and moving to
  *    the ESTABLISHED state. A COOKIE ACK chunk may be bundled with
  *    any pending DATA chunks (and/or SACK chunks), but the COOKIE ACK
  *    chunk MUST be the first chunk in the packet.
  *
- *   IMPLEMENTATION NOTE: An implementation may choose to send the
- *   Communication Up notification to the SCTP user upon reception
+ *   IMPLEMENTATION ANALTE: An implementation may choose to send the
+ *   Communication Up analtification to the SCTP user upon reception
  *   of a valid COOKIE ECHO chunk.
  *
  * Verification Tag: 8.5.1 Exceptions in Verification Tag Rules
@@ -723,7 +723,7 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 	}
 
 	/* Make sure that the COOKIE_ECHO chunk has a valid length.
-	 * In this case, we check that we have enough for at least a
+	 * In this case, we check that we have eanalugh for at least a
 	 * chunk header.  More detailed verification is done
 	 * in sctp_unpack_cookie().
 	 */
@@ -731,7 +731,7 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	/* If the endpoint is not listening or if the number of associations
+	/* If the endpoint is analt listening or if the number of associations
 	 * on the TCP-style socket exceed the max backlog, respond with an
 	 * ABORT.
 	 */
@@ -740,14 +740,14 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 	    (sctp_style(sk, TCP) && sk_acceptq_is_full(sk)))
 		return sctp_sf_tabort_8_4_8(net, ep, asoc, type, arg, commands);
 
-	/* "Decode" the chunk.  We have no optional parameters so we
+	/* "Decode" the chunk.  We have anal optional parameters so we
 	 * are in good shape.
 	 */
 	chunk->subh.cookie_hdr =
 		(struct sctp_signed_cookie *)chunk->skb->data;
 	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
 					 sizeof(struct sctp_chunkhdr)))
-		goto nomem;
+		goto analmem;
 
 	/* 5.1 D) Upon reception of the COOKIE ECHO chunk, Endpoint
 	 * "Z" will reply with a COOKIE ACK chunk after building a TCB
@@ -767,8 +767,8 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 		 * be silently discarded, but think about logging it too.
 		 */
 		switch (error) {
-		case -SCTP_IERROR_NOMEM:
-			goto nomem;
+		case -SCTP_IERROR_ANALMEM:
+			goto analmem;
 
 		case -SCTP_IERROR_STALE_COOKIE:
 			sctp_send_stale_cookie_err(net, ep, asoc, chunk, commands,
@@ -791,22 +791,22 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 	 * Re-build the bind address for the association is done in
 	 * the sctp_unpack_cookie() already.
 	 */
-	/* This is a brand-new association, so these are not yet side
+	/* This is a brand-new association, so these are analt yet side
 	 * effects--it is safe to run them here.
 	 */
 	peer_init = (struct sctp_init_chunk *)(chunk->subh.cookie_hdr + 1);
 	if (!sctp_process_init(new_asoc, chunk,
 			       &chunk->subh.cookie_hdr->c.peer_addr,
 			       peer_init, GFP_ATOMIC))
-		goto nomem_init;
+		goto analmem_init;
 
-	/* SCTP-AUTH:  Now that we've populate required fields in
+	/* SCTP-AUTH:  Analw that we've populate required fields in
 	 * sctp_process_init, set up the association shared keys as
 	 * necessary so that we can potentially authenticate the ACK
 	 */
 	error = sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC);
 	if (error)
-		goto nomem_init;
+		goto analmem_init;
 
 	if (!sctp_auth_chunk_verify(net, chunk, new_asoc)) {
 		sctp_association_free(new_asoc);
@@ -815,12 +815,12 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
 	if (!repl)
-		goto nomem_init;
+		goto analmem_init;
 
-	/* RFC 2960 5.1 Normal Establishment of an Association
+	/* RFC 2960 5.1 Analrmal Establishment of an Association
 	 *
-	 * D) IMPLEMENTATION NOTE: An implementation may choose to
-	 * send the Communication Up notification to the SCTP user
+	 * D) IMPLEMENTATION ANALTE: An implementation may choose to
+	 * send the Communication Up analtification to the SCTP user
 	 * upon reception of a valid COOKIE ECHO chunk.
 	 */
 	ev = sctp_ulpevent_make_assoc_change(new_asoc, 0, SCTP_COMM_UP, 0,
@@ -828,29 +828,29 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 					     new_asoc->c.sinit_max_instreams,
 					     NULL, GFP_ATOMIC);
 	if (!ev)
-		goto nomem_ev;
+		goto analmem_ev;
 
 	/* Sockets API Draft Section 5.3.1.6
 	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
-	 * delivers this notification to inform the application that of the
+	 * delivers this analtification to inform the application that of the
 	 * peers requested adaptation layer.
 	 */
 	if (new_asoc->peer.adaptation_ind) {
 		ai_ev = sctp_ulpevent_make_adaptation_indication(new_asoc,
 							    GFP_ATOMIC);
 		if (!ai_ev)
-			goto nomem_aiev;
+			goto analmem_aiev;
 	}
 
 	if (!new_asoc->peer.auth_capable) {
 		auth_ev = sctp_ulpevent_make_authkey(new_asoc, 0,
-						     SCTP_AUTH_NO_AUTH,
+						     SCTP_AUTH_ANAL_AUTH,
 						     GFP_ATOMIC);
 		if (!auth_ev)
-			goto nomem_authev;
+			goto analmem_authev;
 	}
 
-	/* Add all the state machine commands now since we've created
+	/* Add all the state machine commands analw since we've created
 	 * everything.  This way we don't introduce memory corruptions
 	 * during side-effect processing and correctly count established
 	 * associations.
@@ -883,29 +883,29 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem_authev:
+analmem_authev:
 	sctp_ulpevent_free(ai_ev);
-nomem_aiev:
+analmem_aiev:
 	sctp_ulpevent_free(ev);
-nomem_ev:
+analmem_ev:
 	sctp_chunk_free(repl);
-nomem_init:
+analmem_init:
 	sctp_association_free(new_asoc);
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
- * Respond to a normal COOKIE ACK chunk.
+ * Respond to a analrmal COOKIE ACK chunk.
  * We are the side that is asking for an association.
  *
- * RFC 2960 5.1 Normal Establishment of an Association
+ * RFC 2960 5.1 Analrmal Establishment of an Association
  *
  * E) Upon reception of the COOKIE ACK, endpoint "A" will move from the
  *    COOKIE-ECHOED state to the ESTABLISHED state, stopping the T1-cookie
- *    timer. It may also notify its ULP about the successful
+ *    timer. It may also analtify its ULP about the successful
  *    establishment of the association with a Communication Up
- *    notification (see Section 10).
+ *    analtification (see Section 10).
  *
  * Verification Tag:
  * Inputs
@@ -949,7 +949,7 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_COUNTER_RESET, SCTP_NULL());
 
-	/* RFC 2960 5.1 Normal Establishment of an Association
+	/* RFC 2960 5.1 Analrmal Establishment of an Association
 	 *
 	 * E) Upon reception of the COOKIE ACK, endpoint "A" will move
 	 * from the COOKIE-ECHOED state to the ESTABLISHED state,
@@ -966,9 +966,9 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 
-	/* It may also notify its ULP about the successful
+	/* It may also analtify its ULP about the successful
 	 * establishment of the association with a Communication Up
-	 * notification (see Section 10).
+	 * analtification (see Section 10).
 	 */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_UP,
 					     0, asoc->c.sinit_num_ostreams,
@@ -976,36 +976,36 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 					     NULL, GFP_ATOMIC);
 
 	if (!ev)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
 
 	/* Sockets API Draft Section 5.3.1.6
 	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
-	 * delivers this notification to inform the application that of the
+	 * delivers this analtification to inform the application that of the
 	 * peers requested adaptation layer.
 	 */
 	if (asoc->peer.adaptation_ind) {
 		ev = sctp_ulpevent_make_adaptation_indication(asoc, GFP_ATOMIC);
 		if (!ev)
-			goto nomem;
+			goto analmem;
 
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ev));
 	}
 
 	if (!asoc->peer.auth_capable) {
-		ev = sctp_ulpevent_make_authkey(asoc, 0, SCTP_AUTH_NO_AUTH,
+		ev = sctp_ulpevent_make_authkey(asoc, 0, SCTP_AUTH_ANAL_AUTH,
 						GFP_ATOMIC);
 		if (!ev)
-			goto nomem;
+			goto analmem;
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ev));
 	}
 
 	return SCTP_DISPOSITION_CONSUME;
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /* Generate and sendout a heartbeat packet.  */
@@ -1022,7 +1022,7 @@ static enum sctp_disposition sctp_sf_heartbeat(
 	/* Send a heartbeat to our peer.  */
 	reply = sctp_make_heartbeat(asoc, transport, 0);
 	if (!reply)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	/* Set rto_pending indicating that an RTT measurement
 	 * is started with this heartbeat chunk.
@@ -1049,24 +1049,24 @@ enum sctp_disposition sctp_sf_sendbeat_8_3(struct net *net,
 				SCTP_ERROR(ETIMEDOUT));
 		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
 	/* Section 3.3.5.
-	 * The Sender-specific Heartbeat Info field should normally include
+	 * The Sender-specific Heartbeat Info field should analrmally include
 	 * information about the sender's current time when this HEARTBEAT
 	 * chunk is sent and the destination transport address to which this
 	 * HEARTBEAT is sent (see Section 8.3).
 	 */
 
 	if (transport->param_flags & SPP_HB_ENABLE) {
-		if (SCTP_DISPOSITION_NOMEM ==
+		if (SCTP_DISPOSITION_ANALMEM ==
 				sctp_sf_heartbeat(ep, asoc, type, arg,
 						  commands))
-			return SCTP_DISPOSITION_NOMEM;
+			return SCTP_DISPOSITION_ANALMEM;
 
 		/* Set transport error counter and association error counter
 		 * when sending heartbeat.
@@ -1097,7 +1097,7 @@ enum sctp_disposition sctp_sf_send_reconf(struct net *net,
 				SCTP_ERROR(ETIMEDOUT));
 		/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
@@ -1128,7 +1128,7 @@ enum sctp_disposition sctp_sf_send_probe(struct net *net,
 	sctp_transport_pl_send(transport);
 	reply = sctp_make_heartbeat(asoc, transport, transport->pl.probe_size);
 	if (!reply)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
 	sctp_add_cmd_sf(commands, SCTP_CMD_PROBE_TIMER_UPDATE,
 			SCTP_TRANSPORT(transport));
@@ -1144,12 +1144,12 @@ enum sctp_disposition sctp_sf_send_probe(struct net *net,
  * HEARTBEAT ACK that contains the Heartbeat Information field copied
  * from the received HEARTBEAT chunk.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  * When receiving an SCTP packet, the endpoint MUST ensure that the
  * value in the Verification Tag field of the received SCTP packet
- * matches its own Tag. If the received Verification Tag value does not
+ * matches its own Tag. If the received Verification Tag value does analt
  * match the receiver's own tag value, the receiver shall silently
- * discard the packet and shall not process it any further except for
+ * discard the packet and shall analt process it any further except for
  * those cases listed in Section 8.5.1 below.
  *
  * Inputs
@@ -1193,17 +1193,17 @@ enum sctp_disposition sctp_sf_beat_8_3(struct net *net,
 						  param_hdr, commands);
 
 	if (!pskb_pull(chunk->skb, paylen))
-		goto nomem;
+		goto analmem;
 
 	reply = sctp_make_heartbeat_ack(asoc, chunk, param_hdr, paylen);
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -1213,7 +1213,7 @@ nomem:
  * Upon the receipt of the HEARTBEAT ACK, the sender of the HEARTBEAT
  * should clear the error counter of the destination transport
  * address to which the HEARTBEAT was sent, and mark the destination
- * transport address as active if it is not so marked. The endpoint may
+ * transport address as active if it is analt so marked. The endpoint may
  * optionally report to the upper layer when an inactive destination
  * address is marked as active due to the reception of the latest
  * HEARTBEAT ACK. The receiver of the HEARTBEAT ACK must also
@@ -1224,7 +1224,7 @@ nomem:
  * measurement for that destination transport address using the time
  * value carried in the HEARTBEAT ACK chunk.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -1267,12 +1267,12 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 	/* This should never happen, but lets log it if so.  */
 	if (unlikely(!link)) {
 		if (from_addr.sa.sa_family == AF_INET6) {
-			net_warn_ratelimited("%s association %p could not find address %pI6\n",
+			net_warn_ratelimited("%s association %p could analt find address %pI6\n",
 					     __func__,
 					     asoc,
 					     &from_addr.v6.sin6_addr);
 		} else {
-			net_warn_ratelimited("%s association %p could not find address %pI4\n",
+			net_warn_ratelimited("%s association %p could analt find address %pI4\n",
 					     __func__,
 					     asoc,
 					     &from_addr.v4.sin_addr.s_addr);
@@ -1280,8 +1280,8 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 		return SCTP_DISPOSITION_DISCARD;
 	}
 
-	/* Validate the 64-bit random nonce. */
-	if (hbinfo->hb_nonce != link->hb_nonce)
+	/* Validate the 64-bit random analnce. */
+	if (hbinfo->hb_analnce != link->hb_analnce)
 		return SCTP_DISPOSITION_DISCARD;
 
 	if (hbinfo->probe_size) {
@@ -1310,7 +1310,7 @@ enum sctp_disposition sctp_sf_backbeat_8_3(struct net *net,
 	 * the HEARTBEAT should clear the error counter of the
 	 * destination transport address to which the HEARTBEAT was
 	 * sent and mark the destination transport address as active if
-	 * it is not so marked.
+	 * it is analt so marked.
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_ON, SCTP_TRANSPORT(link));
 
@@ -1363,7 +1363,7 @@ static int sctp_sf_send_restart_abort(struct net *net, union sctp_addr *ssa,
 	sctp_add_cmd_sf(commands, SCTP_CMD_DISCARD_PACKET, SCTP_NULL());
 
 out:
-	/* Even if there is no memory, treat as a failure so
+	/* Even if there is anal memory, treat as a failure so
 	 * the packet will get dropped.
 	 */
 	return 0;
@@ -1381,7 +1381,7 @@ static bool list_has_sctp_addr(const struct list_head *list,
 
 	return false;
 }
-/* A restart is occurring, check to make sure no new addresses
+/* A restart is occurring, check to make sure anal new addresses
  * are being added as we may be under a takeover attack.
  */
 static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
@@ -1422,7 +1422,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 /* Populate the verification/tie tags based on overlapping INIT
  * scenario.
  *
- * Note: Do not use in CLOSED or SHUTDOWN-ACK-SENT state.
+ * Analte: Do analt use in CLOSED or SHUTDOWN-ACK-SENT state.
  */
 static void sctp_tietags_populate(struct sctp_association *new_asoc,
 				  const struct sctp_association *asoc)
@@ -1500,7 +1500,7 @@ static char sctp_tietags_compare(struct sctp_association *new_asoc,
 	    (0 == new_asoc->c.peer_ttag))
 		return 'C';
 
-	/* No match to any of the special cases; discard this packet. */
+	/* Anal match to any of the special cases; discard this packet. */
 	return 'E';
 }
 
@@ -1523,7 +1523,7 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 	int len;
 
 	/* 6.10 Bundling
-	 * An endpoint MUST NOT bundle INIT, INIT ACK or
+	 * An endpoint MUST ANALT bundle INIT, INIT ACK or
 	 * SHUTDOWN COMPLETE with any other chunks.
 	 *
 	 * IG Section 2.11.2
@@ -1574,7 +1574,7 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 				SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
 				retval = SCTP_DISPOSITION_CONSUME;
 			} else {
-				retval = SCTP_DISPOSITION_NOMEM;
+				retval = SCTP_DISPOSITION_ANALMEM;
 			}
 			goto cleanup;
 		} else {
@@ -1587,12 +1587,12 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 	 * Other parameters for the endpoint SHOULD be copied from the
 	 * existing parameters of the association (e.g. number of
 	 * outbound streams) into the INIT ACK and cookie.
-	 * FIXME:  We are copying parameters from the endpoint not the
+	 * FIXME:  We are copying parameters from the endpoint analt the
 	 * association.
 	 */
 	new_asoc = sctp_make_temp_asoc(ep, chunk, GFP_ATOMIC);
 	if (!new_asoc)
-		goto nomem;
+		goto analmem;
 
 	/* Update socket peer label if first association. */
 	if (security_sctp_assoc_request(new_asoc, chunk->skb)) {
@@ -1602,7 +1602,7 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 
 	if (sctp_assoc_set_bind_addr_from_ep(new_asoc,
 				sctp_scope(sctp_source(chunk)), GFP_ATOMIC) < 0)
-		goto nomem;
+		goto analmem;
 
 	/* In the outbound INIT ACK the endpoint MUST copy its current
 	 * Verification Tag and Peers Verification tag into a reserved
@@ -1611,18 +1611,18 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk),
 			       (struct sctp_init_chunk *)chunk->chunk_hdr,
 			       GFP_ATOMIC))
-		goto nomem;
+		goto analmem;
 
-	/* Make sure no new addresses are being added during the
-	 * restart.   Do not do this check for COOKIE-WAIT state,
-	 * since there are no peer addresses to check against.
+	/* Make sure anal new addresses are being added during the
+	 * restart.   Do analt do this check for COOKIE-WAIT state,
+	 * since there are anal peer addresses to check against.
 	 * Upon return an ABORT will have been sent if needed.
 	 */
 	if (!sctp_state(asoc, COOKIE_WAIT)) {
 		if (!sctp_sf_check_restart_addrs(new_asoc, asoc, chunk,
 						 commands)) {
 			retval = SCTP_DISPOSITION_CONSUME;
-			goto nomem_retval;
+			goto analmem_retval;
 		}
 	}
 
@@ -1630,8 +1630,8 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 
 	/* B) "Z" shall respond immediately with an INIT ACK chunk.  */
 
-	/* If there are errors need to be reported for unknown parameters,
-	 * make sure to reserve enough room in the INIT ACK for them.
+	/* If there are errors need to be reported for unkanalwn parameters,
+	 * make sure to reserve eanalugh room in the INIT ACK for them.
 	 */
 	len = 0;
 	if (err_chunk) {
@@ -1641,16 +1641,16 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 
 	repl = sctp_make_init_ack(new_asoc, chunk, GFP_ATOMIC, len);
 	if (!repl)
-		goto nomem;
+		goto analmem;
 
-	/* If there are errors need to be reported for unknown parameters,
+	/* If there are errors need to be reported for unkanalwn parameters,
 	 * include them in the outgoing INIT ACK as "Unrecognized parameter"
 	 * parameter.
 	 */
 	if (err_chunk) {
 		/* Get the "Unrecognized parameter" parameter(s) out of the
 		 * ERROR chunk generated by sctp_verify_init(). Since the
-		 * error cause code for "unknown parameter" and the
+		 * error cause code for "unkanalwn parameter" and the
 		 * "Unrecognized parameter" type is the same, we can
 		 * construct the parameters in INIT ACK by copying the
 		 * ERROR causes over.
@@ -1668,8 +1668,8 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
 	/*
-	 * Note: After sending out INIT ACK with the State Cookie parameter,
-	 * "Z" MUST NOT allocate any resources for this new association.
+	 * Analte: After sending out INIT ACK with the State Cookie parameter,
+	 * "Z" MUST ANALT allocate any resources for this new association.
 	 * Otherwise, "Z" will be vulnerable to resource attacks.
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_DELETE_TCB, SCTP_NULL());
@@ -1677,9 +1677,9 @@ static enum sctp_disposition sctp_sf_do_unexpected_init(
 
 	return retval;
 
-nomem:
-	retval = SCTP_DISPOSITION_NOMEM;
-nomem_retval:
+analmem:
+	retval = SCTP_DISPOSITION_ANALMEM;
+analmem_retval:
 	if (new_asoc)
 		sctp_association_free(new_asoc);
 cleanup:
@@ -1706,16 +1706,16 @@ cleanup:
  * Cookie with the INIT ACK. The endpoint uses the parameters sent in its
  * INIT to calculate the State Cookie.
  *
- * After that, the endpoint MUST NOT change its state, the T1-init
- * timer shall be left running and the corresponding TCB MUST NOT be
- * destroyed. The normal procedures for handling State Cookies when
+ * After that, the endpoint MUST ANALT change its state, the T1-init
+ * timer shall be left running and the corresponding TCB MUST ANALT be
+ * destroyed. The analrmal procedures for handling State Cookies when
  * a TCB exists will resolve the duplicate INITs to a single association.
  *
  * For an endpoint that is in the COOKIE-ECHOED state it MUST populate
  * its Tie-Tags with the Tag information of itself and its peer (see
  * section 5.2.2 for a description of the Tie-Tags).
  *
- * Verification Tag: Not explicit, but an INIT can not have a valid
+ * Verification Tag: Analt explicit, but an INIT can analt have a valid
  * verification tag, so we skip the check.
  *
  * Inputs
@@ -1760,18 +1760,18 @@ enum sctp_disposition sctp_sf_do_5_2_1_siminit(
  * existing parameters of the association (e.g. number of outbound
  * streams) into the INIT ACK and cookie.
  *
- * After sending out the INIT ACK, the endpoint shall take no further
+ * After sending out the INIT ACK, the endpoint shall take anal further
  * actions, i.e., the existing association, including its current state,
- * and the corresponding TCB MUST NOT be changed.
+ * and the corresponding TCB MUST ANALT be changed.
  *
- * Note: Only when a TCB exists and the association is not in a COOKIE-
- * WAIT state are the Tie-Tags populated.  For a normal association INIT
+ * Analte: Only when a TCB exists and the association is analt in a COOKIE-
+ * WAIT state are the Tie-Tags populated.  For a analrmal association INIT
  * (i.e. the endpoint is in a COOKIE-WAIT state), the Tie-Tags MUST be
- * set to 0 (indicating that no previous TCB existed).  The INIT ACK and
+ * set to 0 (indicating that anal previous TCB existed).  The INIT ACK and
  * State Cookie are populated as specified in section 5.2.1.
  *
- * Verification Tag: Not specified, but an INIT has no way of knowing
- * what the verification tag could be, so we ignore it.
+ * Verification Tag: Analt specified, but an INIT has anal way of kanalwing
+ * what the verification tag could be, so we iganalre it.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -1843,7 +1843,7 @@ static int sctp_sf_do_assoc_update(struct sctp_association *asoc,
 	SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 	SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Unexpected COOKIE-ECHO handler for peer restart (Table 2, action 'A')
@@ -1865,21 +1865,21 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 	struct sctp_chunk *repl;
 	struct sctp_chunk *err;
 
-	/* new_asoc is a brand-new association, so these are not yet
+	/* new_asoc is a brand-new association, so these are analt yet
 	 * side effects--it is safe to run them here.
 	 */
 	peer_init = (struct sctp_init_chunk *)(chunk->subh.cookie_hdr + 1);
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk), peer_init,
 			       GFP_ATOMIC))
-		goto nomem;
+		goto analmem;
 
 	if (sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC))
-		goto nomem;
+		goto analmem;
 
 	if (!sctp_auth_chunk_verify(net, chunk, new_asoc))
 		return SCTP_DISPOSITION_DISCARD;
 
-	/* Make sure no new addresses are being added during the
+	/* Make sure anal new addresses are being added during the
 	 * restart.  Though this is a pretty complicated attack
 	 * since you'd have to get inside the cookie.
 	 */
@@ -1887,7 +1887,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 		return SCTP_DISPOSITION_CONSUME;
 
 	/* If the endpoint is in the SHUTDOWN-ACK-SENT state and recognizes
-	 * the peer has restarted (Action A), it MUST NOT setup a new
+	 * the peer has restarted (Action A), it MUST ANALT setup a new
 	 * association but instead resend the SHUTDOWN ACK and send an ERROR
 	 * chunk with a "Cookie Received while Shutting Down" error cause to
 	 * its peer.
@@ -1896,8 +1896,8 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 		disposition = __sctp_sf_do_9_2_reshutack(net, ep, asoc,
 							 SCTP_ST_CHUNK(chunk->chunk_hdr->type),
 							 chunk, commands);
-		if (SCTP_DISPOSITION_NOMEM == disposition)
-			goto nomem;
+		if (SCTP_DISPOSITION_ANALMEM == disposition)
+			goto analmem;
 
 		err = sctp_make_op_error(asoc, chunk,
 					 SCTP_ERROR_COOKIE_IN_SHUTDOWN,
@@ -1909,7 +1909,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 		return SCTP_DISPOSITION_CONSUME;
 	}
 
-	/* For now, stop pending T3-rtx and SACK timers, fail any unsent/unacked
+	/* For analw, stop pending T3-rtx and SACK timers, fail any unsent/unacked
 	 * data. Consider the optional choice of resending of this data.
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_T3_RTX_TIMERS_STOP, SCTP_NULL());
@@ -1926,11 +1926,11 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 
 	/* Update the content of current association. */
 	if (sctp_sf_do_assoc_update((struct sctp_association *)asoc, new_asoc, commands))
-		goto nomem;
+		goto analmem;
 
 	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
-		goto nomem;
+		goto analmem;
 
 	/* Report association restart to upper layer. */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_RESTART, 0,
@@ -1938,7 +1938,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 					     asoc->c.sinit_max_instreams,
 					     NULL, GFP_ATOMIC);
 	if (!ev)
-		goto nomem_ev;
+		goto analmem_ev;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
 	if ((sctp_state(asoc, SHUTDOWN_PENDING) ||
@@ -1960,10 +1960,10 @@ static enum sctp_disposition sctp_sf_do_dupcook_a(
 	}
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem_ev:
+analmem_ev:
 	sctp_chunk_free(repl);
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /* Unexpected COOKIE-ECHO handler for setup collision (Table 2, action 'B')
@@ -1985,16 +1985,16 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 	struct sctp_init_chunk *peer_init;
 	struct sctp_chunk *repl;
 
-	/* new_asoc is a brand-new association, so these are not yet
+	/* new_asoc is a brand-new association, so these are analt yet
 	 * side effects--it is safe to run them here.
 	 */
 	peer_init = (struct sctp_init_chunk *)(chunk->subh.cookie_hdr + 1);
 	if (!sctp_process_init(new_asoc, chunk, sctp_source(chunk), peer_init,
 			       GFP_ATOMIC))
-		goto nomem;
+		goto analmem;
 
 	if (sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC))
-		goto nomem;
+		goto analmem;
 
 	if (!sctp_auth_chunk_verify(net, chunk, new_asoc))
 		return SCTP_DISPOSITION_DISCARD;
@@ -2007,23 +2007,23 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 
 	/* Update the content of current association.  */
 	if (sctp_sf_do_assoc_update((struct sctp_association *)asoc, new_asoc, commands))
-		goto nomem;
+		goto analmem;
 
 	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
-	/* RFC 2960 5.1 Normal Establishment of an Association
+	/* RFC 2960 5.1 Analrmal Establishment of an Association
 	 *
-	 * D) IMPLEMENTATION NOTE: An implementation may choose to
-	 * send the Communication Up notification to the SCTP user
+	 * D) IMPLEMENTATION ANALTE: An implementation may choose to
+	 * send the Communication Up analtification to the SCTP user
 	 * upon reception of a valid COOKIE ECHO chunk.
 	 *
 	 * Sadly, this needs to be implemented as a side-effect, because
-	 * we are not guaranteed to have set the association id of the real
-	 * association and so these notifications need to be delayed until
+	 * we are analt guaranteed to have set the association id of the real
+	 * association and so these analtifications need to be delayed until
 	 * the association id is allocated.
 	 */
 
@@ -2031,7 +2031,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 
 	/* Sockets API Draft Section 5.3.1.6
 	 * When a peer sends a Adaptation Layer Indication parameter , SCTP
-	 * delivers this notification to inform the application that of the
+	 * delivers this analtification to inform the application that of the
 	 * peers requested adaptation layer.
 	 *
 	 * This also needs to be done as a side effect for the same reason as
@@ -2041,12 +2041,12 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 		sctp_add_cmd_sf(commands, SCTP_CMD_ADAPTATION_IND, SCTP_NULL());
 
 	if (!asoc->peer.auth_capable)
-		sctp_add_cmd_sf(commands, SCTP_CMD_PEER_NO_AUTH, SCTP_NULL());
+		sctp_add_cmd_sf(commands, SCTP_CMD_PEER_ANAL_AUTH, SCTP_NULL());
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /* Unexpected COOKIE-ECHO handler for setup collision (Table 2, action 'C')
@@ -2067,7 +2067,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_c(
 					struct sctp_association *new_asoc)
 {
 	/* The cookie should be silently discarded.
-	 * The endpoint SHOULD NOT change states and should leave
+	 * The endpoint SHOULD ANALT change states and should leave
 	 * any timers running.
 	 */
 	return SCTP_DISPOSITION_DISCARD;
@@ -2078,7 +2078,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_c(
  * Section 5.2.4
  *
  * D) When both local and remote tags match the endpoint should always
- *    enter the ESTABLISHED state, if it has not already done so.
+ *    enter the ESTABLISHED state, if it has analt already done so.
  */
 /* This case represents an initialization collision.  */
 static enum sctp_disposition sctp_sf_do_dupcook_d(
@@ -2112,10 +2112,10 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 		sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMERS_START,
 				SCTP_NULL());
 
-		/* RFC 2960 5.1 Normal Establishment of an Association
+		/* RFC 2960 5.1 Analrmal Establishment of an Association
 		 *
-		 * D) IMPLEMENTATION NOTE: An implementation may choose
-		 * to send the Communication Up notification to the
+		 * D) IMPLEMENTATION ANALTE: An implementation may choose
+		 * to send the Communication Up analtification to the
 		 * SCTP user upon reception of a valid COOKIE
 		 * ECHO chunk.
 		 */
@@ -2125,33 +2125,33 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 					     asoc->c.sinit_max_instreams,
 					     NULL, GFP_ATOMIC);
 		if (!ev)
-			goto nomem;
+			goto analmem;
 
 		/* Sockets API Draft Section 5.3.1.6
 		 * When a peer sends a Adaptation Layer Indication parameter,
-		 * SCTP delivers this notification to inform the application
+		 * SCTP delivers this analtification to inform the application
 		 * that of the peers requested adaptation layer.
 		 */
 		if (asoc->peer.adaptation_ind) {
 			ai_ev = sctp_ulpevent_make_adaptation_indication(asoc,
 								 GFP_ATOMIC);
 			if (!ai_ev)
-				goto nomem;
+				goto analmem;
 
 		}
 
 		if (!asoc->peer.auth_capable) {
 			auth_ev = sctp_ulpevent_make_authkey(asoc, 0,
-							     SCTP_AUTH_NO_AUTH,
+							     SCTP_AUTH_ANAL_AUTH,
 							     GFP_ATOMIC);
 			if (!auth_ev)
-				goto nomem;
+				goto analmem;
 		}
 	}
 
 	repl = sctp_make_cookie_ack(asoc, chunk);
 	if (!repl)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 
@@ -2167,14 +2167,14 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
+analmem:
 	if (auth_ev)
 		sctp_ulpevent_free(auth_ev);
 	if (ai_ev)
 		sctp_ulpevent_free(ai_ev);
 	if (ev)
 		sctp_ulpevent_free(ev);
-	return SCTP_DISPOSITION_NOMEM;
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -2183,7 +2183,7 @@ nomem:
  *
  * Section: 5.2.4 Handle a COOKIE ECHO when a TCB exists
  *
- * Verification Tag: None.  Do cookie validation.
+ * Verification Tag: Analne.  Do cookie validation.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -2210,7 +2210,7 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 
 	/* Make sure that the chunk has a valid length from the protocol
 	 * perspective.  In this case check to make sure we have at least
-	 * enough for the chunk header.  Cookie length verification is
+	 * eanalugh for the chunk header.  Cookie length verification is
 	 * done later.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_chunkhdr))) {
@@ -2219,13 +2219,13 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg, commands);
 	}
 
-	/* "Decode" the chunk.  We have no optional parameters so we
+	/* "Decode" the chunk.  We have anal optional parameters so we
 	 * are in good shape.
 	 */
 	chunk->subh.cookie_hdr = (struct sctp_signed_cookie *)chunk->skb->data;
 	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
 					sizeof(struct sctp_chunkhdr)))
-		goto nomem;
+		goto analmem;
 
 	/* In RFC 2960 5.2.4 3, if both Verification Tags in the State Cookie
 	 * of a duplicate COOKIE ECHO match the Verification Tags of the
@@ -2246,8 +2246,8 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 		 * be silently discarded, but think about logging it too.
 		 */
 		switch (error) {
-		case -SCTP_IERROR_NOMEM:
-			goto nomem;
+		case -SCTP_IERROR_ANALMEM:
+			goto analmem;
 
 		case -SCTP_IERROR_STALE_COOKIE:
 			sctp_send_stale_cookie_err(net, ep, asoc, chunk, commands,
@@ -2311,8 +2311,8 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 
 	return retval;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -2340,7 +2340,7 @@ enum sctp_disposition sctp_sf_shutdown_pending_abort(
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
 	 * Because the length is "invalid", we can't really discard just
-	 * as we do not know its true length.  So, to be safe, discard the
+	 * as we do analt kanalw its true length.  So, to be safe, discard the
 	 * packet.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
@@ -2349,7 +2349,7 @@ enum sctp_disposition sctp_sf_shutdown_pending_abort(
 	/* ADD-IP: Special case for ABORT chunks
 	 * F4)  One special consideration is that ABORT Chunks arriving
 	 * destined to the IP address being deleted MUST be
-	 * ignored (see Section 5.3.1 for further details).
+	 * iganalred (see Section 5.3.1 for further details).
 	 */
 	if (SCTP_ADDR_DEL ==
 		    sctp_bind_addr_state(&asoc->base.bind_addr, &chunk->dest))
@@ -2386,7 +2386,7 @@ enum sctp_disposition sctp_sf_shutdown_sent_abort(
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
 	 * Because the length is "invalid", we can't really discard just
-	 * as we do not know its true length.  So, to be safe, discard the
+	 * as we do analt kanalw its true length.  So, to be safe, discard the
 	 * packet.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
@@ -2395,7 +2395,7 @@ enum sctp_disposition sctp_sf_shutdown_sent_abort(
 	/* ADD-IP: Special case for ABORT chunks
 	 * F4)  One special consideration is that ABORT Chunks arriving
 	 * destined to the IP address being deleted MUST be
-	 * ignored (see Section 5.3.1 for further details).
+	 * iganalred (see Section 5.3.1 for further details).
 	 */
 	if (SCTP_ADDR_DEL ==
 		    sctp_bind_addr_state(&asoc->base.bind_addr, &chunk->dest))
@@ -2438,7 +2438,7 @@ enum sctp_disposition sctp_sf_shutdown_ack_sent_abort(
  * Handle an Error received in COOKIE_ECHOED state.
  *
  * Only handle the error type of stale COOKIE Error, the other errors will
- * be ignored.
+ * be iganalred.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -2482,7 +2482,7 @@ enum sctp_disposition sctp_sf_cookie_echoed_err(
 
 	/* It is possible to have malformed error causes, and that
 	 * will cause us to end the walk early.  However, since
-	 * we are discarding the packet, there should be no adverse
+	 * we are discarding the packet, there should be anal adverse
 	 * affects.
 	 */
 	return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -2499,11 +2499,11 @@ enum sctp_disposition sctp_sf_cookie_echoed_err(
  *    Preservative parameter requesting an extension to the lifetime of
  *    the State Cookie. When calculating the time extension, an
  *    implementation SHOULD use the RTT information measured based on the
- *    previous COOKIE ECHO / ERROR exchange, and should add no more
+ *    previous COOKIE ECHO / ERROR exchange, and should add anal more
  *    than 1 second beyond the measured RTT, due to long State Cookie
  *    lifetimes making the endpoint more subject to a replay attack.
  *
- * Verification Tag:  Not explicit, but safe to ignore.
+ * Verification Tag:  Analt explicit, but safe to iganalre.
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -2540,7 +2540,7 @@ static enum sctp_disposition sctp_sf_do_5_2_6_stale(
 
 	/* When calculating the time extension, an implementation
 	 * SHOULD use the RTT information measured based on the
-	 * previous COOKIE ECHO / ERROR exchange, and should add no
+	 * previous COOKIE ECHO / ERROR exchange, and should add anal
 	 * more than 1 second beyond the measured RTT, due to long
 	 * State Cookie lifetimes making the endpoint more subject to
 	 * a replay attack.
@@ -2563,7 +2563,7 @@ static enum sctp_disposition sctp_sf_do_5_2_6_stale(
 	bp = (struct sctp_bind_addr *) &asoc->base.bind_addr;
 	reply = sctp_make_init(asoc, bp, GFP_ATOMIC, sizeof(bht));
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	sctp_addto_chunk(reply, sizeof(bht), &bht);
 
@@ -2574,10 +2574,10 @@ static enum sctp_disposition sctp_sf_do_5_2_6_stale(
 	sctp_add_cmd_sf(commands, SCTP_CMD_T3_RTX_TIMERS_STOP, SCTP_NULL());
 	sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMERS_STOP, SCTP_NULL());
 
-	/* Delete non-primary peer ip addresses since we are transitioning
+	/* Delete analn-primary peer ip addresses since we are transitioning
 	 * back to the COOKIE-WAIT state
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_DEL_NON_PRIMARY, SCTP_NULL());
+	sctp_add_cmd_sf(commands, SCTP_CMD_DEL_ANALN_PRIMARY, SCTP_NULL());
 
 	/* If we've sent any data bundled with COOKIE-ECHO we will need to
 	 * resend
@@ -2601,8 +2601,8 @@ static enum sctp_disposition sctp_sf_do_5_2_6_stale(
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -2618,14 +2618,14 @@ nomem:
  *
  *  - The endpoint shall always fill in the Verification Tag field of the
  *    outbound packet with the destination endpoint's tag value if it
- *    is known.
+ *    is kanalwn.
  *
  *  - If the ABORT is sent in response to an OOTB packet, the endpoint
  *    MUST follow the procedure described in Section 8.4.
  *
  *  - The receiver MUST accept the packet if the Verification Tag
  *    matches either its own tag, OR the tag of its peer. Otherwise, the
- *    receiver MUST silently discard the packet and take no further
+ *    receiver MUST silently discard the packet and take anal further
  *    action.
  *
  * Inputs
@@ -2656,7 +2656,7 @@ enum sctp_disposition sctp_sf_do_9_1_abort(
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
 	 * Because the length is "invalid", we can't really discard just
-	 * as we do not know its true length.  So, to be safe, discard the
+	 * as we do analt kanalw its true length.  So, to be safe, discard the
 	 * packet.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
@@ -2665,7 +2665,7 @@ enum sctp_disposition sctp_sf_do_9_1_abort(
 	/* ADD-IP: Special case for ABORT chunks
 	 * F4)  One special consideration is that ABORT Chunks arriving
 	 * destined to the IP address being deleted MUST be
-	 * ignored (see Section 5.3.1 for further details).
+	 * iganalred (see Section 5.3.1 for further details).
 	 */
 	if (SCTP_ADDR_DEL ==
 		    sctp_bind_addr_state(&asoc->base.bind_addr, &chunk->dest))
@@ -2685,7 +2685,7 @@ static enum sctp_disposition __sctp_sf_do_9_1_abort(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	__be16 error = SCTP_ERROR_NO_ERROR;
+	__be16 error = SCTP_ERROR_ANAL_ERROR;
 	struct sctp_chunk *chunk = arg;
 	unsigned int len;
 
@@ -2716,7 +2716,7 @@ enum sctp_disposition sctp_sf_cookie_wait_abort(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	__be16 error = SCTP_ERROR_NO_ERROR;
+	__be16 error = SCTP_ERROR_ANAL_ERROR;
 	struct sctp_chunk *chunk = arg;
 	unsigned int len;
 
@@ -2730,7 +2730,7 @@ enum sctp_disposition sctp_sf_cookie_wait_abort(
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
 	 * Because the length is "invalid", we can't really discard just
-	 * as we do not know its true length.  So, to be safe, discard the
+	 * as we do analt kanalw its true length.  So, to be safe, discard the
 	 * packet.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
@@ -2756,8 +2756,8 @@ enum sctp_disposition sctp_sf_cookie_wait_icmp_abort(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	return sctp_stop_t1_and_abort(net, commands, SCTP_ERROR_NO_ERROR,
-				      ENOPROTOOPT, asoc,
+	return sctp_stop_t1_and_abort(net, commands, SCTP_ERROR_ANAL_ERROR,
+				      EANALPROTOOPT, asoc,
 				      (struct sctp_transport *)arg);
 }
 
@@ -2818,17 +2818,17 @@ static enum sctp_disposition sctp_stop_t1_and_abort(
  *    that all its outstanding DATA chunks have been received by the
  *    SHUTDOWN sender.
  *
- * Once an endpoint as reached the SHUTDOWN-RECEIVED state it MUST NOT
+ * Once an endpoint as reached the SHUTDOWN-RECEIVED state it MUST ANALT
  * send a SHUTDOWN in response to a ULP request. And should discard
  * subsequent SHUTDOWN chunks.
  *
  * If there are still outstanding DATA chunks left, the SHUTDOWN
- * receiver shall continue to follow normal data transmission
+ * receiver shall continue to follow analrmal data transmission
  * procedures defined in Section 6 until all outstanding DATA chunks
- * are acknowledged; however, the SHUTDOWN receiver MUST NOT accept
+ * are ackanalwledged; however, the SHUTDOWN receiver MUST ANALT accept
  * new data from its SCTP user.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -2881,12 +2881,12 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown(
 		return sctp_sf_violation_ctsn(net, ep, asoc, type, arg, commands);
 
 	/* API 5.3.1.5 SCTP_SHUTDOWN_EVENT
-	 * When a peer sends a SHUTDOWN, SCTP delivers this notification to
+	 * When a peer sends a SHUTDOWN, SCTP delivers this analtification to
 	 * inform the application that it should cease sending data.
 	 */
 	ev = sctp_ulpevent_make_shutdown_event(asoc, 0, GFP_ATOMIC);
 	if (!ev) {
-		disposition = SCTP_DISPOSITION_NOMEM;
+		disposition = SCTP_DISPOSITION_ANALMEM;
 		goto out;
 	}
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
@@ -2906,7 +2906,7 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown(
 							  arg, commands);
 	}
 
-	if (SCTP_DISPOSITION_NOMEM == disposition)
+	if (SCTP_DISPOSITION_ANALMEM == disposition)
 		goto out;
 
 	/*  - verify, by checking the Cumulative TSN Ack field of the
@@ -2924,7 +2924,7 @@ out:
  * sctp_sf_do_9_2_shut_ctsn
  *
  * Once an endpoint has reached the SHUTDOWN-RECEIVED state,
- * it MUST NOT send a SHUTDOWN in response to a ULP request.
+ * it MUST ANALT send a SHUTDOWN in response to a ULP request.
  * The Cumulative TSN Ack of the received SHUTDOWN chunk
  * MUST be processed.
  */
@@ -2996,13 +2996,13 @@ __sctp_sf_do_9_2_reshutack(struct net *net, const struct sctp_endpoint *ep,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	/* Since we are not going to really process this INIT, there
-	 * is no point in verifying chunk boundaries.  Just generate
+	/* Since we are analt going to really process this INIT, there
+	 * is anal point in verifying chunk boundaries.  Just generate
 	 * the SHUTDOWN ACK.
 	 */
 	reply = sctp_make_shutdown_ack(asoc, chunk);
 	if (NULL == reply)
-		goto nomem;
+		goto analmem;
 
 	/* Set the transport for the SHUTDOWN ACK chunk and the timeout for
 	 * the T2-SHUTDOWN timer.
@@ -3016,8 +3016,8 @@ __sctp_sf_do_9_2_reshutack(struct net *net, const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
 
 	return SCTP_DISPOSITION_CONSUME;
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 enum sctp_disposition
@@ -3043,7 +3043,7 @@ sctp_sf_do_9_2_reshutack(struct net *net, const struct sctp_endpoint *ep,
 /*
  * sctp_sf_do_ecn_cwr
  *
- * Section:  Appendix A: Explicit Congestion Notification
+ * Section:  Appendix A: Explicit Congestion Analtification
  *
  * CWR:
  *
@@ -3056,7 +3056,7 @@ sctp_sf_do_9_2_reshutack(struct net *net, const struct sctp_endpoint *ep,
  * TSN number in the datagram that was originally marked with the
  * CE bit.
  *
- * Verification Tag: 8.5 Verification Tag [Normal verification]
+ * Verification Tag: 8.5 Verification Tag [Analrmal verification]
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -3088,7 +3088,7 @@ enum sctp_disposition sctp_sf_do_ecn_cwr(struct net *net,
 
 	lowest_tsn = ntohl(cwr->lowest_tsn);
 
-	/* Does this CWR ack the last sent congestion notification? */
+	/* Does this CWR ack the last sent congestion analtification? */
 	if (TSN_lte(asoc->last_ecne_tsn, lowest_tsn)) {
 		/* Stop sending ECNE. */
 		sctp_add_cmd_sf(commands,
@@ -3101,18 +3101,18 @@ enum sctp_disposition sctp_sf_do_ecn_cwr(struct net *net,
 /*
  * sctp_sf_do_ecne
  *
- * Section:  Appendix A: Explicit Congestion Notification
+ * Section:  Appendix A: Explicit Congestion Analtification
  *
  * ECN-Echo
  *
  * RFC 2481 details a specific bit for a receiver to send back in its
- * TCP acknowledgements to notify the sender of the Congestion
+ * TCP ackanalwledgements to analtify the sender of the Congestion
  * Experienced (CE) bit having arrived from the network.  For SCTP this
  * same indication is made by including the ECNE chunk.  This chunk
  * contains one data element, i.e. the lowest TSN associated with the IP
  * datagram marked with the CE bit.....
  *
- * Verification Tag: 8.5 Verification Tag [Normal verification]
+ * Verification Tag: 8.5 Verification Tag [Analrmal verification]
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -3148,26 +3148,26 @@ enum sctp_disposition sctp_sf_do_ecne(struct net *net,
 }
 
 /*
- * Section: 6.2  Acknowledgement on Reception of DATA Chunks
+ * Section: 6.2  Ackanalwledgement on Reception of DATA Chunks
  *
- * The SCTP endpoint MUST always acknowledge the reception of each valid
+ * The SCTP endpoint MUST always ackanalwledge the reception of each valid
  * DATA chunk.
  *
- * The guidelines on delayed acknowledgement algorithm specified in
+ * The guidelines on delayed ackanalwledgement algorithm specified in
  * Section 4.2 of [RFC2581] SHOULD be followed. Specifically, an
- * acknowledgement SHOULD be generated for at least every second packet
- * (not every second DATA chunk) received, and SHOULD be generated within
- * 200 ms of the arrival of any unacknowledged DATA chunk. In some
+ * ackanalwledgement SHOULD be generated for at least every second packet
+ * (analt every second DATA chunk) received, and SHOULD be generated within
+ * 200 ms of the arrival of any unackanalwledged DATA chunk. In some
  * situations it may be beneficial for an SCTP transmitter to be more
  * conservative than the algorithms detailed in this document allow.
- * However, an SCTP transmitter MUST NOT be more aggressive than the
+ * However, an SCTP transmitter MUST ANALT be more aggressive than the
  * following algorithms allow.
  *
- * A SCTP receiver MUST NOT generate more than one SACK for every
+ * A SCTP receiver MUST ANALT generate more than one SACK for every
  * incoming packet, other than to update the offered window as the
  * receiving application consumes new data.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -3184,7 +3184,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 					   void *arg,
 					   struct sctp_cmd_seq *commands)
 {
-	union sctp_arg force = SCTP_NOFORCE();
+	union sctp_arg force = SCTP_ANALFORCE();
 	struct sctp_chunk *chunk = arg;
 	int error;
 
@@ -3200,17 +3200,17 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 
 	error = sctp_eat_data(asoc, chunk, commands);
 	switch (error) {
-	case SCTP_IERROR_NO_ERROR:
+	case SCTP_IERROR_ANAL_ERROR:
 		break;
 	case SCTP_IERROR_HIGH_TSN:
 	case SCTP_IERROR_BAD_STREAM:
 		SCTP_INC_STATS(net, SCTP_MIB_IN_DATA_CHUNK_DISCARDS);
-		goto discard_noforce;
+		goto discard_analforce;
 	case SCTP_IERROR_DUP_TSN:
-	case SCTP_IERROR_IGNORE_TSN:
+	case SCTP_IERROR_IGANALRE_TSN:
 		SCTP_INC_STATS(net, SCTP_MIB_IN_DATA_CHUNK_DISCARDS);
 		goto discard_force;
-	case SCTP_IERROR_NO_DATA:
+	case SCTP_IERROR_ANAL_DATA:
 		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
@@ -3229,25 +3229,25 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 	}
 
 	/* If this is the last chunk in a packet, we need to count it
-	 * toward sack generation.  Note that we need to SACK every
+	 * toward sack generation.  Analte that we need to SACK every
 	 * OTHER packet containing data chunks, EVEN IF WE DISCARD
-	 * THEM.  We elect to NOT generate SACK's if the chunk fails
+	 * THEM.  We elect to ANALT generate SACK's if the chunk fails
 	 * the verification tag test.
 	 *
-	 * RFC 2960 6.2 Acknowledgement on Reception of DATA Chunks
+	 * RFC 2960 6.2 Ackanalwledgement on Reception of DATA Chunks
 	 *
-	 * The SCTP endpoint MUST always acknowledge the reception of
+	 * The SCTP endpoint MUST always ackanalwledge the reception of
 	 * each valid DATA chunk.
 	 *
-	 * The guidelines on delayed acknowledgement algorithm
+	 * The guidelines on delayed ackanalwledgement algorithm
 	 * specified in  Section 4.2 of [RFC2581] SHOULD be followed.
-	 * Specifically, an acknowledgement SHOULD be generated for at
-	 * least every second packet (not every second DATA chunk)
+	 * Specifically, an ackanalwledgement SHOULD be generated for at
+	 * least every second packet (analt every second DATA chunk)
 	 * received, and SHOULD be generated within 200 ms of the
-	 * arrival of any unacknowledged DATA chunk.  In some
+	 * arrival of any unackanalwledged DATA chunk.  In some
 	 * situations it may be beneficial for an SCTP transmitter to
 	 * be more conservative than the algorithms detailed in this
-	 * document allow. However, an SCTP transmitter MUST NOT be
+	 * document allow. However, an SCTP transmitter MUST ANALT be
 	 * more aggressive than the following algorithms allow.
 	 */
 	if (chunk->end_of_packet)
@@ -3256,25 +3256,25 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 	return SCTP_DISPOSITION_CONSUME;
 
 discard_force:
-	/* RFC 2960 6.2 Acknowledgement on Reception of DATA Chunks
+	/* RFC 2960 6.2 Ackanalwledgement on Reception of DATA Chunks
 	 *
 	 * When a packet arrives with duplicate DATA chunk(s) and with
-	 * no new DATA chunk(s), the endpoint MUST immediately send a
-	 * SACK with no delay.  If a packet arrives with duplicate
+	 * anal new DATA chunk(s), the endpoint MUST immediately send a
+	 * SACK with anal delay.  If a packet arrives with duplicate
 	 * DATA chunk(s) bundled with new DATA chunks, the endpoint
-	 * MAY immediately send a SACK.  Normally receipt of duplicate
+	 * MAY immediately send a SACK.  Analrmally receipt of duplicate
 	 * DATA chunks will occur when the original SACK chunk was lost
 	 * and the peer's RTO has expired.  The duplicate TSN number(s)
 	 * SHOULD be reported in the SACK as duplicate.
 	 */
-	/* In our case, we split the MAY SACK advice up whether or not
+	/* In our case, we split the MAY SACK advice up whether or analt
 	 * the last chunk is a duplicate.'
 	 */
 	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_FORCE());
 	return SCTP_DISPOSITION_DISCARD;
 
-discard_noforce:
+discard_analforce:
 	if (chunk->end_of_packet)
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, force);
 
@@ -3285,10 +3285,10 @@ discard_noforce:
  * sctp_sf_eat_data_fast_4_4
  *
  * Section: 4 (4)
- * (4) In SHUTDOWN-SENT state the endpoint MUST acknowledge any received
+ * (4) In SHUTDOWN-SENT state the endpoint MUST ackanalwledge any received
  *    DATA chunks without delay.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -3320,13 +3320,13 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 
 	error = sctp_eat_data(asoc, chunk, commands);
 	switch (error) {
-	case SCTP_IERROR_NO_ERROR:
+	case SCTP_IERROR_ANAL_ERROR:
 	case SCTP_IERROR_HIGH_TSN:
 	case SCTP_IERROR_DUP_TSN:
-	case SCTP_IERROR_IGNORE_TSN:
+	case SCTP_IERROR_IGANALRE_TSN:
 	case SCTP_IERROR_BAD_STREAM:
 		break;
-	case SCTP_IERROR_NO_DATA:
+	case SCTP_IERROR_ANAL_DATA:
 		return SCTP_DISPOSITION_ABORT;
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
@@ -3346,7 +3346,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 	 */
 	if (chunk->end_of_packet) {
 		/* We must delay the chunk creation since the cumulative
-		 * TSN has not been updated yet.
+		 * TSN has analt been updated yet.
 		 */
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SHUTDOWN, SCTP_NULL());
 		sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_FORCE());
@@ -3362,7 +3362,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
  * D) Any time a SACK arrives, the endpoint performs the following:
  *
  *     i) If Cumulative TSN Ack is less than the Cumulative TSN Ack Point,
- *     then drop the SACK.   Since Cumulative TSN Ack is monotonically
+ *     then drop the SACK.   Since Cumulative TSN Ack is moanaltonically
  *     increasing, a SACK whose Cumulative TSN Ack is less than the
  *     Cumulative TSN Ack Point indicates an out-of-order SACK.
  *
@@ -3371,15 +3371,15 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
  *     and the Gap Ack Blocks.
  *
  *     iii) If the SACK is missing a TSN that was previously
- *     acknowledged via a Gap Ack Block (e.g., the data receiver
+ *     ackanalwledged via a Gap Ack Block (e.g., the data receiver
  *     reneged on the data), then mark the corresponding DATA chunk
  *     as available for retransmit:  Mark it as missing for fast
- *     retransmit as described in Section 7.2.4 and if no retransmit
+ *     retransmit as described in Section 7.2.4 and if anal retransmit
  *     timer is running for the destination address to which the DATA
  *     chunk was originally transmitted, then T3-rtx is started for
  *     that destination address.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -3427,7 +3427,7 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
 
 	/* i) If Cumulative TSN Ack is less than the Cumulative TSN
 	 *     Ack Point, then drop the SACK.  Since Cumulative TSN
-	 *     Ack is monotonically increasing, a SACK whose
+	 *     Ack is moanaltonically increasing, a SACK whose
 	 *     Cumulative TSN Ack is less than the Cumulative TSN Ack
 	 *     Point indicates an out-of-order SACK.
 	 */
@@ -3441,7 +3441,7 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
 	/* Return this SACK for further processing.  */
 	sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK, SCTP_CHUNK(chunk));
 
-	/* Note: We do the rest of the work on the PROCESS_SACK
+	/* Analte: We do the rest of the work on the PROCESS_SACK
 	 * sideeffect.
 	 */
 	return SCTP_DISPOSITION_CONSUME;
@@ -3459,7 +3459,7 @@ enum sctp_disposition sctp_sf_eat_sack_6_2(struct net *net,
  *    packet and set the T-bit in the Chunk Flags to indicate that the
  *    Verification Tag is reflected.  After sending this ABORT, the
  *    receiver of the OOTB packet shall discard the OOTB packet and take
- *    no further action.
+ *    anal further action.
  *
  * Verification Tag:
  *
@@ -3479,7 +3479,7 @@ static enum sctp_disposition sctp_sf_tabort_8_4_8(
 
 	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 	if (!packet)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	/* Make an ABORT. The T bit will be set if the asoc
 	 * is NULL.
@@ -3487,7 +3487,7 @@ static enum sctp_disposition sctp_sf_tabort_8_4_8(
 	abort = sctp_make_abort(asoc, chunk, 0);
 	if (!abort) {
 		sctp_ootb_pkt_free(packet);
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 	}
 
 	/* Reflect vtag if T-Bit is set */
@@ -3526,12 +3526,12 @@ static enum sctp_disposition sctp_sf_new_encap_port(
 
 	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 	if (!packet)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	abort = sctp_make_new_encap_port(asoc, chunk);
 	if (!abort) {
 		sctp_ootb_pkt_free(packet);
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 	}
 
 	abort->skb->sk = ep->base.sk;
@@ -3549,13 +3549,13 @@ static enum sctp_disposition sctp_sf_new_encap_port(
 
 /*
  * Received an ERROR chunk from peer.  Generate SCTP_REMOTE_ERROR
- * event as ULP notification for each cause included in the chunk.
+ * event as ULP analtification for each cause included in the chunk.
  *
  * API 5.3.1.3 - SCTP_REMOTE_ERROR
  *
  * The return value is the disposition of the chunk.
 */
-enum sctp_disposition sctp_sf_operr_notify(struct net *net,
+enum sctp_disposition sctp_sf_operr_analtify(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
 					   const union sctp_subtype type,
@@ -3611,22 +3611,22 @@ enum sctp_disposition sctp_sf_do_9_2_final(struct net *net,
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_chunkhdr)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
-	/* 10.2 H) SHUTDOWN COMPLETE notification
+	/* 10.2 H) SHUTDOWN COMPLETE analtification
 	 *
 	 * When SCTP completes the shutdown procedures (section 9.2) this
-	 * notification is passed to the upper layer.
+	 * analtification is passed to the upper layer.
 	 */
 	ev = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_SHUTDOWN_COMP,
 					     0, 0, 0, NULL, GFP_ATOMIC);
 	if (!ev)
-		goto nomem;
+		goto analmem;
 
 	/* ...send a SHUTDOWN COMPLETE chunk to its peer, */
 	reply = sctp_make_shutdown_complete(asoc, chunk);
 	if (!reply)
-		goto nomem_chunk;
+		goto analmem_chunk;
 
-	/* Do all the commands now (after allocation), so that we
+	/* Do all the commands analw (after allocation), so that we
 	 * have consistent state if memory allocation fails
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(ev));
@@ -3650,10 +3650,10 @@ enum sctp_disposition sctp_sf_do_9_2_final(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_DELETE_TCB, SCTP_NULL());
 	return SCTP_DISPOSITION_DELETE_TCB;
 
-nomem_chunk:
+analmem_chunk:
 	sctp_ulpevent_free(ev);
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -3674,7 +3674,7 @@ nomem:
  *    packet and set the T-bit in the Chunk Flags to indicate that the
  *    Verification Tag is reflected.  After sending this ABORT, the
  *    receiver of the OOTB packet shall discard the OOTB packet and take
- *    no further action.
+ *    anal further action.
  */
 enum sctp_disposition sctp_sf_ootb(struct net *net,
 				   const struct sctp_endpoint *ep,
@@ -3708,7 +3708,7 @@ enum sctp_disposition sctp_sf_ootb(struct net *net,
 			return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-		/* Now that we know we at least have a chunk header,
+		/* Analw that we kanalw we at least have a chunk header,
 		 * do things that are type appropriate.
 		 */
 		if (SCTP_CID_SHUTDOWN_ACK == ch->type)
@@ -3716,7 +3716,7 @@ enum sctp_disposition sctp_sf_ootb(struct net *net,
 
 		/* RFC 2960, Section 3.3.7
 		 *   Moreover, under any circumstances, an endpoint that
-		 *   receives an ABORT  MUST NOT respond to that ABORT by
+		 *   receives an ABORT  MUST ANALT respond to that ABORT by
 		 *   sending an ABORT of its own.
 		 */
 		if (SCTP_CID_ABORT == ch->type)
@@ -3785,7 +3785,7 @@ static enum sctp_disposition sctp_sf_shut_8_4_5(
 
 	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 	if (!packet)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	/* Make an SHUTDOWN_COMPLETE.
 	 * The T bit will be set if the asoc is NULL.
@@ -3793,7 +3793,7 @@ static enum sctp_disposition sctp_sf_shut_8_4_5(
 	shut = sctp_make_shutdown_complete(asoc, chunk);
 	if (!shut) {
 		sctp_ootb_pkt_free(packet);
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 	}
 
 	/* Reflect vtag if T-Bit is set */
@@ -3824,7 +3824,7 @@ static enum sctp_disposition sctp_sf_shut_8_4_5(
  *   If the receiver is in COOKIE-ECHOED or COOKIE-WAIT state the
  *   procedures in section 8.4 SHOULD be followed, in other words it
  *   should be treated as an Out Of The Blue packet.
- *   [This means that we do NOT check the Verification Tag on these
+ *   [This means that we do ANALT check the Verification Tag on these
  *   chunks. --piggy ]
  *
  */
@@ -3887,7 +3887,7 @@ enum sctp_disposition sctp_sf_do_asconf(struct net *net,
 	 * described in [I-D.ietf-tsvwg-sctp-auth].
 	 */
 	if (!asoc->peer.asconf_capable ||
-	    (!net->sctp.addip_noauth && !chunk->auth))
+	    (!net->sctp.addip_analauth && !chunk->auth))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	hdr = (struct sctp_addiphdr *)chunk->skb->data;
@@ -3920,7 +3920,7 @@ enum sctp_disposition sctp_sf_do_asconf(struct net *net,
 		asconf_ack = sctp_process_asconf((struct sctp_association *)
 						 asoc, chunk);
 		if (!asconf_ack)
-			return SCTP_DISPOSITION_NOMEM;
+			return SCTP_DISPOSITION_ANALMEM;
 	} else if (serial < asoc->peer.addip_serial + 1) {
 		/* ADDIP 5.2 E2)
 		 * If the value found in the Sequence Number is less than the
@@ -3928,10 +3928,10 @@ enum sctp_disposition sctp_sf_do_asconf(struct net *net,
 		 * ASCONF, and include in the outbound response packet
 		 * any previously cached ASCONF-ACK response that was
 		 * sent and saved that matches the Sequence Number of the
-		 * ASCONF.  Note: It is possible that no cached ASCONF-ACK
+		 * ASCONF.  Analte: It is possible that anal cached ASCONF-ACK
 		 * Chunk exists.  This will occur when an older ASCONF
 		 * arrives out of order.  In such a case, the receiver
-		 * should skip the ASCONF Chunk and not include ASCONF-ACK
+		 * should skip the ASCONF Chunk and analt include ASCONF-ACK
 		 * Chunk for that chunk.
 		 */
 		asconf_ack = sctp_assoc_lookup_asconf_ack(asoc, hdr->serial);
@@ -3956,7 +3956,7 @@ enum sctp_disposition sctp_sf_do_asconf(struct net *net,
 	 *
 	 * To do this properly, we'll set the destination address of the chunk
 	 * and at the transmit time, will try look up the transport to use.
-	 * Since ASCONFs may be bundled, the correct transport may not be
+	 * Since ASCONFs may be bundled, the correct transport may analt be
 	 * created until we process the entire packet, thus this workaround.
 	 */
 	asconf_ack->dest = chunk->source;
@@ -4030,7 +4030,7 @@ enum sctp_disposition sctp_sf_do_asconf_ack(struct net *net,
 	 * described in [I-D.ietf-tsvwg-sctp-auth].
 	 */
 	if (!asoc->peer.asconf_capable ||
-	    (!net->sctp.addip_noauth && !asconf_ack->auth))
+	    (!net->sctp.addip_analauth && !asconf_ack->auth))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	addip_hdr = (struct sctp_addiphdr *)asconf_ack->skb->data;
@@ -4049,9 +4049,9 @@ enum sctp_disposition sctp_sf_do_asconf_ack(struct net *net,
 	}
 
 	/* D0) If an endpoint receives an ASCONF-ACK that is greater than or
-	 * equal to the next serial number to be used but no ASCONF chunk is
-	 * outstanding the endpoint MUST ABORT the association. Note that a
-	 * sequence number is greater than if it is no more than 2^^31-1
+	 * equal to the next serial number to be used but anal ASCONF chunk is
+	 * outstanding the endpoint MUST ABORT the association. Analte that a
+	 * sequence number is greater than if it is anal more than 2^^31-1
 	 * larger than the current sequence number (using serial arithmetic).
 	 */
 	if (ADDIP_SERIAL_gte(rcvd_serial, sent_serial + 1) &&
@@ -4185,7 +4185,7 @@ enum sctp_disposition sctp_sf_do_reconf(struct net *net,
  * After the above processing, the data receiver MUST stop reporting any
  * missing TSNs earlier than or equal to the new cumulative TSN point.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * The return value is the disposition of the chunk.
  */
@@ -4228,10 +4228,10 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 	 * getting retransmitted later.
 	 */
 	if (sctp_tsnmap_check(&asoc->peer.tsn_map, tsn) < 0)
-		goto discard_noforce;
+		goto discard_analforce;
 
 	if (!asoc->stream.si->validate_ftsn(chunk))
-		goto discard_noforce;
+		goto discard_analforce;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_FWDTSN, SCTP_U32(tsn));
 	if (len > sctp_ftsnhdr_len(&asoc->stream))
@@ -4244,14 +4244,14 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 				SCTP_TO(SCTP_EVENT_TIMEOUT_AUTOCLOSE));
 	}
 
-	/* FIXME: For now send a SACK, but DATA processing may
-	 * send another.
+	/* FIXME: For analw send a SACK, but DATA processing may
+	 * send aanalther.
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_NOFORCE());
+	sctp_add_cmd_sf(commands, SCTP_CMD_GEN_SACK, SCTP_ANALFORCE());
 
 	return SCTP_DISPOSITION_CONSUME;
 
-discard_noforce:
+discard_analforce:
 	return SCTP_DISPOSITION_DISCARD;
 }
 
@@ -4325,21 +4325,21 @@ gen_shutdown:
  * SCTP-AUTH Section 6.3 Receiving authenticated chunks
  *
  *    The receiver MUST use the HMAC algorithm indicated in the HMAC
- *    Identifier field.  If this algorithm was not specified by the
+ *    Identifier field.  If this algorithm was analt specified by the
  *    receiver in the HMAC-ALGO parameter in the INIT or INIT-ACK chunk
  *    during association setup, the AUTH chunk and all chunks after it MUST
  *    be discarded and an ERROR chunk SHOULD be sent with the error cause
  *    defined in Section 4.1.
  *
- *    If an endpoint with no shared key receives a Shared Key Identifier
+ *    If an endpoint with anal shared key receives a Shared Key Identifier
  *    other than 0, it MUST silently discard all authenticated chunks.  If
  *    the endpoint has at least one endpoint pair shared key for the peer,
  *    it MUST use the key specified by the Shared Key Identifier if a
- *    key has been configured for that Shared Key Identifier.  If no
+ *    key has been configured for that Shared Key Identifier.  If anal
  *    endpoint pair shared key has been configured for that Shared Key
  *    Identifier, all authenticated chunks MUST be silently discarded.
  *
- * Verification Tag:  8.5 Verification Tag [Normal verification]
+ * Verification Tag:  8.5 Verification Tag [Analrmal verification]
  *
  * The return value is the disposition of the chunk.
  */
@@ -4384,7 +4384,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 	if (sig_len != hmac->hmac_len)
 		return SCTP_IERROR_PROTO_VIOLATION;
 
-	/* Now that we've done validation checks, we can compute and
+	/* Analw that we've done validation checks, we can compute and
 	 * verify the hmac.  The steps involved are:
 	 *  1. Save the digest from the chunk.
 	 *  2. Zero out the digest in the chunk.
@@ -4396,7 +4396,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 
 	save_digest = kmemdup(digest, sig_len, GFP_ATOMIC);
 	if (!save_digest)
-		goto nomem;
+		goto analmem;
 
 	memset(digest, 0, sig_len);
 
@@ -4404,7 +4404,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 				 (struct sctp_auth_chunk *)chunk->chunk_hdr,
 				 sh_key, GFP_ATOMIC);
 
-	/* Discard the packet if the digests do not match */
+	/* Discard the packet if the digests do analt match */
 	if (memcmp(save_digest, digest, sig_len)) {
 		kfree(save_digest);
 		return SCTP_IERROR_BAD_SIG;
@@ -4413,9 +4413,9 @@ static enum sctp_ierror sctp_sf_authenticate(
 	kfree(save_digest);
 	chunk->auth = 1;
 
-	return SCTP_IERROR_NO_ERROR;
-nomem:
-	return SCTP_IERROR_NOMEM;
+	return SCTP_IERROR_ANAL_ERROR;
+analmem:
+	return SCTP_IERROR_ANALMEM;
 }
 
 enum sctp_disposition sctp_sf_eat_auth(struct net *net,
@@ -4468,8 +4468,8 @@ enum sctp_disposition sctp_sf_eat_auth(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	case SCTP_IERROR_NOMEM:
-		return SCTP_DISPOSITION_NOMEM;
+	case SCTP_IERROR_ANALMEM:
+		return SCTP_DISPOSITION_ANALMEM;
 
 	default:			/* Prevent gcc warnings */
 		break;
@@ -4482,7 +4482,7 @@ enum sctp_disposition sctp_sf_eat_auth(struct net *net,
 				    SCTP_AUTH_NEW_KEY, GFP_ATOMIC);
 
 		if (!ev)
-			return SCTP_DISPOSITION_NOMEM;
+			return SCTP_DISPOSITION_ANALMEM;
 
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ev));
@@ -4492,18 +4492,18 @@ enum sctp_disposition sctp_sf_eat_auth(struct net *net,
 }
 
 /*
- * Process an unknown chunk.
+ * Process an unkanalwn chunk.
  *
  * Section: 3.2. Also, 2.1 in the implementor's guide.
  *
  * Chunk Types are encoded such that the highest-order two bits specify
- * the action that must be taken if the processing endpoint does not
+ * the action that must be taken if the processing endpoint does analt
  * recognize the Chunk Type.
  *
- * 00 - Stop processing this SCTP packet and discard it, do not process
+ * 00 - Stop processing this SCTP packet and discard it, do analt process
  *      any further chunks within it.
  *
- * 01 - Stop processing this SCTP packet and discard it, do not process
+ * 01 - Stop processing this SCTP packet and discard it, do analt process
  *      any further chunks within it, and report the unrecognized
  *      chunk in an 'Unrecognized Chunk Type'.
  *
@@ -4525,13 +4525,13 @@ enum sctp_disposition sctp_sf_unk_chunk(struct net *net,
 	struct sctp_chunk *err_chunk;
 	struct sctp_chunkhdr *hdr;
 
-	pr_debug("%s: processing unknown chunk id:%d\n", __func__, type.chunk);
+	pr_debug("%s: processing unkanalwn chunk id:%d\n", __func__, type.chunk);
 
 	if (!sctp_vtag_verify(unk_chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the chunk has a valid length.
-	 * Since we don't know the chunk type, we use a general
+	 * Since we don't kanalw the chunk type, we use a general
 	 * chunkhdr structure to make a comparison.
 	 */
 	if (!sctp_chunk_length_valid(unk_chunk, sizeof(*hdr)))
@@ -4546,7 +4546,7 @@ enum sctp_disposition sctp_sf_unk_chunk(struct net *net,
 		/* Generate an ERROR chunk as response. */
 		hdr = unk_chunk->chunk_hdr;
 		err_chunk = sctp_make_op_error(asoc, unk_chunk,
-					       SCTP_ERROR_UNKNOWN_CHUNK, hdr,
+					       SCTP_ERROR_UNKANALWN_CHUNK, hdr,
 					       SCTP_PAD4(ntohs(hdr->length)),
 					       0);
 		if (err_chunk) {
@@ -4564,7 +4564,7 @@ enum sctp_disposition sctp_sf_unk_chunk(struct net *net,
 		/* Generate an ERROR chunk as response. */
 		hdr = unk_chunk->chunk_hdr;
 		err_chunk = sctp_make_op_error(asoc, unk_chunk,
-					       SCTP_ERROR_UNKNOWN_CHUNK, hdr,
+					       SCTP_ERROR_UNKANALWN_CHUNK, hdr,
 					       SCTP_PAD4(ntohs(hdr->length)),
 					       0);
 		if (err_chunk) {
@@ -4585,7 +4585,7 @@ enum sctp_disposition sctp_sf_unk_chunk(struct net *net,
  *
  * Section: 0.2, 5.2.3, 5.2.5, 5.2.6, 6.0, 8.4.6, 8.5.1c, 9.2
  * [Too numerous to mention...]
- * Verification Tag: No verification needed.
+ * Verification Tag: Anal verification needed.
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -4607,7 +4607,7 @@ enum sctp_disposition sctp_sf_discard_chunk(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the chunk has a valid length.
-	 * Since we don't know the chunk type, we use a general
+	 * Since we don't kanalw the chunk type, we use a general
 	 * chunkhdr structure to make a comparison.
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_chunkhdr)))
@@ -4625,9 +4625,9 @@ enum sctp_disposition sctp_sf_discard_chunk(struct net *net,
  * Section: 8.4 2)
  *
  * 2) If the OOTB packet contains an ABORT chunk, the receiver MUST
- *    silently discard the OOTB packet and take no further action.
+ *    silently discard the OOTB packet and take anal further action.
  *
- * Verification Tag: No verification necessary
+ * Verification Tag: Anal verification necessary
  *
  * Inputs
  * (endpoint, asoc, chunk)
@@ -4653,8 +4653,8 @@ enum sctp_disposition sctp_sf_pdiscard(struct net *net,
 /*
  * The other end is violating protocol.
  *
- * Section: Not specified
- * Verification Tag: Not specified
+ * Section: Analt specified
+ * Verification Tag: Analt specified
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -4701,9 +4701,9 @@ static enum sctp_disposition sctp_sf_abort_violation(
 	struct sctp_chunk *abort = NULL;
 
 	/* SCTP-AUTH, Section 6.3:
-	 *    It should be noted that if the receiver wants to tear
+	 *    It should be analted that if the receiver wants to tear
 	 *    down an association in an authenticated way only, the
-	 *    handling of malformed packets should not result in
+	 *    handling of malformed packets should analt result in
 	 *    tearing down the association.
 	 *
 	 * This means that if we only want to abort associations
@@ -4717,7 +4717,7 @@ static enum sctp_disposition sctp_sf_abort_violation(
 	/* Make the abort chunk. */
 	abort = sctp_make_abort_violation(asoc, chunk, payload, paylen);
 	if (!abort)
-		goto nomem;
+		goto analmem;
 
 	if (asoc) {
 		/* Treat INIT-ACK as a special case during COOKIE-WAIT. */
@@ -4758,7 +4758,7 @@ static enum sctp_disposition sctp_sf_abort_violation(
 		packet = sctp_ootb_pkt_new(net, asoc, chunk);
 
 		if (!packet)
-			goto nomem_pkt;
+			goto analmem_pkt;
 
 		if (sctp_test_T_bit(abort))
 			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
@@ -4779,10 +4779,10 @@ discard:
 	sctp_sf_pdiscard(net, ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
 	return SCTP_DISPOSITION_ABORT;
 
-nomem_pkt:
+analmem_pkt:
 	sctp_chunk_free(abort);
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -4794,8 +4794,8 @@ nomem:
  * We inform the other end by sending an ABORT with a Protocol Violation
  * error code.
  *
- * Section: Not specified
- * Verification Tag:  Nothing to do
+ * Section: Analt specified
+ * Verification Tag:  Analthing to do
  * Inputs
  * (endpoint, asoc, chunk)
  *
@@ -4842,7 +4842,7 @@ static enum sctp_disposition sctp_sf_violation_paramlen(
 	/* Make the abort chunk. */
 	abort = sctp_make_violation_paramlen(asoc, chunk, param);
 	if (!abort)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 	SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
@@ -4857,8 +4857,8 @@ static enum sctp_disposition sctp_sf_violation_paramlen(
 discard:
 	sctp_sf_pdiscard(net, ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
 	return SCTP_DISPOSITION_ABORT;
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /* Handle a protocol violation when the peer trying to advance the
@@ -4883,9 +4883,9 @@ static enum sctp_disposition sctp_sf_violation_ctsn(
 
 /* Handle protocol violation of an invalid chunk bundling.  For example,
  * when we have an association and we receive bundled INIT-ACK, or
- * SHUTDOWN-COMPLETE, our peer is clearly violating the "MUST NOT bundle"
+ * SHUTDOWN-COMPLETE, our peer is clearly violating the "MUST ANALT bundle"
  * statement from the specs.  Additionally, there might be an attacker
- * on the path and we may not want to continue this communication.
+ * on the path and we may analt want to continue this communication.
  */
 static enum sctp_disposition sctp_sf_violation_chunk(
 					struct net *net,
@@ -4919,15 +4919,15 @@ static enum sctp_disposition sctp_sf_violation_chunk(
  *
  * The peer endpoint shall be specified by one of the transport addresses
  * which defines the endpoint (see Section 1.4).  If the local SCTP
- * instance has not been initialized, the ASSOCIATE is considered an
+ * instance has analt been initialized, the ASSOCIATE is considered an
  * error.
- * [This is not relevant for the kernel implementation since we do all
+ * [This is analt relevant for the kernel implementation since we do all
  * initialization at boot time.  It we hadn't initialized we wouldn't
  * get anywhere near this code.]
  *
  * An association id, which is a local handle to the SCTP association,
  * will be returned on successful establishment of the association. If
- * SCTP is not able to open an SCTP association with the peer endpoint,
+ * SCTP is analt able to open an SCTP association with the peer endpoint,
  * an error is returned.
  * [In the kernel implementation, the struct sctp_association needs to
  * be created BEFORE causing this primitive to run.]
@@ -4940,7 +4940,7 @@ static enum sctp_disposition sctp_sf_violation_chunk(
  * to this peer.  The returned "destination transport addr list" can
  * be used by the ULP to change the default primary path or to force
  * sending a packet to a specific transport address.  [All of this
- * stuff happens when the INIT ACK arrives.  This is a NON-BLOCKING
+ * stuff happens when the INIT ACK arrives.  This is a ANALN-BLOCKING
  * function.]
  *
  * Mandatory attributes:
@@ -4953,10 +4953,10 @@ static enum sctp_disposition sctp_sf_violation_chunk(
  *  [This is asoc->peer.active_path.]
  * o outbound stream count - the number of outbound streams the ULP
  * would like to open towards this peer endpoint.
- * [BUG: This is not currently implemented.]
+ * [BUG: This is analt currently implemented.]
  * Optional attributes:
  *
- * None.
+ * Analne.
  *
  * The return value is a disposition.
  */
@@ -4977,7 +4977,7 @@ enum sctp_disposition sctp_sf_do_prm_asoc(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_COOKIE_WAIT));
 
-	/* RFC 2960 5.1 Normal Establishment of an Association
+	/* RFC 2960 5.1 Analrmal Establishment of an Association
 	 *
 	 * A) "A" first sends an INIT chunk to "Z".  In the INIT, "A"
 	 * must provide its Verification Tag (Tag_A) in the Initiate
@@ -4987,7 +4987,7 @@ enum sctp_disposition sctp_sf_do_prm_asoc(struct net *net,
 
 	repl = sctp_make_init(asoc, &asoc->base.bind_addr, GFP_ATOMIC, 0);
 	if (!repl)
-		goto nomem;
+		goto analmem;
 
 	/* Choose transport for INIT. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
@@ -5007,8 +5007,8 @@ enum sctp_disposition sctp_sf_do_prm_asoc(struct net *net,
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(repl));
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -5019,7 +5019,7 @@ nomem:
  *
  * Format: SEND(association id, buffer address, byte count [,context]
  *         [,stream id] [,life time] [,destination transport address]
- *         [,unorder flag] [,no-bundle flag] [,payload protocol-id] )
+ *         [,uanalrder flag] [,anal-bundle flag] [,payload protocol-id] )
  * -> result
  *
  * This is the main method to send user data via SCTP.
@@ -5036,16 +5036,16 @@ nomem:
  * Optional attributes:
  *
  *  o context - an optional 32 bit integer that will be carried in the
- *    sending failure notification to the ULP if the transportation of
+ *    sending failure analtification to the ULP if the transportation of
  *    this User Message fails.
  *
- *  o stream id - to indicate which stream to send the data on. If not
+ *  o stream id - to indicate which stream to send the data on. If analt
  *    specified, stream 0 will be used.
  *
  *  o life time - specifies the life time of the user data. The user data
- *    will not be sent by SCTP after the life time expires. This
+ *    will analt be sent by SCTP after the life time expires. This
  *    parameter can be used to avoid efforts to transmit stale
- *    user messages. SCTP notifies the ULP if the data cannot be
+ *    user messages. SCTP analtifies the ULP if the data cananalt be
  *    initiated to transport (i.e. sent to the destination via SCTP's
  *    send primitive) within the life time variable. However, the
  *    user data will be transmitted if SCTP has attempted to transmit a
@@ -5057,12 +5057,12 @@ nomem:
  *    transport address for sending the packets, instead of the current
  *    primary path.
  *
- *  o unorder flag - this flag, if present, indicates that the user
- *    would like the data delivered in an unordered fashion to the peer
+ *  o uanalrder flag - this flag, if present, indicates that the user
+ *    would like the data delivered in an uanalrdered fashion to the peer
  *    (i.e., the U flag is set to 1 on all DATA chunks carrying this
  *    message).
  *
- *  o no-bundle flag - instructs SCTP not to bundle this user data with
+ *  o anal-bundle flag - instructs SCTP analt to bundle this user data with
  *    other outbound DATA chunks. SCTP MAY still bundle even when
  *    this flag is present, when faced with network congestion.
  *
@@ -5096,7 +5096,7 @@ enum sctp_disposition sctp_sf_do_prm_send(struct net *net,
  *
  * Gracefully closes an association. Any locally queued user data
  * will be delivered to the peer. The association will be terminated only
- * after the peer acknowledges all the SCTP packets sent.  A success code
+ * after the peer ackanalwledges all the SCTP packets sent.  A success code
  * will be returned on successful termination of the association. If
  * attempting to terminate the association results in a failure, an error
  * code shall be returned.
@@ -5107,7 +5107,7 @@ enum sctp_disposition sctp_sf_do_prm_send(struct net *net,
  *
  * Optional attributes:
  *
- * None.
+ * Analne.
  *
  * The return value is the disposition.
  */
@@ -5125,7 +5125,7 @@ enum sctp_disposition sctp_sf_do_9_2_prm_shutdown(
 	 * Upon receipt of the SHUTDOWN primitive from its upper
 	 * layer, the endpoint enters SHUTDOWN-PENDING state and
 	 * remains there until all outstanding data has been
-	 * acknowledged by its peer. The endpoint accepts no new data
+	 * ackanalwledged by its peer. The endpoint accepts anal new data
 	 * from its upper layer, but retransmits data to the far end
 	 * if necessary to fill gaps.
 	 */
@@ -5164,7 +5164,7 @@ enum sctp_disposition sctp_sf_do_9_2_prm_shutdown(
  *
  *  o cause code - reason of the abort to be passed to the peer
  *
- * None.
+ * Analne.
  *
  * The return value is the disposition.
  */
@@ -5180,7 +5180,7 @@ enum sctp_disposition sctp_sf_do_9_1_prm_abort(
 	 * Upon receipt of the ABORT primitive from its upper
 	 * layer, the endpoint enters CLOSED state and
 	 * discard all outstanding data has been
-	 * acknowledged by its peer. The endpoint accepts no new data
+	 * ackanalwledged by its peer. The endpoint accepts anal new data
 	 * from its upper layer, but retransmits data to the far end
 	 * if necessary to fill gaps.
 	 */
@@ -5190,7 +5190,7 @@ enum sctp_disposition sctp_sf_do_9_1_prm_abort(
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 
 	/* Even if we can't send the ABORT due to low memory delete the
-	 * TCB.  This is a departure from our typical NOMEM handling.
+	 * TCB.  This is a departure from our typical ANALMEM handling.
 	 */
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
@@ -5236,12 +5236,12 @@ enum sctp_disposition sctp_sf_error_shutdown(
 /*
  * sctp_cookie_wait_prm_shutdown
  *
- * Section: 4 Note: 2
+ * Section: 4 Analte: 2
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explicitly address this issue, but is the route through the
+ * The RFC does analt explicitly address this issue, but is the route through the
  * state table when someone issues a shutdown while in COOKIE_WAIT state.
  *
  * Outputs
@@ -5271,12 +5271,12 @@ enum sctp_disposition sctp_sf_cookie_wait_prm_shutdown(
 /*
  * sctp_cookie_echoed_prm_shutdown
  *
- * Section: 4 Note: 2
+ * Section: 4 Analte: 2
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explicitly address this issue, but is the route through the
+ * The RFC does analt explicitly address this issue, but is the route through the
  * state table when someone issues a shutdown while in COOKIE_ECHOED state.
  *
  * Outputs
@@ -5299,12 +5299,12 @@ enum sctp_disposition sctp_sf_cookie_echoed_prm_shutdown(
 /*
  * sctp_sf_cookie_wait_prm_abort
  *
- * Section: 4 Note: 2
+ * Section: 4 Analte: 2
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explicitly address this issue, but is the route through the
+ * The RFC does analt explicitly address this issue, but is the route through the
  * state table when someone issues an abort while in COOKIE_WAIT state.
  *
  * Outputs
@@ -5333,7 +5333,7 @@ enum sctp_disposition sctp_sf_cookie_wait_prm_abort(
 	SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 
 	/* Even if we can't send the ABORT due to low memory delete the
-	 * TCB.  This is a departure from our typical NOMEM handling.
+	 * TCB.  This is a departure from our typical ANALMEM handling.
 	 */
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
@@ -5348,12 +5348,12 @@ enum sctp_disposition sctp_sf_cookie_wait_prm_abort(
 /*
  * sctp_sf_cookie_echoed_prm_abort
  *
- * Section: 4 Note: 3
+ * Section: 4 Analte: 3
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explcitly address this issue, but is the route through the
+ * The RFC does analt explcitly address this issue, but is the route through the
  * state table when someone issues an abort while in COOKIE_ECHOED state.
  *
  * Outputs
@@ -5379,7 +5379,7 @@ enum sctp_disposition sctp_sf_cookie_echoed_prm_abort(
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explicitly address this issue, but is the route through the
+ * The RFC does analt explicitly address this issue, but is the route through the
  * state table when someone issues an abort while in SHUTDOWN-PENDING state.
  *
  * Outputs
@@ -5406,7 +5406,7 @@ enum sctp_disposition sctp_sf_shutdown_pending_prm_abort(
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explicitly address this issue, but is the route through the
+ * The RFC does analt explicitly address this issue, but is the route through the
  * state table when someone issues an abort while in SHUTDOWN-SENT state.
  *
  * Outputs
@@ -5437,7 +5437,7 @@ enum sctp_disposition sctp_sf_shutdown_sent_prm_abort(
  * Inputs
  * (endpoint, asoc)
  *
- * The RFC does not explcitly address this issue, but is the route through the
+ * The RFC does analt explcitly address this issue, but is the route through the
  * state table when someone issues an abort while in COOKIE_ECHOED state.
  *
  * Outputs
@@ -5487,9 +5487,9 @@ enum sctp_disposition sctp_sf_do_prm_requestheartbeat(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	if (SCTP_DISPOSITION_NOMEM == sctp_sf_heartbeat(ep, asoc, type,
+	if (SCTP_DISPOSITION_ANALMEM == sctp_sf_heartbeat(ep, asoc, type,
 				      (struct sctp_transport *)arg, commands))
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	/*
 	 * RFC 2960 (bis), section 8.3
@@ -5499,7 +5499,7 @@ enum sctp_disposition sctp_sf_do_prm_requestheartbeat(
 	 *
 	 *    The endpoint should increment the respective error  counter of
 	 *    the destination transport address each time a HEARTBEAT is sent
-	 *    to that address and not acknowledged within one RTO.
+	 *    to that address and analt ackanalwledged within one RTO.
 	 *
 	 */
 	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_HB_SENT,
@@ -5543,11 +5543,11 @@ enum sctp_disposition sctp_sf_do_prm_reconf(struct net *net,
 }
 
 /*
- * Ignore the primitive event
+ * Iganalre the primitive event
  *
  * The return value is the disposition of the primitive.
  */
-enum sctp_disposition sctp_sf_ignore_primitive(
+enum sctp_disposition sctp_sf_iganalre_primitive(
 					struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
@@ -5555,7 +5555,7 @@ enum sctp_disposition sctp_sf_ignore_primitive(
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: primitive type:%d is ignored\n", __func__,
+	pr_debug("%s: primitive type:%d is iganalred\n", __func__,
 		 type.primitive);
 
 	return SCTP_DISPOSITION_DISCARD;
@@ -5566,12 +5566,12 @@ enum sctp_disposition sctp_sf_ignore_primitive(
  ***************************************************************************/
 
 /*
- * When the SCTP stack has no more user data to send or retransmit, this
- * notification is given to the user. Also, at the time when a user app
- * subscribes to this event, if there is no data to be sent or
- * retransmit, the stack will immediately send up this notification.
+ * When the SCTP stack has anal more user data to send or retransmit, this
+ * analtification is given to the user. Also, at the time when a user app
+ * subscribes to this event, if there is anal data to be sent or
+ * retransmit, the stack will immediately send up this analtification.
  */
-enum sctp_disposition sctp_sf_do_no_pending_tsn(
+enum sctp_disposition sctp_sf_do_anal_pending_tsn(
 					struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
@@ -5583,7 +5583,7 @@ enum sctp_disposition sctp_sf_do_no_pending_tsn(
 
 	event = sctp_ulpevent_make_sender_dry_event(asoc, GFP_ATOMIC);
 	if (!event)
-		return SCTP_DISPOSITION_NOMEM;
+		return SCTP_DISPOSITION_ANALMEM;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP, SCTP_ULPEVENT(event));
 
@@ -5594,7 +5594,7 @@ enum sctp_disposition sctp_sf_do_no_pending_tsn(
  * Start the shutdown negotiation.
  *
  * From Section 9.2:
- * Once all its outstanding data has been acknowledged, the endpoint
+ * Once all its outstanding data has been ackanalwledged, the endpoint
  * shall send a SHUTDOWN chunk to its peer including in the Cumulative
  * TSN Ack field the last sequential TSN it has received from the peer.
  * It shall then start the T2-shutdown timer and enter the SHUTDOWN-SENT
@@ -5613,14 +5613,14 @@ enum sctp_disposition sctp_sf_do_9_2_start_shutdown(
 {
 	struct sctp_chunk *reply;
 
-	/* Once all its outstanding data has been acknowledged, the
+	/* Once all its outstanding data has been ackanalwledged, the
 	 * endpoint shall send a SHUTDOWN chunk to its peer including
 	 * in the Cumulative TSN Ack field the last sequential TSN it
 	 * has received from the peer.
 	 */
 	reply = sctp_make_shutdown(asoc, arg);
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	/* Set the transport for the SHUTDOWN chunk and the timeout for the
 	 * T2-shutdown timer.
@@ -5657,16 +5657,16 @@ enum sctp_disposition sctp_sf_do_9_2_start_shutdown(
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
- * Generate a SHUTDOWN ACK now that everything is SACK'd.
+ * Generate a SHUTDOWN ACK analw that everything is SACK'd.
  *
  * From Section 9.2:
  *
- * If it has no more outstanding DATA chunks, the SHUTDOWN receiver
+ * If it has anal more outstanding DATA chunks, the SHUTDOWN receiver
  * shall send a SHUTDOWN ACK and start a T2-shutdown timer of its own,
  * entering the SHUTDOWN-ACK-SENT state. If the timer expires, the
  * endpoint must re-send the SHUTDOWN ACK.
@@ -5686,7 +5686,7 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown_ack(
 
 	/* There are 2 ways of getting here:
 	 *    1) called in response to a SHUTDOWN chunk
-	 *    2) called when SCTP_EVENT_NO_PENDING_TSN event is issued.
+	 *    2) called when SCTP_EVENT_ANAL_PENDING_TSN event is issued.
 	 *
 	 * For the case (2), the arg parameter is set to NULL.  We need
 	 * to check that we have a chunk before accessing it's fields.
@@ -5703,12 +5703,12 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown_ack(
 							  arg, commands);
 	}
 
-	/* If it has no more outstanding DATA chunks, the SHUTDOWN receiver
+	/* If it has anal more outstanding DATA chunks, the SHUTDOWN receiver
 	 * shall send a SHUTDOWN ACK ...
 	 */
 	reply = sctp_make_shutdown_ack(asoc, chunk);
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	/* Set the transport for the SHUTDOWN ACK chunk and the timeout for
 	 * the T2-shutdown timer.
@@ -5738,23 +5738,23 @@ enum sctp_disposition sctp_sf_do_9_2_shutdown_ack(
 
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
- * Ignore the event defined as other
+ * Iganalre the event defined as other
  *
  * The return value is the disposition of the event.
  */
-enum sctp_disposition sctp_sf_ignore_other(struct net *net,
+enum sctp_disposition sctp_sf_iganalre_other(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
 					   const union sctp_subtype type,
 					   void *arg,
 					   struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: the event other type:%d is ignored\n",
+	pr_debug("%s: the event other type:%d is iganalred\n",
 		 __func__, type.other);
 
 	return SCTP_DISPOSITION_DISCARD;
@@ -5787,11 +5787,11 @@ enum sctp_disposition sctp_sf_do_6_3_3_rtx(struct net *net,
 	SCTP_INC_STATS(net, SCTP_MIB_T3_RTX_EXPIREDS);
 
 	if (asoc->overall_error_count >= asoc->max_retrans) {
-		if (asoc->peer.zero_window_announced &&
+		if (asoc->peer.zero_window_ananalunced &&
 		    asoc->state == SCTP_STATE_SHUTDOWN_PENDING) {
 			/*
 			 * We are here likely because the receiver had its rwnd
-			 * closed for a while and we have not been able to
+			 * closed for a while and we have analt been able to
 			 * transmit the locally queued data within the maximum
 			 * retransmission attempts limit.  Start the T5
 			 * shutdown guard timer to give the receiver one last
@@ -5805,7 +5805,7 @@ enum sctp_disposition sctp_sf_do_6_3_3_rtx(struct net *net,
 					SCTP_ERROR(ETIMEDOUT));
 			/* CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 			sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-					SCTP_PERR(SCTP_ERROR_NO_ERROR));
+					SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 			SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 			SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 			return SCTP_DISPOSITION_DELETE_TCB;
@@ -5833,10 +5833,10 @@ enum sctp_disposition sctp_sf_do_6_3_3_rtx(struct net *net,
 	 * value K. Bundle and retransmit those K DATA chunks in a
 	 * single packet to the destination endpoint.
 	 *
-	 * Note: Any DATA chunks that were sent to the address for
-	 * which the T3-rtx timer expired but did not fit in one MTU
+	 * Analte: Any DATA chunks that were sent to the address for
+	 * which the T3-rtx timer expired but did analt fit in one MTU
 	 * (rule E3 above), should be marked for retransmission and
-	 * sent as soon as cwnd allows (normally when a SACK arrives).
+	 * sent as soon as cwnd allows (analrmally when a SACK arrives).
 	 */
 
 	/* Do some failure management (Section 8.2). */
@@ -5851,16 +5851,16 @@ enum sctp_disposition sctp_sf_do_6_3_3_rtx(struct net *net,
 /*
  * Generate delayed SACK on timeout
  *
- * Section: 6.2  Acknowledgement on Reception of DATA Chunks
+ * Section: 6.2  Ackanalwledgement on Reception of DATA Chunks
  *
- * The guidelines on delayed acknowledgement algorithm specified in
+ * The guidelines on delayed ackanalwledgement algorithm specified in
  * Section 4.2 of [RFC2581] SHOULD be followed.  Specifically, an
- * acknowledgement SHOULD be generated for at least every second packet
- * (not every second DATA chunk) received, and SHOULD be generated
- * within 200 ms of the arrival of any unacknowledged DATA chunk.  In
+ * ackanalwledgement SHOULD be generated for at least every second packet
+ * (analt every second DATA chunk) received, and SHOULD be generated
+ * within 200 ms of the arrival of any unackanalwledged DATA chunk.  In
  * some situations it may be beneficial for an SCTP transmitter to be
  * more conservative than the algorithms detailed in this document
- * allow. However, an SCTP transmitter MUST NOT be more aggressive than
+ * allow. However, an SCTP transmitter MUST ANALT be more aggressive than
  * the following algorithms allow.
  */
 enum sctp_disposition sctp_sf_do_6_2_sack(struct net *net,
@@ -5878,12 +5878,12 @@ enum sctp_disposition sctp_sf_do_6_2_sack(struct net *net,
 /*
  * sctp_sf_t1_init_timer_expire
  *
- * Section: 4 Note: 2
+ * Section: 4 Analte: 2
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- *  RFC 2960 Section 4 Notes
+ *  RFC 2960 Section 4 Analtes
  *  2) If the T1-init timer expires, the endpoint MUST retransmit INIT
  *     and re-start the T1-init timer without changing state.  This MUST
  *     be repeated up to 'Max.Init.Retransmits' times.  After that, the
@@ -5914,7 +5914,7 @@ enum sctp_disposition sctp_sf_t1_init_timer_expire(
 		bp = (struct sctp_bind_addr *) &asoc->base.bind_addr;
 		repl = sctp_make_init(asoc, bp, GFP_ATOMIC, 0);
 		if (!repl)
-			return SCTP_DISPOSITION_NOMEM;
+			return SCTP_DISPOSITION_ANALMEM;
 
 		/* Choose transport for INIT. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
@@ -5933,7 +5933,7 @@ enum sctp_disposition sctp_sf_t1_init_timer_expire(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
@@ -5943,12 +5943,12 @@ enum sctp_disposition sctp_sf_t1_init_timer_expire(
 /*
  * sctp_sf_t1_cookie_timer_expire
  *
- * Section: 4 Note: 2
+ * Section: 4 Analte: 2
  * Verification Tag:
  * Inputs
  * (endpoint, asoc)
  *
- *  RFC 2960 Section 4 Notes
+ *  RFC 2960 Section 4 Analtes
  *  3) If the T1-cookie timer expires, the endpoint MUST retransmit
  *     COOKIE ECHO and re-start the T1-cookie timer without changing
  *     state.  This MUST be repeated up to 'Max.Init.Retransmits' times.
@@ -5977,7 +5977,7 @@ enum sctp_disposition sctp_sf_t1_cookie_timer_expire(
 	if (attempts <= asoc->max_init_attempts) {
 		repl = sctp_make_cookie_echo(asoc, NULL);
 		if (!repl)
-			return SCTP_DISPOSITION_NOMEM;
+			return SCTP_DISPOSITION_ANALMEM;
 
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,
 				SCTP_CHUNK(repl));
@@ -5990,7 +5990,7 @@ enum sctp_disposition sctp_sf_t1_cookie_timer_expire(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_INIT_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
@@ -6008,7 +6008,7 @@ enum sctp_disposition sctp_sf_t1_cookie_timer_expire(
  * packet from its peer (i.e. as the peer sends all of its queued DATA
  * chunks) should clear the endpoint's retransmission count and restart
  * the T2-Shutdown timer,  giving its peer ample opportunity to transmit
- * all of its queued DATA chunks that have not yet been sent.
+ * all of its queued DATA chunks that have analt yet been sent.
  */
 enum sctp_disposition sctp_sf_t2_timer_expire(
 					struct net *net,
@@ -6029,9 +6029,9 @@ enum sctp_disposition sctp_sf_t2_timer_expire(
 	if (asoc->overall_error_count >= asoc->max_retrans) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
-		/* Note:  CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
+		/* Analte:  CMD_ASSOC_FAILED calls CMD_DELETE_TCB. */
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_DELETE_TCB;
@@ -6052,7 +6052,7 @@ enum sctp_disposition sctp_sf_t2_timer_expire(
 	}
 
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	/* Do some failure management (Section 8.2).
 	 * If we remove the transport an SHUTDOWN was last sent to, don't
@@ -6073,8 +6073,8 @@ enum sctp_disposition sctp_sf_t2_timer_expire(
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
 	return SCTP_DISPOSITION_CONSUME;
 
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /*
@@ -6116,7 +6116,7 @@ enum sctp_disposition sctp_sf_t4_timer_expire(
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_ERROR));
+				SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 		return SCTP_DISPOSITION_ABORT;
@@ -6129,7 +6129,7 @@ enum sctp_disposition sctp_sf_t4_timer_expire(
 
 	/* ADDIP 4.1 B4) Re-transmit the ASCONF Chunk last sent and if possible
 	 * choose an alternate destination address (please refer to RFC2960
-	 * [5] section 6.4.1). An endpoint MUST NOT add new parameters to this
+	 * [5] section 6.4.1). An endpoint MUST ANALT add new parameters to this
 	 * chunk, it MUST be the same (including its serial number) as the last
 	 * ASCONF sent.
 	 */
@@ -6137,7 +6137,7 @@ enum sctp_disposition sctp_sf_t4_timer_expire(
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 			SCTP_CHUNK(asoc->addip_last_asconf));
 
-	/* ADDIP 4.1 B5) Restart the T-4 RTO timer. Note that if a different
+	/* ADDIP 4.1 B5) Restart the T-4 RTO timer. Analte that if a different
 	 * destination is selected, then the RTO used will be that of the new
 	 * destination address.
 	 */
@@ -6169,20 +6169,20 @@ enum sctp_disposition sctp_sf_t5_timer_expire(
 
 	reply = sctp_make_abort(asoc, NULL, 0);
 	if (!reply)
-		goto nomem;
+		goto analmem;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(reply));
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 			SCTP_ERROR(ETIMEDOUT));
 	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-			SCTP_PERR(SCTP_ERROR_NO_ERROR));
+			SCTP_PERR(SCTP_ERROR_ANAL_ERROR));
 
 	SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 	SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
 
 	return SCTP_DISPOSITION_DELETE_TCB;
-nomem:
-	return SCTP_DISPOSITION_NOMEM;
+analmem:
+	return SCTP_DISPOSITION_ANALMEM;
 }
 
 /* Handle expiration of AUTOCLOSE timer.  When the autoclose timer expires,
@@ -6206,7 +6206,7 @@ enum sctp_disposition sctp_sf_autoclose_timer_expire(
 	 * Upon receipt of the SHUTDOWN primitive from its upper
 	 * layer, the endpoint enters SHUTDOWN-PENDING state and
 	 * remains there until all outstanding data has been
-	 * acknowledged by its peer. The endpoint accepts no new data
+	 * ackanalwledged by its peer. The endpoint accepts anal new data
 	 * from its upper layer, but retransmits data to the far end
 	 * if necessary to fill gaps.
 	 */
@@ -6227,20 +6227,20 @@ enum sctp_disposition sctp_sf_autoclose_timer_expire(
  ****************************************************************************/
 
 /*
- * This table entry is not implemented.
+ * This table entry is analt implemented.
  *
  * Inputs
  * (endpoint, asoc, chunk)
  *
  * The return value is the disposition of the chunk.
  */
-enum sctp_disposition sctp_sf_not_impl(struct net *net,
+enum sctp_disposition sctp_sf_analt_impl(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
 				       const union sctp_subtype type,
 				       void *arg, struct sctp_cmd_seq *commands)
 {
-	return SCTP_DISPOSITION_NOT_IMPL;
+	return SCTP_DISPOSITION_ANALT_IMPL;
 }
 
 /*
@@ -6262,23 +6262,23 @@ enum sctp_disposition sctp_sf_bug(struct net *net,
 
 /*
  * This table entry represents the firing of a timer in the wrong state.
- * Since timer deletion cannot be guaranteed a timer 'may' end up firing
+ * Since timer deletion cananalt be guaranteed a timer 'may' end up firing
  * when the association is in the wrong state.   This event should
- * be ignored, so as to prevent any rearming of the timer.
+ * be iganalred, so as to prevent any rearming of the timer.
  *
  * Inputs
  * (endpoint, asoc, chunk)
  *
  * The return value is the disposition of the chunk.
  */
-enum sctp_disposition sctp_sf_timer_ignore(struct net *net,
+enum sctp_disposition sctp_sf_timer_iganalre(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
 					   const union sctp_subtype type,
 					   void *arg,
 					   struct sctp_cmd_seq *commands)
 {
-	pr_debug("%s: timer %d ignored\n", __func__, type.chunk);
+	pr_debug("%s: timer %d iganalred\n", __func__, type.chunk);
 
 	return SCTP_DISPOSITION_CONSUME;
 }
@@ -6371,11 +6371,11 @@ static struct sctp_packet *sctp_ootb_pkt_new(
 	sport = ntohs(chunk->sctp_hdr->dest);
 	dport = ntohs(chunk->sctp_hdr->source);
 
-	/* The V-tag is going to be the same as the inbound packet if no
+	/* The V-tag is going to be the same as the inbound packet if anal
 	 * association exists, otherwise, use the peer's vtag.
 	 */
 	if (asoc) {
-		/* Special case the INIT-ACK as there is no peer's vtag
+		/* Special case the INIT-ACK as there is anal peer's vtag
 		 * yet.
 		 */
 		switch (chunk->chunk_hdr->type) {
@@ -6393,7 +6393,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(
 			break;
 		}
 	} else {
-		/* Special case the INIT and stale COOKIE_ECHO as there is no
+		/* Special case the INIT and stale COOKIE_ECHO as there is anal
 		 * vtag yet.
 		 */
 		switch (chunk->chunk_hdr->type) {
@@ -6414,7 +6414,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(
 	/* Make a transport for the bucket, Eliza... */
 	transport = sctp_transport_new(net, sctp_source(chunk), GFP_ATOMIC);
 	if (!transport)
-		goto nomem;
+		goto analmem;
 
 	transport->encap_port = SCTP_INPUT_CB(chunk->skb)->encap_port;
 
@@ -6430,7 +6430,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(
 
 	return packet;
 
-nomem:
+analmem:
 	return NULL;
 }
 
@@ -6493,7 +6493,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	tsn = ntohl(data_hdr->tsn);
 	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
 
-	/* ASSERT:  Now skb->data is really the user data.  */
+	/* ASSERT:  Analw skb->data is really the user data.  */
 
 	/* Process ECN based congestion.
 	 *
@@ -6532,7 +6532,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 
 	/* This is a new TSN.  */
 
-	/* Discard if there is no room in the receive window.
+	/* Discard if there is anal room in the receive window.
 	 * Actually, allow a little bit of overflow (up to a MTU).
 	 */
 	datalen = ntohs(chunk->chunk_hdr->length);
@@ -6549,7 +6549,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		sctp_add_cmd_sf(commands, SCTP_CMD_PART_DELIVER, SCTP_NULL());
 	}
 
-	/* Spill over rwnd a little bit.  Note: While allowed, this spill over
+	/* Spill over rwnd a little bit.  Analte: While allowed, this spill over
 	 * seems a bit troublesome in that frag_point varies based on
 	 * PMTU.  In cases, such as loopback, this might be a rather
 	 * large spill over.
@@ -6558,7 +6558,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	    (datalen > asoc->rwnd + asoc->frag_point))) {
 
 		/* If this is the next TSN, consider reneging to make
-		 * room.   Note: Playing nice with a confused sender.  A
+		 * room.   Analte: Playing nice with a confused sender.  A
 		 * malicious sender can still eat up all our buffer
 		 * space and in the future we may want to detect and
 		 * do more drastic reneging.
@@ -6571,7 +6571,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 			pr_debug("%s: discard tsn:%u len:%zu, rwnd:%d\n",
 				 __func__, tsn, datalen, asoc->rwnd);
 
-			return SCTP_IERROR_IGNORE_TSN;
+			return SCTP_IERROR_IGANALRE_TSN;
 		}
 	}
 
@@ -6592,15 +6592,15 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	}
 
 	/*
-	 * Section 3.3.10.9 No User Data (9)
+	 * Section 3.3.10.9 Anal User Data (9)
 	 *
 	 * Cause of error
 	 * ---------------
-	 * No User Data:  This error cause is returned to the originator of a
-	 * DATA chunk if a received DATA chunk has no user data.
+	 * Anal User Data:  This error cause is returned to the originator of a
+	 * DATA chunk if a received DATA chunk has anal user data.
 	 */
 	if (unlikely(0 == datalen)) {
-		err = sctp_make_abort_no_data(asoc, chunk, tsn);
+		err = sctp_make_abort_anal_data(asoc, chunk, tsn);
 		if (err) {
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
 					SCTP_CHUNK(err));
@@ -6612,23 +6612,23 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ECONNABORTED));
 		sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_FAILED,
-				SCTP_PERR(SCTP_ERROR_NO_DATA));
+				SCTP_PERR(SCTP_ERROR_ANAL_DATA));
 		SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
 		SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
-		return SCTP_IERROR_NO_DATA;
+		return SCTP_IERROR_ANAL_DATA;
 	}
 
 	chunk->data_accepted = 1;
 
-	/* Note: Some chunks may get overcounted (if we drop) or overcounted
+	/* Analte: Some chunks may get overcounted (if we drop) or overcounted
 	 * if we renege and the chunk arrives again.
 	 */
-	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
-		SCTP_INC_STATS(net, SCTP_MIB_INUNORDERCHUNKS);
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UANALRDERED) {
+		SCTP_INC_STATS(net, SCTP_MIB_INUANALRDERCHUNKS);
 		if (chunk->asoc)
 			chunk->asoc->stats.iuodchunks++;
 	} else {
-		SCTP_INC_STATS(net, SCTP_MIB_INORDERCHUNKS);
+		SCTP_INC_STATS(net, SCTP_MIB_IANALRDERCHUNKS);
 		if (chunk->asoc)
 			chunk->asoc->stats.iodchunks++;
 	}
@@ -6636,8 +6636,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
 	 *
 	 * If an endpoint receive a DATA chunk with an invalid stream
-	 * identifier, it shall acknowledge the reception of the DATA chunk
-	 * following the normal procedure, immediately send an ERROR chunk
+	 * identifier, it shall ackanalwledge the reception of the DATA chunk
+	 * following the analrmal procedure, immediately send an ERROR chunk
 	 * with cause set to "Invalid Stream Identifier" (See Section 3.3.10)
 	 * and discard the DATA chunk.
 	 */
@@ -6657,7 +6657,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 
 	/* Check to see if the SSN is possible for this TSN.
 	 * The biggest gap we can record is 4K wide.  Since SSNs wrap
-	 * at an unsigned short, there is no way that an SSN can
+	 * at an unsigned short, there is anal way that an SSN can
 	 * wrap and for a valid TSN.  We can simply check if the current
 	 * SSN is smaller then the next expected one.  If it is, it wrapped
 	 * and is invalid.
@@ -6665,11 +6665,11 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	if (!asoc->stream.si->validate_data(chunk))
 		return SCTP_IERROR_PROTO_VIOLATION;
 
-	/* Send the data up to the user.  Note:  Schedule  the
+	/* Send the data up to the user.  Analte:  Schedule  the
 	 * SCTP_CMD_CHUNK_ULP cmd before the SCTP_CMD_GEN_SACK, as the SACK
 	 * chunk needs the updated rwnd.
 	 */
 	sctp_add_cmd_sf(commands, deliver, SCTP_CHUNK(chunk));
 
-	return SCTP_IERROR_NO_ERROR;
+	return SCTP_IERROR_ANAL_ERROR;
 }

@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/capability.h>
 #include <net/netlink.h>
 #include <net/sock.h>
@@ -53,13 +53,13 @@ nfnl_userspace_cthelper(struct sk_buff *skb, unsigned int protoff,
 	if (helper == NULL)
 		return NF_DROP;
 
-	/* This is a user-space helper not yet configured, skip. */
+	/* This is a user-space helper analt yet configured, skip. */
 	if ((helper->flags &
 	    (NF_CT_HELPER_F_USERSPACE | NF_CT_HELPER_F_CONFIGURED)) ==
 	     NF_CT_HELPER_F_USERSPACE)
 		return NF_ACCEPT;
 
-	/* If the user-space helper is not available, don't block traffic. */
+	/* If the user-space helper is analt available, don't block traffic. */
 	return NF_QUEUE_NR(helper->queue_num) | NF_VERDICT_FLAG_QUEUE_BYPASS;
 }
 
@@ -83,7 +83,7 @@ nfnl_cthelper_parse_tuple(struct nf_conntrack_tuple *tuple,
 	if (!tb[NFCTH_TUPLE_L3PROTONUM] || !tb[NFCTH_TUPLE_L4PROTONUM])
 		return -EINVAL;
 
-	/* Not all fields are initialized so first zero the tuple */
+	/* Analt all fields are initialized so first zero the tuple */
 	memset(tuple, 0, sizeof(struct nf_conntrack_tuple));
 
 	tuple->src.l3num = ntohs(nla_get_be16(tb[NFCTH_TUPLE_L3PROTONUM]));
@@ -123,7 +123,7 @@ nfnl_cthelper_to_nlattr(struct sk_buff *skb, const struct nf_conn *ct)
 	return 0;
 
 nla_put_failure:
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static const struct nla_policy nfnl_cthelper_expect_pol[NFCTH_POLICY_MAX+1] = {
@@ -196,7 +196,7 @@ nfnl_cthelper_parse_expect_policy(struct nf_conntrack_helper *helper,
 				sizeof(struct nf_conntrack_expect_policy),
 				GFP_KERNEL);
 	if (expect_policy == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < class_max; i++) {
 		if (!tb[NFCTH_POLICY_SET+i])
@@ -230,7 +230,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 
 	nfcth = kzalloc(sizeof(*nfcth), GFP_KERNEL);
 	if (nfcth == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	helper = &nfcth->helper;
 
 	ret = nfnl_cthelper_parse_expect_policy(helper, tb[NFCTH_POLICY]);
@@ -241,7 +241,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 		    tb[NFCTH_NAME], NF_CT_HELPER_NAME_LEN);
 	size = ntohl(nla_get_be32(tb[NFCTH_PRIV_DATA_LEN]));
 	if (size > sizeof_field(struct nf_conn_help, data)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err2;
 	}
 	helper->data_len = size;
@@ -326,7 +326,7 @@ static int nfnl_cthelper_update_policy_all(struct nlattr *tb[],
 	new_policy = kmalloc_array(helper->expect_class_max + 1,
 				   sizeof(*new_policy), GFP_KERNEL);
 	if (!new_policy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Check first that all policy attributes are well-formed, so we don't
 	 * leave things in inconsistent state on errors.
@@ -344,7 +344,7 @@ static int nfnl_cthelper_update_policy_all(struct nlattr *tb[],
 		if (ret < 0)
 			goto err;
 	}
-	/* Now we can safely update them. */
+	/* Analw we can safely update them. */
 	for (i = 0; i < helper->expect_class_max + 1; i++) {
 		policy = (struct nf_conntrack_expect_policy *)
 				&helper->expect_policy[i];
@@ -583,9 +583,9 @@ nfnl_cthelper_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	for (; cb->args[0] < nf_ct_helper_hsize; cb->args[0]++) {
 restart:
 		hlist_for_each_entry_rcu(cur,
-				&nf_ct_helper_hash[cb->args[0]], hnode) {
+				&nf_ct_helper_hash[cb->args[0]], hanalde) {
 
-			/* skip non-userspace conntrack helpers. */
+			/* skip analn-userspace conntrack helpers. */
 			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
 				continue;
 
@@ -616,7 +616,7 @@ out:
 static int nfnl_cthelper_get(struct sk_buff *skb, const struct nfnl_info *info,
 			     const struct nlattr * const tb[])
 {
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	struct nf_conntrack_helper *cur;
 	struct sk_buff *skb2;
 	char *helper_name = NULL;
@@ -658,7 +658,7 @@ static int nfnl_cthelper_get(struct sk_buff *skb, const struct nfnl_info *info,
 
 		skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 		if (skb2 == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -702,7 +702,7 @@ static int nfnl_cthelper_del(struct sk_buff *skb, const struct nfnl_info *info,
 		tuple_set = true;
 	}
 
-	ret = -ENOENT;
+	ret = -EANALENT;
 	list_for_each_entry_safe(nlcth, n, &nfnl_cthelper_list, list) {
 		cur = &nlcth->helper;
 		j++;
@@ -728,7 +728,7 @@ static int nfnl_cthelper_del(struct sk_buff *skb, const struct nfnl_info *info,
 		}
 	}
 
-	/* Make sure we return success if we flush and there is no helpers */
+	/* Make sure we return success if we flush and there is anal helpers */
 	return (found || j == 0) ? 0 : ret;
 }
 
@@ -776,7 +776,7 @@ static int __init nfnl_cthelper_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_cthelper_subsys);
 	if (ret < 0) {
-		pr_err("nfnl_cthelper: cannot register with nfnetlink.\n");
+		pr_err("nfnl_cthelper: cananalt register with nfnetlink.\n");
 		goto err_out;
 	}
 	return 0;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -36,14 +36,14 @@ static void dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(struct dc_link *link,
 											0x59, 0x89, 0x0F, 0x24};
 
 	const uint8_t ffe_mask[4] = {
-			(hw_lane_settings[0].FFE_PRESET.settings.no_deemphasis != 0 ? 0x0F : 0xFF)
-				& (hw_lane_settings[0].FFE_PRESET.settings.no_preshoot != 0 ? 0xF1 : 0xFF),
-			(hw_lane_settings[1].FFE_PRESET.settings.no_deemphasis != 0 ? 0x0F : 0xFF)
-				& (hw_lane_settings[1].FFE_PRESET.settings.no_preshoot != 0 ? 0xF1 : 0xFF),
-			(hw_lane_settings[2].FFE_PRESET.settings.no_deemphasis != 0 ? 0x0F : 0xFF)
-				& (hw_lane_settings[2].FFE_PRESET.settings.no_preshoot != 0 ? 0xF1 : 0xFF),
-			(hw_lane_settings[3].FFE_PRESET.settings.no_deemphasis != 0 ? 0x0F : 0xFF)
-				& (hw_lane_settings[3].FFE_PRESET.settings.no_preshoot != 0 ? 0xF1 : 0xFF)};
+			(hw_lane_settings[0].FFE_PRESET.settings.anal_deemphasis != 0 ? 0x0F : 0xFF)
+				& (hw_lane_settings[0].FFE_PRESET.settings.anal_preshoot != 0 ? 0xF1 : 0xFF),
+			(hw_lane_settings[1].FFE_PRESET.settings.anal_deemphasis != 0 ? 0x0F : 0xFF)
+				& (hw_lane_settings[1].FFE_PRESET.settings.anal_preshoot != 0 ? 0xF1 : 0xFF),
+			(hw_lane_settings[2].FFE_PRESET.settings.anal_deemphasis != 0 ? 0x0F : 0xFF)
+				& (hw_lane_settings[2].FFE_PRESET.settings.anal_preshoot != 0 ? 0xF1 : 0xFF),
+			(hw_lane_settings[3].FFE_PRESET.settings.anal_deemphasis != 0 ? 0x0F : 0xFF)
+				& (hw_lane_settings[3].FFE_PRESET.settings.anal_preshoot != 0 ? 0xF1 : 0xFF)};
 
 	const uint8_t ffe_cfg[4] = {
 			vendor_ffe_preset_table[hw_lane_settings[0].FFE_PRESET.settings.level] & ffe_mask[0],

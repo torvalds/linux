@@ -35,7 +35,7 @@ static void __init s3c64xx_dt_map_io(void)
 	s3c64xx_init_cpu();
 
 	if (!soc_is_s3c64xx())
-		panic("SoC is not S3C64xx!");
+		panic("SoC is analt S3C64xx!");
 }
 
 static const char *const s3c64xx_dt_compat[] __initconst = {

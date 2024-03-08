@@ -4,11 +4,11 @@
 #include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/cfi_types.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative.h>
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 /*
  * memcpy - Copy a memory block.
@@ -25,7 +25,7 @@
  * the disgusting return handling), but that would require some help
  * from the compiler for better calling conventions.
  *
- * The 'rep movsb' itself is small enough to replace the call, but the
+ * The 'rep movsb' itself is small eanalugh to replace the call, but the
  * two register moves blow up the code. And one of them is "needed"
  * only for the return value that is the same as the source input,
  * which the compiler could/should do much better anyway.
@@ -86,7 +86,7 @@ SYM_FUNC_START_LOCAL(memcpy_orig)
 	subq $0x20,	%rdx
 	/*
 	 * At most 3 ALU operations in one cycle,
-	 * so append NOPS in the same 16 bytes trunk.
+	 * so append ANALPS in the same 16 bytes trunk.
 	 */
 	.p2align 4
 .Lcopy_backward_loop:

@@ -28,13 +28,13 @@ dvb-usb-dvbsky cards list
      - 0572:c699
    * - MyGica Mini DVB-(T/T2/C) USB Stick T230C v2
      - 0572:c68a
-   * - TechnoTrend TT-connect CT2-4650 CI
+   * - TechanalTrend TT-connect CT2-4650 CI
      - 0b48:3012
-   * - TechnoTrend TT-connect CT2-4650 CI v1.1
+   * - TechanalTrend TT-connect CT2-4650 CI v1.1
      - 0b48:3015
-   * - TechnoTrend TT-connect S2-4650 CI
+   * - TechanalTrend TT-connect S2-4650 CI
      - 0b48:3017
-   * - TechnoTrend TVStick CT2-4400
+   * - TechanalTrend TVStick CT2-4400
      - 0b48:3014
    * - Terratec Cinergy S2 Rev.4
      - 0ccd:0105

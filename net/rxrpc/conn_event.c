@@ -106,7 +106,7 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	chan = &conn->channels[channel];
 
 	/* If the last call got moved on whilst we were waiting to run, just
-	 * ignore this packet.
+	 * iganalre this packet.
 	 */
 	call_id = chan->last_call;
 	if (skb && call_id != sp->hdr.callNumber)
@@ -213,14 +213,14 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn)
 }
 
 /*
- * mark a call as being on a now-secured channel
+ * mark a call as being on a analw-secured channel
  * - must be called with BH's disabled.
  */
 static void rxrpc_call_is_secure(struct rxrpc_call *call)
 {
 	if (call && __rxrpc_call_state(call) == RXRPC_CALL_SERVER_SECURING) {
 		rxrpc_set_call_state(call, RXRPC_CALL_SERVER_RECV_REQUEST);
-		rxrpc_notify_socket(call);
+		rxrpc_analtify_socket(call);
 	}
 }
 
@@ -281,8 +281,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 {
 	if (conn->security->issue_challenge(conn) < 0)
-		rxrpc_abort_conn(conn, NULL, RX_CALL_DEAD, -ENOMEM,
-				 rxrpc_abort_nomem);
+		rxrpc_abort_conn(conn, NULL, RX_CALL_DEAD, -EANALMEM,
+				 rxrpc_abort_analmem);
 }
 
 /*
@@ -342,7 +342,7 @@ static void rxrpc_do_process_connection(struct rxrpc_connection *conn)
 		rxrpc_see_skb(skb, rxrpc_skb_see_conn_work);
 		ret = rxrpc_process_event(conn, skb);
 		switch (ret) {
-		case -ENOMEM:
+		case -EANALMEM:
 		case -EAGAIN:
 			skb_queue_head(&conn->rx_queue, skb);
 			rxrpc_queue_conn(conn, rxrpc_conn_queue_retry_work);
@@ -391,7 +391,7 @@ bool rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_BUSY:
-		/* Just ignore BUSY packets for now. */
+		/* Just iganalre BUSY packets for analw. */
 		return true;
 
 	case RXRPC_PACKET_TYPE_ABORT:

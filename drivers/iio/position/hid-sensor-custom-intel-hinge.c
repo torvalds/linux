@@ -271,7 +271,7 @@ static int hid_hinge_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -295,7 +295,7 @@ static int hid_hinge_probe(struct platform_device *pdev)
 	indio_dev->channels = devm_kmemdup(&indio_dev->dev, hinge_channels,
 					   sizeof(hinge_channels), GFP_KERNEL);
 	if (!indio_dev->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = hinge_parse_report(pdev, hsdev,
 				 (struct iio_chan_spec *)indio_dev->channels,

@@ -25,7 +25,7 @@ struct link_ctl_info {
  * identical types, i.e. info returns the same value type and value
  * ranges, but may have different number of counts.
  *
- * The master control is so far only mono volume/switch for simplicity.
+ * The master control is so far only moanal volume/switch for simplicity.
  * The same value will be applied to all followers.
  */
 struct link_master {
@@ -61,7 +61,7 @@ static int follower_update(struct link_follower *follower)
 
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
-		return -ENOMEM;
+		return -EANALMEM;
 	uctl->id = follower->follower.id;
 	err = follower->follower.get(&follower->follower, uctl);
 	if (err < 0)
@@ -88,7 +88,7 @@ static int follower_init(struct link_follower *follower)
 
 	uinfo = kmalloc(sizeof(*uinfo), GFP_KERNEL);
 	if (!uinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	uinfo->id = follower->follower.id;
 	err = follower->follower.info(&follower->follower, uinfo);
 	if (err < 0) {
@@ -124,14 +124,14 @@ static int master_init(struct link_master *master)
 		if (err < 0)
 			return err;
 		master->info = follower->info;
-		master->info.count = 1; /* always mono */
-		/* set full volume as default (= no attenuation) */
+		master->info.count = 1; /* always moanal */
+		/* set full volume as default (= anal attenuation) */
 		master->val = master->info.max_val;
 		if (master->hook)
 			master->hook(master->hook_private_data, master->val);
 		return 1;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int follower_get_val(struct link_follower *follower,
@@ -246,8 +246,8 @@ static void follower_free(struct snd_kcontrol *kcontrol)
  *
  * Also, some additional limitations:
  * - at most two channels
- * - logarithmic volume control (dB level), no linear volume
- * - master can only attenuate the volume, no gain
+ * - logarithmic volume control (dB level), anal linear volume
+ * - master can only attenuate the volume, anal gain
  */
 int _snd_ctl_add_follower(struct snd_kcontrol *master,
 			  struct snd_kcontrol *follower,
@@ -259,7 +259,7 @@ int _snd_ctl_add_follower(struct snd_kcontrol *master,
 	srec = kzalloc(struct_size(srec, follower.vd, follower->count),
 		       GFP_KERNEL);
 	if (!srec)
-		return -ENOMEM;
+		return -EANALMEM;
 	srec->kctl = follower;
 	srec->follower = *follower;
 	memcpy(srec->follower.vd, follower->vd, follower->count * sizeof(*follower->vd));
@@ -345,7 +345,7 @@ static int sync_followers(struct link_master *master, int old_val, int new_val)
 
 	uval = kmalloc(sizeof(*uval), GFP_KERNEL);
 	if (!uval)
-		return -ENOMEM;
+		return -EANALMEM;
 	list_for_each_entry(follower, &master->followers, list) {
 		master->val = old_val;
 		uval->id = follower->follower.id;
@@ -415,7 +415,7 @@ static void master_free(struct snd_kcontrol *kcontrol)
  * with #SNDRV_CTL_TLVT_DB_SCALE, #SNDRV_CTL_TLV_DB_MINMAX or
  * #SNDRV_CTL_TLVT_DB_MINMAX_MUTE type, and should be the max 0dB.
  *
- * Return: The created control element, or %NULL for errors (ENOMEM).
+ * Return: The created control element, or %NULL for errors (EANALMEM).
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv)
@@ -490,7 +490,7 @@ EXPORT_SYMBOL_GPL(snd_ctl_add_vmaster_hook);
  *
  * Forcibly call the put callback of each follower and call the hook function
  * to synchronize with the current value of the given vmaster element.
- * NOP when NULL is passed to @kcontrol.
+ * ANALP when NULL is passed to @kcontrol.
  */
 void snd_ctl_sync_vmaster(struct snd_kcontrol *kcontrol, bool hook_only)
 {

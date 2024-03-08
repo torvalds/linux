@@ -33,10 +33,10 @@ void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value);
 void iwl_write_direct64(struct iwl_trans *trans, u64 reg, u64 value);
 
 
-u32 iwl_read_prph_no_grab(struct iwl_trans *trans, u32 ofs);
+u32 iwl_read_prph_anal_grab(struct iwl_trans *trans, u32 ofs);
 u32 iwl_read_prph(struct iwl_trans *trans, u32 ofs);
-void iwl_write_prph_no_grab(struct iwl_trans *trans, u32 ofs, u32 val);
-void iwl_write_prph64_no_grab(struct iwl_trans *trans, u64 ofs, u64 val);
+void iwl_write_prph_anal_grab(struct iwl_trans *trans, u32 ofs, u32 val);
+void iwl_write_prph64_anal_grab(struct iwl_trans *trans, u64 ofs, u64 val);
 void iwl_write_prph_delay(struct iwl_trans *trans, u32 ofs,
 			  u32 val, u32 delay_ms);
 static inline void iwl_write_prph(struct iwl_trans *trans, u32 ofs, u32 val)
@@ -67,9 +67,9 @@ static inline u32 iwl_umac_prph(struct iwl_trans *trans, u32 ofs)
 	return ofs + trans->trans_cfg->umac_prph_offset;
 }
 
-static inline u32 iwl_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+static inline u32 iwl_read_umac_prph_anal_grab(struct iwl_trans *trans, u32 ofs)
 {
-	return iwl_read_prph_no_grab(trans, ofs +
+	return iwl_read_prph_anal_grab(trans, ofs +
 				     trans->trans_cfg->umac_prph_offset);
 }
 
@@ -78,10 +78,10 @@ static inline u32 iwl_read_umac_prph(struct iwl_trans *trans, u32 ofs)
 	return iwl_read_prph(trans, ofs + trans->trans_cfg->umac_prph_offset);
 }
 
-static inline void iwl_write_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs,
+static inline void iwl_write_umac_prph_anal_grab(struct iwl_trans *trans, u32 ofs,
 					       u32 val)
 {
-	iwl_write_prph_no_grab(trans,  ofs + trans->trans_cfg->umac_prph_offset,
+	iwl_write_prph_anal_grab(trans,  ofs + trans->trans_cfg->umac_prph_offset,
 			       val);
 }
 

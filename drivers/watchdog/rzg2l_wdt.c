@@ -38,10 +38,10 @@
 
 #define RZV2M_A_NSEC			730
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout, "Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 enum rz_wdt_type {
 	WDT_RZG2L,
@@ -242,7 +242,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
@@ -251,7 +251,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	/* Get watchdog main clock */
 	priv->osc_clk = devm_clk_get(&pdev->dev, "oscclk");
 	if (IS_ERR(priv->osc_clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(priv->osc_clk), "no oscclk");
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->osc_clk), "anal oscclk");
 
 	priv->osc_clk_rate = clk_get_rate(priv->osc_clk);
 	if (!priv->osc_clk_rate)
@@ -260,7 +260,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	/* Get Peripheral clock */
 	priv->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(priv->pclk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(priv->pclk), "no pclk");
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->pclk), "anal pclk");
 
 	pclk_rate = clk_get_rate(priv->pclk);
 	if (!pclk_rate)
@@ -303,7 +303,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	watchdog_set_nowayout(&priv->wdev, nowayout);
+	watchdog_set_analwayout(&priv->wdev, analwayout);
 	watchdog_stop_on_unregister(&priv->wdev);
 
 	ret = watchdog_init_timeout(&priv->wdev, 0, dev);

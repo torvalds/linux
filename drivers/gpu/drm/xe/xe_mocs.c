@@ -21,7 +21,7 @@
 __printf(2, 3)
 static inline void mocs_dbg(const struct drm_device *dev,
 			    const char *format, ...)
-{ /* noop */ }
+{ /* analop */ }
 #endif
 
 enum {
@@ -76,7 +76,7 @@ struct xe_mocs_info {
 
 /* (e)LLC caching options */
 /*
- * Note: LE_0_PAGETABLE works only up to Gen11; for newer gens it means
+ * Analte: LE_0_PAGETABLE works only up to Gen11; for newer gens it means
  * the same as LE_UC
  */
 #define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
@@ -125,16 +125,16 @@ struct xe_mocs_info {
  * HW platforms, and for ICL+, be identical across OSes. To achieve
  * that, the list of entries is published as part of bspec.
  *
- * Entries not part of the following tables are undefined as far as userspace is
+ * Entries analt part of the following tables are undefined as far as userspace is
  * concerned and shouldn't be relied upon. The last few entries are reserved by
  * the hardware. They should be initialized according to bspec and never used.
  *
- * NOTE1: These tables are part of bspec and defined as part of the hardware
+ * ANALTE1: These tables are part of bspec and defined as part of the hardware
  * interface. It is expected that, for specific hardware platform, existing
  * entries will remain constant and the table will only be updated by adding new
  * entries, filling unused positions.
  *
- * NOTE2: Reserved and unspecified MOCS indices have been set to L3 WB. These
+ * ANALTE2: Reserved and unspecified MOCS indices have been set to L3 WB. These
  * reserved entries should never be used. They may be changed to low performant
  * variants with better coherency in the future if more entries are needed.
  */
@@ -172,31 +172,31 @@ static const struct xe_mocs_entry gen12_mocs_desc[] = {
 	MOCS_ENTRY(9,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2),
 		   L3_3_WB),
-	/* No AOM - LLC */
+	/* Anal AOM - LLC */
 	MOCS_ENTRY(10,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1),
 		   L3_1_UC),
-	/* No AOM - L3 + LLC */
+	/* Anal AOM - L3 + LLC */
 	MOCS_ENTRY(11,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1),
 		   L3_3_WB),
-	/* No AOM; Age 0 - LLC */
+	/* Anal AOM; Age 0 - LLC */
 	MOCS_ENTRY(12,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1),
 		   L3_1_UC),
-	/* No AOM; Age 0 - L3 + LLC */
+	/* Anal AOM; Age 0 - L3 + LLC */
 	MOCS_ENTRY(13,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1),
 		   L3_3_WB),
-	/* No AOM; Age:DC - LLC */
+	/* Anal AOM; Age:DC - LLC */
 	MOCS_ENTRY(14,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1),
 		   L3_1_UC),
-	/* No AOM; Age:DC - L3 + LLC */
+	/* Anal AOM; Age:DC - L3 + LLC */
 	MOCS_ENTRY(15,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1),
 		   L3_3_WB),
-	/* Self-Snoop - L3 + LLC */
+	/* Self-Sanalop - L3 + LLC */
 	MOCS_ENTRY(18,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3),
 		   L3_3_WB),
@@ -283,7 +283,7 @@ static const struct xe_mocs_entry dg2_mocs_desc[] = {
 	MOCS_ENTRY(0, 0, L3_1_UC | L3_LKUP(1)),
 	/* UC - Coherent; GO:Memory */
 	MOCS_ENTRY(1, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Non-Coherent; GO:Memory */
+	/* UC - Analn-Coherent; GO:Memory */
 	MOCS_ENTRY(2, 0, L3_1_UC | L3_GLBGO(1)),
 
 	/* WB - LC */
@@ -295,7 +295,7 @@ static const struct xe_mocs_entry dg2_mocs_desc_g10_ax[] = {
 	MOCS_ENTRY(0, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
 	/* UC - Coherent; GO:Memory */
 	MOCS_ENTRY(1, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Non-Coherent; GO:Memory */
+	/* UC - Analn-Coherent; GO:Memory */
 	MOCS_ENTRY(2, 0, L3_1_UC | L3_GLBGO(1)),
 
 	/* WB - LC */
@@ -314,7 +314,7 @@ static const struct xe_mocs_entry pvc_mocs_desc[] = {
 };
 
 static const struct xe_mocs_entry mtl_mocs_desc[] = {
-	/* Error - Reserved for Non-Use */
+	/* Error - Reserved for Analn-Use */
 	MOCS_ENTRY(0,
 		   0,
 		   L3_LKUP(1) | L3_3_WB),
@@ -338,19 +338,19 @@ static const struct xe_mocs_entry mtl_mocs_desc[] = {
 	MOCS_ENTRY(5,
 		   IG_PAT | L4_3_UC,
 		   L3_LKUP(1) | L3_GLBGO(1) | L3_1_UC),
-	/* L4 - L3:NoLKUP; GO:L3 */
+	/* L4 - L3:AnalLKUP; GO:L3 */
 	MOCS_ENTRY(6,
 		   IG_PAT,
 		   L3_1_UC),
-	/* Uncached - L3:NoLKUP; GO:L3 */
+	/* Uncached - L3:AnalLKUP; GO:L3 */
 	MOCS_ENTRY(7,
 		   IG_PAT | L4_3_UC,
 		   L3_1_UC),
-	/* L4 - L3:NoLKUP; GO:Mem */
+	/* L4 - L3:AnalLKUP; GO:Mem */
 	MOCS_ENTRY(8,
 		   IG_PAT,
 		   L3_GLBGO(1) | L3_1_UC),
-	/* Uncached - L3:NoLKUP; GO:Mem */
+	/* Uncached - L3:AnalLKUP; GO:Mem */
 	MOCS_ENTRY(9,
 		   IG_PAT | L4_3_UC,
 		   L3_GLBGO(1) | L3_1_UC),
@@ -358,7 +358,7 @@ static const struct xe_mocs_entry mtl_mocs_desc[] = {
 	MOCS_ENTRY(14,
 		   IG_PAT | L4_1_WT,
 		   L3_LKUP(1) | L3_3_WB),
-	/* CCS - Non-Displayable */
+	/* CCS - Analn-Displayable */
 	MOCS_ENTRY(15,
 		   IG_PAT,
 		   L3_GLBGO(1) | L3_1_UC),
@@ -441,7 +441,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->unused_entries_index = 2;
 		break;
 	default:
-		drm_err(&xe->drm, "Platform that should have a MOCS table does not.\n");
+		drm_err(&xe->drm, "Platform that should have a MOCS table does analt.\n");
 		return 0;
 	}
 
@@ -469,7 +469,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 }
 
 /*
- * Get control_value from MOCS entry.  If the table entry is not defined, the
+ * Get control_value from MOCS entry.  If the table entry is analt defined, the
  * settings from unused_entries_index will be returned.
  */
 static u32 get_entry_control(const struct xe_mocs_info *info,
@@ -505,8 +505,8 @@ static void __init_mocs_table(struct xe_gt *gt,
 }
 
 /*
- * Get l3cc_value from MOCS entry taking into account when it's not used
- * then if unused_entries_index is not zero then its value will be returned
+ * Get l3cc_value from MOCS entry taking into account when it's analt used
+ * then if unused_entries_index is analt zero then its value will be returned
  * otherwise I915_MOCS_PTE's value is returned in this case.
  */
 static u16 get_entry_l3cc(const struct xe_mocs_info *info,

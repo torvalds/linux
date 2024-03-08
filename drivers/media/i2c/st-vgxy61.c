@@ -22,7 +22,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define VGXY61_REG_8BIT(n)				((1 << 16) | (n))
@@ -43,10 +43,10 @@
 #define VGXY61_REG_NVM					VGXY61_REG_8BIT(0x0023)
 #define VGXY61_NVM_OK					0x04
 #define VGXY61_REG_STBY					VGXY61_REG_8BIT(0x0201)
-#define VGXY61_STBY_NO_REQ				0
+#define VGXY61_STBY_ANAL_REQ				0
 #define VGXY61_STBY_REQ_TMP_READ			BIT(2)
 #define VGXY61_REG_STREAMING				VGXY61_REG_8BIT(0x0202)
-#define VGXY61_STREAMING_NO_REQ				0
+#define VGXY61_STREAMING_ANAL_REQ				0
 #define VGXY61_STREAMING_REQ_STOP			BIT(0)
 #define VGXY61_STREAMING_REQ_START			BIT(1)
 #define VGXY61_REG_EXT_CLOCK				VGXY61_REG_32BIT(0x0220)
@@ -113,7 +113,7 @@
 #define VGXY61_MEDIA_BUS_FMT_DEF			MEDIA_BUS_FMT_Y8_1X8
 
 #define VGXY61_FWPATCH_REVISION_MAJOR			2
-#define VGXY61_FWPATCH_REVISION_MINOR			0
+#define VGXY61_FWPATCH_REVISION_MIANALR			0
 #define VGXY61_FWPATCH_REVISION_MICRO			5
 
 static const u8 patch_array[] = {
@@ -201,7 +201,7 @@ static const char * const vgxy61_test_pattern_menu[] = {
 static const char * const vgxy61_hdr_mode_menu[] = {
 	"HDR linearize",
 	"HDR substraction",
-	"No HDR",
+	"Anal HDR",
 };
 
 static const char * const vgxy61_supply_name[] = {
@@ -219,7 +219,7 @@ static const s64 link_freq[] = {
 };
 
 enum vgxy61_bin_mode {
-	VGXY61_BIN_MODE_NORMAL,
+	VGXY61_BIN_MODE_ANALRMAL,
 	VGXY61_BIN_MODE_DIGITAL_X2,
 	VGXY61_BIN_MODE_DIGITAL_X4,
 };
@@ -227,7 +227,7 @@ enum vgxy61_bin_mode {
 enum vgxy61_hdr_mode {
 	VGXY61_HDR_LINEAR,
 	VGXY61_HDR_SUB,
-	VGXY61_NO_HDR,
+	VGXY61_ANAL_HDR,
 };
 
 enum vgxy61_strobe_mode {
@@ -281,7 +281,7 @@ static const struct vgxy61_mode_info vgx661_mode_data[] = {
 	{
 		.width = VGX661_WIDTH,
 		.height = VGX661_HEIGHT,
-		.bin_mode = VGXY61_BIN_MODE_NORMAL,
+		.bin_mode = VGXY61_BIN_MODE_ANALRMAL,
 		.crop = {
 			.left = 0,
 			.top = 0,
@@ -292,7 +292,7 @@ static const struct vgxy61_mode_info vgx661_mode_data[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.bin_mode = VGXY61_BIN_MODE_NORMAL,
+		.bin_mode = VGXY61_BIN_MODE_ANALRMAL,
 		.crop = {
 			.left = 92,
 			.top = 192,
@@ -328,7 +328,7 @@ static const struct vgxy61_mode_info vgx761_mode_data[] = {
 	{
 		.width = VGX761_WIDTH,
 		.height = VGX761_HEIGHT,
-		.bin_mode = VGXY61_BIN_MODE_NORMAL,
+		.bin_mode = VGXY61_BIN_MODE_ANALRMAL,
 		.crop = {
 			.left = 0,
 			.top = 0,
@@ -339,7 +339,7 @@ static const struct vgxy61_mode_info vgx761_mode_data[] = {
 	{
 		.width = 1920,
 		.height = 1080,
-		.bin_mode = VGXY61_BIN_MODE_NORMAL,
+		.bin_mode = VGXY61_BIN_MODE_ANALRMAL,
 		.crop = {
 			.left = 12,
 			.top = 62,
@@ -350,7 +350,7 @@ static const struct vgxy61_mode_info vgx761_mode_data[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.bin_mode = VGXY61_BIN_MODE_NORMAL,
+		.bin_mode = VGXY61_BIN_MODE_ANALRMAL,
 		.crop = {
 			.left = 332,
 			.top = 242,
@@ -703,7 +703,7 @@ static void vgxy61_fill_framefmt(struct vgxy61_dev *sensor,
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
-	fmt->field = V4L2_FIELD_NONE;
+	fmt->field = V4L2_FIELD_ANALNE;
 	fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -800,7 +800,7 @@ static u16 vgxy61_get_vblank_min(struct vgxy61_dev *sensor,
 	/* Ensure the first rule of thumb can't be negative */
 	u16 min_vblank_hdr =  VGXY61_MIN_EXPOSURE + sensor->rot_term + 1;
 
-	if (hdr != VGXY61_NO_HDR)
+	if (hdr != VGXY61_ANAL_HDR)
 		return max(min_vblank, min_vblank_hdr);
 	return min_vblank;
 }
@@ -838,8 +838,8 @@ static int vgxy61_apply_digital_gain(struct vgxy61_dev *sensor,
 	int ret = 0;
 
 	/*
-	 * For a monochrome version, configuring DIGITAL_GAIN_LONG_CH0 and
-	 * DIGITAL_GAIN_SHORT_CH0 is enough to configure the gain of all
+	 * For a moanalchrome version, configuring DIGITAL_GAIN_LONG_CH0 and
+	 * DIGITAL_GAIN_SHORT_CH0 is eanalugh to configure the gain of all
 	 * four sub pixels.
 	 */
 	vgxy61_write_reg(sensor, VGXY61_REG_DIGITAL_GAIN_LONG, digital_gain,
@@ -909,7 +909,7 @@ static int vgxy61_update_gpios_strobe_mode(struct vgxy61_dev *sensor,
 		sensor->strobe_mode = VGXY61_STROBE_ENABLED;
 		break;
 	case VGXY61_HDR_SUB:
-	case VGXY61_NO_HDR:
+	case VGXY61_ANAL_HDR:
 		sensor->strobe_mode = VGXY61_STROBE_LONG;
 		break;
 	default:
@@ -1020,7 +1020,7 @@ static int vgxy61_update_exposure(struct vgxy61_dev *sensor, u16 new_expo_long,
 		expo_short_max = expo_long_max;
 		new_expo_short = new_expo_long;
 		break;
-	case VGXY61_NO_HDR:
+	case VGXY61_ANAL_HDR:
 		new_expo_long = max(expo_long_min, new_expo_long);
 
 		/*
@@ -1200,7 +1200,7 @@ static int vgxy61_stream_enable(struct vgxy61_dev *sensor)
 		goto err_rpm_put;
 
 	ret = vgxy61_poll_reg(sensor, VGXY61_REG_STREAMING,
-			      VGXY61_STREAMING_NO_REQ, VGXY61_TIMEOUT_MS);
+			      VGXY61_STREAMING_ANAL_REQ, VGXY61_TIMEOUT_MS);
 	if (ret)
 		goto err_rpm_put;
 
@@ -1209,7 +1209,7 @@ static int vgxy61_stream_enable(struct vgxy61_dev *sensor)
 	if (ret)
 		goto err_rpm_put;
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip cananalt change during streaming */
 	__v4l2_ctrl_grab(sensor->vflip_ctrl, true);
 	__v4l2_ctrl_grab(sensor->hflip_ctrl, true);
 
@@ -1231,7 +1231,7 @@ static int vgxy61_stream_disable(struct vgxy61_dev *sensor)
 		goto err_str_dis;
 
 	ret = vgxy61_poll_reg(sensor, VGXY61_REG_STREAMING,
-			      VGXY61_STREAMING_NO_REQ, 2000);
+			      VGXY61_STREAMING_ANAL_REQ, 2000);
 	if (ret)
 		goto err_str_dis;
 
@@ -1403,7 +1403,7 @@ static int vgxy61_init_controls(struct vgxy61_dev *sensor)
 	const struct v4l2_ctrl_ops *ops = &vgxy61_ctrl_ops;
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrl_handler;
 	const struct vgxy61_mode_info *cur_mode = sensor->current_mode;
-	struct v4l2_fwnode_device_properties props;
+	struct v4l2_fwanalde_device_properties props;
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
@@ -1428,7 +1428,7 @@ static int vgxy61_init_controls(struct vgxy61_dev *sensor)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	v4l2_ctrl_new_std_menu_items(hdl, ops, V4L2_CID_HDR_SENSOR_MODE,
 				     ARRAY_SIZE(vgxy61_hdr_mode_menu) - 1, 0,
-				     VGXY61_NO_HDR, vgxy61_hdr_mode_menu);
+				     VGXY61_ANAL_HDR, vgxy61_hdr_mode_menu);
 
 	/*
 	 * Keep a pointer to these controls as we need to update them when
@@ -1458,11 +1458,11 @@ static int vgxy61_init_controls(struct vgxy61_dev *sensor)
 		goto free_ctrls;
 	}
 
-	ret = v4l2_fwnode_device_parse(&sensor->i2c_client->dev, &props);
+	ret = v4l2_fwanalde_device_parse(&sensor->i2c_client->dev, &props);
 	if (ret)
 		goto free_ctrls;
 
-	ret = v4l2_ctrl_new_fwnode_properties(hdl, ops, &props);
+	ret = v4l2_ctrl_new_fwanalde_properties(hdl, ops, &props);
 	if (ret)
 		goto free_ctrls;
 
@@ -1506,9 +1506,9 @@ static const struct media_entity_operations vgxy61_subdev_entity_ops = {
 };
 
 static int vgxy61_tx_from_ep(struct vgxy61_dev *sensor,
-			     struct fwnode_handle *handle)
+			     struct fwanalde_handle *handle)
 {
-	struct v4l2_fwnode_endpoint ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
+	struct v4l2_fwanalde_endpoint ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct i2c_client *client = sensor->i2c_client;
 	u32 log2phy[VGXY61_NB_POLARITIES] = {~0, ~0, ~0, ~0, ~0};
 	u32 phy2log[VGXY61_NB_POLARITIES] = {~0, ~0, ~0, ~0, ~0};
@@ -1517,7 +1517,7 @@ static int vgxy61_tx_from_ep(struct vgxy61_dev *sensor,
 	unsigned int p, l, i;
 	int ret;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(handle, &ep);
+	ret = v4l2_fwanalde_endpoint_alloc_parse(handle, &ep);
 	if (ret)
 		return -EINVAL;
 
@@ -1568,12 +1568,12 @@ static int vgxy61_tx_from_ep(struct vgxy61_dev *sensor,
 	}
 	dev_dbg(&client->dev, "oif_ctrl = 0x%04x\n", sensor->oif_ctrl);
 
-	v4l2_fwnode_endpoint_free(&ep);
+	v4l2_fwanalde_endpoint_free(&ep);
 
 	return 0;
 
 error_ep:
-	v4l2_fwnode_endpoint_free(&ep);
+	v4l2_fwanalde_endpoint_free(&ep);
 
 	return -EINVAL;
 }
@@ -1643,14 +1643,14 @@ static int vgxy61_patch(struct vgxy61_dev *sensor)
 		return patch;
 
 	if (patch != (VGXY61_FWPATCH_REVISION_MAJOR << 12) +
-		     (VGXY61_FWPATCH_REVISION_MINOR << 8) +
+		     (VGXY61_FWPATCH_REVISION_MIANALR << 8) +
 		     VGXY61_FWPATCH_REVISION_MICRO) {
 		dev_err(&client->dev, "bad patch version expected %d.%d.%d got %d.%d.%d\n",
 			VGXY61_FWPATCH_REVISION_MAJOR,
-			VGXY61_FWPATCH_REVISION_MINOR,
+			VGXY61_FWPATCH_REVISION_MIANALR,
 			VGXY61_FWPATCH_REVISION_MICRO,
 			patch >> 12, (patch >> 8) & 0x0f, patch & 0xff);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(&client->dev, "patch %d.%d.%d applied\n",
 		patch >> 12, (patch >> 8) & 0x0f, patch & 0xff);
@@ -1670,8 +1670,8 @@ static int vgxy61_detect_cut_version(struct vgxy61_dev *sensor)
 	switch (device_rev >> 8) {
 	case 0xA:
 		dev_dbg(&client->dev, "Cut1 detected\n");
-		dev_err(&client->dev, "Cut1 not supported by this driver\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Cut1 analt supported by this driver\n");
+		return -EANALDEV;
 	case 0xB:
 		dev_dbg(&client->dev, "Cut2 detected\n");
 		return 0;
@@ -1680,7 +1680,7 @@ static int vgxy61_detect_cut_version(struct vgxy61_dev *sensor)
 		return 0;
 	default:
 		dev_err(&client->dev, "Unable to detect cut version\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 
@@ -1695,7 +1695,7 @@ static int vgxy61_detect(struct vgxy61_dev *sensor)
 		return id;
 	if (id != VG5661_MODEL_ID && id != VG5761_MODEL_ID) {
 		dev_warn(&client->dev, "Unsupported sensor id %x\n", id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(&client->dev, "detected sensor id = 0x%04x\n", id);
 	sensor->id = id;
@@ -1814,17 +1814,17 @@ static void vgxy61_fill_sensor_param(struct vgxy61_dev *sensor)
 static int vgxy61_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 	struct vgxy61_dev *sensor;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sensor->i2c_client = client;
 	sensor->streaming = false;
-	sensor->hdr = VGXY61_NO_HDR;
+	sensor->hdr = VGXY61_ANAL_HDR;
 	sensor->expo_long = 200;
 	sensor->expo_short = 0;
 	sensor->hflip = false;
@@ -1832,14 +1832,14 @@ static int vgxy61_probe(struct i2c_client *client)
 	sensor->analog_gain = 0;
 	sensor->digital_gain = 256;
 
-	handle = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	handle = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev), 0, 0, 0);
 	if (!handle) {
-		dev_err(dev, "handle node not found\n");
+		dev_err(dev, "handle analde analt found\n");
 		return -EINVAL;
 	}
 
 	ret = vgxy61_tx_from_ep(sensor, handle);
-	fwnode_handle_put(handle);
+	fwanalde_handle_put(handle);
 	if (ret) {
 		dev_err(dev, "Failed to parse handle %d\n", ret);
 		return ret;
@@ -1862,7 +1862,7 @@ static int vgxy61_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &vgxy61_subdev_ops);
 	sensor->sd.internal_ops = &vgxy61_internal_ops;
-	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.ops = &vgxy61_subdev_entity_ops;
@@ -1974,6 +1974,6 @@ module_i2c_driver(vgxy61_i2c_driver);
 
 MODULE_AUTHOR("Benjamin Mugnier <benjamin.mugnier@foss.st.com>");
 MODULE_AUTHOR("Mickael Guene <mickael.guene@st.com>");
-MODULE_AUTHOR("Sylvain Petinot <sylvain.petinot@foss.st.com>");
+MODULE_AUTHOR("Sylvain Petianalt <sylvain.petianalt@foss.st.com>");
 MODULE_DESCRIPTION("VGXY61 camera subdev driver");
 MODULE_LICENSE("GPL");

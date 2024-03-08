@@ -5,7 +5,7 @@
  */
 
 /*
- * device_sm Node State Machine: Remote Device States
+ * device_sm Analde State Machine: Remote Device States
  */
 
 #include "efc.h"
@@ -13,125 +13,125 @@
 #include "efc_fabric.h"
 
 void
-efc_d_send_prli_rsp(struct efc_node *node, u16 ox_id)
+efc_d_send_prli_rsp(struct efc_analde *analde, u16 ox_id)
 {
 	int rc = EFC_SCSI_CALL_COMPLETE;
-	struct efc *efc = node->efc;
+	struct efc *efc = analde->efc;
 
-	node->ls_acc_oxid = ox_id;
-	node->send_ls_acc = EFC_NODE_SEND_LS_ACC_PRLI;
+	analde->ls_acc_oxid = ox_id;
+	analde->send_ls_acc = EFC_ANALDE_SEND_LS_ACC_PRLI;
 
 	/*
 	 * Wait for backend session registration
 	 * to complete before sending PRLI resp
 	 */
 
-	if (node->init) {
+	if (analde->init) {
 		efc_log_info(efc, "[%s] found(initiator) WWPN:%s WWNN:%s\n",
-			     node->display_name, node->wwpn, node->wwnn);
-		if (node->nport->enable_tgt)
-			rc = efc->tt.scsi_new_node(efc, node);
+			     analde->display_name, analde->wwpn, analde->wwnn);
+		if (analde->nport->enable_tgt)
+			rc = efc->tt.scsi_new_analde(efc, analde);
 	}
 
 	if (rc < 0)
-		efc_node_post_event(node, EFC_EVT_NODE_SESS_REG_FAIL, NULL);
+		efc_analde_post_event(analde, EFC_EVT_ANALDE_SESS_REG_FAIL, NULL);
 
 	if (rc == EFC_SCSI_CALL_COMPLETE)
-		efc_node_post_event(node, EFC_EVT_NODE_SESS_REG_OK, NULL);
+		efc_analde_post_event(analde, EFC_EVT_ANALDE_SESS_REG_OK, NULL);
 }
 
 static void
 __efc_d_common(const char *funcname, struct efc_sm_ctx *ctx,
 	       enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = NULL;
+	struct efc_analde *analde = NULL;
 	struct efc *efc = NULL;
 
-	node = ctx->app;
-	efc = node->efc;
+	analde = ctx->app;
+	efc = analde->efc;
 
 	switch (evt) {
 	/* Handle shutdown events */
 	case EFC_EVT_SHUTDOWN:
-		efc_log_debug(efc, "[%s] %-20s %-20s\n", node->display_name,
+		efc_log_debug(efc, "[%s] %-20s %-20s\n", analde->display_name,
 			      funcname, efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 	case EFC_EVT_SHUTDOWN_EXPLICIT_LOGO:
 		efc_log_debug(efc, "[%s] %-20s %-20s\n",
-			      node->display_name, funcname,
+			      analde->display_name, funcname,
 				efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_EXPLICIT_LOGO;
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_EXPLICIT_LOGO;
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 	case EFC_EVT_SHUTDOWN_IMPLICIT_LOGO:
-		efc_log_debug(efc, "[%s] %-20s %-20s\n", node->display_name,
+		efc_log_debug(efc, "[%s] %-20s %-20s\n", analde->display_name,
 			      funcname, efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_IMPLICIT_LOGO;
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_IMPLICIT_LOGO;
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 
 	default:
-		/* call default event handler common to all nodes */
-		__efc_node_common(funcname, ctx, evt, arg);
+		/* call default event handler common to all analdes */
+		__efc_analde_common(funcname, ctx, evt, arg);
 	}
 }
 
 static void
-__efc_d_wait_del_node(struct efc_sm_ctx *ctx,
+__efc_d_wait_del_analde(struct efc_sm_ctx *ctx,
 		      enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
 	/*
-	 * State is entered when a node sends a delete initiator/target call
+	 * State is entered when a analde sends a delete initiator/target call
 	 * to the target-server/initiator-client and needs to wait for that
 	 * work to complete.
 	 */
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		fallthrough;
 
-	case EFC_EVT_NODE_ACTIVE_IO_LIST_EMPTY:
-	case EFC_EVT_ALL_CHILD_NODES_FREE:
+	case EFC_EVT_ANALDE_ACTIVE_IO_LIST_EMPTY:
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE:
 		/* These are expected events. */
 		break;
 
-	case EFC_EVT_NODE_DEL_INI_COMPLETE:
-	case EFC_EVT_NODE_DEL_TGT_COMPLETE:
+	case EFC_EVT_ANALDE_DEL_INI_COMPLETE:
+	case EFC_EVT_ANALDE_DEL_TGT_COMPLETE:
 		/*
-		 * node has either been detached or is in the process
+		 * analde has either been detached or is in the process
 		 * of being detached,
-		 * call common node's initiate cleanup function
+		 * call common analde's initiate cleanup function
 		 */
-		efc_node_initiate_cleanup(node);
+		efc_analde_initiate_cleanup(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_FAIL:
 		/* Can happen as ELS IO IO's complete */
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		break;
 
-	/* ignore shutdown events as we're already in shutdown path */
+	/* iganalre shutdown events as we're already in shutdown path */
 	case EFC_EVT_SHUTDOWN:
 		/* have default shutdown event take precedence */
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
 		fallthrough;
 
 	case EFC_EVT_SHUTDOWN_EXPLICIT_LOGO:
 	case EFC_EVT_SHUTDOWN_IMPLICIT_LOGO:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
 		break;
 	case EFC_EVT_DOMAIN_ATTACH_OK:
 		/* don't care about domain_attach_ok */
@@ -145,46 +145,46 @@ static void
 __efc_d_wait_del_ini_tgt(struct efc_sm_ctx *ctx,
 			 enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		fallthrough;
 
-	case EFC_EVT_NODE_ACTIVE_IO_LIST_EMPTY:
-	case EFC_EVT_ALL_CHILD_NODES_FREE:
+	case EFC_EVT_ANALDE_ACTIVE_IO_LIST_EMPTY:
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE:
 		/* These are expected events. */
 		break;
 
-	case EFC_EVT_NODE_DEL_INI_COMPLETE:
-	case EFC_EVT_NODE_DEL_TGT_COMPLETE:
-		efc_node_transition(node, __efc_d_wait_del_node, NULL);
+	case EFC_EVT_ANALDE_DEL_INI_COMPLETE:
+	case EFC_EVT_ANALDE_DEL_TGT_COMPLETE:
+		efc_analde_transition(analde, __efc_d_wait_del_analde, NULL);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_FAIL:
 		/* Can happen as ELS IO IO's complete */
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		break;
 
-	/* ignore shutdown events as we're already in shutdown path */
+	/* iganalre shutdown events as we're already in shutdown path */
 	case EFC_EVT_SHUTDOWN:
 		/* have default shutdown event take precedence */
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
 		fallthrough;
 
 	case EFC_EVT_SHUTDOWN_EXPLICIT_LOGO:
 	case EFC_EVT_SHUTDOWN_IMPLICIT_LOGO:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
 		break;
 	case EFC_EVT_DOMAIN_ATTACH_OK:
 		/* don't care about domain_attach_ok */
@@ -198,110 +198,110 @@ void
 __efc_d_initiate_shutdown(struct efc_sm_ctx *ctx,
 			  enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
-	struct efc *efc = node->efc;
+	struct efc_analde *analde = ctx->app;
+	struct efc *efc = analde->efc;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER: {
 		int rc = EFC_SCSI_CALL_COMPLETE;
 
-		/* assume no wait needed */
-		node->els_io_enabled = false;
+		/* assume anal wait needed */
+		analde->els_io_enabled = false;
 
 		/* make necessary delete upcall(s) */
-		if (node->init && !node->targ) {
-			efc_log_info(node->efc,
+		if (analde->init && !analde->targ) {
+			efc_log_info(analde->efc,
 				     "[%s] delete (initiator) WWPN %s WWNN %s\n",
-				node->display_name,
-				node->wwpn, node->wwnn);
-			efc_node_transition(node,
-					    __efc_d_wait_del_node,
+				analde->display_name,
+				analde->wwpn, analde->wwnn);
+			efc_analde_transition(analde,
+					    __efc_d_wait_del_analde,
 					     NULL);
-			if (node->nport->enable_tgt)
-				rc = efc->tt.scsi_del_node(efc, node,
+			if (analde->nport->enable_tgt)
+				rc = efc->tt.scsi_del_analde(efc, analde,
 					EFC_SCSI_INITIATOR_DELETED);
 
 			if (rc == EFC_SCSI_CALL_COMPLETE || rc < 0)
-				efc_node_post_event(node,
-					EFC_EVT_NODE_DEL_INI_COMPLETE, NULL);
+				efc_analde_post_event(analde,
+					EFC_EVT_ANALDE_DEL_INI_COMPLETE, NULL);
 
-		} else if (node->targ && !node->init) {
-			efc_log_info(node->efc,
+		} else if (analde->targ && !analde->init) {
+			efc_log_info(analde->efc,
 				     "[%s] delete (target) WWPN %s WWNN %s\n",
-				node->display_name,
-				node->wwpn, node->wwnn);
-			efc_node_transition(node,
-					    __efc_d_wait_del_node,
+				analde->display_name,
+				analde->wwpn, analde->wwnn);
+			efc_analde_transition(analde,
+					    __efc_d_wait_del_analde,
 					     NULL);
-			if (node->nport->enable_ini)
-				rc = efc->tt.scsi_del_node(efc, node,
+			if (analde->nport->enable_ini)
+				rc = efc->tt.scsi_del_analde(efc, analde,
 					EFC_SCSI_TARGET_DELETED);
 
 			if (rc == EFC_SCSI_CALL_COMPLETE)
-				efc_node_post_event(node,
-					EFC_EVT_NODE_DEL_TGT_COMPLETE, NULL);
+				efc_analde_post_event(analde,
+					EFC_EVT_ANALDE_DEL_TGT_COMPLETE, NULL);
 
-		} else if (node->init && node->targ) {
-			efc_log_info(node->efc,
+		} else if (analde->init && analde->targ) {
+			efc_log_info(analde->efc,
 				     "[%s] delete (I+T) WWPN %s WWNN %s\n",
-				node->display_name, node->wwpn, node->wwnn);
-			efc_node_transition(node, __efc_d_wait_del_ini_tgt,
+				analde->display_name, analde->wwpn, analde->wwnn);
+			efc_analde_transition(analde, __efc_d_wait_del_ini_tgt,
 					    NULL);
-			if (node->nport->enable_tgt)
-				rc = efc->tt.scsi_del_node(efc, node,
+			if (analde->nport->enable_tgt)
+				rc = efc->tt.scsi_del_analde(efc, analde,
 						EFC_SCSI_INITIATOR_DELETED);
 
 			if (rc == EFC_SCSI_CALL_COMPLETE)
-				efc_node_post_event(node,
-					EFC_EVT_NODE_DEL_INI_COMPLETE, NULL);
-			/* assume no wait needed */
+				efc_analde_post_event(analde,
+					EFC_EVT_ANALDE_DEL_INI_COMPLETE, NULL);
+			/* assume anal wait needed */
 			rc = EFC_SCSI_CALL_COMPLETE;
-			if (node->nport->enable_ini)
-				rc = efc->tt.scsi_del_node(efc, node,
+			if (analde->nport->enable_ini)
+				rc = efc->tt.scsi_del_analde(efc, analde,
 						EFC_SCSI_TARGET_DELETED);
 
 			if (rc == EFC_SCSI_CALL_COMPLETE)
-				efc_node_post_event(node,
-					EFC_EVT_NODE_DEL_TGT_COMPLETE, NULL);
+				efc_analde_post_event(analde,
+					EFC_EVT_ANALDE_DEL_TGT_COMPLETE, NULL);
 		}
 
-		/* we've initiated the upcalls as needed, now kick off the node
+		/* we've initiated the upcalls as needed, analw kick off the analde
 		 * detach to precipitate the aborting of outstanding exchanges
-		 * associated with said node
+		 * associated with said analde
 		 *
 		 * Beware: if we've made upcall(s), we've already transitioned
 		 * to a new state by the time we execute this.
 		 * consider doing this before the upcalls?
 		 */
-		if (node->attached) {
-			/* issue hw node free; don't care if succeeds right
-			 * away or sometime later, will check node->attached
+		if (analde->attached) {
+			/* issue hw analde free; don't care if succeeds right
+			 * away or sometime later, will check analde->attached
 			 * later in shutdown process
 			 */
-			rc = efc_cmd_node_detach(efc, &node->rnode);
+			rc = efc_cmd_analde_detach(efc, &analde->ranalde);
 			if (rc < 0)
-				node_printf(node,
-					    "Failed freeing HW node, rc=%d\n",
+				analde_printf(analde,
+					    "Failed freeing HW analde, rc=%d\n",
 					rc);
 		}
 
-		/* if neither initiator nor target, proceed to cleanup */
-		if (!node->init && !node->targ) {
+		/* if neither initiator analr target, proceed to cleanup */
+		if (!analde->init && !analde->targ) {
 			/*
-			 * node has either been detached or is in
+			 * analde has either been detached or is in
 			 * the process of being detached,
-			 * call common node's initiate cleanup function
+			 * call common analde's initiate cleanup function
 			 */
-			efc_node_initiate_cleanup(node);
+			efc_analde_initiate_cleanup(analde);
 		}
 		break;
 	}
-	case EFC_EVT_ALL_CHILD_NODES_FREE:
-		/* Ignore, this can happen if an ELS is
+	case EFC_EVT_ALL_CHILD_ANALDES_FREE:
+		/* Iganalre, this can happen if an ELS is
 		 * aborted while in a delay/retry state
 		 */
 		break;
@@ -314,24 +314,24 @@ void
 __efc_d_wait_loop(struct efc_sm_ctx *ctx,
 		  enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_DOMAIN_ATTACH_OK: {
 		/* send PLOGI automatically if initiator */
-		efc_node_init_device(node, true);
+		efc_analde_init_device(analde, true);
 		break;
 	}
 	default:
@@ -340,22 +340,22 @@ __efc_d_wait_loop(struct efc_sm_ctx *ctx,
 }
 
 void
-efc_send_ls_acc_after_attach(struct efc_node *node,
+efc_send_ls_acc_after_attach(struct efc_analde *analde,
 			     struct fc_frame_header *hdr,
-			     enum efc_node_send_ls_acc ls)
+			     enum efc_analde_send_ls_acc ls)
 {
 	u16 ox_id = be16_to_cpu(hdr->fh_ox_id);
 
 	/* Save the OX_ID for sending LS_ACC sometime later */
-	WARN_ON(node->send_ls_acc != EFC_NODE_SEND_LS_ACC_NONE);
+	WARN_ON(analde->send_ls_acc != EFC_ANALDE_SEND_LS_ACC_ANALNE);
 
-	node->ls_acc_oxid = ox_id;
-	node->send_ls_acc = ls;
-	node->ls_acc_did = ntoh24(hdr->fh_d_id);
+	analde->ls_acc_oxid = ox_id;
+	analde->send_ls_acc = ls;
+	analde->ls_acc_did = ntoh24(hdr->fh_d_id);
 }
 
 void
-efc_process_prli_payload(struct efc_node *node, void *prli)
+efc_process_prli_payload(struct efc_analde *analde, void *prli)
 {
 	struct {
 		struct fc_els_prli prli;
@@ -363,40 +363,40 @@ efc_process_prli_payload(struct efc_node *node, void *prli)
 	} *pp;
 
 	pp = prli;
-	node->init = (pp->sp.spp_flags & FCP_SPPF_INIT_FCN) != 0;
-	node->targ = (pp->sp.spp_flags & FCP_SPPF_TARG_FCN) != 0;
+	analde->init = (pp->sp.spp_flags & FCP_SPPF_INIT_FCN) != 0;
+	analde->targ = (pp->sp.spp_flags & FCP_SPPF_TARG_FCN) != 0;
 }
 
 void
 __efc_d_wait_plogi_acc_cmpl(struct efc_sm_ctx *ctx,
 			    enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_CMPL_FAIL:
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 
 	case EFC_EVT_SRRS_ELS_CMPL_OK:	/* PLOGI ACC completions */
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
-		efc_node_transition(node, __efc_d_port_logged_in, NULL);
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
+		efc_analde_transition(analde, __efc_d_port_logged_in, NULL);
 		break;
 
 	default:
@@ -408,36 +408,36 @@ void
 __efc_d_wait_logo_rsp(struct efc_sm_ctx *ctx,
 		      enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_OK:
 	case EFC_EVT_SRRS_ELS_REQ_RJT:
 	case EFC_EVT_SRRS_ELS_REQ_FAIL:
 		/* LOGO response received, sent shutdown */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_LOGO,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_LOGO,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		node_printf(node,
-			    "LOGO sent (evt=%s), shutdown node\n",
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		analde_printf(analde,
+			    "LOGO sent (evt=%s), shutdown analde\n",
 			efc_sm_event_name(evt));
 		/* sm: / post explicit logout */
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
 				    NULL);
 		break;
 
@@ -447,91 +447,91 @@ __efc_d_wait_logo_rsp(struct efc_sm_ctx *ctx,
 }
 
 void
-efc_node_init_device(struct efc_node *node, bool send_plogi)
+efc_analde_init_device(struct efc_analde *analde, bool send_plogi)
 {
-	node->send_plogi = send_plogi;
-	if ((node->efc->nodedb_mask & EFC_NODEDB_PAUSE_NEW_NODES) &&
-	    (node->rnode.fc_id != FC_FID_DOM_MGR)) {
-		node->nodedb_state = __efc_d_init;
-		efc_node_transition(node, __efc_node_paused, NULL);
+	analde->send_plogi = send_plogi;
+	if ((analde->efc->analdedb_mask & EFC_ANALDEDB_PAUSE_NEW_ANALDES) &&
+	    (analde->ranalde.fc_id != FC_FID_DOM_MGR)) {
+		analde->analdedb_state = __efc_d_init;
+		efc_analde_transition(analde, __efc_analde_paused, NULL);
 	} else {
-		efc_node_transition(node, __efc_d_init, NULL);
+		efc_analde_transition(analde, __efc_d_init, NULL);
 	}
 }
 
 static void
-efc_d_check_plogi_topology(struct efc_node *node, u32 d_id)
+efc_d_check_plogi_topology(struct efc_analde *analde, u32 d_id)
 {
-	switch (node->nport->topology) {
+	switch (analde->nport->topology) {
 	case EFC_NPORT_TOPO_P2P:
-		/* we're not attached and nport is p2p,
+		/* we're analt attached and nport is p2p,
 		 * need to attach
 		 */
-		efc_domain_attach(node->nport->domain, d_id);
-		efc_node_transition(node, __efc_d_wait_domain_attach, NULL);
+		efc_domain_attach(analde->nport->domain, d_id);
+		efc_analde_transition(analde, __efc_d_wait_domain_attach, NULL);
 		break;
 	case EFC_NPORT_TOPO_FABRIC:
-		/* we're not attached and nport is fabric, domain
+		/* we're analt attached and nport is fabric, domain
 		 * attach should have already been requested as part
 		 * of the fabric state machine, wait for it
 		 */
-		efc_node_transition(node, __efc_d_wait_domain_attach, NULL);
+		efc_analde_transition(analde, __efc_d_wait_domain_attach, NULL);
 		break;
-	case EFC_NPORT_TOPO_UNKNOWN:
+	case EFC_NPORT_TOPO_UNKANALWN:
 		/* Two possibilities:
 		 * 1. received a PLOGI before our FLOGI has completed
-		 *    (possible since completion comes in on another
-		 *    CQ), thus we don't know what we're connected to
+		 *    (possible since completion comes in on aanalther
+		 *    CQ), thus we don't kanalw what we're connected to
 		 *    yet; transition to a state to wait for the
-		 *    fabric node to tell us;
+		 *    fabric analde to tell us;
 		 * 2. PLOGI received before link went down and we
 		 * haven't performed domain attach yet.
-		 * Note: we cannot distinguish between 1. and 2.
+		 * Analte: we cananalt distinguish between 1. and 2.
 		 * so have to assume PLOGI
 		 * was received after link back up.
 		 */
-		node_printf(node, "received PLOGI, unknown topology did=0x%x\n",
+		analde_printf(analde, "received PLOGI, unkanalwn topology did=0x%x\n",
 			    d_id);
-		efc_node_transition(node, __efc_d_wait_topology_notify, NULL);
+		efc_analde_transition(analde, __efc_d_wait_topology_analtify, NULL);
 		break;
 	default:
-		node_printf(node, "received PLOGI, unexpected topology %d\n",
-			    node->nport->topology);
+		analde_printf(analde, "received PLOGI, unexpected topology %d\n",
+			    analde->nport->topology);
 	}
 }
 
 void
 __efc_d_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 {
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	/*
-	 * This state is entered when a node is instantiated,
+	 * This state is entered when a analde is instantiated,
 	 * either having been discovered from a name services query,
 	 * or having received a PLOGI/FLOGI.
 	 */
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		if (!node->send_plogi)
+		if (!analde->send_plogi)
 			break;
 		/* only send if we have initiator capability,
 		 * and domain is attached
 		 */
-		if (node->nport->enable_ini &&
-		    node->nport->domain->attached) {
-			efc_send_plogi(node);
+		if (analde->nport->enable_ini &&
+		    analde->nport->domain->attached) {
+			efc_send_plogi(analde);
 
-			efc_node_transition(node, __efc_d_wait_plogi_rsp, NULL);
+			efc_analde_transition(analde, __efc_d_wait_plogi_rsp, NULL);
 		} else {
-			node_printf(node, "not sending plogi nport.ini=%d,",
-				    node->nport->enable_ini);
-			node_printf(node, "domain attached=%d\n",
-				    node->nport->domain->attached);
+			analde_printf(analde, "analt sending plogi nport.ini=%d,",
+				    analde->nport->enable_ini);
+			analde_printf(analde, "domain attached=%d\n",
+				    analde->nport->domain->attached);
 		}
 		break;
 	case EFC_EVT_PLOGI_RCVD: {
@@ -539,22 +539,22 @@ __efc_d_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 		int rc;
 
-		efc_node_save_sparms(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_analde_save_sparms(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-					     EFC_NODE_SEND_LS_ACC_PLOGI);
+					     EFC_ANALDE_SEND_LS_ACC_PLOGI);
 
-		/* domain not attached; several possibilities: */
-		if (!node->nport->domain->attached) {
-			efc_d_check_plogi_topology(node, ntoh24(hdr->fh_d_id));
+		/* domain analt attached; several possibilities: */
+		if (!analde->nport->domain->attached) {
+			efc_d_check_plogi_topology(analde, ntoh24(hdr->fh_d_id));
 			break;
 		}
 
 		/* domain already attached */
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node, EFC_EVT_NODE_ATTACH_FAIL, NULL);
+			efc_analde_post_event(analde, EFC_EVT_ANALDE_ATTACH_FAIL, NULL);
 
 		break;
 	}
@@ -569,43 +569,43 @@ __efc_d_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 		u32 d_id = ntoh24(hdr->fh_d_id);
 
 		/* sm: / save sparams, send FLOGI acc */
-		memcpy(node->nport->domain->flogi_service_params,
+		memcpy(analde->nport->domain->flogi_service_params,
 		       cbdata->payload->dma.virt,
 		       sizeof(struct fc_els_flogi));
 
 		/* send FC LS_ACC response, override s_id */
-		efc_fabric_set_topology(node, EFC_NPORT_TOPO_P2P);
+		efc_fabric_set_topology(analde, EFC_NPORT_TOPO_P2P);
 
-		efc_send_flogi_p2p_acc(node, be16_to_cpu(hdr->fh_ox_id), d_id);
+		efc_send_flogi_p2p_acc(analde, be16_to_cpu(hdr->fh_ox_id), d_id);
 
-		if (efc_p2p_setup(node->nport)) {
-			node_printf(node, "p2p failed, shutting down node\n");
-			efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+		if (efc_p2p_setup(analde->nport)) {
+			analde_printf(analde, "p2p failed, shutting down analde\n");
+			efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 			break;
 		}
 
-		efc_node_transition(node,  __efc_p2p_wait_flogi_acc_cmpl, NULL);
+		efc_analde_transition(analde,  __efc_p2p_wait_flogi_acc_cmpl, NULL);
 		break;
 	}
 
 	case EFC_EVT_LOGO_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		if (!node->nport->domain->attached) {
+		if (!analde->nport->domain->attached) {
 			/* most likely a frame left over from before a link
 			 * down; drop and
-			 * shut node down w/ "explicit logout" so pending
+			 * shut analde down w/ "explicit logout" so pending
 			 * frames are processed
 			 */
-			node_printf(node, "%s domain not attached, dropping\n",
+			analde_printf(analde, "%s domain analt attached, dropping\n",
 				    efc_sm_event_name(evt));
-			efc_node_post_event(node,
+			efc_analde_post_event(analde,
 					EFC_EVT_SHUTDOWN_EXPLICIT_LOGO, NULL);
 			break;
 		}
 
-		efc_send_logo_acc(node, be16_to_cpu(hdr->fh_ox_id));
-		efc_node_transition(node, __efc_d_wait_logo_acc_cmpl, NULL);
+		efc_send_logo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
+		efc_analde_transition(analde, __efc_d_wait_logo_acc_cmpl, NULL);
 		break;
 	}
 
@@ -616,60 +616,60 @@ __efc_d_init(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 	case EFC_EVT_RSCN_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		if (!node->nport->domain->attached) {
+		if (!analde->nport->domain->attached) {
 			/* most likely a frame left over from before a link
-			 * down; drop and shut node down w/ "explicit logout"
+			 * down; drop and shut analde down w/ "explicit logout"
 			 * so pending frames are processed
 			 */
-			node_printf(node, "%s domain not attached, dropping\n",
+			analde_printf(analde, "%s domain analt attached, dropping\n",
 				    efc_sm_event_name(evt));
 
-			efc_node_post_event(node,
+			efc_analde_post_event(analde,
 					    EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
 					    NULL);
 			break;
 		}
-		node_printf(node, "%s received, sending reject\n",
+		analde_printf(analde, "%s received, sending reject\n",
 			    efc_sm_event_name(evt));
 
-		efc_send_ls_rjt(node, be16_to_cpu(hdr->fh_ox_id),
+		efc_send_ls_rjt(analde, be16_to_cpu(hdr->fh_ox_id),
 				ELS_RJT_UNAB, ELS_EXPL_PLOGI_REQD, 0);
 
 		break;
 	}
 
 	case EFC_EVT_FCP_CMD_RCVD: {
-		/* note: problem, we're now expecting an ELS REQ completion
+		/* analte: problem, we're analw expecting an ELS REQ completion
 		 * from both the LOGO and PLOGI
 		 */
-		if (!node->nport->domain->attached) {
+		if (!analde->nport->domain->attached) {
 			/* most likely a frame left over from before a
 			 * link down; drop and
-			 * shut node down w/ "explicit logout" so pending
+			 * shut analde down w/ "explicit logout" so pending
 			 * frames are processed
 			 */
-			node_printf(node, "%s domain not attached, dropping\n",
+			analde_printf(analde, "%s domain analt attached, dropping\n",
 				    efc_sm_event_name(evt));
-			efc_node_post_event(node,
+			efc_analde_post_event(analde,
 					    EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
 					    NULL);
 			break;
 		}
 
 		/* Send LOGO */
-		node_printf(node, "FCP_CMND received, send LOGO\n");
-		if (efc_send_logo(node)) {
+		analde_printf(analde, "FCP_CMND received, send LOGO\n");
+		if (efc_send_logo(analde)) {
 			/*
-			 * failed to send LOGO, go ahead and cleanup node
+			 * failed to send LOGO, go ahead and cleanup analde
 			 * anyways
 			 */
-			node_printf(node, "Failed to send LOGO\n");
-			efc_node_post_event(node,
+			analde_printf(analde, "Failed to send LOGO\n");
+			efc_analde_post_event(analde,
 					    EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
 					    NULL);
 		} else {
 			/* sent LOGO, wait for response */
-			efc_node_transition(node,
+			efc_analde_transition(analde,
 					    __efc_d_wait_logo_rsp, NULL);
 		}
 		break;
@@ -688,33 +688,33 @@ __efc_d_wait_plogi_rsp(struct efc_sm_ctx *ctx,
 		       enum efc_sm_event evt, void *arg)
 {
 	int rc;
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_PLOGI_RCVD: {
 		/* T, or I+T */
-		/* received PLOGI with svc parms, go ahead and attach node
+		/* received PLOGI with svc parms, go ahead and attach analde
 		 * when PLOGI that was sent ultimately completes, it'll be a
-		 * no-op
+		 * anal-op
 		 *
 		 * If there is an outstanding PLOGI sent, can we set a flag
 		 * to indicate that we don't want to retry it if it times out?
 		 */
-		efc_node_save_sparms(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_analde_save_sparms(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-				EFC_NODE_SEND_LS_ACC_PLOGI);
-		/* sm: domain->attached / efc_node_attach */
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+				EFC_ANALDE_SEND_LS_ACC_PLOGI);
+		/* sm: domain->attached / efc_analde_attach */
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node,
-					    EFC_EVT_NODE_ATTACH_FAIL, NULL);
+			efc_analde_post_event(analde,
+					    EFC_EVT_ANALDE_ATTACH_FAIL, NULL);
 
 		break;
 	}
@@ -722,16 +722,16 @@ __efc_d_wait_plogi_rsp(struct efc_sm_ctx *ctx,
 	case EFC_EVT_PRLI_RCVD:
 		/* I, or I+T */
 		/* sent PLOGI and before completion was seen, received the
-		 * PRLI from the remote node (WCQEs and RCQEs come in on
-		 * different queues and order of processing cannot be assumed)
+		 * PRLI from the remote analde (WCQEs and RCQEs come in on
+		 * different queues and order of processing cananalt be assumed)
 		 * Save OXID so PRLI can be sent after the attach and continue
 		 * to wait for PLOGI response
 		 */
-		efc_process_prli_payload(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_process_prli_payload(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-				EFC_NODE_SEND_LS_ACC_PRLI);
-		efc_node_transition(node, __efc_d_wait_plogi_rsp_recvd_prli,
+				EFC_ANALDE_SEND_LS_ACC_PRLI);
+		efc_analde_transition(analde, __efc_d_wait_plogi_rsp_recvd_prli,
 				    NULL);
 		break;
 
@@ -744,10 +744,10 @@ __efc_d_wait_plogi_rsp(struct efc_sm_ctx *ctx,
 	case EFC_EVT_SCR_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		node_printf(node, "%s received, sending reject\n",
+		analde_printf(analde, "%s received, sending reject\n",
 			    efc_sm_event_name(evt));
 
-		efc_send_ls_rjt(node, be16_to_cpu(hdr->fh_ox_id),
+		efc_send_ls_rjt(analde, be16_to_cpu(hdr->fh_ox_id),
 				ELS_RJT_UNAB, ELS_EXPL_PLOGI_REQD, 0);
 
 		break;
@@ -755,48 +755,48 @@ __efc_d_wait_plogi_rsp(struct efc_sm_ctx *ctx,
 
 	case EFC_EVT_SRRS_ELS_REQ_OK:	/* PLOGI response received */
 		/* Completion from PLOGI sent */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PLOGI,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PLOGI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		/* sm: / save sparams, efc_node_attach */
-		efc_node_save_sparms(node, cbdata->els_rsp.virt);
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		/* sm: / save sparams, efc_analde_attach */
+		efc_analde_save_sparms(analde, cbdata->els_rsp.virt);
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node,
-					    EFC_EVT_NODE_ATTACH_FAIL, NULL);
+			efc_analde_post_event(analde,
+					    EFC_EVT_ANALDE_ATTACH_FAIL, NULL);
 
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_FAIL:	/* PLOGI response received */
-		/* PLOGI failed, shutdown the node */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PLOGI,
+		/* PLOGI failed, shutdown the analde */
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PLOGI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_RJT:
 		/* Our PLOGI was rejected, this is ok in some cases */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PLOGI,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PLOGI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		break;
 
 	case EFC_EVT_FCP_CMD_RCVD: {
-		/* not logged in yet and outstanding PLOGI so don't send LOGO,
+		/* analt logged in yet and outstanding PLOGI so don't send LOGO,
 		 * just drop
 		 */
-		node_printf(node, "FCP_CMND received, drop\n");
+		analde_printf(analde, "FCP_CMND received, drop\n");
 		break;
 	}
 
@@ -810,60 +810,60 @@ __efc_d_wait_plogi_rsp_recvd_prli(struct efc_sm_ctx *ctx,
 				  enum efc_sm_event evt, void *arg)
 {
 	int rc;
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
 		/*
 		 * Since we've received a PRLI, we have a port login and will
-		 * just need to wait for the PLOGI response to do the node
+		 * just need to wait for the PLOGI response to do the analde
 		 * attach and then we can send the LS_ACC for the PRLI. If,
 		 * during this time, we receive FCP_CMNDs (which is possible
 		 * since we've already sent a PRLI and our peer may have
-		 * accepted). At this time, we are not waiting on any other
+		 * accepted). At this time, we are analt waiting on any other
 		 * unsolicited frames to continue with the login process. Thus,
-		 * it will not hurt to hold frames here.
+		 * it will analt hurt to hold frames here.
 		 */
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_OK:	/* PLOGI response received */
 		/* Completion from PLOGI sent */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PLOGI,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PLOGI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		/* sm: / save sparams, efc_node_attach */
-		efc_node_save_sparms(node, cbdata->els_rsp.virt);
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		/* sm: / save sparams, efc_analde_attach */
+		efc_analde_save_sparms(analde, cbdata->els_rsp.virt);
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node, EFC_EVT_NODE_ATTACH_FAIL,
+			efc_analde_post_event(analde, EFC_EVT_ANALDE_ATTACH_FAIL,
 					    NULL);
 
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_FAIL:	/* PLOGI response received */
 	case EFC_EVT_SRRS_ELS_REQ_RJT:
-		/* PLOGI failed, shutdown the node */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PLOGI,
+		/* PLOGI failed, shutdown the analde */
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PLOGI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 		break;
 
 	default:
@@ -876,28 +876,28 @@ __efc_d_wait_domain_attach(struct efc_sm_ctx *ctx,
 			   enum efc_sm_event evt, void *arg)
 {
 	int rc;
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_DOMAIN_ATTACH_OK:
-		WARN_ON(!node->nport->domain->attached);
-		/* sm: / efc_node_attach */
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+		WARN_ON(!analde->nport->domain->attached);
+		/* sm: / efc_analde_attach */
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node, EFC_EVT_NODE_ATTACH_FAIL,
+			efc_analde_post_event(analde, EFC_EVT_ANALDE_ATTACH_FAIL,
 					    NULL);
 
 		break;
@@ -908,64 +908,64 @@ __efc_d_wait_domain_attach(struct efc_sm_ctx *ctx,
 }
 
 void
-__efc_d_wait_topology_notify(struct efc_sm_ctx *ctx,
+__efc_d_wait_topology_analtify(struct efc_sm_ctx *ctx,
 			     enum efc_sm_event evt, void *arg)
 {
 	int rc;
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
-	case EFC_EVT_NPORT_TOPOLOGY_NOTIFY: {
+	case EFC_EVT_NPORT_TOPOLOGY_ANALTIFY: {
 		enum efc_nport_topology *topology = arg;
 
-		WARN_ON(node->nport->domain->attached);
+		WARN_ON(analde->nport->domain->attached);
 
-		WARN_ON(node->send_ls_acc != EFC_NODE_SEND_LS_ACC_PLOGI);
+		WARN_ON(analde->send_ls_acc != EFC_ANALDE_SEND_LS_ACC_PLOGI);
 
-		node_printf(node, "topology notification, topology=%d\n",
+		analde_printf(analde, "topology analtification, topology=%d\n",
 			    *topology);
 
-		/* At the time the PLOGI was received, the topology was unknown,
-		 * so we didn't know which node would perform the domain attach:
-		 * 1. The node from which the PLOGI was sent (p2p) or
-		 * 2. The node to which the FLOGI was sent (fabric).
+		/* At the time the PLOGI was received, the topology was unkanalwn,
+		 * so we didn't kanalw which analde would perform the domain attach:
+		 * 1. The analde from which the PLOGI was sent (p2p) or
+		 * 2. The analde to which the FLOGI was sent (fabric).
 		 */
 		if (*topology == EFC_NPORT_TOPO_P2P) {
 			/* if this is p2p, need to attach to the domain using
 			 * the d_id from the PLOGI received
 			 */
-			efc_domain_attach(node->nport->domain,
-					  node->ls_acc_did);
+			efc_domain_attach(analde->nport->domain,
+					  analde->ls_acc_did);
 		}
 		/* else, if this is fabric, the domain attach
-		 * should be performed by the fabric node (node sending FLOGI);
+		 * should be performed by the fabric analde (analde sending FLOGI);
 		 * just wait for attach to complete
 		 */
 
-		efc_node_transition(node, __efc_d_wait_domain_attach, NULL);
+		efc_analde_transition(analde, __efc_d_wait_domain_attach, NULL);
 		break;
 	}
 	case EFC_EVT_DOMAIN_ATTACH_OK:
-		WARN_ON(!node->nport->domain->attached);
-		node_printf(node, "domain attach ok\n");
-		/* sm: / efc_node_attach */
-		rc = efc_node_attach(node);
-		efc_node_transition(node, __efc_d_wait_node_attach, NULL);
+		WARN_ON(!analde->nport->domain->attached);
+		analde_printf(analde, "domain attach ok\n");
+		/* sm: / efc_analde_attach */
+		rc = efc_analde_attach(analde);
+		efc_analde_transition(analde, __efc_d_wait_analde_attach, NULL);
 		if (rc < 0)
-			efc_node_post_event(node,
-					    EFC_EVT_NODE_ATTACH_FAIL, NULL);
+			efc_analde_post_event(analde,
+					    EFC_EVT_ANALDE_ATTACH_FAIL, NULL);
 
 		break;
 
@@ -975,78 +975,78 @@ __efc_d_wait_topology_notify(struct efc_sm_ctx *ctx,
 }
 
 void
-__efc_d_wait_node_attach(struct efc_sm_ctx *ctx,
+__efc_d_wait_analde_attach(struct efc_sm_ctx *ctx,
 			 enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
-	case EFC_EVT_NODE_ATTACH_OK:
-		node->attached = true;
-		switch (node->send_ls_acc) {
-		case EFC_NODE_SEND_LS_ACC_PLOGI: {
+	case EFC_EVT_ANALDE_ATTACH_OK:
+		analde->attached = true;
+		switch (analde->send_ls_acc) {
+		case EFC_ANALDE_SEND_LS_ACC_PLOGI: {
 			/* sm: send_plogi_acc is set / send PLOGI acc */
-			/* Normal case for T, or I+T */
-			efc_send_plogi_acc(node, node->ls_acc_oxid);
-			efc_node_transition(node, __efc_d_wait_plogi_acc_cmpl,
+			/* Analrmal case for T, or I+T */
+			efc_send_plogi_acc(analde, analde->ls_acc_oxid);
+			efc_analde_transition(analde, __efc_d_wait_plogi_acc_cmpl,
 					    NULL);
-			node->send_ls_acc = EFC_NODE_SEND_LS_ACC_NONE;
-			node->ls_acc_io = NULL;
+			analde->send_ls_acc = EFC_ANALDE_SEND_LS_ACC_ANALNE;
+			analde->ls_acc_io = NULL;
 			break;
 		}
-		case EFC_NODE_SEND_LS_ACC_PRLI: {
-			efc_d_send_prli_rsp(node, node->ls_acc_oxid);
-			node->send_ls_acc = EFC_NODE_SEND_LS_ACC_NONE;
-			node->ls_acc_io = NULL;
+		case EFC_ANALDE_SEND_LS_ACC_PRLI: {
+			efc_d_send_prli_rsp(analde, analde->ls_acc_oxid);
+			analde->send_ls_acc = EFC_ANALDE_SEND_LS_ACC_ANALNE;
+			analde->ls_acc_io = NULL;
 			break;
 		}
-		case EFC_NODE_SEND_LS_ACC_NONE:
+		case EFC_ANALDE_SEND_LS_ACC_ANALNE:
 		default:
-			/* Normal case for I */
-			/* sm: send_plogi_acc is not set / send PLOGI acc */
-			efc_node_transition(node,
+			/* Analrmal case for I */
+			/* sm: send_plogi_acc is analt set / send PLOGI acc */
+			efc_analde_transition(analde,
 					    __efc_d_port_logged_in, NULL);
 			break;
 		}
 		break;
 
-	case EFC_EVT_NODE_ATTACH_FAIL:
-		/* node attach failed, shutdown the node */
-		node->attached = false;
-		node_printf(node, "node attach failed\n");
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+	case EFC_EVT_ANALDE_ATTACH_FAIL:
+		/* analde attach failed, shutdown the analde */
+		analde->attached = false;
+		analde_printf(analde, "analde attach failed\n");
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 
 	/* Handle shutdown events */
 	case EFC_EVT_SHUTDOWN:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
-		efc_node_transition(node, __efc_d_wait_attach_evt_shutdown,
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
+		efc_analde_transition(analde, __efc_d_wait_attach_evt_shutdown,
 				    NULL);
 		break;
 	case EFC_EVT_SHUTDOWN_EXPLICIT_LOGO:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_EXPLICIT_LOGO;
-		efc_node_transition(node, __efc_d_wait_attach_evt_shutdown,
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_EXPLICIT_LOGO;
+		efc_analde_transition(analde, __efc_d_wait_attach_evt_shutdown,
 				    NULL);
 		break;
 	case EFC_EVT_SHUTDOWN_IMPLICIT_LOGO:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_IMPLICIT_LOGO;
-		efc_node_transition(node,
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_IMPLICIT_LOGO;
+		efc_analde_transition(analde,
 				    __efc_d_wait_attach_evt_shutdown, NULL);
 		break;
 	default:
@@ -1058,46 +1058,46 @@ void
 __efc_d_wait_attach_evt_shutdown(struct efc_sm_ctx *ctx,
 				 enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	/* wait for any of these attach events and then shutdown */
-	case EFC_EVT_NODE_ATTACH_OK:
-		node->attached = true;
-		node_printf(node, "Attach evt=%s, proceed to shutdown\n",
+	case EFC_EVT_ANALDE_ATTACH_OK:
+		analde->attached = true;
+		analde_printf(analde, "Attach evt=%s, proceed to shutdown\n",
 			    efc_sm_event_name(evt));
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 
-	case EFC_EVT_NODE_ATTACH_FAIL:
-		/* node attach failed, shutdown the node */
-		node->attached = false;
-		node_printf(node, "Attach evt=%s, proceed to shutdown\n",
+	case EFC_EVT_ANALDE_ATTACH_FAIL:
+		/* analde attach failed, shutdown the analde */
+		analde->attached = false;
+		analde_printf(analde, "Attach evt=%s, proceed to shutdown\n",
 			    efc_sm_event_name(evt));
-		efc_node_transition(node, __efc_d_initiate_shutdown, NULL);
+		efc_analde_transition(analde, __efc_d_initiate_shutdown, NULL);
 		break;
 
-	/* ignore shutdown events as we're already in shutdown path */
+	/* iganalre shutdown events as we're already in shutdown path */
 	case EFC_EVT_SHUTDOWN:
 		/* have default shutdown event take precedence */
-		node->shutdown_reason = EFC_NODE_SHUTDOWN_DEFAULT;
+		analde->shutdown_reason = EFC_ANALDE_SHUTDOWN_DEFAULT;
 		fallthrough;
 
 	case EFC_EVT_SHUTDOWN_EXPLICIT_LOGO:
 	case EFC_EVT_SHUTDOWN_IMPLICIT_LOGO:
-		node_printf(node, "%s received\n", efc_sm_event_name(evt));
+		analde_printf(analde, "%s received\n", efc_sm_event_name(evt));
 		break;
 
 	default:
@@ -1109,21 +1109,21 @@ void
 __efc_d_port_logged_in(struct efc_sm_ctx *ctx,
 		       enum efc_sm_event evt, void *arg)
 {
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		/* Normal case for I or I+T */
-		if (node->nport->enable_ini &&
-		    !(node->rnode.fc_id != FC_FID_DOM_MGR)) {
+		/* Analrmal case for I or I+T */
+		if (analde->nport->enable_ini &&
+		    !(analde->ranalde.fc_id != FC_FID_DOM_MGR)) {
 			/* sm: if enable_ini / send PRLI */
-			efc_send_prli(node);
-			/* can now expect ELS_REQ_OK/FAIL/RJT */
+			efc_send_prli(analde);
+			/* can analw expect ELS_REQ_OK/FAIL/RJT */
 		}
 		break;
 
@@ -1132,7 +1132,7 @@ __efc_d_port_logged_in(struct efc_sm_ctx *ctx,
 	}
 
 	case EFC_EVT_PRLI_RCVD: {
-		/* Normal case for T or I+T */
+		/* Analrmal case for T or I+T */
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 		struct {
 			struct fc_els_prli prli;
@@ -1142,80 +1142,80 @@ __efc_d_port_logged_in(struct efc_sm_ctx *ctx,
 		pp = cbdata->payload->dma.virt;
 		if (pp->sp.spp_type != FC_TYPE_FCP) {
 			/*Only FCP is supported*/
-			efc_send_ls_rjt(node, be16_to_cpu(hdr->fh_ox_id),
+			efc_send_ls_rjt(analde, be16_to_cpu(hdr->fh_ox_id),
 					ELS_RJT_UNAB, ELS_EXPL_UNSUPR, 0);
 			break;
 		}
 
-		efc_process_prli_payload(node, cbdata->payload->dma.virt);
-		efc_d_send_prli_rsp(node, be16_to_cpu(hdr->fh_ox_id));
+		efc_process_prli_payload(analde, cbdata->payload->dma.virt);
+		efc_d_send_prli_rsp(analde, be16_to_cpu(hdr->fh_ox_id));
 		break;
 	}
 
-	case EFC_EVT_NODE_SESS_REG_OK:
-		if (node->send_ls_acc == EFC_NODE_SEND_LS_ACC_PRLI)
-			efc_send_prli_acc(node, node->ls_acc_oxid);
+	case EFC_EVT_ANALDE_SESS_REG_OK:
+		if (analde->send_ls_acc == EFC_ANALDE_SEND_LS_ACC_PRLI)
+			efc_send_prli_acc(analde, analde->ls_acc_oxid);
 
-		node->send_ls_acc = EFC_NODE_SEND_LS_ACC_NONE;
-		efc_node_transition(node, __efc_d_device_ready, NULL);
+		analde->send_ls_acc = EFC_ANALDE_SEND_LS_ACC_ANALNE;
+		efc_analde_transition(analde, __efc_d_device_ready, NULL);
 		break;
 
-	case EFC_EVT_NODE_SESS_REG_FAIL:
-		efc_send_ls_rjt(node, node->ls_acc_oxid, ELS_RJT_UNAB,
+	case EFC_EVT_ANALDE_SESS_REG_FAIL:
+		efc_send_ls_rjt(analde, analde->ls_acc_oxid, ELS_RJT_UNAB,
 				ELS_EXPL_UNSUPR, 0);
-		node->send_ls_acc = EFC_NODE_SEND_LS_ACC_NONE;
+		analde->send_ls_acc = EFC_ANALDE_SEND_LS_ACC_ANALNE;
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_OK: {	/* PRLI response */
-		/* Normal case for I or I+T */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PRLI,
+		/* Analrmal case for I or I+T */
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PRLI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		/* sm: / process PRLI payload */
-		efc_process_prli_payload(node, cbdata->els_rsp.virt);
-		efc_node_transition(node, __efc_d_device_ready, NULL);
+		efc_process_prli_payload(analde, cbdata->els_rsp.virt);
+		efc_analde_transition(analde, __efc_d_device_ready, NULL);
 		break;
 	}
 
 	case EFC_EVT_SRRS_ELS_REQ_FAIL: {	/* PRLI response failed */
-		/* I, I+T, assume some link failure, shutdown node */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PRLI,
+		/* I, I+T, assume some link failure, shutdown analde */
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PRLI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 		break;
 	}
 
 	case EFC_EVT_SRRS_ELS_REQ_RJT: {
 		/* PRLI rejected by remote
-		 * Normal for I, I+T (connected to an I)
-		 * Node doesn't want to be a target, stay here and wait for a
-		 * PRLI from the remote node
+		 * Analrmal for I, I+T (connected to an I)
+		 * Analde doesn't want to be a target, stay here and wait for a
+		 * PRLI from the remote analde
 		 * if it really wants to connect to us as target
 		 */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_PRLI,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_PRLI,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		break;
 	}
 
 	case EFC_EVT_SRRS_ELS_CMPL_OK: {
-		/* Normal T, I+T, target-server rejected the process login */
+		/* Analrmal T, I+T, target-server rejected the process login */
 		/* This would be received only in the case where we sent
 		 * LS_RJT for the PRLI, so
-		 * do nothing.   (note: as T only we could shutdown the node)
+		 * do analthing.   (analte: as T only we could shutdown the analde)
 		 */
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
 		break;
 	}
 
@@ -1224,15 +1224,15 @@ __efc_d_port_logged_in(struct efc_sm_ctx *ctx,
 		 *post implicit logout
 		 * Save plogi parameters
 		 */
-		efc_node_save_sparms(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_analde_save_sparms(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-				EFC_NODE_SEND_LS_ACC_PLOGI);
+				EFC_ANALDE_SEND_LS_ACC_PLOGI);
 
-		/* Restart node attach with new service parameters,
+		/* Restart analde attach with new service parameters,
 		 * and send ACC
 		 */
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN_IMPLICIT_LOGO,
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN_IMPLICIT_LOGO,
 				    NULL);
 		break;
 	}
@@ -1241,12 +1241,12 @@ __efc_d_port_logged_in(struct efc_sm_ctx *ctx,
 		/* I, T, I+T */
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		node_printf(node, "%s received attached=%d\n",
+		analde_printf(analde, "%s received attached=%d\n",
 			    efc_sm_event_name(evt),
-					node->attached);
+					analde->attached);
 		/* sm: / send LOGO acc */
-		efc_send_logo_acc(node, be16_to_cpu(hdr->fh_ox_id));
-		efc_node_transition(node, __efc_d_wait_logo_acc_cmpl, NULL);
+		efc_send_logo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
+		efc_analde_transition(analde, __efc_d_wait_logo_acc_cmpl, NULL);
 		break;
 	}
 
@@ -1259,27 +1259,27 @@ void
 __efc_d_wait_logo_acc_cmpl(struct efc_sm_ctx *ctx,
 			   enum efc_sm_event evt, void *arg)
 {
-	struct efc_node *node = ctx->app;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		efc_node_hold_frames(node);
+		efc_analde_hold_frames(analde);
 		break;
 
 	case EFC_EVT_EXIT:
-		efc_node_accept_frames(node);
+		efc_analde_accept_frames(analde);
 		break;
 
 	case EFC_EVT_SRRS_ELS_CMPL_OK:
 	case EFC_EVT_SRRS_ELS_CMPL_FAIL:
 		/* sm: / post explicit logout */
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
-		efc_node_post_event(node,
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
+		efc_analde_post_event(analde,
 				    EFC_EVT_SHUTDOWN_EXPLICIT_LOGO, NULL);
 		break;
 	default:
@@ -1291,30 +1291,30 @@ void
 __efc_d_device_ready(struct efc_sm_ctx *ctx,
 		     enum efc_sm_event evt, void *arg)
 {
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
-	struct efc *efc = node->efc;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
+	struct efc *efc = analde->efc;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
 	if (evt != EFC_EVT_FCP_CMD_RCVD)
-		node_sm_trace();
+		analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER:
-		node->fcp_enabled = true;
-		if (node->targ) {
+		analde->fcp_enabled = true;
+		if (analde->targ) {
 			efc_log_info(efc,
 				     "[%s] found (target) WWPN %s WWNN %s\n",
-				node->display_name,
-				node->wwpn, node->wwnn);
-			if (node->nport->enable_ini)
-				efc->tt.scsi_new_node(efc, node);
+				analde->display_name,
+				analde->wwpn, analde->wwnn);
+			if (analde->nport->enable_ini)
+				efc->tt.scsi_new_analde(efc, analde);
 		}
 		break;
 
 	case EFC_EVT_EXIT:
-		node->fcp_enabled = false;
+		analde->fcp_enabled = false;
 		break;
 
 	case EFC_EVT_PLOGI_RCVD: {
@@ -1322,16 +1322,16 @@ __efc_d_device_ready(struct efc_sm_ctx *ctx,
 		 * logout
 		 * Save plogi parameters
 		 */
-		efc_node_save_sparms(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_analde_save_sparms(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-				EFC_NODE_SEND_LS_ACC_PLOGI);
+				EFC_ANALDE_SEND_LS_ACC_PLOGI);
 
 		/*
-		 * Restart node attach with new service parameters,
+		 * Restart analde attach with new service parameters,
 		 * and send ACC
 		 */
-		efc_node_post_event(node,
+		efc_analde_post_event(analde,
 				    EFC_EVT_SHUTDOWN_IMPLICIT_LOGO, NULL);
 		break;
 	}
@@ -1347,20 +1347,20 @@ __efc_d_device_ready(struct efc_sm_ctx *ctx,
 		pp = cbdata->payload->dma.virt;
 		if (pp->sp.spp_type != FC_TYPE_FCP) {
 			/*Only FCP is supported*/
-			efc_send_ls_rjt(node, be16_to_cpu(hdr->fh_ox_id),
+			efc_send_ls_rjt(analde, be16_to_cpu(hdr->fh_ox_id),
 					ELS_RJT_UNAB, ELS_EXPL_UNSUPR, 0);
 			break;
 		}
 
-		efc_process_prli_payload(node, cbdata->payload->dma.virt);
-		efc_send_prli_acc(node, be16_to_cpu(hdr->fh_ox_id));
+		efc_process_prli_payload(analde, cbdata->payload->dma.virt);
+		efc_send_prli_acc(analde, be16_to_cpu(hdr->fh_ox_id));
 		break;
 	}
 
 	case EFC_EVT_PRLO_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 		/* sm: / send PRLO acc */
-		efc_send_prlo_acc(node, be16_to_cpu(hdr->fh_ox_id));
+		efc_send_prlo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
 		/* need implicit logout? */
 		break;
 	}
@@ -1368,18 +1368,18 @@ __efc_d_device_ready(struct efc_sm_ctx *ctx,
 	case EFC_EVT_LOGO_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		node_printf(node, "%s received attached=%d\n",
-			    efc_sm_event_name(evt), node->attached);
+		analde_printf(analde, "%s received attached=%d\n",
+			    efc_sm_event_name(evt), analde->attached);
 		/* sm: / send LOGO acc */
-		efc_send_logo_acc(node, be16_to_cpu(hdr->fh_ox_id));
-		efc_node_transition(node, __efc_d_wait_logo_acc_cmpl, NULL);
+		efc_send_logo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
+		efc_analde_transition(analde, __efc_d_wait_logo_acc_cmpl, NULL);
 		break;
 	}
 
 	case EFC_EVT_ADISC_RCVD: {
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 		/* sm: / send ADISC acc */
-		efc_send_adisc_acc(node, be16_to_cpu(hdr->fh_ox_id));
+		efc_send_adisc_acc(analde, be16_to_cpu(hdr->fh_ox_id));
 		break;
 	}
 
@@ -1389,29 +1389,29 @@ __efc_d_device_ready(struct efc_sm_ctx *ctx,
 			    efc_sm_event_name(evt));
 		break;
 
-	case EFC_EVT_NODE_ACTIVE_IO_LIST_EMPTY:
+	case EFC_EVT_ANALDE_ACTIVE_IO_LIST_EMPTY:
 		break;
 
-	case EFC_EVT_NODE_REFOUND:
+	case EFC_EVT_ANALDE_REFOUND:
 		break;
 
-	case EFC_EVT_NODE_MISSING:
-		if (node->nport->enable_rscn)
-			efc_node_transition(node, __efc_d_device_gone, NULL);
+	case EFC_EVT_ANALDE_MISSING:
+		if (analde->nport->enable_rscn)
+			efc_analde_transition(analde, __efc_d_device_gone, NULL);
 
 		break;
 
 	case EFC_EVT_SRRS_ELS_CMPL_OK:
 		/* T, or I+T, PRLI accept completed ok */
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
 		break;
 
 	case EFC_EVT_SRRS_ELS_CMPL_FAIL:
 		/* T, or I+T, PRLI accept failed to complete */
-		WARN_ON(!node->els_cmpl_cnt);
-		node->els_cmpl_cnt--;
-		node_printf(node, "Failed to send PRLI LS_ACC\n");
+		WARN_ON(!analde->els_cmpl_cnt);
+		analde->els_cmpl_cnt--;
+		analde_printf(analde, "Failed to send PRLI LS_ACC\n");
 		break;
 
 	default:
@@ -1423,56 +1423,56 @@ void
 __efc_d_device_gone(struct efc_sm_ctx *ctx,
 		    enum efc_sm_event evt, void *arg)
 {
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
-	struct efc *efc = node->efc;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
+	struct efc *efc = analde->efc;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_ENTER: {
 		int rc = EFC_SCSI_CALL_COMPLETE;
 		int rc_2 = EFC_SCSI_CALL_COMPLETE;
 		static const char * const labels[] = {
-			"none", "initiator", "target", "initiator+target"
+			"analne", "initiator", "target", "initiator+target"
 		};
 
 		efc_log_info(efc, "[%s] missing (%s)    WWPN %s WWNN %s\n",
-			     node->display_name,
-				labels[(node->targ << 1) | (node->init)],
-						node->wwpn, node->wwnn);
+			     analde->display_name,
+				labels[(analde->targ << 1) | (analde->init)],
+						analde->wwpn, analde->wwnn);
 
-		switch (efc_node_get_enable(node)) {
-		case EFC_NODE_ENABLE_T_TO_T:
-		case EFC_NODE_ENABLE_I_TO_T:
-		case EFC_NODE_ENABLE_IT_TO_T:
-			rc = efc->tt.scsi_del_node(efc, node,
+		switch (efc_analde_get_enable(analde)) {
+		case EFC_ANALDE_ENABLE_T_TO_T:
+		case EFC_ANALDE_ENABLE_I_TO_T:
+		case EFC_ANALDE_ENABLE_IT_TO_T:
+			rc = efc->tt.scsi_del_analde(efc, analde,
 				EFC_SCSI_TARGET_MISSING);
 			break;
 
-		case EFC_NODE_ENABLE_T_TO_I:
-		case EFC_NODE_ENABLE_I_TO_I:
-		case EFC_NODE_ENABLE_IT_TO_I:
-			rc = efc->tt.scsi_del_node(efc, node,
+		case EFC_ANALDE_ENABLE_T_TO_I:
+		case EFC_ANALDE_ENABLE_I_TO_I:
+		case EFC_ANALDE_ENABLE_IT_TO_I:
+			rc = efc->tt.scsi_del_analde(efc, analde,
 				EFC_SCSI_INITIATOR_MISSING);
 			break;
 
-		case EFC_NODE_ENABLE_T_TO_IT:
-			rc = efc->tt.scsi_del_node(efc, node,
+		case EFC_ANALDE_ENABLE_T_TO_IT:
+			rc = efc->tt.scsi_del_analde(efc, analde,
 				EFC_SCSI_INITIATOR_MISSING);
 			break;
 
-		case EFC_NODE_ENABLE_I_TO_IT:
-			rc = efc->tt.scsi_del_node(efc, node,
+		case EFC_ANALDE_ENABLE_I_TO_IT:
+			rc = efc->tt.scsi_del_analde(efc, analde,
 						  EFC_SCSI_TARGET_MISSING);
 			break;
 
-		case EFC_NODE_ENABLE_IT_TO_IT:
-			rc = efc->tt.scsi_del_node(efc, node,
+		case EFC_ANALDE_ENABLE_IT_TO_IT:
+			rc = efc->tt.scsi_del_analde(efc, analde,
 				EFC_SCSI_INITIATOR_MISSING);
-			rc_2 = efc->tt.scsi_del_node(efc, node,
+			rc_2 = efc->tt.scsi_del_analde(efc, analde,
 				EFC_SCSI_TARGET_MISSING);
 			break;
 
@@ -1483,20 +1483,20 @@ __efc_d_device_gone(struct efc_sm_ctx *ctx,
 
 		if (rc == EFC_SCSI_CALL_COMPLETE &&
 		    rc_2 == EFC_SCSI_CALL_COMPLETE)
-			efc_node_post_event(node, EFC_EVT_SHUTDOWN, NULL);
+			efc_analde_post_event(analde, EFC_EVT_SHUTDOWN, NULL);
 
 		break;
 	}
-	case EFC_EVT_NODE_REFOUND:
+	case EFC_EVT_ANALDE_REFOUND:
 		/* two approaches, reauthenticate with PLOGI/PRLI, or ADISC */
 
 		/* reauthenticate with PLOGI/PRLI */
-		/* efc_node_transition(node, __efc_d_discovered, NULL); */
+		/* efc_analde_transition(analde, __efc_d_discovered, NULL); */
 
 		/* reauthenticate with ADISC */
 		/* sm: / send ADISC */
-		efc_send_adisc(node);
-		efc_node_transition(node, __efc_d_wait_adisc_rsp, NULL);
+		efc_send_adisc(analde);
+		efc_analde_transition(analde, __efc_d_wait_adisc_rsp, NULL);
 		break;
 
 	case EFC_EVT_PLOGI_RCVD: {
@@ -1504,16 +1504,16 @@ __efc_d_device_gone(struct efc_sm_ctx *ctx,
 		 * logout
 		 * Save plogi parameters
 		 */
-		efc_node_save_sparms(node, cbdata->payload->dma.virt);
-		efc_send_ls_acc_after_attach(node,
+		efc_analde_save_sparms(analde, cbdata->payload->dma.virt);
+		efc_send_ls_acc_after_attach(analde,
 					     cbdata->header->dma.virt,
-				EFC_NODE_SEND_LS_ACC_PLOGI);
+				EFC_ANALDE_SEND_LS_ACC_PLOGI);
 
 		/*
-		 * Restart node attach with new service parameters, and send
+		 * Restart analde attach with new service parameters, and send
 		 * ACC
 		 */
-		efc_node_post_event(node, EFC_EVT_SHUTDOWN_IMPLICIT_LOGO,
+		efc_analde_post_event(analde, EFC_EVT_SHUTDOWN_IMPLICIT_LOGO,
 				    NULL);
 		break;
 	}
@@ -1523,18 +1523,18 @@ __efc_d_device_gone(struct efc_sm_ctx *ctx,
 		 * if attempt to send LOGO, will probably timeout and eat
 		 * up 20s; thus, drop FCP_CMND
 		 */
-		node_printf(node, "FCP_CMND received, drop\n");
+		analde_printf(analde, "FCP_CMND received, drop\n");
 		break;
 	}
 	case EFC_EVT_LOGO_RCVD: {
 		/* I, T, I+T */
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		node_printf(node, "%s received attached=%d\n",
-			    efc_sm_event_name(evt), node->attached);
+		analde_printf(analde, "%s received attached=%d\n",
+			    efc_sm_event_name(evt), analde->attached);
 		/* sm: / send LOGO acc */
-		efc_send_logo_acc(node, be16_to_cpu(hdr->fh_ox_id));
-		efc_node_transition(node, __efc_d_wait_logo_acc_cmpl, NULL);
+		efc_send_logo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
+		efc_analde_transition(analde, __efc_d_wait_logo_acc_cmpl, NULL);
 		break;
 	}
 	default:
@@ -1546,37 +1546,37 @@ void
 __efc_d_wait_adisc_rsp(struct efc_sm_ctx *ctx,
 		       enum efc_sm_event evt, void *arg)
 {
-	struct efc_node_cb *cbdata = arg;
-	struct efc_node *node = ctx->app;
+	struct efc_analde_cb *cbdata = arg;
+	struct efc_analde *analde = ctx->app;
 
-	efc_node_evt_set(ctx, evt, __func__);
+	efc_analde_evt_set(ctx, evt, __func__);
 
-	node_sm_trace();
+	analde_sm_trace();
 
 	switch (evt) {
 	case EFC_EVT_SRRS_ELS_REQ_OK:
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_ADISC,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_ADISC,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
-		efc_node_transition(node, __efc_d_device_ready, NULL);
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
+		efc_analde_transition(analde, __efc_d_device_ready, NULL);
 		break;
 
 	case EFC_EVT_SRRS_ELS_REQ_RJT:
 		/* received an LS_RJT, in this case, send shutdown
-		 * (explicit logo) event which will unregister the node,
+		 * (explicit logo) event which will unregister the analde,
 		 * and start over with PLOGI
 		 */
-		if (efc_node_check_els_req(ctx, evt, arg, ELS_ADISC,
+		if (efc_analde_check_els_req(ctx, evt, arg, ELS_ADISC,
 					   __efc_d_common, __func__))
 			return;
 
-		WARN_ON(!node->els_req_cnt);
-		node->els_req_cnt--;
+		WARN_ON(!analde->els_req_cnt);
+		analde->els_req_cnt--;
 		/* sm: / post explicit logout */
-		efc_node_post_event(node,
+		efc_analde_post_event(analde,
 				    EFC_EVT_SHUTDOWN_EXPLICIT_LOGO,
 				     NULL);
 		break;
@@ -1589,11 +1589,11 @@ __efc_d_wait_adisc_rsp(struct efc_sm_ctx *ctx,
 		/* sm: / request abort, send LOGO acc */
 		struct fc_frame_header *hdr = cbdata->header->dma.virt;
 
-		node_printf(node, "%s received attached=%d\n",
-			    efc_sm_event_name(evt), node->attached);
+		analde_printf(analde, "%s received attached=%d\n",
+			    efc_sm_event_name(evt), analde->attached);
 
-		efc_send_logo_acc(node, be16_to_cpu(hdr->fh_ox_id));
-		efc_node_transition(node, __efc_d_wait_logo_acc_cmpl, NULL);
+		efc_send_logo_acc(analde, be16_to_cpu(hdr->fh_ox_id));
+		efc_analde_transition(analde, __efc_d_wait_logo_acc_cmpl, NULL);
 		break;
 	}
 	default:

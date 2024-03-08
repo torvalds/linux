@@ -32,7 +32,7 @@
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (no)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (anal)");
 
 #define DRIVER_NAME	"Hopper"
 
@@ -61,13 +61,13 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 
 	mantis = (struct mantis_pci *) dev_id;
 	if (unlikely(!mantis))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	ca = mantis->mantis_ca;
 
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
 	if (!(stat & mask))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	rst_mask  = MANTIS_GPIF_WRACK  |
 		    MANTIS_GPIF_OTHERR |
@@ -135,7 +135,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 		  MANTIS_INT_RISCI);
 
 	if (stat)
-		dprintk(MANTIS_DEBUG, 0, "<Unknown> Stat=<%02x> Mask=<%02x>", stat, mask);
+		dprintk(MANTIS_DEBUG, 0, "<Unkanalwn> Stat=<%02x> Mask=<%02x>", stat, mask);
 
 	dprintk(MANTIS_DEBUG, 0, "\n");
 	return IRQ_HANDLED;
@@ -151,7 +151,7 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 
 	mantis = kzalloc(sizeof(*mantis), GFP_KERNEL);
 	if (!mantis) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail0;
 	}
 
@@ -241,7 +241,7 @@ static void hopper_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id hopper_pci_table[] = {
-	MAKE_ENTRY(TWINHAN_TECHNOLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config,
+	MAKE_ENTRY(TWINHAN_TECHANALLOGIES, MANTIS_VP_3028_DVB_T, &vp3028_config,
 		   NULL),
 	{ }
 };

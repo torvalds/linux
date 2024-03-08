@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-3-Clause
 
-/* Packet receive logic for Mellanox Gigabit Ethernet driver
+/* Packet receive logic for Mellaanalx Gigabit Ethernet driver
  *
  * Copyright (C) 2020-2021 NVIDIA CORPORATION & AFFILIATES
  */
@@ -66,8 +66,8 @@ void mlxbf_gige_disable_promisc(struct mlxbf_gige *priv)
 	control &= ~MLXBF_GIGE_CONTROL_MAC_ID_RANGE_EN;
 	writeq(control, base + MLXBF_GIGE_CONTROL);
 
-	/* NOTE: no need to change DMAC_RANGE_START or END;
-	 * those values are ignored since MAC_ID_RANGE_EN=0
+	/* ANALTE: anal need to change DMAC_RANGE_START or END;
+	 * those values are iganalred since MAC_ID_RANGE_EN=0
 	 */
 }
 
@@ -96,7 +96,7 @@ int mlxbf_gige_rx_init(struct mlxbf_gige *priv)
 					       &priv->rx_wqe_base_dma,
 					       GFP_KERNEL);
 	if (!priv->rx_wqe_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize 'rx_wqe_ptr' to point to first RX WQE in array
 	 * Each RX WQE is simply a receive buffer pointer, so walk
@@ -169,7 +169,7 @@ free_wqe_and_skb:
 	}
 	dma_free_coherent(priv->dev, wq_size,
 			  priv->rx_wqe_base, priv->rx_wqe_base_dma);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* Receive Deinitialization
@@ -245,7 +245,7 @@ static bool mlxbf_gige_rx_packet(struct mlxbf_gige *priv, int *rx_pkts)
 
 		skb = priv->rx_skb[rx_pi_rem];
 
-		/* Alloc another RX SKB for this same index */
+		/* Alloc aanalther RX SKB for this same index */
 		rx_skb = mlxbf_gige_alloc_skb(priv, MLXBF_GIGE_DEFAULT_BUF_SZ,
 					      &rx_buf_dma, DMA_FROM_DEVICE);
 		if (!rx_skb)
@@ -256,7 +256,7 @@ static bool mlxbf_gige_rx_packet(struct mlxbf_gige *priv, int *rx_pkts)
 
 		skb_put(skb, datalen);
 
-		skb->ip_summed = CHECKSUM_NONE; /* device did not checksum packet */
+		skb->ip_summed = CHECKSUM_ANALNE; /* device did analt checksum packet */
 
 		skb->protocol = eth_type_trans(skb, netdev);
 
@@ -274,10 +274,10 @@ static bool mlxbf_gige_rx_packet(struct mlxbf_gige *priv, int *rx_pkts)
 	rx_ci = readq(priv->base + MLXBF_GIGE_RX_CQE_PACKET_CI);
 	rx_ci_rem = rx_ci % priv->rx_q_entries;
 
-	/* Let hardware know we've replenished one buffer */
+	/* Let hardware kanalw we've replenished one buffer */
 	rx_pi++;
 
-	/* Ensure completion of all writes before notifying HW of replenish */
+	/* Ensure completion of all writes before analtifying HW of replenish */
 	wmb();
 	writeq(rx_pi, priv->base + MLXBF_GIGE_RX_WQE_PI);
 

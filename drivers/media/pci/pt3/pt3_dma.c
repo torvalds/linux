@@ -110,7 +110,7 @@ void pt3_init_dmabuf(struct pt3_adapter *adap)
 	idx = 0;
 	ofs = 0;
 	p = adap->buffer[0].data;
-	/* mark the whole buffers as "not written yet" */
+	/* mark the whole buffers as "analt written yet" */
 	while (idx < adap->num_bufs) {
 		p[ofs] = PT3_BUF_CANARY;
 		ofs += PT3_ACCESS_UNIT;
@@ -212,5 +212,5 @@ int pt3_alloc_dmabuf(struct pt3_adapter *adap)
 
 failed:
 	pt3_free_dmabuf(adap);
-	return -ENOMEM;
+	return -EANALMEM;
 }

@@ -18,8 +18,8 @@
 
 /*
  * ocfs2_extent_tree and ocfs2_extent_tree_operations are used to abstract
- * the b-tree operations in ocfs2. Now all the b-tree operations are not
- * limited to ocfs2_dinode only. Any data which need to allocate clusters
+ * the b-tree operations in ocfs2. Analw all the b-tree operations are analt
+ * limited to ocfs2_dianalde only. Any data which need to allocate clusters
  * to store can use b-tree. And it only needs to implement its ocfs2_extent_tree
  * and operation.
  *
@@ -30,10 +30,10 @@
  * ocfs2_extent_tree contains info for the root of the b-tree, it must have a
  * root ocfs2_extent_list and a root_bh so that they can be used in the b-tree
  * functions.  It needs the ocfs2_caching_info structure associated with
- * I/O on the tree.  With metadata ecc, we now call different journal_access
+ * I/O on the tree.  With metadata ecc, we analw call different journal_access
  * functions for each type of metadata, so it must have the
  * root_journal_access function.
- * ocfs2_extent_tree_operations abstract the normal operations we do for
+ * ocfs2_extent_tree_operations abstract the analrmal operations we do for
  * the root of extent b-tree.
  */
 struct ocfs2_extent_tree_operations;
@@ -52,7 +52,7 @@ struct ocfs2_extent_tree {
  * ocfs2_init_*_extent_tree() will fill an ocfs2_extent_tree from the
  * specified object buffer.
  */
-void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
+void ocfs2_init_dianalde_extent_tree(struct ocfs2_extent_tree *et,
 				   struct ocfs2_caching_info *ci,
 				   struct buffer_head *bh);
 void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
@@ -74,7 +74,7 @@ void ocfs2_init_refcount_extent_tree(struct ocfs2_extent_tree *et,
  * allocated.  This is a cached read.  The extent block will be validated
  * with ocfs2_validate_extent_block().
  */
-int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,
+int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkanal,
 			    struct buffer_head **bh);
 
 struct ocfs2_alloc_context;
@@ -87,7 +87,7 @@ int ocfs2_insert_extent(handle_t *handle,
 			struct ocfs2_alloc_context *meta_ac);
 
 enum ocfs2_alloc_restarted {
-	RESTART_NONE = 0,
+	RESTART_ANALNE = 0,
 	RESTART_TRANS,
 	RESTART_META
 };
@@ -108,7 +108,7 @@ int ocfs2_split_extent(handle_t *handle,
 		       struct ocfs2_extent_rec *split_rec,
 		       struct ocfs2_alloc_context *meta_ac,
 		       struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_mark_extent_written(struct inode *inode,
+int ocfs2_mark_extent_written(struct ianalde *ianalde,
 			      struct ocfs2_extent_tree *et,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
@@ -123,7 +123,7 @@ int ocfs2_remove_extent(handle_t *handle, struct ocfs2_extent_tree *et,
 			u32 cpos, u32 len,
 			struct ocfs2_alloc_context *meta_ac,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_remove_btree_range(struct inode *inode,
+int ocfs2_remove_btree_range(struct ianalde *ianalde,
 			     struct ocfs2_extent_tree *et,
 			     u32 cpos, u32 phys_cpos, u32 len, int flags,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc,
@@ -134,8 +134,8 @@ int ocfs2_num_free_extents(struct ocfs2_extent_tree *et);
 /*
  * how many new metadata chunks would an allocation need at maximum?
  *
- * Please note that the caller must make sure that root_el is the root
- * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * Please analte that the caller must make sure that root_el is the root
+ * of extent tree. So for an ianalde, it should be &fe->id2.i_list. Otherwise
  * the result may be wrong.
  */
 static inline int ocfs2_extend_meta_needed(struct ocfs2_extent_list *root_el)
@@ -151,9 +151,9 @@ static inline int ocfs2_extend_meta_needed(struct ocfs2_extent_list *root_el)
 	return le16_to_cpu(root_el->l_tree_depth) + 2;
 }
 
-void ocfs2_dinode_new_extent_list(struct inode *inode, struct ocfs2_dinode *di);
-void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di);
-int ocfs2_convert_inline_data_to_extents(struct inode *inode,
+void ocfs2_dianalde_new_extent_list(struct ianalde *ianalde, struct ocfs2_dianalde *di);
+void ocfs2_set_ianalde_data_inline(struct ianalde *ianalde, struct ocfs2_dianalde *di);
+int ocfs2_convert_inline_data_to_extents(struct ianalde *ianalde,
 					 struct buffer_head *di_bh);
 
 int ocfs2_truncate_log_init(struct ocfs2_super *osb);
@@ -163,9 +163,9 @@ void ocfs2_schedule_truncate_log_flush(struct ocfs2_super *osb,
 int ocfs2_flush_truncate_log(struct ocfs2_super *osb);
 int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 				      int slot_num,
-				      struct ocfs2_dinode **tl_copy);
+				      struct ocfs2_dianalde **tl_copy);
 int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
-					 struct ocfs2_dinode *tl_copy);
+					 struct ocfs2_dianalde *tl_copy);
 int ocfs2_truncate_log_needs_flush(struct ocfs2_super *osb);
 int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 			      handle_t *handle,
@@ -181,7 +181,7 @@ int ocfs2_try_to_free_truncate_log(struct ocfs2_super *osb,
  * ocfs2_cache_block_dealloc().
  *
  * ocfs2_run_deallocs() should be called after the potentially
- * de-allocating routines. No journal handles should be open, and most
+ * de-allocating routines. Anal journal handles should be open, and most
  * locks should have been dropped.
  */
 struct ocfs2_cached_dealloc_ctxt {
@@ -194,9 +194,9 @@ static inline void ocfs2_init_dealloc_ctxt(struct ocfs2_cached_dealloc_ctxt *c)
 	c->c_global_allocator = NULL;
 }
 int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-				u64 blkno, unsigned int bit);
+				u64 blkanal, unsigned int bit);
 int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-			      int type, int slot, u64 suballoc, u64 blkno,
+			      int type, int slot, u64 suballoc, u64 blkanal,
 			      unsigned int bit);
 static inline int ocfs2_dealloc_has_cluster(struct ocfs2_cached_dealloc_ctxt *c)
 {
@@ -212,12 +212,12 @@ struct ocfs2_truncate_context {
 	struct buffer_head *tc_last_eb_bh;
 };
 
-int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
+int ocfs2_zero_range_for_truncate(struct ianalde *ianalde, handle_t *handle,
 				  u64 range_start, u64 range_end);
 int ocfs2_commit_truncate(struct ocfs2_super *osb,
-			  struct inode *inode,
+			  struct ianalde *ianalde,
 			  struct buffer_head *di_bh);
-int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_truncate_inline(struct ianalde *ianalde, struct buffer_head *di_bh,
 			  unsigned int start, unsigned int end, int trunc);
 
 int ocfs2_find_leaf(struct ocfs2_caching_info *ci,
@@ -234,8 +234,8 @@ static inline unsigned int ocfs2_rec_clusters(struct ocfs2_extent_list *el,
 {
 	/*
 	 * Cluster count in extent records is slightly different
-	 * between interior nodes and leaf nodes. This is to support
-	 * unwritten extents which need a flags field in leaf node
+	 * between interior analdes and leaf analdes. This is to support
+	 * unwritten extents which need a flags field in leaf analde
 	 * records, thus shrinking the available space for a clusters
 	 * field.
 	 */
@@ -246,7 +246,7 @@ static inline unsigned int ocfs2_rec_clusters(struct ocfs2_extent_list *el,
 }
 
 /*
- * This is only valid for leaf nodes, which are the only ones that can
+ * This is only valid for leaf analdes, which are the only ones that can
  * have empty extents anyway.
  */
 static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
@@ -254,9 +254,9 @@ static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
 	return !rec->e_leaf_clusters;
 }
 
-int ocfs2_grab_pages(struct inode *inode, loff_t start, loff_t end,
+int ocfs2_grab_pages(struct ianalde *ianalde, loff_t start, loff_t end,
 		     struct page **pages, int *num);
-void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
+void ocfs2_map_and_dirty_page(struct ianalde *ianalde, handle_t *handle,
 			      unsigned int from, unsigned int to,
 			      struct page *page, int zero, u64 *phys);
 /*
@@ -276,14 +276,14 @@ struct ocfs2_path_item {
 struct ocfs2_path {
 	int				p_tree_depth;
 	ocfs2_journal_access_func	p_root_access;
-	struct ocfs2_path_item		p_node[OCFS2_MAX_PATH_DEPTH];
+	struct ocfs2_path_item		p_analde[OCFS2_MAX_PATH_DEPTH];
 };
 
-#define path_root_bh(_path) ((_path)->p_node[0].bh)
-#define path_root_el(_path) ((_path)->p_node[0].el)
+#define path_root_bh(_path) ((_path)->p_analde[0].bh)
+#define path_root_el(_path) ((_path)->p_analde[0].el)
 #define path_root_access(_path)((_path)->p_root_access)
-#define path_leaf_bh(_path) ((_path)->p_node[(_path)->p_tree_depth].bh)
-#define path_leaf_el(_path) ((_path)->p_node[(_path)->p_tree_depth].el)
+#define path_leaf_bh(_path) ((_path)->p_analde[(_path)->p_tree_depth].bh)
+#define path_leaf_el(_path) ((_path)->p_analde[(_path)->p_tree_depth].el)
 #define path_num_items(_path) ((_path)->p_tree_depth + 1)
 
 void ocfs2_reinit_path(struct ocfs2_path *path, int keep_root);

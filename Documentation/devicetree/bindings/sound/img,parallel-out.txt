@@ -1,4 +1,4 @@
-Imagination Technologies Parallel Output Controller
+Imagination Techanallogies Parallel Output Controller
 
 Required Properties:
 

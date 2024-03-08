@@ -64,16 +64,16 @@ vimc-lens:
 	...
 	- entity 28: Lens A (0 pad, 0 link)
 			type V4L2 subdev subtype Lens flags 0
-			device node name /dev/v4l-subdev6
+			device analde name /dev/v4l-subdev6
 	- entity 29: Lens B (0 pad, 0 link)
 			type V4L2 subdev subtype Lens flags 0
-			device node name /dev/v4l-subdev7
+			device analde name /dev/v4l-subdev7
 	v4l2-ctl -d /dev/v4l-subdev7 -C focus_absolute
 	focus_absolute: 0
 
 
 vimc-debayer:
-	Transforms images in bayer format into a non-bayer format.
+	Transforms images in bayer format into a analn-bayer format.
 	Exposes:
 
 	* 1 Pad sink
@@ -90,7 +90,7 @@ vimc-scaler:
 	* 1 Pad source
 
 vimc-capture:
-	Exposes node /dev/videoX to allow userspace to capture the stream.
+	Exposes analde /dev/videoX to allow userspace to capture the stream.
 	Exposes:
 
 	* 1 Pad sink

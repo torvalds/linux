@@ -53,7 +53,7 @@ static void venus_coredump(struct venus_core *core)
 	dev_coredumpv(dev, data, mem_size, GFP_KERNEL);
 }
 
-static void venus_event_notify(struct venus_core *core, u32 event)
+static void venus_event_analtify(struct venus_core *core, u32 event)
 {
 	struct venus_inst *inst;
 
@@ -68,15 +68,15 @@ static void venus_event_notify(struct venus_core *core, u32 event)
 	mutex_lock(&core->lock);
 	set_bit(0, &core->sys_error);
 	list_for_each_entry(inst, &core->instances, list)
-		inst->ops->event_notify(inst, EVT_SESSION_ERROR, NULL);
+		inst->ops->event_analtify(inst, EVT_SESSION_ERROR, NULL);
 	mutex_unlock(&core->lock);
 
-	disable_irq_nosync(core->irq);
+	disable_irq_analsync(core->irq);
 	schedule_delayed_work(&core->work, msecs_to_jiffies(10));
 }
 
 static const struct hfi_core_ops venus_core_ops = {
-	.event_notify = venus_event_notify,
+	.event_analtify = venus_event_analtify,
 };
 
 #define RPM_WAIT_FOR_IDLE_MAX_ATTEMPTS 10
@@ -152,7 +152,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 	pm_runtime_put_sync(core->dev);
 
 	if (failed) {
-		disable_irq_nosync(core->irq);
+		disable_irq_analsync(core->irq);
 		dev_warn_ratelimited(core->dev,
 				     "System error has occurred, recovery failed to %s\n",
 				     err_msg);
@@ -208,7 +208,7 @@ static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&inst->lock);
 	inst->core = core;
@@ -287,7 +287,7 @@ static int venus_probe(struct platform_device *pdev)
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	core->dev = dev;
 
@@ -309,13 +309,13 @@ static int venus_probe(struct platform_device *pdev)
 
 	core->res = of_device_get_match_data(dev);
 	if (!core->res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mutex_init(&core->pm_lock);
 
 	core->pm_ops = venus_pm_get(core->res->hfi_version);
 	if (!core->pm_ops)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (core->pm_ops->core_get) {
 		ret = core->pm_ops->core_get(core);
@@ -358,7 +358,7 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = of_platform_populate(dev->of_analde, NULL, NULL, dev);
 	if (ret)
 		goto err_runtime_disable;
 
@@ -388,7 +388,7 @@ static int venus_probe(struct platform_device *pdev)
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret) {
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_analresume(dev);
 		goto err_dev_unregister;
 	}
 
@@ -405,7 +405,7 @@ err_firmware_deinit:
 err_of_depopulate:
 	of_platform_depopulate(dev);
 err_runtime_disable:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
 	hfi_destroy(core);
@@ -545,7 +545,7 @@ static const struct venus_resources msm8916_res = {
 	.clks_num = 3,
 	.max_load = 352800, /* 720p@30 + 1080p@30 */
 	.hfi_version = HFI_VERSION_1XX,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
@@ -578,7 +578,7 @@ static const struct venus_resources msm8996_res = {
 	.vcodec_clks_num = 1,
 	.max_load = 2563200,
 	.hfi_version = HFI_VERSION_3XX,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xddc00000 - 1,
@@ -637,13 +637,13 @@ static const struct venus_resources sdm660_res = {
 	.vcodec_num = 1,
 	.max_load = 1036800,
 	.hfi_version = HFI_VERSION_3XX,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.cp_start = 0,
 	.cp_size = 0x79000000,
-	.cp_nonpixel_start = 0x1000000,
-	.cp_nonpixel_size = 0x28000000,
+	.cp_analnpixel_start = 0x1000000,
+	.cp_analnpixel_size = 0x28000000,
 	.dma_mask = 0xd9000000 - 1,
 	.fwname = "qcom/venus-4.4/venus.mdt",
 };
@@ -686,7 +686,7 @@ static const struct venus_resources sdm845_res = {
 	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_4XX,
 	.vpu_version = VPU_VERSION_AR50,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
@@ -712,14 +712,14 @@ static const struct venus_resources sdm845_res_v2 = {
 	.max_load = 3110400,	/* 4096x2160@90 */
 	.hfi_version = HFI_VERSION_4XX,
 	.vpu_version = VPU_VERSION_AR50,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
 	.cp_start = 0,
 	.cp_size = 0x70800000,
-	.cp_nonpixel_start = 0x1000000,
-	.cp_nonpixel_size = 0x24800000,
+	.cp_analnpixel_start = 0x1000000,
+	.cp_analnpixel_size = 0x24800000,
 	.fwname = "qcom/venus-5.2/venus.mbn",
 };
 
@@ -760,14 +760,14 @@ static const struct venus_resources sc7180_res = {
 	.vcodec_num = 1,
 	.hfi_version = HFI_VERSION_4XX,
 	.vpu_version = VPU_VERSION_AR50,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
 	.cp_start = 0,
 	.cp_size = 0x70800000,
-	.cp_nonpixel_start = 0x1000000,
-	.cp_nonpixel_size = 0x24800000,
+	.cp_analnpixel_start = 0x1000000,
+	.cp_analnpixel_size = 0x24800000,
 	.fwname = "qcom/venus-5.4/venus.mbn",
 };
 
@@ -819,7 +819,7 @@ static const struct venus_resources sm8250_res = {
 	.hfi_version = HFI_VERSION_6XX,
 	.vpu_version = VPU_VERSION_IRIS2,
 	.num_vpp_pipes = 4,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
@@ -877,14 +877,14 @@ static const struct venus_resources sc7280_res = {
 	.hfi_version = HFI_VERSION_6XX,
 	.vpu_version = VPU_VERSION_IRIS2_1,
 	.num_vpp_pipes = 1,
-	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_id = VIDC_RESOURCE_ANALNE,
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
 	.cp_start = 0,
 	.cp_size = 0x25800000,
-	.cp_nonpixel_start = 0x1000000,
-	.cp_nonpixel_size = 0x24800000,
+	.cp_analnpixel_start = 0x1000000,
+	.cp_analnpixel_size = 0x24800000,
 	.fwname = "qcom/vpu-2.0/venus.mbn",
 };
 

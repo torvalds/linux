@@ -22,7 +22,7 @@ struct kern_ipc_perm {
 	unsigned long	seq;
 	void		*security;
 
-	struct rhash_head khtnode;
+	struct rhash_head khtanalde;
 
 	struct rcu_head rcu;
 	refcount_t refcount;

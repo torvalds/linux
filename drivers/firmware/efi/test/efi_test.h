@@ -2,7 +2,7 @@
 /*
  * EFI Test driver Header
  *
- * Copyright(C) 2012-2016 Canonical Ltd.
+ * Copyright(C) 2012-2016 Caanalnical Ltd.
  *
  */
 
@@ -68,7 +68,7 @@ struct efi_setwakeuptime {
 	efi_status_t	*status;
 } __packed;
 
-struct efi_getnexthighmonotoniccount {
+struct efi_getnexthighmoanaltoniccount {
 	u32		*high_count;
 	efi_status_t	*status;
 } __packed;
@@ -109,8 +109,8 @@ struct efi_resetsystem {
 #define EFI_RUNTIME_QUERY_VARIABLEINFO \
 	_IOR('p', 0x08, struct efi_queryvariableinfo)
 
-#define EFI_RUNTIME_GET_NEXTHIGHMONOTONICCOUNT \
-	_IOR('p', 0x09, struct efi_getnexthighmonotoniccount)
+#define EFI_RUNTIME_GET_NEXTHIGHMOANALTONICCOUNT \
+	_IOR('p', 0x09, struct efi_getnexthighmoanaltoniccount)
 
 #define EFI_RUNTIME_QUERY_CAPSULECAPABILITIES \
 	_IOR('p', 0x0A, struct efi_querycapsulecapabilities)

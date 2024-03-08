@@ -40,7 +40,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "iganalre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -173,7 +173,7 @@
 		compatible = "audio-graph-card";
 
 		dais = <&rsnd_port0	/* ak4613 */
-			/* HDMI is not yet supported */
+			/* HDMI is analt yet supported */
 		>;
 	};
 
@@ -226,8 +226,8 @@
 	/*
 	 * X11 is connected to VI4_FIELD/SCIF_CLK/AUDIO_CLKB,
 	 * and R-Car Sound uses AUDIO_CLKB.
-	 * Note is that schematic indicates VI4_FIELD conection only
-	 * not AUDIO_CLKB at SoC page.
+	 * Analte is that schematic indicates VI4_FIELD conection only
+	 * analt AUDIO_CLKB at SoC page.
 	 * And this VI4_FIELD/SCIF_CLK/AUDIO_CLKB is connected to SW60.
 	 * SW60 should be 1-2.
 	 */
@@ -238,7 +238,7 @@
 &avb {
 	pinctrl-0 = <&avb0_pins>;
 	pinctrl-names = "default";
-	renesas,no-ether-link;
+	renesas,anal-ether-link;
 	phy-handle = <&phy0>;
 	status = "okay";
 
@@ -357,7 +357,7 @@
 				 * switches.
 				 *
 				 * HDMI is the default selection, leave CVBS
-				 * not connected here.
+				 * analt connected here.
 				 */
 			};
 		};
@@ -479,7 +479,7 @@
 
 &lvds1 {
 	/*
-	 * Even though the LVDS1 output is not connected, the encoder must be
+	 * Even though the LVDS1 output is analt connected, the encoder must be
 	 * enabled to supply a pixel clock to the DU for the DPAD output when
 	 * LVDS0 is in use.
 	 */
@@ -711,9 +711,9 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	status = "okay";
 };
 
@@ -725,7 +725,7 @@
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 
-	renesas,no-otg-pins;
+	renesas,anal-otg-pins;
 	status = "okay";
 };
 

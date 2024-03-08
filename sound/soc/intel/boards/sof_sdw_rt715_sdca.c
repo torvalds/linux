@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
 #include "sof_sdw_common.h"
@@ -19,7 +19,7 @@ static int rt715_sdca_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  "%s mic:rt715-sdca",
 					  card->components);
 	if (!card->components)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

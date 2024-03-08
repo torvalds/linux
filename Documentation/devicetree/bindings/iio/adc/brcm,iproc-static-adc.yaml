@@ -19,7 +19,7 @@ properties:
   adc-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      syscon node defining physical base address of the controller and length
+      syscon analde defining physical base address of the controller and length
       of memory mapped region.
 
   "#io-channel-cells":

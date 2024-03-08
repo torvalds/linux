@@ -4,9 +4,9 @@
  * for more details.
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
+ * Copyright (C) 2000, 2001, 2004 MIPS Techanallogies, Inc.
  * Copyright (C) 2001 Ralf Baechle
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techanallogies Ltd.
  *
  * Routines for generic manipulation of the interrupts found on the MIPS
  * Malta board. The interrupt controller is located in the South Bridge
@@ -44,7 +44,7 @@ static inline int mips_pcibios_iack(void)
 
 	/*
 	 * Determine highest priority pending interrupt by performing
-	 * a PCI Interrupt Acknowledge cycle.
+	 * a PCI Interrupt Ackanalwledge cycle.
 	 */
 	switch (mips_revision_sconid) {
 	case MIPS_REVISION_SCON_SOCIT:
@@ -76,7 +76,7 @@ static inline int mips_pcibios_iack(void)
 		BONITO_PCIMAP_CFG = 0;
 		break;
 	default:
-		pr_emerg("Unknown system controller.\n");
+		pr_emerg("Unkanalwn system controller.\n");
 		return -1;
 	}
 	return irq;
@@ -177,8 +177,8 @@ void __init arch_init_irq(void)
 	 * of the i8259 will fail.
 	 */
 	WARN(irq_alloc_descs(I8259A_IRQ_BASE, I8259A_IRQ_BASE,
-			    16, numa_node_id()) < 0,
-		"Cannot reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
+			    16, numa_analde_id()) < 0,
+		"Cananalt reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
 
 	i8259_set_poll(mips_pcibios_iack);
 	irqchip_init();
@@ -217,7 +217,7 @@ void __init arch_init_irq(void)
 		corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
 	}
 
-	if (request_irq(corehi_irq, corehi_handler, IRQF_NO_THREAD, "CoreHi",
+	if (request_irq(corehi_irq, corehi_handler, IRQF_ANAL_THREAD, "CoreHi",
 			NULL))
 		pr_err("Failed to request irq %d (CoreHi)\n", corehi_irq);
 }

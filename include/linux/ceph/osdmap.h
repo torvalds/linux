@@ -14,7 +14,7 @@
  * (desired) distribution of all data objects in the system at some
  * point in time.
  *
- * Each map version is identified by an epoch, which increases monotonically.
+ * Each map version is identified by an epoch, which increases moanaltonically.
  *
  * The map can be updated either via an incremental map (diff) describing
  * the change between two successive epochs, or as a fully encoded map.
@@ -24,7 +24,7 @@ struct ceph_pg {
 	uint32_t seed;
 };
 
-#define CEPH_SPG_NOSHARD	-1
+#define CEPH_SPG_ANALSHARD	-1
 
 struct ceph_spg {
 	struct ceph_pg pgid;
@@ -42,7 +42,7 @@ int ceph_spg_compare(const struct ceph_spg *lhs, const struct ceph_spg *rhs);
 #define CEPH_POOL_FLAG_NEARFULL		(1ULL << 11) /* pool is nearfull */
 
 struct ceph_pg_pool_info {
-	struct rb_node node;
+	struct rb_analde analde;
 	s64 id;
 	u8 type; /* CEPH_POOL_TYPE_* */
 	u8 size;
@@ -93,7 +93,7 @@ void ceph_oloc_copy(struct ceph_object_locator *dest,
 void ceph_oloc_destroy(struct ceph_object_locator *oloc);
 
 /*
- * 51-char inline_name is long enough for all cephfs and all but one
+ * 51-char inline_name is long eanalugh for all cephfs and all but one
  * rbd requests: <imgname> in "<imgname>.rbd"/"rbd_id.<imgname>" can be
  * arbitrarily long (~PAGE_SIZE).  It's done once during rbd map; all
  * other rbd requests fit into inline_name.
@@ -104,7 +104,7 @@ void ceph_oloc_destroy(struct ceph_object_locator *oloc);
 
 /*
  * Both inline and external buffers have space for a NUL-terminator,
- * which is carried around.  It's not required though - RADOS object
+ * which is carried around.  It's analt required though - RADOS object
  * names don't have to be NUL-terminated and may contain NULs.
  */
 struct ceph_object_id {
@@ -149,7 +149,7 @@ struct workspace_manager {
 };
 
 struct ceph_pg_mapping {
-	struct rb_node node;
+	struct rb_analde analde;
 	struct ceph_pg pgid;
 
 	union {
@@ -176,7 +176,7 @@ struct ceph_osdmap {
 
 	u32 max_osd;       /* size of osd_state, _offload, _addr arrays */
 	u32 *osd_state;    /* CEPH_OSD_* */
-	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% normal */
+	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% analrmal */
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
@@ -238,7 +238,7 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 	}
 	version = ceph_decode_8(p);
 	if (version > 1) {
-		pr_warn("do not understand pg encoding %d > 1\n",
+		pr_warn("do analt understand pg encoding %d > 1\n",
 			(int)version);
 		return -EINVAL;
 	}
@@ -259,7 +259,7 @@ extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 struct ceph_osds {
 	int osds[CEPH_PG_MAX_SIZE];
 	int size;
-	int primary; /* id, NOT index */
+	int primary; /* id, ANALT index */
 };
 
 static inline void ceph_osds_init(struct ceph_osds *set)
@@ -317,8 +317,8 @@ struct crush_loc {
 	char *cl_name;
 };
 
-struct crush_loc_node {
-	struct rb_node cl_node;
+struct crush_loc_analde {
+	struct rb_analde cl_analde;
 	struct crush_loc cl_loc;  /* pointers into cl_data */
 	char cl_data[];
 };

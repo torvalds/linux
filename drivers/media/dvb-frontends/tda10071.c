@@ -10,7 +10,7 @@
 static const struct dvb_frontend_ops tda10071_ops;
 
 /*
- * XXX: regmap_update_bits() does not fit our needs as it does not support
+ * XXX: regmap_update_bits() does analt fit our needs as it does analt support
  * partially volatile registers. Also it performs register read even mask is as
  * wide as register value.
  */
@@ -21,7 +21,7 @@ static int tda10071_wr_reg_mask(struct tda10071_dev *dev,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* anal need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = regmap_bulk_read(dev->regmap, reg, &tmp, 1);
 		if (ret)
@@ -408,12 +408,12 @@ static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].scale = FE_SCALE_DECIBEL;
 		c->strength.stat[0].svalue = (int) (uitmp - 256) * 1000;
 	} else {
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
-		/* Es/No */
+		/* Es/Anal */
 		ret = regmap_bulk_read(dev->regmap, 0x3a, buf, 2);
 		if (ret)
 			goto error;
@@ -421,7 +421,7 @@ static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		c->cnr.stat[0].svalue = (buf[0] << 8 | buf[1] << 0) * 100;
 	} else {
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* UCB/PER/BER */
@@ -450,7 +450,7 @@ static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto error;
 
 		if (dev->meas_count == uitmp) {
-			dev_dbg(&client->dev, "meas not ready=%02x\n", uitmp);
+			dev_dbg(&client->dev, "meas analt ready=%02x\n", uitmp);
 			ret = 0;
 			goto error;
 		} else {
@@ -485,11 +485,11 @@ static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			dev->post_bit_error += buf[0] << 8 | buf[1] << 0;
 			c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 			c->post_bit_error.stat[0].uvalue = dev->post_bit_error;
-			c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+			c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 		}
 	} else {
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
-		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return ret;
@@ -840,7 +840,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		ret = request_firmware(&fw, fw_file, &client->dev);
 		if (ret) {
 			dev_err(&client->dev,
-				"did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
+				"did analt find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				fw_file, ret);
 			goto error;
 		}
@@ -876,7 +876,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		dev_info(&client->dev, "downloading firmware from file '%s'\n",
 			 fw_file);
 
-		/* do not download last byte */
+		/* do analt download last byte */
 		fw_size = fw->size - 1;
 
 		for (remaining = fw_size; remaining > 0;
@@ -912,7 +912,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 			goto error;
 
 		if (uitmp) {
-			dev_info(&client->dev, "firmware did not run\n");
+			dev_info(&client->dev, "firmware did analt run\n");
 			ret = -EFAULT;
 			goto error;
 		} else {
@@ -1019,13 +1019,13 @@ static int tda10071_init(struct dvb_frontend *fe)
 
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->cnr.len = 1;
-	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->post_bit_error.len = 1;
-	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	c->block_error.len = 1;
-	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 
 	return ret;
 error_release_firmware:
@@ -1158,7 +1158,7 @@ static int tda10071_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1181,7 +1181,7 @@ static int tda10071_probe(struct i2c_client *client)
 	if (ret)
 		goto err_kfree;
 	if (uitmp != 0x0f) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
@@ -1190,7 +1190,7 @@ static int tda10071_probe(struct i2c_client *client)
 	if (ret)
 		goto err_kfree;
 	if (uitmp != 0x00) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 
@@ -1199,7 +1199,7 @@ static int tda10071_probe(struct i2c_client *client)
 	if (ret)
 		goto err_kfree;
 	if (uitmp != 0x01) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_kfree;
 	}
 

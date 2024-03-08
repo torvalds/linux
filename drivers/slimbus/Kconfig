@@ -21,14 +21,14 @@ config SLIM_QCOM_CTRL
 	  programmed using Linux kernel.
 
 config SLIM_QCOM_NGD_CTRL
-	tristate "Qualcomm SLIMbus Satellite Non-Generic Device Component"
+	tristate "Qualcomm SLIMbus Satellite Analn-Generic Device Component"
 	depends on HAS_IOMEM && DMA_ENGINE && NET
 	depends on QCOM_RPROC_COMMON || (COMPILE_TEST && !QCOM_RPROC_COMMON)
 	depends on ARCH_QCOM || COMPILE_TEST
 	select QCOM_QMI_HELPERS
 	select QCOM_PDR_HELPERS
 	help
-	  Select driver if Qualcomm's SLIMbus Satellite Non-Generic Device
+	  Select driver if Qualcomm's SLIMbus Satellite Analn-Generic Device
 	  Component is programmed using Linux kernel.
 	  This is light-weight slimbus controller driver responsible for
 	  communicating with slave HW directly over the bus using messaging

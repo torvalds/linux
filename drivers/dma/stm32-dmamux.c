@@ -86,7 +86,7 @@ static void stm32_dmamux_free(struct device *dev, void *route_data)
 static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 					 struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_analde(ofdma->of_analde);
 	struct stm32_dmamux_data *dmamux = platform_get_drvdata(pdev);
 	struct stm32_dmamux *mux;
 	u32 i, min, max;
@@ -106,7 +106,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_irqsave(&dmamux->lock, flags);
 	mux->chan_id = find_first_zero_bit(dmamux->dma_inuse,
@@ -115,7 +115,7 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 	if (mux->chan_id == dmamux->dma_requests) {
 		spin_unlock_irqrestore(&dmamux->lock, flags);
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_chan_id;
 	}
 	set_bit(mux->chan_id, dmamux->dma_inuse);
@@ -129,8 +129,8 @@ static void *stm32_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 			break;
 	mux->master = i - 1;
 
-	/* The of_node_put() will be done in of_dma_router_xlate function */
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", i - 1);
+	/* The of_analde_put() will be done in of_dma_router_xlate function */
+	dma_spec->np = of_parse_phandle(ofdma->of_analde, "dma-masters", i - 1);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "can't get dma master\n");
 		ret = -EINVAL;
@@ -177,41 +177,41 @@ static const struct of_device_id stm32_stm32dma_master_match[] __maybe_unused = 
 
 static int stm32_dmamux_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	const struct of_device_id *match;
-	struct device_node *dma_node;
+	struct device_analde *dma_analde;
 	struct stm32_dmamux_data *stm32_dmamux;
 	void __iomem *iomem;
 	struct reset_control *rst;
 	int i, count, ret;
 	u32 dma_req;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	count = device_property_count_u32(&pdev->dev, "dma-masters");
 	if (count < 0) {
-		dev_err(&pdev->dev, "Can't get DMA master(s) node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "Can't get DMA master(s) analde\n");
+		return -EANALDEV;
 	}
 
 	stm32_dmamux = devm_kzalloc(&pdev->dev, sizeof(*stm32_dmamux) +
 				    sizeof(u32) * (count + 1), GFP_KERNEL);
 	if (!stm32_dmamux)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_req = 0;
 	for (i = 1; i <= count; i++) {
-		dma_node = of_parse_phandle(node, "dma-masters", i - 1);
+		dma_analde = of_parse_phandle(analde, "dma-masters", i - 1);
 
-		match = of_match_node(stm32_stm32dma_master_match, dma_node);
+		match = of_match_analde(stm32_stm32dma_master_match, dma_analde);
 		if (!match) {
-			dev_err(&pdev->dev, "DMA master is not supported\n");
-			of_node_put(dma_node);
+			dev_err(&pdev->dev, "DMA master is analt supported\n");
+			of_analde_put(dma_analde);
 			return -EINVAL;
 		}
 
-		if (of_property_read_u32(dma_node, "dma-requests",
+		if (of_property_read_u32(dma_analde, "dma-requests",
 					 &stm32_dmamux->dma_reqs[i])) {
 			dev_info(&pdev->dev,
 				 "Missing MUX output information, using %u.\n",
@@ -220,12 +220,12 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 				STM32_DMAMUX_MAX_DMA_REQUESTS;
 		}
 		dma_req += stm32_dmamux->dma_reqs[i];
-		of_node_put(dma_node);
+		of_analde_put(dma_analde);
 	}
 
 	if (dma_req > STM32_DMAMUX_MAX_DMA_REQUESTS) {
 		dev_err(&pdev->dev, "Too many DMA Master Requests to manage\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	stm32_dmamux->dma_requests = dma_req;
@@ -237,7 +237,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "DMAMUX defaulting on %u requests\n",
 			 stm32_dmamux->dmamux_requests);
 	}
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iomem))
@@ -275,7 +275,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	/* Reset the dmamux */
 	for (i = 0; i < stm32_dmamux->dma_requests; i++)
@@ -283,7 +283,7 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	ret = of_dma_router_register(node, stm32_dmamux_route_allocate,
+	ret = of_dma_router_register(analde, stm32_dmamux_route_allocate,
 				     &stm32_dmamux->dmarouter);
 	if (ret)
 		goto pm_disable;

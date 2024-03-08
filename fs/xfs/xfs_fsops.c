@@ -23,7 +23,7 @@
 #include "xfs_trace.h"
 
 /*
- * Write new AG headers to disk. Non-transactional, but need to be
+ * Write new AG headers to disk. Analn-transactional, but need to be
  * written and completed prior to the growfs transaction being logged.
  * To do this, we use a delayed write buffer list and wait for
  * submission and IO completion of the list as a whole. This allows the
@@ -51,12 +51,12 @@ xfs_resizefs_init_new_ags(
 	*lastag_extended = false;
 
 	INIT_LIST_HEAD(&id->buffer_list);
-	for (id->agno = nagcount - 1;
-	     id->agno >= oagcount;
-	     id->agno--, delta -= id->agsize) {
+	for (id->aganal = nagcount - 1;
+	     id->aganal >= oagcount;
+	     id->aganal--, delta -= id->agsize) {
 
-		if (id->agno == nagcount - 1)
-			id->agsize = nb - (id->agno *
+		if (id->aganal == nagcount - 1)
+			id->agsize = nb - (id->aganal *
 					(xfs_rfsblock_t)mp->m_sb.sb_agblocks);
 		else
 			id->agsize = mp->m_sb.sb_agblocks;
@@ -127,14 +127,14 @@ xfs_growfs_data_private(
 	nagcount = nb_div;
 	delta = nb - mp->m_sb.sb_dblocks;
 	/*
-	 * Reject filesystems with a single AG because they are not
+	 * Reject filesystems with a single AG because they are analt
 	 * supported, and reject a shrink operation that would cause a
 	 * filesystem to become unsupported.
 	 */
 	if (delta < 0 && nagcount < 2)
 		return -EINVAL;
 
-	/* No work to do */
+	/* Anal work to do */
 	if (delta == 0)
 		return 0;
 
@@ -174,7 +174,7 @@ xfs_growfs_data_private(
 		goto out_trans_cancel;
 
 	/*
-	 * Update changed superblock fields transactionally. These are not
+	 * Update changed superblock fields transactionally. These are analt
 	 * seen by the rest of the world until the transaction commit applies
 	 * them atomically to the superblock.
 	 */
@@ -186,7 +186,7 @@ xfs_growfs_data_private(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FDBLOCKS, id.nfree);
 
 	/*
-	 * Sync sb counters now to reflect the updated values. This is
+	 * Sync sb counters analw to reflect the updated values. This is
 	 * particularly important for shrink because the write verifier
 	 * will fail if sb_fdblocks is ever larger than sb_dblocks.
 	 */
@@ -212,19 +212,19 @@ xfs_growfs_data_private(
 		if (lastag_extended) {
 			struct xfs_perag	*pag;
 
-			pag = xfs_perag_get(mp, id.agno);
+			pag = xfs_perag_get(mp, id.aganal);
 			error = xfs_ag_resv_free(pag);
 			xfs_perag_put(pag);
 			if (error)
 				return error;
 		}
 		/*
-		 * Reserve AG metadata blocks. ENOSPC here does not mean there
+		 * Reserve AG metadata blocks. EANALSPC here does analt mean there
 		 * was a growfs failure, just that there still isn't space for
 		 * new user data after the grow has been run.
 		 */
 		error = xfs_fs_reserve_ag_blocks(mp);
-		if (error == -ENOSPC)
+		if (error == -EANALSPC)
 			error = 0;
 	}
 	return error;
@@ -256,7 +256,7 @@ xfs_growfs_log_private(
 	 * Can have shorter or longer log in the same space,
 	 * or transform internal to external log or vice versa.
 	 */
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int
@@ -316,11 +316,11 @@ xfs_growfs_data(
 	if (mp->m_sb.sb_imax_pct) {
 		uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
 		do_div(icount, 100);
-		M_IGEO(mp)->maxicount = XFS_FSB_TO_INO(mp, icount);
+		M_IGEO(mp)->maxicount = XFS_FSB_TO_IANAL(mp, icount);
 	} else
 		M_IGEO(mp)->maxicount = 0;
 
-	/* Update secondary superblocks now the physical grow has completed */
+	/* Update secondary superblocks analw the physical grow has completed */
 	error = xfs_update_secondary_sbs(mp);
 
 out_error:
@@ -370,7 +370,7 @@ xfs_reserve_blocks(
 	 * to work out if we are freeing or allocation blocks first, then we can
 	 * do the modification as necessary.
 	 *
-	 * We do this under the m_sb_lock so that if we are near ENOSPC, we will
+	 * We do this under the m_sb_lock so that if we are near EANALSPC, we will
 	 * hold out any changes while we work out what to do. This means that
 	 * the amount of free space can change while we do this, so we need to
 	 * retry if we end up trying to reserve more space than is available.
@@ -406,8 +406,8 @@ xfs_reserve_blocks(
 	 *
 	 * The code below estimates how many blocks it can request from
 	 * fdblocks to stash in the reserve pool.  This is a classic TOCTOU
-	 * race since fdblocks updates are not always coordinated via
-	 * m_sb_lock.  Set the reserve size even if there's not enough free
+	 * race since fdblocks updates are analt always coordinated via
+	 * m_sb_lock.  Set the reserve size even if there's analt eanalugh free
 	 * space to fill it because mod_fdblocks will refill an undersized
 	 * reserve when it can.
 	 */
@@ -418,7 +418,7 @@ xfs_reserve_blocks(
 	if (delta > 0 && free > 0) {
 		/*
 		 * We'll either succeed in getting space from the free block
-		 * count or we'll get an ENOSPC.  Don't set the reserved flag
+		 * count or we'll get an EANALSPC.  Don't set the reserved flag
 		 * here - we don't want to reserve the extra reserve blocks
 		 * from the reserve.
 		 *
@@ -454,7 +454,7 @@ xfs_fs_goingdown(
 	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:
 		xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 		break;
-	case XFS_FSOP_GOING_FLAGS_NOLOGFLUSH:
+	case XFS_FSOP_GOING_FLAGS_ANALLOGFLUSH:
 		xfs_force_shutdown(mp,
 				SHUTDOWN_FORCE_UMOUNT | SHUTDOWN_LOG_IO_ERROR);
 		break;
@@ -468,7 +468,7 @@ xfs_fs_goingdown(
 /*
  * Force a shutdown of the filesystem instantly while keeping the filesystem
  * consistent. We don't do an unmount here; just shutdown the shop, make sure
- * that absolutely nothing persistent happens to this filesystem after this
+ * that absolutely analthing persistent happens to this filesystem after this
  * point.
  *
  * The shutdown state change is atomic, resulting in the first and only the
@@ -532,19 +532,19 @@ int
 xfs_fs_reserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			err2;
 
-	mp->m_finobt_nores = false;
-	for_each_perag(mp, agno, pag) {
+	mp->m_fianalbt_analres = false;
+	for_each_perag(mp, aganal, pag) {
 		err2 = xfs_ag_resv_init(pag, NULL);
 		if (err2 && !error)
 			error = err2;
 	}
 
-	if (error && error != -ENOSPC) {
+	if (error && error != -EANALSPC) {
 		xfs_warn(mp,
 	"Error %d reserving per-AG metadata reserve pool.", error);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
@@ -560,12 +560,12 @@ int
 xfs_fs_unreserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		aganal;
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			err2;
 
-	for_each_perag(mp, agno, pag) {
+	for_each_perag(mp, aganal, pag) {
 		err2 = xfs_ag_resv_free(pag);
 		if (err2 && !error)
 			error = err2;

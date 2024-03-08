@@ -42,11 +42,11 @@ struct guest_info {
 /*
  * Flag definitions
  */
-#define MIPS_CACHE_NOT_PRESENT	0x00000001
+#define MIPS_CACHE_ANALT_PRESENT	0x00000001
 #define MIPS_CACHE_VTAG		0x00000002	/* Virtually tagged cache */
 #define MIPS_CACHE_ALIASES	0x00000004	/* Cache could have aliases */
 #define MIPS_CACHE_IC_F_DC	0x00000008	/* Ic can refill from D-cache */
-#define MIPS_IC_SNOOPS_REMOTE	0x00000010	/* Ic snoops remote stores */
+#define MIPS_IC_SANALOPS_REMOTE	0x00000010	/* Ic sanalops remote stores */
 #define MIPS_CACHE_PINDEX	0x00000020	/* Physically indexed cache */
 
 struct cpuinfo_mips {
@@ -109,7 +109,7 @@ struct cpuinfo_mips {
 #ifdef CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION
 	/* CPUCFG data for this CPU, synthesized at probe time.
 	 *
-	 * CPUCFG select 0 is PRId, 4 and above are unimplemented for now.
+	 * CPUCFG select 0 is PRId, 4 and above are unimplemented for analw.
 	 * So the only stored values are for CPUCFG selects 1-3 inclusive.
 	 */
 	u32 loongson3_cpucfg_data[3];
@@ -128,22 +128,22 @@ extern const char *__cpu_name[];
 #define cpu_name_string()	__cpu_name[raw_smp_processor_id()]
 
 struct seq_file;
-struct notifier_block;
+struct analtifier_block;
 
-extern int register_proc_cpuinfo_notifier(struct notifier_block *nb);
-extern int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v);
+extern int register_proc_cpuinfo_analtifier(struct analtifier_block *nb);
+extern int proc_cpuinfo_analtifier_call_chain(unsigned long val, void *v);
 
-#define proc_cpuinfo_notifier(fn, pri)					\
+#define proc_cpuinfo_analtifier(fn, pri)					\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct analtifier_block fn##_nb = {			\
+		.analtifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_proc_cpuinfo_notifier(&fn##_nb);			\
+	register_proc_cpuinfo_analtifier(&fn##_nb);			\
 })
 
-struct proc_cpuinfo_notifier_args {
+struct proc_cpuinfo_analtifier_args {
 	struct seq_file *m;
 	unsigned long n;
 };

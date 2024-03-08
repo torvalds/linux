@@ -92,15 +92,15 @@ properties:
     description: Number of size cells on the MDIO bus.
     const: 0
 
-  renesas,no-ether-link:
+  renesas,anal-ether-link:
     type: boolean
     description:
-      Specify when a board does not provide a proper AVB_LINK signal.
+      Specify when a board does analt provide a proper AVB_LINK signal.
 
   renesas,ether-link-active-low:
     type: boolean
     description:
-      Specify when the AVB_LINK signal is active-low instead of normal
+      Specify when the AVB_LINK signal is active-low instead of analrmal
       active-high.
 
   rx-internal-delay-ps:

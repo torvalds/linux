@@ -58,7 +58,7 @@ static int enetc_msg_vsi_set_primary_mac_addr(struct enetc_ndev_priv *priv,
 	if (!msg.vaddr) {
 		dev_err(priv->dev, "Failed to alloc Tx msg (size: %d)\n",
 			msg.size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd = (struct enetc_msg_cmd_set_primary_mac *)msg.vaddr;
@@ -80,7 +80,7 @@ static int enetc_vf_set_mac_addr(struct net_device *ndev, void *addr)
 	struct sockaddr *saddr = addr;
 
 	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	return enetc_msg_vsi_set_primary_mac_addr(priv, saddr);
 }
@@ -100,7 +100,7 @@ static int enetc_vf_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 	case TC_SETUP_QDISC_MQPRIO:
 		return enetc_setup_tc_mqprio(ndev, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -169,7 +169,7 @@ static int enetc_vf_probe(struct pci_dev *pdev,
 
 	ndev = alloc_etherdev_mq(sizeof(*priv), ENETC_MAX_NUM_TXQS);
 	if (!ndev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		dev_err(&pdev->dev, "netdev creation failed\n");
 		goto err_alloc_netdev;
 	}

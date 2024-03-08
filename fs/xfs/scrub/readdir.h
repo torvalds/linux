@@ -6,14 +6,14 @@
 #ifndef __XFS_SCRUB_READDIR_H__
 #define __XFS_SCRUB_READDIR_H__
 
-typedef int (*xchk_dirent_fn)(struct xfs_scrub *sc, struct xfs_inode *dp,
+typedef int (*xchk_dirent_fn)(struct xfs_scrub *sc, struct xfs_ianalde *dp,
 		xfs_dir2_dataptr_t dapos, const struct xfs_name *name,
-		xfs_ino_t ino, void *priv);
+		xfs_ianal_t ianal, void *priv);
 
-int xchk_dir_walk(struct xfs_scrub *sc, struct xfs_inode *dp,
+int xchk_dir_walk(struct xfs_scrub *sc, struct xfs_ianalde *dp,
 		xchk_dirent_fn dirent_fn, void *priv);
 
-int xchk_dir_lookup(struct xfs_scrub *sc, struct xfs_inode *dp,
-		const struct xfs_name *name, xfs_ino_t *ino);
+int xchk_dir_lookup(struct xfs_scrub *sc, struct xfs_ianalde *dp,
+		const struct xfs_name *name, xfs_ianal_t *ianal);
 
 #endif /* __XFS_SCRUB_READDIR_H__ */

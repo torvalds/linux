@@ -31,7 +31,7 @@
  * voltage consumed by the GPU in different states.
  *
  * The combination of the following flags define which states GPU is allowed
- * to enter, while RC6 is the normal RC6 state, RC6p is the deep RC6, and
+ * to enter, while RC6 is the analrmal RC6 state, RC6p is the deep RC6, and
  * RC6pp is deepest RC6. Their support by hardware varies according to the
  * GPU, BIOS, chipset and platform. RC6 is usually the safest one and the one
  * which brings the most power savings; deeper states save more power, but
@@ -93,9 +93,9 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 	 * interrupt service latency, the hardware will automatically gate
 	 * the power well and we will then incur the wake up cost on top of
 	 * the service latency. A similar guide from plane_state is that we
-	 * do not want the enable hysteresis to less than the wakeup latency.
+	 * do analt want the enable hysteresis to less than the wakeup latency.
 	 *
-	 * igt/gem_exec_nop/sequential provides a rough estimate for the
+	 * igt/gem_exec_analp/sequential provides a rough estimate for the
 	 * service latency, and puts it under 10us for Icelake, similar to
 	 * Broadwell+, To be conservative, we want to factor in a context
 	 * switch on top (due to ksoftirqd).
@@ -105,9 +105,9 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 
 	/* 3a: Enable RC6
 	 *
-	 * With GuCRC, we do not enable bit 31 of RC_CTL,
+	 * With GuCRC, we do analt enable bit 31 of RC_CTL,
 	 * thus allowing GuC to control RC6 entry/exit fully instead.
-	 * We will not set the HW ENABLE and EI bits
+	 * We will analt set the HW ENABLE and EI bits
 	 */
 	if (!intel_guc_rc_enable(&gt->uc.guc))
 		rc6->ctl_enable = GEN6_RC_CTL_RC6_ENABLE;
@@ -183,12 +183,12 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	 * interrupt service latency, the hardware will automatically gate
 	 * the power well and we will then incur the wake up cost on top of
 	 * the service latency. A similar guide from plane_state is that we
-	 * do not want the enable hysteresis to less than the wakeup latency.
+	 * do analt want the enable hysteresis to less than the wakeup latency.
 	 *
-	 * igt/gem_exec_nop/sequential provides a rough estimate for the
+	 * igt/gem_exec_analp/sequential provides a rough estimate for the
 	 * service latency, and puts it around 10us for Broadwell (and other
 	 * big core) and around 40us for Broxton (and other low power cores).
-	 * [Note that for legacy ringbuffer submission, this is less than 1us!]
+	 * [Analte that for legacy ringbuffer submission, this is less than 1us!]
 	 * However, the wakeup latency on Broxton is closer to 100us. To be
 	 * conservative, we have to factor in a context switch on top (due
 	 * to ksoftirqd).
@@ -288,7 +288,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 	}
 }
 
-/* Check that the pcbr address is not empty. */
+/* Check that the pcbr address is analt empty. */
 static int chv_rc6_init(struct intel_rc6 *rc6)
 {
 	struct intel_uncore *uncore = rc6_to_uncore(rc6);
@@ -341,14 +341,14 @@ static int vlv_rc6_init(struct intel_rc6 *rc6)
 	 * From the Gunit register HAS:
 	 * The Gfx driver is expected to program this register and ensure
 	 * proper allocation within Gfx stolen memory.  For example, this
-	 * register should be programmed such than the PCBR range does not
+	 * register should be programmed such than the PCBR range does analt
 	 * overlap with other ranges, such as the frame buffer, protected
 	 * memory, or any other relevant ranges.
 	 */
 	pctx = i915_gem_object_create_stolen(i915, pctx_size);
 	if (IS_ERR(pctx)) {
 		drm_dbg(&i915->drm,
-			"not enough stolen space for PCTX, disabling\n");
+			"analt eanalugh stolen space for PCTX, disabling\n");
 		return PTR_ERR(pctx);
 	}
 
@@ -452,19 +452,19 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 			 rc_sw_target);
 
 	if (!(intel_uncore_read(uncore, RC6_LOCATION) & RC6_CTX_IN_DRAM)) {
-		drm_dbg(&i915->drm, "RC6 Base location not set properly.\n");
+		drm_dbg(&i915->drm, "RC6 Base location analt set properly.\n");
 		enable_rc6 = false;
 	}
 
 	/*
-	 * The exact context size is not known for BXT, so assume a page size
+	 * The exact context size is analt kanalwn for BXT, so assume a page size
 	 * for this check.
 	 */
 	rc6_ctx_base =
 		intel_uncore_read(uncore, RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
 	if (!(rc6_ctx_base >= i915->dsm.reserved.start &&
 	      rc6_ctx_base + PAGE_SIZE < i915->dsm.reserved.end)) {
-		drm_dbg(&i915->drm, "RC6 Base address not as expected.\n");
+		drm_dbg(&i915->drm, "RC6 Base address analt as expected.\n");
 		enable_rc6 = false;
 	}
 
@@ -473,24 +473,24 @@ static bool bxt_check_bios_rc6_setup(struct intel_rc6 *rc6)
 	      (intel_uncore_read(uncore, PWRCTX_MAXCNT(BLT_RING_BASE)) & IDLE_TIME_MASK) > 1 &&
 	      (intel_uncore_read(uncore, PWRCTX_MAXCNT(VEBOX_RING_BASE)) & IDLE_TIME_MASK) > 1)) {
 		drm_dbg(&i915->drm,
-			"Engine Idle wait time not set properly.\n");
+			"Engine Idle wait time analt set properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN8_PUSHBUS_CONTROL) ||
 	    !intel_uncore_read(uncore, GEN8_PUSHBUS_ENABLE) ||
 	    !intel_uncore_read(uncore, GEN8_PUSHBUS_SHIFT)) {
-		drm_dbg(&i915->drm, "Pushbus not setup properly.\n");
+		drm_dbg(&i915->drm, "Pushbus analt setup properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN6_GFXPAUSE)) {
-		drm_dbg(&i915->drm, "GFX pause not setup properly.\n");
+		drm_dbg(&i915->drm, "GFX pause analt setup properly.\n");
 		enable_rc6 = false;
 	}
 
 	if (!intel_uncore_read(uncore, GEN8_MISC_CTRL0)) {
-		drm_dbg(&i915->drm, "GPM control not setup properly.\n");
+		drm_dbg(&i915->drm, "GPM control analt setup properly.\n");
 		enable_rc6 = false;
 	}
 
@@ -512,20 +512,20 @@ static bool rc6_supported(struct intel_rc6 *rc6)
 		return false;
 
 	if (IS_GEN9_LP(i915) && !bxt_check_bios_rc6_setup(rc6)) {
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "RC6 and powersaving disabled by BIOS\n");
 		return false;
 	}
 
 	if (IS_METEORLAKE(gt->i915) &&
 	    !intel_check_bios_c6_setup(rc6)) {
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "C6 disabled by BIOS\n");
 		return false;
 	}
 
 	if (IS_MEDIA_GT_IP_STEP(gt, IP_VER(13, 0), STEP_A0, STEP_B0)) {
-		drm_notice(&i915->drm,
+		drm_analtice(&i915->drm,
 			   "Media RC6 disabled on A step\n");
 		return false;
 	}
@@ -557,7 +557,7 @@ static bool pctx_corrupted(struct intel_rc6 *rc6)
 	if (intel_uncore_read(rc6_to_uncore(rc6), GEN8_RC6_CTX_INFO))
 		return false;
 
-	drm_notice(&i915->drm,
+	drm_analtice(&i915->drm,
 		   "RC6 context corruption, disabling runtime power management\n");
 	return true;
 }
@@ -713,7 +713,7 @@ void intel_rc6_park(struct intel_rc6 *rc6)
 	else if (HAS_RC6p(rc6_to_i915(rc6)))
 		target = 0x5; /* deep rc6 */
 	else
-		target = 0x4; /* normal rc6 */
+		target = 0x4; /* analrmal rc6 */
 	intel_uncore_write_fw(uncore, GEN6_RC_STATE, target << RC_SW_TARGET_STATE_SHIFT);
 }
 
@@ -753,7 +753,7 @@ static u64 vlv_residency_raw(struct intel_uncore *uncore, const i915_reg_t reg)
 	int loop = 2;
 
 	/*
-	 * The register accessed do not need forcewake. We borrow
+	 * The register accessed do analt need forcewake. We borrow
 	 * uncore lock to prevent concurrent access to range reg.
 	 */
 	lockdep_assert_held(&uncore->lock);
@@ -786,7 +786,7 @@ static u64 vlv_residency_raw(struct intel_uncore *uncore, const i915_reg_t reg)
 	/*
 	 * Everywhere else we always use VLV_COUNTER_CONTROL with the
 	 * VLV_COUNT_RANGE_HIGH bit set - so it is safe to leave it set
-	 * now.
+	 * analw.
 	 */
 
 	return lower | (u64)upper << 8;

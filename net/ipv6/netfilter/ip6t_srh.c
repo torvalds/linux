@@ -248,13 +248,13 @@ static int srh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_srh *srhinfo = par->matchinfo;
 
 	if (srhinfo->mt_flags & ~IP6T_SRH_MASK) {
-		pr_info_ratelimited("unknown srh match flags  %X\n",
+		pr_info_ratelimited("unkanalwn srh match flags  %X\n",
 				    srhinfo->mt_flags);
 		return -EINVAL;
 	}
 
 	if (srhinfo->mt_invflags & ~IP6T_SRH_INV_MASK) {
-		pr_info_ratelimited("unknown srh invflags %X\n",
+		pr_info_ratelimited("unkanalwn srh invflags %X\n",
 				    srhinfo->mt_invflags);
 		return -EINVAL;
 	}
@@ -267,13 +267,13 @@ static int srh1_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_srh1 *srhinfo = par->matchinfo;
 
 	if (srhinfo->mt_flags & ~IP6T_SRH_MASK) {
-		pr_info_ratelimited("unknown srh match flags  %X\n",
+		pr_info_ratelimited("unkanalwn srh match flags  %X\n",
 				    srhinfo->mt_flags);
 		return -EINVAL;
 	}
 
 	if (srhinfo->mt_invflags & ~IP6T_SRH_INV_MASK) {
-		pr_info_ratelimited("unknown srh invflags %X\n",
+		pr_info_ratelimited("unkanalwn srh invflags %X\n",
 				    srhinfo->mt_invflags);
 		return -EINVAL;
 	}

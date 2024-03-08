@@ -8,7 +8,7 @@
 
 #include <asm/unistd.h>
 
-void __noreturn exit(int n)
+void __analreturn exit(int n)
 {
 	syscall(__NR_exit, n);
 	unreachable();

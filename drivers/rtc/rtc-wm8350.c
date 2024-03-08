@@ -375,15 +375,15 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 
 	timectl = wm8350_reg_read(wm8350, WM8350_RTC_TIME_CONTROL);
 	if (timectl & WM8350_RTC_BCD) {
-		dev_err(&pdev->dev, "RTC BCD mode not supported\n");
+		dev_err(&pdev->dev, "RTC BCD mode analt supported\n");
 		return -EINVAL;
 	}
 	if (timectl & WM8350_RTC_12HR) {
-		dev_err(&pdev->dev, "RTC 12 hour mode not supported\n");
+		dev_err(&pdev->dev, "RTC 12 hour mode analt supported\n");
 		return -EINVAL;
 	}
 
-	/* enable the RTC if it's not already enabled */
+	/* enable the RTC if it's analt already enabled */
 	power5 = wm8350_reg_read(wm8350, WM8350_POWER_MGMT_5);
 	if (!(power5 &  WM8350_RTC_TICK_ENA)) {
 		wm8350_reg_unlock(wm8350);
@@ -416,7 +416,7 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 
 		if (retries == 0) {
 			dev_err(&pdev->dev, "failed to start: timeout\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 

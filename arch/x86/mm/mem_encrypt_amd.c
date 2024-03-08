@@ -38,7 +38,7 @@
 
 /*
  * Since SME related variables are set early in the boot process they must
- * reside in the .data section so as not to be zeroed out when the .bss
+ * reside in the .data section so as analt to be zeroed out when the .bss
  * section is later cleared.
  */
 u64 sme_me_mask __section(".data") = 0;
@@ -46,7 +46,7 @@ u64 sev_status __section(".data") = 0;
 u64 sev_check_data __section(".data") = 0;
 EXPORT_SYMBOL(sme_me_mask);
 
-/* Buffer used for early in-place encryption by BSP, no locking needed */
+/* Buffer used for early in-place encryption by BSP, anal locking needed */
 static char sme_early_buffer[PAGE_SIZE] __initdata __aligned(PAGE_SIZE);
 
 /*
@@ -72,7 +72,7 @@ static inline void __init snp_memcpy(void *dst, void *src, size_t sz,
 		early_snp_set_memory_private((unsigned long)__va(paddr), paddr, npages);
 	} else {
 		/*
-		 * @paddr need to be accessed encrypted, no need for the page state
+		 * @paddr need to be accessed encrypted, anal need for the page state
 		 * change.
 		 */
 		memcpy(dst, src, sz);
@@ -80,10 +80,10 @@ static inline void __init snp_memcpy(void *dst, void *src, size_t sz,
 }
 
 /*
- * This routine does not change the underlying encryption setting of the
+ * This routine does analt change the underlying encryption setting of the
  * page(s) that map this memory. It assumes that eventually the memory is
  * meant to be accessed as either encrypted or decrypted but the contents
- * are currently not in the desired state.
+ * are currently analt in the desired state.
  *
  * This routine follows the steps outlined in the AMD64 Architecture
  * Programmer's Manual Volume 2, Section 7.10.8 Encrypt-in-Place.
@@ -264,7 +264,7 @@ static void enc_dec_hypercall(unsigned long vaddr, unsigned long size, bool enc)
 		pte_t *kpte;
 
 		kpte = lookup_address(vaddr, &level);
-		if (!kpte || pte_none(*kpte)) {
+		if (!kpte || pte_analne(*kpte)) {
 			WARN_ONCE(1, "kpte lookup for vaddr\n");
 			return;
 		}
@@ -276,7 +276,7 @@ static void enc_dec_hypercall(unsigned long vaddr, unsigned long size, bool enc)
 		psize = page_level_size(level);
 		pmask = page_level_mask(level);
 
-		notify_page_enc_status_changed(pfn, psize >> PAGE_SHIFT, enc);
+		analtify_page_enc_status_changed(pfn, psize >> PAGE_SHIFT, enc);
 
 		vaddr = (vaddr & pmask) + psize;
 	}
@@ -327,7 +327,7 @@ static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 	else
 		pgprot_val(new_prot) &= ~_PAGE_ENC;
 
-	/* If prot is same then do nothing. */
+	/* If prot is same then do analthing. */
 	if (pgprot_val(old_prot) == pgprot_val(new_prot))
 		return;
 
@@ -381,7 +381,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 
 	for (; vaddr < vaddr_end; vaddr = vaddr_next) {
 		kpte = lookup_address(vaddr, &level);
-		if (!kpte || pte_none(*kpte)) {
+		if (!kpte || pte_analne(*kpte)) {
 			ret = 1;
 			goto out;
 		}
@@ -397,7 +397,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 
 		/*
 		 * Check whether we can change the large page in one go.
-		 * We request a split when the address is not aligned and
+		 * We request a split when the address is analt aligned and
 		 * the number of pages to set/clear encryption bit is smaller
 		 * than the number of pages in the large page.
 		 */
@@ -420,7 +420,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 			split_page_size_mask = 1 << PG_LEVEL_2M;
 
 		/*
-		 * kernel_physical_mapping_change() does not flush the TLBs, so
+		 * kernel_physical_mapping_change() does analt flush the TLBs, so
 		 * a TLB flush is required after we exit from the for loop.
 		 */
 		kernel_physical_mapping_change(__pa(vaddr & pmask),
@@ -470,13 +470,13 @@ void __init sme_early_init(void)
 
 	/*
 	 * AMD-SEV-ES intercepts the RDMSR to read the X2APIC ID in the
-	 * parallel bringup low level code. That raises #VC which cannot be
+	 * parallel bringup low level code. That raises #VC which cananalt be
 	 * handled there.
-	 * It does not provide a RDMSR GHCB protocol so the early startup
-	 * code cannot directly communicate with the secure firmware. The
+	 * It does analt provide a RDMSR GHCB protocol so the early startup
+	 * code cananalt directly communicate with the secure firmware. The
 	 * alternative solution to retrieve the APIC ID via CPUID(0xb),
-	 * which is covered by the GHCB protocol, is not viable either
-	 * because there is no enforcement of the CPUID(0xb) provided
+	 * which is covered by the GHCB protocol, is analt viable either
+	 * because there is anal enforcement of the CPUID(0xb) provided
 	 * "initial" APIC ID to be the same as the real APIC ID.
 	 * Disable parallel bootup.
 	 */

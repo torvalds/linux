@@ -25,7 +25,7 @@ enum { REG_RE, REG_FE, REG_IE };
 enum { LSB, CSB, MSB };
 
 #define CACHE_NR_REGS	3
-/* No variant has more than 24 GPIOs */
+/* Anal variant has more than 24 GPIOs */
 #define CACHE_NR_BANKS	(24 / 8)
 
 struct stmpe_gpio {
@@ -33,7 +33,7 @@ struct stmpe_gpio {
 	struct stmpe *stmpe;
 	struct device *dev;
 	struct mutex irq_lock;
-	u32 norequest_mask;
+	u32 analrequest_mask;
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -120,7 +120,7 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(chip);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
 
-	if (stmpe_gpio->norequest_mask & BIT(offset))
+	if (stmpe_gpio->analrequest_mask & BIT(offset))
 		return -EINVAL;
 
 	return stmpe_set_altfunc(stmpe, BIT(offset), STMPE_BLOCK_GPIO);
@@ -274,7 +274,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 
 	if (dir) {
 		seq_printf(s, " gpio-%-3d (%-20.20s) out %s",
-			   gpio, label ?: "(none)",
+			   gpio, label ?: "(analne)",
 			   val ? "hi" : "lo");
 	} else {
 		u8 edge_det_reg;
@@ -285,22 +285,22 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 		static const char * const edge_det_values[] = {
 			"edge-inactive",
 			"edge-asserted",
-			"not-supported"
+			"analt-supported"
 		};
 		static const char * const rise_values[] = {
-			"no-rising-edge-detection",
+			"anal-rising-edge-detection",
 			"rising-edge-detection",
-			"not-supported"
+			"analt-supported"
 		};
 		static const char * const fall_values[] = {
-			"no-falling-edge-detection",
+			"anal-falling-edge-detection",
 			"falling-edge-detection",
-			"not-supported"
+			"analt-supported"
 		};
-		#define NOT_SUPPORTED_IDX 2
-		u8 edge_det = NOT_SUPPORTED_IDX;
-		u8 rise = NOT_SUPPORTED_IDX;
-		u8 fall = NOT_SUPPORTED_IDX;
+		#define ANALT_SUPPORTED_IDX 2
+		u8 edge_det = ANALT_SUPPORTED_IDX;
+		u8 rise = ANALT_SUPPORTED_IDX;
+		u8 fall = ANALT_SUPPORTED_IDX;
 		bool irqen;
 
 		switch (stmpe->partnum) {
@@ -343,7 +343,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 		irqen = !!(ret & mask);
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %13s %13s %25s %25s",
-			   gpio, label ?: "(none)",
+			   gpio, label ?: "(analne)",
 			   val ? "hi" : "lo",
 			   edge_det_values[edge_det],
 			   irqen ? "IRQ-enabled" : "IRQ-disabled",
@@ -401,7 +401,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 
 	ret = stmpe_block_read(stmpe, statmsbreg, num_banks, status);
 	if (ret < 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	for (i = 0; i < num_banks; i++) {
 		int bank = (stmpe_gpio->stmpe->partnum == STMPE1600) ? i :
@@ -424,9 +424,9 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		}
 
 		/*
-		 * interrupt status register write has no effect on
+		 * interrupt status register write has anal effect on
 		 * 801/1801/1600, bits are cleared when read.
-		 * Edge detect register is not present on 801/1600/1801
+		 * Edge detect register is analt present on 801/1600/1801
 		 */
 		if (stmpe->partnum != STMPE801 && stmpe->partnum != STMPE1600 &&
 		    stmpe->partnum != STMPE1801) {
@@ -447,12 +447,12 @@ static void stmpe_init_irq_valid_mask(struct gpio_chip *gc,
 	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(gc);
 	int i;
 
-	if (!stmpe_gpio->norequest_mask)
+	if (!stmpe_gpio->analrequest_mask)
 		return;
 
 	/* Forbid unused lines to be mapped as IRQs */
 	for (i = 0; i < sizeof(u32); i++) {
-		if (stmpe_gpio->norequest_mask & BIT(i))
+		if (stmpe_gpio->analrequest_mask & BIT(i))
 			clear_bit(i, valid_mask);
 	}
 }
@@ -465,7 +465,7 @@ static void stmpe_gpio_disable(void *stmpe)
 static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret, irq;
 
@@ -476,7 +476,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 
 	stmpe_gpio = devm_kzalloc(&pdev->dev, sizeof(*stmpe_gpio), GFP_KERNEL);
 	if (!stmpe_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&stmpe_gpio->irq_lock);
 
@@ -490,14 +490,14 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
-	of_property_read_u32(np, "st,norequest-mask",
-			&stmpe_gpio->norequest_mask);
+	of_property_read_u32(np, "st,analrequest-mask",
+			&stmpe_gpio->analrequest_mask);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		dev_info(&pdev->dev,
-			"device configured in no-irq mode: "
-			"irqs are not available\n");
+			"device configured in anal-irq mode: "
+			"irqs are analt available\n");
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
 	if (ret)
@@ -524,7 +524,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 		girq->threaded = true;
 		girq->init_valid_mask = stmpe_init_irq_valid_mask;

@@ -29,7 +29,7 @@ struct xe_rtp_action {
 	u32			clr_bits;
 	/** @set_bits: bits to set when updating register */
 	u32			set_bits;
-#define XE_RTP_NOCHECK		.read_mask = 0
+#define XE_RTP_ANALCHECK		.read_mask = 0
 	/** @read_mask: mask for bits to consider when reading value back */
 	u32			read_mask;
 #define XE_RTP_ACTION_FLAG_ENGINE_BASE		BIT(0)
@@ -49,7 +49,7 @@ enum {
 	XE_RTP_MATCH_INTEGRATED,
 	XE_RTP_MATCH_DISCRETE,
 	XE_RTP_MATCH_ENGINE_CLASS,
-	XE_RTP_MATCH_NOT_ENGINE_CLASS,
+	XE_RTP_MATCH_ANALT_ENGINE_CLASS,
 	XE_RTP_MATCH_FUNC,
 };
 
@@ -78,7 +78,7 @@ struct xe_rtp_rule {
 			u8 step_start;
 			u8 step_end;
 		};
-		/* MATCH_ENGINE_CLASS / MATCH_NOT_ENGINE_CLASS */
+		/* MATCH_ENGINE_CLASS / MATCH_ANALT_ENGINE_CLASS */
 		struct {
 			u8 engine_class;
 		};
@@ -99,7 +99,7 @@ struct xe_rtp_entry_sr {
 	u8 flags;
 };
 
-/** struct xe_rtp_entry - Entry in an rtp table, with no action associated */
+/** struct xe_rtp_entry - Entry in an rtp table, with anal action associated */
 struct xe_rtp_entry {
 	const char *name;
 	const struct xe_rtp_rule *rules;

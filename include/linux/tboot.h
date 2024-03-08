@@ -2,7 +2,7 @@
 /*
  * tboot.h: shared data structure with tboot and kernel and functions
  *          used by kernel for runtime support of Intel(R) Trusted
- *          Execution Technology
+ *          Execution Techanallogy
  *
  * Copyright (c) 2006-2009, Intel Corporation
  */

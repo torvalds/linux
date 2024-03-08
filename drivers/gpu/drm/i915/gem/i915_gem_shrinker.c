@@ -62,7 +62,7 @@ static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
 		unsigned int shrink_flags = 0;
 
 		if (!(flags & I915_SHRINK_ACTIVE))
-			shrink_flags |= I915_GEM_OBJECT_SHRINK_NO_GPU_WAIT;
+			shrink_flags |= I915_GEM_OBJECT_SHRINK_ANAL_GPU_WAIT;
 
 		if (flags & I915_SHRINK_WRITEBACK)
 			shrink_flags |= I915_GEM_OBJECT_SHRINK_WRITEBACK;
@@ -86,13 +86,13 @@ static int try_to_writeback(struct drm_i915_gem_object *obj, unsigned int flags)
  * Selection of the specific caches can be done with @flags. This is e.g. useful
  * when purgeable objects should be removed from caches preferentially.
  *
- * Note that it's not guaranteed that released amount is actually available as
+ * Analte that it's analt guaranteed that released amount is actually available as
  * free system memory - the pages might still be in-used to due to other reasons
  * (like cpu mmaps) or the mm core has reused them before we could grab them.
  * Therefore code that needs to explicitly shrink buffer objects caches (e.g. to
  * avoid deadlocks in memory reclaim) must fall back to i915_gem_shrink_all().
  *
- * Also note that any kind of pinning (both per-vma address space pins and
+ * Also analte that any kind of pinning (both per-vma address space pins and
  * backing storage pins at the buffer object level) result in the shrinker code
  * having to skip the object.
  *
@@ -124,14 +124,14 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 	struct intel_gt *gt;
 
 	/* CHV + VTD workaround use stop_machine(); need to trylock vm->mutex */
-	bool trylock_vm = !ww && intel_vm_no_concurrent_access_wa(i915);
+	bool trylock_vm = !ww && intel_vm_anal_concurrent_access_wa(i915);
 
 	trace_i915_gem_shrink(i915, target, shrink);
 
 	/*
-	 * Unbinding of objects will require HW access; Let us not wake the
+	 * Unbinding of objects will require HW access; Let us analt wake the
 	 * device just to recover a little memory. If absolutely necessary,
-	 * we will force the wake during oom-notifier.
+	 * we will force the wake during oom-analtifier.
 	 */
 	if (shrink & I915_SHRINK_BOUND) {
 		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
@@ -142,11 +142,11 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 	/*
 	 * When shrinking the active list, we should also consider active
 	 * contexts. Active contexts are pinned until they are retired, and
-	 * so can not be simply unbound to retire and unpin their pages. To
+	 * so can analt be simply unbound to retire and unpin their pages. To
 	 * shrink the contexts, we must wait until the gpu is idle and
 	 * completed its switch to the kernel context. In short, we do
-	 * not have a good mechanism for idling a specific context, but
-	 * what we can do is give them a kick so that we do not keep idle
+	 * analt have a good mechanism for idling a specific context, but
+	 * what we can do is give them a kick so that we do analt keep idle
 	 * contexts around longer than is necessary.
 	 */
 	if (shrink & I915_SHRINK_ACTIVE) {
@@ -168,7 +168,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 	 * similar to the precautions the eviction code must take whilst
 	 * removing objects.
 	 *
-	 * Also note that although these lists do not hold a reference to
+	 * Also analte that although these lists do analt hold a reference to
 	 * the object we can safely grab one here: The final object
 	 * unreferencing and the bound_list are both protected by the
 	 * dev->struct_mutex and so we won't ever be able to observe an
@@ -186,7 +186,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 
 		/*
 		 * We serialize our access to unreferenced objects through
-		 * the use of the struct_mutex. While the objects are not
+		 * the use of the struct_mutex. While the objects are analt
 		 * yet freed (due to RCU then a workqueue) we still want
 		 * to be able to shrink their pages, so they remain on
 		 * the unbound/bound list until actually freed.
@@ -214,7 +214,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-			/* May arrive from get_pages on another bo */
+			/* May arrive from get_pages on aanalther bo */
 			if (!ww) {
 				if (!i915_gem_object_trylock(obj, NULL))
 					goto skip;
@@ -344,10 +344,10 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 }
 
 static int
-i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
+i915_gem_shrinker_oom(struct analtifier_block *nb, unsigned long event, void *ptr)
 {
 	struct drm_i915_private *i915 =
-		container_of(nb, struct drm_i915_private, mm.oom_notifier);
+		container_of(nb, struct drm_i915_private, mm.oom_analtifier);
 	struct drm_i915_gem_object *obj;
 	unsigned long unevictable, available, freed_pages;
 	intel_wakeref_t wakeref;
@@ -360,8 +360,8 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 					       I915_SHRINK_UNBOUND |
 					       I915_SHRINK_WRITEBACK);
 
-	/* Because we may be allocating inside our own driver, we cannot
-	 * assert that there are no objects with pinned pages that are not
+	/* Because we may be allocating inside our own driver, we cananalt
+	 * assert that there are anal objects with pinned pages that are analt
 	 * being pointed to by hardware.
 	 */
 	available = unevictable = 0;
@@ -380,14 +380,14 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 			freed_pages, unevictable, available);
 
 	*(unsigned long *)ptr += freed_pages;
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int
-i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr)
+i915_gem_shrinker_vmap(struct analtifier_block *nb, unsigned long event, void *ptr)
 {
 	struct drm_i915_private *i915 =
-		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
+		container_of(nb, struct drm_i915_private, mm.vmap_analtifier);
 	struct i915_vma *vma, *next;
 	unsigned long freed_pages = 0;
 	intel_wakeref_t wakeref;
@@ -423,7 +423,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	}
 
 	*(unsigned long *)ptr += freed_pages;
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 void i915_gem_driver_register__shrinker(struct drm_i915_private *i915)
@@ -440,20 +440,20 @@ void i915_gem_driver_register__shrinker(struct drm_i915_private *i915)
 		shrinker_register(i915->mm.shrinker);
 	}
 
-	i915->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
-	drm_WARN_ON(&i915->drm, register_oom_notifier(&i915->mm.oom_notifier));
+	i915->mm.oom_analtifier.analtifier_call = i915_gem_shrinker_oom;
+	drm_WARN_ON(&i915->drm, register_oom_analtifier(&i915->mm.oom_analtifier));
 
-	i915->mm.vmap_notifier.notifier_call = i915_gem_shrinker_vmap;
+	i915->mm.vmap_analtifier.analtifier_call = i915_gem_shrinker_vmap;
 	drm_WARN_ON(&i915->drm,
-		    register_vmap_purge_notifier(&i915->mm.vmap_notifier));
+		    register_vmap_purge_analtifier(&i915->mm.vmap_analtifier));
 }
 
 void i915_gem_driver_unregister__shrinker(struct drm_i915_private *i915)
 {
 	drm_WARN_ON(&i915->drm,
-		    unregister_vmap_purge_notifier(&i915->mm.vmap_notifier));
+		    unregister_vmap_purge_analtifier(&i915->mm.vmap_analtifier));
 	drm_WARN_ON(&i915->drm,
-		    unregister_oom_notifier(&i915->mm.oom_notifier));
+		    unregister_oom_analtifier(&i915->mm.oom_analtifier));
 	shrinker_free(i915->mm.shrinker);
 }
 
@@ -536,7 +536,7 @@ static void ___i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj,
  * WILLNEED objects.
  * @obj: The GEM object.
  *
- * DO NOT USE. This is intended to be called on very special objects that don't
+ * DO ANALT USE. This is intended to be called on very special objects that don't
  * yet have mm.pages, but are guaranteed to have potentially reclaimable pages
  * underneath.
  */
@@ -552,7 +552,7 @@ void __i915_gem_object_make_shrinkable(struct drm_i915_gem_object *obj)
  * DONTNEED objects.
  * @obj: The GEM object.
  *
- * DO NOT USE. This is intended to be called on very special objects that don't
+ * DO ANALT USE. This is intended to be called on very special objects that don't
  * yet have mm.pages, but are guaranteed to have potentially reclaimable pages
  * underneath.
  */

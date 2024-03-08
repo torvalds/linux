@@ -528,14 +528,14 @@ SYM_FUNC_START(sm4_ce_xts_enc)
 	 */
 	ld1		{v8.16b}, [x3]
 
-	cbz		x5, .Lxts_enc_nofirst
+	cbz		x5, .Lxts_enc_analfirst
 
 	SM4_PREPARE(x5)
 
 	/* Generate first tweak */
 	SM4_CRYPT_BLK(v8)
 
-.Lxts_enc_nofirst:
+.Lxts_enc_analfirst:
 	SM4_PREPARE(x0)
 
 	ands		w5, w4, #15
@@ -695,14 +695,14 @@ SYM_FUNC_START(sm4_ce_xts_dec)
 	 */
 	ld1		{v8.16b}, [x3]
 
-	cbz		x5, .Lxts_dec_nofirst
+	cbz		x5, .Lxts_dec_analfirst
 
 	SM4_PREPARE(x5)
 
 	/* Generate first tweak */
 	SM4_CRYPT_BLK(v8)
 
-.Lxts_dec_nofirst:
+.Lxts_dec_analfirst:
 	SM4_PREPARE(x0)
 
 	ands		w5, w4, #15

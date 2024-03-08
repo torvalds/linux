@@ -22,9 +22,9 @@ description: >
 
    - Atomic mask/unmask operations
 
-   - No polarity/level/edge settings
+   - Anal polarity/level/edge settings
 
-   - No FIFO or priority encoder logic; software is expected to read all
+   - Anal FIFO or priority encoder logic; software is expected to read all
      2-5 status words to determine which IRQs are pending
 
    If multiple reg ranges and interrupt-parent entries are present on an SMP
@@ -54,7 +54,7 @@ properties:
 
   interrupts:
     description: >
-     Specifies the interrupt line(s) in the interrupt-parent controller node;
+     Specifies the interrupt line(s) in the interrupt-parent controller analde;
      valid values depend on the type of parent interrupt controller
 
   brcm,irq-can-wake:

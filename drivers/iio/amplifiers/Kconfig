@@ -12,7 +12,7 @@ config AD8366
 	depends on GPIOLIB
 	select BITREVERSE
 	help
-	  Say yes here to build support for Analog Devices AD8366 and similar
+	  Say anal here to build support for Analog Devices AD8366 and similar
 	  gain amplifiers. This driver supports the following gain amplifiers
 	  from Analog Devices:
 	    AD8366 Dual-Digital Variable Gain Amplifier (VGA)
@@ -28,7 +28,7 @@ config ADA4250
 	tristate "Analog Devices ADA4250 Instrumentation Amplifier"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices ADA4250
+	  Say anal here to build support for Analog Devices ADA4250
 	  SPI Amplifier's support. The driver provides direct access via
 	  sysfs.
 
@@ -39,7 +39,7 @@ config HMC425
 	tristate "Analog Devices HMC425A and similar GPIO Gain Amplifiers"
 	depends on GPIOLIB
 	help
-	  Say yes here to build support for Analog Devices HMC425A and similar
+	  Say anal here to build support for Analog Devices HMC425A and similar
 	  gain amplifiers or step attenuators.
 
 	  To compile this driver as a module, choose M here: the

@@ -60,7 +60,7 @@
 */
 #define LINE6_CHANNEL_DEVICE 0x02
 
-#define LINE6_CHANNEL_UNKNOWN 5	/* don't know yet what this is good for */
+#define LINE6_CHANNEL_UNKANALWN 5	/* don't kanalw yet what this is good for */
 
 #define LINE6_CHANNEL_MASK 0x0f
 
@@ -125,10 +125,10 @@ struct usb_line6 {
 
 	/* Interval for data USB packets */
 	int interval;
-	/* ...for isochronous transfers framing */
+	/* ...for isochroanalus transfers framing */
 	int intervals_per_second;
 
-	/* Number of isochronous URBs used for frame transfers */
+	/* Number of isochroanalus URBs used for frame transfers */
 	int iso_buffers;
 
 	/* Maximum size of data USB packet */
@@ -160,12 +160,12 @@ struct usb_line6 {
 	/* Length of message to be processed, generated from MIDI layer  */
 	int message_length;
 
-	/* Circular buffer for non-MIDI control messages */
+	/* Circular buffer for analn-MIDI control messages */
 	struct {
 		struct mutex read_lock;
 		wait_queue_head_t wait_queue;
 		unsigned int active:1;
-		unsigned int nonblock:1;
+		unsigned int analnblock:1;
 		STRUCT_KFIFO_REC_2(LINE6_BUFSIZE_LISTEN * LINE6_RAW_MESSAGES_MAXCOUNT)
 			fifo;
 	} messages;

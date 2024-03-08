@@ -74,7 +74,7 @@ struct applnco_channel {
 
 #define to_applnco_channel(_hw) container_of(_hw, struct applnco_channel, hw)
 
-static void applnco_enable_nolock(struct clk_hw *hw)
+static void applnco_enable_anallock(struct clk_hw *hw)
 {
 	struct applnco_channel *chan = to_applnco_channel(hw);
 	u32 val;
@@ -83,7 +83,7 @@ static void applnco_enable_nolock(struct clk_hw *hw)
 	writel_relaxed(val | CTRL_ENABLE, chan->base + REG_CTRL);
 }
 
-static void applnco_disable_nolock(struct clk_hw *hw)
+static void applnco_disable_anallock(struct clk_hw *hw)
 {
 	struct applnco_channel *chan = to_applnco_channel(hw);
 	u32 val;
@@ -170,7 +170,7 @@ static int applnco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	spin_lock_irqsave(&chan->lock, flags);
 	was_enabled = applnco_is_enabled(hw);
-	applnco_disable_nolock(hw);
+	applnco_disable_anallock(hw);
 
 	writel_relaxed(div,  chan->base + REG_DIV);
 	writel_relaxed(inc1, chan->base + REG_INC1);
@@ -180,7 +180,7 @@ static int applnco_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel_relaxed(1 << 31, chan->base + REG_ACCINIT);
 
 	if (was_enabled)
-		applnco_enable_nolock(hw);
+		applnco_enable_anallock(hw);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	return 0;
@@ -200,7 +200,7 @@ static unsigned long applnco_recalc_rate(struct clk_hw *hw,
 
 	/*
 	 * We don't support wraparound of accumulator
-	 * nor the edge case of both increments being zero
+	 * analr the edge case of both increments being zero
 	 */
 	if (inc1 >= (1 << 31) || inc2 < (1 << 31) || (inc1 == 0 && inc2 == 0))
 		return 0;
@@ -227,7 +227,7 @@ static int applnco_enable(struct clk_hw *hw)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
-	applnco_enable_nolock(hw);
+	applnco_enable_anallock(hw);
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	return 0;
@@ -239,7 +239,7 @@ static void applnco_disable(struct clk_hw *hw)
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->lock, flags);
-	applnco_disable_nolock(hw);
+	applnco_disable_anallock(hw);
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
 
@@ -254,7 +254,7 @@ static const struct clk_ops applnco_ops = {
 
 static int applnco_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk_parent_data pdata = { .index = 0 };
 	struct clk_init_data init;
 	struct clk_hw_onecell_data *onecell_data;
@@ -276,12 +276,12 @@ static int applnco_probe(struct platform_device *pdev)
 	onecell_data = devm_kzalloc(&pdev->dev, struct_size(onecell_data, hws,
 							nchannels), GFP_KERNEL);
 	if (!onecell_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	onecell_data->num = nchannels;
 
 	tbl = devm_kzalloc(&pdev->dev, sizeof(*tbl), GFP_KERNEL);
 	if (!tbl)
-		return -ENOMEM;
+		return -EANALMEM;
 	applnco_compute_tables(tbl);
 
 	for (i = 0; i < nchannels; i++) {
@@ -289,7 +289,7 @@ static int applnco_probe(struct platform_device *pdev)
 
 		chan = devm_kzalloc(&pdev->dev, sizeof(*chan), GFP_KERNEL);
 		if (!chan)
-			return -ENOMEM;
+			return -EANALMEM;
 		chan->base = base + NCO_CHANNEL_STRIDE * i;
 		chan->tbl = tbl;
 		spin_lock_init(&chan->lock);

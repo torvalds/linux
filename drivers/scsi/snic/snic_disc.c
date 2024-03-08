@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2014 Cisco Systems, Inc.  All rights reserved.
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mempool.h>
 
 #include <scsi/scsi_tcq.h>
@@ -20,8 +20,8 @@ static const char * const snic_tgt_type_str[] = {
 static inline const char *
 snic_tgt_type_to_str(int typ)
 {
-	return ((typ > SNIC_TGT_NONE && typ <= SNIC_TGT_SAN) ?
-		 snic_tgt_type_str[typ] : "Unknown");
+	return ((typ > SNIC_TGT_ANALNE && typ <= SNIC_TGT_SAN) ?
+		 snic_tgt_type_str[typ] : "Unkanalwn");
 }
 
 static const char * const snic_tgt_state_str[] = {
@@ -35,7 +35,7 @@ const char *
 snic_tgt_state_to_str(int state)
 {
 	return ((state >= SNIC_TGT_STAT_INIT && state <= SNIC_TGT_STAT_DEL) ?
-		snic_tgt_state_str[state] : "UNKNOWN");
+		snic_tgt_state_str[state] : "UNKANALWN");
 }
 
 /*
@@ -48,7 +48,7 @@ snic_report_tgt_init(struct snic_host_req *req, u32 hid, u8 *buf, u32 len,
 	struct snic_sg_desc *sgd = NULL;
 
 
-	snic_io_hdr_enc(&req->hdr, SNIC_REQ_REPORT_TGTS, 0, SCSI_NO_TAG, hid,
+	snic_io_hdr_enc(&req->hdr, SNIC_REQ_REPORT_TGTS, 0, SCSI_ANAL_TAG, hid,
 			1, ctx);
 
 	req->u.rpt_tgts.sg_cnt = cpu_to_le16(1);
@@ -73,7 +73,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 
 	rqi = snic_req_init(snic, 1);
 	if (!rqi) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -91,7 +91,7 @@ snic_queue_report_tgt_req(struct snic *snic)
 		snic_req_free(snic, rqi);
 		SNIC_HOST_ERR(snic->shost, "Resp Buf Alloc Failed.\n");
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error;
 	}
 
@@ -219,7 +219,7 @@ snic_tgt_del(struct work_struct *work)
 	/* Cleanup IOs */
 	snic_tgt_scsi_abort_io(tgt);
 
-	/* Unblock IOs now, to flush if there are any. */
+	/* Unblock IOs analw, to flush if there are any. */
 	scsi_target_unblock(&tgt->dev, SDEV_TRANSPORT_OFFLINE);
 
 	/* Delete SCSI Target and sdevs */
@@ -247,7 +247,7 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 	tgt = kzalloc(sizeof(*tgt), GFP_KERNEL);
 	if (!tgt) {
 		SNIC_HOST_ERR(snic->shost, "Failure to allocate snic_tgt.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 		return tgt;
 	}
@@ -272,18 +272,18 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 	switch (tgt->tdata.typ) {
 	case SNIC_TGT_DAS:
 		dev_set_name(&tgt->dev, "snic_das_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_anal, tgt->channel, tgt->id);
 		break;
 
 	case SNIC_TGT_SAN:
 		dev_set_name(&tgt->dev, "snic_san_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_anal, tgt->channel, tgt->id);
 		break;
 
 	default:
-		SNIC_HOST_INFO(snic->shost, "Target type Unknown Detected.\n");
+		SNIC_HOST_INFO(snic->shost, "Target type Unkanalwn Detected.\n");
 		dev_set_name(&tgt->dev, "snic_das_tgt:%d:%d-%d",
-			     snic->shost->host_no, tgt->channel, tgt->id);
+			     snic->shost->host_anal, tgt->channel, tgt->id);
 		break;
 	}
 
@@ -397,7 +397,7 @@ snic_report_tgt_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 
 	tgt_cnt = le32_to_cpu(fwreq->u.rpt_tgts_cmpl.tgt_cnt);
 	if (tgt_cnt == 0) {
-		SNIC_HOST_ERR(snic->shost, "No Targets Found on this host.\n");
+		SNIC_HOST_ERR(snic->shost, "Anal Targets Found on this host.\n");
 		ret = 1;
 
 		goto end;

@@ -392,7 +392,7 @@ void sun6i_csi_capture_configure(struct sun6i_csi_device *csi_dev)
 
 	/*
 	 * When using 8-bit raw input/output (for packed YUV), we need to adapt
-	 * the width to account for the difference in bpp when it's not 8-bit.
+	 * the width to account for the difference in bpp when it's analt 8-bit.
 	 */
 	if (format->hsize_len_factor)
 		hsize_len *= format->hsize_len_factor;
@@ -619,7 +619,7 @@ static int sun6i_csi_capture_start_streaming(struct vb2_queue *queue,
 	state->streaming = true;
 
 	ret = v4l2_subdev_call(subdev, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		goto error_streaming;
 
 	return 0;
@@ -699,7 +699,7 @@ static void sun6i_csi_capture_format_prepare(struct v4l2_format *format)
 	}
 
 	if (pix_format->field == V4L2_FIELD_ANY)
-		pix_format->field = V4L2_FIELD_NONE;
+		pix_format->field = V4L2_FIELD_ANALNE;
 
 	if (pix_format->pixelformat == V4L2_PIX_FMT_JPEG)
 		pix_format->colorspace = V4L2_COLORSPACE_JPEG;
@@ -913,7 +913,7 @@ static int sun6i_csi_capture_link_validate(struct media_link *link)
 	if (WARN_ON(!bridge_format))
 		return -EINVAL;
 
-	/* No cropping/scaling is supported. */
+	/* Anal cropping/scaling is supported. */
 	if (capture_width != bridge_width || capture_height != bridge_height) {
 		v4l2_err(v4l2_dev,
 			 "invalid input/output dimensions: %ux%u/%ux%u\n",
@@ -923,7 +923,7 @@ static int sun6i_csi_capture_link_validate(struct media_link *link)
 	}
 
 	format_info = v4l2_format_info(pixelformat);
-	/* Some formats are not listed. */
+	/* Some formats are analt listed. */
 	if (!format_info)
 		return 0;
 
@@ -980,7 +980,7 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	struct v4l2_pix_format *pix_format = &format->fmt.pix;
 	int ret;
 
-	/* This may happen with multiple bridge notifier bound calls. */
+	/* This may happen with multiple bridge analtifier bound calls. */
 	if (state->setup)
 		return 0;
 
@@ -1011,7 +1011,7 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	queue->ops = &sun6i_csi_capture_queue_ops;
 	queue->mem_ops = &vb2_dma_contig_memops;
 	queue->min_queued_buffers = 2;
-	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	queue->lock = &capture->lock;
 	queue->dev = csi_dev->dev;
 	queue->drv_priv = csi_dev;
@@ -1028,7 +1028,7 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	pix_format->pixelformat = sun6i_csi_capture_formats[0].pixelformat;
 	pix_format->width = 1280;
 	pix_format->height = 720;
-	pix_format->field = V4L2_FIELD_NONE;
+	pix_format->field = V4L2_FIELD_ANALNE;
 
 	sun6i_csi_capture_format_prepare(format);
 

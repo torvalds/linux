@@ -445,14 +445,14 @@ static int insert_test_overlapping_extent(struct bch_fs *c, u64 inum, u64 start,
 	int ret;
 
 	bkey_cookie_init(&k.k_i);
-	k.k_i.k.p.inode	= inum;
+	k.k_i.k.p.ianalde	= inum;
 	k.k_i.k.p.offset = start + len;
 	k.k_i.k.p.snapshot = snapid;
 	k.k_i.k.size = len;
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		bch2_btree_insert_nonextent(trans, BTREE_ID_extents, &k.k_i,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE));
+		bch2_btree_insert_analnextent(trans, BTREE_ID_extents, &k.k_i,
+					    BTREE_UPDATE_INTERNAL_SNAPSHOT_ANALDE));
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -511,7 +511,7 @@ static int test_snapshots(struct bch_fs *c, u64 nr)
 		return ret;
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
-		      bch2_snapshot_node_create(trans, U32_MAX,
+		      bch2_snapshot_analde_create(trans, U32_MAX,
 						snapids,
 						snapid_subvols,
 						2));
@@ -829,7 +829,7 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(seq_overwrite);
 	perf_test(seq_delete);
 
-	/* a unit test, not a perf test: */
+	/* a unit test, analt a perf test: */
 	perf_test(test_delete);
 	perf_test(test_delete_written);
 	perf_test(test_iterate);
@@ -848,7 +848,7 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	perf_test(test_snapshots);
 
 	if (!j.fn) {
-		pr_err("unknown test %s", testname);
+		pr_err("unkanalwn test %s", testname);
 		return -EINVAL;
 	}
 

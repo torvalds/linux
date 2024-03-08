@@ -47,7 +47,7 @@ static ssize_t mode_show(struct device *dev,
 	case PFN_MODE_PMEM:
 		return sprintf(buf, "pmem\n");
 	default:
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "analne\n");
 	}
 }
 
@@ -70,9 +70,9 @@ static ssize_t mode_store(struct device *dev,
 		} else if (strncmp(buf, "ram\n", n) == 0
 				|| strncmp(buf, "ram", n) == 0)
 			nd_pfn->mode = PFN_MODE_RAM;
-		else if (strncmp(buf, "none\n", n) == 0
-				|| strncmp(buf, "none", n) == 0)
-			nd_pfn->mode = PFN_MODE_NONE;
+		else if (strncmp(buf, "analne\n", n) == 0
+				|| strncmp(buf, "analne", n) == 0)
+			nd_pfn->mode = PFN_MODE_ANALNE;
 		else
 			rc = -EINVAL;
 	}
@@ -212,7 +212,7 @@ static ssize_t resource_show(struct device *dev,
 		rc = sprintf(buf, "%#llx\n", (unsigned long long) nsio->res.start
 				+ start_pad + offset);
 	} else {
-		/* no address to convey if the pfn instance is disabled */
+		/* anal address to convey if the pfn instance is disabled */
 		rc = -ENXIO;
 	}
 	device_unlock(dev);
@@ -240,7 +240,7 @@ static ssize_t size_show(struct device *dev,
 				resource_size(&nsio->res) - start_pad
 				- end_trunc - offset);
 	} else {
-		/* no size to convey if the pfn instance is disabled */
+		/* anal size to convey if the pfn instance is disabled */
 		rc = -ENXIO;
 	}
 	device_unlock(dev);
@@ -303,7 +303,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 	if (!nd_pfn)
 		return NULL;
 
-	nd_pfn->mode = PFN_MODE_NONE;
+	nd_pfn->mode = PFN_MODE_ANALNE;
 	nd_pfn->align = nd_pfn_default_alignment();
 	dev = &nd_pfn->dev;
 	device_initialize(&nd_pfn->dev);
@@ -358,7 +358,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 /*
  * nd_pfn_clear_memmap_errors() clears any errors in the volatile memmap
  * space associated with the namespace. If the memmap is set to DRAM, then
- * this is a no-op. Since the memmap area is freshly initialized during
+ * this is a anal-op. Since the memmap area is freshly initialized during
  * probe, we have an opportunity to clear any badblocks in this area.
  */
 static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
@@ -460,35 +460,35 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	const uuid_t *parent_uuid = nd_dev_to_uuid(&ndns->dev);
 
 	if (!pfn_sb || !ndns)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!is_memory(nd_pfn->dev.parent))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
 		return -ENXIO;
 
 	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	checksum = le64_to_cpu(pfn_sb->checksum);
 	pfn_sb->checksum = 0;
 	if (checksum != nd_sb_checksum((struct nd_gen_sb *) pfn_sb))
-		return -ENODEV;
+		return -EANALDEV;
 	pfn_sb->checksum = cpu_to_le64(checksum);
 
 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
+	if (__le16_to_cpu(pfn_sb->version_mianalr) < 1) {
 		pfn_sb->start_pad = 0;
 		pfn_sb->end_trunc = 0;
 	}
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 2)
+	if (__le16_to_cpu(pfn_sb->version_mianalr) < 2)
 		pfn_sb->align = 0;
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 4) {
+	if (__le16_to_cpu(pfn_sb->version_mianalr) < 4) {
 		pfn_sb->page_struct_size = cpu_to_le16(64);
 		pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
 	}
@@ -514,7 +514,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		dev_err(&nd_pfn->dev,
 				"init failed, page size mismatch %d\n",
 				le32_to_cpu(pfn_sb->page_size));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if ((le16_to_cpu(pfn_sb->page_struct_size) < sizeof(struct page)) &&
@@ -522,19 +522,19 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		dev_err(&nd_pfn->dev,
 				"init failed, struct page size mismatch %d\n",
 				le16_to_cpu(pfn_sb->page_struct_size));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
 	 * Check whether the we support the alignment. For Dax if the
-	 * superblock alignment is not matching, we won't initialize
+	 * superblock alignment is analt matching, we won't initialize
 	 * the device.
 	 */
 	if (!nd_supported_alignment(align) &&
 			!memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN)) {
 		dev_err(&nd_pfn->dev, "init failed, alignment mismatch: "
 				"%ld:%ld\n", nd_pfn->align, align);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!nd_pfn->uuid) {
@@ -545,7 +545,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		 */
 		nd_pfn->uuid = kmemdup(pfn_sb->uuid, 16, GFP_KERNEL);
 		if (!nd_pfn->uuid)
-			return -ENOMEM;
+			return -EANALMEM;
 		nd_pfn->align = align;
 		nd_pfn->mode = mode;
 	} else {
@@ -554,7 +554,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		 * live settings against the pfn_sb
 		 */
 		if (memcmp(nd_pfn->uuid, pfn_sb->uuid, 16) != 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		/*
 		 * If the uuid validates, but other settings mismatch
@@ -568,14 +568,14 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 			dev_dbg(&nd_pfn->dev, "align: %lx:%lx mode: %d:%d\n",
 					nd_pfn->align, align, nd_pfn->mode,
 					mode);
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (align > nvdimm_namespace_capacity(ndns)) {
 		dev_err(&nd_pfn->dev, "alignment: %lx exceeds capacity %llx\n",
 				align, nvdimm_namespace_capacity(ndns));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/*
@@ -590,7 +590,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (offset >= res_size) {
 		dev_err(&nd_pfn->dev, "pfn array size exceeds capacity of %s\n",
 				dev_name(&ndns->dev));
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if ((align && !IS_ALIGNED(res->start + offset + start_pad, align))
@@ -598,22 +598,22 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		dev_err(&nd_pfn->dev,
 				"bad offset: %#llx dax disabled align: %#lx\n",
 				offset, align);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!IS_ALIGNED(res->start + start_pad, memremap_compat_align())) {
 		dev_err(&nd_pfn->dev, "resource start misaligned\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (!IS_ALIGNED(res->end + 1 - end_trunc, memremap_compat_align())) {
 		dev_err(&nd_pfn->dev, "resource end misaligned\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (offset >= (res_size - start_pad - end_trunc)) {
 		dev_err(&nd_pfn->dev, "bad offset with small namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -628,14 +628,14 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	struct nd_region *nd_region = to_nd_region(ndns->dev.parent);
 
 	if (ndns->force_raw)
-		return -ENODEV;
+		return -EANALDEV;
 
 	switch (ndns->claim_class) {
-	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_ANALNE:
 	case NVDIMM_CCLASS_PFN:
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	nvdimm_bus_lock(&ndns->dev);
@@ -643,12 +643,12 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	pfn_dev = nd_pfn_devinit(nd_pfn, ndns);
 	nvdimm_bus_unlock(&ndns->dev);
 	if (!pfn_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	pfn_sb = devm_kmalloc(dev, sizeof(*pfn_sb), GFP_KERNEL);
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
-	dev_dbg(dev, "pfn: %s\n", rc == 0 ? dev_name(pfn_dev) : "<none>");
+	dev_dbg(dev, "pfn: %s\n", rc == 0 ? dev_name(pfn_dev) : "<analne>");
 	if (rc < 0) {
 		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);
@@ -740,7 +740,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	pfn_sb = devm_kmalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
 	if (!pfn_sb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nd_pfn->pfn_sb = pfn_sb;
 	if (is_nd_dax(&nd_pfn->dev))
@@ -751,10 +751,10 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	rc = nd_pfn_validate(nd_pfn, sig);
 	if (rc == 0)
 		return nd_pfn_clear_memmap_errors(nd_pfn);
-	if (rc != -ENODEV)
+	if (rc != -EANALDEV)
 		return rc;
 
-	/* no info block, do init */;
+	/* anal info block, do init */;
 	memset(pfn_sb, 0, sizeof(*pfn_sb));
 
 	nd_region = to_nd_region(nd_pfn->dev.parent);
@@ -772,7 +772,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 
 	/*
 	 * When @start is misaligned fail namespace creation. See
-	 * the 'struct nd_pfn_sb' commentary on why ->start_pad is not
+	 * the 'struct nd_pfn_sb' commentary on why ->start_pad is analt
 	 * an option.
 	 */
 	if (!IS_ALIGNED(start, memremap_compat_align())) {
@@ -830,7 +830,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);
-	pfn_sb->version_minor = cpu_to_le16(4);
+	pfn_sb->version_mianalr = cpu_to_le16(4);
 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
 	if (sizeof(struct page) > MAX_STRUCT_PAGE_SIZE && page_struct_override)
@@ -857,7 +857,7 @@ int nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	int rc;
 
 	if (!nd_pfn->uuid || !nd_pfn->ndns)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = nd_pfn_init(nd_pfn);
 	if (rc)

@@ -3,7 +3,7 @@
  * ov772x Camera
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  */
 
 #ifndef __OV772X_H__

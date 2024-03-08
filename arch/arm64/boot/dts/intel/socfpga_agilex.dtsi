@@ -23,7 +23,7 @@
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x0 0x0 0x2000000>;
 			alignment = <0x1000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -146,7 +146,7 @@
 
 	usbphy0: usbphy {
 		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 	};
 
 	soc@0 {
@@ -401,9 +401,9 @@
 			interrupt-parent = <&intc>;
 			/* Global Secure Fault */
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
-				/* Global Non-secure Fault */
+				/* Global Analn-secure Fault */
 				<GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
-				/* Non-secure Context Interrupts (32) */
+				/* Analn-secure Context Interrupts (32) */
 				<GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
@@ -658,7 +658,7 @@
 		};
 
 		qspi: spi@ff8d2000 {
-			compatible = "intel,socfpga-qspi", "cdns,qspi-nor";
+			compatible = "intel,socfpga-qspi", "cdns,qspi-analr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff8d2000 0x100>,

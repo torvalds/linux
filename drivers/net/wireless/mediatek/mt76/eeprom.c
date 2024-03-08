@@ -12,13 +12,13 @@
 
 static int mt76_get_of_eeprom_data(struct mt76_dev *dev, void *eep, int len)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	const void *data;
 	int size;
 
 	data = of_get_property(np, "mediatek,eeprom-data", &size);
 	if (!data)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (size > len)
 		return -EINVAL;
@@ -31,7 +31,7 @@ static int mt76_get_of_eeprom_data(struct mt76_dev *dev, void *eep, int len)
 int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len)
 {
 #ifdef CONFIG_MTD
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	struct mtd_info *mtd;
 	const __be32 *list;
 	const char *part;
@@ -42,13 +42,13 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
 
 	list = of_get_property(np, "mediatek,mtd-eeprom", &size);
 	if (!list)
-		return -ENOENT;
+		return -EANALENT;
 
 	phandle = be32_to_cpup(list++);
 	if (!phandle)
-		return -ENOENT;
+		return -EANALENT;
 
-	np = of_find_node_by_phandle(phandle);
+	np = of_find_analde_by_phandle(phandle);
 	if (!np)
 		return -EINVAL;
 
@@ -59,12 +59,12 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
 	mtd = get_mtd_device_nm(part);
 	if (IS_ERR(mtd)) {
 		ret =  PTR_ERR(mtd);
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	if (size <= sizeof(*list)) {
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	offset += be32_to_cpup(list);
@@ -75,15 +75,15 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
 	if (ret) {
 		dev_err(dev->dev, "reading EEPROM from mtd %s failed: %i\n",
 			part, ret);
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
 	if (retlen < len) {
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_analde;
 	}
 
-	if (of_property_read_bool(dev->dev->of_node, "big-endian")) {
+	if (of_property_read_bool(dev->dev->of_analde, "big-endian")) {
 		u8 *data = (u8 *)eep;
 		int i;
 
@@ -98,11 +98,11 @@ int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int l
 	dev->test_mtd.offset = offset;
 #endif
 
-out_put_node:
-	of_node_put(np);
+out_put_analde:
+	of_analde_put(np);
 	return ret;
 #else
-	return -ENOENT;
+	return -EANALENT;
 #endif
 }
 EXPORT_SYMBOL_GPL(mt76_get_of_data_from_mtd);
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(mt76_get_of_data_from_mtd);
 int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
 				const char *cell_name, int len)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	struct nvmem_cell *cell;
 	const void *data;
 	size_t retlen;
@@ -142,11 +142,11 @@ EXPORT_SYMBOL_GPL(mt76_get_of_data_from_nvmem);
 
 static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	int ret;
 
 	if (!np)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = mt76_get_of_eeprom_data(dev, eep, len);
 	if (!ret)
@@ -163,7 +163,7 @@ void
 mt76_eeprom_override(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 
 	of_get_mac_address(np, phy->macaddr);
 
@@ -190,17 +190,17 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
 	return false;
 }
 
-struct device_node *
-mt76_find_power_limits_node(struct mt76_dev *dev)
+struct device_analde *
+mt76_find_power_limits_analde(struct mt76_dev *dev)
 {
-	struct device_node *np = dev->dev->of_node;
+	struct device_analde *np = dev->dev->of_analde;
 	const char *const region_names[] = {
 		[NL80211_DFS_UNSET] = "ww",
 		[NL80211_DFS_ETSI] = "etsi",
 		[NL80211_DFS_FCC] = "fcc",
 		[NL80211_DFS_JP] = "jp",
 	};
-	struct device_node *cur, *fallback = NULL;
+	struct device_analde *cur, *fallback = NULL;
 	const char *region_name = NULL;
 
 	if (dev->region < ARRAY_SIZE(region_names))
@@ -210,7 +210,7 @@ mt76_find_power_limits_node(struct mt76_dev *dev)
 	if (!np)
 		return NULL;
 
-	for_each_child_of_node(np, cur) {
+	for_each_child_of_analde(np, cur) {
 		struct property *country = of_find_property(cur, "country", NULL);
 		struct property *regd = of_find_property(cur, "regdomain", NULL);
 
@@ -221,18 +221,18 @@ mt76_find_power_limits_node(struct mt76_dev *dev)
 
 		if (mt76_string_prop_find(country, dev->alpha2) ||
 		    mt76_string_prop_find(regd, region_name)) {
-			of_node_put(np);
+			of_analde_put(np);
 			return cur;
 		}
 	}
 
-	of_node_put(np);
+	of_analde_put(np);
 	return fallback;
 }
-EXPORT_SYMBOL_GPL(mt76_find_power_limits_node);
+EXPORT_SYMBOL_GPL(mt76_find_power_limits_analde);
 
 static const __be32 *
-mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
+mt76_get_of_array(struct device_analde *np, char *name, size_t *len, int min)
 {
 	struct property *prop = of_find_property(np, name, NULL);
 
@@ -244,14 +244,14 @@ mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
 	return prop->value;
 }
 
-struct device_node *
-mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan)
+struct device_analde *
+mt76_find_channel_analde(struct device_analde *np, struct ieee80211_channel *chan)
 {
-	struct device_node *cur;
+	struct device_analde *cur;
 	const __be32 *val;
 	size_t len;
 
-	for_each_child_of_node(np, cur) {
+	for_each_child_of_analde(np, cur) {
 		val = mt76_get_of_array(cur, "channels", &len, 2);
 		if (!val)
 			continue;
@@ -268,11 +268,11 @@ mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(mt76_find_channel_node);
+EXPORT_SYMBOL_GPL(mt76_find_channel_analde);
 
 
 static s8
-mt76_get_txs_delta(struct device_node *np, u8 nss)
+mt76_get_txs_delta(struct device_analde *np, u8 nss)
 {
 	const __be32 *val;
 	size_t len;
@@ -336,7 +336,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      s8 target_power)
 {
 	struct mt76_dev *dev = phy->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *val;
 	char name[16];
 	u32 mcs_rates = dev->drv->mcs_rates;
@@ -354,7 +354,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	if (!IS_ENABLED(CONFIG_OF))
 		return target_power;
 
-	np = mt76_find_power_limits_node(dev);
+	np = mt76_find_power_limits_analde(dev);
 	if (!np)
 		return target_power;
 
@@ -377,7 +377,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	if (!np)
 		return target_power;
 
-	np = mt76_find_channel_node(np, chan);
+	np = mt76_find_channel_analde(np, chan);
 	if (!np)
 		return target_power;
 
@@ -412,7 +412,7 @@ mt76_eeprom_init(struct mt76_dev *dev, int len)
 	dev->eeprom.size = len;
 	dev->eeprom.data = devm_kzalloc(dev->dev, len, GFP_KERNEL);
 	if (!dev->eeprom.data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return !mt76_get_of_eeprom(dev, dev->eeprom.data, len);
 }

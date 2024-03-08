@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -32,7 +32,7 @@ nv41_timer_init(struct nvkm_timer *tmr)
 	u32 f = device->crystal;
 	u32 m = 1, n, d;
 
-	/* aim for 31.25MHz, which gives us nanosecond timestamps */
+	/* aim for 31.25MHz, which gives us naanalsecond timestamps */
 	d = 1000000 / 32;
 	n = f;
 
@@ -60,12 +60,12 @@ nv41_timer_init(struct nvkm_timer *tmr)
 	nvkm_debug(subdev, "input frequency : %dHz\n", f);
 	nvkm_debug(subdev, "input multiplier: %d\n", m);
 	nvkm_debug(subdev, "numerator       : %08x\n", n);
-	nvkm_debug(subdev, "denominator     : %08x\n", d);
+	nvkm_debug(subdev, "deanalminator     : %08x\n", d);
 	nvkm_debug(subdev, "timer frequency : %dHz\n", (f * m) * d / n);
 
 	nvkm_wr32(device, 0x009220, m - 1);
 	nvkm_wr32(device, NV04_PTIMER_NUMERATOR, n);
-	nvkm_wr32(device, NV04_PTIMER_DENOMINATOR, d);
+	nvkm_wr32(device, NV04_PTIMER_DEANALMINATOR, d);
 }
 
 static const struct nvkm_timer_func

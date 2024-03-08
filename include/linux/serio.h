@@ -39,7 +39,7 @@ struct serio {
 
 	struct serio *parent;
 	/* Entry in parent->children list */
-	struct list_head child_node;
+	struct list_head child_analde;
 	struct list_head children;
 	/* Level of nesting in serio hierarchy */
 	unsigned int depth;
@@ -54,7 +54,7 @@ struct serio {
 
 	struct device dev;
 
-	struct list_head node;
+	struct list_head analde;
 
 	/*
 	 * For use by PS/2 layer when several ports share hardware and
@@ -110,7 +110,7 @@ void serio_unregister_driver(struct serio_driver *drv);
  * module_serio_driver() - Helper macro for registering a serio driver
  * @__serio_driver: serio_driver struct
  *
- * Helper macro for serio drivers which do not do anything special in
+ * Helper macro for serio drivers which do analt do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module
  * may only use this macro once, and calling it replaces module_init()
  * and module_exit().

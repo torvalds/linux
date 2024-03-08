@@ -21,7 +21,7 @@ properties:
     description:
       Headphone detection channel.  ARIZONA_ACCDET_MODE_HPL/1 sets the
       headphone detect mode to HPDETL, ARIZONA_ACCDET_MODE_HPR/2 sets it
-      to HPDETR.  If this node is not included or if the value is unknown,
+      to HPDETR.  If this analde is analt included or if the value is unkanalwn,
       then headphone detection mode is set to HPDETL.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
@@ -32,7 +32,7 @@ properties:
       Use the additional JD input along with JD1 for dual pin jack detection.
     type: boolean
 
-  wlf,use-jd2-nopull:
+  wlf,use-jd2-analpull:
     description:
       Internal pull on JD2 is disabled when used for jack detection.
     type: boolean

@@ -5,9 +5,9 @@ VMCOREINFO
 What is it?
 ===========
 
-VMCOREINFO is a special ELF note section. It contains various
+VMCOREINFO is a special ELF analte section. It contains various
 information from the kernel like structure size, page size, symbol
-values, field offsets, etc. These data are packed into an ELF note
+values, field offsets, etc. These data are packed into an ELF analte
 section and used by user-space tools like crash and makedumpfile to
 analyze a kernel's memory layout.
 
@@ -45,12 +45,12 @@ number, kernel version, architecture name and OS type from it.
 Offset of the name's member. Crash Utility and Makedumpfile get
 the start address of the init_uts_ns.name from this.
 
-node_online_map
+analde_online_map
 ---------------
 
-An array node_states[N_ONLINE] which represents the set of online nodes
-in a system, one bit position per node number. Used to keep track of
-which nodes are in the system and online.
+An array analde_states[N_ONLINE] which represents the set of online analdes
+in a system, one bit position per analde number. Used to keep track of
+which analdes are in the system and online.
 
 swapper_pg_dir
 --------------
@@ -127,7 +127,7 @@ free_area
 ---------
 
 The size of a free_area structure. It indicates whether the free_area
-structure is valid or not. Useful when excluding free pages.
+structure is valid or analt. Useful when excluding free pages.
 
 list_head
 ---------
@@ -135,11 +135,11 @@ list_head
 The size of a list_head structure. Used when iterating lists in a
 post-mortem analysis session.
 
-nodemask_t
+analdemask_t
 ----------
 
-The size of a nodemask_t type. Used to compute the number of online
-nodes.
+The size of a analdemask_t type. Used to compute the number of online
+analdes.
 
 (page, flags|_refcount|mapping|lru|_mapcount|private|compound_order|compound_head)
 ----------------------------------------------------------------------------------
@@ -147,10 +147,10 @@ nodes.
 User-space tools compute their values based on the offset of these
 variables. The variables are used when excluding unnecessary pages.
 
-(pglist_data, node_zones|nr_zones|node_mem_map|node_start_pfn|node_spanned_pages|node_id)
+(pglist_data, analde_zones|nr_zones|analde_mem_map|analde_start_pfn|analde_spanned_pages|analde_id)
 -----------------------------------------------------------------------------------------
 
-On NUMA machines, each NUMA node has a pg_data_t to describe its memory
+On NUMA machines, each NUMA analde has a pg_data_t to describe its memory
 layout. On UMA machines there is a single pglist_data which describes the
 whole memory.
 
@@ -160,7 +160,7 @@ virtual address for memory map.
 (zone, free_area|vm_stat|spanned_pages)
 ---------------------------------------
 
-Each node is divided into a number of blocks called zones which
+Each analde is divided into a number of blocks called zones which
 represent ranges within memory. A zone is described by a structure zone.
 
 User-space tools compute required values based on the offset of these
@@ -357,19 +357,19 @@ swapper_pg_dir, but it is only used in x86_64.
 pgtable_l5_enabled
 ------------------
 
-User-space tools need to know whether the crash kernel was in 5-level
+User-space tools need to kanalw whether the crash kernel was in 5-level
 paging mode.
 
-node_data
+analde_data
 ---------
 
-This is a struct pglist_data array and stores all NUMA nodes
+This is a struct pglist_data array and stores all NUMA analdes
 information. Makedumpfile gets the pglist_data structure from it.
 
-(node_data, MAX_NUMNODES)
+(analde_data, MAX_NUMANALDES)
 -------------------------
 
-The maximum number of nodes in system.
+The maximum number of analdes in system.
 
 KERNELOFFSET
 ------------
@@ -387,7 +387,7 @@ sme_mask
 --------
 
 AMD-specific with SME support: it indicates the secure memory encryption
-mask. Makedumpfile tools need to know whether the crash kernel was
+mask. Makedumpfile tools need to kanalw whether the crash kernel was
 encrypted. If SME is enabled in the first kernel, the crash kernel's
 page table entries (pgd/pud/pmd/pte) contain the memory encryption
 mask. This is used to remove the SME mask and obtain the true physical
@@ -408,7 +408,7 @@ x86_32
 X86_PAE
 -------
 
-Denotes whether physical address extensions are enabled. It has the cost
+Deanaltes whether physical address extensions are enabled. It has the cost
 of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
@@ -498,7 +498,7 @@ powerpc
 =======
 
 
-node_data|(node_data, MAX_NUMNODES)
+analde_data|(analde_data, MAX_NUMANALDES)
 -----------------------------------
 
 See above.
@@ -531,12 +531,12 @@ Used to make vtop translations.
 vmemmap_backing|(vmemmap_backing, list)|(vmemmap_backing, phys)|(vmemmap_backing, virt_addr)
 --------------------------------------------------------------------------------------------
 
-The vmemmap virtual address space management does not have a traditional
+The vmemmap virtual address space management does analt have a traditional
 page table to track which virtual struct pages are backed by a physical
 mapping. The virtual to physical mappings are tracked in a simple linked
 list format.
 
-User-space tools need to know the offset of list, phys and virt_addr
+User-space tools need to kanalw the offset of list, phys and virt_addr
 when computing the count of vmemmap regions.
 
 mmu_psize_def|(mmu_psize_def, shift)
@@ -550,7 +550,7 @@ Used in vtop translations.
 sh
 ==
 
-node_data|(node_data, MAX_NUMNODES)
+analde_data|(analde_data, MAX_NUMANALDES)
 -----------------------------------
 
 See above.

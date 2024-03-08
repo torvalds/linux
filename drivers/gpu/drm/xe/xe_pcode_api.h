@@ -43,7 +43,7 @@
 #define	    POWER_SETUP_I1_DATA_MASK		REG_GENMASK(15, 0)
 
 struct pcode_err_decode {
-	int errno;
+	int erranal;
 	const char *str;
 };
 

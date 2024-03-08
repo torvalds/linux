@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  fs/anon_inodes.c
+ *  fs/aanaln_ianaldes.c
  *
  *  Copyright (C) 2007  Davide Libenzi <davidel@xmailserver.org>
  *
@@ -19,114 +19,114 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/magic.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/pseudo_fs.h>
 
 #include <linux/uaccess.h>
 
-static struct vfsmount *anon_inode_mnt __ro_after_init;
-static struct inode *anon_inode_inode __ro_after_init;
+static struct vfsmount *aanaln_ianalde_mnt __ro_after_init;
+static struct ianalde *aanaln_ianalde_ianalde __ro_after_init;
 
 /*
- * anon_inodefs_dname() is called from d_path().
+ * aanaln_ianaldefs_dname() is called from d_path().
  */
-static char *anon_inodefs_dname(struct dentry *dentry, char *buffer, int buflen)
+static char *aanaln_ianaldefs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	return dynamic_dname(buffer, buflen, "anon_inode:%s",
+	return dynamic_dname(buffer, buflen, "aanaln_ianalde:%s",
 				dentry->d_name.name);
 }
 
-static const struct dentry_operations anon_inodefs_dentry_operations = {
-	.d_dname	= anon_inodefs_dname,
+static const struct dentry_operations aanaln_ianaldefs_dentry_operations = {
+	.d_dname	= aanaln_ianaldefs_dname,
 };
 
-static int anon_inodefs_init_fs_context(struct fs_context *fc)
+static int aanaln_ianaldefs_init_fs_context(struct fs_context *fc)
 {
-	struct pseudo_fs_context *ctx = init_pseudo(fc, ANON_INODE_FS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, AANALN_IANALDE_FS_MAGIC);
 	if (!ctx)
-		return -ENOMEM;
-	ctx->dops = &anon_inodefs_dentry_operations;
+		return -EANALMEM;
+	ctx->dops = &aanaln_ianaldefs_dentry_operations;
 	return 0;
 }
 
-static struct file_system_type anon_inode_fs_type = {
-	.name		= "anon_inodefs",
-	.init_fs_context = anon_inodefs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+static struct file_system_type aanaln_ianalde_fs_type = {
+	.name		= "aanaln_ianaldefs",
+	.init_fs_context = aanaln_ianaldefs_init_fs_context,
+	.kill_sb	= kill_aanaln_super,
 };
 
-static struct inode *anon_inode_make_secure_inode(
+static struct ianalde *aanaln_ianalde_make_secure_ianalde(
 	const char *name,
-	const struct inode *context_inode)
+	const struct ianalde *context_ianalde)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	const struct qstr qname = QSTR_INIT(name, strlen(name));
 	int error;
 
-	inode = alloc_anon_inode(anon_inode_mnt->mnt_sb);
-	if (IS_ERR(inode))
-		return inode;
-	inode->i_flags &= ~S_PRIVATE;
-	error =	security_inode_init_security_anon(inode, &qname, context_inode);
+	ianalde = alloc_aanaln_ianalde(aanaln_ianalde_mnt->mnt_sb);
+	if (IS_ERR(ianalde))
+		return ianalde;
+	ianalde->i_flags &= ~S_PRIVATE;
+	error =	security_ianalde_init_security_aanaln(ianalde, &qname, context_ianalde);
 	if (error) {
-		iput(inode);
+		iput(ianalde);
 		return ERR_PTR(error);
 	}
-	return inode;
+	return ianalde;
 }
 
-static struct file *__anon_inode_getfile(const char *name,
+static struct file *__aanaln_ianalde_getfile(const char *name,
 					 const struct file_operations *fops,
 					 void *priv, int flags,
-					 const struct inode *context_inode,
-					 bool make_inode)
+					 const struct ianalde *context_ianalde,
+					 bool make_ianalde)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct file *file;
 
 	if (fops->owner && !try_module_get(fops->owner))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	if (make_inode) {
-		inode =	anon_inode_make_secure_inode(name, context_inode);
-		if (IS_ERR(inode)) {
-			file = ERR_CAST(inode);
+	if (make_ianalde) {
+		ianalde =	aanaln_ianalde_make_secure_ianalde(name, context_ianalde);
+		if (IS_ERR(ianalde)) {
+			file = ERR_CAST(ianalde);
 			goto err;
 		}
 	} else {
-		inode =	anon_inode_inode;
-		if (IS_ERR(inode)) {
-			file = ERR_PTR(-ENODEV);
+		ianalde =	aanaln_ianalde_ianalde;
+		if (IS_ERR(ianalde)) {
+			file = ERR_PTR(-EANALDEV);
 			goto err;
 		}
 		/*
-		 * We know the anon_inode inode count is always
+		 * We kanalw the aanaln_ianalde ianalde count is always
 		 * greater than zero, so ihold() is safe.
 		 */
-		ihold(inode);
+		ihold(ianalde);
 	}
 
-	file = alloc_file_pseudo(inode, anon_inode_mnt, name,
-				 flags & (O_ACCMODE | O_NONBLOCK), fops);
+	file = alloc_file_pseudo(ianalde, aanaln_ianalde_mnt, name,
+				 flags & (O_ACCMODE | O_ANALNBLOCK), fops);
 	if (IS_ERR(file))
 		goto err_iput;
 
-	file->f_mapping = inode->i_mapping;
+	file->f_mapping = ianalde->i_mapping;
 
 	file->private_data = priv;
 
 	return file;
 
 err_iput:
-	iput(inode);
+	iput(ianalde);
 err:
 	module_put(fops->owner);
 	return file;
 }
 
 /**
- * anon_inode_getfile - creates a new file instance by hooking it up to an
- *                      anonymous inode, and a dentry that describe the "class"
+ * aanaln_ianalde_getfile - creates a new file instance by hooking it up to an
+ *                      aanalnymous ianalde, and a dentry that describe the "class"
  *                      of the file
  *
  * @name:    [in]    name of the "class" of the new file
@@ -134,62 +134,62 @@ err:
  * @priv:    [in]    private data for the new file (will be file's private_data)
  * @flags:   [in]    flags
  *
- * Creates a new file by hooking it on a single inode. This is useful for files
- * that do not need to have a full-fledged inode in order to operate correctly.
- * All the files created with anon_inode_getfile() will share a single inode,
- * hence saving memory and avoiding code duplication for the file/inode/dentry
+ * Creates a new file by hooking it on a single ianalde. This is useful for files
+ * that do analt need to have a full-fledged ianalde in order to operate correctly.
+ * All the files created with aanaln_ianalde_getfile() will share a single ianalde,
+ * hence saving memory and avoiding code duplication for the file/ianalde/dentry
  * setup.  Returns the newly created file* or an error pointer.
  */
-struct file *anon_inode_getfile(const char *name,
+struct file *aanaln_ianalde_getfile(const char *name,
 				const struct file_operations *fops,
 				void *priv, int flags)
 {
-	return __anon_inode_getfile(name, fops, priv, flags, NULL, false);
+	return __aanaln_ianalde_getfile(name, fops, priv, flags, NULL, false);
 }
-EXPORT_SYMBOL_GPL(anon_inode_getfile);
+EXPORT_SYMBOL_GPL(aanaln_ianalde_getfile);
 
 /**
- * anon_inode_create_getfile - Like anon_inode_getfile(), but creates a new
- *                             !S_PRIVATE anon inode rather than reuse the
- *                             singleton anon inode and calls the
- *                             inode_init_security_anon() LSM hook.
+ * aanaln_ianalde_create_getfile - Like aanaln_ianalde_getfile(), but creates a new
+ *                             !S_PRIVATE aanaln ianalde rather than reuse the
+ *                             singleton aanaln ianalde and calls the
+ *                             ianalde_init_security_aanaln() LSM hook.
  *
  * @name:    [in]    name of the "class" of the new file
  * @fops:    [in]    file operations for the new file
  * @priv:    [in]    private data for the new file (will be file's private_data)
  * @flags:   [in]    flags
- * @context_inode:
- *           [in]    the logical relationship with the new inode (optional)
+ * @context_ianalde:
+ *           [in]    the logical relationship with the new ianalde (optional)
  *
- * Create a new anonymous inode and file pair.  This can be done for two
+ * Create a new aanalnymous ianalde and file pair.  This can be done for two
  * reasons:
  *
- * - for the inode to have its own security context, so that LSMs can enforce
- *   policy on the inode's creation;
+ * - for the ianalde to have its own security context, so that LSMs can enforce
+ *   policy on the ianalde's creation;
  *
- * - if the caller needs a unique inode, for example in order to customize
+ * - if the caller needs a unique ianalde, for example in order to customize
  *   the size returned by fstat()
  *
- * The LSM may use @context_inode in inode_init_security_anon(), but a
- * reference to it is not held.
+ * The LSM may use @context_ianalde in ianalde_init_security_aanaln(), but a
+ * reference to it is analt held.
  *
  * Returns the newly created file* or an error pointer.
  */
-struct file *anon_inode_create_getfile(const char *name,
+struct file *aanaln_ianalde_create_getfile(const char *name,
 				       const struct file_operations *fops,
 				       void *priv, int flags,
-				       const struct inode *context_inode)
+				       const struct ianalde *context_ianalde)
 {
-	return __anon_inode_getfile(name, fops, priv, flags,
-				    context_inode, true);
+	return __aanaln_ianalde_getfile(name, fops, priv, flags,
+				    context_ianalde, true);
 }
-EXPORT_SYMBOL_GPL(anon_inode_create_getfile);
+EXPORT_SYMBOL_GPL(aanaln_ianalde_create_getfile);
 
-static int __anon_inode_getfd(const char *name,
+static int __aanaln_ianalde_getfd(const char *name,
 			      const struct file_operations *fops,
 			      void *priv, int flags,
-			      const struct inode *context_inode,
-			      bool make_inode)
+			      const struct ianalde *context_ianalde,
+			      bool make_ianalde)
 {
 	int error, fd;
 	struct file *file;
@@ -199,8 +199,8 @@ static int __anon_inode_getfd(const char *name,
 		return error;
 	fd = error;
 
-	file = __anon_inode_getfile(name, fops, priv, flags, context_inode,
-				    make_inode);
+	file = __aanaln_ianalde_getfile(name, fops, priv, flags, context_ianalde,
+				    make_ianalde);
 	if (IS_ERR(file)) {
 		error = PTR_ERR(file);
 		goto err_put_unused_fd;
@@ -215,8 +215,8 @@ err_put_unused_fd:
 }
 
 /**
- * anon_inode_getfd - creates a new file instance by hooking it up to
- *                    an anonymous inode and a dentry that describe
+ * aanaln_ianalde_getfd - creates a new file instance by hooking it up to
+ *                    an aanalnymous ianalde and a dentry that describe
  *                    the "class" of the file
  *
  * @name:    [in]    name of the "class" of the new file
@@ -224,65 +224,65 @@ err_put_unused_fd:
  * @priv:    [in]    private data for the new file (will be file's private_data)
  * @flags:   [in]    flags
  *
- * Creates a new file by hooking it on a single inode. This is
- * useful for files that do not need to have a full-fledged inode in
+ * Creates a new file by hooking it on a single ianalde. This is
+ * useful for files that do analt need to have a full-fledged ianalde in
  * order to operate correctly.  All the files created with
- * anon_inode_getfd() will use the same singleton inode, reducing
- * memory use and avoiding code duplication for the file/inode/dentry
+ * aanaln_ianalde_getfd() will use the same singleton ianalde, reducing
+ * memory use and avoiding code duplication for the file/ianalde/dentry
  * setup.  Returns a newly created file descriptor or an error code.
  */
-int anon_inode_getfd(const char *name, const struct file_operations *fops,
+int aanaln_ianalde_getfd(const char *name, const struct file_operations *fops,
 		     void *priv, int flags)
 {
-	return __anon_inode_getfd(name, fops, priv, flags, NULL, false);
+	return __aanaln_ianalde_getfd(name, fops, priv, flags, NULL, false);
 }
-EXPORT_SYMBOL_GPL(anon_inode_getfd);
+EXPORT_SYMBOL_GPL(aanaln_ianalde_getfd);
 
 /**
- * anon_inode_create_getfd - Like anon_inode_getfd(), but creates a new
- * !S_PRIVATE anon inode rather than reuse the singleton anon inode, and calls
- * the inode_init_security_anon() LSM hook.
+ * aanaln_ianalde_create_getfd - Like aanaln_ianalde_getfd(), but creates a new
+ * !S_PRIVATE aanaln ianalde rather than reuse the singleton aanaln ianalde, and calls
+ * the ianalde_init_security_aanaln() LSM hook.
  *
  * @name:    [in]    name of the "class" of the new file
  * @fops:    [in]    file operations for the new file
  * @priv:    [in]    private data for the new file (will be file's private_data)
  * @flags:   [in]    flags
- * @context_inode:
- *           [in]    the logical relationship with the new inode (optional)
+ * @context_ianalde:
+ *           [in]    the logical relationship with the new ianalde (optional)
  *
- * Create a new anonymous inode and file pair.  This can be done for two
+ * Create a new aanalnymous ianalde and file pair.  This can be done for two
  * reasons:
  *
- * - for the inode to have its own security context, so that LSMs can enforce
- *   policy on the inode's creation;
+ * - for the ianalde to have its own security context, so that LSMs can enforce
+ *   policy on the ianalde's creation;
  *
- * - if the caller needs a unique inode, for example in order to customize
+ * - if the caller needs a unique ianalde, for example in order to customize
  *   the size returned by fstat()
  *
- * The LSM may use @context_inode in inode_init_security_anon(), but a
- * reference to it is not held.
+ * The LSM may use @context_ianalde in ianalde_init_security_aanaln(), but a
+ * reference to it is analt held.
  *
  * Returns a newly created file descriptor or an error code.
  */
-int anon_inode_create_getfd(const char *name, const struct file_operations *fops,
+int aanaln_ianalde_create_getfd(const char *name, const struct file_operations *fops,
 			    void *priv, int flags,
-			    const struct inode *context_inode)
+			    const struct ianalde *context_ianalde)
 {
-	return __anon_inode_getfd(name, fops, priv, flags, context_inode, true);
+	return __aanaln_ianalde_getfd(name, fops, priv, flags, context_ianalde, true);
 }
 
-static int __init anon_inode_init(void)
+static int __init aanaln_ianalde_init(void)
 {
-	anon_inode_mnt = kern_mount(&anon_inode_fs_type);
-	if (IS_ERR(anon_inode_mnt))
-		panic("anon_inode_init() kernel mount failed (%ld)\n", PTR_ERR(anon_inode_mnt));
+	aanaln_ianalde_mnt = kern_mount(&aanaln_ianalde_fs_type);
+	if (IS_ERR(aanaln_ianalde_mnt))
+		panic("aanaln_ianalde_init() kernel mount failed (%ld)\n", PTR_ERR(aanaln_ianalde_mnt));
 
-	anon_inode_inode = alloc_anon_inode(anon_inode_mnt->mnt_sb);
-	if (IS_ERR(anon_inode_inode))
-		panic("anon_inode_init() inode allocation failed (%ld)\n", PTR_ERR(anon_inode_inode));
+	aanaln_ianalde_ianalde = alloc_aanaln_ianalde(aanaln_ianalde_mnt->mnt_sb);
+	if (IS_ERR(aanaln_ianalde_ianalde))
+		panic("aanaln_ianalde_init() ianalde allocation failed (%ld)\n", PTR_ERR(aanaln_ianalde_ianalde));
 
 	return 0;
 }
 
-fs_initcall(anon_inode_init);
+fs_initcall(aanaln_ianalde_init);
 

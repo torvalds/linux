@@ -11,21 +11,21 @@ Required properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-Palmas's pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+Palmas's pin configuration analdes act as a container for an arbitrary number of
+subanaldes. Each of these subanaldes represents some desired configuration for a
 list of pins. This configuration can include the mux function to select on
 those pin(s), and various pin configuration parameters, such as pull-up,
 open drain.
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subanalde is analt important; all subanaldes should be enumerated
 and processed purely based on their content.
 
-Each subnode only affects those parameters that are explicitly listed. In
-other words, a subnode that lists a mux function but no pin configuration
-parameters implies no information about any pin configuration parameters.
-Similarly, a pin subnode that describes a pullup parameter implies no
+Each subanalde only affects those parameters that are explicitly listed. In
+other words, a subanalde that lists a mux function but anal pin configuration
+parameters implies anal information about any pin configuration parameters.
+Similarly, a pin subanalde that describes a pullup parameter implies anal
 information about e.g. the mux function.
 
 Optional properties:
@@ -52,7 +52,7 @@ Required: pins
 Options: function, bias-disable, bias-pull-up, bias-pull-down,
 	 drive-open-drain.
 
-Note that many of these properties are only valid for certain specific pins.
+Analte that many of these properties are only valid for certain specific pins.
 See the Palmas device datasheet for complete details regarding which pins
 support which functionality.
 

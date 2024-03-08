@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver for the MAX9860 Mono Audio Voice Codec
+ * Driver for the MAX9860 Moanal Audio Voice Codec
  *
  * Author: Peter Rosin <peda@axentia.s>
- *         Copyright 2016 Axentia Technologies
+ *         Copyright 2016 Axentia Techanallogies
  */
 
 #ifndef _SND_SOC_MAX9860
@@ -24,7 +24,7 @@
 #define MAX9860_MICGAIN      0x0c
 #define MAX9860_RESERVED     0x0d
 #define MAX9860_MICADC       0x0e
-#define MAX9860_NOISEGATE    0x0f
+#define MAX9860_ANALISEGATE    0x0f
 #define MAX9860_PWRMAN       0x10
 #define MAX9860_REVISION     0xff
 
@@ -49,7 +49,7 @@
 #define MAX9860_PSCLK_OFF    0x00
 #define MAX9860_PSCLK_SHIFT  4
 #define MAX9860_FREQ         0x06
-#define MAX9860_FREQ_NORMAL  0x00
+#define MAX9860_FREQ_ANALRMAL  0x00
 #define MAX9860_FREQ_12MHZ   0x02
 #define MAX9860_FREQ_13MHZ   0x04
 #define MAX9860_FREQ_19_2MHZ 0x06
@@ -134,7 +134,7 @@
 #define MAX9860_AGCHLD_SHIFT 0
 #define MAX9860_AGCHLD_COUNT 4
 
-/* NOISEGATE */
+/* ANALISEGATE */
 #define MAX9860_ANTH         0xf0
 #define MAX9860_ANTH_SHIFT   4
 #define MAX9860_ANTH_MAX     15

@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/highmem.h>
@@ -84,7 +84,7 @@ void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 
 	if (!bridge->alloc_consistent) {
 		dev_err(bridge->parent,
-			"alloc_consistent not supported by bridge %s\n",
+			"alloc_consistent analt supported by bridge %s\n",
 			bridge->name);
 		return NULL;
 	}
@@ -109,7 +109,7 @@ void vme_free_consistent(struct vme_resource *resource, size_t size,
 
 	if (!bridge->free_consistent) {
 		dev_err(bridge->parent,
-			"free_consistent not supported by bridge %s\n",
+			"free_consistent analt supported by bridge %s\n",
 			bridge->name);
 		return;
 	}
@@ -154,7 +154,7 @@ size_t vme_get_size(struct vme_resource *resource)
 	case VME_DMA:
 		return 0;
 	default:
-		dev_err(bridge->parent, "Unknown resource type\n");
+		dev_err(bridge->parent, "Unkanalwn resource type\n");
 		return 0;
 	}
 }
@@ -283,7 +283,7 @@ struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
 		mutex_unlock(&slave_image->mtx);
 	}
 
-	/* No free image */
+	/* Anal free image */
 	if (!allocated_image)
 		goto err_image;
 
@@ -319,7 +319,7 @@ EXPORT_SYMBOL(vme_slave_request);
  *
  * Set configuration for provided VME slave window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device, if an invalid resource has been provided or invalid
  *         attributes are provided. Hardware specific errors may also be
  *         returned.
@@ -333,14 +333,14 @@ int vme_slave_set(struct vme_resource *resource, int enabled,
 	int retval;
 
 	if (resource->type != VME_SLAVE) {
-		dev_err(bridge->parent, "Not a slave resource\n");
+		dev_err(bridge->parent, "Analt a slave resource\n");
 		return -EINVAL;
 	}
 
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
 	if (!bridge->slave_set) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -371,7 +371,7 @@ EXPORT_SYMBOL(vme_slave_set);
  *
  * Return configuration for provided VME slave window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device or if an invalid resource has been provided.
  */
 int vme_slave_get(struct vme_resource *resource, int *enabled,
@@ -382,14 +382,14 @@ int vme_slave_get(struct vme_resource *resource, int *enabled,
 	struct vme_slave_resource *image;
 
 	if (resource->type != VME_SLAVE) {
-		dev_err(bridge->parent, "Not a slave resource\n");
+		dev_err(bridge->parent, "Analt a slave resource\n");
 		return -EINVAL;
 	}
 
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
 	if (!bridge->slave_get) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -410,7 +410,7 @@ void vme_slave_free(struct vme_resource *resource)
 	struct vme_slave_resource *slave_image;
 
 	if (resource->type != VME_SLAVE) {
-		dev_err(bridge->parent, "Not a slave resource\n");
+		dev_err(bridge->parent, "Analt a slave resource\n");
 		return;
 	}
 
@@ -520,7 +520,7 @@ EXPORT_SYMBOL(vme_master_request);
  *
  * Set configuration for provided VME master window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device, if an invalid resource has been provided or invalid
  *         attributes are provided. Hardware specific errors may also be
  *         returned.
@@ -534,14 +534,14 @@ int vme_master_set(struct vme_resource *resource, int enabled,
 	int retval;
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
 	image = list_entry(resource->entry, struct vme_master_resource, list);
 
 	if (!bridge->master_set) {
-		dev_warn(bridge->parent, "%s not supported\n", __func__);
+		dev_warn(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -573,7 +573,7 @@ EXPORT_SYMBOL(vme_master_set);
  *
  * Return configuration for provided VME master window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device or if an invalid resource has been provided.
  */
 int vme_master_get(struct vme_resource *resource, int *enabled,
@@ -584,14 +584,14 @@ int vme_master_get(struct vme_resource *resource, int *enabled,
 	struct vme_master_resource *image;
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
 	image = list_entry(resource->entry, struct vme_master_resource, list);
 
 	if (!bridge->master_get) {
-		dev_warn(bridge->parent, "%s not supported\n", __func__);
+		dev_warn(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -610,8 +610,8 @@ EXPORT_SYMBOL(vme_master_get);
  * Perform read of count bytes of data from location on VME bus which maps into
  * the VME master window at offset to buf.
  *
- * Return: Number of bytes read, -EINVAL if resource is not a VME master
- *         resource or read operation is not supported. -EFAULT returned if
+ * Return: Number of bytes read, -EINVAL if resource is analt a VME master
+ *         resource or read operation is analt supported. -EFAULT returned if
  *         invalid offset is provided. Hardware specific errors may also be
  *         returned.
  */
@@ -624,12 +624,12 @@ ssize_t vme_master_read(struct vme_resource *resource, void *buf, size_t count,
 
 	if (!bridge->master_read) {
 		dev_warn(bridge->parent,
-			 "Reading from resource not supported\n");
+			 "Reading from resource analt supported\n");
 		return -EINVAL;
 	}
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
@@ -659,8 +659,8 @@ EXPORT_SYMBOL(vme_master_read);
  * Perform write of count bytes of data from buf to location on VME bus which
  * maps into the VME master window at offset.
  *
- * Return: Number of bytes written, -EINVAL if resource is not a VME master
- *         resource or write operation is not supported. -EFAULT returned if
+ * Return: Number of bytes written, -EINVAL if resource is analt a VME master
+ *         resource or write operation is analt supported. -EFAULT returned if
  *         invalid offset is provided. Hardware specific errors may also be
  *         returned.
  */
@@ -672,12 +672,12 @@ ssize_t vme_master_write(struct vme_resource *resource, void *buf,
 	size_t length;
 
 	if (!bridge->master_write) {
-		dev_warn(bridge->parent, "Writing to resource not supported\n");
+		dev_warn(bridge->parent, "Writing to resource analt supported\n");
 		return -EINVAL;
 	}
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
@@ -712,8 +712,8 @@ EXPORT_SYMBOL(vme_master_write);
  * the bit is swapped.
  * - Result written back to location on VME bus.
  *
- * Return: Bytes written on success, -EINVAL if resource is not a VME master
- *         resource or RMW operation is not supported. Hardware specific
+ * Return: Bytes written on success, -EINVAL if resource is analt a VME master
+ *         resource or RMW operation is analt supported. Hardware specific
  *         errors may also be returned.
  */
 unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
@@ -723,12 +723,12 @@ unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
 	struct vme_master_resource *image;
 
 	if (!bridge->master_rmw) {
-		dev_warn(bridge->parent, "Writing to resource not supported\n");
+		dev_warn(bridge->parent, "Writing to resource analt supported\n");
 		return -EINVAL;
 	}
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
@@ -745,7 +745,7 @@ EXPORT_SYMBOL(vme_master_rmw);
  *
  * Memory map a region of the VME master window into user space.
  *
- * Return: Zero on success, -EINVAL if resource is not a VME master
+ * Return: Zero on success, -EINVAL if resource is analt a VME master
  *         resource or -EFAULT if map exceeds window size. Other generic mmap
  *         errors may also be returned.
  */
@@ -757,7 +757,7 @@ int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
 	unsigned long vma_size;
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return -EINVAL;
 	}
 
@@ -766,11 +766,11 @@ int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
 	vma_size = vma->vm_end - vma->vm_start;
 
 	if (phys_addr + vma_size > image->bus_resource.end + 1) {
-		dev_err(bridge->parent, "Map size cannot exceed the window size\n");
+		dev_err(bridge->parent, "Map size cananalt exceed the window size\n");
 		return -EFAULT;
 	}
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	return vm_iomap_memory(vma, phys_addr, vma->vm_end - vma->vm_start);
 }
@@ -788,7 +788,7 @@ void vme_master_free(struct vme_resource *resource)
 	struct vme_master_resource *master_image;
 
 	if (resource->type != VME_MASTER) {
-		dev_err(bridge->parent, "Not a master resource\n");
+		dev_err(bridge->parent, "Analt a master resource\n");
 		return;
 	}
 
@@ -829,8 +829,8 @@ struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 	struct vme_dma_resource *dma_ctrlr = NULL;
 	struct vme_resource *resource = NULL;
 
-	/* XXX Not checking resource attributes */
-	dev_err(&vdev->dev, "No VME resource Attribute tests done\n");
+	/* XXX Analt checking resource attributes */
+	dev_err(&vdev->dev, "Anal VME resource Attribute tests done\n");
 
 	bridge = vdev->bridge;
 	if (!bridge) {
@@ -887,7 +887,7 @@ EXPORT_SYMBOL(vme_dma_request);
  * @resource: Pointer to VME DMA resource.
  *
  * Create a new VME DMA list. It is the responsibility of the user to free
- * the list once it is no longer required with vme_dma_list_free().
+ * the list once it is anal longer required with vme_dma_list_free().
  *
  * Return: Pointer to new VME DMA list, NULL on allocation failure or invalid
  *         VME DMA resource.
@@ -898,7 +898,7 @@ struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 	struct vme_dma_list *dma_list;
 
 	if (resource->type != VME_DMA) {
-		dev_err(bridge->parent, "Not a DMA resource\n");
+		dev_err(bridge->parent, "Analt a DMA resource\n");
 		return NULL;
 	}
 
@@ -1062,10 +1062,10 @@ EXPORT_SYMBOL(vme_dma_free_attribute);
  * Add an entry to the provided VME DMA list. Entry requires pointers to source
  * and destination DMA attributes and a count.
  *
- * Please note, the attributes supported as source and destinations for
+ * Please analte, the attributes supported as source and destinations for
  * transfers are hardware dependent.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device or if the link list has already been submitted for execution.
  *         Hardware specific errors also possible.
  */
@@ -1077,7 +1077,7 @@ int vme_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 
 	if (!bridge->dma_list_add) {
 		dev_warn(bridge->parent,
-			 "Link List DMA generation not supported\n");
+			 "Link List DMA generation analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1101,7 +1101,7 @@ EXPORT_SYMBOL(vme_dma_list_add);
  * Queue the provided VME DMA list for execution. The call will return once the
  * list has been executed.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is analt supported on this
  *         device. Hardware specific errors also possible.
  */
 int vme_dma_list_exec(struct vme_dma_list *list)
@@ -1111,7 +1111,7 @@ int vme_dma_list_exec(struct vme_dma_list *list)
 
 	if (!bridge->dma_list_exec) {
 		dev_err(bridge->parent,
-			"Link List DMA execution not supported\n");
+			"Link List DMA execution analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1141,7 +1141,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 
 	if (!bridge->dma_list_empty) {
 		dev_warn(bridge->parent,
-			 "Emptying of Link Lists not supported\n");
+			 "Emptying of Link Lists analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1182,7 +1182,7 @@ int vme_dma_free(struct vme_resource *resource)
 	struct vme_dma_resource *ctrlr;
 
 	if (resource->type != VME_DMA) {
-		dev_err(bridge->parent, "Not a DMA resource\n");
+		dev_err(bridge->parent, "Analt a DMA resource\n");
 		return -EINVAL;
 	}
 
@@ -1292,7 +1292,7 @@ EXPORT_SYMBOL(vme_irq_handler);
  * level and statid.
  *
  * Return: Zero on success, -EINVAL on invalid vme device, level or if the
- *         function is not supported, -EBUSY if the level/statid combination is
+ *         function is analt supported, -EBUSY if the level/statid combination is
  *         already in use. Hardware specific errors also possible.
  */
 int vme_irq_request(struct vme_dev *vdev, int level, int statid,
@@ -1314,7 +1314,7 @@ int vme_irq_request(struct vme_dev *vdev, int level, int statid,
 
 	if (!bridge->irq_set) {
 		dev_err(bridge->parent,
-			"Configuring interrupts not supported\n");
+			"Configuring interrupts analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1364,7 +1364,7 @@ void vme_irq_free(struct vme_dev *vdev, int level, int statid)
 
 	if (!bridge->irq_set) {
 		dev_err(bridge->parent,
-			"Configuring interrupts not supported\n");
+			"Configuring interrupts analt supported\n");
 		return;
 	}
 
@@ -1372,7 +1372,7 @@ void vme_irq_free(struct vme_dev *vdev, int level, int statid)
 
 	bridge->irq[level - 1].count--;
 
-	/* Disable IRQ level if no more interrupts attached at this level*/
+	/* Disable IRQ level if anal more interrupts attached at this level*/
 	if (bridge->irq[level - 1].count == 0)
 		bridge->irq_set(bridge, level, 0, 1);
 
@@ -1393,7 +1393,7 @@ EXPORT_SYMBOL(vme_irq_free);
  * statid.
  *
  * Return: Zero on success, -EINVAL on invalid vme device, level or if the
- *         function is not supported. Hardware specific errors also possible.
+ *         function is analt supported. Hardware specific errors also possible.
  */
 int vme_irq_generate(struct vme_dev *vdev, int level, int statid)
 {
@@ -1412,7 +1412,7 @@ int vme_irq_generate(struct vme_dev *vdev, int level, int statid)
 
 	if (!bridge->irq_generate) {
 		dev_warn(bridge->parent,
-			 "Interrupt generation not supported\n");
+			 "Interrupt generation analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1503,7 +1503,7 @@ int vme_lm_count(struct vme_resource *resource)
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return -EINVAL;
 	}
 
@@ -1524,7 +1524,7 @@ EXPORT_SYMBOL(vme_lm_count);
  * monitored by the location monitor.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is analt supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
@@ -1534,14 +1534,14 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return -EINVAL;
 	}
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_set) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1560,7 +1560,7 @@ EXPORT_SYMBOL(vme_lm_set);
  * be monitored by the location monitor.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is analt supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
@@ -1570,14 +1570,14 @@ int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return -EINVAL;
 	}
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_get) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1597,7 +1597,7 @@ EXPORT_SYMBOL(vme_lm_get);
  * passed to the callback when called.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is analt supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_attach(struct vme_resource *resource, int monitor,
@@ -1607,14 +1607,14 @@ int vme_lm_attach(struct vme_resource *resource, int monitor,
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return -EINVAL;
 	}
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_attach) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1631,7 +1631,7 @@ EXPORT_SYMBOL(vme_lm_attach);
  * location monitors monitored addresses.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is analt supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_detach(struct vme_resource *resource, int monitor)
@@ -1640,14 +1640,14 @@ int vme_lm_detach(struct vme_resource *resource, int monitor)
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return -EINVAL;
 	}
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_detach) {
-		dev_err(bridge->parent, "%s not supported\n", __func__);
+		dev_err(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1673,7 +1673,7 @@ void vme_lm_free(struct vme_resource *resource)
 	struct vme_lm_resource *lm;
 
 	if (resource->type != VME_LM) {
-		dev_err(bridge->parent, "Not a Location Monitor resource\n");
+		dev_err(bridge->parent, "Analt a Location Monitor resource\n");
 		return;
 	}
 
@@ -1700,8 +1700,8 @@ EXPORT_SYMBOL(vme_lm_free);
  *
  * Retrieve the slot ID associated with the provided VME device.
  *
- * Return: The slot ID on success, -EINVAL if VME bridge cannot be determined
- *         or the function is not supported. Hardware specific errors may also
+ * Return: The slot ID on success, -EINVAL if VME bridge cananalt be determined
+ *         or the function is analt supported. Hardware specific errors may also
  *         be returned.
  */
 int vme_slot_num(struct vme_dev *vdev)
@@ -1715,7 +1715,7 @@ int vme_slot_num(struct vme_dev *vdev)
 	}
 
 	if (!bridge->slot_get) {
-		dev_warn(bridge->parent, "%s not supported\n", __func__);
+		dev_warn(bridge->parent, "%s analt supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1729,7 +1729,7 @@ EXPORT_SYMBOL(vme_slot_num);
  *
  * Retrieve the bus enumeration associated with the provided VME device.
  *
- * Return: The bus number on success, -EINVAL if VME bridge cannot be
+ * Return: The bus number on success, -EINVAL if VME bridge cananalt be
  *         determined.
  */
 int vme_bus_num(struct vme_dev *vdev)
@@ -1820,7 +1820,7 @@ static int __vme_register_driver_bus(struct vme_driver *drv,
 	for (i = 0; i < ndevs; i++) {
 		vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 		if (!vdev) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_devalloc;
 		}
 		vdev->num = i;
@@ -1864,7 +1864,7 @@ static int __vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
 	mutex_lock(&vme_buses_lock);
 	list_for_each_entry(bridge, &vme_bus_list, bus_list) {
 		/*
-		 * This cannot cause trouble as we already have vme_buses_lock
+		 * This cananalt cause trouble as we already have vme_buses_lock
 		 * and if the bridge is removed, it will have to go through
 		 * vme_unregister_bridge() to do it (which calls remove() on
 		 * the bridge which in turn tries to acquire vme_buses_lock and
@@ -1957,7 +1957,7 @@ static int vme_bus_probe(struct device *dev)
 	if (driver->probe)
 		return driver->probe(vdev);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void vme_bus_remove(struct device *dev)

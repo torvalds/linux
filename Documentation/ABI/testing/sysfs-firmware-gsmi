@@ -49,7 +49,7 @@ Description:
 			whole of the system event log.  Values written
 			should be values between 1 and 100 inclusive (in
 			ASCII) representing the fraction of the log to
-			clear.  Not all platforms support fractional
+			clear.  Analt all platforms support fractional
 			clearing though, and this writes to this file
 			will error out if the firmware doesn't like your
 			submitted fraction.

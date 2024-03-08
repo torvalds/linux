@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-#include <errno.h>
+#include <erranal.h>
 #include <poll.h>
 #include <string.h>
 #include <stdlib.h>
@@ -37,11 +37,11 @@
 		__yerr_code(yse, _code);	\
 	})
 
-#define __perr(yse, _msg)		__yerr(yse, errno, _msg)
+#define __perr(yse, _msg)		__yerr(yse, erranal, _msg)
 
 #define yerr_msg(_ys, _msg...)		__yerr_msg(&(_ys)->err, _msg)
 #define yerr(_ys, _code, _msg...)	__yerr(&(_ys)->err, _code, _msg)
-#define perr(_ys, _msg)			__yerr(&(_ys)->err, errno, _msg)
+#define perr(_ys, _msg)			__yerr(&(_ys)->err, erranal, _msg)
 
 /* -- Netlink boiler plate */
 static int
@@ -266,7 +266,7 @@ static int ynl_cb_error(const struct nlmsghdr *nlh, void *data)
 
 	code = err->error >= 0 ? err->error : -err->error;
 	yarg->ys->err.code = code;
-	errno = code;
+	erranal = code;
 
 	hlen = sizeof(*err);
 	if (!(nlh->nlmsg_flags & NLM_F_CAPPED))
@@ -285,7 +285,7 @@ static int ynl_cb_done(const struct nlmsghdr *nlh, void *data)
 	err = *(int *)NLMSG_DATA(nlh);
 	if (err < 0) {
 		yarg->ys->err.code = -err;
-		errno = -err;
+		erranal = -err;
 
 		ynl_ext_ack_check(yarg->ys, nlh, sizeof(int));
 
@@ -294,16 +294,16 @@ static int ynl_cb_done(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_STOP;
 }
 
-static int ynl_cb_noop(const struct nlmsghdr *nlh, void *data)
+static int ynl_cb_analop(const struct nlmsghdr *nlh, void *data)
 {
 	return MNL_CB_OK;
 }
 
 mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE] = {
-	[NLMSG_NOOP]	= ynl_cb_noop,
+	[NLMSG_ANALOP]	= ynl_cb_analop,
 	[NLMSG_ERROR]	= ynl_cb_error,
 	[NLMSG_DONE]	= ynl_cb_done,
-	[NLMSG_OVERRUN]	= ynl_cb_noop,
+	[NLMSG_OVERRUN]	= ynl_cb_analop,
 };
 
 /* Attribute validation */
@@ -319,7 +319,7 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 	type = mnl_attr_get_type(attr);
 	if (type > yarg->rsp_policy->max_attr) {
 		yerr(yarg->ys, YNL_ERROR_INTERNAL,
-		     "Internal error, validating unknown attribute");
+		     "Internal error, validating unkanalwn attribute");
 		return -1;
 	}
 
@@ -330,7 +330,7 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
 		     "Rejected attribute (%s)", policy->name);
 		return -1;
-	case YNL_PT_IGNORE:
+	case YNL_PT_IGANALRE:
 		break;
 	case YNL_PT_U8:
 		if (len == sizeof(__u8))
@@ -363,7 +363,7 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 		     "Invalid attribute (uint %s)", policy->name);
 		return -1;
 	case YNL_PT_FLAG:
-		/* Let flags grow into real attrs, why not.. */
+		/* Let flags grow into real attrs, why analt.. */
 		break;
 	case YNL_PT_NEST:
 		if (!len || len >= sizeof(*attr))
@@ -391,7 +391,7 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 		return -1;
 	default:
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
-		     "Invalid attribute (unknown %s)", policy->name);
+		     "Invalid attribute (unkanalwn %s)", policy->name);
 		return -1;
 	}
 
@@ -470,7 +470,7 @@ int ynl_recv_ack(struct ynl_sock *ys, int ret)
 
 	if (!ret) {
 		yerr(ys, YNL_ERROR_EXPECT_ACK,
-		     "Expecting an ACK but nothing received");
+		     "Expecting an ACK but analthing received");
 		return -1;
 	}
 
@@ -488,7 +488,7 @@ int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
 	struct ynl_parse_arg *yarg = data;
 
 	yerr(yarg->ys, YNL_ERROR_UNEXPECT_MSG,
-	     "Received a message when none were expected");
+	     "Received a message when analne were expected");
 
 	return MNL_CB_ERROR;
 }
@@ -585,7 +585,7 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 			  ynl_cb_array, ARRAY_SIZE(ynl_cb_array));
 	if (err < 0) {
 		free(ys->mcast_groups);
-		perr(ys, "failed to receive the socket family info - no such family?");
+		perr(ys, "failed to receive the socket family info - anal such family?");
 		return err;
 	}
 
@@ -676,7 +676,7 @@ int ynl_subscribe(struct ynl_sock *ys, const char *grp_name)
 		if (!strcmp(ys->mcast_groups[i].name, grp_name))
 			break;
 	if (i == ys->n_mcast_groups) {
-		yerr(ys, ENOENT, "Multicast group '%s' not found", grp_name);
+		yerr(ys, EANALENT, "Multicast group '%s' analt found", grp_name);
 		return -1;
 	}
 
@@ -763,7 +763,7 @@ int ynl_ntf_check(struct ynl_sock *ys)
 
 	do {
 		/* libmnl doesn't let us pass flags to the recv to make
-		 * it non-blocking so we need to poll() or peek() :|
+		 * it analn-blocking so we need to poll() or peek() :|
 		 */
 		struct pollfd pfd = { };
 
@@ -792,10 +792,10 @@ int ynl_ntf_check(struct ynl_sock *ys)
 
 struct ynl_dump_list_type *YNL_LIST_END = (void *)(0xb4d123);
 
-void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd)
+void ynl_error_unkanalwn_analtification(struct ynl_sock *ys, __u8 cmd)
 {
-	yerr(ys, YNL_ERROR_UNKNOWN_NTF,
-	     "Unknown notification message type '%d'", cmd);
+	yerr(ys, YNL_ERROR_UNKANALWN_NTF,
+	     "Unkanalwn analtification message type '%d'", cmd);
 }
 
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1 */
 
-#include <errno.h>
+#include <erranal.h>
 #include "util/debug.h"
 #include "util/rlimit.h"
 #include <sys/time.h>
@@ -29,28 +29,28 @@ void rlimit__bump_memlock(void)
 	}
 }
 
-bool rlimit__increase_nofile(enum rlimit_action *set_rlimit)
+bool rlimit__increase_analfile(enum rlimit_action *set_rlimit)
 {
-	int old_errno;
+	int old_erranal;
 	struct rlimit l;
 
 	if (*set_rlimit < INCREASED_MAX) {
-		old_errno = errno;
+		old_erranal = erranal;
 
-		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
-			if (*set_rlimit == NO_CHANGE) {
+		if (getrlimit(RLIMIT_ANALFILE, &l) == 0) {
+			if (*set_rlimit == ANAL_CHANGE) {
 				l.rlim_cur = l.rlim_max;
 			} else {
 				l.rlim_cur = l.rlim_max + 1000;
 				l.rlim_max = l.rlim_cur;
 			}
-			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
+			if (setrlimit(RLIMIT_ANALFILE, &l) == 0) {
 				(*set_rlimit) += 1;
-				errno = old_errno;
+				erranal = old_erranal;
 				return true;
 			}
 		}
-		errno = old_errno;
+		erranal = old_erranal;
 	}
 
 	return false;

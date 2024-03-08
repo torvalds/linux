@@ -52,7 +52,7 @@ static void memstress_l1_guest_code(struct vmx_pages *vmx, uint64_t vcpu_id)
 uint64_t memstress_nested_pages(int nr_vcpus)
 {
 	/*
-	 * 513 page tables is enough to identity-map 256 TiB of L2 with 1G
+	 * 513 page tables is eanalugh to identity-map 256 TiB of L2 with 1G
 	 * pages and 4-level paging, plus a few pages per-vCPU for data
 	 * structures such as the VMCS.
 	 */

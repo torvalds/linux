@@ -7,12 +7,12 @@
  *  Copyright (C) 2008 Florian Fainelli <florian@openwrt.org>
  *
  *  This file was based on: drivers/ata/pata_ixp4xx_cf.c
- *	Copyright (C) 2006-07 Tower Technologies
+ *	Copyright (C) 2006-07 Tower Techanallogies
  *	Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  *  Also was based on the driver for Linux 2.4.xx published by Mikrotik for
  *  their RouterBoard 1xx and 5xx series devices. The original Mikrotik code
- *  seems not to have a license.
+ *  seems analt to have a license.
  */
 
 #include <linux/gfp.h>
@@ -110,7 +110,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no IOMEM resource found\n");
+		dev_err(&pdev->dev, "anal IOMEM resource found\n");
 		return -EINVAL;
 	}
 
@@ -122,7 +122,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 
 	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpiod)) {
-		dev_err(&pdev->dev, "no GPIO found for irq%d\n", irq);
+		dev_err(&pdev->dev, "anal GPIO found for irq%d\n", irq);
 		return PTR_ERR(gpiod);
 	}
 	gpiod_set_consumer_name(gpiod, DRV_NAME);
@@ -130,11 +130,11 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	/* allocate host */
 	ah = ata_host_alloc(&pdev->dev, RB500_CF_MAXPORTS);
 	if (!ah)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ah->private_data = info;
 	info->gpio_line = gpiod;
@@ -143,7 +143,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	info->iobase = devm_ioremap(&pdev->dev, res->start,
 				resource_size(res));
 	if (!info->iobase)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rb532_pata_setup_ports(ah);
 

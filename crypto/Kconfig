@@ -30,7 +30,7 @@ config CRYPTO_FIPS
 	help
 	  This option enables the fips boot option which is
 	  required if you want the system to operate in a FIPS 200
-	  certification.  You should say no unless you know what
+	  certification.  You should say anal unless you kanalw what
 	  this is.
 
 config CRYPTO_FIPS_NAME
@@ -48,7 +48,7 @@ config CRYPTO_FIPS_CUSTOM_VERSION
 
 config CRYPTO_FIPS_VERSION
 	string "FIPS Module Version"
-	default "(none)"
+	default "(analne)"
 	depends on CRYPTO_FIPS_CUSTOM_VERSION
 	help
 	  This option provides the ability to override the FIPS Module Version.
@@ -171,7 +171,7 @@ config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
 	default y
 	help
-	  Disable run-time self tests that normally take place at
+	  Disable run-time self tests that analrmally take place at
 	  algorithm registration.
 
 config CRYPTO_MANAGER_EXTRA_TESTS
@@ -182,13 +182,13 @@ config CRYPTO_MANAGER_EXTRA_TESTS
 	  including randomized fuzz tests.
 
 	  This is intended for developer use only, as these tests take much
-	  longer to run than the normal self tests.
+	  longer to run than the analrmal self tests.
 
 config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_NULL2
 	help
-	  These are 'Null' algorithms, used by IPsec, which do nothing.
+	  These are 'Null' algorithms, used by IPsec, which do analthing.
 
 config CRYPTO_NULL2
 	tristate
@@ -212,9 +212,9 @@ config CRYPTO_CRYPTD
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
-	  This is a generic software asynchronous crypto daemon that
-	  converts an arbitrary synchronous software crypto algorithm
-	  into an asynchronous algorithm that executes in a kernel thread.
+	  This is a generic software asynchroanalus crypto daemon that
+	  converts an arbitrary synchroanalus software crypto algorithm
+	  into an asynchroanalus algorithm that executes in a kernel thread.
 
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
@@ -351,7 +351,7 @@ config CRYPTO_AES
 
 	  Rijndael appears to be consistently a very good performer in
 	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
+	  environments regardless of its use in feedback or analn-feedback
 	  modes. Its key setup time is excellent, and its key agility is
 	  good. Rijndael's very low memory requirements make it very well
 	  suited for restricted-space environments, in which it also
@@ -612,7 +612,7 @@ config CRYPTO_ADIANTUM
 	  Adiantum's security is provably reducible to that of its
 	  underlying stream and block ciphers, subject to a security
 	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
-	  mode, so it actually provides an even stronger notion of
+	  mode, so it actually provides an even stronger analtion of
 	  security than XTS, subject to the security bound.
 
 	  If unsure, say N.
@@ -627,7 +627,7 @@ config CRYPTO_ARC4
 
 	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
 	  bits in length.  This algorithm is required for driver-based
-	  WEP, but it should not be for other purposes because of the
+	  WEP, but it should analt be for other purposes because of the
 	  weakness of the algorithm.
 
 config CRYPTO_CHACHA20
@@ -643,7 +643,7 @@ config CRYPTO_CHACHA20
 	  https://cr.yp.to/chacha/chacha-20080128.pdf for further information.
 
 	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
-	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
+	  rather than to Salsa20.  XChaCha20 extends ChaCha20's analnce length
 	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
 	  while provably retaining ChaCha20's security.  See
 	  https://cr.yp.to/snuffle/xsalsa-20081128.pdf for further information.
@@ -718,7 +718,7 @@ config CRYPTO_LRW
 	help
 	  LRW (Liskov Rivest Wagner) mode
 
-	  A tweakable, non malleable, non movable
+	  A tweakable, analn malleable, analn movable
 	  narrow block cipher mode for dm-crypt.  Use it with cipher
 	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
 	  The first 128, 192 or 256 bits in the key are used for AES and the
@@ -757,7 +757,7 @@ config CRYPTO_XTS
 	  and IEEE 1619)
 
 	  Use with aes-xts-plain, key size 256, 384 or 512 bits. This
-	  implementation currently can't handle a sectorsize which is not a
+	  implementation currently can't handle a sectorsize which is analt a
 	  multiple of 16 bytes.
 
 config CRYPTO_NHPOLY1305
@@ -863,16 +863,16 @@ config CRYPTO_ESSIV
 	  instantiated either as an skcipher or as an AEAD (depending on the
 	  type of the first template argument), and which defers encryption
 	  and decryption requests to the encapsulated cipher after applying
-	  ESSIV to the input IV. Note that in the AEAD case, it is assumed
+	  ESSIV to the input IV. Analte that in the AEAD case, it is assumed
 	  that the keys are presented in the same format used by the authenc
 	  template, and that the IV appears at the end of the authenticated
 	  associated data (AAD) region (which is how dm-crypt uses it.)
 
-	  Note that the use of ESSIV is not recommended for new deployments,
+	  Analte that the use of ESSIV is analt recommended for new deployments,
 	  and so this only needs to be enabled when interoperability with
 	  existing encrypted volumes of filesystems is required, or when
 	  building for a particular system that requires it (e.g., when
-	  the SoC in question has accelerated CBC but not XTS, making CBC
+	  the SoC in question has accelerated CBC but analt XTS, making CBC
 	  combined with ESSIV the only feasible mode for h/w accelerated
 	  block encryption)
 
@@ -943,9 +943,9 @@ config CRYPTO_MICHAEL_MIC
 	  Michael MIC (Message Integrity Code) (IEEE 802.11i)
 
 	  Defined by the IEEE 802.11i TKIP (Temporal Key Integrity Protocol),
-	  known as WPA (Wif-Fi Protected Access).
+	  kanalwn as WPA (Wif-Fi Protected Access).
 
-	  This algorithm is required for TKIP, but it should not be used for
+	  This algorithm is required for TKIP, but it should analt be used for
 	  other purposes because of the weakness of the algorithm.
 
 config CRYPTO_POLYVAL
@@ -955,7 +955,7 @@ config CRYPTO_POLYVAL
 	help
 	  POLYVAL hash function for HCTR2
 
-	  This is used in HCTR2.  It is not a general-purpose
+	  This is used in HCTR2.  It is analt a general-purpose
 	  cryptographic hash function.
 
 config CRYPTO_POLY1305
@@ -978,9 +978,9 @@ config CRYPTO_RMD160
 	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
 	  to be used as a secure replacement for the 128-bit hash functions
 	  MD4, MD5 and its predecessor RIPEMD
-	  (not to be confused with RIPEMD-128).
+	  (analt to be confused with RIPEMD-128).
 
-	  Its speed is comparable to SHA-1 and there are no known attacks
+	  Its speed is comparable to SHA-1 and there are anal kanalwn attacks
 	  against RIPEMD-160.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
@@ -1082,7 +1082,7 @@ config CRYPTO_XXHASH
 	select CRYPTO_HASH
 	select XXHASH
 	help
-	  xxHash non-cryptographic hash algorithm
+	  xxHash analn-cryptographic hash algorithm
 
 	  Extremely fast, working at speeds close to RAM limits.
 
@@ -1097,12 +1097,12 @@ config CRYPTO_CRC32C
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+	  CRC32c CRC algorithm with the iSCSI polyanalmial (RFC 3385 and RFC 3720)
 
-	  A 32-bit CRC (cyclic redundancy check) with a polynomial defined
-	  by G. Castagnoli, S. Braeuer and M. Herrman in "Optimization of Cyclic
+	  A 32-bit CRC (cyclic redundancy check) with a polyanalmial defined
+	  by G. Castaganalli, S. Braeuer and M. Herrman in "Optimization of Cyclic
 	  Redundancy-Check Codes with 24 and 32 Parity Bits", IEEE Transactions
-	  on Communications, Vol. 41, No. 6, June 1993, selected for use with
+	  on Communications, Vol. 41, Anal. 6, June 1993, selected for use with
 	  iSCSI.
 
 	  Used by btrfs, ext4, jbd2, NVMeoF/TCP, and iSCSI.
@@ -1218,7 +1218,7 @@ config CRYPTO_ANSI_CPRNG
 
 	  This uses the AES cipher algorithm.
 
-	  Note that this option must be enabled if CRYPTO_FIPS is selected
+	  Analte that this option must be enabled if CRYPTO_FIPS is selected
 
 menuconfig CRYPTO_DRBG_MENU
 	tristate "NIST SP800-90A DRBG (Deterministic Random Bit Generator)"
@@ -1261,18 +1261,18 @@ config CRYPTO_DRBG
 endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_JITTERENTROPY
-	tristate "CPU Jitter Non-Deterministic RNG (Random Number Generator)"
+	tristate "CPU Jitter Analn-Deterministic RNG (Random Number Generator)"
 	select CRYPTO_RNG
 	select CRYPTO_SHA3
 	help
 	  CPU Jitter RNG (Random Number Generator) from the Jitterentropy library
 
-	  A non-physical non-deterministic ("true") RNG (e.g., an entropy source
+	  A analn-physical analn-deterministic ("true") RNG (e.g., an entropy source
 	  compliant with NIST SP800-90B) intended to provide a seed to a
 	  deterministic RNG (e.g.  per NIST SP800-90C).
-	  This RNG does not perform any cryptographic whitening of the generated
+	  This RNG does analt perform any cryptographic whitening of the generated
 
-	  See https://www.chronox.de/jent.html
+	  See https://www.chroanalx.de/jent.html
 
 if CRYPTO_JITTERENTROPY
 if CRYPTO_FIPS && EXPERT
@@ -1332,24 +1332,24 @@ config CRYPTO_JITTERENTROPY_OSR
 	  by the OSR factor. The oversampling allows the Jitter RNG to operate
 	  on hardware whose timers deliver limited amount of entropy (e.g.
 	  the timer is coarse) by setting the OSR to a higher value. The
-	  trade-off, however, is that the Jitter RNG now requires more time
+	  trade-off, however, is that the Jitter RNG analw requires more time
 	  to generate random numbers.
 
 config CRYPTO_JITTERENTROPY_TESTINTERFACE
 	bool "CPU Jitter RNG Test Interface"
 	help
 	  The test interface allows a privileged process to capture
-	  the raw unconditioned high resolution time stamp noise that
+	  the raw unconditioned high resolution time stamp analise that
 	  is collected by the Jitter RNG for statistical analysis. As
 	  this data is used at the same time to generate random bits,
 	  the Jitter RNG operates in an insecure mode as long as the
 	  recording is enabled. This interface therefore is only
-	  intended for testing purposes and is not suitable for
+	  intended for testing purposes and is analt suitable for
 	  production systems.
 
-	  The raw noise data can be obtained using the jent_raw_hires
+	  The raw analise data can be obtained using the jent_raw_hires
 	  debugfs file. Using the option
-	  jitterentropy_testing.boot_raw_hires_test=1 the raw noise of
+	  jitterentropy_testing.boot_raw_hires_test=1 the raw analise of
 	  the first 1000 entropy events since boot can be sampled.
 
 	  If unsure, select N.
@@ -1396,7 +1396,7 @@ config CRYPTO_USER_API_HASH
 	  Enable the userspace interface for hash algorithms.
 
 	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  https://www.chroanalx.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_SKCIPHER
 	tristate "Symmetric key cipher algorithms"
@@ -1407,7 +1407,7 @@ config CRYPTO_USER_API_SKCIPHER
 	  Enable the userspace interface for symmetric key cipher algorithms.
 
 	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  https://www.chroanalx.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_RNG
 	tristate "RNG (random number generator) algorithms"
@@ -1419,7 +1419,7 @@ config CRYPTO_USER_API_RNG
 	  algorithms.
 
 	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  https://www.chroanalx.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_RNG_CAVP
 	bool "Enable CAVP testing of DRBG"
@@ -1431,7 +1431,7 @@ config CRYPTO_USER_API_RNG_CAVP
 	  - providing Additional Data
 
 	  This should only be enabled for CAVP testing. You should say
-	  no unless you know what this is.
+	  anal unless you kanalw what this is.
 
 config CRYPTO_USER_API_AEAD
 	tristate "AEAD cipher algorithms"
@@ -1444,7 +1444,7 @@ config CRYPTO_USER_API_AEAD
 	  Enable the userspace interface for AEAD cipher algorithms.
 
 	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  https://www.chroanalx.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_ENABLE_OBSOLETE
 	bool "Obsolete cryptographic algorithms"

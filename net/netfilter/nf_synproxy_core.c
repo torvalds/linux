@@ -46,7 +46,7 @@ synproxy_parse_options(const struct sk_buff *skb, unsigned int doff,
 		switch (opcode) {
 		case TCPOPT_EOL:
 			return true;
-		case TCPOPT_NOP:
+		case TCPOPT_ANALP:
 			length--;
 			continue;
 		default:
@@ -129,21 +129,21 @@ synproxy_build_options(struct tcphdr *th, const struct synproxy_options *opts)
 				       (TCPOPT_TIMESTAMP << 8) |
 				       TCPOLEN_TIMESTAMP);
 		else
-			*ptr++ = htonl((TCPOPT_NOP << 24) |
-				       (TCPOPT_NOP << 16) |
+			*ptr++ = htonl((TCPOPT_ANALP << 24) |
+				       (TCPOPT_ANALP << 16) |
 				       (TCPOPT_TIMESTAMP << 8) |
 				       TCPOLEN_TIMESTAMP);
 
 		*ptr++ = htonl(opts->tsval);
 		*ptr++ = htonl(opts->tsecr);
 	} else if (options & NF_SYNPROXY_OPT_SACK_PERM)
-		*ptr++ = htonl((TCPOPT_NOP << 24) |
-			       (TCPOPT_NOP << 16) |
+		*ptr++ = htonl((TCPOPT_ANALP << 24) |
+			       (TCPOPT_ANALP << 16) |
 			       (TCPOPT_SACK_PERM << 8) |
 			       TCPOLEN_SACK_PERM);
 
 	if (options & NF_SYNPROXY_OPT_WSCALE)
-		*ptr++ = htonl((TCPOPT_NOP << 24) |
+		*ptr++ = htonl((TCPOPT_ANALP << 24) |
 			       (TCPOPT_WINDOW << 16) |
 			       (TCPOLEN_WINDOW << 8) |
 			       opts->wscale);
@@ -205,7 +205,7 @@ synproxy_tstamp_adjust(struct sk_buff *skb, unsigned int protoff,
 		switch (op[0]) {
 		case TCPOPT_EOL:
 			return 1;
-		case TCPOPT_NOP:
+		case TCPOPT_ANALP:
 			optoff++;
 			continue;
 		default:
@@ -307,7 +307,7 @@ static int __net_init synproxy_proc_init(struct net *net)
 {
 	if (!proc_create_net("synproxy", 0444, net->proc_net_stat,
 			&synproxy_cpu_seq_ops, sizeof(struct seq_net_private)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -331,7 +331,7 @@ static int __net_init synproxy_net_init(struct net *net)
 {
 	struct synproxy_net *snet = synproxy_pernet(net);
 	struct nf_conn *ct;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	ct = nf_ct_tmpl_alloc(net, &nf_ct_zone_dflt, GFP_KERNEL);
 	if (!ct)
@@ -426,7 +426,7 @@ synproxy_send_tcp(struct net *net,
 	nskb->csum_start  = (unsigned char *)nth - nskb->head;
 	nskb->csum_offset = offsetof(struct tcphdr, check);
 
-	skb_dst_set_noref(nskb, skb_dst(skb));
+	skb_dst_set_analref(nskb, skb_dst(skb));
 	nskb->protocol = htons(ETH_P_IP);
 	if (ip_route_me_harder(net, nskb->sk, nskb, RTN_UNSPEC))
 		goto free_nskb;

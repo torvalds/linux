@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <linux/stddef.h>
 #include <linux/sysctl.h>
 #include <linux/unistd.h>
@@ -35,7 +35,7 @@
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/personality.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <trace/events/power.h>
 #include <linux/percpu.h>
 #include <linux/thread_info.h>
@@ -69,7 +69,7 @@ void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
 #ifdef CONFIG_HOTPLUG_CPU
-void __noreturn arch_cpu_idle_dead(void)
+void __analreturn arch_cpu_idle_dead(void)
 {
        cpu_die();
 }
@@ -79,14 +79,14 @@ void __noreturn arch_cpu_idle_dead(void)
  * Called by kexec, immediately prior to machine_kexec().
  *
  * This must completely disable all secondary CPUs; simply causing those CPUs
- * to execute e.g. a RAM-based pin loop is not sufficient. This allows the
+ * to execute e.g. a RAM-based pin loop is analt sufficient. This allows the
  * kexec'd kernel to use any and all RAM as it sees fit, without having to
  * avoid any code or data used by any SW CPU pin loop. The CPU hotplug
- * functionality embodied in smpt_shutdown_nonboot_cpus() to achieve this.
+ * functionality embodied in smpt_shutdown_analnboot_cpus() to achieve this.
  */
 void machine_shutdown(void)
 {
-	smp_shutdown_nonboot_cpus(reboot_cpu);
+	smp_shutdown_analnboot_cpus(reboot_cpu);
 }
 
 /*
@@ -136,7 +136,7 @@ void machine_restart(char *cmd)
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_reboot(reboot_mode, NULL);
 
-	/* Now call the architecture specific reboot code. */
+	/* Analw call the architecture specific reboot code. */
 	do_kernel_restart(cmd);
 
 	/*
@@ -148,7 +148,7 @@ void machine_restart(char *cmd)
 
 #define bstr(suffix, str) [PSR_BTYPE_ ## suffix >> PSR_BTYPE_SHIFT] = str
 static const char *const btypes[] = {
-	bstr(NONE, "--"),
+	bstr(ANALNE, "--"),
 	bstr(  JC, "jc"),
 	bstr(   C, "-c"),
 	bstr(  J , "j-")
@@ -294,12 +294,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_THREAD_INFO_IN_TASK));
 
 	/*
-	 * Detach src's sve_state (if any) from dst so that it does not
+	 * Detach src's sve_state (if any) from dst so that it does analt
 	 * get erroneously used or freed prematurely.  dst's copies
 	 * will be allocated on demand later on if dst uses SVE.
 	 * For consistency, also clear TIF_SVE here: this could be done
 	 * later in copy_process(), but to avoid tripping up future
-	 * maintainers it is best not to leave TIF flags and buffers in
+	 * maintainers it is best analt to leave TIF flags and buffers in
 	 * an inconsistent state, even temporarily.
 	 */
 	dst->thread.sve_state = NULL;
@@ -317,7 +317,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 		dst->thread.sve_state = kzalloc(sve_state_size(src),
 						GFP_KERNEL);
 		if (!dst->thread.sve_state)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dst->thread.sme_state = kmemdup(src->thread.sme_state,
 						sme_state_size(src),
@@ -325,7 +325,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 		if (!dst->thread.sme_state) {
 			kfree(dst->thread.sve_state);
 			dst->thread.sve_state = NULL;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	} else {
 		dst->thread.sme_state = NULL;
@@ -334,7 +334,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	dst->thread.fp_type = FP_STATE_FPSIMD;
 
-	/* clear any pending asynchronous tag fault raised by the parent */
+	/* clear any pending asynchroanalus tag fault raised by the parent */
 	clear_tsk_thread_flag(dst, TIF_MTE_ASYNC_FAULT);
 
 	return 0;
@@ -354,7 +354,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	/*
 	 * In case p was allocated the same task_struct pointer as some
 	 * other recently-exited task, make sure p is disassociated from
-	 * any cpu that may have run that now-exited task recently.
+	 * any cpu that may have run that analw-exited task recently.
 	 * Otherwise we could erroneously skip reloading the FPSIMD
 	 * registers for p.
 	 */
@@ -391,7 +391,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		}
 	} else {
 		/*
-		 * A kthread has no context to ERET to, so ensure any buggy
+		 * A kthread has anal context to ERET to, so ensure any buggy
 		 * ERET is treated as an illegal exception return.
 		 *
 		 * When a user task is created from a kthread, childregs will
@@ -444,7 +444,7 @@ static void tls_thread_switch(struct task_struct *next)
 static void ssbs_thread_switch(struct task_struct *next)
 {
 	/*
-	 * Nothing to do for kernel threads, but 'regs' may be junk
+	 * Analthing to do for kernel threads, but 'regs' may be junk
 	 * (e.g. idle task) so check the flags and bail early.
 	 */
 	if (unlikely(next->flags & PF_KTHREAD))
@@ -464,7 +464,7 @@ static void ssbs_thread_switch(struct task_struct *next)
  * We store our current task in sp_el0, which is clobbered by userspace. Keep a
  * shadow copy so that we can restore this upon entry from userspace.
  *
- * This is *only* for exception entry from EL0, and is not valid until we
+ * This is *only* for exception entry from EL0, and is analt valid until we
  * __switch_to() a user task.
  */
 DEFINE_PER_CPU(struct task_struct *, __entry_task);
@@ -502,12 +502,12 @@ static void erratum_1418040_new_exec(void)
  * __switch_to() checks current->thread.sctlr_user as an optimisation. Therefore
  * this function must be called with preemption disabled and the update to
  * sctlr_user must be made in the same preemption disabled block so that
- * __switch_to() does not see the variable update before the SCTLR_EL1 one.
+ * __switch_to() does analt see the variable update before the SCTLR_EL1 one.
  */
 void update_sctlr_el1(u64 sctlr)
 {
 	/*
-	 * EnIA must not be cleared while in the kernel as this is necessary for
+	 * EnIA must analt be cleared while in the kernel as this is necessary for
 	 * in-kernel PAC. It will be cleared on kernel exit if needed.
 	 */
 	sysreg_clear_set(sctlr_el1, SCTLR_USER_MASK & ~SCTLR_ELx_ENIA, sctlr);
@@ -519,7 +519,7 @@ void update_sctlr_el1(u64 sctlr)
 /*
  * Thread switching.
  */
-__notrace_funcgraph __sched
+__analtrace_funcgraph __sched
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
@@ -544,11 +544,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	/*
 	 * MTE thread switching must happen after the DSB above to ensure that
-	 * any asynchronous tag check faults have been logged in the TFSR*_EL1
+	 * any asynchroanalus tag check faults have been logged in the TFSR*_EL1
 	 * registers.
 	 */
 	mte_thread_switch(next);
-	/* avoid expensive SCTLR_EL1 accesses if no change */
+	/* avoid expensive SCTLR_EL1 accesses if anal change */
 	if (prev->thread.sctlr_user != next->thread.sctlr_user)
 		update_sctlr_el1(next->thread.sctlr_user);
 
@@ -593,7 +593,7 @@ unsigned long __get_wchan(struct task_struct *p)
 
 unsigned long arch_align_stack(unsigned long sp)
 {
-	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+	if (!(current->personality & ADDR_ANAL_RANDOMIZE) && randomize_va_space)
 		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }
@@ -637,7 +637,7 @@ void arch_setup_new_exec(void)
 		 * From the perspective of the task, this looks similar to
 		 * what would happen if the 64-bit-only CPUs were hot-unplugged
 		 * at the point of execve(), although we try a bit harder to
-		 * honour the cpuset hierarchy.
+		 * hoanalur the cpuset hierarchy.
 		 */
 		if (static_branch_unlikely(&arm64_mismatched_32bit_el0))
 			force_compatible_cpus_allowed_ptr(current);
@@ -650,7 +650,7 @@ void arch_setup_new_exec(void)
 	mte_thread_init_user();
 	erratum_1418040_new_exec();
 
-	if (task_spec_ssb_noexec(current)) {
+	if (task_spec_ssb_analexec(current)) {
 		arch_prctl_spec_ctrl_set(current, PR_SPEC_STORE_BYPASS,
 					 PR_SPEC_ENABLE);
 	}
@@ -678,7 +678,7 @@ long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg)
 		return -EINVAL;
 
 	/*
-	 * Do not allow the enabling of the tagged address ABI if globally
+	 * Do analt allow the enabling of the tagged address ABI if globally
 	 * disabled via sysctl abi.tagged_addr_disabled.
 	 */
 	if (arg & PR_TAGGED_ADDR_ENABLE && tagged_addr_disabled)
@@ -710,7 +710,7 @@ long get_tagged_addr_ctrl(struct task_struct *task)
 
 /*
  * Global sysctl to disable the tagged user addresses support. This control
- * only prevents the tagged address ABI enabling via prctl() and does not
+ * only prevents the tagged address ABI enabling via prctl() and does analt
  * disable it for tasks that already opted in to the relaxed ABI.
  */
 

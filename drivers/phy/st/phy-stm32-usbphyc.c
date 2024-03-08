@@ -69,7 +69,7 @@ enum boosting_vals {
 };
 
 enum dc_level_vals {
-	DC_NOMINAL,
+	DC_ANALMINAL,
 	DC_PLUS_5_TO_7_MV,
 	DC_PLUS_10_TO_14_MV,
 	DC_MINUS_5_TO_7_MV,
@@ -77,7 +77,7 @@ enum dc_level_vals {
 };
 
 enum current_trim {
-	CUR_NOMINAL,
+	CUR_ANALMINAL,
 	CUR_PLUS_1_56_PCT,
 	CUR_PLUS_3_12_PCT,
 	CUR_PLUS_4_68_PCT,
@@ -97,7 +97,7 @@ enum current_trim {
 };
 
 enum impedance_trim {
-	IMP_NOMINAL,
+	IMP_ANALMINAL,
 	IMP_MINUS_2_OHMS,
 	IMP_MINUS_4_OMHS,
 	IMP_MINUS_6_OHMS,
@@ -105,7 +105,7 @@ enum impedance_trim {
 };
 
 enum squelch_level {
-	SQLCH_NOMINAL,
+	SQLCH_ANALMINAL,
 	SQLCH_PLUS_7_MV,
 	SQLCH_MINUS_5_MV,
 	SQLCH_PLUS_14_MV,
@@ -113,7 +113,7 @@ enum squelch_level {
 };
 
 enum rx_offset {
-	NO_RX_OFFSET,
+	ANAL_RX_OFFSET,
 	RX_OFFSET_PLUS_5_MV,
 	RX_OFFSET_PLUS_10_MV,
 	RX_OFFSET_MINUS_5_MV,
@@ -269,7 +269,7 @@ static int __stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 
 	/* Wait for minimum width of powerdown pulse (ENABLE = Low) */
 	if (readl_relaxed_poll_timeout(pll_reg, pllen, !(pllen & PLLEN), 5, 50))
-		dev_err(usbphyc->dev, "PLL not reset\n");
+		dev_err(usbphyc->dev, "PLL analt reset\n");
 
 	return stm32_usbphyc_regulators_disable(usbphyc);
 }
@@ -298,10 +298,10 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 
 	if (pllen) {
 		/*
-		 * PLL shouldn't be enabled without known consumer,
+		 * PLL shouldn't be enabled without kanalwn consumer,
 		 * disable it and reinit n_pll_cons
 		 */
-		dev_warn(usbphyc->dev, "PLL enabled without known consumers\n");
+		dev_warn(usbphyc->dev, "PLL enabled without kanalwn consumers\n");
 
 		ret = __stm32_usbphyc_pll_disable(usbphyc);
 		if (ret)
@@ -339,7 +339,7 @@ static int stm32_usbphyc_phy_init(struct phy *phy)
 	u32 reg_mon = STM32_USBPHYC_MONITOR(usbphyc_phy->index);
 	u32 monsel = FIELD_PREP(STM32_USBPHYC_MON_SEL,
 				STM32_USBPHYC_MON_SEL_LOCKP);
-	u32 monout;
+	u32 moanalut;
 	int ret;
 
 	ret = stm32_usbphyc_pll_enable(usbphyc);
@@ -348,12 +348,12 @@ static int stm32_usbphyc_phy_init(struct phy *phy)
 
 	/* Check that PLL Lock input to PHY is High */
 	writel_relaxed(monsel, usbphyc->base + reg_mon);
-	ret = readl_relaxed_poll_timeout(usbphyc->base + reg_mon, monout,
-					 (monout & STM32_USBPHYC_MON_OUT_LOCKP),
+	ret = readl_relaxed_poll_timeout(usbphyc->base + reg_mon, moanalut,
+					 (moanalut & STM32_USBPHYC_MON_OUT_LOCKP),
 					 100, 1000);
 	if (ret) {
 		dev_err(usbphyc->dev, "PLL Lock input to PHY is Low (val=%x)\n",
-			(u32)(monout & STM32_USBPHYC_MON_OUT));
+			(u32)(moanalut & STM32_USBPHYC_MON_OUT));
 		goto pll_disable;
 	}
 
@@ -434,13 +434,13 @@ static void stm32_usbphyc_clk48_unregister(void *data)
 {
 	struct stm32_usbphyc *usbphyc = data;
 
-	of_clk_del_provider(usbphyc->dev->of_node);
+	of_clk_del_provider(usbphyc->dev->of_analde);
 	clk_hw_unregister(&usbphyc->clk48_hw);
 }
 
 static int stm32_usbphyc_clk48_register(struct stm32_usbphyc *usbphyc)
 {
-	struct device_node *node = usbphyc->dev->of_node;
+	struct device_analde *analde = usbphyc->dev->of_analde;
 	struct clk_init_data init = { };
 	int ret = 0;
 
@@ -453,7 +453,7 @@ static int stm32_usbphyc_clk48_register(struct stm32_usbphyc *usbphyc)
 	if (ret)
 		return ret;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &usbphyc->clk48_hw);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, &usbphyc->clk48_hw);
 	if (ret)
 		clk_hw_unregister(&usbphyc->clk48_hw);
 
@@ -461,7 +461,7 @@ static int stm32_usbphyc_clk48_register(struct stm32_usbphyc *usbphyc)
 }
 
 static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
-				     struct device_node *np, u32 index)
+				     struct device_analde *np, u32 index)
 {
 	struct stm32_usbphyc_phy *usbphyc_phy = usbphyc->phys[index];
 	u32 reg = STM32_USBPHYC_TUNE(index);
@@ -481,7 +481,7 @@ static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
 		}
 	}
 
-	if (!of_property_read_bool(np, "st,no-lsfs-fb-cap"))
+	if (!of_property_read_bool(np, "st,anal-lsfs-fb-cap"))
 		usbphyc_phy->tune |= LFSCAPEN;
 
 	if (of_property_read_bool(np, "st,decrease-hs-slew-rate"))
@@ -542,10 +542,10 @@ static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
 			dev_warn(usbphyc->dev, "phy%d: invalid st,tune-hs-rx-offset\n", index);
 	}
 
-	if (of_property_read_bool(np, "st,no-hs-ftime-ctrl"))
+	if (of_property_read_bool(np, "st,anal-hs-ftime-ctrl"))
 		usbphyc_phy->tune |= HSFALLPREEM;
 
-	if (!of_property_read_bool(np, "st,no-lsfs-sc"))
+	if (!of_property_read_bool(np, "st,anal-lsfs-sc"))
 		usbphyc_phy->tune |= SHTCCTCTLPROT;
 
 	if (of_property_read_bool(np, "st,enable-hs-tx-staggering"))
@@ -555,7 +555,7 @@ static void stm32_usbphyc_phy_tuning(struct stm32_usbphyc *usbphyc,
 	usbphyc_phy->tune |= FIELD_PREP(OTPCOMP, otpcomp);
 
 	/*
-	 * By default, if no st,xxx tuning property is used, usbphyc_phy->tune is equal to
+	 * By default, if anal st,xxx tuning property is used, usbphyc_phy->tune is equal to
 	 * STM32_USBPHYC_TUNE reset value (LFSCAPEN | SHTCCTCTLPROT | OTPCOMP).
 	 */
 	writel_relaxed(usbphyc_phy->tune, usbphyc->base + reg);
@@ -578,11 +578,11 @@ static struct phy *stm32_usbphyc_of_xlate(struct device *dev,
 {
 	struct stm32_usbphyc *usbphyc = dev_get_drvdata(dev);
 	struct stm32_usbphyc_phy *usbphyc_phy = NULL;
-	struct device_node *phynode = args->np;
+	struct device_analde *phyanalde = args->np;
 	int port = 0;
 
 	for (port = 0; port < usbphyc->nphys; port++) {
-		if (phynode == usbphyc->phys[port]->phy->dev.of_node) {
+		if (phyanalde == usbphyc->phys[port]->phy->dev.of_analde) {
 			usbphyc_phy = usbphyc->phys[port];
 			break;
 		}
@@ -618,14 +618,14 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 {
 	struct stm32_usbphyc *usbphyc;
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_analde *child, *np = dev->of_analde;
 	struct phy_provider *phy_provider;
 	u32 pllen, version;
 	int ret, port = 0;
 
 	usbphyc = devm_kzalloc(dev, sizeof(*usbphyc), GFP_KERNEL);
 	if (!usbphyc)
-		return -ENOMEM;
+		return -EANALMEM;
 	usbphyc->dev = dev;
 	dev_set_drvdata(dev, usbphyc);
 
@@ -662,7 +662,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	 */
 	if (readl_relaxed_poll_timeout(usbphyc->base + STM32_USBPHYC_PLL,
 				       pllen, !(pllen & PLLEN), 5, 50)) {
-		dev_warn(usbphyc->dev, "PLL not reset\n");
+		dev_warn(usbphyc->dev, "PLL analt reset\n");
 		ret = -EPROBE_DEFER;
 		goto clk_disable;
 	}
@@ -672,7 +672,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	usbphyc->phys = devm_kcalloc(dev, usbphyc->nphys,
 				     sizeof(*usbphyc->phys), GFP_KERNEL);
 	if (!usbphyc->phys) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto clk_disable;
 	}
 
@@ -690,7 +690,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		struct stm32_usbphyc_phy *usbphyc_phy;
 		struct phy *phy;
 		u32 index;
@@ -707,7 +707,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		usbphyc_phy = devm_kzalloc(dev, sizeof(*usbphyc_phy),
 					   GFP_KERNEL);
 		if (!usbphyc_phy) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -763,7 +763,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	return 0;
 
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 clk_disable:
 	clk_disable_unprepare(usbphyc->clk);
 
@@ -775,7 +775,7 @@ static void stm32_usbphyc_remove(struct platform_device *pdev)
 	struct stm32_usbphyc *usbphyc = dev_get_drvdata(&pdev->dev);
 	int port;
 
-	/* Ensure PHYs are not active, to allow PLL disabling */
+	/* Ensure PHYs are analt active, to allow PLL disabling */
 	for (port = 0; port < usbphyc->nphys; port++)
 		if (usbphyc->phys[port]->active)
 			stm32_usbphyc_phy_exit(usbphyc->phys[port]->phy);

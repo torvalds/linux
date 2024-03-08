@@ -330,7 +330,7 @@ config MOUSE_PC110PAD
 	tristate "IBM PC110 touchpad"
 	depends on ISA
 	help
-	  Say Y if you have the IBM PC-110 micro-notebook and want its
+	  Say Y if you have the IBM PC-110 micro-analtebook and want its
 	  touchpad supported.
 
 	  To compile this driver as a module, choose M here: the
@@ -410,11 +410,11 @@ config MOUSE_SYNAPTICS_I2C
 	help
 	  This driver supports Synaptics I2C touchpad controller on eXeda
 	  mobile device.
-	  The device will not work the synaptics X11 driver because
-	  (i) it  reports only relative coordinates and has no capabilities
+	  The device will analt work the synaptics X11 driver because
+	  (i) it  reports only relative coordinates and has anal capabilities
 	  to report absolute coordinates
 	  (ii) the eXeda device itself uses Xfbdev as X Server and it does
-	  not allow using xf86-input-* drivers.
+	  analt allow using xf86-input-* drivers.
 
 	  Say y here if you have eXeda device and want to use a Synaptics
 	  I2C Touchpad.

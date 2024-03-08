@@ -246,7 +246,7 @@ static int ms_transfer_data(struct rtsx_usb_ms *host, unsigned char data_dir,
 		flag = MODE_CDIR;
 		dma_dir = DMA_DIR_FROM_CARD;
 		if (card->id.type != MEMSTICK_TYPE_PRO)
-			trans_mode = MS_TM_NORMAL_READ;
+			trans_mode = MS_TM_ANALRMAL_READ;
 		else
 			trans_mode = MS_TM_AUTO_READ;
 		pipe = usb_rcvbulkpipe(ucr->pusb_dev, EP_BULK_IN);
@@ -254,7 +254,7 @@ static int ms_transfer_data(struct rtsx_usb_ms *host, unsigned char data_dir,
 		flag = MODE_CDOR;
 		dma_dir = DMA_DIR_TO_CARD;
 		if (card->id.type != MEMSTICK_TYPE_PRO)
-			trans_mode = MS_TM_NORMAL_WRITE;
+			trans_mode = MS_TM_ANALRMAL_WRITE;
 		else
 			trans_mode = MS_TM_AUTO_WRITE;
 		pipe = usb_sndbulkpipe(ucr->pusb_dev, EP_BULK_OUT);
@@ -483,7 +483,7 @@ static int rtsx_usb_ms_issue_cmd(struct rtsx_usb_ms *host)
 	if (req->need_card_int) {
 		if (host->ifmode == MEMSTICK_SERIAL) {
 			err = ms_read_bytes(host, MS_TPC_GET_INT,
-					NO_WAIT_INT, 1, &req->int_reg, NULL);
+					ANAL_WAIT_INT, 1, &req->int_reg, NULL);
 			if (err < 0)
 				return err;
 		} else {
@@ -573,14 +573,14 @@ static int rtsx_usb_ms_set_param(struct memstick_host *msh,
 			break;
 
 		if (value == MEMSTICK_POWER_ON) {
-			pm_runtime_get_noresume(ms_dev(host));
+			pm_runtime_get_analresume(ms_dev(host));
 			err = ms_power_on(host);
 			if (err)
-				pm_runtime_put_noidle(ms_dev(host));
+				pm_runtime_put_analidle(ms_dev(host));
 		} else if (value == MEMSTICK_POWER_OFF) {
 			err = ms_power_off(host);
 			if (!err)
-				pm_runtime_put_noidle(ms_dev(host));
+				pm_runtime_put_analidle(ms_dev(host));
 		} else
 			err = -EINVAL;
 		if (!err)
@@ -601,7 +601,7 @@ static int rtsx_usb_ms_set_param(struct memstick_host *msh,
 
 			err = rtsx_usb_write_register(ucr, MS_CFG, 0x5A,
 					MS_BUS_WIDTH_4 | PUSH_TIME_ODD |
-					MS_NO_CHECK_INT);
+					MS_ANAL_CHECK_INT);
 			if (err < 0)
 				break;
 		} else {
@@ -769,7 +769,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 
 	msh = memstick_alloc_host(sizeof(*host), &pdev->dev);
 	if (!msh)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = memstick_priv(msh);
 	host->ucr = ucr;
@@ -787,7 +787,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 	msh->set_param = rtsx_usb_ms_set_param;
 	msh->caps = MEMSTICK_CAP_PAR4;
 
-	pm_runtime_get_noresume(ms_dev(host));
+	pm_runtime_get_analresume(ms_dev(host));
 	pm_runtime_set_active(ms_dev(host));
 	pm_runtime_enable(ms_dev(host));
 
@@ -800,7 +800,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 	return 0;
 err_out:
 	pm_runtime_disable(ms_dev(host));
-	pm_runtime_put_noidle(ms_dev(host));
+	pm_runtime_put_analidle(ms_dev(host));
 	memstick_free_host(msh);
 	return err;
 }
@@ -819,11 +819,11 @@ static int rtsx_usb_ms_drv_remove(struct platform_device *pdev)
 		dev_dbg(ms_dev(host),
 			"%s: Controller removed during transfer\n",
 			dev_name(&msh->dev));
-		host->req->error = -ENOMEDIUM;
+		host->req->error = -EANALMEDIUM;
 		do {
 			err = memstick_next_req(msh, &host->req);
 			if (!err)
-				host->req->error = -ENOMEDIUM;
+				host->req->error = -EANALMEDIUM;
 		} while (!err);
 	}
 	mutex_unlock(&host->host_mutex);

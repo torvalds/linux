@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC4260 I2C Positive Voltage Hot Swap Controller
+ * Driver for Linear Techanallogy LTC4260 I2C Positive Voltage Hot Swap Controller
  *
  * Copyright (c) 2014 Guenter Roeck
  */

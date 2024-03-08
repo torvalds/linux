@@ -54,7 +54,7 @@ enum stat_id {
  *   - `_diff` for absolute diff value;
  *   - `_pct` for relative (percentage) diff value.
  *
- * If no variant suffix is provided, then `_b` (control data) is assumed.
+ * If anal variant suffix is provided, then `_b` (control data) is assumed.
  *
  * As an example, let's say instructions stat has the following output:
  *
@@ -68,9 +68,9 @@ enum stat_id {
  *   - -627 is absolute diff value (insns_diff);
  *   - -2.91% is relative diff value (insns_pct).
  *
- * For verdict there is no verdict_pct variant.
+ * For verdict there is anal verdict_pct variant.
  * For file and program name, _a and _b variants are equivalent and there are
- * no _diff or _pct variants.
+ * anal _diff or _pct variants.
  */
 enum stat_variant {
 	VARIANT_A,
@@ -212,7 +212,7 @@ static const struct argp_option opts[] = {
 	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
 	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
-	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for analrmal mode, 1 for verbose mode)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
@@ -277,9 +277,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		break;
 	case 'l':
-		errno = 0;
+		erranal = 0;
 		env.log_level = strtol(arg, NULL, 10);
-		if (errno) {
+		if (erranal) {
 			fprintf(stderr, "invalid log level: %s\n", arg);
 			argp_usage(state);
 		}
@@ -288,9 +288,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.log_fixed = true;
 		break;
 	case OPT_LOG_SIZE:
-		errno = 0;
+		erranal = 0;
 		env.log_size = strtol(arg, NULL, 10);
-		if (errno) {
+		if (erranal) {
 			fprintf(stderr, "invalid log size: %s\n", arg);
 			argp_usage(state);
 		}
@@ -302,9 +302,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.force_reg_invariants = true;
 		break;
 	case 'n':
-		errno = 0;
+		erranal = 0;
 		env.top_n = strtol(arg, NULL, 10);
-		if (errno) {
+		if (erranal) {
 			fprintf(stderr, "invalid top N specifier: %s\n", arg);
 			argp_usage(state);
 		}
@@ -329,15 +329,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case ARGP_KEY_ARG:
 		tmp = realloc(env.filenames, (env.filename_cnt + 1) * sizeof(*env.filenames));
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		env.filenames = tmp;
 		env.filenames[env.filename_cnt] = strdup(arg);
 		if (!env.filenames[env.filename_cnt])
-			return -ENOMEM;
+			return -EANALMEM;
 		env.filename_cnt++;
 		break;
 	default:
-		return ARGP_ERR_UNKNOWN;
+		return ARGP_ERR_UNKANALWN;
 	}
 	return 0;
 }
@@ -391,7 +391,7 @@ static bool is_bpf_obj_file(const char *path) {
 		goto cleanup;
 
 	ehdr = elf64_getehdr(elf);
-	/* Old LLVM set e_machine to EM_NONE */
+	/* Old LLVM set e_machine to EM_ANALNE */
 	if (!ehdr || ehdr->e_type != ET_REL || (ehdr->e_machine && ehdr->e_machine != EM_BPF))
 		goto cleanup;
 
@@ -432,11 +432,11 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 		if (f->any_glob) {
 			if (glob_matches(filename, f->any_glob))
 				return true;
-			/* If we don't know program name yet, any_glob filter
+			/* If we don't kanalw program name yet, any_glob filter
 			 * has to assume that current BPF object file might be
 			 * relevant; we'll check again later on after opening
 			 * BPF object file, at which point program name will
-			 * be known finally.
+			 * be kanalwn finally.
 			 */
 			if (!prog_name || glob_matches(prog_name, f->any_glob))
 				return true;
@@ -449,7 +449,7 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 		}
 	}
 
-	/* if there are no file/prog name allow filters, allow all progs,
+	/* if there are anal file/prog name allow filters, allow all progs,
 	 * unless they are denied earlier explicitly
 	 */
 	return allow_cnt == 0;
@@ -485,7 +485,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 
 	tmp = realloc(*filters, (*cnt + 1) * sizeof(**filters));
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	*filters = tmp;
 
 	f = &(*filters)[*cnt];
@@ -519,7 +519,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 			return -EINVAL;
 		}
 		if (id >= FILE_NAME) {
-			fprintf(stderr, "Non-integer stat is specified in '%s'!\n", str);
+			fprintf(stderr, "Analn-integer stat is specified in '%s'!\n", str);
 			return -EINVAL;
 		}
 
@@ -541,9 +541,9 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 			   strcasecmp(p, "mis") == 0) {
 			val = 0;
 		} else {
-			errno = 0;
+			erranal = 0;
 			val = strtol(p, (char **)&end, 10);
-			if (errno || end == p || *end != '\0' ) {
+			if (erranal || end == p || *end != '\0' ) {
 				fprintf(stderr, "Invalid integer value in '%s'!\n", str);
 				return -EINVAL;
 			}
@@ -566,28 +566,28 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	 * practice. If user needs full control, they can use '/<prog-glob>'
 	 * form to glob just program name, or '<file-glob>/' to glob only file
 	 * name. But usually common <glob> seems to be the most useful and
-	 * ergonomic way.
+	 * ergoanalmic way.
 	 */
 	f->kind = FILTER_NAME;
 	p = strchr(str, '/');
 	if (!p) {
 		f->any_glob = strdup(str);
 		if (!f->any_glob)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		if (str != p) {
-			/* non-empty file glob */
+			/* analn-empty file glob */
 			f->file_glob = strndup(str, p - str);
 			if (!f->file_glob)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 		if (strlen(p + 1) > 0) {
-			/* non-empty prog glob */
+			/* analn-empty prog glob */
 			f->prog_glob = strdup(p + 1);
 			if (!f->prog_glob) {
 				free(f->file_glob);
 				f->file_glob = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 	}
@@ -604,7 +604,7 @@ static int append_filter_file(const char *path)
 
 	f = fopen(path, "r");
 	if (!f) {
-		err = -errno;
+		err = -erranal;
 		fprintf(stderr, "Failed to open filters in '%s': %d\n", path, err);
 		return err;
 	}
@@ -712,10 +712,10 @@ static bool parse_stat_id_var(const char *name, size_t len, int *id,
 				continue;
 
 			if (alias_len == len) {
-				/* If no variant suffix is specified, we
+				/* If anal variant suffix is specified, we
 				 * assume control group (just in case we are
-				 * in comparison mode. Variant is ignored in
-				 * non-comparison mode.
+				 * in comparison mode. Variant is iganalred in
+				 * analn-comparison mode.
 				 */
 				*var = VARIANT_B;
 				*id = i;
@@ -788,7 +788,7 @@ static int parse_stats(const char *stats_str, struct stat_specs *specs)
 
 	input = strdup(stats_str);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
 		err = parse_stat(next, specs);
@@ -880,7 +880,7 @@ static int guess_prog_type_by_ctx_name(const char *ctx_name,
 		{ "sk_reuseport_md", "sk_reuseport_kern", BPF_PROG_TYPE_SK_REUSEPORT, BPF_SK_REUSEPORT_SELECT_OR_MIGRATE },
 		{ "bpf_sk_lookup", "bpf_sk_lookup_kern", BPF_PROG_TYPE_SK_LOOKUP, BPF_SK_LOOKUP },
 		{ "xdp_md", "xdp_buff", BPF_PROG_TYPE_XDP, BPF_XDP },
-		/* tracing types with no expected attach type */
+		/* tracing types with anal expected attach type */
 		{ "bpf_user_pt_regs_t", "pt_regs", BPF_PROG_TYPE_KPROBE },
 		{ "bpf_perf_event_data", "bpf_perf_event_data_kern", BPF_PROG_TYPE_PERF_EVENT },
 		/* raw_tp programs use u64[] from kernel side, we don't want
@@ -917,7 +917,7 @@ static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const ch
 		switch (bpf_map__type(map)) {
 		case BPF_MAP_TYPE_SK_STORAGE:
 		case BPF_MAP_TYPE_TASK_STORAGE:
-		case BPF_MAP_TYPE_INODE_STORAGE:
+		case BPF_MAP_TYPE_IANALDE_STORAGE:
 		case BPF_MAP_TYPE_CGROUP_STORAGE:
 			break;
 		default:
@@ -974,7 +974,7 @@ static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const ch
 			}
 		} else {
 			if (!env.quiet) {
-				printf("Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using canonical type names to help veristat...\n",
+				printf("Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using caanalnical type names to help veristat...\n",
 					ctx_name, filename, prog_name);
 			}
 		}
@@ -1000,7 +1000,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	tmp = realloc(env.prog_stats, (env.prog_stat_cnt + 1) * sizeof(*env.prog_stats));
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 	env.prog_stats = tmp;
 	stats = &env.prog_stats[env.prog_stat_cnt++];
 	memset(stats, 0, sizeof(*stats));
@@ -1009,7 +1009,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
 		buf = malloc(buf_sz);
 		if (!buf)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* ensure we always request stats */
 		log_level = env.log_level | 4 | (env.log_fixed ? 8 : 0);
 	} else {
@@ -1067,7 +1067,7 @@ static int process_obj(const char *filename)
 	}
 	if (!is_bpf_obj_file(filename)) {
 		if (env.verbose)
-			printf("Skipping '%s' as it's not a BPF object file...\n", filename);
+			printf("Skipping '%s' as it's analt a BPF object file...\n", filename);
 		env.files_skipped++;
 		return 0;
 	}
@@ -1084,7 +1084,7 @@ static int process_obj(const char *filename)
 		 * out, report it into stderr, mark it as skipped, and
 		 * proceed
 		 */
-		fprintf(stderr, "Failed to open '%s': %d\n", filename, -errno);
+		fprintf(stderr, "Failed to open '%s': %d\n", filename, -erranal);
 		env.files_skipped++;
 		err = 0;
 		goto cleanup;
@@ -1108,7 +1108,7 @@ static int process_obj(const char *filename)
 
 		tobj = bpf_object__open_file(filename, &opts);
 		if (!tobj) {
-			err = -errno;
+			err = -erranal;
 			fprintf(stderr, "Failed to open '%s': %d\n", filename, err);
 			goto cleanup;
 		}
@@ -1428,12 +1428,12 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 	case FILE_NAME:
 		st->file_name = strdup(str);
 		if (!st->file_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case PROG_NAME:
 		st->prog_name = strdup(str);
 		if (!st->prog_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	case VERDICT:
 		if (strcmp(str, "success") == 0) {
@@ -1455,7 +1455,7 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 		int err, n;
 
 		if (sscanf(str, "%ld %n", &val, &n) != 1 || n != strlen(str)) {
-			err = -errno;
+			err = -erranal;
 			fprintf(stderr, "Failed to parse '%s' as integer\n", str);
 			return err;
 		}
@@ -1480,7 +1480,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 
 	f = fopen(filename, "r");
 	if (!f) {
-		err = -errno;
+		err = -erranal;
 		fprintf(stderr, "Failed to open '%s': %d\n", filename, err);
 		return err;
 	}
@@ -1497,7 +1497,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 
 			tmp = realloc(*statsp, (*stat_cntp + 1) * sizeof(**statsp));
 			if (!tmp) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto cleanup;
 			}
 			*statsp = tmp;
@@ -1536,7 +1536,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 		}
 
 		if (col < specs->spec_cnt) {
-			fprintf(stderr, "Not enough columns in row #%d in '%s'\n",
+			fprintf(stderr, "Analt eanalugh columns in row #%d in '%s'\n",
 				*stat_cntp, filename);
 			err = -EINVAL;
 			goto cleanup;
@@ -1550,7 +1550,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 		}
 
 		/* in comparison mode we can only check filters after we
-		 * parsed entire line; if row should be ignored we pretend we
+		 * parsed entire line; if row should be iganalred we pretend we
 		 * never parsed it
 		 */
 		if (!should_process_file_prog(st->file_name, st->prog_name)) {
@@ -1561,7 +1561,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 	}
 
 	if (!feof(f)) {
-		err = -errno;
+		err = -erranal;
 		fprintf(stderr, "Failed I/O for '%s': %d\n", filename, err);
 	}
 
@@ -1661,7 +1661,7 @@ static void output_comp_stats(const struct verif_stats_join *join_stats,
 		prepare_value(base, id, &base_str, &base_val);
 		prepare_value(comp, id, &comp_str, &comp_val);
 
-		/* normalize all the outputs to be in string buffers for simplicity */
+		/* analrmalize all the outputs to be in string buffers for simplicity */
 		if (is_key_stat(id)) {
 			/* key stats (file and program name) are always strings */
 			if (base)
@@ -1778,7 +1778,7 @@ static bool is_join_stat_filter_matched(struct filter *f, const struct verif_sta
 	case OP_GE: return value >= f->value - eps;
 	}
 
-	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	fprintf(stderr, "BUG: unkanalwn filter op %d!\n", f->op);
 	return false;
 }
 
@@ -1806,7 +1806,7 @@ static bool should_output_join_stats(const struct verif_stats_join *stats)
 			return true;
 	}
 
-	/* if there are no stat allowed filters, pass everything through */
+	/* if there are anal stat allowed filters, pass everything through */
 	return allow_cnt == 0;
 }
 
@@ -1894,7 +1894,7 @@ static int handle_comparison_mode(void)
 
 		tmp = realloc(env.join_stats, (env.join_stat_cnt + 1) * sizeof(*env.join_stats));
 		if (!tmp)
-			return -ENOMEM;
+			return -EANALMEM;
 		env.join_stats = tmp;
 
 		join = &env.join_stats[env.join_stat_cnt];
@@ -1928,7 +1928,7 @@ static int handle_comparison_mode(void)
 		env.join_stat_cnt += 1;
 	}
 
-	/* now sort joined results according to sort spec */
+	/* analw sort joined results according to sort spec */
 	qsort(env.join_stats, env.join_stat_cnt, sizeof(*env.join_stats), cmp_join_stats);
 
 	/* for human-readable table output we need to do extra pass to
@@ -1987,7 +1987,7 @@ static bool is_stat_filter_matched(struct filter *f, const struct verif_stats *s
 	case OP_GE: return value >= f->value;
 	}
 
-	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	fprintf(stderr, "BUG: unkanalwn filter op %d!\n", f->op);
 	return false;
 }
 
@@ -2015,7 +2015,7 @@ static bool should_output_stats(const struct verif_stats *stats)
 			return true;
 	}
 
-	/* if there are no stat allowed filters, pass everything through */
+	/* if there are anal stat allowed filters, pass everything through */
 	return allow_cnt == 0;
 }
 

@@ -7,7 +7,7 @@
  *
  * Delay routines, using a pre-computed "loops_per_jiffy" value.
  *
- * Please note that ndelay(), udelay() and mdelay() may return early for
+ * Please analte that ndelay(), udelay() and mdelay() may return early for
  * several reasons:
  *  1. computed loops_per_jiffy too low (due to the time taken to
  *     execute the timer interrupt.)
@@ -56,7 +56,7 @@ static inline void ndelay(unsigned long x)
 
 extern unsigned long lpj_fine;
 void calibrate_delay(void);
-unsigned long calibrate_delay_is_known(void);
+unsigned long calibrate_delay_is_kanalwn(void);
 void __attribute__((weak)) calibration_delay_done(void);
 void msleep(unsigned int msecs);
 unsigned long msleep_interruptible(unsigned int msecs);

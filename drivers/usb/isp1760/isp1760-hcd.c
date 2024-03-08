@@ -51,7 +51,7 @@ static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
 
 /* urb state*/
 #define DELETE_URB		(0x0008)
-#define NO_TRANSFER_ACTIVE	(0xffffffff)
+#define ANAL_TRANSFER_ACTIVE	(0xffffffff)
 
 /* Philips Proprietary Transfer Descriptor (PTD) */
 typedef __u32 __bitwise __dw;
@@ -345,7 +345,7 @@ static void bank_reads8(void __iomem *src_base, u32 src_offset, u32 bank_addr,
 	if (!bytes)
 		return;
 
-	/* in case we have 3, 2 or 1 by left. The dst buffer may not be fully
+	/* in case we have 3, 2 or 1 by left. The dst buffer may analt be fully
 	 * allocated.
 	 */
 	if (src_offset < PAYLOAD_OFFSET)
@@ -375,7 +375,7 @@ static void isp1760_mem_read(struct usb_hcd *hcd, u32 src_offset, void *dst,
 }
 
 /*
- * ISP1763 does not have the banks direct host controller memory access,
+ * ISP1763 does analt have the banks direct host controller memory access,
  * needs to use the HC_DATA register. Add data read/write according to this,
  * and also adjust 16bit access.
  */
@@ -395,7 +395,7 @@ static void isp1763_mem_read(struct usb_hcd *hcd, u16 srcaddr,
 		dstptr++;
 	}
 
-	/* If there are no more bytes to read, return */
+	/* If there are anal more bytes to read, return */
 	if (bytes <= 0)
 		return;
 
@@ -439,7 +439,7 @@ static void isp1760_mem_write(void __iomem *dst_base, u32 dst_offset,
 	if (!bytes)
 		return;
 	/* in case we have 3, 2 or 1 bytes left. The buffer is allocated and the
-	 * extra bytes should not be read by the HW.
+	 * extra bytes should analt be read by the HW.
 	 */
 
 	if (dst_offset < PAYLOAD_OFFSET)
@@ -464,7 +464,7 @@ static void isp1763_mem_write(struct usb_hcd *hcd, u16 dstaddr, u16 *src,
 		src++;
 	}
 
-	/* If there are no more bytes to process, return */
+	/* If there are anal more bytes to process, return */
 	if (bytes <= 0)
 		return;
 
@@ -510,7 +510,7 @@ static void isp1763_ptd_read(struct usb_hcd *hcd, u32 ptd_offset, u32 slot,
 	struct ptd_le32 le32_ptd;
 
 	isp1763_mem_read(hcd, src_offset, (u16 *)&le32_ptd, sizeof(le32_ptd));
-	/* Normalize the data obtained */
+	/* Analrmalize the data obtained */
 	ptd->dw0 = le32_to_dw(le32_ptd.dw0);
 	ptd->dw1 = le32_to_dw(le32_ptd.dw1);
 	ptd->dw2 = le32_to_dw(le32_ptd.dw2);
@@ -645,7 +645,7 @@ static void free_mem(struct usb_hcd *hcd, struct isp1760_qtd *qtd)
 	qtd->payload_addr = 0;
 }
 
-/* reset a non-running (STS_HALT == 1) controller */
+/* reset a analn-running (STS_HALT == 1) controller */
 static int ehci_reset(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
@@ -731,7 +731,7 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	isp1760_hcd_write(hcd, HC_SCRATCH, pattern);
 
 	/*
-	 * we do not care about the read value here we just want to
+	 * we do analt care about the read value here we just want to
 	 * change bus pattern.
 	 */
 	isp1760_hcd_read(hcd, HC_CHIP_ID_HIGH);
@@ -739,7 +739,7 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	if (scratch != pattern) {
 		dev_err(hcd->self.controller, "Scratch test failed. 0x%08x\n",
 			scratch);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -824,7 +824,7 @@ static void create_ptd_atl(struct isp1760_qh *qh,
 
 	memset(ptd, 0, sizeof(*ptd));
 
-	/* according to 3.6.2, max packet len can not be > 0x400 */
+	/* according to 3.6.2, max packet len can analt be > 0x400 */
 	maxpacket = usb_maxpacket(qtd->urb->dev, qtd->urb->pipe);
 	multi =  1 + ((maxpacket >> 11) & 0x3);
 	maxpacket &= 0x7ff;
@@ -1015,7 +1015,7 @@ static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
 	if (priv->is_isp1763)
 		ndelay(100);
 
-	/* Make sure done map has not triggered from some unlinked transfer */
+	/* Make sure done map has analt triggered from some unlinked transfer */
 	if (ptd_offset == ATL_PTD_OFFSET) {
 		skip_map = isp1760_hcd_read(hcd, HC_ATL_PTD_SKIPMAP);
 		isp1760_hcd_write(hcd, HC_ATL_PTD_SKIPMAP,
@@ -1084,7 +1084,7 @@ static void collect_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh,
 			}
 
 			if (is_short_bulk(qtd)) {
-				if (qtd->urb->transfer_flags & URB_SHORT_NOT_OK)
+				if (qtd->urb->transfer_flags & URB_SHORT_ANALT_OK)
 					qtd->urb->status = -EREMOTEIO;
 				if (!last_qtd)
 					qtd_next->status = QTD_RETIRE;
@@ -1171,10 +1171,10 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 		if (qtd->status == QTD_PAYLOAD_ALLOC) {
 /*
 			if ((curr_slot > 31) && (free_slot == -1))
-				dev_dbg(hcd->self.controller, "%s: No slot "
+				dev_dbg(hcd->self.controller, "%s: Anal slot "
 					"available for transfer\n", __func__);
 */
-			/* Start xfer for this endpoint if not already done */
+			/* Start xfer for this endpoint if analt already done */
 			if ((curr_slot > slot_num - 1) && (free_slot > -1)) {
 				if (usb_pipeint(qtd->urb->pipe))
 					create_ptd_int(qh, qtd, &ptd);
@@ -1271,12 +1271,12 @@ static int check_int_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	dw4 = TO_U32(ptd->dw4);
 	dw4 >>= 8;
 
-	/* FIXME: ISP1761 datasheet does not say what to do with these. Do we
+	/* FIXME: ISP1761 datasheet does analt say what to do with these. Do we
 	   need to handle these errors? Is it done in hardware? */
 
 	if (ptd->dw3 & DW3_HALT_BIT) {
 
-		urb->status = -EPROTO; /* Default unknown error */
+		urb->status = -EPROTO; /* Default unkanalwn error */
 
 		for (i = 0; i < 8; i++) {
 			switch (dw4 & 0x7) {
@@ -1284,7 +1284,7 @@ static int check_int_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 				dev_dbg(hcd->self.controller, "%s: underrun "
 						"during uFrame %d\n",
 						__func__, i);
-				urb->status = -ECOMM; /* Could not write data */
+				urb->status = -ECOMM; /* Could analt write data */
 				break;
 			case INT_EXACT:
 				dev_dbg(hcd->self.controller, "%s: transaction "
@@ -1319,7 +1319,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 		else if (FROM_DW3_CERR(ptd->dw3))
 			urb->status = -EPIPE;  /* Stall */
 		else
-			urb->status = -EPROTO; /* Unknown */
+			urb->status = -EPROTO; /* Unkanalwn */
 /*
 		dev_dbg(hcd->self.controller, "%s: ptd error:\n"
 			"        dw0: %08x dw1: %08x dw2: %08x dw3: %08x\n"
@@ -1332,7 +1332,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	}
 
 	if ((ptd->dw3 & DW3_ERROR_BIT) && (ptd->dw3 & DW3_ACTIVE_BIT)) {
-		/* Transfer Error, *but* active and no HALT -> reload */
+		/* Transfer Error, *but* active and anal HALT -> reload */
 		dev_dbg(hcd->self.controller, "PID error; reloading ptd\n");
 		return PTD_STATE_QTD_RELOAD;
 	}
@@ -1340,7 +1340,7 @@ static int check_atl_transfer(struct usb_hcd *hcd, struct ptd *ptd,
 	if (!FROM_DW3_NAKCOUNT(ptd->dw3) && (ptd->dw3 & DW3_ACTIVE_BIT)) {
 		/*
 		 * NAKs are handled in HW by the chip. Usually if the
-		 * device is not able to send data fast enough.
+		 * device is analt able to send data fast eanalugh.
 		 * This happens mostly on slower hardware.
 		 */
 		return PTD_STATE_QTD_RELOAD;
@@ -1375,8 +1375,8 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 			slot = __ffs(priv->int_done_map);
 			priv->int_done_map &= ~(1 << slot);
 			slots = priv->int_slots;
-			/* This should not trigger, and could be removed if
-			   noone have any problems with it triggering: */
+			/* This should analt trigger, and could be removed if
+			   analone have any problems with it triggering: */
 			if (!slots[slot].qh) {
 				WARN_ON(1);
 				continue;
@@ -1390,8 +1390,8 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 			slot = __ffs(priv->atl_done_map);
 			priv->atl_done_map &= ~(1 << slot);
 			slots = priv->atl_slots;
-			/* This should not trigger, and could be removed if
-			   noone have any problems with it triggering: */
+			/* This should analt trigger, and could be removed if
+			   analone have any problems with it triggering: */
 			if (!slots[slot].qh) {
 				WARN_ON(1);
 				continue;
@@ -1490,7 +1490,7 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 static irqreturn_t isp1760_irq(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
-	irqreturn_t irqret = IRQ_NONE;
+	irqreturn_t irqret = IRQ_ANALNE;
 	u32 int_reg;
 	u32 imask;
 
@@ -1523,27 +1523,27 @@ leave:
 /*
  * Workaround for problem described in chip errata 2:
  *
- * Sometimes interrupts are not generated when ATL (not INT?) completion occurs.
+ * Sometimes interrupts are analt generated when ATL (analt INT?) completion occurs.
  * One solution suggested in the errata is to use SOF interrupts _instead_of_
  * ATL done interrupts (the "instead of" might be important since it seems
  * enabling ATL interrupts also causes the chip to sometimes - rarely - "forget"
- * to set the PTD's done bit in addition to not generating an interrupt!).
+ * to set the PTD's done bit in addition to analt generating an interrupt!).
  *
  * So if we use SOF + ATL interrupts, we sometimes get stale PTDs since their
- * done bit is not being set. This is bad - it blocks the endpoint until reboot.
+ * done bit is analt being set. This is bad - it blocks the endpoint until reboot.
  *
  * If we use SOF interrupts only, we get latency between ptd completion and the
- * actual handling. This is very noticeable in testusb runs which takes several
+ * actual handling. This is very analticeable in testusb runs which takes several
  * minutes longer without ATL interrupts.
  *
  * A better solution is to run the code below every SLOT_CHECK_PERIOD ms. If it
  * finds active ATL slots which are older than SLOT_TIMEOUT ms, it checks the
- * slot's ACTIVE and VALID bits. If these are not set, the ptd is considered
+ * slot's ACTIVE and VALID bits. If these are analt set, the ptd is considered
  * completed and its done map bit is set.
  *
  * The values of SLOT_TIMEOUT and SLOT_CHECK_PERIOD have been arbitrarily chosen
- * not to cause too much lag when this HW bug occurs, while still hopefully
- * ensuring that the check does not falsely trigger.
+ * analt to cause too much lag when this HW bug occurs, while still hopefully
+ * ensuring that the check does analt falsely trigger.
  */
 #define SLOT_TIMEOUT 300
 #define SLOT_CHECK_PERIOD 200
@@ -1899,13 +1899,13 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		/* FIXME: Check bandwidth  */
 		ep_queue = &priv->qh_list[QH_INTERRUPT];
 		break;
-	case PIPE_ISOCHRONOUS:
-		dev_err(hcd->self.controller, "%s: isochronous USB packets "
-							"not yet supported\n",
+	case PIPE_ISOCHROANALUS:
+		dev_err(hcd->self.controller, "%s: isochroanalus USB packets "
+							"analt yet supported\n",
 							__func__);
 		return -EPIPE;
 	default:
-		dev_err(hcd->self.controller, "%s: unknown pipe type\n",
+		dev_err(hcd->self.controller, "%s: unkanalwn pipe type\n",
 							__func__);
 		return -EPIPE;
 	}
@@ -1915,7 +1915,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	packetize_urb(hcd, urb, &new_qtds, mem_flags);
 	if (list_empty(&new_qtds))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_irqsave(&priv->lock, spinflags);
 
@@ -1944,7 +1944,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	} else {
 		qh = qh_alloc(GFP_ATOMIC);
 		if (!qh) {
-			retval = -ENOMEM;
+			retval = -EANALMEM;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			qtd_list_free(&new_qtds);
 			goto out;
@@ -2106,7 +2106,7 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
-	/* init status to no-changes */
+	/* init status to anal-changes */
 	buf[0] = 0;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -2162,8 +2162,8 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 		/* per-port power control */
 		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	else
-		/* no power switching */
-		temp |= HUB_CHAR_NO_LPSM;
+		/* anal power switching */
+		temp |= HUB_CHAR_ANAL_LPSM;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
@@ -2174,7 +2174,7 @@ static void check_reset_complete(struct usb_hcd *hcd, int index)
 	if (!(isp1760_hcd_is_set(hcd, PORT_CONNECT)))
 		return;
 
-	/* if reset finished and it's still not enabled -- handoff */
+	/* if reset finished and it's still analt enabled -- handoff */
 	if (!isp1760_hcd_is_set(hcd, PORT_PE)) {
 		dev_info(hcd->self.controller,
 			 "port %d full speed --> companion\n", index + 1);
@@ -2204,7 +2204,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
 	 * HCS_INDICATOR may say we can change LEDs to off/amber/green.
-	 * (track current state ourselves) ... blink for diagnostics,
+	 * (track current state ourselves) ... blink for diaganalstics,
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
@@ -2214,7 +2214,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* anal hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -2280,7 +2280,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			buf);
 		break;
 	case GetHubStatus:
-		/* no hub-wide feature/status flags */
+		/* anal hub-wide feature/status flags */
 		memset(buf, 0, 4);
 		break;
 	case GetPortStatus:
@@ -2348,7 +2348,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			check_reset_complete(hcd, wIndex);
 		}
 		/*
-		 * Even if OWNER is set, there's no harm letting hub_wq
+		 * Even if OWNER is set, there's anal harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -2377,7 +2377,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* anal hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -2525,7 +2525,7 @@ int __init isp1760_init_kmem_once(void)
 			SLAB_MEM_SPREAD, NULL);
 
 	if (!urb_listitem_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qtd_cachep = kmem_cache_create("isp1760_qtd",
 			sizeof(struct isp1760_qtd), 0, SLAB_TEMPORARY |
@@ -2548,7 +2548,7 @@ destroy_qtd:
 destroy_urb_listitem:
 	kmem_cache_destroy(urb_listitem_cachep);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void isp1760_deinit_kmem_cache(void)
@@ -2568,7 +2568,7 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 
 	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev_name(dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*(struct isp1760_hcd **)hcd->hcd_priv = priv;
 
@@ -2577,14 +2577,14 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 	priv->atl_slots = kcalloc(mem_layout->slot_num,
 				  sizeof(struct isp1760_slotinfo), GFP_KERNEL);
 	if (!priv->atl_slots) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_hcd;
 	}
 
 	priv->int_slots = kcalloc(mem_layout->slot_num,
 				  sizeof(struct isp1760_slotinfo), GFP_KERNEL);
 	if (!priv->int_slots) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_atl_slots;
 	}
 

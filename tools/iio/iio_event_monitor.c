@@ -17,7 +17,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <poll.h>
 #include <fcntl.h>
@@ -111,10 +111,10 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
 	[IIO_MOD_TEMP_OBJECT] = "object",
-	[IIO_MOD_NORTH_MAGN] = "from_north_magnetic",
-	[IIO_MOD_NORTH_TRUE] = "from_north_true",
-	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_north_magnetic_tilt_comp",
-	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_north_true_tilt_comp",
+	[IIO_MOD_ANALRTH_MAGN] = "from_analrth_magnetic",
+	[IIO_MOD_ANALRTH_TRUE] = "from_analrth_true",
+	[IIO_MOD_ANALRTH_MAGN_TILT_COMP] = "from_analrth_magnetic_tilt_comp",
+	[IIO_MOD_ANALRTH_TRUE_TILT_COMP] = "from_analrth_true_tilt_comp",
 	[IIO_MOD_RUNNING] = "running",
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
@@ -123,7 +123,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_I] = "i",
 	[IIO_MOD_Q] = "q",
 	[IIO_MOD_CO2] = "co2",
-	[IIO_MOD_ETHANOL] = "ethanol",
+	[IIO_MOD_ETHAANALL] = "ethaanall",
 	[IIO_MOD_H2] = "h2",
 	[IIO_MOD_VOC] = "voc",
 	[IIO_MOD_PM1] = "pm1",
@@ -139,7 +139,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_ROLL] = "roll",
 };
 
-static bool event_is_known(struct iio_event_data *event)
+static bool event_is_kanalwn(struct iio_event_data *event)
 {
 	enum iio_chan_type type = IIO_EVENT_CODE_EXTRACT_CHAN_TYPE(event->id);
 	enum iio_modifier mod = IIO_EVENT_CODE_EXTRACT_MODIFIER(event->id);
@@ -189,7 +189,7 @@ static bool event_is_known(struct iio_event_data *event)
 	}
 
 	switch (mod) {
-	case IIO_NO_MOD:
+	case IIO_ANAL_MOD:
 	case IIO_MOD_X:
 	case IIO_MOD_Y:
 	case IIO_MOD_Z:
@@ -214,10 +214,10 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_QUATERNION:
 	case IIO_MOD_TEMP_AMBIENT:
 	case IIO_MOD_TEMP_OBJECT:
-	case IIO_MOD_NORTH_MAGN:
-	case IIO_MOD_NORTH_TRUE:
-	case IIO_MOD_NORTH_MAGN_TILT_COMP:
-	case IIO_MOD_NORTH_TRUE_TILT_COMP:
+	case IIO_MOD_ANALRTH_MAGN:
+	case IIO_MOD_ANALRTH_TRUE:
+	case IIO_MOD_ANALRTH_MAGN_TILT_COMP:
+	case IIO_MOD_ANALRTH_TRUE_TILT_COMP:
 	case IIO_MOD_RUNNING:
 	case IIO_MOD_JOGGING:
 	case IIO_MOD_WALKING:
@@ -226,7 +226,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_I:
 	case IIO_MOD_Q:
 	case IIO_MOD_CO2:
-	case IIO_MOD_ETHANOL:
+	case IIO_MOD_ETHAANALL:
 	case IIO_MOD_H2:
 	case IIO_MOD_VOC:
 	case IIO_MOD_PM1:
@@ -258,7 +258,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_DIR_FALLING:
 	case IIO_EV_DIR_SINGLETAP:
 	case IIO_EV_DIR_DOUBLETAP:
-	case IIO_EV_DIR_NONE:
+	case IIO_EV_DIR_ANALNE:
 		break;
 	default:
 		return false;
@@ -277,8 +277,8 @@ static void print_event(struct iio_event_data *event)
 	int chan2 = IIO_EVENT_CODE_EXTRACT_CHAN2(event->id);
 	bool diff = IIO_EVENT_CODE_EXTRACT_DIFF(event->id);
 
-	if (!event_is_known(event)) {
-		fprintf(stderr, "Unknown event: time: %lld, id: %llx\n",
+	if (!event_is_kanalwn(event)) {
+		fprintf(stderr, "Unkanalwn event: time: %lld, id: %llx\n",
 			event->timestamp, event->id);
 
 		return;
@@ -287,7 +287,7 @@ static void print_event(struct iio_event_data *event)
 	printf("Event: time: %lld, type: %s", event->timestamp,
 	       iio_chan_type_name_spec[type]);
 
-	if (mod != IIO_NO_MOD)
+	if (mod != IIO_ANAL_MOD)
 		printf("(%s)", iio_modifier_names[mod]);
 
 	if (chan >= 0) {
@@ -298,14 +298,14 @@ static void print_event(struct iio_event_data *event)
 
 	printf(", evtype: %s", iio_ev_type_text[ev_type]);
 
-	if (dir != IIO_EV_DIR_NONE)
+	if (dir != IIO_EV_DIR_ANALNE)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
 
 	printf("\n");
 	fflush(stdout);
 }
 
-/* Enable or disable events in sysfs if the knob is available */
+/* Enable or disable events in sysfs if the kanalb is available */
 static void enable_events(char *dev_dir, int enable)
 {
 	const struct dirent *ent;
@@ -374,11 +374,11 @@ int main(int argc, char **argv)
 		       device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
 		if (ret < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 		/* Look up sysfs dir as well if we can */
 		ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
 		if (ret < 0)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		/*
 		 * If we can't find an IIO device by name assume device_name is
@@ -386,7 +386,7 @@ int main(int argc, char **argv)
 		 */
 		chrdev_name = strdup(device_name);
 		if (!chrdev_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (all_events && dev_dir_name)
@@ -394,17 +394,17 @@ int main(int argc, char **argv)
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		ret = -errno;
+		ret = -erranal;
 		fprintf(stderr, "Failed to open %s\n", chrdev_name);
 		goto error_free_chrdev_name;
 	}
 
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
 	if (ret == -1 || event_fd == -1) {
-		ret = -errno;
-		if (ret == -ENODEV)
+		ret = -erranal;
+		if (ret == -EANALDEV)
 			fprintf(stderr,
-				"This device does not support events\n");
+				"This device does analt support events\n");
 		else
 			fprintf(stderr, "Failed to retrieve event fd\n");
 		if (close(fd) == -1)
@@ -414,18 +414,18 @@ int main(int argc, char **argv)
 	}
 
 	if (close(fd) == -1)  {
-		ret = -errno;
+		ret = -erranal;
 		goto error_free_chrdev_name;
 	}
 
 	while (true) {
 		ret = read(event_fd, &event, sizeof(event));
 		if (ret == -1) {
-			if (errno == EAGAIN) {
-				fprintf(stderr, "nothing available\n");
+			if (erranal == EAGAIN) {
+				fprintf(stderr, "analthing available\n");
 				continue;
 			} else {
-				ret = -errno;
+				ret = -erranal;
 				perror("Failed to read event from device");
 				break;
 			}

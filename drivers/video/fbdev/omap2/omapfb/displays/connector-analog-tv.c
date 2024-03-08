@@ -77,14 +77,14 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 	dev_dbg(ddata->dev, "enable\n");
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
 	in->ops.atv->set_timings(in, &ddata->timings);
 
-	if (!ddata->dev->of_node) {
+	if (!ddata->dev->of_analde) {
 		in->ops.atv->set_type(in, OMAP_DSS_VENC_TYPE_COMPOSITE);
 
 		in->ops.atv->invert_vid_out_polarity(in,
@@ -183,17 +183,17 @@ static int tvc_probe(struct platform_device *pdev)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
 
-	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(pdev->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&pdev->dev, "failed to find video source\n");

@@ -39,13 +39,13 @@ struct fddi_statistics {
 	__u8	smt_user_data[32];
 	__u32	smt_mib_version_id;
 	__u32	smt_mac_cts;
-	__u32	smt_non_master_cts;
+	__u32	smt_analn_master_cts;
 	__u32	smt_master_cts;
 	__u32	smt_available_paths;
 	__u32	smt_config_capabilities;
 	__u32	smt_config_policy;
 	__u32	smt_connection_policy;
-	__u32	smt_t_notify;
+	__u32	smt_t_analtify;
 	__u32	smt_stat_rpt_policy;
 	__u32	smt_trace_max_expiration;
 	__u32	smt_bypass_present;

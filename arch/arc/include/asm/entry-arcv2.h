@@ -52,16 +52,16 @@
 	;   1. SP auto-switched to kernel mode stack
 	;   2. STATUS32.Z flag set if in U mode at time of interrupt (U:1,K:0)
 	;   3. Auto save: (mandatory) Push PC and STAT32 on stack
-	;                 hardware does even if CONFIG_ARC_IRQ_NO_AUTOSAVE
+	;                 hardware does even if CONFIG_ARC_IRQ_ANAL_AUTOSAVE
 	;  4a. Auto save: (optional) r0-r11, blink, LPE,LPS,LPC, JLI,LDI,EI
 	;
-	; Now
-	;  4b. If Auto-save (optional) not enabled in hw, manually save them
+	; Analw
+	;  4b. If Auto-save (optional) analt enabled in hw, manually save them
 	;   5. Manually save: r12,r30, sp,fp,gp, ACCL pair
 	;
 	; At the end, SP points to pt_regs
 
-#ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
+#ifdef CONFIG_ARC_IRQ_ANAL_AUTOSAVE
 	; carve pt_regs on stack (case #3), PC/STAT32 already on stack
 	sub	sp, sp, SZ_PT_REGS - 8
 
@@ -81,7 +81,7 @@
 	;   1. SP auto-switched to kernel mode stack
 	;   2. STATUS32.Z flag set if in U mode at time of exception (U:1,K:0)
 	;
-	; Now manually save rest of reg file
+	; Analw manually save rest of reg file
 	; At the end, SP points to pt_regs
 
 	sub	sp, sp, SZ_PT_REGS	; carve space for pt_regs
@@ -115,10 +115,10 @@
 .endm
 
 /*------------------------------------------------------------------------
- * This macro saves the registers manually which would normally be autosaved
+ * This macro saves the registers manually which would analrmally be autosaved
  * by hardware on taken interrupts. It is used by
  *   - exception handlers (which don't have autosave)
- *   - interrupt autosave disabled due to CONFIG_ARC_IRQ_NO_AUTOSAVE
+ *   - interrupt autosave disabled due to CONFIG_ARC_IRQ_ANAL_AUTOSAVE
  */
 .macro __SAVE_REGFILE_HARD
 
@@ -137,7 +137,7 @@
 
 	st	lp_count, [sp, PT_lpc]
 
-	; skip JLI, LDI, EI for now
+	; skip JLI, LDI, EI for analw
 .endm
 
 /*------------------------------------------------------------------------
@@ -241,10 +241,10 @@
 
 	__RESTORE_REGFILE_SOFT
 
-#ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
+#ifdef CONFIG_ARC_IRQ_ANAL_AUTOSAVE
 	__RESTORE_REGFILE_HARD
 
-	; SP points to PC/STAT32: hw restores them despite NO_AUTOSAVE
+	; SP points to PC/STAT32: hw restores them despite ANAL_AUTOSAVE
 	add	sp, sp, SZ_PT_REGS - 8
 #else
 	add	sp, sp, PT_r0

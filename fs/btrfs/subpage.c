@@ -4,19 +4,19 @@
 #include "messages.h"
 #include "ctree.h"
 #include "subpage.h"
-#include "btrfs_inode.h"
+#include "btrfs_ianalde.h"
 
 /*
  * Subpage (sectorsize < PAGE_SIZE) support overview:
  *
  * Limitations:
  *
- * - Only support 64K page size for now
+ * - Only support 64K page size for analw
  *   This is to make metadata handling easier, as 64K page would ensure
- *   all nodesize would fit inside one page, thus we don't need to handle
+ *   all analdesize would fit inside one page, thus we don't need to handle
  *   cases where a tree block crosses several pages.
  *
- * - Only metadata read-write for now
+ * - Only metadata read-write for analw
  *   The data read-write part is in development.
  *
  * - Metadata can't cross 64K page boundary
@@ -29,7 +29,7 @@
  * - Metadata
  *   Metadata read is fully supported.
  *   Meaning when reading one tree block will only trigger the read for the
- *   needed range, other unrelated range in the same page will not be touched.
+ *   needed range, other unrelated range in the same page will analt be touched.
  *
  *   Metadata write support is partial.
  *   The writeback is still for the full page, but we will only submit
@@ -57,7 +57,7 @@
  * - Metadata
  *   Since we have multiple tree blocks inside one page, we can't rely on page
  *   locking anymore, or we will have greatly reduced concurrency or even
- *   deadlocks (hold one tree lock while trying to lock another tree lock in
+ *   deadlocks (hold one tree lock while trying to lock aanalther tree lock in
  *   the same page).
  *
  *   Thus for metadata locking, subpage support relies on io_tree locking only.
@@ -70,18 +70,18 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space 
 		return false;
 
 	/*
-	 * Only data pages (either through DIO or compression) can have no
-	 * mapping. And if page->mapping->host is data inode, it's subpage.
+	 * Only data pages (either through DIO or compression) can have anal
+	 * mapping. And if page->mapping->host is data ianalde, it's subpage.
 	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
 	 */
-	if (!mapping || !mapping->host || is_data_inode(mapping->host))
+	if (!mapping || !mapping->host || is_data_ianalde(mapping->host))
 		return true;
 
 	/*
-	 * Now the only remaining case is metadata, which we only go subpage
-	 * routine if nodesize < PAGE_SIZE.
+	 * Analw the only remaining case is metadata, which we only go subpage
+	 * routine if analdesize < PAGE_SIZE.
 	 */
-	if (fs_info->nodesize < PAGE_SIZE)
+	if (fs_info->analdesize < PAGE_SIZE)
 		return true;
 	return false;
 }
@@ -120,13 +120,13 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	/*
-	 * We have cases like a dummy extent buffer page, which is not mapped
+	 * We have cases like a dummy extent buffer page, which is analt mapped
 	 * and doesn't need to be locked.
 	 */
 	if (folio->mapping)
 		ASSERT(folio_test_locked(folio));
 
-	/* Either not subpage, or the folio already has private attached. */
+	/* Either analt subpage, or the folio already has private attached. */
 	if (!btrfs_is_subpage(fs_info, folio->mapping) || folio_test_private(folio))
 		return 0;
 
@@ -142,7 +142,7 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *fol
 {
 	struct btrfs_subpage *subpage;
 
-	/* Either not subpage, or the folio already has private attached. */
+	/* Either analt subpage, or the folio already has private attached. */
 	if (!btrfs_is_subpage(fs_info, folio->mapping) || !folio_test_private(folio))
 		return;
 
@@ -161,9 +161,9 @@ struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 
 	real_size = struct_size(ret, bitmaps,
 			BITS_TO_LONGS(fs_info->subpage_info->total_nr_bits));
-	ret = kzalloc(real_size, GFP_NOFS);
+	ret = kzalloc(real_size, GFP_ANALFS);
 	if (!ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	spin_lock_init(&ret->lock);
 	if (type == BTRFS_SUBPAGE_METADATA) {
@@ -257,7 +257,7 @@ void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
 	bool last;
 
 	btrfs_subpage_assert(fs_info, folio, start, len);
-	is_data = is_data_inode(folio->mapping->host);
+	is_data = is_data_ianalde(folio->mapping->host);
 	ASSERT(atomic_read(&subpage->readers) >= nbits);
 	last = atomic_sub_and_test(nbits, &subpage->readers);
 
@@ -329,7 +329,7 @@ bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
 /*
  * Lock a folio for delalloc page writeback.
  *
- * Return -EAGAIN if the page is not properly initialized.
+ * Return -EAGAIN if the page is analt properly initialized.
  * Return 0 with the page locked, and writer counter updated.
  *
  * Even with 0 returned, the page still need extra check to make sure
@@ -435,7 +435,7 @@ void btrfs_subpage_set_dirty(const struct btrfs_fs_info *fs_info,
  * dirty_bitmap.
  * Return false otherwise.
  *
- * NOTE: Callers should manually clear page dirty for true case, as we have
+ * ANALTE: Callers should manually clear page dirty for true case, as we have
  * extra handling for tree blocks.
  */
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
@@ -582,7 +582,7 @@ IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(ordered);
 IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(checked);
 
 /*
- * Note that, in selftests (extent-io-tests), we can have empty fs_info passed
+ * Analte that, in selftests (extent-io-tests), we can have empty fs_info passed
  * in.  We only test sectorsize == PAGE_SIZE cases so far, thus we can fall
  * back to regular sectorsize branch.
  */
@@ -659,10 +659,10 @@ IMPLEMENT_BTRFS_PAGE_OPS(checked, folio_set_checked, folio_clear_checked,
 			 folio_test_checked);
 
 /*
- * Make sure not only the page dirty bit is cleared, but also subpage dirty bit
+ * Make sure analt only the page dirty bit is cleared, but also subpage dirty bit
  * is cleared.
  */
-void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info, struct folio *folio)
+void btrfs_folio_assert_analt_dirty(const struct btrfs_fs_info *fs_info, struct folio *folio)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 
@@ -681,7 +681,7 @@ void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info, struct fo
  * Handle different locked pages with different page sizes:
  *
  * - Page locked by plain lock_page()
- *   It should not have any subpage::writers count.
+ *   It should analt have any subpage::writers count.
  *   Can be unlocked by unlock_page().
  *   This is the most common locked page for __extent_writepage() called
  *   inside extent_write_cache_pages().
@@ -698,7 +698,7 @@ void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	ASSERT(folio_test_locked(folio));
-	/* For non-subpage case, we just unlock the page */
+	/* For analn-subpage case, we just unlock the page */
 	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
 		folio_unlock(folio);
 		return;
@@ -711,11 +711,11 @@ void btrfs_folio_unlock_writer(struct btrfs_fs_info *fs_info,
 	 * For subpage case, there are two types of locked page.  With or
 	 * without writers number.
 	 *
-	 * Since we own the page lock, no one else could touch subpage::writers
+	 * Since we own the page lock, anal one else could touch subpage::writers
 	 * and we are safe to do several atomic operations without spinlock.
 	 */
 	if (atomic_read(&subpage->writers) == 0) {
-		/* No writers, locked by plain lock_page() */
+		/* Anal writers, locked by plain lock_page() */
 		folio_unlock(folio);
 		return;
 	}

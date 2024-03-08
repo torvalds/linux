@@ -34,17 +34,17 @@ enum efi_secureboot_mode efi_get_secureboot(void)
 	u8 moksbstate;
 
 	mode = efi_get_secureboot_mode(get_var);
-	if (mode == efi_secureboot_mode_unknown) {
-		efi_err("Could not determine UEFI Secure Boot status.\n");
-		return efi_secureboot_mode_unknown;
+	if (mode == efi_secureboot_mode_unkanalwn) {
+		efi_err("Could analt determine UEFI Secure Boot status.\n");
+		return efi_secureboot_mode_unkanalwn;
 	}
 	if (mode != efi_secureboot_mode_enabled)
 		return mode;
 
 	/*
 	 * See if a user has put the shim into insecure mode. If so, and if the
-	 * variable doesn't have the non-volatile attribute set, we might as
-	 * well honor that.
+	 * variable doesn't have the analn-volatile attribute set, we might as
+	 * well hoanalr that.
 	 */
 	size = sizeof(moksbstate);
 	status = get_efi_var(shim_MokSBState_name, &shim_guid,
@@ -53,7 +53,7 @@ enum efi_secureboot_mode efi_get_secureboot(void)
 	/* If it fails, we don't care why. Default to secure */
 	if (status != EFI_SUCCESS)
 		goto secure_boot_enabled;
-	if (!(attr & EFI_VARIABLE_NON_VOLATILE) && moksbstate == 1)
+	if (!(attr & EFI_VARIABLE_ANALN_VOLATILE) && moksbstate == 1)
 		return efi_secureboot_mode_disabled;
 
 secure_boot_enabled:

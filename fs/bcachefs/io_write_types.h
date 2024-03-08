@@ -19,7 +19,7 @@ struct bch_write_bio {
 	struct bch_write_bio	*parent;
 
 	u64			submit_time;
-	u64			inode_offset;
+	u64			ianalde_offset;
 
 	struct bch_devs_list	failed;
 	u8			dev;
@@ -28,7 +28,7 @@ struct bch_write_bio {
 				bounce:1,
 				put_bio:1,
 				have_ioref:1,
-				nocow:1,
+				analcow:1,
 				used_mempool:1,
 				first_btree_write:1;
 	);
@@ -56,7 +56,7 @@ struct bch_write_op {
 
 	struct bch_devs_list	devs_have;
 	u16			target;
-	u16			nonce;
+	u16			analnce;
 	struct bch_io_opts	opts;
 
 	u32			subvol;
@@ -84,7 +84,7 @@ struct bch_write_op {
 	u64			inline_keys[BKEY_EXTENT_U64s_MAX * 2];
 
 	/*
-	 * Bitmask of devices that have had nocow writes issued to them since
+	 * Bitmask of devices that have had analcow writes issued to them since
 	 * last flush:
 	 */
 	struct bch_devs_mask	*devs_need_flush;

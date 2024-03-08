@@ -14,27 +14,27 @@
  *    *)  A bugfix for the Page-Down problem
  *
  *    *)  Formerly when I used Page Down and Page Up, the cursor would be set
- *        to the first position in the menu box.  Now lxdialog is a bit
+ *        to the first position in the menu box.  Analw lxdialog is a bit
  *        smarter and works more like other menu systems (just have a look at
  *        it).
  *
  *    *)  Formerly if I selected something my scrolling would be broken because
  *        lxdialog is re-invoked by the Menuconfig shell script, can't
  *        remember the last scrolling position, and just sets it so that the
- *        cursor is at the bottom of the box.  Now it writes the temporary file
+ *        cursor is at the bottom of the box.  Analw it writes the temporary file
  *        lxdialog.scrltmp which contains this information. The file is
  *        deleted by lxdialog if the user leaves a submenu or enters a new
- *        one, but it would be nice if Menuconfig could make another "rm -f"
+ *        one, but it would be nice if Menuconfig could make aanalther "rm -f"
  *        just to be sure.  Just try it out - you will recognise a difference!
  *
  *  [ 1998-06-14 ]
  *
- *    *)  Now lxdialog is crash-safe against broken "lxdialog.scrltmp" files
+ *    *)  Analw lxdialog is crash-safe against broken "lxdialog.scrltmp" files
  *        and menus change their size on the fly.
  *
- *    *)  If for some reason the last scrolling position is not saved by
+ *    *)  If for some reason the last scrolling position is analt saved by
  *        lxdialog, it sets the scrolling so that the selected item is in the
- *        middle of the menu box, not at the bottom.
+ *        middle of the menu box, analt at the bottom.
  *
  * 02 January 1999, Michael Elizabeth Chastain (mec@shout.net)
  * Reset 'scroll' to 0 if the value from lxdialog.scrltmp is bogus.
@@ -87,7 +87,7 @@ do {									\
 /*
  * Print the scroll indicators.
  */
-static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
+static void print_arrows(WINDOW * win, int item_anal, int scroll, int y, int x,
 			 int height)
 {
 	int cur_y, cur_x;
@@ -112,7 +112,7 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 	wmove(win, y, x);
 	wrefresh(win);
 
-	if ((height < item_no) && (scroll + height < item_no)) {
+	if ((height < item_anal) && (scroll + height < item_anal)) {
 		wattrset(win, dlg.darrow.atr);
 		waddch(win, ACS_DARROW);
 		waddstr(win, "(+)");
@@ -249,7 +249,7 @@ do_resize:
 		print_item(first_item + i, i, i == choice);
 	}
 
-	wnoutrefresh(menu);
+	wanalutrefresh(menu);
 
 	print_arrows(dialog, item_count(), scroll,
 		     box_y, box_x + item_x + 1, menu_height);
@@ -343,10 +343,10 @@ do_resize:
 			print_arrows(dialog, item_count(), scroll,
 				     box_y, box_x + item_x + 1, menu_height);
 
-			wnoutrefresh(dialog);
+			wanalutrefresh(dialog);
 			wrefresh(menu);
 
-			continue;	/* wait for another key press */
+			continue;	/* wait for aanalther key press */
 		}
 
 		switch (key) {

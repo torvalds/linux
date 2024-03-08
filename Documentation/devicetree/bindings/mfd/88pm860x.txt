@@ -12,7 +12,7 @@ Optional parent device properties:
 - marvell,88pm860x-irq-read-clr: inicates whether interrupt status is cleared by read
 - marvell,88pm860x-slave-addr: 88pm860x are two chips solution. <reg> stores the I2C address
 				of one chip, and this property stores the I2C address of
-				another chip.
+				aanalther chip.
 
 88pm860x consists of a large and varied group of sub-devices:
 

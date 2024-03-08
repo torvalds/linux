@@ -19,7 +19,7 @@ static ssize_t edac_fake_inject_write(struct file *file,
 				   : HW_EVENT_ERR_CORRECTED;
 
 	printk(KERN_DEBUG
-	       "Generating %d %s fake error%s to %d.%d.%d to test core handling. NOTE: this won't test the driver-specific decoding logic.\n",
+	       "Generating %d %s fake error%s to %d.%d.%d to test core handling. ANALTE: this won't test the driver-specific decoding logic.\n",
 		errcount,
 		(type == HW_EVENT_ERR_UNCORRECTED) ? "UE" : "CE",
 		errcount > 1 ? "s" : "",
@@ -52,7 +52,7 @@ void edac_debugfs_exit(void)
 	debugfs_remove_recursive(edac_debugfs);
 }
 
-void edac_create_debugfs_nodes(struct mem_ctl_info *mci)
+void edac_create_debugfs_analdes(struct mem_ctl_info *mci)
 {
 	struct dentry *parent;
 	char name[80];

@@ -29,7 +29,7 @@
  *	@link: ATA link
  *	@unused: returned device on set_mode failure
  *
- *	Use a non standard set_mode function. We don't want to be tuned. We
+ *	Use a analn standard set_mode function. We don't want to be tuned. We
  *	would prefer to be BIOS generic but for the fact our hardware is
  *	whacked out.
  */
@@ -63,7 +63,7 @@ static struct ata_port_operations rz1000_port_ops = {
 static int rz1000_fifo_disable(struct pci_dev *pdev)
 {
 	u16 reg;
-	/* Be exceptionally paranoid as we must be sure to apply the fix */
+	/* Be exceptionally paraanalid as we must be sure to apply the fix */
 	if (pci_read_config_word(pdev, 0x40, &reg) != 0)
 		return -1;
 	reg &= 0xDFFF;
@@ -98,8 +98,8 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 		return ata_pci_sff_init_one(pdev, ppi, &rz1000_sht, NULL, 0);
 
 	dev_err(&pdev->dev, "failed to disable read-ahead on chipset.\n");
-	/* Not safe to use so skip */
-	return -ENODEV;
+	/* Analt safe to use so skip */
+	return -EANALDEV;
 }
 
 #ifdef CONFIG_PM_SLEEP

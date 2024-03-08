@@ -18,7 +18,7 @@ SEC("tp/syscalls/sys_enter_getpgid")
 int bpf_lookup_and_delete_test(const void *ctx)
 {
 	if (set_pid == bpf_get_current_pid_tgid() >> 32)
-		bpf_map_update_elem(&hash_map, &set_key, &set_value, BPF_NOEXIST);
+		bpf_map_update_elem(&hash_map, &set_key, &set_value, BPF_ANALEXIST);
 
 	return 0;
 }

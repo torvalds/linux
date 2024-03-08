@@ -52,7 +52,7 @@ static int vti_input(struct sk_buff *skb, int nexthdr, __be32 spi,
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, vti_net_id);
 
-	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_ANAL_KEY,
 				  iph->saddr, iph->daddr, 0);
 	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
@@ -147,8 +147,8 @@ static bool vti_state_check(const struct xfrm_state *x, __be32 dst, __be32 src)
 	xfrm_address_t *daddr = (xfrm_address_t *)&dst;
 	xfrm_address_t *saddr = (xfrm_address_t *)&src;
 
-	/* if there is no transform then this tunnel is not functional.
-	 * Or if the xfrm is not mode tunnel.
+	/* if there is anal transform then this tunnel is analt functional.
+	 * Or if the xfrm is analt mode tunnel.
 	 */
 	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
 	    x->props.family != AF_INET)
@@ -236,7 +236,7 @@ static netdev_tx_t vti_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	mtu = dst_mtu(dst);
 	if (skb->len > mtu) {
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_anal_confirm(skb, mtu);
 		if (skb->protocol == htons(ETH_P_IP)) {
 			if (!(ip_hdr(skb)->frag_off & htons(IP_DF)))
 				goto xmit;
@@ -323,7 +323,7 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 	int protocol = iph->protocol;
 	struct ip_tunnel_net *itn = net_generic(net, vti_net_id);
 
-	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
+	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_ANAL_KEY,
 				  iph->daddr, iph->saddr, 0);
 	if (!tunnel)
 		return -1;
@@ -428,7 +428,7 @@ static int vti_tunnel_init(struct net_device *dev)
 	__dev_addr_set(dev, &iph->saddr, 4);
 	memcpy(dev->broadcast, &iph->daddr, 4);
 
-	dev->flags		= IFF_NOARP;
+	dev->flags		= IFF_ANALARP;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_LLTX;
 	netif_keep_dst(dev);

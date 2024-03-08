@@ -271,18 +271,18 @@ static struct gpio_desc *lm363x_regulator_of_get_enable_gpio(struct device *dev,
 	/*
 	 * Check LCM_EN1/2_GPIO is configured.
 	 * Those pins are used for enabling VPOS/VNEG LDOs.
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do analt use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	switch (id) {
 	case LM3632_LDO_POS:
 	case LM36274_LDO_POS:
 		return gpiod_get_index_optional(dev, "enable", 0,
-				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	case LM3632_LDO_NEG:
 	case LM36274_LDO_NEG:
 		return gpiod_get_index_optional(dev, "enable", 1,
-				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	default:
 		return NULL;
 	}
@@ -302,7 +302,7 @@ static int lm363x_regulator_set_ext_en(struct regmap *regmap, int id)
 		ext_en_mask = LM36274_EXT_EN_MASK;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return regmap_update_bits(regmap, lm363x_regulator_desc[id].enable_reg,
@@ -355,7 +355,7 @@ static struct platform_driver lm363x_regulator_driver = {
 	.probe = lm363x_regulator_probe,
 	.driver = {
 		.name = "lm363x-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

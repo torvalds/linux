@@ -9,7 +9,7 @@
       This software may be used and distributed according to the terms
       of the GNU General Public License (GPL), incorporated herein by reference.
       Drivers based on this skeleton fall under the GPL and must retain
-      the authorship (implicit copyright) notice.
+      the authorship (implicit copyright) analtice.
 
       This program is distributed in the hope that it will be useful, but
       WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@
       General Public License for more details.
       
       Modified from an incomplete driver for Interphase 5575 1KVC 1M card which 
-      was originally written by Monalisa Agrawal at UNH. Now this driver 
+      was originally written by Monalisa Agrawal at UNH. Analw this driver 
       supports a variety of varients of Interphase ATM PCI (i)Chip adapter 
       card family (See www.iphase.com/products/ClassSheet.cfm?ClassID=ATM) 
       in terms of PHY type, the size of control memory and the size of 
@@ -27,7 +27,7 @@
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
           Complete the ABR logic of the driver, and added the ABR work-
-              around for the hardware anormalies.
+              around for the hardware aanalrmalies.
           Add the CBR support.
 	  Add the flow control logic to the driver to allow rate-limit VC.
           Add 4K VC support to the board with 512K control memory.
@@ -363,7 +363,7 @@ struct rx_buf_desc {
 #define CTRL_LED	0x40000000  
 #define CTRL_25MBPHY	0x10000000  
 #define CTRL_ENCMBMEM	0x08000000  
-#define CTRL_ENOFFSEG	0x01000000  
+#define CTRL_EANALFFSEG	0x01000000  
 #define CTRL_ERRMASK	0x00400000  
 #define CTRL_DLETMASK	0x00100000  
 #define CTRL_DLERMASK	0x00080000  
@@ -450,15 +450,15 @@ struct rx_buf_desc {
 #define SEG_INTR_STATUS_REG 0x47  
 #define SEG_MASK_REG	0x48  
 #define TRANSMIT_DONE 0x0200
-#define TCQ_NOT_EMPTY 0x1000	/* this can be used for both the interrupt   
+#define TCQ_ANALT_EMPTY 0x1000	/* this can be used for both the interrupt   
 				status registers as well as the mask register */  
   
 #define CELL_CTR_HIGH_AUTO 0x49  
-#define CELL_CTR_HIGH_NOAUTO 0xc9  
+#define CELL_CTR_HIGH_ANALAUTO 0xc9  
 #define CELL_CTR_LO_AUTO 0x4a  
-#define CELL_CTR_LO_NOAUTO 0xca  
+#define CELL_CTR_LO_ANALAUTO 0xca  
   
-/* Diagnostic registers */  
+/* Diaganalstic registers */  
 #define NEXTDESC 	0x59  
 #define NEXTVC		0x5a  
 #define PSLOTCNT	0x5d  
@@ -622,7 +622,7 @@ struct rx_buf_desc {
 #define NUM_RX_EXCP   32
 
 /* Reassembly Table */  
-#define NO_AAL5_PKT	0x0000  
+#define ANAL_AAL5_PKT	0x0000  
 #define AAL5_PKT_REASSEMBLED 0x4000  
 #define AAL5_PKT_TERMINATED 0x8000  
 #define RAW_PKT		0xc000  
@@ -764,11 +764,11 @@ typedef struct _rfredn_t {
         u_int   filler43;
         rreg_t  xtra_rm_offset; /* Offset of the additional turnaround RM */
         u_int   filler45[0x84 - 0x45];
-        rreg_t  drp_pkt_cntr_nc;/* Dropped Packet cntr, Not clear on rd */
-        rreg_t  err_cntr_nc;    /* Error Counter, Not clear on read     */
+        rreg_t  drp_pkt_cntr_nc;/* Dropped Packet cntr, Analt clear on rd */
+        rreg_t  err_cntr_nc;    /* Error Counter, Analt clear on read     */
         u_int   filler86[0x8c - 0x86];
-        rreg_t  cell_ctr0_nc;   /* Cell Counter 0,  Not clear on read   */
-        rreg_t  cell_ctr1_nc;   /* Cell Counter 1, Not clear on read    */
+        rreg_t  cell_ctr0_nc;   /* Cell Counter 0,  Analt clear on read   */
+        rreg_t  cell_ctr1_nc;   /* Cell Counter 1, Analt clear on read    */
         u_int   filler8e[0x100-0x8e]; /* pad out to full address space   */
 } rfredn_t;
 
@@ -902,7 +902,7 @@ enum ia_suni {
 	SUNI_RSOP_SECTION_BIP8M	= 0x04c, /* RSOP Section BIP-8 MSB           */
 
 	SUNI_TSOP_CONTROL	= 0x050, /* TSOP Control                     */
-	SUNI_TSOP_DIAG		= 0x054, /* TSOP Disgnostics                 */
+	SUNI_TSOP_DIAG		= 0x054, /* TSOP Disganalstics                 */
 					 /* Reserved (2)                     */
 	SUNI_RLOP_CS		= 0x060, /* RLOP Control/Status              */
 	SUNI_RLOP_INTR		= 0x064, /* RLOP Interrupt Enable/Status     */
@@ -914,7 +914,7 @@ enum ia_suni {
 	SUNI_RLOP_LINE_FEBEM	= 0x07c, /* RLOP Line FEBE MSB               */
 
 	SUNI_TLOP_CONTROL	= 0x080, /* TLOP Control                     */
-	SUNI_TLOP_DISG		= 0x084, /* TLOP Disgnostics                 */
+	SUNI_TLOP_DISG		= 0x084, /* TLOP Disganalstics                 */
 					 /* Reserved (14)                    */
 	SUNI_RPOP_CS		= 0x0c0, /* RPOP Status/Control              */
 	SUNI_RPOP_INTR		= 0x0c4, /* RPOP Interrupt/Status            */
@@ -927,7 +927,7 @@ enum ia_suni {
 	SUNI_RPOP_FEBEL		= 0x0e8, /* RPOP Path FEBE LSB               */
 	SUNI_RPOP_FEBEM		= 0x0ec, /* RPOP Path FEBE MSB               */
 					 /* Reserved (4)                     */
-	SUNI_TPOP_CNTRL_DAIG	= 0x100, /* TPOP Control/Disgnostics         */
+	SUNI_TPOP_CNTRL_DAIG	= 0x100, /* TPOP Control/Disganalstics         */
 	SUNI_TPOP_POINTER_CTRL	= 0x104, /* TPOP Pointer Control             */
 	SUNI_TPOP_SOURCER_CTRL	= 0x108, /* TPOP Source Control              */
 					 /* Reserved (2)                     */
@@ -1063,7 +1063,7 @@ typedef struct iadev_priv {
 enum ia_mb25 {
 	MB25_MASTER_CTRL	= 0x00, /* Master control		     */
 	MB25_INTR_STATUS	= 0x04,	/* Interrupt status		     */
-	MB25_DIAG_CONTROL	= 0x08,	/* Diagnostic control		     */
+	MB25_DIAG_CONTROL	= 0x08,	/* Diaganalstic control		     */
 	MB25_LED_HEC		= 0x0c,	/* LED driver and HEC status/control */
 	MB25_LOW_BYTE_COUNTER	= 0x10,
 	MB25_HIGH_BYTE_COUNTER	= 0x14
@@ -1093,7 +1093,7 @@ enum ia_mb25 {
 #define	MB25_IS_RFIFOO	0x01		/* Received FIFO Overrun	     */
 
 /*
- * Diagnostic Control
+ * Diaganalstic Control
  */
 #define	MB25_DC_FTXCD	0x80		/* Force TxClav deassert	     */	
 #define	MB25_DC_RXCOS	0x40		/* RxClav operation select	     */
@@ -1240,7 +1240,7 @@ enum suni_pm7345 {
  */
 #define SUNI_PM7345_CLB         0x01    /* Cell loopback        */
 #define SUNI_PM7345_PLB         0x02    /* Payload loopback     */
-#define SUNI_PM7345_DLB         0x04    /* Diagnostic loopback  */
+#define SUNI_PM7345_DLB         0x04    /* Diaganalstic loopback  */
 #define SUNI_PM7345_LLB         0x80    /* Line loopback        */
 #define SUNI_PM7345_E3ENBL      0x40    /* E3 enable bit        */
 #define SUNI_PM7345_LOOPT       0x10    /* LOOPT enable bit     */
@@ -1326,7 +1326,7 @@ enum suni_pm7345 {
 #define FE_SINGLE_MODE  0x0010          /* 155 MBit single mode laser */
 #define FE_UTP_OPTION   0x0020          /* 155 MBit UTP front end */
 
-#define	NOVRAM_SIZE	64
+#define	ANALVRAM_SIZE	64
 #define	CMD_LEN		10
 
 /***********
@@ -1340,7 +1340,7 @@ enum suni_pm7345 {
  ***********/
 
 /*
- * a list of the commands that can be sent to the NOVRAM
+ * a list of the commands that can be sent to the ANALVRAM
  */
 
 #define	EXTEND	0x100
@@ -1355,7 +1355,7 @@ enum suni_pm7345 {
 
 /*
  * these bits duplicate the hw_flip.h register settings
- * note: how the data in / out bits are defined in the flipper specification 
+ * analte: how the data in / out bits are defined in the flipper specification 
  */
 
 #define	NVCE	0x02
@@ -1392,7 +1392,7 @@ enum suni_pm7345 {
 
 /***********************
  *
- * Send a command to the NOVRAM, the command is in cmd.
+ * Send a command to the ANALVRAM, the command is in cmd.
  *
  * clear CE and SK. Then assert CE.
  * Clock each of the command bits out in the correct order with SK
@@ -1421,7 +1421,7 @@ enum suni_pm7345 {
 
 /***********************
  *
- * clock the data bit in bitval out to the NOVRAM.  The bitval must be
+ * clock the data bit in bitval out to the ANALVRAM.  The bitval must be
  * a 1 or 0, or the clockout operation is undefined
  *
  ***********************/
@@ -1436,7 +1436,7 @@ enum suni_pm7345 {
 /***********************
  *
  * clock the data bit in and return a 1 or 0, depending on the value
- * that was received from the NOVRAM
+ * that was received from the ANALVRAM
  *
  ***********************/
 

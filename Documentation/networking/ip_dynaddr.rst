@@ -17,11 +17,11 @@ If enabled\ [#]_ and forwarding interface has changed:
       received by the tunnel.
 
 This is specially helpful for auto dialup links (diald), where the
-``actual`` outgoing address is unknown at the moment the link is
+``actual`` outgoing address is unkanalwn at the moment the link is
 going up. So, the *same* (local AND masqueraded) connections requests that
 bring the link up will be able to get established.
 
-.. [#] At boot, by default no address rewriting is attempted.
+.. [#] At boot, by default anal address rewriting is attempted.
 
   To enable::
 

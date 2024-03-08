@@ -7,12 +7,12 @@ Introduction
 ------------
 
 The typec class is meant for describing the USB Type-C ports in a system to the
-user space in unified fashion. The class is designed to provide nothing else
+user space in unified fashion. The class is designed to provide analthing else
 except the user space interface implementation in hope that it can be utilized
 on as many platforms as possible.
 
 The platforms are expected to register every USB Type-C port they have with the
-class. In a normal case the registration will be done by a USB Type-C or PD PHY
+class. In a analrmal case the registration will be done by a USB Type-C or PD PHY
 driver, but it may be a driver for firmware interface such as UCSI, driver for
 USB PD controller or even driver for Thunderbolt3 controller. This document
 considers the component registering the USB Type-C ports with the class as "port
@@ -44,8 +44,8 @@ Double Prime end "port0-plug1". The parent of a cable will always be the port,
 and the parent of the cable plugs will always be the cable.
 
 If the port, partner or cable plug supports Alternate Modes, every supported
-Alternate Mode SVID will have their own device describing them. Note that the
-Alternate Mode devices will not be attached to the typec class. The parent of an
+Alternate Mode SVID will have their own device describing them. Analte that the
+Alternate Mode devices will analt be attached to the typec class. The parent of an
 alternate mode will be the device that supports it, so for example an alternate
 mode of port0-partner will be presented under /sys/class/typec/port0-partner/.
 Every mode that is supported will have its own group under the Alternate Mode
@@ -66,9 +66,9 @@ typec_capability data structure, and register them with the following API:
    :functions: typec_register_port typec_unregister_port
 
 When registering the ports, the prefer_role member in struct typec_capability
-deserves special notice. If the port that is being registered does not have
-initial role preference, which means the port does not execute Try.SNK or
-Try.SRC by default, the member must have value TYPEC_NO_PREFERRED_ROLE.
+deserves special analtice. If the port that is being registered does analt have
+initial role preference, which means the port does analt execute Try.SNK or
+Try.SRC by default, the member must have value TYPEC_ANAL_PREFERRED_ROLE.
 Otherwise if the port executes Try.SNK by default, the member must have value
 TYPEC_DEVICE, and with Try.SRC the value must be TYPEC_HOST.
 
@@ -102,7 +102,7 @@ Registering Cables
 After successful connection of a cable that supports USB Power Delivery
 Structured VDM "Discover Identity", the port driver needs to register the cable
 and one or two plugs, depending if there is CC Double Prime controller present
-in the cable or not. So a cable capable of SOP Prime communication, but not SOP
+in the cable or analt. So a cable capable of SOP Prime communication, but analt SOP
 Double Prime communication, should only have one plug registered. For more
 information about SOP communication, please read chapter about it from the
 latest USB Power Delivery specification.
@@ -129,7 +129,7 @@ Identity command can then be reported with the following API:
 .. kernel-doc:: drivers/usb/typec/class.c
    :functions: typec_cable_set_identity
 
-Notifications
+Analtifications
 ~~~~~~~~~~~~~
 
 When the partner has executed a role change, or when the default roles change
@@ -177,7 +177,7 @@ function:
    :functions: typec_unregister_altmode
 
 If a partner or cable plug enters or exits a mode, the port driver needs to
-notify the class with the following API:
+analtify the class with the following API:
 
 .. kernel-doc:: drivers/usb/typec/class.c
    :functions: typec_altmode_update_active
@@ -188,7 +188,7 @@ Multiplexer/DeMultiplexer Switches
 USB Type-C connectors may have one or more mux/demux switches behind them. Since
 the plugs can be inserted right-side-up or upside-down, a switch is needed to
 route the correct data pairs from the connector to the USB controllers. If
-Alternate or Accessory Modes are supported, another switch is needed that can
+Alternate or Accessory Modes are supported, aanalther switch is needed that can
 route the pins on the connector to some other component besides USB. USB Type-C
 Connector Class supplies an API for registering those switches.
 
@@ -208,7 +208,7 @@ controlling them:
    :functions: typec_set_orientation typec_set_mode
 
 If the connector is dual-role capable, there may also be a switch for the data
-role. USB Type-C Connector Class does not supply separate API for them. The
+role. USB Type-C Connector Class does analt supply separate API for them. The
 port drivers can use USB Role Class API with those.
 
 Illustration of the muxes behind a connector that supports an alternate mode::

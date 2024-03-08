@@ -9,7 +9,7 @@
  *
  *  When userspace sends a valid IOCTL uvdevice will copy the input data to
  *  kernel space, do some basic validity checks to avoid kernel/system
- *  corruption. Any other check that the Ultravisor does will not be done by
+ *  corruption. Any other check that the Ultravisor does will analt be done by
  *  the uvdevice to keep changes minimal when adding new functionalities
  *  to existing UV-calls.
  *  After the checks uvdevice builds a corresponding
@@ -171,9 +171,9 @@ static int get_uvio_attest(struct uvio_ioctl_cb *uv_ioctl, struct uvio_attest *u
  * ARCB, UV will add some Additional Data to the measurement calculation.
  * This Additional Data is then returned as well.
  *
- * If the Retrieve Attestation Measurement UV facility is not present,
+ * If the Retrieve Attestation Measurement UV facility is analt present,
  * UV will return invalid command rc. This won't be fenced in the driver
- * and does not result in a negative return value.
+ * and does analt result in a negative return value.
  *
  * Context: might sleep
  *
@@ -192,7 +192,7 @@ static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 	if (uv_ioctl->argument_len != sizeof(*uvio_attest))
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	uvio_attest = kzalloc(sizeof(*uvio_attest), GFP_KERNEL);
 	if (!uvio_attest)
 		goto out;
@@ -201,7 +201,7 @@ static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 	if (ret)
 		goto out;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	arcb = kvzalloc(uvio_attest->arcb_len, GFP_KERNEL);
 	measurement = kvzalloc(uvio_attest->meas_len, GFP_KERNEL);
 	if (!arcb || !measurement)
@@ -254,8 +254,8 @@ out:
  * inserts a protected guest's secrets into the Ultravisor for later
  * use.
  *
- * If the Add Secret UV facility is not present, UV will return
- * invalid command rc. This won't be fenced in the driver and does not
+ * If the Add Secret UV facility is analt present, UV will return
+ * invalid command rc. This won't be fenced in the driver and does analt
  * result in a negative return value.
  *
  * Context: might sleep
@@ -279,7 +279,7 @@ static int uvio_add_secret(struct uvio_ioctl_cb *uv_ioctl)
 
 	asrcb = kvzalloc(uv_ioctl->argument_len, GFP_KERNEL);
 	if (!asrcb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = -EFAULT;
 	if (copy_from_user(asrcb, user_buf_arg, uv_ioctl->argument_len))
@@ -307,8 +307,8 @@ out:
  *
  * The argument specifies the location for the result of the UV-Call.
  *
- * If the List Secrets UV facility is not present, UV will return invalid
- * command rc. This won't be fenced in the driver and does not result in a
+ * If the List Secrets UV facility is analt present, UV will return invalid
+ * command rc. This won't be fenced in the driver and does analt result in a
  * negative return value.
  *
  * Context: might sleep
@@ -330,7 +330,7 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
 
 	secrets = kvzalloc(UVIO_LIST_SECRETS_LEN, GFP_KERNEL);
 	if (!secrets)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	uvcb.addr = (u64)secrets;
 	uv_call_sched(0, (u64)&uvcb);
@@ -354,8 +354,8 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
  *
  * The argument address and size must be 0.
  *
- * If the Lock Secrets UV facility is not present, UV will return invalid
- * command rc. This won't be fenced in the driver and does not result in a
+ * If the Lock Secrets UV facility is analt present, UV will return invalid
+ * command rc. This won't be fenced in the driver and does analt result in a
  * negative return value.
  *
  * Context: might sleep
@@ -364,7 +364,7 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
  */
 static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
 {
-	struct uv_cb_nodata uvcb = {
+	struct uv_cb_analdata uvcb = {
 		.header.len = sizeof(uvcb),
 		.header.cmd = UVC_CMD_LOCK_SECRETS,
 	};
@@ -385,13 +385,13 @@ static int uvio_copy_and_check_ioctl(struct uvio_ioctl_cb *ioctl, void __user *a
 	u8 nr = _IOC_NR(cmd);
 
 	if (_IOC_DIR(cmd) != (_IOC_READ | _IOC_WRITE))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (_IOC_TYPE(cmd) != UVIO_TYPE_UVC)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (nr >= UVIO_IOCTL_NUM_IOCTLS)
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (_IOC_SIZE(cmd) != sizeof(*ioctl))
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	if (copy_from_user(ioctl, argp, sizeof(*ioctl)))
 		return -EFAULT;
 	if (ioctl->flags != 0)
@@ -433,7 +433,7 @@ static long uvio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = uvio_lock_secrets(&uv_ioctl);
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		ret = -EANALIOCTLCMD;
 		break;
 	}
 	if (ret)
@@ -448,11 +448,11 @@ static long uvio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static const struct file_operations uvio_dev_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = uvio_ioctl,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct miscdevice uvio_dev_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = UVIO_DEVICE_NAME,
 	.fops = &uvio_dev_fops,
 };

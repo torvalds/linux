@@ -289,6 +289,6 @@
 	};
 };
 
-/* Now include peripherals from each bus segment */
+/* Analw include peripherals from each bus segment */
 #include "k3-j784s4-main.dtsi"
 #include "k3-j784s4-mcu-wakeup.dtsi"

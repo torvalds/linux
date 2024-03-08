@@ -38,11 +38,11 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 
 	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	afbc_fb = kzalloc(sizeof(*afbc_fb), GFP_KERNEL);
 	if (!afbc_fb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_gem_fb_init_with_funcs(dev, &afbc_fb->base, file, mode_cmd,
 					 &rockchip_drm_fb_funcs);
@@ -91,5 +91,5 @@ void rockchip_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.funcs = &rockchip_drm_mode_config_funcs;
 	dev->mode_config.helper_private = &rockchip_mode_config_helpers;
 
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.analrmalize_zpos = true;
 }

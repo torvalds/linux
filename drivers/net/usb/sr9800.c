@@ -63,7 +63,7 @@ static int sr_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	int offset = 0;
 
-	/* This check is no longer done by usbnet */
+	/* This check is anal longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -257,7 +257,7 @@ static u16 sr_read_medium_status(struct usbnet *dev)
 	if (ret < 0) {
 		netdev_err(dev->net,
 			   "Error reading Medium Status register:%02x\n", ret);
-		return ret;	/* TODO: callers not checking for error ret */
+		return ret;	/* TODO: callers analt checking for error ret */
 	}
 
 	return le16_to_cpu(v);
@@ -501,7 +501,7 @@ static int sr_set_mac_address(struct net_device *net, void *p)
 	if (netif_running(net))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(net, addr->sa_data);
 
@@ -511,7 +511,7 @@ static int sr_set_mac_address(struct net_device *net, void *p)
 	 * is tricky to free later
 	 */
 	memcpy(data->mac_addr, addr->sa_data, ETH_ALEN);
-	sr_write_cmd_async(dev, SR_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+	sr_write_cmd_async(dev, SR_CMD_WRITE_ANALDE_ID, 0, 0, ETH_ALEN,
 			   data->mac_addr);
 
 	return 0;
@@ -664,7 +664,7 @@ static int sr9800_reset(struct usbnet *dev)
 
 	/* Rewrite MAC address */
 	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
-	ret = sr_write_cmd(dev, SR_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+	ret = sr_write_cmd(dev, SR_CMD_WRITE_ANALDE_ID, 0, 0, ETH_ALEN,
 							data->mac_addr);
 	if (ret < 0)
 		goto out;
@@ -755,7 +755,7 @@ static int sr9800_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* Get the MAC address */
-	ret = sr_read_cmd(dev, SR_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, addr);
+	ret = sr_read_cmd(dev, SR_CMD_READ_ANALDE_ID, 0, 0, ETH_ALEN, addr);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
@@ -775,7 +775,7 @@ static int sr9800_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->ethtool_ops = &sr9800_ethtool_ops;
 
 	embd_phy = ((dev->mii.phy_id & 0x1f) == 0x10 ? 1 : 0);
-	/* Reset the PHY to normal operation mode */
+	/* Reset the PHY to analrmal operation mode */
 	ret = sr_write_cmd(dev, SR_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);

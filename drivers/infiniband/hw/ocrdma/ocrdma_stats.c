@@ -13,19 +13,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright analtice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   analtice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO,THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
@@ -56,7 +56,7 @@ static int ocrdma_add_stat(char *start, char *pcur,
 	cpy_len = strlen(buff);
 
 	if (pcur + cpy_len > start + OCRDMA_MAX_DBGFS_MEM) {
-		pr_err("%s: No space in stats buff\n", __func__);
+		pr_err("%s: Anal space in stats buff\n", __func__);
 		return 0;
 	}
 
@@ -111,20 +111,20 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 	pcur = stats;
 	pcur += ocrdma_add_stat(stats, pcur, "active_dpp_pds",
 				(u64)rsrc_stats->dpp_pds);
-	pcur += ocrdma_add_stat(stats, pcur, "active_non_dpp_pds",
-				(u64)rsrc_stats->non_dpp_pds);
+	pcur += ocrdma_add_stat(stats, pcur, "active_analn_dpp_pds",
+				(u64)rsrc_stats->analn_dpp_pds);
 	pcur += ocrdma_add_stat(stats, pcur, "active_rc_dpp_qps",
 				(u64)rsrc_stats->rc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_uc_dpp_qps",
 				(u64)rsrc_stats->uc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_ud_dpp_qps",
 				(u64)rsrc_stats->ud_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_rc_non_dpp_qps",
-				(u64)rsrc_stats->rc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_uc_non_dpp_qps",
-				(u64)rsrc_stats->uc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "active_ud_non_dpp_qps",
-				(u64)rsrc_stats->ud_non_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_rc_analn_dpp_qps",
+				(u64)rsrc_stats->rc_analn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_uc_analn_dpp_qps",
+				(u64)rsrc_stats->uc_analn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "active_ud_analn_dpp_qps",
+				(u64)rsrc_stats->ud_analn_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "active_srqs",
 				(u64)rsrc_stats->srqs);
 	pcur += ocrdma_add_stat(stats, pcur, "active_rbqs",
@@ -165,20 +165,20 @@ static char *ocrdma_resource_stats(struct ocrdma_dev *dev)
 
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_dpp_pds",
 				(u64)rsrc_stats->dpp_pds);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_non_dpp_pds",
-				(u64)rsrc_stats->non_dpp_pds);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_analn_dpp_pds",
+				(u64)rsrc_stats->analn_dpp_pds);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_dpp_qps",
 				(u64)rsrc_stats->rc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_dpp_qps",
 				(u64)rsrc_stats->uc_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_dpp_qps",
 				(u64)rsrc_stats->ud_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_non_dpp_qps",
-				(u64)rsrc_stats->rc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_non_dpp_qps",
-				(u64)rsrc_stats->uc_non_dpp_qps);
-	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_non_dpp_qps",
-				(u64)rsrc_stats->ud_non_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_rc_analn_dpp_qps",
+				(u64)rsrc_stats->rc_analn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_uc_analn_dpp_qps",
+				(u64)rsrc_stats->uc_analn_dpp_qps);
+	pcur += ocrdma_add_stat(stats, pcur, "threshold_ud_analn_dpp_qps",
+				(u64)rsrc_stats->ud_analn_dpp_qps);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_srqs",
 				(u64)rsrc_stats->srqs);
 	pcur += ocrdma_add_stat(stats, pcur, "threshold_rbqs",
@@ -605,13 +605,13 @@ static char *ocrdma_driver_dbg_stats(struct ocrdma_dev *dev)
 
 static void ocrdma_update_stats(struct ocrdma_dev *dev)
 {
-	ulong now = jiffies, secs;
+	ulong analw = jiffies, secs;
 	int status;
 	struct ocrdma_rdma_stats_resp *rdma_stats =
 		      (struct ocrdma_rdma_stats_resp *)dev->stats_mem.va;
 	struct ocrdma_rsrc_stats *rsrc_stats = &rdma_stats->act_rsrc_stats;
 
-	secs = jiffies_to_msecs(now - dev->last_stats_time) / 1000U;
+	secs = jiffies_to_msecs(analw - dev->last_stats_time) / 1000U;
 	if (secs) {
 		/* update */
 		status = ocrdma_mbx_rdma_stats(dev, false);
@@ -621,11 +621,11 @@ static void ocrdma_update_stats(struct ocrdma_dev *dev)
 		/* Update PD counters from PD resource manager */
 		if (dev->pd_mgr->pd_prealloc_valid) {
 			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_count;
-			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_count;
+			rsrc_stats->analn_dpp_pds = dev->pd_mgr->pd_analrm_count;
 			/* Threshold stata*/
 			rsrc_stats = &rdma_stats->th_rsrc_stats;
 			rsrc_stats->dpp_pds = dev->pd_mgr->pd_dpp_thrsh;
-			rsrc_stats->non_dpp_pds = dev->pd_mgr->pd_norm_thrsh;
+			rsrc_stats->analn_dpp_pds = dev->pd_mgr->pd_analrm_thrsh;
 		}
 		dev->last_stats_time = jiffies;
 	}
@@ -691,7 +691,7 @@ static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
 	ssize_t status = 0;
 	char *data = NULL;
 
-	/* No partial reads */
+	/* Anal partial reads */
 	if (*ppos != 0)
 		return 0;
 
@@ -737,7 +737,7 @@ static ssize_t ocrdma_dbgfs_ops_read(struct file *filp, char __user *buffer,
 	}
 
 	if (usr_buf_len < strlen(data)) {
-		status = -ENOSPC;
+		status = -EANALSPC;
 		goto exit;
 	}
 

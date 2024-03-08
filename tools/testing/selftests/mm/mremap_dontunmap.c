@@ -8,7 +8,7 @@
 #define _GNU_SOURCE
 #include <sys/mman.h>
 #include <linux/mman.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +31,7 @@ static void dump_maps(void)
 	do {								      \
 		if (condition) {					      \
 			fprintf(stderr, "[FAIL]\t%s():%d\t%s:%s\n", __func__, \
-				__LINE__, (description), strerror(errno));    \
+				__LINE__, (description), strerror(erranal));    \
 			dump_maps();					  \
 			exit(1);					      \
 		} 							      \
@@ -43,8 +43,8 @@ static int kernel_support_for_mremap_dontunmap()
 {
 	int ret = 0;
 	unsigned long num_pages = 1;
-	void *source_mapping = mmap(NULL, num_pages * page_size, PROT_NONE,
-				    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	void *source_mapping = mmap(NULL, num_pages * page_size, PROT_ANALNE,
+				    MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(source_mapping == MAP_FAILED, "mmap");
 
 	// This simple remap should only fail if MREMAP_DONTUNMAP isn't
@@ -53,7 +53,7 @@ static int kernel_support_for_mremap_dontunmap()
 	    mremap(source_mapping, num_pages * page_size, num_pages * page_size,
 		   MREMAP_DONTUNMAP | MREMAP_MAYMOVE, 0);
 	if (dest_mapping == MAP_FAILED) {
-		ret = errno;
+		ret = erranal;
 	} else {
 		BUG_ON(munmap(dest_mapping, num_pages * page_size) == -1,
 		       "unable to unmap destination mapping");
@@ -98,25 +98,25 @@ static void mremap_dontunmap_simple()
 
 	void *source_mapping =
 	    mmap(NULL, num_pages * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(source_mapping == MAP_FAILED, "mmap");
 
 	memset(source_mapping, 'a', num_pages * page_size);
 
-	// Try to just move the whole mapping anywhere (not fixed).
+	// Try to just move the whole mapping anywhere (analt fixed).
 	void *dest_mapping =
 	    mremap(source_mapping, num_pages * page_size, num_pages * page_size,
 		   MREMAP_DONTUNMAP | MREMAP_MAYMOVE, NULL);
 	BUG_ON(dest_mapping == MAP_FAILED, "mremap");
 
-	// Validate that the pages have been moved, we know they were moved if
+	// Validate that the pages have been moved, we kanalw they were moved if
 	// the dest_mapping contains a's.
 	BUG_ON(check_region_contains_byte
 	       (dest_mapping, num_pages * page_size, 'a') != 0,
-	       "pages did not migrate");
+	       "pages did analt migrate");
 	BUG_ON(check_region_contains_byte
 	       (source_mapping, num_pages * page_size, 0) != 0,
-	       "source should have no ptes");
+	       "source should have anal ptes");
 
 	BUG_ON(munmap(dest_mapping, num_pages * page_size) == -1,
 	       "unable to unmap destination mapping");
@@ -144,11 +144,11 @@ static void mremap_dontunmap_simple_shmem()
 
 	memset(source_mapping, 'a', num_pages * page_size);
 
-	// Try to just move the whole mapping anywhere (not fixed).
+	// Try to just move the whole mapping anywhere (analt fixed).
 	void *dest_mapping =
 	    mremap(source_mapping, num_pages * page_size, num_pages * page_size,
 		   MREMAP_DONTUNMAP | MREMAP_MAYMOVE, NULL);
-	if (dest_mapping == MAP_FAILED && errno == EINVAL) {
+	if (dest_mapping == MAP_FAILED && erranal == EINVAL) {
 		// Old kernel which doesn't support MREMAP_DONTUNMAP on shmem.
 		BUG_ON(munmap(source_mapping, num_pages * page_size) == -1,
 			"unable to unmap source mapping");
@@ -157,17 +157,17 @@ static void mremap_dontunmap_simple_shmem()
 
 	BUG_ON(dest_mapping == MAP_FAILED, "mremap");
 
-	// Validate that the pages have been moved, we know they were moved if
+	// Validate that the pages have been moved, we kanalw they were moved if
 	// the dest_mapping contains a's.
 	BUG_ON(check_region_contains_byte
 	       (dest_mapping, num_pages * page_size, 'a') != 0,
-	       "pages did not migrate");
+	       "pages did analt migrate");
 
 	// Because the region is backed by shmem, we will actually see the same
 	// memory at the source location still.
 	BUG_ON(check_region_contains_byte
 	       (source_mapping, num_pages * page_size, 'a') != 0,
-	       "source should have no ptes");
+	       "source should have anal ptes");
 
 	BUG_ON(munmap(dest_mapping, num_pages * page_size) == -1,
 	       "unable to unmap destination mapping");
@@ -186,13 +186,13 @@ static void mremap_dontunmap_simple_fixed()
 	// create a mapping up front.
 	void *dest_mapping =
 	    mmap(NULL, num_pages * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(dest_mapping == MAP_FAILED, "mmap");
 	memset(dest_mapping, 'X', num_pages * page_size);
 
 	void *source_mapping =
 	    mmap(NULL, num_pages * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(source_mapping == MAP_FAILED, "mmap");
 	memset(source_mapping, 'a', num_pages * page_size);
 
@@ -208,12 +208,12 @@ static void mremap_dontunmap_simple_fixed()
 	// to be gone and replaced with a's.
 	BUG_ON(check_region_contains_byte
 	       (dest_mapping, num_pages * page_size, 'a') != 0,
-	       "pages did not migrate");
+	       "pages did analt migrate");
 
 	// And the source mapping will have had its ptes dropped.
 	BUG_ON(check_region_contains_byte
 	       (source_mapping, num_pages * page_size, 0) != 0,
-	       "source should have no ptes");
+	       "source should have anal ptes");
 
 	BUG_ON(munmap(dest_mapping, num_pages * page_size) == -1,
 	       "unable to unmap destination mapping");
@@ -242,7 +242,7 @@ static void mremap_dontunmap_partial_mapping()
 	unsigned long num_pages = 10;
 	void *source_mapping =
 	    mmap(NULL, num_pages * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(source_mapping == MAP_FAILED, "mmap");
 	memset(source_mapping, 'a', num_pages * page_size);
 
@@ -259,7 +259,7 @@ static void mremap_dontunmap_partial_mapping()
 	       0, "first 5 pages of source should have original pages");
 	BUG_ON(check_region_contains_byte
 	       (source_mapping + (5 * page_size), 5 * page_size, 0) != 0,
-	       "final 5 pages of source should have no ptes");
+	       "final 5 pages of source should have anal ptes");
 
 	// Finally we expect the destination to have 5 pages worth of a's.
 	BUG_ON(check_region_contains_byte(dest_mapping, 5 * page_size, 'a') !=
@@ -294,13 +294,13 @@ static void mremap_dontunmap_partial_mapping_overwrite(void)
 	 */
 	void *source_mapping =
 	    mmap(NULL, 5 * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(source_mapping == MAP_FAILED, "mmap");
 	memset(source_mapping, 'a', 5 * page_size);
 
 	void *dest_mapping =
 	    mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(dest_mapping == MAP_FAILED, "mmap");
 	memset(dest_mapping, 'X', 10 * page_size);
 
@@ -313,7 +313,7 @@ static void mremap_dontunmap_partial_mapping_overwrite(void)
 	BUG_ON(dest_mapping != remapped_mapping, "expected to remap to dest_mapping");
 
 	BUG_ON(check_region_contains_byte(source_mapping, 5 * page_size, 0) !=
-	       0, "first 5 pages of source should have no ptes");
+	       0, "first 5 pages of source should have anal ptes");
 
 	// Finally we expect the destination to have 5 pages worth of a's.
 	BUG_ON(check_region_contains_byte(dest_mapping, 5 * page_size, 'a') != 0,
@@ -335,16 +335,16 @@ int main(void)
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	// test for kernel support for MREMAP_DONTUNMAP skipping the test if
-	// not.
+	// analt.
 	if (kernel_support_for_mremap_dontunmap() != 0) {
-		printf("No kernel support for MREMAP_DONTUNMAP\n");
+		printf("Anal kernel support for MREMAP_DONTUNMAP\n");
 		return KSFT_SKIP;
 	}
 
 	// Keep a page sized buffer around for when we need it.
 	page_buffer =
 	    mmap(NULL, page_size, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		 MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 	BUG_ON(page_buffer == MAP_FAILED, "unable to mmap a page.");
 
 	mremap_dontunmap_simple();

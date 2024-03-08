@@ -94,7 +94,7 @@ static unsigned int da9055_buck_get_mode(struct regulator_dev *rdev)
 		mode = REGULATOR_MODE_FAST;
 		break;
 	case DA9055_BUCK_MODE_AUTO:
-		mode = REGULATOR_MODE_NORMAL;
+		mode = REGULATOR_MODE_ANALRMAL;
 		break;
 	case DA9055_BUCK_MODE_SLEEP:
 		mode = REGULATOR_MODE_STANDBY;
@@ -115,7 +115,7 @@ static int da9055_buck_set_mode(struct regulator_dev *rdev,
 	case REGULATOR_MODE_FAST:
 		val = DA9055_BUCK_MODE_SYNC << info->mode.shift;
 		break;
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = DA9055_BUCK_MODE_AUTO << info->mode.shift;
 		break;
 	case REGULATOR_MODE_STANDBY:
@@ -140,7 +140,7 @@ static unsigned int da9055_ldo_get_mode(struct regulator_dev *rdev)
 	if (ret >> info->volt.sl_shift)
 		return REGULATOR_MODE_STANDBY;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 static int da9055_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
@@ -151,7 +151,7 @@ static int da9055_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	int val = 0;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 	case REGULATOR_MODE_FAST:
 		val = DA9055_LDO_MODE_SYNC;
 		break;
@@ -204,10 +204,10 @@ static int da9055_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	int ret;
 
 	/*
-	 * Regulator register set A/B is not selected through GPIO therefore
+	 * Regulator register set A/B is analt selected through GPIO therefore
 	 * we use default register set A for voltage ramping.
 	 */
-	if (regulator->reg_rselect == NO_GPIO) {
+	if (regulator->reg_rselect == ANAL_GPIO) {
 		/* Select register set A */
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
 					info->conf.sel_mask, DA9055_SEL_REG_A);
@@ -247,7 +247,7 @@ static int da9055_regulator_set_suspend_voltage(struct regulator_dev *rdev,
 	int ret;
 
 	/* Select register set B for suspend voltage ramping. */
-	if (regulator->reg_rselect == NO_GPIO) {
+	if (regulator->reg_rselect == ANAL_GPIO) {
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
 					info->conf.sel_mask, DA9055_SEL_REG_B);
 		if (ret < 0)
@@ -268,7 +268,7 @@ static int da9055_suspend_enable(struct regulator_dev *rdev)
 	struct da9055_regulator_info *info = regulator->info;
 
 	/* Select register set B for voltage ramping. */
-	if (regulator->reg_rselect == NO_GPIO)
+	if (regulator->reg_rselect == ANAL_GPIO)
 		return da9055_reg_update(regulator->da9055, info->conf.reg,
 					info->conf.sel_mask, DA9055_SEL_REG_B);
 	else
@@ -281,7 +281,7 @@ static int da9055_suspend_disable(struct regulator_dev *rdev)
 	struct da9055_regulator_info *info = regulator->info;
 
 	/* Diselect register set B. */
-	if (regulator->reg_rselect == NO_GPIO)
+	if (regulator->reg_rselect == ANAL_GPIO)
 		return da9055_reg_update(regulator->da9055, info->conf.reg,
 					info->conf.sel_mask, DA9055_SEL_REG_A);
 	else
@@ -333,7 +333,7 @@ static const struct regulator_ops da9055_ldo_ops = {
 	.reg_desc = {\
 		.name = #_id,\
 		.of_match = of_match_ptr(#_id),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.ops = &da9055_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -363,7 +363,7 @@ static const struct regulator_ops da9055_ldo_ops = {
 	.reg_desc = {\
 		.name = #_id,\
 		.of_match = of_match_ptr(#_id),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_analde = of_match_ptr("regulators"),\
 		.ops = &da9055_buck_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -440,7 +440,7 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 			goto err;
 
 		/*
-		 * Let the regulator know that its state is controlled
+		 * Let the regulator kanalw that its state is controlled
 		 * through GPI.
 		 */
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
@@ -468,7 +468,7 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 			goto err;
 
 		/*
-		 * Let the regulator know that its register set A/B
+		 * Let the regulator kanalw that its register set A/B
 		 * will be selected through GPI for voltage ramping.
 		 */
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
@@ -485,7 +485,7 @@ static irqreturn_t da9055_ldo5_6_oc_irq(int irq, void *data)
 {
 	struct da9055_regulator *regulator = data;
 
-	regulator_notifier_call_chain(regulator->rdev,
+	regulator_analtifier_call_chain(regulator->rdev,
 				      REGULATOR_EVENT_OVER_CURRENT, NULL);
 
 	return IRQ_HANDLED;
@@ -516,7 +516,7 @@ static int da9055_regulator_probe(struct platform_device *pdev)
 	regulator = devm_kzalloc(&pdev->dev, sizeof(struct da9055_regulator),
 				 GFP_KERNEL);
 	if (!regulator)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	regulator->info = find_regulator_info(pdev->id);
 	if (regulator->info == NULL) {
@@ -576,7 +576,7 @@ static struct platform_driver da9055_regulator_driver = {
 	.probe = da9055_regulator_probe,
 	.driver = {
 		.name = "da9055-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 

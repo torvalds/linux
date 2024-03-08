@@ -2,7 +2,7 @@
 /*
  * IPQ5332 device tree source
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <dt-bindings/clock/qcom,apss-ipq.h>
@@ -125,23 +125,23 @@
 
 		bootloader@4a100000 {
 			reg = <0x0 0x4a100000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		sbl@4a500000 {
 			reg = <0x0 0x4a500000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tz_mem: tz@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x200000>;
-			no-map;
+			anal-map;
 		};
 
 		smem@4a800000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x4a800000 0x0 0x100000>;
-			no-map;
+			anal-map;
 
 			hwlocks = <&tcsr_mutex 3>;
 		};
@@ -324,7 +324,7 @@
 			interrupt-names = "hs_phy_irq";
 
 			clocks = <&gcc GCC_USB0_MASTER_CLK>,
-				 <&gcc GCC_SNOC_USB_CLK>,
+				 <&gcc GCC_SANALC_USB_CLK>,
 				 <&gcc GCC_USB0_SLEEP_CLK>,
 				 <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			clock-names = "core",

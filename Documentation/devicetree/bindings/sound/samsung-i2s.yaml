@@ -22,40 +22,40 @@ properties:
       secondary FIFO, s/w reset control and internal mux for root clock
       source.
 
-      samsung,exynos5420-i2s: for 8/16/24bit multichannel (5.1) I2S for
+      samsung,exyanals5420-i2s: for 8/16/24bit multichannel (5.1) I2S for
       playback, stereo channel capture, secondary FIFO using internal
       or external DMA, s/w reset control, internal mux for root clock
       source and 7.1 channel TDM support for playback; TDM (Time division
       multiplexing) is to allow transfer of multiple channel audio data on
       single data line.
 
-      samsung,exynos7-i2s: with all the available features of Exynos5 I2S.
-      Exynos7 I2S has 7.1 channel TDM support for capture, secondary FIFO
+      samsung,exyanals7-i2s: with all the available features of Exyanals5 I2S.
+      Exyanals7 I2S has 7.1 channel TDM support for capture, secondary FIFO
       with only external DMA and more number of root clock sampling
       frequencies.
 
-      samsung,exynos7-i2s1: I2S1 on previous samsung platforms supports
-      stereo channels. Exynos7 I2S1 upgraded to 5.1 multichannel with
+      samsung,exyanals7-i2s1: I2S1 on previous samsung platforms supports
+      stereo channels. Exyanals7 I2S1 upgraded to 5.1 multichannel with
       slightly modified bit offsets.
 
       tesla,fsd-i2s: for 8/16/24bit stereo channel I2S for playback and
       capture, secondary FIFO using external DMA, s/w reset control,
       internal mux for root clock source with all root clock sampling
-      frequencies supported by Exynos7 I2S and 7.1 channel TDM support
+      frequencies supported by Exyanals7 I2S and 7.1 channel TDM support
       for playback and capture TDM (Time division multiplexing) to allow
       transfer of multiple channel audio data on single data line.
     oneOf:
       - enum:
           - samsung,s3c6410-i2s
           - samsung,s5pv210-i2s
-          - samsung,exynos5420-i2s
-          - samsung,exynos7-i2s
-          - samsung,exynos7-i2s1
+          - samsung,exyanals5420-i2s
+          - samsung,exyanals7-i2s
+          - samsung,exyanals7-i2s1
           - tesla,fsd-i2s
       - items:
           - enum:
-              - samsung,exynos5433-i2s
-          - const: samsung,exynos7-i2s
+              - samsung,exyanals5433-i2s
+          - const: samsung,exyanals7-i2s
 
   '#address-cells':
     const: 1
@@ -141,7 +141,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos-audss-clk.h>
+    #include <dt-bindings/clock/exyanals-audss-clk.h>
 
     i2s0: i2s@3830000 {
         compatible = "samsung,s5pv210-i2s";
@@ -150,9 +150,9 @@ examples:
                 <&pdma0 9>,
                 <&pdma0 8>;
         dma-names = "tx", "rx", "tx-sec";
-        clocks = <&clock_audss EXYNOS_I2S_BUS>,
-                <&clock_audss EXYNOS_I2S_BUS>,
-                <&clock_audss EXYNOS_SCLK_I2S>;
+        clocks = <&clock_audss EXYANALS_I2S_BUS>,
+                <&clock_audss EXYANALS_I2S_BUS>,
+                <&clock_audss EXYANALS_SCLK_I2S>;
         clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
         #clock-cells = <1>;
         samsung,idma-addr = <0x03000000>;

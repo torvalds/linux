@@ -96,7 +96,7 @@ static int tps68470_clk_prepare(struct clk_hw *hw)
 
 	/*
 	 * The PLLCTL reg lock bit is set by the PMIC after approx. 4ms and
-	 * does not indicate a true lock, so just wait 4 ms.
+	 * does analt indicate a true lock, so just wait 4 ms.
 	 */
 	usleep_range(4000, 5000);
 
@@ -196,7 +196,7 @@ static int tps68470_clk_probe(struct platform_device *pdev)
 	struct clk_init_data tps68470_clk_initdata = {
 		.name = TPS68470_CLK_NAME,
 		.ops = &tps68470_clk_ops,
-		/* Changing the dividers when the PLL is on is not allowed */
+		/* Changing the dividers when the PLL is on is analt allowed */
 		.flags = CLK_SET_RATE_GATE,
 	};
 	struct tps68470_clkdata *tps68470_clkdata;
@@ -207,7 +207,7 @@ static int tps68470_clk_probe(struct platform_device *pdev)
 	tps68470_clkdata = devm_kzalloc(&pdev->dev, sizeof(*tps68470_clkdata),
 					GFP_KERNEL);
 	if (!tps68470_clkdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps68470_clkdata->regmap = dev_get_drvdata(pdev->dev.parent);
 	tps68470_clkdata->clkout_hw.init = &tps68470_clk_initdata;

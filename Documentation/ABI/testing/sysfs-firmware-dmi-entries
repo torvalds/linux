@@ -7,9 +7,9 @@ Description:
 		information is often valuable to userland, especially in
 		cases where there are OEM extensions used.
 
-		The kernel itself does not rely on the majority of the
+		The kernel itself does analt rely on the majority of the
 		information in these tables being correct.  It equally
-		cannot ensure that the data as exported to userland is
+		cananalt ensure that the data as exported to userland is
 		without error either.
 
 		DMI is structured as a large table of entries, where
@@ -21,7 +21,7 @@ Description:
 		Some entries are required by the specification, but many
 		others are optional.  In general though, users should
 		never expect to find a specific entry type on their
-		system unless they know for certain what their firmware
+		system unless they kanalw for certain what their firmware
 		is doing.  Machine to machine experiences will vary.
 
 		Multiple entries of the same type are allowed.  In order
@@ -42,7 +42,7 @@ Description:
 			...
 
 		Instance numbers are used in lieu of the firmware
-		assigned entry handles as the kernel itself makes no
+		assigned entry handles as the kernel itself makes anal
 		guarantees that handles as exported are unique, and
 		there are likely firmware images that get this wrong in
 		the wild.
@@ -55,7 +55,7 @@ Description:
 			  entry by the firmware.  This handle may be
 			  referred to by other entries.
 		length	  The length of the entry, as presented in the
-			  entry itself.  Note that this is _not the
+			  entry itself.  Analte that this is _analt the
 			  total count of bytes associated with the
 			  entry.  This value represents the length of
 			  the "formatted" portion of the entry.  This
@@ -80,7 +80,7 @@ Description:
 		**Entry Specialization**
 
 		Some entry types may have other information available in
-		sysfs.  Not all types are specialized.
+		sysfs.  Analt all types are specialized.
 
 		**Type 15 - System Event Log**
 

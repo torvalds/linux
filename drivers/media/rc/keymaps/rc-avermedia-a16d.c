@@ -49,7 +49,7 @@ static struct rc_map_list avermedia_a16d_map = {
 	.map = {
 		.scan     = avermedia_a16d,
 		.size     = ARRAY_SIZE(avermedia_a16d),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_AVERMEDIA_A16D,
 	}
 };

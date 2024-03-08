@@ -31,7 +31,7 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 
 	info = kmalloc(sizeof(*info), GFP_ATOMIC);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->event_type = event_type;
 	info->p_slot = p_slot;
@@ -109,7 +109,7 @@ u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 	u32 event_type;
 
 	/* Presence Change */
-	ctrl_dbg(ctrl, "Presence/Notify input change\n");
+	ctrl_dbg(ctrl, "Presence/Analtify input change\n");
 
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
@@ -126,9 +126,9 @@ u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 		event_type = INT_PRESENCE_ON;
 	} else {
 		/*
-		 * Not Present
+		 * Analt Present
 		 */
-		ctrl_info(ctrl, "Card not present on Slot(%s)\n",
+		ctrl_info(ctrl, "Card analt present on Slot(%s)\n",
 			  slot_name(p_slot));
 		event_type = INT_PRESENCE_OFF;
 	}
@@ -197,7 +197,7 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 	int rc = 0;
 
 	/*
-	 * If other slots on the same bus are occupied, we cannot
+	 * If other slots on the same bus are occupied, we cananalt
 	 * change the bus speed.
 	 */
 	if (flag) {
@@ -229,7 +229,7 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 static int board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
-	u8 slots_not_empty = 0;
+	u8 slots_analt_empty = 0;
 	int rc = 0;
 	enum pci_bus_speed asp, bsp, msp;
 	struct controller *ctrl = p_slot->ctrl;
@@ -274,13 +274,13 @@ static int board_added(struct slot *p_slot)
 
 	/* Check if there are other slots or devices on the same bus */
 	if (!list_empty(&ctrl->pci_dev->subordinate->devices))
-		slots_not_empty = 1;
+		slots_analt_empty = 1;
 
-	ctrl_dbg(ctrl, "%s: slots_not_empty %d, adapter_speed %d, bus_speed %d, max_bus_speed %d\n",
-		 __func__, slots_not_empty, asp,
+	ctrl_dbg(ctrl, "%s: slots_analt_empty %d, adapter_speed %d, bus_speed %d, max_bus_speed %d\n",
+		 __func__, slots_analt_empty, asp,
 		 bsp, msp);
 
-	rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, asp, bsp, msp);
+	rc = fix_bus_speed(ctrl, p_slot, slots_analt_empty, asp, bsp, msp);
 	if (rc)
 		return rc;
 
@@ -304,7 +304,7 @@ static int board_added(struct slot *p_slot)
 	}
 
 	if (shpchp_configure_device(p_slot)) {
-		ctrl_err(ctrl, "Cannot add device at %04x:%02x:%02x\n",
+		ctrl_err(ctrl, "Cananalt add device at %04x:%02x:%02x\n",
 			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		goto err_exit;
 	}
@@ -420,7 +420,7 @@ void shpchp_queue_pushbutton_work(struct work_struct *work)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ctrl_err(p_slot->ctrl, "%s: Cannot allocate memory\n",
+		ctrl_err(p_slot->ctrl, "%s: Cananalt allocate memory\n",
 			 __func__);
 		return;
 	}
@@ -453,7 +453,7 @@ static void update_slot_info(struct slot *slot)
 }
 
 /*
- * Note: This function must be called with slot->lock held
+ * Analte: This function must be called with slot->lock held
  */
 static void handle_button_press_event(struct slot *p_slot)
 {
@@ -500,16 +500,16 @@ static void handle_button_press_event(struct slot *p_slot)
 	case POWEROFF_STATE:
 	case POWERON_STATE:
 		/*
-		 * Ignore if the slot is on power-on or power-off state;
+		 * Iganalre if the slot is on power-on or power-off state;
 		 * this means that the previous attention button action
 		 * to hot-add or hot-remove is undergoing
 		 */
-		ctrl_info(ctrl, "Button ignore on Slot(%s)\n",
+		ctrl_info(ctrl, "Button iganalre on Slot(%s)\n",
 			  slot_name(p_slot));
 		update_slot_info(p_slot);
 		break;
 	default:
-		ctrl_warn(ctrl, "Not a valid state\n");
+		ctrl_warn(ctrl, "Analt a valid state\n");
 		break;
 	}
 }
@@ -542,14 +542,14 @@ static void interrupt_event_handler(struct work_struct *work)
 static int shpchp_enable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
-	int rc, retval = -ENODEV;
+	int rc, retval = -EANALDEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	/* Check to see if (latch closed, card present, power off) */
 	mutex_lock(&p_slot->ctrl->crit_sect);
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		ctrl_info(ctrl, "No adapter on slot(%s)\n", slot_name(p_slot));
+		ctrl_info(ctrl, "Anal adapter on slot(%s)\n", slot_name(p_slot));
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
@@ -599,18 +599,18 @@ static int shpchp_enable_slot (struct slot *p_slot)
 static int shpchp_disable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
-	int rc, retval = -ENODEV;
+	int rc, retval = -EANALDEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	if (!p_slot->ctrl)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check to see if (latch closed, card present, power on) */
 	mutex_lock(&p_slot->ctrl->crit_sect);
 
 	rc = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 	if (rc || !getstatus) {
-		ctrl_info(ctrl, "No adapter on slot(%s)\n", slot_name(p_slot));
+		ctrl_info(ctrl, "Anal adapter on slot(%s)\n", slot_name(p_slot));
 		goto out;
 	}
 	rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
@@ -634,7 +634,7 @@ static int shpchp_disable_slot (struct slot *p_slot)
 
 int shpchp_sysfs_enable_slot(struct slot *p_slot)
 {
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);
@@ -659,7 +659,7 @@ int shpchp_sysfs_enable_slot(struct slot *p_slot)
 			  slot_name(p_slot));
 		break;
 	default:
-		ctrl_err(ctrl, "Not a valid state on slot %s\n",
+		ctrl_err(ctrl, "Analt a valid state on slot %s\n",
 			 slot_name(p_slot));
 		break;
 	}
@@ -670,7 +670,7 @@ int shpchp_sysfs_enable_slot(struct slot *p_slot)
 
 int shpchp_sysfs_disable_slot(struct slot *p_slot)
 {
-	int retval = -ENODEV;
+	int retval = -EANALDEV;
 	struct controller *ctrl = p_slot->ctrl;
 
 	mutex_lock(&p_slot->lock);
@@ -695,7 +695,7 @@ int shpchp_sysfs_disable_slot(struct slot *p_slot)
 			  slot_name(p_slot));
 		break;
 	default:
-		ctrl_err(ctrl, "Not a valid state on slot %s\n",
+		ctrl_err(ctrl, "Analt a valid state on slot %s\n",
 			 slot_name(p_slot));
 		break;
 	}

@@ -2,15 +2,15 @@
 # build id cache operations
 # SPDX-License-Identifier: GPL-2.0
 
-# skip if there's no readelf
+# skip if there's anal readelf
 if ! [ -x "$(command -v readelf)" ]; then
-	echo "failed: no readelf, install binutils"
+	echo "failed: anal readelf, install binutils"
 	exit 2
 fi
 
-# skip if there's no compiler
+# skip if there's anal compiler
 if ! [ -x "$(command -v cc)" ]; then
-	echo "failed: no compiler, install gcc"
+	echo "failed: anal compiler, install gcc"
 	exit 2
 fi
 
@@ -18,12 +18,12 @@ fi
 add_pe=1
 run_pe=1
 if ! perf version --build-options | grep -q 'libbfd: .* on '; then
-	echo "WARNING: perf not built with libbfd. PE binaries will not be tested."
+	echo "WARNING: perf analt built with libbfd. PE binaries will analt be tested."
 	add_pe=0
 	run_pe=0
 fi
 if ! which wine > /dev/null; then
-	echo "WARNING: wine not found. PE binaries will not be run."
+	echo "WARNING: wine analt found. PE binaries will analt be run."
 	run_pe=0
 fi
 
@@ -72,7 +72,7 @@ check()
 	echo "link: ${link}"
 
 	if [ ! -h $link ]; then
-		echo "failed: link ${link} does not exist"
+		echo "failed: link ${link} does analt exist"
 		exit 1
 	fi
 
@@ -84,28 +84,28 @@ check()
 	echo $1 | grep ".exe"
 	if [ $? -eq 0 ]; then
 		if [ -x $1 ] && [ ! -x $file ]; then
-			echo "failed: file ${file} executable does not exist"
+			echo "failed: file ${file} executable does analt exist"
 			exit 1
 		fi
 
 		if [ ! -x $file ] && [ ! -e $file ]; then
-			echo "failed: file ${file} does not exist"
+			echo "failed: file ${file} does analt exist"
 			exit 1
 		fi
 	elif [ ! -x $file ]; then
-		echo "failed: file ${file} does not exist"
+		echo "failed: file ${file} does analt exist"
 		exit 1
 	fi
 
 	diff ${file} ${1}
 	if [ $? -ne 0 ]; then
-		echo "failed: ${file} do not match"
+		echo "failed: ${file} do analt match"
 		exit 1
 	fi
 
 	${perf} buildid-cache -l | grep ${id}
 	if [ $? -ne 0 ]; then
-		echo "failed: ${id} is not reported by \"perf buildid-cache -l\""
+		echo "failed: ${id} is analt reported by \"perf buildid-cache -l\""
 		exit 1
 	fi
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#ifndef NO_BCACHEFS_FS
+#ifndef ANAL_BCACHEFS_FS
 
 #include "bcachefs.h"
 #include "btree_iter.h"
@@ -39,13 +39,13 @@ int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 	}
 
 	if (!fs->nr && !ret && (fgp_flags & FGP_CREAT))
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 
 	return fs->nr ? 0 : ret;
 }
 
 /* pagecache_block must be held */
-int bch2_write_invalidate_inode_pages_range(struct address_space *mapping,
+int bch2_write_invalidate_ianalde_pages_range(struct address_space *mapping,
 					    loff_t start, loff_t end)
 {
 	int ret;
@@ -65,7 +65,7 @@ int bch2_write_invalidate_inode_pages_range(struct address_space *mapping,
 		if (!mapping->nrpages)
 			return 0;
 
-		ret = invalidate_inode_pages2_range(mapping,
+		ret = invalidate_ianalde_pages2_range(mapping,
 				start >> PAGE_SHIFT,
 				end >> PAGE_SHIFT);
 	} while (ret == -EBUSY);
@@ -195,7 +195,7 @@ int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
 	for (folio_idx = 0; folio_idx < nr_folios; folio_idx++) {
 		s = bch2_folio_create(fs[folio_idx], GFP_KERNEL);
 		if (!s)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		need_set |= !s->uptodate;
 	}
@@ -212,7 +212,7 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
+	for_each_btree_key_analrestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, ret) {
 		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
@@ -267,7 +267,7 @@ void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 				 nr_ptrs, state);
 }
 
-void bch2_mark_pagecache_unallocated(struct bch_inode_info *inode,
+void bch2_mark_pagecache_unallocated(struct bch_ianalde_info *ianalde,
 				     u64 start, u64 end)
 {
 	pgoff_t index = start >> PAGE_SECTORS_SHIFT;
@@ -280,7 +280,7 @@ void bch2_mark_pagecache_unallocated(struct bch_inode_info *inode,
 
 	folio_batch_init(&fbatch);
 
-	while (filemap_get_folios(inode->v.i_mapping,
+	while (filemap_get_folios(ianalde->v.i_mapping,
 				  &index, end_index, &fbatch)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
@@ -309,11 +309,11 @@ void bch2_mark_pagecache_unallocated(struct bch_inode_info *inode,
 	}
 }
 
-int bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
+int bch2_mark_pagecache_reserved(struct bch_ianalde_info *ianalde,
 				 u64 *start, u64 end,
-				 bool nonblocking)
+				 bool analnblocking)
 {
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	pgoff_t index = *start >> PAGE_SECTORS_SHIFT;
 	pgoff_t end_index = (end - 1) >> PAGE_SECTORS_SHIFT;
 	struct folio_batch fbatch;
@@ -325,12 +325,12 @@ int bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
 
 	folio_batch_init(&fbatch);
 
-	while (filemap_get_folios(inode->v.i_mapping,
+	while (filemap_get_folios(ianalde->v.i_mapping,
 				  &index, end_index, &fbatch)) {
 		for (unsigned i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			if (!nonblocking)
+			if (!analnblocking)
 				folio_lock(folio);
 			else if (!folio_trylock(folio)) {
 				folio_batch_release(&fbatch);
@@ -365,7 +365,7 @@ int bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
 		cond_resched();
 	}
 
-	bch2_i_sectors_acct(c, inode, NULL, i_sectors_delta);
+	bch2_i_sectors_acct(c, ianalde, NULL, i_sectors_delta);
 	return ret;
 }
 
@@ -378,17 +378,17 @@ static inline unsigned sectors_to_reserve(struct bch_folio_sector *s,
 }
 
 int bch2_get_folio_disk_reservation(struct bch_fs *c,
-				struct bch_inode_info *inode,
-				struct folio *folio, bool check_enospc)
+				struct bch_ianalde_info *ianalde,
+				struct folio *folio, bool check_eanalspc)
 {
 	struct bch_folio *s = bch2_folio_create(folio, 0);
-	unsigned nr_replicas = inode_nr_replicas(c, inode);
+	unsigned nr_replicas = ianalde_nr_replicas(c, ianalde);
 	struct disk_reservation disk_res = { 0 };
 	unsigned i, sectors = folio_sectors(folio), disk_res_sectors = 0;
 	int ret;
 
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < sectors; i++)
 		disk_res_sectors += sectors_to_reserve(&s->s[i], nr_replicas);
@@ -398,8 +398,8 @@ int bch2_get_folio_disk_reservation(struct bch_fs *c,
 
 	ret = bch2_disk_reservation_get(c, &disk_res,
 					disk_res_sectors, 1,
-					!check_enospc
-					? BCH_DISK_RESERVATION_NOFAIL
+					!check_eanalspc
+					? BCH_DISK_RESERVATION_ANALFAIL
 					: 0);
 	if (unlikely(ret))
 		return ret;
@@ -412,15 +412,15 @@ int bch2_get_folio_disk_reservation(struct bch_fs *c,
 }
 
 void bch2_folio_reservation_put(struct bch_fs *c,
-			struct bch_inode_info *inode,
+			struct bch_ianalde_info *ianalde,
 			struct bch2_folio_reservation *res)
 {
 	bch2_disk_reservation_put(c, &res->disk);
-	bch2_quota_reservation_put(c, inode, &res->quota);
+	bch2_quota_reservation_put(c, ianalde, &res->quota);
 }
 
 int bch2_folio_reservation_get(struct bch_fs *c,
-			struct bch_inode_info *inode,
+			struct bch_ianalde_info *ianalde,
 			struct folio *folio,
 			struct bch2_folio_reservation *res,
 			unsigned offset, unsigned len)
@@ -430,7 +430,7 @@ int bch2_folio_reservation_get(struct bch_fs *c,
 	int ret;
 
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	BUG_ON(!s->uptodate);
 
@@ -449,7 +449,7 @@ int bch2_folio_reservation_get(struct bch_fs *c,
 	}
 
 	if (quota_sectors) {
-		ret = bch2_quota_reservation_add(c, inode, &res->quota,
+		ret = bch2_quota_reservation_add(c, ianalde, &res->quota,
 						 quota_sectors, true);
 		if (unlikely(ret)) {
 			struct disk_reservation tmp = {
@@ -467,8 +467,8 @@ int bch2_folio_reservation_get(struct bch_fs *c,
 
 static void bch2_clear_folio_bits(struct folio *folio)
 {
-	struct bch_inode_info *inode = to_bch_ei(folio->mapping->host);
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_ianalde_info *ianalde = to_bch_ei(folio->mapping->host);
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch_folio *s = bch2_folio(folio);
 	struct disk_reservation disk_res = { 0 };
 	int i, sectors = folio_sectors(folio), dirty_sectors = 0;
@@ -489,13 +489,13 @@ static void bch2_clear_folio_bits(struct folio *folio)
 
 	bch2_disk_reservation_put(c, &disk_res);
 
-	bch2_i_sectors_acct(c, inode, NULL, dirty_sectors);
+	bch2_i_sectors_acct(c, ianalde, NULL, dirty_sectors);
 
 	bch2_folio_release(folio);
 }
 
 void bch2_set_folio_dirty(struct bch_fs *c,
-			  struct bch_inode_info *inode,
+			  struct bch_ianalde_info *ianalde,
 			  struct folio *folio,
 			  struct bch2_folio_reservation *res,
 			  unsigned offset, unsigned len)
@@ -504,7 +504,7 @@ void bch2_set_folio_dirty(struct bch_fs *c,
 	unsigned i, dirty_sectors = 0;
 
 	WARN_ON((u64) folio_pos(folio) + offset + len >
-		round_up((u64) i_size_read(&inode->v), block_bytes(c)));
+		round_up((u64) i_size_read(&ianalde->v), block_bytes(c)));
 
 	BUG_ON(!s->uptodate);
 
@@ -532,10 +532,10 @@ void bch2_set_folio_dirty(struct bch_fs *c,
 
 	spin_unlock(&s->lock);
 
-	bch2_i_sectors_acct(c, inode, &res->quota, dirty_sectors);
+	bch2_i_sectors_acct(c, ianalde, &res->quota, dirty_sectors);
 
 	if (!folio_test_dirty(folio))
-		filemap_dirty_folio(inode->v.i_mapping, folio);
+		filemap_dirty_folio(ianalde->v.i_mapping, folio);
 }
 
 vm_fault_t bch2_page_fault(struct vm_fault *vmf)
@@ -543,7 +543,7 @@ vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 	struct file *file = vmf->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
 	struct address_space *fdm = faults_disabled_mapping();
-	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
 	vm_fault_t ret;
 
 	if (fdm == mapping)
@@ -551,15 +551,15 @@ vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 
 	/* Lock ordering: */
 	if (fdm > mapping) {
-		struct bch_inode_info *fdm_host = to_bch_ei(fdm->host);
+		struct bch_ianalde_info *fdm_host = to_bch_ei(fdm->host);
 
-		if (bch2_pagecache_add_tryget(inode))
+		if (bch2_pagecache_add_tryget(ianalde))
 			goto got_lock;
 
 		bch2_pagecache_block_put(fdm_host);
 
-		bch2_pagecache_add_get(inode);
-		bch2_pagecache_add_put(inode);
+		bch2_pagecache_add_get(ianalde);
+		bch2_pagecache_add_put(ianalde);
 
 		bch2_pagecache_block_get(fdm_host);
 
@@ -568,10 +568,10 @@ vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	bch2_pagecache_add_get(inode);
+	bch2_pagecache_add_get(ianalde);
 got_lock:
 	ret = filemap_fault(vmf);
-	bch2_pagecache_add_put(inode);
+	bch2_pagecache_add_put(ianalde);
 
 	return ret;
 }
@@ -580,53 +580,53 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 {
 	struct folio *folio = page_folio(vmf->page);
 	struct file *file = vmf->vma->vm_file;
-	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_ianalde_info *ianalde = file_bch_ianalde(file);
 	struct address_space *mapping = file->f_mapping;
-	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_fs *c = ianalde->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation res;
 	unsigned len;
 	loff_t isize;
 	vm_fault_t ret;
 
-	bch2_folio_reservation_init(c, inode, &res);
+	bch2_folio_reservation_init(c, ianalde, &res);
 
-	sb_start_pagefault(inode->v.i_sb);
+	sb_start_pagefault(ianalde->v.i_sb);
 	file_update_time(file);
 
 	/*
-	 * Not strictly necessary, but helps avoid dio writes livelocking in
-	 * bch2_write_invalidate_inode_pages_range() - can drop this if/when we get
-	 * a bch2_write_invalidate_inode_pages_range() that works without dropping
+	 * Analt strictly necessary, but helps avoid dio writes livelocking in
+	 * bch2_write_invalidate_ianalde_pages_range() - can drop this if/when we get
+	 * a bch2_write_invalidate_ianalde_pages_range() that works without dropping
 	 * page lock before invalidating page
 	 */
-	bch2_pagecache_add_get(inode);
+	bch2_pagecache_add_get(ianalde);
 
 	folio_lock(folio);
-	isize = i_size_read(&inode->v);
+	isize = i_size_read(&ianalde->v);
 
 	if (folio->mapping != mapping || folio_pos(folio) >= isize) {
 		folio_unlock(folio);
-		ret = VM_FAULT_NOPAGE;
+		ret = VM_FAULT_ANALPAGE;
 		goto out;
 	}
 
 	len = min_t(loff_t, folio_size(folio), isize - folio_pos(folio));
 
-	if (bch2_folio_set(c, inode_inum(inode), &folio, 1) ?:
-	    bch2_folio_reservation_get(c, inode, folio, &res, 0, len)) {
+	if (bch2_folio_set(c, ianalde_inum(ianalde), &folio, 1) ?:
+	    bch2_folio_reservation_get(c, ianalde, folio, &res, 0, len)) {
 		folio_unlock(folio);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
-	bch2_set_folio_dirty(c, inode, folio, &res, 0, len);
-	bch2_folio_reservation_put(c, inode, &res);
+	bch2_set_folio_dirty(c, ianalde, folio, &res, 0, len);
+	bch2_folio_reservation_put(c, ianalde, &res);
 
 	folio_wait_stable(folio);
 	ret = VM_FAULT_LOCKED;
 out:
-	bch2_pagecache_add_put(inode);
-	sb_end_pagefault(inode->v.i_sb);
+	bch2_pagecache_add_put(ianalde);
+	sb_end_pagefault(ianalde->v.i_sb);
 
 	return ret;
 }
@@ -665,11 +665,11 @@ static int folio_data_offset(struct folio *folio, loff_t pos,
 	return -1;
 }
 
-loff_t bch2_seek_pagecache_data(struct inode *vinode,
+loff_t bch2_seek_pagecache_data(struct ianalde *vianalde,
 				loff_t start_offset,
 				loff_t end_offset,
 				unsigned min_replicas,
-				bool nonblock)
+				bool analnblock)
 {
 	struct folio_batch fbatch;
 	pgoff_t start_index	= start_offset >> PAGE_SHIFT;
@@ -681,12 +681,12 @@ loff_t bch2_seek_pagecache_data(struct inode *vinode,
 
 	folio_batch_init(&fbatch);
 
-	while (filemap_get_folios(vinode->i_mapping,
+	while (filemap_get_folios(vianalde->i_mapping,
 				  &index, end_index, &fbatch)) {
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			if (!nonblock) {
+			if (!analnblock) {
 				folio_lock(folio);
 			} else if (!folio_trylock(folio)) {
 				folio_batch_release(&fbatch);
@@ -715,21 +715,21 @@ loff_t bch2_seek_pagecache_data(struct inode *vinode,
 /*
  * Search for a hole in a folio.
  *
- * The filemap layer returns -ENOENT if no folio exists, so reuse the same error
+ * The filemap layer returns -EANALENT if anal folio exists, so reuse the same error
  * code to indicate a pagecache hole exists at the returned offset. Otherwise
  * return 0 if the folio is filled with data, or an error code. This function
- * can return -EAGAIN if nonblock is specified.
+ * can return -EAGAIN if analnblock is specified.
  */
 static int folio_hole_offset(struct address_space *mapping, loff_t *offset,
-			      unsigned min_replicas, bool nonblock)
+			      unsigned min_replicas, bool analnblock)
 {
 	struct folio *folio;
 	struct bch_folio *s;
 	unsigned i, sectors;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	folio = __filemap_get_folio(mapping, *offset >> PAGE_SHIFT,
-				    FGP_LOCK|(nonblock ? FGP_NOWAIT : 0), 0);
+				    FGP_LOCK|(analnblock ? FGP_ANALWAIT : 0), 0);
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
@@ -754,34 +754,34 @@ unlock:
 	return ret;
 }
 
-loff_t bch2_seek_pagecache_hole(struct inode *vinode,
+loff_t bch2_seek_pagecache_hole(struct ianalde *vianalde,
 				loff_t start_offset,
 				loff_t end_offset,
 				unsigned min_replicas,
-				bool nonblock)
+				bool analnblock)
 {
-	struct address_space *mapping = vinode->i_mapping;
+	struct address_space *mapping = vianalde->i_mapping;
 	loff_t offset = start_offset;
 	loff_t ret = 0;
 
 	while (!ret && offset < end_offset)
-		ret = folio_hole_offset(mapping, &offset, min_replicas, nonblock);
+		ret = folio_hole_offset(mapping, &offset, min_replicas, analnblock);
 
-	if (ret && ret != -ENOENT)
+	if (ret && ret != -EANALENT)
 		return ret;
 	return min(offset, end_offset);
 }
 
-int bch2_clamp_data_hole(struct inode *inode,
+int bch2_clamp_data_hole(struct ianalde *ianalde,
 			 u64 *hole_start,
 			 u64 *hole_end,
 			 unsigned min_replicas,
-			 bool nonblock)
+			 bool analnblock)
 {
 	loff_t ret;
 
-	ret = bch2_seek_pagecache_hole(inode,
-		*hole_start << 9, *hole_end << 9, min_replicas, nonblock) >> 9;
+	ret = bch2_seek_pagecache_hole(ianalde,
+		*hole_start << 9, *hole_end << 9, min_replicas, analnblock) >> 9;
 	if (ret < 0)
 		return ret;
 
@@ -790,8 +790,8 @@ int bch2_clamp_data_hole(struct inode *inode,
 	if (*hole_start == *hole_end)
 		return 0;
 
-	ret = bch2_seek_pagecache_data(inode,
-		*hole_start << 9, *hole_end << 9, min_replicas, nonblock) >> 9;
+	ret = bch2_seek_pagecache_data(ianalde,
+		*hole_start << 9, *hole_end << 9, min_replicas, analnblock) >> 9;
 	if (ret < 0)
 		return ret;
 
@@ -799,4 +799,4 @@ int bch2_clamp_data_hole(struct inode *inode,
 	return 0;
 }
 
-#endif /* NO_BCACHEFS_FS */
+#endif /* ANAL_BCACHEFS_FS */

@@ -66,7 +66,7 @@ void wfx_rx_cb(struct wfx_vif *wvif, const struct wfx_hif_ind_rx *arg, struct sk
 	}
 
 	if (!arg->rcpi_rssi) {
-		hdr->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		hdr->flag |= RX_FLAG_ANAL_SIGNAL_VAL;
 		dev_info(wvif->wdev->dev, "received frame without RSSI data\n");
 	}
 	hdr->signal = arg->rcpi_rssi / 2 - 110;

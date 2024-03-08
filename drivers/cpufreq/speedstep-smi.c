@@ -105,7 +105,7 @@ static int speedstep_smi_get_freqs(unsigned int *low, unsigned int *high)
 
 	if (!(ist_info.event & 0xFFFF)) {
 		pr_debug("bug #1422 -- can't read freqs from BIOS\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	command = (smi_sig & 0xffffff00) | (smi_cmd & 0xff);
@@ -233,7 +233,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* capability check */
 	if (policy->cpu != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	result = speedstep_smi_ownership();
 	if (result) {
@@ -249,7 +249,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	if (result) {
 		/* fall back to speedstep_lib.c dection mechanism:
 		 * try both states out */
-		pr_debug("could not detect low and high frequencies "
+		pr_debug("could analt detect low and high frequencies "
 				"by SMI call.\n");
 		result = speedstep_get_freqs(speedstep_processor,
 				low, high,
@@ -257,7 +257,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 				&speedstep_set_state);
 
 		if (result) {
-			pr_debug("could not detect two different speeds"
+			pr_debug("could analt detect two different speeds"
 					" -- aborting.\n");
 			return result;
 		} else
@@ -272,7 +272,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 static unsigned int speedstep_get(unsigned int cpu)
 {
 	if (cpu)
-		return -ENODEV;
+		return -EANALDEV;
 	return speedstep_get_frequency(speedstep_processor);
 }
 
@@ -289,7 +289,7 @@ static int speedstep_resume(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver speedstep_driver = {
 	.name		= "speedstep-smi",
-	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
+	.flags		= CPUFREQ_ANAL_AUTO_DYNAMIC_SWITCHING,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= speedstep_target,
 	.init		= speedstep_cpu_init,
@@ -308,14 +308,14 @@ static const struct x86_cpu_id ss_smi_ids[] = {
 /**
  * speedstep_init - initializes the SpeedStep CPUFreq driver
  *
- *   Initializes the SpeedStep support. Returns -ENODEV on unsupported
+ *   Initializes the SpeedStep support. Returns -EANALDEV on unsupported
  * BIOS, -EINVAL on problems during initiatization, and zero on
  * success.
  */
 static int __init speedstep_init(void)
 {
 	if (!x86_match_cpu(ss_smi_ids))
-		return -ENODEV;
+		return -EANALDEV;
 
 	speedstep_processor = speedstep_detect_processor();
 
@@ -329,8 +329,8 @@ static int __init speedstep_init(void)
 	}
 
 	if (!speedstep_processor) {
-		pr_debug("No supported Intel CPU detected.\n");
-		return -ENODEV;
+		pr_debug("Anal supported Intel CPU detected.\n");
+		return -EANALDEV;
 	}
 
 	pr_debug("signature:0x%.8x, command:0x%.8x, "
@@ -338,11 +338,11 @@ static int __init speedstep_init(void)
 		ist_info.signature, ist_info.command,
 		ist_info.event, ist_info.perf_level);
 
-	/* Error if no IST-SMI BIOS or no PARM
+	/* Error if anal IST-SMI BIOS or anal PARM
 		 sig= 'ISGE' aka 'Intel Speedstep Gate E' */
 	if ((ist_info.signature !=  0x47534943) && (
 	    (smi_port == 0) || (smi_cmd == 0)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (smi_sig == 1)
 		smi_sig = 0x47534943;

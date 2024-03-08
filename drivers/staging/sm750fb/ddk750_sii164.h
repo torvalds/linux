@@ -73,7 +73,7 @@ void sii164ClearInterrupt(void);
 
 /* Power down (PD) */
 #define SII164_CONFIGURATION_POWER_DOWN             0x00
-#define SII164_CONFIGURATION_POWER_NORMAL           0x01
+#define SII164_CONFIGURATION_POWER_ANALRMAL           0x01
 #define SII164_CONFIGURATION_POWER_MASK             0x01
 
 /* Input Edge Latch Select (EDGE) */
@@ -103,7 +103,7 @@ void sii164ClearInterrupt(void);
 
 /* Monitor Detect Interrupt (MDI) */
 #define SII164_DETECT_MONITOR_STATE_CHANGE          0x00
-#define SII164_DETECT_MONITOR_STATE_NO_CHANGE       0x01
+#define SII164_DETECT_MONITOR_STATE_ANAL_CHANGE       0x01
 #define SII164_DETECT_MONITOR_STATE_CLEAR           0x01
 #define SII164_DETECT_MONITOR_STATE_MASK            0x01
 
@@ -113,7 +113,7 @@ void sii164ClearInterrupt(void);
 #define SII164_DETECT_HOT_PLUG_STATUS_MASK          0x02
 
 /* Receiver Sense (RSEN) */
-#define SII164_DETECT_RECEIVER_SENSE_NOT_DETECTED   0x00
+#define SII164_DETECT_RECEIVER_SENSE_ANALT_DETECTED   0x00
 #define SII164_DETECT_RECEIVER_SENSE_DETECTED       0x04
 
 /* Interrupt Generation Method (TSEL) */

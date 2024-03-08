@@ -5,14 +5,14 @@ Quota subsystem
 ===============
 
 Quota subsystem allows system administrator to set limits on used space and
-number of used inodes (inode is a filesystem structure which is associated with
+number of used ianaldes (ianalde is a filesystem structure which is associated with
 each file or directory) for users and/or groups. For both used space and number
-of used inodes there are actually two limits. The first one is called softlimit
+of used ianaldes there are actually two limits. The first one is called softlimit
 and the second one hardlimit.  A user can never exceed a hardlimit for any
 resource (unless he has CAP_SYS_RESOURCE capability). User is allowed to exceed
 softlimit but only for limited period of time. This period is called "grace
-period" or "grace time". When grace time is over, user is not able to allocate
-more space/inodes until he frees enough of them to get below softlimit.
+period" or "grace time". When grace time is over, user is analt able to allocate
+more space/ianaldes until he frees eanalugh of them to get below softlimit.
 
 Quota limits (and amount of grace time) are set independently for each
 filesystem.
@@ -25,7 +25,7 @@ Quota netlink interface
 When user exceeds a softlimit, runs out of grace time or reaches hardlimit,
 quota subsystem traditionally printed a message to the controlling terminal of
 the process which caused the excess. This method has the disadvantage that
-when user is using a graphical desktop he usually cannot see the message.
+when user is using a graphical desktop he usually cananalt see the message.
 Thus quota netlink interface has been designed to pass information about
 the above events to userspace. There they can be captured by an application
 and processed accordingly.
@@ -34,11 +34,11 @@ The interface uses generic netlink framework (see
 https://lwn.net/Articles/208755/ and http://www.infradead.org/~tgr/libnl/ for
 more details about this layer). The name of the quota generic netlink interface
 is "VFS_DQUOT". Definitions of constants below are in <linux/quota.h>.  Since
-the quota netlink protocol is not namespace aware, quota netlink messages are
+the quota netlink protocol is analt namespace aware, quota netlink messages are
 sent only in initial network namespace.
 
 Currently, the interface supports only one message type QUOTA_NL_C_WARNING.
-This command is used to send a notification about any of the above mentioned
+This command is used to send a analtification about any of the above mentioned
 events. Each message has six attributes. These are (type of the argument is
 in parentheses):
 
@@ -53,12 +53,12 @@ in parentheses):
 	  - what kind of limit is exceeded:
 
 		QUOTA_NL_IHARDWARN
-		    inode hardlimit
+		    ianalde hardlimit
 		QUOTA_NL_ISOFTLONGWARN
-		    inode softlimit is exceeded longer
+		    ianalde softlimit is exceeded longer
 		    than given grace period
 		QUOTA_NL_ISOFTWARN
-		    inode softlimit
+		    ianalde softlimit
 		QUOTA_NL_BHARDWARN
 		    space (block) hardlimit
 		QUOTA_NL_BSOFTLONGWARN
@@ -71,9 +71,9 @@ in parentheses):
 	    exceeding some limit:
 
 		QUOTA_NL_IHARDBELOW
-		    inode hardlimit
+		    ianalde hardlimit
 		QUOTA_NL_ISOFTBELOW
-		    inode softlimit
+		    ianalde softlimit
 		QUOTA_NL_BHARDBELOW
 		    space (block) hardlimit
 		QUOTA_NL_BSOFTBELOW
@@ -81,5 +81,5 @@ in parentheses):
 
         QUOTA_NL_A_DEV_MAJOR (u32)
 	  - major number of a device with the affected filesystem
-        QUOTA_NL_A_DEV_MINOR (u32)
-	  - minor number of a device with the affected filesystem
+        QUOTA_NL_A_DEV_MIANALR (u32)
+	  - mianalr number of a device with the affected filesystem

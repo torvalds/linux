@@ -151,7 +151,7 @@ static int bcm47xxsflash_write_st(struct mtd_info *mtd, u32 offset, size_t len,
 	written++;
 
 	while (len > 0) {
-		/* Page boundary, another function call is needed */
+		/* Page boundary, aanalther function call is needed */
 		if ((offset & 0xFF) == 0)
 			break;
 
@@ -195,7 +195,7 @@ static int bcm47xxsflash_write_at(struct mtd_info *mtd, u32 offset, size_t len,
 
 	/* Change buffer content with our data */
 	while (len > 0) {
-		/* Page boundary, another function call is needed */
+		/* Page boundary, aanalther function call is needed */
 		if (byte == b47s->blocksize)
 			break;
 
@@ -255,8 +255,8 @@ static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s,
 	mtd->dev.parent = dev;
 	mtd->name = "bcm47xxsflash";
 
-	mtd->type = MTD_NORFLASH;
-	mtd->flags = MTD_CAP_NORFLASH;
+	mtd->type = MTD_ANALRFLASH;
+	mtd->flags = MTD_CAP_ANALRFLASH;
 	mtd->size = b47s->size;
 	mtd->erasesize = b47s->blocksize;
 	mtd->writesize = 1;
@@ -292,7 +292,7 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 
 	b47s = devm_kzalloc(dev, sizeof(*b47s), GFP_KERNEL);
 	if (!b47s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -315,7 +315,7 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 	 * the same on ARM based BCM53573 results in flash corruptions, we need
 	 * to use uncached access for it.
 	 *
-	 * It may be arch specific, but right now there is only 1 ARM SoC using
+	 * It may be arch specific, but right analw there is only 1 ARM SoC using
 	 * this driver, so let's follow Broadcom's reference code and check
 	 * ChipCommon revision.
 	 */
@@ -325,7 +325,7 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 		b47s->window = ioremap_cache(res->start, resource_size(res));
 	if (!b47s->window) {
 		dev_err(dev, "ioremap failed for resource %pR\n", res);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	switch (b47s->bcma_cc->capabilities & BCMA_CC_CAP_FLASHT) {

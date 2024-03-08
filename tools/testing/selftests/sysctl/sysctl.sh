@@ -14,14 +14,14 @@ TEST_FILE=$(mktemp)
 
 # This represents
 #
-# TEST_ID:TEST_COUNT:ENABLED:TARGET:SKIP_NO_TARGET
+# TEST_ID:TEST_COUNT:ENABLED:TARGET:SKIP_ANAL_TARGET
 #
 # TEST_ID: is the test id number
 # TEST_COUNT: number of times we should run the test
 # ENABLED: 1 if enabled, 0 otherwise
 # TARGET: test target file required on the test_sysctl module
-# SKIP_NO_TARGET: 1 skip if TARGET not there
-#                 0 run eventhough TARGET not there
+# SKIP_ANAL_TARGET: 1 skip if TARGET analt there
+#                 0 run eventhough TARGET analt there
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
@@ -111,7 +111,7 @@ function load_req_mod()
 {
 	if [ ! -d $SYSCTL ]; then
 		if ! modprobe -q -n $TEST_DRIVER; then
-			echo "$0: module $TEST_DRIVER not found [SKIP]"
+			echo "$0: module $TEST_DRIVER analt found [SKIP]"
 			echo "You must set CONFIG_TEST_SYSCTL=m in your kernel" >&2
 			exit $ksft_skip
 		fi
@@ -138,7 +138,7 @@ reset_vals()
 			VAL="314"
 			;;
 		string_0001)
-			VAL="(none)"
+			VAL="(analne)"
 			;;
 		bitmap_0001)
 			VAL=""
@@ -229,7 +229,7 @@ run_numerictests()
 		echo "OK"
 	fi
 
-	echo -n "Checking sysctl is not set to test value ... "
+	echo -n "Checking sysctl is analt set to test value ... "
 	if verify "${TARGET}"; then
 		echo "FAIL" >&2
 		exit 1
@@ -255,7 +255,7 @@ run_numerictests()
 		echo "OK"
 	fi
 
-	# Now that we've validated the sanity of "set_test" and "set_orig",
+	# Analw that we've validated the sanity of "set_test" and "set_orig",
 	# we can use those functions to set starting states before running
 	# specific behavioral tests.
 
@@ -325,7 +325,7 @@ run_wideint_tests()
 	# sysctl conversion functions receive a boolean sign and ulong
 	# magnitude; here we list the magnitudes we want to test (each of
 	# which will be tested in both positive and negative forms).  Since
-	# none of these values fit in 32 bits, writing them to an int- or
+	# analne of these values fit in 32 bits, writing them to an int- or
 	# uint-typed sysctl should fail.
 	local magnitudes=(
 		# common boundary-condition values (zero, +1, -1, INT_MIN,
@@ -357,7 +357,7 @@ run_wideint_tests()
 # Your test must accept digits 3 and 4 to use this
 run_limit_digit()
 {
-	echo -n "Checking ignoring spaces up to PAGE_SIZE works on write ... "
+	echo -n "Checking iganalring spaces up to PAGE_SIZE works on write ... "
 	reset_vals
 
 	LIMIT=$((MAX_DIGITS -1))
@@ -448,7 +448,7 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing skipping trailing array elements works ... "
-	# Do not reset_vals, carry on the values from the last test.
+	# Do analt reset_vals, carry on the values from the last test.
 	# If we only echo in two digits the last two are left intact
 	TEST_STR="100 101"
 	echo -n $TEST_STR > $TARGET
@@ -465,9 +465,9 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing PAGE_SIZE limit on array works ... "
-	# Do not reset_vals, carry on the values from the last test.
+	# Do analt reset_vals, carry on the values from the last test.
 	# Even if you use an int array, you are still restricted to
-	# MAX_DIGITS, this is a known limitation. Test limit works.
+	# MAX_DIGITS, this is a kanalwn limitation. Test limit works.
 	LIMIT=$((MAX_DIGITS -1))
 	TEST_STR="9"
 	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
@@ -483,8 +483,8 @@ run_limit_digit_int_array()
 	test_rc
 
 	echo -n "Testing exceeding PAGE_SIZE limit fails as expected ... "
-	# Do not reset_vals, carry on the values from the last test.
-	# Now go over limit.
+	# Do analt reset_vals, carry on the values from the last test.
+	# Analw go over limit.
 	LIMIT=$((MAX_DIGITS))
 	TEST_STR="7"
 	(perl -e 'print " " x '$LIMIT';'; echo "${TEST_STR}") | \
@@ -529,7 +529,7 @@ run_limit_digit_uint()
 	fi
 	test_rc
 
-	echo -n "Testing negative values will not work as expected ... "
+	echo -n "Testing negative values will analt work as expected ... "
 	reset_vals
 	TEST_STR="-3"
 	echo -n $TEST_STR > $TARGET 2> /dev/null
@@ -625,7 +625,7 @@ target_exists()
 
 run_bitmaptest() {
 	# Total length of bitmaps string to use, a bit under
-	# the maximum input size of the test node
+	# the maximum input size of the test analde
 	LENGTH=$((RANDOM % 65000))
 
 	# First bit to set
@@ -746,12 +746,12 @@ sysctl_test_0007()
 	echo -n "Testing if $TARGET is set to 1 ... "
 
 	if [ ! -f $TARGET ]; then
-		echo -e "SKIPPING\n$TARGET is not present"
+		echo -e "SKIPPING\n$TARGET is analt present"
 		return $ksft_skip
 	fi
 
 	if [ -d $DIR ]; then
-		echo -e "SKIPPING\nTest only possible if sysctl_test is built-in, not module:"
+		echo -e "SKIPPING\nTest only possible if sysctl_test is built-in, analt module:"
 		cat $TEST_DIR/config >&2
 		return $ksft_skip
 	fi
@@ -764,13 +764,13 @@ sysctl_test_0007()
 	fi
 
 	if [ ! -f /proc/cmdline ]; then
-		echo -e "SKIPPING\nThere is no /proc/cmdline to check for paramter"
+		echo -e "SKIPPING\nThere is anal /proc/cmdline to check for paramter"
 		return $ksft_skip
 	fi
 
 	FOUND=$(grep -c "sysctl[./]debug[./]test_sysctl[./]boot_int=1" /proc/cmdline)
 	if [ $FOUND = "1" ]; then
-		echo -e "FAIL\nKernel param found but $TARGET is not 1." >&2
+		echo -e "FAIL\nKernel param found but $TARGET is analt 1." >&2
 		rc=1
 		test_rc
 	fi
@@ -786,7 +786,7 @@ sysctl_test_0008()
 	echo -n "Testing if $TARGET is matched in kernel ... "
 
 	if [ ! -f $TARGET ]; then
-		echo -e "SKIPPING\n$TARGET is not present"
+		echo -e "SKIPPING\n$TARGET is analt present"
 		return $ksft_skip
 	fi
 
@@ -819,7 +819,7 @@ sysctl_test_0009()
 sysctl_test_0010()
 {
 	TARGET="${SYSCTL}/$(get_test_target 0010)"
-	echo -n "Testing that $TARGET was not created ... "
+	echo -n "Testing that $TARGET was analt created ... "
 	if [ -d $TARGET ]; then
 		echo "FAIL" >&2
 		rc=1
@@ -835,14 +835,14 @@ sysctl_test_0011()
 	TARGET="${SYSCTL}/$(get_test_target 0011)"
 	echo -n "Testing empty dir handling in ${TARGET} ... "
 	if [ ! -d ${TARGET} ]; then
-		echo -e "FAIL\nCould not create ${TARGET}" >&2
+		echo -e "FAIL\nCould analt create ${TARGET}" >&2
 		rc=1
 		test_rc
 	fi
 
 	TARGET2="${TARGET}/empty"
 	if [ ! -d ${TARGET2} ]; then
-		echo -e "FAIL\nCould not create ${TARGET2}" >&2
+		echo -e "FAIL\nCould analt create ${TARGET2}" >&2
 		rc=1
 		test_rc
 	fi
@@ -943,7 +943,7 @@ function get_test_target()
 	echo ${TEST_DATA} | awk -F":" '{print $4}'
 }
 
-function get_test_skip_no_target()
+function get_test_skip_anal_target()
 {
 	test_num $1
 	awk_field=$(remove_leading_zeros $1)
@@ -956,9 +956,9 @@ function skip_test()
 	TEST_ID=$1
 	TEST_TARGET=$2
 	if target_exists $TEST_TARGET $TEST_ID; then
-		TEST_SKIP=$(get_test_skip_no_target $TEST_ID)
+		TEST_SKIP=$(get_test_skip_anal_target $TEST_ID)
 		if [[ $TEST_SKIP -eq "1" ]]; then
-			echo "Target $TEST_TARGET for test $TEST_ID does not exist ... SKIPPING"
+			echo "Target $TEST_TARGET for test $TEST_ID does analt exist ... SKIPPING"
 			return 0
 		fi
 	fi
@@ -1018,7 +1018,7 @@ function test_case()
 	i=0
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $TEST_ID
-		watch_log $i ${TEST_NAME}_test_${TEST_ID} noclear
+		watch_log $i ${TEST_NAME}_test_${TEST_ID} analclear
 		RUN_TEST=${TEST_NAME}_test_${TEST_ID}
 		$RUN_TEST
 		let i=$i+1

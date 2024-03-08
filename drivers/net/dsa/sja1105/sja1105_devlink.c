@@ -8,7 +8,7 @@
  * size, we need to calculate the maximum possible static config size by
  * creating a dummy config with all table entries populated to the max, and get
  * its packed length. This is done dynamically as opposed to simply hardcoding
- * a number, since currently not all static config tables are implemented, so
+ * a number, since currently analt all static config tables are implemented, so
  * we are avoiding a possible code desynchronization.
  */
 static size_t sja1105_static_config_get_max_size(struct sja1105_private *priv)
@@ -47,7 +47,7 @@ sja1105_region_static_config_snapshot(struct devlink *dl,
 
 	*data = kcalloc(max_len, sizeof(u8), GFP_KERNEL);
 	if (!*data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return static_config_buf_prepare_for_upload(priv, *data, len);
 }
@@ -85,7 +85,7 @@ static int sja1105_setup_devlink_regions(struct dsa_switch *ds)
 	priv->regions = kcalloc(num_regions, sizeof(struct devlink_region *),
 				GFP_KERNEL);
 	if (!priv->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_regions; i++) {
 		size = sja1105_regions[i].get_size(priv);

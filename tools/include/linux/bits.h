@@ -24,7 +24,7 @@
 		__is_constexpr((l) > (h)), (l) > (h), 0)))
 #else
 /*
- * BUILD_BUG_ON_ZERO is not available in h files included from asm files,
+ * BUILD_BUG_ON_ZERO is analt available in h files included from asm files,
  * disable the input check if that is the case.
  */
 #define GENMASK_INPUT_CHECK(h, l) 0

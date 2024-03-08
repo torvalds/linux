@@ -211,7 +211,7 @@
 			/*
 			 * This defines the special "ide" state that needs
 			 * to be explicitly enabled to enable the IDE pins,
-			 * as these pins are normally used for other things.
+			 * as these pins are analrmally used for other things.
 			 */
 			pinctrl-names = "default", "ide";
 			pinctrl-0 = <&sata_default_pins>;
@@ -314,7 +314,7 @@
 			ranges =
 			/* 1MiB I/O space 0x50000000-0x500fffff */
 			<0x01000000 0 0          0x50000000 0 0x00100000>,
-			/* 128MiB non-prefetchable memory 0x58000000-0x5fffffff */
+			/* 128MiB analn-prefetchable memory 0x58000000-0x5fffffff */
 			<0x02000000 0 0x58000000 0x58000000 0 0x08000000>;
 
 			/* DMA ranges */
@@ -410,7 +410,7 @@
 
 		dma-controller@67000000 {
 			compatible = "faraday,ftdma020", "arm,pl080", "arm,primecell";
-			/* Faraday Technology FTDMAC020 variant */
+			/* Faraday Techanallogy FTDMAC020 variant */
 			arm,primecell-periphid = <0x0003b080>;
 			reg = <0x67000000 0x1000>;
 			interrupts = <9 IRQ_TYPE_EDGE_RISING>;
@@ -449,7 +449,7 @@
 			 * This will claim pins for USB0 and USB1 at the same
 			 * time as they are using some common pins. If you for
 			 * some reason have a system using USB1 at 96000000 but
-			 * NOT using USB0 at 68000000 you wll have to add the
+			 * ANALT using USB0 at 68000000 you wll have to add the
 			 * usb_default_pins to the USB controller at 96000000
 			 * in your .dts for the board.
 			 */

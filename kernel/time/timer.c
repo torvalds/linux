@@ -26,7 +26,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/pid_namespace.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/thread_info.h>
 #include <linux/time.h>
 #include <linux/jiffies.h>
@@ -39,7 +39,7 @@
 #include <linux/irq_work.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/sysctl.h>
-#include <linux/sched/nohz.h>
+#include <linux/sched/analhz.h>
 #include <linux/sched/debug.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
@@ -83,8 +83,8 @@ EXPORT_SYMBOL(jiffies_64);
  * This is an optimization of the original timer wheel implementation for the
  * majority of the timer wheel use cases: timeouts. The vast majority of
  * timeout timers (networking, disk I/O ...) are canceled before expiry. If
- * the timeout expires it indicates that normal operation is disturbed, so it
- * does not matter much whether the timeout comes with a slight delay.
+ * the timeout expires it indicates that analrmal operation is disturbed, so it
+ * does analt matter much whether the timeout comes with a slight delay.
  *
  * The only exception to this are networking timers with a small expiry
  * time. They rely on the granularity. Those fit into the first wheel level,
@@ -92,8 +92,8 @@ EXPORT_SYMBOL(jiffies_64);
  *
  * We don't have cascading anymore. timers with a expiry time above the
  * capacity of the last wheel level are force expired at the maximum timeout
- * value of the last wheel level. From data sampling we know that the maximum
- * value observed is 5 days (network connection tracking), so this should not
+ * value of the last wheel level. From data sampling we kanalw that the maximum
+ * value observed is 5 days (network connection tracking), so this should analt
  * be an issue.
  *
  * The currently chosen array constants values are a good compromise between
@@ -181,12 +181,12 @@ EXPORT_SYMBOL(jiffies_64);
 #define WHEEL_TIMEOUT_MAX	(WHEEL_TIMEOUT_CUTOFF - LVL_GRAN(LVL_DEPTH - 1))
 
 /*
- * The resulting wheel size. If NOHZ is configured we allocate two
+ * The resulting wheel size. If ANALHZ is configured we allocate two
  * wheels so we have a separate storage for the deferrable timers.
  */
 #define WHEEL_SIZE	(LVL_SIZE * LVL_DEPTH)
 
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 # define NR_BASES	2
 # define BASE_STD	0
 # define BASE_DEF	1
@@ -215,9 +215,9 @@ struct timer_base {
 
 static DEFINE_PER_CPU(struct timer_base, timer_bases[NR_BASES]);
 
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 
-static DEFINE_STATIC_KEY_FALSE(timers_nohz_active);
+static DEFINE_STATIC_KEY_FALSE(timers_analhz_active);
 static DEFINE_MUTEX(timer_keys_mutex);
 
 static void timer_update_keys(struct work_struct *work);
@@ -230,7 +230,7 @@ DEFINE_STATIC_KEY_FALSE(timers_migration_enabled);
 
 static void timers_update_migration(void)
 {
-	if (sysctl_timer_migration && tick_nohz_active)
+	if (sysctl_timer_migration && tick_analhz_active)
 		static_branch_enable(&timers_migration_enabled);
 	else
 		static_branch_disable(&timers_migration_enabled);
@@ -278,22 +278,22 @@ static void timer_update_keys(struct work_struct *work)
 {
 	mutex_lock(&timer_keys_mutex);
 	timers_update_migration();
-	static_branch_enable(&timers_nohz_active);
+	static_branch_enable(&timers_analhz_active);
 	mutex_unlock(&timer_keys_mutex);
 }
 
-void timers_update_nohz(void)
+void timers_update_analhz(void)
 {
 	schedule_work(&timer_update_work);
 }
 
-static inline bool is_timers_nohz_active(void)
+static inline bool is_timers_analhz_active(void)
 {
-	return static_branch_unlikely(&timers_nohz_active);
+	return static_branch_unlikely(&timers_analhz_active);
 }
 #else
-static inline bool is_timers_nohz_active(void) { return false; }
-#endif /* NO_HZ_COMMON */
+static inline bool is_timers_analhz_active(void) { return false; }
+#endif /* ANAL_HZ_COMMON */
 
 static unsigned long round_jiffies_common(unsigned long j, int cpu,
 		bool force_up)
@@ -316,7 +316,7 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	/*
 	 * If the target jiffie is just after a whole second (which can happen
 	 * due to delays of the timer irq, long irq off times etc etc) then
-	 * we should round down to the whole second, not up. Use 1/4th second
+	 * we should round down to the whole second, analt up. Use 1/4th second
 	 * as cutoff for this rounding as an extreme upper bound for this.
 	 * But never round down if @force_up is set.
 	 */
@@ -325,7 +325,7 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
 	else /* round up */
 		j = j - rem + HZ;
 
-	/* now that we have rounded, subtract the extra skew again */
+	/* analw that we have rounded, subtract the extra skew again */
 	j -= cpu * 3;
 
 	/*
@@ -342,7 +342,7 @@ static unsigned long round_jiffies_common(unsigned long j, int cpu,
  *
  * __round_jiffies() rounds an absolute time in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
+ * for which the exact time they fire does analt matter too much, as long as
  * they fire approximately every X seconds.
  *
  * By rounding these timers to whole seconds, all such timers will fire
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies);
  *
  * __round_jiffies_relative() rounds a time delta  in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
+ * for which the exact time they fire does analt matter too much, as long as
  * they fire approximately every X seconds.
  *
  * By rounding these timers to whole seconds, all such timers will fire
@@ -396,7 +396,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_relative);
  *
  * round_jiffies() rounds an absolute time in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
+ * for which the exact time they fire does analt matter too much, as long as
  * they fire approximately every X seconds.
  *
  * By rounding these timers to whole seconds, all such timers will fire
@@ -417,7 +417,7 @@ EXPORT_SYMBOL_GPL(round_jiffies);
  *
  * round_jiffies_relative() rounds a time delta  in the future (in jiffies)
  * up or down to (approximately) full seconds. This is useful for timers
- * for which the exact time they fire does not matter too much, as long as
+ * for which the exact time they fire does analt matter too much, as long as
  * they fire approximately every X seconds.
  *
  * By rounding these timers to whole seconds, all such timers will fire
@@ -439,7 +439,7 @@ EXPORT_SYMBOL_GPL(round_jiffies_relative);
  *
  * This is the same as __round_jiffies() except that it will never
  * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
+ * of firing does analt matter too much, as long as they don't fire too
  * early.
  */
 unsigned long __round_jiffies_up(unsigned long j, int cpu)
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_up);
  *
  * This is the same as __round_jiffies_relative() except that it will never
  * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
+ * of firing does analt matter too much, as long as they don't fire too
  * early.
  */
 unsigned long __round_jiffies_up_relative(unsigned long j, int cpu)
@@ -473,7 +473,7 @@ EXPORT_SYMBOL_GPL(__round_jiffies_up_relative);
  *
  * This is the same as round_jiffies() except that it will never
  * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
+ * of firing does analt matter too much, as long as they don't fire too
  * early.
  */
 unsigned long round_jiffies_up(unsigned long j)
@@ -488,7 +488,7 @@ EXPORT_SYMBOL_GPL(round_jiffies_up);
  *
  * This is the same as round_jiffies_relative() except that it will never
  * round down.  This is useful for timeouts for which the exact time
- * of firing does not matter too much, as long as they don't fire too
+ * of firing does analt matter too much, as long as they don't fire too
  * early.
  */
 unsigned long round_jiffies_up_relative(unsigned long j)
@@ -518,7 +518,7 @@ static inline unsigned calc_index(unsigned long expires, unsigned lvl,
 {
 
 	/*
-	 * The timer wheel has to guarantee that a timer does not fire
+	 * The timer wheel has to guarantee that a timer does analt fire
 	 * early. Early expiry can happen due to:
 	 * - Timer is armed at the edge of a tick
 	 * - Truncation of the expiry time in the outer wheel levels
@@ -572,22 +572,22 @@ static void
 trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 {
 	/*
-	 * Deferrable timers do not prevent the CPU from entering dynticks and
-	 * are not taken into account on the idle/nohz_full path. An IPI when a
+	 * Deferrable timers do analt prevent the CPU from entering dynticks and
+	 * are analt taken into account on the idle/analhz_full path. An IPI when a
 	 * new deferrable timer is enqueued will wake up the remote CPU but
-	 * nothing will be done with the deferrable timer base. Therefore skip
+	 * analthing will be done with the deferrable timer base. Therefore skip
 	 * the remote IPI for deferrable timers completely.
 	 */
-	if (!is_timers_nohz_active() || timer->flags & TIMER_DEFERRABLE)
+	if (!is_timers_analhz_active() || timer->flags & TIMER_DEFERRABLE)
 		return;
 
 	/*
 	 * We might have to IPI the remote CPU if the base is idle and the
-	 * timer is not deferrable. If the other CPU is on the way to idle
+	 * timer is analt deferrable. If the other CPU is on the way to idle
 	 * then it can't set base->is_idle as we hold the base lock:
 	 */
 	if (base->is_idle)
-		wake_up_nohz_cpu(base->cpu);
+		wake_up_analhz_cpu(base->cpu);
 }
 
 /*
@@ -705,14 +705,14 @@ static void stub_timer(struct timer_list *unused)
 /*
  * fixup_activate is called when:
  * - an active object is activated
- * - an unknown non-static object is activated
+ * - an unkanalwn analn-static object is activated
  */
 static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 {
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_NOTAVAILABLE:
+	case ODEBUG_STATE_ANALTAVAILABLE:
 		timer_setup(timer, stub_timer, 0);
 		return true;
 
@@ -751,7 +751,7 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 	struct timer_list *timer = addr;
 
 	switch (state) {
-	case ODEBUG_STATE_NOTAVAILABLE:
+	case ODEBUG_STATE_ANALTAVAILABLE:
 		timer_setup(timer, stub_timer, 0);
 		return true;
 	default:
@@ -870,7 +870,7 @@ EXPORT_SYMBOL(init_timer_key);
 
 static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 {
-	struct hlist_node *entry = &timer->entry;
+	struct hlist_analde *entry = &timer->entry;
 
 	debug_deactivate(timer);
 
@@ -888,7 +888,7 @@ static int detach_if_pending(struct timer_list *timer, struct timer_base *base,
 	if (!timer_pending(timer))
 		return 0;
 
-	if (hlist_is_singular_node(&timer->entry, base->vectors + idx)) {
+	if (hlist_is_singular_analde(&timer->entry, base->vectors + idx)) {
 		__clear_bit(idx, base->pending_map);
 		base->next_expiry_recalc = true;
 	}
@@ -902,10 +902,10 @@ static inline struct timer_base *get_timer_cpu_base(u32 tflags, u32 cpu)
 	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_STD], cpu);
 
 	/*
-	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
+	 * If the timer is deferrable and ANAL_HZ_COMMON is set then we need
 	 * to use the deferrable base.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
+	if (IS_ENABLED(CONFIG_ANAL_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = per_cpu_ptr(&timer_bases[BASE_DEF], cpu);
 	return base;
 }
@@ -915,10 +915,10 @@ static inline struct timer_base *get_timer_this_cpu_base(u32 tflags)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 
 	/*
-	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
+	 * If the timer is deferrable and ANAL_HZ_COMMON is set then we need
 	 * to use the deferrable base.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
+	if (IS_ENABLED(CONFIG_ANAL_HZ_COMMON) && (tflags & TIMER_DEFERRABLE))
 		base = this_cpu_ptr(&timer_bases[BASE_DEF]);
 	return base;
 }
@@ -931,10 +931,10 @@ static inline struct timer_base *get_timer_base(u32 tflags)
 static inline struct timer_base *
 get_target_base(struct timer_base *base, unsigned tflags)
 {
-#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+#if defined(CONFIG_SMP) && defined(CONFIG_ANAL_HZ_COMMON)
 	if (static_branch_likely(&timers_migration_enabled) &&
 	    !(tflags & TIMER_PINNED))
-		return get_timer_cpu_base(tflags, get_nohz_timer_target());
+		return get_timer_cpu_base(tflags, get_analhz_timer_target());
 #endif
 	return get_timer_this_cpu_base(tflags);
 }
@@ -1007,7 +1007,7 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 
 #define MOD_TIMER_PENDING_ONLY		0x01
 #define MOD_TIMER_REDUCE		0x02
-#define MOD_TIMER_NOTPENDING		0x04
+#define MOD_TIMER_ANALTPENDING		0x04
 
 static inline int
 __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int options)
@@ -1024,7 +1024,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	 * the timer is re-modified to have the same timeout or ends up in the
 	 * same array bucket then just return:
 	 */
-	if (!(options & MOD_TIMER_NOTPENDING) && timer_pending(timer)) {
+	if (!(options & MOD_TIMER_ANALTPENDING) && timer_pending(timer)) {
 		/*
 		 * The downside of this optimization is that it can result in
 		 * larger granularity than you would get from adding a new
@@ -1100,7 +1100,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 		 * We are trying to schedule the timer on the new base.
 		 * However we can't change timer's base while it is running,
 		 * otherwise timer_delete_sync() can't detect that the timer's
-		 * handler yet has not finished. This also guarantees that the
+		 * handler yet has analt finished. This also guarantees that the
 		 * timer is serialized wrt itself.
 		 */
 		if (likely(base->running_timer != timer)) {
@@ -1120,7 +1120,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 
 	timer->expires = expires;
 	/*
-	 * If 'idx' was calculated above and the base time did not advance
+	 * If 'idx' was calculated above and the base time did analt advance
 	 * between calculating 'idx' and possibly switching the base, only
 	 * enqueue_timer() is required. Otherwise we need to (re)calculate
 	 * the wheel index via internal_add_timer().
@@ -1142,13 +1142,13 @@ out_unlock:
  * @expires:	New absolute timeout in jiffies
  *
  * mod_timer_pending() is the same for pending timers as mod_timer(), but
- * will not activate inactive timers.
+ * will analt activate inactive timers.
  *
  * If @timer->function == NULL then the start operation is silently
  * discarded.
  *
  * Return:
- * * %0 - The timer was inactive and not modified or was in
+ * * %0 - The timer was inactive and analt modified or was in
  *	  shutdown state and the operation was discarded
  * * %1 - The timer was active and requeued to expire at @expires
  */
@@ -1168,12 +1168,12 @@ EXPORT_SYMBOL(mod_timer_pending);
  *     del_timer(timer); timer->expires = expires; add_timer(timer);
  *
  * mod_timer() is more efficient than the above open coded sequence. In
- * case that the timer is inactive, the del_timer() part is a NOP. The
+ * case that the timer is inactive, the del_timer() part is a ANALP. The
  * timer is in any case activated with the new expiry time @expires.
  *
- * Note that if there are multiple unserialized concurrent users of the
+ * Analte that if there are multiple unserialized concurrent users of the
  * same timer, then mod_timer() is the only safe way to modify the timeout,
- * since add_timer() cannot modify an already running timer.
+ * since add_timer() cananalt modify an already running timer.
  *
  * If @timer->function == NULL then the start operation is silently
  * discarded. In this case the return value is 0 and meaningless.
@@ -1182,8 +1182,8 @@ EXPORT_SYMBOL(mod_timer_pending);
  * * %0 - The timer was inactive and started or was in shutdown
  *	  state and the operation was discarded
  * * %1 - The timer was active and requeued to expire at @expires or
- *	  the timer was active and not modified because @expires did
- *	  not change the effective expiry time
+ *	  the timer was active and analt modified because @expires did
+ *	  analt change the effective expiry time
  */
 int mod_timer(struct timer_list *timer, unsigned long expires)
 {
@@ -1198,7 +1198,7 @@ EXPORT_SYMBOL(mod_timer);
  *
  * timer_reduce() is very similar to mod_timer(), except that it will only
  * modify an enqueued timer if that would reduce the expiration time. If
- * @timer is not enqueued it starts the timer.
+ * @timer is analt enqueued it starts the timer.
  *
  * If @timer->function == NULL then the start operation is silently
  * discarded.
@@ -1207,8 +1207,8 @@ EXPORT_SYMBOL(mod_timer);
  * * %0 - The timer was inactive and started or was in shutdown
  *	  state and the operation was discarded
  * * %1 - The timer was active and requeued to expire at @expires or
- *	  the timer was active and not modified because @expires
- *	  did not change the effective expiry time such that the
+ *	  the timer was active and analt modified because @expires
+ *	  did analt change the effective expiry time such that the
  *	  timer would expire earlier than already scheduled
  */
 int timer_reduce(struct timer_list *timer, unsigned long expires)
@@ -1241,7 +1241,7 @@ void add_timer(struct timer_list *timer)
 {
 	if (WARN_ON_ONCE(timer_pending(timer)))
 		return;
-	__mod_timer(timer, timer->expires, MOD_TIMER_NOTPENDING);
+	__mod_timer(timer, timer->expires, MOD_TIMER_ANALTPENDING);
 }
 EXPORT_SYMBOL(add_timer);
 
@@ -1306,10 +1306,10 @@ EXPORT_SYMBOL_GPL(add_timer_on);
  * If @shutdown is true then @timer->function is set to NULL under the
  * timer base lock which prevents further rearming of the time. In that
  * case any attempt to rearm @timer after this function returns will be
- * silently ignored.
+ * silently iganalred.
  *
  * Return:
- * * %0 - The timer was not pending
+ * * %0 - The timer was analt pending
  * * %1 - The timer was pending and deactivated
  */
 static int __timer_delete(struct timer_list *timer, bool shutdown)
@@ -1322,14 +1322,14 @@ static int __timer_delete(struct timer_list *timer, bool shutdown)
 
 	/*
 	 * If @shutdown is set then the lock has to be taken whether the
-	 * timer is pending or not to protect against a concurrent rearm
+	 * timer is pending or analt to protect against a concurrent rearm
 	 * which might hit between the lockless pending check and the lock
 	 * aquisition. By taking the lock it is ensured that such a newly
-	 * enqueued timer is dequeued and cannot end up with
+	 * enqueued timer is dequeued and cananalt end up with
 	 * timer->function == NULL in the expiry code.
 	 *
 	 * If timer->function is currently executed, then this makes sure
-	 * that the callback cannot requeue the timer.
+	 * that the callback cananalt requeue the timer.
 	 */
 	if (timer_pending(timer) || shutdown) {
 		base = lock_timer_base(timer, &flags);
@@ -1347,13 +1347,13 @@ static int __timer_delete(struct timer_list *timer, bool shutdown)
  * @timer:	The timer to be deactivated
  *
  * The function only deactivates a pending timer, but contrary to
- * timer_delete_sync() it does not take into account whether the timer's
- * callback function is concurrently executed on a different CPU or not.
+ * timer_delete_sync() it does analt take into account whether the timer's
+ * callback function is concurrently executed on a different CPU or analt.
  * It neither prevents rearming of the timer.  If @timer can be rearmed
  * concurrently then the return value of this function is meaningless.
  *
  * Return:
- * * %0 - The timer was not pending
+ * * %0 - The timer was analt pending
  * * %1 - The timer was pending and deactivated
  */
 int timer_delete(struct timer_list *timer)
@@ -1366,15 +1366,15 @@ EXPORT_SYMBOL(timer_delete);
  * timer_shutdown - Deactivate a timer and prevent rearming
  * @timer:	The timer to be deactivated
  *
- * The function does not wait for an eventually running timer callback on a
+ * The function does analt wait for an eventually running timer callback on a
  * different CPU but it prevents rearming of the timer. Any attempt to arm
- * @timer after this function returns will be silently ignored.
+ * @timer after this function returns will be silently iganalred.
  *
  * This function is useful for teardown code and should only be used when
- * timer_shutdown_sync() cannot be invoked due to locking or context constraints.
+ * timer_shutdown_sync() cananalt be invoked due to locking or context constraints.
  *
  * Return:
- * * %0 - The timer was not pending
+ * * %0 - The timer was analt pending
  * * %1 - The timer was pending
  */
 int timer_shutdown(struct timer_list *timer)
@@ -1392,14 +1392,14 @@ EXPORT_SYMBOL_GPL(timer_shutdown);
  * If @shutdown is true then @timer->function is set to NULL under the
  * timer base lock which prevents further rearming of the timer. Any
  * attempt to rearm @timer after this function returns will be silently
- * ignored.
+ * iganalred.
  *
- * This function cannot guarantee that the timer cannot be rearmed
+ * This function cananalt guarantee that the timer cananalt be rearmed
  * right after dropping the base lock if @shutdown is false. That
  * needs to be prevented by the calling code if necessary.
  *
  * Return:
- * * %0  - The timer was not pending
+ * * %0  - The timer was analt pending
  * * %1  - The timer was pending and deactivated
  * * %-1 - The timer callback function is running on a different CPU
  */
@@ -1427,15 +1427,15 @@ static int __try_to_del_timer_sync(struct timer_list *timer, bool shutdown)
  * try_to_del_timer_sync - Try to deactivate a timer
  * @timer:	Timer to deactivate
  *
- * This function tries to deactivate a timer. On success the timer is not
- * queued and the timer callback function is not running on any CPU.
+ * This function tries to deactivate a timer. On success the timer is analt
+ * queued and the timer callback function is analt running on any CPU.
  *
- * This function does not guarantee that the timer cannot be rearmed right
+ * This function does analt guarantee that the timer cananalt be rearmed right
  * after dropping the base lock. That needs to be prevented by the calling
  * code if necessary.
  *
  * Return:
- * * %0  - The timer was not pending
+ * * %0  - The timer was analt pending
  * * %1  - The timer was pending and deactivated
  * * %-1 - The timer callback function is running on a different CPU
  */
@@ -1502,7 +1502,7 @@ static void del_timer_wait_running(struct timer_list *timer)
 		 * callback. Drop the lock immediately so the softirq can
 		 * expire the next timer. In theory the timer could already
 		 * be running again, but that's more than unlikely and just
-		 * causes another wait loop.
+		 * causes aanalther wait loop.
 		 */
 		atomic_inc(&base->timer_waiters);
 		spin_lock_bh(&base->expiry_lock);
@@ -1525,19 +1525,19 @@ static inline void del_timer_wait_running(struct timer_list *timer) { }
  * @shutdown:	If true, @timer->function will be set to NULL under the
  *		timer base lock which prevents rearming of @timer
  *
- * If @shutdown is not set the timer can be rearmed later. If the timer can
+ * If @shutdown is analt set the timer can be rearmed later. If the timer can
  * be rearmed concurrently, i.e. after dropping the base lock then the
  * return value is meaningless.
  *
  * If @shutdown is set then @timer->function is set to NULL under timer
  * base lock which prevents rearming of the timer. Any attempt to rearm
- * a shutdown timer is silently ignored.
+ * a shutdown timer is silently iganalred.
  *
  * If the timer should be reused after shutdown it has to be initialized
  * again.
  *
  * Return:
- * * %0	- The timer was not pending
+ * * %0	- The timer was analt pending
  * * %1	- The timer was pending and deactivated
  */
 static int __timer_delete_sync(struct timer_list *timer, bool shutdown)
@@ -1586,14 +1586,14 @@ static int __timer_delete_sync(struct timer_list *timer, bool shutdown)
  * @timer:	The timer to be deactivated
  *
  * Synchronization rules: Callers must prevent restarting of the timer,
- * otherwise this function is meaningless. It must not be called from
+ * otherwise this function is meaningless. It must analt be called from
  * interrupt contexts unless the timer is an irqsafe one. The caller must
- * not hold locks which would prevent completion of the timer's callback
- * function. The timer's handler must not call add_timer_on(). Upon exit
- * the timer is not queued and the handler is not running on any CPU.
+ * analt hold locks which would prevent completion of the timer's callback
+ * function. The timer's handler must analt call add_timer_on(). Upon exit
+ * the timer is analt queued and the handler is analt running on any CPU.
  *
- * For !irqsafe timers, the caller must not hold locks that are held in
- * interrupt context. Even if the lock has nothing to do with the timer in
+ * For !irqsafe timers, the caller must analt hold locks that are held in
+ * interrupt context. Even if the lock has analthing to do with the timer in
  * question.  Here's why::
  *
  *    CPU0                             CPU1
@@ -1607,11 +1607,11 @@ static int __timer_delete_sync(struct timer_list *timer, bool shutdown)
  *    timer_delete_sync(mytimer);
  *    while (base->running_timer == mytimer);
  *
- * Now timer_delete_sync() will never return and never release somelock.
+ * Analw timer_delete_sync() will never return and never release somelock.
  * The interrupt on the other CPU is waiting to grab somelock but it has
  * interrupted the softirq that CPU0 is waiting to finish.
  *
- * This function cannot guarantee that the timer is not rearmed again by
+ * This function cananalt guarantee that the timer is analt rearmed again by
  * some concurrent or preempting code, right after it dropped the base
  * lock. If there is the possibility of a concurrent rearm then the return
  * value of the function is meaningless.
@@ -1620,7 +1620,7 @@ static int __timer_delete_sync(struct timer_list *timer, bool shutdown)
  * timer_shutdown_sync() instead.
  *
  * Return:
- * * %0	- The timer was not pending
+ * * %0	- The timer was analt pending
  * * %1	- The timer was pending and deactivated
  */
 int timer_delete_sync(struct timer_list *timer)
@@ -1634,10 +1634,10 @@ EXPORT_SYMBOL(timer_delete_sync);
  * @timer: The timer to be shutdown
  *
  * When the function returns it is guaranteed that:
- *   - @timer is not queued
- *   - The callback function of @timer is not running
- *   - @timer cannot be enqueued again. Any attempt to rearm
- *     @timer is silently ignored.
+ *   - @timer is analt queued
+ *   - The callback function of @timer is analt running
+ *   - @timer cananalt be enqueued again. Any attempt to rearm
+ *     @timer is silently iganalred.
  *
  * See timer_delete_sync() for synchronization rules.
  *
@@ -1648,7 +1648,7 @@ EXPORT_SYMBOL(timer_delete_sync);
  * schedule work and work can arm the timer. On shutdown the workqueue must
  * be destroyed and the timer must be prevented from rearming. Unless the
  * code has conditionals like 'if (mything->in_shutdown)' to prevent that
- * there is no way to get this correct with timer_delete_sync().
+ * there is anal way to get this correct with timer_delete_sync().
  *
  * timer_shutdown_sync() is solving the problem. The correct ordering of
  * calls in this case is:
@@ -1658,11 +1658,11 @@ EXPORT_SYMBOL(timer_delete_sync);
  *
  * After this 'mything' can be safely freed.
  *
- * This obviously implies that the timer is not required to be functional
+ * This obviously implies that the timer is analt required to be functional
  * for the rest of the shutdown operation.
  *
  * Return:
- * * %0 - The timer was not pending
+ * * %0 - The timer was analt pending
  * * %1 - The timer was pending
  */
 int timer_shutdown_sync(struct timer_list *timer)
@@ -1708,7 +1708,7 @@ static void call_timer_fn(struct timer_list *timer,
 		/*
 		 * Restore the preempt count. That gives us a decent
 		 * chance to survive and extract information. If the
-		 * callback kept a lock held, bad luck, but not worse
+		 * callback kept a lock held, bad luck, but analt worse
 		 * than the BUG() we had.
 		 */
 		preempt_count_set(count);
@@ -1783,7 +1783,7 @@ static int collect_expired_timers(struct timer_base *base,
 
 /*
  * Find the next pending bucket of a level. Search from level start (@offset)
- * + @clk upwards and if nothing there, search from start of the level
+ * + @clk upwards and if analthing there, search from start of the level
  * (@offset) up to @offset + clk.
  */
 static int next_pending_bucket(struct timer_base *base, unsigned offset,
@@ -1826,14 +1826,14 @@ static void next_expiry_recalc(struct timer_base *base)
 
 			/*
 			 * If the next expiration happens before we reach
-			 * the next level, no need to check further.
+			 * the next level, anal need to check further.
 			 */
 			if (pos <= ((LVL_CLK_DIV - lvl_clk) & LVL_CLK_MASK))
 				break;
 		}
 		/*
 		 * Clock for the next level. If the current level clock lower
-		 * bits are zero, we look at the next level as is. If not we
+		 * bits are zero, we look at the next level as is. If analt we
 		 * need to advance it by one because that's going to be the
 		 * next expiring bucket in that level. base->clk is the next
 		 * expiring jiffie. So in case of:
@@ -1860,12 +1860,12 @@ static void next_expiry_recalc(struct timer_base *base)
 		 * LVL5 LVL4 LVL3 LVL2 LVL1
 		 *  0    0    0    1    0
 		 *
-		 * So no propagation from LVL1 to LVL2 because that happened
+		 * So anal propagation from LVL1 to LVL2 because that happened
 		 * with the add already, but then we need to propagate further
 		 * from LVL2 to LVL3.
 		 *
 		 * So the simple check whether the lower bits of the current
-		 * level are 0 or not is sufficient for all cases.
+		 * level are 0 or analt is sufficient for all cases.
 		 */
 		adj = lvl_clk ? 1 : 0;
 		clk >>= LVL_CLK_SHIFT;
@@ -1877,7 +1877,7 @@ static void next_expiry_recalc(struct timer_base *base)
 	base->timers_pending = !(next == base->clk + NEXT_TIMER_MAX_DELTA);
 }
 
-#ifdef CONFIG_NO_HZ_COMMON
+#ifdef CONFIG_ANAL_HZ_COMMON
 /*
  * Check, if the next hrtimer event is before the next timer wheel
  * event:
@@ -1904,7 +1904,7 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 	 * Round up to the next jiffie. High resolution timers are
 	 * off, so the hrtimers are expired in the tick and we need to
 	 * make sure that this tick really expires the timer to avoid
-	 * a ping pong of the nohz stop code.
+	 * a ping pong of the analhz stop code.
 	 *
 	 * Use DIV_ROUND_UP_ULL to prevent gcc calling __divdi3
 	 */
@@ -1912,12 +1912,12 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 }
 
 /**
- * get_next_timer_interrupt - return the time (clock mono) of the next timer
+ * get_next_timer_interrupt - return the time (clock moanal) of the next timer
  * @basej:	base time jiffies
- * @basem:	base time clock monotonic
+ * @basem:	base time clock moanaltonic
  *
- * Returns the tick aligned clock monotonic time of the next pending
- * timer or KTIME_MAX if no timer is pending.
+ * Returns the tick aligned clock moanaltonic time of the next pending
+ * timer or KTIME_MAX if anal timer is pending.
  */
 u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 {
@@ -1927,7 +1927,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	bool was_idle;
 
 	/*
-	 * Pretend that there is no timer pending if the cpu is offline.
+	 * Pretend that there is anal timer pending if the cpu is offline.
 	 * Possible pending timers will be migrated later to an active cpu.
 	 */
 	if (cpu_is_offline(smp_processor_id()))
@@ -1954,7 +1954,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		/*
 		 * Move next_expiry for the empty base into the future to
 		 * prevent a unnecessary raise of the timer softirq when the
-		 * next_expiry value will be reached even if there is no timer
+		 * next_expiry value will be reached even if there is anal timer
 		 * pending.
 		 */
 		base->next_expiry = nextevt;
@@ -2019,9 +2019,9 @@ static inline void __run_timers(struct timer_base *base)
 	       time_after_eq(jiffies, base->next_expiry)) {
 		levels = collect_expired_timers(base, heads);
 		/*
-		 * The two possible reasons for not finding any expired
+		 * The two possible reasons for analt finding any expired
 		 * timer at this clk are that all matching timers have been
-		 * dequeued or no timer has been queued since
+		 * dequeued or anal timer has been queued since
 		 * base::next_expiry was set to base::clk +
 		 * NEXT_TIMER_MAX_DELTA.
 		 */
@@ -2049,7 +2049,7 @@ static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 
 	__run_timers(base);
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON))
+	if (IS_ENABLED(CONFIG_ANAL_HZ_COMMON))
 		__run_timers(this_cpu_ptr(&timer_bases[BASE_DEF]));
 }
 
@@ -2063,7 +2063,7 @@ static void run_local_timers(void)
 	hrtimer_run_queues();
 	/* Raise the softirq only if required. */
 	if (time_before(jiffies, base->next_expiry)) {
-		if (!IS_ENABLED(CONFIG_NO_HZ_COMMON))
+		if (!IS_ENABLED(CONFIG_ANAL_HZ_COMMON))
 			return;
 		/* CPU is awake, so check the deferrable base. */
 		base++;
@@ -2081,7 +2081,7 @@ void update_process_times(int user_tick)
 {
 	struct task_struct *p = current;
 
-	/* Note: this timer irq context must be accounted for as well. */
+	/* Analte: this timer irq context must be accounted for as well. */
 	account_process_tick(p, user_tick);
 	run_local_timers();
 	rcu_sched_clock_irq(user_tick);
@@ -2118,8 +2118,8 @@ static void process_timeout(struct timer_list *t)
  * The function behavior depends on the current task state
  * (see also set_current_state() description):
  *
- * %TASK_RUNNING - the scheduler is called, but the task does not sleep
- * at all. That happens because sched_submit_work() does nothing for
+ * %TASK_RUNNING - the scheduler is called, but the task does analt sleep
+ * at all. That happens because sched_submit_work() does analthing for
  * tasks in %TASK_RUNNING state.
  *
  * %TASK_UNINTERRUPTIBLE - at least @timeout jiffies are guaranteed to
@@ -2139,7 +2139,7 @@ static void process_timeout(struct timer_list *t)
  *
  * Returns 0 when the timer has expired otherwise the remaining time in
  * jiffies will be returned. In all cases the return value is guaranteed
- * to be non-negative.
+ * to be analn-negative.
  */
 signed long __sched schedule_timeout(signed long timeout)
 {
@@ -2151,7 +2151,7 @@ signed long __sched schedule_timeout(signed long timeout)
 	case MAX_SCHEDULE_TIMEOUT:
 		/*
 		 * These two special cases are useful to be comfortable
-		 * in the caller. Nothing more. We could take
+		 * in the caller. Analthing more. We could take
 		 * MAX_SCHEDULE_TIMEOUT from one of the negative value
 		 * but I' d like to return a valid offset (>=0) to allow
 		 * the caller to do everything it want with the retval.
@@ -2160,8 +2160,8 @@ signed long __sched schedule_timeout(signed long timeout)
 		goto out;
 	default:
 		/*
-		 * Another bit of PARANOID. Note that the retval will be
-		 * 0 since no piece of kernel is supposed to do a check
+		 * Aanalther bit of PARAANALID. Analte that the retval will be
+		 * 0 since anal piece of kernel is supposed to do a check
 		 * for a negative retval of schedule_timeout() (since it
 		 * should never happens anyway). You just have the printk()
 		 * that will tell you if something is gone wrong and where.
@@ -2179,7 +2179,7 @@ signed long __sched schedule_timeout(signed long timeout)
 
 	timer.task = current;
 	timer_setup_on_stack(&timer.timer, process_timeout, 0);
-	__mod_timer(&timer.timer, expire, MOD_TIMER_NOTPENDING);
+	__mod_timer(&timer.timer, expire, MOD_TIMER_ANALTPENDING);
 	schedule();
 	del_timer_sync(&timer.timer);
 
@@ -2219,7 +2219,7 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
 /*
- * Like schedule_timeout_uninterruptible(), except this task will not contribute
+ * Like schedule_timeout_uninterruptible(), except this task will analt contribute
  * to load average.
  */
 signed long __sched schedule_timeout_idle(signed long timeout)
@@ -2269,8 +2269,8 @@ int timers_dead_cpu(unsigned int cpu)
 		old_base = per_cpu_ptr(&timer_bases[b], cpu);
 		new_base = get_cpu_ptr(&timer_bases[b]);
 		/*
-		 * The caller is globally serialized and nobody else
-		 * takes two locks at once, deadlock is not possible.
+		 * The caller is globally serialized and analbody else
+		 * takes two locks at once, deadlock is analt possible.
 		 */
 		raw_spin_lock_irq(&new_base->lock);
 		raw_spin_lock_nested(&old_base->lock, SINGLE_DEPTH_NESTING);
@@ -2361,7 +2361,7 @@ EXPORT_SYMBOL(msleep_interruptible);
  * @max:	Maximum time in usecs to sleep
  * @state:	State of the current task that will be while sleeping
  *
- * In non-atomic context where the exact wakeup time is flexible, use
+ * In analn-atomic context where the exact wakeup time is flexible, use
  * usleep_range_state() instead of udelay().  The sleep improves responsiveness
  * by avoiding the CPU-hogging busy-wait of udelay(), and the range reduces
  * power usage by allowing hrtimers to take advantage of an already-
@@ -2375,7 +2375,7 @@ void __sched usleep_range_state(unsigned long min, unsigned long max,
 
 	for (;;) {
 		__set_current_state(state);
-		/* Do not return before the requested sleep time has elapsed */
+		/* Do analt return before the requested sleep time has elapsed */
 		if (!schedule_hrtimeout_range(&exp, delta, HRTIMER_MODE_ABS))
 			break;
 	}

@@ -72,7 +72,7 @@ implementation of common switch management routines.
 -----------
 
 A RapidIO network is a combination of interconnected endpoint and switch devices.
-Each RapidIO network known to the system is represented by corresponding rio_net
+Each RapidIO network kanalwn to the system is represented by corresponding rio_net
 data structure. This structure includes lists of all devices and local master
 ports that form the same network. It also contains a pointer to the default
 master port that is used to communicate with devices within the network.
@@ -128,7 +128,7 @@ several methods to initiate an enumeration and/or discovery process:
   (a) Statically linked enumeration and discovery process can be started
   automatically during kernel initialization time using corresponding module
   parameters. This was the original method used since introduction of RapidIO
-  subsystem. Now this method relies on enumerator module parameter which is
+  subsystem. Analw this method relies on enumerator module parameter which is
   'rio-scan.scan' for existing basic enumeration/discovery method.
   When automatic start of enumeration/discovery is used a user has to ensure
   that all discovering endpoints are started before the enumerating endpoint
@@ -136,7 +136,7 @@ several methods to initiate an enumeration and/or discovery process:
   Configuration option CONFIG_RAPIDIO_DISC_TIMEOUT defines time that discovering
   endpoint waits for enumeration to be completed. If the specified timeout
   expires the discovery process is terminated without obtaining RapidIO network
-  information. NOTE: a timed out discovery process may be restarted later using
+  information. ANALTE: a timed out discovery process may be restarted later using
   a user-space command as it is described below (if the given endpoint was
   enumerated successfully).
 
@@ -180,7 +180,7 @@ on RapidIO subsystem build configuration:
     like in this example: "options rapidio hdid=-1,7". An example of modprobe
     configuration file is provided in the section below.
 
-NOTES:
+ANALTES:
   (i) if "hdid=" parameter is omitted all available mport will be assigned
   destination ID = -1;
 
@@ -193,7 +193,7 @@ process will be performed for it.
 The enumeration and discovery routines use RapidIO maintenance transactions
 to access the configuration space of devices.
 
-NOTE: If RapidIO switch-specific device drivers are built as loadable modules
+ANALTE: If RapidIO switch-specific device drivers are built as loadable modules
 they must be loaded before enumeration/discovery process starts.
 This requirement is cased by the fact that enumeration/discovery methods invoke
 vendor-specific callbacks on early stages.
@@ -215,7 +215,7 @@ a discovering endpoint will wait for enumeration to be completed.
 
 When automatic enumeration/discovery start is selected, basic method's
 initialization routine calls rio_init_mports() to perform enumeration or
-discovery for all known mport devices.
+discovery for all kanalwn mport devices.
 
 Depending on RapidIO network size and configuration this automatic
 enumeration/discovery start method may be difficult to use due to the
@@ -228,7 +228,7 @@ User-space start of enumeration and discovery can be used with built-in and
 modular build configurations. For user-space controlled start RapidIO subsystem
 creates the sysfs write-only attribute file '/sys/bus/rapidio/scan'. To initiate
 an enumeration or discovery process on specific mport device, a user needs to
-write mport_ID (not RapidIO destination ID) into that file. The mport_ID is a
+write mport_ID (analt RapidIO destination ID) into that file. The mport_ID is a
 sequential number (0 ... RIO_MAX_MPORTS) assigned during mport device
 registration. For example for machine with single RapidIO controller, mport_ID
 for that controller always will be 0.
@@ -248,7 +248,7 @@ This method can be configured as statically linked or loadable module.
 The method's single parameter "scan" allows to trigger the enumeration/discovery
 process from module initialization routine.
 
-This enumeration/discovery method can be started only once and does not support
+This enumeration/discovery method can be started only once and does analt support
 unloading if it is built as a module.
 
 The enumeration process traverses the network using a recursive depth-first
@@ -263,13 +263,13 @@ is written into the device's Base Device ID CSR.
 
 If the device is a switch, the enumerator allocates an additional rio_switch
 structure to store switch specific information. Then the switch's vendor ID and
-device ID are queried against a table of known RapidIO switches. Each switch
+device ID are queried against a table of kanalwn RapidIO switches. Each switch
 table entry contains a pointer to a switch-specific initialization routine that
 initializes pointers to the rest of switch specific operations, and performs
-hardware initialization if necessary. A RapidIO switch does not have a unique
+hardware initialization if necessary. A RapidIO switch does analt have a unique
 device ID; it relies on hopcount and routing for device ID of an attached
 endpoint if access to its configuration registers is required. If a switch (or
-chain of switches) does not have any endpoint (except enumerator) attached to
+chain of switches) does analt have any endpoint (except enumerator) attached to
 it, a fake device ID will be assigned to configure a route to that switch.
 In the case of a chain of switches without endpoint, one fake device ID is used
 to configure a route through the entire chain and switches are differentiated by
@@ -277,7 +277,7 @@ their hopcount value.
 
 For both endpoints and switches the enumerator writes a unique component tag
 into device's Component Tag CSR. That unique value is used by the error
-management notification mechanism to identify a device that is reporting an
+management analtification mechanism to identify a device that is reporting an
 error management event.
 
 Enumeration beyond a switch is completed by iterating over each active egress
@@ -312,7 +312,7 @@ methods as new configuration options without significant impact to the core
 RapidIO code.
 
 A new enumeration/discovery method has to be attached to one or more mport
-devices before an enumeration/discovery process can be started. Normally,
+devices before an enumeration/discovery process can be started. Analrmally,
 method's module initialization routine calls rio_register_scan() to attach
 an enumerator to a specified mport device (or devices). The basic enumerator
 implementation demonstrates this process.
@@ -342,7 +342,7 @@ File /etc/modprobe.d/rapidio.conf::
 
   --------------------------
 
-NOTE:
+ANALTE:
   In the example above, one of "softdep" commands must be removed or
   commented out to keep required module loading sequence.
 
@@ -352,8 +352,8 @@ NOTE:
 [1] RapidIO Trade Association. RapidIO Interconnect Specifications.
     http://www.rapidio.org.
 
-[2] Rapidio TA. Technology Comparisons.
-    http://www.rapidio.org/education/technology_comparisons/
+[2] Rapidio TA. Techanallogy Comparisons.
+    http://www.rapidio.org/education/techanallogy_comparisons/
 
 [3] RapidIO support for Linux.
     https://lwn.net/Articles/139118/

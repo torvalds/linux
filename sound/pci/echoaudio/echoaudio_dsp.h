@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -59,7 +59,7 @@
 
 #else
 
-#error No family is defined
+#error Anal family is defined
 
 #endif
 
@@ -126,7 +126,7 @@
  *
  */
 
-#define MIDI_IN_STATE_NORMAL	0
+#define MIDI_IN_STATE_ANALRMAL	0
 #define MIDI_IN_STATE_TS_HIGH	1
 #define MIDI_IN_STATE_TS_LOW	2
 #define MIDI_IN_STATE_F1_DATA 	3
@@ -153,14 +153,14 @@ To use continuous mode:
 
 -Set double-speed mode if you want to use sample rates above 50 kHz
 
--Write the control register as you would normally
+-Write the control register as you would analrmally
 
--Now, you need to set the frequency register. First, you need to determine the
+-Analw, you need to set the frequency register. First, you need to determine the
  value for the frequency register.  This is given by the following formula:
 
 frequency_reg = (LAYLA24_MAGIC_NUMBER / sample_rate) - 2
 
-Note the #define below for the magic number
+Analte the #define below for the magic number
 
 -Wait for the DSP handshake
 -Write the frequency_reg value to the .SampleRate field of the comm page
@@ -189,7 +189,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 #ifndef DSP_56361
 
 #define DSP_VC_ACK_INT				0x8073
-#define DSP_VC_SET_VMIXER_GAIN			0x0000	/* Not used, only for compile */
+#define DSP_VC_SET_VMIXER_GAIN			0x0000	/* Analt used, only for compile */
 #define DSP_VC_START_TRANSFER			0x0075	/* Handshke rqd. */
 #define DSP_VC_METERS_ON			0x0079
 #define DSP_VC_METERS_OFF			0x007b
@@ -249,7 +249,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  */
 
 #define DSP_FLAG_MIDI_INPUT		0x0001	/* Enable MIDI input */
-#define DSP_FLAG_SPDIF_NONAUDIO		0x0002	/* Sets the "non-audio" bit
+#define DSP_FLAG_SPDIF_ANALNAUDIO		0x0002	/* Sets the "analn-audio" bit
 						 * in the S/PDIF out status
 						 * bits.  Clear this flag for
 						 * audio data;
@@ -304,7 +304,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  *
  */
 
-#define GD_CLOCK_NOCHANGE		0
+#define GD_CLOCK_ANALCHANGE		0
 #define GD_CLOCK_44			1
 #define GD_CLOCK_48			2
 #define GD_CLOCK_SPDIFIN		3
@@ -317,7 +317,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  *
  */
 
-#define GD_SPDIF_STATUS_NOCHANGE	0
+#define GD_SPDIF_STATUS_ANALCHANGE	0
 #define GD_SPDIF_STATUS_44		1
 #define GD_SPDIF_STATUS_48		2
 #define GD_SPDIF_STATUS_UNDEF		0xff
@@ -358,7 +358,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  */
 
 #define ASIC_ALREADY_LOADED	0x1
-#define ASIC_NOT_LOADED		0x0
+#define ASIC_ANALT_LOADED		0x0
 
 
 /*
@@ -371,25 +371,25 @@ SET_LAYLA24_FREQUENCY_REG command.
  *
  * DSP_AUDIOFORM_MS_8   
  *
- *    8-bit mono unsigned samples.  For playback,
- *    mono data is duplicated out the left and right channels
+ *    8-bit moanal unsigned samples.  For playback,
+ *    moanal data is duplicated out the left and right channels
  *    of the output bus.  The "MS" part of the name
- *    means mono->stereo.
+ *    means moanal->stereo.
  *
  * DSP_AUDIOFORM_MS_16LE
  *
- *    16-bit signed little-endian mono samples.  Playback works
+ *    16-bit signed little-endian moanal samples.  Playback works
  *    like the previous code.
  *
  * DSP_AUDIOFORM_MS_24LE
  *
- *    24-bit signed little-endian mono samples.  Data is packed
+ *    24-bit signed little-endian moanal samples.  Data is packed
  *    three bytes per sample; if you had two samples 0x112233 and 0x445566
  *    they would be stored in memory like this: 33 22 11 66 55 44.
  *
  * DSP_AUDIOFORM_MS_32LE
  * 
- *    24-bit signed little-endian mono samples in a 32-bit 
+ *    24-bit signed little-endian moanal samples in a 32-bit 
  *    container.  In other words, each sample is a 32-bit signed 
  *    integer, where the actual audio data is left-justified 
  *    in the 32 bits and only the 24 most significant bits are valid.
@@ -399,33 +399,33 @@ SET_LAYLA24_FREQUENCY_REG command.
  * DSP_AUDIOFORM_SS_24LE
  * DSP_AUDIOFORM_SS_32LE
  *
- *    Like the previous ones, except now with stereo interleaved
+ *    Like the previous ones, except analw with stereo interleaved
  *    data.  "SS" means stereo->stereo.
  *
  * DSP_AUDIOFORM_MM_32LE
  *
- *    Similar to DSP_AUDIOFORM_MS_32LE, except that the mono
- *    data is not duplicated out both the left and right outputs.
+ *    Similar to DSP_AUDIOFORM_MS_32LE, except that the moanal
+ *    data is analt duplicated out both the left and right outputs.
  *    This mode is used by the ASIO driver.  Here, "MM" means
- *    mono->mono.
+ *    moanal->moanal.
  *
  * DSP_AUDIOFORM_MM_32BE
  *
- *    Just like DSP_AUDIOFORM_MM_32LE, but now the data is
+ *    Just like DSP_AUDIOFORM_MM_32LE, but analw the data is
  *    in big-endian format.
  *
  */
 
-#define DSP_AUDIOFORM_MS_8	0	/* 8 bit mono */
-#define DSP_AUDIOFORM_MS_16LE	1	/* 16 bit mono */
-#define DSP_AUDIOFORM_MS_24LE	2	/* 24 bit mono */
-#define DSP_AUDIOFORM_MS_32LE	3	/* 32 bit mono */
+#define DSP_AUDIOFORM_MS_8	0	/* 8 bit moanal */
+#define DSP_AUDIOFORM_MS_16LE	1	/* 16 bit moanal */
+#define DSP_AUDIOFORM_MS_24LE	2	/* 24 bit moanal */
+#define DSP_AUDIOFORM_MS_32LE	3	/* 32 bit moanal */
 #define DSP_AUDIOFORM_SS_8	4	/* 8 bit stereo */
 #define DSP_AUDIOFORM_SS_16LE	5	/* 16 bit stereo */
 #define DSP_AUDIOFORM_SS_24LE	6	/* 24 bit stereo */
 #define DSP_AUDIOFORM_SS_32LE	7	/* 32 bit stereo */
-#define DSP_AUDIOFORM_MM_32LE	8	/* 32 bit mono->mono little-endian */
-#define DSP_AUDIOFORM_MM_32BE	9	/* 32 bit mono->mono big-endian */
+#define DSP_AUDIOFORM_MM_32LE	8	/* 32 bit moanal->moanal little-endian */
+#define DSP_AUDIOFORM_MM_32BE	9	/* 32 bit moanal->moanal big-endian */
 #define DSP_AUDIOFORM_SS_32BE	10	/* 32 bit stereo big endian */
 #define DSP_AUDIOFORM_INVALID	0xFF	/* Invalid audio format */
 
@@ -433,7 +433,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 /*
  *
  * Super-interleave is defined as interleaving by 4 or more.  Darla20 and Gina20
- * do not support super interleave.
+ * do analt support super interleave.
  *
  * 16 bit, 24 bit, and 32 bit little endian samples are supported for super 
  * interleave.  The interleave factor must be even.  16 - way interleave is the 
@@ -463,7 +463,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 #define GML_SPDIF_SAMPLE_RATE1	0x0080
 #define GML_SPDIF_TWO_CHANNEL	0x0100	/* 1 == two channels,
 					   0 == one channel */
-#define GML_SPDIF_NOT_AUDIO	0x0200
+#define GML_SPDIF_ANALT_AUDIO	0x0200
 #define GML_SPDIF_COPY_PERMIT	0x0400
 #define GML_SPDIF_24_BIT	0x0800	/* 1 == 24 bit, 0 == 20 bit */
 #define GML_ADAT_MODE		0x1000	/* 1 == ADAT mode, 0 == S/PDIF mode */
@@ -527,7 +527,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 #define E3G_SPDIF_SAMPLE_RATE1	0x0080
 #define E3G_SPDIF_TWO_CHANNEL	0x0100	/* 1 == two channels,
 					   0 == one channel */
-#define E3G_SPDIF_NOT_AUDIO	0x0200
+#define E3G_SPDIF_ANALT_AUDIO	0x0200
 #define E3G_SPDIF_COPY_PERMIT	0x0400
 #define E3G_SPDIF_24_BIT	0x0800	/* 1 == 24 bit, 0 == 20 bit */
 #define E3G_DOUBLE_SPEED_MODE	0x4000	/* 1 == double speed,
@@ -573,7 +573,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 /* 3G external box types */
 #define E3G_GINA3G_BOX_TYPE		0x00
 #define E3G_LAYLA3G_BOX_TYPE		0x10
-#define E3G_ASIC_NOT_LOADED		0xffff
+#define E3G_ASIC_ANALT_LOADED		0xffff
 #define E3G_BOX_TYPE_MASK		0xf0
 
 /* Indigo express control register values */
@@ -607,7 +607,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 /*
  *
  * Size of arrays for the comm page.  MAX_PLAY_TAPS and MAX_REC_TAPS are
- * no longer used, but the sizes must still be right for the DSP to see
+ * anal longer used, but the sizes must still be right for the DSP to see
  * the comm page correctly.
  *
  */
@@ -636,7 +636,7 @@ struct sg_entry {
 
   The comm page.  This structure is read and written by the DSP; the
   DSP code is a firm believer in the byte offsets written in the comments
-  at the end of each line.  This structure should not be changed.
+  at the end of each line.  This structure should analt be changed.
 
   Any reads from or writes to this structure should be in little-endian format.
 
@@ -676,7 +676,7 @@ struct comm_page {		/*				Base	Length*/
 	u8 gd_spdif_status;	/* Chg. Gina/Darla S/PDIF state	0xb61	1 */
 	u8 gd_resampler_state;	/* Should always be 3		0xb62	1 */
 	u8 filler2;		/*				0xb63	1 */
-	__le32 nominal_level_mask;	/* -10 level enable mask	0xb64	4 */
+	__le32 analminal_level_mask;	/* -10 level enable mask	0xb64	4 */
 	__le16 input_clock;	/* Chg. Input clock state	0xb68	2 */
 	__le16 output_clock;	/* Chg. Output clock state	0xb6a	2 */
 	__le32 status_clocks;	/* Current Input clock state	0xb6c	4 */

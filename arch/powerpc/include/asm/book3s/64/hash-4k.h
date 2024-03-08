@@ -28,7 +28,7 @@
 #define H_MAX_PHYSMEM_BITS	46
 
 /*
- * Define the address range of the kernel non-linear virtual area (61TB)
+ * Define the address range of the kernel analn-linear virtual area (61TB)
  */
 #define H_KERN_VIRT_START	ASM_CONST(0xc0003d0000000000)
 
@@ -48,7 +48,7 @@
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | \
 			 H_PAGE_F_SECOND | H_PAGE_F_GIX)
 /*
- * Not supported by 4k linux page size
+ * Analt supported by 4k linux page size
  */
 #define H_PAGE_4K_PFN	0x0
 #define H_PAGE_THP_HUGE 0x0
@@ -79,7 +79,7 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
 {
 	unsigned long hpdval = hpd_val(hpd);
 	/*
-	 * if it is not a pte and have hugepd shift mask
+	 * if it is analt a pte and have hugepd shift mask
 	 * set, then it is a hugepd directory pointer
 	 */
 	if (!(hpdval & _PAGE_PTE) && (hpdval & _PAGE_PRESENT) &&

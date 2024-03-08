@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -51,7 +51,7 @@ static bool assert_vma(struct i915_vma *vma,
 		ok = false;
 	}
 
-	if (vma->gtt_view.type != I915_GTT_VIEW_NORMAL) {
+	if (vma->gtt_view.type != I915_GTT_VIEW_ANALRMAL) {
 		pr_err("VMA created with wrong type [%d]\n",
 		       vma->gtt_view.type);
 		ok = false;
@@ -74,13 +74,13 @@ checked_vma_instance(struct drm_i915_gem_object *obj,
 
 	/* Manual checks, will be reinforced by i915_vma_compare! */
 	if (vma->vm != vm) {
-		pr_err("VMA's vm [%p] does not match request [%p]\n",
+		pr_err("VMA's vm [%p] does analt match request [%p]\n",
 		       vma->vm, vm);
 		ok = false;
 	}
 
 	if (i915_is_ggtt(vm) != i915_vma_is_ggtt(vma)) {
-		pr_err("VMA ggtt status [%d] does not match parent [%d]\n",
+		pr_err("VMA ggtt status [%d] does analt match parent [%d]\n",
 		       i915_vma_is_ggtt(vma), i915_is_ggtt(vm));
 		ok = false;
 	}
@@ -153,19 +153,19 @@ static int igt_vma_create(void *arg)
 	struct drm_i915_gem_object *obj, *on;
 	struct i915_gem_context *ctx, *cn;
 	unsigned long num_obj, num_ctx;
-	unsigned long no, nc;
+	unsigned long anal, nc;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(contexts);
 	LIST_HEAD(objects);
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Exercise creating many vma amonst many objections, checking the
 	 * vma creation and lookup routines.
 	 */
 
-	no = 0;
+	anal = 0;
 	for_each_prime_number(num_obj, ULONG_MAX - 1) {
-		for (; no < num_obj; no++) {
+		for (; anal < num_obj; anal++) {
 			obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 			if (IS_ERR(obj))
 				goto out;
@@ -189,7 +189,7 @@ static int igt_vma_create(void *arg)
 
 			if (igt_timeout(end_time,
 					"%s timed out: after %lu objects in %lu contexts\n",
-					__func__, no, nc))
+					__func__, anal, nc))
 				goto end;
 		}
 
@@ -238,11 +238,11 @@ static bool assert_pin_valid(const struct i915_vma *vma,
 }
 
 __maybe_unused
-static bool assert_pin_enospc(const struct i915_vma *vma,
+static bool assert_pin_eanalspc(const struct i915_vma *vma,
 			      const struct pin_mode *mode,
 			      int result)
 {
-	return result == -ENOSPC;
+	return result == -EANALSPC;
 }
 
 __maybe_unused
@@ -260,7 +260,7 @@ static int igt_vma_pin1(void *arg)
 #define VALID(sz, fl) { .size = (sz), .flags = (fl), .assert = assert_pin_valid, .string = #sz ", " #fl ", (valid) " }
 #define __INVALID(sz, fl, check, eval) { .size = (sz), .flags = (fl), .assert = (check), .string = #sz ", " #fl ", (invalid " #eval ")" }
 #define INVALID(sz, fl) __INVALID(sz, fl, assert_pin_einval, EINVAL)
-#define NOSPACE(sz, fl) __INVALID(sz, fl, assert_pin_enospc, ENOSPC)
+#define ANALSPACE(sz, fl) __INVALID(sz, fl, assert_pin_eanalspc, EANALSPC)
 		VALID(0, PIN_GLOBAL),
 		VALID(0, PIN_GLOBAL | PIN_MAPPABLE),
 
@@ -280,11 +280,11 @@ static int igt_vma_pin1(void *arg)
 		VALID(8192, PIN_GLOBAL),
 		VALID(ggtt->mappable_end - 4096, PIN_GLOBAL | PIN_MAPPABLE),
 		VALID(ggtt->mappable_end, PIN_GLOBAL | PIN_MAPPABLE),
-		NOSPACE(ggtt->mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
+		ANALSPACE(ggtt->mappable_end + 4096, PIN_GLOBAL | PIN_MAPPABLE),
 		VALID(ggtt->vm.total - 4096, PIN_GLOBAL),
 		VALID(ggtt->vm.total, PIN_GLOBAL),
-		NOSPACE(ggtt->vm.total + 4096, PIN_GLOBAL),
-		NOSPACE(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
+		ANALSPACE(ggtt->vm.total + 4096, PIN_GLOBAL),
+		ANALSPACE(round_down(U64_MAX, PAGE_SIZE), PIN_GLOBAL),
 		INVALID(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_FIXED | (ggtt->mappable_end - 4096)),
 		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (ggtt->vm.total - 4096)),
 		INVALID(8192, PIN_GLOBAL | PIN_OFFSET_FIXED | (round_down(U64_MAX, PAGE_SIZE) - 4096)),
@@ -292,18 +292,18 @@ static int igt_vma_pin1(void *arg)
 		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
 
 #if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-		/* Misusing BIAS is a programming error (it is not controllable
+		/* Misusing BIAS is a programming error (it is analt controllable
 		 * from userspace) so when debugging is enabled, it explodes.
 		 * However, the tests are still quite interesting for checking
 		 * variable start, end and size.
 		 */
-		NOSPACE(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | ggtt->mappable_end),
-		NOSPACE(0, PIN_GLOBAL | PIN_OFFSET_BIAS | ggtt->vm.total),
-		NOSPACE(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
-		NOSPACE(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->vm.total - 4096)),
+		ANALSPACE(0, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | ggtt->mappable_end),
+		ANALSPACE(0, PIN_GLOBAL | PIN_OFFSET_BIAS | ggtt->vm.total),
+		ANALSPACE(8192, PIN_GLOBAL | PIN_MAPPABLE | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
+		ANALSPACE(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->vm.total - 4096)),
 #endif
 		{ },
-#undef NOSPACE
+#undef ANALSPACE
 #undef INVALID
 #undef __INVALID
 #undef VALID
@@ -575,7 +575,7 @@ static int igt_vma_rotate_remap(void *arg)
 		0,
 	}, *t;
 	const unsigned int max_pages = 64;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Create VMA for many different combinations of planes and check
 	 * that the page layout within the rotated VMA match our expectations.
@@ -653,9 +653,9 @@ static int igt_vma_rotate_remap(void *arg)
 						goto out_object;
 					}
 
-					if (vma->node.size < vma->size) {
+					if (vma->analde.size < vma->size) {
 						pr_err("VMA binding too small, expected %llu, found %llu\n",
-						       vma->size, vma->node.size);
+						       vma->size, vma->analde.size);
 						err = -EINVAL;
 						goto out_object;
 					}
@@ -753,13 +753,13 @@ static bool assert_pin(struct i915_vma *vma,
 		ok = false;
 	}
 
-	if (vma->node.size < vma->size) {
+	if (vma->analde.size < vma->size) {
 		pr_err("(%s) VMA binding too small, expected %llu, found %llu\n",
-		       name, vma->size, vma->node.size);
+		       name, vma->size, vma->analde.size);
 		ok = false;
 	}
 
-	if (view && view->type != I915_GTT_VIEW_NORMAL) {
+	if (view && view->type != I915_GTT_VIEW_ANALRMAL) {
 		if (memcmp(&vma->gtt_view, view, sizeof(*view))) {
 			pr_err("(%s) VMA mismatch upon creation!\n",
 			       name);
@@ -772,14 +772,14 @@ static bool assert_pin(struct i915_vma *vma,
 			ok = false;
 		}
 	} else {
-		if (vma->gtt_view.type != I915_GTT_VIEW_NORMAL) {
-			pr_err("Not the normal ggtt view! Found %d\n",
+		if (vma->gtt_view.type != I915_GTT_VIEW_ANALRMAL) {
+			pr_err("Analt the analrmal ggtt view! Found %d\n",
 			       vma->gtt_view.type);
 			ok = false;
 		}
 
 		if (vma->pages != vma->obj->mm.pages) {
-			pr_err("VMA not using object pages!\n");
+			pr_err("VMA analt using object pages!\n");
 			ok = false;
 		}
 	}
@@ -802,7 +802,7 @@ static int igt_vma_partial(void *arg)
 	}, *p;
 	unsigned int sz, offset;
 	struct i915_vma *vma;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/* Create lots of different VMA for the object and check that
 	 * we are returned the same VMA when we later request the same range.
@@ -825,7 +825,7 @@ static int igt_vma_partial(void *arg)
 				view.partial.size = sz;
 
 				if (sz == npages)
-					view.type = I915_GTT_VIEW_NORMAL;
+					view.type = I915_GTT_VIEW_ANALRMAL;
 
 				vma = checked_vma_instance(obj, vm, &view);
 				if (IS_ERR(vma)) {
@@ -867,7 +867,7 @@ static int igt_vma_partial(void *arg)
 		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
-			pr_err("(%s) All partial vma were not recorded on the obj->vma_list: found %u, expected %u\n",
+			pr_err("(%s) All partial vma were analt recorded on the obj->vma_list: found %u, expected %u\n",
 			       p->name, count, nvma);
 			err = -EINVAL;
 			goto out_object;
@@ -928,7 +928,7 @@ int i915_vma_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* allocate the ggtt */
 	err = intel_gt_assign_ggtt(to_gt(i915));
@@ -1052,7 +1052,7 @@ static int igt_vma_remapped_gtt(void *arg)
 				goto out;
 			}
 
-			GEM_BUG_ON(vma->gtt_view.type != I915_GTT_VIEW_NORMAL);
+			GEM_BUG_ON(vma->gtt_view.type != I915_GTT_VIEW_ANALRMAL);
 
 			map = i915_vma_pin_iomap(vma);
 			i915_vma_unpin(vma);

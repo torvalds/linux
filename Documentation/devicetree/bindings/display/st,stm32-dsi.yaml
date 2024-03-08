@@ -11,7 +11,7 @@ maintainers:
   - Yannick Fertre <yannick.fertre@foss.st.com>
 
 description:
-  The STMicroelectronics STM32 DSI controller uses the Synopsys DesignWare MIPI-DSI host controller.
+  The STMicroelectronics STM32 DSI controller uses the Syanalpsys DesignWare MIPI-DSI host controller.
 
 allOf:
   - $ref: dsi-controller.yaml#
@@ -55,13 +55,13 @@ properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
         description:
-          DSI input port node, connected to the ltdc rgb output port.
+          DSI input port analde, connected to the ltdc rgb output port.
 
       port@1:
         $ref: /schemas/graph.yaml#/$defs/port-base
         unevaluatedProperties: false
         description: |
-          DSI output port node, connected to a panel or a bridge input port.
+          DSI output port analde, connected to a panel or a bridge input port.
         properties:
           endpoint:
             $ref: /schemas/media/video-interfaces.yaml#

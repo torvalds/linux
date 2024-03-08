@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare xData driver
+ * Copyright (c) 2020 Syanalpsys, Inc. and/or its affiliates.
+ * Syanalpsys DesignWare xData driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>
  */
 
 #include <linux/miscdevice.h>
@@ -29,7 +29,7 @@ static DEFINE_IDA(xdata_ida);
 #define CONTROL_IS_WRITE		BIT(1)
 #define CONTROL_LENGTH(a)		FIELD_PREP(GENMASK(13, 2), a)
 #define CONTROL_PATTERN_INC		BIT(16)
-#define CONTROL_NO_ADDR_INC		BIT(18)
+#define CONTROL_ANAL_ADDR_INC		BIT(18)
 
 #define XPERF_CONTROL_ENABLE		BIT(5)
 
@@ -111,7 +111,7 @@ static void dw_xdata_start(struct dw_xdata *dw, bool write)
 	writel(PATTERN_VALUE, &(__dw_regs(dw)->pattern));
 
 	/* Control register */
-	control = CONTROL_DOORBELL | CONTROL_PATTERN_INC | CONTROL_NO_ADDR_INC;
+	control = CONTROL_DOORBELL | CONTROL_PATTERN_INC | CONTROL_ANAL_ADDR_INC;
 	if (write) {
 		control |= CONTROL_IS_WRITE;
 		control |= CONTROL_LENGTH(dw->max_wr_len);
@@ -314,14 +314,14 @@ static int dw_xdata_pcie_probe(struct pci_dev *pdev,
 	/* Allocate memory */
 	dw = devm_kzalloc(dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Data structure initialization */
 	mutex_init(&dw->mutex);
 
 	dw->rg_region.vaddr = pcim_iomap_table(pdev)[BAR_0];
 	if (!dw->rg_region.vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dw->rg_region.paddr = pdev->resource[BAR_0].start;
 
@@ -342,11 +342,11 @@ static int dw_xdata_pcie_probe(struct pci_dev *pdev,
 	snprintf(name, sizeof(name), DW_XDATA_DRIVER_NAME ".%d", id);
 	dw->misc_dev.name = kstrdup(name, GFP_KERNEL);
 	if (!dw->misc_dev.name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_ida_remove;
 	}
 
-	dw->misc_dev.minor = MISC_DYNAMIC_MINOR;
+	dw->misc_dev.mianalr = MISC_DYNAMIC_MIANALR;
 	dw->misc_dev.parent = dev;
 	dw->misc_dev.groups = xdata_groups;
 
@@ -400,7 +400,7 @@ static void dw_xdata_pcie_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id dw_xdata_pcie_id_table[] = {
-	{ PCI_DEVICE_DATA(SYNOPSYS, EDDA, NULL) },
+	{ PCI_DEVICE_DATA(SYANALPSYS, EDDA, NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, dw_xdata_pcie_id_table);
@@ -415,6 +415,6 @@ static struct pci_driver dw_xdata_pcie_driver = {
 module_pci_driver(dw_xdata_pcie_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare xData PCIe driver");
-MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@synopsys.com>");
+MODULE_DESCRIPTION("Syanalpsys DesignWare xData PCIe driver");
+MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@syanalpsys.com>");
 

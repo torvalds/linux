@@ -73,14 +73,14 @@ static int igc_ptp_adjtime_i225(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct igc_adapter *igc = container_of(ptp, struct igc_adapter,
 					       ptp_caps);
-	struct timespec64 now, then = ns_to_timespec64(delta);
+	struct timespec64 analw, then = ns_to_timespec64(delta);
 	unsigned long flags;
 
 	spin_lock_irqsave(&igc->tmreg_lock, flags);
 
-	igc_ptp_read(igc, &now);
-	now = timespec64_add(now, then);
-	igc_ptp_write_i225(igc, (const struct timespec64 *)&now);
+	igc_ptp_read(igc, &analw);
+	analw = timespec64_add(analw, then);
+	igc_ptp_write_i225(igc, (const struct timespec64 *)&analw);
 
 	spin_unlock_irqrestore(&igc->tmreg_lock, flags);
 
@@ -180,7 +180,7 @@ static void igc_pin_perout(struct igc_adapter *igc, int chan, int pin, int freq)
 
 	igc_pin_direction(pin, 0, &ctrl, &ctrl_ext);
 
-	/* Make sure this pin is not enabled as an input. */
+	/* Make sure this pin is analt enabled as an input. */
 	if ((tssdp & IGC_AUX0_SEL_SDP3) == igc_aux0_sel_sdp[pin])
 		tssdp &= ~IGC_AUX0_TS_SDP_EN;
 
@@ -226,7 +226,7 @@ static void igc_pin_extts(struct igc_adapter *igc, int chan, int pin)
 
 	igc_pin_direction(pin, 1, &ctrl, &ctrl_ext);
 
-	/* Make sure this pin is not enabled as an output. */
+	/* Make sure this pin is analt enabled as an output. */
 	tssdp &= ~igc_ts_sdp_en[pin];
 
 	if (chan == 1) {
@@ -261,13 +261,13 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 					PTP_RISING_EDGE |
 					PTP_FALLING_EDGE |
 					PTP_STRICT_FLAGS))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* Reject requests failing to enable both edges. */
 		if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
 		    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
 		    (rq->extts.flags & PTP_EXTTS_EDGES) != PTP_EXTTS_EDGES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (on) {
 			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_EXTTS,
@@ -301,7 +301,7 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		if (on) {
 			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_PEROUT,
@@ -382,7 +382,7 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 			igc->perout[i].period.tv_sec = ts.tv_sec;
 			igc->perout[i].period.tv_nsec = ts.tv_nsec;
 			wr32(trgttimh, (u32)igc->perout[i].start.tv_sec);
-			/* For now, always select timer 0 as source. */
+			/* For analw, always select timer 0 as source. */
 			wr32(trgttiml, (u32)(igc->perout[i].start.tv_nsec |
 					     IGC_TT_IO_TIMER_SEL_SYSTIM0));
 			if (use_freq)
@@ -411,14 +411,14 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int igc_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
 			      enum ptp_pin_function func, unsigned int chan)
 {
 	switch (func) {
-	case PTP_PF_NONE:
+	case PTP_PF_ANALNE:
 	case PTP_PF_EXTTS:
 	case PTP_PF_PEROUT:
 		break;
@@ -576,7 +576,7 @@ static void igc_ptp_disable_tx_timestamp(struct igc_adapter *adapter)
 		clear_bit(IGC_RING_FLAG_TX_HWTSTAMP, &tx_ring->flags);
 	}
 
-	/* Now we can clean the pending TX timestamp requests. */
+	/* Analw we can clean the pending TX timestamp requests. */
 	igc_ptp_clear_tx_tstamp(adapter);
 
 	wr32(IGC_TSYNCTXCTL, 0);
@@ -594,7 +594,7 @@ static void igc_ptp_enable_tx_timestamp(struct igc_adapter *adapter)
 	rd32(IGC_TXSTMPH);
 
 	/* The hardware is ready to accept TX timestamp requests,
-	 * notify the transmit path.
+	 * analtify the transmit path.
 	 */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igc_ring *tx_ring = adapter->tx_ring[i];
@@ -609,7 +609,7 @@ static void igc_ptp_enable_tx_timestamp(struct igc_adapter *adapter)
  * @adapter: networking device structure
  * @config: hwtstamp configuration
  *
- * Return: 0 in case of success, negative errno code otherwise.
+ * Return: 0 in case of success, negative erranal code otherwise.
  */
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 				      struct hwtstamp_config *config)
@@ -626,7 +626,7 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	}
 
 	switch (config->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		igc_ptp_disable_rx_timestamp(adapter);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
@@ -740,7 +740,7 @@ static void igc_ptp_tx_reg_to_stamp(struct igc_adapter *adapter,
  * @adapter: Board private structure
  *
  * Check against the ready mask for which of the timestamp register
- * sets are ready to be retrieved, then retrieve that and notify the
+ * sets are ready to be retrieved, then retrieve that and analtify the
  * rest of the stack.
  *
  * Context: Expects adapter->ptp_tx_lock to be held by caller.
@@ -764,9 +764,9 @@ static void igc_ptp_tx_hwtstamp(struct igc_adapter *adapter)
 		 *
 		 * To avoid discarding a valid timestamp that just
 		 * happened at the "wrong" time, we need to confirm
-		 * that there was no timestamp captured, we do that by
-		 * assuming that no two timestamps in sequence have
-		 * the same nanosecond value.
+		 * that there was anal timestamp captured, we do that by
+		 * assuming that anal two timestamps in sequence have
+		 * the same naanalsecond value.
 		 *
 		 * So, we read the "low" register, read the "high"
 		 * register (to latch a new timestamp) and read the
@@ -791,7 +791,7 @@ static void igc_ptp_tx_hwtstamp(struct igc_adapter *adapter)
 	igc_ptp_tx_reg_to_stamp(adapter, &adapter->tx_tstamp[0], regval);
 
 done:
-	/* Now that the problematic first register was handled, we can
+	/* Analw that the problematic first register was handled, we can
 	 * use retrieve the timestamps from the other registers
 	 * (starting from '1') with less complications.
 	 */
@@ -860,7 +860,7 @@ int igc_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
  *
  * Get the hwtstamp_config settings to return to the user. Rather than attempt
  * to deconstruct the settings from the registers, just return a shadow copy
- * of the last known settings.
+ * of the last kanalwn settings.
  **/
 int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
 {
@@ -875,7 +875,7 @@ int igc_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
  * PCIe PTM:
  *
  * 1. We have an way to convert the timestamps in the PTM messages
- *    to something related to the system clocks (right now, only
+ *    to something related to the system clocks (right analw, only
  *    X86 systems with support for the Always Running Timer allow that);
  *
  * 2. We have PTM enabled in the path from the device to the PCIe root port.
@@ -885,9 +885,9 @@ static bool igc_is_crosststamp_supported(struct igc_adapter *adapter)
 	if (!IS_ENABLED(CONFIG_X86_TSC))
 		return false;
 
-	/* FIXME: it was noticed that enabling support for PCIe PTM in
+	/* FIXME: it was analticed that enabling support for PCIe PTM in
 	 * some i225-V models could cause lockups when bringing the
-	 * interface up/down. There should be no downsides to
+	 * interface up/down. There should be anal downsides to
 	 * disabling crosstimestamping support for i225-V, as it
 	 * doesn't have any PTP support. That way we gain some time
 	 * while root causing the issue.
@@ -925,10 +925,10 @@ static void igc_ptm_log_error(struct igc_adapter *adapter, u32 ptm_stat)
 		netdev_err(netdev, "PTM Error: 1588 timer adjusted during first PTM cycle\n");
 		break;
 	case IGC_PTM_STAT_ADJUST_CYC:
-		netdev_err(netdev, "PTM Error: 1588 timer adjusted during non-first PTM cycle\n");
+		netdev_err(netdev, "PTM Error: 1588 timer adjusted during analn-first PTM cycle\n");
 		break;
 	default:
-		netdev_err(netdev, "PTM Error: Unknown error (%#x)\n", ptm_stat);
+		netdev_err(netdev, "PTM Error: Unkanalwn error (%#x)\n", ptm_stat);
 		break;
 	}
 }
@@ -963,7 +963,7 @@ static int igc_phc_get_syncdevicetime(ktime_t *device,
 		ctrl |= IGC_PTM_CTRL_TRIG;
 		wr32(IGC_PTM_CTRL, ctrl);
 
-		/* The cycle only starts "for real" when software notifies
+		/* The cycle only starts "for real" when software analtifies
 		 * that it has read the registers, this is done by setting
 		 * VALID bit.
 		 */
@@ -1090,7 +1090,7 @@ void igc_ptp_init(struct igc_adapter *adapter)
 
 			snprintf(ppd->name, sizeof(ppd->name), "SDP%d", i);
 			ppd->index = i;
-			ppd->func = PTP_PF_NONE;
+			ppd->func = PTP_PF_ANALNE;
 		}
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
@@ -1122,7 +1122,7 @@ void igc_ptp_init(struct igc_adapter *adapter)
 	spin_lock_init(&adapter->free_timer_lock);
 	spin_lock_init(&adapter->tmreg_lock);
 
-	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_ANALNE;
 	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
 	adapter->prev_ptp_time = ktime_to_timespec64(ktime_get_real());
@@ -1247,7 +1247,7 @@ void igc_ptp_reset(struct igc_adapter *adapter)
 		wr32(IGC_PTM_CYCLE_CTRL, cycle_ctrl);
 
 		ctrl = IGC_PTM_CTRL_EN |
-			IGC_PTM_CTRL_START_NOW |
+			IGC_PTM_CTRL_START_ANALW |
 			IGC_PTM_CTRL_SHRT_CYC(IGC_PTM_SHORT_CYC_DEFAULT) |
 			IGC_PTM_CTRL_PTM_TO(IGC_PTM_TIMEOUT_DEFAULT) |
 			IGC_PTM_CTRL_TRIG;
@@ -1259,7 +1259,7 @@ void igc_ptp_reset(struct igc_adapter *adapter)
 
 		break;
 	default:
-		/* No work to do. */
+		/* Anal work to do. */
 		goto out;
 	}
 

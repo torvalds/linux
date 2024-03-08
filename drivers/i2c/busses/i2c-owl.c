@@ -35,7 +35,7 @@
 /* I2Cx_CTL Bit Mask */
 #define OWL_I2C_CTL_RB		BIT(1)
 #define OWL_I2C_CTL_GBCC(x)	(((x) & 0x3) << 2)
-#define	OWL_I2C_CTL_GBCC_NONE	OWL_I2C_CTL_GBCC(0)
+#define	OWL_I2C_CTL_GBCC_ANALNE	OWL_I2C_CTL_GBCC(0)
 #define	OWL_I2C_CTL_GBCC_START	OWL_I2C_CTL_GBCC(1)
 #define	OWL_I2C_CTL_GBCC_STOP	OWL_I2C_CTL_GBCC(2)
 #define	OWL_I2C_CTL_GBCC_RSTART	OWL_I2C_CTL_GBCC(3)
@@ -200,7 +200,7 @@ static void owl_i2c_xfer_data(struct owl_i2c_dev *i2c_dev)
 							     OWL_I2C_REG_RXDAT);
 		}
 	} else {
-		/* Handle the remaining bytes which were not sent */
+		/* Handle the remaining bytes which were analt sent */
 		while (!(readl(i2c_dev->base + OWL_I2C_REG_FIFOSTAT) &
 			 OWL_I2C_FIFOSTAT_TFF) && i2c_dev->msg_ptr < msg->len) {
 			writel(msg->buf[i2c_dev->msg_ptr++],
@@ -354,8 +354,8 @@ static int owl_i2c_xfer_common(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		i2c_dev->msg_ptr = idx;
 	}
 
-	/* Ignore the NACK if needed */
-	if (msg->flags & I2C_M_IGNORE_NAK)
+	/* Iganalre the NACK if needed */
+	if (msg->flags & I2C_M_IGANALRE_NAK)
 		owl_i2c_update_reg(i2c_dev->base + OWL_I2C_REG_FIFOCTL,
 				   OWL_I2C_FIFOCTL_NIB, true);
 	else
@@ -441,7 +441,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev = devm_kzalloc(dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c_dev->base))
@@ -451,11 +451,11 @@ static int owl_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (of_property_read_u32(dev->of_node, "clock-frequency",
+	if (of_property_read_u32(dev->of_analde, "clock-frequency",
 				 &i2c_dev->bus_freq))
 		i2c_dev->bus_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
-	/* We support only frequencies of 100k and 400k for now */
+	/* We support only frequencies of 100k and 400k for analw */
 	if (i2c_dev->bus_freq != I2C_MAX_STANDARD_MODE_FREQ &&
 	    i2c_dev->bus_freq != I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(dev, "invalid clock-frequency %d\n", i2c_dev->bus_freq);
@@ -470,7 +470,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev->clk_rate = clk_get_rate(i2c_dev->clk);
 	if (!i2c_dev->clk_rate) {
-		dev_err(dev, "input clock rate should not be zero\n");
+		dev_err(dev, "input clock rate should analt be zero\n");
 		return -EINVAL;
 	}
 
@@ -481,7 +481,7 @@ static int owl_i2c_probe(struct platform_device *pdev)
 	i2c_dev->adap.timeout = OWL_I2C_TIMEOUT;
 	i2c_dev->adap.quirks = &owl_i2c_quirks;
 	i2c_dev->adap.dev.parent = dev;
-	i2c_dev->adap.dev.of_node = dev->of_node;
+	i2c_dev->adap.dev.of_analde = dev->of_analde;
 	snprintf(i2c_dev->adap.name, sizeof(i2c_dev->adap.name),
 		 "%s", "OWL I2C adapter");
 	i2c_set_adapdata(&i2c_dev->adap, i2c_dev);
@@ -511,7 +511,7 @@ static struct platform_driver owl_i2c_driver = {
 	.driver		= {
 		.name	= "owl-i2c",
 		.of_match_table = owl_i2c_of_match,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 module_platform_driver(owl_i2c_driver);

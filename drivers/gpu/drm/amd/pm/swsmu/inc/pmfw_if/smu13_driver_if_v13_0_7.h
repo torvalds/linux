@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -219,7 +219,7 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_BIT         7
 #define FW_DSTATE_MALL_ALLOC_BIT            8
 #define FW_DSTATE_MEM_PSI_BIT               9
-#define FW_DSTATE_HSR_NON_STROBE_BIT        10
+#define FW_DSTATE_HSR_ANALN_STROBE_BIT        10
 #define FW_DSTATE_MP0_ENTER_WFI_BIT         11
 #define FW_DSTATE_U_ULV_BIT                 12
 #define FW_DSTATE_MALL_FLUSH_BIT            13
@@ -295,7 +295,7 @@ typedef enum {
 } I2cControllerName_e;
 
 typedef enum {
-  I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+  I2C_CONTROLLER_THROTTLER_TYPE_ANALNE = 0,
   I2C_CONTROLLER_THROTTLER_VR_GFX,
   I2C_CONTROLLER_THROTTLER_VR_SOC,
   I2C_CONTROLLER_THROTTLER_VR_VMEMP,
@@ -871,7 +871,7 @@ typedef struct {
   //encoding will change depending on SVI2/SVI3
   uint16_t InitGfx;     // In mV(Q2) ,  should be 0?
   uint16_t InitSoc;     // In mV(Q2)
-  uint16_t InitU; // In Mv(Q2) not applicable
+  uint16_t InitU; // In Mv(Q2) analt applicable
 
   uint16_t Padding2;
 
@@ -982,7 +982,7 @@ typedef struct {
 
   uint16_t PaddingInfra;
 
-  // Per year normalized Vmax state failure rates (sum of the two domains divided by life time in years)
+  // Per year analrmalized Vmax state failure rates (sum of the two domains divided by life time in years)
   uint32_t FitControllerFailureRateLimit; //in IEEE float
   //Expected GFX Duty Cycle at Vmax.
   uint32_t FitControllerGfxDutyCycle; // in IEEE float
@@ -1131,7 +1131,7 @@ typedef struct {
   uint8_t      FclkDpmUPstates[NUM_FCLK_DPM_LEVELS]; // U P-state ID associated with each FCLK DPM state.
   uint16_t     FclkDpmVddU[NUM_FCLK_DPM_LEVELS]; // mV(Q2) Vset U voltage associated with each FCLK DPM state.
   uint16_t     FclkDpmUSpeed[NUM_FCLK_DPM_LEVELS]; //U speed associated with each FCLK DPM state
-  uint16_t     FclkDpmDisallowPstateFreq;  //Frequency which FW will target when indicated that display config cannot support P-state. Set to 0 use FW calculated value
+  uint16_t     FclkDpmDisallowPstateFreq;  //Frequency which FW will target when indicated that display config cananalt support P-state. Set to 0 use FW calculated value
   uint16_t     PaddingFclk;
 
   // Link DPM Settings
@@ -1171,10 +1171,10 @@ typedef struct {
   uint16_t IntakeTempHighIntakeAcousticLimit;
   uint16_t IntakeTempAcouticLimitReleaseRate;
 
-  int16_t FanAbnormalTempLimitOffset;
+  int16_t FanAbanalrmalTempLimitOffset;
   uint16_t FanStalledTriggerRpm;
-  uint16_t FanAbnormalTriggerRpmCoeff;
-  uint16_t FanAbnormalDetectionEnable;
+  uint16_t FanAbanalrmalTriggerRpmCoeff;
+  uint16_t FanAbanalrmalDetectionEnable;
 
   uint8_t      FanIntakeSensorSupport;
   uint8_t      FanIntakePadding[3];
@@ -1262,7 +1262,7 @@ typedef struct {
   // SECTION: Sku Reserved
   uint32_t         Spare[43];
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do analt modify this
   uint32_t     MmHubPadding[8];
 
 } SkuTable_t;
@@ -1347,7 +1347,7 @@ typedef struct {
   uint8_t      PaddingUmcFlags[2];
 
   uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
-  uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
+  uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry analtification from OS
 
   uint8_t     FuseWritePowerMuxPresent;
   uint8_t     FuseWritePadding[3];
@@ -1357,7 +1357,7 @@ typedef struct {
 
   // SECTION: Structure Padding
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do analt modify this
   uint32_t     MmHubPadding[8];
 } BoardTable_t;
 
@@ -1384,7 +1384,7 @@ typedef struct {
   DriverSmuConfig_t DriverSmuConfig;
 
   uint32_t     Spare[8];
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfigExternal_t;
 
@@ -1409,7 +1409,7 @@ typedef struct {
 
   uint32_t Spare[32];
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 
 } DriverInfoTable_t;
@@ -1478,7 +1478,7 @@ typedef struct {
   SmuMetrics_t SmuMetrics;
   uint32_t Spare[30];
 
-  // Padding - ignore
+  // Padding - iganalre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetricsExternal_t;
 
@@ -1616,7 +1616,7 @@ typedef struct {
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D0            0x5
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D3            0x6
 #define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
-#define IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
+#define IH_INTERRUPT_CONTEXT_ID_FAN_ABANALRMAL        0x8
 #define IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
 
 #endif

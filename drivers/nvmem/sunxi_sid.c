@@ -87,7 +87,7 @@ static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
 
 /*
  * On Allwinner H3, the value on the 0x200 offset of the SID controller seems
- * to be not reliable at all.
+ * to be analt reliable at all.
  * Read by the registers instead.
  */
 static int sun8i_sid_read_by_reg(void *context, unsigned int offset,
@@ -133,7 +133,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	sid = devm_kzalloc(dev, sizeof(*sid), GFP_KERNEL);
 	if (!sid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cfg = of_device_get_match_data(dev);
 	if (!cfg)
@@ -148,7 +148,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	nvmem_cfg = devm_kzalloc(dev, sizeof(*nvmem_cfg), GFP_KERNEL);
 	if (!nvmem_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvmem_cfg->dev = dev;
 	nvmem_cfg->name = "sunxi-sid";
@@ -170,7 +170,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	randomness = kzalloc(size, GFP_KERNEL);
 	if (!randomness)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nvmem_cfg->reg_read(sid, 0, randomness, size);
 	add_device_randomness(randomness, size);

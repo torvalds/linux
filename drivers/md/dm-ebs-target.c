@@ -138,7 +138,7 @@ static int __ebs_rw_bio(struct ebs_c *ec, enum req_op op, struct bio *bio)
  * Discard bio's blocks, i.e. pass discards down.
  *
  * Avoid discarding partial blocks at beginning and end;
- * return 0 in case no blocks can be discarded as a result.
+ * return 0 in case anal blocks can be discarded as a result.
  */
 static int __ebs_discard_bio(struct ebs_c *ec, struct bio *bio)
 {
@@ -217,7 +217,7 @@ static void __ebs_process_bios(struct work_struct *ws)
 		}
 
 		if (r < 0)
-			bio->bi_status = errno_to_blk_status(r);
+			bio->bi_status = erranal_to_blk_status(r);
 	}
 
 	/*
@@ -242,7 +242,7 @@ static void __ebs_process_bios(struct work_struct *ws)
  * <offset>: offset in 512 bytes sectors into <dev_path>
  * <ebs>: emulated block size in units of 512 bytes exposed to the upper layer
  * [<ubs>]: underlying block size in units of 512 bytes imposed on the lower layer;
- *	    optional, if not supplied, retrieve logical block size from underlying device
+ *	    optional, if analt supplied, retrieve logical block size from underlying device
  */
 static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -259,8 +259,8 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ec = ti->private = kzalloc(sizeof(*ec), GFP_KERNEL);
 	if (!ec) {
-		ti->error = "Cannot allocate ebs context";
-		return -ENOMEM;
+		ti->error = "Cananalt allocate ebs context";
+		return -EANALMEM;
 	}
 
 	r = -EINVAL;
@@ -317,7 +317,7 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ec->bufio = dm_bufio_client_create(ec->dev->bdev, to_bytes(ec->u_bs), 1,
 					   0, NULL, NULL, 0);
 	if (IS_ERR(ec->bufio)) {
-		ti->error = "Cannot create dm bufio client";
+		ti->error = "Cananalt create dm bufio client";
 		r = PTR_ERR(ec->bufio);
 		ec->bufio = NULL;
 		goto bad;
@@ -325,8 +325,8 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ec->wq = alloc_ordered_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM);
 	if (!ec->wq) {
-		ti->error = "Cannot create dm-" DM_MSG_PREFIX " workqueue";
-		r = -ENOMEM;
+		ti->error = "Cananalt create dm-" DM_MSG_PREFIX " workqueue";
+		r = -EANALMEM;
 		goto bad;
 	}
 

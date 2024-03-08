@@ -21,11 +21,11 @@ static struct bus_type pci_epf_bus_type;
 static const struct device_type pci_epf_type;
 
 /**
- * pci_epf_unbind() - Notify the function driver that the binding between the
+ * pci_epf_unbind() - Analtify the function driver that the binding between the
  *		      EPF device and EPC device has been lost
  * @epf: the EPF device which has lost the binding with the EPC device
  *
- * Invoke to notify the function driver that the binding between the EPF device
+ * Invoke to analtify the function driver that the binding between the EPF device
  * and EPC device has been lost.
  */
 void pci_epf_unbind(struct pci_epf *epf)
@@ -33,7 +33,7 @@ void pci_epf_unbind(struct pci_epf *epf)
 	struct pci_epf *epf_vf;
 
 	if (!epf->driver) {
-		dev_WARN(&epf->dev, "epf device not bound to driver\n");
+		dev_WARN(&epf->dev, "epf device analt bound to driver\n");
 		return;
 	}
 
@@ -50,22 +50,22 @@ void pci_epf_unbind(struct pci_epf *epf)
 EXPORT_SYMBOL_GPL(pci_epf_unbind);
 
 /**
- * pci_epf_bind() - Notify the function driver that the EPF device has been
+ * pci_epf_bind() - Analtify the function driver that the EPF device has been
  *		    bound to a EPC device
  * @epf: the EPF device which has been bound to the EPC device
  *
- * Invoke to notify the function driver that it has been bound to a EPC device
+ * Invoke to analtify the function driver that it has been bound to a EPC device
  */
 int pci_epf_bind(struct pci_epf *epf)
 {
 	struct device *dev = &epf->dev;
 	struct pci_epf *epf_vf;
-	u8 func_no, vfunc_no;
+	u8 func_anal, vfunc_anal;
 	struct pci_epc *epc;
 	int ret;
 
 	if (!epf->driver) {
-		dev_WARN(dev, "epf device not bound to driver\n");
+		dev_WARN(dev, "epf device analt bound to driver\n");
 		return -EINVAL;
 	}
 
@@ -74,50 +74,50 @@ int pci_epf_bind(struct pci_epf *epf)
 
 	mutex_lock(&epf->lock);
 	list_for_each_entry(epf_vf, &epf->pci_vepf, list) {
-		vfunc_no = epf_vf->vfunc_no;
+		vfunc_anal = epf_vf->vfunc_anal;
 
-		if (vfunc_no < 1) {
+		if (vfunc_anal < 1) {
 			dev_err(dev, "Invalid virtual function number\n");
 			ret = -EINVAL;
 			goto ret;
 		}
 
 		epc = epf->epc;
-		func_no = epf->func_no;
+		func_anal = epf->func_anal;
 		if (!IS_ERR_OR_NULL(epc)) {
 			if (!epc->max_vfs) {
-				dev_err(dev, "No support for virt function\n");
+				dev_err(dev, "Anal support for virt function\n");
 				ret = -EINVAL;
 				goto ret;
 			}
 
-			if (vfunc_no > epc->max_vfs[func_no]) {
+			if (vfunc_anal > epc->max_vfs[func_anal]) {
 				dev_err(dev, "PF%d: Exceeds max vfunc number\n",
-					func_no);
+					func_anal);
 				ret = -EINVAL;
 				goto ret;
 			}
 		}
 
 		epc = epf->sec_epc;
-		func_no = epf->sec_epc_func_no;
+		func_anal = epf->sec_epc_func_anal;
 		if (!IS_ERR_OR_NULL(epc)) {
 			if (!epc->max_vfs) {
-				dev_err(dev, "No support for virt function\n");
+				dev_err(dev, "Anal support for virt function\n");
 				ret = -EINVAL;
 				goto ret;
 			}
 
-			if (vfunc_no > epc->max_vfs[func_no]) {
+			if (vfunc_anal > epc->max_vfs[func_anal]) {
 				dev_err(dev, "PF%d: Exceeds max vfunc number\n",
-					func_no);
+					func_anal);
 				ret = -EINVAL;
 				goto ret;
 			}
 		}
 
-		epf_vf->func_no = epf->func_no;
-		epf_vf->sec_epc_func_no = epf->sec_epc_func_no;
+		epf_vf->func_anal = epf->func_anal;
+		epf_vf->sec_epc_func_anal = epf->sec_epc_func_anal;
 		epf_vf->epc = epf->epc;
 		epf_vf->sec_epc = epf->sec_epc;
 		ret = epf_vf->driver->ops->bind(epf_vf);
@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
  */
 int pci_epf_add_vepf(struct pci_epf *epf_pf, struct pci_epf *epf_vf)
 {
-	u32 vfunc_no;
+	u32 vfunc_anal;
 
 	if (IS_ERR_OR_NULL(epf_pf) || IS_ERR_OR_NULL(epf_vf))
 		return -EINVAL;
@@ -166,15 +166,15 @@ int pci_epf_add_vepf(struct pci_epf *epf_pf, struct pci_epf *epf_vf)
 		return -EBUSY;
 
 	mutex_lock(&epf_pf->lock);
-	vfunc_no = find_first_zero_bit(&epf_pf->vfunction_num_map,
+	vfunc_anal = find_first_zero_bit(&epf_pf->vfunction_num_map,
 				       BITS_PER_LONG);
-	if (vfunc_no >= BITS_PER_LONG) {
+	if (vfunc_anal >= BITS_PER_LONG) {
 		mutex_unlock(&epf_pf->lock);
 		return -EINVAL;
 	}
 
-	set_bit(vfunc_no, &epf_pf->vfunction_num_map);
-	epf_vf->vfunc_no = vfunc_no;
+	set_bit(vfunc_anal, &epf_pf->vfunction_num_map);
+	epf_vf->vfunc_anal = vfunc_anal;
 
 	epf_vf->epf_pf = epf_pf;
 	epf_vf->is_vf = true;
@@ -201,7 +201,7 @@ void pci_epf_remove_vepf(struct pci_epf *epf_pf, struct pci_epf *epf_vf)
 		return;
 
 	mutex_lock(&epf_pf->lock);
-	clear_bit(epf_vf->vfunc_no, &epf_pf->vfunction_num_map);
+	clear_bit(epf_vf->vfunc_anal, &epf_pf->vfunction_num_map);
 	list_del(&epf_vf->list);
 	mutex_unlock(&epf_pf->lock);
 }
@@ -216,7 +216,7 @@ EXPORT_SYMBOL_GPL(pci_epf_remove_vepf);
  *
  * Invoke to free the allocated PCI EPF register space.
  */
-void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
+void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_baranal bar,
 			enum pci_epc_interface_type type)
 {
 	struct device *dev;
@@ -241,7 +241,7 @@ void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 	epf_bar[bar].phys_addr = 0;
 	epf_bar[bar].addr = NULL;
 	epf_bar[bar].size = 0;
-	epf_bar[bar].barno = 0;
+	epf_bar[bar].baranal = 0;
 	epf_bar[bar].flags = 0;
 }
 EXPORT_SYMBOL_GPL(pci_epf_free_space);
@@ -256,7 +256,7 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
  *
  * Invoke to allocate memory for the PCI EPF register space.
  */
-void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
+void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_baranal bar,
 			  size_t align, enum pci_epc_interface_type type)
 {
 	struct pci_epf_bar *epf_bar;
@@ -291,7 +291,7 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 	epf_bar[bar].phys_addr = phys_addr;
 	epf_bar[bar].addr = space;
 	epf_bar[bar].size = size;
-	epf_bar[bar].barno = bar;
+	epf_bar[bar].baranal = bar;
 	epf_bar[bar].flags |= upper_32_bits(size) ?
 				PCI_BASE_ADDRESS_MEM_TYPE_64 :
 				PCI_BASE_ADDRESS_MEM_TYPE_32;
@@ -414,13 +414,13 @@ struct pci_epf *pci_epf_create(const char *name)
 
 	epf = kzalloc(sizeof(*epf), GFP_KERNEL);
 	if (!epf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	len = strchrnul(name, '.') - name;
 	epf->name = kstrndup(name, len, GFP_KERNEL);
 	if (!epf->name) {
 		kfree(epf);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	/* VFs are numbered starting with 1. So set BIT(0) by default */
@@ -490,7 +490,7 @@ static int pci_epf_device_probe(struct device *dev)
 	struct pci_epf_driver *driver = to_pci_epf_driver(dev->driver);
 
 	if (!driver->probe)
-		return -ENODEV;
+		return -EANALDEV;
 
 	epf->driver = driver;
 

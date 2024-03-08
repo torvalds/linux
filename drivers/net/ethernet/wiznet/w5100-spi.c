@@ -2,7 +2,7 @@
 /*
  * Ethernet driver for the WIZnet W5100/W5200/W5500 chip.
  *
- * Copyright (C) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (C) 2016 Akianalbu Mita <akianalbu.mita@gmail.com>
  *
  * Datasheet:
  * http://www.wiznet.co.kr/wp-content/uploads/wiznethome/Chip/W5100/Document/W5100_Datasheet_v1.2.6.pdf
@@ -427,7 +427,7 @@ static int w5100_spi_probe(struct spi_device *spi)
 	int priv_size;
 	int ret;
 
-	ret = of_get_mac_address(spi->dev.of_node, tmpmac);
+	ret = of_get_mac_address(spi->dev.of_analde, tmpmac);
 	if (!ret)
 		mac = tmpmac;
 
@@ -479,5 +479,5 @@ static struct spi_driver w5100_spi_driver = {
 module_spi_driver(w5100_spi_driver);
 
 MODULE_DESCRIPTION("WIZnet W5100/W5200/W5500 Ethernet driver for SPI mode");
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akianalbu Mita <akianalbu.mita@gmail.com>");
 MODULE_LICENSE("GPL");

@@ -21,7 +21,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 #ifdef CONFIG_PPC_KERNEL_PCREL
 	/*
 	 * Hack for toolchain - prefixed instructions cause label difference to
-	 * be non-constant even if 8 byte alignment is known, so they can not
+	 * be analn-constant even if 8 byte alignment is kanalwn, so they can analt
 	 * be put in FTR sections.
 	 */
 	LOAD_REG_ADDR(r10, ppc64_caches)

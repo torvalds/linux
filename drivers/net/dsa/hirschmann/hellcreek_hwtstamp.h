@@ -32,7 +32,7 @@
 
 /* TX_TSTAMP_TIMEOUT: This limits the time spent polling for a TX
  * timestamp. When working properly, hardware will produce a timestamp
- * within 1ms. Software may enounter delays, so the timeout is set
+ * within 1ms. Software may eanalunter delays, so the timeout is set
  * accordingly.
  */
 #define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)

@@ -143,7 +143,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		{ ZD_CR11,  0x00 }, { ZD_CR15,  0xD0 }, { ZD_CR17,  0x68 },
 		{ ZD_CR19,  0x4a }, { ZD_CR20,  0x0c }, { ZD_CR21,  0x0E },
 		{ ZD_CR23,  0x48 },
-		/* normal size for cca threshold */
+		/* analrmal size for cca threshold */
 		{ ZD_CR24,  0x14 },
 		/* { ZD_CR24,  0x20 }, */
 		{ ZD_CR26,  0x90 }, { ZD_CR27,  0x30 }, { ZD_CR29,  0x20 },
@@ -163,7 +163,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		{ ZD_CR98,  0x05 }, { ZD_CR99,  0x28 }, { ZD_CR100, 0x00 },
 		{ ZD_CR101, 0x13 }, { ZD_CR102, 0x27 }, { ZD_CR103, 0x27 },
 		{ ZD_CR104, 0x18 }, { ZD_CR105, 0x12 },
-		/* normal size */
+		/* analrmal size */
 		{ ZD_CR106, 0x1a },
 		/* { ZD_CR106, 0x22 }, */
 		{ ZD_CR107, 0x24 }, { ZD_CR108, 0x0a }, { ZD_CR109, 0x13 },
@@ -171,7 +171,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		{ ZD_CR113, 0x27 }, { ZD_CR114, 0x27 }, { ZD_CR115, 0x40 },
 		{ ZD_CR116, 0x40 }, { ZD_CR117, 0xF0 }, { ZD_CR118, 0xF0 },
 		{ ZD_CR119, 0x16 },
-		/* no TX continuation */
+		/* anal TX continuation */
 		{ ZD_CR122, 0x00 },
 		/* { ZD_CR122, 0xff }, */
 		{ ZD_CR127, 0x03 }, { ZD_CR131, 0x08 }, { ZD_CR138, 0x28 },
@@ -193,7 +193,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		0x27fffa,
 		/* The Zydas driver somehow forgets to set this value. It's
 		 * only set for Japan. We are using internal power control
-		 * for now.
+		 * for analw.
 		 */
 		0x294128, /* internal power */
 		/* 0x28252c, */ /* External control TX power */
@@ -202,7 +202,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		0x300000,
 		0x340000,  /* REG13(0xD) */
 		0x381e0f,  /* REG14(0xE) */
-		/* Bogus, RF2959's data sheet doesn't know register 27, which is
+		/* Bogus, RF2959's data sheet doesn't kanalw register 27, which is
 		 * actually referenced here. The commented 0x11 is 17.
 		 */
 		0x6c180f,  /* REG27(0x11) */
@@ -257,9 +257,9 @@ int zd_rf_init_rf2959(struct zd_rf *rf)
 
 	if (zd_chip_is_zd1211b(chip)) {
 		dev_err(zd_chip_dev(chip),
-		       "RF2959 is currently not supported for ZD1211B"
+		       "RF2959 is currently analt supported for ZD1211B"
 		       " devices\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	rf->init_hw = rf2959_init_hw;
 	rf->set_channel = rf2959_set_channel;

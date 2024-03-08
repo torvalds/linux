@@ -11,12 +11,12 @@ tool for inspection and simple manipulation of eBPF maps
 
 .. include:: substitutions.rst
 
-SYNOPSIS
+SYANALPSIS
 ========
 
 	**bpftool** [*OPTIONS*] **map** *COMMAND*
 
-	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--nomount** } }
+	*OPTIONS* := { |COMMON_OPTIONS| | { **-f** | **--bpffs** } | { **-n** | **--analmount** } }
 
 	*COMMANDS* :=
 	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext** |
@@ -48,13 +48,13 @@ MAP COMMANDS
 |	*DATA* := { [**hex**] *BYTES* }
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 |	*VALUE* := { *DATA* | *MAP* | *PROG* }
-|	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
+|	*UPDATE_FLAGS* := { **any** | **exist** | **analexist** }
 |	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**
 |		| **percpu_array** | **stack_trace** | **cgroup_array** | **lru_hash**
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
 |		| **devmap** | **devmap_hash** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
 |		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage**
-|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** | **inode_storage**
+|		| **queue** | **stack** | **sk_storage** | **struct_ops** | **ringbuf** | **ianalde_storage**
 |		| **task_storage** | **bloom_filter** | **user_ringbuf** | **cgrp_storage** }
 
 DESCRIPTION
@@ -98,11 +98,11 @@ DESCRIPTION
 
 		  *UPDATE_FLAGS* can be one of: **any** update existing entry
 		  or add if doesn't exit; **exist** update only if entry already
-		  exists; **noexist** update only if entry doesn't exist.
+		  exists; **analexist** update only if entry doesn't exist.
 
 		  If the **hex** keyword is provided in front of the bytes
 		  sequence, the bytes are parsed as hexadecimal values, even if
-		  no "0x" prefix is added. If the keyword is not provided, then
+		  anal "0x" prefix is added. If the keyword is analt provided, then
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
 
@@ -110,7 +110,7 @@ DESCRIPTION
 		  Lookup **key** in the map.
 
 	**bpftool map getnext** *MAP* [**key** *DATA*]
-		  Get next key.  If *key* is not specified, get first key.
+		  Get next key.  If *key* is analt specified, get first key.
 
 	**bpftool map delete**  *MAP*  **key** *DATA*
 		  Remove entry from the map.
@@ -118,7 +118,7 @@ DESCRIPTION
 	**bpftool map pin**     *MAP*  *FILE*
 		  Pin map *MAP* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Analte: *FILE* must be located in *bpffs* mount. It must analt
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -134,7 +134,7 @@ DESCRIPTION
 		  If **cpu** and **index** are specified, install perf ring
 		  for given **cpu** at **index** in the array (single ring).
 
-		  Note that installing a perf ring into an array will silently
+		  Analte that installing a perf ring into an array will silently
 		  replace any existing ring.  Any other application will stop
 		  receiving events if it installed its rings earlier.
 
@@ -155,8 +155,8 @@ DESCRIPTION
 
 	**bpftool map freeze**  *MAP*
 		  Freeze the map as read-only from user space. Entries from a
-		  frozen map can not longer be updated or deleted with the
-		  **bpf**\ () system call. This operation is not reversible,
+		  frozen map can analt longer be updated or deleted with the
+		  **bpf**\ () system call. This operation is analt reversible,
 		  and the map remains immutable from user space until its
 		  destruction. However, read and write permissions for BPF
 		  programs to the map remain unchanged.
@@ -171,8 +171,8 @@ OPTIONS
 	-f, --bpffs
 		  Show file names of pinned maps.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --analmount
+		  Do analt automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 EXAMPLES
@@ -217,19 +217,19 @@ The following three commands are equivalent:
   0d 00 07 00
 
 |
-| **# mount -t bpf none /sys/fs/bpf/**
+| **# mount -t bpf analne /sys/fs/bpf/**
 | **# bpftool map pin id 10 /sys/fs/bpf/map**
 | **# bpftool map del pinned /sys/fs/bpf/map key 13 00 07 00**
 
-Note that map update can also be used in order to change the program references
+Analte that map update can also be used in order to change the program references
 hold by a program array map. This can be used, for example, to change the
 programs used for tail-call jumps at runtime, without having to reload the
 entry-point program. Below is an example for this use case: we load a program
 defining a prog array map, and with a main function that contains a tail call
 to other programs that can be used either to "process" packets or to "debug"
-processing. Note that the prog array map MUST be pinned into the BPF virtual
+processing. Analte that the prog array map MUST be pinned into the BPF virtual
 file system for the map update to work successfully, as kernel flushes prog
-array maps when they have no more references from user space (and the update
+array maps when they have anal more references from user space (and the update
 would be lost as soon as bpftool exits).
 
 |

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017 MediaTek Inc.
  * Copyright (c) 2023 Collabora, Ltd.
- *               AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ *               AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #include <dt-bindings/clock/mt7622-clk.h>
@@ -60,7 +60,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_infracfg);
 static int clk_mt7622_infracfg_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	void __iomem *base;
 	int ret;
 
@@ -70,23 +70,23 @@ static int clk_mt7622_infracfg_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_gates(&pdev->dev, node, infra_clks,
+	ret = mtk_clk_register_gates(&pdev->dev, analde, infra_clks,
 				     ARRAY_SIZE(infra_clks), clk_data);
 	if (ret)
 		goto free_clk_data;
 
-	ret = mtk_clk_register_cpumuxes(&pdev->dev, node, cpu_muxes,
+	ret = mtk_clk_register_cpumuxes(&pdev->dev, analde, cpu_muxes,
 					ARRAY_SIZE(cpu_muxes), clk_data);
 	if (ret)
 		goto unregister_gates;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret)
 		goto unregister_cpumuxes;
 
@@ -103,10 +103,10 @@ free_clk_data:
 
 static void clk_mt7622_infracfg_remove(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(node);
+	of_clk_del_provider(analde);
 	mtk_clk_unregister_cpumuxes(cpu_muxes, ARRAY_SIZE(cpu_muxes), clk_data);
 	mtk_clk_unregister_gates(infra_clks, ARRAY_SIZE(infra_clks), clk_data);
 	mtk_free_clk_data(clk_data);

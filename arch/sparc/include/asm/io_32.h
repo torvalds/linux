@@ -13,7 +13,7 @@
 
 /*
  * Bus number may be embedded in the higher bits of the physical address.
- * This is why we have no bus number argument to ioremap().
+ * This is why we have anal bus number argument to ioremap().
  */
 void __iomem *ioremap(phys_addr_t offset, size_t size);
 void iounmap(volatile void __iomem *addr);
@@ -60,7 +60,7 @@ static inline void _memcpy_toio(volatile void __iomem *dst, const void *src,
  * SBus accessors.
  *
  * SBus has only one, memory mapped, I/O space.
- * We do not need to flip bytes for SBus of course.
+ * We do analt need to flip bytes for SBus of course.
  */
 static inline u8 sbus_readb(const volatile void __iomem *addr)
 {
@@ -147,7 +147,7 @@ static inline int sbus_can_burst64(void)
 struct device;
 void sbus_set_sbus64(struct device *, int);
 
-#define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1
+#define __ARCH_HAS_ANAL_PAGE_ZERO_MAPPED		1
 
 
 #endif /* !(__SPARC_IO_H) */

@@ -32,7 +32,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
 			+ rel[i].r_offset;
 
-		/* This is the symbol it is referring to.  Note that all
+		/* This is the symbol it is referring to.  Analte that all
 		   undefined symbols have been resolved.  */
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
@@ -56,7 +56,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			*location = value;
 			break;
 		default:
-			pr_err("module %s: Unknown relocation: %u\n",
+			pr_err("module %s: Unkanalwn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			break;
 		}

@@ -2,7 +2,7 @@
 /*
  * TPO TD043MTEA1 Panel driver
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Iganaltas <analtasas@gmail.com>
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
@@ -35,7 +35,7 @@
 #define TPO_R04_CP_CLK_FREQ_1H	BIT(2)
 #define TPO_R04_VGL_FREQ_1H	BIT(4)
 
-#define TPO_R03_VAL_NORMAL (TPO_R03_NSTANDBY | TPO_R03_EN_CP_CLK | \
+#define TPO_R03_VAL_ANALRMAL (TPO_R03_NSTANDBY | TPO_R03_EN_CP_CLK | \
 			TPO_R03_EN_VGL_PUMP |  TPO_R03_EN_PWM | \
 			TPO_R03_DRIVING_CAP_100 | TPO_R03_EN_PRE_CHARGE | \
 			TPO_R03_SOFTWARE_CTL)
@@ -299,7 +299,7 @@ static int tpo_td043_power_on(struct panel_drv_data *ddata)
 
 	tpo_td043_write(ddata->spi, 2,
 			TPO_R02_MODE(ddata->mode) | TPO_R02_NCLK_RISING);
-	tpo_td043_write(ddata->spi, 3, TPO_R03_VAL_NORMAL);
+	tpo_td043_write(ddata->spi, 3, TPO_R03_VAL_ANALRMAL);
 	tpo_td043_write(ddata->spi, 0x20, 0xf0);
 	tpo_td043_write(ddata->spi, 0x21, 0xf0);
 	tpo_td043_write_mirror(ddata->spi, ddata->hmirror,
@@ -359,7 +359,7 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -373,7 +373,7 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 		return r;
 
 	/*
-	 * If we are resuming from system suspend, SPI clocks might not be
+	 * If we are resuming from system suspend, SPI clocks might analt be
 	 * enabled yet, so we'll program the LCD from SPI PM resume callback.
 	 */
 	if (!ddata->spi_suspended) {
@@ -459,8 +459,8 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
+	if (!spi->dev.of_analde)
+		return -EANALDEV;
 
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
@@ -473,13 +473,13 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&spi->dev, ddata);
 
 	ddata->spi = spi;
 
-	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&spi->dev, "failed to find video source: %d\n", r);
@@ -611,6 +611,6 @@ static struct spi_driver tpo_td043_spi_driver = {
 module_spi_driver(tpo_td043_spi_driver);
 
 MODULE_ALIAS("spi:tpo,td043mtea1");
-MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Gražvydas Iganaltas <analtasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 LCD Driver");
 MODULE_LICENSE("GPL");

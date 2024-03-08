@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Broadcom Northstar Plus Ax stepping-specific bindings.
- * Notable differences from B0+ are the secondary-boot-reg and
+ * Broadcom Analrthstar Plus Ax stepping-specific bindings.
+ * Analtable differences from B0+ are the secondary-boot-reg and
  * lack of DMA coherency.
  */
 

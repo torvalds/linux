@@ -13,7 +13,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -25,14 +25,14 @@
 #define LOG_MBOX	0x00000004	/* Mailbox events */
 #define LOG_INIT	0x00000008	/* Initialization events */
 #define LOG_LINK_EVENT	0x00000010	/* Link events */
-#define LOG_NODE_VERBOSE 0x00000020	/* Node verbose events */
+#define LOG_ANALDE_VERBOSE 0x00000020	/* Analde verbose events */
 #define LOG_FCP		0x00000040	/* FCP traffic history */
-#define LOG_NODE	0x00000080	/* Node table events */
+#define LOG_ANALDE	0x00000080	/* Analde table events */
 #define LOG_TEMP	0x00000100	/* Temperature sensor events */
 #define LOG_BG		0x00000200	/* BlockGuard events */
 #define LOG_MISC	0x00000400	/* Miscellaneous events */
 #define LOG_SLI		0x00000800	/* SLI events */
-#define LOG_FCP_ERROR	0x00001000	/* log errors, not underruns */
+#define LOG_FCP_ERROR	0x00001000	/* log errors, analt underruns */
 #define LOG_LIBDFC	0x00002000	/* Libdfc events */
 #define LOG_VPORT	0x00004000	/* NPIV events */
 #define LOG_LDS_EVENT	0x00008000	/* Link Degrade Signaling events */
@@ -57,7 +57,7 @@ void lpfc_dbg_print(struct lpfc_hba *phba, const char *fmt, ...);
 #define lpfc_vlog_msg(vport, level, mask, fmt, arg...) \
 { if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '5')) \
 	dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
-		   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); }
+		   fmt, (vport)->phba->brd_anal, vport->vpi, ##arg); }
 
 #define lpfc_log_msg(phba, level, mask, fmt, arg...) \
 do { \
@@ -66,7 +66,7 @@ do { \
 				 (phba)->cfg_log_verbose; \
 	if (((mask) & log_verbose) || (level[1] <= '5')) \
 		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
-			   fmt, phba->brd_no, ##arg); \
+			   fmt, phba->brd_anal, ##arg); \
 	} \
 } while (0)
 
@@ -76,10 +76,10 @@ do { \
 		if ((mask) & LOG_TRACE_EVENT && !(vport)->cfg_log_verbose) \
 			lpfc_dmp_dbg((vport)->phba); \
 		dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
-			   fmt, (vport)->phba->brd_no, vport->vpi, ##arg);  \
+			   fmt, (vport)->phba->brd_anal, vport->vpi, ##arg);  \
 		} else if (!(vport)->cfg_log_verbose) \
 			lpfc_dbg_print((vport)->phba, "%d:(%d):" fmt, \
-				(vport)->phba->brd_no, (vport)->vpi, ##arg); \
+				(vport)->phba->brd_anal, (vport)->vpi, ##arg); \
 	} \
 } while (0)
 
@@ -92,8 +92,8 @@ do { \
 		if ((mask) & LOG_TRACE_EVENT && !log_verbose) \
 			lpfc_dmp_dbg(phba); \
 		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
-			fmt, phba->brd_no, ##arg); \
+			fmt, phba->brd_anal, ##arg); \
 	} else if (!log_verbose)\
-		lpfc_dbg_print(phba, "%d:" fmt, phba->brd_no, ##arg); \
+		lpfc_dbg_print(phba, "%d:" fmt, phba->brd_anal, ##arg); \
 	} \
 } while (0)

@@ -124,7 +124,7 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 		} else
 			ret = sprintf(buf, "<closed>\n");
 	} else
-		ret = sprintf(buf, "<not a socket>\n");
+		ret = sprintf(buf, "<analt a socket>\n");
 	xprt_put(xprt);
 	return ret;
 }
@@ -242,7 +242,7 @@ static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
 	      xprt->xprt_class->ident == XPRT_TRANSPORT_TCP_TLS ||
 	      xprt->xprt_class->ident == XPRT_TRANSPORT_RDMA)) {
 		xprt_put(xprt);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_KILLABLE)) {
@@ -280,7 +280,7 @@ out_put:
 out_err_free:
 	kfree(dst_addr);
 out_err:
-	count = -ENOMEM;
+	count = -EANALMEM;
 	goto out;
 }
 
@@ -339,7 +339,7 @@ int rpc_sysfs_init(void)
 {
 	rpc_sunrpc_kset = kset_create_and_add("sunrpc", NULL, kernel_kobj);
 	if (!rpc_sunrpc_kset)
-		return -ENOMEM;
+		return -EANALMEM;
 	rpc_sunrpc_client_kobj =
 		rpc_sysfs_object_alloc("rpc-clients", rpc_sunrpc_kset, NULL);
 	if (!rpc_sunrpc_client_kobj)
@@ -355,7 +355,7 @@ err_switch:
 err_client:
 	kset_unregister(rpc_sunrpc_kset);
 	rpc_sunrpc_kset = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void rpc_sysfs_client_release(struct kobject *kobj)
@@ -535,7 +535,7 @@ void rpc_sysfs_client_setup(struct rpc_clnt *clnt,
 		rpc_client->clnt = clnt;
 		rpc_client->xprt_switch = xprt_switch;
 		kobject_uevent(&rpc_client->kobject, KOBJ_ADD);
-		ret = sysfs_create_link_nowarn(&rpc_client->kobject,
+		ret = sysfs_create_link_analwarn(&rpc_client->kobject,
 					       &xswitch->kobject, name);
 		if (ret)
 			pr_warn("can't create link to %s in sysfs (%d)\n",

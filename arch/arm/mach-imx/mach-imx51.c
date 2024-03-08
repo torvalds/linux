@@ -19,7 +19,7 @@ static void __init imx51_init_early(void)
 
 /*
  * The MIPI HSC unit has been removed from the i.MX51 Reference Manual by
- * the Freescale marketing division. However this did not remove the
+ * the Freescale marketing division. However this did analt remove the
  * hardware from the chip which still needs to be configured for proper
  * IPU support.
  */
@@ -43,14 +43,14 @@ static void __init imx51_ipu_mipi_setup(void)
 static void __init imx51_m4if_setup(void)
 {
 	void __iomem *m4if_base;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-m4if");
+	np = of_find_compatible_analde(NULL, NULL, "fsl,imx51-m4if");
 	if (!np)
 		return;
 
 	m4if_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!m4if_base) {
 		pr_err("Unable to map M4IF registers\n");
 		return;

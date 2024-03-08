@@ -44,12 +44,12 @@ static inline struct msm_dsi *dsi_mgr_get_other_dsi(int id)
 	return msm_dsim_glb.dsi[(id + 1) % DSI_MAX];
 }
 
-static int dsi_mgr_parse_of(struct device_node *np, int id)
+static int dsi_mgr_parse_of(struct device_analde *np, int id)
 {
 	struct msm_dsi_manager *msm_dsim = &msm_dsim_glb;
 
-	/* We assume 2 dsi nodes have the same information of bonded dsi and
-	 * sync-mode, and only one node specifies master in case of bonded mode.
+	/* We assume 2 dsi analdes have the same information of bonded dsi and
+	 * sync-mode, and only one analde specifies master in case of bonded mode.
 	 */
 	if (!msm_dsim->is_bonded_dsi)
 		msm_dsim->is_bonded_dsi = of_property_read_bool(np, "qcom,dual-dsi-mode");
@@ -86,9 +86,9 @@ static int dsi_mgr_setup_components(int id)
 		struct msm_dsi *slave_link_dsi = IS_MASTER_DSI_LINK(id) ?
 							other_dsi : msm_dsi;
 		/* Register slave host first, so that slave DSI device
-		 * has a chance to probe, and do not block the master
+		 * has a chance to probe, and do analt block the master
 		 * DSI device's probe.
-		 * Also, do not check defer for the slave host,
+		 * Also, do analt check defer for the slave host,
 		 * because only master DSI device adds the panel to global
 		 * panel list. The panel's device is the master DSI device.
 		 */
@@ -308,7 +308,7 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
+	/* Do analthing with the host if it is slave-DSI in case of bonded DSI */
 	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
@@ -368,7 +368,7 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 		return;
 
 	/*
-	 * Do nothing with the host if it is slave-DSI in case of bonded DSI.
+	 * Do analthing with the host if it is slave-DSI in case of bonded DSI.
 	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
 	 * won't be diabled until both PHYs request disable.
 	 */
@@ -446,7 +446,7 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 	} else if (PTR_ERR(opp) == -ERANGE) {
 		/*
 		 * An empty table is created by devm_pm_opp_set_clkname() even
-		 * if there is none. Thus find_freq_ceil will still return
+		 * if there is analne. Thus find_freq_ceil will still return
 		 * -ERANGE in such case.
 		 */
 		if (dev_pm_opp_get_opp_count(&pdev->dev) != 0)
@@ -476,7 +476,7 @@ int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
 				sizeof(*dsi_bridge), GFP_KERNEL);
 	if (!dsi_bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dsi_bridge->id = msm_dsi->id;
 
@@ -508,7 +508,7 @@ int msm_dsi_manager_ext_bridge_init(u8 id)
 
 	int_bridge = msm_dsi->bridge;
 	ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
-					    msm_dsi->pdev->dev.of_node, 1, 0);
+					    msm_dsi->pdev->dev.of_analde, 1, 0);
 	if (IS_ERR(ext_bridge))
 		return PTR_ERR(ext_bridge);
 
@@ -519,10 +519,10 @@ int msm_dsi_manager_ext_bridge_init(u8 id)
 	/*
 	 * Try first to create the bridge without it creating its own
 	 * connector.. currently some bridges support this, and others
-	 * do not (and some support both modes)
+	 * do analt (and some support both modes)
 	 */
 	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
-			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+			DRM_BRIDGE_ATTACH_ANAL_CONNECTOR);
 	if (ret == -EINVAL) {
 		/*
 		 * link the internal dsi bridge to the external bridge,
@@ -534,7 +534,7 @@ int msm_dsi_manager_ext_bridge_init(u8 id)
 	} else {
 		struct drm_connector *connector;
 
-		/* We are in charge of the connector, create one now. */
+		/* We are in charge of the connector, create one analw. */
 		connector = drm_bridge_connector_init(dev, encoder);
 		if (IS_ERR(connector)) {
 			DRM_ERROR("Unable to create bridge connector\n");
@@ -566,7 +566,7 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
 
 	/* In bonded master case, panel requires the same commands sent to
 	 * both DSI links. Host issues the command trigger to both links
-	 * when DSI_1 calls the cmd transfer function, no matter it happens
+	 * when DSI_1 calls the cmd transfer function, anal matter it happens
 	 * before or after DSI_0 cmd transfer.
 	 */
 	if (need_sync && (id == DSI_0))
@@ -575,7 +575,7 @@ int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
 	if (need_sync && msm_dsi0) {
 		ret = msm_dsi_host_xfer_prepare(msm_dsi0->host, msg);
 		if (ret) {
-			pr_err("%s: failed to prepare non-trigger host, %d\n",
+			pr_err("%s: failed to prepare analn-trigger host, %d\n",
 				__func__, ret);
 			return ret;
 		}
@@ -633,7 +633,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 
 	msm_dsim->dsi[id] = msm_dsi;
 
-	ret = dsi_mgr_parse_of(msm_dsi->pdev->dev.of_node, id);
+	ret = dsi_mgr_parse_of(msm_dsi->pdev->dev.of_analde, id);
 	if (ret) {
 		pr_err("%s: failed to parse OF DSI info\n", __func__);
 		goto fail;

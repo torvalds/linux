@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -50,7 +50,7 @@ struct psb_intel_sdvo_caps {
     u8 device_id;
     u8 device_rev_id;
     u8 sdvo_version_major;
-    u8 sdvo_version_minor;
+    u8 sdvo_version_mianalr;
     unsigned int sdvo_inputs_mask:2;
     unsigned int smooth_scaling:1;
     unsigned int sharp_scaling:1;
@@ -129,11 +129,11 @@ struct psb_intel_sdvo_preferred_input_timing_args {
 /* Status results */
 #define SDVO_CMD_STATUS_POWER_ON		0x0
 #define SDVO_CMD_STATUS_SUCCESS			0x1
-#define SDVO_CMD_STATUS_NOTSUPP			0x2
+#define SDVO_CMD_STATUS_ANALTSUPP			0x2
 #define SDVO_CMD_STATUS_INVALID_ARG		0x3
 #define SDVO_CMD_STATUS_PENDING			0x4
-#define SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED	0x5
-#define SDVO_CMD_STATUS_SCALING_NOT_SUPP	0x6
+#define SDVO_CMD_STATUS_TARGET_ANALT_SPECIFIED	0x5
+#define SDVO_CMD_STATUS_SCALING_ANALT_SUPP	0x6
 
 /* SDVO commands, argument/result registers */
 
@@ -143,7 +143,7 @@ struct psb_intel_sdvo_preferred_input_timing_args {
 #define SDVO_CMD_GET_DEVICE_CAPS			0x02
 
 #define SDVO_CMD_GET_FIRMWARE_REV			0x86
-# define SDVO_DEVICE_FIRMWARE_MINOR			SDVO_I2C_RETURN_0
+# define SDVO_DEVICE_FIRMWARE_MIANALR			SDVO_I2C_RETURN_0
 # define SDVO_DEVICE_FIRMWARE_MAJOR			SDVO_I2C_RETURN_1
 # define SDVO_DEVICE_FIRMWARE_PATCH			SDVO_I2C_RETURN_2
 
@@ -270,7 +270,7 @@ struct psb_intel_sdvo_set_target_input_args {
 # define SDVO_DTD_SDVO_FLAG_CENTERED				(0 << 6)
 # define SDVO_DTD_SDVO_FLAG_UPPER_LEFT				(1 << 6)
 # define SDVO_DTD_SDVO_FLAG_SCALING_MASK			(3 << 4)
-# define SDVO_DTD_SDVO_FLAG_SCALING_NONE			(0 << 4)
+# define SDVO_DTD_SDVO_FLAG_SCALING_ANALNE			(0 << 4)
 # define SDVO_DTD_SDVO_FLAG_SCALING_SHARP			(1 << 4)
 # define SDVO_DTD_SDVO_FLAG_SCALING_SMOOTH			(2 << 4)
 # define SDVO_DTD_VSYNC_OFF_HIGH			SDVO_I2C_ARG_6

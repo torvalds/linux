@@ -42,7 +42,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&sdhci_pins>;
 				broken-cd;
-				no-1-8-v;
+				anal-1-8-v;
 				wp-inverted;
 				bus-width = <8>;
 				status = "okay";
@@ -100,7 +100,7 @@
 	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p128", "jedec,spi-nor";
+		compatible = "st,m25p128", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <108000000>;
 	};

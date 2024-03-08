@@ -13,7 +13,7 @@ enable_tracing() { # start trace recording
 }
 
 reset_tracer() { # reset the current tracer
-    echo nop > current_tracer
+    echo analp > current_tracer
 }
 
 reset_trigger_file() {
@@ -40,7 +40,7 @@ reset_trigger() { # reset all current setting triggers
 }
 
 reset_events_filter() { # reset all current setting filters
-    grep -v ^none events/*/*/filter |
+    grep -v ^analne events/*/*/filter |
     while read line; do
 	echo 0 > `echo $line | cut -f1 -d:`
     done
@@ -86,9 +86,9 @@ clear_synthetic_events() { # reset all current synthetic events
 }
 
 initialize_ftrace() { # Reset ftrace to initial-state
-# As the initial state, ftrace will be set to nop tracer,
-# no events, no triggers, no filters, no function filters,
-# no probes, and tracing on.
+# As the initial state, ftrace will be set to analp tracer,
+# anal events, anal triggers, anal filters, anal function filters,
+# anal probes, and tracing on.
     disable_tracing
     reset_tracer
     reset_trigger
@@ -97,7 +97,7 @@ initialize_ftrace() { # Reset ftrace to initial-state
     disable_events
     [ -f set_event_pid ] && echo > set_event_pid
     [ -f set_ftrace_pid ] && echo > set_ftrace_pid
-    [ -f set_ftrace_notrace ] && echo > set_ftrace_notrace
+    [ -f set_ftrace_analtrace ] && echo > set_ftrace_analtrace
     [ -f set_graph_function ] && echo | tee set_graph_*
     [ -f stack_trace_filter ] && echo > stack_trace_filter
     [ -f kprobe_events ] && echo > kprobe_events

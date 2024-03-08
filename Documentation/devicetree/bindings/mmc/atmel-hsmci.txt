@@ -6,20 +6,20 @@ types of memory cards.
 This file documents differences between the core properties described
 by mmc.txt and the properties used by the atmel-mci driver.
 
-1) MCI node
+1) MCI analde
 
 Required properties:
 - compatible: should be "atmel,hsmci"
 - #address-cells: should be one. The cell is the slot id.
 - #size-cells: should be zero.
-- at least one slot node
+- at least one slot analde
 - clock-names: tuple listing input clock names.
 	Required elements: "mci_clk"
 - clocks: phandles to input clocks.
 
-The node contains child nodes for each slot that the platform uses
+The analde contains child analdes for each slot that the platform uses
 
-Example MCI node:
+Example MCI analde:
 
 mmc0: mmc@f0008000 {
 	compatible = "atmel,hsmci";
@@ -30,10 +30,10 @@ mmc0: mmc@f0008000 {
 	clock-names = "mci_clk";
 	clocks = <&mci0_clk>;
 
-	[ child node definitions...]
+	[ child analde definitions...]
 };
 
-2) slot nodes
+2) slot analdes
 
 Required properties:
 - reg: should contain the slot id.
@@ -44,7 +44,7 @@ Optional properties:
 - cd-inverted: invert the value of external card detect gpio line
 - wp-gpios: specify GPIOs for write protection
 
-Example slot node:
+Example slot analde:
 
 slot@0 {
 	reg = <0>;
@@ -53,7 +53,7 @@ slot@0 {
 	cd-inverted;
 };
 
-Example full MCI node:
+Example full MCI analde:
 mmc0: mmc@f0008000 {
 	compatible = "atmel,hsmci";
 	reg = <0xf0008000 0x600>;

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright 2012 Xyratex Technology Limited
+ * Copyright 2012 Xyratex Techanallogy Limited
  *
  * Using hardware provided PCLMULQDQ instruction to accelerate the CRC32
  * calculation.
- * CRC32 polynomial:0x04c11db7(BE)/0xEDB88320(LE)
+ * CRC32 polyanalmial:0x04c11db7(BE)/0xEDB88320(LE)
  * PCLMULQDQ is a new instruction in Intel SSE4.2, the reference can be found
  * at:
  * http://www.intel.com/products/processor/manuals/

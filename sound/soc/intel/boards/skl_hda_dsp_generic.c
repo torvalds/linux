@@ -74,7 +74,7 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 
 	dev_dbg(card->dev, "dai link name - %s\n", link->name);
 	link->platforms->name = ctx->platform_name;
-	link->nonatomic = 1;
+	link->analnatomic = 1;
 
 	if (!ctx->idisp_codec)
 		return 0;
@@ -205,7 +205,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 

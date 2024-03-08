@@ -15,13 +15,13 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if analt, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 static inline unsigned long readRegister(const unsigned int nReg)
 {
-	/* Note: The CPU thinks it has dealt with the current instruction.
+	/* Analte: The CPU thinks it has dealt with the current instruction.
 	   As a result the program counter has been advanced to the next
 	   instruction, and points 4 bytes beyond the actual instruction
 	   that caused the invalid instruction trap to occur.  We adjust

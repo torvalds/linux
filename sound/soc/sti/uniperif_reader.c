@@ -11,7 +11,7 @@
 
 #define UNIPERIF_READER_I2S_IN 0 /* reader id connected to I2S/TDM TX bus */
 /*
- * Note: snd_pcm_hardware is linked to DMA controller but is declared here to
+ * Analte: snd_pcm_hardware is linked to DMA controller but is declared here to
  * integrate unireader capability in term of rate and supported channels
  */
 static const struct snd_pcm_hardware uni_reader_pcm_hw = {
@@ -42,7 +42,7 @@ static const struct snd_pcm_hardware uni_reader_pcm_hw = {
  */
 static irqreturn_t uni_reader_irq_handler(int irq, void *dev_id)
 {
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct uniperif *reader = dev_id;
 	unsigned int status;
 
@@ -52,7 +52,7 @@ static irqreturn_t uni_reader_irq_handler(int irq, void *dev_id)
 
 	snd_pcm_stream_lock(reader->substream);
 	if (reader->state == UNIPERIF_STATE_STOPPED) {
-		/* Unexpected IRQ: do nothing */
+		/* Unexpected IRQ: do analthing */
 		dev_warn(reader->dev, "unexpected IRQ\n");
 		goto stream_unlock;
 	}
@@ -109,7 +109,7 @@ static int uni_reader_prepare_pcm(struct snd_pcm_runtime *runtime,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_16(reader);
 		break;
 	default:
-		dev_err(reader->dev, "subframe format not supported\n");
+		dev_err(reader->dev, "subframe format analt supported\n");
 		return -EINVAL;
 	}
 
@@ -129,7 +129,7 @@ static int uni_reader_prepare_pcm(struct snd_pcm_runtime *runtime,
 		break;
 
 	default:
-		dev_err(reader->dev, "format not supported\n");
+		dev_err(reader->dev, "format analt supported\n");
 		return -EINVAL;
 	}
 
@@ -170,7 +170,7 @@ static int uni_reader_prepare_tdm(struct snd_pcm_runtime *runtime,
 	/*
 	 * set the timeslots allocation for words in FIFO
 	 *
-	 * HW bug: (LSB word < MSB word) => this config is not possible
+	 * HW bug: (LSB word < MSB word) => this config is analt possible
 	 *         So if we want (LSB word < MSB) word, then it shall be
 	 *         handled by user
 	 */
@@ -250,7 +250,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 		SET_UNIPERIF_I2S_FMT_PADDING_SONY_MODE(reader);
 		break;
 	default:
-		dev_err(reader->dev, "format not supported\n");
+		dev_err(reader->dev, "format analt supported\n");
 		return -EINVAL;
 	}
 
@@ -277,7 +277,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 	/* Clear any pending interrupts */
 	SET_UNIPERIF_ITS_BCLR(reader, GET_UNIPERIF_ITS(reader));
 
-	SET_UNIPERIF_I2S_FMT_NO_OF_SAMPLES_TO_READ(reader, 0);
+	SET_UNIPERIF_I2S_FMT_ANAL_OF_SAMPLES_TO_READ(reader, 0);
 
 	/* Set the interrupt mask */
 	SET_UNIPERIF_ITM_BSET_DMA_ERROR(reader);
@@ -316,7 +316,7 @@ static int uni_reader_start(struct uniperif *reader)
 
 static int uni_reader_stop(struct uniperif *reader)
 {
-	/* The reader should not be in stopped state */
+	/* The reader should analt be in stopped state */
 	if (reader->state == UNIPERIF_STATE_STOPPED) {
 		dev_err(reader->dev, "%s: invalid reader state\n", __func__);
 		return -EINVAL;

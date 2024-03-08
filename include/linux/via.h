@@ -7,7 +7,7 @@
 #define VIA_FUNCTION_PARPORT_ECP     0x01
 #define VIA_FUNCTION_PARPORT_EPP     0x02
 #define VIA_FUNCTION_PARPORT_DISABLE 0x03
-#define VIA_FUNCTION_PROBE           0xFF /* Special magic value to be used in code, not to be written into chip */
+#define VIA_FUNCTION_PROBE           0xFF /* Special magic value to be used in code, analt to be written into chip */
 
 /* Bits for parallel port mode configuration register */
 #define VIA_PARPORT_ECPEPP 0X20

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/quota.h>
 #include <linux/quotaops.h>
@@ -33,7 +33,7 @@ static void v1_disk2mem_dqblk(struct mem_dqblk *m, struct v1_disk_dqblk *d)
 {
 	m->dqb_ihardlimit = d->dqb_ihardlimit;
 	m->dqb_isoftlimit = d->dqb_isoftlimit;
-	m->dqb_curinodes = d->dqb_curinodes;
+	m->dqb_curianaldes = d->dqb_curianaldes;
 	m->dqb_bhardlimit = v1_qbtos(d->dqb_bhardlimit);
 	m->dqb_bsoftlimit = v1_qbtos(d->dqb_bsoftlimit);
 	m->dqb_curspace = v1_qbtos(d->dqb_curblocks);
@@ -45,7 +45,7 @@ static void v1_mem2disk_dqblk(struct v1_disk_dqblk *d, struct mem_dqblk *m)
 {
 	d->dqb_ihardlimit = m->dqb_ihardlimit;
 	d->dqb_isoftlimit = m->dqb_isoftlimit;
-	d->dqb_curinodes = m->dqb_curinodes;
+	d->dqb_curianaldes = m->dqb_curianaldes;
 	d->dqb_bhardlimit = v1_stoqb(m->dqb_bhardlimit);
 	d->dqb_bsoftlimit = v1_stoqb(m->dqb_bsoftlimit);
 	d->dqb_curblocks = v1_stoqb(m->dqb_curspace);
@@ -126,7 +126,7 @@ struct v2_disk_dqheader {
 
 static int v1_check_quota_file(struct super_block *sb, int type)
 {
-	struct inode *inode = sb_dqopt(sb)->files[type];
+	struct ianalde *ianalde = sb_dqopt(sb)->files[type];
 	ulong blocks;
 	size_t off;
 	struct v2_disk_dqheader dqhead;
@@ -134,7 +134,7 @@ static int v1_check_quota_file(struct super_block *sb, int type)
 	loff_t isize;
 	static const uint quota_magics[] = V2_INITQMAGICS;
 
-	isize = i_size_read(inode);
+	isize = i_size_read(ianalde);
 	if (!isize)
 		return 0;
 	blocks = isize >> BLOCK_SIZE_BITS;
@@ -147,9 +147,9 @@ static int v1_check_quota_file(struct super_block *sb, int type)
 	size = sb->s_op->quota_read(sb, type, (char *)&dqhead,
 				    sizeof(struct v2_disk_dqheader), 0);
 	if (size != sizeof(struct v2_disk_dqheader))
-		return 1;	/* Probably not new format */
+		return 1;	/* Probably analt new format */
 	if (le32_to_cpu(dqhead.dqh_magic) != quota_magics[type])
-		return 1;	/* Definitely not new format */
+		return 1;	/* Definitely analt new format */
 	printk(KERN_INFO
 	       "VFS: %s: Refusing to turn on old quota format on given file."
 	       " It probably contains newer quota format.\n", sb->s_id);
@@ -173,7 +173,7 @@ static int v1_read_file_info(struct super_block *sb, int type)
 	ret = 0;
 	/* limits are stored as unsigned 32-bit data */
 	dqopt->info[type].dqi_max_spc_limit = 0xffffffffULL << QUOTABLOCK_BITS;
-	dqopt->info[type].dqi_max_ino_limit = 0xffffffff;
+	dqopt->info[type].dqi_max_ianal_limit = 0xffffffff;
 	dqopt->info[type].dqi_igrace =
 			dqblk.dqb_itime ? dqblk.dqb_itime : MAX_IQ_TIME;
 	dqopt->info[type].dqi_bgrace =

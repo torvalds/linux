@@ -162,7 +162,7 @@ int peci_device_create(struct peci_controller *controller, u8 addr)
 	ret = peci_detect(controller, addr);
 	if (ret) {
 		/*
-		 * Device not present or host state doesn't allow successful
+		 * Device analt present or host state doesn't allow successful
 		 * detection at this time.
 		 */
 		if (ret == -EIO || ret == -ETIMEDOUT)
@@ -173,7 +173,7 @@ int peci_device_create(struct peci_controller *controller, u8 addr)
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (!device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	device_initialize(&device->dev);
 

@@ -48,9 +48,9 @@
 							 GENMASK(1, 0))
 #define   AD3552R_MASK_STRICT_REGISTER_ACCESS		BIT(5)
 #define AD3552R_REG_ADDR_INTERFACE_STATUS_A		0x11
-#define   AD3552R_MASK_INTERFACE_NOT_READY		BIT(7)
+#define   AD3552R_MASK_INTERFACE_ANALT_READY		BIT(7)
 #define   AD3552R_MASK_CLOCK_COUNTING_ERROR		BIT(5)
-#define   AD3552R_MASK_INVALID_OR_NO_CRC		BIT(3)
+#define   AD3552R_MASK_INVALID_OR_ANAL_CRC		BIT(3)
 #define   AD3552R_MASK_WRITE_TO_READ_ONLY_REGISTER	BIT(2)
 #define   AD3552R_MASK_PARTIAL_REGISTER_ACCESS		BIT(1)
 #define   AD3552R_MASK_REGISTER_ADDRESS_INVALID		BIT(0)
@@ -58,7 +58,7 @@
 #define   AD3552R_MASK_ALERT_ENABLE_PULLUP		BIT(6)
 #define   AD3552R_MASK_MEM_CRC_EN			BIT(4)
 #define   AD3552R_MASK_SDO_DRIVE_STRENGTH		GENMASK(3, 2)
-#define   AD3552R_MASK_DUAL_SPI_SYNCHROUNOUS_EN		BIT(1)
+#define   AD3552R_MASK_DUAL_SPI_SYNCHROUANALUS_EN		BIT(1)
 #define   AD3552R_MASK_SPI_CONFIG_DDR			BIT(0)
 #define AD3552R_REG_ADDR_SH_REFERENCE_CONFIG		0x15
 #define   AD3552R_MASK_IDUMP_FAST_MODE			BIT(6)
@@ -598,7 +598,7 @@ static irqreturn_t ad3552r_trigger_handler(int irq, void *p)
 	ad3552r_write_codes(dac, *indio_dev->active_scan_mask, buff);
 	mutex_unlock(&dac->lock);
 end:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -619,7 +619,7 @@ static int ad3552r_check_scratch_pad(struct ad3552r_desc *dac)
 		return err;
 
 	if (val1 != val)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = ad3552r_write_reg(dac, AD3552R_REG_ADDR_SCRATCH_PAD, val2);
 	if (err < 0)
@@ -630,7 +630,7 @@ static int ad3552r_check_scratch_pad(struct ad3552r_desc *dac)
 		return err;
 
 	if (val2 != val)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -669,7 +669,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 		usleep_range(10, 20);
 		gpiod_set_value_cansleep(dac->gpio_reset, 1);
 	} else {
-		/* Perform software reset if no GPIO provided */
+		/* Perform software reset if anal GPIO provided */
 		ret = ad3552r_update_reg_field(dac,
 					       AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
 					       AD3552R_MASK_SOFTWARE_RESET,
@@ -693,7 +693,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 	}
 
 	ret = readx_poll_timeout(ad3552r_read_reg_wrapper, &addr, val,
-				 !(val & AD3552R_MASK_INTERFACE_NOT_READY) ||
+				 !(val & AD3552R_MASK_INTERFACE_ANALT_READY) ||
 				 val < 0,
 				 5000, 50000);
 	if (val < 0)
@@ -743,7 +743,7 @@ static void ad3552r_calc_gain_and_offset(struct ad3552r_desc *dac, s32 ch)
 	if (dac->ch_data[ch].range_override) {
 		ad3552r_get_custom_range(dac, ch, &v_min, &v_max);
 	} else {
-		/* Normal range */
+		/* Analrmal range */
 		idx = dac->ch_data[ch].range;
 		if (dac->chip_id == AD3542R_ID) {
 			v_min = ad3542r_ch_ranges[idx][0];
@@ -797,17 +797,17 @@ static int ad3552r_find_range(u16 id, s32 *vals)
 }
 
 static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
-					 struct fwnode_handle *child,
+					 struct fwanalde_handle *child,
 					 u32 ch)
 {
 	struct device *dev = &dac->spi->dev;
-	struct fwnode_handle *gain_child;
+	struct fwanalde_handle *gain_child;
 	u32 val;
 	int err;
 	u8 addr;
 	u16 reg = 0, offset;
 
-	gain_child = fwnode_get_named_child_node(child,
+	gain_child = fwanalde_get_named_child_analde(child,
 						 "custom-output-range-config");
 	if (!gain_child) {
 		dev_err(dev,
@@ -818,7 +818,7 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	dac->ch_data[ch].range_override = 1;
 	reg |= ad3552r_field_prep(1, AD3552R_MASK_CH_RANGE_OVERRIDE);
 
-	err = fwnode_property_read_u32(gain_child, "adi,gain-scaling-p", &val);
+	err = fwanalde_property_read_u32(gain_child, "adi,gain-scaling-p", &val);
 	if (err) {
 		dev_err(dev, "mandatory adi,gain-scaling-p property missing\n");
 		goto put_child;
@@ -826,7 +826,7 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	reg |= ad3552r_field_prep(val, AD3552R_MASK_CH_GAIN_SCALING_P);
 	dac->ch_data[ch].p = val;
 
-	err = fwnode_property_read_u32(gain_child, "adi,gain-scaling-n", &val);
+	err = fwanalde_property_read_u32(gain_child, "adi,gain-scaling-n", &val);
 	if (err) {
 		dev_err(dev, "mandatory adi,gain-scaling-n property missing\n");
 		goto put_child;
@@ -834,14 +834,14 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	reg |= ad3552r_field_prep(val, AD3552R_MASK_CH_GAIN_SCALING_N);
 	dac->ch_data[ch].n = val;
 
-	err = fwnode_property_read_u32(gain_child, "adi,rfb-ohms", &val);
+	err = fwanalde_property_read_u32(gain_child, "adi,rfb-ohms", &val);
 	if (err) {
 		dev_err(dev, "mandatory adi,rfb-ohms property missing\n");
 		goto put_child;
 	}
 	dac->ch_data[ch].rfb = val;
 
-	err = fwnode_property_read_u32(gain_child, "adi,gain-offset", &val);
+	err = fwanalde_property_read_u32(gain_child, "adi,gain-offset", &val);
 	if (err) {
 		dev_err(dev, "mandatory adi,gain-offset property missing\n");
 		goto put_child;
@@ -867,7 +867,7 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	}
 
 put_child:
-	fwnode_handle_put(gain_child);
+	fwanalde_handle_put(gain_child);
 
 	return err;
 }
@@ -880,7 +880,7 @@ static void ad3552r_reg_disable(void *reg)
 static int ad3552r_configure_device(struct ad3552r_desc *dac)
 {
 	struct device *dev = &dac->spi->dev;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	struct regulator *vref;
 	int err, cnt = 0, voltage, delta = 100000;
 	u32 vals[2], val, ch;
@@ -892,7 +892,7 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 
 	vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(vref)) {
-		if (PTR_ERR(vref) != -ENODEV)
+		if (PTR_ERR(vref) != -EANALDEV)
 			return dev_err_probe(dev, PTR_ERR(vref),
 					     "Error getting vref");
 
@@ -943,14 +943,14 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 			return err;
 	}
 
-	dac->num_ch = device_get_child_node_count(dev);
+	dac->num_ch = device_get_child_analde_count(dev);
 	if (!dac->num_ch) {
-		dev_err(dev, "No channels defined\n");
-		return -ENODEV;
+		dev_err(dev, "Anal channels defined\n");
+		return -EANALDEV;
 	}
 
-	device_for_each_child_node(dev, child) {
-		err = fwnode_property_read_u32(child, "reg", &ch);
+	device_for_each_child_analde(dev, child) {
+		err = fwanalde_property_read_u32(child, "reg", &ch);
 		if (err) {
 			dev_err(dev, "mandatory reg property missing\n");
 			goto put_child;
@@ -962,14 +962,14 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 			goto put_child;
 		}
 
-		if (fwnode_property_present(child, "adi,output-range-microvolt")) {
-			err = fwnode_property_read_u32_array(child,
+		if (fwanalde_property_present(child, "adi,output-range-microvolt")) {
+			err = fwanalde_property_read_u32_array(child,
 							     "adi,output-range-microvolt",
 							     vals,
 							     2);
 			if (err) {
 				dev_err(dev,
-					"adi,output-range-microvolt property could not be parsed\n");
+					"adi,output-range-microvolt property could analt be parsed\n");
 				goto put_child;
 			}
 
@@ -1022,7 +1022,7 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 
 	return 0;
 put_child:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 
 	return err;
 }
@@ -1059,8 +1059,8 @@ static int ad3552r_init(struct ad3552r_desc *dac)
 
 	id |= val << 8;
 	if (id != dac->chip_id) {
-		dev_err(&dac->spi->dev, "Product id not matching\n");
-		return -ENODEV;
+		dev_err(&dac->spi->dev, "Product id analt matching\n");
+		return -EANALDEV;
 	}
 
 	return ad3552r_configure_device(dac);
@@ -1075,7 +1075,7 @@ static int ad3552r_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*dac));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dac = iio_priv(indio_dev);
 	dac->spi = spi;

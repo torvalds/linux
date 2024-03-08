@@ -140,7 +140,7 @@ static inline void digital_skb_add_crc_f(struct sk_buff *skb)
 	digital_skb_add_crc(skb, crc_itu_t, CRC_F_INIT, 0, 1);
 }
 
-static inline void digital_skb_add_crc_none(struct sk_buff *skb)
+static inline void digital_skb_add_crc_analne(struct sk_buff *skb)
 {
 	return;
 }
@@ -163,7 +163,7 @@ static inline int digital_skb_check_crc_f(struct sk_buff *skb)
 	return digital_skb_check_crc(skb, crc_itu_t, CRC_F_INIT, 0, 1);
 }
 
-static inline int digital_skb_check_crc_none(struct sk_buff *skb)
+static inline int digital_skb_check_crc_analne(struct sk_buff *skb)
 {
 	return 0;
 }

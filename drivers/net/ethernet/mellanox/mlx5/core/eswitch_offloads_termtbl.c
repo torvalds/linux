@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellaanalx Techanallogies.
 
 #include <linux/mlx5/fs.h>
 #include "eswitch.h"
@@ -7,7 +7,7 @@
 #include "fs_core.h"
 
 struct mlx5_termtbl_handle {
-	struct hlist_node termtbl_hlist;
+	struct hlist_analde termtbl_hlist;
 
 	struct mlx5_flow_table *termtbl;
 	struct mlx5_flow_act flow_act;
@@ -72,7 +72,7 @@ mlx5_eswitch_termtbl_create(struct mlx5_core_dev *dev,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get FDB flow namespace\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* As this is the terminating action then the termination table is the
@@ -134,7 +134,7 @@ mlx5_eswitch_termtbl_get_create(struct mlx5_eswitch *esw,
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
 	if (!tt) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto tt_create_err;
 	}
 
@@ -220,7 +220,7 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 	int i;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
-	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level) ||
+	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, iganalre_flow_level) ||
 	    mlx5e_tc_attr_flags_skip(attr->flags) ||
 	    (!mlx5_eswitch_offload_is_uplink_port(esw, spec) && !esw_attr->int_port))
 		return false;
@@ -296,7 +296,7 @@ mlx5_eswitch_add_termtbl_rule(struct mlx5_eswitch *esw,
 	/* create the FTE */
 	flow_act->action &= ~MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 	flow_act->pkt_reformat = NULL;
-	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	flow_act->flags |= FLOW_ACT_IGANALRE_FLOW_LEVEL;
 	rule = mlx5_add_flow_rules(fdb, spec, flow_act, dest, num_dest);
 	if (IS_ERR(rule))
 		goto revert_changes;

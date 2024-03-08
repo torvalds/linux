@@ -38,7 +38,7 @@
 
     Tobias Ringstrom <tori@unhappy.mine.nu> :
     Use time_after for jiffies calculation.  Added ethtool
-    support.  Updated PCI resource allocation.  Do not
+    support.  Updated PCI resource allocation.  Do analt
     forget to unmap PCI mapped skbs.
 
     Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -50,7 +50,7 @@
     Check on 64 bit boxes.
     Check and fix on big endian boxes.
 
-    Test and make sure PCI latency is now correct for all cases.
+    Test and make sure PCI latency is analw correct for all cases.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -62,7 +62,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -114,8 +114,8 @@
 #define DMFE_MAX_MULTICAST 14
 #define RX_COPY_SIZE	100
 #define MAX_CHECK_PACKET 0x8000
-#define DM9801_NOISE_FLOOR 8
-#define DM9802_NOISE_FLOOR 5
+#define DM9801_ANALISE_FLOOR 8
+#define DM9802_ANALISE_FLOOR 5
 
 #define DMFE_WOL_LINKCHANGE	0x20000000
 #define DMFE_WOL_SAMPLEPACKET	0x10000000
@@ -146,9 +146,9 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-#define DMFE_DBUG(dbug_now, msg, value)			\
+#define DMFE_DBUG(dbug_analw, msg, value)			\
 	do {						\
-		if (dmfe_debug || (dbug_now))		\
+		if (dmfe_debug || (dbug_analw))		\
 			pr_err("%s %lx\n",		\
 			       (msg), (long) (value));	\
 	} while (0)
@@ -237,7 +237,7 @@ struct dmfe_board_info {
 	u16 NIC_capability;		/* NIC media capability */
 	u16 PHY_reg4;			/* Saved Phyxcer register 4 value */
 
-	u8 HPNA_present;		/* 0:none, 1:DM9801, 2:DM9802 */
+	u8 HPNA_present;		/* 0:analne, 1:DM9801, 2:DM9802 */
 	u8 chip_type;			/* Keep DM9102A chip type */
 	u8 media_mode;			/* user specify media mode */
 	u8 op_mode;			/* real work media mode */
@@ -251,7 +251,7 @@ struct dmfe_board_info {
 	/* Driver defined statistic counter */
 	unsigned long tx_fifo_underrun;
 	unsigned long tx_loss_carrier;
-	unsigned long tx_no_carrier;
+	unsigned long tx_anal_carrier;
 	unsigned long tx_late_collision;
 	unsigned long tx_excessive_collision;
 	unsigned long tx_jabber_timeout;
@@ -274,7 +274,7 @@ enum dmfe_offsets {
 enum dmfe_CR6_bits {
 	CR6_RXSC = 0x2, CR6_PBF = 0x8, CR6_PM = 0x40, CR6_PAM = 0x80,
 	CR6_FDM = 0x200, CR6_TXSC = 0x2000, CR6_STI = 0x100000,
-	CR6_SFT = 0x200000, CR6_RXA = 0x40000000, CR6_NO_PURGE = 0x20000000
+	CR6_SFT = 0x200000, CR6_RXA = 0x40000000, CR6_ANAL_PURGE = 0x20000000
 };
 
 /* Global variable declaration ----------------------------- */
@@ -290,7 +290,7 @@ static u8 chkmode = 1;
 static u8 HPNA_mode;		/* Default: Low Power/High Speed */
 static u8 HPNA_rx_cmd;		/* Default: Disable Rx remote command */
 static u8 HPNA_tx_cmd;		/* Default: Don't issue remote command */
-static u8 HPNA_NoiseFloor;	/* Default: HPNA NoiseFloor */
+static u8 HPNA_AnaliseFloor;	/* Default: HPNA AnaliseFloor */
 static u8 SF_mode;		/* Special Function: 1:VLAN, 2:RX Flow Control
 				   4: TX pause packet */
 
@@ -365,11 +365,11 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_DM910X
 	if ((ent->driver_data == PCI_DM9100_ID && pdev->revision >= 0x30) ||
 	    ent->driver_data == PCI_DM9102_ID) {
-		struct device_node *dp = pci_device_to_OF_node(pdev);
+		struct device_analde *dp = pci_device_to_OF_analde(pdev);
 
 		if (dp && of_get_property(dp, "local-mac-address", NULL)) {
 			pr_info("skipping on-board DM910x (use tulip)\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 #endif
@@ -377,12 +377,12 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
-		pr_warn("32-bit PCI DMA not available\n");
-		err = -ENODEV;
+		pr_warn("32-bit PCI DMA analt available\n");
+		err = -EANALDEV;
 		goto err_out_free;
 	}
 
@@ -393,17 +393,17 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!pci_resource_start(pdev, 0)) {
 		pr_err("I/O base is zero\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_disable;
 	}
 
 	if (pci_resource_len(pdev, 0) < (CHK_IO_SIZE(pdev)) ) {
 		pr_err("Allocated I/O size too small\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_disable;
 	}
 
-#if 0	/* pci_{enable_device,set_master} sets minimum latency for us now */
+#if 0	/* pci_{enable_device,set_master} sets minimum latency for us analw */
 
 	/* Set Latency Timer 80h */
 	/* FIXME: setting values > 32 breaks some SiS 559x stuff.
@@ -414,7 +414,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_request_regions(pdev, DRV_NAME)) {
 		pr_err("Failed to request PCI regions\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_disable;
 	}
 
@@ -426,7 +426,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					       sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
 					       &db->desc_pool_dma_ptr, GFP_KERNEL);
 	if (!db->desc_pool_ptr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_res;
 	}
 
@@ -434,7 +434,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					      TX_BUF_ALLOC * TX_DESC_CNT + 4,
 					      &db->buf_pool_dma_ptr, GFP_KERNEL);
 	if (!db->buf_pool_ptr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_desc;
 	}
 
@@ -447,7 +447,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* IO type range. */
 	db->ioaddr = pci_iomap(pdev, 0, 0);
 	if (!db->ioaddr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_buf;
 	}
 
@@ -475,7 +475,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			cpu_to_le16(read_srom_word(db->ioaddr, i));
 	}
 
-	/* Set Node address */
+	/* Set Analde address */
 	eth_hw_addr_set(dev, &db->srom[20]);
 
 	err = register_netdev (dev);
@@ -568,7 +568,7 @@ static int dmfe_open(struct net_device *dev)
 		(db->chip_revision >= 0x30) ) {
 		db->cr6_data |= DMFE_TXTH_256;
 		db->cr0_data = CR0_DEFAULT;
-		db->dm910x_chk_mode=4;		/* Enter the normal mode */
+		db->dm910x_chk_mode=4;		/* Enter the analrmal mode */
 	} else {
 		db->cr6_data |= CR6_SFT;	/* Store & Forward mode */
 		db->cr0_data = 0;
@@ -685,10 +685,10 @@ static netdev_tx_t dmfe_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&db->lock, flags);
 
-	/* No Tx resource check, it never happen nromally */
+	/* Anal Tx resource check, it never happen nromally */
 	if (db->tx_queue_cnt >= TX_FREE_DESC_CNT) {
 		spin_unlock_irqrestore(&db->lock, flags);
-		pr_err("No Tx resource %ld\n", db->tx_queue_cnt);
+		pr_err("Anal Tx resource %ld\n", db->tx_queue_cnt);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -762,7 +762,7 @@ static int dmfe_stop(struct net_device *dev)
 	/* show statistic counter */
 	printk("FU:%lx EC:%lx LC:%lx NC:%lx LOC:%lx TXJT:%lx RESET:%lx RCR8:%lx FAL:%lx TT:%lx\n",
 	       db->tx_fifo_underrun, db->tx_excessive_collision,
-	       db->tx_late_collision, db->tx_no_carrier, db->tx_loss_carrier,
+	       db->tx_late_collision, db->tx_anal_carrier, db->tx_loss_carrier,
 	       db->tx_jabber_timeout, db->reset_count, db->reset_cr8,
 	       db->reset_fatal, db->reset_TXtimeout);
 #endif
@@ -838,7 +838,7 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's analt called while
  * the interrupt routine is executing.
  */
 
@@ -847,8 +847,8 @@ static void poll_dmfe (struct net_device *dev)
 	struct dmfe_board_info *db = netdev_priv(dev);
 	const int irq = db->pdev->irq;
 
-	/* disable_irq here is not very nice, but with the lockless
-	   interrupt handler we have no other choice. */
+	/* disable_irq here is analt very nice, but with the lockless
+	   interrupt handler we have anal other choice. */
 	disable_irq(irq);
 	dmfe_interrupt (irq, dev);
 	enable_irq(irq);
@@ -894,7 +894,7 @@ static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 				if (tdes0 & 0x0200)
 					db->tx_late_collision++;
 				if (tdes0 & 0x0400)
-					db->tx_no_carrier++;
+					db->tx_anal_carrier++;
 				if (tdes0 & 0x0800)
 					db->tx_loss_carrier++;
 				if (tdes0 & 0x4000)
@@ -926,7 +926,7 @@ static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 /*
  *	Calculate the CRC valude of the Rx packet
  *	flag = 	1 : return the reverse CRC (for the received packet CRC)
- *		0 : return the normal CRC (for Hash Table index)
+ *		0 : return the analrmal CRC (for Hash Table index)
  */
 
 static inline u32 cal_CRC(unsigned char * Data, unsigned int Len, u8 flag)
@@ -986,7 +986,7 @@ static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 				((db->cr6_data & CR6_PM) && (rxlen>6)) ) {
 				skb = rxptr->rx_skb_ptr;
 
-				/* Received Packet CRC check need or not */
+				/* Received Packet CRC check need or analt */
 				if ( (db->dm910x_chk_mode & 1) &&
 					(cal_CRC(skb->data, rxlen, 1) !=
 					(*(u32 *) (skb->data+rxlen) ))) { /* FIXME (?) */
@@ -1085,7 +1085,7 @@ static int dmfe_ethtool_set_wol(struct net_device *dev,
 
 	if (wolinfo->wolopts & (WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
 		   		WAKE_ARP | WAKE_MAGICSECURE))
-		   return -EOPNOTSUPP;
+		   return -EOPANALTSUPP;
 
 	db->wol_mode = wolinfo->wolopts;
 	return 0;
@@ -1204,7 +1204,7 @@ static void dmfe_timer(struct timer_list *t)
 
 
 	/* If chip reports that link is failed it could be because external
-		PHY link status pin is not connected correctly to chip
+		PHY link status pin is analt connected correctly to chip
 		To be sure ask PHY too.
 	*/
 
@@ -1441,7 +1441,7 @@ static void dm9132_id_table(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	u16 i, hash_table[4];
 
-	/* Node address */
+	/* Analde address */
 	for (i = 0; i < 3; i++) {
 		dw16(0, addrptr[i]);
 		ioaddr += 4;
@@ -1485,7 +1485,7 @@ static void send_filter_frame(struct net_device *dev)
 	txptr = db->tx_insert_ptr;
 	suptr = (u32 *) txptr->tx_buf_ptr;
 
-	/* Node address */
+	/* Analde address */
 	addrptr = (const u16 *) dev->dev_addr;
 	*suptr++ = addrptr[0];
 	*suptr++ = addrptr[1];
@@ -1923,7 +1923,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 			}
 		}
 
-		/* Media Mode Force or not check */
+		/* Media Mode Force or analt check */
 		dmfe_mode = (le32_to_cpup((__le32 *) (srom + 34)) &
 			     le32_to_cpup((__le32 *) (srom + 36)));
 		switch(dmfe_mode) {
@@ -1951,7 +1951,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 	/* Parse HPNA parameter */
 	db->HPNA_command = 1;
 
-	/* Accept remote command or not */
+	/* Accept remote command or analt */
 	if (HPNA_rx_cmd == 0)
 		db->HPNA_command |= 0x8000;
 
@@ -1971,7 +1971,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 		case 3: db->HPNA_command |= 0x0002; break;
 		}
 
-	/* Check DM9801 or DM9802 present or not */
+	/* Check DM9801 or DM9802 present or analt */
 	db->HPNA_present = 0;
 	update_cr6(db->cr6_data | 0x40000, db->ioaddr);
 	tmp_reg = dmfe_phy_read(db->ioaddr, db->phy_addr, 3, db->chip_id);
@@ -2000,28 +2000,28 @@ static void dmfe_program_DM9801(struct dmfe_board_info * db, int HPNA_rev)
 {
 	uint reg17, reg25;
 
-	if ( !HPNA_NoiseFloor ) HPNA_NoiseFloor = DM9801_NOISE_FLOOR;
+	if ( !HPNA_AnaliseFloor ) HPNA_AnaliseFloor = DM9801_ANALISE_FLOOR;
 	switch(HPNA_rev) {
 	case 0xb900: /* DM9801 E3 */
 		db->HPNA_command |= 0x1000;
 		reg25 = dmfe_phy_read(db->ioaddr, db->phy_addr, 24, db->chip_id);
-		reg25 = ( (reg25 + HPNA_NoiseFloor) & 0xff) | 0xf000;
+		reg25 = ( (reg25 + HPNA_AnaliseFloor) & 0xff) | 0xf000;
 		reg17 = dmfe_phy_read(db->ioaddr, db->phy_addr, 17, db->chip_id);
 		break;
 	case 0xb901: /* DM9801 E4 */
 		reg25 = dmfe_phy_read(db->ioaddr, db->phy_addr, 25, db->chip_id);
-		reg25 = (reg25 & 0xff00) + HPNA_NoiseFloor;
+		reg25 = (reg25 & 0xff00) + HPNA_AnaliseFloor;
 		reg17 = dmfe_phy_read(db->ioaddr, db->phy_addr, 17, db->chip_id);
-		reg17 = (reg17 & 0xfff0) + HPNA_NoiseFloor + 3;
+		reg17 = (reg17 & 0xfff0) + HPNA_AnaliseFloor + 3;
 		break;
 	case 0xb902: /* DM9801 E5 */
 	case 0xb903: /* DM9801 E6 */
 	default:
 		db->HPNA_command |= 0x1000;
 		reg25 = dmfe_phy_read(db->ioaddr, db->phy_addr, 25, db->chip_id);
-		reg25 = (reg25 & 0xff00) + HPNA_NoiseFloor - 5;
+		reg25 = (reg25 & 0xff00) + HPNA_AnaliseFloor - 5;
 		reg17 = dmfe_phy_read(db->ioaddr, db->phy_addr, 17, db->chip_id);
-		reg17 = (reg17 & 0xfff0) + HPNA_NoiseFloor;
+		reg17 = (reg17 & 0xfff0) + HPNA_AnaliseFloor;
 		break;
 	}
 	dmfe_phy_write(db->ioaddr, db->phy_addr, 16, db->HPNA_command, db->chip_id);
@@ -2038,16 +2038,16 @@ static void dmfe_program_DM9802(struct dmfe_board_info * db)
 {
 	uint phy_reg;
 
-	if ( !HPNA_NoiseFloor ) HPNA_NoiseFloor = DM9802_NOISE_FLOOR;
+	if ( !HPNA_AnaliseFloor ) HPNA_AnaliseFloor = DM9802_ANALISE_FLOOR;
 	dmfe_phy_write(db->ioaddr, db->phy_addr, 16, db->HPNA_command, db->chip_id);
 	phy_reg = dmfe_phy_read(db->ioaddr, db->phy_addr, 25, db->chip_id);
-	phy_reg = ( phy_reg & 0xff00) + HPNA_NoiseFloor;
+	phy_reg = ( phy_reg & 0xff00) + HPNA_AnaliseFloor;
 	dmfe_phy_write(db->ioaddr, db->phy_addr, 25, phy_reg, db->chip_id);
 }
 
 
 /*
- *	Check remote HPNA power and speed status. If not correct,
+ *	Check remote HPNA power and speed status. If analt correct,
  *	issue command again.
 */
 
@@ -2064,7 +2064,7 @@ static void dmfe_HPNA_remote_cmd_chk(struct dmfe_board_info * db)
 	case 0x60: phy_reg = 0x0500;break; /* HP/HS */
 	}
 
-	/* Check remote device status match our setting ot not */
+	/* Check remote device status match our setting ot analt */
 	if ( phy_reg != (db->HPNA_command & 0x0f00) ) {
 		dmfe_phy_write(db->ioaddr, db->phy_addr, 16, db->HPNA_command,
 			       db->chip_id);
@@ -2147,7 +2147,7 @@ module_param(chkmode, byte, 0);
 module_param(HPNA_mode, byte, 0);
 module_param(HPNA_rx_cmd, byte, 0);
 module_param(HPNA_tx_cmd, byte, 0);
-module_param(HPNA_NoiseFloor, byte, 0);
+module_param(HPNA_AnaliseFloor, byte, 0);
 module_param(SF_mode, byte, 0);
 MODULE_PARM_DESC(debug, "Davicom DM9xxx enable debugging (0-1)");
 MODULE_PARM_DESC(mode, "Davicom DM9xxx: "
@@ -2188,11 +2188,11 @@ static int __init dmfe_init_module(void)
 	if (HPNA_mode > 4)
 		HPNA_mode = 0;		/* Default: LP/HS */
 	if (HPNA_rx_cmd > 1)
-		HPNA_rx_cmd = 0;	/* Default: Ignored remote cmd */
+		HPNA_rx_cmd = 0;	/* Default: Iganalred remote cmd */
 	if (HPNA_tx_cmd > 1)
 		HPNA_tx_cmd = 0;	/* Default: Don't issue remote cmd */
-	if (HPNA_NoiseFloor > 15)
-		HPNA_NoiseFloor = 0;
+	if (HPNA_AnaliseFloor > 15)
+		HPNA_AnaliseFloor = 0;
 
 	rc = pci_register_driver(&dmfe_driver);
 	if (rc < 0)

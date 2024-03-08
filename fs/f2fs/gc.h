@@ -8,12 +8,12 @@
 #define GC_THREAD_MIN_WB_PAGES		1	/*
 						 * a threshold to determine
 						 * whether IO subsystem is idle
-						 * or not
+						 * or analt
 						 */
 #define DEF_GC_THREAD_URGENT_SLEEP_TIME	500	/* 500 ms */
 #define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
 #define DEF_GC_THREAD_MAX_SLEEP_TIME	60000
-#define DEF_GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
+#define DEF_GC_THREAD_ANALGC_SLEEP_TIME	300000	/* wait 5 min */
 
 /* choose candidates from sections which has age of more than 7 days */
 #define DEF_GC_THREAD_AGE_THRESHOLD		(60 * 60 * 24 * 7)
@@ -30,7 +30,7 @@
 /* Search max. number of dirty segments to select a victim segment */
 #define DEF_MAX_VICTIM_SEARCH 4096 /* covers 8GB */
 
-#define NR_GC_CHECKPOINT_SECS (3)	/* data/node/dentry sections */
+#define NR_GC_CHECKPOINT_SECS (3)	/* data/analde/dentry sections */
 
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
@@ -40,7 +40,7 @@ struct f2fs_gc_kthread {
 	unsigned int urgent_sleep_time;
 	unsigned int min_sleep_time;
 	unsigned int max_sleep_time;
-	unsigned int no_gc_sleep_time;
+	unsigned int anal_gc_sleep_time;
 
 	/* for changing gc mode */
 	bool gc_wake;
@@ -52,15 +52,15 @@ struct f2fs_gc_kthread {
 						 */
 };
 
-struct gc_inode_list {
+struct gc_ianalde_list {
 	struct list_head ilist;
 	struct radix_tree_root iroot;
 };
 
 struct victim_entry {
-	struct rb_node rb_node;		/* rb node located in rb-tree */
+	struct rb_analde rb_analde;		/* rb analde located in rb-tree */
 	unsigned long long mtime;	/* mtime of section */
-	unsigned int segno;		/* segment No. */
+	unsigned int seganal;		/* segment Anal. */
 	struct list_head list;
 };
 
@@ -70,11 +70,11 @@ struct victim_entry {
 
 /*
  * On a Zoned device zone-capacity can be less than zone-size and if
- * zone-capacity is not aligned to f2fs segment size(2MB), then the segment
+ * zone-capacity is analt aligned to f2fs segment size(2MB), then the segment
  * starting just before zone-capacity has some blocks spanning across the
- * zone-capacity, these blocks are not usable.
+ * zone-capacity, these blocks are analt usable.
  * Such spanning segments can be in free list so calculate the sum of usable
- * blocks in currently free segments including normal and spanning segments.
+ * blocks in currently free segments including analrmal and spanning segments.
  */
 static inline block_t free_segs_blk_count_zoned(struct f2fs_sb_info *sbi)
 {
@@ -128,7 +128,7 @@ static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
 	unsigned int min_time = gc_th->min_sleep_time;
 	unsigned int max_time = gc_th->max_sleep_time;
 
-	if (*wait == gc_th->no_gc_sleep_time)
+	if (*wait == gc_th->anal_gc_sleep_time)
 		return;
 
 	if ((long long)*wait + (long long)min_time > (long long)max_time)
@@ -142,7 +142,7 @@ static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
 {
 	unsigned int min_time = gc_th->min_sleep_time;
 
-	if (*wait == gc_th->no_gc_sleep_time)
+	if (*wait == gc_th->anal_gc_sleep_time)
 		*wait = gc_th->max_sleep_time;
 
 	if ((long long)*wait - (long long)min_time < (long long)min_time)
@@ -151,7 +151,7 @@ static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
 		*wait -= min_time;
 }
 
-static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
+static inline bool has_eanalugh_invalid_blocks(struct f2fs_sb_info *sbi)
 {
 	block_t user_block_count = sbi->user_block_count;
 	block_t invalid_user_blocks = user_block_count -
@@ -159,7 +159,7 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 	/*
 	 * Background GC is triggered with the following conditions.
 	 * 1. There are a number of invalid blocks.
-	 * 2. There is not enough free space.
+	 * 2. There is analt eanalugh free space.
 	 */
 	return (invalid_user_blocks >
 			limit_invalid_user_blocks(user_block_count) &&

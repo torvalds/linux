@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2021 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2021 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #include "sparx5_main_regs.h"
@@ -39,9 +39,9 @@ void sparx5_vlan_init(struct sparx5 *sparx5)
 			 ANA_L3_VLAN_CFG(vid));
 }
 
-void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portno)
+void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portanal)
 {
-	struct sparx5_port *port = sparx5->ports[portno];
+	struct sparx5_port *port = sparx5->ports[portanal];
 
 	/* Configure PVID */
 	spx5_rmw(ANA_CL_VLAN_CTRL_VLAN_AWARE_ENA_SET(0) |
@@ -49,7 +49,7 @@ void sparx5_vlan_port_setup(struct sparx5 *sparx5, int portno)
 		 ANA_CL_VLAN_CTRL_VLAN_AWARE_ENA |
 		 ANA_CL_VLAN_CTRL_PORT_VID,
 		 sparx5,
-		 ANA_CL_VLAN_CTRL(port->portno));
+		 ANA_CL_VLAN_CTRL(port->portanal));
 }
 
 int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
@@ -70,7 +70,7 @@ int sparx5_vlan_vid_add(struct sparx5_port *port, u16 vid, bool pvid,
 	}
 
 	/* Make the port a member of the VLAN */
-	set_bit(port->portno, sparx5->vlan_mask[vid]);
+	set_bit(port->portanal, sparx5->vlan_mask[vid]);
 	ret = sparx5_vlant_set_mask(sparx5, vid);
 	if (ret)
 		return ret;
@@ -97,7 +97,7 @@ int sparx5_vlan_vid_del(struct sparx5_port *port, u16 vid)
 		return 0;
 
 	/* Stop the port from being a member of the vlan */
-	clear_bit(port->portno, sparx5->vlan_mask[vid]);
+	clear_bit(port->portanal, sparx5->vlan_mask[vid]);
 	ret = sparx5_vlant_set_mask(sparx5, vid);
 	if (ret)
 		return ret;
@@ -121,20 +121,20 @@ void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable)
 	u32 val, mask;
 
 	/* mask is spread across 3 registers x 32 bit */
-	if (port->portno < 32) {
-		mask = BIT(port->portno);
+	if (port->portanal < 32) {
+		mask = BIT(port->portanal);
 		val = enable ? mask : 0;
 		spx5_rmw(val, mask, sparx5, ANA_AC_PGID_CFG(pgid));
-	} else if (port->portno < 64) {
-		mask = BIT(port->portno - 32);
+	} else if (port->portanal < 64) {
+		mask = BIT(port->portanal - 32);
 		val = enable ? mask : 0;
 		spx5_rmw(val, mask, sparx5, ANA_AC_PGID_CFG1(pgid));
-	} else if (port->portno < SPX5_PORTS) {
-		mask = BIT(port->portno - 64);
+	} else if (port->portanal < SPX5_PORTS) {
+		mask = BIT(port->portanal - 64);
 		val = enable ? mask : 0;
 		spx5_rmw(val, mask, sparx5, ANA_AC_PGID_CFG2(pgid));
 	} else {
-		netdev_err(port->ndev, "Invalid port no: %d\n", port->portno);
+		netdev_err(port->ndev, "Invalid port anal: %d\n", port->portanal);
 	}
 }
 
@@ -206,7 +206,7 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 	val = ANA_CL_VLAN_CTRL_VLAN_AWARE_ENA_SET(port->vlan_aware) |
 		ANA_CL_VLAN_CTRL_VLAN_POP_CNT_SET(port->vlan_aware) |
 		ANA_CL_VLAN_CTRL_PORT_VID_SET(port->pvid);
-	spx5_wr(val, sparx5, ANA_CL_VLAN_CTRL(port->portno));
+	spx5_wr(val, sparx5, ANA_CL_VLAN_CTRL(port->portanal));
 
 	val = 0;
 	if (port->vlan_aware && !port->pvid)
@@ -217,7 +217,7 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 			ANA_CL_VLAN_FILTER_CTRL_PRIO_CTAG_DIS_SET(1) |
 			ANA_CL_VLAN_FILTER_CTRL_PRIO_STAG_DIS_SET(1);
 	spx5_wr(val, sparx5,
-		ANA_CL_VLAN_FILTER_CTRL(port->portno, 0));
+		ANA_CL_VLAN_FILTER_CTRL(port->portanal, 0));
 
 	/* Egress configuration (REW_TAG_CFG): VLAN tag selected via IFH */
 	val = REW_TAG_CTRL_TAG_TPID_CFG_SET(5);
@@ -228,11 +228,11 @@ void sparx5_vlan_port_apply(struct sparx5 *sparx5,
 		else
 			val |= REW_TAG_CTRL_TAG_CFG_SET(3);
 	}
-	spx5_wr(val, sparx5, REW_TAG_CTRL(port->portno));
+	spx5_wr(val, sparx5, REW_TAG_CTRL(port->portanal));
 
 	/* Egress VID */
 	spx5_rmw(REW_PORT_VLAN_CFG_PORT_VID_SET(port->vid),
 		 REW_PORT_VLAN_CFG_PORT_VID,
 		 sparx5,
-		 REW_PORT_VLAN_CFG(port->portno));
+		 REW_PORT_VLAN_CFG(port->portanal));
 }

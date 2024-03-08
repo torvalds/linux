@@ -79,7 +79,7 @@ int ipmi_si_mem_setup(struct si_sm_io *io)
 	int           mapsize, idx;
 
 	if (!addr)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Figure out the actual readb/readw/readl/etc routine to use based

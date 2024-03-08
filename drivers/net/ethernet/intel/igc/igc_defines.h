@@ -220,7 +220,7 @@
 
 /* Device Status */
 #define IGC_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
-#define IGC_STATUS_LU		0x00000002      /* Link up.0=no,1=link */
+#define IGC_STATUS_LU		0x00000002      /* Link up.0=anal,1=link */
 #define IGC_STATUS_FUNC_MASK	0x0000000C      /* PCI Function Mask */
 #define IGC_STATUS_FUNC_SHIFT	2
 #define IGC_STATUS_TXOFF	0x00000010      /* transmission paused */
@@ -235,14 +235,14 @@
 #define HALF_DUPLEX		1
 #define FULL_DUPLEX		2
 
-/* 1Gbps and 2.5Gbps half duplex is not supported, nor spec-compliant. */
+/* 1Gbps and 2.5Gbps half duplex is analt supported, analr spec-compliant. */
 #define ADVERTISE_10_HALF		0x0001
 #define ADVERTISE_10_FULL		0x0002
 #define ADVERTISE_100_HALF		0x0004
 #define ADVERTISE_100_FULL		0x0008
-#define ADVERTISE_1000_HALF		0x0010 /* Not used, just FYI */
+#define ADVERTISE_1000_HALF		0x0010 /* Analt used, just FYI */
 #define ADVERTISE_1000_FULL		0x0020
-#define ADVERTISE_2500_HALF		0x0040 /* Not used, just FYI */
+#define ADVERTISE_2500_HALF		0x0040 /* Analt used, just FYI */
 #define ADVERTISE_2500_FULL		0x0080
 
 #define IGC_ALL_SPEED_DUPLEX_2500 ( \
@@ -363,7 +363,7 @@
 
 /* Receive Descriptor bit definitions */
 #define IGC_RXD_STAT_EOP	0x02	/* End of Packet */
-#define IGC_RXD_STAT_IXSM	0x04	/* Ignore checksum */
+#define IGC_RXD_STAT_IXSM	0x04	/* Iganalre checksum */
 #define IGC_RXD_STAT_UDPCS	0x10	/* UDP xsum calculated */
 #define IGC_RXD_STAT_TCPCS	0x20	/* TCP xsum calculated */
 #define IGC_RXD_STAT_VP		0x08	/* IEEE VLAN Packet */
@@ -390,7 +390,7 @@
 #define IGC_RCTL_SZ_256		0x00030000 /* Rx buffer size 256 */
 
 #define IGC_RCTL_MO_SHIFT	12 /* multicast offset shift */
-#define IGC_RCTL_CFIEN		0x00080000 /* canonical form enable */
+#define IGC_RCTL_CFIEN		0x00080000 /* caanalnical form enable */
 #define IGC_RCTL_DPF		0x00400000 /* discard pause frames */
 #define IGC_RCTL_PMCF		0x00800000 /* pass MAC control frames */
 #define IGC_RCTL_SECRC		0x04000000 /* Strip Ethernet CRC */
@@ -406,7 +406,7 @@
 
 /* Transmit Scheduling Latency */
 /* Latency between transmission scheduling (LaunchTime) and the time
- * the packet is transmitted to the network in nanosecond.
+ * the packet is transmitted to the network in naanalsecond.
  */
 #define IGC_TXOFFSET_SPEED_10	0x000034BC
 #define IGC_TXOFFSET_SPEED_100	0x00000578
@@ -552,7 +552,7 @@
 #define IGC_RXCSUM_PCSD		0x00002000   /* packet checksum disabled */
 
 /* PCIe PTM Control */
-#define IGC_PTM_CTRL_START_NOW	BIT(29) /* Start PTM Now */
+#define IGC_PTM_CTRL_START_ANALW	BIT(29) /* Start PTM Analw */
 #define IGC_PTM_CTRL_EN		BIT(30) /* Enable PTM */
 #define IGC_PTM_CTRL_TRIG	BIT(31) /* PTM Cycle trigger */
 #define IGC_PTM_CTRL_SHRT_CYC(usec)	(((usec) & 0x3f) << 2)
@@ -576,7 +576,7 @@
 #define IGC_PTM_STAT_BAD_PTM_RES	BIT(2) /* PTM Response msg instead of PTM Response Data */
 #define IGC_PTM_STAT_T4M1_OVFL		BIT(3) /* T4 minus T1 overflow */
 #define IGC_PTM_STAT_ADJUST_1ST		BIT(4) /* 1588 timer adjusted during 1st PTM cycle */
-#define IGC_PTM_STAT_ADJUST_CYC		BIT(5) /* 1588 timer adjusted during non-1st PTM cycle */
+#define IGC_PTM_STAT_ADJUST_CYC		BIT(5) /* 1588 timer adjusted during analn-1st PTM cycle */
 
 /* PCIe PTM Cycle Control */
 #define IGC_PTM_CYCLE_CTRL_CYC_TIME(msec)	((msec) & 0x3ff) /* PTM Cycle Time (msec) */
@@ -587,7 +587,7 @@
 #define GPY_MMD_SHIFT		16
 #define GPY_REG_MASK		0x0000FFFF
 
-#define IGC_MMDAC_FUNC_DATA	0x4000 /* Data, no post increment */
+#define IGC_MMDAC_FUNC_DATA	0x4000 /* Data, anal post increment */
 
 /* MAC definitions */
 #define IGC_FACTPS_MNGCG	0x20000000
@@ -666,7 +666,7 @@
 #define IGC_LTRC_EEEMS_EN		0x00000020 /* Enable EEE LTR max send */
 #define IGC_RXPBS_SIZE_I225_MASK	0x0000003F /* Rx packet buffer size */
 #define IGC_TW_SYSTEM_1000_MASK		0x000000FF
-/* Minimum time for 100BASE-T where no data will be transmit following move out
+/* Minimum time for 100BASE-T where anal data will be transmit following move out
  * of EEE LPI Tx state
  */
 #define IGC_TW_SYSTEM_100_MASK		0x0000FF00
@@ -681,9 +681,9 @@
 #define IGC_LTRMAXV_SCALE_32768		3
 #define IGC_LTRMINV_LTRV_MASK		0x000003FF /* LTR minimum value */
 #define IGC_LTRMAXV_LTRV_MASK		0x000003FF /* LTR maximum value */
-#define IGC_LTRMINV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMINV_LSNP_REQ		0x00008000 /* LTR Sanalop Requirement */
 #define IGC_LTRMINV_SCALE_SHIFT		10
-#define IGC_LTRMAXV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMAXV_LSNP_REQ		0x00008000 /* LTR Sanalop Requirement */
 #define IGC_LTRMAXV_SCALE_SHIFT		10
 
 #endif /* _IGC_DEFINES_H_ */

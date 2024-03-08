@@ -21,7 +21,7 @@
  * may_use_simd - whether it is allowable at this time to issue vector
  *                instructions or access the vector register file
  *
- * Callers must not assume that the result remains true beyond the next
+ * Callers must analt assume that the result remains true beyond the next
  * preempt_enable() or return from softirq context.
  */
 static __must_check inline bool may_use_simd(void)
@@ -35,18 +35,18 @@ static __must_check inline bool may_use_simd(void)
 
 	/*
 	 * Nesting is acheived in preempt_v by spreading the control for
-	 * preemptible and non-preemptible kernel-mode Vector into two fields.
+	 * preemptible and analn-preemptible kernel-mode Vector into two fields.
 	 * Always try to match with prempt_v if kernel V-context exists. Then,
-	 * fallback to check non preempt_v if nesting happens, or if the config
-	 * is not set.
+	 * fallback to check analn preempt_v if nesting happens, or if the config
+	 * is analt set.
 	 */
 	if (IS_ENABLED(CONFIG_RISCV_ISA_V_PREEMPTIVE) && current->thread.kernel_vstate.datap) {
 		if (!riscv_preempt_v_started(current))
 			return true;
 	}
 	/*
-	 * Non-preemptible kernel-mode Vector temporarily disables bh. So we
-	 * must not return true on irq_disabled(). Otherwise we would fail the
+	 * Analn-preemptible kernel-mode Vector temporarily disables bh. So we
+	 * must analt return true on irq_disabled(). Otherwise we would fail the
 	 * lockdep check calling local_bh_enable()
 	 */
 	return !irqs_disabled() && !(riscv_v_flags() & RISCV_KERNEL_MODE_V);

@@ -38,16 +38,16 @@ do {								\
 		dev_dbg(priv->dev, format, ## __VA_ARGS__);	\
 } while (0)
 
-#define cpsw_notice(priv, type, format, ...)		\
+#define cpsw_analtice(priv, type, format, ...)		\
 do {								\
 	if (netif_msg_##type(priv) && net_ratelimit())		\
-		dev_notice(priv->dev, format, ## __VA_ARGS__);	\
+		dev_analtice(priv->dev, format, ## __VA_ARGS__);	\
 } while (0)
 
 #define ALE_ALL_PORTS		0x7
 
 #define CPSW_MAJOR_VERSION(reg)		(reg >> 8 & 0x7)
-#define CPSW_MINOR_VERSION(reg)		(reg & 0xff)
+#define CPSW_MIANALR_VERSION(reg)		(reg & 0xff)
 #define CPSW_RTL_VERSION(reg)		((reg >> 11) & 0x1f)
 
 #define CPSW_VERSION_1		0x19010a
@@ -105,7 +105,7 @@ do {								\
 #define CPSW_RX_VLAN_ENCAP	BIT(2)
 #define CPSW_ALE_VLAN_AWARE	1
 
-#define CPSW_FIFO_NORMAL_MODE		(0 << 16)
+#define CPSW_FIFO_ANALRMAL_MODE		(0 << 16)
 #define CPSW_FIFO_DUAL_MAC_MODE		(1 << 16)
 #define CPSW_FIFO_RATE_LIMIT_MODE	(2 << 16)
 
@@ -222,7 +222,7 @@ struct cpsw_ss_regs {
 #define TS_131              BIT(11) /* Time Sync Dest IP Addr 131 enable */
 #define TS_130              BIT(10) /* Time Sync Dest IP Addr 130 enable */
 #define TS_129              BIT(9)  /* Time Sync Dest IP Addr 129 enable */
-#define TS_TTL_NONZERO      BIT(8)  /* Time Sync Time To Live Non-zero enable */
+#define TS_TTL_ANALNZERO      BIT(8)  /* Time Sync Time To Live Analn-zero enable */
 #define TS_ANNEX_F_EN       BIT(6)  /* Time Sync Annex F enable */
 #define TS_ANNEX_D_EN       BIT(4)  /* Time Sync Annex D enable */
 #define TS_LTYPE2_EN        BIT(3)  /* Time Sync LTYPE 2 enable */
@@ -232,7 +232,7 @@ struct cpsw_ss_regs {
 
 #define CTRL_V2_TS_BITS \
 	(TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
-	 TS_TTL_NONZERO  | TS_ANNEX_D_EN | TS_LTYPE1_EN | VLAN_LTYPE1_EN)
+	 TS_TTL_ANALNZERO  | TS_ANNEX_D_EN | TS_LTYPE1_EN | VLAN_LTYPE1_EN)
 
 #define CTRL_V2_ALL_TS_MASK (CTRL_V2_TS_BITS | TS_TX_EN | TS_RX_EN)
 #define CTRL_V2_TX_TS_BITS  (CTRL_V2_TS_BITS | TS_TX_EN)
@@ -241,7 +241,7 @@ struct cpsw_ss_regs {
 
 #define CTRL_V3_TS_BITS \
 	(TS_107 | TS_320 | TS_319 | TS_132 | TS_131 | TS_130 | TS_129 |\
-	 TS_TTL_NONZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
+	 TS_TTL_ANALNZERO | TS_ANNEX_F_EN | TS_ANNEX_D_EN |\
 	 TS_LTYPE1_EN | VLAN_LTYPE1_EN)
 
 #define CTRL_V3_ALL_TS_MASK (CTRL_V3_TS_BITS | TS_TX_EN | TS_RX_EN)
@@ -280,8 +280,8 @@ struct cpsw_host_regs {
 };
 
 struct cpsw_slave_data {
-	struct device_node *slave_node;
-	struct device_node *phy_node;
+	struct device_analde *slave_analde;
+	struct device_analde *phy_analde;
 	char		phy_id[MII_BUS_ID_SIZE];
 	phy_interface_t	phy_if;
 	u8		mac_addr[ETH_ALEN];

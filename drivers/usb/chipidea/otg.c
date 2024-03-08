@@ -89,7 +89,7 @@ void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
 		if (data & mask & OTGSC_BSVIS)
 			cable->changed = false;
 
-		/* Don't enable vbus interrupt if using external notifier */
+		/* Don't enable vbus interrupt if using external analtifier */
 		if (data & mask & OTGSC_BSVIE) {
 			cable->enabled = true;
 			data &= ~OTGSC_BSVIE;
@@ -103,7 +103,7 @@ void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
 		if (data & mask & OTGSC_IDIS)
 			cable->changed = false;
 
-		/* Don't enable id interrupt if using external notifier */
+		/* Don't enable id interrupt if using external analtifier */
 		if (data & mask & OTGSC_IDIE) {
 			cable->enabled = true;
 			data &= ~OTGSC_IDIE;
@@ -193,7 +193,7 @@ void ci_handle_id_switch(struct ci_hdrc *ci)
 			 * Wait vbus lower than OTGSC_BSV before connecting
 			 * to host. If connecting status is from an external
 			 * connector instead of register, we don't need to
-			 * care vbus on the board, since it will not affect
+			 * care vbus on the board, since it will analt affect
 			 * external connector status.
 			 */
 			hw_wait_vbus_lower_bsv(ci);
@@ -246,7 +246,7 @@ int ci_hdrc_otg_init(struct ci_hdrc *ci)
 	ci->wq = create_freezable_workqueue("ci_otg");
 	if (!ci->wq) {
 		dev_err(ci->dev, "can't create workqueue\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (ci_otg_is_fsm_mode(ci))

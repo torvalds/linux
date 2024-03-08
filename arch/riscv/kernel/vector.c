@@ -45,7 +45,7 @@ int riscv_v_setup_vsize(void)
 
 	if (riscv_v_vsize != this_vsize) {
 		WARN(1, "RISCV_ISA_V only supports one vlenb on SMP systems");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -73,7 +73,7 @@ static bool insn_is_vector(u32 insn_buf)
 
 	/*
 	 * All V-related instructions, including CSR operations are 4-Byte. So,
-	 * do not handle if the instruction length is not 4-Byte.
+	 * do analt handle if the instruction length is analt 4-Byte.
 	 */
 	if (unlikely(GET_INSN_LENGTH(insn_buf) != 4))
 		return false;
@@ -106,7 +106,7 @@ static int riscv_v_thread_zalloc(struct kmem_cache *cache,
 
 	datap = kmem_cache_zalloc(cache, GFP_KERNEL);
 	if (!datap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->datap = datap;
 	memset(ctx, 0, offsetof(struct __riscv_v_ext_state, datap));
@@ -173,11 +173,11 @@ bool riscv_v_first_use_handler(struct pt_regs *regs)
 	u32 __user *epc = (u32 __user *)regs->epc;
 	u32 insn = (u32)regs->badaddr;
 
-	/* Do not handle if V is not supported, or disabled */
+	/* Do analt handle if V is analt supported, or disabled */
 	if (!(ELF_HWCAP & COMPAT_HWCAP_ISA_V))
 		return false;
 
-	/* If V has been enabled then it is not the first-use trap */
+	/* If V has been enabled then it is analt the first-use trap */
 	if (riscv_v_vstate_query(regs))
 		return false;
 
@@ -187,7 +187,7 @@ bool riscv_v_first_use_handler(struct pt_regs *regs)
 			return false;
 	}
 
-	/* Filter out non-V instructions */
+	/* Filter out analn-V instructions */
 	if (!insn_is_vector(insn))
 		return false;
 
@@ -195,7 +195,7 @@ bool riscv_v_first_use_handler(struct pt_regs *regs)
 	WARN_ON(current->thread.vstate.datap);
 
 	/*
-	 * Now we sure that this is a V instruction. And it executes in the
+	 * Analw we sure that this is a V instruction. And it executes in the
 	 * context where VS has been off. So, try to allocate the user's V
 	 * context and resume execution.
 	 */
@@ -225,7 +225,7 @@ void riscv_v_vstate_ctrl_init(struct task_struct *tsk)
 	} else {
 		cur = next;
 	}
-	/* Clear next mask if inherit-bit is not set */
+	/* Clear next mask if inherit-bit is analt set */
 	inherit = riscv_v_ctrl_test_inherit(tsk);
 	if (!inherit)
 		next = PR_RISCV_V_VSTATE_CTRL_DEFAULT;
@@ -255,7 +255,7 @@ long riscv_v_vstate_ctrl_set_current(unsigned long arg)
 	cur = VSTATE_CTRL_GET_CUR(arg);
 	switch (cur) {
 	case PR_RISCV_V_VSTATE_CTRL_OFF:
-		/* Do not allow user to turn off V if current is not off */
+		/* Do analt allow user to turn off V if current is analt off */
 		if (riscv_v_ctrl_get_cur(current) != PR_RISCV_V_VSTATE_CTRL_OFF)
 			return -EPERM;
 

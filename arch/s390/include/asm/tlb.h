@@ -6,7 +6,7 @@
  * TLB flushing on s390 is complicated. The following requirement
  * from the principles of operation is the most arduous:
  *
- * "A valid table entry must not be changed while it is attached
+ * "A valid table entry must analt be changed while it is attached
  * to any CPU and may be used for translation by that CPU except to
  * (1) invalidate the entry by using INVALIDATE PAGE TABLE ENTRY,
  * or INVALIDATE DAT TABLE ENTRY, (2) alter bits 56-63 of a page
@@ -17,7 +17,7 @@
  * a two step process: i) invalidate the pte, ii) store the new pte.
  * This is true for the page protection bit as well.
  * The only possible optimization is to flush at the beginning of
- * a tlb_gather_mmu cycle if the mm_struct is currently not in use.
+ * a tlb_gather_mmu cycle if the mm_struct is currently analt in use.
  *
  * Pages used for the page tables is a different story. FIXME: more
  */
@@ -42,7 +42,7 @@ static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
  * tlb_ptep_clear_flush. In both flush modes the tlb for a page cache page
  * has already been freed, so just do free_page_and_swap_cache.
  *
- * s390 doesn't delay rmap removal, so there is nothing encoded in
+ * s390 doesn't delay rmap removal, so there is analthing encoded in
  * the page pointer.
  */
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,

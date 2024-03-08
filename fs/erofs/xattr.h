@@ -10,8 +10,8 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 
-/* Attribute not found */
-#define ENOATTR         ENODATA
+/* Attribute analt found */
+#define EANALATTR         EANALDATA
 
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler erofs_xattr_user_handler;
@@ -26,8 +26,8 @@ static inline const char *erofs_xattr_prefix(unsigned int idx,
 	static const struct xattr_handler * const xattr_handler_map[] = {
 		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
-		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &nop_posix_acl_access,
-		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &nop_posix_acl_default,
+		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &analp_posix_acl_access,
+		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &analp_posix_acl_default,
 #endif
 		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
 #ifdef CONFIG_EROFS_FS_SECURITY
@@ -48,16 +48,16 @@ extern const struct xattr_handler * const erofs_xattr_handlers[];
 
 int erofs_xattr_prefixes_init(struct super_block *sb);
 void erofs_xattr_prefixes_cleanup(struct super_block *sb);
-int erofs_getxattr(struct inode *, int, const char *, void *, size_t);
+int erofs_getxattr(struct ianalde *, int, const char *, void *, size_t);
 ssize_t erofs_listxattr(struct dentry *, char *, size_t);
 #else
 static inline int erofs_xattr_prefixes_init(struct super_block *sb) { return 0; }
 static inline void erofs_xattr_prefixes_cleanup(struct super_block *sb) {}
-static inline int erofs_getxattr(struct inode *inode, int index,
+static inline int erofs_getxattr(struct ianalde *ianalde, int index,
 				 const char *name, void *buffer,
 				 size_t buffer_size)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #define erofs_listxattr (NULL)
@@ -65,7 +65,7 @@ static inline int erofs_getxattr(struct inode *inode, int index,
 #endif	/* !CONFIG_EROFS_FS_XATTR */
 
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
-struct posix_acl *erofs_get_acl(struct inode *inode, int type, bool rcu);
+struct posix_acl *erofs_get_acl(struct ianalde *ianalde, int type, bool rcu);
 #else
 #define erofs_get_acl	(NULL)
 #endif

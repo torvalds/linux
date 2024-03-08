@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Statistics core
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc
  *
  * Contacts: David Cohen <dacohen@gmail.com>
@@ -26,7 +26,7 @@
 #define STAT_NEVENTS		8
 
 #define STAT_BUF_DONE		0	/* Buffer is ready */
-#define STAT_NO_BUF		1	/* An error has occurred */
+#define STAT_ANAL_BUF		1	/* An error has occurred */
 #define STAT_BUF_WAITING_DMA	2	/* Histogram only: DMA is running */
 
 struct dma_chan;

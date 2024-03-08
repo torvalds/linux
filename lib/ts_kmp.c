@@ -44,7 +44,7 @@ static unsigned int kmp_find(struct ts_config *conf, struct ts_state *state)
 	struct ts_kmp *kmp = ts_config_priv(conf);
 	unsigned int i, q = 0, text_len, consumed = state->offset;
 	const u8 *text;
-	const int icase = conf->flags & TS_IGNORECASE;
+	const int icase = conf->flags & TS_IGANALRECASE;
 
 	for (;;) {
 		text_len = conf->get_next_block(consumed, &text, conf, state);
@@ -75,7 +75,7 @@ static inline void compute_prefix_tbl(const u8 *pattern, unsigned int len,
 				      unsigned int *prefix_tbl, int flags)
 {
 	unsigned int k, q;
-	const u8 icase = flags & TS_IGNORECASE;
+	const u8 icase = flags & TS_IGANALRECASE;
 
 	for (k = 0, q = 1; q < len; q++) {
 		while (k > 0 && (icase ? toupper(pattern[k]) : pattern[k])
@@ -106,7 +106,7 @@ static struct ts_config *kmp_init(const void *pattern, unsigned int len,
 	kmp->pattern_len = len;
 	compute_prefix_tbl(pattern, len, kmp->prefix_tbl, flags);
 	kmp->pattern = (u8 *) kmp->prefix_tbl + prefix_tbl_len;
-	if (flags & TS_IGNORECASE)
+	if (flags & TS_IGANALRECASE)
 		for (i = 0; i < len; i++)
 			kmp->pattern[i] = toupper(((u8 *)pattern)[i]);
 	else

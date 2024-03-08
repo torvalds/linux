@@ -11,9 +11,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -138,7 +138,7 @@ struct l2cap_conninfo {
 #define L2CAP_FEAT_UCD		0x00000200
 
 /* L2CAP checksum option */
-#define L2CAP_FCS_NONE		0x00
+#define L2CAP_FCS_ANALNE		0x00
 #define L2CAP_FCS_CRC16		0x01
 
 /* L2CAP fixed channels */
@@ -198,7 +198,7 @@ struct l2cap_conninfo {
 #define L2CAP_SAR_CONTINUE	0x03
 
 /* L2CAP Command rej. reasons */
-#define L2CAP_REJ_NOT_UNDERSTOOD	0x0000
+#define L2CAP_REJ_ANALT_UNDERSTOOD	0x0000
 #define L2CAP_REJ_MTU_EXCEEDED		0x0001
 #define L2CAP_REJ_INVALID_CID		0x0002
 
@@ -281,7 +281,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_PEND		0x0001
 #define L2CAP_CR_BAD_PSM	0x0002
 #define L2CAP_CR_SEC_BLOCK	0x0003
-#define L2CAP_CR_NO_MEM		0x0004
+#define L2CAP_CR_ANAL_MEM		0x0004
 #define L2CAP_CR_BAD_AMP	0x0005
 #define L2CAP_CR_INVALID_SCID	0x0006
 #define L2CAP_CR_SCID_IN_USE	0x0007
@@ -289,7 +289,7 @@ struct l2cap_conn_rsp {
 /* credit based connect results */
 #define L2CAP_CR_LE_SUCCESS		0x0000
 #define L2CAP_CR_LE_BAD_PSM		0x0002
-#define L2CAP_CR_LE_NO_MEM		0x0004
+#define L2CAP_CR_LE_ANAL_MEM		0x0004
 #define L2CAP_CR_LE_AUTHENTICATION	0x0005
 #define L2CAP_CR_LE_AUTHORIZATION	0x0006
 #define L2CAP_CR_LE_BAD_KEY_SIZE	0x0007
@@ -300,7 +300,7 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_LE_INVALID_PARAMS	0X000C
 
 /* connect/create channel status */
-#define L2CAP_CS_NO_INFO	0x0000
+#define L2CAP_CS_ANAL_INFO	0x0000
 #define L2CAP_CS_AUTHEN_PEND	0x0001
 #define L2CAP_CS_AUTHOR_PEND	0x0002
 
@@ -320,7 +320,7 @@ struct l2cap_conf_rsp {
 #define L2CAP_CONF_SUCCESS	0x0000
 #define L2CAP_CONF_UNACCEPT	0x0001
 #define L2CAP_CONF_REJECT	0x0002
-#define L2CAP_CONF_UNKNOWN	0x0003
+#define L2CAP_CONF_UNKANALWN	0x0003
 #define L2CAP_CONF_PENDING	0x0004
 #define L2CAP_CONF_EFS_REJECT	0x0005
 
@@ -378,7 +378,7 @@ struct l2cap_conf_efs {
 	__le32	flush_to;
 } __packed;
 
-#define L2CAP_SERV_NOTRAFIC	0x00
+#define L2CAP_SERV_ANALTRAFIC	0x00
 #define L2CAP_SERV_BESTEFFORT	0x01
 #define L2CAP_SERV_GUARANTEED	0x02
 
@@ -431,9 +431,9 @@ struct l2cap_move_chan_rsp {
 #define L2CAP_MR_PEND		0x0001
 #define L2CAP_MR_BAD_ID		0x0002
 #define L2CAP_MR_SAME_ID	0x0003
-#define L2CAP_MR_NOT_SUPP	0x0004
+#define L2CAP_MR_ANALT_SUPP	0x0004
 #define L2CAP_MR_COLLISION	0x0005
-#define L2CAP_MR_NOT_ALLOWED	0x0006
+#define L2CAP_MR_ANALT_ALLOWED	0x0006
 
 struct l2cap_move_chan_cfm {
 	__le16      icid;
@@ -454,7 +454,7 @@ struct l2cap_move_chan_cfm_rsp {
 
 /* info result */
 #define L2CAP_IR_SUCCESS	0x0000
-#define L2CAP_IR_NOTSUPP	0x0001
+#define L2CAP_IR_ANALTSUPP	0x0001
 
 struct l2cap_conn_param_update_req {
 	__le16      min;
@@ -737,12 +737,12 @@ enum {
 	CONF_MTU_DONE,
 	CONF_MODE_DONE,
 	CONF_CONNECT_PEND,
-	CONF_RECV_NO_FCS,
+	CONF_RECV_ANAL_FCS,
 	CONF_STATE2_DEVICE,
 	CONF_EWS_RECV,
 	CONF_LOC_CONF_PEND,
 	CONF_REM_CONF_PEND,
-	CONF_NOT_COMPLETE,
+	CONF_ANALT_COMPLETE,
 };
 
 #define L2CAP_CONF_MAX_CONF_REQ 2
@@ -782,7 +782,7 @@ enum {
  */
 enum {
 	L2CAP_NESTING_SMP,
-	L2CAP_NESTING_NORMAL,
+	L2CAP_NESTING_ANALRMAL,
 	L2CAP_NESTING_PARENT,
 };
 
@@ -807,7 +807,7 @@ enum {
 	L2CAP_TXSEQ_DUPLICATE,
 	L2CAP_TXSEQ_DUPLICATE_SREJ,
 	L2CAP_TXSEQ_INVALID,
-	L2CAP_TXSEQ_INVALID_IGNORE,
+	L2CAP_TXSEQ_INVALID_IGANALRE,
 };
 
 enum {
@@ -828,7 +828,7 @@ enum {
 };
 
 enum {
-	L2CAP_MOVE_ROLE_NONE,
+	L2CAP_MOVE_ROLE_ANALNE,
 	L2CAP_MOVE_ROLE_INITIATOR,
 	L2CAP_MOVE_ROLE_RESPONDER,
 };
@@ -866,7 +866,7 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 	BT_DBG("chan %p state %s timeout %ld", chan,
 	       state_to_string(chan->state), timeout);
 
-	/* If delayed work cancelled do not hold(chan)
+	/* If delayed work cancelled do analt hold(chan)
 	   since it is already done with previous set_timer */
 	if (!cancel_delayed_work(work))
 		l2cap_chan_hold(chan);
@@ -909,57 +909,57 @@ static inline __u16 __next_seq(struct l2cap_chan *chan, __u16 seq)
 	return (seq + 1) % (chan->tx_win_max + 1);
 }
 
-static inline struct l2cap_chan *l2cap_chan_no_new_connection(struct l2cap_chan *chan)
+static inline struct l2cap_chan *l2cap_chan_anal_new_connection(struct l2cap_chan *chan)
 {
 	return NULL;
 }
 
-static inline int l2cap_chan_no_recv(struct l2cap_chan *chan, struct sk_buff *skb)
+static inline int l2cap_chan_anal_recv(struct l2cap_chan *chan, struct sk_buff *skb)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
-static inline struct sk_buff *l2cap_chan_no_alloc_skb(struct l2cap_chan *chan,
+static inline struct sk_buff *l2cap_chan_anal_alloc_skb(struct l2cap_chan *chan,
 						      unsigned long hdr_len,
 						      unsigned long len, int nb)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
-static inline void l2cap_chan_no_teardown(struct l2cap_chan *chan, int err)
+static inline void l2cap_chan_anal_teardown(struct l2cap_chan *chan, int err)
 {
 }
 
-static inline void l2cap_chan_no_close(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_close(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_ready(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_state_change(struct l2cap_chan *chan,
+static inline void l2cap_chan_anal_state_change(struct l2cap_chan *chan,
 					      int state, int err)
 {
 }
 
-static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_defer(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_suspend(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_suspend(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_resume(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_resume(struct l2cap_chan *chan)
 {
 }
 
-static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
+static inline void l2cap_chan_anal_set_shutdown(struct l2cap_chan *chan)
 {
 }
 
-static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
+static inline long l2cap_chan_anal_get_sndtimeo(struct l2cap_chan *chan)
 {
 	return 0;
 }

@@ -57,8 +57,8 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	sprintf(desc, "%s%s", NVDIMM_PREFIX, nvdimm->dimm_id);
 	key = request_key(&key_type_encrypted, desc, "");
 	if (IS_ERR(key)) {
-		if (PTR_ERR(key) == -ENOKEY)
-			dev_dbg(dev, "request_key() found no key\n");
+		if (PTR_ERR(key) == -EANALKEY)
+			dev_dbg(dev, "request_key() found anal key\n");
 		else
 			dev_dbg(dev, "request_key() upcall failed\n");
 		key = NULL;
@@ -143,7 +143,7 @@ static int nvdimm_key_revalidate(struct nvdimm *nvdimm)
 	const void *data;
 
 	if (!nvdimm->sec.ops->change_key)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data = nvdimm_get_key_payload(nvdimm, &key);
 
@@ -181,7 +181,7 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 	if (IS_ENABLED(CONFIG_NVDIMM_SECURITY_TEST))
 		nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
 
-	/* No need to go further if security is disabled */
+	/* Anal need to go further if security is disabled */
 	if (test_bit(NVDIMM_SECURITY_DISABLED, &nvdimm->sec.flags))
 		return 0;
 
@@ -194,7 +194,7 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 	 * If the pre-OS has unlocked the DIMM, attempt to send the key
 	 * from request_key() to the hardware for verification.  Failure
 	 * to revalidate the key against the hardware results in a
-	 * freeze of the security configuration. I.e. if the OS does not
+	 * freeze of the security configuration. I.e. if the OS does analt
 	 * have the key, security is being managed pre-OS.
 	 */
 	if (test_bit(NVDIMM_SECURITY_UNLOCKED, &nvdimm->sec.flags)) {
@@ -258,13 +258,13 @@ static int security_disable(struct nvdimm *nvdimm, unsigned int keyid,
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 
 	if (!nvdimm->sec.ops || !nvdimm->sec.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pass_type == NVDIMM_USER && !nvdimm->sec.ops->disable)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (pass_type == NVDIMM_MASTER && !nvdimm->sec.ops->disable_master)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = check_security_state(nvdimm);
 	if (rc)
@@ -273,7 +273,7 @@ static int security_disable(struct nvdimm *nvdimm, unsigned int keyid,
 	data = nvdimm_get_user_key_payload(nvdimm, keyid,
 			NVDIMM_BASE_KEY, &key);
 	if (!data)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (pass_type == NVDIMM_MASTER) {
 		rc = nvdimm->sec.ops->disable_master(nvdimm, data);
@@ -308,7 +308,7 @@ static int security_update(struct nvdimm *nvdimm, unsigned int keyid,
 
 	if (!nvdimm->sec.ops || !nvdimm->sec.ops->change_key
 			|| !nvdimm->sec.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = check_security_state(nvdimm);
 	if (rc)
@@ -317,13 +317,13 @@ static int security_update(struct nvdimm *nvdimm, unsigned int keyid,
 	data = nvdimm_get_user_key_payload(nvdimm, keyid,
 			NVDIMM_BASE_KEY, &key);
 	if (!data)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	newdata = nvdimm_get_user_key_payload(nvdimm, new_keyid,
 			NVDIMM_NEW_KEY, &newkey);
 	if (!newdata) {
 		nvdimm_put_key(key);
-		return -ENOKEY;
+		return -EANALKEY;
 	}
 
 	rc = nvdimm->sec.ops->change_key(nvdimm, data, newdata, pass_type);
@@ -357,7 +357,7 @@ static int security_erase(struct nvdimm *nvdimm, unsigned int keyid,
 
 	if (!nvdimm->sec.ops || !nvdimm->sec.ops->erase
 			|| !nvdimm->sec.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = check_security_state(nvdimm);
 	if (rc)
@@ -367,13 +367,13 @@ static int security_erase(struct nvdimm *nvdimm, unsigned int keyid,
 			&& pass_type == NVDIMM_MASTER) {
 		dev_dbg(dev,
 			"Attempt to secure erase in wrong master state.\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	data = nvdimm_get_user_key_payload(nvdimm, keyid,
 			NVDIMM_BASE_KEY, &key);
 	if (!data)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	rc = nvdimm->sec.ops->erase(nvdimm, data, pass_type);
 	if (rc == 0)
@@ -400,7 +400,7 @@ static int security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 
 	if (!nvdimm->sec.ops || !nvdimm->sec.ops->overwrite
 			|| !nvdimm->sec.flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	rc = check_security_state(nvdimm);
 	if (rc)
@@ -409,7 +409,7 @@ static int security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 	data = nvdimm_get_user_key_payload(nvdimm, keyid,
 			NVDIMM_BASE_KEY, &key);
 	if (!data)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	rc = nvdimm->sec.ops->overwrite(nvdimm, data);
 	if (rc == 0)
@@ -443,7 +443,7 @@ static void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
 
 	/*
-	 * Abort and release device if we no longer have the overwrite
+	 * Abort and release device if we anal longer have the overwrite
 	 * flag set. It means the work has been canceled.
 	 */
 	if (!test_bit(NDD_WORK_PENDING, &nvdimm->flags))
@@ -472,7 +472,7 @@ static void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 
 	/*
 	 * Mark the overwrite work done and update dimm security flags,
-	 * then send a sysfs event notification to wake up userspace
+	 * then send a sysfs event analtification to wake up userspace
 	 * poll threads to picked up the changed state.
 	 */
 	nvdimm->sec.overwrite_tmo = 0;
@@ -481,7 +481,7 @@ static void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 	nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
 	nvdimm->sec.ext_flags = nvdimm_security_flags(nvdimm, NVDIMM_MASTER);
 	if (nvdimm->sec.overwrite_state)
-		sysfs_notify_dirent(nvdimm->sec.overwrite_state);
+		sysfs_analtify_dirent(nvdimm->sec.overwrite_state);
 	put_device(&nvdimm->dev);
 }
 

@@ -290,7 +290,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_PLOGI_COMP:
 	case RPSM_EVENT_FAB_SCN:
 		/*
-		 * Ignore, SCN is possibly online notification.
+		 * Iganalre, SCN is possibly online analtification.
 		 */
 		break;
 
@@ -320,7 +320,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_HCB_OFFLINE:
 		/*
-		 * Ignore BFA callback, on a PLOGI receive we call bfa offline.
+		 * Iganalre BFA callback, on a PLOGI receive we call bfa offline.
 		 */
 		break;
 
@@ -698,7 +698,7 @@ bfa_fcs_rport_sm_nsquery_sending(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_FAB_SCN:
 		/*
-		 * ignore SCN, wait for response to query itself
+		 * iganalre SCN, wait for response to query itself
 		 */
 		break;
 
@@ -1096,7 +1096,7 @@ bfa_fcs_rport_sm_fc4_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_ADDRESS_CHANGE:
 		/*
 		 * rport is already going offline.
-		 * SCN - ignore and wait till transitioning to offline state
+		 * SCN - iganalre and wait till transitioning to offline state
 		 */
 		break;
 
@@ -1180,7 +1180,7 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_PLOGI_RCVD:
 	case RPSM_EVENT_LOGO_IMP:
 		/*
-		 * Ignore, already offline.
+		 * Iganalre, already offline.
 		 */
 		break;
 
@@ -1209,8 +1209,8 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 		if (rport->pid && (rport->prlo == BFA_FALSE))
 			bfa_fcs_rport_send_logo_acc(rport);
 		/*
-		 * If the lport is online and if the rport is not a well
-		 * known address port,
+		 * If the lport is online and if the rport is analt a well
+		 * kanalwn address port,
 		 * we try to re-discover the r-port.
 		 */
 		if (bfa_fcs_lport_is_online(rport->port) &&
@@ -1229,7 +1229,7 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 			}
 		} else {
 			/*
-			 * if it is not a well known address, reset the
+			 * if it is analt a well kanalwn address, reset the
 			 * pid to 0.
 			 */
 			if (!BFA_FCS_PID_IS_WKA(rport->pid))
@@ -1258,7 +1258,7 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
 		/*
-		 * Ignore - already processing a LOGO.
+		 * Iganalre - already processing a LOGO.
 		 */
 		break;
 
@@ -1319,7 +1319,7 @@ bfa_fcs_rport_sm_logo_sending(struct bfa_fcs_rport_s *rport,
 
 	switch (event) {
 	case RPSM_EVENT_FCXP_SENT:
-		/* Once LOGO is sent, we donot wait for the response */
+		/* Once LOGO is sent, we doanalt wait for the response */
 		bfa_sm_set_state(rport, bfa_fcs_rport_sm_uninit);
 		bfa_fcs_rport_free(rport);
 		break;
@@ -1605,13 +1605,13 @@ bfa_fcs_rport_sm_nsdisc_sent(struct bfa_fcs_rport_s *rport,
 		break;
 	case RPSM_EVENT_FAB_SCN:
 		/*
-		 * ignore, wait for NS query response
+		 * iganalre, wait for NS query response
 		 */
 		break;
 
 	case RPSM_EVENT_LOGO_RCVD:
 		/*
-		 * Not logged-in yet. Accept LOGO.
+		 * Analt logged-in yet. Accept LOGO.
 		 */
 		bfa_fcs_rport_send_logo_acc(rport);
 		break;
@@ -1647,7 +1647,7 @@ bfa_fcs_rport_sm_fc4_off_delete(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_DELETE:
 	case RPSM_EVENT_PLOGI_RCVD:
-		/* Ignore these events */
+		/* Iganalre these events */
 		break;
 
 	default:
@@ -1677,7 +1677,7 @@ bfa_fcs_rport_sm_delete_pending(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_DELETE:
 	case RPSM_EVENT_LOGO_IMP:
 	case RPSM_EVENT_PLOGI_RCVD:
-		/* Ignore these events */
+		/* Iganalre these events */
 		break;
 
 	default:
@@ -1770,7 +1770,7 @@ bfa_fcs_rport_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	}
 
 	/*
-	 * PLOGI is complete. Make sure this device is not one of the known
+	 * PLOGI is complete. Make sure this device is analt one of the kanalwn
 	 * device with a new FC port address.
 	 */
 	list_for_each(qe, &rport->port->rport_q) {
@@ -1802,7 +1802,7 @@ bfa_fcs_rport_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	}
 
 	/*
-	 * Normal login path -- no evil twins.
+	 * Analrmal login path -- anal evil twins.
 	 */
 	rport->stats.plogi_accs++;
 	bfa_fcs_rport_update(rport, plogi_rsp);
@@ -1970,8 +1970,8 @@ bfa_fcs_rport_gidpn_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		} else {
 			/*
 			 * Device's PID has changed. We need to cleanup
-			 * and re-login. If there is another device with
-			 * the the newly discovered pid, send an scn notice
+			 * and re-login. If there is aanalther device with
+			 * the the newly discovered pid, send an scn analtice
 			 * so that its new pid can be discovered.
 			 */
 			list_for_each(qe, &rport->port->rport_q) {
@@ -2138,7 +2138,7 @@ bfa_fcs_rport_send_logo_acc(void *rport_cbarg)
  *
  *	Special Considerations:
  *
- *	note
+ *	analte
  */
 static void
 bfa_fcs_rport_timeout(void *arg)
@@ -2411,7 +2411,7 @@ bfa_fcs_rport_aen_post(struct bfa_fcs_rport_s *rport,
 	aen_entry->aen_data.rport.lpwwn = bfa_fcs_lport_get_pwwn(rport->port);
 	aen_entry->aen_data.rport.rpwwn = rport->pwwn;
 
-	/* Send the AEN notification */
+	/* Send the AEN analtification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++rport->fcs->fcs_aen_seq,
 				  BFA_AEN_CAT_RPORT, event);
 }
@@ -2519,10 +2519,10 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 
 	/*
 	 * - port name
-	 * - node name
+	 * - analde name
 	 */
 	rport->pwwn = plogi->port_name;
-	rport->nwwn = plogi->node_name;
+	rport->nwwn = plogi->analde_name;
 
 	/*
 	 * - class of service
@@ -2594,7 +2594,7 @@ bfa_fcs_rport_process_logo(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs)
  * @param[in] port	- base port or vport
  * @param[in] rpid	- remote port ID
  *
- * @return None
+ * @return Analne
  */
 struct bfa_fcs_rport_s *
 bfa_fcs_rport_create(struct bfa_fcs_lport_s *port, u32 rpid)
@@ -2611,12 +2611,12 @@ bfa_fcs_rport_create(struct bfa_fcs_lport_s *port, u32 rpid)
 }
 
 /*
- * Called to create a rport for which only the wwn is known.
+ * Called to create a rport for which only the wwn is kanalwn.
  *
  * @param[in] port	- base port
  * @param[in] rpwwn	- remote port wwn
  *
- * @return None
+ * @return Analne
  */
 struct bfa_fcs_rport_s *
 bfa_fcs_rport_create_by_wwn(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
@@ -2701,7 +2701,7 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 
 
 /*
- *	Called by bport/vport to notify SCN for the remote port
+ *	Called by bport/vport to analtify SCN for the remote port
  */
 void
 bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport)
@@ -2721,7 +2721,7 @@ bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport)
  *
  *	Special Considerations:
  *
- *	note
+ *	analte
  */
 void
 bfa_cb_rport_online(void *cbarg)
@@ -2744,7 +2744,7 @@ bfa_cb_rport_online(void *cbarg)
  *
  *	Special Considerations:
  *
- *	note
+ *	analte
  */
 void
 bfa_cb_rport_offline(void *cbarg)
@@ -2758,7 +2758,7 @@ bfa_cb_rport_offline(void *cbarg)
 /*
  *	brief
  *	This routine is a static BFA callback when there is a QoS flow_id
- *	change notification
+ *	change analtification
  *
  *	param[in]	rport	-
  *
@@ -2767,7 +2767,7 @@ bfa_cb_rport_offline(void *cbarg)
  *
  *	Special Considerations:
  *
- *	note
+ *	analte
  */
 void
 bfa_cb_rport_qos_scn_flowid(void *cbarg,
@@ -2801,7 +2801,7 @@ bfa_cb_rport_scn_online(struct bfa_s *bfa)
 }
 
 void
-bfa_cb_rport_scn_no_dev(void *rport)
+bfa_cb_rport_scn_anal_dev(void *rport)
 {
 	struct bfa_fcs_rport_s *rp = rport;
 
@@ -2827,7 +2827,7 @@ bfa_cb_rport_scn_offline(struct bfa_s *bfa)
 /*
  *	brief
  *	This routine is a static BFA callback when there is a QoS priority
- *	change notification
+ *	change analtification
  *
  *	param[in]	rport	-
  *
@@ -2836,7 +2836,7 @@ bfa_cb_rport_scn_offline(struct bfa_s *bfa)
  *
  *	Special Considerations:
  *
- *	note
+ *	analte
  */
 void
 bfa_cb_rport_qos_scn_prio(void *cbarg,
@@ -2902,8 +2902,8 @@ bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport,
 	default:
 		bfa_stats(port, un_handled_els_rcvd);
 		bfa_fcs_rport_send_ls_rjt(rport, fchs,
-					  FC_LS_RJT_RSN_CMD_NOT_SUPP,
-					  FC_LS_RJT_EXP_NO_ADDL_INFO);
+					  FC_LS_RJT_RSN_CMD_ANALT_SUPP,
+					  FC_LS_RJT_EXP_ANAL_ADDL_INFO);
 		break;
 	}
 }
@@ -2974,7 +2974,7 @@ bfa_fcs_rport_get_state(struct bfa_fcs_rport_s *rport)
  *
  *	param[in]		rport timeout value in seconds.
  *
- *	return None
+ *	return Analne
  */
 void
 bfa_fcs_rport_set_del_timeout(u8 rport_tmo)
@@ -3040,12 +3040,12 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	rport_attr->trl_enforced = BFA_FALSE;
 	if (bfa_fcport_is_ratelim(port->fcs->bfa) &&
 	    (rport->scsi_function == BFA_RPORT_TARGET)) {
-		if (rport_speed == BFA_PORT_SPEED_UNKNOWN)
+		if (rport_speed == BFA_PORT_SPEED_UNKANALWN)
 			rport_speed =
 				bfa_fcport_get_ratelim_speed(rport->fcs->bfa);
 
 		if ((bfa_fcs_lport_get_rport_max_speed(port) !=
-		    BFA_PORT_SPEED_UNKNOWN) && (rport_speed < port_attr.speed))
+		    BFA_PORT_SPEED_UNKANALWN) && (rport_speed < port_attr.speed))
 			rport_attr->trl_enforced = BFA_TRUE;
 	}
 }
@@ -3200,14 +3200,14 @@ bfa_fcs_rpf_sm_rpsc(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 	case RPFSM_EVENT_RPSC_COMP:
 		bfa_sm_set_state(rpf, bfa_fcs_rpf_sm_online);
 		/* Update speed info in f/w via BFA */
-		if (rpf->rpsc_speed != BFA_PORT_SPEED_UNKNOWN)
+		if (rpf->rpsc_speed != BFA_PORT_SPEED_UNKANALWN)
 			bfa_rport_speed(rport->bfa_rport, rpf->rpsc_speed);
-		else if (rpf->assigned_speed != BFA_PORT_SPEED_UNKNOWN)
+		else if (rpf->assigned_speed != BFA_PORT_SPEED_UNKANALWN)
 			bfa_rport_speed(rport->bfa_rport, rpf->assigned_speed);
 		break;
 
 	case RPFSM_EVENT_RPSC_FAIL:
-		/* RPSC not supported by rport */
+		/* RPSC analt supported by rport */
 		bfa_sm_set_state(rpf, bfa_fcs_rpf_sm_online);
 		break;
 
@@ -3441,7 +3441,7 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		bfa_trc(rport->fcs, ls_rjt->reason_code);
 		bfa_trc(rport->fcs, ls_rjt->reason_code_expl);
 		rport->stats.rpsc_rejects++;
-		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_NOT_SUPP)
+		if (ls_rjt->reason_code == FC_LS_RJT_RSN_CMD_ANALT_SUPP)
 			bfa_sm_send_event(rpf, RPFSM_EVENT_RPSC_FAIL);
 		else
 			bfa_sm_send_event(rpf, RPFSM_EVENT_RPSC_ERROR);

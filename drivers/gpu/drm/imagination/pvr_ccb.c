@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #include "pvr_ccb.h"
 #include "pvr_device.h"
@@ -113,7 +113,7 @@ pvr_ccb_fini(struct pvr_ccb *pvr_ccb)
  *
  * Return:
  *  * %true if a slot is available, or
- *  * %false if no slot is available.
+ *  * %false if anal slot is available.
  */
 static __always_inline bool
 pvr_ccb_slot_available_locked(struct pvr_ccb *pvr_ccb, u32 *write_offset)
@@ -150,7 +150,7 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 		break;
 
 	default:
-		drm_info(from_pvr_device(pvr_dev), "Received unknown FWCCB command %x\n",
+		drm_info(from_pvr_device(pvr_dev), "Received unkanalwn FWCCB command %x\n",
 			 cmd->cmd_type);
 		break;
 	}
@@ -266,7 +266,7 @@ pvr_kccb_send_cmd_reserved_powered(struct pvr_device *pvr_dev,
 		*kccb_slot = old_write_offset;
 		/* Clear return status for this slot. */
 		WRITE_ONCE(pvr_dev->kccb.rtn[old_write_offset],
-			   ROGUE_FWIF_KCCB_RTN_SLOT_NO_RESPONSE);
+			   ROGUE_FWIF_KCCB_RTN_SLOT_ANAL_RESPONSE);
 	}
 	mb(); /* memory barrier */
 	WRITE_ONCE(ctrl->write_offset, new_write_offset);
@@ -307,12 +307,12 @@ static bool pvr_kccb_try_reserve_slot(struct pvr_device *pvr_dev)
 }
 
 /**
- * pvr_kccb_reserve_slot_sync() - Try to reserve a slot synchronously
+ * pvr_kccb_reserve_slot_sync() - Try to reserve a slot synchroanalusly
  * @pvr_dev: Device pointer.
  *
  * Return:
  *  * 0 on success, or
- *  * -EBUSY if no slots were reserved after %RESERVE_SLOT_TIMEOUT, with a minimum of
+ *  * -EBUSY if anal slots were reserved after %RESERVE_SLOT_TIMEOUT, with a minimum of
  *    %RESERVE_SLOT_MIN_RETRIES retries.
  */
 static int pvr_kccb_reserve_slot_sync(struct pvr_device *pvr_dev)
@@ -416,7 +416,7 @@ pvr_kccb_wait_for_completion(struct pvr_device *pvr_dev, u32 slot_nr,
  * @pvr_dev: Device pointer
  *
  * Returns:
- *  * %true if the KCCB is idle (contains no commands), or
+ *  * %true if the KCCB is idle (contains anal commands), or
  *  * %false if the KCCB contains pending commands.
  */
 bool
@@ -458,8 +458,8 @@ struct pvr_kccb_fence {
 	/** @base: Base dma_fence object. */
 	struct dma_fence base;
 
-	/** @node: Node used to insert the fence in the pvr_device::kccb::waiters list. */
-	struct list_head node;
+	/** @analde: Analde used to insert the fence in the pvr_device::kccb::waiters list. */
+	struct list_head analde;
 };
 
 /**
@@ -484,11 +484,11 @@ void pvr_kccb_wake_up_waiters(struct pvr_device *pvr_dev)
 		goto out_unlock;
 
 	available_count = pvr_kccb_capacity(pvr_dev) - used_count - pvr_dev->kccb.reserved_count;
-	list_for_each_entry_safe(fence, tmp_fence, &pvr_dev->kccb.waiters, node) {
+	list_for_each_entry_safe(fence, tmp_fence, &pvr_dev->kccb.waiters, analde) {
 		if (!available_count)
 			break;
 
-		list_del(&fence->node);
+		list_del(&fence->analde);
 		pvr_dev->kccb.reserved_count++;
 		available_count--;
 		dma_fence_signal(&fence->base);
@@ -574,7 +574,7 @@ void pvr_kccb_fence_put(struct dma_fence *fence)
  * @pvr_dev: Target PowerVR device
  * @f: KCCB fence object previously allocated with pvr_kccb_fence_alloc()
  *
- * Try to reserve a KCCB slot, and if there's no slot available,
+ * Try to reserve a KCCB slot, and if there's anal slot available,
  * initializes the fence object and queue it to the waiters list.
  *
  * If NULL is returned, that means the slot is reserved. In that case,
@@ -582,7 +582,7 @@ void pvr_kccb_fence_put(struct dma_fence *fence)
  *
  * Return:
  *  * NULL if a slot was available directly, or
- *  * A valid dma_fence object to wait on if no slot was available.
+ *  * A valid dma_fence object to wait on if anal slot was available.
  */
 struct dma_fence *
 pvr_kccb_reserve_slot(struct pvr_device *pvr_dev, struct dma_fence *f)
@@ -598,9 +598,9 @@ pvr_kccb_reserve_slot(struct pvr_device *pvr_dev, struct dma_fence *f)
 		dma_fence_init(&fence->base, &pvr_kccb_fence_ops,
 			       &pvr_dev->kccb.fence_ctx.lock,
 			       pvr_dev->kccb.fence_ctx.id,
-			       atomic_inc_return(&pvr_dev->kccb.fence_ctx.seqno));
+			       atomic_inc_return(&pvr_dev->kccb.fence_ctx.seqanal));
 		out_fence = dma_fence_get(&fence->base);
-		list_add_tail(&fence->node, &pvr_dev->kccb.waiters);
+		list_add_tail(&fence->analde, &pvr_dev->kccb.waiters);
 	} else {
 		pvr_kccb_fence_put(f);
 		pvr_dev->kccb.reserved_count++;
@@ -617,7 +617,7 @@ pvr_kccb_reserve_slot(struct pvr_device *pvr_dev, struct dma_fence *f)
  * @pvr_dev: Target PowerVR device
  *
  * Should only be called if something failed after the
- * pvr_kccb_reserve_slot() call and you know you won't call
+ * pvr_kccb_reserve_slot() call and you kanalw you won't call
  * pvr_kccb_send_cmd_reserved().
  */
 void pvr_kccb_release_slot(struct pvr_device *pvr_dev)

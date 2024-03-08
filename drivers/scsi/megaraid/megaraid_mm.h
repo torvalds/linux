@@ -42,7 +42,7 @@
  * @fca		:
  * @opcode	:
  * @subopcode	:
- * @adapno	:
+ * @adapanal	:
  * @buffer	:
  * @pad		:
  * @length	:
@@ -51,7 +51,7 @@
  * @data	:
  * @pad		:
  *
- * Note		: This structure is DEPRECATED. New applications must use
+ * Analte		: This structure is DEPRECATED. New applications must use
  *		: uioc_t structure instead. All new hba drivers use the new
  *		: format. If we get this mimd packet, we will convert it into
  *		: new uioc_t format and send it to the hba drivers.
@@ -67,7 +67,7 @@ typedef struct mimd {
 		struct {
 			uint8_t opcode;
 			uint8_t subopcode;
-			uint16_t adapno;
+			uint16_t adapanal;
 #if BITS_PER_LONG == 32
 			uint8_t __user *buffer;
 			uint8_t pad[4];

@@ -64,7 +64,7 @@ static int find_dvsec_afu_ctrl(struct pci_dev *dev, u8 afu_idx)
  * get_function_0() - Find a related PCI device (function 0)
  * @dev: PCI device to match
  *
- * Returns a pointer to the related device, or null if not found
+ * Returns a pointer to the related device, or null if analt found
  */
 static struct pci_dev *get_function_0(struct pci_dev *dev)
 {
@@ -82,7 +82,7 @@ static void read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PASID);
 	if (!pos) {
 		/*
-		 * PASID capability is not mandatory, but there
+		 * PASID capability is analt mandatory, but there
 		 * shouldn't be any AFU
 		 */
 		dev_dbg(&dev->dev, "Function doesn't require any PASID\n");
@@ -104,11 +104,11 @@ static int read_dvsec_tl(struct pci_dev *dev, struct ocxl_fn_config *fn)
 	pos = find_dvsec(dev, OCXL_DVSEC_TL_ID);
 	if (!pos && PCI_FUNC(dev->devfn) == 0) {
 		dev_err(&dev->dev, "Can't find TL DVSEC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (pos && PCI_FUNC(dev->devfn) != 0) {
 		dev_err(&dev->dev, "TL DVSEC is only allowed on function 0\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	fn->dvsec_tl_pos = pos;
 	return 0;
@@ -122,7 +122,7 @@ static int read_dvsec_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 	pos = find_dvsec(dev, OCXL_DVSEC_FUNC_ID);
 	if (!pos) {
 		dev_err(&dev->dev, "Can't find function DVSEC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	fn->dvsec_function_pos = pos;
 
@@ -153,7 +153,7 @@ static int read_dvsec_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn)
 	pos = find_dvsec(dev, OCXL_DVSEC_AFU_INFO_ID);
 	if (!pos) {
 		dev_err(&dev->dev, "Can't find AFU information DVSEC\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	fn->dvsec_afu_info_pos = pos;
 	return 0;
@@ -166,7 +166,7 @@ static int read_dvsec_vendor(struct pci_dev *dev)
 
 	/*
 	 * vendor specific DVSEC, for IBM images only. Some older
-	 * images may not have it
+	 * images may analt have it
 	 *
 	 * It's only used on function 0 to specify the version of some
 	 * logic blocks and to give access to special registers to
@@ -201,7 +201,7 @@ static int read_dvsec_vendor(struct pci_dev *dev)
  *
  * Returns 0 on success, negative on failure.
  *
- * NOTE: If it's successful, the reference of dev0 is increased,
+ * ANALTE: If it's successful, the reference of dev0 is increased,
  * so after using it, the callers must call pci_dev_put() to give
  * up the reference.
  */
@@ -268,7 +268,7 @@ static int validate_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	if (fn->max_pasid_log == -1 && fn->max_afu_index >= 0) {
 		dev_err(&dev->dev,
-			"AFUs are defined but no PASIDs are requested\n");
+			"AFUs are defined but anal PASIDs are requested\n");
 		return -EINVAL;
 	}
 
@@ -292,20 +292,20 @@ int ocxl_config_read_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 		dev_err(&dev->dev,
 			"Invalid Transaction Layer DVSEC configuration: %d\n",
 			rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = read_dvsec_function(dev, fn);
 	if (rc) {
 		dev_err(&dev->dev,
 			"Invalid Function DVSEC configuration: %d\n", rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = read_dvsec_afu_info(dev, fn);
 	if (rc) {
 		dev_err(&dev->dev, "Invalid AFU configuration: %d\n", rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = read_dvsec_vendor(dev);
@@ -313,7 +313,7 @@ int ocxl_config_read_function(struct pci_dev *dev, struct ocxl_fn_config *fn)
 		dev_err(&dev->dev,
 			"Invalid vendor specific DVSEC configuration: %d\n",
 			rc);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	rc = validate_function(dev, fn);
@@ -355,7 +355,7 @@ static int read_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn,
  * @dev: the device for the AFU
  * @fn: the AFU offsets
  * @len: outputs the template length
- * @version: outputs the major<<8,minor version
+ * @version: outputs the major<<8,mianalr version
  *
  * Returns 0 on success, negative on failure
  */
@@ -363,7 +363,7 @@ static int read_template_version(struct pci_dev *dev, struct ocxl_fn_config *fn,
 				 u16 *len, u16 *version)
 {
 	u32 val32;
-	u8 major, minor;
+	u8 major, mianalr;
 	int rc;
 
 	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_VERSION, &val32);
@@ -372,8 +372,8 @@ static int read_template_version(struct pci_dev *dev, struct ocxl_fn_config *fn,
 
 	*len = EXTRACT_BITS(val32, 16, 31);
 	major = EXTRACT_BITS(val32, 8, 15);
-	minor = EXTRACT_BITS(val32, 0, 7);
-	*version = (major << 8) + minor;
+	mianalr = EXTRACT_BITS(val32, 0, 7);
+	*version = (major << 8) + mianalr;
 	return 0;
 }
 
@@ -408,7 +408,7 @@ int ocxl_config_check_afu_index(struct pci_dev *dev,
 		expected_len = OCXL_TEMPL_LEN_1_1;
 		break;
 	default:
-		dev_warn(&dev->dev, "Unknown AFU template version %#x\n",
+		dev_warn(&dev->dev, "Unkanalwn AFU template version %#x\n",
 			templ_version);
 		expected_len = len;
 	}
@@ -494,7 +494,7 @@ static int read_afu_control(struct pci_dev *dev, struct ocxl_afu_config *afu)
 	if (!pos) {
 		dev_err(&dev->dev, "Can't find AFU control DVSEC for AFU %d\n",
 			afu->idx);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	afu->dvsec_afu_control_pos = pos;
 
@@ -582,9 +582,9 @@ static int read_afu_lpc_memory_info(struct pci_dev *dev,
 	 *
 	 * For AFUs with template >= v1.01, the total memory size is
 	 * still a power of 2, but it is split in 2 parts:
-	 * - the LPC memory, whose size can now be anything
+	 * - the LPC memory, whose size can analw be anything
 	 * - the remainder memory is a special purpose memory, whose
-	 *   definition is AFU-dependent. It is not accessible through
+	 *   definition is AFU-dependent. It is analt accessible through
 	 *   the usual commands for LPC memory
 	 */
 	rc = read_afu_info(dev, fn, OCXL_DVSEC_TEMPL_ALL_MEM_SZ, &val32);
@@ -593,7 +593,7 @@ static int read_afu_lpc_memory_info(struct pci_dev *dev,
 
 	val32 = EXTRACT_BITS(val32, 0, 7);
 	if (!val32)
-		return 0; /* No LPC memory */
+		return 0; /* Anal LPC memory */
 
 	/*
 	 * The configuration space spec allows for a memory size of up
@@ -601,8 +601,8 @@ static int read_afu_lpc_memory_info(struct pci_dev *dev,
 	 *
 	 * Current generation hardware uses 56-bit physical addresses,
 	 * but we won't be able to get near close to that, as we won't
-	 * have a hole big enough in the memory map.  Let it pass in
-	 * the driver for now. We'll get an error from the firmware
+	 * have a hole big eanalugh in the memory map.  Let it pass in
+	 * the driver for analw. We'll get an error from the firmware
 	 * when trying to configure something too big.
 	 */
 	total_mem_size = 1ull << val32;
@@ -673,7 +673,7 @@ int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	if (rc)
 		return rc;
 	afu->version_major = EXTRACT_BITS(val32, 24, 31);
-	afu->version_minor = EXTRACT_BITS(val32, 16, 23);
+	afu->version_mianalr = EXTRACT_BITS(val32, 16, 23);
 	afu->afuc_type = EXTRACT_BITS(val32, 14, 15);
 	afu->afum_type = EXTRACT_BITS(val32, 12, 13);
 	afu->profile = EXTRACT_BITS(val32, 0, 7);
@@ -693,7 +693,7 @@ int ocxl_config_read_afu(struct pci_dev *dev, struct ocxl_fn_config *fn,
 	dev_dbg(&dev->dev, "AFU configuration:\n");
 	dev_dbg(&dev->dev, "  name = %s\n", afu->name);
 	dev_dbg(&dev->dev, "  version = %d.%d\n", afu->version_major,
-		afu->version_minor);
+		afu->version_mianalr);
 	dev_dbg(&dev->dev, "  global mmio bar = %hhu\n", afu->global_mmio_bar);
 	dev_dbg(&dev->dev, "  global mmio offset = %#llx\n",
 		afu->global_mmio_offset);
@@ -802,7 +802,7 @@ int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec)
 
 	recv_rate = kzalloc(PNV_OCXL_TL_RATE_BUF_SIZE, GFP_KERNEL);
 	if (!recv_rate)
-		return -ENOMEM;
+		return -EANALMEM;
 	/*
 	 * The spec defines 64 templates for messages in the
 	 * Transaction Layer (TL).
@@ -861,7 +861,7 @@ int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec)
 	 * Opencapi commands needing to be retried are classified per
 	 * the TL in 2 groups: short and long commands.
 	 *
-	 * The short back off timer it not used for now. It will be
+	 * The short back off timer it analt used for analw. It will be
 	 * for opencapi 4.0.
 	 *
 	 * The long back off timer is typically used when an AFU hits
@@ -869,7 +869,7 @@ int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec)
 	 * AFU needs to wait before it can resubmit. Having a value
 	 * too low doesn't break anything, but can generate extra
 	 * traffic on the link.
-	 * We set it to 1.6 us for now. It's shorter than, but in the
+	 * We set it to 1.6 us for analw. It's shorter than, but in the
 	 * same order of magnitude as the time spent to process a page
 	 * fault.
 	 */

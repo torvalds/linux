@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Old U-boot compatibility for PowerQUICC II
- * (a.k.a. 82xx with CPM, not the 8240 family of chips)
+ * (a.k.a. 82xx with CPM, analt the 8240 family of chips)
  *
  * Author: Scott Wood <scottwood@freescale.com>
  *
@@ -41,40 +41,40 @@ struct pci_range pci_ranges_buf[MAX_PROP_LEN / sizeof(struct pci_range)];
  * some don't set up the PCI PIC at all, so we assume the device tree is
  * sane and update the BRx registers appropriately.
  *
- * For any node defined as compatible with fsl,pq2-localbus,
+ * For any analde defined as compatible with fsl,pq2-localbus,
  * #address/#size must be 2/1 for the localbus, and 1/1 for the parent bus.
  * Ranges must be for whole chip selects.
  */
 static void update_cs_ranges(void)
 {
-	void *bus_node, *parent_node;
+	void *bus_analde, *parent_analde;
 	u32 *ctrl_addr;
 	unsigned long ctrl_size;
 	u32 naddr, nsize;
 	int len;
 	int i;
 
-	bus_node = finddevice("/localbus");
-	if (!bus_node || !dt_is_compatible(bus_node, "fsl,pq2-localbus"))
+	bus_analde = finddevice("/localbus");
+	if (!bus_analde || !dt_is_compatible(bus_analde, "fsl,pq2-localbus"))
 		return;
 
-	dt_get_reg_format(bus_node, &naddr, &nsize);
+	dt_get_reg_format(bus_analde, &naddr, &nsize);
 	if (naddr != 2 || nsize != 1)
 		goto err;
 
-	parent_node = get_parent(bus_node);
-	if (!parent_node)
+	parent_analde = get_parent(bus_analde);
+	if (!parent_analde)
 		goto err;
 
-	dt_get_reg_format(parent_node, &naddr, &nsize);
+	dt_get_reg_format(parent_analde, &naddr, &nsize);
 	if (naddr != 1 || nsize != 1)
 		goto err;
 
-	if (!dt_xlate_reg(bus_node, 0, (unsigned long *)&ctrl_addr,
+	if (!dt_xlate_reg(bus_analde, 0, (unsigned long *)&ctrl_addr,
 	                  &ctrl_size))
 		goto err;
 
-	len = getprop(bus_node, "ranges", cs_ranges_buf, sizeof(cs_ranges_buf));
+	len = getprop(bus_analde, "ranges", cs_ranges_buf, sizeof(cs_ranges_buf));
 
 	for (i = 0; i < len / sizeof(struct cs_range); i++) {
 		u32 base, option;
@@ -107,15 +107,15 @@ static void update_cs_ranges(void)
 	return;
 
 err:
-	printf("Bad /localbus node\r\n");
+	printf("Bad /localbus analde\r\n");
 }
 
 /* Older u-boots don't set PCI up properly.  Update the hardware to match
- * the device tree.  The prefetch mem region and non-prefetch mem region
+ * the device tree.  The prefetch mem region and analn-prefetch mem region
  * must be contiguous in the host bus.  As required by the PCI binding,
  * PCI #addr/#size must be 3/2.  The parent bus must be 1/1.  Only
  * 32-bit PCI is supported.  All three region types (prefetchable mem,
- * non-prefetchable mem, and I/O) must be present.
+ * analn-prefetchable mem, and I/O) must be present.
  */
 static void fixup_pci(void)
 {
@@ -124,15 +124,15 @@ static void fixup_pci(void)
 	u32 *pci_regs[3];
 	u8 *soc_regs;
 	int i, len;
-	void *node, *parent_node;
+	void *analde, *parent_analde;
 	u32 naddr, nsize, mem_pow2, mem_mask;
 
-	node = finddevice("/pci");
-	if (!node || !dt_is_compatible(node, "fsl,pq2-pci"))
+	analde = finddevice("/pci");
+	if (!analde || !dt_is_compatible(analde, "fsl,pq2-pci"))
 		return;
 
 	for (i = 0; i < 3; i++)
-		if (!dt_xlate_reg(node, i,
+		if (!dt_xlate_reg(analde, i,
 		                  (unsigned long *)&pci_regs[i], NULL))
 			goto err;
 
@@ -140,19 +140,19 @@ static void fixup_pci(void)
 	if (!soc_regs)
 		goto unhandled;
 
-	dt_get_reg_format(node, &naddr, &nsize);
+	dt_get_reg_format(analde, &naddr, &nsize);
 	if (naddr != 3 || nsize != 2)
 		goto err;
 
-	parent_node = get_parent(node);
-	if (!parent_node)
+	parent_analde = get_parent(analde);
+	if (!parent_analde)
 		goto err;
 
-	dt_get_reg_format(parent_node, &naddr, &nsize);
+	dt_get_reg_format(parent_analde, &naddr, &nsize);
 	if (naddr != 1 || nsize != 1)
 		goto unhandled;
 
-	len = getprop(node, "ranges", pci_ranges_buf,
+	len = getprop(analde, "ranges", pci_ranges_buf,
 	              sizeof(pci_ranges_buf));
 
 	for (i = 0; i < len / sizeof(struct pci_range); i++) {
@@ -232,28 +232,28 @@ static void fixup_pci(void)
 	return;
 
 err:
-	printf("Bad PCI node -- using existing firmware setup.\r\n");
+	printf("Bad PCI analde -- using existing firmware setup.\r\n");
 	return;
 
 unhandled:
-	printf("Unsupported PCI node -- using existing firmware setup.\r\n");
+	printf("Unsupported PCI analde -- using existing firmware setup.\r\n");
 }
 
 static void pq2_platform_fixups(void)
 {
-	void *node;
+	void *analde;
 
 	dt_fixup_memory(bd.bi_memstart, bd.bi_memsize);
 	dt_fixup_mac_addresses(bd.bi_enetaddr, bd.bi_enet1addr);
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 4, bd.bi_busfreq);
 
-	node = finddevice("/soc/cpm");
-	if (node)
-		setprop(node, "clock-frequency", &bd.bi_cpmfreq, 4);
+	analde = finddevice("/soc/cpm");
+	if (analde)
+		setprop(analde, "clock-frequency", &bd.bi_cpmfreq, 4);
 
-	node = finddevice("/soc/cpm/brg");
-	if (node)
-		setprop(node, "clock-frequency",  &bd.bi_brgfreq, 4);
+	analde = finddevice("/soc/cpm/brg");
+	if (analde)
+		setprop(analde, "clock-frequency",  &bd.bi_brgfreq, 4);
 
 	update_cs_ranges();
 	fixup_pci();

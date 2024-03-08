@@ -181,14 +181,14 @@ static int __init fips_signature_selftest(void)
 	struct key *keyring;
 	int ret, i;
 
-	pr_notice("Running certificate verification selftests\n");
+	pr_analtice("Running certificate verification selftests\n");
 
 	keyring = keyring_alloc(".certs_selftest",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
 				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
 				KEY_USR_VIEW | KEY_USR_READ |
 				KEY_USR_SEARCH,
-				KEY_ALLOC_NOT_IN_QUOTA,
+				KEY_ALLOC_ANALT_IN_QUOTA,
 				NULL, NULL);
 	if (IS_ERR(keyring))
 		panic("Can't allocate certs selftest keyring: %ld\n",

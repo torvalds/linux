@@ -33,28 +33,28 @@
  *
  * device_name - network device name to monitor
  * interval - duration of LED blink, in milliseconds
- * link -  LED's normal state reflects whether the link is up
- *         (has carrier) or not
+ * link -  LED's analrmal state reflects whether the link is up
+ *         (has carrier) or analt
  * tx -  LED blinks on transmitted data
  * rx -  LED blinks on receive data
  *
- * Note: If the user selects a mode that is not supported by hw, default
- * behavior is to fall back to software control of the LED. However not every
+ * Analte: If the user selects a mode that is analt supported by hw, default
+ * behavior is to fall back to software control of the LED. However analt every
  * hw supports software control. LED callbacks brightness_set() and
  * brightness_set_blocking() are NULL in this case. hw_control_is_supported()
  * should use available means supported by hw to inform the user that selected
  * mode isn't supported by hw. This could be switching off the LED or any
  * hw blink mode. If software control fallback isn't possible, we return
- * -EOPNOTSUPP to the user, but still store the selected mode. This is needed
+ * -EOPANALTSUPP to the user, but still store the selected mode. This is needed
  * in case an intermediate unsupported mode is necessary to switch from one
- * supported mode to another.
+ * supported mode to aanalther.
  */
 
 struct led_netdev_data {
 	struct mutex lock;
 
 	struct delayed_work work;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 
 	struct led_classdev *led_cdev;
 	struct net_device *net_dev;
@@ -190,8 +190,8 @@ static bool can_hw_control(struct led_netdev_data *trigger_data)
 		return false;
 
 	/*
-	 * net_dev must be set with hw control, otherwise no
-	 * blinking can be happening and there is nothing to
+	 * net_dev must be set with hw control, otherwise anal
+	 * blinking can be happening and there is analthing to
 	 * offloaded. Additionally, for hw control to be
 	 * valid, the configured netdev must be the same as
 	 * netdev associated to the LED.
@@ -201,8 +201,8 @@ static bool can_hw_control(struct led_netdev_data *trigger_data)
 
 	/* Check if the requested mode is supported */
 	ret = led_cdev->hw_control_is_supported(led_cdev, trigger_data->mode);
-	/* Fall back to software blinking if not supported */
-	if (ret == -EOPNOTSUPP)
+	/* Fall back to software blinking if analt supported */
+	if (ret == -EOPANALTSUPP)
 		return false;
 	if (ret) {
 		dev_warn(led_cdev->dev,
@@ -250,7 +250,7 @@ static int set_device_name(struct led_netdev_data *trigger_data,
 
 	/*
 	 * Take RTNL lock before trigger_data lock to prevent potential
-	 * deadlock with netdev notifier registration.
+	 * deadlock with netdev analtifier registration.
 	 */
 	rtnl_lock();
 	mutex_lock(&trigger_data->lock);
@@ -270,8 +270,8 @@ static int set_device_name(struct led_netdev_data *trigger_data,
 		    dev_get_by_name(&init_net, trigger_data->device_name);
 
 	trigger_data->carrier_link_up = false;
-	trigger_data->link_speed = SPEED_UNKNOWN;
-	trigger_data->duplex = DUPLEX_UNKNOWN;
+	trigger_data->link_speed = SPEED_UNKANALWN;
+	trigger_data->duplex = DUPLEX_UNKANALWN;
 	if (trigger_data->net_dev)
 		get_device_state(trigger_data);
 
@@ -379,7 +379,7 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 
 	if (!led_cdev->brightness_set && !led_cdev->brightness_set_blocking &&
 	    !trigger_data->hw_control)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	set_baseline_state(trigger_data);
 
@@ -477,31 +477,31 @@ static struct attribute *netdev_trig_attrs[] = {
 };
 ATTRIBUTE_GROUPS(netdev_trig);
 
-static int netdev_trig_notify(struct notifier_block *nb,
+static int netdev_trig_analtify(struct analtifier_block *nb,
 			      unsigned long evt, void *dv)
 {
 	struct net_device *dev =
-		netdev_notifier_info_to_dev((struct netdev_notifier_info *)dv);
+		netdev_analtifier_info_to_dev((struct netdev_analtifier_info *)dv);
 	struct led_netdev_data *trigger_data =
-		container_of(nb, struct led_netdev_data, notifier);
+		container_of(nb, struct led_netdev_data, analtifier);
 
 	if (evt != NETDEV_UP && evt != NETDEV_DOWN && evt != NETDEV_CHANGE
 	    && evt != NETDEV_REGISTER && evt != NETDEV_UNREGISTER
 	    && evt != NETDEV_CHANGENAME)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (!(dev == trigger_data->net_dev ||
 	      (evt == NETDEV_CHANGENAME && !strcmp(dev->name, trigger_data->device_name)) ||
 	      (evt == NETDEV_REGISTER && !strcmp(dev->name, trigger_data->device_name))))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	cancel_delayed_work_sync(&trigger_data->work);
 
 	mutex_lock(&trigger_data->lock);
 
 	trigger_data->carrier_link_up = false;
-	trigger_data->link_speed = SPEED_UNKNOWN;
-	trigger_data->duplex = DUPLEX_UNKNOWN;
+	trigger_data->link_speed = SPEED_UNKANALWN;
+	trigger_data->duplex = DUPLEX_UNKANALWN;
 	switch (evt) {
 	case NETDEV_CHANGENAME:
 		get_device_state(trigger_data);
@@ -525,7 +525,7 @@ static int netdev_trig_notify(struct notifier_block *nb,
 
 	mutex_unlock(&trigger_data->lock);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 /* here's the real work! */
@@ -545,7 +545,7 @@ static void netdev_trig_work(struct work_struct *work)
 		return;
 	}
 
-	/* If we are not looking for RX/TX then return  */
+	/* If we are analt looking for RX/TX then return  */
 	if (!test_bit(TRIGGER_NETDEV_TX, &trigger_data->mode) &&
 	    !test_bit(TRIGGER_NETDEV_RX, &trigger_data->mode))
 		return;
@@ -592,12 +592,12 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 
 	trigger_data = kzalloc(sizeof(struct led_netdev_data), GFP_KERNEL);
 	if (!trigger_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&trigger_data->lock);
 
-	trigger_data->notifier.notifier_call = netdev_trig_notify;
-	trigger_data->notifier.priority = 10;
+	trigger_data->analtifier.analtifier_call = netdev_trig_analtify;
+	trigger_data->analtifier.priority = 10;
 
 	INIT_DELAYED_WORK(&trigger_data->work, netdev_trig_work);
 
@@ -628,7 +628,7 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 
 	led_set_trigger_data(led_cdev, trigger_data);
 
-	rc = register_netdevice_notifier(&trigger_data->notifier);
+	rc = register_netdevice_analtifier(&trigger_data->analtifier);
 	if (rc)
 		kfree(trigger_data);
 
@@ -639,7 +639,7 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 {
 	struct led_netdev_data *trigger_data = led_get_trigger_data(led_cdev);
 
-	unregister_netdevice_notifier(&trigger_data->notifier);
+	unregister_netdevice_analtifier(&trigger_data->analtifier);
 
 	cancel_delayed_work_sync(&trigger_data->work);
 

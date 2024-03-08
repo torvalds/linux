@@ -52,7 +52,7 @@ static struct tpci200_board *check_slot(struct ipack_device *dev)
 	tpci200 = dev_get_drvdata(dev->bus->parent);
 
 	if (tpci200 == NULL) {
-		dev_info(&dev->dev, "carrier board not found\n");
+		dev_info(&dev->dev, "carrier board analt found\n");
 		return NULL;
 	}
 
@@ -119,7 +119,7 @@ static irqreturn_t tpci200_slot_irq(struct slot_irq *slot_irq)
 	irqreturn_t ret;
 
 	if (!slot_irq)
-		return -ENODEV;
+		return -EANALDEV;
 	ret = slot_irq->handler(slot_irq->arg);
 
 	return ret;
@@ -138,7 +138,7 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 
 	/* Did we cause the interrupt? */
 	if (!(status_reg & TPCI200_SLOT_INT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* callback to the IRQ handler for the corresponding slot */
 	rcu_read_lock();
@@ -147,9 +147,9 @@ static irqreturn_t tpci200_interrupt(int irq, void *dev_id)
 			continue;
 		slot_irq = rcu_dereference(tpci200->slots[i].irq);
 		ret = tpci200_slot_irq(slot_irq);
-		if (ret == -ENODEV) {
+		if (ret == -EANALDEV) {
 			dev_info(&tpci200->info->pdev->dev,
-				 "No registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
+				 "Anal registered ISR for slot [%d:%d]!. IRQ will be disabled.\n",
 				 tpci200->number, i);
 			tpci200_disable_irq(tpci200, i);
 		}
@@ -214,14 +214,14 @@ static int tpci200_request_irq(struct ipack_device *dev,
 		dev_err(&dev->dev,
 			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
 			dev->bus->bus_nr, dev->slot);
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto out_unlock;
 	}
 
 	/*
 	 * WARNING: Setup Interrupt Vector in the IndustryPack device
 	 * before an IRQ request.
-	 * Read the User Manual of your IndustryPack device to know
+	 * Read the User Manual of your IndustryPack device to kanalw
 	 * where to write the vector in memory.
 	 */
 	slot_irq->handler = handler;
@@ -244,7 +244,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 	unsigned short slot_ctrl;
 
 	if (pci_enable_device(tpci200->info->pdev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Request IP interface register (Bar 2) */
 	res = pci_request_region(tpci200->info->pdev, TPCI200_IP_INTERFACE_BAR,
@@ -301,7 +301,7 @@ static int tpci200_register(struct tpci200_board *tpci200)
 			"(bn 0x%X, sn 0x%X) failed to map driver user space!",
 			tpci200->info->pdev->bus->number,
 			tpci200->info->pdev->devfn);
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err_mem16_space_bar;
 	}
 
@@ -367,7 +367,7 @@ static int tpci200_get_clockrate(struct ipack_device *dev)
 	__le16 __iomem *addr;
 
 	if (!tpci200)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = &tpci200->info->interface_regs->control[dev->slot];
 	return (ioread16(addr) & TPCI200_CLK32) ? 32 : 8;
@@ -379,7 +379,7 @@ static int tpci200_set_clockrate(struct ipack_device *dev, int mherz)
 	__le16 __iomem *addr;
 
 	if (!tpci200)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = &tpci200->info->interface_regs->control[dev->slot];
 
@@ -403,7 +403,7 @@ static int tpci200_get_error(struct ipack_device *dev)
 	u16 mask;
 
 	if (!tpci200)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = &tpci200->info->interface_regs->status;
 	mask = tpci200_status_error[dev->slot];
@@ -417,7 +417,7 @@ static int tpci200_get_timeout(struct ipack_device *dev)
 	u16 mask;
 
 	if (!tpci200)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = &tpci200->info->interface_regs->status;
 	mask = tpci200_status_timeout[dev->slot];
@@ -432,7 +432,7 @@ static int tpci200_reset_timeout(struct ipack_device *dev)
 	u16 mask;
 
 	if (!tpci200)
-		return -ENODEV;
+		return -EANALDEV;
 
 	addr = &tpci200->info->interface_regs->status;
 	mask = tpci200_status_timeout[dev->slot];
@@ -464,7 +464,7 @@ static int tpci200_install(struct tpci200_board *tpci200)
 	tpci200->slots = kcalloc(TPCI200_NB_SLOT, sizeof(struct tpci200_slot),
 				 GFP_KERNEL);
 	if (tpci200->slots == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = tpci200_register(tpci200);
 	if (res) {
@@ -489,7 +489,7 @@ static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 	struct ipack_device *dev =
 		kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev->slot = i;
 	dev->bus = tpci200->info->ipack_bus;
 	dev->release = tpci200_release_device;
@@ -523,11 +523,11 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 
 	tpci200 = kzalloc(sizeof(struct tpci200_board), GFP_KERNEL);
 	if (!tpci200)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tpci200->info = kzalloc(sizeof(struct tpci200_infos), GFP_KERNEL);
 	if (!tpci200->info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_tpci200;
 	}
 
@@ -569,7 +569,7 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 	ret = tpci200_install(tpci200);
 	if (ret) {
 		dev_err(&pdev->dev, "error during tpci200 install\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_cfg_regs;
 	}
 

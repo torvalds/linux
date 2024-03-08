@@ -15,7 +15,7 @@ enum baseband_config {
 #define RTL8190_EEPROM_ID	0x8129
 #define EEPROM_VID		0x02
 #define EEPROM_DID		0x04
-#define EEPROM_NODE_ADDRESS_BYTE_0	0x0C
+#define EEPROM_ANALDE_ADDRESS_BYTE_0	0x0C
 
 #define EEPROM_Default_ThermalMeter		0x77
 #define EEPROM_Default_AntTxPowerDiff		0x0
@@ -36,7 +36,7 @@ enum _RTL8192PCI_HW {
 	MAC0			= 0x000,
 	MAC4			= 0x004,
 	PCIF			= 0x009,
-#define MXDMA2_NO_LIMIT		0x7
+#define MXDMA2_ANAL_LIMIT		0x7
 
 #define	MXDMA2_RX_SHIFT		4
 #define	MXDMA2_TX_SHIFT		0
@@ -45,7 +45,7 @@ enum _RTL8192PCI_HW {
 
 #define EPROM_CMD_9356SEL	BIT(4)
 #define EPROM_CMD_OPERATING_MODE_SHIFT 6
-#define EPROM_CMD_NORMAL 0
+#define EPROM_CMD_ANALRMAL 0
 #define EPROM_CMD_PROGRAM 2
 #define EPROM_CS_BIT 3
 #define EPROM_CK_BIT 2
@@ -99,7 +99,7 @@ enum _RTL8192PCI_HW {
 #define   SCR_RxUseDK			BIT(1)
 #define   SCR_TxEncEnable		BIT(2)
 #define   SCR_RxDecEnable		BIT(3)
-#define   SCR_NoSKMC				BIT(5)
+#define   SCR_AnalSKMC				BIT(5)
 	SWREGULATOR	= 0x0BD,
 	INTA_MASK		= 0x0f4,
 #define IMR_TBDOK			BIT(27)
@@ -133,8 +133,8 @@ enum _RTL8192PCI_HW {
 #define	CPU_GEN_PUT_CODE_OK	0x00000080
 #define	CPU_GEN_BB_RST		0x00000100
 #define	CPU_GEN_PWR_STB_CPU	0x00000004
-#define CPU_GEN_NO_LOOPBACK_MSK	0xFFF8FFFF
-#define CPU_GEN_NO_LOOPBACK_SET	0x00080000
+#define CPU_GEN_ANAL_LOOPBACK_MSK	0xFFF8FFFF
+#define CPU_GEN_ANAL_LOOPBACK_SET	0x00080000
 	ACM_HW_CTRL		= 0x171,
 #define	ACM_HW_BEQ_EN		BIT(1)
 #define	ACM_HW_VIQ_EN		BIT(2)
@@ -167,7 +167,7 @@ enum _RTL8192PCI_HW {
 #define MSR_LINK_ADHOC     1
 #define MSR_LINK_MASTER    3
 
-#define	MSR_NOLINK					0x00
+#define	MSR_ANALLINK					0x00
 #define	MSR_ADHOC					0x01
 #define	MSR_INFRA					0x02
 #define	MSR_AP						0x03

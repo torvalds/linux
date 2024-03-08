@@ -21,7 +21,7 @@ static acpi_status
 acpi_db_walk_for_execute(acpi_handle obj_handle,
 			 u32 nesting_level, void *context, void **return_value);
 
-static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node);
+static acpi_status acpi_db_evaluate_object(struct acpi_namespace_analde *analde);
 
 /*******************************************************************************
  *
@@ -31,7 +31,7 @@ static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node);
  *              walk_state          - Current walk info
  *              op                  - Current Op (from parse walk)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set a breakpoint in a control method at the specified
  *              AML offset
@@ -47,7 +47,7 @@ acpi_db_set_method_breakpoint(char *location,
 	u32 aml_offset;
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -73,7 +73,7 @@ acpi_db_set_method_breakpoint(char *location,
  *
  * PARAMETERS:  op                  - Current Op (from parse walk)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set a breakpoint in a control method at the specified
  *              AML offset
@@ -84,7 +84,7 @@ void acpi_db_set_method_call_breakpoint(union acpi_parse_object *op)
 {
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -99,10 +99,10 @@ void acpi_db_set_method_call_breakpoint(union acpi_parse_object *op)
  *              index_arg       - which one
  *              value_arg       - Value to set.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Set a local or argument for the running control method.
- *              NOTE: only object supported is Number.
+ *              ANALTE: only object supported is Number.
  *
  ******************************************************************************/
 
@@ -114,7 +114,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
 	/* Validate type_arg */
 
@@ -128,16 +128,16 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 	value = strtoul(value_arg, NULL, 16);
 
 	if (type == 'N') {
-		node = acpi_db_convert_to_node(index_arg);
-		if (!node) {
+		analde = acpi_db_convert_to_analde(index_arg);
+		if (!analde) {
 			return;
 		}
 
-		if (node->type != ACPI_TYPE_INTEGER) {
-			acpi_os_printf("Can only set Integer nodes\n");
+		if (analde->type != ACPI_TYPE_INTEGER) {
+			acpi_os_printf("Can only set Integer analdes\n");
 			return;
 		}
-		obj_desc = node->object;
+		obj_desc = analde->object;
 		obj_desc->integer.value = value;
 		return;
 	}
@@ -148,7 +148,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 
 	walk_state = acpi_ds_get_current_walk_state(acpi_gbl_current_walk_list);
 	if (!walk_state) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -156,7 +156,7 @@ void acpi_db_set_method_data(char *type_arg, char *index_arg, char *value_arg)
 
 	obj_desc = acpi_ut_create_integer_object((u64)value);
 	if (!obj_desc) {
-		acpi_os_printf("Could not create an internal object\n");
+		acpi_os_printf("Could analt create an internal object\n");
 		return;
 	}
 
@@ -226,7 +226,7 @@ cleanup:
  * PARAMETERS:  statements          - Number of statements to disassemble
  *              op                  - Current Op (from parse walk)
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display disassembled AML (ASL) starting from Op for the number
  *              of statements specified.
@@ -238,7 +238,7 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op)
 	u32 num_statements = 8;
 
 	if (!op) {
-		acpi_os_printf("There is no method currently executing\n");
+		acpi_os_printf("There is anal method currently executing\n");
 		return;
 	}
 
@@ -255,7 +255,7 @@ void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op)
  *
  * PARAMETERS:  name            - Name of control method
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display disassembled AML (ASL) starting from Op for the number
  *              of statements specified.
@@ -268,9 +268,9 @@ acpi_status acpi_db_disassemble_method(char *name)
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *method;
+	struct acpi_namespace_analde *method;
 
-	method = acpi_db_convert_to_node(name);
+	method = acpi_db_convert_to_analde(name);
 	if (!method) {
 		return (AE_BAD_PARAMETER);
 	}
@@ -285,14 +285,14 @@ acpi_status acpi_db_disassemble_method(char *name)
 
 	op = acpi_ps_create_scope_op(obj_desc->method.aml_start);
 	if (!op) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Create and initialize a new walk state */
 
 	walk_state = acpi_ds_create_walk_state(0, op, NULL, NULL);
 	if (!walk_state) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	status = acpi_ds_init_aml_walk(walk_state, op, NULL,
@@ -329,7 +329,7 @@ acpi_status acpi_db_disassemble_method(char *name)
 
 	(void)acpi_dm_parse_deferred_ops(op);
 
-	/* Now we can disassemble the method */
+	/* Analw we can disassemble the method */
 
 	acpi_gbl_dm_opt_verbose = FALSE;
 	acpi_dm_disassemble(NULL, op, 0);
@@ -350,7 +350,7 @@ acpi_status acpi_db_disassemble_method(char *name)
  *
  * FUNCTION:    acpi_db_evaluate_object
  *
- * PARAMETERS:  node                - Namespace node for the object
+ * PARAMETERS:  analde                - Namespace analde for the object
  *
  * RETURN:      Status
  *
@@ -359,7 +359,7 @@ acpi_status acpi_db_disassemble_method(char *name)
  *
  ******************************************************************************/
 
-static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node)
+static acpi_status acpi_db_evaluate_object(struct acpi_namespace_analde *analde)
 {
 	char *pathname;
 	u32 i;
@@ -369,14 +369,14 @@ static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node)
 	struct acpi_buffer return_obj;
 	acpi_status status;
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_external_pathname(analde);
 	if (!pathname) {
 		return (AE_OK);
 	}
 
 	/* Get the object info for number of method parameters */
 
-	status = acpi_get_object_info(node, &obj_info);
+	status = acpi_get_object_info(analde, &obj_info);
 	if (ACPI_FAILURE(status)) {
 		ACPI_FREE(pathname);
 		return (status);
@@ -406,7 +406,7 @@ static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node)
 
 	acpi_gbl_method_executing = TRUE;
 
-	status = acpi_evaluate_object(node, NULL, &param_objects, &return_obj);
+	status = acpi_evaluate_object(analde, NULL, &param_objects, &return_obj);
 	acpi_gbl_method_executing = FALSE;
 
 	acpi_os_printf("%-32s returned %s\n", pathname,
@@ -423,11 +423,11 @@ static acpi_status acpi_db_evaluate_object(struct acpi_namespace_node *node)
 
 	ACPI_FREE(pathname);
 
-	/* Ignore status from method execution */
+	/* Iganalre status from method execution */
 
 	return (AE_OK);
 
-	/* Update count, check if we have executed enough methods */
+	/* Update count, check if we have executed eanalugh methods */
 
 }
 
@@ -448,29 +448,29 @@ static acpi_status
 acpi_db_walk_for_execute(acpi_handle obj_handle,
 			 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	struct acpi_db_execute_walk *info =
 	    (struct acpi_db_execute_walk *)context;
 	acpi_status status;
 	const union acpi_predefined_info *predefined;
 
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	predefined = acpi_ut_match_predefined_method(analde->name.ascii);
 	if (!predefined) {
 		return (AE_OK);
 	}
 
-	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+	if (analde->type == ACPI_TYPE_LOCAL_SCOPE) {
 		return (AE_OK);
 	}
 
-	acpi_db_evaluate_object(node);
+	acpi_db_evaluate_object(analde);
 
-	/* Ignore status from object evaluation */
+	/* Iganalre status from object evaluation */
 
 	status = AE_OK;
 
-	/* Update count, check if we have executed enough methods */
+	/* Update count, check if we have executed eanalugh methods */
 
 	info->count++;
 	if (info->count >= info->max_count) {
@@ -498,25 +498,25 @@ acpi_db_walk_for_execute_all(acpi_handle obj_handle,
 			     u32 nesting_level,
 			     void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_analde *analde =
+	    (struct acpi_namespace_analde *)obj_handle;
 	struct acpi_db_execute_walk *info =
 	    (struct acpi_db_execute_walk *)context;
 	acpi_status status;
 
-	if (!ACPI_COMPARE_NAMESEG(node->name.ascii, info->name_seg)) {
+	if (!ACPI_COMPARE_NAMESEG(analde->name.ascii, info->name_seg)) {
 		return (AE_OK);
 	}
 
-	if (node->type == ACPI_TYPE_LOCAL_SCOPE) {
+	if (analde->type == ACPI_TYPE_LOCAL_SCOPE) {
 		return (AE_OK);
 	}
 
-	/* Now evaluate the input object (node) */
+	/* Analw evaluate the input object (analde) */
 
-	acpi_db_evaluate_object(node);
+	acpi_db_evaluate_object(analde);
 
-	/* Ignore status from method execution */
+	/* Iganalre status from method execution */
 
 	status = AE_OK;
 
@@ -530,9 +530,9 @@ acpi_db_walk_for_execute_all(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_db_evaluate_predefined_names
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Namespace batch execution. Execute predefined names in the
  *              namespace, up to the max count, if specified.
@@ -546,7 +546,7 @@ void acpi_db_evaluate_predefined_names(void)
 	info.count = 0;
 	info.max_count = ACPI_UINT32_MAX;
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_walk_for_execute,
@@ -560,9 +560,9 @@ void acpi_db_evaluate_predefined_names(void)
  *
  * FUNCTION:    acpi_db_evaluate_all
  *
- * PARAMETERS:  none_acpi_gbl_db_method_info
+ * PARAMETERS:  analne_acpi_gbl_db_method_info
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Namespace batch execution. Implements the "ALL" command.
  *              Execute all namepaths whose final nameseg matches the
@@ -579,7 +579,7 @@ void acpi_db_evaluate_all(char *name_seg)
 	ACPI_COPY_NAMESEG(info.name_seg, name_seg);
 	info.name_seg[ACPI_NAMESEG_SIZE] = 0;
 
-	/* Search all nodes in namespace */
+	/* Search all analdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_walk_for_execute_all,

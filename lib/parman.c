@@ -1,17 +1,17 @@
 /*
  * lib/parman.c - Manager for linear priority array areas
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2017 Mellaanalx Techanallogies. All rights reserved.
+ * Copyright (c) 2017 Jiri Pirko <jiri@mellaanalx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -20,11 +20,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -230,7 +230,7 @@ static const struct parman_algo *parman_algos[] = {
  * @ops:	caller-specific callbacks
  * @priv:	pointer to a private data passed to the ops
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Each parman instance manages an array area with chunks of entries
  * with the same priority. Consider following example:
@@ -245,7 +245,7 @@ static const struct parman_algo *parman_algos[] = {
  * item 8 with prio 30
  *
  * In this example, there are 3 priority chunks. The order of the priorities
- * matters, however the order of items within a single priority chunk does not
+ * matters, however the order of items within a single priority chunk does analt
  * matter. So the same array could be ordered as follows:
  *
  * item 2 with prio 10
@@ -284,7 +284,7 @@ EXPORT_SYMBOL(parman_create);
  * parman_destroy - destroys existing parman instance
  * @parman:	parman instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void parman_destroy(struct parman *parman)
 {
@@ -299,7 +299,7 @@ EXPORT_SYMBOL(parman_destroy);
  * @prio:	parman prio structure to be initialized
  * @priority:	desired priority of the chunk
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Before caller could add an item with certain priority, he has to
  * initialize a priority chunk for it using this function.
@@ -327,7 +327,7 @@ EXPORT_SYMBOL(parman_prio_init);
  * parman_prio_fini - finalizes use of parman priority chunk
  * @prio:	parman prio structure
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void parman_prio_fini(struct parman_prio *prio)
 {
@@ -342,7 +342,7 @@ EXPORT_SYMBOL(parman_prio_fini);
  * @prio:	parman prio instance to add the item to
  * @item:	parman item instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  *
  * Adds item to a array managed by parman instance under the specified priority.
  *
@@ -361,7 +361,7 @@ EXPORT_SYMBOL(parman_item_add);
  * @prio:	parman prio instance to delete the item from
  * @item:	parman item instance
  *
- * Note: all locking must be provided by the caller.
+ * Analte: all locking must be provided by the caller.
  */
 void parman_item_remove(struct parman *parman, struct parman_prio *prio,
 			struct parman_item *item)
@@ -371,5 +371,5 @@ void parman_item_remove(struct parman *parman, struct parman_prio *prio,
 EXPORT_SYMBOL(parman_item_remove);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellaanalx.com>");
 MODULE_DESCRIPTION("Priority-based array manager");

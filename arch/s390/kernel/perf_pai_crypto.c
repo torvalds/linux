@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/io.h>
@@ -33,7 +33,7 @@ struct pai_userdata {
 
 struct paicrypt_map {
 	unsigned long *page;		/* Page for CPU to store counters */
-	struct pai_userdata *save;	/* Page to store no-zero counters */
+	struct pai_userdata *save;	/* Page to store anal-zero counters */
 	unsigned int active_events;	/* # of PAI crypto users */
 	refcount_t refcnt;		/* Reference count mapped buffers */
 	enum paievt_mode mode;		/* Type of event */
@@ -68,11 +68,11 @@ static void paicrypt_root_free(void)
  */
 static int paicrypt_root_alloc(void)
 {
-	if (!refcount_inc_not_zero(&paicrypt_root.refcnt)) {
+	if (!refcount_inc_analt_zero(&paicrypt_root.refcnt)) {
 		/* The memory is already zeroed. */
 		paicrypt_root.mapptr = alloc_percpu(struct paicrypt_mapptr);
 		if (!paicrypt_root.mapptr)
-			return -ENOMEM;
+			return -EANALMEM;
 		refcount_set(&paicrypt_root.refcnt, 1);
 	}
 	return 0;
@@ -160,12 +160,12 @@ static u64 paicrypt_getall(struct perf_event *event)
  * sampling for crypto events
  *
  * Only one instance of event pai_crypto/CRYPTO_ALL/ for sampling is
- * allowed and when this event is running, no counting event is allowed.
- * Several counting events are allowed in parallel, but no sampling event
+ * allowed and when this event is running, anal counting event is allowed.
+ * Several counting events are allowed in parallel, but anal sampling event
  * is allowed while one (or more) counting events are running.
  *
  * This function is called in process context and it is save to block.
- * When the event initialization functions fails, no other call back will
+ * When the event initialization functions fails, anal other call back will
  * be invoked.
  *
  * Allocate the memory for the event.
@@ -179,24 +179,24 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 
 	mutex_lock(&pai_reserve_mutex);
 
-	/* Allocate root node */
+	/* Allocate root analde */
 	rc = paicrypt_root_alloc();
 	if (rc)
 		goto unlock;
 
-	/* Allocate node for this event */
+	/* Allocate analde for this event */
 	mp = per_cpu_ptr(paicrypt_root.mapptr, event->cpu);
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
 		if (!cpump) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto free_root;
 		}
 	}
 
 	if (a->sample_period) {		/* Sampling requested */
-		if (cpump->mode != PAI_MODE_NONE)
+		if (cpump->mode != PAI_MODE_ANALNE)
 			rc = -EBUSY;	/* ... sampling/counting active */
 	} else {			/* Counting requested */
 		if (cpump->mode == PAI_MODE_SAMPLING)
@@ -206,8 +206,8 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 	 * This error case triggers when there is a conflict:
 	 * Either sampling requested and counting already active, or visa
 	 * versa. Therefore the struct paicrypto_map for this CPU is
-	 * needed or the error could not have occurred. Only adjust root
-	 * node refcount.
+	 * needed or the error could analt have occurred. Only adjust root
+	 * analde refcount.
 	 */
 	if (rc)
 		goto free_root;
@@ -220,7 +220,7 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 		goto unlock;
 	}
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	cpump->page = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 	if (!cpump->page)
 		goto free_paicrypt_map;
@@ -263,14 +263,14 @@ static int paicrypt_event_init(struct perf_event *event)
 
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
-		return -ENOENT;
+		return -EANALENT;
 	/* PAI crypto event must be in valid range */
 	if (a->config < PAI_CRYPTO_BASE ||
 	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
 		return -EINVAL;
-	/* Allow only CPU wide operation, no process context for now. */
+	/* Allow only CPU wide operation, anal process context for analw. */
 	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
-		return -ENOENT;
+		return -EANALENT;
 	/* Allow only CRYPTO_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
 		return -EINVAL;
@@ -313,7 +313,7 @@ static void paicrypt_start(struct perf_event *event, int flags)
 	u64 sum;
 
 	/* Event initialization sets last_tag to 0. When later on the events
-	 * are deleted and re-added, do not reset the event count value to zero.
+	 * are deleted and re-added, do analt reset the event count value to zero.
 	 * Events are added, deleted and re-added when 2 or more events
 	 * are active at the same time.
 	 */
@@ -440,17 +440,17 @@ static int paicrypt_have_sample(void)
 	size_t rawsize;
 	int rc = 0;
 
-	if (!event)		/* No event active */
+	if (!event)		/* Anal event active */
 		return 0;
 	rawsize = paicrypt_copy(cpump->save, cpump->page,
 				cpump->event->attr.exclude_user,
 				cpump->event->attr.exclude_kernel);
-	if (rawsize)			/* No incremented counters */
+	if (rawsize)			/* Anal incremented counters */
 		rc = paicrypt_push_sample(rawsize, cpump, event);
 	return rc;
 }
 
-/* Called on schedule-in and schedule-out. No access to event structure,
+/* Called on schedule-in and schedule-out. Anal access to event structure,
  * but for sampling only event CRYPTO_ALL is allowed.
  */
 static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
@@ -468,8 +468,8 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sch
  * the QUERY PROCESSOR ACTIVITY COUNTER INFORMATION (QPACI) instruction
  * to determine the number of mapped counters. The instructions returns
  * a positive number, which is the highest number of supported counters.
- * All counters less than this number are also supported, there are no
- * holes. A returned number of zero means no support for mapped counters.
+ * All counters less than this number are also supported, there are anal
+ * holes. A returned number of zero means anal support for mapped counters.
  *
  * The identification of the counter is a unique number. The chosen range
  * is 0x1000 + offset in mapped kernel page.
@@ -642,9 +642,9 @@ static const char * const paicrypt_ctrnames[] = {
 	[123] = "PCC_SCALAR_MULTIPLY_ED448",
 	[124] = "PCC_SCALAR_MULTIPLY_X25519",
 	[125] = "PCC_SCALAR_MULTIPLY_X448",
-	[126] = "PRNO_SHA_512_DRNG",
-	[127] = "PRNO_TRNG_QUERY_RAW_TO_CONDITIONED_RATIO",
-	[128] = "PRNO_TRNG",
+	[126] = "PRANAL_SHA_512_DRNG",
+	[127] = "PRANAL_TRNG_QUERY_RAW_TO_CONDITIONED_RATIO",
+	[128] = "PRANAL_TRNG",
 	[129] = "KDSA_ECDSA_VERIFY_P256",
 	[130] = "KDSA_ECDSA_VERIFY_P384",
 	[131] = "KDSA_ECDSA_VERIFY_P521",
@@ -696,7 +696,7 @@ static int __init attr_event_init_one(struct attribute **attrs, int num)
 
 	pa = kzalloc(sizeof(*pa), GFP_KERNEL);
 	if (!pa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&pa->attr.attr);
 	pa->id = PAI_CRYPTO_BASE + num;
@@ -717,7 +717,7 @@ static int __init attr_event_init(void)
 	attrs = kmalloc_array(ARRAY_SIZE(paicrypt_ctrnames) + 1, sizeof(*attrs),
 			      GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < ARRAY_SIZE(paicrypt_ctrnames); i++) {
 		ret = attr_event_init_one(attrs, i);
 		if (ret) {
@@ -745,7 +745,7 @@ static int __init paicrypt_init(void)
 	if (paicrypt_cnt >= PAI_CRYPTO_MAXCTR)
 		paicrypt_cnt = PAI_CRYPTO_MAXCTR - 1;
 
-	rc = attr_event_init();		/* Export known PAI crypto events */
+	rc = attr_event_init();		/* Export kanalwn PAI crypto events */
 	if (rc) {
 		pr_err("Creation of PMU pai_crypto /sysfs failed\n");
 		return rc;
@@ -755,7 +755,7 @@ static int __init paicrypt_init(void)
 	cfm_dbg = debug_register(KMSG_COMPONENT, 2, 256, 128);
 	if (!cfm_dbg) {
 		pr_err("Registration of s390dbf pai_crypto failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	debug_register_view(cfm_dbg, &debug_sprintf_view);
 

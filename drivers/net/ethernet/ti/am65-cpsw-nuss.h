@@ -29,7 +29,7 @@ struct am65_cpts;
 struct am65_cpsw_slave_data {
 	bool				mac_only;
 	struct cpsw_sl			*mac_sl;
-	struct device_node		*phy_node;
+	struct device_analde		*phy_analde;
 	phy_interface_t			phy_if;
 	struct phy			*ifphy;
 	struct phy			*serdes_phy;
@@ -93,7 +93,7 @@ struct am65_cpsw_rx_chn {
 	int irq;
 };
 
-#define AM65_CPSW_QUIRK_I2027_NO_TX_CSUM BIT(0)
+#define AM65_CPSW_QUIRK_I2027_ANAL_TX_CSUM BIT(0)
 #define AM64_CPSW_QUIRK_DMA_RX_TDOWN_IRQ BIT(1)
 
 struct am65_cpsw_pdata {
@@ -156,7 +156,7 @@ struct am65_cpsw_common {
 	int			default_vlan;
 	struct devlink *devlink;
 	struct net_device *hw_bridge_dev;
-	struct notifier_block am65_cpsw_netdevice_nb;
+	struct analtifier_block am65_cpsw_netdevice_nb;
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 	/* only for suspend/resume context restore */
 	u32			*ale_context;

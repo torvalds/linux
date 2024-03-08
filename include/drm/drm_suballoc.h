@@ -15,7 +15,7 @@
 /**
  * struct drm_suballoc_manager - fenced range allocations
  * @wq: Wait queue for sleeping allocations on contention.
- * @hole: Pointer to first hole node.
+ * @hole: Pointer to first hole analde.
  * @olist: List of allocated ranges.
  * @flist: Array[fence context hash] of queues of fenced allocated ranges.
  * @size: Size of the managed range.

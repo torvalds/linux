@@ -92,7 +92,7 @@ static int vpu_probe(struct platform_device *pdev)
 	dev_dbg(dev, "probe\n");
 	vpu = devm_kzalloc(dev, sizeof(*vpu), GFP_KERNEL);
 	if (!vpu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpu->pdev = pdev;
 	vpu->dev = dev;
@@ -115,7 +115,7 @@ static int vpu_probe(struct platform_device *pdev)
 
 	vpu->res = of_device_get_match_data(dev);
 	if (!vpu->res)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pm_runtime_enable(dev);
 
@@ -139,7 +139,7 @@ static int vpu_probe(struct platform_device *pdev)
 		goto err_vpu_media;
 	vpu->debugfs = debugfs_create_dir("amphion_vpu", NULL);
 
-	of_platform_populate(dev->of_node, NULL, NULL, dev);
+	of_platform_populate(dev->of_analde, NULL, NULL, dev);
 
 	return 0;
 

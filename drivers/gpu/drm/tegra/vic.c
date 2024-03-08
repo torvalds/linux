@@ -67,7 +67,7 @@ static int vic_boot(struct vic *vic)
 
 		/*
 		 * STREAMID0 is used for input/output buffers. Initialize it to SID_VIC in case
-		 * context isolation is not enabled, and SID_VIC is used for both firmware and
+		 * context isolation is analt enabled, and SID_VIC is used for both firmware and
 		 * data buffers.
 		 *
 		 * If context isolation is enabled, it will be overridden by the SETSTREAMID
@@ -124,20 +124,20 @@ static int vic_init(struct host1x_client *client)
 	int err;
 
 	err = host1x_client_iommu_attach(client);
-	if (err < 0 && err != -ENODEV) {
+	if (err < 0 && err != -EANALDEV) {
 		dev_err(vic->dev, "failed to attach to domain: %d\n", err);
 		return err;
 	}
 
 	vic->channel = host1x_channel_request(client);
 	if (!vic->channel) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto detach;
 	}
 
 	client->syncpts[0] = host1x_syncpt_request(client, 0);
 	if (!client->syncpts[0]) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto free_channel;
 	}
 
@@ -234,7 +234,7 @@ static int vic_load_firmware(struct vic *vic)
 	if (!client->group) {
 		virt = dma_alloc_coherent(vic->dev, size, &iova, GFP_KERNEL);
 		if (!virt) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto unlock;
 		}
 	} else {
@@ -255,7 +255,7 @@ static int vic_load_firmware(struct vic *vic)
 	/*
 	 * In this case we have received an IOVA from the shared domain, so we
 	 * need to make sure to get the physical address so that the DMA API
-	 * knows what memory pages to flush the cache for.
+	 * kanalws what memory pages to flush the cache for.
 	 */
 	if (client->group) {
 		dma_addr_t phys;
@@ -270,7 +270,7 @@ static int vic_load_firmware(struct vic *vic)
 	}
 
 	/*
-	 * Check if firmware is new enough to not require mapping firmware
+	 * Check if firmware is new eanalugh to analt require mapping firmware
 	 * to data buffer domains.
 	 */
 	fce_bin_data_offset = *(u32 *)(virt + VIC_UCODE_FCE_DATA_OFFSET);
@@ -280,7 +280,7 @@ static int vic_load_firmware(struct vic *vic)
 	} else if (fce_bin_data_offset != 0x0 && fce_bin_data_offset != 0xa5a5a5a5) {
 		/*
 		 * Firmware will access FCE through STREAMID0, so context
-		 * isolation cannot be used.
+		 * isolation cananalt be used.
 		 */
 		vic->can_use_context = false;
 		dev_warn_once(vic->dev, "context isolation disabled due to old firmware\n");
@@ -362,7 +362,7 @@ static int vic_open_channel(struct tegra_drm_client *client,
 
 	context->channel = host1x_channel_get(vic->channel);
 	if (!context->channel)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -461,13 +461,13 @@ static int vic_probe(struct platform_device *pdev)
 
 	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
 	if (!vic)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vic->config = of_device_get_match_data(dev);
 
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vic->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vic->regs))

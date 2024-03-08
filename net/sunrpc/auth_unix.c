@@ -2,7 +2,7 @@
 /*
  * linux/net/sunrpc/auth_unix.c
  *
- * UNIX-style authentication; no AUTH_SHORT support
+ * UNIX-style authentication; anal AUTH_SHORT support
  *
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
@@ -48,10 +48,10 @@ static struct rpc_cred *unx_lookup_cred(struct rpc_auth *auth,
 	ret = kmalloc(sizeof(*ret), rpc_task_gfp_mask());
 	if (!ret) {
 		if (!(flags & RPCAUTH_LOOKUP_ASYNC))
-			return ERR_PTR(-ENOMEM);
-		ret = mempool_alloc(unix_pool, GFP_NOWAIT);
+			return ERR_PTR(-EANALMEM);
+		ret = mempool_alloc(unix_pool, GFP_ANALWAIT);
 		if (!ret)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 	}
 	rpcauth_init_cred(ret, acred, auth, &unix_credops);
 	ret->cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
@@ -126,8 +126,8 @@ unx_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 	*p++ = rpc_auth_unix;
 	cred_len = p++;
 	*p++ = xdr_zero;	/* stamp */
-	if (xdr_stream_encode_opaque(xdr, clnt->cl_nodename,
-				     clnt->cl_nodelen) < 0)
+	if (xdr_stream_encode_opaque(xdr, clnt->cl_analdename,
+				     clnt->cl_analdelen) < 0)
 		goto marshal_failed;
 	p = xdr_reserve_space(xdr, 3 * sizeof(*p));
 	if (!p)
@@ -160,7 +160,7 @@ marshal_failed:
 }
 
 /*
- * Refresh credentials. This is a no-op for AUTH_UNIX
+ * Refresh credentials. This is a anal-op for AUTH_UNIX
  */
 static int
 unx_refresh(struct rpc_task *task)
@@ -203,7 +203,7 @@ unx_validate(struct rpc_task *task, struct xdr_stream *xdr)
 int __init rpc_init_authunix(void)
 {
 	unix_pool = mempool_create_kmalloc_pool(16, sizeof(struct rpc_cred));
-	return unix_pool ? 0 : -ENOMEM;
+	return unix_pool ? 0 : -EANALMEM;
 }
 
 void rpc_destroy_authunix(void)

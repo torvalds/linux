@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2023 Cai Huoqing
- * Synopsys DesignWare HDMA v0 core
+ * Syanalpsys DesignWare HDMA v0 core
  */
 
 #include <linux/bitfield.h>
 #include <linux/irqreturn.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 
 #include "dw-edma-core.h"
 #include "dw-hdma-v0-core.h"
@@ -66,7 +66,7 @@ static void dw_hdma_v0_core_off(struct dw_edma *dw)
 static u16 dw_hdma_v0_core_ch_count(struct dw_edma *dw, enum dw_edma_dir dir)
 {
 	/*
-	 * The HDMA IP have no way to know the number of hardware channels
+	 * The HDMA IP have anal way to kanalw the number of hardware channels
 	 * available, we set it to maximum channels and let the platform
 	 * set the right number of channels.
 	 */
@@ -116,7 +116,7 @@ dw_hdma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 {
 	struct dw_edma *dw = dw_irq->dw;
 	unsigned long total, pos, val;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	struct dw_edma_chan *chan;
 	unsigned long off, mask;
 
@@ -226,7 +226,7 @@ static void dw_hdma_v0_sync_ll_data(struct dw_edma_chunk *chunk)
 {
 	/*
 	 * In case of remote HDMA engine setup, the DW PCIe RP/EP internal
-	 * configuration registers and application memory are normally accessed
+	 * configuration registers and application memory are analrmally accessed
 	 * over different buses. Ensure LL-data reaches the memory before the
 	 * doorbell register is toggled by issuing the dummy-read from the remote
 	 * LL memory in a hope that the MRd TLP will return only after the
@@ -257,7 +257,7 @@ static void dw_hdma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
 		/* Channel control */
 		SET_CH_32(dw, chan->dir, chan->id, control1, HDMA_V0_LINKLIST_EN);
 		/* Linked list */
-		/* llp is not aligned on 64bit -> keep 32bit accesses */
+		/* llp is analt aligned on 64bit -> keep 32bit accesses */
 		SET_CH_32(dw, chan->dir, chan->id, llp.lsb,
 			  lower_32_bits(chunk->ll_region.paddr));
 		SET_CH_32(dw, chan->dir, chan->id, llp.msb,

@@ -13,7 +13,7 @@ Contents
 - Identifying Your Adapter
 - Command Line Parameters
 - Additional Configurations
-- Known Issues
+- Kanalwn Issues
 - Support
 
 Identifying Your Adapter
@@ -37,7 +37,7 @@ SFP+ Devices with Pluggable Optics
 
 82599-BASED ADAPTERS
 ~~~~~~~~~~~~~~~~~~~~
-NOTES:
+ANALTES:
 - If your 82599-based Intel(R) Network Adapter came with Intel optics or is an
 Intel(R) Ethernet Server Adapter X520-2, then it only supports Intel optics
 and/or the direct attach cables listed below.
@@ -66,7 +66,7 @@ settings.
 +---------------+---------------------------------------+------------------+
 
 The following is a list of 3rd party SFP+ modules that have received some
-testing. Not all modules are applicable to all devices.
+testing. Analt all modules are applicable to all devices.
 
 +---------------+---------------------------------------+------------------+
 | Supplier      | Type                                  | Part Numbers     |
@@ -77,13 +77,13 @@ testing. Not all modules are applicable to all devices.
 +---------------+---------------------------------------+------------------+
 | Finisar       | SFP+ LR bailed, 10g single rate       | FTLX1471D3BCL    |
 +---------------+---------------------------------------+------------------+
-| Finisar       | DUAL RATE 1G/10G SFP+ SR (No Bail)    | FTLX8571D3QCV-IT |
+| Finisar       | DUAL RATE 1G/10G SFP+ SR (Anal Bail)    | FTLX8571D3QCV-IT |
 +---------------+---------------------------------------+------------------+
-| Avago         | DUAL RATE 1G/10G SFP+ SR (No Bail)    | AFBR-703SDZ-IN1  |
+| Avago         | DUAL RATE 1G/10G SFP+ SR (Anal Bail)    | AFBR-703SDZ-IN1  |
 +---------------+---------------------------------------+------------------+
-| Finisar       | DUAL RATE 1G/10G SFP+ LR (No Bail)    | FTLX1471D3QCV-IT |
+| Finisar       | DUAL RATE 1G/10G SFP+ LR (Anal Bail)    | FTLX1471D3QCV-IT |
 +---------------+---------------------------------------+------------------+
-| Avago         | DUAL RATE 1G/10G SFP+ LR (No Bail)    | AFCT-701SDZ-IN1  |
+| Avago         | DUAL RATE 1G/10G SFP+ LR (Anal Bail)    | AFCT-701SDZ-IN1  |
 +---------------+---------------------------------------+------------------+
 | Finisar       | 1000BASE-T SFP                        | FCLF8522P2BTL    |
 +---------------+---------------------------------------+------------------+
@@ -105,13 +105,13 @@ laser off and on.
 
 82599-based QSFP+ Adapters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-NOTES:
+ANALTES:
 - If your 82599-based Intel(R) Network Adapter came with Intel optics, it only
 supports Intel optics.
 - 82599-based QSFP+ adapters only support 4x10 Gbps connections.  1x40 Gbps
-connections are not supported. QSFP+ link partners must be configured for
+connections are analt supported. QSFP+ link partners must be configured for
 4x10 Gbps.
-- 82599-based QSFP+ adapters do not support automatic link speed detection.
+- 82599-based QSFP+ adapters do analt support automatic link speed detection.
 The link speed must be configured to either 10 Gbps or 1 Gbps to match the link
 partners speed capabilities. Incorrect speed configurations will result in
 failure to link.
@@ -129,18 +129,18 @@ direct attach cables that comply with SFF-8436 v4.1 specifications.
 
 82598-BASED ADAPTERS
 ~~~~~~~~~~~~~~~~~~~~
-NOTES:
+ANALTES:
 - Intel(r) Ethernet Network Adapters that support removable optical modules
 only support their original module type (for example, the Intel(R) 10 Gigabit
 SR Dual Port Express Module only supports SR optical modules). If you plug in
-a different type of module, the driver will not load.
-- Hot Swapping/hot plugging optical modules is not supported.
+a different type of module, the driver will analt load.
+- Hot Swapping/hot plugging optical modules is analt supported.
 - Only single speed, 10 gigabit modules are supported.
 - LAN on Motherboard (LOMs) may support DA, SR, or LR modules. Other module
-types are not supported. Please see your system documentation for details.
+types are analt supported. Please see your system documentation for details.
 
 The following is a list of SFP+ modules and direct attach cables that have
-received some testing. Not all modules are applicable to all devices.
+received some testing. Analt all modules are applicable to all devices.
 
 +---------------+---------------------------------------+------------------+
 | Supplier      | Type                                  | Part Numbers     |
@@ -154,12 +154,12 @@ received some testing. Not all modules are applicable to all devices.
 
 82598-based adapters support all passive direct attach cables that comply with
 SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach cables
-are not supported.
+are analt supported.
 
 Third party optic modules and cables referred to above are listed only for the
 purpose of highlighting third party specifications and potential
-compatibility, and are not recommendations or endorsements or sponsorship of
-any third party's product by Intel. Intel is not endorsing or promoting
+compatibility, and are analt recommendations or endorsements or sponsorship of
+any third party's product by Intel. Intel is analt endorsing or promoting
 products made by any third party and the third party reference is provided
 only to share information regarding certain optic modules and cables with the
 above specifications. There may be other manufacturers or suppliers, producing
@@ -168,8 +168,8 @@ Customers must use their own discretion and diligence to purchase optic
 modules and cables from any third party of their choice. Customers are solely
 responsible for assessing the suitability of the product and/or devices and
 for the selection of the vendor for purchasing any product. THE OPTIC MODULES
-AND CABLES REFERRED TO ABOVE ARE NOT WARRANTED OR SUPPORTED BY INTEL. INTEL
-ASSUMES NO LIABILITY WHATSOEVER, AND INTEL DISCLAIMS ANY EXPRESS OR IMPLIED
+AND CABLES REFERRED TO ABOVE ARE ANALT WARRANTED OR SUPPORTED BY INTEL. INTEL
+ASSUMES ANAL LIABILITY WHATSOEVER, AND INTEL DISCLAIMS ANY EXPRESS OR IMPLIED
 WARRANTY, RELATING TO SALE AND/OR USE OF SUCH THIRD PARTY PRODUCTS OR
 SELECTION OF VENDOR BY CUSTOMERS.
 
@@ -185,7 +185,7 @@ max_vfs worth of virtual functions.
 If the value is greater than 0 it will also force the VMDq parameter to be 1 or
 more.
 
-NOTE: This parameter is only used on kernel 3.7.x and below. On kernel 3.8.x
+ANALTE: This parameter is only used on kernel 3.7.x and below. On kernel 3.8.x
 and above, use sysfs to enable VFs. Also, for Red Hat distributions, this
 parameter is only used on version 6.6 and older. For version 6.7 and newer, use
 sysfs. For example::
@@ -208,15 +208,15 @@ This will spawn 4 VFs on the first port.
 
 This will spawn 2 VFs on the first port and 4 VFs on the second port.
 
-NOTE: Caution must be used in loading the driver with these parameters.
+ANALTE: Caution must be used in loading the driver with these parameters.
 Depending on your system configuration, number of slots, etc., it is impossible
 to predict in all cases where the positions would be on the command line.
 
-NOTE: Neither the device nor the driver control how VFs are mapped into config
+ANALTE: Neither the device analr the driver control how VFs are mapped into config
 space. Bus layout will vary by operating system. On operating systems that
 support it, you can check sysfs to find the mapping.
 
-NOTE: When either SR-IOV mode or VMDq mode is enabled, hardware VLAN filtering
+ANALTE: When either SR-IOV mode or VMDq mode is enabled, hardware VLAN filtering
 and VLAN tag stripping/insertion will remain enabled. Please remove the old
 VLAN filter before the new VLAN filter is added. For example,
 
@@ -228,14 +228,14 @@ VLAN filter before the new VLAN filter is added. For example,
 
 With kernel 3.6, the driver supports the simultaneous usage of max_vfs and DCB
 features, subject to the constraints described below. Prior to kernel 3.6, the
-driver did not support the simultaneous operation of max_vfs greater than 0 and
+driver did analt support the simultaneous operation of max_vfs greater than 0 and
 the DCB features (multiple traffic classes utilizing Priority Flow Control and
 Extended Transmission Selection).
 
 When DCB is enabled, network traffic is transmitted and received through
 multiple traffic classes (packet buffers in the NIC). The traffic is associated
 with a specific class based on priority, which has a value of 0 through 7 used
-in the VLAN tag. When SR-IOV is not enabled, each traffic class is associated
+in the VLAN tag. When SR-IOV is analt enabled, each traffic class is associated
 with a set of receive/transmit descriptor queue pairs. The number of queue
 pairs for a given traffic class depends on the hardware configuration. When
 SR-IOV is enabled, the descriptor queue pairs are grouped into pools. The
@@ -263,11 +263,11 @@ allow_unsupported_sfp
 :Default Value: 0 (disabled)
 
 This parameter allows unsupported and untested SFP+ modules on 82599-based
-adapters, as long as the type of module is known to the driver.
+adapters, as long as the type of module is kanalwn to the driver.
 
 debug
 -----
-:Valid Range: 0-16 (0=none,...,16=all)
+:Valid Range: 0-16 (0=analne,...,16=all)
 :Default Value: 0
 
 This parameter adjusts the level of debug messages displayed in the system
@@ -285,7 +285,7 @@ pause frames are generated when the receive packet buffer crosses a predefined
 threshold. When receive is enabled, the transmit unit will halt for the time
 delay specified when a pause frame is received.
 
-NOTE: You must have a flow control capable link partner.
+ANALTE: You must have a flow control capable link partner.
 
 Flow Control is enabled by default.
 
@@ -294,7 +294,7 @@ Tx Flow Control::
 
   ethtool -A eth? rx <on|off> tx <on|off>
 
-Note: This command only enables or disables Flow Control if auto-negotiation is
+Analte: This command only enables or disables Flow Control if auto-negotiation is
 disabled. If auto-negotiation is enabled, this command changes the parameters
 used for auto-negotiation with the link partner.
 
@@ -302,10 +302,10 @@ To enable or disable auto-negotiation::
 
   ethtool -s eth? autoneg <on|off>
 
-Note: Flow Control auto-negotiation is part of link auto-negotiation. Depending
-on your device, you may not be able to change the auto-negotiation setting.
+Analte: Flow Control auto-negotiation is part of link auto-negotiation. Depending
+on your device, you may analt be able to change the auto-negotiation setting.
 
-NOTE: For 82598 backplane cards entering 1 gigabit mode, flow control default
+ANALTE: For 82598 backplane cards entering 1 gigabit mode, flow control default
 behavior is changed to off. Flow control in 1 gigabit mode on these devices can
 lead to transmit hangs.
 
@@ -319,15 +319,15 @@ The Intel Ethernet Flow Director performs the following tasks:
 - Supports multiple parameters for flexible flow classification and load
   balancing (in SFP mode only).
 
-NOTE: Intel Ethernet Flow Director masking works in the opposite manner from
+ANALTE: Intel Ethernet Flow Director masking works in the opposite manner from
 subnet masking. In the following command::
 
   #ethtool -N eth11 flow-type ip4 src-ip 172.4.1.2 m 255.0.0.0 dst-ip \
   172.21.1.1 m 255.128.0.0 action 31
 
-The src-ip value that is written to the filter will be 0.4.1.2, not 172.0.0.0
+The src-ip value that is written to the filter will be 0.4.1.2, analt 172.0.0.0
 as might be expected. Similarly, the dst-ip value written to the filter will be
-0.21.1.1, not 172.0.0.0.
+0.21.1.1, analt 172.0.0.0.
 
 To enable or disable the Intel Ethernet Flow Director::
 
@@ -381,31 +381,31 @@ input set. For example, issuing the following two commands is acceptable::
   ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.1 src-port 5300 action 7
   ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.5 src-port 55 action 10
 
-Issuing the next two commands, however, is not acceptable, since the first
+Issuing the next two commands, however, is analt acceptable, since the first
 specifies src-ip and the second specifies dst-ip::
 
   ethtool -U enp130s0 flow-type ip4 src-ip 192.168.0.1 src-port 5300 action 7
   ethtool -U enp130s0 flow-type ip4 dst-ip 192.168.0.5 src-port 55 action 10
 
 The second command will fail with an error. You may program multiple filters
-with the same fields, using different values, but, on one device, you may not
+with the same fields, using different values, but, on one device, you may analt
 program two TCP4 filters with different matching fields.
 
-Matching on a sub-portion of a field is not supported by the ixgbe driver, thus
-partial mask fields are not supported.
+Matching on a sub-portion of a field is analt supported by the ixgbe driver, thus
+partial mask fields are analt supported.
 
 To create filters that direct traffic to a specific Virtual Function, use the
 "user-def" parameter. Specify the user-def as a 64 bit value, where the lower 32
 bits represents the queue number, while the next 8 bits represent which VF.
-Note that 0 is the PF, so the VF identifier is offset by 1. For example::
+Analte that 0 is the PF, so the VF identifier is offset by 1. For example::
 
   ... user-def 0x800000002 ...
 
 specifies to direct traffic to Virtual Function 7 (8 minus 1) into queue 2 of
 that VF.
 
-Note that these filters will not break internal routing rules, and will not
-route traffic that otherwise would not have been sent to the specified Virtual
+Analte that these filters will analt break internal routing rules, and will analt
+route traffic that otherwise would analt have been sent to the specified Virtual
 Function.
 
 Jumbo Frames
@@ -423,28 +423,28 @@ Alternatively, you can use the ip command as follows::
   ip link set mtu 9000 dev eth<x>
   ip link set up dev eth<x>
 
-This setting is not saved across reboots. The setting change can be made
+This setting is analt saved across reboots. The setting change can be made
 permanent by adding 'MTU=9000' to the file::
 
   /etc/sysconfig/network-scripts/ifcfg-eth<x> // for RHEL
   /etc/sysconfig/network/<config_file> // for SLES
 
-NOTE: The maximum MTU setting for Jumbo Frames is 9710. This value coincides
+ANALTE: The maximum MTU setting for Jumbo Frames is 9710. This value coincides
 with the maximum Jumbo Frames size of 9728 bytes.
 
-NOTE: This driver will attempt to use multiple page sized buffers to receive
+ANALTE: This driver will attempt to use multiple page sized buffers to receive
 each jumbo packet. This should help to avoid buffer starvation issues when
 allocating receive packets.
 
-NOTE: For 82599-based network connections, if you are enabling jumbo frames in
+ANALTE: For 82599-based network connections, if you are enabling jumbo frames in
 a virtual function (VF), jumbo frames must first be enabled in the physical
-function (PF). The VF MTU setting cannot be larger than the PF MTU.
+function (PF). The VF MTU setting cananalt be larger than the PF MTU.
 
 NBASE-T Support
 ---------------
 The ixgbe driver supports NBASE-T on some devices. However, the advertisement
 of NBASE-T speeds is suppressed by default, to accommodate broken network
-switches which cannot cope with advertised NBASE-T speeds. Use the ethtool
+switches which cananalt cope with advertised NBASE-T speeds. Use the ethtool
 command to enable advertising NBASE-T speeds on devices which support it::
 
   ethtool -s eth? advertise 0x1800000001028
@@ -467,9 +467,9 @@ are problematic for LRO, namely bridging and iSCSI.
 
 Data Center Bridging (DCB)
 --------------------------
-NOTE:
+ANALTE:
 The kernel assumes that TC0 is available, and will disable Priority Flow
-Control (PFC) on the device if TC0 is not available. To fix this, ensure TC0 is
+Control (PFC) on the device if TC0 is analt available. To fix this, ensure TC0 is
 enabled when setting up DCB on your switch.
 
 DCB is a configuration Quality of Service implementation in hardware. It uses
@@ -482,7 +482,7 @@ these priorities, which is enforced at the hardware level (802.1Qaz).
 Adapter firmware implements LLDP and DCBX protocol agents as per 802.1AB and
 802.1Qaz respectively. The firmware based DCBX agent runs in willing mode only
 and can accept settings from a DCBX capable peer. Software configuration of
-DCBX parameters via dcbtool/lldptool are not supported.
+DCBX parameters via dcbtool/lldptool are analt supported.
 
 The ixgbe driver implements the DCB netlink interface layer to allow user-space
 to communicate with the driver and query DCB configuration for the port.
@@ -490,14 +490,14 @@ to communicate with the driver and query DCB configuration for the port.
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diaganalstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 https://www.kernel.org/pub/software/network/ethtool/
 
 FCoE
 ----
 The ixgbe driver supports Fiber Channel over Ethernet (FCoE) and Data Center
-Bridging (DCB). This code has no default effect on the regular driver
+Bridging (DCB). This code has anal default effect on the regular driver
 operation. Configuring DCB and FCoE is outside the scope of this README. Refer
 to http://www.open-fcoe.org/ for FCoE project information and contact
 ixgbe-eedc@lists.sourceforge.net for DCB information.
@@ -505,16 +505,16 @@ ixgbe-eedc@lists.sourceforge.net for DCB information.
 MAC and VLAN anti-spoofing feature
 ----------------------------------
 When a malicious driver attempts to send a spoofed packet, it is dropped by the
-hardware and not transmitted.
+hardware and analt transmitted.
 
-An interrupt is sent to the PF driver notifying it of the spoof attempt. When a
+An interrupt is sent to the PF driver analtifying it of the spoof attempt. When a
 spoofed packet is detected, the PF driver will send the following message to
 the system log (displayed by the "dmesg" command)::
 
   ixgbe ethX: ixgbe_spoof_check: n spoofed packets detected
 
 where "x" is the PF interface number; and "n" is number of spoofed packets.
-NOTE: This feature can be disabled for a specific Virtual Function (VF)::
+ANALTE: This feature can be disabled for a specific Virtual Function (VF)::
 
   ip link set <pf dev> vf <vf id> spoofchk {off|on}
 
@@ -532,7 +532,7 @@ The offload is also supported for ixgbe's VFs, but the VF must be set as
   ip link set eth<x> vf <y> trust on
 
 
-Known Issues/Troubleshooting
+Kanalwn Issues/Troubleshooting
 ============================
 
 Enabling SR-IOV in a 64-bit Microsoft Windows Server 2012/R2 guest OS

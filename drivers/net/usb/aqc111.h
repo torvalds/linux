@@ -55,7 +55,7 @@
 	#define SFR_RX_CTL_PRO			0x0001
 	#define SFR_RX_CTL_STOP			0x0000
 #define SFR_INTER_PACKET_GAP_0		0x0D
-#define SFR_NODE_ID			0x10
+#define SFR_ANALDE_ID			0x10
 #define SFR_MULTI_FILTER_ARRY		0x16
 #define SFR_MEDIUM_STATUS_MODE		0x22
 	#define SFR_MEDIUM_XGMIIMODE		0x0001
@@ -125,7 +125,7 @@
 	#define SFR_BULK_OUT_EFF_EN		0x02
 
 #define AQ_FW_VER_MAJOR			0xDA
-#define AQ_FW_VER_MINOR			0xDB
+#define AQ_FW_VER_MIANALR			0xDB
 #define AQ_FW_VER_REV			0xDC
 
 /*PHY_OPS**********************************************************************/
@@ -167,7 +167,7 @@ struct aqc111_data {
 	u32 advertised_speed;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 mianalr;
 		u8 rev;
 	} fw_ver;
 	u32 phy_cfg;

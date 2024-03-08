@@ -5,13 +5,13 @@ Required properties:
 --------------------
  - compatible: Must include "img,pistachio".
 
-CPU nodes:
+CPU analdes:
 ----------
-A "cpus" node is required.  Required properties:
+A "cpus" analde is required.  Required properties:
  - #address-cells: Must be 1.
  - #size-cells: Must be 0.
-A CPU sub-node is also required for at least CPU 0.  Since the topology may
-be probed via CPS, it is not necessary to specify secondary CPUs.  Required
+A CPU sub-analde is also required for at least CPU 0.  Since the topology may
+be probed via CPS, it is analt necessary to specify secondary CPUs.  Required
 propertis:
  - device_type: Must be "cpu".
  - compatible: Must be "mti,interaptiv".

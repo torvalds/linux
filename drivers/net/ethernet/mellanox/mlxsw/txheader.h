@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #ifndef _MLXSW_TXHEADER_H
 #define _MLXSW_TXHEADER_H
@@ -34,10 +34,10 @@ enum {
 #define MLXSW_TXHDR_CTCLASS3 0
 #define MLXSW_TXHDR_CPU_SIG 0
 #define MLXSW_TXHDR_SIG 0xE0E0
-#define MLXSW_TXHDR_STCLASS_NONE 0
+#define MLXSW_TXHDR_STCLASS_ANALNE 0
 
 enum {
-	MLXSW_TXHDR_NOT_EMAD,
+	MLXSW_TXHDR_ANALT_EMAD,
 	MLXSW_TXHDR_EMAD,
 };
 

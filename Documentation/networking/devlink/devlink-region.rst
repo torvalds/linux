@@ -14,7 +14,7 @@ Region snapshots are collected by the driver, and can be accessed via read
 or dump commands. This allows future analysis on the created snapshots.
 Regions may optionally support triggering snapshots on demand.
 
-Snapshot identifiers are scoped to the devlink instance, not a region.
+Snapshot identifiers are scoped to the devlink instance, analt a region.
 All snapshots with the same snapshot id within a devlink instance
 correspond to the same event.
 
@@ -27,12 +27,12 @@ states, but see also Documentation/networking/devlink/devlink-health.rst
 Regions may optionally support capturing a snapshot on demand via the
 ``DEVLINK_CMD_REGION_NEW`` netlink message. A driver wishing to allow
 requested snapshots must implement the ``.snapshot`` callback for the region
-in its ``devlink_region_ops`` structure. If snapshot id is not set in
+in its ``devlink_region_ops`` structure. If snapshot id is analt set in
 the ``DEVLINK_CMD_REGION_NEW`` request kernel will allocate one and send
 the snapshot information to user space.
 
 Regions may optionally allow directly reading from their contents without a
-snapshot. Direct read requests are not atomic. In particular a read request
+snapshot. Direct read requests are analt atomic. In particular a read request
 of size 256 bytes or larger will be split into multiple chunks. If atomic
 access is required, use a snapshot. A driver wishing to enable this for a
 region should implement the ``.read`` callback in the ``devlink_region_ops``
@@ -78,6 +78,6 @@ example usage
     $ devlink region read pci/0000:00:05.0/fw-health address 16 length 16
     0000000000000010 0000 0000 ffff ff04 0029 8c00 0028 8cc8
 
-As regions are likely very device or driver specific, no generic regions are
+As regions are likely very device or driver specific, anal generic regions are
 defined. See the driver-specific documentation files for information on the
 specific regions a driver supports.

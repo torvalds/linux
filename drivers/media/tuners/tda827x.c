@@ -211,7 +211,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	printk(KERN_ERR "%s: could not write to tuner at addr: 0x%02x\n",
+	printk(KERN_ERR "%s: could analt write to tuner at addr: 0x%02x\n",
 	       __func__, priv->i2c_addr << 1);
 	return rc;
 }
@@ -455,7 +455,7 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 	struct i2c_msg msg = { .flags = 0, .buf = buf, .len = sizeof(buf) };
 
 	if (NULL == priv->cfg) {
-		dprintk("tda827x_config not defined, cannot set LNA gain!\n");
+		dprintk("tda827x_config analt defined, cananalt set LNA gain!\n");
 		return;
 	}
 	msg.addr = priv->cfg->switch_addr;
@@ -466,7 +466,7 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 			dprintk("setting LNA to low gain\n");
 	}
 	switch (priv->cfg->config) {
-	case TDA8290_LNA_OFF: /* no LNA */
+	case TDA8290_LNA_OFF: /* anal LNA */
 		break;
 	case TDA8290_LNA_GP0_HIGH_ON: /* switch is GPIO 0 of tda8290 */
 	case TDA8290_LNA_GP0_HIGH_OFF:
@@ -639,7 +639,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe)
 	return 0;
 
 err:
-	printk(KERN_ERR "%s: could not write to tuner at addr: 0x%02x\n",
+	printk(KERN_ERR "%s: could analt write to tuner at addr: 0x%02x\n",
 	       __func__, priv->i2c_addr << 1);
 	return rc;
 }
@@ -847,7 +847,7 @@ static int tda827x_probe_version(struct dvb_frontend *fe)
 	rc = tuner_transfer(fe, &msg, 1);
 
 	if (rc < 0) {
-		printk("%s: could not read from tuner at addr: 0x%02x\n",
+		printk("%s: could analt read from tuner at addr: 0x%02x\n",
 		       __func__, msg.addr << 1);
 		return rc;
 	}

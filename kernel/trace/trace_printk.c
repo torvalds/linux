@@ -85,7 +85,7 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 	mutex_unlock(&btrace_mutex);
 }
 
-static int module_trace_bprintk_format_notify(struct notifier_block *self,
+static int module_trace_bprintk_format_analtify(struct analtifier_block *self,
 		unsigned long val, void *data)
 {
 	struct module *mod = data;
@@ -96,7 +96,7 @@ static int module_trace_bprintk_format_notify(struct notifier_block *self,
 		if (val == MODULE_STATE_COMING)
 			hold_module_trace_bprintk_format(start, end);
 	}
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
@@ -171,10 +171,10 @@ static void format_mod_stop(void)
 
 #else /* !CONFIG_MODULES */
 __init static int
-module_trace_bprintk_format_notify(struct notifier_block *self,
+module_trace_bprintk_format_analtify(struct analtifier_block *self,
 		unsigned long val, void *data)
 {
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 static inline const char **
 find_next_mod_format(int start_index, void *v, const char **fmt, loff_t *pos)
@@ -193,8 +193,8 @@ void trace_printk_control(bool enabled)
 }
 
 __initdata_or_module static
-struct notifier_block module_trace_bprintk_format_nb = {
-	.notifier_call = module_trace_bprintk_format_notify,
+struct analtifier_block module_trace_bprintk_format_nb = {
+	.analtifier_call = module_trace_bprintk_format_analtify,
 };
 
 int __trace_bprintk(unsigned long ip, const char *fmt, ...)
@@ -358,7 +358,7 @@ static const struct seq_operations show_format_seq_ops = {
 };
 
 static int
-ftrace_formats_open(struct inode *inode, struct file *file)
+ftrace_formats_open(struct ianalde *ianalde, struct file *file)
 {
 	int ret;
 
@@ -394,7 +394,7 @@ fs_initcall(init_trace_printk_function_export);
 
 static __init int init_trace_printk(void)
 {
-	return register_module_notifier(&module_trace_bprintk_format_nb);
+	return register_module_analtifier(&module_trace_bprintk_format_nb);
 }
 
 early_initcall(init_trace_printk);

@@ -8,7 +8,7 @@
 
 #include <linux/if_bridge.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
@@ -19,36 +19,36 @@
 #include "user.h"
 
 /**
- * dsa_port_notify - Notify the switching fabric of changes to a port
+ * dsa_port_analtify - Analtify the switching fabric of changes to a port
  * @dp: port on which change occurred
- * @e: event, must be of type DSA_NOTIFIER_*
+ * @e: event, must be of type DSA_ANALTIFIER_*
  * @v: event-specific value.
  *
- * Notify all switches in the DSA tree that this port's switch belongs to,
+ * Analtify all switches in the DSA tree that this port's switch belongs to,
  * including this switch itself, of an event. Allows the other switches to
  * reconfigure themselves for cross-chip operations. Can also be used to
  * reconfigure ports without net_devices (CPU ports, DSA links) whenever
  * a user port's state changes.
  */
-static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
+static int dsa_port_analtify(const struct dsa_port *dp, unsigned long e, void *v)
 {
-	return dsa_tree_notify(dp->ds->dst, e, v);
+	return dsa_tree_analtify(dp->ds->dst, e, v);
 }
 
-static void dsa_port_notify_bridge_fdb_flush(const struct dsa_port *dp, u16 vid)
+static void dsa_port_analtify_bridge_fdb_flush(const struct dsa_port *dp, u16 vid)
 {
 	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
-	struct switchdev_notifier_fdb_info info = {
+	struct switchdev_analtifier_fdb_info info = {
 		.vid = vid,
 	};
 
 	/* When the port becomes standalone it has already left the bridge.
-	 * Don't notify the bridge in that case.
+	 * Don't analtify the bridge in that case.
 	 */
 	if (!brport_dev)
 		return;
 
-	call_switchdev_notifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
+	call_switchdev_analtifiers(SWITCHDEV_FDB_FLUSH_TO_BRIDGE,
 				 brport_dev, &info.info, NULL);
 }
 
@@ -62,7 +62,7 @@ static void dsa_port_fast_age(const struct dsa_port *dp)
 	ds->ops->port_fast_age(ds, dp->index);
 
 	/* flush all VLANs */
-	dsa_port_notify_bridge_fdb_flush(dp, 0);
+	dsa_port_analtify_bridge_fdb_flush(dp, 0);
 }
 
 static int dsa_port_vlan_fast_age(const struct dsa_port *dp, u16 vid)
@@ -71,12 +71,12 @@ static int dsa_port_vlan_fast_age(const struct dsa_port *dp, u16 vid)
 	int err;
 
 	if (!ds->ops->port_vlan_fast_age)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ds->ops->port_vlan_fast_age(ds, dp->index, vid);
 
 	if (!err)
-		dsa_port_notify_bridge_fdb_flush(dp, vid);
+		dsa_port_analtify_bridge_fdb_flush(dp, vid);
 
 	return err;
 }
@@ -125,11 +125,11 @@ bool dsa_port_supports_hwtstamp(struct dsa_port *dp)
 
 	/* "See through" shim implementations of the "get" method.
 	 * Since we can't cook up a complete ioctl request structure, this will
-	 * fail in copy_to_user() with -EFAULT, which hopefully is enough to
+	 * fail in copy_to_user() with -EFAULT, which hopefully is eanalugh to
 	 * detect a valid implementation.
 	 */
 	err = ds->ops->port_hwtstamp_get(ds, dp->index, &ifr);
-	return err != -EOPNOTSUPP;
+	return err != -EOPANALTSUPP;
 }
 
 int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
@@ -138,7 +138,7 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 	int port = dp->index;
 
 	if (!ds->ops->port_stp_state_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ds->ops->port_stp_state_set(ds, port, state);
 
@@ -165,14 +165,14 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state, bool do_fast_age)
 	return 0;
 }
 
-static void dsa_port_set_state_now(struct dsa_port *dp, u8 state,
+static void dsa_port_set_state_analw(struct dsa_port *dp, u8 state,
 				   bool do_fast_age)
 {
 	struct dsa_switch *ds = dp->ds;
 	int err;
 
 	err = dsa_port_set_state(dp, state, do_fast_age);
-	if (err && err != -EOPNOTSUPP) {
+	if (err && err != -EOPANALTSUPP) {
 		dev_err(ds->dev, "port %d failed to set STP state %u: %pe\n",
 			dp->index, state, ERR_PTR(err));
 	}
@@ -187,7 +187,7 @@ int dsa_port_set_mst_state(struct dsa_port *dp,
 	int err;
 
 	if (!ds->ops->port_mst_state_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = br_mst_get_state(dsa_port_to_bridge_port(dp), state->msti,
 			       &prev_state);
@@ -227,7 +227,7 @@ int dsa_port_enable_rt(struct dsa_port *dp, struct phy_device *phy)
 	}
 
 	if (!dp->bridge)
-		dsa_port_set_state_now(dp, BR_STATE_FORWARDING, false);
+		dsa_port_set_state_analw(dp, BR_STATE_FORWARDING, false);
 
 	if (dp->pl)
 		phylink_start(dp->pl);
@@ -255,7 +255,7 @@ void dsa_port_disable_rt(struct dsa_port *dp)
 		phylink_stop(dp->pl);
 
 	if (!dp->bridge)
-		dsa_port_set_state_now(dp, BR_STATE_DISABLED, false);
+		dsa_port_set_state_analw(dp, BR_STATE_DISABLED, false);
 
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, port);
@@ -292,7 +292,7 @@ static void dsa_port_reset_vlan_filtering(struct dsa_port *dp,
 	 * event for changing vlan_filtering setting upon user ports leaving
 	 * it. That is a good thing, because that lets us handle it and also
 	 * handle the case where the switch's vlan_filtering setting is global
-	 * (not per port). When that happens, the correct moment to trigger the
+	 * (analt per port). When that happens, the correct moment to trigger the
 	 * vlan_filtering callback is only when the last port leaves the last
 	 * VLAN-aware bridge.
 	 */
@@ -315,7 +315,7 @@ static void dsa_port_reset_vlan_filtering(struct dsa_port *dp,
 		dev_err(ds->dev, "port %d: %s\n", dp->index,
 			extack._msg);
 	}
-	if (err && err != -EOPNOTSUPP) {
+	if (err && err != -EOPANALTSUPP) {
 		dev_err(ds->dev,
 			"port %d failed to reset VLAN filtering to %d: %pe\n",
 		       dp->index, vlan_filtering, ERR_PTR(err));
@@ -339,7 +339,7 @@ static int dsa_port_inherit_brport_flags(struct dsa_port *dp,
 			flags.val = BIT(flag);
 
 		err = dsa_port_bridge_flags(dp, flags, extack);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			return err;
 	}
 
@@ -360,7 +360,7 @@ static void dsa_port_clear_brport_flags(struct dsa_port *dp)
 		flags.val = val & BIT(flag);
 
 		err = dsa_port_bridge_flags(dp, flags, NULL);
-		if (err && err != -EOPNOTSUPP)
+		if (err && err != -EOPANALTSUPP)
 			dev_err(dp->ds->dev,
 				"failed to clear bridge port flag %lu: %pe\n",
 				flags.val, ERR_PTR(err));
@@ -379,15 +379,15 @@ static int dsa_port_switchdev_sync_attrs(struct dsa_port *dp,
 		return err;
 
 	err = dsa_port_set_state(dp, br_port_get_stp_state(brport_dev), false);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	err = dsa_port_vlan_filtering(dp, br_vlan_enabled(br), extack);
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	err = dsa_port_ageing_time(dp, br_get_ageing_time(br));
-	if (err && err != -EOPNOTSUPP)
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	return 0;
@@ -396,15 +396,15 @@ static int dsa_port_switchdev_sync_attrs(struct dsa_port *dp,
 static void dsa_port_switchdev_unsync_attrs(struct dsa_port *dp,
 					    struct dsa_bridge bridge)
 {
-	/* Configure the port for standalone mode (no address learning,
+	/* Configure the port for standalone mode (anal address learning,
 	 * flood everything).
 	 * The bridge only emits SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS events
-	 * when the user requests it through netlink or sysfs, but not
+	 * when the user requests it through netlink or sysfs, but analt
 	 * automatically at port join or leave, so we need to handle resetting
 	 * the brport flags ourselves. But we even prefer it that way, because
-	 * otherwise, some setups might never get the notification they need,
+	 * otherwise, some setups might never get the analtification they need,
 	 * for example, when a port leaves a LAG that offloads the bridge,
-	 * it becomes standalone, but as far as the bridge is concerned, no
+	 * it becomes standalone, but as far as the bridge is concerned, anal
 	 * port ever left.
 	 */
 	dsa_port_clear_brport_flags(dp);
@@ -412,12 +412,12 @@ static void dsa_port_switchdev_unsync_attrs(struct dsa_port *dp,
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
-	dsa_port_set_state_now(dp, BR_STATE_FORWARDING, true);
+	dsa_port_set_state_analw(dp, BR_STATE_FORWARDING, true);
 
 	dsa_port_reset_vlan_filtering(dp, bridge);
 
 	/* Ageing time may be global to the switch chip, so don't change it
-	 * here because we have no good reason (or value) to change it to.
+	 * here because we have anal good reason (or value) to change it to.
 	 */
 }
 
@@ -437,7 +437,7 @@ static int dsa_port_bridge_create(struct dsa_port *dp,
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&bridge->refcount, 1);
 
@@ -448,7 +448,7 @@ static int dsa_port_bridge_create(struct dsa_port *dp,
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Range of offloadable bridges exceeded");
 		kfree(bridge);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	dp->bridge = bridge;
@@ -485,7 +485,7 @@ static bool dsa_port_supports_mst(struct dsa_port *dp)
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 			 struct netlink_ext_ack *extack)
 {
-	struct dsa_notifier_bridge_info info = {
+	struct dsa_analtifier_bridge_info info = {
 		.dp = dp,
 		.extack = extack,
 	};
@@ -494,7 +494,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	int err;
 
 	if (br_mst_enabled(br) && !dsa_port_supports_mst(dp))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Here the interface is already bridged. Reflect the current
 	 * configuration so that drivers can program their chips accordingly.
@@ -506,7 +506,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	brport_dev = dsa_port_to_bridge_port(dp);
 
 	info.bridge = *dp->bridge;
-	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_JOIN, &info);
+	err = dsa_broadcast(DSA_ANALTIFIER_BRIDGE_JOIN, &info);
 	if (err)
 		goto out_rollback;
 
@@ -514,25 +514,25 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	dp->bridge->tx_fwd_offload = info.tx_fwd_offload;
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, dp,
-					    &dsa_user_switchdev_notifier,
-					    &dsa_user_switchdev_blocking_notifier,
+					    &dsa_user_switchdev_analtifier,
+					    &dsa_user_switchdev_blocking_analtifier,
 					    dp->bridge->tx_fwd_offload, extack);
 	if (err)
 		goto out_rollback_unbridge;
 
 	err = dsa_port_switchdev_sync_attrs(dp, extack);
 	if (err)
-		goto out_rollback_unoffload;
+		goto out_rollback_uanalffload;
 
 	return 0;
 
-out_rollback_unoffload:
-	switchdev_bridge_port_unoffload(brport_dev, dp,
-					&dsa_user_switchdev_notifier,
-					&dsa_user_switchdev_blocking_notifier);
+out_rollback_uanalffload:
+	switchdev_bridge_port_uanalffload(brport_dev, dp,
+					&dsa_user_switchdev_analtifier,
+					&dsa_user_switchdev_blocking_analtifier);
 	dsa_flush_workqueue();
 out_rollback_unbridge:
-	dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	dsa_broadcast(DSA_ANALTIFIER_BRIDGE_LEAVE, &info);
 out_rollback:
 	dsa_port_bridge_destroy(dp, br);
 	return err;
@@ -542,26 +542,26 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
 	struct net_device *brport_dev = dsa_port_to_bridge_port(dp);
 
-	/* Don't try to unoffload something that is not offloaded */
+	/* Don't try to uanalffload something that is analt offloaded */
 	if (!brport_dev)
 		return;
 
-	switchdev_bridge_port_unoffload(brport_dev, dp,
-					&dsa_user_switchdev_notifier,
-					&dsa_user_switchdev_blocking_notifier);
+	switchdev_bridge_port_uanalffload(brport_dev, dp,
+					&dsa_user_switchdev_analtifier,
+					&dsa_user_switchdev_blocking_analtifier);
 
 	dsa_flush_workqueue();
 }
 
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
-	struct dsa_notifier_bridge_info info = {
+	struct dsa_analtifier_bridge_info info = {
 		.dp = dp,
 	};
 	int err;
 
-	/* If the port could not be offloaded to begin with, then
-	 * there is nothing to do.
+	/* If the port could analt be offloaded to begin with, then
+	 * there is analthing to do.
 	 */
 	if (!dp->bridge)
 		return;
@@ -573,10 +573,10 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	 */
 	dsa_port_bridge_destroy(dp, br);
 
-	err = dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	err = dsa_broadcast(DSA_ANALTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
 		dev_err(dp->ds->dev,
-			"port %d failed to notify DSA_NOTIFIER_BRIDGE_LEAVE: %pe\n",
+			"port %d failed to analtify DSA_ANALTIFIER_BRIDGE_LEAVE: %pe\n",
 			dp->index, ERR_PTR(err));
 
 	dsa_port_switchdev_unsync_attrs(dp, info.bridge);
@@ -585,7 +585,7 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 int dsa_port_lag_change(struct dsa_port *dp,
 			struct netdev_lag_lower_state_info *linfo)
 {
-	struct dsa_notifier_lag_info info = {
+	struct dsa_analtifier_lag_info info = {
 		.dp = dp,
 	};
 	bool tx_enabled;
@@ -605,7 +605,7 @@ int dsa_port_lag_change(struct dsa_port *dp,
 
 	dp->lag_tx_enabled = tx_enabled;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_LAG_CHANGE, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_CHANGE, &info);
 }
 
 static int dsa_port_lag_create(struct dsa_port *dp,
@@ -623,7 +623,7 @@ static int dsa_port_lag_create(struct dsa_port *dp,
 
 	lag = kzalloc(sizeof(*lag), GFP_KERNEL);
 	if (!lag)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	refcount_set(&lag->refcount, 1);
 	mutex_init(&lag->fdb_lock);
@@ -654,7 +654,7 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
 		      struct netdev_lag_upper_info *uinfo,
 		      struct netlink_ext_ack *extack)
 {
-	struct dsa_notifier_lag_info info = {
+	struct dsa_analtifier_lag_info info = {
 		.dp = dp,
 		.info = uinfo,
 		.extack = extack,
@@ -667,7 +667,7 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
 		goto err_lag_create;
 
 	info.lag = *dp->lag;
-	err = dsa_port_notify(dp, DSA_NOTIFIER_LAG_JOIN, &info);
+	err = dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_JOIN, &info);
 	if (err)
 		goto err_lag_join;
 
@@ -682,7 +682,7 @@ int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
 	return 0;
 
 err_bridge_join:
-	dsa_port_notify(dp, DSA_NOTIFIER_LAG_LEAVE, &info);
+	dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_LEAVE, &info);
 err_lag_join:
 	dsa_port_lag_destroy(dp);
 err_lag_create:
@@ -700,7 +700,7 @@ void dsa_port_pre_lag_leave(struct dsa_port *dp, struct net_device *lag_dev)
 void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag_dev)
 {
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
-	struct dsa_notifier_lag_info info = {
+	struct dsa_analtifier_lag_info info = {
 		.dp = dp,
 	};
 	int err;
@@ -718,10 +718,10 @@ void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag_dev)
 
 	dsa_port_lag_destroy(dp);
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_LAG_LEAVE, &info);
+	err = dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_LEAVE, &info);
 	if (err)
 		dev_err(dp->ds->dev,
-			"port %d failed to notify DSA_NOTIFIER_LAG_LEAVE: %pe\n",
+			"port %d failed to analtify DSA_ANALTIFIER_LAG_LEAVE: %pe\n",
 			dp->index, ERR_PTR(err));
 }
 
@@ -753,8 +753,8 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 
 			vid = vlan_dev_vlan_id(upper_dev);
 
-			/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
-			 * device, respectively the VID is not found, returning
+			/* br_vlan_get_info() returns -EINVAL or -EANALENT if the
+			 * device, respectively the VID is analt found, returning
 			 * 0 means success, which is a failure for us here.
 			 */
 			err = br_vlan_get_info(br, vid, &br_info);
@@ -778,7 +778,7 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 		struct net_device *other_br = dsa_port_bridge_dev_get(other_dp);
 
 		/* If it's the same bridge, it also has same
-		 * vlan_filtering setting => no need to check
+		 * vlan_filtering setting => anal need to check
 		 */
 		if (!other_br || other_br == dsa_port_bridge_dev_get(dp))
 			continue;
@@ -801,10 +801,10 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	int err;
 
 	if (!ds->ops->port_vlan_filtering)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* We are called from dsa_user_switchdev_blocking_event(),
-	 * which is not under rcu_read_lock(), unlike
+	 * which is analt under rcu_read_lock(), unlike
 	 * dsa_user_switchdev_event().
 	 */
 	rcu_read_lock();
@@ -829,7 +829,7 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		dsa_switch_for_each_user_port(other_dp, ds) {
 			struct net_device *user = other_dp->user;
 
-			/* We might be called in the unbind path, so not
+			/* We might be called in the unbind path, so analt
 			 * all user devices might still be registered.
 			 */
 			if (!user)
@@ -873,19 +873,19 @@ bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
 	if (!br)
 		return false;
 
-	return !ds->configure_vlan_while_not_filtering && !br_vlan_enabled(br);
+	return !ds->configure_vlan_while_analt_filtering && !br_vlan_enabled(br);
 }
 
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock)
 {
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock);
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
-	struct dsa_notifier_ageing_time_info info;
+	struct dsa_analtifier_ageing_time_info info;
 	int err;
 
 	info.ageing_time = ageing_time;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+	err = dsa_port_analtify(dp, DSA_ANALTIFIER_AGEING_TIME, &info);
 	if (err)
 		return err;
 
@@ -898,7 +898,7 @@ int dsa_port_mst_enable(struct dsa_port *dp, bool on,
 			struct netlink_ext_ack *extack)
 {
 	if (on && !dsa_port_supports_mst(dp)) {
-		NL_SET_ERR_MSG_MOD(extack, "Hardware does not support MST");
+		NL_SET_ERR_MSG_MOD(extack, "Hardware does analt support MST");
 		return -EINVAL;
 	}
 
@@ -925,7 +925,7 @@ int dsa_port_bridge_flags(struct dsa_port *dp,
 	int err;
 
 	if (!ds->ops->port_bridge_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
 	if (err)
@@ -962,25 +962,25 @@ int dsa_port_vlan_msti(struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->vlan_msti_set)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->vlan_msti_set(ds, *dp->bridge, msti);
 }
 
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu)
 {
-	struct dsa_notifier_mtu_info info = {
+	struct dsa_analtifier_mtu_info info = {
 		.dp = dp,
 		.mtu = new_mtu,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_MTU, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_MTU, &info);
 }
 
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_analtifier_fdb_info info = {
 		.dp = dp,
 		.addr = addr,
 		.vid = vid,
@@ -997,13 +997,13 @@ int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_FDB_ADD, &info);
 }
 
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_analtifier_fdb_info info = {
 		.dp = dp,
 		.addr = addr,
 		.vid = vid,
@@ -1016,21 +1016,21 @@ int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_FDB_DEL, &info);
 }
 
 static int dsa_port_host_fdb_add(struct dsa_port *dp,
 				 const unsigned char *addr, u16 vid,
 				 struct dsa_db db)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_analtifier_fdb_info info = {
 		.dp = dp,
 		.addr = addr,
 		.vid = vid,
 		.db = db,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_FDB_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_FDB_ADD, &info);
 }
 
 int dsa_port_standalone_host_fdb_add(struct dsa_port *dp,
@@ -1074,14 +1074,14 @@ static int dsa_port_host_fdb_del(struct dsa_port *dp,
 				 const unsigned char *addr, u16 vid,
 				 struct dsa_db db)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_analtifier_fdb_info info = {
 		.dp = dp,
 		.addr = addr,
 		.vid = vid,
 		.db = db,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_FDB_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_FDB_DEL, &info);
 }
 
 int dsa_port_standalone_host_fdb_del(struct dsa_port *dp,
@@ -1120,7 +1120,7 @@ int dsa_port_bridge_host_fdb_del(struct dsa_port *dp,
 int dsa_port_lag_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 			 u16 vid)
 {
-	struct dsa_notifier_lag_fdb_info info = {
+	struct dsa_analtifier_lag_fdb_info info = {
 		.lag = dp->lag,
 		.addr = addr,
 		.vid = vid,
@@ -1133,13 +1133,13 @@ int dsa_port_lag_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_LAG_FDB_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_FDB_ADD, &info);
 }
 
 int dsa_port_lag_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 			 u16 vid)
 {
-	struct dsa_notifier_lag_fdb_info info = {
+	struct dsa_analtifier_lag_fdb_info info = {
 		.lag = dp->lag,
 		.addr = addr,
 		.vid = vid,
@@ -1152,7 +1152,7 @@ int dsa_port_lag_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_LAG_FDB_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_LAG_FDB_DEL, &info);
 }
 
 int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data)
@@ -1161,7 +1161,7 @@ int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data)
 	int port = dp->index;
 
 	if (!ds->ops->port_fdb_dump)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->port_fdb_dump(ds, port, cb, data);
 }
@@ -1169,7 +1169,7 @@ int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data)
 int dsa_port_mdb_add(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_analtifier_mdb_info info = {
 		.dp = dp,
 		.mdb = mdb,
 		.db = {
@@ -1181,13 +1181,13 @@ int dsa_port_mdb_add(const struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_MDB_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_MDB_ADD, &info);
 }
 
 int dsa_port_mdb_del(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_analtifier_mdb_info info = {
 		.dp = dp,
 		.mdb = mdb,
 		.db = {
@@ -1199,20 +1199,20 @@ int dsa_port_mdb_del(const struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		info.db.bridge.num = 0;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_MDB_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_MDB_DEL, &info);
 }
 
 static int dsa_port_host_mdb_add(const struct dsa_port *dp,
 				 const struct switchdev_obj_port_mdb *mdb,
 				 struct dsa_db db)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_analtifier_mdb_info info = {
 		.dp = dp,
 		.mdb = mdb,
 		.db = db,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_MDB_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_MDB_ADD, &info);
 }
 
 int dsa_port_standalone_host_mdb_add(const struct dsa_port *dp,
@@ -1250,13 +1250,13 @@ static int dsa_port_host_mdb_del(const struct dsa_port *dp,
 				 const struct switchdev_obj_port_mdb *mdb,
 				 struct dsa_db db)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_analtifier_mdb_info info = {
 		.dp = dp,
 		.mdb = mdb,
 		.db = db,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_HOST_MDB_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_MDB_DEL, &info);
 }
 
 int dsa_port_standalone_host_mdb_del(const struct dsa_port *dp,
@@ -1294,24 +1294,24 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct netlink_ext_ack *extack)
 {
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_analtifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
 		.extack = extack,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_VLAN_ADD, &info);
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan)
 {
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_analtifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_VLAN_DEL, &info);
 }
 
 int dsa_port_host_vlan_add(struct dsa_port *dp,
@@ -1319,15 +1319,15 @@ int dsa_port_host_vlan_add(struct dsa_port *dp,
 			   struct netlink_ext_ack *extack)
 {
 	struct net_device *conduit = dsa_port_to_conduit(dp);
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_analtifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
 		.extack = extack,
 	};
 	int err;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_HOST_VLAN_ADD, &info);
-	if (err && err != -EOPNOTSUPP)
+	err = dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_VLAN_ADD, &info);
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	vlan_vid_add(conduit, htons(ETH_P_8021Q), vlan->vid);
@@ -1339,14 +1339,14 @@ int dsa_port_host_vlan_del(struct dsa_port *dp,
 			   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct net_device *conduit = dsa_port_to_conduit(dp);
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_analtifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
 	};
 	int err;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_HOST_VLAN_DEL, &info);
-	if (err && err != -EOPNOTSUPP)
+	err = dsa_port_analtify(dp, DSA_ANALTIFIER_HOST_VLAN_DEL, &info);
+	if (err && err != -EOPANALTSUPP)
 		return err;
 
 	vlan_vid_del(conduit, htons(ETH_P_8021Q), vlan->vid);
@@ -1360,7 +1360,7 @@ int dsa_port_mrp_add(const struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->port_mrp_add)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->port_mrp_add(ds, dp->index, mrp);
 }
@@ -1371,7 +1371,7 @@ int dsa_port_mrp_del(const struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->port_mrp_del)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->port_mrp_del(ds, dp->index, mrp);
 }
@@ -1382,7 +1382,7 @@ int dsa_port_mrp_add_ring_role(const struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->port_mrp_add_ring_role)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->port_mrp_add_ring_role(ds, dp->index, mrp);
 }
@@ -1393,7 +1393,7 @@ int dsa_port_mrp_del_ring_role(const struct dsa_port *dp,
 	struct dsa_switch *ds = dp->ds;
 
 	if (!ds->ops->port_mrp_del_ring_role)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return ds->ops->port_mrp_del_ring_role(ds, dp->index, mrp);
 }
@@ -1420,9 +1420,9 @@ static int dsa_port_assign_conduit(struct dsa_port *dp,
 	return 0;
 }
 
-/* Change the dp->cpu_dp affinity for a user port. Note that both cross-chip
- * notifiers and drivers have implicit assumptions about user-to-CPU-port
- * mappings, so we unfortunately cannot delay the deletion of the objects
+/* Change the dp->cpu_dp affinity for a user port. Analte that both cross-chip
+ * analtifiers and drivers have implicit assumptions about user-to-CPU-port
+ * mappings, so we unfortunately cananalt delay the deletion of the objects
  * (switchdev, standalone addresses, standalone VLANs) on the old CPU port
  * until the new CPU port has been set up. So we need to completely tear down
  * the old CPU port before changing it, and restore it on errors during the
@@ -1439,7 +1439,7 @@ int dsa_port_change_conduit(struct dsa_port *dp, struct net_device *conduit,
 	int err, tmp;
 
 	/* Bridges may hold host FDB, MDB and VLAN objects. These need to be
-	 * migrated, so dynamically unoffload and later reoffload the bridge
+	 * migrated, so dynamically uanalffload and later reoffload the bridge
 	 * port.
 	 */
 	if (bridge_dev) {
@@ -1447,7 +1447,7 @@ int dsa_port_change_conduit(struct dsa_port *dp, struct net_device *conduit,
 		dsa_port_bridge_leave(dp, bridge_dev);
 	}
 
-	/* The port might still be VLAN filtering even if it's no longer
+	/* The port might still be VLAN filtering even if it's anal longer
 	 * under a bridge, either due to ds->vlan_filtering_is_global or
 	 * ds->needs_standalone_vlan_filtering. In turn this means VLANs
 	 * on the CPU port.
@@ -1484,7 +1484,7 @@ int dsa_port_change_conduit(struct dsa_port *dp, struct net_device *conduit,
 
 	if (bridge_dev) {
 		err = dsa_port_bridge_join(dp, bridge_dev, extack);
-		if (err && err == -EOPNOTSUPP) {
+		if (err && err == -EOPANALTSUPP) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to reoffload bridge");
 			goto rewind_new_vlan;
@@ -1537,7 +1537,7 @@ void dsa_port_set_tag_protocol(struct dsa_port *cpu_dp,
 
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {
-	struct device_node *phy_dn;
+	struct device_analde *phy_dn;
 	struct phy_device *phydev;
 
 	phy_dn = of_parse_phandle(dp->dn, "phy-handle", 0);
@@ -1546,11 +1546,11 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 
 	phydev = of_phy_find_device(phy_dn);
 	if (!phydev) {
-		of_node_put(phy_dn);
+		of_analde_put(phy_dn);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	of_node_put(phy_dn);
+	of_analde_put(phy_dn);
 	return phydev;
 }
 
@@ -1559,7 +1559,7 @@ dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 				phy_interface_t interface)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
+	struct phylink_pcs *pcs = ERR_PTR(-EOPANALTSUPP);
 	struct dsa_switch *ds = dp->ds;
 
 	if (ds->ops->phylink_mac_select_pcs)
@@ -1685,7 +1685,7 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 		}
 	}
 
-	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
+	pl = phylink_create(&dp->pl_config, of_fwanalde_handle(dp->dn),
 			    mode, &dsa_port_phylink_mac_ops);
 	if (IS_ERR(pl)) {
 		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(pl));
@@ -1743,7 +1743,7 @@ err_put_dev:
 
 static int dsa_shared_port_fixed_link_register_of(struct dsa_port *dp)
 {
-	struct device_node *dn = dp->dn;
+	struct device_analde *dn = dp->dn;
 	struct dsa_switch *ds = dp->ds;
 	struct phy_device *phydev;
 	int port = dp->index;
@@ -1778,7 +1778,7 @@ static int dsa_shared_port_fixed_link_register_of(struct dsa_port *dp)
 static int dsa_shared_port_phylink_register(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
-	struct device_node *port_dn = dp->dn;
+	struct device_analde *port_dn = dp->dn;
 	int err;
 
 	dp->pl_config.dev = ds->dev;
@@ -1789,8 +1789,8 @@ static int dsa_shared_port_phylink_register(struct dsa_port *dp)
 		return err;
 
 	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
-	if (err && err != -ENODEV) {
-		pr_err("could not attach to PHY: %d\n", err);
+	if (err && err != -EANALDEV) {
+		pr_err("could analt attach to PHY: %d\n", err);
 		goto err_phy_connect;
 	}
 
@@ -1801,27 +1801,27 @@ err_phy_connect:
 	return err;
 }
 
-/* During the initial DSA driver migration to OF, port nodes were sometimes
- * added to device trees with no indication of how they should operate from a
+/* During the initial DSA driver migration to OF, port analdes were sometimes
+ * added to device trees with anal indication of how they should operate from a
  * link management perspective (phy-handle, fixed-link, etc). Additionally, the
- * phy-mode may be absent. The interpretation of these port OF nodes depends on
+ * phy-mode may be absent. The interpretation of these port OF analdes depends on
  * their type.
  *
- * User ports with no phy-handle or fixed-link are expected to connect to an
+ * User ports with anal phy-handle or fixed-link are expected to connect to an
  * internal PHY located on the ds->user_mii_bus at an MDIO address equal to
  * the port number. This description is still actively supported.
  *
- * Shared (CPU and DSA) ports with no phy-handle or fixed-link are expected to
+ * Shared (CPU and DSA) ports with anal phy-handle or fixed-link are expected to
  * operate at the maximum speed that their phy-mode is capable of. If the
  * phy-mode is absent, they are expected to operate using the phy-mode
  * supported by the port that gives the highest link speed. It is unspecified
- * if the port should use flow control or not, half duplex or full duplex, or
+ * if the port should use flow control or analt, half duplex or full duplex, or
  * if the phy-mode is a SERDES link, whether in-band autoneg is expected to be
- * enabled or not.
+ * enabled or analt.
  *
  * In the latter case of shared ports, omitting the link management description
- * from the firmware node is deprecated and strongly discouraged. DSA uses
- * phylink, which rejects the firmware nodes of these ports for lacking
+ * from the firmware analde is deprecated and strongly discouraged. DSA uses
+ * phylink, which rejects the firmware analdes of these ports for lacking
  * required properties.
  *
  * For switches in this table, DSA will skip enforcing validation and will
@@ -1829,7 +1829,7 @@ err_phy_connect:
  * a fixed-link, a phy-handle, or a managed = "in-band-status" property.
  * It becomes the responsibility of the driver to ensure that these ports
  * operate at the maximum speed (whatever this means) and will interoperate
- * with the DSA conduit or other cascade port, since phylink methods will not be
+ * with the DSA conduit or other cascade port, since phylink methods will analt be
  * invoked for them.
  *
  * If you are considering expanding this table for newly introduced switches,
@@ -1919,7 +1919,7 @@ static void dsa_shared_port_validate_of(struct dsa_port *dp,
 					bool *missing_phy_mode,
 					bool *missing_link_description)
 {
-	struct device_node *dn = dp->dn, *phy_np;
+	struct device_analde *dn = dp->dn, *phy_np;
 	struct dsa_switch *ds = dp->ds;
 	phy_interface_t mode;
 
@@ -1929,11 +1929,11 @@ static void dsa_shared_port_validate_of(struct dsa_port *dp,
 	if (of_get_phy_mode(dn, &mode)) {
 		*missing_phy_mode = true;
 		dev_err(ds->dev,
-			"OF node %pOF of %s port %d lacks the required \"phy-mode\" property\n",
+			"OF analde %pOF of %s port %d lacks the required \"phy-mode\" property\n",
 			dn, dsa_port_is_cpu(dp) ? "CPU" : "DSA", dp->index);
 	}
 
-	/* Note: of_phy_is_fixed_link() also returns true for
+	/* Analte: of_phy_is_fixed_link() also returns true for
 	 * managed = "in-band-status"
 	 */
 	if (of_phy_is_fixed_link(dn))
@@ -1941,14 +1941,14 @@ static void dsa_shared_port_validate_of(struct dsa_port *dp,
 
 	phy_np = of_parse_phandle(dn, "phy-handle", 0);
 	if (phy_np) {
-		of_node_put(phy_np);
+		of_analde_put(phy_np);
 		return;
 	}
 
 	*missing_link_description = true;
 
 	dev_err(ds->dev,
-		"OF node %pOF of %s port %d lacks the required \"phy-handle\", \"fixed-link\" or \"managed\" properties\n",
+		"OF analde %pOF of %s port %d lacks the required \"phy-handle\", \"fixed-link\" or \"managed\" properties\n",
 		dn, dsa_port_is_cpu(dp) ? "CPU" : "DSA", dp->index);
 }
 
@@ -1963,7 +1963,7 @@ int dsa_shared_port_link_register_of(struct dsa_port *dp)
 				    &missing_link_description);
 
 	if ((missing_phy_mode || missing_link_description) &&
-	    !of_device_compatible_match(ds->dev->of_node,
+	    !of_device_compatible_match(ds->dev->of_analde,
 					dsa_switches_apply_workarounds))
 		return -EINVAL;
 
@@ -2016,7 +2016,7 @@ int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr,
 	int err;
 
 	if (!ds->ops->port_hsr_join)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	dp->hsr_dev = hsr;
 
@@ -2045,31 +2045,31 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 
 int dsa_port_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid, bool broadcast)
 {
-	struct dsa_notifier_tag_8021q_vlan_info info = {
+	struct dsa_analtifier_tag_8021q_vlan_info info = {
 		.dp = dp,
 		.vid = vid,
 	};
 
 	if (broadcast)
-		return dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+		return dsa_broadcast(DSA_ANALTIFIER_TAG_8021Q_VLAN_ADD, &info);
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_ADD, &info);
+	return dsa_port_analtify(dp, DSA_ANALTIFIER_TAG_8021Q_VLAN_ADD, &info);
 }
 
 void dsa_port_tag_8021q_vlan_del(struct dsa_port *dp, u16 vid, bool broadcast)
 {
-	struct dsa_notifier_tag_8021q_vlan_info info = {
+	struct dsa_analtifier_tag_8021q_vlan_info info = {
 		.dp = dp,
 		.vid = vid,
 	};
 	int err;
 
 	if (broadcast)
-		err = dsa_broadcast(DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+		err = dsa_broadcast(DSA_ANALTIFIER_TAG_8021Q_VLAN_DEL, &info);
 	else
-		err = dsa_port_notify(dp, DSA_NOTIFIER_TAG_8021Q_VLAN_DEL, &info);
+		err = dsa_port_analtify(dp, DSA_ANALTIFIER_TAG_8021Q_VLAN_DEL, &info);
 	if (err)
 		dev_err(dp->ds->dev,
-			"port %d failed to notify tag_8021q VLAN %d deletion: %pe\n",
+			"port %d failed to analtify tag_8021q VLAN %d deletion: %pe\n",
 			dp->index, vid, ERR_PTR(err));
 }

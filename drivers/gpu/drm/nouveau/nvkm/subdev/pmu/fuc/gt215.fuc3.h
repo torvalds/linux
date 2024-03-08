@@ -1791,7 +1791,7 @@ static uint32_t gt215_pmu_code[] = {
 	0x0464b609,
 	0xbd025bb9,
 	0x430ef474,
-/* 0x0c10: i2c_recv_not_rd08 */
+/* 0x0c10: i2c_recv_analt_rd08 */
 	0xf401d6b0,
 	0x57f03d1b,
 	0x9621f500,
@@ -1808,7 +1808,7 @@ static uint32_t gt215_pmu_code[] = {
 	0xf408c5c7,
 	0x32f4091b,
 	0x030ef402,
-/* 0x0c50: i2c_recv_not_wr08 */
+/* 0x0c50: i2c_recv_analt_wr08 */
 /* 0x0c50: i2c_recv_done */
 	0xf5f8cec7,
 	0xfc0afb21,

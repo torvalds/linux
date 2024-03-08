@@ -33,7 +33,7 @@ Description:
 		software triggers. The input addresses type
 		can be one of following dcc instructions: read,
 		write, read-write, and loop type. The lists need to
-		be configured sequentially and not in a overlapping
+		be configured sequentially and analt in a overlapping
 		manner; e.g. users can jump to list x only after
 		list y is configured and enabled. The input format for
 		each type is as follows:

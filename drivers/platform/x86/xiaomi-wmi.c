@@ -32,12 +32,12 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	data = devm_kzalloc(&wdev->dev, sizeof(struct xiaomi_wmi), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(&wdev->dev, data);
 
 	data->input_dev = devm_input_allocate_device(&wdev->dev);
 	if (data->input_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->input_dev->name = "Xiaomi WMI keys";
 	data->input_dev->phys = "wmi/input0";
 
@@ -48,7 +48,7 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 	return input_register_device(data->input_dev);
 }
 
-static void xiaomi_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
+static void xiaomi_wmi_analtify(struct wmi_device *wdev, union acpi_object *dummy)
 {
 	struct xiaomi_wmi *data;
 
@@ -82,7 +82,7 @@ static struct wmi_driver xiaomi_wmi_driver = {
 	},
 	.id_table = xiaomi_wmi_id_table,
 	.probe = xiaomi_wmi_probe,
-	.notify = xiaomi_wmi_notify,
+	.analtify = xiaomi_wmi_analtify,
 };
 module_wmi_driver(xiaomi_wmi_driver);
 

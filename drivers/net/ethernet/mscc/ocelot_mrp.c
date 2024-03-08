@@ -56,7 +56,7 @@ static int ocelot_mrp_redirect_add_vcap(struct ocelot *ocelot, int src_port,
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 	if (!filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	filter->key_type = OCELOT_VCAP_KEY_ETYPE;
 	filter->prio = 1;
@@ -127,7 +127,7 @@ int ocelot_mrp_add(struct ocelot *ocelot, int port,
 	struct net_device *dev;
 
 	if (!ocelot_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	priv = container_of(ocelot_port, struct ocelot_port_private, port);
 	dev = priv->dev;
@@ -147,7 +147,7 @@ int ocelot_mrp_del(struct ocelot *ocelot, int port,
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
 
 	if (!ocelot_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ocelot_port->mrp_ring_id != mrp->ring_id)
 		return 0;
@@ -166,10 +166,10 @@ int ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
 	int err;
 
 	if (!ocelot_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mrp->ring_role != BR_MRP_RING_ROLE_MRC && !mrp->sw_backup)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ocelot_port->mrp_ring_id != mrp->ring_id)
 		return 0;
@@ -205,10 +205,10 @@ int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
 	int err, i;
 
 	if (!ocelot_port)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (mrp->ring_role != BR_MRP_RING_ROLE_MRC && !mrp->sw_backup)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ocelot_port->mrp_ring_id != mrp->ring_id)
 		return 0;

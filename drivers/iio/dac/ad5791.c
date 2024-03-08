@@ -28,7 +28,7 @@
 #define AD5791_ADDR(addr)		((addr) << 20)
 
 /* Registers */
-#define AD5791_ADDR_NOOP		0
+#define AD5791_ADDR_ANALOP		0
 #define AD5791_ADDR_DAC0		1
 #define AD5791_ADDR_CTRL		2
 #define AD5791_ADDR_CLRCODE		3
@@ -133,7 +133,7 @@ static int ad5791_spi_read(struct ad5791_state *st, u8 addr, u32 *val)
 
 	st->data[0].d32 = cpu_to_be32(AD5791_CMD_READ |
 			      AD5791_ADDR(addr));
-	st->data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_NOOP));
+	st->data[1].d32 = cpu_to_be32(AD5791_ADDR(AD5791_ADDR_ANALOP));
 
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 
@@ -349,7 +349,7 @@ static int ad5791_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	st = iio_priv(indio_dev);
 	st->reg_vdd = devm_regulator_get(&spi->dev, "vdd");
 	if (!IS_ERR(st->reg_vdd)) {

@@ -24,7 +24,7 @@ stackleak_task_low_bound(const struct task_struct *tsk)
 {
 	/*
 	 * The lowest unsigned long on the task stack contains STACK_END_MAGIC,
-	 * which we must not corrupt.
+	 * which we must analt corrupt.
 	 */
 	return (unsigned long)end_of_stack(tsk) + sizeof(unsigned long);
 }
@@ -38,7 +38,7 @@ stackleak_task_high_bound(const struct task_struct *tsk)
 {
 	/*
 	 * The task's pt_regs lives at the top of the task stack and will be
-	 * overwritten by exception entry, so there's no need to erase them.
+	 * overwritten by exception entry, so there's anal need to erase them.
 	 */
 	return (unsigned long)task_pt_regs(tsk);
 }
@@ -77,10 +77,10 @@ static inline void stackleak_task_init(struct task_struct *t)
 # endif
 }
 
-asmlinkage void noinstr stackleak_erase(void);
-asmlinkage void noinstr stackleak_erase_on_task_stack(void);
-asmlinkage void noinstr stackleak_erase_off_task_stack(void);
-void __no_caller_saved_registers noinstr stackleak_track_stack(void);
+asmlinkage void analinstr stackleak_erase(void);
+asmlinkage void analinstr stackleak_erase_on_task_stack(void);
+asmlinkage void analinstr stackleak_erase_off_task_stack(void);
+void __anal_caller_saved_registers analinstr stackleak_track_stack(void);
 
 #else /* !CONFIG_GCC_PLUGIN_STACKLEAK */
 static inline void stackleak_task_init(struct task_struct *t) { }

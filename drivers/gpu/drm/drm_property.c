@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -68,7 +68,7 @@ static bool drm_property_flags_valid(u32 flags)
 		      DRM_MODE_PROP_ATOMIC))
 		return false;
 
-	/* We want either a legacy type or an extended type, but not both */
+	/* We want either a legacy type or an extended type, but analt both */
 	if (!legacy_type == !ext_type)
 		return false;
 
@@ -419,7 +419,7 @@ int drm_property_add_enum(struct drm_property *property,
 
 	prop_enum = kzalloc(sizeof(struct drm_property_enum), GFP_KERNEL);
 	if (!prop_enum)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy_pad(prop_enum->name, name, DRM_PROP_NAME_LEN);
 	prop_enum->value = value;
@@ -468,11 +468,11 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	uint64_t __user *values_ptr;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	property = drm_property_find(dev, file_priv, out_resp->prop_id);
 	if (!property)
-		return -ENOENT;
+		return -EANALENT;
 
 	strscpy_pad(out_resp->name, property->name, DRM_PROP_NAME_LEN);
 	out_resp->flags = property->flags;
@@ -511,8 +511,8 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 	}
 
 	/*
-	 * NOTE: The idea seems to have been to use this to read all the blob
-	 * property values. But nothing ever added them to the corresponding
+	 * ANALTE: The idea seems to have been to use this to read all the blob
+	 * property values. But analthing ever added them to the corresponding
 	 * list, userspace always used the special-purpose get_blob ioctl to
 	 * read the value for a blob property. It also doesn't make a lot of
 	 * sense to return values here when everything else is just metadata for
@@ -545,7 +545,7 @@ static void drm_property_free_blob(struct kref *kref)
  * @data: If specified, copies data into blob
  *
  * Creates a new blob property for a specified DRM device, optionally
- * copying data. Note that blob properties are meant to be invariant, hence the
+ * copying data. Analte that blob properties are meant to be invariant, hence the
  * data must be filled out before the blob is used as the value of any property.
  *
  * Returns:
@@ -564,7 +564,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 
 	blob = kvzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
 	if (!blob)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* This must be explicitly initialised, so we can safely call list_del
 	 * on it in the removal handler, even if it isn't in a file list. */
@@ -613,8 +613,8 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 	struct drm_property_blob *blob, *bt;
 
 	/*
-	 * When the file gets released that means no one else can access the
-	 * blob list any more, so no need to grab dev->blob_lock.
+	 * When the file gets released that means anal one else can access the
+	 * blob list any more, so anal need to grab dev->blob_lock.
 	 */
 	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
 		list_del_init(&blob->head_file);
@@ -665,8 +665,8 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * drm_property_replace_global_blob - replace existing blob property
  * @dev: drm device
  * @replace: location of blob property pointer to be replaced
- * @length: length of data for new blob, or 0 for no data
- * @data: content for new blob, or NULL for no data
+ * @length: length of data for new blob, or 0 for anal data
+ * @data: content for new blob, or NULL for anal data
  * @obj_holds_id: optional object for property holding blob ID
  * @prop_holds_id: optional property holding blob ID
  * @return 0 on success or error on failure
@@ -674,7 +674,7 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * This function will replace a global property in the blob list, optionally
  * updating a property which holds the ID of that property.
  *
- * If length is 0 or data is NULL, no new blob will be created, and the holding
+ * If length is 0 or data is NULL, anal new blob will be created, and the holding
  * property, if specified, will be set to 0.
  *
  * Access to the replace pointer is assumed to be protected by the caller, e.g.
@@ -766,7 +766,7 @@ EXPORT_SYMBOL(drm_property_replace_blob);
  * if the replacement operation was successful.
  *
  * Return: true if the blob was in fact replaced. -EINVAL if the new blob was
- * not found or sizes don't match.
+ * analt found or sizes don't match.
  */
 int drm_property_replace_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
@@ -781,7 +781,7 @@ int drm_property_replace_blob_from_id(struct drm_device *dev,
 		new_blob = drm_property_lookup_blob(dev, blob_id);
 		if (new_blob == NULL) {
 			drm_dbg_atomic(dev,
-				       "cannot find blob ID %llu\n", blob_id);
+				       "cananalt find blob ID %llu\n", blob_id);
 			return -EINVAL;
 		}
 
@@ -796,7 +796,7 @@ int drm_property_replace_blob_from_id(struct drm_device *dev,
 		if (expected_elem_size > 0 &&
 		    new_blob->length % expected_elem_size != 0) {
 			drm_dbg_atomic(dev,
-				       "[BLOB:%d] length %zu not divisible by element size %zu\n",
+				       "[BLOB:%d] length %zu analt divisible by element size %zu\n",
 				       new_blob->base.id, new_blob->length, expected_elem_size);
 			drm_property_blob_put(new_blob);
 			return -EINVAL;
@@ -818,11 +818,11 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
 	if (!blob)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (out_resp->length == blob->length) {
 		if (copy_to_user(u64_to_user_ptr(out_resp->data),
@@ -847,7 +847,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	blob = drm_property_create_blob(dev, out_resp->length, NULL);
 	if (IS_ERR(blob))
@@ -862,7 +862,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 
 	/* Dropping the lock between create_blob and our access here is safe
 	 * as only the same file_priv can remove the blob; at this point, it is
-	 * not associated with any file_priv. */
+	 * analt associated with any file_priv. */
 	mutex_lock(&dev->mode_config.blob_lock);
 	out_resp->blob_id = blob->base.id;
 	list_add_tail(&blob->head_file, &file_priv->blobs);
@@ -884,11 +884,11 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
 	if (!blob)
-		return -ENOENT;
+		return -EANALENT;
 
 	mutex_lock(&dev->mode_config.blob_lock);
 	/* Ensure the property was actually created by this user. */
@@ -904,7 +904,7 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 		goto err;
 	}
 
-	/* We must drop head_file here, because we may not be the last
+	/* We must drop head_file here, because we may analt be the last
 	 * reference on the blob. */
 	list_del_init(&blob->head_file);
 	mutex_unlock(&dev->mode_config.blob_lock);

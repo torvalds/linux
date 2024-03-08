@@ -6,7 +6,7 @@
 
 struct lan966x_fdb_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_analtifier_fdb_info fdb_info;
 	struct net_device *dev;
 	struct net_device *orig_dev;
 	struct lan966x *lan966x;
@@ -22,7 +22,7 @@ struct lan966x_fdb_entry {
 
 static struct lan966x_fdb_entry *
 lan966x_fdb_find_entry(struct lan966x *lan966x,
-		       struct switchdev_notifier_fdb_info *fdb_info)
+		       struct switchdev_analtifier_fdb_info *fdb_info)
 {
 	struct lan966x_fdb_entry *fdb_entry;
 
@@ -36,7 +36,7 @@ lan966x_fdb_find_entry(struct lan966x *lan966x,
 }
 
 static void lan966x_fdb_add_entry(struct lan966x *lan966x,
-				  struct switchdev_notifier_fdb_info *fdb_info)
+				  struct switchdev_analtifier_fdb_info *fdb_info)
 {
 	struct lan966x_fdb_entry *fdb_entry;
 
@@ -57,7 +57,7 @@ static void lan966x_fdb_add_entry(struct lan966x *lan966x,
 }
 
 static bool lan966x_fdb_del_entry(struct lan966x *lan966x,
-				  struct switchdev_notifier_fdb_info *fdb_info)
+				  struct switchdev_analtifier_fdb_info *fdb_info)
 {
 	struct lan966x_fdb_entry *fdb_entry, *tmp;
 
@@ -117,7 +117,7 @@ int lan966x_fdb_init(struct lan966x *lan966x)
 	INIT_LIST_HEAD(&lan966x->fdb_entries);
 	lan966x->fdb_work = alloc_ordered_workqueue("lan966x_order", 0);
 	if (!lan966x->fdb_work)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -135,7 +135,7 @@ void lan966x_fdb_flush_workqueue(struct lan966x *lan966x)
 
 static void lan966x_fdb_port_event_work(struct lan966x_fdb_event_work *fdb_work)
 {
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	struct lan966x_port *port;
 	struct lan966x *lan966x;
 
@@ -161,7 +161,7 @@ static void lan966x_fdb_port_event_work(struct lan966x_fdb_event_work *fdb_work)
 
 static void lan966x_fdb_bridge_event_work(struct lan966x_fdb_event_work *fdb_work)
 {
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	struct lan966x *lan966x;
 	int ret;
 
@@ -171,7 +171,7 @@ static void lan966x_fdb_bridge_event_work(struct lan966x_fdb_event_work *fdb_wor
 	/* In case the bridge is called */
 	switch (fdb_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
-		/* If there is no front port in this vlan, there is no
+		/* If there is anal front port in this vlan, there is anal
 		 * point to copy the frame to CPU because it would be
 		 * just dropped at later point. So add it only if
 		 * there is a port but it is required to store the fdb
@@ -201,7 +201,7 @@ static void lan966x_fdb_bridge_event_work(struct lan966x_fdb_event_work *fdb_wor
 
 static void lan966x_fdb_lag_event_work(struct lan966x_fdb_event_work *fdb_work)
 {
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_analtifier_fdb_info *fdb_info;
 	struct lan966x_port *port;
 	struct lan966x *lan966x;
 
@@ -246,7 +246,7 @@ static void lan966x_fdb_event_work(struct work_struct *work)
 int lan966x_handle_fdb(struct net_device *dev,
 		       struct net_device *orig_dev,
 		       unsigned long event, const void *ctx,
-		       const struct switchdev_notifier_fdb_info *fdb_info)
+		       const struct switchdev_analtifier_fdb_info *fdb_info)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
@@ -264,7 +264,7 @@ int lan966x_handle_fdb(struct net_device *dev,
 
 		fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
 		if (!fdb_work)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		fdb_work->dev = dev;
 		fdb_work->orig_dev = orig_dev;
@@ -285,5 +285,5 @@ int lan966x_handle_fdb(struct net_device *dev,
 	return 0;
 err_addr_alloc:
 	kfree(fdb_work);
-	return -ENOMEM;
+	return -EANALMEM;
 }

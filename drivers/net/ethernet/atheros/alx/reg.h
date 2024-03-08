@@ -12,20 +12,20 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If analt, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -87,7 +87,7 @@
 #define ALX_PMCTRL_LCKDET_TIMER_MASK			0xF
 #define ALX_PMCTRL_LCKDET_TIMER_SHIFT			24
 #define ALX_PMCTRL_LCKDET_TIMER_DEF			0xC
-/* bit[23:20] if pm_request_l1 time > @, then enter L0s not L1 */
+/* bit[23:20] if pm_request_l1 time > @, then enter L0s analt L1 */
 #define ALX_PMCTRL_L1REQ_TO_MASK			0xF
 #define ALX_PMCTRL_L1REQ_TO_SHIFT			20
 #define ALX_PMCTRL_L1REG_TO_DEF				0xF
@@ -112,7 +112,7 @@
 /*******************************************************/
 
 #define ALX_MASTER					0x1400
-/* bit12: 1:alwys select pclk from serdes, not sw to 25M */
+/* bit12: 1:alwys select pclk from serdes, analt sw to 25M */
 #define ALX_MASTER_PCLKSEL_SRDS				BIT(12)
 /* bit11: irq moduration for rx */
 #define ALX_MASTER_IRQMOD2_EN				BIT(11)
@@ -350,7 +350,7 @@
 #define ALX_RXQ0_IDT_TBL_SIZE_MASK			0x1FF
 #define ALX_RXQ0_IDT_TBL_SIZE_SHIFT			8
 #define ALX_RXQ0_IDT_TBL_SIZE_DEF			0x100
-#define ALX_RXQ0_IDT_TBL_SIZE_NORMAL			128
+#define ALX_RXQ0_IDT_TBL_SIZE_ANALRMAL			128
 #define ALX_RXQ0_IPV6_PARSE_EN				BIT(7)
 #define ALX_RXQ0_RSS_HSTYP_MASK				0xF
 #define ALX_RXQ0_RSS_HSTYP_SHIFT			2
@@ -487,7 +487,7 @@
 
 #define ALX_IMR						0x1604
 
-/* re-send assert msg if SW no response */
+/* re-send assert msg if SW anal response */
 #define ALX_INT_RETRIG					0x1608
 /* 40ms */
 #define ALX_INT_RETRIG_TO				20000
@@ -524,7 +524,7 @@
 /* bit22: adv Asym Pause */
 #define ALX_DRV_PHY_MASK				0xFF
 #define ALX_DRV_PHY_SHIFT				21
-#define ALX_DRV_PHY_UNKNOWN				0
+#define ALX_DRV_PHY_UNKANALWN				0
 
 /* flag of phy inited */
 #define ALX_PHY_INITED					0x003F
@@ -700,7 +700,7 @@
 #define ALX_WRR						0x1938
 #define ALX_WRR_PRI_MASK				0x3
 #define ALX_WRR_PRI_SHIFT				29
-#define ALX_WRR_PRI_RESTRICT_NONE			3
+#define ALX_WRR_PRI_RESTRICT_ANALNE			3
 #define ALX_WRR_PRI3_MASK				0x1F
 #define ALX_WRR_PRI3_SHIFT				24
 #define ALX_WRR_PRI2_MASK				0x1F
@@ -733,7 +733,7 @@
 /* bit1: 1:Software control 25M */
 #define ALX_MISC3_25M_BY_SW				BIT(1)
 /* bit0: 25M switch to intnl OSC */
-#define ALX_MISC3_25M_NOTO_INTNL			BIT(0)
+#define ALX_MISC3_25M_ANALTO_INTNL			BIT(0)
 
 /* MSIX tbl in memory space */
 #define ALX_MSIX_ENTRY_BASE				0x2000
@@ -777,7 +777,7 @@
 #define ALX_HIBNEG_PSHIB_EN				0x8000
 #define ALX_HIBNEG_HIB_PSE				0x1000
 #define ALX_HIBNEG_DEF					0xBC40
-#define ALX_HIBNEG_NOHIB	(ALX_HIBNEG_DEF & \
+#define ALX_HIBNEG_ANALHIB	(ALX_HIBNEG_DEF & \
 				 ~(ALX_HIBNEG_PSHIB_EN | ALX_HIBNEG_HIB_PSE))
 
 #define ALX_MIIDBG_TST10BTCFG				0x12

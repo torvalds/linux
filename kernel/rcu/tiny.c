@@ -11,7 +11,7 @@
  */
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -65,7 +65,7 @@ void rcu_qs(void)
 /*
  * Check to see if the scheduling-clock interrupt came from an extended
  * quiescent state, and, if so, tell RCU about it.  This function must
- * be called from hardirq context.  It is normally called from the
+ * be called from hardirq context.  It is analrmally called from the
  * scheduling-clock interrupt.
  */
 void rcu_sched_clock_irq(int user)
@@ -79,7 +79,7 @@ void rcu_sched_clock_irq(int user)
 }
 
 /*
- * Reclaim the specified callback, either by invoking it for non-kfree cases or
+ * Reclaim the specified callback, either by invoking it for analn-kfree cases or
  * freeing it directly (for kfree). Return true if kfreeing, false otherwise.
  */
 static inline bool rcu_reclaim_tiny(struct rcu_head *head)
@@ -113,7 +113,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
 	if (rcu_ctrlblk.donetail == &rcu_ctrlblk.rcucblist) {
-		/* No callbacks ready, so just leave. */
+		/* Anal callbacks ready, so just leave. */
 		local_irq_restore(flags);
 		return;
 	}
@@ -141,8 +141,8 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
  * Wait for a grace period to elapse.  But it is illegal to invoke
  * synchronize_rcu() from within an RCU read-side critical section.
  * Therefore, any legal call to synchronize_rcu() is a quiescent state,
- * and so on a UP system, synchronize_rcu() need do nothing, other than
- * let the polled APIs know that another grace period elapsed.
+ * and so on a UP system, synchronize_rcu() need do analthing, other than
+ * let the polled APIs kanalw that aanalther grace period elapsed.
  *
  * (But Lai Jiangshan points out the benefits of doing might_sleep()
  * to reduce latency.)
@@ -205,7 +205,7 @@ EXPORT_SYMBOL_GPL(call_rcu);
  */
 void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
 {
-	rgosp->rgos_norm = RCU_GET_STATE_COMPLETED;
+	rgosp->rgos_analrm = RCU_GET_STATE_COMPLETED;
 }
 EXPORT_SYMBOL_GPL(get_completed_synchronize_rcu_full);
 
@@ -250,7 +250,7 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
 void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 {
 	if (head)
-		kasan_record_aux_stack_noalloc(ptr);
+		kasan_record_aux_stack_analalloc(ptr);
 
 	__kvfree_call_rcu(head, ptr);
 }

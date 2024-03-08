@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * General MIPS MT support routines, usable in AP/SP and SMVP.
- * Copyright (C) 2005 Mips Technologies, Inc
+ * Copyright (C) 2005 Mips Techanallogies, Inc
  */
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
@@ -92,15 +92,15 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 	rcu_read_unlock();
 
 	if (!alloc_cpumask_var(&cpus_allowed, GFP_KERNEL)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_put_task;
 	}
 	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_free_cpus_allowed;
 	}
 	if (!alloc_cpumask_var(&effective_mask, GFP_KERNEL)) {
-		retval = -ENOMEM;
+		retval = -EANALMEM;
 		goto out_free_new_mask;
 	}
 	if (!check_same_owner(p) && !capable(CAP_SYS_NICE)) {

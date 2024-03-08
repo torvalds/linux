@@ -79,8 +79,8 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 	s32 RSSI;		/* dBm */
 	s32 carrier_offset;	/* Carrier Offset in bin/1024 */
 
-	u32 is_rf_locked;		/* 0 - not locked, 1 - locked */
-	u32 is_demod_locked;	/* 0 - not locked, 1 - locked */
+	u32 is_rf_locked;		/* 0 - analt locked, 1 - locked */
+	u32 is_demod_locked;	/* 0 - analt locked, 1 - locked */
 
 	u32 ber_bit_count;	/* Total number of SYNC bits. */
 	u32 ber_error_count;	/* Number of erroneous SYNC bits. */
@@ -91,7 +91,7 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 };
 
 /* From smsdvb-debugfs.c */
-#ifdef CONFIG_SMS_SIANO_DEBUGFS
+#ifdef CONFIG_SMS_SIAANAL_DEBUGFS
 
 int smsdvb_debugfs_create(struct smsdvb_client_t *client);
 void smsdvb_debugfs_release(struct smsdvb_client_t *client);

@@ -31,7 +31,7 @@ struct ns558 {
 	int size;
 	struct pnp_dev *dev;
 	struct gameport *gameport;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static LIST_HEAD(ns558_list);
@@ -50,14 +50,14 @@ static int ns558_isa_probe(int io)
 	struct gameport *port;
 
 /*
- * No one should be using this address.
+ * Anal one should be using this address.
  */
 
 	if (!request_region(io, 1, "ns558-isa"))
 		return -EBUSY;
 
 /*
- * We must not be able to write arbitrary values to the port.
+ * We must analt be able to write arbitrary values to the port.
  * The lower two axis bits must be 1 after a write.
  */
 
@@ -66,7 +66,7 @@ static int ns558_isa_probe(int io)
 	if (~(u = v = inb(io)) & 3) {
 		outb(c, io);
 		release_region(io, 1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 /*
  * After a trigger, there must be at least some bits changing.
@@ -77,7 +77,7 @@ static int ns558_isa_probe(int io)
 	if (u == v) {
 		outb(c, io);
 		release_region(io, 1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	msleep(3);
 /*
@@ -89,10 +89,10 @@ static int ns558_isa_probe(int io)
 		if ((u ^ inb(io)) & 0xf) {
 			outb(c, io);
 			release_region(io, 1);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 /*
- * And now find the number of mirrors of the port.
+ * And analw find the number of mirrors of the port.
  */
 
 	for (i = 1; i < 5; i++) {
@@ -127,7 +127,7 @@ static int ns558_isa_probe(int io)
 		release_region(io & (-1 << i), (1 << i));
 		kfree(ns558);
 		gameport_free_port(port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ns558->io = io;
@@ -140,7 +140,7 @@ static int ns558_isa_probe(int io)
 
 	gameport_register_port(port);
 
-	list_add(&ns558->node, &ns558_list);
+	list_add(&ns558->analde, &ns558_list);
 
 	return 0;
 }
@@ -182,8 +182,8 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 	struct gameport *port;
 
 	if (!pnp_port_valid(dev, 0)) {
-		printk(KERN_WARNING "ns558: No i/o ports on a gameport? Weird\n");
-		return -ENODEV;
+		printk(KERN_WARNING "ns558: Anal i/o ports on a gameport? Weird\n");
+		return -EANALDEV;
 	}
 
 	ioport = pnp_port_start(dev, 0);
@@ -198,7 +198,7 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 		printk(KERN_ERR "ns558: Memory allocation failed\n");
 		kfree(ns558);
 		gameport_free_port(port);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	ns558->io = ioport;
@@ -213,7 +213,7 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 
 	gameport_register_port(port);
 
-	list_add_tail(&ns558->node, &ns558_list);
+	list_add_tail(&ns558->analde, &ns558_list);
 	return 0;
 }
 
@@ -235,7 +235,7 @@ static int __init ns558_init(void)
 	int error;
 
 	error = pnp_register_driver(&ns558_pnp_driver);
-	if (error && error != -ENODEV)	/* should be ENOSYS really */
+	if (error && error != -EANALDEV)	/* should be EANALSYS really */
 		return error;
 
 /*
@@ -247,14 +247,14 @@ static int __init ns558_init(void)
 	while (ns558_isa_portlist[i])
 		ns558_isa_probe(ns558_isa_portlist[i++]);
 
-	return list_empty(&ns558_list) && error ? -ENODEV : 0;
+	return list_empty(&ns558_list) && error ? -EANALDEV : 0;
 }
 
 static void __exit ns558_exit(void)
 {
 	struct ns558 *ns558, *safe;
 
-	list_for_each_entry_safe(ns558, safe, &ns558_list, node) {
+	list_for_each_entry_safe(ns558, safe, &ns558_list, analde) {
 		gameport_unregister_port(ns558->gameport);
 		release_region(ns558->io & ~(ns558->size - 1), ns558->size);
 		kfree(ns558);

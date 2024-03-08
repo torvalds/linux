@@ -340,7 +340,7 @@ TRACE_EVENT(
 		__field(u64, spte)
 		__field(u64, sptep)
 		__field(u8, level)
-		/* These depend on page entry type, so compute them now.  */
+		/* These depend on page entry type, so compute them analw.  */
 		__field(bool, r)
 		__field(bool, x)
 		__field(signed char, u)
@@ -397,7 +397,7 @@ TRACE_EVENT(
 		__field(u64, gfn)
 		__field(u64, old_spte)
 		__field(u64, new_spte)
-		/* Level cannot be larger than 5 on x86, so it fits in a u8. */
+		/* Level cananalt be larger than 5 on x86, so it fits in a u8. */
 		__field(u8, level)
 		/* as_id can only be 0 or 1 x86, so it fits in a u8. */
 		__field(u8, as_id)
@@ -419,25 +419,25 @@ TRACE_EVENT(
 
 TRACE_EVENT(
 	kvm_mmu_split_huge_page,
-	TP_PROTO(u64 gfn, u64 spte, int level, int errno),
-	TP_ARGS(gfn, spte, level, errno),
+	TP_PROTO(u64 gfn, u64 spte, int level, int erranal),
+	TP_ARGS(gfn, spte, level, erranal),
 
 	TP_STRUCT__entry(
 		__field(u64, gfn)
 		__field(u64, spte)
 		__field(int, level)
-		__field(int, errno)
+		__field(int, erranal)
 	),
 
 	TP_fast_assign(
 		__entry->gfn = gfn;
 		__entry->spte = spte;
 		__entry->level = level;
-		__entry->errno = errno;
+		__entry->erranal = erranal;
 	),
 
-	TP_printk("gfn %llx spte %llx level %d errno %d",
-		  __entry->gfn, __entry->spte, __entry->level, __entry->errno)
+	TP_printk("gfn %llx spte %llx level %d erranal %d",
+		  __entry->gfn, __entry->spte, __entry->level, __entry->erranal)
 );
 
 #endif /* _TRACE_KVMMMU_H */

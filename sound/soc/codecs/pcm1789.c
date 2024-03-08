@@ -169,7 +169,7 @@ static const struct snd_soc_dai_ops pcm1789_dai_ops = {
 	.hw_params	= pcm1789_hw_params,
 	.mute_stream	= pcm1789_mute,
 	.trigger	= pcm1789_trigger,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static const DECLARE_TLV_DB_SCALE(pcm1789_dac_tlv, -12000, 50, 1);
@@ -238,7 +238,7 @@ int pcm1789_common_init(struct device *dev, struct regmap *regmap)
 	pcm1789 = devm_kzalloc(dev, sizeof(struct pcm1789_private),
 			       GFP_KERNEL);
 	if (!pcm1789)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm1789->regmap = regmap;
 	pcm1789->dev = dev;

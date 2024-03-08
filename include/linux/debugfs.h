@@ -46,10 +46,10 @@ struct debugfs_u32_array {
 extern struct dentry *arch_debugfs_dir;
 
 #define DEFINE_DEBUGFS_ATTRIBUTE_XSIGNED(__fops, __get, __set, __fmt, __is_signed)	\
-static int __fops ## _open(struct inode *inode, struct file *file)	\
+static int __fops ## _open(struct ianalde *ianalde, struct file *file)	\
 {									\
 	__simple_attr_check_format(__fmt, 0ull);			\
-	return simple_attr_open(inode, file, __get, __set, __fmt);	\
+	return simple_attr_open(ianalde, file, __get, __set, __fmt);	\
 }									\
 static const struct file_operations __fops = {				\
 	.owner	 = THIS_MODULE,						\
@@ -57,7 +57,7 @@ static const struct file_operations __fops = {				\
 	.release = simple_attr_release,					\
 	.read	 = debugfs_attr_read,					\
 	.write	 = (__is_signed) ? debugfs_attr_write_signed : debugfs_attr_write,	\
-	.llseek  = no_llseek,						\
+	.llseek  = anal_llseek,						\
 }
 
 #define DEFINE_DEBUGFS_ATTRIBUTE(__fops, __get, __set, __fmt)		\
@@ -195,22 +195,22 @@ debugfs_leave_cancellation(struct file *file,
 #include <linux/err.h>
 
 /*
- * We do not return NULL from these functions if CONFIG_DEBUG_FS is not enabled
- * so users have a chance to detect if there was a real error or not.  We don't
+ * We do analt return NULL from these functions if CONFIG_DEBUG_FS is analt enabled
+ * so users have a chance to detect if there was a real error or analt.  We don't
  * want to duplicate the design decision mistakes of procfs and devfs again.
  */
 
 static inline struct dentry *debugfs_lookup(const char *name,
 					    struct dentry *parent)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const struct file_operations *fops)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *debugfs_create_file_unsafe(const char *name,
@@ -218,7 +218,7 @@ static inline struct dentry *debugfs_create_file_unsafe(const char *name,
 					void *data,
 					const struct file_operations *fops)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void debugfs_create_file_size(const char *name, umode_t mode,
@@ -230,14 +230,14 @@ static inline void debugfs_create_file_size(const char *name, umode_t mode,
 static inline struct dentry *debugfs_create_dir(const char *name,
 						struct dentry *parent)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *debugfs_create_symlink(const char *name,
 						    struct dentry *parent,
 						    const char *dest)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct dentry *debugfs_create_automount(const char *name,
@@ -245,7 +245,7 @@ static inline struct dentry *debugfs_create_automount(const char *name,
 					debugfs_automount_t f,
 					void *data)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void debugfs_remove(struct dentry *dentry)
@@ -271,27 +271,27 @@ static inline void debugfs_file_put(struct dentry *dentry)
 static inline ssize_t debugfs_attr_read(struct file *file, char __user *buf,
 					size_t len, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline ssize_t debugfs_attr_write(struct file *file,
 					const char __user *buf,
 					size_t len, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline ssize_t debugfs_attr_write_signed(struct file *file,
 					const char __user *buf,
 					size_t len, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, char *new_name)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void debugfs_create_u8(const char *name, umode_t mode,
@@ -343,7 +343,7 @@ static inline struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				  struct dentry *parent,
 				  struct debugfs_blob_wrapper *blob)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void debugfs_create_regset32(const char *name, umode_t mode,
@@ -380,21 +380,21 @@ static inline ssize_t debugfs_read_file_bool(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline ssize_t debugfs_write_file_bool(struct file *file,
 					      const char __user *user_buf,
 					      size_t count, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline ssize_t debugfs_read_file_str(struct file *file,
 					    char __user *user_buf,
 					    size_t count, loff_t *ppos)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #endif

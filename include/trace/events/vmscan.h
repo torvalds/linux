@@ -11,38 +11,38 @@
 #include <linux/memcontrol.h>
 #include <trace/events/mmflags.h>
 
-#define RECLAIM_WB_ANON		0x0001u
+#define RECLAIM_WB_AANALN		0x0001u
 #define RECLAIM_WB_FILE		0x0002u
 #define RECLAIM_WB_MIXED	0x0010u
 #define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim async */
 #define RECLAIM_WB_ASYNC	0x0008u
-#define RECLAIM_WB_LRU		(RECLAIM_WB_ANON|RECLAIM_WB_FILE)
+#define RECLAIM_WB_LRU		(RECLAIM_WB_AANALN|RECLAIM_WB_FILE)
 
 #define show_reclaim_flags(flags)				\
 	(flags) ? __print_flags(flags, "|",			\
-		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
+		{RECLAIM_WB_AANALN,	"RECLAIM_WB_AANALN"},	\
 		{RECLAIM_WB_FILE,	"RECLAIM_WB_FILE"},	\
 		{RECLAIM_WB_MIXED,	"RECLAIM_WB_MIXED"},	\
 		{RECLAIM_WB_SYNC,	"RECLAIM_WB_SYNC"},	\
 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
-		) : "RECLAIM_WB_NONE"
+		) : "RECLAIM_WB_ANALNE"
 
 #define _VMSCAN_THROTTLE_WRITEBACK	(1 << VMSCAN_THROTTLE_WRITEBACK)
 #define _VMSCAN_THROTTLE_ISOLATED	(1 << VMSCAN_THROTTLE_ISOLATED)
-#define _VMSCAN_THROTTLE_NOPROGRESS	(1 << VMSCAN_THROTTLE_NOPROGRESS)
+#define _VMSCAN_THROTTLE_ANALPROGRESS	(1 << VMSCAN_THROTTLE_ANALPROGRESS)
 #define _VMSCAN_THROTTLE_CONGESTED	(1 << VMSCAN_THROTTLE_CONGESTED)
 
 #define show_throttle_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",					\
 		{_VMSCAN_THROTTLE_WRITEBACK,	"VMSCAN_THROTTLE_WRITEBACK"},	\
 		{_VMSCAN_THROTTLE_ISOLATED,	"VMSCAN_THROTTLE_ISOLATED"},	\
-		{_VMSCAN_THROTTLE_NOPROGRESS,	"VMSCAN_THROTTLE_NOPROGRESS"},	\
+		{_VMSCAN_THROTTLE_ANALPROGRESS,	"VMSCAN_THROTTLE_ANALPROGRESS"},	\
 		{_VMSCAN_THROTTLE_CONGESTED,	"VMSCAN_THROTTLE_CONGESTED"}	\
-		) : "VMSCAN_THROTTLE_NONE"
+		) : "VMSCAN_THROTTLE_ANALNE"
 
 
 #define trace_reclaim_flags(file) ( \
-	(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
+	(file ? RECLAIM_WB_FILE : RECLAIM_WB_AANALN) | \
 	(RECLAIM_WB_ASYNC) \
 	)
 
@@ -311,7 +311,7 @@ TRACE_EVENT(mm_vmscan_lru_isolate,
 
 	/*
 	 * classzone is previous name of the highest_zoneidx.
-	 * Reason not to change it is the ABI requirement of the tracepoint.
+	 * Reason analt to change it is the ABI requirement of the tracepoint.
 	 */
 	TP_printk("classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_skipped=%lu nr_taken=%lu lru=%s",
 		__entry->highest_zoneidx,
@@ -386,7 +386,7 @@ TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
 		__entry->reclaim_flags = trace_reclaim_flags(file);
 	),
 
-	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_anon=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
+	TP_printk("nid=%d nr_scanned=%ld nr_reclaimed=%ld nr_dirty=%ld nr_writeback=%ld nr_congested=%ld nr_immediate=%ld nr_activate_aanaln=%d nr_activate_file=%d nr_ref_keep=%ld nr_unmap_fail=%ld priority=%d flags=%s",
 		__entry->nid,
 		__entry->nr_scanned, __entry->nr_reclaimed,
 		__entry->nr_dirty, __entry->nr_writeback,
@@ -433,7 +433,7 @@ TRACE_EVENT(mm_vmscan_lru_shrink_active,
 		show_reclaim_flags(__entry->reclaim_flags))
 );
 
-TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+TRACE_EVENT(mm_vmscan_analde_reclaim_begin,
 
 	TP_PROTO(int nid, int order, gfp_t gfp_flags),
 
@@ -457,7 +457,7 @@ TRACE_EVENT(mm_vmscan_node_reclaim_begin,
 		show_gfp_flags(__entry->gfp_flags))
 );
 
-DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_node_reclaim_end,
+DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_analde_reclaim_end,
 
 	TP_PROTO(unsigned long nr_reclaimed),
 

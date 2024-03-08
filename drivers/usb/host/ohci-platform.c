@@ -96,7 +96,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	int err, irq, clk = 0;
 
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Use reasonable defaults so platforms don't have to provide these
@@ -116,35 +116,35 @@ static int ohci_platform_probe(struct platform_device *dev)
 	hcd = usb_create_hcd(&ohci_platform_hc_driver, &dev->dev,
 			dev_name(&dev->dev));
 	if (!hcd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(dev, hcd);
 	dev->dev.platform_data = pdata;
 	priv = hcd_to_ohci_priv(hcd);
 	ohci = hcd_to_ohci(hcd);
 
-	if (pdata == &ohci_platform_defaults && dev->dev.of_node) {
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-regs"))
+	if (pdata == &ohci_platform_defaults && dev->dev.of_analde) {
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian-regs"))
 			ohci->flags |= OHCI_QUIRK_BE_MMIO;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian-desc"))
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian-desc"))
 			ohci->flags |= OHCI_QUIRK_BE_DESC;
 
-		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
+		if (of_property_read_bool(dev->dev.of_analde, "big-endian"))
 			ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 
-		if (of_property_read_bool(dev->dev.of_node, "no-big-frame-no"))
-			ohci->flags |= OHCI_QUIRK_FRAME_NO;
+		if (of_property_read_bool(dev->dev.of_analde, "anal-big-frame-anal"))
+			ohci->flags |= OHCI_QUIRK_FRAME_ANAL;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_property_read_bool(dev->dev.of_analde,
 					  "remote-wakeup-connected"))
 			ohci->hc_control = OHCI_CTRL_RWC;
 
-		of_property_read_u32(dev->dev.of_node, "num-ports",
+		of_property_read_u32(dev->dev.of_analde, "num-ports",
 				     &ohci->num_ports);
 
 		for (clk = 0; clk < OHCI_MAX_CLKS; clk++) {
-			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
+			priv->clks[clk] = of_clk_get(dev->dev.of_analde, clk);
 			if (IS_ERR(priv->clks[clk])) {
 				err = PTR_ERR(priv->clks[clk]);
 				if (err == -EPROBE_DEFER)
@@ -170,15 +170,15 @@ static int ohci_platform_probe(struct platform_device *dev)
 		ohci->flags |= OHCI_QUIRK_BE_DESC;
 	if (pdata->big_endian_mmio)
 		ohci->flags |= OHCI_QUIRK_BE_MMIO;
-	if (pdata->no_big_frame_no)
-		ohci->flags |= OHCI_QUIRK_FRAME_NO;
+	if (pdata->anal_big_frame_anal)
+		ohci->flags |= OHCI_QUIRK_FRAME_ANAL;
 	if (pdata->num_ports)
 		ohci->num_ports = pdata->num_ports;
 
 #ifndef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
 	if (ohci->flags & OHCI_QUIRK_BE_MMIO) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_MMIO not set\n");
+			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_MMIO analt set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}
@@ -186,7 +186,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 #ifndef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
 	if (ohci->flags & OHCI_QUIRK_BE_DESC) {
 		dev_err(&dev->dev,
-			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_DESC not set\n");
+			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_DESC analt set\n");
 		err = -EINVAL;
 		goto err_reset;
 	}
@@ -208,7 +208,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	hcd->tpl_support = of_usb_host_tpl_support(dev->dev.of_node);
+	hcd->tpl_support = of_usb_host_tpl_support(dev->dev.of_analde);
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
@@ -352,14 +352,14 @@ static struct platform_driver ohci_platform_driver = {
 		.pm	= &ohci_platform_pm_ops,
 #endif
 		.of_match_table = ohci_platform_ids,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	}
 };
 
 static int __init ohci_platform_init(void)
 {
 	if (usb_disabled())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ohci_init_driver(&ohci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ohci_platform_driver);

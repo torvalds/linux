@@ -43,7 +43,7 @@ static irqreturn_t tifm_7xx1_isr(int irq, void *dev_id)
 	irq_status = readl(fm->addr + FM_INTERRUPT_STATUS);
 	if (irq_status == 0 || irq_status == (~0)) {
 		spin_unlock(&fm->lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (irq_status & TIFM_IRQ_ENABLE) {
@@ -332,7 +332,7 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	fm = tifm_alloc_adapter(dev->device == PCI_DEVICE_ID_TI_XX21_XX11_FM
 				? 4 : 2, &dev->dev);
 	if (!fm) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err_out_int;
 	}
 
@@ -343,7 +343,7 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 
 	fm->addr = pci_ioremap_bar(dev, 0);
 	if (!fm->addr) {
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto err_out_free;
 	}
 

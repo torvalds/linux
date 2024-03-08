@@ -11,7 +11,7 @@
 #include <trace/events/fscache.h>
 
 /*
- * Allocate and set up a volume representation.  We make sure all the fanout
+ * Allocate and set up a volume representation.  We make sure all the faanalut
  * directories are created and pinned.
  */
 void cachefiles_acquire_volume(struct fscache_volume *vcookie)
@@ -37,7 +37,7 @@ void cachefiles_acquire_volume(struct fscache_volume *vcookie)
 	cachefiles_begin_secure(cache, &saved_cred);
 
 	len = vcookie->key[0];
-	name = kmalloc(len + 3, GFP_NOFS);
+	name = kmalloc(len + 3, GFP_ANALFS);
 	if (!name)
 		goto error_vol;
 	name[0] = 'I';
@@ -58,7 +58,7 @@ retry:
 		if (ret < 0) {
 			if (ret != -ESTALE)
 				goto error_dir;
-			inode_lock_nested(d_inode(cache->store), I_MUTEX_PARENT);
+			ianalde_lock_nested(d_ianalde(cache->store), I_MUTEX_PARENT);
 			cachefiles_bury_object(cache, NULL, cache->store, vdentry,
 					       FSCACHE_VOLUME_IS_WEIRD);
 			cachefiles_put_directory(volume->dentry);
@@ -72,7 +72,7 @@ retry:
 		fan = cachefiles_get_directory(cache, vdentry, name, NULL);
 		if (IS_ERR(fan))
 			goto error_fan;
-		volume->fanout[i] = fan;
+		volume->faanalut[i] = fan;
 	}
 
 	cachefiles_end_secure(cache, saved_cred);
@@ -92,7 +92,7 @@ retry:
 
 error_fan:
 	for (i = 0; i < 256; i++)
-		cachefiles_put_directory(volume->fanout[i]);
+		cachefiles_put_directory(volume->faanalut[i]);
 error_dir:
 	cachefiles_put_directory(volume->dentry);
 error_name:
@@ -114,7 +114,7 @@ static void __cachefiles_free_volume(struct cachefiles_volume *volume)
 	volume->vcookie->cache_priv = NULL;
 
 	for (i = 0; i < 256; i++)
-		cachefiles_put_directory(volume->fanout[i]);
+		cachefiles_put_directory(volume->faanalut[i]);
 	cachefiles_put_directory(volume->dentry);
 	kfree(volume);
 }

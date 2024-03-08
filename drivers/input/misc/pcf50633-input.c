@@ -56,12 +56,12 @@ static int pcf50633_input_probe(struct platform_device *pdev)
 
 	input = kzalloc(sizeof(*input), GFP_KERNEL);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		kfree(input);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, input);

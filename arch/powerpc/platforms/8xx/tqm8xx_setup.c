@@ -90,7 +90,7 @@ static void __init init_pins(int n, struct cpm_pin *pin)
 
 static void __init init_ioports(void)
 {
-	struct device_node *dnode;
+	struct device_analde *danalde;
 	struct property *prop;
 	int	len;
 
@@ -98,12 +98,12 @@ static void __init init_ioports(void)
 
 	cpm1_clk_setup(CPM_CLK_SMC1, CPM_BRG1, CPM_CLK_RTX);
 
-	dnode = of_find_node_by_name(NULL, "aliases");
-	if (dnode == NULL)
+	danalde = of_find_analde_by_name(NULL, "aliases");
+	if (danalde == NULL)
 		return;
-	prop = of_find_property(dnode, "ethernet1", &len);
+	prop = of_find_property(danalde, "ethernet1", &len);
 
-	of_node_put(dnode);
+	of_analde_put(danalde);
 
 	if (prop == NULL)
 		return;

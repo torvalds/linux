@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright (C) 2023 Microchip Technology Inc. and its subsidiaries.
+/* Copyright (C) 2023 Microchip Techanallogy Inc. and its subsidiaries.
  * Microchip VCAP test model interface for kunit testing
  */
 
@@ -177,7 +177,7 @@ static const struct vcap_field is0_ll_full_keyfield[] = {
 	},
 };
 
-static const struct vcap_field is0_normal_7tuple_keyfield[] = {
+static const struct vcap_field is0_analrmal_7tuple_keyfield[] = {
 	[VCAP_KF_TYPE] = {
 		.type = VCAP_FIELD_BIT,
 		.offset = 0,
@@ -370,7 +370,7 @@ static const struct vcap_field is0_normal_7tuple_keyfield[] = {
 	},
 };
 
-static const struct vcap_field is0_normal_5tuple_ip4_keyfield[] = {
+static const struct vcap_field is0_analrmal_5tuple_ip4_keyfield[] = {
 	[VCAP_KF_TYPE] = {
 		.type = VCAP_FIELD_U32,
 		.offset = 0,
@@ -903,7 +903,7 @@ static const struct vcap_field is2_arp_keyfield[] = {
 		.offset = 138,
 		.width = 1,
 	},
-	[VCAP_KF_ARP_OPCODE_UNKNOWN_IS] = {
+	[VCAP_KF_ARP_OPCODE_UNKANALWN_IS] = {
 		.type = VCAP_FIELD_BIT,
 		.offset = 139,
 		.width = 1,
@@ -1846,7 +1846,7 @@ static const struct vcap_field es2_arp_keyfield[] = {
 		.offset = 150,
 		.width = 1,
 	},
-	[VCAP_KF_ARP_OPCODE_UNKNOWN_IS] = {
+	[VCAP_KF_ARP_OPCODE_UNKANALWN_IS] = {
 		.type = VCAP_FIELD_BIT,
 		.offset = 151,
 		.width = 1,
@@ -2693,12 +2693,12 @@ static const struct vcap_set is0_keyfield_set[] = {
 		.sw_per_item = 6,
 		.sw_cnt = 2,
 	},
-	[VCAP_KFS_NORMAL_7TUPLE] = {
+	[VCAP_KFS_ANALRMAL_7TUPLE] = {
 		.type_id = 0,
 		.sw_per_item = 12,
 		.sw_cnt = 1,
 	},
-	[VCAP_KFS_NORMAL_5TUPLE_IP4] = {
+	[VCAP_KFS_ANALRMAL_5TUPLE_IP4] = {
 		.type_id = 2,
 		.sw_per_item = 6,
 		.sw_cnt = 2,
@@ -2794,8 +2794,8 @@ static const struct vcap_set es2_keyfield_set[] = {
 /* keyfield_set map */
 static const struct vcap_field *is0_keyfield_set_map[] = {
 	[VCAP_KFS_LL_FULL] = is0_ll_full_keyfield,
-	[VCAP_KFS_NORMAL_7TUPLE] = is0_normal_7tuple_keyfield,
-	[VCAP_KFS_NORMAL_5TUPLE_IP4] = is0_normal_5tuple_ip4_keyfield,
+	[VCAP_KFS_ANALRMAL_7TUPLE] = is0_analrmal_7tuple_keyfield,
+	[VCAP_KFS_ANALRMAL_5TUPLE_IP4] = is0_analrmal_5tuple_ip4_keyfield,
 	[VCAP_KFS_PURE_5TUPLE_IP4] = is0_pure_5tuple_ip4_keyfield,
 	[VCAP_KFS_ETAG] = is0_etag_keyfield,
 };
@@ -2823,8 +2823,8 @@ static const struct vcap_field *es2_keyfield_set_map[] = {
 /* keyfield_set map sizes */
 static int is0_keyfield_set_map_size[] = {
 	[VCAP_KFS_LL_FULL] = ARRAY_SIZE(is0_ll_full_keyfield),
-	[VCAP_KFS_NORMAL_7TUPLE] = ARRAY_SIZE(is0_normal_7tuple_keyfield),
-	[VCAP_KFS_NORMAL_5TUPLE_IP4] = ARRAY_SIZE(is0_normal_5tuple_ip4_keyfield),
+	[VCAP_KFS_ANALRMAL_7TUPLE] = ARRAY_SIZE(is0_analrmal_7tuple_keyfield),
+	[VCAP_KFS_ANALRMAL_5TUPLE_IP4] = ARRAY_SIZE(is0_analrmal_5tuple_ip4_keyfield),
 	[VCAP_KFS_PURE_5TUPLE_IP4] = ARRAY_SIZE(is0_pure_5tuple_ip4_keyfield),
 	[VCAP_KFS_ETAG] = ARRAY_SIZE(is0_etag_keyfield),
 };
@@ -3200,7 +3200,7 @@ static const struct vcap_field is2_base_type_actionfield[] = {
 		.offset = 17,
 		.width = 6,
 	},
-	[VCAP_AF_IGNORE_PIPELINE_CTRL] = {
+	[VCAP_AF_IGANALRE_PIPELINE_CTRL] = {
 		.type = VCAP_FIELD_BIT,
 		.offset = 23,
 		.width = 1,
@@ -3303,7 +3303,7 @@ static const struct vcap_field es2_base_type_actionfield[] = {
 		.offset = 44,
 		.width = 11,
 	},
-	[VCAP_AF_IGNORE_PIPELINE_CTRL] = {
+	[VCAP_AF_IGANALRE_PIPELINE_CTRL] = {
 		.type = VCAP_FIELD_BIT,
 		.offset = 55,
 		.width = 1,
@@ -3742,7 +3742,7 @@ static const struct vcap_typegroup *es2_actionfield_set_typegroups[] = {
 
 /* Keyfieldset names */
 static const char * const vcap_keyfield_set_names[] = {
-	[VCAP_KFS_NO_VALUE]                      =  "(None)",
+	[VCAP_KFS_ANAL_VALUE]                      =  "(Analne)",
 	[VCAP_KFS_ARP]                           =  "VCAP_KFS_ARP",
 	[VCAP_KFS_ETAG]                          =  "VCAP_KFS_ETAG",
 	[VCAP_KFS_IP4_OTHER]                     =  "VCAP_KFS_IP4_OTHER",
@@ -3758,8 +3758,8 @@ static const char * const vcap_keyfield_set_names[] = {
 	[VCAP_KFS_MAC_ETYPE]                     =  "VCAP_KFS_MAC_ETYPE",
 	[VCAP_KFS_MAC_LLC]                       =  "VCAP_KFS_MAC_LLC",
 	[VCAP_KFS_MAC_SNAP]                      =  "VCAP_KFS_MAC_SNAP",
-	[VCAP_KFS_NORMAL_5TUPLE_IP4]             =  "VCAP_KFS_NORMAL_5TUPLE_IP4",
-	[VCAP_KFS_NORMAL_7TUPLE]                 =  "VCAP_KFS_NORMAL_7TUPLE",
+	[VCAP_KFS_ANALRMAL_5TUPLE_IP4]             =  "VCAP_KFS_ANALRMAL_5TUPLE_IP4",
+	[VCAP_KFS_ANALRMAL_7TUPLE]                 =  "VCAP_KFS_ANALRMAL_7TUPLE",
 	[VCAP_KFS_OAM]                           =  "VCAP_KFS_OAM",
 	[VCAP_KFS_PURE_5TUPLE_IP4]               =  "VCAP_KFS_PURE_5TUPLE_IP4",
 	[VCAP_KFS_SMAC_SIP4]                     =  "VCAP_KFS_SMAC_SIP4",
@@ -3768,7 +3768,7 @@ static const char * const vcap_keyfield_set_names[] = {
 
 /* Actionfieldset names */
 static const char * const vcap_actionfield_set_names[] = {
-	[VCAP_AFS_NO_VALUE]                      =  "(None)",
+	[VCAP_AFS_ANAL_VALUE]                      =  "(Analne)",
 	[VCAP_AFS_BASE_TYPE]                     =  "VCAP_AFS_BASE_TYPE",
 	[VCAP_AFS_CLASSIFICATION]                =  "VCAP_AFS_CLASSIFICATION",
 	[VCAP_AFS_CLASS_REDUCED]                 =  "VCAP_AFS_CLASS_REDUCED",
@@ -3779,7 +3779,7 @@ static const char * const vcap_actionfield_set_names[] = {
 
 /* Keyfield names */
 static const char * const vcap_keyfield_names[] = {
-	[VCAP_KF_NO_VALUE]                       =  "(None)",
+	[VCAP_KF_ANAL_VALUE]                       =  "(Analne)",
 	[VCAP_KF_8021BR_ECID_BASE]               =  "8021BR_ECID_BASE",
 	[VCAP_KF_8021BR_ECID_EXT]                =  "8021BR_ECID_EXT",
 	[VCAP_KF_8021BR_E_TAGGED]                =  "8021BR_E_TAGGED",
@@ -3808,7 +3808,7 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_ARP_ADDR_SPACE_OK_IS]           =  "ARP_ADDR_SPACE_OK_IS",
 	[VCAP_KF_ARP_LEN_OK_IS]                  =  "ARP_LEN_OK_IS",
 	[VCAP_KF_ARP_OPCODE]                     =  "ARP_OPCODE",
-	[VCAP_KF_ARP_OPCODE_UNKNOWN_IS]          =  "ARP_OPCODE_UNKNOWN_IS",
+	[VCAP_KF_ARP_OPCODE_UNKANALWN_IS]          =  "ARP_OPCODE_UNKANALWN_IS",
 	[VCAP_KF_ARP_PROTO_SPACE_OK_IS]          =  "ARP_PROTO_SPACE_OK_IS",
 	[VCAP_KF_ARP_SENDER_MATCH_IS]            =  "ARP_SENDER_MATCH_IS",
 	[VCAP_KF_ARP_TGT_MATCH_IS]               =  "ARP_TGT_MATCH_IS",
@@ -3819,7 +3819,7 @@ static const char * const vcap_keyfield_names[] = {
 	[VCAP_KF_HOST_MATCH]                     =  "HOST_MATCH",
 	[VCAP_KF_IF_EGR_PORT_MASK]               =  "IF_EGR_PORT_MASK",
 	[VCAP_KF_IF_EGR_PORT_MASK_RNG]           =  "IF_EGR_PORT_MASK_RNG",
-	[VCAP_KF_IF_EGR_PORT_NO]                 =  "IF_EGR_PORT_NO",
+	[VCAP_KF_IF_EGR_PORT_ANAL]                 =  "IF_EGR_PORT_ANAL",
 	[VCAP_KF_IF_IGR_PORT]                    =  "IF_IGR_PORT",
 	[VCAP_KF_IF_IGR_PORT_MASK]               =  "IF_IGR_PORT_MASK",
 	[VCAP_KF_IF_IGR_PORT_MASK_L3]            =  "IF_IGR_PORT_MASK_L3",
@@ -3897,7 +3897,7 @@ static const char * const vcap_keyfield_names[] = {
 
 /* Actionfield names */
 static const char * const vcap_actionfield_names[] = {
-	[VCAP_AF_NO_VALUE]                       =  "(None)",
+	[VCAP_AF_ANAL_VALUE]                       =  "(Analne)",
 	[VCAP_AF_ACL_ID]                         =  "ACL_ID",
 	[VCAP_AF_CLS_VID_SEL]                    =  "CLS_VID_SEL",
 	[VCAP_AF_CNT_ID]                         =  "CNT_ID",
@@ -3923,7 +3923,7 @@ static const char * const vcap_actionfield_names[] = {
 	[VCAP_AF_FWD_SEL]                        =  "FWD_SEL",
 	[VCAP_AF_HIT_ME_ONCE]                    =  "HIT_ME_ONCE",
 	[VCAP_AF_HOST_MATCH]                     =  "HOST_MATCH",
-	[VCAP_AF_IGNORE_PIPELINE_CTRL]           =  "IGNORE_PIPELINE_CTRL",
+	[VCAP_AF_IGANALRE_PIPELINE_CTRL]           =  "IGANALRE_PIPELINE_CTRL",
 	[VCAP_AF_INTR_ENA]                       =  "INTR_ENA",
 	[VCAP_AF_ISDX_ADD_REPLACE_SEL]           =  "ISDX_ADD_REPLACE_SEL",
 	[VCAP_AF_ISDX_ENA]                       =  "ISDX_ENA",

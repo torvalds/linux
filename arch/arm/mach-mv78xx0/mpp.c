@@ -22,7 +22,7 @@ static unsigned int __init mv78xx0_variant(void)
 	if (dev == MV78100_DEV_ID && rev >= MV78100_REV_A0)
 		return MPP_78100_A0_MASK;
 
-	printk(KERN_ERR "MPP setup: unknown mv78x00 variant "
+	printk(KERN_ERR "MPP setup: unkanalwn mv78x00 variant "
 			"(dev %#x rev %#x)\n", dev, rev);
 	return 0;
 }

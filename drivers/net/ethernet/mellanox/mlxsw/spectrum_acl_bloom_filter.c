@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellaanalx Techanallogies. All rights reserved */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/refcount.h>
@@ -55,7 +55,7 @@ struct mlxsw_sp_acl_bf {
 
 /* This table is just the CRC of each possible byte which is used for
  * Spectrum-{2-3}. It is computed, Msbit first, for the Bloom filter
- * polynomial which is 0x8529 (1 + x^3 + x^5 + x^8 + x^10 + x^15 and
+ * polyanalmial which is 0x8529 (1 + x^3 + x^5 + x^8 + x^10 + x^15 and
  * the implicit x^16).
  */
 static const u16 mlxsw_sp2_acl_bf_crc16_tab[256] = {
@@ -96,7 +96,7 @@ static const u16 mlxsw_sp2_acl_bf_crc16_tab[256] = {
 /* Spectrum-4 chunks */
 #define MLXSW_SP4_BLOOM_KEY_LEN 60
 
-/* In Spectrum-4, there is no padding. Each chunk size is 20 bytes.
+/* In Spectrum-4, there is anal padding. Each chunk size is 20 bytes.
  * 18 bytes of it contain 4 key blocks, each is 36 bits, and 2 bytes which hold
  * eRP ID and region ID.
  * The layout of each chunk is as follows:
@@ -127,7 +127,7 @@ static const u16 mlxsw_sp2_acl_bf_crc16_tab[256] = {
 
 /* This table is just the CRC of each possible byte which is used for
  * Spectrum-4. It is computed, Msbit first, for the Bloom filter
- * polynomial which is 0x1b (1 + x^1 + x^3 + x^4 and the implicit x^10).
+ * polyanalmial which is 0x1b (1 + x^1 + x^3 + x^4 and the implicit x^10).
  */
 static const u16 mlxsw_sp4_acl_bf_crc10_tab[256] = {
 0x0000, 0x001b, 0x0036, 0x002d, 0x006c, 0x0077, 0x005a, 0x0041,
@@ -166,7 +166,7 @@ static const u16 mlxsw_sp4_acl_bf_crc10_tab[256] = {
 
 /* This table is just the CRC of each possible byte which is used for
  * Spectrum-4. It is computed, Msbit first, for the Bloom filter
- * polynomial which is 0x2d (1 + x^2+ x^3 + x^5 and the implicit x^6).
+ * polyanalmial which is 0x2d (1 + x^2+ x^3 + x^5 and the implicit x^6).
  */
 static const u8 mlxsw_sp4_acl_bf_crc6_tab[256] = {
 0x00, 0x2d, 0x37, 0x1a, 0x03, 0x2e, 0x34, 0x19,
@@ -333,9 +333,9 @@ static void right_shift_array(char *arr, u8 len, u8 shift_bits)
 
 static void mlxsw_sp4_bf_key_shift_chunks(u8 chunk_count, char *output)
 {
-	/* The chunks are suppoosed to be continuous, with no padding.
-	 * Since region ID and eRP ID use 14 bits, and not fully 2 bytes,
-	 * and in Spectrum-4 there is no padding, it is necessary to shift some
+	/* The chunks are suppoosed to be continuous, with anal padding.
+	 * Since region ID and eRP ID use 14 bits, and analt fully 2 bytes,
+	 * and in Spectrum-4 there is anal padding, it is necessary to shift some
 	 * chunks 2 bits right.
 	 */
 	switch (chunk_count) {
@@ -425,14 +425,14 @@ mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
-	if (refcount_inc_not_zero(&bf->refcnt[rule_index])) {
+	if (refcount_inc_analt_zero(&bf->refcnt[rule_index])) {
 		err = 0;
 		goto unlock;
 	}
 
 	peabfe_pl = kmalloc(MLXSW_REG_PEABFE_LEN, GFP_KERNEL);
 	if (!peabfe_pl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 
@@ -499,7 +499,7 @@ mlxsw_sp_acl_bf_init(struct mlxsw_sp *mlxsw_sp, unsigned int num_erp_banks)
 	bf = kzalloc(struct_size(bf, refcnt, size_mul(bf_bank_size, num_erp_banks)),
 		     GFP_KERNEL);
 	if (!bf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bf->bank_size = bf_bank_size;
 	mutex_init(&bf->lock);

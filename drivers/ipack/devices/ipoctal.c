@@ -162,7 +162,7 @@ static void ipoctal_irq_rx(struct ipoctal_channel *channel, u8 sr)
 
 	do {
 		value = ioread8(&channel->regs->r.rhr);
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		/* Error: count statistics */
 		if (sr & SR_ERROR) {
 			iowrite8(CR_CMD_RESET_ERR_STATUS, &channel->regs->w.cr);
@@ -290,7 +290,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] IO space!\n",
 			bus_nr, slot);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 	/* Save the virtual address to access the registers easily */
 	chan_regs =
@@ -306,7 +306,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] INT space!\n",
 			bus_nr, slot);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 	region = &ipoctal->dev->region[IPACK_MEM8_SPACE];
@@ -317,7 +317,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		dev_err(&ipoctal->dev->dev,
 			"Unable to map slot [%d:%d] MEM8 space!\n",
 			bus_nr, slot);
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 	}
 
 
@@ -367,14 +367,14 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	drv->driver_name = KBUILD_MODNAME;
 	drv->name = kasprintf(GFP_KERNEL, KBUILD_MODNAME ".%d.%d.", bus_nr, slot);
 	if (!drv->name) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto err_put_driver;
 	}
 	drv->major = 0;
 
-	drv->minor_start = 0;
+	drv->mianalr_start = 0;
 	drv->type = TTY_DRIVER_TYPE_SERIAL;
-	drv->subtype = SERIAL_TYPE_NORMAL;
+	drv->subtype = SERIAL_TYPE_ANALRMAL;
 	drv->init_termios = tty_std_termios;
 	drv->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	drv->init_termios.c_ispeed = 9600;
@@ -418,7 +418,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	/*
 	 * IP-OCTAL has different addresses to copy its IRQ vector.
-	 * Depending of the carrier these addresses are accesible or not.
+	 * Depending of the carrier these addresses are accesible or analt.
 	 * More info in the datasheet.
 	 */
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev,
@@ -533,7 +533,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	else
 		mr1 |= MR1_PARITY_OFF;
 
-	/* Mark or space parity is not supported */
+	/* Mark or space parity is analt supported */
 	tty->termios.c_cflag &= ~CMSPAR;
 
 	/* Set stop bits */
@@ -690,7 +690,7 @@ static int ipoctal_probe(struct ipack_device *dev)
 
 	ipoctal = kzalloc(sizeof(struct ipoctal), GFP_KERNEL);
 	if (ipoctal == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ipoctal->dev = dev;
 	res = ipoctal_inst_slot(ipoctal, dev->bus->bus_nr, dev->slot);

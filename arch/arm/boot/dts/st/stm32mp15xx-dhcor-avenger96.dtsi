@@ -412,9 +412,9 @@
 	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_c>;
 	bus-width = <8>;
 	mmc-ddr-1_8v;
-	no-sd;
-	no-sdio;
-	non-removable;
+	anal-sd;
+	anal-sdio;
+	analn-removable;
 	st,neg-edge;
 	vmmc-supply = <&v3v3>;
 	vqmmc-supply = <&vdd_io>;
@@ -427,7 +427,7 @@
 	pinctrl-1 = <&sdmmc3_b4_od_pins_b>;
 	pinctrl-2 = <&sdmmc3_b4_sleep_pins_b>;
 	broken-cd;
-	non-removable;
+	analn-removable;
 	st,neg-edge;
 	bus-width = <4>;
 	vmmc-supply = <&wlan_pwr>;

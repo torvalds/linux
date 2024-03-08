@@ -40,7 +40,7 @@ u32 swsusp_hardware_signature;
 /*
  * When reading an {un,}compressed image, we may restore pages in place,
  * in which case some architectures need these pages cleaning before they
- * can be executed. We don't know which pages these may be, so clean the lot.
+ * can be executed. We don't kanalw which pages these may be, so clean the lot.
  */
 static bool clean_pages_on_read;
 static bool clean_pages_on_decompress;
@@ -62,7 +62,7 @@ static bool clean_pages_on_decompress;
 #define MAP_PAGE_ENTRIES	(PAGE_SIZE / sizeof(sector_t) - 1)
 
 /*
- * Number of free pages that are not high.
+ * Number of free pages that are analt high.
  */
 static inline unsigned long low_free_pages(void)
 {
@@ -122,7 +122,7 @@ static struct swsusp_header *swsusp_header;
  */
 
 struct swsusp_extent {
-	struct rb_node node;
+	struct rb_analde analde;
 	unsigned long start;
 	unsigned long end;
 };
@@ -131,13 +131,13 @@ static struct rb_root swsusp_extents = RB_ROOT;
 
 static int swsusp_extents_insert(unsigned long swap_offset)
 {
-	struct rb_node **new = &(swsusp_extents.rb_node);
-	struct rb_node *parent = NULL;
+	struct rb_analde **new = &(swsusp_extents.rb_analde);
+	struct rb_analde *parent = NULL;
 	struct swsusp_extent *ext;
 
-	/* Figure out where to put the new node */
+	/* Figure out where to put the new analde */
 	while (*new) {
-		ext = rb_entry(*new, struct swsusp_extent, node);
+		ext = rb_entry(*new, struct swsusp_extent, analde);
 		parent = *new;
 		if (swap_offset < ext->start) {
 			/* Try to merge */
@@ -158,15 +158,15 @@ static int swsusp_extents_insert(unsigned long swap_offset)
 			return -EINVAL;
 		}
 	}
-	/* Add the new node and rebalance the tree. */
+	/* Add the new analde and rebalance the tree. */
 	ext = kzalloc(sizeof(struct swsusp_extent), GFP_KERNEL);
 	if (!ext)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ext->start = swap_offset;
 	ext->end = swap_offset;
-	rb_link_node(&ext->node, parent, new);
-	rb_insert_color(&ext->node, &swsusp_extents);
+	rb_link_analde(&ext->analde, parent, new);
+	rb_insert_color(&ext->analde, &swsusp_extents);
 	return 0;
 }
 
@@ -197,14 +197,14 @@ sector_t alloc_swapdev_block(int swap)
 
 void free_all_swap_pages(int swap)
 {
-	struct rb_node *node;
+	struct rb_analde *analde;
 
-	while ((node = swsusp_extents.rb_node)) {
+	while ((analde = swsusp_extents.rb_analde)) {
 		struct swsusp_extent *ext;
 		unsigned long offset;
 
-		ext = rb_entry(node, struct swsusp_extent, node);
-		rb_erase(node, &swsusp_extents);
+		ext = rb_entry(analde, struct swsusp_extent, analde);
+		rb_erase(analde, &swsusp_extents);
 		for (offset = ext->start; offset <= ext->end; offset++)
 			swap_free(swp_entry(swap, offset));
 
@@ -214,7 +214,7 @@ void free_all_swap_pages(int swap)
 
 int swsusp_swap_in_use(void)
 {
-	return (swsusp_extents.rb_node != NULL);
+	return (swsusp_extents.rb_analde != NULL);
 }
 
 /*
@@ -251,7 +251,7 @@ static void hib_end_io(struct bio *bio)
 
 	if (bio->bi_status) {
 		pr_alert("Read-error on swap-device (%u:%u:%Lu)\n",
-			 MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
+			 MAJOR(bio_dev(bio)), MIANALR(bio_dev(bio)),
 			 (unsigned long long)bio->bi_iter.bi_sector);
 	}
 
@@ -277,7 +277,7 @@ static int hib_submit_io(blk_opf_t opf, pgoff_t page_off, void *addr,
 	int error = 0;
 
 	bio = bio_alloc(hib_resume_bdev_handle->bdev, 1, opf,
-			GFP_NOIO | __GFP_HIGH);
+			GFP_ANALIO | __GFP_HIGH);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
@@ -307,7 +307,7 @@ static int hib_wait_io(struct hib_bio_batch *hb)
 	 * a plug will flush the plug list before sleeping.
 	 */
 	wait_event(hb->wait, atomic_read(&hb->count) == 0);
-	return blk_status_to_errno(hb->error);
+	return blk_status_to_erranal(hb->error);
 }
 
 /*
@@ -333,8 +333,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 		error = hib_submit_io(REQ_OP_WRITE | REQ_SYNC,
 				      swsusp_resume_block, swsusp_header, NULL);
 	} else {
-		pr_err("Swap header not found!\n");
-		error = -ENODEV;
+		pr_err("Swap header analt found!\n");
+		error = -EANALDEV;
 	}
 	return error;
 }
@@ -382,25 +382,25 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 	int ret;
 
 	if (!offset)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	if (hb) {
-		src = (void *)__get_free_page(GFP_NOIO | __GFP_NOWARN |
-		                              __GFP_NORETRY);
+		src = (void *)__get_free_page(GFP_ANALIO | __GFP_ANALWARN |
+		                              __GFP_ANALRETRY);
 		if (src) {
 			copy_page(src, buf);
 		} else {
 			ret = hib_wait_io(hb); /* Free pages */
 			if (ret)
 				return ret;
-			src = (void *)__get_free_page(GFP_NOIO |
-			                              __GFP_NOWARN |
-			                              __GFP_NORETRY);
+			src = (void *)__get_free_page(GFP_ANALIO |
+			                              __GFP_ANALWARN |
+			                              __GFP_ANALRETRY);
 			if (src) {
 				copy_page(src, buf);
 			} else {
 				WARN_ON_ONCE(1);
-				hb = NULL;	/* Go synchronous */
+				hb = NULL;	/* Go synchroanalus */
 				src = buf;
 			}
 		}
@@ -423,18 +423,18 @@ static int get_swap_writer(struct swap_map_handle *handle)
 
 	ret = swsusp_swap_check();
 	if (ret) {
-		if (ret != -ENOSPC)
-			pr_err("Cannot find swap device, try swapon -a\n");
+		if (ret != -EANALSPC)
+			pr_err("Cananalt find swap device, try swapon -a\n");
 		return ret;
 	}
 	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_KERNEL);
 	if (!handle->cur) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_close;
 	}
 	handle->cur_swap = alloc_swapdev_block(root_swap);
 	if (!handle->cur_swap) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto err_rel;
 	}
 	handle->k = 0;
@@ -464,7 +464,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 	if (handle->k >= MAP_PAGE_ENTRIES) {
 		offset = alloc_swapdev_block(root_swap);
 		if (!offset)
-			return -ENOSPC;
+			return -EANALSPC;
 		handle->cur->next_swap = offset;
 		error = write_page(handle->cur, handle->cur_swap, hb);
 		if (error)
@@ -701,24 +701,24 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	nr_threads = num_online_cpus() - 1;
 	nr_threads = clamp_val(nr_threads, 1, LZO_THREADS);
 
-	page = (void *)__get_free_page(GFP_NOIO | __GFP_HIGH);
+	page = (void *)__get_free_page(GFP_ANALIO | __GFP_HIGH);
 	if (!page) {
 		pr_err("Failed to allocate LZO page\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
 	data = vzalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
 		pr_err("Failed to allocate LZO data\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
 	crc = kzalloc(sizeof(*crc), GFP_KERNEL);
 	if (!crc) {
 		pr_err("Failed to allocate crc\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
@@ -734,8 +734,8 @@ static int save_image_lzo(struct swap_map_handle *handle,
 		                            "image_compress/%u", thr);
 		if (IS_ERR(data[thr].thr)) {
 			data[thr].thr = NULL;
-			pr_err("Cannot start compression threads\n");
-			ret = -ENOMEM;
+			pr_err("Cananalt start compression threads\n");
+			ret = -EANALMEM;
 			goto out_clean;
 		}
 	}
@@ -756,8 +756,8 @@ static int save_image_lzo(struct swap_map_handle *handle,
 	crc->thr = kthread_run(crc32_threadfn, crc, "image_crc32");
 	if (IS_ERR(crc->thr)) {
 		crc->thr = NULL;
-		pr_err("Cannot start CRC32 thread\n");
-		ret = -ENOMEM;
+		pr_err("Cananalt start CRC32 thread\n");
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
@@ -881,13 +881,13 @@ out_clean:
 }
 
 /**
- *	enough_swap - Make sure we have enough swap to save the image.
+ *	eanalugh_swap - Make sure we have eanalugh swap to save the image.
  *
  *	Returns TRUE or FALSE after checking the total amount of swap
  *	space available from the resume partition.
  */
 
-static int enough_swap(unsigned int nr_pages)
+static int eanalugh_swap(unsigned int nr_pages)
 {
 	unsigned int free_swap = count_swap_pages(root_swap, 1);
 	unsigned int required;
@@ -902,9 +902,9 @@ static int enough_swap(unsigned int nr_pages)
  *	swsusp_write - Write entire image and metadata.
  *	@flags: flags to pass to the "boot" kernel in the image header
  *
- *	It is important _NOT_ to umount filesystems at this point. We want
- *	them synced (in case something goes wrong) but we DO not want to mark
- *	filesystem clean: it is not. (And it does not matter, if we resume
+ *	It is important _ANALT_ to umount filesystems at this point. We want
+ *	them synced (in case something goes wrong) but we DO analt want to mark
+ *	filesystem clean: it is analt. (And it does analt matter, if we resume
  *	correctly, we'll mark system clean, anyway.)
  */
 
@@ -919,13 +919,13 @@ int swsusp_write(unsigned int flags)
 	pages = snapshot_get_image_size();
 	error = get_swap_writer(&handle);
 	if (error) {
-		pr_err("Cannot get swap writer\n");
+		pr_err("Cananalt get swap writer\n");
 		return error;
 	}
-	if (flags & SF_NOCOMPRESS_MODE) {
-		if (!enough_swap(pages)) {
-			pr_err("Not enough free swap\n");
-			error = -ENOSPC;
+	if (flags & SF_ANALCOMPRESS_MODE) {
+		if (!eanalugh_swap(pages)) {
+			pr_err("Analt eanalugh free swap\n");
+			error = -EANALSPC;
 			goto out_finish;
 		}
 	}
@@ -940,7 +940,7 @@ int swsusp_write(unsigned int flags)
 	header = (struct swsusp_info *)data_of(snapshot);
 	error = swap_write_page(&handle, header, NULL);
 	if (!error) {
-		error = (flags & SF_NOCOMPRESS_MODE) ?
+		error = (flags & SF_ANALCOMPRESS_MODE) ?
 			save_image(&handle, &snapshot, pages - 1) :
 			save_image_lzo(&handle, &snapshot, pages - 1);
 	}
@@ -987,7 +987,7 @@ static int get_swap_reader(struct swap_map_handle *handle,
 		tmp = kzalloc(sizeof(*handle->maps), GFP_KERNEL);
 		if (!tmp) {
 			release_swap_reader(handle);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		if (!handle->maps)
 			handle->maps = tmp;
@@ -996,10 +996,10 @@ static int get_swap_reader(struct swap_map_handle *handle,
 		last = tmp;
 
 		tmp->map = (struct swap_map_page *)
-			   __get_free_page(GFP_NOIO | __GFP_HIGH);
+			   __get_free_page(GFP_ANALIO | __GFP_HIGH);
 		if (!tmp->map) {
 			release_swap_reader(handle);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		error = hib_submit_io(REQ_OP_READ, offset, tmp->map, NULL);
@@ -1102,7 +1102,7 @@ static int load_image(struct swap_map_handle *handle,
 		pr_info("Image loading done\n");
 		snapshot_write_finalize(snapshot);
 		if (!snapshot_image_loaded(snapshot))
-			ret = -ENODATA;
+			ret = -EANALDATA;
 	}
 	swsusp_show_speed(start, stop, nr_to_read, "Read");
 	return ret;
@@ -1194,21 +1194,21 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	page = vmalloc(array_size(LZO_MAX_RD_PAGES, sizeof(*page)));
 	if (!page) {
 		pr_err("Failed to allocate LZO page\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
 	data = vzalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
 		pr_err("Failed to allocate LZO data\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
 	crc = kzalloc(sizeof(*crc), GFP_KERNEL);
 	if (!crc) {
 		pr_err("Failed to allocate crc\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
@@ -1226,8 +1226,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		                            "image_decompress/%u", thr);
 		if (IS_ERR(data[thr].thr)) {
 			data[thr].thr = NULL;
-			pr_err("Cannot start decompression threads\n");
-			ret = -ENOMEM;
+			pr_err("Cananalt start decompression threads\n");
+			ret = -EANALMEM;
 			goto out_clean;
 		}
 	}
@@ -1248,17 +1248,17 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	crc->thr = kthread_run(crc32_threadfn, crc, "image_crc32");
 	if (IS_ERR(crc->thr)) {
 		crc->thr = NULL;
-		pr_err("Cannot start CRC32 thread\n");
-		ret = -ENOMEM;
+		pr_err("Cananalt start CRC32 thread\n");
+		ret = -EANALMEM;
 		goto out_clean;
 	}
 
 	/*
 	 * Set the number of pages for read buffering.
-	 * This is complete guesswork, because we'll only know the real
+	 * This is complete guesswork, because we'll only kanalw the real
 	 * picture once prepare_image() is called, which is much later on
 	 * during the image load phase. We'll assume the worst case and
-	 * say that none of the image pages are from high memory.
+	 * say that analne of the image pages are from high memory.
 	 */
 	if (low_free_pages() > snapshot_get_image_size())
 		read_pages = (low_free_pages() - snapshot_get_image_size()) / 2;
@@ -1266,15 +1266,15 @@ static int load_image_lzo(struct swap_map_handle *handle,
 
 	for (i = 0; i < read_pages; i++) {
 		page[i] = (void *)__get_free_page(i < LZO_CMP_PAGES ?
-						  GFP_NOIO | __GFP_HIGH :
-						  GFP_NOIO | __GFP_NOWARN |
-						  __GFP_NORETRY);
+						  GFP_ANALIO | __GFP_HIGH :
+						  GFP_ANALIO | __GFP_ANALWARN |
+						  __GFP_ANALRETRY);
 
 		if (!page[i]) {
 			if (i < LZO_CMP_PAGES) {
 				ring_size = i;
 				pr_err("Failed to allocate LZO pages\n");
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_clean;
 			} else {
 				break;
@@ -1443,12 +1443,12 @@ out_finish:
 		pr_info("Image loading done\n");
 		snapshot_write_finalize(snapshot);
 		if (!snapshot_image_loaded(snapshot))
-			ret = -ENODATA;
+			ret = -EANALDATA;
 		if (!ret) {
 			if (swsusp_header->flags & SF_CRC32_MODE) {
 				if(handle->crc32 != swsusp_header->crc32) {
 					pr_err("Invalid image CRC32!\n");
-					ret = -ENODATA;
+					ret = -EANALDATA;
 				}
 			}
 		}
@@ -1498,7 +1498,7 @@ int swsusp_read(unsigned int *flags_p)
 	if (!error)
 		error = swap_read_page(&handle, header, NULL);
 	if (!error) {
-		error = (*flags_p & SF_NOCOMPRESS_MODE) ?
+		error = (*flags_p & SF_ANALCOMPRESS_MODE) ?
 			load_image(&handle, &snapshot, header->pages - 1) :
 			load_image_lzo(&handle, &snapshot, header->pages - 1);
 	}
@@ -1535,7 +1535,7 @@ int swsusp_check(bool exclusive)
 
 		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
-			/* Reset swap signature now */
+			/* Reset swap signature analw */
 			error = hib_submit_io(REQ_OP_WRITE | REQ_SYNC,
 						swsusp_resume_block,
 						swsusp_header, NULL);
@@ -1544,7 +1544,7 @@ int swsusp_check(bool exclusive)
 		}
 		if (!error && swsusp_header->flags & SF_HW_SIG &&
 		    swsusp_header->hw_sig != swsusp_hardware_signature) {
-			pr_info("Suspend image hardware signature mismatch (%08x now %08x); aborting resume.\n",
+			pr_info("Suspend image hardware signature mismatch (%08x analw %08x); aborting resume.\n",
 				swsusp_header->hw_sig, swsusp_hardware_signature);
 			error = -EINVAL;
 		}
@@ -1559,7 +1559,7 @@ put:
 	}
 
 	if (error)
-		pr_debug("Image not found (code %d)\n", error);
+		pr_debug("Image analt found (code %d)\n", error);
 
 	return error;
 }
@@ -1571,7 +1571,7 @@ put:
 void swsusp_close(void)
 {
 	if (IS_ERR(hib_resume_bdev_handle)) {
-		pr_debug("Image device not initialised\n");
+		pr_debug("Image device analt initialised\n");
 		return;
 	}
 
@@ -1595,8 +1595,8 @@ int swsusp_unmark(void)
 					swsusp_resume_block,
 					swsusp_header, NULL);
 	} else {
-		pr_err("Cannot find swsusp signature!\n");
-		error = -ENODEV;
+		pr_err("Cananalt find swsusp signature!\n");
+		error = -EANALDEV;
 	}
 
 	/*
@@ -1612,7 +1612,7 @@ static int __init swsusp_header_init(void)
 {
 	swsusp_header = (struct swsusp_header*) __get_free_page(GFP_KERNEL);
 	if (!swsusp_header)
-		panic("Could not allocate memory for swsusp_header\n");
+		panic("Could analt allocate memory for swsusp_header\n");
 	return 0;
 }
 

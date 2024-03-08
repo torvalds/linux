@@ -4,7 +4,7 @@ KernelVersion:	5.20
 Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the static
 		region if one is programmed, else it returns the
-		string: "hash not programmed".  This file is only
+		string: "hash analt programmed".  This file is only
 		visible if the underlying device supports it.
 		Format: string.
 
@@ -14,7 +14,7 @@ KernelVersion:	5.20
 Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the partial
 		reconfiguration region if one is programmed, else it
-		returns the string: "hash not programmed".  This file
+		returns the string: "hash analt programmed".  This file
 		is only visible if the underlying device supports it.
 		Format: string.
 
@@ -24,7 +24,7 @@ KernelVersion:	5.20
 Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the BMC image
 		if one is programmed, else it returns the string:
-		"hash not programmed".  This file is only visible if the
+		"hash analt programmed".  This file is only visible if the
 		underlying device supports it.
 		Format: string.
 

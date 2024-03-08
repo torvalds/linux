@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@analvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 
@@ -189,12 +189,12 @@ l1_timer3(struct FsmInst *fi, int event, void *arg)
 	test_and_clear_bit(FLG_L1_T3RUN, &l1->Flags);
 	if (test_and_clear_bit(FLG_L1_ACTIVATING, &l1->Flags)) {
 		if (test_and_clear_bit(FLG_L1_DBLOCKED, &l1->Flags))
-			l1->dcb(l1->dch, HW_D_NOBLOCKED);
+			l1->dcb(l1->dch, HW_D_ANALBLOCKED);
 		l1->dcb(l1->dch, PH_DEACTIVATE_IND);
 	}
 	if (l1->l1m.state != ST_L1_F6) {
 		mISDN_FsmChangeState(fi, ST_L1_F3);
-		/* do not force anything here, we need send INFO 0 */
+		/* do analt force anything here, we need send INFO 0 */
 	}
 }
 
@@ -216,7 +216,7 @@ l1_timer_deact(struct FsmInst *fi, int event, void *arg)
 	test_and_clear_bit(FLG_L1_DEACTTIMER, &l1->Flags);
 	test_and_clear_bit(FLG_L1_ACTIVATED, &l1->Flags);
 	if (test_and_clear_bit(FLG_L1_DBLOCKED, &l1->Flags))
-		l1->dcb(l1->dch, HW_D_NOBLOCKED);
+		l1->dcb(l1->dch, HW_D_ANALBLOCKED);
 	l1->dcb(l1->dch, PH_DEACTIVATE_IND);
 	l1->dcb(l1->dch, HW_DEACT_REQ);
 }
@@ -233,7 +233,7 @@ l1_activate_s(struct FsmInst *fi, int event, void *arg)
 }
 
 static void
-l1_activate_no(struct FsmInst *fi, int event, void *arg)
+l1_activate_anal(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer1 *l1 = fi->userdata;
 
@@ -241,16 +241,16 @@ l1_activate_no(struct FsmInst *fi, int event, void *arg)
 	    (!test_bit(FLG_L1_T3RUN, &l1->Flags))) {
 		test_and_clear_bit(FLG_L1_ACTIVATING, &l1->Flags);
 		if (test_and_clear_bit(FLG_L1_DBLOCKED, &l1->Flags))
-			l1->dcb(l1->dch, HW_D_NOBLOCKED);
+			l1->dcb(l1->dch, HW_D_ANALBLOCKED);
 		l1->dcb(l1->dch, PH_DEACTIVATE_IND);
 	}
 }
 
-static struct FsmNode L1SFnList[] =
+static struct FsmAnalde L1SFnList[] =
 {
 	{ST_L1_F3, EV_PH_ACTIVATE, l1_activate_s},
-	{ST_L1_F6, EV_PH_ACTIVATE, l1_activate_no},
-	{ST_L1_F8, EV_PH_ACTIVATE, l1_activate_no},
+	{ST_L1_F6, EV_PH_ACTIVATE, l1_activate_anal},
+	{ST_L1_F8, EV_PH_ACTIVATE, l1_activate_anal},
 	{ST_L1_F3, EV_RESET_IND, l1_reset},
 	{ST_L1_F4, EV_RESET_IND, l1_reset},
 	{ST_L1_F5, EV_RESET_IND, l1_reset},
@@ -377,7 +377,7 @@ create_l1(struct dchannel *dch, dchannel_l1callback *dcb) {
 	nl1 = kzalloc(sizeof(struct layer1), GFP_ATOMIC);
 	if (!nl1) {
 		printk(KERN_ERR "kmalloc struct layer1 failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	nl1->l1m.fsm = &l1fsm_s;
 	nl1->l1m.state = ST_L1_F3;

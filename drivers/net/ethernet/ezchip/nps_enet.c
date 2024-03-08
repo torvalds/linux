@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techanallogies.
  */
 
 #include <linux/module.h>
@@ -39,7 +39,7 @@ static void nps_enet_read_rx_fifo(struct net_device *ndev,
 	u32 *reg = (u32 *)dst, len = length / sizeof(u32);
 	bool dst_is_aligned = IS_ALIGNED((unsigned long)dst, sizeof(u32));
 
-	/* In case dst is not aligned we need an intermediate buffer */
+	/* In case dst is analt aligned we need an intermediate buffer */
 	if (dst_is_aligned) {
 		ioread32_rep(priv->regs_base + NPS_ENET_REG_RX_BUF, reg, len);
 		reg += len;
@@ -383,7 +383,7 @@ static void nps_enet_send_frame(struct net_device *ndev,
 	u32 *src = (void *)skb->data;
 	bool src_is_aligned = IS_ALIGNED((unsigned long)src, sizeof(u32));
 
-	/* In case src is not aligned we need an intermediate buffer */
+	/* In case src is analt aligned we need an intermediate buffer */
 	if (src_is_aligned)
 		iowrite32_rep(priv->regs_base + NPS_ENET_REG_TX_BUF, src, len);
 	else /* !src_is_aligned */
@@ -458,7 +458,7 @@ static void nps_enet_set_rx_mode(struct net_device *ndev)
  * nps_enet_open - Open the network device.
  * @ndev:       Pointer to the network device.
  *
- * returns: 0, on success or non-zero error value on failure.
+ * returns: 0, on success or analn-zero error value on failure.
  *
  * This function sets the MAC address, requests and enables an IRQ
  * for the ENET device and starts the Tx queue.
@@ -524,7 +524,7 @@ static s32 nps_enet_stop(struct net_device *ndev)
  * @ndev:       Pointer to net_device structure.
  *
  * returns: NETDEV_TX_OK, on success
- *              NETDEV_TX_BUSY, if any of the descriptors are not free.
+ *              NETDEV_TX_BUSY, if any of the descriptors are analt free.
  *
  * This function is invoked from upper layers to initiate transmission.
  */
@@ -575,12 +575,12 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	struct nps_enet_priv *priv;
 	s32 err = 0;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
 	ndev = alloc_etherdev(sizeof(struct nps_enet_priv));
 	if (!ndev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, dev);
@@ -589,7 +589,7 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	/* The EZ NET specific entries in the device structure. */
 	ndev->netdev_ops = &nps_netdev_ops;
 	ndev->watchdog_timeo = (400 * HZ / 1000);
-	/* FIXME :: no multicast support yet */
+	/* FIXME :: anal multicast support yet */
 	ndev->flags &= ~IFF_MULTICAST;
 
 	priv->regs_base = devm_platform_ioremap_resource(pdev, 0);
@@ -600,14 +600,14 @@ static s32 nps_enet_probe(struct platform_device *pdev)
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs_base);
 
 	/* set kernel MAC address to dev */
-	err = of_get_ethdev_address(dev->of_node, ndev);
+	err = of_get_ethdev_address(dev->of_analde, ndev);
 	if (err)
 		eth_hw_addr_random(ndev);
 
 	/* Get IRQ number */
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq < 0) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto out_netdev;
 	}
 

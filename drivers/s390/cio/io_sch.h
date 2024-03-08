@@ -68,8 +68,8 @@ enum io_status {
  * @callback: final callback
  * @data: user-defined pointer passed to all callbacks
  * @singlepath: if set, use only one path from @lpm per start I/O
- * @cancel: non-zero if request was cancelled
- * @done: non-zero if request was finished
+ * @cancel: analn-zero if request was cancelled
+ * @done: analn-zero if request was finished
  * @mask: current path mask
  * @retries: current number of retries
  * @drc: delayed return code
@@ -109,7 +109,7 @@ struct senseid {
 }  __attribute__ ((packed, aligned(4)));
 
 enum cdev_todo {
-	CDEV_TODO_NOTHING,
+	CDEV_TODO_ANALTHING,
 	CDEV_TODO_ENABLE_CMF,
 	CDEV_TODO_REBIND,
 	CDEV_TODO_REGISTER,
@@ -131,17 +131,17 @@ struct ccw_device_private {
 	struct ccw_device *cdev;
 	struct subchannel *sch;
 	int state;		/* device state */
-	atomic_t onoff;
+	atomic_t oanalff;
 	struct ccw_dev_id dev_id;	/* device id */
 	struct ccw_request req;		/* internal I/O request */
 	int iretry;
 	u8 pgid_valid_mask;	/* mask of valid PGIDs */
 	u8 pgid_todo_mask;	/* mask of PGIDs to be adjusted */
 	u8 pgid_reset_mask;	/* mask of PGIDs which were reset */
-	u8 path_noirq_mask;	/* mask of paths for which no irq was
+	u8 path_analirq_mask;	/* mask of paths for which anal irq was
 				   received */
-	u8 path_notoper_mask;	/* mask of paths which were found
-				   not operable */
+	u8 path_analtoper_mask;	/* mask of paths which were found
+				   analt operable */
 	u8 path_gone_mask;	/* mask of paths, that became unavailable */
 	u8 path_new_mask;	/* mask of paths, that became available */
 	u8 path_broken_mask;	/* mask of paths, which were found to be
@@ -157,12 +157,12 @@ struct ccw_device_private {
 		unsigned int esid:1;	    /* Ext. SenseID supported by HW */
 		unsigned int dosense:1;	    /* delayed SENSE required */
 		unsigned int doverify:1;    /* delayed path verification */
-		unsigned int donotify:1;    /* call notify function */
+		unsigned int doanaltify:1;    /* call analtify function */
 		unsigned int recog_done:1;  /* dev. recog. complete */
 		unsigned int fake_irb:2;    /* deliver faked irb */
 		unsigned int pgroup:1;	    /* pathgroup is set up */
 		unsigned int mpath:1;	    /* multipathing is set up */
-		unsigned int pgid_unknown:1;/* unknown pgid state */
+		unsigned int pgid_unkanalwn:1;/* unkanalwn pgid state */
 		unsigned int initialized:1; /* set if initial reference held */
 	} __attribute__((packed)) flags;
 	unsigned long intparm;	/* user interruption parameter */

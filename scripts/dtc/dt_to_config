@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 # Copyright 2016 by Frank Rowand
-# Copyright 2016 by Gaurav Minocha
+# Copyright 2016 by Gaurav Mianalcha
 #
 
 use strict 'refs';
@@ -24,11 +24,11 @@ $pr_flag_pos_driver            = 1;
 $pr_flag_pos_mdriver           = 2;
 $pr_flag_pos_config            = 3;
 $pr_flag_pos_mconfig           = 4;
-$pr_flag_pos_node_not_enabled  = 5;
+$pr_flag_pos_analde_analt_enabled  = 5;
 $pr_flag_pos_white_list        = 6;
 $pr_flag_pos_hard_coded        = 7;
 $pr_flag_pos_config_hard_coded = 8;
-$pr_flag_pos_config_none       = 9;
+$pr_flag_pos_config_analne       = 9;
 $pr_flag_pos_config_m          = 10;
 $pr_flag_pos_config_y          = 11;
 $pr_flag_pos_config_test_fail  = 12;
@@ -42,16 +42,16 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
 @pr_flag_value = ('M', 'd', 'D', 'c', 'C', 'E', 'W', 'H', 'x', 'n', 'm', 'y', 'F');
 
 @pr_flag_help = (
-    "multiple compatibles found for this node",
+    "multiple compatibles found for this analde",
     "driver found for this compatible",
     "multiple drivers found for this compatible",
     "kernel config found for this driver",
     "multiple config options found for this driver",
-    "node is not enabled",
+    "analde is analt enabled",
     "compatible is white listed",
     "matching driver and/or kernel config is hard coded",
     "kernel config hard coded in Makefile",
-    "one or more kernel config file options is not set",
+    "one or more kernel config file options is analt set",
     "one or more kernel config file options is set to 'm'",
     "one or more kernel config file options is set to 'y'",
     "one of more kernel config file options fails to have correct value"
@@ -67,44 +67,44 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
                        # expected values are: "y", "m", a decimal number, a
                        # hex number, or a string
 
-# ----- magic compatibles, do not have a driver
+# ----- magic compatibles, do analt have a driver
 #
-# Will not search for drivers for these compatibles.
+# Will analt search for drivers for these compatibles.
 
 %compat_white_list = (
-       'none'                  => '1',
+       'analne'                  => '1',
        'pci'                   => '1',
        'simple-bus'            => '1',
 );
 
-# Will not search for drivers for these compatibles.
+# Will analt search for drivers for these compatibles.
 #
 # These compatibles have a very large number of false positives.
 #
-# 'hardcoded_no_driver' is a magic value.  Other code knows this
-# magic value.  Do not use 'no_driver' here!
+# 'hardcoded_anal_driver' is a magic value.  Other code kanalws this
+# magic value.  Do analt use 'anal_driver' here!
 #
-# Revisit each 'hardcoded_no_driver' to see how the compatible
+# Revisit each 'hardcoded_anal_driver' to see how the compatible
 # is used.  Are there drivers that can be provided?
 
 %driver_hard_code_list = (
-       'cache'                 => ['hardcoded_no_driver'],
-       'eeprom'                => ['hardcoded_no_driver'],
-       'gpio'                  => ['hardcoded_no_driver'],
+       'cache'                 => ['hardcoded_anal_driver'],
+       'eeprom'                => ['hardcoded_anal_driver'],
+       'gpio'                  => ['hardcoded_anal_driver'],
        'gpio-keys'             => ['drivers/input/keyboard/gpio_keys.c'],
        'i2c-gpio'              => ['drivers/i2c/busses/i2c-gpio.c'],
        'isa'                   => ['arch/mips/mti-malta/malta-dt.c',
                                     'arch/x86/kernel/devicetree.c'],
-       'led'                   => ['hardcoded_no_driver'],
-       'm25p32'                => ['hardcoded_no_driver'],
-       'm25p64'                => ['hardcoded_no_driver'],
-       'm25p80'                => ['hardcoded_no_driver'],
+       'led'                   => ['hardcoded_anal_driver'],
+       'm25p32'                => ['hardcoded_anal_driver'],
+       'm25p64'                => ['hardcoded_anal_driver'],
+       'm25p80'                => ['hardcoded_anal_driver'],
        'mtd-ram'               => ['drivers/mtd/maps/physmap_of.c'],
        'pwm-backlight'         => ['drivers/video/backlight/pwm_bl.c'],
-       'spidev'                => ['hardcoded_no_driver'],
+       'spidev'                => ['hardcoded_anal_driver'],
        'syscon'                => ['drivers/mfd/syscon.c'],
-       'tlv320aic23'           => ['hardcoded_no_driver'],
-       'wm8731'                => ['hardcoded_no_driver'],
+       'tlv320aic23'           => ['hardcoded_anal_driver'],
+       'wm8731'                => ['hardcoded_anal_driver'],
 );
 
 # Use these config options instead of searching makefiles
@@ -112,8 +112,8 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
 %driver_config_hard_code_list = (
 
        # this one needed even if %driver_hard_code_list is empty
-       'no_driver'                             => ['no_config'],
-       'hardcoded_no_driver'                   => ['no_config'],
+       'anal_driver'                             => ['anal_config'],
+       'hardcoded_anal_driver'                   => ['anal_config'],
 
        # drivers/usb/host/ehci-ppc-of.c
        # drivers/usb/host/ehci-xilinx-of.c
@@ -122,7 +122,7 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
        #  thus the search of Makefile for the included .c files is incorrect
        # ehci-hcd.c wraps the includes with ifdef CONFIG_USB_EHCI_HCD_..._OF
        #
-       # similar model for ohci-hcd.c (but no ohci-xilinx-of.c)
+       # similar model for ohci-hcd.c (but anal ohci-xilinx-of.c)
        #
        # similarly, uhci-hcd.c includes uhci-platform.c
 
@@ -145,14 +145,14 @@ $num_pr_flags = $pr_flag_pos_config_test_fail + 1;
 
 
 # 'virt/kvm/arm/.*' are controlled by makefiles in other directories,
-# using relative paths, such as 'KVM := ../../../virt/kvm'.  Do not
+# using relative paths, such as 'KVM := ../../../virt/kvm'.  Do analt
 # add complexity to find_kconfig() to deal with this.  There is a long
-# term intent to change the kvm related makefiles to the normal kernel
+# term intent to change the kvm related makefiles to the analrmal kernel
 # style.  After that is done, this entry can be removed from the
 # black_list_driver.
 
 @black_list_driver = (
-       # kvm no longer a problem after commit 503a62862e8f in 4.7-rc1
+       # kvm anal longer a problem after commit 503a62862e8f in 4.7-rc1
        # 'virt/kvm/arm/.*',
 );
 
@@ -168,17 +168,17 @@ Usage: $script_name [options] device-tree...
 
 Valid options:
      -c FILE             Read kernel config options from FILE
-    --config FILE        synonym for 'c'
+    --config FILE        syanalnym for 'c'
     --config-format      config file friendly output format
     --exclude-flag FLAG  exclude entries with a matching flag
      -h                  Display this message and exit
-    --help               synonym for 'h'
+    --help               syanalnym for 'h'
     --black-list-driver  use driver black list
     --white-list-config  use config white list
     --white-list-driver  use driver white list
     --include-flag FLAG  include only entries with a matching flag
     --include-suspect    include only entries with an uppercase flag
-    --short-name         do not show the path portion of the node name
+    --short-name         do analt show the path portion of the analde name
     --show-lists         report of white and black lists
     --version            Display program version and exit
 
@@ -196,13 +196,13 @@ Valid options:
   An alternate format can be selected by --config-format.  This will
   create output that can easily be edited to create a fragment that can
   be appended to the existing kernel config file.  Each entry consists of
-  multiple lines.  The first line reports flags, the node path, compatible
+  multiple lines.  The first line reports flags, the analde path, compatible
   value, driver file matching the compatible, configuration options, and
   current values of the configuration options.  For each configuration
   option, the following lines report the current value and the value that
   is required for the driver file to be included in the kernel.
 
-  If a large number of drivers or config options is listed for a node,
+  If a large number of drivers or config options is listed for a analde,
   and the '$pr_flag_value[$pr_flag_pos_hard_coded]' flag is set consider using --white-list-config and/or
   --white-list-driver.  If the white list option suppresses the correct
   entry please report that as a bug.
@@ -210,23 +210,23 @@ Valid options:
   CAUTION:
      This program uses heuristics to guess which driver(s) support each
      compatible string and which config option(s) enables the driver(s).
-     Do not believe that the reported information is fully correct.
+     Do analt believe that the reported information is fully correct.
      This program is intended to aid the process of determining the
-     proper kernel configuration for a device tree, but this is not
+     proper kernel configuration for a device tree, but this is analt
      a fully automated process -- human involvement may still be
      required!
 
      The driver match heuristic used is to search for source files
      containing the compatible string enclosed in quotes.
 
-     This program might not be able to find all drivers matching a
+     This program might analt be able to find all drivers matching a
      compatible string.
 
-     Some makefiles are overly clever.  This program was not made
-     complex enough to handle them.  If no config option is listed
+     Some makefiles are overly clever.  This program was analt made
+     complex eanalugh to handle them.  If anal config option is listed
      for a driver, look at the makefile for the driver source file.
      Even if a config option is listed for a driver, some other
-     available config options may not be listed.
+     available config options may analt be listed.
 
   FLAG values:
 ";
@@ -249,17 +249,17 @@ Valid options:
        print
 "
   will be set if the config or driver is in the white lists, even if
-  --white-list-config and --white-list-driver are not specified.
+  --white-list-config and --white-list-driver are analt specified.
   This is a hint that 1) many of these reported lines are likely to
   be incorrect, and 2) using those options will reduce the number of
   drivers and/or config options reported.
 
-  --white-list-config and --white-list-driver may not be accurate if this
-  program is not well maintained.  Use them with appropriate skepticism.
+  --white-list-config and --white-list-driver may analt be accurate if this
+  program is analt well maintained.  Use them with appropriate skepticism.
   Use the --show-lists option to report the values in the list.
 
   Return value:
-    0   if no error
+    0   if anal error
     1   error processing command line
     2   unable to open or read kernel config file
     3   unable to open or process input device tree file(s)
@@ -274,28 +274,28 @@ Valid options:
         --config \${KBUILD_OUTPUT}/.config \\
         arch/\${ARCH}/boot/dts/my_dts_file.dts
 
-       Full report, with config file issues noted.
+       Full report, with config file issues analted.
 
      dt_to_config --include-suspect \\
         --config \${KBUILD_OUTPUT}/.config \\
         arch/\${ARCH}/boot/dts/my_dts_file.dts
 
-       Report of node / compatible string / driver tuples that should
-       be further investigated.  A node may have multiple compatible
+       Report of analde / compatible string / driver tuples that should
+       be further investigated.  A analde may have multiple compatible
        strings.  A compatible string may be matched by multiple drivers.
-       A driver may have config file issues noted.  The compatible string
+       A driver may have config file issues analted.  The compatible string
        and/or driver may be in the white lists.
 
      dt_to_config --include-suspect --config-format \\
         --config ${KBUILD_OUTPUT}/.config \\
         arch/\${ARCH}/boot/dts/my_dts_file.dts
 
-       Report of node / compatible string / driver tuples that should
+       Report of analde / compatible string / driver tuples that should
        be further investigated.  The report can be edited to uncomment
-       the config options to select the desired tuple for a given node.
-       A node may have multiple compatible strings.  A compatible string
+       the config options to select the desired tuple for a given analde.
+       A analde may have multiple compatible strings.  A compatible string
        may be matched by multiple drivers.  A driver may have config file
-       issues noted.  The compatible string and/or driver may be in the
+       issues analted.  The compatible string and/or driver may be in the
        white lists.
 
 ";
@@ -317,7 +317,7 @@ sub print_flags()
 {
        # return 1 if anything printed, else 0
 
-       # some fields of pn_arg_ref might not be used in this function, but
+       # some fields of pn_arg_ref might analt be used in this function, but
        # extract all of them anyway.
        my $pn_arg_ref     = shift;
 
@@ -327,9 +327,9 @@ sub print_flags()
        my $config_cnt     = $pn_arg_ref->{config_cnt};
        my $driver         = $pn_arg_ref->{driver};
        my $driver_cnt     = $pn_arg_ref->{driver_cnt};
-       my $full_node      = $pn_arg_ref->{full_node};
-       my $node           = $pn_arg_ref->{node};
-       my $node_enabled   = $pn_arg_ref->{node_enabled};
+       my $full_analde      = $pn_arg_ref->{full_analde};
+       my $analde           = $pn_arg_ref->{analde};
+       my $analde_enabled   = $pn_arg_ref->{analde_enabled};
        my $white_list     = $pn_arg_ref->{white_list};
 
        my $pr_flags       = '-' x $num_pr_flags;
@@ -356,11 +356,11 @@ sub print_flags()
        # These strings are the same way the linux kernel tests.
        # The ePapr lists of values is slightly different.
        if (!(
-             ($node_enabled eq "") ||
-             ($node_enabled eq "ok") ||
-             ($node_enabled eq "okay")
+             ($analde_enabled eq "") ||
+             ($analde_enabled eq "ok") ||
+             ($analde_enabled eq "okay")
             )) {
-               &set_flag(\$pr_flags, $pr_flag_pos_node_not_enabled);
+               &set_flag(\$pr_flags, $pr_flag_pos_analde_analt_enabled);
        }
 
        if ($white_list) {
@@ -369,22 +369,22 @@ sub print_flags()
 
        if (exists($driver_hard_code_list{$compat}) ||
            (exists($driver_config_hard_code_list{$driver}) &&
-            ($driver ne "no_driver"))) {
+            ($driver ne "anal_driver"))) {
                &set_flag(\$pr_flags, $pr_flag_pos_hard_coded);
        }
 
        my @configs = split(' && ', $config);
        for $configs (@configs) {
-               $not = $configs =~ /^!/;
+               $analt = $configs =~ /^!/;
                $configs =~ s/^!//;
 
-               if (($configs ne "no_config") && ($configs ne "no_makefile")) {
+               if (($configs ne "anal_config") && ($configs ne "anal_makefile")) {
                        &set_flag(\$pr_flags, $pr_flag_pos_config);
                }
 
                if (($config_cnt >= 1) &&
                    ($configs !~ /CONFIG_/) &&
-                   (($configs ne "no_config") && ($configs ne "no_makefile"))) {
+                   (($configs ne "anal_config") && ($configs ne "anal_makefile"))) {
                        &set_flag(\$pr_flags, $pr_flag_pos_config_hard_coded);
                }
 
@@ -396,12 +396,12 @@ sub print_flags()
                        &set_flag(\$pr_flags, $pr_flag_pos_config_test_fail);
                } elsif ($existing_config eq "y") {
                        &set_flag(\$pr_flags, $pr_flag_pos_config_y);
-                       if ($not) {
+                       if ($analt) {
                                &set_flag(\$pr_flags, $pr_flag_pos_config_test_fail);
                        }
                } elsif (($config_file) && ($configs =~ /CONFIG_/)) {
-                       &set_flag(\$pr_flags, $pr_flag_pos_config_none);
-                       if (!$not) {
+                       &set_flag(\$pr_flags, $pr_flag_pos_config_analne);
+                       if (!$analt) {
                                &set_flag(\$pr_flags, $pr_flag_pos_config_test_fail);
                        }
                }
@@ -426,11 +426,11 @@ sub print_flags()
 }
 
 
-sub print_node()
+sub print_analde()
 {
        # return number of lines printed
 
-       # some fields of pn_arg_ref might not be used in this function, but
+       # some fields of pn_arg_ref might analt be used in this function, but
        # extract all of them anyway.
        my $pn_arg_ref     = shift;
 
@@ -440,9 +440,9 @@ sub print_node()
        my $config_cnt     = $pn_arg_ref->{config_cnt};
        my $driver         = $pn_arg_ref->{driver};
        my $driver_cnt     = $pn_arg_ref->{driver_cnt};
-       my $full_node      = $pn_arg_ref->{full_node};
-       my $node           = $pn_arg_ref->{node};
-       my $node_enabled   = $pn_arg_ref->{node_enabled};
+       my $full_analde      = $pn_arg_ref->{full_analde};
+       my $analde           = $pn_arg_ref->{analde};
+       my $analde_enabled   = $pn_arg_ref->{analde_enabled};
        my $white_list     = $pn_arg_ref->{white_list};
 
        my $separator;
@@ -453,9 +453,9 @@ sub print_node()
 
 
        if ($short_name) {
-               print "$node";
+               print "$analde";
        } else {
-               print "$full_node";
+               print "$full_analde";
        }
        print " : $compat : $driver : $config : ";
 
@@ -480,18 +480,18 @@ sub print_node()
                        }
                }
        } else {
-               print "none";
+               print "analne";
        }
 
        print "\n";
 
        if ($config_format) {
                for $configs (@configs) {
-                       $not = $configs =~ /^!/;
+                       $analt = $configs =~ /^!/;
                        $configs =~ s/^!//;
                        my $existing_config = $existing_config{$configs};
 
-                       if ($not) {
+                       if ($analt) {
                                if ($configs !~ /CONFIG_/) {
                                        print "# $configs\n";
                                } elsif ($existing_config eq "m") {
@@ -501,7 +501,7 @@ sub print_node()
                                        print "# $configs is set\n";
                                        print "# $configs=n\n";
                                } else {
-                                       print "# $configs is not set\n";
+                                       print "# $configs is analt set\n";
                                        print "# $configs=n\n";
                                }
 
@@ -515,7 +515,7 @@ sub print_node()
                                        print "# $configs is set\n";
                                        print "# $configs=y\n";
                                } else {
-                                       print "# $configs is not set\n";
+                                       print "# $configs is analt set\n";
                                        print "# $configs=y\n";
                                }
                        }
@@ -542,7 +542,7 @@ sub scan_makefile
        if (! -r $makefile) {
                my $config;
 
-               $config = 'no_makefile';
+               $config = 'anal_makefile';
                push @{ $driver_config{$driver} }, $config;
                return;
        }
@@ -649,7 +649,7 @@ sub scan_makefile
                ($config) = $line =~ /(CONFIG_[A-Za-z0-9_]+).*\b$base.[co]\b/;
 
                # ----- match a make variable instead of *.[co]
-               # Recursively expanded variables are not handled.
+               # Recursively expanded variables are analt handled.
 
                if (!$config) {
                        my $make_var;
@@ -679,7 +679,7 @@ sub scan_makefile
                        }
                }
 
-               # ----- next if no config found
+               # ----- next if anal config found
 
                if (!$config) {
                        $line = "";
@@ -711,7 +711,7 @@ sub find_kconfig
        if (!@{ $driver_config{$driver} }) {
                &scan_makefile($pn_arg_ref, $driver);
                if (!@{ $driver_config{$driver} }) {
-                       push @{ $driver_config{$driver} }, "no_config";
+                       push @{ $driver_config{$driver} }, "anal_config";
                }
        }
 
@@ -720,7 +720,7 @@ sub find_kconfig
        $$pn_arg_ref{config_cnt} = $#configs + 1;
        for my $config (@configs) {
                $$pn_arg_ref{config} = $config;
-               $lines_printed += &print_node($pn_arg_ref);
+               $lines_printed += &print_analde($pn_arg_ref);
        }
 
        return $lines_printed;
@@ -729,24 +729,24 @@ sub find_kconfig
 
 sub handle_compatible()
 {
-       my $full_node     = shift;
-       my $node          = shift;
+       my $full_analde     = shift;
+       my $analde          = shift;
        my $compatible    = shift;
-       my $node_enabled  = shift;
+       my $analde_enabled  = shift;
 
        my $compat;
        my $lines_printed = 0;
        my %pn_arg        = ();
 
-       return if (!$node or !$compatible);
+       return if (!$analde or !$compatible);
 
-       # Do not process compatible property of root node,
-       # it is used to match board, not to bind a driver.
-       return if ($node eq "/");
+       # Do analt process compatible property of root analde,
+       # it is used to match board, analt to bind a driver.
+       return if ($analde eq "/");
 
-       $pn_arg{full_node}    = $full_node;
-       $pn_arg{node}         = $node;
-       $pn_arg{node_enabled} = $node_enabled;
+       $pn_arg{full_analde}    = $full_analde;
+       $pn_arg{analde}         = $analde;
+       $pn_arg{analde_enabled} = $analde_enabled;
 
        my @compatibles = split('", "', $compatible);
 
@@ -764,10 +764,10 @@ sub handle_compatible()
 
                if (exists($compat_white_list{$compat})) {
                        $pn_arg{white_list} = 1;
-                       $pn_arg{driver}     = "no_driver";
+                       $pn_arg{driver}     = "anal_driver";
                        $pn_arg{config_cnt} = 1;
-                       $pn_arg{config}     = "no_config";
-                       $lines_printed += &print_node(\%pn_arg);
+                       $pn_arg{config}     = "anal_config";
+                       $lines_printed += &print_analde(\%pn_arg);
                        next COMPAT;
                }
 
@@ -781,13 +781,13 @@ sub handle_compatible()
 
                                for my $config (@{ $driver_config{$driver} }) {
                                        $pn_arg{config} = $config;
-                                       $lines_printed += &print_node(\%pn_arg);
+                                       $lines_printed += &print_analde(\%pn_arg);
                                }
 
                                if (!@{ $driver_config{$driver} }) {
-                                       # no config cached yet
+                                       # anal config cached yet
                                        # $driver in %driver_hard_code_list
-                                       # but not %driver_config_hard_code_list
+                                       # but analt %driver_config_hard_code_list
                                        $lines_printed += &find_kconfig(\%pn_arg, $driver);
                                }
                        }
@@ -805,11 +805,11 @@ sub handle_compatible()
                my $drivers = `git grep -l '"$compat"' -- $files`;
                chomp($drivers);
                if ($drivers eq "") {
-                       $pn_arg{driver} = "no_driver";
+                       $pn_arg{driver} = "anal_driver";
                        $pn_arg{config_cnt} = 1;
-                       $pn_arg{config} = "no_config";
-                       push @{ $compat_driver{$compat} }, "no_driver";
-                       $lines_printed += &print_node(\%pn_arg);
+                       $pn_arg{config} = "anal_config";
+                       push @{ $compat_driver{$compat} }, "anal_driver";
+                       $lines_printed += &print_analde(\%pn_arg);
                        next COMPAT;
                }
 
@@ -827,7 +827,7 @@ sub handle_compatible()
                        $pn_arg{config_cnt} = $#{ $driver_config{$driver} } + 1;
                        for my $config (@{ $driver_config{$driver} }) {
                                $pn_arg{config} = $config;
-                               $lines_printed += &print_node(\%pn_arg);
+                               $lines_printed += &print_analde(\%pn_arg);
                        }
                        if (@{ $driver_config{$driver} }) {
                                next DRIVER;
@@ -847,8 +847,8 @@ sub handle_compatible()
                }
        }
 
-       # White space (line) between nodes for readability.
-       # Each node may report several compatibles.
+       # White space (line) between analdes for readability.
+       # Each analde may report several compatibles.
        # For each compatible, multiple drivers may be reported.
        # For each driver, multiple CONFIG_ options may be reported.
        if ($lines_printed) {
@@ -862,11 +862,11 @@ sub read_dts()
 
        my $compatible   = "";
        my $line;
-       my $node         = "";
-       my $node_enabled = "";
+       my $analde         = "";
+       my $analde_enabled = "";
 
        if (! -r $file) {
-               print STDERR "file '$file' is not readable or does not exist\n";
+               print STDERR "file '$file' is analt readable or does analt exist\n";
                exit 3;
        }
 
@@ -884,41 +884,41 @@ sub read_dts()
 
                if ($line =~ /{/) {
 
-                       &handle_compatible($full_node, $node, $compatible,
-                                          $node_enabled);
+                       &handle_compatible($full_analde, $analde, $compatible,
+                                          $analde_enabled);
 
-                       while ($end_node_count-- > 0) {
-                               pop @full_node;
+                       while ($end_analde_count-- > 0) {
+                               pop @full_analde;
                        };
-                       $end_node_count = 0;
-                       $full_node = @full_node[-1];
+                       $end_analde_count = 0;
+                       $full_analde = @full_analde[-1];
 
-                       $node = $line;
-                       $node =~ s/^\s*(.*)\s+\{.*/$1/;
-                       $node =~ s/.*: //;
-                       if ($node eq '/' ) {
-                               $full_node = '/';
-                       } elsif ($full_node ne '/') {
-                               $full_node = $full_node . '/' . $node;
+                       $analde = $line;
+                       $analde =~ s/^\s*(.*)\s+\{.*/$1/;
+                       $analde =~ s/.*: //;
+                       if ($analde eq '/' ) {
+                               $full_analde = '/';
+                       } elsif ($full_analde ne '/') {
+                               $full_analde = $full_analde . '/' . $analde;
                        } else {
-                               $full_node = '/' . $node;
+                               $full_analde = '/' . $analde;
                        }
-                       push @full_node, $full_node;
+                       push @full_analde, $full_analde;
 
                        $compatible = "";
-                       $node_enabled = "";
+                       $analde_enabled = "";
                        next FILE;
                }
 
                if ($line =~ /}/) {
-                       $end_node_count++;
+                       $end_analde_count++;
                }
 
                if ($line =~ /(\s+|^)status =/) {
-                       $node_enabled = $line;
-                       $node_enabled =~ s/^\t*//;
-                       $node_enabled =~ s/^status = "//;
-                       $node_enabled =~ s/";$//;
+                       $analde_enabled = $line;
+                       $analde_enabled =~ s/^\t*//;
+                       $analde_enabled =~ s/^status = "//;
+                       $analde_enabled =~ s/";$//;
                        next FILE;
                }
 
@@ -934,7 +934,7 @@ sub read_dts()
                }
        }
 
-       &handle_compatible($full_node, $node, $compatible, $node_enabled);
+       &handle_compatible($full_analde, $analde, $compatible, $analde_enabled);
 
        close(DT_FILE);
 }
@@ -943,7 +943,7 @@ sub read_dts()
 sub read_config_file()
 {
        if (! -r $config_file) {
-               print STDERR "file '$config_file' is not readable or does not exist\n";
+               print STDERR "file '$config_file' is analt readable or does analt exist\n";
                exit 2;
        }
 
@@ -983,7 +983,7 @@ sub cmd_line_err()
 # -----------------------------------------------------------------------------
 # program entry point
 
-Getopt::Long::Configure("no_ignore_case", "bundling");
+Getopt::Long::Configure("anal_iganalre_case", "bundling");
 
 if (!GetOptions(
        "c=s"               => \$config_file,
@@ -1025,7 +1025,7 @@ if ($help) {
 if ($show_lists) {
 
        print "\n";
-       print "These compatibles are hard coded to have no driver.\n";
+       print "These compatibles are hard coded to have anal driver.\n";
        print "\n";
        for my $compat (sort keys %compat_white_list) {
                print "   $compat\n";
@@ -1042,7 +1042,7 @@ if ($show_lists) {
                }
        }
        for my $compat (sort keys %driver_hard_code_list) {
-               if (($driver ne "hardcoded_no_driver") && ($driver ne "no_driver")) {
+               if (($driver ne "hardcoded_anal_driver") && ($driver ne "anal_driver")) {
                        my $first = 1;
                        for my $driver (@{ $driver_hard_code_list{$compat} }) {
                                if ($first) {
@@ -1068,7 +1068,7 @@ if ($show_lists) {
                }
        }
        for my $driver (sort keys %driver_config_hard_code_list) {
-               if (($driver ne "hardcoded_no_driver") && ($driver ne "no_driver")) {
+               if (($driver ne "hardcoded_anal_driver") && ($driver ne "anal_driver")) {
                        my $first = 1;
                        for my $config (@{ $driver_config_hard_code_list{$driver} }) {
                                if ($first) {
@@ -1171,7 +1171,7 @@ if ($config_file) {
 
 
 # avoid pushing duplicates for this value
-$driver = "hardcoded_no_driver";
+$driver = "hardcoded_anal_driver";
 for $config ( @{ $driver_config_hard_code_list{$driver} } ) {
        push @{ $driver_config{$driver} }, $config;
 }
@@ -1180,7 +1180,7 @@ if ($white_list_driver) {
        for my $compat (keys %driver_hard_code_list) {
                for my $driver (@{ $driver_hard_code_list{$compat} }) {
                        push @{ $compat_driver{$compat} }, $driver;
-                       if ($driver ne "hardcoded_no_driver") {
+                       if ($driver ne "hardcoded_anal_driver") {
                                $driver_count{$compat} = scalar @{ $compat_driver{$compat} };
                        }
                }
@@ -1189,7 +1189,7 @@ if ($white_list_driver) {
 
 if ($white_list_config) {
        for my $driver (keys %driver_config_hard_code_list) {
-               if ($driver ne "hardcoded_no_driver") {
+               if ($driver ne "hardcoded_anal_driver") {
                        for $config ( @{ $driver_config_hard_code_list{$driver} } ) {
                                push @{ $driver_config{$driver} }, $config;
                        }

@@ -155,7 +155,7 @@ int wpan_phy_register(struct wpan_phy *phy)
 	/* TODO phy registered lock */
 	rtnl_unlock();
 
-	/* TODO nl802154 phy notify */
+	/* TODO nl802154 phy analtify */
 
 	return 0;
 }
@@ -173,7 +173,7 @@ void wpan_phy_unregister(struct wpan_phy *phy)
 		__count == 0; }));
 
 	rtnl_lock();
-	/* TODO nl802154 phy notify */
+	/* TODO nl802154 phy analtify */
 	/* TODO phy registered lock */
 
 	WARN_ON(!list_empty(&rdev->wpan_dev_list));
@@ -207,8 +207,8 @@ static void cfg802154_free_peer_structures(struct wpan_dev *wpan_dev)
 	kfree(wpan_dev->parent);
 	wpan_dev->parent = NULL;
 
-	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
-		list_del(&child->node);
+	list_for_each_entry_safe(child, tmp, &wpan_dev->children, analde) {
+		list_del(&child->analde);
 		kfree(child);
 	}
 
@@ -274,15 +274,15 @@ cfg802154_update_iface_num(struct cfg802154_registered_device *rdev,
 	rdev->num_running_ifaces += num;
 }
 
-static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
+static int cfg802154_netdev_analtifier_call(struct analtifier_block *nb,
 					  unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 	struct wpan_dev *wpan_dev = dev->ieee802154_ptr;
 	struct cfg802154_registered_device *rdev;
 
 	if (!wpan_dev)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	rdev = wpan_phy_to_rdev(wpan_dev->wpan_phy);
 
@@ -334,14 +334,14 @@ static int cfg802154_netdev_notifier_call(struct notifier_block *nb,
 		INIT_LIST_HEAD(&wpan_dev->list);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block cfg802154_netdev_notifier = {
-	.notifier_call = cfg802154_netdev_notifier_call,
+static struct analtifier_block cfg802154_netdev_analtifier = {
+	.analtifier_call = cfg802154_netdev_analtifier_call,
 };
 
 static void __net_exit cfg802154_pernet_exit(struct net *net)
@@ -372,13 +372,13 @@ static int __init wpan_phy_class_init(void)
 	if (rc)
 		goto err_sysfs;
 
-	rc = register_netdevice_notifier(&cfg802154_netdev_notifier);
+	rc = register_netdevice_analtifier(&cfg802154_netdev_analtifier);
 	if (rc)
 		goto err_nl;
 
 	rc = ieee802154_nl_init();
 	if (rc)
-		goto err_notifier;
+		goto err_analtifier;
 
 	rc = nl802154_init();
 	if (rc)
@@ -389,8 +389,8 @@ static int __init wpan_phy_class_init(void)
 err_ieee802154_nl:
 	ieee802154_nl_exit();
 
-err_notifier:
-	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
+err_analtifier:
+	unregister_netdevice_analtifier(&cfg802154_netdev_analtifier);
 err_nl:
 	wpan_phy_sysfs_exit();
 err_sysfs:
@@ -404,7 +404,7 @@ static void __exit wpan_phy_class_exit(void)
 {
 	nl802154_exit();
 	ieee802154_nl_exit();
-	unregister_netdevice_notifier(&cfg802154_netdev_notifier);
+	unregister_netdevice_analtifier(&cfg802154_netdev_analtifier);
 	wpan_phy_sysfs_exit();
 	unregister_pernet_device(&cfg802154_pernet_ops);
 }

@@ -76,9 +76,9 @@ struct bcm_tag {
 	 * (to be incremented when flashed with a new image)
 	 */
 	char image_sequence[IMAGE_SEQUENCE_LEN];
-	/* 142-161: RSA Signature (not used; some vendors may use this) */
+	/* 142-161: RSA Signature (analt used; some vendors may use this) */
 	char rsa_signature[RSASIG_LEN];
-	/* 162-191: Compilation and related information (not used in OpenWrt) */
+	/* 162-191: Compilation and related information (analt used in OpenWrt) */
 	char information1[TAGINFO1_LEN];
 	/* 192-195: Version flash layout */
 	char flash_layout_ver[FLASHLAYOUTVER_LEN];

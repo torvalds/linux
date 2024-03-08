@@ -63,9 +63,9 @@ MODULE_PARM_DESC(bbm_block_size,
  * State of a Linux memory block in SBM.
  */
 enum virtio_mem_sbm_mb_state {
-	/* Unplugged, not added to Linux. Can be reused later. */
+	/* Unplugged, analt added to Linux. Can be reused later. */
 	VIRTIO_MEM_SBM_MB_UNUSED = 0,
-	/* (Partially) plugged, not added to Linux. Error on add_memory(). */
+	/* (Partially) plugged, analt added to Linux. Error on add_memory(). */
 	VIRTIO_MEM_SBM_MB_PLUGGED,
 	/* Fully plugged, fully added to Linux, offline. */
 	VIRTIO_MEM_SBM_MB_OFFLINE,
@@ -86,9 +86,9 @@ enum virtio_mem_sbm_mb_state {
  * State of a Big Block (BB) in BBM, covering 1..X Linux memory blocks.
  */
 enum virtio_mem_bbm_bb_state {
-	/* Unplugged, not added to Linux. Can be reused later. */
+	/* Unplugged, analt added to Linux. Can be reused later. */
 	VIRTIO_MEM_BBM_BB_UNUSED = 0,
-	/* Plugged, not added to Linux. Error on add_memory(). */
+	/* Plugged, analt added to Linux. Error on add_memory(). */
 	VIRTIO_MEM_BBM_BB_PLUGGED,
 	/* Plugged and added to Linux. */
 	VIRTIO_MEM_BBM_BB_ADDED,
@@ -125,7 +125,7 @@ struct virtio_mem {
 
 	/* The device block size (for communicating with the device). */
 	uint64_t device_block_size;
-	/* The determined node id for all memory of the device. */
+	/* The determined analde id for all memory of the device. */
 	int nid;
 	/* Physical start address of the memory region. */
 	uint64_t addr;
@@ -143,7 +143,7 @@ struct virtio_mem {
 	int mgid;
 
 	/*
-	 * We don't want to add too much memory if it's not getting onlined,
+	 * We don't want to add too much memory if it's analt getting onlined,
 	 * to avoid running OOM. Besides this threshold, we allow to have at
 	 * least two offline blocks at a time (whatever is bigger).
 	 */
@@ -224,7 +224,7 @@ struct virtio_mem {
 	 * sbm.sb_states, bbm.bb_count, and bbm.bb_states
 	 *
 	 * When this lock is held the pointers can't change, ONLINE and
-	 * OFFLINE blocks can't change the state and no subblocks will get
+	 * OFFLINE blocks can't change the state and anal subblocks will get
 	 * plugged/unplugged.
 	 *
 	 * In kdump mode, used to serialize requests, last_block_addr and
@@ -233,7 +233,7 @@ struct virtio_mem {
 	struct mutex hotplug_mutex;
 	bool hotplug_active;
 
-	/* An error occurred we cannot handle - stop processing requests. */
+	/* An error occurred we cananalt handle - stop processing requests. */
 	bool broken;
 
 	/* Cached valued of is_kdump_kernel() when the device was probed. */
@@ -249,8 +249,8 @@ struct virtio_mem {
 #define VIRTIO_MEM_RETRY_TIMER_MIN_MS		50000
 #define VIRTIO_MEM_RETRY_TIMER_MAX_MS		300000
 
-	/* Memory notifier (online/offline events). */
-	struct notifier_block memory_notifier;
+	/* Memory analtifier (online/offline events). */
+	struct analtifier_block memory_analtifier;
 
 #ifdef CONFIG_PROC_VMCORE
 	/* vmcore callback for /proc/vmcore handling in kdump mode */
@@ -299,7 +299,7 @@ static int register_virtio_mem_device(struct virtio_mem *vm)
 }
 
 /*
- * Unregister a virtio-mem device so it will no longer be considered for the
+ * Unregister a virtio-mem device so it will anal longer be considered for the
  * online_page callback.
  */
 static void unregister_virtio_mem_device(struct virtio_mem *vm)
@@ -403,7 +403,7 @@ static int virtio_mem_bbm_bb_states_prepare_next_bb(struct virtio_mem *vm)
 
 	new_array = vzalloc(new_pages * PAGE_SIZE);
 	if (!new_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&vm->hotplug_mutex);
 	if (vm->bbm.bb_states)
@@ -469,7 +469,7 @@ static int virtio_mem_sbm_mb_states_prepare_next_mb(struct virtio_mem *vm)
 
 	new_array = vzalloc(new_pages * PAGE_SIZE);
 	if (!new_array)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&vm->hotplug_mutex);
 	if (vm->sbm.mb_states)
@@ -506,7 +506,7 @@ static int virtio_mem_sbm_sb_state_bit_nr(struct virtio_mem *vm,
 /*
  * Mark all selected subblocks plugged.
  *
- * Will not modify the state of the memory block.
+ * Will analt modify the state of the memory block.
  */
 static void virtio_mem_sbm_set_sb_plugged(struct virtio_mem *vm,
 					  unsigned long mb_id, int sb_id,
@@ -520,7 +520,7 @@ static void virtio_mem_sbm_set_sb_plugged(struct virtio_mem *vm,
 /*
  * Mark all selected subblocks unplugged.
  *
- * Will not modify the state of the memory block.
+ * Will analt modify the state of the memory block.
  */
 static void virtio_mem_sbm_set_sb_unplugged(struct virtio_mem *vm,
 					    unsigned long mb_id, int sb_id,
@@ -564,7 +564,7 @@ static bool virtio_mem_sbm_test_sb_unplugged(struct virtio_mem *vm,
 
 /*
  * Find the first unplugged subblock. Returns vm->sbm.sbs_per_mb in case there is
- * none.
+ * analne.
  */
 static int virtio_mem_sbm_first_unplugged_sb(struct virtio_mem *vm,
 					    unsigned long mb_id)
@@ -592,7 +592,7 @@ static int virtio_mem_sbm_sb_states_prepare_next_mb(struct virtio_mem *vm)
 
 	new_bitmap = vzalloc(new_pages * PAGE_SIZE);
 	if (!new_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&vm->hotplug_mutex);
 	if (vm->sbm.sb_states)
@@ -621,10 +621,10 @@ static bool virtio_mem_could_add_memory(struct virtio_mem *vm, uint64_t size)
 /*
  * Try adding memory to Linux. Will usually only fail if out of memory.
  *
- * Must not be called with the vm->hotplug_mutex held (possible deadlock with
+ * Must analt be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of memory blocks in virtio-mem.
+ * Will analt modify the state of memory blocks in virtio-mem.
  */
 static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 				 uint64_t size)
@@ -639,7 +639,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 		vm->resource_name = kstrdup_const("System RAM (virtio_mem)",
 						  GFP_KERNEL);
 		if (!vm->resource_name)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	dev_dbg(&vm->vdev->dev, "adding memory: 0x%llx - 0x%llx\n", addr,
@@ -652,8 +652,8 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 		atomic64_sub(size, &vm->offline_size);
 		dev_warn(&vm->vdev->dev, "adding memory failed: %d\n", rc);
 		/*
-		 * TODO: Linux MM does not properly clean up yet in all cases
-		 * where adding of memory failed - especially on -ENOMEM.
+		 * TODO: Linux MM does analt properly clean up yet in all cases
+		 * where adding of memory failed - especially on -EANALMEM.
 		 */
 	}
 	return rc;
@@ -685,10 +685,10 @@ static int virtio_mem_bbm_add_bb(struct virtio_mem *vm, unsigned long bb_id)
  * Try removing memory from Linux. Will only fail if memory blocks aren't
  * offline.
  *
- * Must not be called with the vm->hotplug_mutex held (possible deadlock with
+ * Must analt be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of memory blocks in virtio-mem.
+ * Will analt modify the state of memory blocks in virtio-mem.
  */
 static int virtio_mem_remove_memory(struct virtio_mem *vm, uint64_t addr,
 				    uint64_t size)
@@ -701,7 +701,7 @@ static int virtio_mem_remove_memory(struct virtio_mem *vm, uint64_t addr,
 	if (!rc) {
 		atomic64_sub(size, &vm->offline_size);
 		/*
-		 * We might have freed up memory we can now unplug, retry
+		 * We might have freed up memory we can analw unplug, retry
 		 * immediately instead of waiting.
 		 */
 		virtio_mem_retry(vm);
@@ -725,10 +725,10 @@ static int virtio_mem_sbm_remove_mb(struct virtio_mem *vm, unsigned long mb_id)
 /*
  * Try offlining and removing memory from Linux.
  *
- * Must not be called with the vm->hotplug_mutex held (possible deadlock with
+ * Must analt be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of memory blocks in virtio-mem.
+ * Will analt modify the state of memory blocks in virtio-mem.
  */
 static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
 						uint64_t addr,
@@ -744,7 +744,7 @@ static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
 	if (!rc) {
 		atomic64_sub(size, &vm->offline_size);
 		/*
-		 * We might have freed up memory we can now unplug, retry
+		 * We might have freed up memory we can analw unplug, retry
 		 * immediately instead of waiting.
 		 */
 		virtio_mem_retry(vm);
@@ -755,8 +755,8 @@ static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
 	 * We don't really expect this to fail, because we fake-offlined all
 	 * memory already. But it could fail in corner cases.
 	 */
-	WARN_ON_ONCE(rc != -ENOMEM && rc != -EBUSY);
-	return rc == -ENOMEM ? -ENOMEM : -EBUSY;
+	WARN_ON_ONCE(rc != -EANALMEM && rc != -EBUSY);
+	return rc == -EANALMEM ? -EANALMEM : -EBUSY;
 }
 
 /*
@@ -826,20 +826,20 @@ static void virtio_mem_retry(struct virtio_mem *vm)
 	spin_unlock_irqrestore(&vm->removal_lock, flags);
 }
 
-static int virtio_mem_translate_node_id(struct virtio_mem *vm, uint16_t node_id)
+static int virtio_mem_translate_analde_id(struct virtio_mem *vm, uint16_t analde_id)
 {
-	int node = NUMA_NO_NODE;
+	int analde = NUMA_ANAL_ANALDE;
 
 #if defined(CONFIG_ACPI_NUMA)
 	if (virtio_has_feature(vm->vdev, VIRTIO_MEM_F_ACPI_PXM))
-		node = pxm_to_node(node_id);
+		analde = pxm_to_analde(analde_id);
 #endif
-	return node;
+	return analde;
 }
 
 /*
  * Test if a virtio-mem device overlaps with the given range. Can be called
- * from (notifier) callbacks lockless.
+ * from (analtifier) callbacks lockless.
  */
 static bool virtio_mem_overlaps_range(struct virtio_mem *vm, uint64_t start,
 				      uint64_t size)
@@ -849,7 +849,7 @@ static bool virtio_mem_overlaps_range(struct virtio_mem *vm, uint64_t start,
 
 /*
  * Test if a virtio-mem device contains a given range. Can be called from
- * (notifier) callbacks lockless.
+ * (analtifier) callbacks lockless.
  */
 static bool virtio_mem_contains_range(struct virtio_mem *vm, uint64_t start,
 				      uint64_t size)
@@ -857,22 +857,22 @@ static bool virtio_mem_contains_range(struct virtio_mem *vm, uint64_t start,
 	return start >= vm->addr && start + size <= vm->addr + vm->region_size;
 }
 
-static int virtio_mem_sbm_notify_going_online(struct virtio_mem *vm,
+static int virtio_mem_sbm_analtify_going_online(struct virtio_mem *vm,
 					      unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
 	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
 	case VIRTIO_MEM_SBM_MB_OFFLINE:
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 	default:
 		break;
 	}
 	dev_warn_ratelimited(&vm->vdev->dev,
 			     "memory block onlining denied\n");
-	return NOTIFY_BAD;
+	return ANALTIFY_BAD;
 }
 
-static void virtio_mem_sbm_notify_offline(struct virtio_mem *vm,
+static void virtio_mem_sbm_analtify_offline(struct virtio_mem *vm,
 					  unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
@@ -892,7 +892,7 @@ static void virtio_mem_sbm_notify_offline(struct virtio_mem *vm,
 	}
 }
 
-static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
+static void virtio_mem_sbm_analtify_online(struct virtio_mem *vm,
 					 unsigned long mb_id,
 					 unsigned long start_pfn)
 {
@@ -917,7 +917,7 @@ static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
 	virtio_mem_sbm_set_mb_state(vm, mb_id, new_state);
 }
 
-static void virtio_mem_sbm_notify_going_offline(struct virtio_mem *vm,
+static void virtio_mem_sbm_analtify_going_offline(struct virtio_mem *vm,
 						unsigned long mb_id)
 {
 	const unsigned long nr_pages = PFN_DOWN(vm->sbm.sb_size);
@@ -933,7 +933,7 @@ static void virtio_mem_sbm_notify_going_offline(struct virtio_mem *vm,
 	}
 }
 
-static void virtio_mem_sbm_notify_cancel_offline(struct virtio_mem *vm,
+static void virtio_mem_sbm_analtify_cancel_offline(struct virtio_mem *vm,
 						 unsigned long mb_id)
 {
 	const unsigned long nr_pages = PFN_DOWN(vm->sbm.sb_size);
@@ -949,7 +949,7 @@ static void virtio_mem_sbm_notify_cancel_offline(struct virtio_mem *vm,
 	}
 }
 
-static void virtio_mem_bbm_notify_going_offline(struct virtio_mem *vm,
+static void virtio_mem_bbm_analtify_going_offline(struct virtio_mem *vm,
 						unsigned long bb_id,
 						unsigned long pfn,
 						unsigned long nr_pages)
@@ -964,7 +964,7 @@ static void virtio_mem_bbm_notify_going_offline(struct virtio_mem *vm,
 	virtio_mem_fake_offline_going_offline(pfn, nr_pages);
 }
 
-static void virtio_mem_bbm_notify_cancel_offline(struct virtio_mem *vm,
+static void virtio_mem_bbm_analtify_cancel_offline(struct virtio_mem *vm,
 						 unsigned long bb_id,
 						 unsigned long pfn,
 						 unsigned long nr_pages)
@@ -976,23 +976,23 @@ static void virtio_mem_bbm_notify_cancel_offline(struct virtio_mem *vm,
 }
 
 /*
- * This callback will either be called synchronously from add_memory() or
- * asynchronously (e.g., triggered via user space). We have to be careful
+ * This callback will either be called synchroanalusly from add_memory() or
+ * asynchroanalusly (e.g., triggered via user space). We have to be careful
  * with locking when calling add_memory().
  */
-static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
+static int virtio_mem_memory_analtifier_cb(struct analtifier_block *nb,
 					 unsigned long action, void *arg)
 {
 	struct virtio_mem *vm = container_of(nb, struct virtio_mem,
-					     memory_notifier);
-	struct memory_notify *mhp = arg;
+					     memory_analtifier);
+	struct memory_analtify *mhp = arg;
 	const unsigned long start = PFN_PHYS(mhp->start_pfn);
 	const unsigned long size = PFN_PHYS(mhp->nr_pages);
-	int rc = NOTIFY_OK;
+	int rc = ANALTIFY_OK;
 	unsigned long id;
 
 	if (!virtio_mem_overlaps_range(vm, start, size))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	if (vm->in_sbm) {
 		id = virtio_mem_phys_to_mb_id(start);
@@ -1003,7 +1003,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		 */
 		if (WARN_ON_ONCE(size != memory_block_size_bytes() ||
 				 !IS_ALIGNED(start, memory_block_size_bytes())))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 	} else {
 		id = virtio_mem_phys_to_bb_id(vm, start);
 		/*
@@ -1013,14 +1013,14 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		 * memory blocks.
 		 */
 		if (WARN_ON_ONCE(id != virtio_mem_phys_to_bb_id(vm, start + size - 1)))
-			return NOTIFY_BAD;
+			return ANALTIFY_BAD;
 	}
 
 	/*
 	 * Avoid circular locking lockdep warnings. We lock the mutex
 	 * e.g., in MEM_GOING_ONLINE and unlock it in MEM_ONLINE. The
-	 * blocking_notifier_call_chain() has it's own lock, which gets unlocked
-	 * between both notifier calls and will bail out. False positive.
+	 * blocking_analtifier_call_chain() has it's own lock, which gets unlocked
+	 * between both analtifier calls and will bail out. False positive.
 	 */
 	lockdep_off();
 
@@ -1028,36 +1028,36 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 	case MEM_GOING_OFFLINE:
 		mutex_lock(&vm->hotplug_mutex);
 		if (vm->removing) {
-			rc = notifier_from_errno(-EBUSY);
+			rc = analtifier_from_erranal(-EBUSY);
 			mutex_unlock(&vm->hotplug_mutex);
 			break;
 		}
 		vm->hotplug_active = true;
 		if (vm->in_sbm)
-			virtio_mem_sbm_notify_going_offline(vm, id);
+			virtio_mem_sbm_analtify_going_offline(vm, id);
 		else
-			virtio_mem_bbm_notify_going_offline(vm, id,
+			virtio_mem_bbm_analtify_going_offline(vm, id,
 							    mhp->start_pfn,
 							    mhp->nr_pages);
 		break;
 	case MEM_GOING_ONLINE:
 		mutex_lock(&vm->hotplug_mutex);
 		if (vm->removing) {
-			rc = notifier_from_errno(-EBUSY);
+			rc = analtifier_from_erranal(-EBUSY);
 			mutex_unlock(&vm->hotplug_mutex);
 			break;
 		}
 		vm->hotplug_active = true;
 		if (vm->in_sbm)
-			rc = virtio_mem_sbm_notify_going_online(vm, id);
+			rc = virtio_mem_sbm_analtify_going_online(vm, id);
 		break;
 	case MEM_OFFLINE:
 		if (vm->in_sbm)
-			virtio_mem_sbm_notify_offline(vm, id);
+			virtio_mem_sbm_analtify_offline(vm, id);
 
 		atomic64_add(size, &vm->offline_size);
 		/*
-		 * Trigger the workqueue. Now that we have some offline memory,
+		 * Trigger the workqueue. Analw that we have some offline memory,
 		 * maybe we can handle pending unplug requests.
 		 */
 		if (!unplug_online)
@@ -1068,7 +1068,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		break;
 	case MEM_ONLINE:
 		if (vm->in_sbm)
-			virtio_mem_sbm_notify_online(vm, id, mhp->start_pfn);
+			virtio_mem_sbm_analtify_online(vm, id, mhp->start_pfn);
 
 		atomic64_sub(size, &vm->offline_size);
 		/*
@@ -1088,9 +1088,9 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		if (!vm->hotplug_active)
 			break;
 		if (vm->in_sbm)
-			virtio_mem_sbm_notify_cancel_offline(vm, id);
+			virtio_mem_sbm_analtify_cancel_offline(vm, id);
 		else
-			virtio_mem_bbm_notify_cancel_offline(vm, id,
+			virtio_mem_bbm_analtify_cancel_offline(vm, id,
 							     mhp->start_pfn,
 							     mhp->nr_pages);
 		vm->hotplug_active = false;
@@ -1198,7 +1198,7 @@ static int virtio_mem_fake_offline(struct virtio_mem *vm, unsigned long pfn,
 	/*
 	 * TODO: We want an alloc_contig_range() mode that tries to allocate
 	 * harder (e.g., dealing with temporarily pinned pages, PCP), especially
-	 * with ZONE_MOVABLE. So for now, retry a couple of times with
+	 * with ZONE_MOVABLE. So for analw, retry a couple of times with
 	 * ZONE_MOVABLE before giving up - because that zone is supposed to give
 	 * some guarantees.
 	 */
@@ -1206,14 +1206,14 @@ static int virtio_mem_fake_offline(struct virtio_mem *vm, unsigned long pfn,
 		/*
 		 * If the config changed, stop immediately and go back to the
 		 * main loop: avoid trying to keep unplugging if the device
-		 * might have decided to not remove any more memory.
+		 * might have decided to analt remove any more memory.
 		 */
 		if (atomic_read(&vm->config_changed))
 			return -EAGAIN;
 
 		rc = alloc_contig_range(pfn, pfn + nr_pages, MIGRATE_MOVABLE,
 					GFP_KERNEL);
-		if (rc == -ENOMEM)
+		if (rc == -EANALMEM)
 			/* whoops, out of memory */
 			return rc;
 		else if (rc && !is_movable)
@@ -1339,7 +1339,7 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 	list_for_each_entry_rcu(vm, &virtio_mem_devices, next) {
 		/*
 		 * Pages we're onlining will never cross memory blocks and,
-		 * therefore, not virtio-mem devices.
+		 * therefore, analt virtio-mem devices.
 		 */
 		if (!virtio_mem_contains_range(vm, addr, PFN_PHYS(1 << order)))
 			continue;
@@ -1347,7 +1347,7 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 		/*
 		 * virtio_mem_set_fake_offline() might sleep. We can safely
 		 * drop the RCU lock at this point because the device
-		 * cannot go away. See virtio_mem_remove() how races
+		 * cananalt go away. See virtio_mem_remove() how races
 		 * between memory onlining and device removal are handled.
 		 */
 		rcu_read_unlock();
@@ -1357,7 +1357,7 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 	}
 	rcu_read_unlock();
 
-	/* not virtio-mem memory, but e.g., a DIMM. online it */
+	/* analt virtio-mem memory, but e.g., a DIMM. online it */
 	generic_online_page(page, order);
 }
 
@@ -1400,7 +1400,7 @@ static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 		.u.plug.addr = cpu_to_virtio64(vm->vdev, addr),
 		.u.plug.nb_blocks = cpu_to_virtio16(vm->vdev, nb_vm_blocks),
 	};
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (atomic_read(&vm->config_changed))
 		return -EAGAIN;
@@ -1438,7 +1438,7 @@ static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 		.u.unplug.addr = cpu_to_virtio64(vm->vdev, addr),
 		.u.unplug.nb_blocks = cpu_to_virtio16(vm->vdev, nb_vm_blocks),
 	};
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (atomic_read(&vm->config_changed))
 		return -EAGAIN;
@@ -1469,7 +1469,7 @@ static int virtio_mem_send_unplug_all_request(struct virtio_mem *vm)
 	const struct virtio_mem_req req = {
 		.type = cpu_to_virtio16(vm->vdev, VIRTIO_MEM_REQ_UNPLUG_ALL),
 	};
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	dev_dbg(&vm->vdev->dev, "unplugging all memory");
 
@@ -1492,7 +1492,7 @@ static int virtio_mem_send_unplug_all_request(struct virtio_mem *vm)
 }
 
 /*
- * Plug selected subblocks. Updates the plugged state, but not the state
+ * Plug selected subblocks. Updates the plugged state, but analt the state
  * of the memory block.
  */
 static int virtio_mem_sbm_plug_sb(struct virtio_mem *vm, unsigned long mb_id,
@@ -1510,7 +1510,7 @@ static int virtio_mem_sbm_plug_sb(struct virtio_mem *vm, unsigned long mb_id,
 }
 
 /*
- * Unplug selected subblocks. Updates the plugged state, but not the state
+ * Unplug selected subblocks. Updates the plugged state, but analt the state
  * of the memory block.
  */
 static int virtio_mem_sbm_unplug_sb(struct virtio_mem *vm, unsigned long mb_id,
@@ -1530,7 +1530,7 @@ static int virtio_mem_sbm_unplug_sb(struct virtio_mem *vm, unsigned long mb_id,
 /*
  * Request to unplug a big block.
  *
- * Will not modify the state of the big block.
+ * Will analt modify the state of the big block.
  */
 static int virtio_mem_bbm_unplug_bb(struct virtio_mem *vm, unsigned long bb_id)
 {
@@ -1543,7 +1543,7 @@ static int virtio_mem_bbm_unplug_bb(struct virtio_mem *vm, unsigned long bb_id)
 /*
  * Request to plug a big block.
  *
- * Will not modify the state of the big block.
+ * Will analt modify the state of the big block.
  */
 static int virtio_mem_bbm_plug_bb(struct virtio_mem *vm, unsigned long bb_id)
 {
@@ -1554,13 +1554,13 @@ static int virtio_mem_bbm_plug_bb(struct virtio_mem *vm, unsigned long bb_id)
 }
 
 /*
- * Unplug the desired number of plugged subblocks of a offline or not-added
- * memory block. Will fail if any subblock cannot get unplugged (instead of
+ * Unplug the desired number of plugged subblocks of a offline or analt-added
+ * memory block. Will fail if any subblock cananalt get unplugged (instead of
  * skipping it).
  *
- * Will not modify the state of the memory block.
+ * Will analt modify the state of the memory block.
  *
- * Note: can fail after some subblocks were unplugged.
+ * Analte: can fail after some subblocks were unplugged.
  */
 static int virtio_mem_sbm_unplug_any_sb_raw(struct virtio_mem *vm,
 					    unsigned long mb_id, uint64_t *nb_sb)
@@ -1595,11 +1595,11 @@ static int virtio_mem_sbm_unplug_any_sb_raw(struct virtio_mem *vm,
 }
 
 /*
- * Unplug all plugged subblocks of an offline or not-added memory block.
+ * Unplug all plugged subblocks of an offline or analt-added memory block.
  *
- * Will not modify the state of the memory block.
+ * Will analt modify the state of the memory block.
  *
- * Note: can fail after some subblocks were unplugged.
+ * Analte: can fail after some subblocks were unplugged.
  */
 static int virtio_mem_sbm_unplug_mb(struct virtio_mem *vm, unsigned long mb_id)
 {
@@ -1617,7 +1617,7 @@ static int virtio_mem_sbm_prepare_next_mb(struct virtio_mem *vm,
 	int rc;
 
 	if (vm->sbm.next_mb_id > vm->sbm.last_usable_mb_id)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Resize the state array if required. */
 	rc = virtio_mem_sbm_mb_states_prepare_next_mb(vm);
@@ -1659,7 +1659,7 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
 
 	/*
 	 * Mark the block properly offline before adding it to Linux,
-	 * so the memory notifiers will find the block in the right state.
+	 * so the memory analtifiers will find the block in the right state.
 	 */
 	if (count == vm->sbm.sbs_per_mb)
 		virtio_mem_sbm_set_mb_state(vm, mb_id,
@@ -1689,7 +1689,7 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
  *
  * Will modify the state of the memory block.
  *
- * Note: Can fail after some subblocks were successfully plugged.
+ * Analte: Can fail after some subblocks were successfully plugged.
  */
 static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
 				      unsigned long mb_id, uint64_t *nb_sb)
@@ -1767,7 +1767,7 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 	/* Try to plug and add unused blocks */
 	virtio_mem_sbm_for_each_mb(vm, mb_id, VIRTIO_MEM_SBM_MB_UNUSED) {
 		if (!virtio_mem_could_add_memory(vm, memory_block_size_bytes()))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		rc = virtio_mem_sbm_plug_and_add_mb(vm, mb_id, &nb_sb);
 		if (rc || !nb_sb)
@@ -1778,7 +1778,7 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 	/* Try to prepare, plug and add new blocks */
 	while (nb_sb) {
 		if (!virtio_mem_could_add_memory(vm, memory_block_size_bytes()))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		rc = virtio_mem_sbm_prepare_next_mb(vm, &mb_id);
 		if (rc)
@@ -1837,7 +1837,7 @@ static int virtio_mem_bbm_prepare_next_bb(struct virtio_mem *vm,
 	int rc;
 
 	if (vm->bbm.next_bb_id > vm->bbm.last_usable_bb_id)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	/* Resize the big block state array if required. */
 	rc = virtio_mem_bbm_bb_states_prepare_next_bb(vm);
@@ -1862,7 +1862,7 @@ static int virtio_mem_bbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 	/* Try to plug and add unused big blocks */
 	virtio_mem_bbm_for_each_bb(vm, bb_id, VIRTIO_MEM_BBM_BB_UNUSED) {
 		if (!virtio_mem_could_add_memory(vm, vm->bbm.bb_size))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		rc = virtio_mem_bbm_plug_and_add_bb(vm, bb_id);
 		if (!rc)
@@ -1875,7 +1875,7 @@ static int virtio_mem_bbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 	/* Try to prepare, plug and add new big blocks */
 	while (nb_bb) {
 		if (!virtio_mem_could_add_memory(vm, vm->bbm.bb_size))
-			return -ENOSPC;
+			return -EANALSPC;
 
 		rc = virtio_mem_bbm_prepare_next_bb(vm, &bb_id);
 		if (rc)
@@ -1903,12 +1903,12 @@ static int virtio_mem_plug_request(struct virtio_mem *vm, uint64_t diff)
 
 /*
  * Unplug the desired number of plugged subblocks of an offline memory block.
- * Will fail if any subblock cannot get unplugged (instead of skipping it).
+ * Will fail if any subblock cananalt get unplugged (instead of skipping it).
  *
  * Will modify the state of the memory block. Might temporarily drop the
  * hotplug_mutex.
  *
- * Note: Can fail after some subblocks were successfully unplugged.
+ * Analte: Can fail after some subblocks were successfully unplugged.
  */
 static int virtio_mem_sbm_unplug_any_sb_offline(struct virtio_mem *vm,
 						unsigned long mb_id,
@@ -1993,8 +1993,8 @@ static int virtio_mem_sbm_unplug_sb_online(struct virtio_mem *vm,
  * Will modify the state of the memory block. Might temporarily drop the
  * hotplug_mutex.
  *
- * Note: Can fail after some subblocks were successfully unplugged. Can
- *       return 0 even if subblocks were busy and could not get unplugged.
+ * Analte: Can fail after some subblocks were successfully unplugged. Can
+ *       return 0 even if subblocks were busy and could analt get unplugged.
  */
 static int virtio_mem_sbm_unplug_any_sb_online(struct virtio_mem *vm,
 					       unsigned long mb_id,
@@ -2035,21 +2035,21 @@ unplugged:
 	rc = virtio_mem_sbm_try_remove_unplugged_mb(vm, mb_id);
 	if (rc)
 		vm->sbm.have_unplugged_mb = 1;
-	/* Ignore errors, this is not critical. We'll retry later. */
+	/* Iganalre errors, this is analt critical. We'll retry later. */
 	return 0;
 }
 
 /*
  * Unplug the desired number of plugged subblocks of a memory block that is
  * already added to Linux. Will skip subblock of online memory blocks that are
- * busy (by the OS). Will fail if any subblock that's not busy cannot get
+ * busy (by the OS). Will fail if any subblock that's analt busy cananalt get
  * unplugged.
  *
  * Will modify the state of the memory block. Might temporarily drop the
  * hotplug_mutex.
  *
- * Note: Can fail after some subblocks were successfully unplugged. Can
- *       return 0 even if subblocks were busy and could not get unplugged.
+ * Analte: Can fail after some subblocks were successfully unplugged. Can
+ *       return 0 even if subblocks were busy and could analt get unplugged.
  */
 static int virtio_mem_sbm_unplug_any_sb(struct virtio_mem *vm,
 					unsigned long mb_id,
@@ -2125,7 +2125,7 @@ out_unlock:
 
 /*
  * Try to offline and remove a big block from Linux and unplug it. Will fail
- * with -EBUSY if some memory is busy and cannot get unplugged.
+ * with -EBUSY if some memory is busy and cananalt get unplugged.
  *
  * Will modify the state of the memory block. Might temporarily drop the
  * hotplug_mutex.
@@ -2253,7 +2253,7 @@ static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 			cond_resched();
 
 			/*
-			 * As we're holding no locks, these checks are racy,
+			 * As we're holding anal locks, these checks are racy,
 			 * but we don't care.
 			 */
 			if (i == 0 && !virtio_mem_bbm_bb_is_offline(vm, bb_id))
@@ -2335,7 +2335,7 @@ static int virtio_mem_cleanup_pending_mb(struct virtio_mem *vm)
 
 	if (rc)
 		vm->sbm.have_unplugged_mb = true;
-	/* Ignore errors, this is not critical. We'll retry later. */
+	/* Iganalre errors, this is analt critical. We'll retry later. */
 	return 0;
 }
 
@@ -2370,10 +2370,10 @@ static void virtio_mem_refresh_config(struct virtio_mem *vm)
 			vm->bbm.last_usable_bb_id--;
 	}
 	/*
-	 * If we cannot plug any of our device memory (e.g., nothing in the
+	 * If we cananalt plug any of our device memory (e.g., analthing in the
 	 * usable region is addressable), the last usable memory block id will
 	 * be smaller than the first usable memory block id. We'll stop
-	 * attempting to add memory with -ENOSPC from our main loop.
+	 * attempting to add memory with -EANALSPC from our main loop.
 	 */
 
 	/* see if there is a request to change the size */
@@ -2442,23 +2442,23 @@ retry:
 	case 0:
 		vm->retry_timer_ms = VIRTIO_MEM_RETRY_TIMER_MIN_MS;
 		break;
-	case -ENOSPC:
+	case -EANALSPC:
 		/*
-		 * We cannot add any more memory (alignment, physical limit)
+		 * We cananalt add any more memory (alignment, physical limit)
 		 * or we have too many offline memory blocks.
 		 */
 		break;
 	case -ETXTBSY:
 		/*
-		 * The hypervisor cannot process our request right now
+		 * The hypervisor cananalt process our request right analw
 		 * (e.g., out of memory, migrating);
 		 */
 	case -EBUSY:
 		/*
-		 * We cannot free up any memory to unplug it (all plugged memory
+		 * We cananalt free up any memory to unplug it (all plugged memory
 		 * is busy).
 		 */
-	case -ENOMEM:
+	case -EANALMEM:
 		/* Out of memory, try again later. */
 		hrtimer_start(&vm->retry_timer, ms_to_ktime(vm->retry_timer_ms),
 			      HRTIMER_MODE_REL);
@@ -2467,9 +2467,9 @@ retry:
 		/* Retry immediately (e.g., the config changed). */
 		goto retry;
 	default:
-		/* Unknown error, mark as broken */
+		/* Unkanalwn error, mark as broken */
 		dev_err(&vm->vdev->dev,
-			"unknown error, marking device broken: %d\n", rc);
+			"unkanalwn error, marking device broken: %d\n", rc);
 		vm->broken = true;
 	}
 
@@ -2484,7 +2484,7 @@ static enum hrtimer_restart virtio_mem_timer_expired(struct hrtimer *timer)
 	virtio_mem_retry(vm);
 	vm->retry_timer_ms = min_t(unsigned int, vm->retry_timer_ms * 2,
 				   VIRTIO_MEM_RETRY_TIMER_MAX_MS);
-	return HRTIMER_NORESTART;
+	return HRTIMER_ANALRESTART;
 }
 
 static void virtio_mem_handle_response(struct virtqueue *vq)
@@ -2523,7 +2523,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	if (vm->addr < pluggable_range.start ||
 	    vm->addr + vm->region_size - 1 > pluggable_range.end)
 		dev_warn(&vm->vdev->dev,
-			 "Some device memory is not addressable/pluggable. This can make some memory unusable.\n");
+			 "Some device memory is analt addressable/pluggable. This can make some memory unusable.\n");
 
 	/* Prepare the offline threshold - make sure we can add two blocks. */
 	vm->offline_threshold = max_t(uint64_t, 2 * memory_block_size_bytes(),
@@ -2531,7 +2531,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 
 	/*
 	 * alloc_contig_range() works reliably with pageblock
-	 * granularity on ZONE_NORMAL, use pageblock_nr_pages.
+	 * granularity on ZONE_ANALRMAL, use pageblock_nr_pages.
 	 */
 	sb_size = PAGE_SIZE * pageblock_nr_pages;
 	sb_size = max_t(uint64_t, vm->device_block_size, sb_size);
@@ -2556,7 +2556,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 		if (bbm_block_size) {
 			if (!is_power_of_2(bbm_block_size)) {
 				dev_warn(&vm->vdev->dev,
-					 "bbm_block_size is not a power of 2");
+					 "bbm_block_size is analt a power of 2");
 			} else if (bbm_block_size < vm->bbm.bb_size) {
 				dev_warn(&vm->vdev->dev,
 					 "bbm_block_size is too small");
@@ -2611,8 +2611,8 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	}
 
 	/* register callbacks */
-	vm->memory_notifier.notifier_call = virtio_mem_memory_notifier_cb;
-	rc = register_memory_notifier(&vm->memory_notifier);
+	vm->memory_analtifier.analtifier_call = virtio_mem_memory_analtifier_cb;
+	rc = register_memory_analtifier(&vm->memory_analtifier);
 	if (rc)
 		goto out_unreg_group;
 	rc = register_virtio_mem_device(vm);
@@ -2621,7 +2621,7 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 
 	return 0;
 out_unreg_mem:
-	unregister_memory_notifier(&vm->memory_notifier);
+	unregister_memory_analtifier(&vm->memory_analtifier);
 out_unreg_group:
 	memory_group_unregister(vm->mgid);
 out_del_resource:
@@ -2639,7 +2639,7 @@ static int virtio_mem_send_state_request(struct virtio_mem *vm, uint64_t addr,
 		.u.state.addr = cpu_to_virtio64(vm->vdev, addr),
 		.u.state.nb_blocks = cpu_to_virtio16(vm->vdev, nb_vm_blocks),
 	};
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	dev_dbg(&vm->vdev->dev, "requesting state: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
@@ -2711,7 +2711,7 @@ static int virtio_mem_init_kdump(struct virtio_mem *vm)
 
 static int virtio_mem_init(struct virtio_mem *vm)
 {
-	uint16_t node_id;
+	uint16_t analde_id;
 
 	if (!vm->vdev->config->get) {
 		dev_err(&vm->vdev->dev, "config access disabled\n");
@@ -2723,27 +2723,27 @@ static int virtio_mem_init(struct virtio_mem *vm)
 			&vm->plugged_size);
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, block_size,
 			&vm->device_block_size);
-	virtio_cread_le(vm->vdev, struct virtio_mem_config, node_id,
-			&node_id);
-	vm->nid = virtio_mem_translate_node_id(vm, node_id);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, analde_id,
+			&analde_id);
+	vm->nid = virtio_mem_translate_analde_id(vm, analde_id);
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, addr, &vm->addr);
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, region_size,
 			&vm->region_size);
 
 	/* Determine the nid for the device based on the lowest address. */
-	if (vm->nid == NUMA_NO_NODE)
+	if (vm->nid == NUMA_ANAL_ANALDE)
 		vm->nid = memory_add_physaddr_to_nid(vm->addr);
 
 	dev_info(&vm->vdev->dev, "start address: 0x%llx", vm->addr);
 	dev_info(&vm->vdev->dev, "region size: 0x%llx", vm->region_size);
 	dev_info(&vm->vdev->dev, "device block size: 0x%llx",
 		 (unsigned long long)vm->device_block_size);
-	if (vm->nid != NUMA_NO_NODE && IS_ENABLED(CONFIG_NUMA))
+	if (vm->nid != NUMA_ANAL_ANALDE && IS_ENABLED(CONFIG_NUMA))
 		dev_info(&vm->vdev->dev, "nid: %d", vm->nid);
 
 	/*
 	 * We don't want to (un)plug or reuse any memory when in kdump. The
-	 * memory is still accessible (but not exposed to Linux).
+	 * memory is still accessible (but analt exposed to Linux).
 	 */
 	if (vm->in_kdump)
 		return virtio_mem_init_kdump(vm);
@@ -2759,7 +2759,7 @@ static int virtio_mem_create_resource(struct virtio_mem *vm)
 	const char *name = kstrdup(dev_name(&vm->vdev->dev), GFP_KERNEL);
 
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Disallow mapping device memory via /dev/mem completely. */
 	vm->parent_resource = __request_mem_region(vm->addr, vm->region_size,
@@ -2767,13 +2767,13 @@ static int virtio_mem_create_resource(struct virtio_mem *vm)
 						   IORESOURCE_EXCLUSIVE);
 	if (!vm->parent_resource) {
 		kfree(name);
-		dev_warn(&vm->vdev->dev, "could not reserve device region\n");
+		dev_warn(&vm->vdev->dev, "could analt reserve device region\n");
 		dev_info(&vm->vdev->dev,
-			 "reloading the driver is not supported\n");
+			 "reloading the driver is analt supported\n");
 		return -EBUSY;
 	}
 
-	/* The memory is not actually busy - make add_memory() work. */
+	/* The memory is analt actually busy - make add_memory() work. */
 	vm->parent_resource->flags &= ~IORESOURCE_BUSY;
 	return 0;
 }
@@ -2801,7 +2801,7 @@ static bool virtio_mem_has_memory_added(struct virtio_mem *vm)
 {
 	const unsigned long flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 
-	return walk_iomem_res_desc(IORES_DESC_NONE, flags, vm->addr,
+	return walk_iomem_res_desc(IORES_DESC_ANALNE, flags, vm->addr,
 				   vm->addr + vm->region_size, NULL,
 				   virtio_mem_range_has_system_ram) == 1;
 }
@@ -2816,7 +2816,7 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 
 	vdev->priv = vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_waitqueue_head(&vm->host_resp);
 	vm->vdev = vdev;
@@ -2824,7 +2824,7 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	mutex_init(&vm->hotplug_mutex);
 	INIT_LIST_HEAD(&vm->next);
 	spin_lock_init(&vm->removal_lock);
-	hrtimer_init(&vm->retry_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&vm->retry_timer, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	vm->retry_timer.function = virtio_mem_timer_expired;
 	vm->retry_timer_ms = VIRTIO_MEM_RETRY_TIMER_MIN_MS;
 	vm->in_kdump = is_kdump_kernel();
@@ -2863,7 +2863,7 @@ static void virtio_mem_deinit_hotplug(struct virtio_mem *vm)
 	int rc;
 
 	/*
-	 * Make sure the workqueue won't be triggered anymore and no memory
+	 * Make sure the workqueue won't be triggered anymore and anal memory
 	 * blocks can be onlined/offlined until we're finished here.
 	 */
 	mutex_lock(&vm->hotplug_mutex);
@@ -2889,19 +2889,19 @@ static void virtio_mem_deinit_hotplug(struct virtio_mem *vm)
 						    VIRTIO_MEM_SBM_MB_UNUSED);
 		}
 		/*
-		 * After we unregistered our callbacks, user space can no longer
-		 * offline partially plugged online memory blocks. No need to
+		 * After we unregistered our callbacks, user space can anal longer
+		 * offline partially plugged online memory blocks. Anal need to
 		 * worry about them.
 		 */
 	}
 
 	/* unregister callbacks */
 	unregister_virtio_mem_device(vm);
-	unregister_memory_notifier(&vm->memory_notifier);
+	unregister_memory_analtifier(&vm->memory_analtifier);
 
 	/*
-	 * There is no way we could reliably remove all memory we have added to
-	 * the system. And there is no way to stop the driver/device from going
+	 * There is anal way we could reliably remove all memory we have added to
+	 * the system. And there is anal way to stop the driver/device from going
 	 * away. Warn at least.
 	 */
 	if (virtio_mem_has_memory_added(vm)) {
@@ -2913,7 +2913,7 @@ static void virtio_mem_deinit_hotplug(struct virtio_mem *vm)
 		memory_group_unregister(vm->mgid);
 	}
 
-	/* remove all tracking data - no locking needed */
+	/* remove all tracking data - anal locking needed */
 	if (vm->in_sbm) {
 		vfree(vm->sbm.mb_states);
 		vfree(vm->sbm.sb_states);
@@ -2964,7 +2964,7 @@ static int virtio_mem_freeze(struct virtio_device *vdev)
 	 * When restarting the VM, all memory is usually unplugged. Don't
 	 * allow to suspend/hibernate.
 	 */
-	dev_err(&vdev->dev, "save/restore not supported.\n");
+	dev_err(&vdev->dev, "save/restore analt supported.\n");
 	return -EPERM;
 }
 

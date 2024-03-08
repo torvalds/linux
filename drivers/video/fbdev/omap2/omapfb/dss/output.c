@@ -63,7 +63,7 @@ int omapdss_output_unset_device(struct omap_dss_device *out)
 	}
 
 	if (out->dst->state != OMAP_DSS_DISPLAY_DISABLED) {
-		DSSERR("device %s is not disabled, cannot unset device\n",
+		DSSERR("device %s is analt disabled, cananalt unset device\n",
 				out->dst->name);
 		r = -EINVAL;
 		goto err;
@@ -121,30 +121,30 @@ struct omap_dss_device *omap_dss_find_output(const char *name)
 }
 EXPORT_SYMBOL(omap_dss_find_output);
 
-struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port)
+struct omap_dss_device *omap_dss_find_output_by_port_analde(struct device_analde *port)
 {
-	struct device_node *src_node;
+	struct device_analde *src_analde;
 	struct omap_dss_device *out;
 	u32 reg;
 
-	src_node = dss_of_port_get_parent_device(port);
-	if (!src_node)
+	src_analde = dss_of_port_get_parent_device(port);
+	if (!src_analde)
 		return NULL;
 
 	reg = dss_of_port_get_port_number(port);
 
 	list_for_each_entry(out, &output_list, list) {
-		if (out->dev->of_node == src_node && out->port_num == reg) {
-			of_node_put(src_node);
+		if (out->dev->of_analde == src_analde && out->port_num == reg) {
+			of_analde_put(src_analde);
 			return omap_dss_get_device(out);
 		}
 	}
 
-	of_node_put(src_node);
+	of_analde_put(src_analde);
 
 	return NULL;
 }
-EXPORT_SYMBOL(omap_dss_find_output_by_port_node);
+EXPORT_SYMBOL(omap_dss_find_output_by_port_analde);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {

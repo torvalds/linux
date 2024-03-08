@@ -8,7 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/time.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -42,7 +42,7 @@
 #define DDCM_START			(0x1)
 #define DDCM_WRITE_DATA			(0x2)
 #define DDCM_STOP			(0x3)
-#define DDCM_READ_DATA_NO_ACK		(0x4)
+#define DDCM_READ_DATA_ANAL_ACK		(0x4)
 #define DDCM_READ_DATA_ACK		(0x5)
 #define DDCM_TRI			BIT(0)
 #define DDC_DDCMD0		(0x8)
@@ -147,7 +147,7 @@ static int mtk_hdmi_ddc_read_msg(struct mtk_hdmi_ddc *ddc, struct i2c_msg *msg)
 		sif_write_mask(ddc, DDC_DDCMCTL1, DDCM_PGLEN_MASK,
 			       DDCM_PGLEN_OFFSET, read_count - 1);
 		ddcm_trigger_mode(ddc, (ack_final == 1) ?
-				  DDCM_READ_DATA_NO_ACK :
+				  DDCM_READ_DATA_ANAL_ACK :
 				  DDCM_READ_DATA_ACK);
 
 		ack = sif_read_mask(ddc, DDC_DDCMCTL1, DDCM_ACK_MASK,
@@ -276,7 +276,7 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 
 	ddc = devm_kzalloc(dev, sizeof(struct mtk_hdmi_ddc), GFP_KERNEL);
 	if (!ddc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ddc->clk = devm_clk_get(dev, "ddc-i2c");
 	if (IS_ERR(ddc->clk)) {
@@ -299,7 +299,7 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 	ddc->adap.owner = THIS_MODULE;
 	ddc->adap.algo = &mtk_hdmi_ddc_algorithm;
 	ddc->adap.retries = 3;
-	ddc->adap.dev.of_node = dev->of_node;
+	ddc->adap.dev.of_analde = dev->of_analde;
 	ddc->adap.algo_data = ddc;
 	ddc->adap.dev.parent = &pdev->dev;
 

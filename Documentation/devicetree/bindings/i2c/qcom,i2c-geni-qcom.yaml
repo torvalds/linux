@@ -137,8 +137,8 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
         interconnects = <&qup_virt MASTER_QUP_CORE_0 0 &qup_virt SLAVE_QUP_CORE_0 0>,
-                        <&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_QUP_0 0>,
-                        <&aggre1_noc MASTER_QUP_0 0 &mc_virt SLAVE_EBI1 0>;
+                        <&gem_analc MASTER_APPSS_PROC 0 &config_analc SLAVE_QUP_0 0>,
+                        <&aggre1_analc MASTER_QUP_0 0 &mc_virt SLAVE_EBI1 0>;
         interconnect-names = "qup-core", "qup-config", "qup-memory";
         power-domains = <&rpmhpd SC7180_CX>;
         required-opps = <&rpmhpd_opp_low_svs>;

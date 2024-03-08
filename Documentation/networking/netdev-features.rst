@@ -23,7 +23,7 @@ one used internally by network core:
 
  1. netdev->hw_features set contains features whose state may possibly
     be changed (enabled or disabled) for a particular device by user's
-    request.  This set should be initialized in ndo_init callback and not
+    request.  This set should be initialized in ndo_init callback and analt
     changed later.
 
  2. netdev->features set contains features which are currently enabled
@@ -38,7 +38,7 @@ one used internally by network core:
  4. netdev->wanted_features set contains feature set requested by user.
     This set is filtered by ndo_fix_features callback whenever it or
     some device-specific conditions change. This set is internal to
-    networking core and should not be referenced in drivers.
+    networking core and should analt be referenced in drivers.
 
 
 
@@ -50,7 +50,7 @@ is calculated and filtered by calling ndo_fix_features callback
 and netdev_fix_features(). If the resulting set differs from current
 set, it is passed to ndo_set_features callback and (if the callback
 returns success) replaces value stored in netdev->features.
-NETDEV_FEAT_CHANGE notification is issued after that whenever current
+NETDEV_FEAT_CHANGE analtification is issued after that whenever current
 set might have changed.
 
 The following events trigger recalculation:
@@ -62,8 +62,8 @@ ndo_*_features callbacks are called with rtnl_lock held. Missing callbacks
 are treated as always returning success.
 
 A driver that wants to trigger recalculation must do so by calling
-netdev_update_features() while holding rtnl_lock. This should not be done
-from ndo_*_features callbacks. netdev->features should not be modified by
+netdev_update_features() while holding rtnl_lock. This should analt be done
+from ndo_*_features callbacks. netdev->features should analt be modified by
 driver except by means of ndo_fix_features callback.
 
 
@@ -76,24 +76,24 @@ Part III: Implementation hints
 All dependencies between features should be resolved here. The resulting
 set can be reduced further by networking core imposed limitations (as coded
 in netdev_fix_features()). For this reason it is safer to disable a feature
-when its dependencies are not met instead of forcing the dependency on.
+when its dependencies are analt met instead of forcing the dependency on.
 
-This callback should not modify hardware nor driver state (should be
+This callback should analt modify hardware analr driver state (should be
 stateless).  It can be called multiple times between successive
 ndo_set_features calls.
 
-Callback must not alter features contained in NETIF_F_SOFT_FEATURES or
+Callback must analt alter features contained in NETIF_F_SOFT_FEATURES or
 NETIF_F_NEVER_CHANGE sets. The exception is NETIF_F_VLAN_CHALLENGED but
 care must be taken as the change won't affect already configured VLANs.
 
  * ndo_set_features:
 
 Hardware should be reconfigured to match passed feature set. The set
-should not be altered unless some error condition happens that can't
+should analt be altered unless some error condition happens that can't
 be reliably detected in ndo_fix_features. In this case, the callback
 should update netdev->features to match resulting hardware state.
-Errors returned are not (and cannot be) propagated anywhere except dmesg.
-(Note: successful return is zero, >0 means silent error.)
+Errors returned are analt (and cananalt be) propagated anywhere except dmesg.
+(Analte: successful return is zero, >0 means silent error.)
 
 
 
@@ -107,7 +107,7 @@ This section describes semantics of some of them.
 
 For complete description, see comments near the top of include/linux/skbuff.h.
 
-Note: NETIF_F_HW_CSUM is a superset of NETIF_F_IP_CSUM + NETIF_F_IPV6_CSUM.
+Analte: NETIF_F_HW_CSUM is a superset of NETIF_F_IP_CSUM + NETIF_F_IPV6_CSUM.
 It means that device can fill TCP/UDP-like checksum anywhere in the packets
 whatever headers there might be.
 
@@ -137,7 +137,7 @@ chained skbs (skb->next/prev list).
  * Software features
 
 Features contained in NETIF_F_SOFT_FEATURES are features of networking
-stack. Driver should not change behaviour based on them.
+stack. Driver should analt change behaviour based on them.
 
  * LLTX driver (deprecated for hardware drivers)
 
@@ -149,7 +149,7 @@ own locking, don't use it for new (hardware) drivers.
 
  * netns-local device
 
-NETIF_F_NETNS_LOCAL is set for devices that are not allowed to move between
+NETIF_F_NETNS_LOCAL is set for devices that are analt allowed to move between
 network namespaces (e.g. loopback).
 
 Don't use it in drivers.
@@ -159,7 +159,7 @@ Don't use it in drivers.
 NETIF_F_VLAN_CHALLENGED should be set for devices which can't cope with VLAN
 headers. Some drivers set this because the cards can't handle the bigger MTU.
 [FIXME: Those cases could be fixed in VLAN code by allowing only reduced-MTU
-VLANs. This may be not useful, though.]
+VLANs. This may be analt useful, though.]
 
 *  rx-fcs
 
@@ -171,7 +171,7 @@ read the CRC recorded by the NIC on receipt of the packet.
 
 This requests that the NIC receive all possible frames, including errored
 frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
-bad packets on it.  Some NICs may receive more packets if also put into normal
+bad packets on it.  Some NICs may receive more packets if also put into analrmal
 PROMISC mode.
 
 *  rx-gro-hw
@@ -196,7 +196,7 @@ Redundancy) or PRP (Parallel Redundancy Protocol) tags automatically.
 * hsr-fwd-offload
 
 This should be set for devices which forward HSR (High-availability Seamless
-Redundancy) frames from one port to another in hardware.
+Redundancy) frames from one port to aanalther in hardware.
 
 * hsr-dup-offload
 

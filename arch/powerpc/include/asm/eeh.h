@@ -76,7 +76,7 @@ struct eeh_pe {
 	int addr;			/* PE configuration address	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct pci_bus *bus;		/* Top PCI bus for bus PE	*/
-	int check_count;		/* Times of ignored error	*/
+	int check_count;		/* Times of iganalred error	*/
 	int freeze_count;		/* Times of froze up		*/
 	time64_t tstamp;		/* Time on first-time freeze	*/
 	int false_positives;		/* Times of reported #ff's	*/
@@ -94,7 +94,7 @@ struct eeh_pe {
 	 * thread if it turns out to due to a real problem rather than
 	 * a hot-remove.
 	 *
-	 * A max of 64 entries might be overkill, but it also might not be.
+	 * A max of 64 entries might be overkill, but it also might analt be.
 	 */
 	unsigned long stack_trace[64];
 	int trace_entries;
@@ -114,9 +114,9 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 
 /*
  * The struct is used to trace EEH state for the associated
- * PCI device node or PCI device. In future, it might
+ * PCI device analde or PCI device. In future, it might
  * represent PE as well so that the EEH device to form
- * another tree except the currently existing tree of PCI
+ * aanalther tree except the currently existing tree of PCI
  * buses and PCI devices
  */
 #define EEH_DEV_BRIDGE		(1 << 0)	/* PCI bridge		*/
@@ -125,7 +125,7 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 #define EEH_DEV_IRQ_DISABLED	(1 << 3)	/* Interrupt disabled	*/
 #define EEH_DEV_DISCONNECTED	(1 << 4)	/* Removing from PE	*/
 
-#define EEH_DEV_NO_HANDLER	(1 << 8)	/* No error handler	*/
+#define EEH_DEV_ANAL_HANDLER	(1 << 8)	/* Anal error handler	*/
 #define EEH_DEV_SYSFS		(1 << 9)	/* Sysfs created	*/
 #define EEH_DEV_REMOVED		(1 << 10)	/* Removed permanently	*/
 
@@ -142,7 +142,7 @@ struct eeh_dev {
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head entry;		/* Membership in eeh_pe.edevs	*/
 	struct list_head rmv_entry;	/* Membership in rmv_list	*/
-	struct pci_dn *pdn;		/* Associated PCI device node	*/
+	struct pci_dn *pdn;		/* Associated PCI device analde	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/
 
@@ -154,7 +154,7 @@ struct eeh_dev {
 /* "fmt" must be a simple literal string */
 #define EEH_EDEV_PRINT(level, edev, fmt, ...) \
 	pr_##level("PCI %04x:%02x:%02x.%x#%04x: EEH: " fmt, \
-	(edev)->controller->global_number, PCI_BUSNO((edev)->bdfn), \
+	(edev)->controller->global_number, PCI_BUSANAL((edev)->bdfn), \
 	PCI_SLOT((edev)->bdfn), PCI_FUNC((edev)->bdfn), \
 	((edev)->pe ? (edev)->pe_config_addr : 0xffff), ##__VA_ARGS__)
 #define eeh_edev_dbg(edev, fmt, ...) EEH_EDEV_PRINT(debug, (edev), fmt, ##__VA_ARGS__)
@@ -179,7 +179,7 @@ static inline struct eeh_pe *eeh_dev_to_pe(struct eeh_dev* edev)
 
 /* Return values from eeh_ops::next_error */
 enum {
-	EEH_NEXT_ERR_NONE = 0,
+	EEH_NEXT_ERR_ANALNE = 0,
 	EEH_NEXT_ERR_INF,
 	EEH_NEXT_ERR_FROZEN_PE,
 	EEH_NEXT_ERR_FENCED_PHB,
@@ -200,7 +200,7 @@ enum {
 #define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
 #define EEH_OPT_FREEZE_PE	4	/* Freeze PE	*/
 #define EEH_STATE_UNAVAILABLE	(1 << 0)	/* State unavailable	*/
-#define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH not supported	*/
+#define EEH_STATE_ANALT_SUPPORT	(1 << 1)	/* EEH analt supported	*/
 #define EEH_STATE_RESET_ACTIVE	(1 << 2)	/* Active reset		*/
 #define EEH_STATE_MMIO_ACTIVE	(1 << 3)	/* Active MMIO		*/
 #define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
@@ -226,12 +226,12 @@ struct eeh_ops {
 	int (*write_config)(struct eeh_dev *edev, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
 	int (*restore_config)(struct eeh_dev *edev);
-	int (*notify_resume)(struct eeh_dev *edev);
+	int (*analtify_resume)(struct eeh_dev *edev);
 };
 
 extern int eeh_subsystem_flags;
 extern u32 eeh_max_freezes;
-extern bool eeh_debugfs_no_recover;
+extern bool eeh_debugfs_anal_recover;
 extern struct eeh_ops *eeh_ops;
 extern raw_spinlock_t confirm_error_lock;
 
@@ -278,7 +278,7 @@ int eeh_phb_pe_create(struct pci_controller *phb);
 int eeh_wait_state(struct eeh_pe *pe, int max_wait);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
-struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no);
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_anal);
 int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent);
 int eeh_pe_tree_remove(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);

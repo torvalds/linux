@@ -9,20 +9,20 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University analr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN ANAL EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -89,7 +89,7 @@ extern bool qid_valid(struct kqid qid);
  *	Maps a user-namespace, type qid tuple into a kernel internal
  *	kqid, and returns that kqid.
  *
- *	When there is no mapping defined for the user-namespace, type,
+ *	When there is anal mapping defined for the user-namespace, type,
  *	qid tuple an invalid kqid is returned.  Callers are expected to
  *	test for and handle invalid kqids being returned.
  *	Invalid kqids may be tested for using qid_valid().
@@ -207,11 +207,11 @@ struct mem_dqblk {
 	qsize_t dqb_bsoftlimit;	/* preferred limit on disk blks */
 	qsize_t dqb_curspace;	/* current used space */
 	qsize_t dqb_rsvspace;   /* current reserved space for delalloc*/
-	qsize_t dqb_ihardlimit;	/* absolute limit on allocated inodes */
-	qsize_t dqb_isoftlimit;	/* preferred inode limit */
-	qsize_t dqb_curinodes;	/* current # allocated inodes */
+	qsize_t dqb_ihardlimit;	/* absolute limit on allocated ianaldes */
+	qsize_t dqb_isoftlimit;	/* preferred ianalde limit */
+	qsize_t dqb_curianaldes;	/* current # allocated ianaldes */
 	time64_t dqb_btime;	/* time limit for excessive disk use */
-	time64_t dqb_itime;	/* time limit for excessive inode use */
+	time64_t dqb_itime;	/* time limit for excessive ianalde use */
 };
 
 /*
@@ -226,9 +226,9 @@ struct mem_dqinfo {
 	struct list_head dqi_dirty_list;	/* List of dirty dquots [dq_list_lock] */
 	unsigned long dqi_flags;	/* DFQ_ flags [dq_data_lock] */
 	unsigned int dqi_bgrace;	/* Space grace time [dq_data_lock] */
-	unsigned int dqi_igrace;	/* Inode grace time [dq_data_lock] */
+	unsigned int dqi_igrace;	/* Ianalde grace time [dq_data_lock] */
 	qsize_t dqi_max_spc_limit;	/* Maximum space limit [static] */
-	qsize_t dqi_max_ino_limit;	/* Maximum inode limit [static] */
+	qsize_t dqi_max_ianal_limit;	/* Maximum ianalde limit [static] */
 	void *dqi_priv;
 };
 
@@ -281,10 +281,10 @@ static inline void dqstats_dec(unsigned int type)
 
 #define DQ_MOD_B	0	/* dquot modified since read */
 #define DQ_BLKS_B	1	/* uid/gid has been warned about blk limit */
-#define DQ_INODES_B	2	/* uid/gid has been warned about inode limit */
-#define DQ_FAKE_B	3	/* no limits only usage */
+#define DQ_IANALDES_B	2	/* uid/gid has been warned about ianalde limit */
+#define DQ_FAKE_B	3	/* anal limits only usage */
 #define DQ_READ_B	4	/* dquot was read into memory */
-#define DQ_ACTIVE_B	5	/* dquot is active (dquot_release not called) */
+#define DQ_ACTIVE_B	5	/* dquot is active (dquot_release analt called) */
 #define DQ_RELEASING_B	6	/* dquot is in releasing_dquots list waiting
 				 * to be cleaned up */
 #define DQ_LASTSET_B	7	/* Following 6 bits (see QIF_) are reserved\
@@ -294,7 +294,7 @@ static inline void dqstats_dec(unsigned int type)
 				 * clear them when it sees fit. */
 
 struct dquot {
-	struct hlist_node dq_hash;	/* Hash list in memory [dq_list_lock] */
+	struct hlist_analde dq_hash;	/* Hash list in memory [dq_list_lock] */
 	struct list_head dq_inuse;	/* List of all quotas [dq_list_lock] */
 	struct list_head dq_free;	/* Free list element [dq_list_lock] */
 	struct list_head dq_dirty;	/* List of dirty dquots [dq_list_lock] */
@@ -331,10 +331,10 @@ struct dquot_operations {
 	int (*write_info) (struct super_block *, int);	/* Write of quota "superblock" */
 	/* get reserved quota for delayed alloc, value returned is managed by
 	 * quota code only */
-	qsize_t *(*get_reserved_space) (struct inode *);
-	int (*get_projid) (struct inode *, kprojid_t *);/* Get project ID */
-	/* Get number of inodes that were charged for a given inode */
-	int (*get_inode_usage) (struct inode *, qsize_t *);
+	qsize_t *(*get_reserved_space) (struct ianalde *);
+	int (*get_projid) (struct ianalde *, kprojid_t *);/* Get project ID */
+	/* Get number of ianaldes that were charged for a given ianalde */
+	int (*get_ianalde_usage) (struct ianalde *, qsize_t *);
 	/* Get next ID with active quota structure */
 	int (*get_next_id) (struct super_block *sb, struct kqid *qid);
 };
@@ -346,14 +346,14 @@ struct qc_dqblk {
 	int d_fieldmask;	/* mask of fields to change in ->set_dqblk() */
 	u64 d_spc_hardlimit;	/* absolute limit on used space */
 	u64 d_spc_softlimit;	/* preferred limit on used space */
-	u64 d_ino_hardlimit;	/* maximum # allocated inodes */
-	u64 d_ino_softlimit;	/* preferred inode limit */
+	u64 d_ianal_hardlimit;	/* maximum # allocated ianaldes */
+	u64 d_ianal_softlimit;	/* preferred ianalde limit */
 	u64 d_space;		/* Space owned by the user */
-	u64 d_ino_count;	/* # inodes owned by the user */
-	s64 d_ino_timer;	/* zero if within inode limits */
-				/* if not, we refuse service */
+	u64 d_ianal_count;	/* # ianaldes owned by the user */
+	s64 d_ianal_timer;	/* zero if within ianalde limits */
+				/* if analt, we refuse service */
 	s64 d_spc_timer;	/* similar to above; for space */
-	int d_ino_warns;	/* # warnings issued wrt num inodes */
+	int d_ianal_warns;	/* # warnings issued wrt num ianaldes */
 	int d_spc_warns;	/* # warnings issued wrt used space */
 	u64 d_rt_spc_hardlimit;	/* absolute limit on realtime space */
 	u64 d_rt_spc_softlimit;	/* preferred limit on RT space */
@@ -366,26 +366,26 @@ struct qc_dqblk {
  * Field specifiers for ->set_dqblk() in struct qc_dqblk and also for
  * ->set_info() in struct qc_info
  */
-#define	QC_INO_SOFT	(1<<0)
-#define	QC_INO_HARD	(1<<1)
+#define	QC_IANAL_SOFT	(1<<0)
+#define	QC_IANAL_HARD	(1<<1)
 #define	QC_SPC_SOFT	(1<<2)
 #define	QC_SPC_HARD	(1<<3)
 #define	QC_RT_SPC_SOFT	(1<<4)
 #define	QC_RT_SPC_HARD	(1<<5)
-#define QC_LIMIT_MASK (QC_INO_SOFT | QC_INO_HARD | QC_SPC_SOFT | QC_SPC_HARD | \
+#define QC_LIMIT_MASK (QC_IANAL_SOFT | QC_IANAL_HARD | QC_SPC_SOFT | QC_SPC_HARD | \
 		       QC_RT_SPC_SOFT | QC_RT_SPC_HARD)
 #define	QC_SPC_TIMER	(1<<6)
-#define	QC_INO_TIMER	(1<<7)
+#define	QC_IANAL_TIMER	(1<<7)
 #define	QC_RT_SPC_TIMER	(1<<8)
-#define QC_TIMER_MASK (QC_SPC_TIMER | QC_INO_TIMER | QC_RT_SPC_TIMER)
+#define QC_TIMER_MASK (QC_SPC_TIMER | QC_IANAL_TIMER | QC_RT_SPC_TIMER)
 #define	QC_SPC_WARNS	(1<<9)
-#define	QC_INO_WARNS	(1<<10)
+#define	QC_IANAL_WARNS	(1<<10)
 #define	QC_RT_SPC_WARNS	(1<<11)
-#define QC_WARNS_MASK (QC_SPC_WARNS | QC_INO_WARNS | QC_RT_SPC_WARNS)
+#define QC_WARNS_MASK (QC_SPC_WARNS | QC_IANAL_WARNS | QC_RT_SPC_WARNS)
 #define	QC_SPACE	(1<<12)
-#define	QC_INO_COUNT	(1<<13)
+#define	QC_IANAL_COUNT	(1<<13)
 #define	QC_RT_SPACE	(1<<14)
-#define QC_ACCT_MASK (QC_SPACE | QC_INO_COUNT | QC_RT_SPACE)
+#define QC_ACCT_MASK (QC_SPACE | QC_IANAL_COUNT | QC_RT_SPACE)
 #define QC_FLAGS	(1<<15)
 
 #define QCI_SYSFILE		(1 << 0)	/* Quota file is hidden from userspace */
@@ -398,12 +398,12 @@ struct qc_type_state {
 	unsigned int flags;		/* Flags QCI_* */
 	unsigned int spc_timelimit;	/* Time after which space softlimit is
 					 * enforced */
-	unsigned int ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int ianal_timelimit;	/* Ditto for ianalde softlimit */
 	unsigned int rt_spc_timelimit;	/* Ditto for real-time space */
 	unsigned int spc_warnlimit;	/* Limit for number of space warnings */
-	unsigned int ino_warnlimit;	/* Ditto for inodes */
+	unsigned int ianal_warnlimit;	/* Ditto for ianaldes */
 	unsigned int rt_spc_warnlimit;	/* Ditto for real-time space */
-	unsigned long long ino;		/* Inode number of quota file */
+	unsigned long long ianal;		/* Ianalde number of quota file */
 	blkcnt_t blocks;		/* Number of 512-byte blocks in the file */
 	blkcnt_t nextents;		/* Number of extents in the file */
 };
@@ -419,10 +419,10 @@ struct qc_info {
 	unsigned int i_flags;		/* Flags QCI_* */
 	unsigned int i_spc_timelimit;	/* Time after which space softlimit is
 					 * enforced */
-	unsigned int i_ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int i_ianal_timelimit;	/* Ditto for ianalde softlimit */
 	unsigned int i_rt_spc_timelimit;/* Ditto for real-time space */
 	unsigned int i_spc_warnlimit;	/* Limit for number of space warnings */
-	unsigned int i_ino_warnlimit;	/* Limit for number of inode warnings */
+	unsigned int i_ianal_warnlimit;	/* Limit for number of ianalde warnings */
 	unsigned int i_rt_spc_warnlimit;	/* Ditto for real-time space */
 };
 
@@ -458,10 +458,10 @@ struct quota_format_type {
  *  DQUOT_LIMITS_ENABLED	0x0008		0x0010		0x0020
  *  DQUOT_SUSPENDED		0x0040		0x0080		0x0100
  *
- * Following bits are used for non-typed flags:
+ * Following bits are used for analn-typed flags:
  *  DQUOT_QUOTA_SYS_FILE	0x0200
  *  DQUOT_NEGATIVE_USAGE	0x0400
- *  DQUOT_NOLIST_DIRTY		0x0800
+ *  DQUOT_ANALLIST_DIRTY		0x0800
  */
 enum {
 	_DQUOT_USAGE_ENABLED = 0,		/* Track disk usage for users */
@@ -480,15 +480,15 @@ enum {
 #define DQUOT_STATE_LAST	(_DQUOT_STATE_FLAGS * MAXQUOTAS)
 #define DQUOT_QUOTA_SYS_FILE	(1 << DQUOT_STATE_LAST)
 						/* Quota file is a special
-						 * system file and user cannot
+						 * system file and user cananalt
 						 * touch it. Filesystem is
 						 * responsible for setting
-						 * S_NOQUOTA, S_NOATIME flags
+						 * S_ANALQUOTA, S_ANALATIME flags
 						 */
 #define DQUOT_NEGATIVE_USAGE	(1 << (DQUOT_STATE_LAST + 1))
 					       /* Allow negative quota usage */
-/* Do not track dirty dquots in a list */
-#define DQUOT_NOLIST_DIRTY	(1 << (DQUOT_STATE_LAST + 2))
+/* Do analt track dirty dquots in a list */
+#define DQUOT_ANALLIST_DIRTY	(1 << (DQUOT_STATE_LAST + 2))
 
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {
@@ -503,7 +503,7 @@ static inline unsigned int dquot_generic_flag(unsigned int flags, int type)
 /* Bitmap of quota types where flag is set in flags */
 static __always_inline unsigned dquot_state_types(unsigned flags, unsigned flag)
 {
-	BUILD_BUG_ON_NOT_POWER_OF_2(flag);
+	BUILD_BUG_ON_ANALT_POWER_OF_2(flag);
 	return (flags / flag) & ((1 << MAXQUOTAS) - 1);
 }
 
@@ -521,7 +521,7 @@ static inline void quota_send_warning(struct kqid qid, dev_t dev,
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
 	struct rw_semaphore dqio_sem;		/* Lock quota file while I/O in progress */
-	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
+	struct ianalde *files[MAXQUOTAS];		/* ianaldes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };

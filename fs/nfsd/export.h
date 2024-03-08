@@ -28,7 +28,7 @@ struct nfsd4_fs_location {
 struct nfsd4_fs_locations {
 	uint32_t locations_count;
 	struct nfsd4_fs_location *locations;
-/* If we're not actually serving this data ourselves (only providing a
+/* If we're analt actually serving this data ourselves (only providing a
  * list of replicas that do serve it) then we set "migrated": */
 	int migrated;
 };
@@ -66,8 +66,8 @@ struct svc_export {
 	int			ex_flags;
 	int			ex_fsid;
 	struct path		ex_path;
-	kuid_t			ex_anon_uid;
-	kgid_t			ex_anon_gid;
+	kuid_t			ex_aanaln_uid;
+	kgid_t			ex_aanaln_gid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
 	uint32_t		ex_nflavors;
@@ -96,7 +96,7 @@ struct svc_expkey {
 };
 
 #define EX_ISSYNC(exp)		(!((exp)->ex_flags & NFSEXP_ASYNC))
-#define EX_NOHIDE(exp)		((exp)->ex_flags & NFSEXP_NOHIDE)
+#define EX_ANALHIDE(exp)		((exp)->ex_flags & NFSEXP_ANALHIDE)
 #define EX_WGATHER(exp)		((exp)->ex_flags & NFSEXP_GATHERED_WRITES)
 
 int nfsexp_flags(struct svc_rqst *rqstp, struct svc_export *exp);

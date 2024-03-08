@@ -21,7 +21,7 @@ description: |
   between two processing elements to provide bidirectional communication, these
   must be specified as two separate mailboxes.
 
-  If the interrupts property is present in device tree node, then its treated as
+  If the interrupts property is present in device tree analde, then its treated as
   a "receiver" mailbox, otherwise a "sender".
 
   An MHU controller must be specified along with the supported transport
@@ -40,7 +40,7 @@ description: |
     strictly as an interrupt generation mechanism but that is out of the scope
     of these bindings.
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -70,7 +70,7 @@ properties:
   interrupts:
     description: |
       The MHUv2 controller always implements an interrupt in the "receiver"
-      mode, while the interrupt in the "sender" mode was not available in the
+      mode, while the interrupt in the "sender" mode was analt available in the
       version MHUv2.0, but the later versions do have it.
     maxItems: 1
 
@@ -98,7 +98,7 @@ properties:
       Using any other value in the first field of a tuple makes it invalid.
 
       The second field of a tuple signifies the number of channel windows where
-      the protocol would be used and should be set to a non zero value. For
+      the protocol would be used and should be set to a analn zero value. For
       doorbell protocol this field signifies the number of 32-bit channel
       windows that implement the doorbell protocol. For data-transfer protocol,
       this field signifies the number of 32-bit channel windows that implement
@@ -137,7 +137,7 @@ properties:
       doorbell number within the 32 bit wide channel window.
 
       From the example given above for arm,mhuv2-protocols, here is how a client
-      node can reference them.
+      analde can reference them.
 
       mboxes = <&mhu 0 5>; // Channel Window Group 0, doorbell 5.
       mboxes = <&mhu 1 7>; // Channel Window Group 1, doorbell 7.

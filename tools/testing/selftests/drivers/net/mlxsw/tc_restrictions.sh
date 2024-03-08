@@ -49,17 +49,17 @@ shared_block_drop_test()
 	check_err $? "Failed to add drop rule to ingress bound block"
 
 	tc qdisc add dev $swp2 ingress_block 22 clsact
-	check_err $? "Failed to create another clsact with ingress shared block"
+	check_err $? "Failed to create aanalther clsact with ingress shared block"
 
 	tc qdisc del dev $swp2 clsact
 
 	tc qdisc add dev $swp2 egress_block 22 clsact
-	check_fail $? "Incorrect success to create another clsact with egress shared block"
+	check_fail $? "Incorrect success to create aanalther clsact with egress shared block"
 
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 
 	tc qdisc add dev $swp2 egress_block 22 clsact
-	check_err $? "Failed to create another clsact with egress shared block after blocker drop rule removed"
+	check_err $? "Failed to create aanalther clsact with egress shared block after blocker drop rule removed"
 
 	tc filter add block 22 protocol ip pref 1 handle 101 flower \
 		skip_sw dst_ip 192.0.2.2 action drop
@@ -68,7 +68,7 @@ shared_block_drop_test()
 	tc qdisc del dev $swp1 clsact
 
 	tc qdisc add dev $swp1 egress_block 22 clsact
-	check_err $? "Failed to create another clsact with egress shared block"
+	check_err $? "Failed to create aanalther clsact with egress shared block"
 
 	tc filter add block 22 protocol ip pref 1 handle 101 flower \
 		skip_sw dst_ip 192.0.2.2 action drop
@@ -98,17 +98,17 @@ egress_redirect_test()
 	check_err $? "Failed to add redirect rule to ingress bound block"
 
 	tc qdisc add dev $swp2 ingress_block 22 clsact
-	check_err $? "Failed to create another clsact with ingress shared block"
+	check_err $? "Failed to create aanalther clsact with ingress shared block"
 
 	tc qdisc del dev $swp2 clsact
 
 	tc qdisc add dev $swp2 egress_block 22 clsact
-	check_fail $? "Incorrect success to create another clsact with egress shared block"
+	check_fail $? "Incorrect success to create aanalther clsact with egress shared block"
 
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 
 	tc qdisc add dev $swp2 egress_block 22 clsact
-	check_err $? "Failed to create another clsact with egress shared block after blocker redirect rule removed"
+	check_err $? "Failed to create aanalther clsact with egress shared block after blocker redirect rule removed"
 
 	tc filter add block 22 protocol ip pref 1 handle 101 flower \
 		skip_sw dst_ip 192.0.2.2 \
@@ -118,7 +118,7 @@ egress_redirect_test()
 	tc qdisc del dev $swp1 clsact
 
 	tc qdisc add dev $swp1 egress_block 22 clsact
-	check_err $? "Failed to create another clsact with egress shared block"
+	check_err $? "Failed to create aanalther clsact with egress shared block"
 
 	tc filter add block 22 protocol ip pref 1 handle 101 flower \
 		skip_sw dst_ip 192.0.2.2 \

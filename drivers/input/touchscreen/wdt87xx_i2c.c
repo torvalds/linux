@@ -398,7 +398,7 @@ static int wdt87xx_sw_reset(struct i2c_client *client)
 {
 	int error;
 
-	dev_dbg(&client->dev, "resetting device now\n");
+	dev_dbg(&client->dev, "resetting device analw\n");
 
 	error = wdt87xx_send_command(client, VND_CMD_RESET, 0);
 	if (error) {
@@ -541,7 +541,7 @@ static int wdt87xx_validate_firmware(struct wdt87xx_data *wdt,
 		dev_err(&wdt->client->dev,
 			"fw version mismatch: fw %d vs. chip %d\n",
 			fw_chip_id, chip_id);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1028,7 +1028,7 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	wdt->input = input;
 
@@ -1075,7 +1075,7 @@ static int wdt87xx_ts_probe(struct i2c_client *client)
 
 	wdt = devm_kzalloc(&client->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wdt->client = client;
 	mutex_init(&wdt->fw_mutex);

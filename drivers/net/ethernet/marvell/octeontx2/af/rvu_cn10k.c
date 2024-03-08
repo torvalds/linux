@@ -28,7 +28,7 @@ static int lmtst_map_table_ops(struct rvu *rvu, u32 index, u64 *val,
 	lmt_map_base = ioremap_wc(tbl_base, LMT_MAP_TABLE_SIZE);
 	if (!lmt_map_base) {
 		dev_err(rvu->dev, "Failed to setup lmt map table mapping!!\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (lmt_tbl_op == LMT_TBL_OP_READ) {
@@ -305,7 +305,7 @@ int rvu_set_channels_base(struct rvu *rvu)
 	hw->lbk_chan_base = NIX_CHAN_LBK_CHX(0, 0);
 	hw->sdp_chan_base = NIX_CHAN_SDP_CH_START;
 
-	/* No Programmable channels */
+	/* Anal Programmable channels */
 	if (!(nix_const & BIT_ULL(60)))
 		return 0;
 
@@ -313,7 +313,7 @@ int rvu_set_channels_base(struct rvu *rvu)
 
 	/* If programmable channels are present then configure
 	 * channels such that all channel numbers are contiguous
-	 * leaving no holes. This way the new CPT channels can be
+	 * leaving anal holes. This way the new CPT channels can be
 	 * accomodated. The order of channel numbers assigned is
 	 * LBK, SDP, CGX and CPT. Also the base channel number
 	 * of a block must be multiple of number of channels
@@ -341,7 +341,7 @@ int rvu_set_channels_base(struct rvu *rvu)
 		hw->cpt_chan_base = NIX_CHAN_CPT_CH_START;
 	} else {
 		dev_err(rvu->dev,
-			"CPT channels could not fit in the range 2048-4095\n");
+			"CPT channels could analt fit in the range 2048-4095\n");
 		return -EINVAL;
 	}
 
@@ -508,7 +508,7 @@ static void __rvu_rpm_set_channels(int cgxid, int lmacid, u16 base)
 	cfg = cgx_lmac_read(cgxid, lmacid, RPMX_CMRX_LINK_CFG);
 	cfg &= ~(RPMX_CMRX_LINK_BASE_MASK | RPMX_CMRX_LINK_RANGE_MASK);
 
-	/* There is no read-only constant register to read
+	/* There is anal read-only constant register to read
 	 * the number of channels for LMAC and it is always 16.
 	 */
 	cfg |=	FIELD_PREP(RPMX_CMRX_LINK_RANGE_MASK, ilog2(16));

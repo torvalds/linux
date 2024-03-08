@@ -45,7 +45,7 @@ static void visl_set_current_codec(struct visl_ctx *ctx)
 		break;
 	default:
 		dprintk(ctx->dev, "Warning: unsupported fourcc: %d\n", fourcc);
-		ctx->current_codec = VISL_CODEC_NONE;
+		ctx->current_codec = VISL_CODEC_ANALNE;
 		break;
 	}
 }
@@ -115,7 +115,7 @@ static int visl_tpg_init(struct visl_ctx *ctx)
 		tpg_s_xfer_func(&ctx->tpg, f->xfer_func);
 	} else {
 		v4l2_err(&ctx->dev->v4l2_dev,
-			 "Font %s not found\n", font_name);
+			 "Font %s analt found\n", font_name);
 
 		return -EINVAL;
 	}
@@ -256,7 +256,7 @@ visl_find_coded_fmt_desc(u32 fourcc)
 static void visl_init_fmt(struct v4l2_format *f, u32 fourcc)
 {	memset(f, 0, sizeof(*f));
 	f->fmt.pix_mp.pixelformat = fourcc;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.colorspace = V4L2_COLORSPACE_REC709;
 	f->fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	f->fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
@@ -402,7 +402,7 @@ static int visl_try_fmt_vid_cap(struct file *file, void *priv,
 	v4l2_fill_pixfmt_mp(pix_mp, pix_mp->pixelformat,
 			    pix_mp->width, pix_mp->height);
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -423,7 +423,7 @@ static int visl_try_fmt_vid_out(struct file *file, void *priv,
 				       &pix_mp->height,
 				       &coded_desc->frmsize);
 
-	pix_mp->field = V4L2_FIELD_NONE;
+	pix_mp->field = V4L2_FIELD_ANALNE;
 	pix_mp->num_planes = 1;
 
 	if (pix_mp->plane_fmt[0].sizeimage == 0)
@@ -625,7 +625,7 @@ static int visl_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 	return 0;
 }
 
@@ -771,13 +771,13 @@ int visl_request_validate(struct media_request *req)
 	}
 
 	if (!ctx)
-		return -ENOENT;
+		return -EANALENT;
 
 	count = vb2_request_buffer_cnt(req);
 	if (!count) {
 		v4l2_err(&ctx->dev->v4l2_dev,
-			 "No buffer was provided with the request\n");
-		return -ENOENT;
+			 "Anal buffer was provided with the request\n");
+		return -EANALENT;
 	} else if (count > 1) {
 		v4l2_err(&ctx->dev->v4l2_dev,
 			 "More than one buffer was provided with the request\n");

@@ -20,26 +20,26 @@
 #include <asm/octeon/cvmx.h>
 #include <asm/mipsregs.h>
 
-extern int register_co_cache_error_notifier(struct notifier_block *nb);
-extern int unregister_co_cache_error_notifier(struct notifier_block *nb);
+extern int register_co_cache_error_analtifier(struct analtifier_block *nb);
+extern int unregister_co_cache_error_analtifier(struct analtifier_block *nb);
 
 extern unsigned long long cache_err_dcache[NR_CPUS];
 
 struct co_cache_error {
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 	struct edac_device_ctl_info *ed;
 };
 
 /**
  * EDAC CPU cache error callback
  *
- * @event: non-zero if unrecoverable.
+ * @event: analn-zero if unrecoverable.
  */
-static int  co_cache_error_event(struct notifier_block *this,
+static int  co_cache_error_event(struct analtifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct co_cache_error *p = container_of(this, struct co_cache_error,
-						notifier);
+						analtifier);
 
 	unsigned int core = cvmx_get_core_num();
 	unsigned int cpu = smp_processor_id();
@@ -78,7 +78,7 @@ static int  co_cache_error_event(struct notifier_block *this,
 			write_octeon_c0_dcacheerr(0);
 	}
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
 static int co_cache_error_probe(struct platform_device *pdev)
@@ -86,9 +86,9 @@ static int co_cache_error_probe(struct platform_device *pdev)
 	struct co_cache_error *p = devm_kzalloc(&pdev->dev, sizeof(*p),
 						GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	p->notifier.notifier_call = co_cache_error_event;
+	p->analtifier.analtifier_call = co_cache_error_event;
 	platform_set_drvdata(pdev, p);
 
 	p->ed = edac_device_alloc_ctl_info(0, "cpu", num_possible_cpus(),
@@ -109,7 +109,7 @@ static int co_cache_error_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	register_co_cache_error_notifier(&p->notifier);
+	register_co_cache_error_analtifier(&p->analtifier);
 
 	return 0;
 
@@ -123,7 +123,7 @@ static void co_cache_error_remove(struct platform_device *pdev)
 {
 	struct co_cache_error *p = platform_get_drvdata(pdev);
 
-	unregister_co_cache_error_notifier(&p->notifier);
+	unregister_co_cache_error_analtifier(&p->analtifier);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(p->ed);
 }

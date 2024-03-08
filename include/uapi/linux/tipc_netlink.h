@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause) */
 /*
  * Copyright (c) 2014, Ericsson AB
  * All rights reserved.
@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    analtice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders analr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -20,11 +20,11 @@
  * Software Foundation.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -53,7 +53,7 @@ enum {
 	TIPC_NL_LINK_RESET_STATS,
 	TIPC_NL_MEDIA_GET,
 	TIPC_NL_MEDIA_SET,
-	TIPC_NL_NODE_GET,
+	TIPC_NL_ANALDE_GET,
 	TIPC_NL_NET_GET,
 	TIPC_NL_NET_SET,
 	TIPC_NL_NAME_TABLE_GET,
@@ -79,7 +79,7 @@ enum {
 	TIPC_NLA_PUBL,			/* nest */
 	TIPC_NLA_LINK,			/* nest */
 	TIPC_NLA_MEDIA,			/* nest */
-	TIPC_NLA_NODE,			/* nest */
+	TIPC_NLA_ANALDE,			/* nest */
 	TIPC_NLA_NET,			/* nest */
 	TIPC_NLA_NAME_TABLE,		/* nest */
 	TIPC_NLA_MON,			/* nest */
@@ -119,7 +119,7 @@ enum {
 	TIPC_NLA_SOCK_HAS_PUBL,		/* flag */
 	TIPC_NLA_SOCK_STAT,		/* nest */
 	TIPC_NLA_SOCK_TYPE,		/* u32 */
-	TIPC_NLA_SOCK_INO,		/* u32 */
+	TIPC_NLA_SOCK_IANAL,		/* u32 */
 	TIPC_NLA_SOCK_UID,		/* u32 */
 	TIPC_NLA_SOCK_TIPC_STATE,	/* u32 */
 	TIPC_NLA_SOCK_COOKIE,		/* u64 */
@@ -158,18 +158,18 @@ enum {
 	TIPC_NLA_MEDIA_MAX = __TIPC_NLA_MEDIA_MAX - 1
 };
 
-/* Node info */
+/* Analde info */
 enum {
-	TIPC_NLA_NODE_UNSPEC,
-	TIPC_NLA_NODE_ADDR,		/* u32 */
-	TIPC_NLA_NODE_UP,		/* flag */
-	TIPC_NLA_NODE_ID,		/* data */
-	TIPC_NLA_NODE_KEY,		/* data */
-	TIPC_NLA_NODE_KEY_MASTER,	/* flag */
-	TIPC_NLA_NODE_REKEYING,		/* u32 */
+	TIPC_NLA_ANALDE_UNSPEC,
+	TIPC_NLA_ANALDE_ADDR,		/* u32 */
+	TIPC_NLA_ANALDE_UP,		/* flag */
+	TIPC_NLA_ANALDE_ID,		/* data */
+	TIPC_NLA_ANALDE_KEY,		/* data */
+	TIPC_NLA_ANALDE_KEY_MASTER,	/* flag */
+	TIPC_NLA_ANALDE_REKEYING,		/* u32 */
 
-	__TIPC_NLA_NODE_MAX,
-	TIPC_NLA_NODE_MAX = __TIPC_NLA_NODE_MAX - 1
+	__TIPC_NLA_ANALDE_MAX,
+	TIPC_NLA_ANALDE_MAX = __TIPC_NLA_ANALDE_MAX - 1
 };
 
 /* Net info */
@@ -177,8 +177,8 @@ enum {
 	TIPC_NLA_NET_UNSPEC,
 	TIPC_NLA_NET_ID,		/* u32 */
 	TIPC_NLA_NET_ADDR,		/* u32 */
-	TIPC_NLA_NET_NODEID,		/* u64 */
-	TIPC_NLA_NET_NODEID_W1,		/* u64 */
+	TIPC_NLA_NET_ANALDEID,		/* u64 */
+	TIPC_NLA_NET_ANALDEID_W1,		/* u64 */
 	TIPC_NLA_NET_ADDR_LEGACY,	/* flag */
 
 	__TIPC_NLA_NET_MAX,
@@ -216,7 +216,7 @@ enum {
 	TIPC_NLA_PUBL_LOWER,		/* u32 */
 	TIPC_NLA_PUBL_UPPER,		/* u32 */
 	TIPC_NLA_PUBL_SCOPE,		/* u32 */
-	TIPC_NLA_PUBL_NODE,		/* u32 */
+	TIPC_NLA_PUBL_ANALDE,		/* u32 */
 	TIPC_NLA_PUBL_REF,		/* u32 */
 	TIPC_NLA_PUBL_KEY,		/* u32 */
 
@@ -246,7 +246,7 @@ enum {
 enum {
 	TIPC_NLA_SOCK_GROUP_ID,			/* u32 */
 	TIPC_NLA_SOCK_GROUP_OPEN,		/* flag */
-	TIPC_NLA_SOCK_GROUP_NODE_SCOPE,		/* flag */
+	TIPC_NLA_SOCK_GROUP_ANALDE_SCOPE,		/* flag */
 	TIPC_NLA_SOCK_GROUP_CLUSTER_SCOPE,	/* flag */
 	TIPC_NLA_SOCK_GROUP_INSTANCE,		/* u32 */
 	TIPC_NLA_SOCK_GROUP_BC_SEND_NEXT,	/* u32 */
@@ -260,7 +260,7 @@ enum {
 	TIPC_NLA_CON_UNSPEC,
 
 	TIPC_NLA_CON_FLAG,		/* flag */
-	TIPC_NLA_CON_NODE,		/* u32 */
+	TIPC_NLA_CON_ANALDE,		/* u32 */
 	TIPC_NLA_CON_SOCK,		/* u32 */
 	TIPC_NLA_CON_TYPE,		/* u32 */
 	TIPC_NLA_CON_INST,		/* u32 */

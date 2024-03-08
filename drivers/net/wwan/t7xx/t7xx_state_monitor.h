@@ -94,8 +94,8 @@ struct t7xx_fsm_ctl {
 	spinlock_t		command_lock;		/* Protects command queue */
 	struct task_struct	*fsm_thread;
 	bool			exp_flg;
-	spinlock_t		notifier_lock;		/* Protects notifier list */
-	struct list_head	notifier_list;
+	spinlock_t		analtifier_lock;		/* Protects analtifier list */
+	struct list_head	analtifier_list;
 };
 
 struct t7xx_fsm_event {
@@ -113,9 +113,9 @@ struct t7xx_fsm_command {
 	int			*ret;
 };
 
-struct t7xx_fsm_notifier {
+struct t7xx_fsm_analtifier {
 	struct list_head	entry;
-	int (*notifier_fn)(enum md_state state, void *data);
+	int (*analtifier_fn)(enum md_state state, void *data);
 	void			*data;
 };
 
@@ -131,7 +131,7 @@ void t7xx_fsm_uninit(struct t7xx_modem *md);
 int t7xx_fsm_recv_md_intr(struct t7xx_fsm_ctl *ctl, enum t7xx_md_irq_type type);
 enum md_state t7xx_fsm_get_md_state(struct t7xx_fsm_ctl *ctl);
 unsigned int t7xx_fsm_get_ctl_state(struct t7xx_fsm_ctl *ctl);
-void t7xx_fsm_notifier_register(struct t7xx_modem *md, struct t7xx_fsm_notifier *notifier);
-void t7xx_fsm_notifier_unregister(struct t7xx_modem *md, struct t7xx_fsm_notifier *notifier);
+void t7xx_fsm_analtifier_register(struct t7xx_modem *md, struct t7xx_fsm_analtifier *analtifier);
+void t7xx_fsm_analtifier_unregister(struct t7xx_modem *md, struct t7xx_fsm_analtifier *analtifier);
 
 #endif /* __T7XX_MONITOR_H__ */

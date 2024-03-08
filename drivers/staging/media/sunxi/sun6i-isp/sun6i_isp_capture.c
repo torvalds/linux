@@ -330,7 +330,7 @@ static int sun6i_isp_capture_start_streaming(struct vb2_queue *queue,
 	state->streaming = true;
 
 	ret = v4l2_subdev_call(subdev, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		goto error_streaming;
 
 	return 0;
@@ -413,7 +413,7 @@ static void sun6i_isp_capture_format_prepare(struct v4l2_format *format)
 					 DIV_ROUND_UP(height, vdiv);
 	}
 
-	pix_format->field = V4L2_FIELD_NONE;
+	pix_format->field = V4L2_FIELD_ANALNE;
 
 	pix_format->colorspace = V4L2_COLORSPACE_RAW;
 	pix_format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -603,7 +603,7 @@ static int sun6i_isp_capture_link_validate(struct media_link *link)
 	sun6i_isp_capture_dimensions(isp_dev, &capture_width, &capture_height);
 	sun6i_isp_proc_dimensions(isp_dev, &proc_width, &proc_height);
 
-	/* No cropping/scaling is supported (yet). */
+	/* Anal cropping/scaling is supported (yet). */
 	if (capture_width != proc_width || capture_height != proc_height) {
 		v4l2_err(v4l2_dev,
 			 "invalid input/output dimensions: %ux%u/%ux%u\n",
@@ -661,7 +661,7 @@ int sun6i_isp_capture_setup(struct sun6i_isp_device *isp_dev)
 	queue->ops = &sun6i_isp_capture_queue_ops;
 	queue->mem_ops = &vb2_dma_contig_memops;
 	queue->min_queued_buffers = 2;
-	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	queue->lock = &capture->lock;
 	queue->dev = isp_dev->dev;
 	queue->drv_priv = isp_dev;

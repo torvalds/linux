@@ -5,7 +5,7 @@
 #ifndef __ASM_FP_H
 #define __ASM_FP_H
 
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
@@ -64,7 +64,7 @@ static inline void cpacr_restore(unsigned long cpacr)
  * expansion bits in ZCR rather than those just currently defined by
  * the architecture.  Using this length to allocate worst size buffers
  * results in excessively large allocations, and this effect is even
- * more pronounced for SME due to ZA.  Define more suitable VLs for
+ * more proanalunced for SME due to ZA.  Define more suitable VLs for
  * these situations.
  */
 #define ARCH_SVE_VQ_MAX ((ZCR_ELx_LEN_MASK >> ZCR_ELx_LEN_SHIFT) + 1)
@@ -110,7 +110,7 @@ static inline bool thread_za_enabled(struct thread_struct *thread)
 	return system_supports_sme() && (thread->svcr & SVCR_ZA_MASK);
 }
 
-/* Maximum VL that SVE/SME VL-agnostic software can transparently support */
+/* Maximum VL that SVE/SME VL-aganalstic software can transparently support */
 #define VL_ARCH_MAX 0x100
 
 /* Offset of FFR in the SVE register dump */
@@ -160,7 +160,7 @@ extern u64 read_smcr_features(void);
 /*
  * Helpers to translate bit indices in sve_vq_map to VQ values (and
  * vice versa).  This allows find_next_bit() to be used to find the
- * _maximum_ VQ not exceeding a certain value.
+ * _maximum_ VQ analt exceeding a certain value.
  */
 static inline unsigned int __vq_to_bit(unsigned int vq)
 {
@@ -230,7 +230,7 @@ static inline void sve_user_enable(void)
 
 /*
  * Probing and setup functions.
- * Calls to these functions must be serialised with one another.
+ * Calls to these functions must be serialised with one aanalther.
  */
 enum vec_type;
 

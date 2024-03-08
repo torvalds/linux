@@ -5,7 +5,7 @@
  */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <string.h>
@@ -22,7 +22,7 @@ bool needs_openat2(const struct open_how *how)
 int raw_openat2(int dfd, const char *path, void *how, size_t size)
 {
 	int ret = syscall(__NR_openat2, dfd, path, how, size);
-	return ret >= 0 ? ret : -errno;
+	return ret >= 0 ? ret : -erranal;
 }
 
 int sys_openat2(int dfd, const char *path, struct open_how *how)
@@ -33,7 +33,7 @@ int sys_openat2(int dfd, const char *path, struct open_how *how)
 int sys_openat(int dfd, const char *path, struct open_how *how)
 {
 	int ret = openat(dfd, path, how->flags, how->mode);
-	return ret >= 0 ? ret : -errno;
+	return ret >= 0 ? ret : -erranal;
 }
 
 int sys_renameat2(int olddirfd, const char *oldpath,
@@ -41,7 +41,7 @@ int sys_renameat2(int olddirfd, const char *oldpath,
 {
 	int ret = syscall(__NR_renameat2, olddirfd, oldpath,
 					  newdirfd, newpath, flags);
-	return ret >= 0 ? ret : -errno;
+	return ret >= 0 ? ret : -erranal;
 }
 
 int touchat(int dfd, const char *path)

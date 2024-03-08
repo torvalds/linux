@@ -9,7 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -61,7 +61,7 @@
 #define HC_CAP_HDR_BT_EN		BIT(8)
 #define HC_CAP_HDR_TS_EN		BIT(7)
 #define HC_CAP_HDR_DDR_EN		BIT(6)
-#define HC_CAP_NON_CURRENT_MASTER_CAP	BIT(5)	/* master handoff capable */
+#define HC_CAP_ANALN_CURRENT_MASTER_CAP	BIT(5)	/* master handoff capable */
 #define HC_CAP_DATA_BYTE_CFG_EN		BIT(4)	/* endian selection possible */
 #define HC_CAP_AUTO_COMMAND		BIT(3)
 #define HC_CAP_COMBO_COMMAND		BIT(2)
@@ -109,10 +109,10 @@
 #define EXT_CAPS_SECTION		0x40
 #define EXT_CAPS_OFFSET			GENMASK(15, 0)
 
-#define IBI_NOTIFY_CTRL			0x58	/* IBI Notify Control */
-#define IBI_NOTIFY_SIR_REJECTED		BIT(3)	/* Rejected Target Interrupt Request */
-#define IBI_NOTIFY_MR_REJECTED		BIT(1)	/* Rejected Master Request Control */
-#define IBI_NOTIFY_HJ_REJECTED		BIT(0)	/* Rejected Hot-Join Control */
+#define IBI_ANALTIFY_CTRL			0x58	/* IBI Analtify Control */
+#define IBI_ANALTIFY_SIR_REJECTED		BIT(3)	/* Rejected Target Interrupt Request */
+#define IBI_ANALTIFY_MR_REJECTED		BIT(1)	/* Rejected Master Request Control */
+#define IBI_ANALTIFY_HJ_REJECTED		BIT(0)	/* Rejected Hot-Join Control */
 
 #define DEV_CTX_BASE_LO			0x60
 #define DEV_CTX_BASE_HI			0x64
@@ -205,7 +205,7 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (prefixed) {
 		xfer->data = NULL;
@@ -289,7 +289,7 @@ static int i3c_hci_alloc_safe_xfer_buf(struct i3c_hci *hci,
 		xfer->bounce_buf = kmemdup(xfer->data,
 					   xfer->data_len, GFP_KERNEL);
 
-	return xfer->bounce_buf == NULL ? -ENOMEM : 0;
+	return xfer->bounce_buf == NULL ? -EANALMEM : 0;
 }
 
 static void i3c_hci_free_safe_xfer_buf(struct i3c_hci *hci,
@@ -319,7 +319,7 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size_limit = 1U << (16 + FIELD_GET(HC_CAP_MAX_DATA_LENGTH, hci->caps));
 
@@ -383,7 +383,7 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 
 	xfer = hci_alloc_xfer(nxfers);
 	if (!xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nxfers; i++) {
 		xfer[i].data = i2c_xfers[i].buf;
@@ -433,7 +433,7 @@ static int i3c_hci_attach_i3c_dev(struct i3c_dev_desc *dev)
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
 		ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
 		if (ret < 0) {
@@ -488,7 +488,7 @@ static int i3c_hci_attach_i2c_dev(struct i2c_dev_desc *dev)
 		return 0;
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);
 	if (ret < 0) {
 		kfree(dev_data);
@@ -591,7 +591,7 @@ static const struct i3c_master_controller_ops i3c_hci_ops = {
 static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 {
 	struct i3c_hci *hci = dev_id;
-	irqreturn_t result = IRQ_NONE;
+	irqreturn_t result = IRQ_ANALNE;
 	u32 val;
 
 	val = reg_read(INTR_STATUS);
@@ -600,7 +600,7 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 	if (val) {
 		reg_write(INTR_STATUS, val);
 	} else {
-		/* v1.0 does not have PIO cascaded notification bits */
+		/* v1.0 does analt have PIO cascaded analtification bits */
 		val |= INTR_HC_PIO;
 	}
 
@@ -636,11 +636,11 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	/* Validate HCI hardware version */
 	regval = reg_read(HCI_VERSION);
 	hci->version_major = (regval >> 8) & 0xf;
-	hci->version_minor = (regval >> 4) & 0xf;
+	hci->version_mianalr = (regval >> 4) & 0xf;
 	hci->revision = regval & 0xf;
-	dev_notice(&hci->master.dev, "MIPI I3C HCI v%u.%u r%02u\n",
-		   hci->version_major, hci->version_minor, hci->revision);
-	/* known versions */
+	dev_analtice(&hci->master.dev, "MIPI I3C HCI v%u.%u r%02u\n",
+		   hci->version_major, hci->version_mianalr, hci->revision);
+	/* kanalwn versions */
 	switch (regval & ~0xf) {
 	case 0x100:	/* version 1.0 */
 	case 0x110:	/* version 1.1 */
@@ -648,7 +648,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 		break;
 	default:
 		dev_err(&hci->master.dev, "unsupported HCI version\n");
-		return -EPROTONOSUPPORT;
+		return -EPROTOANALSUPPORT;
 	}
 
 	hci->caps = reg_read(HC_CAPABILITIES);
@@ -690,7 +690,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 		return ret;
 
 	/*
-	 * Now let's reset the hardware.
+	 * Analw let's reset the hardware.
 	 * SOFT_RST must be clear before we write to it.
 	 * Then we must wait until it clears again.
 	 */
@@ -716,8 +716,8 @@ static int i3c_hci_init(struct i3c_hci *hci)
 			reg_write(HC_CONTROL, regval);
 			regval = reg_read(HC_CONTROL);
 			if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
-				dev_err(&hci->master.dev, "cannot set BE mode\n");
-				return -EOPNOTSUPP;
+				dev_err(&hci->master.dev, "cananalt set BE mode\n");
+				return -EOPANALTSUPP;
 			}
 		}
 	} else {
@@ -726,8 +726,8 @@ static int i3c_hci_init(struct i3c_hci *hci)
 			reg_write(HC_CONTROL, regval);
 			regval = reg_read(HC_CONTROL);
 			if (regval & HC_CONTROL_DATA_BIG_ENDIAN) {
-				dev_err(&hci->master.dev, "cannot clear BE mode\n");
-				return -EOPNOTSUPP;
+				dev_err(&hci->master.dev, "cananalt clear BE mode\n");
+				return -EOPANALTSUPP;
 			}
 		}
 	}
@@ -757,7 +757,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 		}
 	}
 
-	/* If no DMA, try PIO */
+	/* If anal DMA, try PIO */
 	if (!hci->io && hci->PIO_regs) {
 		reg_set(HC_CONTROL, HC_CONTROL_PIO_MODE);
 		if (!(reg_read(HC_CONTROL) & HC_CONTROL_PIO_MODE)) {
@@ -770,7 +770,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	}
 
 	if (!hci->io) {
-		dev_err(&hci->master.dev, "neither DMA nor PIO can be used\n");
+		dev_err(&hci->master.dev, "neither DMA analr PIO can be used\n");
 		if (!ret)
 			ret = -EINVAL;
 		return ret;
@@ -786,7 +786,7 @@ static int i3c_hci_probe(struct platform_device *pdev)
 
 	hci = devm_kzalloc(&pdev->dev, sizeof(*hci), GFP_KERNEL);
 	if (!hci)
-		return -ENOMEM;
+		return -EANALMEM;
 	hci->base_regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hci->base_regs))
 		return PTR_ERR(hci->base_regs);

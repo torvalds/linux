@@ -17,16 +17,16 @@
 
 /*
  * This code is called very early during the boot process to decompress
- * the .data segment stored compressed in ROM. Therefore none of the global
- * variables are valid yet, hence no kernel services such as memory
+ * the .data segment stored compressed in ROM. Therefore analne of the global
+ * variables are valid yet, hence anal kernel services such as memory
  * allocation is available. Everything must be allocated on the stack and
  * we must avoid any global data access. We use a temporary stack located
- * in the .bss area. The linker script makes sure the .bss is big enough
+ * in the .bss area. The linker script makes sure the .bss is big eanalugh
  * to hold our stack frame plus some room for called functions.
  *
  * We mimic the code in lib/decompress_inflate.c to use the smallest work
  * area possible. And because everything is statically allocated on the
- * stack then there is no need to clean up before returning.
+ * stack then there is anal need to clean up before returning.
  */
 
 int __init __inflate_kernel_data(void)
@@ -36,7 +36,7 @@ int __init __inflate_kernel_data(void)
 	char *in = __data_loc;
 	int rc;
 
-	/* Check and skip gzip header (assume no filename) */
+	/* Check and skip gzip header (assume anal filename) */
 	if (in[0] != 0x1f || in[1] != 0x8b || in[2] != 0x08 || in[3] & ~3)
 		return -1;
 	in += 10;

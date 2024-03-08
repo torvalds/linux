@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  */
@@ -58,7 +58,7 @@ static void vnt_init_band(struct vnt_private *priv,
 	for (i = 0; i < supported_band->n_channels; i++) {
 		supported_band->channels[i].max_power = 0x3f;
 		supported_band->channels[i].flags =
-			IEEE80211_CHAN_NO_HT40;
+			IEEE80211_CHAN_ANAL_HT40;
 	}
 
 	priv->hw->wiphy->bands[band] = supported_band;

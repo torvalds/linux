@@ -44,11 +44,11 @@ i915_gem_object_boost(struct dma_resv *resv, unsigned int flags)
 	 * When we wait, we wait on outstanding fences serially. If the
 	 * dma-resv contains a sequence such as 1:1, 1:2 instead of a reduced
 	 * form 1:2, then as we look at each wait in turn we see that each
-	 * request is currently executing and not worthy of boosting. But if
+	 * request is currently executing and analt worthy of boosting. But if
 	 * we only happen to look at the final fence in the sequence (because
 	 * of request coalescing or splitting between read/write arrays by
 	 * the iterator), then we would boost. As such our decision to boost
-	 * or not is delicately balanced on the order we wait on fences.
+	 * or analt is delicately balanced on the order we wait on fences.
 	 *
 	 * So instead of looking for boosts sequentially, look for all boosts
 	 * upfront and then wait on the outstanding fences.
@@ -185,7 +185,7 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
-	/* nsecs_to_jiffies64() does not guard against overflow */
+	/* nsecs_to_jiffies64() does analt guard against overflow */
 	if ((NSEC_PER_SEC % HZ) != 0 &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
@@ -214,16 +214,16 @@ static unsigned long to_wait_timeout(s64 timeout_ns)
  * the timeout parameter.
  *  -ETIME: object is still busy after timeout
  *  -ERESTARTSYS: signal interrupted the wait
- *  -ENONENT: object doesn't exist
+ *  -EANALNENT: object doesn't exist
  * Also possible, but rare:
  *  -EAGAIN: incomplete, restart syscall
- *  -ENOMEM: damn
- *  -ENODEV: Internal IRQ fail
+ *  -EANALMEM: damn
+ *  -EANALDEV: Internal IRQ fail
  *  -E?: The add request failed
  *
  * The wait ioctl with a timeout of 0 reimplements the busy ioctl. With any
- * non-zero timeout parameter the wait ioctl will wait for the given number of
- * nanoseconds on an object becoming unbusy. Since the wait itself does so
+ * analn-zero timeout parameter the wait ioctl will wait for the given number of
+ * naanalseconds on an object becoming unbusy. Since the wait itself does so
  * without holding struct_mutex the object may become re-busied before this
  * function completes. A similar but shorter * race condition exists in the busy
  * ioctl
@@ -241,7 +241,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	obj = i915_gem_object_lookup(file, args->bo_handle);
 	if (!obj)
-		return -ENOENT;
+		return -EANALENT;
 
 	start = ktime_get();
 
@@ -257,7 +257,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			args->timeout_ns = 0;
 
 		/*
-		 * Apparently ktime isn't accurate enough and occasionally has a
+		 * Apparently ktime isn't accurate eanalugh and occasionally has a
 		 * bit of mismatch in the jiffies<->nsecs<->ktime loop. So patch
 		 * things up to make the test happy. We allow up to 1 jiffy.
 		 *

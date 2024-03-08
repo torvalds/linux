@@ -13,40 +13,40 @@
 #include <linux/vfs.h>
 #include "vfsmod.h"
 
-struct inode *vboxsf_new_inode(struct super_block *sb)
+struct ianalde *vboxsf_new_ianalde(struct super_block *sb)
 {
 	struct vboxsf_sbi *sbi = VBOXSF_SBI(sb);
-	struct inode *inode;
+	struct ianalde *ianalde;
 	unsigned long flags;
 	int cursor, ret;
 	u32 gen;
 
-	inode = new_inode(sb);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	ianalde = new_ianalde(sb);
+	if (!ianalde)
+		return ERR_PTR(-EANALMEM);
 
 	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&sbi->ino_idr_lock, flags);
-	cursor = idr_get_cursor(&sbi->ino_idr);
-	ret = idr_alloc_cyclic(&sbi->ino_idr, inode, 1, 0, GFP_ATOMIC);
+	spin_lock_irqsave(&sbi->ianal_idr_lock, flags);
+	cursor = idr_get_cursor(&sbi->ianal_idr);
+	ret = idr_alloc_cyclic(&sbi->ianal_idr, ianalde, 1, 0, GFP_ATOMIC);
 	if (ret >= 0 && ret < cursor)
 		sbi->next_generation++;
 	gen = sbi->next_generation;
-	spin_unlock_irqrestore(&sbi->ino_idr_lock, flags);
+	spin_unlock_irqrestore(&sbi->ianal_idr_lock, flags);
 	idr_preload_end();
 
 	if (ret < 0) {
-		iput(inode);
+		iput(ianalde);
 		return ERR_PTR(ret);
 	}
 
-	inode->i_ino = ret;
-	inode->i_generation = gen;
-	return inode;
+	ianalde->i_ianal = ret;
+	ianalde->i_generation = gen;
+	return ianalde;
 }
 
-/* set [inode] attributes based on [info], uid/gid based on [sbi] */
-int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
+/* set [ianalde] attributes based on [info], uid/gid based on [sbi] */
+int vboxsf_init_ianalde(struct vboxsf_sbi *sbi, struct ianalde *ianalde,
 		       const struct shfl_fsobjinfo *info, bool reinit)
 {
 	const struct shfl_fsobjattr *attr;
@@ -72,8 +72,8 @@ int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
 #undef mode_set
 
 	/* We use the host-side values for these */
-	inode->i_flags |= S_NOATIME | S_NOCMTIME;
-	inode->i_mapping->a_ops = &vboxsf_reg_aops;
+	ianalde->i_flags |= S_ANALATIME | S_ANALCMTIME;
+	ianalde->i_mapping->a_ops = &vboxsf_reg_aops;
 
 	if (SHFL_IS_DIRECTORY(attr->mode)) {
 		if (sbi->o.dmode_set)
@@ -81,56 +81,56 @@ int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
 		mode &= ~sbi->o.dmask;
 		mode |= S_IFDIR;
 		if (!reinit) {
-			inode->i_op = &vboxsf_dir_iops;
-			inode->i_fop = &vboxsf_dir_fops;
+			ianalde->i_op = &vboxsf_dir_iops;
+			ianalde->i_fop = &vboxsf_dir_fops;
 			/*
 			 * XXX: this probably should be set to the number of entries
 			 * in the directory plus two (. ..)
 			 */
-			set_nlink(inode, 1);
-		} else if (!S_ISDIR(inode->i_mode))
+			set_nlink(ianalde, 1);
+		} else if (!S_ISDIR(ianalde->i_mode))
 			return -ESTALE;
-		inode->i_mode = mode;
+		ianalde->i_mode = mode;
 	} else if (SHFL_IS_SYMLINK(attr->mode)) {
 		if (sbi->o.fmode_set)
 			mode = sbi->o.fmode;
 		mode &= ~sbi->o.fmask;
 		mode |= S_IFLNK;
 		if (!reinit) {
-			inode->i_op = &vboxsf_lnk_iops;
-			set_nlink(inode, 1);
-		} else if (!S_ISLNK(inode->i_mode))
+			ianalde->i_op = &vboxsf_lnk_iops;
+			set_nlink(ianalde, 1);
+		} else if (!S_ISLNK(ianalde->i_mode))
 			return -ESTALE;
-		inode->i_mode = mode;
+		ianalde->i_mode = mode;
 	} else {
 		if (sbi->o.fmode_set)
 			mode = sbi->o.fmode;
 		mode &= ~sbi->o.fmask;
 		mode |= S_IFREG;
 		if (!reinit) {
-			inode->i_op = &vboxsf_reg_iops;
-			inode->i_fop = &vboxsf_reg_fops;
-			set_nlink(inode, 1);
-		} else if (!S_ISREG(inode->i_mode))
+			ianalde->i_op = &vboxsf_reg_iops;
+			ianalde->i_fop = &vboxsf_reg_fops;
+			set_nlink(ianalde, 1);
+		} else if (!S_ISREG(ianalde->i_mode))
 			return -ESTALE;
-		inode->i_mode = mode;
+		ianalde->i_mode = mode;
 	}
 
-	inode->i_uid = sbi->o.uid;
-	inode->i_gid = sbi->o.gid;
+	ianalde->i_uid = sbi->o.uid;
+	ianalde->i_gid = sbi->o.gid;
 
-	inode->i_size = info->size;
-	inode->i_blkbits = 12;
+	ianalde->i_size = info->size;
+	ianalde->i_blkbits = 12;
 	/* i_blocks always in units of 512 bytes! */
 	allocated = info->allocated + 511;
 	do_div(allocated, 512);
-	inode->i_blocks = allocated;
+	ianalde->i_blocks = allocated;
 
-	inode_set_atime_to_ts(inode,
+	ianalde_set_atime_to_ts(ianalde,
 			      ns_to_timespec64(info->access_time.ns_relative_to_unix_epoch));
-	inode_set_ctime_to_ts(inode,
+	ianalde_set_ctime_to_ts(ianalde,
 			      ns_to_timespec64(info->change_time.ns_relative_to_unix_epoch));
-	inode_set_mtime_to_ts(inode,
+	ianalde_set_mtime_to_ts(ianalde,
 			      ns_to_timespec64(info->modification_time.ns_relative_to_unix_epoch));
 	return 0;
 }
@@ -166,7 +166,7 @@ int vboxsf_stat(struct vboxsf_sbi *sbi, struct shfl_string *path,
 		return err;
 
 	if (params.result != SHFL_FILE_EXISTS)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (info)
 		*info = params.info;
@@ -189,21 +189,21 @@ int vboxsf_stat_dentry(struct dentry *dentry, struct shfl_fsobjinfo *info)
 	return err;
 }
 
-int vboxsf_inode_revalidate(struct dentry *dentry)
+int vboxsf_ianalde_revalidate(struct dentry *dentry)
 {
 	struct vboxsf_sbi *sbi;
-	struct vboxsf_inode *sf_i;
+	struct vboxsf_ianalde *sf_i;
 	struct shfl_fsobjinfo info;
 	struct timespec64 mtime, prev_mtime;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int err;
 
 	if (!dentry || !d_really_is_positive(dentry))
 		return -EINVAL;
 
-	inode = d_inode(dentry);
-	prev_mtime = inode_get_mtime(inode);
-	sf_i = VBOXSF_I(inode);
+	ianalde = d_ianalde(dentry);
+	prev_mtime = ianalde_get_mtime(ianalde);
+	sf_i = VBOXSF_I(ianalde);
 	sbi = VBOXSF_SBI(dentry->d_sb);
 	if (!sf_i->force_restat) {
 		if (time_before(jiffies, dentry->d_time + sbi->o.ttl))
@@ -216,18 +216,18 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 
 	dentry->d_time = jiffies;
 	sf_i->force_restat = 0;
-	err = vboxsf_init_inode(sbi, inode, &info, true);
+	err = vboxsf_init_ianalde(sbi, ianalde, &info, true);
 	if (err)
 		return err;
 
 	/*
 	 * If the file was changed on the host side we need to invalidate the
-	 * page-cache for it.  Note this also gets triggered by our own writes,
+	 * page-cache for it.  Analte this also gets triggered by our own writes,
 	 * this is unavoidable.
 	 */
-	mtime = inode_get_mtime(inode);
+	mtime = ianalde_get_mtime(ianalde);
 	if (timespec64_compare(&mtime, &prev_mtime) > 0)
-		invalidate_inode_pages2(inode->i_mapping);
+		invalidate_ianalde_pages2(ianalde->i_mapping);
 
 	return 0;
 }
@@ -237,8 +237,8 @@ int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 {
 	int err;
 	struct dentry *dentry = path->dentry;
-	struct inode *inode = d_inode(dentry);
-	struct vboxsf_inode *sf_i = VBOXSF_I(inode);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct vboxsf_ianalde *sf_i = VBOXSF_I(ianalde);
 
 	switch (flags & AT_STATX_SYNC_TYPE) {
 	case AT_STATX_DONT_SYNC:
@@ -248,19 +248,19 @@ int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 		sf_i->force_restat = 1;
 		fallthrough;
 	default:
-		err = vboxsf_inode_revalidate(dentry);
+		err = vboxsf_ianalde_revalidate(dentry);
 	}
 	if (err)
 		return err;
 
-	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), kstat);
+	generic_fillattr(&analp_mnt_idmap, request_mask, d_ianalde(dentry), kstat);
 	return 0;
 }
 
 int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		   struct iattr *iattr)
 {
-	struct vboxsf_inode *sf_i = VBOXSF_I(d_inode(dentry));
+	struct vboxsf_ianalde *sf_i = VBOXSF_I(d_ianalde(dentry));
 	struct vboxsf_sbi *sbi = VBOXSF_SBI(dentry->d_sb);
 	struct shfl_createparms params = {};
 	struct shfl_fsobjinfo info = {};
@@ -278,7 +278,7 @@ int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	err = vboxsf_create_at_dentry(dentry, &params);
 	if (err || params.result != SHFL_FILE_EXISTS)
-		return err ? err : -ENOENT;
+		return err ? err : -EANALENT;
 
 #define mode_set(r) ((iattr->ia_mode & (S_##r)) ? SHFL_UNIX_##r : 0)
 
@@ -313,7 +313,7 @@ int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 					    timespec64_to_ns(&iattr->ia_mtime);
 
 		/*
-		 * Ignore ctime (inode change time) as it can't be set
+		 * Iganalre ctime (ianalde change time) as it can't be set
 		 * from userland anyway.
 		 */
 
@@ -350,9 +350,9 @@ int vboxsf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	vboxsf_close(sbi->root, params.handle);
 
-	/* Update the inode with what the host has actually given us. */
+	/* Update the ianalde with what the host has actually given us. */
 	if (sf_i->force_restat)
-		vboxsf_inode_revalidate(dentry);
+		vboxsf_ianalde_revalidate(dentry);
 
 	return 0;
 }
@@ -374,7 +374,7 @@ struct shfl_string *vboxsf_path_from_dentry(struct vboxsf_sbi *sbi,
 
 	buf = __getname();
 	if (!buf)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	path = dentry_path_raw(dentry, buf, PATH_MAX);
 	if (IS_ERR(path)) {
@@ -387,7 +387,7 @@ struct shfl_string *vboxsf_path_from_dentry(struct vboxsf_sbi *sbi,
 		shfl_path = __getname();
 		if (!shfl_path) {
 			__putname(buf);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 
 		out = shfl_path->string.utf8;
@@ -544,7 +544,7 @@ int vboxsf_dir_read_all(struct vboxsf_sbi *sbi, struct vboxsf_dir_info *sf_d,
 	while (err == 0) {
 		b = vboxsf_dir_buf_alloc(&sf_d->info_list);
 		if (!b) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -564,7 +564,7 @@ int vboxsf_dir_read_all(struct vboxsf_sbi *sbi, struct vboxsf_dir_info *sf_d,
 	if (b && b->used == 0)
 		vboxsf_dir_buf_free(b);
 
-	/* -EILSEQ means the host could not translate a filename, ignore */
+	/* -EILSEQ means the host could analt translate a filename, iganalre */
 	if (err > 0 || err == -EILSEQ)
 		err = 0;
 

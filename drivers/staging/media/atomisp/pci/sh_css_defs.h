@@ -18,7 +18,7 @@
 
 #include "isp.h"
 
-/*#include "vamem.h"*/ /* Cannot include for VAMEM properties this file is visible on ISP -> pipeline generator */
+/*#include "vamem.h"*/ /* Cananalt include for VAMEM properties this file is visible on ISP -> pipeline generator */
 
 #include "math_support.h"	/* max(), min, etc etc */
 
@@ -55,7 +55,7 @@
 
 /* enumeration of the bayer downscale factors. When a binary supports multiple
  * factors, the OR of these defines is used to build the mask of supported
- * factors. The BDS factor is used in pre-processor expressions so we cannot
+ * factors. The BDS factor is used in pre-processor expressions so we cananalt
  * use an enum here. */
 #define SH_CSS_BDS_FACTOR_1_00	(0)
 #define SH_CSS_BDS_FACTOR_1_25	(1)
@@ -123,7 +123,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define	SH_CSS_SP_MAX_WIDTH               1280
 
 /* This is the maximum grid we can handle in the ISP binaries.
- * The host code makes sure no bigger grid is ever selected. */
+ * The host code makes sure anal bigger grid is ever selected. */
 #define SH_CSS_MAX_BQ_GRID_WIDTH          80
 #define SH_CSS_MAX_BQ_GRID_HEIGHT         60
 
@@ -185,11 +185,11 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 
 #define NUM_VIDEO_TNR_FRAMES		2
 
-/* Note that this is the define used to configure all data structures common for all modes */
+/* Analte that this is the define used to configure all data structures common for all modes */
 /* It should be equal or bigger to the max number of DVS frames for all possible modes */
 /* Rules: these implement logic shared between the host code and ISP firmware.
    The ISP firmware needs these rules to be applied at pre-processor time,
-   that's why these are macros, not functions. */
+   that's why these are macros, analt functions. */
 #define _ISP_BQS(num)  ((num) / 2)
 #define _ISP_VECS(width) CEIL_DIV(width, ISP_VEC_NELEMS)
 
@@ -222,7 +222,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
  * one more grid cell is needed as margin. */
 #define SH_CSS_SCTBL_CENTERING_MARGIN	1
 
-/* The shading table width and height are the number of grids, not cells. The last grid should be counted. */
+/* The shading table width and height are the number of grids, analt cells. The last grid should be counted. */
 #define SH_CSS_SCTBL_LAST_GRID_COUNT	1
 
 /* Number of horizontal grids per color in the shading table. */
@@ -280,7 +280,7 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define _ISP_LOG_VECTOR_STEP(mode) \
 	((mode) == IA_CSS_BINARY_MODE_CAPTURE_PP ? 2 : 1)
 
-/* It is preferred to have not more than 2x scaling at one step
+/* It is preferred to have analt more than 2x scaling at one step
  * in GDC (assumption is for capture_pp and yuv_scale stages) */
 #define MAX_PREFERRED_YUV_DS_PER_STEP	2
 

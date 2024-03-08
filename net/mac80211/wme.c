@@ -86,7 +86,7 @@ static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	/* in case we are a client verify acm is not set for this ac */
+	/* in case we are a client verify acm is analt set for this ac */
 	while (sdata->wmm_acm & BIT(skb->priority)) {
 		int ac = ieee802_1d_to_ac[skb->priority];
 
@@ -96,8 +96,8 @@ static u16 ieee80211_downgrade_queue(struct ieee80211_sub_if_data *sdata,
 
 		if (wme_downgrade_ac(skb)) {
 			/*
-			 * This should not really happen. The AP has marked all
-			 * lower ACs to require admission control which is not
+			 * This should analt really happen. The AP has marked all
+			 * lower ACs to require admission control which is analt
 			 * a reasonable configuration. Allow the frame to be
 			 * transmitted using AC_BK as a workaround.
 			 */
@@ -207,8 +207,8 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 	/* don't overwrite the QoS field of injected frames */
 	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
 		/* do take into account Ack policy of injected frames */
-		if (*p & IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
-			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		if (*p & IEEE80211_QOS_CTL_ACK_POLICY_ANALACK)
+			info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 		return;
 	}
 
@@ -222,9 +222,9 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 		       IEEE80211_QOS_CTL_ACK_POLICY_MASK);
 
 	if (is_multicast_ether_addr(hdr->addr1) ||
-	    sdata->noack_map & BIT(tid)) {
-		flags |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
-		info->flags |= IEEE80211_TX_CTL_NO_ACK;
+	    sdata->analack_map & BIT(tid)) {
+		flags |= IEEE80211_QOS_CTL_ACK_POLICY_ANALACK;
+		info->flags |= IEEE80211_TX_CTL_ANAL_ACK;
 	}
 
 	*p = flags | tid;

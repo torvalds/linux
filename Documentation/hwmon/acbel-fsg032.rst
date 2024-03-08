@@ -13,10 +13,10 @@ Description
 This driver supports ACBEL FSG032-00xG Power Supply. This driver
 is a client to the core PMBus driver.
 
-Usage Notes
+Usage Analtes
 -----------
 
-This driver does not auto-detect devices. You will have to instantiate the
+This driver does analt auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -51,7 +51,7 @@
 #include "smu_cmn.h"
 
 /*
- * DO NOT use these for err/warn/info/debug messages.
+ * DO ANALT use these for err/warn/info/debug messages.
  * Use dev_err, dev_warn, dev_info and dev_dbg instead.
  * They are more MGPU friendly.
  */
@@ -138,7 +138,7 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(SetGeminiApertureLow,		PPSMC_MSG_SetGeminiApertureLow,        0),
 	MSG_MAP(OverridePcieParameters,		PPSMC_MSG_OverridePcieParameters,      0),
 	MSG_MAP(ReenableAcDcInterrupt,		PPSMC_MSG_ReenableAcDcInterrupt,       0),
-	MSG_MAP(NotifyPowerSource,		PPSMC_MSG_NotifyPowerSource,           0),
+	MSG_MAP(AnaltifyPowerSource,		PPSMC_MSG_AnaltifyPowerSource,           0),
 	MSG_MAP(SetUclkFastSwitch,		PPSMC_MSG_SetUclkFastSwitch,           0),
 	MSG_MAP(SetVideoFps,			PPSMC_MSG_SetVideoFps,                 0),
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         1),
@@ -399,10 +399,10 @@ static void sienna_cichlid_check_fan_support(struct smu_context *smu)
 	PPTable_t *pptable = table_context->driver_pptable;
 	uint64_t features = *(uint64_t *) pptable->FeaturesToRun;
 
-	/* Fan control is not possible if PPTable has it disabled */
-	smu->adev->pm.no_fan =
+	/* Fan control is analt possible if PPTable has it disabled */
+	smu->adev->pm.anal_fan =
 		!(features & (1ULL << FEATURE_FAN_CONTROL_BIT));
-	if (smu->adev->pm.no_fan)
+	if (smu->adev->pm.anal_fan)
 		dev_info_once(smu->adev->dev,
 			      "PMFW based fan control disabled");
 }
@@ -589,7 +589,7 @@ err2_out:
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static uint32_t sienna_cichlid_get_throttler_status_locked(struct smu_context *smu,
@@ -912,7 +912,7 @@ static int sienna_cichlid_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
 				       GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
 
@@ -1469,7 +1469,7 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 			goto forec_level_out;
 		break;
 	case SMU_DCEFCLK:
-		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
+		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is analt supported!\n");
 		break;
 	default:
 		break;
@@ -1531,7 +1531,7 @@ static int sienna_cichlid_pre_display_config_changed(struct smu_context *smu)
 	int ret = 0;
 	uint32_t max_freq = 0;
 
-	/* Sienna_Cichlid do not support to change display num currently */
+	/* Sienna_Cichlid do analt support to change display num currently */
 	return 0;
 #if 0
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0, NULL);
@@ -1783,7 +1783,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 	return ret;
 }
 
-static int sienna_cichlid_notify_smc_display_config(struct smu_context *smu)
+static int sienna_cichlid_analtify_smc_display_config(struct smu_context *smu)
 {
 	struct smu_clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
@@ -1959,7 +1959,7 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 						METRICS_SS_APU_SHARE, (uint32_t *)data);
 			*size = 4;
 		} else {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_SS_DGPU_SHARE:
@@ -1969,12 +1969,12 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 						METRICS_SS_DGPU_SHARE, (uint32_t *)data);
 			*size = 4;
 		} else {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 		}
 		break;
 	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -2238,17 +2238,17 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 	int i, ret = 0;
 
 	if (!smu->od_enabled) {
-		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
+		dev_warn(smu->adev->dev, "OverDrive is analt enabled!\n");
 		return -EINVAL;
 	}
 
 	if (!smu->od_settings) {
-		dev_err(smu->adev->dev, "OD board limits are not set!\n");
-		return -ENOENT;
+		dev_err(smu->adev->dev, "OD board limits are analt set!\n");
+		return -EANALENT;
 	}
 
 	if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
-		dev_err(smu->adev->dev, "Overdrive table was not initialized!\n");
+		dev_err(smu->adev->dev, "Overdrive table was analt initialized!\n");
 		return -EINVAL;
 	}
 
@@ -2256,8 +2256,8 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!sienna_cichlid_is_od_feature_supported(od_settings,
 							    SMU_11_0_7_ODCAP_GFXCLK_LIMITS)) {
-			dev_warn(smu->adev->dev, "GFXCLK_LIMITS not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(smu->adev->dev, "GFXCLK_LIMITS analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		for (i = 0; i < size; i += 2) {
@@ -2306,8 +2306,8 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_UCLK_LIMITS)) {
-			dev_warn(smu->adev->dev, "UCLK_LIMITS not supported!\n");
-			return -ENOTSUPP;
+			dev_warn(smu->adev->dev, "UCLK_LIMITS analt supported!\n");
+			return -EANALTSUPP;
 		}
 
 		for (i = 0; i < size; i += 2) {
@@ -2393,7 +2393,7 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 		    (smu->smc_fw_version < 0x003a2900)) {
 			dev_err(smu->adev->dev, "OD GFX Voltage offset functionality is supported "
 						"only by 58.41.0 and onwards SMU firmwares!\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 
 		od_table->VddGfxOffset = (int16_t)input[0];
@@ -2402,7 +2402,7 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	default:
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	return ret;
@@ -2464,7 +2464,7 @@ static bool sienna_cichlid_is_mode1_reset_supported(struct smu_context *smu)
 	int ret;
 
 	/**
-	 * SRIOV env will not support SMU mode1 reset
+	 * SRIOV env will analt support SMU mode1 reset
 	 * PM FW support mode1 reset from 58.26
 	 */
 	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
@@ -3767,7 +3767,7 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req->I2CcontrollerPort = smu_i2c->port;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
@@ -3840,7 +3840,7 @@ static const struct i2c_algorithm sienna_cichlid_i2c_algo = {
 };
 
 static const struct i2c_adapter_quirks sienna_cichlid_i2c_control_quirks = {
-	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_NO_ZERO_LEN,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_SAME_ADDR | I2C_AQ_ANAL_ZERO_LEN,
 	.max_read_len  = MAX_SW_I2C_COMMANDS,
 	.max_write_len = MAX_SW_I2C_COMMANDS,
 	.max_comb_1st_msg_len = 2,
@@ -4066,7 +4066,7 @@ static int sienna_cichlid_check_ecc_table_support(struct smu_context *smu)
 	int ret = 0;
 
 	if (smu->smc_fw_version < SUPPORT_ECCTABLE_SMU_VERSION)
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 
 	return ret;
 }
@@ -4117,7 +4117,7 @@ static int sienna_cichlid_enable_mgpu_fan_boost(struct smu_context *smu)
 	GET_PPTABLE_MEMBER(MGpuFanBoostLimitRpm, &mgpu_fan_boost_limit_rpm);
 	/*
 	 * Skip the MGpuFanBoost setting for those ASICs
-	 * which do not support it
+	 * which do analt support it
 	 */
 	if (*mgpu_fan_boost_limit_rpm == 0)
 		return 0;
@@ -4166,7 +4166,7 @@ static int sienna_cichlid_gpo_control(struct smu_context *smu,
 	return ret;
 }
 
-static int sienna_cichlid_notify_2nd_usb20_port(struct smu_context *smu)
+static int sienna_cichlid_analtify_2nd_usb20_port(struct smu_context *smu)
 {
 	/*
 	 * Message SMU_MSG_Enable2ndUSB20Port is supported by 58.45
@@ -4188,7 +4188,7 @@ static int sienna_cichlid_system_features_control(struct smu_context *smu,
 	int ret = 0;
 
 	if (en) {
-		ret = sienna_cichlid_notify_2nd_usb20_port(smu);
+		ret = sienna_cichlid_analtify_2nd_usb20_port(smu);
 		if (ret)
 			return ret;
 	}
@@ -4206,7 +4206,7 @@ static int sienna_cichlid_set_mp1_state(struct smu_context *smu,
 		ret = smu_cmn_set_mp1_state(smu, mp1_state);
 		break;
 	default:
-		/* Ignore others */
+		/* Iganalre others */
 		ret = 0;
 	}
 
@@ -4296,7 +4296,7 @@ static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 	uint32_t *p = buf;
 	struct amdgpu_device *adev = smu->adev;
 
-	/* No need to disable interrupts for now as we don't lock it yet from ISR */
+	/* Anal need to disable interrupts for analw as we don't lock it yet from ISR */
 	spin_lock(&smu->stb_context.lock);
 
 	/*
@@ -4372,7 +4372,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.populate_umd_state_clk = sienna_cichlid_populate_umd_state_clk,
 	.pre_display_config_changed = sienna_cichlid_pre_display_config_changed,
 	.display_config_changed = sienna_cichlid_display_config_changed,
-	.notify_smc_display_config = sienna_cichlid_notify_smc_display_config,
+	.analtify_smc_display_config = sienna_cichlid_analtify_smc_display_config,
 	.is_dpm_running = sienna_cichlid_is_dpm_running,
 	.get_fan_speed_pwm = smu_v11_0_get_fan_speed_pwm,
 	.get_fan_speed_rpm = sienna_cichlid_get_fan_speed_rpm,
@@ -4401,7 +4401,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.analtify_memory_pool_location = smu_v11_0_analtify_memory_pool_location,
 	.system_features_control = sienna_cichlid_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
@@ -4410,7 +4410,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
 	.disable_all_features_with_exception = smu_cmn_disable_all_features_with_exception,
-	.notify_display_change = NULL,
+	.analtify_display_change = NULL,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,

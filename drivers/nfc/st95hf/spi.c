@@ -42,7 +42,7 @@ int st95hf_spi_send(struct st95hf_spi_context *spicontext,
 		return result;
 	}
 
-	/* return for asynchronous or no-wait case */
+	/* return for asynchroanalus or anal-wait case */
 	if (reqtype == ASYNC) {
 		mutex_unlock(&spicontext->spi_lock);
 		return 0;
@@ -52,7 +52,7 @@ int st95hf_spi_send(struct st95hf_spi_context *spicontext,
 					     msecs_to_jiffies(1000));
 	/* check for timeout or success */
 	if (!result) {
-		dev_err(&spidev->dev, "error: response not ready timeout\n");
+		dev_err(&spidev->dev, "error: response analt ready timeout\n");
 		result = -ETIMEDOUT;
 	} else {
 		result = 0;
@@ -84,7 +84,7 @@ int st95hf_spi_recv_response(struct st95hf_spi_context *spicontext,
 
 	mutex_lock(&spicontext->spi_lock);
 
-	/* First spi transfer to know the length of valid data */
+	/* First spi transfer to kanalw the length of valid data */
 	spi_message_init(&m);
 	spi_message_add_tail(&t[0], &m);
 	spi_message_add_tail(&t[1], &m);
@@ -106,7 +106,7 @@ int st95hf_spi_recv_response(struct st95hf_spi_context *spicontext,
 	else
 		len += receivebuff[1];
 
-	/* Now make a transfer to read only relevant bytes */
+	/* Analw make a transfer to read only relevant bytes */
 	tx_takedata.rx_buf = &receivebuff[2];
 	tx_takedata.len = len - 2;
 

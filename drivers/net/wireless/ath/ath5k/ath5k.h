@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -52,9 +52,9 @@
 #define PCI_DEVICE_ID_3COM_2_3CRPAG175		0x0013 /* 3CRPAG175 (Atheros AR5212) */
 #define PCI_DEVICE_ID_ATHEROS_AR5210_AP		0x0207 /* AR5210 (Early) */
 #define PCI_DEVICE_ID_ATHEROS_AR5212_IBM	0x1014 /* AR5212 (IBM MiniPCI) */
-#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT	0x1107 /* AR5210 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT	0x1113 /* AR5212 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT	0x1112 /* AR5211 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT	0x1107 /* AR5210 (anal eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT	0x1113 /* AR5212 (anal eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT	0x1112 /* AR5211 (anal eeprom) */
 #define PCI_DEVICE_ID_ATHEROS_AR5212_FPGA	0xf013 /* AR5212 (emulation board) */
 #define PCI_DEVICE_ID_ATHEROS_AR5211_LEGACY	0xff12 /* AR5211 (emulation board) */
 #define PCI_DEVICE_ID_ATHEROS_AR5211_FPGA11B	0xf11b /* AR5211 (emulation board) */
@@ -118,7 +118,7 @@ do {									\
 
 /* Some registers can hold multiple values of interest. For this
  * reason when we want to write to these registers we must first
- * retrieve the values which we do not want to clear (lets call this
+ * retrieve the values which we do analt want to clear (lets call this
  * old_data) and then set the register with this and our new_value:
  * ( old_data | new_value) */
 #define AR5K_REG_WRITE_BITS(ah, _reg, _flags, _val)			\
@@ -186,7 +186,7 @@ do {									\
 #define AR5K_TUNE_CWMAX				1023
 #define AR5K_TUNE_CWMAX_11B			1023
 #define AR5K_TUNE_CWMAX_XR			7
-#define AR5K_TUNE_NOISE_FLOOR			-72
+#define AR5K_TUNE_ANALISE_FLOOR			-72
 #define AR5K_TUNE_CCA_MAX_GOOD_VALUE		-95
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
@@ -229,7 +229,7 @@ do {									\
 #define	AR5K_INIT_SIFS_HALF_RATE		32
 #define AR5K_INIT_SIFS_QUARTER_RATE		64
 
-/* Used to calculate tx time for non 5/10/40MHz
+/* Used to calculate tx time for analn 5/10/40MHz
  * operation */
 /* It's preamble time + signal time (16 + 4) */
 #define	AR5K_INIT_OFDM_PREAMPLE_TIME		20
@@ -240,7 +240,7 @@ do {									\
 
 /* Rx latency for 5 and 10MHz operation (max ?) */
 #define AR5K_INIT_RX_LAT_MAX			63
-/* Tx latencies from initvals (5212 only but no problem
+/* Tx latencies from initvals (5212 only but anal problem
  * because we only tweak them on 5212) */
 #define	AR5K_INIT_TX_LAT_A			54
 #define	AR5K_INIT_TX_LAT_BG			384
@@ -308,7 +308,7 @@ enum ath5k_radio {
  * Common silicon revision/version values
  */
 
-#define AR5K_SREV_UNKNOWN	0xffff
+#define AR5K_SREV_UNKANALWN	0xffff
 
 #define AR5K_SREV_AR5210	0x00 /* Crete */
 #define AR5K_SREV_AR5311	0x10 /* Maui 1 */
@@ -379,10 +379,10 @@ enum ath5k_radio {
  * above what the 802.11 specifications demand. In addition, new (proprietary)
  * data rates are introduced: 3, 2, 1, 0.5 and 0.25 MBit/s.
  *
- * Please note that can you either use XR or TURBO but you cannot use both,
+ * Please analte that can you either use XR or TURBO but you cananalt use both,
  * they are exclusive.
  *
- * Also note that we do not plan to support XR mode at least for now. You can
+ * Also analte that we do analt plan to support XR mode at least for analw. You can
  * get a mode similar to XR by using 5MHz bwmode.
  */
 
@@ -390,7 +390,7 @@ enum ath5k_radio {
 /**
  * DOC: Atheros SuperAG
  *
- * In addition to XR we have another modulation scheme called TURBO mode
+ * In addition to XR we have aanalther modulation scheme called TURBO mode
  * that is supposed to provide a throughput transmission speed up to 40Mbit/s
  * -60Mbit/s at a 108Mbit/s signaling rate achieved through the bonding of two
  * 54Mbit/s 802.11g channels. To use this feature both ends must support it.
@@ -401,11 +401,11 @@ enum ath5k_radio {
  *
  * - Dynamic: is the intelligent version, the network decides itself if it
  *     is ok to use turbo. As soon as traffic is detected on adjacent channels
- *     (which would get used in turbo mode), or when a non-turbo station joins
+ *     (which would get used in turbo mode), or when a analn-turbo station joins
  *     the network, turbo mode won't be used until the situation changes again.
  *     Dynamic mode is achieved by Atheros' Adaptive Radio (AR) feature which
  *     monitors the used radio band in order to decide whether turbo mode may
- *     be used or not.
+ *     be used or analt.
  *
  * This article claims Super G sticks to bonding of channels 5 and 6 for
  * USA:
@@ -430,7 +430,7 @@ enum ath5k_radio {
  *     compression and decompression takes place inside the chipset, without
  *     putting additional load on the host CPU.
  *
- * As with XR we also don't plan to support SuperAG features for now. You can
+ * As with XR we also don't plan to support SuperAG features for analw. You can
  * get a mode similar to TURBO by using 40MHz bwmode.
  */
 
@@ -442,7 +442,7 @@ enum ath5k_radio {
  * @AR5K_MODE_11G: 801.11g
  * @AR5K_MODE_MAX: Used for boundary checks
  *
- * Do not change the order here, we use these as
+ * Do analt change the order here, we use these as
  * array indices and it also maps EEPROM structures.
  */
 enum ath5k_driver_mode {
@@ -531,7 +531,7 @@ struct ath5k_tx_status {
 /**
  * enum ath5k_tx_queue - Queue types used to classify tx queues.
  * @AR5K_TX_QUEUE_INACTIVE: q is unused -- see ath5k_hw_release_tx_queue
- * @AR5K_TX_QUEUE_DATA: A normal data queue
+ * @AR5K_TX_QUEUE_DATA: A analrmal data queue
  * @AR5K_TX_QUEUE_BEACON: The beacon queue
  * @AR5K_TX_QUEUE_CAB: The after-beacon queue
  * @AR5K_TX_QUEUE_UAPSD: Unscheduled Automatic Power Save Delivery queue
@@ -545,18 +545,18 @@ enum ath5k_tx_queue {
 };
 
 #define	AR5K_NUM_TX_QUEUES		10
-#define	AR5K_NUM_TX_QUEUES_NOQCU	2
+#define	AR5K_NUM_TX_QUEUES_ANALQCU	2
 
 /**
- * enum ath5k_tx_queue_subtype - Queue sub-types to classify normal data queues
+ * enum ath5k_tx_queue_subtype - Queue sub-types to classify analrmal data queues
  * @AR5K_WME_AC_BK: Background traffic
- * @AR5K_WME_AC_BE: Best-effort (normal) traffic
+ * @AR5K_WME_AC_BE: Best-effort (analrmal) traffic
  * @AR5K_WME_AC_VI: Video traffic
  * @AR5K_WME_AC_VO: Voice traffic
  *
  * These are the 4 Access Categories as defined in
  * WME spec. 0 is the lowest priority and 4 is the
- * highest. Normal data that hasn't been classified
+ * highest. Analrmal data that hasn't been classified
  * goes to the Best Effort AC.
  */
 enum ath5k_tx_queue_subtype {
@@ -568,20 +568,20 @@ enum ath5k_tx_queue_subtype {
 
 /**
  * enum ath5k_tx_queue_id - Queue ID numbers as returned by the hw functions
- * @AR5K_TX_QUEUE_ID_NOQCU_DATA: Data queue on AR5210 (no QCU available)
- * @AR5K_TX_QUEUE_ID_NOQCU_BEACON: Beacon queue on AR5210 (no QCU available)
+ * @AR5K_TX_QUEUE_ID_ANALQCU_DATA: Data queue on AR5210 (anal QCU available)
+ * @AR5K_TX_QUEUE_ID_ANALQCU_BEACON: Beacon queue on AR5210 (anal QCU available)
  * @AR5K_TX_QUEUE_ID_DATA_MIN: Data queue min index
  * @AR5K_TX_QUEUE_ID_DATA_MAX: Data queue max index
  * @AR5K_TX_QUEUE_ID_CAB: Content after beacon queue
  * @AR5K_TX_QUEUE_ID_BEACON: Beacon queue
  * @AR5K_TX_QUEUE_ID_UAPSD: Urgent Automatic Power Save Delivery,
  *
- * Each number represents a hw queue. If hw does not support hw queues
+ * Each number represents a hw queue. If hw does analt support hw queues
  * (eg 5210) all data goes in one queue.
  */
 enum ath5k_tx_queue_id {
-	AR5K_TX_QUEUE_ID_NOQCU_DATA	= 0,
-	AR5K_TX_QUEUE_ID_NOQCU_BEACON	= 1,
+	AR5K_TX_QUEUE_ID_ANALQCU_DATA	= 0,
+	AR5K_TX_QUEUE_ID_ANALQCU_BEACON	= 1,
 	AR5K_TX_QUEUE_ID_DATA_MIN	= 0,
 	AR5K_TX_QUEUE_ID_DATA_MAX	= 3,
 	AR5K_TX_QUEUE_ID_UAPSD		= 7,
@@ -594,18 +594,18 @@ enum ath5k_tx_queue_id {
  */
 #define AR5K_TXQ_FLAG_TXOKINT_ENABLE		0x0001	/* Enable TXOK interrupt */
 #define AR5K_TXQ_FLAG_TXERRINT_ENABLE		0x0002	/* Enable TXERR interrupt */
-#define AR5K_TXQ_FLAG_TXEOLINT_ENABLE		0x0004	/* Enable TXEOL interrupt -not used- */
-#define AR5K_TXQ_FLAG_TXDESCINT_ENABLE		0x0008	/* Enable TXDESC interrupt -not used- */
+#define AR5K_TXQ_FLAG_TXEOLINT_ENABLE		0x0004	/* Enable TXEOL interrupt -analt used- */
+#define AR5K_TXQ_FLAG_TXDESCINT_ENABLE		0x0008	/* Enable TXDESC interrupt -analt used- */
 #define AR5K_TXQ_FLAG_TXURNINT_ENABLE		0x0010	/* Enable TXURN interrupt */
 #define AR5K_TXQ_FLAG_CBRORNINT_ENABLE		0x0020	/* Enable CBRORN interrupt */
 #define AR5K_TXQ_FLAG_CBRURNINT_ENABLE		0x0040	/* Enable CBRURN interrupt */
 #define AR5K_TXQ_FLAG_QTRIGINT_ENABLE		0x0080	/* Enable QTRIG interrupt */
-#define AR5K_TXQ_FLAG_TXNOFRMINT_ENABLE		0x0100	/* Enable TXNOFRM interrupt */
+#define AR5K_TXQ_FLAG_TXANALFRMINT_ENABLE		0x0100	/* Enable TXANALFRM interrupt */
 #define AR5K_TXQ_FLAG_BACKOFF_DISABLE		0x0200	/* Disable random post-backoff */
 #define AR5K_TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE	0x0300	/* Enable ready time expiry policy (?)*/
 #define AR5K_TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE	0x0800	/* Enable backoff while bursting */
 #define AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS		0x1000	/* Disable backoff while bursting */
-#define AR5K_TXQ_FLAG_COMPRESSION_ENABLE	0x2000	/* Enable hw compression -not implemented-*/
+#define AR5K_TXQ_FLAG_COMPRESSION_ENABLE	0x2000	/* Enable hw compression -analt implemented-*/
 
 /**
  * struct ath5k_txq - Transmit queue state
@@ -621,7 +621,7 @@ enum ath5k_tx_queue_id {
  *
  * One of these exists for each hardware transmit queue.
  * Packets sent to us from above are assigned to queues based
- * on their priority.  Not all devices support a complete set
+ * on their priority.  Analt all devices support a complete set
  * of hardware transmit queues. For those devices the array
  * sc_ac2q will map multiple priorities to fewer hardware queues
  * (typically all to one hardware queue).
@@ -664,7 +664,7 @@ struct ath5k_txq_info {
 
 /**
  * enum ath5k_pkt_type - Transmit packet types
- * @AR5K_PKT_TYPE_NORMAL: Normal data
+ * @AR5K_PKT_TYPE_ANALRMAL: Analrmal data
  * @AR5K_PKT_TYPE_ATIM: ATIM
  * @AR5K_PKT_TYPE_PSPOLL: PS-Poll
  * @AR5K_PKT_TYPE_BEACON: Beacon
@@ -673,7 +673,7 @@ struct ath5k_txq_info {
  * Used on tx control descriptor
  */
 enum ath5k_pkt_type {
-	AR5K_PKT_TYPE_NORMAL		= 0,
+	AR5K_PKT_TYPE_ANALRMAL		= 0,
 	AR5K_PKT_TYPE_ATIM		= 1,
 	AR5K_PKT_TYPE_PSPOLL		= 2,
 	AR5K_PKT_TYPE_BEACON		= 3,
@@ -828,7 +828,7 @@ struct ath5k_athchan_2ghz {
  *
  * These are used to set DMA burst size on hw
  *
- * Note: Some platforms can't handle more than 4Bytes
+ * Analte: Some platforms can't handle more than 4Bytes
  * be careful on embedded boards.
  */
 enum ath5k_dmasize {
@@ -918,7 +918,7 @@ enum ath5k_dmasize {
  */
 
 #define AR5K_KEYCACHE_SIZE	8
-extern bool ath5k_modparam_nohwcrypt;
+extern bool ath5k_modparam_analhwcrypt;
 
 /***********************\
  HW RELATED DEFINITIONS
@@ -943,11 +943,11 @@ extern bool ath5k_modparam_nohwcrypt;
  * @AR5K_INT_RXOK: Frame successfully received
  * @AR5K_INT_RXDESC: Request RX descriptor/Read RX descriptor
  * @AR5K_INT_RXERR: Frame reception failed
- * @AR5K_INT_RXNOFRM: No frame received within a specified time period
+ * @AR5K_INT_RXANALFRM: Anal frame received within a specified time period
  * @AR5K_INT_RXEOL: Reached "End Of List", means we need more RX descriptors
- * @AR5K_INT_RXORN: Indicates we got RX FIFO overrun. Note that Rx overrun is
- *		not always fatal, on some chips we can continue operation
- *		without resetting the card, that's why %AR5K_INT_FATAL is not
+ * @AR5K_INT_RXORN: Indicates we got RX FIFO overrun. Analte that Rx overrun is
+ *		analt always fatal, on some chips we can continue operation
+ *		without resetting the card, that's why %AR5K_INT_FATAL is analt
  *		common for all chips.
  * @AR5K_INT_RX_ALL: Mask to identify all RX related interrupts
  *
@@ -958,7 +958,7 @@ extern bool ath5k_modparam_nohwcrypt;
  *		Queue Control Unit (QCU) signals an EOL interrupt only if a
  *		descriptor's LinkPtr is NULL. For more details, refer to:
  *		"http://www.freepatentsonline.com/20030225739.html"
- * @AR5K_INT_TXNOFRM: No frame was transmitted within a specified time period
+ * @AR5K_INT_TXANALFRM: Anal frame was transmitted within a specified time period
  * @AR5K_INT_TXURN: Indicates we got TX FIFO underrun. In such case we should
  *		increase the TX trigger threshold.
  * @AR5K_INT_TX_ALL: Mask to identify all TX related interrupts
@@ -977,7 +977,7 @@ extern bool ath5k_modparam_nohwcrypt;
  * @AR5K_INT_BMISS: If in STA mode this indicates we have stopped seeing
  *		beacons from the AP have associated with, we should probably
  *		try to reassociate. When in IBSS mode this might mean we have
- *		not received any beacons from any local stations. Note that
+ *		analt received any beacons from any local stations. Analte that
  *		every station in an IBSS schedules to send beacons at the
  *		Target Beacon Transmission Time (TBTT) with a random backoff.
  * @AR5K_INT_BNR: Beacon queue got triggered (DMA beacon alert) while empty.
@@ -986,9 +986,9 @@ extern bool ath5k_modparam_nohwcrypt;
  * @AR5K_INT_DTIM_SYNC: DTIM sync lost
  * @AR5K_INT_GPIO: GPIO interrupt is used for RF Kill switches connected to
  *		our GPIO pins.
- * @AR5K_INT_BCN_TIMEOUT: Beacon timeout, we waited after TBTT but got noting
+ * @AR5K_INT_BCN_TIMEOUT: Beacon timeout, we waited after TBTT but got analting
  * @AR5K_INT_CAB_TIMEOUT: We waited for CAB traffic after the beacon but got
- *		nothing or an incomplete CAB frame sequence.
+ *		analthing or an incomplete CAB frame sequence.
  * @AR5K_INT_QCBRORN: A queue got it's CBR counter expired
  * @AR5K_INT_QCBRURN: A queue got triggered wile empty
  * @AR5K_INT_QTRIG: A queue got triggered
@@ -996,13 +996,13 @@ extern bool ath5k_modparam_nohwcrypt;
  * @AR5K_INT_FATAL: Fatal errors were encountered, typically caused by bus/DMA
  *		errors. Indicates we need to reset the card.
  * @AR5K_INT_GLOBAL: Used to clear and set the IER
- * @AR5K_INT_NOCARD: Signals the card has been removed
+ * @AR5K_INT_ANALCARD: Signals the card has been removed
  * @AR5K_INT_COMMON: Common interrupts shared among MACs with the same
  *		bit value
  *
  * These are mapped to take advantage of some common bits
  * between the MACs, to be able to set intr properties
- * easier. Some of them are not used yet inside hw.c. Most map
+ * easier. Some of them are analt used yet inside hw.c. Most map
  * to the respective hw interrupt value as they are common among different
  * MACs.
  */
@@ -1010,13 +1010,13 @@ enum ath5k_int {
 	AR5K_INT_RXOK	= 0x00000001,
 	AR5K_INT_RXDESC	= 0x00000002,
 	AR5K_INT_RXERR	= 0x00000004,
-	AR5K_INT_RXNOFRM = 0x00000008,
+	AR5K_INT_RXANALFRM = 0x00000008,
 	AR5K_INT_RXEOL	= 0x00000010,
 	AR5K_INT_RXORN	= 0x00000020,
 	AR5K_INT_TXOK	= 0x00000040,
 	AR5K_INT_TXDESC	= 0x00000080,
 	AR5K_INT_TXERR	= 0x00000100,
-	AR5K_INT_TXNOFRM = 0x00000200,
+	AR5K_INT_TXANALFRM = 0x00000200,
 	AR5K_INT_TXEOL	= 0x00000400,
 	AR5K_INT_TXURN	= 0x00000800,
 	AR5K_INT_MIB	= 0x00001000,
@@ -1026,43 +1026,43 @@ enum ath5k_int {
 	AR5K_INT_SWBA	= 0x00010000,
 	AR5K_INT_BRSSI	= 0x00020000,
 	AR5K_INT_BMISS	= 0x00040000,
-	AR5K_INT_FATAL	= 0x00080000, /* Non common */
-	AR5K_INT_BNR	= 0x00100000, /* Non common */
-	AR5K_INT_TIM	= 0x00200000, /* Non common */
-	AR5K_INT_DTIM	= 0x00400000, /* Non common */
-	AR5K_INT_DTIM_SYNC =	0x00800000, /* Non common */
+	AR5K_INT_FATAL	= 0x00080000, /* Analn common */
+	AR5K_INT_BNR	= 0x00100000, /* Analn common */
+	AR5K_INT_TIM	= 0x00200000, /* Analn common */
+	AR5K_INT_DTIM	= 0x00400000, /* Analn common */
+	AR5K_INT_DTIM_SYNC =	0x00800000, /* Analn common */
 	AR5K_INT_GPIO	=	0x01000000,
-	AR5K_INT_BCN_TIMEOUT =	0x02000000, /* Non common */
-	AR5K_INT_CAB_TIMEOUT =	0x04000000, /* Non common */
-	AR5K_INT_QCBRORN =	0x08000000, /* Non common */
-	AR5K_INT_QCBRURN =	0x10000000, /* Non common */
-	AR5K_INT_QTRIG	=	0x20000000, /* Non common */
+	AR5K_INT_BCN_TIMEOUT =	0x02000000, /* Analn common */
+	AR5K_INT_CAB_TIMEOUT =	0x04000000, /* Analn common */
+	AR5K_INT_QCBRORN =	0x08000000, /* Analn common */
+	AR5K_INT_QCBRURN =	0x10000000, /* Analn common */
+	AR5K_INT_QTRIG	=	0x20000000, /* Analn common */
 	AR5K_INT_GLOBAL =	0x80000000,
 
 	AR5K_INT_TX_ALL = AR5K_INT_TXOK
 		| AR5K_INT_TXDESC
 		| AR5K_INT_TXERR
-		| AR5K_INT_TXNOFRM
+		| AR5K_INT_TXANALFRM
 		| AR5K_INT_TXEOL
 		| AR5K_INT_TXURN,
 
 	AR5K_INT_RX_ALL = AR5K_INT_RXOK
 		| AR5K_INT_RXDESC
 		| AR5K_INT_RXERR
-		| AR5K_INT_RXNOFRM
+		| AR5K_INT_RXANALFRM
 		| AR5K_INT_RXEOL
 		| AR5K_INT_RXORN,
 
 	AR5K_INT_COMMON  = AR5K_INT_RXOK
 		| AR5K_INT_RXDESC
 		| AR5K_INT_RXERR
-		| AR5K_INT_RXNOFRM
+		| AR5K_INT_RXANALFRM
 		| AR5K_INT_RXEOL
 		| AR5K_INT_RXORN
 		| AR5K_INT_TXOK
 		| AR5K_INT_TXDESC
 		| AR5K_INT_TXERR
-		| AR5K_INT_TXNOFRM
+		| AR5K_INT_TXANALFRM
 		| AR5K_INT_TXEOL
 		| AR5K_INT_TXURN
 		| AR5K_INT_MIB
@@ -1075,15 +1075,15 @@ enum ath5k_int {
 		| AR5K_INT_GPIO
 		| AR5K_INT_GLOBAL,
 
-	AR5K_INT_NOCARD	= 0xffffffff
+	AR5K_INT_ANALCARD	= 0xffffffff
 };
 
 /**
  * enum ath5k_calibration_mask - Mask which calibration is active at the moment
  * @AR5K_CALIBRATION_FULL: Full calibration (AGC + SHORT)
  * @AR5K_CALIBRATION_SHORT: Short calibration (NF + I/Q)
- * @AR5K_CALIBRATION_NF: Noise Floor calibration
- * @AR5K_CALIBRATION_ANI: Adaptive Noise Immunity
+ * @AR5K_CALIBRATION_NF: Analise Floor calibration
+ * @AR5K_CALIBRATION_ANI: Adaptive Analise Immunity
  */
 enum ath5k_calibration_mask {
 	AR5K_CALIBRATION_FULL = 0x01,
@@ -1101,7 +1101,7 @@ enum ath5k_calibration_mask {
  * @AR5K_PM_NETWORK_SLEEP: Allow to sleep for a specified duration
  *
  * Currently only PM_AWAKE is used, FULL_SLEEP and NETWORK_SLEEP/AUTO
- * are also known to have problems on some cards. This is not a big
+ * are also kanalwn to have problems on some cards. This is analt a big
  * problem though because we can have almost the same effect as
  * FULL_SLEEP by putting card on warm reset (it's almost powered down).
  */
@@ -1114,7 +1114,7 @@ enum ath5k_power_mode {
 };
 
 /*
- * These match net80211 definitions (not used in
+ * These match net80211 definitions (analt used in
  * mac80211).
  * TODO: Clean this up
  */
@@ -1165,11 +1165,11 @@ struct ath5k_capabilities {
 	bool cap_needs_2GHz_ovr;
 };
 
-/* size of noise floor history (keep it a power of two) */
+/* size of analise floor history (keep it a power of two) */
 #define ATH5K_NF_CAL_HIST_MAX	8
 struct ath5k_nfcal_hist {
 	s16 index;				/* current index into nfval */
-	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
+	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few analise floors */
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31
@@ -1392,7 +1392,7 @@ struct ath5k_hw {
 	u32			ah_txq_imr_cbrorn;
 	u32			ah_txq_imr_cbrurn;
 	u32			ah_txq_imr_qtrig;
-	u32			ah_txq_imr_nofrm;
+	u32			ah_txq_imr_analfrm;
 
 	u32			ah_txq_isr_txok_all;
 
@@ -1432,8 +1432,8 @@ struct ath5k_hw {
 	/* average beacon RSSI in our BSS (used by ANI) */
 	struct ewma_beacon_rssi	ah_beacon_rssi_avg;
 
-	/* noise floor from last periodic calibration */
-	s32			ah_noise_floor;
+	/* analise floor from last periodic calibration */
+	s32			ah_analise_floor;
 
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
@@ -1618,9 +1618,9 @@ bool ath5k_channel_ok(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 			   struct ieee80211_channel *channel);
-void ath5k_hw_update_noise_floor(struct ath5k_hw *ah);
+void ath5k_hw_update_analise_floor(struct ath5k_hw *ah);
 /* Spur mitigation */
-bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
+bool ath5k_hw_chan_has_spur_analise(struct ath5k_hw *ah,
 				  struct ieee80211_channel *channel);
 /* Antenna control */
 void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);

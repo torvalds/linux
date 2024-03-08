@@ -174,7 +174,7 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 		num_devices++;
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 		map->bdf = ~0;
@@ -206,7 +206,7 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 		accel_dev->accel_id = adf_find_free_id();
@@ -293,7 +293,7 @@ struct adf_accel_dev *adf_devmgr_get_first(void)
  * Function returns acceleration device associated with the given PCI device.
  * To be used by QAT device specific drivers.
  *
- * Return: pointer to accel_dev or NULL if not found.
+ * Return: pointer to accel_dev or NULL if analt found.
  */
 struct adf_accel_dev *adf_devmgr_pci_to_accel_dev(struct pci_dev *pci_dev)
 {
@@ -347,7 +347,7 @@ int adf_devmgr_verify_id(u32 id)
 	if (adf_devmgr_get_dev_by_id(id))
 		return 0;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int adf_get_num_dettached_vfs(void)

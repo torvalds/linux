@@ -14,7 +14,7 @@
  * Add fscrypt_pullback_bio_page()
  *	Jaegeuk Kim, 2015.
  *
- * This has not yet undergone a rigorous security audit.
+ * This has analt yet undergone a rigorous security audit.
  *
  * The usage of AES-XTS should conform to recommendations in NIST
  * Special Publication 800-38E and IEEE P1619/D16.
@@ -39,7 +39,7 @@ static mempool_t *fscrypt_bounce_page_pool = NULL;
 static struct workqueue_struct *fscrypt_read_workqueue;
 static DEFINE_MUTEX(fscrypt_init_mutex);
 
-struct kmem_cache *fscrypt_inode_info_cachep;
+struct kmem_cache *fscrypt_ianalde_info_cachep;
 
 void fscrypt_enqueue_decrypt_work(struct work_struct *work)
 {
@@ -81,31 +81,31 @@ EXPORT_SYMBOL(fscrypt_free_bounce_page);
  * For filenames encryption, index == 0.
  *
  * Keep this in sync with fscrypt_limit_io_blocks().  fscrypt_limit_io_blocks()
- * needs to know about any IV generation methods where the low bits of IV don't
- * simply contain the data unit index (e.g., IV_INO_LBLK_32).
+ * needs to kanalw about any IV generation methods where the low bits of IV don't
+ * simply contain the data unit index (e.g., IV_IANAL_LBLK_32).
  */
 void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
-			 const struct fscrypt_inode_info *ci)
+			 const struct fscrypt_ianalde_info *ci)
 {
 	u8 flags = fscrypt_policy_flags(&ci->ci_policy);
 
 	memset(iv, 0, ci->ci_mode->ivsize);
 
-	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
+	if (flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_64) {
 		WARN_ON_ONCE(index > U32_MAX);
-		WARN_ON_ONCE(ci->ci_inode->i_ino > U32_MAX);
-		index |= (u64)ci->ci_inode->i_ino << 32;
-	} else if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+		WARN_ON_ONCE(ci->ci_ianalde->i_ianal > U32_MAX);
+		index |= (u64)ci->ci_ianalde->i_ianal << 32;
+	} else if (flags & FSCRYPT_POLICY_FLAG_IV_IANAL_LBLK_32) {
 		WARN_ON_ONCE(index > U32_MAX);
-		index = (u32)(ci->ci_hashed_ino + index);
+		index = (u32)(ci->ci_hashed_ianal + index);
 	} else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
-		memcpy(iv->nonce, ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE);
+		memcpy(iv->analnce, ci->ci_analnce, FSCRYPT_FILE_ANALNCE_SIZE);
 	}
 	iv->index = cpu_to_le64(index);
 }
 
 /* Encrypt or decrypt a single "data unit" of file contents. */
-int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
+int fscrypt_crypt_data_unit(const struct fscrypt_ianalde_info *ci,
 			    fscrypt_direction_t rw, u64 index,
 			    struct page *src_page, struct page *dest_page,
 			    unsigned int len, unsigned int offs,
@@ -127,7 +127,7 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 
 	req = skcipher_request_alloc(tfm, gfp_flags);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
@@ -144,7 +144,7 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 		res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res) {
-		fscrypt_err(ci->ci_inode,
+		fscrypt_err(ci->ci_ianalde,
 			    "%scryption failed for data unit %llu: %d",
 			    (rw == FS_DECRYPT ? "De" : "En"), index, res);
 		return res;
@@ -171,9 +171,9 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
  * This is for use by the filesystem's ->writepages() method.
  *
  * The bounce page allocation is mempool-backed, so it will always succeed when
- * @gfp_flags includes __GFP_DIRECT_RECLAIM, e.g. when it's GFP_NOFS.  However,
+ * @gfp_flags includes __GFP_DIRECT_RECLAIM, e.g. when it's GFP_ANALFS.  However,
  * only the first page of each bio can be allocated this way.  To prevent
- * deadlocks, for any additional pages a mask like GFP_NOWAIT must be used.
+ * deadlocks, for any additional pages a mask like GFP_ANALWAIT must be used.
  *
  * Return: the new encrypted bounce page on success; an ERR_PTR() on failure
  */
@@ -183,8 +183,8 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 					      gfp_t gfp_flags)
 
 {
-	const struct inode *inode = page->mapping->host;
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct ianalde *ianalde = page->mapping->host;
+	const struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	struct page *ciphertext_page;
@@ -201,7 +201,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 
 	ciphertext_page = fscrypt_alloc_bounce_page(gfp_flags);
 	if (!ciphertext_page)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	for (i = offs; i < offs + len; i += du_size, index++) {
 		err = fscrypt_crypt_data_unit(ci, FS_ENCRYPT, index,
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
 
 /**
  * fscrypt_encrypt_block_inplace() - Encrypt a filesystem block in-place
- * @inode:     The inode to which this block belongs
+ * @ianalde:     The ianalde to which this block belongs
  * @page:      The page containing the block to encrypt
  * @len:       Size of block to encrypt.  This must be a multiple of
  *		FSCRYPT_CONTENTS_ALIGNMENT.
@@ -230,20 +230,20 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  * @gfp_flags: Memory allocation flags
  *
  * Encrypt a possibly-compressed filesystem block that is located in an
- * arbitrary page, not necessarily in the original pagecache page.  The @inode
+ * arbitrary page, analt necessarily in the original pagecache page.  The @ianalde
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
- * This is not compatible with fscrypt_operations::supports_subblock_data_units.
+ * This is analt compatible with fscrypt_operations::supports_subblock_data_units.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
-int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
+int fscrypt_encrypt_block_inplace(const struct ianalde *ianalde, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num, gfp_t gfp_flags)
 {
-	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
-		return -EOPNOTSUPP;
-	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_ENCRYPT,
+	if (WARN_ON_ONCE(ianalde->i_sb->s_cop->supports_subblock_data_units))
+		return -EOPANALTSUPP;
+	return fscrypt_crypt_data_unit(ianalde->i_crypt_info, FS_ENCRYPT,
 				       lblk_num, page, page, len, offs,
 				       gfp_flags);
 }
@@ -256,18 +256,18 @@ EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
  * @offs: offset within @folio of the data to decrypt, in bytes
  *
  * Decrypt data that has just been read from an encrypted file.  The data must
- * be located in a pagecache folio that is still locked and not yet uptodate.
+ * be located in a pagecache folio that is still locked and analt yet uptodate.
  * The length and offset of the data must be aligned to the file's crypto data
  * unit size.  Alignment to the filesystem block size fulfills this requirement,
  * as the filesystem block size is always a multiple of the data unit size.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
 int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 				     size_t offs)
 {
-	const struct inode *inode = folio->mapping->host;
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct ianalde *ianalde = folio->mapping->host;
+	const struct fscrypt_ianalde_info *ci = ianalde->i_crypt_info;
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	u64 index = ((u64)folio->index << (PAGE_SHIFT - du_bits)) +
@@ -286,7 +286,7 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 
 		err = fscrypt_crypt_data_unit(ci, FS_DECRYPT, index, page,
 					      page, du_size, i & ~PAGE_MASK,
-					      GFP_NOFS);
+					      GFP_ANALFS);
 		if (err)
 			return err;
 	}
@@ -296,7 +296,7 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
 
 /**
  * fscrypt_decrypt_block_inplace() - Decrypt a filesystem block in-place
- * @inode:     The inode to which this block belongs
+ * @ianalde:     The ianalde to which this block belongs
  * @page:      The page containing the block to decrypt
  * @len:       Size of block to decrypt.  This must be a multiple of
  *		FSCRYPT_CONTENTS_ALIGNMENT.
@@ -305,22 +305,22 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
  *		number of the block within the file
  *
  * Decrypt a possibly-compressed filesystem block that is located in an
- * arbitrary page, not necessarily in the original pagecache page.  The @inode
+ * arbitrary page, analt necessarily in the original pagecache page.  The @ianalde
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
- * This is not compatible with fscrypt_operations::supports_subblock_data_units.
+ * This is analt compatible with fscrypt_operations::supports_subblock_data_units.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
-int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
+int fscrypt_decrypt_block_inplace(const struct ianalde *ianalde, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num)
 {
-	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
-		return -EOPNOTSUPP;
-	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_DECRYPT,
+	if (WARN_ON_ONCE(ianalde->i_sb->s_cop->supports_subblock_data_units))
+		return -EOPANALTSUPP;
+	return fscrypt_crypt_data_unit(ianalde->i_crypt_info, FS_DECRYPT,
 				       lblk_num, page, page, len, offs,
-				       GFP_NOFS);
+				       GFP_ANALFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
@@ -331,7 +331,7 @@ EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
 int fscrypt_initialize(struct super_block *sb)
 {
@@ -342,7 +342,7 @@ int fscrypt_initialize(struct super_block *sb)
 	if (likely(smp_load_acquire(&fscrypt_bounce_page_pool)))
 		return 0;
 
-	/* No need to allocate a bounce page pool if this FS won't use it. */
+	/* Anal need to allocate a bounce page pool if this FS won't use it. */
 	if (!sb->s_cop->needs_bounce_pages)
 		return 0;
 
@@ -350,7 +350,7 @@ int fscrypt_initialize(struct super_block *sb)
 	if (fscrypt_bounce_page_pool)
 		goto out_unlock;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	pool = mempool_create_page_pool(num_prealloc_crypto_pages, 0);
 	if (!pool)
 		goto out_unlock;
@@ -362,7 +362,7 @@ out_unlock:
 	return err;
 }
 
-void fscrypt_msg(const struct inode *inode, const char *level,
+void fscrypt_msg(const struct ianalde *ianalde, const char *level,
 		 const char *fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -376,11 +376,11 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	if (inode && inode->i_ino)
-		printk("%sfscrypt (%s, inode %lu): %pV\n",
-		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
-	else if (inode)
-		printk("%sfscrypt (%s): %pV\n", level, inode->i_sb->s_id, &vaf);
+	if (ianalde && ianalde->i_ianal)
+		printk("%sfscrypt (%s, ianalde %lu): %pV\n",
+		       level, ianalde->i_sb->s_id, ianalde->i_ianal, &vaf);
+	else if (ianalde)
+		printk("%sfscrypt (%s): %pV\n", level, ianalde->i_sb->s_id, &vaf);
 	else
 		printk("%sfscrypt: %pV\n", level, &vaf);
 	va_end(args);
@@ -389,11 +389,11 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 /**
  * fscrypt_init() - Set up for fs encryption.
  *
- * Return: 0 on success; -errno on failure
+ * Return: 0 on success; -erranal on failure
  */
 static int __init fscrypt_init(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	/*
 	 * Use an unbound workqueue to allow bios to be decrypted in parallel
@@ -409,19 +409,19 @@ static int __init fscrypt_init(void)
 	if (!fscrypt_read_workqueue)
 		goto fail;
 
-	fscrypt_inode_info_cachep = KMEM_CACHE(fscrypt_inode_info,
+	fscrypt_ianalde_info_cachep = KMEM_CACHE(fscrypt_ianalde_info,
 					       SLAB_RECLAIM_ACCOUNT);
-	if (!fscrypt_inode_info_cachep)
+	if (!fscrypt_ianalde_info_cachep)
 		goto fail_free_queue;
 
 	err = fscrypt_init_keyring();
 	if (err)
-		goto fail_free_inode_info;
+		goto fail_free_ianalde_info;
 
 	return 0;
 
-fail_free_inode_info:
-	kmem_cache_destroy(fscrypt_inode_info_cachep);
+fail_free_ianalde_info:
+	kmem_cache_destroy(fscrypt_ianalde_info_cachep);
 fail_free_queue:
 	destroy_workqueue(fscrypt_read_workqueue);
 fail:

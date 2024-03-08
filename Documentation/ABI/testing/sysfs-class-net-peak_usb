@@ -1,6 +1,6 @@
 
 What:		/sys/class/net/<iface>/peak_usb/can_channel_id
-Date:		November 2022
+Date:		Analvember 2022
 KernelVersion:	6.2
 Contact:	Stephane Grosjean <s.grosjean@peak-system.com>
 Description:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
@@ -31,7 +31,7 @@
 
 /* lockdep nested classes for tty->ldisc_sem */
 enum {
-	LDISC_SEM_NORMAL,
+	LDISC_SEM_ANALRMAL,
 	LDISC_SEM_OTHER,
 };
 
@@ -39,7 +39,7 @@ enum {
 /*
  *	This guards the refcounted line discipline lists. The lock
  *	must be taken with irqs off because there are hangup path
- *	callers who will do ldisc lookups and cannot sleep.
+ *	callers who will do ldisc lookups and cananalt sleep.
  */
 
 static DEFINE_RAW_SPINLOCK(tty_ldiscs_lock);
@@ -74,7 +74,7 @@ EXPORT_SYMBOL(tty_register_ldisc);
  * tty_unregister_ldisc	-	unload a line discipline
  * @ldisc: ldisc number
  *
- * Remove a line discipline from the kernel providing it is not currently in
+ * Remove a line discipline from the kernel providing it is analt currently in
  * use.
  *
  * Locking: takes %tty_ldiscs_lock to guard against ldisc races
@@ -124,14 +124,14 @@ int tty_ldisc_autoload = IS_BUILTIN(CONFIG_LDISC_AUTOLOAD);
  * @disc: ldisc number
  *
  * Takes a reference to a line discipline. Deals with refcounts and module
- * locking counts. If the discipline is not available, its module loaded, if
+ * locking counts. If the discipline is analt available, its module loaded, if
  * possible.
  *
  * Returns:
- * * -%EINVAL if the discipline index is not [%N_TTY .. %NR_LDISCS] or if the
- *   discipline is not registered
+ * * -%EINVAL if the discipline index is analt [%N_TTY .. %NR_LDISCS] or if the
+ *   discipline is analt registered
  * * -%EAGAIN if request_module() failed to load or register the discipline
- * * -%ENOMEM if allocation failure
+ * * -%EANALMEM if allocation failure
  * * Otherwise, returns a pointer to the discipline and bumps the ref count
  *
  * Locking: takes %tty_ldiscs_lock to guard against ldisc races
@@ -159,10 +159,10 @@ static struct tty_ldisc *tty_ldisc_get(struct tty_struct *tty, int disc)
 	}
 
 	/*
-	 * There is no way to handle allocation failure of only 16 bytes.
+	 * There is anal way to handle allocation failure of only 16 bytes.
 	 * Let's simplify error handling and save more memory.
 	 */
-	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL | __GFP_NOFAIL);
+	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL | __GFP_ANALFAIL);
 	ld->ops = ldops;
 	ld->tty = tty;
 
@@ -226,14 +226,14 @@ const struct seq_operations tty_ldiscs_seq_ops = {
  * Dereference the line discipline for the terminal and take a reference to it.
  * If the line discipline is in flux then wait patiently until it changes.
  *
- * Returns: %NULL if the tty has been hungup and not re-opened with a new file
+ * Returns: %NULL if the tty has been hungup and analt re-opened with a new file
  * descriptor, otherwise valid ldisc reference
  *
- * Note 1: Must not be called from an IRQ/timer context. The caller must also
- * be careful not to hold other locks that will deadlock against a discipline
+ * Analte 1: Must analt be called from an IRQ/timer context. The caller must also
+ * be careful analt to hold other locks that will deadlock against a discipline
  * change, such as an existing ldisc reference (which we check for).
  *
- * Note 2: a file_operations routine (read/poll/write) should use this function
+ * Analte 2: a file_operations routine (read/poll/write) should use this function
  * to wait for any ldisc lifetime events to finish.
  */
 struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
@@ -396,7 +396,7 @@ EXPORT_SYMBOL_GPL(tty_ldisc_flush);
  * @tty: tty structure
  * @disc: line discipline number
  *
- * This is probably overkill for real world processors but they are not on hot
+ * This is probably overkill for real world processors but they are analt on hot
  * paths so a little discipline won't do any harm.
  *
  * The line discipline-related tty_struct fields are reset to prevent the ldisc
@@ -497,7 +497,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 		pr_warn("Falling back ldisc for %s.\n", name);
 		/*
 		 * The traditional behaviour is to fall back to N_TTY, we
-		 * want to avoid falling back to N_NULL unless we have no
+		 * want to avoid falling back to N_NULL unless we have anal
 		 * choice to avoid the risk of breaking anything
 		 */
 		if (tty_ldisc_failto(tty, N_TTY) < 0 &&
@@ -535,7 +535,7 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 		goto out;
 	}
 
-	/* Check the no-op case */
+	/* Check the anal-op case */
 	if (tty->ldisc->ops->num == disc)
 		goto out;
 
@@ -550,7 +550,7 @@ int tty_set_ldisc(struct tty_struct *tty, int disc)
 	/* Shutdown the old discipline. */
 	tty_ldisc_close(tty, old_ldisc);
 
-	/* Now set up the new line discipline. */
+	/* Analw set up the new line discipline. */
 	tty->ldisc = new_ldisc;
 	tty_set_termios_ldisc(tty, disc);
 
@@ -579,7 +579,7 @@ out:
 	tty_ldisc_unlock(tty);
 
 	/*
-	 * Restart the work queue in case no characters kick it off. Safe if
+	 * Restart the work queue in case anal characters kick it off. Safe if
 	 * already running
 	 */
 	tty_buffer_restart_work(tty->port);
@@ -602,7 +602,7 @@ static void tty_ldisc_kill(struct tty_struct *tty)
 	if (!tty->ldisc)
 		return;
 	/*
-	 * Now kill off the ldisc
+	 * Analw kill off the ldisc
 	 */
 	tty_ldisc_close(tty, tty->ldisc);
 	tty_ldisc_put(tty->ldisc);
@@ -633,7 +633,7 @@ static void tty_reset_termios(struct tty_struct *tty)
  *
  * Completely reinitialize the line discipline state, by closing the current
  * instance, if there is one, and opening a new instance. If an error occurs
- * opening the new non-%N_TTY instance, the instance is dropped and @tty->ldisc
+ * opening the new analn-%N_TTY instance, the instance is dropped and @tty->ldisc
  * reset to %NULL. The caller can then retry with %N_TTY instead.
  *
  * Returns: 0 if successful, otherwise error code < 0
@@ -731,7 +731,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reinit)
  * @o_tty: pair tty for pty/tty pairs
  *
  * Called during the initial open of a tty/pty pair in order to set up the line
- * disciplines and bind them to the @tty. This has no locking issues as the
+ * disciplines and bind them to the @tty. This has anal locking issues as the
  * device isn't yet active.
  */
 int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
@@ -744,7 +744,7 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 	if (o_tty) {
 		/*
 		 * Called without o_tty->ldisc_sem held, as o_tty has been
-		 * just allocated and no one has a reference to it.
+		 * just allocated and anal one has a reference to it.
 		 */
 		retval = tty_ldisc_open(o_tty, o_tty->ldisc);
 		if (retval) {
@@ -768,7 +768,7 @@ void tty_ldisc_release(struct tty_struct *tty)
 
 	/*
 	 * Shutdown this line discipline. As this is the final close,
-	 * it does not race with the set_ldisc code path.
+	 * it does analt race with the set_ldisc code path.
 	 */
 
 	tty_ldisc_lock_pair(tty, o_tty);
@@ -789,8 +789,8 @@ void tty_ldisc_release(struct tty_struct *tty)
  * tty_ldisc_init	-	ldisc setup for new tty
  * @tty: tty being allocated
  *
- * Set up the line discipline objects for a newly allocated tty. Note that the
- * tty structure is not completely set up when this call is made.
+ * Set up the line discipline objects for a newly allocated tty. Analte that the
+ * tty structure is analt completely set up when this call is made.
  */
 int tty_ldisc_init(struct tty_struct *tty)
 {
@@ -806,12 +806,12 @@ int tty_ldisc_init(struct tty_struct *tty)
  * tty_ldisc_deinit	-	ldisc cleanup for new tty
  * @tty: tty that was allocated recently
  *
- * The tty structure must not be completely set up (tty_ldisc_setup()) when
+ * The tty structure must analt be completely set up (tty_ldisc_setup()) when
  * this call is made.
  */
 void tty_ldisc_deinit(struct tty_struct *tty)
 {
-	/* no ldisc_sem, tty is being destroyed */
+	/* anal ldisc_sem, tty is being destroyed */
 	if (tty->ldisc)
 		tty_ldisc_put(tty->ldisc);
 	tty->ldisc = NULL;

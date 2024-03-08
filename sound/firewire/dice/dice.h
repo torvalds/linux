@@ -40,7 +40,7 @@
 #include "dice-interface.h"
 
 /*
- * This module support maximum 2 pairs of tx/rx isochronous streams for
+ * This module support maximum 2 pairs of tx/rx isochroanalus streams for
  * our convinience.
  *
  * In documents for ASICs called with a name of 'DICE':
@@ -57,7 +57,7 @@
  *   - Maximum 2 tx and 2 rx are supported.
  *   - A packet supports maximum 32 data channels.
  *
- * For the above, MIDI conformant data channel is just on the first isochronous
+ * For the above, MIDI conformant data channel is just on the first isochroanalus
  * stream.
  */
 #define MAX_STREAMS	2
@@ -91,9 +91,9 @@ struct snd_dice {
 	unsigned int tx_midi_ports[MAX_STREAMS];
 	unsigned int rx_midi_ports[MAX_STREAMS];
 
-	struct fw_address_handler notification_handler;
+	struct fw_address_handler analtification_handler;
 	int owner_generation;
-	u32 notification_bits;
+	u32 analtification_bits;
 
 	/* For uapi */
 	int dev_lock_count; /* > 0 driver, < 0 userspace */

@@ -7,14 +7,14 @@
 #include <linux/isst_if.h>
 #include "isst.h"
 
-int tpmi_process_ioctl(int ioctl_no, void *info)
+int tpmi_process_ioctl(int ioctl_anal, void *info)
 {
 	const char *pathname = "/dev/isst_interface";
 	int fd;
 
 	if (is_debug_enabled()) {
 		debug_printf("Issue IOCTL: ");
-		switch (ioctl_no) {
+		switch (ioctl_anal) {
 		case ISST_IF_CORE_POWER_STATE:
 			debug_printf("ISST_IF_CORE_POWER_STATE\n");
 			break;
@@ -52,7 +52,7 @@ int tpmi_process_ioctl(int ioctl_no, void *info)
 			debug_printf("ISST_IF_COUNT_TPMI_INSTANCES\n");
 			break;
 		default:
-			debug_printf("%d\n", ioctl_no);
+			debug_printf("%d\n", ioctl_anal);
 			break;
 		}
 	}
@@ -61,8 +61,8 @@ int tpmi_process_ioctl(int ioctl_no, void *info)
 	if (fd < 0)
 		return -1;
 
-	if (ioctl(fd, ioctl_no, info) == -1) {
-		debug_printf("IOCTL %d Failed\n", ioctl_no);
+	if (ioctl(fd, ioctl_anal, info) == -1) {
+		debug_printf("IOCTL %d Failed\n", ioctl_anal);
 		close(fd);
 		return -1;
 	}
@@ -109,7 +109,7 @@ static char *tpmi_get_trl_level_name(int level)
 
 static void tpmi_update_platform_param(enum isst_platform_param param, int value)
 {
-	/* No params need to be updated for now */
+	/* Anal params need to be updated for analw */
 }
 
 static int tpmi_is_punit_valid(struct isst_id *id)
@@ -290,7 +290,7 @@ int tpmi_get_coremask_info(struct isst_id *id, int config_index,
 					 ctdp_level->core_cpumask, &cpu_count);
 	ctdp_level->cpu_count = cpu_count;
 
-	debug_printf("cpu:%d ctdp:%d core_mask ino cpu count:%d\n",
+	debug_printf("cpu:%d ctdp:%d core_mask ianal cpu count:%d\n",
 		     id->cpu, config_index, ctdp_level->cpu_count);
 
 	return 0;
@@ -444,7 +444,7 @@ static int tpmi_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret)
-		debug_printf("cpu:%d No support for dynamic ISST\n", id->cpu);
+		debug_printf("cpu:%d Anal support for dynamic ISST\n", id->cpu);
 
 	current_level = pkg_dev.current_level;
 

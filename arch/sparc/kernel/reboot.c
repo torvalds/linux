@@ -26,7 +26,7 @@ EXPORT_SYMBOL(pm_power_off);
 
 void machine_power_off(void)
 {
-	if (!of_node_is_type(of_console_device, "serial") || scons_pwroff)
+	if (!of_analde_is_type(of_console_device, "serial") || scons_pwroff)
 		prom_halt_power_off();
 
 	prom_halt();

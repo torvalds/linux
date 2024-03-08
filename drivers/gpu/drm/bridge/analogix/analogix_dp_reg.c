@@ -314,7 +314,7 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 		break;
 	case ANALOG_TOTAL:
 		/*
-		 * There is no bit named DP_PHY_PD, so We used DP_INC_BG
+		 * There is anal bit named DP_PHY_PD, so We used DP_INC_BG
 		 * to power off everything instead of DP_PHY_PD in
 		 * Rockchip
 		 */
@@ -449,7 +449,7 @@ enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 		if (reg & HOTPLUG_CHG)
 			return DP_IRQ_TYPE_HP_CHANGE;
 
-		return DP_IRQ_TYPE_UNKNOWN;
+		return DP_IRQ_TYPE_UNKANALWN;
 	}
 }
 
@@ -595,10 +595,10 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 		reg = SCRAMBLING_DISABLE | SW_TRAINING_PATTERN_SET_PTN2;
 		writel(reg, dp->reg_base + ANALOGIX_DP_TRAINING_PTN_SET);
 		break;
-	case DP_NONE:
+	case DP_ANALNE:
 		reg = SCRAMBLING_ENABLE |
 			LINK_QUAL_PATTERN_SET_DISABLE |
-			SW_TRAINING_PATTERN_SET_NORMAL;
+			SW_TRAINING_PATTERN_SET_ANALRMAL;
 		writel(reg, dp->reg_base + ANALOGIX_DP_TRAINING_PTN_SET);
 		break;
 	default:
@@ -771,7 +771,7 @@ int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 	reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_1);
 
 	if (!(reg & DET_STA)) {
-		dev_dbg(dp->dev, "Input stream clock not detected.\n");
+		dev_dbg(dp->dev, "Input stream clock analt detected.\n");
 		return -EINVAL;
 	}
 
@@ -873,7 +873,7 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
 	if (!(reg & STRM_VALID)) {
-		dev_dbg(dp->dev, "Input video stream is not detected.\n");
+		dev_dbg(dp->dev, "Input video stream is analt detected.\n");
 		return -EINVAL;
 	}
 
@@ -1002,7 +1002,7 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	 * db[1]!=0: entering PSR, wait for fully active remote frame buffer.
 	 * db[1]==0: exiting PSR, wait for either
 	 *  (a) ACTIVE_RESYNC - the sink "must display the
-	 *      incoming active frames from the Source device with no visible
+	 *      incoming active frames from the Source device with anal visible
 	 *      glitches and/or artifacts", even though timings may still be
 	 *      re-synchronizing; or
 	 *  (b) INACTIVE - the transition is fully complete.

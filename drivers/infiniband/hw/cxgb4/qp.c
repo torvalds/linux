@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -67,7 +67,7 @@ static int alloc_ird(struct c4iw_dev *dev, u32 ird)
 	if (ird <= dev->avail_ird)
 		dev->avail_ird -= ird;
 	else
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 	xa_unlock_irq(&dev->qps);
 
 	if (ret)
@@ -114,10 +114,10 @@ static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 static int alloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
 	if (!ocqp_support || !ocqp_supported(&rdev->lldi))
-		return -ENOSYS;
+		return -EANALSYS;
 	sq->dma_addr = c4iw_ocqp_pool_alloc(rdev, sq->memsize);
 	if (!sq->dma_addr)
-		return -ENOMEM;
+		return -EANALMEM;
 	sq->phys_addr = rdev->oc_mw_pa + sq->dma_addr -
 			rdev->lldi.vr->ocq.start;
 	sq->queue = (__force union t4_wr *)(rdev->oc_mw_kva + sq->dma_addr -
@@ -131,7 +131,7 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	sq->queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev), sq->memsize,
 				       &(sq->dma_addr), GFP_KERNEL);
 	if (!sq->queue)
-		return -ENOMEM;
+		return -EANALMEM;
 	sq->phys_addr = virt_to_phys(sq->queue);
 	dma_unmap_addr_set(sq, mapping, sq->dma_addr);
 	return 0;
@@ -139,7 +139,7 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 
 static int alloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq, int user)
 {
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 	if (user)
 		ret = alloc_oc_sq(rdev, sq);
 	if (ret)
@@ -152,7 +152,7 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 {
 	/*
 	 * uP clears EQ contexts when the connection exits rdma mode,
-	 * so no need to post a RESET WR for these EQs.
+	 * so anal need to post a RESET WR for these EQs.
 	 */
 	dealloc_sq(rdev, &wq->sq);
 	kfree(wq->sq.sw_sq);
@@ -170,7 +170,7 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 }
 
 /*
- * Determine the BAR2 virtual address and qid. If pbar2_pa is not NULL,
+ * Determine the BAR2 virtual address and qid. If pbar2_pa is analt NULL,
  * then this is a user mapping so compute the page-aligned physical address
  * for mapping.
  */
@@ -212,12 +212,12 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 
 	wq->sq.qid = c4iw_get_qpid(rdev, uctx);
 	if (!wq->sq.qid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (need_rq) {
 		wq->rq.qid = c4iw_get_qpid(rdev, uctx);
 		if (!wq->rq.qid) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_sq_qid;
 		}
 	}
@@ -226,7 +226,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		wq->sq.sw_sq = kcalloc(wq->sq.size, sizeof(*wq->sq.sw_sq),
 				       GFP_KERNEL);
 		if (!wq->sq.sw_sq) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_rq_qid;//FIXME
 		}
 
@@ -235,7 +235,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 					       sizeof(*wq->rq.sw_rq),
 					       GFP_KERNEL);
 			if (!wq->rq.sw_rq) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto free_sw_sq;
 			}
 		}
@@ -249,7 +249,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 			roundup_pow_of_two(max_t(u16, wq->rq.size, 16));
 		wq->rq.rqt_hwaddr = c4iw_rqtpool_alloc(rdev, wq->rq.rqt_size);
 		if (!wq->rq.rqt_hwaddr) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_sw_rq;
 		}
 	}
@@ -266,7 +266,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 						  &wq->rq.dma_addr,
 						  GFP_KERNEL);
 		if (!wq->rq.queue) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_sq;
 		}
 		pr_debug("sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx\n",
@@ -293,7 +293,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	 * User mode must have bar2 access.
 	 */
 	if (user && (!wq->sq.bar2_pa || (need_rq && !wq->rq.bar2_pa))) {
-		pr_warn("%s: sqid %u or rqid %u not in BAR2 range\n",
+		pr_warn("%s: sqid %u or rqid %u analt in BAR2 range\n",
 			pci_name(rdev->lldi.pdev), wq->sq.qid, wq->rq.qid);
 		ret = -EINVAL;
 		goto free_dma;
@@ -308,7 +308,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		wr_len += sizeof(*res);
 	skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_dma;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -331,7 +331,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		rdev->hw_queue.t4_eq_status_entries;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
-		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* no host cidx updates */
+		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* anal host cidx updates */
 		FW_RI_RES_WR_CPRIO_V(0) |	/* don't keep in chip cache */
 		FW_RI_RES_WR_PCIECHN_V(0) |	/* set by uP at ri_init time */
 		(t4_sq_onchip(&wq->sq) ? FW_RI_RES_WR_ONCHIP_F : 0) |
@@ -359,7 +359,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
 			rdev->hw_queue.t4_eq_status_entries;
 		res->u.sqrq.fetchszm_to_iqid =
-			/* no host cidx updates */
+			/* anal host cidx updates */
 			cpu_to_be32(FW_RI_RES_WR_HOSTFCMODE_V(0) |
 			/* don't keep in chip cache */
 			FW_RI_RES_WR_CPRIO_V(0) |
@@ -626,7 +626,7 @@ static void build_rdma_write_cmpl(struct t4_sq *sq,
 	 * directly in the dma queue, and wrapping is only handled
 	 * by the code buildling sgls.  IE the "fixed part" of the wr
 	 * structs must all fit in 64B.  The WQE build code should probably be
-	 * redesigned to avoid this restriction, but for now just add
+	 * redesigned to avoid this restriction, but for analw just add
 	 * the BUILD_BUG_ON() to catch if this WQE struct gets too big.
 	 */
 	BUILD_BUG_ON(offsetof(struct fw_ri_rdma_write_cmpl_wr, u) > 64);
@@ -803,7 +803,7 @@ static void build_tpte_memreg(struct fw_ri_fr_nsmr_tpte_wr *fr,
 		FW_RI_TPTE_PERM_V(c4iw_ib_to_tpt_access(wr->access)) |
 		FW_RI_TPTE_ADDRTYPE_V(FW_RI_VA_BASED_TO) |
 		FW_RI_TPTE_PS_V(ilog2(wr->mr->page_size) - 12));
-	fr->tpte.nosnoop_pbladdr = cpu_to_be32(FW_RI_TPTE_PBLADDR_V(
+	fr->tpte.analsanalop_pbladdr = cpu_to_be32(FW_RI_TPTE_PBLADDR_V(
 		PBL_OFF(&mhp->rhp->rdev, mhp->attr.pbl_addr)>>3));
 	fr->tpte.dca_mwbcnt_pstag = cpu_to_be32(0);
 	fr->tpte.len_hi = cpu_to_be32(0);
@@ -915,7 +915,7 @@ static int ring_kernel_sq_db(struct c4iw_qp *qhp, u16 inc)
 
 	xa_lock_irqsave(&qhp->rhp->qps, flags);
 	spin_lock(&qhp->lock);
-	if (qhp->rhp->db_state == NORMAL)
+	if (qhp->rhp->db_state == ANALRMAL)
 		t4_ring_sq_db(&qhp->wq, inc, NULL);
 	else {
 		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
@@ -932,7 +932,7 @@ static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
 
 	xa_lock_irqsave(&qhp->rhp->qps, flags);
 	spin_lock(&qhp->lock);
-	if (qhp->rhp->db_state == NORMAL)
+	if (qhp->rhp->db_state == ANALRMAL)
 		t4_ring_rq_db(&qhp->wq, inc, NULL);
 	else {
 		add_to_fc_list(&qhp->rhp->db_fc_list, &qhp->db_fc_entry);
@@ -1106,7 +1106,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		*bad_wr = wr;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/*
@@ -1115,7 +1115,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	 * exactly a WRITE->SEND_WITH_INV or a WRITE->SEND and the sgl depths
 	 * and lengths meet the requirements of the fw_ri_write_cmpl_wr work
 	 * request, then build and post the write_cmpl WR. If any of the tests
-	 * below are not true, then we continue on with the tradtional WRITE
+	 * below are analt true, then we continue on with the tradtional WRITE
 	 * and SEND WRs.
 	 */
 	if (qhp->rhp->rdev.lldi.write_cmpl_support &&
@@ -1135,7 +1135,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 	while (wr) {
 		if (num_wrs == 0) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			*bad_wr = wr;
 			break;
 		}
@@ -1285,7 +1285,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		*bad_wr = wr;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	while (wr) {
 		if (wr->num_sge > T4_MAX_RECV_SGE) {
@@ -1299,7 +1299,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		if (num_wrs)
 			err = build_rdma_recv(qhp, wqe, wr, &len16);
 		else
-			err = -ENOMEM;
+			err = -EANALMEM;
 		if (err) {
 			*bad_wr = wr;
 			break;
@@ -1370,7 +1370,7 @@ int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 	num_wrs = t4_srq_avail(&srq->wq);
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&srq->lock, flag);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	while (wr) {
 		if (wr->num_sge > T4_MAX_RECV_SGE) {
@@ -1382,7 +1382,7 @@ int c4iw_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		if (num_wrs)
 			err = build_srq_recv(wqe, wr, &len16);
 		else
-			err = -ENOMEM;
+			err = -EANALMEM;
 		if (err) {
 			*bad_wr = wr;
 			break;
@@ -1460,11 +1460,11 @@ static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 		    (opcode == FW_RI_SEND_WITH_SE_INV))
 			*ecode = RDMAP_CANT_INV_STAG;
 		else
-			*ecode = RDMAP_STAG_NOT_ASSOC;
+			*ecode = RDMAP_STAG_ANALT_ASSOC;
 		break;
 	case T4_ERR_QPID:
 		*layer_type = LAYER_RDMAP|RDMAP_REMOTE_PROT;
-		*ecode = RDMAP_STAG_NOT_ASSOC;
+		*ecode = RDMAP_STAG_ANALT_ASSOC;
 		break;
 	case T4_ERR_ACCESS:
 		*layer_type = LAYER_RDMAP|RDMAP_REMOTE_PROT;
@@ -1496,7 +1496,7 @@ static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 		break;
 	case T4_ERR_OUT_OF_RQE:
 		*layer_type = LAYER_DDP|DDP_UNTAGGED_ERR;
-		*ecode = DDPU_INV_MSN_NOBUF;
+		*ecode = DDPU_INV_MSN_ANALBUF;
 		break;
 	case T4_ERR_PBL_ADDR_BOUND:
 		*layer_type = LAYER_DDP|DDP_TAGGED_ERR;
@@ -1700,7 +1700,7 @@ static int rdma_fini(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 
 	skb = skb_dequeue(&ep->com.ep_skb_list);
 	if (WARN_ON(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
 
@@ -1757,7 +1757,7 @@ static int rdma_init(struct c4iw_dev *rhp, struct c4iw_qp *qhp)
 
 	skb = alloc_skb(sizeof(*wqe), GFP_KERNEL);
 	if (!skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = alloc_ird(rhp, qhp->attr.max_ird);
@@ -2048,8 +2048,8 @@ out:
 
 	/*
 	 * If disconnect is 1, then we need to initiate a disconnect
-	 * on the EP.  This can be a normal close (RTS->CLOSING) or
-	 * an abnormal close (RTS/CLOSING->ERROR).
+	 * on the EP.  This can be a analrmal close (RTS->CLOSING) or
+	 * an abanalrmal close (RTS/CLOSING->ERROR).
 	 */
 	if (disconnect) {
 		c4iw_ep_disconnect(ep, abort, internal ? GFP_ATOMIC :
@@ -2124,7 +2124,7 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 	struct c4iw_mm_entry *rq_db_key_mm = NULL, *ma_sync_key_mm = NULL;
 
 	if (attrs->qp_type != IB_QPT_RC || attrs->create_flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
@@ -2152,7 +2152,7 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 
 	qhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!qhp->wr_waitp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qhp->wq.sq.size = sqsize;
 	qhp->wq.sq.memsize =
@@ -2215,26 +2215,26 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 	if (udata && ucontext) {
 		sq_key_mm = kmalloc(sizeof(*sq_key_mm), GFP_KERNEL);
 		if (!sq_key_mm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_remove_handle;
 		}
 		if (!attrs->srq) {
 			rq_key_mm = kmalloc(sizeof(*rq_key_mm), GFP_KERNEL);
 			if (!rq_key_mm) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_free_sq_key;
 			}
 		}
 		sq_db_key_mm = kmalloc(sizeof(*sq_db_key_mm), GFP_KERNEL);
 		if (!sq_db_key_mm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_rq_key;
 		}
 		if (!attrs->srq) {
 			rq_db_key_mm =
 				kmalloc(sizeof(*rq_db_key_mm), GFP_KERNEL);
 			if (!rq_db_key_mm) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_free_sq_db_key;
 			}
 		}
@@ -2243,7 +2243,7 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 			ma_sync_key_mm = kmalloc(sizeof(*ma_sync_key_mm),
 						 GFP_KERNEL);
 			if (!ma_sync_key_mm) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_free_rq_db_key;
 			}
 			uresp.flags = C4IW_QPF_ONCHIP;
@@ -2364,9 +2364,9 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	pr_debug("ib_qp %p\n", ibqp);
 
 	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	/* iwarp does not support the RTR state */
+	/* iwarp does analt support the RTR state */
 	if ((attr_mask & IB_QP_STATE) && (attr->qp_state == IB_QPS_RTR))
 		attr_mask &= ~IB_QP_STATE;
 
@@ -2438,7 +2438,7 @@ int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		goto out;
 	}
 
-	/* no support for this yet */
+	/* anal support for this yet */
 	if (srq_attr_mask & IB_SRQ_MAX_WR) {
 		ret = -EINVAL;
 		goto out;
@@ -2518,7 +2518,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 	struct sk_buff *skb;
 	int wr_len;
 	int eqsize;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	wq->qid = c4iw_get_qpid(rdev, uctx);
 	if (!wq->qid)
@@ -2559,7 +2559,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 	 */
 
 	if (user && !wq->bar2_va) {
-		pr_warn(MOD "%s: srqid %u not in BAR2 range.\n",
+		pr_warn(MOD "%s: srqid %u analt in BAR2 range.\n",
 			pci_name(rdev->lldi.pdev), wq->qid);
 		ret = -EINVAL;
 		goto err_free_queue;
@@ -2591,7 +2591,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 		rdev->hw_queue.t4_eq_status_entries;
 	res->u.srq.eqid = cpu_to_be32(wq->qid);
 	res->u.srq.fetchszm_to_iqid =
-						/* no host cidx updates */
+						/* anal host cidx updates */
 		cpu_to_be32(FW_RI_RES_WR_HOSTFCMODE_V(0) |
 		FW_RI_RES_WR_CPRIO_V(0) |       /* don't keep in chip cache */
 		FW_RI_RES_WR_PCIECHN_V(0) |     /* set by uP at ri_init time */
@@ -2674,7 +2674,7 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 	int wr_len;
 
 	if (attrs->srq_type != IB_SRQT_BASIC)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pr_debug("%s ib_pd %p\n", __func__, pd);
 
@@ -2699,18 +2699,18 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 
 	srq->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
 	if (!srq->wr_waitp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	srq->idx = c4iw_alloc_srq_idx(&rhp->rdev);
 	if (srq->idx < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_wr_wait;
 	}
 
 	wr_len = sizeof(struct fw_ri_res_wr) + sizeof(struct fw_ri_res);
 	srq->destroy_skb = alloc_skb(wr_len, GFP_KERNEL);
 	if (!srq->destroy_skb) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_srq_idx;
 	}
 
@@ -2736,12 +2736,12 @@ int c4iw_create_srq(struct ib_srq *ib_srq, struct ib_srq_init_attr *attrs,
 	if (udata) {
 		srq_key_mm = kmalloc(sizeof(*srq_key_mm), GFP_KERNEL);
 		if (!srq_key_mm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_queue;
 		}
 		srq_db_key_mm = kmalloc(sizeof(*srq_db_key_mm), GFP_KERNEL);
 		if (!srq_db_key_mm) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free_srq_key_mm;
 		}
 		memset(&uresp, 0, sizeof(uresp));

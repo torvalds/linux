@@ -68,8 +68,8 @@ static struct clk *spear1340_cpu_get_possible_parent(unsigned long newfreq)
 }
 
 /*
- * In SPEAr1340, we cannot use newfreq directly because we need to actually
- * access a source clock (clk) which might not be ancestor of cpu at present.
+ * In SPEAr1340, we cananalt use newfreq directly because we need to actually
+ * access a source clock (clk) which might analt be ancestor of cpu at present.
  * Hence in SPEAr1340 we would operate on source clock directly before switching
  * cpu clock to it.
  */
@@ -170,16 +170,16 @@ static struct cpufreq_driver spear_cpufreq_driver = {
 
 static int spear_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	const struct property *prop;
 	struct cpufreq_frequency_table *freq_tbl;
 	const __be32 *val;
 	int cnt, i, ret;
 
-	np = of_cpu_device_node_get(0);
+	np = of_cpu_device_analde_get(0);
 	if (!np) {
-		pr_err("No cpu node found\n");
-		return -ENODEV;
+		pr_err("Anal cpu analde found\n");
+		return -EANALDEV;
 	}
 
 	if (of_property_read_u32(np, "clock-latency",
@@ -189,8 +189,8 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 	prop = of_find_property(np, "cpufreq_tbl", NULL);
 	if (!prop || !prop->value) {
 		pr_err("Invalid cpufreq_tbl\n");
-		ret = -ENODEV;
-		goto out_put_node;
+		ret = -EANALDEV;
+		goto out_put_analde;
 	}
 
 	cnt = prop->length / sizeof(u32);
@@ -198,8 +198,8 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	freq_tbl = kcalloc(cnt + 1, sizeof(*freq_tbl), GFP_KERNEL);
 	if (!freq_tbl) {
-		ret = -ENOMEM;
-		goto out_put_node;
+		ret = -EANALMEM;
+		goto out_put_analde;
 	}
 
 	for (i = 0; i < cnt; i++)
@@ -209,7 +209,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	spear_cpufreq.freq_tbl = freq_tbl;
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	spear_cpufreq.clk = clk_get(NULL, "cpu_clk");
 	if (IS_ERR(spear_cpufreq.clk)) {
@@ -229,8 +229,8 @@ out_put_mem:
 	kfree(freq_tbl);
 	return ret;
 
-out_put_node:
-	of_node_put(np);
+out_put_analde:
+	of_analde_put(np);
 	return ret;
 }
 

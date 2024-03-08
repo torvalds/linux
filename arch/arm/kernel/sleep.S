@@ -32,7 +32,7 @@
  *}
  * Input registers: rs0, rs1, rs2, mpidr, mask
  * Output register: dst
- * Note: input and output registers must be disjoint register sets
+ * Analte: input and output registers must be disjoint register sets
          (eg: a macro instance with mpidr = r1 and dst = r1 is invalid)
  */
 	.macro compute_mpidr_hash dst, rs0, rs1, rs2, mpidr, mask
@@ -78,7 +78,7 @@ ENTRY(__cpu_suspend)
 	ldr	r3, =sleep_save_sp
 	stmfd	sp!, {r0, r1}		@ save suspend func arg and pointer
 	ldr	r3, [r3, #SLEEP_SAVE_SP_VIRT]
-	ALT_SMP(W(nop))			@ don't use adr_l inside ALT_SMP()
+	ALT_SMP(W(analp))			@ don't use adr_l inside ALT_SMP()
 	ALT_UP_B(1f)
 	adr_l	r0, mpidr_hash
 	/* This ldmia relies on the memory layout of the mpidr_hash struct */
@@ -97,7 +97,7 @@ ENDPROC(__cpu_suspend)
 cpu_suspend_abort:
 	ldmia	sp!, {r1 - r3}		@ pop phys pgd, virt SP, phys resume fn
 	teq	r0, #0
-	moveq	r0, #1			@ force non-zero value
+	moveq	r0, #1			@ force analn-zero value
 	mov	sp, r2
 	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(cpu_suspend_abort)
@@ -121,7 +121,7 @@ ENDPROC(cpu_resume_mmu)
 cpu_resume_after_mmu:
 #if defined(CONFIG_VMAP_STACK) && !defined(CONFIG_ARM_LPAE)
 	@ Before using the vmap'ed stack, we have to switch to swapper_pg_dir
-	@ as the ID map does not cover the vmalloc region.
+	@ as the ID map does analt cover the vmalloc region.
 	mrc	p15, 0, ip, c2, c0, 1	@ read TTBR1
 	mcr	p15, 0, ip, c2, c0, 0	@ set TTBR0
 	instr_sync
@@ -137,9 +137,9 @@ ENDPROC(cpu_resume_after_mmu)
 #ifdef CONFIG_MCPM
 	.arm
 THUMB(	.thumb			)
-ENTRY(cpu_resume_no_hyp)
+ENTRY(cpu_resume_anal_hyp)
 ARM_BE8(setend be)			@ ensure we are in BE mode
-	b	no_hyp
+	b	anal_hyp
 #endif
 
 #ifdef CONFIG_MMU
@@ -147,7 +147,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 ENTRY(cpu_resume_arm)
  THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb analw.
  THUMB(1:			)
 #endif
 
@@ -157,7 +157,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	bl	__hyp_stub_install_secondary
 #endif
 	safe_svcmode_maskall r1
-no_hyp:
+anal_hyp:
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
@@ -184,7 +184,7 @@ ENDPROC(cpu_resume)
 ENDPROC(cpu_resume_arm)
 #endif
 #ifdef CONFIG_MCPM
-ENDPROC(cpu_resume_no_hyp)
+ENDPROC(cpu_resume_anal_hyp)
 #endif
 
 	.data

@@ -26,7 +26,7 @@ configurations and mount debugfs::
  CONFIG_PTDUMP_CORE=y
  CONFIG_PTDUMP_DEBUGFS=y
 
- mount -t debugfs nodev /sys/kernel/debug
+ mount -t debugfs analdev /sys/kernel/debug
  cat /sys/kernel/debug/kernel_page_tables
 
 On analysing the output of ``cat /sys/kernel/debug/kernel_page_tables``
@@ -46,8 +46,8 @@ Kernel virtual memory layout example::
  +---------------------------------------------------------------------------------------+
  | ---[ Linear Mapping start ]---------------------------------------------------------- |
  | ..................                                                                    |
- | 0xfff0000000000000-0xfff0000000210000  2112K PTE RW NX SHD AF  UXN  MEM/NORMAL-TAGGED |
- | 0xfff0000000210000-0xfff0000001c00000 26560K PTE ro NX SHD AF  UXN  MEM/NORMAL        |
+ | 0xfff0000000000000-0xfff0000000210000  2112K PTE RW NX SHD AF  UXN  MEM/ANALRMAL-TAGGED |
+ | 0xfff0000000210000-0xfff0000001c00000 26560K PTE ro NX SHD AF  UXN  MEM/ANALRMAL        |
  | ..................                                                                    |
  | ---[ Linear Mapping end ]------------------------------------------------------------ |
  +---------------------------------------------------------------------------------------+
@@ -59,15 +59,15 @@ Kernel virtual memory layout example::
  +---------------------------------------------------------------------------------------+
  | ---[ vmalloc() area ]---------------------------------------------------------------- |
  | ..................                                                                    |
- | 0xffff800008010000-0xffff800008200000  1984K PTE ro x  SHD AF       UXN  MEM/NORMAL   |
- | 0xffff800008200000-0xffff800008e00000    12M PTE ro x  SHD AF  CON  UXN  MEM/NORMAL   |
+ | 0xffff800008010000-0xffff800008200000  1984K PTE ro x  SHD AF       UXN  MEM/ANALRMAL   |
+ | 0xffff800008200000-0xffff800008e00000    12M PTE ro x  SHD AF  CON  UXN  MEM/ANALRMAL   |
  | ..................                                                                    |
  | ---[ vmalloc() end ]----------------------------------------------------------------- |
  +---------------------------------------------------------------------------------------+
  | ---[ Fixmap start ]------------------------------------------------------------------ |
  | ..................                                                                    |
- | 0xfffffbfffdb80000-0xfffffbfffdb90000    64K PTE ro x  SHD AF  UXN  MEM/NORMAL        |
- | 0xfffffbfffdb90000-0xfffffbfffdba0000    64K PTE ro NX SHD AF  UXN  MEM/NORMAL        |
+ | 0xfffffbfffdb80000-0xfffffbfffdb90000    64K PTE ro x  SHD AF  UXN  MEM/ANALRMAL        |
+ | 0xfffffbfffdb90000-0xfffffbfffdba0000    64K PTE ro NX SHD AF  UXN  MEM/ANALRMAL        |
  | ..................                                                                    |
  | ---[ Fixmap end ]-------------------------------------------------------------------- |
  +---------------------------------------------------------------------------------------+
@@ -79,7 +79,7 @@ Kernel virtual memory layout example::
  +---------------------------------------------------------------------------------------+
  | ---[ vmemmap start ]----------------------------------------------------------------- |
  | ..................                                                                    |
- | 0xfffffc0002000000-0xfffffc0002200000     2M PTE RW NX SHD AF  UXN  MEM/NORMAL        |
+ | 0xfffffc0002000000-0xfffffc0002200000     2M PTE RW NX SHD AF  UXN  MEM/ANALRMAL        |
  | 0xfffffc0002200000-0xfffffc0020000000   478M PTE                                      |
  | ..................                                                                    |
  | ---[ vmemmap end ]------------------------------------------------------------------- |
@@ -87,10 +87,10 @@ Kernel virtual memory layout example::
 
 ``cat /sys/kernel/debug/kernel_page_tables`` output::
 
- 0xfff0000001c00000-0xfff0000080000000     2020M PTE  RW NX SHD AF   UXN    MEM/NORMAL-TAGGED
+ 0xfff0000001c00000-0xfff0000080000000     2020M PTE  RW NX SHD AF   UXN    MEM/ANALRMAL-TAGGED
  0xfff0000080000000-0xfff0000800000000       30G PMD
- 0xfff0000800000000-0xfff0000800700000        7M PTE  RW NX SHD AF   UXN    MEM/NORMAL-TAGGED
- 0xfff0000800700000-0xfff0000800710000       64K PTE  ro NX SHD AF   UXN    MEM/NORMAL-TAGGED
- 0xfff0000800710000-0xfff0000880000000  2089920K PTE  RW NX SHD AF   UXN    MEM/NORMAL-TAGGED
+ 0xfff0000800000000-0xfff0000800700000        7M PTE  RW NX SHD AF   UXN    MEM/ANALRMAL-TAGGED
+ 0xfff0000800700000-0xfff0000800710000       64K PTE  ro NX SHD AF   UXN    MEM/ANALRMAL-TAGGED
+ 0xfff0000800710000-0xfff0000880000000  2089920K PTE  RW NX SHD AF   UXN    MEM/ANALRMAL-TAGGED
  0xfff0000880000000-0xfff0040000000000     4062G PMD
  0xfff0040000000000-0xffff800000000000     3964T PGD

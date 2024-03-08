@@ -107,11 +107,11 @@ static int lpass_platform_alloc_rxtx_dmactl_fields(struct device *dev,
 
 	rd_dmactl = devm_kzalloc(dev, sizeof(*rd_dmactl), GFP_KERNEL);
 	if (!rd_dmactl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wr_dmactl = devm_kzalloc(dev, sizeof(*wr_dmactl), GFP_KERNEL);
 	if (!wr_dmactl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->rxtx_rd_dmactl = rd_dmactl;
 	drvdata->rxtx_wr_dmactl = wr_dmactl;
@@ -134,7 +134,7 @@ static int lpass_platform_alloc_va_dmactl_fields(struct device *dev,
 
 	wr_dmactl = devm_kzalloc(dev, sizeof(*wr_dmactl), GFP_KERNEL);
 	if (!wr_dmactl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->va_wr_dmactl = wr_dmactl;
 	return devm_regmap_field_bulk_alloc(dev, map, &wr_dmactl->intf,
@@ -153,12 +153,12 @@ static int lpass_platform_alloc_dmactl_fields(struct device *dev,
 	drvdata->rd_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl),
 					  GFP_KERNEL);
 	if (drvdata->rd_dmactl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->wr_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl),
 					  GFP_KERNEL);
 	if (drvdata->wr_dmactl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rd_dmactl = drvdata->rd_dmactl;
 	wr_dmactl = drvdata->wr_dmactl;
@@ -181,7 +181,7 @@ static int lpass_platform_alloc_hdmidmactl_fields(struct device *dev,
 
 	rd_dmactl = devm_kzalloc(dev, sizeof(struct lpaif_dmactl), GFP_KERNEL);
 	if (rd_dmactl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->hdmi_rd_dmactl = rd_dmactl;
 
@@ -205,7 +205,7 @@ static int lpass_platform_pcmops_open(struct snd_soc_component *component,
 	component->id = dai_id;
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->i2s_port = cpu_dai->driver->id;
 	runtime->private_data = data;
@@ -930,7 +930,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 	struct snd_soc_pcm_runtime *soc_runtime = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
 	const struct lpass_variant *v = drvdata->variant;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	int rv;
 	unsigned int reg, val, mask;
 	struct regmap *map;
@@ -974,7 +974,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 		if (rv) {
 			dev_err(soc_runtime->dev,
 				"error writing to irqclear reg: %d\n", rv);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		snd_pcm_period_elapsed(substream);
 		ret = IRQ_HANDLED;
@@ -985,7 +985,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 		if (rv) {
 			dev_err(soc_runtime->dev,
 				"error writing to irqclear reg: %d\n", rv);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		dev_warn_ratelimited(soc_runtime->dev, "xrun warning\n");
 
@@ -998,7 +998,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 		if (rv) {
 			dev_err(soc_runtime->dev,
 				"error writing to irqclear reg: %d\n", rv);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		dev_err(soc_runtime->dev, "bus access error\n");
 		snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
@@ -1010,7 +1010,7 @@ static irqreturn_t lpass_dma_interrupt_handler(
 		if (rv) {
 			dev_err(soc_runtime->dev,
 			"error writing to irqclear reg: %d\n", rv);
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		}
 		ret = IRQ_HANDLED;
 	}
@@ -1029,7 +1029,7 @@ static irqreturn_t lpass_platform_lpaif_irq(int irq, void *data)
 			LPAIF_IRQSTAT_REG(v, LPAIF_IRQ_PORT_HOST), &irqs);
 	if (rv) {
 		pr_err("error reading from irqstat reg: %d\n", rv);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Handle per channel interrupts */
@@ -1057,7 +1057,7 @@ static irqreturn_t lpass_platform_hdmiif_irq(int irq, void *data)
 			LPASS_HDMITX_APP_IRQSTAT_REG(v), &irqs);
 	if (rv) {
 		pr_err("error reading from irqstat reg: %d\n", rv);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Handle per channel interrupts */
@@ -1182,7 +1182,7 @@ static int lpass_platform_pcm_new(struct snd_soc_component *component,
 	if (is_cdc_dma_port(dai_id))
 		return lpass_platform_prealloc_cdc_dma_buffer(component, pcm, dai_id);
 
-	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_NONCOHERENT,
+	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_ANALNCOHERENT,
 					    component->dev, size);
 }
 
@@ -1274,7 +1274,7 @@ int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 
 	drvdata->lpaif_irq = platform_get_irq_byname(pdev, "lpass-irq-lpaif");
 	if (drvdata->lpaif_irq < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* ensure audio hardware is disabled */
 	ret = regmap_write(drvdata->lpaif_map,
@@ -1315,7 +1315,7 @@ int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 		}
 		drvdata->rxtxif_irq = platform_get_irq_byname(pdev, "lpass-irq-rxtxif");
 		if (drvdata->rxtxif_irq < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = devm_request_irq(&pdev->dev, drvdata->rxtxif_irq,
 				lpass_platform_rxtxif_irq, 0, "lpass-irq-rxtxif", drvdata);
@@ -1334,7 +1334,7 @@ int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 
 		drvdata->vaif_irq = platform_get_irq_byname(pdev, "lpass-irq-vaif");
 		if (drvdata->vaif_irq < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = devm_request_irq(&pdev->dev, drvdata->vaif_irq,
 				lpass_platform_vaif_irq, 0, "lpass-irq-vaif", drvdata);
@@ -1355,7 +1355,7 @@ int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 	if (drvdata->hdmi_port_enable) {
 		drvdata->hdmiif_irq = platform_get_irq_byname(pdev, "lpass-irq-hdmi");
 		if (drvdata->hdmiif_irq < 0)
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = devm_request_irq(&pdev->dev, drvdata->hdmiif_irq,
 				lpass_platform_hdmiif_irq, 0, "lpass-irq-hdmi", drvdata);

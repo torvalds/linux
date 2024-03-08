@@ -103,7 +103,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	if (perf_guest_state()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain analw */
 		return;
 	}
 
@@ -142,7 +142,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	if (perf_guest_state()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain analw */
 		return;
 	}
 

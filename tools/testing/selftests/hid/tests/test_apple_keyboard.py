@@ -122,7 +122,7 @@ class AppleKeyboard(ArrayKeyboard):
         0x81, 0x02,         # .Input (Data,Var,Abs)
         0x06, 0x01, 0xff,   # .Usage Page (Vendor Usage Page 0xff01)
         0x09, 0x0c,         # .Usage (Vendor Usage 0x0c)
-        0x81, 0x22,         # .Input (Data,Var,Abs,NoPref)
+        0x81, 0x22,         # .Input (Data,Var,Abs,AnalPref)
         0x75, 0x01,         # .Report Size (1)
         0x95, 0x06,         # .Report Count (6)
         0x81, 0x01,         # .Input (Cnst,Arr,Abs)

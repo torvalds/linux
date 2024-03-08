@@ -16,7 +16,7 @@
  * space maximum), or 'count+1' if hitting the user-supplied
  * maximum count.
  *
- * NOTE! We can sometimes overshoot the user-supplied maximum
+ * ANALTE! We can sometimes overshoot the user-supplied maximum
  * if it fits in a aligned 'long'. The caller needs to check
  * the return value against "> max".
  */
@@ -61,7 +61,7 @@ static __always_inline long do_strnlen_user(const char __user *src, unsigned lon
 		return count+1;
 
 	/*
-	 * Nope: we hit the address space limit, and we still had more
+	 * Analpe: we hit the address space limit, and we still had more
 	 * characters the caller would have wanted. That's 0.
 	 */
 efault:
@@ -83,7 +83,7 @@ efault:
  * has to check the return value against "> count".
  * On exception (or invalid count), returns 0.
  *
- * NOTE! You should basically never use this function. There is
+ * ANALTE! You should basically never use this function. There is
  * almost never any valid case for using the length of a user space
  * string, since the string can be changed at any time by other
  * threads. Use "strncpy_from_user()" instead to get a stable copy

@@ -3,7 +3,7 @@
  * This driver implements I2C master functionality using the LSI API2C
  * controller.
  *
- * NOTE: The controller has a limitation in that it can only do transfers of
+ * ANALTE: The controller has a limitation in that it can only do transfers of
  * maximum 255 bytes at a time. If a larger transfer is attempted, error code
  * (-EINVAL) is returned.
  */
@@ -106,7 +106,7 @@
 #define   SLV_STATUS_WTC	BIT(1)  /* Write transfer complete */
 #define   SLV_STATUS_SRS1	BIT(2)  /* Slave read from addr 1 */
 #define   SLV_STATUS_SRRS1	BIT(3)  /* Repeated start from addr 1 */
-#define   SLV_STATUS_SRND1	BIT(4)  /* Read request not following start condition */
+#define   SLV_STATUS_SRND1	BIT(4)  /* Read request analt following start condition */
 #define   SLV_STATUS_SRC1	BIT(5)  /* Read canceled */
 #define   SLV_STATUS_SRAT1	BIT(6)  /* Slave Read timed out */
 #define   SLV_STATUS_SRDRE1	BIT(7)  /* Data written after timed out */
@@ -364,7 +364,7 @@ static irqreturn_t axxia_i2c_slv_isr(struct axxia_i2c_dev *idev)
 static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 {
 	struct axxia_i2c_dev *idev = _dev;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 status;
 
 	status = readl(idev->base + INTERRUPT_STATUS);
@@ -462,7 +462,7 @@ static void axxia_i2c_set_addr(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 }
 
 /* The NAK interrupt will be sent _before_ issuing STOP command
- * so the controller might still be busy processing it. No
+ * so the controller might still be busy processing it. Anal
  * interrupt will be sent at the end so we have to poll for it
  */
 static int axxia_i2c_handle_seq_nak(struct axxia_i2c_dev *idev)
@@ -601,7 +601,7 @@ out:
 
 /* This function checks if the msgs[] array contains messages compatible with
  * Sequence mode of operation. This mode assumes there will be exactly one
- * write of non-zero length followed by exactly one read of non-zero length,
+ * write of analn-zero length followed by exactly one read of analn-zero length,
  * both targeted at the same client device.
  */
 static bool axxia_i2c_sequence_ok(struct i2c_msg msgs[], int num)
@@ -734,14 +734,14 @@ static const struct i2c_adapter_quirks axxia_i2c_quirks = {
 
 static int axxia_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct axxia_i2c_dev *idev = NULL;
 	void __iomem *base;
 	int ret = 0;
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -791,7 +791,7 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	idev->adapter.bus_recovery_info = &axxia_i2c_recovery_info;
 	idev->adapter.quirks = &axxia_i2c_quirks;
 	idev->adapter.dev.parent = &pdev->dev;
-	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.dev.of_analde = pdev->dev.of_analde;
 
 	platform_set_drvdata(pdev, idev);
 

@@ -25,7 +25,7 @@
 #define MHU_SEC_OFFSET	0x200
 #define TX_REG_OFFSET	0x100
 
-#define MHU_CHANS	3	/* Secure, Non-Secure High and Low Priority */
+#define MHU_CHANS	3	/* Secure, Analn-Secure High and Low Priority */
 #define MHU_CHAN_MAX	20	/* Max channels to save on unused RAM */
 #define MHU_NUM_DOORBELLS	32
 
@@ -101,7 +101,7 @@ mhu_db_mbox_irq_to_channel(struct arm_mhu *mhu, unsigned int pchan)
 
 	bits = readl_relaxed(base + INTR_STAT_OFS);
 	if (!bits)
-		/* No IRQs fired in specified physical channel */
+		/* Anal IRQs fired in specified physical channel */
 		return NULL;
 
 	/* An IRQ has fired, find the associated channel */
@@ -113,7 +113,7 @@ mhu_db_mbox_irq_to_channel(struct arm_mhu *mhu, unsigned int pchan)
 		if (chan)
 			break;
 		dev_err(mbox->dev,
-			"Channel not registered: pchan: %d doorbell: %d\n",
+			"Channel analt registered: pchan: %d doorbell: %d\n",
 			pchan, doorbell);
 	}
 
@@ -173,7 +173,7 @@ static void mhu_db_shutdown(struct mbox_chan *chan)
 			break;
 
 	if (mbox->num_chans == i) {
-		dev_warn(mbox->dev, "Request to free non-existent channel\n");
+		dev_warn(mbox->dev, "Request to free analn-existent channel\n");
 		return;
 	}
 
@@ -215,7 +215,7 @@ static struct mbox_chan *mhu_db_mbox_xlate(struct mbox_controller *mbox,
 			break;
 
 	if (mbox->num_chans == i) {
-		dev_err(mbox->dev, "No free channels left\n");
+		dev_err(mbox->dev, "Anal free channels left\n");
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -223,7 +223,7 @@ static struct mbox_chan *mhu_db_mbox_xlate(struct mbox_controller *mbox,
 
 	chan_info = devm_kzalloc(mbox->dev, sizeof(*chan_info), GFP_KERNEL);
 	if (!chan_info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	chan_info->mhu = mhu;
 	chan_info->pchan = pchan;
@@ -251,13 +251,13 @@ static int mhu_db_probe(struct amba_device *adev, const struct amba_id *id)
 	struct arm_mhu *mhu;
 	struct mbox_chan *chans;
 	struct device *dev = &adev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int mhu_reg[MHU_CHANS] = {
 		MHU_LP_OFFSET, MHU_HP_OFFSET, MHU_SEC_OFFSET,
 	};
 
 	if (!of_device_is_compatible(np, "arm,mhu-doorbell"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = of_property_read_u32(np, "#mbox-cells", &cell_count);
 	if (err) {
@@ -274,7 +274,7 @@ static int mhu_db_probe(struct amba_device *adev, const struct amba_id *id)
 
 	mhu = devm_kzalloc(dev, sizeof(*mhu), GFP_KERNEL);
 	if (!mhu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhu->base = devm_ioremap_resource(dev, &adev->res);
 	if (IS_ERR(mhu->base))
@@ -282,7 +282,7 @@ static int mhu_db_probe(struct amba_device *adev, const struct amba_id *id)
 
 	chans = devm_kcalloc(dev, max_chans, sizeof(*chans), GFP_KERNEL);
 	if (!chans)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mhu->dev = dev;
 	mhu->mbox.dev = dev;
@@ -307,7 +307,7 @@ static int mhu_db_probe(struct amba_device *adev, const struct amba_id *id)
 		int irq = mhu->mlink[i].irq = adev->irq[i];
 
 		if (irq <= 0) {
-			dev_dbg(dev, "No IRQ found for Channel %d\n", i);
+			dev_dbg(dev, "Anal IRQ found for Channel %d\n", i);
 			continue;
 		}
 

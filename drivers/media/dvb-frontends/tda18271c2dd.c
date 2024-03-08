@@ -872,7 +872,7 @@ static int FixedContentsI2CUpdate(struct tda_state *state)
 			break;
 		msleep(30);
 
-		/* Back to normal */
+		/* Back to analrmal */
 		state->m_Regs[EP4] = 0x64;
 		status = UpdateReg(state, EP4);
 		if (status < 0)
@@ -955,7 +955,7 @@ static int RFTrackingFiltersCorrection(struct tda_state *state,
 
 
 		/* TODO Temperature compensation. There is defenitely a scale factor */
-		/*      missing in the datasheet, so leave it out for now.           */
+		/*      missing in the datasheet, so leave it out for analw.           */
 		state->m_Regs[EB14] = Capprox;
 
 		status = UpdateReg(state, EB14);
@@ -1012,11 +1012,11 @@ static int ChannelConfiguration(struct tda_state *state,
 
 		state->m_Regs[MPD] &= ~0x80;
 		if (Standard > HF_AnalogMax)
-			state->m_Regs[MPD] |= 0x80; /* Add IF_notch for digital */
+			state->m_Regs[MPD] |= 0x80; /* Add IF_analtch for digital */
 
 		state->m_Regs[EB22] = m_StandardTable[Standard].m_EB22;
 
-		/* Note: This is missing from flowchart in TDA18271 specification ( 1.5 MHz cutoff for FM ) */
+		/* Analte: This is missing from flowchart in TDA18271 specification ( 1.5 MHz cutoff for FM ) */
 		if (Standard == HF_FM_Radio)
 			state->m_Regs[EB23] |=  0x06; /* ForceLP_Fc2_En = 1, LPFc[2] = 1 */
 		else
@@ -1082,7 +1082,7 @@ static int ChannelConfiguration(struct tda_state *state,
 		}
 		msleep(20);
 		if (Standard != HF_FM_Radio)
-			state->m_Regs[EP3] |= 0x04;    /* RFAGC to normal mode */
+			state->m_Regs[EP3] |= 0x04;    /* RFAGC to analrmal mode */
 		status = UpdateReg(state, EP3);
 		if (status < 0)
 			break;

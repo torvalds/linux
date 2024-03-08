@@ -3,7 +3,7 @@
  * DRM driver for display panels connected to a Sitronix ST7715R or ST7735R
  * display controller in SPI mode.
  *
- * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright 2017 David Lechner <david@lechanallogy.com>
  * Copyright (C) 2019 Glider bvba
  */
 
@@ -123,7 +123,7 @@ static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	mipi_dbi_command(dbi, MIPI_DCS_ENTER_NORMAL_MODE);
+	mipi_dbi_command(dbi, MIPI_DCS_ENTER_ANALRMAL_MODE);
 
 	msleep(20);
 
@@ -138,7 +138,7 @@ static const struct drm_simple_display_pipe_funcs st7735r_pipe_funcs = {
 
 static const struct st7735r_cfg jd_t18003_t01_cfg = {
 	.mode		= { DRM_SIMPLE_MODE(128, 160, 28, 35) },
-	/* Cannot read from Adafruit 1.8" display via SPI */
+	/* Cananalt read from Adafruit 1.8" display via SPI */
 	.write_only	= true,
 };
 
@@ -160,7 +160,7 @@ static const struct drm_driver st7735r_driver = {
 	.desc			= "Sitronix ST7735R",
 	.date			= "20171128",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 static const struct of_device_id st7735r_of_match[] = {
@@ -272,5 +272,5 @@ static struct spi_driver st7735r_spi_driver = {
 module_spi_driver(st7735r_spi_driver);
 
 MODULE_DESCRIPTION("Sitronix ST7735R DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechanallogy.com>");
 MODULE_LICENSE("GPL");

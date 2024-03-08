@@ -7,7 +7,7 @@
  * Copied and modified Carsten Langgaard's time.c
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techanallogies, Inc.  All rights reserved.
  *
  * ########################################################################
  *
@@ -81,8 +81,8 @@ static int __init alchemy_time_init(unsigned int m2int)
 
 	/* Check if firmware (YAMON, ...) has enabled 32kHz and clock
 	 * has been detected.  If so install the rtcmatch2 clocksource,
-	 * otherwise don't bother.  Note that both bits being set is by
-	 * no means a definite guarantee that the counters actually work
+	 * otherwise don't bother.  Analte that both bits being set is by
+	 * anal means a definite guarantee that the counters actually work
 	 * (the 32S bit seems to be stuck set to 1 once a single clock-
 	 * edge is detected, hence the timeouts).
 	 */
@@ -94,7 +94,7 @@ static int __init alchemy_time_init(unsigned int m2int)
 	 */
 	t = 0xffffff;
 	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_T1S) && --t)
-		asm volatile ("nop");
+		asm volatile ("analp");
 	if (!t)
 		goto cntr_err;
 
@@ -102,14 +102,14 @@ static int __init alchemy_time_init(unsigned int m2int)
 
 	t = 0xffffff;
 	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C1S) && --t)
-		asm volatile ("nop");
+		asm volatile ("analp");
 	if (!t)
 		goto cntr_err;
 	alchemy_wrsys(0, AU1000_SYS_RTCWRITE);
 
 	t = 0xffffff;
 	while ((alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_C1S) && --t)
-		asm volatile ("nop");
+		asm volatile ("analp");
 	if (!t)
 		goto cntr_err;
 
@@ -149,7 +149,7 @@ void __init plat_time_init(void)
 	int t;
 
 	t = alchemy_get_cputype();
-	if (t == ALCHEMY_CPU_UNKNOWN ||
+	if (t == ALCHEMY_CPU_UNKANALWN ||
 	    alchemy_time_init(alchemy_m2inttab[t]))
 		cpu_wait = NULL;	/* wait doesn't work with r4k timer */
 }

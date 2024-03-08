@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -321,7 +321,7 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 			       scat_req->scat_entries,
 			       scat_req->scat_list);
 
-	/* synchronous call to process request */
+	/* synchroanalus call to process request */
 	mmc_wait_for_req(ar_sdio->func->card->host, &mmc_req);
 
 	sdio_release_host(ar_sdio->func);
@@ -335,7 +335,7 @@ scat_complete:
 		ath6kl_err("Scatter write request failed:%d\n",
 			   scat_req->status);
 
-	if (scat_req->req & HIF_ASYNCHRONOUS)
+	if (scat_req->req & HIF_ASYNCHROANALUS)
 		scat_req->complete(ar_sdio->ar->htc_target, scat_req);
 
 	return status;
@@ -363,13 +363,13 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 		/* allocate the scatter request */
 		s_req = kzalloc(scat_req_sz, GFP_KERNEL);
 		if (!s_req)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (virt_scat) {
 			virt_buf = kzalloc(size, GFP_KERNEL);
 			if (!virt_buf) {
 				kfree(s_req);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			s_req->virt_dma_buf =
@@ -380,7 +380,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 
 			if (!s_req->sgentries) {
 				kfree(s_req);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -390,7 +390,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 			kfree(s_req->sgentries);
 			kfree(s_req->virt_dma_buf);
 			kfree(s_req);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/* assign the scatter request to this bus request */
@@ -419,7 +419,7 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 
 	if (buf_needs_bounce(buf)) {
 		if (!ar_sdio->dma_buffer)
-			return -ENOMEM;
+			return -EANALMEM;
 		mutex_lock(&ar_sdio->dma_buffer_mutex);
 		tbuf = ar_sdio->dma_buffer;
 
@@ -573,7 +573,7 @@ static int ath6kl_sdio_write_async(struct ath6kl *ar, u32 address, u8 *buffer,
 	bus_req = ath6kl_sdio_alloc_busreq(ar_sdio);
 
 	if (WARN_ON_ONCE(!bus_req))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus_req->address = address;
 	bus_req->buffer = buffer;
@@ -639,21 +639,21 @@ static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 static struct hif_scatter_req *ath6kl_sdio_scatter_req_get(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
-	struct hif_scatter_req *node = NULL;
+	struct hif_scatter_req *analde = NULL;
 
 	spin_lock_bh(&ar_sdio->scat_lock);
 
 	if (!list_empty(&ar_sdio->scat_req)) {
-		node = list_first_entry(&ar_sdio->scat_req,
+		analde = list_first_entry(&ar_sdio->scat_req,
 					struct hif_scatter_req, list);
-		list_del(&node->list);
+		list_del(&analde->list);
 
-		node->scat_q_depth = get_queue_depth(&ar_sdio->scat_req);
+		analde->scat_q_depth = get_queue_depth(&ar_sdio->scat_req);
 	}
 
 	spin_unlock_bh(&ar_sdio->scat_lock);
 
-	return node;
+	return analde;
 }
 
 static void ath6kl_sdio_scatter_req_add(struct ath6kl *ar,
@@ -683,7 +683,7 @@ static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
 		   "hif-scatter: total len: %d scatter entries: %d\n",
 		   scat_req->len, scat_req->scat_entries);
 
-	if (request & HIF_SYNCHRONOUS) {
+	if (request & HIF_SYNCHROANALUS) {
 		status = ath6kl_sdio_scat_rw(ar_sdio, scat_req->busrequest);
 	} else {
 		spin_lock_bh(&ar_sdio->wr_async_lock);
@@ -873,7 +873,7 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 			goto cut_pwr;
 
 		ret = ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_WOW, wow);
-		if (ret && ret != -ENOTCONN)
+		if (ret && ret != -EANALTCONN)
 			ath6kl_err("wow suspend failed: %d\n", ret);
 
 		if (ret &&
@@ -1000,7 +1000,7 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	/*
 	 * Write the address register again, this time write the whole
 	 * 4-byte value. The effect here is that the LSB write causes the
-	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
+	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has anal
 	 * effect since we are writing the same values again
 	 */
 	status = ath6kl_sdio_read_write_sync(ar, reg_addr, (u8 *)(&addr),
@@ -1074,7 +1074,7 @@ static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 		/*
 		 * Hit the credit counter with a 4-byte access, the first byte
 		 * read will hit the counter and cause a decrement, while the
-		 * remaining 3 bytes has no effect. The rationale behind this
+		 * remaining 3 bytes has anal effect. The rationale behind this
 		 * is to make all HIF accesses 4-byte aligned.
 		 */
 		ret = ath6kl_sdio_read_write_sync(ar, addr,
@@ -1087,7 +1087,7 @@ static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 		}
 
 		/* The counter is only 8 bits.
-		 * Ignore anything in the upper 3 bytes
+		 * Iganalre anything in the upper 3 bytes
 		 */
 		ar->bmi.cmd_credits &= 0xFF;
 	}
@@ -1156,17 +1156,17 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	u32 addr;
 
 	/*
-	 * During normal bootup, small reads may be required.
+	 * During analrmal bootup, small reads may be required.
 	 * Rather than issue an HIF Read and then wait as the Target
 	 * adds successive bytes to the FIFO, we wait here until
-	 * we know that response data is available.
+	 * we kanalw that response data is available.
 	 *
 	 * This allows us to cleanly timeout on an unexpected
 	 * Target failure rather than risk problems at the HIF level.
 	 * In particular, this avoids SDIO timeouts and possibly garbage
 	 * data on some host controllers.  And on an interconnect
 	 * such as Compact Flash (as well as some SDIO masters) which
-	 * does not provide any indication on data timeout, it avoids
+	 * does analt provide any indication on data timeout, it avoids
 	 * a potential hang or garbage response.
 	 *
 	 * Synchronization is more difficult for reads larger than the
@@ -1175,11 +1175,11 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * analt occur in practice -- they're supported for debug/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
-	 *        Should not happen
+	 *        Should analt happen
 	 *
 	 *  CASE 2: 4 <= length <= 128
 	 *        Wait for first 4 bytes to be in FIFO
@@ -1193,12 +1193,12 @@ static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
 	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
-	 * For now, we use an unbounded busy loop while waiting for
+	 * For analw, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *
 	 * If BMI_EXECUTE ever needs to support longer-latency execution,
 	 * especially in production, this code needs to be enhanced to sleep
-	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * and yield.  Also analte that BMI_COMMUNICATION_TIMEOUT is currently
 	 * a function of Host processor speed.
 	 */
 	if (len >= 4) { /* NB: Currently, always true */
@@ -1225,7 +1225,7 @@ static void ath6kl_sdio_stop(struct ath6kl *ar)
 	struct bus_request *req, *tmp_req;
 	void *context;
 
-	/* FIXME: make sure that wq is not queued again */
+	/* FIXME: make sure that wq is analt queued again */
 
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
@@ -1318,11 +1318,11 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 
 	ar_sdio = kzalloc(sizeof(struct ath6kl_sdio), GFP_KERNEL);
 	if (!ar_sdio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ar_sdio->dma_buffer = kzalloc(HIF_DMA_BUFFER_SIZE, GFP_KERNEL);
 	if (!ar_sdio->dma_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_hif;
 	}
 
@@ -1351,7 +1351,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	ar = ath6kl_core_create(&ar_sdio->func->dev);
 	if (!ar) {
 		ath6kl_err("Failed to alloc ath6kl core\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_dma;
 	}
 

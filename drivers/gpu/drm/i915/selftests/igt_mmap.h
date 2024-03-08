@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 struct drm_i915_private;
-struct drm_vma_offset_node;
+struct drm_vma_offset_analde;
 
 unsigned long igt_mmap_offset(struct drm_i915_private *i915,
 			      u64 offset,

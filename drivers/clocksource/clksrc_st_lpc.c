@@ -35,7 +35,7 @@ static void __init st_clksrc_reset(void)
 	writel_relaxed(1, ddata.base + LPC_LPT_START_OFF);
 }
 
-static u64 notrace st_clksrc_sched_clock_read(void)
+static u64 analtrace st_clksrc_sched_clock_read(void)
 {
 	return (u64)readl_relaxed(ddata.base + LPC_LPT_LSB_OFF);
 }
@@ -62,7 +62,7 @@ static int __init st_clksrc_init(void)
 	return 0;
 }
 
-static int __init st_clksrc_setup_clk(struct device_node *np)
+static int __init st_clksrc_setup_clk(struct device_analde *np)
 {
 	struct clk *clk;
 
@@ -88,7 +88,7 @@ static int __init st_clksrc_setup_clk(struct device_node *np)
 	return 0;
 }
 
-static int __init st_clksrc_of_register(struct device_node *np)
+static int __init st_clksrc_of_register(struct device_analde *np)
 {
 	int ret;
 	uint32_t mode;

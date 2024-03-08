@@ -204,8 +204,8 @@ TRACE_EVENT(device_pm_callback_start,
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
 		__string(driver, dev_driver_string(dev))
-		__string(parent, dev->parent ? dev_name(dev->parent) : "none")
-		__string(pm_ops, pm_ops ? pm_ops : "none ")
+		__string(parent, dev->parent ? dev_name(dev->parent) : "analne")
+		__string(pm_ops, pm_ops ? pm_ops : "analne ")
 		__field(int, event)
 	),
 
@@ -213,8 +213,8 @@ TRACE_EVENT(device_pm_callback_start,
 		__assign_str(device, dev_name(dev));
 		__assign_str(driver, dev_driver_string(dev));
 		__assign_str(parent,
-			dev->parent ? dev_name(dev->parent) : "none");
-		__assign_str(pm_ops, pm_ops ? pm_ops : "none ");
+			dev->parent ? dev_name(dev->parent) : "analne");
+		__assign_str(pm_ops, pm_ops ? pm_ops : "analne ");
 		__entry->event = event;
 	),
 

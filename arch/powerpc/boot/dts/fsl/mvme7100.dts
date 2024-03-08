@@ -88,7 +88,7 @@
 	lbc: localbus@f1005000 {
 		reg = <0xf1005000 0x1000>;
 
-		ranges = <0 0 0xf8000000 0x08000000	// NOR Flash (128MB)
+		ranges = <0 0 0xf8000000 0x08000000	// ANALR Flash (128MB)
 			  2 0 0xf2030000 0x00010000	// NAND Flash (8GB)
 			  3 0 0xf2400000 0x00080000	// MRAM (512KB)
 			  4 0 0xf2000000 0x00010000	// BCSR

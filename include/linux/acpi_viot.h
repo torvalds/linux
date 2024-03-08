@@ -14,7 +14,7 @@ static inline void acpi_viot_early_init(void) {}
 static inline void acpi_viot_init(void) {}
 static inline int viot_iommu_configure(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

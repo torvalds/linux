@@ -239,7 +239,7 @@ struct mrvl_ie_ledbhv {
 
 /*
  * Meant to be packed as the value member of a struct ieee80211_info_element.
- * Note that the len member of the ieee80211_info_element varies depending on
+ * Analte that the len member of the ieee80211_info_element varies depending on
  * the mesh_id_len
  */
 struct mrvl_meshie_val {

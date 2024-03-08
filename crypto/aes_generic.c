@@ -6,7 +6,7 @@
  * Based on Brian Gladman's code.
  *
  * Linux developers:
- *  Alexander Kjeldaas <astor@fast.no>
+ *  Alexander Kjeldaas <astor@fast.anal>
  *  Herbert Valerio Riedel <hvr@hvrlab.org>
  *  Kyle McMartin <kyle@debian.org>
  *  Adam J. Richter <adam@yggdrasil.com> (conversion to 2.5 API).
@@ -26,23 +26,23 @@
  * form is allowed (with or without changes) provided that:
  *
  *   1. distributions of this source code include the above copyright
- *      notice, this list of conditions and the following disclaimer;
+ *      analtice, this list of conditions and the following disclaimer;
  *
  *   2. distributions in binary form include the above copyright
- *      notice, this list of conditions and the following disclaimer
+ *      analtice, this list of conditions and the following disclaimer
  *      in the documentation and/or other associated materials;
  *
- *   3. the copyright holder's name is not used to endorse products
+ *   3. the copyright holder's name is analt used to endorse products
  *      built using this software without specific written permission.
  *
- * ALTERNATIVELY, provided that this notice is retained in full, this product
+ * ALTERNATIVELY, provided that this analtice is retained in full, this product
  * may be distributed under the terms of the GNU General Public License (GPL),
  * in which case the provisions of the GPL apply INSTEAD OF those given above.
  *
  * DISCLAIMER
  *
- * This software is provided 'as is' with no explicit or implied warranties
- * in respect of its properties, including, but not limited to, correctness
+ * This software is provided 'as is' with anal explicit or implied warranties
+ * in respect of its properties, including, but analt limited to, correctness
  * and/or fitness for purpose.
  * ---------------------------------------------------------------------------
  */
@@ -52,7 +52,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 

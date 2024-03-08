@@ -16,7 +16,7 @@
  * The software must write this register twice to post any command. First,
  * it writes the register with hi=1 and the upper bits of the physical address
  * for the MAILBOX structure. Software must poll the ready bit until this
- * is acknowledged. Then, sotware writes the register with hi=0 with the lower
+ * is ackanalwledged. Then, sotware writes the register with hi=0 with the lower
  * bits in the address. It must poll the ready bit until the command is
  * complete. Upon completion, the MAILBOX will contain a valid completion
  * queue entry.
@@ -65,8 +65,8 @@
 #define PHYSDEV_CONTROL_DD_MASK		0x00000004
 #define PHYSDEV_CONTROL_INP_MASK	0x40000000
 
-#define SLIPORT_ERROR_NO_RESOURCE1	0x2
-#define SLIPORT_ERROR_NO_RESOURCE2	0x9
+#define SLIPORT_ERROR_ANAL_RESOURCE1	0x2
+#define SLIPORT_ERROR_ANAL_RESOURCE2	0x9
 
 #define SLIPORT_ERROR_FW_RESET1		0x2
 #define SLIPORT_ERROR_FW_RESET2		0x0
@@ -144,7 +144,7 @@
  * programmed by host driver while ringing an EQ doorbell(EQ_DB) if a delay
  * between rearming the EQ and next interrupt on this EQ is desired.
  */
-#define	R2I_DLY_ENC_0			0	/* No delay */
+#define	R2I_DLY_ENC_0			0	/* Anal delay */
 #define	R2I_DLY_ENC_1			1	/* maps to 160us EQ delay */
 #define	R2I_DLY_ENC_2			2	/* maps to 96us EQ delay */
 #define	R2I_DLY_ENC_3			3	/* maps to 48us EQ delay */

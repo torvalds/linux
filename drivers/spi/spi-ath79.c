@@ -141,12 +141,12 @@ static int ath79_exec_mem_op(struct spi_mem *mem,
 
 	/* Ensures that reading is performed on device connected to hardware cs0 */
 	if (spi_get_chipselect(mem->spi, 0) || spi_get_csgpiod(mem->spi, 0))
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Only use for fast-read op. */
 	if (op->cmd.opcode != 0x0b || op->data.dir != SPI_MEM_DATA_IN ||
 	    op->addr.nbytes != 3 || op->dummy.nbytes != 1)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* disable GPIO mode */
 	ath79_spi_wr(sp, AR71XX_SPI_REG_FS, 0);
@@ -176,11 +176,11 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(*sp));
 	if (host == NULL) {
 		dev_err(&pdev->dev, "failed to allocate spi host\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sp = spi_controller_get_devdata(host);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	platform_set_drvdata(pdev, sp);
 
 	host->use_gpio_descriptors = true;

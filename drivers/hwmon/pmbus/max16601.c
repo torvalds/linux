@@ -3,7 +3,7 @@
  * Hardware monitoring driver for Maxim MAX16508, MAX16600, MAX16601,
  * and MAX16602.
  *
- * Implementation notes:
+ * Implementation analtes:
  *
  * This chip series supports two rails, VCORE and VSA. Telemetry information
  * for the two rails is reported in two subsequent I2C addresses. The driver
@@ -63,9 +63,9 @@ static int max16601_read_byte(struct i2c_client *client, int page, int reg)
 	if (page > 0) {
 		if (page == 2)	/* VSA */
 			return i2c_smbus_read_byte_data(data->vsa, reg);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static int max16601_read_word(struct i2c_client *client, int page, int phase,
@@ -79,7 +79,7 @@ static int max16601_read_word(struct i2c_client *client, int page, int phase,
 	switch (page) {
 	case 0:		/* VCORE */
 		if (phase == 0xff)
-			return -ENODATA;
+			return -EANALDATA;
 		switch (reg) {
 		case PMBUS_READ_IIN:
 		case PMBUS_READ_IOUT:
@@ -106,7 +106,7 @@ static int max16601_read_word(struct i2c_client *client, int page, int phase,
 				break;
 			}
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case 1:		/* VCORE, read IIN/PIN from sensor element */
 		switch (reg) {
 		case PMBUS_READ_IIN:
@@ -117,7 +117,7 @@ static int max16601_read_word(struct i2c_client *client, int page, int phase,
 		default:
 			break;
 		}
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case 2:		/* VSA */
 		switch (reg) {
 		case PMBUS_VIRT_READ_IOUT_MAX:
@@ -141,10 +141,10 @@ static int max16601_read_word(struct i2c_client *client, int page, int phase,
 		case PMBUS_STATUS_WORD:
 			return i2c_smbus_read_word_data(data->vsa, reg);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -156,9 +156,9 @@ static int max16601_write_byte(struct i2c_client *client, int page, u8 reg)
 	if (page == 2) {
 		if (reg == PMBUS_CLEAR_FAULTS)
 			return i2c_smbus_write_byte(data->vsa, reg);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
-	return -ENODATA;
+	return -EANALDATA;
 }
 
 static int max16601_write_word(struct i2c_client *client, int page, int reg,
@@ -169,10 +169,10 @@ static int max16601_write_word(struct i2c_client *client, int page, int reg,
 
 	switch (page) {
 	case 0:		/* VCORE */
-		return -ENODATA;
+		return -EANALDATA;
 	case 1:		/* VCORE IIN/PIN from sensor element */
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	case 2:		/* VSA */
 		switch (reg) {
 		case PMBUS_VIRT_RESET_IOUT_HISTORY:
@@ -184,7 +184,7 @@ static int max16601_write_word(struct i2c_client *client, int page, int reg,
 		case PMBUS_OT_WARN_LIMIT:
 			return i2c_smbus_write_word_data(data->vsa, reg, value);
 		default:
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 }
@@ -211,7 +211,7 @@ static int max16601_identify(struct i2c_client *client,
 		return reg;
 
 	/*
-	 * If REG_DEFAULT_NUM_POP returns 0, we don't know how many phases
+	 * If REG_DEFAULT_NUM_POP returns 0, we don't kanalw how many phases
 	 * are populated. Stick with the default in that case.
 	 */
 	reg &= 0x0f;
@@ -280,7 +280,7 @@ static int max16601_get_id(struct i2c_client *client)
 
 	ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
 	if (ret < 0 || ret < 11)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * PMBUS_IC_DEVICE_ID is expected to return MAX1660[012]y.xx",
@@ -297,7 +297,7 @@ static int max16601_get_id(struct i2c_client *client)
 	} else {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported chip '%s'\n", buf);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return id;
 }
@@ -312,7 +312,7 @@ static int max16601_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	chip_id = max16601_get_id(client);
 	if (chip_id < 0)
@@ -330,12 +330,12 @@ static int max16601_probe(struct i2c_client *client)
 	if (!(ret & CORE_RAIL_INDICATOR)) {
 		dev_err(dev,
 			"Driver must be instantiated on CORE rail I2C address\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->id = chip_id;
 	data->iout_avg_pkg = 0xfc00;

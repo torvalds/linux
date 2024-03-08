@@ -130,7 +130,7 @@ static const struct pinctrl_ops owl_pinctrl_ops = {
 	.get_group_name = owl_get_group_name,
 	.get_group_pins = owl_get_group_pins,
 	.pin_dbg_show = owl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -244,7 +244,7 @@ static int owl_pad_pinconf_reg(const struct owl_padinfo *info,
 		*width = info->st->width;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -269,7 +269,7 @@ static int owl_pin_config_get(struct pinctrl_dev *pctrldev,
 	arg = owl_read_field(pctrl, reg, bit, width);
 
 	if (!pctrl->soc->padctl_val2arg)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	ret = pctrl->soc->padctl_val2arg(info, param, &arg);
 	if (ret)
@@ -303,7 +303,7 @@ static int owl_pin_config_set(struct pinctrl_dev *pctrldev,
 			return ret;
 
 		if (!pctrl->soc->padctl_arg2val)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 
 		ret = pctrl->soc->padctl_arg2val(info, param, &arg);
 		if (ret)
@@ -341,7 +341,7 @@ static int owl_group_pinconf_reg(const struct owl_pingroup *g,
 		*width = g->sr_width;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -377,7 +377,7 @@ static int owl_group_pinconf_arg2val(const struct owl_pingroup *g,
 			*arg = OWL_PINCONF_SLEW_SLOW;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -413,7 +413,7 @@ static int owl_group_pinconf_val2arg(const struct owl_pingroup *g,
 			*arg = 0;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -540,7 +540,7 @@ static int owl_gpio_request(struct gpio_chip *chip, unsigned int offset)
 
 	port = owl_gpio_get_port(pctrl, &offset);
 	if (WARN_ON(port == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_base = pctrl->base + port->offset;
 
@@ -587,7 +587,7 @@ static int owl_gpio_get(struct gpio_chip *chip, unsigned int offset)
 
 	port = owl_gpio_get_port(pctrl, &offset);
 	if (WARN_ON(port == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_base = pctrl->base + port->offset;
 
@@ -625,7 +625,7 @@ static int owl_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 
 	port = owl_gpio_get_port(pctrl, &offset);
 	if (WARN_ON(port == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_base = pctrl->base + port->offset;
 
@@ -647,7 +647,7 @@ static int owl_gpio_direction_output(struct gpio_chip *chip,
 
 	port = owl_gpio_get_port(pctrl, &offset);
 	if (WARN_ON(port == NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio_base = pctrl->base + port->offset;
 
@@ -739,7 +739,7 @@ static void owl_gpio_irq_mask(struct irq_data *data)
 
 	owl_gpio_update_reg(gpio_base + port->intc_msk, gpio, false);
 
-	/* disable port interrupt if no interrupt pending bit is active */
+	/* disable port interrupt if anal interrupt pending bit is active */
 	val = readl_relaxed(gpio_base + port->intc_msk);
 	if (val == 0)
 		owl_gpio_update_reg(gpio_base + port->intc_ctl,
@@ -859,7 +859,7 @@ static void owl_gpio_irq_handler(struct irq_desc *desc)
 		port = &pctrl->soc->ports[i];
 		base = pctrl->base + port->offset;
 
-		/* skip ports that are not associated with this irq */
+		/* skip ports that are analt associated with this irq */
 		if (parent != pctrl->irq[i])
 			goto skip;
 
@@ -895,7 +895,7 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	gpio_irq = &chip->irq;
 	gpio_irq_chip_set_chip(gpio_irq, &owl_gpio_irqchip);
 	gpio_irq->handler = handle_simple_irq;
-	gpio_irq->default_type = IRQ_TYPE_NONE;
+	gpio_irq->default_type = IRQ_TYPE_ANALNE;
 	gpio_irq->parent_handler = owl_gpio_irq_handler;
 	gpio_irq->parent_handler_data = pctrl;
 	gpio_irq->num_parents = pctrl->num_irq;
@@ -904,7 +904,7 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	gpio_irq->map = devm_kcalloc(pctrl->dev, chip->ngpio,
 				sizeof(*gpio_irq->map), GFP_KERNEL);
 	if (!gpio_irq->map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0, offset = 0; i < pctrl->soc->nports; i++) {
 		const struct owl_gpio_port *port = &pctrl->soc->ports[i];
@@ -932,7 +932,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pctrl->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->base))
@@ -941,7 +941,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	/* enable GPIO/MFP clock */
 	pctrl->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pctrl->clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
+		dev_err(&pdev->dev, "anal clock defined\n");
 		return PTR_ERR(pctrl->clk);
 	}
 
@@ -970,7 +970,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	pctrl->pctrldev = devm_pinctrl_register(&pdev->dev,
 					&owl_pinctrl_desc, pctrl);
 	if (IS_ERR(pctrl->pctrldev)) {
-		dev_err(&pdev->dev, "could not register Actions OWL pinmux driver\n");
+		dev_err(&pdev->dev, "could analt register Actions OWL pinmux driver\n");
 		ret = PTR_ERR(pctrl->pctrldev);
 		goto err_exit;
 	}
@@ -984,7 +984,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	pctrl->irq = devm_kcalloc(&pdev->dev, pctrl->num_irq,
 					sizeof(*pctrl->irq), GFP_KERNEL);
 	if (!pctrl->irq) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_exit;
 	}
 

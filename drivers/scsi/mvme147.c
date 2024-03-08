@@ -91,7 +91,7 @@ static int __init mvme147_init(void)
 {
 	wd33c93_regs regs;
 	struct WD33C93_hostdata *hdata;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	if (!MACH_IS_MVME147)
 		return 0;
@@ -107,7 +107,7 @@ static int __init mvme147_init(void)
 	regs.SCMD = (volatile unsigned char *)0xfffe4001;
 
 	hdata = shost_priv(mvme147_shost);
-	hdata->no_sync = 0xff;
+	hdata->anal_sync = 0xff;
 	hdata->fast = 0;
 	hdata->dma_mode = CTRL_DMA;
 

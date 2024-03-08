@@ -132,7 +132,7 @@ struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
 
 	pfd = kzalloc(sizeof(*pfd), GFP_KERNEL);
 	if (!pfd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	pfd->reg = reg;
 	pfd->idx = idx;

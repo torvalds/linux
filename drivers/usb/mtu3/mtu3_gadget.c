@@ -101,7 +101,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 
 		break;
 	default:
-		break; /*others are ignored */
+		break; /*others are iganalred */
 	}
 
 	dev_dbg(mtu->dev, "%s maxp:%d, interval:%d, burst:%d, mult:%d\n",
@@ -111,7 +111,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 	mep->ep.desc = desc;
 	mep->ep.comp_desc = comp_desc;
 
-	/* slot mainly affects bulk/isoc transfer, so ignore int */
+	/* slot mainly affects bulk/isoc transfer, so iganalre int */
 	mep->slot = usb_endpoint_xfer_int(desc) ? 0 : mtu->slot;
 
 	ret = mtu3_config_ep(mtu, mep, interval, burst, mult);
@@ -265,7 +265,7 @@ static int mtu3_gadget_queue(struct usb_ep *ep,
 	int ret = 0;
 
 	if (!req->buf)
-		return -ENODATA;
+		return -EANALDATA;
 
 	if (mreq->mep != mep)
 		return -EINVAL;
@@ -280,7 +280,7 @@ static int mtu3_gadget_queue(struct usb_ep *ep,
 			"req length > supported MAX:%d requested:%d\n",
 			mtu->gen2cp ? GPD_BUF_SIZE_EL : GPD_BUF_SIZE,
 			req->length);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* don't queue if the ep is down */
@@ -340,7 +340,7 @@ static int mtu3_gadget_dequeue(struct usb_ep *ep, struct usb_request *req)
 			break;
 	}
 	if (r != mreq) {
-		dev_dbg(mtu->dev, "req=%p not queued to %s\n", req, ep->name);
+		dev_dbg(mtu->dev, "req=%p analt queued to %s\n", req, ep->name);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -379,12 +379,12 @@ static int mtu3_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	mreq = next_request(mep);
 	if (value) {
 		/*
-		 * If there is not request for TX-EP, QMU will not transfer
-		 * data to TX-FIFO, so no need check whether TX-FIFO
-		 * holds bytes or not here
+		 * If there is analt request for TX-EP, QMU will analt transfer
+		 * data to TX-FIFO, so anal need check whether TX-FIFO
+		 * holds bytes or analt here
 		 */
 		if (mreq) {
-			dev_dbg(mtu->dev, "req in progress, cannot halt %s\n",
+			dev_dbg(mtu->dev, "req in progress, cananalt halt %s\n",
 				ep->name);
 			ret = -EAGAIN;
 			goto done;
@@ -404,7 +404,7 @@ done:
 	return ret;
 }
 
-/* Sets the halt feature with the clear requests ignored */
+/* Sets the halt feature with the clear requests iganalred */
 static int mtu3_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
@@ -432,11 +432,11 @@ static int mtu3_gadget_get_frame(struct usb_gadget *gadget)
 	return (int)mtu3_readl(mtu->mac_base, U3D_USB20_FRAME_NUM);
 }
 
-static void function_wake_notif(struct mtu3 *mtu, u8 intf)
+static void function_wake_analtif(struct mtu3 *mtu, u8 intf)
 {
-	mtu3_writel(mtu->mac_base, U3D_DEV_NOTIF_0,
-		    TYPE_FUNCTION_WAKE | DEV_NOTIF_VAL_FW(intf));
-	mtu3_setbits(mtu->mac_base, U3D_DEV_NOTIF_0, SEND_DEV_NOTIF);
+	mtu3_writel(mtu->mac_base, U3D_DEV_ANALTIF_0,
+		    TYPE_FUNCTION_WAKE | DEV_ANALTIF_VAL_FW(intf));
+	mtu3_setbits(mtu->mac_base, U3D_DEV_ANALTIF_0, SEND_DEV_ANALTIF);
 }
 
 static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
@@ -446,9 +446,9 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 
 	dev_dbg(mtu->dev, "%s\n", __func__);
 
-	/* remote wakeup feature is not enabled by host */
+	/* remote wakeup feature is analt enabled by host */
 	if (!mtu->may_wakeup)
-		return  -EOPNOTSUPP;
+		return  -EOPANALTSUPP;
 
 	spin_lock_irqsave(&mtu->lock, flags);
 	if (mtu->g.speed >= USB_SPEED_SUPER) {
@@ -463,7 +463,7 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 		 * FIXME if the IAD (interface association descriptor) shows
 		 * there is more than one function.
 		 */
-		function_wake_notif(mtu, 0);
+		function_wake_analtif(mtu, 0);
 	} else {
 		mtu3_setbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
 		spin_unlock_irqrestore(&mtu->lock, flags);
@@ -494,7 +494,7 @@ static int mtu3_gadget_pullup(struct usb_gadget *gadget, int is_on)
 
 	pm_runtime_get_sync(mtu->dev);
 
-	/* we'd rather not pullup unless the device is active. */
+	/* we'd rather analt pullup unless the device is active. */
 	spin_lock_irqsave(&mtu->lock, flags);
 
 	is_on = !!is_on;
@@ -546,11 +546,11 @@ static void stop_activity(struct mtu3 *mtu)
 	struct usb_gadget_driver *driver = mtu->gadget_driver;
 	int i;
 
-	/* don't disconnect if it's not connected */
-	if (mtu->g.speed == USB_SPEED_UNKNOWN)
+	/* don't disconnect if it's analt connected */
+	if (mtu->g.speed == USB_SPEED_UNKANALWN)
 		driver = NULL;
 	else
-		mtu->g.speed = USB_SPEED_UNKNOWN;
+		mtu->g.speed = USB_SPEED_UNKANALWN;
 
 	/* deactivate the hardware */
 	if (mtu->softconnect) {
@@ -707,7 +707,7 @@ int mtu3_gadget_setup(struct mtu3 *mtu)
 {
 	mtu->g.ops = &mtu3_gadget_ops;
 	mtu->g.max_speed = mtu->max_speed;
-	mtu->g.speed = USB_SPEED_UNKNOWN;
+	mtu->g.speed = USB_SPEED_UNKANALWN;
 	mtu->g.sg_supported = 0;
 	mtu->g.name = MTU3_DRIVER_NAME;
 	mtu->g.irq = mtu->irq;
@@ -756,7 +756,7 @@ void mtu3_gadget_disconnect(struct mtu3 *mtu)
 	}
 
 	mtu3_state_reset(mtu);
-	usb_gadget_set_state(&mtu->g, USB_STATE_NOTATTACHED);
+	usb_gadget_set_state(&mtu->g, USB_STATE_ANALTATTACHED);
 }
 
 void mtu3_gadget_reset(struct mtu3 *mtu)
@@ -764,7 +764,7 @@ void mtu3_gadget_reset(struct mtu3 *mtu)
 	dev_dbg(mtu->dev, "gadget RESET\n");
 
 	/* report disconnect, if we didn't flush EP state */
-	if (mtu->g.speed != USB_SPEED_UNKNOWN)
+	if (mtu->g.speed != USB_SPEED_UNKANALWN)
 		mtu3_gadget_disconnect(mtu);
 	else
 		mtu3_state_reset(mtu);

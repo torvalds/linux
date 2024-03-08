@@ -7,7 +7,7 @@
 #include "fncache.h"
 
 struct fncache {
-	struct hlist_node nd;
+	struct hlist_analde nd;
 	bool res;
 	char name[];
 };
@@ -50,7 +50,7 @@ static void update_fncache(const char *name, bool res)
 	hlist_add_head(&n->nd, &fncache_hash[h]);
 }
 
-/* No LRU, only use when bounded in some other way. */
+/* Anal LRU, only use when bounded in some other way. */
 bool file_available(const char *name)
 {
 	bool res;

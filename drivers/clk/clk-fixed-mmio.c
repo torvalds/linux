@@ -15,33 +15,33 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 
-static struct clk_hw *fixed_mmio_clk_setup(struct device_node *node)
+static struct clk_hw *fixed_mmio_clk_setup(struct device_analde *analde)
 {
 	struct clk_hw *clk;
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	void __iomem *base;
 	u32 freq;
 	int ret;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
-		pr_err("%pOFn: failed to map address\n", node);
+		pr_err("%pOFn: failed to map address\n", analde);
 		return ERR_PTR(-EIO);
 	}
 
 	freq = readl(base);
 	iounmap(base);
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
 
 	clk = clk_hw_register_fixed_rate(NULL, clk_name, NULL, 0, freq);
 	if (IS_ERR(clk)) {
-		pr_err("%pOFn: failed to register fixed rate clock\n", node);
+		pr_err("%pOFn: failed to register fixed rate clock\n", analde);
 		return clk;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, clk);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_simple_get, clk);
 	if (ret) {
-		pr_err("%pOFn: failed to add clock provider\n", node);
+		pr_err("%pOFn: failed to add clock provider\n", analde);
 		clk_hw_unregister(clk);
 		clk = ERR_PTR(ret);
 	}
@@ -49,20 +49,20 @@ static struct clk_hw *fixed_mmio_clk_setup(struct device_node *node)
 	return clk;
 }
 
-static void __init of_fixed_mmio_clk_setup(struct device_node *node)
+static void __init of_fixed_mmio_clk_setup(struct device_analde *analde)
 {
-	fixed_mmio_clk_setup(node);
+	fixed_mmio_clk_setup(analde);
 }
 CLK_OF_DECLARE(fixed_mmio_clk, "fixed-mmio-clock", of_fixed_mmio_clk_setup);
 
 /*
- * This is not executed when of_fixed_mmio_clk_setup succeeded.
+ * This is analt executed when of_fixed_mmio_clk_setup succeeded.
  */
 static int of_fixed_mmio_clk_probe(struct platform_device *pdev)
 {
 	struct clk_hw *clk;
 
-	clk = fixed_mmio_clk_setup(pdev->dev.of_node);
+	clk = fixed_mmio_clk_setup(pdev->dev.of_analde);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -75,7 +75,7 @@ static void of_fixed_mmio_clk_remove(struct platform_device *pdev)
 {
 	struct clk_hw *clk = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_analde);
 	clk_hw_unregister_fixed_rate(clk);
 }
 

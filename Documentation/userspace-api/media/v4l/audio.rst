@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _audio:
 
@@ -8,11 +8,11 @@ Audio Inputs and Outputs
 
 Audio inputs and outputs are physical connectors of a device. Video
 capture devices have inputs, output devices have outputs, zero or more
-each. Radio devices have no audio inputs or outputs. They have exactly
+each. Radio devices have anal audio inputs or outputs. They have exactly
 one tuner which in fact *is* an audio source, but this API associates
-tuners with video inputs or outputs only, and radio devices have none of
+tuners with video inputs or outputs only, and radio devices have analne of
 these. [#f1]_ A connector on a TV card to loop back the received audio
-signal to a sound card is not considered an audio output.
+signal to a sound card is analt considered an audio output.
 
 Audio and video inputs and outputs are associated. Selecting a video
 source also selects an audio source. This is most evident when the video
@@ -37,16 +37,16 @@ The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
 :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` ioctls report the current
 audio input and output, respectively.
 
-.. note::
+.. analte::
 
-   Note that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+   Analte that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
    :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` these ioctls return a
    structure as :ref:`VIDIOC_ENUMAUDIO` and
-   :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` do, not just an index.
+   :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` do, analt just an index.
 
 To select an audio input and change its properties applications call the
 :ref:`VIDIOC_S_AUDIO <VIDIOC_G_AUDIO>` ioctl. To select an audio
-output (which presently has no changeable properties) applications call
+output (which presently has anal changeable properties) applications call
 the :ref:`VIDIOC_S_AUDOUT <VIDIOC_G_AUDOUT>` ioctl.
 
 Drivers must implement all audio input ioctls when the device has
@@ -92,6 +92,6 @@ Example: Switching to the first audio input
 
 .. [#f1]
    Actually struct :c:type:`v4l2_audio` ought to have a
-   ``tuner`` field like struct :c:type:`v4l2_input`, not
+   ``tuner`` field like struct :c:type:`v4l2_input`, analt
    only making the API more consistent but also permitting radio devices
    with multiple tuners.

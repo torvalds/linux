@@ -187,8 +187,8 @@
 
 		button-x {
 			gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
-			label = "NORTH";
-			linux,code = <BTN_NORTH>;
+			label = "ANALRTH";
+			linux,code = <BTN_ANALRTH>;
 		};
 
 		button-y {
@@ -270,8 +270,8 @@
 
 	/*
 	 * Channels reversed for speakers. Headphones automatically switch via hardware when
-	 * detected with no ability to control output in software. Headphones appear to be mono
-	 * (each output channel receives all audio). No microphone support on 3.5mm jack.
+	 * detected with anal ability to control output in software. Headphones appear to be moanal
+	 * (each output channel receives all audio). Anal microphone support on 3.5mm jack.
 	 */
 	sound {
 		compatible = "simple-audio-card";
@@ -691,7 +691,7 @@
 	gpio-lcd {
 		lcd_rst: lcd-rst {
 			rockchip,pins =
-				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -705,21 +705,21 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PA2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc3v3-lcd {
 		vcc_lcd_h: vcc-lcd-h {
 			rockchip,pins =
-				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	vcc-wifi {
 		vcc_wifi_h: vcc-wifi-h {
 			rockchip,pins =
-				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -785,7 +785,7 @@
 	cap-sdio-irq;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vcc_wifi>;

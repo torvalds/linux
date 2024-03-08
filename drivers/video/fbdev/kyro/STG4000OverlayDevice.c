@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/kyro/STG4000OverlayDevice.c
  *
- *  Copyright (C) 2000 Imagination Technologies Ltd
+ *  Copyright (C) 2000 Imagination Techanallogies Ltd
  *  Copyright (C) 2002 STMicroelectronics
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
 #include "STG4000Reg.h"
@@ -18,8 +18,8 @@
 
 /* HW Defines */
 
-#define STG4000_NO_SCALING    0x800
-#define STG4000_NO_DECIMATION 0xFFFFFFFF
+#define STG4000_ANAL_SCALING    0x800
+#define STG4000_ANAL_DECIMATION 0xFFFFFFFF
 
 /* Primary surface */
 #define STG4000_PRIM_NUM_PIX   5
@@ -103,7 +103,7 @@ void ResetOverlayRegisters(volatile STG4000REG __iomem *pSTGReg)
 	STG_WRITE_REG(DACOverlaySize, tmp);
 
 	/* Set Overlay Vt Decimation */
-	tmp = STG4000_NO_DECIMATION;
+	tmp = STG4000_ANAL_DECIMATION;
 	STG_WRITE_REG(DACOverlayVtDec, tmp);
 
 	/* Set Overlay format to default value */
@@ -116,14 +116,14 @@ void ResetOverlayRegisters(volatile STG4000REG __iomem *pSTGReg)
 	tmp = STG_READ_REG(DACVerticalScal);
 	CLEAR_BITS_FRM_TO(0, 11);
 	CLEAR_BITS_FRM_TO(16, 22);
-	tmp |= STG4000_NO_SCALING;	/* Set to no scaling */
+	tmp |= STG4000_ANAL_SCALING;	/* Set to anal scaling */
 	STG_WRITE_REG(DACVerticalScal, tmp);
 
 	/* Set Horizontal Scaling to default */
 	tmp = STG_READ_REG(DACHorizontalScal);
 	CLEAR_BITS_FRM_TO(0, 11);
 	CLEAR_BITS_FRM_TO(16, 17);
-	tmp |= STG4000_NO_SCALING;	/* Set to no scaling */
+	tmp |= STG4000_ANAL_SCALING;	/* Set to anal scaling */
 	STG_WRITE_REG(DACHorizontalScal, tmp);
 
 	/* Set Blend mode to Alpha Blend */
@@ -223,7 +223,7 @@ int CreateOverlaySurface(volatile STG4000REG __iomem *pSTGReg,
 
 
 	/* Set Overlay YUV pixel format
-	 * Make sure that LUT not used - ??????
+	 * Make sure that LUT analt used - ??????
 	 */
 	tmp = STG_READ_REG(DACPixelFormat);
 	/* Only support Planer or UYVY linear formats */
@@ -417,7 +417,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 	/***************** Horizontal decimation/scaling ***************************/
 
 	/*
-	 * Now we handle the horizontal case, this is a simplified version of
+	 * Analw we handle the horizontal case, this is a simplified version of
 	 * the vertical case in that we decimate by factors of 2.  as we are
 	 * working in words we should always be able to decimate by these
 	 * factors.  as we always have to have a buffer which is aligned to a
@@ -425,7 +425,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 	 * lowest to the next lowest 128 bit boundary, and the right hand edge
 	 * to the next largets boundary, (in a similar way to how we didi it in
 	 * PMX1) as the left and right hand edges are aligned to these
-	 * boundaries normally this only becomes an issue when we are chopping
+	 * boundaries analrmally this only becomes an issue when we are chopping
 	 * of one of the sides We shall work out vertical stuff first
 	 */
 	ulSrc = srcDest.ulSrcX2 - srcDest.ulSrcX1;
@@ -511,7 +511,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 
 		/*
 		 * use unclipped value to work out scale factror this is the
-		 * scale factor we want we shall now work out the horizonal
+		 * scale factor we want we shall analw work out the horizonal
 		 * decimation and scaling
 		 */
 		ulsVal = ((ulWidth / 8) >> ulhDecim);
@@ -556,7 +556,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 	tmp |= ((ulStride << 16) | (ulDacYScale));	/* DAC_LS_CTRL = stride */
 	STG_WRITE_REG(DACVerticalScal, tmp);
 
-	/* Now set up the overlay size using the modified width and height
+	/* Analw set up the overlay size using the modified width and height
 	   from decimate and scaling calculations
 	 */
 	tmp = STG_READ_REG(DACOverlaySize);

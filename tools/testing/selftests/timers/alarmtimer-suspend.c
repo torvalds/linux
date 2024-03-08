@@ -31,12 +31,12 @@
 #include "../kselftest.h"
 
 #define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
+#define CLOCK_MOANALTONIC			1
 #define CLOCK_PROCESS_CPUTIME_ID	2
 #define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
+#define CLOCK_MOANALTONIC_RAW		4
 #define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
+#define CLOCK_MOANALTONIC_COARSE		6
 #define CLOCK_BOOTTIME			7
 #define CLOCK_REALTIME_ALARM		8
 #define CLOCK_BOOTTIME_ALARM		9
@@ -59,18 +59,18 @@ char *clockstring(int clockid)
 	switch (clockid) {
 	case CLOCK_REALTIME:
 		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
+	case CLOCK_MOANALTONIC:
+		return "CLOCK_MOANALTONIC";
 	case CLOCK_PROCESS_CPUTIME_ID:
 		return "CLOCK_PROCESS_CPUTIME_ID";
 	case CLOCK_THREAD_CPUTIME_ID:
 		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
+	case CLOCK_MOANALTONIC_RAW:
+		return "CLOCK_MOANALTONIC_RAW";
 	case CLOCK_REALTIME_COARSE:
 		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
+	case CLOCK_MOANALTONIC_COARSE:
+		return "CLOCK_MOANALTONIC_COARSE";
 	case CLOCK_BOOTTIME:
 		return "CLOCK_BOOTTIME";
 	case CLOCK_REALTIME_ALARM:
@@ -80,7 +80,7 @@ char *clockstring(int clockid)
 	case CLOCK_TAI:
 		return "CLOCK_TAI";
 	}
-	return "UNKNOWN_CLOCKID";
+	return "UNKANALWN_CLOCKID";
 }
 
 
@@ -94,7 +94,7 @@ long long timespec_sub(struct timespec a, struct timespec b)
 
 int final_ret;
 
-void sigalarm(int signo)
+void sigalarm(int siganal)
 {
 	long long delta_ns;
 	struct timespec ts;
@@ -132,8 +132,8 @@ int main(void)
 
 	/* Set up timer: */
 	memset(&se, 0, sizeof(se));
-	se.sigev_notify = SIGEV_SIGNAL;
-	se.sigev_signo = signum;
+	se.sigev_analtify = SIGEV_SIGNAL;
+	se.sigev_siganal = signum;
 	se.sigev_value.sival_int = 0;
 
 	for (alarm_clock_id = CLOCK_REALTIME_ALARM;
@@ -159,7 +159,7 @@ int main(void)
 		timer_settime(tm1, TIMER_ABSTIME, &its1, &its2);
 
 		while (alarmcount < 5)
-			sleep(1); /* First 5 alarms, do nothing */
+			sleep(1); /* First 5 alarms, do analthing */
 
 		printf("Starting suspend loops\n");
 		while (alarmcount < 10) {

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================================
-Notes on the DEC FDDIcontroller 700 (DEFZA-xx) driver
+Analtes on the DEC FDDIcontroller 700 (DEFZA-xx) driver
 =====================================================
 
 :Version: v.1.1.4
@@ -15,7 +15,7 @@ it was manufactured in two variations, both of which are supported.
 First is the SAS MMF DEFZA-AA option, the original design implementing
 the standard MMF-PMD, however with a pair of ST connectors rather than
 the usual MIC connector.  The other one is the SAS ThinWire/STP DEFZA-CA
-option, denoted 700-C, with the network medium selectable by a switch
+option, deanalted 700-C, with the network medium selectable by a switch
 between the DEC proprietary ThinWire-PMD using a BNC connector and the
 standard STP-PMD using a DE-9F connector.  This option can interface to
 a DECconcentrator 500 device and, in the case of the STP-PMD, also other
@@ -40,16 +40,16 @@ supports separate enables for LLC and SMT frames, but this driver
 doesn't support changing them individually.
 
 
-Known problems:
+Kanalwn problems:
 
-None.
+Analne.
 
 
 To do:
 
-5. MAC address change.  The card does not support changing the Media
+5. MAC address change.  The card does analt support changing the Media
    Access Controller's address registers but a similar effect can be
-   achieved by adding an alias to the CAM.  There is no way to disable
+   achieved by adding an alias to the CAM.  There is anal way to disable
    matching against the original address though.
 
 7. Queueing incoming/outgoing SMT frames in the driver if the SMT

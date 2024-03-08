@@ -9,7 +9,7 @@
    Copyright (C) 1999-2010 3ware Inc.
 
    Kernel compatibility By:	Andre Hedrick <andre@suse.com>
-   Non-Copyright (C) 2000	Andre Hedrick <andre@suse.com>
+   Analn-Copyright (C) 2000	Andre Hedrick <andre@suse.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,19 +20,19 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   NO WARRANTY
+   ANAL WARRANTY
    THE PROGRAM IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED INCLUDING, WITHOUT
-   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+   LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, ANALN-INFRINGEMENT,
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but analt limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
    DISCLAIMER OF LIABILITY
-   NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
+   NEITHER RECIPIENT ANALR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
    DAMAGES (INCLUDING WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND
    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
@@ -41,7 +41,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
@@ -88,8 +88,8 @@ static char *tw_aen_string[] = {
 	[0x02C] = "WARNING: Overwrote bad sector during rebuild: Port #",
 	[0x02D] = "ERROR: Encountered bad sector during rebuild: Port #",
 	[0x02E] = "ERROR: Replacement drive is too small: Port #",
-	[0x02F] = "WARNING: Verify error: Unit not previously initialized: Unit #",
-	[0x030] = "ERROR: Drive not supported: Port #"
+	[0x02F] = "WARNING: Verify error: Unit analt previously initialized: Unit #",
+	[0x030] = "ERROR: Drive analt supported: Port #"
 };
 
 /*
@@ -100,16 +100,16 @@ static unsigned char tw_sense_table[][4] =
 {
   /* Codes for newer firmware */
 	// ATA Error                    SCSI Error
-	{0x01, 0x03, 0x13, 0x00}, // Address mark not found       Address mark not found for data field
+	{0x01, 0x03, 0x13, 0x00}, // Address mark analt found       Address mark analt found for data field
 	{0x04, 0x0b, 0x00, 0x00}, // Aborted command              Aborted command
-	{0x10, 0x0b, 0x14, 0x00}, // ID not found                 Recorded entity not found
+	{0x10, 0x0b, 0x14, 0x00}, // ID analt found                 Recorded entity analt found
 	{0x40, 0x03, 0x11, 0x00}, // Uncorrectable ECC error      Unrecovered read error
 	{0x61, 0x04, 0x00, 0x00}, // Device fault                 Hardware error
 	{0x84, 0x0b, 0x47, 0x00}, // Data CRC error               SCSI parity error
 	{0xd0, 0x0b, 0x00, 0x00}, // Device busy                  Aborted command
 	{0xd1, 0x0b, 0x00, 0x00}, // Device busy                  Aborted command
-	{0x37, 0x02, 0x04, 0x00}, // Unit offline                 Not ready
-	{0x09, 0x02, 0x04, 0x00}, // Unrecovered disk error       Not ready
+	{0x37, 0x02, 0x04, 0x00}, // Unit offline                 Analt ready
+	{0x09, 0x02, 0x04, 0x00}, // Unrecovered disk error       Analt ready
 
 	/* Codes for older firmware */
 	// 3ware Error                  SCSI Error
@@ -135,7 +135,7 @@ static unsigned char tw_sense_table[][4] =
 
 /* Status register bit definitions */
 #define TW_STATUS_MAJOR_VERSION_MASK	       0xF0000000
-#define TW_STATUS_MINOR_VERSION_MASK	       0x0F000000
+#define TW_STATUS_MIANALR_VERSION_MASK	       0x0F000000
 #define TW_STATUS_PCI_PARITY_ERROR	       0x00800000
 #define TW_STATUS_QUEUE_ERROR		       0x00400000
 #define TW_STATUS_MICROCONTROLLER_ERROR	       0x00200000
@@ -169,7 +169,7 @@ static unsigned char tw_sense_table[][4] =
 #define TW_PCI_CLEAR_PCI_ABORT     0x2000
 
 /* Command packet opcodes */
-#define TW_OP_NOP	      0x0
+#define TW_OP_ANALP	      0x0
 #define TW_OP_INIT_CONNECTION 0x1
 #define TW_OP_READ	      0x2
 #define TW_OP_WRITE	      0x3
@@ -182,7 +182,7 @@ static unsigned char tw_sense_table[][4] =
 #define TW_CMD_PACKET	      0x1d
 #define TW_CMD_PACKET_WITH_DATA 0x1f
 
-/* Asynchronous Event Notification (AEN) Codes */
+/* Asynchroanalus Event Analtification (AEN) Codes */
 #define TW_AEN_QUEUE_EMPTY       0x0000
 #define TW_AEN_SOFT_RESET	 0x0001
 #define TW_AEN_DEGRADED_MIRROR   0x0002

@@ -53,7 +53,7 @@ enum RT_CUSTOMER_ID {
 	RT_CID_819x_ALPHA = 15,
 	RT_CID_819x_Sitecom = 16,
 	RT_CID_CCX = 17,
-	RT_CID_819x_Lenovo = 18,
+	RT_CID_819x_Leanalvo = 18,
 	RT_CID_819x_QMI = 19,
 	RT_CID_819x_Edimax_Belkin = 20,
 	RT_CID_819x_Sercomm_Belkin = 21,

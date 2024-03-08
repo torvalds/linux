@@ -30,7 +30,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/sizes.h>
 
 #ifdef CONFIG_X86
@@ -272,7 +272,7 @@ static int mmu_l1_map(struct isp_mmu *mmu, phys_addr_t l1_pt,
 				/* free all mapped pages */
 				free_mmu_map(mmu, start, ptr);
 
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 
 			l2_pte = isp_pgaddr_to_pte_valid(mmu, l2_pt);
@@ -330,7 +330,7 @@ static int mmu_map(struct isp_mmu *mmu, unsigned int isp_virt,
 		if (l1_pt == NULL_PAGE) {
 			dev_err(atomisp_dev, "alloc page table fail.\n");
 			mutex_unlock(&mmu->pt_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		/*
@@ -516,7 +516,7 @@ int isp_mmu_init(struct isp_mmu *mmu, struct isp_mmu_client *driver)
 	mmu->driver = driver;
 
 	if (!driver->tlb_flush_all) {
-		dev_err(atomisp_dev, "tlb_flush_all operation not provided.\n");
+		dev_err(atomisp_dev, "tlb_flush_all operation analt provided.\n");
 		return -EINVAL;
 	}
 

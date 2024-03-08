@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -76,14 +76,14 @@
 #define mmMMSCH_VF_MAILBOX_1_RESP_BASE_IDX                                                             0
 #define mmMMSCH_CNTL                                                                                   0x001c
 #define mmMMSCH_CNTL_BASE_IDX                                                                          0
-#define mmMMSCH_NONCACHE_OFFSET0                                                                       0x001d
-#define mmMMSCH_NONCACHE_OFFSET0_BASE_IDX                                                              0
-#define mmMMSCH_NONCACHE_SIZE0                                                                         0x001e
-#define mmMMSCH_NONCACHE_SIZE0_BASE_IDX                                                                0
-#define mmMMSCH_NONCACHE_OFFSET1                                                                       0x001f
-#define mmMMSCH_NONCACHE_OFFSET1_BASE_IDX                                                              0
-#define mmMMSCH_NONCACHE_SIZE1                                                                         0x0020
-#define mmMMSCH_NONCACHE_SIZE1_BASE_IDX                                                                0
+#define mmMMSCH_ANALNCACHE_OFFSET0                                                                       0x001d
+#define mmMMSCH_ANALNCACHE_OFFSET0_BASE_IDX                                                              0
+#define mmMMSCH_ANALNCACHE_SIZE0                                                                         0x001e
+#define mmMMSCH_ANALNCACHE_SIZE0_BASE_IDX                                                                0
+#define mmMMSCH_ANALNCACHE_OFFSET1                                                                       0x001f
+#define mmMMSCH_ANALNCACHE_OFFSET1_BASE_IDX                                                              0
+#define mmMMSCH_ANALNCACHE_SIZE1                                                                         0x0020
+#define mmMMSCH_ANALNCACHE_SIZE1_BASE_IDX                                                                0
 #define mmMMSCH_PDEBUG_STATUS                                                                          0x0021
 #define mmMMSCH_PDEBUG_STATUS_BASE_IDX                                                                 0
 #define mmMMSCH_PDEBUG_DATA_32UPPERBITS                                                                0x0022
@@ -222,8 +222,8 @@
 #define mmMMSCH_VM_BUSY_STATUS_2_BASE_IDX                                                              0
 
 #define MMSCH_VERSION_MAJOR	2
-#define MMSCH_VERSION_MINOR	0
-#define MMSCH_VERSION	(MMSCH_VERSION_MAJOR << 16 | MMSCH_VERSION_MINOR)
+#define MMSCH_VERSION_MIANALR	0
+#define MMSCH_VERSION	(MMSCH_VERSION_MAJOR << 16 | MMSCH_VERSION_MIANALR)
 
 enum mmsch_v2_0_command_type {
 	MMSCH_COMMAND__DIRECT_REG_WRITE = 0,

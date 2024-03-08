@@ -126,9 +126,9 @@
 #define HAS_2D_SCROLL		5
 
 /* General 2D Control Register Bits (GENERAL_2D_CONTROL_REG) */
-#define NO_DECELERATION		1
+#define ANAL_DECELERATION		1
 #define REDUCE_REPORTING	3
-#define NO_FILTER		5
+#define ANAL_FILTER		5
 
 /* Function Masks */
 /* Device Control Register Masks (DEV_CONTROL_REG) */
@@ -137,7 +137,7 @@
 
 /* Device Sleep Modes */
 #define FULL_AWAKE		0x0
-#define NORMAL_OP		0x1
+#define ANALRMAL_OP		0x1
 #define LOW_PWR_OP		0x2
 #define VERY_LOW_PWR_OP		0x3
 #define SENS_SLEEP		0x4
@@ -178,26 +178,26 @@
 #define THREAD_IRQ_SLEEP_MSECS	(THREAD_IRQ_SLEEP_SECS * MSEC_PER_SEC)
 
 /*
- * When in Polling mode and no data received for NO_DATA_THRES msecs
- * reduce the polling rate to NO_DATA_SLEEP_MSECS
+ * When in Polling mode and anal data received for ANAL_DATA_THRES msecs
+ * reduce the polling rate to ANAL_DATA_SLEEP_MSECS
  */
-#define NO_DATA_THRES		(MSEC_PER_SEC)
-#define NO_DATA_SLEEP_MSECS	(MSEC_PER_SEC / 4)
+#define ANAL_DATA_THRES		(MSEC_PER_SEC)
+#define ANAL_DATA_SLEEP_MSECS	(MSEC_PER_SEC / 4)
 
-/* Control touchpad's No Deceleration option */
-static bool no_decel = true;
-module_param(no_decel, bool, 0644);
-MODULE_PARM_DESC(no_decel, "No Deceleration. Default = 1 (on)");
+/* Control touchpad's Anal Deceleration option */
+static bool anal_decel = true;
+module_param(anal_decel, bool, 0644);
+MODULE_PARM_DESC(anal_decel, "Anal Deceleration. Default = 1 (on)");
 
 /* Control touchpad's Reduced Reporting option */
 static bool reduce_report;
 module_param(reduce_report, bool, 0644);
 MODULE_PARM_DESC(reduce_report, "Reduced Reporting. Default = 0 (off)");
 
-/* Control touchpad's No Filter option */
-static bool no_filter;
-module_param(no_filter, bool, 0644);
-MODULE_PARM_DESC(no_filter, "No Filter. Default = 0 (off)");
+/* Control touchpad's Anal Filter option */
+static bool anal_filter;
+module_param(anal_filter, bool, 0644);
+MODULE_PARM_DESC(anal_filter, "Anal Filter. Default = 0 (off)");
 
 /*
  * touchpad Attention line is Active Low and Open Drain,
@@ -219,10 +219,10 @@ struct synaptics_i2c {
 	struct i2c_client	*client;
 	struct input_dev	*input;
 	struct delayed_work	dwork;
-	int			no_data_count;
-	int			no_decel_param;
+	int			anal_data_count;
+	int			anal_decel_param;
 	int			reduce_report_param;
-	int			no_filter_param;
+	int			anal_filter_param;
 	int			scan_rate_param;
 	int			scan_ms;
 };
@@ -234,8 +234,8 @@ static inline void set_scan_rate(struct synaptics_i2c *touch, int scan_rate)
 }
 
 /*
- * Driver's initial design makes no race condition possible on i2c bus,
- * so there is no need in any locking.
+ * Driver's initial design makes anal race condition possible on i2c bus,
+ * so there is anal need in any locking.
  * Keep it in mind, while playing with the code.
  */
 static s32 synaptics_i2c_reg_get(struct i2c_client *client, u16 reg)
@@ -276,7 +276,7 @@ static int synaptics_i2c_config(struct i2c_client *client)
 	int ret, control;
 	u8 int_en;
 
-	/* set Report Rate to Device Highest (>=80) and Sleep to normal */
+	/* set Report Rate to Device Highest (>=80) and Sleep to analrmal */
 	ret = synaptics_i2c_reg_set(client, DEV_CONTROL_REG, 0xc1);
 	if (ret)
 		return ret;
@@ -288,12 +288,12 @@ static int synaptics_i2c_config(struct i2c_client *client)
 		return ret;
 
 	control = synaptics_i2c_reg_get(client, GENERAL_2D_CONTROL_REG);
-	/* No Deceleration */
-	control |= no_decel ? 1 << NO_DECELERATION : 0;
+	/* Anal Deceleration */
+	control |= anal_decel ? 1 << ANAL_DECELERATION : 0;
 	/* Reduced Reporting */
 	control |= reduce_report ? 1 << REDUCE_REPORTING : 0;
-	/* No Filter */
-	control |= no_filter ? 1 << NO_FILTER : 0;
+	/* Anal Filter */
+	control |= anal_filter ? 1 << ANAL_FILTER : 0;
 	ret = synaptics_i2c_reg_set(client, GENERAL_2D_CONTROL_REG, control);
 	if (ret)
 		return ret;
@@ -384,13 +384,13 @@ static void synaptics_i2c_check_params(struct synaptics_i2c *touch)
 	if (scan_rate != touch->scan_rate_param)
 		set_scan_rate(touch, scan_rate);
 
-	if (no_decel != touch->no_decel_param) {
-		touch->no_decel_param = no_decel;
+	if (anal_decel != touch->anal_decel_param) {
+		touch->anal_decel_param = anal_decel;
 		reset = true;
 	}
 
-	if (no_filter != touch->no_filter_param) {
-		touch->no_filter_param = no_filter;
+	if (anal_filter != touch->anal_filter_param) {
+		touch->anal_filter_param = anal_filter;
 		reset = true;
 	}
 
@@ -407,18 +407,18 @@ static void synaptics_i2c_check_params(struct synaptics_i2c *touch)
 static unsigned long synaptics_i2c_adjust_delay(struct synaptics_i2c *touch,
 						bool have_data)
 {
-	unsigned long delay, nodata_count_thres;
+	unsigned long delay, analdata_count_thres;
 
 	if (polling_req) {
 		delay = touch->scan_ms;
 		if (have_data) {
-			touch->no_data_count = 0;
+			touch->anal_data_count = 0;
 		} else {
-			nodata_count_thres = NO_DATA_THRES / touch->scan_ms;
-			if (touch->no_data_count < nodata_count_thres)
-				touch->no_data_count++;
+			analdata_count_thres = ANAL_DATA_THRES / touch->scan_ms;
+			if (touch->anal_data_count < analdata_count_thres)
+				touch->anal_data_count++;
 			else
-				delay = NO_DATA_SLEEP_MSECS;
+				delay = ANAL_DATA_SLEEP_MSECS;
 		}
 		return msecs_to_jiffies(delay);
 	} else {
@@ -441,7 +441,7 @@ static void synaptics_i2c_work_handler(struct work_struct *work)
 	delay = synaptics_i2c_adjust_delay(touch, have_data);
 
 	/*
-	 * While interrupt driven, there is no real need to poll the device.
+	 * While interrupt driven, there is anal real need to poll the device.
 	 * But touchpads are very sensitive, so there could be errors
 	 * related to physical environment and the attention line isn't
 	 * necessarily asserted. In such case we can lose the touchpad.
@@ -462,7 +462,7 @@ static int synaptics_i2c_open(struct input_dev *input)
 
 	if (polling_req)
 		mod_delayed_work(system_wq, &touch->dwork,
-				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
+				msecs_to_jiffies(ANAL_DATA_SLEEP_MSECS));
 
 	return 0;
 }
@@ -513,7 +513,7 @@ static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *clien
 		return NULL;
 
 	touch->client = client;
-	touch->no_decel_param = no_decel;
+	touch->anal_decel_param = anal_decel;
 	touch->scan_rate_param = scan_rate;
 	set_scan_rate(touch, scan_rate);
 	INIT_DELAYED_WORK(&touch->dwork, synaptics_i2c_work_handler);
@@ -528,7 +528,7 @@ static int synaptics_i2c_probe(struct i2c_client *client)
 
 	touch = synaptics_i2c_touch_create(client);
 	if (!touch)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = synaptics_i2c_reset_config(client);
 	if (ret)
@@ -539,7 +539,7 @@ static int synaptics_i2c_probe(struct i2c_client *client)
 
 	touch->input = input_allocate_device();
 	if (!touch->input) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mem_free;
 	}
 
@@ -621,7 +621,7 @@ static int synaptics_i2c_resume(struct device *dev)
 		return ret;
 
 	mod_delayed_work(system_wq, &touch->dwork,
-				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
+				msecs_to_jiffies(ANAL_DATA_SLEEP_MSECS));
 
 	return 0;
 }

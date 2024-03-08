@@ -92,7 +92,7 @@
 			clock-names = "ipg", "ahb", "per";
 			bus-width = <4>;
 			fsl,wp-controller;
-			no-1-8-v;
+			anal-1-8-v;
 			max-frequency = <200000000>;
 			fsl,tuning-start-tap = <20>;
 			fsl,tuning-step = <2>;

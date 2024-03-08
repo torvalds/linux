@@ -158,7 +158,7 @@ extern const struct rtw_chip_info rtw8821c_hw_spec;
 
 #define WLAN_TX_FUNC_CFG1		0x30
 #define WLAN_TX_FUNC_CFG2		0x30
-#define WLAN_MAC_OPT_NORM_FUNC1		0x98
+#define WLAN_MAC_OPT_ANALRM_FUNC1		0x98
 #define WLAN_MAC_OPT_LB_FUNC1		0x80
 #define WLAN_MAC_OPT_FUNC2		0xb0810041
 

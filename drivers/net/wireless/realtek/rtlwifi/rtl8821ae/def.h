@@ -90,7 +90,7 @@
 #define	MGN_MCS14_SG		0xce
 #define	MGN_MCS15_SG		0xcf
 
-#define	MGN_UNKNOWN			0xff
+#define	MGN_UNKANALWN			0xff
 
 /* 30 ms */
 #define	WIFI_NAV_UPPER_US				30000
@@ -113,7 +113,7 @@
 #define CHIP_8821				(BIT(0)|BIT(2))
 
 #define CHIP_8821A				(BIT(0)|BIT(2))
-#define NORMAL_CHIP				BIT(3)
+#define ANALRMAL_CHIP				BIT(3)
 #define RF_TYPE_1T1R				(~(BIT(4)|BIT(5)|BIT(6)))
 #define RF_TYPE_1T2R				BIT(4)
 #define RF_TYPE_2T2R				BIT(5)
@@ -127,18 +127,18 @@
 enum version_8821ae {
 	VERSION_TEST_CHIP_1T1R_8812 = 0x0004,
 	VERSION_TEST_CHIP_2T2R_8812 = 0x0024,
-	VERSION_NORMAL_TSMC_CHIP_1T1R_8812 = 0x100c,
-	VERSION_NORMAL_TSMC_CHIP_2T2R_8812 = 0x102c,
-	VERSION_NORMAL_TSMC_CHIP_1T1R_8812_C_CUT = 0x200c,
-	VERSION_NORMAL_TSMC_CHIP_2T2R_8812_C_CUT = 0x202c,
+	VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812 = 0x100c,
+	VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812 = 0x102c,
+	VERSION_ANALRMAL_TSMC_CHIP_1T1R_8812_C_CUT = 0x200c,
+	VERSION_ANALRMAL_TSMC_CHIP_2T2R_8812_C_CUT = 0x202c,
 	VERSION_TEST_CHIP_8821 = 0x0005,
-	VERSION_NORMAL_TSMC_CHIP_8821 = 0x000d,
-	VERSION_NORMAL_TSMC_CHIP_8821_B_CUT = 0x100d,
-	VERSION_UNKNOWN = 0xFF,
+	VERSION_ANALRMAL_TSMC_CHIP_8821 = 0x000d,
+	VERSION_ANALRMAL_TSMC_CHIP_8821_B_CUT = 0x100d,
+	VERSION_UNKANALWN = 0xFF,
 };
 
 enum vht_data_sc {
-	VHT_DATA_SC_DONOT_CARE = 0,
+	VHT_DATA_SC_DOANALT_CARE = 0,
 	VHT_DATA_SC_20_UPPER_OF_80MHZ = 1,
 	VHT_DATA_SC_20_LOWER_OF_80MHZ = 2,
 	VHT_DATA_SC_20_UPPERST_OF_80MHZ = 3,
@@ -179,10 +179,10 @@ enum vht_data_sc {
 								true : false)
 
 #define IS_VENDOR_8812A_TEST_CHIP(version)	((IS_8812_SERIES(version)) ? \
-					((IS_NORMAL_CHIP(version)) ? \
+					((IS_ANALRMAL_CHIP(version)) ? \
 						false : true) : false)
 #define IS_VENDOR_8812A_MP_CHIP(version)	((IS_8812_SERIES(version)) ? \
-					((IS_NORMAL_CHIP(version)) ? \
+					((IS_ANALRMAL_CHIP(version)) ? \
 						true : false) : false)
 #define IS_VENDOR_8812A_C_CUT(version)		((IS_8812_SERIES(version)) ? \
 					((GET_CVID_CUT_VERSION(version) == \
@@ -190,10 +190,10 @@ enum vht_data_sc {
 					true : false) : false)
 
 #define IS_VENDOR_8821A_TEST_CHIP(version)	((IS_8821_SERIES(version)) ? \
-					((IS_NORMAL_CHIP(version)) ? \
+					((IS_ANALRMAL_CHIP(version)) ? \
 					false : true) : false)
 #define IS_VENDOR_8821A_MP_CHIP(version)	((IS_8821_SERIES(version)) ? \
-					((IS_NORMAL_CHIP(version)) ? \
+					((IS_ANALRMAL_CHIP(version)) ? \
 						true : false) : false)
 #define IS_VENDOR_8821A_B_CUT(version)		((IS_8821_SERIES(version)) ? \
 					((GET_CVID_CUT_VERSION(version) == \
@@ -201,8 +201,8 @@ enum vht_data_sc {
 					true : false) : false)
 enum board_type {
 	ODM_BOARD_DEFAULT = 0,	  /* The DEFAULT case. */
-	ODM_BOARD_MINICARD = BIT(0), /* 0 = non-mini card, 1 = mini card. */
-	ODM_BOARD_SLIM = BIT(1), /* 0 = non-slim card, 1 = slim card */
+	ODM_BOARD_MINICARD = BIT(0), /* 0 = analn-mini card, 1 = mini card. */
+	ODM_BOARD_SLIM = BIT(1), /* 0 = analn-slim card, 1 = slim card */
 	ODM_BOARD_BT = BIT(2), /* 0 = without BT card, 1 = with BT */
 	ODM_BOARD_EXT_PA = BIT(3), /* 1 = existing 2G ext-PA */
 	ODM_BOARD_EXT_LNA = BIT(4), /* 1 = existing 2G ext-LNA */
@@ -233,7 +233,7 @@ enum power_polocy_config {
 	POWERCFG_MAX_POWER_SAVINGS,
 	POWERCFG_GLOBAL_POWER_SAVINGS,
 	POWERCFG_LOCAL_POWER_SAVINGS,
-	POWERCFG_LENOVO,
+	POWERCFG_LEANALVO,
 };
 
 enum interface_select_pci {

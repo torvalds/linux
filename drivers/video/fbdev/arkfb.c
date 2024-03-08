@@ -14,7 +14,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -496,7 +496,7 @@ static void ark_set_pixclock(struct fb_info *info, u32 pixclock)
 
 	int rv = dac_set_freq(par->dac, 0, 1000000000 / pixclock);
 	if (rv < 0) {
-		fb_err(info, "cannot set requested pixclock, keeping old value\n");
+		fb_err(info, "cananalt set requested pixclock, keeping old value\n");
 		return;
 	}
 
@@ -570,7 +570,7 @@ static int arkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		return rv;
 	}
 
-	/* Do not allow to have real resoulution larger than virtual */
+	/* Do analt allow to have real resoulution larger than virtual */
 	if (var->xres > var->xres_virtual)
 		var->xres_virtual = var->xres;
 
@@ -582,16 +582,16 @@ static int arkfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->xres_virtual = (var->xres_virtual+step) & ~step;
 
 
-	/* Check whether have enough memory */
+	/* Check whether have eanalugh memory */
 	mem = ((var->bits_per_pixel * var->xres_virtual) >> 3) * var->yres_virtual;
 	if (mem > info->screen_size)
 	{
-		fb_err(info, "not enough framebuffer memory (%d kB requested, %d kB available)\n",
+		fb_err(info, "analt eanalugh framebuffer memory (%d kB requested, %d kB available)\n",
 		       mem >> 10, (unsigned int) (info->screen_size >> 10));
 		return -EINVAL;
 	}
 
-	rv = svga_check_timings (&ark_timing_regs, var, info->node);
+	rv = svga_check_timings (&ark_timing_regs, var, info->analde);
 	if (rv < 0)
 	{
 		fb_err(info, "invalid timings requested\n");
@@ -644,7 +644,7 @@ static int arkfb_set_par(struct fb_info *info)
 
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
-	info->var.activate = FB_ACTIVATE_NOW;
+	info->var.activate = FB_ACTIVATE_ANALW;
 
 	/* Unlock registers */
 	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
@@ -728,7 +728,7 @@ static int arkfb_set_par(struct fb_info *info)
 		vga_wseq(par->state.vgabase, 0x11, 0x16); /* 8bpp accel mode */
 
 		if (info->var.pixclock > 20000) {
-			fb_dbg(info, "not using multiplex\n");
+			fb_dbg(info, "analt using multiplex\n");
 			svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 			dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		} else {
@@ -783,7 +783,7 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_set_timings(par->state.vgabase, &ark_timing_regs, &(info->var), hmul, hdiv,
 			 (info->var.vmode & FB_VMODE_DOUBLE)     ? 2 : 1,
 			 (info->var.vmode & FB_VMODE_INTERLACED) ? 2 : 1,
-			  hmul, info->node);
+			  hmul, info->analde);
 
 	/* Set interlaced mode start/end register */
 	value = info->var.xres + info->var.left_margin + info->var.right_margin + info->var.hsync_len;
@@ -802,56 +802,56 @@ static int arkfb_set_par(struct fb_info *info)
 
 /* Set a colour register */
 
-static int arkfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int arkfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 				u_int transp, struct fb_info *fb)
 {
 	switch (fb->var.bits_per_pixel) {
 	case 0:
 	case 4:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return -EINVAL;
 
 		if ((fb->var.bits_per_pixel == 4) &&
-		    (fb->var.nonstd == 0)) {
+		    (fb->var.analnstd == 0)) {
 			outb(0xF0, VGA_PEL_MSK);
-			outb(regno*16, VGA_PEL_IW);
+			outb(reganal*16, VGA_PEL_IW);
 		} else {
 			outb(0x0F, VGA_PEL_MSK);
-			outb(regno, VGA_PEL_IW);
+			outb(reganal, VGA_PEL_IW);
 		}
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 8:
-		if (regno >= 256)
+		if (reganal >= 256)
 			return -EINVAL;
 
 		outb(0xFF, VGA_PEL_MSK);
-		outb(regno, VGA_PEL_IW);
+		outb(reganal, VGA_PEL_IW);
 		outb(red >> 10, VGA_PEL_D);
 		outb(green >> 10, VGA_PEL_D);
 		outb(blue >> 10, VGA_PEL_D);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 0;
 
 		if (fb->var.green.length == 5)
-			((u32*)fb->pseudo_palette)[regno] = ((red & 0xF800) >> 1) |
+			((u32*)fb->pseudo_palette)[reganal] = ((red & 0xF800) >> 1) |
 				((green & 0xF800) >> 6) | ((blue & 0xF800) >> 11);
 		else if (fb->var.green.length == 6)
-			((u32*)fb->pseudo_palette)[regno] = (red & 0xF800) |
+			((u32*)fb->pseudo_palette)[reganal] = (red & 0xF800) |
 				((green & 0xFC00) >> 5) | ((blue & 0xF800) >> 11);
 		else
 			return -EINVAL;
 		break;
 	case 24:
 	case 32:
-		if (regno >= 16)
+		if (reganal >= 16)
 			return 0;
 
-		((u32*)fb->pseudo_palette)[regno] = ((red & 0xFF00) << 8) |
+		((u32*)fb->pseudo_palette)[reganal] = ((red & 0xFF00) << 8) |
 			(green & 0xFF00) | ((blue & 0xFF00) >> 8);
 		break;
 	default:
@@ -873,7 +873,7 @@ static int arkfb_blank(int blank_mode, struct fb_info *info)
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 		break;
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 		fb_dbg(info, "blank\n");
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
@@ -955,16 +955,16 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (rc < 0)
 		return rc;
 
-	/* Ignore secondary VGA device because there is no VGA arbitration */
+	/* Iganalre secondary VGA device because there is anal VGA arbitration */
 	if (! svga_primary_device(dev)) {
-		dev_info(&(dev->dev), "ignoring secondary device\n");
-		return -ENODEV;
+		dev_info(&(dev->dev), "iganalring secondary device\n");
+		return -EANALDEV;
 	}
 
 	/* Allocate and fill driver data structure */
 	info = framebuffer_alloc(sizeof(struct arkfb_info), &(dev->dev));
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	mutex_init(&par->open_lock);
@@ -975,19 +975,19 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Prepare PCI device */
 	rc = pci_enable_device(dev);
 	if (rc < 0) {
-		dev_err(info->device, "cannot enable PCI device\n");
+		dev_err(info->device, "cananalt enable PCI device\n");
 		goto err_enable_device;
 	}
 
 	rc = pci_request_regions(dev, "arkfb");
 	if (rc < 0) {
-		dev_err(info->device, "cannot reserve framebuffer region\n");
+		dev_err(info->device, "cananalt reserve framebuffer region\n");
 		goto err_request_regions;
 	}
 
 	par->dac = ics5342_init(ark_dac_read_regs, ark_dac_write_regs, info);
 	if (! par->dac) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dev_err(info->device, "RAMDAC initialization failed\n");
 		goto err_dac;
 	}
@@ -998,7 +998,7 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Map physical IO memory address into kernel space */
 	info->screen_base = pci_iomap_wc(dev, 0, 0);
 	if (! info->screen_base) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		dev_err(info->device, "iomap for framebuffer failed\n");
 		goto err_iomap;
 	}
@@ -1023,26 +1023,26 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 	info->fix.ypanstep = 0;
-	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.accel = FB_ACCEL_ANALNE;
 	info->pseudo_palette = (void*) (par->pseudo_palette);
 
 	/* Prepare startup mode */
 	rc = fb_find_mode(&(info->var), info, mode_option, NULL, 0, NULL, 8);
 	if (! ((rc == 1) || (rc == 2))) {
 		rc = -EINVAL;
-		dev_err(info->device, "mode %s not found\n", mode_option);
+		dev_err(info->device, "mode %s analt found\n", mode_option);
 		goto err_find_mode;
 	}
 
 	rc = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (rc < 0) {
-		dev_err(info->device, "cannot allocate colormap\n");
+		dev_err(info->device, "cananalt allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
 	rc = register_framebuffer(info);
 	if (rc < 0) {
-		dev_err(info->device, "cannot register framebuffer\n");
+		dev_err(info->device, "cananalt register framebuffer\n");
 		goto err_reg_fb;
 	}
 
@@ -1192,11 +1192,11 @@ static int __init arkfb_init(void)
 #endif
 
 	if (fb_modesetting_disabled("arkfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 #ifndef MODULE
 	if (fb_get_options("arkfb", &option))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (option && *option)
 		mode_option = option;

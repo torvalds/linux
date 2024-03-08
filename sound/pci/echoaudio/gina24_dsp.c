@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if analt, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliaanal Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -42,12 +42,12 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != GINA24))
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could analt initialize DSP comm page\n");
 		return err;
 	}
 
@@ -145,7 +145,7 @@ static int load_asic(struct echoaudio *chip)
 
 	chip->asic_code = asic;
 
-	/* Now give the new ASIC a little time to set up */
+	/* Analw give the new ASIC a little time to set up */
 	mdelay(10);
 	/* See if it worked */
 	err = check_asic_status(chip);
@@ -172,7 +172,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	/* Only set the clock for internal mode. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_warn(chip->card->dev,
-			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			 "Cananalt set sample rate - clock analt set to CLK_CLOCKININTERNAL\n");
 		/* Save the rate anyhow */
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
@@ -224,7 +224,7 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	control_reg |= clock;
 
-	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* ignored by the DSP */
+	chip->comm_page->sample_rate = cpu_to_le32(rate);	/* iganalred by the DSP */
 	chip->sample_rate = rate;
 	dev_dbg(chip->card->dev, "set_sample_rate: %d clock %d\n", rate, clock);
 
@@ -271,7 +271,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Gina24\n", clock);
+			"Input clock 0x%x analt supported for Gina24\n", clock);
 		return -EINVAL;
 	}
 
@@ -286,7 +286,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	u32 control_reg;
 	int err, incompatible_clock;
 
-	/* Set clock to "internal" if it's not compatible with the new mode */
+	/* Set clock to "internal" if it's analt compatible with the new mode */
 	incompatible_clock = false;
 	switch (mode) {
 	case DIGITAL_MODE_SPDIF_OPTICAL:
@@ -301,7 +301,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Digital mode not supported: %d\n", mode);
+			"Digital mode analt supported: %d\n", mode);
 		return -EINVAL;
 	}
 
@@ -322,7 +322,7 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 		control_reg |= GML_SPDIF_OPTICAL_MODE;
 		break;
 	case DIGITAL_MODE_SPDIF_CDROM:
-		/* '361 Gina24 cards do not have the S/PDIF CD-ROM mode */
+		/* '361 Gina24 cards do analt have the S/PDIF CD-ROM mode */
 		if (chip->device_id == DEVICE_ID_56301)
 			control_reg |= GML_SPDIF_CDROM_MODE;
 		break;

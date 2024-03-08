@@ -30,29 +30,29 @@ static const struct dmi_system_id byt_table[] = {
 	{
 		.callback = byt_rt5672_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
 		},
 	},
 	{
 		.callback = byt_rt5672_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 10"),
 		},
 	},
 	{
 		.callback = byt_rt5672_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad Tablet B"),
 		},
 	},
 	{
 		.callback = byt_rt5672_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Miix 2 10"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LEANALVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Leanalvo Miix 2 10"),
 		},
 	},
 	{
@@ -61,7 +61,7 @@ static const struct dmi_system_id byt_table[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "BayTrail"),
-			/* Note 105b is Foxcon's USB/PCI vendor id */
+			/* Analte 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
 		},
@@ -203,16 +203,16 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.board = "bytcht_cx2072x",
 		.sof_tplg_filename = "sof-byt-cx2072x.tplg",
 	},
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_ANALCODEC_MACH)
 	/*
 	 * This is always last in the table so that it is selected only when
-	 * enabled explicitly and there is no codec-related information in SSDT
+	 * enabled explicitly and there is anal codec-related information in SSDT
 	 */
 	{
 		.id = "80860F28",
-		.drv_name = "bytcht_nocodec",
+		.drv_name = "bytcht_analcodec",
 		.fw_filename = "intel/fw_sst_0f28.bin",
-		.board = "bytcht_nocodec",
+		.board = "bytcht_analcodec",
 	},
 #endif
 	{},

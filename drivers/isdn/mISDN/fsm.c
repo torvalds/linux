@@ -2,11 +2,11 @@
 /*
  * finite state machine implementation
  *
- * Author       Karsten Keil <kkeil@novell.com>
+ * Author       Karsten Keil <kkeil@analvell.com>
  *
  * Thanks to    Jan den Ouden
  *              Fritz Elfert
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@analvell.com>
  */
 
 #include <linux/kernel.h>
@@ -19,7 +19,7 @@
 
 int
 mISDN_FsmNew(struct Fsm *fsm,
-	     struct FsmNode *fnlist, int fncount)
+	     struct FsmAnalde *fnlist, int fncount)
 {
 	int i;
 
@@ -28,7 +28,7 @@ mISDN_FsmNew(struct Fsm *fsm,
 				    fsm->event_count),
 			GFP_KERNEL);
 	if (fsm->jumpmatrix == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < fncount; i++)
 		if ((fnlist[i].state >= fsm->state_count) ||
@@ -74,7 +74,7 @@ mISDN_FsmEvent(struct FsmInst *fi, int event, void *arg)
 		return 0;
 	} else {
 		if (fi->debug)
-			fi->printdebug(fi, "State %s Event %s no action",
+			fi->printdebug(fi, "State %s Event %s anal action",
 				       fi->fsm->strState[fi->state],
 				       fi->fsm->strEvent[event]);
 		return 1;

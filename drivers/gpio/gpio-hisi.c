@@ -81,7 +81,7 @@ static int hisi_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 		hisi_gpio_set_debounce(chip, offset, config_arg);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -140,7 +140,7 @@ static int hisi_gpio_irq_set_type(struct irq_data *d, u32 type)
 	}
 
 	/*
-	 * The dual-edge interrupt and other interrupt's registers do not
+	 * The dual-edge interrupt and other interrupt's registers do analt
 	 * take effect at the same time. The registers of the two-edge
 	 * interrupts have higher priorities, the configuration of
 	 * the dual-edge interrupts must be disabled before the configuration
@@ -210,7 +210,7 @@ static void hisi_gpio_init_irq(struct hisi_gpio *hisi_gpio)
 	struct gpio_irq_chip *girq_chip = &chip->irq;
 
 	gpio_irq_chip_set_chip(girq_chip, &hisi_gpio_irq_chip);
-	girq_chip->default_type = IRQ_TYPE_NONE;
+	girq_chip->default_type = IRQ_TYPE_ANALNE;
 	girq_chip->num_parents = 1;
 	girq_chip->parents = &hisi_gpio->irq;
 	girq_chip->parent_handler = hisi_gpio_irq_handler;
@@ -236,12 +236,12 @@ static void hisi_gpio_get_pdata(struct device *dev,
 				struct hisi_gpio *hisi_gpio)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int idx = 0;
 
-	device_for_each_child_node(dev, fwnode)  {
-		/* Cycle for once, no need for an array to save line_num */
-		if (fwnode_property_read_u32(fwnode, "ngpios",
+	device_for_each_child_analde(dev, fwanalde)  {
+		/* Cycle for once, anal need for an array to save line_num */
+		if (fwanalde_property_read_u32(fwanalde, "ngpios",
 					     &hisi_gpio->line_num)) {
 			dev_err(dev,
 				"failed to get number of lines for port%d and use default value instead\n",
@@ -273,13 +273,13 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 	 * One GPIO controller own one port currently,
 	 * if we get more from ACPI table, return error.
 	 */
-	port_num = device_get_child_node_count(dev);
+	port_num = device_get_child_analde_count(dev);
 	if (WARN_ON(port_num != 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	hisi_gpio = devm_kzalloc(dev, sizeof(*hisi_gpio), GFP_KERNEL);
 	if (!hisi_gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hisi_gpio->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hisi_gpio->reg_base))
@@ -295,7 +295,7 @@ static int hisi_gpio_probe(struct platform_device *pdev)
 			 hisi_gpio->reg_base + HISI_GPIO_SWPORT_DR_CLR_WX,
 			 hisi_gpio->reg_base + HISI_GPIO_SWPORT_DDR_SET_WX,
 			 hisi_gpio->reg_base + HISI_GPIO_SWPORT_DDR_CLR_WX,
-			 BGPIOF_NO_SET_ON_INPUT);
+			 BGPIOF_ANAL_SET_ON_INPUT);
 	if (ret) {
 		dev_err(dev, "failed to init, ret = %d\n", ret);
 		return ret;

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -35,7 +35,7 @@
 
 #include <nvif/event.h>
 
-/* IED scripts are no longer used by UEFI/RM from Ampere, but have been updated for
+/* IED scripts are anal longer used by UEFI/RM from Ampere, but have been updated for
  * the x86 option ROM.  However, the relevant VBIOS table versions weren't modified,
  * so we're unable to detect this in a nice way.
  */
@@ -153,7 +153,7 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 		if (lpc2 >= hipc)
 			lpc2 = hipc | DPCD_LC0F_LANE0_MAX_POST_CURSOR2_REACHED;
 		if (lpre >= hipe) {
-			lpre = hipe | DPCD_LC03_MAX_SWING_REACHED; /* yes. */
+			lpre = hipe | DPCD_LC03_MAX_SWING_REACHED; /* anal. */
 			lvsw = hivs = 3 - (lpre & 3);
 		} else
 		if (lvsw >= hivs) {
@@ -554,7 +554,7 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 	if (auxpwr && !outp->dp.aux_pwr) {
 		/* eDP panels need powering on by us (if the VBIOS doesn't default it
 		 * to on) before doing any AUX channel transactions.  LVDS panel power
-		 * is handled by the SOR itself, and not required for LVDS DDC.
+		 * is handled by the SOR itself, and analt required for LVDS DDC.
 		 */
 		if (outp->conn->info.type == DCB_CONNECTOR_eDP) {
 			int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
@@ -567,7 +567,7 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 			 * because some laptop panels having a significant resume
 			 * delay before the panel begins responding.
 			 *
-			 * This is likely a bit of a hack, but no better idea for
+			 * This is likely a bit of a hack, but anal better idea for
 			 * handling this at the moment.
 			 */
 			msleep(300);
@@ -653,15 +653,15 @@ nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct n
 	else
 		outp->dp.aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
 	if (!outp->dp.aux) {
-		OUTP_ERR(outp, "no aux");
+		OUTP_ERR(outp, "anal aux");
 		return -EINVAL;
 	}
 
-	/* bios data is not optional */
+	/* bios data is analt optional */
 	data = nvbios_dpout_match(bios, outp->info.hasht, outp->info.hashm,
 				  &outp->dp.version, &hdr, &cnt, &len, &outp->dp.info);
 	if (!data) {
-		OUTP_ERR(outp, "no bios dp data");
+		OUTP_ERR(outp, "anal bios dp data");
 		return -EINVAL;
 	}
 

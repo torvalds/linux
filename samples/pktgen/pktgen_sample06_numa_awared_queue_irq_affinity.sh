@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
-#  * adding devices to kernel threads which are in the same NUMA node
+#  * adding devices to kernel threads which are in the same NUMA analde
 #  * bound devices queue's irq affinity to the threads, 1:1 mapping
-#  * notice the naming scheme for keeping device names unique
+#  * analtice the naming scheme for keeping device names unique
 #  * nameing scheme: dev@thread_number
 #  * flow variation via random UDP source port
 #
@@ -25,9 +25,9 @@ trap_exit
 UDP_SRC_MIN=9
 UDP_SRC_MAX=109
 
-node=`get_iface_node $DEV`
+analde=`get_iface_analde $DEV`
 irq_array=(`get_iface_irqs $DEV`)
-cpu_array=(`get_node_cpus $node`)
+cpu_array=(`get_analde_cpus $analde`)
 
 [ $THREADS -gt ${#irq_array[*]} -o $THREADS -gt ${#cpu_array[*]}  ] && \
 	err 1 "Thread number $THREADS exceeds: min (${#irq_array[*]},${#cpu_array[*]})"
@@ -70,7 +70,7 @@ for ((i = 0; i < $THREADS; i++)); do
     pg_set $dev "queue_map_min $queue_num"
     pg_set $dev "queue_map_max $queue_num"
 
-    # Notice config queue to map to cpu (mirrors smp_processor_id())
+    # Analtice config queue to map to cpu (mirrors smp_processor_id())
     # It is beneficial to map IRQ /proc/irq/*/smp_affinity 1:1 to CPU number
     pg_set $dev "flag QUEUE_MAP_CPU"
 
@@ -81,7 +81,7 @@ for ((i = 0; i < $THREADS; i++)); do
     pg_set $dev "delay $DELAY"
 
     # Flag example disabling timestamping
-    pg_set $dev "flag NO_TIMESTAMP"
+    pg_set $dev "flag ANAL_TIMESTAMP"
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"

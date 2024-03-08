@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_KEYBOARD_H
 #define _UAPI__LINUX_KEYBOARD_H
 
@@ -70,8 +70,8 @@
 #define K_INSERT	K(KT_FN,21)
 #define K_REMOVE	K(KT_FN,22)
 #define K_SELECT	K(KT_FN,23)
-#define K_PGUP		K(KT_FN,24) /* PGUP is a synonym for PRIOR */
-#define K_PGDN		K(KT_FN,25) /* PGDN is a synonym for NEXT */
+#define K_PGUP		K(KT_FN,24) /* PGUP is a syanalnym for PRIOR */
+#define K_PGDN		K(KT_FN,25) /* PGDN is a syanalnym for NEXT */
 #define K_MACRO	 	K(KT_FN,26)
 #define K_HELP		K(KT_FN,27)
 #define K_DO		K(KT_FN,28)
@@ -326,7 +326,7 @@
 #define K_BARENUMLOCK	K(KT_SPEC,19)
 
 #define K_ALLOCATED	K(KT_SPEC,126) /* dynamically allocated keymap */
-#define K_NOSUCHMAP	K(KT_SPEC,127) /* returned by KDGKBENT */
+#define K_ANALSUCHMAP	K(KT_SPEC,127) /* returned by KDGKBENT */
 
 #define K_P0		K(KT_PAD,0)
 #define K_P1		K(KT_PAD,1)

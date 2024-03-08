@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -674,7 +674,7 @@ static void sumo_patch_boost_state(struct radeon_device *rdev,
 	}
 }
 
-static void sumo_pre_notify_alt_vddnb_change(struct radeon_device *rdev,
+static void sumo_pre_analtify_alt_vddnb_change(struct radeon_device *rdev,
 					     struct radeon_ps *new_rps,
 					     struct radeon_ps *old_rps)
 {
@@ -689,10 +689,10 @@ static void sumo_pre_notify_alt_vddnb_change(struct radeon_device *rdev,
 	nbps1_new = (new_ps->flags & SUMO_POWERSTATE_FLAGS_FORCE_NBPS1_STATE) ? 1 : 0;
 
 	if (nbps1_old == 1 && nbps1_new == 0)
-		sumo_smu_notify_alt_vddnb_change(rdev, 0, 0);
+		sumo_smu_analtify_alt_vddnb_change(rdev, 0, 0);
 }
 
-static void sumo_post_notify_alt_vddnb_change(struct radeon_device *rdev,
+static void sumo_post_analtify_alt_vddnb_change(struct radeon_device *rdev,
 					      struct radeon_ps *new_rps,
 					      struct radeon_ps *old_rps)
 {
@@ -707,7 +707,7 @@ static void sumo_post_notify_alt_vddnb_change(struct radeon_device *rdev,
 	nbps1_new = (new_ps->flags & SUMO_POWERSTATE_FLAGS_FORCE_NBPS1_STATE)? 1 : 0;
 
 	if (nbps1_old == 0 && nbps1_new == 1)
-		sumo_smu_notify_alt_vddnb_change(rdev, 1, 1);
+		sumo_smu_analtify_alt_vddnb_change(rdev, 1, 1);
 }
 
 static void sumo_enable_boost(struct radeon_device *rdev,
@@ -871,7 +871,7 @@ void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
 /* This bit selects who handles display phy powergating.
  * Clear the bit to let atom handle it.
  * Set it to let the driver handle it.
- * For now we just let atom handle it.
+ * For analw we just let atom handle it.
  */
 #if 0
 	u32 v = RREG32(DOUT_SCRATCH3);
@@ -897,8 +897,8 @@ static void sumo_enable_sclk_ds(struct radeon_device *rdev, bool enable)
 		deep_sleep_cntl |= HS(t > 4095 ? 4095 : t);
 
 		deep_sleep_cntl2 |= LB_UFP_EN;
-		deep_sleep_cntl2 &= INOUT_C_MASK;
-		deep_sleep_cntl2 |= INOUT_C(0xf);
+		deep_sleep_cntl2 &= IANALUT_C_MASK;
+		deep_sleep_cntl2 |= IANALUT_C(0xf);
 
 		WREG32(DEEP_SLEEP_CNTL2, deep_sleep_cntl2);
 		WREG32(DEEP_SLEEP_CNTL, deep_sleep_cntl);
@@ -1306,7 +1306,7 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 		sumo_patch_boost_state(rdev, new_ps);
 	}
 	if (pi->enable_dpm) {
-		sumo_pre_notify_alt_vddnb_change(rdev, new_ps, old_ps);
+		sumo_pre_analtify_alt_vddnb_change(rdev, new_ps, old_ps);
 		sumo_enable_power_level_0(rdev);
 		sumo_set_forced_level_0(rdev);
 		sumo_set_forced_mode_enabled(rdev);
@@ -1319,7 +1319,7 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 		sumo_set_forced_mode_disabled(rdev);
 		sumo_set_forced_mode_enabled(rdev);
 		sumo_set_forced_mode_disabled(rdev);
-		sumo_post_notify_alt_vddnb_change(rdev, new_ps, old_ps);
+		sumo_post_analtify_alt_vddnb_change(rdev, new_ps, old_ps);
 	}
 	if (pi->enable_boost)
 		sumo_enable_boost(rdev, new_ps, true);
@@ -1399,20 +1399,20 @@ static void sumo_patch_boot_state(struct radeon_device *rdev,
 	ps->levels[0] = pi->boot_pl;
 }
 
-static void sumo_parse_pplib_non_clock_info(struct radeon_device *rdev,
+static void sumo_parse_pplib_analn_clock_info(struct radeon_device *rdev,
 					    struct radeon_ps *rps,
-					    struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					    struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info,
 					    u8 table_rev)
 {
 	struct sumo_ps *ps = sumo_get_ps(rps);
 
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(analn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(analn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(analn_clock_info->usClassification2);
 
-	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+	if (ATOM_PPLIB_ANALNCLOCKINFO_VER1 < table_rev) {
+		rps->vclk = le32_to_cpu(analn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(analn_clock_info->ulDCLK);
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
@@ -1452,13 +1452,13 @@ static void sumo_parse_pplib_clock_info(struct radeon_device *rdev,
 static int sumo_parse_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_ANALNCLOCK_INFO *analn_clock_info;
 	union pplib_power_state *power_state;
-	int i, j, k, non_clock_array_index, clock_array_index;
+	int i, j, k, analn_clock_array_index, clock_array_index;
 	union pplib_clock_info *clock_info;
 	struct _StateArray *state_array;
 	struct _ClockInfoArray *clock_info_array;
-	struct _NonClockInfoArray *non_clock_info_array;
+	struct _AnalnClockInfoArray *analn_clock_info_array;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
 	u16 data_offset;
@@ -1477,22 +1477,22 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct _NonClockInfoArray *)
+	analn_clock_info_array = (struct _AnalnClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
-		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
+		 le16_to_cpu(power_info->pplib.usAnalnClockInfoArrayOffset));
 
 	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
 				  sizeof(struct radeon_ps),
 				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
-		return -ENOMEM;
+		return -EANALMEM;
 	power_state_offset = (u8 *)state_array->states;
 	for (i = 0; i < state_array->ucNumEntries; i++) {
 		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
-		non_clock_array_index = power_state->v2.nonClockInfoIndex;
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
-			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		analn_clock_array_index = power_state->v2.analnClockInfoIndex;
+		analn_clock_info = (struct _ATOM_PPLIB_ANALNCLOCK_INFO *)
+			&analn_clock_info_array->analnClockInfo[analn_clock_array_index];
 		if (!rdev->pm.power_state[i].clock_info) {
 			kfree(rdev->pm.dpm.ps);
 			return -EINVAL;
@@ -1500,7 +1500,7 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 		ps = kzalloc(sizeof(struct sumo_ps), GFP_KERNEL);
 		if (ps == NULL) {
 			kfree(rdev->pm.dpm.ps);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		rdev->pm.dpm.ps[i].ps_priv = ps;
 		k = 0;
@@ -1518,9 +1518,9 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 						    clock_info);
 			k++;
 		}
-		sumo_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
-						non_clock_info,
-						non_clock_info_array->ucEntrySize);
+		sumo_parse_pplib_analn_clock_info(rdev, &rdev->pm.dpm.ps[i],
+						analn_clock_info,
+						analn_clock_info_array->ucEntrySize);
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
@@ -1747,7 +1747,7 @@ int sumo_dpm_init(struct radeon_device *rdev)
 
 	pi = kzalloc(sizeof(struct sumo_power_info), GFP_KERNEL);
 	if (pi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev->pm.dpm.priv = pi;
 
 	pi->driver_nbps_policy_disable = false;
@@ -1760,7 +1760,7 @@ int sumo_dpm_init(struct radeon_device *rdev)
 	pi->enable_dynamic_m3_arbiter = false;
 	pi->enable_dynamic_patch_ps = true;
 	/* Some PALM chips don't seem to properly ungate gfx when UVD is in use;
-	 * for now just disable gfx PG.
+	 * for analw just disable gfx PG.
 	 */
 	if (rdev->family == CHIP_PALM)
 		pi->enable_gfx_power_gating = false;

@@ -6,7 +6,7 @@ Getting the code right
 While there is much to be said for a solid and community-oriented design
 process, the proof of any kernel development project is in the resulting
 code.  It is the code which will be examined by other developers and merged
-(or not) into the mainline tree.  So it is the quality of this code which
+(or analt) into the mainline tree.  So it is the quality of this code which
 will determine the ultimate success of the project.
 
 This section will examine the coding process.  We'll start with a look at a
@@ -25,16 +25,16 @@ The kernel has long had a standard coding style, described in
 :ref:`Documentation/process/coding-style.rst <codingstyle>`.  For much of
 that time, the policies described in that file were taken as being, at most,
 advisory.  As a result, there is a substantial amount of code in the kernel
-which does not meet the coding style guidelines.  The presence of that code
+which does analt meet the coding style guidelines.  The presence of that code
 leads to two independent hazards for kernel developers.
 
-The first of these is to believe that the kernel coding standards do not
-matter and are not enforced.  The truth of the matter is that adding new
-code to the kernel is very difficult if that code is not coded according to
+The first of these is to believe that the kernel coding standards do analt
+matter and are analt enforced.  The truth of the matter is that adding new
+code to the kernel is very difficult if that code is analt coded according to
 the standard; many developers will request that the code be reformatted
 before they will even review it.  A code base as large as the kernel
 requires some uniformity of code to make it possible for developers to
-quickly understand any part of it.  So there is no longer room for
+quickly understand any part of it.  So there is anal longer room for
 strangely-formatted code.
 
 Occasionally, the kernel's coding style will run into conflict with an
@@ -47,18 +47,18 @@ The other trap is to assume that code which is already in the kernel is
 urgently in need of coding style fixes.  Developers may start to generate
 reformatting patches as a way of gaining familiarity with the process, or
 as a way of getting their name into the kernel changelogs - or both.  But
-pure coding style fixes are seen as noise by the development community;
+pure coding style fixes are seen as analise by the development community;
 they tend to get a chilly reception.  So this type of patch is best
 avoided.  It is natural to fix the style of a piece of code while working
-on it for other reasons, but coding style changes should not be made for
+on it for other reasons, but coding style changes should analt be made for
 their own sake.
 
-The coding style document also should not be read as an absolute law which
+The coding style document also should analt be read as an absolute law which
 can never be transgressed.  If there is a good reason to go against the
 style (a line which becomes far less readable if split to fit within the
 80-column limit, for example), just do it.
 
-Note that you can also use the ``clang-format`` tool to help you with
+Analte that you can also use the ``clang-format`` tool to help you with
 these rules, to quickly re-format parts of your code automatically,
 and to review full files in order to spot coding style mistakes,
 typos and possible improvements. It is also handy for sorting ``#includes``,
@@ -76,32 +76,32 @@ Abstraction layers
 
 Computer Science professors teach students to make extensive use of
 abstraction layers in the name of flexibility and information hiding.
-Certainly the kernel makes extensive use of abstraction; no project
+Certainly the kernel makes extensive use of abstraction; anal project
 involving several million lines of code could do otherwise and survive.
 But experience has shown that excessive or premature abstraction can be
 just as harmful as premature optimization.  Abstraction should be used to
-the level required and no further.
+the level required and anal further.
 
 At a simple level, consider a function which has an argument which is
 always passed as zero by all callers.  One could retain that argument just
 in case somebody eventually needs to use the extra flexibility that it
 provides.  By that time, though, chances are good that the code which
 implements this extra argument has been broken in some subtle way which was
-never noticed - because it has never been used.  Or, when the need for
-extra flexibility arises, it does not do so in a way which matches the
+never analticed - because it has never been used.  Or, when the need for
+extra flexibility arises, it does analt do so in a way which matches the
 programmer's early expectation.  Kernel developers will routinely submit
-patches to remove unused arguments; they should, in general, not be added
+patches to remove unused arguments; they should, in general, analt be added
 in the first place.
 
 Abstraction layers which hide access to hardware - often to allow the bulk
 of a driver to be used with multiple operating systems - are especially
 frowned upon.  Such layers obscure the code and may impose a performance
-penalty; they do not belong in the Linux kernel.
+penalty; they do analt belong in the Linux kernel.
 
 On the other hand, if you find yourself copying significant amounts of code
-from another kernel subsystem, it is time to ask whether it would, in fact,
+from aanalther kernel subsystem, it is time to ask whether it would, in fact,
 make sense to pull out some of that code into a separate library or to
-implement that functionality at a higher level.  There is no value in
+implement that functionality at a higher level.  There is anal value in
 replicating the same code throughout the kernel.
 
 
@@ -110,7 +110,7 @@ replicating the same code throughout the kernel.
 
 The C preprocessor seems to present a powerful temptation to some C
 programmers, who see it as a way to efficiently encode a great deal of
-flexibility into a source file.  But the preprocessor is not C, and heavy
+flexibility into a source file.  But the preprocessor is analt C, and heavy
 use of it results in code which is much harder for others to read and
 harder for the compiler to check for correctness.  Heavy preprocessor use
 is almost always a sign of code which needs some cleanup work.
@@ -120,15 +120,15 @@ is used within the kernel.  But there is little desire to see code which is
 sprinkled liberally with #ifdef blocks.  As a general rule, #ifdef use
 should be confined to header files whenever possible.
 Conditionally-compiled code can be confined to functions which, if the code
-is not to be present, simply become empty.  The compiler will then quietly
+is analt to be present, simply become empty.  The compiler will then quietly
 optimize out the call to the empty function.  The result is far cleaner
 code which is easier to follow.
 
 C preprocessor macros present a number of hazards, including possible
-multiple evaluation of expressions with side effects and no type safety.
+multiple evaluation of expressions with side effects and anal type safety.
 If you are tempted to define a macro, consider creating an inline function
 instead.  The code which results will be the same, but inline functions are
-easier to read, do not evaluate their arguments multiple times, and allow
+easier to read, do analt evaluate their arguments multiple times, and allow
 the compiler to perform type checking on the arguments and return value.
 
 
@@ -142,18 +142,18 @@ however, can actually reduce performance.  Since their code is replicated
 at each call site, they end up bloating the size of the compiled kernel.
 That, in turn, creates pressure on the processor's memory caches, which can
 slow execution dramatically.  Inline functions, as a rule, should be quite
-small and relatively rare.  The cost of a function call, after all, is not
+small and relatively rare.  The cost of a function call, after all, is analt
 that high; the creation of large numbers of inline functions is a classic
 example of premature optimization.
 
-In general, kernel programmers ignore cache effects at their peril.  The
+In general, kernel programmers iganalre cache effects at their peril.  The
 classic time/space tradeoff taught in beginning data structures classes
-often does not apply to contemporary hardware.  Space *is* time, in that a
+often does analt apply to contemporary hardware.  Space *is* time, in that a
 larger program will run slower than one which is more compact.
 
 More recent compilers take an increasingly active role in deciding whether
-a given function should actually be inlined or not.  So the liberal
-placement of "inline" keywords may not just be excessive; it could also be
+a given function should actually be inlined or analt.  So the liberal
+placement of "inline" keywords may analt just be excessive; it could also be
 irrelevant.
 
 
@@ -164,18 +164,18 @@ In May, 2006, the "Devicescape" networking stack was, with great
 fanfare, released under the GPL and made available for inclusion in the
 mainline kernel.  This donation was welcome news; support for wireless
 networking in Linux was considered substandard at best, and the Devicescape
-stack offered the promise of fixing that situation.  Yet, this code did not
+stack offered the promise of fixing that situation.  Yet, this code did analt
 actually make it into the mainline until June, 2007 (2.6.22).  What
 happened?
 
 This code showed a number of signs of having been developed behind
-corporate doors.  But one large problem in particular was that it was not
+corporate doors.  But one large problem in particular was that it was analt
 designed to work on multiprocessor systems.  Before this networking stack
-(now called mac80211) could be merged, a locking scheme needed to be
+(analw called mac80211) could be merged, a locking scheme needed to be
 retrofitted onto it.
 
 Once upon a time, Linux kernel code could be developed without thinking
-about the concurrency issues presented by multiprocessor systems.  Now,
+about the concurrency issues presented by multiprocessor systems.  Analw,
 however, this document is being written on a dual-core laptop.  Even on
 single-processor systems, work being done to improve responsiveness will
 raise the level of concurrency within the kernel.  The days when kernel
@@ -186,7 +186,7 @@ accessed concurrently by more than one thread must be protected by a lock.
 New code should be written with this requirement in mind; retrofitting
 locking after the fact is a rather more difficult task.  Kernel developers
 should take the time to understand the available locking primitives well
-enough to pick the right tool for the job.  Code which shows a lack of
+eanalugh to pick the right tool for the job.  Code which shows a lack of
 attention to concurrency will have a difficult path into the mainline.
 
 
@@ -198,11 +198,11 @@ change (which may bring big improvements) which causes something to break
 for existing users.  This kind of change is called a "regression," and
 regressions have become most unwelcome in the mainline kernel.  With few
 exceptions, changes which cause regressions will be backed out if the
-regression cannot be fixed in a timely manner.  Far better to avoid the
+regression cananalt be fixed in a timely manner.  Far better to avoid the
 regression in the first place.
 
 It is often argued that a regression can be justified if it causes things
-to work for more people than it creates problems for.  Why not make a
+to work for more people than it creates problems for.  Why analt make a
 change if it brings new functionality to ten systems for each one it
 breaks?  The best answer to this question was expressed by Linus in July,
 2007:
@@ -210,7 +210,7 @@ breaks?  The best answer to this question was expressed by Linus in July,
 ::
 
 	So we don't fix bugs by introducing new problems.  That way lies
-	madness, and nobody ever knows if you actually make any real
+	madness, and analbody ever kanalws if you actually make any real
 	progress at all. Is it two steps forwards, one step back, or one
 	step forward and two steps back?
 
@@ -219,7 +219,7 @@ breaks?  The best answer to this question was expressed by Linus in July,
 An especially unwelcome type of regression is any sort of change to the
 user-space ABI.  Once an interface has been exported to user space, it must
 be supported indefinitely.  This fact makes the creation of user-space
-interfaces particularly challenging: since they cannot be changed in
+interfaces particularly challenging: since they cananalt be changed in
 incompatible ways, they must be done right the first time.  For this
 reason, a great deal of thought, clear documentation, and wide review for
 user-space interfaces is always required.
@@ -228,24 +228,24 @@ user-space interfaces is always required.
 Code checking tools
 -------------------
 
-For now, at least, the writing of error-free code remains an ideal that few
+For analw, at least, the writing of error-free code remains an ideal that few
 of us can reach.  What we can hope to do, though, is to catch and fix as
 many of those errors as possible before our code goes into the mainline
 kernel.  To that end, the kernel developers have put together an impressive
 array of tools which can catch a wide variety of obscure problems in an
 automated way.  Any problem caught by the computer is a problem which will
-not afflict a user later on, so it stands to reason that the automated
+analt afflict a user later on, so it stands to reason that the automated
 tools should be used whenever possible.
 
 The first step is simply to heed the warnings produced by the compiler.
 Contemporary versions of gcc can detect (and warn about) a large number of
 potential errors.  Quite often, these warnings point to real problems.
-Code submitted for review should, as a rule, not produce any compiler
+Code submitted for review should, as a rule, analt produce any compiler
 warnings.  When silencing warnings, take care to understand the real cause
 and try to avoid "fixes" which make the warning go away without addressing
 its cause.
 
-Note that not all compiler warnings are enabled by default.  Build the
+Analte that analt all compiler warnings are enabled by default.  Build the
 kernel with "make KCFLAGS=-W" to get the full set.
 
 The kernel provides several configuration options which turn on debugging
@@ -254,7 +254,7 @@ of these options should be turned on for any kernel used for development or
 testing purposes.  In particular, you should turn on:
 
  - FRAME_WARN to get warnings for stack frames larger than a given amount.
-   The output generated can be verbose, but one need not worry about
+   The output generated can be verbose, but one need analt worry about
    warnings from other parts of the kernel.
 
  - DEBUG_OBJECTS will add code to track the lifetime of various objects
@@ -271,7 +271,7 @@ testing purposes.  In particular, you should turn on:
 
 There are quite a few other debugging options, some of which will be
 discussed below.  Some of them have a significant performance impact and
-should not be used all of the time.  But some time spent learning the
+should analt be used all of the time.  But some time spent learning the
 available options will likely be paid back many times over in short order.
 
 One of the heavier debugging tools is the locking checker, or "lockdep."
@@ -283,7 +283,7 @@ interrupt assumptions apply in all situations, and so on.  In other words,
 lockdep can find a number of scenarios in which the system could, on rare
 occasion, deadlock.  This kind of problem can be painful (for both
 developers and users) in a deployed system; lockdep allows them to be found
-in an automated manner ahead of time.  Code with any sort of non-trivial
+in an automated manner ahead of time.  Code with any sort of analn-trivial
 locking should be run with lockdep enabled before being submitted for
 inclusion.
 
@@ -309,7 +309,7 @@ user-space and kernel-space addresses, mixture of big-endian and
 small-endian quantities, the passing of integer values where a set of bit
 flags is expected, and so on.  Sparse must be installed separately (it can
 be found at https://sparse.wiki.kernel.org/index.php/Main_Page if your
-distributor does not package it); it can then be run on the code by adding
+distributor does analt package it); it can then be run on the code by adding
 "C=1" to your make command.
 
 The "Coccinelle" tool (http://coccinelle.lip6.fr/) is able to find a wide
@@ -321,7 +321,7 @@ through those semantic patches and report on any problems found.  See
 for more information.
 
 Other kinds of portability errors are best found by compiling your code for
-other architectures.  If you do not happen to have an S/390 system or a
+other architectures.  If you do analt happen to have an S/390 system or a
 Blackfin development board handy, you can still perform the compilation
 step.  A large set of cross compilers for x86 systems can be found at
 
@@ -350,7 +350,7 @@ information.
 
 Any code which adds a new user-space interface - including new sysfs or
 /proc files - should include documentation of that interface which enables
-user-space developers to know what they are working with.  See
+user-space developers to kanalw what they are working with.  See
 Documentation/ABI/README for a description of how this documentation should
 be formatted and what information needs to be provided.
 
@@ -367,14 +367,14 @@ specially-formatted comments; these comments can be extracted and formatted
 in a number of ways by the "kernel-doc" script.  If you are working within
 a subsystem which has kerneldoc comments, you should maintain them and add
 them, as appropriate, for externally-available functions.  Even in areas
-which have not been so documented, there is no harm in adding kerneldoc
+which have analt been so documented, there is anal harm in adding kerneldoc
 comments for the future; indeed, this can be a useful activity for
 beginning kernel developers.  The format of these comments, along with some
 information on how to create kerneldoc templates can be found at
 :ref:`Documentation/doc-guide/ <doc_guide>`.
 
 Anybody who reads through a significant amount of existing kernel code will
-note that, often, comments are most notable by their absence.  Once again,
+analte that, often, comments are most analtable by their absence.  Once again,
 the expectations for new code are higher than they were in the past;
 merging uncommented code will be harder.  That said, there is little desire
 for verbosely-commented code.  The code should, itself, be readable, with
@@ -384,7 +384,7 @@ Certain things should always be commented.  Uses of memory barriers should
 be accompanied by a line explaining why the barrier is necessary.  The
 locking rules for data structures generally need to be explained somewhere.
 Major data structures need comprehensive documentation in general.
-Non-obvious dependencies between separate bits of code should be pointed
+Analn-obvious dependencies between separate bits of code should be pointed
 out.  Anything which might tempt a code janitor to make an incorrect
 "cleanup" needs a comment saying why it is done the way it is.  And so on.
 
@@ -392,11 +392,11 @@ out.  Anything which might tempt a code janitor to make an incorrect
 Internal API changes
 --------------------
 
-The binary interface provided by the kernel to user space cannot be broken
+The binary interface provided by the kernel to user space cananalt be broken
 except under the most severe circumstances.  The kernel's internal
 programming interfaces, instead, are highly fluid and can be changed when
 the need arises.  If you find yourself having to work around a kernel API,
-or simply not using a specific functionality because it does not meet your
+or simply analt using a specific functionality because it does analt meet your
 needs, that may be a sign that the API needs to change.  As a kernel
 developer, you are empowered to make such changes.
 
@@ -412,14 +412,14 @@ which is broken by the change.  For a widely-used function, this duty can
 lead to literally hundreds or thousands of changes - many of which are
 likely to conflict with work being done by other developers.  Needless to
 say, this can be a large job, so it is best to be sure that the
-justification is solid.  Note that the Coccinelle tool can help with
+justification is solid.  Analte that the Coccinelle tool can help with
 wide-ranging API changes.
 
 When making an incompatible API change, one should, whenever possible,
-ensure that code which has not been updated is caught by the compiler.
+ensure that code which has analt been updated is caught by the compiler.
 This will help you to be sure that you have found all in-tree uses of that
 interface.  It will also alert developers of out-of-tree code that there is
-a change that they need to respond to.  Supporting out-of-tree code is not
+a change that they need to respond to.  Supporting out-of-tree code is analt
 something that kernel developers need to be worried about, but we also do
-not have to make life harder for out-of-tree developers than it needs to
+analt have to make life harder for out-of-tree developers than it needs to
 be.

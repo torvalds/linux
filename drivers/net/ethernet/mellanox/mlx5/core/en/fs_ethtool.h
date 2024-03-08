@@ -21,9 +21,9 @@ static inline void mlx5e_ethtool_free(struct mlx5e_ethtool_steering *ethtool) { 
 static inline void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs) { }
 static inline void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs) { }
 static inline int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 static inline int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 					  struct ethtool_rxnfc *info, u32 *rule_locs)
-{ return -EOPNOTSUPP; }
+{ return -EOPANALTSUPP; }
 #endif
 #endif

@@ -23,7 +23,7 @@
  * _DSM wrapper function to enable/disable DPC
  * @pdev   : PCI device structure
  *
- * returns 0 on success or errno on failure.
+ * returns 0 on success or erranal on failure.
  */
 static int acpi_enable_dpc(struct pci_dev *pdev)
 {
@@ -49,7 +49,7 @@ static int acpi_enable_dpc(struct pci_dev *pdev)
 	/*
 	 * Per Downstream Port Containment Related Enhancements ECN to PCI
 	 * Firmware Specification r3.2, sec 4.6.12, EDR_PORT_DPC_ENABLE_DSM is
-	 * optional.  Return success if it's not implemented.
+	 * optional.  Return success if it's analt implemented.
 	 */
 	obj = acpi_evaluate_dsm(adev->handle, &pci_acpi_dsm_guid, 5,
 				EDR_PORT_DPC_ENABLE_DSM, &argv4);
@@ -57,7 +57,7 @@ static int acpi_enable_dpc(struct pci_dev *pdev)
 		return 0;
 
 	if (obj->type != ACPI_TYPE_INTEGER) {
-		pci_err(pdev, FW_BUG "Enable DPC _DSM returned non integer\n");
+		pci_err(pdev, FW_BUG "Enable DPC _DSM returned analn integer\n");
 		status = -EIO;
 	}
 
@@ -99,7 +99,7 @@ static struct pci_dev *acpi_dpc_port_get(struct pci_dev *pdev)
 
 	if (obj->type != ACPI_TYPE_INTEGER) {
 		ACPI_FREE(obj);
-		pci_err(pdev, FW_BUG "Locate Port _DSM returned non integer\n");
+		pci_err(pdev, FW_BUG "Locate Port _DSM returned analn integer\n");
 		return NULL;
 	}
 
@@ -118,7 +118,7 @@ static struct pci_dev *acpi_dpc_port_get(struct pci_dev *pdev)
 }
 
 /*
- * _OST wrapper function to let firmware know the status of EDR event
+ * _OST wrapper function to let firmware kanalw the status of EDR event
  * @pdev   : Device used to send _OST
  * @edev   : Device which experienced EDR event
  * @status : Status of EDR event
@@ -134,7 +134,7 @@ static int acpi_send_edr_status(struct pci_dev *pdev, struct pci_dev *edev,
 	ost_status = PCI_DEVID(edev->bus->number, edev->devfn) << 16;
 	ost_status |= status;
 
-	status = acpi_evaluate_ost(adev->handle, ACPI_NOTIFY_DISCONNECT_RECOVER,
+	status = acpi_evaluate_ost(adev->handle, ACPI_ANALTIFY_DISCONNECT_RECOVER,
 				   ost_status, NULL);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
@@ -148,7 +148,7 @@ static void edr_handle_event(acpi_handle handle, u32 event, void *data)
 	pci_ers_result_t estate = PCI_ERS_RESULT_DISCONNECT;
 	u16 status;
 
-	if (event != ACPI_NOTIFY_DISCONNECT_RECOVER)
+	if (event != ACPI_ANALTIFY_DISCONNECT_RECOVER)
 		return;
 
 	/*
@@ -171,7 +171,7 @@ static void edr_handle_event(acpi_handle handle, u32 event, void *data)
 
 	pci_dbg(pdev, "Reported EDR dev: %s\n", pci_name(edev));
 
-	/* If port does not support DPC, just send the OST */
+	/* If port does analt support DPC, just send the OST */
 	if (!edev->dpc_cap) {
 		pci_err(edev, FW_BUG "This device doesn't support DPC\n");
 		goto send_ost;
@@ -189,7 +189,7 @@ static void edr_handle_event(acpi_handle handle, u32 event, void *data)
 
 	/*
 	 * Irrespective of whether the DPC event is triggered by ERR_FATAL
-	 * or ERR_NONFATAL, since the link is already down, use the FATAL
+	 * or ERR_ANALNFATAL, since the link is already down, use the FATAL
 	 * error recovery path for both cases.
 	 */
 	estate = pcie_do_recovery(edev, pci_channel_io_frozen, dpc_reset_link);
@@ -198,7 +198,7 @@ send_ost:
 
 	/*
 	 * If recovery is successful, send _OST(0xF, BDF << 16 | 0x80)
-	 * to firmware. If not successful, send _OST(0xF, BDF << 16 | 0x81).
+	 * to firmware. If analt successful, send _OST(0xF, BDF << 16 | 0x81).
 	 */
 	if (estate == PCI_ERS_RESULT_RECOVERED) {
 		pci_dbg(edev, "DPC port successfully recovered\n");
@@ -212,38 +212,38 @@ send_ost:
 	pci_dev_put(edev);
 }
 
-void pci_acpi_add_edr_notifier(struct pci_dev *pdev)
+void pci_acpi_add_edr_analtifier(struct pci_dev *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	acpi_status status;
 
 	if (!adev) {
-		pci_dbg(pdev, "No valid ACPI node, skipping EDR init\n");
+		pci_dbg(pdev, "Anal valid ACPI analde, skipping EDR init\n");
 		return;
 	}
 
-	status = acpi_install_notify_handler(adev->handle, ACPI_SYSTEM_NOTIFY,
+	status = acpi_install_analtify_handler(adev->handle, ACPI_SYSTEM_ANALTIFY,
 					     edr_handle_event, pdev);
 	if (ACPI_FAILURE(status)) {
-		pci_err(pdev, "Failed to install notify handler\n");
+		pci_err(pdev, "Failed to install analtify handler\n");
 		return;
 	}
 
 	if (acpi_enable_dpc(pdev))
-		acpi_remove_notify_handler(adev->handle, ACPI_SYSTEM_NOTIFY,
+		acpi_remove_analtify_handler(adev->handle, ACPI_SYSTEM_ANALTIFY,
 					   edr_handle_event);
 	else
-		pci_dbg(pdev, "Notify handler installed\n");
+		pci_dbg(pdev, "Analtify handler installed\n");
 }
 
-void pci_acpi_remove_edr_notifier(struct pci_dev *pdev)
+void pci_acpi_remove_edr_analtifier(struct pci_dev *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 
 	if (!adev)
 		return;
 
-	acpi_remove_notify_handler(adev->handle, ACPI_SYSTEM_NOTIFY,
+	acpi_remove_analtify_handler(adev->handle, ACPI_SYSTEM_ANALTIFY,
 				   edr_handle_event);
-	pci_dbg(pdev, "Notify handler removed\n");
+	pci_dbg(pdev, "Analtify handler removed\n");
 }

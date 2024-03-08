@@ -4,8 +4,8 @@
  * for more details.
  *
  * Chris Dearman (chris@mips.com)
- * Copyright (C) 2007 Mips Technologies, Inc.
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2007 Mips Techanallogies, Inc.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  */
 #ifndef __ASM_MACH_MIPS_KERNEL_ENTRY_INIT_H
 #define __ASM_MACH_MIPS_KERNEL_ENTRY_INIT_H
@@ -113,7 +113,7 @@
 	PTR_LA	v0, 0x9fc00534	/* YAMON print */
 	lw	v0, (v0)
 	move	a0, zero
-	PTR_LA  a1, nonsc_processor
+	PTR_LA  a1, analnsc_processor
 	jal	v0
 
 	PTR_LA	v0, 0x9fc00520	/* YAMON exit */
@@ -122,9 +122,9 @@
 	jal	v0
 
 1:	b	1b
-	nop
+	analp
 	__INITDATA
-nonsc_processor:
+analnsc_processor:
 	.asciz  "EVA kernel requires a MIPS core with Segment Control implemented\n"
 	__FINIT
 #endif /* CONFIG_EVA */

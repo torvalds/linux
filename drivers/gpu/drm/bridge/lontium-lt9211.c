@@ -66,8 +66,8 @@ static const struct regmap_range lt9211_rw_ranges[] = {
 };
 
 static const struct regmap_access_table lt9211_rw_table = {
-	.yes_ranges = lt9211_rw_ranges,
-	.n_yes_ranges = ARRAY_SIZE(lt9211_rw_ranges),
+	.anal_ranges = lt9211_rw_ranges,
+	.n_anal_ranges = ARRAY_SIZE(lt9211_rw_ranges),
 };
 
 static const struct regmap_range_cfg lt9211_range = {
@@ -119,10 +119,10 @@ static int lt9211_read_chipid(struct lt9211 *ctx)
 		return ret;
 	}
 
-	/* Test for known Chip ID. */
+	/* Test for kanalwn Chip ID. */
 	if (chipid[0] != REG_CHIPID0_VALUE || chipid[1] != REG_CHIPID1_VALUE ||
 	    chipid[2] != REG_CHIPID2_VALUE) {
-		dev_err(ctx->dev, "Unknown Chip ID: 0x%02x 0x%02x 0x%02x\n",
+		dev_err(ctx->dev, "Unkanalwn Chip ID: 0x%02x 0x%02x 0x%02x\n",
 			chipid[0], chipid[1], chipid[2]);
 		return -EINVAL;
 	}
@@ -262,14 +262,14 @@ static int lt9211_autodetect_rx(struct lt9211 *ctx,
 
 	if (width != mode->hdisplay) {
 		dev_err(ctx->dev,
-			"RX: Detected DSI width (%d) does not match mode hdisplay (%d)\n",
+			"RX: Detected DSI width (%d) does analt match mode hdisplay (%d)\n",
 			width, mode->hdisplay);
 		return -EINVAL;
 	}
 
 	if (height != mode->vdisplay) {
 		dev_err(ctx->dev,
-			"RX: Detected DSI height (%d) does not match mode vdisplay (%d)\n",
+			"RX: Detected DSI height (%d) does analt match mode vdisplay (%d)\n",
 			height, mode->vdisplay);
 		return -EINVAL;
 	}
@@ -625,7 +625,7 @@ static const struct drm_bridge_funcs lt9211_funcs = {
 
 static int lt9211_parse_dt(struct lt9211 *ctx)
 {
-	struct device_node *port2, *port3;
+	struct device_analde *port2, *port3;
 	struct drm_bridge *panel_bridge;
 	struct device *dev = ctx->dev;
 	struct drm_panel *panel;
@@ -640,11 +640,11 @@ static int lt9211_parse_dt(struct lt9211 *ctx)
 	ctx->lvds_dual_link = false;
 	ctx->lvds_dual_link_even_odd_swap = false;
 
-	port2 = of_graph_get_port_by_id(dev->of_node, 2);
-	port3 = of_graph_get_port_by_id(dev->of_node, 3);
+	port2 = of_graph_get_port_by_id(dev->of_analde, 2);
+	port3 = of_graph_get_port_by_id(dev->of_analde, 3);
 	dual_link = drm_of_lvds_get_dual_link_pixel_order(port2, port3);
-	of_node_put(port2);
-	of_node_put(port3);
+	of_analde_put(port2);
+	of_analde_put(port3);
 
 	if (dual_link == DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS) {
 		ctx->lvds_dual_link = true;
@@ -656,7 +656,7 @@ static int lt9211_parse_dt(struct lt9211 *ctx)
 		ctx->lvds_dual_link_even_odd_swap = true;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &panel, &panel_bridge);
+	ret = drm_of_find_panel_or_bridge(dev->of_analde, 2, 0, &panel, &panel_bridge);
 	if (ret < 0)
 		return ret;
 	if (panel) {
@@ -675,22 +675,22 @@ static int lt9211_host_attach(struct lt9211 *ctx)
 	const struct mipi_dsi_device_info info = {
 		.type = "lt9211",
 		.channel = 0,
-		.node = NULL,
+		.analde = NULL,
 	};
 	struct device *dev = ctx->dev;
-	struct device_node *host_node;
-	struct device_node *endpoint;
+	struct device_analde *host_analde;
+	struct device_analde *endpoint;
 	struct mipi_dsi_device *dsi;
 	struct mipi_dsi_host *host;
 	int dsi_lanes;
 	int ret;
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_analde, 0, -1);
 	dsi_lanes = drm_of_get_data_lanes_count(endpoint, 1, 4);
-	host_node = of_graph_get_remote_port_parent(endpoint);
-	host = of_find_mipi_dsi_host_by_node(host_node);
-	of_node_put(host_node);
-	of_node_put(endpoint);
+	host_analde = of_graph_get_remote_port_parent(endpoint);
+	host = of_find_mipi_dsi_host_by_analde(host_analde);
+	of_analde_put(host_analde);
+	of_analde_put(endpoint);
 
 	if (!host)
 		return -EPROBE_DEFER;
@@ -708,9 +708,9 @@ static int lt9211_host_attach(struct lt9211 *ctx)
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO_NO_HSA |
-			  MIPI_DSI_MODE_VIDEO_NO_HFP | MIPI_DSI_MODE_VIDEO_NO_HBP |
-			  MIPI_DSI_MODE_NO_EOT_PACKET;
+			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO_ANAL_HSA |
+			  MIPI_DSI_MODE_VIDEO_ANAL_HFP | MIPI_DSI_MODE_VIDEO_ANAL_HBP |
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
@@ -729,7 +729,7 @@ static int lt9211_probe(struct i2c_client *client)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 
@@ -756,7 +756,7 @@ static int lt9211_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &lt9211_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&ctx->bridge);
 
 	ret = lt9211_host_attach(ctx);

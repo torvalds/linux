@@ -34,7 +34,7 @@ of four fixed and architecturally defined 64-bit event counters.
   - Memory stall cycles: counts instruction dispatch stall cycles caused by
     misses in the last level cache within the clock domain.
 
-When in WFI or WFE these counters do not increment.
+When in WFI or WFE these counters do analt increment.
 
 The Activity Monitors architecture provides space for up to 16 architected
 event counters. Future versions of the architecture may use this space to
@@ -55,7 +55,7 @@ selected we unconditionally enable the capability to allow any late CPU
 (secondary or hotplugged) to detect and use the feature.
 
 When the feature is detected on a CPU, we flag the availability of the
-feature but this does not guarantee the correct functionality of the
+feature but this does analt guarantee the correct functionality of the
 counters, only the presence of the extension.
 
 Firmware (code running at higher exception levels, e.g. arm-tf) support is
@@ -63,22 +63,22 @@ needed to:
 
  - Enable access for lower exception levels (EL2 and EL1) to the AMU
    registers.
- - Enable the counters. If not enabled these will read as 0.
+ - Enable the counters. If analt enabled these will read as 0.
  - Save/restore the counters before/after the CPU is being put/brought up
    from the 'off' power state.
 
 When using kernels that have this feature enabled but boot with broken
 firmware the user may experience panics or lockups when accessing the
-counter registers. Even if these symptoms are not observed, the values
-returned by the register reads might not correctly reflect reality. Most
-commonly, the counters will read as 0, indicating that they are not
+counter registers. Even if these symptoms are analt observed, the values
+returned by the register reads might analt correctly reflect reality. Most
+commonly, the counters will read as 0, indicating that they are analt
 enabled.
 
-If proper support is not provided in firmware it's best to disable
-CONFIG_ARM64_AMU_EXTN. To be noted that for security reasons, this does not
+If proper support is analt provided in firmware it's best to disable
+CONFIG_ARM64_AMU_EXTN. To be analted that for security reasons, this does analt
 bypass the setting of AMUSERENR_EL0 to trap accesses from EL0 (userspace) to
 EL1 (kernel). Therefore, firmware should still ensure accesses to AMU registers
-are not trapped in EL2/EL3.
+are analt trapped in EL2/EL3.
 
 The fixed counters of AMUv1 are accessible though the following system
 register definitions:
@@ -103,7 +103,7 @@ Currently, access from userspace to the AMU registers is disabled due to:
    secure mode.
  - Purpose: AMU counters are intended for system management use.
 
-Also, the presence of the feature is not visible to userspace.
+Also, the presence of the feature is analt visible to userspace.
 
 
 Virtualization

@@ -3,11 +3,11 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Andrzej Hajda <a.hajda@samsung.com>
  *
- * Device Tree binding constants for Exynos5250 clock controller.
+ * Device Tree binding constants for Exyanals5250 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS_5250_H
-#define _DT_BINDINGS_CLOCK_EXYNOS_5250_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS_5250_H
+#define _DT_BINDINGS_CLOCK_EXYANALS_5250_H
 
 /* core clocks */
 #define CLK_FIN_PLL		1
@@ -177,4 +177,4 @@
 #define CLK_MOUT_MPLL		1029
 #define CLK_MOUT_VPLLSRC	1030
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS_5250_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS_5250_H */

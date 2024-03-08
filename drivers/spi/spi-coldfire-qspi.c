@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -345,7 +345,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform data is missing\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (!pdata->cs_control) {
@@ -356,7 +356,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(*mcfqspi));
 	if (host == NULL) {
 		dev_dbg(&pdev->dev, "spi_alloc_host failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mcfqspi = spi_controller_get_devdata(host);

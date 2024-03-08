@@ -47,7 +47,7 @@ struct irdma_ah {
 	struct irdma_av av;
 	u8 sgid_index;
 	union ib_gid dgid;
-	struct hlist_node list;
+	struct hlist_analde list;
 	refcount_t refcnt;
 	struct irdma_ah *parent_ah; /* AH from cached list */
 };
@@ -120,7 +120,7 @@ struct irdma_cq {
 	u16 cq_num;
 	bool user_mode;
 	atomic_t armed;
-	enum irdma_cmpl_notify last_notify;
+	enum irdma_cmpl_analtify last_analtify;
 	u32 polled_cmpls;
 	u32 cq_mem_size;
 	struct irdma_dma_mem kmem;
@@ -177,7 +177,7 @@ struct irdma_qp {
 	struct list_head teardown_entry;
 	refcount_t refcnt;
 	struct iw_cm_id *cm_id;
-	struct irdma_cm_node *cm_node;
+	struct irdma_cm_analde *cm_analde;
 	struct delayed_work dwork_flush;
 	struct ib_mr *lsmm_mr;
 	atomic_t hw_mod_qp_pend;
@@ -233,9 +233,9 @@ static inline u16 irdma_fw_major_ver(struct irdma_sc_dev *dev)
 	return (u16)FIELD_GET(IRDMA_FW_VER_MAJOR, dev->feature_info[IRDMA_FEATURE_FW_INFO]);
 }
 
-static inline u16 irdma_fw_minor_ver(struct irdma_sc_dev *dev)
+static inline u16 irdma_fw_mianalr_ver(struct irdma_sc_dev *dev)
 {
-	return (u16)FIELD_GET(IRDMA_FW_VER_MINOR, dev->feature_info[IRDMA_FEATURE_FW_INFO]);
+	return (u16)FIELD_GET(IRDMA_FW_VER_MIANALR, dev->feature_info[IRDMA_FEATURE_FW_INFO]);
 }
 
 static inline void set_ib_wc_op_sq(struct irdma_cq_poll_info *cq_poll_info,
@@ -271,7 +271,7 @@ static inline void set_ib_wc_op_rq(struct irdma_cq_poll_info *cq_poll_info,
 				   struct ib_wc *entry, bool send_imm_support)
 {
 	/**
-	 * iWARP does not support sendImm, so the presence of Imm data
+	 * iWARP does analt support sendImm, so the presence of Imm data
 	 * must be WriteImm.
 	 */
 	if (!send_imm_support) {

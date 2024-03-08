@@ -154,12 +154,12 @@ static int phy_write(struct phy *phy, u32 value, unsigned int reg)
 /*
  * Find a ratio close to the desired one using continued fraction
  * approximation ending either at exact match or maximum allowed
- * nominator, denominator.
+ * analminator, deanalminator.
  */
-static void get_best_ratio(u32 *pnum, u32 *pdenom, u32 max_n, u32 max_d)
+static void get_best_ratio(u32 *pnum, u32 *pdeanalm, u32 max_n, u32 max_d)
 {
 	u32 a = *pnum;
-	u32 b = *pdenom;
+	u32 b = *pdeanalm;
 	u32 c;
 	u32 n[] = {0, 1};
 	u32 d[] = {1, 0};
@@ -180,7 +180,7 @@ static void get_best_ratio(u32 *pnum, u32 *pdenom, u32 max_n, u32 max_d)
 		b = c;
 	}
 	*pnum = n[i];
-	*pdenom = d[i];
+	*pdeanalm = d[i];
 }
 
 static int mixel_dphy_config_from_opts(struct phy *phy,
@@ -189,7 +189,7 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 {
 	struct mixel_dphy_priv *priv = dev_get_drvdata(phy->dev.parent);
 	unsigned long ref_clk = clk_get_rate(priv->phy_ref_clk);
-	u32 lp_t, numerator, denominator;
+	u32 lp_t, numerator, deanalminator;
 	unsigned long long tmp;
 	u32 n;
 	int i;
@@ -199,28 +199,28 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 		return -EINVAL;
 
 	numerator = dphy_opts->hs_clk_rate;
-	denominator = ref_clk;
-	get_best_ratio(&numerator, &denominator, 255, 256);
-	if (!numerator || !denominator) {
+	deanalminator = ref_clk;
+	get_best_ratio(&numerator, &deanalminator, 255, 256);
+	if (!numerator || !deanalminator) {
 		dev_err(&phy->dev, "Invalid %d/%d for %ld/%ld\n",
-			numerator, denominator,
+			numerator, deanalminator,
 			dphy_opts->hs_clk_rate, ref_clk);
 		return -EINVAL;
 	}
 
-	while ((numerator < 16) && (denominator <= 128)) {
+	while ((numerator < 16) && (deanalminator <= 128)) {
 		numerator <<= 1;
-		denominator <<= 1;
+		deanalminator <<= 1;
 	}
 	/*
 	 * CM ranges between 16 and 255
 	 * CN ranges between 1 and 32
 	 * CO is power of 2: 1, 2, 4, 8
 	 */
-	i = __ffs(denominator);
+	i = __ffs(deanalminator);
 	if (i > 3)
 		i = 3;
-	cfg->cn = denominator >> i;
+	cfg->cn = deanalminator >> i;
 	cfg->co = 1 << i;
 	cfg->cm = numerator;
 
@@ -231,12 +231,12 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 			cfg->cm, cfg->cn, cfg->co);
 		dev_err(&phy->dev, "for hs_clk/ref_clk=%ld/%ld ~ %d/%d\n",
 			dphy_opts->hs_clk_rate, ref_clk,
-			numerator, denominator);
+			numerator, deanalminator);
 		return -EINVAL;
 	}
 
 	dev_dbg(&phy->dev, "hs_clk/ref_clk=%ld/%ld ~ %d/%d\n",
-		dphy_opts->hs_clk_rate, ref_clk, numerator, denominator);
+		dphy_opts->hs_clk_rate, ref_clk, numerator, deanalminator);
 
 	/* LP clock period */
 	tmp = 1000000000000LL;
@@ -427,7 +427,7 @@ mixel_dphy_configure_lvds_phy(struct phy *phy, union phy_configure_opts *opts)
 	}
 
 	/*
-	 * CO is configurable, while CN and CM are not,
+	 * CO is configurable, while CN and CM are analt,
 	 * as fixed ratios 1 and 7 are applied respectively.
 	 */
 	phy_write(phy, __ffs(co), DPHY_CO);
@@ -441,7 +441,7 @@ mixel_dphy_configure_lvds_phy(struct phy *phy, union phy_configure_opts *opts)
 static int mixel_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	if (!opts) {
-		dev_err(&phy->dev, "No configuration options\n");
+		dev_err(&phy->dev, "Anal configuration options\n");
 		return -EINVAL;
 	}
 
@@ -528,7 +528,7 @@ static int mixel_dphy_power_on_mipi_dphy(struct phy *phy)
 				       locked, PLL_LOCK_SLEEP,
 				       PLL_LOCK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&phy->dev, "Could not get DPHY lock (%d)!\n", ret);
+		dev_err(&phy->dev, "Could analt get DPHY lock (%d)!\n", ret);
 		return ret;
 	}
 	phy_write(phy, PWR_ON, DPHY_PD_DPHY);
@@ -547,7 +547,7 @@ static int mixel_dphy_power_on_lvds_phy(struct phy *phy)
 	phy_write(phy, PWR_ON, DPHY_PD_DPHY);
 	phy_write(phy, PWR_ON, DPHY_PD_PLL);
 
-	/* do not wait for slave LVDS PHY being locked */
+	/* do analt wait for slave LVDS PHY being locked */
 	if (priv->is_slave)
 		return 0;
 
@@ -555,7 +555,7 @@ static int mixel_dphy_power_on_lvds_phy(struct phy *phy)
 				       locked, PLL_LOCK_SLEEP,
 				       PLL_LOCK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&phy->dev, "Could not get LVDS PHY lock (%d)!\n", ret);
+		dev_err(&phy->dev, "Could analt get LVDS PHY lock (%d)!\n", ret);
 		return ret;
 	}
 
@@ -660,7 +660,7 @@ MODULE_DEVICE_TABLE(of, mixel_dphy_of_match);
 static int mixel_dphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct phy_provider *phy_provider;
 	struct mixel_dphy_priv *priv;
 	struct phy *phy;
@@ -668,11 +668,11 @@ static int mixel_dphy_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->devdata = of_device_get_match_data(&pdev->dev);
 	if (!priv->devdata)
@@ -691,7 +691,7 @@ static int mixel_dphy_probe(struct platform_device *pdev)
 
 	priv->phy_ref_clk = devm_clk_get(&pdev->dev, "phy_ref");
 	if (IS_ERR(priv->phy_ref_clk)) {
-		dev_err(dev, "No phy_ref clock found\n");
+		dev_err(dev, "Anal phy_ref clock found\n");
 		return PTR_ERR(priv->phy_ref_clk);
 	}
 	dev_dbg(dev, "phy_ref clock rate: %lu\n",
@@ -708,7 +708,7 @@ static int mixel_dphy_probe(struct platform_device *pdev)
 
 		priv->id = of_alias_get_id(np, "mipi-dphy");
 		if (priv->id < 0) {
-			dev_err(dev, "Failed to get phy node alias id: %d\n",
+			dev_err(dev, "Failed to get phy analde alias id: %d\n",
 				priv->id);
 			return priv->id;
 		}

@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 
 #include <linux/device.h>
@@ -119,7 +119,7 @@ static int bfusb_send_bulk(struct bfusb_data *data, struct sk_buff *skb)
 	if (!urb) {
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	pipe = usb_sndbulkpipe(data->udev, data->bulk_out_ep);
@@ -209,13 +209,13 @@ static int bfusb_rx_submit(struct bfusb_data *data, struct urb *urb)
 	if (!urb) {
 		urb = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!urb)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	skb = bt_skb_alloc(size, GFP_ATOMIC);
 	if (!skb) {
 		usb_free_urb(urb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb->dev = (void *) data;
@@ -265,7 +265,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 		}
 
 		if (len < 1) {
-			bt_dev_err(data->hdev, "no packet type found");
+			bt_dev_err(data->hdev, "anal packet type found");
 			return -EPROTO;
 		}
 
@@ -305,8 +305,8 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 
 		skb = bt_skb_alloc(pkt_len, GFP_ATOMIC);
 		if (!skb) {
-			bt_dev_err(data->hdev, "no memory for the packet");
-			return -ENOMEM;
+			bt_dev_err(data->hdev, "anal memory for the packet");
+			return -EANALMEM;
 		}
 
 		hci_skb_pkt_type(skb) = pkt_type;
@@ -477,7 +477,7 @@ static int bfusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	nskb = bt_skb_alloc(count + 32, GFP_KERNEL);
 	if (!nskb) {
 		bt_dev_err(hdev, "Can't allocate memory for new packet");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	nskb->dev = (void *) data;
@@ -528,7 +528,7 @@ static int bfusb_load_firmware(struct bfusb_data *data,
 	buf = kmalloc(BFUSB_MAX_BLOCK_SIZE + 3, GFP_KERNEL);
 	if (!buf) {
 		BT_ERR("Can't allocate memory chunk for firmware");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pipe = usb_sndctrlpipe(data->udev, 0);
@@ -614,14 +614,14 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	bulk_in_ep  = &intf->cur_altsetting->endpoint[1];
 
 	if (!bulk_out_ep || !bulk_in_ep) {
-		BT_ERR("Bulk endpoints not found");
+		BT_ERR("Bulk endpoints analt found");
 		goto done;
 	}
 
 	/* Initialize control structure and load firmware */
 	data = devm_kzalloc(&intf->dev, sizeof(struct bfusb_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->udev = udev;
 	data->bulk_in_ep    = bulk_in_ep->desc.bEndpointAddress;

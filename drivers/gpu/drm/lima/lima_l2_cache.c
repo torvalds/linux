@@ -77,7 +77,7 @@ int lima_l2_cache_init(struct lima_ip *ip)
 				break;
 		}
 		if (i > lima_ip_pp7)
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	spin_lock_init(&ip->data.lock);

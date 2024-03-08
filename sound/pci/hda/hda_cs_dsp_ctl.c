@@ -144,7 +144,7 @@ static void hda_cs_dsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl,
 
 	region_name = cs_dsp_mem_region_name(cs_ctl->alg_region.type);
 	if (!region_name) {
-		dev_warn(cs_dsp->dev, "Unknown region type: %d\n", cs_ctl->alg_region.type);
+		dev_warn(cs_dsp->dev, "Unkanalwn region type: %d\n", cs_ctl->alg_region.type);
 		return;
 	}
 
@@ -185,7 +185,7 @@ void hda_cs_dsp_add_controls(struct cs_dsp *dsp, const struct hda_cs_dsp_ctl_inf
 	 * are persistent and only cs_dsp_power_up() or cs_dsp_remove() can
 	 * change the list.
 	 */
-	lockdep_assert_not_held(&dsp->pwr_lock);
+	lockdep_assert_analt_held(&dsp->pwr_lock);
 
 	list_for_each_entry(cs_ctl, &dsp->ctl_list, list) {
 		if (cs_ctl->flags & WMFW_CTL_FLAG_SYS)
@@ -226,7 +226,7 @@ int hda_cs_dsp_write_ctl(struct cs_dsp *dsp, const char *name, int type,
 
 	ctl = cs_ctl->priv;
 
-	snd_ctl_notify(ctl->card, SNDRV_CTL_EVENT_MASK_VALUE, &ctl->kctl->id);
+	snd_ctl_analtify(ctl->card, SNDRV_CTL_EVENT_MASK_VALUE, &ctl->kctl->id);
 
 	return 0;
 }

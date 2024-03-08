@@ -109,10 +109,10 @@ static int u_boot_env_add_cells(struct u_boot_env *priv, uint8_t *buf,
 
 		info.name = devm_kstrdup(dev, var, GFP_KERNEL);
 		if (!info.name)
-			return -ENOMEM;
+			return -EANALMEM;
 		info.offset = data_offset + value - data;
 		info.bytes = strlen(value);
-		info.np = of_get_child_by_name(dev->of_node, info.name);
+		info.np = of_get_child_by_name(dev->of_analde, info.name);
 		if (!strcmp(var, "ethaddr")) {
 			info.raw_len = strlen(value);
 			info.bytes = ETH_ALEN;
@@ -146,7 +146,7 @@ static int u_boot_env_parse(struct u_boot_env *priv)
 
 	buf = kzalloc(dev_size, GFP_KERNEL);
 	if (!buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out;
 	}
 
@@ -204,17 +204,17 @@ static int u_boot_env_probe(struct platform_device *pdev)
 		.reg_read = u_boot_env_read,
 	};
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct u_boot_env *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	priv->dev = dev;
 
 	priv->format = (uintptr_t)of_device_get_match_data(dev);
 
-	priv->mtd = of_get_mtd_device_by_node(np);
+	priv->mtd = of_get_mtd_device_by_analde(np);
 	if (IS_ERR(priv->mtd)) {
 		dev_err_probe(dev, PTR_ERR(priv->mtd), "Failed to get %pOF MTD\n", np);
 		return PTR_ERR(priv->mtd);

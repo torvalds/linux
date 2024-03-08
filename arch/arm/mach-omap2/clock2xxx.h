@@ -3,7 +3,7 @@
  * OMAP2 clock function prototypes and macros
  *
  * Copyright (C) 2005-2010 Texas Instruments, Inc.
- * Copyright (C) 2004-2010 Nokia Corporation
+ * Copyright (C) 2004-2010 Analkia Corporation
  */
 
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK2XXX_H

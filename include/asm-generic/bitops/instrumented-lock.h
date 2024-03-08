@@ -32,8 +32,8 @@ static inline void clear_bit_unlock(long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * This is a non-atomic operation but implies a release barrier before the
- * memory operation. It can be used for an unlock if no other CPUs can
+ * This is a analn-atomic operation but implies a release barrier before the
+ * memory operation. It can be used for an unlock if anal other CPUs can
  * concurrently modify other bits in the word.
  */
 static inline void __clear_bit_unlock(long nr, volatile unsigned long *addr)

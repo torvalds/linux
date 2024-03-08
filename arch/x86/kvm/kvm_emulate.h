@@ -29,9 +29,9 @@ struct x86_exception {
 };
 
 /*
- * This struct is used to carry enough information from the instruction
+ * This struct is used to carry eanalugh information from the instruction
  * decoder to main KVM so that a decision can be made whether the
- * instruction needs to be intercepted or not.
+ * instruction needs to be intercepted or analt.
  */
 struct x86_instruction_info {
 	u8  intercept;          /* which intercept                      */
@@ -52,7 +52,7 @@ struct x86_instruction_info {
  *
  * These operations represent the instruction emulator's interface to memory.
  * There are two categories of operation: those that act on ordinary memory
- * regions (*_std), and those that act on memory regions known to require
+ * regions (*_std), and those that act on memory regions kanalwn to require
  * special treatment or emulation (*_emulated).
  *
  * The emulator assumes that an instruction accesses only one 'emulated memory'
@@ -60,31 +60,31 @@ struct x86_instruction_info {
  * that this is one of the instruction's data operands. Instruction fetches and
  * stack operations are assumed never to access emulated memory. The emulator
  * automatically deduces which operand of a string-move operation is accessing
- * emulated memory, and assumes that the other operand accesses normal memory.
+ * emulated memory, and assumes that the other operand accesses analrmal memory.
  *
- * NOTES:
+ * ANALTES:
  *  1. The emulator isn't very smart about emulated vs. standard memory.
  *     'Emulated memory' access addresses should be checked for sanity.
- *     'Normal memory' accesses may fault, and the caller must arrange to
+ *     'Analrmal memory' accesses may fault, and the caller must arrange to
  *     detect and handle reentrancy into the emulator via recursive faults.
  *     Accesses may be unaligned and may cross page boundaries.
- *  2. If the access fails (cannot emulate, or a standard access faults) then
+ *  2. If the access fails (cananalt emulate, or a standard access faults) then
  *     it is up to the memop to propagate the fault to the guest VM via
- *     some out-of-band mechanism, unknown to the emulator. The memop signals
+ *     some out-of-band mechanism, unkanalwn to the emulator. The memop signals
  *     failure by returning X86EMUL_PROPAGATE_FAULT to the emulator, which will
  *     then immediately bail.
  *  3. Valid access sizes are 1, 2, 4 and 8 bytes. On x86/32 systems only
  *     cmpxchg8b_emulated need support 8-byte accesses.
- *  4. The emulator cannot handle 64-bit mode emulation on an x86/32 system.
+ *  4. The emulator cananalt handle 64-bit mode emulation on an x86/32 system.
  */
-/* Access completed successfully: continue emulation as normal. */
+/* Access completed successfully: continue emulation as analrmal. */
 #define X86EMUL_CONTINUE        0
 /* Access is unhandleable: bail from emulation and return error to caller. */
 #define X86EMUL_UNHANDLEABLE    1
 /* Terminate emulation but return success to the caller. */
 #define X86EMUL_PROPAGATE_FAULT 2 /* propagate a generated fault to guest */
 #define X86EMUL_RETRY_INSTR     3 /* retry the instruction for some reason */
-#define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
+#define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did analt see expected value */
 #define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
 #define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
 
@@ -110,7 +110,7 @@ struct x86_emulate_ops {
 	 */
 	void (*write_gpr)(struct x86_emulate_ctxt *ctxt, unsigned reg, ulong val);
 	/*
-	 * read_std: Read bytes of standard (non-emulated/special) memory.
+	 * read_std: Read bytes of standard (analn-emulated/special) memory.
 	 *           Used for descriptor reading.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
@@ -123,7 +123,7 @@ struct x86_emulate_ops {
 			struct x86_exception *fault, bool system);
 
 	/*
-	 * write_std: Write bytes of standard (non-emulated/special) memory.
+	 * write_std: Write bytes of standard (analn-emulated/special) memory.
 	 *            Used for descriptor writing.
 	 *  @addr:  [IN ] Linear address to which to write.
 	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
@@ -134,7 +134,7 @@ struct x86_emulate_ops {
 			 unsigned long addr, void *val, unsigned int bytes,
 			 struct x86_exception *fault, bool system);
 	/*
-	 * fetch: Read bytes of standard (non-emulated/special) memory.
+	 * fetch: Read bytes of standard (analn-emulated/special) memory.
 	 *        Used for instruction fetch.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
@@ -237,7 +237,7 @@ struct x86_emulate_ops {
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
-	enum { OP_REG, OP_MEM, OP_MEM_STR, OP_IMM, OP_XMM, OP_MM, OP_NONE } type;
+	enum { OP_REG, OP_MEM, OP_MEM_STR, OP_IMM, OP_XMM, OP_MM, OP_ANALNE } type;
 	unsigned int bytes;
 	unsigned int count;
 	union {
@@ -295,7 +295,7 @@ typedef void (*fastop_t)(struct fastop *);
 /*
  * The emulator's _regs array tracks only the GPRs, i.e. excludes RIP.  RIP is
  * tracked/accessed via _eip, and except for RIP relative addressing, which
- * also uses _eip, RIP cannot be a register operand nor can it be an operand in
+ * also uses _eip, RIP cananalt be a register operand analr can it be an operand in
  * a ModRM or SIB byte.
  */
 #ifdef CONFIG_X86_64
@@ -317,7 +317,7 @@ struct x86_emulate_ctxt {
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
-	bool perm_ok; /* do not check permissions if true */
+	bool perm_ok; /* do analt check permissions if true */
 	bool tf;	/* TF value before instruction (after for syscall/sysret) */
 
 	bool have_exception;
@@ -433,14 +433,14 @@ static inline bool is_guest_vendor_hygon(u32 ebx, u32 ecx, u32 edx)
 }
 
 enum x86_intercept_stage {
-	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
+	X86_ICTP_ANALNE = 0,   /* Allow zero-init to analt match anything */
 	X86_ICPT_PRE_EXCEPT,
 	X86_ICPT_POST_EXCEPT,
 	X86_ICPT_POST_MEMACCESS,
 };
 
 enum x86_intercept {
-	x86_intercept_none,
+	x86_intercept_analne,
 	x86_intercept_cr_read,
 	x86_intercept_cr_write,
 	x86_intercept_clts,

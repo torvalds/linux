@@ -32,8 +32,8 @@ Required properties:
 	navigator cloud and number of addresses depends on SOC integration
 	configuration.. Navigator cloud global address needs to be programmed
 	into DMA and the DMA uses it as the physical addresses to reach queue
-	managers. Note that these addresses though points to queue managers,
-	they are relevant only from DMA perspective. The QMSS may not choose to
+	managers. Analte that these addresses though points to queue managers,
+	they are relevant only from DMA perspective. The QMSS may analt choose to
 	use them since it has a different address space view to reach all
 	its components.
 
@@ -94,7 +94,7 @@ Example:
 Navigator DMA client:
 Required properties:
  - ti,navigator-dmas: List of one or more DMA specifiers, each consisting of
-			- A phandle pointing to DMA instance node
+			- A phandle pointing to DMA instance analde
 			- A DMA channel number as a phandle arg.
  - ti,navigator-dma-names: Contains dma channel name for each DMA specifier in
 			the 'ti,navigator-dmas' property.

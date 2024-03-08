@@ -40,7 +40,7 @@
 	.errstr = "kptr access size must be BPF_DW",
 },
 {
-	"map_kptr: map_value non-const var_off",
+	"map_kptr: map_value analn-const var_off",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 	BPF_LD_MAP_FD(BPF_REG_6, 0),
@@ -67,11 +67,11 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "kptr access cannot have variable offset",
+	.errstr = "kptr access cananalt have variable offset",
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
-	"map_kptr: bpf_kptr_xchg non-const var_off",
+	"map_kptr: bpf_kptr_xchg analn-const var_off",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 	BPF_LD_MAP_FD(BPF_REG_6, 0),
@@ -247,7 +247,7 @@
 	.errstr = "R1 type=untrusted_ptr_ expected=percpu_ptr_",
 },
 {
-	"map_kptr: unref: no reference state created",
+	"map_kptr: unref: anal reference state created",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 	BPF_LD_MAP_FD(BPF_REG_6, 0),
@@ -440,5 +440,5 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "kptr cannot be accessed indirectly by helper",
+	.errstr = "kptr cananalt be accessed indirectly by helper",
 },

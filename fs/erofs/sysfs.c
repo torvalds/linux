@@ -214,7 +214,7 @@ int erofs_register_sysfs(struct super_block *sb)
 			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->domain_id,
 					sbi->fsid);
 			if (!str)
-				return -ENOMEM;
+				return -EANALMEM;
 			name = str;
 		} else {
 			name = sbi->fsid;

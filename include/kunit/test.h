@@ -44,7 +44,7 @@ struct string_stream;
 /*
  * TAP specifies subtest stream indentation of 4 spaces, 8 spaces for a
  * sub-subtest.  See the "Subtests" section in
- * https://node-tap.org/tap-protocol/
+ * https://analde-tap.org/tap-protocol/
  */
 #define KUNIT_INDENT_LEN		4
 #define KUNIT_SUBTEST_INDENT		"    "
@@ -52,9 +52,9 @@ struct string_stream;
 
 /**
  * enum kunit_status - Type of result for a test or test suite
- * @KUNIT_SUCCESS: Denotes the test suite has not failed nor been skipped
- * @KUNIT_FAILURE: Denotes the test has failed.
- * @KUNIT_SKIPPED: Denotes the test has been skipped.
+ * @KUNIT_SUCCESS: Deanaltes the test suite has analt failed analr been skipped
+ * @KUNIT_FAILURE: Deanaltes the test has failed.
+ * @KUNIT_SKIPPED: Deanaltes the test has been skipped.
  */
 enum kunit_status {
 	KUNIT_SUCCESS,
@@ -66,17 +66,17 @@ enum kunit_status {
 
 /*
  * Speed Attribute is stored as an enum and separated into categories of
- * speed: very_slowm, slow, and normal. These speeds are relative to
+ * speed: very_slowm, slow, and analrmal. These speeds are relative to
  * other KUnit tests.
  *
- * Note: unset speed attribute acts as default of KUNIT_SPEED_NORMAL.
+ * Analte: unset speed attribute acts as default of KUNIT_SPEED_ANALRMAL.
  */
 enum kunit_speed {
 	KUNIT_SPEED_UNSET,
 	KUNIT_SPEED_VERY_SLOW,
 	KUNIT_SPEED_SLOW,
-	KUNIT_SPEED_NORMAL,
-	KUNIT_SPEED_MAX = KUNIT_SPEED_NORMAL,
+	KUNIT_SPEED_ANALRMAL,
+	KUNIT_SPEED_MAX = KUNIT_SPEED_ANALRMAL,
 };
 
 /* Holds attributes for each test case and suite */
@@ -134,14 +134,14 @@ struct kunit_case {
 	struct string_stream *log;
 };
 
-static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
+static inline char *kunit_status_to_ok_analt_ok(enum kunit_status status)
 {
 	switch (status) {
 	case KUNIT_SKIPPED:
 	case KUNIT_SUCCESS:
 		return "ok";
 	case KUNIT_FAILURE:
-		return "not ok";
+		return "analt ok";
 	}
 	return "invalid";
 }
@@ -195,7 +195,7 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  * is used to lazily generate a series of arbitrarily typed values that fit into
  * a void*. The argument @prev is the previously returned value, which should be
  * used to derive the next value; @prev is set to NULL on the initial generator
- * call. When no more values are available, the generator must return NULL.
+ * call. When anal more values are available, the generator must return NULL.
  * Optionally write a string into @desc (size of KUNIT_PARAM_DESC_SIZE)
  * describing the parameter.
  */
@@ -230,10 +230,10 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  *
  * A kunit_suite is a collection of related &struct kunit_case s, such that
  * @init is called before every test case and @exit is called after every
- * test case, similar to the notion of a *test fixture* or a *test class*
+ * test case, similar to the analtion of a *test fixture* or a *test class*
  * in other unit testing frameworks like JUnit or Googletest.
  *
- * Note that @exit and @suite_exit will run even if @init or @suite_init
+ * Analte that @exit and @suite_exit will run even if @init or @suite_init
  * fail: make sure they can handle any inconsistent state which may result.
  *
  * Every &struct kunit_case must be associated with a kunit_suite for KUnit
@@ -394,10 +394,10 @@ static inline int kunit_run_all_tests(void)
  * _probe; so that modpost suppresses warnings about referencing init data
  * for symbols named in this manner.
  *
- * Note: these init tests are not able to be run after boot so there is no
+ * Analte: these init tests are analt able to be run after boot so there is anal
  * "run" debugfs file generated for these tests.
  *
- * Also, do not mark the suite or test case structs with __initdata because
+ * Also, do analt mark the suite or test case structs with __initdata because
  * they will be used after the init phase with debugfs.
  */
 #define kunit_test_init_section_suites(__suites...)			\
@@ -423,7 +423,7 @@ enum kunit_status kunit_suite_has_succeeded(struct kunit_suite *suite);
  * and is automatically cleaned up after the test case concludes. See kunit_add_action()
  * for more information.
  *
- * Note that some internal context data is also allocated with GFP_KERNEL,
+ * Analte that some internal context data is also allocated with GFP_KERNEL,
  * regardless of the gfp passed in.
  */
 void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp);
@@ -436,7 +436,7 @@ void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp);
  *
  * See kmalloc() and kunit_kmalloc_array() for more information.
  *
- * Note that some internal context data is also allocated with GFP_KERNEL,
+ * Analte that some internal context data is also allocated with GFP_KERNEL,
  * regardless of the gfp passed in.
  */
 static inline void *kunit_kmalloc(struct kunit *test, size_t size, gfp_t gfp)
@@ -520,7 +520,7 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
 
 /*
  * printk and log to per-test or per-suite log buffer.  Logging only done
- * if CONFIG_KUNIT_DEBUGFS is 'y'; if it is 'n', no log is allocated/used.
+ * if CONFIG_KUNIT_DEBUGFS is 'y'; if it is 'n', anal log is allocated/used.
  */
 #define kunit_log(lvl, test_or_suite, fmt, ...)				\
 	do {								\
@@ -568,16 +568,16 @@ void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt,
 	kunit_printk(KERN_ERR, test, fmt, ##__VA_ARGS__)
 
 /**
- * KUNIT_SUCCEED() - A no-op expectation. Only exists for code clarity.
+ * KUNIT_SUCCEED() - A anal-op expectation. Only exists for code clarity.
  * @test: The test context object.
  *
- * The opposite of KUNIT_FAIL(), it is an expectation that cannot fail. In other
- * words, it does nothing and only exists for code clarity. See
+ * The opposite of KUNIT_FAIL(), it is an expectation that cananalt fail. In other
+ * words, it does analthing and only exists for code clarity. See
  * KUNIT_EXPECT_TRUE() for more information.
  */
 #define KUNIT_SUCCEED(test) do {} while (0)
 
-void __noreturn __kunit_abort(struct kunit *test);
+void __analreturn __kunit_abort(struct kunit *test);
 
 void __kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
@@ -670,9 +670,9 @@ do {									       \
  * A factory macro for defining the assertions and expectations for the basic
  * comparisons defined for the built in types.
  *
- * Unfortunately, there is no common type that all types can be promoted to for
+ * Unfortunately, there is anal common type that all types can be promoted to for
  * which all the binary operators behave the same way as for the actual types
- * (for example, there is no type that long long and unsigned long long can
+ * (for example, there is anal type that long long and unsigned long long can
  * both be cast to where the comparison result is preserved for all values). So
  * the best we can do is do the comparison in the original types and then coerce
  * everything to long long for printing; this way, the comparison behaves
@@ -807,7 +807,7 @@ do {									       \
 		      ##__VA_ARGS__);					       \
 } while (0)
 
-#define KUNIT_PTR_NOT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
+#define KUNIT_PTR_ANALT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
 						assert_type,		       \
 						ptr,			       \
 						fmt,			       \
@@ -820,22 +820,22 @@ do {									       \
 									       \
 	_KUNIT_FAILED(test,						       \
 		      assert_type,					       \
-		      kunit_ptr_not_err_assert,				       \
-		      kunit_ptr_not_err_assert_format,			       \
+		      kunit_ptr_analt_err_assert,				       \
+		      kunit_ptr_analt_err_assert_format,			       \
 		      KUNIT_INIT_ASSERT(.text = #ptr, .value = __ptr),	       \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)
 
 /**
- * KUNIT_EXPECT_TRUE() - Causes a test failure when the expression is not true.
+ * KUNIT_EXPECT_TRUE() - Causes a test failure when the expression is analt true.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails when this does
- * not evaluate to true.
+ * analt evaluate to true.
  *
  * This and expectations of the form `KUNIT_EXPECT_*` will cause the test case
- * to fail when the specified condition is not met; however, it will not prevent
- * the test case from continuing to run; this is otherwise known as an
+ * to fail when the specified condition is analt met; however, it will analt prevent
+ * the test case from continuing to run; this is otherwise kanalwn as an
  * *expectation failure*.
  */
 #define KUNIT_EXPECT_TRUE(test, condition) \
@@ -849,10 +849,10 @@ do {									       \
 				 ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_FALSE() - Makes a test failure when the expression is not false.
+ * KUNIT_EXPECT_FALSE() - Makes a test failure when the expression is analt false.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails when this does
- * not evaluate to false.
+ * analt evaluate to false.
  *
  * Sets an expectation that @condition evaluates to false. See
  * KUNIT_EXPECT_TRUE() for more information.
@@ -910,12 +910,12 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_NE() - An expectation that @left and @right are not equal.
+ * KUNIT_EXPECT_NE() - An expectation that @left and @right are analt equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a primitive C type.
  * @right: an arbitrary expression that evaluates to a primitive C type.
  *
- * Sets an expectation that the values that @left and @right evaluate to are not
+ * Sets an expectation that the values that @left and @right evaluate to are analt
  * equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, (@left) != (@right)). See KUNIT_EXPECT_TRUE() for
  * more information.
@@ -931,12 +931,12 @@ do {									       \
 				    ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_PTR_NE() - Expects that pointers @left and @right are not equal.
+ * KUNIT_EXPECT_PTR_NE() - Expects that pointers @left and @right are analt equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a pointer.
  * @right: an arbitrary expression that evaluates to a pointer.
  *
- * Sets an expectation that the values that @left and @right evaluate to are not
+ * Sets an expectation that the values that @left and @right evaluate to are analt
  * equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, (@left) != (@right)). See KUNIT_EXPECT_TRUE() for
  * more information.
@@ -1057,13 +1057,13 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_STRNEQ() - Expects that strings @left and @right are not equal.
+ * KUNIT_EXPECT_STRNEQ() - Expects that strings @left and @right are analt equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a null terminated string.
  * @right: an arbitrary expression that evaluates to a null terminated string.
  *
  * Sets an expectation that the values that @left and @right evaluate to are
- * not equal. This is semantically equivalent to
+ * analt equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, strcmp((@left), (@right))). See KUNIT_EXPECT_TRUE()
  * for more information.
  */
@@ -1089,7 +1089,7 @@ do {									       \
  * KUNIT_EXPECT_TRUE(@test, !memcmp((@left), (@right), (@size))). See
  * KUNIT_EXPECT_TRUE() for more information.
  *
- * Although this expectation works for any memory block, it is not recommended
+ * Although this expectation works for any memory block, it is analt recommended
  * for comparing more structured data, such as structs. This expectation is
  * recommended for comparing, for example, data arrays.
  */
@@ -1105,18 +1105,18 @@ do {									       \
 			    ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_MEMNEQ() - Expects that the first @size bytes of @left and @right are not equal.
+ * KUNIT_EXPECT_MEMNEQ() - Expects that the first @size bytes of @left and @right are analt equal.
  * @test: The test context object.
  * @left: An arbitrary expression that evaluates to the specified size.
  * @right: An arbitrary expression that evaluates to the specified size.
  * @size: Number of bytes compared.
  *
  * Sets an expectation that the values that @left and @right evaluate to are
- * not equal. This is semantically equivalent to
+ * analt equal. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, memcmp((@left), (@right), (@size))). See
  * KUNIT_EXPECT_TRUE() for more information.
  *
- * Although this expectation works for any memory block, it is not recommended
+ * Although this expectation works for any memory block, it is analt recommended
  * for comparing more structured data, such as structs. This expectation is
  * recommended for comparing, for example, data arrays.
  */
@@ -1153,20 +1153,20 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_NOT_NULL() - Expects that @ptr is not null.
+ * KUNIT_EXPECT_ANALT_NULL() - Expects that @ptr is analt null.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an expectation that the value that @ptr evaluates to is not null. This
+ * Sets an expectation that the value that @ptr evaluates to is analt null. This
  * is semantically equivalent to KUNIT_EXPECT_PTR_NE(@test, ptr, NULL).
  * See KUNIT_EXPECT_TRUE() for more information.
  */
-#define KUNIT_EXPECT_NOT_NULL(test, ptr)			               \
-	KUNIT_EXPECT_NOT_NULL_MSG(test,					       \
+#define KUNIT_EXPECT_ANALT_NULL(test, ptr)			               \
+	KUNIT_EXPECT_ANALT_NULL_MSG(test,					       \
 				  ptr,					       \
 				  NULL)
 
-#define KUNIT_EXPECT_NOT_NULL_MSG(test, ptr, fmt, ...)	                       \
+#define KUNIT_EXPECT_ANALT_NULL_MSG(test, ptr, fmt, ...)	                       \
 	KUNIT_BINARY_PTR_ASSERTION(test,				       \
 				   KUNIT_EXPECTATION,			       \
 				   ptr, !=, NULL,			       \
@@ -1174,20 +1174,20 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_EXPECT_NOT_ERR_OR_NULL() - Expects that @ptr is not null and not err.
+ * KUNIT_EXPECT_ANALT_ERR_OR_NULL() - Expects that @ptr is analt null and analt err.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an expectation that the value that @ptr evaluates to is not null and not
- * an errno stored in a pointer. This is semantically equivalent to
+ * Sets an expectation that the value that @ptr evaluates to is analt null and analt
+ * an erranal stored in a pointer. This is semantically equivalent to
  * KUNIT_EXPECT_TRUE(@test, !IS_ERR_OR_NULL(@ptr)). See KUNIT_EXPECT_TRUE() for
  * more information.
  */
-#define KUNIT_EXPECT_NOT_ERR_OR_NULL(test, ptr) \
-	KUNIT_EXPECT_NOT_ERR_OR_NULL_MSG(test, ptr, NULL)
+#define KUNIT_EXPECT_ANALT_ERR_OR_NULL(test, ptr) \
+	KUNIT_EXPECT_ANALT_ERR_OR_NULL_MSG(test, ptr, NULL)
 
-#define KUNIT_EXPECT_NOT_ERR_OR_NULL_MSG(test, ptr, fmt, ...)		       \
-	KUNIT_PTR_NOT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
+#define KUNIT_EXPECT_ANALT_ERR_OR_NULL_MSG(test, ptr, fmt, ...)		       \
+	KUNIT_PTR_ANALT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
 						KUNIT_EXPECTATION,	       \
 						ptr,			       \
 						fmt,			       \
@@ -1200,12 +1200,12 @@ do {									       \
  * KUNIT_ASSERT_TRUE() - Sets an assertion that @condition is true.
  * @test: The test context object.
  * @condition: an arbitrary boolean expression. The test fails and aborts when
- * this does not evaluate to true.
+ * this does analt evaluate to true.
  *
  * This and assertions of the form `KUNIT_ASSERT_*` will cause the test case to
- * fail *and immediately abort* when the specified condition is not met. Unlike
+ * fail *and immediately abort* when the specified condition is analt met. Unlike
  * an expectation failure, it will prevent the test case from continuing to run;
- * this is otherwise known as an *assertion failure*.
+ * this is otherwise kanalwn as an *assertion failure*.
  */
 #define KUNIT_ASSERT_TRUE(test, condition) \
 	KUNIT_ASSERT_TRUE_MSG(test, condition, NULL)
@@ -1224,7 +1224,7 @@ do {									       \
  *
  * Sets an assertion that the value that @condition evaluates to is false. This
  * is the same as KUNIT_EXPECT_FALSE(), except it causes an assertion failure
- * (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_FALSE(test, condition) \
 	KUNIT_ASSERT_FALSE_MSG(test, condition, NULL)
@@ -1244,7 +1244,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_EQ(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_EQ(test, left, right) \
 	KUNIT_ASSERT_EQ_MSG(test, left, right, NULL)
@@ -1264,7 +1264,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_EQ(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_PTR_EQ(test, left, right) \
 	KUNIT_ASSERT_PTR_EQ_MSG(test, left, right, NULL)
@@ -1277,14 +1277,14 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_NE() - An assertion that @left and @right are not equal.
+ * KUNIT_ASSERT_NE() - An assertion that @left and @right are analt equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a primitive C type.
  * @right: an arbitrary expression that evaluates to a primitive C type.
  *
- * Sets an assertion that the values that @left and @right evaluate to are not
+ * Sets an assertion that the values that @left and @right evaluate to are analt
  * equal. This is the same as KUNIT_EXPECT_NE(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_NE(test, left, right) \
 	KUNIT_ASSERT_NE_MSG(test, left, right, NULL)
@@ -1297,15 +1297,15 @@ do {									       \
 				    ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_PTR_NE() - Asserts that pointers @left and @right are not equal.
+ * KUNIT_ASSERT_PTR_NE() - Asserts that pointers @left and @right are analt equal.
  * KUNIT_ASSERT_PTR_EQ() - Asserts that pointers @left and @right are equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a pointer.
  * @right: an arbitrary expression that evaluates to a pointer.
  *
- * Sets an assertion that the values that @left and @right evaluate to are not
+ * Sets an assertion that the values that @left and @right evaluate to are analt
  * equal. This is the same as KUNIT_EXPECT_NE(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_PTR_NE(test, left, right) \
 	KUNIT_ASSERT_PTR_NE_MSG(test, left, right, NULL)
@@ -1325,7 +1325,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is less than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_LT(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is analt met.
  */
 #define KUNIT_ASSERT_LT(test, left, right) \
 	KUNIT_ASSERT_LT_MSG(test, left, right, NULL)
@@ -1345,7 +1345,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is less than or
  * equal to the value that @right evaluates to. This is the same as
  * KUNIT_EXPECT_LE(), except it causes an assertion failure (see
- * KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_LE(test, left, right) \
 	KUNIT_ASSERT_LE_MSG(test, left, right, NULL)
@@ -1366,7 +1366,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is greater than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_GT(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is analt met.
  */
 #define KUNIT_ASSERT_GT(test, left, right) \
 	KUNIT_ASSERT_GT_MSG(test, left, right, NULL)
@@ -1387,7 +1387,7 @@ do {									       \
  * Sets an assertion that the value that @left evaluates to is greater than the
  * value that @right evaluates to. This is the same as KUNIT_EXPECT_GE(), except
  * it causes an assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion
- * is not met.
+ * is analt met.
  */
 #define KUNIT_ASSERT_GE(test, left, right) \
 	KUNIT_ASSERT_GE_MSG(test, left, right, NULL)
@@ -1407,7 +1407,7 @@ do {									       \
  *
  * Sets an assertion that the values that @left and @right evaluate to are
  * equal. This is the same as KUNIT_EXPECT_STREQ(), except it causes an
- * assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * assertion failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_STREQ(test, left, right) \
 	KUNIT_ASSERT_STREQ_MSG(test, left, right, NULL)
@@ -1420,13 +1420,13 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_STRNEQ() - Expects that strings @left and @right are not equal.
+ * KUNIT_ASSERT_STRNEQ() - Expects that strings @left and @right are analt equal.
  * @test: The test context object.
  * @left: an arbitrary expression that evaluates to a null terminated string.
  * @right: an arbitrary expression that evaluates to a null terminated string.
  *
  * Sets an expectation that the values that @left and @right evaluate to are
- * not equal. This is semantically equivalent to
+ * analt equal. This is semantically equivalent to
  * KUNIT_ASSERT_TRUE(@test, strcmp((@left), (@right))). See KUNIT_ASSERT_TRUE()
  * for more information.
  */
@@ -1447,7 +1447,7 @@ do {									       \
  *
  * Sets an assertion that the values that @ptr evaluates to is null. This is
  * the same as KUNIT_EXPECT_NULL(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
 #define KUNIT_ASSERT_NULL(test, ptr) \
 	KUNIT_ASSERT_NULL_MSG(test,					       \
@@ -1462,20 +1462,20 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_NOT_NULL() - Asserts that pointers @ptr is not null.
+ * KUNIT_ASSERT_ANALT_NULL() - Asserts that pointers @ptr is analt null.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an assertion that the values that @ptr evaluates to is not null. This
- * is the same as KUNIT_EXPECT_NOT_NULL(), except it causes an assertion
- * failure (see KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * Sets an assertion that the values that @ptr evaluates to is analt null. This
+ * is the same as KUNIT_EXPECT_ANALT_NULL(), except it causes an assertion
+ * failure (see KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
-#define KUNIT_ASSERT_NOT_NULL(test, ptr) \
-	KUNIT_ASSERT_NOT_NULL_MSG(test,					       \
+#define KUNIT_ASSERT_ANALT_NULL(test, ptr) \
+	KUNIT_ASSERT_ANALT_NULL_MSG(test,					       \
 				  ptr,					       \
 				  NULL)
 
-#define KUNIT_ASSERT_NOT_NULL_MSG(test, ptr, fmt, ...) \
+#define KUNIT_ASSERT_ANALT_NULL_MSG(test, ptr, fmt, ...) \
 	KUNIT_BINARY_PTR_ASSERTION(test,				       \
 				   KUNIT_ASSERTION,			       \
 				   ptr, !=, NULL,			       \
@@ -1483,20 +1483,20 @@ do {									       \
 				   ##__VA_ARGS__)
 
 /**
- * KUNIT_ASSERT_NOT_ERR_OR_NULL() - Assertion that @ptr is not null and not err.
+ * KUNIT_ASSERT_ANALT_ERR_OR_NULL() - Assertion that @ptr is analt null and analt err.
  * @test: The test context object.
  * @ptr: an arbitrary pointer.
  *
- * Sets an assertion that the value that @ptr evaluates to is not null and not
- * an errno stored in a pointer. This is the same as
- * KUNIT_EXPECT_NOT_ERR_OR_NULL(), except it causes an assertion failure (see
- * KUNIT_ASSERT_TRUE()) when the assertion is not met.
+ * Sets an assertion that the value that @ptr evaluates to is analt null and analt
+ * an erranal stored in a pointer. This is the same as
+ * KUNIT_EXPECT_ANALT_ERR_OR_NULL(), except it causes an assertion failure (see
+ * KUNIT_ASSERT_TRUE()) when the assertion is analt met.
  */
-#define KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr) \
-	KUNIT_ASSERT_NOT_ERR_OR_NULL_MSG(test, ptr, NULL)
+#define KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, ptr) \
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL_MSG(test, ptr, NULL)
 
-#define KUNIT_ASSERT_NOT_ERR_OR_NULL_MSG(test, ptr, fmt, ...)		       \
-	KUNIT_PTR_NOT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
+#define KUNIT_ASSERT_ANALT_ERR_OR_NULL_MSG(test, ptr, fmt, ...)		       \
+	KUNIT_PTR_ANALT_ERR_OR_NULL_MSG_ASSERTION(test,			       \
 						KUNIT_ASSERTION,	       \
 						ptr,			       \
 						fmt,			       \

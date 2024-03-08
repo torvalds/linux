@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +39,7 @@ static struct man_viewer_info_list {
 } *man_viewer_info_list;
 
 enum help_format {
-	HELP_FORMAT_NONE,
+	HELP_FORMAT_ANALNE,
 	HELP_FORMAT_MAN,
 	HELP_FORMAT_INFO,
 	HELP_FORMAT_WEB,
@@ -55,7 +55,7 @@ static enum help_format parse_help_format(const char *format)
 		return HELP_FORMAT_WEB;
 
 	pr_err("unrecognized help format '%s'", format);
-	return HELP_FORMAT_NONE;
+	return HELP_FORMAT_ANALNE;
 }
 
 static const char *get_man_viewer_info(const char *name)
@@ -119,7 +119,7 @@ out:
 static void exec_failed(const char *cmd)
 {
 	char sbuf[STRERR_BUFSIZE];
-	pr_warning("failed to exec '%s': %s", cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+	pr_warning("failed to exec '%s': %s", cmd, str_error_r(erranal, sbuf, sizeof(sbuf)));
 }
 
 static void exec_woman_emacs(const char *path, const char *page)
@@ -254,18 +254,18 @@ static int add_man_viewer_info(const char *var, const char *value)
 	const char *subkey = strrchr(name, '.');
 
 	if (!subkey) {
-		pr_err("Config with no key for man viewer: %s", name);
+		pr_err("Config with anal key for man viewer: %s", name);
 		return -1;
 	}
 
 	if (!strcmp(subkey, ".path")) {
 		if (!value)
-			return config_error_nonbool(var);
+			return config_error_analnbool(var);
 		return add_man_viewer_path(name, subkey - name, value);
 	}
 	if (!strcmp(subkey, ".cmd")) {
 		if (!value)
-			return config_error_nonbool(var);
+			return config_error_analnbool(var);
 		return add_man_viewer_cmd(name, subkey - name, value);
 	}
 
@@ -279,15 +279,15 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 
 	if (!strcmp(var, "help.format")) {
 		if (!value)
-			return config_error_nonbool(var);
+			return config_error_analnbool(var);
 		*help_formatp = parse_help_format(value);
-		if (*help_formatp == HELP_FORMAT_NONE)
+		if (*help_formatp == HELP_FORMAT_ANALNE)
 			return -1;
 		return 0;
 	}
 	if (!strcmp(var, "man.viewer")) {
 		if (!value)
-			return config_error_nonbool(var);
+			return config_error_analnbool(var);
 		add_man_viewer(value);
 		return 0;
 	}
@@ -332,7 +332,7 @@ static void setup_man_path(void)
 	char *new_path;
 	const char *old_path = getenv("MANPATH");
 
-	/* We should always put ':' after our path. If there is no
+	/* We should always put ':' after our path. If there is anal
 	 * old_path, the ':' at the end will let 'man' to try
 	 * system-wide paths after ours to find the manual page. If
 	 * there is old_path, we need ':' as delimiter. */
@@ -357,7 +357,7 @@ static void exec_viewer(const char *name, const char *page)
 	else if (info)
 		exec_man_cmd(info, page);
 	else
-		pr_warning("'%s': unknown man viewer.", name);
+		pr_warning("'%s': unkanalwn man viewer.", name);
 }
 
 static int show_man_page(const char *perf_cmd)
@@ -374,7 +374,7 @@ static int show_man_page(const char *perf_cmd)
 		exec_viewer(fallback, page);
 	exec_viewer("man", page);
 
-	pr_err("no man viewer handled the request");
+	pr_err("anal man viewer handled the request");
 	return -1;
 }
 
@@ -395,7 +395,7 @@ static int get_html_page_path(char **page_path, const char *page)
 	/* Check that we have a perf documentation directory. */
 	if (stat(mkpath(path, sizeof(path), "%s/perf.html", html_path), &st)
 	    || !S_ISREG(st.st_mode)) {
-		pr_err("'%s': not a documentation directory.", html_path);
+		pr_err("'%s': analt a documentation directory.", html_path);
 		return -1;
 	}
 
@@ -403,7 +403,7 @@ static int get_html_page_path(char **page_path, const char *page)
 }
 
 /*
- * If open_html is not defined in a platform-specific way (see for
+ * If open_html is analt defined in a platform-specific way (see for
  * example compat/mingw.h), we use the script web--browse to display
  * HTML.
  */
@@ -442,7 +442,7 @@ int cmd_help(int argc, const char **argv)
 	};
 	const char * const builtin_help_subcommands[] = {
 		"buildid-cache", "buildid-list", "diff", "evlist", "help", "list",
-		"record", "report", "bench", "stat", "timechart", "top", "annotate",
+		"record", "report", "bench", "stat", "timechart", "top", "ananaltate",
 		"script", "sched", "kallsyms", "kmem", "lock", "kvm", "test", "inject", "mem", "data",
 #ifdef HAVE_LIBELF_SUPPORT
 		"probe",
@@ -490,7 +490,7 @@ int cmd_help(int argc, const char **argv)
 	case HELP_FORMAT_WEB:
 		rc = show_html_page(argv[0]);
 		break;
-	case HELP_FORMAT_NONE:
+	case HELP_FORMAT_ANALNE:
 		/* fall-through */
 	default:
 		rc = -1;

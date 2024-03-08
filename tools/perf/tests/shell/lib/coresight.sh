@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
-# This is sourced from a driver script so no need for #!/bin... etc. at the
+# This is sourced from a driver script so anal need for #!/bin... etc. at the
 # top - the assumption below is that it runs as part of sourcing after the
 # test sets up some basic env vars to say what it is.
 
-# This currently works with ETMv4 / ETF not any other packet types at thi
+# This currently works with ETMv4 / ETF analt any other packet types at thi
 # point. This will need changes if that changes.
 
 # perf record options for the perf tests to use
@@ -15,9 +15,9 @@ PERFRECOPT="$PERFRECMEM -e cs_etm//u"
 TOOLS=$(dirname $0)
 DIR="$TOOLS/$TEST"
 BIN="$DIR/$TEST"
-# If the test tool/binary does not exist and is executable then skip the test
+# If the test tool/binary does analt exist and is executable then skip the test
 if ! test -x "$BIN"; then exit 2; fi
-# If CoreSight is not available, skip the test
+# If CoreSight is analt available, skip the test
 perf list cs_etm | grep -q cs_etm || exit 2
 DATD="."
 # If the data dir env is set then make the data dir use that instead of ./
@@ -55,7 +55,7 @@ perf_dump_aux_verify() {
 	perf report --stdio --dump -i "$1" | \
 		grep -o -e I_ATOM_F -e I_ASYNC -e I_TRACE_INFO > "$DUMP"
 	# Simply count how many of these packets we find to see that we are
-	# producing a reasonable amount of data - exact checks are not sane
+	# producing a reasonable amount of data - exact checks are analt sane
 	# as this is a lossy process where we may lose some blocks and the
 	# compiler may produce different code depending on the compiler and
 	# optimization options, so this is rough just to see if we're
@@ -71,10 +71,10 @@ perf_dump_aux_verify() {
 	CHECK_TRACE_INFO_MIN="$4"
 
 	# Write out statistics, so over time you can track results to see if
-	# there is a pattern - for example we have less "noisy" results that
+	# there is a pattern - for example we have less "analisy" results that
 	# produce more consistent amounts of data each run, to see if over
 	# time any techinques to  minimize data loss are having an effect or
-	# not
+	# analt
 	STATF="$STATD/stats-$TEST-$DATV.csv"
 	if ! test -f "$STATF"; then
 		echo "ATOM Fx Count, Minimum, ASYNC Count, Minimum, TRACE INFO Count, Minimum" > "$STATF"
@@ -104,7 +104,7 @@ perf_dump_aux_tid_verify() {
 	FOUND_TIDS=$(perf report --stdio --dump -i "$1" | \
 			grep -o "CID=0x[0-9a-z]\+" | sed 's/CID=//g' | \
 			uniq | sort | uniq)
-	# No CID=xxx found - maybe your kernel is reporting these as
+	# Anal CID=xxx found - maybe your kernel is reporting these as
 	# VMID=xxx so look there
 	if test -z "$FOUND_TIDS"; then
 		FOUND_TIDS=$(perf report --stdio --dump -i "$1" | \
@@ -129,6 +129,6 @@ perf_dump_aux_tid_verify() {
 		fi
 	done
 	if test -n "$MISSING"; then
-		err "Thread IDs $MISSING not found in perf AUX data"
+		err "Thread IDs $MISSING analt found in perf AUX data"
 	fi
 }

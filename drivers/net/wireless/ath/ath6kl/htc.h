@@ -4,11 +4,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -64,14 +64,14 @@
 
 /* connect response status codes */
 #define HTC_SERVICE_SUCCESS      0
-#define HTC_SERVICE_NOT_FOUND    1
+#define HTC_SERVICE_ANALT_FOUND    1
 #define HTC_SERVICE_FAILED       2
 
-/* no resources (i.e. no more endpoints) */
-#define HTC_SERVICE_NO_RESOURCES 3
+/* anal resources (i.e. anal more endpoints) */
+#define HTC_SERVICE_ANAL_RESOURCES 3
 
-/* specific service is not allowing any more endpoints */
-#define HTC_SERVICE_NO_MORE_EP   4
+/* specific service is analt allowing any more endpoints */
+#define HTC_SERVICE_ANAL_MORE_EP   4
 
 /* report record IDs */
 #define HTC_RECORD_NULL             0
@@ -85,7 +85,7 @@
 #define MAKE_SERVICE_ID(group, index) \
 	(int)(((int)group << 8) | (int)(index))
 
-/* NOTE: service ID of 0x0000 is reserved and should never be used */
+/* ANALTE: service ID of 0x0000 is reserved and should never be used */
 #define HTC_CTRL_RSVD_SVC MAKE_SERVICE_ID(RSVD_SERVICE_GROUP, 1)
 #define WMI_CONTROL_SVC   MAKE_SERVICE_ID(WMI_SERVICE_GROUP, 0)
 #define WMI_DATA_BE_SVC   MAKE_SERVICE_ID(WMI_SERVICE_GROUP, 1)
@@ -125,10 +125,10 @@
 
 /* packet flags */
 
-#define HTC_RX_PKT_IGNORE_LOOKAHEAD      (1 << 0)
+#define HTC_RX_PKT_IGANALRE_LOOKAHEAD      (1 << 0)
 #define HTC_RX_PKT_REFRESH_HDR           (1 << 1)
 #define HTC_RX_PKT_PART_OF_BUNDLE        (1 << 2)
-#define HTC_RX_PKT_NO_RECYCLE            (1 << 3)
+#define HTC_RX_PKT_ANAL_RECYCLE            (1 << 3)
 
 #define NUM_CONTROL_BUFFERS     8
 #define NUM_CONTROL_TX_BUFFERS  2
@@ -148,7 +148,7 @@
 
 /* HTC frame header
  *
- * NOTE: do not remove or re-arrange the fields, these are minimally
+ * ANALTE: do analt remove or re-arrange the fields, these are minimally
  * required to take advantage of 4-byte lookaheads in some hardware
  * implementations.
  */
@@ -230,7 +230,7 @@ struct htc_credit_report {
 } __packed;
 
 /*
- * NOTE: The lk_ahd array is guarded by a pre_valid
+ * ANALTE: The lk_ahd array is guarded by a pre_valid
  * and Post Valid guard bytes. The pre_valid bytes must
  * equal the inverse of the post_valid byte.
  */
@@ -274,7 +274,7 @@ struct htc_tx_packet_info {
 	u16 tag;
 	int cred_used;
 	u8 flags;
-	int seqno;
+	int seqanal;
 };
 
 struct htc_rx_packet_info {
@@ -331,7 +331,7 @@ struct htc_packet {
 	/*
 	 * optimization for network-oriented data, the HTC packet
 	 * can pass the network buffer corresponding to the HTC packet
-	 * lower layers may optimized the transfer knowing this is
+	 * lower layers may optimized the transfer kanalwing this is
 	 * a network buffer
 	 */
 	struct sk_buff *skb;
@@ -387,10 +387,10 @@ struct htc_endpoint_credit_dist {
 	u32 dist_flags;
 
 	/*
-	 * credits for normal operation, anything above this
+	 * credits for analrmal operation, anything above this
 	 * indicates the endpoint is over-subscribed.
 	 */
-	int cred_norm;
+	int cred_analrm;
 
 	/* floor for credit distribution */
 	int cred_min;
@@ -428,7 +428,7 @@ struct htc_endpoint_credit_dist {
 	 * current depth of TX queue , i.e. messages waiting for credits
 	 * This field is valid only when HTC_CREDIT_DIST_ACTIVITY_CHANGE
 	 * or HTC_CREDIT_DIST_SEND_COMPLETE is indicated on an endpoint
-	 * that has non-zero credits to recover.
+	 * that has analn-zero credits to recover.
 	 */
 	int txq_depth;
 };
@@ -479,10 +479,10 @@ struct htc_endpoint_stats {
 	/* count of credits received via Rx packets on this endpoint */
 	u32 cred_from_rx;
 
-	/* count of credits received via another endpoint */
+	/* count of credits received via aanalther endpoint */
 	u32 cred_from_other;
 
-	/* count of credits received via another endpoint */
+	/* count of credits received via aanalther endpoint */
 	u32 cred_from_ep0;
 
 	/* count of consummed credits */
@@ -524,7 +524,7 @@ struct htc_endpoint {
 	int tx_proc_cnt;
 	int rx_proc_cnt;
 	struct htc_target *target;
-	u8 seqno;
+	u8 seqanal;
 	u32 conn_flags;
 	struct htc_endpoint_stats ep_st;
 	u16 tx_drop_packet_threshold;
@@ -624,7 +624,7 @@ struct htc_target {
 
 	int chk_irq_status_cnt;
 
-	/* counts the number of Tx without bundling continously per AC */
+	/* counts the number of Tx without bundling contianalusly per AC */
 	u32 ac_tx_count[WMM_NUM_AC];
 
 	struct {

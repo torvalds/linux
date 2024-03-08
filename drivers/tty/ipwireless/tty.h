@@ -38,7 +38,7 @@ void ipwireless_tty_free(struct ipw_tty *tty);
 void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 			     unsigned int length);
 int ipwireless_tty_is_modem(struct ipw_tty *tty);
-void ipwireless_tty_notify_control_line_change(struct ipw_tty *tty,
+void ipwireless_tty_analtify_control_line_change(struct ipw_tty *tty,
 					       unsigned int channel_idx,
 					       unsigned int control_lines,
 					       unsigned int changed_mask);

@@ -58,27 +58,27 @@ static struct mtk_pllfh_data *get_pllfh_by_id(struct mtk_pllfh_data *pllfhs,
 	return NULL;
 }
 
-void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
+void fhctl_parse_dt(const u8 *compatible_analde, struct mtk_pllfh_data *pllfhs,
 		    int num_fhs)
 {
 	void __iomem *base;
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 num_clocks, pll_id, ssc_rate;
 	int offset, i;
 
-	node = of_find_compatible_node(NULL, NULL, compatible_node);
-	if (!node) {
-		pr_err("cannot find \"%s\"\n", compatible_node);
+	analde = of_find_compatible_analde(NULL, NULL, compatible_analde);
+	if (!analde) {
+		pr_err("cananalt find \"%s\"\n", compatible_analde);
 		return;
 	}
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
-		goto out_node_put;
+		goto out_analde_put;
 	}
 
-	num_clocks = of_clk_get_parent_count(node);
+	num_clocks = of_clk_get_parent_count(analde);
 	if (!num_clocks) {
 		pr_err("%s(): failed to get clocks property\n", __func__);
 		goto err;
@@ -89,8 +89,8 @@ void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
 
 		offset = i * 2;
 
-		of_property_read_u32_index(node, "clocks", offset + 1, &pll_id);
-		of_property_read_u32_index(node,
+		of_property_read_u32_index(analde, "clocks", offset + 1, &pll_id);
+		of_property_read_u32_index(analde,
 					   "mediatek,hopping-ssc-percent",
 					   i, &ssc_rate);
 
@@ -103,12 +103,12 @@ void fhctl_parse_dt(const u8 *compatible_node, struct mtk_pllfh_data *pllfhs,
 		pllfh->state.base = base;
 	}
 
-out_node_put:
-	of_node_put(node);
+out_analde_put:
+	of_analde_put(analde);
 	return;
 err:
 	iounmap(base);
-	goto out_node_put;
+	goto out_analde_put;
 }
 EXPORT_SYMBOL_GPL(fhctl_parse_dt);
 
@@ -158,7 +158,7 @@ mtk_clk_register_pllfh(const struct mtk_pll_data *pll_data,
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = pllfh_init(fh, pllfh_data);
 	if (ret) {
@@ -194,7 +194,7 @@ static void mtk_clk_unregister_pllfh(struct clk_hw *hw)
 	kfree(fh);
 }
 
-int mtk_clk_register_pllfhs(struct device_node *node,
+int mtk_clk_register_pllfhs(struct device_analde *analde,
 			    const struct mtk_pll_data *plls, int num_plls,
 			    struct mtk_pllfh_data *pllfhs, int num_fhs,
 			    struct clk_hw_onecell_data *clk_data)
@@ -203,7 +203,7 @@ int mtk_clk_register_pllfhs(struct device_node *node,
 	int i;
 	struct clk_hw *hw;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return -EINVAL;
@@ -248,7 +248,7 @@ err:
 		else
 			mtk_clk_unregister_pll(clk_data->hws[pll->id]);
 
-		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[pll->id] = ERR_PTR(-EANALENT);
 	}
 
 	iounmap(base);
@@ -287,7 +287,7 @@ void mtk_clk_unregister_pllfhs(const struct mtk_pll_data *plls, int num_plls,
 			mtk_clk_unregister_pll(clk_data->hws[pll->id]);
 		}
 
-		clk_data->hws[pll->id] = ERR_PTR(-ENOENT);
+		clk_data->hws[pll->id] = ERR_PTR(-EANALENT);
 	}
 
 	if (fhctl_base)

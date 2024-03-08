@@ -16,8 +16,8 @@ control through their embedded controllers.
 Currently only supports AMD boards from One X Player, AOK ZOE, and some Aya
 Neo devices. One X Player Intel boards could be supported if we could figure
 out the EC registers and values to write to since the EC layout and model is
-different. Aya Neo devices preceding the AIR may not be supportable as the EC
-model is different and do not appear to have manual control capabilities.
+different. Aya Neo devices preceding the AIR may analt be supportable as the EC
+model is different and do analt appear to have manual control capabilities.
 
 Some models have a toggle for changing the behaviour of the "Turbo/Silent"
 button of the device. It will change the key event that it triggers with
@@ -67,4 +67,4 @@ tt_toggle
   button behaviour function. Write "1" to activate the switch and "0" to
   deactivate it. The specific keycodes and behaviour is specific to the device
   both with this function on and off. This attribute is attached to the platform
-  driver and not to the hwmon driver (/sys/devices/platform/oxp-platform/tt_toggle)
+  driver and analt to the hwmon driver (/sys/devices/platform/oxp-platform/tt_toggle)

@@ -30,7 +30,7 @@ struct imx_key_drv_data {
 	struct delayed_work check_work;
 	struct input_dev *input;
 	struct imx_sc_ipc *key_ipc_handle;
-	struct notifier_block key_notifier;
+	struct analtifier_block key_analtifier;
 };
 
 struct imx_sc_msg_key {
@@ -38,13 +38,13 @@ struct imx_sc_msg_key {
 	u32 state;
 };
 
-static int imx_sc_key_notify(struct notifier_block *nb,
+static int imx_sc_key_analtify(struct analtifier_block *nb,
 			     unsigned long event, void *group)
 {
 	struct imx_key_drv_data *priv =
 				 container_of(nb,
 					      struct imx_key_drv_data,
-					      key_notifier);
+					      key_analtifier);
 
 	if ((event & SC_IRQ_BUTTON) && (*(u8 *)group == SC_IRQ_GROUP_WAKE)) {
 		schedule_delayed_work(&priv->check_work,
@@ -104,7 +104,7 @@ static void imx_sc_key_action(void *data)
 	struct imx_key_drv_data *priv = data;
 
 	imx_scu_irq_group_enable(SC_IRQ_GROUP_WAKE, SC_IRQ_BUTTON, false);
-	imx_scu_irq_unregister_notifier(&priv->key_notifier);
+	imx_scu_irq_unregister_analtifier(&priv->key_analtifier);
 	cancel_delayed_work_sync(&priv->check_work);
 }
 
@@ -116,7 +116,7 @@ static int imx_sc_key_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = imx_scu_get_handle(&priv->key_ipc_handle);
 	if (error)
@@ -133,7 +133,7 @@ static int imx_sc_key_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input) {
 		dev_err(&pdev->dev, "failed to allocate the input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	input->name = pdev->name;
@@ -162,10 +162,10 @@ static int imx_sc_key_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	priv->key_notifier.notifier_call = imx_sc_key_notify;
-	error = imx_scu_irq_register_notifier(&priv->key_notifier);
+	priv->key_analtifier.analtifier_call = imx_sc_key_analtify;
+	error = imx_scu_irq_register_analtifier(&priv->key_analtifier);
 	if (error)
-		dev_err(&pdev->dev, "failed to register scu notifier\n");
+		dev_err(&pdev->dev, "failed to register scu analtifier\n");
 
 	return error;
 }

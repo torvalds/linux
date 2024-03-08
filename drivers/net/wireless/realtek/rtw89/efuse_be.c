@@ -57,7 +57,7 @@ static int rtw89_dump_physical_efuse_map_ddv_be(struct rtw89_dev *rtwdev, u8 *ma
 	int ret;
 
 	if (!IS_ALIGNED(dump_addr, 4) || !IS_ALIGNED(dump_size, 4)) {
-		rtw89_err(rtwdev, "Efuse addr 0x%x or size 0x%x not aligned\n",
+		rtw89_err(rtwdev, "Efuse addr 0x%x or size 0x%x analt aligned\n",
 			  dump_addr, dump_size);
 		return -EINVAL;
 	}
@@ -303,7 +303,7 @@ static int rtw89_parse_logical_efuse_block_be(struct rtw89_dev *rtwdev,
 
 	log_map = kmalloc(efuse_block->size, GFP_KERNEL);
 	if (!log_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw89_eeprom_parser_be(rtwdev, phy_map, phy_size, log_map, efuse_block);
 	if (ret) {
@@ -344,7 +344,7 @@ int rtw89_parse_efuse_map_be(struct rtw89_dev *rtwdev)
 		dav_phy_map = kmalloc(dav_phy_size, GFP_KERNEL);
 
 	if (!phy_map || (dav_phy_size && !dav_phy_map)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -398,7 +398,7 @@ int rtw89_parse_phycap_map_be(struct rtw89_dev *rtwdev)
 
 	phycap_map = kmalloc(phycap_size, GFP_KERNEL);
 	if (!phycap_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = rtw89_dump_physical_efuse_map_be(rtwdev, phycap_map,
 					       phycap_addr, phycap_size, false);

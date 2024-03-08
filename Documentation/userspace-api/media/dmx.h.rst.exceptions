@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# Ignore header name
-ignore define _UAPI_DVBDMX_H_
+# Iganalre header name
+iganalre define _UAPI_DVBDMX_H_
 
-# Ignore limit constants
-ignore define DMX_FILTER_SIZE
+# Iganalre limit constants
+iganalre define DMX_FILTER_SIZE
 
 # dmx_pes_type_t enum symbols
 replace enum dmx_ts_pes :c:type:`dmx_pes_type`
@@ -30,12 +30,12 @@ replace symbol DMX_PES_SUBTITLE3 :c:type:`dmx_pes_type`
 replace symbol DMX_PES_PCR3 :c:type:`dmx_pes_type`
 replace symbol DMX_PES_OTHER :c:type:`dmx_pes_type`
 
-# Ignore obsolete symbols
-ignore define DMX_PES_AUDIO
-ignore define DMX_PES_VIDEO
-ignore define DMX_PES_TELETEXT
-ignore define DMX_PES_SUBTITLE
-ignore define DMX_PES_PCR
+# Iganalre obsolete symbols
+iganalre define DMX_PES_AUDIO
+iganalre define DMX_PES_VIDEO
+iganalre define DMX_PES_TELETEXT
+iganalre define DMX_PES_SUBTITLE
+iganalre define DMX_PES_PCR
 
 # dmx_input_t symbols
 replace enum dmx_input :c:type:`dmx_input`

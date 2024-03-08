@@ -12,14 +12,14 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/percpu.h>
@@ -115,11 +115,11 @@ sdei_cross_call_return(struct sdei_crosscall_args *arg, int err)
 		arg->first_error = err;
 }
 
-static int sdei_to_linux_errno(unsigned long sdei_err)
+static int sdei_to_linux_erranal(unsigned long sdei_err)
 {
 	switch (sdei_err) {
-	case SDEI_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
+	case SDEI_ANALT_SUPPORTED:
+		return -EOPANALTSUPP;
 	case SDEI_INVALID_PARAMETERS:
 		return -EINVAL;
 	case SDEI_DENIED:
@@ -127,7 +127,7 @@ static int sdei_to_linux_errno(unsigned long sdei_err)
 	case SDEI_PENDING:
 		return -EINPROGRESS;
 	case SDEI_OUT_OF_RESOURCE:
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -144,16 +144,16 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 	if (sdei_firmware_call) {
 		sdei_firmware_call(function_id, arg0, arg1, arg2, arg3, arg4,
 				   &res);
-		err = sdei_to_linux_errno(res.a0);
+		err = sdei_to_linux_erranal(res.a0);
 	} else {
 		/*
 		 * !sdei_firmware_call means we failed to probe or called
-		 * sdei_mark_interface_broken(). -EIO is not an error returned
-		 * by sdei_to_linux_errno() and is used to suppress messages
+		 * sdei_mark_interface_broken(). -EIO is analt an error returned
+		 * by sdei_to_linux_erranal() and is used to suppress messages
 		 * from this driver.
 		 */
 		err = -EIO;
-		res.a0 = SDEI_NOT_SUPPORTED;
+		res.a0 = SDEI_ANALT_SUPPORTED;
 	}
 
 	if (result)
@@ -161,7 +161,7 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 
 	return err;
 }
-NOKPROBE_SYMBOL(invoke_sdei_fn);
+ANALKPROBE_SYMBOL(invoke_sdei_fn);
 
 static struct sdei_event *sdei_event_find(u32 event_num)
 {
@@ -186,7 +186,7 @@ int sdei_api_event_context(u32 query, u64 *result)
 	return invoke_sdei_fn(SDEI_1_0_FN_SDEI_EVENT_CONTEXT, query, 0, 0, 0, 0,
 			      result);
 }
-NOKPROBE_SYMBOL(sdei_api_event_context);
+ANALKPROBE_SYMBOL(sdei_api_event_context);
 
 static int sdei_api_event_get_info(u32 event, u32 info, u64 *result)
 {
@@ -207,7 +207,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail;
 	}
 
@@ -229,7 +229,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 	if (event->type == SDEI_EVENT_TYPE_SHARED) {
 		reg = kzalloc(sizeof(*reg), GFP_KERNEL);
 		if (!reg) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -245,7 +245,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 
 		regs = alloc_percpu(struct sdei_registered_event);
 		if (!regs) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto fail;
 		}
 
@@ -313,7 +313,7 @@ int sdei_mask_local_cpu(void)
 	return 0;
 }
 
-static void _ipi_mask_cpu(void *ignored)
+static void _ipi_mask_cpu(void *iganalred)
 {
 	WARN_ON_ONCE(preemptible());
 	sdei_mask_local_cpu();
@@ -333,13 +333,13 @@ int sdei_unmask_local_cpu(void)
 	return 0;
 }
 
-static void _ipi_unmask_cpu(void *ignored)
+static void _ipi_unmask_cpu(void *iganalred)
 {
 	WARN_ON_ONCE(preemptible());
 	sdei_unmask_local_cpu();
 }
 
-static void _ipi_private_reset(void *ignored)
+static void _ipi_private_reset(void *iganalred)
 {
 	int err;
 
@@ -405,7 +405,7 @@ int sdei_event_enable(u32 event_num)
 	event = sdei_event_find(event_num);
 	if (!event) {
 		mutex_unlock(&sdei_events_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 
@@ -451,7 +451,7 @@ int sdei_event_disable(u32 event_num)
 	event = sdei_event_find(event_num);
 	if (!event) {
 		mutex_unlock(&sdei_events_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	spin_lock(&sdei_list_lock);
@@ -494,8 +494,8 @@ int sdei_event_unregister(u32 event_num)
 	mutex_lock(&sdei_events_lock);
 	event = sdei_event_find(event_num);
 	if (!event) {
-		pr_warn("Event %u not registered\n", event_num);
-		err = -ENOENT;
+		pr_warn("Event %u analt registered\n", event_num);
+		err = -EANALENT;
 		goto unlock;
 	}
 
@@ -708,7 +708,7 @@ static int sdei_cpuhp_up(unsigned int cpu)
 }
 
 /* When entering idle, mask/unmask events for this cpu */
-static int sdei_pm_notifier(struct notifier_block *nb, unsigned long action,
+static int sdei_pm_analtifier(struct analtifier_block *nb, unsigned long action,
 			    void *data)
 {
 	int rv;
@@ -724,17 +724,17 @@ static int sdei_pm_notifier(struct notifier_block *nb, unsigned long action,
 		rv = sdei_unmask_local_cpu();
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
 	if (rv)
-		return notifier_from_errno(rv);
+		return analtifier_from_erranal(rv);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block sdei_pm_nb = {
-	.notifier_call = sdei_pm_notifier,
+static struct analtifier_block sdei_pm_nb = {
+	.analtifier_call = sdei_pm_analtifier,
 };
 
 static int sdei_device_suspend(struct device *dev)
@@ -787,7 +787,7 @@ static int sdei_device_thaw(struct device *dev)
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "SDEI",
 				&sdei_cpuhp_up, &sdei_cpuhp_down);
 	if (err < 0) {
-		pr_warn("Failed to re-register CPU hotplug notifier...\n");
+		pr_warn("Failed to re-register CPU hotplug analtifier...\n");
 		return err;
 	}
 
@@ -817,22 +817,22 @@ static const struct dev_pm_ops sdei_pm_ops = {
 /*
  * Mask all CPUs and unregister all events on panic, reboot or kexec.
  */
-static int sdei_reboot_notifier(struct notifier_block *nb, unsigned long action,
+static int sdei_reboot_analtifier(struct analtifier_block *nb, unsigned long action,
 				void *data)
 {
 	/*
-	 * We are going to reset the interface, after this there is no point
+	 * We are going to reset the interface, after this there is anal point
 	 * doing work when we take CPUs offline.
 	 */
 	cpuhp_remove_state(sdei_hp_state);
 
 	sdei_platform_reset();
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block sdei_reboot_nb = {
-	.notifier_call = sdei_reboot_notifier,
+static struct analtifier_block sdei_reboot_nb = {
+	.analtifier_call = sdei_reboot_analtifier,
 };
 
 static void sdei_smccc_smc(unsigned long function_id,
@@ -842,7 +842,7 @@ static void sdei_smccc_smc(unsigned long function_id,
 {
 	arm_smccc_smc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
 }
-NOKPROBE_SYMBOL(sdei_smccc_smc);
+ANALKPROBE_SYMBOL(sdei_smccc_smc);
 
 static void sdei_smccc_hvc(unsigned long function_id,
 			   unsigned long arg0, unsigned long arg1,
@@ -851,9 +851,9 @@ static void sdei_smccc_hvc(unsigned long function_id,
 {
 	arm_smccc_hvc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
 }
-NOKPROBE_SYMBOL(sdei_smccc_hvc);
+ANALKPROBE_SYMBOL(sdei_smccc_hvc);
 
-int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
+int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *analrmal_cb,
 		       sdei_event_callback *critical_cb)
 {
 	int err;
@@ -862,9 +862,9 @@ int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 	sdei_event_callback *cb;
 
 	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	event_num = ghes->generic->notify.vector;
+	event_num = ghes->generic->analtify.vector;
 	if (event_num == 0) {
 		/*
 		 * Event 0 is reserved by the specification for
@@ -881,7 +881,7 @@ int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 	if (result == SDEI_EVENT_PRIORITY_CRITICAL)
 		cb = critical_cb;
 	else
-		cb = normal_cb;
+		cb = analrmal_cb;
 
 	err = sdei_event_register(event_num, cb, ghes);
 	if (!err)
@@ -894,15 +894,15 @@ int sdei_unregister_ghes(struct ghes *ghes)
 {
 	int i;
 	int err;
-	u32 event_num = ghes->generic->notify.vector;
+	u32 event_num = ghes->generic->analtify.vector;
 
 	might_sleep();
 
 	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/*
-	 * The event may be running on another CPU. Disable it
+	 * The event may be running on aanalther CPU. Disable it
 	 * to stop new events, then try to unregister a few times.
 	 */
 	err = sdei_event_disable(event_num);
@@ -923,13 +923,13 @@ int sdei_unregister_ghes(struct ghes *ghes)
 static int sdei_get_conduit(struct platform_device *pdev)
 {
 	const char *method;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 
 	sdei_firmware_call = NULL;
 	if (np) {
 		if (of_property_read_string(np, "method", &method)) {
 			pr_warn("missing \"method\" property\n");
-			return SMCCC_CONDUIT_NONE;
+			return SMCCC_CONDUIT_ANALNE;
 		}
 
 		if (!strcmp("hvc", method)) {
@@ -951,7 +951,7 @@ static int sdei_get_conduit(struct platform_device *pdev)
 		}
 	}
 
-	return SMCCC_CONDUIT_NONE;
+	return SMCCC_CONDUIT_ANALNE;
 }
 
 static int sdei_probe(struct platform_device *pdev)
@@ -972,7 +972,7 @@ static int sdei_probe(struct platform_device *pdev)
 	}
 
 	pr_info("SDEIv%d.%d (0x%x) detected in firmware.\n",
-		(int)SDEI_VERSION_MAJOR(ver), (int)SDEI_VERSION_MINOR(ver),
+		(int)SDEI_VERSION_MAJOR(ver), (int)SDEI_VERSION_MIANALR(ver),
 		(int)SDEI_VERSION_VENDOR(ver));
 
 	if (SDEI_VERSION_MAJOR(ver) != 1) {
@@ -987,27 +987,27 @@ static int sdei_probe(struct platform_device *pdev)
 
 	sdei_entry_point = sdei_arch_get_entry_point(conduit);
 	if (!sdei_entry_point) {
-		/* Not supported due to hardware or boot configuration */
+		/* Analt supported due to hardware or boot configuration */
 		sdei_mark_interface_broken();
 		return 0;
 	}
 
-	err = cpu_pm_register_notifier(&sdei_pm_nb);
+	err = cpu_pm_register_analtifier(&sdei_pm_nb);
 	if (err) {
-		pr_warn("Failed to register CPU PM notifier...\n");
+		pr_warn("Failed to register CPU PM analtifier...\n");
 		goto error;
 	}
 
-	err = register_reboot_notifier(&sdei_reboot_nb);
+	err = register_reboot_analtifier(&sdei_reboot_nb);
 	if (err) {
-		pr_warn("Failed to register reboot notifier...\n");
+		pr_warn("Failed to register reboot analtifier...\n");
 		goto remove_cpupm;
 	}
 
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "SDEI",
 				&sdei_cpuhp_up, &sdei_cpuhp_down);
 	if (err < 0) {
-		pr_warn("Failed to register CPU hotplug notifier...\n");
+		pr_warn("Failed to register CPU hotplug analtifier...\n");
 		goto remove_reboot;
 	}
 
@@ -1016,10 +1016,10 @@ static int sdei_probe(struct platform_device *pdev)
 	return 0;
 
 remove_reboot:
-	unregister_reboot_notifier(&sdei_reboot_nb);
+	unregister_reboot_analtifier(&sdei_reboot_nb);
 
 remove_cpupm:
-	cpu_pm_unregister_notifier(&sdei_pm_nb);
+	cpu_pm_unregister_analtifier(&sdei_pm_nb);
 
 error:
 	sdei_mark_interface_broken();
@@ -1049,7 +1049,7 @@ static bool __init sdei_present_acpi(void)
 		return false;
 
 	status = acpi_get_table(ACPI_SIG_SDEI, 0, &sdei_table_header);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	if (ACPI_FAILURE(status) && status != AE_ANALT_FOUND) {
 		const char *msg = acpi_format_exception(status);
 
 		pr_info("Failed to get ACPI:SDEI table, %s\n", msg);
@@ -1094,7 +1094,7 @@ int sdei_event_handler(struct pt_regs *regs,
 
 	return err;
 }
-NOKPROBE_SYMBOL(sdei_event_handler);
+ANALKPROBE_SYMBOL(sdei_event_handler);
 
 void sdei_handler_abort(void)
 {
@@ -1108,9 +1108,9 @@ void sdei_handler_abort(void)
 	        __sdei_handler_abort();
 	        __this_cpu_write(sdei_active_critical_event, NULL);
 	}
-	if (__this_cpu_read(sdei_active_normal_event)) {
-	        pr_warn("still in SDEI normal event context, attempting to finish handler.\n");
+	if (__this_cpu_read(sdei_active_analrmal_event)) {
+	        pr_warn("still in SDEI analrmal event context, attempting to finish handler.\n");
 	        __sdei_handler_abort();
-	        __this_cpu_write(sdei_active_normal_event, NULL);
+	        __this_cpu_write(sdei_active_analrmal_event, NULL);
 	}
 }

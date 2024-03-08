@@ -20,10 +20,10 @@ static int snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *inf
  * MIDI emulation operators
  */
 static const struct snd_midi_op emux_ops = {
-	.note_on = snd_emux_note_on,
-	.note_off = snd_emux_note_off,
+	.analte_on = snd_emux_analte_on,
+	.analte_off = snd_emux_analte_off,
 	.key_press = snd_emux_key_press,
-	.note_terminate = snd_emux_terminate_note,
+	.analte_terminate = snd_emux_terminate_analte,
 	.control = snd_emux_control,
 	.nrpn = snd_emux_nrpn,
 	.sysex = snd_emux_sysex,
@@ -62,7 +62,7 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 						   "%s WaveTable", emu->name);
 	if (emu->client < 0) {
 		snd_printk(KERN_ERR "can't create client\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (emu->num_ports < 0) {
@@ -88,7 +88,7 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 					 0, &pinfo);
 		if (!p) {
 			snd_printk(KERN_ERR "can't create port\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		p->port_mode =  SNDRV_EMUX_PORT_MODE_MIDI;
@@ -359,7 +359,7 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 
 	emu->vmidi = kcalloc(emu->midi_ports, sizeof(*emu->vmidi), GFP_KERNEL);
 	if (!emu->vmidi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < emu->midi_ports; i++) {
 		struct snd_rawmidi *rmidi;
@@ -383,7 +383,7 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 __error:
 	/* snd_printk(KERN_DEBUG "error init..\n"); */
 	snd_emux_delete_virmidi(emu);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int snd_emux_delete_virmidi(struct snd_emux *emu)

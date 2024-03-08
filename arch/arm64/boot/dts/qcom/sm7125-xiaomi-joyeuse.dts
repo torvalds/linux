@@ -8,7 +8,7 @@
 #include "sm7125-xiaomi-common.dtsi"
 
 / {
-	model = "Xiaomi Redmi Note 9 Pro (Global)";
+	model = "Xiaomi Redmi Analte 9 Pro (Global)";
 	compatible = "xiaomi,joyeuse", "qcom,sm7125";
 
 	/* required for bootloader to select correct board */

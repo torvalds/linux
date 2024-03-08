@@ -46,7 +46,7 @@
 /* The number of samples returned in every SDR buffer */
 #define SDR_CAP_SAMPLES_PER_BUF 0x4000
 
-/* used by the threads to know when to resync internal counters */
+/* used by the threads to kanalw when to resync internal counters */
 #define JIFFIES_PER_DAY (3600U * 24U * HZ)
 #define JIFFIES_RESYNC (JIFFIES_PER_DAY * (0xf0000000U / JIFFIES_PER_DAY))
 
@@ -85,8 +85,8 @@ enum vivid_input {
 enum vivid_signal_mode {
 	CURRENT_DV_TIMINGS,
 	CURRENT_STD = CURRENT_DV_TIMINGS,
-	NO_SIGNAL,
-	NO_LOCK,
+	ANAL_SIGNAL,
+	ANAL_LOCK,
 	OUT_OF_RANGE,
 	SELECTED_DV_TIMINGS,
 	SELECTED_STD = SELECTED_DV_TIMINGS,
@@ -108,7 +108,7 @@ enum vivid_colorspace {
 };
 
 #define VIVID_INVALID_SIGNAL(mode) \
-	((mode) == NO_SIGNAL || (mode) == NO_LOCK || (mode) == OUT_OF_RANGE)
+	((mode) == ANAL_SIGNAL || (mode) == ANAL_LOCK || (mode) == OUT_OF_RANGE)
 
 struct vivid_cec_xfer {
 	struct cec_adapter	*adap;
@@ -259,7 +259,7 @@ struct vivid_dev {
 
 	struct v4l2_ctrl		*radio_tx_rds_pi;
 	struct v4l2_ctrl		*radio_tx_rds_pty;
-	struct v4l2_ctrl		*radio_tx_rds_mono_stereo;
+	struct v4l2_ctrl		*radio_tx_rds_moanal_stereo;
 	struct v4l2_ctrl		*radio_tx_rds_art_head;
 	struct v4l2_ctrl		*radio_tx_rds_compressed;
 	struct v4l2_ctrl		*radio_tx_rds_dyn_pty;

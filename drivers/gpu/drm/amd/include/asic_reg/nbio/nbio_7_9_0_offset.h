@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -7227,8 +7227,8 @@
 #define regNP_DMA_DROPPED_LOG_LOWER_BASE_IDX 8
 #define regNP_DMA_DROPPED_LOG_UPPER                                                                     0xe84063
 #define regNP_DMA_DROPPED_LOG_UPPER_BASE_IDX 8
-#define regPCIE_VDM_NODE0_CTRL4                                                                         0xe84064
-#define regPCIE_VDM_NODE0_CTRL4_BASE_IDX 8
+#define regPCIE_VDM_ANALDE0_CTRL4                                                                         0xe84064
+#define regPCIE_VDM_ANALDE0_CTRL4_BASE_IDX 8
 #define regPCIE_VDM_CNTL2                                                                               0xe8408c
 #define regPCIE_VDM_CNTL2_BASE_IDX 8
 #define regPCIE_VDM_CNTL3                                                                               0xe8408d
@@ -7791,22 +7791,22 @@
 #define regParitySerr_ACTION_CONTROL_BASE_IDX 8
 #define regParityFatal_ACTION_CONTROL                                                                   0xe8805f
 #define regParityFatal_ACTION_CONTROL_BASE_IDX 8
-#define regParityNonFatal_ACTION_CONTROL                                                                0xe88060
-#define regParityNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regParityAnalnFatal_ACTION_CONTROL                                                                0xe88060
+#define regParityAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regParityCorr_ACTION_CONTROL                                                                    0xe88061
 #define regParityCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortASerr_ACTION_CONTROL                                                                0xe88062
 #define regPCIE0PortASerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortAIntFatal_ACTION_CONTROL                                                            0xe88063
 #define regPCIE0PortAIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortAIntNonFatal_ACTION_CONTROL                                                         0xe88064
-#define regPCIE0PortAIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortAIntAnalnFatal_ACTION_CONTROL                                                         0xe88064
+#define regPCIE0PortAIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortAIntCorr_ACTION_CONTROL                                                             0xe88065
 #define regPCIE0PortAIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortAExtFatal_ACTION_CONTROL                                                            0xe88066
 #define regPCIE0PortAExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortAExtNonFatal_ACTION_CONTROL                                                         0xe88067
-#define regPCIE0PortAExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortAExtAnalnFatal_ACTION_CONTROL                                                         0xe88067
+#define regPCIE0PortAExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortAExtCorr_ACTION_CONTROL                                                             0xe88068
 #define regPCIE0PortAExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortAParityErr_ACTION_CONTROL                                                           0xe88069
@@ -7815,14 +7815,14 @@
 #define regPCIE0PortBSerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortBIntFatal_ACTION_CONTROL                                                            0xe8806b
 #define regPCIE0PortBIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortBIntNonFatal_ACTION_CONTROL                                                         0xe8806c
-#define regPCIE0PortBIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortBIntAnalnFatal_ACTION_CONTROL                                                         0xe8806c
+#define regPCIE0PortBIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortBIntCorr_ACTION_CONTROL                                                             0xe8806d
 #define regPCIE0PortBIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortBExtFatal_ACTION_CONTROL                                                            0xe8806e
 #define regPCIE0PortBExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortBExtNonFatal_ACTION_CONTROL                                                         0xe8806f
-#define regPCIE0PortBExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortBExtAnalnFatal_ACTION_CONTROL                                                         0xe8806f
+#define regPCIE0PortBExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortBExtCorr_ACTION_CONTROL                                                             0xe88070
 #define regPCIE0PortBExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortBParityErr_ACTION_CONTROL                                                           0xe88071
@@ -7831,14 +7831,14 @@
 #define regPCIE0PortCSerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortCIntFatal_ACTION_CONTROL                                                            0xe88073
 #define regPCIE0PortCIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortCIntNonFatal_ACTION_CONTROL                                                         0xe88074
-#define regPCIE0PortCIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortCIntAnalnFatal_ACTION_CONTROL                                                         0xe88074
+#define regPCIE0PortCIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortCIntCorr_ACTION_CONTROL                                                             0xe88075
 #define regPCIE0PortCIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortCExtFatal_ACTION_CONTROL                                                            0xe88076
 #define regPCIE0PortCExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortCExtNonFatal_ACTION_CONTROL                                                         0xe88077
-#define regPCIE0PortCExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortCExtAnalnFatal_ACTION_CONTROL                                                         0xe88077
+#define regPCIE0PortCExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortCExtCorr_ACTION_CONTROL                                                             0xe88078
 #define regPCIE0PortCExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortCParityErr_ACTION_CONTROL                                                           0xe88079
@@ -7847,14 +7847,14 @@
 #define regPCIE0PortDSerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortDIntFatal_ACTION_CONTROL                                                            0xe8807b
 #define regPCIE0PortDIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortDIntNonFatal_ACTION_CONTROL                                                         0xe8807c
-#define regPCIE0PortDIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortDIntAnalnFatal_ACTION_CONTROL                                                         0xe8807c
+#define regPCIE0PortDIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortDIntCorr_ACTION_CONTROL                                                             0xe8807d
 #define regPCIE0PortDIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortDExtFatal_ACTION_CONTROL                                                            0xe8807e
 #define regPCIE0PortDExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortDExtNonFatal_ACTION_CONTROL                                                         0xe8807f
-#define regPCIE0PortDExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortDExtAnalnFatal_ACTION_CONTROL                                                         0xe8807f
+#define regPCIE0PortDExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortDExtCorr_ACTION_CONTROL                                                             0xe88080
 #define regPCIE0PortDExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortDParityErr_ACTION_CONTROL                                                           0xe88081
@@ -7863,14 +7863,14 @@
 #define regPCIE0PortESerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortEIntFatal_ACTION_CONTROL                                                            0xe88083
 #define regPCIE0PortEIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortEIntNonFatal_ACTION_CONTROL                                                         0xe88084
-#define regPCIE0PortEIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortEIntAnalnFatal_ACTION_CONTROL                                                         0xe88084
+#define regPCIE0PortEIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortEIntCorr_ACTION_CONTROL                                                             0xe88085
 #define regPCIE0PortEIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortEExtFatal_ACTION_CONTROL                                                            0xe88086
 #define regPCIE0PortEExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortEExtNonFatal_ACTION_CONTROL                                                         0xe88087
-#define regPCIE0PortEExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortEExtAnalnFatal_ACTION_CONTROL                                                         0xe88087
+#define regPCIE0PortEExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortEExtCorr_ACTION_CONTROL                                                             0xe88088
 #define regPCIE0PortEExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortEParityErr_ACTION_CONTROL                                                           0xe88089
@@ -7879,14 +7879,14 @@
 #define regPCIE0PortFSerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortFIntFatal_ACTION_CONTROL                                                            0xe8808b
 #define regPCIE0PortFIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortFIntNonFatal_ACTION_CONTROL                                                         0xe8808c
-#define regPCIE0PortFIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortFIntAnalnFatal_ACTION_CONTROL                                                         0xe8808c
+#define regPCIE0PortFIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortFIntCorr_ACTION_CONTROL                                                             0xe8808d
 #define regPCIE0PortFIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortFExtFatal_ACTION_CONTROL                                                            0xe8808e
 #define regPCIE0PortFExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortFExtNonFatal_ACTION_CONTROL                                                         0xe8808f
-#define regPCIE0PortFExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortFExtAnalnFatal_ACTION_CONTROL                                                         0xe8808f
+#define regPCIE0PortFExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortFExtCorr_ACTION_CONTROL                                                             0xe88090
 #define regPCIE0PortFExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortFParityErr_ACTION_CONTROL                                                           0xe88091
@@ -7895,14 +7895,14 @@
 #define regPCIE0PortGSerr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortGIntFatal_ACTION_CONTROL                                                            0xe88093
 #define regPCIE0PortGIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortGIntNonFatal_ACTION_CONTROL                                                         0xe88094
-#define regPCIE0PortGIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortGIntAnalnFatal_ACTION_CONTROL                                                         0xe88094
+#define regPCIE0PortGIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortGIntCorr_ACTION_CONTROL                                                             0xe88095
 #define regPCIE0PortGIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortGExtFatal_ACTION_CONTROL                                                            0xe88096
 #define regPCIE0PortGExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regPCIE0PortGExtNonFatal_ACTION_CONTROL                                                         0xe88097
-#define regPCIE0PortGExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regPCIE0PortGExtAnalnFatal_ACTION_CONTROL                                                         0xe88097
+#define regPCIE0PortGExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortGExtCorr_ACTION_CONTROL                                                             0xe88098
 #define regPCIE0PortGExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regPCIE0PortGParityErr_ACTION_CONTROL                                                           0xe88099
@@ -7911,14 +7911,14 @@
 #define regNBIF1PortASerr_ACTION_CONTROL_BASE_IDX 8
 #define regNBIF1PortAIntFatal_ACTION_CONTROL                                                            0xe880cb
 #define regNBIF1PortAIntFatal_ACTION_CONTROL_BASE_IDX 8
-#define regNBIF1PortAIntNonFatal_ACTION_CONTROL                                                         0xe880cc
-#define regNBIF1PortAIntNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regNBIF1PortAIntAnalnFatal_ACTION_CONTROL                                                         0xe880cc
+#define regNBIF1PortAIntAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regNBIF1PortAIntCorr_ACTION_CONTROL                                                             0xe880cd
 #define regNBIF1PortAIntCorr_ACTION_CONTROL_BASE_IDX 8
 #define regNBIF1PortAExtFatal_ACTION_CONTROL                                                            0xe880ce
 #define regNBIF1PortAExtFatal_ACTION_CONTROL_BASE_IDX 8
-#define regNBIF1PortAExtNonFatal_ACTION_CONTROL                                                         0xe880cf
-#define regNBIF1PortAExtNonFatal_ACTION_CONTROL_BASE_IDX 8
+#define regNBIF1PortAExtAnalnFatal_ACTION_CONTROL                                                         0xe880cf
+#define regNBIF1PortAExtAnalnFatal_ACTION_CONTROL_BASE_IDX 8
 #define regNBIF1PortAExtCorr_ACTION_CONTROL                                                             0xe880d0
 #define regNBIF1PortAExtCorr_ACTION_CONTROL_BASE_IDX 8
 #define regNBIF1PortAParityErr_ACTION_CONTROL                                                           0xe880d1

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for the L3 cache PMUs in Qualcomm Technologies chips.
+ * Driver for the L3 cache PMUs in Qualcomm Techanallogies chips.
  *
  * The driver supports a distributed cache architecture where the overall
  * cache for a socket is comprised of multiple slices each with its own PMU.
@@ -153,7 +153,7 @@ static inline int event_num_counters(struct perf_event *event)
  */
 struct l3cache_pmu {
 	struct pmu		pmu;
-	struct hlist_node	node;
+	struct hlist_analde	analde;
 	void __iomem		*regs;
 	struct perf_event	*events[L3_NUM_COUNTERS];
 	unsigned long		used_mask[BITS_TO_LONGS(L3_NUM_COUNTERS)];
@@ -185,8 +185,8 @@ struct l3cache_event_ops {
  * 64bit counters are implemented by chaining two of the 32bit physical
  * counters. The PMU only supports chaining of adjacent even/odd pairs
  * and for simplicity the driver always configures the odd counter to
- * count the overflows of the lower-numbered even counter. Note that since
- * the resulting hardware counter is 64bits no IRQs are required to maintain
+ * count the overflows of the lower-numbered even counter. Analte that since
+ * the resulting hardware counter is 64bits anal IRQs are required to maintain
  * the software counter which is also 64bits.
  */
 
@@ -309,7 +309,7 @@ static void qcom_l3_cache__32bit_counter_stop(struct perf_event *event,
 	/* Disable interrupt generation by this counter */
 	writel_relaxed(PMINTENCLR(idx), l3pmu->regs + L3_M_BC_INTENCLR);
 
-	/* Set the counter to not assert the overflow IRQ on MSB toggling */
+	/* Set the counter to analt assert the overflow IRQ on MSB toggling */
 	writel_relaxed(irqctl & ~PMIRQONMSBEN(idx), l3pmu->regs + L3_M_BC_IRQCTL);
 }
 
@@ -393,7 +393,7 @@ static irqreturn_t qcom_l3_cache__handle_irq(int irq_num, void *data)
 	int idx;
 
 	if (status == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Clear the bits we read on the overflow status register */
 	writel_relaxed(status, l3pmu->regs + L3_M_BC_OVSR);
@@ -407,7 +407,7 @@ static irqreturn_t qcom_l3_cache__handle_irq(int irq_num, void *data)
 			continue;
 
 		/*
-		 * Since the IRQ is not enabled for events using long counters
+		 * Since the IRQ is analt enabled for events using long counters
 		 * we should never see one of those here, however, be consistent
 		 * and use the ops indirections like in the other operations.
 		 */
@@ -445,7 +445,7 @@ static void qcom_l3_cache__pmu_disable(struct pmu *pmu)
 }
 
 /*
- * We must NOT create groups containing events from multiple hardware PMUs,
+ * We must ANALT create groups containing events from multiple hardware PMUs,
  * although mixing different software and hardware PMUs is allowed.
  */
 static bool qcom_l3_cache__validate_event_group(struct perf_event *event)
@@ -470,7 +470,7 @@ static bool qcom_l3_cache__validate_event_group(struct perf_event *event)
 
 	/*
 	 * If the group requires more counters than the HW has, it
-	 * cannot ever be scheduled.
+	 * cananalt ever be scheduled.
 	 */
 	return counters <= L3_NUM_COUNTERS;
 }
@@ -484,17 +484,17 @@ static int qcom_l3_cache__event_init(struct perf_event *event)
 	 * Is the event for this PMU?
 	 */
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/*
-	 * Sampling not supported since these events are not core-attributable.
+	 * Sampling analt supported since these events are analt core-attributable.
 	 */
 	if (hwc->sample_period)
 		return -EINVAL;
 
 	/*
-	 * Task mode not available, we run the counters as socket counters,
-	 * not attributable to any CPU and therefore cannot attribute per-task.
+	 * Task mode analt available, we run the counters as socket counters,
+	 * analt attributable to any CPU and therefore cananalt attribute per-task.
 	 */
 	if (event->cpu < 0)
 		return -EINVAL;
@@ -513,7 +513,7 @@ static int qcom_l3_cache__event_init(struct perf_event *event)
 	 * each event could be theoretically assigned to a different CPU.
 	 * To mitigate this, we enforce CPU assignment to one designated
 	 * processor (the one described in the "cpumask" attribute exported
-	 * by the PMU device). perf user space tools honor this and avoid
+	 * by the PMU device). perf user space tools hoanalr this and avoid
 	 * opening more than one copy of the events.
 	 */
 	event->cpu = cpumask_first(&l3pmu->cpumask);
@@ -603,7 +603,7 @@ static void qcom_l3_cache__event_read(struct perf_event *event)
  *   symbolically, e.g.:
  *     perf stat -a -e l3cache_0_0/event=read-miss/ ls
  *     perf stat -a -e l3cache_0_0/event=0x21/ ls
- * - cpumask, used by perf user space and other tools to know on which CPUs
+ * - cpumask, used by perf user space and other tools to kanalw on which CPUs
  *   to open the events
  */
 
@@ -700,20 +700,20 @@ static const struct attribute_group *qcom_l3_cache_pmu_attr_grps[] = {
  * Probing functions and data.
  */
 
-static int qcom_l3_cache_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+static int qcom_l3_cache_pmu_online_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct l3cache_pmu *l3pmu = hlist_entry_safe(node, struct l3cache_pmu, node);
+	struct l3cache_pmu *l3pmu = hlist_entry_safe(analde, struct l3cache_pmu, analde);
 
-	/* If there is not a CPU/PMU association pick this CPU */
+	/* If there is analt a CPU/PMU association pick this CPU */
 	if (cpumask_empty(&l3pmu->cpumask))
 		cpumask_set_cpu(cpu, &l3pmu->cpumask);
 
 	return 0;
 }
 
-static int qcom_l3_cache_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int qcom_l3_cache_pmu_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct l3cache_pmu *l3pmu = hlist_entry_safe(node, struct l3cache_pmu, node);
+	struct l3cache_pmu *l3pmu = hlist_entry_safe(analde, struct l3cache_pmu, analde);
 	unsigned int target;
 
 	if (!cpumask_test_and_clear_cpu(cpu, &l3pmu->cpumask))
@@ -738,14 +738,14 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 
 	acpi_dev = ACPI_COMPANION(&pdev->dev);
 	if (!acpi_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	l3pmu = devm_kzalloc(&pdev->dev, sizeof(*l3pmu), GFP_KERNEL);
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "l3cache_%s_%s",
 		      acpi_device_uid(acpi_dev_parent(acpi_dev)),
 		      acpi_device_uid(acpi_dev));
 	if (!l3pmu || !name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	l3pmu->pmu = (struct pmu) {
 		.task_ctx_nr	= perf_invalid_context,
@@ -760,7 +760,7 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 		.read		= qcom_l3_cache__event_read,
 
 		.attr_groups	= qcom_l3_cache_pmu_attr_grps,
-		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+		.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 	};
 
 	l3pmu->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &memrc);
@@ -782,7 +782,7 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 	}
 
 	/* Add this instance to the list used by the offline callback */
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_QCOM_L3_ONLINE, &l3pmu->node);
+	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_QCOM_L3_ONLINE, &l3pmu->analde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug", ret);
 		return ret;

@@ -98,7 +98,7 @@ static int si2157_load_firmware(struct dvb_frontend *fe,
 	struct si2157_cmd cmd;
 
 	/* request the firmware, this will block and timeout */
-	ret = firmware_request_nowarn(&fw, fw_name, &client->dev);
+	ret = firmware_request_analwarn(&fw, fw_name, &client->dev);
 	if (ret)
 		return ret;
 
@@ -180,7 +180,7 @@ static int si2157_find_and_load_firmware(struct dvb_frontend *fe)
 
 	if (required && !fw_name && !fw_alt_name) {
 		dev_err(&client->dev,
-			"unknown chip version Si21%d-%c%c%c ROM 0x%02x\n",
+			"unkanalwn chip version Si21%d-%c%c%c ROM 0x%02x\n",
 			part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);
 		return -EINVAL;
 	}
@@ -195,13 +195,13 @@ static int si2157_find_and_load_firmware(struct dvb_frontend *fe)
 	if (fw_name)
 		ret = si2157_load_firmware(fe, fw_name);
 	else
-		ret = -ENOENT;
+		ret = -EANALENT;
 
 	/* Try alternate name, if any */
-	if (ret == -ENOENT && fw_alt_name)
+	if (ret == -EANALENT && fw_alt_name)
 		ret = si2157_load_firmware(fe, fw_alt_name);
 
-	if (ret == -ENOENT) {
+	if (ret == -EANALENT) {
 		if (!required) {
 			dev_info(&client->dev, "Using ROM firmware.\n");
 			return 0;
@@ -235,7 +235,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	if (ret == 0 && xtal_trim < 16)
 		goto warm;
 
-	dev->if_frequency = 0; /* we no longer know current tuner state */
+	dev->if_frequency = 0; /* we anal longer kanalw current tuner state */
 
 	/* power up */
 	if (dev->part_id == SI2146) {
@@ -312,7 +312,7 @@ static int si2157_init(struct dvb_frontend *fe)
 warm:
 	/* init statistics in order signal app which are supported */
 	c->strength.len = 1;
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	/* start statistics polling */
 	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(1000));
 
@@ -555,7 +555,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	dev->bandwidth = bandwidth;
 	dev->frequency = c->frequency;
 
-	si2157_tune_wait(client, 1); /* wait to complete, ignore any errors */
+	si2157_tune_wait(client, 1); /* wait to complete, iganalre any errors */
 
 	return 0;
 err:
@@ -580,10 +580,10 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	u64 tmp_lval = 0;
 	u8 system = 0;
 	u8 color = 0;    /* 0=NTSC/PAL, 0x10=SECAM */
-	u8 invert_analog = 1; /* analog tuner spectrum; 0=normal, 1=inverted */
+	u8 invert_analog = 1; /* analog tuner spectrum; 0=analrmal, 1=inverted */
 
 	if (!SUPPORTS_ATV_IF(dev)) {
-		dev_info(&client->dev, "Analog tuning not supported yet for Si21%d\n",
+		dev_info(&client->dev, "Analog tuning analt supported yet for Si21%d\n",
 			 dev->part_id);
 		ret = -EINVAL;
 		goto err;
@@ -604,7 +604,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	 * if_frequency = 6600000;  //HVR-9xx(cx231xx)
 	 * if_frequency = 5500000;  //HVR-19xx(pvrusb2)
 	 */
-		dev_err(&client->dev, "si2157 does not currently support FM radio\n");
+		dev_err(&client->dev, "si2157 does analt currently support FM radio\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -646,12 +646,12 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	} else if (params->std & V4L2_STD_PAL_I) {
 		std = "palI";
 		bandwidth = 8000000;
-		if_frequency = 7250000; /* TODO: does not work yet */
+		if_frequency = 7250000; /* TODO: does analt work yet */
 		system = 4;
 	} else if (params->std & V4L2_STD_DK) {
 		std = "palDK";
 		bandwidth = 8000000;
-		if_frequency = 6900000; /* TODO: does not work yet */
+		if_frequency = 6900000; /* TODO: does analt work yet */
 		system = 5;
 		if (params->std & V4L2_STD_SECAM_DK) {
 			std = "secamDK";
@@ -670,7 +670,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 		system = 7;
 		color = 0x10;
 	} else {
-		std = "unknown";
+		std = "unkanalwn";
 	}
 	/* calc channel center freq */
 	freq = freq - 1250000 + (bandwidth / 2);
@@ -752,7 +752,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 
 	dev->bandwidth = bandwidth;
 
-	si2157_tune_wait(client, 0); /* wait to complete, ignore any errors */
+	si2157_tune_wait(client, 0); /* wait to complete, iganalre any errors */
 
 	return 0;
 err:
@@ -813,7 +813,7 @@ static int si2157_get_rf_strength(struct dvb_frontend *fe, u16 *rssi)
 	c->strength.stat[0].scale = FE_SCALE_DECIBEL;
 	c->strength.stat[0].svalue = (s8)cmd.args[3] * 1000;
 
-	/* normalize values based on Silicon Labs reference
+	/* analrmalize values based on Silicon Labs reference
 	 * add 100, then anything > 80 is 100% signal
 	 */
 	strength = (s8)cmd.args[3] + 100;
@@ -871,7 +871,7 @@ static void si2157_stat_work(struct work_struct *work)
 	schedule_delayed_work(&dev->stat_work, msecs_to_jiffies(2000));
 	return;
 err:
-	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 }
 
@@ -886,7 +886,7 @@ static int si2157_probe(struct i2c_client *client)
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
@@ -973,7 +973,7 @@ static void si2157_remove(struct i2c_client *client)
 
 /*
  * The part_id used here will only be used on buggy devices that don't
- * accept firmware uploads. Non-buggy devices should just use "si2157" for
+ * accept firmware uploads. Analn-buggy devices should just use "si2157" for
  * all SiLabs TER tuners, as the driver should auto-detect it.
  */
 static const struct i2c_device_id si2157_id_table[] = {

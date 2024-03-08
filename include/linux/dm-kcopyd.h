@@ -4,8 +4,8 @@
  * Copyright (C) 2004 - 2008 Red Hat, Inc. All rights reserved.
  *
  * kcopyd provides a simple interface for copying an area of one
- * block-device to one or more other block-devices, either synchronous
- * or with an asynchronous completion notification.
+ * block-device to one or more other block-devices, either synchroanalus
+ * or with an asynchroanalus completion analtification.
  *
  * This file is released under the GPL.
  */
@@ -20,7 +20,7 @@
 /* FIXME: make this configurable */
 #define DM_KCOPYD_MAX_REGIONS 8
 
-#define DM_KCOPYD_IGNORE_ERROR 1
+#define DM_KCOPYD_IGANALRE_ERROR 1
 #define DM_KCOPYD_WRITE_SEQ    2
 
 struct dm_kcopyd_throttle {
@@ -61,18 +61,18 @@ void dm_kcopyd_client_flush(struct dm_kcopyd_client *kc);
  * read_err is a boolean,
  * write_err is a bitset, with 1 bit for each destination region
  */
-typedef void (*dm_kcopyd_notify_fn)(int read_err, unsigned int long write_err,
+typedef void (*dm_kcopyd_analtify_fn)(int read_err, unsigned int long write_err,
 				    void *context);
 
 void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		    unsigned int num_dests, struct dm_io_region *dests,
-		    unsigned int flags, dm_kcopyd_notify_fn fn, void *context);
+		    unsigned int flags, dm_kcopyd_analtify_fn fn, void *context);
 
 /*
  * Prepare a callback and submit it via the kcopyd thread.
  *
  * dm_kcopyd_prepare_callback allocates a callback structure and returns it.
- * It must not be called from interrupt context.
+ * It must analt be called from interrupt context.
  * The returned value should be passed into dm_kcopyd_do_callback.
  *
  * dm_kcopyd_do_callback submits the callback.
@@ -80,12 +80,12 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
  * The callback is issued from the kcopyd thread.
  */
 void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
-				 dm_kcopyd_notify_fn fn, void *context);
+				 dm_kcopyd_analtify_fn fn, void *context);
 void dm_kcopyd_do_callback(void *job, int read_err, unsigned int long write_err);
 
 void dm_kcopyd_zero(struct dm_kcopyd_client *kc,
 		    unsigned int num_dests, struct dm_io_region *dests,
-		    unsigned int flags, dm_kcopyd_notify_fn fn, void *context);
+		    unsigned int flags, dm_kcopyd_analtify_fn fn, void *context);
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DM_KCOPYD_H */

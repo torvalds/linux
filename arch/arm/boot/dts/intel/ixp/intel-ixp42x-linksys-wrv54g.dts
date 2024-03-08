@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Device Tree file for the Linksys WRV54G router
- * Also known as Gemtek GTWX5715
+ * Also kanalwn as Gemtek GTWX5715
  * Based on a board file by George T. Joseph and other patches.
  * This machine is based on IXP425.
  */
@@ -93,7 +93,7 @@
 					compatible = "fixed-partitions";
 					/*
 					 * Partition info from a boot log
-					 * CHECKME: not using redboot? FIS index 0x3f @7e00000?
+					 * CHECKME: analt using redboot? FIS index 0x3f @7e00000?
 					 */
 					#address-cells = <1>;
 					#size-cells = <1>;

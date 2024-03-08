@@ -3,7 +3,7 @@
  *  (c) 2003-2006 Advanced Micro Devices, Inc.
  */
 
-struct powernow_k8_data {
+struct poweranalw_k8_data {
 	unsigned int cpu;
 
 	u32 numps;  /* number of p-states */
@@ -13,7 +13,7 @@ struct powernow_k8_data {
 	 * vid/fid pairings, but are modified during the ->target() call
 	 * when ACPI is used */
 	u32 rvo;     /* ramp voltage offset */
-	u32 irt;     /* isochronous relief time */
+	u32 irt;     /* isochroanalus relief time */
 	u32 vidmvs;  /* usable value calculated from mvs */
 	u32 vstable; /* voltage stabilization time, units 20 us */
 	u32 plllock; /* pll lock time, units 1 us */
@@ -23,10 +23,10 @@ struct powernow_k8_data {
 	u32 currvid;
 	u32 currfid;
 
-	/* the powernow_table includes all frequency and vid/fid pairings:
+	/* the poweranalw_table includes all frequency and vid/fid pairings:
 	 * fid are the lower 8 bits of the index, vid are the upper 8 bits.
 	 * frequency is in kHz */
-	struct cpufreq_frequency_table  *powernow_table;
+	struct cpufreq_frequency_table  *poweranalw_table;
 
 	/* the acpi table needs to be kept. it's only available if ACPI was
 	 * used to determine valid frequency/vid/fid states */
@@ -109,8 +109,8 @@ struct powernow_k8_data {
 #define MIN_FREQ 800	/* Min and max freqs, per spec */
 #define MAX_FREQ 5000
 
-#define INVALID_FID_MASK 0xffffffc0  /* not a valid fid if these bits are set */
-#define INVALID_VID_MASK 0xffffffc0  /* not a valid vid if these bits are set */
+#define INVALID_FID_MASK 0xffffffc0  /* analt a valid fid if these bits are set */
+#define INVALID_VID_MASK 0xffffffc0  /* analt a valid vid if these bits are set */
 
 #define VID_OFF 0x3f
 
@@ -153,7 +153,7 @@ struct powernow_k8_data {
  * wrong values into hardware, which is very likely to lead to a crash.
  */
 
-#define PSB_ID_STRING      "AMDK7PNOW!"
+#define PSB_ID_STRING      "AMDK7PANALW!"
 #define PSB_ID_STRING_LEN  10
 
 #define PSB_VERSION_1_4  0x14
@@ -178,11 +178,11 @@ struct pst_s {
 	u8 vid;
 };
 
-static int core_voltage_pre_transition(struct powernow_k8_data *data,
+static int core_voltage_pre_transition(struct poweranalw_k8_data *data,
 	u32 reqvid, u32 regfid);
-static int core_voltage_post_transition(struct powernow_k8_data *data, u32 reqvid);
-static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
+static int core_voltage_post_transition(struct poweranalw_k8_data *data, u32 reqvid);
+static int core_frequency_transition(struct poweranalw_k8_data *data, u32 reqfid);
 
-static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
+static void poweranalw_k8_acpi_pst_values(struct poweranalw_k8_data *data, unsigned int index);
 
-static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table);
+static int fill_poweranalw_table_fidvid(struct poweranalw_k8_data *data, struct cpufreq_frequency_table *poweranalw_table);

@@ -156,7 +156,7 @@ int counter_add(struct counter_device *counter)
 
 	if (counter->parent) {
 		dev->parent = counter->parent;
-		dev->of_node = counter->parent->of_node;
+		dev->of_analde = counter->parent->of_analde;
 	}
 
 	err = counter_sysfs_add(counter);

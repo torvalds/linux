@@ -77,8 +77,8 @@ static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		rtw8822cs_efuse_parsing(efuse, map);
 		break;
 	default:
-		/* unsupported now */
-		return -ENOTSUPP;
+		/* unsupported analw */
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -951,7 +951,7 @@ static void rtw8822c_rf_dac_cal(struct rtw_dev *rtwdev)
 	if (rtw8822c_dac_cal_restore(rtwdev))
 		return;
 
-	/* not able to restore, do it */
+	/* analt able to restore, do it */
 
 	rtw8822c_dac_backup_reg(rtwdev, backup, backup_rf);
 
@@ -1287,7 +1287,7 @@ static void rtw8822c_txgapk_afe_dpk(struct rtw_dev *rtwdev, u8 path)
 	} else if (path == RF_PATH_B) {
 		reg = REG_ANAPAR_B;
 	} else {
-		rtw_err(rtwdev, "[TXGAPK] unknown path %d!!\n", path);
+		rtw_err(rtwdev, "[TXGAPK] unkanalwn path %d!!\n", path);
 		return;
 	}
 
@@ -1323,7 +1323,7 @@ static void rtw8822c_txgapk_afe_dpk_restore(struct rtw_dev *rtwdev, u8 path)
 	} else if (path == RF_PATH_B) {
 		reg = REG_ANAPAR_B;
 	} else {
-		rtw_err(rtwdev, "[TXGAPK] unknown path %d!!\n", path);
+		rtw_err(rtwdev, "[TXGAPK] unkanalwn path %d!!\n", path);
 		return;
 	}
 	rtw_write32_mask(rtwdev, REG_IQK_CTRL, MASKDWORD, 0xffa1005e);
@@ -1672,7 +1672,7 @@ static void rtw8822c_txgapk_write_tx_gain(struct rtw_dev *rtwdev)
 		tmp = 0x300;
 		band = RF_BAND_5G_H;
 	} else {
-		rtw_err(rtwdev, "[TXGAPK] unknown channel %d!!\n", channel);
+		rtw_err(rtwdev, "[TXGAPK] unkanalwn channel %d!!\n", channel);
 		return;
 	}
 
@@ -1799,7 +1799,7 @@ static void rtw8822c_txgapk(struct rtw_dev *rtwdev)
 	if (rtwdev->efuse.power_track_type >= 4 &&
 	    rtwdev->efuse.power_track_type <= 7) {
 		rtw_dbg(rtwdev, RTW_DBG_RFK,
-			"[TXGAPK] Normal Mode in TSSI mode. return!!!\n");
+			"[TXGAPK] Analrmal Mode in TSSI mode. return!!!\n");
 		return;
 	}
 
@@ -1978,7 +1978,7 @@ static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 
 #define WLAN_TX_FUNC_CFG1		0x30
 #define WLAN_TX_FUNC_CFG2		0x30
-#define WLAN_MAC_OPT_NORM_FUNC1		0x98
+#define WLAN_MAC_OPT_ANALRM_FUNC1		0x98
 #define WLAN_MAC_OPT_LB_FUNC1		0x80
 #define WLAN_MAC_OPT_FUNC2		0xb0810041
 #define WLAN_MAC_INT_MIG_CFG		0x33330000
@@ -2100,7 +2100,7 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, REG_TCR + 1, WLAN_TX_FUNC_CFG1);
 	rtw_write32_set(rtwdev, REG_GENERAL_OPTION, BIT_DUMMY_FCS_READY_MASK_EN);
 	rtw_write32(rtwdev, REG_WMAC_OPTION_FUNCTION + 8, WLAN_MAC_OPT_FUNC2);
-	rtw_write8(rtwdev, REG_WMAC_OPTION_FUNCTION_1, WLAN_MAC_OPT_NORM_FUNC1);
+	rtw_write8(rtwdev, REG_WMAC_OPTION_FUNCTION_1, WLAN_MAC_OPT_ANALRM_FUNC1);
 
 	/* init low power */
 	value16 = rtw_read16(rtwdev, REG_RXPSF_CTRL + 2) & 0xF00F;
@@ -2114,7 +2114,7 @@ static int rtw8822c_mac_init(struct rtw_dev *rtwdev)
 		| BIT_RXPSF_OFDMRST;
 	rtw_write16(rtwdev, REG_RXPSF_CTRL, value16);
 	rtw_write32(rtwdev, REG_RXPSF_TYPE_CTRL, 0xFFFFFFFF);
-	/* rx ignore configuration */
+	/* rx iganalre configuration */
 	value16 = rtw_read16(rtwdev, REG_RXPSF_CTRL);
 	value16 &= ~(BIT_RXPSF_MHCHKEN | BIT_RXPSF_CCKRST |
 		     BIT_RXPSF_CONT_ERRCHKEN);
@@ -2700,7 +2700,7 @@ static void rtw8822c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	pkt_stat->icv_err = GET_RX_DESC_ICV_ERR(rx_desc);
 	pkt_stat->crc_err = GET_RX_DESC_CRC32(rx_desc);
 	pkt_stat->decrypted = !GET_RX_DESC_SWDEC(rx_desc) &&
-			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_NONE;
+			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_ANALNE;
 	pkt_stat->is_c2h = GET_RX_DESC_C2H(rx_desc);
 	pkt_stat->pkt_len = GET_RX_DESC_PKT_LEN(rx_desc);
 	pkt_stat->drv_info_sz = GET_RX_DESC_DRV_INFO_SIZE(rx_desc);
@@ -2713,7 +2713,7 @@ static void rtw8822c_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	/* drv_info_sz is in unit of 8-bytes */
 	pkt_stat->drv_info_sz *= 8;
 
-	/* c2h cmd pkt's rx/phy status is not interested */
+	/* c2h cmd pkt's rx/phy status is analt interested */
 	if (pkt_stat->is_c2h)
 		return;
 
@@ -2820,7 +2820,7 @@ static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
 		return -EINVAL;
 	}
 
-	/* path B only is not available for RX */
+	/* path B only is analt available for RX */
 	switch (antenna_rx) {
 	case BB_PATH_A:
 	case BB_PATH_AB:
@@ -2973,11 +2973,11 @@ static void rtw8822c_coex_cfg_init(struct rtw_dev *rtwdev)
 
 	/* enable PTA (tx/rx signal form WiFi side) */
 	rtw_write8_set(rtwdev, REG_QUEUE_CTRL, BIT_PTA_WL_TX_EN);
-	/* wl tx signal to PTA not case EDCCA */
+	/* wl tx signal to PTA analt case EDCCA */
 	rtw_write8_clr(rtwdev, REG_QUEUE_CTRL, BIT_PTA_EDCCA_EN);
 	/* GNT_BT=1 while select both */
 	rtw_write16_set(rtwdev, REG_BT_COEX_V2, BIT_GNT_BT_POLARITY);
-	/* BT_CCA = ~GNT_WL_BB, not or GNT_BT_BB, LTE_Rx */
+	/* BT_CCA = ~GNT_WL_BB, analt or GNT_BT_BB, LTE_Rx */
 	rtw_write8_clr(rtwdev, REG_DUMMY_PAGE4_V1, BIT_BTCCA_CTRL);
 
 	/* to avoid RF parameter error */
@@ -3007,11 +3007,11 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 
 	rtw_write_rf(rtwdev, RF_PATH_B, 0x1, 0xfffff, rf_0x1);
 
-	/* WL-S0 2G RF TRX cannot be masked by GNT_BT
+	/* WL-S0 2G RF TRX cananalt be masked by GNT_BT
 	 * enable "WLS0 BB chage RF mode if GNT_BT = 1" for shared-antenna type
 	 * disable:0x1860[3] = 1, enable:0x1860[3] = 0
 	 *
-	 * enable "DAC off if GNT_WL = 0" for non-shared-antenna
+	 * enable "DAC off if GNT_WL = 0" for analn-shared-antenna
 	 * disable 0x1c30[22] = 0,
 	 * enable: 0x1c30[22] = 1, 0x1c38[12] = 0, 0x1c38[28] = 1
 	 */
@@ -3031,34 +3031,34 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 	 * since RF TRx mask can do it
 	 */
 	rtw_write8_mask(rtwdev, REG_IGN_GNTBT4,
-			BIT_PI_IGNORE_GNT_BT, 1);
+			BIT_PI_IGANALRE_GNT_BT, 1);
 
 	/* disable WL-S0 BB chage RF mode if wifi is at 5G,
 	 * or antenna path is separated
 	 */
 	if (coex_stat->wl_coex_mode == COEX_WLINK_2GFREE) {
 		rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
-				BIT_PI_IGNORE_GNT_BT, 1);
-		rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
-				BIT_NOMASK_TXBT_ENABLE, 1);
+				BIT_PI_IGANALRE_GNT_BT, 1);
+		rtw_write8_mask(rtwdev, REG_ANALMASK_TXBT,
+				BIT_ANALMASK_TXBT_ENABLE, 1);
 	} else if (coex_stat->wl_coex_mode == COEX_WLINK_5G ||
 	    coex->under_5g || !efuse->share_ant) {
 		if (coex_stat->kt_ver >= 3) {
 			rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
-					BIT_PI_IGNORE_GNT_BT, 0);
-			rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
-					BIT_NOMASK_TXBT_ENABLE, 1);
+					BIT_PI_IGANALRE_GNT_BT, 0);
+			rtw_write8_mask(rtwdev, REG_ANALMASK_TXBT,
+					BIT_ANALMASK_TXBT_ENABLE, 1);
 		} else {
 			rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
-					BIT_PI_IGNORE_GNT_BT, 1);
+					BIT_PI_IGANALRE_GNT_BT, 1);
 		}
 	} else {
 		/* shared-antenna */
 		rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
-				BIT_PI_IGNORE_GNT_BT, 0);
+				BIT_PI_IGANALRE_GNT_BT, 0);
 		if (coex_stat->kt_ver >= 3) {
-			rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
-					BIT_NOMASK_TXBT_ENABLE, 0);
+			rtw_write8_mask(rtwdev, REG_ANALMASK_TXBT,
+					BIT_ANALMASK_TXBT_ENABLE, 0);
 		}
 	}
 }
@@ -3346,7 +3346,7 @@ static void rtw8822c_dpk_afe_setting(struct rtw_dev *rtwdev, bool is_do_dpk)
 	if (is_do_dpk)
 		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_is_dpk_tbl);
 	else
-		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_no_dpk_tbl);
+		rtw_load_table(rtwdev, &rtw8822c_dpk_afe_anal_dpk_tbl);
 }
 
 static void rtw8822c_dpk_pre_setting(struct rtw_dev *rtwdev)
@@ -4561,9 +4561,9 @@ static void rtw8822c_adaptivity(struct rtw_dev *rtwdev)
 	u8 igi;
 
 	igi = dm_info->igi_history[0];
-	if (dm_info->edcca_mode == RTW_EDCCA_NORMAL) {
+	if (dm_info->edcca_mode == RTW_EDCCA_ANALRMAL) {
 		l2h = max_t(s8, igi + EDCCA_IGI_L2H_DIFF, EDCCA_TH_L2H_LB);
-		h2l = l2h - EDCCA_L2H_H2L_DIFF_NORMAL;
+		h2l = l2h - EDCCA_L2H_H2L_DIFF_ANALRMAL;
 	} else {
 		if (igi < dm_info->l2h_th_ini - EDCCA_ADC_BACKOFF)
 			l2h = igi + EDCCA_ADC_BACKOFF;
@@ -4951,19 +4951,19 @@ static const struct rtw_page_table page_table_8822c[] = {
 };
 
 static const struct rtw_rqpn rqpn_table_8822c[] = {
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
-	 RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_HIGH,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
+	 RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_HIGH,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_HIGH, RTW_DMA_MAPPING_HIGH},
-	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
+	{RTW_DMA_MAPPING_ANALRMAL, RTW_DMA_MAPPING_ANALRMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
 };
@@ -4975,7 +4975,7 @@ static struct rtw_prioq_addrs prioq_addrs_8822c = {
 	.prio[RTW_DMA_MAPPING_LOW] = {
 		.rsvd = REG_FIFOPAGE_INFO_2, .avail = REG_FIFOPAGE_INFO_2 + 2,
 	},
-	.prio[RTW_DMA_MAPPING_NORMAL] = {
+	.prio[RTW_DMA_MAPPING_ANALRMAL] = {
 		.rsvd = REG_FIFOPAGE_INFO_3, .avail = REG_FIFOPAGE_INFO_3 + 2,
 	},
 	.prio[RTW_DMA_MAPPING_HIGH] = {
@@ -5060,7 +5060,7 @@ static const struct coex_table_para table_sant_8822c[] = {
 	{0xddffddff, 0xddffddff},
 };
 
-/* Non-Shared-Antenna Coex Table */
+/* Analn-Shared-Antenna Coex Table */
 static const struct coex_table_para table_nsant_8822c[] = {
 	{0xffffffff, 0xffffffff}, /* case-100 */
 	{0x55555555, 0x55555555},
@@ -5120,7 +5120,7 @@ static const struct coex_tdma_para tdma_sant_8822c[] = {
 	{ {0x61, 0x08, 0x03, 0x11, 0x11} }
 };
 
-/* Non-Shared-Antenna TDMA */
+/* Analn-Shared-Antenna TDMA */
 static const struct coex_tdma_para tdma_nsant_8822c[] = {
 	{ {0x00, 0x00, 0x00, 0x00, 0x00} }, /* case-100 */
 	{ {0x61, 0x45, 0x03, 0x11, 0x11} },
@@ -5153,7 +5153,7 @@ static const struct coex_5g_afh_map afh_5g_8822c[] = { {0, 0, 0} };
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8822c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{8, 17, true, 4},
 	{7, 18, true, 4},
@@ -5163,7 +5163,7 @@ static const struct coex_rf_para rf_para_tx_8822c[] = {
 };
 
 static const struct coex_rf_para rf_para_rx_8822c[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for analrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{3, 24, true, 5},
 	{2, 26, true, 5},

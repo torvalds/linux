@@ -61,11 +61,11 @@ __setup("ca_keys=", ca_keys_setup);
  * those is the signing key and validates the new certificate, then mark the
  * new certificate as being trusted.
  *
- * Returns 0 if the new certificate was accepted, -ENOKEY if we couldn't find a
+ * Returns 0 if the new certificate was accepted, -EANALKEY if we couldn't find a
  * matching parent certificate in the trusted list, -EKEYREJECTED if the
- * signature check fails or the key is blacklisted, -ENOPKG if the signature
+ * signature check fails or the key is blacklisted, -EANALPKG if the signature
  * uses unsupported crypto, or some other error if there is a matching
- * certificate but the signature check cannot be performed.
+ * certificate but the signature check cananalt be performed.
  */
 int restrict_link_by_signature(struct key *dest_keyring,
 			       const struct key_type *type,
@@ -79,16 +79,16 @@ int restrict_link_by_signature(struct key *dest_keyring,
 	pr_devel("==>%s()\n", __func__);
 
 	if (!trust_keyring)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (type != &key_type_asymmetric)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sig = payload->data[asym_auth];
 	if (!sig)
-		return -ENOPKG;
+		return -EANALPKG;
 	if (!sig->auth_ids[0] && !sig->auth_ids[1] && !sig->auth_ids[2])
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (ca_keyid && !asymmetric_key_id_partial(sig->auth_ids[1], ca_keyid))
 		return -EPERM;
@@ -98,14 +98,14 @@ int restrict_link_by_signature(struct key *dest_keyring,
 				  sig->auth_ids[0], sig->auth_ids[1],
 				  sig->auth_ids[2], false);
 	if (IS_ERR(key))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (use_builtin_keys && !test_bit(KEY_FLAG_BUILTIN, &key->flags))
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else if (IS_BUILTIN(CONFIG_SECONDARY_TRUSTED_KEYRING_SIGNED_BY_BUILTIN) &&
 		 !strcmp(dest_keyring->description, ".secondary_trusted_keys") &&
 		 !test_bit(KEY_FLAG_BUILTIN, &key->flags))
-		ret = -ENOKEY;
+		ret = -EANALKEY;
 	else
 		ret = verify_signature(key, sig);
 	key_put(key);
@@ -122,10 +122,10 @@ int restrict_link_by_signature(struct key *dest_keyring,
  * Check if the new certificate is a CA. If it is a CA, then mark the new
  * certificate as being ok to link.
  *
- * Returns 0 if the new certificate was accepted, -ENOKEY if the
- * certificate is not a CA. -ENOPKG if the signature uses unsupported
+ * Returns 0 if the new certificate was accepted, -EANALKEY if the
+ * certificate is analt a CA. -EANALPKG if the signature uses unsupported
  * crypto, or some other error if there is a matching certificate but
- * the signature check cannot be performed.
+ * the signature check cananalt be performed.
  */
 int restrict_link_by_ca(struct key *dest_keyring,
 			const struct key_type *type,
@@ -135,19 +135,19 @@ int restrict_link_by_ca(struct key *dest_keyring,
 	const struct public_key *pkey;
 
 	if (type != &key_type_asymmetric)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pkey = payload->data[asym_crypto];
 	if (!pkey)
-		return -ENOPKG;
+		return -EANALPKG;
 	if (!test_bit(KEY_EFLAG_CA, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 	if (!test_bit(KEY_EFLAG_KEYCERTSIGN, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 	if (!IS_ENABLED(CONFIG_INTEGRITY_CA_MACHINE_KEYRING_MAX))
 		return 0;
 	if (test_bit(KEY_EFLAG_DIGITALSIG, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	return 0;
 }
@@ -163,10 +163,10 @@ int restrict_link_by_ca(struct key *dest_keyring,
  * then mark the new certificate as being ok to link. Afterwards verify
  * the new certificate against the ones in the trust_keyring.
  *
- * Returns 0 if the new certificate was accepted, -ENOKEY if the
- * certificate is not a digsig. -ENOPKG if the signature uses unsupported
+ * Returns 0 if the new certificate was accepted, -EANALKEY if the
+ * certificate is analt a digsig. -EANALPKG if the signature uses unsupported
  * crypto, or some other error if there is a matching certificate but
- * the signature check cannot be performed.
+ * the signature check cananalt be performed.
  */
 int restrict_link_by_digsig(struct key *dest_keyring,
 			    const struct key_type *type,
@@ -176,21 +176,21 @@ int restrict_link_by_digsig(struct key *dest_keyring,
 	const struct public_key *pkey;
 
 	if (type != &key_type_asymmetric)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	pkey = payload->data[asym_crypto];
 
 	if (!pkey)
-		return -ENOPKG;
+		return -EANALPKG;
 
 	if (!test_bit(KEY_EFLAG_DIGITALSIG, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (test_bit(KEY_EFLAG_CA, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (test_bit(KEY_EFLAG_KEYCERTSIGN, &pkey->key_eflags))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	return restrict_link_by_signature(dest_keyring, type, payload,
 					  trust_keyring);
@@ -215,21 +215,21 @@ static int key_or_keyring_common(struct key *dest_keyring,
 	pr_devel("==>%s()\n", __func__);
 
 	if (!dest_keyring)
-		return -ENOKEY;
+		return -EANALKEY;
 	else if (dest_keyring->type != &key_type_keyring)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (!trusted && !check_dest)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (type != &key_type_asymmetric)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	sig = payload->data[asym_auth];
 	if (!sig)
-		return -ENOPKG;
+		return -EANALPKG;
 	if (!sig->auth_ids[0] && !sig->auth_ids[1] && !sig->auth_ids[2])
-		return -ENOKEY;
+		return -EANALKEY;
 
 	if (trusted) {
 		if (trusted->type == &key_type_keyring) {
@@ -283,7 +283,7 @@ static int key_or_keyring_common(struct key *dest_keyring,
 				key = __key_get(trusted);
 			}
 		} else {
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
@@ -297,7 +297,7 @@ static int key_or_keyring_common(struct key *dest_keyring,
 	}
 
 	if (!key)
-		return -ENOKEY;
+		return -EANALKEY;
 
 	ret = key_validate(key);
 	if (ret == 0)
@@ -319,11 +319,11 @@ static int key_or_keyring_common(struct key *dest_keyring,
  * parameter. If one of those is the signing key and validates the new
  * certificate, then mark the new certificate as being ok to link.
  *
- * Returns 0 if the new certificate was accepted, -ENOKEY if we
+ * Returns 0 if the new certificate was accepted, -EANALKEY if we
  * couldn't find a matching parent certificate in the trusted list,
- * -EKEYREJECTED if the signature check fails, -ENOPKG if the signature uses
+ * -EKEYREJECTED if the signature check fails, -EANALPKG if the signature uses
  * unsupported crypto, or some other error if there is a matching certificate
- * but the signature check cannot be performed.
+ * but the signature check cananalt be performed.
  */
 int restrict_link_by_key_or_keyring(struct key *dest_keyring,
 				    const struct key_type *type,
@@ -347,11 +347,11 @@ int restrict_link_by_key_or_keyring(struct key *dest_keyring,
  * one of those is the signing key and validates the new certificate, then mark
  * the new certificate as being ok to link.
  *
- * Returns 0 if the new certificate was accepted, -ENOKEY if we
+ * Returns 0 if the new certificate was accepted, -EANALKEY if we
  * couldn't find a matching parent certificate in the trusted list,
- * -EKEYREJECTED if the signature check fails, -ENOPKG if the signature uses
+ * -EKEYREJECTED if the signature check fails, -EANALPKG if the signature uses
  * unsupported crypto, or some other error if there is a matching certificate
- * but the signature check cannot be performed.
+ * but the signature check cananalt be performed.
  */
 int restrict_link_by_key_or_keyring_chain(struct key *dest_keyring,
 					  const struct key_type *type,

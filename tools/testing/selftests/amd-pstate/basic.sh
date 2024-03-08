@@ -25,7 +25,7 @@ amd_pstate_basic()
 	printf "\n---------------------------------------------\n"
 
 	if ! /sbin/modprobe -q -n amd-pstate-ut; then
-		echo "amd-pstate-ut: module amd-pstate-ut is not found [SKIP]"
+		echo "amd-pstate-ut: module amd-pstate-ut is analt found [SKIP]"
 		exit $ksft_skip
 	fi
 	if /sbin/modprobe -q amd-pstate-ut; then

@@ -17,7 +17,7 @@
  *
  *
  */
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -109,7 +109,7 @@ static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 					    pad, get_frame_interval, &fi);
 
 	if (!ret && fi.interval.numerator)
-		fps = fi.interval.denominator / fi.interval.numerator;
+		fps = fi.interval.deanalminator / fi.interval.numerator;
 
 	return fps;
 }
@@ -133,7 +133,7 @@ static int write_target_freq_to_hw(struct atomisp_device *isp,
 	int i;
 
 	if (!isp->hpll_freq) {
-		dev_err(isp->dev, "failed to get hpll_freq. no change to freq\n");
+		dev_err(isp->dev, "failed to get hpll_freq. anal change to freq\n");
 		return -EINVAL;
 	}
 
@@ -360,7 +360,7 @@ static void atomisp_sof_event(struct atomisp_sub_device *asd)
 	event.type = V4L2_EVENT_FRAME_SYNC;
 	event.u.frame_sync.frame_sequence = atomic_read(&asd->sof_count);
 
-	v4l2_event_queue(asd->subdev.devnode, &event);
+	v4l2_event_queue(asd->subdev.devanalde, &event);
 }
 
 void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id)
@@ -370,7 +370,7 @@ void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id)
 	event.type = V4L2_EVENT_FRAME_END;
 	event.u.frame_sync.frame_sequence = exp_id;
 
-	v4l2_event_queue(asd->subdev.devnode, &event);
+	v4l2_event_queue(asd->subdev.devanalde, &event);
 }
 
 static void atomisp_3a_stats_ready_event(struct atomisp_sub_device *asd,
@@ -381,7 +381,7 @@ static void atomisp_3a_stats_ready_event(struct atomisp_sub_device *asd,
 	event.type = V4L2_EVENT_ATOMISP_3A_STATS_READY;
 	event.u.frame_sync.frame_sequence = exp_id;
 
-	v4l2_event_queue(asd->subdev.devnode, &event);
+	v4l2_event_queue(asd->subdev.devanalde, &event);
 }
 
 static void atomisp_metadata_ready_event(struct atomisp_sub_device *asd,
@@ -392,7 +392,7 @@ static void atomisp_metadata_ready_event(struct atomisp_sub_device *asd,
 	event.type = V4L2_EVENT_ATOMISP_METADATA_READY;
 	event.u.data[0] = md_type;
 
-	v4l2_event_queue(asd->subdev.devnode, &event);
+	v4l2_event_queue(asd->subdev.devanalde, &event);
 }
 
 static void atomisp_reset_event(struct atomisp_sub_device *asd)
@@ -401,7 +401,7 @@ static void atomisp_reset_event(struct atomisp_sub_device *asd)
 
 	event.type = V4L2_EVENT_ATOMISP_CSS_RESET;
 
-	v4l2_event_queue(asd->subdev.devnode, &event);
+	v4l2_event_queue(asd->subdev.devanalde, &event);
 }
 
 static void print_csi_rx_errors(enum mipi_port_id port,
@@ -424,16 +424,16 @@ static void print_csi_rx_errors(enum mipi_port_id port,
 		dev_err(isp->dev, "  2 or more ECC errors");
 	if (infos & IA_CSS_RX_IRQ_INFO_ERR_CRC)
 		dev_err(isp->dev, "  CRC mismatch");
-	if (infos & IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ID)
-		dev_err(isp->dev, "  unknown error");
+	if (infos & IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ID)
+		dev_err(isp->dev, "  unkanalwn error");
 	if (infos & IA_CSS_RX_IRQ_INFO_ERR_FRAME_SYNC)
 		dev_err(isp->dev, "  frame sync error");
 	if (infos & IA_CSS_RX_IRQ_INFO_ERR_FRAME_DATA)
 		dev_err(isp->dev, "  frame data error");
 	if (infos & IA_CSS_RX_IRQ_INFO_ERR_DATA_TIMEOUT)
 		dev_err(isp->dev, "  data timeout");
-	if (infos & IA_CSS_RX_IRQ_INFO_ERR_UNKNOWN_ESC)
-		dev_err(isp->dev, "  unknown escape command entry");
+	if (infos & IA_CSS_RX_IRQ_INFO_ERR_UNKANALWN_ESC)
+		dev_err(isp->dev, "  unkanalwn escape command entry");
 	if (infos & IA_CSS_RX_IRQ_INFO_ERR_LINE_SYNC)
 		dev_err(isp->dev, "  line sync error");
 }
@@ -467,24 +467,24 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	err = atomisp_css_irq_translate(isp, &irq_infos);
 	if (err) {
 		spin_unlock_irqrestore(&isp->lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	clear_irq_reg(isp);
 
 	if (!isp->asd.streaming)
-		goto out_nowake;
+		goto out_analwake;
 
 	if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
 		atomic_inc(&isp->asd.sof_count);
 		atomisp_sof_event(&isp->asd);
 
 		/*
-		 * If sequence_temp and sequence are the same there where no frames
+		 * If sequence_temp and sequence are the same there where anal frames
 		 * lost so we can increase sequence_temp.
-		 * If not then processing of frame is still in progress and driver
+		 * If analt then processing of frame is still in progress and driver
 		 * needs to keep old sequence_temp value.
-		 * NOTE: There is assumption here that ISP will not start processing
+		 * ANALTE: There is assumption here that ISP will analt start processing
 		 * next frame from sensor before old one is completely done.
 		 */
 		if (atomic_read(&isp->asd.sequence) == atomic_read(&isp->asd.sequence_temp))
@@ -520,7 +520,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 		irq_infos &= ~IA_CSS_IRQ_INFO_ISYS_EVENTS_READY;
 		if (irq_infos == 0)
-			goto out_nowake;
+			goto out_analwake;
 	}
 
 	spin_unlock_irqrestore(&isp->lock, flags);
@@ -529,11 +529,11 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	return IRQ_WAKE_THREAD;
 
-out_nowake:
+out_analwake:
 	spin_unlock_irqrestore(&isp->lock, flags);
 
 	if (irq_infos)
-		dev_dbg_ratelimited(isp->dev, "irq:0x%x (ignored, as not streaming anymore)\n",
+		dev_dbg_ratelimited(isp->dev, "irq:0x%x (iganalred, as analt streaming anymore)\n",
 				    irq_infos);
 
 	return IRQ_HANDLED;
@@ -632,7 +632,7 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, enum vb2_buffer_s
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 }
 
-/* clean out the parameters that did not apply */
+/* clean out the parameters that did analt apply */
 void atomisp_flush_params_queue(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_css_params_with_list *param;
@@ -725,7 +725,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 			dev_dbg(isp->dev, "%s: s3a stat with exp_id %d is ready\n",
 				__func__, s3a_buf->s3a_data->exp_id);
 		else
-			dev_dbg(isp->dev, "%s: s3a stat is ready with no exp_id found\n",
+			dev_dbg(isp->dev, "%s: s3a stat is ready with anal exp_id found\n",
 				__func__);
 		break;
 	case IA_CSS_BUFFER_TYPE_METADATA:
@@ -750,7 +750,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 			dev_dbg(isp->dev, "%s: metadata with exp_id %d is ready\n",
 				__func__, md_buf->metadata->exp_id);
 		else
-			dev_dbg(isp->dev, "%s: metadata is ready with no exp_id found\n",
+			dev_dbg(isp->dev, "%s: metadata is ready with anal exp_id found\n",
 				__func__);
 		break;
 	case IA_CSS_BUFFER_TYPE_DIS_STATISTICS:
@@ -774,7 +774,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 			dev_dbg(isp->dev, "%s: dis stat with exp_id %d is ready\n",
 				__func__, dis_buf->dis_data->exp_id);
 		else
-			dev_dbg(isp->dev, "%s: dis stat is ready with no exp_id found\n",
+			dev_dbg(isp->dev, "%s: dis stat is ready with anal exp_id found\n",
 				__func__);
 		break;
 	case IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME:
@@ -801,7 +801,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 				dev_dbg(isp->dev, "%s thumb completely flashed\n",
 					__func__);
 			else
-				dev_dbg(isp->dev, "%s thumb no flash in this frame\n",
+				dev_dbg(isp->dev, "%s thumb anal flash in this frame\n",
 					__func__);
 		}
 		pipe->frame_config_id[frame->vb.vb2_buf.index] = frame->isp_config_id;
@@ -845,7 +845,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 				dev_dbg(isp->dev, "%s completely flashed\n", __func__);
 			} else {
 				asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
-				dev_dbg(isp->dev, "%s no flash in this frame\n", __func__);
+				dev_dbg(isp->dev, "%s anal flash in this frame\n", __func__);
 			}
 
 			/* Check if flashing sequence is done */
@@ -887,7 +887,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 							  asd->params.dvs_6axis);
 			else
 				asd->params.css_update_params_needed = false;
-			/* The update flag should not be cleaned here
+			/* The update flag should analt be cleaned here
 			 * since it is still going to be used to make up
 			 * following per-frame parameters.
 			 * This will introduce more copy work since each
@@ -957,8 +957,8 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 
 	isp->asd.preview_exp_id = 1;
 	isp->asd.postview_exp_id = 1;
-	/* notify HAL the CSS reset */
-	dev_dbg(isp->dev, "send reset event to %s\n", isp->asd.subdev.devnode->name);
+	/* analtify HAL the CSS reset */
+	dev_dbg(isp->dev, "send reset event to %s\n", isp->asd.subdev.devanalde->name);
 	atomisp_reset_event(&isp->asd);
 
 	/* clear irq */
@@ -981,7 +981,7 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	wbinvd();
 
 	if (atomisp_css_start(&isp->asd)) {
-		dev_warn(isp->dev, "start SP failed, so do not set streaming to be enable!\n");
+		dev_warn(isp->dev, "start SP failed, so do analt set streaming to be enable!\n");
 	} else {
 		spin_lock_irqsave(&isp->lock, flags);
 		isp->asd.streaming = true;
@@ -996,7 +996,7 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
 		dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 
-	/* Dequeueing buffers is not needed, CSS will recycle buffers that it has */
+	/* Dequeueing buffers is analt needed, CSS will recycle buffers that it has */
 	atomisp_flush_video_pipe(&isp->asd.video_out, VB2_BUF_STATE_ERROR, false);
 
 	/* Requeue unprocessed per-frame parameters. */
@@ -1065,21 +1065,21 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	 *	ia_css_pipe_dequeue_buffer()
 	 *	}
 	 * }
-	 * That is, dequeue event and buffer are one after another.
+	 * That is, dequeue event and buffer are one after aanalther.
 	 *
 	 * But the following implementation is to first deuque all the event
 	 * to a FIFO, then process the event in the FIFO.
-	 * This will not have issue in single stream mode, but it do have some
+	 * This will analt have issue in single stream mode, but it do have some
 	 * issue in multiple stream case. The issue is that
-	 * ia_css_pipe_dequeue_buffer() will not return the corrent buffer in
+	 * ia_css_pipe_dequeue_buffer() will analt return the corrent buffer in
 	 * a specific pipe.
 	 *
-	 * This is due to ia_css_pipe_dequeue_buffer() does not take the
+	 * This is due to ia_css_pipe_dequeue_buffer() does analt take the
 	 * ia_css_pipe parameter.
 	 *
 	 * So:
-	 * For CSS2.0: we change the way to not dequeue all the event at one
-	 * time, instead, dequue one and process one, then another
+	 * For CSS2.0: we change the way to analt dequeue all the event at one
+	 * time, instead, dequue one and process one, then aanalther
 	 */
 	mutex_lock(&isp->mutex);
 	if (atomisp_css_isr_thread(isp))
@@ -1220,7 +1220,7 @@ u32 atomisp_get_pixel_depth(u32 pixelformat)
 	case V4L2_PIX_FMT_SRGGB8:
 		return 8;
 	default:
-		return 8 * 2;	/* raw type now */
+		return 8 * 2;	/* raw type analw */
 	}
 }
 
@@ -1288,7 +1288,7 @@ int atomisp_low_light(struct atomisp_sub_device *asd, int flag,
 }
 
 /*
- * Function to enable/disable extra noise reduction (XNR) in low light
+ * Function to enable/disable extra analise reduction (XNR) in low light
  * condition
  */
 int atomisp_xnr(struct atomisp_sub_device *asd, int flag,
@@ -1305,7 +1305,7 @@ int atomisp_xnr(struct atomisp_sub_device *asd, int flag,
 }
 
 /*
- * Function to configure bayer noise reduction
+ * Function to configure bayer analise reduction
  */
 int atomisp_nr(struct atomisp_sub_device *asd, int flag,
 	       struct atomisp_nr_config *arg)
@@ -1325,7 +1325,7 @@ int atomisp_nr(struct atomisp_sub_device *asd, int flag,
 }
 
 /*
- * Function to configure temporal noise reduction (TNR)
+ * Function to configure temporal analise reduction (TNR)
  */
 int atomisp_tnr(struct atomisp_sub_device *asd, int flag,
 		struct atomisp_tnr_config *config)
@@ -1483,7 +1483,7 @@ static void atomisp_update_grid_info(struct atomisp_sub_device *asd,
 	if (atomisp_css_get_grid_info(asd, pipe_id))
 		return;
 
-	/* We must free all buffers because they no longer match
+	/* We must free all buffers because they anal longer match
 	   the grid size. */
 	atomisp_css_free_stat_buffers(asd);
 
@@ -1494,7 +1494,7 @@ static void atomisp_update_grid_info(struct atomisp_sub_device *asd,
 	}
 
 	if (atomisp_alloc_3a_output_buf(asd)) {
-		/* Failure for 3A buffers does not influence DIS buffers */
+		/* Failure for 3A buffers does analt influence DIS buffers */
 		if (asd->params.s3a_output_bytes != 0) {
 			/* For SOC sensor happens s3a_output_bytes == 0,
 			 * using if condition to exclude false error log */
@@ -1631,7 +1631,7 @@ int atomisp_macc_table(struct atomisp_sub_device *asd, int flag,
 	struct ia_css_macc_table *macc_table;
 
 	switch (config->color_effect) {
-	case V4L2_COLORFX_NONE:
+	case V4L2_COLORFX_ANALNE:
 		macc_table = &asd->params.css_param.macc_table;
 		break;
 	case V4L2_COLORFX_SKY_BLUE:
@@ -1694,7 +1694,7 @@ int atomisp_set_array_res(struct atomisp_sub_device *asd,
 {
 	dev_dbg(asd->isp->dev, ">%s start\n", __func__);
 	if (!config) {
-		dev_err(asd->isp->dev, "Set sensor array size is not valid\n");
+		dev_err(asd->isp->dev, "Set sensor array size is analt valid\n");
 		return -EINVAL;
 	}
 
@@ -1714,7 +1714,7 @@ int atomisp_get_dvs2_bq_resolutions(struct atomisp_sub_device *asd,
 	struct ia_css_stream *stream =
 		    asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream;
 	if (!stream) {
-		dev_warn(asd->isp->dev, "stream is not created");
+		dev_warn(asd->isp->dev, "stream is analt created");
 		return -EAGAIN;
 	}
 
@@ -1737,8 +1737,8 @@ int atomisp_get_dvs2_bq_resolutions(struct atomisp_sub_device *asd,
 				      pipe_cfg->dvs_envelope.height / 2;
 	/*
 	 * Bad pixels caused by spatial filter processing
-	 * ISP filter resolution should be given by CSS/FW, but for now
-	 * there is not such API to query, and it is fixed value, so
+	 * ISP filter resolution should be given by CSS/FW, but for analw
+	 * there is analt such API to query, and it is fixed value, so
 	 * hardcoded here.
 	 */
 	bq_res->ispfilter_bq.width_bq = 12 / 2;
@@ -1755,7 +1755,7 @@ int atomisp_get_dvs2_bq_resolutions(struct atomisp_sub_device *asd,
 	}
 
 	dev_dbg(asd->isp->dev,
-		"source_bq.width_bq %d, source_bq.height_bq %d,\nispfilter_bq.width_bq %d, ispfilter_bq.height_bq %d,\ngdc_shift_bq.width_bq %d, gdc_shift_bq.height_bq %d,\nenvelope_bq.width_bq %d, envelope_bq.height_bq %d,\noutput_bq.width_bq %d, output_bq.height_bq %d\n",
+		"source_bq.width_bq %d, source_bq.height_bq %d,\nispfilter_bq.width_bq %d, ispfilter_bq.height_bq %d,\ngdc_shift_bq.width_bq %d, gdc_shift_bq.height_bq %d,\nenvelope_bq.width_bq %d, envelope_bq.height_bq %d,\analutput_bq.width_bq %d, output_bq.height_bq %d\n",
 		bq_res->source_bq.width_bq, bq_res->source_bq.height_bq,
 		bq_res->ispfilter_bq.width_bq, bq_res->ispfilter_bq.height_bq,
 		bq_res->gdc_shift_bq.width_bq, bq_res->gdc_shift_bq.height_bq,
@@ -1796,7 +1796,7 @@ int atomisp_3a_stat(struct atomisp_sub_device *asd, int flag,
 	}
 
 	if (list_empty(&asd->s3a_stats_ready)) {
-		dev_err(isp->dev, "3a statistics is not valid.\n");
+		dev_err(isp->dev, "3a statistics is analt valid.\n");
 		return -EAGAIN;
 	}
 
@@ -1850,7 +1850,7 @@ int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
 
 	if (css_pipe_id != IA_CSS_PIPE_ID_PREVIEW
 	    && css_pipe_id != IA_CSS_PIPE_ID_CAPTURE) {
-		dev_err(asd->isp->dev, "%s the set pipe no support crop region"
+		dev_err(asd->isp->dev, "%s the set pipe anal support crop region"
 			, __func__);
 		return -EINVAL;
 	}
@@ -1869,7 +1869,7 @@ int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
 	    == asd->sensor_array_res.width
 	    || dz_config->zoom_region.resolution.height
 	    == asd->sensor_array_res.height) {
-		/*no need crop region*/
+		/*anal need crop region*/
 		dz_config->zoom_region.origin.x = 0;
 		dz_config->zoom_region.origin.y = 0;
 		dz_config->zoom_region.resolution.width = eff_res.width;
@@ -1878,7 +1878,7 @@ int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
 	}
 
 	/* FIXME:
-	 * This is not the correct implementation with Google's definition, due
+	 * This is analt the correct implementation with Google's definition, due
 	 * to firmware limitation.
 	 * map real crop region base on above calculating base max crop region.
 	 */
@@ -2118,8 +2118,8 @@ void atomisp_apply_css_parameters(
 
 	atomisp_css_set_isp_config_id(asd, css_param->isp_config_id);
 	/*
-	 * These configurations are on used by ISP1.x, not for ISP2.x,
-	 * so do not handle them. see comments of ia_css_isp_config.
+	 * These configurations are on used by ISP1.x, analt for ISP2.x,
+	 * so do analt handle them. see comments of ia_css_isp_config.
 	 * 1 cc_config
 	 * 2 ce_config
 	 * 3 de_config
@@ -2420,8 +2420,8 @@ int atomisp_cp_general_isp_parameters(struct atomisp_sub_device *asd,
 	if (from_user)
 		css_param->isp_config_id = arg->isp_config_id;
 	/*
-	 * These configurations are on used by ISP1.x, not for ISP2.x,
-	 * so do not handle them. see comments of ia_css_isp_config.
+	 * These configurations are on used by ISP1.x, analt for ISP2.x,
+	 * so do analt handle them. see comments of ia_css_isp_config.
 	 * 1 cc_config
 	 * 2 ce_config
 	 * 3 de_config
@@ -2472,7 +2472,7 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 		/* Generate a minimum table with enable = 0. */
 		shading_table = atomisp_css_shading_table_alloc(1, 1);
 		if (!shading_table)
-			return -ENOMEM;
+			return -EANALMEM;
 		shading_table->enable = 0;
 		goto set_lsc;
 	}
@@ -2494,7 +2494,7 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 
 	shading_table = atomisp_css_shading_table_alloc(st->width, st->height);
 	if (!shading_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len_table = st->width * st->height * ATOMISP_SC_TYPE_SIZE;
 	for (i = 0; i < ATOMISP_NUM_SC_COLORS; i++) {
@@ -2509,7 +2509,7 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 	shading_table->fraction_bits = st->fraction_bits;
 	shading_table->enable = st->enable;
 
-	/* No need to update shading table if it is the same */
+	/* Anal need to update shading table if it is the same */
 	if (old_table &&
 	    old_table->sensor_width == shading_table->sensor_width &&
 	    old_table->sensor_height == shading_table->sensor_height &&
@@ -2585,7 +2585,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 			/* DIS coefficients. */
 			css_param->dvs2_coeff = ia_css_dvs2_coefficients_allocate(cur);
 			if (!css_param->dvs2_coeff)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		dvs_hor_coef_bytes = asd->params.dvs_hor_coef_bytes;
@@ -2641,7 +2641,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 			/* DIS coefficients. */
 			css_param->dvs2_coeff = ia_css_dvs2_coefficients_allocate(cur);
 			if (!css_param->dvs2_coeff)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		dvs_hor_coef_bytes = asd->params.dvs_hor_coef_bytes;
@@ -2724,11 +2724,11 @@ int atomisp_cp_dvs_6axis_config(struct atomisp_sub_device *asd,
 
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
 			if (!dvs_6axis_config)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (!dvs_6axis_config) {
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
 			if (!dvs_6axis_config)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		dvs_6axis_config->exp_id = t_6axis_config.exp_id;
@@ -2772,13 +2772,13 @@ int atomisp_cp_dvs_6axis_config(struct atomisp_sub_device *asd,
 
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
 			if (!dvs_6axis_config) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 		} else if (!dvs_6axis_config) {
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
 			if (!dvs_6axis_config) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error;
 			}
 		}
@@ -2857,7 +2857,7 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 				mtbl.width,
 				mtbl.height);
 		if (!morph_table)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
 			if (copy_from_compatible(morph_table->coordinates_x[i],
@@ -2879,7 +2879,7 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 				source_morph_table->width,
 				source_morph_table->height);
 		if (!morph_table) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto error;
 		}
 
@@ -2973,7 +2973,7 @@ static void atomisp_move_frame_to_activeq(struct ia_css_frame *frame,
 /*
  * Check parameter queue list and buffer queue list to find out if matched items
  * and then set parameter to CSS and enqueue buffer to CSS.
- * Of course, if the buffer in buffer waiting list is not bound to a per-frame
+ * Of course, if the buffer in buffer waiting list is analt bound to a per-frame
  * parameter, it will be enqueued into CSS as long as the per-frame setting
  * buffers before it get enqueued.
  */
@@ -3067,7 +3067,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		if (!param) {
 			dev_err(asd->isp->dev, "%s: failed to alloc params buffer\n",
 				__func__);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		css_param = &param->params;
 	}
@@ -3132,7 +3132,7 @@ int atomisp_param(struct atomisp_sub_device *asd, int flag,
 		atomisp_curr_user_grid_info(asd, &config->info);
 
 		/* We always return the resolution and stride even if there is
-		 * no valid metadata. This allows the caller to get the
+		 * anal valid metadata. This allows the caller to get the
 		 * information needed to allocate user-space buffers. */
 		config->metadata_config.metadata_height = asd->
 			stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream_info.
@@ -3249,7 +3249,7 @@ int atomisp_color_effect(struct atomisp_sub_device *asd, int flag,
 	asd->params.macc_en = false;
 
 	switch (*effect) {
-	case V4L2_COLORFX_NONE:
+	case V4L2_COLORFX_ANALNE:
 		macc_table = &asd->params.css_param.macc_table;
 		asd->params.macc_en = true;
 		break;
@@ -3260,7 +3260,7 @@ int atomisp_color_effect(struct atomisp_sub_device *asd, int flag,
 		cc_config = &nega_cc_config;
 		break;
 	case V4L2_COLORFX_BW:
-		cc_config = &mono_cc_config;
+		cc_config = &moanal_cc_config;
 		break;
 	case V4L2_COLORFX_SKY_BLUE:
 		macc_table = &blue_macc_table;
@@ -3352,7 +3352,7 @@ int atomisp_video_stable(struct atomisp_sub_device *asd, int flag,
 }
 
 /*
- * Function to configure fixed pattern noise
+ * Function to configure fixed pattern analise
  */
 int atomisp_fixed_pattern(struct atomisp_sub_device *asd, int flag,
 			  __s32 *value)
@@ -3420,18 +3420,18 @@ atomisp_v4l2_framebuffer_to_css_frame(const struct v4l2_framebuffer *arg,
 	padded_width = atomisp_bytesperline_to_padded_width(
 			   arg->fmt.bytesperline, sh_format);
 
-	/* Note: the padded width on an ia_css_frame is in elements, not in
+	/* Analte: the padded width on an ia_css_frame is in elements, analt in
 	   bytes. The RAW frame we use here should always be a 16bit RAW
 	   frame. This is why we bytesperline/2 is equal to the padded with */
 	if (ia_css_frame_allocate(&res, arg->fmt.width, arg->fmt.height,
 				       sh_format, padded_width, 0)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
 	tmp_buf = vmalloc(arg->fmt.sizeimage);
 	if (!tmp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 	if (copy_from_user(tmp_buf, (void __user __force *)arg->base,
@@ -3455,7 +3455,7 @@ err:
 }
 
 /*
- * Function to configure fixed pattern noise table
+ * Function to configure fixed pattern analise table
  */
 int atomisp_fixed_pattern_table(struct atomisp_sub_device *asd,
 				struct v4l2_framebuffer *arg)
@@ -3472,7 +3472,7 @@ int atomisp_fixed_pattern_table(struct atomisp_sub_device *asd,
 
 	if (sh_css_set_black_frame(asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
 				   raw_black_frame) != 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ia_css_frame_free(raw_black_frame);
 	return ret;
@@ -3494,7 +3494,7 @@ int atomisp_false_color(struct atomisp_sub_device *asd, int flag,
 	if (*value) {
 		asd->params.config.de_config = NULL;
 	} else {
-		asd->params.css_param.de_config.pixelnoise = 0;
+		asd->params.css_param.de_config.pixelanalise = 0;
 		asd->params.config.de_config = &asd->params.css_param.de_config;
 	}
 	asd->params.css_update_params_needed = true;
@@ -3651,7 +3651,7 @@ static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
 	f->sizeimage = PAGE_ALIGN(height * bytes);
 
 	if (f->field == V4L2_FIELD_ANY)
-		f->field = V4L2_FIELD_NONE;
+		f->field = V4L2_FIELD_ANALNE;
 
 	/*
 	 * FIXME: do we need to set this up differently, depending on the
@@ -3662,7 +3662,7 @@ static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
 	f->xfer_func = V4L2_XFER_FUNC_709;
 }
 
-/* Get sensor padding values for the non padded width x height resolution */
+/* Get sensor padding values for the analn padded width x height resolution */
 void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 			 u32 *padding_w, u32 *padding_h)
 {
@@ -3700,7 +3700,7 @@ void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 	if (sink)
 		fc = atomisp_find_in_fmt_conv(sink->code);
 	if (!fc) {
-		dev_warn(isp->dev, "%s: Could not get sensor format\n", __func__);
+		dev_warn(isp->dev, "%s: Could analt get sensor format\n", __func__);
 		goto apply_min_padding;
 	}
 
@@ -3787,7 +3787,7 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 			return -EINVAL;
 	}
 
-	/* The preview pipeline does not support width > 1920 */
+	/* The preview pipeline does analt support width > 1920 */
 	if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW)
 		f->width = min_t(u32, f->width, 1920);
 
@@ -3822,7 +3822,7 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 
 	snr_fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
 	if (!snr_fmt) {
-		dev_err(isp->dev, "unknown sensor format 0x%8.8x\n",
+		dev_err(isp->dev, "unkanalwn sensor format 0x%8.8x\n",
 			format.format.code);
 		return -EINVAL;
 	}
@@ -3832,7 +3832,7 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
-	 * not satisfy the normal atomisp requirements and no need to check
+	 * analt satisfy the analrmal atomisp requirements and anal need to check
 	 * the below conditions. So just assign to what is being returned from
 	 * the sensor driver.
 	 */
@@ -3911,8 +3911,8 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		    asd->stream_env[stream_id].isys_info[1].height);
 	}
 
-	/* Compatibility for sensors which provide no media bus code
-	 * in s_mbus_framefmt() nor support pad formats. */
+	/* Compatibility for sensors which provide anal media bus code
+	 * in s_mbus_framefmt() analr support pad formats. */
 	if (mipi_info && mipi_info->input_format != -1) {
 		bayer_order = mipi_info->raw_bayer_order;
 
@@ -3956,13 +3956,13 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	return 0;
 }
 
-static int configure_pp_input_nop(struct atomisp_sub_device *asd,
+static int configure_pp_input_analp(struct atomisp_sub_device *asd,
 				  unsigned int width, unsigned int height)
 {
 	return 0;
 }
 
-static int configure_output_nop(struct atomisp_sub_device *asd,
+static int configure_output_analp(struct atomisp_sub_device *asd,
 				unsigned int width, unsigned int height,
 				unsigned int min_width,
 				enum ia_css_frame_format sh_fmt)
@@ -3970,7 +3970,7 @@ static int configure_output_nop(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-static int get_frame_info_nop(struct atomisp_sub_device *asd,
+static int get_frame_info_analp(struct atomisp_sub_device *asd,
 			      struct ia_css_frame_info *finfo)
 {
 	return 0;
@@ -3980,7 +3980,7 @@ static int get_frame_info_nop(struct atomisp_sub_device *asd,
  * Resets CSS parameters that depend on input resolution.
  *
  * Update params like CSS RAW binning, 2ppc mode and pp_input
- * which depend on input size, but are not automatically
+ * which depend on input size, but are analt automatically
  * handled in CSS when the input resolution is changed.
  */
 static int css_input_resolution_changed(struct atomisp_sub_device *asd,
@@ -4013,7 +4013,7 @@ static int css_input_resolution_changed(struct atomisp_sub_device *asd,
 	return 0;
 
 	/*
-	 * TODO: atomisp_css_preview_configure_pp_input() not
+	 * TODO: atomisp_css_preview_configure_pp_input() analt
 	 *       reset due to CSS bug tracked as PSI BZ 115124
 	 */
 }
@@ -4033,13 +4033,13 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				unsigned int width, unsigned int height,
 				unsigned int min_width,
 				enum ia_css_frame_format sh_fmt) =
-				    configure_output_nop;
+				    configure_output_analp;
 	int (*get_frame_info)(struct atomisp_sub_device *asd,
 			      struct ia_css_frame_info *finfo) =
-				  get_frame_info_nop;
+				  get_frame_info_analp;
 	int (*configure_pp_input)(struct atomisp_sub_device *asd,
 				  unsigned int width, unsigned int height) =
-				      configure_pp_input_nop;
+				      configure_pp_input_analp;
 	const struct atomisp_in_fmt_conv *fc = NULL;
 	int ret, i;
 
@@ -4195,7 +4195,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 	    asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
 		/* envelope is 20% of the output resolution */
 		/*
-		 * dvs envelope cannot be round up.
+		 * dvs envelope cananalt be round up.
 		 * it would cause ISP timeout and color switch issue
 		 */
 		*dvs_env_w = rounddown(width / 5, ATOM_ISP_STEP_WIDTH);
@@ -4290,7 +4290,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 			req_ffmt->width -= dvs_env_w;
 			ffmt = req_ffmt;
 			dev_warn(isp->dev,
-				 "can not enable video dis due to sensor limitation.");
+				 "can analt enable video dis due to sensor limitation.");
 			asd->params.video_dis_en = false;
 		}
 	}
@@ -4322,7 +4322,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
 	    (ffmt->width < req_ffmt->width || ffmt->height < req_ffmt->height)) {
 		dev_warn(isp->dev,
-			 "can not enable video dis due to sensor limitation.");
+			 "can analt enable video dis due to sensor limitation.");
 		asd->params.video_dis_en = false;
 	}
 
@@ -4488,7 +4488,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 	shading_table = atomisp_css_shading_table_alloc(
 			    user_shading_table->width, user_shading_table->height);
 	if (!shading_table)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len_table = user_shading_table->width * user_shading_table->height *
 		    ATOMISP_SC_TYPE_SIZE;

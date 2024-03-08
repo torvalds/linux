@@ -181,8 +181,8 @@
 	keep-power-in-suspend;
 	max-frequency = <25000000>;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	no-1-8-v;
-	non-removable;
+	anal-1-8-v;
+	analn-removable;
 	vmmc-supply = <&reg_module_3v3>;
 	wakeup-source;
 	status = "okay";

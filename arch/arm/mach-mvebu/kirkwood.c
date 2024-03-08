@@ -69,17 +69,17 @@ static void __init kirkwood_cpuidle_init(void)
 
 static void __init kirkwood_dt_eth_fixup(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	/*
 	 * The ethernet interfaces forget the MAC address assigned by u-boot
 	 * if the clocks are turned off. Usually, u-boot on kirkwood boards
-	 * has no DT support to properly set local-mac-address property.
+	 * has anal DT support to properly set local-mac-address property.
 	 * As a workaround, we get the MAC address from mv643xx_eth registers
-	 * and update the port device node if no valid MAC address is set.
+	 * and update the port device analde if anal valid MAC address is set.
 	 */
-	for_each_compatible_node(np, NULL, "marvell,kirkwood-eth-port") {
-		struct device_node *pnp = of_get_parent(np);
+	for_each_compatible_analde(np, NULL, "marvell,kirkwood-eth-port") {
+		struct device_analde *pnp = of_get_parent(np);
 		struct clk *clk;
 		struct property *pmac;
 		u8 tmpmac[ETH_ALEN];
@@ -90,7 +90,7 @@ static void __init kirkwood_dt_eth_fixup(void)
 		if (!pnp)
 			continue;
 
-		/* skip disabled nodes or nodes with valid MAC address*/
+		/* skip disabled analdes or analdes with valid MAC address*/
 		if (!of_device_is_available(pnp) ||
 		    !of_get_mac_address(np, tmpmac))
 			goto eth_fixup_skip;
@@ -101,22 +101,22 @@ static void __init kirkwood_dt_eth_fixup(void)
 
 		io = of_iomap(pnp, 0);
 		if (!io)
-			goto eth_fixup_no_map;
+			goto eth_fixup_anal_map;
 
-		/* ensure port clock is not gated to not hang CPU */
+		/* ensure port clock is analt gated to analt hang CPU */
 		clk_prepare_enable(clk);
 
 		/* store MAC address register contents in local-mac-address */
 		pmac = kzalloc(sizeof(*pmac) + 6, GFP_KERNEL);
 		if (!pmac)
-			goto eth_fixup_no_mem;
+			goto eth_fixup_anal_mem;
 
 		pmac->value = pmac + 1;
 		pmac->length = 6;
 		pmac->name = kstrdup("local-mac-address", GFP_KERNEL);
 		if (!pmac->name) {
 			kfree(pmac);
-			goto eth_fixup_no_mem;
+			goto eth_fixup_anal_mem;
 		}
 
 		macaddr = pmac->value;
@@ -132,20 +132,20 @@ static void __init kirkwood_dt_eth_fixup(void)
 
 		of_update_property(np, pmac);
 
-eth_fixup_no_mem:
+eth_fixup_anal_mem:
 		iounmap(io);
 		clk_disable_unprepare(clk);
-eth_fixup_no_map:
+eth_fixup_anal_map:
 		clk_put(clk);
 eth_fixup_skip:
-		of_node_put(pnp);
+		of_analde_put(pnp);
 	}
 }
 
 /*
  * Disable propagation of mbus errors to the CPU local bus, as this
  * causes mbus errors (which can occur for example for PCI aborts) to
- * throw CPU aborts, which we're not set up to deal with.
+ * throw CPU aborts, which we're analt set up to deal with.
  */
 static void kirkwood_disable_mbus_error_propagation(void)
 {

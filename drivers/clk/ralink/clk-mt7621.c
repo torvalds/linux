@@ -135,7 +135,7 @@ static int mt7621_gate_ops_init(struct device *dev,
 {
 	/*
 	 * There are drivers for this SoC that are older
-	 * than clock driver and are not prepared for the clock.
+	 * than clock driver and are analt prepared for the clock.
 	 * We don't want the kernel to disable anything so we
 	 * add CLK_IS_CRITICAL flag here.
 	 */
@@ -314,7 +314,7 @@ static struct mt7621_clk mt7621_clks_base[] = {
 
 static struct clk_hw *mt7621_clk_early[MT7621_CLK_MAX];
 
-static int mt7621_register_early_clocks(struct device_node *np,
+static int mt7621_register_early_clocks(struct device_analde *np,
 					struct clk_hw_onecell_data *clk_data,
 					struct mt7621_clk_priv *priv)
 {
@@ -348,7 +348,7 @@ err_clk_unreg:
 	return ret;
 }
 
-static void __init mt7621_clk_init(struct device_node *node)
+static void __init mt7621_clk_init(struct device_analde *analde)
 {
 	struct mt7621_clk_priv *priv;
 	struct clk_hw_onecell_data *clk_data;
@@ -358,15 +358,15 @@ static void __init mt7621_clk_init(struct device_node *node)
 	if (!priv)
 		return;
 
-	priv->sysc = syscon_node_to_regmap(node);
+	priv->sysc = syscon_analde_to_regmap(analde);
 	if (IS_ERR(priv->sysc)) {
-		pr_err("Could not get sysc syscon regmap\n");
+		pr_err("Could analt get sysc syscon regmap\n");
 		goto free_clk_priv;
 	}
 
-	priv->memc = syscon_regmap_lookup_by_phandle(node, "ralink,memctl");
+	priv->memc = syscon_regmap_lookup_by_phandle(analde, "ralink,memctl");
 	if (IS_ERR(priv->memc)) {
-		pr_err("Could not get memc syscon regmap\n");
+		pr_err("Could analt get memc syscon regmap\n");
 		goto free_clk_priv;
 	}
 
@@ -376,7 +376,7 @@ static void __init mt7621_clk_init(struct device_node *node)
 	if (!clk_data)
 		goto free_clk_priv;
 
-	ret = mt7621_register_early_clocks(node, clk_data, priv);
+	ret = mt7621_register_early_clocks(analde, clk_data, priv);
 	if (ret) {
 		pr_err("Couldn't register top clocks\n");
 		goto free_clk_data;
@@ -384,7 +384,7 @@ static void __init mt7621_clk_init(struct device_node *node)
 
 	clk_data->num = count;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret) {
 		pr_err("Couldn't add clk hw provider\n");
 		goto unreg_clk_top;
@@ -470,7 +470,7 @@ static int mt7621_reset_init(struct device *dev, struct regmap *sysc)
 
 	rst_data = devm_kzalloc(dev, sizeof(*rst_data), GFP_KERNEL);
 	if (!rst_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rst_data->sysc = sysc;
 	rst_data->rcdev.ops = &reset_ops;
@@ -478,14 +478,14 @@ static int mt7621_reset_init(struct device *dev, struct regmap *sysc)
 	rst_data->rcdev.nr_resets = 32;
 	rst_data->rcdev.of_reset_n_cells = 1;
 	rst_data->rcdev.of_xlate = mt7621_rst_xlate;
-	rst_data->rcdev.of_node = dev_of_node(dev);
+	rst_data->rcdev.of_analde = dev_of_analde(dev);
 
 	return devm_reset_controller_register(dev, &rst_data->rcdev);
 }
 
 static int mt7621_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct clk_hw_onecell_data *clk_data;
 	struct device *dev = &pdev->dev;
 	struct mt7621_clk_priv *priv;
@@ -493,25 +493,25 @@ static int mt7621_clk_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->sysc = syscon_node_to_regmap(np);
+	priv->sysc = syscon_analde_to_regmap(np);
 	if (IS_ERR(priv->sysc)) {
 		ret = PTR_ERR(priv->sysc);
-		dev_err(dev, "Could not get sysc syscon regmap\n");
+		dev_err(dev, "Could analt get sysc syscon regmap\n");
 		return ret;
 	}
 
 	priv->memc = syscon_regmap_lookup_by_phandle(np, "ralink,memctl");
 	if (IS_ERR(priv->memc)) {
 		ret = PTR_ERR(priv->memc);
-		dev_err(dev, "Could not get memc syscon regmap\n");
+		dev_err(dev, "Could analt get memc syscon regmap\n");
 		return ret;
 	}
 
 	ret = mt7621_reset_init(dev, priv->sysc);
 	if (ret) {
-		dev_err(dev, "Could not init reset controller\n");
+		dev_err(dev, "Could analt init reset controller\n");
 		return ret;
 	}
 
@@ -520,7 +520,7 @@ static int mt7621_clk_probe(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, count),
 				GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 	clk_data->num = count;
 
 	for (i = 0; i < ARRAY_SIZE(mt7621_clks_base); i++)

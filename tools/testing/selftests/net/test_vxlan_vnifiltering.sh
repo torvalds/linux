@@ -91,8 +91,8 @@ TESTS="
 	vxlan_vnifilter_metadata_and_traditional_mix
 "
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=anal
+PAUSE=anal
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
@@ -109,7 +109,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -117,7 +117,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "anal" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -204,7 +204,7 @@ setup-vm() {
 
 	# create bridge
 	ip -netns ${hv[$hvid]} link add br$brid type bridge vlan_filtering 1 vlan_default_pvid 0 \
-		mcast_snooping 0
+		mcast_sanaloping 0
 	ip -netns ${hv[$hvid]} link set br$brid up
 
 	# create vm namespace and interfaces and connect to hypervisor
@@ -324,19 +324,19 @@ vxlan_vnifilter_api()
 	setup_vnifilter_api
 
 	# Duplicate vni test
-	# create non-vnifiltering traditional vni device
+	# create analn-vnifiltering traditional vni device
 	run_cmd "ip -netns $testns link add vxlan100 type vxlan id 100 local $localip dev veth-testns dstport 4789"
 	log_test $? 0 "Create traditional vxlan device"
 
 	# create vni filtering device
 	run_cmd "ip -netns $testns link add vxlan-ext1 type vxlan vnifilter local $localip dev veth-testns dstport 4789"
-	log_test $? 1 "Cannot create vnifilter device without external flag"
+	log_test $? 1 "Cananalt create vnifilter device without external flag"
 
 	run_cmd "ip -netns $testns link add vxlan-ext1 type vxlan external vnifilter local $localip dev veth-testns dstport 4789"
 	log_test $? 0 "Creating external vxlan device with vnifilter flag"
 
 	run_cmd "bridge -netns $testns vni add dev vxlan-ext1 vni 100"
-	log_test $? 0 "Cannot set in-use vni id on vnifiltering device"
+	log_test $? 0 "Cananalt set in-use vni id on vnifiltering device"
 
 	run_cmd "bridge -netns $testns vni add dev vxlan-ext1 vni 200"
 	log_test $? 0 "Set new vni id on vnifiltering device"
@@ -345,7 +345,7 @@ vxlan_vnifilter_api()
 	log_test $? 0 "Create second external vxlan device with vnifilter flag"
 
 	run_cmd "bridge -netns $testns vni add dev vxlan-ext2 vni 200"
-	log_test $? 255 "Cannot set in-use vni id on vnifiltering device"
+	log_test $? 255 "Cananalt set in-use vni id on vnifiltering device"
 
 	run_cmd "bridge -netns $testns vni add dev vxlan-ext2 vni 300"
 	log_test $? 0 "Set new vni id on vnifiltering device"
@@ -367,11 +367,11 @@ vxlan_vnifilter_api()
 
 	# set vnifilter on an existing external vxlan device
 	run_cmd "ip -netns $testns link set dev vxlan-ext1 type vxlan external vnifilter"
-	log_test $? 2 "Cannot set vnifilter flag on a device"
+	log_test $? 2 "Cananalt set vnifilter flag on a device"
 
 	# change vxlan vnifilter flag
-	run_cmd "ip -netns $testns link set dev vxlan-ext1 type vxlan external novnifilter"
-	log_test $? 2 "Cannot unset vnifilter flag on a device"
+	run_cmd "ip -netns $testns link set dev vxlan-ext1 type vxlan external analvnifilter"
+	log_test $? 2 "Cananalt unset vnifilter flag on a device"
 }
 
 # Sanity test vnifilter datapath
@@ -539,7 +539,7 @@ vxlan_vnifilter_metadata_and_traditional_mix()
 
         check_vm_connectivity "vnifiltering vxlan pervni remote mix"
 
-	# check VM connectivity over traditional/non-vxlan filtering vxlan devices
+	# check VM connectivity over traditional/analn-vxlan filtering vxlan devices
 	run_cmd "ip netns exec $vm_31 ping -c 1 -W 1 10.0.30.32"
         log_test $? 0 "VM connectivity over traditional vxlan (ipv4 default rdst)"
 
@@ -547,15 +547,15 @@ vxlan_vnifilter_metadata_and_traditional_mix()
         log_test $? 0 "VM connectivity over traditional vxlan (ipv6 default rdst)"
 
 	run_cmd "ip netns exec $vm_31 ping -c 1 -W 1 10.0.50.32"
-        log_test $? 0 "VM connectivity over metadata nonfiltering vxlan (ipv4 default rdst)"
+        log_test $? 0 "VM connectivity over metadata analnfiltering vxlan (ipv4 default rdst)"
 }
 
 while getopts :t:pP46hv o
 do
 	case $o in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=anal;;
+		P) PAUSE=anal;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -563,7 +563,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "anal" ] && PAUSE_ON_FAIL=anal
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -571,7 +571,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -594,12 +594,12 @@ cleanup &> /dev/null
 for t in $TESTS
 do
 	case $t in
-	none) setup; exit 0;;
+	analne) setup; exit 0;;
 	*) $t; cleanup;;
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

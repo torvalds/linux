@@ -3,7 +3,7 @@
 #define _ASM_X86_TLBFLUSH_H
 
 #include <linux/mm_types.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/sched.h>
 
 #include <asm/processor.h>
@@ -72,7 +72,7 @@ struct tlb_context {
 struct tlb_state {
 	/*
 	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
-	 * are on.  This means that it may not match current->active_mm,
+	 * are on.  This means that it may analt match current->active_mm,
 	 * which will contain the previous user mm when we're in lazy TLB
 	 * mode even if we've already switched back to swapper_pg_dir.
 	 *
@@ -97,10 +97,10 @@ struct tlb_state {
 	/*
 	 * If set we changed the page tables in such a way that we
 	 * needed an invalidation of all contexts (aka. PCIDs / ASIDs).
-	 * This tells us to go invalidate all the non-loaded ctxs[]
+	 * This tells us to go invalidate all the analn-loaded ctxs[]
 	 * on the next context switch.
 	 *
-	 * The current ctx was kept up-to-date as it ran and does not
+	 * The current ctx was kept up-to-date as it ran and does analt
 	 * need to be invalidated.
 	 */
 	bool invalidate_other;
@@ -140,7 +140,7 @@ struct tlb_state {
 	 *
 	 * To be clear, this means that it's legal for the TLB code to
 	 * flush the TLB without updating tlb_gen.  This can happen
-	 * (for now, at least) due to paravirt remote flushes.
+	 * (for analw, at least) due to paravirt remote flushes.
 	 *
 	 * NB: context 0 is a bit special, since it's also used by
 	 * various bits of init code.  This is fine -- code that
@@ -158,8 +158,8 @@ struct tlb_state_shared {
 	 *  - Actively using an mm.  Our CPU's bit will be set in
 	 *    mm_cpumask(loaded_mm) and is_lazy == false;
 	 *
-	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
-	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
+	 *  - Analt using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
+	 *    will analt be set in mm_cpumask(&init_mm) and is_lazy == false.
 	 *
 	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
 	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
@@ -283,7 +283,7 @@ static inline void arch_tlbbatch_add_pending(struct arch_tlbflush_unmap_batch *b
 {
 	inc_mm_tlb_gen(mm);
 	cpumask_or(&batch->cpumask, &batch->cpumask, mm_cpumask(mm));
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
 }
 
 static inline void arch_flush_tlb_batched_pending(struct mm_struct *mm)
@@ -295,12 +295,12 @@ extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 
 static inline bool pte_flags_need_flush(unsigned long oldflags,
 					unsigned long newflags,
-					bool ignore_access)
+					bool iganalre_access)
 {
 	/*
-	 * Flags that require a flush when cleared but not when they are set.
-	 * Only include flags that would not trigger spurious page-faults.
-	 * Non-present entries are not cached. Hardware would set the
+	 * Flags that require a flush when cleared but analt when they are set.
+	 * Only include flags that would analt trigger spurious page-faults.
+	 * Analn-present entries are analt cached. Hardware would set the
 	 * dirty/access bit if needed without a fault.
 	 */
 	const pteval_t flush_on_clear = _PAGE_DIRTY | _PAGE_PRESENT |
@@ -318,10 +318,10 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
 	BUILD_BUG_ON(flush_on_clear & flush_on_change);
 	BUILD_BUG_ON(flush_on_change & software_flags);
 
-	/* Ignore software flags */
+	/* Iganalre software flags */
 	diff &= ~software_flags;
 
-	if (ignore_access)
+	if (iganalre_access)
 		diff &= ~_PAGE_ACCESSED;
 
 	/*
@@ -335,7 +335,7 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
 	if (diff & flush_on_change)
 		return true;
 
-	/* Ensure there are no flags that were left behind */
+	/* Ensure there are anal flags that were left behind */
 	if (IS_ENABLED(CONFIG_DEBUG_VM) &&
 	    (diff & ~(flush_on_clear | software_flags | flush_on_change))) {
 		VM_WARN_ON_ONCE(1);
@@ -351,7 +351,7 @@ static inline bool pte_flags_need_flush(unsigned long oldflags,
  */
 static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
 {
-	/* !PRESENT -> * ; no need for flush */
+	/* !PRESENT -> * ; anal need for flush */
 	if (!(pte_flags(oldpte) & _PAGE_PRESENT))
 		return false;
 
@@ -360,7 +360,7 @@ static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
 		return true;
 
 	/*
-	 * check PTE flags; ignore access-bit; see comment in
+	 * check PTE flags; iganalre access-bit; see comment in
 	 * ptep_clear_flush_young().
 	 */
 	return pte_flags_need_flush(pte_flags(oldpte), pte_flags(newpte),
@@ -374,7 +374,7 @@ static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
  */
 static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
 {
-	/* !PRESENT -> * ; no need for flush */
+	/* !PRESENT -> * ; anal need for flush */
 	if (!(pmd_flags(oldpmd) & _PAGE_PRESENT))
 		return false;
 
@@ -383,7 +383,7 @@ static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
 		return true;
 
 	/*
-	 * check PMD flags; do not ignore access-bit; see
+	 * check PMD flags; do analt iganalre access-bit; see
 	 * pmdp_clear_flush_young().
 	 */
 	return pte_flags_need_flush(pmd_flags(oldpmd), pmd_flags(newpmd),

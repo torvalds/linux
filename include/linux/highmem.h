@@ -30,7 +30,7 @@
  * other contexts.
  *
  * For highmem pages on 32bit systems this can be slow as the mapping space
- * is limited and protected by a global lock. In case that there is no
+ * is limited and protected by a global lock. In case that there is anal
  * mapping slot available the function blocks until a slot is released via
  * kunmap().
  */
@@ -40,7 +40,7 @@ static inline void *kmap(struct page *page);
  * kunmap - Unmap the virtual address mapped by kmap()
  * @page:	Pointer to the page which was mapped by kmap()
  *
- * Counterpart to kmap(). A NOOP for CONFIG_HIGHMEM=n and for mappings of
+ * Counterpart to kmap(). A ANALOP for CONFIG_HIGHMEM=n and for mappings of
  * pages in the low memory area.
  */
 static inline void kunmap(struct page *page);
@@ -80,7 +80,7 @@ static inline void kmap_flush_unused(void);
  * Unmapping addr1 before addr2 is invalid and causes malfunction.
  *
  * Contrary to kmap() mappings the mapping is only valid in the context of
- * the caller and cannot be handed to other contexts.
+ * the caller and cananalt be handed to other contexts.
  *
  * On CONFIG_HIGHMEM=n kernels and for low memory pages this returns the
  * virtual address of the direct mapping. Only real highmem pages are
@@ -91,7 +91,7 @@ static inline void kmap_flush_unused(void);
  *
  * On HIGHMEM enabled systems mapping a highmem page has the side effect of
  * disabling migration in order to keep the virtual address stable across
- * preemption. No caller of kmap_local_page() can rely on this side effect.
+ * preemption. Anal caller of kmap_local_page() can rely on this side effect.
  */
 static inline void *kmap_local_page(struct page *page);
 
@@ -113,7 +113,7 @@ static inline void *kmap_local_page(struct page *page);
  * Unmapping addr1 before addr2 is invalid and causes malfunction.
  *
  * Contrary to kmap() mappings the mapping is only valid in the context of
- * the caller and cannot be handed to other contexts.
+ * the caller and cananalt be handed to other contexts.
  *
  * On CONFIG_HIGHMEM=n kernels and for low memory pages this returns the
  * virtual address of the direct mapping. Only real highmem pages are
@@ -124,7 +124,7 @@ static inline void *kmap_local_page(struct page *page);
  *
  * On HIGHMEM enabled systems mapping a highmem page has the side effect of
  * disabling migration in order to keep the virtual address stable across
- * preemption. No caller of kmap_local_folio() can rely on this side effect.
+ * preemption. Anal caller of kmap_local_folio() can rely on this side effect.
  *
  * Context: Can be invoked from any context.
  * Return: The virtual address of @offset.
@@ -139,11 +139,11 @@ static inline void *kmap_local_folio(struct folio *folio, size_t offset);
  *
  * In fact a wrapper around kmap_local_page() which also disables pagefaults
  * and, depending on PREEMPT_RT configuration, also CPU migration and
- * preemption. Therefore users should not count on the latter two side effects.
+ * preemption. Therefore users should analt count on the latter two side effects.
  *
  * Mappings should always be released by kunmap_atomic().
  *
- * Do not use in new code. Use kmap_local_page() instead.
+ * Do analt use in new code. Use kmap_local_page() instead.
  *
  * It is used in atomic context when code wants to access the contents of a
  * page that might be allocated from high memory (see __GFP_HIGHMEM), for
@@ -162,11 +162,11 @@ static inline void *kmap_local_folio(struct folio *folio, size_t offset);
  *   // Unmap that page.
  *   kunmap_atomic(vaddr);
  *
- * Note that the kunmap_atomic() call takes the result of the kmap_atomic()
- * call, not the argument.
+ * Analte that the kunmap_atomic() call takes the result of the kmap_atomic()
+ * call, analt the argument.
  *
  * If you need to map two pages because you want to copy from one page to
- * another you need to keep the kmap_atomic calls strictly nested, like:
+ * aanalther you need to keep the kmap_atomic calls strictly nested, like:
  *
  * vaddr1 = kmap_atomic(page1);
  * vaddr2 = kmap_atomic(page2);
@@ -182,8 +182,8 @@ static inline void *kmap_atomic(struct page *page);
 static inline unsigned int nr_free_highpages(void);
 static inline unsigned long totalhigh_pages(void);
 
-#ifndef ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+#ifndef ARCH_HAS_FLUSH_AANALN_PAGE
+static inline void flush_aanaln_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 }
 #endif
@@ -197,7 +197,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
 }
 #endif
 
-/* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
+/* when CONFIG_HIGHMEM is analt set these will be plain clear/copy_page */
 #ifndef clear_user_highpage
 static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
@@ -336,7 +336,7 @@ static inline void copy_highpage(struct page *to, struct page *from)
  * If architecture supports machine check exception handling, define the
  * #MC versions of copy_user_highpage and copy_highpage. They copy a memory
  * page with #MC in source page (@from) handled, and return the number
- * of bytes not copied if there was a #MC, otherwise 0 for success.
+ * of bytes analt copied if there was a #MC, otherwise 0 for success.
  */
 static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 					unsigned long vaddr, struct vm_area_struct *vma)
@@ -490,8 +490,8 @@ static inline void memcpy_to_folio(struct folio *folio, size_t offset,
  * @kaddr: The address the folio is currently mapped to.
  *
  * If you have already used kmap_local_folio() to map a folio, written
- * some data to it and now need to zero the end of the folio (and flush
- * the dcache), you can use this function.  If you do not have the
+ * some data to it and analw need to zero the end of the folio (and flush
+ * the dcache), you can use this function.  If you do analt have the
  * folio kmapped (eg the folio has been partially populated by DMA),
  * use folio_zero_range() or folio_zero_segment() instead.
  *
@@ -529,7 +529,7 @@ static inline __must_check void *folio_zero_tail(struct folio *folio,
  * @len: How many bytes of data to copy.
  *
  * This function is most useful for filesystems which support inline data.
- * When they want to copy data from the inode into the page cache, this
+ * When they want to copy data from the ianalde into the page cache, this
  * function does everything for them.  It supports large folios even on
  * HIGHMEM configurations.
  */

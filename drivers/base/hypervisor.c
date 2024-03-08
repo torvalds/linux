@@ -4,7 +4,7 @@
  *
  * Copyright (C) IBM Corp. 2006
  * Copyright (C) 2007 Greg Kroah-Hartman <gregkh@suse.de>
- * Copyright (C) 2007 Novell Inc.
+ * Copyright (C) 2007 Analvell Inc.
  */
 
 #include <linux/kobject.h>
@@ -19,6 +19,6 @@ int __init hypervisor_init(void)
 {
 	hypervisor_kobj = kobject_create_and_add("hypervisor", NULL);
 	if (!hypervisor_kobj)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }

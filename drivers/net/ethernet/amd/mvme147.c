@@ -14,7 +14,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/pgtable.h>
 /* Used for the temporal inet entries and routing */
@@ -80,12 +80,12 @@ static struct net_device * __init mvme147lance_probe(void)
 	int err;
 
 	if (!MACH_IS_MVME147 || called)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	called++;
 
 	dev = alloc_etherdev(sizeof(struct m147lance_private));
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Fill the dev fields */
 	dev->base_addr = (unsigned long)MVME147_LANCE_BASE;
@@ -112,9 +112,9 @@ static struct net_device * __init mvme147lance_probe(void)
 	lp = netdev_priv(dev);
 	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 32K */
 	if (!lp->ram) {
-		printk("%s: No memory for LANCE buffers\n", dev->name);
+		printk("%s: Anal memory for LANCE buffers\n", dev->name);
 		free_netdev(dev);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	lp->lance.name = name;

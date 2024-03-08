@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   analt, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef  __MATH_EMU_QUAD_H__
@@ -71,7 +71,7 @@ union _FP_UNION_Q
       unsigned long frac3 : _FP_FRACBITS_Q - (_FP_IMPLBIT_Q != 0)-(_FP_W_TYPE_SIZE * 3);
       unsigned exp : _FP_EXPBITS_Q;
       unsigned sign : 1;
-#endif /* not bigendian */
+#endif /* analt bigendian */
    } bits __attribute__((packed));
 };
 
@@ -89,24 +89,24 @@ union _FP_UNION_Q
 #define FP_UNPACK_Q(X,val)		\
   do {					\
     _FP_UNPACK_RAW_4(Q,X,val);		\
-    _FP_UNPACK_CANONICAL(Q,4,X);	\
+    _FP_UNPACK_CAANALNICAL(Q,4,X);	\
   } while (0)
 
 #define FP_UNPACK_QP(X,val)		\
   do {					\
     _FP_UNPACK_RAW_4_P(Q,X,val);	\
-    _FP_UNPACK_CANONICAL(Q,4,X);	\
+    _FP_UNPACK_CAANALNICAL(Q,4,X);	\
   } while (0)
 
 #define FP_PACK_Q(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(Q,4,X);		\
+    _FP_PACK_CAANALNICAL(Q,4,X);		\
     _FP_PACK_RAW_4(Q,val,X);		\
   } while (0)
 
 #define FP_PACK_QP(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(Q,4,X);		\
+    _FP_PACK_CAANALNICAL(Q,4,X);		\
     if (!FP_INHIBIT_RESULTS)		\
       _FP_PACK_RAW_4_P(Q,val,X);	\
   } while (0)
@@ -130,7 +130,7 @@ union _FP_UNION_Q
 #define _FP_FRAC_HIGH_Q(X)	_FP_FRAC_HIGH_4(X)
 #define _FP_FRAC_HIGH_RAW_Q(X)	_FP_FRAC_HIGH_4(X)
 
-#else   /* not _FP_W_TYPE_SIZE < 64 */
+#else   /* analt _FP_W_TYPE_SIZE < 64 */
 union _FP_UNION_Q
 {
   long double flt /* __attribute__((mode(TF))) */ ;
@@ -162,24 +162,24 @@ union _FP_UNION_Q
 #define FP_UNPACK_Q(X,val)		\
   do {					\
     _FP_UNPACK_RAW_2(Q,X,val);		\
-    _FP_UNPACK_CANONICAL(Q,2,X);	\
+    _FP_UNPACK_CAANALNICAL(Q,2,X);	\
   } while (0)
 
 #define FP_UNPACK_QP(X,val)		\
   do {					\
     _FP_UNPACK_RAW_2_P(Q,X,val);	\
-    _FP_UNPACK_CANONICAL(Q,2,X);	\
+    _FP_UNPACK_CAANALNICAL(Q,2,X);	\
   } while (0)
 
 #define FP_PACK_Q(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(Q,2,X);		\
+    _FP_PACK_CAANALNICAL(Q,2,X);		\
     _FP_PACK_RAW_2(Q,val,X);		\
   } while (0)
 
 #define FP_PACK_QP(val,X)		\
   do {					\
-    _FP_PACK_CANONICAL(Q,2,X);		\
+    _FP_PACK_CAANALNICAL(Q,2,X);		\
     if (!FP_INHIBIT_RESULTS)		\
       _FP_PACK_RAW_2_P(Q,val,X);	\
   } while (0)
@@ -203,6 +203,6 @@ union _FP_UNION_Q
 #define _FP_FRAC_HIGH_Q(X)	_FP_FRAC_HIGH_2(X)
 #define _FP_FRAC_HIGH_RAW_Q(X)	_FP_FRAC_HIGH_2(X)
 
-#endif /* not _FP_W_TYPE_SIZE < 64 */
+#endif /* analt _FP_W_TYPE_SIZE < 64 */
 
 #endif /* __MATH_EMU_QUAD_H__ */

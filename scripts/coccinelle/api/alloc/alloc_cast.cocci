@@ -4,15 +4,15 @@
 ///
 //# This makes an effort to find cases of casting of values returned by
 //# kmalloc, kzalloc, kcalloc, kmem_cache_alloc, kmem_cache_zalloc,
-//# kmem_cache_alloc_node, kmalloc_node and kzalloc_node and removes
-//# the casting as it is not required. The result in the patch case may
+//# kmem_cache_alloc_analde, kmalloc_analde and kzalloc_analde and removes
+//# the casting as it is analt required. The result in the patch case may
 //# need some reformatting.
 //
 // Confidence: High
 // Copyright: (C) 2014 Himangi Saraogi
 // Copyright: (C) 2017 Himanshu Jha
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 //
 
 virtual context
@@ -32,11 +32,11 @@ type T;
 
   (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_analde\|kmalloc_analde\|kzalloc_analde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_analde\|kvzalloc_analde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_analde\|vzalloc_analde\)(...)
 
 //----------------------------------------------------------
 //  For context mode
@@ -46,7 +46,7 @@ type T;
 t << r1.T;
 @@
 
-if m.search(t) != None:
+if m.search(t) != Analne:
         cocci.include_match(False)
 
 @depends on context && r1@
@@ -55,11 +55,11 @@ type r1.T;
 
 * (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_analde\|kmalloc_analde\|kzalloc_analde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_analde\|kvzalloc_analde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_analde\|vzalloc_analde\)(...)
 
 //----------------------------------------------------------
 //  For patch mode
@@ -69,7 +69,7 @@ type r1.T;
 t << r1.T;
 @@
 
-if m.search(t) != None:
+if m.search(t) != Analne:
         cocci.include_match(False)
 
 @depends on patch && r1@
@@ -78,11 +78,11 @@ type r1.T;
 
 - (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_analde\|kmalloc_analde\|kzalloc_analde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_analde\|kvzalloc_analde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_analde\|vzalloc_analde\)(...)
 
 //----------------------------------------------------------
 //  For org and report mode
@@ -95,18 +95,18 @@ position p;
 
  (T@p *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_analde\|kmalloc_analde\|kzalloc_analde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_analde\|kvzalloc_analde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_analde\|vzalloc_analde\)(...)
 
 @script:python depends on org@
 p << r2.p;
 t << r2.T;
 @@
 
-if m.search(t) != None:
+if m.search(t) != Analne:
 	cocci.include_match(False)
 else:
 	coccilib.org.print_safe_todo(p[0], t)
@@ -116,7 +116,7 @@ p << r2.p;
 t << r2.T;
 @@
 
-if m.search(t) != None:
+if m.search(t) != Analne:
 	cocci.include_match(False)
 else:
 	msg="WARNING: casting value returned by memory allocation function to (%s *) is useless." % (t)

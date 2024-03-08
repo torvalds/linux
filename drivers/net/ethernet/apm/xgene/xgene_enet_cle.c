@@ -52,7 +52,7 @@ static void xgene_cle_kn_to_hw(struct xgene_cle_ptree_kn *kn, u32 *buf)
 	u32 i, j = 0;
 	u32 data;
 
-	buf[j++] = SET_VAL(CLE_TYPE, kn->node_type);
+	buf[j++] = SET_VAL(CLE_TYPE, kn->analde_type);
 	for (i = 0; i < kn->num_keys; i++) {
 		struct xgene_cle_ptree_key *key = &kn->key[i];
 
@@ -74,8 +74,8 @@ static void xgene_cle_dn_to_hw(const struct xgene_cle_ptree_ewdn *dn,
 	u32 i, j = 0;
 	u32 npp;
 
-	buf[j++] = SET_VAL(CLE_DN_TYPE, dn->node_type) |
-		   SET_VAL(CLE_DN_LASTN, dn->last_node) |
+	buf[j++] = SET_VAL(CLE_DN_TYPE, dn->analde_type) |
+		   SET_VAL(CLE_DN_LASTN, dn->last_analde) |
 		   SET_VAL(CLE_DN_HLS, dn->hdr_len_store) |
 		   SET_VAL(CLE_DN_EXT, dn->hdr_extn) |
 		   SET_VAL(CLE_DN_BSTOR, dn->byte_store) |
@@ -94,7 +94,7 @@ static void xgene_cle_dn_to_hw(const struct xgene_cle_ptree_ewdn *dn,
 			   SET_VAL(CLE_BR_JB, br->jump_bw) |
 			   SET_VAL(CLE_BR_JR, br->jump_rel) |
 			   SET_VAL(CLE_BR_OP, br->operation) |
-			   SET_VAL(CLE_BR_NNODE, br->next_node) |
+			   SET_VAL(CLE_BR_NANALDE, br->next_analde) |
 			   SET_VAL(CLE_BR_NBR, br->next_branch);
 
 		buf[j++] = SET_VAL(CLE_BR_DATA, br->data) |
@@ -168,7 +168,7 @@ static void xgene_cle_enable_ptree(struct xgene_enet_pdata *pdata,
 		else
 			addr = base + (i * offset);
 
-		iowrite32(ptree->start_node & 0x3fff, addr + SNPTR0);
+		iowrite32(ptree->start_analde & 0x3fff, addr + SNPTR0);
 		iowrite32(ptree->start_pkt & 0x1ff, addr + SPPTR0);
 	}
 }
@@ -195,13 +195,13 @@ static int xgene_cle_setup_dbptr(struct xgene_enet_pdata *pdata,
 
 static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 	{
-		/* PKT_TYPE_NODE */
-		.node_type = EWDN,
-		.last_node = 0,
+		/* PKT_TYPE_ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 0,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
-		.search_byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
+		.search_byte_store = ANAL_BYTE,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 2,
 		.branch = {
@@ -212,7 +212,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = PKT_PROT_NODE,
+				.next_analde = PKT_PROT_ANALDE,
 				.next_branch = 0,
 				.data = 0x8,
 				.mask = 0x0
@@ -223,7 +223,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = LAST_NODE,
+				.next_analde = LAST_ANALDE,
 				.next_branch = 0,
 				.data = 0x0,
 				.mask = 0xffff
@@ -231,13 +231,13 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 		},
 	},
 	{
-		/* PKT_PROT_NODE */
-		.node_type = EWDN,
-		.last_node = 0,
+		/* PKT_PROT_ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 0,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
-		.search_byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
+		.search_byte_store = ANAL_BYTE,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 3,
 		.branch = {
@@ -248,7 +248,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 0,
 				.data = 0x0600,
 				.mask = 0x00ff
@@ -260,7 +260,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 0,
 				.data = 0x1100,
 				.mask = 0x00ff
@@ -271,7 +271,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 0,
 				.data = 0x0,
 				.mask = 0xffff
@@ -279,12 +279,12 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 		}
 	},
 	{
-		/* RSS_IPV4_TCP_NODE */
-		.node_type = EWDN,
-		.last_node = 0,
+		/* RSS_IPV4_TCP_ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 0,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
 		.search_byte_store = BOTH_BYTES,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 6,
@@ -296,7 +296,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 1,
 				.data = 0x0,
 				.mask = 0xffff
@@ -308,7 +308,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 2,
 				.data = 0x0,
 				.mask = 0xffff
@@ -320,7 +320,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 3,
 				.data = 0x0,
 				.mask = 0xffff
@@ -332,7 +332,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 4,
 				.data = 0x0,
 				.mask = 0xffff
@@ -344,7 +344,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_TCP_NODE,
+				.next_analde = RSS_IPV4_TCP_ANALDE,
 				.next_branch = 5,
 				.data = 0x0,
 				.mask = 0xffff
@@ -356,7 +356,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = LAST_NODE,
+				.next_analde = LAST_ANALDE,
 				.next_branch = 0,
 				.data = 0x0,
 				.mask = 0xffff
@@ -364,12 +364,12 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 		}
 	},
 	{
-		/* RSS_IPV4_UDP_NODE */
-		.node_type = EWDN,
-		.last_node = 0,
+		/* RSS_IPV4_UDP_ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 0,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
 		.search_byte_store = BOTH_BYTES,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 6,
@@ -381,7 +381,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 1,
 				.data = 0x0,
 				.mask = 0xffff
@@ -393,7 +393,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 2,
 				.data = 0x0,
 				.mask = 0xffff
@@ -405,7 +405,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 3,
 				.data = 0x0,
 				.mask = 0xffff
@@ -417,7 +417,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 4,
 				.data = 0x0,
 				.mask = 0xffff
@@ -429,7 +429,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_UDP_NODE,
+				.next_analde = RSS_IPV4_UDP_ANALDE,
 				.next_branch = 5,
 				.data = 0x0,
 				.mask = 0xffff
@@ -441,7 +441,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = LAST_NODE,
+				.next_analde = LAST_ANALDE,
 				.next_branch = 0,
 				.data = 0x0,
 				.mask = 0xffff
@@ -449,12 +449,12 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 		}
 	},
 	{
-		/* RSS_IPV4_OTHERS_NODE */
-		.node_type = EWDN,
-		.last_node = 0,
+		/* RSS_IPV4_OTHERS_ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 0,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
 		.search_byte_store = BOTH_BYTES,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 6,
@@ -466,7 +466,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 1,
 				.data = 0x0,
 				.mask = 0xffff
@@ -478,7 +478,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 2,
 				.data = 0x0,
 				.mask = 0xffff
@@ -490,7 +490,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 3,
 				.data = 0x0,
 				.mask = 0xffff
@@ -502,7 +502,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 4,
 				.data = 0x0,
 				.mask = 0xffff
@@ -514,7 +514,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_analde = RSS_IPV4_OTHERS_ANALDE,
 				.next_branch = 5,
 				.data = 0x0,
 				.mask = 0xffff
@@ -526,7 +526,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = LAST_NODE,
+				.next_analde = LAST_ANALDE,
 				.next_branch = 0,
 				.data = 0x0,
 				.mask = 0xffff
@@ -535,13 +535,13 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 	},
 
 	{
-		/* LAST NODE */
-		.node_type = EWDN,
-		.last_node = 1,
+		/* LAST ANALDE */
+		.analde_type = EWDN,
+		.last_analde = 1,
 		.hdr_len_store = 1,
-		.hdr_extn = NO_BYTE,
-		.byte_store = NO_BYTE,
-		.search_byte_store = NO_BYTE,
+		.hdr_extn = ANAL_BYTE,
+		.byte_store = ANAL_BYTE,
+		.search_byte_store = ANAL_BYTE,
 		.result_pointer = DB_RES_DROP,
 		.num_branches = 1,
 		.branch = {
@@ -551,7 +551,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 				.jump_bw = JMP_FW,
 				.jump_rel = JMP_ABS,
 				.operation = EQT,
-				.next_node = MAX_NODES,
+				.next_analde = MAX_ANALDES,
 				.next_branch = 0,
 				.data = 0,
 				.mask = 0xffff
@@ -560,7 +560,7 @@ static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
 	}
 };
 
-static int xgene_cle_setup_node(struct xgene_enet_pdata *pdata,
+static int xgene_cle_setup_analde(struct xgene_enet_pdata *pdata,
 				struct xgene_enet_cle *cle)
 {
 	struct xgene_cle_ptree *ptree = &cle->ptree;
@@ -573,17 +573,17 @@ static int xgene_cle_setup_node(struct xgene_enet_pdata *pdata,
 	memset(buf, 0, sizeof(buf));
 	for (i = 0; i < num_dn; i++) {
 		xgene_cle_dn_to_hw(&dn[i], buf, cle->jump_bytes);
-		ret = xgene_cle_dram_wr(cle, buf, 17, i + ptree->start_node,
+		ret = xgene_cle_dram_wr(cle, buf, 17, i + ptree->start_analde,
 					PTREE_RAM, CLE_CMD_WR);
 		if (ret)
 			return ret;
 	}
 
-	/* continue node index for key node */
+	/* continue analde index for key analde */
 	memset(buf, 0, sizeof(buf));
 	for (j = i; j < (ptree->num_kn + num_dn); j++) {
 		xgene_cle_kn_to_hw(&kn[j - num_dn], buf);
-		ret = xgene_cle_dram_wr(cle, buf, 17, j + ptree->start_node,
+		ret = xgene_cle_dram_wr(cle, buf, 17, j + ptree->start_analde,
 					PTREE_RAM, CLE_CMD_WR);
 		if (ret)
 			return ret;
@@ -597,7 +597,7 @@ static int xgene_cle_setup_ptree(struct xgene_enet_pdata *pdata,
 {
 	int ret;
 
-	ret = xgene_cle_setup_node(pdata, cle);
+	ret = xgene_cle_setup_analde(pdata, cle);
 	if (ret)
 		return ret;
 
@@ -804,7 +804,7 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 	dbptr[DB_RES_DROP].drop = 1;
 
 	memset(&kn, 0, sizeof(kn));
-	kn.node_type = KN;
+	kn.analde_type = KN;
 	kn.num_keys = 1;
 	kn.key[0].priority = 0;
 	kn.key[0].result_pointer = DB_RES_ACCEPT;

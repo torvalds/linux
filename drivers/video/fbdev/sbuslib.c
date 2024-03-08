@@ -17,7 +17,7 @@
 
 #include "sbuslib.h"
 
-void sbusfb_fill_var(struct fb_var_screeninfo *var, struct device_node *dp,
+void sbusfb_fill_var(struct fb_var_screeninfo *var, struct device_analde *dp,
 		     int bpp)
 {
 	memset(var, 0, sizeof(*var));
@@ -61,7 +61,7 @@ int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_analncached(vma->vm_page_prot);
 
 	/* Each page, see which map applies */
 	for (page = 0; page < size; ){
@@ -202,7 +202,7 @@ int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 	case FBIOSVIDEO:
 	case FBIOGVIDEO:
 	case FBIOSCURSOR32:
-	case FBIOGCURSOR32:	/* This is not implemented yet.
+	case FBIOGCURSOR32:	/* This is analt implemented yet.
 				   Later it should be converted... */
 	case FBIOSCURPOS:
 	case FBIOGCURPOS:
@@ -280,7 +280,7 @@ int sbusfb_compat_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 		return 0;
 	}
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 EXPORT_SYMBOL(sbusfb_compat_ioctl);

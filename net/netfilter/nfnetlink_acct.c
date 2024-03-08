@@ -13,7 +13,7 @@
 #include <linux/rculist.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 #include <net/netns/generic.h>
@@ -101,7 +101,7 @@ static int nfnl_acct_new(struct sk_buff *skb, const struct nfnl_info *info,
 	if (tb[NFACCT_FLAGS]) {
 		flags = ntohl(nla_get_be32(tb[NFACCT_FLAGS]));
 		if (flags & ~NFACCT_F_QUOTA)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if ((flags & NFACCT_F_QUOTA) == NFACCT_F_QUOTA)
 			return -EINVAL;
 		if (flags & NFACCT_F_OVERQUOTA)
@@ -114,7 +114,7 @@ static int nfnl_acct_new(struct sk_buff *skb, const struct nfnl_info *info,
 
 	nfacct = kzalloc(sizeof(struct nf_acct) + size, GFP_KERNEL);
 	if (nfacct == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (flags & NFACCT_F_QUOTA) {
 		u64 *quota = (u64 *)nfacct->data;
@@ -262,7 +262,7 @@ static int nfnl_acct_start(struct netlink_callback *cb)
 
 	filter = kzalloc(sizeof(struct nfacct_filter), GFP_KERNEL);
 	if (!filter)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	filter->mask = ntohl(nla_get_be32(tb[NFACCT_FILTER_MASK]));
 	filter->value = ntohl(nla_get_be32(tb[NFACCT_FILTER_VALUE]));
@@ -275,7 +275,7 @@ static int nfnl_acct_get(struct sk_buff *skb, const struct nfnl_info *info,
 			 const struct nlattr * const tb[])
 {
 	struct nfnl_acct_net *nfnl_acct_net = nfnl_acct_pernet(info->net);
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	struct nf_acct *cur;
 	char *acct_name;
 
@@ -302,7 +302,7 @@ static int nfnl_acct_get(struct sk_buff *skb, const struct nfnl_info *info,
 
 		skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 		if (skb2 == NULL) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -345,7 +345,7 @@ static int nfnl_acct_del(struct sk_buff *skb, const struct nfnl_info *info,
 {
 	struct nfnl_acct_net *nfnl_acct_net = nfnl_acct_pernet(info->net);
 	struct nf_acct *cur, *tmp;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 	char *acct_name;
 
 	if (!tb[NFACCT_NAME]) {
@@ -427,7 +427,7 @@ struct nf_acct *nfnl_acct_find_get(struct net *net, const char *acct_name)
 		if (!try_module_get(THIS_MODULE))
 			goto err;
 
-		if (!refcount_inc_not_zero(&cur->refcnt)) {
+		if (!refcount_inc_analt_zero(&cur->refcnt)) {
 			module_put(THIS_MODULE);
 			goto err;
 		}
@@ -477,21 +477,21 @@ static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 
 int nfnl_acct_overquota(struct net *net, struct nf_acct *nfacct)
 {
-	u64 now;
+	u64 analw;
 	u64 *quota;
 	int ret = NFACCT_UNDERQUOTA;
 
-	/* no place here if we don't have a quota */
+	/* anal place here if we don't have a quota */
 	if (!(nfacct->flags & NFACCT_F_QUOTA))
-		return NFACCT_NO_QUOTA;
+		return NFACCT_ANAL_QUOTA;
 
 	quota = (u64 *)nfacct->data;
-	now = (nfacct->flags & NFACCT_F_QUOTA_PKTS) ?
+	analw = (nfacct->flags & NFACCT_F_QUOTA_PKTS) ?
 	       atomic64_read(&nfacct->pkts) : atomic64_read(&nfacct->bytes);
 
-	ret = now > *quota;
+	ret = analw > *quota;
 
-	if (now >= *quota &&
+	if (analw >= *quota &&
 	    !test_and_set_bit(NFACCT_OVERQUOTA_BIT, &nfacct->flags)) {
 		nfnl_overquota_report(net, nfacct);
 	}
@@ -539,7 +539,7 @@ static int __init nfnl_acct_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_acct_subsys);
 	if (ret < 0) {
-		pr_err("nfnl_acct_init: cannot register with nfnetlink.\n");
+		pr_err("nfnl_acct_init: cananalt register with nfnetlink.\n");
 		goto cleanup_pernet;
 	}
 	return 0;

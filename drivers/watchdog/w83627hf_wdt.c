@@ -18,9 +18,9 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox analr CymruNet Ltd. admit liability analr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at anal charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  */
@@ -57,11 +57,11 @@ MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in seconds. 1 <= timeout <= 255, default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int early_disable;
 module_param(early_disable, int, 0);
@@ -434,10 +434,10 @@ static int wdt_find(int addr)
 		cr_wdt_csr = NCT6102D_WDT_CSR;
 		break;
 	case 0xff:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		pr_err("Unsupported chip ID: 0x%02x\n", val);
 		break;
 	}
@@ -517,7 +517,7 @@ static int __init wdt_init(void)
 		chip_name[chip]);
 
 	watchdog_init_timeout(&wdt_dev, timeout, NULL);
-	watchdog_set_nowayout(&wdt_dev, nowayout);
+	watchdog_set_analwayout(&wdt_dev, analwayout);
 	watchdog_stop_on_reboot(&wdt_dev);
 
 	ret = w83627hf_init(&wdt_dev, chip);
@@ -530,8 +530,8 @@ static int __init wdt_init(void)
 	if (ret)
 		return ret;
 
-	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
-		wdt_dev.timeout, nowayout);
+	pr_info("initialized. timeout=%d sec (analwayout=%d)\n",
+		wdt_dev.timeout, analwayout);
 
 	return ret;
 }

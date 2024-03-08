@@ -13,7 +13,7 @@
 #define CAM_CC_PLL2						3
 #define CAM_CC_PLL2_OUT_AUX					4
 #define CAM_CC_PLL3						5
-#define CAM_CC_CAMNOC_AXI_CLK					6
+#define CAM_CC_CAMANALC_AXI_CLK					6
 #define CAM_CC_CCI_0_CLK					7
 #define CAM_CC_CCI_0_CLK_SRC					8
 #define CAM_CC_CCI_1_CLK					9
@@ -96,7 +96,7 @@
 
 /* CAM_CC resets */
 #define CAM_CC_BPS_BCR						0
-#define CAM_CC_CAMNOC_BCR					1
+#define CAM_CC_CAMANALC_BCR					1
 #define CAM_CC_CCI_0_BCR					2
 #define CAM_CC_CCI_1_BCR					3
 #define CAM_CC_CPAS_BCR						4

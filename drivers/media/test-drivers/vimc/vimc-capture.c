@@ -20,10 +20,10 @@ struct vimc_capture_device {
 	struct vb2_queue queue;
 	struct list_head buf_list;
 	/*
-	 * NOTE: in a real driver, a spin lock must be used to access the
+	 * ANALTE: in a real driver, a spin lock must be used to access the
 	 * queue because the frames are generated from a hardware interruption
-	 * and the isr is not allowed to sleep.
-	 * Even if it is not necessary a spinlock in the vimc driver, we
+	 * and the isr is analt allowed to sleep.
+	 * Even if it is analt necessary a spinlock in the vimc driver, we
 	 * use it here as a code reference
 	 */
 	spinlock_t qlock;
@@ -37,7 +37,7 @@ static const struct v4l2_pix_format fmt_default = {
 	.width = 640,
 	.height = 480,
 	.pixelformat = V4L2_PIX_FMT_RGB24,
-	.field = V4L2_FIELD_NONE,
+	.field = V4L2_FIELD_ANALNE,
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
@@ -93,7 +93,7 @@ static int vimc_capture_try_fmt_vid_cap(struct file *file, void *priv,
 	format->height = clamp_t(u32, format->height, VIMC_FRAME_MIN_HEIGHT,
 				 VIMC_FRAME_MAX_HEIGHT) & ~1;
 
-	/* Don't accept a pixelformat that is not on the table */
+	/* Don't accept a pixelformat that is analt on the table */
 	vpix = vimc_pix_map_by_pixelformat(format->pixelformat);
 	if (!vpix) {
 		format->pixelformat = fmt_default.pixelformat;
@@ -120,7 +120,7 @@ static int vimc_capture_s_fmt_vid_cap(struct file *file, void *priv,
 	struct vimc_capture_device *vcapture = video_drvdata(file);
 	int ret;
 
-	/* Do not change the format while stream is on */
+	/* Do analt change the format while stream is on */
 	if (vb2_is_busy(&vcapture->queue))
 		return -EBUSY;
 
@@ -226,11 +226,11 @@ static const struct v4l2_ioctl_ops vimc_capture_ioctl_ops = {
 static void vimc_capture_return_all_buffers(struct vimc_capture_device *vcapture,
 					enum vb2_buffer_state state)
 {
-	struct vimc_capture_buffer *vbuf, *node;
+	struct vimc_capture_buffer *vbuf, *analde;
 
 	spin_lock(&vcapture->qlock);
 
-	list_for_each_entry_safe(vbuf, node, &vcapture->buf_list, list) {
+	list_for_each_entry_safe(vbuf, analde, &vcapture->buf_list, list) {
 		list_del(&vbuf->list);
 		vb2_buffer_done(&vbuf->vb2.vb2_buf, state);
 	}
@@ -299,7 +299,7 @@ static int vimc_capture_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers
 
 	if (*nplanes)
 		return sizes[0] < vcapture->format.sizeimage ? -EINVAL : 0;
-	/* We don't support multiplanes for now */
+	/* We don't support multiplanes for analw */
 	*nplanes = 1;
 	sizes[0] = vcapture->format.sizeimage;
 
@@ -406,7 +406,7 @@ static struct vimc_ent_device *vimc_capture_add(struct vimc_device *vimc,
 	/* Allocate the vimc_capture_device struct */
 	vcapture = kzalloc(sizeof(*vcapture), GFP_KERNEL);
 	if (!vcapture)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the media entity */
 	vcapture->vdev.entity.name = vcfg_name;
@@ -431,7 +431,7 @@ static struct vimc_ent_device *vimc_capture_add(struct vimc_device *vimc,
 	q->ops = &vimc_capture_qops;
 	q->mem_ops = vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG
 		   ? &vb2_dma_contig_memops : &vb2_vmalloc_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 2;
 	q->lock = &vcapture->lock;
 	q->dev = v4l2_dev->dev;

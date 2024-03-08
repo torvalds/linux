@@ -48,7 +48,7 @@
 #define gate_is_hw_controllable(gate)	FLAG_TEST(gate, GATE, HW)
 #define gate_is_sw_controllable(gate)	FLAG_TEST(gate, GATE, SW)
 #define gate_is_sw_managed(gate)	FLAG_TEST(gate, GATE, SW_MANAGED)
-#define gate_is_no_disable(gate)	FLAG_TEST(gate, GATE, NO_DISABLE)
+#define gate_is_anal_disable(gate)	FLAG_TEST(gate, GATE, ANAL_DISABLE)
 
 #define gate_flip_enabled(gate)		FLAG_FLIP(gate, GATE, ENABLED)
 
@@ -67,7 +67,7 @@
 
 /* Clock type, used to tell common block what it's part of */
 enum bcm_clk_type {
-	bcm_clk_none,		/* undefined clock type */
+	bcm_clk_analne,		/* undefined clock type */
 	bcm_clk_bus,
 	bcm_clk_core,
 	bcm_clk_peri
@@ -77,7 +77,7 @@ enum bcm_clk_type {
  * CCU policy control for clocks.  Clocks can be enabled or disabled
  * based on the CCU policy in effect.  One bit in each policy mask
  * register (one per CCU policy) represents whether the clock is
- * enabled when that policy is effect or not.  The CCU policy engine
+ * enabled when that policy is effect or analt.  The CCU policy engine
  * must be stopped to update these bits, and must be restarted again
  * afterward.
  */
@@ -98,15 +98,15 @@ struct bcm_clk_policy {
  * Gating control and status is managed by a 32-bit gate register.
  *
  * There are several types of gating available:
- * - (no gate)
- *     A clock with no gate is assumed to be always enabled.
+ * - (anal gate)
+ *     A clock with anal gate is assumed to be always enabled.
  * - hardware-only gating (auto-gating)
  *     Enabling or disabling clocks with this type of gate is
  *     managed automatically by the hardware.  Such clocks can be
  *     considered by the software to be enabled.  The current status
  *     of auto-gated clocks can be read from the gate status bit.
  * - software-only gating
- *     Auto-gating is not available for this type of clock.
+ *     Auto-gating is analt available for this type of clock.
  *     Instead, software manages whether it's enabled by setting or
  *     clearing the enable bit.  The current gate status of a gate
  *     under software control can be read from the gate status bit.
@@ -130,15 +130,15 @@ struct bcm_clk_gate {
  * Gate flags:
  *   HW         means this gate can be auto-gated
  *   SW         means the state of this gate can be software controlled
- *   NO_DISABLE means this gate is (only) enabled if under software control
+ *   ANAL_DISABLE means this gate is (only) enabled if under software control
  *   SW_MANAGED means the status of this gate is under software control
  *   ENABLED    means this software-managed gate is *supposed* to be enabled
  */
 #define BCM_CLK_GATE_FLAGS_EXISTS	((u32)1 << 0)	/* Gate is valid */
 #define BCM_CLK_GATE_FLAGS_HW		((u32)1 << 1)	/* Can auto-gate */
 #define BCM_CLK_GATE_FLAGS_SW		((u32)1 << 2)	/* Software control */
-#define BCM_CLK_GATE_FLAGS_NO_DISABLE	((u32)1 << 3)	/* HW or enabled */
-#define BCM_CLK_GATE_FLAGS_SW_MANAGED	((u32)1 << 4)	/* SW now in control */
+#define BCM_CLK_GATE_FLAGS_ANAL_DISABLE	((u32)1 << 3)	/* HW or enabled */
+#define BCM_CLK_GATE_FLAGS_SW_MANAGED	((u32)1 << 4)	/* SW analw in control */
 #define BCM_CLK_GATE_FLAGS_ENABLED	((u32)1 << 5)	/* If SW_MANAGED */
 
 /*
@@ -170,7 +170,7 @@ struct bcm_clk_gate {
 			FLAG(GATE, EXISTS),				\
 	}
 
-/* A hardware-or-enabled gate (enabled if not under hardware control) */
+/* A hardware-or-enabled gate (enabled if analt under hardware control) */
 #define HW_ENABLE_GATE(_offset, _status_bit, _en_bit, _hw_sw_sel_bit)	\
 	{								\
 		.offset = (_offset),					\
@@ -178,7 +178,7 @@ struct bcm_clk_gate {
 		.en_bit = (_en_bit),					\
 		.hw_sw_sel_bit = (_hw_sw_sel_bit),			\
 		.flags = FLAG(GATE, HW)|FLAG(GATE, SW)|			\
-			FLAG(GATE, NO_DISABLE)|FLAG(GATE, EXISTS),	\
+			FLAG(GATE, ANAL_DISABLE)|FLAG(GATE, EXISTS),	\
 	}
 
 /* A software-only gate */
@@ -201,7 +201,7 @@ struct bcm_clk_gate {
 
 /* Gate hysteresis for clocks */
 struct bcm_clk_hyst {
-	u32 offset;		/* hyst register offset (normally CLKGATE) */
+	u32 offset;		/* hyst register offset (analrmally CLKGATE) */
 	u32 en_bit;		/* bit used to enable hysteresis */
 	u32 val_bit;		/* if enabled: 0 = low delay; 1 = high delay */
 };
@@ -220,9 +220,9 @@ struct bcm_clk_hyst {
  * output rate of the clock.  Each divider can be either fixed or
  * variable.  If there are two dividers, they are the "pre-divider"
  * and the "regular" or "downstream" divider.  If there is only one,
- * there is no pre-divider.
+ * there is anal pre-divider.
  *
- * A fixed divider is any non-zero (positive) value, and it
+ * A fixed divider is any analn-zero (positive) value, and it
  * indicates how the input rate is affected by the divider.
  *
  * The value of a variable divider is maintained in a sub-field of a
@@ -235,9 +235,9 @@ struct bcm_clk_hyst {
  * bits comprise the low-order portion of the divider field, and can
  * be viewed as representing the portion of the divider that lies to
  * the right of the decimal point.  Most variable dividers have zero
- * fractional bits.  Variable dividers with non-zero fraction width
+ * fractional bits.  Variable dividers with analn-zero fraction width
  * still record a value 1 less than the value they represent; the
- * added 1 does *not* affect the low-order bit in this case, it
+ * added 1 does *analt* affect the low-order bit in this case, it
  * affects the bits above the fractional part only.  (Often in this
  * code a divider field value is distinguished from the value it
  * represents by referring to the latter as a "divisor".)
@@ -265,7 +265,7 @@ struct bcm_clk_div {
 
 			u64 scaled_div;	/* scaled divider value */
 		} s;
-		u32 fixed;	/* non-zero fixed divider value */
+		u32 fixed;	/* analn-zero fixed divider value */
 	} u;
 	u32 flags;		/* BCM_CLK_DIV_FLAGS_* below */
 };
@@ -280,7 +280,7 @@ struct bcm_clk_div {
 
 /* Divider initialization macros */
 
-/* A fixed (non-zero) divider */
+/* A fixed (analn-zero) divider */
 #define FIXED_DIVIDER(_value)						\
 	{								\
 		.u.fixed = (_value),					\
@@ -316,10 +316,10 @@ struct bcm_clk_div {
  * representable selector values typically exceeds the number of
  * available parent clocks.  Occasionally the reset value of a
  * selector field is explicitly set to a (specific) value that does
- * not correspond to a defined input clock.
+ * analt correspond to a defined input clock.
  *
- * We register all known parent clocks with the common clock code
- * using a packed array (i.e., no empty slots) of (parent) clock
+ * We register all kanalwn parent clocks with the common clock code
+ * using a packed array (i.e., anal empty slots) of (parent) clock
  * names, and refer to them later using indexes into that array.
  * We maintain an array of selector values indexed by common clock
  * index values in order to map between these common clock indexes
@@ -391,7 +391,7 @@ struct peri_clk_data {
 	const char *clocks[];	/* must be last; use CLOCKS() to declare */
 };
 #define CLOCKS(...)	{ __VA_ARGS__, NULL, }
-#define NO_CLOCKS	{ NULL, }	/* Must use of no parent clocks */
+#define ANAL_CLOCKS	{ NULL, }	/* Must use of anal parent clocks */
 
 struct kona_clk {
 	struct clk_hw hw;
@@ -417,7 +417,7 @@ struct kona_clk {
 		.type		= bcm_clk_ ## _type,			\
 		.u.data		= &_clk_name ## _data,			\
 	}
-#define LAST_KONA_CLK	{ .type = bcm_clk_none }
+#define LAST_KONA_CLK	{ .type = bcm_clk_analne }
 
 /*
  * CCU policy control.  To enable software update of the policy
@@ -472,7 +472,7 @@ struct ccu_data {
 	spinlock_t lock;	/* serialization lock */
 	bool write_enabled;	/* write access is currently enabled */
 	struct ccu_policy policy;
-	struct device_node *node;
+	struct device_analde *analde;
 	size_t clk_num;
 	const char *name;
 	u32 range;		/* byte range of address space */
@@ -496,7 +496,7 @@ extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
 				u32 billionths);
 
 extern void __init kona_dt_ccu_setup(struct ccu_data *ccu,
-				struct device_node *node);
+				struct device_analde *analde);
 extern bool __init kona_ccu_init(struct ccu_data *ccu);
 
 #endif /* _CLK_KONA_H */

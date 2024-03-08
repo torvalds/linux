@@ -75,7 +75,7 @@ struct iqs7211_reg_field_desc {
 };
 
 enum iqs7211_reg_key_id {
-	IQS7211_REG_KEY_NONE,
+	IQS7211_REG_KEY_ANALNE,
 	IQS7211_REG_KEY_PROX,
 	IQS7211_REG_KEY_TOUCH,
 	IQS7211_REG_KEY_TAP,
@@ -1156,7 +1156,7 @@ static const u8 iqs7211_gesture_angle[] = {
 struct iqs7211_ver_info {
 	__le16 prod_num;
 	__le16 major;
-	__le16 minor;
+	__le16 mianalr;
 	__le32 patch;
 } __packed;
 
@@ -1219,7 +1219,7 @@ static int iqs7211_hard_reset(struct iqs7211_private *iqs7211)
 	/*
 	 * The following delay ensures the shared RDY/MCLR pin is sampled in
 	 * between periodic assertions by the device and assumes the default
-	 * communication timeout has not been overwritten in OTP memory.
+	 * communication timeout has analt been overwritten in OTP memory.
 	 */
 	if (iqs7211->reset_gpio == iqs7211->irq_gpio)
 		msleep(IQS7211_RESET_TIMEOUT_MS);
@@ -1253,9 +1253,9 @@ static int iqs7211_force_comms(struct iqs7211_private *iqs7211)
 	}
 
 	/*
-	 * The device cannot communicate until it asserts its interrupt (RDY)
+	 * The device cananalt communicate until it asserts its interrupt (RDY)
 	 * pin. Attempts to do so while RDY is deasserted return an ACK; how-
-	 * ever all write data is ignored, and all read data returns 0xEE.
+	 * ever all write data is iganalred, and all read data returns 0xEE.
 	 *
 	 * Unsolicited communication must be preceded by a special force com-
 	 * munication command, after which the device eventually asserts its
@@ -1325,7 +1325,7 @@ static int iqs7211_read_burst(struct iqs7211_private *iqs7211,
 		}
 
 		if (get_unaligned_le16(msg[1].buf) == IQS7211_COMMS_ERROR) {
-			ret = -ENODATA;
+			ret = -EANALDATA;
 			continue;
 		}
 
@@ -1366,7 +1366,7 @@ static int iqs7211_write_burst(struct iqs7211_private *iqs7211,
 
 	msg_buf = kzalloc(msg_len, GFP_KERNEL);
 	if (!msg_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*msg_buf = reg;
 	memcpy(msg_buf + sizeof(reg), val, val_len);
@@ -1430,7 +1430,7 @@ static int iqs7211_start_comms(struct iqs7211_private *iqs7211)
 	 * communication window each time it intends to elicit a response from
 	 * the device.
 	 *
-	 * Forced communication is not necessary, however, if the host adapter
+	 * Forced communication is analt necessary, however, if the host adapter
 	 * can support clock stretching. In that case, the device freely clock
 	 * stretches until all pending conversions are complete.
 	 */
@@ -1528,7 +1528,7 @@ static int iqs7211_init_device(struct iqs7211_private *iqs7211)
 	int error, i;
 
 	/*
-	 * Acknowledge reset before writing any registers in case the device
+	 * Ackanalwledge reset before writing any registers in case the device
 	 * suffers a spurious reset during initialization. The communication
 	 * mode is configured at this time as well.
 	 */
@@ -1624,7 +1624,7 @@ static int iqs7211_add_field(struct iqs7211_private *iqs7211,
 
 	reg_field = devm_kzalloc(&client->dev, sizeof(*reg_field), GFP_KERNEL);
 	if (!reg_field)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reg_field->addr = new_field.addr;
 	reg_field->mask = new_field.mask;
@@ -1636,7 +1636,7 @@ static int iqs7211_add_field(struct iqs7211_private *iqs7211,
 }
 
 static int iqs7211_parse_props(struct iqs7211_private *iqs7211,
-			       struct fwnode_handle *reg_grp_node,
+			       struct fwanalde_handle *reg_grp_analde,
 			       enum iqs7211_reg_grp_id reg_grp,
 			       enum iqs7211_reg_key_id reg_key)
 {
@@ -1664,12 +1664,12 @@ static int iqs7211_parse_props(struct iqs7211_private *iqs7211,
 		if (!reg_addr)
 			continue;
 
-		error = fwnode_property_read_u32(reg_grp_node, name, &val);
+		error = fwanalde_property_read_u32(reg_grp_analde, name, &val);
 		if (error == -EINVAL) {
 			continue;
 		} else if (error) {
 			dev_err(&client->dev, "Failed to read %s %s: %d\n",
-				fwnode_get_name(reg_grp_node), label, error);
+				fwanalde_get_name(reg_grp_analde), label, error);
 			return error;
 		}
 
@@ -1694,7 +1694,7 @@ static int iqs7211_parse_props(struct iqs7211_private *iqs7211,
 }
 
 static int iqs7211_parse_event(struct iqs7211_private *iqs7211,
-			       struct fwnode_handle *event_node,
+			       struct fwanalde_handle *event_analde,
 			       enum iqs7211_reg_grp_id reg_grp,
 			       enum iqs7211_reg_key_id reg_key,
 			       unsigned int *event_code)
@@ -1705,19 +1705,19 @@ static int iqs7211_parse_event(struct iqs7211_private *iqs7211,
 	unsigned int val;
 	int error;
 
-	error = iqs7211_parse_props(iqs7211, event_node, reg_grp, reg_key);
+	error = iqs7211_parse_props(iqs7211, event_analde, reg_grp, reg_key);
 	if (error)
 		return error;
 
 	if (reg_key == IQS7211_REG_KEY_AXIAL_X ||
 	    reg_key == IQS7211_REG_KEY_AXIAL_Y) {
-		error = fwnode_property_read_u32(event_node,
+		error = fwanalde_property_read_u32(event_analde,
 						 "azoteq,gesture-angle", &val);
 		if (!error) {
 			if (val >= ARRAY_SIZE(iqs7211_gesture_angle)) {
 				dev_err(&client->dev,
 					"Invalid %s gesture angle: %u\n",
-					fwnode_get_name(event_node), val);
+					fwanalde_get_name(event_analde), val);
 				return -EINVAL;
 			}
 
@@ -1731,23 +1731,23 @@ static int iqs7211_parse_event(struct iqs7211_private *iqs7211,
 		} else if (error != -EINVAL) {
 			dev_err(&client->dev,
 				"Failed to read %s gesture angle: %d\n",
-				fwnode_get_name(event_node), error);
+				fwanalde_get_name(event_analde), error);
 			return error;
 		}
 	}
 
-	error = fwnode_property_read_u32(event_node, "linux,code", event_code);
+	error = fwanalde_property_read_u32(event_analde, "linux,code", event_code);
 	if (error == -EINVAL)
 		error = 0;
 	else if (error)
 		dev_err(&client->dev, "Failed to read %s code: %d\n",
-			fwnode_get_name(event_node), error);
+			fwanalde_get_name(event_analde), error);
 
 	return error;
 }
 
 static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
-				struct fwnode_handle *tp_node)
+				struct fwanalde_handle *tp_analde)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
 	struct i2c_client *client = iqs7211->client;
@@ -1760,7 +1760,7 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 	for (i = 0; i < IQS7211_MAX_CYCLES * 2; i++)
 		*(cycle_alloc[0] + i) = U8_MAX;
 
-	count = fwnode_property_count_u32(tp_node, "azoteq,channel-select");
+	count = fwanalde_property_count_u32(tp_analde, "azoteq,channel-select");
 	if (count == -EINVAL) {
 		/*
 		 * Assign each sensing cycle's slots (0 and 1) to a channel,
@@ -1797,7 +1797,7 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 			}
 
 			/*
-			 * Sensing cycles cannot straddle more than one CTx
+			 * Sensing cycles cananalt straddle more than one CTx
 			 * pin. As such, the next row's starting cycle must
 			 * be greater than the previous row's highest cycle.
 			 */
@@ -1810,7 +1810,7 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 		dev_err(&client->dev, "Insufficient number of cycles\n");
 		return -EINVAL;
 	} else if (count > 0) {
-		error = fwnode_property_read_u32_array(tp_node,
+		error = fwanalde_property_read_u32_array(tp_analde,
 						       "azoteq,channel-select",
 						       cycle_alloc[0], count);
 		if (error) {
@@ -1863,14 +1863,14 @@ static int iqs7211_parse_cycles(struct iqs7211_private *iqs7211,
 }
 
 static int iqs7211_parse_tp(struct iqs7211_private *iqs7211,
-			    struct fwnode_handle *tp_node)
+			    struct fwanalde_handle *tp_analde)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
 	struct i2c_client *client = iqs7211->client;
 	unsigned int pins[IQS7211_MAX_CTX];
 	int error, count, i, j;
 
-	count = fwnode_property_count_u32(tp_node, "azoteq,rx-enable");
+	count = fwanalde_property_count_u32(tp_analde, "azoteq,rx-enable");
 	if (count == -EINVAL) {
 		return 0;
 	} else if (count < 0) {
@@ -1881,7 +1881,7 @@ static int iqs7211_parse_tp(struct iqs7211_private *iqs7211,
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32_array(tp_node, "azoteq,rx-enable",
+	error = fwanalde_property_read_u32_array(tp_analde, "azoteq,rx-enable",
 					       pins, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read CRx pins: %d\n", error);
@@ -1899,7 +1899,7 @@ static int iqs7211_parse_tp(struct iqs7211_private *iqs7211,
 
 	iqs7211->tp_config.total_rx = count;
 
-	count = fwnode_property_count_u32(tp_node, "azoteq,tx-enable");
+	count = fwanalde_property_count_u32(tp_analde, "azoteq,tx-enable");
 	if (count < 0) {
 		dev_err(&client->dev, "Failed to count CTx pins: %d\n", count);
 		return count;
@@ -1908,7 +1908,7 @@ static int iqs7211_parse_tp(struct iqs7211_private *iqs7211,
 		return -EINVAL;
 	}
 
-	error = fwnode_property_read_u32_array(tp_node, "azoteq,tx-enable",
+	error = fwanalde_property_read_u32_array(tp_analde, "azoteq,tx-enable",
 					       pins, count);
 	if (error) {
 		dev_err(&client->dev, "Failed to read CTx pins: %d\n", error);
@@ -1935,18 +1935,18 @@ static int iqs7211_parse_tp(struct iqs7211_private *iqs7211,
 
 	iqs7211->tp_config.total_tx = count;
 
-	return iqs7211_parse_cycles(iqs7211, tp_node);
+	return iqs7211_parse_cycles(iqs7211, tp_analde);
 }
 
 static int iqs7211_parse_alp(struct iqs7211_private *iqs7211,
-			     struct fwnode_handle *alp_node)
+			     struct fwanalde_handle *alp_analde)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
 	struct i2c_client *client = iqs7211->client;
 	struct iqs7211_reg_field_desc reg_field;
 	int error, count, i;
 
-	count = fwnode_property_count_u32(alp_node, "azoteq,rx-enable");
+	count = fwanalde_property_count_u32(alp_analde, "azoteq,rx-enable");
 	if (count < 0 && count != -EINVAL) {
 		dev_err(&client->dev, "Failed to count CRx pins: %d\n", count);
 		return count;
@@ -1956,7 +1956,7 @@ static int iqs7211_parse_alp(struct iqs7211_private *iqs7211,
 	} else if (count >= 0) {
 		unsigned int pins[IQS7211_NUM_CRX];
 
-		error = fwnode_property_read_u32_array(alp_node,
+		error = fwanalde_property_read_u32_array(alp_analde,
 						       "azoteq,rx-enable",
 						       pins, count);
 		if (error) {
@@ -1985,7 +1985,7 @@ static int iqs7211_parse_alp(struct iqs7211_private *iqs7211,
 			return error;
 	}
 
-	count = fwnode_property_count_u32(alp_node, "azoteq,tx-enable");
+	count = fwanalde_property_count_u32(alp_analde, "azoteq,tx-enable");
 	if (count < 0 && count != -EINVAL) {
 		dev_err(&client->dev, "Failed to count CTx pins: %d\n", count);
 		return count;
@@ -1995,7 +1995,7 @@ static int iqs7211_parse_alp(struct iqs7211_private *iqs7211,
 	} else if (count >= 0) {
 		unsigned int pins[IQS7211_MAX_CTX];
 
-		error = fwnode_property_read_u32_array(alp_node,
+		error = fwanalde_property_read_u32_array(alp_analde,
 						       "azoteq,tx-enable",
 						       pins, count);
 		if (error) {
@@ -2028,26 +2028,26 @@ static int iqs7211_parse_alp(struct iqs7211_private *iqs7211,
 
 static int (*iqs7211_parse_extra[IQS7211_NUM_REG_GRPS])
 				(struct iqs7211_private *iqs7211,
-				 struct fwnode_handle *reg_grp_node) = {
+				 struct fwanalde_handle *reg_grp_analde) = {
 	[IQS7211_REG_GRP_TP] = iqs7211_parse_tp,
 	[IQS7211_REG_GRP_ALP] = iqs7211_parse_alp,
 };
 
 static int iqs7211_parse_reg_grp(struct iqs7211_private *iqs7211,
-				 struct fwnode_handle *reg_grp_node,
+				 struct fwanalde_handle *reg_grp_analde,
 				 enum iqs7211_reg_grp_id reg_grp)
 {
 	const struct iqs7211_dev_desc *dev_desc = iqs7211->dev_desc;
 	struct iqs7211_reg_field_desc reg_field;
 	int error, i;
 
-	error = iqs7211_parse_props(iqs7211, reg_grp_node, reg_grp,
-				    IQS7211_REG_KEY_NONE);
+	error = iqs7211_parse_props(iqs7211, reg_grp_analde, reg_grp,
+				    IQS7211_REG_KEY_ANALNE);
 	if (error)
 		return error;
 
 	if (iqs7211_parse_extra[reg_grp]) {
-		error = iqs7211_parse_extra[reg_grp](iqs7211, reg_grp_node);
+		error = iqs7211_parse_extra[reg_grp](iqs7211, reg_grp_analde);
 		if (error)
 			return error;
 	}
@@ -2060,7 +2060,7 @@ static int iqs7211_parse_reg_grp(struct iqs7211_private *iqs7211,
 
 	for (i = 0; i < dev_desc->num_kp_events; i++) {
 		const char *event_name = dev_desc->kp_events[i].name;
-		struct fwnode_handle *event_node;
+		struct fwanalde_handle *event_analde;
 
 		if (dev_desc->kp_events[i].reg_grp != reg_grp)
 			continue;
@@ -2068,19 +2068,19 @@ static int iqs7211_parse_reg_grp(struct iqs7211_private *iqs7211,
 		reg_field.mask |= dev_desc->kp_events[i].enable;
 
 		if (event_name)
-			event_node = fwnode_get_named_child_node(reg_grp_node,
+			event_analde = fwanalde_get_named_child_analde(reg_grp_analde,
 								 event_name);
 		else
-			event_node = fwnode_handle_get(reg_grp_node);
+			event_analde = fwanalde_handle_get(reg_grp_analde);
 
-		if (!event_node)
+		if (!event_analde)
 			continue;
 
-		error = iqs7211_parse_event(iqs7211, event_node,
+		error = iqs7211_parse_event(iqs7211, event_analde,
 					    dev_desc->kp_events[i].reg_grp,
 					    dev_desc->kp_events[i].reg_key,
 					    &iqs7211->kp_code[i]);
-		fwnode_handle_put(event_node);
+		fwanalde_handle_put(event_analde);
 		if (error)
 			return error;
 
@@ -2108,7 +2108,7 @@ static int iqs7211_register_kp(struct iqs7211_private *iqs7211)
 
 	kp_idev = devm_input_allocate_device(&client->dev);
 	if (!kp_idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs7211->kp_idev = kp_idev;
 
@@ -2159,7 +2159,7 @@ static int iqs7211_register_tp(struct iqs7211_private *iqs7211)
 
 	tp_idev = devm_input_allocate_device(&client->dev);
 	if (!tp_idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iqs7211->tp_idev = tp_idev;
 
@@ -2178,7 +2178,7 @@ static int iqs7211_register_tp(struct iqs7211_private *iqs7211)
 
 	/*
 	 * The device reserves 0xFFFF for coordinates that correspond to slots
-	 * which are not in a state of touch.
+	 * which are analt in a state of touch.
 	 */
 	if (prop->max_x >= U16_MAX || prop->max_y >= U16_MAX) {
 		dev_err(&client->dev, "Invalid trackpad size: %u*%u\n",
@@ -2226,7 +2226,7 @@ static int iqs7211_report(struct iqs7211_private *iqs7211)
 		dev_err(&client->dev, "Unexpected device reset\n");
 
 		/*
-		 * The device may or may not expect forced communication after
+		 * The device may or may analt expect forced communication after
 		 * it exits hardware reset, so the corresponding state machine
 		 * must be reset as well.
 		 */
@@ -2340,7 +2340,7 @@ static irqreturn_t iqs7211_irq(int irq, void *context)
 {
 	struct iqs7211_private *iqs7211 = context;
 
-	return iqs7211_report(iqs7211) ? IRQ_NONE : IRQ_HANDLED;
+	return iqs7211_report(iqs7211) ? IRQ_ANALNE : IRQ_HANDLED;
 }
 
 static int iqs7211_suspend(struct device *dev)
@@ -2354,7 +2354,7 @@ static int iqs7211_suspend(struct device *dev)
 
 	/*
 	 * I2C communication prompts the device to assert its RDY pin if it is
-	 * not already asserted. As such, the interrupt must be disabled so as
+	 * analt already asserted. As such, the interrupt must be disabled so as
 	 * to prevent reentrant interrupts.
 	 */
 	disable_irq(gpiod_to_irq(iqs7211->irq_gpio));
@@ -2405,7 +2405,7 @@ static ssize_t fw_info_show(struct device *dev,
 			  le16_to_cpu(iqs7211->ver_info.prod_num),
 			  le32_to_cpu(iqs7211->ver_info.patch),
 			  le16_to_cpu(iqs7211->ver_info.major),
-			  le16_to_cpu(iqs7211->ver_info.minor),
+			  le16_to_cpu(iqs7211->ver_info.mianalr),
 			  iqs7211->exp_file[1], iqs7211->exp_file[0]);
 }
 
@@ -2444,7 +2444,7 @@ static int iqs7211_probe(struct i2c_client *client)
 
 	iqs7211 = devm_kzalloc(&client->dev, sizeof(*iqs7211), GFP_KERNEL);
 	if (!iqs7211)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, iqs7211);
 	iqs7211->client = client;
@@ -2453,7 +2453,7 @@ static int iqs7211_probe(struct i2c_client *client)
 
 	iqs7211->dev_desc = device_get_match_data(&client->dev);
 	if (!iqs7211->dev_desc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	shared_irq = iqs7211->dev_desc->num_ctx == IQS7211_MAX_CTX;
 
@@ -2496,19 +2496,19 @@ static int iqs7211_probe(struct i2c_client *client)
 
 	for (reg_grp = 0; reg_grp < IQS7211_NUM_REG_GRPS; reg_grp++) {
 		const char *reg_grp_name = iqs7211_reg_grp_names[reg_grp];
-		struct fwnode_handle *reg_grp_node;
+		struct fwanalde_handle *reg_grp_analde;
 
 		if (reg_grp_name)
-			reg_grp_node = device_get_named_child_node(&client->dev,
+			reg_grp_analde = device_get_named_child_analde(&client->dev,
 								   reg_grp_name);
 		else
-			reg_grp_node = fwnode_handle_get(dev_fwnode(&client->dev));
+			reg_grp_analde = fwanalde_handle_get(dev_fwanalde(&client->dev));
 
-		if (!reg_grp_node)
+		if (!reg_grp_analde)
 			continue;
 
-		error = iqs7211_parse_reg_grp(iqs7211, reg_grp_node, reg_grp);
-		fwnode_handle_put(reg_grp_node);
+		error = iqs7211_parse_reg_grp(iqs7211, reg_grp_analde, reg_grp);
+		fwanalde_handle_put(reg_grp_analde);
 		if (error)
 			return error;
 	}

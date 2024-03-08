@@ -7,7 +7,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/usb/g_uvc.h>
@@ -141,7 +141,7 @@ static struct uvcg_frame *find_closest_frame_by_size(struct uvc_device *uvc,
 	unsigned int d, maxd;
 
 	/* Find the closest image size. The distance between image sizes is
-	 * the size in pixels of the non-overlapping regions between the
+	 * the size in pixels of the analn-overlapping regions between the
 	 * requested size and the frame-specified size.
 	 */
 	maxd = (unsigned int)-1;
@@ -223,7 +223,7 @@ uvc_v4l2_get_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	fmt->fmt.pix.pixelformat = video->fcc;
 	fmt->fmt.pix.width = video->width;
 	fmt->fmt.pix.height = video->height;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 	fmt->fmt.pix.bytesperline = video->bpp * video->width / 8;
 	fmt->fmt.pix.sizeimage = video->imagesize;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
@@ -262,7 +262,7 @@ uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
 
 	fmt->fmt.pix.width = uframe->frame.w_width;
 	fmt->fmt.pix.height = uframe->frame.w_height;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
 	fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
 	fmt->fmt.pix.pixelformat = to_uvc_format(uformat)->fcc;
@@ -325,9 +325,9 @@ uvc_v4l2_enum_frameintervals(struct file *file, void *fh,
 
 	/* TODO: handle V4L2_FRMIVAL_TYPE_STEPWISE */
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fival->discrete.denominator = 10000000;
+	fival->discrete.deanalminator = 10000000;
 	v4l2_simplify_fraction(&fival->discrete.numerator,
-		&fival->discrete.denominator, 8, 333);
+		&fival->discrete.deanalminator, 8, 333);
 
 	return 0;
 }
@@ -428,7 +428,7 @@ uvc_v4l2_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_video *video = &uvc->video;
 
-	return uvcg_dequeue_buffer(&video->queue, b, file->f_flags & O_NONBLOCK);
+	return uvcg_dequeue_buffer(&video->queue, b, file->f_flags & O_ANALNBLOCK);
 }
 
 static int
@@ -448,7 +448,7 @@ uvc_v4l2_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return ret;
 
 	/*
-	 * Complete the alternate setting selection setup phase now that
+	 * Complete the alternate setting selection setup phase analw that
 	 * userspace is ready to provide video frames.
 	 */
 	uvc_function_setup_continue(uvc, 0);
@@ -545,7 +545,7 @@ uvc_v4l2_ioctl_default(struct file *file, void *fh, bool valid_prio,
 		return uvc_send_response(uvc, arg);
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 
@@ -581,7 +581,7 @@ uvc_v4l2_open(struct file *file)
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (handle == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&handle->vfh, vdev);
 	v4l2_fh_add(&handle->vfh);

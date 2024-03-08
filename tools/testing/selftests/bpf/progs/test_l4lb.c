@@ -83,7 +83,7 @@ static inline u32 jhash(const void *key, u32 length, u32 initval)
 	case 2:  a += (u32)k[1]<<8;
 	case 1:  a += k[0];
 		 __jhash_final(a, b, c);
-	case 0: /* Nothing left to add */
+	case 0: /* Analthing left to add */
 		break;
 	}
 
@@ -105,7 +105,7 @@ static inline u32 jhash_2words(u32 a, u32 b, u32 initval)
 }
 
 #define PCKT_FRAGMENTED 65343
-#define IPV4_HDR_LEN_NO_OPT 20
+#define IPV4_HDR_LEN_ANAL_OPT 20
 #define IPV4_PLUS_ICMP_HDR 28
 #define IPV6_PLUS_ICMP_HDR 48
 #define RING_SIZE 2
@@ -114,7 +114,7 @@ static inline u32 jhash_2words(u32 a, u32 b, u32 initval)
 #define CTL_MAP_SIZE 16
 #define CH_RINGS_SIZE (MAX_VIPS * RING_SIZE)
 #define F_IPV6 (1 << 0)
-#define F_HASH_NO_SRC_PORT (1 << 0)
+#define F_HASH_ANAL_SRC_PORT (1 << 0)
 #define F_ICMP (1 << 0)
 #define F_SYN_SET (1 << 1)
 
@@ -375,7 +375,7 @@ static __always_inline int process_packet(void *data, __u64 off, void *data_end,
 		protocol = iph->protocol;
 		pckt.proto = protocol;
 		pkt_bytes = bpf_ntohs(iph->tot_len);
-		off += IPV4_HDR_LEN_NO_OPT;
+		off += IPV4_HDR_LEN_ANAL_OPT;
 
 		if (iph->frag_off & PCKT_FRAGMENTED)
 			return TC_ACT_SHOT;
@@ -417,7 +417,7 @@ static __always_inline int process_packet(void *data, __u64 off, void *data_end,
 		pckt.port16[1] = 0;
 	}
 
-	if (vip_info->flags & F_HASH_NO_SRC_PORT)
+	if (vip_info->flags & F_HASH_ANAL_SRC_PORT)
 		pckt.port16[0] = 0;
 
 	if (!get_packet_dst(&dst, &pckt, vip_info, is_ipv6))

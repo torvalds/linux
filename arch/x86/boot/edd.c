@@ -20,14 +20,14 @@
 /*
  * Read the MBR (first sector) from a specific device.
  */
-static int read_mbr(u8 devno, void *buf)
+static int read_mbr(u8 devanal, void *buf)
 {
 	struct biosregs ireg, oreg;
 
 	initregs(&ireg);
 	ireg.ax = 0x0201;		/* Legacy Read, one sector */
 	ireg.cx = 0x0001;		/* Sector 0-0-1 */
-	ireg.dl = devno;
+	ireg.dl = devanal;
 	ireg.bx = (size_t)buf;
 
 	intcall(0x13, &ireg, &oreg);
@@ -35,7 +35,7 @@ static int read_mbr(u8 devno, void *buf)
 	return -(oreg.eflags & X86_EFLAGS_CF); /* 0 or -1 */
 }
 
-static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
+static u32 read_mbr_sig(u8 devanal, struct edd_info *ei, u32 *mbrsig)
 {
 	int sector_size;
 	char *mbrbuf_ptr, *mbrbuf_end;
@@ -60,7 +60,7 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
 		return -1;
 
 	memset(mbrbuf_ptr, 0, sector_size);
-	if (read_mbr(devno, mbrbuf_ptr))
+	if (read_mbr(devanal, mbrbuf_ptr))
 		return -1;
 
 	*mbrsig = *(u32 *)&mbrbuf_ptr[EDD_MBR_SIG_OFFSET];
@@ -70,7 +70,7 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
 	return mbr_magic == 0xAA55 ? 0 : -1;
 }
 
-static int get_edd_info(u8 devno, struct edd_info *ei)
+static int get_edd_info(u8 devanal, struct edd_info *ei)
 {
 	struct biosregs ireg, oreg;
 
@@ -81,16 +81,16 @@ static int get_edd_info(u8 devno, struct edd_info *ei)
 	initregs(&ireg);
 	ireg.ah = 0x41;
 	ireg.bx = EDDMAGIC1;
-	ireg.dl = devno;
+	ireg.dl = devanal;
 	intcall(0x13, &ireg, &oreg);
 
 	if (oreg.eflags & X86_EFLAGS_CF)
-		return -1;	/* No extended information */
+		return -1;	/* Anal extended information */
 
 	if (oreg.bx != EDDMAGIC2)
 		return -1;
 
-	ei->device  = devno;
+	ei->device  = devanal;
 	ei->version = oreg.ah;		 /* EDD version number */
 	ei->interface_support = oreg.cx; /* EDD functionality subsets */
 
@@ -127,7 +127,7 @@ void query_edd(void)
 	int do_edd = 1;
 #endif
 	int be_quiet;
-	int devno;
+	int devanal;
 	struct edd_info ei, *edp;
 	u32 *mbrptr;
 
@@ -157,20 +157,20 @@ void query_edd(void)
 	if (!be_quiet)
 		printf("Probing EDD (edd=off to disable)... ");
 
-	for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
+	for (devanal = 0x80; devanal < 0x80+EDD_MBR_SIG_MAX; devanal++) {
 		/*
 		 * Scan the BIOS-supported hard disks and query EDD
 		 * information...
 		 */
-		if (!get_edd_info(devno, &ei)
+		if (!get_edd_info(devanal, &ei)
 		    && boot_params.eddbuf_entries < EDDMAXNR) {
 			memcpy(edp, &ei, sizeof(ei));
 			edp++;
 			boot_params.eddbuf_entries++;
 		}
 
-		if (do_mbr && !read_mbr_sig(devno, &ei, mbrptr++))
-			boot_params.edd_mbr_sig_buf_entries = devno-0x80+1;
+		if (do_mbr && !read_mbr_sig(devanal, &ei, mbrptr++))
+			boot_params.edd_mbr_sig_buf_entries = devanal-0x80+1;
 	}
 
 	if (!be_quiet)

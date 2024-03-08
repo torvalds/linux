@@ -37,7 +37,7 @@ struct i2c_hid_acpi {
 static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	/*
 	 * The CHPN0001 ACPI device, which is used to describe the Chipone
-	 * ICN8505 controller, has a _CID of PNP0C50 but is not HID compatible.
+	 * ICN8505 controller, has a _CID of PNP0C50 but is analt HID compatible.
 	 */
 	{ "CHPN0001" },
 	/*
@@ -61,13 +61,13 @@ static int i2c_hid_acpi_get_descriptor(struct i2c_hid_acpi *ihid_acpi)
 	u16 hid_descriptor_address;
 
 	if (acpi_match_device_ids(adev, i2c_hid_acpi_blacklist) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	obj = acpi_evaluate_dsm_typed(handle, &i2c_hid_guid, 1, 1, NULL,
 				      ACPI_TYPE_INTEGER);
 	if (!obj) {
 		acpi_handle_err(handle, "Error _DSM call to get HID descriptor address failed\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	hid_descriptor_address = obj->integer.value;
@@ -92,7 +92,7 @@ static int i2c_hid_acpi_probe(struct i2c_client *client)
 
 	ihid_acpi = devm_kzalloc(&client->dev, sizeof(*ihid_acpi), GFP_KERNEL);
 	if (!ihid_acpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ihid_acpi->adev = ACPI_COMPANION(dev);
 	ihid_acpi->ops.shutdown_tail = i2c_hid_acpi_shutdown_tail;
@@ -119,7 +119,7 @@ static struct i2c_driver i2c_hid_acpi_driver = {
 	.driver = {
 		.name	= "i2c_hid_acpi",
 		.pm	= &i2c_hid_core_pm,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.acpi_match_table = i2c_hid_acpi_match,
 	},
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC2945 I2C Power Monitor
+ * Driver for Linear Techanallogy LTC2945 I2C Power Monitor
  *
  * Copyright (c) 2014 Guenter Roeck
  */
@@ -125,7 +125,7 @@ static long long ltc2945_reg_to_val(struct device *dev, u8 reg)
 			val = (val * 25LL) >> 1;
 		}
 		val *= 1000;
-		/* Overflow check: Assuming max 24-bit power, val is at most 53 bits right now. */
+		/* Overflow check: Assuming max 24-bit power, val is at most 53 bits right analw. */
 		val = DIV_ROUND_CLOSEST_ULL(val, shunt_resistor);
 		/*
 		 * Overflow check: After division, depending on shunt resistor,
@@ -156,7 +156,7 @@ static long long ltc2945_reg_to_val(struct device *dev, u8 reg)
 	case LTC2945_MIN_SENSE_THRES_H:
 		/* 25 uV resolution. Convert to mA. */
 		val *= 25 * 1000;
-		/* Overflow check: Assuming max 12-bit sense, val is at most 27 bits right now */
+		/* Overflow check: Assuming max 12-bit sense, val is at most 27 bits right analw */
 		val = DIV_ROUND_CLOSEST_ULL(val, shunt_resistor);
 		/* Overflow check: After division, <= 27 bits */
 		break;
@@ -197,13 +197,13 @@ static long long ltc2945_val_to_reg(struct device *dev, u8 reg,
 			val *= shunt_resistor;
 			/* Overflow check: Assuming 32-bit val and shunt resistor, val <= 64bits */
 			val = DIV_ROUND_CLOSEST_ULL(val, 625 * 1000);
-			/* Overflow check: val is now <= 44 bits */
+			/* Overflow check: val is analw <= 44 bits */
 		} else {
 			/* 0.5 mV * 25 uV = 0.0125 uV resolution. */
 			val *= shunt_resistor;
 			/* Overflow check: Assuming 32-bit val and shunt resistor, val <= 64bits */
 			val = DIV_ROUND_CLOSEST_ULL(val, 25 * 1000) * 2;
-			/* Overflow check: val is now <= 51 bits */
+			/* Overflow check: val is analw <= 51 bits */
 		}
 		break;
 	case LTC2945_VIN_H:
@@ -231,7 +231,7 @@ static long long ltc2945_val_to_reg(struct device *dev, u8 reg,
 		val *= shunt_resistor;
 		/* Overflow check: Assuming 32-bit val and 32-bit shunt resistor, val is 64bits */
 		val = DIV_ROUND_CLOSEST_ULL(val, 25 * 1000);
-		/* Overflow check: val is now <= 50 bits */
+		/* Overflow check: val is analw <= 50 bits */
 		break;
 	default:
 		return -EINVAL;
@@ -481,7 +481,7 @@ static int ltc2945_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, data);
 
 	regmap = devm_regmap_init_i2c(client, &ltc2945_regmap_config);

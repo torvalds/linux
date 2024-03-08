@@ -489,7 +489,7 @@ static int lm3532_parse_als(struct lm3532_data *priv)
 
 	als = devm_kzalloc(priv->dev, sizeof(*als), GFP_KERNEL);
 	if (als == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = device_property_read_u32(&priv->client->dev, "ti,als-vmin",
 				       &als->als_vmin);
@@ -542,9 +542,9 @@ static int lm3532_parse_als(struct lm3532_data *priv)
 	return ret;
 }
 
-static int lm3532_parse_node(struct lm3532_data *priv)
+static int lm3532_parse_analde(struct lm3532_data *priv)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwanalde_handle *child = NULL;
 	struct lm3532_led *led;
 	int control_bank;
 	u32 ramp_time;
@@ -574,16 +574,16 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 	else
 		priv->runtime_ramp_down = lm3532_get_ramp_index(ramp_time);
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_analde(priv->dev, child) {
 		struct led_init_data idata = {
-			.fwnode = child,
+			.fwanalde = child,
 			.default_label = ":",
 			.devicename = priv->client->name,
 		};
 
 		led = &priv->leds[i];
 
-		ret = fwnode_property_read_u32(child, "reg", &control_bank);
+		ret = fwanalde_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(&priv->client->dev, "reg property missing\n");
 			goto child_out;
@@ -596,15 +596,15 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 
 		led->control_bank = control_bank;
 
-		ret = fwnode_property_read_u32(child, "ti,led-mode",
+		ret = fwanalde_property_read_u32(child, "ti,led-mode",
 					       &led->mode);
 		if (ret) {
 			dev_err(&priv->client->dev, "ti,led-mode property missing\n");
 			goto child_out;
 		}
 
-		if (fwnode_property_present(child, "led-max-microamp") &&
-		    fwnode_property_read_u32(child, "led-max-microamp",
+		if (fwanalde_property_present(child, "led-max-microamp") &&
+		    fwanalde_property_read_u32(child, "led-max-microamp",
 					     &led->full_scale_current))
 			dev_err(&priv->client->dev,
 				"Failed getting led-max-microamp\n");
@@ -623,13 +623,13 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 			led->mode = LM3532_I2C_CTRL;
 		}
 
-		led->num_leds = fwnode_property_count_u32(child, "led-sources");
+		led->num_leds = fwanalde_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3532_MAX_LED_STRINGS) {
 			dev_err(&priv->client->dev, "Too many LED string defined\n");
 			continue;
 		}
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
+		ret = fwanalde_property_read_u32_array(child, "led-sources",
 						    led->led_strings,
 						    led->num_leds);
 		if (ret) {
@@ -659,7 +659,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 	return 0;
 
 child_out:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -669,16 +669,16 @@ static int lm3532_probe(struct i2c_client *client)
 	int ret = 0;
 	int count;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_analde_count(&client->dev);
 	if (!count) {
-		dev_err(&client->dev, "LEDs are not defined in device tree!");
-		return -ENODEV;
+		dev_err(&client->dev, "LEDs are analt defined in device tree!");
+		return -EANALDEV;
 	}
 
 	drvdata = devm_kzalloc(&client->dev, struct_size(drvdata, leds, count),
 			   GFP_KERNEL);
 	if (drvdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->client = client;
 	drvdata->dev = &client->dev;
@@ -694,9 +694,9 @@ static int lm3532_probe(struct i2c_client *client)
 	mutex_init(&drvdata->lock);
 	i2c_set_clientdata(client, drvdata);
 
-	ret = lm3532_parse_node(drvdata);
+	ret = lm3532_parse_analde(drvdata);
 	if (ret) {
-		dev_err(&client->dev, "Failed to parse node\n");
+		dev_err(&client->dev, "Failed to parse analde\n");
 		return ret;
 	}
 

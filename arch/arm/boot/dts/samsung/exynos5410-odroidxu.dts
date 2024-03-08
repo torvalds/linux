@@ -8,16 +8,16 @@
  */
 
 /dts-v1/;
-#include "exynos5410.dtsi"
+#include "exyanals5410.dtsi"
 #include <dt-bindings/clock/maxim,max77802.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos54xx-odroidxu-leds.dtsi"
+#include "exyanals54xx-odroidxu-leds.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU";
-	compatible = "hardkernel,odroid-xu", "samsung,exynos5410", "samsung,exynos5";
+	compatible = "hardkernel,odroid-xu", "samsung,exyanals5410", "samsung,exyanals5";
 
 	aliases {
 		ethernet = &ethernet;
@@ -107,13 +107,13 @@
 };
 
 &clock_audss {
-	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
-			<&clock_audss EXYNOS_MOUT_I2S>,
-			<&clock_audss EXYNOS_DOUT_SRP>,
-			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+	assigned-clocks = <&clock_audss EXYANALS_MOUT_AUDSS>,
+			<&clock_audss EXYANALS_MOUT_I2S>,
+			<&clock_audss EXYANALS_DOUT_SRP>,
+			<&clock_audss EXYANALS_DOUT_AUD_BUS>;
 
 	assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
-			<&clock_audss EXYNOS_MOUT_AUDSS>;
+			<&clock_audss EXYANALS_MOUT_AUDSS>;
 
 	assigned-clock-rates = <0>,
 			       <0>,
@@ -186,7 +186,7 @@
 		compatible = "maxim,max77802";
 		reg = <0x9>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <4 IRQ_TYPE_NONE>;
+		interrupts = <4 IRQ_TYPE_ANALNE>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&max77802_irq>, <&pmic_dvs_1>, <&pmic_dvs_2>;
 		wakeup-source;
@@ -199,7 +199,7 @@
 		inl5-supply = <&buck9_reg>;
 		inl6-supply = <&buck10_reg>;
 		inl7-supply = <&buck9_reg>;
-		/* inl9 supply is BOOST, not configured here */
+		/* inl9 supply is BOOST, analt configured here */
 		inl10-supply = <&buck7_reg>;
 
 		regulators {
@@ -496,7 +496,7 @@
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpj3>;
-		interrupts = <0 IRQ_TYPE_NONE>;
+		interrupts = <0 IRQ_TYPE_ANALNE>;
 		clocks = <&audi2s0 CLK_I2S_CDCLK>;
 		clock-names = "mclk";
 		#sound-dai-cells = <0>;
@@ -538,39 +538,39 @@
 &pinctrl_0 {
 	emmc_nrst_pin: emmc-nrst-pins {
 		samsung,pins = "gpd1-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 
 	sd2_wp: sd2-wp-pins {
 		samsung,pins = "gpm5-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_2>;
 		/* Pin is floating so be sure to disable write-protect */
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV4>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV4>;
 	};
 
 	pmic_dvs_2: pmic-dvs-2-pins {
 		samsung,pins = "gpx0-0", "gpx0-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 
 	pmic_dvs_1: pmic-dvs-1-pins {
 		samsung,pins = "gpx0-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 		samsung,pin-val = <1>;
 	};
 
 	max77802_irq: max77802-irq-pins {
 		samsung,pins = "gpx0-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+		samsung,pin-function = <EXYANALS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
+		samsung,pin-drv = <EXYANALS5420_PIN_DRV_LV1>;
 	};
 };
 
@@ -626,12 +626,12 @@
 
 &usb3_0_oc {
 	/* External pull up */
-	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 };
 
 &usb3_1_oc {
 	/* External pull up */
-	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-pud = <EXYANALS_PIN_PULL_ANALNE>;
 };
 
 &usbdrd_dwc3_0 {

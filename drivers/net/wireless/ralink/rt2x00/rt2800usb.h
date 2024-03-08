@@ -71,8 +71,8 @@
  * BROADCAST: This is a broadcast frame.
  * MY_BSS: this frame belongs to the same BSSID.
  * CRC_ERROR: CRC error.
- * CIPHER_ERROR: 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid.
- * AMSDU: rx with 802.3 header, not 802.11 header.
+ * CIPHER_ERROR: 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY analt valid.
+ * AMSDU: rx with 802.3 header, analt 802.11 header.
  */
 
 #define RXD_W0_BA			FIELD32(0x00000001)

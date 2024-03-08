@@ -507,7 +507,7 @@ static const struct rcar_du_device_info rcar_du_r8a779a0_info = {
 	.gen = 4,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ
 		  | RCAR_DU_FEATURE_VSP1_SOURCE
-		  | RCAR_DU_FEATURE_NO_BLENDING,
+		  | RCAR_DU_FEATURE_ANAL_BLENDING,
 	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/* R8A779A0 has two MIPI DSI outputs. */
@@ -528,7 +528,7 @@ static const struct rcar_du_device_info rcar_du_r8a779g0_info = {
 	.gen = 4,
 	.features = RCAR_DU_FEATURE_CRTC_IRQ
 		  | RCAR_DU_FEATURE_VSP1_SOURCE
-		  | RCAR_DU_FEATURE_NO_BLENDING,
+		  | RCAR_DU_FEATURE_ANAL_BLENDING,
 	.channels_mask = BIT(1) | BIT(0),
 	.routes = {
 		/* R8A779G0 has two MIPI DSI outputs. */
@@ -591,7 +591,7 @@ const char *rcar_du_output_name(enum rcar_du_output output)
 	};
 
 	if (output >= ARRAY_SIZE(names) || !names[output])
-		return "UNKNOWN";
+		return "UNKANALWN";
 
 	return names[output];
 }
@@ -611,7 +611,7 @@ static const struct drm_driver rcar_du_driver = {
 	.desc			= "Renesas R-Car Display Unit",
 	.date			= "20130110",
 	.major			= 1,
-	.minor			= 0,
+	.mianalr			= 0,
 };
 
 /* -----------------------------------------------------------------------------
@@ -664,7 +664,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 	int ret;
 
 	if (drm_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate and initialize the R-Car device structure. */
 	rcdu = devm_drm_dev_alloc(&pdev->dev, &rcar_du_driver,

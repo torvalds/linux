@@ -9,7 +9,7 @@
 #define pr_fmt(fmt)	"kexec_file(Image): " fmt
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/pe.h>
@@ -49,7 +49,7 @@ static void *image_load(struct kimage *image,
 	/*
 	 * We require a kernel with an unambiguous Image header. Per
 	 * Documentation/arch/arm64/booting.rst, this is the case when image_size
-	 * is non-zero (practically speaking, since v3.17).
+	 * is analn-zero (practically speaking, since v3.17).
 	 */
 	h = (struct arm64_image_header *)kernel;
 	if (!h->image_size)
@@ -79,7 +79,7 @@ static void *image_load(struct kimage *image,
 
 	kbuf.buffer = kernel;
 	kbuf.bufsz = kernel_len;
-	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	kbuf.memsz = le64_to_cpu(h->image_size);
 	text_offset = le64_to_cpu(h->text_offset);
 	kbuf.buf_align = MIN_KIMG_ALIGN;
@@ -109,11 +109,11 @@ static void *image_load(struct kimage *image,
 		 */
 		image->nr_segments -= 1;
 		kbuf.buf_min = kernel_segment->mem + kernel_segment->memsz;
-		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		kbuf.mem = KEXEC_BUF_MEM_UNKANALWN;
 	}
 
 	if (ret) {
-		pr_err("Could not find any suitable kernel location!");
+		pr_err("Could analt find any suitable kernel location!");
 		return ERR_PTR(ret);
 	}
 

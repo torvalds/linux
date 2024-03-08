@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * OpenRISC Linux
  *
@@ -33,8 +33,8 @@
 /* for struct user_regs_struct definition */
 #include <asm/ptrace.h>
 
-/* The OR1K relocation types... not all relevant for module loader */
-#define R_OR32_NONE	0
+/* The OR1K relocation types... analt all relevant for module loader */
+#define R_OR32_ANALNE	0
 #define R_OR32_32	1
 #define R_OR32_16	2
 #define R_OR32_8	3
@@ -47,7 +47,7 @@
 typedef unsigned long elf_greg_t;
 
 /*
- * Note that NGREG is defined to ELF_NGREG in include/linux/elfcore.h, and is
+ * Analte that NGREG is defined to ELF_NGREG in include/linux/elfcore.h, and is
  * thus exposed to user-space.
  */
 #define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))

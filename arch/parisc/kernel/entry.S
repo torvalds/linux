@@ -47,10 +47,10 @@
 #define NUM_PIPELINE_INSNS    7
 #endif
 
-	/* Insert num nops */
-	.macro	insert_nops num
+	/* Insert num analps */
+	.macro	insert_analps num
 	.rept \num
-	nop
+	analp
 	.endr
 	.endm
 
@@ -85,16 +85,16 @@
 	 *          task pointer pointed to by cr30. Load the stack
 	 *          pointer from the task structure.
 	 *
-	 * Note that we use shadowed registers for temps until
+	 * Analte that we use shadowed registers for temps until
 	 * we can save %r26 and %r29. %r26 is used to preserve
 	 * %r8 (a shadowed register) which temporarily contained
 	 * either the fault type ("code") or the eirr. We need
-	 * to use a non-shadowed register to carry the value over
+	 * to use a analn-shadowed register to carry the value over
 	 * the rfir in virt_map. We use %r26 since this value winds
 	 * up being passed as the argument to either do_cpu_irq_mask
 	 * or handle_interruption. %r29 is used to hold a pointer
 	 * the register save area, and once again, it needs to
-	 * be a non-shadowed register so that it survives the rfir.
+	 * be a analn-shadowed register so that it survives the rfir.
 	 */
 
 	.macro  get_stack_use_cr30
@@ -156,17 +156,17 @@
 
 	/* HPMC handler */
 	.macro	hpmc code
-	nop			/* must be a NOP, will be patched later */
+	analp			/* must be a ANALP, will be patched later */
 	load32	PA(os_hpmc), %r3
 	bv,n	0(%r3)
-	nop
+	analp
 	.word	0		/* checksum (will be patched) */
 	.word	0		/* address of handler */
 	.word	0		/* length of handler */
 	.endm
 
 	/*
-	 * Performance Note: Instructions will be moved up into
+	 * Performance Analte: Instructions will be moved up into
 	 * this part of the code later on, once we are sure
 	 * that the tlb miss handlers are close to final form.
 	 */
@@ -380,7 +380,7 @@
 	/* Look up a PTE in a 2-Level scheme (faulting at each
 	 * level if the entry isn't present 
 	 *
-	 * NOTE: we use ldw even for LP64, since the short pointers
+	 * ANALTE: we use ldw even for LP64, since the short pointers
 	 * can address up to 1TB
 	 */
 	.macro		L2_ptep	pmd,pte,index,va,fault
@@ -399,7 +399,7 @@
 	SHLREG		\pmd,PxD_VALUE_SHIFT,\pmd
 	extru_safe	\va,31-PAGE_SHIFT,ASM_BITS_PER_PTE,\index
 	dep		%r0,31,PAGE_SHIFT,\pmd  /* clear offset */
-	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is now pte */
+	shladd		\index,BITS_PER_PTE_ENTRY,\pmd,\pmd /* pmd is analw pte */
 	.endm
 
 	/* Look up PTE in a 3-Level scheme. */
@@ -421,12 +421,12 @@
 	get_ptl		\tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
-	nop
+	analp
 	LDREG		0(\ptp),\pte
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
 	b		\fault
 	stw		\tmp1,0(\tmp)
-99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_ANAL_SMP, INSN_ANALP)
 #endif
 2:	LDREG		0(\ptp),\pte
 	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
@@ -435,18 +435,18 @@
 
 	/* Release page_table_lock if for user space. We use an ordered
 	   store to ensure all prior accesses are performed prior to
-	   releasing the lock. Note stw may not be executed, so we
-	   provide one extra nop when CONFIG_TLB_PTLOCK is defined. */
+	   releasing the lock. Analte stw may analt be executed, so we
+	   provide one extra analp when CONFIG_TLB_PTLOCK is defined. */
 	.macro		ptl_unlock	spc,tmp,tmp2
 #ifdef CONFIG_TLB_PTLOCK
 98:	get_ptl		\tmp
 	ldi		__ARCH_SPIN_LOCK_UNLOCKED_VAL, \tmp2
 	or,COND(=)	%r0,\spc,%r0
 	stw,ma		\tmp2,0(\tmp)
-99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-	insert_nops	NUM_PIPELINE_INSNS - 4
+99:	ALTERNATIVE(98b, 99b, ALT_COND_ANAL_SMP, INSN_ANALP)
+	insert_analps	NUM_PIPELINE_INSNS - 4
 #else
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 #endif
 	.endm
 
@@ -459,7 +459,7 @@
 	STREG		\tmp,0(\ptp)
 	.endm
 
-	/* Set the dirty bit (and accessed bit).  No need to be
+	/* Set the dirty bit (and accessed bit).  Anal need to be
 	 * clever, this is only used from the dirty fault */
 	.macro		update_dirty	ptp,pte,tmp
 	ldi		_PAGE_ACCESSED|_PAGE_DIRTY,\tmp
@@ -531,10 +531,10 @@
 	/* Enforce uncacheable pages.
 	 * This should ONLY be use for MMIO on PA 2.0 machines.
 	 * Memory/DMA is cache coherent on all PA2.0 machines we support
-	 * (that means T-class is NOT supported) and the memory controllers
+	 * (that means T-class is ANALT supported) and the memory controllers
 	 * on most of those machines only handles cache transactions.
 	 */
-	extrd,u,*=	\pte,_PAGE_NO_CACHE_BIT+32,1,%r0
+	extrd,u,*=	\pte,_PAGE_ANAL_CACHE_BIT+32,1,%r0
 	depdi		1,12,1,\prot
 
 	/* Drop prot bits and convert to page addr for iitlbt and idtlbt */
@@ -551,7 +551,7 @@
 #endif
 	zdep		\spc,30,15,\prot
 	dep		\pte,8,7,\prot
-	extru,=		\pte,_PAGE_NO_CACHE_BIT,1,%r0
+	extru,=		\pte,_PAGE_ANAL_CACHE_BIT,1,%r0
 	depi		1,12,1,\prot
 	extru,=         \pte,_PAGE_USER_BIT,1,%r0
 	depi		7,11,3,\prot   /* Set for user space (1 rsvd for read) */
@@ -581,7 +581,7 @@
 	 *
 	 * To use the alias page, you set %r26 up with the to TLB
 	 * entry (identifying the physical page) and %r23 up with
-	 * the from tlb entry (or nothing if only a to entry---for
+	 * the from tlb entry (or analthing if only a to entry---for
 	 * clear_user_page_asm) */
 	.macro		do_alias	spc,tmp,tmp1,va,pte,prot,fault,patype
 	cmpib,COND(<>),n 0,\spc,\fault
@@ -596,14 +596,14 @@
 	 * Only setting the T bit prevents data cache movein
 	 * Setting access rights to zero prevents instruction cache movein
 	 *
-	 * Note subtlety here: _PAGE_GATEWAY, _PAGE_EXEC and _PAGE_WRITE go
+	 * Analte subtlety here: _PAGE_GATEWAY, _PAGE_EXEC and _PAGE_WRITE go
 	 * to type field and _PAGE_READ goes to top bit of PL1
 	 */
 	ldi		(_PAGE_REFTRAP|_PAGE_READ|_PAGE_WRITE),\prot
 	/*
 	 * so if the opcode is one (i.e. this is a memory management
 	 * instruction) nullify the next load so \prot is only T.
-	 * Otherwise this is a normal data operation
+	 * Otherwise this is a analrmal data operation
 	 */
 	cmpiclr,=	0x01,\tmp,%r0
 	ldi		(_PAGE_DIRTY|_PAGE_READ|_PAGE_WRITE),\prot
@@ -618,7 +618,7 @@
 .endif
 	/*
 	 * OK, it is in the temp alias region, check whether "from" or "to".
-	 * Check "subtle" note in pacache.S re: r23/r26.
+	 * Check "subtle" analte in pacache.S re: r23/r26.
 	 */
 	extrw,u,=	\va,31-TMPALIAS_SIZE_BITS,1,%r0
 	or,COND(tr)	%r23,%r0,\pte
@@ -736,7 +736,7 @@ END(fault_vector_11)
 ENTRY(ret_from_kernel_thread)
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
-	nop
+	analp
 
 	mfctl	%cr30,%r1	/* task_struct */
 	LDREG	TASK_PT_GR25(%r1), %r26
@@ -747,7 +747,7 @@ ENTRY(ret_from_kernel_thread)
 	ble	0(%sr7, %r1)
 	copy	%r31, %r2
 	b	finish_child_return
-	nop
+	analp
 END(ret_from_kernel_thread)
 
 
@@ -787,7 +787,7 @@ ENDPROC_CFI(_switch_to)
 	 * sys_rt_sigreturn (sometimes).  The sys_rt_sigreturn syscall will
 	 * return via this path if the signal was received when the process
 	 * was running; if the process was blocked on a syscall then the
-	 * normal syscall_exit path is used.  All syscalls for traced
+	 * analrmal syscall_exit path is used.  All syscalls for traced
 	 * proceses exit via intr_restore.
 	 *
 	 * XXX If any syscalls that change a processes space id ever exit
@@ -824,10 +824,10 @@ ENTRY_CFI(syscall_exit_rfi)
 	/*
 	 * If we aren't being traced, we never saved space registers
 	 * (we don't store them in the sigcontext), so set them
-	 * to "proper" values now (otherwise we'll wind up restoring
+	 * to "proper" values analw (otherwise we'll wind up restoring
 	 * whatever was last stored in the task structure, which might
 	 * be inconsistent if an interrupt occurred while on the gateway
-	 * page). Note that we may be "trashing" values the user put in
+	 * page). Analte that we may be "trashing" values the user put in
 	 * them, but we don't support the user changing them.
 	 */
 
@@ -847,18 +847,18 @@ ENTRY(intr_return)
 	LDREG   TASK_TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
 
-	.import do_notify_resume,code
+	.import do_analtify_resume,code
 intr_check_sig:
 	/* As above */
 	mfctl   %cr30,%r1
 	LDREG	TASK_TI_FLAGS(%r1),%r19
 	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r20
 	and,COND(<>)	%r19, %r20, %r0
-	b,n	intr_restore	/* skip past if we've nothing to do */
+	b,n	intr_restore	/* skip past if we've analthing to do */
 
 	/* This check is critical to having LWS
 	 * working. The IASQ is zero on the gateway
-	 * page and we cannot deliver any signals until
+	 * page and we cananalt deliver any signals until
 	 * we get off the gateway page.
 	 *
 	 * Only do signals if we are returning to user space
@@ -873,12 +873,12 @@ intr_check_sig:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 
-	/* NOTE: We need to enable interrupts if we have to deliver
+	/* ANALTE: We need to enable interrupts if we have to deliver
 	 * signals. We used to do this earlier but it caused kernel
 	 * stack overflows. */
 	ssm	PSW_SM_I, %r0
 
-	BL	do_notify_resume,%r2
+	BL	do_analtify_resume,%r2
 	copy	%r16, %r26			/* struct pt_regs *regs */
 
 	b,n	intr_check_sig
@@ -905,7 +905,7 @@ intr_restore:
 	rest_stack
 
 	rfi
-	nop
+	analp
 
 #ifndef CONFIG_PREEMPTION
 # define intr_do_preempt	intr_restore
@@ -919,12 +919,12 @@ intr_do_resched:
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
 	cmpib,COND(=)	0, %r20, intr_do_preempt
-	nop
+	analp
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=)	0, %r20, intr_do_preempt
-	nop
+	analp
 
-	/* NOTE: We need to enable interrupts if we schedule.  We used
+	/* ANALTE: We need to enable interrupts if we schedule.  We used
 	 * to do this earlier but it caused kernel stack overflows. */
 	ssm     PSW_SM_I, %r0
 
@@ -955,12 +955,12 @@ intr_do_preempt:
 	mfctl	%cr30, %r1
 	ldw	TI_PRE_COUNT(%r1), %r19
 	cmpib,<>	0, %r19, intr_restore	/* if preempt_count > 0 */
-	nop				/* prev insn branched backwards */
+	analp				/* prev insn branched backwards */
 
 	/* check if we interrupted a critical path */
 	LDREG	PT_PSW(%r16), %r20
 	bb,<,n	%r20, 31 - PSW_SM_I, intr_restore
-	nop
+	analp
 
 	/* ssm PSW_SM_I done later in intr_restore */
 #ifdef CONFIG_MLONGCALLS
@@ -1007,7 +1007,7 @@ intr_extint:
 #endif
 
 	b	do_cpu_irq_mask
-	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
+	ldo	R%intr_return(%r2), %r2	/* return to intr_return, analt here */
 ENDPROC_CFI(syscall_exit_rfi)
 
 
@@ -1032,7 +1032,7 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 
 
 	mfctl           %isr, %r16
-	nop		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
+	analp		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
 	mfctl           %ior, %r17
 
 
@@ -1095,7 +1095,7 @@ ENDPROC_CFI(intr_save)
 
 
 	/*
-	 * Note for all tlb miss handlers:
+	 * Analte for all tlb miss handlers:
 	 *
 	 * cr24 contains a pointer to the kernel address space
 	 * page directory.
@@ -1109,7 +1109,7 @@ ENDPROC_CFI(intr_save)
 	 */
 
 	/*
-	 * register number allocations.  Note that these are all
+	 * register number allocations.  Analte that these are all
 	 * in the shadowed registers
 	 */
 
@@ -1139,16 +1139,16 @@ dtlb_miss_20w:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 dtlb_check_alias_20w:
 	do_alias	spc,t0,t1,va,pte,prot,dtlb_fault,20
 
 	idtlbt          pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 nadtlb_miss_20w:
 	space_adjust	spc,va,t0
@@ -1166,16 +1166,16 @@ nadtlb_miss_20w:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 nadtlb_check_alias_20w:
 	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate,20
 
 	idtlbt          pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 #else
 
@@ -1201,7 +1201,7 @@ dtlb_miss_11:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 dtlb_check_alias_11:
 	do_alias	spc,t0,t1,va,pte,prot,dtlb_fault,11
@@ -1209,9 +1209,9 @@ dtlb_check_alias_11:
 	idtlba          pte,(va)
 	idtlbp          prot,(va)
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 nadtlb_miss_11:
 	get_pgd		spc,ptp
@@ -1235,7 +1235,7 @@ nadtlb_miss_11:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 nadtlb_check_alias_11:
 	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate,11
@@ -1243,9 +1243,9 @@ nadtlb_check_alias_11:
 	idtlba          pte,(va)
 	idtlbp          prot,(va)
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 dtlb_miss_20:
 	space_adjust	spc,va,t0
@@ -1265,16 +1265,16 @@ dtlb_miss_20:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 dtlb_check_alias_20:
 	do_alias	spc,t0,t1,va,pte,prot,dtlb_fault,20
 	
 	idtlbt          pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 nadtlb_miss_20:
 	get_pgd		spc,ptp
@@ -1294,24 +1294,24 @@ nadtlb_miss_20:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 nadtlb_check_alias_20:
 	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate,20
 
 	idtlbt          pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 #endif
 
 nadtlb_emulate:
 
 	/*
-	 * Non-access misses can be caused by fdc,fic,pdc,lpa,probe and
-	 * probei instructions. The kernel no longer faults doing flushes.
+	 * Analn-access misses can be caused by fdc,fic,pdc,lpa,probe and
+	 * probei instructions. The kernel anal longer faults doing flushes.
 	 * Use of lpa and probe instructions is rare. Given the issue
 	 * with shadow registers, we defer everything to the "slow" path.
 	 */
@@ -1340,7 +1340,7 @@ itlb_miss_20w:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_miss_20w:
 
@@ -1364,16 +1364,16 @@ naitlb_miss_20w:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_check_alias_20w:
 	do_alias	spc,t0,t1,va,pte,prot,naitlb_fault,20
 
 	iitlbt		pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 #else
 
@@ -1399,7 +1399,7 @@ itlb_miss_11:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_miss_11:
 	get_pgd		spc,ptp
@@ -1423,7 +1423,7 @@ naitlb_miss_11:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_check_alias_11:
 	do_alias	spc,t0,t1,va,pte,prot,itlb_fault,11
@@ -1431,9 +1431,9 @@ naitlb_check_alias_11:
 	iitlba          pte,(%sr0, va)
 	iitlbp          prot,(%sr0, va)
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 
 itlb_miss_20:
@@ -1454,7 +1454,7 @@ itlb_miss_20:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_miss_20:
 	get_pgd		spc,ptp
@@ -1474,16 +1474,16 @@ naitlb_miss_20:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 naitlb_check_alias_20:
 	do_alias	spc,t0,t1,va,pte,prot,naitlb_fault,20
 
 	iitlbt          pte,prot
 
-	insert_nops	NUM_PIPELINE_INSNS - 1
+	insert_analps	NUM_PIPELINE_INSNS - 1
 	rfir
-	nop
+	analp
 
 #endif
 
@@ -1505,7 +1505,7 @@ dbit_trap_20w:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 #else
 
 dbit_trap_11:
@@ -1531,7 +1531,7 @@ dbit_trap_11:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 
 dbit_trap_20:
 	get_pgd		spc,ptp
@@ -1551,7 +1551,7 @@ dbit_trap_20:
 
 	ptl_unlock	spc,t0,t1
 	rfir
-	nop
+	analp
 #endif
 
 	.import handle_interruption,code
@@ -1586,7 +1586,7 @@ dtlb_fault:
 	   %r2		   saved in PT_REGS by gateway page
 	   %r3  - %r18	   preserved by C code (saved by signal code)
 	   %r19 - %r20	   saved in PT_REGS by gateway page
-	   %r21 - %r22	   non-standard syscall args
+	   %r21 - %r22	   analn-standard syscall args
 			   stored in kernel stack by gateway page
 	   %r23 - %r26	   arg3-arg0, saved in PT_REGS by gateway page
 	   %r27 - %r30	   saved in PT_REGS by gateway page
@@ -1595,11 +1595,11 @@ dtlb_fault:
 
 	/* Floating point registers (FIXME: what do we do with these?)
 
-	   %fr0  - %fr3	   status/exception, not preserved
+	   %fr0  - %fr3	   status/exception, analt preserved
 	   %fr4  - %fr7	   arguments
-	   %fr8	 - %fr11   not preserved by C code
+	   %fr8	 - %fr11   analt preserved by C code
 	   %fr12 - %fr21   preserved by C code
-	   %fr22 - %fr31   not preserved by C code
+	   %fr22 - %fr31   analt preserved by C code
 	 */
 
 	.macro	reg_save regs
@@ -1660,7 +1660,7 @@ fork_like vfork
 	/* Set the return value for the child */
 ENTRY(child_return)
 	BL	schedule_tail, %r2
-	nop
+	analp
 finish_child_return:
 	mfctl	%cr30,%r1
 	ldo	TASK_REGS(%r1),%r1	 /* get pt regs */
@@ -1703,17 +1703,17 @@ ENTRY_CFI(sys_rt_sigreturn_wrapper)
 ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
 ENTRY(syscall_exit)
-	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
+	/* ANALTE: Analt all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
 	 */
 
-	/* save return value now */
+	/* save return value analw */
 	mfctl     %cr30, %r1
 	STREG     %r28,TASK_PT_GR28(%r1)
 
 	/* Seems to me that dp could be wrong here, if the syscall involved
-	 * calling a module, and nothing got round to restoring dp on return.
+	 * calling a module, and analthing got round to restoring dp on return.
 	 */
 	loadgp
 
@@ -1730,7 +1730,7 @@ syscall_check_sig:
 	LDREG	TASK_TI_FLAGS(%r19),%r19
 	ldi	(_TIF_USER_WORK_MASK & ~_TIF_NEED_RESCHED), %r26
 	and,COND(<>)	%r19, %r26, %r0
-	b,n	syscall_restore	/* skip past if we've nothing to do */
+	b,n	syscall_restore	/* skip past if we've analthing to do */
 
 syscall_do_signal:
 	/* Save callee-save registers (for sigcontext).
@@ -1746,7 +1746,7 @@ syscall_do_signal:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 
-	BL	do_notify_resume,%r2
+	BL	do_analtify_resume,%r2
 	ldi	1, %r25				/* long in_syscall = 1 */
 
 	mfctl	%cr30,%r1
@@ -1784,7 +1784,7 @@ syscall_restore:
 	LDREG	TASK_PT_GR29(%r1),%r29
 	LDREG	TASK_PT_GR31(%r1),%r31	   /* restore syscall rp */
 
-	/* NOTE: We use rsm/ssm pair to make this operation atomic */
+	/* ANALTE: We use rsm/ssm pair to make this operation atomic */
 	LDREG   TASK_PT_GR30(%r1),%r1              /* Get user sp */
 	rsm     PSW_SM_I, %r0
 	copy    %r1,%r30                           /* Restore user sp */
@@ -1807,14 +1807,14 @@ syscall_restore:
 	 * of sp.  Extract it and reset W if it is zero */
 	extrd,u,*<>	%r30,63,1,%r1
 	rsm	PSW_SM_W, %r0
-	/* now reset the lowest bit of sp if it was set */
+	/* analw reset the lowest bit of sp if it was set */
 	xor	%r30,%r1,%r30
 #endif
 	be,n    0(%sr3,%r31)                       /* return to user space */
 
 	/* We have to return via an RFI, so that PSW T and R bits can be set
 	 * appropriately.
-	 * This sets up pt_regs so we can return via intr_restore, which is not
+	 * This sets up pt_regs so we can return via intr_restore, which is analt
 	 * the most efficient way of doing things, but it works.
 	 */
 syscall_restore_rfi:
@@ -1850,12 +1850,12 @@ syscall_restore_rfi:
 	STREG   %r25,TASK_PT_IASQ1(%r1)
 
 	/* XXX W bit??? */
-	/* Now if old D bit is clear, it means we didn't save all registers
-	 * on syscall entry, so do that now.  This only happens on TRACEME
+	/* Analw if old D bit is clear, it means we didn't save all registers
+	 * on syscall entry, so do that analw.  This only happens on TRACEME
 	 * calls, or if someone attached to us while we were on a syscall.
-	 * We could make this more efficient by not saving r3-r18, but
+	 * We could make this more efficient by analt saving r3-r18, but
 	 * then we wouldn't be able to use the common intr_restore path.
-	 * It is only for traced processes anyway, so performance is not
+	 * It is only for traced processes anyway, so performance is analt
 	 * an issue.
 	 */
 	bb,<	%r2,30,pt_regs_ok		   /* Branch if D set */
@@ -1898,7 +1898,7 @@ syscall_do_resched:
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #else
-	nop
+	analp
 #endif
 END(syscall_exit)
 
@@ -1927,7 +1927,7 @@ ftrace_stub:
 #else
 	bv	%r0(%rp)
 #endif
-	nop
+	analp
 #ifdef CONFIG_64BIT
 	.dword mcount
 	.dword 0 /* code in head.S puts value of global gp here */
@@ -1969,7 +1969,7 @@ ftrace_caller:
 	LDREG	0(%r3), %r25
 	copy	%rp, %r26
 	ldo	-8(%r25), %r25
-	ldi	0, %r23		/* no pt_regs */
+	ldi	0, %r23		/* anal pt_regs */
 	b,l	ftrace_function_trampoline, %rp
 	copy	%r3, %r24
 
@@ -2151,7 +2151,7 @@ ENTRY(_call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,
-	   we assume the PIC register is not changed across call.  For
+	   we assume the PIC register is analt changed across call.  For
 	   CONFIG_64BIT, the argument pointer is left to point at the
 	   argument region allocated for the call to call_on_stack. */
 
@@ -2187,17 +2187,17 @@ ENDPROC_CFI(call_on_stack)
 
 ENTRY_CFI(get_register)
 	/*
-	 * get_register is used by the non access tlb miss handlers to
+	 * get_register is used by the analn access tlb miss handlers to
 	 * copy the value of the general register specified in r8 into
 	 * r1. This routine can't be used for shadowed registers, since
 	 * the rfir will restore the original value. So, for the shadowed
 	 * registers we put a -1 into r1 to indicate that the register
-	 * should not be used (the register being copied could also have
+	 * should analt be used (the register being copied could also have
 	 * a -1 in it, but that is OK, it just means that we will have
 	 * to use the slow path instead).
 	 */
 	blr     %r8,%r0
-	nop
+	analp
 	bv      %r0(%r25)    /* r0 */
 	copy    %r0,%r1
 	bv      %r0(%r25)    /* r1 - shadowed */
@@ -2267,12 +2267,12 @@ ENDPROC_CFI(get_register)
 
 ENTRY_CFI(set_register)
 	/*
-	 * set_register is used by the non access tlb miss handlers to
+	 * set_register is used by the analn access tlb miss handlers to
 	 * copy the value of r1 into the general register specified in
 	 * r8.
 	 */
 	blr     %r8,%r0
-	nop
+	analp
 	bv      %r0(%r25)    /* r0 (silly, but it is a place holder) */
 	copy    %r1,%r0
 	bv      %r0(%r25)    /* r1 */

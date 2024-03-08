@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Johan Hovold <johan@kernel.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gnss.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
@@ -89,7 +89,7 @@ static int ubx_probe(struct serdev_device *serdev)
 	}
 
 	ret = devm_regulator_get_enable_optional(&serdev->dev, "v-bckp");
-	if (ret < 0 && ret != -ENODEV)
+	if (ret < 0 && ret != -EANALDEV)
 		goto err_free_gserial;
 
 	/* Deassert reset */

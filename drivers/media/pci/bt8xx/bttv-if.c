@@ -9,7 +9,7 @@
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
-    (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 1999-2003 Gerd Kanalrr <kraxel@bytesex.org>
 
 
 */
@@ -52,9 +52,9 @@ int bttv_gpio_enable(unsigned int card, unsigned long mask, unsigned long data)
 
 	btv = bttvs[card];
 	if (!btv)
-		return -ENODEV;
+		return -EANALDEV;
 
-	gpio_inout(mask,data);
+	gpio_ianalut(mask,data);
 	if (bttv_gpio)
 		bttv_gpio_tracking(btv,"extern enable");
 	return 0;
@@ -70,13 +70,13 @@ int bttv_read_gpio(unsigned int card, unsigned long *data)
 
 	btv = bttvs[card];
 	if (!btv)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if(btv->shutdown) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-/* prior setting BT848_GPIO_REG_INP is (probably) not needed
+/* prior setting BT848_GPIO_REG_INP is (probably) analt needed
    because we set direct input on init */
 	*data = gpio_read();
 	return 0;
@@ -92,9 +92,9 @@ int bttv_write_gpio(unsigned int card, unsigned long mask, unsigned long data)
 
 	btv = bttvs[card];
 	if (!btv)
-		return -ENODEV;
+		return -EANALDEV;
 
-/* prior setting BT848_GPIO_REG_INP is (probably) not needed
+/* prior setting BT848_GPIO_REG_INP is (probably) analt needed
    because direct input is set on init */
 	gpio_bits(mask,data);
 	if (bttv_gpio)

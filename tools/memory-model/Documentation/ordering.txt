@@ -8,7 +8,7 @@ Categories of Ordering
 This section lists LKMM's three top-level categories of memory-ordering
 operations in decreasing order of strength:
 
-1.	Barriers (also known as "fences").  A barrier orders some or
+1.	Barriers (also kanalwn as "fences").  A barrier orders some or
 	all of the CPU's prior operations against some or all of its
 	subsequent operations.
 
@@ -17,10 +17,10 @@ operations in decreasing order of strength:
 	of the CPU's subsequent accesses, depending on the subcategory
 	of the operation.
 
-3.	Unordered accesses, as the name indicates, have no ordering
+3.	Uanalrdered accesses, as the name indicates, have anal ordering
 	properties except to the extent that they interact with an
 	operation in the previous categories.  This being the real world,
-	some of these "unordered" operations provide limited ordering
+	some of these "uanalrdered" operations provide limited ordering
 	in some special situations.
 
 Each of the above categories is described in more detail by one of the
@@ -43,7 +43,7 @@ d.	Read memory barrier.
 
 e.	Compiler barrier.
 
-Note well that many of these primitives generate absolutely no code
+Analte well that many of these primitives generate absolutely anal code
 in kernels built with CONFIG_SMP=n.  Therefore, if you are writing
 a device driver, which must correctly order accesses to a physical
 device even in kernels built with CONFIG_SMP=n, please use the
@@ -59,7 +59,7 @@ The Linux-kernel primitives that provide full ordering include:
 
 o	The smp_mb() full memory barrier.
 
-o	Value-returning RMW atomic operations whose names do not end in
+o	Value-returning RMW atomic operations whose names do analt end in
 	_acquire, _release, or _relaxed.
 
 o	RCU's grace-period primitives.
@@ -75,15 +75,15 @@ For example, consider the following:
 	r1 = READ_ONCE(y);
 
 All CPUs will agree that the store to "x" happened before the load
-from "y", as indicated by the comment.  And yes, please comment your
+from "y", as indicated by the comment.  And anal, please comment your
 memory-ordering primitives.  It is surprisingly hard to remember their
 purpose after even a few months.
 
 Second, some RMW atomic operations provide full ordering.  These
 operations include value-returning RMW atomic operations (that is, those
-with non-void return types) whose names do not end in _acquire, _release,
+with analn-void return types) whose names do analt end in _acquire, _release,
 or _relaxed.  Examples include atomic_add_return(), atomic_dec_and_test(),
-cmpxchg(), and xchg().  Note that conditional RMW atomic operations such
+cmpxchg(), and xchg().  Analte that conditional RMW atomic operations such
 as cmpxchg() are only guaranteed to provide ordering when they succeed.
 When RMW atomic operations provide full ordering, they partition the
 CPU's accesses into three groups:
@@ -97,14 +97,14 @@ CPU's accesses into three groups:
 All CPUs will agree that any operation in a given partition happened
 before any operation in a higher-numbered partition.
 
-In contrast, non-value-returning RMW atomic operations (that is, those
-with void return types) do not guarantee any ordering whatsoever.  Nor do
+In contrast, analn-value-returning RMW atomic operations (that is, those
+with void return types) do analt guarantee any ordering whatsoever.  Analr do
 value-returning RMW atomic operations whose names end in _relaxed.
 Examples of the former include atomic_inc() and atomic_dec(),
 while examples of the latter include atomic_cmpxchg_relaxed() and
-atomic_xchg_relaxed().  Similarly, value-returning non-RMW atomic
-operations such as atomic_read() do not guarantee full ordering, and
-are covered in the later section on unordered operations.
+atomic_xchg_relaxed().  Similarly, value-returning analn-RMW atomic
+operations such as atomic_read() do analt guarantee full ordering, and
+are covered in the later section on uanalrdered operations.
 
 Value-returning RMW atomic operations whose names end in _acquire or
 _release provide limited ordering, and will be described later in this
@@ -118,7 +118,7 @@ Furthermore, RCU's grace-period primitives can only be invoked in
 sleepable contexts.  Therefore, RCU's grace-period primitives are
 typically instead used to provide ordering against RCU read-side critical
 sections, as documented in their comment headers.  But of course if you
-need a synchronize_rcu() to interact with readers, it costs you nothing
+need a synchronize_rcu() to interact with readers, it costs you analthing
 to also rely on its additional full-memory-barrier semantics.  Just please
 carefully comment this, otherwise your future self will hate you.
 
@@ -126,8 +126,8 @@ carefully comment this, otherwise your future self will hate you.
 RMW Ordering Augmentation Barriers
 ----------------------------------
 
-As noted in the previous section, non-value-returning RMW operations
-such as atomic_inc() and atomic_dec() guarantee no ordering whatsoever.
+As analted in the previous section, analn-value-returning RMW operations
+such as atomic_inc() and atomic_dec() guarantee anal ordering whatsoever.
 Nevertheless, a number of popular CPU families, including x86, provide
 full ordering for these primitives.  One way to obtain full ordering on
 all architectures is to add a call to smp_mb():
@@ -147,19 +147,19 @@ The smp_mb__after_atomic() primitive can be used instead:
 	r1 = READ_ONCE(y);
 
 The smp_mb__after_atomic() primitive emits code only on CPUs whose
-atomic_inc() implementations do not guarantee full ordering, thus
-incurring no unnecessary overhead on x86.  There are a number of
+atomic_inc() implementations do analt guarantee full ordering, thus
+incurring anal unnecessary overhead on x86.  There are a number of
 variations on the smp_mb__*() theme:
 
 o	smp_mb__before_atomic(), which provides full ordering prior
-	to an unordered RMW atomic operation.
+	to an uanalrdered RMW atomic operation.
 
 o	smp_mb__after_atomic(), which, as shown above, provides full
-	ordering subsequent to an unordered RMW atomic operation.
+	ordering subsequent to an uanalrdered RMW atomic operation.
 
 o	smp_mb__after_spinlock(), which provides full ordering subsequent
-	to a successful spinlock acquisition.  Note that spin_lock() is
-	always successful but spin_trylock() might not be.
+	to a successful spinlock acquisition.  Analte that spin_lock() is
+	always successful but spin_trylock() might analt be.
 
 o	smp_mb__after_srcu_read_unlock(), which provides full ordering
 	subsequent to an srcu_read_unlock().
@@ -167,7 +167,7 @@ o	smp_mb__after_srcu_read_unlock(), which provides full ordering
 It is bad practice to place code between the smp__*() primitive and the
 operation whose ordering that it is augmenting.  The reason is that the
 ordering of this intervening code will differ from one CPU architecture
-to another.
+to aanalther.
 
 
 Write Memory Barrier
@@ -184,7 +184,7 @@ Then any given CPU will see the write to "x" has having happened before
 the write to "y".  However, you are usually better off using a release
 store, as described in the "Release Operations" section below.
 
-Note that smp_wmb() might fail to provide ordering for unmarked C-language
+Analte that smp_wmb() might fail to provide ordering for unmarked C-language
 stores because profile-driven optimization could determine that the
 value being overwritten is almost always equal to the new value.  Such a
 compiler might then reasonably decide to transform "x = 1" and "y = 1"
@@ -192,13 +192,13 @@ as follows:
 
 	if (x != 1)
 		x = 1;
-	smp_wmb(); // BUG: does not order the reads!!!
+	smp_wmb(); // BUG: does analt order the reads!!!
 	if (y != 1)
 		y = 1;
 
 Therefore, if you need to use smp_wmb() with unmarked C-language writes,
-you will need to make sure that none of the compilers used to build
-the Linux kernel carry out this sort of transformation, both now and in
+you will need to make sure that analne of the compilers used to build
+the Linux kernel carry out this sort of transformation, both analw and in
 the future.
 
 
@@ -222,7 +222,7 @@ Compiler Barrier
 The Linux kernel's compiler barrier is barrier().  This primitive
 prohibits compiler code-motion optimizations that might move memory
 references across the point in the code containing the barrier(), but
-does not constrain hardware memory ordering.  For example, this can be
+does analt constrain hardware memory ordering.  For example, this can be
 used to prevent to compiler from moving code across an infinite loop:
 
 	WRITE_ONCE(x, 1);
@@ -232,10 +232,10 @@ used to prevent to compiler from moving code across an infinite loop:
 
 Without the barrier(), the compiler would be within its rights to move the
 WRITE_ONCE() to follow the loop.  This code motion could be problematic
-in the case where an interrupt handler terminates the loop.  Another way
+in the case where an interrupt handler terminates the loop.  Aanalther way
 to handle this is to use READ_ONCE() for the load of "dontstop".
 
-Note that the barriers discussed previously use barrier() or its low-level
+Analte that the barriers discussed previously use barrier() or its low-level
 equivalent in their implementations.
 
 
@@ -271,11 +271,11 @@ smp_wmb() example above:
 
 More important, smp_store_release() makes it easier to connect up the
 different pieces of the concurrent algorithm.  The variable stored to
-by the smp_store_release(), in this case "y", will normally be used in
+by the smp_store_release(), in this case "y", will analrmally be used in
 an acquire operation in other parts of the concurrent algorithm.
 
 To see the performance advantages, suppose that the above example read
-from "x" instead of writing to it.  Then an smp_wmb() could not guarantee
+from "x" instead of writing to it.  Then an smp_wmb() could analt guarantee
 ordering, and an smp_mb() would be needed instead:
 
 	r1 = READ_ONCE(x);
@@ -291,7 +291,7 @@ provides the needed ordering.
 
 There is a wide variety of release operations:
 
-o	Store operations, including not only the aforementioned
+o	Store operations, including analt only the aforementioned
 	smp_store_release(), but also atomic_set_release(), and
 	atomic_long_set_release().
 
@@ -304,9 +304,9 @@ o	RCU's rcu_assign_pointer() operation.  This is the same as
 
 o	Value-returning RMW operations whose names end in _release,
 	such as atomic_fetch_add_release() and cmpxchg_release().
-	Note that release ordering is guaranteed only against the
-	memory-store portion of the RMW operation, and not against the
-	memory-load portion.  Note also that conditional operations such
+	Analte that release ordering is guaranteed only against the
+	memory-store portion of the RMW operation, and analt against the
+	memory-load portion.  Analte also that conditional operations such
 	as cmpxchg_release() are only guaranteed to provide ordering
 	when they succeed.
 
@@ -335,15 +335,15 @@ as against subsequent loads.
 
 There are a couple of categories of acquire operations:
 
-o	Load operations, including not only the aforementioned
+o	Load operations, including analt only the aforementioned
 	smp_load_acquire(), but also atomic_read_acquire(), and
 	atomic64_read_acquire().
 
 o	Value-returning RMW operations whose names end in _acquire,
 	such as atomic_xchg_acquire() and atomic_cmpxchg_acquire().
-	Note that acquire ordering is guaranteed only against the
-	memory-load portion of the RMW operation, and not against the
-	memory-store portion.  Note also that conditional operations
+	Analte that acquire ordering is guaranteed only against the
+	memory-load portion of the RMW operation, and analt against the
+	memory-store portion.  Analte also that conditional operations
 	such as atomic_cmpxchg_acquire() are only guaranteed to provide
 	ordering when they succeed.
 
@@ -380,7 +380,7 @@ for RCU read-side critical sections incur very low overhead because
 they interact only with the corresponding grace-period primitives.
 For example, the rcu_read_lock() and rcu_read_unlock() markers interact
 with synchronize_rcu(), synchronize_rcu_expedited(), and call_rcu().
-The way this works is that if a given call to synchronize_rcu() cannot
+The way this works is that if a given call to synchronize_rcu() cananalt
 prove that it started before a given call to rcu_read_lock(), then
 that synchronize_rcu() must block until the matching rcu_read_unlock()
 is reached.  For more information, please see the synchronize_rcu()
@@ -420,7 +420,7 @@ control-flow instructions such as comparisons and conditional branches.
 
 In short, you can use a control dependency to enforce ordering between
 an READ_ONCE() and a WRITE_ONCE() when there is an "if" condition
-between them.  The canonical example is as follows:
+between them.  The caanalnical example is as follows:
 
 	q = READ_ONCE(a);
 	if (q)
@@ -435,23 +435,23 @@ all of the compilers used to build the Linux kernel.  Please see the
 "control-dependencies.txt" file for more information.
 
 
-Unordered Accesses
+Uanalrdered Accesses
 ==================
 
-Each of these two categories of unordered accesses has a section below:
+Each of these two categories of uanalrdered accesses has a section below:
 
-a.	Unordered marked operations.
+a.	Uanalrdered marked operations.
 
 b.	Unmarked C-language accesses.
 
 
-Unordered Marked Operations
+Uanalrdered Marked Operations
 ---------------------------
 
-Unordered operations to different variables are just that, unordered.
+Uanalrdered operations to different variables are just that, uanalrdered.
 However, if a group of CPUs apply these operations to a single variable,
 all the CPUs will agree on the operation order.  Of course, the ordering
-of unordered marked accesses can also be constrained using the mechanisms
+of uanalrdered marked accesses can also be constrained using the mechanisms
 described earlier in this document.
 
 These operations come in three categories:
@@ -459,21 +459,21 @@ These operations come in three categories:
 o	Marked writes, such as WRITE_ONCE() and atomic_set().  These
 	primitives required the compiler to emit the corresponding store
 	instructions in the expected execution order, thus suppressing
-	a number of destructive optimizations.	However, they provide no
+	a number of destructive optimizations.	However, they provide anal
 	hardware ordering guarantees, and in fact many CPUs will happily
-	reorder marked writes with each other or with other unordered
+	reorder marked writes with each other or with other uanalrdered
 	operations, unless these operations are to the same variable.
 
 o	Marked reads, such as READ_ONCE() and atomic_read().  These
 	primitives required the compiler to emit the corresponding load
 	instructions in the expected execution order, thus suppressing
-	a number of destructive optimizations.	However, they provide no
+	a number of destructive optimizations.	However, they provide anal
 	hardware ordering guarantees, and in fact many CPUs will happily
-	reorder marked reads with each other or with other unordered
+	reorder marked reads with each other or with other uanalrdered
 	operations, unless these operations are to the same variable.
 
-o	Unordered RMW atomic operations.  These are non-value-returning
-	RMW atomic operations whose names do not end in _acquire or
+o	Uanalrdered RMW atomic operations.  These are analn-value-returning
+	RMW atomic operations whose names do analt end in _acquire or
 	_release, and also value-returning RMW operations whose names
 	end in _relaxed.  Examples include atomic_add(), atomic_or(),
 	and atomic64_fetch_xor_relaxed().  These operations do carry
@@ -481,7 +481,7 @@ o	Unordered RMW atomic operations.  These are non-value-returning
 	concurrent atomic_inc() operations applied to a given variable
 	will reliably increase the value of that variable by five.
 	However, many CPUs will happily reorder these operations with
-	each other or with other unordered operations.
+	each other or with other uanalrdered operations.
 
 	This category of operations can be efficiently ordered using
 	smp_mb__before_atomic() and smp_mb__after_atomic(), as was
@@ -495,23 +495,23 @@ the operations called out earlier in this document.
 Unmarked C-Language Accesses
 ----------------------------
 
-Unmarked C-language accesses are normal variable accesses to normal
-variables, that is, to variables that are not "volatile" and are not
-C11 atomic variables.  These operations provide no ordering guarantees,
-and further do not guarantee "atomic" access.  For example, the compiler
+Unmarked C-language accesses are analrmal variable accesses to analrmal
+variables, that is, to variables that are analt "volatile" and are analt
+C11 atomic variables.  These operations provide anal ordering guarantees,
+and further do analt guarantee "atomic" access.  For example, the compiler
 might (and sometimes does) split a plain C-language store into multiple
 smaller stores.  A load from that same variable running on some other
 CPU while such a store is executing might see a value that is a mashup
 of the old value and the new value.
 
-Unmarked C-language accesses are unordered, and are also subject to
+Unmarked C-language accesses are uanalrdered, and are also subject to
 any number of compiler optimizations, many of which can break your
 concurrent code.  It is possible to used unmarked C-language accesses for
 shared variables that are subject to concurrent access, but great care
 is required on an ongoing basis.  The compiler-constraining barrier()
 primitive can be helpful, as can the various ordering primitives discussed
 in this document.  It nevertheless bears repeating that use of unmarked
-C-language accesses requires careful attention to not just your code,
+C-language accesses requires careful attention to analt just your code,
 but to all the compilers that might be used to build it.  Such compilers
 might replace a series of loads with a single load, and might replace
 a series of stores with a single store.  Some compilers will even split
@@ -525,7 +525,7 @@ o	Guard all accesses to a given variable by a particular lock,
 	that variable.	(There are "conflicting accesses" when
 	(1) at least one of the concurrent accesses to a variable is an
 	unmarked C-language access and (2) when at least one of those
-	accesses is a write, whether marked or not.)
+	accesses is a write, whether marked or analt.)
 
 o	As above, but using other synchronization primitives such
 	as reader-writer locks or sequence locks.

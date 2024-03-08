@@ -32,7 +32,7 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index);
  *
  * RETURN:      TRUE if both tables are identical.
  *
- * DESCRIPTION: This function compares a table with another table that has
+ * DESCRIPTION: This function compares a table with aanalther table that has
  *              already been installed in the root table list.
  *
  ******************************************************************************/
@@ -55,7 +55,7 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
 
 	/*
 	 * Check for a table match on the entire table length,
-	 * not just the header.
+	 * analt just the header.
 	 */
 	is_identical = (u8)((table_desc->length != table_length ||
 			     memcmp(table_desc->pointer, table, table_length)) ?
@@ -76,7 +76,7 @@ acpi_tb_compare_tables(struct acpi_table_desc *table_desc, u32 table_index)
  *              flags                   - Allocation flags of the table
  *              table                   - Pointer to the table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Initialize a new table descriptor
  *
@@ -90,7 +90,7 @@ acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
 
 	/*
 	 * Initialize the table descriptor. Set the pointer to NULL for external
-	 * tables, since the table is not fully mapped at this time.
+	 * tables, since the table is analt fully mapped at this time.
 	 */
 	memset(table_desc, 0, sizeof(struct acpi_table_desc));
 	table_desc->address = address;
@@ -123,7 +123,7 @@ acpi_tb_init_table_descriptor(struct acpi_table_desc *table_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Acquire an ACPI table. It can be used for tables not
+ * DESCRIPTION: Acquire an ACPI table. It can be used for tables analt
  *              maintained in the acpi_gbl_root_table_list.
  *
  ******************************************************************************/
@@ -153,10 +153,10 @@ acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
 		break;
 	}
 
-	/* Table is not valid yet */
+	/* Table is analt valid yet */
 
 	if (!table) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	/* Fill the return values */
@@ -175,7 +175,7 @@ acpi_tb_acquire_table(struct acpi_table_desc *table_desc,
  *              table_length        - Length for the table
  *              table_flags         - Allocation flags for the table
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Release a table. The inverse of acpi_tb_acquire_table().
  *
@@ -237,7 +237,7 @@ acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
 					       sizeof(struct
 						      acpi_table_header));
 			if (!table) {
-				return (AE_NO_MEMORY);
+				return (AE_ANAL_MEMORY);
 			}
 
 			mapped_table = TRUE;
@@ -256,9 +256,9 @@ acpi_tb_acquire_temp_table(struct acpi_table_desc *table_desc,
 
 	default:
 
-		/* Table is not valid yet */
+		/* Table is analt valid yet */
 
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	acpi_tb_init_table_descriptor(table_desc, address, flags, table);
@@ -285,8 +285,8 @@ void acpi_tb_release_temp_table(struct acpi_table_desc *table_desc)
 {
 
 	/*
-	 * Note that the .Address is maintained by the callers of
-	 * acpi_tb_acquire_temp_table(), thus do not invoke acpi_tb_uninstall_table()
+	 * Analte that the .Address is maintained by the callers of
+	 * acpi_tb_acquire_temp_table(), thus do analt invoke acpi_tb_uninstall_table()
 	 * where .Address will be freed.
 	 */
 	acpi_tb_invalidate_table(table_desc);
@@ -318,7 +318,7 @@ acpi_status acpi_tb_validate_table(struct acpi_table_desc *table_desc)
 					       &table_desc->length,
 					       &table_desc->flags);
 		if (!table_desc->pointer) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 		}
 	}
 
@@ -331,7 +331,7 @@ acpi_status acpi_tb_validate_table(struct acpi_table_desc *table_desc)
  *
  * PARAMETERS:  table_desc          - Table descriptor
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Invalidate one internal ACPI table, this is the inverse of
  *              acpi_tb_validate_table().
@@ -387,7 +387,7 @@ acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc)
 	if (!table_desc->pointer && !acpi_gbl_enable_table_validation) {
 		/*
 		 * Only validates the header of the table.
-		 * Note that Length contains the size of the mapping after invoking
+		 * Analte that Length contains the size of the mapping after invoking
 		 * this work around, this value is required by
 		 * acpi_tb_release_temp_table().
 		 * We can do this because in acpi_init_table_descriptor(), the Length
@@ -411,7 +411,7 @@ acpi_status acpi_tb_validate_temp_table(struct acpi_table_desc *table_desc)
  *
  * DESCRIPTION: Avoid installing duplicated tables. However table override and
  *              user aided dynamic table load is allowed, thus comparing the
- *              address of the table is not sufficient, and checking the entire
+ *              address of the table is analt sufficient, and checking the entire
  *              table content is required.
  *
  ******************************************************************************/
@@ -427,7 +427,7 @@ acpi_tb_check_duplication(struct acpi_table_desc *table_desc, u32 *table_index)
 
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 
-		/* Do not compare with unverified tables */
+		/* Do analt compare with unverified tables */
 
 		if (!
 		    (acpi_gbl_root_table_list.tables[i].
@@ -437,14 +437,14 @@ acpi_tb_check_duplication(struct acpi_table_desc *table_desc, u32 *table_index)
 
 		/*
 		 * Check for a table match on the entire table length,
-		 * not just the header.
+		 * analt just the header.
 		 */
 		if (!acpi_tb_compare_tables(table_desc, i)) {
 			continue;
 		}
 
 		/*
-		 * Note: the current mechanism does not unregister a table if it is
+		 * Analte: the current mechanism does analt unregister a table if it is
 		 * dynamically unloaded. The related namespace entries are deleted,
 		 * but the table remains in the root table list.
 		 *
@@ -469,7 +469,7 @@ acpi_tb_check_duplication(struct acpi_table_desc *table_desc, u32 *table_index)
 		}
 	}
 
-	/* Indicate no duplication to the caller */
+	/* Indicate anal duplication to the caller */
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -486,7 +486,7 @@ acpi_tb_check_duplication(struct acpi_table_desc *table_desc, u32 *table_index)
  *
  * DESCRIPTION: This function is called to validate and verify the table, the
  *              returned table descriptor is in "VALIDATED" state.
- *              Note that 'TableIndex' is required to be set to !NULL to
+ *              Analte that 'TableIndex' is required to be set to !NULL to
  *              enable duplication check.
  *
  *****************************************************************************/
@@ -503,7 +503,7 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 
 	status = acpi_tb_validate_temp_table(table_desc);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* If a particular signature is expected (DSDT/FACS), it must match */
@@ -525,7 +525,7 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 		    acpi_ut_verify_checksum(table_desc->pointer,
 					    table_desc->length);
 		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
+			ACPI_EXCEPTION((AE_INFO, AE_ANAL_MEMORY,
 					"%4.4s 0x%8.8X%8.8X"
 					" Attempted table install failed",
 					acpi_ut_valid_nameseg(table_desc->
@@ -575,7 +575,7 @@ invalidate_and_exit:
  *
  * FUNCTION:    acpi_tb_resize_root_table_list
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
  * RETURN:      Status
  *
@@ -596,7 +596,7 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	if (!(acpi_gbl_root_table_list.flags & ACPI_ROOT_ALLOW_RESIZE)) {
 		ACPI_ERROR((AE_INFO,
-			    "Resize of Root Table Array is not allowed"));
+			    "Resize of Root Table Array is analt allowed"));
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
@@ -613,8 +613,8 @@ acpi_status acpi_tb_resize_root_table_list(void)
 				      sizeof(struct acpi_table_desc));
 	if (!tables) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate new root table array"));
-		return_ACPI_STATUS(AE_NO_MEMORY);
+			    "Could analt allocate new root table array"));
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Copy and free the previous table array */
@@ -690,9 +690,9 @@ acpi_tb_get_next_table_descriptor(u32 *table_index,
  *
  * FUNCTION:    acpi_tb_terminate
  *
- * PARAMETERS:  None
+ * PARAMETERS:  Analne
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Delete all internal ACPI tables
  *
@@ -713,7 +713,7 @@ void acpi_tb_terminate(void)
 	}
 
 	/*
-	 * Delete the root table array if allocated locally. Array cannot be
+	 * Delete the root table array if allocated locally. Array cananalt be
 	 * mapped, so we don't need to check for that flag.
 	 */
 	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
@@ -756,13 +756,13 @@ acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 
 	if (table_index >= acpi_gbl_root_table_list.current_table_count) {
 
-		/* The table index does not exist */
+		/* The table index does analt exist */
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
-	/* Get the owner ID for this table, used to delete namespace nodes */
+	/* Get the owner ID for this table, used to delete namespace analdes */
 
 	owner_id = acpi_gbl_root_table_list.tables[table_index].owner_id;
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
@@ -906,7 +906,7 @@ u8 acpi_tb_is_table_loaded(u32 table_index)
  * PARAMETERS:  table_index         - Table index
  *              is_loaded           - TRUE if table is loaded, FALSE otherwise
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Sets the table loaded flag to either TRUE or FALSE.
  *
@@ -934,7 +934,7 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded)
  * FUNCTION:    acpi_tb_load_table
  *
  * PARAMETERS:  table_index             - Table index
- *              parent_node             - Where table index is returned
+ *              parent_analde             - Where table index is returned
  *
  * RETURN:      Status
  *
@@ -943,7 +943,7 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded)
  ******************************************************************************/
 
 acpi_status
-acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
+acpi_tb_load_table(u32 table_index, struct acpi_namespace_analde *parent_analde)
 {
 	struct acpi_table_header *table;
 	acpi_status status;
@@ -952,7 +952,7 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 	ACPI_FUNCTION_TRACE(tb_load_table);
 
 	/*
-	 * Note: Now table is "INSTALLED", it must be validated before
+	 * Analte: Analw table is "INSTALLED", it must be validated before
 	 * using.
 	 */
 	status = acpi_get_table_by_index(table_index, &table);
@@ -960,13 +960,13 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ns_load_table(table_index, parent_node);
+	status = acpi_ns_load_table(table_index, parent_analde);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	/*
-	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
+	 * Update GPEs for any new _Lxx/_Exx methods. Iganalre errors. The host is
 	 * responsible for discovering any new wake GPEs by running _PRW methods
 	 * that may have been loaded by this table.
 	 */
@@ -977,7 +977,7 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 
 	/* Invoke table handler */
 
-	acpi_tb_notify_table(ACPI_TABLE_EVENT_LOAD, table);
+	acpi_tb_analtify_table(ACPI_TABLE_EVENT_LOAD, table);
 	return_ACPI_STATUS(status);
 }
 
@@ -1018,7 +1018,7 @@ acpi_tb_install_and_load_table(acpi_physical_address address,
 		goto exit;
 	}
 
-	status = acpi_tb_load_table(i, acpi_gbl_root_node);
+	status = acpi_tb_load_table(i, acpi_gbl_root_analde);
 
 exit:
 	*table_index = i;
@@ -1049,14 +1049,14 @@ acpi_status acpi_tb_unload_table(u32 table_index)
 	/* Ensure the table is still loaded */
 
 	if (!acpi_tb_is_table_loaded(table_index)) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
+		return_ACPI_STATUS(AE_ANALT_EXIST);
 	}
 
 	/* Invoke table handler */
 
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_SUCCESS(status)) {
-		acpi_tb_notify_table(ACPI_TABLE_EVENT_UNLOAD, table);
+		acpi_tb_analtify_table(ACPI_TABLE_EVENT_UNLOAD, table);
 	}
 
 	/* Delete the portion of the namespace owned by this table */
@@ -1075,18 +1075,18 @@ ACPI_EXPORT_SYMBOL(acpi_tb_unload_table)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_notify_table
+ * FUNCTION:    acpi_tb_analtify_table
  *
  * PARAMETERS:  event               - Table event
  *              table               - Validated table pointer
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Notify a table event to the users.
+ * DESCRIPTION: Analtify a table event to the users.
  *
  ******************************************************************************/
 
-void acpi_tb_notify_table(u32 event, void *table)
+void acpi_tb_analtify_table(u32 event, void *table)
 {
 	/* Invoke table handler if present */
 

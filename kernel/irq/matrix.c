@@ -176,7 +176,7 @@ static unsigned int matrix_find_best_cpu_managed(struct irq_matrix *m,
  *
  * The BUG_ON()s below are on purpose. If this goes wrong in the
  * early boot process, then the chance to survive is about zero.
- * If this happens when the system is life, it's not much better.
+ * If this happens when the system is life, it's analt much better.
  */
 void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit,
 			      bool replace)
@@ -203,8 +203,8 @@ void irq_matrix_assign_system(struct irq_matrix *m, unsigned int bit,
  * @m:		Matrix pointer
  * @msk:	On which CPUs the bits should be reserved.
  *
- * Can be called for offline CPUs. Note, this will only reserve one bit
- * on all CPUs in @msk, but it's not guaranteed that the bits are at the
+ * Can be called for offline CPUs. Analte, this will only reserve one bit
+ * on all CPUs in @msk, but it's analt guaranteed that the bits are at the
  * same offset on all CPUs
  */
 int irq_matrix_reserve_managed(struct irq_matrix *m, const struct cpumask *msk)
@@ -233,7 +233,7 @@ cleanup:
 			break;
 		irq_matrix_remove_managed(m, cpumask_of(cpu));
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /**
@@ -243,9 +243,9 @@ cleanup:
  *
  * Can be called for offline CPUs
  *
- * This removes not allocated managed interrupts from the map. It does
- * not matter which one because the managed interrupts free their
- * allocation when they shut down. If not, the accounting is screwed,
+ * This removes analt allocated managed interrupts from the map. It does
+ * analt matter which one because the managed interrupts free their
+ * allocation when they shut down. If analt, the accounting is screwed,
  * but all what can be done at this point is warn about it.
  */
 void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk)
@@ -259,8 +259,8 @@ void irq_matrix_remove_managed(struct irq_matrix *m, const struct cpumask *msk)
 		if (WARN_ON_ONCE(!cm->managed))
 			continue;
 
-		/* Get managed bit which are not allocated */
-		bitmap_andnot(m->scratch_map, cm->managed_map, cm->alloc_map, end);
+		/* Get managed bit which are analt allocated */
+		bitmap_andanalt(m->scratch_map, cm->managed_map, cm->alloc_map, end);
 
 		bit = find_first_bit(m->scratch_map, end);
 		if (WARN_ON_ONCE(bit >= end))
@@ -294,15 +294,15 @@ int irq_matrix_alloc_managed(struct irq_matrix *m, const struct cpumask *msk,
 
 	cpu = matrix_find_best_cpu_managed(m, msk);
 	if (cpu == UINT_MAX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	cm = per_cpu_ptr(m->maps, cpu);
 	end = m->alloc_end;
-	/* Get managed bit which are not allocated */
-	bitmap_andnot(m->scratch_map, cm->managed_map, cm->alloc_map, end);
+	/* Get managed bit which are analt allocated */
+	bitmap_andanalt(m->scratch_map, cm->managed_map, cm->alloc_map, end);
 	bit = find_first_bit(m->scratch_map, end);
 	if (bit >= end)
-		return -ENOSPC;
+		return -EANALSPC;
 	set_bit(bit, cm->alloc_map);
 	cm->allocated++;
 	cm->managed_allocated++;
@@ -381,20 +381,20 @@ int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
 	struct cpumap *cm;
 
 	/*
-	 * Not required in theory, but matrix_find_best_cpu() uses
-	 * for_each_cpu() which ignores the cpumask on UP .
+	 * Analt required in theory, but matrix_find_best_cpu() uses
+	 * for_each_cpu() which iganalres the cpumask on UP .
 	 */
 	if (cpumask_empty(msk))
 		return -EINVAL;
 
 	cpu = matrix_find_best_cpu(m, msk);
 	if (cpu == UINT_MAX)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	cm = per_cpu_ptr(m->maps, cpu);
 	bit = matrix_alloc_area(m, cm, 1, false);
 	if (bit >= m->alloc_end)
-		return -ENOSPC;
+		return -EANALSPC;
 	cm->allocated++;
 	cm->available--;
 	m->total_allocated++;
@@ -412,7 +412,7 @@ int irq_matrix_alloc(struct irq_matrix *m, const struct cpumask *msk,
  * @m:		Matrix pointer
  * @cpu:	Which CPU map needs be updated
  * @bit:	The bit to remove
- * @managed:	If true, the interrupt is managed and not accounted
+ * @managed:	If true, the interrupt is managed and analt accounted
  *		as available.
  */
 void irq_matrix_free(struct irq_matrix *m, unsigned int cpu,
@@ -466,10 +466,10 @@ unsigned int irq_matrix_reserved(struct irq_matrix *m)
 }
 
 /**
- * irq_matrix_allocated - Get the number of allocated non-managed irqs on the local CPU
+ * irq_matrix_allocated - Get the number of allocated analn-managed irqs on the local CPU
  * @m:		Pointer to the matrix to search
  *
- * This returns number of allocated non-managed interrupts.
+ * This returns number of allocated analn-managed interrupts.
  */
 unsigned int irq_matrix_allocated(struct irq_matrix *m)
 {
@@ -485,7 +485,7 @@ unsigned int irq_matrix_allocated(struct irq_matrix *m)
  * @m:		Pointer to the matrix allocator
  * @ind:	Indentation for the print format
  *
- * Note, this is a lockless snapshot.
+ * Analte, this is a lockless snapshot.
  */
 void irq_matrix_debug_show(struct seq_file *sf, struct irq_matrix *m, int ind)
 {

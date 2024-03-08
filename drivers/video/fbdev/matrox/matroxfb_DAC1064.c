@@ -79,7 +79,7 @@ static const unsigned char MGA1064_DAC[] = {
 		0xFF, 0x00, 0x00,	/* red */
 		0x00, 0,
 		M1064_XPIXCLKCTRL_PLL_UP | M1064_XPIXCLKCTRL_EN | M1064_XPIXCLKCTRL_SRC_PLL,
-		M1064_XGENCTRL_VS_0 | M1064_XGENCTRL_ALPHA_DIS | M1064_XGENCTRL_BLACK_0IRE | M1064_XGENCTRL_NO_SYNC_ON_GREEN,
+		M1064_XGENCTRL_VS_0 | M1064_XGENCTRL_ALPHA_DIS | M1064_XGENCTRL_BLACK_0IRE | M1064_XGENCTRL_ANAL_SYNC_ON_GREEN,
 		M1064_XMISCCTRL_DAC_8BIT,
 		0x00, 0x00, M1064_XZOOMCTRL_1, M1064_XSENSETEST_BCOMP | M1064_XSENSETEST_GCOMP | M1064_XSENSETEST_RCOMP | M1064_XSENSETEST_PDOWN,
 		0x00,
@@ -105,7 +105,7 @@ static void DAC1064_setmclk(struct matrox_fb_info *minfo, int oscinfo,
 
 	DBG(__func__)
 
-	if (minfo->devflags.noinit) {
+	if (minfo->devflags.analinit) {
 		/* read MCLK and give up... */
 		hw->DACclk[3] = inDAC1064(minfo, DAC1064_XSYSPLLM);
 		hw->DACclk[4] = inDAC1064(minfo, DAC1064_XSYSPLLN);
@@ -132,12 +132,12 @@ static void DAC1064_setmclk(struct matrox_fb_info *minfo, int oscinfo,
 		mx &= ~0x00000004;
 		pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, mx);
 
-		/* !!! you must not access device if MCLK is not running !!!
+		/* !!! you must analt access device if MCLK is analt running !!!
 		   Doing so cause immediate PCI lockup :-( Maybe they should
 		   generate ABORT or I/O (parity...) error and Linux should
-		   recover from this... (kill driver/process). But world is not
+		   recover from this... (kill driver/process). But world is analt
 		   perfect... */
-		/* (bit 2 of PCI_OPTION_REG must be 0... and bits 0,1 must not
+		/* (bit 2 of PCI_OPTION_REG must be 0... and bits 0,1 must analt
 		   select PLL... because of PLL can be stopped at this time) */
 		DAC1064_calcclock(minfo, fmem, minfo->max_pixel_clock, &m, &n, &p);
 		outDAC1064(minfo, DAC1064_XSYSPLLM, hw->DACclk[3] = m);
@@ -148,7 +148,7 @@ static void DAC1064_setmclk(struct matrox_fb_info *minfo, int oscinfo,
 				break;
 		}
 		if (!clk)
-			printk(KERN_ERR "matroxfb: aiee, SYSPLL not locked\n");
+			printk(KERN_ERR "matroxfb: aiee, SYSPLL analt locked\n");
 		/* select PLL */
 		mx |= 0x00000005;
 	} else {
@@ -184,7 +184,7 @@ static void g450_set_plls(struct matrox_fb_info *minfo)
 		c2_ctl |=  0x0004;	/* Use pixel PLL */
 	} else {
 		if (0 == ((videomnp ^ pixelmnp) & 0xFFFFFF00)) {
-			/* PIXEL and VIDEO PLL must not use same frequency. We modify N
+			/* PIXEL and VIDEO PLL must analt use same frequency. We modify N
 			   of PIXEL PLL in such case because of VIDEO PLL may be source
 			   of TVO clocks, and chroma subcarrier is derived from its
 			   pixel clocks */
@@ -271,7 +271,7 @@ void DAC1064_global_init(struct matrox_fb_info *minfo)
 			case MATROXFB_SRC_CRTC2:
 				hw->DACreg[POS1064_XOUTPUTCONN] |= 0x01;	/* enable output; CRTC1/2 selection is in CRTC2 ctl */
 				break;
-			case MATROXFB_SRC_NONE:
+			case MATROXFB_SRC_ANALNE:
 				hw->DACreg[POS1064_XMISCCTRL] &= ~M1064_XMISCCTRL_DAC_EN;
 				break;
 		}
@@ -286,7 +286,7 @@ void DAC1064_global_init(struct matrox_fb_info *minfo)
 					hw->DACreg[POS1064_XOUTPUTCONN] |= 0x0C;
 				}
 				break;
-			case MATROXFB_SRC_NONE:
+			case MATROXFB_SRC_ANALNE:
 				hw->DACreg[POS1064_XPWRCTRL] &= ~0x01;		/* Poweroff DAC2 */
 				break;
 		}
@@ -297,18 +297,18 @@ void DAC1064_global_init(struct matrox_fb_info *minfo)
 			case MATROXFB_SRC_CRTC2:
 				hw->DACreg[POS1064_XOUTPUTCONN] |= 0x40;
 				break;
-			case MATROXFB_SRC_NONE:
+			case MATROXFB_SRC_ANALNE:
 #if 0
 				/* HELP! If we boot without DFP connected to DVI, we can
 				   poweroff TMDS. But if we boot with DFP connected,
 				   TMDS generated clocks are used instead of ALL pixclocks
-				   available... If someone knows which register
+				   available... If someone kanalws which register
 				   handles it, please reveal this secret to me... */			
 				hw->DACreg[POS1064_XPWRCTRL] &= ~0x04;		/* Poweroff TMDS */
 #endif				
 				break;
 		}
-		/* Now set timming related variables... */
+		/* Analw set timming related variables... */
 		g450_set_plls(minfo);
 	} else
 #endif
@@ -323,7 +323,7 @@ void DAC1064_global_init(struct matrox_fb_info *minfo)
 		else
 			hw->DACreg[POS1064_XMISCCTRL] |= GX00_XMISCCTRL_MFC_DIS;
 
-		if (minfo->outputs[0].src != MATROXFB_SRC_NONE)
+		if (minfo->outputs[0].src != MATROXFB_SRC_ANALNE)
 			hw->DACreg[POS1064_XMISCCTRL] |= M1064_XMISCCTRL_DAC_EN;
 	}
 }
@@ -354,7 +354,7 @@ static int DAC1064_init_1(struct matrox_fb_info *minfo, struct my_timming *m)
 
 	memcpy(hw->DACreg, MGA1064_DAC, sizeof(MGA1064_DAC_regs));
 	switch (minfo->fbcon.var.bits_per_pixel) {
-		/* case 4: not supported by MGA1064 DAC */
+		/* case 4: analt supported by MGA1064 DAC */
 		case 8:
 			hw->DACreg[POS1064_XMULCTRL] = M1064_XMULCTRL_DEPTH_8BPP | M1064_XMULCTRL_GRAPHICS_PALETIZED;
 			break;
@@ -375,7 +375,7 @@ static int DAC1064_init_1(struct matrox_fb_info *minfo, struct my_timming *m)
 	}
 	hw->DACreg[POS1064_XVREFCTRL] = minfo->features.DAC1064.xvrefctrl;
 	hw->DACreg[POS1064_XGENCTRL] &= ~M1064_XGENCTRL_SYNC_ON_GREEN_MASK;
-	hw->DACreg[POS1064_XGENCTRL] |= (m->sync & FB_SYNC_ON_GREEN)?M1064_XGENCTRL_SYNC_ON_GREEN:M1064_XGENCTRL_NO_SYNC_ON_GREEN;
+	hw->DACreg[POS1064_XGENCTRL] |= (m->sync & FB_SYNC_ON_GREEN)?M1064_XGENCTRL_SYNC_ON_GREEN:M1064_XGENCTRL_ANAL_SYNC_ON_GREEN;
 	hw->DACreg[POS1064_XCURADDL] = 0;
 	hw->DACreg[POS1064_XCURADDH] = 0;
 
@@ -500,7 +500,7 @@ static int m1064_compute(void* out, struct my_timming* m) {
 		CRITEND
 
 		if (!tmout)
-			printk(KERN_ERR "matroxfb: Pixel PLL not locked after 5 secs\n");
+			printk(KERN_ERR "matroxfb: Pixel PLL analt locked after 5 secs\n");
 	}
 #undef minfo
 	return 0;
@@ -602,7 +602,7 @@ static void MGA1064_ramdac_init(struct matrox_fb_info *minfo)
 #ifdef CONFIG_FB_MATROX_G
 /* BIOS environ */
 static int x7AF4 = 0x10;	/* flags, maybe 0x10 = SDRAM, 0x00 = SGRAM??? */
-				/* G100 wants 0x10, G200 SGRAM does not care... */
+				/* G100 wants 0x10, G200 SGRAM does analt care... */
 #if 0
 static int def50 = 0;	/* reg50, & 0x0F, & 0x3000 (only 0x0000, 0x1000, 0x2000 (0x3000 disallowed and treated as 0) */
 #endif
@@ -642,7 +642,7 @@ static void MGAG100_progPixClock(const struct matrox_fb_info *minfo, int flags,
 		udelay(10);
 	}
 	if (!clk)
-		printk(KERN_ERR "matroxfb: Pixel PLL%c not locked after usual time\n", (reg-M1064_XPIXPLLAM-2)/4 + 'A');
+		printk(KERN_ERR "matroxfb: Pixel PLL%c analt locked after usual time\n", (reg-M1064_XPIXPLLAM-2)/4 + 'A');
 	selClk = inDAC1064(minfo, M1064_XPIXCLKCTRL) & ~M1064_XPIXCLKCTRL_SRC_MASK;
 	switch (flags & 0x0C) {
 		case 0x00:	selClk |= M1064_XPIXCLKCTRL_SRC_PCI; break;
@@ -684,15 +684,15 @@ static int MGA1064_preinit(struct matrox_fb_info *minfo)
 	minfo->outputs[0].data = minfo;
 	minfo->outputs[0].mode = MATROXFB_OUTPUT_MODE_MONITOR;
 
-	if (minfo->devflags.noinit)
-		return 0;	/* do not modify settings */
+	if (minfo->devflags.analinit)
+		return 0;	/* do analt modify settings */
 	hw->MXoptionReg &= 0xC0000100;
 	hw->MXoptionReg |= 0x00094E20;
-	if (minfo->devflags.novga)
+	if (minfo->devflags.analvga)
 		hw->MXoptionReg &= ~0x00000100;
-	if (minfo->devflags.nobios)
+	if (minfo->devflags.analbios)
 		hw->MXoptionReg &= ~0x40000000;
-	if (minfo->devflags.nopciretry)
+	if (minfo->devflags.analpciretry)
 		hw->MXoptionReg |=  0x20000000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
 	mga_setr(M_SEQ_INDEX, 0x01, 0x20);
@@ -795,11 +795,11 @@ static void g450_preinit(struct matrox_fb_info *minfo)
 	/* minfo->hw.MXoptionReg = minfo->values.reg.opt; */
 	minfo->hw.MXoptionReg &= 0xC0000100;
 	minfo->hw.MXoptionReg |= 0x00000020;
-	if (minfo->devflags.novga)
+	if (minfo->devflags.analvga)
 		minfo->hw.MXoptionReg &= ~0x00000100;
-	if (minfo->devflags.nobios)
+	if (minfo->devflags.analbios)
 		minfo->hw.MXoptionReg &= ~0x40000000;
-	if (minfo->devflags.nopciretry)
+	if (minfo->devflags.analpciretry)
 		minfo->hw.MXoptionReg |=  0x20000000;
 	minfo->hw.MXoptionReg |= minfo->values.reg.opt & 0x03400040;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
@@ -880,11 +880,11 @@ static int MGAG100_preinit(struct matrox_fb_info *minfo)
 	minfo->outputs[0].mode = MATROXFB_OUTPUT_MODE_MONITOR;
 
 	if (minfo->devflags.g450dac) {
-		/* we must do this always, BIOS does not do it for us
+		/* we must do this always, BIOS does analt do it for us
 		   and accelerator dies without it */
 		mga_outl(0x1C0C, 0);
 	}
-	if (minfo->devflags.noinit)
+	if (minfo->devflags.analinit)
 		return 0;
 	if (minfo->devflags.g450dac) {
 		g450_preinit(minfo);
@@ -892,11 +892,11 @@ static int MGAG100_preinit(struct matrox_fb_info *minfo)
 	}
 	hw->MXoptionReg &= 0xC0000100;
 	hw->MXoptionReg |= 0x00000020;
-	if (minfo->devflags.novga)
+	if (minfo->devflags.analvga)
 		hw->MXoptionReg &= ~0x00000100;
-	if (minfo->devflags.nobios)
+	if (minfo->devflags.analbios)
 		hw->MXoptionReg &= ~0x40000000;
-	if (minfo->devflags.nopciretry)
+	if (minfo->devflags.analpciretry)
 		hw->MXoptionReg |=  0x20000000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
 	DAC1064_setmclk(minfo, DAC1064_OPT_MDIV2 | DAC1064_OPT_GDIV3 | DAC1064_OPT_SCLK_PCI, 133333);
@@ -997,7 +997,7 @@ static void MGAG100_reset(struct matrox_fb_info *minfo)
 			pci_write_config_byte(ibm, PCI_IO_LIMIT, 0x00);	/* ??? */
 		}
 #endif
-		if (!minfo->devflags.noinit) {
+		if (!minfo->devflags.analinit) {
 			if (x7AF4 & 8) {
 				hw->MXoptionReg |= 0x40;	/* FIXME... */
 				pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, hw->MXoptionReg);
@@ -1018,7 +1018,7 @@ static void MGAG100_reset(struct matrox_fb_info *minfo)
 			minfo->devflags.dfp_type = inDAC1064(minfo, 0x1F);
 		}
 	}
-	if (minfo->devflags.noinit)
+	if (minfo->devflags.analinit)
 		return;
 	if (minfo->devflags.g450dac) {
 	} else {

@@ -5,7 +5,7 @@ IPsec
 =====
 
 
-Here documents known IPsec corner cases which need to be keep in mind when
+Here documents kanalwn IPsec corner cases which need to be keep in mind when
 deploy various IPsec configuration in real world production environment.
 
 1. IPcomp:
@@ -14,12 +14,12 @@ deploy various IPsec configuration in real world production environment.
 
 Quote from RFC3173::
 
-  2.2. Non-Expansion Policy
+  2.2. Analn-Expansion Policy
 
    If the total size of a compressed payload and the IPComp header, as
-   defined in section 3, is not smaller than the size of the original
-   payload, the IP datagram MUST be sent in the original non-compressed
-   form.  To clarify: If an IP datagram is sent non-compressed, no
+   defined in section 3, is analt smaller than the size of the original
+   payload, the IP datagram MUST be sent in the original analn-compressed
+   form.  To clarify: If an IP datagram is sent analn-compressed, anal
 
    IPComp header is added to the datagram.  This policy ensures saving
    the decompression processing cycles and avoiding incurring IP
@@ -33,11 +33,11 @@ Quote from RFC3173::
    is implementation dependent.
 
 Current IPComp implementation is indeed by the book, while as in practice
-when sending non-compressed packet to the peer (whether or not packet len
+when sending analn-compressed packet to the peer (whether or analt packet len
 is smaller than the threshold or the compressed len is larger than original
 packet len), the packet is dropped when checking the policy as this packet
-matches the selector but not coming from any XFRM layer, i.e., with no
-security path. Such naked packet will not eventually make it to upper layer.
+matches the selector but analt coming from any XFRM layer, i.e., with anal
+security path. Such naked packet will analt eventually make it to upper layer.
 The result is much more wired to the user when ping peer with different
 payload length.
 

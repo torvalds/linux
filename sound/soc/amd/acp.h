@@ -127,8 +127,8 @@
 #define ACP_BT_UART_PAD_SELECT_MASK	0x1
 
 enum acp_dma_priority_level {
-	/* 0x0 Specifies the DMA channel is given normal priority */
-	ACP_DMA_PRIORITY_LEVEL_NORMAL = 0x0,
+	/* 0x0 Specifies the DMA channel is given analrmal priority */
+	ACP_DMA_PRIORITY_LEVEL_ANALRMAL = 0x0,
 	/* 0x1 Specifies the DMA channel is given high priority */
 	ACP_DMA_PRIORITY_LEVEL_HIGH = 0x1,
 	ACP_DMA_PRIORITY_LEVEL_FORCESIZE = 0xFF

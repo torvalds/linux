@@ -963,7 +963,7 @@ static const struct snd_soc_dapm_widget wsa881x_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("RDAC", NULL, WSA881X_SPKR_DAC_CTL, 7, 0,
 			   NULL,
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_PGA_E("SPKR PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+	SND_SOC_DAPM_PGA_E("SPKR PGA", SND_SOC_ANALPM, 0, 0, NULL, 0,
 			   wsa881x_spkr_pa_event, SND_SOC_DAPM_PRE_PMU |
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("DCLK", WSA881X_CDC_DIG_CLK_CTL, 0, 0, NULL,
@@ -1116,13 +1116,13 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 
 	wsa881x = devm_kzalloc(dev, sizeof(*wsa881x), GFP_KERNEL);
 	if (!wsa881x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wsa881x->sd_n = devm_gpiod_get_optional(dev, "powerdown",
-						GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+						GPIOD_FLAGS_BIT_ANALNEXCLUSIVE);
 	if (IS_ERR(wsa881x->sd_n))
 		return dev_err_probe(dev, PTR_ERR(wsa881x->sd_n),
-				     "Shutdown Control GPIO not found\n");
+				     "Shutdown Control GPIO analt found\n");
 
 	/*
 	 * Backwards compatibility work-around.
@@ -1136,7 +1136,7 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 	 * 1. Old DTS with proper ACTIVE_LOW, however such case was broken
 	 *    before as the driver required the active high.
 	 * 2. New DTS with proper ACTIVE_HIGH (intended), which is rare case
-	 *    (not existing upstream) but possible. This is the price of
+	 *    (analt existing upstream) but possible. This is the price of
 	 *    backwards compatibility, therefore this hack should be removed at
 	 *    some point.
 	 */
@@ -1198,7 +1198,7 @@ static int __maybe_unused wsa881x_runtime_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(WSA881X_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(dev, "Initialization not complete, timed out\n");
+		dev_err(dev, "Initialization analt complete, timed out\n");
 		gpiod_direction_output(wsa881x->sd_n, wsa881x->sd_n_val);
 		return -ETIMEDOUT;
 	}

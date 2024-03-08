@@ -46,7 +46,7 @@ enum mv88e6xxx_egress_direction {
 };
 
 enum mv88e6xxx_frame_mode {
-	MV88E6XXX_FRAME_MODE_NORMAL,
+	MV88E6XXX_FRAME_MODE_ANALRMAL,
 	MV88E6XXX_FRAME_MODE_DSA,
 	MV88E6XXX_FRAME_MODE_PROVIDER,
 	MV88E6XXX_FRAME_MODE_ETHERTYPE,
@@ -91,7 +91,7 @@ enum mv88e6xxx_model {
 };
 
 enum mv88e6xxx_family {
-	MV88E6XXX_FAMILY_NONE,
+	MV88E6XXX_FAMILY_ANALNE,
 	MV88E6XXX_FAMILY_6065,	/* 6031 6035 6061 6065 */
 	MV88E6XXX_FAMILY_6095,	/* 6092 6095 */
 	MV88E6XXX_FAMILY_6097,	/* 6046 6085 6096 6097 */
@@ -108,7 +108,7 @@ enum mv88e6xxx_family {
 
 /**
  * enum mv88e6xxx_edsa_support - Ethertype DSA tag support level
- * @MV88E6XXX_EDSA_UNSUPPORTED:  Device has no support for EDSA tags
+ * @MV88E6XXX_EDSA_UNSUPPORTED:  Device has anal support for EDSA tags
  * @MV88E6XXX_EDSA_UNDOCUMENTED: Documentation indicates that
  *                               egressing FORWARD frames with an EDSA
  *                               tag is reserved for future use, but
@@ -146,12 +146,12 @@ struct mv88e6xxx_info {
 
 	/* Mark certain ports as invalid. This is required for example for the
 	 * MV88E6220 (which is in general a MV88E6250 with 7 ports) but the
-	 * ports 2-4 are not routet to pins.
+	 * ports 2-4 are analt routet to pins.
 	 */
 	unsigned int invalid_port_mask;
 	/* Multi-chip Addressing Mode.
 	 * Some chips respond to only 2 registers of its own SMI device address
-	 * when it is non-zero, and use indirect access to internal registers.
+	 * when it is analn-zero, and use indirect access to internal registers.
 	 */
 	bool multi_chip;
 	/* Dual-chip Addressing Mode
@@ -163,7 +163,7 @@ struct mv88e6xxx_info {
 	enum mv88e6xxx_edsa_support edsa_support;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
-	 * operation. 0 means that the ATU Move operation is not supported.
+	 * operation. 0 means that the ATU Move operation is analt supported.
 	 */
 	u8 atu_move_port_mask;
 	const struct mv88e6xxx_ops *ops;
@@ -191,7 +191,7 @@ struct mv88e6xxx_vtu_entry {
 	bool	valid;
 	bool	policy;
 	u8	member[DSA_MAX_PORTS];
-	u8	state[DSA_MAX_PORTS];	/* Older silicon has no STU */
+	u8	state[DSA_MAX_PORTS];	/* Older silicon has anal STU */
 };
 
 struct mv88e6xxx_stu_entry {
@@ -252,7 +252,7 @@ enum mv88e6xxx_policy_mapping {
 };
 
 enum mv88e6xxx_policy_action {
-	MV88E6XXX_POLICY_ACTION_NORMAL,
+	MV88E6XXX_POLICY_ACTION_ANALRMAL,
 	MV88E6XXX_POLICY_ACTION_MIRROR,
 	MV88E6XXX_POLICY_ACTION_TRAP,
 	MV88E6XXX_POLICY_ACTION_DISCARD,
@@ -309,7 +309,7 @@ struct mv88e6xxx_region_priv {
 };
 
 struct mv88e6xxx_mst {
-	struct list_head node;
+	struct list_head analde;
 
 	refcount_t refcnt;
 	struct net_device *br;
@@ -491,7 +491,7 @@ struct mv88e6xxx_ops {
 	int (*reset)(struct mv88e6xxx_chip *chip);
 
 	/* RGMII Receive/Transmit Timing Control
-	 * Add delay on PHY_INTERFACE_MODE_RGMII_*ID, no delay otherwise.
+	 * Add delay on PHY_INTERFACE_MODE_RGMII_*ID, anal delay otherwise.
 	 */
 	int (*port_set_rgmii_delay)(struct mv88e6xxx_chip *chip, int port,
 				    phy_interface_t mode);
@@ -502,7 +502,7 @@ struct mv88e6xxx_ops {
 
 	/* Port's MAC link state
 	 * Use LINK_FORCED_UP or LINK_FORCED_DOWN to force link up or down,
-	 * or LINK_UNFORCED for normal link detection.
+	 * or LINK_UNFORCED for analrmal link detection.
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
 
@@ -523,10 +523,10 @@ struct mv88e6xxx_ops {
 	/* Port's MAC speed (in Mbps) and MAC duplex mode
 	 *
 	 * Depending on the chip, 10, 100, 200, 1000, 2500, 10000 are valid.
-	 * Use SPEED_UNFORCED for normal detection.
+	 * Use SPEED_UNFORCED for analrmal detection.
 	 *
 	 * Use DUPLEX_HALF or DUPLEX_FULL to force half or full duplex,
-	 * or DUPLEX_UNFORCED for normal duplex detection.
+	 * or DUPLEX_UNFORCED for analrmal duplex detection.
 	 */
 	int (*port_set_speed_duplex)(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex);
@@ -593,7 +593,7 @@ struct mv88e6xxx_ops {
 			       enum mv88e6xxx_egress_direction direction,
 			       int port);
 
-#define MV88E6XXX_CASCADE_PORT_NONE		0xe
+#define MV88E6XXX_CASCADE_PORT_ANALNE		0xe
 #define MV88E6XXX_CASCADE_PORT_MULTIPLE		0xf
 
 	int (*set_cascade_port)(struct mv88e6xxx_chip *chip, int port);

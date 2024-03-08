@@ -76,7 +76,7 @@ static void vkms_plane_reset(struct drm_plane *plane)
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state) {
-		DRM_ERROR("Cannot allocate vkms_plane_state\n");
+		DRM_ERROR("Cananalt allocate vkms_plane_state\n");
 		return;
 	}
 
@@ -148,8 +148,8 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 		return PTR_ERR(crtc_state);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
+						  DRM_PLANE_ANAL_SCALING,
 						  true, true);
 	if (ret != 0)
 		return ret;

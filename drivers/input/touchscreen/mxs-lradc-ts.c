@@ -3,11 +3,11 @@
  * Freescale MXS LRADC touchscreen driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
- * Copyright (c) 2017 Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ * Copyright (c) 2017 Ksenija Staanaljevic <ksenija.staanaljevic@gmail.com>
  *
  * Authors:
  *  Marek Vasut <marex@denx.de>
- *  Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ *  Ksenija Staanaljevic <ksenija.staanaljevic@gmail.com>
  */
 
 #include <linux/device.h>
@@ -111,7 +111,7 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc_ts *ts, unsigned int ch)
 	 * from the datasheet:
 	 * "The ACCUMULATE bit in the appropriate channel register
 	 * HW_LRADC_CHn must be set to 1 if NUM_SAMPLES is greater then 0;
-	 * otherwise, the IRQs will not fire."
+	 * otherwise, the IRQs will analt fire."
 	 */
 	writel(LRADC_CH_ACCUMULATE |
 	       LRADC_CH_NUM_SAMPLES(ts->over_sample_cnt - 1),
@@ -129,8 +129,8 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc_ts *ts, unsigned int ch)
 	 *
 	 * from the datasheet:
 	 * "The DELAY fields in HW_LRADC_DELAY0, HW_LRADC_DELAY1,
-	 * HW_LRADC_DELAY2, and HW_LRADC_DELAY3 must be non-zero; otherwise,
-	 * the LRADC will not trigger the delay group."
+	 * HW_LRADC_DELAY2, and HW_LRADC_DELAY3 must be analn-zero; otherwise,
+	 * the LRADC will analt trigger the delay group."
 	 */
 	writel(LRADC_DELAY_TRIGGER(1 << ch) | LRADC_DELAY_TRIGGER_DELAYS(0) |
 	       LRADC_DELAY_LOOP(ts->over_sample_cnt - 1) |
@@ -168,7 +168,7 @@ static void mxs_lradc_setup_ts_pressure(struct mxs_lradc_ts *ts,
 	 * from the datasheet:
 	 * "The ACCUMULATE bit in the appropriate channel register
 	 * HW_LRADC_CHn must be set to 1 if NUM_SAMPLES is greater then 0;
-	 * otherwise, the IRQs will not fire."
+	 * otherwise, the IRQs will analt fire."
 	 */
 	reg = LRADC_CH_ACCUMULATE |
 		LRADC_CH_NUM_SAMPLES(ts->over_sample_cnt - 1);
@@ -239,7 +239,7 @@ static unsigned int mxs_lradc_read_ts_pressure(struct mxs_lradc_ts *ts,
 	m2 = mxs_lradc_ts_read_raw_channel(ts, ch2);
 
 	if (m2 == 0) {
-		dev_warn(ts->dev, "Cannot calculate pressure\n");
+		dev_warn(ts->dev, "Cananalt calculate pressure\n");
 		return 1 << (LRADC_RESOLUTION - 1);
 	}
 
@@ -404,7 +404,7 @@ static void mxs_lradc_complete_touch_event(struct mxs_lradc_ts *ts)
 	ts->cur_plate = LRADC_SAMPLE_VALID;
 	/*
 	 * start a dummy conversion to burn time to settle the signals
-	 * note: we are not interested in the conversion's value
+	 * analte: we are analt interested in the conversion's value
 	 */
 	writel(0, ts->base + LRADC_CH(TOUCHSCREEN_VCHANNEL1));
 	writel(LRADC_CTRL1_LRADC_IRQ(TOUCHSCREEN_VCHANNEL1) |
@@ -503,7 +503,7 @@ static irqreturn_t mxs_lradc_ts_handle_irq(int irq, void *data)
 	unsigned long flags;
 
 	if (!(reg & mxs_lradc_irq_mask(lradc)))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (reg & ts_irq_mask) {
 		spin_lock_irqsave(&ts->lock, flags);
@@ -580,7 +580,7 @@ static int mxs_lradc_ts_register(struct mxs_lradc_ts *ts)
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input->name = "mxs-lradc-ts";
 	input->id.bustype = BUS_HOST;
@@ -603,7 +603,7 @@ static int mxs_lradc_ts_register(struct mxs_lradc_ts *ts)
 static int mxs_lradc_ts_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->parent->of_node;
+	struct device_analde *analde = dev->parent->of_analde;
 	struct mxs_lradc *lradc = dev_get_drvdata(dev->parent);
 	struct mxs_lradc_ts *ts;
 	int ret, irq, virq, i;
@@ -611,7 +611,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ts);
 
@@ -623,12 +623,12 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 	if (IS_ERR(ts->base))
 		return PTR_ERR(ts->base);
 
-	ret = of_property_read_u32(node, "fsl,lradc-touchscreen-wires",
+	ret = of_property_read_u32(analde, "fsl,lradc-touchscreen-wires",
 				   &ts_wires);
 	if (ret)
 		return ret;
 
-	if (of_property_read_u32(node, "fsl,ave-ctrl", &adapt)) {
+	if (of_property_read_u32(analde, "fsl,ave-ctrl", &adapt)) {
 		ts->over_sample_cnt = 4;
 	} else {
 		if (adapt >= 1 && adapt <= 32) {
@@ -640,7 +640,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_property_read_u32(node, "fsl,ave-delay", &adapt)) {
+	if (of_property_read_u32(analde, "fsl,ave-delay", &adapt)) {
 		ts->over_sample_delay = 2;
 	} else {
 		if (adapt >= 2 && adapt <= LRADC_DELAY_DELAY_MASK + 1) {
@@ -652,7 +652,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_property_read_u32(node, "fsl,settling", &adapt)) {
+	if (of_property_read_u32(analde, "fsl,settling", &adapt)) {
 		ts->settling_delay = 10;
 	} else {
 		if (adapt >= 1 && adapt <= LRADC_DELAY_DELAY_MASK) {
@@ -675,7 +675,7 @@ static int mxs_lradc_ts_probe(struct platform_device *pdev)
 		if (irq < 0)
 			return irq;
 
-		virq = irq_of_parse_and_map(node, irq);
+		virq = irq_of_parse_and_map(analde, irq);
 
 		mxs_lradc_ts_stop(ts);
 

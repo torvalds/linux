@@ -2,7 +2,7 @@
 /*
  * Renesas SuperH DMA Engine support
  *
- * Copyright (C) 2009 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * Copyright (C) 2009 Analbuhiro Iwamatsu <iwamatsu.analbuhiro@renesas.com>
  * Copyright (C) 2009 Renesas Solutions, Inc. All rights reserved.
  *
  */
@@ -34,7 +34,7 @@ struct sh_dmae_device {
 	struct shdma_dev shdma_dev;
 	struct sh_dmae_chan *chan[SH_DMAE_MAX_CHANNELS];
 	const struct sh_dmae_pdata *pdata;
-	struct list_head node;
+	struct list_head analde;
 	void __iomem *chan_reg;
 	void __iomem *dmars;
 	unsigned int chcr_offset;
@@ -53,7 +53,7 @@ struct sh_dmae_desc {
 };
 
 #define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, shdma_chan)
-#define to_sh_desc(lh) container_of(lh, struct sh_desc, node)
+#define to_sh_desc(lh) container_of(lh, struct sh_desc, analde)
 #define tx_to_sh_desc(tx) container_of(tx, struct sh_desc, async_tx)
 #define to_sh_dev(chan) container_of(chan->shdma_chan.dma_chan.device,\
 				     struct sh_dmae_device, shdma_dev.dma_dev)

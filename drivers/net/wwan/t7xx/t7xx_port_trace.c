@@ -73,7 +73,7 @@ static int t7xx_trace_port_recv_skb(struct t7xx_port *port, struct sk_buff *skb)
 	return 0;
 }
 
-static void t7xx_port_trace_md_state_notify(struct t7xx_port *port, unsigned int state)
+static void t7xx_port_trace_md_state_analtify(struct t7xx_port *port, unsigned int state)
 {
 	struct rchan *relaych = port->log.relaych;
 	struct dentry *debugfs_wwan_dir;
@@ -112,5 +112,5 @@ err_rm_debugfs_dir:
 struct port_ops t7xx_trace_port_ops = {
 	.recv_skb = t7xx_trace_port_recv_skb,
 	.uninit = t7xx_trace_port_uninit,
-	.md_state_notify = t7xx_port_trace_md_state_notify,
+	.md_state_analtify = t7xx_port_trace_md_state_analtify,
 };

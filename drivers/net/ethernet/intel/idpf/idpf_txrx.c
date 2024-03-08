@@ -14,7 +14,7 @@ static int idpf_buf_lifo_push(struct idpf_buf_lifo *stack,
 			      struct idpf_tx_stash *buf)
 {
 	if (unlikely(stack->top == stack->size))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	stack->bufs[stack->top++] = buf;
 
@@ -89,7 +89,7 @@ static void idpf_tx_buf_rel_all(struct idpf_queue *txq)
 {
 	u16 i;
 
-	/* Buffers already cleared, nothing to do */
+	/* Buffers already cleared, analthing to do */
 	if (!txq->tx_buf)
 		return;
 
@@ -173,7 +173,7 @@ static int idpf_tx_buf_alloc_all(struct idpf_queue *tx_q)
 	buf_size = sizeof(struct idpf_tx_buf) * tx_q->desc_count;
 	tx_q->tx_buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!tx_q->tx_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Initialize tx_bufs with invalid completion tags */
 	for (i = 0; i < tx_q->desc_count; i++)
@@ -186,7 +186,7 @@ static int idpf_tx_buf_alloc_all(struct idpf_queue *tx_q)
 		kcalloc(tx_q->desc_count, sizeof(struct idpf_tx_stash *),
 			GFP_KERNEL);
 	if (!tx_q->buf_stack.bufs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tx_q->buf_stack.size = tx_q->desc_count;
 	tx_q->buf_stack.top = tx_q->desc_count;
@@ -195,7 +195,7 @@ static int idpf_tx_buf_alloc_all(struct idpf_queue *tx_q)
 		tx_q->buf_stack.bufs[i] = kzalloc(sizeof(*tx_q->buf_stack.bufs[i]),
 						  GFP_KERNEL);
 		if (!tx_q->buf_stack.bufs[i])
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -233,7 +233,7 @@ static int idpf_tx_desc_alloc(struct idpf_queue *tx_q, bool bufq)
 	if (!tx_q->desc_ring) {
 		dev_err(dev, "Unable to allocate memory for the Tx descriptor ring, size=%d\n",
 			tx_q->size);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_alloc;
 	}
 
@@ -299,9 +299,9 @@ static int idpf_tx_desc_alloc_all(struct idpf_vport *vport)
 			txq->compl_tag_gen_max = GETMAXVAL(gen_bits);
 
 			/* Set bufid mask based on location of first
-			 * gen bit; it cannot simply be the descriptor
+			 * gen bit; it cananalt simply be the descriptor
 			 * ring size-1 since we can have size values
-			 * where not all of those bits are set.
+			 * where analt all of those bits are set.
 			 */
 			txq->compl_tag_bufid_m =
 				GETMAXVAL(txq->compl_tag_gen_s);
@@ -365,7 +365,7 @@ static void idpf_rx_buf_rel_all(struct idpf_queue *rxq)
 {
 	u16 i;
 
-	/* queue already cleared, nothing to do */
+	/* queue already cleared, analthing to do */
 	if (!rxq->rx_buf.buf)
 		return;
 
@@ -489,7 +489,7 @@ static int idpf_rx_hdr_buf_alloc_all(struct idpf_queue *rxq)
 				   &rxq->rx_buf.hdr_buf_pa,
 				   GFP_KERNEL);
 	if (!rxq->rx_buf.hdr_buf_va)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -521,7 +521,7 @@ static void idpf_rx_post_buf_refill(struct idpf_sw_queue *refillq, u16 buf_id)
  * @bufq: buffer queue to post to
  * @buf_id: buffer id to post
  *
- * Returns false if buffer could not be allocated, true otherwise.
+ * Returns false if buffer could analt be allocated, true otherwise.
  */
 static bool idpf_rx_post_buf_desc(struct idpf_queue *bufq, u16 buf_id)
 {
@@ -580,7 +580,7 @@ static bool idpf_rx_post_init_bufs(struct idpf_queue *bufq, u16 working_set)
  * idpf_rx_create_page_pool - Create a page pool
  * @rxbufq: RX queue to create page pool for
  *
- * Returns &page_pool on success, casted -errno on failure
+ * Returns &page_pool on success, casted -erranal on failure
  */
 static struct page_pool *idpf_rx_create_page_pool(struct idpf_queue *rxbufq)
 {
@@ -588,7 +588,7 @@ static struct page_pool *idpf_rx_create_page_pool(struct idpf_queue *rxbufq)
 		.flags		= PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
 		.order		= 0,
 		.pool_size	= rxbufq->desc_count,
-		.nid		= NUMA_NO_NODE,
+		.nid		= NUMA_ANAL_ANALDE,
 		.dev		= rxbufq->vport->netdev->dev.parent,
 		.max_len	= PAGE_SIZE,
 		.dma_dir	= DMA_FROM_DEVICE,
@@ -613,7 +613,7 @@ static int idpf_rx_buf_alloc_all(struct idpf_queue *rxbufq)
 	rxbufq->rx_buf.buf = kcalloc(rxbufq->desc_count,
 				     sizeof(struct idpf_rx_buf), GFP_KERNEL);
 	if (!rxbufq->rx_buf.buf) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto rx_buf_alloc_all_out;
 	}
 
@@ -628,11 +628,11 @@ static int idpf_rx_buf_alloc_all(struct idpf_queue *rxbufq)
 		int working_set = IDPF_RX_BUFQ_WORKING_SET(rxbufq);
 
 		if (!idpf_rx_post_init_bufs(rxbufq, working_set))
-			err = -ENOMEM;
+			err = -EANALMEM;
 	} else {
 		if (idpf_rx_singleq_buf_hw_alloc_all(rxbufq,
 						     rxbufq->desc_count - 1))
-			err = -ENOMEM;
+			err = -EANALMEM;
 	}
 
 rx_buf_alloc_all_out:
@@ -728,7 +728,7 @@ static int idpf_rx_desc_alloc(struct idpf_queue *rxq, bool bufq, s32 q_model)
 	if (!rxq->desc_ring) {
 		dev_err(dev, "Unable to allocate memory for the Rx descriptor ring, size=%d\n",
 			rxq->size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rxq->next_to_alloc = 0;
@@ -922,7 +922,7 @@ static int idpf_vport_init_fast_path_txqs(struct idpf_vport *vport)
 			      GFP_KERNEL);
 
 	if (!vport->txqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < vport->num_txq_grp; i++) {
 		struct idpf_txq_group *tx_grp = &vport->txq_grps[i];
@@ -1163,7 +1163,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 	vport->txq_grps = kcalloc(vport->num_txq_grp,
 				  sizeof(*vport->txq_grps), GFP_KERNEL);
 	if (!vport->txq_grps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	flow_sch_en = !idpf_is_cap_ena(vport->adapter, IDPF_OTHER_CAPS,
 				       VIRTCHNL2_CAP_SPLITQ_QSCHED);
@@ -1180,7 +1180,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 			tx_qgrp->txqs[j] = kzalloc(sizeof(*tx_qgrp->txqs[j]),
 						   GFP_KERNEL);
 			if (!tx_qgrp->txqs[j]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_alloc;
 			}
 		}
@@ -1207,7 +1207,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport, u16 num_txq)
 					  sizeof(*tx_qgrp->complq),
 					  GFP_KERNEL);
 		if (!tx_qgrp->complq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_alloc;
 		}
 
@@ -1245,7 +1245,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 	vport->rxq_grps = kcalloc(vport->num_rxq_grp,
 				  sizeof(struct idpf_rxq_group), GFP_KERNEL);
 	if (!vport->rxq_grps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hs = idpf_vport_get_hsplit(vport) == ETHTOOL_TCP_DATA_SPLIT_ENABLED;
 
@@ -1261,7 +1261,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 						kzalloc(sizeof(*rx_qgrp->singleq.rxqs[j]),
 							GFP_KERNEL);
 				if (!rx_qgrp->singleq.rxqs[j]) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto err_alloc;
 				}
 			}
@@ -1274,7 +1274,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 				kzalloc(sizeof(struct idpf_rxq_set),
 					GFP_KERNEL);
 			if (!rx_qgrp->splitq.rxq_sets[j]) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_alloc;
 			}
 		}
@@ -1283,7 +1283,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 						    sizeof(struct idpf_bufq_set),
 						    GFP_KERNEL);
 		if (!rx_qgrp->splitq.bufq_sets) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_alloc;
 		}
 
@@ -1311,7 +1311,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 			bufq_set->refillqs = kcalloc(num_rxq, swq_size,
 						     GFP_KERNEL);
 			if (!bufq_set->refillqs) {
-				err = -ENOMEM;
+				err = -EANALMEM;
 				goto err_alloc;
 			}
 			for (k = 0; k < bufq_set->num_refillqs; k++) {
@@ -1327,7 +1327,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport, u16 num_rxq)
 							sizeof(u16),
 							GFP_KERNEL);
 				if (!refillq->ring) {
-					err = -ENOMEM;
+					err = -EANALMEM;
 					goto err_alloc;
 				}
 			}
@@ -1455,7 +1455,7 @@ static void idpf_tx_handle_sw_marker(struct idpf_queue *tx_q)
 	 */
 	for (i = 0; i < vport->num_txq; i++)
 		/* If we're still waiting on any other TXQ marker completions,
-		 * just return now since we cannot wake up the marker_wq yet.
+		 * just return analw since we cananalt wake up the marker_wq yet.
 		 */
 		if (test_bit(__IDPF_Q_SW_MARKER, vport->txqs[i]->flags))
 			return;
@@ -1509,7 +1509,7 @@ static void idpf_tx_clean_stashed_bufs(struct idpf_queue *txq, u16 compl_tag,
 				       int budget)
 {
 	struct idpf_tx_stash *stash;
-	struct hlist_node *tmp_buf;
+	struct hlist_analde *tmp_buf;
 
 	/* Buffer completion */
 	hash_for_each_possible_safe(txq->sched_buf_hash, stash, tmp_buf,
@@ -1552,10 +1552,10 @@ static int idpf_stash_flow_sch_buffers(struct idpf_queue *txq,
 
 	stash = idpf_buf_lifo_pop(&txq->buf_stack);
 	if (unlikely(!stash)) {
-		net_err_ratelimited("%s: No out-of-order TX buffers left!\n",
+		net_err_ratelimited("%s: Anal out-of-order TX buffers left!\n",
 				    txq->vport->netdev->name);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Store buffer params in shadow buffer */
@@ -1597,13 +1597,13 @@ do {								\
  * @napi_budget: Used to determine if we are in netpoll
  * @cleaned: pointer to stats struct to track cleaned packets/bytes
  * @descs_only: true if queue is using flow-based scheduling and should
- * not clean buffers at this time
+ * analt clean buffers at this time
  *
  * Cleans the queue descriptor ring. If the queue is using queue-based
  * scheduling, the buffers will be cleaned as well. If the queue is using
  * flow-based scheduling, only the descriptors are cleaned at this time.
  * Separate packet completion events will be reported on the completion queue,
- * and the buffers will be cleaned separately. The stats are not updated from
+ * and the buffers will be cleaned separately. The stats are analt updated from
  * this function when using flow-based scheduling.
  */
 static void idpf_tx_splitq_clean(struct idpf_queue *tx_q, u16 end,
@@ -1626,8 +1626,8 @@ static void idpf_tx_splitq_clean(struct idpf_queue *tx_q, u16 end,
 
 		/* If this entry in the ring was used as a context descriptor,
 		 * it's corresponding entry in the buffer ring will have an
-		 * invalid completion tag since no buffer was used.  We can
-		 * skip this descriptor since there is no buffer to clean.
+		 * invalid completion tag since anal buffer was used.  We can
+		 * skip this descriptor since there is anal buffer to clean.
 		 */
 		if (unlikely(tx_buf->compl_tag == IDPF_SPLITQ_TX_INVAL_COMPL_TAG))
 			goto fetch_next_txq_desc;
@@ -1733,7 +1733,7 @@ static bool idpf_tx_clean_buf_ring(struct idpf_queue *txq, u16 compl_tag,
 	}
 
 	/* If we didn't clean anything on the ring for this completion, there's
-	 * nothing more to do.
+	 * analthing more to do.
 	 */
 	if (unlikely(!num_descs_cleaned))
 		return false;
@@ -1752,7 +1752,7 @@ static bool idpf_tx_clean_buf_ring(struct idpf_queue *txq, u16 compl_tag,
 
 	/* Finally, update next_to_clean to reflect the work that was just done
 	 * on the ring, if any. If the packet was only cleaned from the hash
-	 * table, the ring will not be impacted, therefore we should not touch
+	 * table, the ring will analt be impacted, therefore we should analt touch
 	 * next_to_clean. The updated idx is used here
 	 */
 	txq->next_to_clean = idx;
@@ -1824,7 +1824,7 @@ static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
 		u8 ctype;	/* completion type */
 		u16 gen;
 
-		/* if the descriptor isn't done, no work yet to do */
+		/* if the descriptor isn't done, anal work yet to do */
 		gen = le16_get_bits(tx_desc->qid_comptype_gen,
 				    IDPF_TXD_COMPLQ_GEN_M);
 		if (test_bit(__IDPF_Q_GEN_CHK, complq->flags) != gen)
@@ -1836,7 +1836,7 @@ static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
 		if (rel_tx_qid >= complq->txq_grp->num_txq ||
 		    !complq->txq_grp->txqs[rel_tx_qid]) {
 			dev_err(&complq->vport->adapter->pdev->dev,
-				"TxQ not found\n");
+				"TxQ analt found\n");
 			goto fetch_next_desc;
 		}
 		tx_q = complq->txq_grp->txqs[rel_tx_qid];
@@ -1860,7 +1860,7 @@ static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
 			break;
 		default:
 			dev_err(&tx_q->vport->adapter->pdev->dev,
-				"Unknown TX completion type: %d\n",
+				"Unkanalwn TX completion type: %d\n",
 				ctype);
 			goto fetch_next_desc;
 		}
@@ -1973,7 +1973,7 @@ void idpf_tx_splitq_build_flow_desc(union idpf_tx_flex_desc *desc,
  * @tx_q: the queue to be checked
  * @size: number of descriptors we want to assure is available
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is analt needed
  */
 int idpf_tx_maybe_stop_common(struct idpf_queue *tx_q, unsigned int size)
 {
@@ -1996,7 +1996,7 @@ int idpf_tx_maybe_stop_common(struct idpf_queue *tx_q, unsigned int size)
  * @tx_q: the queue to be checked
  * @descs_needed: number of descriptors required for this packet
  *
- * Returns 0 if stop is not needed
+ * Returns 0 if stop is analt needed
  */
 static int idpf_tx_maybe_stop_splitq(struct idpf_queue *tx_q,
 				     unsigned int descs_needed)
@@ -2036,7 +2036,7 @@ splitq_stop:
  * @xmit_more: more skb's pending
  *
  * The naming here is special in that 'hw' signals that this function is about
- * to do a register write to update our queue status. We know this can only
+ * to do a register write to update our queue status. We kanalw this can only
  * mean tail here as HW should be owning head for TX.
  */
 void idpf_tx_buf_hw_update(struct idpf_queue *tx_q, u32 val,
@@ -2050,13 +2050,13 @@ void idpf_tx_buf_hw_update(struct idpf_queue *tx_q, u32 val,
 	idpf_tx_maybe_stop_common(tx_q, IDPF_TX_DESC_NEEDED);
 
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * kanalw there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
 	wmb();
 
-	/* notify HW of packet */
+	/* analtify HW of packet */
 	if (netif_xmit_stopped(nq) || !xmit_more)
 		writel(val, tx_q->tail);
 }
@@ -2076,7 +2076,7 @@ unsigned int idpf_tx_desc_count_required(struct idpf_queue *txq,
 
 	count += !!skb_headlen(skb);
 
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_analnlinear(skb))
 		return count;
 
 	shinfo = skb_shinfo(skb);
@@ -2282,7 +2282,7 @@ static void idpf_tx_splitq_map(struct idpf_queue *tx_q,
 
 			/* Since this packet has a buffer that is going to span
 			 * multiple descriptors, it's going to leave holes in
-			 * to the TX buffer ring. To ensure these holes do not
+			 * to the TX buffer ring. To ensure these holes do analt
 			 * cause issues in the cleaning routines, we will clear
 			 * them of any stale data and assign them the same
 			 * completion tag as the current packet. Then when the
@@ -2333,7 +2333,7 @@ static void idpf_tx_splitq_map(struct idpf_queue *tx_q,
 		tx_buf = &tx_q->tx_buf[i];
 	}
 
-	/* record SW timestamp if HW timestamp is not available */
+	/* record SW timestamp if HW timestamp is analt available */
 	skb_tx_timestamp(skb);
 
 	/* write last descriptor with RS and EOP bits */
@@ -2358,8 +2358,8 @@ static void idpf_tx_splitq_map(struct idpf_queue *tx_q,
  * @skb: pointer to skb
  * @off: pointer to struct that holds offload parameters
  *
- * Returns error (negative) if TSO was requested but cannot be applied to the
- * given skb, 0 if TSO does not apply to the given skb, or 1 otherwise.
+ * Returns error (negative) if TSO was requested but cananalt be applied to the
+ * given skb, 0 if TSO does analt apply to the given skb, or 1 otherwise.
  */
 int idpf_tso(struct sk_buff *skb, struct idpf_tx_offload_params *off)
 {
@@ -2430,14 +2430,14 @@ int idpf_tso(struct sk_buff *skb, struct idpf_tx_offload_params *off)
 }
 
 /**
- * __idpf_chk_linearize - Check skb is not using too many buffers
+ * __idpf_chk_linearize - Check skb is analt using too many buffers
  * @skb: send buffer
  * @max_bufs: maximum number of buffers
  *
  * For TSO we need to count the TSO header and segment payload separately.  As
  * such we need to check cases where we have max_bufs-1 fragments or more as we
  * can potentially require max_bufs+1 DMA transactions, 1 for the TSO header, 1
- * for the segment payload in the first descriptor, and another max_buf-1 for
+ * for the segment payload in the first descriptor, and aanalther max_buf-1 for
  * the fragments.
  */
 static bool __idpf_chk_linearize(struct sk_buff *skb, unsigned int max_bufs)
@@ -2446,7 +2446,7 @@ static bool __idpf_chk_linearize(struct sk_buff *skb, unsigned int max_bufs)
 	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
-	/* no need to check if number of frags is less than max_bufs - 1 */
+	/* anal need to check if number of frags is less than max_bufs - 1 */
 	nr_frags = shinfo->nr_frags;
 	if (nr_frags < (max_bufs - 1))
 		return false;
@@ -2644,7 +2644,7 @@ static netdev_tx_t idpf_tx_splitq_frame(struct sk_buff *skb,
 	if (test_bit(__IDPF_Q_FLOW_SCH_EN, tx_q->flags)) {
 		tx_params.dtype = IDPF_TX_DESC_DTYPE_FLEX_FLOW_SCHE;
 		tx_params.eop_cmd = IDPF_TXD_FLEX_FLOW_CMD_EOP;
-		/* Set the RE bit to catch any packets that may have not been
+		/* Set the RE bit to catch any packets that may have analt been
 		 * stashed during RS completion cleaning. MIN_GAP is set to
 		 * MIN_RING size to ensure it will be set at least once each
 		 * time around the ring.
@@ -2713,8 +2713,8 @@ netdev_tx_t idpf_tx_splitq_start(struct sk_buff *skb,
  */
 enum pkt_hash_types idpf_ptype_to_htype(const struct idpf_rx_ptype_decoded *decoded)
 {
-	if (!decoded->known)
-		return PKT_HASH_TYPE_NONE;
+	if (!decoded->kanalwn)
+		return PKT_HASH_TYPE_ANALNE;
 	if (decoded->payload_layer == IDPF_RX_PTYPE_PAYLOAD_LAYER_PAY2 &&
 	    decoded->inner_prot)
 		return PKT_HASH_TYPE_L4;
@@ -2724,7 +2724,7 @@ enum pkt_hash_types idpf_ptype_to_htype(const struct idpf_rx_ptype_decoded *deco
 	if (decoded->outer_ip == IDPF_RX_PTYPE_OUTER_L2)
 		return PKT_HASH_TYPE_L2;
 
-	return PKT_HASH_TYPE_NONE;
+	return PKT_HASH_TYPE_ANALNE;
 }
 
 /**
@@ -2782,7 +2782,7 @@ static void idpf_rx_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 	if (ipv6 && csum_bits->ipv6exadd)
 		return;
 
-	/* check for L4 errors and handle packets that were not able to be
+	/* check for L4 errors and handle packets that were analt able to be
 	 * checksummed
 	 */
 	if (csum_bits->l4e)
@@ -2941,10 +2941,10 @@ static int idpf_rx_process_skb_fields(struct idpf_queue *rxq,
 				 VIRTCHNL2_RX_FLEX_DESC_ADV_PTYPE_M);
 
 	decoded = rxq->vport->rx_ptype_lkup[rx_ptype];
-	/* If we don't know the ptype we can't do anything else with it. Just
+	/* If we don't kanalw the ptype we can't do anything else with it. Just
 	 * pass it up the stack as-is.
 	 */
-	if (!decoded.known)
+	if (!decoded.kanalwn)
 		return 0;
 
 	/* process RSS/hash */
@@ -3069,7 +3069,7 @@ static struct sk_buff *idpf_rx_hdr_construct_skb(struct idpf_queue *rxq,
 
 	/* More than likely, a payload fragment, which will use a page from
 	 * page_pool will be added to the SKB so mark it for recycle
-	 * preemptively. And if not, it's inconsequential.
+	 * preemptively. And if analt, it's inconsequential.
 	 */
 	skb_mark_for_recycle(skb);
 
@@ -3094,11 +3094,11 @@ static bool idpf_rx_splitq_test_staterr(const u8 stat_err_field,
  * @rx_desc: Rx descriptor for current buffer
  *
  * If the buffer is an EOP buffer, this function exits returning true,
- * otherwise return false indicating that this is in fact a non-EOP buffer.
+ * otherwise return false indicating that this is in fact a analn-EOP buffer.
  */
 static bool idpf_rx_splitq_is_eop(struct virtchnl2_rx_flex_desc_adv_nic_3 *rx_desc)
 {
-	/* if we are the last buffer then there is nothing else to do */
+	/* if we are the last buffer then there is analthing else to do */
 	return likely(idpf_rx_splitq_test_staterr(rx_desc->status_err0_qw1,
 						  IDPF_RXD_EOF_SPLITQ));
 }
@@ -3146,7 +3146,7 @@ static int idpf_rx_splitq_clean(struct idpf_queue *rxq, int budget)
 		 */
 		dma_rmb();
 
-		/* if the descriptor isn't done, no work yet to do */
+		/* if the descriptor isn't done, anal work yet to do */
 		gen_id = le16_get_bits(rx_desc->pktlen_gen_bufq_id,
 				       VIRTCHNL2_RX_FLEX_DESC_ADV_GEN_M);
 
@@ -3229,7 +3229,7 @@ bypass_hsplit:
 		idpf_rx_post_buf_refill(refillq, buf_id);
 
 		IDPF_RX_BUMP_NTC(rxq, ntc);
-		/* skip if it is non EOP desc */
+		/* skip if it is analn EOP desc */
 		if (!idpf_rx_splitq_is_eop(rx_desc))
 			continue;
 
@@ -3290,7 +3290,7 @@ static int idpf_rx_update_bufq_desc(struct idpf_queue *bufq, u16 refill_desc,
 
 	addr = idpf_alloc_page(bufq->pp, buf, bufq->rx_buf_size);
 	if (unlikely(addr == DMA_MAPPING_ERROR))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf_desc->pkt_addr = cpu_to_le64(addr);
 	buf_desc->qword0.buf_id = cpu_to_le16(buf_id);
@@ -3552,7 +3552,7 @@ static void idpf_update_dim_sample(struct idpf_q_vector *q_vector,
 	dim_update_sample(q_vector->total_events, packets, bytes, dim_sample);
 	dim_sample->comp_ctr = 0;
 
-	/* if dim settings get stale, like when not updated for 1 second or
+	/* if dim settings get stale, like when analt updated for 1 second or
 	 * longer, force it to start again. This addresses the frequent case
 	 * of an idle queue being switched to by the scheduler.
 	 */
@@ -3564,10 +3564,10 @@ static void idpf_update_dim_sample(struct idpf_q_vector *q_vector,
  * idpf_net_dim - Update net DIM algorithm
  * @q_vector: the vector associated with the interrupt
  *
- * Create a DIM sample and notify net_dim() so that it can possibly decide
+ * Create a DIM sample and analtify net_dim() so that it can possibly decide
  * a new ITR value based on incoming packets, bytes, and interrupts.
  *
- * This function is a no-op if the queue is not configured to dynamic ITR.
+ * This function is a anal-op if the queue is analt configured to dynamic ITR.
  */
 static void idpf_net_dim(struct idpf_q_vector *q_vector)
 {
@@ -3628,7 +3628,7 @@ void idpf_vport_intr_update_itr_ena_irq(struct idpf_q_vector *q_vector)
 	idpf_net_dim(q_vector);
 
 	intval = idpf_vport_intr_buildreg_itr(q_vector,
-					      IDPF_NO_ITR_UPDATE_IDX, 0);
+					      IDPF_ANAL_ITR_UPDATE_IDX, 0);
 
 	writel(intval, q_vector->intr_reg.dyn_ctl);
 }
@@ -3841,7 +3841,7 @@ static void idpf_vport_intr_napi_ena_all(struct idpf_vport *vport)
  * @budget: Used to determine if we are in netpoll
  * @cleaned: returns number of packets cleaned
  *
- * Returns false if clean is not complete else returns true
+ * Returns false if clean is analt complete else returns true
  */
 static bool idpf_tx_splitq_clean_all(struct idpf_q_vector *q_vec,
 				     int budget, int *cleaned)
@@ -3867,7 +3867,7 @@ static bool idpf_tx_splitq_clean_all(struct idpf_q_vector *q_vec,
  * @budget: Used to determine if we are in netpoll
  * @cleaned: returns number of packets cleaned
  *
- * Returns false if clean is not complete else returns true
+ * Returns false if clean is analt complete else returns true
  */
 static bool idpf_rx_splitq_clean_all(struct idpf_q_vector *q_vec, int budget,
 				     int *cleaned)
@@ -3886,7 +3886,7 @@ static bool idpf_rx_splitq_clean_all(struct idpf_q_vector *q_vec, int budget,
 		int pkts_cleaned_per_q;
 
 		pkts_cleaned_per_q = idpf_rx_splitq_clean(rxq, budget_per_q);
-		/* if we clean as many as budgeted, we must not be done */
+		/* if we clean as many as budgeted, we must analt be done */
 		if (pkts_cleaned_per_q >= budget_per_q)
 			clean_complete = false;
 		pkts_cleaned += pkts_cleaned_per_q;
@@ -3921,7 +3921,7 @@ static int idpf_vport_splitq_napi_poll(struct napi_struct *napi, int budget)
 	clean_complete = idpf_rx_splitq_clean_all(q_vector, budget, &work_done);
 	clean_complete &= idpf_tx_splitq_clean_all(q_vector, budget, &work_done);
 
-	/* If work not completed, return budget and polling will return */
+	/* If work analt completed, return budget and polling will return */
 	if (!clean_complete)
 		return budget;
 
@@ -4053,7 +4053,7 @@ static int idpf_vport_intr_init_vec_idx(struct idpf_vport *vport)
 	total_vecs = idpf_get_reserved_vecs(adapter);
 	vecids = kcalloc(total_vecs, sizeof(u16), GFP_KERNEL);
 	if (!vecids)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idpf_get_vec_ids(adapter, vecids, total_vecs, &ac->vchunks);
 
@@ -4095,7 +4095,7 @@ static void idpf_vport_intr_napi_add_all(struct idpf_vport *vport)
  * @vport: virtual port
  *
  * We allocate one q_vector per queue interrupt. If allocation fails we
- * return -ENOMEM.
+ * return -EANALMEM.
  */
 int idpf_vport_intr_alloc(struct idpf_vport *vport)
 {
@@ -4106,7 +4106,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 	vport->q_vectors = kcalloc(vport->num_q_vectors,
 				   sizeof(struct idpf_q_vector), GFP_KERNEL);
 	if (!vport->q_vectors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	txqs_per_vector = DIV_ROUND_UP(vport->num_txq, vport->num_q_vectors);
 	rxqs_per_vector = DIV_ROUND_UP(vport->num_rxq, vport->num_q_vectors);
@@ -4130,7 +4130,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 				       sizeof(struct idpf_queue *),
 				       GFP_KERNEL);
 		if (!q_vector->tx) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 
@@ -4138,7 +4138,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 				       sizeof(struct idpf_queue *),
 				       GFP_KERNEL);
 		if (!q_vector->rx) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 
@@ -4149,7 +4149,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport)
 					 sizeof(struct idpf_queue *),
 					 GFP_KERNEL);
 		if (!q_vector->bufq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto error;
 		}
 	}
@@ -4257,14 +4257,14 @@ int idpf_init_rss(struct idpf_vport *vport)
 	lut_size = rss_data->rss_lut_size * sizeof(u32);
 	rss_data->rss_lut = kzalloc(lut_size, GFP_KERNEL);
 	if (!rss_data->rss_lut)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rss_data->cached_lut = kzalloc(lut_size, GFP_KERNEL);
 	if (!rss_data->cached_lut) {
 		kfree(rss_data->rss_lut);
 		rss_data->rss_lut = NULL;
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Fill the default RSS lut values */

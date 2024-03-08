@@ -46,7 +46,7 @@ struct atusb {
 	struct ieee802154_hw *hw;
 	struct usb_device *usb_dev;
 	struct atusb_chip_data *data;
-	int shutdown;			/* non-zero if shutting down */
+	int shutdown;			/* analn-zero if shutting down */
 	int err;			/* set by first error */
 
 	/* RX variables */
@@ -62,7 +62,7 @@ struct atusb {
 
 	/* Firmware variable */
 	unsigned char fw_ver_maj;	/* Firmware major version number */
-	unsigned char fw_ver_min;	/* Firmware minor version number */
+	unsigned char fw_ver_min;	/* Firmware mianalr version number */
 	unsigned char fw_hw_type;	/* Firmware hardware type */
 };
 
@@ -145,7 +145,7 @@ static int atusb_submit_rx_urb(struct atusb *atusb, struct urb *urb)
 		if (!skb) {
 			dev_warn_ratelimited(&usb_dev->dev,
 					     "atusb_in: can't allocate skb\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		skb_put(skb, MAX_RX_XFER);
 		SKB_ATUSB(skb) = atusb;
@@ -189,7 +189,7 @@ static void atusb_work_urbs(struct work_struct *work)
 			      msecs_to_jiffies(ATUSB_ALLOC_DELAY_MS) + 1);
 }
 
-/* ----- Asynchronous USB -------------------------------------------------- */
+/* ----- Asynchroanalus USB -------------------------------------------------- */
 
 static void atusb_tx_done(struct atusb *atusb, u8 seq, int reason)
 {
@@ -206,7 +206,7 @@ static void atusb_tx_done(struct atusb *atusb, u8 seq, int reason)
 	} else {
 		/* TODO I experience this case when atusb has a tx complete
 		 * irq before probing, we should fix the firmware it's an
-		 * unlikely case now that seq == expect is then true, but can
+		 * unlikely case analw that seq == expect is then true, but can
 		 * happen and fail with a tx_skb = NULL;
 		 */
 		ieee802154_xmit_hw_error(atusb->hw, atusb->tx_skb);
@@ -239,8 +239,8 @@ static void atusb_in_good(struct urb *urb)
 		case TRAC_CHANNEL_ACCESS_FAILURE:
 			result = IEEE802154_CHANNEL_ACCESS_FAILURE;
 			break;
-		case TRAC_NO_ACK:
-			result = IEEE802154_NO_ACK;
+		case TRAC_ANAL_ACK:
+			result = IEEE802154_ANAL_ACK;
 			break;
 		default:
 			result = IEEE802154_SYSTEM_ERROR;
@@ -280,7 +280,7 @@ static void atusb_in(struct urb *urb)
 	dev_dbg(&usb_dev->dev, "%s: status %d len %d\n", __func__,
 		urb->status, urb->actual_length);
 	if (urb->status) {
-		if (urb->status == -ENOENT) { /* being killed */
+		if (urb->status == -EANALENT) { /* being killed */
 			kfree_skb(skb);
 			urb->context = NULL;
 			return;
@@ -318,7 +318,7 @@ static int atusb_alloc_urbs(struct atusb *atusb, int n)
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			atusb_free_urbs(atusb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		usb_anchor_urb(urb, &atusb->idle_urbs);
 		usb_free_urb(urb);
@@ -455,7 +455,7 @@ atusb_txpower(struct ieee802154_hw *hw, s32 mbm)
 	if (atusb->data)
 		return atusb->data->set_txpower(hw, mbm);
 	else
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 }
 
 static int
@@ -585,7 +585,7 @@ atusb_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
 static int atusb_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	struct atusb *atusb = hw->priv;
-	int ret = -ENOTSUPP;
+	int ret = -EANALTSUPP;
 
 	if (atusb->data) {
 		ret = atusb->data->set_channel(hw, page, channel);
@@ -762,14 +762,14 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 			atusb->data = &hulusb_chip_data;
 			break;
 		default:
-			hw_name = "UNKNOWN";
-			atusb->err = -ENOTSUPP;
-			ret = -ENOTSUPP;
+			hw_name = "UNKANALWN";
+			atusb->err = -EANALTSUPP;
+			ret = -EANALTSUPP;
 			break;
 		}
 
 		dev_info(&usb_dev->dev,
-			 "Firmware: major: %u, minor: %u, hardware type: %s (%d)\n",
+			 "Firmware: major: %u, mianalr: %u, hardware type: %s (%d)\n",
 			 atusb->fw_ver_maj, atusb->fw_ver_min, hw_name,
 			 atusb->fw_hw_type);
 	}
@@ -791,7 +791,7 @@ static int atusb_get_and_show_build(struct atusb *atusb)
 
 	build = kmalloc(ATUSB_BUILD_SIZE + 1, GFP_KERNEL);
 	if (!build)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usb_control_msg(atusb->usb_dev, usb_rcvctrlpipe(usb_dev, 0), ATUSB_BUILD,
 			      ATUSB_REQ_FROM_DEV, 0, 0, build, ATUSB_BUILD_SIZE, 1000);
@@ -850,7 +850,7 @@ static int atusb_get_and_conf_chip(struct atusb *atusb)
 
 	if ((man_id_1 << 8 | man_id_0) != ATUSB_JEDEC_ATMEL) {
 		dev_err(&usb_dev->dev,
-			"non-Atmel transceiver xxxx%02x%02x\n",
+			"analn-Atmel transceiver xxxx%02x%02x\n",
 			man_id_1, man_id_0);
 		goto fail;
 	}
@@ -901,8 +901,8 @@ static int atusb_get_and_conf_chip(struct atusb *atusb)
 	return 0;
 
 fail:
-	atusb->err = -ENODEV;
-	return -ENODEV;
+	atusb->err = -EANALDEV;
+	return -EANALDEV;
 }
 
 static int atusb_set_extended_addr(struct atusb *atusb)
@@ -913,7 +913,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	u64 addr;
 	int ret;
 
-	/* Firmware versions before 0.3 do not support the EUI64_READ command.
+	/* Firmware versions before 0.3 do analt support the EUI64_READ command.
 	 * Just use a random address and be done.
 	 */
 	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
@@ -921,7 +921,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 		return 0;
 	}
 
-	/* Firmware is new enough so we fetch the address from EEPROM */
+	/* Firmware is new eanalugh so we fetch the address from EEPROM */
 	ret = usb_control_msg_recv(atusb->usb_dev, 0, ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
 				   buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000, GFP_KERNEL);
 	if (ret < 0) {
@@ -931,9 +931,9 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	}
 
 	memcpy(&extended_addr, buffer, IEEE802154_EXTENDED_ADDR_LEN);
-	/* Check if read address is not empty and the unicast bit is set correctly */
+	/* Check if read address is analt empty and the unicast bit is set correctly */
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
-		dev_info(&usb_dev->dev, "no permanent extended address found, random address set\n");
+		dev_info(&usb_dev->dev, "anal permanent extended address found, random address set\n");
 		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
 	} else {
 		atusb->hw->phy->perm_extended_addr = extended_addr;
@@ -953,11 +953,11 @@ static int atusb_probe(struct usb_interface *interface,
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
 	struct ieee802154_hw *hw;
 	struct atusb *atusb = NULL;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	hw = ieee802154_alloc_hw(sizeof(struct atusb), &atusb_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atusb = hw->priv;
 	atusb->hw = hw;
@@ -1005,7 +1005,7 @@ static int atusb_probe(struct usb_interface *interface,
 	if (ret)
 		goto fail;
 
-	/* If we just powered on, we're now in P_ON and need to enter TRX_OFF
+	/* If we just powered on, we're analw in P_ON and need to enter TRX_OFF
 	 * explicitly. Any resets after that will send us straight to TRX_OFF,
 	 * making the command below redundant.
 	 */

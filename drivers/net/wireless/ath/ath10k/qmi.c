@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/completion.h>
@@ -20,7 +20,7 @@
 #include <net/sock.h>
 
 #include "debug.h"
-#include "snoc.h"
+#include "sanalc.h"
 
 #define ATH10K_QMI_CLIENT_ID		0x4b4e454c
 #define ATH10K_QMI_TIMEOUT		30
@@ -247,17 +247,17 @@ static int ath10k_qmi_bdf_dnld_send_sync(struct ath10k_qmi *qmi)
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	temp = ar->normal_mode_fw.board_data;
-	remaining = ar->normal_mode_fw.board_len;
+	temp = ar->analrmal_mode_fw.board_data;
+	remaining = ar->analrmal_mode_fw.board_len;
 
 	while (remaining) {
 		req->valid = 1;
 		req->file_id_valid = 1;
 		req->file_id = 0;
 		req->total_size_valid = 1;
-		req->total_size = ar->normal_mode_fw.board_len;
+		req->total_size = ar->analrmal_mode_fw.board_len;
 		req->seg_id_valid = 1;
 		req->data_valid = 1;
 		req->end_valid = 1;
@@ -295,7 +295,7 @@ static int ath10k_qmi_bdf_dnld_send_sync(struct ath10k_qmi *qmi)
 		 * get a QMI_ERR_MALFORMED_MSG_V01 error, but the FW is still
 		 * willing to use the BDF.  For some platforms, all the valid
 		 * released BDFs fail this CRC check, so attempt to detect this
-		 * scenario and treat it as non-fatal.
+		 * scenario and treat it as analn-fatal.
 		 */
 		if (resp.resp.result != QMI_RESULT_SUCCESS_V01 &&
 		    !(req->end == 1 &&
@@ -326,14 +326,14 @@ static int ath10k_qmi_send_cal_report_req(struct ath10k_qmi *qmi)
 	struct wlfw_cal_report_resp_msg_v01 resp = {};
 	struct wlfw_cal_report_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct qmi_txn txn;
 	int i, j = 0;
 	int ret;
 
-	if (ar_snoc->xo_cal_supported) {
+	if (ar_sanalc->xo_cal_supported) {
 		req.xo_cal_data_valid = 1;
-		req.xo_cal_data = ar_snoc->xo_cal_data;
+		req.xo_cal_data = ar_sanalc->xo_cal_data;
 	}
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_cal_report_resp_msg_v01_ei,
@@ -380,8 +380,8 @@ out:
 static int
 ath10k_qmi_mode_send_sync_msg(struct ath10k *ar, enum wlfw_driver_mode_enum_v01 mode)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
+	struct ath10k_qmi *qmi = ar_sanalc->qmi;
 	struct wlfw_wlan_mode_resp_msg_v01 resp = {};
 	struct wlfw_wlan_mode_req_msg_v01 req = {};
 	struct qmi_txn txn;
@@ -429,8 +429,8 @@ ath10k_qmi_cfg_send_sync_msg(struct ath10k *ar,
 			     struct ath10k_qmi_wlan_enable_cfg *config,
 			     const char *version)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
+	struct ath10k_qmi *qmi = ar_sanalc->qmi;
 	struct wlfw_wlan_cfg_resp_msg_v01 resp = {};
 	struct wlfw_wlan_cfg_req_msg_v01 *req;
 	struct qmi_txn txn;
@@ -439,7 +439,7 @@ ath10k_qmi_cfg_send_sync_msg(struct ath10k *ar,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn,
 			   wlfw_wlan_cfg_resp_msg_v01_ei,
@@ -554,7 +554,7 @@ static void ath10k_qmi_add_wlan_ver_smem(struct ath10k *ar, const char *fw_build
 				  &smem_item_size);
 
 	if (IS_ERR(table_ptr)) {
-		ath10k_err(ar, "smem image version table not found\n");
+		ath10k_err(ar, "smem image version table analt found\n");
 		return;
 	}
 
@@ -574,13 +574,13 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_cap_resp_msg_v01 *resp;
 	struct wlfw_cap_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
 	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_cap_resp_msg_v01_ei, resp);
 	if (ret < 0)
@@ -631,7 +631,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 		strscpy(qmi->fw_build_id, resp->fw_build_id,
 			MAX_BUILD_ID_LEN + 1);
 
-	if (!test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
+	if (!test_bit(ATH10K_SANALC_FLAG_REGISTERED, &ar_sanalc->flags)) {
 		ath10k_info(ar, "qmi chip_id 0x%x chip_family 0x%x board_id 0x%x soc_id 0x%x",
 			    qmi->chip_info.chip_id, qmi->chip_info.chip_family,
 			    qmi->board_info.board_id, qmi->soc_info.soc_id);
@@ -656,7 +656,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	struct wlfw_host_cap_req_msg_v01 req = {};
 	const struct qmi_elem_info *req_ei;
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -668,7 +668,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	if (ret < 0)
 		goto out;
 
-	if (test_bit(ATH10K_SNOC_FLAG_8BIT_HOST_CAP_QUIRK, &ar_snoc->flags))
+	if (test_bit(ATH10K_SANALC_FLAG_8BIT_HOST_CAP_QUIRK, &ar_sanalc->flags))
 		req_ei = wlfw_host_cap_8bit_req_msg_v01_ei;
 	else
 		req_ei = wlfw_host_cap_req_msg_v01_ei;
@@ -687,9 +687,9 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 	if (ret < 0)
 		goto out;
 
-	/* older FW didn't support this request, which is not fatal */
+	/* older FW didn't support this request, which is analt fatal */
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01 &&
-	    resp.resp.error != QMI_ERR_NOT_SUPPORTED_V01) {
+	    resp.resp.error != QMI_ERR_ANALT_SUPPORTED_V01) {
 		ath10k_err(ar, "host capability request rejected: %d\n", resp.resp.error);
 		ret = -EINVAL;
 		goto out;
@@ -704,9 +704,9 @@ out:
 
 int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct wlfw_ini_resp_msg_v01 resp = {};
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_qmi *qmi = ar_sanalc->qmi;
 	struct wlfw_ini_req_msg_v01 req = {};
 	struct qmi_txn txn;
 	int ret;
@@ -753,7 +753,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_ind_register_resp_msg_v01 resp = {};
 	struct wlfw_ind_register_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct qmi_txn txn;
 	int ret;
 
@@ -764,7 +764,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 	req.msa_ready_enable_valid = 1;
 	req.msa_ready_enable = 1;
 
-	if (ar_snoc->xo_cal_supported) {
+	if (ar_sanalc->xo_cal_supported) {
 		req.xo_cal_enable_valid = 1;
 		req.xo_cal_enable = 1;
 	}
@@ -815,7 +815,7 @@ static void ath10k_qmi_event_server_arrive(struct ath10k_qmi *qmi)
 		return;
 
 	if (qmi->fw_ready) {
-		ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
+		ath10k_sanalc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
 		return;
 	}
 
@@ -857,7 +857,7 @@ static int ath10k_qmi_fetch_board_file(struct ath10k_qmi *qmi)
 	struct ath10k *ar = qmi->ar;
 	int ret;
 
-	ar->hif.bus = ATH10K_BUS_SNOC;
+	ar->hif.bus = ATH10K_BUS_SANALC;
 	ar->id.qmi_ids_valid = true;
 	ar->id.qmi_board_id = qmi->board_info.board_id;
 	ar->id.qmi_chip_id = qmi->chip_info.chip_id;
@@ -865,7 +865,7 @@ static int ath10k_qmi_fetch_board_file(struct ath10k_qmi *qmi)
 
 	ret = ath10k_core_check_dt(ar);
 	if (ret)
-		ath10k_dbg(ar, ATH10K_DBG_QMI, "DT bdf variant name not set.\n");
+		ath10k_dbg(ar, ATH10K_DBG_QMI, "DT bdf variant name analt set.\n");
 
 	return ath10k_core_fetch_board_file(qmi->ar, ATH10K_BD_IE_BOARD);
 }
@@ -879,7 +879,7 @@ ath10k_qmi_driver_event_post(struct ath10k_qmi *qmi,
 
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->type = type;
 	event->data = data;
@@ -896,15 +896,15 @@ ath10k_qmi_driver_event_post(struct ath10k_qmi *qmi,
 static void ath10k_qmi_event_server_exit(struct ath10k_qmi *qmi)
 {
 	struct ath10k *ar = qmi->ar;
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 
 	ath10k_qmi_remove_msa_permission(qmi);
 	ath10k_core_free_board_files(ar);
-	if (!test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags) &&
-	    !test_bit(ATH10K_SNOC_FLAG_MODEM_STOPPED, &ar_snoc->flags))
-		ath10k_snoc_fw_crashed_dump(ar);
+	if (!test_bit(ATH10K_SANALC_FLAG_UNREGISTERING, &ar_sanalc->flags) &&
+	    !test_bit(ATH10K_SANALC_FLAG_MODEM_STOPPED, &ar_sanalc->flags))
+		ath10k_sanalc_fw_crashed_dump(ar);
 
-	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
+	ath10k_sanalc_fw_indication(ar, ATH10K_QMI_EVENT_FW_DOWN_IND);
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service disconnected\n");
 }
 
@@ -931,7 +931,7 @@ static int ath10k_qmi_event_fw_ready_ind(struct ath10k_qmi *qmi)
 	struct ath10k *ar = qmi->ar;
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw ready event received\n");
-	ath10k_snoc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
+	ath10k_sanalc_fw_indication(ar, ATH10K_QMI_EVENT_FW_READY_IND);
 
 	return 0;
 }
@@ -981,7 +981,7 @@ static int ath10k_qmi_new_server(struct qmi_handle *qmi_hdl,
 	int ret;
 
 	sq->sq_family = AF_QIPCRTR;
-	sq->sq_node = service->node;
+	sq->sq_analde = service->analde;
 	sq->sq_port = service->port;
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service found\n");
@@ -1010,7 +1010,7 @@ static void ath10k_qmi_del_server(struct qmi_handle *qmi_hdl,
 	/*
 	 * The del_server event is to be processed only if coming from
 	 * the qmi server. The qmi infrastructure sends del_server, when
-	 * any client releases the qmi handle. In this case do not process
+	 * any client releases the qmi handle. In this case do analt process
 	 * this del_server event.
 	 */
 	if (qmi->state == ATH10K_QMI_STATE_INIT_DONE)
@@ -1062,19 +1062,19 @@ static void ath10k_qmi_driver_event_work(struct work_struct *work)
 
 int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
 	struct device *dev = ar->dev;
 	struct ath10k_qmi *qmi;
 	int ret;
 
 	qmi = kzalloc(sizeof(*qmi), GFP_KERNEL);
 	if (!qmi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmi->ar = ar;
-	ar_snoc->qmi = qmi;
+	ar_sanalc->qmi = qmi;
 
-	if (of_property_read_bool(dev->of_node, "qcom,msa-fixed-perm"))
+	if (of_property_read_bool(dev->of_analde, "qcom,msa-fixed-perm"))
 		qmi->msa_fixed_perm = true;
 
 	ret = qmi_handle_init(&qmi->qmi_hdl,
@@ -1115,15 +1115,15 @@ err:
 
 int ath10k_qmi_deinit(struct ath10k *ar)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct ath10k_sanalc *ar_sanalc = ath10k_sanalc_priv(ar);
+	struct ath10k_qmi *qmi = ar_sanalc->qmi;
 
 	qmi->state = ATH10K_QMI_STATE_DEINIT;
 	qmi_handle_release(&qmi->qmi_hdl);
 	cancel_work_sync(&qmi->event_work);
 	destroy_workqueue(qmi->event_wq);
 	kfree(qmi);
-	ar_snoc->qmi = NULL;
+	ar_sanalc->qmi = NULL;
 
 	return 0;
 }

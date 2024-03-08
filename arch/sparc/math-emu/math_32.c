@@ -10,7 +10,7 @@
  * emulation code, because it's pretty simple. What we do is
  * essentially analyse the instruction to work out what the operation
  * is and which registers are involved. We then execute the appropriate
- * FXXXX function. [The floating point queue introduces a minor wrinkle;
+ * FXXXX function. [The floating point queue introduces a mianalr wrinkle;
  * see below...]
  * The fxxxxx.c files each emulate a single insn. They look relatively
  * simple because the complexity is hidden away in an unholy tangle
@@ -97,7 +97,7 @@
 #define FQTOI	0x0d3		/* v8 */
 #define FCMPQ	0x053		/* v8 */
 #define FCMPEQ	0x057		/* v8 */
-/* single/double instructions (subnormal): should all work */
+/* single/double instructions (subanalrmal): should all work */
 #define FSQRTS	0x029		/* v7 */
 #define FSQRTD	0x02a		/* v7 */
 #define FADDS	0x041		/* v6 */
@@ -175,7 +175,7 @@ int do_mathemu(struct pt_regs *regs, struct task_struct *fpt)
 		       (unsigned long)fpt->thread.fpqueue[i].insn_addr);
 #endif
 
-	if (fpt->thread.fpqdepth == 0) {                   /* no queue, guilty insn is at regs->pc */
+	if (fpt->thread.fpqdepth == 0) {                   /* anal queue, guilty insn is at regs->pc */
 #ifdef DEBUG_MATHEMU
 		printk("precise trap at %08lx\n", regs->pc);
 #endif
@@ -190,13 +190,13 @@ int do_mathemu(struct pt_regs *regs, struct task_struct *fpt)
 		return retcode;
 	}
 
-	/* Normal case: need to empty the queue... */
+	/* Analrmal case: need to empty the queue... */
 	for (i = 0; i < fpt->thread.fpqdepth; i++) {
 		retcode = do_one_mathemu(fpt->thread.fpqueue[i].insn, &(fpt->thread.fsr), fpt->thread.float_regs);
-		if (!retcode)                               /* insn failed, no point doing any more */
+		if (!retcode)                               /* insn failed, anal point doing any more */
 			break;
 	}
-	/* Now empty the queue and clear the queue_not_empty flag */
+	/* Analw empty the queue and clear the queue_analt_empty flag */
 	if (retcode)
 		fpt->thread.fsr &= ~(0x3000 | FSR_CEXC_MASK);
 	else
@@ -250,7 +250,7 @@ static inline int record_exception(unsigned long *pfsr, int eflag)
 
 	/* Set the AEXC field, rule is:
 	 *
-	 *    If a trap would not be generated, the
+	 *    If a trap would analt be generated, the
 	 *    CEXC just generated is OR'd into the
 	 *    existing value of AEXC.
 	 */
@@ -277,8 +277,8 @@ static int do_one_mathemu(u32 insn, unsigned long *pfsr, unsigned long *fregs)
 	/* Emulate the given insn, updating fsr and fregs appropriately. */
 	int type = 0;
 	/* r is rd, b is rs2 and a is rs1. The *u arg tells
-	   whether the argument should be packed/unpacked (0 - do not unpack/pack, 1 - unpack/pack)
-	   non-u args tells the size of the argument (0 - no argument, 1 - single, 2 - double, 3 - quad */
+	   whether the argument should be packed/unpacked (0 - do analt unpack/pack, 1 - unpack/pack)
+	   analn-u args tells the size of the argument (0 - anal argument, 1 - single, 2 - double, 3 - quad */
 #define TYPE(dummy, r, ru, b, bu, a, au) type = (au << 2) | (a << 0) | (bu << 5) | (b << 3) | (ru << 8) | (r << 6)
 	int freg;
 	argp rs1 = NULL, rs2 = NULL, rd = NULL;

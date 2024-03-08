@@ -6,12 +6,12 @@
 
 #define FW_CFG_ACPI_DEVICE_ID	"QEMU0002"
 
-/* selector key values for "well-known" fw_cfg entries */
+/* selector key values for "well-kanalwn" fw_cfg entries */
 #define FW_CFG_SIGNATURE	0x00
 #define FW_CFG_ID		0x01
 #define FW_CFG_UUID		0x02
 #define FW_CFG_RAM_SIZE		0x03
-#define FW_CFG_NOGRAPHIC	0x04
+#define FW_CFG_ANALGRAPHIC	0x04
 #define FW_CFG_NB_CPUS		0x05
 #define FW_CFG_MACHINE_ID	0x06
 #define FW_CFG_KERNEL_ADDR	0x07
@@ -84,7 +84,7 @@ struct fw_cfg_dma_access {
 
 #define FW_CFG_VMCOREINFO_FILENAME "etc/vmcoreinfo"
 
-#define FW_CFG_VMCOREINFO_FORMAT_NONE 0x0
+#define FW_CFG_VMCOREINFO_FORMAT_ANALNE 0x0
 #define FW_CFG_VMCOREINFO_FORMAT_ELF 0x1
 
 struct fw_cfg_vmcoreinfo {

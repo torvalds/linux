@@ -31,8 +31,8 @@
 #define RT1019_TDM_1				0x0400
 #define RT1019_TDM_2				0x0401
 #define RT1019_TDM_3				0x0402
-#define RT1019_DMIX_MONO_1			0x0504
-#define RT1019_DMIX_MONO_2			0x0505
+#define RT1019_DMIX_MOANAL_1			0x0504
+#define RT1019_DMIX_MOANAL_2			0x0505
 #define RT1019_BEEP_1				0x0b00
 #define RT1019_BEEP_2				0x0b01
 
@@ -93,7 +93,7 @@
 
 /* 0x0400 TDM Control-1 */
 #define RT1019_TDM_BCLK_MASK		(0x1 << 6)
-#define RT1019_TDM_BCLK_NORM		(0x0 << 6)
+#define RT1019_TDM_BCLK_ANALRM		(0x0 << 6)
 #define RT1019_TDM_BCLK_INV			(0x1 << 6)
 #define RT1019_TDM_CL_MASK			(0x7)
 #define RT1019_TDM_CL_8				(0x4)

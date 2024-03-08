@@ -24,23 +24,23 @@
  * Ks = 0, Kp = 1.
  */
 #define SPRN_MI_AP	786
-#define MI_Ks		0x80000000	/* Should not be set */
+#define MI_Ks		0x80000000	/* Should analt be set */
 #define MI_Kp		0x40000000	/* Should always be set */
 
 /*
  * All pages' PP data bits are set to either 001 or 011 by copying _PAGE_EXEC
  * into bit 21 in the ITLBmiss handler (bit 21 is the middle bit), which means
- * respectively NA for All or X for Supervisor and no access for User.
+ * respectively NA for All or X for Supervisor and anal access for User.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
- * _PAGE_ACCESSED is also managed via APG. When _PAGE_ACCESSED is not set, say
+ * _PAGE_ACCESSED is also managed via APG. When _PAGE_ACCESSED is analt set, say
  * "all User" rules, that will lead to NA for all.
  * Therefore, we define 4 APG groups. lsb is _PAGE_ACCESSED
  * 0 => Kernel => 11 (all accesses performed according as user iaw page definition)
  * 1 => Kernel+Accessed => 01 (all accesses performed according to page definition)
  * 2 => User => 11 (all accesses performed according as user iaw page definition)
  * 3 => User+Accessed => 10 (all accesses performed according to swaped page definition) for KUEP
- * 4-15 => Not Used
+ * 4-15 => Analt Used
  */
 #define MI_APG_INIT	0xde000000
 
@@ -100,7 +100,7 @@
  * Ks = 0, Kp = 1.
  */
 #define SPRN_MD_AP	794
-#define MD_Ks		0x80000000	/* Should not be set */
+#define MD_Ks		0x80000000	/* Should analt be set */
 #define MD_Kp		0x40000000	/* Should always be set */
 
 /* See explanation above at the definition of MI_APG_INIT */

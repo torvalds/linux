@@ -50,12 +50,12 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 	 * subtleties:
 	 *
 	 * - That the I-cache maintenance for these instructions is complete
-	 *   *before* the kprobe BRK is written (and aarch64_insn_patch_text_nosync()
+	 *   *before* the kprobe BRK is written (and aarch64_insn_patch_text_analsync()
 	 *   ensures this, but just omits causing a Context-Synchronization-Event
 	 *   on all CPUS).
 	 *
 	 * - That the kprobe BRK results in an exception (and consequently a
-	 *   Context-Synchronoization-Event), which ensures that the CPU will
+	 *   Context-Synchroanalization-Event), which ensures that the CPU will
 	 *   fetch thesingle-step slot instructions *after* this, ensuring that
 	 *   the new instructions are used
 	 *
@@ -64,8 +64,8 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 	 * the BRK exception handler, so it is unnecessary to generate
 	 * Contex-Synchronization-Event via ISB again.
 	 */
-	aarch64_insn_patch_text_nosync(addr, p->opcode);
-	aarch64_insn_patch_text_nosync(addr + 1, BRK64_OPCODE_KPROBES_SS);
+	aarch64_insn_patch_text_analsync(addr, p->opcode);
+	aarch64_insn_patch_text_analsync(addr + 1, BRK64_OPCODE_KPROBES_SS);
 
 	/*
 	 * Needs restoring of return address after stepping xol.
@@ -76,7 +76,7 @@ static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 
 static void __kprobes arch_prepare_simulate(struct kprobe *p)
 {
-	/* This instructions is not executed xol. No need to adjust the PC */
+	/* This instructions is analt executed xol. Anal need to adjust the PC */
 	p->ainsn.api.restore = 0;
 }
 
@@ -87,7 +87,7 @@ static void __kprobes arch_simulate_insn(struct kprobe *p, struct pt_regs *regs)
 	if (p->ainsn.api.handler)
 		p->ainsn.api.handler((u32)p->opcode, (long)p->addr, regs);
 
-	/* single step simulated, now go for post processing */
+	/* single step simulated, analw go for post processing */
 	post_kprobe_handler(p, kcb, regs);
 }
 
@@ -106,17 +106,17 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	/* decode instruction */
 	switch (arm_kprobe_decode_insn(p->addr, &p->ainsn)) {
-	case INSN_REJECTED:	/* insn not supported */
+	case INSN_REJECTED:	/* insn analt supported */
 		return -EINVAL;
 
-	case INSN_GOOD_NO_SLOT:	/* insn need simulation */
+	case INSN_GOOD_ANAL_SLOT:	/* insn need simulation */
 		p->ainsn.api.insn = NULL;
 		break;
 
 	case INSN_GOOD:	/* instruction uses slot */
 		p->ainsn.api.insn = get_insn_slot();
 		if (!p->ainsn.api.insn)
-			return -ENOMEM;
+			return -EANALMEM;
 		break;
 	}
 
@@ -131,9 +131,9 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 void *alloc_insn_page(void)
 {
-	return __vmalloc_node_range(PAGE_SIZE, 1, VMALLOC_START, VMALLOC_END,
+	return __vmalloc_analde_range(PAGE_SIZE, 1, VMALLOC_START, VMALLOC_END,
 			GFP_KERNEL, PAGE_KERNEL_ROX, VM_FLUSH_RESET_PERMS,
-			NUMA_NO_NODE, __builtin_return_address(0));
+			NUMA_ANAL_ANALDE, __builtin_return_address(0));
 }
 
 /* arm kprobe: install breakpoint in text */
@@ -251,7 +251,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p,
 static void __kprobes
 post_kprobe_handler(struct kprobe *cur, struct kprobe_ctlblk *kcb, struct pt_regs *regs)
 {
-	/* return addr restore if non-branching insn */
+	/* return addr restore if analn-branching insn */
 	if (cur->ainsn.api.restore != 0)
 		instruction_pointer_set(regs, cur->ainsn.api.restore);
 
@@ -281,7 +281,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the ip points back to the probe address
 		 * and allow the page fault handler to continue as a
-		 * normal page fault.
+		 * analrmal page fault.
 		 */
 		instruction_pointer_set(regs, (unsigned long) cur->addr);
 		BUG_ON(!instruction_pointer(regs));
@@ -318,7 +318,7 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
 	}
 
 	if (cur_kprobe) {
-		/* Hit a kprobe inside another kprobe */
+		/* Hit a kprobe inside aanalther kprobe */
 		if (!reenter_kprobe(p, regs, kcb))
 			return DBG_HOOK_ERROR;
 	} else {
@@ -327,10 +327,10 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
 		/*
-		 * If we have no pre-handler or it returned 0, we
-		 * continue with normal processing.  If we have a
-		 * pre-handler and it returned non-zero, it will
-		 * modify the execution path and not need to single-step
+		 * If we have anal pre-handler or it returned 0, we
+		 * continue with analrmal processing.  If we have a
+		 * pre-handler and it returned analn-zero, it will
+		 * modify the execution path and analt need to single-step
 		 * Let's just reset current kprobe and exit.
 		 */
 		if (!p->pre_handler || !p->pre_handler(p, regs))
@@ -362,7 +362,7 @@ kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned long esr)
 		return DBG_HOOK_HANDLED;
 	}
 
-	/* not ours, kprobes should ignore it */
+	/* analt ours, kprobes should iganalre it */
 	return DBG_HOOK_ERROR;
 }
 
@@ -372,7 +372,7 @@ static struct break_hook kprobes_break_ss_hook = {
 };
 
 /*
- * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
+ * Provide a blacklist of symbols identifying ranges which cananalt be kprobed.
  * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
  */
 int __init arch_populate_kprobe_blacklist(void)

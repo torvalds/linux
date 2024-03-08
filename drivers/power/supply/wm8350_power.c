@@ -90,11 +90,11 @@ static int wm8350_charger_config(struct wm8350 *wm8350,
 
 	if (!policy) {
 		dev_warn(wm8350->dev,
-			 "No charger policy, charger not configured.\n");
+			 "Anal charger policy, charger analt configured.\n");
 		return -EINVAL;
 	}
 
-	/* make sure USB fast charge current is not > 500mA */
+	/* make sure USB fast charge current is analt > 500mA */
 	if (policy->fast_limit_USB_mA > 500) {
 		dev_err(wm8350->dev, "USB fast charge > 500mA\n");
 		return -EINVAL;
@@ -149,7 +149,7 @@ static int wm8350_batt_status(struct wm8350 *wm8350)
 		return POWER_SUPPLY_STATUS_CHARGING;
 
 	default:
-		return POWER_SUPPLY_STATUS_UNKNOWN;
+		return POWER_SUPPLY_STATUS_UNKANALWN;
 	}
 }
 
@@ -222,8 +222,8 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 		dev_warn(wm8350->dev, "battery < 2.85V\n");
 		break;
 
-		/* Supply change.  We will overnotify but it should do
-		 * no harm. */
+		/* Supply change.  We will overanaltify but it should do
+		 * anal harm. */
 	case WM8350_IRQ_EXT_USB_FB:
 	case WM8350_IRQ_EXT_WALL_FB:
 		wm8350_charger_config(wm8350, policy);
@@ -235,7 +235,7 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 		break;
 
 	default:
-		dev_err(wm8350->dev, "Unknown interrupt %d\n", irq);
+		dev_err(wm8350->dev, "Unkanalwn interrupt %d\n", irq);
 	}
 
 	return IRQ_HANDLED;
@@ -256,7 +256,7 @@ static int wm8350_ac_get_prop(struct power_supply *psy,
 		val->intval = !!(wm8350_get_supplies(wm8350) &
 				 WM8350_LINE_SUPPLY);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = wm8350_read_line_uvolts(wm8350);
 		break;
 	default:
@@ -268,7 +268,7 @@ static int wm8350_ac_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm8350_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 /*********************************************************************
@@ -286,7 +286,7 @@ static int wm8350_usb_get_prop(struct power_supply *psy,
 		val->intval = !!(wm8350_get_supplies(wm8350) &
 				 WM8350_USB_SUPPLY);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = wm8350_read_usb_uvolts(wm8350);
 		break;
 	default:
@@ -298,7 +298,7 @@ static int wm8350_usb_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm8350_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 };
 
 /*********************************************************************
@@ -330,13 +330,13 @@ static int wm8350_bat_get_charge_type(struct wm8350 *wm8350)
 	    WM8350_CHG_STS_MASK;
 	switch (state) {
 	case WM8350_CHG_STS_OFF:
-		return POWER_SUPPLY_CHARGE_TYPE_NONE;
+		return POWER_SUPPLY_CHARGE_TYPE_ANALNE;
 	case WM8350_CHG_STS_TRICKLE:
 		return POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
 	case WM8350_CHG_STS_FAST:
 		return POWER_SUPPLY_CHARGE_TYPE_FAST;
 	default:
-		return POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
+		return POWER_SUPPLY_CHARGE_TYPE_UNKANALWN;
 	}
 }
 
@@ -355,7 +355,7 @@ static int wm8350_bat_get_property(struct power_supply *psy,
 		val->intval = !!(wm8350_get_supplies(wm8350) &
 				 WM8350_BATT_SUPPLY);
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		val->intval = wm8350_read_battery_uvolts(wm8350);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
@@ -375,7 +375,7 @@ static int wm8350_bat_get_property(struct power_supply *psy,
 static enum power_supply_property wm8350_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };

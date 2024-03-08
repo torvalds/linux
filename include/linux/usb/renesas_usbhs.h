@@ -4,11 +4,11 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #ifndef RENESAS_USB_H
 #define RENESAS_USB_H
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 
@@ -82,9 +82,9 @@ struct renesas_usbhs_platform_callback {
 
 	/*
 	 * option:
-	 * extcon notifier to set host/peripheral mode.
+	 * extcon analtifier to set host/peripheral mode.
 	 */
-	int (*notifier)(struct notifier_block *nb, unsigned long event,
+	int (*analtifier)(struct analtifier_block *nb, unsigned long event,
 			void *data);
 };
 
@@ -127,7 +127,7 @@ struct renesas_usbhs_driver_param {
 	/*
 	 * option:
 	 *
-	 * delay time from notify_hotplug callback
+	 * delay time from analtify_hotplug callback
 	 */
 	int detection_delay; /* msec */
 

@@ -80,7 +80,7 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 	struct twl6040 *twl6040 = dev_get_drvdata(twl6040_core_dev);
 	int ret;
 
-	device_set_node(&pdev->dev, dev_fwnode(pdev->dev.parent));
+	device_set_analde(&pdev->dev, dev_fwanalde(pdev->dev.parent));
 
 	twl6040gpo_chip.base = -1;
 
@@ -93,14 +93,14 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &twl6040gpo_chip, NULL);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "could analt register gpiochip, %d\n", ret);
 		twl6040gpo_chip.ngpio = 0;
 	}
 
 	return ret;
 }
 
-/* Note:  this hardware lives inside an I2C-based multi-function device. */
+/* Analte:  this hardware lives inside an I2C-based multi-function device. */
 MODULE_ALIAS("platform:twl6040-gpo");
 
 static struct platform_driver gpo_twl6040_driver = {

@@ -146,14 +146,14 @@
 
 /* Clock attribute for invalid use (reserved for internal usage) */
 #define Q6AFE_LPASS_CLK_ATTRIBUTE_INVALID		0x0
-/* Clock attribute for no couple case */
-#define Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO		0x1
+/* Clock attribute for anal couple case */
+#define Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_ANAL		0x1
 /* Clock attribute for dividend couple case */
 #define Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_DIVIDEND	0x2
 /* Clock attribute for divisor couple case */
 #define Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_DIVISOR	0x3
-/* Clock attribute for invert and no couple case */
-#define Q6AFE_LPASS_CLK_ATTRIBUTE_INVERT_COUPLE_NO	0x4
+/* Clock attribute for invert and anal couple case */
+#define Q6AFE_LPASS_CLK_ATTRIBUTE_INVERT_COUPLE_ANAL	0x4
 
 #define Q6AFE_CMAP_INVALID		0xFFFF
 

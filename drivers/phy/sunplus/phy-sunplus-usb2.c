@@ -3,9 +3,9 @@
 /*
  * Sunplus SP7021 USB 2.0 phy driver
  *
- * Copyright (C) 2022 Sunplus Technology Inc., All rights reserved.
+ * Copyright (C) 2022 Sunplus Techanallogy Inc., All rights reserved.
  *
- * Note 1 : non-posted write command for the registers accesses of
+ * Analte 1 : analn-posted write command for the registers accesses of
  * Sunplus SP7021.
  *
  */
@@ -244,7 +244,7 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 
 	usbphy = devm_kzalloc(&pdev->dev, sizeof(*usbphy), GFP_KERNEL);
 	if (!usbphy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usbphy->dev = &pdev->dev;
 
@@ -260,7 +260,7 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 	usbphy->moon4_regs = devm_ioremap(&pdev->dev, usbphy->moon4_res_mem->start,
 					  resource_size(usbphy->moon4_res_mem));
 	if (!usbphy->moon4_regs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usbphy->phy_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbphy->phy_clk))
@@ -270,7 +270,7 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(usbphy->rstc))
 		return PTR_ERR(usbphy->rstc);
 
-	of_property_read_u32(pdev->dev.of_node, "sunplus,disc-vol-addr-off",
+	of_property_read_u32(pdev->dev.of_analde, "sunplus,disc-vol-addr-off",
 			     &usbphy->disc_vol_addr_off);
 
 	phy = devm_phy_create(&pdev->dev, NULL, &sp_uphy_ops);

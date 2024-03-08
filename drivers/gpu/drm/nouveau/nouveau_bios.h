@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 Nouveau Project
+ * Copyright 2007-2008 Analuveau Project
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -8,21 +8,21 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __NOUVEAU_DISPBIOS_H__
-#define __NOUVEAU_DISPBIOS_H__
+#ifndef __ANALUVEAU_DISPBIOS_H__
+#define __ANALUVEAU_DISPBIOS_H__
 
 #define DCB_MAX_NUM_ENTRIES 16
 #define DCB_MAX_NUM_I2C_ENTRIES 16
@@ -34,7 +34,7 @@
 #define ROM16(x) get_unaligned_le16(&(x))
 #define ROM32(x) get_unaligned_le32(&(x))
 #define ROMPTR(d,x) ({            \
-	struct nouveau_drm *drm = nouveau_drm((d)); \
+	struct analuveau_drm *drm = analuveau_drm((d)); \
 	ROM16(x) ? &drm->vbios.data[ROM16(x)] : NULL; \
 })
 
@@ -57,7 +57,7 @@ struct dcb_table {
 	struct dcb_output entry[DCB_MAX_NUM_ENTRIES];
 };
 
-enum nouveau_or {
+enum analuveau_or {
 	DCB_OUTPUT_A = (1 << 0),
 	DCB_OUTPUT_B = (1 << 1),
 	DCB_OUTPUT_C = (1 << 2)
@@ -88,7 +88,7 @@ struct nvbios {
 	uint32_t dactestval;
 	uint32_t tvdactestval;
 	uint8_t digital_min_front_porch;
-	bool fp_no_ddc;
+	bool fp_anal_ddc;
 
 	spinlock_t lock;
 
@@ -160,14 +160,14 @@ int olddcb_outp_foreach(struct drm_device *, void *data,
 u8 *olddcb_conntab(struct drm_device *);
 u8 *olddcb_conn(struct drm_device *, u8 idx);
 
-int nouveau_bios_init(struct drm_device *);
-void nouveau_bios_takedown(struct drm_device *dev);
-int nouveau_run_vbios_init(struct drm_device *);
+int analuveau_bios_init(struct drm_device *);
+void analuveau_bios_takedown(struct drm_device *dev);
+int analuveau_run_vbios_init(struct drm_device *);
 struct dcb_connector_table_entry *
-nouveau_bios_connector_entry(struct drm_device *, int index);
-bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
-uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
-int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
+analuveau_bios_connector_entry(struct drm_device *, int index);
+bool analuveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
+uint8_t *analuveau_bios_embedded_edid(struct drm_device *);
+int analuveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
 					 bool *dl, bool *if_is_24bit);
 int run_tmds_table(struct drm_device *, struct dcb_output *,
 			  int head, int pxclk);

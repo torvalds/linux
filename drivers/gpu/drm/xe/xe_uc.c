@@ -76,7 +76,7 @@ int xe_uc_init_post_hwconfig(struct xe_uc *uc)
 {
 	int err;
 
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -128,7 +128,7 @@ int xe_uc_init_hwconfig(struct xe_uc *uc)
 {
 	int ret;
 
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -147,7 +147,7 @@ int xe_uc_init_hw(struct xe_uc *uc)
 {
 	int ret;
 
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -192,7 +192,7 @@ int xe_uc_fini_hw(struct xe_uc *uc)
 
 int xe_uc_reset_prepare(struct xe_uc *uc)
 {
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -212,7 +212,7 @@ void xe_uc_stop_prepare(struct xe_uc *uc)
 
 int xe_uc_stop(struct xe_uc *uc)
 {
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -221,7 +221,7 @@ int xe_uc_stop(struct xe_uc *uc)
 
 int xe_uc_start(struct xe_uc *uc)
 {
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
@@ -244,7 +244,7 @@ int xe_uc_suspend(struct xe_uc *uc)
 {
 	int ret;
 
-	/* GuC submission not enabled, nothing to do */
+	/* GuC submission analt enabled, analthing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 

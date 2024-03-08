@@ -124,7 +124,7 @@ static int lp87565_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 					  BIT(offset +
 					      __ffs(LP87565_GPIO1_OD)), 0);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -151,7 +151,7 @@ static int lp87565_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lp87565 = dev_get_drvdata(pdev->dev.parent);
 	gpio->chip = template_chip;
@@ -160,7 +160,7 @@ static int lp87565_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->chip, gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could analt register gpiochip, %d\n", ret);
 		return ret;
 	}
 

@@ -18,7 +18,7 @@
 #include "wil_platform.h"
 #include "fw.h"
 
-extern bool no_fw_recovery;
+extern bool anal_fw_recovery;
 extern unsigned int mtu_max;
 extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
@@ -218,7 +218,7 @@ struct RGF_ICR {
 #define RGF_USER_OTP_HW_RD_MACHINE_1	(0x880ce0)
 	#define BIT_OTP_SIGNATURE_ERR_TALYN_MB		BIT(0)
 	#define BIT_OTP_HW_SECTION_DONE_TALYN_MB	BIT(2)
-	#define BIT_NO_FLASH_INDICATION			BIT(8)
+	#define BIT_ANAL_FLASH_INDICATION			BIT(8)
 #define RGF_USER_XPM_IFC_RD_TIME1	(0x880cec)
 #define RGF_USER_XPM_IFC_RD_TIME2	(0x880cf0)
 #define RGF_USER_XPM_IFC_RD_TIME3	(0x880cf4)
@@ -239,7 +239,7 @@ struct RGF_ICR {
 	#define BIT_DMA_EP_RX_ICR_RX_HTRSH	BIT(1)
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
-	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
+	#define BIT_DMA_EP_MISC_ICR_TX_ANAL_ACT	BIT(1)
 	#define BIT_DMA_EP_MISC_ICR_HALP	BIT(27)
 	#define BIT_DMA_EP_MISC_ICR_FW_INT(n)	BIT(28+n) /* n = [0..3] */
 
@@ -261,7 +261,7 @@ struct RGF_ICR {
 	#define BIT_DMA_OFUL_NID_0_TX_EXT_A3_SRC	BIT(3)
 
 /* New (sparrow v2+) interrupt moderation control */
-#define RGF_DMA_ITR_TX_DESQ_NO_MOD		(0x881d40)
+#define RGF_DMA_ITR_TX_DESQ_ANAL_MOD		(0x881d40)
 #define RGF_DMA_ITR_TX_CNT_TRSH			(0x881d34)
 #define RGF_DMA_ITR_TX_CNT_DATA			(0x881d38)
 #define RGF_DMA_ITR_TX_CNT_CTL			(0x881d3c)
@@ -280,7 +280,7 @@ struct RGF_ICR {
 	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_FOREVER		BIT(2)
 	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_CLR			BIT(3)
 	#define BIT_DMA_ITR_TX_IDL_CNT_CTL_REACHED_TRESH	BIT(4)
-#define RGF_DMA_ITR_RX_DESQ_NO_MOD		(0x881d50)
+#define RGF_DMA_ITR_RX_DESQ_ANAL_MOD		(0x881d50)
 #define RGF_DMA_ITR_RX_CNT_TRSH			(0x881d44)
 #define RGF_DMA_ITR_RX_CNT_DATA			(0x881d48)
 #define RGF_DMA_ITR_RX_CNT_CTL			(0x881d4c)
@@ -381,7 +381,7 @@ struct RGF_ICR {
 #define TALYN_RGF_UCODE_ASSERT_CODE	(0xa37028)
 
 enum {
-	HW_VER_UNKNOWN,
+	HW_VER_UNKANALWN,
 	HW_VER_SPARROW_B0, /* REVISION_ID_SPARROW_B0 */
 	HW_VER_SPARROW_D0, /* REVISION_ID_SPARROW_D0 */
 	HW_VER_TALYN,	/* JTAG_DEV_ID_TALYN */
@@ -495,7 +495,7 @@ struct pending_wmi_event {
 };
 
 enum { /* for wil_ctx.mapped_as */
-	wil_mapped_as_none = 0,
+	wil_mapped_as_analne = 0,
 	wil_mapped_as_single = 1,
 	wil_mapped_as_page = 2,
 };
@@ -572,7 +572,7 @@ struct wil_net_stats {
 	u32 tx_latency_max_us;
 	u64 tx_latency_total_us;
 	unsigned long	rx_dropped;
-	unsigned long	rx_non_data_frame;
+	unsigned long	rx_analn_data_frame;
 	unsigned long	rx_short_frame;
 	unsigned long	rx_large_frame;
 	unsigned long	rx_replay;
@@ -634,7 +634,7 @@ struct wil_ring_tx_data {
 	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
-	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
+	u8 agg_wsize; /* agreed aggregation window, 0 - anal agg */
 	u16 agg_timeout;
 	u8 agg_amsdu;
 	bool addba_in_progress; /* if set, agg_xxx is for request in progress */
@@ -733,7 +733,7 @@ enum wil_rekey_state {
  *
  * Peer identified by its CID (connection ID)
  * NIC performs beam forming for each peer;
- * if no beam forming done, frame exchange is not
+ * if anal beam forming done, frame exchange is analt
  * possible.
  */
 struct wil_sta_info {
@@ -756,7 +756,7 @@ struct wil_sta_info {
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	struct wil_tid_crypto_rx tid_crypto_rx[WIL_STA_TID_NUM];
 	struct wil_tid_crypto_rx group_crypto_rx;
-	u8 aid; /* 1-254; 0 if unknown/not reported */
+	u8 aid; /* 1-254; 0 if unkanalwn/analt reported */
 };
 
 enum {
@@ -766,7 +766,7 @@ enum {
 };
 
 enum {
-	hw_capa_no_flash,
+	hw_capa_anal_flash,
 	hw_capa_last
 };
 
@@ -850,7 +850,7 @@ struct wil6210_vif {
 	u16 channel; /* relevant in AP mode */
 	u8 wmi_edmg_channel; /* relevant in AP mode */
 	u8 hidden_ssid; /* relevant in AP mode */
-	u32 ap_isolate; /* no intra-BSS communication */
+	u32 ap_isolate; /* anal intra-BSS communication */
 	bool pbss;
 	int bi;
 	u8 *proberesp, *proberesp_ies, *assocresp_ies;
@@ -1036,7 +1036,7 @@ struct wil6210_priv {
 
 	int fw_calib_result;
 
-	struct notifier_block pm_notify;
+	struct analtifier_block pm_analtify;
 
 	bool suspend_resp_rcvd;
 	bool suspend_resp_comp;
@@ -1219,7 +1219,7 @@ int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_ps_update(struct wil6210_priv *wil,
 		  enum wmi_ps_profile_type ps_profile);
-int wil_reset(struct wil6210_priv *wil, bool no_fw);
+int wil_reset(struct wil6210_priv *wil, bool anal_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 bool wil_is_recovery_blocked(struct wil6210_priv *wil);

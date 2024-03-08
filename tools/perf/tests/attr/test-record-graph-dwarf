@@ -1,12 +1,12 @@
 [config]
 command = record
-args    = --no-bpf-event --call-graph dwarf -- kill >/dev/null 2>&1
+args    = --anal-bpf-event --call-graph dwarf -- kill >/dev/null 2>&1
 ret     = 1
 
 [event:base-record]
 sample_type=45359
 exclude_callchain_user=1
 sample_stack_user=8192
-# TODO different for each arch, no support for that now
+# TODO different for each arch, anal support for that analw
 sample_regs_user=*
 mmap_data=1

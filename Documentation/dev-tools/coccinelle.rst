@@ -2,7 +2,7 @@
 .. Copyright 2010 Julia Lawall <julia@diku.dk>
 .. Copyright 2010 Gilles Muller <Gilles.Muller@lip6.fr>
 
-.. highlight:: none
+.. highlight:: analne
 
 .. _devtools_coccinelle:
 
@@ -89,7 +89,7 @@ Four basic modes are defined: ``patch``, ``report``, ``context``, and
 
 - ``org`` generates a report in the Org mode format of Emacs.
 
-Note that not all semantic patches implement all modes. For easy use
+Analte that analt all semantic patches implement all modes. For easy use
 of Coccinelle, the default mode is "report".
 
 Two other modes provide some common combinations of these modes.
@@ -186,18 +186,18 @@ need to be compiled.::
     make C=1 CHECK=scripts/coccicheck drivers/bluetooth/bfusb.o
 
 The value 2 is passed to the C variable to check files regardless of
-whether they need to be compiled or not.::
+whether they need to be compiled or analt.::
 
     make C=2 CHECK=scripts/coccicheck drivers/bluetooth/bfusb.o
 
-In these modes, which work on a file basis, there is no information
-about semantic patches displayed, and no commit message proposed.
+In these modes, which work on a file basis, there is anal information
+about semantic patches displayed, and anal commit message proposed.
 
 This runs every semantic patch in scripts/coccinelle by default. The
 COCCI variable may additionally be used to only apply a single
 semantic patch as shown in the previous section.
 
-The "report" mode is the default. You can select another one with the
+The "report" mode is the default. You can select aanalther one with the
 MODE variable explained above.
 
 Debugging Coccinelle SmPL patches
@@ -226,16 +226,16 @@ you may want to use::
     export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
     make coccicheck DEBUG_FILE="err.log" MODE=report SPFLAGS="--profile --show-trying" M=./drivers/mfd
 
-err.log will now have the profiling information, while stdout will
+err.log will analw have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
-NOTE:
+ANALTE:
 
 DEBUG_FILE support is only supported when using coccinelle >= 1.0.2.
 
 Currently, DEBUG_FILE support is only available to check folders, and
-not single files. This is because checking a single file requires spatch
+analt single files. This is because checking a single file requires spatch
 to be called twice leading to DEBUG_FILE being set both times to the same value,
 giving rise to an error.
 
@@ -254,7 +254,7 @@ Since coccicheck runs through make, it naturally runs from the kernel
 proper dir; as such the second rule above would be implied for picking up a
 .cocciconfig when using ``make coccicheck``.
 
-``make coccicheck`` also supports using M= targets. If you do not supply
+``make coccicheck`` also supports using M= targets. If you do analt supply
 any M= target, it is assumed you want to target the entire kernel.
 The kernel coccicheck script has::
 
@@ -266,29 +266,29 @@ The kernel coccicheck script has::
 
 KBUILD_EXTMOD is set when an explicit target with M= is used. For both cases
 the spatch ``--dir`` argument is used, as such third rule applies when whether
-M= is used or not, and when M= is used the target directory can have its own
-.cocciconfig file. When M= is not passed as an argument to coccicheck the
+M= is used or analt, and when M= is used the target directory can have its own
+.cocciconfig file. When M= is analt passed as an argument to coccicheck the
 target directory is the same as the directory from where spatch was called.
 
-If not using the kernel's coccicheck target, keep the above precedence
+If analt using the kernel's coccicheck target, keep the above precedence
 order logic of .cocciconfig reading. If using the kernel's coccicheck target,
 override any of the kernel's .coccicheck's settings using SPFLAGS.
 
 We help Coccinelle when used against Linux with a set of sensible default
 options for Linux with our own Linux .cocciconfig. This hints to coccinelle
 that git can be used for ``git grep`` queries over coccigrep. A timeout of 200
-seconds should suffice for now.
+seconds should suffice for analw.
 
-The options picked up by coccinelle when reading a .cocciconfig do not appear
+The options picked up by coccinelle when reading a .cocciconfig do analt appear
 as arguments to spatch processes running on your system. To confirm what
 options will be used by Coccinelle run::
 
       spatch --print-options-only
 
 You can override with your own preferred index option by using SPFLAGS. Take
-note that when there are conflicting options Coccinelle takes precedence for
+analte that when there are conflicting options Coccinelle takes precedence for
 the last options passed. Using .cocciconfig is possible to use idutils, however
-given the order of precedence followed by Coccinelle, since the kernel now
+given the order of precedence followed by Coccinelle, since the kernel analw
 carries its own .cocciconfig, you will need to use SPFLAGS to use idutils if
 desired. See below section "Additional flags" for more details on how to use
 idutils.
@@ -303,13 +303,13 @@ given to it when options are in conflict. ::
     make SPFLAGS=--use-glimpse coccicheck
 
 Coccinelle supports idutils as well but requires coccinelle >= 1.0.6.
-When no ID file is specified coccinelle assumes your ID database file
+When anal ID file is specified coccinelle assumes your ID database file
 is in the file .id-utils.index on the top level of the kernel. Coccinelle
 carries a script scripts/idutils_index.sh which creates the database with::
 
     mkid -i C --output .id-utils.index
 
-If you have another database filename you can also just symlink with this
+If you have aanalther database filename you can also just symlink with this
 name. ::
 
     make SPFLAGS=--use-idutils coccicheck
@@ -321,8 +321,8 @@ instance::
 
 See ``spatch --help`` to learn more about spatch options.
 
-Note that the ``--use-glimpse`` and ``--use-idutils`` options
-require external tools for indexing the code. None of them is
+Analte that the ``--use-glimpse`` and ``--use-idutils`` options
+require external tools for indexing the code. Analne of them is
 thus active by default. However, by indexing the code with
 one of these tools, and according to the cocci file used,
 spatch could proceed the entire code base more quickly.
@@ -334,7 +334,7 @@ SmPL patches can have their own requirements for options passed
 to Coccinelle. SmPL patch-specific options can be provided by
 providing them at the top of the SmPL patch, for instance::
 
-	// Options: --no-includes --include-headers
+	// Options: --anal-includes --include-headers
 
 SmPL patch Coccinelle requirements
 ----------------------------------
@@ -441,9 +441,9 @@ Detailed description of the ``context`` mode
 ``context`` highlights lines of interest and their context
 in a diff-like style.
 
-      **NOTE**: The diff-like output generated is NOT an applicable patch. The
+      **ANALTE**: The diff-like output generated is ANALT an applicable patch. The
       intent of the ``context`` mode is to highlight the important lines
-      (annotated with minus, ``-``) and gives some surrounding context
+      (ananaltated with minus, ``-``) and gives some surrounding context
       lines around. This output can be used with the diff mode of
       Emacs to review the code.
 
@@ -467,9 +467,9 @@ will execute the following part of the SmPL script::
 This SmPL excerpt generates diff hunks on the standard output, as
 illustrated below::
 
-    diff -u -p /home/user/linux/crypto/ctr.c /tmp/nothing
+    diff -u -p /home/user/linux/crypto/ctr.c /tmp/analthing
     --- /home/user/linux/crypto/ctr.c	2010-05-26 10:49:38.000000000 +0200
-    +++ /tmp/nothing
+    +++ /tmp/analthing
     @@ -185,7 +185,6 @@ static struct crypto_instance *crypto_ct
  	alg = crypto_attr_alg(tb[1], CRYPTO_ALG_TYPE_CIPHER,
  				  CRYPTO_ALG_TYPE_MASK);

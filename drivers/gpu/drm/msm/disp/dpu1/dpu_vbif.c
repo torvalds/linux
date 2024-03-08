@@ -62,7 +62,7 @@ static int _dpu_vbif_wait_for_xin_halt(struct dpu_hw_vbif *vbif, u32 xin_id)
 
 	if (!status) {
 		rc = -ETIMEDOUT;
-		DPU_ERROR("%s client %d not halting. TIMEDOUT.\n",
+		DPU_ERROR("%s client %d analt halting. TIMEDOUT.\n",
 				dpu_vbif_name(vbif->idx), xin_id);
 	} else {
 		rc = 0;
@@ -136,8 +136,8 @@ static u32 _dpu_vbif_get_ot_limit(struct dpu_hw_vbif *vbif,
 		ot_lim = vbif->cap->default_ot_rd_limit;
 
 	/*
-	 * If default ot is not set from dt/catalog,
-	 * then do not configure it.
+	 * If default ot is analt set from dt/catalog,
+	 * then do analt configure it.
 	 */
 	if (ot_lim == 0)
 		goto exit;
@@ -163,7 +163,7 @@ exit:
  * @dpu_kms:	DPU handler
  * @params:	Pointer to usecase parameters
  *
- * Note this function would block waiting for bus halt.
+ * Analte this function would block waiting for bus halt.
  */
 void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 		struct dpu_vbif_set_ot_params *params)
@@ -224,7 +224,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	}
 
 	if (!vbif->ops.set_qos_remap) {
-		DRM_DEBUG_ATOMIC("qos remap not supported\n");
+		DRM_DEBUG_ATOMIC("qos remap analt supported\n");
 		return;
 	}
 
@@ -232,7 +232,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 			&vbif->cap->qos_nrt_tbl;
 
 	if (!qos_tbl->npriority_lvl || !qos_tbl->priority_lvl) {
-		DRM_DEBUG_ATOMIC("qos tbl not defined\n");
+		DRM_DEBUG_ATOMIC("qos tbl analt defined\n");
 		return;
 	}
 

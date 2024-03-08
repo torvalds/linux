@@ -42,8 +42,8 @@
  * We manage those counters as free running (read-only). They may be
  * use simultaneously by other tools, such as turbostat.
  *
- * The events only support system-wide mode counting. There is no
- * sampling support because it does not make sense and is not
+ * The events only support system-wide mode counting. There is anal
+ * sampling support because it does analt make sense and is analt
  * supported by the RAPL hardware.
  *
  * Because we want to avoid floating-point operations in the kernel,
@@ -58,7 +58,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
-#include <linux/nospec.h>
+#include <linux/analspec.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "perf_event.h"
@@ -119,7 +119,7 @@ struct rapl_pmus {
 };
 
 enum rapl_unit_quirk {
-	RAPL_UNIT_QUIRK_NONE,
+	RAPL_UNIT_QUIRK_ANALNE,
 	RAPL_UNIT_QUIRK_INTEL_HSW,
 	RAPL_UNIT_QUIRK_INTEL_SPR,
 };
@@ -144,7 +144,7 @@ static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 	unsigned int dieid = topology_logical_die_id(cpu);
 
 	/*
-	 * The unsigned check also catches the '-1' return value for non
+	 * The unsigned check also catches the '-1' return value for analn
 	 * existent mappings in the topology map.
 	 */
 	return dieid < rapl_pmus->maxdie ? rapl_pmus->pmus[dieid] : NULL;
@@ -186,11 +186,11 @@ static u64 rapl_event_update(struct perf_event *event)
 				      &prev_raw_count, new_raw_count));
 
 	/*
-	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * Analw we have the new raw value and have updated the prev
+	 * timestamp already. We can analw calculate the elapsed delta
 	 * (event-)time and add that to the generic event.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, analt all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -216,7 +216,7 @@ static enum hrtimer_restart rapl_hrtimer_handle(struct hrtimer *hrtimer)
 	unsigned long flags;
 
 	if (!pmu->n_active)
-		return HRTIMER_NORESTART;
+		return HRTIMER_ANALRESTART;
 
 	raw_spin_lock_irqsave(&pmu->lock, flags);
 
@@ -225,7 +225,7 @@ static enum hrtimer_restart rapl_hrtimer_handle(struct hrtimer *hrtimer)
 
 	raw_spin_unlock_irqrestore(&pmu->lock, flags);
 
-	hrtimer_forward_now(hrtimer, pmu->timer_interval);
+	hrtimer_forward_analw(hrtimer, pmu->timer_interval);
 
 	return HRTIMER_RESTART;
 }
@@ -234,7 +234,7 @@ static void rapl_hrtimer_init(struct rapl_pmu *pmu)
 {
 	struct hrtimer *hr = &pmu->hrtimer;
 
-	hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(hr, CLOCK_MOANALTONIC, HRTIMER_MODE_REL);
 	hr->function = rapl_hrtimer_handle;
 }
 
@@ -330,7 +330,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 
 	/* only look at RAPL events */
 	if (event->attr.type != rapl_pmus->pmu.type)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* check only supported bits are set */
 	if (event->attr.config & ~RAPL_EVENT_MASK)
@@ -344,7 +344,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	if (!cfg || cfg >= NR_RAPL_DOMAINS + 1)
 		return -EINVAL;
 
-	cfg = array_index_nospec((long)cfg, NR_RAPL_DOMAINS + 1);
+	cfg = array_index_analspec((long)cfg, NR_RAPL_DOMAINS + 1);
 	bit = cfg - 1;
 
 	/* check event supported */
@@ -352,7 +352,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		return -EINVAL;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* anal sampling */
 		return -EINVAL;
 
 	/* must be done before validate_group */
@@ -412,7 +412,7 @@ RAPL_EVENT_ATTR_STR(energy-gpu.scale,     rapl_gpu_scale, "2.3283064365386962890
 RAPL_EVENT_ATTR_STR(energy-psys.scale,   rapl_psys_scale, "2.3283064365386962890625e-10");
 
 /*
- * There are no default events, but we need to create
+ * There are anal default events, but we need to create
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
@@ -568,9 +568,9 @@ static int rapl_cpu_online(unsigned int cpu)
 	int target;
 
 	if (!pmu) {
-		pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
+		pmu = kzalloc_analde(sizeof(*pmu), GFP_KERNEL, cpu_to_analde(cpu));
 		if (!pmu)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		raw_spin_lock_init(&pmu->lock);
 		INIT_LIST_HEAD(&pmu->active_list);
@@ -680,7 +680,7 @@ static int __init init_rapl_pmus(void)
 	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);
 	rapl_pmus = kzalloc(size, GFP_KERNEL);
 	if (!rapl_pmus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rapl_pmus->maxdie		= maxdie;
 	rapl_pmus->pmu.attr_groups	= rapl_attr_groups;
@@ -693,7 +693,7 @@ static int __init init_rapl_pmus(void)
 	rapl_pmus->pmu.stop		= rapl_pmu_event_stop;
 	rapl_pmus->pmu.read		= rapl_pmu_event_read;
 	rapl_pmus->pmu.module		= THIS_MODULE;
-	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
+	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE;
 	return 0;
 }
 
@@ -786,7 +786,7 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&model_hsx),
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&model_skl),
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(CANANALNLAKE_L,	&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&model_hsw),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_D,	&model_hsw),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&model_hsw),
@@ -820,7 +820,7 @@ static int __init rapl_pmu_init(void)
 
 	id = x86_match_cpu(rapl_model_match);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rm = (struct rapl_model *) id->driver_data;
 
@@ -864,7 +864,7 @@ module_init(rapl_pmu_init);
 
 static void __exit intel_rapl_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_RAPL_ONLINE);
+	cpuhp_remove_state_analcalls(CPUHP_AP_PERF_X86_RAPL_ONLINE);
 	perf_pmu_unregister(&rapl_pmus->pmu);
 	cleanup_rapl_pmus();
 }

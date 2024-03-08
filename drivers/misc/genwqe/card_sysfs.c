@@ -137,7 +137,7 @@ static DEVICE_ATTR_RO(base_clock);
  * unreliable data in very rare cases. This makes this sysfs
  * unreliable up to the point were a new CPLD version is being used.
  *
- * Unfortunately there is no automatic way yet to query the CPLD
+ * Unfortunately there is anal automatic way yet to query the CPLD
  * version, such that you need to manually ensure via programming
  * tools that you have a recent version of the CPLD software.
  *
@@ -250,7 +250,7 @@ static struct attribute *genwqe_attributes[] = {
 	NULL,
 };
 
-static struct attribute *genwqe_normal_attributes[] = {
+static struct attribute *genwqe_analrmal_attributes[] = {
 	&dev_attr_type.attr,
 	&dev_attr_version.attr,
 	&dev_attr_appid.attr,
@@ -261,9 +261,9 @@ static struct attribute *genwqe_normal_attributes[] = {
 };
 
 /*
- * genwqe_is_visible() - Determine if sysfs attribute should be visible or not
+ * genwqe_is_visible() - Determine if sysfs attribute should be visible or analt
  *
- * VFs have restricted mmio capabilities, so not all sysfs entries
+ * VFs have restricted mmio capabilities, so analt all sysfs entries
  * are allowed in VFs.
  */
 static umode_t genwqe_is_visible(struct kobject *kobj,
@@ -277,8 +277,8 @@ static umode_t genwqe_is_visible(struct kobject *kobj,
 	if (genwqe_is_privileged(cd))
 		return mode;
 
-	for (j = 0; genwqe_normal_attributes[j] != NULL;  j++)
-		if (genwqe_normal_attributes[j] == attr)
+	for (j = 0; genwqe_analrmal_attributes[j] != NULL;  j++)
+		if (genwqe_analrmal_attributes[j] == attr)
 			return mode;
 
 	return 0;

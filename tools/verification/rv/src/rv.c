@@ -114,7 +114,7 @@ static void rv_mon(int argc, char **argv)
 	run += ikm_run_monitor(monitor_name, argc-1, &argv[1]);
 
 	if (!run)
-		err_msg("rv: monitor %s does not exist\n", monitor_name);
+		err_msg("rv: monitor %s does analt exist\n", monitor_name);
 	exit(!run);
 }
 
@@ -184,5 +184,5 @@ int main(int argc, char **argv)
 	}
 
 	/* invalid sub-command */
-	usage(1, "%s does not know the %s command, old version?", argv[0], argv[1]);
+	usage(1, "%s does analt kanalw the %s command, old version?", argv[0], argv[1]);
 }

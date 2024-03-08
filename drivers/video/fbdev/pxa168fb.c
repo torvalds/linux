@@ -175,7 +175,7 @@ static void set_mode(struct pxa168fb_info *fbi, struct fb_var_screeninfo *var,
 	else
 		var->yres_virtual = max(var->yres, var->yres_virtual);
 	var->grayscale = 0;
-	var->accel_flags = FB_ACCEL_NONE;
+	var->accel_flags = FB_ACCEL_ANALNE;
 	var->pixclock = mode->pixclock;
 	var->left_margin = mode->left_margin;
 	var->right_margin = mode->right_margin;
@@ -184,7 +184,7 @@ static void set_mode(struct pxa168fb_info *fbi, struct fb_var_screeninfo *var,
 	var->hsync_len = mode->hsync_len;
 	var->vsync_len = mode->vsync_len;
 	var->sync = mode->sync;
-	var->vmode = FB_VMODE_NONINTERLACED;
+	var->vmode = FB_VMODE_ANALNINTERLACED;
 	var->rotate = FB_ROTATE_UR;
 }
 
@@ -246,7 +246,7 @@ static void set_clock_divider(struct pxa168fb_info *fbi,
 	u32 x = 0;
 
 	/*
-	 * Notice: The field pixclock is used by linux fb
+	 * Analtice: The field pixclock is used by linux fb
 	 * is in pixel second. E.g. struct fb_videomode &
 	 * struct fb_var_screeninfo
 	 */
@@ -482,7 +482,7 @@ static u32 to_rgb(u16 red, u16 green, u16 blue)
 }
 
 static int
-pxa168fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+pxa168fb_setcolreg(unsigned int reganal, unsigned int red, unsigned int green,
 		 unsigned int blue, unsigned int trans, struct fb_info *info)
 {
 	struct pxa168fb_info *fbi = info->par;
@@ -492,17 +492,17 @@ pxa168fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 		red = green = blue = (19595 * red + 38470 * green +
 					7471 * blue) >> 16;
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 16) {
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && reganal < 16) {
 		val =  chan_to_field(red,   &info->var.red);
 		val |= chan_to_field(green, &info->var.green);
 		val |= chan_to_field(blue , &info->var.blue);
-		fbi->pseudo_palette[regno] = val;
+		fbi->pseudo_palette[reganal] = val;
 	}
 
-	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
+	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && reganal < 256) {
 		val = to_rgb(red, green, blue);
 		writel(val, fbi->reg_base + LCD_SPU_SRAM_WRDAT);
-		writel(0x8300 | regno, fbi->reg_base + LCD_SPU_SRAM_CTRL);
+		writel(0x8300 | reganal, fbi->reg_base + LCD_SPU_SRAM_CTRL);
 	}
 
 	return 0;
@@ -538,7 +538,7 @@ static irqreturn_t pxa168fb_handle_irq(int irq, void *dev_id)
 
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static const struct fb_ops pxa168fb_ops = {
@@ -599,7 +599,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 
 	mi = dev_get_platdata(&pdev->dev);
 	if (mi == NULL) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "anal platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -610,17 +610,17 @@ static int pxa168fb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no IO memory defined\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "anal IO memory defined\n");
+		return -EANALENT;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	info = framebuffer_alloc(sizeof(struct pxa168fb_info), &pdev->dev);
 	if (info == NULL) {
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Initialize private data */
@@ -637,7 +637,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	 */
 	info->flags = FBINFO_PARTIAL_PAN_OK |
 		      FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
-	info->node = -1;
+	info->analde = -1;
 	strscpy(info->fix.id, mi->id, 16);
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;
@@ -646,7 +646,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	info->fix.ywrapstep = 0;
 	info->fix.mmio_start = res->start;
 	info->fix.mmio_len = resource_size(res);
-	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.accel = FB_ACCEL_ANALNE;
 	info->fbops = &pxa168fb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;
 
@@ -656,7 +656,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	fbi->reg_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
 	if (fbi->reg_base == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_info;
 	}
 
@@ -668,7 +668,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	info->screen_base = dma_alloc_wc(fbi->dev, info->fix.smem_len,
 					 &fbi->fb_start_dma, GFP_KERNEL);
 	if (info->screen_base == NULL) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_info;
 	}
 
@@ -716,7 +716,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	 * Allocate color map.
 	 */
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto failed_free_clk;
 	}
 

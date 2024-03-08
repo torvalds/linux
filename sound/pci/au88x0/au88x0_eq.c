@@ -7,7 +7,7 @@
  *  2003  Manuel Jander (mjander@users.sourceforge.net)
  *  
  *  02 July 2003: First time something works :)
- *  November 2003: A3D Bypass code completed but untested.
+ *  Analvember 2003: A3D Bypass code completed but untested.
  *
  *  TODO:
  *     - Debug (testing)
@@ -650,9 +650,9 @@ static void vortex_Eqlzr_ReadAndSetActiveCoefSet(vortex_t * vortex)
 	eqlzr_t *eq = &(vortex->eq);
 
 	/* Set EQ BiQuad filter coeficients */
-	memcpy(&(eq->coefset), &asEqCoefsNormal, sizeof(auxxEqCoeffSet_t));
+	memcpy(&(eq->coefset), &asEqCoefsAnalrmal, sizeof(auxxEqCoeffSet_t));
 	/* Set EQ Band gain levels and dump into hardware registers. */
-	vortex_Eqlzr_SetAllBands(vortex, eq_gains_normal, eq->this10 * 2);
+	vortex_Eqlzr_SetAllBands(vortex, eq_gains_analrmal, eq->this10 * 2);
 }
 
 static int vortex_Eqlzr_GetAllPeaks(vortex_t * vortex, u16 * peaks, int *count)
@@ -716,7 +716,7 @@ static void vortex_Eqlzr_shutdown(vortex_t * vortex)
 /* ALSA interface */
 
 /* Control interface */
-#define snd_vortex_eqtoggle_info	snd_ctl_boolean_mono_info
+#define snd_vortex_eqtoggle_info	snd_ctl_boolean_moanal_info
 
 static int
 snd_vortex_eqtoggle_get(struct snd_kcontrol *kcontrol,
@@ -875,7 +875,7 @@ static int vortex_eq_init(vortex_t *vortex)
 
 	kcontrol = snd_ctl_new1(&vortex_eqtoggle_kcontrol, vortex);
 	if (!kcontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 	kcontrol->private_value = 0;
 	err = snd_ctl_add(vortex->card, kcontrol);
 	if (err < 0)
@@ -885,7 +885,7 @@ static int vortex_eq_init(vortex_t *vortex)
 	for (i = 0; i < 10; i++) {
 		kcontrol = snd_ctl_new1(&vortex_eq_kcontrol, vortex);
 		if (!kcontrol)
-			return -ENOMEM;
+			return -EANALMEM;
 		snprintf(kcontrol->id.name, sizeof(kcontrol->id.name),
 			"%s Playback Volume", EqBandLabels[i]);
 		kcontrol->private_value = i;
@@ -897,7 +897,7 @@ static int vortex_eq_init(vortex_t *vortex)
 	/* EQ band levels */
 	kcontrol = snd_ctl_new1(&vortex_levels_kcontrol, vortex);
 	if (!kcontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_ctl_add(vortex->card, kcontrol);
 	if (err < 0)
 		return err;

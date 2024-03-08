@@ -6,10 +6,10 @@ The Basic Device Driver-Model Structures
 
 .. kernel-doc:: include/linux/device.h
    :internal:
-   :no-identifiers: device_link_state
+   :anal-identifiers: device_link_state
 
 .. kernel-doc:: include/linux/device/bus.h
-   :identifiers: bus_type bus_notifier_event
+   :identifiers: bus_type bus_analtifier_event
 
 .. kernel-doc:: include/linux/device/class.h
    :identifiers: class
@@ -24,7 +24,7 @@ Device Drivers Base
    :internal:
 
 .. kernel-doc:: include/linux/device/driver.h
-   :no-identifiers: probe_type device_driver
+   :anal-identifiers: probe_type device_driver
 
 .. kernel-doc:: drivers/base/driver.c
    :export:
@@ -36,12 +36,12 @@ Device Drivers Base
    :export:
 
 .. kernel-doc:: include/linux/device/class.h
-   :no-identifiers: class
+   :anal-identifiers: class
 
 .. kernel-doc:: drivers/base/class.c
    :export:
 
-.. kernel-doc:: drivers/base/node.c
+.. kernel-doc:: drivers/base/analde.c
    :internal:
 
 .. kernel-doc:: drivers/base/transport_class.c
@@ -57,7 +57,7 @@ Device Drivers Base
    :export:
 
 .. kernel-doc:: include/linux/device/bus.h
-   :no-identifiers: bus_type bus_notifier_event
+   :anal-identifiers: bus_type bus_analtifier_event
 
 .. kernel-doc:: drivers/base/bus.c
    :export:

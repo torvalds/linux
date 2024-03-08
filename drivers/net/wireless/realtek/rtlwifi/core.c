@@ -88,7 +88,7 @@ static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			if (!err)
 				goto found_alt;
 		}
-		pr_err("Selected firmware is not available\n");
+		pr_err("Selected firmware is analt available\n");
 		rtlpriv->max_fw_size = 0;
 		goto exit;
 	}
@@ -168,9 +168,9 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	/* if wowlan supported, DON'T clear connected info */
 	if (!(support_remote_wakeup &&
 	      rtlhal->enter_pnp_sleep)) {
-		mac->link_state = MAC80211_NOLINK;
+		mac->link_state = MAC80211_ANALLINK;
 		eth_zero_addr(mac->bssid);
-		mac->vendor = PEER_UNKNOWN;
+		mac->vendor = PEER_UNKANALWN;
 
 		/* reset sec info */
 		rtl_cam_reset_sec_info(hw);
@@ -218,7 +218,7 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 	if (mac->vif) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
 			"vif has been set!! mac->vif = 0x%p\n", mac->vif);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
@@ -288,9 +288,9 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 		retry_limit = 0x07;
 		break;
 	default:
-		pr_err("operation mode %d is not supported!\n",
+		pr_err("operation mode %d is analt supported!\n",
 		       vif->type);
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -336,14 +336,14 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 	}
 
 	/*
-	 *Note: We assume NL80211_IFTYPE_UNSPECIFIED as
-	 *NO LINK for our hardware.
+	 *Analte: We assume NL80211_IFTYPE_UNSPECIFIED as
+	 *ANAL LINK for our hardware.
 	 */
 	mac->p2p = 0;
 	mac->vif = NULL;
-	mac->link_state = MAC80211_NOLINK;
+	mac->link_state = MAC80211_ANALLINK;
 	eth_zero_addr(mac->bssid);
-	mac->vendor = PEER_UNKNOWN;
+	mac->vendor = PEER_UNKANALWN;
 	mac->opmode = NL80211_IFTYPE_UNSPECIFIED;
 	rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
 
@@ -458,7 +458,7 @@ static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
 		else if  (memcmp(pattern_os, mac->mac_addr, 6) == 0)
 			rtl_pattern.type = UNICAST_PATTERN;
 		else
-			rtl_pattern.type = UNKNOWN_TYPE;
+			rtl_pattern.type = UNKANALWN_TYPE;
 
 		/* 2. translate mask_from_os to mask_for_hw */
 
@@ -502,7 +502,7 @@ static void _rtl_add_wowlan_patterns(struct ieee80211_hw *hw,
 		}
 
 		/* To get the wake up pattern from the mask.
-		 * We do not count first 12 bits which means
+		 * We do analt count first 12 bits which means
 		 * DA[6] and SA[6] in the pattern to match HW design.
 		 */
 		len = 0;
@@ -537,7 +537,7 @@ static int rtl_op_suspend(struct ieee80211_hw *hw,
 	if (WARN_ON(!wow))
 		return -EINVAL;
 
-	/* to resolve s4 can not wake up*/
+	/* to resolve s4 can analt wake up*/
 	rtlhal->last_suspend_sec = ktime_get_real_seconds();
 
 	if ((ppsc->wo_wlan_mode & WAKE_ON_PATTERN_MATCH) && wow->n_patterns)
@@ -557,16 +557,16 @@ static int rtl_op_resume(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	time64_t now;
+	time64_t analw;
 
 	rtl_dbg(rtlpriv, COMP_POWER, DBG_DMESG, "\n");
 	rtlhal->driver_is_goingto_unload = false;
 	rtlhal->enter_pnp_sleep = false;
 	rtlhal->wake_from_pnp_sleep = true;
 
-	/* to resolve s4 can not wake up*/
-	now = ktime_get_real_seconds();
-	if (now - rtlhal->last_suspend_sec < 5)
+	/* to resolve s4 can analt wake up*/
+	analw = ktime_get_real_seconds();
+	if (analw - rtlhal->last_suspend_sec < 5)
 		return -1;
 
 	rtl_op_start(hw);
@@ -602,7 +602,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			rtl_ips_nic_on(hw);
 	} else {
 		/*
-		 *although rfoff may not cause by ips, but we will
+		 *although rfoff may analt cause by ips, but we will
 		 *check the reason in set_rf_power_state function
 		 */
 		if (unlikely(ppsc->rfpwr_state == ERFOFF))
@@ -619,7 +619,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			/* sleep here is must, or we may recv the beacon and
 			 * cause mac80211 into wrong ps state, this will cause
 			 * power save nullfunc send fail, and further cause
-			 * pkt loss, So sleep must quickly but not immediatly
+			 * pkt loss, So sleep must quickly but analt immediatly
 			 * because that will cause nullfunc send by mac80211
 			 * fail, and cause pkt loss, we have tested that 5mA
 			 * is worked very well */
@@ -652,7 +652,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 	    !rtlpriv->proximity.proxim_on) {
 		struct ieee80211_channel *channel = hw->conf.chandef.chan;
 		enum nl80211_chan_width width = hw->conf.chandef.width;
-		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+		enum nl80211_channel_type channel_type = NL80211_CHAN_ANAL_HT;
 		u8 wide_chan = (u8) channel->hw_value;
 
 		/* channel_type is for 20&40M */
@@ -715,7 +715,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		} else {
 			switch (channel_type) {
 			case NL80211_CHAN_HT20:
-			case NL80211_CHAN_NO_HT:
+			case NL80211_CHAN_ANAL_HT:
 					/* SC */
 					mac->cur_40_prime_sc =
 						PRIME_CHNL_OFFSET_DONT_CARE;
@@ -753,7 +753,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			default:
 					mac->bw_40 = false;
 					mac->bw_80 = false;
-					pr_err("switch case %#x not processed\n",
+					pr_err("switch case %#x analt processed\n",
 					       channel_type);
 					break;
 			}
@@ -799,7 +799,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 	if (0 == changed_flags)
 		return;
 
-	/*TODO: we disable broadcast now, so enable here */
+	/*TODO: we disable broadcast analw, so enable here */
 	if (changed_flags & FIF_ALLMULTI) {
 		if (*new_flags & FIF_ALLMULTI) {
 			mac->rx_conf |= rtlpriv->cfg->maps[MAC_RCR_AM] |
@@ -829,9 +829,9 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			update_rcr = true;
 	}
 
-	/* if ssid not set to hw don't check bssid
+	/* if ssid analt set to hw don't check bssid
 	 * here just used for linked scanning, & linked
-	 * and nolink check bssid is set in set network_type
+	 * and anallink check bssid is set in set network_type
 	 */
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC &&
 	    mac->link_state >= MAC80211_LINKED) {
@@ -1021,7 +1021,7 @@ void rtl_update_beacon_work_callback(struct work_struct *work)
 	struct ieee80211_vif *vif = rtlpriv->mac80211.vif;
 
 	if (!vif) {
-		WARN_ONCE(true, "no vif to update beacon\n");
+		WARN_ONCE(true, "anal vif to update beacon\n");
 		return;
 	}
 
@@ -1094,7 +1094,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mstatus = RT_MEDIA_CONNECT;
 			/* we should reset all sec info & cam
-			 * before set cam after linked, we should not
+			 * before set cam after linked, we should analt
 			 * reset in disassoc, that will cause tkip->wep
 			 * fail because some flag will be wrong */
 			/* reset sec info */
@@ -1167,9 +1167,9 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			if (mac->link_state == MAC80211_LINKED)
 				rtl_lps_leave(hw, true);
-			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_NONE)
+			if (ppsc->p2p_ps_info.p2p_ps_mode > P2P_PS_ANALNE)
 				rtl_p2p_ps_cmd(hw, P2P_PS_DISABLE);
-			mac->link_state = MAC80211_NOLINK;
+			mac->link_state = MAC80211_ANALLINK;
 
 			bss = cfg80211_get_bss(hw->wiphy, NULL,
 					       (u8 *)mac->bssid, NULL, 0,
@@ -1187,7 +1187,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			}
 
 			eth_zero_addr(mac->bssid);
-			mac->vendor = PEER_UNKNOWN;
+			mac->vendor = PEER_UNKANALWN;
 			mac->mode = 0;
 
 			rtl_dbg(rtlpriv, COMP_MAC80211, DBG_DMESG,
@@ -1204,7 +1204,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				      true : false;
 
 		if (rtlpriv->cfg->ops->get_btc_status())
-			rtlpriv->btcoexist.btc_ops->btc_mediastatus_notify(
+			rtlpriv->btcoexist.btc_ops->btc_mediastatus_analtify(
 							rtlpriv, mstatus);
 	}
 
@@ -1275,7 +1275,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rtl_dbg(rtlpriv, COMP_MAC80211, DBG_DMESG,
 			"bssid: %pM\n", bss_conf->bssid);
 
-		mac->vendor = PEER_UNKNOWN;
+		mac->vendor = PEER_UNKANALWN;
 		memcpy(mac->bssid, bss_conf->bssid, ETH_ALEN);
 
 		rcu_read_lock();
@@ -1333,7 +1333,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (changed & BSS_CHANGED_BASIC_RATES) {
 			/* for 5G must << RATE_6M_INDEX = 4,
-			 * because 5G have no cck rate*/
+			 * because 5G have anal cck rate*/
 			if (rtlhal->current_bandtype == BAND_ON_5G)
 				basic_rates = sta->deflink.supp_rates[1] << 4;
 			else
@@ -1377,15 +1377,15 @@ static void rtl_op_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_DUAL_TSF_RST, (u8 *)(&tmp));
 }
 
-static void rtl_op_sta_notify(struct ieee80211_hw *hw,
+static void rtl_op_sta_analtify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      enum sta_notify_cmd cmd,
+			      enum sta_analtify_cmd cmd,
 			      struct ieee80211_sta *sta)
 {
 	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
+	case STA_ANALTIFY_SLEEP:
 		break;
-	case STA_NOTIFY_AWAKE:
+	case STA_ANALTIFY_AWAKE:
 		break;
 	default:
 		break;
@@ -1428,7 +1428,7 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 		return rtl_rx_agg_stop(hw, sta, tid);
 	default:
 		pr_err("IEEE80211_AMPDU_ERR!!!!:\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	return 0;
 }
@@ -1448,9 +1448,9 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	}
 
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 1);
+		rtlpriv->btcoexist.btc_ops->btc_scan_analtify(rtlpriv, 1);
 	else if (rtlpriv->btcoexist.btc_ops)
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+		rtlpriv->btcoexist.btc_ops->btc_scan_analtify_wifi_only(rtlpriv,
 								      1);
 
 	if (mac->link_state == MAC80211_LINKED) {
@@ -1501,9 +1501,9 @@ static void rtl_op_sw_scan_complete(struct ieee80211_hw *hw,
 
 	rtlpriv->cfg->ops->scan_operation_backup(hw, SCAN_OPT_RESTORE);
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify(rtlpriv, 0);
+		rtlpriv->btcoexist.btc_ops->btc_scan_analtify(rtlpriv, 0);
 	else if (rtlpriv->btcoexist.btc_ops)
-		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
+		rtlpriv->btcoexist.btc_ops->btc_scan_analtify_wifi_only(rtlpriv,
 								      0);
 }
 
@@ -1512,7 +1512,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_key_conf *key)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 key_type = NO_ENCRYPTION;
+	u8 key_type = ANAL_ENCRYPTION;
 	u8 key_idx;
 	bool group_key = false;
 	bool wep_only = false;
@@ -1524,14 +1524,14 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		rtl_dbg(rtlpriv, COMP_ERR, DBG_WARNING,
-			"not open hw encryption\n");
-		return -ENOSPC;	/*User disabled HW-crypto */
+			"analt open hw encryption\n");
+		return -EANALSPC;	/*User disabled HW-crypto */
 	}
 	/* To support IBSS, use sw-crypto for GTK */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -ENOSPC;
+		return -EANALSPC;
 	rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
 		"%s hardware based encryption for keyidx: %d, mac: %pM\n",
 		cmd == SET_KEY ? "Using" : "Disabling", key->keyidx,
@@ -1566,7 +1566,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG, "alg:CMAC\n");
 		rtl_dbg(rtlpriv, COMP_SEC, DBG_DMESG,
 			"HW don't support CMAC encryption, use software CMAC encryption\n");
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto out_unlock;
 	default:
 		pr_err("alg_err:%x!!!!:\n", key->cipher);
@@ -1586,11 +1586,11 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/* wep always be group key, but there are two conditions:
 	 * 1) wep only: is just for wep enc, in this condition
-	 * rtlpriv->sec.pairwise_enc_algorithm == NO_ENCRYPTION
+	 * rtlpriv->sec.pairwise_enc_algorithm == ANAL_ENCRYPTION
 	 * will be true & enable_hw_sec will be set when wep
 	 * ke setting.
 	 * 2) wep(group) + AES(pairwise): some AP like cisco
-	 * may use it, in this condition enable_hw_sec will not
+	 * may use it, in this condition enable_hw_sec will analt
 	 * be set when wep key setting */
 	/* we must reset sec_info after lingked before set key,
 	 * or some flag will be wrong*/
@@ -1604,9 +1604,9 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 	} else {
 		if (!group_key || vif->type == NL80211_IFTYPE_ADHOC ||
-		    rtlpriv->sec.pairwise_enc_algorithm == NO_ENCRYPTION) {
+		    rtlpriv->sec.pairwise_enc_algorithm == ANAL_ENCRYPTION) {
 			if (rtlpriv->sec.pairwise_enc_algorithm ==
-			    NO_ENCRYPTION &&
+			    ANAL_ENCRYPTION &&
 			   (key_type == WEP40_ENCRYPTION ||
 			    key_type == WEP104_ENCRYPTION))
 				wep_only = true;
@@ -1648,7 +1648,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 				WARN_ONCE(true,
 					  "rtlwifi: pairwise key without mac_addr\n");
 
-				err = -EOPNOTSUPP;
+				err = -EOPANALTSUPP;
 				goto out_unlock;
 			}
 			/* Pairwise key with an assigned MAC address. */
@@ -1665,7 +1665,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 					   group_key, key_type, wep_only,
 					   false);
 		/* <5> tell mac80211 do something: */
-		/*must use sw generate IV, or can not work !!!!. */
+		/*must use sw generate IV, or can analt work !!!!. */
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		key->hw_key_idx = key_idx;
 		if (key_type == TKIP_ENCRYPTION)
@@ -1718,7 +1718,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	/*if Radio On return true here */
-	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
+	radio_state = rtlpriv->cfg->ops->radio_oanalff_checking(hw, &valid);
 
 	if (valid) {
 		if (unlikely(radio_state != rtlpriv->rfkill.rfkill_state)) {
@@ -1851,7 +1851,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				return true;
 			default:
 				WARN_ONCE(true,
-					  "rtlwifi: rtl_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
+					  "rtlwifi: rtl_hal_pwrseqcmdparsing(): Unkanalwn CMD!!\n");
 				break;
 			}
 		}
@@ -1922,7 +1922,7 @@ const struct ieee80211_ops rtl_ops = {
 	.get_tsf = rtl_op_get_tsf,
 	.set_tsf = rtl_op_set_tsf,
 	.reset_tsf = rtl_op_reset_tsf,
-	.sta_notify = rtl_op_sta_notify,
+	.sta_analtify = rtl_op_sta_analtify,
 	.ampdu_action = rtl_op_ampdu_action,
 	.sw_scan_start = rtl_op_sw_scan_start,
 	.sw_scan_complete = rtl_op_sw_scan_complete,

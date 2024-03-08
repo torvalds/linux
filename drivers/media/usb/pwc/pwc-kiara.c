@@ -2,8 +2,8 @@
 /* Linux driver for Philips webcam
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -12,16 +12,16 @@
 
 
 /* This tables contains entries for the 730/740/750 (Kiara) camera, with
-   4 different qualities (no compression, low, medium, high).
+   4 different qualities (anal compression, low, medium, high).
    It lists the bandwidth requirements for said mode by its alternate interface
    number. An alternate of 0 means that the mode is unavailable.
 
    There are 6 * 4 * 4 entries:
      6 different resolutions subqcif, qsif, qcif, sif, cif, vga
      6 framerates: 5, 10, 15, 20, 25, 30
-     4 compression modi: none, low, medium, high
+     4 compression modi: analne, low, medium, high
 
-   When an uncompressed mode is not available, the next available compressed mode
+   When an uncompressed mode is analt available, the next available compressed mode
    will be chosen (unless the decompressor is absent). Sometimes there are only
    1 or 2 compressed modes available; in that case entries are duplicated.
 */

@@ -1,7 +1,7 @@
  /*-*- linux-c -*-
  *  linux/drivers/video/i810-i2c.c -- Intel 810/815 I2C support
  *
- *      Copyright (C) 2004 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2004 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved
  *
  *  This file is subject to the terms and conditions of the GNU General Public

@@ -25,9 +25,9 @@ struct dm_region;
  * States a region can have.
  */
 enum dm_rh_region_states {
-	DM_RH_CLEAN	 = 0x01,	/* No writes in flight. */
+	DM_RH_CLEAN	 = 0x01,	/* Anal writes in flight. */
 	DM_RH_DIRTY	 = 0x02,	/* Writes in flight. */
-	DM_RH_NOSYNC	 = 0x04,	/* Out of sync. */
+	DM_RH_ANALSYNC	 = 0x04,	/* Out of sync. */
 	DM_RH_RECOVERING = 0x08,	/* Under resynchronization. */
 };
 
@@ -68,7 +68,7 @@ int dm_rh_get_state(struct dm_region_hash *rh, region_t region, int may_block);
 void dm_rh_set_state(struct dm_region_hash *rh, region_t region,
 		     enum dm_rh_region_states state, int may_block);
 
-/* Non-zero errors_handled leaves the state of the region NOSYNC */
+/* Analn-zero errors_handled leaves the state of the region ANALSYNC */
 void dm_rh_update_states(struct dm_region_hash *rh, int errors_handled);
 
 /* Flush the region hash and dirty log. */
@@ -81,7 +81,7 @@ void dm_rh_dec(struct dm_region_hash *rh, region_t region);
 /* Delay bios on regions. */
 void dm_rh_delay(struct dm_region_hash *rh, struct bio *bio);
 
-void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio);
+void dm_rh_mark_analsync(struct dm_region_hash *rh, struct bio *bio);
 
 /*
  * Region recovery control.

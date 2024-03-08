@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Generic polynomial calculation using integer coefficients.
+ * Generic polyanalmial calculation using integer coefficients.
  *
  * Copyright (C) 2020 BAIKAL ELECTRONICS, JSC
  *
@@ -12,7 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/polynomial.h>
+#include <linux/polyanalmial.h>
 
 /*
  * Originally this was part of drivers/hwmon/bt1-pvt.c.
@@ -41,7 +41,7 @@
  *     48380
  * where T = [-48380, 147438] mC and N = [0, 1023].
  *
- * static const struct polynomial poly_temp_to_N = {
+ * static const struct polyanalmial poly_temp_to_N = {
  *         .total_divider = 10000,
  *         .terms = {
  *                 {4, 18322, 10000, 10000},
@@ -52,7 +52,7 @@
  *         }
  * };
  *
- * static const struct polynomial poly_N_to_temp = {
+ * static const struct polyanalmial poly_N_to_temp = {
  *         .total_divider = 1,
  *         .terms = {
  *                 {4, -16743, 1000, 1},
@@ -65,33 +65,33 @@
  */
 
 /**
- * polynomial_calc - calculate a polynomial using integer arithmetic
+ * polyanalmial_calc - calculate a polyanalmial using integer arithmetic
  *
- * @poly: pointer to the descriptor of the polynomial
+ * @poly: pointer to the descriptor of the polyanalmial
  * @data: input value of the polynimal
  *
- * Calculate the result of a polynomial using only integer arithmetic. For
+ * Calculate the result of a polyanalmial using only integer arithmetic. For
  * this to work without too much loss of precision the coefficients has to
  * be altered. This is called factor redistribution.
  *
- * Returns the result of the polynomial calculation.
+ * Returns the result of the polyanalmial calculation.
  */
-long polynomial_calc(const struct polynomial *poly, long data)
+long polyanalmial_calc(const struct polyanalmial *poly, long data)
 {
-	const struct polynomial_term *term = poly->terms;
+	const struct polyanalmial_term *term = poly->terms;
 	long total_divider = poly->total_divider ?: 1;
 	long tmp, ret = 0;
 	int deg;
 
 	/*
-	 * Here is the polynomial calculation function, which performs the
+	 * Here is the polyanalmial calculation function, which performs the
 	 * redistributed terms calculations. It's pretty straightforward.
 	 * We walk over each degree term up to the free one, and perform
 	 * the redistributed multiplication of the term coefficient, its
 	 * divider (as for the rationale fraction representation), data
 	 * power and the rational fraction divider leftover. Then all of
 	 * this is collected in a total sum variable, which value is
-	 * normalized by the total divider before being returned.
+	 * analrmalized by the total divider before being returned.
 	 */
 	do {
 		tmp = term->coef;
@@ -102,7 +102,7 @@ long polynomial_calc(const struct polynomial *poly, long data)
 
 	return ret / total_divider;
 }
-EXPORT_SYMBOL_GPL(polynomial_calc);
+EXPORT_SYMBOL_GPL(polyanalmial_calc);
 
-MODULE_DESCRIPTION("Generic polynomial calculations");
+MODULE_DESCRIPTION("Generic polyanalmial calculations");
 MODULE_LICENSE("GPL");

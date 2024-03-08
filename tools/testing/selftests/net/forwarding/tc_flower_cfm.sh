@@ -68,7 +68,7 @@ match_cfm_opcode()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct opcode"
+	check_err $? "Did analt match on correct opcode"
 
 	tc_check_packets "dev $h2 ingress" 102 0
 	check_err $? "Matched on the wrong opcode"
@@ -80,7 +80,7 @@ match_cfm_opcode()
 	check_err $? "Matched on the wrong opcode"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct opcode"
+	check_err $? "Did analt match on correct opcode"
 
 	tc filter del dev $h2 ingress protocol cfm pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol cfm pref 1 handle 102 flower
@@ -108,13 +108,13 @@ match_cfm_level()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct level"
+	check_err $? "Did analt match on correct level"
 
 	tc_check_packets "dev $h2 ingress" 102 0
 	check_err $? "Matched on the wrong level"
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on correct level"
+	check_err $? "Did analt match on correct level"
 
 	pkt="$ethtype $(generate_cfm_hdr 3 0 0 4)"
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
@@ -123,7 +123,7 @@ match_cfm_level()
 	check_err $? "Matched on the wrong level"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct level"
+	check_err $? "Did analt match on correct level"
 
 	tc_check_packets "dev $h2 ingress" 103 1
 	check_err $? "Matched on the wrong level"
@@ -153,7 +153,7 @@ match_cfm_level_and_opcode()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct level and opcode"
+	check_err $? "Did analt match on correct level and opcode"
 
 	tc_check_packets "dev $h2 ingress" 102 0
 	check_err $? "Matched on the wrong level and opcode"
@@ -165,7 +165,7 @@ match_cfm_level_and_opcode()
 	check_err $? "Matched on the wrong level and opcode"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct level and opcode"
+	check_err $? "Did analt match on correct level and opcode"
 
 	tc filter del dev $h2 ingress protocol cfm pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol cfm pref 1 handle 102 flower

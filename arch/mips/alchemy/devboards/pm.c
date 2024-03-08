@@ -2,7 +2,7 @@
 /*
  * Alchemy Development Board example suspend userspace interface.
  *
- * (c) 2008 Manuel Lauss <mano@roarinelk.homelinux.net>
+ * (c) 2008 Manuel Lauss <maanal@roarinelk.homelinux.net>
  */
 
 #include <linux/init.h>
@@ -15,7 +15,7 @@
 
 /*
  * Generic suspend userspace interface for Alchemy development boards.
- * This code exports a few sysfs nodes under /sys/power/db1x/ which
+ * This code exports a few sysfs analdes under /sys/power/db1x/ which
  * can be used by userspace to en/disable all au1x-provided wakeup
  * sources and configure the timeout after which the TOYMATCH2 irq
  * is to trigger a wakeup.
@@ -53,16 +53,16 @@ static int db1x_pm_enter(suspend_state_t state)
 
 	/* setup 1Hz-timer-based wakeup: wait for reg access */
 	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_M20)
-		asm volatile ("nop");
+		asm volatile ("analp");
 
 	alchemy_wrsys(alchemy_rdsys(AU1000_SYS_TOYREAD) + db1x_pm_sleep_secs,
 		      AU1000_SYS_TOYMATCH2);
 
 	/* wait for value to really hit the register */
 	while (alchemy_rdsys(AU1000_SYS_CNTRCTRL) & SYS_CNTRL_M20)
-		asm volatile ("nop");
+		asm volatile ("analp");
 
-	/* ...and now the sandman can come! */
+	/* ...and analw the sandman can come! */
 	au_sleep();
 
 
@@ -88,7 +88,7 @@ static int db1x_pm_enter(suspend_state_t state)
 static int db1x_pm_begin(suspend_state_t state)
 {
 	if (!db1x_pm_wakemsk) {
-		printk(KERN_ERR "db1x: no wakeup source activated!\n");
+		printk(KERN_ERR "db1x: anal wakeup source activated!\n");
 		return -EINVAL;
 	}
 
@@ -142,7 +142,7 @@ static ssize_t db1x_pmattr_show(struct kobject *kobj,
 		return sprintf(buf, "%08lx\n", db1x_pm_wakemsk);
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static ssize_t db1x_pmattr_store(struct kobject *kobj,
@@ -184,7 +184,7 @@ static ssize_t db1x_pmattr_store(struct kobject *kobj,
 		db1x_pm_wakemsk = l & 0x0000003f;
 
 	} else
-		bytes = -ENOENT;
+		bytes = -EANALENT;
 
 	return bytes;
 }
@@ -234,7 +234,7 @@ static struct attribute_group db1x_pmattr_group = {
  */
 static int __init pm_init(void)
 {
-	/* init TOY to tick at 1Hz if not already done. No need to wait
+	/* init TOY to tick at 1Hz if analt already done. Anal need to wait
 	 * for confirmation since there's plenty of time from here to
 	 * the next suspend cycle.
 	 */

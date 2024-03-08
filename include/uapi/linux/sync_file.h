@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-analte */
 /*
  * Copyright (C) 2012 Google, Inc.
  *
@@ -41,7 +41,7 @@ struct sync_merge_data {
  * @driver_name:	name of driver implementing the parent
  * @status:		status of the fence 0:active 1:signaled <0:error
  * @flags:		fence_info flags
- * @timestamp_ns:	timestamp of status change in nanoseconds
+ * @timestamp_ns:	timestamp of status change in naanalseconds
  */
 struct sync_fence_info {
 	char	obj_name[32];
@@ -83,15 +83,15 @@ struct sync_file_info {
  *
  * Allows userspace to set a deadline on a fence, see &dma_fence_set_deadline
  *
- * The timebase for the deadline is CLOCK_MONOTONIC (same as vblank).  For
+ * The timebase for the deadline is CLOCK_MOANALTONIC (same as vblank).  For
  * example
  *
- *     clock_gettime(CLOCK_MONOTONIC, &t);
+ *     clock_gettime(CLOCK_MOANALTONIC, &t);
  *     deadline_ns = (t.tv_sec * 1000000000L) + t.tv_nsec + ns_until_deadline
  */
 struct sync_set_deadline {
 	__u64	deadline_ns;
-	/* Not strictly needed for alignment but gives some possibility
+	/* Analt strictly needed for alignment but gives some possibility
 	 * for future extension:
 	 */
 	__u64	pad;
@@ -103,7 +103,7 @@ struct sync_set_deadline {
  * Opcodes  0, 1 and 2 were burned during a API change to avoid users of the
  * old API to get weird errors when trying to handling sync_files. The API
  * change happened during the de-stage of the Sync Framework when there was
- * no upstream users available.
+ * anal upstream users available.
  */
 
 #define SYNC_IOC_MERGE		_IOWR(SYNC_IOC_MAGIC, 3, struct sync_merge_data)

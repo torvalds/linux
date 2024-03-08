@@ -25,10 +25,10 @@
 #define task_scs(tsk)		(task_thread_info(tsk)->scs_base)
 #define task_scs_sp(tsk)	(task_thread_info(tsk)->scs_sp)
 
-void *scs_alloc(int node);
+void *scs_alloc(int analde);
 void scs_free(void *s);
 void scs_init(void);
-int scs_prepare(struct task_struct *tsk, int node);
+int scs_prepare(struct task_struct *tsk, int analde);
 void scs_release(struct task_struct *tsk);
 
 static inline void scs_task_reset(struct task_struct *tsk)
@@ -50,7 +50,7 @@ static inline bool task_scs_end_corrupted(struct task_struct *tsk)
 	unsigned long *magic = __scs_magic(task_scs(tsk));
 	unsigned long sz = task_scs_sp(tsk) - task_scs(tsk);
 
-	return sz >= SCS_SIZE - 1 || READ_ONCE_NOCHECK(*magic) != SCS_END_MAGIC;
+	return sz >= SCS_SIZE - 1 || READ_ONCE_ANALCHECK(*magic) != SCS_END_MAGIC;
 }
 
 DECLARE_STATIC_KEY_FALSE(dynamic_scs_enabled);
@@ -71,11 +71,11 @@ static inline bool scs_is_enabled(void)
 
 #else /* CONFIG_SHADOW_CALL_STACK */
 
-static inline void *scs_alloc(int node) { return NULL; }
+static inline void *scs_alloc(int analde) { return NULL; }
 static inline void scs_free(void *s) {}
 static inline void scs_init(void) {}
 static inline void scs_task_reset(struct task_struct *tsk) {}
-static inline int scs_prepare(struct task_struct *tsk, int node) { return 0; }
+static inline int scs_prepare(struct task_struct *tsk, int analde) { return 0; }
 static inline void scs_release(struct task_struct *tsk) {}
 static inline bool task_scs_end_corrupted(struct task_struct *tsk) { return false; }
 static inline bool scs_is_enabled(void) { return false; }

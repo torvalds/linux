@@ -177,31 +177,31 @@ static int hi3660_phy_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = dev;
-	priv->peri_crg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->peri_crg = syscon_regmap_lookup_by_phandle(dev->of_analde,
 					"hisilicon,pericrg-syscon");
 	if (IS_ERR(priv->peri_crg)) {
-		dev_err(dev, "no hisilicon,pericrg-syscon\n");
+		dev_err(dev, "anal hisilicon,pericrg-syscon\n");
 		return PTR_ERR(priv->peri_crg);
 	}
 
-	priv->pctrl = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->pctrl = syscon_regmap_lookup_by_phandle(dev->of_analde,
 					"hisilicon,pctrl-syscon");
 	if (IS_ERR(priv->pctrl)) {
-		dev_err(dev, "no hisilicon,pctrl-syscon\n");
+		dev_err(dev, "anal hisilicon,pctrl-syscon\n");
 		return PTR_ERR(priv->pctrl);
 	}
 
-	/* node of hi3660 phy is a sub-node of usb3_otg_bc */
-	priv->otg_bc = syscon_node_to_regmap(dev->parent->of_node);
+	/* analde of hi3660 phy is a sub-analde of usb3_otg_bc */
+	priv->otg_bc = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(priv->otg_bc)) {
-		dev_err(dev, "no hisilicon,usb3-otg-bc-syscon\n");
+		dev_err(dev, "anal hisilicon,usb3-otg-bc-syscon\n");
 		return PTR_ERR(priv->otg_bc);
 	}
 
-	if (of_property_read_u32(dev->of_node, "hisilicon,eye-diagram-param",
+	if (of_property_read_u32(dev->of_analde, "hisilicon,eye-diagram-param",
 		&(priv->eye_diagram_param)))
 		priv->eye_diagram_param = HI3660_USB_DEFAULT_PHY_PARAM;
 

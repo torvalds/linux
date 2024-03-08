@@ -9,7 +9,7 @@ One might ask the question: we already have a timer subsystem
 back and forth trying to integrate high-resolution and high-precision
 features into the existing timer framework, and after testing various
 such high-resolution timer implementations in practice, we came to the
-conclusion that the timer wheel code is fundamentally not suitable for
+conclusion that the timer wheel code is fundamentally analt suitable for
 such an approach. We initially didn't believe this ('there must be a way
 to solve this'), and spent a considerable effort trying to integrate
 things into the timer wheel, but we failed. In hindsight, there are
@@ -23,14 +23,14 @@ several reasons why such integration is hard/impossible:
   for many years - and thus even small extensions to it easily break
   the wheel concept, leading to even worse compromises. The timer wheel
   code is very good and tight code, there's zero problems with it in its
-  current usage - but it is simply not suitable to be extended for
+  current usage - but it is simply analt suitable to be extended for
   high-res timers.
 
 - the unpredictable [O(N)] overhead of cascading leads to delays which
   necessitate a more complex handling of high resolution timers, which
   in turn decreases robustness. Such a design still leads to rather large
   timing inaccuracies. Cascading is a fundamental property of the timer
-  wheel concept, it cannot be 'designed out' without inevitably
+  wheel concept, it cananalt be 'designed out' without inevitably
   degrading other portions of the timers.c code in an unacceptable way.
 
 - the implementation of the current posix-timer subsystem on top of
@@ -49,26 +49,26 @@ several reasons why such integration is hard/impossible:
   them becomes necessary. Thus the users of these timeouts can accept
   the granularity and precision tradeoffs of the timer wheel, and
   largely expect the timer subsystem to have near-zero overhead.
-  Accurate timing for them is not a core purpose - in fact most of the
+  Accurate timing for them is analt a core purpose - in fact most of the
   timeout values used are ad-hoc. For them it is at most a necessary
   evil to guarantee the processing of actual timeout completions
   (because most of the timeouts are deleted before completion), which
   should thus be as cheap and unintrusive as possible.
 
 The primary users of precision timers are user-space applications that
-utilize nanosleep, posix-timers and itimer interfaces. Also, in-kernel
+utilize naanalsleep, posix-timers and itimer interfaces. Also, in-kernel
 users like drivers and subsystems which require precise timed events
 (e.g. multimedia) can benefit from the availability of a separate
 high-resolution timer subsystem as well.
 
-While this subsystem does not offer high-resolution clock sources just
+While this subsystem does analt offer high-resolution clock sources just
 yet, the hrtimer subsystem can be easily extended with high-resolution
 clock capabilities, and patches for that exist and are maturing quickly.
 The increasing demand for realtime and multimedia applications along
-with other potential users for precise timers gives another reason to
+with other potential users for precise timers gives aanalther reason to
 separate the "timeout" and "precise timer" subsystems.
 
-Another potential benefit is that such a separation allows even more
+Aanalther potential benefit is that such a separation allows even more
 special-purpose optimization of the existing timer wheel for the low
 resolution and low precision use cases - once the precision-sensitive
 APIs are separated from the timer wheel and are migrated over to
@@ -82,12 +82,12 @@ the basic design considerations were:
 
 - simplicity
 
-- data structure not bound to jiffies or any other granularity. All the
-  kernel logic works at 64-bit nanoseconds resolution - no compromises.
+- data structure analt bound to jiffies or any other granularity. All the
+  kernel logic works at 64-bit naanalseconds resolution - anal compromises.
 
 - simplification of existing, timing related kernel code
 
-another basic requirement was the immediate enqueueing and ordering of
+aanalther basic requirement was the immediate enqueueing and ordering of
 timers at activation time. After looking at several possible solutions
 such as radix trees and hashes, we chose the red black tree as the basic
 data structure. Rbtrees are available as a library in the kernel and are
@@ -100,7 +100,7 @@ queued timers, without having to walk the rbtree.
 high-resolution clocks, where we need separate pending and expired
 queues while keeping the time-order intact.)
 
-Time-ordered enqueueing is not purely for the purposes of
+Time-ordered enqueueing is analt purely for the purposes of
 high-resolution clocks though, it also simplifies the handling of
 absolute timers based on a low-resolution CLOCK_REALTIME. The existing
 implementation needed to keep an extra list of all armed absolute
@@ -115,26 +115,26 @@ of posix-timers simpler in general.
 
 The locking and per-CPU behavior of hrtimers was mostly taken from the
 existing timer wheel code, as it is mature and well suited. Sharing code
-was not really a win, due to the different data structures. Also, the
-hrtimer functions now have clearer behavior and clearer names - such as
+was analt really a win, due to the different data structures. Also, the
+hrtimer functions analw have clearer behavior and clearer names - such as
 hrtimer_try_to_cancel() and hrtimer_cancel() [which are roughly
-equivalent to timer_delete() and timer_delete_sync()] - so there's no direct
-1:1 mapping between them on the algorithmic level, and thus no real
+equivalent to timer_delete() and timer_delete_sync()] - so there's anal direct
+1:1 mapping between them on the algorithmic level, and thus anal real
 potential for code sharing either.
 
 Basic data types: every time value, absolute or relative, is in a
-special nanosecond-resolution 64bit type: ktime_t.
+special naanalsecond-resolution 64bit type: ktime_t.
 (Originally, the kernel-internal representation of ktime_t values and
 operations was implemented via macros and inline functions, and could be
 switched between a "hybrid union" type and a plain "scalar" 64bit
-nanoseconds representation (at compile time). This was abandoned in the
+naanalseconds representation (at compile time). This was abandoned in the
 context of the Y2038 work.)
 
 hrtimers - rounding of timer values
 -----------------------------------
 
 the hrtimer code will round timer events to lower-resolution clocks
-because it has to. Otherwise it will do no artificial rounding at all.
+because it has to. Otherwise it will do anal artificial rounding at all.
 
 one question is, what resolution value should be returned to the user by
 the clock_getres() interface. This will return whatever real resolution
@@ -151,12 +151,12 @@ tests on low-resolution clocks.
 The hrtimer patch converts the following kernel functionality to use
 hrtimers:
 
- - nanosleep
+ - naanalsleep
  - itimers
  - posix-timers
 
-The conversion of nanosleep and posix-timers enabled the unification of
-nanosleep and clock_nanosleep.
+The conversion of naanalsleep and posix-timers enabled the unification of
+naanalsleep and clock_naanalsleep.
 
 The code was successfully compiled for the following platforms:
 

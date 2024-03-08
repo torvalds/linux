@@ -35,7 +35,7 @@
 
 #define PACA_EXGDBELL PACA_EXGEN
 
-/* We are out of SPRGs so we save some things in the PACA. The normal
+/* We are out of SPRGs so we save some things in the PACA. The analrmal
  * exception frame is smaller than the CRIT or MC one though
  */
 #define EX_R1		(0 * 8)
@@ -80,7 +80,7 @@ exc_##label##_book3e:
  * as the exception area pointer in the PACA for that level of re-entrancy
  * and r13 containing the PACA pointer.
  *
- * SRR0 and SRR1 are saved, but DEAR and ESR are not, since they don't apply
+ * SRR0 and SRR1 are saved, but DEAR and ESR are analt, since they don't apply
  * as-is for instruction exceptions. It's up to the actual exception code
  * to save them as well if required.
  */
@@ -113,12 +113,12 @@ exc_##label##_book3e:
  * - ERROR         : restore from level 0 and reset
  * - ERROR_SPECIAL : restore from current level and reset
  *
- * Normal errors use ERROR, that is, they restore the initial fault context
+ * Analrmal errors use ERROR, that is, they restore the initial fault context
  * and trigger a fault. However, there is a special case for linear mapping
  * errors. Those should basically never happen, but if they do happen, we
  * want the error to point out the context that did that linear mapping
- * fault, not the initial level 0 (basically, we got a bogus PGF or something
- * like that). For userland errors on the linear mapping, there is no
+ * fault, analt the initial level 0 (basically, we got a bogus PGF or something
+ * like that). For userland errors on the linear mapping, there is anal
  * difference since those are always level 0 anyway
  */
 

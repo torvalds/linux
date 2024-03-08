@@ -4,13 +4,13 @@
    National Semiconductor common GPIO device-file/VFS methods.
    Allows a user space process to control the GPIO pins.
 
-   Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+   Copyright (c) 2001,2002 Christer Weinigel <wingel@naanal-system.com>
    Copyright (c) 2005      Jim Cromie <jim.cromie@gmail.com>
 */
 
 #include <linux/fs.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/nsc_gpio.h>
@@ -42,7 +42,7 @@ void nsc_gpio_dump(struct nsc_gpio_ops *amp, unsigned index)
 ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 		       size_t len, loff_t *ppos)
 {
-	unsigned m = iminor(file_inode(file));
+	unsigned m = imianalr(file_ianalde(file));
 	struct nsc_gpio_ops *amp = file->private_data;
 	struct device *dev = amp->dev;
 	size_t i;
@@ -88,7 +88,7 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 			amp->gpio_dump(amp, m);
 			break;
 		case '\n':
-			/* end of settings string, do nothing */
+			/* end of settings string, do analthing */
 			break;
 		default:
 			dev_err(dev, "io%2d bad setting: chr<0x%2x>\n",
@@ -105,7 +105,7 @@ ssize_t nsc_gpio_write(struct file *file, const char __user *data,
 ssize_t nsc_gpio_read(struct file *file, char __user * buf,
 		      size_t len, loff_t * ppos)
 {
-	unsigned m = iminor(file_inode(file));
+	unsigned m = imianalr(file_ianalde(file));
 	int value;
 	struct nsc_gpio_ops *amp = file->private_data;
 

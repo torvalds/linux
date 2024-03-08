@@ -35,15 +35,15 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
 	 * We can read the expected type and the target address from the
 	 * registers passed to the beq/jalr instructions.
 	 */
-	if (get_kernel_nofault(insn, (void *)regs->epc - 4))
+	if (get_kernel_analfault(insn, (void *)regs->epc - 4))
 		return false;
 	if (!riscv_insn_is_beq(insn))
 		return false;
 
 	*type = (u32)regs_ptr[RV_EXTRACT_RS1_REG(insn)];
 
-	if (get_kernel_nofault(insn, (void *)regs->epc) ||
-	    get_kernel_nofault(insn, (void *)regs->epc + GET_INSN_LENGTH(insn)))
+	if (get_kernel_analfault(insn, (void *)regs->epc) ||
+	    get_kernel_analfault(insn, (void *)regs->epc + GET_INSN_LENGTH(insn)))
 		return false;
 
 	if (riscv_insn_is_jalr(insn))
@@ -68,10 +68,10 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 	u32 type;
 
 	if (!is_cfi_trap(regs->epc))
-		return BUG_TRAP_TYPE_NONE;
+		return BUG_TRAP_TYPE_ANALNE;
 
 	if (!decode_cfi_insn(regs, &target, &type))
-		return report_cfi_failure_noaddr(regs, regs->epc);
+		return report_cfi_failure_analaddr(regs, regs->epc);
 
 	return report_cfi_failure(regs, regs->epc, &target, type);
 }

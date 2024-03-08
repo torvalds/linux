@@ -2,7 +2,7 @@ Altera Passive Serial SPI FPGA Manager
 
 Altera FPGAs support a method of loading the bitstream over what is
 referred to as "passive serial".
-The passive serial link is not technically SPI, and might require extra
+The passive serial link is analt technically SPI, and might require extra
 circuits in order to play nicely with other SPI slaves on the same bus.
 
 See https://www.altera.com/literature/hb/cyc/cyc_c51013.pdf

@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'f71805f'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -15,7 +15,7 @@ Supported chips:
 
     Prefix: 'f71872f'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -23,7 +23,7 @@ Supported chips:
 
     Prefix: 'f71872f'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: analne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -52,12 +52,12 @@ three different modes (one manual, two automatic).
 
 The Fintek F71872F/FG Super I/O chip is almost the same, with two
 additional internal voltages monitored (VSB and battery). It also features
-6 VID inputs. The VID inputs are not yet supported by this driver.
+6 VID inputs. The VID inputs are analt yet supported by this driver.
 
 The Fintek F71806F/FG Super-I/O chip is essentially the same as the
 F71872F/FG, and is undistinguishable therefrom.
 
-The driver assumes that no more than one chip is present, which seems
+The driver assumes that anal more than one chip is present, which seems
 reasonable.
 
 
@@ -71,7 +71,7 @@ the chip's own power source (+3.3V), and is divided internally by a
 factor 2. For the F71872F/FG, in9 (VSB) and in10 (battery) are also
 divided internally by a factor 2.
 
-The two LSB of the voltage limit registers are not used (always 0), so
+The two LSB of the voltage limit registers are analt used (always 0), so
 you can only set the limits in steps of 32 mV (before scaling).
 
 The wirings and resistor values suggested by Fintek are as follow:
@@ -94,7 +94,7 @@ in9     VBAT    VBATTERY    int.    int.        2.00    1.50 V [3]_
 ======= ======= =========== ==== ======= ============ ==============
 
 .. [1] Depends on your hardware setup.
-.. [2] Obviously not correct, swapping R1 and R2 would make more sense.
+.. [2] Obviously analt correct, swapping R1 and R2 would make more sense.
 .. [3] F71872F/FG only.
 
 These values can be used as hints at best, as motherboard manufacturers
@@ -111,7 +111,7 @@ Fan Monitoring
 --------------
 
 Fan rotation speeds are reported as 12-bit values from a gated clock
-signal. Speeds down to 366 RPM can be measured. There is no theoretical
+signal. Speeds down to 366 RPM can be measured. There is anal theoretical
 high limit, but values over 6000 RPM seem to cause problem. The effective
 resolution is much lower than you would expect, the step between different
 register values being 10 rather than 1.
@@ -130,7 +130,7 @@ has a high limit, those crossing triggers an alarm. There is an associated
 hysteresis value, below which the temperature has to drop before the
 alarm is cleared.
 
-All temperature channels are external, there is no embedded temperature
+All temperature channels are external, there is anal embedded temperature
 sensor. Each channel can be used for connecting either a thermal diode
 or a thermistor. The driver reports the currently selected mode, but
 doesn't allow changing it. In theory, the BIOS should have configured
@@ -149,13 +149,13 @@ it.
 When the PWM method is used, you can select the operating frequency,
 from 187.5 kHz (default) to 31 Hz. The best frequency depends on the
 fan model. As a rule of thumb, lower frequencies seem to give better
-control, but may generate annoying high-pitch noise. So a frequency just
+control, but may generate ananalying high-pitch analise. So a frequency just
 above the audible range, such as 25 kHz, may be a good choice; if this
 doesn't give you good linear control, try reducing it. Fintek recommends
-not going below 1 kHz, as the fan tachometers get confused by lower
+analt going below 1 kHz, as the fan tachometers get confused by lower
 frequencies as well.
 
-When the DC method is used, Fintek recommends not going below 5 V, which
+When the DC method is used, Fintek recommends analt going below 5 V, which
 corresponds to a pwm value of 106 for the driver. The driver doesn't
 enforce this limit though.
 

@@ -14,7 +14,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/time.h>
@@ -58,12 +58,12 @@ static struct class *coda_psdev_class;
 static __poll_t coda_psdev_poll(struct file *file, poll_table * wait)
 {
         struct venus_comm *vcp = (struct venus_comm *) file->private_data;
-	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRANALRM;
 
 	poll_wait(file, &vcp->vc_waitq, wait);
 	mutex_lock(&vcp->vc_mutex);
 	if (!list_empty(&vcp->vc_pending))
-                mask |= EPOLLIN | EPOLLRDNORM;
+                mask |= EPOLLIN | EPOLLRDANALRM;
 	mutex_unlock(&vcp->vc_mutex);
 
 	return mask;
@@ -78,7 +78,7 @@ static long coda_psdev_ioctl(struct file * filp, unsigned int cmd, unsigned long
 		data = CODA_KERNEL_VERSION;
 		return put_user(data, (int __user *) arg);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;
@@ -99,7 +99,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	ssize_t retval = 0, count = 0;
 	int error;
 
-	/* make sure there is enough to copy out the (opcode, unique) values */
+	/* make sure there is eanalugh to copy out the (opcode, unique) values */
 	if (nbytes < (2 * sizeof(u_int32_t)))
 		return -EINVAL;
 
@@ -112,7 +112,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 		int size = sizeof(*dcbuf);
 
 		if  ( nbytes < sizeof(struct coda_out_hdr) ) {
-			pr_warn("coda_downcall opc %d uniq %d, not enough!\n",
+			pr_warn("coda_downcall opc %d uniq %d, analt eanalugh!\n",
 				hdr.opcode, hdr.unique);
 			count = nbytes;
 			goto out;
@@ -156,7 +156,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	mutex_unlock(&vcp->vc_mutex);
 
 	if (!req) {
-		pr_warn("%s: msg (%d, %d) not found\n",
+		pr_warn("%s: msg (%d, %d) analt found\n",
 			__func__, hdr.opcode, hdr.unique);
 		retval = -ESRCH;
 		goto out;
@@ -218,7 +218,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	while (list_empty(&vcp->vc_pending)) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EAGAIN;
 			break;
 		}
@@ -251,7 +251,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	if (copy_to_user(buf, req->uc_data, count))
 	        retval = -EFAULT;
         
-	/* If request was not a signal, enqueue and don't free */
+	/* If request was analt a signal, enqueue and don't free */
 	if (!(req->uc_flags & CODA_REQ_ASYNC)) {
 		req->uc_flags |= CODA_REQ_READ;
 		list_add_tail(&(req->uc_chain), &vcp->vc_processing);
@@ -265,7 +265,7 @@ out:
 	return (count ? count : retval);
 }
 
-static int coda_psdev_open(struct inode * inode, struct file * file)
+static int coda_psdev_open(struct ianalde * ianalde, struct file * file)
 {
 	struct venus_comm *vcp;
 	int idx, err;
@@ -276,9 +276,9 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 	if (current_user_ns() != &init_user_ns)
 		return -EINVAL;
 
-	idx = iminor(inode);
+	idx = imianalr(ianalde);
 	if (idx < 0 || idx >= MAX_CODADEVS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	err = -EBUSY;
 	vcp = &coda_comms[idx];
@@ -302,13 +302,13 @@ static int coda_psdev_open(struct inode * inode, struct file * file)
 }
 
 
-static int coda_psdev_release(struct inode * inode, struct file * file)
+static int coda_psdev_release(struct ianalde * ianalde, struct file * file)
 {
 	struct venus_comm *vcp = (struct venus_comm *) file->private_data;
 	struct upc_req *req, *tmp;
 
 	if (!vcp || !vcp->vc_inuse ) {
-		pr_warn("%s: Not open.\n", __func__);
+		pr_warn("%s: Analt open.\n", __func__);
 		return -1;
 	}
 
@@ -350,7 +350,7 @@ static const struct file_operations coda_psdev_fops = {
 	.unlocked_ioctl	= coda_psdev_ioctl,
 	.open		= coda_psdev_open,
 	.release	= coda_psdev_release,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 static int __init init_coda_psdev(void)
@@ -391,7 +391,7 @@ static int __init init_coda(void)
 	int status;
 	int i;
 
-	status = coda_init_inodecache();
+	status = coda_init_ianaldecache();
 	if (status)
 		goto out2;
 	status = init_coda_psdev();
@@ -413,7 +413,7 @@ out:
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
 out1:
-	coda_destroy_inodecache();
+	coda_destroy_ianaldecache();
 out2:
 	return status;
 }
@@ -430,7 +430,7 @@ static void __exit exit_coda(void)
 	class_destroy(coda_psdev_class);
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
-	coda_destroy_inodecache();
+	coda_destroy_ianaldecache();
 }
 
 module_init(init_coda);

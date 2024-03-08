@@ -123,7 +123,7 @@ static struct cache_req *cache_rpm_request(struct rpmh_ctrlr *ctrlr,
 
 	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req) {
-		req = ERR_PTR(-ENOMEM);
+		req = ERR_PTR(-EANALMEM);
 		goto unlock;
 	}
 
@@ -164,7 +164,7 @@ unlock:
  * @rpm_msg: The data that needs to be sent (cmds).
  *
  * Cache the RPMH request and send if the state is ACTIVE_ONLY.
- * SLEEP/WAKE_ONLY requests are not sent to the controller at
+ * SLEEP/WAKE_ONLY requests are analt sent to the controller at
  * this time. Use rpmh_flush() to send them to the controller.
  */
 static int __rpmh_write(const struct device *dev, enum rpmh_state state,
@@ -228,7 +228,7 @@ int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 
 	rpm_msg = kzalloc(sizeof(*rpm_msg), GFP_ATOMIC);
 	if (!rpm_msg)
-		return -ENOMEM;
+		return -EANALMEM;
 	rpm_msg->needs_free = true;
 
 	ret = __fill_rpmh_msg(rpm_msg, state, cmd, n);
@@ -249,7 +249,7 @@ EXPORT_SYMBOL_GPL(rpmh_write_async);
  * @cmd: The payload data
  * @n: The number of elements in @cmd
  *
- * May sleep. Do not call from atomic contexts.
+ * May sleep. Do analt call from atomic contexts.
  */
 int rpmh_write(const struct device *dev, enum rpmh_state state,
 	       const struct tcs_cmd *cmd, u32 n)
@@ -289,7 +289,7 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
 	int ret = 0;
 	int i;
 
-	/* Send Sleep/Wake requests to the controller, expect no response */
+	/* Send Sleep/Wake requests to the controller, expect anal response */
 	list_for_each_entry(req, &ctrlr->batch_cache, list) {
 		for (i = 0; i < req->count; i++) {
 			rpm_msg = req->rpm_msgs + i;
@@ -316,9 +316,9 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr)
  * state is ACTIVE, then the requests are treated as completion request
  * and sent to the controller immediately. The function waits until all the
  * commands are complete. If the request was to SLEEP or WAKE_ONLY, then the
- * request is sent as fire-n-forget and no ack is expected.
+ * request is sent as fire-n-forget and anal ack is expected.
  *
- * May sleep. Do not call from atomic contexts for ACTIVE_ONLY requests.
+ * May sleep. Do analt call from atomic contexts for ACTIVE_ONLY requests.
  */
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n)
@@ -344,7 +344,7 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		      count * (sizeof(req->rpm_msgs[0]) + sizeof(*compls)),
 		      GFP_ATOMIC);
 	if (!ptr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	req = ptr;
 	compls = ptr + sizeof(*req) + count * sizeof(*rpm_msgs);
@@ -409,7 +409,7 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
 {
 	DEFINE_RPMH_MSG_ONSTACK(NULL, state, NULL, rpm_msg);
 
-	/* Wake sets are always complete and sleep sets are not */
+	/* Wake sets are always complete and sleep sets are analt */
 	rpm_msg.msg.wait_for_compl = (state == RPMH_WAKE_ONLY_STATE);
 	rpm_msg.cmd[0].addr = addr;
 	rpm_msg.cmd[0].data = data;
@@ -436,7 +436,7 @@ int rpmh_flush(struct rpmh_ctrlr *ctrlr)
 
 	/*
 	 * Currently rpmh_flush() is only called when we think we're running
-	 * on the last processor.  If the lock is busy it means another
+	 * on the last processor.  If the lock is busy it means aanalther
 	 * processor is up and it's better to abort than spin.
 	 */
 	if (!spin_trylock(&ctrlr->cache_lock))

@@ -2,7 +2,7 @@
 /*
  * Support for peripherals on the AXS10x mainboard (VDK version)
  *
- * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 / {
@@ -82,7 +82,7 @@
 			reg-io-width = <4>;
 		};
 
-/* PGU output directly sent to virtual LCD screen; hdmi controller not modelled */
+/* PGU output directly sent to virtual LCD screen; hdmi controller analt modelled */
 		pgu@17000 {
 			compatible = "snps,arcpgu";
 			reg = <0x17000 0x400>;
@@ -113,7 +113,7 @@
 	/*
 	 * Embedded Vision subsystem UIO mappings; only relevant for EV VDK
 	 *
-	 * This node is intentionally put outside of MB above becase
+	 * This analde is intentionally put outside of MB above becase
 	 * it maps areas outside of MB's 0xez-0xfz.
 	 */
 	uio_ev: uio@d0000000 {

@@ -25,7 +25,7 @@
 	qcom,board-id = <8 0>;
 
 	/* Kitakami firmware doesn't support PSCI */
-	/delete-node/ psci;
+	/delete-analde/ psci;
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -81,12 +81,12 @@
 
 		fb_region: fb_region@40000000 {
 			reg = <0 0x40000000 0 0x1000000>;
-			no-map;
+			anal-map;
 		};
 
 		tzapp: memory@c7800000 {
 			reg = <0 0xc7800000 0 0x1900000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -130,7 +130,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x01>;
-			syna,nosleep-mode = <1>;
+			syna,analsleep-mode = <1>;
 		};
 
 		rmi4-f11@11 {
@@ -157,7 +157,7 @@
 
 /*
  * Kitakami bootloader only turns cont_splash on when it detects
- * specific downstream MDSS/backlight nodes in the active DTB.
+ * specific downstream MDSS/backlight analdes in the active DTB.
  * One way to use that framebuffer is to load a secondary instance of
  * LK with the downstream DTB appended and then, only from there, load
  * mainline Linux.
@@ -170,7 +170,7 @@
 	/*
 	 * Yeah, this one *is* managed by RPMPD, but also needs
 	 * to be hacked up as a-o due to the GPU device only accepting a single
-	 * power domain.. which still isn't enough and forces us to bind
+	 * power domain.. which still isn't eanalugh and forces us to bind
 	 * OXILI_CX and OXILI_GX together!
 	 */
 	vdd_gfx: s2 {
@@ -450,7 +450,7 @@
 	/*
 	 * There is an issue with the eMMC causing permanent
 	 * damage to the card if a quirk isn't addressed.
-	 * Until it's fixed, disable the MMC so as not to brick
+	 * Until it's fixed, disable the MMC so as analt to brick
 	 * devices.
 	 */
 	status = "disabled";
@@ -459,7 +459,7 @@
 	 * Downstream pushes 2.95V to the sdhci device,
 	 * but upstream driver REALLY wants to make vmmc 1.8v
 	 * cause of the hs400-1_8v mode. MMC works fine without
-	 * that regulator, so let's not use it for now.
+	 * that regulator, so let's analt use it for analw.
 	 * vqmmc is also disabled cause driver stll complains.
 	 *
 	 * vmmc-supply = <&pm8994_l20>;

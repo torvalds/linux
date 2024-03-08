@@ -3,10 +3,10 @@
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
- * for more details. No warranty for anything given at all.
+ * for more details. Anal warranty for anything given at all.
  */
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/asm.h>
 
 /*
@@ -86,7 +86,7 @@ SYM_FUNC_START(csum_partial_copy_generic)
 
 30:
 	/*
-	 * No _ASM_EXTABLE_UA; this is used for intentional prefetch on a
+	 * Anal _ASM_EXTABLE_UA; this is used for intentional prefetch on a
 	 * potentially unmapped kernel address.
 	 */
 	_ASM_EXTABLE(30b, 2f)

@@ -26,12 +26,12 @@
  */
 #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned int)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
 #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
-/* Maximum number of (4k) pages to deflate on OOM notifications. */
+/* Maximum number of (4k) pages to deflate on OOM analtifications. */
 #define VIRTIO_BALLOON_OOM_NR_PAGES 256
-#define VIRTIO_BALLOON_OOM_NOTIFY_PRIORITY 80
+#define VIRTIO_BALLOON_OOM_ANALTIFY_PRIORITY 80
 
-#define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
-					     __GFP_NOMEMALLOC)
+#define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_ANALRETRY | __GFP_ANALWARN | \
+					     __GFP_ANALMEMALLOC)
 /* The order of free page blocks to report to host */
 #define VIRTIO_BALLOON_HINT_BLOCK_ORDER MAX_PAGE_ORDER
 /* The size of a free page block in bytes */
@@ -90,10 +90,10 @@ struct virtio_balloon {
 	/* Waiting for host to ack the pages we released. */
 	wait_queue_head_t acked;
 
-	/* Number of balloon pages we've told the Host we're not using. */
+	/* Number of balloon pages we've told the Host we're analt using. */
 	unsigned int num_pages;
 	/*
-	 * The pages we've told the Host we're not using are enqueued
+	 * The pages we've told the Host we're analt using are enqueued
 	 * at vb_dev_info->pages list.
 	 * Each page on this list adds VIRTIO_BALLOON_PAGES_PER_PAGE
 	 * to num_pages above.
@@ -113,8 +113,8 @@ struct virtio_balloon {
 	/* Shrinker to return free pages - VIRTIO_BALLOON_F_FREE_PAGE_HINT */
 	struct shrinker *shrinker;
 
-	/* OOM notifier to deflate on OOM - VIRTIO_BALLOON_F_DEFLATE_ON_OOM */
-	struct notifier_block oom_nb;
+	/* OOM analtifier to deflate on OOM - VIRTIO_BALLOON_F_DEFLATE_ON_OOM */
+	struct analtifier_block oom_nb;
 
 	/* Free page reporting device */
 	struct virtqueue *reporting_vq;
@@ -172,7 +172,7 @@ static int virtballoon_free_page_report(struct page_reporting_dev_info *pr_dev_i
 	unsigned int unused, err;
 
 	/* We should always be able to add these buffers to an empty queue. */
-	err = virtqueue_add_inbuf(vq, sg, nents, vb, GFP_NOWAIT | __GFP_NOWARN);
+	err = virtqueue_add_inbuf(vq, sg, nents, vb, GFP_ANALWAIT | __GFP_ANALWARN);
 
 	/*
 	 * In the extremely unlikely case that something has occurred and we
@@ -199,7 +199,7 @@ static void set_page_pfns(struct virtio_balloon *vb,
 
 	/*
 	 * Set balloon pfns pointing at this page.
-	 * Note that the first pfn points at start of the page.
+	 * Analte that the first pfn points at start of the page.
 	 */
 	for (i = 0; i < VIRTIO_BALLOON_PAGES_PER_PAGE; i++)
 		pfns[i] = cpu_to_virtio32(vb->vdev,
@@ -295,7 +295,7 @@ static unsigned int leak_balloon(struct virtio_balloon *vb, size_t num)
 
 	num_freed_pages = vb->num_pfns;
 	/*
-	 * Note that if
+	 * Analte that if
 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
 	 * is true, we *have* to do it in this order
 	 */
@@ -328,7 +328,7 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
 	si_meminfo(&i);
 
 	available = si_mem_available();
-	caches = global_node_page_state(NR_FILE_PAGES);
+	caches = global_analde_page_state(NR_FILE_PAGES);
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
@@ -434,7 +434,7 @@ static void virtio_balloon_queue_free_page_work(struct virtio_balloon *vb)
 	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		return;
 
-	/* No need to queue the work if the bit was already set. */
+	/* Anal need to queue the work if the bit was already set. */
 	if (test_and_set_bit(VIRTIO_BALLOON_CONFIG_READ_CMD_ID,
 			     &vb->config_read_bitmap))
 		return;
@@ -535,8 +535,8 @@ static int init_vqs(struct virtio_balloon *vb)
 
 	/*
 	 * Inflateq and deflateq are used unconditionally. The names[]
-	 * will be NULL if the related feature is not enabled, which will
-	 * cause no allocation for the corresponding virtqueue in find_vqs.
+	 * will be NULL if the related feature is analt enabled, which will
+	 * cause anal allocation for the corresponding virtqueue in find_vqs.
 	 */
 	callbacks[VIRTIO_BALLOON_VQ_INFLATE] = balloon_ack;
 	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
@@ -688,7 +688,7 @@ static int get_free_page_and_send(struct virtio_balloon *vb)
 		spin_unlock_irq(&vb->free_page_list_lock);
 	} else {
 		/*
-		 * The vq has no available entry to add this page block, so
+		 * The vq has anal available entry to add this page block, so
 		 * just free it.
 		 */
 		free_pages((unsigned long)p, VIRTIO_BALLOON_HINT_BLOCK_ORDER);
@@ -770,7 +770,7 @@ static void report_free_page_func(struct work_struct *work)
  * @vb_dev_info: the balloon device
  * @newpage: page that will replace the isolated page after migration finishes.
  * @page   : the isolated (old) page that is about to be migrated to newpage.
- * @mode   : compaction mode -- not used for balloon page migration.
+ * @mode   : compaction mode -- analt used for balloon page migration.
  *
  * After a ballooned page gets isolated by compaction procedures, this is the
  * function that performs the page migration on behalf of a compaction thread
@@ -868,7 +868,7 @@ static unsigned long virtio_balloon_shrinker_count(struct shrinker *shrinker,
 	return vb->num_free_page_blocks * VIRTIO_BALLOON_HINT_BLOCK_PAGES;
 }
 
-static int virtio_balloon_oom_notify(struct notifier_block *nb,
+static int virtio_balloon_oom_analtify(struct analtifier_block *nb,
 				     unsigned long dummy, void *parm)
 {
 	struct virtio_balloon *vb = container_of(nb,
@@ -879,7 +879,7 @@ static int virtio_balloon_oom_notify(struct notifier_block *nb,
 		  VIRTIO_BALLOON_PAGES_PER_PAGE;
 	update_balloon_size(vb);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static void virtio_balloon_unregister_shrinker(struct virtio_balloon *vb)
@@ -891,7 +891,7 @@ static int virtio_balloon_register_shrinker(struct virtio_balloon *vb)
 {
 	vb->shrinker = shrinker_alloc(0, "virtio-balloon");
 	if (!vb->shrinker)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vb->shrinker->scan_objects = virtio_balloon_shrinker_scan;
 	vb->shrinker->count_objects = virtio_balloon_shrinker_count;
@@ -915,7 +915,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 
 	vdev->priv = vb = kzalloc(sizeof(*vb), GFP_KERNEL);
 	if (!vb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -941,13 +941,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		 * size needs to be at least two to report free page hints.
 		 */
 		if (virtqueue_get_vring_size(vb->free_page_vq) < 2) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out_del_vqs;
 		}
 		vb->balloon_wq = alloc_workqueue("balloon-wq",
 					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
 		if (!vb->balloon_wq) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out_del_vqs;
 		}
 		INIT_WORK(&vb->report_free_page_work, report_free_page_func);
@@ -968,9 +968,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	}
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM)) {
-		vb->oom_nb.notifier_call = virtio_balloon_oom_notify;
-		vb->oom_nb.priority = VIRTIO_BALLOON_OOM_NOTIFY_PRIORITY;
-		err = register_oom_notifier(&vb->oom_nb);
+		vb->oom_nb.analtifier_call = virtio_balloon_oom_analtify;
+		vb->oom_nb.priority = VIRTIO_BALLOON_OOM_ANALTIFY_PRIORITY;
+		err = register_oom_analtifier(&vb->oom_nb);
 		if (err < 0)
 			goto out_unregister_shrinker;
 	}
@@ -980,12 +980,12 @@ static int virtballoon_probe(struct virtio_device *vdev)
 		__u32 poison_val = 0;
 
 		/*
-		 * Let the hypervisor know that we are expecting a
+		 * Let the hypervisor kanalw that we are expecting a
 		 * specific value to be written back in balloon pages.
 		 *
 		 * If the PAGE_POISON value was larger than a byte we would
 		 * need to byte swap poison_val here to guarantee it is
-		 * little-endian. However for now it is a single byte so we
+		 * little-endian. However for analw it is a single byte so we
 		 * can pass it as-is.
 		 */
 		if (!want_init_on_free())
@@ -1001,7 +1001,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 
 		capacity = virtqueue_get_vring_size(vb->reporting_vq);
 		if (capacity < PAGE_REPORTING_CAPACITY) {
-			err = -ENOSPC;
+			err = -EANALSPC;
 			goto out_unregister_oom;
 		}
 
@@ -1037,7 +1037,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 
 out_unregister_oom:
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-		unregister_oom_notifier(&vb->oom_nb);
+		unregister_oom_analtifier(&vb->oom_nb);
 out_unregister_shrinker:
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		virtio_balloon_unregister_shrinker(vb);
@@ -1063,7 +1063,7 @@ static void remove_common(struct virtio_balloon *vb)
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		return_free_pages_to_mm(vb, ULONG_MAX);
 
-	/* Now we reset the device so we can clean up the queues. */
+	/* Analw we reset the device so we can clean up the queues. */
 	virtio_reset_device(vb->vdev);
 
 	vb->vdev->config->del_vqs(vb->vdev);
@@ -1076,7 +1076,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
 		page_reporting_unregister(&vb->pr_dev_info);
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-		unregister_oom_notifier(&vb->oom_nb);
+		unregister_oom_analtifier(&vb->oom_nb);
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
 		virtio_balloon_unregister_shrinker(vb);
 	spin_lock_irq(&vb->stop_update_lock);
@@ -1129,7 +1129,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
 {
 	/*
 	 * Inform the hypervisor that our pages are poisoned or
-	 * initialized. If we cannot do that then we should disable
+	 * initialized. If we cananalt do that then we should disable
 	 * page reporting as it could potentially change the contents
 	 * of our free pages.
 	 */

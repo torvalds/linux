@@ -8,8 +8,8 @@
 /*
  * This codes give three functionality.
  *
- * 1.get firewire node infomation
- * 2.get notification about starting/stopping stream
+ * 1.get firewire analde infomation
+ * 2.get analtification about starting/stopping stream
  * 3.lock/unlock stream
  */
 
@@ -59,7 +59,7 @@ hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 
 	spin_lock_irq(&bebob->lock);
 	if (bebob->dev_lock_changed)
-		events = EPOLLIN | EPOLLRDNORM;
+		events = EPOLLIN | EPOLLRDANALRM;
 	else
 		events = 0;
 	spin_unlock_irq(&bebob->lock);
@@ -152,7 +152,7 @@ hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(bebob);
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 }
 

@@ -6,11 +6,11 @@
 
 /dts-v1/;
 
-#include "imx8mm-innocomm-wb15.dtsi"
+#include "imx8mm-inanalcomm-wb15.dtsi"
 
 / {
-	model = "InnoComm WB15-EVK";
-	compatible = "innocomm,wb15-evk", "fsl,imx8mm";
+	model = "InanalComm WB15-EVK";
+	compatible = "inanalcomm,wb15-evk", "fsl,imx8mm";
 
 	chosen {
 		stdout-path = &uart2;

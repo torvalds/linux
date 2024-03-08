@@ -8,7 +8,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
 #include <linux/kvm_host.h>
@@ -195,12 +195,12 @@ static int kvm_riscv_vcpu_get_reg_config(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(zicbom_block_size):
 		if (!riscv_isa_extension_available(vcpu->arch.isa, ZICBOM))
-			return -ENOENT;
+			return -EANALENT;
 		reg_val = riscv_cbom_block_size;
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(zicboz_block_size):
 		if (!riscv_isa_extension_available(vcpu->arch.isa, ZICBOZ))
-			return -ENOENT;
+			return -EANALENT;
 		reg_val = riscv_cboz_block_size;
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(mvendorid):
@@ -216,7 +216,7 @@ static int kvm_riscv_vcpu_get_reg_config(struct kvm_vcpu *vcpu,
 		reg_val = satp_mode >> SATP_MODE_SHIFT;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (copy_to_user(uaddr, &reg_val, KVM_REG_SIZE(reg->id)))
@@ -251,14 +251,14 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 
 		/*
-		 * Return early (i.e. do nothing) if reg_val is the same
+		 * Return early (i.e. do analthing) if reg_val is the same
 		 * value retrievable via kvm_riscv_vcpu_get_reg_config().
 		 */
 		if (reg_val == (vcpu->arch.isa[0] & KVM_RISCV_BASE_ISA_MASK))
 			break;
 
 		if (!vcpu->arch.ran_atleast_once) {
-			/* Ignore the enable/disable request for certain extensions */
+			/* Iganalre the enable/disable request for certain extensions */
 			for (i = 0; i < RISCV_ISA_EXT_BASE; i++) {
 				isa_ext = kvm_riscv_vcpu_base2isa_ext(i);
 				if (isa_ext >= KVM_RISCV_ISA_EXT_MAX) {
@@ -273,7 +273,7 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 						reg_val |= BIT(i);
 			}
 			reg_val &= riscv_isa_extension_base(NULL);
-			/* Do not modify anything beyond single letter extensions */
+			/* Do analt modify anything beyond single letter extensions */
 			reg_val = (vcpu->arch.isa[0] & ~KVM_RISCV_BASE_ISA_MASK) |
 				  (reg_val & KVM_RISCV_BASE_ISA_MASK);
 			vcpu->arch.isa[0] = reg_val;
@@ -284,13 +284,13 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(zicbom_block_size):
 		if (!riscv_isa_extension_available(vcpu->arch.isa, ZICBOM))
-			return -ENOENT;
+			return -EANALENT;
 		if (reg_val != riscv_cbom_block_size)
 			return -EINVAL;
 		break;
 	case KVM_REG_RISCV_CONFIG_REG(zicboz_block_size):
 		if (!riscv_isa_extension_available(vcpu->arch.isa, ZICBOZ))
-			return -ENOENT;
+			return -EANALENT;
 		if (reg_val != riscv_cboz_block_size)
 			return -EINVAL;
 		break;
@@ -323,7 +323,7 @@ static int kvm_riscv_vcpu_set_reg_config(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -343,7 +343,7 @@ static int kvm_riscv_vcpu_get_reg_core(struct kvm_vcpu *vcpu,
 	if (KVM_REG_SIZE(reg->id) != sizeof(unsigned long))
 		return -EINVAL;
 	if (reg_num >= sizeof(struct kvm_riscv_core) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (reg_num == KVM_REG_RISCV_CORE_REG(regs.pc))
 		reg_val = cntx->sepc;
@@ -354,7 +354,7 @@ static int kvm_riscv_vcpu_get_reg_core(struct kvm_vcpu *vcpu,
 		reg_val = (cntx->sstatus & SR_SPP) ?
 				KVM_RISCV_MODE_S : KVM_RISCV_MODE_U;
 	else
-		return -ENOENT;
+		return -EANALENT;
 
 	if (copy_to_user(uaddr, &reg_val, KVM_REG_SIZE(reg->id)))
 		return -EFAULT;
@@ -376,7 +376,7 @@ static int kvm_riscv_vcpu_set_reg_core(struct kvm_vcpu *vcpu,
 	if (KVM_REG_SIZE(reg->id) != sizeof(unsigned long))
 		return -EINVAL;
 	if (reg_num >= sizeof(struct kvm_riscv_core) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (copy_from_user(&reg_val, uaddr, KVM_REG_SIZE(reg->id)))
 		return -EFAULT;
@@ -392,7 +392,7 @@ static int kvm_riscv_vcpu_set_reg_core(struct kvm_vcpu *vcpu,
 		else
 			cntx->sstatus &= ~SR_SPP;
 	} else
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -404,7 +404,7 @@ static int kvm_riscv_vcpu_general_get_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_csr) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (reg_num == KVM_REG_RISCV_CSR_REG(sip)) {
 		kvm_riscv_vcpu_flush_interrupts(vcpu);
@@ -423,7 +423,7 @@ static int kvm_riscv_vcpu_general_set_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_csr) / sizeof(unsigned long))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (reg_num == KVM_REG_RISCV_CSR_REG(sip)) {
 		reg_val &= VSIP_VALID_MASK;
@@ -496,7 +496,7 @@ static int kvm_riscv_vcpu_get_reg_csr(struct kvm_vcpu *vcpu,
 							      &reg_val);
 		break;
 	default:
-		rc = -ENOENT;
+		rc = -EANALENT;
 		break;
 	}
 	if (rc)
@@ -541,7 +541,7 @@ static int kvm_riscv_vcpu_set_reg_csr(struct kvm_vcpu *vcpu,
 							      reg_val);
 		break;
 	default:
-		rc = -ENOENT;
+		rc = -EANALENT;
 		break;
 	}
 	if (rc)
@@ -558,11 +558,11 @@ static int riscv_vcpu_get_isa_ext_single(struct kvm_vcpu *vcpu,
 
 	if (reg_num >= KVM_RISCV_ISA_EXT_MAX ||
 	    reg_num >= ARRAY_SIZE(kvm_isa_ext_arr))
-		return -ENOENT;
+		return -EANALENT;
 
 	host_isa_ext = kvm_isa_ext_arr[reg_num];
 	if (!__riscv_isa_extension_available(NULL, host_isa_ext))
-		return -ENOENT;
+		return -EANALENT;
 
 	*reg_val = 0;
 	if (__riscv_isa_extension_available(vcpu->arch.isa, host_isa_ext))
@@ -579,11 +579,11 @@ static int riscv_vcpu_set_isa_ext_single(struct kvm_vcpu *vcpu,
 
 	if (reg_num >= KVM_RISCV_ISA_EXT_MAX ||
 	    reg_num >= ARRAY_SIZE(kvm_isa_ext_arr))
-		return -ENOENT;
+		return -EANALENT;
 
 	host_isa_ext = kvm_isa_ext_arr[reg_num];
 	if (!__riscv_isa_extension_available(NULL, host_isa_ext))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (reg_val == test_bit(host_isa_ext, vcpu->arch.isa))
 		return 0;
@@ -616,7 +616,7 @@ static int riscv_vcpu_get_isa_ext_multi(struct kvm_vcpu *vcpu,
 	unsigned long i, ext_id, ext_val;
 
 	if (reg_num > KVM_REG_RISCV_ISA_MULTI_REG_LAST)
-		return -ENOENT;
+		return -EANALENT;
 
 	for (i = 0; i < BITS_PER_LONG; i++) {
 		ext_id = i + reg_num * BITS_PER_LONG;
@@ -639,7 +639,7 @@ static int riscv_vcpu_set_isa_ext_multi(struct kvm_vcpu *vcpu,
 	unsigned long i, ext_id;
 
 	if (reg_num > KVM_REG_RISCV_ISA_MULTI_REG_LAST)
-		return -ENOENT;
+		return -EANALENT;
 
 	for_each_set_bit(i, &reg_val, BITS_PER_LONG) {
 		ext_id = i + reg_num * BITS_PER_LONG;
@@ -681,7 +681,7 @@ static int kvm_riscv_vcpu_get_reg_isa_ext(struct kvm_vcpu *vcpu,
 			reg_val = ~reg_val;
 		break;
 	default:
-		rc = -ENOENT;
+		rc = -EANALENT;
 	}
 	if (rc)
 		return rc;
@@ -719,7 +719,7 @@ static int kvm_riscv_vcpu_set_reg_isa_ext(struct kvm_vcpu *vcpu,
 	case KVM_REG_RISCV_SBI_MULTI_DIS:
 		return riscv_vcpu_set_isa_ext_multi(vcpu, reg_num, reg_val, false);
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return 0;
@@ -737,7 +737,7 @@ static int copy_config_reg_indices(const struct kvm_vcpu *vcpu,
 
 		/*
 		 * Avoid reporting config reg if the corresponding extension
-		 * was not available.
+		 * was analt available.
 		 */
 		if (i == KVM_REG_RISCV_CONFIG_REG(zicbom_block_size) &&
 			!riscv_isa_extension_available(vcpu->arch.isa, ZICBOM))
@@ -1210,7 +1210,7 @@ int kvm_riscv_vcpu_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 int kvm_riscv_vcpu_get_reg(struct kvm_vcpu *vcpu,
@@ -1243,5 +1243,5 @@ int kvm_riscv_vcpu_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }

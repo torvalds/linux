@@ -28,7 +28,7 @@ static struct snd_pcm_hardware axg_fifo_hw = {
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_PAUSE |
-		 SNDRV_PCM_INFO_NO_PERIOD_WAKEUP),
+		 SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP),
 	.formats = AXG_FIFO_FORMATS,
 	.rate_min = 5512,
 	.rate_max = 384000,
@@ -39,7 +39,7 @@ static struct snd_pcm_hardware axg_fifo_hw = {
 	.periods_min = 2,
 	.periods_max = UINT_MAX,
 
-	/* No real justification for this */
+	/* Anal real justification for this */
 	.buffer_bytes_max = 1 * 1024 * 1024,
 };
 
@@ -143,7 +143,7 @@ int axg_fifo_pcm_hw_params(struct snd_soc_component *component,
 			   threshold ? threshold - 1 : 0);
 
 	/* Enable irq if necessary  */
-	irq_en = runtime->no_period_wakeup ? 0 : FIFO_INT_COUNT_REPEAT;
+	irq_en = runtime->anal_period_wakeup ? 0 : FIFO_INT_COUNT_REPEAT;
 	regmap_update_bits(fifo->map, FIFO_CTRL0,
 			   CTRL0_INT_EN(FIFO_INT_COUNT_REPEAT),
 			   CTRL0_INT_EN(irq_en));
@@ -331,12 +331,12 @@ int axg_fifo_probe(struct platform_device *pdev)
 	data = of_device_get_match_data(dev);
 	if (!data) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
 	if (!fifo)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, fifo);
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
@@ -358,7 +358,7 @@ int axg_fifo_probe(struct platform_device *pdev)
 	if (IS_ERR(fifo->arb))
 		return dev_err_probe(dev, PTR_ERR(fifo->arb), "failed to get arb reset\n");
 
-	fifo->irq = of_irq_get(dev->of_node, 0);
+	fifo->irq = of_irq_get(dev->of_analde, 0);
 	if (fifo->irq <= 0) {
 		dev_err(dev, "failed to get irq: %d\n", fifo->irq);
 		return fifo->irq;
@@ -369,7 +369,7 @@ int axg_fifo_probe(struct platform_device *pdev)
 	if (IS_ERR(fifo->field_threshold))
 		return PTR_ERR(fifo->field_threshold);
 
-	ret = of_property_read_u32(dev->of_node, "amlogic,fifo-depth",
+	ret = of_property_read_u32(dev->of_analde, "amlogic,fifo-depth",
 				   &fifo->depth);
 	if (ret) {
 		/* Error out for anything but a missing property */
@@ -377,10 +377,10 @@ int axg_fifo_probe(struct platform_device *pdev)
 			return ret;
 		/*
 		 * If the property is missing, it might be because of an old
-		 * DT. In such case, assume the smallest known fifo depth
+		 * DT. In such case, assume the smallest kanalwn fifo depth
 		 */
 		fifo->depth = 256;
-		dev_warn(dev, "fifo depth not found, assume %u bytes\n",
+		dev_warn(dev, "fifo depth analt found, assume %u bytes\n",
 			 fifo->depth);
 	}
 

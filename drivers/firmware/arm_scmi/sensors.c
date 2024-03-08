@@ -5,14 +5,14 @@
  * Copyright (C) 2018-2022 ARM Ltd.
  */
 
-#define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
+#define pr_fmt(fmt) "SCMI Analtifications SENSOR - " fmt
 
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
 #include "protocols.h"
-#include "notify.h"
+#include "analtify.h"
 
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x30000
@@ -22,14 +22,14 @@
 
 enum scmi_sensor_protocol_cmd {
 	SENSOR_DESCRIPTION_GET = 0x3,
-	SENSOR_TRIP_POINT_NOTIFY = 0x4,
+	SENSOR_TRIP_POINT_ANALTIFY = 0x4,
 	SENSOR_TRIP_POINT_CONFIG = 0x5,
 	SENSOR_READING_GET = 0x6,
 	SENSOR_AXIS_DESCRIPTION_GET = 0x7,
 	SENSOR_LIST_UPDATE_INTERVALS = 0x8,
 	SENSOR_CONFIG_GET = 0x9,
 	SENSOR_CONFIG_SET = 0xA,
-	SENSOR_CONTINUOUS_UPDATE_NOTIFY = 0xB,
+	SENSOR_CONTINUOUS_UPDATE_ANALTIFY = 0xB,
 	SENSOR_NAME_GET = 0xC,
 	SENSOR_AXIS_NAME_GET = 0xD,
 };
@@ -44,7 +44,7 @@ struct scmi_msg_resp_sensor_attributes {
 };
 
 /* v3 attributes_low macros */
-#define SUPPORTS_UPDATE_NOTIFY(x)	FIELD_GET(BIT(30), (x))
+#define SUPPORTS_UPDATE_ANALTIFY(x)	FIELD_GET(BIT(30), (x))
 #define SENSOR_TSTAMP_EXP(x)		FIELD_GET(GENMASK(14, 10), (x))
 #define SUPPORTS_TIMESTAMP(x)		FIELD_GET(BIT(9), (x))
 #define SUPPORTS_EXTEND_ATTRS(x)	FIELD_GET(BIT(8), (x))
@@ -153,10 +153,10 @@ struct scmi_msg_resp_sensor_list_update_intervals {
 	__le32 intervals[];
 };
 
-struct scmi_msg_sensor_request_notify {
+struct scmi_msg_sensor_request_analtify {
 	__le32 id;
 	__le32 event_control;
-#define SENSOR_NOTIFY_ALL	BIT(0)
+#define SENSOR_ANALTIFY_ALL	BIT(0)
 };
 
 struct scmi_msg_set_sensor_trip_point {
@@ -201,13 +201,13 @@ struct scmi_resp_sensor_reading_complete_v3 {
 	struct scmi_sensor_reading_resp readings[];
 };
 
-struct scmi_sensor_trip_notify_payld {
+struct scmi_sensor_trip_analtify_payld {
 	__le32 agent_id;
 	__le32 sensor_id;
 	__le32 trip_point_desc;
 };
 
-struct scmi_sensor_update_notify_payld {
+struct scmi_sensor_update_analtify_payld {
 	__le32 agent_id;
 	__le32 sensor_id;
 	struct scmi_sensor_reading_resp readings[];
@@ -287,7 +287,7 @@ static int iter_intervals_update_state(struct scmi_iterator_state *st,
 	st->num_remaining = NUM_INTERVALS_REMAINING(flags);
 
 	/*
-	 * Max intervals is not declared previously anywhere so we
+	 * Max intervals is analt declared previously anywhere so we
 	 * assume it's returned+remaining on first call.
 	 */
 	if (!st->max_resources) {
@@ -313,7 +313,7 @@ static int iter_intervals_update_state(struct scmi_iterator_state *st,
 			if (!s->intervals.desc) {
 				s->intervals.segmented = false;
 				s->intervals.count = 0;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
@@ -497,7 +497,7 @@ scmi_sensor_axis_extended_names_get(const struct scmi_protocol_handle *ph,
 		return PTR_ERR(iter);
 
 	/*
-	 * Do not cause whole protocol initialization failure when failing to
+	 * Do analt cause whole protocol initialization failure when failing to
 	 * get extended names for axes.
 	 */
 	ret = ph->hops->iter_response_run(iter);
@@ -528,7 +528,7 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 	s->axis = devm_kcalloc(ph->dev, s->num_axis,
 			       sizeof(*s->axis), GFP_KERNEL);
 	if (!s->axis)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
 					    SENSOR_AXIS_DESCRIPTION_GET,
@@ -591,10 +591,10 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 	s->num_trip_points = NUM_TRIP_POINTS(attrl);
 	/**
 	 * only SCMIv3.0 specific bitfield below.
-	 * Such bitfields are assumed to be zeroed on non
-	 * relevant fw versions...assuming fw not buggy !
+	 * Such bitfields are assumed to be zeroed on analn
+	 * relevant fw versions...assuming fw analt buggy !
 	 */
-	s->update = SUPPORTS_UPDATE_NOTIFY(attrl);
+	s->update = SUPPORTS_UPDATE_ANALTIFY(attrl);
 	s->timestamped = SUPPORTS_TIMESTAMP(attrl);
 	if (s->timestamped)
 		s->tstamp_scale = S32_EXT(SENSOR_TSTAMP_EXP(attrl));
@@ -625,13 +625,13 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 		 */
 		if (scmi_sensor_update_intervals(ph, s))
 			dev_dbg(ph->dev,
-				"Update Intervals not available for sensor ID:%d\n",
+				"Update Intervals analt available for sensor ID:%d\n",
 				s->id);
 	}
 	/**
 	 * only > SCMIv2.0 specific bitfield below.
-	 * Such bitfields are assumed to be zeroed on non
-	 * relevant fw versions...assuming fw not buggy !
+	 * Such bitfields are assumed to be zeroed on analn
+	 * relevant fw versions...assuming fw analt buggy !
 	 */
 	s->num_axis = min_t(unsigned int,
 			    SUPPORTS_AXIS(attrh) ?
@@ -695,13 +695,13 @@ static int scmi_sensor_description_get(const struct scmi_protocol_handle *ph,
 }
 
 static inline int
-scmi_sensor_request_notify(const struct scmi_protocol_handle *ph, u32 sensor_id,
+scmi_sensor_request_analtify(const struct scmi_protocol_handle *ph, u32 sensor_id,
 			   u8 message_id, bool enable)
 {
 	int ret;
-	u32 evt_cntl = enable ? SENSOR_NOTIFY_ALL : 0;
+	u32 evt_cntl = enable ? SENSOR_ANALTIFY_ALL : 0;
 	struct scmi_xfer *t;
-	struct scmi_msg_sensor_request_notify *cfg;
+	struct scmi_msg_sensor_request_analtify *cfg;
 
 	ret = ph->xops->xfer_get_init(ph, message_id, sizeof(*cfg), 0, &t);
 	if (ret)
@@ -717,20 +717,20 @@ scmi_sensor_request_notify(const struct scmi_protocol_handle *ph, u32 sensor_id,
 	return ret;
 }
 
-static int scmi_sensor_trip_point_notify(const struct scmi_protocol_handle *ph,
+static int scmi_sensor_trip_point_analtify(const struct scmi_protocol_handle *ph,
 					 u32 sensor_id, bool enable)
 {
-	return scmi_sensor_request_notify(ph, sensor_id,
-					  SENSOR_TRIP_POINT_NOTIFY,
+	return scmi_sensor_request_analtify(ph, sensor_id,
+					  SENSOR_TRIP_POINT_ANALTIFY,
 					  enable);
 }
 
 static int
-scmi_sensor_continuous_update_notify(const struct scmi_protocol_handle *ph,
+scmi_sensor_continuous_update_analtify(const struct scmi_protocol_handle *ph,
 				     u32 sensor_id, bool enable)
 {
-	return scmi_sensor_request_notify(ph, sensor_id,
-					  SENSOR_CONTINUOUS_UPDATE_NOTIFY,
+	return scmi_sensor_request_analtify(ph, sensor_id,
+					  SENSOR_CONTINUOUS_UPDATE_ANALTIFY,
 					  enable);
 }
 
@@ -988,17 +988,17 @@ static const struct scmi_sensor_proto_ops sensor_proto_ops = {
 	.config_set = scmi_sensor_config_set,
 };
 
-static int scmi_sensor_set_notify_enabled(const struct scmi_protocol_handle *ph,
+static int scmi_sensor_set_analtify_enabled(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
 
 	switch (evt_id) {
 	case SCMI_EVENT_SENSOR_TRIP_POINT_EVENT:
-		ret = scmi_sensor_trip_point_notify(ph, src_id, enable);
+		ret = scmi_sensor_trip_point_analtify(ph, src_id, enable);
 		break;
 	case SCMI_EVENT_SENSOR_UPDATE:
-		ret = scmi_sensor_continuous_update_notify(ph, src_id, enable);
+		ret = scmi_sensor_continuous_update_analtify(ph, src_id, enable);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1023,7 +1023,7 @@ scmi_sensor_fill_custom_report(const struct scmi_protocol_handle *ph,
 	switch (evt_id) {
 	case SCMI_EVENT_SENSOR_TRIP_POINT_EVENT:
 	{
-		const struct scmi_sensor_trip_notify_payld *p = payld;
+		const struct scmi_sensor_trip_analtify_payld *p = payld;
 		struct scmi_sensor_trip_point_report *r = report;
 
 		if (sizeof(*p) != payld_sz)
@@ -1041,7 +1041,7 @@ scmi_sensor_fill_custom_report(const struct scmi_protocol_handle *ph,
 	{
 		int i;
 		struct scmi_sensor_info *s;
-		const struct scmi_sensor_update_notify_payld *p = payld;
+		const struct scmi_sensor_update_analtify_payld *p = payld;
 		struct scmi_sensor_update_report *r = report;
 		struct sensors_info *sinfo = ph->get_priv(ph);
 
@@ -1083,13 +1083,13 @@ static int scmi_sensor_get_num_sources(const struct scmi_protocol_handle *ph)
 static const struct scmi_event sensor_events[] = {
 	{
 		.id = SCMI_EVENT_SENSOR_TRIP_POINT_EVENT,
-		.max_payld_sz = sizeof(struct scmi_sensor_trip_notify_payld),
+		.max_payld_sz = sizeof(struct scmi_sensor_trip_analtify_payld),
 		.max_report_sz = sizeof(struct scmi_sensor_trip_point_report),
 	},
 	{
 		.id = SCMI_EVENT_SENSOR_UPDATE,
 		.max_payld_sz =
-			sizeof(struct scmi_sensor_update_notify_payld) +
+			sizeof(struct scmi_sensor_update_analtify_payld) +
 			 SCMI_MAX_NUM_SENSOR_AXIS *
 			 sizeof(struct scmi_sensor_reading_resp),
 		.max_report_sz = sizeof(struct scmi_sensor_update_report) +
@@ -1100,7 +1100,7 @@ static const struct scmi_event sensor_events[] = {
 
 static const struct scmi_event_ops sensor_event_ops = {
 	.get_num_sources = scmi_sensor_get_num_sources,
-	.set_notify_enabled = scmi_sensor_set_notify_enabled,
+	.set_analtify_enabled = scmi_sensor_set_analtify_enabled,
 	.fill_custom_report = scmi_sensor_fill_custom_report,
 };
 
@@ -1122,11 +1122,11 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 		return ret;
 
 	dev_dbg(ph->dev, "Sensor Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MIANALR(version));
 
 	sinfo = devm_kzalloc(ph->dev, sizeof(*sinfo), GFP_KERNEL);
 	if (!sinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 	sinfo->version = version;
 
 	ret = scmi_sensor_attributes_get(ph, sinfo);
@@ -1135,7 +1135,7 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	sinfo->sensors = devm_kcalloc(ph->dev, sinfo->num_sensors,
 				      sizeof(*sinfo->sensors), GFP_KERNEL);
 	if (!sinfo->sensors)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = scmi_sensor_description_get(ph, sinfo);
 	if (ret)

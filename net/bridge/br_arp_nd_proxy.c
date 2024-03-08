@@ -134,7 +134,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 
 	BR_INPUT_SKB_CB(skb)->proxyarp_replied = 0;
 
-	if ((dev->flags & IFF_NOARP) ||
+	if ((dev->flags & IFF_ANALARP) ||
 	    !pskb_may_pull(skb, arp_hdr_len(dev)))
 		return;
 
@@ -215,7 +215,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 				replied = true;
 			}
 
-			/* If we have replied or as long as we know the
+			/* If we have replied or as long as we kanalw the
 			 * mac, indicate to arp replied
 			 */
 			if (replied ||
@@ -471,7 +471,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 				replied = true;
 			}
 
-			/* If we have replied or as long as we know the
+			/* If we have replied or as long as we kanalw the
 			 * mac, indicate to NEIGH_SUPPRESS ports that we
 			 * have replied
 			 */

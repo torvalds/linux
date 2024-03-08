@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* nommu.c: mmu-less memory info files
+/* analmmu.c: mmu-less memory info files
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -7,7 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -28,9 +28,9 @@
 /*
  * display a single region to a sequenced file
  */
-static int nommu_region_show(struct seq_file *m, struct vm_region *region)
+static int analmmu_region_show(struct seq_file *m, struct vm_region *region)
 {
-	unsigned long ino = 0;
+	unsigned long ianal = 0;
 	struct file *file;
 	dev_t dev = 0;
 	int flags;
@@ -39,9 +39,9 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
 	file = region->vm_file;
 
 	if (file) {
-		struct inode *inode = file_inode(region->vm_file);
-		dev = inode->i_sb->s_dev;
-		ino = inode->i_ino;
+		struct ianalde *ianalde = file_ianalde(region->vm_file);
+		dev = ianalde->i_sb->s_dev;
+		ianal = ianalde->i_ianal;
 	}
 
 	seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
@@ -54,7 +54,7 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
 		   flags & VM_EXEC ? 'x' : '-',
 		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
 		   ((loff_t)region->vm_pgoff) << PAGE_SHIFT,
-		   MAJOR(dev), MINOR(dev), ino);
+		   MAJOR(dev), MIANALR(dev), ianal);
 
 	if (file) {
 		seq_pad(m, ' ');
@@ -66,51 +66,51 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
 }
 
 /*
- * display a list of all the REGIONs the kernel knows about
- * - nommu kernels have a single flat list
+ * display a list of all the REGIONs the kernel kanalws about
+ * - analmmu kernels have a single flat list
  */
-static int nommu_region_list_show(struct seq_file *m, void *_p)
+static int analmmu_region_list_show(struct seq_file *m, void *_p)
 {
-	struct rb_node *p = _p;
+	struct rb_analde *p = _p;
 
-	return nommu_region_show(m, rb_entry(p, struct vm_region, vm_rb));
+	return analmmu_region_show(m, rb_entry(p, struct vm_region, vm_rb));
 }
 
-static void *nommu_region_list_start(struct seq_file *m, loff_t *_pos)
+static void *analmmu_region_list_start(struct seq_file *m, loff_t *_pos)
 {
-	struct rb_node *p;
+	struct rb_analde *p;
 	loff_t pos = *_pos;
 
-	down_read(&nommu_region_sem);
+	down_read(&analmmu_region_sem);
 
-	for (p = rb_first(&nommu_region_tree); p; p = rb_next(p))
+	for (p = rb_first(&analmmu_region_tree); p; p = rb_next(p))
 		if (pos-- == 0)
 			return p;
 	return NULL;
 }
 
-static void nommu_region_list_stop(struct seq_file *m, void *v)
+static void analmmu_region_list_stop(struct seq_file *m, void *v)
 {
-	up_read(&nommu_region_sem);
+	up_read(&analmmu_region_sem);
 }
 
-static void *nommu_region_list_next(struct seq_file *m, void *v, loff_t *pos)
+static void *analmmu_region_list_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	(*pos)++;
-	return rb_next((struct rb_node *) v);
+	return rb_next((struct rb_analde *) v);
 }
 
-static const struct seq_operations proc_nommu_region_list_seqop = {
-	.start	= nommu_region_list_start,
-	.next	= nommu_region_list_next,
-	.stop	= nommu_region_list_stop,
-	.show	= nommu_region_list_show
+static const struct seq_operations proc_analmmu_region_list_seqop = {
+	.start	= analmmu_region_list_start,
+	.next	= analmmu_region_list_next,
+	.stop	= analmmu_region_list_stop,
+	.show	= analmmu_region_list_show
 };
 
-static int __init proc_nommu_init(void)
+static int __init proc_analmmu_init(void)
 {
-	proc_create_seq("maps", S_IRUGO, NULL, &proc_nommu_region_list_seqop);
+	proc_create_seq("maps", S_IRUGO, NULL, &proc_analmmu_region_list_seqop);
 	return 0;
 }
 
-fs_initcall(proc_nommu_init);
+fs_initcall(proc_analmmu_init);

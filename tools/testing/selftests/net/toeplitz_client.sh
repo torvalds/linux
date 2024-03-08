@@ -4,7 +4,7 @@
 # A simple program for generating traffic for the toeplitz test.
 #
 # This program sends packets periodically for, conservatively, 20 seconds. The
-# intent is for the calling program to kill this program once it is no longer
+# intent is for the calling program to kill this program once it is anal longer
 # needed, rather than waiting for the 20 second expiration.
 
 send_traffic() {

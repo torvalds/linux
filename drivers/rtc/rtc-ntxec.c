@@ -84,7 +84,7 @@ static int ntxec_set_time(struct device *dev, struct rtc_time *tm)
 	 * To avoid time overflows while we're writing the full date/time,
 	 * set the seconds field to zero before doing anything else. For the
 	 * next 59 seconds (plus however long it takes until the RTC's next
-	 * update of the second field), the seconds field will not overflow
+	 * update of the second field), the seconds field will analt overflow
 	 * into the other fields.
 	 */
 	struct reg_sequence regs[] = {
@@ -110,11 +110,11 @@ static int ntxec_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *dev;
 	struct ntxec_rtc *rtc;
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
+	pdev->dev.of_analde = pdev->dev.parent->of_analde;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->dev = &pdev->dev;
 	rtc->ec = dev_get_drvdata(pdev->dev.parent);

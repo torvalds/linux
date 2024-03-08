@@ -2,7 +2,7 @@
 /*
  * Kernel-based Virtual Machine driver for Linux
  *
- * Macros and functions to access KVM PTEs (also known as SPTEs)
+ * Macros and functions to access KVM PTEs (also kanalwn as SPTEs)
  *
  * Copyright (C) 2006 Qumranet, Inc.
  * Copyright 2020 Red Hat, Inc. and/or its affiliates.
@@ -40,15 +40,15 @@ u64 __read_mostly shadow_me_value;
 u64 __read_mostly shadow_me_mask;
 u64 __read_mostly shadow_acc_track_mask;
 
-u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
-u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
+u64 __read_mostly shadow_analnpresent_or_rsvd_mask;
+u64 __read_mostly shadow_analnpresent_or_rsvd_lower_gfn_mask;
 
 u8 __read_mostly shadow_phys_bits;
 
 void __init kvm_mmu_spte_module_init(void)
 {
 	/*
-	 * Snapshot userspace's desire to allow MMIO caching.  Whether or not
+	 * Snapshot userspace's desire to allow MMIO caching.  Whether or analt
 	 * KVM can actually enable MMIO caching depends on vendor-specific
 	 * hardware capabilities and other module params that can't be resolved
 	 * until the vendor module is loaded, i.e. enable_mmio_caching can and
@@ -78,9 +78,9 @@ u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access)
 
 	access &= shadow_mmio_access_mask;
 	spte |= shadow_mmio_value | access;
-	spte |= gpa | shadow_nonpresent_or_rsvd_mask;
-	spte |= (gpa & shadow_nonpresent_or_rsvd_mask)
-		<< SHADOW_NONPRESENT_OR_RSVD_MASK_LEN;
+	spte |= gpa | shadow_analnpresent_or_rsvd_mask;
+	spte |= (gpa & shadow_analnpresent_or_rsvd_mask)
+		<< SHADOW_ANALNPRESENT_OR_RSVD_MASK_LEN;
 
 	return spte;
 }
@@ -91,7 +91,7 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn)) &&
 			/*
 			 * Some reserved pages, such as those from NVDIMM
-			 * DAX devices, are not for MMIO, and can be mapped
+			 * DAX devices, are analt for MMIO, and can be mapped
 			 * with cached memory type for better performance.
 			 * However, the above check misconceives those pages
 			 * as MMIO, and results in KVM mapping them with UC
@@ -109,15 +109,15 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 /*
  * Returns true if the SPTE has bits that may be set without holding mmu_lock.
  * The caller is responsible for checking if the SPTE is shadow-present, and
- * for determining whether or not the caller cares about non-leaf SPTEs.
+ * for determining whether or analt the caller cares about analn-leaf SPTEs.
  */
 bool spte_has_volatile_bits(u64 spte)
 {
 	/*
 	 * Always atomically update spte if it can be updated
-	 * out of mmu-lock, it can ensure dirty bit is not lost,
+	 * out of mmu-lock, it can ensure dirty bit is analt lost,
 	 * also, it can help us to get a stable is_writable_pte()
-	 * to ensure tlb flush is not missed.
+	 * to ensure tlb flush is analt missed.
 	 */
 	if (!is_writable_pte(spte) && is_mmu_writable_spte(spte))
 		return true;
@@ -162,14 +162,14 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		spte |= spte_shadow_accessed_mask(spte);
 
 	/*
-	 * For simplicity, enforce the NX huge page mitigation even if not
-	 * strictly necessary.  KVM could ignore the mitigation if paging is
+	 * For simplicity, enforce the NX huge page mitigation even if analt
+	 * strictly necessary.  KVM could iganalre the mitigation if paging is
 	 * disabled in the guest, as the guest doesn't have any page tables to
-	 * abuse.  But to safely ignore the mitigation, KVM would have to
+	 * abuse.  But to safely iganalre the mitigation, KVM would have to
 	 * ensure a new MMU is loaded (or all shadow pages zapped) when CR0.PG
 	 * is toggled on, and that's a net negative for performance when TDP is
 	 * enabled.  When TDP is disabled, KVM will always switch to a new MMU
-	 * when CR0.PG is toggled, but leveraging that to ignore the mitigation
+	 * when CR0.PG is toggled, but leveraging that to iganalre the mitigation
 	 * would tie make_spte() further to vCPU/MMU state, and add complexity
 	 * just to optimize a mode that is anything but performance critical.
 	 */
@@ -218,7 +218,7 @@ bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		 * Unsync shadow pages that are reachable by the new, writable
 		 * SPTE.  Write-protect the SPTE if the page can't be unsync'd,
 		 * e.g. it's write-tracked (upper-level SPs) or has one or more
-		 * shadow pages and unsync'ing pages is not allowed.
+		 * shadow pages and unsync'ing pages is analt allowed.
 		 */
 		if (mmu_try_to_unsync_pages(vcpu->kvm, slot, gfn, can_unsync, prefetch)) {
 			wrprot = true;
@@ -296,7 +296,7 @@ u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte, union kvm_mmu_page
 
 		/*
 		 * When splitting to a 4K page where execution is allowed, mark
-		 * the page executable as the NX hugepage mitigation no longer
+		 * the page executable as the NX hugepage mitigation anal longer
 		 * applies.
 		 */
 		if ((role.access & ACC_EXEC_MASK) && is_nx_huge_page_enabled(kvm))
@@ -307,7 +307,7 @@ u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte, union kvm_mmu_page
 }
 
 
-u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
+u64 make_analnleaf_spte(u64 *child_pt, bool ad_disabled)
 {
 	u64 spte = SPTE_MMU_PRESENT_MASK;
 
@@ -322,7 +322,7 @@ u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 	return spte;
 }
 
-u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
+u64 kvm_mmu_changed_pte_analtifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
 {
 	u64 new_spte;
 
@@ -350,7 +350,7 @@ u64 mark_spte_for_access_track(u64 spte)
 
 	WARN_ONCE(spte & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
 			  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT),
-		  "Access Tracking saved bit locations are not zero\n");
+		  "Access Tracking saved bit locations are analt zero\n");
 
 	spte |= (spte & SHADOW_ACC_TRACK_SAVED_BITS_MASK) <<
 		SHADOW_ACC_TRACK_SAVED_BITS_SHIFT;
@@ -362,12 +362,12 @@ u64 mark_spte_for_access_track(u64 spte)
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 {
 	BUG_ON((u64)(unsigned)access_mask != access_mask);
-	WARN_ON(mmio_value & shadow_nonpresent_or_rsvd_lower_gfn_mask);
+	WARN_ON(mmio_value & shadow_analnpresent_or_rsvd_lower_gfn_mask);
 
 	/*
-	 * Reset to the original module param value to honor userspace's desire
+	 * Reset to the original module param value to hoanalr userspace's desire
 	 * to (dis)allow MMIO caching.  Update the param itself so that
-	 * userspace can see whether or not KVM is actually using MMIO caching.
+	 * userspace can see whether or analt KVM is actually using MMIO caching.
 	 */
 	enable_mmio_caching = allow_mmio_caching;
 	if (!enable_mmio_caching)
@@ -375,7 +375,7 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 
 	/*
 	 * The mask must contain only bits that are carved out specifically for
-	 * the MMIO SPTE mask, e.g. to ensure there's no overlap with the MMIO
+	 * the MMIO SPTE mask, e.g. to ensure there's anal overlap with the MMIO
 	 * generation.
 	 */
 	if (WARN_ON(mmio_mask & ~SPTE_MMIO_ALLOWED_MASK))
@@ -384,19 +384,19 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 mmio_mask, u64 access_mask)
 	/*
 	 * Disable MMIO caching if the MMIO value collides with the bits that
 	 * are used to hold the relocated GFN when the L1TF mitigation is
-	 * enabled.  This should never fire as there is no known hardware that
+	 * enabled.  This should never fire as there is anal kanalwn hardware that
 	 * can trigger this condition, e.g. SME/SEV CPUs that require a custom
-	 * MMIO value are not susceptible to L1TF.
+	 * MMIO value are analt susceptible to L1TF.
 	 */
-	if (WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask <<
-				  SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)))
+	if (WARN_ON(mmio_value & (shadow_analnpresent_or_rsvd_mask <<
+				  SHADOW_ANALNPRESENT_OR_RSVD_MASK_LEN)))
 		mmio_value = 0;
 
 	/*
 	 * The masked MMIO value must obviously match itself and a removed SPTE
-	 * must not get a false positive.  Removed SPTEs and MMIO SPTEs should
+	 * must analt get a false positive.  Removed SPTEs and MMIO SPTEs should
 	 * never collide as MMIO must set some RWX bits, and removed SPTEs must
-	 * not set any RWX bits.
+	 * analt set any RWX bits.
 	 */
 	if (WARN_ON((mmio_value & mmio_mask) != mmio_value) ||
 	    WARN_ON(mmio_value && (REMOVED_SPTE & mmio_mask) == mmio_value))
@@ -432,7 +432,7 @@ void kvm_mmu_set_ept_masks(bool has_ad_bits, bool has_exec_only)
 	shadow_present_mask	= has_exec_only ? 0ull : VMX_EPT_READABLE_MASK;
 	/*
 	 * EPT overrides the host MTRRs, and so KVM must program the desired
-	 * memtype directly into the SPTEs.  Note, this mask is just the mask
+	 * memtype directly into the SPTEs.  Analte, this mask is just the mask
 	 * of all bits that factor into the memtype, the actual memtype must be
 	 * dynamically calculated, e.g. to ensure host MMIO is mapped UC.
 	 */
@@ -460,25 +460,25 @@ void kvm_mmu_reset_all_pte_masks(void)
 	/*
 	 * If the CPU has 46 or less physical address bits, then set an
 	 * appropriate mask to guard against L1TF attacks. Otherwise, it is
-	 * assumed that the CPU is not vulnerable to L1TF.
+	 * assumed that the CPU is analt vulnerable to L1TF.
 	 *
 	 * Some Intel CPUs address the L1 cache using more PA bits than are
 	 * reported by CPUID. Use the PA width of the L1 cache when possible
 	 * to achieve more effective mitigation, e.g. if system RAM overlaps
 	 * the most significant bits of legal physical address space.
 	 */
-	shadow_nonpresent_or_rsvd_mask = 0;
+	shadow_analnpresent_or_rsvd_mask = 0;
 	low_phys_bits = boot_cpu_data.x86_phys_bits;
 	if (boot_cpu_has_bug(X86_BUG_L1TF) &&
 	    !WARN_ON_ONCE(boot_cpu_data.x86_cache_bits >=
-			  52 - SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)) {
+			  52 - SHADOW_ANALNPRESENT_OR_RSVD_MASK_LEN)) {
 		low_phys_bits = boot_cpu_data.x86_cache_bits
-			- SHADOW_NONPRESENT_OR_RSVD_MASK_LEN;
-		shadow_nonpresent_or_rsvd_mask =
+			- SHADOW_ANALNPRESENT_OR_RSVD_MASK_LEN;
+		shadow_analnpresent_or_rsvd_mask =
 			rsvd_bits(low_phys_bits, boot_cpu_data.x86_cache_bits - 1);
 	}
 
-	shadow_nonpresent_or_rsvd_lower_gfn_mask =
+	shadow_analnpresent_or_rsvd_lower_gfn_mask =
 		GENMASK_ULL(low_phys_bits - 1, PAGE_SHIFT);
 
 	shadow_user_mask	= PT_USER_MASK;
@@ -505,7 +505,7 @@ void kvm_mmu_reset_all_pte_masks(void)
 	 * Set a reserved PA bit in MMIO SPTEs to generate page faults with
 	 * PFEC.RSVD=1 on MMIO accesses.  64-bit PTEs (PAE, x86-64, and EPT
 	 * paging) support a maximum of 52 bits of PA, i.e. if the CPU supports
-	 * 52-bit physical addresses then there are no reserved PA bits in the
+	 * 52-bit physical addresses then there are anal reserved PA bits in the
 	 * PTEs and so the reserved PA approach must be disabled.
 	 */
 	if (shadow_phys_bits < 52)

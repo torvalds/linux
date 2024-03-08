@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -101,7 +101,7 @@ void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id)
 
 	peer = ath11k_peer_find_list_by_id(ab, peer_id);
 	if (!peer) {
-		ath11k_warn(ab, "peer-unmap-event: unknown peer id %d\n",
+		ath11k_warn(ab, "peer-unmap-event: unkanalwn peer id %d\n",
 			    peer_id);
 		goto exit;
 	}
@@ -197,7 +197,7 @@ static inline int ath11k_peer_rhash_remove(struct ath11k_base *ab,
 	lockdep_assert_held(&ab->tbl_mtx_lock);
 
 	ret = rhashtable_remove_fast(rtbl, rhead, *params);
-	if (ret && ret != -ENOENT)
+	if (ret && ret != -EANALENT)
 		return ret;
 
 	return 0;
@@ -303,7 +303,7 @@ static int __ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, const u8 *addr)
 
 	peer = ath11k_peer_find_by_addr(ab, addr);
 	/* Check if the found peer is what we want to remove.
-	 * While the sta is transitioning to another band we may
+	 * While the sta is transitioning to aanalther band we may
 	 * have 2 peer with the same addr assigned to different
 	 * vdev_id. Make sure we are deleting the correct peer.
 	 */
@@ -379,7 +379,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	if (ar->num_peers > (ar->max_num_peers - 1)) {
 		ath11k_warn(ar->ab,
 			    "failed to create peer due to insufficient peer entry resource in firmware\n");
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	mutex_lock(&ar->ab->tbl_mtx_lock);
@@ -392,7 +392,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 			return -EINVAL;
 		}
 
-		/* Assume sta is transitioning to another band.
+		/* Assume sta is transitioning to aanalther band.
 		 * Remove here the peer from rhash.
 		 */
 		ath11k_peer_rhash_delete(ar->ab, peer);
@@ -423,7 +423,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		ath11k_warn(ar->ab, "failed to find peer %pM on vdev %i after creation\n",
 			    param->peer_addr, param->vdev_id);
 
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto cleanup;
 	}
 
@@ -515,9 +515,9 @@ static int ath11k_peer_rhash_id_tbl_init(struct ath11k_base *ab)
 	size = sizeof(*ab->rhead_peer_id);
 	rhash_id_tbl = kzalloc(size, GFP_KERNEL);
 	if (!rhash_id_tbl) {
-		ath11k_warn(ab, "failed to init rhash id table due to no mem (size %zu)\n",
+		ath11k_warn(ab, "failed to init rhash id table due to anal mem (size %zu)\n",
 			    size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	param = &ab->rhash_peer_id_param;
@@ -570,9 +570,9 @@ static int ath11k_peer_rhash_addr_tbl_init(struct ath11k_base *ab)
 	size = sizeof(*ab->rhead_peer_addr);
 	rhash_addr_tbl = kzalloc(size, GFP_KERNEL);
 	if (!rhash_addr_tbl) {
-		ath11k_warn(ab, "failed to init rhash addr table due to no mem (size %zu)\n",
+		ath11k_warn(ab, "failed to init rhash addr table due to anal mem (size %zu)\n",
 			    size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	param = &ab->rhash_peer_addr_param;

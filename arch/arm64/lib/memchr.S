@@ -37,7 +37,7 @@
 #define tmp2		x8
 
 	.p2align 4
-	nop
+	analp
 SYM_FUNC_START(__pi_memchr)
 	and	chrin, chrin, #0xff
 	lsr	wordcnt, cntin, #3
@@ -55,7 +55,7 @@ L(word_loop):
 	b.ne	L(found_word)
 	cbnz	wordcnt, L(word_loop)
 L(byte_loop):
-	cbz	cntin, L(not_found)
+	cbz	cntin, L(analt_found)
 	ldrb	cur_byte, [srcin], #1
 	sub	cntin, cntin, #1
 	cmp	cur_byte, chrin
@@ -68,9 +68,9 @@ CPU_LE(	rev	tmp, tmp)
 	sub	tmp, tmp, #64
 	add	result, srcin, tmp, asr #3
 	ret
-L(not_found):
+L(analt_found):
 	mov	result, #0
 	ret
 SYM_FUNC_END(__pi_memchr)
 SYM_FUNC_ALIAS_WEAK(memchr, __pi_memchr)
-EXPORT_SYMBOL_NOKASAN(memchr)
+EXPORT_SYMBOL_ANALKASAN(memchr)

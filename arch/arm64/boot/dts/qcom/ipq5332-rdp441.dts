@@ -2,7 +2,7 @@
 /*
  * IPQ5332 AP-MI01.2 board device tree source
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 #include "ipq5332-rdp-common.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ5332 MI01.2";
+	model = "Qualcomm Techanallogies, Inc. IPQ5332 MI01.2";
 	compatible = "qcom,ipq5332-ap-mi01.2", "qcom,ipq5332";
 };
 
@@ -26,7 +26,7 @@
 	max-frequency = <192000000>;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	pinctrl-0 = <&sdc_default_state>;
 	pinctrl-names = "default";
 	status = "okay";

@@ -54,7 +54,7 @@ static __always_inline int real_create(struct socket *sock, int family,
 	struct sock *sk;
 	int prio = 123;
 
-	/* Reject non-tx-only AF_PACKET. */
+	/* Reject analn-tx-only AF_PACKET. */
 	if (family == AF_PACKET && protocol != 0)
 		return 0; /* EPERM */
 
@@ -144,7 +144,7 @@ SEC("lsm_cgroup/sk_alloc_security")
 int BPF_PROG(socket_alloc, struct sock *sk, int family, gfp_t priority)
 {
 	called_socket_alloc++;
-	/* if already have non-bpf lsms installed, EPERM will cause memory leak of non-bpf lsms */
+	/* if already have analn-bpf lsms installed, EPERM will cause memory leak of analn-bpf lsms */
 	if (CONFIG_SECURITY_SELINUX || CONFIG_SECURITY_SMACK || CONFIG_SECURITY_APPARMOR)
 		return 1;
 

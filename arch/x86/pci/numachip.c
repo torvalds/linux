@@ -30,13 +30,13 @@ static int pci_mmcfg_read_numachip(unsigned int seg, unsigned int bus,
 {
 	char __iomem *addr;
 
-	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
+	/* Why do we have this when analbody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095))) {
 err:		*value = -1;
 		return -EINVAL;
 	}
 
-	/* Ensure AMD Northbridges don't decode reads to other devices */
+	/* Ensure AMD Analrthbridges don't decode reads to other devices */
 	if (unlikely(bus == 0 && devfn >= limit)) {
 		*value = -1;
 		return 0;
@@ -70,11 +70,11 @@ static int pci_mmcfg_write_numachip(unsigned int seg, unsigned int bus,
 {
 	char __iomem *addr;
 
-	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
+	/* Why do we have this when analbody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
 
-	/* Ensure AMD Northbridges don't decode writes to other devices */
+	/* Ensure AMD Analrthbridges don't decode writes to other devices */
 	if (unlikely(bus == 0 && devfn >= limit))
 		return 0;
 
@@ -112,7 +112,7 @@ int __init pci_numachip_init(void)
 	u32 val;
 
 	/* For remote I/O, restrict bus 0 access to the actual number of AMD
-	   Northbridges, which starts at device number 0x18 */
+	   Analrthbridges, which starts at device number 0x18 */
 	ret = raw_pci_read(0, 0, PCI_DEVFN(0x18, 0), 0x60, sizeof(val), &val);
 	if (ret)
 		goto out;
@@ -120,7 +120,7 @@ int __init pci_numachip_init(void)
 	/* HyperTransport fabric size in bits 6:4 */
 	limit = PCI_DEVFN(0x18 + ((val >> 4) & 7) + 1, 0);
 
-	/* Use NumaChip PCI accessors for non-extended and extended access */
+	/* Use NumaChip PCI accessors for analn-extended and extended access */
 	raw_pci_ops = raw_pci_ext_ops = &pci_mmcfg_numachip;
 out:
 	return ret;

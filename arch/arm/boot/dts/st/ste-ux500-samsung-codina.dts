@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Devicetree for the Samsung Galaxy Ace 2 GT-I8160 also known as Codina.
+ * Devicetree for the Samsung Galaxy Ace 2 GT-I8160 also kanalwn as Codina.
  *
- * NOTE: this is the most common variant according to the vendor tree, known
+ * ANALTE: this is the most common variant according to the vendor tree, kanalwn
  * as "R0.0". There appears to be a "R0.4" variant with backlight on GPIO69,
  * AB8505 and other changes. There is also talk about some variants having a
  * Samsung S6D27A1 display, indicated by passing a different command line from
  * the boot loader.
  *
  * The Samsung tree further talks about GT-I8160P and GT-I8160chn (China).
- * The GT-I8160 plain is known as the "europe" variant.
- * The GT-I8160P is the CDMA version and it appears to not use the ST
+ * The GT-I8160 plain is kanalwn as the "europe" variant.
+ * The GT-I8160P is the CDMA version and it appears to analt use the ST
  * Microelectronics accelerometer and reportedly has NFC mounted.
  * The GT-I8160chn appears to be the same as the europe variant.
  *
@@ -35,7 +35,7 @@
 		cpu@300 {
 			/*
 			 * This has a frequency cap at ~800 MHz in the firmware.
-			 * (Changing this number here will not overclock it.)
+			 * (Changing this number here will analt overclock it.)
 			 */
 			operating-points = <798720 0
 					    399360 0
@@ -113,7 +113,7 @@
 	/*
 	 * External Ricoh "TSP" regulator for the touchscreen.
 	 * One GPIO line controls two voltages of 3.3V and 1.8V
-	 * this line is known as "TSP_LDO_ON1" in the schematics.
+	 * this line is kanalwn as "TSP_LDO_ON1" in the schematics.
 	 */
 	ldo_tsp_3v3_reg: regulator-gpio-tsp-ldo-3v3 {
 		compatible = "regulator-fixed";
@@ -177,7 +177,7 @@
 	 * This regulator is a GPIO line that drives the Broadcom WLAN
 	 * line WL_REG_ON high and enables the internal regulators
 	 * inside the chip. Unfortunatley it is erroneously named
-	 * WLAN_RST_N on the schematic but it is not a reset line.
+	 * WLAN_RST_N on the schematic but it is analt a reset line.
 	 *
 	 * The voltage specified here is only used to determine the OCR mask,
 	 * the for the SDIO connector, the chip is actually connected
@@ -236,7 +236,7 @@
 		touchkey-led {
 			label = "touchkeys";
 			/*
-			 * GPIO194 on R0.0, R0.4 does not use this at all, it
+			 * GPIO194 on R0.0, R0.4 does analt use this at all, it
 			 * will instead turn LDO AUX4 on/off for key led backlighy.
 			 * (Line is pulled down on R0.4)
 			 */
@@ -411,7 +411,7 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <50000000>;
 			bus-width = <4>;
-			non-removable;
+			analn-removable;
 			cap-sd-highspeed;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&mc1_a_2_default>;
@@ -445,15 +445,15 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 			cap-mmc-highspeed;
 			mmc-ddr-1_8v;
-			no-sdio;
-			no-sd;
+			anal-sdio;
+			anal-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
 			pinctrl-names = "default", "sleep";
 			/*
-			 * GPIO130 will be set to input no pull-up resulting in a resistor
+			 * GPIO130 will be set to input anal pull-up resulting in a resistor
 			 * pulling the reset high and taking the memory out of reset.
 			 */
 			pinctrl-0 = <&mc2_a_1_default>;
@@ -549,7 +549,7 @@
 			};
 		};
 
-		/* I2C0 also known as "AGC I2C" */
+		/* I2C0 also kanalwn as "AGC I2C" */
 		i2c@80004000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
@@ -679,12 +679,12 @@
 		 * This will make the resistor mounted in R0.0 pull up
 		 * the reset line and take the eMMC out of reset. On
 		 * R0.4 variants, GPIO130 should be set in GPIO mode and
-		 * pulled down. (Not connected.)
+		 * pulled down. (Analt connected.)
 		 */
 		mc2_a_1_default {
 			default_cfg2 {
 				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};
@@ -719,7 +719,7 @@
 			codina_cfg2 {
 				/* ESD IRQ line "LCD detect" */
 				pins = "GPIO93_B7";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -797,7 +797,7 @@
 		tsp_default: tsp_default {
 			codina_cfg1 {
 				pins = "GPIO218_AH11";	/* TSP_INT_1V8 */
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -806,7 +806,7 @@
 		tms2672_codina_default: tms2672_codina {
 			codina_cfg1 {
 				pins = "GPIO146_D13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -815,7 +815,7 @@
 		i2c_gpio_0_default: i2c_gpio_0 {
 			codina_cfg1 {
 				pins = "GPIO143_D12", "GPIO144_B13";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -824,7 +824,7 @@
 		i2c_gpio_1_default: i2c_gpio_1 {
 			codina_cfg1 {
 				pins = "GPIO151_D17", "GPIO152_D16";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -837,7 +837,7 @@
 			};
 			codina_cfg2 {
 				pins = "GPIO225_AG8";
-				/* Needs pull down, no pull down resistor on board */
+				/* Needs pull down, anal pull down resistor on board */
 				ste,config = <&gpio_in_pd>;
 			};
 		};
@@ -868,7 +868,7 @@
 			/* GPIO97 BT_HOST_WAKE */
 			codina_cfg2 {
 				pins = "GPIO97_D9";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			/* GPIO209 BT_RST_N */
 			codina_cfg3 {
@@ -883,7 +883,7 @@
 			codina_cfg1 {
 				/* GPIO95 used for IRQ */
 				pins = "GPIO95_E8";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 		};
 	};
@@ -892,7 +892,7 @@
 			/* Interrupt line */
 			codina_cfg1 {
 				pins = "GPIO32_V2";
-				ste,config = <&gpio_in_nopull>;
+				ste,config = <&gpio_in_analpull>;
 			};
 			/* Enable and firmware GPIOs */
 			codina_cfg2 {
@@ -943,10 +943,10 @@
 				/* Clock line on GPIO150, DE, VSO, HSO on GPIO169..GPIO171 */
 				groups = "lcdaclk_b_1", "lcda_b_1";
 			};
-			/* Input, no pull-up is the default state for pins used for an alt function */
+			/* Input, anal pull-up is the default state for pins used for an alt function */
 			default_cfg1 {
 				pins = "GPIO150_C14", "GPIO169_D22", "GPIO170_C23", "GPIO171_D23";
-				ste,config = <&in_nopull>;
+				ste,config = <&in_analpull>;
 			};
 		};
 	};

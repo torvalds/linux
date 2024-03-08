@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2007 - 2009 Intel Corp
  * Copyright (C) 2007 - 2009 Shaohua Li <shaohua.li@intel.com>
- * Copyright (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>, Analvell Inc.
  */
 
 #define dev_fmt(fmt) "PME: " fmt
@@ -12,7 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -23,7 +23,7 @@
 #include "portdrv.h"
 
 /*
- * If this switch is set, MSI will not be used for PCIe PME signaling.  This
+ * If this switch is set, MSI will analt be used for PCIe PME signaling.  This
  * causes the PCIe port driver to use INTx interrupts only, but it turns out
  * that using MSI for PCIe PME signaling doesn't play well with PCIe PME-based
  * wake-up from system sleep states.
@@ -32,7 +32,7 @@ bool pcie_pme_msi_disabled;
 
 static int __init pcie_pme_setup(char *str)
 {
-	if (!strncmp(str, "nomsi", 5))
+	if (!strncmp(str, "analmsi", 5))
 		pcie_pme_msi_disabled = true;
 
 	return 1;
@@ -43,7 +43,7 @@ struct pcie_pme_service_data {
 	spinlock_t lock;
 	struct pcie_device *srv;
 	struct work_struct work;
-	bool noirq; /* If set, keep the PME interrupt disabled. */
+	bool analirq; /* If set, keep the PME interrupt disabled. */
 };
 
 /**
@@ -145,7 +145,7 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 		} else {
 			/*
 			 * Apparently, the root port generated the PME on behalf
-			 * of a non-PCIe device downstream.  If this is done by
+			 * of a analn-PCIe device downstream.  If this is done by
 			 * a root port, the Requester ID field in its status
 			 * register may contain either the root port's, or the
 			 * source device's information (PCI Express Base
@@ -193,11 +193,11 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 		pci_dev_put(dev);
 	} else if (devfn) {
 		/*
-		 * The device is not there, but we can still try to recover by
+		 * The device is analt there, but we can still try to recover by
 		 * assuming that the PME was reported by a PCIe-PCI bridge that
 		 * used devfn different from zero.
 		 */
-		pci_info(port, "interrupt generated for non-existent device %02x:%02x.%d\n",
+		pci_info(port, "interrupt generated for analn-existent device %02x:%02x.%d\n",
 			 busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
 		found = pcie_pme_from_pci_bridge(bus, 0);
 	}
@@ -221,7 +221,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 	spin_lock_irq(&data->lock);
 
 	for (;;) {
-		if (data->noirq)
+		if (data->analirq)
 			break;
 
 		pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
@@ -243,7 +243,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 			continue;
 		}
 
-		/* No need to loop if there are no more PMEs pending. */
+		/* Anal need to loop if there are anal more PMEs pending. */
 		if (!(rtsta & PCI_EXP_RTSTA_PENDING))
 			break;
 
@@ -252,7 +252,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 		spin_lock_irq(&data->lock);
 	}
 
-	if (!data->noirq)
+	if (!data->analirq)
 		pcie_pme_interrupt_enable(port, true);
 
 	spin_unlock_irq(&data->lock);
@@ -278,7 +278,7 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 
 	if (PCI_POSSIBLE_ERROR(rtsta) || !(rtsta & PCI_EXP_RTSTA_PME)) {
 		spin_unlock_irqrestore(&data->lock, flags);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	pcie_pme_interrupt_enable(port, false);
@@ -293,7 +293,7 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 /**
  * pcie_pme_can_wakeup - Set the wakeup capability flag.
  * @dev: PCI device to handle.
- * @ign: Ignored.
+ * @ign: Iganalred.
  */
 static int pcie_pme_can_wakeup(struct pci_dev *dev, void *ign)
 {
@@ -333,11 +333,11 @@ static int pcie_pme_probe(struct pcie_device *srv)
 	/* Limit to Root Ports or Root Complex Event Collectors */
 	if (type != PCI_EXP_TYPE_RC_EC &&
 	    type != PCI_EXP_TYPE_ROOT_PORT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&data->lock);
 	INIT_WORK(&data->work, pcie_pme_work_fn);
@@ -381,7 +381,7 @@ static void pcie_pme_disable_interrupt(struct pci_dev *port,
 	spin_lock_irq(&data->lock);
 	pcie_pme_interrupt_enable(port, false);
 	pcie_clear_root_pme_status(port);
-	data->noirq = true;
+	data->analirq = true;
 	spin_unlock_irq(&data->lock);
 }
 
@@ -425,12 +425,12 @@ static int pcie_pme_resume(struct pcie_device *srv)
 	struct pcie_pme_service_data *data = get_service_data(srv);
 
 	spin_lock_irq(&data->lock);
-	if (data->noirq) {
+	if (data->analirq) {
 		struct pci_dev *port = srv->port;
 
 		pcie_clear_root_pme_status(port);
 		pcie_pme_interrupt_enable(port, true);
-		data->noirq = false;
+		data->analirq = false;
 	} else {
 		disable_irq_wake(srv->irq);
 	}

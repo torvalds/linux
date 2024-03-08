@@ -16,13 +16,13 @@ MSCode ::= SEQUENCE {
 	},
 	content			SEQUENCE {
 		digestAlgorithm	DigestAlgorithmIdentifier,
-		digest		OCTET STRING ({ mscode_note_digest })
+		digest		OCTET STRING ({ mscode_analte_digest })
 	}
 }
 
-ContentType ::= OBJECT IDENTIFIER ({ mscode_note_content_type })
+ContentType ::= OBJECT IDENTIFIER ({ mscode_analte_content_type })
 
 DigestAlgorithmIdentifier ::= SEQUENCE {
-	algorithm   OBJECT IDENTIFIER ({ mscode_note_digest_algo }),
+	algorithm   OBJECT IDENTIFIER ({ mscode_analte_digest_algo }),
 	parameters  ANY OPTIONAL
 }

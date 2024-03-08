@@ -1,7 +1,7 @@
 /*
  * Linux V4L2 radio driver for the Griffin radioSHARK2 USB radio receiver
  *
- * Note the radioSHARK2 offers the audio through a regular USB audio device,
+ * Analte the radioSHARK2 offers the audio through a regular USB audio device,
  * this driver only handles the tuning.
  *
  * The info necessary to drive the shark2 was taken from the small userspace
@@ -52,7 +52,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define v4l2_dev_to_shark(d) container_of(d, struct shark_device, v4l2_dev)
 
-enum { BLUE_LED, RED_LED, NO_LEDS };
+enum { BLUE_LED, RED_LED, ANAL_LEDS };
 
 struct shark_device {
 	struct usb_device *usbdev;
@@ -61,9 +61,9 @@ struct shark_device {
 
 #ifdef SHARK_USE_LEDS
 	struct work_struct led_work;
-	struct led_classdev leds[NO_LEDS];
-	char led_names[NO_LEDS][32];
-	atomic_t brightness[NO_LEDS];
+	struct led_classdev leds[ANAL_LEDS];
+	char led_names[ANAL_LEDS][32];
+	atomic_t brightness[ANAL_LEDS];
 	unsigned long brightness_new;
 #endif
 
@@ -186,7 +186,7 @@ static void shark_led_set_red(struct led_classdev *led_cdev,
 	schedule_work(&shark->led_work);
 }
 
-static const struct led_classdev shark_led_templates[NO_LEDS] = {
+static const struct led_classdev shark_led_templates[ANAL_LEDS] = {
 	[BLUE_LED] = {
 		.name		= "%s:blue:",
 		.brightness	= LED_OFF,
@@ -207,7 +207,7 @@ static int shark_register_leds(struct shark_device *shark, struct device *dev)
 
 	atomic_set(&shark->brightness[BLUE_LED], 127);
 	INIT_WORK(&shark->led_work, shark_led_work);
-	for (i = 0; i < NO_LEDS; i++) {
+	for (i = 0; i < ANAL_LEDS; i++) {
 		shark->leds[i] = shark_led_templates[i];
 		snprintf(shark->led_names[i], sizeof(shark->led_names[0]),
 			 shark->leds[i].name, shark->v4l2_dev.name);
@@ -227,7 +227,7 @@ static void shark_unregister_leds(struct shark_device *shark)
 {
 	int i;
 
-	for (i = 0; i < NO_LEDS; i++)
+	for (i = 0; i < ANAL_LEDS; i++)
 		led_classdev_unregister(&shark->leds[i]);
 
 	cancel_work_sync(&shark->led_work);
@@ -237,7 +237,7 @@ static inline void shark_resume_leds(struct shark_device *shark)
 {
 	int i;
 
-	for (i = 0; i < NO_LEDS; i++)
+	for (i = 0; i < ANAL_LEDS; i++)
 		set_bit(i, &shark->brightness_new);
 
 	schedule_work(&shark->led_work);
@@ -246,7 +246,7 @@ static inline void shark_resume_leds(struct shark_device *shark)
 static int shark_register_leds(struct shark_device *shark, struct device *dev)
 {
 	v4l2_warn(&shark->v4l2_dev,
-		  "CONFIG_LEDS_CLASS not enabled, LED support disabled\n");
+		  "CONFIG_LEDS_CLASS analt enabled, LED support disabled\n");
 	return 0;
 }
 static inline void shark_unregister_leds(struct shark_device *shark) { }
@@ -281,7 +281,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id)
 {
 	struct shark_device *shark;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 	static const u8 ep_addresses[] = {
 		SHARK_IN_EP | USB_DIR_IN,
 		SHARK_OUT_EP | USB_DIR_OUT,

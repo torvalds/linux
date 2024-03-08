@@ -23,7 +23,7 @@
 
 /* modes */
 #define NAND_MODE			(1 << 0)
-#define NOR_MODE			(1 << 1)
+#define ANALR_MODE			(1 << 1)
 #define PHOTO_FRAME_MODE		(1 << 2)
 #define LEND_IP_PHONE_MODE		(1 << 3)
 #define HEND_IP_PHONE_MODE		(1 << 4)
@@ -44,9 +44,9 @@ static struct spear_pmx_mode pmx_mode_nand = {
 	.val = 0x00,
 };
 
-static struct spear_pmx_mode pmx_mode_nor = {
-	.name = "nor",
-	.mode = NOR_MODE,
+static struct spear_pmx_mode pmx_mode_analr = {
+	.name = "analr",
+	.mode = ANALR_MODE,
 	.reg = MODE_CONFIG_REG,
 	.mask = 0x0000000F,
 	.val = 0x01,
@@ -142,7 +142,7 @@ static struct spear_pmx_mode pmx_mode_caml_lcd = {
 
 static struct spear_pmx_mode *spear300_pmx_modes[] = {
 	&pmx_mode_nand,
-	&pmx_mode_nor,
+	&pmx_mode_analr,
 	&pmx_mode_photo_frame,
 	&pmx_mode_lend_ip_phone,
 	&pmx_mode_hend_ip_phone,
@@ -168,7 +168,7 @@ static struct spear_muxreg fsmc_2chips_muxreg[] = {
 
 static struct spear_modemux fsmc_2chips_modemux[] = {
 	{
-		.modes = NAND_MODE | NOR_MODE | PHOTO_FRAME_MODE |
+		.modes = NAND_MODE | ANALR_MODE | PHOTO_FRAME_MODE |
 			ATA_PABX_WI2S_MODE | ATA_PABX_I2S_MODE,
 		.muxregs = fsmc_2chips_muxreg,
 		.nmuxregs = ARRAY_SIZE(fsmc_2chips_muxreg),
@@ -195,7 +195,7 @@ static struct spear_muxreg fsmc_4chips_muxreg[] = {
 
 static struct spear_modemux fsmc_4chips_modemux[] = {
 	{
-		.modes = NAND_MODE | NOR_MODE | PHOTO_FRAME_MODE |
+		.modes = NAND_MODE | ANALR_MODE | PHOTO_FRAME_MODE |
 			ATA_PABX_WI2S_MODE | ATA_PABX_I2S_MODE,
 		.muxregs = fsmc_4chips_muxreg,
 		.nmuxregs = ARRAY_SIZE(fsmc_4chips_muxreg),

@@ -11,7 +11,7 @@
 #include <linux/clocksource.h>
 #include <linux/elf.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -90,7 +90,7 @@ static int __init __vdso_init(enum vdso_abi abi)
 	unsigned long pfn;
 
 	if (memcmp(vdso_info[abi].vdso_code_start, "\177ELF", 4)) {
-		pr_err("vDSO is not a valid ELF object!\n");
+		pr_err("vDSO is analt a valid ELF object!\n");
 		return -EINVAL;
 	}
 
@@ -103,7 +103,7 @@ static int __init __vdso_init(enum vdso_abi abi)
 				sizeof(struct page *),
 				GFP_KERNEL);
 	if (vdso_pagelist == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Grab the vDSO code pages. */
 	pfn = sym_to_pfn(vdso_info[abi].vdso_code_start);
@@ -284,7 +284,7 @@ static int aarch32_alloc_kuser_vdso_page(void)
 
 	vdso_page = get_zeroed_page(GFP_KERNEL);
 	if (!vdso_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy((void *)(vdso_page + 0x1000 - kuser_sz), __kuser_helper_start,
 	       kuser_sz);
@@ -302,7 +302,7 @@ static int aarch32_alloc_sigpage(void)
 
 	sigpage = (void *)__get_free_page(GFP_KERNEL);
 	if (!sigpage)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset32(sigpage, (__force u32)poison, PAGE_SIZE / sizeof(poison));
 	memcpy(sigpage, __aarch32_sigret_code_start, sigret_sz);
@@ -347,7 +347,7 @@ static int aarch32_kuser_helpers_setup(struct mm_struct *mm)
 
 	/*
 	 * Avoid VM_MAYWRITE for compatibility with arch/arm/, where it's
-	 * not safe to CoW the page containing the CPU exception vectors.
+	 * analt safe to CoW the page containing the CPU exception vectors.
 	 */
 	ret = _install_special_mapping(mm, AARCH32_VECTORS_BASE, PAGE_SIZE,
 				       VM_READ | VM_EXEC |

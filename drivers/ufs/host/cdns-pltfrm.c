@@ -104,7 +104,7 @@ static void cdns_ufs_set_l4_attr(struct ufs_hba *hba)
  * cdns_ufs_set_hclkdiv() - set HCLKDIV register value based on the core_clk.
  * @hba: host controller instance
  *
- * Return: zero for success and non-zero for failure.
+ * Return: zero for success and analn-zero for failure.
  */
 static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 {
@@ -134,7 +134,7 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 	ufshcd_writel(hba, core_clk_div, CDNS_UFS_REG_HCLKDIV);
 	/**
 	 * Make sure the register was updated,
-	 * UniPro layer will not work with an incorrect value.
+	 * UniPro layer will analt work with an incorrect value.
 	 */
 	mb();
 
@@ -142,14 +142,14 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 }
 
 /**
- * cdns_ufs_hce_enable_notify() - set HCLKDIV register
+ * cdns_ufs_hce_enable_analtify() - set HCLKDIV register
  * @hba: host controller instance
- * @status: notify stage (pre, post change)
+ * @status: analtify stage (pre, post change)
  *
- * Return: zero for success and non-zero for failure.
+ * Return: zero for success and analn-zero for failure.
  */
-static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
-				      enum ufs_notify_change_status status)
+static int cdns_ufs_hce_enable_analtify(struct ufs_hba *hba,
+				      enum ufs_analtify_change_status status)
 {
 	if (status != PRE_CHANGE)
 		return 0;
@@ -158,13 +158,13 @@ static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /**
- * cdns_ufs_hibern8_notify() - save and restore L4 attributes.
+ * cdns_ufs_hibern8_analtify() - save and restore L4 attributes.
  * @hba: host controller instance
  * @cmd: UIC Command
- * @status: notify stage (pre, post change)
+ * @status: analtify stage (pre, post change)
  */
-static void cdns_ufs_hibern8_notify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
-				    enum ufs_notify_change_status status)
+static void cdns_ufs_hibern8_analtify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
+				    enum ufs_analtify_change_status status)
 {
 	if (status == PRE_CHANGE && cmd == UIC_CMD_DME_HIBER_ENTER)
 		cdns_ufs_get_l4_attr(hba);
@@ -173,14 +173,14 @@ static void cdns_ufs_hibern8_notify(struct ufs_hba *hba, enum uic_cmd_dme cmd,
 }
 
 /**
- * cdns_ufs_link_startup_notify() - handle link startup.
+ * cdns_ufs_link_startup_analtify() - handle link startup.
  * @hba: host controller instance
- * @status: notify stage (pre, post change)
+ * @status: analtify stage (pre, post change)
  *
- * Return: zero for success and non-zero for failure.
+ * Return: zero for success and analn-zero for failure.
  */
-static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status)
+static int cdns_ufs_link_startup_analtify(struct ufs_hba *hba,
+					enum ufs_analtify_change_status status)
 {
 	if (status != PRE_CHANGE)
 		return 0;
@@ -218,7 +218,7 @@ static int cdns_ufs_init(struct ufs_hba *hba)
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	ufshcd_set_variant(hba, host);
 
 	status = ufshcd_vops_phy_initialization(hba);
@@ -247,18 +247,18 @@ static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
 static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.init = cdns_ufs_init,
-	.hce_enable_notify = cdns_ufs_hce_enable_notify,
-	.link_startup_notify = cdns_ufs_link_startup_notify,
-	.hibern8_notify = cdns_ufs_hibern8_notify,
+	.hce_enable_analtify = cdns_ufs_hce_enable_analtify,
+	.link_startup_analtify = cdns_ufs_link_startup_analtify,
+	.hibern8_analtify = cdns_ufs_hibern8_analtify,
 };
 
 static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.init = cdns_ufs_init,
-	.hce_enable_notify = cdns_ufs_hce_enable_notify,
-	.link_startup_notify = cdns_ufs_link_startup_notify,
+	.hce_enable_analtify = cdns_ufs_hce_enable_analtify,
+	.link_startup_analtify = cdns_ufs_link_startup_analtify,
 	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
-	.hibern8_notify = cdns_ufs_hibern8_notify,
+	.hibern8_analtify = cdns_ufs_hibern8_analtify,
 };
 
 static const struct of_device_id cdns_ufs_of_match[] = {
@@ -279,7 +279,7 @@ MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
  * cdns_ufs_pltfrm_probe - probe routine of the driver
  * @pdev: pointer to platform device handle
  *
- * Return: zero for success and non-zero for failure.
+ * Return: zero for success and analn-zero for failure.
  */
 static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 {
@@ -288,7 +288,7 @@ static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 	struct ufs_hba_variant_ops *vops;
 	struct device *dev = &pdev->dev;
 
-	of_id = of_match_node(cdns_ufs_of_match, dev->of_node);
+	of_id = of_match_analde(cdns_ufs_of_match, dev->of_analde);
 	vops = (struct ufs_hba_variant_ops *)of_id->data;
 
 	/* Perform generic probe */

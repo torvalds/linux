@@ -214,7 +214,7 @@ static int apds9300_chip_init(struct apds9300_data *data)
 	ret = i2c_smbus_read_byte_data(data->client,
 			APDS9300_CONTROL | APDS9300_CMD);
 	if (ret != APDS9300_POWER_ON) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err;
 	}
 	/*
@@ -333,7 +333,7 @@ static int apds9300_write_interrupt_config(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static const struct iio_info apds9300_info_no_irq = {
+static const struct iio_info apds9300_info_anal_irq = {
 	.read_raw	= apds9300_read_raw,
 };
 
@@ -406,7 +406,7 @@ static int apds9300_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
@@ -426,7 +426,7 @@ static int apds9300_probe(struct i2c_client *client)
 	if (client->irq)
 		indio_dev->info = &apds9300_info;
 	else
-		indio_dev->info = &apds9300_info_no_irq;
+		indio_dev->info = &apds9300_info_anal_irq;
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

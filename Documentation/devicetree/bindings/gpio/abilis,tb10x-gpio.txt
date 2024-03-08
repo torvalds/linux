@@ -3,14 +3,14 @@
 Required Properties:
 - compatible: Should be "abilis,tb10x-gpio"
 - reg: Address and length of the register set for the device
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device analde as a gpio controller.
 - #gpio-cells: Should be <2>. The first cell is the pin number and the
   second cell is used to specify optional parameters:
-   - bit 0 specifies polarity (0 for normal, 1 for inverted).
+   - bit 0 specifies polarity (0 for analrmal, 1 for inverted).
 - abilis,ngpio: the number of GPIO pins this driver controls.
 
 Optional Properties:
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device analde as an interrupt controller.
 - #interrupt-cells: Should be <1>. Interrupts are triggered on both edges.
 - interrupts: Defines the interrupt line connecting this GPIO controller to
   its parent interrupt controller.

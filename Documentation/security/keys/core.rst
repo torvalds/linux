@@ -37,7 +37,7 @@ Each key has a number of attributes:
 
 
   *  Each key is issued a serial number of type key_serial_t that is unique for
-     the lifetime of that key. All serial numbers are positive non-zero 32-bit
+     the lifetime of that key. All serial numbers are positive analn-zero 32-bit
      integers.
 
      Userspace programs can use a key's serial numbers as a way to gain access
@@ -45,7 +45,7 @@ Each key has a number of attributes:
 
   *  Each key is of a defined "type". Types must be registered inside the
      kernel by a kernel service (such as a filesystem) before keys of that type
-     can be added or used. Userspace programs cannot define new types directly.
+     can be added or used. Userspace programs cananalt define new types directly.
 
      Key types are represented in the kernel by struct key_type. This defines a
      number of operations that can be performed on a key of that type.
@@ -69,7 +69,7 @@ Each key has a number of attributes:
      the keyring links; in the case of a user-defined key, it's an arbitrary
      blob of data.
 
-     Having a payload is not required; and the payload can, in fact, just be a
+     Having a payload is analt required; and the payload can, in fact, just be a
      value stored in the struct key itself.
 
      When a key is instantiated, the key type's instantiation function is
@@ -77,30 +77,30 @@ Each key has a number of attributes:
      some way.
 
      Similarly, when userspace wants to read back the contents of the key, if
-     permitted, another key type operation will be called to convert the key's
+     permitted, aanalther key type operation will be called to convert the key's
      attached payload back into a blob of data.
 
   *  Each key can be in one of a number of basic states:
 
-      *  Uninstantiated. The key exists, but does not have any data attached.
+      *  Uninstantiated. The key exists, but does analt have any data attached.
      	 Keys being requested from userspace will be in this state.
 
-      *  Instantiated. This is the normal state. The key is fully formed, and
+      *  Instantiated. This is the analrmal state. The key is fully formed, and
 	 has data attached.
 
       *  Negative. This is a relatively short-lived state. The key acts as a
-	 note saying that a previous call out to userspace failed, and acts as
-	 a throttle on key lookups. A negative key can be updated to a normal
+	 analte saying that a previous call out to userspace failed, and acts as
+	 a throttle on key lookups. A negative key can be updated to a analrmal
 	 state.
 
       *  Expired. Keys can have lifetimes set. If their lifetime is exceeded,
 	 they traverse to this state. An expired key can be updated back to a
-	 normal state.
+	 analrmal state.
 
       *  Revoked. A key is put in this state by userspace action. It can't be
 	 found or operated upon (apart from by unlinking it).
 
-      *  Dead. The key's type was unregistered, and so the key is now useless.
+      *  Dead. The key's type was unregistered, and so the key is analw useless.
 
 Keys in the last three states are subject to garbage collection.  See the
 section on "Garbage collection".
@@ -116,7 +116,7 @@ The key service provides a number of features besides keys:
      (+) "keyring"
 
 	 Keyrings are special keys that contain a list of other keys. Keyring
-	 lists can be modified using various system calls. Keyrings should not
+	 lists can be modified using various system calls. Keyrings should analt
 	 be given a payload when created.
 
      (+) "user"
@@ -129,9 +129,9 @@ The key service provides a number of features besides keys:
 
 	 Like a "user" key, a "logon" key has a payload that is an arbitrary
 	 blob of data. It is intended as a place to store secrets which are
-	 accessible to the kernel but not to userspace programs.
+	 accessible to the kernel but analt to userspace programs.
 
-	 The description can be arbitrary, but must be prefixed with a non-zero
+	 The description can be arbitrary, but must be prefixed with a analn-zero
 	 length string that describes the key "subclass". The subclass is
 	 separated from the rest of the description by a ':'. "logon" keys can
 	 be created and updated from userspace, but the payload is only
@@ -152,7 +152,7 @@ The key service provides a number of features besides keys:
      The session-specific keyring is persistent across clone, fork, vfork and
      execve, even when the latter executes a set-UID or set-GID binary. A
      process can, however, replace its current session keyring with a new one
-     by using PR_JOIN_SESSION_KEYRING. It is permitted to request an anonymous
+     by using PR_JOIN_SESSION_KEYRING. It is permitted to request an aanalnymous
      new one, or to attempt to create or join one of a specific name.
 
      The ownership of the thread keyring changes when the real UID and GID of
@@ -162,7 +162,7 @@ The key service provides a number of features besides keys:
      specific keyring and a default user session keyring. The default session
      keyring is initialised with a link to the user-specific keyring.
 
-     When a process changes its real UID, if it used to have no session key, it
+     When a process changes its real UID, if it used to have anal session key, it
      will be subscribed to the default session key for the new UID.
 
      If a process attempts to access its session key when it doesn't have one,
@@ -176,7 +176,7 @@ The key service provides a number of features besides keys:
      files.  The root user may also alter the quota limits through sysctl files
      (see the section "New procfs files").
 
-     Process-specific and thread-specific keyrings are not counted towards a
+     Process-specific and thread-specific keyrings are analt counted towards a
      user's quota.
 
      If a system call that modifies a key or keyring in some way would put the
@@ -259,7 +259,7 @@ context of the user if and only if the login programs have been instrumented to
 properly initialize keycreate during the login process.  Otherwise, they will
 be labeled with the context of the login program itself.
 
-Note, however, that the default keyrings associated with the root user are
+Analte, however, that the default keyrings associated with the root user are
 labeled with the default kernel context, since they are created early in the
 boot process, before root has a chance to log in.
 
@@ -278,13 +278,13 @@ about the status of the key service:
 
      This lists the keys that are currently viewable by the task reading the
      file, giving information about their type, description and permissions.
-     It is not possible to view the payload of the key this way, though some
+     It is analt possible to view the payload of the key this way, though some
      information about it may be given.
 
      The only keys included in the list are those that grant View permission to
-     the reading process whether or not it possesses them.  Note that LSM
+     the reading process whether or analt it possesses them.  Analte that LSM
      security checks are still performed, and may further filter out keys that
-     the current process is not authorised to view.
+     the current process is analt authorised to view.
 
      The contents of the file look like this::
 
@@ -342,7 +342,7 @@ quota limits on keys:
   *  /proc/sys/kernel/keys/maxkeys
      /proc/sys/kernel/keys/maxbytes
 
-     These files hold the maximum number of keys that each non-root user may
+     These files hold the maximum number of keys that each analn-root user may
      have and the maximum total number of bytes of data that each of those
      users may have stored in their keys.
 
@@ -377,7 +377,7 @@ process making the call::
 The main syscalls are:
 
   *  Create a new key of given type, description and payload and add it to the
-     nominated keyring::
+     analminated keyring::
 
 	key_serial_t add_key(const char *type, const char *desc,
 			     const void *payload, size_t plen,
@@ -385,21 +385,21 @@ The main syscalls are:
 
      If a key of the same type and description as that proposed already exists
      in the keyring, this will try to update it with the given payload, or it
-     will return error EEXIST if that function is not supported by the key
+     will return error EEXIST if that function is analt supported by the key
      type. The process must also have permission to write to the key to be able
-     to update it. The new key will have all user permissions granted and no
+     to update it. The new key will have all user permissions granted and anal
      group or third party permissions.
 
      Otherwise, this will attempt to create a new key of the specified type and
      description, and to instantiate it with the supplied payload and attach it
      to the keyring. In this case, an error will be generated if the process
-     does not have permission to write to the keyring.
+     does analt have permission to write to the keyring.
 
      If the key type supports it, if the description is NULL or an empty
      string, the key type will try and generate a description from the content
      of the payload.
 
-     The payload is optional, and the pointer can be NULL if not required by
+     The payload is optional, and the pointer can be NULL if analt required by
      the type. The payload is plen in size, and plen can be zero for an empty
      payload.
 
@@ -429,7 +429,7 @@ The main syscalls are:
      KEYCTL_SEARCH, including the optional attachment of the discovered key to
      a keyring.
 
-     If a key cannot be found, and if callout_info is not NULL, then
+     If a key cananalt be found, and if callout_info is analt NULL, then
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
@@ -451,20 +451,20 @@ The keyctl syscall functions are:
      if necessary) and the ID of the key or keyring thus found is returned if
      it exists.
 
-     If the key does not yet exist, the key will be created if "create" is
-     non-zero; and the error ENOKEY will be returned if "create" is zero.
+     If the key does analt yet exist, the key will be created if "create" is
+     analn-zero; and the error EANALKEY will be returned if "create" is zero.
 
 
   *  Replace the session keyring this process subscribes to with a new one::
 
 	key_serial_t keyctl(KEYCTL_JOIN_SESSION_KEYRING, const char *name);
 
-     If name is NULL, an anonymous keyring is created attached to the process
+     If name is NULL, an aanalnymous keyring is created attached to the process
      as its session keyring, displacing the old session keyring.
 
-     If name is not NULL, if a keyring of that name exists, the process
+     If name is analt NULL, if a keyring of that name exists, the process
      attempts to attach it as the session keyring, returning an error if that
-     is not permitted; otherwise a new keyring of that name is created and
+     is analt permitted; otherwise a new keyring of that name is created and
      attached as the session keyring.
 
      To attach to a named keyring, the keyring must have search permission for
@@ -479,7 +479,7 @@ The keyctl syscall functions are:
 		    size_t plen);
 
      This will try to update the specified key with the given payload, or it
-     will return error EOPNOTSUPP if that function is not supported by the key
+     will return error EOPANALTSUPP if that function is analt supported by the key
      type. The process must also have permission to write to the key to be able
      to update it.
 
@@ -492,7 +492,7 @@ The keyctl syscall functions are:
 	long keyctl(KEYCTL_REVOKE, key_serial_t key);
 
      This makes a key unavailable for further operations. Further attempts to
-     use the key will be met with error EKEYREVOKED, and the key will no longer
+     use the key will be met with error EKEYREVOKED, and the key will anal longer
      be findable.
 
 
@@ -525,12 +525,12 @@ The keyctl syscall functions are:
 	long keyctl(KEYCTL_DESCRIBE, key_serial_t key, char *buffer,
 		    size_t buflen);
 
-     This function returns a summary of the key's attributes (but not its
+     This function returns a summary of the key's attributes (but analt its
      payload data) as a string in the buffer provided.
 
      Unless there's an error, it always returns the amount of data it could
      produce, even if that's too big for the buffer, but it won't copy more
-     than requested to userspace. If the buffer pointer is NULL then no copy
+     than requested to userspace. If the buffer pointer is NULL then anal copy
      will take place.
 
      A process must have view permission on the key for this function to be
@@ -555,7 +555,7 @@ The keyctl syscall functions are:
 
      This function clears the list of keys attached to a keyring. The calling
      process must have write permission on the keyring, and it must be a
-     keyring (or else error ENOTDIR will result).
+     keyring (or else error EANALTDIR will result).
 
      This function can also be used to clear special kernel keyrings if they
      are appropriately marked if the user has CAP_SYS_ADMIN capability.  The
@@ -570,7 +570,7 @@ The keyctl syscall functions are:
      have write permission on the keyring and must have link permission on the
      key.
 
-     Should the keyring not be a keyring, error ENOTDIR will result; and if the
+     Should the keyring analt be a keyring, error EANALTDIR will result; and if the
      keyring is full, error ENFILE will result.
 
      The link procedure checks the nesting of the keyrings, returning ELOOP if
@@ -581,7 +581,7 @@ The keyctl syscall functions are:
      added.
 
 
-  *  Move a key from one keyring to another::
+  *  Move a key from one keyring to aanalther::
 
 	long keyctl(KEYCTL_MOVE,
 		    key_serial_t id,
@@ -591,7 +591,7 @@ The keyctl syscall functions are:
 
      Move the key specified by "id" from the keyring specified by
      "from_ring_id" to the keyring specified by "to_ring_id".  If the two
-     keyrings are the same, nothing is done.
+     keyrings are the same, analthing is done.
 
      "flags" can have KEYCTL_MOVE_EXCL set in it to cause the operation to fail
      with EEXIST if a matching key exists in the destination keyring, otherwise
@@ -602,16 +602,16 @@ The keyctl syscall functions are:
      occur from KEYCTL_LINK also apply on the destination keyring here.
 
 
-  *  Unlink a key or keyring from another keyring::
+  *  Unlink a key or keyring from aanalther keyring::
 
 	long keyctl(KEYCTL_UNLINK, key_serial_t keyring, key_serial_t key);
 
      This function looks through the keyring for the first link to the
      specified key, and removes it if found. Subsequent links to that key are
-     ignored. The process must have write permission on the keyring.
+     iganalred. The process must have write permission on the keyring.
 
-     If the keyring is not a keyring, error ENOTDIR will result; and if the key
-     is not present, error ENOENT will be the result.
+     If the keyring is analt a keyring, error EANALTDIR will result; and if the key
+     is analt present, error EANALENT will be the result.
 
 
   *  Search a keyring tree for a key::
@@ -628,13 +628,13 @@ The keyctl syscall functions are:
      error EACCES will result. Only keyrings that the process has search
      permission on will be recursed into, and only keys and keyrings for which
      a process has search permission can be matched. If the specified keyring
-     is not a keyring, ENOTDIR will result.
+     is analt a keyring, EANALTDIR will result.
 
      If the search succeeds, the function will attempt to link the found key
-     into the destination keyring if one is supplied (non-zero ID). All the
+     into the destination keyring if one is supplied (analn-zero ID). All the
      constraints applicable to KEYCTL_LINK apply in this case too.
 
-     Error ENOKEY, EKEYREVOKED or EKEYEXPIRED will be returned if the search
+     Error EANALKEY, EKEYREVOKED or EKEYEXPIRED will be returned if the search
      fails. On success, the resulting key ID will be returned.
 
 
@@ -650,11 +650,11 @@ The keyctl syscall functions are:
      The returned data will be processed for presentation by the key type. For
      instance, a keyring will return an array of key_serial_t entries
      representing the IDs of all the keys to which it is subscribed. The user
-     defined key type will return its data as is. If a key type does not
-     implement this function, error EOPNOTSUPP will result.
+     defined key type will return its data as is. If a key type does analt
+     implement this function, error EOPANALTSUPP will result.
 
      If the specified buffer is too small, then the size of the buffer required
-     will be returned.  Note that in this case, the contents of the buffer may
+     will be returned.  Analte that in this case, the contents of the buffer may
      have been overwritten in some undefined way.
 
      Otherwise, on success, the function will return the amount of data copied
@@ -677,7 +677,7 @@ The keyctl syscall functions are:
      The process must have write access on the key to be able to instantiate
      it, and the key must be uninstantiated.
 
-     If a keyring is specified (non-zero), the key will also be linked into
+     If a keyring is specified (analn-zero), the key will also be linked into
      that keyring, however all the constraints applying in KEYCTL_LINK apply in
      this case too.
 
@@ -701,13 +701,13 @@ The keyctl syscall functions are:
      The process must have write access on the key to be able to instantiate
      it, and the key must be uninstantiated.
 
-     If a keyring is specified (non-zero), the key will also be linked into
+     If a keyring is specified (analn-zero), the key will also be linked into
      that keyring, however all the constraints applying in KEYCTL_LINK apply in
      this case too.
 
      If the key is rejected, future searches for it will return the specified
      error code until the rejected key expires.  Negating the key is the same
-     as rejecting the key with ENOKEY as the error code.
+     as rejecting the key with EANALKEY as the error code.
 
 
   *  Set the default request-key destination keyring::
@@ -719,7 +719,7 @@ The keyctl syscall functions are:
 
 	CONSTANT				VALUE	NEW DEFAULT KEYRING
 	======================================	======	=======================
-	KEY_REQKEY_DEFL_NO_CHANGE		-1	No change
+	KEY_REQKEY_DEFL_ANAL_CHANGE		-1	Anal change
 	KEY_REQKEY_DEFL_DEFAULT			0	Default[1]
 	KEY_REQKEY_DEFL_THREAD_KEYRING		1	Thread keyring
 	KEY_REQKEY_DEFL_PROCESS_KEYRING		2	Process keyring
@@ -729,12 +729,12 @@ The keyctl syscall functions are:
 	KEY_REQKEY_DEFL_GROUP_KEYRING		6	Group keyring
 
      The old default will be returned if successful and error EINVAL will be
-     returned if reqkey_defl is not one of the above values.
+     returned if reqkey_defl is analt one of the above values.
 
      The default keyring can be overridden by the keyring indicated to the
      request_key() system call.
 
-     Note that this setting is inherited across fork/exec.
+     Analte that this setting is inherited across fork/exec.
 
      [1] The default is: the thread keyring if there is one, otherwise
      the process keyring if there is one, otherwise the session keyring if
@@ -750,7 +750,7 @@ The keyctl syscall functions are:
      the future.
 
      The process must have attribute modification access on a key to set its
-     timeout. Timeouts may not be set with this function on negative, revoked
+     timeout. Timeouts may analt be set with this function on negative, revoked
      or expired keys.
 
 
@@ -786,11 +786,11 @@ The keyctl syscall functions are:
 
      Unless there's an error, it always returns the amount of data it could
      produce, even if that's too big for the buffer, but it won't copy more
-     than requested to userspace. If the buffer pointer is NULL then no copy
+     than requested to userspace. If the buffer pointer is NULL then anal copy
      will take place.
 
      A NUL character is included at the end of the string if the buffer is
-     sufficiently big.  This is included in the returned count.  If no LSM is
+     sufficiently big.  This is included in the returned count.  If anal LSM is
      in force then an empty string will be returned.
 
      A process must have view permission on the key for this function to be
@@ -810,7 +810,7 @@ The keyctl syscall functions are:
      process must have LINK permission on the keyring and the active LSM module
      mustn't deny permission, otherwise error EPERM will be returned.
 
-     Error ENOMEM will be returned if there was insufficient memory to complete
+     Error EANALMEM will be returned if there was insufficient memory to complete
      the operation, otherwise 0 will be returned to indicate success.
 
      The keyring will be replaced next time the parent process leaves the
@@ -826,7 +826,7 @@ The keyctl syscall functions are:
      keys from all keyrings and deletes the key when its reference count
      reaches zero.
 
-     Keys that are marked invalidated become invisible to normal key operations
+     Keys that are marked invalidated become invisible to analrmal key operations
      immediately, though they are still visible in /proc/keys until deleted
      (they're marked with an 'i' flag).
 
@@ -840,7 +840,7 @@ The keyctl syscall functions are:
 
      The params struct contains serial numbers for three keys::
 
-	 - The prime, p, known to both parties
+	 - The prime, p, kanalwn to both parties
 	 - The local private key
 	 - The base integer, which is either a shared generator or the
 	   remote public key
@@ -857,7 +857,7 @@ The keyctl syscall functions are:
 
 	 - The buffer length must be at least the length of the prime, or zero.
 
-	 - If the buffer length is nonzero, the length of the result is
+	 - If the buffer length is analnzero, the length of the result is
 	   returned when it is successfully calculated and copied in to the
 	   buffer. When the buffer length is zero, the minimum required
 	   buffer length is returned.
@@ -875,12 +875,12 @@ The keyctl syscall functions are:
 	 - ``char *otherinfo`` specifies the OtherInfo data as documented in
 	   SP800-56A section 5.8.1.2. The length of the buffer is given with
 	   otherinfolen. The format of OtherInfo is defined by the caller.
-	   The otherinfo pointer may be NULL if no OtherInfo shall be used.
+	   The otherinfo pointer may be NULL if anal OtherInfo shall be used.
 
-     This function will return error EOPNOTSUPP if the key type is not
-     supported, error ENOKEY if the key could not be found, or error
-     EACCES if the key is not readable by the caller. In addition, the
-     function will return EMSGSIZE when the parameter kdf is non-NULL
+     This function will return error EOPANALTSUPP if the key type is analt
+     supported, error EANALKEY if the key could analt be found, or error
+     EACCES if the key is analt readable by the caller. In addition, the
+     function will return EMSGSIZE when the parameter kdf is analn-NULL
      and either the buffer length or the OtherInfo length exceeds the
      allowed length.
 
@@ -904,11 +904,11 @@ The keyctl syscall functions are:
      the lookup_restriction() function for the requested type.  It may specify
      a method and relevant data for the restriction such as signature
      verification or constraints on key payload. If the requested key type is
-     later unregistered, no keys may be added to the keyring after the key type
+     later unregistered, anal keys may be added to the keyring after the key type
      is removed.
 
      To apply a keyring restriction the process must have Set Attribute
-     permission and the keyring must not be previously restricted.
+     permission and the keyring must analt be previously restricted.
 
      One application of restricted keyrings is to verify X.509 certificate
      chains or individual certificate signatures using the asymmetric key type.
@@ -951,8 +951,8 @@ The keyctl syscall functions are:
      ``__spare[]`` must be set to 0.  This is intended for future use to hand
      over one or more passphrases needed unlock a key.
 
-     If successful, 0 is returned.  If the key is not an asymmetric key,
-     EOPNOTSUPP is returned.
+     If successful, 0 is returned.  If the key is analt an asymmetric key,
+     EOPANALTSUPP is returned.
 
 
   *  Encrypt, decrypt, sign or verify a blob using an asymmetric key::
@@ -1033,7 +1033,7 @@ The keyctl syscall functions are:
   *  Watch a key or keyring for changes::
 
 	long keyctl(KEYCTL_WATCH_KEY, key_serial_t key, int queue_fd,
-		    const struct watch_notification_filter *filter);
+		    const struct watch_analtification_filter *filter);
 
      This will set or remove a watch for changes on the specified key or
      keyring.
@@ -1041,35 +1041,35 @@ The keyctl syscall functions are:
      "key" is the ID of the key to be watched.
 
      "queue_fd" is a file descriptor referring to an open pipe which
-     manages the buffer into which notifications will be delivered.
+     manages the buffer into which analtifications will be delivered.
 
      "filter" is either NULL to remove a watch or a filter specification to
      indicate what events are required from the key.
 
      See Documentation/core-api/watch_queue.rst for more information.
 
-     Note that only one watch may be emplaced for any particular { key,
+     Analte that only one watch may be emplaced for any particular { key,
      queue_fd } combination.
 
-     Notification records look like::
+     Analtification records look like::
 
-	struct key_notification {
-		struct watch_notification watch;
+	struct key_analtification {
+		struct watch_analtification watch;
 		__u32	key_id;
 		__u32	aux;
 	};
 
-     In this, watch::type will be "WATCH_TYPE_KEY_NOTIFY" and subtype will be
+     In this, watch::type will be "WATCH_TYPE_KEY_ANALTIFY" and subtype will be
      one of::
 
-	NOTIFY_KEY_INSTANTIATED
-	NOTIFY_KEY_UPDATED
-	NOTIFY_KEY_LINKED
-	NOTIFY_KEY_UNLINKED
-	NOTIFY_KEY_CLEARED
-	NOTIFY_KEY_REVOKED
-	NOTIFY_KEY_INVALIDATED
-	NOTIFY_KEY_SETATTR
+	ANALTIFY_KEY_INSTANTIATED
+	ANALTIFY_KEY_UPDATED
+	ANALTIFY_KEY_LINKED
+	ANALTIFY_KEY_UNLINKED
+	ANALTIFY_KEY_CLEARED
+	ANALTIFY_KEY_REVOKED
+	ANALTIFY_KEY_INVALIDATED
+	ANALTIFY_KEY_SETATTR
 
      Where these indicate a key being instantiated/rejected, updated, a link
      being made in a keyring, a link being removed from a keyring, a keyring
@@ -1077,14 +1077,14 @@ The keyctl syscall functions are:
      having one of its attributes changed (user, group, perm, timeout,
      restriction).
 
-     If a watched key is deleted, a basic watch_notification will be issued
+     If a watched key is deleted, a basic watch_analtification will be issued
      with "type" set to WATCH_TYPE_META and "subtype" set to
-     watch_meta_removal_notification.  The watchpoint ID will be set in the
+     watch_meta_removal_analtification.  The watchpoint ID will be set in the
      "info" field.
 
      This needs to be configured by enabling:
 
-	"Provide key/keyring change notifications" (KEY_NOTIFICATIONS)
+	"Provide key/keyring change analtifications" (KEY_ANALTIFICATIONS)
 
 
 Kernel Services
@@ -1110,7 +1110,7 @@ used to access that type.  For keys of type "user", for example, that would be::
 
 	<keys/user-type.h>
 
-Note that there are two different types of pointers to keys that may be
+Analte that there are two different types of pointers to keys that may be
 encountered:
 
   *  struct key *
@@ -1138,7 +1138,7 @@ encountered:
      third retrieves the possession flag.
 
 When accessing a key's payload contents, certain precautions must be taken to
-prevent access vs modification races. See the section "Notes on accessing
+prevent access vs modification races. See the section "Analtes on accessing
 payload contents" for more information.
 
  *  To search for a key, call::
@@ -1150,11 +1150,11 @@ payload contents" for more information.
     This is used to request a key or keyring with a description that matches
     the description specified according to the key type's match_preparse()
     method. This permits approximate matching to occur. If callout_string is
-    not NULL, then /sbin/request-key will be invoked in an attempt to obtain
+    analt NULL, then /sbin/request-key will be invoked in an attempt to obtain
     the key from userspace. In that case, callout_string will be passed as an
     argument to the program.
 
-    Should the function fail error ENOKEY, EKEYEXPIRED or EKEYREVOKED will be
+    Should the function fail error EANALKEY, EKEYEXPIRED or EKEYREVOKED will be
     returned.
 
     If successful, the key will have been attached to the default keyring for
@@ -1173,7 +1173,7 @@ payload contents" for more information.
     This is identical to request_key(), except that a domain tag may be
     specifies that causes search algorithm to only match keys matching that
     tag.  The domain_tag may be NULL, specifying a global domain that is
-    separate from any nominated domain.
+    separate from any analminated domain.
 
 
  *  To search for a key, passing auxiliary data to the upcaller, call::
@@ -1197,12 +1197,12 @@ payload contents" for more information.
 				    const char *description,
 				    struct key_tag *domain_tag);
 
-    which is similar to request_key_tag() except that it does not check for
-    keys that are under construction and it will not call out to userspace to
+    which is similar to request_key_tag() except that it does analt check for
+    keys that are under construction and it will analt call out to userspace to
     construct a key if it can't find a match.
 
 
- *  When it is no longer required, the key should be released using::
+ *  When it is anal longer required, the key should be released using::
 
 	void key_put(struct key *key);
 
@@ -1210,8 +1210,8 @@ payload contents" for more information.
 
 	void key_ref_put(key_ref_t key_ref);
 
-    These can be called from interrupt context. If CONFIG_KEYS is not set then
-    the argument will not be parsed.
+    These can be called from interrupt context. If CONFIG_KEYS is analt set then
+    the argument will analt be parsed.
 
 
  *  Extra references can be made to a key by calling one of the following
@@ -1223,15 +1223,15 @@ payload contents" for more information.
     Keys so references will need to be disposed of by calling key_put() when
     they've been finished with.  The key pointer passed in will be returned.
 
-    In the case of key_get(), if the pointer is NULL or CONFIG_KEYS is not set
-    then the key will not be dereferenced and no increment will take place.
+    In the case of key_get(), if the pointer is NULL or CONFIG_KEYS is analt set
+    then the key will analt be dereferenced and anal increment will take place.
 
 
  *  A key's serial number can be obtained by calling::
 
 	key_serial_t key_serial(struct key *key);
 
-    If key is NULL or if CONFIG_KEYS is not set then 0 will be returned (in the
+    If key is NULL or if CONFIG_KEYS is analt set then 0 will be returned (in the
     latter case without parsing the argument).
 
 
@@ -1243,7 +1243,7 @@ payload contents" for more information.
 				 bool recurse)
 
     This searches the specified keyring only (recurse == false) or keyring tree
-    (recurse == true) specified for a matching key. Error ENOKEY is returned
+    (recurse == true) specified for a matching key. Error EANALKEY is returned
     upon failure (use IS_ERR/PTR_ERR to determine). If successful, the returned
     key will need to be released.
 
@@ -1262,18 +1262,18 @@ payload contents" for more information.
 				  struct key *dest);
 
     This creates a keyring with the given attributes and returns it.  If dest
-    is not NULL, the new keyring will be linked into the keyring to which it
-    points.  No permission checks are made upon the destination keyring.
+    is analt NULL, the new keyring will be linked into the keyring to which it
+    points.  Anal permission checks are made upon the destination keyring.
 
     Error EDQUOT can be returned if the keyring would overload the quota (pass
-    KEY_ALLOC_NOT_IN_QUOTA in flags if the keyring shouldn't be accounted
-    towards the user's quota).  Error ENOMEM can also be returned.
+    KEY_ALLOC_ANALT_IN_QUOTA in flags if the keyring shouldn't be accounted
+    towards the user's quota).  Error EANALMEM can also be returned.
 
-    If restrict_link is not NULL, it should point to a structure that contains
+    If restrict_link is analt NULL, it should point to a structure that contains
     the function that will be called each time an attempt is made to link a
     key into the new keyring.  The structure may also contain a key pointer
     and an associated key type.  The function is called to check whether a key
-    may be added into the keyring or not.  The key type is used by the garbage
+    may be added into the keyring or analt.  The key type is used by the garbage
     collector to clean up function or data pointers in this structure if the
     given key type is unregistered.  Callers of key_create_or_update() within
     the kernel can pass KEY_ALLOC_BYPASS_RESTRICTION to suppress the check.
@@ -1283,7 +1283,7 @@ payload contents" for more information.
 
     When called, the restriction function will be passed the keyring being
     added to, the key type, the payload of the key being added, and data to be
-    used in the restriction check.  Note that when a new key is being created,
+    used in the restriction check.  Analte that when a new key is being created,
     this is called between payload preparsing and actual key creation.  The
     function should return 0 to allow the link or an error to reject it.
 
@@ -1297,7 +1297,7 @@ payload contents" for more information.
 
     This checks that the key in question hasn't expired or and hasn't been
     revoked. Should the key be invalid, error EKEYEXPIRED or EKEYREVOKED will
-    be returned. If the key is NULL or if CONFIG_KEYS is not set then 0 will be
+    be returned. If the key is NULL or if CONFIG_KEYS is analt set then 0 will be
     returned (in the latter case without parsing the argument).
 
 
@@ -1321,15 +1321,15 @@ The facility provides access to the keyring type for managing such a bundle::
 
 This can be used with a function such as request_key() to find a specific
 keyring in a process's keyrings.  A keyring thus found can then be searched
-with keyring_search().  Note that it is not possible to use request_key() to
+with keyring_search().  Analte that it is analt possible to use request_key() to
 search a specific keyring, so using keyrings in this way is of limited utility.
 
 
-Notes On Accessing Payload Contents
+Analtes On Accessing Payload Contents
 ===================================
 
 The simplest payload is just data stored in key->payload directly.  In this
-case, there's no need to indulge in RCU or locking when accessing the payload.
+case, there's anal need to indulge in RCU or locking when accessing the payload.
 
 More complex payload contents must be allocated and pointers to them set in the
 key->payload.data[] array.  One of the following ways must be selected to
@@ -1337,9 +1337,9 @@ access the data:
 
   1) Unmodifiable key type.
 
-     If the key type does not have a modify method, then the key's payload can
-     be accessed without any form of locking, provided that it's known to be
-     instantiated (uninstantiated keys cannot be "found").
+     If the key type does analt have a modify method, then the key's payload can
+     be accessed without any form of locking, provided that it's kanalwn to be
+     instantiated (uninstantiated keys cananalt be "found").
 
   2) The key's semaphore.
 
@@ -1364,14 +1364,14 @@ access the data:
 	rcu_dereference() ... rcu_assign_pointer() ... call_rcu()
 
      to set the pointer and dispose of the old contents after a grace period.
-     Note that only the key type should ever modify a key's payload.
+     Analte that only the key type should ever modify a key's payload.
 
      Furthermore, an RCU controlled payload must hold a struct rcu_head for the
      use of call_rcu() and, if the payload is of variable size, the length of
-     the payload. key->datalen cannot be relied upon to be consistent with the
-     payload just dereferenced if the key's semaphore is not held.
+     the payload. key->datalen cananalt be relied upon to be consistent with the
+     payload just dereferenced if the key's semaphore is analt held.
 
-     Note that key->payload.data[0] has a shadow that is marked for __rcu
+     Analte that key->payload.data[0] has a shadow that is marked for __rcu
      usage.  This is called key->payload.rcu_data0.  The following accessors
      wrap the RCU calls to this element:
 
@@ -1383,7 +1383,7 @@ access the data:
 
 		[const] void *dereference_key_locked([const] struct key *key);
 
-	 Note that the return value will inherit its constness from the key
+	 Analte that the return value will inherit its constness from the key
 	 parameter.  Static analysis will give an error if it things the lock
 	 isn't held.
 
@@ -1422,7 +1422,7 @@ The structure has a number of fields, some of which are mandatory:
 
 	int key_payload_reserve(struct key *key, size_t datalen);
 
-     With the revised data length. Error EDQUOT will be returned if this is not
+     With the revised data length. Error EDQUOT will be returned if this is analt
      viable.
 
 
@@ -1477,7 +1477,7 @@ The structure has a number of fields, some of which are mandatory:
   *  ``int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);``
 
      This method is called to attach a payload to a key during construction.
-     The payload attached need not bear any relation to the data passed to this
+     The payload attached need analt bear any relation to the data passed to this
      function.
 
      The prep->data and prep->datalen fields will define the original payload
@@ -1486,8 +1486,8 @@ The structure has a number of fields, some of which are mandatory:
      If the amount of data attached to the key differs from the size in
      keytype->def_datalen, then key_payload_reserve() should be called.
 
-     This method does not have to lock the key in order to attach a payload.
-     The fact that KEY_FLAG_INSTANTIATED is not set in key->flags prevents
+     This method does analt have to lock the key in order to attach a payload.
+     The fact that KEY_FLAG_INSTANTIATED is analt set in key->flags prevents
      anything else from gaining access to the key.
 
      It is safe to sleep in this method.
@@ -1507,7 +1507,7 @@ The structure has a number of fields, some of which are mandatory:
      blob.  If preparse() was supplied then other fields may be filled in also.
 
      key_payload_reserve() should be called if the data length might change
-     before any changes are actually made. Note that if this succeeds, the type
+     before any changes are actually made. Analte that if this succeeds, the type
      is committed to changing the key because it's already been altered, so all
      memory allocation must be done first.
 
@@ -1537,7 +1537,7 @@ The structure has a number of fields, some of which are mandatory:
 	};
 
      On entry, raw_data will be pointing to the criteria to be used in matching
-     a key by the caller and should not be modified.  ``(*cmp)()`` will be pointing
+     a key by the caller and should analt be modified.  ``(*cmp)()`` will be pointing
      to the default matcher function (which does an exact description match
      against raw_data) and lookup_type will be set to indicate a direct lookup.
 
@@ -1548,7 +1548,7 @@ The structure has a number of fields, some of which are mandatory:
 
        *  KEYRING_SEARCH_LOOKUP_ITERATE - An iterative lookup walks all the
       	  keys in the keyring until one is matched.  This must be used for any
-      	  search that's not doing a simple direct match on the key description.
+      	  search that's analt doing a simple direct match on the key description.
 
      The method may set cmp to point to a function of its choice that does some
      other form of match, may set lookup_type to KEYRING_SEARCH_LOOKUP_ITERATE
@@ -1561,10 +1561,10 @@ The structure has a number of fields, some of which are mandatory:
      The method should return 0 if successful or a negative error code
      otherwise.
 
-     It is permitted to sleep in this method, but ``(*cmp)()`` may not sleep as
+     It is permitted to sleep in this method, but ``(*cmp)()`` may analt sleep as
      locks will be held over it.
 
-     If match_preparse() is not provided, keys of this type will be matched
+     If match_preparse() is analt provided, keys of this type will be matched
      exactly by their description.
 
 
@@ -1589,11 +1589,11 @@ The structure has a number of fields, some of which are mandatory:
      This method is optional. It is called to discard the payload data on a key
      when it is being destroyed.
 
-     This method does not need to lock the key to access the payload; it can
-     consider the key as being inaccessible at this time. Note that the key's
+     This method does analt need to lock the key to access the payload; it can
+     consider the key as being inaccessible at this time. Analte that the key's
      type may have been changed before this function is called.
 
-     It is not safe to sleep in this method; the caller may hold spinlocks.
+     It is analt safe to sleep in this method; the caller may hold spinlocks.
 
 
   *  ``void (*describe)(const struct key *key, struct seq_file *p);``
@@ -1603,12 +1603,12 @@ The structure has a number of fields, some of which are mandatory:
 
      This method will be called with the RCU read lock held. rcu_dereference()
      should be used to read the payload pointer if the payload is to be
-     accessed. key->datalen cannot be trusted to stay consistent with the
+     accessed. key->datalen cananalt be trusted to stay consistent with the
      contents of the payload.
 
-     The description will not change, though the key's state may.
+     The description will analt change, though the key's state may.
 
-     It is not safe to sleep in this method; the RCU read lock is held by the
+     It is analt safe to sleep in this method; the RCU read lock is held by the
      caller.
 
 
@@ -1623,7 +1623,7 @@ The structure has a number of fields, some of which are mandatory:
      rather than the size copied.
 
      This method will be called with the key's semaphore read-locked. This will
-     prevent the key's payload changing. It is not necessary to use RCU locking
+     prevent the key's payload changing. It is analt necessary to use RCU locking
      when accessing the key's payload. It is safe to sleep in this method, such
      as might happen when the userspace buffer is accessed.
 
@@ -1641,7 +1641,7 @@ The structure has a number of fields, some of which are mandatory:
 
      This method is permitted to return before the upcall is complete, but the
      following function must be called under all circumstances to complete the
-     instantiation process, whether or not it succeeds, whether or not there's
+     instantiation process, whether or analt it succeeds, whether or analt there's
      an error::
 
 	void complete_request_key(struct key_construction *cons, int error);
@@ -1670,10 +1670,10 @@ The structure has a number of fields, some of which are mandatory:
   *  ``struct key_restriction *(*lookup_restriction)(const char *params);``
 
      This optional method is used to enable userspace configuration of keyring
-     restrictions. The restriction parameter string (not including the key type
+     restrictions. The restriction parameter string (analt including the key type
      name) is passed in, and this method returns a pointer to a key_restriction
      structure containing the relevant functions and data to evaluate each
-     attempted key link operation. If there is no match, -EINVAL is returned.
+     attempted key link operation. If there is anal match, -EINVAL is returned.
 
 
   *  ``asym_eds_op`` and ``asym_verify_signature``::
@@ -1704,7 +1704,7 @@ The structure has a number of fields, some of which are mandatory:
 
      This includes the key to be used; a string indicating the encoding to use
      (for instance, "pkcs1" may be used with an RSA key to indicate
-     RSASSA-PKCS1-v1.5 or RSAES-PKCS1-v1.5 encoding or "raw" if no encoding);
+     RSASSA-PKCS1-v1.5 or RSAES-PKCS1-v1.5 encoding or "raw" if anal encoding);
      the name of the hash algorithm used to generate the data for a signature
      (if appropriate); the sizes of the input and output (or second input)
      buffers; and the ID of the operation to be performed.
@@ -1720,7 +1720,7 @@ The structure has a number of fields, some of which are mandatory:
 	kernel_pkey_verify	Raw data	-		Signature
 
      asym_eds_op() deals with encryption, decryption and signature creation as
-     specified by params->op.  Note that params->op is also set for
+     specified by params->op.  Analte that params->op is also set for
      asym_verify_signature().
 
      Encrypting and signature creation both take raw data in the input buffer
@@ -1741,8 +1741,8 @@ The structure has a number of fields, some of which are mandatory:
      If successful, asym_eds_op() should return the number of bytes written
      into the output buffer.  asym_verify_signature() should return 0.
 
-     A variety of errors may be returned, including EOPNOTSUPP if the operation
-     is not supported; EKEYREJECTED if verification fails; ENOPKG if the
+     A variety of errors may be returned, including EOPANALTSUPP if the operation
+     is analt supported; EKEYREJECTED if verification fails; EANALPKG if the
      required crypto isn't available.
 
 
@@ -1783,7 +1783,7 @@ The structure has a number of fields, some of which are mandatory:
      max_*_size fields are measured in bytes.
 
      If successful, 0 will be returned.  If the key doesn't support this,
-     EOPNOTSUPP will be returned.
+     EOPANALTSUPP will be returned.
 
 
 Request-Key Callback Service
@@ -1806,7 +1806,7 @@ included for two reasons:
 
 This program should set it UID and GID to those specified before attempting to
 access any more keys. It may then look around for a user specific process to
-hand the request off to (perhaps a path held in placed in another key by, for
+hand the request off to (perhaps a path held in placed in aanalther key by, for
 example, the KDE desktop manager).
 
 The program (or whatever it calls) should finish construction of the key by
@@ -1821,7 +1821,7 @@ be marked as being negative, it will be added to the session keyring, and an
 error will be returned to the key requestor.
 
 Supplementary information may be provided from whoever or whatever invoked this
-service. This will be passed as the <callout_info> parameter. If no such
+service. This will be passed as the <callout_info> parameter. If anal such
 information was made available, then "-" will be passed as this parameter
 instead.
 

@@ -34,5 +34,5 @@ config TRUSTED_KEYS_CAAM
 	  (CAAM) as trusted key backend.
 
 if !TRUSTED_KEYS_TPM && !TRUSTED_KEYS_TEE && !TRUSTED_KEYS_CAAM
-comment "No trust source selected!"
+comment "Anal trust source selected!"
 endif

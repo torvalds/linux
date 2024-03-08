@@ -14,7 +14,7 @@
 #include <linux/dmi.h>
 #include "edac_module.h"
 #include <ras/ras_event.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 
 #define OTHER_DETAIL_LEN	400
 
@@ -31,7 +31,7 @@ static refcount_t ghes_refcount = REFCOUNT_INIT(0);
 /*
  * Access to ghes_pvt must be protected by ghes_lock. The spinlock
  * also provides the necessary (implicit) memory barrier for the SMP
- * case to make the pointer visible on another CPU.
+ * case to make the pointer visible on aanalther CPU.
  */
 static struct ghes_pvt *ghes_pvt;
 
@@ -49,7 +49,7 @@ static DEFINE_MUTEX(ghes_reg_mutex);
 
 /*
  * Sync with other, potentially concurrent callers of
- * ghes_edac_report_mem_error(). We don't know what the
+ * ghes_edac_report_mem_error(). We don't kanalw what the
  * "inventive" firmware would do.
  */
 static DEFINE_SPINLOCK(ghes_lock);
@@ -118,7 +118,7 @@ static void assign_dmi_dimm_info(struct dimm_info *dimm, struct memdev_dmi_entry
 
 	if (entry->size == 0xffff) {
 		pr_info("Can't get DIMM%i size\n", dimm->idx);
-		dimm->nr_pages = MiB_TO_PAGES(32);/* Unknown */
+		dimm->nr_pages = MiB_TO_PAGES(32);/* Unkanalwn */
 	} else if (entry->size == 0x7fff) {
 		dimm->nr_pages = MiB_TO_PAGES(entry->extended_size);
 	} else {
@@ -170,19 +170,19 @@ static void assign_dmi_dimm_info(struct dimm_info *dimm, struct memdev_dmi_entry
 		else if (entry->type_detail & BIT(9))
 			dimm->mtype = MEM_EDO;
 		else
-			dimm->mtype = MEM_UNKNOWN;
+			dimm->mtype = MEM_UNKANALWN;
 	}
 
 	/*
 	 * Actually, we can only detect if the memory has bits for
-	 * checksum or not
+	 * checksum or analt
 	 */
 	if (entry->total_width == entry->data_width)
-		dimm->edac_mode = EDAC_NONE;
+		dimm->edac_mode = EDAC_ANALNE;
 	else
 		dimm->edac_mode = EDAC_SECDED;
 
-	dimm->dtype = DEV_UNKNOWN;
+	dimm->dtype = DEV_UNKANALWN;
 	dimm->grain = 128;		/* Likely, worse case */
 
 	dimm_setup_label(dimm, entry->handle);
@@ -191,7 +191,7 @@ static void assign_dmi_dimm_info(struct dimm_info *dimm, struct memdev_dmi_entry
 		edac_dbg(1, "DIMM%i: %s size = %d MB%s\n",
 			dimm->idx, edac_mem_types[dimm->mtype],
 			PAGES_TO_MiB(dimm->nr_pages),
-			(dimm->edac_mode != EDAC_NONE) ? "(ECC)" : "");
+			(dimm->edac_mode != EDAC_ANALNE) ? "(ECC)" : "");
 		edac_dbg(2, "\ttype %d, detail 0x%02x, width %d(total %d)\n",
 			entry->memory_type, entry->type_detail,
 			entry->total_width, entry->data_width);
@@ -266,7 +266,7 @@ out:
 	return n;
 }
 
-static int ghes_edac_report_mem_error(struct notifier_block *nb,
+static int ghes_edac_report_mem_error(struct analtifier_block *nb,
 				      unsigned long val, void *data)
 {
 	struct cper_sec_mem_err *mem_err = (struct cper_sec_mem_err *)data;
@@ -281,10 +281,10 @@ static int ghes_edac_report_mem_error(struct notifier_block *nb,
 	/*
 	 * We can do the locking below because GHES defers error processing
 	 * from NMI to IRQ context. Whenever that changes, we'd at least
-	 * know.
+	 * kanalw.
 	 */
 	if (WARN_ON_ONCE(in_nmi()))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	spin_lock_irqsave(&ghes_lock, flags);
 
@@ -318,7 +318,7 @@ static int ghes_edac_report_mem_error(struct notifier_block *nb,
 		e->type = HW_EVENT_ERR_FATAL;
 		break;
 	default:
-	case GHES_SEV_NO:
+	case GHES_SEV_ANAL:
 		e->type = HW_EVENT_ERR_INFO;
 	}
 
@@ -332,7 +332,7 @@ static int ghes_edac_report_mem_error(struct notifier_block *nb,
 		p = pvt->msg;
 		p += snprintf(p, sizeof(pvt->msg), "%s", cper_mem_err_type_str(etype));
 	} else {
-		strcpy(pvt->msg, "unknown error");
+		strcpy(pvt->msg, "unkanalwn error");
 	}
 
 	/* Error address */
@@ -364,7 +364,7 @@ static int ghes_edac_report_mem_error(struct notifier_block *nb,
 		*(p - 1) = '\0';
 
 	if (!*e->label)
-		strcpy(e->label, "unknown memory");
+		strcpy(e->label, "unkanalwn memory");
 
 	/* All other fields are mapped on e->other_detail */
 	p = pvt->other_detail;
@@ -377,11 +377,11 @@ static int ghes_edac_report_mem_error(struct notifier_block *nb,
 unlock:
 	spin_unlock_irqrestore(&ghes_lock, flags);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block ghes_edac_mem_err_nb = {
-	.notifier_call	= ghes_edac_report_mem_error,
+static struct analtifier_block ghes_edac_mem_err_nb = {
+	.analtifier_call	= ghes_edac_report_mem_error,
 	.priority	= 0,
 };
 
@@ -394,13 +394,13 @@ static int ghes_edac_register(struct device *dev)
 	unsigned long flags;
 	int rc = 0;
 
-	/* finish another registration/unregistration instance first */
+	/* finish aanalther registration/unregistration instance first */
 	mutex_lock(&ghes_reg_mutex);
 
 	/*
 	 * We have only one logical memory controller to which all DIMMs belong.
 	 */
-	if (refcount_inc_not_zero(&ghes_refcount))
+	if (refcount_inc_analt_zero(&ghes_refcount))
 		goto unlock;
 
 	ghes_scan_system();
@@ -418,7 +418,7 @@ static int ghes_edac_register(struct device *dev)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(struct ghes_pvt));
 	if (!mci) {
 		pr_info("Can't allocate memory for EDAC data\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto unlock;
 	}
 
@@ -427,8 +427,8 @@ static int ghes_edac_register(struct device *dev)
 
 	mci->pdev = dev;
 	mci->mtype_cap = MEM_FLAG_EMPTY;
-	mci->edac_ctl_cap = EDAC_FLAG_NONE;
-	mci->edac_cap = EDAC_FLAG_NONE;
+	mci->edac_ctl_cap = EDAC_FLAG_ANALNE;
+	mci->edac_cap = EDAC_FLAG_ANALNE;
 	mci->mod_name = "ghes_edac.c";
 	mci->ctl_name = "ghes_edac";
 	mci->dev_name = "ghes";
@@ -457,7 +457,7 @@ static int ghes_edac_register(struct device *dev)
 			dst->grain	   = src->grain;
 
 			/*
-			 * If no src->label, preserve default label assigned
+			 * If anal src->label, preserve default label assigned
 			 * from EDAC core.
 			 */
 			if (strlen(src->label))
@@ -471,8 +471,8 @@ static int ghes_edac_register(struct device *dev)
 
 		dimm->nr_pages = 1;
 		dimm->grain = 128;
-		dimm->mtype = MEM_UNKNOWN;
-		dimm->dtype = DEV_UNKNOWN;
+		dimm->mtype = MEM_UNKANALWN;
+		dimm->dtype = DEV_UNKANALWN;
 		dimm->edac_mode = EDAC_SECDED;
 	}
 
@@ -480,7 +480,7 @@ static int ghes_edac_register(struct device *dev)
 	if (rc < 0) {
 		pr_info("Can't register with the EDAC core\n");
 		edac_mc_free(mci);
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto unlock;
 	}
 
@@ -495,7 +495,7 @@ static int ghes_edac_register(struct device *dev)
 
 unlock:
 
-	/* Not needed anymore */
+	/* Analt needed anymore */
 	kfree(ghes_hw.dimms);
 	ghes_hw.dimms = NULL;
 
@@ -544,11 +544,11 @@ static int __init ghes_edac_init(void)
 
 	ghes_devs = ghes_get_devices();
 	if (!ghes_devs)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (list_empty(ghes_devs)) {
 		pr_info("GHES probing device list is empty");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	list_for_each_entry_safe(g, g_tmp, ghes_devs, elist) {

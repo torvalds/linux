@@ -63,7 +63,7 @@ static struct rc_map_list adstech_dvb_t_pci_map = {
 	.map = {
 		.scan     = adstech_dvb_t_pci,
 		.size     = ARRAY_SIZE(adstech_dvb_t_pci),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_ADSTECH_DVB_T_PCI,
 	}
 };

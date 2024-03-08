@@ -3,7 +3,7 @@
  * Copyright (C) 2014, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "array.h"
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdlib.h>
@@ -27,12 +27,12 @@ int fdarray__grow(struct fdarray *fda, int nr)
 	struct pollfd *entries = realloc(fda->entries, size);
 
 	if (entries == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv = realloc(fda->priv, psize);
 	if (priv == NULL) {
 		free(entries);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	memset(&entries[fda->nr_alloc], 0, sizeof(struct pollfd) * nr);
@@ -79,7 +79,7 @@ int fdarray__add(struct fdarray *fda, int fd, short revents, enum fdarray_flags 
 
 	if (fda->nr == fda->nr_alloc &&
 	    fdarray__grow(fda, fda->nr_autogrow) < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fda->entries[fda->nr].fd     = fd;
 	fda->entries[fda->nr].events = revents;
@@ -126,7 +126,7 @@ int fdarray__filter(struct fdarray *fda, short revents,
 			continue;
 		}
 
-		if (!(fda->priv[fd].flags & fdarray_flag__nonfilterable))
+		if (!(fda->priv[fd].flags & fdarray_flag__analnfilterable))
 			++nr;
 	}
 

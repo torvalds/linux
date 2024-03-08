@@ -135,7 +135,7 @@ static void ssusb_mode_sw_work(struct work_struct *work)
 
 	current_role = ssusb->is_host ? USB_ROLE_HOST : USB_ROLE_DEVICE;
 
-	if (desired_role == USB_ROLE_NONE) {
+	if (desired_role == USB_ROLE_ANALNE) {
 		/* the default mode is host as probe does */
 		desired_role = USB_ROLE_HOST;
 		if (otg_sx->default_role == USB_ROLE_DEVICE)
@@ -164,7 +164,7 @@ static void ssusb_mode_sw_work(struct work_struct *work)
 		switch_port_to_device(ssusb);
 		mtu3_start(mtu);
 		break;
-	case USB_ROLE_NONE:
+	case USB_ROLE_ANALNE:
 	default:
 		dev_err(ssusb->dev, "invalid role\n");
 	}
@@ -182,7 +182,7 @@ static void ssusb_set_mode(struct otg_switch_mtk *otg_sx, enum usb_role role)
 	queue_work(system_freezable_wq, &otg_sx->dr_work);
 }
 
-static int ssusb_id_notifier(struct notifier_block *nb,
+static int ssusb_id_analtifier(struct analtifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct otg_switch_mtk *otg_sx =
@@ -190,7 +190,7 @@ static int ssusb_id_notifier(struct notifier_block *nb,
 
 	ssusb_set_mode(otg_sx, event ? USB_ROLE_HOST : USB_ROLE_DEVICE);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
@@ -203,11 +203,11 @@ static int ssusb_extcon_register(struct otg_switch_mtk *otg_sx)
 	if (!edev)
 		return 0;
 
-	otg_sx->id_nb.notifier_call = ssusb_id_notifier;
-	ret = devm_extcon_register_notifier(ssusb->dev, edev, EXTCON_USB_HOST,
+	otg_sx->id_nb.analtifier_call = ssusb_id_analtifier;
+	ret = devm_extcon_register_analtifier(ssusb->dev, edev, EXTCON_USB_HOST,
 					&otg_sx->id_nb);
 	if (ret < 0) {
-		dev_err(ssusb->dev, "failed to register notifier for USB-HOST\n");
+		dev_err(ssusb->dev, "failed to register analtifier for USB-HOST\n");
 		return ret;
 	}
 
@@ -248,7 +248,7 @@ void ssusb_set_force_mode(struct ssusb_mtk *ssusb,
 		value |= SSUSB_U2_PORT_FORCE_IDDIG;
 		value &= ~SSUSB_U2_PORT_RG_IDDIG;
 		break;
-	case MTU3_DR_FORCE_NONE:
+	case MTU3_DR_FORCE_ANALNE:
 		value &= ~(SSUSB_U2_PORT_FORCE_IDDIG | SSUSB_U2_PORT_RG_IDDIG);
 		break;
 	default:
@@ -292,7 +292,7 @@ static int ssusb_role_sw_register(struct otg_switch_mtk *otg_sx)
 
 	role_sx_desc.set = ssusb_role_sw_set;
 	role_sx_desc.get = ssusb_role_sw_get;
-	role_sx_desc.fwnode = dev_fwnode(dev);
+	role_sx_desc.fwanalde = dev_fwanalde(dev);
 	role_sx_desc.driver_data = ssusb;
 	role_sx_desc.allow_userspace_control = true;
 	otg_sx->role_sw = usb_role_switch_register(dev, &role_sx_desc);

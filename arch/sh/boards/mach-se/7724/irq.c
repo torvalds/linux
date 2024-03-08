@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  *
  * Based on  linux/arch/sh/boards/se/7722/irq.c
- * Copyright (C) 2007  Nobuhiro Iwamatsu
+ * Copyright (C) 2007  Analbuhiro Iwamatsu
  *
  * Hitachi UL SolutionEngine 7724 Support.
  */
@@ -122,7 +122,7 @@ void __init init_se7724_IRQ(void)
 	__raw_writew(0x002a, IRQ_MODE); /* set irq type */
 
 	irq_base = irq_alloc_descs(SE7724_FPGA_IRQ_BASE, SE7724_FPGA_IRQ_BASE,
-				   SE7724_FPGA_IRQ_NR, numa_node_id());
+				   SE7724_FPGA_IRQ_NR, numa_analde_id());
 	if (IS_ERR_VALUE(irq_base)) {
 		pr_err("%s: failed hooking irqs for FPGA\n", __func__);
 		return;

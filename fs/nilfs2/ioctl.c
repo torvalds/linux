@@ -40,7 +40,7 @@
  *
  * %-EINVAL - Invalid arguments from userspace.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EFAULT - Failure during execution of requested operation.
  */
@@ -71,9 +71,9 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
 	if (argv->v_index > ~(__u64)0 - argv->v_nmembs)
 		return -EINVAL;
 
-	buf = (void *)get_zeroed_page(GFP_NOFS);
+	buf = (void *)get_zeroed_page(GFP_ANALFS);
 	if (unlikely(!buf))
-		return -ENOMEM;
+		return -EANALMEM;
 	maxmembs = PAGE_SIZE / argv->v_size;
 
 	ret = 0;
@@ -118,9 +118,9 @@ static int nilfs_ioctl_wrap_copy(struct the_nilfs *nilfs,
  */
 int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 
-	fileattr_fill_flags(fa, NILFS_I(inode)->i_flags & FS_FL_USER_VISIBLE);
+	fileattr_fill_flags(fa, NILFS_I(ianalde)->i_flags & FS_FL_USER_VISIBLE);
 
 	return 0;
 }
@@ -131,43 +131,43 @@ int nilfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 int nilfs_fileattr_set(struct mnt_idmap *idmap,
 		       struct dentry *dentry, struct fileattr *fa)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	struct nilfs_transaction_info ti;
 	unsigned int flags, oldflags;
 	int ret;
 
 	if (fileattr_has_fsx(fa))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	flags = nilfs_mask_flags(inode->i_mode, fa->flags);
+	flags = nilfs_mask_flags(ianalde->i_mode, fa->flags);
 
-	ret = nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	ret = nilfs_transaction_begin(ianalde->i_sb, &ti, 0);
 	if (ret)
 		return ret;
 
-	oldflags = NILFS_I(inode)->i_flags & ~FS_FL_USER_MODIFIABLE;
-	NILFS_I(inode)->i_flags = oldflags | (flags & FS_FL_USER_MODIFIABLE);
+	oldflags = NILFS_I(ianalde)->i_flags & ~FS_FL_USER_MODIFIABLE;
+	NILFS_I(ianalde)->i_flags = oldflags | (flags & FS_FL_USER_MODIFIABLE);
 
-	nilfs_set_inode_flags(inode);
-	inode_set_ctime_current(inode);
-	if (IS_SYNC(inode))
+	nilfs_set_ianalde_flags(ianalde);
+	ianalde_set_ctime_current(ianalde);
+	if (IS_SYNC(ianalde))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
-	nilfs_mark_inode_dirty(inode);
-	return nilfs_transaction_commit(inode->i_sb);
+	nilfs_mark_ianalde_dirty(ianalde);
+	return nilfs_transaction_commit(ianalde->i_sb);
 }
 
 /**
  * nilfs_ioctl_getversion - get info about a file's version (generation number)
  */
-static int nilfs_ioctl_getversion(struct inode *inode, void __user *argp)
+static int nilfs_ioctl_getversion(struct ianalde *ianalde, void __user *argp)
 {
-	return put_user(inode->i_generation, (int __user *)argp);
+	return put_user(ianalde->i_generation, (int __user *)argp);
 }
 
 /**
  * nilfs_ioctl_change_cpmode - change checkpoint mode (checkpoint/snapshot)
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -180,14 +180,14 @@ static int nilfs_ioctl_getversion(struct inode *inode, void __user *argp)
  * changed. On error, one of the following negative error codes
  * is returned.
  *
- * %-EPERM - Operation not permitted.
+ * %-EPERM - Operation analt permitted.
  *
  * %-EFAULT - Failure during checkpoint mode changing.
  */
-static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_change_cpmode(struct ianalde *ianalde, struct file *filp,
 				     unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_transaction_info ti;
 	struct nilfs_cpmode cpmode;
 	int ret;
@@ -205,13 +205,13 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 
 	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	nilfs_transaction_begin(ianalde->i_sb, &ti, 0);
 	ret = nilfs_cpfile_change_cpmode(
-		nilfs->ns_cpfile, cpmode.cm_cno, cpmode.cm_mode);
+		nilfs->ns_cpfile, cpmode.cm_canal, cpmode.cm_mode);
 	if (unlikely(ret < 0))
-		nilfs_transaction_abort(inode->i_sb);
+		nilfs_transaction_abort(ianalde->i_sb);
 	else
-		nilfs_transaction_commit(inode->i_sb); /* never fails */
+		nilfs_transaction_commit(ianalde->i_sb); /* never fails */
 
 	mutex_unlock(&nilfs->ns_snapshot_mount_mutex);
 out:
@@ -221,7 +221,7 @@ out:
 
 /**
  * nilfs_ioctl_delete_checkpoint - remove checkpoint
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -234,17 +234,17 @@ out:
  * removed. On error, one of the following negative error codes
  * is returned.
  *
- * %-EPERM - Operation not permitted.
+ * %-EPERM - Operation analt permitted.
  *
  * %-EFAULT - Failure during checkpoint removing.
  */
 static int
-nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
+nilfs_ioctl_delete_checkpoint(struct ianalde *ianalde, struct file *filp,
 			      unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_transaction_info ti;
-	__u64 cno;
+	__u64 canal;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -255,15 +255,15 @@ nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 		return ret;
 
 	ret = -EFAULT;
-	if (copy_from_user(&cno, argp, sizeof(cno)))
+	if (copy_from_user(&canal, argp, sizeof(canal)))
 		goto out;
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
-	ret = nilfs_cpfile_delete_checkpoint(nilfs->ns_cpfile, cno);
+	nilfs_transaction_begin(ianalde->i_sb, &ti, 0);
+	ret = nilfs_cpfile_delete_checkpoint(nilfs->ns_cpfile, canal);
 	if (unlikely(ret < 0))
-		nilfs_transaction_abort(inode->i_sb);
+		nilfs_transaction_abort(ianalde->i_sb);
 	else
-		nilfs_transaction_commit(inode->i_sb); /* never fails */
+		nilfs_transaction_commit(ianalde->i_sb); /* never fails */
 out:
 	mnt_drop_write_file(filp);
 	return ret;
@@ -299,7 +299,7 @@ nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 
 /**
  * nilfs_ioctl_get_cpstat - get checkpoints statistics
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -314,14 +314,14 @@ nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EFAULT - Failure during getting checkpoints statistics.
  */
-static int nilfs_ioctl_get_cpstat(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_get_cpstat(struct ianalde *ianalde, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_cpstat cpstat;
 	int ret;
 
@@ -340,7 +340,7 @@ static int nilfs_ioctl_get_cpstat(struct inode *inode, struct file *filp,
  * nilfs_ioctl_do_get_suinfo - callback method getting segment usage info
  * @nilfs: nilfs object
  * @posp: pointer on array of segment numbers
- * @flags: *not used*
+ * @flags: *analt used*
  * @buf: buffer for storing suinfo array
  * @size: size in bytes of one suinfo item in array
  * @nmembs: count of segment numbers and suinfos in array
@@ -366,7 +366,7 @@ nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 
 /**
  * nilfs_ioctl_get_sustat - get segment usage statistics
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -381,14 +381,14 @@ nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EFAULT - Failure during getting segment usage statistics.
  */
-static int nilfs_ioctl_get_sustat(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_get_sustat(struct ianalde *ianalde, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_sustat sustat;
 	int ret;
 
@@ -406,8 +406,8 @@ static int nilfs_ioctl_get_sustat(struct inode *inode, struct file *filp,
 /**
  * nilfs_ioctl_do_get_vinfo - callback method getting virtual blocks info
  * @nilfs: nilfs object
- * @posp: *not used*
- * @flags: *not used*
+ * @posp: *analt used*
+ * @flags: *analt used*
  * @buf: buffer for storing array of nilfs_vinfo structures
  * @size: size in bytes of one vinfo item in array
  * @nmembs: count of vinfos in array
@@ -433,8 +433,8 @@ nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 /**
  * nilfs_ioctl_do_get_bdescs - callback method getting disk block descriptors
  * @nilfs: nilfs object
- * @posp: *not used*
- * @flags: *not used*
+ * @posp: *analt used*
+ * @flags: *analt used*
  * @buf: buffer for storing array of nilfs_bdesc structures
  * @size: size in bytes of one bdesc item in array
  * @nmembs: count of bdescs in array
@@ -460,7 +460,7 @@ nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 						 bdescs[i].bd_level + 1,
 						 &bdescs[i].bd_blocknr);
 		if (ret < 0) {
-			if (ret != -ENOENT) {
+			if (ret != -EANALENT) {
 				up_read(&nilfs->ns_segctor_sem);
 				return ret;
 			}
@@ -473,7 +473,7 @@ nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 
 /**
  * nilfs_ioctl_get_bdescs - get disk block descriptors
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -490,14 +490,14 @@ nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EFAULT - Failure during getting disk block descriptors.
  */
-static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_get_bdescs(struct ianalde *ianalde, struct file *filp,
 				  unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_argv argv;
 	int ret;
 
@@ -518,12 +518,12 @@ static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
 }
 
 /**
- * nilfs_ioctl_move_inode_block - prepare data/node block for moving by GC
- * @inode: inode object
+ * nilfs_ioctl_move_ianalde_block - prepare data/analde block for moving by GC
+ * @ianalde: ianalde object
  * @vdesc: descriptor of virtual block number
  * @buffers: list of moving buffers
  *
- * Description: nilfs_ioctl_move_inode_block() function registers data/node
+ * Description: nilfs_ioctl_move_ianalde_block() function registers data/analde
  * buffer in the GC pagecache and submit read request.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
@@ -531,13 +531,13 @@ static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - Requested block doesn't exist.
+ * %-EANALENT - Requested block doesn't exist.
  *
  * %-EEXIST - Blocks conflict is detected.
  */
-static int nilfs_ioctl_move_inode_block(struct inode *inode,
+static int nilfs_ioctl_move_ianalde_block(struct ianalde *ianalde,
 					struct nilfs_vdesc *vdesc,
 					struct list_head *buffers)
 {
@@ -546,30 +546,30 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 
 	if (vdesc->vd_flags == 0)
 		ret = nilfs_gccache_submit_read_data(
-			inode, vdesc->vd_offset, vdesc->vd_blocknr,
+			ianalde, vdesc->vd_offset, vdesc->vd_blocknr,
 			vdesc->vd_vblocknr, &bh);
 	else
-		ret = nilfs_gccache_submit_read_node(
-			inode, vdesc->vd_blocknr, vdesc->vd_vblocknr, &bh);
+		ret = nilfs_gccache_submit_read_analde(
+			ianalde, vdesc->vd_blocknr, vdesc->vd_vblocknr, &bh);
 
 	if (unlikely(ret < 0)) {
-		if (ret == -ENOENT)
-			nilfs_crit(inode->i_sb,
-				   "%s: invalid virtual block address (%s): ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
-				   __func__, vdesc->vd_flags ? "node" : "data",
-				   (unsigned long long)vdesc->vd_ino,
-				   (unsigned long long)vdesc->vd_cno,
+		if (ret == -EANALENT)
+			nilfs_crit(ianalde->i_sb,
+				   "%s: invalid virtual block address (%s): ianal=%llu, canal=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+				   __func__, vdesc->vd_flags ? "analde" : "data",
+				   (unsigned long long)vdesc->vd_ianal,
+				   (unsigned long long)vdesc->vd_canal,
 				   (unsigned long long)vdesc->vd_offset,
 				   (unsigned long long)vdesc->vd_blocknr,
 				   (unsigned long long)vdesc->vd_vblocknr);
 		return ret;
 	}
 	if (unlikely(!list_empty(&bh->b_assoc_buffers))) {
-		nilfs_crit(inode->i_sb,
-			   "%s: conflicting %s buffer: ino=%llu, cno=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
-			   __func__, vdesc->vd_flags ? "node" : "data",
-			   (unsigned long long)vdesc->vd_ino,
-			   (unsigned long long)vdesc->vd_cno,
+		nilfs_crit(ianalde->i_sb,
+			   "%s: conflicting %s buffer: ianal=%llu, canal=%llu, offset=%llu, blocknr=%llu, vblocknr=%llu",
+			   __func__, vdesc->vd_flags ? "analde" : "data",
+			   (unsigned long long)vdesc->vd_ianal,
+			   (unsigned long long)vdesc->vd_canal,
 			   (unsigned long long)vdesc->vd_offset,
 			   (unsigned long long)vdesc->vd_blocknr,
 			   (unsigned long long)vdesc->vd_vblocknr);
@@ -581,14 +581,14 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 }
 
 /**
- * nilfs_ioctl_move_blocks - move valid inode's blocks during garbage collection
+ * nilfs_ioctl_move_blocks - move valid ianalde's blocks during garbage collection
  * @sb: superblock object
  * @argv: vector of arguments from userspace
  * @buf: array of nilfs_vdesc structures
  *
- * Description: nilfs_ioctl_move_blocks() function reads valid data/node
+ * Description: nilfs_ioctl_move_blocks() function reads valid data/analde
  * blocks that garbage collector specified with the array of nilfs_vdesc
- * structures and stores them into page caches of GC inodes.
+ * structures and stores them into page caches of GC ianaldes.
  *
  * Return Value: Number of processed nilfs_vdesc structures or
  * error code, otherwise.
@@ -598,45 +598,45 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 {
 	size_t nmembs = argv->v_nmembs;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct inode *inode;
+	struct ianalde *ianalde;
 	struct nilfs_vdesc *vdesc;
 	struct buffer_head *bh, *n;
 	LIST_HEAD(buffers);
-	ino_t ino;
-	__u64 cno;
+	ianal_t ianal;
+	__u64 canal;
 	int i, ret;
 
 	for (i = 0, vdesc = buf; i < nmembs; ) {
-		ino = vdesc->vd_ino;
-		cno = vdesc->vd_cno;
-		inode = nilfs_iget_for_gc(sb, ino, cno);
-		if (IS_ERR(inode)) {
-			ret = PTR_ERR(inode);
+		ianal = vdesc->vd_ianal;
+		canal = vdesc->vd_canal;
+		ianalde = nilfs_iget_for_gc(sb, ianal, canal);
+		if (IS_ERR(ianalde)) {
+			ret = PTR_ERR(ianalde);
 			goto failed;
 		}
-		if (list_empty(&NILFS_I(inode)->i_dirty)) {
+		if (list_empty(&NILFS_I(ianalde)->i_dirty)) {
 			/*
-			 * Add the inode to GC inode list. Garbage Collection
-			 * is serialized and no two processes manipulate the
+			 * Add the ianalde to GC ianalde list. Garbage Collection
+			 * is serialized and anal two processes manipulate the
 			 * list simultaneously.
 			 */
-			igrab(inode);
-			list_add(&NILFS_I(inode)->i_dirty,
-				 &nilfs->ns_gc_inodes);
+			igrab(ianalde);
+			list_add(&NILFS_I(ianalde)->i_dirty,
+				 &nilfs->ns_gc_ianaldes);
 		}
 
 		do {
-			ret = nilfs_ioctl_move_inode_block(inode, vdesc,
+			ret = nilfs_ioctl_move_ianalde_block(ianalde, vdesc,
 							   &buffers);
 			if (unlikely(ret < 0)) {
-				iput(inode);
+				iput(ianalde);
 				goto failed;
 			}
 			vdesc++;
 		} while (++i < nmembs &&
-			 vdesc->vd_ino == ino && vdesc->vd_cno == cno);
+			 vdesc->vd_ianal == ianal && vdesc->vd_canal == canal);
 
-		iput(inode); /* The inode still remains in GC inode list */
+		iput(ianalde); /* The ianalde still remains in GC ianalde list */
 	}
 
 	list_for_each_entry_safe(bh, n, &buffers, b_assoc_buffers) {
@@ -666,14 +666,14 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
  *
  * Description: nilfs_ioctl_delete_checkpoints() function deletes checkpoints
  * in the period from p_start to p_end, excluding p_end itself. The checkpoints
- * which have been already deleted are ignored.
+ * which have been already deleted are iganalred.
  *
  * Return Value: Number of processed nilfs_period structures or
  * error code, otherwise.
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EINVAL - invalid checkpoints.
  */
@@ -681,7 +681,7 @@ static int nilfs_ioctl_delete_checkpoints(struct the_nilfs *nilfs,
 					  struct nilfs_argv *argv, void *buf)
 {
 	size_t nmembs = argv->v_nmembs;
-	struct inode *cpfile = nilfs->ns_cpfile;
+	struct ianalde *cpfile = nilfs->ns_cpfile;
 	struct nilfs_period *periods = buf;
 	int ret, i;
 
@@ -708,9 +708,9 @@ static int nilfs_ioctl_delete_checkpoints(struct the_nilfs *nilfs,
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - The virtual block number have not been allocated.
+ * %-EANALENT - The virtual block number have analt been allocated.
  */
 static int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
 				      struct nilfs_argv *argv, void *buf)
@@ -735,11 +735,11 @@ static int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
  * Return Value: Number of processed block descriptors or
  * error code, otherwise.
  *
- * %-ENOMEM - Insufficient memory available.
+ * %-EANALMEM - Insufficient memory available.
  *
  * %-EIO - I/O error
  *
- * %-ENOENT - the specified block does not exist (hole block)
+ * %-EANALENT - the specified block does analt exist (hole block)
  */
 static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 					 struct nilfs_argv *argv, void *buf)
@@ -757,7 +757,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 						 bdescs[i].bd_level + 1,
 						 &bdescs[i].bd_blocknr);
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				return ret;
 			bdescs[i].bd_blocknr = 0;
 		}
@@ -769,7 +769,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 						  bdescs[i].bd_offset,
 						  false, NULL, &bh);
 			if (unlikely(ret)) {
-				WARN_ON(ret == -ENOENT);
+				WARN_ON(ret == -EANALENT);
 				return ret;
 			}
 			mark_buffer_dirty(bh);
@@ -779,7 +779,7 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 			ret = nilfs_bmap_mark(bmap, bdescs[i].bd_offset,
 					      bdescs[i].bd_level);
 			if (ret < 0) {
-				WARN_ON(ret == -ENOENT);
+				WARN_ON(ret == -EANALENT);
 				return ret;
 			}
 		}
@@ -799,7 +799,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		 * can safely abort because checkpoints can be removed
 		 * independently.
 		 */
-		msg = "cannot delete checkpoints";
+		msg = "cananalt delete checkpoints";
 		goto failed;
 	}
 	ret = nilfs_ioctl_free_vblocknrs(nilfs, &argv[2], kbufs[2]);
@@ -808,15 +808,15 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		 * can safely abort because DAT file is updated atomically
 		 * using a copy-on-write technique.
 		 */
-		msg = "cannot delete virtual blocks from DAT file";
+		msg = "cananalt delete virtual blocks from DAT file";
 		goto failed;
 	}
 	ret = nilfs_ioctl_mark_blocks_dirty(nilfs, &argv[3], kbufs[3]);
 	if (ret < 0) {
 		/*
-		 * can safely abort because the operation is nondestructive.
+		 * can safely abort because the operation is analndestructive.
 		 */
-		msg = "cannot mark copying blocks dirty";
+		msg = "cananalt mark copying blocks dirty";
 		goto failed;
 	}
 	return 0;
@@ -828,7 +828,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 
 /**
  * nilfs_ioctl_clean_segments - clean segments
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -840,7 +840,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
  *
  * Return Value: On success, 0 is returned or error code, otherwise.
  */
-static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_clean_segments(struct ianalde *ianalde, struct file *filp,
 				      unsigned int cmd, void __user *argp)
 {
 	struct nilfs_argv argv[5];
@@ -876,7 +876,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	/*
 	 * argv[4] points to segment numbers this ioctl cleans.  We
 	 * use kmalloc() for its buffer because the memory used for the
-	 * segment numbers is small enough.
+	 * segment numbers is small eanalugh.
 	 */
 	kbufs[4] = memdup_array_user((void __user *)(unsigned long)argv[4].v_base,
 				     nsegs, sizeof(__u64));
@@ -884,7 +884,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		ret = PTR_ERR(kbufs[4]);
 		goto out;
 	}
-	nilfs = inode->i_sb->s_fs_info;
+	nilfs = ianalde->i_sb->s_fs_info;
 
 	for (n = 0; n < 4; n++) {
 		ret = -EINVAL;
@@ -906,7 +906,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 
 		kbufs[n] = vmalloc(len);
 		if (!kbufs[n]) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_free;
 		}
 		if (copy_from_user(kbufs[n], base, len)) {
@@ -918,7 +918,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 
 	/*
 	 * nilfs_ioctl_move_blocks() will call nilfs_iget_for_gc(),
-	 * which will operates an inode list without blocking.
+	 * which will operates an ianalde list without blocking.
 	 * To protect the list from concurrent operations,
 	 * nilfs_ioctl_move_blocks should be atomic operation.
 	 */
@@ -927,18 +927,18 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 		goto out_free;
 	}
 
-	ret = nilfs_ioctl_move_blocks(inode->i_sb, &argv[0], kbufs[0]);
+	ret = nilfs_ioctl_move_blocks(ianalde->i_sb, &argv[0], kbufs[0]);
 	if (ret < 0) {
-		nilfs_err(inode->i_sb,
-			  "error %d preparing GC: cannot read source blocks",
+		nilfs_err(ianalde->i_sb,
+			  "error %d preparing GC: cananalt read source blocks",
 			  ret);
 	} else {
 		if (nilfs_sb_need_update(nilfs))
 			set_nilfs_discontinued(nilfs);
-		ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+		ret = nilfs_clean_segments(ianalde->i_sb, argv, kbufs);
 	}
 
-	nilfs_remove_all_gcinodes(nilfs);
+	nilfs_remove_all_gcianaldes(nilfs);
 	clear_nilfs_gc_running(nilfs);
 
 out_free:
@@ -952,7 +952,7 @@ out:
 
 /**
  * nilfs_ioctl_sync - make a checkpoint
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -969,35 +969,35 @@ out:
  *
  * %-EIO - I/O error
  *
- * %-ENOSPC - No space left on device (only in a panic state).
+ * %-EANALSPC - Anal space left on device (only in a panic state).
  *
  * %-ERESTARTSYS - Interrupted.
  *
- * %-ENOMEM - Insufficient memory available.
+ * %-EANALMEM - Insufficient memory available.
  *
  * %-EFAULT - Failure during execution of requested operation.
  */
-static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_sync(struct ianalde *ianalde, struct file *filp,
 			    unsigned int cmd, void __user *argp)
 {
-	__u64 cno;
+	__u64 canal;
 	int ret;
 	struct the_nilfs *nilfs;
 
-	ret = nilfs_construct_segment(inode->i_sb);
+	ret = nilfs_construct_segment(ianalde->i_sb);
 	if (ret < 0)
 		return ret;
 
-	nilfs = inode->i_sb->s_fs_info;
+	nilfs = ianalde->i_sb->s_fs_info;
 	ret = nilfs_flush_device(nilfs);
 	if (ret < 0)
 		return ret;
 
 	if (argp != NULL) {
 		down_read(&nilfs->ns_segctor_sem);
-		cno = nilfs->ns_cno - 1;
+		canal = nilfs->ns_canal - 1;
 		up_read(&nilfs->ns_segctor_sem);
-		if (copy_to_user(argp, &cno, sizeof(cno)))
+		if (copy_to_user(argp, &canal, sizeof(canal)))
 			return -EFAULT;
 	}
 	return 0;
@@ -1005,13 +1005,13 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 
 /**
  * nilfs_ioctl_resize - resize NILFS2 volume
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @argp: pointer on argument from userspace
  *
  * Return Value: On success, 0 is returned or error code, otherwise.
  */
-static int nilfs_ioctl_resize(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_resize(struct ianalde *ianalde, struct file *filp,
 			      void __user *argp)
 {
 	__u64 newsize;
@@ -1028,7 +1028,7 @@ static int nilfs_ioctl_resize(struct inode *inode, struct file *filp,
 	if (copy_from_user(&newsize, argp, sizeof(newsize)))
 		goto out_drop_write;
 
-	ret = nilfs_resize_fs(inode->i_sb, newsize);
+	ret = nilfs_resize_fs(ianalde->i_sb, newsize);
 
 out_drop_write:
 	mnt_drop_write_file(filp);
@@ -1038,7 +1038,7 @@ out:
 
 /**
  * nilfs_ioctl_trim_fs() - trim ioctl handle function
- * @inode: inode object
+ * @ianalde: ianalde object
  * @argp: pointer on argument from userspace
  *
  * Description: nilfs_ioctl_trim_fs is the FITRIM ioctl handle function. It
@@ -1047,9 +1047,9 @@ out:
  *
  * Return Value: On success, 0 is returned or negative error code, otherwise.
  */
-static int nilfs_ioctl_trim_fs(struct inode *inode, void __user *argp)
+static int nilfs_ioctl_trim_fs(struct ianalde *ianalde, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct fstrim_range range;
 	int ret;
 
@@ -1057,7 +1057,7 @@ static int nilfs_ioctl_trim_fs(struct inode *inode, void __user *argp)
 		return -EPERM;
 
 	if (!bdev_max_discard_sectors(nilfs->ns_bdev))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (copy_from_user(&range, argp, sizeof(range)))
 		return -EFAULT;
@@ -1080,7 +1080,7 @@ static int nilfs_ioctl_trim_fs(struct inode *inode, void __user *argp)
 
 /**
  * nilfs_ioctl_set_alloc_range - limit range of segments to be allocated
- * @inode: inode object
+ * @ianalde: ianalde object
  * @argp: pointer on argument from userspace
  *
  * Description: nilfs_ioctl_set_alloc_range() function defines lower limit
@@ -1089,9 +1089,9 @@ static int nilfs_ioctl_trim_fs(struct inode *inode, void __user *argp)
  *
  * Return Value: On success, 0 is returned or error code, otherwise.
  */
-static int nilfs_ioctl_set_alloc_range(struct inode *inode, void __user *argp)
+static int nilfs_ioctl_set_alloc_range(struct ianalde *ianalde, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	__u64 range[2];
 	__u64 minseg, maxseg;
 	unsigned long segbytes;
@@ -1105,7 +1105,7 @@ static int nilfs_ioctl_set_alloc_range(struct inode *inode, void __user *argp)
 		goto out;
 
 	ret = -ERANGE;
-	if (range[1] > bdev_nr_bytes(inode->i_sb->s_bdev))
+	if (range[1] > bdev_nr_bytes(ianalde->i_sb->s_bdev))
 		goto out;
 
 	segbytes = nilfs->ns_blocks_per_segment * nilfs->ns_blocksize;
@@ -1130,7 +1130,7 @@ out:
 
 /**
  * nilfs_ioctl_get_info - wrapping function of get metadata info
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -1146,11 +1146,11 @@ out:
  *
  * %-EINVAL - Invalid arguments from userspace.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EFAULT - Failure during execution of requested operation.
  */
-static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_get_info(struct ianalde *ianalde, struct file *filp,
 				unsigned int cmd, void __user *argp,
 				size_t membsz,
 				ssize_t (*dofunc)(struct the_nilfs *,
@@ -1158,7 +1158,7 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
 						  void *, size_t, size_t))
 
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_argv argv;
 	int ret;
 
@@ -1179,7 +1179,7 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
 
 /**
  * nilfs_ioctl_set_suinfo - set segment usage info
- * @inode: inode object
+ * @ianalde: ianalde object
  * @filp: file object
  * @cmd: ioctl's request code
  * @argp: pointer on argument from userspace
@@ -1191,20 +1191,20 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
  * Return Value: On success, 0 is returned. On error, one of the
  * following negative error codes is returned.
  *
- * %-EPERM - Not enough permissions
+ * %-EPERM - Analt eanalugh permissions
  *
  * %-EFAULT - Error copying input data
  *
  * %-EIO - I/O error.
  *
- * %-ENOMEM - Insufficient amount of memory available.
+ * %-EANALMEM - Insufficient amount of memory available.
  *
  * %-EINVAL - Invalid values in input (segment number, flags or nblocks)
  */
-static int nilfs_ioctl_set_suinfo(struct inode *inode, struct file *filp,
+static int nilfs_ioctl_set_suinfo(struct ianalde *ianalde, struct file *filp,
 				unsigned int cmd, void __user *argp)
 {
-	struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+	struct the_nilfs *nilfs = ianalde->i_sb->s_fs_info;
 	struct nilfs_transaction_info ti;
 	struct nilfs_argv argv;
 	size_t len;
@@ -1242,7 +1242,7 @@ static int nilfs_ioctl_set_suinfo(struct inode *inode, struct file *filp,
 	base = (void __user *)(unsigned long)argv.v_base;
 	kbuf = vmalloc(len);
 	if (!kbuf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1251,13 +1251,13 @@ static int nilfs_ioctl_set_suinfo(struct inode *inode, struct file *filp,
 		goto out_free;
 	}
 
-	nilfs_transaction_begin(inode->i_sb, &ti, 0);
+	nilfs_transaction_begin(ianalde->i_sb, &ti, 0);
 	ret = nilfs_sufile_set_suinfo(nilfs->ns_sufile, kbuf, argv.v_size,
 			argv.v_nmembs);
 	if (unlikely(ret < 0))
-		nilfs_transaction_abort(inode->i_sb);
+		nilfs_transaction_abort(ianalde->i_sb);
 	else
-		nilfs_transaction_commit(inode->i_sb); /* never fails */
+		nilfs_transaction_commit(ianalde->i_sb); /* never fails */
 
 out_free:
 	vfree(kbuf);
@@ -1268,48 +1268,48 @@ out:
 
 long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct ianalde *ianalde = file_ianalde(filp);
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case FS_IOC_GETVERSION:
-		return nilfs_ioctl_getversion(inode, argp);
+		return nilfs_ioctl_getversion(ianalde, argp);
 	case NILFS_IOCTL_CHANGE_CPMODE:
-		return nilfs_ioctl_change_cpmode(inode, filp, cmd, argp);
+		return nilfs_ioctl_change_cpmode(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_DELETE_CHECKPOINT:
-		return nilfs_ioctl_delete_checkpoint(inode, filp, cmd, argp);
+		return nilfs_ioctl_delete_checkpoint(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_GET_CPINFO:
-		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+		return nilfs_ioctl_get_info(ianalde, filp, cmd, argp,
 					    sizeof(struct nilfs_cpinfo),
 					    nilfs_ioctl_do_get_cpinfo);
 	case NILFS_IOCTL_GET_CPSTAT:
-		return nilfs_ioctl_get_cpstat(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_cpstat(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_GET_SUINFO:
-		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+		return nilfs_ioctl_get_info(ianalde, filp, cmd, argp,
 					    sizeof(struct nilfs_suinfo),
 					    nilfs_ioctl_do_get_suinfo);
 	case NILFS_IOCTL_SET_SUINFO:
-		return nilfs_ioctl_set_suinfo(inode, filp, cmd, argp);
+		return nilfs_ioctl_set_suinfo(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_GET_SUSTAT:
-		return nilfs_ioctl_get_sustat(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_sustat(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_GET_VINFO:
-		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+		return nilfs_ioctl_get_info(ianalde, filp, cmd, argp,
 					    sizeof(struct nilfs_vinfo),
 					    nilfs_ioctl_do_get_vinfo);
 	case NILFS_IOCTL_GET_BDESCS:
-		return nilfs_ioctl_get_bdescs(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_bdescs(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_CLEAN_SEGMENTS:
-		return nilfs_ioctl_clean_segments(inode, filp, cmd, argp);
+		return nilfs_ioctl_clean_segments(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_SYNC:
-		return nilfs_ioctl_sync(inode, filp, cmd, argp);
+		return nilfs_ioctl_sync(ianalde, filp, cmd, argp);
 	case NILFS_IOCTL_RESIZE:
-		return nilfs_ioctl_resize(inode, filp, argp);
+		return nilfs_ioctl_resize(ianalde, filp, argp);
 	case NILFS_IOCTL_SET_ALLOC_RANGE:
-		return nilfs_ioctl_set_alloc_range(inode, argp);
+		return nilfs_ioctl_set_alloc_range(ianalde, argp);
 	case FITRIM:
-		return nilfs_ioctl_trim_fs(inode, argp);
+		return nilfs_ioctl_trim_fs(ianalde, argp);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -1336,7 +1336,7 @@ long nilfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case FITRIM:
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 	return nilfs_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
 }

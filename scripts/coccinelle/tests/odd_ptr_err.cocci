@@ -7,7 +7,7 @@
 // Copyright: (C) 2012, 2015 Julia Lawall, INRIA.
 // Copyright: (C) 2012, 2015 Gilles Muller, INRIA.
 // URL: https://coccinelle.gitlabpages.inria.fr/website
-// Options: --no-includes --include-headers
+// Options: --anal-includes --include-headers
 
 virtual patch
 virtual context

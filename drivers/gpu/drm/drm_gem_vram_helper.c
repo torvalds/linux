@@ -36,13 +36,13 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * to system memory.
  *
  * With the GEM interface userspace applications create, manage and destroy
- * graphics buffers, such as an on-screen framebuffer. GEM does not provide
+ * graphics buffers, such as an on-screen framebuffer. GEM does analt provide
  * an implementation of these interfaces. It's up to the DRM driver to
  * provide an implementation that suits the hardware. If the hardware device
  * contains dedicated video memory, the DRM driver can use the VRAM helper
  * library. Each active buffer object is stored in video RAM. Active
  * buffer are used for drawing the current frame, typically something like
- * the frame's scanout buffer or the cursor image. If there's no more space
+ * the frame's scaanalut buffer or the cursor image. If there's anal more space
  * left in VRAM, inactive GEM objects can be moved to system memory.
  *
  * To initialize the VRAM helper library call drmm_vram_helper_init().
@@ -89,14 +89,14 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
  * drmm_vram_helper_init() is a managed interface that installs a
  * clean-up handler to run during the DRM device's release.
  *
- * For drawing or scanout operations, rsp. buffer objects have to be pinned
+ * For drawing or scaanalut operations, rsp. buffer objects have to be pinned
  * in video RAM. Call drm_gem_vram_pin() with &DRM_GEM_VRAM_PL_FLAG_VRAM or
  * &DRM_GEM_VRAM_PL_FLAG_SYSTEM to pin a buffer object in video RAM or system
  * memory. Call drm_gem_vram_unpin() to release the pinned object afterwards.
  *
  * A buffer object that is pinned in video RAM has a fixed address within that
  * memory region. Call drm_gem_vram_offset() to retrieve this value. Typically
- * it's used to program the hardware's scanout engine for framebuffers, set
+ * it's used to program the hardware's scaanalut engine for framebuffers, set
  * the cursor overlay's image for a mouse cursor, or use it as input to the
  * hardware's drawing engine.
  *
@@ -176,7 +176,7 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
  *
  * GEM objects are allocated by calling struct drm_driver.gem_create_object,
  * if set. Otherwise kzalloc() will be used. Drivers can set their own GEM
- * object functions in struct drm_driver.gem_create_object. If no functions
+ * object functions in struct drm_driver.gem_create_object. If anal functions
  * are set, the new GEM object will use the default functions from GEM VRAM
  * helpers.
  *
@@ -194,7 +194,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	struct ttm_device *bdev;
 	int ret;
 
-	if (WARN_ONCE(!vmm, "VRAM MM not initialized"))
+	if (WARN_ONCE(!vmm, "VRAM MM analt initialized"))
 		return ERR_PTR(-EINVAL);
 
 	if (dev->driver->gem_create_object) {
@@ -205,7 +205,7 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	} else {
 		gbo = kzalloc(sizeof(*gbo), GFP_KERNEL);
 		if (!gbo)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		gem = &gbo->bo.base;
 	}
 
@@ -251,7 +251,7 @@ EXPORT_SYMBOL(drm_gem_vram_put);
 
 static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
 {
-	/* Keep TTM behavior for now, remove when drivers are audited */
+	/* Keep TTM behavior for analw, remove when drivers are audited */
 	if (WARN_ON_ONCE(!gbo->bo.resource ||
 			 gbo->bo.resource->mem_type == TTM_PL_SYSTEM))
 		return 0;
@@ -269,12 +269,12 @@ static u64 drm_gem_vram_pg_offset(struct drm_gem_vram_object *gbo)
  *
  * Returns:
  * The buffer object's offset in video memory on success, or
- * a negative errno code otherwise.
+ * a negative erranal code otherwise.
  */
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo)
 {
 	if (WARN_ON_ONCE(!gbo->bo.pin_count))
-		return (s64)-ENODEV;
+		return (s64)-EANALDEV;
 	return drm_gem_vram_pg_offset(gbo) << PAGE_SHIFT;
 }
 EXPORT_SYMBOL(drm_gem_vram_offset);
@@ -306,9 +306,9 @@ out:
  * @gbo:	the GEM VRAM object
  * @pl_flag:	a bitmask of possible memory regions
  *
- * Pinning a buffer object ensures that it is not evicted from
+ * Pinning a buffer object ensures that it is analt evicted from
  * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region. If the pl_flag argument is 0,
+ * it can be pinned to aanalther region. If the pl_flag argument is 0,
  * the buffer is pinned at its current location (video RAM or system
  * memory).
  *
@@ -316,7 +316,7 @@ out:
  * fragmentation if they are pinned in the middle of video RAM. This
  * is especially a problem on devices with only a small amount of
  * video RAM. Fragmentation can prevent the primary framebuffer from
- * fitting in, even though there's enough memory overall. The modifier
+ * fitting in, even though there's eanalugh memory overall. The modifier
  * DRM_GEM_VRAM_PL_FLAG_TOPDOWN marks the buffer object to be pinned
  * at the high end of the memory region to avoid fragmentation.
  *
@@ -377,7 +377,7 @@ static int drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
 	/*
 	 * VRAM helpers unmap the BO only on demand. So the previous
 	 * page mapping might still be around. Only vmap if the there's
-	 * no mapping present.
+	 * anal mapping present.
 	 */
 	if (iosys_map_is_null(&gbo->map)) {
 		ret = ttm_bo_vmap(&gbo->bo, &gbo->map);
@@ -401,7 +401,7 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
 		return;
 
 	if (drm_WARN_ON_ONCE(dev, !iosys_map_is_equal(&gbo->map, map)))
-		return; /* BUG: map not mapped from this BO */
+		return; /* BUG: map analt mapped from this BO */
 
 	if (--gbo->vmap_use_count > 0)
 		return;
@@ -410,7 +410,7 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
 	 * Permanently mapping and unmapping buffers adds overhead from
 	 * updating the page tables and creates debugging output. Therefore,
 	 * we delay the actual unmap operation until the BO gets evicted
-	 * from memory. See drm_gem_vram_bo_driver_move_notify().
+	 * from memory. See drm_gem_vram_bo_driver_move_analtify().
 	 */
 }
 
@@ -423,7 +423,7 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
  *
  * The vmap function pins a GEM VRAM object to its current location, either
  * system or video memory, and maps its buffer into kernel address space.
- * As pinned object cannot be relocated, you should avoid pinning objects
+ * As pinned object cananalt be relocated, you should avoid pinning objects
  * permanently. Call drm_gem_vram_vunmap() with the returned address to
  * unmap and unpin the GEM VRAM object.
  *
@@ -549,7 +549,7 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 	*pl = gbo->placement;
 }
 
-static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo)
+static void drm_gem_vram_bo_driver_move_analtify(struct drm_gem_vram_object *gbo)
 {
 	struct ttm_buffer_object *bo = &gbo->bo;
 	struct drm_device *dev = bo->base.dev;
@@ -566,7 +566,7 @@ static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
 				       struct ttm_operation_ctx *ctx,
 				       struct ttm_resource *new_mem)
 {
-	drm_gem_vram_bo_driver_move_notify(gbo);
+	drm_gem_vram_bo_driver_move_analtify(gbo);
 	return ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
 }
 
@@ -609,7 +609,7 @@ int drm_gem_vram_driver_dumb_create(struct drm_file *file,
 				    struct drm_device *dev,
 				    struct drm_mode_create_dumb *args)
 {
-	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))
+	if (WARN_ONCE(!dev->vram_mm, "VRAM MM analt initialized"))
 		return -EINVAL;
 
 	return drm_gem_vram_fill_create_dumb(file, dev, 0, 0, args);
@@ -650,7 +650,7 @@ static void __drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
  *
  * Returns:
  *	0 on success, or
- *	a negative errno code otherwise.
+ *	a negative erranal code otherwise.
  */
 int
 drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
@@ -728,7 +728,7 @@ EXPORT_SYMBOL(drm_gem_vram_plane_helper_cleanup_fb);
  *
  * Returns:
  *	0 on success, or
- *	a negative errno code otherwise.
+ *	a negative erranal code otherwise.
  */
 int drm_gem_vram_simple_display_pipe_prepare_fb(
 	struct drm_simple_display_pipe *pipe,
@@ -767,7 +767,7 @@ EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
  *
  * Returns:
  * 0 on success, or
- * a negative errno code otherwise.
+ * a negative erranal code otherwise.
  */
 static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 {
@@ -886,7 +886,7 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 {
 	struct drm_gem_vram_object *gbo;
 
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	/* TTM may pass BOs that are analt GEM VRAM BOs. */
 	if (!drm_is_gem_vram(bo))
 		return;
 
@@ -895,17 +895,17 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 	drm_gem_vram_bo_driver_evict_flags(gbo, placement);
 }
 
-static void bo_driver_delete_mem_notify(struct ttm_buffer_object *bo)
+static void bo_driver_delete_mem_analtify(struct ttm_buffer_object *bo)
 {
 	struct drm_gem_vram_object *gbo;
 
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	/* TTM may pass BOs that are analt GEM VRAM BOs. */
 	if (!drm_is_gem_vram(bo))
 		return;
 
 	gbo = drm_gem_vram_of_bo(bo);
 
-	drm_gem_vram_bo_driver_move_notify(gbo);
+	drm_gem_vram_bo_driver_move_analtify(gbo);
 }
 
 static int bo_driver_move(struct ttm_buffer_object *bo,
@@ -938,7 +938,7 @@ static int bo_driver_io_mem_reserve(struct ttm_device *bdev,
 	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bdev);
 
 	switch (mem->mem_type) {
-	case TTM_PL_SYSTEM:	/* nothing to do */
+	case TTM_PL_SYSTEM:	/* analthing to do */
 		break;
 	case TTM_PL_VRAM:
 		mem->bus.offset = (mem->start << PAGE_SHIFT) + vmm->vram_base;
@@ -958,7 +958,7 @@ static struct ttm_device_funcs bo_driver = {
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
 	.move = bo_driver_move,
-	.delete_mem_notify = bo_driver_delete_mem_notify,
+	.delete_mem_analtify = bo_driver_delete_mem_analtify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
 };
 
@@ -984,12 +984,12 @@ static const struct drm_debugfs_info drm_vram_mm_debugfs_list[] = {
 /**
  * drm_vram_mm_debugfs_init() - Register VRAM MM debugfs file.
  *
- * @minor: drm minor device.
+ * @mianalr: drm mianalr device.
  *
  */
-void drm_vram_mm_debugfs_init(struct drm_minor *minor)
+void drm_vram_mm_debugfs_init(struct drm_mianalr *mianalr)
 {
-	drm_debugfs_add_files(minor->dev, drm_vram_mm_debugfs_list,
+	drm_debugfs_add_files(mianalr->dev, drm_vram_mm_debugfs_list,
 			      ARRAY_SIZE(drm_vram_mm_debugfs_list));
 }
 EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
@@ -1003,7 +1003,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	vmm->vram_size = vram_size;
 
 	ret = ttm_device_init(&vmm->bdev, &bo_driver, dev->dev,
-				 dev->anon_inode->i_mapping,
+				 dev->aanaln_ianalde->i_mapping,
 				 dev->vma_offset_manager,
 				 false, true);
 	if (ret)
@@ -1037,7 +1037,7 @@ static struct drm_vram_mm *drm_vram_helper_alloc_mm(struct drm_device *dev, uint
 
 	dev->vram_mm = kzalloc(sizeof(*dev->vram_mm), GFP_KERNEL);
 	if (!dev->vram_mm)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	ret = drm_vram_mm_init(dev->vram_mm, dev, vram_base, vram_size);
 	if (ret)
@@ -1079,7 +1079,7 @@ static void drm_vram_mm_release(struct drm_device *dev, void *ptr)
  * will generate an error message.
  *
  * Returns:
- * 0 on success, or a negative errno code otherwise.
+ * 0 on success, or a negative erranal code otherwise.
  */
 int drmm_vram_helper_init(struct drm_device *dev, uint64_t vram_base,
 			  size_t vram_size)
@@ -1128,18 +1128,18 @@ drm_vram_helper_mode_valid_internal(struct drm_device *dev,
  * @dev:	the DRM device
  * @mode:	the mode to test
  *
- * This function tests if enough video memory is available for using the
+ * This function tests if eanalugh video memory is available for using the
  * specified display mode. Atomic modesetting requires importing the
  * designated framebuffer into video memory before evicting the active
  * one. Hence, any framebuffer may consume at most half of the available
- * VRAM. Display modes that require a larger framebuffer can not be used,
+ * VRAM. Display modes that require a larger framebuffer can analt be used,
  * even if the CRTC does support them. Each framebuffer is assumed to
  * have 32-bit color depth.
  *
- * Note:
+ * Analte:
  * The function can only test if the display mode is supported in
  * general. If there are too many framebuffers pinned to video memory,
- * a display mode may still not be usable in practice. The color depth of
+ * a display mode may still analt be usable in practice. The color depth of
  * 32-bit fits all current use case. A more flexible test can be added
  * when necessary.
  *

@@ -187,7 +187,7 @@ static int axg_pdm_set_sample_pointer(struct axg_pdm *priv)
 	spmax = DIV_ROUND_UP_ULL((u64)clk_get_rate(priv->sysclk),
 				 clk_get_rate(priv->dclk) * 2);
 
-	/* Check if sysclk is not too fast - should not happen */
+	/* Check if sysclk is analt too fast - should analt happen */
 	if (WARN_ON(spmax > PDM_CHAN_CTRL_POINTER_MAX))
 		return -EINVAL;
 
@@ -591,13 +591,13 @@ static int axg_pdm_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, priv);
 
 	priv->cfg = of_device_get_match_data(dev);
 	if (!priv->cfg) {
 		dev_err(dev, "failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	regs = devm_platform_ioremap_resource(pdev, 0);

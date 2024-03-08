@@ -45,13 +45,13 @@ struct dax_operations {
 
 struct dax_holder_operations {
 	/*
-	 * notify_failure - notify memory failure into inner holder device
+	 * analtify_failure - analtify memory failure into inner holder device
 	 * @dax_dev: the dax device which contains the holder
 	 * @offset: offset on this dax device where memory failure occurs
 	 * @len: length of this memory failure event
 	 * @flags: action flags for memory failure handler
 	 */
-	int (*notify_failure)(struct dax_device *dax_dev, u64 offset,
+	int (*analtify_failure)(struct dax_device *dax_dev, u64 offset,
 			u64 len, int mf_flags);
 };
 
@@ -62,8 +62,8 @@ void put_dax(struct dax_device *dax_dev);
 void kill_dax(struct dax_device *dax_dev);
 void dax_write_cache(struct dax_device *dax_dev, bool wc);
 bool dax_write_cache_enabled(struct dax_device *dax_dev);
-bool dax_synchronous(struct dax_device *dax_dev);
-void set_dax_synchronous(struct dax_device *dax_dev);
+bool dax_synchroanalus(struct dax_device *dax_dev);
+void set_dax_synchroanalus(struct dax_device *dax_dev);
 size_t dax_recovery_write(struct dax_device *dax_dev, pgoff_t pgoff,
 		void *addr, size_t bytes, struct iov_iter *i);
 /*
@@ -74,9 +74,9 @@ static inline bool daxdev_mapping_supported(struct vm_area_struct *vma,
 {
 	if (!(vma->vm_flags & VM_SYNC))
 		return true;
-	if (!IS_DAX(file_inode(vma->vm_file)))
+	if (!IS_DAX(file_ianalde(vma->vm_file)))
 		return false;
-	return dax_synchronous(dax_dev);
+	return dax_synchroanalus(dax_dev);
 }
 #else
 static inline void *dax_holder(struct dax_device *dax_dev)
@@ -87,7 +87,7 @@ static inline struct dax_device *alloc_dax(void *private,
 		const struct dax_operations *ops)
 {
 	/*
-	 * Callers should check IS_ENABLED(CONFIG_DAX) to know if this
+	 * Callers should check IS_ENABLED(CONFIG_DAX) to kanalw if this
 	 * NULL is an error or expected.
 	 */
 	return NULL;
@@ -105,11 +105,11 @@ static inline bool dax_write_cache_enabled(struct dax_device *dax_dev)
 {
 	return false;
 }
-static inline bool dax_synchronous(struct dax_device *dax_dev)
+static inline bool dax_synchroanalus(struct dax_device *dax_dev)
 {
 	return true;
 }
-static inline void set_dax_synchronous(struct dax_device *dax_dev)
+static inline void set_dax_synchroanalus(struct dax_device *dax_dev)
 {
 }
 static inline bool daxdev_mapping_supported(struct vm_area_struct *vma,
@@ -124,8 +124,8 @@ static inline size_t dax_recovery_write(struct dax_device *dax_dev,
 }
 #endif
 
-void set_dax_nocache(struct dax_device *dax_dev);
-void set_dax_nomc(struct dax_device *dax_dev);
+void set_dax_analcache(struct dax_device *dax_dev);
+void set_dax_analmc(struct dax_device *dax_dev);
 
 struct writeback_control;
 #if defined(CONFIG_BLOCK) && defined(CONFIG_FS_DAX)
@@ -179,7 +179,7 @@ static inline struct page *dax_layout_busy_page_range(struct address_space *mapp
 static inline int dax_writeback_mapping_range(struct address_space *mapping,
 		struct dax_device *dax_dev, struct writeback_control *wbc)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline dax_entry_t dax_lock_folio(struct folio *folio)
@@ -205,11 +205,11 @@ static inline void dax_unlock_mapping_entry(struct address_space *mapping,
 }
 #endif
 
-int dax_file_unshare(struct inode *inode, loff_t pos, loff_t len,
+int dax_file_unshare(struct ianalde *ianalde, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
-int dax_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
+int dax_zero_range(struct ianalde *ianalde, loff_t pos, loff_t len, bool *did_zero,
 		const struct iomap_ops *ops);
-int dax_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
+int dax_truncate_page(struct ianalde *ianalde, loff_t pos, bool *did_zero,
 		const struct iomap_ops *ops);
 
 #if IS_ENABLED(CONFIG_DAX)
@@ -235,7 +235,7 @@ size_t dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 		size_t bytes, struct iov_iter *i);
 int dax_zero_page_range(struct dax_device *dax_dev, pgoff_t pgoff,
 			size_t nr_pages);
-int dax_holder_notify_failure(struct dax_device *dax_dev, u64 off, u64 len,
+int dax_holder_analtify_failure(struct dax_device *dax_dev, u64 off, u64 len,
 		int mf_flags);
 void dax_flush(struct dax_device *dax_dev, void *addr, size_t size);
 
@@ -248,8 +248,8 @@ vm_fault_t dax_finish_sync_fault(struct vm_fault *vmf,
 int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
 int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 				      pgoff_t index);
-int dax_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
-				  struct inode *dest, loff_t destoff,
+int dax_dedupe_file_range_compare(struct ianalde *src, loff_t srcoff,
+				  struct ianalde *dest, loff_t destoff,
 				  loff_t len, bool *is_same,
 				  const struct iomap_ops *ops);
 int dax_remap_file_range_prep(struct file *file_in, loff_t pos_in,

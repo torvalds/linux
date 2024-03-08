@@ -28,9 +28,9 @@ static inline void trace_ ## name(proto) {}
 
 #define MAX_MSG_LEN		100
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wsuggest-attribute=format"
+#pragma GCC diaganalstic iganalred "-Wsuggest-attribute=format"
 #endif
 
 TRACE_EVENT(brcmf_err,
@@ -128,7 +128,7 @@ TRACE_EVENT(brcmf_sdpcm_hdr,
 		  __entry->len, ((u8 *)__get_dynamic_array(hdr))[4])
 );
 
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 #ifdef CONFIG_BRCM_TRACING
 

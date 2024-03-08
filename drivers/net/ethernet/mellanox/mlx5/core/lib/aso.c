@@ -42,7 +42,7 @@ static void mlx5_aso_free_cq(struct mlx5_aso_cq *cq)
 	mlx5_wq_destroy(&cq->wq_ctrl);
 }
 
-static int mlx5_aso_alloc_cq(struct mlx5_core_dev *mdev, int numa_node,
+static int mlx5_aso_alloc_cq(struct mlx5_core_dev *mdev, int numa_analde,
 			     void *cqc_data, struct mlx5_aso_cq *cq)
 {
 	struct mlx5_core_cq *mcq = &cq->mcq;
@@ -50,8 +50,8 @@ static int mlx5_aso_alloc_cq(struct mlx5_core_dev *mdev, int numa_node,
 	int err;
 	u32 i;
 
-	param.buf_numa_node = numa_node;
-	param.db_numa_node = numa_node;
+	param.buf_numa_analde = numa_analde;
+	param.db_numa_analde = numa_analde;
 
 	err = mlx5_cqwq_create(mdev, &param, cqc_data, &cq->wq, &cq->wq_ctrl);
 	if (err)
@@ -89,7 +89,7 @@ static int create_aso_cq(struct mlx5_aso_cq *cq, void *cqc_data)
 		sizeof(u64) * cq->wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cqc = MLX5_ADDR_OF(create_cq_in, in, cq_context);
 
@@ -118,7 +118,7 @@ static void mlx5_aso_destroy_cq(struct mlx5_aso_cq *cq)
 	mlx5_wq_destroy(&cq->wq_ctrl);
 }
 
-static int mlx5_aso_create_cq(struct mlx5_core_dev *mdev, int numa_node,
+static int mlx5_aso_create_cq(struct mlx5_core_dev *mdev, int numa_analde,
 			      struct mlx5_aso_cq *cq)
 {
 	void *cqc_data;
@@ -126,14 +126,14 @@ static int mlx5_aso_create_cq(struct mlx5_core_dev *mdev, int numa_node,
 
 	cqc_data = kvzalloc(MLX5_ST_SZ_BYTES(cqc), GFP_KERNEL);
 	if (!cqc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(cqc, cqc_data, log_cq_size, 1);
 	MLX5_SET(cqc, cqc_data, uar_page, mdev->priv.uar->index);
 	if (MLX5_CAP_GEN(mdev, cqe_128_always) && cache_line_size() >= 128)
 		MLX5_SET(cqc, cqc_data, cqe_sz, CQE_STRIDE_128_PAD);
 
-	err = mlx5_aso_alloc_cq(mdev, numa_node, cqc_data, cq);
+	err = mlx5_aso_alloc_cq(mdev, numa_analde, cqc_data, cq);
 	if (err) {
 		mlx5_core_err(mdev, "Failed to alloc aso wq cq, err=%d\n", err);
 		goto err_out;
@@ -155,7 +155,7 @@ err_out:
 	return err;
 }
 
-static int mlx5_aso_alloc_sq(struct mlx5_core_dev *mdev, int numa_node,
+static int mlx5_aso_alloc_sq(struct mlx5_core_dev *mdev, int numa_analde,
 			     void *sqc_data, struct mlx5_aso *sq)
 {
 	void *sqc_wq = MLX5_ADDR_OF(sqc, sqc_data, wq);
@@ -165,8 +165,8 @@ static int mlx5_aso_alloc_sq(struct mlx5_core_dev *mdev, int numa_node,
 
 	sq->uar_map = mdev->mlx5e_res.hw_objs.bfreg.map;
 
-	param.db_numa_node = numa_node;
-	param.buf_numa_node = numa_node;
+	param.db_numa_analde = numa_analde;
+	param.buf_numa_analde = numa_analde;
 	err = mlx5_wq_cyc_create(mdev, &param, sqc_wq, wq, &sq->wq_ctrl);
 	if (err)
 		return err;
@@ -186,7 +186,7 @@ static int create_aso_sq(struct mlx5_core_dev *mdev, int pdn,
 		sizeof(u64) * sq->wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
@@ -226,7 +226,7 @@ static int mlx5_aso_set_sq_rdy(struct mlx5_core_dev *mdev, u32 sqn)
 	inlen = MLX5_ST_SZ_BYTES(modify_sq_in);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	MLX5_SET(modify_sq_in, in, sq_state, MLX5_SQC_STATE_RST);
 	sqc = MLX5_ADDR_OF(modify_sq_in, in, ctx);
@@ -266,7 +266,7 @@ static void mlx5_aso_destroy_sq(struct mlx5_aso *sq)
 	mlx5_aso_free_sq(sq);
 }
 
-static int mlx5_aso_create_sq(struct mlx5_core_dev *mdev, int numa_node,
+static int mlx5_aso_create_sq(struct mlx5_core_dev *mdev, int numa_analde,
 			      u32 pdn, struct mlx5_aso *sq)
 {
 	void *sqc_data, *wq;
@@ -274,14 +274,14 @@ static int mlx5_aso_create_sq(struct mlx5_core_dev *mdev, int numa_node,
 
 	sqc_data = kvzalloc(MLX5_ST_SZ_BYTES(sqc), GFP_KERNEL);
 	if (!sqc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wq = MLX5_ADDR_OF(sqc, sqc_data, wq);
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, pd, pdn);
 	MLX5_SET(wq, wq, log_wq_sz, 1);
 
-	err = mlx5_aso_alloc_sq(mdev, numa_node, sqc_data, sq);
+	err = mlx5_aso_alloc_sq(mdev, numa_analde, sqc_data, sq);
 	if (err) {
 		mlx5_core_err(mdev, "Failed to alloc aso wq sq, err=%d\n", err);
 		goto err_out;
@@ -307,19 +307,19 @@ err_out:
 
 struct mlx5_aso *mlx5_aso_create(struct mlx5_core_dev *mdev, u32 pdn)
 {
-	int numa_node = dev_to_node(mlx5_core_dma_dev(mdev));
+	int numa_analde = dev_to_analde(mlx5_core_dma_dev(mdev));
 	struct mlx5_aso *aso;
 	int err;
 
 	aso = kzalloc(sizeof(*aso), GFP_KERNEL);
 	if (!aso)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = mlx5_aso_create_cq(mdev, numa_node, &aso->cq);
+	err = mlx5_aso_create_cq(mdev, numa_analde, &aso->cq);
 	if (err)
 		goto err_cq;
 
-	err = mlx5_aso_create_sq(mdev, numa_node, pdn, aso);
+	err = mlx5_aso_create_sq(mdev, numa_analde, pdn, aso);
 	if (err)
 		goto err_sq;
 

@@ -15,7 +15,7 @@ int add_inbuf(unsigned len, void *buf, void *datap)
 }
 
 /*
- * skb_array API provides no way for producer to find out whether a given
+ * skb_array API provides anal way for producer to find out whether a given
  * buffer was consumed.  Our tests merely require that a successful get_buf
  * implies that add_inbuf succeed in the past, and that add_inbuf will succeed,
  * fake it accordingly.

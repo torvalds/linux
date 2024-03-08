@@ -22,7 +22,7 @@ enum dcb_connector_type {
 	DCB_CONNECTOR_DMS59_DP1 = 0x65,
 	DCB_CONNECTOR_WFD	= 0x70,
 	DCB_CONNECTOR_USB_C = 0x71,
-	DCB_CONNECTOR_NONE = 0xff
+	DCB_CONNECTOR_ANALNE = 0xff
 };
 
 struct nvbios_connT {

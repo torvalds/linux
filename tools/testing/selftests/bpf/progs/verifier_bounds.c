@@ -47,7 +47,7 @@ SEC("socket")
 __description("subtraction bounds (map value) variant 2")
 __failure
 __msg("R0 min value is negative, either use unsigned index or do a if (index >=0) check.")
-__msg_unpriv("R1 has unknown scalar with mixed signed bounds")
+__msg_unpriv("R1 has unkanalwn scalar with mixed signed bounds")
 __naked void bounds_map_value_variant_2(void)
 {
 	asm volatile ("					\
@@ -124,7 +124,7 @@ __naked void based_on_zero_extended_mov(void)
 	w2 = 0xffffffff;				\
 	/* r2 = 0 */					\
 	r2 >>= 32;					\
-	/* no-op */					\
+	/* anal-op */					\
 	r0 += r2;					\
 	/* access at offset 0 */			\
 	r0 = *(u8*)(r0 + 0);				\
@@ -259,9 +259,9 @@ l0_%=:	r0 = *(u8*)(r0 + 3);				\
 }
 
 SEC("socket")
-__description("bounds check after truncation of non-boundary-crossing range")
+__description("bounds check after truncation of analn-boundary-crossing range")
 __success __success_unpriv __retval(0)
-__naked void of_non_boundary_crossing_range(void)
+__naked void of_analn_boundary_crossing_range(void)
 {
 	asm volatile ("					\
 	r1 = 0;						\
@@ -284,7 +284,7 @@ __naked void of_non_boundary_crossing_range(void)
 	w1 -= 0x7fffffff;				\
 	/* r1 = 0 */					\
 	r1 >>= 8;					\
-	/* no-op */					\
+	/* anal-op */					\
 	r0 += r1;					\
 	/* access at offset 0 */			\
 	r0 = *(u8*)(r0 + 0);				\
@@ -300,7 +300,7 @@ l0_%=:	/* exit */					\
 SEC("socket")
 __description("bounds check after truncation of boundary-crossing range (1)")
 __failure
-/* not actually fully unbounded, but the bound is very high */
+/* analt actually fully unbounded, but the bound is very high */
 __msg("value -4294967168 makes map_value pointer be out of bounds")
 __failure_unpriv
 __naked void of_boundary_crossing_range_1(void)
@@ -400,7 +400,7 @@ __naked void after_wrapping_32_bit_addition(void)
 	r1 += 0x7fffffff;				\
 	/* r1 = 0 */					\
 	w1 += 2;					\
-	/* no-op */					\
+	/* anal-op */					\
 	r0 += r1;					\
 	/* access at offset 0 */			\
 	r0 = *(u8*)(r0 + 0);				\
@@ -433,7 +433,7 @@ __naked void shift_with_oversized_count_operand(void)
 	w1 <<= w2;					\
 	/* r1 = [0x0000, 0xffff] */			\
 	r1 &= 0xffff;					\
-	/* computes unknown pointer, potentially OOB */	\
+	/* computes unkanalwn pointer, potentially OOB */	\
 	r0 += r1;					\
 	/* potentially OOB access */			\
 	r0 = *(u8*)(r0 + 0);				\
@@ -468,7 +468,7 @@ __naked void shift_of_maybe_negative_number(void)
 	r1 >>= 8;					\
 	/* r1 = 0 or 0xffff'ffff'ffff */		\
 	r1 >>= 8;					\
-	/* computes unknown pointer, potentially OOB */	\
+	/* computes unkanalwn pointer, potentially OOB */	\
 	r0 += r1;					\
 	/* potentially OOB access */			\
 	r0 = *(u8*)(r0 + 0);				\
@@ -483,7 +483,7 @@ l0_%=:	/* exit */					\
 
 SEC("socket")
 __description("bounds check after 32-bit right shift with 64-bit input")
-__failure __msg("math between map_value pointer and 4294967294 is not allowed")
+__failure __msg("math between map_value pointer and 4294967294 is analt allowed")
 __failure_unpriv
 __naked void shift_with_64_bit_input(void)
 {
@@ -498,9 +498,9 @@ __naked void shift_with_64_bit_input(void)
 	r1 = 2;						\
 	/* r1 = 1<<32 */				\
 	r1 <<= 31;					\
-	/* r1 = 0 (NOT 2!) */				\
+	/* r1 = 0 (ANALT 2!) */				\
 	w1 >>= 31;					\
-	/* r1 = 0xffff'fffe (NOT 0!) */			\
+	/* r1 = 0xffff'fffe (ANALT 0!) */			\
 	w1 -= 2;					\
 	/* error on computing OOB pointer */		\
 	r0 += r1;					\
@@ -965,7 +965,7 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP_JSLT for crossing 64-bit signed boundary")
 __success __retval(0)
-__flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
+__flag(!BPF_F_TEST_REG_INVARIANTS) /* kanalwn invariants violation */
 __naked void crossing_64_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1047,7 +1047,7 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP32_JSLT for crossing 32-bit signed boundary")
 __success __retval(0)
-__flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
+__flag(!BPF_F_TEST_REG_INVARIANTS) /* kanalwn invariants violation */
 __naked void crossing_32_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1078,7 +1078,7 @@ l0_%=:	r0 = 0;						\
 SEC("tc")
 __description("bounds check with JMP_NE for reg edge")
 __success __retval(0)
-__naked void reg_not_equal_const(void)
+__naked void reg_analt_equal_const(void)
 {
 	asm volatile ("					\
 	r6 = r1;					\
@@ -1096,7 +1096,7 @@ l0_%=:	r1 = r6;					\
 	r3 += -8;					\
 	r5 = 0;						\
 	/* The 4th argument of bpf_skb_store_bytes is defined as \
-	 * ARG_CONST_SIZE, so 0 is not allowed. The 'r4 != 0' \
+	 * ARG_CONST_SIZE, so 0 is analt allowed. The 'r4 != 0' \
 	 * is providing us this exclusion of zero from initial \
 	 * [0, 7] range.				\
 	 */						\
@@ -1127,7 +1127,7 @@ __naked void reg_equal_const(void)
 	r3 = r10;					\
 	r3 += -8;					\
 	r5 = 0;						\
-	/* Just the same as what we do in reg_not_equal_const() */ \
+	/* Just the same as what we do in reg_analt_equal_const() */ \
 	call %[bpf_skb_store_bytes];			\
 l0_%=:	r0 = 0;						\
 	exit;						\

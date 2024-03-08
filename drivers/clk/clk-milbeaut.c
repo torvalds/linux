@@ -335,7 +335,7 @@ static struct clk_hw *m10v_clk_hw_register_mux(struct device *dev,
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &m10v_mux_ops;
@@ -467,7 +467,7 @@ static struct clk_hw *m10v_clk_hw_register_divider(struct device *dev,
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &m10v_clk_divider_ops;
@@ -561,7 +561,7 @@ static int m10v_clk_probe(struct platform_device *pdev)
 {
 	int id;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	void __iomem *base;
 	const char *parent_name;
 
@@ -605,7 +605,7 @@ static struct platform_driver m10v_clk_driver = {
 };
 builtin_platform_driver(m10v_clk_driver);
 
-static void __init m10v_cc_init(struct device_node *np)
+static void __init m10v_cc_init(struct device_analde *np)
 {
 	int id;
 	void __iomem *base;

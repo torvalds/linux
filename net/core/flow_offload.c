@@ -266,7 +266,7 @@ struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 
 	block_cb = kzalloc(sizeof(*block_cb), GFP_KERNEL);
 	if (!block_cb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	block_cb->cb = cb;
 	block_cb->cb_ident = cb_ident;
@@ -344,7 +344,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 
 	if (ingress_only &&
 	    f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	f->driver_block_list = driver_block_list;
 
@@ -363,13 +363,13 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 	case FLOW_BLOCK_UNBIND:
 		block_cb = flow_block_cb_lookup(f->block, cb, cb_ident);
 		if (!block_cb)
-			return -ENOENT;
+			return -EANALENT;
 
 		flow_block_cb_remove(block_cb, f);
 		list_del(&block_cb->driver_list);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 EXPORT_SYMBOL(flow_block_cb_setup_simple);
@@ -446,7 +446,7 @@ int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv)
 	indr_dev = flow_indr_dev_alloc(cb, cb_priv);
 	if (!indr_dev) {
 		mutex_unlock(&flow_indr_block_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	list_add(&indr_dev->list, &flow_block_indr_dev_list);
@@ -472,7 +472,7 @@ static void __flow_block_indr_cleanup(void (*release)(void *cb_priv),
 	}
 }
 
-static void flow_block_indr_notify(struct list_head *cleanup_list)
+static void flow_block_indr_analtify(struct list_head *cleanup_list)
 {
 	struct flow_block_cb *this, *next;
 
@@ -508,7 +508,7 @@ void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
 	mutex_unlock(&flow_indr_block_lock);
 
 	tcf_action_reoffload_cb(cb, cb_priv, false);
-	flow_block_indr_notify(&cleanup_list);
+	flow_block_indr_analtify(&cleanup_list);
 	kfree(indr_dev);
 }
 EXPORT_SYMBOL(flow_indr_dev_unregister);
@@ -573,7 +573,7 @@ static int indir_dev_add(void *data, struct net_device *dev, struct Qdisc *sch,
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->data = data;
 	info->dev = dev;
@@ -594,7 +594,7 @@ static int indir_dev_remove(void *data)
 
 	info = find_indir_dev(data);
 	if (!info)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&info->list);
 
@@ -627,7 +627,7 @@ int flow_indr_dev_setup_offload(struct net_device *dev,	struct Qdisc *sch,
 
 	mutex_unlock(&flow_indr_block_lock);
 
-	return (bo && list_empty(&bo->cb_list)) ? -EOPNOTSUPP : count;
+	return (bo && list_empty(&bo->cb_list)) ? -EOPANALTSUPP : count;
 }
 EXPORT_SYMBOL(flow_indr_dev_setup_offload);
 

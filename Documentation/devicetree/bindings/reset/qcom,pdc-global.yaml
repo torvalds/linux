@@ -11,7 +11,7 @@ maintainers:
 
 description:
   The bindings describes the reset-controller found on PDC-Global (Power Domain
-  Controller) block for Qualcomm Technologies Inc SoCs.
+  Controller) block for Qualcomm Techanallogies Inc SoCs.
 
 properties:
   compatible:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // PCI1xxxx SPI driver
-// Copyright (C) 2022 Microchip Technology Inc.
+// Copyright (C) 2022 Microchip Techanallogy Inc.
 // Authors: Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 //          Kumaravel Thiagarajan <Kumaravel.Thiagarajan@microchip.com>
 
@@ -46,7 +46,7 @@
 #define	SPIALERT_MST_VAL_REG_OFFSET(x)		(((x) * SPI_MST1_ADDR_BASE) + 0x468)
 #define	SPI_PCI_CTRL_REG_OFFSET(x)		(((x) * SPI_MST1_ADDR_BASE) + 0x480)
 
-#define PCI1XXXX_IRQ_FLAGS			(IRQF_NO_SUSPEND | IRQF_TRIGGER_NONE)
+#define PCI1XXXX_IRQ_FLAGS			(IRQF_ANAL_SUSPEND | IRQF_TRIGGER_ANALNE)
 #define SPI_MAX_DATA_LEN			320
 
 #define PCI1XXXX_SPI_TIMEOUT			(msecs_to_jiffies(100))
@@ -228,7 +228,7 @@ static int pci1xxxx_spi_transfer_one(struct spi_controller *spi_ctlr,
 static irqreturn_t pci1xxxx_spi_isr(int irq, void *dev)
 {
 	struct pci1xxxx_spi_internal *p = dev;
-	irqreturn_t spi_int_fired = IRQ_NONE;
+	irqreturn_t spi_int_fired = IRQ_ANALNE;
 	u32 regval;
 
 	/* Clear the SPI GO_BIT Interrupt */
@@ -265,7 +265,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			       struct_size(spi_bus, spi_int, hw_inst_cnt),
 			       GFP_KERNEL);
 	if (!spi_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spi_bus->dev = pdev;
 	spi_bus->total_hw_instances = hw_inst_cnt;
@@ -278,7 +278,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 		spi_sub_ptr = spi_bus->spi_int[iter];
 		spi_sub_ptr->spi_host = devm_spi_alloc_host(dev, sizeof(struct spi_controller));
 		if (!spi_sub_ptr->spi_host)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		spi_sub_ptr->parent = spi_bus;
 		spi_sub_ptr->spi_xfer_in_progress = false;
@@ -286,11 +286,11 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 		if (!iter) {
 			ret = pcim_enable_device(pdev);
 			if (ret)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			ret = pci_request_regions(pdev, DRV_NAME);
 			if (ret)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			spi_bus->reg_base = pcim_iomap(pdev, 0, pci_resource_len(pdev, 0));
 			if (!spi_bus->reg_base) {
@@ -320,7 +320,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Unable to request irq : %d",
 					spi_sub_ptr->irq);
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto error;
 			}
 
@@ -351,7 +351,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 			if (ret < 0) {
 				dev_err(&pdev->dev, "Unable to request irq : %d",
 					spi_sub_ptr->irq);
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto error;
 			}
 		}
@@ -463,7 +463,7 @@ static struct pci_driver pci1xxxx_spi_driver = {
 
 module_pci_driver(pci1xxxx_spi_driver);
 
-MODULE_DESCRIPTION("Microchip Technology Inc. pci1xxxx SPI bus driver");
+MODULE_DESCRIPTION("Microchip Techanallogy Inc. pci1xxxx SPI bus driver");
 MODULE_AUTHOR("Tharun Kumar P<tharunkumar.pasumarthi@microchip.com>");
 MODULE_AUTHOR("Kumaravel Thiagarajan<kumaravel.thiagarajan@microchip.com>");
 MODULE_LICENSE("GPL v2");

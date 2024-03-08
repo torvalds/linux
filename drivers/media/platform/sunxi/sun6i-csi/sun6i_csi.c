@@ -40,23 +40,23 @@ int sun6i_csi_isp_complete(struct sun6i_csi_device *csi_dev,
 static int sun6i_csi_isp_detect(struct sun6i_csi_device *csi_dev)
 {
 	struct device *dev = csi_dev->dev;
-	struct fwnode_handle *handle;
+	struct fwanalde_handle *handle;
 
 	/*
-	 * ISP is not available if not connected via fwnode graph.
-	 * This will also check that the remote parent node is available.
+	 * ISP is analt available if analt connected via fwanalde graph.
+	 * This will also check that the remote parent analde is available.
 	 */
-	handle = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+	handle = fwanalde_graph_get_endpoint_by_id(dev_fwanalde(dev),
 						 SUN6I_CSI_PORT_ISP, 0,
-						 FWNODE_GRAPH_ENDPOINT_NEXT);
+						 FWANALDE_GRAPH_ENDPOINT_NEXT);
 	if (!handle)
 		return 0;
 
-	fwnode_handle_put(handle);
+	fwanalde_handle_put(handle);
 
 	if (!IS_ENABLED(CONFIG_VIDEO_SUN6I_ISP)) {
 		dev_warn(dev,
-			 "ISP link is detected but not enabled in kernel config!");
+			 "ISP link is detected but analt enabled in kernel config!");
 		return 0;
 	}
 
@@ -68,7 +68,7 @@ static int sun6i_csi_isp_detect(struct sun6i_csi_device *csi_dev)
 /* Media */
 
 static const struct media_device_ops sun6i_csi_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_analtify = v4l2_pipeline_link_analtify,
 };
 
 /* V4L2 */
@@ -141,7 +141,7 @@ static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 	regmap_read(regmap, SUN6I_CSI_CH_INT_EN_REG, &enable);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	else if (!(status & enable) || !capture_streaming)
 		goto complete;
 
@@ -324,7 +324,7 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 
 	csi_dev = devm_kzalloc(dev, sizeof(*csi_dev), GFP_KERNEL);
 	if (!csi_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csi_dev->dev = &platform_dev->dev;
 	platform_set_drvdata(platform_dev, csi_dev);
@@ -338,7 +338,7 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 		goto error_resources;
 
 	/*
-	 * Register our own v4l2 and media devices when there is no ISP around.
+	 * Register our own v4l2 and media devices when there is anal ISP around.
 	 * Otherwise the ISP will use async subdev registration with our bridge,
 	 * which will provide v4l2 and media devices that are used to register
 	 * the video interface.

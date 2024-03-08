@@ -29,8 +29,8 @@
 /*
  * The KX022A has FIFO which can store 43 samples of HiRes data from 2
  * channels. This equals to 43 (samples) * 3 (channels) * 2 (bytes/sample) to
- * 258 bytes of sample data. The quirk to know is that the amount of bytes in
- * the FIFO is advertised via 8 bit register (max value 255). The thing to note
+ * 258 bytes of sample data. The quirk to kanalw is that the amount of bytes in
+ * the FIFO is advertised via 8 bit register (max value 255). The thing to analte
  * is that full 258 bytes of data is indicated using the max value 255.
  */
 #define KX022A_FIFO_LENGTH			43
@@ -67,8 +67,8 @@ static const struct regmap_range kx022a_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table kx022a_volatile_regs = {
-	.yes_ranges = &kx022a_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx022a_volatile_ranges),
+	.anal_ranges = &kx022a_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx022a_volatile_ranges),
 };
 
 static const struct regmap_range kx022a_precious_ranges[] = {
@@ -79,12 +79,12 @@ static const struct regmap_range kx022a_precious_ranges[] = {
 };
 
 static const struct regmap_access_table kx022a_precious_regs = {
-	.yes_ranges = &kx022a_precious_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx022a_precious_ranges),
+	.anal_ranges = &kx022a_precious_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx022a_precious_ranges),
 };
 
 /*
- * The HW does not set WHO_AM_I reg as read-only but we don't want to write it
+ * The HW does analt set WHO_AM_I reg as read-only but we don't want to write it
  * so we still include it in the read-only ranges.
  */
 static const struct regmap_range kx022a_read_only_ranges[] = {
@@ -101,8 +101,8 @@ static const struct regmap_range kx022a_read_only_ranges[] = {
 };
 
 static const struct regmap_access_table kx022a_ro_regs = {
-	.no_ranges = &kx022a_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(kx022a_read_only_ranges),
+	.anal_ranges = &kx022a_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx022a_read_only_ranges),
 };
 
 static const struct regmap_range kx022a_write_only_ranges[] = {
@@ -122,11 +122,11 @@ static const struct regmap_range kx022a_write_only_ranges[] = {
 };
 
 static const struct regmap_access_table kx022a_wo_regs = {
-	.no_ranges = &kx022a_write_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(kx022a_write_only_ranges),
+	.anal_ranges = &kx022a_write_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx022a_write_only_ranges),
 };
 
-static const struct regmap_range kx022a_noinc_read_ranges[] = {
+static const struct regmap_range kx022a_analinc_read_ranges[] = {
 	{
 		.range_min = KX022A_REG_BUF_READ,
 		.range_max = KX022A_REG_BUF_READ,
@@ -134,8 +134,8 @@ static const struct regmap_range kx022a_noinc_read_ranges[] = {
 };
 
 static const struct regmap_access_table kx022a_nir_regs = {
-	.yes_ranges = &kx022a_noinc_read_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx022a_noinc_read_ranges),
+	.anal_ranges = &kx022a_analinc_read_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx022a_analinc_read_ranges),
 };
 
 static const struct regmap_config kx022a_regmap_config = {
@@ -144,7 +144,7 @@ static const struct regmap_config kx022a_regmap_config = {
 	.volatile_table = &kx022a_volatile_regs,
 	.rd_table = &kx022a_wo_regs,
 	.wr_table = &kx022a_ro_regs,
-	.rd_noinc_table = &kx022a_nir_regs,
+	.rd_analinc_table = &kx022a_nir_regs,
 	.precious_table = &kx022a_precious_regs,
 	.max_register = KX022A_MAX_REGISTER,
 	.cache_type = REGCACHE_RBTREE,
@@ -172,8 +172,8 @@ static const struct regmap_range kx132_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table kx132_volatile_regs = {
-	.yes_ranges = &kx132_volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx132_volatile_ranges),
+	.anal_ranges = &kx132_volatile_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx132_volatile_ranges),
 };
 
 static const struct regmap_range kx132_precious_ranges[] = {
@@ -184,8 +184,8 @@ static const struct regmap_range kx132_precious_ranges[] = {
 };
 
 static const struct regmap_access_table kx132_precious_regs = {
-	.yes_ranges = &kx132_precious_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx132_precious_ranges),
+	.anal_ranges = &kx132_precious_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx132_precious_ranges),
 };
 
 static const struct regmap_range kx132_read_only_ranges[] = {
@@ -199,7 +199,7 @@ static const struct regmap_range kx132_read_only_ranges[] = {
 		.range_min = KX132_REG_BUF_READ,
 		.range_max = KX132_REG_BUF_READ,
 	}, {
-		/* Kionix reserved registers: should not be written */
+		/* Kionix reserved registers: should analt be written */
 		.range_min = 0x28,
 		.range_max = 0x28,
 	}, {
@@ -218,8 +218,8 @@ static const struct regmap_range kx132_read_only_ranges[] = {
 };
 
 static const struct regmap_access_table kx132_ro_regs = {
-	.no_ranges = &kx132_read_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(kx132_read_only_ranges),
+	.anal_ranges = &kx132_read_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx132_read_only_ranges),
 };
 
 static const struct regmap_range kx132_write_only_ranges[] = {
@@ -233,11 +233,11 @@ static const struct regmap_range kx132_write_only_ranges[] = {
 };
 
 static const struct regmap_access_table kx132_wo_regs = {
-	.no_ranges = &kx132_write_only_ranges[0],
-	.n_no_ranges = ARRAY_SIZE(kx132_write_only_ranges),
+	.anal_ranges = &kx132_write_only_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx132_write_only_ranges),
 };
 
-static const struct regmap_range kx132_noinc_read_ranges[] = {
+static const struct regmap_range kx132_analinc_read_ranges[] = {
 	{
 		.range_min = KX132_REG_BUF_READ,
 		.range_max = KX132_REG_BUF_READ,
@@ -245,8 +245,8 @@ static const struct regmap_range kx132_noinc_read_ranges[] = {
 };
 
 static const struct regmap_access_table kx132_nir_regs = {
-	.yes_ranges = &kx132_noinc_read_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(kx132_noinc_read_ranges),
+	.anal_ranges = &kx132_analinc_read_ranges[0],
+	.n_anal_ranges = ARRAY_SIZE(kx132_analinc_read_ranges),
 };
 
 static const struct regmap_config kx132_regmap_config = {
@@ -255,7 +255,7 @@ static const struct regmap_config kx132_regmap_config = {
 	.volatile_table = &kx132_volatile_regs,
 	.rd_table = &kx132_wo_regs,
 	.wr_table = &kx132_ro_regs,
-	.rd_noinc_table = &kx132_nir_regs,
+	.rd_analinc_table = &kx132_nir_regs,
 	.precious_table = &kx132_precious_regs,
 	.max_register = KX132_MAX_REGISTER,
 	.cache_type = REGCACHE_RBTREE,
@@ -360,7 +360,7 @@ static const struct iio_chan_spec kx132_channels[] = {
 /*
  * The sensor HW can support ODR up to 1600 Hz, which is beyond what most of the
  * Linux CPUs can handle without dropping samples. Also, the low power mode is
- * not available for higher sample rates. Thus, the driver only supports 200 Hz
+ * analt available for higher sample rates. Thus, the driver only supports 200 Hz
  * and slower ODRs. The slowest is 0.78 Hz.
  */
 static const int kx022a_accel_samp_freq_table[][2] = {
@@ -422,7 +422,7 @@ static int kx022a_read_avail(struct iio_dev *indio_dev,
 		*vals = (const int *)kx022a_scale_table;
 		*length = ARRAY_SIZE(kx022a_scale_table) *
 			  ARRAY_SIZE(kx022a_scale_table[0]);
-		*type = IIO_VAL_INT_PLUS_NANO;
+		*type = IIO_VAL_INT_PLUS_NAANAL;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -491,7 +491,7 @@ static int kx022a_write_raw_get_fmt(struct iio_dev *idev,
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return IIO_VAL_INT_PLUS_MICRO;
 	default:
@@ -507,12 +507,12 @@ static int kx022a_write_raw(struct iio_dev *idev,
 	int ret, n;
 
 	/*
-	 * We should not allow changing scale or frequency when FIFO is running
+	 * We should analt allow changing scale or frequency when FIFO is running
 	 * as it will mess the timestamp/scale for samples existing in the
 	 * buffer. If this turns out to be an issue we can later change logic
 	 * to internally flush the fifo before reconfiguring so the samples in
 	 * fifo keep matching the freq/scale settings. (Such setup could cause
-	 * issues if users trust the watermark to be reached within known
+	 * issues if users trust the watermark to be reached within kanalwn
 	 * time-limit).
 	 */
 	ret = iio_device_claim_direct_mode(idev);
@@ -643,7 +643,7 @@ static int kx022a_read_raw(struct iio_dev *idev,
 
 		kx022a_reg2scale(regval, val, val2);
 
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	}
 
 	return -EINVAL;
@@ -708,7 +708,7 @@ static int kx022a_drop_fifo_contents(struct kx022a_data *data)
 	 * based on samples acquired when buffer was last enabled.
 	 *
 	 * We don't need to protect the timestamp as long as we are only
-	 * called from fifo-disable where we can guarantee the sensor is not
+	 * called from fifo-disable where we can guarantee the sensor is analt
 	 * triggering interrupts and where the mutex is locked to prevent the
 	 * user-space access.
 	 */
@@ -773,11 +773,11 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 		return 0;
 
 	/*
-	 * If we are being called from IRQ handler we know the stored timestamp
+	 * If we are being called from IRQ handler we kanalw the stored timestamp
 	 * is fairly accurate for the last stored sample. Otherwise, if we are
 	 * called as a result of a read operation from userspace and hence
 	 * before the watermark interrupt was triggered, take a timestamp
-	 * now. We can fall anywhere in between two samples so the error in this
+	 * analw. We can fall anywhere in between two samples so the error in this
 	 * case is at most one sample period.
 	 */
 	if (!irq) {
@@ -786,7 +786,7 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 		 * the timestamps. If we are ran from IRQ, then the
 		 * IRQF_ONESHOT has us covered - but if we are ran by the
 		 * user-space read we need to disable the IRQ to be on a safe
-		 * side. We do this usng synchronous disable so that if the
+		 * side. We do this usng synchroanalus disable so that if the
 		 * IRQ thread is being ran on other CPU we wait for it to be
 		 * finished.
 		 */
@@ -801,7 +801,7 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 	 * Approximate timestamps for each of the sample based on the sampling
 	 * frequency, timestamp for last sample and number of samples.
 	 *
-	 * We'd better not use the current bandwidth settings to compute the
+	 * We'd better analt use the current bandwidth settings to compute the
 	 * sample period. The real sample rate varies with the device and
 	 * small variation adds when we store a large number of samples.
 	 *
@@ -827,7 +827,7 @@ static int __kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples,
 	}
 
 	fifo_bytes = count * KX022A_FIFO_SAMPLES_SIZE_BYTES;
-	ret = regmap_noinc_read(data->regmap, data->chip_info->buf_read,
+	ret = regmap_analinc_read(data->regmap, data->chip_info->buf_read,
 				data->fifo_buffer, fifo_bytes);
 	if (ret)
 		goto renable_out;
@@ -956,7 +956,7 @@ static int kx022a_fifo_enable(struct kx022a_data *data)
 					  KX022A_FIFO_SAMPLES_SIZE_BYTES,
 					  GFP_KERNEL);
 	if (!data->fifo_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = kx022a_turn_off_lock(data);
 	if (ret)
@@ -993,7 +993,7 @@ static int kx022a_buffer_postenable(struct iio_dev *idev)
 
 	/*
 	 * If we use data-ready trigger, then the IRQ masks should be handled by
-	 * trigger enable and the hardware buffer is not used but we just update
+	 * trigger enable and the hardware buffer is analt used but we just update
 	 * results to the IIO fifo when data-ready triggers.
 	 */
 	if (iio_device_get_current_mode(idev) == INDIO_BUFFER_TRIGGERED)
@@ -1021,7 +1021,7 @@ static irqreturn_t kx022a_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(idev, data->buffer, data->timestamp);
 err_read:
-	iio_trigger_notify_done(idev->trig);
+	iio_trigger_analtify_done(idev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1038,7 +1038,7 @@ static irqreturn_t kx022a_irq_handler(int irq, void *private)
 	if (data->state & KX022A_STATE_FIFO || data->trigger_enabled)
 		return IRQ_WAKE_THREAD;
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
@@ -1050,7 +1050,7 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 {
 	struct iio_dev *idev = private;
 	struct kx022a_data *data = iio_priv(idev);
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	mutex_lock(&data->mutex);
 
@@ -1114,7 +1114,7 @@ static int kx022a_chip_init(struct kx022a_data *data)
 {
 	int ret, val;
 
-	/* Reset the senor */
+	/* Reset the seanalr */
 	ret = regmap_write(data->regmap, data->chip_info->cntl2, KX022A_MASK_SRST);
 	if (ret)
 		return ret;
@@ -1204,7 +1204,7 @@ const struct kx022a_chip_info kx132_chip_info = {
 EXPORT_SYMBOL_NS_GPL(kx132_chip_info, IIO_KX022A);
 
 /*
- * Despite the naming, KX132ACR-LBZ is not similar to KX132-1211 but it is
+ * Despite the naming, KX132ACR-LBZ is analt similar to KX132-1211 but it is
  * exact subset of KX022A. KX132ACR-LBZ is meant to be used for industrial
  * applications and the tap/double tap, free fall and tilt engines were
  * removed. Rest of the registers and functionalities (excluding the ID
@@ -1239,7 +1239,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 {
 	static const char * const regulator_names[] = {"io-vdd", "vdd"};
 	struct iio_trigger *indio_trig;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct kx022a_data *data;
 	struct regmap *regmap;
 	unsigned int chip_id;
@@ -1249,17 +1249,17 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 
 	regmap = dev_get_regmap(dev, NULL);
 	if (!regmap) {
-		dev_err(dev, "no regmap\n");
+		dev_err(dev, "anal regmap\n");
 		return -EINVAL;
 	}
 
-	fwnode = dev_fwnode(dev);
-	if (!fwnode)
-		return -ENODEV;
+	fwanalde = dev_fwanalde(dev);
+	if (!fwanalde)
+		return -EANALDEV;
 
 	idev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(idev);
 	data->chip_info = chip_info;
@@ -1270,7 +1270,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 	 */
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulator_names),
 					     regulator_names);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return dev_err_probe(dev, ret, "failed to enable regulator\n");
 
 	ret = regmap_read(regmap, chip_info->who, &chip_id);
@@ -1278,16 +1278,16 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 		return dev_err_probe(dev, ret, "Failed to access sensor\n");
 
 	if (chip_id != chip_info->id)
-		dev_warn(dev, "unknown device 0x%x\n", chip_id);
+		dev_warn(dev, "unkanalwn device 0x%x\n", chip_id);
 
-	irq = fwnode_irq_get_byname(fwnode, "INT1");
+	irq = fwanalde_irq_get_byname(fwanalde, "INT1");
 	if (irq > 0) {
 		data->inc_reg = chip_info->inc1;
 		data->ien_reg = chip_info->inc4;
 	} else {
-		irq = fwnode_irq_get_byname(fwnode, "INT2");
+		irq = fwanalde_irq_get_byname(fwanalde, "INT2");
 		if (irq < 0)
-			return dev_err_probe(dev, irq, "No suitable IRQ\n");
+			return dev_err_probe(dev, irq, "Anal suitable IRQ\n");
 
 		data->inc_reg = chip_info->inc5;
 		data->ien_reg = chip_info->inc6;
@@ -1339,7 +1339,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 	indio_trig = devm_iio_trigger_alloc(dev, "%sdata-rdy-dev%d", idev->name,
 					    iio_device_id(idev));
 	if (!indio_trig)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->trig = indio_trig;
 
@@ -1347,7 +1347,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 	iio_trigger_set_drvdata(indio_trig, data);
 
 	/*
-	 * No need to check for NULL. request_threaded_irq() defaults to
+	 * Anal need to check for NULL. request_threaded_irq() defaults to
 	 * dev_name() should the alloc fail.
 	 */
 	name = devm_kasprintf(data->dev, GFP_KERNEL, "%s-kx022a",
@@ -1357,7 +1357,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 					&kx022a_irq_thread_handler,
 					IRQF_ONESHOT, name, idev);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
+		return dev_err_probe(data->dev, ret, "Could analt request IRQ\n");
 
 	ret = devm_iio_trigger_register(dev, indio_trig);
 	if (ret)

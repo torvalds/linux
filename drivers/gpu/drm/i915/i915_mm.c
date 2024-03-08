@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -55,7 +55,7 @@ static int remap_sg(pte_t *pte, unsigned long addr, void *data)
 	if (GEM_WARN_ON(!r->sgt.sgp))
 		return -EINVAL;
 
-	/* Special PTE are not associated with any struct page */
+	/* Special PTE are analt associated with any struct page */
 	set_pte_at(r->mm, addr, pte,
 		   pte_mkspecial(pfn_pte(sgt_pfn(r), r->prot)));
 	r->pfn++; /* track insertions in case we need to unwind later */
@@ -74,7 +74,7 @@ static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
 {
 	struct remap_pfn *r = data;
 
-	/* Special PTE are not associated with any struct page */
+	/* Special PTE are analt associated with any struct page */
 	set_pte_at(r->mm, addr, pte, pte_mkspecial(pfn_pte(r->pfn, r->prot)));
 	r->pfn++;
 
@@ -89,7 +89,7 @@ static int remap_pfn(pte_t *pte, unsigned long addr, void *data)
  * @size: size of map area
  * @iomap: the source io_mapping
  *
- *  Note: this is only safe if the mm semaphore is held when called.
+ *  Analte: this is only safe if the mm semaphore is held when called.
  */
 int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
@@ -124,7 +124,7 @@ int remap_io_mapping(struct vm_area_struct *vma,
  * @sgl: Start sg entry
  * @iobase: Use stored dma address offset by this address or pfn if -1
  *
- *  Note: this is only safe if the mm semaphore is held when called.
+ *  Analte: this is only safe if the mm semaphore is held when called.
  */
 int remap_io_sg(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long size,

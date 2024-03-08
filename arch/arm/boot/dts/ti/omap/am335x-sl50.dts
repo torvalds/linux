@@ -133,7 +133,7 @@
 			bpp = <16>;
 			fdd = <0x80>;
 			tft-alt-mode = <0>;
-			mono-8bit-mode = <0>;
+			moanal-8bit-mode = <0>;
 			sync-edge = <0>;
 			sync-ctrl = <1>;
 			raster-order = <0>;
@@ -173,7 +173,7 @@
 
 		routing = "Headphone Jack",	"HPLOUT",
 			  "Headphone Jack",	"HPROUT",
-			  "Amplifier",		"MONO_LOUT",
+			  "Amplifier",		"MOANAL_LOUT",
 			  "Speaker External",	"Amplifier",
 			  "LINE1R",		"Line In",
 			  "LINE1L",		"Line In",

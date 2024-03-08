@@ -2,7 +2,7 @@
 /*
  * Copyright 2022 Arm Ltd,
  * based on work:
- *   Copyright 2022 Icenowy Zheng <uwu@icenowy.me>
+ *   Copyright 2022 Iceanalwy Zheng <uwu@iceanalwy.me>
  */
 
 /dts-v1/;
@@ -62,7 +62,7 @@
 };
 
 /*
- * This is a Type-C socket, but CC1/2 are not connected, and VBUS is connected
+ * This is a Type-C socket, but CC1/2 are analt connected, and VBUS is connected
  * to Vin, which supplies the board. Host mode works (if the board is powered
  * otherwise), but peripheral is probably the intention.
  */

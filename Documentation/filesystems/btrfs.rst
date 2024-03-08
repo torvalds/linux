@@ -14,7 +14,7 @@ The main Btrfs features include:
     * Extent based file storage (2^64 max file size)
     * Space efficient packing of small files
     * Space efficient indexed directories
-    * Dynamic inode allocation
+    * Dynamic ianalde allocation
     * Writable snapshots
     * Subvolumes (separate internal filesystem roots)
     * Object level mirroring and striping

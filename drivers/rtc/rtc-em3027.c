@@ -116,7 +116,7 @@ static int em3027_probe(struct i2c_client *client)
 	struct rtc_device *rtc;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtc = devm_rtc_device_register(&client->dev, em3027_driver.driver.name,
 				  &em3027_rtc_ops, THIS_MODULE);

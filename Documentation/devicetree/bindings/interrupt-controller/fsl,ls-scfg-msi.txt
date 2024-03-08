@@ -9,16 +9,16 @@ Required properties:
               "fsl,ls1046a-msi"
               "fsl,ls1043a-v1.1-msi"
               "fsl,ls1012a-msi"
-- msi-controller: indicates that this is a PCIe MSI controller node
+- msi-controller: indicates that this is a PCIe MSI controller analde
 - reg: physical base address of the controller and length of memory mapped.
 - interrupts: an interrupt to the parent interrupt controller.
 
 This interrupt controller hardware is a second level interrupt controller that
 is hooked to a parent interrupt controller: e.g: ARM GIC for ARM-based
-platforms. If interrupt-parent is not provided, the default parent interrupt
+platforms. If interrupt-parent is analt provided, the default parent interrupt
 controller will be used.
-Each PCIe node needs to have property msi-parent that points to
-MSI controller node
+Each PCIe analde needs to have property msi-parent that points to
+MSI controller analde
 
 Examples:
 

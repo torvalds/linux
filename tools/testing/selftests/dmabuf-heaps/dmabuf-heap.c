@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <dirent.h>
-#include <errno.h>
+#include <erranal.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -179,7 +179,7 @@ static int test_alloc_and_import(char *heap_name)
 	importer_fd = open_vgem();
 	if (importer_fd < 0) {
 		ret = importer_fd;
-		printf("(Could not open vgem - skipping):  ");
+		printf("(Could analt open vgem - skipping):  ");
 	} else {
 		ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
 		if (ret < 0) {
@@ -271,7 +271,7 @@ static int test_alloc_zeroed(char *heap_name, size_t size)
 		c = (char *)p;
 		for (j = 0; j < size; j++) {
 			if (c[j] != 0) {
-				printf("FAIL (Allocated buffer not zeroed @ %i)\n", j);
+				printf("FAIL (Allocated buffer analt zeroed @ %i)\n", j);
 				break;
 			}
 		}
@@ -408,14 +408,14 @@ static int test_alloc_errors(char *heap_name)
 	printf("  Testing expected error cases:  ");
 	ret = dmabuf_heap_alloc(0, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("FAIL (Did not see expected error (invalid fd)!)\n");
+		printf("FAIL (Did analt see expected error (invalid fd)!)\n");
 		ret = -1;
 		goto out;
 	}
 
 	ret = dmabuf_heap_alloc(heap_fd, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("FAIL (Did not see expected error (invalid heap flags)!)\n");
+		printf("FAIL (Did analt see expected error (invalid heap flags)!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -423,7 +423,7 @@ static int test_alloc_errors(char *heap_name)
 	ret = dmabuf_heap_alloc_fdflags(heap_fd, ONE_MEG,
 					~(O_RDWR | O_CLOEXEC), 0, &dmabuf_fd);
 	if (!ret) {
-		printf("FAIL (Did not see expected error (invalid fd flags)!)\n");
+		printf("FAIL (Did analt see expected error (invalid fd flags)!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -447,7 +447,7 @@ int main(void)
 
 	d = opendir(DEVPATH);
 	if (!d) {
-		printf("No %s directory?\n", DEVPATH);
+		printf("Anal %s directory?\n", DEVPATH);
 		return -1;
 	}
 

@@ -33,7 +33,7 @@ acpi_ex_convert_to_object_type_string(union acpi_operand_object *obj_desc,
  *
  * DESCRIPTION: Concatenate two objects with the ACPI-defined conversion
  *              rules as necessary.
- * NOTE:
+ * ANALTE:
  * Per the ACPI spec (up to 6.1), Concatenate only supports Integer,
  * String, and Buffer objects. However, we support all objects here
  * as an extension. This improves the usefulness of both Concatenate
@@ -173,8 +173,8 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	local_operand1 = temp_operand1;
 
 	/*
-	 * Both operands are now known to be the same object type
-	 * (Both are Integer, String, or Buffer), and we can now perform
+	 * Both operands are analw kanalwn to be the same object type
+	 * (Both are Integer, String, or Buffer), and we can analw perform
 	 * the concatenation.
 	 *
 	 * There are three cases to handle, as per the ACPI spec:
@@ -187,13 +187,13 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	case ACPI_TYPE_INTEGER:
 
 		/* Result of two Integers is a Buffer */
-		/* Need enough buffer space for two integers */
+		/* Need eanalugh buffer space for two integers */
 
 		return_desc = acpi_ut_create_buffer_object((acpi_size)
 							   ACPI_MUL_2
 							   (acpi_gbl_integer_byte_width));
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -221,7 +221,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 							    local_operand1->
 							    string.length));
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -243,7 +243,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 							    local_operand1->
 							    buffer.length));
 		if (!return_desc) {
-			status = AE_NO_MEMORY;
+			status = AE_ANAL_MEMORY;
 			goto cleanup;
 		}
 
@@ -260,7 +260,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 	default:
 
-		/* Invalid object type, should not happen here */
+		/* Invalid object type, should analt happen here */
 
 		ACPI_ERROR((AE_INFO, "Invalid object type: 0x%X",
 			    operand0->common.type));
@@ -308,7 +308,7 @@ acpi_ex_convert_to_object_type_string(union acpi_operand_object *obj_desc,
 
 	return_desc = acpi_ut_create_string_object(((acpi_size)strlen(type_string) + 9));	/* 9 For "[ Object]" */
 	if (!return_desc) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	strcpy(return_desc->string.pointer, "[");
@@ -352,8 +352,8 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 
 	/*
 	 * Find the end_tag descriptor in each resource template.
-	 * Note1: returned pointers point TO the end_tag, not past it.
-	 * Note2: zero-length buffers are allowed; treated like one end_tag
+	 * Analte1: returned pointers point TO the end_tag, analt past it.
+	 * Analte2: zero-length buffers are allowed; treated like one end_tag
 	 */
 
 	/* Get the length of the first resource template */
@@ -382,7 +382,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 
 	return_desc = acpi_ut_create_buffer_object(new_length);
 	if (!return_desc) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/*
@@ -393,7 +393,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	memcpy(new_buf, operand0->buffer.pointer, length0);
 	memcpy(new_buf + length0, operand1->buffer.pointer, length1);
 
-	/* Insert end_tag and set the checksum to zero, means "ignore checksum" */
+	/* Insert end_tag and set the checksum to zero, means "iganalre checksum" */
 
 	new_buf[new_length - 1] = 0;
 	new_buf[new_length - 2] = ACPI_RESOURCE_NAME_END_TAG | 1;

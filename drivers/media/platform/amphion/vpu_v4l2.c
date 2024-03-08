@@ -34,19 +34,19 @@ void vpu_inst_unlock(struct vpu_inst *inst)
 	mutex_unlock(&inst->lock);
 }
 
-dma_addr_t vpu_get_vb_phy_addr(struct vb2_buffer *vb, u32 plane_no)
+dma_addr_t vpu_get_vb_phy_addr(struct vb2_buffer *vb, u32 plane_anal)
 {
-	if (plane_no >= vb->num_planes)
+	if (plane_anal >= vb->num_planes)
 		return 0;
-	return vb2_dma_contig_plane_dma_addr(vb, plane_no) +
-			vb->planes[plane_no].data_offset;
+	return vb2_dma_contig_plane_dma_addr(vb, plane_anal) +
+			vb->planes[plane_anal].data_offset;
 }
 
-unsigned int vpu_get_vb_length(struct vb2_buffer *vb, u32 plane_no)
+unsigned int vpu_get_vb_length(struct vb2_buffer *vb, u32 plane_anal)
 {
-	if (plane_no >= vb->num_planes)
+	if (plane_anal >= vb->num_planes)
 		return 0;
-	return vb2_plane_size(vb, plane_no) - vb->planes[plane_no].data_offset;
+	return vb2_plane_size(vb, plane_anal) - vb->planes[plane_anal].data_offset;
 }
 
 void vpu_set_buffer_state(struct vb2_v4l2_buffer *vbuf, unsigned int state)
@@ -74,7 +74,7 @@ void vpu_v4l2_set_error(struct vpu_inst *inst)
 	vpu_inst_unlock(inst);
 }
 
-int vpu_notify_eos(struct vpu_inst *inst)
+int vpu_analtify_eos(struct vpu_inst *inst)
 {
 	static const struct v4l2_event ev = {
 		.id = 0,
@@ -87,7 +87,7 @@ int vpu_notify_eos(struct vpu_inst *inst)
 	return 0;
 }
 
-int vpu_notify_source_change(struct vpu_inst *inst)
+int vpu_analtify_source_change(struct vpu_inst *inst)
 {
 	static const struct v4l2_event ev = {
 		.id = 0,
@@ -117,7 +117,7 @@ int vpu_set_last_buffer_dequeued(struct vpu_inst *inst, bool eos)
 	q->last_buffer_dequeued = true;
 	wake_up(&q->done_wq);
 	if (eos)
-		vpu_notify_eos(inst);
+		vpu_analtify_eos(inst);
 	return 0;
 }
 
@@ -194,7 +194,7 @@ static int vpu_calc_fmt_sizeimage(struct vpu_inst *inst, struct vpu_format *fmt)
 							      fmt->height,
 							      i,
 							      stride,
-							      fmt->field != V4L2_FIELD_NONE ? 1 : 0,
+							      fmt->field != V4L2_FIELD_ANALNE ? 1 : 0,
 							      &fmt->bytesperline[i]);
 		fmt->sizeimage[i] = max_t(u32, fmt->sizeimage[i], PAGE_SIZE);
 		if (fmt->flags & V4L2_FMT_FLAG_COMPRESSED) {
@@ -206,20 +206,20 @@ static int vpu_calc_fmt_sizeimage(struct vpu_inst *inst, struct vpu_format *fmt)
 	return 0;
 }
 
-u32 vpu_get_fmt_plane_size(struct vpu_format *fmt, u32 plane_no)
+u32 vpu_get_fmt_plane_size(struct vpu_format *fmt, u32 plane_anal)
 {
 	u32 size;
 	int i;
 
-	if (plane_no >= fmt->mem_planes)
+	if (plane_anal >= fmt->mem_planes)
 		return 0;
 
 	if (fmt->comp_planes == fmt->mem_planes)
-		return fmt->sizeimage[plane_no];
-	if (plane_no < fmt->mem_planes - 1)
-		return fmt->sizeimage[plane_no];
+		return fmt->sizeimage[plane_anal];
+	if (plane_anal < fmt->mem_planes - 1)
+		return fmt->sizeimage[plane_anal];
 
-	size = fmt->sizeimage[plane_no];
+	size = fmt->sizeimage[plane_anal];
 	for (i = fmt->mem_planes; i < fmt->comp_planes; i++)
 		size += fmt->sizeimage[i];
 
@@ -244,7 +244,7 @@ int vpu_try_fmt_common(struct vpu_inst *inst, struct v4l2_format *f, struct vpu_
 		fmt->width = vpu_helper_valid_frame_width(inst, fmt->width);
 	if (fmt->height)
 		fmt->height = vpu_helper_valid_frame_height(inst, fmt->height);
-	fmt->field = pixmp->field == V4L2_FIELD_ANY ? V4L2_FIELD_NONE : pixmp->field;
+	fmt->field = pixmp->field == V4L2_FIELD_ANY ? V4L2_FIELD_ANALNE : pixmp->field;
 	vpu_calc_fmt_bytesperline(f, fmt);
 	vpu_calc_fmt_sizeimage(inst, fmt);
 	if ((fmt->flags & V4L2_FMT_FLAG_COMPRESSED) && pixmp->plane_fmt[0].sizeimage)
@@ -509,7 +509,7 @@ static int vpu_vb2_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -540,7 +540,7 @@ static void vpu_vb2_buf_finish(struct vb2_buffer *vb)
 	struct vb2_queue *q = vb->vb2_queue;
 
 	if (vbuf->flags & V4L2_BUF_FLAG_LAST)
-		vpu_notify_eos(inst);
+		vpu_analtify_eos(inst);
 
 	if (list_empty(&q->done_list))
 		call_void_vop(inst, on_queue_empty, q->type);
@@ -810,7 +810,7 @@ int vpu_add_func(struct vpu_dev *vpu, struct vpu_func *func)
 	if (!vfd) {
 		v4l2_m2m_release(func->m2m_dev);
 		dev_err(vpu->dev, "alloc vpu decoder video device fail\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	vfd->release = video_device_release;
 	vfd->vfl_dir = VFL_DIR_M2M;

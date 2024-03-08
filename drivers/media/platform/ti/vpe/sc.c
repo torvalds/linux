@@ -181,7 +181,7 @@ void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 		return;
 	}
 
-	/* we only support linear scaling for now */
+	/* we only support linear scaling for analw */
 	val |= CFG_LINEAR;
 
 	/* configure horizontal scaler */
@@ -205,7 +205,7 @@ void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 
 	dev_dbg(dev, "hs config: src_w = %d, dst_w = %d, decimation = %s, lin_acc_inc = %08x\n",
 		src_w, dst_w, dcm_shift == 2 ? "4x" :
-		(dcm_shift == 1 ? "2x" : "none"), lin_acc_inc);
+		(dcm_shift == 1 ? "2x" : "analne"), lin_acc_inc);
 
 	/* configure vertical scaler */
 
@@ -281,7 +281,7 @@ struct sc_data *sc_create(struct platform_device *pdev, const char *res_name)
 	sc = devm_kzalloc(&pdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (!sc) {
 		dev_err(&pdev->dev, "couldn't alloc sc_data\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	sc->pdev = pdev;
@@ -290,7 +290,7 @@ struct sc_data *sc_create(struct platform_device *pdev, const char *res_name)
 	if (!sc->res) {
 		dev_err(&pdev->dev, "missing '%s' platform resources data\n",
 			res_name);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	sc->base = devm_ioremap_resource(&pdev->dev, sc->res);

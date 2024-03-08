@@ -61,8 +61,8 @@ static const struct regmap_range mcp23x08_volatile_range = {
 };
 
 static const struct regmap_access_table mcp23x08_volatile_table = {
-	.yes_ranges = &mcp23x08_volatile_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &mcp23x08_volatile_range,
+	.n_anal_ranges = 1,
 };
 
 static const struct regmap_range mcp23x08_precious_range = {
@@ -71,8 +71,8 @@ static const struct regmap_range mcp23x08_precious_range = {
 };
 
 static const struct regmap_access_table mcp23x08_precious_table = {
-	.yes_ranges = &mcp23x08_precious_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &mcp23x08_precious_range,
+	.n_anal_ranges = 1,
 };
 
 const struct regmap_config mcp23x08_regmap = {
@@ -106,8 +106,8 @@ static const struct regmap_range mcp23x17_volatile_range = {
 };
 
 static const struct regmap_access_table mcp23x17_volatile_table = {
-	.yes_ranges = &mcp23x17_volatile_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &mcp23x17_volatile_range,
+	.n_anal_ranges = 1,
 };
 
 static const struct regmap_range mcp23x17_precious_range = {
@@ -116,8 +116,8 @@ static const struct regmap_range mcp23x17_precious_range = {
 };
 
 static const struct regmap_access_table mcp23x17_precious_table = {
-	.yes_ranges = &mcp23x17_precious_range,
-	.n_yes_ranges = 1,
+	.anal_ranges = &mcp23x17_precious_range,
+	.n_anal_ranges = 1,
 };
 
 const struct regmap_config mcp23x17_regmap = {
@@ -205,7 +205,7 @@ static int mcp_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					const unsigned int **pins,
 					unsigned int *num_pins)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static const struct pinctrl_ops mcp_pinctrl_ops = {
@@ -213,7 +213,7 @@ static const struct pinctrl_ops mcp_pinctrl_ops = {
 	.get_group_name = mcp_pinctrl_get_group_name,
 	.get_group_pins = mcp_pinctrl_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 #endif
 };
@@ -234,7 +234,7 @@ static int mcp_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		status = (data & BIT(pin)) ? 1 : 0;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = 0;
@@ -261,7 +261,7 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			break;
 		default:
 			dev_dbg(mcp->dev, "Invalid config param %04x\n", param);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -385,7 +385,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		goto unlock;
 
 	if (intf == 0) {
-		/* There is no interrupt pending */
+		/* There is anal interrupt pending */
 		goto unlock;
 	}
 
@@ -412,11 +412,11 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 
 	for (i = 0; i < mcp->chip.ngpio; i++) {
 		/* We must check all of the inputs on the chip,
-		 * otherwise we may not notice a change on >=2 pins.
+		 * otherwise we may analt analtice a change on >=2 pins.
 		 *
 		 * On at least the mcp23s17, INTCAP is only updated
 		 * one byte at a time(INTCAPA and INTCAPB are
-		 * not written to at the same time - only on a per-bank
+		 * analt written to at the same time - only on a per-bank
 		 * basis).
 		 *
 		 * INTF only contains the single bit that caused the
@@ -657,7 +657,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
 		girq->parents = NULL;
-		girq->default_type = IRQ_TYPE_NONE;
+		girq->default_type = IRQ_TYPE_ANALNE;
 		girq->handler = handle_simple_irq;
 		girq->threaded = true;
 	}

@@ -27,7 +27,7 @@
 #define PORTF 15
 #define PORTG 16
 #define PORTH 17
-/* No I */
+/* Anal I */
 #define PORTJ 18
 #define PORTK 19
 #define PORTL 20

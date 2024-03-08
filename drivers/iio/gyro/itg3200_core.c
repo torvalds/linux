@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2011 Christian Strobel <christian.strobel@iis.fraunhofer.de>
  * Copyright (c) 2011 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2012 Thorsten Nowak <thorsten.nowak@iis.fraunhofer.de>
+ * Copyright (c) 2012 Thorsten Analwak <thorsten.analwak@iis.fraunhofer.de>
  *
  * TODO:
  * - Support digital low pass filter
@@ -100,7 +100,7 @@ static int itg3200_read_raw(struct iio_dev *indio_dev,
 			*val2 = 1000000000/280;
 		else
 			*val2 = 1214142; /* (1 / 14,375) * (PI / 180) */
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT_PLUS_NAANAL;
 	case IIO_CHAN_INFO_OFFSET:
 		/* Only the temperature channel has an offset */
 		*val = 23000;
@@ -273,7 +273,7 @@ static const struct iio_chan_spec_ext_info itg3200_ext_info[] = {
 static const struct iio_chan_spec itg3200_channels[] = {
 	{
 		.type = IIO_TEMP,
-		.channel2 = IIO_NO_MOD,
+		.channel2 = IIO_ANAL_MOD,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE),
@@ -305,7 +305,7 @@ static int itg3200_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

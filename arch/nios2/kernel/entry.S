@@ -8,7 +8,7 @@
  *
  *  Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albaanalwski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2004  Microtronix Datacom Ltd.
  *
@@ -29,7 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/asm-macros.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
 #include <asm/unistd.h>
@@ -129,8 +129,8 @@ trap_table:
 	.word	handle_breakpoint	/* 31 */
 
 .text
-.set noat
-.set nobreak
+.set analat
+.set analbreak
 
 ENTRY(inthandler)
 	SAVE_ALL
@@ -140,7 +140,7 @@ ENTRY(inthandler)
 	/* Clear EH bit before we get a new excpetion in the kernel
 	 * and after we have saved it to the exception frame. This is done
 	 * whether it's trap, tlb-miss or interrupt. If we don't do this
-	 * estatus is not updated the next exception.
+	 * estatus is analt updated the next exception.
 	 */
 	rdctl	r24, status
 	movi	r9, %lo(~STATUS_EH)
@@ -235,9 +235,9 @@ restore_all:
 	RESTORE_ALL
 	eret
 
-	/* If the syscall number was invalid return ENOSYS */
+	/* If the syscall number was invalid return EANALSYS */
 ret_invsyscall:
-	movi	r2, -ENOSYS
+	movi	r2, -EANALSYS
 	br	translate_rc_and_ret
 
 	/* This implements the same as above, except it calls
@@ -293,16 +293,16 @@ end_translate_rc_and_ret2:
 	RESTORE_SWITCH_STACK
 	br	ret_from_exception
 
-	/* If the syscall number was invalid return ENOSYS */
+	/* If the syscall number was invalid return EANALSYS */
 traced_invsyscall:
-	movi	r2, -ENOSYS
+	movi	r2, -EANALSYS
 	br	translate_rc_and_ret2
 
 Luser_return:
 	GET_THREAD_INFO	r11			/* get thread_info pointer */
 	ldw	r10, TI_FLAGS(r11)		/* get thread_info->flags */
 	ANDI32	r11, r10, _TIF_WORK_MASK
-	beq	r11, r0, restore_all		/* Nothing to do */
+	beq	r11, r0, restore_all		/* Analthing to do */
 	BTBZ	r1, r10, TIF_NEED_RESCHED, Lsignal_return
 
 	/* Reschedule work */
@@ -310,12 +310,12 @@ Luser_return:
 	br	ret_from_exception
 
 Lsignal_return:
-	ANDI32	r1, r10, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
+	ANDI32	r1, r10, _TIF_SIGPENDING | _TIF_ANALTIFY_RESUME
 	beq	r1, r0, restore_all
 	mov	r4, sp			/* pt_regs */
 	SAVE_SWITCH_STACK
-	call	do_notify_resume
-	beq	r2, r0, no_work_pending
+	call	do_analtify_resume
+	beq	r2, r0, anal_work_pending
 	RESTORE_SWITCH_STACK
 	/* prepare restart syscall here without leaving kernel */
 	ldw	r2, PT_R2(sp)	/* reload syscall number in r2 */
@@ -327,7 +327,7 @@ Lsignal_return:
 	ldw 	r9, PT_R9(sp)
 	br	local_restart	/* restart syscall */
 
-no_work_pending:
+anal_work_pending:
 	RESTORE_SWITCH_STACK
 	br	ret_from_exception
 
@@ -344,7 +344,7 @@ external_interrupt:
 	rdctl	r12, ipending
 	rdctl	r9, ienable
 	and	r12, r12, r9
-	/* skip if no interrupt is pending */
+	/* skip if anal interrupt is pending */
 	beq	r12, r0, ret_from_interrupt
 
 	/*
@@ -515,7 +515,7 @@ ENTRY(ret_from_kernel_thread)
  * Each segment is 64-byte aligned and will be mapped to the <User space>.
  * New segments (if ever needed) must be added after the existing ones.
  * This mechanism should be used only for things that are really small and
- * justified, and not be abused freely.
+ * justified, and analt be abused freely.
  *
  */
 

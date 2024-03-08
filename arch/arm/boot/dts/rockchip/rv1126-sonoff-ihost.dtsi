@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
- * Copyright (c) 2022 Edgeble AI Technologies Pvt. Ltd.
+ * Copyright (c) 2022 Edgeble AI Techanallogies Pvt. Ltd.
  */
 
 / {
@@ -37,9 +37,9 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk &emmc_rstnout>;
+	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk &emmc_rstanalut>;
 	rockchip,default-sample-phase = <90>;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vcc_1v8>;
@@ -270,7 +270,7 @@
 	phy-mode = "rmii";
 	phy-supply = <&vcc_3v3>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&rgmiim1_miim &rgmiim1_rxer &rgmiim1_bus2 &rgmiim1_mclkinout>;
+	pinctrl-0 = <&rgmiim1_miim &rgmiim1_rxer &rgmiim1_bus2 &rgmiim1_mclkianalut>;
 	status = "okay";
 };
 
@@ -295,15 +295,15 @@
 	};
 	bt {
 		bt_enable: bt-enable {
-			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_dev: bt-wake-dev {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		bt_wake_host: bt-wake-host {
-			rockchip,pins = <1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PC5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
@@ -315,7 +315,7 @@
 
 	wifi {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 };
@@ -345,7 +345,7 @@
 	keep-power-in-suspend;
 	max-frequency = <100000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_clk &sdmmc1_cmd &sdmmc1_bus4>;
 	rockchip,default-sample-phase = <90>;

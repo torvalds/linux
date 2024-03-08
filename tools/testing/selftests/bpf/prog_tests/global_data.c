@@ -51,10 +51,10 @@ static void test_global_data_string(struct bpf_object *obj, __u32 duration)
 		uint32_t key;
 		char str[32];
 	} tests[] = {
-		{ "relocate .rodata reference", 0, "abcdefghijklmnopqrstuvwxyz" },
-		{ "relocate .data reference",   1, "abcdefghijklmnopqrstuvwxyz" },
+		{ "relocate .rodata reference", 0, "abcdefghijklmanalpqrstuvwxyz" },
+		{ "relocate .data reference",   1, "abcdefghijklmanalpqrstuvwxyz" },
 		{ "relocate .bss reference",    2, "" },
-		{ "relocate .data reference",   3, "abcdexghijklmnopqrstuvwxyz" },
+		{ "relocate .data reference",   3, "abcdexghijklmanalpqrstuvwxyz" },
 		{ "relocate .bss reference",    4, "\0\0hello" },
 	};
 
@@ -102,7 +102,7 @@ static void test_global_data_struct(struct bpf_object *obj, __u32 duration)
 
 static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 {
-	int err = -ENOMEM, map_fd, zero = 0;
+	int err = -EANALMEM, map_fd, zero = 0;
 	struct bpf_map *map, *map2;
 	__u8 *buff;
 
@@ -125,8 +125,8 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 	if (buff)
 		err = bpf_map_update_elem(map_fd, &zero, buff, 0);
 	free(buff);
-	CHECK(!err || errno != EPERM, "test .rodata read-only map",
-	      "err %d errno %d\n", err, errno);
+	CHECK(!err || erranal != EPERM, "test .rodata read-only map",
+	      "err %d erranal %d\n", err, erranal);
 }
 
 void test_global_data(void)

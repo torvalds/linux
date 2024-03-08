@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -95,8 +95,8 @@ static bool ch7006_encoder_mode_fixup(struct drm_encoder *encoder,
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 
-	/* The ch7006 is painfully picky with the input timings so no
-	 * custom modes for now... */
+	/* The ch7006 is painfully picky with the input timings so anal
+	 * custom modes for analw... */
 
 	priv->mode = ch7006_lookup_mode(encoder, mode);
 
@@ -122,12 +122,12 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 	struct ch7006_state *state = &priv->state;
 	uint8_t *regs = state->regs;
 	const struct ch7006_mode *mode = priv->mode;
-	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_tv_analrm_info *analrm = &ch7006_tv_analrms[priv->analrm];
 	int start_active;
 
 	ch7006_dbg(client, "\n");
 
-	regs[CH7006_DISPMODE] = norm->dispmode | mode->dispmode;
+	regs[CH7006_DISPMODE] = analrm->dispmode | mode->dispmode;
 	regs[CH7006_BWIDTH] = 0;
 	regs[CH7006_INPUT_FORMAT] = bitf(CH7006_INPUT_FORMAT_FORMAT,
 					 params->input_format);
@@ -191,7 +191,7 @@ static enum drm_connector_status ch7006_encoder_detect(struct drm_encoder *encod
 	ch7006_save_reg(client, state, CH7006_CLKMODE);
 
 	ch7006_write(client, CH7006_POWER, CH7006_POWER_RESET |
-					   bitfs(CH7006_POWER_LEVEL, NORMAL));
+					   bitfs(CH7006_POWER_LEVEL, ANALRMAL));
 	ch7006_write(client, CH7006_CLKMODE, CH7006_CLKMODE_MASTER);
 
 	ch7006_write(client, CH7006_DETECT, CH7006_DETECT_SENSE);
@@ -214,7 +214,7 @@ static enum drm_connector_status ch7006_encoder_detect(struct drm_encoder *encod
 	else if ((det & CH7006_DETECT_CVBS_TEST) == 0)
 		priv->subconnector = DRM_MODE_SUBCONNECTOR_Composite;
 	else
-		priv->subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+		priv->subconnector = DRM_MODE_SUBCONNECTOR_Unkanalwn;
 
 	drm_object_property_set_value(&connector->base,
 			encoder->dev->mode_config.tv_subconnector_property,
@@ -233,7 +233,7 @@ static int ch7006_encoder_get_modes(struct drm_encoder *encoder,
 
 	for (mode = ch7006_modes; mode->mode.clock; mode++) {
 		if (~mode->valid_scales & 1<<priv->scale ||
-		    ~mode->valid_norms & 1<<priv->norm)
+		    ~mode->valid_analrms & 1<<priv->analrm)
 			continue;
 
 		drm_mode_probed_add(connector,
@@ -252,11 +252,11 @@ static int ch7006_encoder_create_resources(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_mode_config *conf = &dev->mode_config;
 
-	drm_mode_create_tv_properties_legacy(dev, NUM_TV_NORMS, ch7006_tv_norm_names);
+	drm_mode_create_tv_properties_legacy(dev, NUM_TV_ANALRMS, ch7006_tv_analrm_names);
 
 	priv->scale_property = drm_property_create_range(dev, 0, "scale", 0, 2);
 	if (!priv->scale_property)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drm_object_attach_property(&connector->base, conf->tv_select_subconnector_property,
 				      priv->select_subconnector);
@@ -267,7 +267,7 @@ static int ch7006_encoder_create_resources(struct drm_encoder *encoder,
 	drm_object_attach_property(&connector->base, conf->tv_bottom_margin_property,
 				      priv->vmargin);
 	drm_object_attach_property(&connector->base, conf->legacy_tv_mode_property,
-				   priv->norm);
+				   priv->analrm);
 	drm_object_attach_property(&connector->base, conf->tv_brightness_property,
 				      priv->brightness);
 	drm_object_attach_property(&connector->base, conf->tv_contrast_property,
@@ -321,7 +321,7 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 		if (connector->dpms != DRM_MODE_DPMS_OFF)
 			return -EINVAL;
 
-		priv->norm = val;
+		priv->analrm = val;
 
 		modes_changed = true;
 
@@ -406,7 +406,7 @@ static int ch7006_probe(struct i2c_client *client)
 
 	ch7006_info(client, "Detected version ID: %x\n", val);
 
-	/* I don't know what this is for, but otherwise I get no
+	/* I don't kanalw what this is for, but otherwise I get anal
 	 * signal.
 	 */
 	ch7006_write(client, 0x3d, 0x0);
@@ -416,7 +416,7 @@ static int ch7006_probe(struct i2c_client *client)
 fail:
 	ch7006_err(client, "Error %d reading version ID\n", ret);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void ch7006_remove(struct i2c_client *client)
@@ -446,14 +446,14 @@ static int ch7006_encoder_init(struct i2c_client *client,
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	encoder->slave_priv = priv;
 	encoder->slave_funcs = &ch7006_encoder_funcs;
 
-	priv->norm = TV_NORM_PAL;
+	priv->analrm = TV_ANALRM_PAL;
 	priv->select_subconnector = DRM_MODE_SUBCONNECTOR_Automatic;
-	priv->subconnector = DRM_MODE_SUBCONNECTOR_Unknown;
+	priv->subconnector = DRM_MODE_SUBCONNECTOR_Unkanalwn;
 	priv->scale = 1;
 	priv->contrast = 50;
 	priv->brightness = 50;
@@ -463,17 +463,17 @@ static int ch7006_encoder_init(struct i2c_client *client,
 	priv->last_dpms = -1;
 	priv->chip_version = ch7006_read(client, CH7006_VERSION_ID);
 
-	if (ch7006_tv_norm) {
-		for (i = 0; i < NUM_TV_NORMS; i++) {
-			if (!strcmp(ch7006_tv_norm_names[i], ch7006_tv_norm)) {
-				priv->norm = i;
+	if (ch7006_tv_analrm) {
+		for (i = 0; i < NUM_TV_ANALRMS; i++) {
+			if (!strcmp(ch7006_tv_analrm_names[i], ch7006_tv_analrm)) {
+				priv->analrm = i;
 				break;
 			}
 		}
 
-		if (i == NUM_TV_NORMS)
-			ch7006_err(client, "Invalid TV norm setting \"%s\".\n",
-				   ch7006_tv_norm);
+		if (i == NUM_TV_ANALRMS)
+			ch7006_err(client, "Invalid TV analrm setting \"%s\".\n",
+				   ch7006_tv_analrm);
 	}
 
 	if (ch7006_scale >= 0 && ch7006_scale <= 2)
@@ -528,9 +528,9 @@ int ch7006_debug;
 module_param_named(debug, ch7006_debug, int, 0600);
 MODULE_PARM_DESC(debug, "Enable debug output.");
 
-char *ch7006_tv_norm;
-module_param_named(tv_norm, ch7006_tv_norm, charp, 0600);
-MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
+char *ch7006_tv_analrm;
+module_param_named(tv_analrm, ch7006_tv_analrm, charp, 0600);
+MODULE_PARM_DESC(tv_analrm, "Default TV analrm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, PAL-60, NTSC-M, NTSC-J.\n"
 		 "\t\tDefault: PAL");
 

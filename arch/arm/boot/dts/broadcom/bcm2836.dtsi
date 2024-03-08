@@ -29,7 +29,7 @@
 		compatible = "arm,armv7-timer";
 		interrupt-parent = <&local_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>, // PHYS_SECURE_PPI
-			     <1 IRQ_TYPE_LEVEL_HIGH>, // PHYS_NONSECURE_PPI
+			     <1 IRQ_TYPE_LEVEL_HIGH>, // PHYS_ANALNSECURE_PPI
 			     <3 IRQ_TYPE_LEVEL_HIGH>, // VIRT_PPI
 			     <2 IRQ_TYPE_LEVEL_HIGH>; // HYP_PPI
 		always-on;

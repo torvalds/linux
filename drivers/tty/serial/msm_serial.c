@@ -47,7 +47,7 @@
 #define MSM_UART_MR2_BITS_PER_CHAR_8	(0x3 << 4)
 #define MSM_UART_MR2_STOP_BIT_LEN_ONE	(0x1 << 2)
 #define MSM_UART_MR2_STOP_BIT_LEN_TWO	(0x3 << 2)
-#define MSM_UART_MR2_PARITY_MODE_NONE	0x0
+#define MSM_UART_MR2_PARITY_MODE_ANALNE	0x0
 #define MSM_UART_MR2_PARITY_MODE_ODD	0x1
 #define MSM_UART_MR2_PARITY_MODE_EVEN	0x2
 #define MSM_UART_MR2_PARITY_MODE_SPACE	0x3
@@ -258,7 +258,7 @@ static void msm_stop_dma(struct uart_port *port, struct msm_dma *dma)
 	 * DMA Stall happens if enqueue and flush command happens concurrently.
 	 * For example before changing the baud rate/protocol configuration and
 	 * sending flush command to ADM, disable the channel of UARTDM.
-	 * Note: should not reset the receiver here immediately as it is not
+	 * Analte: should analt reset the receiver here immediately as it is analt
 	 * suggested to do disable/reset or reset/disable at the same time.
 	 */
 	val = msm_read(port, UARTDM_DMEN);
@@ -305,9 +305,9 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 	/* allocate DMA resources, if available */
 	dma->chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan))
-		goto no_tx;
+		goto anal_tx;
 
-	of_property_read_u32(dev->of_node, "qcom,tx-crci", &crci);
+	of_property_read_u32(dev->of_analde, "qcom,tx-crci", &crci);
 
 	memset(&conf, 0, sizeof(conf));
 	conf.direction = DMA_MEM_TO_DEV;
@@ -335,7 +335,7 @@ static void msm_request_tx_dma(struct msm_port *msm_port, resource_size_t base)
 
 rel_tx:
 	dma_release_channel(dma->chan);
-no_tx:
+anal_tx:
 	memset(dma, 0, sizeof(*dma));
 }
 
@@ -353,9 +353,9 @@ static void msm_request_rx_dma(struct msm_port *msm_port, resource_size_t base)
 	/* allocate DMA resources, if available */
 	dma->chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->chan))
-		goto no_rx;
+		goto anal_rx;
 
-	of_property_read_u32(dev->of_node, "qcom,rx-crci", &crci);
+	of_property_read_u32(dev->of_analde, "qcom,rx-crci", &crci);
 
 	dma->virt = kzalloc(UARTDM_RX_SIZE, GFP_KERNEL);
 	if (!dma->virt)
@@ -388,7 +388,7 @@ err:
 	kfree(dma->virt);
 rel_rx:
 	dma_release_channel(dma->chan);
-no_rx:
+anal_rx:
 	memset(dma, 0, sizeof(*dma));
 }
 
@@ -514,7 +514,7 @@ static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
 		goto unmap;
 
 	/*
-	 * Using DMA complete for Tx FIFO reload, no need for
+	 * Using DMA complete for Tx FIFO reload, anal need for
 	 * "Tx FIFO below watermark" one, disable it
 	 */
 	msm_port->imr &= ~MSM_UART_IMR_TXLEV;
@@ -575,7 +575,7 @@ static void msm_complete_rx_dma(void *args)
 	dma_unmap_single(port->dev, dma->phys, UARTDM_RX_SIZE, dma->dir);
 
 	for (i = 0; i < count; i++) {
-		char flag = TTY_NORMAL;
+		char flag = TTY_ANALRMAL;
 
 		if (msm_port->break_detected && dma->virt[i] == 0) {
 			port->icount.brk++;
@@ -586,7 +586,7 @@ static void msm_complete_rx_dma(void *args)
 		}
 
 		if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
-			flag = TTY_NORMAL;
+			flag = TTY_ANALRMAL;
 
 		uart_port_unlock_irqrestore(port, flags);
 		sysrq = uart_handle_sysrq_char(port, dma->virt[i]);
@@ -636,7 +636,7 @@ static void msm_start_rx_dma(struct msm_port *msm_port)
 	if (ret)
 		goto unmap;
 	/*
-	 * Using DMA for FIFO off-load, no need for "Rx FIFO over
+	 * Using DMA for FIFO off-load, anal need for "Rx FIFO over
 	 * watermark" or "stale" interrupts, disable them
 	 */
 	msm_port->imr &= ~(MSM_UART_IMR_RXLEV | MSM_UART_IMR_RXSTALE);
@@ -750,7 +750,7 @@ static void msm_handle_rx_dm(struct uart_port *port, unsigned int misr)
 		r_count = min_t(int, count, sizeof(buf));
 
 		for (i = 0; i < r_count; i++) {
-			char flag = TTY_NORMAL;
+			char flag = TTY_ANALRMAL;
 
 			if (msm_port->break_detected && buf[i] == 0) {
 				port->icount.brk++;
@@ -761,7 +761,7 @@ static void msm_handle_rx_dm(struct uart_port *port, unsigned int misr)
 			}
 
 			if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
-				flag = TTY_NORMAL;
+				flag = TTY_ANALRMAL;
 
 			uart_port_unlock(port);
 			sysrq = uart_handle_sysrq_char(port, buf[i]);
@@ -791,7 +791,7 @@ static void msm_handle_rx(struct uart_port *port)
 
 	/*
 	 * Handle overrun. My understanding of the hardware is that overrun
-	 * is not tied to the RX buffer, so we handle the case out of band.
+	 * is analt tied to the RX buffer, so we handle the case out of band.
 	 */
 	if ((msm_read(port, MSM_UART_SR) & MSM_UART_SR_OVERRUN)) {
 		port->icount.overrun++;
@@ -799,10 +799,10 @@ static void msm_handle_rx(struct uart_port *port)
 		msm_write(port, MSM_UART_CR_CMD_RESET_ERR, MSM_UART_CR);
 	}
 
-	/* and now the main RX loop */
+	/* and analw the main RX loop */
 	while ((sr = msm_read(port, MSM_UART_SR)) & MSM_UART_SR_RX_READY) {
 		unsigned int c;
-		char flag = TTY_NORMAL;
+		char flag = TTY_ANALRMAL;
 		int sysrq;
 
 		c = msm_read(port, MSM_UART_RF);
@@ -817,7 +817,7 @@ static void msm_handle_rx(struct uart_port *port)
 			port->icount.rx++;
 		}
 
-		/* Mask conditions we're ignoring. */
+		/* Mask conditions we're iganalring. */
 		sr &= port->read_status_mask;
 
 		if (sr & MSM_UART_SR_RX_BREAK)
@@ -872,7 +872,7 @@ static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 		tf_pointer += num_chars;
 	}
 
-	/* disable tx interrupts if nothing more to send */
+	/* disable tx interrupts if analthing more to send */
 	if (uart_circ_empty(xmit))
 		msm_stop_tx(port);
 
@@ -1330,7 +1330,7 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 	msm_write(port, mr, MSM_UART_MR1);
 
-	/* Configure status bits to ignore based on termio flags. */
+	/* Configure status bits to iganalre based on termio flags. */
 	port->read_status_mask = 0;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= MSM_UART_SR_PAR_FRAME_ERR;
@@ -1409,7 +1409,7 @@ static void msm_config_port(struct uart_port *port, int flags)
 
 static int msm_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (unlikely(ser->type != PORT_UNKNOWN && ser->type != PORT_MSM))
+	if (unlikely(ser->type != PORT_UNKANALWN && ser->type != PORT_MSM))
 		return -EINVAL;
 	if (unlikely(port->irq != ser->irq))
 		return -EINVAL;
@@ -1433,7 +1433,7 @@ static void msm_power(struct uart_port *port, unsigned int state,
 		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
-		pr_err("msm_serial: Unknown PM state %d\n", state);
+		pr_err("msm_serial: Unkanalwn PM state %d\n", state);
 	}
 }
 
@@ -1444,7 +1444,7 @@ static int msm_poll_get_char_single(struct uart_port *port)
 	unsigned int rf_reg = msm_port->is_uartdm ? UARTDM_RF : MSM_UART_RF;
 
 	if (!(msm_read(port, MSM_UART_SR) & MSM_UART_SR_RX_READY))
-		return NO_POLL_CHAR;
+		return ANAL_POLL_CHAR;
 
 	return msm_read(port, rf_reg) & 0xff;
 }
@@ -1477,7 +1477,7 @@ static int msm_poll_get_char_dm(struct uart_port *port)
 			msm_write(port, 0xFFFFFF, UARTDM_DMRX);
 			msm_write(port, MSM_UART_CR_CMD_STALE_EVENT_ENABLE, MSM_UART_CR);
 		} else {
-			c = NO_POLL_CHAR;
+			c = ANAL_POLL_CHAR;
 		}
 	/* FIFO has a word */
 	} else {
@@ -1724,7 +1724,7 @@ static int __init
 msm_serial_early_console_setup(struct earlycon_device *device, const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = msm_serial_early_write;
 	return 0;
@@ -1745,7 +1745,7 @@ msm_serial_early_console_setup_dm(struct earlycon_device *device,
 				  const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device->con->write = msm_serial_early_write_dm;
 	return 0;
@@ -1797,8 +1797,8 @@ static int msm_serial_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	int irq, line, ret;
 
-	if (pdev->dev.of_node)
-		line = of_alias_get_id(pdev->dev.of_node, "serial");
+	if (pdev->dev.of_analde)
+		line = of_alias_get_id(pdev->dev.of_analde, "serial");
 	else
 		line = pdev->id;
 
@@ -1836,7 +1836,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 
 	/* OPP table is optional */
 	ret = devm_pm_opp_of_add_table(&pdev->dev);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		return dev_err_probe(&pdev->dev, ret, "invalid OPP table\n");
 
 	port->uartclk = clk_get_rate(msm_port->clk);

@@ -14,7 +14,7 @@
  * This program is distributed in the hope that it will be useful. *
  * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
  * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
- * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR ANALN-INFRINGEMENT, ARE      *
  * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
  * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
  * more details, a copy of which can be found in the file COPYING  *
@@ -51,7 +51,7 @@ struct lpfc_nvme_lport {
 	/* Add stats counters here */
 	atomic_t fc4NvmeLsRequests;
 	atomic_t fc4NvmeLsCmpls;
-	atomic_t xmt_fcp_noxri;
+	atomic_t xmt_fcp_analxri;
 	atomic_t xmt_fcp_bad_ndlp;
 	atomic_t xmt_fcp_qdepth;
 	atomic_t xmt_fcp_wqerr;
@@ -68,7 +68,7 @@ struct lpfc_nvme_lport {
 struct lpfc_nvme_rport {
 	struct lpfc_nvme_lport *lport;
 	struct nvme_fc_remote_port *remoteport;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct completion rport_unreg_done;
 };
 
@@ -186,7 +186,7 @@ struct lpfc_nvmet_ctx_info {
 #define LPFC_NVME_ABTS_RCV		0x10  /* ABTS received on exchange */
 #define LPFC_NVME_CTX_REUSE_WQ		0x20  /* ctx reused via WQ */
 #define LPFC_NVME_DEFER_WQFULL		0x40  /* Waiting on a free WQE */
-#define LPFC_NVME_TNOTIFY		0x80  /* notify transport of abts */
+#define LPFC_NVME_TANALTIFY		0x80  /* analtify transport of abts */
 
 struct lpfc_async_xchg_ctx {
 	union {
@@ -194,7 +194,7 @@ struct lpfc_async_xchg_ctx {
 	} hdlrctx;
 	struct list_head list;
 	struct lpfc_hba *phba;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_analdelist *ndlp;
 	struct nvmefc_ls_req *ls_req;
 	struct nvmefc_ls_rsp ls_rsp;
 	struct lpfc_iocbq *wqeq;
@@ -230,7 +230,7 @@ struct lpfc_async_xchg_ctx {
 
 
 /* routines found in lpfc_nvme.c */
-int __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+int __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_analdelist *ndlp,
 		struct nvmefc_ls_req *pnvme_lsreq,
 		void (*gen_req_cmp)(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdwqe,
@@ -238,7 +238,7 @@ int __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 void __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 		struct lpfc_iocbq *cmdwqe, struct lpfc_wcqe_complete *wcqe);
 int __lpfc_nvme_ls_abort(struct lpfc_vport *vport,
-		struct lpfc_nodelist *ndlp, struct nvmefc_ls_req *pnvme_lsreq);
+		struct lpfc_analdelist *ndlp, struct nvmefc_ls_req *pnvme_lsreq);
 
 /* routines found in lpfc_nvmet.c */
 int lpfc_nvme_unsol_ls_issue_abort(struct lpfc_hba *phba,

@@ -11,7 +11,7 @@
 #include <net/ipv6_stubs.h>
 #endif
 
-static void handle_nonesp(struct espintcp_ctx *ctx, struct sk_buff *skb,
+static void handle_analnesp(struct espintcp_ctx *ctx, struct sk_buff *skb,
 			  struct sock *sk)
 {
 	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf ||
@@ -56,7 +56,7 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 						strp);
 	struct strp_msg *rxm = strp_msg(skb);
 	int len = rxm->full_len - 2;
-	u32 nonesp_marker;
+	u32 analnesp_marker;
 	int err;
 
 	/* keepalive packet? */
@@ -77,21 +77,21 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 	}
 
 	/* drop other short messages */
-	if (unlikely(len <= sizeof(nonesp_marker))) {
+	if (unlikely(len <= sizeof(analnesp_marker))) {
 		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINHDRERROR);
 		kfree_skb(skb);
 		return;
 	}
 
-	err = skb_copy_bits(skb, rxm->offset + 2, &nonesp_marker,
-			    sizeof(nonesp_marker));
+	err = skb_copy_bits(skb, rxm->offset + 2, &analnesp_marker,
+			    sizeof(analnesp_marker));
 	if (err < 0) {
 		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINHDRERROR);
 		kfree_skb(skb);
 		return;
 	}
 
-	/* remove header, leave non-ESP marker/SPI */
+	/* remove header, leave analn-ESP marker/SPI */
 	if (!pskb_pull(skb, rxm->offset + 2)) {
 		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINERROR);
 		kfree_skb(skb);
@@ -104,8 +104,8 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 		return;
 	}
 
-	if (nonesp_marker == 0)
-		handle_nonesp(ctx, skb, strp->sk);
+	if (analnesp_marker == 0)
+		handle_analnesp(ctx, skb, strp->sk);
 	else
 		handle_esp(skb, strp->sk);
 }
@@ -170,7 +170,7 @@ int espintcp_queue_out(struct sock *sk, struct sk_buff *skb)
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
 
 	if (skb_queue_len(&ctx->out_queue) >= READ_ONCE(netdev_max_backlog))
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	__skb_queue_tail(&ctx->out_queue, skb);
 
@@ -302,7 +302,7 @@ int espintcp_push_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (emsg->len) {
 		kfree_skb(skb);
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	skb_set_owner_w(skb, sk);
@@ -329,26 +329,26 @@ static int espintcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	int err, end;
 
 	if (msg->msg_flags & ~MSG_DONTWAIT)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (size > MAX_ESPINTCP_MSG)
 		return -EMSGSIZE;
 
 	if (msg->msg_controllen)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	lock_sock(sk);
 
 	err = espintcp_push_msgs(sk, msg->msg_flags & MSG_DONTWAIT);
 	if (err < 0) {
 		if (err != -EAGAIN || !(msg->msg_flags & MSG_DONTWAIT))
-			err = -ENOBUFS;
+			err = -EANALBUFS;
 		goto unlock;
 	}
 
 	sk_msg_init(&emsg->skmsg);
 	while (1) {
-		/* only -ENOMEM is possible since we don't coalesce */
+		/* only -EANALMEM is possible since we don't coalesce */
 		err = sk_msg_alloc(sk, &emsg->skmsg, msglen, 0);
 		if (!err)
 			break;
@@ -457,13 +457,13 @@ static int espintcp_init_sk(struct sock *sk)
 	struct espintcp_ctx *ctx;
 	int err;
 
-	/* sockmap is not compatible with espintcp */
+	/* sockmap is analt compatible with espintcp */
 	if (sk->sk_user_data)
 		return -EBUSY;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = strp_init(&ctx->strp, sk, &cb);
 	if (err)
@@ -556,7 +556,7 @@ static __poll_t espintcp_poll(struct file *file, struct socket *sock,
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
 
 	if (!skb_queue_empty(&ctx->ike_queue))
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 
 	return mask;
 }

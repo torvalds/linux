@@ -4,7 +4,7 @@
  * Copyright (c) 2013-2015, Intel Corporation.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -323,9 +323,9 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	struct perf_event_mmap_page *pc;
 	struct perf_tsc_conversion tc = { .time_mult = 0, };
 	bool cap_user_time_zero = false, per_cpu_mmaps;
-	u64 tsc_bit, mtc_bit, mtc_freq_bits, cyc_bit, noretcomp_bit;
+	u64 tsc_bit, mtc_bit, mtc_freq_bits, cyc_bit, analretcomp_bit;
 	u32 tsc_ctc_ratio_n, tsc_ctc_ratio_d;
-	unsigned long max_non_turbo_ratio;
+	unsigned long max_analn_turbo_ratio;
 	size_t filter_str_len;
 	const char *filter;
 	int event_trace;
@@ -336,16 +336,16 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 		return -EINVAL;
 
 	intel_pt_parse_terms(intel_pt_pmu, "tsc", &tsc_bit);
-	intel_pt_parse_terms(intel_pt_pmu, "noretcomp", &noretcomp_bit);
+	intel_pt_parse_terms(intel_pt_pmu, "analretcomp", &analretcomp_bit);
 	intel_pt_parse_terms(intel_pt_pmu, "mtc", &mtc_bit);
 	mtc_freq_bits = perf_pmu__format_bits(intel_pt_pmu, "mtc_period");
 	intel_pt_parse_terms(intel_pt_pmu, "cyc", &cyc_bit);
 
 	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "max_nonturbo_ratio",
-				"%lu", &max_non_turbo_ratio) != 1)
-		max_non_turbo_ratio = 0;
+	if (perf_pmu__scan_file(intel_pt_pmu, "max_analnturbo_ratio",
+				"%lu", &max_analn_turbo_ratio) != 1)
+		max_analn_turbo_ratio = 0;
 	if (perf_pmu__scan_file(intel_pt_pmu, "caps/event_trace",
 				"%d", &event_trace) != 1)
 		event_trace = 0;
@@ -360,13 +360,13 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	if (pc) {
 		err = perf_read_tsc_conversion(pc, &tc);
 		if (err) {
-			if (err != -EOPNOTSUPP)
+			if (err != -EOPANALTSUPP)
 				return err;
 		} else {
 			cap_user_time_zero = tc.time_mult != 0;
 		}
 		if (!cap_user_time_zero)
-			ui__warning("Intel Processor Trace: TSC not available\n");
+			ui__warning("Intel Processor Trace: TSC analt available\n");
 	}
 
 	per_cpu_mmaps = !perf_cpu_map__has_any_cpu_or_is_empty(session->evlist->core.user_requested_cpus);
@@ -378,7 +378,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	auxtrace_info->priv[INTEL_PT_TIME_ZERO] = tc.time_zero;
 	auxtrace_info->priv[INTEL_PT_CAP_USER_TIME_ZERO] = cap_user_time_zero;
 	auxtrace_info->priv[INTEL_PT_TSC_BIT] = tsc_bit;
-	auxtrace_info->priv[INTEL_PT_NORETCOMP_BIT] = noretcomp_bit;
+	auxtrace_info->priv[INTEL_PT_ANALRETCOMP_BIT] = analretcomp_bit;
 	auxtrace_info->priv[INTEL_PT_HAVE_SCHED_SWITCH] = ptr->have_sched_switch;
 	auxtrace_info->priv[INTEL_PT_SNAPSHOT_MODE] = ptr->snapshot_mode;
 	auxtrace_info->priv[INTEL_PT_PER_CPU_MMAPS] = per_cpu_mmaps;
@@ -387,7 +387,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_N] = tsc_ctc_ratio_n;
 	auxtrace_info->priv[INTEL_PT_TSC_CTC_D] = tsc_ctc_ratio_d;
 	auxtrace_info->priv[INTEL_PT_CYC_BIT] = cyc_bit;
-	auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO] = max_non_turbo_ratio;
+	auxtrace_info->priv[INTEL_PT_MAX_ANALNTURBO_RATIO] = max_analn_turbo_ratio;
 	auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] = filter_str_len;
 
 	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
@@ -576,7 +576,7 @@ static void intel_pt_min_max_sample_sz(struct evlist *evlist,
 }
 
 /*
- * Currently, there is not enough information to disambiguate different PEBS
+ * Currently, there is analt eanalugh information to disambiguate different PEBS
  * events, so only allow one.
  */
 static bool intel_pt_too_many_aux_output(struct evlist *evlist)
@@ -605,7 +605,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	bool have_timing_info, need_immediate = false;
 	struct evsel *evsel, *intel_pt_evsel = NULL;
 	const struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_paraanalid_check(-1);
 	u64 tsc_bit;
 	int err;
 
@@ -620,7 +620,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			}
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = 1;
-			evsel->no_aux_samples = true;
+			evsel->anal_aux_samples = true;
 			evsel->needs_auxtrace_mmap = true;
 			intel_pt_evsel = evsel;
 			opts->full_auxtrace = true;
@@ -633,12 +633,12 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	}
 
 	if (opts->auxtrace_snapshot_mode && opts->auxtrace_sample_mode) {
-		pr_err("Snapshot mode (" INTEL_PT_PMU_NAME " PMU) and sample trace cannot be used together\n");
+		pr_err("Snapshot mode (" INTEL_PT_PMU_NAME " PMU) and sample trace cananalt be used together\n");
 		return -EINVAL;
 	}
 
 	if (opts->use_clockid) {
-		pr_err("Cannot use clockid (-k option) with " INTEL_PT_PMU_NAME "\n");
+		pr_err("Cananalt use clockid (-k option) with " INTEL_PT_PMU_NAME "\n");
 		return -EINVAL;
 	}
 
@@ -683,7 +683,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		}
 		if (opts->auxtrace_snapshot_size >
 				opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Snapshot size %zu must analt be greater than AUX area tracing mmap size %zu\n",
 			       opts->auxtrace_snapshot_size,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -716,7 +716,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			opts->auxtrace_mmap_pages = roundup_pow_of_two(sz);
 		}
 		if (max_sz > opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Sample size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Sample size %zu must analt be greater than AUX area tracing mmap size %zu\n",
 			       max_sz,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -775,9 +775,9 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	 * threads.
 	 */
 	if (have_timing_info && !perf_cpu_map__has_any_cpu_or_is_empty(cpus) &&
-	    !record_opts__no_switch_events(opts)) {
+	    !record_opts__anal_switch_events(opts)) {
 		if (perf_can_record_switch_events()) {
-			bool cpu_wide = !target__none(&opts->target) &&
+			bool cpu_wide = !target__analne(&opts->target) &&
 					!target__has_task(&opts->target);
 
 			if (!cpu_wide && perf_can_record_cpu_wide()) {
@@ -785,7 +785,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 				switch_evsel = evlist__add_dummy_on_all_cpus(evlist);
 				if (!switch_evsel)
-					return -ENOMEM;
+					return -EANALMEM;
 
 				switch_evsel->core.attr.context_switch = 1;
 				switch_evsel->immediate = true;
@@ -850,7 +850,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 		tracking_evsel = evlist__add_aux_dummy(evlist, need_system_wide_tracking);
 		if (!tracking_evsel)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		evlist__set_tracking_event(evlist, tracking_evsel);
 
@@ -867,13 +867,13 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	}
 
 	/*
-	 * Warn the user when we do not have enough information to decode i.e.
-	 * per-cpu with no sched_switch (except workload-only).
+	 * Warn the user when we do analt have eanalugh information to decode i.e.
+	 * per-cpu with anal sched_switch (except workload-only).
 	 */
 	if (!ptr->have_sched_switch && !perf_cpu_map__has_any_cpu_or_is_empty(cpus) &&
-	    !target__none(&opts->target) &&
+	    !target__analne(&opts->target) &&
 	    !intel_pt_evsel->core.attr.exclude_user)
-		ui__warning("Intel Processor Trace decoding will not be possible except for kernel tracing!\n");
+		ui__warning("Intel Processor Trace decoding will analt be possible except for kernel tracing!\n");
 
 	return 0;
 }
@@ -918,7 +918,7 @@ static int intel_pt_alloc_snapshot_refs(struct intel_pt_recording *ptr, int idx)
 
 	refs = calloc(new_cnt, sz);
 	if (!refs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(refs, ptr->snapshot_refs, cnt * sz);
 
@@ -954,7 +954,7 @@ static int intel_pt_alloc_snapshot_ref(struct intel_pt_recording *ptr, int idx,
 
 	ref_buf = zalloc(ref_buf_size);
 	if (!ref_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ptr->snapshot_refs[idx].ref_buf = ref_buf;
 	ptr->snapshot_refs[idx].ref_offset = snapshot_buf_size - ref_buf_size;
@@ -1010,7 +1010,7 @@ static int intel_pt_snapshot_init(struct intel_pt_recording *ptr,
  * @buf2_size: size of second buffer
  *
  * The comparison allows for the possibility that the bytes to compare in the
- * circular buffer are not contiguous.  It is assumed that @compare_size <=
+ * circular buffer are analt contiguous.  It is assumed that @compare_size <=
  * @buf2_size.  This function returns %false if the bytes are identical, %true
  * otherwise.
  */
@@ -1150,7 +1150,7 @@ static int intel_pt_find_snapshot(struct auxtrace_record *itr, int idx,
 	}
 
 	pr_debug3("%s: wrap-around %sdetected, adjusted old head %zu adjusted new head %zu\n",
-		  __func__, wrapped ? "" : "not ", (size_t)*old, (size_t)*head);
+		  __func__, wrapped ? "" : "analt ", (size_t)*old, (size_t)*head);
 
 	return 0;
 
@@ -1173,13 +1173,13 @@ struct auxtrace_record *intel_pt_recording_init(int *err)
 		return NULL;
 
 	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
-		*err = -errno;
+		*err = -erranal;
 		return NULL;
 	}
 
 	ptr = zalloc(sizeof(struct intel_pt_recording));
 	if (!ptr) {
-		*err = -ENOMEM;
+		*err = -EANALMEM;
 		return NULL;
 	}
 

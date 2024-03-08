@@ -63,7 +63,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	 *   a case of minimal bus transactions.
 	 * software culled hardware scans:
 	 *   occasionally a driver may process the nearest hardware scan to avoid
-	 *   storing elements that are not desired. This is the fiddliest option
+	 *   storing elements that are analt desired. This is the fiddliest option
 	 *   by far.
 	 * Here let's pretend we have random access. And the values are in the
 	 * constant table fakedata.
@@ -81,7 +81,7 @@ done:
 	 * Tell the core we are done with this trigger and ready for the
 	 * next one.
 	 */
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

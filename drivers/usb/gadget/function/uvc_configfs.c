@@ -88,7 +88,7 @@ static int __uvcg_iter_item_entries(const char *page, size_t len,
 
 	buf = kzalloc(bufsize, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	while (pg - page < len) {
 		i = 0;
@@ -158,7 +158,7 @@ static int uvcg_config_create_group(struct config_group *parent,
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	config_group_init_type_name(group, type->name, &type->type);
 	configfs_add_default_group(group, parent);
@@ -270,7 +270,7 @@ static struct config_item *uvcg_control_header_make(struct config_group *group,
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	h->desc.bLength			= UVC_DT_HEADER_SIZE(1);
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
@@ -370,7 +370,7 @@ static ssize_t uvcg_default_processing_bm_controls_store(
 
 	tmp = bm_controls = kcalloc(n, sizeof(u8), GFP_KERNEL);
 	if (!bm_controls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -540,7 +540,7 @@ static ssize_t uvcg_default_camera_bm_controls_store(
 
 	tmp = bm_controls = kcalloc(n, sizeof(u8), GFP_KERNEL);
 	if (!bm_controls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -878,7 +878,7 @@ static ssize_t uvcg_extension_b_nr_in_pins_store(struct config_item *item,
 	tmp_buf = krealloc_array(xu->desc.baSourceID, num, sizeof(u8),
 				 GFP_KERNEL | __GFP_ZERO);
 	if (!tmp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -931,7 +931,7 @@ static ssize_t uvcg_extension_b_control_size_store(struct config_item *item,
 	tmp_buf = krealloc_array(xu->desc.bmControls, num, sizeof(u8),
 				 GFP_KERNEL | __GFP_ZERO);
 	if (!tmp_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1055,7 +1055,7 @@ static ssize_t uvcg_extension_ba_source_id_store(struct config_item *item,
 
 	iter = source_ids = kcalloc(n, sizeof(u8), GFP_KERNEL);
 	if (!source_ids) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1134,7 +1134,7 @@ static ssize_t uvcg_extension_bm_controls_store(struct config_item *item,
 
 	iter = bm_controls = kcalloc(n, sizeof(u8), GFP_KERNEL);
 	if (!bm_controls) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -1273,7 +1273,7 @@ static struct config_item *uvcg_extension_make(struct config_group *group, const
 
 	xu = kzalloc(sizeof(*xu), GFP_KERNEL);
 	if (!xu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	xu->desc.bLength = UVC_DT_EXTENSION_UNIT_SIZE(0, 0);
 	xu->desc.bDescriptorType = USB_DT_CS_INTERFACE;
@@ -1437,7 +1437,7 @@ static int uvcg_control_class_create_children(struct config_group *parent)
 
 		group = kzalloc(sizeof(*group), GFP_KERNEL);
 		if (!group)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		group->name = names[i];
 
@@ -1617,7 +1617,7 @@ static int uvcg_format_allow_link(struct config_item *src, struct config_item *t
 	/*
 	 * There's always a color matching descriptor associated with the format
 	 * but without a symlink it should only ever be the default one. If it's
-	 * not the default, there's already a symlink and we should bail out.
+	 * analt the default, there's already a symlink and we should bail out.
 	 */
 	color_matching_desc = uvcg_format_get_default_color_match(streaming);
 	if (fmt->color_matching != color_matching_desc) {
@@ -1756,11 +1756,11 @@ static int uvcg_streaming_header_allow_link(struct config_item *src,
 	}
 
 	/*
-	 * Linking is only allowed to direct children of the format nodes
-	 * (streaming/uncompressed or streaming/mjpeg nodes). First check that
+	 * Linking is only allowed to direct children of the format analdes
+	 * (streaming/uncompressed or streaming/mjpeg analdes). First check that
 	 * the grand-parent of the target matches the grand-parent of the source
-	 * (the streaming node), and then verify that the target parent is a
-	 * format node.
+	 * (the streaming analde), and then verify that the target parent is a
+	 * format analde.
 	 */
 	if (src->ci_parent->ci_parent != target->ci_parent->ci_parent)
 		goto out;
@@ -1780,7 +1780,7 @@ static int uvcg_streaming_header_allow_link(struct config_item *src,
 
 	format_ptr = kzalloc(sizeof(*format_ptr), GFP_KERNEL);
 	if (!format_ptr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	ret = 0;
@@ -1890,7 +1890,7 @@ static struct config_item
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	INIT_LIST_HEAD(&h->formats);
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
@@ -2079,7 +2079,7 @@ static ssize_t uvcg_frame_dw_frame_interval_store(struct config_item *item,
 
 	tmp = frm_intrv = kcalloc(n, sizeof(u32), GFP_KERNEL);
 	if (!frm_intrv) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto end;
 	}
 
@@ -2134,7 +2134,7 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	h->frame.b_descriptor_type		= USB_DT_CS_INTERFACE;
 	h->frame.b_frame_index			= 1;
@@ -2166,7 +2166,7 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 	if (!frame_ptr) {
 		mutex_unlock(&opts->lock);
 		kfree(h);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	frame_ptr->frm = h;
@@ -2439,7 +2439,7 @@ static struct config_group *uvcg_uncompressed_make(struct config_group *group,
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	h->desc.bLength			= UVC_DT_FORMAT_UNCOMPRESSED_SIZE;
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
@@ -2631,7 +2631,7 @@ static struct config_group *uvcg_mjpeg_make(struct config_group *group,
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	h->desc.bLength			= UVC_DT_FORMAT_MJPEG_SIZE;
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
@@ -2776,7 +2776,7 @@ static struct config_group *uvcg_color_matching_make(struct config_group *group,
 
 	color_match = kzalloc(sizeof(*color_match), GFP_KERNEL);
 	if (!color_match)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	color_match->desc.bLength = UVC_DT_COLOR_MATCHING_SIZE;
 	color_match->desc.bDescriptorType = USB_DT_CS_INTERFACE;
@@ -2798,7 +2798,7 @@ static int uvcg_color_matching_create_children(struct config_group *parent)
 
 	color_match = kzalloc(sizeof(*color_match), GFP_KERNEL);
 	if (!color_match)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	color_match->desc.bLength = UVC_DT_COLOR_MATCHING_SIZE;
 	color_match->desc.bDescriptorType = USB_DT_CS_INTERFACE;
@@ -2874,8 +2874,8 @@ enum uvcg_strm_type {
  * and second, to actually fill the array.
  *
  * @h: streaming header pointer
- * @priv2: an "inout" parameter (the caller might want to see the changes to it)
- * @priv3: an "inout" parameter (the caller might want to see the changes to it)
+ * @priv2: an "ianalut" parameter (the caller might want to see the changes to it)
+ * @priv3: an "ianalut" parameter (the caller might want to see the changes to it)
  * @fun: callback function for processing each level of the hierarchy
  */
 static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
@@ -2920,8 +2920,8 @@ static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
  * Count how many bytes are needed for an array of streaming descriptors.
  *
  * @priv1: pointer to a header, format or frame
- * @priv2: inout parameter, accumulated size of the array
- * @priv3: inout parameter, accumulated number of the array elements
+ * @priv2: ianalut parameter, accumulated size of the array
+ * @priv3: ianalut parameter, accumulated number of the array elements
  * @n: unused, this function's prototype must match @fun in __uvcg_iter_strm_cls
  */
 static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
@@ -2983,8 +2983,8 @@ static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
  * Fill an array of streaming descriptors.
  *
  * @priv1: pointer to a header, format or frame
- * @priv2: inout parameter, pointer into a block of memory
- * @priv3: inout parameter, pointer to a 2-dimensional array
+ * @priv2: ianalut parameter, pointer into a block of memory
+ * @priv3: ianalut parameter, pointer to a 2-dimensional array
  */
 static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			    enum uvcg_strm_type type)
@@ -3106,7 +3106,7 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 	count += 1; /* NULL */
 	*class_array = kcalloc(count, sizeof(void *), GFP_KERNEL);
 	if (!*class_array) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 
@@ -3114,7 +3114,7 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 	if (!data) {
 		kfree(*class_array);
 		*class_array = NULL;
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto unlock;
 	}
 	cl_arr = *class_array;
@@ -3207,7 +3207,7 @@ static int uvcg_streaming_class_create_children(struct config_group *parent)
 
 		group = kzalloc(sizeof(*group), GFP_KERNEL);
 		if (!group)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		group->name = names[i];
 

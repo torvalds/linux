@@ -85,13 +85,13 @@ int caam_process_blob(struct caam_blob_priv *priv,
 
 	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_in = dma_map_single(jrdev, info->input, info->input_len,
 				DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, dma_in)) {
 		dev_err(jrdev, "unable to map input DMA buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -99,7 +99,7 @@ int caam_process_blob(struct caam_blob_priv *priv,
 				 DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dma_out)) {
 		dev_err(jrdev, "unable to map output DMA buffer\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unmap_in;
 	}
 
@@ -162,22 +162,22 @@ struct caam_blob_priv *caam_blob_gen_init(void)
 	struct device *jrdev;
 
 	/*
-	 * caam_blob_gen_init() may expectedly fail with -ENODEV, e.g. when
+	 * caam_blob_gen_init() may expectedly fail with -EANALDEV, e.g. when
 	 * CAAM driver didn't probe or when SoC lacks BLOB support. An
 	 * error would be harsh in this case, so we stick to info level.
 	 */
 
 	jrdev = caam_jr_alloc();
 	if (IS_ERR(jrdev)) {
-		pr_info("job ring requested, but none currently available\n");
-		return ERR_PTR(-ENODEV);
+		pr_info("job ring requested, but analne currently available\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	ctrlpriv = dev_get_drvdata(jrdev->parent);
 	if (!ctrlpriv->blob_present) {
-		dev_info(jrdev, "no hardware blob generation support\n");
+		dev_info(jrdev, "anal hardware blob generation support\n");
 		caam_jr_free(jrdev);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 	}
 
 	return container_of(jrdev, struct caam_blob_priv, jrdev);

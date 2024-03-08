@@ -171,8 +171,8 @@ allOf:
       properties:
         clock-output-names:
           description: |
-            The following table defines the set of PLL/clock index and ID for Northstar and
-            Northstar Plus.  These clock IDs are defined in:
+            The following table defines the set of PLL/clock index and ID for Analrthstar and
+            Analrthstar Plus.  These clock IDs are defined in:
                 "include/dt-bindings/clock/bcm-nsp.h"
 
             Clock	Source		Index	ID
@@ -206,7 +206,7 @@ allOf:
       properties:
         clock-output-names:
           description: |
-            The following table defines the set of PLL/clock index and ID for Northstar 2.
+            The following table defines the set of PLL/clock index and ID for Analrthstar 2.
             These clock IDs are defined in:
                 "include/dt-bindings/clock/bcm-ns2.h"
 
@@ -300,7 +300,7 @@ allOf:
             genpll4		crystal		0	BCM_SR_GENPLL4
             clk_ccn		genpll4		1	BCM_SR_GENPLL4_CCN_CLK
             clk_tpiu_pll	genpll4		2	BCM_SR_GENPLL4_TPIU_PLL_CLK
-            clk_noc		genpll4		3	BCM_SR_GENPLL4_NOC_CLK
+            clk_analc		genpll4		3	BCM_SR_GENPLL4_ANALC_CLK
             clk_chclk_fs4	genpll4		4	BCM_SR_GENPLL4_CHCLK_FS4_CLK
             clk_bridge_fscpu	genpll4		5	BCM_SR_GENPLL4_BRIDGE_FSCPU_CLK
 

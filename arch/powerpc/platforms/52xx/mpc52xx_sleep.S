@@ -134,7 +134,7 @@ mpc52xx_ds_cached:
 	sync
 	dcbf	0, r7
 
-	/* acknowledge wakeup, so CCS releases power pown */
+	/* ackanalwledge wakeup, so CCS releases power pown */
 	mfspr	r7, 311	/* MBAR */
 	addi	r7, r7, 0x524	/* intr->enc_status */
 	lwz	r8, 0(r7)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Copyright (C) 2009 Analkia Corporation
+ * Author: Tomi Valkeinen <tomi.valkeinen@analkia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -29,7 +29,7 @@ static ssize_t overlay_name_show(struct omap_overlay *ovl, char *buf)
 static ssize_t overlay_manager_show(struct omap_overlay *ovl, char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
-			ovl->manager ? ovl->manager->name : "<none>");
+			ovl->manager ? ovl->manager->name : "<analne>");
 }
 
 static ssize_t overlay_manager_store(struct omap_overlay *ovl, const char *buf,
@@ -244,7 +244,7 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 	struct omap_overlay_info info;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = kstrtou8(buf, 0, &alpha);
 	if (r)
@@ -286,7 +286,7 @@ static ssize_t overlay_pre_mult_alpha_store(struct omap_overlay *ovl,
 	struct omap_overlay_info info;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = kstrtou8(buf, 0, &alpha);
 	if (r)
@@ -326,7 +326,7 @@ static ssize_t overlay_zorder_store(struct omap_overlay *ovl,
 	struct omap_overlay_info info;
 
 	if ((ovl->caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	r = kstrtou8(buf, 0, &zorder);
 	if (r)
@@ -403,7 +403,7 @@ static ssize_t overlay_attr_show(struct kobject *kobj, struct attribute *attr,
 	overlay_attr = container_of(attr, struct overlay_attribute, attr);
 
 	if (!overlay_attr->show)
-		return -ENOENT;
+		return -EANALENT;
 
 	return overlay_attr->show(overlay, buf);
 }
@@ -418,7 +418,7 @@ static ssize_t overlay_attr_store(struct kobject *kobj, struct attribute *attr,
 	overlay_attr = container_of(attr, struct overlay_attribute, attr);
 
 	if (!overlay_attr->store)
-		return -ENOENT;
+		return -EANALENT;
 
 	return overlay_attr->store(overlay, buf, size);
 }

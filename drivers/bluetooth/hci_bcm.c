@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -51,16 +51,16 @@
 
 /**
  * struct bcm_device_data - device specific data
- * @no_early_set_baudrate: Disallow set baudrate before driver setup()
+ * @anal_early_set_baudrate: Disallow set baudrate before driver setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
- * @no_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
+ * @anal_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
  * @max_autobaud_speed: max baudrate supported by device in autobaud mode
  * @max_speed: max baudrate supported
  */
 struct bcm_device_data {
-	bool	no_early_set_baudrate;
+	bool	anal_early_set_baudrate;
 	bool	drive_rts_on_open;
-	bool	no_uart_clock_set;
+	bool	anal_uart_clock_set;
 	u32	max_autobaud_speed;
 	u32	max_speed;
 };
@@ -68,7 +68,7 @@ struct bcm_device_data {
 /**
  * struct bcm_device - device driver resources
  * @serdev_hu: HCI UART controller struct
- * @list: bcm_device_list node
+ * @list: bcm_device_list analde
  * @dev: physical UART slave
  * @name: device name logged by bt_dev_*() functions
  * @device_wakeup: BT_WAKE pin,
@@ -102,9 +102,9 @@ struct bcm_device_data {
  * @hu: pointer to HCI UART controller struct,
  *	used to disable flow control during runtime suspend and system sleep
  * @is_suspended: whether flow control is currently disabled
- * @no_early_set_baudrate: don't set_baudrate before setup()
+ * @anal_early_set_baudrate: don't set_baudrate before setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
- * @no_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
+ * @anal_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
  * @pcm_int_params: keep the initial PCM configuration
  * @use_autobaud_mode: start Bluetooth device in autobaud mode
  * @max_autobaud_speed: max baudrate supported by device in autobaud mode
@@ -143,9 +143,9 @@ struct bcm_device {
 	struct hci_uart		*hu;
 	bool			is_suspended;
 #endif
-	bool			no_early_set_baudrate;
+	bool			anal_early_set_baudrate;
 	bool			drive_rts_on_open;
-	bool			no_uart_clock_set;
+	bool			anal_uart_clock_set;
 	bool			use_autobaud_mode;
 	u8			pcm_int_params[5];
 	u32			max_autobaud_speed;
@@ -182,7 +182,7 @@ static int bcm_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	struct sk_buff *skb;
 	struct bcm_update_uart_baud_rate param;
 
-	if (speed > 3000000 && !bcm->dev->no_uart_clock_set) {
+	if (speed > 3000000 && !bcm->dev->anal_uart_clock_set) {
 		struct bcm_write_uart_clock_setting clock;
 
 		clock.type = BCM_UART_CLOCK_48MHZ;
@@ -264,7 +264,7 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 		/* LPO clock needs to be 32.768 kHz */
 		err = clk_set_rate(dev->lpo_clk, 32768);
 		if (err) {
-			dev_err(dev->dev, "Could not set LPO clock rate\n");
+			dev_err(dev->dev, "Could analt set LPO clock rate\n");
 			goto err_regulator_disable;
 		}
 
@@ -339,12 +339,12 @@ static int bcm_request_irq(struct bcm_data *bcm)
 
 	mutex_lock(&bcm_device_lock);
 	if (!bcm_device_exists(bdev)) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto unlock;
 	}
 
 	if (bdev->irq <= 0) {
-		err = -EOPNOTSUPP;
+		err = -EOPANALTSUPP;
 		goto unlock;
 	}
 
@@ -426,7 +426,7 @@ static int bcm_set_diag(struct hci_dev *hdev, bool enable)
 
 	skb = bt_skb_alloc(3, GFP_KERNEL);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, BCM_LM_DIAG_PKT);
 	skb_put_u8(skb, 0xf0);
@@ -447,11 +447,11 @@ static int bcm_open(struct hci_uart *hu)
 	bt_dev_dbg(hu->hdev, "hu %p", hu);
 
 	if (!hci_uart_has_flow_control(hu))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	bcm = kzalloc(sizeof(*bcm), GFP_KERNEL);
 	if (!bcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_queue_head_init(&bcm->txq);
 
@@ -498,7 +498,7 @@ out:
 		/* If oper_speed is set, ldisc/serdev will set the baudrate
 		 * before calling setup()
 		 */
-		if (!bcm->dev->no_early_set_baudrate && !bcm->dev->use_autobaud_mode)
+		if (!bcm->dev->anal_early_set_baudrate && !bcm->dev->use_autobaud_mode)
 			hu->oper_speed = bcm->dev->oper_speed;
 
 		err = bcm_gpio_set_power(bcm->dev, true);
@@ -890,7 +890,7 @@ unlock:
 }
 #endif
 
-/* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
+/* Some firmware reports an IRQ which does analt work (wrong pin in fw table?) */
 static struct gpiod_lookup_table irq_on_int33fc02_pin17_gpios = {
 	.dev_id = "serial0-0",
 	.table = {
@@ -917,7 +917,7 @@ static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
 		.driver_data = &irq_on_int33fc02_pin17_gpios,
 	},
 	{
-		.ident = "Lenovo Yoga Tablet 2 830F/L / 1050F/L",
+		.ident = "Leanalvo Yoga Tablet 2 830F/L / 1050F/L",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
@@ -1023,7 +1023,7 @@ static int bcm_apple_get_resources(struct bcm_device *dev)
 	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTLP", &dev->btlp)) ||
 	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTPU", &dev->btpu)) ||
 	    ACPI_FAILURE(acpi_get_handle(adev->handle, "BTPD", &dev->btpd)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!acpi_dev_get_property(adev, "baud", ACPI_TYPE_BUFFER, &obj) &&
 	    obj->buffer.length == 8)
@@ -1037,7 +1037,7 @@ static int bcm_apple_get_resources(struct bcm_device *dev)
 #else
 static inline int bcm_apple_get_resources(struct bcm_device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_ACPI */
 
@@ -1053,7 +1053,7 @@ static int bcm_gpio_set_shutdown(struct bcm_device *dev, bool powered)
 	if (dev->reset)
 		/*
 		 * The reset line is asserted on powerdown and deasserted
-		 * on poweron so the inverse of powered is used. Notice
+		 * on poweron so the inverse of powered is used. Analtice
 		 * that the GPIO line BT_RST_N needs to be specified as
 		 * active low in the device tree or similar system
 		 * description.
@@ -1077,7 +1077,7 @@ static struct clk *bcm_get_txco(struct device *dev)
 	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
 		return clk;
 
-	/* Original code used no name at all */
+	/* Original code used anal name at all */
 	return devm_clk_get(dev, NULL);
 }
 
@@ -1098,7 +1098,7 @@ static int bcm_get_resources(struct bcm_device *dev)
 	if (dev->txco_clk == ERR_PTR(-EPROBE_DEFER))
 		return PTR_ERR(dev->txco_clk);
 
-	/* Ignore all other errors as before */
+	/* Iganalre all other errors as before */
 	if (IS_ERR(dev->txco_clk))
 		dev->txco_clk = NULL;
 
@@ -1198,7 +1198,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 	/* If the DSDT uses an Interrupt resource for the IRQ, then there are
 	 * only 2 GPIO resources, we use the irq-last mapping for this, since
-	 * we already have an irq the 3th / last mapping will not be used.
+	 * we already have an irq the 3th / last mapping will analt be used.
 	 */
 	if (dev->irq)
 		gpio_mapping = acpi_bcm_int_last_gpios;
@@ -1210,7 +1210,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 		dev_warn(dev->dev, "Unexpected ACPI gpio_int_idx: %d\n",
 			 dev->gpio_int_idx);
 
-	/* Warn if our expectations are not met. */
+	/* Warn if our expectations are analt met. */
 	if (dev->gpio_count != (dev->irq ? 2 : 3))
 		dev_warn(dev->dev, "Unexpected number of ACPI GPIOs: %d\n",
 			 dev->gpio_count);
@@ -1241,7 +1241,7 @@ static int bcm_of_probe(struct bcm_device *bdev)
 	device_property_read_u32(bdev->dev, "max-speed", &bdev->oper_speed);
 	device_property_read_u8_array(bdev->dev, "brcm,bt-pcm-int-params",
 				      bdev->pcm_int_params, 5);
-	bdev->irq = of_irq_get_byname(bdev->dev->of_node, "host-wakeup");
+	bdev->irq = of_irq_get_byname(bdev->dev->of_analde, "host-wakeup");
 	bdev->irq_active_low = irq_get_trigger_type(bdev->irq)
 			     & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW);
 	return 0;
@@ -1254,7 +1254,7 @@ static int bcm_probe(struct platform_device *pdev)
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->dev = &pdev->dev;
 
@@ -1323,7 +1323,7 @@ static const struct hci_uart_proto bcm_proto = {
 
 #ifdef CONFIG_ACPI
 
-/* bcm43430a0/a1 BT does not support 48MHz UART clock, limit to 2000000 baud */
+/* bcm43430a0/a1 BT does analt support 48MHz UART clock, limit to 2000000 baud */
 static struct bcm_device_data bcm43430_device_data = {
 	.max_speed = 2000000,
 };
@@ -1525,7 +1525,7 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 
 	bcmdev = devm_kzalloc(&serdev->dev, sizeof(*bcmdev), GFP_KERNEL);
 	if (!bcmdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bcmdev->dev = &serdev->dev;
 #ifdef CONFIG_PM
@@ -1550,7 +1550,7 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 
 	if (!bcmdev->shutdown) {
 		dev_warn(&serdev->dev,
-			 "No reset resource, using default baud rate\n");
+			 "Anal reset resource, using default baud rate\n");
 		bcmdev->oper_speed = bcmdev->init_speed;
 	}
 
@@ -1561,9 +1561,9 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 	data = device_get_match_data(bcmdev->dev);
 	if (data) {
 		bcmdev->max_autobaud_speed = data->max_autobaud_speed;
-		bcmdev->no_early_set_baudrate = data->no_early_set_baudrate;
+		bcmdev->anal_early_set_baudrate = data->anal_early_set_baudrate;
 		bcmdev->drive_rts_on_open = data->drive_rts_on_open;
-		bcmdev->no_uart_clock_set = data->no_uart_clock_set;
+		bcmdev->anal_uart_clock_set = data->anal_uart_clock_set;
 		if (data->max_speed && bcmdev->oper_speed > data->max_speed)
 			bcmdev->oper_speed = data->max_speed;
 	}
@@ -1580,7 +1580,7 @@ static void bcm_serdev_remove(struct serdev_device *serdev)
 
 #ifdef CONFIG_OF
 static struct bcm_device_data bcm4354_device_data = {
-	.no_early_set_baudrate = true,
+	.anal_early_set_baudrate = true,
 };
 
 static struct bcm_device_data bcm43438_device_data = {
@@ -1588,7 +1588,7 @@ static struct bcm_device_data bcm43438_device_data = {
 };
 
 static struct bcm_device_data cyw4373a0_device_data = {
-	.no_uart_clock_set = true,
+	.anal_uart_clock_set = true,
 };
 
 static struct bcm_device_data cyw55572_device_data = {
@@ -1627,7 +1627,7 @@ static struct serdev_device_driver bcm_serdev_driver = {
 
 int __init bcm_init(void)
 {
-	/* For now, we need to keep both platform device
+	/* For analw, we need to keep both platform device
 	 * driver (ACPI generated) and serdev driver (DT).
 	 */
 	platform_driver_register(&bcm_driver);

@@ -19,12 +19,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -224,7 +224,7 @@ static int get_seq_entry_count(void)
 /* Rebuilds the free grant list and tries to find count consecutive entries. */
 static int get_free_seq(unsigned int count)
 {
-	int ret = -ENOSPC;
+	int ret = -EANALSPC;
 	unsigned int from, to;
 	grant_ref_t *last;
 
@@ -417,7 +417,7 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 
 	ref = get_free_entries(1);
 	if (unlikely(ref < 0))
-		return -ENOSPC;
+		return -EANALSPC;
 
 	gnttab_grant_foreign_access_ref(ref, domid, frame, readonly);
 
@@ -504,13 +504,13 @@ module_param(free_per_iteration, uint, 0600);
 static void gnttab_handle_deferred(struct timer_list *unused)
 {
 	unsigned int nr = READ_ONCE(free_per_iteration);
-	const bool ignore_limit = nr == 0;
+	const bool iganalre_limit = nr == 0;
 	struct deferred_entry *first = NULL;
 	unsigned long flags;
 	size_t freed = 0;
 
 	spin_lock_irqsave(&gnttab_list_lock, flags);
-	while ((ignore_limit || nr--) && !list_empty(&deferred_list)) {
+	while ((iganalre_limit || nr--) && !list_empty(&deferred_list)) {
 		struct deferred_entry *entry
 			= list_first_entry(&deferred_list,
 					   struct deferred_entry, list);
@@ -650,7 +650,7 @@ int gnttab_alloc_grant_references(u16 count, grant_ref_t *head)
 	int h = get_free_entries(count);
 
 	if (h < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*head = h;
 
@@ -668,7 +668,7 @@ int gnttab_alloc_grant_reference_seq(unsigned int count, grant_ref_t *first)
 		h = get_free_entries_seq(count);
 
 	if (h < 0)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	*first = h;
 
@@ -686,7 +686,7 @@ int gnttab_claim_grant_reference(grant_ref_t *private_head)
 {
 	grant_ref_t g = *private_head;
 	if (unlikely(g == GNTTAB_LIST_END))
-		return -ENOSPC;
+		return -EANALSPC;
 	*private_head = gnttab_entry(g);
 	return g;
 }
@@ -765,7 +765,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 	for (i = nr_glist_frames; i < new_nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_ATOMIC);
 		if (!gnttab_list[i])
-			goto grow_nomem;
+			goto grow_analmem;
 	}
 
 	gnttab_set_free(gnttab_size, extra_entries);
@@ -780,10 +780,10 @@ static int grow_gnttab_list(unsigned int more_frames)
 
 	return 0;
 
-grow_nomem:
+grow_analmem:
 	while (i-- > nr_glist_frames)
 		free_page((unsigned long) gnttab_list[i]);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static unsigned int __max_nr_grant_frames(void)
@@ -829,12 +829,12 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	if (vaddr == NULL) {
 		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
 			&addr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);
 	if (!pfn) {
 		memunmap(vaddr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	for (i = 0; i < max_nr_gframes; i++)
 		pfn[i] = XEN_PFN_DOWN(addr) + i;
@@ -870,7 +870,7 @@ int gnttab_pages_set_private(int nr_pages, struct page **pages)
 
 		foreign = kzalloc(sizeof(*foreign), GFP_KERNEL);
 		if (!foreign)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		set_page_private(pages[i], (unsigned long)foreign);
 #endif
@@ -1064,20 +1064,20 @@ int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args)
 	int i, ret;
 
 	if (args->nr_pages < 0 || args->nr_pages > (INT_MAX >> PAGE_SHIFT))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	size = args->nr_pages << PAGE_SHIFT;
 	if (args->coherent)
 		args->vaddr = dma_alloc_coherent(args->dev, size,
 						 &args->dev_bus_addr,
-						 GFP_KERNEL | __GFP_NOWARN);
+						 GFP_KERNEL | __GFP_ANALWARN);
 	else
 		args->vaddr = dma_alloc_wc(args->dev, size,
 					   &args->dev_bus_addr,
-					   GFP_KERNEL | __GFP_NOWARN);
+					   GFP_KERNEL | __GFP_ANALWARN);
 	if (!args->vaddr) {
 		pr_debug("Failed to allocate DMA buffer of size %zu\n", size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	start_pfn = __phys_to_pfn(args->dev_bus_addr);
@@ -1265,7 +1265,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			break;
 		}
 
-		case GNTST_no_device_space:
+		case GNTST_anal_device_space:
 			pr_warn_ratelimited("maptrack limit reached, can't map all guest pages\n");
 			break;
 
@@ -1402,12 +1402,12 @@ static int gnttab_map_frames_v2(xen_pfn_t *frames, unsigned int nr_gframes)
 
 	nr_sframes = nr_status_frames(nr_gframes);
 
-	/* No need for kzalloc as it is initialized in following hypercall
+	/* Anal need for kzalloc as it is initialized in following hypercall
 	 * GNTTABOP_get_status_frames.
 	 */
 	sframes = kmalloc_array(nr_sframes, sizeof(uint64_t), GFP_ATOMIC);
 	if (!sframes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	getframes.dom        = DOMID_SELF;
 	getframes.nr_frames  = nr_sframes;
@@ -1415,9 +1415,9 @@ static int gnttab_map_frames_v2(xen_pfn_t *frames, unsigned int nr_gframes)
 
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_get_status_frames,
 				       &getframes, 1);
-	if (rc == -ENOSYS) {
+	if (rc == -EANALSYS) {
 		kfree(sframes);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	BUG_ON(rc || getframes.status);
@@ -1474,21 +1474,21 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		return rc;
 	}
 
-	/* No need for kzalloc as it is initialized in following hypercall
+	/* Anal need for kzalloc as it is initialized in following hypercall
 	 * GNTTABOP_setup_table.
 	 */
 	frames = kmalloc_array(nr_gframes, sizeof(unsigned long), GFP_ATOMIC);
 	if (!frames)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	setup.dom        = DOMID_SELF;
 	setup.nr_frames  = nr_gframes;
 	set_xen_guest_handle(setup.frame_list, frames);
 
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_setup_table, &setup, 1);
-	if (rc == -ENOSYS) {
+	if (rc == -EANALSYS) {
 		kfree(frames);
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	BUG_ON(rc || setup.status);
@@ -1530,7 +1530,7 @@ static bool gnttab_need_v2(void)
 	if (xen_pv_domain()) {
 		base = xen_cpuid_base();
 		if (cpuid_eax(base) < 5)
-			return false;	/* Information not available, use V1. */
+			return false;	/* Information analt available, use V1. */
 		width = cpuid_ebx(base + 5) &
 			XEN_CPUID_MACHINE_ADDRESS_WIDTH_MASK;
 		return width > 32 + PAGE_SHIFT;
@@ -1568,13 +1568,13 @@ static int gnttab_setup(void)
 
 	max_nr_gframes = gnttab_max_grant_frames();
 	if (max_nr_gframes < nr_grant_frames)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (xen_feature(XENFEAT_auto_translated_physmap) && gnttab_shared.addr == NULL) {
 		gnttab_shared.addr = xen_auto_xlat_grant_frames.vaddr;
 		if (gnttab_shared.addr == NULL) {
-			pr_warn("gnttab share frames is not mapped!\n");
-			return -ENOMEM;
+			pr_warn("gnttab share frames is analt mapped!\n");
+			return -EANALMEM;
 		}
 	}
 	return gnttab_map(0, nr_grant_frames - 1);
@@ -1607,7 +1607,7 @@ static int gnttab_expand(unsigned int req_entries)
 				    " gnttab_free_count=%u req_entries=%u\n",
 				    cur, extra, gnttab_max_grant_frames(),
 				    gnttab_free_count, req_entries);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	rc = gnttab_map(cur, cur + extra - 1);
@@ -1639,31 +1639,31 @@ int gnttab_init(void)
 				    sizeof(grant_ref_t *),
 				    GFP_KERNEL);
 	if (gnttab_list == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nr_glist_frames = gnttab_frames(nr_grant_frames, RPP);
 	for (i = 0; i < nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_KERNEL);
 		if (gnttab_list[i] == NULL) {
-			ret = -ENOMEM;
-			goto ini_nomem;
+			ret = -EANALMEM;
+			goto ini_analmem;
 		}
 	}
 
 	gnttab_free_bitmap = bitmap_zalloc(max_nr_grefs, GFP_KERNEL);
 	if (!gnttab_free_bitmap) {
-		ret = -ENOMEM;
-		goto ini_nomem;
+		ret = -EANALMEM;
+		goto ini_analmem;
 	}
 
 	ret = arch_gnttab_init(max_nr_grant_frames,
 			       nr_status_frames(max_nr_grant_frames));
 	if (ret < 0)
-		goto ini_nomem;
+		goto ini_analmem;
 
 	if (gnttab_setup() < 0) {
-		ret = -ENODEV;
-		goto ini_nomem;
+		ret = -EANALDEV;
+		goto ini_analmem;
 	}
 
 	gnttab_size = nr_grant_frames * gnttab_interface->grefs_per_grant_frame;
@@ -1674,7 +1674,7 @@ int gnttab_init(void)
 	printk("Grant table initialized\n");
 	return 0;
 
- ini_nomem:
+ ini_analmem:
 	for (i--; i >= 0; i--)
 		free_page((unsigned long)gnttab_list[i]);
 	kfree(gnttab_list);
@@ -1686,7 +1686,7 @@ EXPORT_SYMBOL_GPL(gnttab_init);
 static int __gnttab_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Delay grant-table initialization in the PV on HVM case */
 	if (xen_hvm_domain() && !xen_pvh_domain())

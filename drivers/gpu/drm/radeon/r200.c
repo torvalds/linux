@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -163,7 +163,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_CRTC_GUI_TRIG_VLINE:
 		r = r100_cs_packet_parse_vline(p);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -180,7 +180,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_DEPTHOFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -193,7 +193,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_COLOROFFSET:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -212,7 +212,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		i = (reg - R200_PP_TXOFFSET_0) / 24;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -265,7 +265,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		face = (reg - ((i * 24) + R200_PP_TXOFFSET_0)) / 4;
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -283,7 +283,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_COLORPITCH:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -331,7 +331,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		if (idx_value & RADEON_DEPTHXY_OFFSET_ENABLE) {
-			DRM_ERROR("No support for depth xy offset in kms\n");
+			DRM_ERROR("Anal support for depth xy offset in kms\n");
 			return -EINVAL;
 		}
 
@@ -360,7 +360,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case RADEON_RB3D_ZPASS_ADDR:
 		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+			DRM_ERROR("Anal reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
 			radeon_cs_dump_packet(p, pkt);
 			return r;
@@ -472,7 +472,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	case R200_PP_TXFORMAT_4:
 	case R200_PP_TXFORMAT_5:
 		i = (reg - R200_PP_TXFORMAT_0) / 32;
-		if (idx_value & R200_TXFORMAT_NON_POWER2) {
+		if (idx_value & R200_TXFORMAT_ANALN_POWER2) {
 			track->textures[i].use_pitch = 1;
 		} else {
 			track->textures[i].use_pitch = 0;
@@ -486,7 +486,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_RGB332:
 		case R200_TXFORMAT_Y8:
 			track->textures[i].cpp = 1;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R200_TXFORMAT_AI88:
 		case R200_TXFORMAT_ARGB1555:
@@ -498,7 +498,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_DVDU88:
 		case R200_TXFORMAT_AVYU4444:
 			track->textures[i].cpp = 2;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R200_TXFORMAT_ARGB8888:
 		case R200_TXFORMAT_RGBA8888:
@@ -506,7 +506,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_BGR111110:
 		case R200_TXFORMAT_LDVDU8888:
 			track->textures[i].cpp = 4;
-			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
+			track->textures[i].compress_format = R100_TRACK_COMP_ANALNE;
 			break;
 		case R200_TXFORMAT_DXT1:
 			track->textures[i].cpp = 1;

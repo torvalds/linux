@@ -7,7 +7,7 @@
  */
 
 #include <linux/crash_dump.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/uio.h>
 #include <asm/memory.h>
@@ -22,7 +22,7 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 
 	vaddr = memremap(__pfn_to_phys(pfn), PAGE_SIZE, MEMREMAP_WB);
 	if (!vaddr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	csize = copy_to_iter(vaddr + offset, csize, iter);
 

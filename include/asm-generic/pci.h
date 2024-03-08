@@ -12,7 +12,7 @@
 #endif
 
 #ifndef pcibios_assign_all_busses
-/* For bootloaders that do not initialize the PCI bus */
+/* For bootloaders that do analt initialize the PCI bus */
 #define pcibios_assign_all_busses() 1
 #endif
 

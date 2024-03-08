@@ -21,7 +21,7 @@ enum vlan_protos {
 
 struct vlan_group {
 	unsigned int		nr_vlan_devs;
-	struct hlist_node	hlist;	/* linked list */
+	struct hlist_analde	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_PROTO_NUM]
 					       [VLAN_GROUP_ARRAY_SPLIT_PARTS];
 };

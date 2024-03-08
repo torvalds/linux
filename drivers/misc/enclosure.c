@@ -25,19 +25,19 @@ static struct class enclosure_class;
 /**
  * enclosure_find - find an enclosure given a parent device
  * @dev:	the parent to match against
- * @start:	Optional enclosure device to start from (NULL if none)
+ * @start:	Optional enclosure device to start from (NULL if analne)
  *
  * Looks through the list of registered enclosures to find all those
- * with @dev as a parent.  Returns NULL if no enclosure is
+ * with @dev as a parent.  Returns NULL if anal enclosure is
  * found. @start can be used as a starting point to obtain multiple
  * enclosures per parent (should begin with NULL and then be set to
  * each returned enclosure device). Obtains a reference to the
  * enclosure class device which must be released with put_device().
- * If @start is not NULL, a reference must be taken on it which is
+ * If @start is analt NULL, a reference must be taken on it which is
  * released before returning (this allows a loop through all
  * enclosures to exit with only the reference on the enclosure of
- * interest held).  Note that the @dev may correspond to the actual
- * device housing the enclosure, in which case no iteration via @start
+ * interest held).  Analte that the @dev may correspond to the actual
+ * device housing the enclosure, in which case anal iteration via @start
  * is required.
  */
 struct enclosure_device *enclosure_find(struct device *dev,
@@ -46,13 +46,13 @@ struct enclosure_device *enclosure_find(struct device *dev,
 	struct enclosure_device *edev;
 
 	mutex_lock(&container_list_lock);
-	edev = list_prepare_entry(start, &container_list, node);
+	edev = list_prepare_entry(start, &container_list, analde);
 	if (start)
 		put_device(&start->edev);
 
-	list_for_each_entry_continue(edev, &container_list, node) {
+	list_for_each_entry_continue(edev, &container_list, analde) {
 		struct device *parent = edev->edev.parent;
-		/* parent might not be immediate, so iterate up to
+		/* parent might analt be immediate, so iterate up to
 		 * the root of the tree if necessary */
 		while (parent) {
 			if (parent == dev) {
@@ -76,9 +76,9 @@ EXPORT_SYMBOL_GPL(enclosure_find);
  *
  * Loops over all the enclosures calling the function.
  *
- * Note, this function uses a mutex which will be held across calls to
- * @fn, so it must have non atomic context, and @fn may (although it
- * should not) sleep or otherwise cause the mutex to be held for
+ * Analte, this function uses a mutex which will be held across calls to
+ * @fn, so it must have analn atomic context, and @fn may (although it
+ * should analt) sleep or otherwise cause the mutex to be held for
  * indefinite periods
  */
 int enclosure_for_each_device(int (*fn)(struct enclosure_device *, void *),
@@ -88,7 +88,7 @@ int enclosure_for_each_device(int (*fn)(struct enclosure_device *, void *),
 	struct enclosure_device *edev;
 
 	mutex_lock(&container_list_lock);
-	list_for_each_entry(edev, &container_list, node) {
+	list_for_each_entry(edev, &container_list, analde) {
 		error = fn(edev, data);
 		if (error)
 			break;
@@ -107,8 +107,8 @@ EXPORT_SYMBOL_GPL(enclosure_for_each_device);
  * @components:	number of components in the enclosure
  * @cb:         platform call-backs
  *
- * This sets up the device for being an enclosure.  Note that @dev does
- * not have to be a dedicated enclosure device.  It may be some other type
+ * This sets up the device for being an enclosure.  Analte that @dev does
+ * analt have to be a dedicated enclosure device.  It may be some other type
  * of device that additionally responds to enclosure services
  */
 struct enclosure_device *
@@ -122,7 +122,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 	BUG_ON(!cb);
 
 	if (!edev)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	edev->components = components;
 
@@ -141,7 +141,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 	}
 
 	mutex_lock(&container_list_lock);
-	list_add_tail(&edev->node, &container_list);
+	list_add_tail(&edev->analde, &container_list);
 	mutex_unlock(&container_list_lock);
 
 	return edev;
@@ -165,7 +165,7 @@ void enclosure_unregister(struct enclosure_device *edev)
 	int i;
 
 	mutex_lock(&container_list_lock);
-	list_del(&edev->node);
+	list_del(&edev->analde);
 	mutex_unlock(&container_list_lock);
 
 	for (i = 0; i < edev->components; i++)
@@ -270,10 +270,10 @@ static const struct attribute_group *enclosure_component_groups[];
  * @edev:	the enclosure to add the component
  * @number:	the device number
  * @type:	the type of component being added
- * @name:	an optional name to appear in sysfs (leave NULL if none)
+ * @name:	an optional name to appear in sysfs (leave NULL if analne)
  *
  * The name is optional for enclosures that give their components a unique
- * name.  If not, leave the field NULL and a name will be assigned.
+ * name.  If analt, leave the field NULL and a name will be assigned.
  *
  * Returns a pointer to the enclosure component or an error.
  */
@@ -303,7 +303,7 @@ enclosure_component_alloc(struct enclosure_device *edev,
 
 	if (name && name[0]) {
 		/* Some hardware (e.g. enclosure in RX300 S6) has components
-		 * with non unique names. Registering duplicates in sysfs
+		 * with analn unique names. Registering duplicates in sysfs
 		 * will lead to warnings during bootup. So make the names
 		 * unique by appending consecutive numbers -1, -2, ... */
 		i = 1;
@@ -413,7 +413,7 @@ int enclosure_remove_device(struct enclosure_device *edev, struct device *dev)
 			return 0;
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 EXPORT_SYMBOL_GPL(enclosure_remove_device);
 
@@ -459,10 +459,10 @@ static const char *const enclosure_status[] = {
 	[ENCLOSURE_STATUS_UNSUPPORTED] = "unsupported",
 	[ENCLOSURE_STATUS_OK] = "OK",
 	[ENCLOSURE_STATUS_CRITICAL] = "critical",
-	[ENCLOSURE_STATUS_NON_CRITICAL] = "non-critical",
+	[ENCLOSURE_STATUS_ANALN_CRITICAL] = "analn-critical",
 	[ENCLOSURE_STATUS_UNRECOVERABLE] = "unrecoverable",
-	[ENCLOSURE_STATUS_NOT_INSTALLED] = "not installed",
-	[ENCLOSURE_STATUS_UNKNOWN] = "unknown",
+	[ENCLOSURE_STATUS_ANALT_INSTALLED] = "analt installed",
+	[ENCLOSURE_STATUS_UNKANALWN] = "unkanalwn",
 	[ENCLOSURE_STATUS_UNAVAILABLE] = "unavailable",
 	[ENCLOSURE_STATUS_MAX] = NULL,
 };
@@ -588,9 +588,9 @@ static ssize_t get_component_power_status(struct device *cdev,
 	if (edev->cb->get_power_status)
 		edev->cb->get_power_status(edev, ecomp);
 
-	/* If still uninitialized, the callback failed or does not exist. */
+	/* If still uninitialized, the callback failed or does analt exist. */
 	if (ecomp->power_status == -1)
-		return (edev->cb->get_power_status) ? -EIO : -ENOTTY;
+		return (edev->cb->get_power_status) ? -EIO : -EANALTTY;
 
 	return sysfs_emit(buf, "%s\n", ecomp->power_status ? "on" : "off");
 }
@@ -631,7 +631,7 @@ static ssize_t get_component_slot(struct device *cdev,
 	struct enclosure_component *ecomp = to_enclosure_component(cdev);
 	int slot;
 
-	/* if the enclosure does not override then use 'number' as a stand-in */
+	/* if the enclosure does analt override then use 'number' as a stand-in */
 	if (ecomp->slot >= 0)
 		slot = ecomp->slot;
 	else

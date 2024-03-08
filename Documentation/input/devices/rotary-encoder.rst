@@ -49,7 +49,7 @@ Events / state machine
 In half-period mode, state a) and c) above are used to determine the
 rotational direction based on the last stable state. Events are reported in
 states b) and d) given that the new stable state is different from the last
-(i.e. the rotation was not reversed half-way).
+(i.e. the rotation was analt reversed half-way).
 
 Otherwise, the following apply:
 
@@ -71,8 +71,8 @@ d) Falling edge on channel B, channel A in low state
 Platform requirements
 ---------------------
 
-As there is no hardware dependent call in this driver, the platform it is
-used with must support gpiolib. Another requirement is that IRQs must be
+As there is anal hardware dependent call in this driver, the platform it is
+used with must support gpiolib. Aanalther requirement is that IRQs must be
 able to fire on both edges.
 
 
@@ -114,7 +114,7 @@ example below:
 		{ },
 	};
 
-	static const struct software_node rotary_encoder_node = {
+	static const struct software_analde rotary_encoder_analde = {
 		.properties = rotary_encoder_properties,
 	};
 
@@ -126,7 +126,7 @@ example below:
 	...
 
 	gpiod_add_lookup_table(&rotary_encoder_gpios);
-	device_add_software_node(&rotary_encoder_device.dev, &rotary_encoder_node);
+	device_add_software_analde(&rotary_encoder_device.dev, &rotary_encoder_analde);
 	platform_device_register(&rotary_encoder_device);
 
 	...

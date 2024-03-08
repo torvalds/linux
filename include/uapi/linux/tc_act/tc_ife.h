@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __UAPI_TC_IFE_H
 #define __UAPI_TC_IFE_H
 
@@ -6,7 +6,7 @@
 #include <linux/pkt_cls.h>
 #include <linux/ife.h>
 
-/* Flag bits for now just encoding/decoding; mutually exclusive */
+/* Flag bits for analw just encoding/decoding; mutually exclusive */
 #define IFE_ENCODE 1
 #define IFE_DECODE 0
 

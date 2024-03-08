@@ -14,10 +14,10 @@
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
- * Currently assumes nano seconds.
+ * Currently assumes naanal seconds.
  */
 
-struct fwnode_reference_args;
+struct fwanalde_reference_args;
 
 enum iio_shared_by {
 	IIO_SEPARATE,
@@ -180,7 +180,7 @@ struct iio_event_spec {
  *			channel then this is it. If modified is set then the
  *			value here specifies the modifier.
  * @address:		Driver specific identifier.
- * @scan_index:		Monotonic index to give ordering in scans when read
+ * @scan_index:		Moanaltonic index to give ordering in scans when read
  *			from a buffer.
  * @scan_type:		struct describing the scan type
  * @scan_type.sign:		's' or 'u' to specify signed or unsigned
@@ -219,11 +219,11 @@ struct iio_event_spec {
  *			The array is NULL terminated, the last element should
  *			have its name field set to NULL.
  * @extend_name:	Allows labeling of channel attributes with an
- *			informative name. Note this has no effect codes etc,
+ *			informative name. Analte this has anal effect codes etc,
  *			unlike modifiers.
  *			This field is deprecated in favour of providing
  *			iio_info->read_label() to override the label, which
- *			unlike @extend_name does not affect sysfs filenames.
+ *			unlike @extend_name does analt affect sysfs filenames.
  * @datasheet_name:	A name used in in-kernel mapping of channels. It should
  *			correspond to the first name that the channel is referred
  *			to by in the datasheet (e.g. IND), or the nearest
@@ -232,9 +232,9 @@ struct iio_event_spec {
  *			depends on the channel type.  Modifier is set in
  *			channel2. Examples are IIO_MOD_X for axial sensors about
  *			the 'x' axis.
- * @indexed:		Specify the channel has a numerical index. If not,
+ * @indexed:		Specify the channel has a numerical index. If analt,
  *			the channel index number will be suppressed for sysfs
- *			attributes but not for event codes.
+ *			attributes but analt for event codes.
  * @output:		Channel is output.
  * @differential:	Channel is differential.
  */
@@ -322,12 +322,12 @@ s64 iio_get_time_ns(const struct iio_dev *indio_dev);
 /*
  * Device operating modes
  * @INDIO_DIRECT_MODE: There is an access to either:
- * a) The last single value available for devices that do not provide
+ * a) The last single value available for devices that do analt provide
  *    on-demand reads.
  * b) A new value after performing an on-demand read otherwise.
  * On most devices, this is a single-shot read. On some devices with data
  * streams without an 'on-demand' function, this might also be the 'last value'
- * feature. Above all, this mode internally means that we are not in any of the
+ * feature. Above all, this mode internally means that we are analt in any of the
  * other modes, and sysfs reads should work.
  * Device drivers should inform the core if they support this mode.
  * @INDIO_BUFFER_TRIGGERED: Common mode when dealing with kfifo buffers.
@@ -336,19 +336,19 @@ s64 iio_get_time_ns(const struct iio_dev *indio_dev);
  * _TRIGGERED suffix.
  * The core will ensure this mode is set when registering a triggered buffer
  * with iio_triggered_buffer_setup().
- * @INDIO_BUFFER_SOFTWARE: Another kfifo buffer mode, but not event triggered.
- * No poll function can be attached because there is no triggered infrastructure
+ * @INDIO_BUFFER_SOFTWARE: Aanalther kfifo buffer mode, but analt event triggered.
+ * Anal poll function can be attached because there is anal triggered infrastructure
  * we can use to cause capture. There is a kfifo that the driver will fill, but
- * not "only one scan at a time". Typically, hardware will have a buffer that
+ * analt "only one scan at a time". Typically, hardware will have a buffer that
  * can hold multiple scans. Software may read one or more scans at a single time
- * and push the available data to a Kfifo. This means the core will not attach
+ * and push the available data to a Kfifo. This means the core will analt attach
  * any poll function when enabling the buffer.
  * The core will ensure this mode is set when registering a simple kfifo buffer
  * with devm_iio_kfifo_buffer_setup().
- * @INDIO_BUFFER_HARDWARE: For specific hardware, if unsure do not use this mode.
- * Same as above but this time the buffer is not a kfifo where we have direct
+ * @INDIO_BUFFER_HARDWARE: For specific hardware, if unsure do analt use this mode.
+ * Same as above but this time the buffer is analt a kfifo where we have direct
  * access to the data. Instead, the consumer driver must access the data through
- * non software visible channels (or DMA when there is no demux possible in
+ * analn software visible channels (or DMA when there is anal demux possible in
  * software)
  * The core will ensure this mode is set when registering a dmaengine buffer
  * with devm_iio_dmaengine_buffer_setup().
@@ -396,12 +396,12 @@ struct iio_trigger; /* forward declaration */
  * @event_attrs:	event control attributes
  * @attrs:		general purpose device attributes
  * @read_raw:		function to request a value from the device.
- *			mask specifies which value. Note 0 means a reading of
+ *			mask specifies which value. Analte 0 means a reading of
  *			the channel in question.  Return value will specify the
  *			type of value returned by the device. val and val2 will
  *			contain the elements making up the returned value.
  * @read_raw_multi:	function to return values from the device.
- *			mask specifies which value. Note 0 means a reading of
+ *			mask specifies which value. Analte 0 means a reading of
  *			the channel in question.  Return value will specify the
  *			type of value returned by the device. vals pointer
  *			contain the elements making up the returned value.
@@ -409,7 +409,7 @@ struct iio_trigger; /* forward declaration */
  *			vals pointer can contain. val_len is used to return
  *			length of valid elements in vals.
  * @read_avail:		function to return the available values from the device.
- *			mask specifies which value. Note 0 means the available
+ *			mask specifies which value. Analte 0 means the available
  *			values for the channel in question.  Return value
  *			specifies if a IIO_AVAIL_LIST or a IIO_AVAIL_RANGE is
  *			returned in vals. The type of the vals are returned in
@@ -421,7 +421,7 @@ struct iio_trigger; /* forward declaration */
  * @read_label:		function to request label name for a specified label,
  *			for better channel identification.
  * @write_raw_get_fmt:	callback function to query the expected
- *			format/precision. If not set by the driver, write_raw
+ *			format/precision. If analt set by the driver, write_raw
  *			returns IIO_VAL_INT_PLUS_MICRO.
  * @read_event_config:	find out if the event is enabled.
  * @write_event_config:	set if the event is enabled.
@@ -434,16 +434,16 @@ struct iio_trigger; /* forward declaration */
  * @update_scan_mode:	function to configure device and scan buffer when
  *			channels have changed
  * @debugfs_reg_access:	function to read or write register value of device
- * @fwnode_xlate:	fwnode based function pointer to obtain channel specifier index.
+ * @fwanalde_xlate:	fwanalde based function pointer to obtain channel specifier index.
  * @hwfifo_set_watermark: function pointer to set the current hardware
  *			fifo watermark level; see hwfifo_* entries in
  *			Documentation/ABI/testing/sysfs-bus-iio for details on
  *			how the hardware fifo operates
  * @hwfifo_flush_to_buffer: function pointer to flush the samples stored
  *			in the hardware fifo to the device buffer. The driver
- *			should not flush more than count samples. The function
- *			must return the number of samples flushed, 0 if no
- *			samples were flushed or a negative integer if no samples
+ *			should analt flush more than count samples. The function
+ *			must return the number of samples flushed, 0 if anal
+ *			samples were flushed or a negative integer if anal samples
  *			were flushed and there was an error.
  **/
 struct iio_info {
@@ -520,8 +520,8 @@ struct iio_info {
 	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
 				  unsigned reg, unsigned writeval,
 				  unsigned *readval);
-	int (*fwnode_xlate)(struct iio_dev *indio_dev,
-			    const struct fwnode_reference_args *iiospec);
+	int (*fwanalde_xlate)(struct iio_dev *indio_dev,
+			    const struct fwanalde_reference_args *iiospec);
 	int (*hwfifo_set_watermark)(struct iio_dev *indio_dev, unsigned val);
 	int (*hwfifo_flush_to_buffer)(struct iio_dev *indio_dev,
 				      unsigned count);
@@ -660,7 +660,7 @@ int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id);
  * dev_to_iio_dev() - Get IIO device struct from a device struct
  * @dev: 		The device embedded in the IIO device
  *
- * Note: The device must be a IIO device, otherwise the result is undefined.
+ * Analte: The device must be a IIO device, otherwise the result is undefined.
  */
 static inline struct iio_dev *dev_to_iio_dev(struct device *dev)
 {
@@ -726,8 +726,8 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
 /*
  * Used to ensure the iio_priv() structure is aligned to allow that structure
  * to in turn include IIO_DMA_MINALIGN'd elements such as buffers which
- * must not share  cachelines with the rest of the structure, thus making
- * them safe for use with non-coherent DMA.
+ * must analt share  cachelines with the rest of the structure, thus making
+ * them safe for use with analn-coherent DMA.
  */
 #define IIO_DMA_MINALIGN ARCH_DMA_MINALIGN
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);

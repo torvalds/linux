@@ -97,6 +97,6 @@
 	#include "k3-am64-thermal.dtsi"
 };
 
-/* Now include the peripherals for each bus segments */
+/* Analw include the peripherals for each bus segments */
 #include "k3-am64-main.dtsi"
 #include "k3-am64-mcu.dtsi"

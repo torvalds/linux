@@ -11,7 +11,7 @@
  * <lm-sensors@lm-sensors.org>
  * 2006.11
  *
- * Code cleanup by Sergei Poselenov, <sposelenov@emcraft.com>
+ * Code cleanup by Sergei Poseleanalv, <sposeleanalv@emcraft.com>
  * Converted to new style by Wolfgang Grandegger <wg@grandegger.com>
  * Alarm and periodic interrupt added by Dmitry Rakhchev <rda@emcraft.com>
  */
@@ -64,7 +64,7 @@
 #define RX8025_ADJ_DATA_MIN	-62
 
 enum rx_model {
-	model_rx_unknown,
+	model_rx_unkanalwn,
 	model_rx_8025,
 	model_rx_8035,
 	model_last
@@ -253,7 +253,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	int ret;
 
 	/*
-	 * Here the read-only bits are written as "0".  I'm not sure if that
+	 * Here the read-only bits are written as "0".  I'm analt sure if that
 	 * is sound.
 	 */
 	date[RX8025_REG_SEC] = bin2bcd(dt->tm_sec);
@@ -536,7 +536,7 @@ static int rx8025_probe(struct i2c_client *client)
 
 	rx8025 = devm_kzalloc(&client->dev, sizeof(*rx8025), GFP_KERNEL);
 	if (!rx8025)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, rx8025);
 

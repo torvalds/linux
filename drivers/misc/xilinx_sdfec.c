@@ -131,8 +131,8 @@ static DEFINE_IDA(dev_nrs);
 #define XSDFEC_LDPC_CODE_REG1_ADDR_HIGH (0x27f4)
 #define XSDFEC_REG1_PSIZE_MIN (2)
 #define XSDFEC_REG1_PSIZE_MAX (512)
-#define XSDFEC_REG1_NO_PACKING_MASK (0x400)
-#define XSDFEC_REG1_NO_PACKING_LSB (10)
+#define XSDFEC_REG1_ANAL_PACKING_MASK (0x400)
+#define XSDFEC_REG1_ANAL_PACKING_LSB (10)
 #define XSDFEC_REG1_NM_MASK (0xFF800)
 #define XSDFEC_REG1_NM_LSB (11)
 #define XSDFEC_REG1_BYPASS_MASK (0x100000)
@@ -144,12 +144,12 @@ static DEFINE_IDA(dev_nrs);
 #define XSDFEC_REG2_NLAYERS_MAX (256)
 #define XSDFEC_REG2_NNMQC_MASK (0xFFE00)
 #define XSDFEC_REG2_NMQC_LSB (9)
-#define XSDFEC_REG2_NORM_TYPE_MASK (0x100000)
-#define XSDFEC_REG2_NORM_TYPE_LSB (20)
+#define XSDFEC_REG2_ANALRM_TYPE_MASK (0x100000)
+#define XSDFEC_REG2_ANALRM_TYPE_LSB (20)
 #define XSDFEC_REG2_SPECIAL_QC_MASK (0x200000)
 #define XSDFEC_REG2_SPEICAL_QC_LSB (21)
-#define XSDFEC_REG2_NO_FINAL_PARITY_MASK (0x400000)
-#define XSDFEC_REG2_NO_FINAL_PARITY_LSB (22)
+#define XSDFEC_REG2_ANAL_FINAL_PARITY_MASK (0x400000)
+#define XSDFEC_REG2_ANAL_FINAL_PARITY_LSB (22)
 #define XSDFEC_REG2_MAX_SCHEDULE_MASK (0x1800000)
 #define XSDFEC_REG2_MAX_SCHEDULE_LSB (23)
 
@@ -463,14 +463,14 @@ static int xsdfec_reg0_write(struct xsdfec_dev *xsdfec, u32 n, u32 k, u32 psize,
 
 	if (n < XSDFEC_REG0_N_MIN || n > XSDFEC_REG0_N_MAX || psize == 0 ||
 	    (n > XSDFEC_REG0_N_MUL_P * psize) || n <= k || ((n % psize) != 0)) {
-		dev_dbg(xsdfec->dev, "N value is not in range");
+		dev_dbg(xsdfec->dev, "N value is analt in range");
 		return -EINVAL;
 	}
 	n <<= XSDFEC_REG0_N_LSB;
 
 	if (k < XSDFEC_REG0_K_MIN || k > XSDFEC_REG0_K_MAX ||
 	    (k > XSDFEC_REG0_K_MUL_P * psize) || ((k % psize) != 0)) {
-		dev_dbg(xsdfec->dev, "K value is not in range");
+		dev_dbg(xsdfec->dev, "K value is analt in range");
 		return -EINVAL;
 	}
 	k = k << XSDFEC_REG0_K_LSB;
@@ -491,25 +491,25 @@ static int xsdfec_reg0_write(struct xsdfec_dev *xsdfec, u32 n, u32 k, u32 psize,
 }
 
 static int xsdfec_reg1_write(struct xsdfec_dev *xsdfec, u32 psize,
-			     u32 no_packing, u32 nm, u32 offset)
+			     u32 anal_packing, u32 nm, u32 offset)
 {
 	u32 wdata;
 
 	if (psize < XSDFEC_REG1_PSIZE_MIN || psize > XSDFEC_REG1_PSIZE_MAX) {
-		dev_dbg(xsdfec->dev, "Psize is not in range");
+		dev_dbg(xsdfec->dev, "Psize is analt in range");
 		return -EINVAL;
 	}
 
-	if (no_packing != 0 && no_packing != 1)
-		dev_dbg(xsdfec->dev, "No-packing bit register invalid");
-	no_packing = ((no_packing << XSDFEC_REG1_NO_PACKING_LSB) &
-		      XSDFEC_REG1_NO_PACKING_MASK);
+	if (anal_packing != 0 && anal_packing != 1)
+		dev_dbg(xsdfec->dev, "Anal-packing bit register invalid");
+	anal_packing = ((anal_packing << XSDFEC_REG1_ANAL_PACKING_LSB) &
+		      XSDFEC_REG1_ANAL_PACKING_MASK);
 
 	if (nm & ~(XSDFEC_REG1_NM_MASK >> XSDFEC_REG1_NM_LSB))
 		dev_dbg(xsdfec->dev, "NM is beyond 10 bits");
 	nm = (nm << XSDFEC_REG1_NM_LSB) & XSDFEC_REG1_NM_MASK;
 
-	wdata = nm | no_packing | psize;
+	wdata = nm | anal_packing | psize;
 	if (XSDFEC_LDPC_CODE_REG1_ADDR_BASE + (offset * XSDFEC_LDPC_REG_JUMP) >
 	    XSDFEC_LDPC_CODE_REG1_ADDR_HIGH) {
 		dev_dbg(xsdfec->dev, "Writing outside of LDPC reg1 space 0x%x",
@@ -525,14 +525,14 @@ static int xsdfec_reg1_write(struct xsdfec_dev *xsdfec, u32 psize,
 }
 
 static int xsdfec_reg2_write(struct xsdfec_dev *xsdfec, u32 nlayers, u32 nmqc,
-			     u32 norm_type, u32 special_qc, u32 no_final_parity,
+			     u32 analrm_type, u32 special_qc, u32 anal_final_parity,
 			     u32 max_schedule, u32 offset)
 {
 	u32 wdata;
 
 	if (nlayers < XSDFEC_REG2_NLAYERS_MIN ||
 	    nlayers > XSDFEC_REG2_NLAYERS_MAX) {
-		dev_dbg(xsdfec->dev, "Nlayers is not in range");
+		dev_dbg(xsdfec->dev, "Nlayers is analt in range");
 		return -EINVAL;
 	}
 
@@ -540,27 +540,27 @@ static int xsdfec_reg2_write(struct xsdfec_dev *xsdfec, u32 nlayers, u32 nmqc,
 		dev_dbg(xsdfec->dev, "NMQC exceeds 11 bits");
 	nmqc = (nmqc << XSDFEC_REG2_NMQC_LSB) & XSDFEC_REG2_NNMQC_MASK;
 
-	if (norm_type > 1)
-		dev_dbg(xsdfec->dev, "Norm type is invalid");
-	norm_type = ((norm_type << XSDFEC_REG2_NORM_TYPE_LSB) &
-		     XSDFEC_REG2_NORM_TYPE_MASK);
+	if (analrm_type > 1)
+		dev_dbg(xsdfec->dev, "Analrm type is invalid");
+	analrm_type = ((analrm_type << XSDFEC_REG2_ANALRM_TYPE_LSB) &
+		     XSDFEC_REG2_ANALRM_TYPE_MASK);
 	if (special_qc > 1)
 		dev_dbg(xsdfec->dev, "Special QC in invalid");
 	special_qc = ((special_qc << XSDFEC_REG2_SPEICAL_QC_LSB) &
 		      XSDFEC_REG2_SPECIAL_QC_MASK);
 
-	if (no_final_parity > 1)
-		dev_dbg(xsdfec->dev, "No final parity check invalid");
-	no_final_parity =
-		((no_final_parity << XSDFEC_REG2_NO_FINAL_PARITY_LSB) &
-		 XSDFEC_REG2_NO_FINAL_PARITY_MASK);
+	if (anal_final_parity > 1)
+		dev_dbg(xsdfec->dev, "Anal final parity check invalid");
+	anal_final_parity =
+		((anal_final_parity << XSDFEC_REG2_ANAL_FINAL_PARITY_LSB) &
+		 XSDFEC_REG2_ANAL_FINAL_PARITY_MASK);
 	if (max_schedule &
 	    ~(XSDFEC_REG2_MAX_SCHEDULE_MASK >> XSDFEC_REG2_MAX_SCHEDULE_LSB))
 		dev_dbg(xsdfec->dev, "Max Schedule exceeds 2 bits");
 	max_schedule = ((max_schedule << XSDFEC_REG2_MAX_SCHEDULE_LSB) &
 			XSDFEC_REG2_MAX_SCHEDULE_MASK);
 
-	wdata = (max_schedule | no_final_parity | special_qc | norm_type |
+	wdata = (max_schedule | anal_final_parity | special_qc | analrm_type |
 		 nmqc | nlayers);
 
 	if (XSDFEC_LDPC_CODE_REG2_ADDR_BASE + (offset * XSDFEC_LDPC_REG_JUMP) >
@@ -666,7 +666,7 @@ static int xsdfec_add_ldpc(struct xsdfec_dev *xsdfec, void __user *arg)
 		goto err_out;
 	}
 
-	/* Verify Device has not started */
+	/* Verify Device has analt started */
 	if (xsdfec->state == XSDFEC_STARTED) {
 		ret = -EIO;
 		goto err_out;
@@ -684,15 +684,15 @@ static int xsdfec_add_ldpc(struct xsdfec_dev *xsdfec, void __user *arg)
 		goto err_out;
 
 	/* Write Reg 1 */
-	ret = xsdfec_reg1_write(xsdfec, ldpc->psize, ldpc->no_packing, ldpc->nm,
+	ret = xsdfec_reg1_write(xsdfec, ldpc->psize, ldpc->anal_packing, ldpc->nm,
 				ldpc->code_id);
 	if (ret)
 		goto err_out;
 
 	/* Write Reg 2 */
 	ret = xsdfec_reg2_write(xsdfec, ldpc->nlayers, ldpc->nmqc,
-				ldpc->norm_type, ldpc->special_qc,
-				ldpc->no_final_parity, ldpc->max_schedule,
+				ldpc->analrm_type, ldpc->special_qc,
+				ldpc->anal_final_parity, ldpc->max_schedule,
 				ldpc->code_id);
 	if (ret)
 		goto err_out;
@@ -743,7 +743,7 @@ static int xsdfec_set_order(struct xsdfec_dev *xsdfec, void __user *arg)
 	if (order_invalid)
 		return -EINVAL;
 
-	/* Verify Device has not started */
+	/* Verify Device has analt started */
 	if (xsdfec->state == XSDFEC_STARTED)
 		return -EIO;
 
@@ -763,7 +763,7 @@ static int xsdfec_set_bypass(struct xsdfec_dev *xsdfec, bool __user *arg)
 	if (err)
 		return -EFAULT;
 
-	/* Verify Device has not started */
+	/* Verify Device has analt started */
 	if (xsdfec->state == XSDFEC_STARTED)
 		return -EIO;
 
@@ -864,7 +864,7 @@ static int xsdfec_start(struct xsdfec_dev *xsdfec)
 	regread &= 0x1;
 	if (regread != xsdfec->config.code) {
 		dev_dbg(xsdfec->dev,
-			"%s SDFEC HW code does not match driver code, reg %d, code %d",
+			"%s SDFEC HW code does analt match driver code, reg %d, code %d",
 			__func__, regread, xsdfec->config.code);
 		return -EINVAL;
 	}
@@ -882,7 +882,7 @@ static int xsdfec_stop(struct xsdfec_dev *xsdfec)
 	u32 regread;
 
 	if (xsdfec->state != XSDFEC_STARTED)
-		dev_dbg(xsdfec->dev, "Device not started correctly");
+		dev_dbg(xsdfec->dev, "Device analt started correctly");
 	/* Disable AXIS_ENABLE Input interfaces only */
 	regread = xsdfec_regread(xsdfec, XSDFEC_AXIS_ENABLE_ADDR);
 	regread &= (~XSDFEC_AXIS_IN_ENABLE_MASK);
@@ -992,7 +992,7 @@ static long xsdfec_dev_ioctl(struct file *fptr, unsigned int cmd,
 		rval = xsdfec_is_active(xsdfec, (bool __user *)arg);
 		break;
 	default:
-		rval = -ENOTTY;
+		rval = -EANALTTY;
 		break;
 	}
 	return rval;
@@ -1013,7 +1013,7 @@ static __poll_t xsdfec_poll(struct file *file, poll_table *wait)
 		mask |= EPOLLIN | EPOLLPRI;
 
 	if (xsdfec->stats_updated)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	spin_unlock_irqrestore(&xsdfec->error_data_lock, xsdfec->flags);
 
 	return mask;
@@ -1029,7 +1029,7 @@ static const struct file_operations xsdfec_fops = {
 static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 {
 	struct device *dev = xsdfec->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	int rval;
 	const char *fec_code;
 	u32 din_width;
@@ -1037,7 +1037,7 @@ static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 	u32 dout_width;
 	u32 dout_word_include;
 
-	rval = of_property_read_string(node, "xlnx,sdfec-code", &fec_code);
+	rval = of_property_read_string(analde, "xlnx,sdfec-code", &fec_code);
 	if (rval < 0)
 		return rval;
 
@@ -1048,7 +1048,7 @@ static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 	else
 		return -EINVAL;
 
-	rval = of_property_read_u32(node, "xlnx,sdfec-din-words",
+	rval = of_property_read_u32(analde, "xlnx,sdfec-din-words",
 				    &din_word_include);
 	if (rval < 0)
 		return rval;
@@ -1058,7 +1058,7 @@ static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 	else
 		return -EINVAL;
 
-	rval = of_property_read_u32(node, "xlnx,sdfec-din-width", &din_width);
+	rval = of_property_read_u32(analde, "xlnx,sdfec-din-width", &din_width);
 	if (rval < 0)
 		return rval;
 
@@ -1073,7 +1073,7 @@ static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 		return -EINVAL;
 	}
 
-	rval = of_property_read_u32(node, "xlnx,sdfec-dout-words",
+	rval = of_property_read_u32(analde, "xlnx,sdfec-dout-words",
 				    &dout_word_include);
 	if (rval < 0)
 		return rval;
@@ -1083,7 +1083,7 @@ static int xsdfec_parse_of(struct xsdfec_dev *xsdfec)
 	else
 		return -EINVAL;
 
-	rval = of_property_read_u32(node, "xlnx,sdfec-dout-width", &dout_width);
+	rval = of_property_read_u32(analde, "xlnx,sdfec-dout-width", &dout_width);
 	if (rval < 0)
 		return rval;
 
@@ -1178,11 +1178,11 @@ static irqreturn_t xsdfec_irq_thread(int irq, void *dev_id)
 	dev_dbg(xsdfec->dev, "state=%x, stats=%x", xsdfec->state_updated,
 		xsdfec->stats_updated);
 
-	/* Enable another polling */
+	/* Enable aanalther polling */
 	if (xsdfec->state_updated || xsdfec->stats_updated)
 		wake_up_interruptible(&xsdfec->waitq);
 	else
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 
 	/* Unmask Interrupts */
 	xsdfec_isr_enable(xsdfec, true);
@@ -1210,7 +1210,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 
 	clks->din_words_clk = devm_clk_get(&pdev->dev, "s_axis_din_words_aclk");
 	if (IS_ERR(clks->din_words_clk)) {
-		if (PTR_ERR(clks->din_words_clk) != -ENOENT) {
+		if (PTR_ERR(clks->din_words_clk) != -EANALENT) {
 			err = PTR_ERR(clks->din_words_clk);
 			return err;
 		}
@@ -1219,7 +1219,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 
 	clks->din_clk = devm_clk_get(&pdev->dev, "s_axis_din_aclk");
 	if (IS_ERR(clks->din_clk)) {
-		if (PTR_ERR(clks->din_clk) != -ENOENT) {
+		if (PTR_ERR(clks->din_clk) != -EANALENT) {
 			err = PTR_ERR(clks->din_clk);
 			return err;
 		}
@@ -1228,7 +1228,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 
 	clks->dout_clk = devm_clk_get(&pdev->dev, "m_axis_dout_aclk");
 	if (IS_ERR(clks->dout_clk)) {
-		if (PTR_ERR(clks->dout_clk) != -ENOENT) {
+		if (PTR_ERR(clks->dout_clk) != -EANALENT) {
 			err = PTR_ERR(clks->dout_clk);
 			return err;
 		}
@@ -1238,7 +1238,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 	clks->dout_words_clk =
 		devm_clk_get(&pdev->dev, "s_axis_dout_words_aclk");
 	if (IS_ERR(clks->dout_words_clk)) {
-		if (PTR_ERR(clks->dout_words_clk) != -ENOENT) {
+		if (PTR_ERR(clks->dout_words_clk) != -EANALENT) {
 			err = PTR_ERR(clks->dout_words_clk);
 			return err;
 		}
@@ -1247,7 +1247,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 
 	clks->ctrl_clk = devm_clk_get(&pdev->dev, "s_axis_ctrl_aclk");
 	if (IS_ERR(clks->ctrl_clk)) {
-		if (PTR_ERR(clks->ctrl_clk) != -ENOENT) {
+		if (PTR_ERR(clks->ctrl_clk) != -EANALENT) {
 			err = PTR_ERR(clks->ctrl_clk);
 			return err;
 		}
@@ -1256,7 +1256,7 @@ static int xsdfec_clk_init(struct platform_device *pdev,
 
 	clks->status_clk = devm_clk_get(&pdev->dev, "m_axis_status_aclk");
 	if (IS_ERR(clks->status_clk)) {
-		if (PTR_ERR(clks->status_clk) != -ENOENT) {
+		if (PTR_ERR(clks->status_clk) != -EANALENT) {
 			err = PTR_ERR(clks->status_clk);
 			return err;
 		}
@@ -1353,7 +1353,7 @@ static int xsdfec_probe(struct platform_device *pdev)
 
 	xsdfec = devm_kzalloc(&pdev->dev, sizeof(*xsdfec), GFP_KERNEL);
 	if (!xsdfec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	xsdfec->dev = &pdev->dev;
 	spin_lock_init(&xsdfec->error_data_lock);
@@ -1402,7 +1402,7 @@ static int xsdfec_probe(struct platform_device *pdev)
 	xsdfec->dev_id = err;
 
 	snprintf(xsdfec->dev_name, DEV_NAME_LEN, "xsdfec%d", xsdfec->dev_id);
-	xsdfec->miscdev.minor = MISC_DYNAMIC_MINOR;
+	xsdfec->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	xsdfec->miscdev.name = xsdfec->dev_name;
 	xsdfec->miscdev.fops = &xsdfec_fops;
 	xsdfec->miscdev.parent = dev;

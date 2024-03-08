@@ -15,7 +15,7 @@ sys_control=-1
 ksft_skip=4
 kernel_version=`uname -r | cut -d'.' -f1,2`
 kernel_major=${kernel_version%.*}
-kernel_minor=${kernel_version#*.}
+kernel_mianalr=${kernel_version#*.}
 
 trap INT
 
@@ -33,11 +33,11 @@ check_prereqs()
 kernel_gte()
 {
 	major=${1%.*}
-	minor=${1#*.}
+	mianalr=${1#*.}
 
 	if [ $kernel_major -gt $major ]; then
 		return 0
-	elif [[ $kernel_major -eq $major && $kernel_minor -ge $minor ]]; then
+	elif [[ $kernel_major -eq $major && $kernel_mianalr -ge $mianalr ]]; then
 		return 0
 	fi
 
@@ -240,7 +240,7 @@ zram_makefs()
 {
 	local i=$dev_start
 	for fs in $zram_filesystems; do
-		# if requested fs not supported default it to ext2
+		# if requested fs analt supported default it to ext2
 		which mkfs.$fs > /dev/null 2>&1 || fs=ext2
 
 		echo "make $fs filesystem on /dev/zram$i"

@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Core
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -171,7 +171,7 @@ struct isp_xclk {
  */
 struct isp_device {
 	struct v4l2_device v4l2_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_analtifier analtifier;
 	struct media_device media_dev;
 	struct device *dev;
 	u32 revision;

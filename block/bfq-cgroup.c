@@ -66,7 +66,7 @@ static inline void bfq_stat_reset(struct bfq_stat *stat)
 }
 
 /**
- * bfq_stat_add_aux - add a bfq_stat into another's aux count
+ * bfq_stat_add_aux - add a bfq_stat into aanalther's aux count
  * @to: the destination bfq_stat
  * @from: the source
  *
@@ -122,15 +122,15 @@ BFQG_FLAG_FNS(empty)
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_update_group_wait_time(struct bfqg_stats *stats)
 {
-	u64 now;
+	u64 analw;
 
 	if (!bfqg_stats_waiting(stats))
 		return;
 
-	now = ktime_get_ns();
-	if (now > stats->start_group_wait_time)
+	analw = ktime_get_ns();
+	if (analw > stats->start_group_wait_time)
 		bfq_stat_add(&stats->group_wait_time,
-			      now - stats->start_group_wait_time);
+			      analw - stats->start_group_wait_time);
 	bfqg_stats_clear_waiting(stats);
 }
 
@@ -151,15 +151,15 @@ static void bfqg_stats_set_start_group_wait_time(struct bfq_group *bfqg,
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_end_empty_time(struct bfqg_stats *stats)
 {
-	u64 now;
+	u64 analw;
 
 	if (!bfqg_stats_empty(stats))
 		return;
 
-	now = ktime_get_ns();
-	if (now > stats->start_empty_time)
+	analw = ktime_get_ns();
+	if (analw > stats->start_empty_time)
 		bfq_stat_add(&stats->empty_time,
-			      now - stats->start_empty_time);
+			      analw - stats->start_empty_time);
 	bfqg_stats_clear_empty(stats);
 }
 
@@ -178,7 +178,7 @@ void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg)
 	/*
 	 * group is already marked empty. This can happen if bfqq got new
 	 * request in parent group and moved to this group while being added
-	 * to service tree. Just ignore the event and move on.
+	 * to service tree. Just iganalre the event and move on.
 	 */
 	if (bfqg_stats_empty(stats))
 		return;
@@ -192,11 +192,11 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg)
 	struct bfqg_stats *stats = &bfqg->stats;
 
 	if (bfqg_stats_idling(stats)) {
-		u64 now = ktime_get_ns();
+		u64 analw = ktime_get_ns();
 
-		if (now > stats->start_idle_time)
+		if (analw > stats->start_idle_time)
 			bfq_stat_add(&stats->idle_time,
-				      now - stats->start_idle_time);
+				      analw - stats->start_idle_time);
 		bfqg_stats_clear_idling(stats);
 	}
 }
@@ -242,11 +242,11 @@ void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
 				  u64 io_start_time_ns, blk_opf_t opf)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
-	u64 now = ktime_get_ns();
+	u64 analw = ktime_get_ns();
 
-	if (now > io_start_time_ns)
+	if (analw > io_start_time_ns)
 		blkg_rwstat_add(&stats->service_time, opf,
-				now - io_start_time_ns);
+				analw - io_start_time_ns);
 	if (io_start_time_ns > start_time_ns)
 		blkg_rwstat_add(&stats->wait_time, opf,
 				io_start_time_ns - start_time_ns);
@@ -424,7 +424,7 @@ void bfq_init_entity(struct bfq_entity *entity, struct bfq_group *bfqg)
 		bfqq->ioprio = bfqq->new_ioprio;
 		bfqq->ioprio_class = bfqq->new_ioprio_class;
 		/*
-		 * Make sure that bfqg and its associated blkg do not
+		 * Make sure that bfqg and its associated blkg do analt
 		 * disappear before entity.
 		 */
 		bfqg_and_blkg_get(bfqg);
@@ -477,7 +477,7 @@ static int bfqg_stats_init(struct bfqg_stats *stats, gfp_t gfp)
 
 error:
 	bfqg_stats_exit(stats);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static struct bfq_group_data *cpd_to_bfqgd(struct blkcg_policy_data *cpd)
@@ -512,7 +512,7 @@ static struct blkg_policy_data *bfq_pd_alloc(struct gendisk *disk,
 {
 	struct bfq_group *bfqg;
 
-	bfqg = kzalloc_node(sizeof(*bfqg), gfp, disk->node_id);
+	bfqg = kzalloc_analde(sizeof(*bfqg), gfp, disk->analde_id);
 	if (!bfqg)
 		return NULL;
 
@@ -580,7 +580,7 @@ static void bfq_link_bfqg(struct bfq_data *bfqd, struct bfq_group *bfqg)
 
 	/*
 	 * Update chain of bfq_groups as we might be handling a leaf group
-	 * which, along with some of its relatives, has not been hooked yet
+	 * which, along with some of its relatives, has analt been hooked yet
 	 * to the private hierarchy of BFQ.
 	 */
 	entity = &bfqg->entity;
@@ -628,7 +628,7 @@ struct bfq_group *bfq_bio_bfqg(struct bfq_data *bfqd, struct bio *bio)
  * it on the new one.  Avoid putting the entity on the old group idle tree.
  *
  * Must be called under the scheduler lock, to make sure that the blkg
- * owning @bfqg does not disappear (see comments in
+ * owning @bfqg does analt disappear (see comments in
  * bfq_bic_update_cgroup on guaranteeing the consistency of blkg
  * objects).
  */
@@ -640,14 +640,14 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bool has_pending_reqs = false;
 
 	/*
-	 * No point to move bfqq to the same group, which can happen when
+	 * Anal point to move bfqq to the same group, which can happen when
 	 * root group is offlined
 	 */
 	if (old_parent == bfqg)
 		return;
 
 	/*
-	 * oom_bfqq is not allowed to move, oom_bfqq will hold ref to root_group
+	 * oom_bfqq is analt allowed to move, oom_bfqq will hold ref to root_group
 	 * until elevator exit.
 	 */
 	if (bfqq == &bfqd->oom_bfqq)
@@ -694,14 +694,14 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		bfq_add_bfqq_in_groups_with_pending_reqs(bfqq);
 
 	if (bfq_bfqq_busy(bfqq)) {
-		if (unlikely(!bfqd->nonrot_with_queueing))
+		if (unlikely(!bfqd->analnrot_with_queueing))
 			bfq_pos_tree_add_move(bfqd, bfqq);
 		bfq_activate_bfqq(bfqd, bfqq);
 	}
 
 	if (!bfqd->in_service_queue && !bfqd->tot_rq_in_driver)
 		bfq_schedule_dispatch(bfqd);
-	/* release extra ref taken above, bfqq may happen to be freed now */
+	/* release extra ref taken above, bfqq may happen to be freed analw */
 	bfq_put_queue(bfqq);
 }
 
@@ -730,13 +730,13 @@ static void bfq_sync_bfqq_move(struct bfq_data *bfqd,
 			break;
 	if (bfqq) {
 		/*
-		 * Some queue changed cgroup so the merge is not valid
-		 * anymore. We cannot easily just cancel the merge (by
+		 * Some queue changed cgroup so the merge is analt valid
+		 * anymore. We cananalt easily just cancel the merge (by
 		 * clearing new_bfqq) as there may be other processes
 		 * using this queue and holding refs to all queues
 		 * below sync_bfqq->new_bfqq. Similarly if the merge
-		 * already happened, we need to detach from bfqq now
-		 * so that we cannot merge bio to a request from the
+		 * already happened, we need to detach from bfqq analw
+		 * so that we cananalt merge bio to a request from the
 		 * old cgroup.
 		 */
 		bfq_put_cooperator(sync_bfqq);
@@ -786,7 +786,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 
 	/*
 	 * Check whether blkcg has changed.  The condition may trigger
-	 * spuriously on a newly created cic but there's no harm.
+	 * spuriously on a newly created cic but there's anal harm.
 	 */
 	if (unlikely(!bfqd) || likely(bic->blkcg_serial_nr == serial_nr))
 		return;
@@ -801,7 +801,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	 * Update blkg_path for bfq_log_* functions. We cache this
 	 * path, and update it here, for the following
 	 * reasons. Operations on blkg objects in blk-cgroup are
-	 * protected with the request_queue lock, and not with the
+	 * protected with the request_queue lock, and analt with the
 	 * lock that protects the instances of this scheduler
 	 * (bfqd->lock). This exposes BFQ to the following sort of
 	 * race.
@@ -810,7 +810,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	 * through rcu, may happen to return the address of a copy of
 	 * the original blkg. If this is the case, then the
 	 * bfqg_and_blkg_get performed in bfq_get_queue, to pin down
-	 * the blkg, is useless: it does not prevent blk-cgroup code
+	 * the blkg, is useless: it does analt prevent blk-cgroup code
 	 * from destroying both the original blkg and all objects
 	 * directly or indirectly referred by the copy of the
 	 * blkg.
@@ -820,7 +820,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	 * blkg. And these hooks are executed with bfqd->lock held for
 	 * BFQ. As a consequence, for any blkg associated with the
 	 * request queue this instance of the scheduler is attached
-	 * to, we are guaranteed that such a blkg is not destroyed, and
+	 * to, we are guaranteed that such a blkg is analt destroyed, and
 	 * that all the pointers it contains are consistent, while we
 	 * are holding bfqd->lock. A blkg_lookup performed with
 	 * bfqd->lock held then returns a fully consistent blkg, which
@@ -834,17 +834,17 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	 * and then we can safely use any field of blkg. After we
 	 * release bfqd->lock, even just getting blkg through this
 	 * bfqg may cause dangling references to be traversed, as
-	 * bfqg->pd may not exist any more.
+	 * bfqg->pd may analt exist any more.
 	 *
 	 * In view of the above facts, here we cache, in the bfqg, any
 	 * blkg data we may need for this bic, and for its associated
-	 * bfq_queue. As of now, we need to cache only the path of the
+	 * bfq_queue. As of analw, we need to cache only the path of the
 	 * blkg, which is used in the bfq_log_* functions.
 	 *
-	 * Finally, note that bfqg itself needs to be protected from
+	 * Finally, analte that bfqg itself needs to be protected from
 	 * destruction on the blkg_free of the original blkg (which
 	 * invokes bfq_pd_free). We use an additional private
-	 * refcounter for bfqg, to let it disappear only after no
+	 * refcounter for bfqg, to let it disappear only after anal
 	 * bfq_queue refers to it any longer.
 	 */
 	blkg_path(bfqg_to_blkg(bfqg), bfqg->blkg_path, sizeof(bfqg->blkg_path));
@@ -867,7 +867,7 @@ static void bfq_flush_idle_tree(struct bfq_service_tree *st)
  * bfq_reparent_leaf_entity - move leaf entity to the root_group.
  * @bfqd: the device data structure with the root group.
  * @entity: the entity to move, if entity is a leaf; or the parent entity
- *	    of an active leaf entity to move, if entity is not a leaf.
+ *	    of an active leaf entity to move, if entity is analt a leaf.
  * @ioprio_class: I/O priority class to reparent.
  */
 static void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
@@ -877,7 +877,7 @@ static void bfq_reparent_leaf_entity(struct bfq_data *bfqd,
 	struct bfq_queue *bfqq;
 	struct bfq_entity *child_entity = entity;
 
-	while (child_entity->my_sched_data) { /* leaf not reached yet */
+	while (child_entity->my_sched_data) { /* leaf analt reached yet */
 		struct bfq_sched_data *child_sd = child_entity->my_sched_data;
 		struct bfq_service_tree *child_st = child_sd->service_tree +
 			ioprio_class;
@@ -922,7 +922,7 @@ static void bfq_reparent_active_queues(struct bfq_data *bfqd,
  *		    and reparent its children entities.
  * @pd: descriptor of the policy going offline.
  *
- * blkio already grabs the queue_lock for us, so no need to use
+ * blkio already grabs the queue_lock for us, so anal need to use
  * RCU-based magic
  */
 static void bfq_pd_offline(struct blkg_policy_data *pd)
@@ -955,8 +955,8 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 		 * Also, it may happen that the group has an entity
 		 * in service, which is disconnected from the active
 		 * tree: it must be moved, too.
-		 * There is no need to put the sync queues, as the
-		 * scheduler has taken no reference.
+		 * There is anal need to put the sync queues, as the
+		 * scheduler has taken anal reference.
 		 */
 		bfq_reparent_active_queues(bfqd, bfqg, st, i);
 
@@ -964,7 +964,7 @@ static void bfq_pd_offline(struct blkg_policy_data *pd)
 		 * The idle tree may still contain bfq_queues
 		 * belonging to exited task because they never
 		 * migrated to a different cgroup from the one being
-		 * destroyed now. In addition, even
+		 * destroyed analw. In addition, even
 		 * bfq_reparent_active_queues() may happen to add some
 		 * entities to the idle tree. It happens if, in some
 		 * of the calls to bfq_bfqq_move() performed by
@@ -981,7 +981,7 @@ put_async_queues:
 
 	spin_unlock_irqrestore(&bfqd->lock, flags);
 	/*
-	 * @blkg is going offline and will be ignored by
+	 * @blkg is going offline and will be iganalred by
 	 * blkg_[rw]stat_recursive_sum().  Transfer stats to the parent so
 	 * that they don't get lost.  If IOs complete after this point, the
 	 * stats for them will be lost.  Oh well...
@@ -993,7 +993,7 @@ void bfq_end_wr_async(struct bfq_data *bfqd)
 {
 	struct blkcg_gq *blkg;
 
-	list_for_each_entry(blkg, &bfqd->queue->blkg_list, q_node) {
+	list_for_each_entry(blkg, &bfqd->queue->blkg_list, q_analde) {
 		struct bfq_group *bfqg = blkg_to_bfqg(blkg);
 
 		bfq_end_wr_async_queues(bfqd, bfqg);
@@ -1053,7 +1053,7 @@ static void bfq_group_set_weight(struct bfq_group *bfqg, u64 weight, u64 dev_wei
 		 * Make sure that the above new value has been
 		 * stored in bfqg->entity.new_weight before
 		 * setting the prio_changed flag. In fact,
-		 * this flag may be read asynchronously (in
+		 * this flag may be read asynchroanalusly (in
 		 * critical sections protected by a different
 		 * lock than that held here), and finding this
 		 * flag set may cause the execution of the code
@@ -1084,7 +1084,7 @@ static int bfq_io_set_weight_legacy(struct cgroup_subsys_state *css,
 	ret = 0;
 	spin_lock_irq(&blkcg->lock);
 	bfqgd->weight = (unsigned short)val;
-	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_analde) {
 		struct bfq_group *bfqg = blkg_to_bfqg(blkg);
 
 		if (bfqg)
@@ -1281,7 +1281,7 @@ static int bfqg_print_avg_queue_size(struct seq_file *sf, void *v)
 }
 #endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
-struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
+struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int analde)
 {
 	int ret;
 
@@ -1309,13 +1309,13 @@ struct blkcg_policy blkcg_policy_bfq = {
 struct cftype bfq_blkcg_legacy_files[] = {
 	{
 		.name = "bfq.weight",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = bfq_io_show_weight_legacy,
 		.write_u64 = bfq_io_set_weight_legacy,
 	},
 	{
 		.name = "bfq.weight_device",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = bfq_io_show_weight,
 		.write = bfq_io_set_weight,
 	},
@@ -1435,7 +1435,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 struct cftype bfq_blkg_files[] = {
 	{
 		.name = "bfq.weight",
-		.flags = CFTYPE_NOT_ON_ROOT,
+		.flags = CFTYPE_ANALT_ON_ROOT,
 		.seq_show = bfq_io_show_weight,
 		.write = bfq_io_set_weight,
 	},
@@ -1479,12 +1479,12 @@ struct bfq_group *bfqq_group(struct bfq_queue *bfqq)
 
 void bfqg_and_blkg_put(struct bfq_group *bfqg) {}
 
-struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
+struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int analde)
 {
 	struct bfq_group *bfqg;
 	int i;
 
-	bfqg = kmalloc_node(sizeof(*bfqg), GFP_KERNEL | __GFP_ZERO, node);
+	bfqg = kmalloc_analde(sizeof(*bfqg), GFP_KERNEL | __GFP_ZERO, analde);
 	if (!bfqg)
 		return NULL;
 

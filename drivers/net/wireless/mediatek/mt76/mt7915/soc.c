@@ -286,15 +286,15 @@ static int mt798x_wmac_coninfra_setup(struct mt7915_dev *dev)
 {
 	struct device *pdev = dev->mt76.dev;
 	struct reserved_mem *rmem;
-	struct device_node *np;
+	struct device_analde *np;
 	u32 val;
 
-	np = of_parse_phandle(pdev->of_node, "memory-region", 0);
+	np = of_parse_phandle(pdev->of_analde, "memory-region", 0);
 	if (!np)
 		return -EINVAL;
 
 	rmem = of_reserved_mem_lookup(np);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!rmem)
 		return -EINVAL;
 
@@ -666,7 +666,7 @@ static int mt7986_wmac_adie_patch_7975(struct mt7915_dev *dev, u8 adie)
 	if (ret)
 		return ret;
 
-	/* BT mode/WF normal mode 00000005 */
+	/* BT mode/WF analrmal mode 00000005 */
 	ret = mt76_wmac_spi_write(dev, adie, 0x070, 0x00000005);
 	if (ret)
 		return ret;
@@ -1200,13 +1200,13 @@ static int mt798x_wmac_init(struct mt7915_dev *dev)
 
 	mcu_clk = devm_clk_get(pdev, "mcu");
 	if (IS_ERR(mcu_clk))
-		dev_err(pdev, "mcu clock not found\n");
+		dev_err(pdev, "mcu clock analt found\n");
 	else if (clk_prepare_enable(mcu_clk))
 		dev_err(pdev, "mcu clock configuration failed\n");
 
 	ap_conn_clk = devm_clk_get(pdev, "ap2conn");
 	if (IS_ERR(ap_conn_clk))
-		dev_err(pdev, "ap2conn clock not found\n");
+		dev_err(pdev, "ap2conn clock analt found\n");
 	else if (clk_prepare_enable(ap_conn_clk))
 		dev_err(pdev, "ap2conn clock configuration failed\n");
 

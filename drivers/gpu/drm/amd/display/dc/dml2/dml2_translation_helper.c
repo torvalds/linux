@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -38,7 +38,7 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 	case dml_project_dcn321:
 	default:
 		// Hardcoded values for DCN32x
-		out->vblank_nom_default_us = 600;
+		out->vblank_analm_default_us = 600;
 		out->rob_buffer_size_kbytes = 128;
 		out->config_return_buffer_size_in_kbytes = 1280;
 		out->config_return_buffer_segment_size_in_kbytes = 64;
@@ -171,8 +171,8 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 		out->writeback_max_vscl_taps  = 1;
 		out->ptoi_supported	= 0;
 
-		out->vblank_nom_default_us = 668; /*not in dml, but in programming guide, hard coded in dml2_translate_ip_params*/
-		out->config_return_buffer_segment_size_in_kbytes = 64; /*required, but not exist,, hard coded in dml2_translate_ip_params*/
+		out->vblank_analm_default_us = 668; /*analt in dml, but in programming guide, hard coded in dml2_translate_ip_params*/
+		out->config_return_buffer_segment_size_in_kbytes = 64; /*required, but analt exist,, hard coded in dml2_translate_ip_params*/
 		break;
 
 	}
@@ -192,10 +192,10 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 	out->pct_ideal_dram_bw_after_urgent_pixel_and_vm = 60;
 	out->pct_ideal_dram_bw_after_urgent_vm_only = 30;
 	out->pct_ideal_dram_bw_after_urgent_strobe = 67;
-	out->max_avg_sdp_bw_use_normal_percent = 80;
-	out->max_avg_fabric_bw_use_normal_percent = 60;
-	out->max_avg_dram_bw_use_normal_percent = 15;
-	out->max_avg_dram_bw_use_normal_strobe_percent = 50;
+	out->max_avg_sdp_bw_use_analrmal_percent = 80;
+	out->max_avg_fabric_bw_use_analrmal_percent = 60;
+	out->max_avg_dram_bw_use_analrmal_percent = 15;
+	out->max_avg_dram_bw_use_analrmal_strobe_percent = 50;
 
 	out->urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096;
 	out->urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096;
@@ -511,8 +511,8 @@ void dml2_translate_ip_params(const struct dc *in, struct ip_params_st *out)
 
 	/* As per hardcoded reference / discussions */
 	out->config_return_buffer_segment_size_in_kbytes = 64;
-	//out->vblank_nom_default_us = 600;
-	out->vblank_nom_default_us = in_ip_params->VBlankNomDefaultUS;
+	//out->vblank_analm_default_us = 600;
+	out->vblank_analm_default_us = in_ip_params->VBlankAnalmDefaultUS;
 }
 
 void dml2_translate_socbb_params(const struct dc *in, struct soc_bounding_box_st *out)
@@ -526,10 +526,10 @@ void dml2_translate_socbb_params(const struct dc *in, struct soc_bounding_box_st
 	out->gpuvm_min_page_size_kbytes = in_soc_params->gpuvm_min_page_size_bytes / 1024;
 	out->hostvm_min_page_size_kbytes = in_soc_params->hostvm_min_page_size_bytes / 1024;
 	out->mall_allocated_for_dcn_mbytes = (dml_uint_t)in_soc_params->mall_allocated_for_dcn_mbytes;
-	out->max_avg_dram_bw_use_normal_percent = in_soc_params->max_avg_dram_bw_use_normal_percent;
-	out->max_avg_fabric_bw_use_normal_percent = in_soc_params->max_avg_fabric_bw_use_normal_percent;
-	out->max_avg_dram_bw_use_normal_strobe_percent = in_soc_params->max_avg_dram_bw_use_normal_strobe_percent;
-	out->max_avg_sdp_bw_use_normal_percent = in_soc_params->max_avg_sdp_bw_use_normal_percent;
+	out->max_avg_dram_bw_use_analrmal_percent = in_soc_params->max_avg_dram_bw_use_analrmal_percent;
+	out->max_avg_fabric_bw_use_analrmal_percent = in_soc_params->max_avg_fabric_bw_use_analrmal_percent;
+	out->max_avg_dram_bw_use_analrmal_strobe_percent = in_soc_params->max_avg_dram_bw_use_analrmal_strobe_percent;
+	out->max_avg_sdp_bw_use_analrmal_percent = in_soc_params->max_avg_sdp_bw_use_analrmal_percent;
 	out->max_outstanding_reqs = in_soc_params->max_request_size_bytes;
 	out->num_chans = in_soc_params->num_chans;
 	out->pct_ideal_dram_bw_after_urgent_strobe = in_soc_params->pct_ideal_dram_bw_after_urgent_strobe;
@@ -573,7 +573,7 @@ void dml2_translate_soc_states(const struct dc *dc, struct soc_states_st *out, i
 		out->state_array[i].usr_retraining_latency_us = dc->dml.soc.usr_retraining_latency_us;
 		out->state_array[i].writeback_latency_us = dc->dml.soc.writeback_latency_us;
 		/* Driver initialized values for these are different than the spreadsheet. Use the
-		 * spreadsheet ones for now. We need to decided which ones to use.
+		 * spreadsheet ones for analw. We need to decided which ones to use.
 		 */
 		out->state_array[i].sr_exit_z8_time_us = dc->dml.soc.sr_exit_z8_time_us;
 		out->state_array[i].sr_enter_plus_exit_z8_time_us = dc->dml.soc.sr_enter_plus_exit_z8_time_us;
@@ -704,7 +704,7 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	out->OutputMultistreamEn[location] = false;
 
 	switch (in->signal) {
-	case SIGNAL_TYPE_NONE:
+	case SIGNAL_TYPE_ANALNE:
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 	case SIGNAL_TYPE_HDMI_TYPE_A:
@@ -1131,7 +1131,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 				} else if (stream_mall_type == SUBVP_PHANTOM) {
 					dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_phantom_pipe;
 					dml_dispcfg->plane.UseMALLForStaticScreen[disp_cfg_plane_location] = dml_use_mall_static_screen_disable;
-					dml2->v20.dml_core_ctx.policy.ImmediateFlipRequirement[disp_cfg_plane_location] = dml_immediate_flip_not_required;
+					dml2->v20.dml_core_ctx.policy.ImmediateFlipRequirement[disp_cfg_plane_location] = dml_immediate_flip_analt_required;
 				} else {
 					dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_disable;
 					dml_dispcfg->plane.UseMALLForStaticScreen[disp_cfg_plane_location] = dml_use_mall_static_screen_optimize;
@@ -1228,14 +1228,14 @@ void dml2_update_pipe_ctx_dchub_regs(struct _vcs_dpi_dml_display_rq_regs_st *rq_
 	out->dlg_regs.refcyc_per_pte_group_flip_c = disp_dlg_regs->refcyc_per_pte_group_flip_c;
 	out->dlg_regs.refcyc_per_meta_chunk_flip_l = disp_dlg_regs->refcyc_per_meta_chunk_flip_l;
 	out->dlg_regs.refcyc_per_meta_chunk_flip_c = disp_dlg_regs->refcyc_per_meta_chunk_flip_c;
-	out->dlg_regs.dst_y_per_pte_row_nom_l = disp_dlg_regs->dst_y_per_pte_row_nom_l;
-	out->dlg_regs.dst_y_per_pte_row_nom_c = disp_dlg_regs->dst_y_per_pte_row_nom_c;
-	out->dlg_regs.refcyc_per_pte_group_nom_l = disp_dlg_regs->refcyc_per_pte_group_nom_l;
-	out->dlg_regs.refcyc_per_pte_group_nom_c = disp_dlg_regs->refcyc_per_pte_group_nom_c;
-	out->dlg_regs.dst_y_per_meta_row_nom_l = disp_dlg_regs->dst_y_per_meta_row_nom_l;
-	out->dlg_regs.dst_y_per_meta_row_nom_c = disp_dlg_regs->dst_y_per_meta_row_nom_c;
-	out->dlg_regs.refcyc_per_meta_chunk_nom_l = disp_dlg_regs->refcyc_per_meta_chunk_nom_l;
-	out->dlg_regs.refcyc_per_meta_chunk_nom_c = disp_dlg_regs->refcyc_per_meta_chunk_nom_c;
+	out->dlg_regs.dst_y_per_pte_row_analm_l = disp_dlg_regs->dst_y_per_pte_row_analm_l;
+	out->dlg_regs.dst_y_per_pte_row_analm_c = disp_dlg_regs->dst_y_per_pte_row_analm_c;
+	out->dlg_regs.refcyc_per_pte_group_analm_l = disp_dlg_regs->refcyc_per_pte_group_analm_l;
+	out->dlg_regs.refcyc_per_pte_group_analm_c = disp_dlg_regs->refcyc_per_pte_group_analm_c;
+	out->dlg_regs.dst_y_per_meta_row_analm_l = disp_dlg_regs->dst_y_per_meta_row_analm_l;
+	out->dlg_regs.dst_y_per_meta_row_analm_c = disp_dlg_regs->dst_y_per_meta_row_analm_c;
+	out->dlg_regs.refcyc_per_meta_chunk_analm_l = disp_dlg_regs->refcyc_per_meta_chunk_analm_l;
+	out->dlg_regs.refcyc_per_meta_chunk_analm_c = disp_dlg_regs->refcyc_per_meta_chunk_analm_c;
 	out->dlg_regs.refcyc_per_line_delivery_pre_l = disp_dlg_regs->refcyc_per_line_delivery_pre_l;
 	out->dlg_regs.refcyc_per_line_delivery_pre_c = disp_dlg_regs->refcyc_per_line_delivery_pre_c;
 	out->dlg_regs.refcyc_per_line_delivery_l = disp_dlg_regs->refcyc_per_line_delivery_l;

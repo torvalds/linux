@@ -61,7 +61,7 @@ A test case has four stages:
   - setup: mount resctrl file system, create group, setup schemata, move test
     process pids to tasks, start benchmark.
   - execute: let benchmark run
-  - verify: get resctrl data and verify the data with another source, e.g.
+  - verify: get resctrl data and verify the data with aanalther source, e.g.
     perf event.
   - teardown: umount resctrl and clear temporary files.
 
@@ -70,9 +70,9 @@ ARGUMENTS
 
 Parameter '-h' shows usage information.
 
-usage: resctrl_tests [-h] [-b "benchmark_cmd [options]"] [-t test list] [-n no_of_bits]
+usage: resctrl_tests [-h] [-b "benchmark_cmd [options]"] [-t test list] [-n anal_of_bits]
         -b benchmark_cmd [options]: run specified benchmark for MBM, MBA and CMT default benchmark is builtin fill_buf
         -t test list: run tests specified in the test list, e.g. -t mbm,mba,cmt,cat
-        -n no_of_bits: run cache tests using specified no of bits in cache bit mask
-        -p cpu_no: specify CPU number to run the test. 1 is default
+        -n anal_of_bits: run cache tests using specified anal of bits in cache bit mask
+        -p cpu_anal: specify CPU number to run the test. 1 is default
         -h: help

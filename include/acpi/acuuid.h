@@ -11,9 +11,9 @@
 #define __ACUUID_H__
 
 /*
- * Note1: UUIDs and GUIDs are defined to be identical in ACPI.
+ * Analte1: UUIDs and GUIDs are defined to be identical in ACPI.
  *
- * Note2: This file is standalone and should remain that way.
+ * Analte2: This file is standalone and should remain that way.
  */
 
 /* Controllers */

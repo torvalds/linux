@@ -79,7 +79,7 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 
 	/*
 	 * There may be few KB of platform dependent reserved memory at the end
-	 * of vram which is not part of the DSM. Such reserved memory portion is
+	 * of vram which is analt part of the DSM. Such reserved memory portion is
 	 * always less then DSM granularity so align down the stolen_size to DSM
 	 * granularity to accommodate such reserve vram portion.
 	 */
@@ -127,7 +127,7 @@ static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr
 
 	/*
 	 * Graphics >= 1270 uses the offset to the GSMBASE as address in the
-	 * PTEs, together with the DM flag being set. Previously there was no
+	 * PTEs, together with the DM flag being set. Previously there was anal
 	 * such flag so the address was the io_base.
 	 *
 	 * DSMBASE = GSMBASE + 8MB
@@ -213,7 +213,7 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 		stolen_size = detect_stolen(xe, mgr);
 
 	if (!stolen_size) {
-		drm_dbg_kms(&xe->drm, "No stolen memory support\n");
+		drm_dbg_kms(&xe->drm, "Anal stolen memory support\n");
 		return;
 	}
 

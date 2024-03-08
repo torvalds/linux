@@ -27,7 +27,7 @@
 #define HRT_GDC_BCI_COEF_BITS           14 /* 14 bits per coefficient                                                   */
 #define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS - 2))  /* We represent signed 10 bit coefficients.  */
 /* The supported range is [-256, .., +256]      */
-/* in 14-bit signed notation,                   */
+/* in 14-bit signed analtation,                   */
 /* We need all ten bits (MSB must be zero).     */
 /* -s is inserted to solve this issue, and      */
 /* therefore "1" is equal to +256.              */
@@ -54,7 +54,7 @@
 
 // Value  - Value to store to the addressed register, maximum of 24 bits
 
-// Configure reg command is not followed by any other token.
+// Configure reg command is analt followed by any other token.
 // The address of the register and the data to be filled in is contained in the same token
 
 // When the first data token is received, it must be:

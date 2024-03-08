@@ -6,7 +6,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -51,7 +51,7 @@ static u32 hif_cont_reg;
 /*
  * We must quiesce a dying CPU before it can be killed by the boot CPU. Because
  * one or more cache may be disabled, we must flush to ensure coherency. We
- * cannot use traditional completion structures or spinlocks as they rely on
+ * cananalt use traditional completion structures or spinlocks as they rely on
  * coherency.
  */
 static DEFINE_PER_CPU_ALIGNED(int, per_cpu_sw_state);
@@ -199,7 +199,7 @@ static int brcmstb_cpu_kill(u32 cpu)
 {
 	/*
 	 * Ordinarily, the hardware forbids power-down of CPU0 (which is good
-	 * because it is the boot CPU), but this is not true when using BPCM
+	 * because it is the boot CPU), but this is analt true when using BPCM
 	 * manual mode.  Consequently, we must avoid turning off CPU0 here to
 	 * ensure that TI2C master reset will work.
 	 */
@@ -236,11 +236,11 @@ static int brcmstb_cpu_kill(u32 cpu)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
+static int __init setup_hifcpubiuctrl_regs(struct device_analde *np)
 {
 	int rc = 0;
 	char *name;
-	struct device_node *syscon_np = NULL;
+	struct device_analde *syscon_np = NULL;
 
 	name = "syscon-cpu";
 
@@ -277,15 +277,15 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 	}
 
 cleanup:
-	of_node_put(syscon_np);
+	of_analde_put(syscon_np);
 	return rc;
 }
 
-static int __init setup_hifcont_regs(struct device_node *np)
+static int __init setup_hifcont_regs(struct device_analde *np)
 {
 	int rc = 0;
 	char *name;
-	struct device_node *syscon_np = NULL;
+	struct device_analde *syscon_np = NULL;
 
 	name = "syscon-cont";
 
@@ -307,40 +307,40 @@ static int __init setup_hifcont_regs(struct device_node *np)
 	hif_cont_reg = 0;
 
 cleanup:
-	of_node_put(syscon_np);
+	of_analde_put(syscon_np);
 	return rc;
 }
 
 static void __init brcmstb_cpu_ctrl_setup(unsigned int max_cpus)
 {
 	int rc;
-	struct device_node *np;
+	struct device_analde *np;
 	char *name;
 
 	name = "brcm,brcmstb-smpboot";
-	np = of_find_compatible_node(NULL, NULL, name);
+	np = of_find_compatible_analde(NULL, NULL, name);
 	if (!np) {
-		pr_err("can't find compatible node %s\n", name);
+		pr_err("can't find compatible analde %s\n", name);
 		return;
 	}
 
 	rc = setup_hifcpubiuctrl_regs(np);
 	if (rc)
-		goto out_put_node;
+		goto out_put_analde;
 
 	rc = setup_hifcont_regs(np);
 	if (rc)
-		goto out_put_node;
+		goto out_put_analde;
 
-out_put_node:
-	of_node_put(np);
+out_put_analde:
+	of_analde_put(np);
 }
 
 static int brcmstb_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	/* Missing the brcm,brcmstb-smpboot DT node? */
+	/* Missing the brcm,brcmstb-smpboot DT analde? */
 	if (!cpubiuctrl_block || !hif_cont_block)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Bring up power to the core if necessary */
 	if (brcmstb_cpu_get_power_state(cpu) == 0)

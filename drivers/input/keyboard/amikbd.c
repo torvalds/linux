@@ -198,8 +198,8 @@ static int __init amikbd_probe(struct platform_device *pdev)
 
 	dev = devm_input_allocate_device(&pdev->dev);
 	if (!dev) {
-		dev_err(&pdev->dev, "Not enough memory for input device\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "Analt eanalugh memory for input device\n");
+		return -EANALMEM;
 	}
 
 	dev->name = pdev->name;

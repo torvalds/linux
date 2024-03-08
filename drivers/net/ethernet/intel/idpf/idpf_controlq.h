@@ -84,7 +84,7 @@ struct idpf_ctlq_desc {
 #define IDPF_CTLQ_FLAG_VFC	BIT(IDPF_CTLQ_FLAG_VFC_S)	/* 0x800  */
 #define IDPF_CTLQ_FLAG_BUF	BIT(IDPF_CTLQ_FLAG_BUF_S)	/* 0x1000 */
 
-/* Host ID is a special field that has 3b and not a 1b flag */
+/* Host ID is a special field that has 3b and analt a 1b flag */
 #define IDPF_CTLQ_FLAG_HOST_ID_M MAKE_MASK(0x7000UL, IDPF_CTLQ_FLAG_HOST_ID_S)
 
 struct idpf_mbxq_desc {

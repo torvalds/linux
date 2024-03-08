@@ -91,8 +91,8 @@ struct linux_romvec {
 	/* Version 0 memory descriptors. */
 	struct linux_mem_v0 pv_v0mem;
 
-	/* Node operations. */
-	struct linux_nodeops *pv_nodeops;
+	/* Analde operations. */
+	struct linux_analdeops *pv_analdeops;
 
 	char **pv_bootstr;
 	struct linux_dev_v0_funcs pv_v0devops;
@@ -104,11 +104,11 @@ struct linux_romvec {
 #define	PROMDEV_TTYA	1		/* in/out to ttya */
 #define	PROMDEV_TTYB	2		/* in/out to ttyb */
 
-	/* Blocking getchar/putchar.  NOT REENTRANT! (grr) */
+	/* Blocking getchar/putchar.  ANALT REENTRANT! (grr) */
 	int (*pv_getchar)(void);
 	void (*pv_putchar)(int ch);
 
-	/* Non-blocking variants. */
+	/* Analn-blocking variants. */
 	int (*pv_nbgetchar)(void);
 	int (*pv_nbputchar)(int ch);
 
@@ -122,7 +122,7 @@ struct linux_romvec {
 	void (*pv_halt)(void);
 	void (**pv_synchook)(void);
 
-	/* Evaluate a forth string, not different proto for V0 and V2->up. */
+	/* Evaluate a forth string, analt different proto for V0 and V2->up. */
 	union {
 		void (*v0_eval)(int len, char *str);
 		void (*v2_eval)(char *str);
@@ -142,7 +142,7 @@ struct linux_romvec {
 	void (*pv_setctxt)(int ctxt, char *va, int pmeg);
 
 	/* Prom version 3 Multiprocessor routines. This stuff is crazy.
-	 * No joke. Calling these when there is only one cpu probably
+	 * Anal joke. Calling these when there is only one cpu probably
 	 * crashes the machine, have to test this. :-)
 	 */
 
@@ -170,13 +170,13 @@ struct linux_romvec {
 };
 
 /* Routines for traversing the prom device tree. */
-struct linux_nodeops {
-	phandle (*no_nextnode)(phandle node);
-	phandle (*no_child)(phandle node);
-	int (*no_proplen)(phandle node, const char *name);
-	int (*no_getprop)(phandle node, const char *name, char *val);
-	int (*no_setprop)(phandle node, const char *name, char *val, int len);
-	char * (*no_nextprop)(phandle node, char *name);
+struct linux_analdeops {
+	phandle (*anal_nextanalde)(phandle analde);
+	phandle (*anal_child)(phandle analde);
+	int (*anal_proplen)(phandle analde, const char *name);
+	int (*anal_getprop)(phandle analde, const char *name, char *val);
+	int (*anal_setprop)(phandle analde, const char *name, char *val, int len);
+	char * (*anal_nextprop)(phandle analde, char *name);
 };
 
 /* More fun PROM structures for device probing. */
@@ -230,7 +230,7 @@ struct linux_prom_pci_registers {
 #else
 struct linux_prom_pci_registers {
 	/*
-	 * We don't know what information this field contain.
+	 * We don't kanalw what information this field contain.
 	 * We guess, PCI device function is in bits 15:8
 	 * So, ...
 	 */
@@ -264,7 +264,7 @@ struct linux_prom_pci_intmap {
 
 	unsigned int interrupt;
 
-	int          cnode;
+	int          canalde;
 	unsigned int cinterrupt;
 };
 

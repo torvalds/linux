@@ -30,16 +30,16 @@
  * - GT Power management.
  *
  * The enable_guc module parameter can be used to select which of those
- * operations to enable within GuC. Note that not all the operations are
+ * operations to enable within GuC. Analte that analt all the operations are
  * supported on all gen9+ platforms.
  *
- * Enabling the GuC is not mandatory and therefore the firmware is only loaded
- * if at least one of the operations is selected. However, not loading the GuC
+ * Enabling the GuC is analt mandatory and therefore the firmware is only loaded
+ * if at least one of the operations is selected. However, analt loading the GuC
  * might result in the loss of some features that do require the GuC (currently
  * just the HuC, but more are expected to land in the future).
  */
 
-void intel_guc_notify(struct intel_guc *guc)
+void intel_guc_analtify(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
@@ -49,7 +49,7 @@ void intel_guc_notify(struct intel_guc *guc)
 	 * (H2G interrupt), so we can just write the value that the HW expects
 	 * on older gens.
 	 */
-	intel_uncore_write(gt->uncore, guc->notify_reg, GUC_SEND_TRIGGER);
+	intel_uncore_write(gt->uncore, guc->analtify_reg, GUC_SEND_TRIGGER);
 }
 
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
@@ -195,17 +195,17 @@ void intel_guc_init_early(struct intel_guc *guc)
 		guc->interrupts.enable = gen11_enable_guc_interrupts;
 		guc->interrupts.disable = gen11_disable_guc_interrupts;
 		if (gt->type == GT_MEDIA) {
-			guc->notify_reg = MEDIA_GUC_HOST_INTERRUPT;
+			guc->analtify_reg = MEDIA_GUC_HOST_INTERRUPT;
 			guc->send_regs.base = i915_mmio_reg_offset(MEDIA_SOFT_SCRATCH(0));
 		} else {
-			guc->notify_reg = GEN11_GUC_HOST_INTERRUPT;
+			guc->analtify_reg = GEN11_GUC_HOST_INTERRUPT;
 			guc->send_regs.base = i915_mmio_reg_offset(GEN11_SOFT_SCRATCH(0));
 		}
 
 		guc->send_regs.count = GEN11_SOFT_SCRATCH_COUNT;
 
 	} else {
-		guc->notify_reg = GUC_SEND_INTERRUPT;
+		guc->analtify_reg = GUC_SEND_INTERRUPT;
 		guc->interrupts.reset = gen9_reset_guc_interrupts;
 		guc->interrupts.enable = gen9_enable_guc_interrupts;
 		guc->interrupts.disable = gen9_disable_guc_interrupts;
@@ -260,7 +260,7 @@ static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 	offset = intel_guc_ggtt_offset(guc, log->vma) >> PAGE_SHIFT;
 
 	flags = GUC_LOG_VALID |
-		GUC_LOG_NOTIFY_ON_HALF_FULL |
+		GUC_LOG_ANALTIFY_ON_HALF_FULL |
 		log->sizes[GUC_LOG_SECTIONS_DEBUG].flag |
 		log->sizes[GUC_LOG_SECTIONS_CAPTURE].flag |
 		(log->sizes[GUC_LOG_SECTIONS_CRASH].count << GUC_LOG_CRASH_SHIFT) |
@@ -338,7 +338,7 @@ static u32 guc_ctl_devid(struct intel_guc *guc)
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+ * and cananalt be changed thereafter.
  */
 static void guc_init_params(struct intel_guc *guc)
 {
@@ -361,7 +361,7 @@ static void guc_init_params(struct intel_guc *guc)
 /*
  * Initialise the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
- * and cannot be changed thereafter.
+ * and cananalt be changed thereafter.
  */
 void intel_guc_write_params(struct intel_guc *guc)
 {
@@ -442,7 +442,7 @@ int intel_guc_init(struct intel_guc *guc)
 			goto err_submission;
 	}
 
-	/* now that everything is perma-pinned, initialize the parameters */
+	/* analw that everything is perma-pinned, initialize the parameters */
 	guc_init_params(guc);
 
 	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_LOADABLE);
@@ -514,10 +514,10 @@ retry:
 
 	intel_uncore_posting_read(uncore, guc_send_reg(guc, i - 1));
 
-	intel_guc_notify(guc);
+	intel_guc_analtify(guc);
 
 	/*
-	 * No GuC command should ever take longer than 10ms.
+	 * Anal GuC command should ever take longer than 10ms.
 	 * Fast commands should still complete in 10us.
 	 */
 	ret = __intel_wait_for_register_fw(uncore,
@@ -528,15 +528,15 @@ retry:
 					   10, 10, &header);
 	if (unlikely(ret)) {
 timeout:
-		guc_err(guc, "mmio request %#x: no reply %x\n",
+		guc_err(guc, "mmio request %#x: anal reply %x\n",
 			request[0], header);
 		goto out;
 	}
 
-	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_ANAL_RESPONSE_BUSY) {
 #define done ({ header = intel_uncore_read(uncore, guc_send_reg(guc, 0)); \
 		FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) != GUC_HXG_ORIGIN_GUC || \
-		FIELD_GET(GUC_HXG_MSG_0_TYPE, header) != GUC_HXG_TYPE_NO_RESPONSE_BUSY; })
+		FIELD_GET(GUC_HXG_MSG_0_TYPE, header) != GUC_HXG_TYPE_ANAL_RESPONSE_BUSY; })
 
 		ret = wait_for(done, 1000);
 		if (unlikely(ret))
@@ -547,7 +547,7 @@ timeout:
 #undef done
 	}
 
-	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) == GUC_HXG_TYPE_ANAL_RESPONSE_RETRY) {
 		u32 reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, header);
 
 		guc_dbg(guc, "mmio request %#x: retrying, reason %u\n",
@@ -600,12 +600,12 @@ out:
 
 int intel_guc_crash_process_msg(struct intel_guc *guc, u32 action)
 {
-	if (action == INTEL_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED)
-		guc_err(guc, "Crash dump notification\n");
-	else if (action == INTEL_GUC_ACTION_NOTIFY_EXCEPTION)
-		guc_err(guc, "Exception notification\n");
+	if (action == INTEL_GUC_ACTION_ANALTIFY_CRASH_DUMP_POSTED)
+		guc_err(guc, "Crash dump analtification\n");
+	else if (action == INTEL_GUC_ACTION_ANALTIFY_EXCEPTION)
+		guc_err(guc, "Exception analtification\n");
 	else
-		guc_err(guc, "Unknown crash notification: 0x%04X\n", action);
+		guc_err(guc, "Unkanalwn crash analtification: 0x%04X\n", action);
 
 	queue_work(system_unbound_wq, &guc->dead_guc_worker);
 
@@ -624,9 +624,9 @@ int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 	msg = payload[0] & guc->msg_enabled_mask;
 
 	if (msg & INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED)
-		guc_err(guc, "Received early crash dump notification!\n");
+		guc_err(guc, "Received early crash dump analtification!\n");
 	if (msg & INTEL_GUC_RECV_MSG_EXCEPTION)
-		guc_err(guc, "Received early exception notification!\n");
+		guc_err(guc, "Received early exception analtification!\n");
 
 	if (msg & (INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED | INTEL_GUC_RECV_MSG_EXCEPTION))
 		queue_work(system_unbound_wq, &guc->dead_guc_worker);
@@ -643,7 +643,7 @@ int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
  * INTEL_GUC_ACTION_AUTHENTICATE_HUC interface. This function is invoked by
  * intel_huc_auth().
  *
- * Return:	non-zero code on error
+ * Return:	analn-zero code on error
  */
 int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 {
@@ -656,7 +656,7 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 }
 
 /**
- * intel_guc_suspend() - notify GuC entering suspend state
+ * intel_guc_suspend() - analtify GuC entering suspend state
  * @guc:	the guc
  */
 int intel_guc_suspend(struct intel_guc *guc)
@@ -696,7 +696,7 @@ int intel_guc_suspend(struct intel_guc *guc)
 }
 
 /**
- * intel_guc_resume() - notify GuC resuming from suspend state
+ * intel_guc_resume() - analtify GuC resuming from suspend state
  * @guc:	the guc
  */
 int intel_guc_resume(struct intel_guc *guc)
@@ -704,7 +704,7 @@ int intel_guc_resume(struct intel_guc *guc)
 	/*
 	 * NB: This function can still be called even if GuC submission is
 	 * disabled, e.g. if GuC is enabled for HuC authentication only. Thus,
-	 * if any code is later added here, it must be support doing nothing
+	 * if any code is later added here, it must be support doing analthing
 	 * if submission is disabled (as per intel_guc_suspend).
 	 */
 	return 0;
@@ -717,7 +717,7 @@ int intel_guc_resume(struct intel_guc *guc)
  * be handled by the host driver. GuC accesses the memory via the GGTT, with the
  * exception of the top and bottom parts of the 4GB address space, which are
  * instead re-mapped by the GuC HW to memory location of the FW itself (WOPCM)
- * or other parts of the HW. The driver must take care not to place objects that
+ * or other parts of the HW. The driver must take care analt to place objects that
  * the GuC is going to access in these reserved ranges. The layout of the GuC
  * address space is shown below:
  *
@@ -782,7 +782,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	 * index 2) on GPU side.
 	 */
 	if (intel_gt_needs_wa_22016122933(gt))
-		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_ANALNE);
 
 	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
 	if (IS_ERR(vma))
@@ -812,7 +812,7 @@ err:
  * This wrapper calls intel_guc_allocate_vma() and then maps the allocated
  * object with I915_MAP_WB.
  *
- * Return:	0 if successful, a negative errno code otherwise.
+ * Return:	0 if successful, a negative erranal code otherwise.
  */
 int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
 				   struct i915_vma **out_vma, void **out_vaddr)
@@ -862,7 +862,7 @@ static int __guc_action_self_cfg(struct intel_guc *guc, u16 key, u16 len, u64 va
 	if (unlikely(ret > 1))
 		return -EPROTO;
 	if (unlikely(!ret))
-		return -ENOKEY;
+		return -EANALKEY;
 
 	return 0;
 }
@@ -901,7 +901,7 @@ void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
 	intel_wakeref_t wakeref;
 
 	if (!intel_guc_is_supported(guc)) {
-		drm_printf(p, "GuC not supported\n");
+		drm_printf(p, "GuC analt supported\n");
 		return;
 	}
 
@@ -946,7 +946,7 @@ void intel_guc_write_barrier(struct intel_guc *guc)
 		 * This register is used by the i915 and GuC for MMIO based
 		 * communication. Once we are in this code CTBs are the only
 		 * method the i915 uses to communicate with the GuC so it is
-		 * safe to write to this register (a value of 0 is NOP for MMIO
+		 * safe to write to this register (a value of 0 is ANALP for MMIO
 		 * communication). If we ever start mixing CTBs and MMIOs a new
 		 * register will have to be chosen. This function is also used
 		 * to enforce ordering of a work queue item write and an update

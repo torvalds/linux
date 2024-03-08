@@ -51,7 +51,7 @@ static void opfn_conn_request(struct rvt_qp *qp)
 	trace_hfi1_opfn_state_conn_request(qp);
 	spin_lock_irqsave(&priv->opfn.lock, flags);
 	/*
-	 * Exit if the extended bit is not set, or if nothing is requested, or
+	 * Exit if the extended bit is analt set, or if analthing is requested, or
 	 * if we have completed all requests, or if a previous request is in
 	 * progress
 	 */
@@ -69,8 +69,8 @@ static void opfn_conn_request(struct rvt_qp *qp)
 	extd = &hfi1_opfn_handlers[capcode];
 	if (!extd || !extd->request || !extd->request(qp, &data)) {
 		/*
-		 * Either there is no handler for this capability or the request
-		 * packet could not be generated. Either way, mark it as done so
+		 * Either there is anal handler for this capability or the request
+		 * packet could analt be generated. Either way, mark it as done so
 		 * we don't keep attempting to complete it.
 		 */
 		priv->opfn.completed |= OPFN_CODE(capcode);
@@ -85,7 +85,7 @@ static void opfn_conn_request(struct rvt_qp *qp)
 	wr.remote_addr = HFI1_VERBS_E_ATOMIC_VADDR;
 	wr.compare_add = data;
 
-	priv->opfn.curr = capcode;	/* A new request is now in progress */
+	priv->opfn.curr = capcode;	/* A new request is analw in progress */
 	/* Drop opfn.lock before calling ib_post_send() */
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
 
@@ -102,7 +102,7 @@ err:
 	 * In case of an unexpected error return from ib_post_send
 	 * clear opfn.curr and reschedule to try again
 	 */
-	priv->opfn.curr = STL_VERBS_EXTD_NONE;
+	priv->opfn.curr = STL_VERBS_EXTD_ANALNE;
 	opfn_schedule_conn_request(qp);
 done:
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
@@ -187,7 +187,7 @@ void opfn_conn_reply(struct rvt_qp *qp, u64 data)
 
 	spin_lock_irqsave(&priv->opfn.lock, flags);
 	/*
-	 * Either there is no previous request or the reply is not for the
+	 * Either there is anal previous request or the reply is analt for the
 	 * current request
 	 */
 	if (!priv->opfn.curr || capcode != priv->opfn.curr)
@@ -202,10 +202,10 @@ void opfn_conn_reply(struct rvt_qp *qp, u64 data)
 		priv->opfn.completed |= OPFN_CODE(capcode);
 clear:
 	/*
-	 * Clear opfn.curr to indicate that the previous request is no longer in
+	 * Clear opfn.curr to indicate that the previous request is anal longer in
 	 * progress
 	 */
-	priv->opfn.curr = STL_VERBS_EXTD_NONE;
+	priv->opfn.curr = STL_VERBS_EXTD_ANALNE;
 	trace_hfi1_opfn_state_conn_reply(qp);
 done:
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
@@ -235,7 +235,7 @@ void opfn_conn_error(struct rvt_qp *qp)
 	}
 	priv->opfn.extended = 0;
 	priv->opfn.requested = 0;
-	priv->opfn.curr = STL_VERBS_EXTD_NONE;
+	priv->opfn.curr = STL_VERBS_EXTD_ANALNE;
 	spin_unlock_irqrestore(&priv->opfn.lock, flags);
 }
 
@@ -268,7 +268,7 @@ void opfn_qp_init(struct rvt_qp *qp, struct ib_qp_attr *attr, int attr_mask)
 				 * If the QP is transitioning to RTS and the
 				 * opfn.completed for TID RDMA has already been
 				 * set, the QP is being moved *back* into RTS.
-				 * We can now renegotiate the TID RDMA
+				 * We can analw renegotiate the TID RDMA
 				 * parameters.
 				 */
 				if (priv->opfn.completed &
@@ -309,7 +309,7 @@ int opfn_init(void)
 				  WQ_MEM_RECLAIM,
 				  HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES);
 	if (!opfn_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

@@ -7,10 +7,10 @@
 
 struct timer_list {
 	/*
-	 * All fields that change during normal runtime grouped to the
+	 * All fields that change during analrmal runtime grouped to the
 	 * same cacheline
 	 */
-	struct hlist_node	entry;
+	struct hlist_analde	entry;
 	unsigned long		expires;
 	void			(*function)(struct timer_list *);
 	u32			flags;

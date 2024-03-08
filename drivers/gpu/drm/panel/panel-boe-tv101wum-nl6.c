@@ -1507,7 +1507,7 @@ static int boe_panel_prepare(struct drm_panel *panel)
 	usleep_range(10000, 11000);
 
 	if (boe->desc->lp11_before_reset) {
-		mipi_dsi_dcs_nop(boe->dsi);
+		mipi_dsi_dcs_analp(boe->dsi);
 		usleep_range(1000, 2000);
 	}
 	gpiod_set_value(boe->enable_gpio, 1);
@@ -1569,7 +1569,7 @@ static const struct panel_desc boe_tv110c9m_desc = {
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO
 			| MIPI_DSI_MODE_VIDEO_HSE
-			| MIPI_DSI_CLOCK_NON_CONTINUOUS
+			| MIPI_DSI_CLOCK_ANALN_CONTINUOUS
 			| MIPI_DSI_MODE_VIDEO_BURST,
 	.init_cmds = boe_tv110c9m_init_cmd,
 };
@@ -1598,7 +1598,7 @@ static const struct panel_desc inx_hj110iz_desc = {
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_VIDEO
 			| MIPI_DSI_MODE_VIDEO_HSE
-			| MIPI_DSI_CLOCK_NON_CONTINUOUS
+			| MIPI_DSI_CLOCK_ANALN_CONTINUOUS
 			| MIPI_DSI_MODE_VIDEO_BURST,
 	.init_cmds = inx_hj110iz_init_cmd,
 };
@@ -1806,7 +1806,7 @@ static int boe_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			m->hdisplay, m->vdisplay, drm_mode_vrefresh(m));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
@@ -1864,7 +1864,7 @@ static int boe_panel_add(struct boe_panel *boe)
 
 	boe->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(boe->enable_gpio)) {
-		dev_err(dev, "cannot get reset-gpios %ld\n",
+		dev_err(dev, "cananalt get reset-gpios %ld\n",
 			PTR_ERR(boe->enable_gpio));
 		return PTR_ERR(boe->enable_gpio);
 	}
@@ -1873,9 +1873,9 @@ static int boe_panel_add(struct boe_panel *boe)
 
 	drm_panel_init(&boe->base, dev, &boe_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
-	err = of_drm_get_panel_orientation(dev->of_node, &boe->orientation);
+	err = of_drm_get_panel_orientation(dev->of_analde, &boe->orientation);
 	if (err < 0) {
-		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, err);
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_analde, err);
 		return err;
 	}
 
@@ -1899,7 +1899,7 @@ static int boe_panel_probe(struct mipi_dsi_device *dsi)
 
 	boe = devm_kzalloc(&dsi->dev, sizeof(*boe), GFP_KERNEL);
 	if (!boe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	dsi->lanes = desc->lanes;
@@ -1962,7 +1962,7 @@ static const struct of_device_id boe_of_match[] = {
 	{ .compatible = "boe,tv110c9m-ll3",
 	  .data = &boe_tv110c9m_desc
 	},
-	{ .compatible = "innolux,hj110iz-01a",
+	{ .compatible = "inanallux,hj110iz-01a",
 	  .data = &inx_hj110iz_desc
 	},
 	{ .compatible = "starry,2081101qfh032011-53g",

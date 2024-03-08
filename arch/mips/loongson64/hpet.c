@@ -79,7 +79,7 @@ static void hpet_restart_counter(void)
 
 static void hpet_enable_legacy_int(void)
 {
-	/* Do nothing on Loongson-3 */
+	/* Do analthing on Loongson-3 */
 }
 
 static int hpet_set_state_periodic(struct clock_event_device *evt)
@@ -136,7 +136,7 @@ static int hpet_set_state_oneshot(struct clock_event_device *evt)
 	/*
 	 * set timer0 type
 	 * 1 : periodic interrupt
-	 * 0 : non-periodic(oneshot) interrupt
+	 * 0 : analn-periodic(oneshot) interrupt
 	 */
 	cfg &= ~HPET_TN_PERIODIC;
 	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
@@ -184,13 +184,13 @@ static irqreturn_t hpet_irq_handler(int irq, void *data)
 		cd->event_handler(cd);
 		return IRQ_HANDLED;
 	}
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 /*
  * hpet address assignation and irq setting should be done in bios.
  * but pmon don't do this, we just setup here directly.
- * The operation under is normal. unfortunately, hpet_setup process
+ * The operation under is analrmal. unfortunately, hpet_setup process
  * is before pci initialize.
  *
  * {
@@ -218,7 +218,7 @@ static void hpet_setup(void)
 
 void __init setup_hpet_timer(void)
 {
-	unsigned long flags = IRQF_NOBALANCING | IRQF_TIMER;
+	unsigned long flags = IRQF_ANALBALANCING | IRQF_TIMER;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
 
@@ -268,7 +268,7 @@ static struct clocksource csrc_hpet = {
 	.rating = 300,
 	.read = hpet_read_counter,
 	.mask = CLOCKSOURCE_MASK(32),
-	/* oneshot mode work normal with this flag */
+	/* oneshot mode work analrmal with this flag */
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 	.suspend = hpet_suspend,
 	.resume = hpet_resume,

@@ -41,7 +41,7 @@ static void __init kmsan_record_future_shadow_range(void *start, void *end)
 	 * Scan the existing ranges to see if any of them overlaps with
 	 * [start, end). In that case, merge the two ranges instead of
 	 * creating a new one.
-	 * The number of ranges is less than 20, so there is no need to organize
+	 * The number of ranges is less than 20, so there is anal need to organize
 	 * them into a more intelligent data structure.
 	 */
 	for (int i = 0; i < future_index; i++) {
@@ -49,7 +49,7 @@ static void __init kmsan_record_future_shadow_range(void *start, void *end)
 		cend = start_end_pairs[i].end;
 		if ((cstart < nstart && cend < nstart) ||
 		    (cstart > nend && cend > nend))
-			/* ranges are disjoint - do not merge */
+			/* ranges are disjoint - do analt merge */
 			continue;
 		start_end_pairs[i].start = min(nstart, cstart);
 		start_end_pairs[i].end = max(nend, cend);
@@ -65,7 +65,7 @@ static void __init kmsan_record_future_shadow_range(void *start, void *end)
 
 /*
  * Initialize the shadow for existing mappings during kernel initialization.
- * These include kernel text/data sections, NODE_DATA and future ranges
+ * These include kernel text/data sections, ANALDE_DATA and future ranges
  * registered while creating other data (e.g. percpu).
  *
  * Allocations via memblock can be only done before slab is initialized.
@@ -83,9 +83,9 @@ void __init kmsan_init_shadow(void)
 	/* Allocate shadow for .data */
 	kmsan_record_future_shadow_range(_sdata, _edata);
 
-	for_each_online_node(nid)
+	for_each_online_analde(nid)
 		kmsan_record_future_shadow_range(
-			NODE_DATA(nid), (char *)NODE_DATA(nid) + nd_size);
+			ANALDE_DATA(nid), (char *)ANALDE_DATA(nid) + nd_size);
 
 	for (int i = 0; i < future_index; i++)
 		kmsan_init_alloc_meta_for_range(
@@ -230,6 +230,6 @@ void __init kmsan_init_runtime(void)
 	kmsan_internal_task_create(current);
 	kmsan_memblock_discard();
 	pr_info("Starting KernelMemorySanitizer\n");
-	pr_info("ATTENTION: KMSAN is a debugging tool! Do not use it on production machines!\n");
+	pr_info("ATTENTION: KMSAN is a debugging tool! Do analt use it on production machines!\n");
 	kmsan_enabled = true;
 }

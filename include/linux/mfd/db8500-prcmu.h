@@ -24,7 +24,7 @@
 #define DB8500_PRCM_DSI_SW_RESET_DSI1_SW_RESETN BIT(1)
 #define DB8500_PRCM_DSI_SW_RESET_DSI2_SW_RESETN BIT(2)
 
-/* This portion previously known as <mach/prcmu-fw-defs_v1.h> */
+/* This portion previously kanalwn as <mach/prcmu-fw-defs_v1.h> */
 
 /**
  * enum state - ON/OFF state definition
@@ -90,7 +90,7 @@ enum romcode_write {
 
 /**
  * enum romcode_read - Romcode message written by XP70 and read by A9
- * @INIT: Init value when romcode field is not used
+ * @INIT: Init value when romcode field is analt used
  * @FS_2_DS: Value set when power state is going from ApExecute to
  *          ApDeepSleep
  * @END_DS: Value set when ApDeepSleep power state is reached coming from
@@ -101,7 +101,7 @@ enum romcode_write {
  *         ApDeepSleep state
  * @SWR: Value set when power state is going to ApReset
  * @END_SWR: Value set when the xp70 finished executing ApReset actions and
- *          waits for romcode acknowledgment to go to self-reset
+ *          waits for romcode ackanalwledgment to go to self-reset
  */
 enum romcode_read {
 	INIT = 0x00,
@@ -115,7 +115,7 @@ enum romcode_read {
 
 /**
  * enum ap_pwrst - current power states defined in PRCMU firmware
- * @NO_PWRST: Current power state init
+ * @ANAL_PWRST: Current power state init
  * @AP_BOOT: Current power state is apBoot
  * @AP_EXECUTE: Current power state is apExecute
  * @AP_DEEP_SLEEP: Current power state is apDeepSleep
@@ -124,7 +124,7 @@ enum romcode_read {
  * @AP_RESET: Current power state is apReset
  */
 enum ap_pwrst {
-	NO_PWRST = 0x00,
+	ANAL_PWRST = 0x00,
 	AP_BOOT = 0x01,
 	AP_EXECUTE = 0x02,
 	AP_DEEP_SLEEP = 0x03,
@@ -135,7 +135,7 @@ enum ap_pwrst {
 
 /**
  * enum ap_pwrst_trans - Transition states defined in PRCMU firmware
- * @NO_TRANSITION: No power state transition
+ * @ANAL_TRANSITION: Anal power state transition
  * @APEXECUTE_TO_APSLEEP: Power state transition from ApExecute to ApSleep
  * @APIDLE_TO_APSLEEP: Power state transition from ApIdle to ApSleep
  * @APBOOT_TO_APEXECUTE: Power state transition from ApBoot to ApExecute
@@ -144,7 +144,7 @@ enum ap_pwrst {
  * @APEXECUTE_TO_APIDLE: Power state transition from ApExecute to ApIdle
  */
 enum ap_pwrst_trans {
-	PRCMU_AP_NO_CHANGE		= 0x00,
+	PRCMU_AP_ANAL_CHANGE		= 0x00,
 	APEXECUTE_TO_APSLEEP		= 0x01,
 	APIDLE_TO_APSLEEP		= 0x02, /* To be removed */
 	PRCMU_AP_SLEEP			= 0x01,
@@ -158,17 +158,17 @@ enum ap_pwrst_trans {
 
 /**
  * enum hw_acc_state - State definition for hardware accelerator
- * @HW_NO_CHANGE: The hardware accelerator state must remain unchanged
+ * @HW_ANAL_CHANGE: The hardware accelerator state must remain unchanged
  * @HW_OFF: The hardware accelerator must be switched off
  * @HW_OFF_RAMRET: The hardware accelerator must be switched off with its
  *               internal RAM in retention
  * @HW_ON: The hwa hardware accelerator hwa must be switched on
  *
- * NOTE! Deprecated, to be removed when all users switched over to use the
+ * ANALTE! Deprecated, to be removed when all users switched over to use the
  * regulator API.
  */
 enum hw_acc_state {
-	HW_NO_CHANGE = 0x00,
+	HW_ANAL_CHANGE = 0x00,
 	HW_OFF = 0x01,
 	HW_OFF_RAMRET = 0x02,
 	HW_ON = 0x04
@@ -219,7 +219,7 @@ enum ap_pwrsttr_status {
 	IDLE_TO_EXECUTE = 0xF1,
 	IDLE_TO_EXECUTEOK = 0xF0,
 	RDYTODS_RETURNTOEXE    = 0xEF,
-	NORDYTODS_RETURNTOEXE  = 0xEE,
+	ANALRDYTODS_RETURNTOEXE  = 0xEE,
 	EXETOSLEEP_RETURNTOEXE = 0xED,
 	EXETOIDLE_RETURNTOEXE  = 0xEC,
 	INIT_STATUS = 0xEB,
@@ -238,11 +238,11 @@ enum ap_pwrsttr_status {
 	I2C_NACK_REG_ADDR_ER          = 0x0B,
 	I2C_NACK_DATA0123_ER          = 0x1B,
 	I2C_NACK_ADDR_ER              = 0x1F,
-	CURAPPWRSTISNOT_BOOT          = 0x20,
-	CURAPPWRSTISNOT_EXECUTE       = 0x21,
-	CURAPPWRSTISNOT_SLEEPMODE     = 0x22,
-	CURAPPWRSTISNOT_CORRECTFORIT10 = 0x23,
-	FIFO4500WUISNOT_WUPEVENT      = 0x24,
+	CURAPPWRSTISANALT_BOOT          = 0x20,
+	CURAPPWRSTISANALT_EXECUTE       = 0x21,
+	CURAPPWRSTISANALT_SLEEPMODE     = 0x22,
+	CURAPPWRSTISANALT_CORRECTFORIT10 = 0x23,
+	FIFO4500WUISANALT_WUPEVENT      = 0x24,
 	PLL32KLOCKP_ER                = 0x29,
 	DDRDEEPSLEEPOK_ER             = 0x2A,
 	ROMCODEREADY_ER               = 0x50,
@@ -258,8 +258,8 @@ enum ap_pwrsttr_status {
  * @DVFS_ARM100OPPOK: The state transition DVFS has been completed for 100OPP
  * @DVFS_ARM50OPPOK: The state transition DVFS has been completed for 50OPP
  * @DVFS_ARMEXTCLKOK: The state transition DVFS has been completed for EXTCLK
- * @DVFS_NOCHGTCLKOK: The state transition DVFS has been completed for
- *                   NOCHGCLK
+ * @DVFS_ANALCHGTCLKOK: The state transition DVFS has been completed for
+ *                   ANALCHGCLK
  * @DVFS_INITSTATUS: Value init
  */
 enum dvfs_stat {
@@ -267,7 +267,7 @@ enum dvfs_stat {
 	DVFS_ARM100OPPOK = 0xFE,
 	DVFS_ARM50OPPOK = 0xFD,
 	DVFS_ARMEXTCLKOK = 0xFC,
-	DVFS_NOCHGTCLKOK = 0xFB,
+	DVFS_ANALCHGTCLKOK = 0xFB,
 	DVFS_INITSTATUS = 0x00
 };
 
@@ -294,58 +294,58 @@ enum sia_mmdsp_stat {
 /**
  * enum  mbox_to_arm_err - Error messages definition
  * @INIT_ERR: Init value
- * @PLLARMLOCKP_ERR: PLLARM has not been correctly locked in given time
- * @PLLDDRLOCKP_ERR: PLLDDR has not been correctly locked in the given time
- * @PLLSOC0LOCKP_ERR: PLLSOC0 has not been correctly locked in the given time
- * @PLLSOC1LOCKP_ERR: PLLSOC1 has not been correctly locked in the given time
- * @ARMWFI_ERR: The ARM WFI has not been correctly executed in the given time
- * @SYSCLKOK_ERR: The SYSCLK is not available in the given time
- * @BOOT_ERR: Romcode has not validated the XP70 self reset in the given time
+ * @PLLARMLOCKP_ERR: PLLARM has analt been correctly locked in given time
+ * @PLLDDRLOCKP_ERR: PLLDDR has analt been correctly locked in the given time
+ * @PLLSOC0LOCKP_ERR: PLLSOC0 has analt been correctly locked in the given time
+ * @PLLSOC1LOCKP_ERR: PLLSOC1 has analt been correctly locked in the given time
+ * @ARMWFI_ERR: The ARM WFI has analt been correctly executed in the given time
+ * @SYSCLKOK_ERR: The SYSCLK is analt available in the given time
+ * @BOOT_ERR: Romcode has analt validated the XP70 self reset in the given time
  * @ROMCODESAVECONTEXT: The Romcode didn.t correctly save it secure context
  * @VARMHIGHSPEEDVALTO_ERR: The ARM high speed supply value transfered
- *          through I2C has not been correctly executed in the given time
+ *          through I2C has analt been correctly executed in the given time
  * @VARMHIGHSPEEDACCESS_ERR: The command value of VarmHighSpeedVal transfered
- *             through I2C has not been correctly executed in the given time
+ *             through I2C has analt been correctly executed in the given time
  * @VARMLOWSPEEDVALTO_ERR:The ARM low speed supply value transfered through
- *                     I2C has not been correctly executed in the given time
+ *                     I2C has analt been correctly executed in the given time
  * @VARMLOWSPEEDACCESS_ERR: The command value of VarmLowSpeedVal transfered
- *             through I2C has not been correctly executed in the given time
+ *             through I2C has analt been correctly executed in the given time
  * @VARMRETENTIONVALTO_ERR: The ARM retention supply value transfered through
- *                     I2C has not been correctly executed in the given time
+ *                     I2C has analt been correctly executed in the given time
  * @VARMRETENTIONACCESS_ERR: The command value of VarmRetentionVal transfered
- *             through I2C has not been correctly executed in the given time
+ *             through I2C has analt been correctly executed in the given time
  * @VAPEHIGHSPEEDVALTO_ERR: The APE highspeed supply value transfered through
- *                     I2C has not been correctly executed in the given time
+ *                     I2C has analt been correctly executed in the given time
  * @VSAFEHPVALTO_ERR: The SAFE high power supply value transfered through I2C
- *                         has not been correctly executed in the given time
+ *                         has analt been correctly executed in the given time
  * @VMODSEL1VALTO_ERR: The MODEM sel1 supply value transfered through I2C has
- *                             not been correctly executed in the given time
+ *                             analt been correctly executed in the given time
  * @VMODSEL2VALTO_ERR: The MODEM sel2 supply value transfered through I2C has
- *                             not been correctly executed in the given time
+ *                             analt been correctly executed in the given time
  * @VARMOFFACCESS_ERR: The command value of Varm ON/OFF transfered through
- *                     I2C has not been correctly executed in the given time
+ *                     I2C has analt been correctly executed in the given time
  * @VAPEOFFACCESS_ERR: The command value of Vape ON/OFF transfered through
- *                     I2C has not been correctly executed in the given time
+ *                     I2C has analt been correctly executed in the given time
  * @VARMRETACCES_ERR: The command value of Varm retention ON/OFF transfered
- *             through I2C has not been correctly executed in the given time
- * @CURAPPWRSTISNOTBOOT:Generated when Arm want to do power state transition
- *             ApBoot to ApExecute but the power current state is not Apboot
- * @CURAPPWRSTISNOTEXECUTE: Generated when Arm want to do power state
+ *             through I2C has analt been correctly executed in the given time
+ * @CURAPPWRSTISANALTBOOT:Generated when Arm want to do power state transition
+ *             ApBoot to ApExecute but the power current state is analt Apboot
+ * @CURAPPWRSTISANALTEXECUTE: Generated when Arm want to do power state
  *              transition from ApExecute to others power state but the
- *              power current state is not ApExecute
- * @CURAPPWRSTISNOTSLEEPMODE: Generated when wake up events are transmitted
- *             but the power current state is not ApDeepSleep/ApSleep/ApIdle
- * @CURAPPWRSTISNOTCORRECTDBG:  Generated when wake up events are transmitted
- *              but the power current state is not correct
- * @ARMREGU1VALTO_ERR:The ArmRegu1 value transferred through I2C has not
+ *              power current state is analt ApExecute
+ * @CURAPPWRSTISANALTSLEEPMODE: Generated when wake up events are transmitted
+ *             but the power current state is analt ApDeepSleep/ApSleep/ApIdle
+ * @CURAPPWRSTISANALTCORRECTDBG:  Generated when wake up events are transmitted
+ *              but the power current state is analt correct
+ * @ARMREGU1VALTO_ERR:The ArmRegu1 value transferred through I2C has analt
  *                    been correctly executed in the given time
- * @ARMREGU2VALTO_ERR: The ArmRegu2 value transferred through I2C has not
+ * @ARMREGU2VALTO_ERR: The ArmRegu2 value transferred through I2C has analt
  *                    been correctly executed in the given time
- * @VAPEREGUVALTO_ERR: The VApeRegu value transfered through I2C has not
+ * @VAPEREGUVALTO_ERR: The VApeRegu value transfered through I2C has analt
  *                    been correctly executed in the given time
- * @VSMPS3REGUVALTO_ERR: The VSmps3Regu value transfered through I2C has not
+ * @VSMPS3REGUVALTO_ERR: The VSmps3Regu value transfered through I2C has analt
  *                      been correctly executed in the given time
- * @VMODREGUVALTO_ERR: The VModemRegu value transfered through I2C has not
+ * @VMODREGUVALTO_ERR: The VModemRegu value transfered through I2C has analt
  *                    been correctly executed in the given time
  */
 enum mbox_to_arm_err {
@@ -371,10 +371,10 @@ enum mbox_to_arm_err {
 	VARMOFFACCESS_ERR = 0x1A,
 	VAPEOFFACCESS_ERR = 0x1B,
 	VARMRETACCES_ERR = 0x1C,
-	CURAPPWRSTISNOTBOOT = 0x20,
-	CURAPPWRSTISNOTEXECUTE = 0x21,
-	CURAPPWRSTISNOTSLEEPMODE = 0x22,
-	CURAPPWRSTISNOTCORRECTDBG = 0x23,
+	CURAPPWRSTISANALTBOOT = 0x20,
+	CURAPPWRSTISANALTEXECUTE = 0x21,
+	CURAPPWRSTISANALTSLEEPMODE = 0x22,
+	CURAPPWRSTISANALTCORRECTDBG = 0x23,
 	ARMREGU1VALTO_ERR = 0x24,
 	ARMREGU2VALTO_ERR = 0x25,
 	VAPEREGUVALTO_ERR = 0x26,
@@ -400,11 +400,11 @@ enum cs_pwrmgt {
 	WKUPCS1   = 3
 };
 
-/* Defs related to autonomous power management */
+/* Defs related to autoanalmous power management */
 
 /**
  * enum sia_sva_pwr_policy - Power policy
- * @NO_CHGT:	No change
+ * @ANAL_CHGT:	Anal change
  * @DSPOFF_HWPOFF:
  * @DSPOFFRAMRET_HWPOFF:
  * @DSPCLKOFF_HWPOFF:
@@ -412,7 +412,7 @@ enum cs_pwrmgt {
  *
  */
 enum sia_sva_pwr_policy {
-	NO_CHGT			= 0x0,
+	ANAL_CHGT			= 0x0,
 	DSPOFF_HWPOFF		= 0x1,
 	DSPOFFRAMRET_HWPOFF	= 0x2,
 	DSPCLKOFF_HWPOFF	= 0x3,
@@ -430,7 +430,7 @@ enum auto_enable {
 	AUTO_ON		= 0x1,
 };
 
-/* End of file previously known as prcmu-fw-defs_v1.h */
+/* End of file previously kanalwn as prcmu-fw-defs_v1.h */
 
 /**
  * enum prcmu_power_status - results from set_power_state
@@ -452,7 +452,7 @@ enum prcmu_power_status {
 };
 
 /*
- * Definitions for autonomous power management configuration.
+ * Definitions for autoanalmous power management configuration.
  */
 
 #define PRCMU_AUTO_PM_OFF 0
@@ -462,7 +462,7 @@ enum prcmu_power_status {
 #define PRCMU_AUTO_PM_POWER_ON_ABB_FIFO_IT BIT(1)
 
 enum prcmu_auto_pm_policy {
-	PRCMU_AUTO_PM_POLICY_NO_CHANGE,
+	PRCMU_AUTO_PM_POLICY_ANAL_CHANGE,
 	PRCMU_AUTO_PM_POLICY_DSP_OFF_HWP_OFF,
 	PRCMU_AUTO_PM_POLICY_DSP_OFF_RAMRET_HWP_OFF,
 	PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_OFF,
@@ -470,11 +470,11 @@ enum prcmu_auto_pm_policy {
 };
 
 /**
- * struct prcmu_auto_pm_config - Autonomous power management configuration.
- * @sia_auto_pm_enable: SIA autonomous pm enable. (PRCMU_AUTO_PM_{OFF,ON})
+ * struct prcmu_auto_pm_config - Autoanalmous power management configuration.
+ * @sia_auto_pm_enable: SIA autoanalmous pm enable. (PRCMU_AUTO_PM_{OFF,ON})
  * @sia_power_on:       SIA power ON enable. (PRCMU_AUTO_PM_POWER_ON_* bitmask)
  * @sia_policy:         SIA power policy. (enum prcmu_auto_pm_policy)
- * @sva_auto_pm_enable: SVA autonomous pm enable. (PRCMU_AUTO_PM_{OFF,ON})
+ * @sva_auto_pm_enable: SVA autoanalmous pm enable. (PRCMU_AUTO_PM_{OFF,ON})
  * @sva_power_on:       SVA power ON enable. (PRCMU_AUTO_PM_POWER_ON_* bitmask)
  * @sva_policy:         SVA power policy. (enum prcmu_auto_pm_policy)
  */
@@ -637,12 +637,12 @@ static inline int db8500_prcmu_stop_temp_sense(void)
 
 static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int prcmu_ac_wake_req(void)

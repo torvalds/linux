@@ -58,7 +58,7 @@ static int sigpool_reserve_scratch(size_t size)
 
 	stf = kmalloc(stf_sz, GFP_KERNEL);
 	if (!stf)
-		return -ENOMEM;
+		return -EANALMEM;
 	stf->cnt = 0;
 
 	size = max(size, __scratch_size);
@@ -66,9 +66,9 @@ static int sigpool_reserve_scratch(size_t size)
 	for_each_possible_cpu(cpu) {
 		void *scratch, *old_scratch;
 
-		scratch = kmalloc_node(size, GFP_KERNEL, cpu_to_node(cpu));
+		scratch = kmalloc_analde(size, GFP_KERNEL, cpu_to_analde(cpu));
 		if (!scratch) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -117,7 +117,7 @@ static int __cpool_alloc_ahash(struct sigpool_entry *e, const char *alg)
 
 	e->alg = kstrdup(alg, GFP_KERNEL);
 	if (!e->alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cpu0_hash = crypto_alloc_ahash(alg, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(cpu0_hash)) {
@@ -174,7 +174,7 @@ int tcp_sigpool_alloc_ahash(const char *alg, size_t scratch_size)
 			break;
 	}
 	if (i >= CPOOL_SIZE) {
-		ret = -ENOSPC;
+		ret = -EANALSPC;
 		goto out;
 	}
 
@@ -270,7 +270,7 @@ int tcp_sigpool_start(unsigned int id, struct tcp_sigpool *c) __cond_acquires(RC
 	if (!c->req) {
 		crypto_free_ahash(hash);
 		rcu_read_unlock_bh();
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ahash_request_set_callback(c->req, 0, NULL, NULL);
 

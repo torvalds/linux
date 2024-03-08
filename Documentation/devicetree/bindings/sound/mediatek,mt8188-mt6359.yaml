@@ -33,13 +33,13 @@ patternProperties:
   "^dai-link-[0-9]+$":
     type: object
     description:
-      Container for dai-link level properties and CODEC sub-nodes.
+      Container for dai-link level properties and CODEC sub-analdes.
 
     properties:
       link-name:
         description:
           This property corresponds to the name of the BE dai-link to which
-          we are going to update parameters in this node.
+          we are going to update parameters in this analde.
         items:
           enum:
             - DPTX_BE
@@ -51,7 +51,7 @@ patternProperties:
             - PCM1_BE
 
       codec:
-        description: Holds subnode which indicates codec dai.
+        description: Holds subanalde which indicates codec dai.
         type: object
         additionalProperties: false
         properties:

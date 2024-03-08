@@ -119,12 +119,12 @@ MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 #define BA0_DMR_SIZE20		(1<<20)	/* Sample is 20-bit */
 #define BA0_DMR_USIGN		(1<<19)	/* Unsigned */
 #define BA0_DMR_BEND		(1<<18)	/* Big Endian */
-#define BA0_DMR_MONO		(1<<17)	/* Mono */
+#define BA0_DMR_MOANAL		(1<<17)	/* Moanal */
 #define BA0_DMR_SIZE8		(1<<16)	/* Sample is 8-bit */
 #define BA0_DMR_TYPE_DEMAND	(0<<6)
 #define BA0_DMR_TYPE_SINGLE	(1<<6)
 #define BA0_DMR_TYPE_BLOCK	(2<<6)
-#define BA0_DMR_TYPE_CASCADE	(3<<6)	/* Not supported */
+#define BA0_DMR_TYPE_CASCADE	(3<<6)	/* Analt supported */
 #define BA0_DMR_DEC		(1<<5)	/* Access Increment (0) or Decrement (1) */
 #define BA0_DMR_AUTO		(1<<4)	/* Auto-Initialize */
 #define BA0_DMR_TR_VERIFY	(0<<2)	/* Verify Transfer */
@@ -190,11 +190,11 @@ MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 #define BA0_SPMC_GISPEN		(1<<14)	/* GP INT Secondary PME# Enable */
 #define BA0_SPMC_EESPD		(1<<9)	/* EEPROM Serial Port Disable */
 #define BA0_SPMC_ASDI2E		(1<<8)	/* ASDIN2 Enable */
-#define BA0_SPMC_ASDO		(1<<7)	/* Asynchronous ASDOUT Assertion */
+#define BA0_SPMC_ASDO		(1<<7)	/* Asynchroanalus ASDOUT Assertion */
 #define BA0_SPMC_WUP2		(1<<3)	/* Wakeup for Secondary Input */
 #define BA0_SPMC_WUP1		(1<<2)	/* Wakeup for Primary Input */
-#define BA0_SPMC_ASYNC		(1<<1)	/* Asynchronous ASYNC Assertion */
-#define BA0_SPMC_RSTN		(1<<0)	/* Reset Not! */
+#define BA0_SPMC_ASYNC		(1<<1)	/* Asynchroanalus ASYNC Assertion */
+#define BA0_SPMC_RSTN		(1<<0)	/* Reset Analt! */
 
 #define BA0_CFLR		0x03f0	/* Configuration Load Register (EEPROM or BIOS) */
 #define BA0_CFLR_DEFAULT	0x00000001 /* CFLR must be in AC97 link mode */
@@ -214,7 +214,7 @@ MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 #define BA0_SLT12O		0x041c	/* Slot 12 GPIO Output Register for AC-Link */
 
 #define BA0_SERMC		0x0420	/* Serial Port Master Control */
-#define BA0_SERMC_FCRN		(1<<27)	/* Force Codec Ready Not */
+#define BA0_SERMC_FCRN		(1<<27)	/* Force Codec Ready Analt */
 #define BA0_SERMC_ODSEN2	(1<<25)	/* On-Demand Support Enable ASDIN2 */
 #define BA0_SERMC_ODSEN1	(1<<24)	/* On-Demand Support Enable ASDIN1 */
 #define BA0_SERMC_SXLB		(1<<21)	/* ASDIN2 to ASDOUT Loopback */
@@ -320,7 +320,7 @@ MODULE_PARM_DESC(dual_codec, "Secondary Codec ID (0 = disabled).");
 #define BA0_SSCR_MVCS		(1<<19)	/* Master Volume Codec Select */
 #define BA0_SSCR_MVLD		(1<<18)	/* Master Volume Line Out Disable */
 #define BA0_SSCR_MVAD		(1<<17)	/* Master Volume Alternate Out Disable */
-#define BA0_SSCR_MVMD		(1<<16)	/* Master Volume Mono Out Disable */
+#define BA0_SSCR_MVMD		(1<<16)	/* Master Volume Moanal Out Disable */
 #define BA0_SSCR_XLPSRC		(1<<8)	/* External SRC Loopback Mode */
 #define BA0_SSCR_LPSRC		(1<<7)	/* SRC Loopback Mode */
 #define BA0_SSCR_CDTX		(1<<5)	/* CD Transfer Data */
@@ -513,8 +513,8 @@ static void snd_cs4281_ac97_write(struct snd_ac97 *ac97,
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
 	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97
 	 *  3. Write ACCTL = Control Register = 460h for initiating the write
-	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 07h
-	 *  5. if DCV not cleared, break and return error
+	 *  4. Read ACCTL = 460h, DCV should be reset by analw and 460h = 07h
+	 *  5. if DCV analt cleared, break and return error
 	 */
 	struct cs4281 *chip = ac97->private_data;
 	int count;
@@ -529,7 +529,7 @@ static void snd_cs4281_ac97_write(struct snd_ac97 *ac97,
 	 *  reset CRW - Write command
 	 *  set VFRM - valid frame enabled
 	 *  set ESYN - ASYNC generation enabled
-	 *  set RSTN - ARST# inactive, AC97 codec not reset
+	 *  set RSTN - ARST# inactive, AC97 codec analt reset
          */
 	snd_cs4281_pokeBA0(chip, BA0_ACCAD, reg);
 	snd_cs4281_pokeBA0(chip, BA0_ACCDA, val);
@@ -541,8 +541,8 @@ static void snd_cs4281_ac97_write(struct snd_ac97 *ac97,
 		 */
 		udelay(10);
 		/*
-		 *  Now, check to see if the write has completed.
-		 *  ACCTL = 460h, DCV should be reset by now and 460h = 07h
+		 *  Analw, check to see if the write has completed.
+		 *  ACCTL = 460h, DCV should be reset by analw and 460h = 07h
 		 */
 		if (!(snd_cs4281_peekBA0(chip, BA0_ACCTL) & BA0_ACCTL_DCV)) {
 			return;
@@ -566,8 +566,8 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 	 *  1. Write ACCAD = Command Address Register = 46Ch for AC97 register address
 	 *  2. Write ACCDA = Command Data Register = 470h    for data to write to AC97 
 	 *  3. Write ACCTL = Control Register = 460h for initiating the write
-	 *  4. Read ACCTL = 460h, DCV should be reset by now and 460h = 17h
-	 *  5. if DCV not cleared, break and return error
+	 *  4. Read ACCTL = 460h, DCV should be reset by analw and 460h = 17h
+	 *  5. if DCV analt cleared, break and return error
 	 *  6. Read ACSTS = Status Register = 464h, check VSTS bit
 	 */
 
@@ -583,7 +583,7 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 	 *  set CRW - Read command
 	 *  set VFRM - valid frame enabled
 	 *  set ESYN - ASYNC generation enabled
-	 *  set RSTN - ARST# inactive, AC97 codec not reset
+	 *  set RSTN - ARST# inactive, AC97 codec analt reset
 	 */
 
 	snd_cs4281_pokeBA0(chip, BA0_ACCAD, reg);
@@ -602,8 +602,8 @@ static unsigned short snd_cs4281_ac97_read(struct snd_ac97 *ac97,
 	 	 */
 		udelay(10);
 		/*
-		 *  Now, check to see if the read has completed.
-		 *  ACCTL = 460h, DCV should be reset by now and 460h = 17h
+		 *  Analw, check to see if the read has completed.
+		 *  ACCTL = 460h, DCV should be reset by analw and 460h = 17h
 		 */
 		if (!(snd_cs4281_peekBA0(chip, BA0_ACCTL) & BA0_ACCTL_DCV))
 			goto __ok1;
@@ -718,12 +718,12 @@ static void snd_cs4281_mode(struct cs4281 *chip, struct cs4281_dma *dma,
 			    struct snd_pcm_runtime *runtime,
 			    int capture, int src)
 {
-	int rec_mono;
+	int rec_moanal;
 
 	dma->valDMR = BA0_DMR_TYPE_SINGLE | BA0_DMR_AUTO |
 		      (capture ? BA0_DMR_TR_WRITE : BA0_DMR_TR_READ);
 	if (runtime->channels == 1)
-		dma->valDMR |= BA0_DMR_MONO;
+		dma->valDMR |= BA0_DMR_MOANAL;
 	if (snd_pcm_format_unsigned(runtime->format) > 0)
 		dma->valDMR |= BA0_DMR_USIGN;
 	if (snd_pcm_format_big_endian(runtime->format) > 0)
@@ -742,11 +742,11 @@ static void snd_cs4281_mode(struct cs4281 *chip, struct cs4281_dma *dma,
 	/* Initialize DMA */
 	snd_cs4281_pokeBA0(chip, dma->regDBA, runtime->dma_addr);
 	snd_cs4281_pokeBA0(chip, dma->regDBC, runtime->buffer_size - 1);
-	rec_mono = (chip->dma[1].valDMR & BA0_DMR_MONO) == BA0_DMR_MONO;
+	rec_moanal = (chip->dma[1].valDMR & BA0_DMR_MOANAL) == BA0_DMR_MOANAL;
 	snd_cs4281_pokeBA0(chip, BA0_SRCSA, (chip->src_left_play_slot << 0) |
 					    (chip->src_right_play_slot << 8) |
 					    (chip->src_left_rec_slot << 16) |
-					    ((rec_mono ? 31 : chip->src_right_rec_slot) << 24));
+					    ((rec_moanal ? 31 : chip->src_right_rec_slot) << 24));
 	if (!src)
 		goto __skip_src;
 	if (!capture) {
@@ -768,7 +768,7 @@ static void snd_cs4281_mode(struct cs4281 *chip, struct cs4281_dma *dma,
 		snd_cs4281_pokeBA0(chip, dma->regFCR, snd_cs4281_peekBA0(chip, dma->regFCR) & ~BA0_FCR_FEN);
 	/* Initialize FIFO */
 	dma->valFCR = BA0_FCR_LS(dma->left_slot) |
-		      BA0_FCR_RS(capture && (dma->valDMR & BA0_DMR_MONO) ? 31 : dma->right_slot) |
+		      BA0_FCR_RS(capture && (dma->valDMR & BA0_DMR_MOANAL) ? 31 : dma->right_slot) |
 		      BA0_FCR_SZ(CS4281_FIFO_SIZE) |
 		      BA0_FCR_OF(dma->fifo_offset);
 	snd_cs4281_pokeBA0(chip, dma->regFCR, dma->valFCR | (capture ? BA0_FCR_PSH : 0));
@@ -1235,8 +1235,8 @@ static int snd_cs4281_create_gameport(struct cs4281 *chip)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
-		return -ENOMEM;
+			"cananalt allocate memory for gameport\n");
+		return -EANALMEM;
 	}
 
 	gameport_set_name(gp, "CS4281 Gameport");
@@ -1264,7 +1264,7 @@ static void snd_cs4281_free_gameport(struct cs4281 *chip)
 	}
 }
 #else
-static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -ENOSYS; }
+static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -EANALSYS; }
 static inline void snd_cs4281_free_gameport(struct cs4281 *chip) { }
 #endif /* IS_REACHABLE(CONFIG_GAMEPORT) */
 
@@ -1317,7 +1317,7 @@ static int snd_cs4281_create(struct snd_card *card,
 	if (devm_request_irq(&pci->dev, pci->irq, snd_cs4281_interrupt,
 			     IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	chip->irq = pci->irq;
 	card->sync_irq = chip->irq;
@@ -1379,9 +1379,9 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 
 	/* Serial Port Power Management */
  	/* Blast the clock control register to zero so that the
-         * PLL starts out in a known state, and blast the master serial
+         * PLL starts out in a kanalwn state, and blast the master serial
          * port control register to zero so that the serial ports also
-         * start out in a known state. */
+         * start out in a kanalwn state. */
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, 0);
 	snd_cs4281_pokeBA0(chip, BA0_SERMC, 0);
 
@@ -1391,7 +1391,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 	udelay(50);
                 
 	/*  Drive the ARST# pin low for a minimum of 1uS (as defined in the AC97
-	 *  spec) and then drive it high.  This is done for non AC97 modes since
+	 *  spec) and then drive it high.  This is done for analn AC97 modes since
 	 *  there might be logic external to the CS4281 that uses the ARST# line
 	 *  for a reset. */
 	snd_cs4281_pokeBA0(chip, BA0_SPMC, 0);
@@ -1430,7 +1430,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 
-	dev_err(chip->card->dev, "DLLRDY not seen\n");
+	dev_err(chip->card->dev, "DLLRDY analt seen\n");
 	return -EIO;
 
       __ok0:
@@ -1506,7 +1506,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
       __ok2:
 
 	/*
-	 *  Now, assert valid frame and the slot 3 and 4 valid bits.  This will
+	 *  Analw, assert valid frame and the slot 3 and 4 valid bits.  This will
 	 *  commense the transfer of digital audio data to the AC97 codec.
 	 */
 	snd_cs4281_pokeBA0(chip, BA0_ACOSV, BA0_ACOSV_SLV(3) | BA0_ACOSV_SLV(4));
@@ -1737,11 +1737,11 @@ static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id)
 	struct cs4281_dma *cdma;
 
 	if (chip == NULL)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	status = snd_cs4281_peekBA0(chip, BA0_HISR);
 	if ((status & 0x7fffffff) == 0) {
 		snd_cs4281_pokeBA0(chip, BA0_HICR, BA0_HICR_EOI);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (status & (BA0_HISR_DMA(0)|BA0_HISR_DMA(1)|BA0_HISR_DMA(2)|BA0_HISR_DMA(3))) {
@@ -1751,7 +1751,7 @@ static irqreturn_t snd_cs4281_interrupt(int irq, void *dev_id)
 				spin_lock(&chip->reg_lock);
 				/* ack DMA IRQ */
 				val = snd_cs4281_peekBA0(chip, cdma->regHDSR);
-				/* workaround, sometimes CS4281 acknowledges */
+				/* workaround, sometimes CS4281 ackanalwledges */
 				/* end or middle transfer position twice */
 				cdma->frag++;
 				if ((val & BA0_HDSR_DHTC) && !(cdma->frag & 1)) {
@@ -1837,10 +1837,10 @@ static int __snd_cs4281_probe(struct pci_dev *pci,
 	int err;
 
         if (dev >= SNDRV_CARDS)
-                return -ENODEV;
+                return -EANALDEV;
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

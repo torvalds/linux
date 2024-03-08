@@ -2,7 +2,7 @@
 /*
  * SPCA506 chip based cameras function
  * M Xhaard 15/04/2004 based on different work Mark Taylor and others
- * and my own snoopy file on a pv-321c donate by a german compagny
+ * and my own sanalopy file on a pv-321c donate by a german compagny
  *                "Firma Frank Gmbh" from  Saarbruecken
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
@@ -20,32 +20,32 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	char norme;
+	char analrme;
 	char channel;
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 5},
-	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 4},
-	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -107,8 +107,8 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 	}
 }
 
-static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
-				 __u16 norme,
+static void spca506_SetAnalrmeInput(struct gspca_dev *gspca_dev,
+				 __u16 analrme,
 				 __u16 channel)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -117,12 +117,12 @@ static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
 	__u8 setbit1 = 0x00;
 	__u8 videomask = 0x00;
 
-	gspca_dbg(gspca_dev, D_STREAM, "** Open Set Norme **\n");
+	gspca_dbg(gspca_dev, D_STREAM, "** Open Set Analrme **\n");
 	spca506_Initi2c(gspca_dev);
 	/* NTSC bit0 -> 1(525 l) PAL SECAM bit0 -> 0 (625 l) */
 	/* Composite channel bit1 -> 1 S-video bit 1 -> 0 */
 	/* and exclude SAA7113 reserved channel set default 0 otherwise */
-	if (norme & V4L2_STD_NTSC)
+	if (analrme & V4L2_STD_NTSC)
 		setbit0 = 0x01;
 	if (channel == 4 || channel == 5 || channel > 9)
 		channel = 0;
@@ -132,34 +132,34 @@ static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev->dev, 0x08, videomask, 0x0000);
 	spca506_WriteI2c(gspca_dev, (0xc0 | (channel & 0x0F)), 0x02);
 
-	if (norme & V4L2_STD_NTSC)
+	if (analrme & V4L2_STD_NTSC)
 		spca506_WriteI2c(gspca_dev, 0x33, 0x0e);
 					/* Chrominance Control NTSC N */
-	else if (norme & V4L2_STD_SECAM)
+	else if (analrme & V4L2_STD_SECAM)
 		spca506_WriteI2c(gspca_dev, 0x53, 0x0e);
 					/* Chrominance Control SECAM */
 	else
 		spca506_WriteI2c(gspca_dev, 0x03, 0x0e);
 					/* Chrominance Control PAL BGHIV */
 
-	sd->norme = norme;
+	sd->analrme = analrme;
 	sd->channel = channel;
 	gspca_dbg(gspca_dev, D_STREAM, "Set Video Byte to 0x%2x\n", videomask);
-	gspca_dbg(gspca_dev, D_STREAM, "Set Norme: %08x Channel %d",
-		  norme, channel);
+	gspca_dbg(gspca_dev, D_STREAM, "Set Analrme: %08x Channel %d",
+		  analrme, channel);
 }
 
-static void spca506_GetNormeInput(struct gspca_dev *gspca_dev,
-				  __u16 *norme, __u16 *channel)
+static void spca506_GetAnalrmeInput(struct gspca_dev *gspca_dev,
+				  __u16 *analrme, __u16 *channel)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* Read the register is not so good value change so
+	/* Read the register is analt so good value change so
 	   we use your own copy in spca50x struct */
-	*norme = sd->norme;
+	*analrme = sd->analrme;
 	*channel = sd->channel;
-	gspca_dbg(gspca_dev, D_STREAM, "Get Norme: %d Channel %d\n",
-		  *norme, *channel);
+	gspca_dbg(gspca_dev, D_STREAM, "Get Analrme: %d Channel %d\n",
+		  *analrme, *channel);
 }
 
 static void spca506_Setsize(struct gspca_dev *gspca_dev, __u16 code,
@@ -216,7 +216,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x03, 0x1c, 0x0001);
 	reg_w(dev, 0x03, 0x18, 0x0001);
 	/* Init on PAL and composite input0 */
-	spca506_SetNormeInput(gspca_dev, 0, 0);
+	spca506_SetAnalrmeInput(gspca_dev, 0, 0);
 	reg_w(dev, 0x03, 0x1c, 0x0001);
 	reg_w(dev, 0x03, 0x18, 0x0001);
 	reg_w(dev, 0x05, 0x00, 0x0000);
@@ -317,7 +317,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u16 norme;
+	__u16 analrme;
 	__u16 channel;
 
 	/**************************************/
@@ -439,8 +439,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x03, 0x12, 0x0000);
 	reg_r(gspca_dev, 0x04, 0x0001, 2);
 	gspca_dbg(gspca_dev, D_STREAM, "webcam started\n");
-	spca506_GetNormeInput(gspca_dev, &norme, &channel);
-	spca506_SetNormeInput(gspca_dev, norme, channel);
+	spca506_GetAnalrmeInput(gspca_dev, &analrme, &channel);
+	spca506_SetAnalrmeInput(gspca_dev, analrme, channel);
 	return 0;
 }
 
@@ -550,7 +550,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_HUE, 0, 255, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

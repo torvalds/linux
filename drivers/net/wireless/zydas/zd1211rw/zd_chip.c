@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/slab.h>
 
 #include "zd_def.h"
@@ -86,7 +86,7 @@ static zd_addr_t inc_addr(zd_addr_t addr)
 	return (zd_addr_t)a;
 }
 
-/* Read a variable number of 32-bit values. Parameter count is not allowed to
+/* Read a variable number of 32-bit values. Parameter count is analt allowed to
  * exceed USB_MAX_IOREAD32_COUNT.
  */
 int zd_ioread32v_locked(struct zd_chip *chip, u32 *values, const zd_addr_t *addr,
@@ -583,7 +583,7 @@ int zd_chip_generic_patch_6m_band(struct zd_chip *chip, int channel)
 		{ ZD_CR47,  0x1e },
 	};
 
-	/* FIXME: Channel 11 is not the edge for all regulatory domains. */
+	/* FIXME: Channel 11 is analt the edge for all regulatory domains. */
 	if (channel == 1 || channel == 11)
 		ioreqs[0].value = 0x12;
 
@@ -653,7 +653,7 @@ static int zd1211_hw_reset_phy(struct zd_chip *chip)
 		{ ZD_CR164, 0xfa }, { ZD_CR165, 0xea }, { ZD_CR166, 0xbe },
 		{ ZD_CR167, 0xbe }, { ZD_CR168, 0x6a }, { ZD_CR169, 0xba },
 		{ ZD_CR170, 0xba }, { ZD_CR171, 0xba },
-		/* Note: ZD_CR204 must lead the ZD_CR203 */
+		/* Analte: ZD_CR204 must lead the ZD_CR203 */
 		{ ZD_CR204, 0x7d },
 		{ },
 		{ ZD_CR203, 0x30 },
@@ -695,7 +695,7 @@ static int zd1211b_hw_reset_phy(struct zd_chip *chip)
 		{ ZD_CR21,  0x0e }, { ZD_CR22,  0x23 }, { ZD_CR23,  0x90 },
 		{ ZD_CR24,  0x14 }, { ZD_CR25,  0x40 }, { ZD_CR26,  0x10 },
 		{ ZD_CR27,  0x10 }, { ZD_CR28,  0x7f }, { ZD_CR29,  0x80 },
-		{ ZD_CR30,  0x4b }, /* ASIC/FWT, no jointly decoder */
+		{ ZD_CR30,  0x4b }, /* ASIC/FWT, anal jointly decoder */
 		{ ZD_CR31,  0x60 }, { ZD_CR32,  0x43 }, { ZD_CR33,  0x08 },
 		{ ZD_CR34,  0x06 }, { ZD_CR35,  0x0a }, { ZD_CR36,  0x00 },
 		{ ZD_CR37,  0x00 }, { ZD_CR38,  0x38 }, { ZD_CR39,  0x0c },
@@ -735,7 +735,7 @@ static int zd1211b_hw_reset_phy(struct zd_chip *chip)
 		{ ZD_CR164, 0xfa }, { ZD_CR165, 0xea }, { ZD_CR166, 0xbe },
 		{ ZD_CR167, 0xbe }, { ZD_CR168, 0x6a }, { ZD_CR169, 0xba },
 		{ ZD_CR170, 0xba }, { ZD_CR171, 0xba },
-		/* Note: ZD_CR204 must lead the ZD_CR203 */
+		/* Analte: ZD_CR204 must lead the ZD_CR203 */
 		{ ZD_CR204, 0x7d },
 		{},
 		{ ZD_CR203, 0x30 },
@@ -1032,7 +1032,7 @@ static int set_mandatory_rates(struct zd_chip *chip, int gmode)
 	u32 rates;
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
 	/* This sets the mandatory rates, which only depend from the standard
-	 * that the device is supporting. Until further notice we should try
+	 * that the device is supporting. Until further analtice we should try
 	 * to support 802.11g also for full speed USB.
 	 */
 	if (!gmode)

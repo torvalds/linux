@@ -18,7 +18,7 @@ struct stackframe {
 	/* address of the LR value on the stack */
 	unsigned long *lr_addr;
 #ifdef CONFIG_KRETPROBES
-	struct llist_node *kr_cur;
+	struct llist_analde *kr_cur;
 	struct task_struct *tsk;
 #endif
 #ifdef CONFIG_UNWINDER_FRAME_POINTER

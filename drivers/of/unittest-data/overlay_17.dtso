@@ -2,7 +2,7 @@
 /dts-v1/;
 /plugin/;
 
-/* overlay_17 - notify test */
+/* overlay_17 - analtify test */
 
 &unittest_test_bus {
 	#address-cells = <1>;

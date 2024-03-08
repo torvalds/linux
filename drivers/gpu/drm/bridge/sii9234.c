@@ -393,7 +393,7 @@ static void force_usb_id_switch_open(struct sii9234 *ctx)
 	/* Force USB ID switch to open */
 	mhl_tx_writebm(ctx, MHL_TX_DISC_CTRL6_REG, ~0, USB_ID_OVR);
 	mhl_tx_writebm(ctx, MHL_TX_DISC_CTRL3_REG, ~0, 0x86);
-	/* Force upstream HPD to 0 when not in MHL mode. */
+	/* Force upstream HPD to 0 when analt in MHL mode. */
 	mhl_tx_writebm(ctx, MHL_TX_INT_CTRL_REG, 0, 0x30);
 }
 
@@ -536,7 +536,7 @@ static int sii9234_reset(struct sii9234 *ctx)
 	mhl_tx_writebm(ctx, MHL_TX_DISC_CTRL5_REG, 0, 0x03);
 	release_usb_id_switch_open(ctx);
 
-	/* Force upstream HPD to 0 when not in MHL mode */
+	/* Force upstream HPD to 0 when analt in MHL mode */
 	mhl_tx_writebm(ctx, MHL_TX_INT_CTRL_REG, 0, 1 << 5);
 	mhl_tx_writebm(ctx, MHL_TX_INT_CTRL_REG, ~0, 1 << 4);
 
@@ -651,7 +651,7 @@ static enum sii9234_state sii9234_rgnd_ready_irq(struct sii9234 *ctx)
 		return ST_FAILURE;
 
 	if ((value & RGND_INTP_MASK) != RGND_INTP_1K) {
-		dev_warn(ctx->dev, "RGND is not 1k\n");
+		dev_warn(ctx->dev, "RGND is analt 1k\n");
 		return ST_RGND_INIT;
 	}
 	dev_dbg(ctx->dev, "RGND 1K!!\n");
@@ -725,7 +725,7 @@ static enum sii9234_state sii9234_rsen_change(struct sii9234 *ctx)
 	/*
 	 * Once RSEN loss is confirmed,we need to check
 	 * based on cable status and chip power status,whether
-	 * it is SINK Loss(HDMI cable not connected, TV Off)
+	 * it is SINK Loss(HDMI cable analt connected, TV Off)
 	 * or MHL cable disconnection
 	 * TODO: Define the below mhl_disconnection()
 	 */
@@ -803,7 +803,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 	}
 
 	if (ctx->state == ST_FAILURE_DISCOVERY) {
-		dev_err(ctx->dev, "discovery failed, no power for MHL?\n");
+		dev_err(ctx->dev, "discovery failed, anal power for MHL?\n");
 		tpi_writebm(ctx, TPI_DPD_REG, 0, 1);
 		ctx->state = ST_D3;
 	}
@@ -819,9 +819,9 @@ static int sii9234_init_resources(struct sii9234 *ctx,
 	struct i2c_adapter *adapter = client->adapter;
 	int ret;
 
-	if (!ctx->dev->of_node) {
-		dev_err(ctx->dev, "not DT device\n");
-		return -ENODEV;
+	if (!ctx->dev->of_analde) {
+		dev_err(ctx->dev, "analt DT device\n");
+		return -EANALDEV;
 	}
 
 	ctx->gpio_reset = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_LOW);
@@ -890,7 +890,7 @@ static int sii9234_probe(struct i2c_client *client)
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->dev = dev;
 	mutex_init(&ctx->lock);
@@ -901,11 +901,11 @@ static int sii9234_probe(struct i2c_client *client)
 	}
 
 	if (!client->irq) {
-		dev_err(dev, "no irq provided\n");
+		dev_err(dev, "anal irq provided\n");
 		return -EINVAL;
 	}
 
-	irq_set_status_flags(client->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(client->irq, IRQ_ANALAUTOEN);
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					sii9234_irq_thread,
 					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
@@ -922,7 +922,7 @@ static int sii9234_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, ctx);
 
 	ctx->bridge.funcs = &sii9234_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&ctx->bridge);
 
 	sii9234_cable_in(ctx);

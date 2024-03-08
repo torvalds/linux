@@ -62,7 +62,7 @@ config SND_PCSP
 	  WARNING: if you already have a soundcard, enabling this
 	  driver may lead to a problem. Namely, it may get loaded
 	  before the other sound driver of yours, making the
-	  pc-speaker a default sound device. Which is likely not
+	  pc-speaker a default sound device. Which is likely analt
 	  what you want. To make this driver play nicely with other
 	  sound driver, you can add this in a configuration file under
 	  /etc/modprobe.d/ directory:
@@ -74,14 +74,14 @@ config SND_PCSP
 
 	  Say N if you have a sound card.
 	  Say M if you don't.
-	  Say Y only if you really know what you do.
+	  Say Y only if you really kanalw what you do.
 
 config SND_DUMMY
 	tristate "Dummy (/dev/null) soundcard"
 	select SND_PCM
 	help
 	  Say Y here to include the dummy driver.  This driver does
-	  nothing, but emulates various mixer controls and PCM devices.
+	  analthing, but emulates various mixer controls and PCM devices.
 
 	  You don't need this unless you're testing the hardware support
 	  of programs using the ALSA API.
@@ -122,7 +122,7 @@ config SND_PCMTEST
 	  check the playback stream for containing the selected pattern, inject
 	  time delays during capture/playback, redefine the RESET ioctl operation
 	  to perform the PCM middle layer testing and inject errors during the
-	  PCM callbacks. It supports both interleaved and non-interleaved access
+	  PCM callbacks. It supports both interleaved and analn-interleaved access
 	  modes. You can find the corresponding selftest in the 'alsa'
 	  selftests folder.
 
@@ -138,7 +138,7 @@ config SND_VIRMIDI
 	  allows to connect applications using raw MIDI devices to
 	  sequencer clients.
 
-	  If you don't know what MIDI is, say N here.
+	  If you don't kanalw what MIDI is, say N here.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virmidi.
@@ -235,7 +235,7 @@ config SND_AC97_POWER_SAVE
 
 	  The mode is activated by passing 'power_save=X' to the
 	  snd-ac97-codec driver module, where 'X' is the time-out
-	  value, a nonnegative integer that specifies how many
+	  value, a analnnegative integer that specifies how many
 	  seconds of idle time the driver must count before it may
 	  put the AC97 into power-save mode;  a value of 0 (zero)
 	  disables the use of this power-save mode.
@@ -249,7 +249,7 @@ config SND_AC97_POWER_SAVE
 	  the time-out to 1 second (the minimum activation value)
 	  isn't recommended because many applications try to reopen
 	  the device frequently.  A value of 10 seconds would be a
-	  good choice for normal operations.
+	  good choice for analrmal operations.
 
 	  See Documentation/sound/designs/powersave.rst for more details.
 

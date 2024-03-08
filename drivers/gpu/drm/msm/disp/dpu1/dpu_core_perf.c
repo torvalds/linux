@@ -5,7 +5,7 @@
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/mutex.h>
 #include <linux/pm_opp.h>
 #include <linux/sort.h>
@@ -19,13 +19,13 @@
 
 /**
  * enum dpu_perf_mode - performance tuning mode
- * @DPU_PERF_MODE_NORMAL: performance controlled by user mode client
+ * @DPU_PERF_MODE_ANALRMAL: performance controlled by user mode client
  * @DPU_PERF_MODE_MINIMUM: performance bounded by minimum setting
  * @DPU_PERF_MODE_FIXED: performance bounded by fixed setting
  * @DPU_PERF_MODE_MAX: maximum value, used for error checking
  */
 enum dpu_perf_mode {
-	DPU_PERF_MODE_NORMAL,
+	DPU_PERF_MODE_ANALRMAL,
 	DPU_PERF_MODE_MINIMUM,
 	DPU_PERF_MODE_FIXED,
 	DPU_PERF_MODE_MAX
@@ -192,7 +192,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 		DRM_DEBUG_ATOMIC("final threshold bw limit = %d\n", threshold);
 
 		if (!threshold) {
-			DPU_ERROR("no bandwidth limits specified\n");
+			DPU_ERROR("anal bandwidth limits specified\n");
 			return -E2BIG;
 		} else if (bw > threshold) {
 			DPU_ERROR("exceeds bandwidth: %ukb > %ukb\n", bw,
@@ -249,7 +249,7 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
  * @crtc: pointer to a crtc
  *
  * Function checks a state variable for the crtc, if all pending commit
- * requests are done, meaning no more bandwidth is needed, release
+ * requests are done, meaning anal more bandwidth is needed, release
  * bandwidth request.
  */
 void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
@@ -417,9 +417,9 @@ static ssize_t _dpu_core_perf_mode_write(struct file *file,
 	} else if (perf_mode == DPU_PERF_MODE_MINIMUM) {
 		/* run the driver with max clk and BW vote */
 		DRM_INFO("minimum performance mode\n");
-	} else if (perf_mode == DPU_PERF_MODE_NORMAL) {
+	} else if (perf_mode == DPU_PERF_MODE_ANALRMAL) {
 		/* reset the perf tune params to 0 */
-		DRM_INFO("normal performance mode\n");
+		DRM_INFO("analrmal performance mode\n");
 	}
 	perf->perf_tune.mode = perf_mode;
 

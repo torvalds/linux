@@ -10,7 +10,7 @@
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -18,7 +18,7 @@
 
 #include "sps30.h"
 
-#define SPS30_I2C_CRC8_POLYNOMIAL 0x31
+#define SPS30_I2C_CRC8_POLYANALMIAL 0x31
 /* max number of bytes needed to store PM measurements or serial string */
 #define SPS30_I2C_MAX_BUF_SIZE 48
 
@@ -41,7 +41,7 @@ static int sps30_i2c_xfer(struct sps30_state *state, unsigned char *txbuf, size_
 	int ret;
 
 	/*
-	 * Sensor does not support repeated start so instead of
+	 * Sensor does analt support repeated start so instead of
 	 * sending two i2c messages in a row we just send one by one.
 	 */
 	ret = i2c_master_send(client, txbuf, txsize);
@@ -143,7 +143,7 @@ static int sps30_i2c_reset(struct sps30_state *state)
 	 * Power-on-reset causes sensor to produce some glitch on i2c bus and
 	 * some controllers end up in error state. Recover simply by placing
 	 * some data on the bus, for example STOP_MEAS command, which
-	 * is NOP in this case.
+	 * is ANALP in this case.
 	 */
 	sps30_i2c_stop_meas(state);
 
@@ -224,9 +224,9 @@ static const struct sps30_ops sps30_i2c_ops = {
 static int sps30_i2c_probe(struct i2c_client *client)
 {
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	crc8_populate_msb(sps30_i2c_crc8_table, SPS30_I2C_CRC8_POLYNOMIAL);
+	crc8_populate_msb(sps30_i2c_crc8_table, SPS30_I2C_CRC8_POLYANALMIAL);
 
 	return sps30_probe(&client->dev, client->name, NULL, &sps30_i2c_ops);
 }

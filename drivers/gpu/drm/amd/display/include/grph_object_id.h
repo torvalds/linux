@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 
 /* Types of graphics objects */
 enum object_type {
-	OBJECT_TYPE_UNKNOWN  = 0,
+	OBJECT_TYPE_UNKANALWN  = 0,
 
 	/* Direct ATOM BIOS translation */
 	OBJECT_TYPE_GPU,
@@ -48,7 +48,7 @@ enum object_type {
 
 /* Enumeration inside one type of graphics objects */
 enum object_enum_id {
-	ENUM_ID_UNKNOWN = 0,
+	ENUM_ID_UNKANALWN = 0,
 	ENUM_ID_1,
 	ENUM_ID_2,
 	ENUM_ID_3,
@@ -62,7 +62,7 @@ enum object_enum_id {
 
 /* Generic object ids */
 enum generic_id {
-	GENERIC_ID_UNKNOWN = 0,
+	GENERIC_ID_UNKANALWN = 0,
 	GENERIC_ID_MXM_OPM,
 	GENERIC_ID_GLSYNC,
 	GENERIC_ID_STEREO,
@@ -98,7 +98,7 @@ enum clock_source_id {
 	CLOCK_SOURCE_ID_EXTERNAL, /* ID (Phy) ref. clk. for DP */
 	CLOCK_SOURCE_ID_DCPLL,
 	CLOCK_SOURCE_ID_DFS,	/* DENTIST */
-	CLOCK_SOURCE_ID_VCE,	/* VCE does not need a real PLL */
+	CLOCK_SOURCE_ID_VCE,	/* VCE does analt need a real PLL */
 	/* Used to distinguish between programming pixel clock and ID (Phy) clock */
 	CLOCK_SOURCE_ID_DP_DTO,
 
@@ -113,7 +113,7 @@ enum clock_source_id {
 
 /* Encoder object ids */
 enum encoder_id {
-	ENCODER_ID_UNKNOWN = 0,
+	ENCODER_ID_UNKANALWN = 0,
 
 	/* Radeon Class Display Hardware */
 	ENCODER_ID_INTERNAL_LVDS,
@@ -123,7 +123,7 @@ enum encoder_id {
 	ENCODER_ID_INTERNAL_DAC2,	/* TV/CV DAC */
 
 	/* External Third Party Encoders */
-	ENCODER_ID_INTERNAL_LVTM1,	/* not used for Radeon */
+	ENCODER_ID_INTERNAL_LVTM1,	/* analt used for Radeon */
 	ENCODER_ID_INTERNAL_HDMI,
 
 	/* Kaledisope (KLDSCP) Class Display Hardware */
@@ -147,7 +147,7 @@ enum encoder_id {
 
 /* Connector object ids */
 enum connector_id {
-	CONNECTOR_ID_UNKNOWN = 0,
+	CONNECTOR_ID_UNKANALWN = 0,
 	CONNECTOR_ID_SINGLE_LINK_DVII = 1,
 	CONNECTOR_ID_DUAL_LINK_DVII = 2,
 	CONNECTOR_ID_SINGLE_LINK_DVID = 3,
@@ -169,7 +169,7 @@ enum connector_id {
 
 /* Audio object ids */
 enum audio_id {
-	AUDIO_ID_UNKNOWN = 0,
+	AUDIO_ID_UNKANALWN = 0,
 	AUDIO_ID_INTERNAL_AZALIA
 };
 
@@ -194,7 +194,7 @@ enum engine_id {
 	ENGINE_ID_VIRTUAL,
 
 	ENGINE_ID_COUNT,
-	ENGINE_ID_UNKNOWN = (-1L)
+	ENGINE_ID_UNKANALWN = (-1L)
 };
 
 enum transmitter_color_depth {
@@ -205,9 +205,9 @@ enum transmitter_color_depth {
 };
 
 enum dp_alt_mode {
-	DP_Alt_mode__Unknown = 0,
+	DP_Alt_mode__Unkanalwn = 0,
 	DP_Alt_mode__Connect,
-	DP_Alt_mode__NoConnect,
+	DP_Alt_mode__AnalConnect,
 };
 /*
  *****************************************************************************
@@ -217,10 +217,10 @@ enum dp_alt_mode {
  * Object identication
  *
  * This struct should stay very simple
- *  No dependencies at all (no includes)
- *  No debug messages or asserts
- *  No #ifndef and preprocessor directives
- *  No grow in space (no more data member)
+ *  Anal dependencies at all (anal includes)
+ *  Anal debug messages or asserts
+ *  Anal #ifndef and preprocessor directives
+ *  Anal grow in space (anal more data member)
  *****************************************************************************
  */
 
@@ -273,7 +273,7 @@ static inline enum encoder_id dal_graphics_object_id_get_encoder_id(
 {
 	if (id.type == OBJECT_TYPE_ENCODER)
 		return (enum encoder_id) id.id;
-	return ENCODER_ID_UNKNOWN;
+	return ENCODER_ID_UNKANALWN;
 }
 
 static inline enum connector_id dal_graphics_object_id_get_connector_id(
@@ -281,7 +281,7 @@ static inline enum connector_id dal_graphics_object_id_get_connector_id(
 {
 	if (id.type == OBJECT_TYPE_CONNECTOR)
 		return (enum connector_id) id.id;
-	return CONNECTOR_ID_UNKNOWN;
+	return CONNECTOR_ID_UNKANALWN;
 }
 
 static inline enum audio_id dal_graphics_object_id_get_audio_id(
@@ -289,7 +289,7 @@ static inline enum audio_id dal_graphics_object_id_get_audio_id(
 {
 	if (id.type == OBJECT_TYPE_AUDIO)
 		return (enum audio_id) id.id;
-	return AUDIO_ID_UNKNOWN;
+	return AUDIO_ID_UNKANALWN;
 }
 
 static inline enum engine_id dal_graphics_object_id_get_engine_id(
@@ -297,7 +297,7 @@ static inline enum engine_id dal_graphics_object_id_get_engine_id(
 {
 	if (id.type == OBJECT_TYPE_ENGINE)
 		return (enum engine_id) id.id;
-	return ENGINE_ID_UNKNOWN;
+	return ENGINE_ID_UNKANALWN;
 }
 
 static inline bool dal_graphics_object_id_equal(

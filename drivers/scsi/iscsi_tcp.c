@@ -12,7 +12,7 @@
  *
  * Credits:
  *	Christoph Hellwig
- *	FUJITA Tomonori
+ *	FUJITA Tomoanalri
  *	Arne Redlich
  *	Zhenyu Wang
  */
@@ -108,7 +108,7 @@ static int iscsi_sw_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
  * @sk: socket
  *
  * If the socket is in CLOSE or CLOSE_WAIT we should
- * not close the connection if there is still some
+ * analt close the connection if there is still some
  * data pending.
  *
  * Must be called with sk_callback_lock.
@@ -146,7 +146,7 @@ static void iscsi_sw_tcp_recv_data(struct iscsi_conn *conn)
 	tcp_read_sock(sk, &rd_desc, iscsi_sw_tcp_recv);
 
 	/* If we had to (atomically) map a highmem page,
-	 * unmap it now. */
+	 * unmap it analw. */
 	iscsi_tcp_segment_unmap(&tcp_conn->in.segment);
 
 	iscsi_sw_sk_state_check(sk);
@@ -274,7 +274,7 @@ iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_conn *conn)
 	sk->sk_data_ready   = tcp_sw_conn->old_data_ready;
 	sk->sk_state_change = tcp_sw_conn->old_state_change;
 	sk->sk_write_space  = tcp_sw_conn->old_write_space;
-	sk->sk_no_check_tx = 0;
+	sk->sk_anal_check_tx = 0;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -351,8 +351,8 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 	while (1) {
 		rc = iscsi_sw_tcp_xmit_segment(tcp_conn, segment);
 		/*
-		 * We may not have been able to send data because the conn
-		 * is getting stopped. libiscsi will know so propagate err
+		 * We may analt have been able to send data because the conn
+		 * is getting stopped. libiscsi will kanalw so propagate err
 		 * for it to do the right thing.
 		 */
 		if (rc == -EAGAIN)
@@ -382,7 +382,7 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 error:
 	/* Transmit error. We could initiate error recovery
 	 * here. */
-	ISCSI_SW_TCP_DBG(conn, "Error sending PDU, errno=%d\n", rc);
+	ISCSI_SW_TCP_DBG(conn, "Error sending PDU, erranal=%d\n", rc);
 	iscsi_conn_failure(conn, rc);
 	return -EIO;
 }
@@ -403,18 +403,18 @@ static inline int iscsi_sw_tcp_xmit_qlen(struct iscsi_conn *conn)
 static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 {
 	struct iscsi_conn *conn = task->conn;
-	unsigned int noreclaim_flag;
+	unsigned int analreclaim_flag;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	int rc = 0;
 
 	if (!tcp_sw_conn->sock) {
 		iscsi_conn_printk(KERN_ERR, conn,
-				  "Transport not bound to socket!\n");
+				  "Transport analt bound to socket!\n");
 		return -EINVAL;
 	}
 
-	noreclaim_flag = memalloc_noreclaim_save();
+	analreclaim_flag = memalloc_analreclaim_save();
 
 	while (iscsi_sw_tcp_xmit_qlen(conn)) {
 		rc = iscsi_sw_tcp_xmit(conn);
@@ -427,7 +427,7 @@ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 		rc = 0;
 	}
 
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_analreclaim_restore(analreclaim_flag);
 	return rc;
 }
 
@@ -621,7 +621,7 @@ free_tfm:
 	crypto_free_ahash(tfm);
 free_conn:
 	iscsi_conn_printk(KERN_ERR, conn,
-			  "Could not create connection due to crc32c "
+			  "Could analt create connection due to crc32c "
 			  "loading error. Make sure the crc32c "
 			  "module is built as a module or into the "
 			  "kernel\n");
@@ -636,7 +636,7 @@ static void iscsi_sw_tcp_release_conn(struct iscsi_conn *conn)
 	struct socket *sock = tcp_sw_conn->sock;
 
 	/*
-	 * The iscsi transport class will make sure we are not called in
+	 * The iscsi transport class will make sure we are analt called in
 	 * parallel with start, stop, bind and destroys. However, this can be
 	 * called twice if userspace does a stop then a destroy.
 	 */
@@ -644,7 +644,7 @@ static void iscsi_sw_tcp_release_conn(struct iscsi_conn *conn)
 		return;
 
 	/*
-	 * Make sure we start socket shutdown now in case userspace is up
+	 * Make sure we start socket shutdown analw in case userspace is up
 	 * but delayed in releasing the socket.
 	 */
 	kernel_sock_shutdown(sock, SHUT_RDWR);
@@ -688,7 +688,7 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	struct socket *sock = tcp_sw_conn->sock;
 
-	/* userspace may have goofed up and not bound us */
+	/* userspace may have goofed up and analt bound us */
 	if (!sock)
 		return;
 
@@ -744,7 +744,7 @@ iscsi_sw_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	sk->sk_allocation = GFP_ATOMIC;
 	sk->sk_use_task_frag = false;
 	sk_set_memalloc(sk);
-	sock_no_linger(sk);
+	sock_anal_linger(sk);
 
 	iscsi_sw_tcp_conn_set_callbacks(conn);
 	/*
@@ -774,7 +774,7 @@ static int iscsi_sw_tcp_conn_set_param(struct iscsi_cls_conn *cls_conn,
 		mutex_lock(&tcp_sw_conn->sock_lock);
 		if (!tcp_sw_conn->sock) {
 			mutex_unlock(&tcp_sw_conn->sock_lock);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		iscsi_set_param(cls_conn, param, buf, buflen);
 		mutex_unlock(&tcp_sw_conn->sock_lock);
@@ -805,7 +805,7 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		spin_lock_bh(&conn->session->frwd_lock);
 		if (!conn->session->leadconn) {
 			spin_unlock_bh(&conn->session->frwd_lock);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		/*
 		 * The conn has been setup and bound, so just grab a ref
@@ -820,7 +820,7 @@ static int iscsi_sw_tcp_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		mutex_lock(&tcp_sw_conn->sock_lock);
 		sock = tcp_sw_conn->sock;
 		if (!sock) {
-			rc = -ENOTCONN;
+			rc = -EANALTCONN;
 			goto sock_unlock;
 		}
 
@@ -861,13 +861,13 @@ static int iscsi_sw_tcp_host_get_param(struct Scsi_Host *shost,
 	case ISCSI_HOST_PARAM_IPADDRESS:
 		session = tcp_sw_host->session;
 		if (!session)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		spin_lock_bh(&session->frwd_lock);
 		conn = session->leadconn;
 		if (!conn) {
 			spin_unlock_bh(&session->frwd_lock);
-			return -ENOTCONN;
+			return -EANALTCONN;
 		}
 		tcp_conn = conn->dd_data;
 		tcp_sw_conn = tcp_conn->dd_data;
@@ -881,7 +881,7 @@ static int iscsi_sw_tcp_host_get_param(struct Scsi_Host *shost,
 		mutex_lock(&tcp_sw_conn->sock_lock);
 		sock = tcp_sw_conn->sock;
 		if (!sock)
-			rc = -ENOTCONN;
+			rc = -EANALTCONN;
 		else
 			rc = kernel_getsockname(sock, (struct sockaddr *)&addr);
 		mutex_unlock(&tcp_sw_conn->sock_lock);
@@ -964,7 +964,7 @@ iscsi_sw_tcp_session_create(struct iscsi_endpoint *ep, uint16_t cmds_max,
 	if (iscsi_tcp_r2tpool_alloc(session))
 		goto remove_session;
 
-	/* We are now fully setup so expose the session to sysfs. */
+	/* We are analw fully setup so expose the session to sysfs. */
 	tcp_sw_host = iscsi_host_priv(shost);
 	tcp_sw_host->session = session;
 	return cls_session;
@@ -990,7 +990,7 @@ static void iscsi_sw_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 	/*
 	 * Our get_host_param needs to access the session, so remove the
 	 * host from sysfs before freeing the session to make sure userspace
-	 * is no longer accessing the callout.
+	 * is anal longer accessing the callout.
 	 */
 	iscsi_host_remove(shost, false);
 
@@ -1032,8 +1032,8 @@ static umode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_IMM_DATA_EN:
 		case ISCSI_PARAM_FIRST_BURST:
 		case ISCSI_PARAM_MAX_BURST:
-		case ISCSI_PARAM_PDU_INORDER_EN:
-		case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_PARAM_PDU_IANALRDER_EN:
+		case ISCSI_PARAM_DATASEQ_IANALRDER_EN:
 		case ISCSI_PARAM_ERL:
 		case ISCSI_PARAM_TARGET_NAME:
 		case ISCSI_PARAM_TPGT:
@@ -1137,7 +1137,7 @@ static int __init iscsi_sw_tcp_init(void)
 	iscsi_sw_tcp_scsi_transport = iscsi_register_transport(
 						&iscsi_sw_tcp_transport);
 	if (!iscsi_sw_tcp_scsi_transport)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

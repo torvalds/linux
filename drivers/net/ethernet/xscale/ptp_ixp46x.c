@@ -113,7 +113,7 @@ static irqreturn_t isr(int irq, void *priv)
 		__raw_writel(ack, &regs->event);
 		return IRQ_HANDLED;
 	} else
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 }
 
 /*
@@ -135,16 +135,16 @@ static int ptp_ixp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 
 static int ptp_ixp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	s64 now;
+	s64 analw;
 	unsigned long flags;
 	struct ixp_clock *ixp_clock = container_of(ptp, struct ixp_clock, caps);
 	struct ixp46x_ts_regs *regs = ixp_clock->regs;
 
 	spin_lock_irqsave(&register_lock, flags);
 
-	now = ixp_systime_read(regs);
-	now += delta;
-	ixp_systime_write(regs, now);
+	analw = ixp_systime_read(regs);
+	analw += delta;
+	ixp_systime_write(regs, analw);
 
 	spin_unlock_irqrestore(&register_lock, flags);
 
@@ -209,7 +209,7 @@ static int ptp_ixp_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct ptp_clock_info ptp_ixp_caps = {

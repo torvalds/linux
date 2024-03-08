@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -24,7 +24,7 @@
  *    Eric Anholt <eric@anholt.net>
  *    Thomas Richter <thor@math.tu-berlin.de>
  *
- * Minor modifications (Dithering enable):
+ * Mianalr modifications (Dithering enable):
  *    Thomas Richter <thor@math.tu-berlin.de>
  *
  */
@@ -57,14 +57,14 @@
 /*
  * Enables the LCD display.
  *
- * This must not be set while VR01_DVO_BYPASS_ENABLE is set.
+ * This must analt be set while VR01_DVO_BYPASS_ENABLE is set.
  */
 # define VR01_LCD_ENABLE		(1 << 2)
 /* Enables the DVO repeater. */
 # define VR01_DVO_BYPASS_ENABLE		(1 << 1)
 /* Enables the DVO clock */
 # define VR01_DVO_ENABLE		(1 << 0)
-/* Enable dithering for 18bpp panels. Not documented. */
+/* Enable dithering for 18bpp panels. Analt documented. */
 # define VR01_DITHER_ENABLE             (1 << 4)
 
 /*
@@ -98,7 +98,7 @@
  * Panel power down status
  */
 #define VR30		0x30
-/* Read only bit indicating that the panel is not in a safe poweroff state. */
+/* Read only bit indicating that the panel is analt in a safe poweroff state. */
 # define VR30_PANEL_ON			(1 << 15)
 
 #define VR40		0x40
@@ -157,7 +157,7 @@
 # define VR8F_POWER_MASK		(0x3c)
 # define VR8F_POWER_POS			(2)
 
-/* Some Bios implementations do not restore the DVO state upon
+/* Some Bios implementations do analt restore the DVO state upon
  * resume from standby. Thus, this driver has to handle it
  * instead. The following list contains all registers that
  * require saving.
@@ -204,13 +204,13 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, u16 *data)
 		},
 		{
 			.addr = 0,
-			.flags = I2C_M_NOSTART,
+			.flags = I2C_M_ANALSTART,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
 			.addr = dvo->slave_addr,
-			.flags = I2C_M_RD | I2C_M_NOSTART,
+			.flags = I2C_M_RD | I2C_M_ANALSTART,
 			.len = 2,
 			.buf = in_buf,
 		}

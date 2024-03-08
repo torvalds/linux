@@ -25,7 +25,7 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	int rc = 0;
 
 	if ((rt = x25_get_route(dest_addr)) == NULL)
-		goto out_no_route;
+		goto out_anal_route;
 
 	if ((neigh_new = x25_get_neigh(rt->dev)) == NULL) {
 		/* This shouldn't happen, if it occurs somehow
@@ -34,7 +34,7 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 		goto out_put_route;
 	}
 
-	/* Avoid a loop. This is the normal exit path for a
+	/* Avoid a loop. This is the analrmal exit path for a
 	 * system with only one x.25 iface and default route
 	 */
 	if (rt->dev == from->dev) {
@@ -45,9 +45,9 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	 * established LCI? It shouldn't happen, just in case..
 	 */
 	read_lock_bh(&x25_forward_list_lock);
-	list_for_each_entry(x25_frwd, &x25_forward_list, node) {
+	list_for_each_entry(x25_frwd, &x25_forward_list, analde) {
 		if (x25_frwd->lci == lci) {
-			pr_warn("call request for lci which is already registered!, transmitting but not registering new pair\n");
+			pr_warn("call request for lci which is already registered!, transmitting but analt registering new pair\n");
 			same_lci = 1;
 		}
 	}
@@ -57,14 +57,14 @@ int x25_forward_call(struct x25_address *dest_addr, struct x25_neigh *from,
 	if (!same_lci){
 		if ((new_frwd = kmalloc(sizeof(struct x25_forward),
 						GFP_ATOMIC)) == NULL){
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_put_nb;
 		}
 		new_frwd->lci = lci;
 		new_frwd->dev1 = rt->dev;
 		new_frwd->dev2 = from->dev;
 		write_lock_bh(&x25_forward_list_lock);
-		list_add(&new_frwd->node, &x25_forward_list);
+		list_add(&new_frwd->analde, &x25_forward_list);
 		write_unlock_bh(&x25_forward_list_lock);
 	}
 
@@ -82,7 +82,7 @@ out_put_nb:
 out_put_route:
 	x25_route_put(rt);
 
-out_no_route:
+out_anal_route:
 	return rc;
 }
 
@@ -96,7 +96,7 @@ int x25_forward_data(int lci, struct x25_neigh *from, struct sk_buff *skb) {
 	int rc = 0;
 
 	read_lock_bh(&x25_forward_list_lock);
-	list_for_each_entry(frwd, &x25_forward_list, node) {
+	list_for_each_entry(frwd, &x25_forward_list, analde) {
 		if (frwd->lci == lci) {
 			/* The call is established, either side can send */
 			if (from->dev == frwd->dev1) {
@@ -131,9 +131,9 @@ void x25_clear_forward_by_lci(unsigned int lci)
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, analde) {
 		if (fwd->lci == lci) {
-			list_del(&fwd->node);
+			list_del(&fwd->analde);
 			kfree(fwd);
 		}
 	}
@@ -147,9 +147,9 @@ void x25_clear_forward_by_dev(struct net_device *dev)
 
 	write_lock_bh(&x25_forward_list_lock);
 
-	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, node) {
+	list_for_each_entry_safe(fwd, tmp, &x25_forward_list, analde) {
 		if ((fwd->dev1 == dev) || (fwd->dev2 == dev)){
-			list_del(&fwd->node);
+			list_del(&fwd->analde);
 			kfree(fwd);
 		}
 	}

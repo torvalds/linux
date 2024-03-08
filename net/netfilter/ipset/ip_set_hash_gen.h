@@ -53,7 +53,7 @@ struct hbucket {
 	u8 size;		/* size of the array */
 	u8 pos;			/* position of the first free entry */
 	unsigned char value[]	/* the array of the values */
-		__aligned(__alignof__(u64));
+		__aligned(__aliganalf__(u64));
 };
 
 /* Region size for locking == 2^HTABLE_REGION_BITS */
@@ -108,7 +108,7 @@ htable_size(u8 hbits)
 {
 	size_t hsize;
 
-	/* We must fit both into u32 in jhash and INT_MAX in kvmalloc_node() */
+	/* We must fit both into u32 in jhash and INT_MAX in kvmalloc_analde() */
 	if (hbits > 31)
 		return 0;
 	hsize = jhash_size(hbits);
@@ -131,7 +131,7 @@ htable_size(u8 hbits)
 #define NCIDR_GET(cidr)		((cidr) - 1)
 
 #ifdef IP_SET_HASH_WITH_NETS_PACKED
-/* When cidr is packed with nomatch, cidr - 1 is stored in the data entry */
+/* When cidr is packed with analmatch, cidr - 1 is stored in the data entry */
 #define DCIDR_PUT(cidr)		((cidr) - 1)
 #define DCIDR_GET(cidr, i)	(__CIDR(cidr, i) + 1)
 #else
@@ -174,15 +174,15 @@ static const union nf_inet_addr zeromask = {};
 #endif /* _IP_SET_HASH_GEN_H */
 
 #ifndef MTYPE
-#error "MTYPE is not defined!"
+#error "MTYPE is analt defined!"
 #endif
 
 #ifndef HTYPE
-#error "HTYPE is not defined!"
+#error "HTYPE is analt defined!"
 #endif
 
 #ifndef HOST_MASK
-#error "HOST_MASK is not defined!"
+#error "HOST_MASK is analt defined!"
 #endif
 
 /* Family dependent templates */
@@ -468,7 +468,7 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 	const struct htype *x = a->data;
 	const struct htype *y = b->data;
 
-	/* Resizing changes htable_bits, so we ignore it */
+	/* Resizing changes htable_bits, so we iganalre it */
 	return x->maxelem == y->maxelem &&
 	       a->timeout == b->timeout &&
 #if defined(IP_SET_HASH_WITH_NETMASK) || defined(IP_SET_HASH_WITH_BITMASK)
@@ -640,7 +640,7 @@ mtype_resize(struct ip_set *set, bool retried)
 #ifdef IP_SET_HASH_WITH_NETS
 	tmp = kmalloc(dsize, GFP_KERNEL);
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 #endif
 	orig = ipset_dereference_bh_nfnl(h->table);
 	htable_bits = orig->htable_bits;
@@ -655,13 +655,13 @@ retry:
 		goto hbwarn;
 	t = ip_set_alloc(hsize);
 	if (!t) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	t->hregion = ip_set_alloc(ahash_sizeof_regions(htable_bits));
 	if (!t->hregion) {
 		ip_set_free(t);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	t->htable_bits = htable_bits;
@@ -669,7 +669,7 @@ retry:
 	for (i = 0; i < ahash_numof_locks(htable_bits); i++)
 		spin_lock_init(&t->hregion[i].lock);
 
-	/* There can't be another parallel resizing,
+	/* There can't be aanalther parallel resizing,
 	 * but dumping, gc, kernel side add/del are possible
 	 */
 	orig = ipset_dereference_bh_nfnl(h->table);
@@ -678,7 +678,7 @@ retry:
 	pr_debug("attempt to resize set %s from %u to %u, t %p\n",
 		 set->name, orig->htable_bits, htable_bits, orig);
 	for (r = 0; r < ahash_numof_locks(orig->htable_bits); r++) {
-		/* Expire may replace a hbucket with another one */
+		/* Expire may replace a hbucket with aanalther one */
 		rcu_read_lock_bh();
 		for (i = ahash_bucket_start(r, orig->htable_bits);
 		     i < ahash_bucket_end(r, orig->htable_bits); i++) {
@@ -693,7 +693,7 @@ retry:
 					continue;
 #ifdef IP_SET_HASH_WITH_NETS
 				/* We have readers running parallel with us,
-				 * so the live data cannot be modified.
+				 * so the live data cananalt be modified.
 				 */
 				flags = 0;
 				memcpy(tmp, data, dsize);
@@ -708,7 +708,7 @@ retry:
 					    AHASH_INIT_SIZE * dsize,
 					    GFP_ATOMIC);
 					if (!m) {
-						ret = -ENOMEM;
+						ret = -EANALMEM;
 						goto cleanup;
 					}
 					m->size = AHASH_INIT_SIZE;
@@ -727,7 +727,7 @@ retry:
 						* dsize,
 						GFP_ATOMIC);
 						if (!ht)
-							ret = -ENOMEM;
+							ret = -EANALMEM;
 					}
 					if (ret < 0)
 						goto cleanup;
@@ -762,7 +762,7 @@ retry:
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
 	/* Add/delete elements processed by the SET target during resize.
-	 * Kernel-side add cannot trigger a resize and userspace actions
+	 * Kernel-side add cananalt trigger a resize and userspace actions
 	 * are serialized by the mutex.
 	 */
 	list_for_each_safe(l, lt, &h->ad) {
@@ -775,7 +775,7 @@ retry:
 		list_del(l);
 		kfree(l);
 	}
-	/* If there's nobody else using the table, destroy it */
+	/* If there's analbody else using the table, destroy it */
 	if (atomic_dec_and_test(&orig->uref)) {
 		pr_debug("Table destroy by resize %p\n", orig);
 		mtype_ahash_destroy(set, orig, false);
@@ -798,7 +798,7 @@ cleanup:
 
 hbwarn:
 	/* In case we have plenty of memory :-) */
-	pr_warn("Cannot increase the hashsize of set %s further\n", set->name);
+	pr_warn("Cananalt increase the hashsize of set %s further\n", set->name);
 	ret = -IPSET_ERR_HASH_FULL;
 	goto out;
 }
@@ -843,7 +843,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	struct htable *t;
 	const struct mtype_elem *d = value;
 	struct mtype_elem *data;
-	struct hbucket *n, *old = ERR_PTR(-ENOENT);
+	struct hbucket *n, *old = ERR_PTR(-EANALENT);
 	int i, j = -1, ret;
 	bool flag_exist = flags & IPSET_FLAG_EXIST;
 	bool deleted = false, forceadd = false, reuse = false;
@@ -881,7 +881,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		n = kzalloc(sizeof(*n) + AHASH_INIT_SIZE * set->dsize,
 			    GFP_ATOMIC);
 		if (!n) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 		n->size = AHASH_INIT_SIZE;
@@ -951,7 +951,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			    (old->size + AHASH_INIT_SIZE) * set->dsize,
 			    GFP_ATOMIC);
 		if (!n) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto unlock;
 		}
 		memcpy(n, old, sizeof(struct hbucket) +
@@ -986,7 +986,7 @@ overwrite_extensions:
 		ip_set_timeout_set(ext_timeout(data, set), ext->timeout);
 	smp_mb__before_atomic();
 	set_bit(j, n->used);
-	if (old != ERR_PTR(-ENOENT)) {
+	if (old != ERR_PTR(-EANALENT)) {
 		rcu_assign_pointer(hbucket(t, key), n);
 		if (old)
 			kfree_rcu(old, rcu);
@@ -1045,7 +1045,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	size_t dsize = set->dsize;
 
 	/* Userspace add and resize is excluded by the mutex.
-	 * Kernespace add does not trigger resize.
+	 * Kernespace add does analt trigger resize.
 	 */
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh(h->table);
@@ -1147,7 +1147,7 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 {
 	if (!ip_set_match_extensions(set, ext, mext, flags, data))
 		return 0;
-	/* nomatch entries return -ENOTEMPTY */
+	/* analmatch entries return -EANALTEMPTY */
 	return mtype_do_data_match(data);
 }
 
@@ -1198,7 +1198,7 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 			if (ret != 0)
 				return ret;
 #ifdef IP_SET_HASH_WITH_MULTI
-			/* No match, reset multiple match flag */
+			/* Anal match, reset multiple match flag */
 			multi = 0;
 #endif
 		}
@@ -1226,7 +1226,7 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh(h->table);
 #ifdef IP_SET_HASH_WITH_NETS
-	/* If we test an IP address and not a network address,
+	/* If we test an IP address and analt a network address,
 	 * try all possible network sizes
 	 */
 	for (i = 0; i < IPSET_NET_COUNT; i++)
@@ -1286,8 +1286,8 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	    nla_put_net32(skb, IPSET_ATTR_MAXELEM, htonl(h->maxelem)))
 		goto nla_put_failure;
 #ifdef IP_SET_HASH_WITH_BITMASK
-	/* if netmask is set to anything other than HOST_MASK we know that the user supplied netmask
-	 * and not bitmask. These two are mutually exclusive. */
+	/* if netmask is set to anything other than HOST_MASK we kanalw that the user supplied netmask
+	 * and analt bitmask. These two are mutually exclusive. */
 	if (h->netmask == HOST_MASK && !nf_inet_addr_cmp(&onesmask, &h->bitmask)) {
 		if (set->family == NFPROTO_IPV4) {
 			if (nla_put_ipaddr4(skb, IPSET_ATTR_BITMASK, h->bitmask.ip))
@@ -1368,7 +1368,7 @@ mtype_list(const struct ip_set *set,
 
 	pr_debug("list hash set %s\n", set->name);
 	t = (const struct htable *)cb->args[IPSET_CB_PRIVATE];
-	/* Expire may replace a hbucket with another one */
+	/* Expire may replace a hbucket with aanalther one */
 	rcu_read_lock();
 	for (; cb->args[IPSET_CB_ARG0] < jhash_size(t->htable_bits);
 	     cb->args[IPSET_CB_ARG0]++) {
@@ -1412,7 +1412,7 @@ mtype_list(const struct ip_set *set,
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
 	if (unlikely(first == cb->args[IPSET_CB_ARG0])) {
-		pr_warn("Can't list set %s: one bucket does not fit into a message. Please report it!\n",
+		pr_warn("Can't list set %s: one bucket does analt fit into a message. Please report it!\n",
 			set->name);
 		cb->args[IPSET_CB_ARG0] = 0;
 		ret = -EMSGSIZE;
@@ -1431,7 +1431,7 @@ IPSET_TOKEN(MTYPE, _kadt)(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 IPSET_TOKEN(MTYPE, _uadt)(struct ip_set *set, struct nlattr *tb[],
-			  enum ipset_adt adt, u32 *lineno, u32 flags,
+			  enum ipset_adt adt, u32 *lineanal, u32 flags,
 			  bool retried);
 
 static const struct ip_set_type_variant mtype_variant = {
@@ -1553,7 +1553,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	hsize = sizeof(*h);
 	h = kzalloc(hsize, GFP_KERNEL);
 	if (!h)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Compute htable_bits from the user input parameter hashsize.
 	 * Assume that hashsize == 2^htable_bits,
@@ -1563,18 +1563,18 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	hsize = htable_size(hbits);
 	if (hsize == 0) {
 		kfree(h);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	t = ip_set_alloc(hsize);
 	if (!t) {
 		kfree(h);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	t->hregion = ip_set_alloc(ahash_sizeof_regions(hbits));
 	if (!t->hregion) {
 		ip_set_free(t);
 		kfree(h);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	h->gc.set = set;
 	for (i = 0; i < ahash_numof_locks(hbits); i++)
@@ -1613,16 +1613,16 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 			sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)),
-			__alignof__(struct IPSET_TOKEN(HTYPE, 4_elem)));
+			__aliganalf__(struct IPSET_TOKEN(HTYPE, 4_elem)));
 #ifndef IP_SET_PROTO_UNDEF
 	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 			sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)),
-			__alignof__(struct IPSET_TOKEN(HTYPE, 6_elem)));
+			__aliganalf__(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
 #endif
-	set->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_ANAL_TIMEOUT;
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 #ifndef IP_SET_PROTO_UNDEF

@@ -183,7 +183,7 @@ typedef struct {
 	io7_csr rsvd4[240];
 
 	/*
-	 * Interrupt Diagnostic / Test
+	 * Interrupt Diaganalstic / Test
 	 */
 	struct {
 		io7_csr INT_PND;

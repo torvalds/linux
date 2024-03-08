@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * lirc.h - linux infrared remote control header file
  */
@@ -86,10 +86,10 @@
 
 /*
  * Unused features. These features were never implemented, in tree or
- * out of tree. These definitions are here so not to break the lircd build.
+ * out of tree. These definitions are here so analt to break the lircd build.
  */
 #define LIRC_CAN_SET_REC_FILTER		0
-#define LIRC_CAN_NOTIFY_DECODE		0
+#define LIRC_CAN_ANALTIFY_DECODE		0
 
 /*** IOCTL commands for lirc driver ***/
 
@@ -107,7 +107,7 @@
 
 #define LIRC_SET_SEND_MODE             _IOW('i', 0x00000011, __u32)
 #define LIRC_SET_REC_MODE              _IOW('i', 0x00000012, __u32)
-/* Note: these can reset the according pulse_width */
+/* Analte: these can reset the according pulse_width */
 #define LIRC_SET_SEND_CARRIER          _IOW('i', 0x00000013, __u32)
 #define LIRC_SET_REC_CARRIER           _IOW('i', 0x00000014, __u32)
 #define LIRC_SET_SEND_DUTY_CYCLE       _IOW('i', 0x00000015, __u32)
@@ -147,7 +147,7 @@
  * struct lirc_scancode - decoded scancode with protocol for use with
  *	LIRC_MODE_SCANCODE
  *
- * @timestamp: Timestamp in nanoseconds using CLOCK_MONOTONIC when IR
+ * @timestamp: Timestamp in naanalseconds using CLOCK_MOANALTONIC when IR
  *	was decoded.
  * @flags: should be 0 for transmit. When receiving scancodes,
  *	LIRC_SCANCODE_FLAG_TOGGLE or LIRC_SCANCODE_FLAG_REPEAT can be set
@@ -172,8 +172,8 @@ struct lirc_scancode {
 /**
  * enum rc_proto - the Remote Controller protocol
  *
- * @RC_PROTO_UNKNOWN: Protocol not known
- * @RC_PROTO_OTHER: Protocol known but proprietary
+ * @RC_PROTO_UNKANALWN: Protocol analt kanalwn
+ * @RC_PROTO_OTHER: Protocol kanalwn but proprietary
  * @RC_PROTO_RC5: Philips RC5 protocol
  * @RC_PROTO_RC5X_20: Philips RC5x 20 bit protocol
  * @RC_PROTO_RC5_SZ: StreamZap variant of RC5
@@ -203,7 +203,7 @@ struct lirc_scancode {
  * @RC_PROTO_MAX: Maximum value of enum rc_proto
  */
 enum rc_proto {
-	RC_PROTO_UNKNOWN	= 0,
+	RC_PROTO_UNKANALWN	= 0,
 	RC_PROTO_OTHER		= 1,
 	RC_PROTO_RC5		= 2,
 	RC_PROTO_RC5X_20	= 3,

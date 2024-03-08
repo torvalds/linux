@@ -50,12 +50,12 @@ int logic_iomem_add_region(struct resource *resource,
 
 	rreg = kzalloc(sizeof(*rreg), GFP_KERNEL);
 	if (!rreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = request_resource(&iomem_resource, resource);
 	if (err) {
 		kfree(rreg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_lock(&regions_mtx);

@@ -11,13 +11,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -83,7 +83,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 	struct drm_crtc *crtc = NULL;
 	int i;
 
-	/* If there is no display topology the host just assumes
+	/* If there is anal display topology the host just assumes
 	 * that the guest will set the same layout as the host.
 	 */
 	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY)) {
@@ -184,7 +184,7 @@ static int vmw_ldu_del_active(struct vmw_private *vmw_priv,
 	if (list_empty(&ldu->active))
 		return 0;
 
-	/* Must init otherwise list_empty(&ldu->active) will not work. */
+	/* Must init otherwise list_empty(&ldu->active) will analt work. */
 	list_del_init(&ldu->active);
 	if (--(ld->num_active) == 0) {
 		BUG_ON(!ld->fb);
@@ -231,18 +231,18 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 }
 
 /**
- * vmw_ldu_crtc_mode_set_nofb - Enable svga
+ * vmw_ldu_crtc_mode_set_analfb - Enable svga
  *
  * @crtc: CRTC associated with the new screen
  *
  * For LDU, just enable the svga
  */
-static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vmw_ldu_crtc_mode_set_analfb(struct drm_crtc *crtc)
 {
 }
 
 /**
- * vmw_ldu_crtc_atomic_enable - Noop
+ * vmw_ldu_crtc_atomic_enable - Analop
  *
  * @crtc: CRTC associated with the new screen
  * @state: Unused
@@ -413,7 +413,7 @@ drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
-	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
+	.mode_set_analfb = vmw_ldu_crtc_mode_set_analfb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
@@ -435,7 +435,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	ldu = kzalloc(sizeof(*ldu), GFP_KERNEL);
 	if (!ldu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ldu->base.unit = unit;
 	crtc = &ldu->base.crtc;
@@ -566,7 +566,7 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 
 	dev_priv->ldu_priv = kmalloc(sizeof(*dev_priv->ldu_priv), GFP_KERNEL);
 	if (!dev_priv->ldu_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&dev_priv->ldu_priv->active);
 	dev_priv->ldu_priv->num_active = 0;
@@ -596,7 +596,7 @@ err_free:
 int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 {
 	if (!dev_priv->ldu_priv)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	BUG_ON(!list_empty(&dev_priv->ldu_priv->active));
 
@@ -623,7 +623,7 @@ static int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
 	fifo_size = sizeof(*cmd) * num_clips;
 	cmd = VMW_CMD_RESERVE(dev_priv, fifo_size);
 	if (unlikely(cmd == NULL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(cmd, 0, fifo_size);
 	for (i = 0; i < num_clips; i++, clips++) {

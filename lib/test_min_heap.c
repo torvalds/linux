@@ -75,7 +75,7 @@ static __init int test_heapify_all(bool min_heap)
 	};
 	int i, err;
 
-	/* Test with known set of values. */
+	/* Test with kanalwn set of values. */
 	min_heapify_all(&heap, &funcs);
 	err = pop_verify_heap(min_heap, &heap, &funcs);
 
@@ -108,7 +108,7 @@ static __init int test_heap_push(bool min_heap)
 	};
 	int i, temp, err;
 
-	/* Test with known set of values copied from data. */
+	/* Test with kanalwn set of values copied from data. */
 	for (i = 0; i < ARRAY_SIZE(data); i++)
 		min_heap_push(&heap, &data[i], &funcs);
 
@@ -146,7 +146,7 @@ static __init int test_heap_pop_push(bool min_heap)
 	for (i = 0; i < ARRAY_SIZE(data); i++)
 		min_heap_push(&heap, &temp, &funcs);
 
-	/* Test with known set of values copied from data. */
+	/* Test with kanalwn set of values copied from data. */
 	for (i = 0; i < ARRAY_SIZE(data); i++)
 		min_heap_pop_push(&heap, &data[i], &funcs);
 
@@ -187,7 +187,7 @@ module_init(test_min_heap_init);
 
 static void __exit test_min_heap_exit(void)
 {
-	/* do nothing */
+	/* do analthing */
 }
 module_exit(test_min_heap_exit);
 

@@ -66,7 +66,7 @@ static int gxp_pwm_write(struct device *dev, u32 attr, int channel, long val)
 		writeb(val, drvdata->base + channel);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -77,7 +77,7 @@ static int gxp_fan_ctrl_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return gxp_pwm_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -91,7 +91,7 @@ static int gxp_fan_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = fan_failed(dev, channel);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -125,7 +125,7 @@ static int gxp_fan_ctrl_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		return gxp_pwm_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -205,7 +205,7 @@ static int gxp_fan_ctrl_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(dev, sizeof(struct gxp_fan_ctrl_drvdata),
 			       GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(drvdata->base))

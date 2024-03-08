@@ -7,7 +7,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
@@ -47,7 +47,7 @@ static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 
 static void v9fs_dentry_release(struct dentry *dentry)
 {
-	struct hlist_node *p, *n;
+	struct hlist_analde *p, *n;
 
 	p9_debug(P9_DEBUG_VFS, " dentry: %pd (%p)\n",
 		 dentry, dentry);
@@ -59,18 +59,18 @@ static void v9fs_dentry_release(struct dentry *dentry)
 static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct p9_fid *fid;
-	struct inode *inode;
-	struct v9fs_inode *v9inode;
+	struct ianalde *ianalde;
+	struct v9fs_ianalde *v9ianalde;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(dentry);
-	if (!inode)
+	ianalde = d_ianalde(dentry);
+	if (!ianalde)
 		goto out_valid;
 
-	v9inode = V9FS_I(inode);
-	if (v9inode->cache_validity & V9FS_INO_INVALID_ATTR) {
+	v9ianalde = V9FS_I(ianalde);
+	if (v9ianalde->cache_validity & V9FS_IANAL_INVALID_ATTR) {
 		int retval;
 		struct v9fs_session_info *v9ses;
 
@@ -78,14 +78,14 @@ static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		v9ses = v9fs_inode2v9ses(inode);
+		v9ses = v9fs_ianalde2v9ses(ianalde);
 		if (v9fs_proto_dotl(v9ses))
-			retval = v9fs_refresh_inode_dotl(fid, inode);
+			retval = v9fs_refresh_ianalde_dotl(fid, ianalde);
 		else
-			retval = v9fs_refresh_inode(fid, inode);
+			retval = v9fs_refresh_ianalde(fid, ianalde);
 		p9_fid_put(fid);
 
-		if (retval == -ENOENT)
+		if (retval == -EANALENT)
 			return 0;
 		if (retval < 0)
 			return retval;

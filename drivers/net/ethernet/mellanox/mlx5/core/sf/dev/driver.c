@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2020 Mellanox Technologies Ltd */
+/* Copyright (c) 2020 Mellaanalx Techanallogies Ltd */
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
@@ -16,10 +16,10 @@ static int mlx5_core_peer_devlink_set(struct mlx5_sf_dev *sf_dev, struct devlink
 	};
 	int ret;
 
-	ret = mlx5_blocking_notifier_call_chain(sf_dev->parent_mdev,
+	ret = mlx5_blocking_analtifier_call_chain(sf_dev->parent_mdev,
 						MLX5_DRIVER_EVENT_SF_PEER_DEVLINK,
 						&event_ctx);
-	return ret == NOTIFY_OK ? event_ctx.err : 0;
+	return ret == ANALTIFY_OK ? event_ctx.err : 0;
 }
 
 static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxiliary_device_id *id)
@@ -31,7 +31,7 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 
 	devlink = mlx5_devlink_alloc(&adev->dev);
 	if (!devlink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mdev = devlink_priv(devlink);
 	mdev->device = &adev->dev;
@@ -56,7 +56,7 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 	mdev->iseg = ioremap(mdev->iseg_base, sizeof(*mdev->iseg));
 	if (!mdev->iseg) {
 		mlx5_core_warn(mdev, "remap error\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto remap_err;
 	}
 

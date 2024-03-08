@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 #include "test_progs.h"
 
 static const char * const btf_kind_str_mapping[] = {
-	[BTF_KIND_UNKN]		= "UNKNOWN",
+	[BTF_KIND_UNKN]		= "UNKANALWN",
 	[BTF_KIND_INT]		= "INT",
 	[BTF_KIND_PTR]		= "PTR",
 	[BTF_KIND_ARRAY]	= "ARRAY",
@@ -32,7 +32,7 @@ static const char * const btf_kind_str_mapping[] = {
 static const char *btf_kind_str(__u16 kind)
 {
 	if (kind > BTF_KIND_ENUM64)
-		return "UNKNOWN";
+		return "UNKANALWN";
 	return btf_kind_str_mapping[kind];
 }
 
@@ -40,7 +40,7 @@ static const char *btf_int_enc_str(__u8 encoding)
 {
 	switch (encoding) {
 	case 0:
-		return "(none)";
+		return "(analne)";
 	case BTF_INT_SIGNED:
 		return "SIGNED";
 	case BTF_INT_CHAR:
@@ -60,7 +60,7 @@ static const char *btf_var_linkage_str(__u32 linkage)
 	case BTF_VAR_GLOBAL_ALLOCATED:
 		return "global-alloc";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
@@ -74,14 +74,14 @@ static const char *btf_func_linkage_str(const struct btf_type *t)
 	case BTF_FUNC_EXTERN:
 		return "extern";
 	default:
-		return "(unknown)";
+		return "(unkanalwn)";
 	}
 }
 
 static const char *btf_str(const struct btf *btf, __u32 off)
 {
 	if (!off)
-		return "(anon)";
+		return "(aanaln)";
 	return btf__str_by_offset(btf, off) ?: "(invalid)";
 }
 
@@ -220,7 +220,7 @@ const char *btf_type_raw_dump(const struct btf *btf, int type_id)
 
 	buf_file = fmemopen(buf, sizeof(buf) - 1, "w");
 	if (!buf_file) {
-		fprintf(stderr, "Failed to open memstream: %d\n", errno);
+		fprintf(stderr, "Failed to open memstream: %d\n", erranal);
 		return NULL;
 	}
 
@@ -263,7 +263,7 @@ const char *btf_type_c_dump(const struct btf *btf)
 
 	buf_file = fmemopen(buf, sizeof(buf) - 1, "w");
 	if (!buf_file) {
-		fprintf(stderr, "Failed to open memstream: %d\n", errno);
+		fprintf(stderr, "Failed to open memstream: %d\n", erranal);
 		return NULL;
 	}
 

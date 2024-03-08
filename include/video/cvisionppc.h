@@ -2,7 +2,7 @@
  * Phase5 CybervisionPPC (TVP4020) definitions for the Permedia2 framebuffer
  * driver.
  *
- * Copyright (c) 1998-1999 Ilario Nardinocchi (nardinoc@CS.UniBO.IT)
+ * Copyright (c) 1998-1999 Ilario Nardianalcchi (nardianalc@CS.UniBO.IT)
  * --------------------------------------------------------------------------
  * $Id: cvisionppc.h,v 1.8 1999/01/28 13:18:07 illo Exp $
  * --------------------------------------------------------------------------

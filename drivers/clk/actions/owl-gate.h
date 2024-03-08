@@ -44,13 +44,13 @@ struct owl_gate {
 		}							\
 	}								\
 
-#define OWL_GATE_NO_PARENT(_struct, _name, _reg,			\
+#define OWL_GATE_ANAL_PARENT(_struct, _name, _reg,			\
 		_bit_idx, _gate_flags, _flags)				\
 	struct owl_gate _struct = {					\
 		.gate_hw = OWL_GATE_HW(_reg, _bit_idx, _gate_flags),	\
 		.common = {						\
 			.regmap		= NULL,				\
-			.hw.init	= CLK_HW_INIT_NO_PARENT(_name,	\
+			.hw.init	= CLK_HW_INIT_ANAL_PARENT(_name,	\
 						      &owl_gate_ops,	\
 						      _flags),		\
 		},							\

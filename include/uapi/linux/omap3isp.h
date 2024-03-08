@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * omap3isp.h
  *
  * TI OMAP3 ISP - User-space API
  *
- * Copyright (C) 2010 Nokia Corporation
+ * Copyright (C) 2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -20,7 +20,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
@@ -177,7 +177,7 @@ struct omap3isp_stat_data {
 	struct timeval ts;
 #endif
 	void __user *buf;
-	__struct_group(/* no tag */, frame, /* no attrs */,
+	__struct_group(/* anal tag */, frame, /* anal attrs */,
 		__u32 buf_size;
 		__u16 frame_number;
 		__u16 cur_frame;
@@ -192,7 +192,7 @@ struct omap3isp_stat_data_time32 {
 		__s32	tv_usec;
 	} ts;
 	__u32 buf;
-	__struct_group(/* no tag */, frame, /* no attrs */,
+	__struct_group(/* anal tag */, frame, /* anal attrs */,
 		__u32 buf_size;
 		__u16 frame_number;
 		__u16 cur_frame;
@@ -456,7 +456,7 @@ struct omap3isp_ccdc_update_config {
 #define OMAP3ISP_PREV_COLOR_CONV	(1 << 8)
 #define OMAP3ISP_PREV_YC_LIMIT		(1 << 9)
 #define OMAP3ISP_PREV_DEFECT_COR	(1 << 10)
-/* Bit 11 was OMAP3ISP_PREV_GAMMABYPASS, now merged with OMAP3ISP_PREV_GAMMA */
+/* Bit 11 was OMAP3ISP_PREV_GAMMABYPASS, analw merged with OMAP3ISP_PREV_GAMMA */
 #define OMAP3ISP_PREV_DRK_FRM_CAPTURE	(1 << 12)
 #define OMAP3ISP_PREV_DRK_FRM_SUBTRACT	(1 << 13)
 #define OMAP3ISP_PREV_LENS_SHADING	(1 << 14)
@@ -604,9 +604,9 @@ struct omap3isp_prev_dcor {
 };
 
 /**
- * struct omap3isp_prev_nf - Noise Filter
- * @spread: Spread value to be used in Noise Filter
- * @table: Pointer to the Noise Filter table
+ * struct omap3isp_prev_nf - Analise Filter
+ * @spread: Spread value to be used in Analise Filter
+ * @table: Pointer to the Analise Filter table
  */
 struct omap3isp_prev_nf {
 	__u8 spread;
@@ -650,7 +650,7 @@ struct omap3isp_prev_luma {
  * @csc: Pointer to structure for Color Space Conversion from RGB-YCbYCr.
  * @yclimit: Pointer to structure for Y, C Value Limit.
  * @dcor: Pointer to structure for defect correction.
- * @nf: Pointer to structure for Noise Filter
+ * @nf: Pointer to structure for Analise Filter
  * @gamma: Pointer to gamma structure.
  */
 struct omap3isp_prev_update_config {

@@ -8,7 +8,7 @@
 
 /*
  * The first MAC indices (starting from 0) are available to the driver,
- * AUX indices follows - 1 for non-CDB, 2 for CDB.
+ * AUX indices follows - 1 for analn-CDB, 2 for CDB.
  */
 #define MAC_INDEX_AUX		4
 #define MAC_INDEX_MIN_DRIVER	0
@@ -99,7 +99,7 @@ enum iwl_tsf_id {
  * @dtim_interval: dtim transmit time in TU
  * @reserved2: reserved
  * @mcast_qid: queue ID for multicast traffic.
- *	NOTE: obsolete from VER2 and on
+ *	ANALTE: obsolete from VER2 and on
  * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ap {
@@ -180,7 +180,7 @@ struct iwl_mac_data_sta {
  * struct iwl_mac_data_go - configuration data for P2P GO MAC context
  * @ap: iwl_mac_data_ap struct with most config data
  * @ctwin: client traffic window in TU (period after TBTT when GO is present).
- *	0 indicates that there is no CT window.
+ *	0 indicates that there is anal CT window.
  * @opp_ps_enabled: indicate that opportunistic PS allowed
  */
 struct iwl_mac_data_go {
@@ -193,7 +193,7 @@ struct iwl_mac_data_go {
  * struct iwl_mac_data_p2p_sta - configuration data for P2P client MAC context
  * @sta: iwl_mac_data_sta struct with most config data
  * @ctwin: client traffic window in TU (period after TBTT when GO is present).
- *	0 indicates that there is no CT window.
+ *	0 indicates that there is anal CT window.
  */
 struct iwl_mac_data_p2p_sta {
 	struct iwl_mac_data_sta sta;
@@ -202,7 +202,7 @@ struct iwl_mac_data_p2p_sta {
 
 /**
  * struct iwl_mac_data_pibss - Pseudo IBSS config data
- * @stats_interval: interval in TU between statistics notifications to host.
+ * @stats_interval: interval in TU between statistics analtifications to host.
  */
 struct iwl_mac_data_pibss {
 	__le32 stats_interval;
@@ -213,8 +213,8 @@ struct iwl_mac_data_pibss {
  * context.
  * @is_disc_extended: if set to true, P2P Device discoverability is enabled on
  *	other channels as well. This should be to true only in case that the
- *	device is discoverable and there is an active GO. Note that setting this
- *	field when not needed, will increase the number of interrupts and have
+ *	device is discoverable and there is an active GO. Analte that setting this
+ *	field when analt needed, will increase the number of interrupts and have
  *	effect on the platform power, as this setting opens the Rx filters on
  *	all macs.
  */
@@ -298,8 +298,8 @@ struct iwl_ac_qos {
  * @action: action to perform, see &enum iwl_ctxt_action
  * @mac_type: one of &enum iwl_mac_types
  * @tsf_id: TSF HW timer, one of &enum iwl_tsf_id
- * @node_addr: MAC address
- * @reserved_for_node_addr: reserved
+ * @analde_addr: MAC address
+ * @reserved_for_analde_addr: reserved
  * @bssid_addr: BSSID
  * @reserved_for_bssid_addr: reserved
  * @cck_rates: basic rates available for CCK
@@ -318,8 +318,8 @@ struct iwl_mac_ctx_cmd {
 	/* MAC_CONTEXT_COMMON_DATA_API_S_VER_1 */
 	__le32 mac_type;
 	__le32 tsf_id;
-	u8 node_addr[6];
-	__le16 reserved_for_node_addr;
+	u8 analde_addr[6];
+	__le16 reserved_for_analde_addr;
 	u8 bssid_addr[6];
 	__le16 reserved_for_bssid_addr;
 	__le32 cck_rates;
@@ -343,18 +343,18 @@ struct iwl_mac_ctx_cmd {
 	};
 } __packed; /* MAC_CONTEXT_CMD_API_S_VER_1 */
 
-#define IWL_NONQOS_SEQ_GET	0x1
-#define IWL_NONQOS_SEQ_SET	0x2
-struct iwl_nonqos_seq_query_cmd {
+#define IWL_ANALNQOS_SEQ_GET	0x1
+#define IWL_ANALNQOS_SEQ_SET	0x2
+struct iwl_analnqos_seq_query_cmd {
 	__le32 get_set_flag;
 	__le32 mac_id_n_color;
 	__le16 value;
 	__le16 reserved;
-} __packed; /* NON_QOS_TX_COUNTER_GET_SET_API_S_VER_1 */
+} __packed; /* ANALN_QOS_TX_COUNTER_GET_SET_API_S_VER_1 */
 
 /**
- * struct iwl_missed_beacons_notif_ver_3 - information on missed beacons
- * ( MISSED_BEACONS_NOTIFICATION = 0xa2 )
+ * struct iwl_missed_beacons_analtif_ver_3 - information on missed beacons
+ * ( MISSED_BEACONS_ANALTIFICATION = 0xa2 )
  * @mac_id: interface ID
  * @consec_missed_beacons_since_last_rx: number of consecutive missed
  *	beacons since last RX.
@@ -362,7 +362,7 @@ struct iwl_nonqos_seq_query_cmd {
  * @num_expected_beacons: number of expected beacons
  * @num_recvd_beacons: number of received beacons
  */
-struct iwl_missed_beacons_notif_ver_3 {
+struct iwl_missed_beacons_analtif_ver_3 {
 	__le32 mac_id;
 	__le32 consec_missed_beacons_since_last_rx;
 	__le32 consec_missed_beacons;
@@ -371,8 +371,8 @@ struct iwl_missed_beacons_notif_ver_3 {
 } __packed; /* MISSED_BEACON_NTFY_API_S_VER_3 */
 
 /**
- * struct iwl_missed_beacons_notif - information on missed beacons
- * ( MISSED_BEACONS_NOTIFICATION = 0xa2 )
+ * struct iwl_missed_beacons_analtif - information on missed beacons
+ * ( MISSED_BEACONS_ANALTIFICATION = 0xa2 )
  * @link_id: fw link ID
  * @consec_missed_beacons_since_last_rx: number of consecutive missed
  *	beacons since last RX.
@@ -380,7 +380,7 @@ struct iwl_missed_beacons_notif_ver_3 {
  * @num_expected_beacons: number of expected beacons
  * @num_recvd_beacons: number of received beacons
  */
-struct iwl_missed_beacons_notif {
+struct iwl_missed_beacons_analtif {
 	__le32 link_id;
 	__le32 consec_missed_beacons_since_last_rx;
 	__le32 consec_missed_beacons;
@@ -397,7 +397,7 @@ struct iwl_missed_beacons_notif {
  * @cwmin: CW min
  * @cwmax: CW max
  * @aifsn: AIFSN
- *	AIFSN=0, means that no backoff from the specified TRIG-BASED AC is
+ *	AIFSN=0, means that anal backoff from the specified TRIG-BASED AC is
  *	allowed till the MU-TIMER is 0
  * @mu_time: MU time in 8TU units
  */
@@ -417,7 +417,7 @@ struct iwl_he_backoff_conf {
  * @IWL_HE_PKT_EXT_256QAM: 256-QAM
  * @IWL_HE_PKT_EXT_1024QAM: 1024-QAM
  * @IWL_HE_PKT_EXT_4096QAM: 4096-QAM, for EHT only
- * @IWL_HE_PKT_EXT_NONE: not defined
+ * @IWL_HE_PKT_EXT_ANALNE: analt defined
  */
 enum iwl_he_pkt_ext_constellations {
 	IWL_HE_PKT_EXT_BPSK = 0,
@@ -427,7 +427,7 @@ enum iwl_he_pkt_ext_constellations {
 	IWL_HE_PKT_EXT_256QAM,
 	IWL_HE_PKT_EXT_1024QAM,
 	IWL_HE_PKT_EXT_4096QAM,
-	IWL_HE_PKT_EXT_NONE,
+	IWL_HE_PKT_EXT_ANALNE,
 };
 
 #define MAX_HE_SUPP_NSS	2
@@ -441,14 +441,14 @@ enum iwl_he_pkt_ext_constellations {
  * Support for Nss x BW (or RU) matrix:
  *	(0=SISO, 1=MIMO2) x (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz)
  * Each entry contains 2 QAM thresholds for 8us and 16us:
- *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=NONE
+ *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=ANALNE
  * i.e. QAM_th1 < QAM_th2 such if TX uses QAM_tx:
  *	QAM_tx < QAM_th1            --> PPE=0us
  *	QAM_th1 <= QAM_tx < QAM_th2 --> PPE=8us
  *	QAM_th2 <= QAM_tx           --> PPE=16us
  * @pkt_ext_qam_th: QAM thresholds
  *	For each Nss/Bw define 2 QAM thrsholds (0..5)
- *	For rates below the low_th, no need for PPE
+ *	For rates below the low_th, anal need for PPE
  *	For rates between low_th and high_th, need 8us PPE
  *	For rates equal or higher then the high_th, need 16us PPE
  *	Nss (0-siso, 1-mimo2) x BW (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz) x
@@ -465,14 +465,14 @@ struct iwl_he_pkt_ext_v1 {
  * Support for Nss x BW (or RU) matrix:
  *	(0=SISO, 1=MIMO2) x (0-20MHz, 1-40MHz, 2-80MHz, 3-160MHz)
  * Each entry contains 2 QAM thresholds for 8us and 16us:
- *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=NONE
+ *	0=BPSK, 1=QPSK, 2=16QAM, 3=64QAM, 4=256QAM, 5=1024QAM, 6=RES, 7=ANALNE
  * i.e. QAM_th1 < QAM_th2 such if TX uses QAM_tx:
  *	QAM_tx < QAM_th1            --> PPE=0us
  *	QAM_th1 <= QAM_tx < QAM_th2 --> PPE=8us
  *	QAM_th2 <= QAM_tx           --> PPE=16us
  * @pkt_ext_qam_th: QAM thresholds
  *	For each Nss/Bw define 2 QAM thrsholds (0..5)
- *	For rates below the low_th, no need for PPE
+ *	For rates below the low_th, anal need for PPE
  *	For rates between low_th and high_th, need 8us PPE
  *	For rates equal or higher then the high_th, need 16us PPE
  *	Nss (0-siso, 1-mimo2) x
@@ -498,15 +498,15 @@ struct iwl_he_pkt_ext_v2 {
  *	is enabled according to UORA element existence
  * @STA_CTXT_HE_CONST_TRIG_RND_ALLOC: used for AV testing
  * @STA_CTXT_HE_ACK_ENABLED: indicates that the AP supports receiving ACK-
- *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
+ *	enabled AGG, i.e. both BACK and analn-BACK frames in a single AGG
  * @STA_CTXT_HE_MU_EDCA_CW: indicates that there is an element of MU EDCA
  *	parameter set, i.e. the backoff counters for trig-based ACs
- * @STA_CTXT_HE_NIC_NOT_ACK_ENABLED: mark that the NIC doesn't support receiving
- *	ACK-enabled AGG, (i.e. both BACK and non-BACK frames in single AGG).
- *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
+ * @STA_CTXT_HE_NIC_ANALT_ACK_ENABLED: mark that the NIC doesn't support receiving
+ *	ACK-enabled AGG, (i.e. both BACK and analn-BACK frames in single AGG).
+ *	If the NIC is analt ACK_ENABLED it may use the EOF-bit in first analn-0
  *	len delim to determine if AGG or single.
  * @STA_CTXT_HE_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
- *      not allowed (as there are OBSS that might classify such transmissions as
+ *      analt allowed (as there are OBSS that might classify such transmissions as
  *      radar pulses).
  * @STA_CTXT_HE_NDP_FEEDBACK_ENABLED: mark support for NDP feedback and change
  *	of threshold
@@ -524,7 +524,7 @@ enum iwl_he_sta_ctxt_flags {
 	STA_CTXT_HE_CONST_TRIG_RND_ALLOC	= BIT(10),
 	STA_CTXT_HE_ACK_ENABLED			= BIT(11),
 	STA_CTXT_HE_MU_EDCA_CW			= BIT(12),
-	STA_CTXT_HE_NIC_NOT_ACK_ENABLED		= BIT(13),
+	STA_CTXT_HE_NIC_ANALT_ACK_ENABLED		= BIT(13),
 	STA_CTXT_HE_RU_2MHZ_BLOCK		= BIT(14),
 	STA_CTXT_HE_NDP_FEEDBACK_ENABLED	= BIT(15),
 	STA_CTXT_EHT_PUNCTURE_MASK_VALID	= BIT(16),
@@ -549,13 +549,13 @@ enum iwl_he_htc_flags {
 };
 
 /*
- * @IWL_HE_HTC_LINK_ADAP_NO_FEEDBACK: the STA does not provide HE MFB
+ * @IWL_HE_HTC_LINK_ADAP_ANAL_FEEDBACK: the STA does analt provide HE MFB
  * @IWL_HE_HTC_LINK_ADAP_UNSOLICITED: the STA provides only unsolicited HE MFB
  * @IWL_HE_HTC_LINK_ADAP_BOTH: the STA is capable of providing HE MFB in
  *      response to HE MRQ and if the STA provides unsolicited HE MFB
  */
 #define IWL_HE_HTC_LINK_ADAP_POS		(1)
-#define IWL_HE_HTC_LINK_ADAP_NO_FEEDBACK	(0)
+#define IWL_HE_HTC_LINK_ADAP_ANAL_FEEDBACK	(0)
 #define IWL_HE_HTC_LINK_ADAP_UNSOLICITED	(2 << IWL_HE_HTC_LINK_ADAP_POS)
 #define IWL_HE_HTC_LINK_ADAP_BOTH		(3 << IWL_HE_HTC_LINK_ADAP_POS)
 
@@ -563,7 +563,7 @@ enum iwl_he_htc_flags {
  * struct iwl_he_sta_context_cmd_v1 - configure FW to work with HE AP
  * @sta_id: STA id
  * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
- *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ *	0 - bad value, 1 - multi-tid analt supported, 2..8 - tid limit
  * @reserved1: reserved byte for future use
  * @reserved2: reserved byte for future use
  * @flags: see %iwl_11ax_sta_ctxt_flags
@@ -623,7 +623,7 @@ struct iwl_he_sta_context_cmd_v1 {
  * struct iwl_he_sta_context_cmd_v2 - configure FW to work with HE AP
  * @sta_id: STA id
  * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
- *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ *	0 - bad value, 1 - multi-tid analt supported, 2..8 - tid limit
  * @reserved1: reserved byte for future use
  * @reserved2: reserved byte for future use
  * @flags: see %iwl_11ax_sta_ctxt_flags
@@ -698,7 +698,7 @@ struct iwl_he_sta_context_cmd_v2 {
  * struct iwl_he_sta_context_cmd_v3 - configure FW to work with HE AP
  * @sta_id: STA id
  * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
- *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ *	0 - bad value, 1 - multi-tid analt supported, 2..8 - tid limit
  * @reserved1: reserved byte for future use
  * @reserved2: reserved byte for future use
  * @flags: see %iwl_11ax_sta_ctxt_flags

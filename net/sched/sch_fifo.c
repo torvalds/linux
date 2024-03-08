@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -227,9 +227,9 @@ struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
 int fifo_set_limit(struct Qdisc *q, unsigned int limit)
 {
 	struct nlattr *nla;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	/* Hack to avoid sending change message to non-FIFO */
+	/* Hack to avoid sending change message to analn-FIFO */
 	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
 		return 0;
 
@@ -254,7 +254,7 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 			       struct netlink_ext_ack *extack)
 {
 	struct Qdisc *q;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	q = qdisc_create_dflt(sch->dev_queue, ops, TC_H_MAKE(sch->handle, 1),
 			      extack);

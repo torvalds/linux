@@ -75,7 +75,7 @@ static unsigned long xgene_clk_pll_recalc_rate(struct clk_hw *hw,
 	unsigned long fvco;
 	u32 pll;
 	u32 nref;
-	u32 nout;
+	u32 analut;
 	u32 nfb;
 
 	pll = xgene_clk_read(pllclk->reg + pllclk->pll_offset);
@@ -86,16 +86,16 @@ static unsigned long xgene_clk_pll_recalc_rate(struct clk_hw *hw,
 			* PLL VCO = Reference clock * NF
 			* PCP PLL = PLL_VCO / 2
 			*/
-			nout = 2;
+			analut = 2;
 			fvco = parent_rate * (N_DIV_RD(pll) + 4);
 		} else {
 			/*
 			* Fref = Reference Clock / NREF;
 			* Fvco = Fref * NFB;
-			* Fout = Fvco / NOUT;
+			* Fout = Fvco / ANALUT;
 			*/
 			nref = CLKR_RD(pll) + 1;
-			nout = CLKOD_RD(pll) + 1;
+			analut = CLKOD_RD(pll) + 1;
 			nfb = CLKF_RD(pll);
 			fref = parent_rate / nref;
 			fvco = fref * nfb;
@@ -103,16 +103,16 @@ static unsigned long xgene_clk_pll_recalc_rate(struct clk_hw *hw,
 	} else {
 		/*
 		 * fvco = Reference clock * FBDIVC
-		 * PLL freq = fvco / NOUT
+		 * PLL freq = fvco / ANALUT
 		 */
-		nout = SC_OUTDIV2(pll) ? 2 : 3;
+		analut = SC_OUTDIV2(pll) ? 2 : 3;
 		fvco = parent_rate * SC_N_DIV_RD(pll);
 	}
 	pr_debug("%s pll recalc rate %ld parent %ld version %d\n",
-		 clk_hw_get_name(hw), fvco / nout, parent_rate,
+		 clk_hw_get_name(hw), fvco / analut, parent_rate,
 		 pllclk->version);
 
-	return fvco / nout;
+	return fvco / analut;
 }
 
 static const struct clk_ops xgene_clk_pll_ops = {
@@ -132,7 +132,7 @@ static struct clk *xgene_register_clk_pll(struct device *dev,
 	/* allocate the APM clock structure */
 	apmclk = kzalloc(sizeof(*apmclk), GFP_KERNEL);
 	if (!apmclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &xgene_clk_pll_ops;
@@ -150,14 +150,14 @@ static struct clk *xgene_register_clk_pll(struct device *dev,
 	/* Register the clock */
 	clk = clk_register(dev, &apmclk->hw);
 	if (IS_ERR(clk)) {
-		pr_err("%s: could not register clk %s\n", __func__, name);
+		pr_err("%s: could analt register clk %s\n", __func__, name);
 		kfree(apmclk);
 		return NULL;
 	}
 	return clk;
 }
 
-static int xgene_pllclk_version(struct device_node *np)
+static int xgene_pllclk_version(struct device_analde *np)
 {
 	if (of_device_is_compatible(np, "apm,xgene-socpll-clock"))
 		return 1;
@@ -166,7 +166,7 @@ static int xgene_pllclk_version(struct device_node *np)
 	return 2;
 }
 
-static void xgene_pllclk_init(struct device_node *np, enum xgene_pll_type pll_type)
+static void xgene_pllclk_init(struct device_analde *np, enum xgene_pll_type pll_type)
 {
 	const char *clk_name = np->full_name;
 	struct clk *clk;
@@ -190,12 +190,12 @@ static void xgene_pllclk_init(struct device_node *np, enum xgene_pll_type pll_ty
 	}
 }
 
-static void xgene_socpllclk_init(struct device_node *np)
+static void xgene_socpllclk_init(struct device_analde *np)
 {
 	xgene_pllclk_init(np, PLL_TYPE_SOC);
 }
 
-static void xgene_pcppllclk_init(struct device_node *np)
+static void xgene_pcppllclk_init(struct device_analde *np)
 {
 	xgene_pllclk_init(np, PLL_TYPE_PCP);
 }
@@ -207,22 +207,22 @@ static void xgene_pcppllclk_init(struct device_node *np)
  * @reg:	register containing the fractional scale multiplier (scaler)
  * @shift:	shift to the unit bit field
  * @mask:	mask to the unit bit field
- * @denom:	1/denominator unit
+ * @deanalm:	1/deanalminator unit
  * @lock:	register lock
  * @flags: XGENE_CLK_PMD_SCALE_INVERTED - By default the scaler is the value read
  *	from the register plus one. For example,
- *		0 for (0 + 1) / denom,
- *		1 for (1 + 1) / denom and etc.
+ *		0 for (0 + 1) / deanalm,
+ *		1 for (1 + 1) / deanalm and etc.
  *	If this flag is set, it is
- *		0 for (denom - 0) / denom,
- *		1 for (denom - 1) / denom and etc.
+ *		0 for (deanalm - 0) / deanalm,
+ *		1 for (deanalm - 1) / deanalm and etc.
  */
 struct xgene_clk_pmd {
 	struct clk_hw	hw;
 	void __iomem	*reg;
 	u8		shift;
 	u32		mask;
-	u64		denom;
+	u64		deanalm;
 	u32		flags;
 	spinlock_t	*lock;
 };
@@ -257,12 +257,12 @@ static unsigned long xgene_clk_pmd_recalc_rate(struct clk_hw *hw,
 
 	scale = (val & fd->mask) >> fd->shift;
 	if (fd->flags & XGENE_CLK_PMD_SCALE_INVERTED)
-		scale = fd->denom - scale;
+		scale = fd->deanalm - scale;
 	else
 		scale++;
 
-	/* freq = parent_rate * scaler / denom */
-	do_div(ret, fd->denom);
+	/* freq = parent_rate * scaler / deanalm */
+	do_div(ret, fd->deanalm);
 	ret *= scale;
 	if (ret == 0)
 		ret = (u64)parent_rate;
@@ -279,12 +279,12 @@ static long xgene_clk_pmd_round_rate(struct clk_hw *hw, unsigned long rate,
 	if (!rate || rate >= *parent_rate)
 		return *parent_rate;
 
-	/* freq = parent_rate * scaler / denom */
-	ret = rate * fd->denom;
+	/* freq = parent_rate * scaler / deanalm */
+	ret = rate * fd->deanalm;
 	scale = DIV_ROUND_UP_ULL(ret, *parent_rate);
 
 	ret = (u64)*parent_rate * scale;
-	do_div(ret, fd->denom);
+	do_div(ret, fd->deanalm);
 
 	return ret;
 }
@@ -300,15 +300,15 @@ static int xgene_clk_pmd_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * Compute the scaler:
 	 *
-	 * freq = parent_rate * scaler / denom, or
-	 * scaler = freq * denom / parent_rate
+	 * freq = parent_rate * scaler / deanalm, or
+	 * scaler = freq * deanalm / parent_rate
 	 */
-	ret = rate * fd->denom;
+	ret = rate * fd->deanalm;
 	scale = DIV_ROUND_UP_ULL(ret, (u64)parent_rate);
 
 	/* Check if inverted */
 	if (fd->flags & XGENE_CLK_PMD_SCALE_INVERTED)
-		scale = fd->denom - scale;
+		scale = fd->deanalm - scale;
 	else
 		scale--;
 
@@ -340,7 +340,7 @@ static struct clk *
 xgene_register_clk_pmd(struct device *dev,
 		       const char *name, const char *parent_name,
 		       unsigned long flags, void __iomem *reg, u8 shift,
-		       u8 width, u64 denom, u32 clk_flags, spinlock_t *lock)
+		       u8 width, u64 deanalm, u32 clk_flags, spinlock_t *lock)
 {
 	struct xgene_clk_pmd *fd;
 	struct clk_init_data init;
@@ -348,7 +348,7 @@ xgene_register_clk_pmd(struct device *dev,
 
 	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
 	if (!fd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &xgene_clk_pmd_ops;
@@ -359,14 +359,14 @@ xgene_register_clk_pmd(struct device *dev,
 	fd->reg = reg;
 	fd->shift = shift;
 	fd->mask = (BIT(width) - 1) << shift;
-	fd->denom = denom;
+	fd->deanalm = deanalm;
 	fd->flags = clk_flags;
 	fd->lock = lock;
 	fd->hw.init = &init;
 
 	clk = clk_register(dev, &fd->hw);
 	if (IS_ERR(clk)) {
-		pr_err("%s: could not register clk %s\n", __func__, name);
+		pr_err("%s: could analt register clk %s\n", __func__, name);
 		kfree(fd);
 		return NULL;
 	}
@@ -374,13 +374,13 @@ xgene_register_clk_pmd(struct device *dev,
 	return clk;
 }
 
-static void xgene_pmdclk_init(struct device_node *np)
+static void xgene_pmdclk_init(struct device_analde *np)
 {
 	const char *clk_name = np->full_name;
 	void __iomem *csr_reg;
 	struct resource res;
 	struct clk *clk;
-	u64 denom;
+	u64 deanalm;
 	u32 flags = 0;
 	int rc;
 
@@ -391,7 +391,7 @@ static void xgene_pmdclk_init(struct device_node *np)
 	/* Parse the DTS register for resource */
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc != 0) {
-		pr_err("no DTS register for %pOF\n", np);
+		pr_err("anal DTS register for %pOF\n", np);
 		return;
 	}
 	csr_reg = of_iomap(np, 0);
@@ -401,13 +401,13 @@ static void xgene_pmdclk_init(struct device_node *np)
 	}
 	of_property_read_string(np, "clock-output-names", &clk_name);
 
-	denom = BIT(XGENE_CLK_PMD_WIDTH);
+	deanalm = BIT(XGENE_CLK_PMD_WIDTH);
 	flags |= XGENE_CLK_PMD_SCALE_INVERTED;
 
 	clk = xgene_register_clk_pmd(NULL, clk_name,
 				     of_clk_get_parent_name(np, 0), 0,
 				     csr_reg, XGENE_CLK_PMD_SHIFT,
-				     XGENE_CLK_PMD_WIDTH, denom,
+				     XGENE_CLK_PMD_WIDTH, deanalm,
 				     flags, &clk_lock);
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
@@ -633,7 +633,7 @@ static struct clk *xgene_register_clk(struct device *dev,
 	/* allocate the APM clock structure */
 	apmclk = kzalloc(sizeof(*apmclk), GFP_KERNEL);
 	if (!apmclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &xgene_clk_ops;
@@ -648,7 +648,7 @@ static struct clk *xgene_register_clk(struct device *dev,
 	/* Register the clock */
 	clk = clk_register(dev, &apmclk->hw);
 	if (IS_ERR(clk)) {
-		pr_err("%s: could not register clk %s\n", __func__, name);
+		pr_err("%s: could analt register clk %s\n", __func__, name);
 		kfree(apmclk);
 		return clk;
 	}
@@ -656,13 +656,13 @@ static struct clk *xgene_register_clk(struct device *dev,
 	/* Register the clock for lookup */
 	rc = clk_register_clkdev(clk, name, NULL);
 	if (rc != 0) {
-		pr_err("%s: could not register lookup clk %s\n",
+		pr_err("%s: could analt register lookup clk %s\n",
 			__func__, name);
 	}
 	return clk;
 }
 
-static void __init xgene_devclk_init(struct device_node *np)
+static void __init xgene_devclk_init(struct device_analde *np)
 {
 	const char *clk_name = np->full_name;
 	struct clk *clk;
@@ -683,7 +683,7 @@ static void __init xgene_devclk_init(struct device_node *np)
 		rc = of_address_to_resource(np, i, &res);
 		if (rc != 0) {
 			if (i == 0) {
-				pr_err("no DTS register for %pOF\n", np);
+				pr_err("anal DTS register for %pOF\n", np);
 				return;
 			}
 			break;

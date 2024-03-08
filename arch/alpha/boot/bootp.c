@@ -122,7 +122,7 @@ runkernel(void)
 	__asm__ __volatile__(
 		"bis %0,%0,$27\n\t"
 		"jmp ($27)"
-		: /* no outputs: it doesn't even return */
+		: /* anal outputs: it doesn't even return */
 		: "r" (START_ADDR));
 }
 
@@ -134,7 +134,7 @@ void
 start_kernel(void)
 {
 	/*
-	 * Note that this crufty stuff with static and envval
+	 * Analte that this crufty stuff with static and envval
 	 * and envbuf is because:
 	 *
 	 * 1. Frequently, the stack is short, and we don't want to overrun;
@@ -183,7 +183,7 @@ start_kernel(void)
 	envval[nbytes] = '\0';
 	srm_printk("Loading the kernel...'%s'\n", envval);
 
-	/* NOTE: *no* callbacks or printouts from here on out!!! */
+	/* ANALTE: *anal* callbacks or printouts from here on out!!! */
 
 	/* This is a hack, as some consoles seem to get virtual 20000000 (ie
 	 * where the SRM console puts the kernel bootp image) memory

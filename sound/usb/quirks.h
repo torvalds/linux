@@ -13,7 +13,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 
 int snd_usb_apply_interface_quirk(struct snd_usb_audio *chip,
 				  int iface,
-				  int altno);
+				  int altanal);
 
 int snd_usb_apply_boot_quirk(struct usb_device *dev,
 			     struct usb_interface *intf,

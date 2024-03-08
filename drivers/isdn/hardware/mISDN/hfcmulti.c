@@ -42,9 +42,9 @@
  *	HFC-4S/HFC-8S only bits:
  *	Bit 0	  = 0x001 = Use master clock for this S/T interface
  *			    (ony once per chip).
- *	Bit 1     = 0x002 = transmitter line setup (non capacitive mode)
- *			    Don't use this unless you know what you are doing!
- *	Bit 2     = 0x004 = Disable E-channel. (No E-channel processing)
+ *	Bit 1     = 0x002 = transmitter line setup (analn capacitive mode)
+ *			    Don't use this unless you kanalw what you are doing!
+ *	Bit 2     = 0x004 = Disable E-channel. (Anal E-channel processing)
  *	example: 0x0001,0x0000,0x0000,0x0000 one HFC-4S with master clock
  *		 received from port 1
  *
@@ -66,80 +66,80 @@
  * (all other bits are reserved and shall be 0)
  *
  * debug:
- *	NOTE: only one debug value must be given for all cards
+ *	ANALTE: only one debug value must be given for all cards
  *	enable debugging (see hfc_multi.h for debug options)
  *
  * poll:
- *	NOTE: only one poll value must be given for all cards
+ *	ANALTE: only one poll value must be given for all cards
  *	Give the number of samples for each fifo process.
  *	By default 128 is used. Decrease to reduce delay, increase to
  *	reduce cpu load. If unsure, don't mess with it!
  *	Valid is 8, 16, 32, 64, 128, 256.
  *
  * pcm:
- *	NOTE: only one pcm value must be given for every card.
+ *	ANALTE: only one pcm value must be given for every card.
  *	The PCM bus id tells the mISDNdsp module about the connected PCM bus.
  *	By default (0), the PCM bus id is 100 for the card that is PCM master.
- *	If multiple cards are PCM master (because they are not interconnected),
+ *	If multiple cards are PCM master (because they are analt interconnected),
  *	each card with PCM master will have increasing PCM id.
  *	All PCM busses with the same ID are expected to be connected and have
  *	common time slots slots.
  *	Only one chip of the PCM bus must be master, the others slave.
- *	-1 means no support of PCM bus not even.
- *	Omit this value, if all cards are interconnected or none is connected.
+ *	-1 means anal support of PCM bus analt even.
+ *	Omit this value, if all cards are interconnected or analne is connected.
  *	If unsure, don't give this parameter.
  *
  * dmask and bmask:
- *	NOTE: One dmask value must be given for every HFC-E1 card.
+ *	ANALTE: One dmask value must be given for every HFC-E1 card.
  *	If omitted, the E1 card has D-channel on time slot 16, which is default.
  *	dmask is a 32 bit mask. The bit must be set for an alternate time slot.
  *	If multiple bits are set, multiple virtual card fragments are created.
  *	For each bit set, a bmask value must be given. Each bit on the bmask
- *	value stands for a B-channel. The bmask may not overlap with dmask or
+ *	value stands for a B-channel. The bmask may analt overlap with dmask or
  *	with other bmask values for that card.
  *	Example: dmask=0x00020002 bmask=0x0000fffc,0xfffc0000
  *		This will create one fragment with D-channel on slot 1 with
  *		B-channels on slots 2..15, and a second fragment with D-channel
  *		on slot 17 with B-channels on slot 18..31. Slot 16 is unused.
  *	If bit 0 is set (dmask=0x00000001) the D-channel is on slot 0 and will
- *	not function.
+ *	analt function.
  *	Example: dmask=0x00000001 bmask=0xfffffffe
  *		This will create a port with all 31 usable timeslots as
  *		B-channels.
- *	If no bits are set on bmask, no B-channel is created for that fragment.
+ *	If anal bits are set on bmask, anal B-channel is created for that fragment.
  *	Example: dmask=0xfffffffe bmask=0,0,0,0.... (31 0-values for bmask)
  *		This will create 31 ports with one D-channel only.
- *	If you don't know how to use it, you don't need it!
+ *	If you don't kanalw how to use it, you don't need it!
  *
  * iomode:
- *	NOTE: only one mode value must be given for every card.
+ *	ANALTE: only one mode value must be given for every card.
  *	-> See hfc_multi.h for HFC_IO_MODE_* values
  *	By default, the IO mode is pci memory IO (MEMIO).
- *	Some cards require specific IO mode, so it cannot be changed.
+ *	Some cards require specific IO mode, so it cananalt be changed.
  *	It may be useful to set IO mode to register io (REGIO) to solve
  *	PCI bridge problems.
  *	If unsure, don't give this parameter.
  *
  * clockdelay_nt:
- *	NOTE: only one clockdelay_nt value must be given once for all cards.
+ *	ANALTE: only one clockdelay_nt value must be given once for all cards.
  *	Give the value of the clock control register (A_ST_CLK_DLY)
  *	of the S/T interfaces in NT mode.
  *	This register is needed for the TBR3 certification, so don't change it.
  *
  * clockdelay_te:
- *	NOTE: only one clockdelay_te value must be given once
+ *	ANALTE: only one clockdelay_te value must be given once
  *	Give the value of the clock control register (A_ST_CLK_DLY)
  *	of the S/T interfaces in TE mode.
  *	This register is needed for the TBR3 certification, so don't change it.
  *
  * clock:
- *	NOTE: only one clock value must be given once
+ *	ANALTE: only one clock value must be given once
  *	Selects interface with clock source for mISDN and applications.
  *	Set to card number starting with 1. Set to -1 to disable.
  *	By default, the first card is used as clock source.
  *
  * hwid:
- *	NOTE: only one hwid value must be given once
+ *	ANALTE: only one hwid value must be given once
  *	Enable special embedded devices with XHFC controllers.
  */
 
@@ -179,7 +179,7 @@ static void ph_state_change(struct dchannel *);
 
 static struct hfc_multi *syncmaster;
 static int plxsd_master; /* if we have a master card (yet) */
-static DEFINE_SPINLOCK(plx_lock); /* may not acquire other lock inside */
+static DEFINE_SPINLOCK(plx_lock); /* may analt acquire other lock inside */
 
 #define	TYP_E1		1
 #define	TYP_4S		4
@@ -212,11 +212,11 @@ static int	clock;
 static uint	timer;
 static uint	clockdelay_te = CLKDEL_TE;
 static uint	clockdelay_nt = CLKDEL_NT;
-#define HWID_NONE	0
+#define HWID_ANALNE	0
 #define HWID_MINIP4	1
 #define HWID_MINIP8	2
 #define HWID_MINIP16	3
-static uint	hwid = HWID_NONE;
+static uint	hwid = HWID_ANALNE;
 
 static int	HFC_cnt, E1_cnt, bmask_cnt, Port_cnt, PCM_cnt = 99;
 
@@ -240,29 +240,29 @@ module_param(hwid, uint, S_IRUGO | S_IWUSR); /* The hardware ID */
 #ifdef HFC_REGISTER_DEBUG
 #define HFC_outb(hc, reg, val)					\
 	(hc->HFC_outb(hc, reg, val, __func__, __LINE__))
-#define HFC_outb_nodebug(hc, reg, val)					\
-	(hc->HFC_outb_nodebug(hc, reg, val, __func__, __LINE__))
+#define HFC_outb_analdebug(hc, reg, val)					\
+	(hc->HFC_outb_analdebug(hc, reg, val, __func__, __LINE__))
 #define HFC_inb(hc, reg)				\
 	(hc->HFC_inb(hc, reg, __func__, __LINE__))
-#define HFC_inb_nodebug(hc, reg)				\
-	(hc->HFC_inb_nodebug(hc, reg, __func__, __LINE__))
+#define HFC_inb_analdebug(hc, reg)				\
+	(hc->HFC_inb_analdebug(hc, reg, __func__, __LINE__))
 #define HFC_inw(hc, reg)				\
 	(hc->HFC_inw(hc, reg, __func__, __LINE__))
-#define HFC_inw_nodebug(hc, reg)				\
-	(hc->HFC_inw_nodebug(hc, reg, __func__, __LINE__))
+#define HFC_inw_analdebug(hc, reg)				\
+	(hc->HFC_inw_analdebug(hc, reg, __func__, __LINE__))
 #define HFC_wait(hc)				\
 	(hc->HFC_wait(hc, __func__, __LINE__))
-#define HFC_wait_nodebug(hc)				\
-	(hc->HFC_wait_nodebug(hc, __func__, __LINE__))
+#define HFC_wait_analdebug(hc)				\
+	(hc->HFC_wait_analdebug(hc, __func__, __LINE__))
 #else
 #define HFC_outb(hc, reg, val)		(hc->HFC_outb(hc, reg, val))
-#define HFC_outb_nodebug(hc, reg, val)	(hc->HFC_outb_nodebug(hc, reg, val))
+#define HFC_outb_analdebug(hc, reg, val)	(hc->HFC_outb_analdebug(hc, reg, val))
 #define HFC_inb(hc, reg)		(hc->HFC_inb(hc, reg))
-#define HFC_inb_nodebug(hc, reg)	(hc->HFC_inb_nodebug(hc, reg))
+#define HFC_inb_analdebug(hc, reg)	(hc->HFC_inb_analdebug(hc, reg))
 #define HFC_inw(hc, reg)		(hc->HFC_inw(hc, reg))
-#define HFC_inw_nodebug(hc, reg)	(hc->HFC_inw_nodebug(hc, reg))
+#define HFC_inw_analdebug(hc, reg)	(hc->HFC_inw_analdebug(hc, reg))
 #define HFC_wait(hc)			(hc->HFC_wait(hc))
-#define HFC_wait_nodebug(hc)		(hc->HFC_wait_nodebug(hc))
+#define HFC_wait_analdebug(hc)		(hc->HFC_wait_analdebug(hc))
 #endif
 
 #ifdef CONFIG_MISDN_HFCMULTI_8xx
@@ -380,13 +380,13 @@ HFC_outb_debug(struct hfc_multi *hc, u_char reg, u_char val,
 	printk(KERN_DEBUG
 	       "HFC_outb(chip %d, %02x=%s, 0x%02x=%s); in %s() line %d\n",
 	       hc->id, reg, regname, val, bits, function, line);
-	HFC_outb_nodebug(hc, reg, val);
+	HFC_outb_analdebug(hc, reg, val);
 }
 static u_char
 HFC_inb_debug(struct hfc_multi *hc, u_char reg, const char *function, int line)
 {
 	char regname[256] = "", bits[9] = "xxxxxxxx";
-	u_char val = HFC_inb_nodebug(hc, reg);
+	u_char val = HFC_inb_analdebug(hc, reg);
 	int i;
 
 	i = 0;
@@ -416,7 +416,7 @@ static u_short
 HFC_inw_debug(struct hfc_multi *hc, u_char reg, const char *function, int line)
 {
 	char regname[256] = "";
-	u_short val = HFC_inw_nodebug(hc, reg);
+	u_short val = HFC_inw_analdebug(hc, reg);
 	int i;
 
 	i = 0;
@@ -439,7 +439,7 @@ HFC_wait_debug(struct hfc_multi *hc, const char *function, int line)
 {
 	printk(KERN_DEBUG "HFC_wait(chip %d); in %s() line %d\n",
 	       hc->id, function, line);
-	HFC_wait_nodebug(hc);
+	HFC_wait_analdebug(hc);
 }
 #endif
 
@@ -584,7 +584,7 @@ readpcibridge(struct hfc_multi *hc, unsigned char address)
 	outw(cipv, hc->pci_iobase + 4);
 	data = inb(hc->pci_iobase);
 
-	/* restore R_CTRL for normal PCI read cycle speed */
+	/* restore R_CTRL for analrmal PCI read cycle speed */
 	HFC_outb(hc, R_CTRL, 0x0); /* was _io before */
 
 	return data;
@@ -756,7 +756,7 @@ vpm_init(struct hfc_multi *wc)
 		 * more than 2ms... it gives a fake "__bad_udelay"
 		 * reference at link-time.
 		 * long delays in kernel code are pretty sucky anyway
-		 * for now work around it using 5 x 2ms instead of 1 x 10ms
+		 * for analw work around it using 5 x 2ms instead of 1 x 10ms
 		 */
 
 		udelay(2000);
@@ -798,10 +798,10 @@ vpm_check(struct hfc_multi *hctmp)
  * Interface to enable/disable the HW Echocan
  *
  * these functions are called within a spin_lock_irqsave on
- * the channel instance lock, so we are not disturbed by irqs
+ * the channel instance lock, so we are analt disturbed by irqs
  *
  * we can later easily change the interface to make  other
- * things configurable, for now we configure the taps
+ * things configurable, for analw we configure the taps
  *
  */
 
@@ -831,7 +831,7 @@ vpm_echocan_on(struct hfc_multi *hc, int ch, int taps)
 	timeslot = ((ch / 4) * 8) + ((ch % 4) * 4) + 1;
 	unit = ch % 4;
 
-	printk(KERN_NOTICE "vpm_echocan_on called taps [%d] on timeslot %d\n",
+	printk(KERN_ANALTICE "vpm_echocan_on called taps [%d] on timeslot %d\n",
 	       taps, timeslot);
 
 	vpm_out(hc, unit, timeslot, 0x7e);
@@ -864,7 +864,7 @@ vpm_echocan_off(struct hfc_multi *hc, int ch)
 	timeslot = ((ch / 4) * 8) + ((ch % 4) * 4) + 1;
 	unit = ch % 4;
 
-	printk(KERN_NOTICE "vpm_echocan_off called on timeslot %d\n",
+	printk(KERN_ANALTICE "vpm_echocan_off called on timeslot %d\n",
 	       timeslot);
 	/* FILLME */
 	vpm_out(hc, unit, timeslot, 0x01);
@@ -873,8 +873,8 @@ vpm_echocan_off(struct hfc_multi *hc, int ch)
 
 /*
  * Speech Design resync feature
- * NOTE: This is called sometimes outside interrupt handler.
- * We must lock irqsave, so no other interrupt (other card) will occur!
+ * ANALTE: This is called sometimes outside interrupt handler.
+ * We must lock irqsave, so anal other interrupt (other card) will occur!
  * Also multiple interrupts may nest, so must lock each access (lists, card)!
  */
 static inline void
@@ -936,7 +936,7 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 		pv = readl(plx_acc_32);
 		pv |= PLX_SYNC_O_EN;
 		writel(pv, plx_acc_32);
-		/* switch to jatt PLL, if not disabled by RX_SYNC */
+		/* switch to jatt PLL, if analt disabled by RX_SYNC */
 		if (hc->ctype == HFC_TYPE_E1
 		    && !test_bit(HFC_CHIP_RX_SYNC, &hc->chip)) {
 			if (debug & DEBUG_HFCMULTI_PLXSD)
@@ -969,8 +969,8 @@ hfcmulti_resync(struct hfc_multi *locked, struct hfc_multi *newmaster, int rm)
 			writel(pv, plx_acc_32);
 		} else
 			if (!rm)
-				printk(KERN_ERR "%s no pcm master, this MUST "
-				       "not happen!\n", __func__);
+				printk(KERN_ERR "%s anal pcm master, this MUST "
+				       "analt happen!\n", __func__);
 	}
 	syncmaster = newmaster;
 
@@ -1095,7 +1095,7 @@ init_chip(struct hfc_multi *hc)
 	val = HFC_inb(hc, R_CHIP_ID);
 	if ((val >> 4) != 0x8 && (val >> 4) != 0xc && (val >> 4) != 0xe &&
 	    (val >> 1) != 0x31) {
-		printk(KERN_INFO "HFC_multi: unknown CHIP_ID:%x\n", (u_int)val);
+		printk(KERN_INFO "HFC_multi: unkanalwn CHIP_ID:%x\n", (u_int)val);
 		err = -EIO;
 		goto out;
 	}
@@ -1107,7 +1107,7 @@ init_chip(struct hfc_multi *hc)
 	if (hc->ctype != HFC_TYPE_XHFC && rev == 0) {
 		test_and_set_bit(HFC_CHIP_REVISION0, &hc->chip);
 		printk(KERN_WARNING
-		       "HFC_multi: NOTE: Your chip is revision 0, "
+		       "HFC_multi: ANALTE: Your chip is revision 0, "
 		       "ask Cologne Chip for update. Newer chips "
 		       "have a better FIFO handling. Old chips "
 		       "still work but may have slightly lower "
@@ -1116,7 +1116,7 @@ init_chip(struct hfc_multi *hc)
 	if (rev > 1) {
 		printk(KERN_WARNING "HFC_multi: WARNING: This driver doesn't "
 		       "consider chip revision = %ld. The chip / "
-		       "bridge may not work.\n", rev);
+		       "bridge may analt work.\n", rev);
 	}
 
 	/* set s-ram size */
@@ -1297,10 +1297,10 @@ init_chip(struct hfc_multi *hc)
 		HFC_outb(hc, R_PCM_MD2, 0x00); /* sync from interface */
 	HFC_outb(hc, R_PCM_MD0, hc->hw.r_pcm_md0 | 0x00);
 	for (i = 0; i < 256; i++) {
-		HFC_outb_nodebug(hc, R_SLOT, i);
-		HFC_outb_nodebug(hc, A_SL_CFG, 0);
+		HFC_outb_analdebug(hc, R_SLOT, i);
+		HFC_outb_analdebug(hc, A_SL_CFG, 0);
 		if (hc->ctype != HFC_TYPE_XHFC)
-			HFC_outb_nodebug(hc, A_CONF, 0);
+			HFC_outb_analdebug(hc, A_CONF, 0);
 		hc->slot_owner[i] = -1;
 	}
 
@@ -1317,11 +1317,11 @@ init_chip(struct hfc_multi *hc)
 
 	/* B410P GPIO */
 	if (test_bit(HFC_CHIP_B410P, &hc->chip)) {
-		printk(KERN_NOTICE "Setting GPIOs\n");
+		printk(KERN_ANALTICE "Setting GPIOs\n");
 		HFC_outb(hc, R_GPIO_SEL, 0x30);
 		HFC_outb(hc, R_GPIO_EN1, 0x3);
 		udelay(1000);
-		printk(KERN_NOTICE "calling vpm_init\n");
+		printk(KERN_ANALTICE "calling vpm_init\n");
 		vpm_init(hc);
 	}
 
@@ -1354,23 +1354,23 @@ init_chip(struct hfc_multi *hc)
 				       "(auto detected)\n");
 			}
 	} else {
-		/* does not count */
+		/* does analt count */
 		if (test_bit(HFC_CHIP_PCM_MASTER, &hc->chip)) {
 		controller_fail:
-			printk(KERN_ERR "HFC_multi ERROR, getting no 125us "
+			printk(KERN_ERR "HFC_multi ERROR, getting anal 125us "
 			       "pulse. Seems that controller fails.\n");
 			err = -EIO;
 			goto out;
 		}
 		if (test_bit(HFC_CHIP_PCM_SLAVE, &hc->chip)) {
 			printk(KERN_INFO "controller is PCM bus SLAVE "
-			       "(ignoring missing PCM clock)\n");
+			       "(iganalring missing PCM clock)\n");
 		} else {
 			/* only one pcm master */
 			if (test_bit(HFC_CHIP_PLXSD, &hc->chip)
 			    && plxsd_master) {
-				printk(KERN_ERR "HFC_multi ERROR, no clock "
-				       "on another Speech Design card found. "
+				printk(KERN_ERR "HFC_multi ERROR, anal clock "
+				       "on aanalther Speech Design card found. "
 				       "Please be sure to connect PCM cable.\n");
 				err = -EIO;
 				goto out;
@@ -1516,13 +1516,13 @@ init_chip(struct hfc_multi *hc)
 	HFC_outb(hc, R_RAM_ADDR1, 0);
 	HFC_outb(hc, R_RAM_ADDR2, 0);
 	for (i = 0; i < 256; i++) {
-		HFC_outb_nodebug(hc, R_RAM_ADDR0, i);
-		HFC_outb_nodebug(hc, R_RAM_DATA, ((i * 3) & 0xff));
+		HFC_outb_analdebug(hc, R_RAM_ADDR0, i);
+		HFC_outb_analdebug(hc, R_RAM_DATA, ((i * 3) & 0xff));
 	}
 	for (i = 0; i < 256; i++) {
-		HFC_outb_nodebug(hc, R_RAM_ADDR0, i);
-		HFC_inb_nodebug(hc, R_RAM_DATA);
-		rval = HFC_inb_nodebug(hc, R_INT_DATA);
+		HFC_outb_analdebug(hc, R_RAM_ADDR0, i);
+		HFC_inb_analdebug(hc, R_RAM_DATA);
+		rval = HFC_inb_analdebug(hc, R_INT_DATA);
 		if (rval != ((i * 3) & 0xff)) {
 			printk(KERN_DEBUG
 			       "addr:%x val:%x should:%x\n", i, rval,
@@ -1580,7 +1580,7 @@ hfcmulti_leds(struct hfc_multi *hc)
 	switch (hc->leds) {
 	case 1: /* HFC-E1 OEM */
 		/* 2 red steady:       LOS
-		 * 1 red steady:       L1 not active
+		 * 1 red steady:       L1 analt active
 		 * 2 green steady:     L1 active
 		 * 1st green flashing: activity on TX
 		 * 2nd green flashing: activity on RX
@@ -1621,7 +1621,7 @@ hfcmulti_leds(struct hfc_multi *hc)
 		leds = (led[0] | (led[1]<<2) | (led[2]<<1) | (led[3]<<3))^0xF;
 		/* leds are inverted */
 		if (leds != (int)hc->ledstate) {
-			HFC_outb_nodebug(hc, R_GPIO_OUT1, leds);
+			HFC_outb_analdebug(hc, R_GPIO_OUT1, leds);
 			hc->ledstate = leds;
 		}
 		break;
@@ -1683,8 +1683,8 @@ hfcmulti_leds(struct hfc_multi *hc)
 				((led[3] & 1) << 4) | ((led[1] & 1) << 5) |
 				((led[0] & 1) << 6) | ((led[2] & 1) << 7);
 			if (leds != (int)hc->ledstate) {
-				HFC_outb_nodebug(hc, R_GPIO_EN1, leds & 0x0F);
-				HFC_outb_nodebug(hc, R_GPIO_OUT1, leds >> 4);
+				HFC_outb_analdebug(hc, R_GPIO_EN1, leds & 0x0F);
+				HFC_outb_analdebug(hc, R_GPIO_OUT1, leds >> 4);
 				hc->ledstate = leds;
 			}
 		}
@@ -1729,9 +1729,9 @@ hfcmulti_leds(struct hfc_multi *hc)
 		leds = (led[0] > 0) | ((led[1] > 0) << 1) | ((led[0]&1) << 2)
 			| ((led[1]&1) << 3);
 		if (leds != (int)hc->ledstate) {
-			HFC_outb_nodebug(hc, R_GPIO_EN1,
+			HFC_outb_analdebug(hc, R_GPIO_EN1,
 					 ((led[0] > 0) << 2) | ((led[1] > 0) << 3));
-			HFC_outb_nodebug(hc, R_GPIO_OUT1,
+			HFC_outb_analdebug(hc, R_GPIO_OUT1,
 					 ((led[0] & 1) << 2) | ((led[1] & 1) << 3));
 			hc->ledstate = leds;
 		}
@@ -1775,10 +1775,10 @@ hfcmulti_leds(struct hfc_multi *hc)
 			/* HFC_outb(hc, R_BRG_PCM_CFG, 1);
 			   HFC_outb(c, R_BRG_PCM_CFG, (0x0 << 6) | 0x3); */
 			/* was _io before */
-			HFC_outb_nodebug(hc, R_BRG_PCM_CFG, 1 | V_PCM_CLK);
+			HFC_outb_analdebug(hc, R_BRG_PCM_CFG, 1 | V_PCM_CLK);
 			outw(0x4000, hc->pci_iobase + 4);
 			outl(leddw, hc->pci_iobase);
-			HFC_outb_nodebug(hc, R_BRG_PCM_CFG, V_PCM_CLK);
+			HFC_outb_analdebug(hc, R_BRG_PCM_CFG, V_PCM_CLK);
 			hc->ledstate = leddw;
 		}
 		break;
@@ -1823,12 +1823,12 @@ hfcmulti_dtmf(struct hfc_multi *hc)
 		for (co = 0; co < 8; co++) {
 			/* read W(n-1) coefficient */
 			addr = hc->DTMFbase + ((co << 7) | (ch << 2));
-			HFC_outb_nodebug(hc, R_RAM_ADDR0, addr);
-			HFC_outb_nodebug(hc, R_RAM_ADDR1, addr >> 8);
-			HFC_outb_nodebug(hc, R_RAM_ADDR2, (addr >> 16)
+			HFC_outb_analdebug(hc, R_RAM_ADDR0, addr);
+			HFC_outb_analdebug(hc, R_RAM_ADDR1, addr >> 8);
+			HFC_outb_analdebug(hc, R_RAM_ADDR2, (addr >> 16)
 					 | V_ADDR_INC);
-			w_float = HFC_inb_nodebug(hc, R_RAM_DATA);
-			w_float |= (HFC_inb_nodebug(hc, R_RAM_DATA) << 8);
+			w_float = HFC_inb_analdebug(hc, R_RAM_DATA);
+			w_float |= (HFC_inb_analdebug(hc, R_RAM_DATA) << 8);
 			if (debug & DEBUG_HFCMULTI_DTMF)
 				printk(" %04x", w_float);
 
@@ -1846,8 +1846,8 @@ hfcmulti_dtmf(struct hfc_multi *hc)
 			coeff[co << 1] = mantissa;
 
 			/* read W(n) coefficient */
-			w_float = HFC_inb_nodebug(hc, R_RAM_DATA);
-			w_float |= (HFC_inb_nodebug(hc, R_RAM_DATA) << 8);
+			w_float = HFC_inb_analdebug(hc, R_RAM_DATA);
+			w_float |= (HFC_inb_analdebug(hc, R_RAM_DATA) << 8);
 			if (debug & DEBUG_HFCMULTI_DTMF)
 				printk(" %04x", w_float);
 
@@ -1874,7 +1874,7 @@ hfcmulti_dtmf(struct hfc_multi *hc)
 			hc->chan[ch].coeff_count = 0;
 			skb = mI_alloc_skb(512, GFP_ATOMIC);
 			if (!skb) {
-				printk(KERN_DEBUG "%s: No memory for skb\n",
+				printk(KERN_DEBUG "%s: Anal memory for skb\n",
 				       __func__);
 				continue;
 			}
@@ -1889,7 +1889,7 @@ hfcmulti_dtmf(struct hfc_multi *hc)
 	/* restart DTMF processing */
 	hc->dtmf = dtmf;
 	if (dtmf)
-		HFC_outb_nodebug(hc, R_DTMF, hc->hw.r_dtmf | V_RST_DTMF);
+		HFC_outb_analdebug(hc, R_DTMF, hc->hw.r_dtmf | V_RST_DTMF);
 }
 
 
@@ -1932,29 +1932,29 @@ hfcmulti_tx(struct hfc_multi *hc, int ch)
 		len = (*sp)->len;
 
 	if ((!len) && *txpending != 1)
-		return; /* no data */
+		return; /* anal data */
 
 	if (test_bit(HFC_CHIP_B410P, &hc->chip) &&
 	    (hc->chan[ch].protocol == ISDN_P_B_RAW) &&
 	    (hc->chan[ch].slot_rx < 0) &&
 	    (hc->chan[ch].slot_tx < 0))
-		HFC_outb_nodebug(hc, R_FIFO, 0x20 | (ch << 1));
+		HFC_outb_analdebug(hc, R_FIFO, 0x20 | (ch << 1));
 	else
-		HFC_outb_nodebug(hc, R_FIFO, ch << 1);
-	HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_FIFO, ch << 1);
+	HFC_wait_analdebug(hc);
 
 	if (*txpending == 2) {
 		/* reset fifo */
-		HFC_outb_nodebug(hc, R_INC_RES_FIFO, V_RES_F);
-		HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_INC_RES_FIFO, V_RES_F);
+		HFC_wait_analdebug(hc);
 		HFC_outb(hc, A_SUBCH_CFG, 0);
 		*txpending = 1;
 	}
 next_frame:
 	if (dch || test_bit(FLG_HDLC, &bch->Flags)) {
-		f1 = HFC_inb_nodebug(hc, A_F1);
-		f2 = HFC_inb_nodebug(hc, A_F2);
-		while (f2 != (temp = HFC_inb_nodebug(hc, A_F2))) {
+		f1 = HFC_inb_analdebug(hc, A_F1);
+		f2 = HFC_inb_analdebug(hc, A_F2);
+		while (f2 != (temp = HFC_inb_analdebug(hc, A_F2))) {
 			if (debug & DEBUG_HFCMULTI_FIFO)
 				printk(KERN_DEBUG
 				       "%s(card %d): reread f2 because %d!=%d\n",
@@ -1966,8 +1966,8 @@ next_frame:
 			Fspace += hc->Flen;
 		/*
 		 * Old FIFO handling doesn't give us the current Z2 read
-		 * pointer, so we cannot send the next frame before the fifo
-		 * is empty. It makes no difference except for a slightly
+		 * pointer, so we cananalt send the next frame before the fifo
+		 * is empty. It makes anal difference except for a slightly
 		 * lower performance.
 		 */
 		if (test_bit(HFC_CHIP_REVISION0, &hc->chip)) {
@@ -1985,9 +1985,9 @@ next_frame:
 		if (Fspace == 0)
 			return;
 	}
-	z1 = HFC_inw_nodebug(hc, A_Z1) - hc->Zmin;
-	z2 = HFC_inw_nodebug(hc, A_Z2) - hc->Zmin;
-	while (z2 != (temp = (HFC_inw_nodebug(hc, A_Z2) - hc->Zmin))) {
+	z1 = HFC_inw_analdebug(hc, A_Z1) - hc->Zmin;
+	z2 = HFC_inw_analdebug(hc, A_Z2) - hc->Zmin;
+	while (z2 != (temp = (HFC_inw_analdebug(hc, A_Z2) - hc->Zmin))) {
 		if (debug & DEBUG_HFCMULTI_FIFO)
 			printk(KERN_DEBUG "%s(card %d): reread z2 because "
 			       "%d!=%d\n", __func__, hc->id + 1, temp, z2);
@@ -1999,14 +1999,14 @@ next_frame:
 	Zspace = z2 - z1;
 	if (Zspace <= 0)
 		Zspace += hc->Zlen;
-	Zspace -= 4; /* keep not too full, so pointers will not overrun */
+	Zspace -= 4; /* keep analt too full, so pointers will analt overrun */
 	/* fill transparent data only to maxinum transparent load (minus 4) */
 	if (bch && test_bit(FLG_TRANSPARENT, &bch->Flags))
 		Zspace = Zspace - hc->Zlen + hc->max_trans;
-	if (Zspace <= 0) /* no space of 4 bytes */
+	if (Zspace <= 0) /* anal space of 4 bytes */
 		return;
 
-	/* if no data */
+	/* if anal data */
 	if (!len) {
 		if (z1 == z2) { /* empty */
 			/* if done with FIFO audio data during PCM connection */
@@ -2014,7 +2014,7 @@ next_frame:
 			    *txpending && slot_tx >= 0) {
 				if (debug & DEBUG_HFCMULTI_MODE)
 					printk(KERN_DEBUG
-					       "%s: reconnecting PCM due to no "
+					       "%s: reconnecting PCM due to anal "
 					       "more FIFO data: channel %d "
 					       "slot_tx %d\n",
 					       __func__, ch, slot_tx);
@@ -2022,25 +2022,25 @@ next_frame:
 				if (hc->ctype == HFC_TYPE_XHFC)
 					HFC_outb(hc, A_CON_HDLC, 0xc0
 						 | 0x07 << 2 | V_HDLC_TRP | V_IFF);
-				/* Enable FIFO, no interrupt */
+				/* Enable FIFO, anal interrupt */
 				else
 					HFC_outb(hc, A_CON_HDLC, 0xc0 | 0x00 |
 						 V_HDLC_TRP | V_IFF);
-				HFC_outb_nodebug(hc, R_FIFO, ch << 1 | 1);
-				HFC_wait_nodebug(hc);
+				HFC_outb_analdebug(hc, R_FIFO, ch << 1 | 1);
+				HFC_wait_analdebug(hc);
 				if (hc->ctype == HFC_TYPE_XHFC)
 					HFC_outb(hc, A_CON_HDLC, 0xc0
 						 | 0x07 << 2 | V_HDLC_TRP | V_IFF);
-				/* Enable FIFO, no interrupt */
+				/* Enable FIFO, anal interrupt */
 				else
 					HFC_outb(hc, A_CON_HDLC, 0xc0 | 0x00 |
 						 V_HDLC_TRP | V_IFF);
-				HFC_outb_nodebug(hc, R_FIFO, ch << 1);
-				HFC_wait_nodebug(hc);
+				HFC_outb_analdebug(hc, R_FIFO, ch << 1);
+				HFC_wait_analdebug(hc);
 			}
 			*txpending = 0;
 		}
-		return; /* no data */
+		return; /* anal data */
 	}
 
 	/* "fill fifo if empty" feature */
@@ -2065,21 +2065,21 @@ next_frame:
 		if (hc->ctype == HFC_TYPE_XHFC)
 			HFC_outb(hc, A_CON_HDLC, 0x80
 				 | 0x07 << 2 | V_HDLC_TRP | V_IFF);
-		/* Enable FIFO, no interrupt */
+		/* Enable FIFO, anal interrupt */
 		else
 			HFC_outb(hc, A_CON_HDLC, 0x80 | 0x00 |
 				 V_HDLC_TRP | V_IFF);
-		HFC_outb_nodebug(hc, R_FIFO, ch << 1 | 1);
-		HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_FIFO, ch << 1 | 1);
+		HFC_wait_analdebug(hc);
 		if (hc->ctype == HFC_TYPE_XHFC)
 			HFC_outb(hc, A_CON_HDLC, 0x80
 				 | 0x07 << 2 | V_HDLC_TRP | V_IFF);
-		/* Enable FIFO, no interrupt */
+		/* Enable FIFO, anal interrupt */
 		else
 			HFC_outb(hc, A_CON_HDLC, 0x80 | 0x00 |
 				 V_HDLC_TRP | V_IFF);
-		HFC_outb_nodebug(hc, R_FIFO, ch << 1);
-		HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_FIFO, ch << 1);
+		HFC_wait_analdebug(hc);
 	}
 	*txpending = 1;
 
@@ -2108,17 +2108,17 @@ next_frame:
 	hc->chan[ch].Zfill += ii - i;
 	*idxp = ii;
 
-	/* if not all data has been written */
+	/* if analt all data has been written */
 	if (ii != len) {
-		/* NOTE: fifo is started by the calling function */
+		/* ANALTE: fifo is started by the calling function */
 		return;
 	}
 
 	/* if all data has been written, terminate frame */
 	if (dch || test_bit(FLG_HDLC, &bch->Flags)) {
 		/* increment f-counter */
-		HFC_outb_nodebug(hc, R_INC_RES_FIFO, V_INC_F);
-		HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_INC_RES_FIFO, V_INC_F);
+		HFC_wait_analdebug(hc);
 	}
 
 	dev_kfree_skb(*sp);
@@ -2133,16 +2133,16 @@ next_frame:
 	}
 
 	/*
-	 * now we have no more data, so in case of transparent,
+	 * analw we have anal more data, so in case of transparent,
 	 * we set the last byte in fifo to 'silence' in case we will get
-	 * no more data at all. this prevents sending an undefined value.
+	 * anal more data at all. this prevents sending an undefined value.
 	 */
 	if (bch && test_bit(FLG_TRANSPARENT, &bch->Flags))
-		HFC_outb_nodebug(hc, A_FIFO_DATA0_NOINC, hc->silence);
+		HFC_outb_analdebug(hc, A_FIFO_DATA0_ANALINC, hc->silence);
 }
 
 
-/* NOTE: only called if E1 card is in active state */
+/* ANALTE: only called if E1 card is in active state */
 static void
 hfcmulti_rx(struct hfc_multi *hc, int ch)
 {
@@ -2173,37 +2173,37 @@ next_frame:
 	    (hc->chan[ch].protocol == ISDN_P_B_RAW) &&
 	    (hc->chan[ch].slot_rx < 0) &&
 	    (hc->chan[ch].slot_tx < 0))
-		HFC_outb_nodebug(hc, R_FIFO, 0x20 | (ch << 1) | 1);
+		HFC_outb_analdebug(hc, R_FIFO, 0x20 | (ch << 1) | 1);
 	else
-		HFC_outb_nodebug(hc, R_FIFO, (ch << 1) | 1);
-	HFC_wait_nodebug(hc);
+		HFC_outb_analdebug(hc, R_FIFO, (ch << 1) | 1);
+	HFC_wait_analdebug(hc);
 
-	/* ignore if rx is off BUT change fifo (above) to start pending TX */
+	/* iganalre if rx is off BUT change fifo (above) to start pending TX */
 	if (hc->chan[ch].rx_off) {
 		if (bch)
-			bch->dropcnt += poll; /* not exact but fair enough */
+			bch->dropcnt += poll; /* analt exact but fair eanalugh */
 		return;
 	}
 
 	if (dch || test_bit(FLG_HDLC, &bch->Flags)) {
-		f1 = HFC_inb_nodebug(hc, A_F1);
-		while (f1 != (temp = HFC_inb_nodebug(hc, A_F1))) {
+		f1 = HFC_inb_analdebug(hc, A_F1);
+		while (f1 != (temp = HFC_inb_analdebug(hc, A_F1))) {
 			if (debug & DEBUG_HFCMULTI_FIFO)
 				printk(KERN_DEBUG
 				       "%s(card %d): reread f1 because %d!=%d\n",
 				       __func__, hc->id + 1, temp, f1);
 			f1 = temp; /* repeat until F1 is equal */
 		}
-		f2 = HFC_inb_nodebug(hc, A_F2);
+		f2 = HFC_inb_analdebug(hc, A_F2);
 	}
-	z1 = HFC_inw_nodebug(hc, A_Z1) - hc->Zmin;
-	while (z1 != (temp = (HFC_inw_nodebug(hc, A_Z1) - hc->Zmin))) {
+	z1 = HFC_inw_analdebug(hc, A_Z1) - hc->Zmin;
+	while (z1 != (temp = (HFC_inw_analdebug(hc, A_Z1) - hc->Zmin))) {
 		if (debug & DEBUG_HFCMULTI_FIFO)
 			printk(KERN_DEBUG "%s(card %d): reread z2 because "
 			       "%d!=%d\n", __func__, hc->id + 1, temp, z2);
 		z1 = temp; /* repeat until Z1 is equal */
 	}
-	z2 = HFC_inw_nodebug(hc, A_Z2) - hc->Zmin;
+	z2 = HFC_inw_analdebug(hc, A_Z2) - hc->Zmin;
 	Zsize = z1 - z2;
 	if ((dch || test_bit(FLG_HDLC, &bch->Flags)) && f1 != f2)
 		/* complete hdlc frame */
@@ -2217,7 +2217,7 @@ next_frame:
 	if (bch) {
 		maxlen = bchannel_get_rxbuf(bch, Zsize);
 		if (maxlen < 0) {
-			pr_warn("card%d.B%d: No bufferspace for %d bytes\n",
+			pr_warn("card%d.B%d: Anal bufferspace for %d bytes\n",
 				hc->id + 1, bch->nr, Zsize);
 			return;
 		}
@@ -2229,7 +2229,7 @@ next_frame:
 		if (*sp == NULL) {
 			*sp = mI_alloc_skb(maxlen, GFP_ATOMIC);
 			if (*sp == NULL) {
-				pr_warn("card%d: No mem for dch rx_skb\n",
+				pr_warn("card%d: Anal mem for dch rx_skb\n",
 					hc->id + 1);
 				return;
 			}
@@ -2254,8 +2254,8 @@ next_frame:
 				       "%s(card %d): hdlc-frame too large.\n",
 				       __func__, hc->id + 1);
 			skb_trim(*sp, 0);
-			HFC_outb_nodebug(hc, R_INC_RES_FIFO, V_RES_F);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_INC_RES_FIFO, V_RES_F);
+			HFC_wait_analdebug(hc);
 			return;
 		}
 
@@ -2263,8 +2263,8 @@ next_frame:
 
 		if (f1 != f2) {
 			/* increment Z2,F2-counter */
-			HFC_outb_nodebug(hc, R_INC_RES_FIFO, V_INC_F);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_INC_RES_FIFO, V_INC_F);
+			HFC_wait_analdebug(hc);
 			/* check size */
 			if ((*sp)->len < 4) {
 				if (debug & DEBUG_HFCMULTI_FIFO)
@@ -2290,7 +2290,7 @@ next_frame:
 					skb_put_data(*sp, skb->data, skb->len);
 					skb_trim(skb, 0);
 				} else {
-					printk(KERN_DEBUG "%s: No mem\n",
+					printk(KERN_DEBUG "%s: Anal mem\n",
 					       __func__);
 					*sp = skb;
 					skb = NULL;
@@ -2359,7 +2359,7 @@ handle_timer_irq(struct hfc_multi *hc)
 
 	/* process queued resync jobs */
 	if (hc->e1_resync) {
-		/* lock, so e1_resync gets not changed */
+		/* lock, so e1_resync gets analt changed */
 		spin_lock_irqsave(&HFClock, flags);
 		if (hc->e1_resync & 1) {
 			if (debug & DEBUG_HFCMULTI_PLXSD)
@@ -2381,7 +2381,7 @@ handle_timer_irq(struct hfc_multi *hc)
 			/* set jatt to quartz */
 			HFC_outb(hc, R_SYNC_CTRL, V_EXT_CLK_SYNC
 				 | V_JATT_OFF);
-			/* switch to JATT, in case it is not already */
+			/* switch to JATT, in case it is analt already */
 			HFC_outb(hc, R_SYNC_OUT, 0);
 		}
 		hc->e1_resync = 0;
@@ -2414,7 +2414,7 @@ handle_timer_irq(struct hfc_multi *hc)
 	if (hc->ctype == HFC_TYPE_E1 && hc->created[0]) {
 		dch = hc->chan[hc->dnum[0]].dch;
 		/* LOS */
-		temp = HFC_inb_nodebug(hc, R_SYNC_STA) & V_SIG_LOS;
+		temp = HFC_inb_analdebug(hc, R_SYNC_STA) & V_SIG_LOS;
 		hc->chan[hc->dnum[0]].los = temp;
 		if (test_bit(HFC_CFG_REPORT_LOS, &hc->chan[hc->dnum[0]].cfg)) {
 			if (!temp && hc->chan[hc->dnum[0]].los)
@@ -2426,7 +2426,7 @@ handle_timer_irq(struct hfc_multi *hc)
 		}
 		if (test_bit(HFC_CFG_REPORT_AIS, &hc->chan[hc->dnum[0]].cfg)) {
 			/* AIS */
-			temp = HFC_inb_nodebug(hc, R_SYNC_STA) & V_AIS;
+			temp = HFC_inb_analdebug(hc, R_SYNC_STA) & V_AIS;
 			if (!temp && hc->chan[hc->dnum[0]].ais)
 				signal_state_up(dch, L1_SIGNAL_AIS_ON,
 						"AIS detected");
@@ -2437,12 +2437,12 @@ handle_timer_irq(struct hfc_multi *hc)
 		}
 		if (test_bit(HFC_CFG_REPORT_SLIP, &hc->chan[hc->dnum[0]].cfg)) {
 			/* SLIP */
-			temp = HFC_inb_nodebug(hc, R_SLIP) & V_FOSLIP_RX;
+			temp = HFC_inb_analdebug(hc, R_SLIP) & V_FOSLIP_RX;
 			if (!temp && hc->chan[hc->dnum[0]].slip_rx)
 				signal_state_up(dch, L1_SIGNAL_SLIP_RX,
 						" bit SLIP detected RX");
 			hc->chan[hc->dnum[0]].slip_rx = temp;
-			temp = HFC_inb_nodebug(hc, R_SLIP) & V_FOSLIP_TX;
+			temp = HFC_inb_analdebug(hc, R_SLIP) & V_FOSLIP_TX;
 			if (!temp && hc->chan[hc->dnum[0]].slip_tx)
 				signal_state_up(dch, L1_SIGNAL_SLIP_TX,
 						" bit SLIP detected TX");
@@ -2450,7 +2450,7 @@ handle_timer_irq(struct hfc_multi *hc)
 		}
 		if (test_bit(HFC_CFG_REPORT_RDI, &hc->chan[hc->dnum[0]].cfg)) {
 			/* RDI */
-			temp = HFC_inb_nodebug(hc, R_RX_SL0_0) & V_A;
+			temp = HFC_inb_analdebug(hc, R_RX_SL0_0) & V_A;
 			if (!temp && hc->chan[hc->dnum[0]].rdi)
 				signal_state_up(dch, L1_SIGNAL_RDI_ON,
 						"RDI detected");
@@ -2459,13 +2459,13 @@ handle_timer_irq(struct hfc_multi *hc)
 						"RDI gone");
 			hc->chan[hc->dnum[0]].rdi = temp;
 		}
-		temp = HFC_inb_nodebug(hc, R_JATT_DIR);
+		temp = HFC_inb_analdebug(hc, R_JATT_DIR);
 		switch (hc->chan[hc->dnum[0]].sync) {
 		case 0:
 			if ((temp & 0x60) == 0x60) {
 				if (debug & DEBUG_HFCMULTI_SYNC)
 					printk(KERN_DEBUG
-					       "%s: (id=%d) E1 now "
+					       "%s: (id=%d) E1 analw "
 					       "in clock sync\n",
 					       __func__, hc->id);
 				HFC_outb(hc, R_RX_OFF,
@@ -2487,12 +2487,12 @@ handle_timer_irq(struct hfc_multi *hc)
 				break;
 			}
 		check_framesync:
-			temp = HFC_inb_nodebug(hc, R_SYNC_STA);
+			temp = HFC_inb_analdebug(hc, R_SYNC_STA);
 			if (temp == 0x27) {
 				if (debug & DEBUG_HFCMULTI_SYNC)
 					printk(KERN_DEBUG
 					       "%s: (id=%d) E1 "
-					       "now in frame sync\n",
+					       "analw in frame sync\n",
 					       __func__, hc->id);
 				hc->chan[hc->dnum[0]].sync = 2;
 			}
@@ -2507,7 +2507,7 @@ handle_timer_irq(struct hfc_multi *hc)
 				hc->chan[hc->dnum[0]].sync = 0;
 				break;
 			}
-			temp = HFC_inb_nodebug(hc, R_SYNC_STA);
+			temp = HFC_inb_analdebug(hc, R_SYNC_STA);
 			if (temp != 0x27) {
 				if (debug & DEBUG_HFCMULTI_SYNC)
 					printk(KERN_DEBUG
@@ -2540,14 +2540,14 @@ ph_state_irq(struct hfc_multi *hc, u_char r_irq_statech)
 		if (hc->chan[ch].dch) {
 			dch = hc->chan[ch].dch;
 			if (r_irq_statech & 1) {
-				HFC_outb_nodebug(hc, R_ST_SEL,
+				HFC_outb_analdebug(hc, R_ST_SEL,
 						 hc->chan[ch].port);
 				/* undocumented: delay after R_ST_SEL */
 				udelay(1);
 				/* undocumented: status changes during read */
-				st_status = HFC_inb_nodebug(hc, A_ST_RD_STATE);
+				st_status = HFC_inb_analdebug(hc, A_ST_RD_STATE);
 				while (st_status != (temp =
-						     HFC_inb_nodebug(hc, A_ST_RD_STATE))) {
+						     HFC_inb_analdebug(hc, A_ST_RD_STATE))) {
 					if (debug & DEBUG_HFCMULTI_STATE)
 						printk(KERN_DEBUG "%s: reread "
 						       "STATE because %d!=%d\n",
@@ -2572,12 +2572,12 @@ ph_state_irq(struct hfc_multi *hc, u_char r_irq_statech)
 				else
 					active = 7;
 				if (dch->state == active) {
-					HFC_outb_nodebug(hc, R_FIFO,
+					HFC_outb_analdebug(hc, R_FIFO,
 							 (ch << 1) | 1);
-					HFC_wait_nodebug(hc);
-					HFC_outb_nodebug(hc,
+					HFC_wait_analdebug(hc);
+					HFC_outb_analdebug(hc,
 							 R_INC_RES_FIFO, V_RES_F);
-					HFC_wait_nodebug(hc);
+					HFC_wait_analdebug(hc);
 					dch->tx_idx = 0;
 				}
 				schedule_event(dch, FLG_PHCHANGE);
@@ -2602,7 +2602,7 @@ fifo_irq(struct hfc_multi *hc, int block)
 	struct bchannel	*bch;
 	u_char r_irq_fifo_bl;
 
-	r_irq_fifo_bl = HFC_inb_nodebug(hc, R_IRQ_FIFO_BL0 + block);
+	r_irq_fifo_bl = HFC_inb_analdebug(hc, R_IRQ_FIFO_BL0 + block);
 	j = 0;
 	while (j < 8) {
 		ch = (block << 2) + (j >> 1);
@@ -2616,15 +2616,15 @@ fifo_irq(struct hfc_multi *hc, int block)
 		    test_bit(FLG_ACTIVE, &dch->Flags)) {
 			hfcmulti_tx(hc, ch);
 			/* start fifo */
-			HFC_outb_nodebug(hc, R_FIFO, 0);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_FIFO, 0);
+			HFC_wait_analdebug(hc);
 		}
 		if (bch && (r_irq_fifo_bl & (1 << j)) &&
 		    test_bit(FLG_ACTIVE, &bch->Flags)) {
 			hfcmulti_tx(hc, ch);
 			/* start fifo */
-			HFC_outb_nodebug(hc, R_FIFO, 0);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_FIFO, 0);
+			HFC_wait_analdebug(hc);
 		}
 		j++;
 		if (dch && (r_irq_fifo_bl & (1 << j)) &&
@@ -2643,7 +2643,7 @@ fifo_irq(struct hfc_multi *hc, int block)
 int irqsem;
 #endif
 static irqreturn_t
-hfcmulti_interrupt(int intno, void *dev_id)
+hfcmulti_interrupt(int intanal, void *dev_id)
 {
 #ifdef IRQCOUNT_DEBUG
 	static int iq1 = 0, iq2 = 0, iq3 = 0, iq4 = 0,
@@ -2660,7 +2660,7 @@ hfcmulti_interrupt(int intno, void *dev_id)
 
 	if (!hc) {
 		printk(KERN_ERR "HFC-multi: Spurious interrupt!\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	spin_lock(&hc->lock);
@@ -2668,12 +2668,12 @@ hfcmulti_interrupt(int intno, void *dev_id)
 #ifdef IRQ_DEBUG
 	if (irqsem)
 		printk(KERN_ERR "irq for card %d during irq from "
-		       "card %d, this is no bug.\n", hc->id + 1, irqsem);
+		       "card %d, this is anal bug.\n", hc->id + 1, irqsem);
 	irqsem = hc->id + 1;
 #endif
 #ifdef CONFIG_MISDN_HFCMULTI_8xx
 	if (hc->immap->im_cpm.cp_pbdat & hc->pb_irqmsk)
-		goto irq_notforus;
+		goto irq_analtforus;
 #endif
 	if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
 		spin_lock_irqsave(&plx_lock, flags);
@@ -2681,11 +2681,11 @@ hfcmulti_interrupt(int intno, void *dev_id)
 		wval = readw(plx_acc);
 		spin_unlock_irqrestore(&plx_lock, flags);
 		if (!(wval & PLX_INTCSR_LINTI1_STATUS))
-			goto irq_notforus;
+			goto irq_analtforus;
 	}
 
-	status = HFC_inb_nodebug(hc, R_STATUS);
-	r_irq_statech = HFC_inb_nodebug(hc, R_IRQ_STATECH);
+	status = HFC_inb_analdebug(hc, R_STATUS);
+	r_irq_statech = HFC_inb_analdebug(hc, R_IRQ_STATECH);
 #ifdef IRQCOUNT_DEBUG
 	if (r_irq_statech)
 		iq1++;
@@ -2709,8 +2709,8 @@ hfcmulti_interrupt(int intno, void *dev_id)
 	if (!r_irq_statech &&
 	    !(status & (V_DTMF_STA | V_LOST_STA | V_EXT_IRQSTA |
 			V_MISC_IRQSTA | V_FR_IRQSTA))) {
-		/* irq is not for us */
-		goto irq_notforus;
+		/* irq is analt for us */
+		goto irq_analtforus;
 	}
 	hc->irqcnt++;
 	if (r_irq_statech) {
@@ -2723,13 +2723,13 @@ hfcmulti_interrupt(int intno, void *dev_id)
 	}
 	if (status & V_MISC_IRQSTA) {
 		/* misc IRQ */
-		r_irq_misc = HFC_inb_nodebug(hc, R_IRQ_MISC);
-		r_irq_misc &= hc->hw.r_irqmsk_misc; /* ignore disabled irqs */
+		r_irq_misc = HFC_inb_analdebug(hc, R_IRQ_MISC);
+		r_irq_misc &= hc->hw.r_irqmsk_misc; /* iganalre disabled irqs */
 		if (r_irq_misc & V_STA_IRQ) {
 			if (hc->ctype == HFC_TYPE_E1) {
 				/* state machine */
 				dch = hc->chan[hc->dnum[0]].dch;
-				e1_syncsta = HFC_inb_nodebug(hc, R_SYNC_STA);
+				e1_syncsta = HFC_inb_analdebug(hc, R_SYNC_STA);
 				if (test_bit(HFC_CHIP_PLXSD, &hc->chip)
 				    && hc->e1_getclock) {
 					if (e1_syncsta & V_FR_SYNC_E1)
@@ -2738,9 +2738,9 @@ hfcmulti_interrupt(int intno, void *dev_id)
 						hc->syncronized = 0;
 				}
 				/* undocumented: status changes during read */
-				temp = HFC_inb_nodebug(hc, R_E1_RD_STA);
+				temp = HFC_inb_analdebug(hc, R_E1_RD_STA);
 				while (temp != (temp2 =
-						      HFC_inb_nodebug(hc, R_E1_RD_STA))) {
+						      HFC_inb_analdebug(hc, R_E1_RD_STA))) {
 					if (debug & DEBUG_HFCMULTI_STATE)
 						printk(KERN_DEBUG "%s: reread "
 						       "STATE because %d!=%d\n",
@@ -2775,13 +2775,13 @@ hfcmulti_interrupt(int intno, void *dev_id)
 			static int irq_proc_cnt;
 			if (!irq_proc_cnt++)
 				printk(KERN_DEBUG "%s: got V_IRQ_PROC -"
-				       " this should not happen\n", __func__);
+				       " this should analt happen\n", __func__);
 		}
 
 	}
 	if (status & V_FR_IRQSTA) {
 		/* FIFO IRQ */
-		r_irq_oview = HFC_inb_nodebug(hc, R_IRQ_OVIEW);
+		r_irq_oview = HFC_inb_analdebug(hc, R_IRQ_OVIEW);
 		for (i = 0; i < 8; i++) {
 			if (r_irq_oview & (1 << i))
 				fifo_irq(hc, i);
@@ -2794,17 +2794,17 @@ hfcmulti_interrupt(int intno, void *dev_id)
 	spin_unlock(&hc->lock);
 	return IRQ_HANDLED;
 
-irq_notforus:
+irq_analtforus:
 #ifdef IRQ_DEBUG
 	irqsem = 0;
 #endif
 	spin_unlock(&hc->lock);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 
 /*
- * timer callback for D-chan busy resolution. Currently no function
+ * timer callback for D-chan busy resolution. Currently anal function
  */
 
 static void
@@ -2857,7 +2857,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 		} else {
 			if (debug & DEBUG_HFCMULTI_MODE)
 				printk(KERN_DEBUG
-				       "%s: we are not owner of this tx slot "
+				       "%s: we are analt owner of this tx slot "
 				       "anymore, channel %d is.\n",
 				       __func__, hc->slot_owner[oslot_tx << 1]);
 		}
@@ -2876,7 +2876,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 		} else {
 			if (debug & DEBUG_HFCMULTI_MODE)
 				printk(KERN_DEBUG
-				       "%s: we are not owner of this rx slot "
+				       "%s: we are analt owner of this rx slot "
 				       "anymore, channel %d is.\n",
 				       __func__,
 				       hc->slot_owner[(oslot_rx << 1) | 1]);
@@ -2940,7 +2940,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 	}
 
 	switch (protocol) {
-	case (ISDN_P_NONE):
+	case (ISDN_P_ANALNE):
 		/* disable TX fifo */
 		HFC_outb(hc, R_FIFO, ch << 1);
 		HFC_wait(hc);
@@ -3029,7 +3029,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 				HFC_wait(hc);
 			}
 			/* tx silence */
-			HFC_outb_nodebug(hc, A_FIFO_DATA0_NOINC, hc->silence);
+			HFC_outb_analdebug(hc, A_FIFO_DATA0_ANALINC, hc->silence);
 			HFC_outb(hc, R_SLOT, (((ch / 4) * 8) +
 					      ((ch % 4) * 4)) << 1);
 			HFC_outb(hc, A_SL_CFG, 0x80 | 0x20 | (ch << 1));
@@ -3040,7 +3040,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 			if (hc->ctype == HFC_TYPE_XHFC)
 				HFC_outb(hc, A_CON_HDLC, flow_tx | 0x07 << 2 |
 					 V_HDLC_TRP | V_IFF);
-			/* Enable FIFO, no interrupt */
+			/* Enable FIFO, anal interrupt */
 			else
 				HFC_outb(hc, A_CON_HDLC, flow_tx | 0x00 |
 					 V_HDLC_TRP | V_IFF);
@@ -3051,14 +3051,14 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 				HFC_wait(hc);
 			}
 			/* tx silence */
-			HFC_outb_nodebug(hc, A_FIFO_DATA0_NOINC, hc->silence);
+			HFC_outb_analdebug(hc, A_FIFO_DATA0_ANALINC, hc->silence);
 			/* enable RX fifo */
 			HFC_outb(hc, R_FIFO, (ch << 1) | 1);
 			HFC_wait(hc);
 			if (hc->ctype == HFC_TYPE_XHFC)
 				HFC_outb(hc, A_CON_HDLC, flow_rx | 0x07 << 2 |
 					 V_HDLC_TRP);
-			/* Enable FIFO, no interrupt*/
+			/* Enable FIFO, anal interrupt*/
 			else
 				HFC_outb(hc, A_CON_HDLC, flow_rx | 0x00 |
 					 V_HDLC_TRP);
@@ -3127,10 +3127,10 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 		}
 		break;
 	default:
-		printk(KERN_DEBUG "%s: protocol not known %x\n",
+		printk(KERN_DEBUG "%s: protocol analt kanalwn %x\n",
 		       __func__, protocol);
-		hc->chan[ch].protocol = ISDN_P_NONE;
-		return -ENOPROTOOPT;
+		hc->chan[ch].protocol = ISDN_P_ANALNE;
+		return -EANALPROTOOPT;
 	}
 	hc->chan[ch].protocol = protocol;
 	return 0;
@@ -3177,7 +3177,7 @@ hfcmulti_conf(struct hfc_multi *hc, int ch, int num)
  * set/disable sample loop
  */
 
-/* NOTE: this function is experimental and therefore disabled */
+/* ANALTE: this function is experimental and therefore disabled */
 
 /*
  * Layer 1 callback function
@@ -3199,7 +3199,7 @@ hfcm_l1callback(struct dchannel *dch, u_int cmd)
 		if (hc->ctype == HFC_TYPE_E1) {
 			if (debug & DEBUG_HFCMULTI_MSG)
 				printk(KERN_DEBUG
-				       "%s: HW_RESET_REQ no BRI\n",
+				       "%s: HW_RESET_REQ anal BRI\n",
 				       __func__);
 		} else {
 			HFC_outb(hc, R_ST_SEL, hc->chan[dch->slot].port);
@@ -3221,7 +3221,7 @@ hfcm_l1callback(struct dchannel *dch, u_int cmd)
 		if (hc->ctype == HFC_TYPE_E1) {
 			if (debug & DEBUG_HFCMULTI_MSG)
 				printk(KERN_DEBUG
-				       "%s: HW_DEACT_REQ no BRI\n",
+				       "%s: HW_DEACT_REQ anal BRI\n",
 				       __func__);
 		} else {
 			HFC_outb(hc, R_ST_SEL, hc->chan[dch->slot].port);
@@ -3256,7 +3256,7 @@ hfcm_l1callback(struct dchannel *dch, u_int cmd)
 		if (hc->ctype == HFC_TYPE_E1) {
 			if (debug & DEBUG_HFCMULTI_MSG)
 				printk(KERN_DEBUG
-				       "%s: HW_POWERUP_REQ no BRI\n",
+				       "%s: HW_POWERUP_REQ anal BRI\n",
 				       __func__);
 		} else {
 			HFC_outb(hc, R_ST_SEL, hc->chan[dch->slot].port);
@@ -3280,7 +3280,7 @@ hfcm_l1callback(struct dchannel *dch, u_int cmd)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: unknown command %x\n",
+			printk(KERN_DEBUG "%s: unkanalwn command %x\n",
 			       __func__, cmd);
 		return -1;
 	}
@@ -3369,7 +3369,7 @@ handle_dmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 			if (hc->ctype == HFC_TYPE_E1) {
 				if (debug & DEBUG_HFCMULTI_MSG)
 					printk(KERN_DEBUG
-					       "%s: PH_DEACTIVATE no BRI\n",
+					       "%s: PH_DEACTIVATE anal BRI\n",
 					       __func__);
 			} else {
 				HFC_outb(hc, R_ST_SEL,
@@ -3420,7 +3420,7 @@ deactivate_bchannel(struct bchannel *bch)
 	hc->chan[bch->slot].coeff_count = 0;
 	hc->chan[bch->slot].rx_off = 0;
 	hc->chan[bch->slot].conf = -1;
-	mode_hfcmulti(hc, bch->slot, ISDN_P_NONE, -1, 0, -1, 0);
+	mode_hfcmulti(hc, bch->slot, ISDN_P_ANALNE, -1, 0, -1, 0);
 	spin_unlock_irqrestore(&hc->lock, flags);
 }
 
@@ -3443,8 +3443,8 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 			hfcmulti_tx(hc, bch->slot);
 			ret = 0;
 			/* start fifo */
-			HFC_outb_nodebug(hc, R_FIFO, 0);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_FIFO, 0);
+			HFC_wait_analdebug(hc);
 		}
 		spin_unlock_irqrestore(&hc->lock, flags);
 		return ret;
@@ -3453,7 +3453,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 			printk(KERN_DEBUG "%s: PH_ACTIVATE ch %d (0..32)\n",
 			       __func__, bch->slot);
 		spin_lock_irqsave(&hc->lock, flags);
-		/* activate B-channel if not already activated */
+		/* activate B-channel if analt already activated */
 		if (!test_and_set_bit(FLG_ACTIVE, &bch->Flags)) {
 			hc->chan[bch->slot].txpending = 0;
 			ret = mode_hfcmulti(hc, bch->slot,
@@ -3500,7 +3500,7 @@ handle_bmsg(struct mISDNchannel *ch, struct sk_buff *skb)
 			break;
 		default:
 			printk(KERN_ERR
-			       "%s: unknown PH_CONTROL_REQ info %x\n",
+			       "%s: unkanalwn PH_CONTROL_REQ info %x\n",
 			       __func__, hh->id);
 			ret = -EINVAL;
 		}
@@ -3544,10 +3544,10 @@ channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 		hc->chan[bch->slot].rx_off = !!cq->p1;
 		if (!hc->chan[bch->slot].rx_off) {
 			/* reset fifo on rx on */
-			HFC_outb_nodebug(hc, R_FIFO, (bch->slot << 1) | 1);
-			HFC_wait_nodebug(hc);
-			HFC_outb_nodebug(hc, R_INC_RES_FIFO, V_RES_F);
-			HFC_wait_nodebug(hc);
+			HFC_outb_analdebug(hc, R_FIFO, (bch->slot << 1) | 1);
+			HFC_wait_analdebug(hc);
+			HFC_outb_analdebug(hc, R_INC_RES_FIFO, V_RES_F);
+			HFC_wait_analdebug(hc);
 		}
 		if (debug & DEBUG_HFCMULTI_MSG)
 			printk(KERN_DEBUG "%s: RX_OFF request (nr=%d off=%d)\n",
@@ -3666,7 +3666,7 @@ hfcm_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
 		deactivate_bchannel(bch); /* locked there */
-		ch->protocol = ISDN_P_NONE;
+		ch->protocol = ISDN_P_ANALNE;
 		ch->peer = NULL;
 		module_put(THIS_MODULE);
 		err = 0;
@@ -3677,7 +3677,7 @@ hfcm_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		spin_unlock_irqrestore(&hc->lock, flags);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown prim(%x)\n",
+		printk(KERN_WARNING "%s: unkanalwn prim(%x)\n",
 		       __func__, cmd);
 	}
 	return err;
@@ -3718,12 +3718,12 @@ ph_state_change(struct dchannel *dch)
 			if (hc->e1_state != 1) {
 				for (i = 1; i <= 31; i++) {
 					/* reset fifos on e1 activation */
-					HFC_outb_nodebug(hc, R_FIFO,
+					HFC_outb_analdebug(hc, R_FIFO,
 							 (i << 1) | 1);
-					HFC_wait_nodebug(hc);
-					HFC_outb_nodebug(hc, R_INC_RES_FIFO,
+					HFC_wait_analdebug(hc);
+					HFC_outb_analdebug(hc, R_INC_RES_FIFO,
 							 V_RES_F);
-					HFC_wait_nodebug(hc);
+					HFC_wait_analdebug(hc);
 				}
 			}
 			test_and_set_bit(FLG_ACTIVE, &dch->Flags);
@@ -3845,7 +3845,7 @@ hfcmulti_initmode(struct dchannel *dch)
 			hc->chan[i].slot_tx = -1;
 			hc->chan[i].slot_rx = -1;
 			hc->chan[i].conf = -1;
-			mode_hfcmulti(hc, i, ISDN_P_NONE, -1, 0, -1, 0);
+			mode_hfcmulti(hc, i, ISDN_P_ANALNE, -1, 0, -1, 0);
 		}
 	}
 	if (hc->ctype == HFC_TYPE_E1 && pt == 0) {
@@ -3947,11 +3947,11 @@ hfcmulti_initmode(struct dchannel *dch)
 		hc->chan[i - 2].slot_tx = -1;
 		hc->chan[i - 2].slot_rx = -1;
 		hc->chan[i - 2].conf = -1;
-		mode_hfcmulti(hc, i - 2, ISDN_P_NONE, -1, 0, -1, 0);
+		mode_hfcmulti(hc, i - 2, ISDN_P_ANALNE, -1, 0, -1, 0);
 		hc->chan[i - 1].slot_tx = -1;
 		hc->chan[i - 1].slot_rx = -1;
 		hc->chan[i - 1].conf = -1;
-		mode_hfcmulti(hc, i - 1, ISDN_P_NONE, -1, 0, -1, 0);
+		mode_hfcmulti(hc, i - 1, ISDN_P_ANALNE, -1, 0, -1, 0);
 		/* select interface */
 		HFC_outb(hc, R_ST_SEL, pt);
 		/* undocumented: delay after R_ST_SEL */
@@ -3975,7 +3975,7 @@ hfcmulti_initmode(struct dchannel *dch)
 			a_st_wr_state = 2; /* F2 */
 			hc->hw.a_st_ctrl0[pt] = 0;
 		}
-		if (!test_bit(HFC_CFG_NONCAP_TX, &hc->chan[i].cfg))
+		if (!test_bit(HFC_CFG_ANALNCAP_TX, &hc->chan[i].cfg))
 			hc->hw.a_st_ctrl0[pt] |= V_TX_LI;
 		if (hc->ctype == HFC_TYPE_XHFC) {
 			hc->hw.a_st_ctrl0[pt] |= 0x40 /* V_ST_PU_CTRL */;
@@ -3987,7 +3987,7 @@ hfcmulti_initmode(struct dchannel *dch)
 		/* disable E-channel */
 		if ((dch->dev.D.protocol == ISDN_P_NT_S0) ||
 		    test_bit(HFC_CFG_DIS_ECHANNEL, &hc->chan[i].cfg))
-			HFC_outb(hc, A_ST_CTRL1, V_E_IGNO);
+			HFC_outb(hc, A_ST_CTRL1, V_E_IGANAL);
 		else
 			HFC_outb(hc, A_ST_CTRL1, 0);
 		/* enable B-channel receive */
@@ -4021,9 +4021,9 @@ open_dchannel(struct hfc_multi *hc, struct dchannel *dch,
 	if (debug & DEBUG_HW_OPEN)
 		printk(KERN_DEBUG "%s: dev(%d) open from %p\n", __func__,
 		       dch->dev.id, __builtin_return_address(0));
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
-	if ((dch->dev.D.protocol != ISDN_P_NONE) &&
+	if ((dch->dev.D.protocol != ISDN_P_ANALNE) &&
 	    (dch->dev.D.protocol != rq->protocol)) {
 		if (debug & DEBUG_HFCMULTI_MODE)
 			printk(KERN_DEBUG "%s: change protocol %x to %x\n",
@@ -4048,7 +4048,7 @@ open_dchannel(struct hfc_multi *hc, struct dchannel *dch,
 			    0, NULL, GFP_KERNEL);
 	rq->ch = &dch->dev.D;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s:cannot get module\n", __func__);
+		printk(KERN_WARNING "%s:cananalt get module\n", __func__);
 	return 0;
 }
 
@@ -4061,7 +4061,7 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 
 	if (!test_channelmap(rq->adr.channel, dch->dev.channelmap))
 		return -EINVAL;
-	if (rq->protocol == ISDN_P_NONE)
+	if (rq->protocol == ISDN_P_ANALNE)
 		return -EINVAL;
 	if (hc->ctype == HFC_TYPE_E1)
 		ch = rq->adr.channel;
@@ -4069,7 +4069,7 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 		ch = (rq->adr.channel - 1) + (dch->slot - 2);
 	bch = hc->chan[ch].bch;
 	if (!bch) {
-		printk(KERN_ERR "%s:internal error ch %d has no bch\n",
+		printk(KERN_ERR "%s:internal error ch %d has anal bch\n",
 		       __func__, ch);
 		return -EINVAL;
 	}
@@ -4079,7 +4079,7 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 	hc->chan[ch].rx_off = 0;
 	rq->ch = &bch->ch;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s:cannot get module\n", __func__);
+		printk(KERN_WARNING "%s:cananalt get module\n", __func__);
 	return 0;
 }
 
@@ -4129,7 +4129,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		ret = l1_event(dch->l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown Op %x\n",
+		printk(KERN_WARNING "%s: unkanalwn Op %x\n",
 		       __func__, cq->op);
 		ret = -EINVAL;
 		break;
@@ -4190,7 +4190,7 @@ hfcm_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: unknown command %x\n",
+			printk(KERN_DEBUG "%s: unkanalwn command %x\n",
 			       __func__, cmd);
 		err = -EINVAL;
 	}
@@ -4212,7 +4212,7 @@ clockctl(void *priv, int enable)
 
 /*
  * start timer irq, wait some time and check if we have interrupts.
- * if not, reset chip and try again.
+ * if analt, reset chip and try again.
  */
 static int
 init_card(struct hfc_multi *hc)
@@ -4233,7 +4233,7 @@ init_card(struct hfc_multi *hc)
 
 	if (request_irq(hc->irq, hfcmulti_interrupt, IRQF_SHARED,
 			"HFC-multi", hc)) {
-		printk(KERN_WARNING "mISDN: Could not get interrupt %d.\n",
+		printk(KERN_WARNING "mISDN: Could analt get interrupt %d.\n",
 		       hc->irq);
 		hc->irq = 0;
 		return -EIO;
@@ -4261,7 +4261,7 @@ init_card(struct hfc_multi *hc)
 	spin_lock_irqsave(&hc->lock, flags);
 	enable_hwirq(hc);
 	spin_unlock_irqrestore(&hc->lock, flags);
-	/* printk(KERN_DEBUG "no master irq set!!!\n"); */
+	/* printk(KERN_DEBUG "anal master irq set!!!\n"); */
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout((100 * HZ) / 1000); /* Timeout 100ms */
 	/* turn IRQ off until chip is completely initialized */
@@ -4278,11 +4278,11 @@ init_card(struct hfc_multi *hc)
 		return 0;
 	}
 	if (test_bit(HFC_CHIP_PCM_SLAVE, &hc->chip)) {
-		printk(KERN_INFO "ignoring missing interrupts\n");
+		printk(KERN_INFO "iganalring missing interrupts\n");
 		return 0;
 	}
 
-	printk(KERN_ERR "HFC PCI: IRQ(%d) getting no interrupts during init.\n",
+	printk(KERN_ERR "HFC PCI: IRQ(%d) getting anal interrupts during init.\n",
 	       hc->irq);
 
 	err = -EIO;
@@ -4319,7 +4319,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 
 	printk(KERN_INFO
 	       "HFC-multi: card manufacturer: '%s' card name: '%s' clock: %s\n",
-	       m->vendor_name, m->card_name, m->clock2 ? "double" : "normal");
+	       m->vendor_name, m->card_name, m->clock2 ? "double" : "analrmal");
 
 	hc->pci_dev = pdev;
 	if (m->clock2)
@@ -4334,7 +4334,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 	}
 
 	if (hc->pci_dev->irq <= 0) {
-		printk(KERN_WARNING "HFC-multi: No IRQ for PCI card found.\n");
+		printk(KERN_WARNING "HFC-multi: Anal IRQ for PCI card found.\n");
 		return -EIO;
 	}
 	if (pci_enable_device(hc->pci_dev)) {
@@ -4367,7 +4367,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 
 		if (!hc->plx_origmembase) {
 			printk(KERN_WARNING
-			       "HFC-multi: No IO-Memory for PCI PLX bridge found\n");
+			       "HFC-multi: Anal IO-Memory for PCI PLX bridge found\n");
 			pci_disable_device(hc->pci_dev);
 			return -EIO;
 		}
@@ -4388,7 +4388,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 		/* MEMBASE 1 is PLX PCI Bridge */
 		if (!hc->pci_origmembase) {
 			printk(KERN_WARNING
-			       "HFC-multi: No IO-Memory for PCI card found\n");
+			       "HFC-multi: Anal IO-Memory for PCI card found\n");
 			pci_disable_device(hc->pci_dev);
 			return -EIO;
 		}
@@ -4418,7 +4418,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 		hc->pci_origmembase = hc->pci_dev->resource[1].start;
 		if (!hc->pci_origmembase) {
 			printk(KERN_WARNING
-			       "HFC-multi: No IO-Memory for PCI card found\n");
+			       "HFC-multi: Anal IO-Memory for PCI card found\n");
 			pci_disable_device(hc->pci_dev);
 			return -EIO;
 		}
@@ -4446,7 +4446,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 		hc->pci_iobase = (u_int) hc->pci_dev->resource[0].start;
 		if (!hc->pci_iobase) {
 			printk(KERN_WARNING
-			       "HFC-multi: No IO for PCI card found\n");
+			       "HFC-multi: Anal IO for PCI card found\n");
 			pci_disable_device(hc->pci_dev);
 			return -EIO;
 		}
@@ -4474,7 +4474,7 @@ setup_pci(struct hfc_multi *hc, struct pci_dev *pdev,
 	pci_set_drvdata(hc->pci_dev, hc);
 
 	/* At this point the needed PCI config is done */
-	/* fifos are still not enabled */
+	/* fifos are still analt enabled */
 	return 0;
 }
 
@@ -4664,7 +4664,7 @@ init_e1_port_hw(struct hfc_multi *hc, struct hm_map *m)
 	if (port[Port_cnt] & 0x001) {
 		if (!m->opticalsupport)  {
 			printk(KERN_INFO
-			       "This board has no optical "
+			       "This board has anal optical "
 			       "support\n");
 		} else {
 			if (debug & DEBUG_HFCMULTI_INIT)
@@ -4777,7 +4777,7 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m, int pt)
 
 	dch = kzalloc(sizeof(struct dchannel), GFP_KERNEL);
 	if (!dch)
-		return -ENOMEM;
+		return -EANALMEM;
 	dch->debug = debug;
 	mISDN_initdchannel(dch, MAX_DFRAME_LEN_L1, ph_state_change);
 	dch->hw = hc;
@@ -4795,16 +4795,16 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m, int pt)
 			continue;
 		bch = kzalloc(sizeof(struct bchannel), GFP_KERNEL);
 		if (!bch) {
-			printk(KERN_ERR "%s: no memory for bchannel\n",
+			printk(KERN_ERR "%s: anal memory for bchannel\n",
 			    __func__);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_chan;
 		}
 		hc->chan[ch].coeff = kzalloc(512, GFP_KERNEL);
 		if (!hc->chan[ch].coeff) {
-			printk(KERN_ERR "%s: no memory for coeffs\n",
+			printk(KERN_ERR "%s: anal memory for coeffs\n",
 			    __func__);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(bch);
 			goto free_chan;
 		}
@@ -4850,7 +4850,7 @@ init_multi_port(struct hfc_multi *hc, int pt)
 
 	dch = kzalloc(sizeof(struct dchannel), GFP_KERNEL);
 	if (!dch)
-		return -ENOMEM;
+		return -EANALMEM;
 	dch->debug = debug;
 	mISDN_initdchannel(dch, MAX_DFRAME_LEN_L1, ph_state_change);
 	dch->hw = hc;
@@ -4868,16 +4868,16 @@ init_multi_port(struct hfc_multi *hc, int pt)
 	for (ch = 0; ch < dch->dev.nrbchan; ch++) {
 		bch = kzalloc(sizeof(struct bchannel), GFP_KERNEL);
 		if (!bch) {
-			printk(KERN_ERR "%s: no memory for bchannel\n",
+			printk(KERN_ERR "%s: anal memory for bchannel\n",
 			       __func__);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_chan;
 		}
 		hc->chan[i + ch].coeff = kzalloc(512, GFP_KERNEL);
 		if (!hc->chan[i + ch].coeff) {
-			printk(KERN_ERR "%s: no memory for coeffs\n",
+			printk(KERN_ERR "%s: anal memory for coeffs\n",
 			       __func__);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			kfree(bch);
 			goto free_chan;
 		}
@@ -4919,14 +4919,14 @@ init_multi_port(struct hfc_multi *hc, int pt)
 		}
 		hc->masterclk = pt;
 	}
-	/* set transmitter line to non capacitive */
+	/* set transmitter line to analn capacitive */
 	if (port[Port_cnt] & 0x002) {
 		if (debug & DEBUG_HFCMULTI_INIT)
 			printk(KERN_DEBUG
-			       "%s: PROTOCOL set non capacitive "
+			       "%s: PROTOCOL set analn capacitive "
 			       "transmitter: card(%d) port(%d)\n",
 			       __func__, HFC_cnt + 1, pt + 1);
-		test_and_set_bit(HFC_CFG_NONCAP_TX,
+		test_and_set_bit(HFC_CFG_ANALNCAP_TX,
 				 &hc->chan[i + 2].cfg);
 	}
 	/* disable E-channel */
@@ -4991,8 +4991,8 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 	/* allocate card+fifo structure */
 	hc = kzalloc(sizeof(struct hfc_multi), GFP_KERNEL);
 	if (!hc) {
-		printk(KERN_ERR "No kmem for HFC-Multi card\n");
-		return -ENOMEM;
+		printk(KERN_ERR "Anal kmem for HFC-Multi card\n");
+		return -EANALMEM;
 	}
 	spin_lock_init(&hc->lock);
 	hc->mtyp = m;
@@ -5074,7 +5074,7 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 		test_and_set_bit(HFC_CHIP_WATCHDOG, &hc->chip);
 		hc->wdcount = 0;
 		hc->wdbyte = V_GPIO_OUT2;
-		printk(KERN_NOTICE "Watchdog enabled\n");
+		printk(KERN_ANALTICE "Watchdog enabled\n");
 	}
 
 	if (pdev && ent)
@@ -5085,7 +5085,7 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 		ret_err = setup_embedded(hc, m);
 #else
 	{
-		printk(KERN_WARNING "Embedded IO Mode not selected\n");
+		printk(KERN_WARNING "Embedded IO Mode analt selected\n");
 		ret_err = -EIO;
 	}
 #endif
@@ -5096,10 +5096,10 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 		return ret_err;
 	}
 
-	hc->HFC_outb_nodebug = hc->HFC_outb;
-	hc->HFC_inb_nodebug = hc->HFC_inb;
-	hc->HFC_inw_nodebug = hc->HFC_inw;
-	hc->HFC_wait_nodebug = hc->HFC_wait;
+	hc->HFC_outb_analdebug = hc->HFC_outb;
+	hc->HFC_inb_analdebug = hc->HFC_inb;
+	hc->HFC_inw_analdebug = hc->HFC_inw;
+	hc->HFC_wait_analdebug = hc->HFC_wait;
 #ifdef HFC_REGISTER_DEBUG
 	hc->HFC_outb = HFC_outb_debug;
 	hc->HFC_inb = HFC_inb_debug;
@@ -5409,13 +5409,13 @@ hfcmulti_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    ent->device == PCI_DEVICE_ID_CCD_HFC8S ||
 		    ent->device == PCI_DEVICE_ID_CCD_HFCE1)) {
 		printk(KERN_ERR
-		       "Unknown HFC multiport controller (vendor:%04x device:%04x "
+		       "Unkanalwn HFC multiport controller (vendor:%04x device:%04x "
 		       "subvendor:%04x subdevice:%04x)\n", pdev->vendor,
 		       pdev->device, pdev->subsystem_vendor,
 		       pdev->subsystem_device);
 		printk(KERN_ERR
 		       "Please contact the driver maintainer for support.\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	ret = hfcmulti_init(m, pdev, ent);
 	if (ret)

@@ -4,7 +4,7 @@
  * implementations.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aranal@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -42,7 +42,7 @@ void mv_cesa_dma_step(struct mv_cesa_req *dreq)
 
 	mv_cesa_set_int_mask(engine, CESA_SA_INT_ACC0_IDMA_DONE);
 	writel_relaxed(CESA_TDMA_DST_BURST_128B | CESA_TDMA_SRC_BURST_128B |
-		       CESA_TDMA_NO_BYTE_SWAP | CESA_TDMA_EN,
+		       CESA_TDMA_ANAL_BYTE_SWAP | CESA_TDMA_EN,
 		       engine->regs + CESA_TDMA_CONTROL);
 
 	writel_relaxed(CESA_SA_CFG_ACT_CH0_IDMA | CESA_SA_CFG_MULTI_PKT |
@@ -177,7 +177,7 @@ int mv_cesa_tdma_process(struct mv_cesa_engine *engine, u32 status)
 
 	/*
 	 * Save the last request in error to engine->req, so that the core
-	 * knows which request was faulty
+	 * kanalws which request was faulty
 	 */
 	if (res) {
 		spin_lock_bh(&engine->lock);
@@ -197,7 +197,7 @@ mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 	new_tdma = dma_pool_zalloc(cesa_dev->dma->tdma_desc_pool, flags,
 				   &dma_handle);
 	if (!new_tdma)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	new_tdma->cur_dma = dma_handle;
 	if (chain->last) {
@@ -262,7 +262,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 
 	op = dma_pool_alloc(cesa_dev->dma->op_pool, flags, &dma_handle);
 	if (!op)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	*op = *op_templ;
 

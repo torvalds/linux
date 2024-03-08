@@ -34,7 +34,7 @@
  * struct efi_mm_communicate_header - Header used for SMM variable communication
 
  * @header_guid:  header use for disambiguation of content
- * @message_len:  length of the message. Does not include the size of the
+ * @message_len:  length of the message. Does analt include the size of the
  *                header
  * @data:         payload of the message
  *
@@ -53,10 +53,10 @@ struct efi_mm_communicate_header {
 
 /* SPM return error codes */
 #define ARM_SVC_SPM_RET_SUCCESS               0
-#define ARM_SVC_SPM_RET_NOT_SUPPORTED        -1
+#define ARM_SVC_SPM_RET_ANALT_SUPPORTED        -1
 #define ARM_SVC_SPM_RET_INVALID_PARAMS       -2
 #define ARM_SVC_SPM_RET_DENIED               -3
-#define ARM_SVC_SPM_RET_NO_MEMORY            -5
+#define ARM_SVC_SPM_RET_ANAL_MEMORY            -5
 
 #define SMM_VARIABLE_FUNCTION_GET_VARIABLE  1
 /*
@@ -74,11 +74,11 @@ struct efi_mm_communicate_header {
  */
 #define SMM_VARIABLE_FUNCTION_QUERY_VARIABLE_INFO  4
 /*
- * It is a notify event, no extra payload for this function.
+ * It is a analtify event, anal extra payload for this function.
  */
 #define SMM_VARIABLE_FUNCTION_READY_TO_BOOT  5
 /*
- * It is a notify event, no extra payload for this function.
+ * It is a analtify event, anal extra payload for this function.
  */
 #define SMM_VARIABLE_FUNCTION_EXIT_BOOT_SERVICE  6
 /*

@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -107,7 +107,7 @@ uec_get_ksettings(struct net_device *netdev, struct ethtool_link_ksettings *cmd)
 	struct phy_device *phydev = ugeth->phydev;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_ethtool_ksettings_get(phydev, cmd);
 
@@ -122,7 +122,7 @@ uec_set_ksettings(struct net_device *netdev,
 	struct phy_device *phydev = ugeth->phydev;
 
 	if (!phydev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return phy_ethtool_ksettings_set(phydev, cmd);
 }
@@ -237,7 +237,7 @@ uec_set_ringparam(struct net_device *netdev,
 	int queue = 0, ret = 0;
 
 	if (ring->rx_pending < UCC_GETH_RX_BD_RING_SIZE_MIN) {
-		netdev_info(netdev, "RxBD ring size must be no smaller than %d\n",
+		netdev_info(netdev, "RxBD ring size must be anal smaller than %d\n",
 			    UCC_GETH_RX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}
@@ -247,7 +247,7 @@ uec_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 	}
 	if (ring->tx_pending < UCC_GETH_TX_BD_RING_SIZE_MIN) {
-		netdev_info(netdev, "TxBD ring size must be no smaller than %d\n",
+		netdev_info(netdev, "TxBD ring size must be anal smaller than %d\n",
 			    UCC_GETH_TX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}
@@ -279,7 +279,7 @@ static int uec_get_sset_count(struct net_device *netdev, int sset)
 		return len;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 

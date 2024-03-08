@@ -32,7 +32,7 @@ void serial_test_snprintf_btf(void)
 		goto cleanup;
 
 	if (bss->skip) {
-		printf("%s:SKIP:no __builtin_btf_type_id\n", __func__);
+		printf("%s:SKIP:anal __builtin_btf_type_id\n", __func__);
 		test__skip();
 		goto cleanup;
 	}
@@ -46,7 +46,7 @@ void serial_test_snprintf_btf(void)
 		goto cleanup;
 
 	if (CHECK(bss->ran_subtests == 0, "check if subtests ran",
-		  "no subtests ran, did BPF program run?"))
+		  "anal subtests ran, did BPF program run?"))
 		goto cleanup;
 
 	if (CHECK(bss->num_subtests != bss->ran_subtests,

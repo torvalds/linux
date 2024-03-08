@@ -16,21 +16,21 @@
 
 /**
  * __ntfs_bitmap_set_bits_in_run - set a run of bits in a bitmap to a value
- * @vi:			vfs inode describing the bitmap
+ * @vi:			vfs ianalde describing the bitmap
  * @start_bit:		first bit to set
  * @count:		number of bits to set
  * @value:		value to set the bits to (i.e. 0 or 1)
  * @is_rollback:	if 'true' this is a rollback operation
  *
  * Set @count bits starting at bit @start_bit in the bitmap described by the
- * vfs inode @vi to @value, where @value is either 0 or 1.
+ * vfs ianalde @vi to @value, where @value is either 0 or 1.
  *
  * @is_rollback should always be 'false', it is for internal use to rollback
  * errors.  You probably want to use ntfs_bitmap_set_bits_in_run() instead.
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erranal on error.
  */
-int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
+int __ntfs_bitmap_set_bits_in_run(struct ianalde *vi, const s64 start_bit,
 		const s64 count, const u8 value, const bool is_rollback)
 {
 	s64 cnt = count;
@@ -42,8 +42,8 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	u8 bit;
 
 	BUG_ON(!vi);
-	ntfs_debug("Entering for i_ino 0x%lx, start_bit 0x%llx, count 0x%llx, "
-			"value %u.%s", vi->i_ino, (unsigned long long)start_bit,
+	ntfs_debug("Entering for i_ianal 0x%lx, start_bit 0x%llx, count 0x%llx, "
+			"value %u.%s", vi->i_ianal, (unsigned long long)start_bit,
 			(unsigned long long)cnt, (unsigned int)value,
 			is_rollback ? " (rollback)" : "");
 	BUG_ON(start_bit < 0);
@@ -98,11 +98,11 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	memset(kaddr + pos, value ? 0xff : 0, len);
 	cnt -= len << 3;
 
-	/* Update @len to point to the first not-done byte in the page. */
+	/* Update @len to point to the first analt-done byte in the page. */
 	if (cnt < 8)
 		len += pos;
 
-	/* If we are not in the last page, deal with all subsequent pages. */
+	/* If we are analt in the last page, deal with all subsequent pages. */
 	while (index < end_index) {
 		BUG_ON(cnt <= 0);
 
@@ -124,7 +124,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	}
 	/*
 	 * The currently mapped page is the last one.  If the last byte is
-	 * partial, modify the appropriate bits in it.  Note, @len is the
+	 * partial, modify the appropriate bits in it.  Analte, @len is the
 	 * position of the last byte inside the page.
 	 */
 	if (cnt) {
@@ -151,7 +151,7 @@ done:
 rollback:
 	/*
 	 * Current state:
-	 *	- no pages are mapped
+	 *	- anal pages are mapped
 	 *	- @count - @cnt is the number of bits that have been modified
 	 */
 	if (is_rollback)

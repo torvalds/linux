@@ -8,12 +8,12 @@
 
 char _license[] SEC("license") = "X";
 
-void BPF_STRUCT_OPS(nogpltcp_init, struct sock *sk)
+void BPF_STRUCT_OPS(analgpltcp_init, struct sock *sk)
 {
 }
 
 SEC(".struct_ops")
-struct tcp_congestion_ops bpf_nogpltcp = {
-	.init           = (void *)nogpltcp_init,
-	.name           = "bpf_nogpltcp",
+struct tcp_congestion_ops bpf_analgpltcp = {
+	.init           = (void *)analgpltcp_init,
+	.name           = "bpf_analgpltcp",
 };

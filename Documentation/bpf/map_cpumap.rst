@@ -5,7 +5,7 @@
 BPF_MAP_TYPE_CPUMAP
 ===================
 
-.. note::
+.. analte::
    - ``BPF_MAP_TYPE_CPUMAP`` was introduced in kernel version 4.15
 
 .. kernel-doc:: kernel/bpf/cpumap.c
@@ -45,8 +45,8 @@ codes up to ``XDP_TX``, as chosen by the caller.
 
 User space
 ----------
-.. note::
-    CPUMAP entries can only be updated/looked up/deleted from user space and not
+.. analte::
+    CPUMAP entries can only be updated/looked up/deleted from user space and analt
     from an eBPF program. Trying to call these functions from a kernel eBPF
     program will result in the program failing to load and a verifier warning.
 
@@ -72,7 +72,7 @@ can be ``struct bpf_cpumap_val``.
 
 The flags argument can be one of the following:
   - BPF_ANY: Create a new element or update an existing element.
-  - BPF_NOEXIST: Create a new element only if it did not exist.
+  - BPF_ANALEXIST: Create a new element only if it did analt exist.
   - BPF_EXIST: Update an existing element.
 
 bpf_map_lookup_elem()
@@ -165,7 +165,7 @@ CPUMAP to the max number of cpus available on the system.
     {
         if (bpf_map__set_max_entries(cpu_map, libbpf_num_possible_cpus()) < 0) {
             fprintf(stderr, "Failed to set max entries for cpu_map map: %s",
-                strerror(errno));
+                strerror(erranal));
             return -1;
         }
         return 0;

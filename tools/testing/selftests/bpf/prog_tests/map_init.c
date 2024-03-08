@@ -27,7 +27,7 @@ static int map_populate(int map_fd, int num)
 		bpf_percpu(value, i) = FILL_VALUE;
 
 	for (key = 1; key <= num; key++) {
-		err = bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST);
+		err = bpf_map_update_elem(map_fd, &key, value, BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem"))
 			return -1;
 	}

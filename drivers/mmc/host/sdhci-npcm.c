@@ -2,7 +2,7 @@
 /*
  * NPCM SDHC MMC host controller driver.
  *
- * Copyright (c) 2023 Nuvoton Technology corporation.
+ * Copyright (c) 2023 Nuvoton Techanallogy corporation.
  */
 
 #include <linux/clk.h>
@@ -19,7 +19,7 @@
 static const struct sdhci_pltfm_data npcm7xx_sdhci_pdata = {
 	.quirks  = SDHCI_QUIRK_DELAY_AFTER_POWER,
 	.quirks2 = SDHCI_QUIRK2_STOP_WITH_TC |
-		   SDHCI_QUIRK2_NO_1_8_V,
+		   SDHCI_QUIRK2_ANAL_1_8_V,
 };
 
 static const struct sdhci_pltfm_data npcm8xx_sdhci_pdata = {

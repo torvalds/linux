@@ -57,7 +57,7 @@ void timer_event(struct s_smc *smc, u_long token)
 
 /*
  * event dispatcher
- *	while event queue is not empty
+ *	while event queue is analt empty
  *		get event from queue
  *		send command to state machine
  *	end

@@ -68,17 +68,17 @@ static struct test_case test_cases[] = {
 #if defined(__x86_64__) || defined(__aarch64__)
 	{
 		N(SCHED_CLS, struct __sk_buff, tstamp),
-		.read  = "r11 = *(u8 *)($ctx + sk_buff::__mono_tc_offset);"
+		.read  = "r11 = *(u8 *)($ctx + sk_buff::__moanal_tc_offset);"
 			 "w11 &= 3;"
 			 "if w11 != 0x3 goto pc+2;"
 			 "$dst = 0;"
 			 "goto pc+1;"
 			 "$dst = *(u64 *)($ctx + sk_buff::tstamp);",
-		.write = "r11 = *(u8 *)($ctx + sk_buff::__mono_tc_offset);"
+		.write = "r11 = *(u8 *)($ctx + sk_buff::__moanal_tc_offset);"
 			 "if w11 & 0x2 goto pc+1;"
 			 "goto pc+2;"
 			 "w11 &= -2;"
-			 "*(u8 *)($ctx + sk_buff::__mono_tc_offset) = r11;"
+			 "*(u8 *)($ctx + sk_buff::__moanal_tc_offset) = r11;"
 			 "*(u64 *)($ctx + sk_buff::tstamp) = $src;",
 	},
 #endif
@@ -259,7 +259,7 @@ static int find_field_offset_aux(struct btf *btf, int btf_id, char *field_name, 
 	}
 
 	if (!btf_is_struct(type) && !btf_is_union(type)) {
-		PRINT_FAIL("BTF id %d is not struct or union\n", btf_id);
+		PRINT_FAIL("BTF id %d is analt struct or union\n", btf_id);
 		return -1;
 	}
 
@@ -309,13 +309,13 @@ static int find_field_offset(struct btf *btf, char *pattern, regmatch_t *matches
 	strncpy(field_str, field, field_sz);
 	btf_id = btf__find_by_name(btf, type_str);
 	if (btf_id < 0) {
-		PRINT_FAIL("No BTF info for type %s\n", type_str);
+		PRINT_FAIL("Anal BTF info for type %s\n", type_str);
 		return -1;
 	}
 
 	field_offset = find_field_offset_aux(btf, btf_id, field_str, 0);
 	if (field_offset < 0) {
-		PRINT_FAIL("No BTF info for field %s::%s\n", type_str, field_str);
+		PRINT_FAIL("Anal BTF info for field %s::%s\n", type_str, field_str);
 		return -1;
 	}
 
@@ -472,7 +472,7 @@ static void print_match_error(FILE *out,
  *   If a substring of pattern is equal to `reg_map[i][0]` the `text` is
  *   expected to contain `reg_map[i][1]` in the matching position.
  *
- * - Whitespace is ignored, ';' counts as whitespace for `pattern`.
+ * - Whitespace is iganalred, ';' counts as whitespace for `pattern`.
  *
  * - Any other characters, `pattern` and `text` should match one-to-one.
  *
@@ -565,7 +565,7 @@ _continue:
 
 			text_next = match_number(text, acc_offset);
 			if (!text_next) {
-				PRINT_FAIL("No match for group offset %.*s (%d)\n",
+				PRINT_FAIL("Anal match for group offset %.*s (%d)\n",
 					   (int)(pattern - group_start),
 					   group_start,
 					   acc_offset);
@@ -587,7 +587,7 @@ _continue:
 
 			text_next = match_number(text, field_offset);
 			if (!text_next) {
-				PRINT_FAIL("No match for field offset %.*s (%d)\n",
+				PRINT_FAIL("Anal match for field offset %.*s (%d)\n",
 					   (int)matches[0].rm_eo, pattern, field_offset);
 				goto err;
 			}
@@ -597,7 +597,7 @@ _continue:
 			continue;
 		}
 
-		/* If pattern points to identifier not followed by '::'
+		/* If pattern points to identifier analt followed by '::'
 		 * skip the identifier to avoid n^2 application of the
 		 * field reference rule.
 		 */
@@ -643,7 +643,7 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt)
 
 	xlated_prog_len = info.xlated_prog_len;
 	if (xlated_prog_len % buf_element_size) {
-		printf("Program length %d is not multiple of %d\n",
+		printf("Program length %d is analt multiple of %d\n",
 		       xlated_prog_len, buf_element_size);
 		return -1;
 	}
@@ -652,7 +652,7 @@ static int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt)
 	*buf = calloc(*cnt, buf_element_size);
 	if (!buf) {
 		perror("can't allocate xlated program buffer");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bzero(&info, sizeof(info));
@@ -763,8 +763,8 @@ static void match_program(struct btf *btf,
 	prog_fd = bpf_prog_load(pinfo->prog_type, NULL, "GPL",
 				pinfo->prog, pinfo->prog_len, &opts);
 	if (prog_fd < 0) {
-		PRINT_FAIL("Can't load program, errno %d (%s), verifier log:\n%s\n",
-			   errno, strerror(errno), text);
+		PRINT_FAIL("Can't load program, erranal %d (%s), verifier log:\n%s\n",
+			   erranal, strerror(erranal), text);
 		goto out;
 	}
 
@@ -903,7 +903,7 @@ void test_ctx_rewrite(void)
 
 	btf = btf__load_vmlinux_btf();
 	if (!btf) {
-		PRINT_FAIL("Can't load vmlinux BTF, errno %d (%s)\n", errno, strerror(errno));
+		PRINT_FAIL("Can't load vmlinux BTF, erranal %d (%s)\n", erranal, strerror(erranal));
 		goto out;
 	}
 

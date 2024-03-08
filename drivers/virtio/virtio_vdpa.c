@@ -39,8 +39,8 @@ struct virtio_vdpa_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+	/* the list analde for the virtqueues list */
+	struct list_head analde;
 };
 
 static inline struct virtio_vdpa_device *
@@ -103,7 +103,7 @@ static void virtio_vdpa_reset(struct virtio_device *vdev)
 	vdpa_reset(vdpa, 0);
 }
 
-static bool virtio_vdpa_notify(struct virtqueue *vq)
+static bool virtio_vdpa_analtify(struct virtqueue *vq)
 {
 	struct vdpa_device *vdpa = vd_get_vdpa(vq->vdev);
 	const struct vdpa_config_ops *ops = vdpa->config;
@@ -113,11 +113,11 @@ static bool virtio_vdpa_notify(struct virtqueue *vq)
 	return true;
 }
 
-static bool virtio_vdpa_notify_with_data(struct virtqueue *vq)
+static bool virtio_vdpa_analtify_with_data(struct virtqueue *vq)
 {
 	struct vdpa_device *vdpa = vd_get_vdpa(vq->vdev);
 	const struct vdpa_config_ops *ops = vdpa->config;
-	u32 data = vring_notification_data(vq);
+	u32 data = vring_analtification_data(vq);
 
 	ops->kick_vq_with_data(vdpa, data);
 
@@ -150,7 +150,7 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	struct device *dma_dev;
 	const struct vdpa_config_ops *ops = vdpa->config;
 	struct virtio_vdpa_vq_info *info;
-	bool (*notify)(struct virtqueue *vq) = virtio_vdpa_notify;
+	bool (*analtify)(struct virtqueue *vq) = virtio_vdpa_analtify;
 	struct vdpa_callback cb;
 	struct virtqueue *vq;
 	u64 desc_addr, driver_addr, device_addr;
@@ -165,28 +165,28 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 		return NULL;
 
 	if (index >= vdpa->nvqs)
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
-	/* We cannot accept VIRTIO_F_NOTIFICATION_DATA without kick_vq_with_data */
-	if (__virtio_test_bit(vdev, VIRTIO_F_NOTIFICATION_DATA)) {
+	/* We cananalt accept VIRTIO_F_ANALTIFICATION_DATA without kick_vq_with_data */
+	if (__virtio_test_bit(vdev, VIRTIO_F_ANALTIFICATION_DATA)) {
 		if (ops->kick_vq_with_data)
-			notify = virtio_vdpa_notify_with_data;
+			analtify = virtio_vdpa_analtify_with_data;
 		else
-			__virtio_clear_bit(vdev, VIRTIO_F_NOTIFICATION_DATA);
+			__virtio_clear_bit(vdev, VIRTIO_F_ANALTIFICATION_DATA);
 	}
 
 	/* Queue shouldn't already be set up. */
 	if (ops->get_vq_ready(vdpa, index))
-		return ERR_PTR(-ENOENT);
+		return ERR_PTR(-EANALENT);
 
 	/* Allocate and fill out our active queue description */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	max_num = ops->get_vq_num_max(vdpa);
 	if (max_num == 0) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto error_new_virtqueue;
 	}
 
@@ -204,9 +204,9 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 		dma_dev = vdpa_get_dma_dev(vdpa);
 	vq = vring_create_virtqueue_dma(index, max_num, align, vdev,
 					true, may_reduce_num, ctx,
-					notify, callback, name, dma_dev);
+					analtify, callback, name, dma_dev);
 	if (!vq) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_new_virtqueue;
 	}
 
@@ -249,7 +249,7 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 	info->vq = vq;
 
 	spin_lock_irqsave(&vd_dev->lock, flags);
-	list_add(&info->node, &vd_dev->virtqueues);
+	list_add(&info->analde, &vd_dev->virtqueues);
 	spin_unlock_irqrestore(&vd_dev->lock, flags);
 
 	return vq;
@@ -274,7 +274,7 @@ static void virtio_vdpa_del_vq(struct virtqueue *vq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vd_dev->lock, flags);
-	list_del(&info->node);
+	list_del(&info->analde);
 	spin_unlock_irqrestore(&vd_dev->lock, flags);
 
 	/* Select and deactivate the queue (best effort) */
@@ -372,7 +372,7 @@ static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	if (has_affinity) {
 		masks = create_affinity_masks(nvqs, desc ? desc : &default_affd);
 		if (!masks)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	for (i = 0; i < nvqs; ++i) {
@@ -494,7 +494,7 @@ static int virtio_vdpa_probe(struct vdpa_device *vdpa)
 
 	vd_dev = kzalloc(sizeof(*vd_dev), GFP_KERNEL);
 	if (!vd_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vd_dev->vdev.dev.parent = vdpa_get_dma_dev(vdpa);
 	vd_dev->vdev.dev.release = virtio_vdpa_release_dev;

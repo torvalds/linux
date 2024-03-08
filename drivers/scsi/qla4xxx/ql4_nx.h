@@ -13,7 +13,7 @@
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to analtify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK		0xf00f
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 
@@ -35,7 +35,7 @@
  * Temperature control.
  */
 enum {
-	QLA82XX_TEMP_NORMAL = 0x1,	/* Normal operating range */
+	QLA82XX_TEMP_ANALRMAL = 0x1,	/* Analrmal operating range */
 	QLA82XX_TEMP_WARN,	/* Sound alert, temperature getting high */
 	QLA82XX_TEMP_PANIC	/* Fatal error, hardware has shut down. */
 };
@@ -569,7 +569,7 @@ enum {
 #define QLA82XX_ROM_LOCK_ID		(QLA82XX_CAM_RAM(0x100))
 #define QLA82XX_CRB_WIN_LOCK_ID		(QLA82XX_CAM_RAM(0x124))
 #define QLA82XX_FW_VERSION_MAJOR	(QLA82XX_CAM_RAM(0x150))
-#define QLA82XX_FW_VERSION_MINOR	(QLA82XX_CAM_RAM(0x154))
+#define QLA82XX_FW_VERSION_MIANALR	(QLA82XX_CAM_RAM(0x154))
 #define QLA82XX_FW_VERSION_SUB		(QLA82XX_CAM_RAM(0x158))
 #define QLA82XX_PCIE_REG(reg)		(QLA82XX_CRB_PCIE + (reg))
 
@@ -592,7 +592,7 @@ enum qla_regs {
 	QLA8XXX_CRB_DEV_PART_INFO,
 	QLA8XXX_CRB_DRV_IDC_VERSION,
 	QLA8XXX_FW_VERSION_MAJOR,
-	QLA8XXX_FW_VERSION_MINOR,
+	QLA8XXX_FW_VERSION_MIANALR,
 	QLA8XXX_FW_VERSION_SUB,
 	QLA8XXX_CRB_CMDPEG_STATE,
 	QLA8XXX_CRB_TEMP_STATE,
@@ -811,7 +811,7 @@ struct crb_addr_pair {
 		.pci_int_reg    =	ISR_MSI_INT_TRIGGER(7) },       \
 }
 
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kanalw flash is programmed */
 #define	QLA82XX_BDINFO_MAGIC	0x12345678
 #define FW_SIZE_OFFSET		(0x3e840c)
 
@@ -822,7 +822,7 @@ struct crb_addr_pair {
 /* Minidump related */
 
 /* Entry Type Defines */
-#define QLA8XXX_RDNOP	0
+#define QLA8XXX_RDANALP	0
 #define QLA8XXX_RDCRB	1
 #define QLA8XXX_RDMUX	2
 #define QLA8XXX_QUEUE	3
@@ -867,7 +867,7 @@ struct crb_addr_pair {
 					      * mismatch */
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently analt used.
  */
 struct qla8xxx_minidump_entry_hdr {
 	uint32_t entry_type;
@@ -990,7 +990,7 @@ struct qla8xxx_minidump_entry_queue {
 	} rd_strd;
 };
 
-#define MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE	0x129
+#define MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE	0x129
 #define RQST_TMPLT_SIZE				0x0
 #define RQST_TMPLT				0x1
 #define MD_DIRECT_ROM_WINDOW			0x42110030

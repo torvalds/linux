@@ -13,11 +13,11 @@ void test_stacktrace_map(void)
 	struct bpf_link *link;
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load", "err %d erranal %d\n", err, erranal))
 		return;
 
 	prog = bpf_object__find_program_by_name(obj, prog_name);
-	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
+	if (CHECK(!prog, "find_prog", "prog '%s' analt found\n", prog_name))
 		goto close_prog;
 
 	link = bpf_program__attach_tracepoint(prog, "sched", "sched_switch");
@@ -54,18 +54,18 @@ void test_stacktrace_map(void)
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto disable_pmu;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto disable_pmu;
 
 	stack_trace_len = PERF_MAX_STACK_DEPTH * sizeof(__u64);
 	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
 	if (CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erranal %d\n", err, erranal))
 		goto disable_pmu;
 
 disable_pmu:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Infineon Technologies AG
+ * Copyright (C) 2015 Infineon Techanallogies AG
  * Copyright (C) 2016 STMicroelectronics SAS
  *
  * Authors:
@@ -249,7 +249,7 @@ int tpm_tis_spi_init(struct spi_device *spi, struct tpm_tis_spi_phy *phy,
 {
 	phy->iobuf = devm_kmalloc(&spi->dev, MAX_SPI_FRAMESIZE, GFP_KERNEL);
 	if (!phy->iobuf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->spi_device = spi;
 
@@ -269,7 +269,7 @@ static int tpm_tis_spi_probe(struct spi_device *dev)
 	phy = devm_kzalloc(&dev->dev, sizeof(struct tpm_tis_spi_phy),
 			   GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->flow_control = tpm_tis_spi_flow_control;
 
@@ -298,7 +298,7 @@ static int tpm_tis_spi_driver_probe(struct spi_device *spi)
 		if (spi_dev_id) {
 			probe_func = (tpm_tis_spi_probe_func)spi_dev_id->driver_data;
 			if (!probe_func)
-				return -ENODEV;
+				return -EANALDEV;
 		} else
 			probe_func = tpm_tis_spi_probe;
 	}
@@ -347,7 +347,7 @@ static struct spi_driver tpm_tis_spi_driver = {
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_spi_match),
 		.acpi_match_table = ACPI_PTR(acpi_tis_spi_match),
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tpm_tis_spi_driver_probe,
 	.remove = tpm_tis_spi_remove,

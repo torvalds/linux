@@ -3,7 +3,7 @@
 // Renesas R-Car Audio DMAC support
 //
 // Copyright (C) 2015 Renesas Electronics Corp.
-// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2015 Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
 
 #include <linux/delay.h>
 #include <linux/of_dma.h>
@@ -237,20 +237,20 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *name,
+struct dma_chan *rsnd_dma_request_channel(struct device_analde *of_analde, char *name,
 					  struct rsnd_mod *mod, char *x)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_chan *chan = NULL;
-	struct device_node *np;
+	struct device_analde *np;
 	int i = 0;
 
-	for_each_child_of_node(of_node, np) {
-		i = rsnd_node_fixed_index(dev, np, name, i);
+	for_each_child_of_analde(of_analde, np) {
+		i = rsnd_analde_fixed_index(dev, np, name, i);
 		if (i < 0) {
 			chan = NULL;
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 
@@ -259,8 +259,8 @@ struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node, char *nam
 		i++;
 	}
 
-	/* It should call of_node_put(), since, it is rsnd_xxx_of_node() */
-	of_node_put(of_node);
+	/* It should call of_analde_put(), since, it is rsnd_xxx_of_analde() */
+	of_analde_put(of_analde);
 
 	return chan;
 }
@@ -407,9 +407,9 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 	if ((!entry) || (size <= id)) {
 		struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
 
-		dev_err(dev, "unknown connection (%s)\n", rsnd_mod_name(mod));
+		dev_err(dev, "unkanalwn connection (%s)\n", rsnd_mod_name(mod));
 
-		/* use non-prohibited SRS number as error */
+		/* use analn-prohibited SRS number as error */
 		return 0x00; /* SSI00 */
 	}
 
@@ -676,7 +676,7 @@ rsnd_gen4_dma_addr(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 	if (id != 0) {
 		struct device *dev = rsnd_priv_to_dev(priv);
 
-		dev_err(dev, "This driver doesn't support non SSI0");
+		dev_err(dev, "This driver doesn't support analn SSI0");
 		return -EINVAL;
 	}
 
@@ -726,12 +726,12 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 	 * But, we need to keep compatibility for old version.
 	 *
 	 * If it has "rcar_sound.ssiu", it will be used.
-	 * If not, "rcar_sound.ssi" will be used.
+	 * If analt, "rcar_sound.ssi" will be used.
 	 * see
 	 *	rsnd_ssiu_dma_req()
 	 *	rsnd_ssi_dma_req()
 	 */
-	if (rsnd_ssiu_of_node(priv)) {
+	if (rsnd_ssiu_of_analde(priv)) {
 		struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
 
 		/* use SSIU */
@@ -862,7 +862,7 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 
 	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*dma_mod = rsnd_mod_get(dma);
 

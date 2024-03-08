@@ -23,7 +23,7 @@ Example:
 	ohci0: usb@fe1ffc00 {
 		compatible = "st,st-ohci-300x";
 		reg = <0xfe1ffc00 0x100>;
-		interrupts = <GIC_SPI 149 IRQ_TYPE_NONE>;
+		interrupts = <GIC_SPI 149 IRQ_TYPE_ANALNE>;
 		clocks = <&clk_s_a1_ls 0>,
 			 <&clockgen_b0 0>;
 		clock-names = "ic", "clk48";

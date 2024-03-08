@@ -10,7 +10,7 @@
  * and in part on the documentation and errata sheet
  *
  *
- * Note: The controller like many controllers has shared timings for
+ * Analte: The controller like many controllers has shared timings for
  * PIO and DMA. We thus flip to the DMA timings in dma_start and flip back
  * in the dma_stop function. Thus we actually don't need a set_dmamode
  * method as the PIO method is always called and will set the right PIO
@@ -58,8 +58,8 @@ static int sl82c105_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (ap->port_no && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_no]))
-		return -ENOENT;
+	if (ap->port_anal && !pci_test_config_bits(pdev, &sl82c105_enable_bits[ap->port_anal]))
+		return -EANALENT;
 	return ata_sff_prereset(link, deadline);
 }
 
@@ -82,7 +82,7 @@ static void sl82c105_configure_piomode(struct ata_port *ap, struct ata_device *a
 		0x50D, 0x407, 0x304, 0x242, 0x240
 	};
 	u16 dummy;
-	int timing = 0x44 + (8 * ap->port_no) + (4 * adev->devno);
+	int timing = 0x44 + (8 * ap->port_anal) + (4 * adev->devanal);
 
 	pci_write_config_word(pdev, timing, pio_timing[pio]);
 	/* Can we lose this oddity of the old driver */
@@ -119,7 +119,7 @@ static void sl82c105_configure_dmamode(struct ata_port *ap, struct ata_device *a
 		0x707, 0x201, 0x200
 	};
 	u16 dummy;
-	int timing = 0x44 + (8 * ap->port_no) + (4 * adev->devno);
+	int timing = 0x44 + (8 * ap->port_anal) + (4 * adev->devanal);
 	int dma = adev->dma_mode - XFER_MW_DMA_0;
 
 	pci_write_config_word(pdev, timing, dma_timing[dma]);
@@ -183,7 +183,7 @@ static void sl82c105_bmdma_start(struct ata_queued_cmd *qc)
  *	during DMA operation. In both cases we need to reset the engine.
  *
  *	We assume bmdma_stop is always called if bmdma_start as called. If
- *	not then we may need to wrap qc_issue.
+ *	analt then we may need to wrap qc_issue.
  */
 
 static void sl82c105_bmdma_stop(struct ata_queued_cmd *qc)
@@ -203,7 +203,7 @@ static void sl82c105_bmdma_stop(struct ata_queued_cmd *qc)
  *	sl82c105_qc_defer	-	implement serialization
  *	@qc: command
  *
- *	We must issue one command per host not per channel because
+ *	We must issue one command per host analt per channel because
  *	of the reset bug.
  *
  *	Q: is the scsi host lock sufficient ?
@@ -212,7 +212,7 @@ static void sl82c105_bmdma_stop(struct ata_queued_cmd *qc)
 static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_host *host = qc->ap->host;
-	struct ata_port *alt = host->ports[1 ^ qc->ap->port_no];
+	struct ata_port *alt = host->ports[1 ^ qc->ap->port_anal];
 	int rc;
 
 	/* First apply the usual rules */
@@ -220,7 +220,7 @@ static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 	if (rc != 0)
 		return rc;
 
-	/* Now apply serialization rules. Only allow a command if the
+	/* Analw apply serialization rules. Only allow a command if the
 	   other channel state machine is idle */
 	if (alt && alt->qc_active)
 		return	ATA_DEFER_PORT;
@@ -230,7 +230,7 @@ static int sl82c105_qc_defer(struct ata_queued_cmd *qc)
 static bool sl82c105_sff_irq_check(struct ata_port *ap)
 {
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
-	u32 val, mask		= ap->port_no ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
+	u32 val, mask		= ap->port_anal ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
 
 	pci_read_config_dword(pdev, 0x40, &val);
 
@@ -257,7 +257,7 @@ static struct ata_port_operations sl82c105_port_ops = {
  *	@pdev: PCI device for the ATA function
  *
  *	Locates the PCI bridge associated with the ATA function and
- *	providing it is a Winbond 553 reports the revision. If it cannot
+ *	providing it is a Winbond 553 reports the revision. If it cananalt
  *	find a revision or the right device it returns -1
  */
 
@@ -283,7 +283,7 @@ static int sl82c105_bridge_revision(struct pci_dev *pdev)
 		return -1;
 	}
 	/*
-	 * We need to find function 0's revision, not function 1
+	 * We need to find function 0's revision, analt function 1
 	 */
 	pci_dev_put(bridge);
 	return bridge->revision;
@@ -311,7 +311,7 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 		.pio_mask = ATA_PIO4,
 		.port_ops = &sl82c105_port_ops
 	};
-	/* for now use only the first port */
+	/* for analw use only the first port */
 	const struct ata_port_info *ppi[] = { &info_early,
 					       NULL };
 	int rev;
@@ -328,7 +328,7 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 			 "pata_sl82c105: Unable to find bridge, disabling DMA\n");
 	else if (rev <= 5)
 		dev_warn(&dev->dev,
-			 "pata_sl82c105: Early bridge revision, no DMA available\n");
+			 "pata_sl82c105: Early bridge revision, anal DMA available\n");
 	else
 		ppi[0] = &info_dma;
 

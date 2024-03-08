@@ -179,7 +179,7 @@
 /*
 &mmc2 {
 	vmmc-supply = <&vmmc2>;
-	ti,non-removable;
+	ti,analn-removable;
 	bus-width = <8>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
@@ -187,7 +187,7 @@
 */
 &mmc3 {
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	analn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	pinctrl-names = "default";

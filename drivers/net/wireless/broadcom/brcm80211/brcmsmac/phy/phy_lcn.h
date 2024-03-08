@@ -56,7 +56,7 @@ struct brcms_phy_lcnphy {
 
 	u16 lcnphy_target_tx_freq;
 	s8 lcnphy_tx_power_idx_override;
-	u16 lcnphy_noise_samples;
+	u16 lcnphy_analise_samples;
 
 	u32 lcnphy_papdRxGnIdx;
 	u32 lcnphy_papd_rxGnCtrl_init;

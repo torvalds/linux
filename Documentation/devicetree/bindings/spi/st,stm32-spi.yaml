@@ -9,7 +9,7 @@ title: STMicroelectronics STM32 SPI Controller
 description: |
   The STM32 SPI controller is used to communicate with external devices using
   the Serial Peripheral Interface. It supports full-duplex, half-duplex and
-  simplex synchronous serial communication with external devices. It supports
+  simplex synchroanalus serial communication with external devices. It supports
   from 4 to 32-bit data size.
 
 maintainers:

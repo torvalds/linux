@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include "lsdc_drv.h"

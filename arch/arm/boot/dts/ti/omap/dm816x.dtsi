@@ -38,8 +38,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc analde represents the soc top level view. It is used for IPs
+	 * that are analt memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -52,7 +52,7 @@
 	/*
 	 * XXX: Use a flat representation of the dm816x interconnect.
 	 * The real dm816x interconnect network is quite complex. Since
-	 * it will not bring real advantage to represent that in DT
+	 * it will analt bring real advantage to represent that in DT
 	 * for the moment, just use a fake OCP bus entry to represent
 	 * the whole bus hierarchy.
 	 */
@@ -439,7 +439,7 @@
 			reg-names = "rev", "sysc";
 			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			clocks = <&alwon_clkctrl DM816_TIMER1_CLKCTRL 0>;
@@ -465,7 +465,7 @@
 			reg-names = "rev", "sysc";
 			ti,sysc-mask = <SYSC_OMAP4_SOFTRESET>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			clocks = <&alwon_clkctrl DM816_TIMER2_CLKCTRL 0>;
@@ -552,7 +552,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		/* NOTE: USB needs a transceiver driver for phys to work */
+		/* ANALTE: USB needs a transceiver driver for phys to work */
 		usb: usb_otg_hs@47401000 {
 			compatible = "ti,am33xx-usb";
 			reg = <0x47401000 0x400000>;
@@ -672,8 +672,8 @@
 
 /* Preferred always-on timer for clocksource */
 &timer1_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&timer1_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;
@@ -682,8 +682,8 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
-	ti,no-reset-on-init;
-	ti,no-idle;
+	ti,anal-reset-on-init;
+	ti,anal-idle;
 	timer@0 {
 		assigned-clocks = <&timer2_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;

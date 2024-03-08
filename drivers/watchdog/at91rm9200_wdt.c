@@ -10,7 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -32,18 +32,18 @@
 #define WDT_MAX_TIME		256	/* seconds */
 
 static int wdt_time = WDT_DEFAULT_TIME;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool analwayout = WATCHDOG_ANALWAYOUT;
 static struct regmap *regmap_st;
 
 module_param(wdt_time, int, 0);
 MODULE_PARM_DESC(wdt_time, "Watchdog time in seconds. (default="
 				__MODULE_STRING(WDT_DEFAULT_TIME) ")");
 
-#ifdef CONFIG_WATCHDOG_NOWAYOUT
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+#ifdef CONFIG_WATCHDOG_ANALWAYOUT
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+		"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 #endif
 
 
@@ -51,7 +51,7 @@ static unsigned long at91wdt_busy;
 
 /* ......................................................................... */
 
-static int at91rm9200_restart(struct notifier_block *this,
+static int at91rm9200_restart(struct analtifier_block *this,
 					unsigned long mode, void *cmd)
 {
 	/*
@@ -64,11 +64,11 @@ static int at91rm9200_restart(struct notifier_block *this,
 	mdelay(2000);
 
 	pr_emerg("Unable to restart system\n");
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block at91rm9200_restart_nb = {
-	.notifier_call = at91rm9200_restart,
+static struct analtifier_block at91rm9200_restart_nb = {
+	.analtifier_call = at91rm9200_restart,
 	.priority = 192,
 };
 
@@ -103,24 +103,24 @@ static inline void at91_wdt_reload(void)
 /*
  * Watchdog device is opened, and watchdog starts running.
  */
-static int at91_wdt_open(struct inode *inode, struct file *file)
+static int at91_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &at91wdt_busy))
 		return -EBUSY;
 
 	at91_wdt_start();
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 /*
  * Close the watchdog device.
- * If CONFIG_WATCHDOG_NOWAYOUT is NOT defined then the watchdog is also
+ * If CONFIG_WATCHDOG_ANALWAYOUT is ANALT defined then the watchdog is also
  *  disabled.
  */
-static int at91_wdt_close(struct inode *inode, struct file *file)
+static int at91_wdt_close(struct ianalde *ianalde, struct file *file)
 {
 	/* Disable the watchdog when file is closed */
-	if (!nowayout)
+	if (!analwayout)
 		at91_wdt_stop();
 
 	clear_bit(0, &at91wdt_busy);
@@ -192,7 +192,7 @@ static long at91_wdt_ioctl(struct file *file,
 	case WDIOC_GETTIMEOUT:
 		return put_user(wdt_time, p);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -210,7 +210,7 @@ static ssize_t at91_wdt_write(struct file *file, const char *data,
 
 static const struct file_operations at91wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl	= at91_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= at91_wdt_open,
@@ -219,7 +219,7 @@ static const struct file_operations at91wdt_fops = {
 };
 
 static struct miscdevice at91wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.mianalr		= WATCHDOG_MIANALR,
 	.name		= "watchdog",
 	.fops		= &at91wdt_fops,
 };
@@ -236,13 +236,13 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent\n");
-		return -ENODEV;
+		dev_err(dev, "anal parent\n");
+		return -EANALDEV;
 	}
 
-	regmap_st = syscon_node_to_regmap(parent->of_node);
+	regmap_st = syscon_analde_to_regmap(parent->of_analde);
 	if (IS_ERR(regmap_st))
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = misc_register(&at91wdt_miscdev);
 	if (res)
@@ -253,7 +253,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 		dev_warn(dev, "failed to register restart handler\n");
 
 	pr_info("AT91 Watchdog Timer enabled (%d seconds%s)\n",
-		wdt_time, nowayout ? ", nowayout" : "");
+		wdt_time, analwayout ? ", analwayout" : "");
 	return 0;
 }
 
@@ -309,7 +309,7 @@ static struct platform_driver at91wdt_driver = {
 static int __init at91_wdt_init(void)
 {
 	/* Check that the heartbeat value is within range;
-	   if not reset to the default */
+	   if analt reset to the default */
 	if (at91_wdt_settimeout(wdt_time)) {
 		at91_wdt_settimeout(WDT_DEFAULT_TIME);
 		pr_info("wdt_time value must be 1 <= wdt_time <= 256, using %d\n",

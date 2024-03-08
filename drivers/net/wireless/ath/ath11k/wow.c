@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -53,12 +53,12 @@ int ath11k_wow_enable(struct ath11k_base *ab)
 			/* success, suspend complete received */
 			return 0;
 
-		ath11k_warn(ab, "htc suspend not complete, retrying (try %d)\n",
+		ath11k_warn(ab, "htc suspend analt complete, retrying (try %d)\n",
 			    i);
 		msleep(ATH11K_WOW_RETRY_WAIT_MS);
 	}
 
-	ath11k_warn(ab, "htc suspend not complete, failing after %d tries\n", i);
+	ath11k_warn(ab, "htc suspend analt complete, failing after %d tries\n", i);
 
 	return -ETIMEDOUT;
 }
@@ -239,65 +239,65 @@ static void ath11k_wow_convert_8023_to_80211(struct cfg80211_pkt_pattern *new,
 	}
 }
 
-static int ath11k_wmi_pno_check_and_convert(struct ath11k *ar, u32 vdev_id,
+static int ath11k_wmi_panal_check_and_convert(struct ath11k *ar, u32 vdev_id,
 					    struct cfg80211_sched_scan_request *nd_config,
-					    struct wmi_pno_scan_req *pno)
+					    struct wmi_panal_scan_req *panal)
 {
 	int i, j;
 	u8 ssid_len;
 
-	pno->enable = 1;
-	pno->vdev_id = vdev_id;
-	pno->uc_networks_count = nd_config->n_match_sets;
+	panal->enable = 1;
+	panal->vdev_id = vdev_id;
+	panal->uc_networks_count = nd_config->n_match_sets;
 
-	if (!pno->uc_networks_count ||
-	    pno->uc_networks_count > WMI_PNO_MAX_SUPP_NETWORKS)
+	if (!panal->uc_networks_count ||
+	    panal->uc_networks_count > WMI_PANAL_MAX_SUPP_NETWORKS)
 		return -EINVAL;
 
-	if (nd_config->n_channels > WMI_PNO_MAX_NETW_CHANNELS_EX)
+	if (nd_config->n_channels > WMI_PANAL_MAX_NETW_CHANNELS_EX)
 		return -EINVAL;
 
 	/* Filling per profile params */
-	for (i = 0; i < pno->uc_networks_count; i++) {
+	for (i = 0; i < panal->uc_networks_count; i++) {
 		ssid_len = nd_config->match_sets[i].ssid.ssid_len;
 
 		if (ssid_len == 0 || ssid_len > 32)
 			return -EINVAL;
 
-		pno->a_networks[i].ssid.ssid_len = ssid_len;
+		panal->a_networks[i].ssid.ssid_len = ssid_len;
 
-		memcpy(pno->a_networks[i].ssid.ssid,
+		memcpy(panal->a_networks[i].ssid.ssid,
 		       nd_config->match_sets[i].ssid.ssid,
 		       nd_config->match_sets[i].ssid.ssid_len);
-		pno->a_networks[i].authentication = 0;
-		pno->a_networks[i].encryption     = 0;
-		pno->a_networks[i].bcast_nw_type  = 0;
+		panal->a_networks[i].authentication = 0;
+		panal->a_networks[i].encryption     = 0;
+		panal->a_networks[i].bcast_nw_type  = 0;
 
 		/* Copying list of valid channel into request */
-		pno->a_networks[i].channel_count = nd_config->n_channels;
-		pno->a_networks[i].rssi_threshold = nd_config->match_sets[i].rssi_thold;
+		panal->a_networks[i].channel_count = nd_config->n_channels;
+		panal->a_networks[i].rssi_threshold = nd_config->match_sets[i].rssi_thold;
 
 		for (j = 0; j < nd_config->n_channels; j++) {
-			pno->a_networks[i].channels[j] =
+			panal->a_networks[i].channels[j] =
 					nd_config->channels[j]->center_freq;
 		}
 	}
 
-	/* set scan to passive if no SSIDs are specified in the request */
+	/* set scan to passive if anal SSIDs are specified in the request */
 	if (nd_config->n_ssids == 0)
-		pno->do_passive_scan = true;
+		panal->do_passive_scan = true;
 	else
-		pno->do_passive_scan = false;
+		panal->do_passive_scan = false;
 
 	for (i = 0; i < nd_config->n_ssids; i++) {
 		j = 0;
-		while (j < pno->uc_networks_count) {
-			if (pno->a_networks[j].ssid.ssid_len ==
+		while (j < panal->uc_networks_count) {
+			if (panal->a_networks[j].ssid.ssid_len ==
 				nd_config->ssids[i].ssid_len &&
-			(memcmp(pno->a_networks[j].ssid.ssid,
+			(memcmp(panal->a_networks[j].ssid.ssid,
 				nd_config->ssids[i].ssid,
-				pno->a_networks[j].ssid.ssid_len) == 0)) {
-				pno->a_networks[j].bcast_nw_type = BCAST_HIDDEN;
+				panal->a_networks[j].ssid.ssid_len) == 0)) {
+				panal->a_networks[j].bcast_nw_type = BCAST_HIDDEN;
 				break;
 			}
 			j++;
@@ -305,14 +305,14 @@ static int ath11k_wmi_pno_check_and_convert(struct ath11k *ar, u32 vdev_id,
 	}
 
 	if (nd_config->n_scan_plans == 2) {
-		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
-		pno->fast_scan_max_cycles = nd_config->scan_plans[0].iterations;
-		pno->slow_scan_period =
+		panal->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		panal->fast_scan_max_cycles = nd_config->scan_plans[0].iterations;
+		panal->slow_scan_period =
 			nd_config->scan_plans[1].interval * MSEC_PER_SEC;
 	} else if (nd_config->n_scan_plans == 1) {
-		pno->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
-		pno->fast_scan_max_cycles = 1;
-		pno->slow_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		panal->fast_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
+		panal->fast_scan_max_cycles = 1;
+		panal->slow_scan_period = nd_config->scan_plans[0].interval * MSEC_PER_SEC;
 	} else {
 		ath11k_warn(ar->ab, "Invalid number of scan plans %d !!",
 			    nd_config->n_scan_plans);
@@ -320,16 +320,16 @@ static int ath11k_wmi_pno_check_and_convert(struct ath11k *ar, u32 vdev_id,
 
 	if (nd_config->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
 		/* enable mac randomization */
-		pno->enable_pno_scan_randomization = 1;
-		memcpy(pno->mac_addr, nd_config->mac_addr, ETH_ALEN);
-		memcpy(pno->mac_addr_mask, nd_config->mac_addr_mask, ETH_ALEN);
+		panal->enable_panal_scan_randomization = 1;
+		memcpy(panal->mac_addr, nd_config->mac_addr, ETH_ALEN);
+		memcpy(panal->mac_addr_mask, nd_config->mac_addr_mask, ETH_ALEN);
 	}
 
-	pno->delay_start_time = nd_config->delay;
+	panal->delay_start_time = nd_config->delay;
 
-	/* Current FW does not support min-max range for dwell time */
-	pno->active_max_time = WMI_ACTIVE_MAX_CHANNEL_TIME;
-	pno->passive_max_time = WMI_PASSIVE_MAX_CHANNEL_TIME;
+	/* Current FW does analt support min-max range for dwell time */
+	panal->active_max_time = WMI_ACTIVE_MAX_CHANNEL_TIME;
+	panal->passive_max_time = WMI_PASSIVE_MAX_CHANNEL_TIME;
 
 	return 0;
 }
@@ -369,23 +369,23 @@ static int ath11k_vif_wow_set_wakeups(struct ath11k_vif *arvif,
 			__set_bit(WOW_MAGIC_PKT_RECVD_EVENT, &wow_mask);
 
 		if (wowlan->nd_config) {
-			struct wmi_pno_scan_req *pno;
+			struct wmi_panal_scan_req *panal;
 			int ret;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
-			if (!pno)
-				return -ENOMEM;
+			panal = kzalloc(sizeof(*panal), GFP_KERNEL);
+			if (!panal)
+				return -EANALMEM;
 
 			ar->nlo_enabled = true;
 
-			ret = ath11k_wmi_pno_check_and_convert(ar, arvif->vdev_id,
-							       wowlan->nd_config, pno);
+			ret = ath11k_wmi_panal_check_and_convert(ar, arvif->vdev_id,
+							       wowlan->nd_config, panal);
 			if (!ret) {
-				ath11k_wmi_wow_config_pno(ar, arvif->vdev_id, pno);
+				ath11k_wmi_wow_config_panal(ar, arvif->vdev_id, panal);
 				__set_bit(WOW_NLO_DETECTED_EVENT, &wow_mask);
 			}
 
-			kfree(pno);
+			kfree(panal);
 		}
 		break;
 	default:
@@ -488,16 +488,16 @@ static int ath11k_vif_wow_clean_nlo(struct ath11k_vif *arvif)
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
 		if (ar->nlo_enabled) {
-			struct wmi_pno_scan_req *pno;
+			struct wmi_panal_scan_req *panal;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
-			if (!pno)
-				return -ENOMEM;
+			panal = kzalloc(sizeof(*panal), GFP_KERNEL);
+			if (!panal)
+				return -EANALMEM;
 
-			pno->enable = 0;
+			panal->enable = 0;
 			ar->nlo_enabled = false;
-			ret = ath11k_wmi_wow_config_pno(ar, arvif->vdev_id, pno);
-			kfree(pno);
+			ret = ath11k_wmi_wow_config_panal(ar, arvif->vdev_id, panal);
+			kfree(panal);
 		}
 		break;
 	default:
@@ -534,8 +534,8 @@ static int ath11k_wow_set_hw_filter(struct ath11k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
-		bitmap = WMI_HW_DATA_FILTER_DROP_NON_ICMPV6_MC |
-			WMI_HW_DATA_FILTER_DROP_NON_ARP_BC;
+		bitmap = WMI_HW_DATA_FILTER_DROP_ANALN_ICMPV6_MC |
+			WMI_HW_DATA_FILTER_DROP_ANALN_ARP_BC;
 		ret = ath11k_wmi_hw_data_filter_cmd(ar, arvif->vdev_id,
 						    bitmap,
 						    true);
@@ -839,7 +839,7 @@ exit:
 		case ATH11K_STATE_RESTARTED:
 		case ATH11K_STATE_WEDGED:
 		case ATH11K_STATE_FTM:
-			ath11k_warn(ar->ab, "encountered unexpected device state %d on resume, cannot recover\n",
+			ath11k_warn(ar->ab, "encountered unexpected device state %d on resume, cananalt recover\n",
 				    ar->state);
 			ret = -EIO;
 			break;
@@ -865,7 +865,7 @@ int ath11k_wow_init(struct ath11k *ar)
 
 	if (test_bit(WMI_TLV_SERVICE_NLO, ar->wmi->wmi_ab->svc_map)) {
 		ar->wow.wowlan_support.flags |= WIPHY_WOWLAN_NET_DETECT;
-		ar->wow.wowlan_support.max_nd_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
+		ar->wow.wowlan_support.max_nd_match_sets = WMI_PANAL_MAX_SUPP_NETWORKS;
 	}
 
 	ar->wow.max_num_patterns = ATH11K_WOW_PATTERNS;

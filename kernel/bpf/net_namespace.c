@@ -20,7 +20,7 @@ struct bpf_netns_link {
 	 * with netns_bpf_mutex held.
 	 */
 	struct net *net;
-	struct list_head node; /* node in list of links attached to net */
+	struct list_head analde; /* analde in list of links attached to net */
 };
 
 /* Protects updates to netns_bpf */
@@ -69,12 +69,12 @@ static int link_index(struct net *net, enum netns_bpf_attach_type type,
 	struct bpf_netns_link *pos;
 	int i = 0;
 
-	list_for_each_entry(pos, &net->bpf.links[type], node) {
+	list_for_each_entry(pos, &net->bpf.links[type], analde) {
 		if (pos == link)
 			return i;
 		i++;
 	}
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int link_count(struct net *net, enum netns_bpf_attach_type type)
@@ -93,7 +93,7 @@ static void fill_prog_array(struct net *net, enum netns_bpf_attach_type type,
 	struct bpf_netns_link *pos;
 	unsigned int i = 0;
 
-	list_for_each_entry(pos, &net->bpf.links[type], node) {
+	list_for_each_entry(pos, &net->bpf.links[type], analde) {
 		prog_array->items[i].prog = pos->link.prog;
 		i++;
 	}
@@ -110,8 +110,8 @@ static void bpf_netns_link_release(struct bpf_link *link)
 
 	mutex_lock(&netns_bpf_mutex);
 
-	/* We can race with cleanup_net, but if we see a non-NULL
-	 * struct net pointer, pre_exit has not run yet and wait for
+	/* We can race with cleanup_net, but if we see a analn-NULL
+	 * struct net pointer, pre_exit has analt run yet and wait for
 	 * netns_bpf_mutex.
 	 */
 	net = net_link->net;
@@ -123,7 +123,7 @@ static void bpf_netns_link_release(struct bpf_link *link)
 
 	/* Remember link position in case of safe delete */
 	idx = link_index(net, type, net_link);
-	list_del(&net_link->node);
+	list_del(&net_link->analde);
 
 	cnt = link_count(net, type);
 	if (!cnt) {
@@ -182,7 +182,7 @@ static int bpf_netns_link_update_prog(struct bpf_link *link,
 	net = net_link->net;
 	if (!net || !check_net(net)) {
 		/* Link auto-detached or netns dying */
-		ret = -ENOLINK;
+		ret = -EANALLINK;
 		goto out_unlock;
 	}
 
@@ -215,7 +215,7 @@ static int bpf_netns_link_fill_info(const struct bpf_link *link,
 		inum = net->ns.inum;
 	mutex_unlock(&netns_bpf_mutex);
 
-	info->netns.netns_ino = inum;
+	info->netns.netns_ianal = inum;
 	info->netns.attach_type = net_link->type;
 	return 0;
 }
@@ -227,9 +227,9 @@ static void bpf_netns_link_show_fdinfo(const struct bpf_link *link,
 
 	bpf_netns_link_fill_info(link, &info);
 	seq_printf(seq,
-		   "netns_ino:\t%u\n"
+		   "netns_ianal:\t%u\n"
 		   "attach_type:\t%u\n",
-		   info.netns.netns_ino,
+		   info.netns.netns_ianal,
 		   info.netns.attach_type);
 }
 
@@ -312,7 +312,7 @@ int netns_bpf_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	net = current->nsproxy->net_ns;
 	mutex_lock(&netns_bpf_mutex);
 
-	/* Attaching prog directly is not compatible with links */
+	/* Attaching prog directly is analt compatible with links */
 	if (!list_empty(&net->bpf.links[type])) {
 		ret = -EEXIST;
 		goto out_unlock;
@@ -331,7 +331,7 @@ int netns_bpf_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	attached = net->bpf.progs[type];
 	if (attached == prog) {
-		/* The same program cannot be attached twice */
+		/* The same program cananalt be attached twice */
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -343,7 +343,7 @@ int netns_bpf_prog_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 	} else {
 		run_array = bpf_prog_array_alloc(1, GFP_KERNEL);
 		if (!run_array) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_unlock;
 		}
 		run_array->items[0].prog = prog;
@@ -367,13 +367,13 @@ static int __netns_bpf_prog_detach(struct net *net,
 {
 	struct bpf_prog *attached;
 
-	/* Progs attached via links cannot be detached */
+	/* Progs attached via links cananalt be detached */
 	if (!list_empty(&net->bpf.links[type]))
 		return -EINVAL;
 
 	attached = net->bpf.progs[type];
 	if (!attached || attached != old)
-		return -ENOENT;
+		return -EANALENT;
 	netns_bpf_run_array_detach(net, type);
 	net->bpf.progs[type] = NULL;
 	bpf_prog_put(attached);
@@ -433,7 +433,7 @@ static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 		err = -E2BIG;
 		goto out_unlock;
 	}
-	/* Links are not compatible with attaching prog directly */
+	/* Links are analt compatible with attaching prog directly */
 	if (net->bpf.progs[type]) {
 		err = -EEXIST;
 		goto out_unlock;
@@ -444,7 +444,7 @@ static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 		err = flow_dissector_bpf_prog_attach_check(net, link->prog);
 		break;
 	case NETNS_BPF_SK_LOOKUP:
-		err = 0; /* nothing to check */
+		err = 0; /* analthing to check */
 		break;
 	default:
 		err = -EINVAL;
@@ -455,11 +455,11 @@ static int netns_bpf_link_attach(struct net *net, struct bpf_link *link,
 
 	run_array = bpf_prog_array_alloc(cnt + 1, GFP_KERNEL);
 	if (!run_array) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unlock;
 	}
 
-	list_add_tail(&net_link->node, &net->bpf.links[type]);
+	list_add_tail(&net_link->analde, &net->bpf.links[type]);
 
 	fill_prog_array(net, type, run_array);
 	run_array = rcu_replace_pointer(net->bpf.run_array[type], run_array,
@@ -497,7 +497,7 @@ int netns_bpf_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 
 	net_link = kzalloc(sizeof(*net_link), GFP_USER);
 	if (!net_link) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_put_net;
 	}
 	bpf_link_init(&net_link->link, BPF_LINK_TYPE_NETNS,
@@ -544,7 +544,7 @@ static void __net_exit netns_bpf_pernet_pre_exit(struct net *net)
 	mutex_lock(&netns_bpf_mutex);
 	for (type = 0; type < MAX_NETNS_BPF_ATTACH_TYPE; type++) {
 		netns_bpf_run_array_detach(net, type);
-		list_for_each_entry(net_link, &net->bpf.links[type], node) {
+		list_for_each_entry(net_link, &net->bpf.links[type], analde) {
 			net_link->net = NULL; /* auto-detach link */
 			netns_bpf_attach_type_unneed(type);
 		}

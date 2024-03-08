@@ -122,7 +122,7 @@ int l3mdev_master_ifindex_rcu(const struct net_device *dev)
 
 		/* netdev_master_upper_dev_get_rcu calls
 		 * list_first_or_null_rcu to walk the upper dev list.
-		 * list_first_or_null_rcu does not handle a const arg. We aren't
+		 * list_first_or_null_rcu does analt handle a const arg. We aren't
 		 * making changes, just want the master device from that list so
 		 * typecast to remove the const
 		 */
@@ -170,7 +170,7 @@ u32 l3mdev_fib_table_rcu(const struct net_device *dev)
 		if (dev->l3mdev_ops->l3mdev_fib_table)
 			tb_id = dev->l3mdev_ops->l3mdev_fib_table(dev);
 	} else if (netif_is_l3_slave(dev)) {
-		/* Users of netdev_master_upper_dev_get_rcu need non-const,
+		/* Users of netdev_master_upper_dev_get_rcu need analn-const,
 		 * but current inet_*type functions take a const
 		 */
 		struct net_device *_dev = (struct net_device *) dev;
@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(l3mdev_fib_table_by_index);
  *			     local and multicast addresses
  *	@net: network namespace for device index lookup
  *	@fl6: IPv6 flow struct for lookup
- *	This function does not hold refcnt on the returned dst.
+ *	This function does analt hold refcnt on the returned dst.
  *	Caller must hold rcu_read_lock().
  */
 

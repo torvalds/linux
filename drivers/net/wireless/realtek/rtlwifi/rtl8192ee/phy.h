@@ -21,7 +21,7 @@
 
 #define MAX_DOZE_WAITING_TIMES_9x		64
 
-#define RT_CANNOT_IO(hw)			false
+#define RT_CANANALT_IO(hw)			false
 #define HIGHPOWER_RADIOA_ARRAYLEN		22
 
 #define IQK_ADDA_REG_NUM			16
@@ -86,7 +86,7 @@ enum baseband_config_type {
 };
 
 enum ant_div_type {
-	NO_ANTDIV = 0xFF,
+	ANAL_ANTDIV = 0xFF,
 	CG_TRX_HW_ANTDIV = 0x01,
 	CGCS_RX_HW_ANTDIV = 0x02,
 	FIXED_HW_ANTDIV = 0x03,

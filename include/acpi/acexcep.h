@@ -52,7 +52,7 @@ struct acpi_exception_info {
 #endif
 
 /*
- * Success is always zero, failure is non-zero
+ * Success is always zero, failure is analn-zero
  */
 #define ACPI_SUCCESS(a)                 (!(a))
 #define ACPI_FAILURE(a)                 (a)
@@ -69,11 +69,11 @@ struct acpi_exception_info {
  * Environmental exceptions
  */
 #define AE_ERROR                        EXCEP_ENV (0x0001)
-#define AE_NO_ACPI_TABLES               EXCEP_ENV (0x0002)
-#define AE_NO_NAMESPACE                 EXCEP_ENV (0x0003)
-#define AE_NO_MEMORY                    EXCEP_ENV (0x0004)
-#define AE_NOT_FOUND                    EXCEP_ENV (0x0005)
-#define AE_NOT_EXIST                    EXCEP_ENV (0x0006)
+#define AE_ANAL_ACPI_TABLES               EXCEP_ENV (0x0002)
+#define AE_ANAL_NAMESPACE                 EXCEP_ENV (0x0003)
+#define AE_ANAL_MEMORY                    EXCEP_ENV (0x0004)
+#define AE_ANALT_FOUND                    EXCEP_ENV (0x0005)
+#define AE_ANALT_EXIST                    EXCEP_ENV (0x0006)
 #define AE_ALREADY_EXISTS               EXCEP_ENV (0x0007)
 #define AE_TYPE                         EXCEP_ENV (0x0008)
 #define AE_NULL_OBJECT                  EXCEP_ENV (0x0009)
@@ -81,21 +81,21 @@ struct acpi_exception_info {
 #define AE_BUFFER_OVERFLOW              EXCEP_ENV (0x000B)
 #define AE_STACK_OVERFLOW               EXCEP_ENV (0x000C)
 #define AE_STACK_UNDERFLOW              EXCEP_ENV (0x000D)
-#define AE_NOT_IMPLEMENTED              EXCEP_ENV (0x000E)
+#define AE_ANALT_IMPLEMENTED              EXCEP_ENV (0x000E)
 #define AE_SUPPORT                      EXCEP_ENV (0x000F)
 #define AE_LIMIT                        EXCEP_ENV (0x0010)
 #define AE_TIME                         EXCEP_ENV (0x0011)
 #define AE_ACQUIRE_DEADLOCK             EXCEP_ENV (0x0012)
 #define AE_RELEASE_DEADLOCK             EXCEP_ENV (0x0013)
-#define AE_NOT_ACQUIRED                 EXCEP_ENV (0x0014)
+#define AE_ANALT_ACQUIRED                 EXCEP_ENV (0x0014)
 #define AE_ALREADY_ACQUIRED             EXCEP_ENV (0x0015)
-#define AE_NO_HARDWARE_RESPONSE         EXCEP_ENV (0x0016)
-#define AE_NO_GLOBAL_LOCK               EXCEP_ENV (0x0017)
+#define AE_ANAL_HARDWARE_RESPONSE         EXCEP_ENV (0x0016)
+#define AE_ANAL_GLOBAL_LOCK               EXCEP_ENV (0x0017)
 #define AE_ABORT_METHOD                 EXCEP_ENV (0x0018)
 #define AE_SAME_HANDLER                 EXCEP_ENV (0x0019)
-#define AE_NO_HANDLER                   EXCEP_ENV (0x001A)
+#define AE_ANAL_HANDLER                   EXCEP_ENV (0x001A)
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
-#define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
+#define AE_ANALT_CONFIGURED               EXCEP_ENV (0x001C)
 #define AE_ACCESS                       EXCEP_ENV (0x001D)
 #define AE_IO_ERROR                     EXCEP_ENV (0x001E)
 #define AE_NUMERIC_OVERFLOW             EXCEP_ENV (0x001F)
@@ -137,7 +137,7 @@ struct acpi_exception_info {
  * the actual AML byte stream
  */
 #define AE_AML_BAD_OPCODE               EXCEP_AML (0x0001)
-#define AE_AML_NO_OPERAND               EXCEP_AML (0x0002)
+#define AE_AML_ANAL_OPERAND               EXCEP_AML (0x0002)
 #define AE_AML_OPERAND_TYPE             EXCEP_AML (0x0003)
 #define AE_AML_OPERAND_VALUE            EXCEP_AML (0x0004)
 #define AE_AML_UNINITIALIZED_LOCAL      EXCEP_AML (0x0005)
@@ -149,27 +149,27 @@ struct acpi_exception_info {
 #define AE_AML_PACKAGE_LIMIT            EXCEP_AML (0x000B)
 #define AE_AML_DIVIDE_BY_ZERO           EXCEP_AML (0x000C)
 #define AE_AML_BAD_NAME                 EXCEP_AML (0x000D)
-#define AE_AML_NAME_NOT_FOUND           EXCEP_AML (0x000E)
+#define AE_AML_NAME_ANALT_FOUND           EXCEP_AML (0x000E)
 #define AE_AML_INTERNAL                 EXCEP_AML (0x000F)
 #define AE_AML_INVALID_SPACE_ID         EXCEP_AML (0x0010)
 #define AE_AML_STRING_LIMIT             EXCEP_AML (0x0011)
-#define AE_AML_NO_RETURN_VALUE          EXCEP_AML (0x0012)
+#define AE_AML_ANAL_RETURN_VALUE          EXCEP_AML (0x0012)
 #define AE_AML_METHOD_LIMIT             EXCEP_AML (0x0013)
-#define AE_AML_NOT_OWNER                EXCEP_AML (0x0014)
+#define AE_AML_ANALT_OWNER                EXCEP_AML (0x0014)
 #define AE_AML_MUTEX_ORDER              EXCEP_AML (0x0015)
-#define AE_AML_MUTEX_NOT_ACQUIRED       EXCEP_AML (0x0016)
+#define AE_AML_MUTEX_ANALT_ACQUIRED       EXCEP_AML (0x0016)
 #define AE_AML_INVALID_RESOURCE_TYPE    EXCEP_AML (0x0017)
 #define AE_AML_INVALID_INDEX            EXCEP_AML (0x0018)
 #define AE_AML_REGISTER_LIMIT           EXCEP_AML (0x0019)
-#define AE_AML_NO_WHILE                 EXCEP_AML (0x001A)
+#define AE_AML_ANAL_WHILE                 EXCEP_AML (0x001A)
 #define AE_AML_ALIGNMENT                EXCEP_AML (0x001B)
-#define AE_AML_NO_RESOURCE_END_TAG      EXCEP_AML (0x001C)
+#define AE_AML_ANAL_RESOURCE_END_TAG      EXCEP_AML (0x001C)
 #define AE_AML_BAD_RESOURCE_VALUE       EXCEP_AML (0x001D)
 #define AE_AML_CIRCULAR_REFERENCE       EXCEP_AML (0x001E)
 #define AE_AML_BAD_RESOURCE_LENGTH      EXCEP_AML (0x001F)
 #define AE_AML_ILLEGAL_ADDRESS          EXCEP_AML (0x0020)
 #define AE_AML_LOOP_TIMEOUT             EXCEP_AML (0x0021)
-#define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
+#define AE_AML_UNINITIALIZED_ANALDE       EXCEP_AML (0x0022)
 #define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
 #define AE_AML_PROTOCOL                 EXCEP_AML (0x0024)
 #define AE_AML_BUFFER_LENGTH            EXCEP_AML (0x0025)
@@ -203,44 +203,44 @@ struct acpi_exception_info {
  * These strings must match the corresponding defines exactly
  */
 static const struct acpi_exception_info acpi_gbl_exception_names_env[] = {
-	EXCEP_TXT("AE_OK", "No error"),
+	EXCEP_TXT("AE_OK", "Anal error"),
 	EXCEP_TXT("AE_ERROR", "Unspecified error"),
-	EXCEP_TXT("AE_NO_ACPI_TABLES", "ACPI tables could not be found"),
-	EXCEP_TXT("AE_NO_NAMESPACE", "A namespace has not been loaded"),
-	EXCEP_TXT("AE_NO_MEMORY", "Insufficient dynamic memory"),
-	EXCEP_TXT("AE_NOT_FOUND", "A requested entity is not found"),
-	EXCEP_TXT("AE_NOT_EXIST", "A required entity does not exist"),
+	EXCEP_TXT("AE_ANAL_ACPI_TABLES", "ACPI tables could analt be found"),
+	EXCEP_TXT("AE_ANAL_NAMESPACE", "A namespace has analt been loaded"),
+	EXCEP_TXT("AE_ANAL_MEMORY", "Insufficient dynamic memory"),
+	EXCEP_TXT("AE_ANALT_FOUND", "A requested entity is analt found"),
+	EXCEP_TXT("AE_ANALT_EXIST", "A required entity does analt exist"),
 	EXCEP_TXT("AE_ALREADY_EXISTS", "An entity already exists"),
 	EXCEP_TXT("AE_TYPE", "The object type is incorrect"),
 	EXCEP_TXT("AE_NULL_OBJECT", "A required object was missing"),
-	EXCEP_TXT("AE_NULL_ENTRY", "The requested object does not exist"),
+	EXCEP_TXT("AE_NULL_ENTRY", "The requested object does analt exist"),
 	EXCEP_TXT("AE_BUFFER_OVERFLOW", "The buffer provided is too small"),
 	EXCEP_TXT("AE_STACK_OVERFLOW", "An internal stack overflowed"),
 	EXCEP_TXT("AE_STACK_UNDERFLOW", "An internal stack underflowed"),
-	EXCEP_TXT("AE_NOT_IMPLEMENTED", "The feature is not implemented"),
-	EXCEP_TXT("AE_SUPPORT", "The feature is not supported"),
+	EXCEP_TXT("AE_ANALT_IMPLEMENTED", "The feature is analt implemented"),
+	EXCEP_TXT("AE_SUPPORT", "The feature is analt supported"),
 	EXCEP_TXT("AE_LIMIT", "A predefined limit was exceeded"),
 	EXCEP_TXT("AE_TIME", "A time limit or timeout expired"),
 	EXCEP_TXT("AE_ACQUIRE_DEADLOCK",
 		  "Internal error, attempt was made to acquire a mutex in improper order"),
 	EXCEP_TXT("AE_RELEASE_DEADLOCK",
 		  "Internal error, attempt was made to release a mutex in improper order"),
-	EXCEP_TXT("AE_NOT_ACQUIRED",
+	EXCEP_TXT("AE_ANALT_ACQUIRED",
 		  "An attempt to release a mutex or Global Lock without a previous acquire"),
 	EXCEP_TXT("AE_ALREADY_ACQUIRED",
 		  "Internal error, attempt was made to acquire a mutex twice"),
-	EXCEP_TXT("AE_NO_HARDWARE_RESPONSE",
-		  "Hardware did not respond after an I/O operation"),
-	EXCEP_TXT("AE_NO_GLOBAL_LOCK", "There is no FACS Global Lock"),
+	EXCEP_TXT("AE_ANAL_HARDWARE_RESPONSE",
+		  "Hardware did analt respond after an I/O operation"),
+	EXCEP_TXT("AE_ANAL_GLOBAL_LOCK", "There is anal FACS Global Lock"),
 	EXCEP_TXT("AE_ABORT_METHOD", "A control method was aborted"),
 	EXCEP_TXT("AE_SAME_HANDLER",
 		  "Attempt was made to install the same handler that is already installed"),
-	EXCEP_TXT("AE_NO_HANDLER",
-		  "A handler for the operation is not installed"),
+	EXCEP_TXT("AE_ANAL_HANDLER",
+		  "A handler for the operation is analt installed"),
 	EXCEP_TXT("AE_OWNER_ID_LIMIT",
-		  "There are no more Owner IDs available for ACPI tables or control methods"),
-	EXCEP_TXT("AE_NOT_CONFIGURED",
-		  "The interface is not part of the current subsystem configuration"),
+		  "There are anal more Owner IDs available for ACPI tables or control methods"),
+	EXCEP_TXT("AE_ANALT_CONFIGURED",
+		  "The interface is analt part of the current subsystem configuration"),
 	EXCEP_TXT("AE_ACCESS", "Permission denied for the requested operation"),
 	EXCEP_TXT("AE_IO_ERROR", "An I/O error occurred"),
 	EXCEP_TXT("AE_NUMERIC_OVERFLOW",
@@ -277,7 +277,7 @@ static const struct acpi_exception_info acpi_gbl_exception_names_tbl[] = {
 	EXCEP_TXT(NULL, NULL),
 	EXCEP_TXT("AE_BAD_SIGNATURE", "An ACPI table has an invalid signature"),
 	EXCEP_TXT("AE_BAD_HEADER", "Invalid field in an ACPI table header"),
-	EXCEP_TXT("AE_BAD_CHECKSUM", "An ACPI table checksum is not correct"),
+	EXCEP_TXT("AE_BAD_CHECKSUM", "An ACPI table checksum is analt correct"),
 	EXCEP_TXT("AE_BAD_VALUE", "An invalid value was found in a table"),
 	EXCEP_TXT("AE_INVALID_TABLE_LENGTH",
 		  "The FADT or FACS has improper length")
@@ -286,7 +286,7 @@ static const struct acpi_exception_info acpi_gbl_exception_names_tbl[] = {
 static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 	EXCEP_TXT(NULL, NULL),
 	EXCEP_TXT("AE_AML_BAD_OPCODE", "Invalid AML opcode encountered"),
-	EXCEP_TXT("AE_AML_NO_OPERAND", "A required operand is missing"),
+	EXCEP_TXT("AE_AML_ANAL_OPERAND", "A required operand is missing"),
 	EXCEP_TXT("AE_AML_OPERAND_TYPE",
 		  "An operand of an incorrect type was encountered"),
 	EXCEP_TXT("AE_AML_OPERAND_VALUE",
@@ -309,34 +309,34 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 		  "During execution of AML Divide operator"),
 	EXCEP_TXT("AE_AML_BAD_NAME",
 		  "An ACPI name contains invalid character(s)"),
-	EXCEP_TXT("AE_AML_NAME_NOT_FOUND",
-		  "Could not resolve a named reference"),
+	EXCEP_TXT("AE_AML_NAME_ANALT_FOUND",
+		  "Could analt resolve a named reference"),
 	EXCEP_TXT("AE_AML_INTERNAL",
 		  "An internal error within the interpreter"),
 	EXCEP_TXT("AE_AML_INVALID_SPACE_ID",
 		  "An Operation Region SpaceID is invalid"),
 	EXCEP_TXT("AE_AML_STRING_LIMIT",
 		  "String is longer than 200 characters"),
-	EXCEP_TXT("AE_AML_NO_RETURN_VALUE",
-		  "A method did not return a required value"),
+	EXCEP_TXT("AE_AML_ANAL_RETURN_VALUE",
+		  "A method did analt return a required value"),
 	EXCEP_TXT("AE_AML_METHOD_LIMIT",
 		  "A control method reached the maximum reentrancy limit of 255"),
-	EXCEP_TXT("AE_AML_NOT_OWNER",
-		  "A thread tried to release a mutex that it does not own"),
+	EXCEP_TXT("AE_AML_ANALT_OWNER",
+		  "A thread tried to release a mutex that it does analt own"),
 	EXCEP_TXT("AE_AML_MUTEX_ORDER", "Mutex SyncLevel release mismatch"),
-	EXCEP_TXT("AE_AML_MUTEX_NOT_ACQUIRED",
-		  "Attempt to release a mutex that was not previously acquired"),
+	EXCEP_TXT("AE_AML_MUTEX_ANALT_ACQUIRED",
+		  "Attempt to release a mutex that was analt previously acquired"),
 	EXCEP_TXT("AE_AML_INVALID_RESOURCE_TYPE",
 		  "Invalid resource type in resource list"),
 	EXCEP_TXT("AE_AML_INVALID_INDEX",
 		  "Invalid Argx or Localx (x too large)"),
 	EXCEP_TXT("AE_AML_REGISTER_LIMIT",
 		  "Bank value or Index value beyond range of register"),
-	EXCEP_TXT("AE_AML_NO_WHILE", "Break or Continue without a While"),
+	EXCEP_TXT("AE_AML_ANAL_WHILE", "Break or Continue without a While"),
 	EXCEP_TXT("AE_AML_ALIGNMENT",
-		  "Non-aligned memory transfer on platform that does not support this"),
-	EXCEP_TXT("AE_AML_NO_RESOURCE_END_TAG",
-		  "No End Tag in a resource list"),
+		  "Analn-aligned memory transfer on platform that does analt support this"),
+	EXCEP_TXT("AE_AML_ANAL_RESOURCE_END_TAG",
+		  "Anal End Tag in a resource list"),
 	EXCEP_TXT("AE_AML_BAD_RESOURCE_VALUE",
 		  "Invalid value of a resource element"),
 	EXCEP_TXT("AE_AML_CIRCULAR_REFERENCE",
@@ -347,8 +347,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 		  "A memory, I/O, or PCI configuration address is invalid"),
 	EXCEP_TXT("AE_AML_LOOP_TIMEOUT",
 		  "An AML While loop exceeded the maximum execution time"),
-	EXCEP_TXT("AE_AML_UNINITIALIZED_NODE",
-		  "A namespace node is uninitialized or unresolved"),
+	EXCEP_TXT("AE_AML_UNINITIALIZED_ANALDE",
+		  "A namespace analde is uninitialized or unresolved"),
 	EXCEP_TXT("AE_AML_TARGET_TYPE",
 		  "A target operand of an incorrect type was encountered"),
 	EXCEP_TXT("AE_AML_PROTOCOL", "Violation of a fixed ACPI protocol"),
@@ -359,7 +359,7 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {
 	EXCEP_TXT(NULL, NULL),
 	EXCEP_TXT("AE_CTRL_RETURN_VALUE", "A Method returned a value"),
-	EXCEP_TXT("AE_CTRL_PENDING", "Method is calling another method"),
+	EXCEP_TXT("AE_CTRL_PENDING", "Method is calling aanalther method"),
 	EXCEP_TXT("AE_CTRL_TERMINATE", "Terminate the executing method"),
 	EXCEP_TXT("AE_CTRL_TRUE", "An If or While predicate result"),
 	EXCEP_TXT("AE_CTRL_FALSE", "An If or While predicate result"),

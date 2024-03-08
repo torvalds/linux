@@ -64,7 +64,7 @@ enum {
 	      and SPDIF
 	   1: HID_OR0-3 are used as generic HID registers
 	   2: Values written to HID_OR0-3 are also mapped to MCU_CTRL,
-	      EEPROM_DATA0-1, EEPROM_CTRL (see Note)
+	      EEPROM_DATA0-1, EEPROM_CTRL (see Analte)
 	   3: Reserved
 	 */
 	HID_OR_GPO_BUZ_SPDIF   = 0 << 6,
@@ -73,7 +73,7 @@ enum {
 
 	BUZZER_ON = 1 << 5,
 
-	/* up to 256 normal keys, up to 15 special key combinations */
+	/* up to 256 analrmal keys, up to 15 special key combinations */
 	KEYMAP_SIZE = 256 + 15,
 };
 
@@ -551,7 +551,7 @@ static int cm109_input_open(struct input_dev *idev)
 
 	error = usb_autopm_get_interface(dev->intf);
 	if (error < 0) {
-		dev_err(&idev->dev, "%s - cannot autoresume, result %d\n",
+		dev_err(&idev->dev, "%s - cananalt autoresume, result %d\n",
 			__func__, error);
 		return error;
 	}
@@ -559,7 +559,7 @@ static int cm109_input_open(struct input_dev *idev)
 	mutex_lock(&dev->pm_mutex);
 
 	dev->buzzer_state = 0;
-	dev->key_code = -1;	/* no keys pressed */
+	dev->key_code = -1;	/* anal keys pressed */
 	dev->keybit = 0xf;
 
 	/* issue INIT */
@@ -693,21 +693,21 @@ static int cm109_usb_probe(struct usb_interface *intf,
 	struct cm109_dev *dev;
 	struct input_dev *input_dev = NULL;
 	int ret, pipe, i;
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 
 	interface = intf->cur_altsetting;
 
 	if (interface->desc.bNumEndpoints < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	endpoint = &interface->endpoint[0].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint))
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&dev->ctl_submit_lock);
 	mutex_init(&dev->pm_mutex);
@@ -755,7 +755,7 @@ static int cm109_usb_probe(struct usb_interface *intf,
 			 USB_PKT_LEN,
 			 cm109_urb_irq_callback, dev, endpoint->bInterval);
 	dev->urb_irq->transfer_dma = dev->irq_dma;
-	dev->urb_irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->urb_irq->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	dev->urb_irq->dev = udev;
 
 	/* initialise ctl urb */
@@ -770,7 +770,7 @@ static int cm109_usb_probe(struct usb_interface *intf,
 			     (void *)dev->ctl_req, dev->ctl_data, USB_PKT_LEN,
 			     cm109_urb_ctl_callback, dev);
 	dev->urb_ctl->transfer_dma = dev->ctl_dma;
-	dev->urb_ctl->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	dev->urb_ctl->transfer_flags |= URB_ANAL_TRANSFER_DMA_MAP;
 	dev->urb_ctl->dev = udev;
 
 	/* find out the physical bus location */

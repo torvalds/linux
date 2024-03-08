@@ -14,24 +14,24 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      analtice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright analtice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. analr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -246,7 +246,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			ep->re_id->device->name, sap);
 		fallthrough;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
-		ep->re_connect_status = -ENODEV;
+		ep->re_connect_status = -EANALDEV;
 		goto disconnected;
 	case RDMA_CM_EVENT_ESTABLISHED:
 		rpcrdma_ep_get(ep);
@@ -256,7 +256,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		wake_up_all(&ep->re_connect_wait);
 		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
-		ep->re_connect_status = -ENOTCONN;
+		ep->re_connect_status = -EANALTCONN;
 		goto wake_connect_worker;
 	case RDMA_CM_EVENT_UNREACHABLE:
 		ep->re_connect_status = -ENETUNREACH;
@@ -264,7 +264,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_REJECTED:
 		ep->re_connect_status = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
-			ep->re_connect_status = -ENOTCONN;
+			ep->re_connect_status = -EANALTCONN;
 wake_connect_worker:
 		wake_up_all(&ep->re_connect_wait);
 		return 0;
@@ -350,7 +350,7 @@ static void rpcrdma_ep_destroy(struct kref *kref)
 	module_put(THIS_MODULE);
 }
 
-static noinline void rpcrdma_ep_get(struct rpcrdma_ep *ep)
+static analinline void rpcrdma_ep_get(struct rpcrdma_ep *ep)
 {
 	kref_get(&ep->re_kref);
 }
@@ -359,7 +359,7 @@ static noinline void rpcrdma_ep_get(struct rpcrdma_ep *ep)
  *     %0 if @ep still has a positive kref count, or
  *     %1 if @ep was destroyed successfully.
  */
-static noinline int rpcrdma_ep_put(struct rpcrdma_ep *ep)
+static analinline int rpcrdma_ep_put(struct rpcrdma_ep *ep)
 {
 	return kref_put(&ep->re_kref, rpcrdma_ep_destroy);
 }
@@ -374,7 +374,7 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 
 	ep = kzalloc(sizeof(*ep), XPRTRDMA_GFP_FLAGS);
 	if (!ep)
-		return -ENOTCONN;
+		return -EANALTCONN;
 	ep->re_xprt = &r_xprt->rx_xprt;
 	kref_init(&ep->re_kref);
 
@@ -439,7 +439,7 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->re_remote_cma.private_data = pmsg;
 	ep->re_remote_cma.private_data_len = sizeof(*pmsg);
 
-	/* Client offers RDMA Read but does not initiate */
+	/* Client offers RDMA Read but does analt initiate */
 	ep->re_remote_cma.initiator_depth = 0;
 	ep->re_remote_cma.responder_resources =
 		min_t(int, U8_MAX, device->attrs.max_qp_rd_atom);
@@ -451,8 +451,8 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	ep->re_remote_cma.retry_count = 6;
 
 	/* RPC-over-RDMA handles its own flow control. In addition,
-	 * make all RNR NAKs visible so we know that RPC-over-RDMA
-	 * flow control is working correctly (no NAKs should be seen).
+	 * make all RNR NAKs visible so we kanalw that RPC-over-RDMA
+	 * flow control is working correctly (anal NAKs should be seen).
 	 */
 	ep->re_remote_cma.flow_control = 0;
 	ep->re_remote_cma.rnr_retry_count = 0;
@@ -481,7 +481,7 @@ out_destroy:
  * rpcrdma_xprt_connect - Connect an unconnected transport
  * @r_xprt: controlling transport instance
  *
- * Returns 0 on success or a negative errno.
+ * Returns 0 on success or a negative erranal.
  */
 int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 {
@@ -518,13 +518,13 @@ int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt)
 
 	rc = rpcrdma_sendctxs_create(r_xprt);
 	if (rc) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 
 	rc = rpcrdma_reqs_setup(r_xprt);
 	if (rc) {
-		rc = -ENOTCONN;
+		rc = -EANALTCONN;
 		goto out;
 	}
 	rpcrdma_mrs_create(r_xprt);
@@ -630,13 +630,13 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	i = r_xprt->rx_ep->re_max_requests + RPCRDMA_MAX_BC_REQUESTS;
 	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), XPRTRDMA_GFP_FLAGS);
 	if (!buf->rb_sc_ctxs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buf->rb_sc_last = i - 1;
 	for (i = 0; i <= buf->rb_sc_last; i++) {
 		sc = rpcrdma_sendctx_create(r_xprt->rx_ep);
 		if (!sc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		buf->rb_sc_ctxs[i] = sc;
 	}
@@ -646,8 +646,8 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	return 0;
 }
 
-/* The sendctx queue is not guaranteed to have a size that is a
- * power of two, thus the helpers in circ_buf.h cannot be used.
+/* The sendctx queue is analt guaranteed to have a size that is a
+ * power of two, thus the helpers in circ_buf.h cananalt be used.
  * The other option is to use modulus (%), which can be expensive.
  */
 static unsigned long rpcrdma_sendctx_next(struct rpcrdma_buffer *buf,
@@ -691,7 +691,7 @@ struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_xprt *r_xprt)
 	return sc;
 
 out_emptyq:
-	/* The queue is "empty" if there have not been enough Send
+	/* The queue is "empty" if there have analt been eanalugh Send
 	 * completions recently. This is a sign the Send Queue is
 	 * backing up. Cause the caller to pause and try again.
 	 */
@@ -742,13 +742,13 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	struct ib_device *device = ep->re_id->device;
 	unsigned int count;
 
-	/* Try to allocate enough to perform one full-sized I/O */
+	/* Try to allocate eanalugh to perform one full-sized I/O */
 	for (count = 0; count < ep->re_max_rdma_segs; count++) {
 		struct rpcrdma_mr *mr;
 		int rc;
 
-		mr = kzalloc_node(sizeof(*mr), XPRTRDMA_GFP_FLAGS,
-				  ibdev_to_node(device));
+		mr = kzalloc_analde(sizeof(*mr), XPRTRDMA_GFP_FLAGS,
+				  ibdev_to_analde(device));
 		if (!mr)
 			break;
 
@@ -790,7 +790,7 @@ void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 
-	/* If there is no underlying connection, it's no use
+	/* If there is anal underlying connection, it's anal use
 	 * to wake the refresh worker.
 	 */
 	if (ep->re_connect_status != 1)
@@ -819,7 +819,7 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt,
 	if (!req->rl_sendbuf)
 		goto out2;
 
-	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_NONE);
+	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_ANALNE);
 	if (!req->rl_recvbuf)
 		goto out3;
 
@@ -843,7 +843,7 @@ out1:
  * @r_xprt: controlling transport instance
  * @req: rpcrdma_req object to set up
  *
- * Returns zero on success, and a negative errno on failure.
+ * Returns zero on success, and a negative erranal on failure.
  */
 int rpcrdma_req_setup(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
@@ -869,7 +869,7 @@ int rpcrdma_req_setup(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 out_free:
 	rpcrdma_regbuf_free(rb);
 out:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /* ASSUMPTION: the rb_allreqs list is stable for the duration,
@@ -919,7 +919,7 @@ static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt)
 		rpcrdma_req_reset(req);
 }
 
-static noinline
+static analinline
 struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 				       bool temp)
 {
@@ -978,13 +978,13 @@ static void rpcrdma_rep_destroy(struct rpcrdma_rep *rep)
 
 static struct rpcrdma_rep *rpcrdma_rep_get_locked(struct rpcrdma_buffer *buf)
 {
-	struct llist_node *node;
+	struct llist_analde *analde;
 
 	/* Calls to llist_del_first are required to be serialized */
-	node = llist_del_first(&buf->rb_free_reps);
-	if (!node)
+	analde = llist_del_first(&buf->rb_free_reps);
+	if (!analde)
 		return NULL;
-	return llist_entry(node, struct rpcrdma_rep, rr_node);
+	return llist_entry(analde, struct rpcrdma_rep, rr_analde);
 }
 
 /**
@@ -995,11 +995,11 @@ static struct rpcrdma_rep *rpcrdma_rep_get_locked(struct rpcrdma_buffer *buf)
  */
 void rpcrdma_rep_put(struct rpcrdma_buffer *buf, struct rpcrdma_rep *rep)
 {
-	llist_add(&rep->rr_node, &buf->rb_free_reps);
+	llist_add(&rep->rr_analde, &buf->rb_free_reps);
 }
 
 /* Caller must ensure the QP is quiescent (RQ is drained) before
- * invoking this function, to guarantee rb_all_reps is not
+ * invoking this function, to guarantee rb_all_reps is analt
  * changing.
  */
 static void rpcrdma_reps_unmap(struct rpcrdma_xprt *r_xprt)
@@ -1035,7 +1035,7 @@ static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf)
  * rpcrdma_buffer_create - Create initial set of req/rep objects
  * @r_xprt: transport instance to (re)initialize
  *
- * Returns zero on success, otherwise a negative errno.
+ * Returns zero on success, otherwise a negative erranal.
  */
 int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 {
@@ -1052,7 +1052,7 @@ int rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	INIT_LIST_HEAD(&buf->rb_allreqs);
 	INIT_LIST_HEAD(&buf->rb_all_reps);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	for (i = 0; i < r_xprt->rx_xprt.max_reqs; i++) {
 		struct rpcrdma_req *req;
 
@@ -1134,7 +1134,7 @@ static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt)
  * @buf: root control block for resources
  *
  * ORDERING: relies on a prior rpcrdma_xprt_drain :
- * - No more Send or Receive completions can occur
+ * - Anal more Send or Receive completions can occur
  * - All MRs, reps, and reqs are returned to their free lists
  */
 void
@@ -1156,7 +1156,7 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
  * rpcrdma_mr_get - Allocate an rpcrdma_mr object
  * @r_xprt: controlling transport
  *
- * Returns an initialized rpcrdma_mr or NULL if no free
+ * Returns an initialized rpcrdma_mr or NULL if anal free
  * rpcrdma_mr objects are available.
  */
 struct rpcrdma_mr *
@@ -1189,7 +1189,7 @@ void rpcrdma_reply_put(struct rpcrdma_buffer *buffers, struct rpcrdma_req *req)
  * rpcrdma_buffer_get - Get a request buffer
  * @buffers: Buffer pool from which to obtain a buffer
  *
- * Returns a fresh rpcrdma_req, or NULL if none are available.
+ * Returns a fresh rpcrdma_req, or NULL if analne are available.
  */
 struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
@@ -1276,14 +1276,14 @@ bool rpcrdma_regbuf_realloc(struct rpcrdma_regbuf *rb, size_t size, gfp_t flags)
  * @r_xprt: controlling transport instance
  * @rb: regbuf to be mapped
  *
- * Returns true if the buffer is now DMA mapped to @r_xprt's device
+ * Returns true if the buffer is analw DMA mapped to @r_xprt's device
  */
 bool __rpcrdma_regbuf_dma_map(struct rpcrdma_xprt *r_xprt,
 			      struct rpcrdma_regbuf *rb)
 {
 	struct ib_device *device = r_xprt->rx_ep->re_id->device;
 
-	if (rb->rg_direction == DMA_NONE)
+	if (rb->rg_direction == DMA_ANALNE)
 		return false;
 
 	rb->rg_iov.addr = ib_dma_map_single(device, rdmab_data(rb),

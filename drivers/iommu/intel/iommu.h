@@ -14,10 +14,10 @@
 #include <linux/iova.h>
 #include <linux/io.h>
 #include <linux/idr.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/list.h>
 #include <linux/iommu.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/dmar.h>
 #include <linux/bitfield.h>
 #include <linux/xarray.h>
@@ -153,7 +153,7 @@
 #define dmar_writel(a, v) writel(v, a)
 
 #define DMAR_VER_MAJOR(v)		(((v) & 0xf0) >> 4)
-#define DMAR_VER_MINOR(v)		((v) & 0x0f)
+#define DMAR_VER_MIANALR(v)		((v) & 0x0f)
 
 /*
  * Decoding Capability Register
@@ -221,7 +221,7 @@
 #define ecap_ir_support(e)	(((e) >> 3) & 0x1)
 #define ecap_dev_iotlb_support(e)	(((e) >> 2) & 0x1)
 #define ecap_max_handle_mask(e) (((e) >> 20) & 0xf)
-#define ecap_sc_support(e)	(((e) >> 7) & 0x1) /* Snooping Control */
+#define ecap_sc_support(e)	(((e) >> 7) & 0x1) /* Sanaloping Control */
 
 /*
  * Decoding Perf Capability Register
@@ -253,7 +253,7 @@
 #define DMA_TLB_WRITE_DRAIN (((u64)1) << 48)
 #define DMA_TLB_DID(id)	(((u64)((id) & 0xffff)) << 32)
 #define DMA_TLB_IVT (((u64)1) << 63)
-#define DMA_TLB_IH_NONLEAF (((u64)1) << 6)
+#define DMA_TLB_IH_ANALNLEAF (((u64)1) << 6)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
 /* INVALID_DESC */
@@ -264,7 +264,7 @@
 #define DMA_ID_TLB_READ_DRAIN	(((u64)1) << 7)
 #define DMA_ID_TLB_WRITE_DRAIN	(((u64)1) << 6)
 #define DMA_ID_TLB_DID(id)	(((u64)((id & 0xffff) << 16)))
-#define DMA_ID_TLB_IH_NONLEAF	(((u64)1) << 6)
+#define DMA_ID_TLB_IH_ANALNLEAF	(((u64)1) << 6)
 #define DMA_ID_TLB_ADDR(addr)	(addr)
 #define DMA_ID_TLB_ADDR_MASK(mask)	(mask)
 
@@ -303,7 +303,7 @@
 #define DMA_CCMD_DOMAIN_INVL (((u64)2) << 61)
 #define DMA_CCMD_DEVICE_INVL (((u64)3) << 61)
 #define DMA_CCMD_FM(m) (((u64)((m) & 0x3)) << 32)
-#define DMA_CCMD_MASK_NOBIT 0
+#define DMA_CCMD_MASK_ANALBIT 0
 #define DMA_CCMD_MASK_1BIT 1
 #define DMA_CCMD_MASK_2BIT 2
 #define DMA_CCMD_MASK_3BIT 3
@@ -469,7 +469,7 @@ enum {
 #define QI_RESP_INVALID		0x1
 #define QI_RESP_FAILURE		0xf
 
-#define QI_GRAN_NONG_PASID		2
+#define QI_GRAN_ANALNG_PASID		2
 #define QI_GRAN_PSI_PASID		3
 
 #define qi_shift(iommu)		(DMAR_IQ_SHIFT + !!ecap_smts((iommu)->ecap))
@@ -495,7 +495,7 @@ struct q_inval {
 #define PRQ_RING_MASK	((0x1000 << PRQ_ORDER) - 0x20)
 #define PRQ_DEPTH	((0x1000 << PRQ_ORDER) >> 5)
 
-struct dmar_pci_notify_info;
+struct dmar_pci_analtify_info;
 
 #ifdef CONFIG_IRQ_REMAP
 /* 1MB - maximum possible interrupt remapping table size */
@@ -512,10 +512,10 @@ struct ir_table {
 	unsigned long *bitmap;
 };
 
-void intel_irq_remap_add_device(struct dmar_pci_notify_info *info);
+void intel_irq_remap_add_device(struct dmar_pci_analtify_info *info);
 #else
 static inline void
-intel_irq_remap_add_device(struct dmar_pci_notify_info *info) { }
+intel_irq_remap_add_device(struct dmar_pci_analtify_info *info) { }
 #endif
 
 struct iommu_flush {
@@ -585,12 +585,12 @@ struct iommu_domain_info {
 };
 
 struct dmar_domain {
-	int	nid;			/* node id */
+	int	nid;			/* analde id */
 	struct xarray iommu_array;	/* Attached IOMMU array */
 
 	u8 has_iotlb_device: 1;
 	u8 iommu_coherency: 1;		/* indicate coherency of iommu access */
-	u8 force_snooping : 1;		/* Create IOPTEs with snoop control */
+	u8 force_sanaloping : 1;		/* Create IOPTEs with sanalop control */
 	u8 set_pte_snp:1;
 	u8 use_first_level:1;		/* DMA translation for the domain goes
 					 * through the first level page table,
@@ -608,7 +608,7 @@ struct dmar_domain {
 	struct list_head dev_pasids;	/* all attached pasids */
 
 	int		iommu_superpage;/* Level of superpages supported:
-					   0 == 4KiB (no superpages), 1 == 2MiB,
+					   0 == 4KiB (anal superpages), 1 == 2MiB,
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
 	union {
 		/* DMA remapping domain */
@@ -654,9 +654,9 @@ struct dmar_domain {
  * In theory, the VT-d 4.0 spec can support up to 2 ^ 16 counters.
  * But in practice, there are only 14 counters for the existing
  * platform. Setting the max number of counters to 64 should be good
- * enough for a long time. Also, supporting more than 64 counters
+ * eanalugh for a long time. Also, supporting more than 64 counters
  * requires more extras, e.g., extra freeze and overflow registers,
- * which is not necessary for now.
+ * which is analt necessary for analw.
  */
 #define IOMMU_PMU_IDX_MAX		64
 
@@ -679,7 +679,7 @@ struct iommu_pmu {
 	DECLARE_BITMAP(used_mask, IOMMU_PMU_IDX_MAX);
 	struct perf_event	*event_list[IOMMU_PMU_IDX_MAX];
 	unsigned char		irq_name[16];
-	struct hlist_node	cpuhp_node;
+	struct hlist_analde	cpuhp_analde;
 	int			cpu;
 };
 
@@ -727,7 +727,7 @@ struct intel_iommu {
 	struct irq_domain *ir_domain;
 #endif
 	struct iommu_device iommu;  /* IOMMU core code handle */
-	int		node;
+	int		analde;
 	u32		flags;      /* Software defined flags */
 
 	struct dmar_drhd_unit *drhd;
@@ -798,7 +798,7 @@ domain_id_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
  * 2-6: reserved
  * 7: super page
  * 8-10: available
- * 11: snoop behavior
+ * 11: sanalop behavior
  * 12-63: Host physical address
  */
 struct dma_pte {
@@ -829,7 +829,7 @@ static inline bool dma_pte_present(struct dma_pte *pte)
 static inline bool dma_sl_pte_test_and_clear_dirty(struct dma_pte *pte,
 						   unsigned long flags)
 {
-	if (flags & IOMMU_DIRTY_NO_CLEAR)
+	if (flags & IOMMU_DIRTY_ANAL_CLEAR)
 		return (pte->val & DMA_SL_PTE_DIRTY) != 0;
 
 	return test_and_clear_bit(DMA_SL_PTE_DIRTY_BIT,
@@ -1076,7 +1076,7 @@ void domain_update_iommu_cap(struct dmar_domain *domain);
 
 int dmar_ir_support(void);
 
-void *alloc_pgtable_page(int node, gfp_t gfp);
+void *alloc_pgtable_page(int analde, gfp_t gfp);
 void free_pgtable_page(void *vaddr);
 void iommu_flush_write_buffer(struct intel_iommu *iommu);
 struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
@@ -1102,7 +1102,7 @@ struct intel_svm_dev {
 };
 
 struct intel_svm {
-	struct mmu_notifier notifier;
+	struct mmu_analtifier analtifier;
 	struct mm_struct *mm;
 	u32 pasid;
 	struct list_head devs;

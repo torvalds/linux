@@ -28,28 +28,28 @@ Description:	Stores mei client protocol version
 		Format: %d
 
 What:		/sys/bus/mei/devices/.../max_conn
-Date:		Nov 2019
+Date:		Analv 2019
 KernelVersion:	5.5
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client maximum number of connections
 		Format: %d
 
 What:		/sys/bus/mei/devices/.../fixed
-Date:		Nov 2019
+Date:		Analv 2019
 KernelVersion:	5.5
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client fixed address, if any
 		Format: %d
 
 What:		/sys/bus/mei/devices/.../vtag
-Date:		Nov 2020
+Date:		Analv 2020
 KernelVersion:	5.9
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client vtag support status
 		Format: %d
 
 What:		/sys/bus/mei/devices/.../max_len
-Date:		Nov 2019
+Date:		Analv 2019
 KernelVersion:	5.5
 Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client maximum message length

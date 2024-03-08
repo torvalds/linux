@@ -15,8 +15,8 @@
 # ns1: ping 10.0.1.253: passes via ipsec tunnel (direct policy)
 # ns2: ping 10.0.2.253: passes via ipsec tunnel (direct policy)
 #
-# ns1: ping 10.0.2.254: does NOT pass via ipsec tunnel (exception)
-# ns2: ping 10.0.1.254: does NOT pass via ipsec tunnel (exception)
+# ns1: ping 10.0.2.254: does ANALT pass via ipsec tunnel (exception)
+# ns2: ping 10.0.1.254: does ANALT pass via ipsec tunnel (exception)
 
 source lib.sh
 ret=0
@@ -63,7 +63,7 @@ do_esp() {
 #
 # Adding a policy for '10.0.1.0/23' will make it necessary to
 # alter the prefix of 10.0.1.0 subnet.
-# In case new prefix overlaps with existing node, the node and all
+# In case new prefix overlaps with existing analde, the analde and all
 # policies it carries need to be merged with the existing one(s).
 #
 # Do that here.
@@ -71,39 +71,39 @@ do_overlap()
 {
     local ns=$1
 
-    # adds new nodes to tree (neither network exists yet in policy database).
+    # adds new analdes to tree (neither network exists yet in policy database).
     ip -net $ns xfrm policy add src 10.1.0.0/24 dst 10.0.0.0/24 dir fwd priority 200 action block
 
-    # adds a new node in the 10.0.0.0/24 tree (dst node exists).
+    # adds a new analde in the 10.0.0.0/24 tree (dst analde exists).
     ip -net $ns xfrm policy add src 10.2.0.0/24 dst 10.0.0.0/24 dir fwd priority 200 action block
 
-    # adds a 10.2.0.0/23 node, but for different dst.
+    # adds a 10.2.0.0/23 analde, but for different dst.
     ip -net $ns xfrm policy add src 10.2.0.0/23 dst 10.0.1.0/24 dir fwd priority 200 action block
 
-    # dst now overlaps with the 10.0.1.0/24 ESP policy in fwd.
+    # dst analw overlaps with the 10.0.1.0/24 ESP policy in fwd.
     # kernel must 'promote' existing one (10.0.0.0/24) to 10.0.0.0/23.
-    # But 10.0.0.0/23 also includes existing 10.0.1.0/24, so that node
+    # But 10.0.0.0/23 also includes existing 10.0.1.0/24, so that analde
     # also has to be merged too, including source-sorted subtrees.
     # old:
-    # 10.0.0.0/24 (node 1 in dst tree of the bin)
-    #    10.1.0.0/24 (node in src tree of dst node 1)
-    #    10.2.0.0/24 (node in src tree of dst node 1)
-    # 10.0.1.0/24 (node 2 in dst tree of the bin)
-    #    10.0.2.0/24 (node in src tree of dst node 2)
-    #    10.2.0.0/24 (node in src tree of dst node 2)
+    # 10.0.0.0/24 (analde 1 in dst tree of the bin)
+    #    10.1.0.0/24 (analde in src tree of dst analde 1)
+    #    10.2.0.0/24 (analde in src tree of dst analde 1)
+    # 10.0.1.0/24 (analde 2 in dst tree of the bin)
+    #    10.0.2.0/24 (analde in src tree of dst analde 2)
+    #    10.2.0.0/24 (analde in src tree of dst analde 2)
     #
     # The next 'policy add' adds dst '10.0.0.0/23', which means
-    # that dst node 1 and dst node 2 have to be merged including
-    # the sub-tree.  As no duplicates are allowed, policies in
+    # that dst analde 1 and dst analde 2 have to be merged including
+    # the sub-tree.  As anal duplicates are allowed, policies in
     # the two '10.0.2.0/24' are also merged.
     #
     # after the 'add', internal search tree should look like this:
-    # 10.0.0.0/23 (node in dst tree of bin)
-    #     10.0.2.0/24 (node in src tree of dst node)
-    #     10.1.0.0/24 (node in src tree of dst node)
-    #     10.2.0.0/24 (node in src tree of dst node)
+    # 10.0.0.0/23 (analde in dst tree of bin)
+    #     10.0.2.0/24 (analde in src tree of dst analde)
+    #     10.1.0.0/24 (analde in src tree of dst analde)
+    #     10.2.0.0/24 (analde in src tree of dst analde)
     #
-    # 10.0.0.0/24 and 10.0.1.0/24 nodes have been merged as 10.0.0.0/23.
+    # 10.0.0.0/24 and 10.0.1.0/24 analdes have been merged as 10.0.0.0/23.
     ip -net $ns xfrm policy add src 10.1.0.0/24 dst 10.0.0.0/23 dir fwd priority 200 action block
 
     # similar to above: add policies (with partially random address), with shrinking prefixes.
@@ -148,7 +148,7 @@ do_exception() {
     ip -net $ns xfrm policy add dst $encryptip dir out tmpl src $me dst $remote proto esp mode tunnel priority 1 action allow
 }
 
-# policies that are not supposed to match any packets generated in this test.
+# policies that are analt supposed to match any packets generated in this test.
 do_dummies4() {
     local ns=$1
 
@@ -187,7 +187,7 @@ check_ipt_policy_count()
 		if [ x"$c" = x'[0:0]' ]; then
 			exit 0
 		elif [ x"$c" = x ]; then
-			echo "ERROR: No counters"
+			echo "ERROR: Anal counters"
 			ret=1
 			exit 111
 		else
@@ -286,7 +286,7 @@ check_hthresh_repeat()
 	return 0
 }
 
-# insert non-overlapping policies in a random order and check that
+# insert analn-overlapping policies in a random order and check that
 # all of them can be fetched using the traffic selectors.
 check_random_order()
 {
@@ -335,14 +335,14 @@ fi
 
 ip -Version 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without the ip tool"
+	echo "SKIP: Could analt run test without the ip tool"
 	exit $ksft_skip
 fi
 
 # needed to check if policy lookup got valid ipsec result
 iptables --version 2>/dev/null >/dev/null
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without iptables tool"
+	echo "SKIP: Could analt run test without iptables tool"
 	exit $ksft_skip
 fi
 
@@ -402,7 +402,7 @@ done
 ip netns exec ${ns[3]} iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
 ip netns exec ${ns[4]} iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not insert iptables rule"
+	echo "SKIP: Could analt insert iptables rule"
 	cleanup_ns $ns1 $ns2 $ns3 $ns4
 	exit $ksft_skip
 fi
@@ -421,7 +421,7 @@ do_esp_policy_get_check ${ns[4]} 10.0.2.0/24 10.0.1.0/24
 do_esp_policy_get_check ${ns[3]} dead:1::/64 dead:2::/64
 do_esp_policy_get_check ${ns[4]} dead:2::/64 dead:1::/64
 
-# ping to .254 should use ipsec, exception is not installed.
+# ping to .254 should use ipsec, exception is analt installed.
 check_xfrm 1 254
 if [ $? -ne 0 ]; then
 	echo "FAIL: expected ping to .254 to use ipsec tunnel"
@@ -475,7 +475,7 @@ for n in ${ns[3]} ${ns[4]};do
 	ip -net $n xfrm policy set hthresh4 32 32 hthresh6 128 128
 	sleep $((RANDOM%5))
 done
-check_exceptions "exceptions and block policies after htresh change to normal"
+check_exceptions "exceptions and block policies after htresh change to analrmal"
 
 check_hthresh_repeat "policies with repeated htresh change"
 

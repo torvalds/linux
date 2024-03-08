@@ -314,7 +314,7 @@ static int ltc2632_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -325,7 +325,7 @@ static int ltc2632_probe(struct spi_device *spi)
 			spi_get_device_id(spi)->driver_data;
 
 	st->vref_reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (PTR_ERR(st->vref_reg) == -ENODEV) {
+	if (PTR_ERR(st->vref_reg) == -EANALDEV) {
 		/* use internal reference voltage */
 		st->vref_reg = NULL;
 		st->vref_mv = chip_info->vref_mv;
@@ -363,7 +363,7 @@ static int ltc2632_probe(struct spi_device *spi)
 		}
 	}
 
-	indio_dev->name = fwnode_get_name(dev_fwnode(&spi->dev)) ?: spi_get_device_id(spi)->name;
+	indio_dev->name = fwanalde_get_name(dev_fwanalde(&spi->dev)) ?: spi_get_device_id(spi)->name;
 	indio_dev->info = &ltc2632_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = chip_info->channels;

@@ -2,13 +2,13 @@
 /*
  * Author: Hanlu Li <lihanlu@loongson.cn>
  *         Huacai Chen <chenhuacai@loongson.cn>
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1991, 1992  Linus Torvalds
  * Copyright (C) 1994 - 2000  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techanallogies Ltd.
  */
 #include <linux/audit.h>
 #include <linux/cache.h>
@@ -22,7 +22,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -44,10 +44,10 @@
 #  define DEBUGP(fmt, args...)
 #endif
 
-/* Make sure we will not lose FPU ownership */
+/* Make sure we will analt lose FPU ownership */
 #define lock_fpu_owner()	({ preempt_disable(); pagefault_disable(); })
 #define unlock_fpu_owner()	({ pagefault_enable(); preempt_enable(); })
-/* Make sure we will not lose LBT ownership */
+/* Make sure we will analt lose LBT ownership */
 #define lock_lbt_owner()	({ preempt_disable(); pagefault_disable(); })
 #define unlock_lbt_owner()	({ pagefault_enable(); preempt_enable(); })
 
@@ -801,7 +801,7 @@ static int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc
 		lose_fpu(0);
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	err |= __get_user(regs->csr_era, &sc->sc_pc);
 	for (i = 1; i < 32; i++)
@@ -898,7 +898,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 {
 	unsigned long sp;
 
-	/* Default to using normal stack */
+	/* Default to using analrmal stack */
 	sp = regs->regs[3];
 
 	/*
@@ -946,7 +946,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	else if (sig)
 		force_sig(sig);
 
-	regs->regs[0] = 0; /* No syscall restarting */
+	regs->regs[0] = 0; /* Anal syscall restarting */
 	if (restore_altstack(&frame->rs_uctx.uc_stack))
 		goto badframe;
 
@@ -1015,7 +1015,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	if (regs->regs[0]) {
 		switch (regs->regs[4]) {
 		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 			regs->regs[4] = -EINTR;
 			break;
 		case -ERESTARTSYS:
@@ -1024,7 +1024,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				break;
 			}
 			fallthrough;
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->regs[4] = regs->orig_a0;
 			regs->csr_era -= 4;
 		}
@@ -1052,9 +1052,9 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 	/* Are we from a system call? */
 	if (regs->regs[0]) {
 		switch (regs->regs[4]) {
-		case -ERESTARTNOHAND:
+		case -ERESTARTANALHAND:
 		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
+		case -ERESTARTANALINTR:
 			regs->regs[4] = regs->orig_a0;
 			regs->csr_era -= 4;
 			break;
@@ -1069,7 +1069,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's anal signal to deliver, we just put the saved sigmask
 	 * back
 	 */
 	restore_saved_sigmask();

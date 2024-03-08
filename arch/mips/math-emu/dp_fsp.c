@@ -39,15 +39,15 @@ union ieee754dp ieee754dp_fsp(union ieee754sp x)
 	case IEEE754_CLASS_ZERO:
 		return ieee754dp_zero(xs);
 
-	case IEEE754_CLASS_DNORM:
-		/* normalize */
+	case IEEE754_CLASS_DANALRM:
+		/* analrmalize */
 		while ((xm >> SP_FBITS) == 0) {
 			xm <<= 1;
 			xe--;
 		}
 		break;
 
-	case IEEE754_CLASS_NORM:
+	case IEEE754_CLASS_ANALRM:
 		break;
 	}
 

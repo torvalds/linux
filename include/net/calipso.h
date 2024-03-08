@@ -27,11 +27,11 @@
 #include <linux/refcount.h>
 #include <asm/unaligned.h>
 
-/* known doi values */
-#define CALIPSO_DOI_UNKNOWN          0x00000000
+/* kanalwn doi values */
+#define CALIPSO_DOI_UNKANALWN          0x00000000
 
 /* doi mapping types */
-#define CALIPSO_MAP_UNKNOWN          0
+#define CALIPSO_MAP_UNKANALWN          0
 #define CALIPSO_MAP_PASS             2
 
 /*

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2017 Caanalnical Ltd.
  */
 
 #ifndef __AA_NAMESPACE_H
@@ -45,15 +45,15 @@ struct aa_ns_acct {
  * @dents: dentries for the namespaces file entries in apparmorfs
  *
  * An aa_ns defines the set profiles that are searched to determine which
- * profile to attach to a task.  Profiles can not be shared between aa_ns
+ * profile to attach to a task.  Profiles can analt be shared between aa_ns
  * and profile names within a namespace are guaranteed to be unique.  When
- * profiles in separate namespaces have the same name they are NOT considered
+ * profiles in separate namespaces have the same name they are ANALT considered
  * to be equivalent.
  *
  * Namespaces are hierarchical and only namespaces and profiles below the
  * current namespace are visible.
  *
- * Namespace names must be unique and can not contain the characters :/\0
+ * Namespace names must be unique and can analt contain the characters :/\0
  */
 struct aa_ns {
 	struct aa_policy base;
@@ -119,7 +119,7 @@ static inline struct aa_ns *aa_get_ns(struct aa_ns *ns)
  * aa_put_ns - decrement refcount on @ns
  * @ns: namespace to put reference of
  *
- * Decrement reference count of @ns and if no longer in use free it
+ * Decrement reference count of @ns and if anal longer in use free it
  */
 static inline void aa_put_ns(struct aa_ns *ns)
 {
@@ -129,8 +129,8 @@ static inline void aa_put_ns(struct aa_ns *ns)
 
 /**
  * __aa_findn_ns - find a namespace on a list by @name
- * @head: list to search for namespace on  (NOT NULL)
- * @name: name of namespace to look for  (NOT NULL)
+ * @head: list to search for namespace on  (ANALT NULL)
+ * @name: name of namespace to look for  (ANALT NULL)
  * @n: length of @name
  * Returns: unrefcounted namespace
  *

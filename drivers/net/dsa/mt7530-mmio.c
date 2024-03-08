@@ -26,7 +26,7 @@ mt7988_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->bus = NULL;
 	priv->dev = &pdev->dev;
@@ -43,13 +43,13 @@ mt7988_probe(struct platform_device *pdev)
 
 	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr)) {
-		dev_err(&pdev->dev, "cannot request I/O memory space\n");
+		dev_err(&pdev->dev, "cananalt request I/O memory space\n");
 		return -ENXIO;
 	}
 
 	sw_regmap_config = devm_kzalloc(&pdev->dev, sizeof(*sw_regmap_config), GFP_KERNEL);
 	if (!sw_regmap_config)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sw_regmap_config->name = "switch";
 	sw_regmap_config->reg_bits = 16;

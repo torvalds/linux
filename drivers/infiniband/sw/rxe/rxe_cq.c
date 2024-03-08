@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 #include <linux/vmalloc.h>
@@ -51,7 +51,7 @@ int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 			sizeof(struct rxe_cqe), type);
 	if (!cq->queue) {
 		rxe_dbg_dev(rxe, "unable to create cq\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	err = do_mmap_info(rxe, uresp ? &uresp->mi : NULL, udata,
@@ -113,9 +113,9 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 
 	queue_advance_producer(cq->queue, QUEUE_TYPE_TO_CLIENT);
 
-	if ((cq->notify & IB_CQ_NEXT_COMP) ||
-	    (cq->notify & IB_CQ_SOLICITED && solicited)) {
-		cq->notify = 0;
+	if ((cq->analtify & IB_CQ_NEXT_COMP) ||
+	    (cq->analtify & IB_CQ_SOLICITED && solicited)) {
+		cq->analtify = 0;
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 	}
 

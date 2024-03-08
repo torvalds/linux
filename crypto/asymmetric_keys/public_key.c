@@ -97,7 +97,7 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		if (strcmp(encoding, "raw") != 0)
 			return -EINVAL;
 		/*
-		 * Raw RSA cannot differentiate between different hash
+		 * Raw RSA cananalt differentiate between different hash
 		 * algorithms.
 		 */
 		if (hash_algo)
@@ -111,7 +111,7 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * differentiate between different hash algorithms.  That means
 		 * that the verifier should hard-code a specific hash algorithm.
 		 * Unfortunately, in practice ECDSA is used with multiple SHAs,
-		 * so we have to allow all of them and not just one.
+		 * so we have to allow all of them and analt just one.
 		 */
 		if (!hash_algo)
 			return -EINVAL;
@@ -139,8 +139,8 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		    strcmp(hash_algo, "streebog512") != 0)
 			return -EINVAL;
 	} else {
-		/* Unknown public key algorithm */
-		return -ENOPKG;
+		/* Unkanalwn public key algorithm */
+		return -EANALPKG;
 	}
 	if (strscpy(alg_name, pkey->pkey_algo, CRYPTO_MAX_ALG_NAME) < 0)
 		return -EINVAL;
@@ -176,7 +176,7 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;
@@ -295,7 +295,7 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
 	if (!key)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;
@@ -421,7 +421,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
 	if (!key) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto error_free_tfm;
 	}
 

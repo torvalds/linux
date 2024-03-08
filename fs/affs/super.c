@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/affs/inode.c
+ *  linux/fs/affs/ianalde.c
  *
  *  (c) 1996  Hans-Joachim Widmaier - Rewritten
  *
@@ -94,65 +94,65 @@ void affs_mark_sb_dirty(struct super_block *sb)
 	spin_unlock(&sbi->work_lock);
 }
 
-static struct kmem_cache * affs_inode_cachep;
+static struct kmem_cache * affs_ianalde_cachep;
 
-static struct inode *affs_alloc_inode(struct super_block *sb)
+static struct ianalde *affs_alloc_ianalde(struct super_block *sb)
 {
-	struct affs_inode_info *i;
+	struct affs_ianalde_info *i;
 
-	i = alloc_inode_sb(sb, affs_inode_cachep, GFP_KERNEL);
+	i = alloc_ianalde_sb(sb, affs_ianalde_cachep, GFP_KERNEL);
 	if (!i)
 		return NULL;
 
-	inode_set_iversion(&i->vfs_inode, 1);
+	ianalde_set_iversion(&i->vfs_ianalde, 1);
 	i->i_lc = NULL;
 	i->i_ext_bh = NULL;
 	i->i_pa_cnt = 0;
 
-	return &i->vfs_inode;
+	return &i->vfs_ianalde;
 }
 
-static void affs_free_inode(struct inode *inode)
+static void affs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+	kmem_cache_free(affs_ianalde_cachep, AFFS_I(ianalde));
 }
 
 static void init_once(void *foo)
 {
-	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
+	struct affs_ianalde_info *ei = (struct affs_ianalde_info *) foo;
 
 	mutex_init(&ei->i_link_lock);
 	mutex_init(&ei->i_ext_lock);
-	inode_init_once(&ei->vfs_inode);
+	ianalde_init_once(&ei->vfs_ianalde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_ianaldecache(void)
 {
-	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
-					     sizeof(struct affs_inode_info),
+	affs_ianalde_cachep = kmem_cache_create("affs_ianalde_cache",
+					     sizeof(struct affs_ianalde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (affs_inode_cachep == NULL)
-		return -ENOMEM;
+	if (affs_ianalde_cachep == NULL)
+		return -EANALMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_ianaldecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(affs_inode_cachep);
+	kmem_cache_destroy(affs_ianalde_cachep);
 }
 
 static const struct super_operations affs_sops = {
-	.alloc_inode	= affs_alloc_inode,
-	.free_inode	= affs_free_inode,
-	.write_inode	= affs_write_inode,
-	.evict_inode	= affs_evict_inode,
+	.alloc_ianalde	= affs_alloc_ianalde,
+	.free_ianalde	= affs_free_ianalde,
+	.write_ianalde	= affs_write_ianalde,
+	.evict_ianalde	= affs_evict_ianalde,
 	.put_super	= affs_put_super,
 	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
@@ -161,16 +161,16 @@ static const struct super_operations affs_sops = {
 };
 
 enum {
-	Opt_bs, Opt_mode, Opt_mufs, Opt_notruncate, Opt_prefix, Opt_protect,
+	Opt_bs, Opt_mode, Opt_mufs, Opt_analtruncate, Opt_prefix, Opt_protect,
 	Opt_reserved, Opt_root, Opt_setgid, Opt_setuid,
-	Opt_verbose, Opt_volume, Opt_ignore, Opt_err,
+	Opt_verbose, Opt_volume, Opt_iganalre, Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_bs, "bs=%u"},
 	{Opt_mode, "mode=%o"},
 	{Opt_mufs, "mufs"},
-	{Opt_notruncate, "nofilenametruncate"},
+	{Opt_analtruncate, "analfilenametruncate"},
 	{Opt_prefix, "prefix=%s"},
 	{Opt_protect, "protect"},
 	{Opt_reserved, "reserved=%u"},
@@ -179,10 +179,10 @@ static const match_table_t tokens = {
 	{Opt_setuid, "setuid=%u"},
 	{Opt_verbose, "verbose"},
 	{Opt_volume, "volume=%s"},
-	{Opt_ignore, "grpquota"},
-	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
-	{Opt_ignore, "usrquota"},
+	{Opt_iganalre, "grpquota"},
+	{Opt_iganalre, "analquota"},
+	{Opt_iganalre, "quota"},
+	{Opt_iganalre, "usrquota"},
 	{Opt_err, NULL},
 };
 
@@ -232,8 +232,8 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 		case Opt_mufs:
 			affs_set_opt(*mount_opts, SF_MUFS);
 			break;
-		case Opt_notruncate:
-			affs_set_opt(*mount_opts, SF_NO_TRUNCATE);
+		case Opt_analtruncate:
+			affs_set_opt(*mount_opts, SF_ANAL_TRUNCATE);
 			break;
 		case Opt_prefix:
 			kfree(*prefix);
@@ -280,8 +280,8 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			kfree(vol);
 			break;
 		}
-		case Opt_ignore:
-		 	/* Silently ignore the quota options */
+		case Opt_iganalre:
+		 	/* Silently iganalre the quota options */
 			break;
 		default:
 			pr_warn("Unrecognized mount option \"%s\" or missing value\n",
@@ -303,8 +303,8 @@ static int affs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",mode=%o", sbi->s_mode);
 	if (affs_test_opt(sbi->s_flags, SF_MUFS))
 		seq_puts(m, ",mufs");
-	if (affs_test_opt(sbi->s_flags, SF_NO_TRUNCATE))
-		seq_puts(m, ",nofilenametruncate");
+	if (affs_test_opt(sbi->s_flags, SF_ANAL_TRUNCATE))
+		seq_puts(m, ",analfilenametruncate");
 	if (affs_test_opt(sbi->s_flags, SF_PREFIX))
 		seq_printf(m, ",prefix=%s", sbi->s_prefix);
 	if (affs_test_opt(sbi->s_flags, SF_IMMUTABLE))
@@ -335,7 +335,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	struct affs_sb_info	*sbi;
 	struct buffer_head	*root_bh = NULL;
 	struct buffer_head	*boot_bh;
-	struct inode		*root_inode = NULL;
+	struct ianalde		*root_ianalde = NULL;
 	s32			 root_block;
 	int			 size, blocksize;
 	u32			 chksum;
@@ -349,11 +349,11 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	u8			 sig[4];
 	int			 ret;
 
-	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
+	pr_debug("read_super(%s)\n", data ? (const char *)data : "anal options");
 
 	sb->s_magic             = AFFS_SUPER_MAGIC;
 	sb->s_op                = &affs_sops;
-	sb->s_flags |= SB_NODIRATIME;
+	sb->s_flags |= SB_ANALDIRATIME;
 
 	sb->s_time_gran = NSEC_PER_SEC;
 	sb->s_time_min = sys_tz.tz_minuteswest * 60 + AFFS_EPOCH_DELTA;
@@ -361,7 +361,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
 	if (!sbi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
@@ -410,13 +410,13 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		affs_set_blocksize(sb, blocksize);
 		sbi->s_partition_size = size;
 
-		/* The root block location that was calculated above is not
+		/* The root block location that was calculated above is analt
 		 * correct if the partition size is an odd number of 512-
 		 * byte blocks, which will be rounded down to a number of
 		 * 1024-byte blocks, and if there were an even number of
 		 * reserved blocks. Ideally, all partition checkers should
 		 * report the real number of blocks of the real blocksize,
-		 * but since this just cannot be done, we have to try to
+		 * but since this just cananalt be done, we have to try to
 		 * find the root block anyways. In the above case, it is one
 		 * block behind the calculated one. So we check this one, too.
 		 */
@@ -441,7 +441,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 	if (!silent)
-		pr_err("No valid root block on device %s\n", sb->s_id);
+		pr_err("Anal valid root block on device %s\n", sb->s_id);
 	return -EINVAL;
 
 	/* N.B. after this point bh must be released */
@@ -453,20 +453,20 @@ got_root:
 	/* Find out which kind of FS we have */
 	boot_bh = sb_bread(sb, 0);
 	if (!boot_bh) {
-		pr_err("Cannot read boot block\n");
+		pr_err("Cananalt read boot block\n");
 		return -EINVAL;
 	}
 	memcpy(sig, boot_bh->b_data, 4);
 	brelse(boot_bh);
 	chksum = be32_to_cpu(*(__be32 *)sig);
 
-	/* Dircache filesystems are compatible with non-dircache ones
+	/* Dircache filesystems are compatible with analn-dircache ones
 	 * when reading. As long as they aren't supported, writing is
-	 * not recommended.
+	 * analt recommended.
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
 	     || chksum == MUFS_DCOFS) && !sb_rdonly(sb)) {
-		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
+		pr_analtice("Dircache FS - mounting %s read only\n", sb->s_id);
 		sb->s_flags |= SB_RDONLY;
 	}
 	switch (chksum) {
@@ -489,7 +489,7 @@ got_root:
 		fallthrough;
 	case FS_OFS:
 		affs_set_opt(sbi->s_flags, SF_OFS);
-		sb->s_flags |= SB_NOEXEC;
+		sb->s_flags |= SB_ANALEXEC;
 		break;
 	case MUFS_DCOFS:
 	case MUFS_INTLOFS:
@@ -499,23 +499,23 @@ got_root:
 	case FS_INTLOFS:
 		affs_set_opt(sbi->s_flags, SF_INTL);
 		affs_set_opt(sbi->s_flags, SF_OFS);
-		sb->s_flags |= SB_NOEXEC;
+		sb->s_flags |= SB_ANALEXEC;
 		break;
 	default:
-		pr_err("Unknown filesystem on device %s: %08X\n",
+		pr_err("Unkanalwn filesystem on device %s: %08X\n",
 		       sb->s_id, chksum);
 		return -EINVAL;
 	}
 
 	if (affs_test_opt(mount_flags, SF_VERBOSE)) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
-		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
+		pr_analtice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
 			AFFS_ROOT_TAIL(sb, root_bh)->disk_name + 1,
 			sig, sig[3] + '0', blocksize);
 	}
 
-	sb->s_flags |= SB_NODEV | SB_NOSUID;
+	sb->s_flags |= SB_ANALDEV | SB_ANALSUID;
 
 	sbi->s_data_blksize = sb->s_blocksize;
 	if (affs_test_opt(sbi->s_flags, SF_OFS))
@@ -527,21 +527,21 @@ got_root:
 		return ret;
 	sb->s_flags = tmp_flags;
 
-	/* set up enough so that it can read an inode */
+	/* set up eanalugh so that it can read an ianalde */
 
-	root_inode = affs_iget(sb, root_block);
-	if (IS_ERR(root_inode))
-		return PTR_ERR(root_inode);
+	root_ianalde = affs_iget(sb, root_block);
+	if (IS_ERR(root_ianalde))
+		return PTR_ERR(root_ianalde);
 
 	if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL))
 		sb->s_d_op = &affs_intl_dentry_operations;
 	else
 		sb->s_d_op = &affs_dentry_operations;
 
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_ianalde);
 	if (!sb->s_root) {
-		pr_err("AFFS: Get root inode failed\n");
-		return -ENOMEM;
+		pr_err("AFFS: Get root ianalde failed\n");
+		return -EANALMEM;
 	}
 
 	sb->s_export_op = &affs_export_ops;
@@ -567,7 +567,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 
 	sync_filesystem(sb);
-	*flags |= SB_NODIRATIME;
+	*flags |= SB_ANALDIRATIME;
 
 	memcpy(volume, sbi->s_volume, 32);
 	if (!parse_options(data, &uid, &gid, &mode, &reserved, &root_block,
@@ -655,7 +655,7 @@ MODULE_ALIAS_FS("affs");
 
 static int __init init_affs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_ianaldecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&affs_fs_type);
@@ -663,7 +663,7 @@ static int __init init_affs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_ianaldecache();
 out1:
 	return err;
 }
@@ -671,7 +671,7 @@ out1:
 static void __exit exit_affs_fs(void)
 {
 	unregister_filesystem(&affs_fs_type);
-	destroy_inodecache();
+	destroy_ianaldecache();
 }
 
 MODULE_DESCRIPTION("Amiga filesystem support for Linux");

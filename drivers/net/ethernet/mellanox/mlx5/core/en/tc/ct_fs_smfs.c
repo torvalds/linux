@@ -95,7 +95,7 @@ mlx5_ct_fs_smfs_matcher_create(struct mlx5_ct_fs *fs, struct mlx5dr_table *tbl, 
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mlx5_ct_fs_smfs_fill_mask(fs, spec, ipv4, tcp, gre);
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2 | MLX5_MATCH_OUTER_HEADERS;
@@ -122,15 +122,15 @@ mlx5_ct_fs_smfs_matcher_get(struct mlx5_ct_fs *fs, bool nat, bool ipv4, bool tcp
 	matchers = nat ? &fs_smfs->matchers_nat : &fs_smfs->matchers;
 	smfs_matcher = &matchers->smfs_matchers[ipv4 * 3 + tcp * 2 + gre];
 
-	if (refcount_inc_not_zero(&smfs_matcher->ref))
+	if (refcount_inc_analt_zero(&smfs_matcher->ref))
 		return smfs_matcher;
 
 	mutex_lock(&fs_smfs->lock);
 
-	/* Retry with lock, as another thread might have already created the relevant matcher
+	/* Retry with lock, as aanalther thread might have already created the relevant matcher
 	 * till we acquired the lock
 	 */
-	if (refcount_inc_not_zero(&smfs_matcher->ref))
+	if (refcount_inc_analt_zero(&smfs_matcher->ref))
 		goto out_unlock;
 
 	// Find next available priority in sorted used list
@@ -193,7 +193,7 @@ mlx5_ct_fs_smfs_init(struct mlx5_ct_fs *fs, struct mlx5_flow_table *ct,
 
 	if (!ct_tbl || !ct_nat_tbl || !post_ct_tbl) {
 		netdev_warn(fs->netdev, "ct_fs_smfs: failed to init, missing backing dr tables");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ct_dbg("using smfs steering");
@@ -305,11 +305,11 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	bool nat, tcp, ipv4, gre;
 
 	if (!mlx5_ct_fs_smfs_ct_validate_flow_rule(fs, flow_rule))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	smfs_rule = kzalloc(sizeof(*smfs_rule), GFP_KERNEL);
 	if (!smfs_rule)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	smfs_rule->count_action = mlx5_smfs_action_create_flow_counter(mlx5_fc_id(attr->counter));
 	if (!smfs_rule->count_action) {

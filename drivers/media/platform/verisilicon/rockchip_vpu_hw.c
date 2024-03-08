@@ -28,22 +28,22 @@
 static const struct hantro_fmt rockchip_vpu_enc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_YUV420M,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.enc_fmt = ROCKCHIP_VPU_ENC_FMT_YUV420P,
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_NV12M,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.enc_fmt = ROCKCHIP_VPU_ENC_FMT_YUV420SP,
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_YUYV,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.enc_fmt = ROCKCHIP_VPU_ENC_FMT_YUYV422,
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_UYVY,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.enc_fmt = ROCKCHIP_VPU_ENC_FMT_UYVY422,
 	},
 	{
@@ -65,7 +65,7 @@ static const struct hantro_fmt rockchip_vpu_enc_fmts[] = {
 static const struct hantro_fmt rockchip_vpu1_postproc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_YUYV,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.postprocessed = true,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
@@ -81,7 +81,7 @@ static const struct hantro_fmt rockchip_vpu1_postproc_fmts[] = {
 static const struct hantro_fmt rockchip_vpu981_postproc_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.postprocessed = true,
 		.frmsize = {
@@ -95,7 +95,7 @@ static const struct hantro_fmt rockchip_vpu981_postproc_fmts[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_P010,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.postprocessed = true,
 		.frmsize = {
@@ -112,7 +112,7 @@ static const struct hantro_fmt rockchip_vpu981_postproc_fmts[] = {
 static const struct hantro_fmt rk3066_vpu_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_FHD_WIDTH,
@@ -166,7 +166,7 @@ static const struct hantro_fmt rk3066_vpu_dec_fmts[] = {
 static const struct hantro_fmt rk3288_vpu_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_4K_WIDTH,
@@ -220,7 +220,7 @@ static const struct hantro_fmt rk3288_vpu_dec_fmts[] = {
 static const struct hantro_fmt rockchip_vdpu2_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_FHD_WIDTH,
@@ -274,7 +274,7 @@ static const struct hantro_fmt rockchip_vdpu2_dec_fmts[] = {
 static const struct hantro_fmt rk3399_vpu_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.frmsize = {
 			.min_width = FMT_MIN_WIDTH,
 			.max_width = FMT_FHD_WIDTH,
@@ -315,7 +315,7 @@ static const struct hantro_fmt rk3399_vpu_dec_fmts[] = {
 static const struct hantro_fmt rockchip_vpu981_dec_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12_4L4,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.frmsize = {
 			.min_width = ROCKCHIP_VPU981_MIN_SIZE,
@@ -328,7 +328,7 @@ static const struct hantro_fmt rockchip_vpu981_dec_fmts[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_NV15_4L4,
-		.codec_mode = HANTRO_MODE_NONE,
+		.codec_mode = HANTRO_MODE_ANALNE,
 		.match_depth = true,
 		.frmsize = {
 			.min_width = ROCKCHIP_VPU981_MIN_SIZE,

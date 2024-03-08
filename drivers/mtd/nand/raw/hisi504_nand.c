@@ -2,7 +2,7 @@
 /*
  * Hisilicon NAND Flash controller driver
  *
- * Copyright © 2012-2014 HiSilicon Technologies Co., Ltd.
+ * Copyright © 2012-2014 HiSilicon Techanallogies Co., Ltd.
  *              http://www.hisilicon.com
  *
  * Author: Zhou Wang <wangzhou.bry@gmail.com>
@@ -38,7 +38,7 @@
 #define HINFC504_ADDR_CYCLE_MASK			0x4
 
 #define HINFC504_CON					0x00
-#define HINFC504_CON_OP_MODE_NORMAL			BIT(0)
+#define HINFC504_CON_OP_MODE_ANALRMAL			BIT(0)
 #define HINFC504_CON_PAGEISZE_SHIFT			(1)
 #define HINFC504_CON_PAGESIZE_MASK			(0x07)
 #define HINFC504_CON_BUS_WIDTH				BIT(4)
@@ -186,7 +186,7 @@ static void hisi_nfc_dma_transfer(struct hinfc_host *host, int todev)
 	hinfc_write(host, host->dma_buffer, HINFC504_DMA_ADDR_DATA);
 	hinfc_write(host, host->dma_oob, HINFC504_DMA_ADDR_OOB);
 
-	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_NONE) {
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ANALNE) {
 		hinfc_write(host, ((mtd->oobsize & HINFC504_DMA_LEN_OOB_MASK)
 			<< HINFC504_DMA_LEN_OOB_SHIFT), HINFC504_DMA_LEN);
 
@@ -526,7 +526,7 @@ static int hisi_nand_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->legacy.read_buf(chip, chip->oob_poi, mtd->oobsize);
 
-	/* errors which can not be corrected by ECC */
+	/* errors which can analt be corrected by ECC */
 	if (host->irq_status & HINFC504_INTS_UE) {
 		mtd->ecc_stats.failed++;
 	} else if (host->irq_status & HINFC504_INTS_CE) {
@@ -590,8 +590,8 @@ static void hisi_nfc_host_init(struct hinfc_host *host)
 	host->cache_addr_value[1]	= ~0;
 	host->chipselect		= 0;
 
-	/* default page size: 2K, ecc_none. need modify */
-	flag = HINFC504_CON_OP_MODE_NORMAL | HINFC504_CON_READY_BUSY_SEL
+	/* default page size: 2K, ecc_analne. need modify */
+	flag = HINFC504_CON_OP_MODE_ANALRMAL | HINFC504_CON_READY_BUSY_SEL
 		| ((0x001 & HINFC504_CON_PAGESIZE_MASK)
 			<< HINFC504_CON_PAGEISZE_SHIFT)
 		| ((0x0 & HINFC504_CON_ECCTYPE_MASK)
@@ -613,7 +613,7 @@ static int hisi_ooblayout_ecc(struct mtd_info *mtd, int section,
 			      struct mtd_oob_region *oobregion)
 {
 	/* FIXME: add ECC bytes position */
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int hisi_ooblayout_free(struct mtd_info *mtd, int section,
@@ -650,7 +650,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 
 	if ((size == 1024) && ((strength != 8) && (strength != 16) &&
 				(strength != 24) && (strength != 40))) {
-		dev_err(dev, "ecc size and strength do not match\n");
+		dev_err(dev, "ecc size and strength do analt match\n");
 		return -EINVAL;
 	}
 
@@ -672,7 +672,7 @@ static int hisi_nfc_ecc_probe(struct hinfc_host *host)
 
 	/* TODO: add more ecc strength support */
 	default:
-		dev_err(dev, "not support strength: %d\n", chip->ecc.strength);
+		dev_err(dev, "analt support strength: %d\n", chip->ecc.strength);
 		return -EINVAL;
 	}
 
@@ -700,7 +700,7 @@ static int hisi_nfc_attach_chip(struct nand_chip *chip)
 					   mtd->writesize + mtd->oobsize,
 					   &host->dma_buffer, GFP_KERNEL);
 	if (!host->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host->dma_oob = host->dma_buffer + mtd->writesize;
 	memset(host->buffer, 0xff, mtd->writesize + mtd->oobsize);
@@ -716,7 +716,7 @@ static int hisi_nfc_attach_chip(struct nand_chip *chip)
 	 * default pagesize has been set in hisi_nfc_host_init
 	 */
 	default:
-		dev_err(host->dev, "NON-2KB page size nand flash\n");
+		dev_err(host->dev, "ANALN-2KB page size nand flash\n");
 		return -EINVAL;
 	}
 	hinfc_write(host, flag, HINFC504_CON);
@@ -738,11 +738,11 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	struct hinfc_host *host;
 	struct nand_chip  *chip;
 	struct mtd_info   *mtd;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->dev = dev;
 
 	platform_set_drvdata(pdev, host);
@@ -765,15 +765,15 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	mtd->dev.parent         = &pdev->dev;
 
 	nand_set_controller_data(chip, host);
-	nand_set_flash_node(chip, np);
+	nand_set_flash_analde(chip, np);
 	chip->legacy.cmdfunc	= hisi_nfc_cmdfunc;
 	chip->legacy.select_chip	= hisi_nfc_select_chip;
 	chip->legacy.read_byte	= hisi_nfc_read_byte;
 	chip->legacy.write_buf	= hisi_nfc_write_buf;
 	chip->legacy.read_buf	= hisi_nfc_read_buf;
 	chip->legacy.chip_delay	= HINFC504_CHIP_DELAY;
-	chip->legacy.set_features	= nand_get_set_features_notsupp;
-	chip->legacy.get_features	= nand_get_set_features_notsupp;
+	chip->legacy.set_features	= nand_get_set_features_analtsupp;
+	chip->legacy.get_features	= nand_get_set_features_analtsupp;
 
 	hisi_nfc_host_init(host);
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-analte */
 /*
  * dmx.h
  *
@@ -129,7 +129,7 @@ enum dmx_ts_pes {
  * @mode: mode of match: if bit is zero, it will match if equal (positive
  *	  match); if bit is one, it will match if the bit is negated.
  *
- * Note: All arrays in this struct have a size of DMX_FILTER_SIZE (16 bytes).
+ * Analte: All arrays in this struct have a size of DMX_FILTER_SIZE (16 bytes).
  */
 struct dmx_filter {
 	__u8  filter[DMX_FILTER_SIZE];
@@ -233,13 +233,13 @@ enum dmx_buffer_flags {
  * @length:	size in bytes of the buffer
  * @flags:	bit array of buffer flags as defined by &enum dmx_buffer_flags.
  *		Filled only at &DMX_DQBUF.
- * @count:	monotonic counter for filled buffers. Helps to identify
+ * @count:	moanaltonic counter for filled buffers. Helps to identify
  *		data stream loses. Filled only at &DMX_DQBUF.
  *
  * Contains data exchanged by application and driver using one of the streaming
  * I/O methods.
  *
- * Please notice that, for &DMX_QBUF, only @index should be filled.
+ * Please analtice that, for &DMX_QBUF, only @index should be filled.
  * On &DMX_DQBUF calls, all fields will be filled by the Kernel.
  */
 struct dmx_buffer {
@@ -278,7 +278,7 @@ struct dmx_requestbuffers {
  * (identical to the cookie used to mmap() the buffer to userspace). All
  * reserved fields must be set to zero. The field reserved0 is expected to
  * become a structure 'type' allowing an alternative layout of the structure
- * content. Therefore this field should not be used for any other extensions.
+ * content. Therefore this field should analt be used for any other extensions.
  */
 struct dmx_exportbuffer {
 	__u32		index;

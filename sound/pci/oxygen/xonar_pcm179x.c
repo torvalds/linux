@@ -64,7 +64,7 @@
  *
  *   GPO 0 -> route line-in (0) or AC97 output (1) to CS5381 input
  *
- * no daughterboard
+ * anal daughterboard
  * ----------------
  *
  *   GPIO 4 <- 1
@@ -79,7 +79,7 @@
  *       <-> PCM1796 (addr 1001110) (center/LFE)
  *       <-> PCM1796 (addr 1001111) (back)
  *
- * unknown daughterboard
+ * unkanalwn daughterboard
  * ---------------------
  *
  *   GPIO 4 <- 0
@@ -725,7 +725,7 @@ static void set_hdav_params(struct oxygen *chip,
 static const struct snd_kcontrol_new alt_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Analog Loopback Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = xonar_gpio_bit_switch_get,
 	.put = xonar_gpio_bit_switch_put,
 	.private_value = GPIO_D2_ALT,
@@ -824,7 +824,7 @@ static int deemph_put(struct snd_kcontrol *ctl,
 static const struct snd_kcontrol_new deemph_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "De-emphasis Playback Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = deemph_get,
 	.put = deemph_put,
 };
@@ -832,7 +832,7 @@ static const struct snd_kcontrol_new deemph_control = {
 static const struct snd_kcontrol_new hdav_hdmi_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "HDMI Playback Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moanal_info,
 	.get = xonar_gpio_bit_switch_get,
 	.put = xonar_gpio_bit_switch_put,
 	.private_value = GPIO_HDAV_OUTPUT_ENABLE | XONAR_GPIO_BIT_INVERT,
@@ -1048,7 +1048,7 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 static int xonar_st_h6_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strncmp(template->name, "Master Playback ", 16))
-		/* no volume/mute, as I²C to the third DAC does not work */
+		/* anal volume/mute, as I²C to the third DAC does analt work */
 		return 1;
 	return 0;
 }

@@ -16,7 +16,7 @@
  * Flags are defined for each of the possible states and values of a media
  * bus configuration parameter. One and only one bit of each group of flags
  * shall be set by the users of the v4l2_subdev_pad_ops.get_mbus_config
- * operation to ensure that no conflicting settings are specified when
+ * operation to ensure that anal conflicting settings are specified when
  * reporting the media bus configuration. For example, it is invalid to set or
  * clear both the V4L2_MBUS_HSYNC_ACTIVE_HIGH and the
  * V4L2_MBUS_HSYNC_ACTIVE_LOW flag at the same time. Instead either flag
@@ -44,7 +44,7 @@
 #define V4L2_MBUS_SLAVE				BIT(1)
 /*
  * Signal polarity flags
- * Note: in BT.656 mode HSYNC, FIELD, and VSYNC are unused
+ * Analte: in BT.656 mode HSYNC, FIELD, and VSYNC are unused
  * V4L2_MBUS_[HV]SYNC* flags should be also used for specifying
  * configuration of hardware that uses [HV]REF signals
  */
@@ -68,8 +68,8 @@
 #define V4L2_MBUS_DATA_ENABLE_LOW		BIT(16)
 
 /* Serial flags */
-/* Clock non-continuous mode support. */
-#define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	BIT(0)
+/* Clock analn-continuous mode support. */
+#define V4L2_MBUS_CSI2_ANALNCONTINUOUS_CLOCK	BIT(0)
 
 #define V4L2_MBUS_CSI2_MAX_DATA_LANES		8
 
@@ -105,7 +105,7 @@ struct v4l2_mbus_config_parallel {
 /**
  * struct v4l2_mbus_config_mipi_csi1 - CSI-1/CCP2 data bus configuration
  * @clock_inv: polarity of clock/strobe signal
- *	       false - not inverted, true - inverted
+ *	       false - analt inverted, true - inverted
  * @strobe: false - data/clock, true - data/strobe
  * @lane_polarity: the polarities of the clock (index 0) and data lanes
  *		   index (1)
@@ -122,7 +122,7 @@ struct v4l2_mbus_config_mipi_csi1 {
 
 /**
  * enum v4l2_mbus_type - media bus type
- * @V4L2_MBUS_UNKNOWN:	unknown bus type, no V4L2 mediabus configuration
+ * @V4L2_MBUS_UNKANALWN:	unkanalwn bus type, anal V4L2 mediabus configuration
  * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
  * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
  *			also be used for BT.1120
@@ -134,7 +134,7 @@ struct v4l2_mbus_config_mipi_csi1 {
  * @V4L2_MBUS_INVALID:	invalid bus type (keep as last)
  */
 enum v4l2_mbus_type {
-	V4L2_MBUS_UNKNOWN,
+	V4L2_MBUS_UNKANALWN,
 	V4L2_MBUS_PARALLEL,
 	V4L2_MBUS_BT656,
 	V4L2_MBUS_CSI1,

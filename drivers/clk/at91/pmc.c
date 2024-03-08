@@ -21,7 +21,7 @@
 #define PMC_MAX_IDS 128
 #define PMC_MAX_PCKS 8
 
-int of_at91_get_clk_range(struct device_node *np, const char *propname,
+int of_at91_get_clk_range(struct device_analde *np, const char *propname,
 			  struct clk_range *range)
 {
 	u32 min, max;
@@ -156,32 +156,32 @@ static const struct of_device_id pmc_dt_ids[] = {
 
 static int __init pmc_register_ops(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, pmc_dt_ids);
+	np = of_find_matching_analde(NULL, pmc_dt_ids);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-securam");
+	np = of_find_compatible_analde(NULL, NULL, "atmel,sama5d2-securam");
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
-		return -ENODEV;
+		of_analde_put(np);
+		return -EANALDEV;
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	at91_pmc_backup_suspend = of_iomap(np, 0);
 	if (!at91_pmc_backup_suspend) {
 		pr_warn("%s(): unable to map securam\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	register_syscore_ops(&pmc_syscore_ops);

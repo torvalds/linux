@@ -6,7 +6,7 @@
 /**
  * DOC: VC4 DPI module
  *
- * The VC4 DPI hardware supports MIPI DPI type 4 and Nokia ViSSI
+ * The VC4 DPI hardware supports MIPI DPI type 4 and Analkia ViSSI
  * signals.  On BCM2835, these can be routed out to GPIO0-27 with the
  * ALT2 function.
  */
@@ -156,7 +156,7 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	/* Default to 18bit if no connector or format found. */
+	/* Default to 18bit if anal connector or format found. */
 	dpi_c |= VC4_SET_FIELD(DPI_FORMAT_18BIT_666_RGB_1, DPI_FORMAT);
 
 	if (connector) {
@@ -199,7 +199,7 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 						       DPI_FORMAT);
 				break;
 			default:
-				DRM_ERROR("Unknown media bus format %d\n",
+				DRM_ERROR("Unkanalwn media bus format %d\n",
 					  bus_format);
 				break;
 			}
@@ -249,7 +249,7 @@ static enum drm_mode_status vc4_dpi_encoder_mode_valid(struct drm_encoder *encod
 						       const struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return MODE_NO_INTERLACE;
+		return MODE_ANAL_INTERLACE;
 
 	return MODE_OK;
 }
@@ -288,12 +288,12 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 	struct device *dev = &dpi->pdev->dev;
 	struct drm_bridge *bridge;
 
-	bridge = drmm_of_get_bridge(drm, dev->of_node, 0, 0);
+	bridge = drmm_of_get_bridge(drm, dev->of_analde, 0, 0);
 	if (IS_ERR(bridge)) {
-		/* If nothing was connected in the DT, that's not an
+		/* If analthing was connected in the DT, that's analt an
 		 * error.
 		 */
-		if (PTR_ERR(bridge) == -ENODEV)
+		if (PTR_ERR(bridge) == -EANALDEV)
 			return 0;
 		else
 			return PTR_ERR(bridge);
@@ -318,7 +318,7 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 
 	dpi = drmm_kzalloc(drm, sizeof(*dpi), GFP_KERNEL);
 	if (!dpi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpi->encoder.type = VC4_ENCODER_TYPE_DPI;
 	dpi->pdev = pdev;
@@ -332,7 +332,7 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
 			DPI_READ(DPI_ID), DPI_ID_VALUE);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dpi->core_clock = devm_clk_get(dev, "core");

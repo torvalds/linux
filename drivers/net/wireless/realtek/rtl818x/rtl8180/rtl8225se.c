@@ -269,7 +269,7 @@ void rtl8225se_rf_init(struct ieee80211_hw *dev)
 		d_cut = 1;
 
 	wiphy_info(dev->wiphy, "RTL8225-SE version %s\n",
-		d_cut ? "D" : "not-D");
+		d_cut ? "D" : "analt-D");
 
 	/* Page 0: reg 0 - 15 */
 	rtl8187se_rf_writereg(dev, 0x00, 0x009F); mdelay(1);
@@ -333,7 +333,7 @@ void rtl8225se_rf_init(struct ieee80211_hw *dev)
 		wiphy_info(dev->wiphy, "Xtal cal\n");
 		mdelay(1);
 	} else {
-		wiphy_info(dev->wiphy, "NO Xtal cal\n");
+		wiphy_info(dev->wiphy, "ANAL Xtal cal\n");
 		rtl8187se_rf_writereg(dev, 0x0F, 0x0ACC);
 		mdelay(1);
 	}

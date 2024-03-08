@@ -26,7 +26,7 @@
 #include "ptrace-decl.h"
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does analt yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -250,7 +250,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		unsigned long dabr_fake;
 #endif
 		ret = -EINVAL;
-		/* We only support one DABR and no IABRS at the moment */
+		/* We only support one DABR and anal IABRS at the moment */
 		if (addr > 0)
 			break;
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS

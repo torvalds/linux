@@ -17,7 +17,7 @@
 #include "vstruct.h"
 
 #define VER_MAJOR		1
-#define VER_MINOR		8
+#define VER_MIANALR		8
 #define VER_LEVEL		9
 
 #include <linux/spinlock.h>
@@ -325,19 +325,19 @@ void		SiS_DisplayOff(struct SiS_Private *SiS_Pr);
 void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);
 void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
 void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
-unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
 
-bool		SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
+bool		SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeAnal,
 				unsigned short *ModeIdIndex);
-unsigned short	SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+unsigned short	SiS_GetModePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 unsigned short  SiS_GetRefCRTVCLK(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide);
 unsigned short  SiS_GetRefCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide);
-unsigned short	SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+unsigned short	SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
-unsigned short	SiS_GetOffset(struct SiS_Private *SiS_Pr,unsigned short ModeNo,
+unsigned short	SiS_GetOffset(struct SiS_Private *SiS_Pr,unsigned short ModeAnal,
 				unsigned short ModeIdIndex, unsigned short RRTI);
 #ifdef CONFIG_FB_SIS_300
 void		SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *idx1,
@@ -345,32 +345,32 @@ void		SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *i
 unsigned short	SiS_GetFIFOThresholdB300(unsigned short idx1, unsigned short idx2);
 unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned short index);
 #endif
-void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
-bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
+void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex);
+bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal);
 void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
-void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata, int xres,
 				int yres, struct fb_var_screeninfo *var, bool writeres);
 
 /* From init301.c: */
-extern void		SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern void		SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex, int chkcrt2mode);
-extern void		SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern void		SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 extern void		SiS_SetYPbPr(struct SiS_Private *SiS_Pr);
-extern void		SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern void		SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 extern void		SiS_UnLockCRT2(struct SiS_Private *SiS_Pr);
 extern void		SiS_DisableBridge(struct SiS_Private *);
 extern bool		SiS_SetCRT2Group(struct SiS_Private *, unsigned short);
-extern unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 extern void		SiS_WaitRetrace1(struct SiS_Private *SiS_Pr);
-extern unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex);
 extern unsigned short	SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempax);
-extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 				unsigned short ModeIdIndex, unsigned short RRTI);
 extern bool		SiS_IsVAMode(struct SiS_Private *);
 extern bool		SiS_IsDualEdge(struct SiS_Private *);
@@ -409,8 +409,8 @@ extern unsigned int	sisfb_read_mio_pci_word(struct SiS_Private *SiS_Pr, int reg)
 #ifndef FB_BLANK_UNBLANK
 #define FB_BLANK_UNBLANK	0
 #endif
-#ifndef FB_BLANK_NORMAL
-#define FB_BLANK_NORMAL		1
+#ifndef FB_BLANK_ANALRMAL
+#define FB_BLANK_ANALRMAL		1
 #endif
 #ifndef FB_BLANK_VSYNC_SUSPEND
 #define FB_BLANK_VSYNC_SUSPEND	2
@@ -446,7 +446,7 @@ enum _SIS_LCD_TYPE {
     LCD_1280x720,
     LCD_1280x854,
     LCD_CUSTOM,
-    LCD_UNKNOWN
+    LCD_UNKANALWN
 };
 
 enum _SIS_CMDTYPE {
@@ -544,13 +544,13 @@ struct sis_video_info {
 	int		sisfb_fstn;
 	int		sisfb_tvplug;
 	int		sisfb_tvstd;
-	int		sisfb_nocrt2rate;
+	int		sisfb_analcrt2rate;
 
 	u32		heapstart;		/* offset  */
 	void __iomem	*sisfb_heap_start;	/* address */
 	void __iomem	*sisfb_heap_end;	/* address */
 	u32		sisfb_heap_size;
-	int		havenoheap;
+	int		haveanalheap;
 
 	struct SIS_HEAP	sisfb_heap;		/* This card's vram heap */
 
@@ -574,7 +574,7 @@ struct sis_video_info {
 	int		cmdqueuelength;		/* Current (for accel) */
 	u32		cmdQueueSize;		/* Total size in KB */
 
-	spinlock_t	lockaccel;		/* Do not use outside of kernel! */
+	spinlock_t	lockaccel;		/* Do analt use outside of kernel! */
 
 	unsigned int	pcibus;
 	unsigned int	pcislot;
@@ -606,7 +606,7 @@ struct sis_video_info {
 
 	unsigned int	current_base;
 
-	u8		mode_no;
+	u8		mode_anal;
 	u8		rate_idx;
 	int		modechanged;
 	unsigned char	modeprechange;
@@ -686,17 +686,17 @@ extern unsigned short	SiS_GetModeID_TV(int VGAEngine, unsigned int VBFlags, int 
 extern unsigned short	SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay,
 				int VDisplay, int Depth, unsigned int VBFlags2);
 extern void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);
-extern bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
+extern bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal);
 extern void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
 extern void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
 
 extern bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
 
-extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
+extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 				int *htotal, int *vtotal, unsigned char rateindex);
 extern int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
-				unsigned char modeno, unsigned char rateindex);
-extern int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
+				unsigned char modeanal, unsigned char rateindex);
+extern int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeanal,
 				unsigned char rateindex, struct fb_var_screeninfo *var);
 
 

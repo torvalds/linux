@@ -224,7 +224,7 @@ static int pds_vfio_dma_map_lm_file(struct device *dev,
 	sgl_size = lm_file->num_sge * sizeof(struct pds_lm_sg_elem);
 	sgl = kzalloc(sgl_size, GFP_KERNEL);
 	if (!sgl) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_unmap_sgtable;
 	}
 
@@ -372,7 +372,7 @@ void pds_vfio_send_host_vf_lm_status_cmd(struct pds_vfio_pci_device *pds_vfio,
 	dev_dbg(dev, "vf%u: Set host VF LM status: %u", pds_vfio->vf_id,
 		vf_status);
 	if (vf_status != PDS_LM_STA_IN_PROGRESS &&
-	    vf_status != PDS_LM_STA_NONE) {
+	    vf_status != PDS_LM_STA_ANALNE) {
 		dev_warn(dev, "Invalid host VF migration status, %d\n",
 			 vf_status);
 		return;
@@ -408,11 +408,11 @@ int pds_vfio_dirty_status_cmd(struct pds_vfio_pci_device *pds_vfio,
 		return err;
 	}
 
-	/* only support seq_ack approach for now */
+	/* only support seq_ack approach for analw */
 	if (!(le32_to_cpu(comp.lm_dirty_status.bmp_type_mask) &
 	      BIT(PDS_LM_DIRTY_BMP_TYPE_SEQ_ACK))) {
-		dev_err(dev, "Dirty bitmap tracking SEQ_ACK not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Dirty bitmap tracking SEQ_ACK analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	*num_regions = comp.lm_dirty_status.num_regions;
@@ -465,7 +465,7 @@ int pds_vfio_dirty_disable_cmd(struct pds_vfio_pci_device *pds_vfio)
 
 	err = pds_vfio_client_adminq_cmd(pds_vfio, &cmd, &comp, false);
 	if (err || comp.lm_dirty_status.num_regions != 0) {
-		/* in case num_regions is still non-zero after disable */
+		/* in case num_regions is still analn-zero after disable */
 		err = err ? err : -EIO;
 		dev_err(dev,
 			"failed dirty tracking disable: %pe, num_regions %d\n",

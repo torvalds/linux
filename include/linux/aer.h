@@ -8,10 +8,10 @@
 #ifndef _AER_H_
 #define _AER_H_
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 
-#define AER_NONFATAL			0
+#define AER_ANALNFATAL			0
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
 #define DPC_FATAL			3
@@ -41,10 +41,10 @@ struct aer_capability_regs {
 };
 
 #if defined(CONFIG_PCIEAER)
-int pci_aer_clear_nonfatal_status(struct pci_dev *dev);
+int pci_aer_clear_analnfatal_status(struct pci_dev *dev);
 int pcie_aer_is_native(struct pci_dev *dev);
 #else
-static inline int pci_aer_clear_nonfatal_status(struct pci_dev *dev)
+static inline int pci_aer_clear_analnfatal_status(struct pci_dev *dev)
 {
 	return -EINVAL;
 }

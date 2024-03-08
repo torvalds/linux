@@ -3,7 +3,7 @@
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung EXYNOS5 SoC series G-Scaler driver
+ * Samsung EXYANALS5 SoC series G-Scaler driver
  */
 
 #include <linux/io.h>
@@ -404,7 +404,7 @@ void gsc_hw_set_global_alpha(struct gsc_ctx *ctx)
 	u32 cfg;
 
 	if (!is_rgb(frame->fmt->color)) {
-		pr_debug("Not a RGB format");
+		pr_debug("Analt a RGB format");
 		return;
 	}
 

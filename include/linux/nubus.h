@@ -44,7 +44,7 @@ struct nubus_board {
 
 	/* Format block */
 	unsigned char *fblock;
-	/* Root directory (does *not* always equal fblock + doffset!) */
+	/* Root directory (does *analt* always equal fblock + doffset!) */
 	unsigned char *directory;
 
 	unsigned long slot_addr;

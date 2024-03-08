@@ -300,7 +300,7 @@ struct tx4938ide_platform_info {
 	 * spacing used by ata_std_ports().
 	 */
 	unsigned int ioport_shift;
-	unsigned int gbus_clock;	/*  0 means no PIO mode tuning. */
+	unsigned int gbus_clock;	/*  0 means anal PIO mode tuning. */
 	unsigned int ebus_ch;
 };
 

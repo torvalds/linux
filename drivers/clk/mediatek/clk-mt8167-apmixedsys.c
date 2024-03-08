@@ -93,7 +93,7 @@ static int clk_mt8167_apmixed_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
 	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -103,9 +103,9 @@ static int clk_mt8167_apmixed_probe(struct platform_device *pdev)
 
 	clk_data = mtk_devm_alloc_clk_data(dev, MT8167_CLK_APMIXED_NR_CLK);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	ret = mtk_clk_register_plls(analde, plls, ARRAY_SIZE(plls), clk_data);
 	if (ret)
 		return ret;
 
@@ -114,7 +114,7 @@ static int clk_mt8167_apmixed_probe(struct platform_device *pdev)
 	if (ret)
 		goto unregister_plls;
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(analde, of_clk_hw_onecell_get, clk_data);
 	if (ret)
 		goto unregister_dividers;
 

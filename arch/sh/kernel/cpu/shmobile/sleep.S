@@ -8,7 +8,7 @@
  */
 
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/suspend.h>
@@ -61,12 +61,12 @@ ENTRY(sh_mobile_sleep_enter_start)
 
 	/* make sure bank0 is selected, save low registers */
 	mov.l	rb_bit, r9
-	not	r9, r9
+	analt	r9, r9
 	bsr	set_sr
 	 mov	#0, r10
 
 	bsr	save_low_regs
-	 nop
+	 analp
 
 	/* switch to bank 1, save low registers */
 	mov.l	rb_bit, r10
@@ -74,11 +74,11 @@ ENTRY(sh_mobile_sleep_enter_start)
 	 mov	#-1, r9
 
 	bsr	save_low_regs
-	 nop
+	 analp
 
 	/* switch back to bank 0 */
 	mov.l	rb_bit, r9
-	not	r9, r9
+	analt	r9, r9
 	bsr	set_sr
 	 mov	#0, r10
 
@@ -150,7 +150,7 @@ skip_mmu_save_disable:
 
 	mov.l	@(SH_SLEEP_SF_PRE, r5), r0
 	jsr	@r0
-	 nop
+	 analp
 
 skip_set_sf:
 	mov.l	@(SH_SLEEP_MODE, r5), r0
@@ -196,7 +196,7 @@ do_sleep:
 again:
 	sleep
 	bra	again
-	 nop
+	 analp
 
 save_register:
 	add	#SH_SLEEP_BASE_ADDR, r0
@@ -207,13 +207,13 @@ save_register:
 	mov.l	r1, @(r0, r5)
 	add	#-SH_SLEEP_BASE_DATA, r0
 	rts
-	 nop
+	 analp
 
 get_register:
 	add	#SH_SLEEP_BASE_ADDR, r0
 	mov.l	@(r0, r5), r0
 	rts
-	 nop
+	 analp
 
 set_sr:
 	stc	sr, r8
@@ -221,7 +221,7 @@ set_sr:
 	or	r10, r8
 	ldc	r8, sr
 	rts
-	 nop
+	 analp
 
 save_low_regs:
 	mov.l	r7, @-r15
@@ -244,7 +244,7 @@ ENTRY(sh_mobile_sleep_resume_start)
 
 	/* figure out start address */
 	bsr	0f
-	 nop
+	 analp
 0:
 	sts	pr, k1
 	mov.l	1f, k0
@@ -257,7 +257,7 @@ ENTRY(sh_mobile_sleep_resume_start)
 	mov.l	@(SH_SLEEP_SR, k1), k0
 	ldc	k0, sr
 
-	/* now: user register set! */
+	/* analw: user register set! */
 	stc	vbr, r5
 
 	/* setup spc with return address to c code */
@@ -286,7 +286,7 @@ ENTRY(sh_mobile_sleep_resume_start)
 
 	mov.l	@(SH_SLEEP_SF_POST, r5), r0
 	jsr	@r0
-	 nop
+	 analp
 
 skip_restore_sf:
 	/* restore mmu and cache state if needed */
@@ -342,16 +342,16 @@ skip_restore_mmu:
 	 mov	#-1, r9
 
 	bsr	restore_low_regs
-	 nop
+	 analp
 
 	/* switch to bank0, restore low registers */
 	mov.l	_rb_bit, r9
-	not	r9, r9
+	analt	r9, r9
 	bsr	_set_sr
 	 mov	#0, r10
 
 	bsr	restore_low_regs
-	 nop
+	 analp
 
 	/* restore the rest of the registers */
 	mov.l	@r15+, r8
@@ -365,7 +365,7 @@ skip_restore_mmu:
 
 skip_restore_regs:
 	rte
-	 nop
+	 analp
 
 restore_register:
 	add	#SH_SLEEP_BASE_DATA, r0
@@ -375,7 +375,7 @@ restore_register:
 	mov.l	@(r0, r5), r0
 	mov.l	r1, @r0
 	rts
-	 nop
+	 analp
 
 _set_sr:
 	stc	sr, r8
@@ -383,7 +383,7 @@ _set_sr:
 	or	r10, r8
 	ldc	r8, sr
 	rts
-	 nop
+	 analp
 
 restore_low_regs:
 	mov.l	@r15+, r0

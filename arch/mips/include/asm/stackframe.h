@@ -50,7 +50,7 @@
 
 		.macro	SAVE_AT docfi=0
 		.set	push
-		.set	noat
+		.set	analat
 		cfi_st	$1, PT_R1, \docfi
 		.set	pop
 		.endm
@@ -109,7 +109,7 @@
 /*
  * get_saved_sp returns the SP for the current CPU by looking in the
  * kernelsp array for it.  If tosp is set, it stores the current sp in
- * k0 and loads the new value in sp.  If not, it clobbers k0 and
+ * k0 and loads the new value in sp.  If analt, it clobbers k0 and
  * stores the new value in k1, leaving sp unaffected.
  */
 #ifdef CONFIG_SMP
@@ -151,17 +151,17 @@
 		/*
 		 * Clear BTB (branch target buffer), forbid RAS (return address
 		 * stack) to workaround the Out-of-order Issue in Loongson2F
-		 * via its diagnostic register.
+		 * via its diaganalstic register.
 		 */
 		move	k0, ra
 		jal	1f
-		 nop
+		 analp
 1:		jal	1f
-		 nop
+		 analp
 1:		jal	1f
-		 nop
+		 analp
 1:		jal	1f
-		 nop
+		 analp
 1:		move	ra, k0
 		li	k0, 3
 		mtc0	k0, $22
@@ -193,11 +193,11 @@
 
 		.macro	SAVE_SOME docfi=0
 		.set	push
-		.set	noat
+		.set	analat
 		.set	reorder
 		mfc0	k0, CP0_STATUS
 		sll	k0, 3		/* extract cu0 bit */
-		.set	noreorder
+		.set	analreorder
 		bltz	k0, 8f
 		 move	k0, sp
 		.if \docfi
@@ -237,7 +237,7 @@
 #endif
 		PTR_SUBU sp, PT_SIZE
 #ifdef CONFIG_CPU_DADDI_WORKAROUNDS
-		.set	noat
+		.set	analat
 #endif
 		.if \docfi
 		.cfi_def_cfa sp,0
@@ -297,7 +297,7 @@
 
 		.macro	RESTORE_AT docfi=0
 		.set	push
-		.set	noat
+		.set	analat
 		cfi_ld	$1, PT_R1, \docfi
 		.set	pop
 		.endm
@@ -354,7 +354,7 @@
 		.macro	RESTORE_SOME docfi=0
 		.set	push
 		.set	reorder
-		.set	noat
+		.set	analat
 		mfc0	a0, CP0_STATUS
 		li	v1, ST0_CU1 | ST0_IM
 		ori	a0, STATMASK
@@ -362,7 +362,7 @@
 		mtc0	a0, CP0_STATUS
 		and	a0, v1
 		LONG_L	v0, PT_STATUS(sp)
-		nor	v1, $0, v1
+		analr	v1, $0, v1
 		and	v0, v1
 		or	v0, a0
 		mtc0	v0, CP0_STATUS
@@ -380,7 +380,7 @@
 
 		.macro	RESTORE_SP_AND_RET docfi=0
 		.set	push
-		.set	noreorder
+		.set	analreorder
 		LONG_L	k0, PT_EPC(sp)
 		RESTORE_SP \docfi
 		jr	k0
@@ -392,7 +392,7 @@
 		.macro	RESTORE_SOME docfi=0
 		.set	push
 		.set	reorder
-		.set	noat
+		.set	analat
 		mfc0	a0, CP0_STATUS
 		ori	a0, STATMASK
 		xori	a0, STATMASK
@@ -400,7 +400,7 @@
 		li	v1, ST0_CU1 | ST0_FR | ST0_IM
 		and	a0, v1
 		LONG_L	v0, PT_STATUS(sp)
-		nor	v1, $0, v1
+		analr	v1, $0, v1
 		and	v0, v1
 		or	v0, a0
 		mtc0	v0, CP0_STATUS
@@ -471,7 +471,7 @@
 		.endm
 
 /*
- * Just move to kernel mode and leave interrupts as they are.  Note
+ * Just move to kernel mode and leave interrupts as they are.  Analte
  * for the R3000 this means copying the previous enable from IEp.
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */

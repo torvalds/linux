@@ -1,7 +1,7 @@
 sysfs interface
 ---------------
 The pktcdvd module (packet writing driver) creates the following files in the
-sysfs: (<devid> is in the format major:minor)
+sysfs: (<devid> is in the format major:mianalr)
 
 What:		/sys/class/pktcdvd/add
 What:		/sys/class/pktcdvd/remove
@@ -12,11 +12,11 @@ Contact:	Thomas Maier <balagi@justmail.de>
 Description:
 
 		==========	==============================================
-		add		(WO) Write a block device id (major:minor) to
+		add		(WO) Write a block device id (major:mianalr) to
 				create a new pktcdvd device and map it to the
 				block device.
 
-		remove		(WO) Write the pktcdvd device id (major:minor)
+		remove		(WO) Write the pktcdvd device id (major:mianalr)
 				to remove the pktcdvd device.
 
 		device_map	(RO) Shows the device mapping in format:
@@ -74,9 +74,9 @@ Description:
 				accept new bio requests from the block layer.
 
 		congestion_on	(RW) If bio write queue size is higher as this
-				mark, do no longer accept bio write requests
+				mark, do anal longer accept bio write requests
 				from the block layer and wait till the pktcdvd
-				device has processed enough bio's so that bio
+				device has processed eanalugh bio's so that bio
 				write queue size is below congestion off mark.
 				A value of <= 0 disables congestion control.
 		==============	================================================

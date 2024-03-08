@@ -90,7 +90,7 @@ static int caam_prng_generate(struct crypto_rng *tfm,
 
 	buf = kzalloc(aligned_dlen, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	jrdev = caam_jr_alloc();
 	ret = PTR_ERR_OR_ZERO(jrdev);
@@ -102,14 +102,14 @@ static int caam_prng_generate(struct crypto_rng *tfm,
 
 	desc = kzalloc(CAAM_PRNG_MAX_DESC_LEN, GFP_KERNEL);
 	if (!desc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out1;
 	}
 
 	dst_dma = dma_map_single(jrdev, buf, dlen, DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dst_dma)) {
 		dev_err(jrdev, "Failed to map destination buffer memory\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -165,7 +165,7 @@ static int caam_prng_seed(struct crypto_rng *tfm,
 	desc = kzalloc(CAAM_PRNG_MAX_DESC_LEN, GFP_KERNEL);
 	if (!desc) {
 		caam_jr_free(jrdev);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	init_completion(&ctx.done);
@@ -220,7 +220,7 @@ int caam_prng_register(struct device *ctrldev)
 		rng_inst = rd_reg32(&priv->jr[0]->vreg.rng) & CHA_VER_NUM_MASK;
 
 	if (!rng_inst) {
-		dev_dbg(ctrldev, "RNG block is not available... skipping registering algorithm\n");
+		dev_dbg(ctrldev, "RNG block is analt available... skipping registering algorithm\n");
 		return ret;
 	}
 

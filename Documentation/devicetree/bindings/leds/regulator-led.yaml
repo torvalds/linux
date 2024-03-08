@@ -20,7 +20,7 @@ allOf:
   - $ref: common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: '^led.*$'
 
   compatible:

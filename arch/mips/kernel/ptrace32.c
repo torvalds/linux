@@ -8,7 +8,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 2000 Ralf Baechle
  * Copyright (C) 1996 David S. Miller
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999 MIPS Technologies, Inc.
+ * Copyright (C) 1999 MIPS Techanallogies, Inc.
  * Copyright (C) 2000 Ulf Carlsson
  *
  * At this time Linux/MIPS64 only supports syscall tracing, even for 32-bit
@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 #include <linux/security.h>
@@ -37,8 +37,8 @@
 #include <asm/bootinfo.h>
 
 /*
- * Tracing a 32-bit process with a 64-bit strace and vice versa will not
- * work.  I don't know how to fix this.
+ * Tracing a 32-bit process with a 64-bit strace and vice versa will analt
+ * work.  I don't kanalw how to fix this.
  */
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
@@ -95,7 +95,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			union fpureg *fregs;
 
 			if (!tsk_used_math(child)) {
-				/* FP not yet used */
+				/* FP analt yet used */
 				tmp = -1;
 				break;
 			}
@@ -211,7 +211,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			union fpureg *fregs = get_fpu_regs(child);
 
 			if (!tsk_used_math(child)) {
-				/* FP not yet used  */
+				/* FP analt yet used  */
 				memset(&child->thread.fpu, ~0,
 				       sizeof(child->thread.fpu));
 				child->thread.fpu.fcr31 = 0;
@@ -262,7 +262,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			child->thread.dsp.dspcontrol = data;
 			break;
 		default:
-			/* The rest are not allowed. */
+			/* The rest are analt allowed. */
 			ret = -EIO;
 			break;
 		}

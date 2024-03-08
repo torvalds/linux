@@ -24,7 +24,7 @@ struct ddr_pmu {
 	bool pmu_enabled;
 	struct device *dev;
 	char *name;
-	struct hlist_node node;
+	struct hlist_analde analde;
 	enum cpuhp_state cpuhp_state;
 	int cpu;			/* for cpu hotplug */
 };
@@ -122,18 +122,18 @@ static int meson_ddr_perf_event_init(struct perf_event *event)
 	u64 config2 = event->attr.config2;
 
 	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
+		return -EANALENT;
 
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (event->cpu < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* check if the number of parameters is too much */
 	if (event->attr.config != ALL_CHAN_COUNTER_ID &&
 	    hweight64(config1) + hweight64(config2) > MAX_AXI_PORTS_OF_CHANNEL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	event->cpu = pmu->cpu;
 
@@ -296,7 +296,7 @@ static umode_t meson_ddr_perf_format_attr_visible(struct kobject *kobj,
 	const u64 *capability = ddr_pmu->info.hw_info->capability;
 	struct device_attribute *dev_attr;
 	int id;
-	char value[20]; // config1:xxx, 20 is enough
+	char value[20]; // config1:xxx, 20 is eanalugh
 
 	dev_attr = container_of(attr, struct device_attribute, attr);
 	dev_attr->show(NULL, NULL, value);
@@ -390,9 +390,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_analde *analde)
 {
-	struct ddr_pmu *pmu = hlist_entry_safe(node, struct ddr_pmu, node);
+	struct ddr_pmu *pmu = hlist_entry_safe(analde, struct ddr_pmu, analde);
 	int target;
 
 	if (cpu != pmu->cpu)
@@ -471,7 +471,7 @@ static int ddr_pmu_parse_dt(struct platform_device *pdev,
 	info->irq_num = ret;
 
 	ret = devm_request_irq(&pdev->dev, info->irq_num, dmc_irq_handler,
-			       IRQF_NOBALANCING, dev_name(&pdev->dev),
+			       IRQF_ANALBALANCING, dev_name(&pdev->dev),
 			       (void *)info);
 	if (ret < 0)
 		return ret;
@@ -487,12 +487,12 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(struct ddr_pmu), GFP_KERNEL);
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*pmu = (struct ddr_pmu) {
 		.pmu = {
 			.module		= THIS_MODULE,
-			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+			.capabilities	= PERF_PMU_CAP_ANAL_EXCLUDE,
 			.task_ctx_nr	= perf_invalid_context,
 			.attr_groups	= attr_groups,
 			.event_init	= meson_ddr_perf_event_init,
@@ -514,7 +514,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, DDR_PERF_DEV_NAME);
 	if (!name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, name, NULL,
 				      ddr_perf_offline_cpu);
@@ -524,7 +524,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 	pmu->cpuhp_state = ret;
 
 	/* Register the pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	ret = cpuhp_state_add_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	if (ret)
 		goto cpuhp_instance_err;
 
@@ -543,7 +543,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 	return 0;
 
 pmu_register_err:
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 
 cpuhp_instance_err:
 	cpuhp_remove_state(pmu->cpuhp_state);
@@ -556,7 +556,7 @@ int meson_ddr_pmu_remove(struct platform_device *pdev)
 	struct ddr_pmu *pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&pmu->pmu);
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
+	cpuhp_state_remove_instance_analcalls(pmu->cpuhp_state, &pmu->analde);
 	cpuhp_remove_state(pmu->cpuhp_state);
 
 	return 0;

@@ -55,7 +55,7 @@ int arch__compare_symbol_names_n(const char *namea, const char *nameb,
 	return strncmp(namea, nameb, n);
 }
 
-const char *arch__normalize_symbol_name(const char *name)
+const char *arch__analrmalize_symbol_name(const char *name)
 {
 	/* Skip over initial dot */
 	if (name && *name == '.')
@@ -82,7 +82,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 	int lep_offset;
 
 	/*
-	 * When probing at a function entry point, we normally always want the
+	 * When probing at a function entry point, we analrmally always want the
 	 * LEP since that catches calls to the function through both the GEP and
 	 * the LEP. Hence, we would like to probe at an offset of 8 bytes if
 	 * the user only specified the function entry.
@@ -121,7 +121,7 @@ void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
 	struct probe_trace_event *tev;
 	struct map *map;
 	struct symbol *sym = NULL;
-	struct rb_node *tmp;
+	struct rb_analde *tmp;
 	int i = 0;
 
 	map = get_target_map(pev->target, pev->nsi, pev->uprobes);

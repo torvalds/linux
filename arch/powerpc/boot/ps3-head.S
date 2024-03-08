@@ -30,7 +30,7 @@ __system_reset_overlay:
 	mfmsr	r9
 	clrldi	r9,r9,1
 	mtmsrd	r9
-	nop
+	analp
 
 	/* Get thread number in r3 and branch. */
 

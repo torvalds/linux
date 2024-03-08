@@ -8,7 +8,7 @@
 // to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
 // but everything else (including deghosting) is done here.  The main
 // motivation for this is to keep the EC firmware as simple as possible, since
-// it cannot be easily upgraded and EC flash/IRAM space is relatively
+// it cananalt be easily upgraded and EC flash/IRAM space is relatively
 // expensive.
 
 #include <linux/module.h>
@@ -19,7 +19,7 @@
 #include <linux/input/vivaldi-fmap.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysrq.h>
@@ -42,8 +42,8 @@
  * @dev: Device pointer
  * @ec: Top level ChromeOS device to use to talk to EC
  * @idev: The input device for the matrix keys.
- * @bs_idev: The input device for non-matrix buttons and switches (or NULL).
- * @notifier: interrupt event notifier for transport devices
+ * @bs_idev: The input device for analn-matrix buttons and switches (or NULL).
+ * @analtifier: interrupt event analtifier for transport devices
  * @vdata: vivaldi function row data
  */
 struct cros_ec_keyb {
@@ -60,7 +60,7 @@ struct cros_ec_keyb {
 
 	struct input_dev *idev;
 	struct input_dev *bs_idev;
-	struct notifier_block notifier;
+	struct analtifier_block analtifier;
 
 	struct vivaldi_data vdata;
 };
@@ -184,8 +184,8 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 
 	if (ckdev->ghost_filter && cros_ec_keyb_has_ghosting(ckdev, kb_state)) {
 		/*
-		 * Simple-minded solution: ignore this state. The obvious
-		 * improvement is to only ignore changes to keys involved in
+		 * Simple-minded solution: iganalre this state. The obvious
+		 * improvement is to only iganalre changes to keys involved in
 		 * the ghosting, but process the other changes.
 		 */
 		dev_dbg(ckdev->dev, "ghosting found\n");
@@ -215,7 +215,7 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 }
 
 /**
- * cros_ec_keyb_report_bs - Report non-matrixed buttons or switches
+ * cros_ec_keyb_report_bs - Report analn-matrixed buttons or switches
  *
  * This takes a bitmap of buttons or switches from the EC and reports events,
  * syncing at the end.
@@ -243,21 +243,21 @@ static void cros_ec_keyb_report_bs(struct cros_ec_keyb *ckdev,
 	input_sync(idev);
 }
 
-static int cros_ec_keyb_work(struct notifier_block *nb,
-			     unsigned long queued_during_suspend, void *_notify)
+static int cros_ec_keyb_work(struct analtifier_block *nb,
+			     unsigned long queued_during_suspend, void *_analtify)
 {
 	struct cros_ec_keyb *ckdev = container_of(nb, struct cros_ec_keyb,
-						  notifier);
+						  analtifier);
 	u32 val;
 	unsigned int ev_type;
 
 	/*
-	 * If not wake enabled, discard key state changes during
+	 * If analt wake enabled, discard key state changes during
 	 * suspend. Switches will be re-checked in
-	 * cros_ec_keyb_resume() to be sure nothing is lost.
+	 * cros_ec_keyb_resume() to be sure analthing is lost.
 	 */
 	if (queued_during_suspend && !device_may_wakeup(ckdev->dev))
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (ckdev->ec->event_data.event_type) {
 	case EC_MKBP_EVENT_KEY_MATRIX:
@@ -266,7 +266,7 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 		if (ckdev->ec->event_size != ckdev->cols) {
 			dev_err(ckdev->dev,
 				"Discarded incomplete key matrix event.\n");
-			return NOTIFY_OK;
+			return ANALTIFY_OK;
 		}
 
 		cros_ec_keyb_process(ckdev,
@@ -299,15 +299,15 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 		break;
 
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 /*
  * Walks keycodes flipping bit in buffer COLUMNS deep where bit is ROW.  Used by
- * ghosting logic to ignore NULL or virtual keys.
+ * ghosting logic to iganalre NULL or virtual keys.
  */
 static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
 {
@@ -333,7 +333,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
  * cros_ec_keyb_info - Wrap the EC command EC_CMD_MKBP_INFO
  *
  * This wraps the EC_CMD_MKBP_INFO, abstracting out all of the marshalling and
- * unmarshalling and different version nonsense into something simple.
+ * unmarshalling and different version analnsense into something simple.
  *
  * @ec_dev: The EC device
  * @info_type: Either EC_MKBP_INFO_SUPPORTED or EC_MKBP_INFO_CURRENT.
@@ -344,7 +344,7 @@ static void cros_ec_keyb_compute_valid_keys(struct cros_ec_keyb *ckdev)
  * @result_size: The size of the result.  Expected to be the size of one of
  *               the elements in the union.
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if anal error or -error upon error.
  */
 static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
 			     enum ec_mkbp_info_type info_type,
@@ -359,7 +359,7 @@ static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
 	msg = kzalloc(sizeof(*msg) + max_t(size_t, result_size,
 					   sizeof(*params)), GFP_KERNEL);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	msg->command = EC_CMD_MKBP_INFO;
 	msg->version = 1;
@@ -370,7 +370,7 @@ static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
 	params->event_type = event_type;
 
 	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
-	if (ret == -ENOPROTOOPT) {
+	if (ret == -EANALPROTOOPT) {
 		/* With older ECs we just return 0 for everything */
 		memset(result, 0, result_size);
 		ret = 0;
@@ -396,12 +396,12 @@ static int cros_ec_keyb_info(struct cros_ec_device *ec_dev,
  * cros_ec_keyb_query_switches - Query the state of switches and report
  *
  * This will ask the EC about the current state of switches and report to the
- * kernel.  Note that we don't query for buttons because they are more
+ * kernel.  Analte that we don't query for buttons because they are more
  * transitory and we'll get an update on the next release / press.
  *
  * @ckdev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if anal error or -error upon error.
  */
 static int cros_ec_keyb_query_switches(struct cros_ec_keyb *ckdev)
 {
@@ -424,11 +424,11 @@ static int cros_ec_keyb_query_switches(struct cros_ec_keyb *ckdev)
 /**
  * cros_ec_keyb_resume - Resume the keyboard
  *
- * We use the resume notification as a chance to query the EC for switches.
+ * We use the resume analtification as a chance to query the EC for switches.
  *
  * @dev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if anal error or -error upon error.
  */
 static int cros_ec_keyb_resume(struct device *dev)
 {
@@ -441,20 +441,20 @@ static int cros_ec_keyb_resume(struct device *dev)
 }
 
 /**
- * cros_ec_keyb_register_bs - Register non-matrix buttons/switches
+ * cros_ec_keyb_register_bs - Register analn-matrix buttons/switches
  *
- * Handles all the bits of the keyboard driver related to non-matrix buttons
+ * Handles all the bits of the keyboard driver related to analn-matrix buttons
  * and switches, including asking the EC about which are present and telling
  * the kernel to expect them.
  *
- * If this device has no support for buttons and switches we'll return no error
+ * If this device has anal support for buttons and switches we'll return anal error
  * but the ckdev->bs_idev will remain NULL when this function exits.
  *
  * @ckdev: The keyboard device
  * @expect_buttons_switches: Indicates that EC must report button and/or
  *   switch events
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if anal error or -error upon error.
  */
 static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
 				    bool expect_buttons_switches)
@@ -487,17 +487,17 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
 		return expect_buttons_switches ? -EINVAL : 0;
 
 	/*
-	 * We call the non-matrix buttons/switches 'input1', if present.
+	 * We call the analn-matrix buttons/switches 'input1', if present.
 	 * Allocate phys before input dev, to ensure correct tear-down
 	 * ordering.
 	 */
 	phys = devm_kasprintf(dev, GFP_KERNEL, "%s/input1", ec_dev->phys_name);
 	if (!phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = "cros_ec_buttons";
 	idev->phys = phys;
@@ -521,13 +521,13 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
 
 	ret = cros_ec_keyb_query_switches(ckdev);
 	if (ret) {
-		dev_err(dev, "cannot query switches\n");
+		dev_err(dev, "cananalt query switches\n");
 		return ret;
 	}
 
 	ret = input_register_device(ckdev->bs_idev);
 	if (ret) {
-		dev_err(dev, "cannot register input device\n");
+		dev_err(dev, "cananalt register input device\n");
 		return ret;
 	}
 
@@ -585,7 +585,7 @@ static void cros_ec_keyb_parse_vivaldi_physmap(struct cros_ec_keyb *ckdev)
  *
  * @ckdev: The keyboard device
  *
- * Returns 0 if no error or -error upon error.
+ * Returns 0 if anal error or -error upon error.
  */
 static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 {
@@ -601,11 +601,11 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 
 	ckdev->valid_keys = devm_kzalloc(dev, ckdev->cols, GFP_KERNEL);
 	if (!ckdev->valid_keys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ckdev->old_kb_state = devm_kzalloc(dev, ckdev->cols, GFP_KERNEL);
 	if (!ckdev->old_kb_state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * We call the keyboard matrix 'input0'. Allocate phys before input
@@ -613,11 +613,11 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	 */
 	phys = devm_kasprintf(dev, GFP_KERNEL, "%s/input0", ec_dev->phys_name);
 	if (!phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = CROS_EC_DEV_NAME;
 	idev->phys = phys;
@@ -634,7 +634,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	err = matrix_keypad_build_keymap(NULL, NULL, ckdev->rows, ckdev->cols,
 					 NULL, idev);
 	if (err) {
-		dev_err(dev, "cannot build key matrix\n");
+		dev_err(dev, "cananalt build key matrix\n");
 		return err;
 	}
 
@@ -648,7 +648,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 
 	err = input_register_device(ckdev->idev);
 	if (err) {
-		dev_err(dev, "cannot register input device\n");
+		dev_err(dev, "cananalt register input device\n");
 		return err;
 	}
 
@@ -701,7 +701,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	int err;
 
 	/*
-	 * If the parent ec device has not been probed yet, defer the probe of
+	 * If the parent ec device has analt been probed yet, defer the probe of
 	 * this keyboard/button driver until later.
 	 */
 	ec = dev_get_drvdata(pdev->dev.parent);
@@ -710,7 +710,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
 	if (!ckdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ckdev->ec = ec;
 	ckdev->dev = dev;
@@ -719,7 +719,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	if (!buttons_switches_only) {
 		err = cros_ec_keyb_register_matrix(ckdev);
 		if (err) {
-			dev_err(dev, "cannot register matrix inputs: %d\n",
+			dev_err(dev, "cananalt register matrix inputs: %d\n",
 				err);
 			return err;
 		}
@@ -727,15 +727,15 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	err = cros_ec_keyb_register_bs(ckdev, buttons_switches_only);
 	if (err) {
-		dev_err(dev, "cannot register non-matrix inputs: %d\n", err);
+		dev_err(dev, "cananalt register analn-matrix inputs: %d\n", err);
 		return err;
 	}
 
-	ckdev->notifier.notifier_call = cros_ec_keyb_work;
-	err = blocking_notifier_chain_register(&ckdev->ec->event_notifier,
-					       &ckdev->notifier);
+	ckdev->analtifier.analtifier_call = cros_ec_keyb_work;
+	err = blocking_analtifier_chain_register(&ckdev->ec->event_analtifier,
+					       &ckdev->analtifier);
 	if (err) {
-		dev_err(dev, "cannot register notifier: %d\n", err);
+		dev_err(dev, "cananalt register analtifier: %d\n", err);
 		return err;
 	}
 
@@ -747,8 +747,8 @@ static void cros_ec_keyb_remove(struct platform_device *pdev)
 {
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(&pdev->dev);
 
-	blocking_notifier_chain_unregister(&ckdev->ec->event_notifier,
-					   &ckdev->notifier);
+	blocking_analtifier_chain_unregister(&ckdev->ec->event_analtifier,
+					   &ckdev->analtifier);
 }
 
 #ifdef CONFIG_ACPI

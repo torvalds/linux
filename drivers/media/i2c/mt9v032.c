@@ -27,7 +27,7 @@
 #include <media/i2c/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 /* The first four rows are black rows. The active area spans 753x481 pixels. */
@@ -108,11 +108,11 @@
 #define		MT9V032_DARK_AVG_LOW_THRESH_SHIFT	0
 #define		MT9V032_DARK_AVG_HIGH_THRESH_MASK	(255 << 8)
 #define		MT9V032_DARK_AVG_HIGH_THRESH_SHIFT	8
-#define MT9V032_ROW_NOISE_CORR_CONTROL			0x70
-#define		MT9V034_ROW_NOISE_CORR_ENABLE		(1 << 0)
-#define		MT9V034_ROW_NOISE_CORR_USE_BLK_AVG	(1 << 1)
-#define		MT9V032_ROW_NOISE_CORR_ENABLE		(1 << 5)
-#define		MT9V032_ROW_NOISE_CORR_USE_BLK_AVG	(1 << 7)
+#define MT9V032_ROW_ANALISE_CORR_CONTROL			0x70
+#define		MT9V034_ROW_ANALISE_CORR_ENABLE		(1 << 0)
+#define		MT9V034_ROW_ANALISE_CORR_USE_BLK_AVG	(1 << 1)
+#define		MT9V032_ROW_ANALISE_CORR_ENABLE		(1 << 5)
+#define		MT9V032_ROW_ANALISE_CORR_USE_BLK_AVG	(1 << 7)
 #define MT9V032_PIXEL_CLOCK				0x74
 #define MT9V034_PIXEL_CLOCK				0x72
 #define		MT9V032_PIXEL_CLOCK_INV_LINE		(1 << 0)
@@ -125,7 +125,7 @@
 #define		MT9V032_TEST_PATTERN_DATA_SHIFT		0
 #define		MT9V032_TEST_PATTERN_USE_DATA		(1 << 10)
 #define		MT9V032_TEST_PATTERN_GRAY_MASK		(3 << 11)
-#define		MT9V032_TEST_PATTERN_GRAY_NONE		(0 << 11)
+#define		MT9V032_TEST_PATTERN_GRAY_ANALNE		(0 << 11)
 #define		MT9V032_TEST_PATTERN_GRAY_VERTICAL	(1 << 11)
 #define		MT9V032_TEST_PATTERN_GRAY_HORIZONTAL	(2 << 11)
 #define		MT9V032_TEST_PATTERN_GRAY_DIAGONAL	(3 << 11)
@@ -145,13 +145,13 @@
 
 enum mt9v032_model {
 	MT9V032_MODEL_V022_COLOR,	/* MT9V022IX7ATC */
-	MT9V032_MODEL_V022_MONO,	/* MT9V022IX7ATM */
+	MT9V032_MODEL_V022_MOANAL,	/* MT9V022IX7ATM */
 	MT9V032_MODEL_V024_COLOR,	/* MT9V024IA7XTC */
-	MT9V032_MODEL_V024_MONO,	/* MT9V024IA7XTM */
+	MT9V032_MODEL_V024_MOANAL,	/* MT9V024IA7XTM */
 	MT9V032_MODEL_V032_COLOR,	/* MT9V032C12STM */
-	MT9V032_MODEL_V032_MONO,	/* MT9V032C12STC */
+	MT9V032_MODEL_V032_MOANAL,	/* MT9V032C12STC */
 	MT9V032_MODEL_V034_COLOR,
-	MT9V032_MODEL_V034_MONO,
+	MT9V032_MODEL_V034_MOANAL,
 };
 
 struct mt9v032_model_version {
@@ -283,7 +283,7 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 
 		/* After releasing reset we need to wait 10 clock cycles
 		 * before accessing the sensor over I2C. As the minimum SYSCLK
-		 * frequency is 13MHz, waiting 1µs will be enough in the worst
+		 * frequency is 13MHz, waiting 1µs will be eanalugh in the worst
 		 * case.
 		 */
 		udelay(1);
@@ -337,8 +337,8 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 			return ret;
 	}
 
-	/* Disable the noise correction algorithm and restore the controls. */
-	ret = regmap_write(map, MT9V032_ROW_NOISE_CORR_CONTROL, 0);
+	/* Disable the analise correction algorithm and restore the controls. */
+	ret = regmap_write(map, MT9V032_ROW_ANALISE_CORR_CONTROL, 0);
 	if (ret < 0)
 		return ret;
 
@@ -423,7 +423,7 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
-	/* Switch to master "normal" mode */
+	/* Switch to master "analrmal" mode */
 	return regmap_update_bits(map, MT9V032_CHIP_CONTROL, mode, mode);
 }
 
@@ -565,7 +565,7 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	/* Clamp the crop rectangle boundaries and align them to a non multiple
+	/* Clamp the crop rectangle boundaries and align them to a analn multiple
 	 * of 2 pixels to ensure a GRBG Bayer pattern.
 	 */
 	rect.left = clamp(ALIGN(sel->r.left + 1, 2) - 1,
@@ -625,7 +625,7 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 /*
  * LPF is the low pass filter capability of the chip. Both AEC and AGC have
  * this setting. This limits the speed in which AGC/AEC adjust their settings.
- * Possible values are 0-2. 0 means no LPF. For 1 and 2 this equation is used:
+ * Possible values are 0-2. 0 means anal LPF. For 1 and 2 this equation is used:
  *
  * if |(calculated new exp - current exp)| > (current exp / 4)
  *	next exp = calculated new exp
@@ -912,7 +912,7 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 	if (mt9v032->version == NULL) {
 		dev_err(&client->dev, "Unsupported chip version 0x%04x\n",
 			version);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_info(&client->dev, "%s detected at address 0x%02x\n",
@@ -944,7 +944,7 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 
 	format->width = MT9V032_WINDOW_WIDTH_DEF;
 	format->height = MT9V032_WINDOW_HEIGHT_DEF;
-	format->field = V4L2_FIELD_NONE;
+	format->field = V4L2_FIELD_ANALNE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
 	return mt9v032_set_power(subdev, 1);
@@ -999,18 +999,18 @@ static struct mt9v032_platform_data *
 mt9v032_get_pdata(struct i2c_client *client)
 {
 	struct mt9v032_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
-	struct device_node *np;
+	struct v4l2_fwanalde_endpoint endpoint = { .bus_type = 0 };
+	struct device_analde *np;
 	struct property *prop;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_analde)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_analde, NULL);
 	if (!np)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
+	if (v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(np), &endpoint) < 0)
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1039,7 +1039,7 @@ mt9v032_get_pdata(struct i2c_client *client)
 			    V4L2_MBUS_PCLK_SAMPLE_RISING);
 
 done:
-	of_node_put(np);
+	of_analde_put(np);
 	return pdata;
 }
 
@@ -1052,7 +1052,7 @@ static int mt9v032_probe(struct i2c_client *client)
 
 	mt9v032 = devm_kzalloc(&client->dev, sizeof(*mt9v032), GFP_KERNEL);
 	if (!mt9v032)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mt9v032->regmap = devm_regmap_init_i2c(client, &mt9v032_regmap_config);
 	if (IS_ERR(mt9v032->regmap))
@@ -1157,7 +1157,7 @@ static int mt9v032_probe(struct i2c_client *client)
 
 	mt9v032->format.width = MT9V032_WINDOW_WIDTH_DEF;
 	mt9v032->format.height = MT9V032_WINDOW_HEIGHT_DEF;
-	mt9v032->format.field = V4L2_FIELD_NONE;
+	mt9v032->format.field = V4L2_FIELD_ANALNE;
 	mt9v032->format.colorspace = V4L2_COLORSPACE_SRGB;
 
 	mt9v032->hratio = 1;
@@ -1169,7 +1169,7 @@ static int mt9v032_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&mt9v032->subdev, client, &mt9v032_subdev_ops);
 	mt9v032->subdev.internal_ops = &mt9v032_subdev_internal_ops;
-	mt9v032->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	mt9v032->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	mt9v032->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	mt9v032->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -1231,7 +1231,7 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 		.data = &mt9v032_model_data[0],
 		.color = true,
 	},
-	[MT9V032_MODEL_V022_MONO] = {
+	[MT9V032_MODEL_V022_MOANAL] = {
 		.data = &mt9v032_model_data[0],
 		.color = false,
 	},
@@ -1239,7 +1239,7 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 		.data = &mt9v032_model_data[1],
 		.color = true,
 	},
-	[MT9V032_MODEL_V024_MONO] = {
+	[MT9V032_MODEL_V024_MOANAL] = {
 		.data = &mt9v032_model_data[1],
 		.color = false,
 	},
@@ -1247,7 +1247,7 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 		.data = &mt9v032_model_data[0],
 		.color = true,
 	},
-	[MT9V032_MODEL_V032_MONO] = {
+	[MT9V032_MODEL_V032_MOANAL] = {
 		.data = &mt9v032_model_data[0],
 		.color = false,
 	},
@@ -1255,7 +1255,7 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 		.data = &mt9v032_model_data[1],
 		.color = true,
 	},
-	[MT9V032_MODEL_V034_MONO] = {
+	[MT9V032_MODEL_V034_MOANAL] = {
 		.data = &mt9v032_model_data[1],
 		.color = false,
 	},
@@ -1263,26 +1263,26 @@ static const struct mt9v032_model_info mt9v032_models[] = {
 
 static const struct i2c_device_id mt9v032_id[] = {
 	{ "mt9v022", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_COLOR] },
-	{ "mt9v022m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ "mt9v022m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_MOANAL] },
 	{ "mt9v024", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_COLOR] },
-	{ "mt9v024m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_MONO] },
+	{ "mt9v024m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_MOANAL] },
 	{ "mt9v032", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_COLOR] },
-	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
+	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MOANAL] },
 	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
-	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MONO] },
+	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MOANAL] },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9v032_id);
 
 static const struct of_device_id mt9v032_of_match[] = {
 	{ .compatible = "aptina,mt9v022", .data = &mt9v032_models[MT9V032_MODEL_V022_COLOR] },
-	{ .compatible = "aptina,mt9v022m", .data = &mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ .compatible = "aptina,mt9v022m", .data = &mt9v032_models[MT9V032_MODEL_V022_MOANAL] },
 	{ .compatible = "aptina,mt9v024", .data = &mt9v032_models[MT9V032_MODEL_V024_COLOR] },
-	{ .compatible = "aptina,mt9v024m", .data = &mt9v032_models[MT9V032_MODEL_V024_MONO] },
+	{ .compatible = "aptina,mt9v024m", .data = &mt9v032_models[MT9V032_MODEL_V024_MOANAL] },
 	{ .compatible = "aptina,mt9v032", .data = &mt9v032_models[MT9V032_MODEL_V032_COLOR] },
-	{ .compatible = "aptina,mt9v032m", .data = &mt9v032_models[MT9V032_MODEL_V032_MONO] },
+	{ .compatible = "aptina,mt9v032m", .data = &mt9v032_models[MT9V032_MODEL_V032_MOANAL] },
 	{ .compatible = "aptina,mt9v034", .data = &mt9v032_models[MT9V032_MODEL_V034_COLOR] },
-	{ .compatible = "aptina,mt9v034m", .data = &mt9v032_models[MT9V032_MODEL_V034_MONO] },
+	{ .compatible = "aptina,mt9v034m", .data = &mt9v032_models[MT9V032_MODEL_V034_MOANAL] },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mt9v032_of_match);

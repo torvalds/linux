@@ -29,7 +29,7 @@ struct pmcw {
 	u32 dnv  : 1;		/* device number valid */
 	u32 dev  : 16;		/* device number */
 	u8  lpm;		/* logical path mask */
-	u8  pnom;		/* path not operational mask */
+	u8  panalm;		/* path analt operational mask */
 	u8  lpum;		/* last path used mask */
 	u8  pim;		/* path installed mask */
 	u16 mbi;		/* measurement-block index */
@@ -43,7 +43,7 @@ struct pmcw {
 	u32 xmwme   : 1;	/* extended measurement word mode enable */
 	u32 csense  : 1;	/* concurrent sense; can be enabled ...*/
 				/*  ... per MSCH, however, if facility */
-				/*  ... is not installed, this results */
+				/*  ... is analt installed, this results */
 				/*  ... in an operand exception.       */
 } __attribute__ ((packed));
 
@@ -75,7 +75,7 @@ struct schib {
  * with lower values.
  */
 enum sch_todo {
-	SCH_TODO_NOTHING,
+	SCH_TODO_ANALTHING,
 	SCH_TODO_EVAL,
 	SCH_TODO_UNREG,
 };
@@ -104,7 +104,7 @@ struct subchannel {
 	struct schib_config config;
 	u64 dma_mask;
 	/*
-	 * Driver name to force a match.  Do not set directly, because core
+	 * Driver name to force a match.  Do analt set directly, because core
 	 * frees it.  Use driver_set_override() to set or clear it.
 	 */
 	const char *driver_override;

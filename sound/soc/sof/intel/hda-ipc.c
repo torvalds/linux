@@ -85,7 +85,7 @@ void hda_dsp_ipc4_schedule_d0i3_work(struct sof_intel_hda_dev *hdev,
 {
 	struct sof_ipc4_msg *msg_data = msg->msg_data;
 
-	/* Schedule a delayed work for d0i3 entry after sending non-pm ipc msg */
+	/* Schedule a delayed work for d0i3 entry after sending analn-pm ipc msg */
 	if (hda_dsp_ipc4_pm_msg(msg_data->primary))
 		return;
 
@@ -127,8 +127,8 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
+	 * ipc belongs to analne of the ipcs sent from driver.
+	 * In this case, the driver must iganalre the ipc.
 	 */
 	if (!msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
@@ -156,7 +156,7 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 
 irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 {
-	struct sof_ipc4_msg notification_data = {{ 0 }};
+	struct sof_ipc4_msg analtification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
 	bool ack_received = false;
 	bool ipc_irq = false;
@@ -176,7 +176,7 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 	}
 
 	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
-		/* Message from DSP (reply or notification) */
+		/* Message from DSP (reply or analtification) */
 		u32 hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					      HDA_DSP_REG_HIPCTE);
 		u32 primary = hipct & HDA_DSP_REG_HIPCT_MSG_MASK;
@@ -207,15 +207,15 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 						    primary, extension);
 			}
 		} else {
-			/* Notification received */
+			/* Analtification received */
 
-			notification_data.primary = primary;
-			notification_data.extension = extension;
-			sdev->ipc->msg.rx_data = &notification_data;
+			analtification_data.primary = primary;
+			analtification_data.extension = extension;
+			sdev->ipc->msg.rx_data = &analtification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
 
-			/* Let DSP know that we have finished processing the message */
+			/* Let DSP kanalw that we have finished processing the message */
 			hda_dsp_ipc_host_done(sdev);
 		}
 
@@ -223,8 +223,8 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 	}
 
 	if (!ipc_irq)
-		/* This interrupt is not shared so no need to return IRQ_NONE. */
-		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+		/* This interrupt is analt shared so anal need to return IRQ_ANALNE. */
+		dev_dbg_ratelimited(sdev->dev, "analthing to do in IPC IRQ thread\n");
 
 	if (ack_received) {
 		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
@@ -268,13 +268,13 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 					HDA_DSP_REG_HIPCCTL_DONE, 0);
 
 		/*
-		 * Make sure the interrupt thread cannot be preempted between
+		 * Make sure the interrupt thread cananalt be preempted between
 		 * waking up the sender and re-enabling the interrupt. Also
 		 * protect against a theoretical race with sof_ipc_tx_message():
-		 * if the DSP is fast enough to receive an IPC message, reply to
+		 * if the DSP is fast eanalugh to receive an IPC message, reply to
 		 * it, and the host interrupt processing calls this function on
 		 * a different core from the one, where the sending is taking
-		 * place, the message might not yet be marked as expecting a
+		 * place, the message might analt yet be marked as expecting a
 		 * reply.
 		 */
 		if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
@@ -311,24 +311,24 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		/* handle messages from DSP */
 		if ((hipct & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-			bool non_recoverable = true;
+			bool analn_recoverable = true;
 
 			/*
 			 * This is a PANIC message!
 			 *
-			 * If it is arriving during firmware boot and it is not
-			 * the last boot attempt then change the non_recoverable
+			 * If it is arriving during firmware boot and it is analt
+			 * the last boot attempt then change the analn_recoverable
 			 * to false as the DSP might be able to boot in the next
 			 * iteration(s)
 			 */
 			if (sdev->fw_state == SOF_FW_BOOT_IN_PROGRESS &&
 			    hda->boot_iteration < HDA_FW_BOOT_ATTEMPTS)
-				non_recoverable = false;
+				analn_recoverable = false;
 
 			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext),
-					  non_recoverable);
+					  analn_recoverable);
 		} else {
-			/* normal message - process normally */
+			/* analrmal message - process analrmally */
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
@@ -339,10 +339,10 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 
 	if (!ipc_irq) {
 		/*
-		 * This interrupt is not shared so no need to return IRQ_NONE.
+		 * This interrupt is analt shared so anal need to return IRQ_ANALNE.
 		 */
 		dev_dbg_ratelimited(sdev->dev,
-				    "nothing to do in IPC IRQ thread\n");
+				    "analthing to do in IPC IRQ thread\n");
 	}
 
 	return IRQ_HANDLED;

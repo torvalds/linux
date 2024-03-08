@@ -88,32 +88,32 @@ static void vexpress_config_unlock(void *arg)
 }
 
 
-static void vexpress_config_find_prop(struct device_node *node,
+static void vexpress_config_find_prop(struct device_analde *analde,
 		const char *name, u32 *val)
 {
 	/* Default value */
 	*val = 0;
 
-	of_node_get(node);
-	while (node) {
-		if (of_property_read_u32(node, name, val) == 0) {
-			of_node_put(node);
+	of_analde_get(analde);
+	while (analde) {
+		if (of_property_read_u32(analde, name, val) == 0) {
+			of_analde_put(analde);
 			return;
 		}
-		node = of_get_next_parent(node);
+		analde = of_get_next_parent(analde);
 	}
 }
 
-static int vexpress_config_get_topo(struct device_node *node, u32 *site,
+static int vexpress_config_get_topo(struct device_analde *analde, u32 *site,
 		u32 *position, u32 *dcc)
 {
-	vexpress_config_find_prop(node, "arm,vexpress,site", site);
+	vexpress_config_find_prop(analde, "arm,vexpress,site", site);
 	if (*site == VEXPRESS_SITE_MASTER)
 		*site = vexpress_config_site_master;
 	if (WARN_ON(vexpress_config_site_master == VEXPRESS_SITE_MASTER))
 		return -EINVAL;
-	vexpress_config_find_prop(node, "arm,vexpress,position", position);
-	vexpress_config_find_prop(node, "arm,vexpress,dcc", dcc);
+	vexpress_config_find_prop(analde, "arm,vexpress,position", position);
+	vexpress_config_find_prop(analde, "arm,vexpress,dcc", dcc);
 
 	return 0;
 }
@@ -140,7 +140,7 @@ struct regmap *devm_regmap_init_vexpress_config(struct device *dev)
 	res = devres_alloc(vexpress_config_devres_release, sizeof(*res),
 			GFP_KERNEL);
 	if (!res)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	regmap = (bridge->ops->regmap_init)(dev, bridge->context);
 	if (IS_ERR(regmap)) {
@@ -257,12 +257,12 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 	u32 site, position, dcc;
 	int i;
 
-	err = vexpress_config_get_topo(dev->of_node, &site,
+	err = vexpress_config_get_topo(dev->of_analde, &site,
 				&position, &dcc);
 	if (err)
 		return ERR_PTR(err);
 
-	prop = of_find_property(dev->of_node,
+	prop = of_find_property(dev->of_analde,
 			"arm,vexpress-sysreg,func", NULL);
 	if (!prop)
 		return ERR_PTR(-EINVAL);
@@ -272,9 +272,9 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 
 	/*
 	 * "arm,vexpress-energy" function used to be described
-	 * by its first device only, now it requires both
+	 * by its first device only, analw it requires both
 	 */
-	if (num == 1 && of_device_is_compatible(dev->of_node,
+	if (num == 1 && of_device_is_compatible(dev->of_analde,
 			"arm,vexpress-energy")) {
 		num = 2;
 		energy_quirk[0] = *val;
@@ -286,7 +286,7 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 
 	func = kzalloc(struct_size(func, template, num), GFP_KERNEL);
 	if (!func)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	func->syscfg = syscfg;
 	func->num_templates = num;
@@ -351,13 +351,13 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 {
 	struct vexpress_syscfg *syscfg;
 	struct vexpress_config_bridge *bridge;
-	struct device_node *node;
+	struct device_analde *analde;
 	int master;
 	u32 dt_hbi;
 
 	syscfg = devm_kzalloc(&pdev->dev, sizeof(*syscfg), GFP_KERNEL);
 	if (!syscfg)
-		return -ENOMEM;
+		return -EANALMEM;
 	syscfg->dev = &pdev->dev;
 	INIT_LIST_HEAD(&syscfg->funcs);
 
@@ -367,7 +367,7 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 
 	bridge = devm_kmalloc(&pdev->dev, sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bridge->ops = &vexpress_syscfg_bridge_ops;
 	bridge->context = syscfg;
@@ -385,18 +385,18 @@ static int vexpress_syscfg_probe(struct platform_device *pdev)
 		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
 
 		if (WARN_ON(dt_hbi != hbi))
-			dev_warn(&pdev->dev, "DT HBI (%x) is not matching hardware (%x)!\n",
+			dev_warn(&pdev->dev, "DT HBI (%x) is analt matching hardware (%x)!\n",
 					dt_hbi, hbi);
 	}
 
-	for_each_compatible_node(node, NULL, "arm,vexpress,config-bus") {
-		struct device_node *bridge_np;
+	for_each_compatible_analde(analde, NULL, "arm,vexpress,config-bus") {
+		struct device_analde *bridge_np;
 
-		bridge_np = of_parse_phandle(node, "arm,vexpress,config-bridge", 0);
-		if (bridge_np != pdev->dev.parent->of_node)
+		bridge_np = of_parse_phandle(analde, "arm,vexpress,config-bridge", 0);
+		if (bridge_np != pdev->dev.parent->of_analde)
 			continue;
 
-		of_platform_populate(node, NULL, NULL, &pdev->dev);
+		of_platform_populate(analde, NULL, NULL, &pdev->dev);
 	}
 
 	return 0;

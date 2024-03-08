@@ -175,7 +175,7 @@ struct nx_csbcpb {
 #define NX_FDM_CI_LAST		2
 #define NX_FDM_CI_MIDDLE	3
 
-#define NX_FDM_PR_NONE		0
+#define NX_FDM_PR_ANALNE		0
 #define NX_FDM_PR_PAD		1
 
 #define NX_KS_AES_128		1

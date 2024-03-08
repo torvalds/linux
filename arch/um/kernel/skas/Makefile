@@ -9,7 +9,7 @@ obj-y := clone.o mmu.o process.o syscall.o uaccess.o
 # GCC hardened also auto-enables -fpic, but we need %ebx so it can't work ->
 # disable it
 
-CFLAGS_clone.o := $(CFLAGS_NO_HARDENING)
+CFLAGS_clone.o := $(CFLAGS_ANAL_HARDENING)
 UNPROFILE_OBJS := clone.o
 
 KCOV_INSTRUMENT := n

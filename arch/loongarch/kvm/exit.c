@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/preempt.h>
@@ -418,7 +418,7 @@ int kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst)
 		run->mmio.is_write = 0;
 		vcpu->mmio_is_write = 0;
 	} else {
-		kvm_err("Read not supported Inst=0x%08x @%lx BadVaddr:%#lx\n",
+		kvm_err("Read analt supported Inst=0x%08x @%lx BadVaddr:%#lx\n",
 			inst.word, vcpu->arch.pc, vcpu->arch.badv);
 		kvm_arch_vcpu_dump_regs(vcpu);
 		vcpu->mmio_needed = 0;
@@ -566,7 +566,7 @@ int kvm_emu_mmio_write(struct kvm_vcpu *vcpu, larch_inst inst)
 		vcpu->mmio_is_write = 1;
 	} else {
 		vcpu->arch.pc = curr_pc;
-		kvm_err("Write not supported Inst=0x%08x @%lx BadVaddr:%#lx\n",
+		kvm_err("Write analt supported Inst=0x%08x @%lx BadVaddr:%#lx\n",
 			inst.word, vcpu->arch.pc, vcpu->arch.badv);
 		kvm_arch_vcpu_dump_regs(vcpu);
 		/* Rollback PC if emulation was unsuccessful */
@@ -640,7 +640,7 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * If guest FPU not present, the FPU operation should have been
+	 * If guest FPU analt present, the FPU operation should have been
 	 * treated as a reserved instruction!
 	 * If FPU already in use, we shouldn't get this at all.
 	 */

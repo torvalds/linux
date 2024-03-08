@@ -19,8 +19,8 @@
 
 static void dec_print_abnrm_intr_source(struct hl_device *hdev, u32 irq_status)
 {
-	const char *format = "abnormal interrupt source:%s%s%s%s%s%s\n";
-	char *intr_source[6] = {"Unknown", "", "", "", "", ""};
+	const char *format = "abanalrmal interrupt source:%s%s%s%s%s%s\n";
+	char *intr_source[6] = {"Unkanalwn", "", "", "", "", ""};
 	int i = 0;
 
 	if (!irq_status)
@@ -52,7 +52,7 @@ static void dec_abnrm_intr_work(struct work_struct *work)
 
 	irq_status = RREG32(dec->base_addr + VCMD_IRQ_STATUS_OFFSET);
 
-	dev_err(hdev->dev, "Decoder abnormal interrupt %#x, core %d\n", irq_status, dec->core_id);
+	dev_err(hdev->dev, "Decoder abanalrmal interrupt %#x, core %d\n", irq_status, dec->core_id);
 
 	dec_print_abnrm_intr_source(hdev, irq_status);
 
@@ -64,22 +64,22 @@ static void dec_abnrm_intr_work(struct work_struct *work)
 
 	if (irq_status & VCMD_IRQ_STATUS_TIMEOUT_MASK) {
 		reset_required = true;
-		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		event_mask |= HL_ANALTIFIER_EVENT_GENERAL_HW_ERR;
 	}
 
 	if (irq_status & VCMD_IRQ_STATUS_CMDERR_MASK)
-		event_mask |= HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
+		event_mask |= HL_ANALTIFIER_EVENT_UNDEFINED_OPCODE;
 
 	if (irq_status & (VCMD_IRQ_STATUS_ENDCMD_MASK |
 				VCMD_IRQ_STATUS_BUSERR_MASK |
 				VCMD_IRQ_STATUS_ABORT_MASK))
-		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		event_mask |= HL_ANALTIFIER_EVENT_USER_ENGINE_ERR;
 
 	if (reset_required) {
-		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+		event_mask |= HL_ANALTIFIER_EVENT_DEVICE_RESET;
 		hl_device_cond_reset(hdev, 0, event_mask);
 	} else if (event_mask) {
-		hl_notifier_event_send_all(hdev, event_mask);
+		hl_analtifier_event_send_all(hdev, event_mask);
 	}
 }
 
@@ -94,13 +94,13 @@ int hl_dec_init(struct hl_device *hdev)
 	struct hl_dec *dec;
 	int rc, j;
 
-	/* if max core is 0, nothing to do*/
+	/* if max core is 0, analthing to do*/
 	if (!prop->max_dec)
 		return 0;
 
 	hdev->dec = kcalloc(prop->max_dec, sizeof(struct hl_dec), GFP_KERNEL);
 	if (!hdev->dec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (j = 0 ; j < prop->max_dec ; j++) {
 		dec = hdev->dec + j;

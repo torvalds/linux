@@ -59,8 +59,8 @@ properties:
 
   dma-ranges:
     description: |
-      A single range for the inbound memory region. If not supplied,
-      defaults to 1GiB at 0x40000000. Note there are hardware restrictions on
+      A single range for the inbound memory region. If analt supplied,
+      defaults to 1GiB at 0x40000000. Analte there are hardware restrictions on
       the allowed combinations of address and size.
     maxItems: 1
 

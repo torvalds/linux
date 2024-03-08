@@ -27,12 +27,12 @@
 
 #define PHANTOM_VERSION		"n0.9.8"
 
-#define PHANTOM_MAX_MINORS	8
+#define PHANTOM_MAX_MIANALRS	8
 
 #define PHN_IRQCTL		0x4c    /* irq control in caddr space */
 
 #define PHB_RUNNING		1
-#define PHB_NOT_OH		2
+#define PHB_ANALT_OH		2
 
 static DEFINE_MUTEX(phantom_mutex);
 static int phantom_major;
@@ -55,12 +55,12 @@ struct phantom_device {
 	struct mutex open_lock;
 	spinlock_t regs_lock;
 
-	/* used in NOT_OH mode */
+	/* used in ANALT_OH mode */
 	struct phm_regs oregs;
 	u32 ctl_reg;
 };
 
-static unsigned char phantom_devices[PHANTOM_MAX_MINORS];
+static unsigned char phantom_devices[PHANTOM_MAX_MIANALRS];
 
 static int phantom_status(struct phantom_device *dev, unsigned long newstat)
 {
@@ -108,13 +108,13 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		if (r.reg == PHN_CONTROL && (r.value & PHN_CTL_IRQ) &&
 				phantom_status(dev, dev->status | PHB_RUNNING)){
 			spin_unlock_irqrestore(&dev->regs_lock, flags);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		pr_debug("phantom: writing %x to %u\n", r.value, r.reg);
 
-		/* preserve amp bit (don't allow to change it when in NOT_OH) */
-		if (r.reg == PHN_CONTROL && (dev->status & PHB_NOT_OH)) {
+		/* preserve amp bit (don't allow to change it when in ANALT_OH) */
+		if (r.reg == PHN_CONTROL && (dev->status & PHB_ANALT_OH)) {
 			r.value &= ~PHN_CTL_AMP;
 			r.value |= dev->ctl_reg & PHN_CTL_AMP;
 			dev->ctl_reg = r.value;
@@ -134,7 +134,7 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 
 		pr_debug("phantom: SRS %u regs %x\n", rs.count, rs.mask);
 		spin_lock_irqsave(&dev->regs_lock, flags);
-		if (dev->status & PHB_NOT_OH)
+		if (dev->status & PHB_ANALT_OH)
 			memcpy(&dev->oregs, &rs, sizeof(rs));
 		else {
 			u32 m = min(rs.count, 8U);
@@ -178,19 +178,19 @@ static long phantom_ioctl(struct file *file, unsigned int cmd,
 		if (copy_to_user(argp, &rs, sizeof(rs)))
 			return -EFAULT;
 		break;
-	} case PHN_NOT_OH:
+	} case PHN_ANALT_OH:
 		spin_lock_irqsave(&dev->regs_lock, flags);
 		if (dev->status & PHB_RUNNING) {
-			printk(KERN_ERR "phantom: you need to set NOT_OH "
+			printk(KERN_ERR "phantom: you need to set ANALT_OH "
 					"before you start the device!\n");
 			spin_unlock_irqrestore(&dev->regs_lock, flags);
 			return -EINVAL;
 		}
-		dev->status |= PHB_NOT_OH;
+		dev->status |= PHB_ANALT_OH;
 		spin_unlock_irqrestore(&dev->regs_lock, flags);
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 
 	return 0;
@@ -210,13 +210,13 @@ static long phantom_compat_ioctl(struct file *filp, unsigned int cmd,
 #define phantom_compat_ioctl NULL
 #endif
 
-static int phantom_open(struct inode *inode, struct file *file)
+static int phantom_open(struct ianalde *ianalde, struct file *file)
 {
-	struct phantom_device *dev = container_of(inode->i_cdev,
+	struct phantom_device *dev = container_of(ianalde->i_cdev,
 			struct phantom_device, cdev);
 
 	mutex_lock(&phantom_mutex);
-	nonseekable_open(inode, file);
+	analnseekable_open(ianalde, file);
 
 	if (mutex_lock_interruptible(&dev->open_lock)) {
 		mutex_unlock(&phantom_mutex);
@@ -229,7 +229,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 	}
 
-	WARN_ON(dev->status & PHB_NOT_OH);
+	WARN_ON(dev->status & PHB_ANALT_OH);
 
 	file->private_data = dev;
 
@@ -240,7 +240,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int phantom_release(struct inode *inode, struct file *file)
+static int phantom_release(struct ianalde *ianalde, struct file *file)
 {
 	struct phantom_device *dev = file->private_data;
 
@@ -248,7 +248,7 @@ static int phantom_release(struct inode *inode, struct file *file)
 
 	dev->opened = 0;
 	phantom_status(dev, dev->status & ~PHB_RUNNING);
-	dev->status &= ~PHB_NOT_OH;
+	dev->status &= ~PHB_ANALT_OH;
 
 	mutex_unlock(&dev->open_lock);
 
@@ -266,7 +266,7 @@ static __poll_t phantom_poll(struct file *file, poll_table *wait)
 	if (!(dev->status & PHB_RUNNING))
 		mask = EPOLLERR;
 	else if (atomic_read(&dev->counter))
-		mask = EPOLLIN | EPOLLRDNORM;
+		mask = EPOLLIN | EPOLLRDANALRM;
 
 	pr_debug("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
 
@@ -279,7 +279,7 @@ static const struct file_operations phantom_file_ops = {
 	.unlocked_ioctl = phantom_ioctl,
 	.compat_ioctl = phantom_compat_ioctl,
 	.poll = phantom_poll,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static irqreturn_t phantom_isr(int irq, void *data)
@@ -292,13 +292,13 @@ static irqreturn_t phantom_isr(int irq, void *data)
 	ctl = ioread32(dev->iaddr + PHN_CONTROL);
 	if (!(ctl & PHN_CTL_IRQ)) {
 		spin_unlock(&dev->regs_lock);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	iowrite32(0, dev->iaddr);
 	iowrite32(0xc0, dev->iaddr);
 
-	if (dev->status & PHB_NOT_OH) {
+	if (dev->status & PHB_ANALT_OH) {
 		struct phm_regs *r = &dev->oregs;
 		u32 m = min(r->count, 8U);
 
@@ -327,7 +327,7 @@ static unsigned int phantom_get_free(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < PHANTOM_MAX_MINORS; i++)
+	for (i = 0; i < PHANTOM_MAX_MIANALRS; i++)
 		if (phantom_devices[i] == 0)
 			break;
 
@@ -338,7 +338,7 @@ static int phantom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *pci_id)
 {
 	struct phantom_device *pht;
-	unsigned int minor;
+	unsigned int mianalr;
 	int retval;
 
 	retval = pci_enable_device(pdev);
@@ -347,14 +347,14 @@ static int phantom_probe(struct pci_dev *pdev,
 		goto err;
 	}
 
-	minor = phantom_get_free();
-	if (minor == PHANTOM_MAX_MINORS) {
+	mianalr = phantom_get_free();
+	if (mianalr == PHANTOM_MAX_MIANALRS) {
 		dev_err(&pdev->dev, "too many devices found!\n");
 		retval = -EIO;
 		goto err_dis;
 	}
 
-	phantom_devices[minor] = 1;
+	phantom_devices[mianalr] = 1;
 
 	retval = pci_request_regions(pdev, "phantom");
 	if (retval) {
@@ -362,7 +362,7 @@ static int phantom_probe(struct pci_dev *pdev,
 		goto err_null;
 	}
 
-	retval = -ENOMEM;
+	retval = -EANALMEM;
 	pht = kzalloc(sizeof(*pht), GFP_KERNEL);
 	if (pht == NULL) {
 		dev_err(&pdev->dev, "unable to allocate device\n");
@@ -400,15 +400,15 @@ static int phantom_probe(struct pci_dev *pdev,
 		goto err_unmo;
 	}
 
-	retval = cdev_add(&pht->cdev, MKDEV(phantom_major, minor), 1);
+	retval = cdev_add(&pht->cdev, MKDEV(phantom_major, mianalr), 1);
 	if (retval) {
 		dev_err(&pdev->dev, "chardev registration failed\n");
 		goto err_irq;
 	}
 
 	if (IS_ERR(device_create(&phantom_class, &pdev->dev,
-				 MKDEV(phantom_major, minor), NULL,
-				 "phantom%u", minor)))
+				 MKDEV(phantom_major, mianalr), NULL,
+				 "phantom%u", mianalr)))
 		dev_err(&pdev->dev, "can't create device\n");
 
 	pci_set_drvdata(pdev, pht);
@@ -427,7 +427,7 @@ err_fr:
 err_reg:
 	pci_release_regions(pdev);
 err_null:
-	phantom_devices[minor] = 0;
+	phantom_devices[mianalr] = 0;
 err_dis:
 	pci_disable_device(pdev);
 err:
@@ -437,9 +437,9 @@ err:
 static void phantom_remove(struct pci_dev *pdev)
 {
 	struct phantom_device *pht = pci_get_drvdata(pdev);
-	unsigned int minor = MINOR(pht->cdev.dev);
+	unsigned int mianalr = MIANALR(pht->cdev.dev);
 
-	device_destroy(&phantom_class, MKDEV(phantom_major, minor));
+	device_destroy(&phantom_class, MKDEV(phantom_major, mianalr));
 
 	cdev_del(&pht->cdev);
 
@@ -455,7 +455,7 @@ static void phantom_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 
-	phantom_devices[minor] = 0;
+	phantom_devices[mianalr] = 0;
 
 	pci_disable_device(pdev);
 }
@@ -517,7 +517,7 @@ static int __init phantom_init(void)
 		goto err_class;
 	}
 
-	retval = alloc_chrdev_region(&dev, 0, PHANTOM_MAX_MINORS, "phantom");
+	retval = alloc_chrdev_region(&dev, 0, PHANTOM_MAX_MIANALRS, "phantom");
 	if (retval) {
 		printk(KERN_ERR "phantom: can't register character device\n");
 		goto err_attr;
@@ -535,7 +535,7 @@ static int __init phantom_init(void)
 
 	return 0;
 err_unchr:
-	unregister_chrdev_region(dev, PHANTOM_MAX_MINORS);
+	unregister_chrdev_region(dev, PHANTOM_MAX_MIANALRS);
 err_attr:
 	class_remove_file(&phantom_class, &class_attr_version.attr);
 err_class:
@@ -548,7 +548,7 @@ static void __exit phantom_exit(void)
 {
 	pci_unregister_driver(&phantom_pci_driver);
 
-	unregister_chrdev_region(MKDEV(phantom_major, 0), PHANTOM_MAX_MINORS);
+	unregister_chrdev_region(MKDEV(phantom_major, 0), PHANTOM_MAX_MIANALRS);
 
 	class_remove_file(&phantom_class, &class_attr_version.attr);
 	class_unregister(&phantom_class);

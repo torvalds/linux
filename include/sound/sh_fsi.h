@@ -3,7 +3,7 @@
  * Fifo-attached Serial Interface (FSI) support for SH7724
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kunianalri Morimoto <morimoto.kunianalri@renesas.com>
  */
 #ifndef __SOUND_FSI_H
 #define __SOUND_FSI_H

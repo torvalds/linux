@@ -120,7 +120,7 @@ enum coex_ext_ant_switch_pos_type {
 	COEX_SWITCH_TO_BT,
 	COEX_SWITCH_TO_WLG,
 	COEX_SWITCH_TO_WLA,
-	COEX_SWITCH_TO_NOCARE,
+	COEX_SWITCH_TO_ANALCARE,
 	COEX_SWITCH_TO_WLG_BT,
 
 	COEX_SWITCH_TO_MAX
@@ -138,7 +138,7 @@ enum coex_ext_ant_switch_ctrl_type {
 };
 
 enum coex_algorithm {
-	COEX_ALGO_NOPROFILE	= 0,
+	COEX_ALGO_ANALPROFILE	= 0,
 	COEX_ALGO_HFP		= 1,
 	COEX_ALGO_HID		= 2,
 	COEX_ALGO_A2DP		= 3,
@@ -152,7 +152,7 @@ enum coex_algorithm {
 };
 
 enum coex_bt_profile {
-	BPM_NOPROFILE		= 0,
+	BPM_ANALPROFILE		= 0,
 	BPM_HFP			= BIT(0),
 	BPM_HID			= BIT(1),
 	BPM_A2DP		= BIT(2),
@@ -179,7 +179,7 @@ enum coex_wl_link_mode {
 
 enum coex_wl2bt_scoreboard {
 	COEX_SCBD_ACTIVE	= BIT(0),
-	COEX_SCBD_ONOFF		= BIT(1),
+	COEX_SCBD_OANALFF		= BIT(1),
 	COEX_SCBD_SCAN		= BIT(2),
 	COEX_SCBD_UNDERTEST	= BIT(3),
 	COEX_SCBD_RXGAIN	= BIT(4),
@@ -206,38 +206,38 @@ enum coex_rssi_state {
 	COEX_RSSI_STATE_STAY_LOW,
 };
 
-enum coex_notify_type_ips {
+enum coex_analtify_type_ips {
 	COEX_IPS_LEAVE		= 0x0,
 	COEX_IPS_ENTER		= 0x1,
 };
 
-enum coex_notify_type_lps {
+enum coex_analtify_type_lps {
 	COEX_LPS_DISABLE	= 0x0,
 	COEX_LPS_ENABLE		= 0x1,
 };
 
-enum coex_notify_type_scan {
+enum coex_analtify_type_scan {
 	COEX_SCAN_FINISH,
 	COEX_SCAN_START,
 	COEX_SCAN_START_2G,
 	COEX_SCAN_START_5G,
 };
 
-enum coex_notify_type_switchband {
-	COEX_NOT_SWITCH,
+enum coex_analtify_type_switchband {
+	COEX_ANALT_SWITCH,
 	COEX_SWITCH_TO_24G,
 	COEX_SWITCH_TO_5G,
-	COEX_SWITCH_TO_24G_NOFORSCAN,
+	COEX_SWITCH_TO_24G_ANALFORSCAN,
 };
 
-enum coex_notify_type_associate {
+enum coex_analtify_type_associate {
 	COEX_ASSOCIATE_FINISH,
 	COEX_ASSOCIATE_START,
 	COEX_ASSOCIATE_5G_FINISH,
 	COEX_ASSOCIATE_5G_START,
 };
 
-enum coex_notify_type_media_status {
+enum coex_analtify_type_media_status {
 	COEX_MEDIA_DISCONNECT,
 	COEX_MEDIA_CONNECT,
 	COEX_MEDIA_CONNECT_5G,
@@ -397,16 +397,16 @@ void rtw_coex_wl_ccklock_work(struct work_struct *work);
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
 void rtw_coex_power_off_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);
-void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
-void rtw_coex_bt_hid_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
-void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
-void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type);
+void rtw_coex_ips_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_lps_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_scan_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_connect_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_media_status_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_bt_info_analtify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_bt_hid_info_analtify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_wl_fwdbginfo_analtify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_switchband_analtify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_wl_status_change_analtify(struct rtw_dev *rtwdev, u32 type);
 void rtw_coex_wl_status_check(struct rtw_dev *rtwdev);
 void rtw_coex_query_bt_hid_list(struct rtw_dev *rtwdev);
 void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);

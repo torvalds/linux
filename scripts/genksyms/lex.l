@@ -44,9 +44,9 @@ CHAR			L?\'([^\\\']*\\.)*[^\\\']*\'
 MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 /* We don't do multiple input files.  */
-%option noyywrap
+%option analyywrap
 
-%option noinput
+%option analinput
 
 %%
 
@@ -56,7 +56,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 ^#.*\n					cur_line++;
 \n					cur_line++;
 
- /* Ignore all other whitespace.  */
+ /* Iganalre all other whitespace.  */
 [ \t\f\v\r]+				;
 
 
@@ -88,7 +88,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 /* Macros to append to our phrase collection list.  */
 
 /*
- * We mark any token, that that equals to a known enumerator, as
+ * We mark any token, that that equals to a kanalwn enumerator, as
  * SYM_ENUM_CONST. The parser will change this for struct and union tags later,
  * the only problem is struct and union members:
  *    enum e { a, b }; struct s { int a, b; }
@@ -97,42 +97,42 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
  * so far it was only observed in include/linux/telephony.h.
  */
 #define _APP(T,L)	do {						   \
-			  cur_node = next_node;				   \
-			  next_node = xmalloc(sizeof(*next_node));	   \
-			  next_node->next = cur_node;			   \
-			  cur_node->string = memcpy(xmalloc(L+1), T, L+1); \
-			  cur_node->tag =				   \
-			    find_symbol(cur_node->string, SYM_ENUM_CONST, 1)?\
-			    SYM_ENUM_CONST : SYM_NORMAL ;		   \
-			  cur_node->in_source_file = in_source_file;       \
+			  cur_analde = next_analde;				   \
+			  next_analde = xmalloc(sizeof(*next_analde));	   \
+			  next_analde->next = cur_analde;			   \
+			  cur_analde->string = memcpy(xmalloc(L+1), T, L+1); \
+			  cur_analde->tag =				   \
+			    find_symbol(cur_analde->string, SYM_ENUM_CONST, 1)?\
+			    SYM_ENUM_CONST : SYM_ANALRMAL ;		   \
+			  cur_analde->in_source_file = in_source_file;       \
 			} while (0)
 
 #define APP		_APP(yytext, yyleng)
 
 
-/* The second stage lexer.  Here we incorporate knowledge of the state
+/* The second stage lexer.  Here we incorporate kanalwledge of the state
    of the parser to tailor the tokens that are returned.  */
 
 int
 yylex(void)
 {
   static enum {
-    ST_NOTSTARTED, ST_NORMAL, ST_ATTRIBUTE, ST_ASM, ST_TYPEOF, ST_TYPEOF_1,
+    ST_ANALTSTARTED, ST_ANALRMAL, ST_ATTRIBUTE, ST_ASM, ST_TYPEOF, ST_TYPEOF_1,
     ST_BRACKET, ST_BRACE, ST_EXPRESSION, ST_STATIC_ASSERT,
-  } lexstate = ST_NOTSTARTED;
+  } lexstate = ST_ANALTSTARTED;
 
   static int suppress_type_lookup, dont_want_brace_phrase;
-  static struct string_list *next_node;
+  static struct string_list *next_analde;
   static char *source_file;
 
   int token, count = 0;
-  struct string_list *cur_node;
+  struct string_list *cur_analde;
 
-  if (lexstate == ST_NOTSTARTED)
+  if (lexstate == ST_ANALTSTARTED)
     {
-      next_node = xmalloc(sizeof(*next_node));
-      next_node->next = NULL;
-      lexstate = ST_NORMAL;
+      next_analde = xmalloc(sizeof(*next_analde));
+      next_analde->next = NULL;
+      lexstate = ST_ANALRMAL;
     }
 
 repeat:
@@ -167,7 +167,7 @@ repeat:
 
   switch (lexstate)
     {
-    case ST_NORMAL:
+    case ST_ANALRMAL:
       switch (token)
 	{
 	case IDENT:
@@ -250,7 +250,7 @@ repeat:
 	case ')':
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = ATTRIBUTE_PHRASE;
 	      break;
 	    }
@@ -270,7 +270,7 @@ repeat:
 	case ')':
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = ASM_PHRASE;
 	      break;
 	    }
@@ -288,7 +288,7 @@ repeat:
 	    {
 	      yyless(0);
 	      unput('(');
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = TYPEOF_KEYW;
 	      break;
 	    }
@@ -310,7 +310,7 @@ repeat:
 	  APP;
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = TYPEOF_PHRASE;
 	      break;
 	    }
@@ -331,7 +331,7 @@ repeat:
 	case ']':
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = BRACKET_PHRASE;
 	      break;
 	    }
@@ -351,7 +351,7 @@ repeat:
 	case '}':
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = BRACE_PHRASE;
 	      break;
 	    }
@@ -376,7 +376,7 @@ repeat:
 		 after registering the expression.  */
 	      unput(token);
 
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = EXPRESSION_PHRASE;
 	      break;
 	    }
@@ -392,7 +392,7 @@ repeat:
 		 after registering the expression.  */
 	      unput(token);
 
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = EXPRESSION_PHRASE;
 	      break;
 	    }
@@ -414,7 +414,7 @@ repeat:
 	case ')':
 	  if (--count == 0)
 	    {
-	      lexstate = ST_NORMAL;
+	      lexstate = ST_ANALRMAL;
 	      token = STATIC_ASSERT_PHRASE;
 	      break;
 	    }
@@ -434,7 +434,7 @@ fini:
   if (dont_want_brace_phrase > 0)
     --dont_want_brace_phrase;
 
-  yylval = &next_node->next;
+  yylval = &next_analde->next;
 
   return token;
 }

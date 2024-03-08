@@ -29,34 +29,34 @@ void sysreg_save_host_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_save_common_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_save_host_state_vhe);
+ANALKPROBE_SYMBOL(sysreg_save_host_state_vhe);
 
 void sysreg_save_guest_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_save_common_state(ctxt);
 	__sysreg_save_el2_return_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_save_guest_state_vhe);
+ANALKPROBE_SYMBOL(sysreg_save_guest_state_vhe);
 
 void sysreg_restore_host_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_restore_common_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_restore_host_state_vhe);
+ANALKPROBE_SYMBOL(sysreg_restore_host_state_vhe);
 
 void sysreg_restore_guest_state_vhe(struct kvm_cpu_context *ctxt)
 {
 	__sysreg_restore_common_state(ctxt);
 	__sysreg_restore_el2_return_state(ctxt);
 }
-NOKPROBE_SYMBOL(sysreg_restore_guest_state_vhe);
+ANALKPROBE_SYMBOL(sysreg_restore_guest_state_vhe);
 
 /**
  * __vcpu_load_switch_sysregs - Load guest system registers to the physical CPU
  *
  * @vcpu: The VCPU pointer
  *
- * Load system registers that do not affect the host's execution, for
+ * Load system registers that do analt affect the host's execution, for
  * example EL1 system registers on a VHE system where the host kernel
  * runs at EL2.  This function is called from KVM's vcpu_load() function
  * and loading system register state early avoids having to load them on
@@ -71,7 +71,7 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 	__sysreg_save_user_state(host_ctxt);
 
 	/*
-	 * When running a normal EL1 guest, we only load a new vcpu
+	 * When running a analrmal EL1 guest, we only load a new vcpu
 	 * after a context switch, which imvolves a DSB, so all
 	 * speculative EL1&0 walks will have already completed.
 	 * If running NV, the vcpu may transition between vEL1 and
@@ -99,10 +99,10 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
  *
  * @vcpu: The VCPU pointer
  *
- * Save guest system registers that do not affect the host's execution, for
+ * Save guest system registers that do analt affect the host's execution, for
  * example EL1 system registers on a VHE system where the host kernel
  * runs at EL2.  This function is called from KVM's vcpu_put() function
- * and deferring saving system register state until we're no longer running the
+ * and deferring saving system register state until we're anal longer running the
  * VCPU avoids having to save them on every exit from the VM.
  */
 void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu)

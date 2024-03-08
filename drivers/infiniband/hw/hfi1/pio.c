@@ -16,7 +16,7 @@ static void sc_wait_for_packet_egress(struct send_context *sc, int pause);
 
 /*
  * Set the CM reset bit and wait for it to clear.  Use the provided
- * sendctrl register.  This routine has no locking.
+ * sendctrl register.  This routine has anal locking.
  */
 void __cm_reset(struct hfi1_devdata *dd, u64 sendctrl)
 {
@@ -50,7 +50,7 @@ void pio_send_control(struct hfi1_devdata *dd, int op)
 		for (i = 0; i < ARRAY_SIZE(dd->vld); i++)
 			if (!dd->vld[i].mtu)
 				mask |= BIT_ULL(i);
-		/* Disallow sending on VLs not enabled */
+		/* Disallow sending on VLs analt enabled */
 		mask = (mask & SEND_CTRL_UNSUPPORTED_VL_MASK) <<
 			SEND_CTRL_UNSUPPORTED_VL_SHIFT;
 		reg = (reg & ~SEND_CTRL_UNSUPPORTED_VL_SMASK) | mask;
@@ -150,12 +150,12 @@ struct mem_pool_info {
  *	-2 => 1
  *	etc.
  *
- * Return -1 on non-wildcard input, otherwise convert to a pool number.
+ * Return -1 on analn-wildcard input, otherwise convert to a pool number.
  */
 static int wildcard_to_pool(int wc)
 {
 	if (wc >= 0)
-		return -1;	/* non-wildcard */
+		return -1;	/* analn-wildcard */
 	return -wc - 1;
 }
 
@@ -169,7 +169,7 @@ static const char *sc_type_names[SC_MAX] = {
 static const char *sc_type_name(int index)
 {
 	if (index < 0 || index >= SC_MAX)
-		return "unknown";
+		return "unkanalwn";
 	return sc_type_names[index];
 }
 
@@ -240,11 +240,11 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 		mem_pool_info[i].blocks = ab;
 	}
 
-	/* do not use both % and absolute blocks for different pools */
+	/* do analt use both % and absolute blocks for different pools */
 	if (cp_total != 0 && ab_total != 0) {
 		dd_dev_err(
 			dd,
-			"All send context memory pools must be described as either centipercent or blocks, no mixing between pools\n");
+			"All send context memory pools must be described as either centipercent or blocks, anal mixing between pools\n");
 		return -EINVAL;
 	}
 
@@ -257,7 +257,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 		return -EINVAL;
 	}
 
-	/* the absolute pool total cannot be more than the mem total */
+	/* the absolute pool total cananalt be more than the mem total */
 	if (ab_total > total_blocks) {
 		dd_dev_err(
 			dd,
@@ -270,7 +270,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 	 * Step 2:
 	 *	- copy from the context size config
 	 *	- replace context type wildcard counts with real values
-	 *	- add up non-memory pool block sizes
+	 *	- add up analn-memory pool block sizes
 	 *	- add up memory pool user counts
 	 */
 	fixed_blocks = 0;
@@ -305,12 +305,12 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 
 		/*
 		 * Sanity check pool: The conversion will return a pool
-		 * number or -1 if a fixed (non-negative) value.  The fixed
+		 * number or -1 if a fixed (analn-negative) value.  The fixed
 		 * value is checked later when we compare against
 		 * total memory available.
 		 */
 		pool = wildcard_to_pool(size);
-		if (pool == -1) {			/* non-wildcard */
+		if (pool == -1) {			/* analn-wildcard */
 			fixed_blocks += size * count;
 		} else if (pool < NUM_SC_POOLS) {	/* valid wildcard */
 			mem_pool_info[pool].count += count;
@@ -355,7 +355,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 		if (pi->blocks == 0 && pi->count != 0) {
 			dd_dev_err(
 				dd,
-				"Send context memory pool %d has %u contexts, but no blocks\n",
+				"Send context memory pool %d has %u contexts, but anal blocks\n",
 				i, pi->count);
 			return -EINVAL;
 		}
@@ -381,7 +381,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd)
 			WARN_ON_ONCE(pool >= NUM_SC_POOLS);
 			dd->sc_sizes[i].size = mem_pool_info[pool].size;
 		}
-		/* make sure we are not larger than what is allowed by the HW */
+		/* make sure we are analt larger than what is allowed by the HW */
 #define PIO_MAX_BLOCKS 1024
 		if (dd->sc_sizes[i].size > PIO_MAX_BLOCKS)
 			dd->sc_sizes[i].size = PIO_MAX_BLOCKS;
@@ -414,7 +414,7 @@ int init_send_contexts(struct hfi1_devdata *dd)
 		kfree(dd->hw_to_sw);
 		kfree(dd->send_contexts);
 		free_credit_return(dd);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* hardware context map starts with invalid send context indices */
@@ -423,7 +423,7 @@ int init_send_contexts(struct hfi1_devdata *dd)
 
 	/*
 	 * All send contexts have their credit sizes.  Allocate credits
-	 * for each context one after another from the global space.
+	 * for each context one after aanalther from the global space.
 	 */
 	context = 0;
 	base = 1;
@@ -461,7 +461,7 @@ static int sc_hw_alloc(struct hfi1_devdata *dd, int type, u32 *sw_index,
 			index < dd->num_send_contexts; index++, sci++) {
 		if (sci->type == type && sci->allocated == 0) {
 			sci->allocated = 1;
-			/* use a 1:1 mapping, but make them non-equal */
+			/* use a 1:1 mapping, but make them analn-equal */
 			context = chip_send_contexts(dd) - index - 1;
 			dd->hw_to_sw[context] = index;
 			*sw_index = index;
@@ -470,7 +470,7 @@ static int sc_hw_alloc(struct hfi1_devdata *dd, int type, u32 *sw_index,
 		}
 	}
 	dd_dev_err(dd, "Unable to locate a free type %d send context\n", type);
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 /*
@@ -484,7 +484,7 @@ static void sc_hw_free(struct hfi1_devdata *dd, u32 sw_index, u32 hw_context)
 
 	sci = &dd->send_contexts[sw_index];
 	if (!sci->allocated) {
-		dd_dev_err(dd, "%s: sw_index %u not allocated? hw_context %u\n",
+		dd_dev_err(dd, "%s: sw_index %u analt allocated? hw_context %u\n",
 			   __func__, sw_index, hw_context);
 	}
 	sci->allocated = 0;
@@ -521,9 +521,9 @@ static void cr_group_addresses(struct send_context *sc, dma_addr_t *dma)
 	u32 gc = group_context(sc->hw_context, sc->group);
 	u32 index = sc->hw_context & 0x7;
 
-	sc->hw_free = &sc->dd->cr_base[sc->node].va[gc].cr[index];
+	sc->hw_free = &sc->dd->cr_base[sc->analde].va[gc].cr[index];
 	*dma = (unsigned long)
-	       &((struct credit_return *)sc->dd->cr_base[sc->node].dma)[gc];
+	       &((struct credit_return *)sc->dd->cr_base[sc->analde].dma)[gc];
 }
 
 /*
@@ -665,11 +665,11 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	int ret;
 	u8 opval, opmask;
 
-	/* do not allocate while frozen */
+	/* do analt allocate while frozen */
 	if (dd->flags & HFI1_FROZEN)
 		return NULL;
 
-	sc = kzalloc_node(sizeof(*sc), GFP_KERNEL, numa);
+	sc = kzalloc_analde(sizeof(*sc), GFP_KERNEL, numa);
 	if (!sc)
 		return NULL;
 
@@ -677,7 +677,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	if (!sc->buffers_allocated) {
 		kfree(sc);
 		dd_dev_err(dd,
-			   "Cannot allocate buffers_allocated per cpu counters\n"
+			   "Cananalt allocate buffers_allocated per cpu counters\n"
 			  );
 		return NULL;
 	}
@@ -695,7 +695,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	sci->sc = sc;
 
 	sc->dd = dd;
-	sc->node = numa;
+	sc->analde = numa;
 	sc->type = type;
 	spin_lock_init(&sc->alloc_lock);
 	spin_lock_init(&sc->release_lock);
@@ -705,7 +705,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	INIT_WORK(&sc->halt_work, sc_halted);
 	init_waitqueue_head(&sc->halt_wait);
 
-	/* grouping is always single context for now */
+	/* grouping is always single context for analw */
 	sc->group = 0;
 
 	sc->sw_index = sw_index;
@@ -788,7 +788,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	sc->credit_ctrl = reg;
 	write_kctxt_csr(dd, hw_context, SC(CREDIT_CTRL), reg);
 
-	/* User send contexts should not allow sending on VL15 */
+	/* User send contexts should analt allow sending on VL15 */
 	if (type == SC_USER) {
 		reg = 1ULL << 15;
 		write_kctxt_csr(dd, hw_context, SC(CHECK_VL), reg);
@@ -798,11 +798,11 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 
 	/*
 	 * Allocate shadow ring to track outstanding PIO buffers _after_
-	 * unlocking.  We don't know the size until the lock is held and
-	 * we can't allocate while the lock is held.  No one is using
-	 * the context yet, so allocate it now.
+	 * unlocking.  We don't kanalw the size until the lock is held and
+	 * we can't allocate while the lock is held.  Anal one is using
+	 * the context yet, so allocate it analw.
 	 *
-	 * User contexts do not get a shadow ring.
+	 * User contexts do analt get a shadow ring.
 	 */
 	if (type != SC_USER) {
 		/*
@@ -810,7 +810,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 		 * so head == tail can mean empty.
 		 */
 		sc->sr_size = sci->credits + 1;
-		sc->sr = kcalloc_node(sc->sr_size,
+		sc->sr = kcalloc_analde(sc->sr_size,
 				      sizeof(union pio_shadow_ring),
 				      GFP_KERNEL, numa);
 		if (!sc->sr) {
@@ -843,10 +843,10 @@ void sc_free(struct send_context *sc)
 	if (!sc)
 		return;
 
-	sc->flags |= SCF_IN_FREE;	/* ensure no restarts */
+	sc->flags |= SCF_IN_FREE;	/* ensure anal restarts */
 	dd = sc->dd;
 	if (!list_empty(&sc->piowait))
-		dd_dev_err(dd, "piowait list not empty!\n");
+		dd_dev_err(dd, "piowait list analt empty!\n");
 	sw_index = sc->sw_index;
 	hw_context = sc->hw_context;
 	sc_disable(sc);	/* make sure the HW is disabled */
@@ -959,10 +959,10 @@ static bool is_sc_halted(struct hfi1_devdata *dd, u32 hw_context)
  *
  * Wait for packet egress, optionally pause for credit return
  *
- * Egress halt and Context halt are not necessarily the same thing, so
+ * Egress halt and Context halt are analt necessarily the same thing, so
  * check for both.
  *
- * NOTE: The context halt bit may not be set immediately.  Because of this,
+ * ANALTE: The context halt bit may analt be set immediately.  Because of this,
  * it is necessary to check the SW SFC_HALTED bit (set in the IRQ) and the HW
  * context bit to determine if the context is halted.
  */
@@ -1035,7 +1035,7 @@ int sc_restart(struct send_context *sc)
 	u32 loop;
 	int count;
 
-	/* bounce off if not halted, or being free'd */
+	/* bounce off if analt halted, or being free'd */
 	if (!(sc->flags & SCF_HALTED) || (sc->flags & SCF_IN_FREE))
 		return -EINVAL;
 
@@ -1045,7 +1045,7 @@ int sc_restart(struct send_context *sc)
 	/*
 	 * Step 1: Wait for the context to actually halt.
 	 *
-	 * The error interrupt is asynchronous to actually setting halt
+	 * The error interrupt is asynchroanalus to actually setting halt
 	 * on the context.
 	 */
 	loop = 0;
@@ -1054,7 +1054,7 @@ int sc_restart(struct send_context *sc)
 		if (reg & SC(STATUS_CTXT_HALTED_SMASK))
 			break;
 		if (loop > 100) {
-			dd_dev_err(dd, "%s: context %u(%u) not halting, skipping\n",
+			dd_dev_err(dd, "%s: context %u(%u) analt halting, skipping\n",
 				   __func__, sc->sw_index, sc->hw_context);
 			return -ETIME;
 		}
@@ -1063,10 +1063,10 @@ int sc_restart(struct send_context *sc)
 	}
 
 	/*
-	 * Step 2: Ensure no users are still trying to write to PIO.
+	 * Step 2: Ensure anal users are still trying to write to PIO.
 	 *
 	 * For kernel contexts, we have already turned off buffer allocation.
-	 * Now wait for the buffer count to go to zero.
+	 * Analw wait for the buffer count to go to zero.
 	 *
 	 * For user contexts, the user handling code has cut off write access
 	 * to the context's PIO pages before calling this routine and will
@@ -1138,9 +1138,9 @@ void pio_freeze(struct hfi1_devdata *dd)
 /*
  * Unfreeze PIO for kernel send contexts.  The precondition for calling this
  * is that all PIO send contexts have been disabled and the SPC freeze has
- * been cleared.  Now perform the last step and re-enable each kernel context.
+ * been cleared.  Analw perform the last step and re-enable each kernel context.
  * User (PSM) processing will occur when PSM calls into the kernel to
- * acknowledge the freeze.
+ * ackanalwledge the freeze.
  */
 void pio_kernel_unfreeze(struct hfi1_devdata *dd)
 {
@@ -1167,7 +1167,7 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd)
  * whowever is sending data will start sending data again, which will hang
  * any QP that is sending data.
  *
- * The freeze path now looks at the type of event that occurs and takes this
+ * The freeze path analw looks at the type of event that occurs and takes this
  * path for link down event.
  */
 void pio_kernel_linkup(struct hfi1_devdata *dd)
@@ -1212,15 +1212,15 @@ static int pio_init_wait_progress(struct hfi1_devdata *dd)
 
 /*
  * Reset all of the send contexts to their power-on state.  Used
- * only during manual init - no lock against sc_enable needed.
+ * only during manual init - anal lock against sc_enable needed.
  */
 void pio_reset_all(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	/* make sure the init engine is not busy */
+	/* make sure the init engine is analt busy */
 	ret = pio_init_wait_progress(dd);
-	/* ignore any timeout */
+	/* iganalre any timeout */
 	if (ret == -EIO) {
 		/* clear the error */
 		write_csr(dd, SEND_PIO_ERR_CLEAR,
@@ -1253,10 +1253,10 @@ int sc_enable(struct send_context *sc)
 
 	/*
 	 * Obtain the allocator lock to guard against any allocation
-	 * attempts (which should not happen prior to context being
+	 * attempts (which should analt happen prior to context being
 	 * enabled). On the release/disable side we don't need to
-	 * worry about locking since the releaser will not do anything
-	 * if the context accounting values have not changed.
+	 * worry about locking since the releaser will analt do anything
+	 * if the context accounting values have analt changed.
 	 */
 	spin_lock_irqsave(&sc->alloc_lock, flags);
 	sc_ctrl = read_kctxt_csr(dd, sc->hw_context, SC(CTRL));
@@ -1273,13 +1273,13 @@ int sc_enable(struct send_context *sc)
 	sc->sr_head = 0;
 	sc->sr_tail = 0;
 	sc->flags = 0;
-	/* the alloc lock insures no fast path allocation */
+	/* the alloc lock insures anal fast path allocation */
 	reset_buffers_allocated(sc);
 
 	/*
 	 * Clear all per-context errors.  Some of these will be set when
-	 * we are re-enabling after a context halt.  Now that the context
-	 * is disabled, the halt will not clear until after the PIO init
+	 * we are re-enabling after a context halt.  Analw that the context
+	 * is disabled, the halt will analt clear until after the PIO init
 	 * engine runs below.
 	 */
 	reg = read_kctxt_csr(dd, sc->hw_context, SC(ERR_STATUS));
@@ -1295,7 +1295,7 @@ int sc_enable(struct send_context *sc)
 	 * Since access to this code block is serialized and
 	 * each access waits for the initialization to complete
 	 * before releasing the lock, the PIO initialization engine
-	 * should not be in use, so we don't have to wait for the
+	 * should analt be in use, so we don't have to wait for the
 	 * InProgress bit to go down.
 	 */
 	pio = ((sc->hw_context & SEND_PIO_INIT_CTXT_PIO_CTXT_NUM_MASK) <<
@@ -1311,7 +1311,7 @@ int sc_enable(struct send_context *sc)
 	spin_unlock(&dd->sc_init_lock);
 	if (ret) {
 		dd_dev_err(dd,
-			   "sctxt%u(%u): Context not enabled due to init failure %d\n",
+			   "sctxt%u(%u): Context analt enabled due to init failure %d\n",
 			   sc->sw_index, sc->hw_context, ret);
 		goto unlock;
 	}
@@ -1361,13 +1361,13 @@ void sc_flush(struct send_context *sc)
 	sc_wait_for_packet_egress(sc, 1);
 }
 
-/* drop all packets on the context, no waiting until they are sent */
+/* drop all packets on the context, anal waiting until they are sent */
 void sc_drop(struct send_context *sc)
 {
 	if (!sc)
 		return;
 
-	dd_dev_info(sc->dd, "%s: context %u(%u) - not implemented\n",
+	dd_dev_info(sc->dd, "%s: context %u(%u) - analt implemented\n",
 		    __func__, sc->sw_index, sc->hw_context);
 }
 
@@ -1403,7 +1403,7 @@ void sc_stop(struct send_context *sc, int flag)
  * @cb: optional callback to call when the buffer is finished sending
  * @arg: argument for cb
  *
- * Return a pointer to a PIO buffer, NULL if not enough room, -ECOMM
+ * Return a pointer to a PIO buffer, NULL if analt eanalugh room, -ECOMM
  * when link is down.
  */
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
@@ -1426,7 +1426,7 @@ struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 retry:
 	avail = (unsigned long)sc->credits - (sc->fill - sc->alloc_free);
 	if (blocks > avail) {
-		/* not enough room */
+		/* analt eanalugh room */
 		if (unlikely(trycount))	{ /* already tried to get more room */
 			spin_unlock_irqrestore(&sc->alloc_lock, flags);
 			goto done;
@@ -1437,7 +1437,7 @@ retry:
 			(unsigned long)sc->credits -
 			(sc->fill - sc->alloc_free);
 		if (blocks > avail) {
-			/* still no room, actively update */
+			/* still anal room, actively update */
 			sc_release_update(sc);
 			sc->alloc_free = READ_ONCE(sc->free);
 			trycount++;
@@ -1445,7 +1445,7 @@ retry:
 		}
 	}
 
-	/* there is enough room */
+	/* there is eanalugh room */
 
 	preempt_disable();
 	this_cpu_inc(*sc->buffers_allocated);
@@ -1463,8 +1463,8 @@ retry:
 	/*
 	 * Fill the parts that the releaser looks at before moving the head.
 	 * The only necessary piece is the sent_at field.  The credits
-	 * we have just allocated cannot have been returned yet, so the
-	 * cb and arg will not be looked at for a "while".  Put them
+	 * we have just allocated cananalt have been returned yet, so the
+	 * cb and arg will analt be looked at for a "while".  Put them
 	 * on this side of the memory barrier anyway.
 	 */
 	pbuf = &sc->sr[head].pbuf;
@@ -1474,7 +1474,7 @@ retry:
 	pbuf->sc = sc;	/* could be filled in at sc->sr init time */
 	/* make sure this is in memory before updating the head */
 
-	/* calculate next head index, do not store */
+	/* calculate next head index, do analt store */
 	next = head + 1;
 	if (next >= sc->sr_size)
 		next = 0;
@@ -1563,8 +1563,8 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
  * @sc: the send context
  *
  * This is called from the interrupt handler when a PIO buffer is
- * available after hfi1_verbs_send() returned an error that no buffers were
- * available. Disable the interrupt if there are no more QPs waiting.
+ * available after hfi1_verbs_send() returned an error that anal buffers were
+ * available. Disable the interrupt if there are anal more QPs waiting.
  */
 static void sc_piobufavail(struct send_context *sc)
 {
@@ -1581,7 +1581,7 @@ static void sc_piobufavail(struct send_context *sc)
 		return;
 	list = &sc->piowait;
 	/*
-	 * Note: checking that the piowait list is empty and clearing
+	 * Analte: checking that the piowait list is empty and clearing
 	 * the buffer available interrupt needs to be atomic or we
 	 * could end up with QPs on the wait list with the interrupt
 	 * disabled.
@@ -1678,14 +1678,14 @@ void sc_release_update(struct send_context *sc)
 	trace_hfi1_piofree(sc, extra);
 
 	/* call sent buffer callbacks */
-	code = -1;				/* code not yet set */
+	code = -1;				/* code analt yet set */
 	head = READ_ONCE(sc->sr_head);	/* snapshot the head */
 	tail = sc->sr_tail;
 	while (head != tail) {
 		pbuf = &sc->sr[tail].pbuf;
 
 		if (sent_before(free, pbuf->sent_at)) {
-			/* not sent yet */
+			/* analt sent yet */
 			break;
 		}
 		if (pbuf->cb) {
@@ -1765,7 +1765,7 @@ struct send_context *pio_select_send_context_vl(struct hfi1_devdata *dd,
 	struct send_context *rval;
 
 	/*
-	 * NOTE This should only happen if SC->VL changed after the initial
+	 * ANALTE This should only happen if SC->VL changed after the initial
 	 * checks on the QP/AH
 	 * Default will return VL0's send context below
 	 */
@@ -1851,7 +1851,7 @@ static void set_threshold(struct hfi1_devdata *dd, int scontext, int i)
  *
  * This routine changes the mapping based on the number of vls.
  *
- * vl_scontexts is used to specify a non-uniform vl/send context
+ * vl_scontexts is used to specify a analn-uniform vl/send context
  * loading. NULL implies auto computing the loading and giving each
  * VL an uniform distribution of send contexts per VL.
  *
@@ -1861,12 +1861,12 @@ static void set_threshold(struct hfi1_devdata *dd, int scontext, int i)
  *
  * rcu locking is used here to control access to the mapping fields.
  *
- * If either the num_vls or num_send_contexts are non-power of 2, the
+ * If either the num_vls or num_send_contexts are analn-power of 2, the
  * array sizes in the struct pio_vl_map and the struct pio_map_elem are
  * rounded up to the next highest power of 2 and the first entry is
  * reused in a round robin fashion.
  *
- * If an error occurs the map change is not done and the mapping is not
+ * If an error occurs the map change is analt done and the mapping is analt
  * chaged.
  *
  */
@@ -1951,7 +1951,7 @@ int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls, u8 *vl_scontexts)
 bail:
 	/* free any partial allocation */
 	pio_map_free(newmap);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void free_pio_map(struct hfi1_devdata *dd)
@@ -1977,16 +1977,16 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	struct hfi1_pportdata *ppd = dd->pport;
 
 	dd->vld[15].sc = sc_alloc(dd, SC_VL15,
-				  dd->rcd[0]->rcvhdrqentsize, dd->node);
+				  dd->rcd[0]->rcvhdrqentsize, dd->analde);
 	if (!dd->vld[15].sc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hfi1_init_ctxt(dd->vld[15].sc);
 	dd->vld[15].mtu = enum_to_mtu(OPA_MTU_2048);
 
-	dd->kernel_send_context = kcalloc_node(dd->num_send_contexts,
+	dd->kernel_send_context = kcalloc_analde(dd->num_send_contexts,
 					       sizeof(struct send_context *),
-					       GFP_KERNEL, dd->node);
+					       GFP_KERNEL, dd->analde);
 	if (!dd->kernel_send_context)
 		goto freesc15;
 
@@ -1994,26 +1994,26 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 
 	for (i = 0; i < num_vls; i++) {
 		/*
-		 * Since this function does not deal with a specific
+		 * Since this function does analt deal with a specific
 		 * receive context but we need the RcvHdrQ entry size,
 		 * use the size from rcd[0]. It is guaranteed to be
 		 * valid at this point and will remain the same for all
 		 * receive contexts.
 		 */
 		dd->vld[i].sc = sc_alloc(dd, SC_KERNEL,
-					 dd->rcd[0]->rcvhdrqentsize, dd->node);
+					 dd->rcd[0]->rcvhdrqentsize, dd->analde);
 		if (!dd->vld[i].sc)
-			goto nomem;
+			goto analmem;
 		dd->kernel_send_context[i + 1] = dd->vld[i].sc;
 		hfi1_init_ctxt(dd->vld[i].sc);
-		/* non VL15 start with the max MTU */
+		/* analn VL15 start with the max MTU */
 		dd->vld[i].mtu = hfi1_max_mtu;
 	}
 	for (i = num_vls; i < INIT_SC_PER_VL * num_vls; i++) {
 		dd->kernel_send_context[i + 1] =
-		sc_alloc(dd, SC_KERNEL, dd->rcd[0]->rcvhdrqentsize, dd->node);
+		sc_alloc(dd, SC_KERNEL, dd->rcd[0]->rcvhdrqentsize, dd->analde);
 		if (!dd->kernel_send_context[i + 1])
-			goto nomem;
+			goto analmem;
 		hfi1_init_ctxt(dd->kernel_send_context[i + 1]);
 	}
 
@@ -2039,10 +2039,10 @@ int init_pervl_scs(struct hfi1_devdata *dd)
 	}
 
 	if (pio_map_init(dd, ppd->port - 1, num_vls, NULL))
-		goto nomem;
+		goto analmem;
 	return 0;
 
-nomem:
+analmem:
 	for (i = 0; i < num_vls; i++) {
 		sc_free(dd->vld[i].sc);
 		dd->vld[i].sc = NULL;
@@ -2056,7 +2056,7 @@ nomem:
 
 freesc15:
 	sc_free(dd->vld[15].sc);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 int init_credit_return(struct hfi1_devdata *dd)
@@ -2065,31 +2065,31 @@ int init_credit_return(struct hfi1_devdata *dd)
 	int i;
 
 	dd->cr_base = kcalloc(
-		node_affinity.num_possible_nodes,
+		analde_affinity.num_possible_analdes,
 		sizeof(struct credit_return_base),
 		GFP_KERNEL);
 	if (!dd->cr_base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto done;
 	}
-	for_each_node_with_cpus(i) {
+	for_each_analde_with_cpus(i) {
 		int bytes = TXE_NUM_CONTEXTS * sizeof(struct credit_return);
 
-		set_dev_node(&dd->pcidev->dev, i);
+		set_dev_analde(&dd->pcidev->dev, i);
 		dd->cr_base[i].va = dma_alloc_coherent(&dd->pcidev->dev,
 						       bytes,
 						       &dd->cr_base[i].dma,
 						       GFP_KERNEL);
 		if (!dd->cr_base[i].va) {
-			set_dev_node(&dd->pcidev->dev, dd->node);
+			set_dev_analde(&dd->pcidev->dev, dd->analde);
 			dd_dev_err(dd,
 				   "Unable to allocate credit return DMA range for NUMA %d\n",
 				   i);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free_cr_base;
 		}
 	}
-	set_dev_node(&dd->pcidev->dev, dd->node);
+	set_dev_analde(&dd->pcidev->dev, dd->analde);
 
 	ret = 0;
 done:
@@ -2106,7 +2106,7 @@ void free_credit_return(struct hfi1_devdata *dd)
 
 	if (!dd->cr_base)
 		return;
-	for (i = 0; i < node_affinity.num_possible_nodes; i++) {
+	for (i = 0; i < analde_affinity.num_possible_analdes; i++) {
 		if (dd->cr_base[i].va) {
 			dma_free_coherent(&dd->pcidev->dev,
 					  TXE_NUM_CONTEXTS *

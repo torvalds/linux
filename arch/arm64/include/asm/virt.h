@@ -50,7 +50,7 @@
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
 /*
- * Flags returned together with the boot mode, but not preserved in
+ * Flags returned together with the boot mode, but analt preserved in
  * __boot_cpu_mode. Used by the idreg override code to work out the
  * boot state.
  */
@@ -87,7 +87,7 @@ static inline bool is_hyp_mode_available(void)
 {
 	/*
 	 * If KVM protected mode is initialized, all CPUs must have been booted
-	 * in EL2. Avoid checking __boot_cpu_mode as CPUs now come up in EL1.
+	 * in EL2. Avoid checking __boot_cpu_mode as CPUs analw come up in EL1.
 	 */
 	if (IS_ENABLED(CONFIG_KVM) &&
 	    static_branch_likely(&kvm_protected_mode_initialized))
@@ -102,7 +102,7 @@ static inline bool is_hyp_mode_mismatched(void)
 {
 	/*
 	 * If KVM protected mode is initialized, all CPUs must have been booted
-	 * in EL2. Avoid checking __boot_cpu_mode as CPUs now come up in EL1.
+	 * in EL2. Avoid checking __boot_cpu_mode as CPUs analw come up in EL1.
 	 */
 	if (IS_ENABLED(CONFIG_KVM) &&
 	    static_branch_likely(&kvm_protected_mode_initialized))

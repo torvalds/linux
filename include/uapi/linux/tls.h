@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR Linux-OpenIB) */
 /*
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,18 +13,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -39,22 +39,22 @@
 /* TLS socket options */
 #define TLS_TX			1	/* Set transmit parameters */
 #define TLS_RX			2	/* Set receive parameters */
-#define TLS_TX_ZEROCOPY_RO	3	/* TX zerocopy (only sendfile now) */
-#define TLS_RX_EXPECT_NO_PAD	4	/* Attempt opportunistic zero-copy */
+#define TLS_TX_ZEROCOPY_RO	3	/* TX zerocopy (only sendfile analw) */
+#define TLS_RX_EXPECT_ANAL_PAD	4	/* Attempt opportunistic zero-copy */
 
 /* Supported versions */
-#define TLS_VERSION_MINOR(ver)	((ver) & 0xFF)
+#define TLS_VERSION_MIANALR(ver)	((ver) & 0xFF)
 #define TLS_VERSION_MAJOR(ver)	(((ver) >> 8) & 0xFF)
 
 #define TLS_VERSION_NUMBER(id)	((((id##_VERSION_MAJOR) & 0xFF) << 8) |	\
-				 ((id##_VERSION_MINOR) & 0xFF))
+				 ((id##_VERSION_MIANALR) & 0xFF))
 
 #define TLS_1_2_VERSION_MAJOR	0x3
-#define TLS_1_2_VERSION_MINOR	0x3
+#define TLS_1_2_VERSION_MIANALR	0x3
 #define TLS_1_2_VERSION		TLS_VERSION_NUMBER(TLS_1_2)
 
 #define TLS_1_3_VERSION_MAJOR	0x3
-#define TLS_1_3_VERSION_MINOR	0x4
+#define TLS_1_3_VERSION_MIANALR	0x4
 #define TLS_1_3_VERSION		TLS_VERSION_NUMBER(TLS_1_3)
 
 /* Supported ciphers */
@@ -193,7 +193,7 @@ enum {
 	TLS_INFO_TXCONF,
 	TLS_INFO_RXCONF,
 	TLS_INFO_ZC_RO_TX,
-	TLS_INFO_RX_NO_PAD,
+	TLS_INFO_RX_ANAL_PAD,
 	__TLS_INFO_MAX,
 };
 #define TLS_INFO_MAX (__TLS_INFO_MAX - 1)

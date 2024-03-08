@@ -28,7 +28,7 @@ MODULE_DEVICE_TABLE(of, mdp_of_ids);
 static struct platform_device *__get_pdev_by_id(struct platform_device *pdev,
 						enum mdp_infra_id id)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	struct platform_device *mdp_pdev = NULL;
 	const struct mtk_mdp_driver_data *mdp_data;
 	const char *compat;
@@ -43,19 +43,19 @@ static struct platform_device *__get_pdev_by_id(struct platform_device *pdev,
 
 	mdp_data = of_device_get_match_data(&pdev->dev);
 	if (!mdp_data) {
-		dev_err(&pdev->dev, "have no driver data to find node\n");
+		dev_err(&pdev->dev, "have anal driver data to find analde\n");
 		return NULL;
 	}
 	compat = mdp_data->mdp_probe_infra[id].compatible;
 
-	node = of_find_compatible_node(NULL, NULL, compat);
-	if (WARN_ON(!node)) {
-		dev_err(&pdev->dev, "find node from id %d failed\n", id);
+	analde = of_find_compatible_analde(NULL, NULL, compat);
+	if (WARN_ON(!analde)) {
+		dev_err(&pdev->dev, "find analde from id %d failed\n", id);
 		return NULL;
 	}
 
-	mdp_pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	mdp_pdev = of_find_device_by_analde(analde);
+	of_analde_put(analde);
 	if (WARN_ON(!mdp_pdev)) {
 		dev_err(&pdev->dev, "find pdev from id %d failed\n", id);
 		return NULL;
@@ -67,17 +67,17 @@ static struct platform_device *__get_pdev_by_id(struct platform_device *pdev,
 struct platform_device *mdp_get_plat_device(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *mdp_node;
+	struct device_analde *mdp_analde;
 	struct platform_device *mdp_pdev;
 
-	mdp_node = of_parse_phandle(dev->of_node, MDP_PHANDLE_NAME, 0);
-	if (!mdp_node) {
-		dev_err(dev, "can't get node %s\n", MDP_PHANDLE_NAME);
+	mdp_analde = of_parse_phandle(dev->of_analde, MDP_PHANDLE_NAME, 0);
+	if (!mdp_analde) {
+		dev_err(dev, "can't get analde %s\n", MDP_PHANDLE_NAME);
 		return NULL;
 	}
 
-	mdp_pdev = of_find_device_by_node(mdp_node);
-	of_node_put(mdp_node);
+	mdp_pdev = of_find_device_by_analde(mdp_analde);
+	of_analde_put(mdp_analde);
 
 	return mdp_pdev;
 }
@@ -157,7 +157,7 @@ static int mdp_probe(struct platform_device *pdev)
 
 	mdp = kzalloc(sizeof(*mdp), GFP_KERNEL);
 	if (!mdp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_return;
 	}
 
@@ -166,14 +166,14 @@ static int mdp_probe(struct platform_device *pdev)
 
 	mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_MMSYS);
 	if (!mm_pdev) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_destroy_device;
 	}
 	mdp->mdp_mmsys = &mm_pdev->dev;
 
 	mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_MUTEX);
 	if (WARN_ON(!mm_pdev)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_destroy_device;
 	}
 	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++) {
@@ -196,7 +196,7 @@ static int mdp_probe(struct platform_device *pdev)
 	mdp->job_wq = alloc_workqueue(MDP_MODULE_NAME, WQ_FREEZABLE, 0);
 	if (!mdp->job_wq) {
 		dev_err(dev, "Unable to create job workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_deinit_comp;
 	}
 
@@ -204,7 +204,7 @@ static int mdp_probe(struct platform_device *pdev)
 					0);
 	if (!mdp->clock_wq) {
 		dev_err(dev, "Unable to create clock workqueue\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_destroy_job_wq;
 	}
 
@@ -212,8 +212,8 @@ static int mdp_probe(struct platform_device *pdev)
 	if (!mdp->scp) {
 		mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_SCP);
 		if (WARN_ON(!mm_pdev)) {
-			dev_err(&pdev->dev, "Could not get scp device\n");
-			ret = -ENODEV;
+			dev_err(&pdev->dev, "Could analt get scp device\n");
+			ret = -EANALDEV;
 			goto err_destroy_clock_wq;
 		}
 		mdp->scp = platform_get_drvdata(mm_pdev);
@@ -272,7 +272,7 @@ err_free_mutex:
 err_destroy_device:
 	kfree(mdp);
 err_return:
-	dev_dbg(dev, "Errno %d\n", ret);
+	dev_dbg(dev, "Erranal %d\n", ret);
 	return ret;
 }
 

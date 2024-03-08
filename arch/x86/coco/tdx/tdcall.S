@@ -3,15 +3,15 @@
 #include <asm/asm.h>
 
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "../../virt/vmx/tdx/tdxcall.S"
 
-.section .noinstr.text, "ax"
+.section .analinstr.text, "ax"
 
 /*
  * __tdcall()  - Used by TDX guests to request services from the TDX
- * module (does not include VMM services) using TDCALL instruction.
+ * module (does analt include VMM services) using TDCALL instruction.
  *
  * __tdcall() function ABI:
  *
@@ -28,7 +28,7 @@ SYM_FUNC_END(__tdcall)
 
 /*
  * __tdcall_ret() - Used by TDX guests to request services from the TDX
- * module (does not include VMM services) using TDCALL instruction, with
+ * module (does analt include VMM services) using TDCALL instruction, with
  * saving output registers to the 'struct tdx_module_args' used as input.
  *
  * __tdcall_ret() function ABI:

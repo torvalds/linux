@@ -93,7 +93,7 @@ static void do_test(int sock_type, bool onebyone)
 	 * total_read must equal to the expected to_read.
 	 *
 	 * For a very unlikely case, both ports collide at the same bucket,
-	 * the bucket offset (i.e. 3) will be skipped and it cannot
+	 * the bucket offset (i.e. 3) will be skipped and it cananalt
 	 * expect the to_read number of bytes.
 	 */
 	if (skel->bss->bucket[0] != skel->bss->bucket[1])
@@ -112,7 +112,7 @@ void test_sock_iter_batch(void)
 {
 	struct nstoken *nstoken = NULL;
 
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_ANALFAIL("ip netns del " TEST_NS " &> /dev/null");
 	SYS(done, "ip netns add %s", TEST_NS);
 	SYS(done, "ip -net %s link set dev lo up", TEST_NS);
 
@@ -131,5 +131,5 @@ void test_sock_iter_batch(void)
 	close_netns(nstoken);
 
 done:
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_ANALFAIL("ip netns del " TEST_NS " &> /dev/null");
 }

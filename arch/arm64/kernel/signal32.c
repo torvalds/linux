@@ -100,7 +100,7 @@ static int compat_preserve_vfp_context(struct compat_vfp_sigframe __user *frame)
 
 	/*
 	 * Save the hardware registers to the fpsimd_state structure.
-	 * Note that this also saves V16-31, which aren't visible
+	 * Analte that this also saves V16-31, which aren't visible
 	 * in AArch32.
 	 */
 	fpsimd_signal_preserve_current_state();
@@ -110,7 +110,7 @@ static int compat_preserve_vfp_context(struct compat_vfp_sigframe __user *frame)
 	__put_user_error(size, &frame->size, err);
 
 	/*
-	 * Now copy the FP registers. Since the registers are packed,
+	 * Analw copy the FP registers. Since the registers are packed,
 	 * we can copy the prefix we want (V0-V15) as it is.
 	 */
 	for (i = 0; i < ARRAY_SIZE(frame->ufp.fpregs); i += 2) {
@@ -231,12 +231,12 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 	struct compat_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * analt, then the user is trying to mess with us.
 	 */
 	if (regs->compat_sp & 7)
 		goto badframe;
@@ -252,7 +252,7 @@ COMPAT_SYSCALL_DEFINE0(sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->compat_sp);
+	arm64_analtify_segfault(regs->compat_sp);
 	return 0;
 }
 
@@ -262,12 +262,12 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	struct compat_rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_anal_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * analt, then the user is trying to mess with us.
 	 */
 	if (regs->compat_sp & 7)
 		goto badframe;
@@ -286,7 +286,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->compat_sp);
+	arm64_analtify_segfault(regs->compat_sp);
 	return 0;
 }
 
@@ -379,7 +379,7 @@ static int compat_setup_sigframe(struct compat_sigframe __user *sf,
 	__put_user_error(regs->pc, &sf->uc.uc_mcontext.arm_pc, err);
 	__put_user_error(psr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
-	__put_user_error((compat_ulong_t)0, &sf->uc.uc_mcontext.trap_no, err);
+	__put_user_error((compat_ulong_t)0, &sf->uc.uc_mcontext.trap_anal, err);
 	/* set the compat FSR WnR */
 	__put_user_error(!!(current->thread.fault_code & ESR_ELx_WNR) <<
 			 FSR_WRITE_SHIFT, &sf->uc.uc_mcontext.error_code, err);
@@ -466,9 +466,9 @@ static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);
 static_assert(NSIGSYS	== 2);
 static_assert(sizeof(compat_siginfo_t) == 128);
-static_assert(__alignof__(compat_siginfo_t) == 4);
-static_assert(offsetof(compat_siginfo_t, si_signo)	== 0x00);
-static_assert(offsetof(compat_siginfo_t, si_errno)	== 0x04);
+static_assert(__aliganalf__(compat_siginfo_t) == 4);
+static_assert(offsetof(compat_siginfo_t, si_siganal)	== 0x00);
+static_assert(offsetof(compat_siginfo_t, si_erranal)	== 0x04);
 static_assert(offsetof(compat_siginfo_t, si_code)	== 0x08);
 static_assert(offsetof(compat_siginfo_t, si_pid)	== 0x0c);
 static_assert(offsetof(compat_siginfo_t, si_uid)	== 0x10);

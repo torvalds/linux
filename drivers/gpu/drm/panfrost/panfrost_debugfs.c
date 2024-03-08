@@ -12,10 +12,10 @@
 #include "panfrost_gpu.h"
 #include "panfrost_debugfs.h"
 
-void panfrost_debugfs_init(struct drm_minor *minor)
+void panfrost_debugfs_init(struct drm_mianalr *mianalr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = mianalr->dev;
 	struct panfrost_device *pfdev = platform_get_drvdata(to_platform_device(dev->dev));
 
-	debugfs_create_atomic_t("profile", 0600, minor->debugfs_root, &pfdev->profile_mode);
+	debugfs_create_atomic_t("profile", 0600, mianalr->debugfs_root, &pfdev->profile_mode);
 }

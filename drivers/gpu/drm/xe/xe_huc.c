@@ -43,11 +43,11 @@ static void free_gsc_pkt(struct drm_device *drm, void *arg)
 {
 	struct xe_huc *huc = arg;
 
-	xe_bo_unpin_map_no_vm(huc->gsc_pkt);
+	xe_bo_unpin_map_anal_vm(huc->gsc_pkt);
 	huc->gsc_pkt = NULL;
 }
 
-#define PXP43_HUC_AUTH_INOUT_SIZE SZ_4K
+#define PXP43_HUC_AUTH_IANALUT_SIZE SZ_4K
 static int huc_alloc_gsc_pkt(struct xe_huc *huc)
 {
 	struct xe_gt *gt = huc_to_gt(huc);
@@ -57,7 +57,7 @@ static int huc_alloc_gsc_pkt(struct xe_huc *huc)
 
 	/* we use a single object for both input and output */
 	bo = xe_bo_create_pin_map(xe, gt_to_tile(gt), NULL,
-				  PXP43_HUC_AUTH_INOUT_SIZE * 2,
+				  PXP43_HUC_AUTH_IANALUT_SIZE * 2,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_SYSTEM_BIT |
 				  XE_BO_CREATE_GGTT_BIT);
@@ -86,7 +86,7 @@ int xe_huc_init(struct xe_huc *huc)
 
 	/* On platforms with a media GT the HuC is only available there */
 	if (tile->media_gt && (gt != tile->media_gt)) {
-		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_NOT_SUPPORTED);
+		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_ANALT_SUPPORTED);
 		return 0;
 	}
 
@@ -153,7 +153,7 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 	int err = 0;
 
 	if (!pkt)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ggtt_offset = xe_bo_ggtt_addr(pkt);
 
@@ -164,13 +164,13 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 					  huc->fw.bo->size);
 	do {
 		err = xe_gsc_pkt_submit_kernel(&gt->uc.gsc, ggtt_offset, wr_offset,
-					       ggtt_offset + PXP43_HUC_AUTH_INOUT_SIZE,
-					       PXP43_HUC_AUTH_INOUT_SIZE);
+					       ggtt_offset + PXP43_HUC_AUTH_IANALUT_SIZE,
+					       PXP43_HUC_AUTH_IANALUT_SIZE);
 		if (err)
 			break;
 
 		if (xe_gsc_check_and_update_pending(xe, &pkt->vmap, 0, &pkt->vmap,
-						    PXP43_HUC_AUTH_INOUT_SIZE)) {
+						    PXP43_HUC_AUTH_IANALUT_SIZE)) {
 			err = -EBUSY;
 			msleep(50);
 		}
@@ -181,7 +181,7 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 		return err;
 	}
 
-	err = xe_gsc_read_out_header(xe, &pkt->vmap, PXP43_HUC_AUTH_INOUT_SIZE,
+	err = xe_gsc_read_out_header(xe, &pkt->vmap, PXP43_HUC_AUTH_IANALUT_SIZE,
 				     sizeof(struct pxp43_huc_auth_out), &rd_offset);
 	if (err) {
 		drm_err(&xe->drm, "HuC: invalid GSC reply for auth (err=%d)\n", err);
@@ -189,12 +189,12 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 	}
 
 	/*
-	 * The GSC will return PXP_STATUS_OP_NOT_PERMITTED if the HuC is already
-	 * authenticated. If the same error is ever returned with HuC not loaded
+	 * The GSC will return PXP_STATUS_OP_ANALT_PERMITTED if the HuC is already
+	 * authenticated. If the same error is ever returned with HuC analt loaded
 	 * we'll still catch it when we check the authentication bit later.
 	 */
 	out_status = huc_auth_msg_rd(xe, &pkt->vmap, rd_offset, header.status);
-	if (out_status != PXP_STATUS_SUCCESS && out_status != PXP_STATUS_OP_NOT_PERMITTED) {
+	if (out_status != PXP_STATUS_SUCCESS && out_status != PXP_STATUS_OP_ANALT_PERMITTED) {
 		drm_err(&xe->drm, "auth failed with GSC error = 0x%x\n", out_status);
 		return -EIO;
 	}
@@ -232,14 +232,14 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 	if (!xe_uc_fw_is_loadable(&huc->fw))
 		return 0;
 
-	/* On newer platforms the HuC survives reset, so no need to re-auth */
+	/* On newer platforms the HuC survives reset, so anal need to re-auth */
 	if (xe_huc_is_authenticated(huc, type)) {
 		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
 		return 0;
 	}
 
 	if (!xe_uc_fw_is_loaded(&huc->fw))
-		return -ENOEXEC;
+		return -EANALEXEC;
 
 	switch (type) {
 	case XE_HUC_AUTH_VIA_GUC:
@@ -262,7 +262,7 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 	ret = xe_mmio_wait32(gt, huc_auth_modes[type].reg, huc_auth_modes[type].val,
 			     huc_auth_modes[type].val, 100000, NULL, false);
 	if (ret) {
-		drm_err(&xe->drm, "HuC: Firmware not verified %d\n", ret);
+		drm_err(&xe->drm, "HuC: Firmware analt verified %d\n", ret);
 		goto fail;
 	}
 

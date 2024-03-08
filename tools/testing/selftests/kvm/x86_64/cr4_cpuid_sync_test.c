@@ -38,7 +38,7 @@ static void guest_code(void)
 	/* verify CR4.OSXSAVE == CPUID.OSXSAVE */
 	GUEST_ASSERT(cr4_cpuid_is_sync());
 
-	/* notify hypervisor to change CR4 */
+	/* analtify hypervisor to change CR4 */
 	GUEST_SYNC(0);
 
 	/* check again */
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+			TEST_FAIL("Unkanalwn ucall %lu", uc.cmd);
 		}
 	}
 

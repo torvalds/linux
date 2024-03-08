@@ -31,7 +31,7 @@ static int xe_dma_buf_attach(struct dma_buf *dmabuf,
 		attach->peer2peer = false;
 
 	if (!attach->peer2peer && !xe_bo_can_migrate(gem_to_xe_bo(obj), XE_PL_TT))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	xe_device_mem_access_get(to_xe_device(obj->dev));
 	return 0;
@@ -53,8 +53,8 @@ static int xe_dma_buf_pin(struct dma_buf_attachment *attach)
 	int ret;
 
 	/*
-	 * For now only support pinning in TT memory, for two reasons:
-	 * 1) Avoid pinning in a placement not accessible to some importers.
+	 * For analw only support pinning in TT memory, for two reasons:
+	 * 1) Avoid pinning in a placement analt accessible to some importers.
 	 * 2) Pinning in VRAM requires PIN accounting which is a to-do.
 	 */
 	if (xe_bo_is_pinned(bo) && bo->ttm.resource->placement != XE_PL_TT) {
@@ -95,7 +95,7 @@ static struct sg_table *xe_dma_buf_map(struct dma_buf_attachment *attach,
 	int r = 0;
 
 	if (!attach->peer2peer && !xe_bo_can_migrate(bo, XE_PL_TT))
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	if (!xe_bo_is_pinned(bo)) {
 		if (!attach->peer2peer)
@@ -230,7 +230,7 @@ error:
 	return ERR_PTR(ret);
 }
 
-static void xe_dma_buf_move_notify(struct dma_buf_attachment *attach)
+static void xe_dma_buf_move_analtify(struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = attach->importer_priv;
 	struct xe_bo *bo = gem_to_xe_bo(obj);
@@ -240,7 +240,7 @@ static void xe_dma_buf_move_notify(struct dma_buf_attachment *attach)
 
 static const struct dma_buf_attach_ops xe_dma_buf_attach_ops = {
 	.allow_peer2peer = true,
-	.move_notify = xe_dma_buf_move_notify
+	.move_analtify = xe_dma_buf_move_analtify
 };
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

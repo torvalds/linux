@@ -144,7 +144,7 @@ int xe_pci_fake_device_init(struct xe_device *xe)
 	}
 
 	if (!ent->device)
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (subplatform_desc = desc->subplatforms;
 	     subplatform_desc && subplatform_desc->subplatform;
@@ -152,8 +152,8 @@ int xe_pci_fake_device_init(struct xe_device *xe)
 		if (subplatform_desc->subplatform == data->subplatform)
 			break;
 
-	if (data->subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
-		return -ENODEV;
+	if (data->subplatform != XE_SUBPLATFORM_ANALNE && !subplatform_desc)
+		return -EANALDEV;
 
 done:
 	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);

@@ -91,7 +91,7 @@ static const struct pinctrl_pin_desc spear1340_pins[] = {
 #define CLCD_AND_ARM_TRACE_REG4_MASK		0x80000000
 #define CLCD_AND_ARM_TRACE_REG5_MASK		0xFFFFFFFF
 #define CLCD_AND_ARM_TRACE_REG6_MASK		0x00000001
-#define FSMC_PNOR_AND_MCIF_REG6_MASK		0x073FFFFE
+#define FSMC_PANALR_AND_MCIF_REG6_MASK		0x073FFFFE
 #define MCIF_REG6_MASK				0xF8C00000
 #define MCIF_REG7_MASK				0x000043FF
 #define FSMC_8BIT_REG7_MASK			0x07FFBC00
@@ -199,7 +199,7 @@ static const struct pinctrl_pin_desc spear1340_pins[] = {
 /* Write 0 to enable TS */
 #define SSP0_CS2_MASK				(1 << 10)
 
-/* Write 0 to enable FSMC PNOR */
+/* Write 0 to enable FSMC PANALR */
 #define MCIF_MASK				(1 << 11)
 
 /* Write 0 to enable CLCD */
@@ -326,39 +326,39 @@ static struct spear_pingroup fsmc_16bit_pingroup = {
 	.nmodemuxs = ARRAY_SIZE(fsmc_16bit_modemux),
 };
 
-/* pad multiplexing for fsmc_pnor device */
-static const unsigned fsmc_pnor_pins[] = { 192, 193, 194, 195, 196, 197, 198,
+/* pad multiplexing for fsmc_panalr device */
+static const unsigned fsmc_panalr_pins[] = { 192, 193, 194, 195, 196, 197, 198,
 	199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212,
 	215, 216, 217 };
-static struct spear_muxreg fsmc_pnor_muxreg[] = {
+static struct spear_muxreg fsmc_panalr_muxreg[] = {
 	{
 		.reg = PAD_SHARED_IP_EN_1,
 		.mask = MCIF_MASK,
 		.val = 0,
 	}, {
 		.reg = PAD_FUNCTION_EN_7,
-		.mask = FSMC_PNOR_AND_MCIF_REG6_MASK,
-		.val = FSMC_PNOR_AND_MCIF_REG6_MASK,
+		.mask = FSMC_PANALR_AND_MCIF_REG6_MASK,
+		.val = FSMC_PANALR_AND_MCIF_REG6_MASK,
 	},
 };
 
-static struct spear_modemux fsmc_pnor_modemux[] = {
+static struct spear_modemux fsmc_panalr_modemux[] = {
 	{
-		.muxregs = fsmc_pnor_muxreg,
-		.nmuxregs = ARRAY_SIZE(fsmc_pnor_muxreg),
+		.muxregs = fsmc_panalr_muxreg,
+		.nmuxregs = ARRAY_SIZE(fsmc_panalr_muxreg),
 	},
 };
 
-static struct spear_pingroup fsmc_pnor_pingroup = {
-	.name = "fsmc_pnor_grp",
-	.pins = fsmc_pnor_pins,
-	.npins = ARRAY_SIZE(fsmc_pnor_pins),
-	.modemuxs = fsmc_pnor_modemux,
-	.nmodemuxs = ARRAY_SIZE(fsmc_pnor_modemux),
+static struct spear_pingroup fsmc_panalr_pingroup = {
+	.name = "fsmc_panalr_grp",
+	.pins = fsmc_panalr_pins,
+	.npins = ARRAY_SIZE(fsmc_panalr_pins),
+	.modemuxs = fsmc_panalr_modemux,
+	.nmodemuxs = ARRAY_SIZE(fsmc_panalr_modemux),
 };
 
 static const char *const fsmc_grps[] = { "fsmc_8bit_grp", "fsmc_16bit_grp",
-	"fsmc_pnor_grp" };
+	"fsmc_panalr_grp" };
 static struct spear_function fsmc_function = {
 	.name = "fsmc",
 	.groups = fsmc_grps,
@@ -1546,8 +1546,8 @@ static const unsigned mcif_pins[] = { 193, 194, 195, 196, 197, 198, 199, 200,
 		.val = MCIF_MASK,					\
 	}, {								\
 		.reg = PAD_FUNCTION_EN_7,				\
-		.mask = FSMC_PNOR_AND_MCIF_REG6_MASK | MCIF_REG6_MASK,	\
-		.val = FSMC_PNOR_AND_MCIF_REG6_MASK | MCIF_REG6_MASK,	\
+		.mask = FSMC_PANALR_AND_MCIF_REG6_MASK | MCIF_REG6_MASK,	\
+		.val = FSMC_PANALR_AND_MCIF_REG6_MASK | MCIF_REG6_MASK,	\
 	}, {								\
 		.reg = PAD_FUNCTION_EN_8,				\
 		.mask = MCIF_REG7_MASK,					\
@@ -1888,7 +1888,7 @@ static struct spear_pingroup *spear1340_pingroups[] = {
 	&pads_as_gpio_pingroup,
 	&fsmc_8bit_pingroup,
 	&fsmc_16bit_pingroup,
-	&fsmc_pnor_pingroup,
+	&fsmc_panalr_pingroup,
 	&keyboard_row_col_pingroup,
 	&keyboard_col5_pingroup,
 	&spdif_in_pingroup,

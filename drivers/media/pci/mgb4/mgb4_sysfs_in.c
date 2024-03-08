@@ -60,7 +60,7 @@ static ssize_t oldi_lane_width_show(struct device *dev,
 
 /*
  * OLDI lane width change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t oldi_lane_width_store(struct device *dev,
 				     struct device_attribute *attr,
@@ -127,7 +127,7 @@ static ssize_t color_mapping_show(struct device *dev,
 
 /*
  * Color mapping change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t color_mapping_store(struct device *dev,
 				   struct device_attribute *attr,
@@ -215,7 +215,7 @@ static ssize_t hsync_status_show(struct device *dev,
 	u32 res;
 
 	if (!(status & (1U << 11)))
-		res = 0x02; // not available
+		res = 0x02; // analt available
 	else if (status & (1U << 12))
 		res = 0x01; // active high
 	else
@@ -234,7 +234,7 @@ static ssize_t vsync_status_show(struct device *dev,
 	u32 res;
 
 	if (!(status & (1U << 11)))
-		res = 0x02; // not available
+		res = 0x02; // analt available
 	else if (status & (1U << 13))
 		res = 0x01; // active high
 	else
@@ -257,7 +257,7 @@ static ssize_t hsync_gap_length_show(struct device *dev,
 
 /*
  * HSYNC gap length change is expected to be called on live streams. Video
- * device locking/queue check is not needed.
+ * device locking/queue check is analt needed.
  */
 static ssize_t hsync_gap_length_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -293,7 +293,7 @@ static ssize_t vsync_gap_length_show(struct device *dev,
 
 /*
  * VSYNC gap length change is expected to be called on live streams. Video
- * device locking/queue check is not needed.
+ * device locking/queue check is analt needed.
  */
 static ssize_t vsync_gap_length_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -460,7 +460,7 @@ static ssize_t fpdl3_input_width_show(struct device *dev,
 
 /*
  * FPD-Link width change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t fpdl3_input_width_store(struct device *dev,
 				       struct device_attribute *attr,
@@ -530,7 +530,7 @@ static ssize_t gmsl_mode_show(struct device *dev,
 
 /*
  * GMSL mode change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t gmsl_mode_store(struct device *dev,
 			       struct device_attribute *attr, const char *buf,
@@ -653,7 +653,7 @@ static ssize_t gmsl_fec_show(struct device *dev, struct device_attribute *attr,
 
 /*
  * GMSL FEC change is expected to be called on live streams. Video device
- * locking/queue check is not needed.
+ * locking/queue check is analt needed.
  */
 static ssize_t gmsl_fec_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)

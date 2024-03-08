@@ -7,7 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -56,7 +56,7 @@ static size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
 	int new;
 	unsigned long flags = 0;
 
-	if (!(prz->flags & PRZ_FLAG_NO_LOCK))
+	if (!(prz->flags & PRZ_FLAG_ANAL_LOCK))
 		raw_spin_lock_irqsave(&prz->buffer_lock, flags);
 
 	old = atomic_read(&prz->buffer->start);
@@ -65,7 +65,7 @@ static size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
 		new -= prz->buffer_size;
 	atomic_set(&prz->buffer->start, new);
 
-	if (!(prz->flags & PRZ_FLAG_NO_LOCK))
+	if (!(prz->flags & PRZ_FLAG_ANAL_LOCK))
 		raw_spin_unlock_irqrestore(&prz->buffer_lock, flags);
 
 	return old;
@@ -78,7 +78,7 @@ static void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
 	size_t new;
 	unsigned long flags = 0;
 
-	if (!(prz->flags & PRZ_FLAG_NO_LOCK))
+	if (!(prz->flags & PRZ_FLAG_ANAL_LOCK))
 		raw_spin_lock_irqsave(&prz->buffer_lock, flags);
 
 	old = atomic_read(&prz->buffer->size);
@@ -91,11 +91,11 @@ static void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
 	atomic_set(&prz->buffer->size, new);
 
 exit:
-	if (!(prz->flags & PRZ_FLAG_NO_LOCK))
+	if (!(prz->flags & PRZ_FLAG_ANAL_LOCK))
 		raw_spin_unlock_irqrestore(&prz->buffer_lock, flags);
 }
 
-static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
+static void analtrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
 	uint8_t *data, size_t len, uint8_t *ecc)
 {
 	int i;
@@ -119,7 +119,7 @@ static int persistent_ram_decode_rs8(struct persistent_ram_zone *prz,
 				NULL, 0, NULL, 0, NULL);
 }
 
-static void notrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
+static void analtrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
 	unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -233,8 +233,8 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 					  sizeof(*prz->ecc_info.par),
 					  GFP_KERNEL);
 	if (!prz->ecc_info.par) {
-		pr_err("cannot allocate ECC parity workspace\n");
-		return -ENOMEM;
+		pr_err("cananalt allocate ECC parity workspace\n");
+		return -EANALMEM;
 	}
 
 	prz->corrected_bytes = 0;
@@ -266,12 +266,12 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 			"\nECC: %d Corrected bytes, %d unrecoverable blocks\n",
 			prz->corrected_bytes, prz->bad_blocks);
 	else
-		ret = snprintf(str, len, "\nECC: No errors detected\n");
+		ret = snprintf(str, len, "\nECC: Anal errors detected\n");
 
 	return ret;
 }
 
-static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
+static void analtrace persistent_ram_update(struct persistent_ram_zone *prz,
 	const void *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -279,7 +279,7 @@ static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
 	persistent_ram_update_ecc(prz, start, count);
 }
 
-static int notrace persistent_ram_update_user(struct persistent_ram_zone *prz,
+static int analtrace persistent_ram_update_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -312,7 +312,7 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 	memcpy_fromio(prz->old_log + size - start, &buffer->data[0], start);
 }
 
-int notrace persistent_ram_write(struct persistent_ram_zone *prz,
+int analtrace persistent_ram_write(struct persistent_ram_zone *prz,
 	const void *s, unsigned int count)
 {
 	int rem;
@@ -342,7 +342,7 @@ int notrace persistent_ram_write(struct persistent_ram_zone *prz,
 	return count;
 }
 
-int notrace persistent_ram_write_user(struct persistent_ram_zone *prz,
+int analtrace persistent_ram_write_user(struct persistent_ram_zone *prz,
 	const void __user *s, unsigned int count)
 {
 	int rem, ret = 0, c = count;
@@ -397,8 +397,8 @@ void persistent_ram_zap(struct persistent_ram_zone *prz)
 }
 
 #define MEM_TYPE_WCOMBINE	0
-#define MEM_TYPE_NONCACHED	1
-#define MEM_TYPE_NORMAL		2
+#define MEM_TYPE_ANALNCACHED	1
+#define MEM_TYPE_ANALRMAL		2
 
 static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 		unsigned int memtype)
@@ -414,11 +414,11 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
 
 	switch (memtype) {
-	case MEM_TYPE_NORMAL:
+	case MEM_TYPE_ANALRMAL:
 		prot = PAGE_KERNEL;
 		break;
-	case MEM_TYPE_NONCACHED:
-		prot = pgprot_noncached(PAGE_KERNEL);
+	case MEM_TYPE_ANALNCACHED:
+		prot = pgprot_analncached(PAGE_KERNEL);
 		break;
 	case MEM_TYPE_WCOMBINE:
 		prot = pgprot_writecombine(PAGE_KERNEL);
@@ -473,7 +473,7 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 
 	/*
 	 * Since request_mem_region() and ioremap() are byte-granularity
-	 * there is no need handle anything special like we do when the
+	 * there is anal need handle anything special like we do when the
 	 * vmap() case in persistent_ram_vmap() above.
 	 */
 	return va;
@@ -494,7 +494,7 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 	if (!prz->vaddr) {
 		pr_err("%s: Failed to map 0x%llx pages at 0x%llx\n", __func__,
 			(unsigned long long)size, (unsigned long long)start);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	prz->buffer = prz->vaddr;
@@ -534,7 +534,7 @@ static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
 			persistent_ram_save_old(prz);
 		}
 	} else {
-		pr_debug("no valid data in buffer (sig = 0x%08x)\n",
+		pr_debug("anal valid data in buffer (sig = 0x%08x)\n",
 			 prz->buffer->sig);
 		prz->buffer->sig = sig;
 		zap = true;
@@ -586,7 +586,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 			unsigned int memtype, u32 flags, char *label)
 {
 	struct persistent_ram_zone *prz;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	prz = kzalloc(sizeof(struct persistent_ram_zone), GFP_KERNEL);
 	if (!prz) {

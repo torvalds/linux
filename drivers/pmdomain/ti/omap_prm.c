@@ -86,7 +86,7 @@ struct omap_reset_data {
 
 #define OMAP_PRM_HAS_RSTCTRL	BIT(0)
 #define OMAP_PRM_HAS_RSTST	BIT(1)
-#define OMAP_PRM_HAS_NO_CLKDM	BIT(2)
+#define OMAP_PRM_HAS_ANAL_CLKDM	BIT(2)
 #define OMAP_PRM_RET_WHEN_IDLE	BIT(3)
 
 #define OMAP_PRM_HAS_RESETS	(OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_RSTST)
@@ -105,21 +105,21 @@ static const struct omap_prm_domain_map omap_prm_all = {
 	.logicretstate = 1,
 };
 
-static const struct omap_prm_domain_map omap_prm_noinact = {
+static const struct omap_prm_domain_map omap_prm_analinact = {
 	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_RETENTION) |
 			BIT(OMAP_PRMD_OFF),
 	.statechange = 1,
 	.logicretstate = 1,
 };
 
-static const struct omap_prm_domain_map omap_prm_nooff = {
+static const struct omap_prm_domain_map omap_prm_analoff = {
 	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_ON_INACTIVE) |
 			BIT(OMAP_PRMD_RETENTION),
 	.statechange = 1,
 	.logicretstate = 1,
 };
 
-static const struct omap_prm_domain_map omap_prm_onoff_noauto = {
+static const struct omap_prm_domain_map omap_prm_oanalff_analauto = {
 	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE) | BIT(OMAP_PRMD_OFF),
 	.statechange = 1,
 };
@@ -159,7 +159,7 @@ static const struct omap_prm_data omap4_prm_data[] = {
 	},
 	{
 		.name = "tesla", .base = 0x4a306400,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
@@ -179,20 +179,20 @@ static const struct omap_prm_data omap4_prm_data[] = {
 	},
 	{
 		.name = "ivahd", .base = 0x4a306f00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
 	},
 	{
 		.name = "cam", .base = 0x4a307000,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "dss", .base = 0x4a307100,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact
 	},
 	{
 		.name = "gfx", .base = 0x4a307200,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "l3init", .base = 0x4a307300,
@@ -205,7 +205,7 @@ static const struct omap_prm_data omap4_prm_data[] = {
 	},
 	{
 		.name = "cefuse", .base = 0x4a307600,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "wkup", .base = 0x4a307700,
@@ -213,12 +213,12 @@ static const struct omap_prm_data omap4_prm_data[] = {
 	},
 	{
 		.name = "emu", .base = 0x4a307900,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "device", .base = 0x4a307b00,
 		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
-		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{ },
 };
@@ -230,12 +230,12 @@ static const struct omap_prm_data omap5_prm_data[] = {
 	},
 	{
 		.name = "dsp", .base = 0x4ae06400,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
 		.name = "abe", .base = 0x4ae06500,
-		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_nooff,
+		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_analoff,
 	},
 	{
 		.name = "coreaon", .base = 0x4ae06600,
@@ -249,20 +249,20 @@ static const struct omap_prm_data omap5_prm_data[] = {
 	},
 	{
 		.name = "iva", .base = 0x4ae07200,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012
 	},
 	{
 		.name = "cam", .base = 0x4ae07300,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "dss", .base = 0x4ae07400,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact
 	},
 	{
 		.name = "gpu", .base = 0x4ae07500,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "l3init", .base = 0x4ae07600,
@@ -270,7 +270,7 @@ static const struct omap_prm_data omap5_prm_data[] = {
 	},
 	{
 		.name = "custefuse", .base = 0x4ae07700,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "wkupaon", .base = 0x4ae07800,
@@ -278,12 +278,12 @@ static const struct omap_prm_data omap5_prm_data[] = {
 	},
 	{
 		.name = "emu", .base = 0x4ae07a00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto
 	},
 	{
 		.name = "device", .base = 0x4ae07c00,
 		.rstctrl = 0x0, .rstst = 0x4, .rstmap = rst_map_01,
-		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{ },
 };
@@ -295,12 +295,12 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	},
 	{
 		.name = "dsp1", .base = 0x4ae06400,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
 	},
 	{
 		.name = "ipu", .base = 0x4ae06500,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
 		.clkdm_name = "ipu1"
 	},
@@ -316,20 +316,20 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	},
 	{
 		.name = "iva", .base = 0x4ae06f00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
 	},
 	{
 		.name = "cam", .base = 0x4ae07000,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "dss", .base = 0x4ae07100,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "gpu", .base = 0x4ae07200,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "l3init", .base = 0x4ae07300,
@@ -343,7 +343,7 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	},
 	{
 		.name = "custefuse", .base = 0x4ae07600,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "wkupaon", .base = 0x4ae07724,
@@ -351,31 +351,31 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	},
 	{
 		.name = "emu", .base = 0x4ae07900,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "dsp2", .base = 0x4ae07b00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
 		.name = "eve1", .base = 0x4ae07b40,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
 		.name = "eve2", .base = 0x4ae07b80,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
 		.name = "eve3", .base = 0x4ae07bc0,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
 		.name = "eve4", .base = 0x4ae07c00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01
 	},
 	{
@@ -384,7 +384,7 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	},
 	{
 		.name = "vpe", .base = 0x4ae07c80,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{ },
 };
@@ -402,7 +402,7 @@ static const struct omap_rst_map am3_wkup_rst_map[] = {
 static const struct omap_prm_data am3_prm_data[] = {
 	{
 		.name = "per", .base = 0x44e00c00,
-		.pwrstctrl = 0xc, .pwrstst = 0x8, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0xc, .pwrstst = 0x8, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x0, .rstmap = am3_per_rst_map,
 		.flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp"
 	},
@@ -410,16 +410,16 @@ static const struct omap_prm_data am3_prm_data[] = {
 		.name = "wkup", .base = 0x44e00d00,
 		.pwrstctrl = 0x4, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
 		.rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map,
-		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{
 		.name = "mpu", .base = 0x44e00e00,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 	},
 	{
 		.name = "device", .base = 0x44e00f00,
 		.rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01,
-		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{
 		.name = "rtc", .base = 0x44e01000,
@@ -427,12 +427,12 @@ static const struct omap_prm_data am3_prm_data[] = {
 	},
 	{
 		.name = "gfx", .base = 0x44e01100,
-		.pwrstctrl = 0, .pwrstst = 0x10, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0, .pwrstst = 0x10, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x4, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
 	},
 	{
 		.name = "cefuse", .base = 0x44e01200,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{ },
 };
@@ -451,11 +451,11 @@ static const struct omap_rst_map am4_device_rst_map[] = {
 static const struct omap_prm_data am4_prm_data[] = {
 	{
 		.name = "mpu", .base = 0x44df0300,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 	},
 	{
 		.name = "gfx", .base = 0x44df0400,
-		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
 	},
 	{
@@ -468,11 +468,11 @@ static const struct omap_prm_data am4_prm_data[] = {
 	},
 	{
 		.name = "cefuse", .base = 0x44df0700,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_oanalff_analauto,
 	},
 	{
 		.name = "per", .base = 0x44df0800,
-		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_analinact,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map,
 		.clkdm_name = "pruss_ocp"
 	},
@@ -480,12 +480,12 @@ static const struct omap_prm_data am4_prm_data[] = {
 		.name = "wkup", .base = 0x44df2000,
 		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map,
-		.flags = OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{
 		.name = "device", .base = 0x44df4000,
 		.rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map,
-		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_ANAL_CLKDM
 	},
 	{ },
 };
@@ -553,7 +553,7 @@ static int omap_prm_domain_power_on(struct generic_pm_domain *domain)
 	return ret;
 }
 
-/* No need to check for holes in the mask for the lowest mode */
+/* Anal need to check for holes in the mask for the lowest mode */
 static int omap_prm_domain_find_lowest(struct omap_prm_domain *prmd)
 {
 	return __ffs(prmd->cap->usable_modes);
@@ -600,14 +600,14 @@ static int omap_prm_domain_power_off(struct generic_pm_domain *domain)
 }
 
 /*
- * Note that ti-sysc already manages the module clocks separately so
- * no need to manage those. Interconnect instances need clocks managed
+ * Analte that ti-sysc already manages the module clocks separately so
+ * anal need to manage those. Interconnect instances need clocks managed
  * for simple-pm-bus.
  */
 static int omap_prm_domain_attach_clock(struct device *dev,
 					struct omap_prm_domain *prmd)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	int error;
 
 	if (!of_device_is_compatible(np, "simple-pm-bus"))
@@ -637,11 +637,11 @@ static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 	struct generic_pm_domain_data *genpd_data;
 	struct of_phandle_args pd_args;
 	struct omap_prm_domain *prmd;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	prmd = genpd_to_prm_domain(domain);
-	np = dev->of_node;
+	np = dev->of_analde;
 
 	ret = of_parse_phandle_with_args(np, "power-domains",
 					 "#power-domain-cells", 0, &pd_args);
@@ -678,19 +678,19 @@ static void omap_prm_domain_detach_dev(struct generic_pm_domain *domain,
 static int omap_prm_domain_init(struct device *dev, struct omap_prm *prm)
 {
 	struct omap_prm_domain *prmd;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct omap_prm_data *data;
 	const char *name;
 	int error;
 
-	if (!of_property_present(dev->of_node, "#power-domain-cells"))
+	if (!of_property_present(dev->of_analde, "#power-domain-cells"))
 		return 0;
 
-	of_node_put(dev->of_node);
+	of_analde_put(dev->of_analde);
 
 	prmd = devm_kzalloc(dev, sizeof(*prmd), GFP_KERNEL);
 	if (!prmd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = prm->data;
 	name = devm_kasprintf(dev, GFP_KERNEL, "prm_%s",
@@ -753,7 +753,7 @@ static int omap_reset_status(struct reset_controller_dev *rcdev,
 
 	/* Check if we have rstst */
 	if (!has_rstst)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	/* Check if hw reset line is asserted */
 	v = readl_relaxed(reset->prm->base + reset->prm->data->rstctrl);
@@ -799,7 +799,7 @@ static int omap_reset_deassert(struct reset_controller_dev *rcdev,
 	struct ti_prm_platform_data *pdata = dev_get_platdata(reset->dev);
 	int ret = 0;
 
-	/* Nothing to do if the reset is already deasserted */
+	/* Analthing to do if the reset is already deasserted */
 	if (!omap_reset_status(rcdev, id))
 		return 0;
 
@@ -877,7 +877,7 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 	u32 v;
 
 	/*
-	 * Check if we have controllable resets. If either rstctrl is non-zero
+	 * Check if we have controllable resets. If either rstctrl is analn-zero
 	 * or OMAP_PRM_HAS_RSTCTRL flag is set, we have reset control register
 	 * for the domain.
 	 */
@@ -895,11 +895,11 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 
 	reset = devm_kzalloc(&pdev->dev, sizeof(*reset), GFP_KERNEL);
 	if (!reset)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reset->rcdev.owner = THIS_MODULE;
 	reset->rcdev.ops = &omap_reset_ops;
-	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.of_analde = pdev->dev.of_analde;
 	reset->rcdev.nr_resets = OMAP_MAX_RESETS;
 	reset->rcdev.of_xlate = omap_prm_reset_xlate;
 	reset->rcdev.of_reset_n_cells = 1;
@@ -911,7 +911,7 @@ static int omap_prm_reset_init(struct platform_device *pdev,
 	sprintf(buf, "%s_clkdm", prm->data->clkdm_name ? prm->data->clkdm_name :
 		prm->data->name);
 
-	if (!(prm->data->flags & OMAP_PRM_HAS_NO_CLKDM)) {
+	if (!(prm->data->flags & OMAP_PRM_HAS_ANAL_CLKDM)) {
 		reset->clkdm = pdata->clkdm_lookup(buf);
 		if (!reset->clkdm)
 			return -EINVAL;
@@ -944,11 +944,11 @@ static int omap_prm_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	prm = devm_kzalloc(&pdev->dev, sizeof(*prm), GFP_KERNEL);
 	if (!prm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prm->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(prm->base))
@@ -973,7 +973,7 @@ static int omap_prm_probe(struct platform_device *pdev)
 	return 0;
 
 err_domain:
-	of_genpd_del_provider(pdev->dev.of_node);
+	of_genpd_del_provider(pdev->dev.of_analde);
 	pm_genpd_remove(&prm->prmd->pd);
 
 	return ret;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techanallogies.
  */
 
 #ifndef _NPS_ENET_H
@@ -71,8 +71,8 @@
 #define CFG_0_RX_FC_EN_SHIFT 5
 #define CFG_0_RX_CRC_STRIP_MASK 0x40
 #define CFG_0_RX_CRC_STRIP_SHIFT 6
-#define CFG_0_RX_CRC_IGNORE_MASK 0x80
-#define CFG_0_RX_CRC_IGNORE_SHIFT 7
+#define CFG_0_RX_CRC_IGANALRE_MASK 0x80
+#define CFG_0_RX_CRC_IGANALRE_SHIFT 7
 #define CFG_0_RX_LENGTH_CHECK_EN_MASK 0x100
 #define CFG_0_RX_LENGTH_CHECK_EN_SHIFT 8
 #define CFG_0_TX_FC_RETR_MASK 0xE00

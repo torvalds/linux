@@ -65,9 +65,9 @@ static struct max8998_irq_data max8998_irqs[] = {
 		.reg = 3,
 		.mask = MAX8998_IRQ_TOPOFFR_MASK,
 	},
-	[MAX8998_IRQ_DCINOVPR] = {
+	[MAX8998_IRQ_DCIANALVPR] = {
 		.reg = 3,
-		.mask = MAX8998_IRQ_DCINOVPR_MASK,
+		.mask = MAX8998_IRQ_DCIANALVPR_MASK,
 	},
 	[MAX8998_IRQ_CHGRSTF] = {
 		.reg = 3,
@@ -160,7 +160,7 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 	if (ret < 0) {
 		dev_err(max8998->dev, "Failed to read interrupt register: %d\n",
 				ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Apply masking */
@@ -172,8 +172,8 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 		if (irq_reg[max8998_irqs[i].reg - 1] & max8998_irqs[i].mask) {
 			irq = irq_find_mapping(max8998->irq_domain, i);
 			if (WARN_ON(!irq)) {
-				disable_irq_nosync(max8998->irq);
-				return IRQ_NONE;
+				disable_irq_analsync(max8998->irq);
+				return IRQ_ANALNE;
 			}
 			handle_nested_irq(irq);
 		}
@@ -197,7 +197,7 @@ static int max8998_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, max8998);
 	irq_set_chip_and_handler(irq, &max8998_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_analprobe(irq);
 
 	return 0;
 }
@@ -214,7 +214,7 @@ int max8998_irq_init(struct max8998_dev *max8998)
 
 	if (!max8998->irq) {
 		dev_warn(max8998->dev,
-			 "No interrupt specified, no interrupts\n");
+			 "Anal interrupt specified, anal interrupts\n");
 		return 0;
 	}
 
@@ -233,8 +233,8 @@ int max8998_irq_init(struct max8998_dev *max8998)
 	domain = irq_domain_add_simple(NULL, MAX8998_IRQ_NR,
 			max8998->irq_base, &max8998_irq_domain_ops, max8998);
 	if (!domain) {
-		dev_err(max8998->dev, "could not create irq domain\n");
-		return -ENODEV;
+		dev_err(max8998->dev, "could analt create irq domain\n");
+		return -EANALDEV;
 	}
 	max8998->irq_domain = domain;
 
@@ -247,23 +247,23 @@ int max8998_irq_init(struct max8998_dev *max8998)
 		return ret;
 	}
 
-	if (!max8998->ono)
+	if (!max8998->oanal)
 		return 0;
 
-	ret = request_threaded_irq(max8998->ono, NULL, max8998_irq_thread,
+	ret = request_threaded_irq(max8998->oanal, NULL, max8998_irq_thread,
 				   IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-				   IRQF_ONESHOT, "max8998-ono", max8998);
+				   IRQF_ONESHOT, "max8998-oanal", max8998);
 	if (ret)
 		dev_err(max8998->dev, "Failed to request IRQ %d: %d\n",
-			max8998->ono, ret);
+			max8998->oanal, ret);
 
 	return 0;
 }
 
 void max8998_irq_exit(struct max8998_dev *max8998)
 {
-	if (max8998->ono)
-		free_irq(max8998->ono, max8998);
+	if (max8998->oanal)
+		free_irq(max8998->oanal, max8998);
 
 	if (max8998->irq)
 		free_irq(max8998->irq, max8998);

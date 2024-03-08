@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /* Microchip Sparx5 Switch driver
  *
- * Copyright (c) 2022 Microchip Technology Inc. and its subsidiaries.
+ * Copyright (c) 2022 Microchip Techanallogy Inc. and its subsidiaries.
  */
 
 #ifndef __SPARX5_QOS_H__
@@ -17,7 +17,7 @@
 #define SPX5_HSCH_L1_SE_CNT 64
 #define SPX5_HSCH_L2_SE_CNT 64
 
-/* Calculate Layer 0 Scheduler Element when using normal hierarchy */
+/* Calculate Layer 0 Scheduler Element when using analrmal hierarchy */
 #define SPX5_HSCH_L0_GET_IDX(port, queue) ((64 * (port)) + (8 * (queue)))
 
 /* Number of leak groups */

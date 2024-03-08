@@ -55,7 +55,7 @@ nvkm_memx_init(struct nvkm_pmu *pmu, struct nvkm_memx **pmemx)
 
 	memx = *pmemx = kzalloc(sizeof(*memx), GFP_KERNEL);
 	if (!memx)
-		return -ENOMEM;
+		return -EANALMEM;
 	memx->pmu = pmu;
 	memx->base = reply[0];
 	memx->size = reply[1];
@@ -146,7 +146,7 @@ nvkm_memx_wait_vblank(struct nvkm_memx *memx)
 	}
 
 	if (px == 0) {
-		nvkm_debug(subdev, "WAIT VBLANK !NO ACTIVE HEAD\n");
+		nvkm_debug(subdev, "WAIT VBLANK !ANAL ACTIVE HEAD\n");
 		return;
 	}
 
@@ -177,7 +177,7 @@ nvkm_memx_train_result(struct nvkm_pmu *pmu, u32 *res, int rsize)
 	base = reply[0];
 	size = reply[1] >> 2;
 	if (size > rsize)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* read the packet */
 	nvkm_wr32(device, 0x10a1c0, 0x02000000 | base);

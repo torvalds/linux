@@ -298,12 +298,12 @@ static const struct clk_div_table ck_trace_div_table[] = {
 	}
 
 static const struct stm32_div_cfg stm32mp13_dividers[DIV_NB] = {
-	CFG_DIV(DIV_RTC, RCC_RTCDIVR, 0, 6, 0, NULL, DIV_NO_RDY),
-	CFG_DIV(DIV_MCO1, RCC_MCO1CFGR, 4, 4, 0, NULL, DIV_NO_RDY),
-	CFG_DIV(DIV_MCO2, RCC_MCO2CFGR, 4, 4, 0, NULL, DIV_NO_RDY),
-	CFG_DIV(DIV_TRACE, RCC_DBGCFGR, 0, 3, 0, ck_trace_div_table, DIV_NO_RDY),
-	CFG_DIV(DIV_ETH1PTP, RCC_ETH12CKSELR, 4, 4, 0, NULL, DIV_NO_RDY),
-	CFG_DIV(DIV_ETH2PTP, RCC_ETH12CKSELR, 12, 4, 0, NULL, DIV_NO_RDY),
+	CFG_DIV(DIV_RTC, RCC_RTCDIVR, 0, 6, 0, NULL, DIV_ANAL_RDY),
+	CFG_DIV(DIV_MCO1, RCC_MCO1CFGR, 4, 4, 0, NULL, DIV_ANAL_RDY),
+	CFG_DIV(DIV_MCO2, RCC_MCO2CFGR, 4, 4, 0, NULL, DIV_ANAL_RDY),
+	CFG_DIV(DIV_TRACE, RCC_DBGCFGR, 0, 3, 0, ck_trace_div_table, DIV_ANAL_RDY),
+	CFG_DIV(DIV_ETH1PTP, RCC_ETH12CKSELR, 4, 4, 0, NULL, DIV_ANAL_RDY),
+	CFG_DIV(DIV_ETH2PTP, RCC_ETH12CKSELR, 12, 4, 0, NULL, DIV_ANAL_RDY),
 };
 
 /* STM32 Muxes definition */
@@ -359,10 +359,10 @@ enum enum_mux_cfg {
 	}
 
 #define CFG_MUX(_id, _offset, _shift, _witdh)\
-	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_NO_RDY, 0)
+	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_ANAL_RDY, 0)
 
 #define CFG_MUX_SAFE(_id, _offset, _shift, _witdh)\
-	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_NO_RDY, MUX_SAFE)
+	_CFG_MUX(_id, _offset, _shift, _witdh, MUX_ANAL_RDY, MUX_SAFE)
 
 static const struct stm32_mux_cfg stm32mp13_muxes[] = {
 	CFG_MUX(MUX_I2C12,	RCC_I2C12CKSELR,	0, 3),
@@ -412,7 +412,7 @@ struct clk_stm32_securiy {
 };
 
 enum security_clk {
-	SECF_NONE,
+	SECF_ANALNE,
 	SECF_LPTIM2,
 	SECF_LPTIM3,
 	SECF_VREF,
@@ -943,321 +943,321 @@ static struct clk_stm32_gate eth2stp = {
 static struct clk_stm32_composite sdmmc1_k = {
 	.gate_id = GATE_SDMMC1,
 	.mux_id = MUX_SDMMC1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("sdmmc1_k", sdmmc12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite sdmmc2_k = {
 	.gate_id = GATE_SDMMC2,
 	.mux_id = MUX_SDMMC2,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("sdmmc2_k", sdmmc12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite fmc_k = {
 	.gate_id = GATE_FMC,
 	.mux_id = MUX_FMC,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("fmc_k", fmc_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite qspi_k = {
 	.gate_id = GATE_QSPI,
 	.mux_id = MUX_QSPI,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("qspi_k", qspi_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spi2_k = {
 	.gate_id = GATE_SPI2,
 	.mux_id = MUX_SPI23,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spi2_k", spi123_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spi3_k = {
 	.gate_id = GATE_SPI3,
 	.mux_id = MUX_SPI23,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spi3_k", spi123_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite i2c1_k = {
 	.gate_id = GATE_I2C1,
 	.mux_id = MUX_I2C12,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("i2c1_k", i2c12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite i2c2_k = {
 	.gate_id = GATE_I2C2,
 	.mux_id = MUX_I2C12,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("i2c2_k", i2c12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite lptim4_k = {
 	.gate_id = GATE_LPTIM4,
 	.mux_id = MUX_LPTIM45,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("lptim4_k", lptim45_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite lptim5_k = {
 	.gate_id = GATE_LPTIM5,
 	.mux_id = MUX_LPTIM45,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("lptim5_k", lptim45_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite usart3_k = {
 	.gate_id = GATE_USART3,
 	.mux_id = MUX_UART35,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("usart3_k", usart34578_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite uart5_k = {
 	.gate_id = GATE_UART5,
 	.mux_id = MUX_UART35,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("uart5_k", usart34578_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite uart7_k = {
 	.gate_id = GATE_UART7,
 	.mux_id = MUX_UART78,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("uart7_k", usart34578_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite uart8_k = {
 	.gate_id = GATE_UART8,
 	.mux_id = MUX_UART78,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("uart8_k", usart34578_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite sai1_k = {
 	.gate_id = GATE_SAI1,
 	.mux_id = MUX_SAI1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("sai1_k", sai1_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite adfsdm_k = {
 	.gate_id = GATE_ADFSDM,
 	.mux_id = MUX_SAI1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("adfsdm_k", sai1_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite sai2_k = {
 	.gate_id = GATE_SAI2,
 	.mux_id = MUX_SAI2,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("sai2_k", sai2_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite adc1_k = {
 	.gate_id = GATE_ADC1,
 	.mux_id = MUX_ADC1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("adc1_k", adc12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite adc2_k = {
 	.gate_id = GATE_ADC2,
 	.mux_id = MUX_ADC2,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("adc2_k", adc12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite rng1_k = {
 	.gate_id = GATE_RNG1,
 	.mux_id = MUX_RNG1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("rng1_k", rng1_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite usbphy_k = {
 	.gate_id = GATE_USBPHY,
 	.mux_id = MUX_USBPHY,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("usbphy_k", usbphy_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite stgen_k = {
 	.gate_id = GATE_STGENC,
 	.mux_id = MUX_STGEN,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("stgen_k", stgen_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spdif_k = {
 	.gate_id = GATE_SPDIF,
 	.mux_id = MUX_SPDIF,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spdif_k", spdif_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spi1_k = {
 	.gate_id = GATE_SPI1,
 	.mux_id = MUX_SPI1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spi1_k", spi123_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spi4_k = {
 	.gate_id = GATE_SPI4,
 	.mux_id = MUX_SPI4,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spi4_k", spi4_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite spi5_k = {
 	.gate_id = GATE_SPI5,
 	.mux_id = MUX_SPI5,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("spi5_k", spi5_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite i2c3_k = {
 	.gate_id = GATE_I2C3,
 	.mux_id = MUX_I2C3,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("i2c3_k", i2c345_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite i2c4_k = {
 	.gate_id = GATE_I2C4,
 	.mux_id = MUX_I2C4,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("i2c4_k", i2c345_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite i2c5_k = {
 	.gate_id = GATE_I2C5,
 	.mux_id = MUX_I2C5,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("i2c5_k", i2c345_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite lptim1_k = {
 	.gate_id = GATE_LPTIM1,
 	.mux_id = MUX_LPTIM1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("lptim1_k", lptim1_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite lptim2_k = {
 	.gate_id = GATE_LPTIM2,
 	.mux_id = MUX_LPTIM2,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("lptim2_k", lptim23_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite lptim3_k = {
 	.gate_id = GATE_LPTIM3,
 	.mux_id = MUX_LPTIM3,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("lptim3_k", lptim23_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite usart1_k = {
 	.gate_id = GATE_USART1,
 	.mux_id = MUX_UART1,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("usart1_k", usart12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite usart2_k = {
 	.gate_id = GATE_USART2,
 	.mux_id = MUX_UART2,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("usart2_k", usart12_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite uart4_k = {
 	.gate_id = GATE_UART4,
 	.mux_id = MUX_UART4,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("uart4_k", usart34578_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite uart6_k = {
 	.gate_id = GATE_USART6,
 	.mux_id = MUX_UART6,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("uart6_k", usart6_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite fdcan_k = {
 	.gate_id = GATE_FDCAN,
 	.mux_id = MUX_FDCAN,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("fdcan_k", fdcan_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite dcmipp_k = {
 	.gate_id = GATE_DCMIPP,
 	.mux_id = MUX_DCMIPP,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("dcmipp_k", dcmipp_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite usbo_k = {
 	.gate_id = GATE_USBO,
 	.mux_id = MUX_USBO,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("usbo_k", usbo_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite saes_k = {
 	.gate_id = GATE_SAES,
 	.mux_id = MUX_SAES,
-	.div_id = NO_STM32_DIV,
+	.div_id = ANAL_STM32_DIV,
 	.hw.init = CLK_HW_INIT_PARENTS("saes_k", saes_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_gate dfsdm_k = {
@@ -1273,7 +1273,7 @@ static struct clk_stm32_gate ltdc_px = {
 static struct clk_stm32_mux ck_ker_eth1 = {
 	.mux_id = MUX_ETH1,
 	.hw.init = CLK_HW_INIT_PARENTS("ck_ker_eth1", eth12_src, &clk_stm32_mux_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_gate eth1ck_k = {
@@ -1284,13 +1284,13 @@ static struct clk_stm32_gate eth1ck_k = {
 static struct clk_stm32_div eth1ptp_k = {
 	.div_id = DIV_ETH1PTP,
 	.hw.init = CLK_HW_INIT_HW("eth1ptp_k", &ck_ker_eth1.hw, &clk_stm32_divider_ops,
-				  CLK_SET_RATE_NO_REPARENT),
+				  CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_mux ck_ker_eth2 = {
 	.mux_id = MUX_ETH2,
 	.hw.init = CLK_HW_INIT_PARENTS("ck_ker_eth2", eth12_src, &clk_stm32_mux_ops,
-					    CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT),
+					    CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_gate eth2ck_k = {
@@ -1301,7 +1301,7 @@ static struct clk_stm32_gate eth2ck_k = {
 static struct clk_stm32_div eth2ptp_k = {
 	.div_id = DIV_ETH2PTP,
 	.hw.init = CLK_HW_INIT_HW("eth2ptp_k", &ck_ker_eth2.hw, &clk_stm32_divider_ops,
-				  CLK_SET_RATE_NO_REPARENT),
+				  CLK_SET_RATE_ANAL_REPARENT),
 };
 
 static struct clk_stm32_composite ck_mco1 = {
@@ -1309,8 +1309,8 @@ static struct clk_stm32_composite ck_mco1 = {
 	.mux_id = MUX_MCO1,
 	.div_id = DIV_MCO1,
 	.hw.init = CLK_HW_INIT_PARENTS("ck_mco1", mco1_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT |
-				       CLK_IGNORE_UNUSED),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT |
+				       CLK_IGANALRE_UNUSED),
 };
 
 static struct clk_stm32_composite ck_mco2 = {
@@ -1318,8 +1318,8 @@ static struct clk_stm32_composite ck_mco2 = {
 	.mux_id = MUX_MCO2,
 	.div_id = DIV_MCO2,
 	.hw.init = CLK_HW_INIT_PARENTS("ck_mco2", mco2_src, &clk_stm32_composite_ops,
-				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_NO_REPARENT |
-				       CLK_IGNORE_UNUSED),
+				       CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_ANAL_REPARENT |
+				       CLK_IGANALRE_UNUSED),
 };
 
 /* Debug clocks */
@@ -1330,21 +1330,21 @@ static struct clk_stm32_gate ck_sys_dbg = {
 
 static struct clk_stm32_composite ck_trace = {
 	.gate_id = GATE_TRACECK,
-	.mux_id = NO_STM32_MUX,
+	.mux_id = ANAL_STM32_MUX,
 	.div_id = DIV_TRACE,
-	.hw.init = CLK_HW_INIT("ck_trace", "ck_axi", &clk_stm32_composite_ops, CLK_IGNORE_UNUSED),
+	.hw.init = CLK_HW_INIT("ck_trace", "ck_axi", &clk_stm32_composite_ops, CLK_IGANALRE_UNUSED),
 };
 
 static const struct clock_config stm32mp13_clock_cfg[] = {
 	/* Timer clocks */
-	STM32_GATE_CFG(TIM2_K, tim2_k, SECF_NONE),
-	STM32_GATE_CFG(TIM3_K, tim3_k, SECF_NONE),
-	STM32_GATE_CFG(TIM4_K, tim4_k, SECF_NONE),
-	STM32_GATE_CFG(TIM5_K, tim5_k, SECF_NONE),
-	STM32_GATE_CFG(TIM6_K, tim6_k, SECF_NONE),
-	STM32_GATE_CFG(TIM7_K, tim7_k, SECF_NONE),
-	STM32_GATE_CFG(TIM1_K, tim1_k, SECF_NONE),
-	STM32_GATE_CFG(TIM8_K, tim8_k, SECF_NONE),
+	STM32_GATE_CFG(TIM2_K, tim2_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM3_K, tim3_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM4_K, tim4_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM5_K, tim5_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM6_K, tim6_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM7_K, tim7_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM1_K, tim1_k, SECF_ANALNE),
+	STM32_GATE_CFG(TIM8_K, tim8_k, SECF_ANALNE),
 	STM32_GATE_CFG(TIM12_K, tim12_k, SECF_TIM12),
 	STM32_GATE_CFG(TIM13_K, tim13_k, SECF_TIM13),
 	STM32_GATE_CFG(TIM14_K, tim14_k, SECF_TIM14),
@@ -1353,49 +1353,49 @@ static const struct clock_config stm32mp13_clock_cfg[] = {
 	STM32_GATE_CFG(TIM17_K, tim17_k, SECF_TIM17),
 
 	/* Peripheral clocks */
-	STM32_GATE_CFG(SAI1, sai1, SECF_NONE),
-	STM32_GATE_CFG(SAI2, sai2, SECF_NONE),
-	STM32_GATE_CFG(SYSCFG, syscfg, SECF_NONE),
+	STM32_GATE_CFG(SAI1, sai1, SECF_ANALNE),
+	STM32_GATE_CFG(SAI2, sai2, SECF_ANALNE),
+	STM32_GATE_CFG(SYSCFG, syscfg, SECF_ANALNE),
 	STM32_GATE_CFG(VREF, vref, SECF_VREF),
-	STM32_GATE_CFG(DTS, dts, SECF_NONE),
-	STM32_GATE_CFG(PMBCTRL, pmbctrl, SECF_NONE),
-	STM32_GATE_CFG(HDP, hdp, SECF_NONE),
-	STM32_GATE_CFG(IWDG2, iwdg2, SECF_NONE),
+	STM32_GATE_CFG(DTS, dts, SECF_ANALNE),
+	STM32_GATE_CFG(PMBCTRL, pmbctrl, SECF_ANALNE),
+	STM32_GATE_CFG(HDP, hdp, SECF_ANALNE),
+	STM32_GATE_CFG(IWDG2, iwdg2, SECF_ANALNE),
 	STM32_GATE_CFG(STGENRO, stgenro, SECF_STGENRO),
 	STM32_GATE_CFG(TZPC, tzpc, SECF_TZC),
 	STM32_GATE_CFG(IWDG1, iwdg1, SECF_IWDG1),
 	STM32_GATE_CFG(BSEC, bsec, SECF_BSEC),
-	STM32_GATE_CFG(DMA1, dma1, SECF_NONE),
-	STM32_GATE_CFG(DMA2, dma2, SECF_NONE),
-	STM32_GATE_CFG(DMAMUX1, dmamux1, SECF_NONE),
+	STM32_GATE_CFG(DMA1, dma1, SECF_ANALNE),
+	STM32_GATE_CFG(DMA2, dma2, SECF_ANALNE),
+	STM32_GATE_CFG(DMAMUX1, dmamux1, SECF_ANALNE),
 	STM32_GATE_CFG(DMA3, dma3, SECF_DMA3),
 	STM32_GATE_CFG(DMAMUX2, dmamux2, SECF_DMAMUX2),
 	STM32_GATE_CFG(ADC1, adc1, SECF_ADC1),
 	STM32_GATE_CFG(ADC2, adc2, SECF_ADC2),
-	STM32_GATE_CFG(GPIOA, gpioa, SECF_NONE),
-	STM32_GATE_CFG(GPIOB, gpiob, SECF_NONE),
-	STM32_GATE_CFG(GPIOC, gpioc, SECF_NONE),
-	STM32_GATE_CFG(GPIOD, gpiod, SECF_NONE),
-	STM32_GATE_CFG(GPIOE, gpioe, SECF_NONE),
-	STM32_GATE_CFG(GPIOF, gpiof, SECF_NONE),
-	STM32_GATE_CFG(GPIOG, gpiog, SECF_NONE),
-	STM32_GATE_CFG(GPIOH, gpioh, SECF_NONE),
-	STM32_GATE_CFG(GPIOI, gpioi, SECF_NONE),
+	STM32_GATE_CFG(GPIOA, gpioa, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOB, gpiob, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOC, gpioc, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOD, gpiod, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOE, gpioe, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOF, gpiof, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOG, gpiog, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOH, gpioh, SECF_ANALNE),
+	STM32_GATE_CFG(GPIOI, gpioi, SECF_ANALNE),
 	STM32_GATE_CFG(TSC, tsc, SECF_TZC),
 	STM32_GATE_CFG(PKA, pka, SECF_PKA),
 	STM32_GATE_CFG(CRYP1, cryp1, SECF_CRYP1),
 	STM32_GATE_CFG(HASH1, hash1, SECF_HASH1),
 	STM32_GATE_CFG(BKPSRAM, bkpsram, SECF_BKPSRAM),
-	STM32_GATE_CFG(MDMA, mdma, SECF_NONE),
+	STM32_GATE_CFG(MDMA, mdma, SECF_ANALNE),
 	STM32_GATE_CFG(ETH1TX, eth1tx, SECF_ETH1TX),
 	STM32_GATE_CFG(ETH1RX, eth1rx, SECF_ETH1RX),
 	STM32_GATE_CFG(ETH1MAC, eth1mac, SECF_ETH1MAC),
 	STM32_GATE_CFG(ETH2TX, eth2tx, SECF_ETH2TX),
 	STM32_GATE_CFG(ETH2RX, eth2rx, SECF_ETH2RX),
 	STM32_GATE_CFG(ETH2MAC, eth2mac, SECF_ETH2MAC),
-	STM32_GATE_CFG(CRC1, crc1, SECF_NONE),
-	STM32_GATE_CFG(USBH, usbh, SECF_NONE),
-	STM32_GATE_CFG(DDRPERFM, ddrperfm, SECF_NONE),
+	STM32_GATE_CFG(CRC1, crc1, SECF_ANALNE),
+	STM32_GATE_CFG(USBH, usbh, SECF_ANALNE),
+	STM32_GATE_CFG(DDRPERFM, ddrperfm, SECF_ANALNE),
 	STM32_GATE_CFG(ETH1STP, eth1stp, SECF_ETH1STP),
 	STM32_GATE_CFG(ETH2STP, eth2stp, SECF_ETH2STP),
 
@@ -1404,55 +1404,55 @@ static const struct clock_config stm32mp13_clock_cfg[] = {
 	STM32_COMPOSITE_CFG(SDMMC2_K, sdmmc2_k, SECF_SDMMC2),
 	STM32_COMPOSITE_CFG(FMC_K, fmc_k, SECF_FMC),
 	STM32_COMPOSITE_CFG(QSPI_K, qspi_k, SECF_QSPI),
-	STM32_COMPOSITE_CFG(SPI2_K, spi2_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(SPI3_K, spi3_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(I2C1_K, i2c1_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(I2C2_K, i2c2_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(LPTIM4_K, lptim4_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(LPTIM5_K, lptim5_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(USART3_K, usart3_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(UART5_K, uart5_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(UART7_K, uart7_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(UART8_K, uart8_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(SAI1_K, sai1_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(SAI2_K, sai2_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(ADFSDM_K, adfsdm_k, SECF_NONE),
+	STM32_COMPOSITE_CFG(SPI2_K, spi2_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(SPI3_K, spi3_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(I2C1_K, i2c1_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(I2C2_K, i2c2_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(LPTIM4_K, lptim4_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(LPTIM5_K, lptim5_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(USART3_K, usart3_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(UART5_K, uart5_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(UART7_K, uart7_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(UART8_K, uart8_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(SAI1_K, sai1_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(SAI2_K, sai2_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(ADFSDM_K, adfsdm_k, SECF_ANALNE),
 	STM32_COMPOSITE_CFG(ADC1_K, adc1_k, SECF_ADC1),
 	STM32_COMPOSITE_CFG(ADC2_K, adc2_k, SECF_ADC2),
 	STM32_COMPOSITE_CFG(RNG1_K, rng1_k, SECF_RNG1),
 	STM32_COMPOSITE_CFG(USBPHY_K, usbphy_k, SECF_USBPHY),
 	STM32_COMPOSITE_CFG(STGEN_K, stgen_k, SECF_STGENC),
-	STM32_COMPOSITE_CFG(SPDIF_K, spdif_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(SPI1_K, spi1_k, SECF_NONE),
+	STM32_COMPOSITE_CFG(SPDIF_K, spdif_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(SPI1_K, spi1_k, SECF_ANALNE),
 	STM32_COMPOSITE_CFG(SPI4_K, spi4_k, SECF_SPI4),
 	STM32_COMPOSITE_CFG(SPI5_K, spi5_k, SECF_SPI5),
 	STM32_COMPOSITE_CFG(I2C3_K, i2c3_k, SECF_I2C3),
 	STM32_COMPOSITE_CFG(I2C4_K, i2c4_k, SECF_I2C4),
 	STM32_COMPOSITE_CFG(I2C5_K, i2c5_k, SECF_I2C5),
-	STM32_COMPOSITE_CFG(LPTIM1_K, lptim1_k, SECF_NONE),
+	STM32_COMPOSITE_CFG(LPTIM1_K, lptim1_k, SECF_ANALNE),
 	STM32_COMPOSITE_CFG(LPTIM2_K, lptim2_k, SECF_LPTIM2),
 	STM32_COMPOSITE_CFG(LPTIM3_K, lptim3_k, SECF_LPTIM3),
 	STM32_COMPOSITE_CFG(USART1_K, usart1_k, SECF_USART1),
 	STM32_COMPOSITE_CFG(USART2_K, usart2_k, SECF_USART2),
-	STM32_COMPOSITE_CFG(UART4_K, uart4_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(USART6_K, uart6_k, SECF_NONE),
-	STM32_COMPOSITE_CFG(FDCAN_K, fdcan_k, SECF_NONE),
+	STM32_COMPOSITE_CFG(UART4_K, uart4_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(USART6_K, uart6_k, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(FDCAN_K, fdcan_k, SECF_ANALNE),
 	STM32_COMPOSITE_CFG(DCMIPP_K, dcmipp_k, SECF_DCMIPP),
 	STM32_COMPOSITE_CFG(USBO_K, usbo_k, SECF_USBO),
 	STM32_COMPOSITE_CFG(SAES_K, saes_k, SECF_SAES),
-	STM32_GATE_CFG(DFSDM_K, dfsdm_k, SECF_NONE),
-	STM32_GATE_CFG(LTDC_PX, ltdc_px, SECF_NONE),
+	STM32_GATE_CFG(DFSDM_K, dfsdm_k, SECF_ANALNE),
+	STM32_GATE_CFG(LTDC_PX, ltdc_px, SECF_ANALNE),
 
-	STM32_MUX_CFG(NO_ID, ck_ker_eth1, SECF_ETH1CK),
+	STM32_MUX_CFG(ANAL_ID, ck_ker_eth1, SECF_ETH1CK),
 	STM32_GATE_CFG(ETH1CK_K, eth1ck_k, SECF_ETH1CK),
 	STM32_DIV_CFG(ETH1PTP_K, eth1ptp_k, SECF_ETH1CK),
 
-	STM32_MUX_CFG(NO_ID, ck_ker_eth2, SECF_ETH2CK),
+	STM32_MUX_CFG(ANAL_ID, ck_ker_eth2, SECF_ETH2CK),
 	STM32_GATE_CFG(ETH2CK_K, eth2ck_k, SECF_ETH2CK),
 	STM32_DIV_CFG(ETH2PTP_K, eth2ptp_k, SECF_ETH2CK),
 
-	STM32_GATE_CFG(CK_DBG, ck_sys_dbg, SECF_NONE),
-	STM32_COMPOSITE_CFG(CK_TRACE, ck_trace, SECF_NONE),
+	STM32_GATE_CFG(CK_DBG, ck_sys_dbg, SECF_ANALNE),
+	STM32_COMPOSITE_CFG(CK_TRACE, ck_trace, SECF_ANALNE),
 
 	STM32_COMPOSITE_CFG(CK_MCO1, ck_mco1, SECF_MCO1),
 	STM32_COMPOSITE_CFG(CK_MCO2, ck_mco2, SECF_MCO2),
@@ -1463,7 +1463,7 @@ static int stm32mp13_clock_is_provided_by_secure(void __iomem *base,
 {
 	int sec_id = cfg->sec_id;
 
-	if (sec_id != SECF_NONE) {
+	if (sec_id != SECF_ANALNE) {
 		const struct clk_stm32_securiy *secf;
 
 		secf = &stm32mp13_security[sec_id];
@@ -1539,11 +1539,11 @@ MODULE_DEVICE_TABLE(of, stm32mp13_match_data);
 static int stm32mp1_rcc_init(struct device *dev)
 {
 	void __iomem *rcc_base;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
-	rcc_base = of_iomap(dev_of_node(dev), 0);
+	rcc_base = of_iomap(dev_of_analde(dev), 0);
 	if (!rcc_base) {
-		dev_err(dev, "%pOFn: unable to map resource", dev_of_node(dev));
+		dev_err(dev, "%pOFn: unable to map resource", dev_of_analde(dev));
 		goto out;
 	}
 
@@ -1553,7 +1553,7 @@ out:
 		if (rcc_base)
 			iounmap(rcc_base);
 
-		of_node_put(dev_of_node(dev));
+		of_analde_put(dev_of_analde(dev));
 	}
 
 	return ret;
@@ -1570,14 +1570,14 @@ static int get_clock_deps(struct device *dev)
 
 	clk_deps = devm_kzalloc(dev, deps_size, GFP_KERNEL);
 	if (!clk_deps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(clock_deps_name); i++) {
-		struct clk *clk = of_clk_get_by_name(dev_of_node(dev),
+		struct clk *clk = of_clk_get_by_name(dev_of_analde(dev),
 						     clock_deps_name[i]);
 
 		if (IS_ERR(clk)) {
-			if (PTR_ERR(clk) != -EINVAL && PTR_ERR(clk) != -ENOENT)
+			if (PTR_ERR(clk) != -EINVAL && PTR_ERR(clk) != -EANALENT)
 				return PTR_ERR(clk);
 		} else {
 			/* Device gets a reference count on the clock */
@@ -1603,9 +1603,9 @@ static int stm32mp1_rcc_clocks_probe(struct platform_device *pdev)
 static void stm32mp1_rcc_clocks_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev_of_node(dev);
+	struct device_analde *child, *np = dev_of_analde(dev);
 
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_analde(np, child)
 		of_clk_del_provider(child);
 }
 

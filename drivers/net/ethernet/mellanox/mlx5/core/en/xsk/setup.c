@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #include "setup.h"
 #include "en/params.h"
@@ -100,7 +100,7 @@ static int mlx5e_open_xsk_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	if (err)
 		return err;
 
-	err = mlx5e_open_rq(params, rq_params, xsk, cpu_to_node(c->cpu), xskrq);
+	err = mlx5e_open_rq(params, rq_params, xsk, cpu_to_analde(c->cpu), xskrq);
 	if (err)
 		return err;
 
@@ -123,7 +123,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 	cparam = kvzalloc(sizeof(*cparam), GFP_KERNEL);
 	if (!cparam)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlx5e_build_xsk_cparam(priv->mdev, params, xsk, priv->q_counter, cparam);
 

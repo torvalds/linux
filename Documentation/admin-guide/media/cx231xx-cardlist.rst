@@ -14,7 +14,7 @@ cx231xx cards list
      - Card name
      - USB IDs
    * - 0
-     - Unknown CX231xx video grabber
+     - Unkanalwn CX231xx video grabber
      - 0572:5A3C
    * - 1
      - Conexant Hybrid TV - CARRAERA

@@ -75,7 +75,7 @@ static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int vt8251_scr_read(struct ata_link *link, unsigned int scr, u32 *val);
 static int vt8251_scr_write(struct ata_link *link, unsigned int scr, u32 val);
 static void svia_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
-static void svia_noop_freeze(struct ata_port *ap);
+static void svia_analop_freeze(struct ata_port *ap);
 static int vt6420_prereset(struct ata_link *link, unsigned long deadline);
 static void vt6420_bmdma_start(struct ata_queued_cmd *qc);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
@@ -118,7 +118,7 @@ static struct ata_port_operations svia_base_ops = {
 
 static struct ata_port_operations vt6420_sata_ops = {
 	.inherits		= &svia_base_ops,
-	.freeze			= svia_noop_freeze,
+	.freeze			= svia_analop_freeze,
 	.prereset		= vt6420_prereset,
 	.bmdma_start		= vt6420_bmdma_start,
 };
@@ -163,7 +163,7 @@ static const struct ata_port_info vt6421_sport_info = {
 static const struct ata_port_info vt6421_pport_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
-	/* No MWDMA */
+	/* Anal MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &vt6421_pata_ops,
 };
@@ -202,7 +202,7 @@ static int vt8251_scr_read(struct ata_link *link, unsigned int scr, u32 *val)
 {
 	static const u8 ipm_tbl[] = { 1, 2, 6, 0 };
 	struct pci_dev *pdev = to_pci_dev(link->ap->host->dev);
-	int slot = 2 * link->ap->port_no + link->pmp;
+	int slot = 2 * link->ap->port_anal + link->pmp;
 	u32 v = 0;
 	u8 raw;
 
@@ -250,7 +250,7 @@ static int vt8251_scr_read(struct ata_link *link, unsigned int scr, u32 *val)
 static int vt8251_scr_write(struct ata_link *link, unsigned int scr, u32 val)
 {
 	struct pci_dev *pdev = to_pci_dev(link->ap->host->dev);
-	int slot = 2 * link->ap->port_no + link->pmp;
+	int slot = 2 * link->ap->port_anal + link->pmp;
 	u32 v = 0;
 
 	switch (scr) {
@@ -298,7 +298,7 @@ static void svia_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 	ata_sff_tf_load(ap, tf);
 }
 
-static void svia_noop_freeze(struct ata_port *ap)
+static void svia_analop_freeze(struct ata_port *ap)
 {
 	/* Some VIA controllers choke if ATA_NIEN is manipulated in
 	 * certain way.  Leave it alone and just clear pending IRQ.
@@ -325,7 +325,7 @@ static void svia_noop_freeze(struct ata_port *ap)
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erranal otherwise.
  */
 static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 {
@@ -335,7 +335,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 	u32 sstatus, scontrol;
 	int online;
 
-	/* don't do any SCR stuff if we're not loading */
+	/* don't do any SCR stuff if we're analt loading */
 	if (!(ap->pflags & ATA_PFLAG_LOADING))
 		goto skip_scr;
 
@@ -403,7 +403,7 @@ static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const u8 pio_bits[] = { 0xA8, 0x65, 0x65, 0x31, 0x20 };
-	pci_write_config_byte(pdev, PATA_PIO_TIMING - adev->devno,
+	pci_write_config_byte(pdev, PATA_PIO_TIMING - adev->devanal,
 			      pio_bits[adev->pio_mode - XFER_PIO_0]);
 }
 
@@ -411,7 +411,7 @@ static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	static const u8 udma_bits[] = { 0xEE, 0xE8, 0xE6, 0xE4, 0xE2, 0xE1, 0xE0, 0xE0 };
-	pci_write_config_byte(pdev, PATA_UDMA_TIMING - adev->devno,
+	pci_write_config_byte(pdev, PATA_UDMA_TIMING - adev->devanal,
 			      udma_bits[adev->dma_mode - XFER_UDMA_0]);
 }
 
@@ -436,8 +436,8 @@ static void __iomem *vt6421_scr_addr(void __iomem *addr, unsigned int port)
 static void vt6421_init_addrs(struct ata_port *ap)
 {
 	void __iomem * const * iomap = ap->host->iomap;
-	void __iomem *reg_addr = iomap[ap->port_no];
-	void __iomem *bmdma_addr = iomap[4] + (ap->port_no * 8);
+	void __iomem *reg_addr = iomap[ap->port_anal];
+	void __iomem *bmdma_addr = iomap[4] + (ap->port_anal * 8);
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
 	ioaddr->cmd_addr = reg_addr;
@@ -445,12 +445,12 @@ static void vt6421_init_addrs(struct ata_port *ap)
 	ioaddr->ctl_addr = (void __iomem *)
 		((unsigned long)(reg_addr + 8) | ATA_PCI_CTL_OFS);
 	ioaddr->bmdma_addr = bmdma_addr;
-	ioaddr->scr_addr = vt6421_scr_addr(iomap[5], ap->port_no);
+	ioaddr->scr_addr = vt6421_scr_addr(iomap[5], ap->port_anal);
 
 	ata_sff_std_ports(ioaddr);
 
-	ata_port_pbar_desc(ap, ap->port_no, -1, "port");
-	ata_port_pbar_desc(ap, 4, ap->port_no * 8, "bmdma");
+	ata_port_pbar_desc(ap, ap->port_anal, -1, "port");
+	ata_port_pbar_desc(ap, 4, ap->port_anal * 8, "bmdma");
 }
 
 static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
@@ -491,12 +491,12 @@ static int vt6421_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	*r_host = host = ata_host_alloc_pinfo(&pdev->dev, ppi, ARRAY_SIZE(ppi));
 	if (!host) {
 		dev_err(&pdev->dev, "failed to allocate host\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = pcim_iomap_regions(pdev, 0x3f, DRV_NAME);
 	if (rc) {
-		dev_err(&pdev->dev, "failed to request/iomap PCI BARs (errno=%d)\n",
+		dev_err(&pdev->dev, "failed to request/iomap PCI BARs (erranal=%d)\n",
 			rc);
 		return rc;
 	}
@@ -545,7 +545,7 @@ static irqreturn_t vt642x_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	irqreturn_t rc = ata_bmdma_interrupt(irq, dev_instance);
 
-	/* if the IRQ was not handled, it might be a hotplug IRQ */
+	/* if the IRQ was analt handled, it might be a hotplug IRQ */
 	if (rc != IRQ_HANDLED) {
 		u32 serror;
 		unsigned long flags;
@@ -645,9 +645,9 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 	 * is the fix from Joseph Chan <JosephChan@via.com.tw>.
 	 *
 	 * When host issues HOLD, device may send up to 20DW of data
-	 * before acknowledging it with HOLDA and the host should be
+	 * before ackanalwledging it with HOLDA and the host should be
 	 * able to buffer them in FIFO.  Unfortunately, some WD drives
-	 * send up to 40DW before acknowledging HOLD and, in the
+	 * send up to 40DW before ackanalwledging HOLD and, in the
 	 * default configuration, this ends up overflowing vt6421's
 	 * FIFO, making the controller abort the transaction with
 	 * R_ERR.
@@ -664,7 +664,7 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 	 *
 	 * As the fix slows down data transfer, apply it only if the error
 	 * actually appears - see vt6421_error_handler()
-	 * Apply the fix always on vt6420 as we don't know if SCR_ERROR can be
+	 * Apply the fix always on vt6420 as we don't kanalw if SCR_ERROR can be
 	 * read safely.
 	 */
 	if (board_id == vt6420) {
@@ -701,7 +701,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				i,
 				(unsigned long long)pci_resource_start(pdev, i),
 				(unsigned long long)pci_resource_len(pdev, i));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 	switch (board_id) {
@@ -722,7 +722,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 	host->private_data = hpriv;
 
 	svia_configure(pdev, board_id, hpriv);

@@ -14,8 +14,8 @@
 typedef union {
 	struct {
 		tid_t tid;
-		struct inode *ip;
-		u32 ino;
+		struct ianalde *ip;
+		u32 ianal;
 	} leaf;
 	pxd_t xd;
 } ddata_t;
@@ -47,7 +47,7 @@ struct dtslot {
 #define DTSLOTDATALEN	15
 
 /*
- *	 internal node entry head/only segment
+ *	 internal analde entry head/only segment
  */
 struct idtentry {
 	pxd_t xd;		/* 8: child extent descriptor */
@@ -65,9 +65,9 @@ struct idtentry {
 
 
 /*
- *	leaf node entry head/only segment
+ *	leaf analde entry head/only segment
  *
- *	For legacy filesystems, name contains 13 wchars -- no index field
+ *	For legacy filesystems, name contains 13 wchars -- anal index field
  */
 struct ldtentry {
 	__le32 inumber;		/* 4: 4-byte aligned */
@@ -88,7 +88,7 @@ struct ldtentry {
 /*
  * Keep persistent index for directory entries
  */
-#define DO_INDEX(INODE) (JFS_SBI((INODE)->i_sb)->mntflag & JFS_DIR_INDEX)
+#define DO_INDEX(IANALDE) (JFS_SBI((IANALDE)->i_sb)->mntflag & JFS_DIR_INDEX)
 
 /*
  * Maximum entry in inline directory table
@@ -125,7 +125,7 @@ struct dir_table_slot {
 
 
 /*
- *	directory root page (in-line in on-disk inode):
+ *	directory root page (in-line in on-disk ianalde):
  *
  * cf. dtpage_t below.
  */
@@ -138,7 +138,7 @@ typedef union {
 		s8 freecnt;	/* 1: free count */
 		s8 freelist;	/* 1: freelist header */
 
-		__le32 idotdot;	/* 4: parent inode number */
+		__le32 idotdot;	/* 4: parent ianalde number */
 
 		s8 stbl[8];	/* 8: sorted entry index table */
 	} header;		/* (32) */
@@ -199,21 +199,21 @@ typedef union {
 
 #define DTPAGEMAXSLOT        128
 
-#define DT8THPGNODEBYTES     512
-#define DT8THPGNODETSLOTS      1
-#define DT8THPGNODESLOTS      16
+#define DT8THPGANALDEBYTES     512
+#define DT8THPGANALDETSLOTS      1
+#define DT8THPGANALDESLOTS      16
 
-#define DTQTRPGNODEBYTES    1024
-#define DTQTRPGNODETSLOTS      1
-#define DTQTRPGNODESLOTS      32
+#define DTQTRPGANALDEBYTES    1024
+#define DTQTRPGANALDETSLOTS      1
+#define DTQTRPGANALDESLOTS      32
 
-#define DTHALFPGNODEBYTES   2048
-#define DTHALFPGNODETSLOTS     2
-#define DTHALFPGNODESLOTS     64
+#define DTHALFPGANALDEBYTES   2048
+#define DTHALFPGANALDETSLOTS     2
+#define DTHALFPGANALDESLOTS     64
 
-#define DTFULLPGNODEBYTES   4096
-#define DTFULLPGNODETSLOTS     4
-#define DTFULLPGNODESLOTS    128
+#define DTFULLPGANALDEBYTES   4096
+#define DTFULLPGANALDETSLOTS     4
+#define DTFULLPGANALDESLOTS    128
 
 #define DTENTRYSTART	1
 
@@ -238,19 +238,19 @@ typedef union {
 /*
  *	external declarations
  */
-extern void dtInitRoot(tid_t tid, struct inode *ip, u32 idotdot);
+extern void dtInitRoot(tid_t tid, struct ianalde *ip, u32 idotdot);
 
-extern int dtSearch(struct inode *ip, struct component_name * key,
-		    ino_t * data, struct btstack * btstack, int flag);
+extern int dtSearch(struct ianalde *ip, struct component_name * key,
+		    ianal_t * data, struct btstack * btstack, int flag);
 
-extern int dtInsert(tid_t tid, struct inode *ip, struct component_name * key,
-		    ino_t * ino, struct btstack * btstack);
+extern int dtInsert(tid_t tid, struct ianalde *ip, struct component_name * key,
+		    ianal_t * ianal, struct btstack * btstack);
 
-extern int dtDelete(tid_t tid, struct inode *ip, struct component_name * key,
-		    ino_t * data, int flag);
+extern int dtDelete(tid_t tid, struct ianalde *ip, struct component_name * key,
+		    ianal_t * data, int flag);
 
-extern int dtModify(tid_t tid, struct inode *ip, struct component_name * key,
-		    ino_t * orig_ino, ino_t new_ino, int flag);
+extern int dtModify(tid_t tid, struct ianalde *ip, struct component_name * key,
+		    ianal_t * orig_ianal, ianal_t new_ianal, int flag);
 
 extern int jfs_readdir(struct file *file, struct dir_context *ctx);
 #endif				/* !_H_JFS_DTREE */

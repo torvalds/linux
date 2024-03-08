@@ -28,7 +28,7 @@ struct v4l2_subdev *imx_media_ic_register(struct v4l2_device *v4l2_dev,
 
 	priv = devm_kzalloc(ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	priv->ipu_dev = ipu_dev;
 	priv->ipu = ipu;
@@ -54,7 +54,7 @@ struct v4l2_subdev *imx_media_ic_register(struct v4l2_device *v4l2_dev,
 	priv->sd.entity.ops = ic_ops[priv->task_id]->entity_ops;
 	priv->sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
 	priv->sd.owner = ipu_dev->driver->owner;
-	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	priv->sd.grp_id = grp_id;
 	imx_media_grp_id_to_sd_name(priv->sd.name, sizeof(priv->sd.name),
 				    priv->sd.grp_id, ipu_get_num(ipu));

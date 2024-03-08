@@ -3,7 +3,7 @@
  * PIC32 Quad SPI controller driver.
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techanallogy Inc.
  */
 
 #include <linux/clk.h>
@@ -206,7 +206,7 @@ static irqreturn_t pic32_sqi_isr(int irq, void *dev_id)
 
 	/* check spurious interrupt */
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & PESQI_DMAERR) {
 		enable = 0;
@@ -391,7 +391,7 @@ static int pic32_sqi_one_message(struct spi_controller *host,
 		}
 	}
 
-	/* BDs are prepared and chained. Now mark LAST_BD, CS_DEASSERT at last
+	/* BDs are prepared and chained. Analw mark LAST_BD, CS_DEASSERT at last
 	 * element of the list.
 	 */
 	rdesc = list_last_entry(&sqi->bd_list_used, struct ring_desc, list);
@@ -463,7 +463,7 @@ static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 				     &sqi->bd_dma, GFP_KERNEL);
 	if (!sqi->bd) {
 		dev_err(&sqi->host->dev, "failed allocating dma buffer\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* allocate software ring descriptors */
@@ -472,7 +472,7 @@ static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 		dma_free_coherent(&sqi->host->dev,
 				  sizeof(*bd) * PESQI_BD_COUNT,
 				  sqi->bd, sqi->bd_dma);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bd = (struct buf_desc *)sqi->bd;
@@ -510,7 +510,7 @@ static void pic32_sqi_hw_init(struct pic32_sqi *sqi)
 	u32 val;
 
 	/* Soft-reset of PESQI controller triggers interrupt.
-	 * We are not yet ready to handle them so disable CPU
+	 * We are analt yet ready to handle them so disable CPU
 	 * interrupt for the time being.
 	 */
 	local_irq_save(flags);
@@ -525,7 +525,7 @@ static void pic32_sqi_hw_init(struct pic32_sqi *sqi)
 	/* disable all interrupts */
 	pic32_sqi_disable_int(sqi);
 
-	/* Now it is safe to enable back CPU interrupt */
+	/* Analw it is safe to enable back CPU interrupt */
 	local_irq_restore(flags);
 
 	/* tx and rx fifo interrupt threshold */
@@ -574,7 +574,7 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*sqi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sqi = spi_controller_get_devdata(host);
 	sqi->host = host;
@@ -596,14 +596,14 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	sqi->sys_clk = devm_clk_get_enabled(&pdev->dev, "reg_ck");
 	if (IS_ERR(sqi->sys_clk)) {
 		ret = PTR_ERR(sqi->sys_clk);
-		dev_err(&pdev->dev, "no sys_clk ?\n");
+		dev_err(&pdev->dev, "anal sys_clk ?\n");
 		goto err_free_host;
 	}
 
 	sqi->base_clk = devm_clk_get_enabled(&pdev->dev, "spi_ck");
 	if (IS_ERR(sqi->base_clk)) {
 		ret = PTR_ERR(sqi->base_clk);
-		dev_err(&pdev->dev, "no base clk ?\n");
+		dev_err(&pdev->dev, "anal base clk ?\n");
 		goto err_free_host;
 	}
 
@@ -632,7 +632,7 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	host->max_speed_hz	= clk_get_rate(sqi->base_clk);
 	host->dma_alignment	= 32;
 	host->max_dma_len	= PESQI_BD_BUF_LEN_MAX;
-	host->dev.of_node	= pdev->dev.of_node;
+	host->dev.of_analde	= pdev->dev.of_analde;
 	host->mode_bits		= SPI_MODE_3 | SPI_MODE_0 | SPI_TX_DUAL |
 				  SPI_RX_DUAL | SPI_TX_QUAD | SPI_RX_QUAD;
 	host->flags		= SPI_CONTROLLER_HALF_DUPLEX;

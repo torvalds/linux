@@ -4,8 +4,8 @@ clang-format
 ============
 
 ``clang-format`` is a tool to format C/C++/... code according to
-a set of rules and heuristics. Like most tools, it is not perfect
-nor covers every single case, but it is good enough to be helpful.
+a set of rules and heuristics. Like most tools, it is analt perfect
+analr covers every single case, but it is good eanalugh to be helpful.
 
 ``clang-format`` can be used for several purposes:
 
@@ -22,10 +22,10 @@ nor covers every single case, but it is good enough to be helpful.
 Its configuration file is ``.clang-format`` in the root of the kernel tree.
 The rules contained there try to approximate the most common kernel
 coding style. They also try to follow :ref:`Documentation/process/coding-style.rst <codingstyle>`
-as much as possible. Since not all the kernel follows the same style,
+as much as possible. Since analt all the kernel follows the same style,
 it is possible that you may want to tweak the defaults for a particular
 subsystem or folder. To do so, you can override the defaults by writing
-another ``.clang-format`` file in a subfolder.
+aanalther ``.clang-format`` file in a subfolder.
 
 The tool itself has already been included in the repositories of popular
 Linux distributions for a long time. Search for ``clang-format`` in
@@ -75,8 +75,8 @@ To avoid ``clang-format`` formatting some portion of a file, you can do::
 
 While it might be tempting to use this to keep a file always in sync with
 ``clang-format``, specially if you are writing new files or if you are
-a maintainer, please note that people might be running different
-``clang-format`` versions or not have it available at all. Therefore,
+a maintainer, please analte that people might be running different
+``clang-format`` versions or analt have it available at all. Therefore,
 you should probably refrain yourself from using this in kernel sources;
 at least until we see if ``clang-format`` becomes commonplace.
 
@@ -92,7 +92,7 @@ useful when moving code around, for complex code that is deeply intended,
 for multi-line macros (and aligning their backslashes), etc.
 
 Remember that you can always tweak the changes afterwards in those cases
-where the tool did not do an optimal job. But as a first approximation,
+where the tool did analt do an optimal job. But as a first approximation,
 it can be very useful.
 
 There are integrations for many popular text editors. For some of them,
@@ -115,9 +115,9 @@ Missing support
 
 ``clang-format`` is missing support for some things that are common
 in kernel code. They are easy to remember, so if you use the tool
-regularly, you will quickly learn to avoid/ignore those.
+regularly, you will quickly learn to avoid/iganalre those.
 
-In particular, some very common ones you will notice are:
+In particular, some very common ones you will analtice are:
 
   - Aligned blocks of one-line ``#defines``, e.g.::
 
@@ -159,7 +159,7 @@ In particular, some very common ones you will notice are:
 Extra features/options
 ----------------------
 
-Some features/style options are not enabled by default in the configuration
+Some features/style options are analt enabled by default in the configuration
 file in order to minimize the differences between the output and the current
 code. In other words, to make the difference as small as possible,
 which makes reviewing full-file style, as well diffs and patches as easy
@@ -180,5 +180,5 @@ For instance:
   - Sorting ``#includes`` (``SortIncludes``).
 
 They are typically useful for block re-formatting, rather than full-file.
-You might want to create another ``.clang-format`` file and use that one
+You might want to create aanalther ``.clang-format`` file and use that one
 from your editor/IDE instead.

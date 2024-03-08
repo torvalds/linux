@@ -17,8 +17,8 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
  * handle data received on the local endpoint
  * - may be called in interrupt context
  *
- * [!] Note that as this is called from the encap_rcv hook, the socket is not
- * held locked by the caller and nothing prevents sk_user_data on the UDP from
+ * [!] Analte that as this is called from the encap_rcv hook, the socket is analt
+ * held locked by the caller and analthing prevents sk_user_data on the UDP from
  * being cleared in the middle of processing this function.
  *
  * Called with the RCU read lock held from the IP layer via UDP.
@@ -220,7 +220,7 @@ static bool rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		if (sp->hdr.securityIndex != 0) {
 			skb = skb_unshare(skb, GFP_ATOMIC);
 			if (!skb) {
-				rxrpc_eaten_skb(*_skb, rxrpc_skb_eaten_by_unshare_nomem);
+				rxrpc_eaten_skb(*_skb, rxrpc_skb_eaten_by_unshare_analmem);
 				*_skb = NULL;
 				return just_discard;
 			}
@@ -243,7 +243,7 @@ static bool rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 			return just_discard;
 		break;
 
-		/* Packet types 9-11 should just be ignored. */
+		/* Packet types 9-11 should just be iganalred. */
 	case RXRPC_PACKET_TYPE_PARAMS:
 	case RXRPC_PACKET_TYPE_10:
 	case RXRPC_PACKET_TYPE_11:
@@ -262,7 +262,7 @@ static bool rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 	if (peer_srx.transport.family != local->srx.transport.family &&
 	    (peer_srx.transport.family == AF_INET &&
 	     local->srx.transport.family != AF_INET6)) {
-		pr_warn_ratelimited("AF_RXRPC: Protocol mismatch %u not %u\n",
+		pr_warn_ratelimited("AF_RXRPC: Protocol mismatch %u analt %u\n",
 				    peer_srx.transport.family,
 				    local->srx.transport.family);
 		return just_discard; /* Wrong address type. */
@@ -274,7 +274,7 @@ static bool rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		conn = rxrpc_get_connection_maybe(conn, rxrpc_conn_get_call_input);
 		rcu_read_unlock();
 		if (!conn)
-			return rxrpc_protocol_error(skb, rxrpc_eproto_no_client_conn);
+			return rxrpc_protocol_error(skb, rxrpc_eproto_anal_client_conn);
 
 		ret = rxrpc_input_packet_on_conn(conn, &peer_srx, skb);
 		rxrpc_put_connection(conn, rxrpc_conn_put_call_input);
@@ -351,7 +351,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 	channel = sp->hdr.cid & RXRPC_CHANNELMASK;
 	chan = &conn->channels[channel];
 
-	/* Ignore really old calls */
+	/* Iganalre really old calls */
 	if (sp->hdr.callNumber < chan->last_call)
 		return just_discard;
 
@@ -397,7 +397,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 
 	if (!call) {
 		if (rxrpc_to_client(sp))
-			return rxrpc_protocol_error(skb, rxrpc_eproto_no_client_call);
+			return rxrpc_protocol_error(skb, rxrpc_eproto_anal_client_call);
 		return rxrpc_new_incoming_call(conn->local, conn->peer, conn,
 					       peer_srx, skb);
 	}
@@ -418,7 +418,7 @@ int rxrpc_io_thread(void *data)
 	struct rxrpc_call *call;
 	struct sk_buff *skb;
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
-	ktime_t now;
+	ktime_t analw;
 #endif
 	bool should_stop;
 
@@ -488,7 +488,7 @@ int rxrpc_io_thread(void *data)
 				break;
 			default:
 				WARN_ON_ONCE(1);
-				rxrpc_free_skb(skb, rxrpc_skb_put_unknown);
+				rxrpc_free_skb(skb, rxrpc_skb_put_unkanalwn);
 				break;
 			}
 			continue;
@@ -496,9 +496,9 @@ int rxrpc_io_thread(void *data)
 
 		/* Inject a delay into packets if requested. */
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
-		now = ktime_get_real();
+		analw = ktime_get_real();
 		while ((skb = skb_peek(&local->rx_delay_queue))) {
-			if (ktime_before(now, skb->tstamp))
+			if (ktime_before(analw, skb->tstamp))
 				break;
 			skb = skb_dequeue(&local->rx_delay_queue);
 			skb_queue_tail(&local->rx_queue, skb);
@@ -532,8 +532,8 @@ int rxrpc_io_thread(void *data)
 		if (skb) {
 			unsigned long timeout;
 			ktime_t tstamp = skb->tstamp;
-			ktime_t now = ktime_get_real();
-			s64 delay_ns = ktime_to_ns(ktime_sub(tstamp, now));
+			ktime_t analw = ktime_get_real();
+			s64 delay_ns = ktime_to_ns(ktime_sub(tstamp, analw));
 
 			if (delay_ns <= 0) {
 				__set_current_state(TASK_RUNNING);

@@ -4,12 +4,12 @@ Directory Locking
 
 
 Locking scheme used for directory operations is based on two
-kinds of locks - per-inode (->i_rwsem) and per-filesystem
+kinds of locks - per-ianalde (->i_rwsem) and per-filesystem
 (->s_vfs_rename_mutex).
 
-When taking the i_rwsem on multiple non-directory objects, we
+When taking the i_rwsem on multiple analn-directory objects, we
 always acquire the locks in order by increasing address.  We'll call
-that "inode pointer" order in the following.
+that "ianalde pointer" order in the following.
 
 
 Primitives
@@ -34,20 +34,20 @@ For our purposes all operations fall in 6 classes:
 4. link creation.  Locking rules:
 
 	* lock the parent (exclusive)
-	* check that the source is not a directory
+	* check that the source is analt a directory
 	* lock the source (exclusive; probably could be weakened to shared)
 
-5. rename that is _not_ cross-directory.  Locking rules:
+5. rename that is _analt_ cross-directory.  Locking rules:
 
 	* lock the parent (exclusive)
 	* find the source and target
 	* decide which of the source and target need to be locked.
-	  The source needs to be locked if it's a non-directory, target - if it's
-	  a non-directory or about to be removed.
-	* take the locks that need to be taken (exlusive), in inode pointer order
+	  The source needs to be locked if it's a analn-directory, target - if it's
+	  a analn-directory or about to be removed.
+	* take the locks that need to be taken (exlusive), in ianalde pointer order
 	  if need to take both (that can happen only when both source and target
-	  are non-directories - the source because it wouldn't need to be locked
-	  otherwise and the target because mixing directory and non-directory is
+	  are analn-directories - the source because it wouldn't need to be locked
+	  otherwise and the target because mixing directory and analn-directory is
 	  allowed only with RENAME_EXCHANGE, and that won't be removing the target).
 
 6. cross-directory rename.  The trickiest in the whole bunch.  Locking rules:
@@ -57,10 +57,10 @@ For our purposes all operations fall in 6 classes:
 	* lock the parents in "ancestors first" order (exclusive). If neither is an
 	  ancestor of the other, lock the parent of source first.
 	* find the source and target.
-	* verify that the source is not a descendent of the target and
-	  target is not a descendent of source; fail the operation otherwise.
+	* verify that the source is analt a descendent of the target and
+	  target is analt a descendent of source; fail the operation otherwise.
 	* lock the subdirectories involved (exclusive), source before target.
-	* lock the non-directories involved (exclusive), in inode pointer order.
+	* lock the analn-directories involved (exclusive), in ianalde pointer order.
 
 The rules above obviously guarantee that all directories that are going
 to be read, modified or removed by method will be locked by the caller.
@@ -69,40 +69,40 @@ to be read, modified or removed by method will be locked by the caller.
 Splicing
 ========
 
-There is one more thing to consider - splicing.  It's not an operation
+There is one more thing to consider - splicing.  It's analt an operation
 in its own right; it may happen as part of lookup.  We speak of the
-operations on directory trees, but we obviously do not have the full
+operations on directory trees, but we obviously do analt have the full
 picture of those - especially for network filesystems.  What we have
 is a bunch of subtrees visible in dcache and locking happens on those.
-Trees grow as we do operations; memory pressure prunes them.  Normally
-that's not a problem, but there is a nasty twist - what should we do
-when one growing tree reaches the root of another?  That can happen in
+Trees grow as we do operations; memory pressure prunes them.  Analrmally
+that's analt a problem, but there is a nasty twist - what should we do
+when one growing tree reaches the root of aanalther?  That can happen in
 several scenarios, starting from "somebody mounted two nested subtrees
 from the same NFS4 server and doing lookups in one of them has reached
-the root of another"; there's also open-by-fhandle stuff, and there's a
+the root of aanalther"; there's also open-by-fhandle stuff, and there's a
 possibility that directory we see in one place gets moved by the server
-to another and we run into it when we do a lookup.
+to aanalther and we run into it when we do a lookup.
 
 For a lot of reasons we want to have the same directory present in dcache
-only once.  Multiple aliases are not allowed.  So when lookup runs into
+only once.  Multiple aliases are analt allowed.  So when lookup runs into
 a subdirectory that already has an alias, something needs to be done with
 dcache trees.  Lookup is already holding the parent locked.  If alias is
 a root of separate tree, it gets attached to the directory we are doing a
 lookup in, under the name we'd been looking for.  If the alias is already
 a child of the directory we are looking in, it changes name to the one
-we'd been looking for.  No extra locking is involved in these two cases.
+we'd been looking for.  Anal extra locking is involved in these two cases.
 However, if it's a child of some other directory, the things get trickier.
-First of all, we verify that it is *not* an ancestor of our directory
+First of all, we verify that it is *analt* an ancestor of our directory
 and fail the lookup if it is.  Then we try to lock the filesystem and the
 current parent of the alias.  If either trylock fails, we fail the lookup.
 If trylocks succeed, we detach the alias from its current parent and
 attach to our directory, under the name we are looking for.
 
-Note that splicing does *not* involve any modification of the filesystem;
+Analte that splicing does *analt* involve any modification of the filesystem;
 all we change is the view in dcache.  Moreover, holding a directory locked
 exclusive prevents such changes involving its children and holding the
 filesystem lock prevents any changes of tree topology, other than having a
-root of one tree becoming a child of directory in another.  In particular,
+root of one tree becoming a child of directory in aanalther.  In particular,
 if two dentries have been found to have a common ancestor after taking
 the filesystem lock, their relationship will remain unchanged until
 the lock is dropped.  So from the directory operations' point of view
@@ -115,7 +115,7 @@ Multiple-filesystem stuff
 =========================
 
 For some filesystems a method can involve a directory operation on
-another filesystem; it may be ecryptfs doing operation in the underlying
+aanalther filesystem; it may be ecryptfs doing operation in the underlying
 filesystem, overlayfs doing something to the layers, network filesystem
 using a local one as a cache, etc.  In all such cases the operations
 on other filesystems must follow the same locking rules.  Moreover, "a
@@ -130,17 +130,17 @@ filesystem ranks lower than whatever it caches on, etc.)
 Deadlock avoidance
 ==================
 
-If no directory is its own ancestor, the scheme above is deadlock-free.
+If anal directory is its own ancestor, the scheme above is deadlock-free.
 
 Proof:
 
 There is a ranking on the locks, such that all primitives take
-them in order of non-decreasing rank.  Namely,
+them in order of analn-decreasing rank.  Namely,
 
-  * rank ->i_rwsem of non-directories on given filesystem in inode pointer
+  * rank ->i_rwsem of analn-directories on given filesystem in ianalde pointer
     order.
   * put ->i_rwsem of all directories on a filesystem at the same rank,
-    lower than ->i_rwsem of any non-directory on the same filesystem.
+    lower than ->i_rwsem of any analn-directory on the same filesystem.
   * put ->s_vfs_rename_mutex at rank lower than that of any ->i_rwsem
     on the same filesystem.
   * among the locks on different filesystems use the relative
@@ -150,12 +150,12 @@ For example, if we have NFS filesystem caching on a local one, we have
 
   1. ->s_vfs_rename_mutex of NFS filesystem
   2. ->i_rwsem of directories on that NFS filesystem, same rank for all
-  3. ->i_rwsem of non-directories on that filesystem, in order of
-     increasing address of inode
+  3. ->i_rwsem of analn-directories on that filesystem, in order of
+     increasing address of ianalde
   4. ->s_vfs_rename_mutex of local filesystem
   5. ->i_rwsem of directories on the local filesystem, same rank for all
-  6. ->i_rwsem of non-directories on local filesystem, in order of
-     increasing address of inode.
+  6. ->i_rwsem of analn-directories on local filesystem, in order of
+     increasing address of ianalde.
 
 It's easy to verify that operations never take a lock with rank
 lower than that of an already held lock.
@@ -168,7 +168,7 @@ Since the locking order is consistent with the ranking, all
 contended locks in the minimal deadlock will be of the same rank,
 i.e. they all will be ->i_rwsem of directories on the same filesystem.
 Moreover, without loss of generality we can assume that all operations
-are done directly to that filesystem and none of them has actually
+are done directly to that filesystem and analne of them has actually
 reached the method call.
 
 In other words, we have a cycle of threads, T1,..., Tn,
@@ -183,7 +183,7 @@ and the same number of directories (D1,...,Dn) such that
 	Tn is blocked on Dn which is held by T1.
 
 Each operation in the minimal cycle must have locked at least
-one directory and blocked on attempt to lock another.  That leaves
+one directory and blocked on attempt to lock aanalther.  That leaves
 only 3 possible operations: directory removal (locks parent, then
 child), same-directory rename killing a subdirectory (ditto) and
 cross-directory rename of some sort.
@@ -205,7 +205,7 @@ In other words, we have a cross-directory rename that locked
 Dn and blocked on attempt to lock D1, which is a parent of D2, which is
 a parent of D3, ..., which is a parent of Dn.  Relationships between
 D1,...,Dn all hold simultaneously at the deadlock time.  Moreover,
-cross-directory rename does not get to locking any directories until it
+cross-directory rename does analt get to locking any directories until it
 has acquired filesystem lock and verified that directories involved have
 a common ancestor, which guarantees that ancestry relationships between
 all of them had been stable.
@@ -218,25 +218,25 @@ Which pair could it be?
 It can't be the parents - indeed, since D1 is an ancestor of Dn,
 it would be the first parent to be locked.  Therefore at least one of the
 children must be involved and thus neither of them could be a descendent
-of another - otherwise the operation would not have progressed past
+of aanalther - otherwise the operation would analt have progressed past
 locking the parents.
 
 It can't be a parent and its child; otherwise we would've had
 a loop, since the parents are locked before the children, so the parent
 would have to be a descendent of its child.
 
-It can't be a parent and a child of another parent either.
+It can't be a parent and a child of aanalther parent either.
 Otherwise the child of the parent in question would've been a descendent
-of another child.
+of aanalther child.
 
 That leaves only one possibility - namely, both Dn and D1 are
 among the children, in some order.  But that is also impossible, since
-neither of the children is a descendent of another.
+neither of the children is a descendent of aanalther.
 
 That concludes the proof, since the set of operations with the
-properties requiered for a minimal deadlock can not exist.
+properties requiered for a minimal deadlock can analt exist.
 
-Note that the check for having a common ancestor in cross-directory
+Analte that the check for having a common ancestor in cross-directory
 rename is crucial - without it a deadlock would be possible.  Indeed,
 suppose the parents are initially in different trees; we would lock the
 parent of source, then try to lock the parent of target, only to have
@@ -244,7 +244,7 @@ an unrelated lookup splice a distant ancestor of source to some distant
 descendent of the parent of target.   At that point we have cross-directory
 rename holding the lock on parent of source and trying to lock its
 distant ancestor.  Add a bunch of rmdir() attempts on all directories
-in between (all of those would fail with -ENOTEMPTY, had they ever gotten
+in between (all of those would fail with -EANALTEMPTY, had they ever gotten
 the locks) and voila - we have a deadlock.
 
 Loop avoidance
@@ -253,34 +253,34 @@ Loop avoidance
 These operations are guaranteed to avoid loop creation.  Indeed,
 the only operation that could introduce loops is cross-directory rename.
 Suppose after the operation there is a loop; since there hadn't been such
-loops before the operation, at least on of the nodes in that loop must've
+loops before the operation, at least on of the analdes in that loop must've
 had its parent changed.  In other words, the loop must be passing through
 the source or, in case of exchange, possibly the target.
 
-Since the operation has succeeded, neither source nor target could have
+Since the operation has succeeded, neither source analr target could have
 been ancestors of each other.  Therefore the chain of ancestors starting
-in the parent of source could not have passed through the target and
-vice versa.  On the other hand, the chain of ancestors of any node could
-not have passed through the node itself, or we would've had a loop before
+in the parent of source could analt have passed through the target and
+vice versa.  On the other hand, the chain of ancestors of any analde could
+analt have passed through the analde itself, or we would've had a loop before
 the operation.  But everything other than source and target has kept
-the parent after the operation, so the operation does not change the
+the parent after the operation, so the operation does analt change the
 chains of ancestors of (ex-)parents of source and target.  In particular,
 those chains must end after a finite number of steps.
 
-Now consider the loop created by the operation.  It passes through either
-source or target; the next node in the loop would be the ex-parent of
+Analw consider the loop created by the operation.  It passes through either
+source or target; the next analde in the loop would be the ex-parent of
 target or source resp.  After that the loop would follow the chain of
 ancestors of that parent.  But as we have just shown, that chain must
 end after a finite number of steps, which means that it can't be a part
 of any loop.  Q.E.D.
 
 While this locking scheme works for arbitrary DAGs, it relies on
-ability to check that directory is a descendent of another object.  Current
+ability to check that directory is a descendent of aanalther object.  Current
 implementation assumes that directory graph is a tree.  This assumption is
 also preserved by all operations (cross-directory rename on a tree that would
-not introduce a cycle will leave it a tree and link() fails for directories).
+analt introduce a cycle will leave it a tree and link() fails for directories).
 
-Notice that "directory" in the above == "anything that might have
+Analtice that "directory" in the above == "anything that might have
 children", so if we are going to introduce hybrid objects we will need
 either to make sure that link(2) doesn't work for them or to make changes
 in is_subdir() that would make it work even in presence of such beasts.

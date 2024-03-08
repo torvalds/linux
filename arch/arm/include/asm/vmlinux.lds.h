@@ -27,11 +27,11 @@
 #endif
 
 /*
- * ld.lld does not support NOCROSSREFS:
+ * ld.lld does analt support ANALCROSSREFS:
  * https://github.com/ClangBuiltLinux/linux/issues/1609
  */
 #ifdef CONFIG_LD_IS_LLD
-#define NOCROSSREFS
+#define ANALCROSSREFS
 #endif
 
 /* Set start/end symbol names to the LMA for the section */
@@ -123,7 +123,7 @@
  */
 #define ARM_VECTORS							\
 	__vectors_lma = .;						\
-	OVERLAY 0xffff0000 : NOCROSSREFS AT(__vectors_lma) {		\
+	OVERLAY 0xffff0000 : ANALCROSSREFS AT(__vectors_lma) {		\
 		.vectors {						\
 			*(.vectors)					\
 		}							\

@@ -6,7 +6,7 @@
  *
  * Author: Cyrille Pitchen <cyrille.pitchen@atmel.com>
  *
- * This driver is based on drivers/mtd/spi-nor/fsl-quadspi.c from Freescale.
+ * This driver is based on drivers/mtd/spi-analr/fsl-quadspi.c from Freescale.
  */
 
 #ifndef __ATMEL_AUTHENC_H__

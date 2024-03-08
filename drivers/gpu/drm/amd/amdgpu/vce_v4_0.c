@@ -11,14 +11,14 @@
  * the following conditions:
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -136,7 +136,7 @@ static int vce_v4_0_firmware_loaded(struct amdgpu_device *adev)
 			mdelay(10);
 		}
 
-		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
+		DRM_ERROR("VCE analt responding, trying to reset the ECPU!!!\n");
 		WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_SOFT_RESET),
 				VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
 				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
@@ -170,7 +170,7 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 	data |= (0 << VCE_MMSCH_VF_VMID__VF_CTX_VMID__SHIFT); /* use domain0 for MM scheduler */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_VMID), data);
 
-	/* 3, notify mmsch about the size of this descriptor */
+	/* 3, analtify mmsch about the size of this descriptor */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_CTX_SIZE), size);
 
 	/* 4, set resp to zero */
@@ -181,7 +181,7 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 	adev->vce.ring[0].wptr = 0;
 	adev->vce.ring[0].wptr_old = 0;
 
-	/* 5, kick off the initialization and wait until VCE_MMSCH_VF_MAILBOX_RESP becomes non-zero */
+	/* 5, kick off the initialization and wait until VCE_MMSCH_VF_MAILBOX_RESP becomes analn-zero */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_HOST), 0x10000001);
 
 	data = RREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP));
@@ -378,7 +378,7 @@ static int vce_v4_0_start(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS), 0, ~VCE_STATUS__JOB_BUSY_MASK);
 
 	if (r) {
-		DRM_ERROR("VCE not responding, giving up!!!\n");
+		DRM_ERROR("VCE analt responding, giving up!!!\n");
 		return r;
 	}
 
@@ -448,7 +448,7 @@ static int vce_v4_0_sw_init(void *handle)
 
 		adev->vce.saved_bo = kvmalloc(size, GFP_KERNEL);
 		if (!adev->vce.saved_bo)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		hdr = (const struct common_firmware_header *)adev->vce.fw->data;
 		adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].ucode_id = AMDGPU_UCODE_ID_VCE;
@@ -928,7 +928,7 @@ static int vce_v4_0_set_clockgating_state(void *handle,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < 2; i++) {
-		/* Program VCE Instance 0 or 1 if not harvested */
+		/* Program VCE Instance 0 or 1 if analt harvested */
 		if (adev->vce.harvest_config & (1 << i))
 			continue;
 
@@ -1096,9 +1096,9 @@ const struct amd_ip_funcs vce_v4_0_ip_funcs = {
 static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCE,
 	.align_mask = 0x3f,
-	.nop = VCE_CMD_NO_OP,
+	.analp = VCE_CMD_ANAL_OP,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.anal_user_fence = true,
 	.get_rptr = vce_v4_0_ring_get_rptr,
 	.get_wptr = vce_v4_0_ring_get_wptr,
 	.set_wptr = vce_v4_0_ring_set_wptr,
@@ -1115,7 +1115,7 @@ static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {
 	.emit_fence = vce_v4_0_ring_emit_fence,
 	.test_ring = amdgpu_vce_ring_test_ring,
 	.test_ib = amdgpu_vce_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_analp = amdgpu_ring_insert_analp,
 	.insert_end = vce_v4_0_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vce_ring_begin_use,
@@ -1151,7 +1151,7 @@ const struct amdgpu_ip_block_version vce_v4_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_VCE,
 	.major = 4,
-	.minor = 0,
+	.mianalr = 0,
 	.rev = 0,
 	.funcs = &vce_v4_0_ip_funcs,
 };

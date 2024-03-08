@@ -29,7 +29,7 @@ static int xen_dbgp_op(struct usb_hcd *hcd, int op)
 		dbgp.bus = PHYSDEVOP_DBGP_BUS_PCI;
 	} else
 #endif
-		dbgp.bus = PHYSDEVOP_DBGP_BUS_UNKNOWN;
+		dbgp.bus = PHYSDEVOP_DBGP_BUS_UNKANALWN;
 
 	return HYPERVISOR_physdev_op(PHYSDEVOP_dbgp_op, &dbgp);
 }

@@ -64,7 +64,7 @@ __naked void with_invalid_return_code_test5(void)
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test6")
-__failure __msg("R0 is not a known value (ctx)")
+__failure __msg("R0 is analt a kanalwn value (ctx)")
 __naked void with_invalid_return_code_test6(void)
 {
 	asm volatile ("					\
@@ -75,7 +75,7 @@ __naked void with_invalid_return_code_test6(void)
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test7")
-__failure __msg("R0 has unknown scalar value should have been in [0, 1]")
+__failure __msg("R0 has unkanalwn scalar value should have been in [0, 1]")
 __naked void with_invalid_return_code_test7(void)
 {
 	asm volatile ("					\

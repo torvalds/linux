@@ -83,7 +83,7 @@ static void btmtk_coredump_hdr(struct hci_dev *hdev, struct sk_buff *skb)
 	skb_put_data(skb, buf, strlen(buf));
 }
 
-static void btmtk_coredump_notify(struct hci_dev *hdev, int state)
+static void btmtk_coredump_analtify(struct hci_dev *hdev, int state)
 {
 	struct btmediatek_data *data = hci_get_priv(hdev);
 
@@ -356,14 +356,14 @@ int btmtk_register_coredump(struct hci_dev *hdev, const char *name,
 	struct btmediatek_data *data = hci_get_priv(hdev);
 
 	if (!IS_ENABLED(CONFIG_DEV_COREDUMP))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	data->cd_info.fw_version = fw_version;
 	data->cd_info.state = HCI_DEVCOREDUMP_IDLE;
 	data->cd_info.driver_name = name;
 
 	return hci_devcd_register(hdev, btmtk_coredump, btmtk_coredump_hdr,
-				  btmtk_coredump_notify);
+				  btmtk_coredump_analtify);
 }
 EXPORT_SYMBOL_GPL(btmtk_register_coredump);
 

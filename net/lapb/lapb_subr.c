@@ -10,7 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -40,7 +40,7 @@ void lapb_clear_queues(struct lapb_cb *lapb)
 
 /*
  * This routine purges the input queue of those frames that have been
- * acknowledged. This replaces the boxes labelled "V(a) <- N(r)" on the
+ * ackanalwledged. This replaces the boxes labelled "V(a) <- N(r)" on the
  * SDL diagram.
  */
 void lapb_frames_acked(struct lapb_cb *lapb, unsigned short nr)

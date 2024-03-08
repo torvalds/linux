@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/soc/samsung/samsung,exynos-sysreg.yaml#
+$id: http://devicetree.org/schemas/soc/samsung/samsung,exyanals-sysreg.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC series System Registers (SYSREG)
+title: Samsung Exyanals SoC series System Registers (SYSREG)
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -17,11 +17,11 @@ properties:
               - google,gs101-apm-sysreg
               - google,gs101-peric0-sysreg
               - google,gs101-peric1-sysreg
-              - samsung,exynos3-sysreg
-              - samsung,exynos4-sysreg
-              - samsung,exynos5-sysreg
-              - samsung,exynosautov920-peric0-sysreg
-              - samsung,exynosautov920-peric1-sysreg
+              - samsung,exyanals3-sysreg
+              - samsung,exyanals4-sysreg
+              - samsung,exyanals5-sysreg
+              - samsung,exyanalsautov920-peric0-sysreg
+              - samsung,exyanalsautov920-peric1-sysreg
               - tesla,fsd-cam-sysreg
               - tesla,fsd-fsys0-sysreg
               - tesla,fsd-fsys1-sysreg
@@ -29,31 +29,31 @@ properties:
           - const: syscon
       - items:
           - enum:
-              - samsung,exynos5433-cam0-sysreg
-              - samsung,exynos5433-cam1-sysreg
-              - samsung,exynos5433-disp-sysreg
-              - samsung,exynos5433-fsys-sysreg
-          - const: samsung,exynos5433-sysreg
+              - samsung,exyanals5433-cam0-sysreg
+              - samsung,exyanals5433-cam1-sysreg
+              - samsung,exyanals5433-disp-sysreg
+              - samsung,exyanals5433-fsys-sysreg
+          - const: samsung,exyanals5433-sysreg
           - const: syscon
       - items:
           - enum:
-              - samsung,exynos5433-sysreg
-              - samsung,exynos850-sysreg
-              - samsung,exynosautov9-sysreg
+              - samsung,exyanals5433-sysreg
+              - samsung,exyanals850-sysreg
+              - samsung,exyanalsautov9-sysreg
           - const: syscon
         deprecated: true
       - items:
           - enum:
-              - samsung,exynos850-cmgp-sysreg
-              - samsung,exynos850-peri-sysreg
-          - const: samsung,exynos850-sysreg
+              - samsung,exyanals850-cmgp-sysreg
+              - samsung,exyanals850-peri-sysreg
+          - const: samsung,exyanals850-sysreg
           - const: syscon
       - items:
           - enum:
-              - samsung,exynosautov9-fsys2-sysreg
-              - samsung,exynosautov9-peric0-sysreg
-              - samsung,exynosautov9-peric1-sysreg
-          - const: samsung,exynosautov9-sysreg
+              - samsung,exyanalsautov9-fsys2-sysreg
+              - samsung,exyanalsautov9-peric0-sysreg
+              - samsung,exyanalsautov9-peric1-sysreg
+          - const: samsung,exyanalsautov9-sysreg
           - const: syscon
 
   reg:
@@ -72,9 +72,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos850-cmgp-sysreg
-              - samsung,exynos850-peri-sysreg
-              - samsung,exynos850-sysreg
+              - samsung,exyanals850-cmgp-sysreg
+              - samsung,exyanals850-peri-sysreg
+              - samsung,exyanals850-sysreg
     then:
       required:
         - clocks
@@ -87,6 +87,6 @@ additionalProperties: false
 examples:
   - |
     system-controller@10010000 {
-        compatible = "samsung,exynos4-sysreg", "syscon";
+        compatible = "samsung,exyanals4-sysreg", "syscon";
         reg = <0x10010000 0x400>;
     };

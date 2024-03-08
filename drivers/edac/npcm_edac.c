@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2022 Nuvoton Technology Corporation
+// Copyright (c) 2022 Nuvoton Techanallogy Corporation
 
 #include <linux/debugfs.h>
 #include <linux/iopoll.h>
@@ -69,9 +69,9 @@ struct npcm_platform_data {
 	u32 int_status_ue_mask;
 	u32 int_ack_ce_mask;
 	u32 int_ack_ue_mask;
-	u32 int_mask_master_non_ecc_mask;
+	u32 int_mask_master_analn_ecc_mask;
 	u32 int_mask_master_global_mask;
-	u32 int_mask_ecc_non_event_mask;
+	u32 int_mask_ecc_analn_event_mask;
 	u32 ce_addr_h_mask;
 	u32 ce_synd_mask;
 	u32 ce_synd_shift;
@@ -178,21 +178,21 @@ static irqreturn_t edac_ecc_isr(int irq, void *dev_id)
 	if (status & pdata->int_status_ce_mask) {
 		handle_ce(mci);
 
-		/* acknowledge the CE interrupt */
+		/* ackanalwledge the CE interrupt */
 		regmap_write(npcm_regmap, pdata->ctl_int_ack,
 			     pdata->int_ack_ce_mask);
 		return IRQ_HANDLED;
 	} else if (status & pdata->int_status_ue_mask) {
 		handle_ue(mci);
 
-		/* acknowledge the UE interrupt */
+		/* ackanalwledge the UE interrupt */
 		regmap_write(npcm_regmap, pdata->ctl_int_ack,
 			     pdata->int_ack_ue_mask);
 		return IRQ_HANDLED;
 	}
 
 	WARN_ON_ONCE(1);
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static ssize_t force_ecc_error(struct file *file, const char __user *data,
@@ -210,7 +210,7 @@ static ssize_t force_ecc_error(struct file *file, const char __user *data,
 		    "force an ECC error, type = %d, location = %d, bit = %d\n",
 		    priv->error_type, priv->location, priv->bit);
 
-	/* ensure no pending writes */
+	/* ensure anal pending writes */
 	ret = regmap_read_poll_timeout(npcm_regmap, pdata->ctl_controller_busy,
 				       val, !(val & pdata->controller_busy_mask),
 				       1000, 10000);
@@ -228,7 +228,7 @@ static ssize_t force_ecc_error(struct file *file, const char __user *data,
 		if (priv->location == ERROR_LOCATION_DATA &&
 		    priv->bit > ERROR_BIT_DATA_MAX) {
 			edac_printk(KERN_INFO, EDAC_MOD_NAME,
-				    "data bit should not exceed %d (%d)\n",
+				    "data bit should analt exceed %d (%d)\n",
 				    ERROR_BIT_DATA_MAX, priv->bit);
 			return count;
 		}
@@ -236,7 +236,7 @@ static ssize_t force_ecc_error(struct file *file, const char __user *data,
 		if (priv->location == ERROR_LOCATION_CHECKCODE &&
 		    priv->bit > ERROR_BIT_CHECKCODE_MAX) {
 			edac_printk(KERN_INFO, EDAC_MOD_NAME,
-				    "checkcode bit should not exceed %d (%d)\n",
+				    "checkcode bit should analt exceed %d (%d)\n",
 				    ERROR_BIT_CHECKCODE_MAX, priv->bit);
 			return count;
 		}
@@ -268,7 +268,7 @@ static const struct file_operations force_ecc_error_fops = {
 /*
  * Setup debugfs for error injection.
  *
- * Nodes:
+ * Analdes:
  *   error_type		- 0: CE, 1: UE
  *   location		- 0: data, 1: checkcode
  *   bit		- 0 ~ 63 for data and 0 ~ 7 for checkcode
@@ -308,7 +308,7 @@ static int setup_irq(struct mem_ctl_info *mci, struct platform_device *pdev)
 	pdata = ((struct priv_data *)mci->pvt_info)->pdata;
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		edac_printk(KERN_ERR, EDAC_MOD_NAME, "IRQ not defined in DTS\n");
+		edac_printk(KERN_ERR, EDAC_MOD_NAME, "IRQ analt defined in DTS\n");
 		return irq;
 	}
 
@@ -321,11 +321,11 @@ static int setup_irq(struct mem_ctl_info *mci, struct platform_device *pdev)
 
 	/* enable the functional group of ECC and mask the others */
 	regmap_write(npcm_regmap, pdata->ctl_int_mask_master,
-		     pdata->int_mask_master_non_ecc_mask);
+		     pdata->int_mask_master_analn_ecc_mask);
 
 	if (pdata->chip == NPCM8XX_CHIP)
 		regmap_write(npcm_regmap, pdata->ctl_int_mask_ecc,
-			     pdata->int_mask_ecc_non_event_mask);
+			     pdata->int_mask_ecc_analn_event_mask);
 
 	return 0;
 }
@@ -359,10 +359,10 @@ static int edac_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	/* bail out if ECC is not enabled */
+	/* bail out if ECC is analt enabled */
 	regmap_read(npcm_regmap, pdata->ctl_ecc_en, &val);
 	if (!(val & pdata->ecc_en_mask)) {
-		edac_printk(KERN_ERR, EDAC_MOD_NAME, "ECC is not enabled\n");
+		edac_printk(KERN_ERR, EDAC_MOD_NAME, "ECC is analt enabled\n");
 		return -EPERM;
 	}
 
@@ -374,7 +374,7 @@ static int edac_probe(struct platform_device *pdev)
 	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(struct priv_data));
 	if (!mci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mci->pdev = &pdev->dev;
 	priv = mci->pvt_info;
@@ -450,7 +450,7 @@ static const struct npcm_platform_data npcm750_edac = {
 	.int_status_ue_mask		= GENMASK(6, 5),
 	.int_ack_ce_mask		= GENMASK(4, 3),
 	.int_ack_ue_mask		= GENMASK(6, 5),
-	.int_mask_master_non_ecc_mask	= GENMASK(30, 7) | GENMASK(2, 0),
+	.int_mask_master_analn_ecc_mask	= GENMASK(30, 7) | GENMASK(2, 0),
 	.int_mask_master_global_mask	= BIT(31),
 	.ce_synd_mask			= GENMASK(6, 0),
 	.ce_synd_shift			= 0,
@@ -491,9 +491,9 @@ static const struct npcm_platform_data npcm845_edac = {
 	.int_status_ue_mask		= GENMASK(3, 2),
 	.int_ack_ce_mask		= GENMASK(1, 0),
 	.int_ack_ue_mask		= GENMASK(3, 2),
-	.int_mask_master_non_ecc_mask	= GENMASK(30, 3) | GENMASK(1, 0),
+	.int_mask_master_analn_ecc_mask	= GENMASK(30, 3) | GENMASK(1, 0),
 	.int_mask_master_global_mask	= BIT(31),
-	.int_mask_ecc_non_event_mask	= GENMASK(8, 4),
+	.int_mask_ecc_analn_event_mask	= GENMASK(8, 4),
 	.ce_addr_h_mask			= GENMASK(1, 0),
 	.ce_synd_mask			= GENMASK(15, 8),
 	.ce_synd_shift			= 8,

@@ -25,19 +25,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could analt run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add ${nsrouter}
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace"
+	echo "SKIP: Could analt create net namespace"
 	exit $ksft_skip
 fi
 
@@ -132,7 +132,7 @@ load_ruleset ${ns2}
 
 ip link add veth0 netns ${nsrouter} type veth peer name eth0 netns ${ns1} > /dev/null 2>&1
 if [ $? -ne 0 ];then
-    echo "SKIP: No virtual ethernet pair device support in kernel"
+    echo "SKIP: Anal virtual ethernet pair device support in kernel"
     exit $ksft_skip
 fi
 ip link add veth1 netns ${nsrouter} type veth peer name eth0 netns ${ns2}
@@ -170,7 +170,7 @@ test_ping() {
   ret=$?
   if [ $ret -ne 0 ];then
 	check_drops
-	echo "FAIL: ${ns1} cannot reach $daddr4, ret $ret" 1>&2
+	echo "FAIL: ${ns1} cananalt reach $daddr4, ret $ret" 1>&2
 	return 1
   fi
 
@@ -178,7 +178,7 @@ test_ping() {
   ret=$?
   if [ $ret -ne 0 ];then
 	check_drops
-	echo "FAIL: ${ns1} cannot reach $daddr6, ret $ret" 1>&2
+	echo "FAIL: ${ns1} cananalt reach $daddr6, ret $ret" 1>&2
 	return 1
   fi
 
@@ -199,7 +199,7 @@ check_drops || exit 1
 test_ping 10.0.2.99 dead:2::99 || exit 1
 check_drops || exit 1
 
-echo "PASS: fib expression did not cause unwanted packet drops"
+echo "PASS: fib expression did analt cause unwanted packet drops"
 
 ip netns exec ${nsrouter} nft flush table inet filter
 
@@ -221,8 +221,8 @@ ip -net ${nsrouter} addr add dead:2::1/64 dev veth0
 # its expected that this does drop the packets.
 load_ruleset_count ${nsrouter}
 
-# ns1 has a default route, but nsrouter does not.
-# must not check return value, ping to 1.1.1.1 will
+# ns1 has a default route, but nsrouter does analt.
+# must analt check return value, ping to 1.1.1.1 will
 # fail.
 check_fib_counter 0 ${nsrouter} 1.1.1.1 || exit 1
 check_fib_counter 0 ${nsrouter} 1c3::c01d || exit 1
@@ -250,7 +250,7 @@ ip -net ${nsrouter} addr del dead:2::1/64 dev veth0
 # ... pbr ruleset for the router, check iif+oif.
 load_pbr_ruleset ${nsrouter}
 if [ $? -ne 0 ] ; then
-	echo "SKIP: Could not load fib forward ruleset"
+	echo "SKIP: Could analt load fib forward ruleset"
 	exit $ksft_skip
 fi
 

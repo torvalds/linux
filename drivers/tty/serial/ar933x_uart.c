@@ -305,17 +305,17 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 		else
 			cs |= AR933X_UART_CS_PARITY_ODD;
 	} else {
-		cs |= AR933X_UART_CS_PARITY_NONE;
+		cs |= AR933X_UART_CS_PARITY_ANALNE;
 	}
 
-	/* Mark/space parity is not supported */
+	/* Mark/space parity is analt supported */
 	new->c_cflag &= ~CMSPAR;
 
 	baud = uart_get_baud_rate(port, new, old, up->min_baud, up->max_baud);
 	ar933x_uart_get_scale_step(port->uartclk, baud, &scale, &step);
 
 	/*
-	 * Ok, we're now changing the port state. Do it with
+	 * Ok, we're analw changing the port state. Do it with
 	 * interrupts disabled.
 	 */
 	uart_port_lock_irqsave(&up->port, &flags);
@@ -327,11 +327,11 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	/* Update the per-port timeout. */
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	up->port.ignore_status_mask = 0;
+	up->port.iganalre_status_mask = 0;
 
-	/* ignore all characters if CREAD is not set */
+	/* iganalre all characters if CREAD is analt set */
 	if ((new->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= AR933X_DUMMY_STATUS_RD;
+		up->port.iganalre_status_mask |= AR933X_DUMMY_STATUS_RD;
 
 	ar933x_uart_write(up, AR933X_UART_CLOCK_REG,
 			  scale << AR933X_UART_CLOCK_SCALE_S | step);
@@ -381,8 +381,8 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 		if (uart_handle_sysrq_char(&up->port, ch))
 			continue;
 
-		if ((up->port.ignore_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
-			tty_insert_flip_char(port, ch, TTY_NORMAL);
+		if ((up->port.iganalre_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
+			tty_insert_flip_char(port, ch, TTY_ANALRMAL);
 	} while (max_count-- > 0);
 
 	tty_flip_buffer_push(port);
@@ -448,7 +448,7 @@ static irqreturn_t ar933x_uart_interrupt(int irq, void *dev_id)
 
 	status = ar933x_uart_read(up, AR933X_UART_CS_REG);
 	if ((status & AR933X_UART_CS_HOST_INT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	uart_port_lock(&up->port);
 
@@ -526,7 +526,7 @@ static const char *ar933x_uart_type(struct uart_port *port)
 
 static void ar933x_uart_release_port(struct uart_port *port)
 {
-	/* Nothing to release ... */
+	/* Analthing to release ... */
 }
 
 static int ar933x_uart_request_port(struct uart_port *port)
@@ -547,7 +547,7 @@ static int ar933x_uart_verify_port(struct uart_port *port,
 	struct ar933x_uart_port *up =
 		container_of(port, struct ar933x_uart_port, port);
 
-	if (ser->type != PORT_UNKNOWN &&
+	if (ser->type != PORT_UNKANALWN &&
 	    ser->type != PORT_AR933X)
 		return -EINVAL;
 
@@ -672,7 +672,7 @@ static int ar933x_uart_console_setup(struct console *co, char *options)
 
 	up = ar933x_console_ports[co->index];
 	if (!up)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -699,7 +699,7 @@ static struct uart_driver ar933x_uart_driver = {
 	.cons		= NULL, /* filled in runtime */
 };
 
-static const struct serial_rs485 ar933x_no_rs485 = {};
+static const struct serial_rs485 ar933x_anal_rs485 = {};
 static const struct serial_rs485 ar933x_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
 };
@@ -709,13 +709,13 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	struct ar933x_uart_port *up;
 	struct uart_port *port;
 	struct resource *mem_res;
-	struct device_node *np;
+	struct device_analde *np;
 	unsigned int baud;
 	int id;
 	int ret;
 	int irq;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_analde;
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		id = of_alias_get_id(np, "serial");
 		if (id < 0) {
@@ -739,7 +739,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	up = devm_kzalloc(&pdev->dev, sizeof(struct ar933x_uart_port),
 			  GFP_KERNEL);
 	if (!up)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	up->clk = devm_clk_get(&pdev->dev, "uart");
 	if (IS_ERR(up->clk)) {
@@ -787,7 +787,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 
 	up->gpios = mctrl_gpio_init(port, 0);
-	if (IS_ERR(up->gpios) && PTR_ERR(up->gpios) != -ENOSYS) {
+	if (IS_ERR(up->gpios) && PTR_ERR(up->gpios) != -EANALSYS) {
 		ret = PTR_ERR(up->gpios);
 		goto err_disable_clk;
 	}
@@ -795,7 +795,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	up->rts_gpiod = mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS);
 
 	if (!up->rts_gpiod) {
-		port->rs485_supported = ar933x_no_rs485;
+		port->rs485_supported = ar933x_anal_rs485;
 		if (port->rs485.flags & SER_RS485_ENABLED) {
 			dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
 			port->rs485.flags &= ~SER_RS485_ENABLED;

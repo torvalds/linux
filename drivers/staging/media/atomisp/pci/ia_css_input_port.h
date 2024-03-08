@@ -34,7 +34,7 @@
  *  be run without compression.
  */
 enum ia_css_csi2_compression_type {
-	IA_CSS_CSI2_COMPRESSION_TYPE_NONE, /** No compression */
+	IA_CSS_CSI2_COMPRESSION_TYPE_ANALNE, /** Anal compression */
 	IA_CSS_CSI2_COMPRESSION_TYPE_1,    /** Compression scheme 1 */
 	IA_CSS_CSI2_COMPRESSION_TYPE_2     /** Compression scheme 2 */
 };

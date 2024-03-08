@@ -48,7 +48,7 @@ bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 	}
 
 	/*
-	 * Note that the head pointer might be writable by
+	 * Analte that the head pointer might be writable by
 	 * user processes.Take care to verify it is a sane value.
 	 */
 	if (head >= (unsigned)cq->ibcq.cqe) {
@@ -98,14 +98,14 @@ bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		k_wc->head = next;
 	}
 
-	if (cq->notify == IB_CQ_NEXT_COMP ||
-	    (cq->notify == IB_CQ_SOLICITED &&
+	if (cq->analtify == IB_CQ_NEXT_COMP ||
+	    (cq->analtify == IB_CQ_SOLICITED &&
 	     (solicited || entry->status != IB_WC_SUCCESS))) {
 		/*
 		 * This will cause send_complete() to be called in
-		 * another thread.
+		 * aanalther thread.
 		 */
-		cq->notify = RVT_CQ_NONE;
+		cq->analtify = RVT_CQ_ANALNE;
 		cq->triggered++;
 		queue_work_on(cq->comp_vector_cpu, comp_vector_wq,
 			      &cq->comptask);
@@ -121,7 +121,7 @@ static void send_complete(struct work_struct *work)
 	struct rvt_cq *cq = container_of(work, struct rvt_cq, comptask);
 
 	/*
-	 * The completion handler will most likely rearm the notification
+	 * The completion handler will most likely rearm the analtification
 	 * and poll for all pending entries.  If a new completion entry
 	 * is added while we are in this routine, queue_work()
 	 * won't call us again until we return so we check triggered to
@@ -169,7 +169,7 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	int err;
 
 	if (attr->flags)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
 		return -EINVAL;
@@ -191,13 +191,13 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		sz += sizeof(*u_wc);
 		u_wc = vmalloc_user(sz);
 		if (!u_wc)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		sz = sizeof(struct ib_wc) * (entries + 1);
 		sz += sizeof(*k_wc);
-		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		k_wc = vzalloc_analde(sz, rdi->dparms.analde);
 		if (!k_wc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	/*
@@ -220,7 +220,7 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	spin_lock_irq(&rdi->n_cqs_lock);
 	if (rdi->n_cqs_allocated == rdi->dparms.props.max_cq) {
 		spin_unlock_irq(&rdi->n_cqs_lock);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto bail_ip;
 	}
 
@@ -244,10 +244,10 @@ int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			rdi->driver_f.comp_vect_cpu_lookup(rdi, comp_vector);
 	else
 		cq->comp_vector_cpu =
-			cpumask_first(cpumask_of_node(rdi->dparms.node));
+			cpumask_first(cpumask_of_analde(rdi->dparms.analde));
 
 	cq->ibcq.cqe = entries;
-	cq->notify = RVT_CQ_NONE;
+	cq->analtify = RVT_CQ_ANALNE;
 	spin_lock_init(&cq->lock);
 	INIT_WORK(&cq->comptask, send_complete);
 	if (u_wc)
@@ -290,16 +290,16 @@ int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 }
 
 /**
- * rvt_req_notify_cq - change the notification type for a completion queue
+ * rvt_req_analtify_cq - change the analtification type for a completion queue
  * @ibcq: the completion queue
- * @notify_flags: the type of notification to request
+ * @analtify_flags: the type of analtification to request
  *
  * This may be called from interrupt context.  Also called by
- * ib_req_notify_cq() in the generic verbs code.
+ * ib_req_analtify_cq() in the generic verbs code.
  *
  * Return: 0 for success.
  */
-int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
+int rvt_req_analtify_cq(struct ib_cq *ibcq, enum ib_cq_analtify_flags analtify_flags)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	unsigned long flags;
@@ -310,10 +310,10 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 	 * Don't change IB_CQ_NEXT_COMP to IB_CQ_SOLICITED but allow
 	 * any other transitions (see C11-31 and C11-32 in ch. 11.4.2.2).
 	 */
-	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = notify_flags & IB_CQ_SOLICITED_MASK;
+	if (cq->analtify != IB_CQ_NEXT_COMP)
+		cq->analtify = analtify_flags & IB_CQ_SOLICITED_MASK;
 
-	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+	if (analtify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
 		if (cq->queue) {
 			if (RDMA_READ_UAPI_ATOMIC(cq->queue->head) !=
 				RDMA_READ_UAPI_ATOMIC(cq->queue->tail))
@@ -358,13 +358,13 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		sz += sizeof(*u_wc);
 		u_wc = vmalloc_user(sz);
 		if (!u_wc)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		sz = sizeof(struct ib_wc) * (cqe + 1);
 		sz += sizeof(*k_wc);
-		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		k_wc = vzalloc_analde(sz, rdi->dparms.analde);
 		if (!k_wc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 	/* Check that we can write the offset to mmap. */
 	if (udata && udata->outlen >= sizeof(__u64)) {
@@ -519,7 +519,7 @@ int rvt_driver_cq_init(void)
 	comp_vector_wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_CPU_INTENSIVE,
 					 0, "rdmavt_cq");
 	if (!comp_vector_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

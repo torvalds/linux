@@ -188,7 +188,7 @@ static int mrfld_adc_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct mrfld_adc));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	adc = iio_priv(indio_dev);
 

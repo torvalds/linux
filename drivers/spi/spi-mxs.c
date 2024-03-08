@@ -69,7 +69,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 	const unsigned int hz = min(dev->max_speed_hz, t->speed_hz);
 
 	if (hz == 0) {
-		dev_err(&dev->dev, "SPI clock rate of zero not allowed\n");
+		dev_err(&dev->dev, "SPI clock rate of zero analt allowed\n");
 		return -EINVAL;
 	}
 
@@ -78,12 +78,12 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 		/*
 		 * Save requested rate, hz, rather than the actual rate,
 		 * ssp->clk_rate.  Otherwise we would set the rate every transfer
-		 * when the actual rate is not quite the same as requested rate.
+		 * when the actual rate is analt quite the same as requested rate.
 		 */
 		spi->sck = hz;
 		/*
 		 * Perhaps we should return an error if the actual clock is
-		 * nowhere close to what was requested?
+		 * analwhere close to what was requested?
 		 */
 	}
 
@@ -184,13 +184,13 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 
 	dma_xfer = kcalloc(sgs, sizeof(*dma_xfer), GFP_KERNEL);
 	if (!dma_xfer)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	reinit_completion(&spi->c);
 
 	/* Chip select was already programmed into CTRL0 */
 	ctrl0 = readl(ssp->base + HW_SSP_CTRL0);
-	ctrl0 &= ~(BM_SSP_CTRL0_XFER_COUNT | BM_SSP_CTRL0_IGNORE_CRC |
+	ctrl0 &= ~(BM_SSP_CTRL0_XFER_COUNT | BM_SSP_CTRL0_IGANALRE_CRC |
 		 BM_SSP_CTRL0_READ);
 	ctrl0 |= BM_SSP_CTRL0_DATA_XFER;
 
@@ -203,11 +203,11 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 		min = min(len, desc_len);
 
 		/*
-		 * De-assert CS on last segment if flag is set (i.e., no more
+		 * De-assert CS on last segment if flag is set (i.e., anal more
 		 * transfers will follow)
 		 */
 		if ((sg_count + 1 == sgs) && (flags & TXRX_DEASSERT_CS))
-			ctrl0 |= BM_SSP_CTRL0_IGNORE_CRC;
+			ctrl0 |= BM_SSP_CTRL0_IGANALRE_CRC;
 
 		if (ssp->devid == IMX23_SSP) {
 			ctrl0 &= ~BM_SSP_CTRL0_XFER_COUNT;
@@ -220,7 +220,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 		if (vmalloced_buf) {
 			vm_page = vmalloc_to_page(buf);
 			if (!vm_page) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err_vmalloc;
 			}
 
@@ -241,7 +241,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 		desc = dmaengine_prep_slave_sg(ssp->dmach,
 				(struct scatterlist *)dma_xfer[sg_count].pio,
 				(ssp->devid == IMX23_SSP) ? 1 : 4,
-				DMA_TRANS_NONE,
+				DMA_TRANS_ANALNE,
 				sg_count ? DMA_PREP_INTERRUPT : 0);
 		if (!desc) {
 			dev_err(ssp->dev,
@@ -302,12 +302,12 @@ static int mxs_spi_txrx_pio(struct mxs_spi *spi,
 {
 	struct mxs_ssp *ssp = &spi->ssp;
 
-	writel(BM_SSP_CTRL0_IGNORE_CRC,
+	writel(BM_SSP_CTRL0_IGANALRE_CRC,
 	       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_CLR);
 
 	while (len--) {
 		if (len == 0 && (flags & TXRX_DEASSERT_CS))
-			writel(BM_SSP_CTRL0_IGNORE_CRC,
+			writel(BM_SSP_CTRL0_IGANALRE_CRC,
 			       ssp->base + HW_SSP_CTRL0 + STMP_OFFSET_REG_SET);
 
 		if (ssp->devid == IMX23_SSP) {
@@ -528,7 +528,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_spi_dt_ids, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_controller *host;
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
@@ -564,7 +564,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*spi));
 	if (!host)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, host);
 
@@ -572,7 +572,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->mode_bits = SPI_CPOL | SPI_CPHA;
 	host->num_chipselect = 3;
-	host->dev.of_node = np;
+	host->dev.of_analde = np;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->auto_runtime_pm = true;
 
@@ -620,7 +620,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot register SPI host, %d\n", ret);
+		dev_err(&pdev->dev, "Cananalt register SPI host, %d\n", ret);
 		goto out_pm_runtime_put;
 	}
 

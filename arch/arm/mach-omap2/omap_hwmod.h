@@ -2,11 +2,11 @@
 /*
  * omap_hwmod macros, structures
  *
- * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2009-2011 Analkia Corporation
  * Copyright (C) 2011-2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
- * Created in collaboration with (alphabetical order): Benoît Cousson,
+ * Created in collaboration with (alphabetical order): Beanalît Cousson,
  * Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari
  * Poussa, Anand Sawant, Santosh Shilimkar, Richard Woodruff
  *
@@ -20,7 +20,7 @@
  * - add interconnect error log structures
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
- * - move Linux-specific data ("non-ROM data") out
+ * - move Linux-specific data ("analn-ROM data") out
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
 #define __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
@@ -88,7 +88,7 @@ extern struct sysc_regbits omap_hwmod_sysc_type_usb_host_fs;
 
 /* Master standby/slave idle mode flags */
 #define HWMOD_IDLEMODE_FORCE		(1 << 0)
-#define HWMOD_IDLEMODE_NO		(1 << 1)
+#define HWMOD_IDLEMODE_ANAL		(1 << 1)
 #define HWMOD_IDLEMODE_SMART		(1 << 2)
 #define HWMOD_IDLEMODE_SMART_WKUP	(1 << 3)
 
@@ -108,10 +108,10 @@ extern struct sysc_regbits omap_hwmod_sysc_type_usb_host_fs;
 #define DEBUG_TI81XXUART3_FLAGS	0
 #define DEBUG_AM33XXUART1_FLAGS	0
 
-#define DEBUG_OMAPUART_FLAGS	(HWMOD_INIT_NO_IDLE | HWMOD_INIT_NO_RESET)
+#define DEBUG_OMAPUART_FLAGS	(HWMOD_INIT_ANAL_IDLE | HWMOD_INIT_ANAL_RESET)
 
 #ifdef CONFIG_OMAP_GPMC_DEBUG
-#define DEBUG_OMAP_GPMC_HWMOD_FLAGS	HWMOD_INIT_NO_RESET
+#define DEBUG_OMAP_GPMC_HWMOD_FLAGS	HWMOD_INIT_ANAL_RESET
 #else
 #define DEBUG_OMAP_GPMC_HWMOD_FLAGS	0
 #endif
@@ -172,7 +172,7 @@ struct omap_hwmod_rst_info {
  * @clk: opt clock: OMAP clock name
  * @_clk: pointer to the struct clk (filled in at runtime)
  *
- * The module's interface clock and main functional clock should not
+ * The module's interface clock and main functional clock should analt
  * be added as optional clocks.
  */
 struct omap_hwmod_opt_clk {
@@ -234,7 +234,7 @@ struct omap_hwmod_omap2_firewall {
  * It may also be useful to add a tag_cnt field for OCP2.x devices.
  *
  * Parameter names beginning with an underscore are managed internally by
- * the omap_hwmod code and should not be set during initialization.
+ * the omap_hwmod code and should analt be set during initialization.
  */
 struct omap_hwmod_ocp_if {
 	struct omap_hwmod		*master;
@@ -242,7 +242,7 @@ struct omap_hwmod_ocp_if {
 	struct omap_hwmod_addr_space	*addr;
 	const char			*clk;
 	struct clk			*_clk;
-	struct list_head		node;
+	struct list_head		analde;
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
 	}				fw;
@@ -259,11 +259,11 @@ struct omap_hwmod_ocp_if {
 #define MASTER_STANDBY_SHIFT	4
 #define SLAVE_IDLE_SHIFT	0
 #define SIDLE_FORCE		(HWMOD_IDLEMODE_FORCE << SLAVE_IDLE_SHIFT)
-#define SIDLE_NO		(HWMOD_IDLEMODE_NO << SLAVE_IDLE_SHIFT)
+#define SIDLE_ANAL		(HWMOD_IDLEMODE_ANAL << SLAVE_IDLE_SHIFT)
 #define SIDLE_SMART		(HWMOD_IDLEMODE_SMART << SLAVE_IDLE_SHIFT)
 #define SIDLE_SMART_WKUP	(HWMOD_IDLEMODE_SMART_WKUP << SLAVE_IDLE_SHIFT)
 #define MSTANDBY_FORCE		(HWMOD_IDLEMODE_FORCE << MASTER_STANDBY_SHIFT)
-#define MSTANDBY_NO		(HWMOD_IDLEMODE_NO << MASTER_STANDBY_SHIFT)
+#define MSTANDBY_ANAL		(HWMOD_IDLEMODE_ANAL << MASTER_STANDBY_SHIFT)
 #define MSTANDBY_SMART		(HWMOD_IDLEMODE_SMART << MASTER_STANDBY_SHIFT)
 #define MSTANDBY_SMART_WKUP	(HWMOD_IDLEMODE_SMART_WKUP << MASTER_STANDBY_SHIFT)
 
@@ -276,7 +276,7 @@ struct omap_hwmod_ocp_if {
 #define SYSC_HAS_SIDLEMODE	(1 << 5)
 #define SYSC_HAS_MIDLEMODE	(1 << 6)
 #define SYSS_HAS_RESET_STATUS	(1 << 7)
-#define SYSC_NO_CACHE		(1 << 8)  /* XXX SW flag, belongs elsewhere */
+#define SYSC_ANAL_CACHE		(1 << 8)  /* XXX SW flag, belongs elsewhere */
 #define SYSC_HAS_RESET_STATUS	(1 << 9)
 #define SYSC_HAS_DMADISABLE	(1 << 10)
 
@@ -284,7 +284,7 @@ struct omap_hwmod_ocp_if {
 #define CLOCKACT_TEST_BOTH	0x0
 #define CLOCKACT_TEST_MAIN	0x1
 #define CLOCKACT_TEST_ICLK	0x2
-#define CLOCKACT_TEST_NONE	0x3
+#define CLOCKACT_TEST_ANALNE	0x3
 
 /**
  * struct omap_hwmod_class_sysconfig - hwmod class OCP_SYS* data
@@ -299,7 +299,7 @@ struct omap_hwmod_ocp_if {
  * @clockact describes to the module which clocks are likely to be
  * disabled when the PRCM issues its idle request to the module.  Some
  * modules have separate clockdomains for the interface clock and main
- * functional clock, and can check whether they should acknowledge the
+ * functional clock, and can check whether they should ackanalwledge the
  * idle request based on the internal module functionality that has
  * been associated with the clocks marked in @clockact.  This field is
  * only used if HWMOD_SET_DEFAULT_CLOCKACT is set (see below)
@@ -329,7 +329,7 @@ struct omap_hwmod_class_sysconfig {
  * @idlest_idle_bit: register bit shift for CM_IDLEST slave idle bit
  *
  * @prcm_reg_id and @module_bit are specific to the AUTOIDLE, WKST,
- * WKEN, GRPSEL registers.  In an ideal world, no extra information
+ * WKEN, GRPSEL registers.  In an ideal world, anal extra information
  * would be needed for IDLEST information, but alas, there are some
  * exceptions, so @idlest_reg_id, @idlest_idle_bit, @idlest_stdby_bit
  * are needed for the IDLEST registers (c.f. 2430 I2CHS, 3430 USBHOST)
@@ -343,16 +343,16 @@ struct omap_hwmod_omap2_prcm {
 /*
  * Possible values for struct omap_hwmod_omap4_prcm.flags
  *
- * HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
+ * HWMOD_OMAP4_ANAL_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
  *     module-level context loss register associated with them; this
  *     flag bit should be set in those cases
  * HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET: Some IP blocks have a valid CLKCTRL
  *	offset of zero; this flag bit should be set in those cases to
- *	distinguish from hwmods that have no clkctrl offset.
+ *	distinguish from hwmods that have anal clkctrl offset.
  * HWMOD_OMAP4_CLKFWK_CLKCTR_CLOCK: Module clockctrl clock is managed
- *	by the common clock framework and not hwmod.
+ *	by the common clock framework and analt hwmod.
  */
-#define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
+#define HWMOD_OMAP4_ANAL_CONTEXT_LOSS_BIT		(1 << 0)
 #define HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET		(1 << 1)
 #define HWMOD_OMAP4_CLKFWK_CLKCTR_CLOCK		(1 << 2)
 
@@ -368,7 +368,7 @@ struct omap_hwmod_omap2_prcm {
  * @modulemode: allowable modulemodes
  * @context_lost_counter: Count of module level context lost
  *
- * If @lostcontext_mask is not defined, context loss check code uses
+ * If @lostcontext_mask is analt defined, context loss check code uses
  * whole register without masking. @lostcontext_mask should only be
  * defined in cases where @context_offs register is shared by two or
  * more hwmods.
@@ -393,17 +393,17 @@ struct omap_hwmod_omap4_prcm {
  *     of idle, rather than relying on module smart-idle
  * HWMOD_SWSUP_MSTANDBY: omap_hwmod code should manually bring module in and
  *     out of standby, rather than relying on module smart-standby
- * HWMOD_INIT_NO_RESET: don't reset this module at boot - important for
+ * HWMOD_INIT_ANAL_RESET: don't reset this module at boot - important for
  *     SDRAM controller, etc. XXX probably belongs outside the main hwmod file
- *     XXX Should be HWMOD_SETUP_NO_RESET
- * HWMOD_INIT_NO_IDLE: don't idle this module at boot - important for SDRAM
+ *     XXX Should be HWMOD_SETUP_ANAL_RESET
+ * HWMOD_INIT_ANAL_IDLE: don't idle this module at boot - important for SDRAM
  *     controller, etc. XXX probably belongs outside the main hwmod file
- *     XXX Should be HWMOD_SETUP_NO_IDLE
- * HWMOD_NO_OCP_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
+ *     XXX Should be HWMOD_SETUP_ANAL_IDLE
+ * HWMOD_ANAL_OCP_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
- * HWMOD_NO_IDLEST: this module does not have idle status - this is the case
+ * HWMOD_ANAL_IDLEST: this module does analt have idle status - this is the case
  *     only for few initiator modules on OMAP2 & 3.
  * HWMOD_CONTROL_OPT_CLKS_IN_RESET: Enable all optional clocks during reset.
  *     This is needed for devices like DSS that require optional clocks enabled
@@ -411,7 +411,7 @@ struct omap_hwmod_omap4_prcm {
  *     again after the reset.
  * HWMOD_16BIT_REG: Module has 16bit registers
  * HWMOD_EXT_OPT_MAIN_CLK: The only main functional clock source for
- *     this IP block comes from an off-chip source and is not always
+ *     this IP block comes from an off-chip source and is analt always
  *     enabled.  This prevents the hwmod code from being able to
  *     enable and reset the IP block early.  XXX Eventually it should
  *     be possible to query the clock framework for this information.
@@ -419,36 +419,36 @@ struct omap_hwmod_omap4_prcm {
  *     correctly if the MPU is allowed to go idle while the
  *     peripherals are active.  This is apparently true for the I2C on
  *     OMAP2420, and also the EMAC on AM3517/3505.  It's unlikely that
- *     this is really true -- we're probably not configuring something
+ *     this is really true -- we're probably analt configuring something
  *     correctly, or this is being abused to deal with some PM latency
  *     issues -- but we're currently suffering from a shortage of
  *     folks who are able to track these issues down properly.
  * HWMOD_FORCE_MSTANDBY: Always keep MIDLEMODE bits cleared so that device
  *     is kept in force-standby mode. Failing to do so causes PM problems
- *     with musb on OMAP3630 at least. Note that musb has a dedicated register
+ *     with musb on OMAP3630 at least. Analte that musb has a dedicated register
  *     to control MSTANDBY signal when MIDLEMODE is set to force-standby.
  * HWMOD_SWSUP_SIDLE_ACT: omap_hwmod code should manually bring the module
  *     out of idle, but rely on smart-idle to the put it back in idle,
- *     so the wakeups are still functional (Only known case for now is UART)
+ *     so the wakeups are still functional (Only kanalwn case for analw is UART)
  * HWMOD_RECONFIG_IO_CHAIN: omap_hwmod code needs to reconfigure wake-up 
  *     events by calling _reconfigure_io_chain() when a device is enabled
  *     or idled.
  * HWMOD_OPT_CLKS_NEEDED: The optional clocks are needed for the module to
  *     operate and they need to be handled at the same time as the main_clk.
- * HWMOD_NO_IDLE: Do not idle the hwmod at all. Useful to handle certain
- *     IPs like CPSW on DRA7, where clocks to this module cannot be disabled.
- * HWMOD_CLKDM_NOAUTO: Allows the hwmod's clockdomain to be prevented from
+ * HWMOD_ANAL_IDLE: Do analt idle the hwmod at all. Useful to handle certain
+ *     IPs like CPSW on DRA7, where clocks to this module cananalt be disabled.
+ * HWMOD_CLKDM_ANALAUTO: Allows the hwmod's clockdomain to be prevented from
  *     entering HW_AUTO while hwmod is active. This is needed to workaround
  *     some modules which don't function correctly with HW_AUTO. For example,
  *     DCAN on DRA7x SoC needs this to workaround errata i893.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
-#define HWMOD_INIT_NO_RESET			(1 << 2)
-#define HWMOD_INIT_NO_IDLE			(1 << 3)
-#define HWMOD_NO_OCP_AUTOIDLE			(1 << 4)
+#define HWMOD_INIT_ANAL_RESET			(1 << 2)
+#define HWMOD_INIT_ANAL_IDLE			(1 << 3)
+#define HWMOD_ANAL_OCP_AUTOIDLE			(1 << 4)
 #define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 5)
-#define HWMOD_NO_IDLEST				(1 << 6)
+#define HWMOD_ANAL_IDLEST				(1 << 6)
 #define HWMOD_CONTROL_OPT_CLKS_IN_RESET		(1 << 7)
 #define HWMOD_16BIT_REG				(1 << 8)
 #define HWMOD_EXT_OPT_MAIN_CLK			(1 << 9)
@@ -457,19 +457,19 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_SWSUP_SIDLE_ACT			(1 << 12)
 #define HWMOD_RECONFIG_IO_CHAIN			(1 << 13)
 #define HWMOD_OPT_CLKS_NEEDED			(1 << 14)
-#define HWMOD_NO_IDLE				(1 << 15)
-#define HWMOD_CLKDM_NOAUTO			(1 << 16)
+#define HWMOD_ANAL_IDLE				(1 << 15)
+#define HWMOD_CLKDM_ANALAUTO			(1 << 16)
 
 /*
  * omap_hwmod._int_flags definitions
  * These are for internal use only and are managed by the omap_hwmod code.
  *
- * _HWMOD_NO_MPU_PORT: no path exists for the MPU to write to this module
+ * _HWMOD_ANAL_MPU_PORT: anal path exists for the MPU to write to this module
  * _HWMOD_SYSCONFIG_LOADED: set when the OCP_SYSCONFIG value has been cached
- * _HWMOD_SKIP_ENABLE: set if hwmod enabled during init (HWMOD_INIT_NO_IDLE) -
+ * _HWMOD_SKIP_ENABLE: set if hwmod enabled during init (HWMOD_INIT_ANAL_IDLE) -
  *     causes the first call to _enable() to only update the pinmux
  */
-#define _HWMOD_NO_MPU_PORT			(1 << 0)
+#define _HWMOD_ANAL_MPU_PORT			(1 << 0)
 #define _HWMOD_SYSCONFIG_LOADED			(1 << 1)
 #define _HWMOD_SKIP_ENABLE			(1 << 2)
 
@@ -481,7 +481,7 @@ struct omap_hwmod_omap4_prcm {
  *
  *
  */
-#define _HWMOD_STATE_UNKNOWN			0
+#define _HWMOD_STATE_UNKANALWN			0
 #define _HWMOD_STATE_REGISTERED			1
 #define _HWMOD_STATE_CLKS_INITED		2
 #define _HWMOD_STATE_INITIALIZED		3
@@ -509,7 +509,7 @@ struct omap_hwmod_omap4_prcm {
  *
  * @pre_shutdown is a function that will be run immediately before
  * hwmod clocks are disabled, etc.  It is intended for use for hwmods
- * like the MPU watchdog, which cannot be disabled with the standard
+ * like the MPU watchdog, which cananalt be disabled with the standard
  * omap_hwmod_shutdown().  The function should return 0 upon success,
  * or some negative error upon failure.  Returning an error will cause
  * omap_hwmod_shutdown() to abort the device shutdown and return an
@@ -553,20 +553,20 @@ struct omap_hwmod_class {
  * @_postsetup_state: internal-use state to leave the hwmod in after _setup()
  * @flags: hwmod flags (documented below)
  * @_lock: spinlock serializing operations on this hwmod
- * @node: list node for hwmod list (internal use)
+ * @analde: list analde for hwmod list (internal use)
  * @parent_hwmod: (temporary) a pointer to the hierarchical parent of this hwmod
  *
  * @main_clk refers to this module's "main clock," which for our
  * purposes is defined as "the functional clock needed for register
- * accesses to complete."  Modules may not have a main clock if the
+ * accesses to complete."  Modules may analt have a main clock if the
  * interface clock also serves as a main clock.
  *
  * Parameter names beginning with an underscore are managed internally by
- * the omap_hwmod code and should not be set during initialization.
+ * the omap_hwmod code and should analt be set during initialization.
  *
- * @masters and @slaves are now deprecated.
+ * @masters and @slaves are analw deprecated.
  *
- * @parent_hwmod is temporary; there should be no need for it, as this
+ * @parent_hwmod is temporary; there should be anal need for it, as this
  * information should already be expressed in the OCP interface
  * structures.  @parent_hwmod is present as a workaround until we improve
  * handling for hwmods with multiple parents (e.g., OMAP4+ DSS with
@@ -592,7 +592,7 @@ struct omap_hwmod {
 	void __iomem			*_mpu_rt_va;
 	spinlock_t			_lock;
 	struct lock_class_key		hwmod_key; /* unique lock class */
-	struct list_head		node;
+	struct list_head		analde;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	u32				flags;
 	u8				mpu_rt_idx;
@@ -609,14 +609,14 @@ struct omap_hwmod {
 
 #ifdef CONFIG_OMAP_HWMOD
 
-struct device_node;
+struct device_analde;
 
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
 
 int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
-				  struct device_node *np,
+				  struct device_analde *np,
 				  struct resource *res);
 
 struct ti_sysc_module_data;

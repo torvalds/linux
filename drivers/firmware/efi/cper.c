@@ -41,7 +41,7 @@ u64 cper_next_record_id(void)
 		/*
 		 * This code is unlikely to still be needed in year 2106,
 		 * but just in case, let's use a few more bits for timestamps
-		 * after y2038 to be sure they keep increasing monotonically
+		 * after y2038 to be sure they keep increasing moanaltonically
 		 * for the next few hundred years...
 		 */
 		if (time < 0x80000000)
@@ -65,7 +65,7 @@ static const char * const severity_strs[] = {
 const char *cper_severity_str(unsigned int severity)
 {
 	return severity < ARRAY_SIZE(severity_strs) ?
-		severity_strs[severity] : "unknown";
+		severity_strs[severity] : "unkanalwn";
 }
 EXPORT_SYMBOL_GPL(cper_severity_str);
 
@@ -128,7 +128,7 @@ const char * const cper_proc_error_type_strs[] = {
 };
 
 static const char * const proc_op_strs[] = {
-	"unknown or generic",
+	"unkanalwn or generic",
 	"data read",
 	"data write",
 	"instruction execution",
@@ -147,11 +147,11 @@ static void cper_print_proc_generic(const char *pfx,
 	if (proc->validation_bits & CPER_PROC_VALID_TYPE)
 		printk("%s""processor_type: %d, %s\n", pfx, proc->proc_type,
 		       proc->proc_type < ARRAY_SIZE(proc_type_strs) ?
-		       proc_type_strs[proc->proc_type] : "unknown");
+		       proc_type_strs[proc->proc_type] : "unkanalwn");
 	if (proc->validation_bits & CPER_PROC_VALID_ISA)
 		printk("%s""processor_isa: %d, %s\n", pfx, proc->proc_isa,
 		       proc->proc_isa < ARRAY_SIZE(proc_isa_strs) ?
-		       proc_isa_strs[proc->proc_isa] : "unknown");
+		       proc_isa_strs[proc->proc_isa] : "unkanalwn");
 	if (proc->validation_bits & CPER_PROC_VALID_ERROR_TYPE) {
 		printk("%s""error_type: 0x%02x\n", pfx, proc->proc_error_type);
 		cper_print_bits(pfx, proc->proc_error_type,
@@ -161,7 +161,7 @@ static void cper_print_proc_generic(const char *pfx,
 	if (proc->validation_bits & CPER_PROC_VALID_OPERATION)
 		printk("%s""operation: %d, %s\n", pfx, proc->operation,
 		       proc->operation < ARRAY_SIZE(proc_op_strs) ?
-		       proc_op_strs[proc->operation] : "unknown");
+		       proc_op_strs[proc->operation] : "unkanalwn");
 	if (proc->validation_bits & CPER_PROC_VALID_FLAGS) {
 		printk("%s""flags: 0x%02x\n", pfx, proc->flags);
 		cper_print_bits(pfx, proc->flags, proc_flag_strs,
@@ -187,8 +187,8 @@ static void cper_print_proc_generic(const char *pfx,
 }
 
 static const char * const mem_err_type_strs[] = {
-	"unknown",
-	"no error",
+	"unkanalwn",
+	"anal error",
 	"single-bit ECC",
 	"multi-bit ECC",
 	"single-symbol chipkill ECC",
@@ -208,7 +208,7 @@ static const char * const mem_err_type_strs[] = {
 const char *cper_mem_err_type_str(unsigned int etype)
 {
 	return etype < ARRAY_SIZE(mem_err_type_strs) ?
-		mem_err_type_strs[etype] : "unknown";
+		mem_err_type_strs[etype] : "unkanalwn";
 }
 EXPORT_SYMBOL_GPL(cper_mem_err_type_str);
 
@@ -223,11 +223,11 @@ const char *cper_mem_err_status_str(u64 status)
 	case  8:	return "Component failed self test";
 	case  9:	return "Overflow or undervalue of internal queue";
 	case 16:	return "Error detected in the bus";
-	case 17:	return "Virtual address not found on IO-TLB or IO-PDIR";
+	case 17:	return "Virtual address analt found on IO-TLB or IO-PDIR";
 	case 18:	return "Improper access error";
-	case 19:	return "Access to a memory address which is not mapped to any component";
+	case 19:	return "Access to a memory address which is analt mapped to any component";
 	case 20:	return "Loss of Lockstep";
-	case 21:	return "Response not associated with a request";
+	case 21:	return "Response analt associated with a request";
 	case 22:	return "Bus parity error - must also set the A, C, or D Bits";
 	case 23:	return "Detection of a protocol error";
 	case 24:	return "Detection of a PATH_ERROR";
@@ -247,8 +247,8 @@ int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 
 	n = 0;
 	len = CPER_REC_LEN;
-	if (mem->validation_bits & CPER_MEM_VALID_NODE)
-		n += scnprintf(msg + n, len - n, "node:%d ", mem->node);
+	if (mem->validation_bits & CPER_MEM_VALID_ANALDE)
+		n += scnprintf(msg + n, len - n, "analde:%d ", mem->analde);
 	if (mem->validation_bits & CPER_MEM_VALID_CARD)
 		n += scnprintf(msg + n, len - n, "card:%d ", mem->card);
 	if (mem->validation_bits & CPER_MEM_VALID_MODULE)
@@ -307,7 +307,7 @@ int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
 		n = snprintf(msg, len, "DIMM location: %s %s ", bank, device);
 	else
 		n = snprintf(msg, len,
-			     "DIMM location: not present. DMI handle: 0x%.4x ",
+			     "DIMM location: analt present. DMI handle: 0x%.4x ",
 			     mem->mem_dev_handle);
 
 	return n;
@@ -318,7 +318,7 @@ void cper_mem_err_pack(const struct cper_sec_mem_err *mem,
 		       struct cper_mem_err_compact *cmem)
 {
 	cmem->validation_bits = mem->validation_bits;
-	cmem->node = mem->node;
+	cmem->analde = mem->analde;
 	cmem->card = mem->card;
 	cmem->module = mem->module;
 	cmem->bank = mem->bank;
@@ -388,8 +388,8 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem,
 static const char * const pcie_port_type_strs[] = {
 	"PCIe end point",
 	"legacy PCI end point",
-	"unknown",
-	"unknown",
+	"unkanalwn",
+	"unkanalwn",
 	"root port",
 	"upstream switch port",
 	"downstream switch port",
@@ -405,10 +405,10 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 	if (pcie->validation_bits & CPER_PCIE_VALID_PORT_TYPE)
 		printk("%s""port_type: %d, %s\n", pfx, pcie->port_type,
 		       pcie->port_type < ARRAY_SIZE(pcie_port_type_strs) ?
-		       pcie_port_type_strs[pcie->port_type] : "unknown");
+		       pcie_port_type_strs[pcie->port_type] : "unkanalwn");
 	if (pcie->validation_bits & CPER_PCIE_VALID_VERSION)
 		printk("%s""version: %d.%d\n", pfx,
-		       pcie->version.major, pcie->version.minor);
+		       pcie->version.major, pcie->version.mianalr);
 	if (pcie->validation_bits & CPER_PCIE_VALID_COMMAND_STATUS)
 		printk("%s""command: 0x%04x, status: 0x%04x\n", pfx,
 		       pcie->command, pcie->status);
@@ -465,7 +465,7 @@ static void cper_print_fw_err(const char *pfx,
 
 	printk("%s""Firmware Error Record Type: %s\n", pfx,
 	       fw_err->record_type < ARRAY_SIZE(fw_err_rec_type_strs) ?
-	       fw_err_rec_type_strs[fw_err->record_type] : "unknown");
+	       fw_err_rec_type_strs[fw_err->record_type] : "unkanalwn");
 	printk("%s""Revision: %d\n", pfx, fw_err->revision);
 
 	/* Record Type based on UEFI 2.7 */
@@ -485,11 +485,11 @@ static void cper_print_fw_err(const char *pfx,
 	 * variation.
 	 */
 	if (fw_err->revision == 0) {
-		/* record_identifier_guid not defined */
+		/* record_identifier_guid analt defined */
 		offset = offsetof(struct cper_sec_fw_err_rec_ref,
 				  record_identifier_guid);
 	} else if (fw_err->revision == 1) {
-		/* record_identifier not defined */
+		/* record_identifier analt defined */
 		offset = offsetof(struct cper_sec_fw_err_rec_ref,
 				  record_identifier);
 	} else {
@@ -523,12 +523,12 @@ static void cper_print_tstamp(const char *pfx,
 	}
 }
 
-struct ignore_section {
+struct iganalre_section {
 	guid_t guid;
 	const char *name;
 };
 
-static const struct ignore_section ignore_sections[] = {
+static const struct iganalre_section iganalre_sections[] = {
 	{ .guid = CPER_SEC_CXL_GEN_MEDIA_GUID, .name = "CXL General Media Event" },
 	{ .guid = CPER_SEC_CXL_DRAM_GUID, .name = "CXL DRAM Event" },
 	{ .guid = CPER_SEC_CXL_MEM_MODULE_GUID, .name = "CXL Memory Module Event" },
@@ -536,7 +536,7 @@ static const struct ignore_section ignore_sections[] = {
 
 static void
 cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata,
-			   int sec_no)
+			   int sec_anal)
 {
 	guid_t *sec_type = (guid_t *)gdata->section_type;
 	__u16 severity;
@@ -546,7 +546,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		cper_print_tstamp(pfx, (struct acpi_hest_generic_data_v300 *)gdata);
 
 	severity = gdata->error_severity;
-	printk("%s""Error %d, type: %s\n", pfx, sec_no,
+	printk("%s""Error %d, type: %s\n", pfx, sec_anal,
 	       cper_severity_str(severity));
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_ID)
 		printk("%s""fru_id: %pUl\n", pfx, gdata->fru_id);
@@ -555,9 +555,9 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 
 	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 
-	for (int i = 0; i < ARRAY_SIZE(ignore_sections); i++) {
-		if (guid_equal(sec_type, &ignore_sections[i].guid)) {
-			printk("%ssection_type: %s\n", newpfx, ignore_sections[i].name);
+	for (int i = 0; i < ARRAY_SIZE(iganalre_sections); i++) {
+		if (guid_equal(sec_type, &iganalre_sections[i].guid)) {
+			printk("%ssection_type: %s\n", newpfx, iganalre_sections[i].name);
 			return;
 		}
 	}
@@ -629,7 +629,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 	} else {
 		const void *err = acpi_hest_get_payload(gdata);
 
-		printk("%ssection type: unknown, %pUl\n", newpfx, sec_type);
+		printk("%ssection type: unkanalwn, %pUl\n", newpfx, sec_type);
 		printk("%ssection length: %#x\n", newpfx,
 		       gdata->error_data_length);
 		print_hex_dump(newpfx, "", DUMP_PREFIX_OFFSET, 16, 4, err,
@@ -646,7 +646,7 @@ void cper_estatus_print(const char *pfx,
 			const struct acpi_hest_generic_status *estatus)
 {
 	struct acpi_hest_generic_data *gdata;
-	int sec_no = 0;
+	int sec_anal = 0;
 	char newpfx[64];
 	__u16 severity;
 
@@ -654,13 +654,13 @@ void cper_estatus_print(const char *pfx,
 	if (severity == CPER_SEV_CORRECTED)
 		printk("%s%s\n", pfx,
 		       "It has been corrected by h/w "
-		       "and requires no further action");
+		       "and requires anal further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
 	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 
 	apei_estatus_for_each_section(estatus, gdata) {
-		cper_estatus_print_section(newpfx, gdata, sec_no);
-		sec_no++;
+		cper_estatus_print_section(newpfx, gdata, sec_anal);
+		sec_anal++;
 	}
 }
 EXPORT_SYMBOL_GPL(cper_estatus_print);

@@ -19,7 +19,7 @@ static int vfio_cdx_open_device(struct vfio_device *core_vdev)
 	vdev->regions = kcalloc(count, sizeof(struct vfio_cdx_region),
 				GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < count; i++) {
 		struct resource *res = &cdx_dev->res[i];
@@ -75,7 +75,7 @@ static int vfio_cdx_bm_ctrl(struct vfio_device *core_vdev, u32 flags,
 	int ret;
 
 	if (!(vdev->flags & BME_SUPPORT))
-		return -ENOTTY;
+		return -EANALTTY;
 
 	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_SET,
 				 sizeof(ops));
@@ -102,7 +102,7 @@ static int vfio_cdx_ioctl_feature(struct vfio_device *device, u32 flags,
 	case VFIO_DEVICE_FEATURE_BUS_MASTER:
 		return vfio_cdx_bm_ctrl(device, flags, arg, argsz);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 
@@ -167,7 +167,7 @@ static long vfio_cdx_ioctl(struct vfio_device *core_vdev,
 	case VFIO_DEVICE_RESET:
 		return cdx_dev_reset(core_vdev->dev);
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 }
 

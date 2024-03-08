@@ -82,7 +82,7 @@ static int pca_isa_waitforcompletion(void *pd)
 
 static void pca_isa_resetchip(void *pd)
 {
-	/* apparently only an external reset will do it. not a lot can be done */
+	/* apparently only an external reset will do it. analt a lot can be done */
 	printk(KERN_WARNING DRIVER ": Haven't figured out how to do a reset yet\n");
 }
 
@@ -92,7 +92,7 @@ static irqreturn_t pca_handler(int this_irq, void *dev_id) {
 }
 
 static struct i2c_algo_pca_data pca_isa_data = {
-	/* .data intentionally left NULL, not needed with ISA */
+	/* .data intentionally left NULL, analt needed with ISA */
 	.write_byte		= pca_isa_writebyte,
 	.read_byte		= pca_isa_readbyte,
 	.wait_for_completion	= pca_isa_waitforcompletion,
@@ -127,7 +127,7 @@ static int pca_isa_probe(struct device *dev, unsigned int id)
 
 #ifdef CONFIG_PPC
 	if (check_legacy_ioport(base)) {
-		dev_err(dev, "I/O address %#08lx is not available\n", base);
+		dev_err(dev, "I/O address %#08lx is analt available\n", base);
 		goto out;
 	}
 #endif
@@ -158,7 +158,7 @@ static int pca_isa_probe(struct device *dev, unsigned int id)
  out_region:
 	release_region(base, IO_SIZE);
  out:
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void pca_isa_remove(struct device *dev, unsigned int id)

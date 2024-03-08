@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/elf.h>
@@ -34,7 +34,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   num_clients_valid),
@@ -43,7 +43,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   num_clients),
@@ -52,7 +52,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   wake_msi_valid),
@@ -61,7 +61,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   wake_msi),
@@ -70,7 +70,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   gpios_valid),
@@ -79,7 +79,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   gpios_len),
@@ -97,7 +97,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   nm_modem_valid),
@@ -106,7 +106,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   nm_modem),
@@ -115,7 +115,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   bdf_support_valid),
@@ -124,7 +124,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   bdf_support),
@@ -133,7 +133,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   bdf_cache_support_valid),
@@ -142,7 +142,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   bdf_cache_support),
@@ -151,7 +151,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x16,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   m3_support_valid),
@@ -160,7 +160,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x16,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   m3_support),
@@ -169,7 +169,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x17,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   m3_cache_support_valid),
@@ -178,7 +178,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x17,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   m3_cache_support),
@@ -187,7 +187,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x18,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_filesys_support_valid),
@@ -196,7 +196,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x18,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_filesys_support),
@@ -205,7 +205,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x19,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_cache_support_valid),
@@ -214,7 +214,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x19,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_cache_support),
@@ -223,7 +223,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1A,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_done_valid),
@@ -232,7 +232,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1A,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   cal_done),
@@ -241,7 +241,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1B,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   mem_bucket_valid),
@@ -250,7 +250,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1B,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   mem_bucket),
@@ -259,7 +259,7 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1C,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   mem_cfg_mode_valid),
@@ -268,14 +268,14 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1C,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_req_msg_v01,
 					   mem_cfg_mode),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -285,14 +285,14 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_host_cap_resp_msg_v01, resp),
 		.ei_array	= qmi_response_type_v01_ei,
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -302,7 +302,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_ready_enable_valid),
@@ -311,7 +311,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_ready_enable),
@@ -320,7 +320,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   initiate_cal_download_enable_valid),
@@ -329,7 +329,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   initiate_cal_download_enable),
@@ -338,7 +338,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   initiate_cal_update_enable_valid),
@@ -347,7 +347,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   initiate_cal_update_enable),
@@ -356,7 +356,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   msa_ready_enable_valid),
@@ -365,7 +365,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   msa_ready_enable),
@@ -374,7 +374,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   pin_connect_result_enable_valid),
@@ -383,7 +383,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   pin_connect_result_enable),
@@ -392,7 +392,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   client_id_valid),
@@ -401,7 +401,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   client_id),
@@ -410,7 +410,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x16,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   request_mem_enable_valid),
@@ -419,7 +419,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x16,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   request_mem_enable),
@@ -428,7 +428,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x17,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_mem_ready_enable_valid),
@@ -437,7 +437,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x17,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_mem_ready_enable),
@@ -446,7 +446,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x18,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_init_done_enable_valid),
@@ -455,7 +455,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x18,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   fw_init_done_enable),
@@ -465,7 +465,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x19,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   rejuvenate_enable_valid),
@@ -474,7 +474,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x19,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   rejuvenate_enable),
@@ -483,7 +483,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1A,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   xo_cal_enable_valid),
@@ -492,7 +492,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1A,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   xo_cal_enable),
@@ -501,7 +501,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1B,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   cal_done_enable_valid),
@@ -510,14 +510,14 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x1B,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_req_msg_v01,
 					   cal_done_enable),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -527,7 +527,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_resp_msg_v01,
 					   resp),
@@ -537,7 +537,7 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_resp_msg_v01,
 					   fw_status_valid),
@@ -546,14 +546,14 @@ static const struct qmi_elem_info qmi_wlanfw_ind_register_resp_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_8_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u64),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_ind_register_resp_msg_v01,
 					   fw_status),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -563,7 +563,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_8_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u64),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_cfg_s_v01, offset),
 	},
@@ -571,7 +571,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_cfg_s_v01, size),
 	},
@@ -579,13 +579,13 @@ static const struct qmi_elem_info qmi_wlanfw_mem_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_cfg_s_v01, secure_flag),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -595,7 +595,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_s_v01,
 				  size),
@@ -604,7 +604,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_s_v01_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(enum qmi_wlanfw_mem_type_enum_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_s_v01, type),
 	},
@@ -612,7 +612,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_s_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_s_v01, mem_cfg_len),
 	},
@@ -627,7 +627,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_s_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -637,7 +637,7 @@ static const struct qmi_elem_info qmi_wlanfw_request_mem_ind_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct qmi_wlanfw_request_mem_ind_msg_v01,
 					   mem_seg_len),
@@ -654,7 +654,7 @@ static const struct qmi_elem_info qmi_wlanfw_request_mem_ind_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -664,7 +664,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_resp_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_8_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u64),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_resp_s_v01, addr),
 	},
@@ -672,7 +672,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_resp_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_resp_s_v01, size),
 	},
@@ -680,7 +680,7 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_resp_s_v01_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(enum qmi_wlanfw_mem_type_enum_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_resp_s_v01, type),
 	},
@@ -688,13 +688,13 @@ static const struct qmi_elem_info qmi_wlanfw_mem_seg_resp_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_mem_seg_resp_s_v01, restore),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -704,7 +704,7 @@ static const struct qmi_elem_info qmi_wlanfw_respond_mem_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct qmi_wlanfw_respond_mem_req_msg_v01,
 					   mem_seg_len),
@@ -721,7 +721,7 @@ static const struct qmi_elem_info qmi_wlanfw_respond_mem_req_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -731,7 +731,7 @@ static const struct qmi_elem_info qmi_wlanfw_respond_mem_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_respond_mem_resp_msg_v01,
 					   resp),
@@ -739,7 +739,7 @@ static const struct qmi_elem_info qmi_wlanfw_respond_mem_resp_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -747,7 +747,7 @@ static const struct qmi_elem_info qmi_wlanfw_respond_mem_resp_msg_v01_ei[] = {
 static const struct qmi_elem_info qmi_wlanfw_cap_req_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -755,7 +755,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_req_msg_v01_ei[] = {
 static const struct qmi_elem_info qmi_wlanfw_device_info_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_EOTI,
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -765,7 +765,7 @@ static const struct qmi_elem_info qmi_wlfw_device_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_device_info_resp_msg_v01,
 					   resp),
@@ -775,7 +775,7 @@ static const struct qmi_elem_info qmi_wlfw_device_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_device_info_resp_msg_v01,
 					   bar_addr_valid),
@@ -784,7 +784,7 @@ static const struct qmi_elem_info qmi_wlfw_device_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_8_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u64),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_device_info_resp_msg_v01,
 					   bar_addr),
@@ -793,7 +793,7 @@ static const struct qmi_elem_info qmi_wlfw_device_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_device_info_resp_msg_v01,
 					   bar_size_valid),
@@ -802,14 +802,14 @@ static const struct qmi_elem_info qmi_wlfw_device_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_device_info_resp_msg_v01,
 					   bar_size),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -819,7 +819,7 @@ static const struct qmi_elem_info qmi_wlanfw_rf_chip_info_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_rf_chip_info_s_v01,
 					   chip_id),
@@ -828,14 +828,14 @@ static const struct qmi_elem_info qmi_wlanfw_rf_chip_info_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_rf_chip_info_s_v01,
 					   chip_family),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -845,14 +845,14 @@ static const struct qmi_elem_info qmi_wlanfw_rf_board_info_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_rf_board_info_s_v01,
 					   board_id),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -862,13 +862,13 @@ static const struct qmi_elem_info qmi_wlanfw_soc_info_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_soc_info_s_v01, soc_id),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -878,7 +878,7 @@ static const struct qmi_elem_info qmi_wlanfw_fw_version_info_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_fw_version_info_s_v01,
 					   fw_version),
@@ -887,14 +887,14 @@ static const struct qmi_elem_info qmi_wlanfw_fw_version_info_s_v01_ei[] = {
 		.data_type	= QMI_STRING,
 		.elem_len	= ATH11K_QMI_WLANFW_MAX_TIMESTAMP_LEN_V01 + 1,
 		.elem_size	= sizeof(char),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_fw_version_info_s_v01,
 					   fw_build_timestamp),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -904,7 +904,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01, resp),
 		.ei_array	= qmi_response_type_v01_ei,
@@ -913,7 +913,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   chip_info_valid),
@@ -922,7 +922,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_wlanfw_rf_chip_info_s_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   chip_info),
@@ -932,7 +932,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   board_info_valid),
@@ -941,7 +941,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_wlanfw_rf_board_info_s_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   board_info),
@@ -951,7 +951,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   soc_info_valid),
@@ -960,7 +960,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_wlanfw_soc_info_s_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   soc_info),
@@ -970,7 +970,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   fw_version_info_valid),
@@ -979,7 +979,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_wlanfw_fw_version_info_s_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   fw_version_info),
@@ -989,7 +989,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   fw_build_id_valid),
@@ -998,7 +998,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRING,
 		.elem_len	= ATH11K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01 + 1,
 		.elem_size	= sizeof(char),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   fw_build_id),
@@ -1007,7 +1007,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   num_macs_valid),
@@ -1016,7 +1016,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   num_macs),
@@ -1025,7 +1025,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u8),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x16,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   voltage_mv_valid),
@@ -1034,7 +1034,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u32),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x16,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   voltage_mv),
@@ -1043,7 +1043,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u8),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x17,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   time_freq_hz_valid),
@@ -1052,7 +1052,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u32),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x17,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   time_freq_hz),
@@ -1061,7 +1061,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u8),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x18,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   otp_version_valid),
@@ -1070,7 +1070,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u32),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x18,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   otp_version),
@@ -1079,7 +1079,7 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u8),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x19,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   eeprom_read_timeout_valid),
@@ -1088,14 +1088,14 @@ static const struct qmi_elem_info qmi_wlanfw_cap_resp_msg_v01_ei[] = {
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
 		.elem_size      = sizeof(u32),
-		.array_type     = NO_ARRAY,
+		.array_type     = ANAL_ARRAY,
 		.tlv_type       = 0x19,
 		.offset         = offsetof(struct qmi_wlanfw_cap_resp_msg_v01,
 					   eeprom_read_timeout),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1105,7 +1105,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   valid),
@@ -1114,7 +1114,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   file_id_valid),
@@ -1123,7 +1123,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(enum qmi_wlanfw_cal_temp_id_enum_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   file_id),
@@ -1132,7 +1132,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   total_size_valid),
@@ -1141,7 +1141,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   total_size),
@@ -1150,7 +1150,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   seg_id_valid),
@@ -1159,7 +1159,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   seg_id),
@@ -1168,7 +1168,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   data_valid),
@@ -1177,7 +1177,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u16),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   data_len),
@@ -1195,7 +1195,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   end_valid),
@@ -1204,7 +1204,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   end),
@@ -1213,7 +1213,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   bdf_type_valid),
@@ -1222,7 +1222,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x15,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_req_msg_v01,
 					   bdf_type),
@@ -1230,7 +1230,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_req_msg_v01_ei[] = {
 
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1240,7 +1240,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_bdf_download_resp_msg_v01,
 					   resp),
@@ -1248,7 +1248,7 @@ static const struct qmi_elem_info qmi_wlanfw_bdf_download_resp_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1258,7 +1258,7 @@ static const struct qmi_elem_info qmi_wlanfw_m3_info_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_8_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u64),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct qmi_wlanfw_m3_info_req_msg_v01, addr),
 	},
@@ -1266,13 +1266,13 @@ static const struct qmi_elem_info qmi_wlanfw_m3_info_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_m3_info_req_msg_v01, size),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1282,14 +1282,14 @@ static const struct qmi_elem_info qmi_wlanfw_m3_info_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_m3_info_resp_msg_v01, resp),
 		.ei_array	= qmi_response_type_v01_ei,
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1299,7 +1299,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01,
 					   pipe_num),
@@ -1308,7 +1308,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(enum qmi_wlanfw_pipedir_enum_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01,
 					   pipe_dir),
@@ -1317,7 +1317,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01,
 					   nentries),
@@ -1326,7 +1326,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01,
 					   nbytes_max),
@@ -1335,14 +1335,14 @@ static const struct qmi_elem_info qmi_wlanfw_ce_tgt_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_tgt_pipe_cfg_s_v01,
 					   flags),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1352,7 +1352,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_svc_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_svc_pipe_cfg_s_v01,
 					   service_id),
@@ -1361,7 +1361,7 @@ static const struct qmi_elem_info qmi_wlanfw_ce_svc_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_SIGNED_4_BYTE_ENUM,
 		.elem_len	= 1,
 		.elem_size	= sizeof(enum qmi_wlanfw_pipedir_enum_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_svc_pipe_cfg_s_v01,
 					   pipe_dir),
@@ -1370,14 +1370,14 @@ static const struct qmi_elem_info qmi_wlanfw_ce_svc_pipe_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_ce_svc_pipe_cfg_s_v01,
 					   pipe_num),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1387,7 +1387,7 @@ static const struct qmi_elem_info qmi_wlanfw_shadow_reg_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_2_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u16),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_shadow_reg_cfg_s_v01, id),
 	},
@@ -1395,7 +1395,7 @@ static const struct qmi_elem_info qmi_wlanfw_shadow_reg_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_2_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u16),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_shadow_reg_cfg_s_v01,
 					   offset),
@@ -1411,14 +1411,14 @@ static const struct qmi_elem_info qmi_wlanfw_shadow_reg_v2_cfg_s_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0,
 		.offset		= offsetof(struct qmi_wlanfw_shadow_reg_v2_cfg_s_v01,
 					   addr),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1428,7 +1428,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_mode_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_4_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u32),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x01,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_mode_req_msg_v01,
 					   mode),
@@ -1437,7 +1437,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_mode_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_mode_req_msg_v01,
 					   hw_debug_valid),
@@ -1446,14 +1446,14 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_mode_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_mode_req_msg_v01,
 					   hw_debug),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1463,7 +1463,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_mode_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_mode_resp_msg_v01,
 					   resp),
@@ -1471,7 +1471,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_mode_resp_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1481,7 +1481,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   host_version_valid),
@@ -1490,7 +1490,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_STRING,
 		.elem_len	= QMI_WLANFW_MAX_STR_LEN_V01 + 1,
 		.elem_size	= sizeof(char),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   host_version),
@@ -1499,7 +1499,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   tgt_cfg_valid),
@@ -1508,7 +1508,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x11,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   tgt_cfg_len),
@@ -1528,7 +1528,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   svc_cfg_valid),
@@ -1537,7 +1537,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x12,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   svc_cfg_len),
@@ -1556,7 +1556,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   shadow_reg_valid),
@@ -1565,7 +1565,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x13,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   shadow_reg_len),
@@ -1584,7 +1584,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   shadow_reg_v2_valid),
@@ -1593,7 +1593,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x14,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_req_msg_v01,
 					   shadow_reg_v2_len),
@@ -1610,7 +1610,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_req_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1620,14 +1620,14 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_cfg_resp_msg_v01, resp),
 		.ei_array	= qmi_response_type_v01_ei,
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1635,21 +1635,21 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_cfg_resp_msg_v01_ei[] = {
 static const struct qmi_elem_info qmi_wlanfw_mem_ready_ind_msg_v01_ei[] = {
 	{
 		.data_type = QMI_EOTI,
-		.array_type = NO_ARRAY,
+		.array_type = ANAL_ARRAY,
 	},
 };
 
 static const struct qmi_elem_info qmi_wlanfw_fw_ready_ind_msg_v01_ei[] = {
 	{
 		.data_type = QMI_EOTI,
-		.array_type = NO_ARRAY,
+		.array_type = ANAL_ARRAY,
 	},
 };
 
 static const struct qmi_elem_info qmi_wlanfw_cold_boot_cal_done_ind_msg_v01_ei[] = {
 	{
 		.data_type = QMI_EOTI,
-		.array_type = NO_ARRAY,
+		.array_type = ANAL_ARRAY,
 	},
 };
 
@@ -1658,7 +1658,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_req_msg_v01_ei[] = {
 		.data_type	= QMI_OPT_FLAG,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_req_msg_v01,
 					   enablefwlog_valid),
@@ -1667,14 +1667,14 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_req_msg_v01_ei[] = {
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_req_msg_v01,
 					   enablefwlog),
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1684,7 +1684,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_resp_msg_v01_ei[] = {
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
 		.elem_size	= sizeof(struct qmi_response_type_v01),
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= 0x02,
 		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_resp_msg_v01,
 					   resp),
@@ -1692,7 +1692,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_resp_msg_v01_ei[] = {
 	},
 	{
 		.data_type	= QMI_EOTI,
-		.array_type	= NO_ARRAY,
+		.array_type	= ANAL_ARRAY,
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 	},
 };
@@ -1700,7 +1700,7 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_resp_msg_v01_ei[] = {
 static const struct qmi_elem_info qmi_wlfw_fw_init_done_ind_msg_v01_ei[] = {
 	{
 		.data_type = QMI_EOTI,
-		.array_type = NO_ARRAY,
+		.array_type = ANAL_ARRAY,
 	},
 };
 
@@ -1739,12 +1739,12 @@ static int ath11k_qmi_host_cap_send(struct ath11k_base *ab)
 	if (ab->hw_params.internal_sleep_clock) {
 		req.nm_modem_valid = 1;
 
-		/* Notify firmware that this is non-qualcomm platform. */
+		/* Analtify firmware that this is analn-qualcomm platform. */
 		req.nm_modem |= HOST_CSTATE_BIT;
 
-		/* Notify firmware about the sleep clock selection,
+		/* Analtify firmware about the sleep clock selection,
 		 * nm_modem_bit[1] is used for this purpose. Host driver on
-		 * non-qualcomm platforms should select internal sleep
+		 * analn-qualcomm platforms should select internal sleep
 		 * clock.
 		 */
 		req.nm_modem |= SLEEP_CLOCK_SELECT_INTERNAL_BIT;
@@ -1797,11 +1797,11 @@ static int ath11k_qmi_fw_ind_register_send(struct ath11k_base *ab)
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto resp_out;
 	}
 
@@ -1876,7 +1876,7 @@ static int ath11k_qmi_respond_fw_mem_request(struct ath11k_base *ab)
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&resp, 0, sizeof(resp));
 
@@ -1982,14 +1982,14 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 		chunk = &ab->qmi.target_mem[i];
 
 		/* Firmware reloads in coldboot/firmware recovery.
-		 * in such case, no need to allocate memory for FW again.
+		 * in such case, anal need to allocate memory for FW again.
 		 */
 		if (chunk->vaddr) {
 			if (chunk->prev_type == chunk->type &&
 			    chunk->prev_size == chunk->size)
 				continue;
 
-			/* cannot reuse the existing chunk */
+			/* cananalt reuse the existing chunk */
 			dma_free_coherent(ab->dev, chunk->prev_size,
 					  chunk->vaddr, chunk->paddr);
 			chunk->vaddr = NULL;
@@ -1998,7 +1998,7 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 		chunk->vaddr = dma_alloc_coherent(ab->dev,
 						  chunk->size,
 						  &chunk->paddr,
-						  GFP_KERNEL | __GFP_NOWARN);
+						  GFP_KERNEL | __GFP_ANALWARN);
 		if (!chunk->vaddr) {
 			if (ab->qmi.mem_seg_count <= ATH11K_QMI_FW_MEM_REQ_SEGMENT_CNT) {
 				ath11k_dbg(ab, ATH11K_DBG_QMI,
@@ -2025,7 +2025,7 @@ static int ath11k_qmi_alloc_target_mem_chunk(struct ath11k_base *ab)
 static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 {
 	struct device *dev = ab->dev;
-	struct device_node *hremote_node = NULL;
+	struct device_analde *hremote_analde = NULL;
 	struct resource res;
 	u32 host_ddr_sz;
 	int i, idx, ret;
@@ -2033,15 +2033,15 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 	for (i = 0, idx = 0; i < ab->qmi.mem_seg_count; i++) {
 		switch (ab->qmi.target_mem[i].type) {
 		case HOST_DDR_REGION_TYPE:
-			hremote_node = of_parse_phandle(dev->of_node, "memory-region", 0);
-			if (!hremote_node) {
+			hremote_analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+			if (!hremote_analde) {
 				ath11k_dbg(ab, ATH11K_DBG_QMI,
-					   "fail to get hremote_node\n");
-				return -ENODEV;
+					   "fail to get hremote_analde\n");
+				return -EANALDEV;
 			}
 
-			ret = of_address_to_resource(hremote_node, 0, &res);
-			of_node_put(hremote_node);
+			ret = of_address_to_resource(hremote_analde, 0, &res);
+			of_analde_put(hremote_analde);
 			if (ret) {
 				ath11k_dbg(ab, ATH11K_DBG_QMI,
 					   "fail to get reg from hremote\n");
@@ -2080,7 +2080,7 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 			}
 
 			if (ath11k_core_coldboot_cal_support(ab)) {
-				if (hremote_node) {
+				if (hremote_analde) {
 					ab->qmi.target_mem[idx].paddr =
 							res.start + host_ddr_sz;
 					ab->qmi.target_mem[idx].iaddr =
@@ -2101,7 +2101,7 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 			idx++;
 			break;
 		default:
-			ath11k_warn(ab, "qmi ignore invalid mem req type %d\n",
+			ath11k_warn(ab, "qmi iganalre invalid mem req type %d\n",
 				    ab->qmi.target_mem[i].type);
 			break;
 		}
@@ -2275,11 +2275,11 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 
 	r = ath11k_core_check_smbios(ab);
 	if (r)
-		ath11k_dbg(ab, ATH11K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "SMBIOS bdf variant name analt set.\n");
 
 	r = ath11k_core_check_dt(ab);
 	if (r)
-		ath11k_dbg(ab, ATH11K_DBG_QMI, "DT bdf variant name not set.\n");
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "DT bdf variant name analt set.\n");
 
 out:
 	return ret;
@@ -2298,7 +2298,7 @@ static int ath11k_qmi_load_file_target_mem(struct ath11k_base *ab,
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&resp, 0, sizeof(resp));
 
@@ -2442,7 +2442,7 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab,
 		goto out;
 	}
 
-	/* QCA6390/WCN6855 does not support cal data, skip it */
+	/* QCA6390/WCN6855 does analt support cal data, skip it */
 	if (bdf_type == ATH11K_QMI_BDF_TYPE_ELF || bdf_type == ATH11K_QMI_BDF_TYPE_REGDB)
 		goto out;
 
@@ -2462,7 +2462,7 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab,
 
 		fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
 		if (IS_ERR(fw_entry)) {
-			/* Caldata may not be present during first time calibration in
+			/* Caldata may analt be present during first time calibration in
 			 * factory hence allow to boot without loading caldata in ftm mode
 			 */
 			if (ath11k_ftm_mode) {
@@ -2517,7 +2517,7 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 		m3_data = ab->fw.m3_data;
 		m3_len = ab->fw.m3_len;
 	} else {
-		/* No m3 file in firmware-N.bin so try to request old
+		/* Anal m3 file in firmware-N.bin so try to request old
 		 * separate m3.bin.
 		 */
 		fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
@@ -2539,7 +2539,7 @@ static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 	if (!m3_mem->vaddr) {
 		ath11k_err(ab, "failed to allocate memory for M3 with size %zu\n",
 			   fw->size);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -2695,7 +2695,7 @@ static int ath11k_qmi_wlanfw_wlan_cfg_send(struct ath11k_base *ab)
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&resp, 0, sizeof(resp));
 
@@ -2919,7 +2919,7 @@ ath11k_qmi_driver_event_post(struct ath11k_qmi *qmi,
 
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
 	if (!event)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	event->type = type;
 	event->data = data;
@@ -3162,7 +3162,7 @@ static int ath11k_qmi_ops_new_server(struct qmi_handle *qmi_hdl,
 	int ret;
 
 	sq->sq_family = AF_QIPCRTR;
-	sq->sq_node = service->node;
+	sq->sq_analde = service->analde;
 	sq->sq_port = service->port;
 
 	ret = kernel_connect(qmi_hdl->sock, (struct sockaddr *)sq,
@@ -3272,7 +3272,7 @@ static void ath11k_qmi_driver_event_work(struct work_struct *work)
 			break;
 		case ATH11K_QMI_EVENT_FW_READY:
 			/* For targets requiring a FW restart upon cold
-			 * boot completion, there is no need to process
+			 * boot completion, there is anal need to process
 			 * FW ready; such targets will receive FW init
 			 * done message after FW restart.
 			 */

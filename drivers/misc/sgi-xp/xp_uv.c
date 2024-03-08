@@ -82,7 +82,7 @@ static int
 xp_cpu_to_nasid_uv(int cpuid)
 {
 	/* ??? Is this same as sn2 nasid in mach/part bitmaps set up by SAL? */
-	return UV_PNODE_TO_NASID(uv_cpu_to_pnode(cpuid));
+	return UV_PANALDE_TO_NASID(uv_cpu_to_panalde(cpuid));
 }
 
 static enum xp_retval
@@ -98,7 +98,7 @@ xp_expand_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 #else
-	#error not a supported configuration
+	#error analt a supported configuration
 #endif
 	return xpSuccess;
 }
@@ -117,7 +117,7 @@ xp_restrict_memprotect_uv(unsigned long phys_addr, unsigned long size)
 		return xpBiosError;
 	}
 #else
-	#error not a supported configuration
+	#error analt a supported configuration
 #endif
 	return xpSuccess;
 }

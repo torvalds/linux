@@ -50,12 +50,12 @@ illustrated below, that they describe::
                -------------------------------------------------------------------------------
                |                                                                             |
                |                                                                             |
-               | Uplink (no counters)                                                        |
+               | Uplink (anal counters)                                                        |
                -------------------------------------------------------------------------------
                        ---------------------------------------------------------------
                        |                                                             |
                        |                                                             |
-                       | MPFS (no counters)                                          |
+                       | MPFS (anal counters)                                          |
                        ---------------------------------------------------------------
                                                      |
                                                      |
@@ -71,7 +71,7 @@ Netdev
   An aggregation of software ring counters.
 
 vPort counters
-  Traffic counters and drops due to steering or no buffers. May indicate issues
+  Traffic counters and drops due to steering or anal buffers. May indicate issues
   with NIC. These counters include Ethernet traffic counters (including Raw
   Ethernet) and RDMA/RoCE traffic counters.
 
@@ -80,7 +80,7 @@ Physical port counters
   with NIC, link, or network. This measuring point holds information on
   standardized counters like IEEE 802.3, RFC2863, RFC 2819, RFC 3635 and
   additional counters like flow control, FEC and more. Physical port counters
-  are not exposed to virtual machines.
+  are analt exposed to virtual machines.
 
 Priority Port Counters
   A set of the physical port counters, per priority per port.
@@ -95,7 +95,7 @@ Traffic Informative Counters
   or for general debug.
 
 Traffic Acceleration Counters
-  Counters which count traffic that was accelerated by Mellanox driver or by
+  Counters which count traffic that was accelerated by Mellaanalx driver or by
   hardware. The counters are an additional layer to the informative counter set,
   and the same traffic is counted in both informative and acceleration counters.
 
@@ -115,7 +115,7 @@ Descriptions
 ============
 
 XSK, PTP, and QoS counters that are similar to counters defined previously will
-not be separately listed. For example, `ptp_tx[i]_packets` will not be
+analt be separately listed. For example, `ptp_tx[i]_packets` will analt be
 explicitly documented since `tx[i]_packets` describes the behavior of both
 counters, except `ptp_tx[i]_packets` is only counted when precision time
 protocol is used.
@@ -129,8 +129,8 @@ by the NIC. The counters are counting the accelerated traffic in addition to the
 standard counters which counts it (i.e. accelerated traffic is counted twice).
 
 The counter names in the table below refers to both ring and port counters. The
-notation for ring counters includes the [i] index without the braces. The
-notation for port counters doesn't include the [i]. A counter name
+analtation for ring counters includes the [i] index without the braces. The
+analtation for port counters doesn't include the [i]. A counter name
 `rx[i]_packets` will be printed as `rx0_packets` for ring 0 and `rx_packets` for
 the software port.
 
@@ -245,8 +245,8 @@ the software port.
        on ring i [#accel]_.
      - Acceleration
 
-   * - `rx[i]_csum_none`
-     - Packets received with a `CHECKSUM_NONE` on ring i [#accel]_.
+   * - `rx[i]_csum_analne`
+     - Packets received with a `CHECKSUM_ANALNE` on ring i [#accel]_.
      - Acceleration
 
    * - `rx[i]_csum_complete`
@@ -273,8 +273,8 @@ the software port.
        ring i [#accel]_.
      - Acceleration
 
-   * - `tx[i]_csum_none`
-     - Packets transmitted with no hardware checksum acceleration on ring i.
+   * - `tx[i]_csum_analne`
+     - Packets transmitted with anal hardware checksum acceleration on ring i.
      - Informative
 
    * - `tx[i]_stopped` / `tx_queue_stopped` [#ring_global]_
@@ -283,7 +283,7 @@ the software port.
      - Informative
 
    * - `tx[i]_wake` / `tx_queue_wake` [#ring_global]_
-     - Events where SQ was full and has become not full on ring i.
+     - Events where SQ was full and has become analt full on ring i.
      - Informative
 
    * - `tx[i]_dropped` / `tx_queue_dropped` [#ring_global]_
@@ -292,12 +292,12 @@ the software port.
        allocated for transmission.
      - Error
 
-   * - `tx[i]_nop`
-     - The number of nop WQEs (empty WQEs) inserted to the SQ (related to
+   * - `tx[i]_analp`
+     - The number of analp WQEs (empty WQEs) inserted to the SQ (related to
        ring i) due to the reach of the end of the cyclic buffer. When reaching
        near to the end of cyclic buffer the driver may add those empty WQEs to
        avoid handling a state the a WQE start in the end of the queue and ends
-       in the beginning of the queue. This is a normal condition.
+       in the beginning of the queue. This is a analrmal condition.
      - Informative
 
    * - `tx[i]_added_vlan_packets`
@@ -317,8 +317,8 @@ the software port.
    * - `rx[i]_mpwqe_frag`
      - The number of WQEs that failed to allocate compound page and hence
        fragmented MPWQE’s (Multi Packet WQEs) were used on ring i. If this
-       counter raise, it may suggest that there is no enough memory for large
-       pages, the driver allocated fragmented pages. This is not abnormal
+       counter raise, it may suggest that there is anal eanalugh memory for large
+       pages, the driver allocated fragmented pages. This is analt abanalrmal
        condition.
      - Informative
 
@@ -374,7 +374,7 @@ the software port.
 
    * - `tx[i]_xmit_more`
      - The number of packets sent with `xmit_more` indication set on the skbuff
-       (no doorbell).
+       (anal doorbell).
      - Acceleration
 
    * - `ch[i]_poll`
@@ -400,7 +400,7 @@ the software port.
      - Error
 
    * - `ch[i]_force_irq`
-     - Number of times NAPI is triggered by XSK wakeups by posting a NOP to
+     - Number of times NAPI is triggered by XSK wakeups by posting a ANALP to
        ICOSQ.
      - Acceleration
 
@@ -432,7 +432,7 @@ the software port.
      - Informative
 
    * - `rx_pp_alloc_waive`
-     - Counter is incremented when pages obtained from the ptr ring that cannot
+     - Counter is incremented when pages obtained from the ptr ring that cananalt
        be added to the cache due to a NUMA mismatch.
      - Informative
 
@@ -454,7 +454,7 @@ the software port.
      - Informative
 
    * - `rx_pp_recycle_released_ref`
-     - Counter is incremented when page released (and not recycled) because
+     - Counter is incremented when page released (and analt recycled) because
        refcnt > 1.
      - Informative
 
@@ -465,7 +465,7 @@ the software port.
 
    * - `rx[i]_xdp_tx_xmit`
      - The number of packets forwarded back to the port due to XDP program
-       `XDP_TX` action (bouncing). these packets are not counted by other
+       `XDP_TX` action (bouncing). these packets are analt counted by other
        software counters. These packets are counted by physical port and vPort
        counters.
      - Informative
@@ -480,14 +480,14 @@ the software port.
        in the WQE and then `XDP_TX`-ed during the RQ context.
      - Acceleration
 
-   * - `rx[i]_xdp_tx_nops`
-     - Number of NOP WQEBBs (WQE building blocks) received posted to the XDP SQ.
+   * - `rx[i]_xdp_tx_analps`
+     - Number of ANALP WQEBBs (WQE building blocks) received posted to the XDP SQ.
      - Acceleration
 
    * - `rx[i]_xdp_tx_full`
      - The number of packets that should have been forwarded back to the port
        due to `XDP_TX` action but were dropped due to full tx queue. These packets
-       are not counted by other software counters. These packets are counted by
+       are analt counted by other software counters. These packets are counted by
        physical port and vPort counters. You may open more rx queues and spread
        traffic rx over all queues and/or increase rx ring size.
      - Error
@@ -503,7 +503,7 @@ the software port.
 
    * - `rx[i]_xdp_drop`
      - The number of packets dropped due to XDP program `XDP_DROP` action. these
-       packets are not counted by other software counters. These packets are
+       packets are analt counted by other software counters. These packets are
        counted by physical port and vPort counters.
      - Informative
 
@@ -513,13 +513,13 @@ the software port.
 
    * - `tx[i]_xdp_xmit`
      - The number of packets redirected to the interface(due to XDP redirect).
-       These packets are not counted by other software counters. These packets
+       These packets are analt counted by other software counters. These packets
        are counted by physical port and vPort counters.
      - Informative
 
    * - `tx[i]_xdp_full`
      - The number of packets redirected to the interface(due to XDP redirect),
-       but were dropped due to full tx queue. these packets are not counted by
+       but were dropped due to full tx queue. these packets are analt counted by
        other software counters. you may enlarge tx queues.
      - Informative
 
@@ -533,8 +533,8 @@ the software port.
        where the data segments were `XDP_REDIRECT`-ed from other netdevs.
      - Acceleration
 
-   * - `tx[i]_xdp_nops`
-     - Number of NOP WQEBBs (WQE building blocks) posted to the SQ that were
+   * - `tx[i]_xdp_analps`
+     - Number of ANALP WQEBBs (WQE building blocks) posted to the SQ that were
        `XDP_REDIRECT`-ed from other netdevs.
      - Acceleration
 
@@ -627,7 +627,7 @@ the software port.
 
    * - `rx[i]_tls_resync_req_skip`
      - Number of times the TLS async resync request procedure was started but
-       not properly ended.
+       analt properly ended.
      - Error
 
    * - `rx[i]_tls_resync_res_ok`
@@ -674,12 +674,12 @@ the software port.
        decrypted.
      - Acceleration
 
-   * - `tx[i]_tls_skip_no_sync_data`
-     - Number of TLS send data that can safely be skipped / do not need to be
+   * - `tx[i]_tls_skip_anal_sync_data`
+     - Number of TLS send data that can safely be skipped / do analt need to be
        decrypted.
      - Acceleration
 
-   * - `tx[i]_tls_drop_no_sync_data`
+   * - `tx[i]_tls_drop_anal_sync_data`
      - Number of TLS send data that were dropped due to retransmission of TLS
        data.
      - Acceleration
@@ -698,12 +698,12 @@ the software port.
 
    * - `ptp_cq[i]_late_cqe`
      - Number of times a CQE has been delivered on the PTP timestamping CQ when
-       the CQE was not expected since a certain amount of time had elapsed where
-       the device typically ensures not posting the CQE.
+       the CQE was analt expected since a certain amount of time had elapsed where
+       the device typically ensures analt posting the CQE.
      - Error
 
-.. [#ring_global] The corresponding ring and global counters do not share the
-                  same name (i.e. do not follow the common naming scheme).
+.. [#ring_global] The corresponding ring and global counters do analt share the
+                  same name (i.e. do analt follow the common naming scheme).
 
 vPort Counters
 --------------
@@ -828,7 +828,7 @@ Counters on the NIC port that is connected to a eSwitch.
 
    * - `rx_steer_missed_packets`
      - Number of packets that was received by the NIC, however was discarded
-       because it did not match any flow in the NIC flow table.
+       because it did analt match any flow in the NIC flow table.
      - Error
 
    * - `rx_packets`
@@ -944,13 +944,13 @@ like flow control, FEC and more.
    * - `rx_pause_ctrl_phy`
      - The number of link layer pause packets received on a physical port. If
        this counter is increasing, it implies that the network is congested and
-       cannot absorb the traffic coming from to the adapter.
+       cananalt absorb the traffic coming from to the adapter.
      - Informative
 
    * - `tx_pause_ctrl_phy`
      - The number of link layer pause packets transmitted on a physical port. If
        this counter is increasing, it implies that the NIC is congested and
-       cannot absorb the traffic coming from the network.
+       cananalt absorb the traffic coming from the network.
      - Informative
 
    * - `rx_unsupported_op_phy`
@@ -961,11 +961,11 @@ like flow control, FEC and more.
    * - `rx_discards_phy`
      - The number of received packets dropped due to lack of buffers on a
        physical port. If this counter is increasing, it implies that the adapter
-       is congested and cannot absorb the traffic coming from the network.
+       is congested and cananalt absorb the traffic coming from the network.
      - Error
 
    * - `tx_discards_phy`
-     - The number of packets which were discarded on transmission, even no
+     - The number of packets which were discarded on transmission, even anal
        errors were detected. the drop might occur due to link in down state,
        head of line drop, pause from the network, etc.
      - Error
@@ -978,7 +978,7 @@ like flow control, FEC and more.
    * - `rx_undersize_pkts_phy`
      - The number of received packets dropped due to length which is shorter
        than 64 bytes on a physical port. If this counter is increasing, it
-       implies that the peer connected to the adapter has a non-standard MTU
+       implies that the peer connected to the adapter has a analn-standard MTU
        configured or malformed packet had arrived.
      - Error
 
@@ -986,7 +986,7 @@ like flow control, FEC and more.
      - The number of received packets dropped due to a length which is shorter
        than 64 bytes and has FCS error on a physical port. If this counter is
        increasing, it implies that the peer connected to the adapter has a
-       non-standard MTU configured.
+       analn-standard MTU configured.
      - Error
 
    * - `rx_jabbers_phy`
@@ -1050,7 +1050,7 @@ like flow control, FEC and more.
      - Error
 
    * - `rx_out_of_buffer`
-     - Number of times receive queue had no software buffers allocated for the
+     - Number of times receive queue had anal software buffers allocated for the
        adapter's incoming traffic.
      - Error
 
@@ -1103,7 +1103,7 @@ like flow control, FEC and more.
 
    * - `rx_pcs_symbol_err_phy`
      - This counter counts the number of symbol errors that wasn’t corrected by
-       FEC correction algorithm or that FEC algorithm was not active on this
+       FEC correction algorithm or that FEC algorithm was analt active on this
        interface. If this counter is increasing, it implies that the link
        between the NIC and the network is suffering from high BER, and that
        traffic is lost. You may need to replace the cable/transceiver. The error
@@ -1131,33 +1131,33 @@ like flow control, FEC and more.
    * - `rx_global_pause`
      - The number of pause packets received on the physical port. If this
        counter is increasing, it implies that the network is congested and
-       cannot absorb the traffic coming from the adapter. Note: This counter is
+       cananalt absorb the traffic coming from the adapter. Analte: This counter is
        only enabled when global pause mode is enabled.
      - Informative
 
    * - `rx_global_pause_duration`
      - The duration of pause received (in microSec) on the physical port. The
-       counter represents the time the port did not send any traffic. If this
+       counter represents the time the port did analt send any traffic. If this
        counter is increasing, it implies that the network is congested and
-       cannot absorb the traffic coming from the adapter. Note: This counter is
+       cananalt absorb the traffic coming from the adapter. Analte: This counter is
        only enabled when global pause mode is enabled.
      - Informative
 
    * - `tx_global_pause`
      - The number of pause packets transmitted on a physical port. If this
        counter is increasing, it implies that the adapter is congested and
-       cannot absorb the traffic coming from the network. Note: This counter is
+       cananalt absorb the traffic coming from the network. Analte: This counter is
        only enabled when global pause mode is enabled.
      - Informative
 
    * - `tx_global_pause_duration`
      - The duration of pause transmitter (in microSec) on the physical port.
-       Note: This counter is only enabled when global pause mode is enabled.
+       Analte: This counter is only enabled when global pause mode is enabled.
      - Informative
 
    * - `rx_global_pause_transition`
      - The number of times a transition from Xoff to Xon on the physical port
-       has occurred. Note: This counter is only enabled when global pause mode
+       has occurred. Analte: This counter is only enabled when global pause mode
        is enabled.
      - Informative
 
@@ -1170,7 +1170,7 @@ Priority Port Counters
 The following counters are physical port counters that are counted per L2
 priority (0-7).
 
-**Note:** `p` in the counter name represents the priority.
+**Analte:** `p` in the counter name represents the priority.
 
 .. flat-table:: Priority Port Counter Table
    :widths: 2 3 1
@@ -1198,35 +1198,35 @@ priority (0-7).
    * - `rx_prio[p]_pause`
      - The number of pause packets received with priority p on a physical port.
        If this counter is increasing, it implies that the network is congested
-       and cannot absorb the traffic coming from the adapter. Note: This counter
+       and cananalt absorb the traffic coming from the adapter. Analte: This counter
        is available only if PFC was enabled on priority p.
      - Informative
 
    * - `rx_prio[p]_pause_duration`
      - The duration of pause received (in microSec) on priority p on the
-       physical port. The counter represents the time the port did not send any
+       physical port. The counter represents the time the port did analt send any
        traffic on this priority. If this counter is increasing, it implies that
-       the network is congested and cannot absorb the traffic coming from the
-       adapter. Note: This counter is available only if PFC was enabled on
+       the network is congested and cananalt absorb the traffic coming from the
+       adapter. Analte: This counter is available only if PFC was enabled on
        priority p.
      - Informative
 
    * - `rx_prio[p]_pause_transition`
      - The number of times a transition from Xoff to Xon on priority p on the
-       physical port has occurred. Note: This counter is available only if PFC
+       physical port has occurred. Analte: This counter is available only if PFC
        was enabled on priority p.
      - Informative
 
    * - `tx_prio[p]_pause`
      - The number of pause packets transmitted on priority p on a physical port.
        If this counter is increasing, it implies that the adapter is congested
-       and cannot absorb the traffic coming from the network. Note: This counter
+       and cananalt absorb the traffic coming from the network. Analte: This counter
        is available only if PFC was enabled on priority p.
      - Informative
 
    * - `tx_prio[p]_pause_duration`
      - The duration of pause transmitter (in microSec) on priority p on the
-       physical port. Note: This counter is available only if PFC was enabled on
+       physical port. Analte: This counter is available only if PFC was enabled on
        priority p.
      - Informative
 
@@ -1281,13 +1281,13 @@ Device Counters
 
    * - `outbound_pci_stalled_rd`
      - The percentage (in the range 0...100) of time within the last second that
-       the NIC had outbound non-posted reads requests but could not perform the
+       the NIC had outbound analn-posted reads requests but could analt perform the
        operation due to insufficient posted credits.
      - Informative
 
    * - `outbound_pci_stalled_wr`
      - The percentage (in the range 0...100) of time within the last second that
-       the NIC had outbound posted writes requests but could not perform the
+       the NIC had outbound posted writes requests but could analt perform the
        operation due to insufficient posted credits.
      - Informative
 
@@ -1300,6 +1300,6 @@ Device Counters
      - Informative
 
    * - `dev_out_of_buffer`
-     - The number of times the device owned queue had not enough buffers
+     - The number of times the device owned queue had analt eanalugh buffers
        allocated.
      - Error

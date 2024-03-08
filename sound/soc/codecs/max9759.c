@@ -115,7 +115,7 @@ static const struct snd_kcontrol_new max9759_dapm_controls[] = {
 static const struct snd_soc_dapm_widget max9759_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("INL"),
 	SND_SOC_DAPM_INPUT("INR"),
-	SND_SOC_DAPM_PGA_E("PGA", SND_SOC_NOPM, 0, 0, NULL, 0, pga_event,
+	SND_SOC_DAPM_PGA_E("PGA", SND_SOC_ANALPM, 0, 0, NULL, 0, pga_event,
 			   (SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD)),
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
@@ -144,7 +144,7 @@ static int max9759_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, priv);
 

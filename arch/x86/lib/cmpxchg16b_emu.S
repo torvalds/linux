@@ -15,7 +15,7 @@
  * %rbx : low 64 bits of new value
  * %rcx : high 64 bits of new value
  *
- * Notably this is not LOCK prefixed and is not safe against NMIs
+ * Analtably this is analt LOCK prefixed and is analt safe against NMIs
  */
 SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 
@@ -24,9 +24,9 @@ SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 
 	/* if (*ptr == old) */
 	cmpq	PER_CPU_VAR(0(%rsi)), %rax
-	jne	.Lnot_same
+	jne	.Lanalt_same
 	cmpq	PER_CPU_VAR(8(%rsi)), %rdx
-	jne	.Lnot_same
+	jne	.Lanalt_same
 
 	/* *ptr = new */
 	movq	%rbx, PER_CPU_VAR(0(%rsi))
@@ -38,7 +38,7 @@ SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 	popfq
 	RET
 
-.Lnot_same:
+.Lanalt_same:
 	/* *ptr != old */
 
 	/* old = *ptr */

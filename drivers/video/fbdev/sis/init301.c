@@ -23,7 +23,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if analt, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -32,19 +32,19 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    analtice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    analtice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may analt be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * * IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * * IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * * ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
@@ -52,7 +52,7 @@
  *
  * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
  *
- * Formerly based on non-functional code-fragements for 300 series by SiS, Inc.
+ * Formerly based on analn-functional code-fragements for 300 series by SiS, Inc.
  * Used by permission.
  *
  */
@@ -253,7 +253,7 @@ static const unsigned char SiS_LCDStruct661[] = {
     0x02,0xC0,0x00,0x04,0x00,0x03,0x40,0x05,0x26,0x03,0x10,0x00,0x88,
     0x00,0x02,0x00,0x06,0x00,0x41,0x5A,0x64,0x00,0x00,0x00,0x00,0x04,
     /*  | vss     |    vse  |clck|  clock  |CRT2DataP|CRT2DataP|idx     */
-    /*					      VESA    non-VESA  noscale */
+    /*					      VESA    analn-VESA  analscale */
     /* 1280x1024 */
     0x03,0xC0,0x00,0x05,0x00,0x04,0x98,0x06,0x2A,0x04,0x30,0x00,0x70,
     0x00,0x01,0x00,0x03,0x00,0x6C,0xF8,0x2F,0x00,0x00,0x00,0x00,0x08,
@@ -391,20 +391,20 @@ static unsigned short	SiS_CheckACK(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_WriteDABDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_PrepareReadDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_PrepareDDC(struct SiS_Private *SiS_Pr);
-static void		SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short yesno);
+static void		SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short analanal);
 static unsigned short	SiS_DoProbeDDC(struct SiS_Private *SiS_Pr);
 
 #ifdef CONFIG_FB_SIS_300
 static void		SiS_OEM300Setting(struct SiS_Private *SiS_Pr,
-				unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefTabindex);
+				unsigned short ModeAnal, unsigned short ModeIdIndex, unsigned short RefTabindex);
 static void		SetOEMLCDData2(struct SiS_Private *SiS_Pr,
-				unsigned short ModeNo, unsigned short ModeIdIndex,unsigned short RefTableIndex);
+				unsigned short ModeAnal, unsigned short ModeIdIndex,unsigned short RefTableIndex);
 #endif
 #ifdef CONFIG_FB_SIS_315
 static void		SiS_OEM310Setting(struct SiS_Private *SiS_Pr,
-				unsigned short ModeNo,unsigned short ModeIdIndex, unsigned short RRTI);
+				unsigned short ModeAnal,unsigned short ModeIdIndex, unsigned short RRTI);
 static void		SiS_OEM661Setting(struct SiS_Private *SiS_Pr,
-				unsigned short ModeNo,unsigned short ModeIdIndex, unsigned short RRTI);
+				unsigned short ModeAnal,unsigned short ModeIdIndex, unsigned short RRTI);
 static void		SiS_FinalizeLCD(struct SiS_Private *, unsigned short, unsigned short);
 #endif
 
@@ -465,9 +465,9 @@ GetLCDStructPtr661(struct SiS_Private *SiS_Pr)
    unsigned short romindex = 0, reg = 0, idx = 0;
 
    /* Use the BIOS tables only for LVDS panels; TMDS is unreliable
-    * due to the variaty of panels the BIOS doesn't know about.
-    * Exception: If the BIOS has better knowledge (such as in case
-    * of machines with a 301C and a panel that does not support DDC)
+    * due to the variaty of panels the BIOS doesn't kanalw about.
+    * Exception: If the BIOS has better kanalwledge (such as in case
+    * of machines with a 301C and a panel that does analt support DDC)
     * use the BIOS data as well.
     */
 
@@ -498,9 +498,9 @@ GetLCDStructPtr661_2(struct SiS_Private *SiS_Pr)
    unsigned short romptr = 0;
 
    /* Use the BIOS tables only for LVDS panels; TMDS is unreliable
-    * due to the variaty of panels the BIOS doesn't know about.
-    * Exception: If the BIOS has better knowledge (such as in case
-    * of machines with a 301C and a panel that does not support DDC)
+    * due to the variaty of panels the BIOS doesn't kanalw about.
+    * Exception: If the BIOS has better kanalwledge (such as in case
+    * of machines with a 301C and a panel that does analt support DDC)
     * use the BIOS data as well.
     */
 
@@ -519,7 +519,7 @@ GetLCDStructPtr661_2(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 static bool
-SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RRTI, unsigned short *i)
 {
    unsigned short checkmask=0, modeid, infoflag;
@@ -592,7 +592,7 @@ SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
    }
 
    /* Look through the whole mode-section of the table from the beginning
-    * for a matching CRT2 mode if no mode was found yet.
+    * for a matching CRT2 mode if anal mode was found yet.
     */
    for((*i) = 0; ; (*i)++) {
       if(SiS_Pr->SiS_RefIndex[RRTI + (*i)].ModeID != modeid) break;
@@ -607,7 +607,7 @@ SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 /*********************************************/
 
 unsigned short
-SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short RRTI,i,backup_i;
    unsigned short modeflag,index,temp,backupindex;
@@ -619,10 +619,10 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 		0x00, 0x00, 0x00, 0x00
    };
 
-   /* Do NOT check for UseCustomMode here, will skrew up FIFO */
-   if(ModeNo == 0xfe) return 0;
+   /* Do ANALT check for UseCustomMode here, will skrew up FIFO */
+   if(ModeAnal == 0xfe) return 0;
 
-   if(ModeNo <= 0x13) {
+   if(ModeAnal <= 0x13) {
       modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
    } else {
       modeflag = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -634,7 +634,7 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       }
    }
 
-   if(ModeNo < 0x14) return 0xFFFF;
+   if(ModeAnal < 0x14) return 0xFFFF;
 
    index = (SiS_GetReg(SiS_Pr->SiS_P3d4,0x33) >> SiS_Pr->SiS_SelectCRT2Rate) & 0x0F;
    backupindex = index;
@@ -644,11 +644,11 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
    if(SiS_Pr->SiS_SetFlag & ProgrammingCRT2) {
       if(SiS_Pr->SiS_VBType & VB_SISVB) {
 	 if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) {
-	    if(SiS_Pr->SiS_VBType & VB_NoLCD)		 index = 0;
+	    if(SiS_Pr->SiS_VBType & VB_AnalLCD)		 index = 0;
 	    else if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) index = backupindex = 0;
 	 }
 	 if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-	    if(!(SiS_Pr->SiS_VBType & VB_NoLCD)) {
+	    if(!(SiS_Pr->SiS_VBType & VB_AnalLCD)) {
 	       temp = LCDRefreshIndex[SiS_GetBIOSLCDResInfo(SiS_Pr)];
 	       if(index > temp) index = temp;
 	    }
@@ -662,7 +662,7 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
    }
 
    RRTI = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].REFindex;
-   ModeNo = SiS_Pr->SiS_RefIndex[RRTI].ModeID;
+   ModeAnal = SiS_Pr->SiS_RefIndex[RRTI].ModeID;
 
    if(SiS_Pr->ChipType >= SIS_315H) {
       if(!(SiS_Pr->SiS_VBInfo & DriverMode)) {
@@ -675,7 +675,7 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
    i = 0;
    do {
-      if(SiS_Pr->SiS_RefIndex[RRTI + i].ModeID != ModeNo) break;
+      if(SiS_Pr->SiS_RefIndex[RRTI + i].ModeID != ModeAnal) break;
       temp = SiS_Pr->SiS_RefIndex[RRTI + i].Ext_InfoFlag;
       temp &= ModeTypeMask;
       if(temp < SiS_Pr->SiS_ModeType) break;
@@ -694,7 +694,7 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
    if((SiS_Pr->SiS_SetFlag & ProgrammingCRT2) && (!(SiS_Pr->SiS_VBInfo & DisableCRT2Display))) {
       backup_i = i;
-      if(!(SiS_AdjustCRT2Rate(SiS_Pr, ModeNo, ModeIdIndex, RRTI, &i))) {
+      if(!(SiS_AdjustCRT2Rate(SiS_Pr, ModeAnal, ModeIdIndex, RRTI, &i))) {
 	 i = backup_i;
       }
    }
@@ -707,12 +707,12 @@ SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 /*********************************************/
 
 static void
-SiS_SaveCRT2Info(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_SaveCRT2Info(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
    unsigned short temp1, temp2;
 
-   /* Store CRT1 ModeNo in CR34 */
-   SiS_SetReg(SiS_Pr->SiS_P3d4,0x34,ModeNo);
+   /* Store CRT1 ModeAnal in CR34 */
+   SiS_SetReg(SiS_Pr->SiS_P3d4,0x34,ModeAnal);
    temp1 = (SiS_Pr->SiS_VBInfo & SetInSlaveMode) >> 8;
    temp2 = ~(SetInSlaveMode >> 8);
    SiS_SetRegANDOR(SiS_Pr->SiS_P3d4,0x31,temp2,temp1);
@@ -1106,7 +1106,7 @@ SiS_WeHaveBacklightCtrl(struct SiS_Private *SiS_Pr)
 
 #ifdef CONFIG_FB_SIS_315
 static bool
-SiS_IsNotM650orLater(struct SiS_Private *SiS_Pr)
+SiS_IsAnaltM650orLater(struct SiS_Private *SiS_Pr)
 {
    unsigned short flag;
 
@@ -1255,7 +1255,7 @@ SiS_SetChrontelGPIO(struct SiS_Private *SiS_Pr, unsigned short myvbinfo)
 #endif
 
 void
-SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, int checkcrt2mode)
 {
    unsigned short tempax, tempbx, temp;
@@ -1263,11 +1263,11 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    SiS_Pr->SiS_SetFlag = 0;
 
-   modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+   modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
    SiS_Pr->SiS_ModeType = modeflag & ModeTypeMask;
 
-   if((ModeNo > 0x13) && (!SiS_Pr->UseCustomMode)) {
+   if((ModeAnal > 0x13) && (!SiS_Pr->UseCustomMode)) {
       resinfo = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_RESINFO;
    }
 
@@ -1278,24 +1278,24 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	temp = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
 	tempbx |= temp;
 	tempax = SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) << 8;
-	tempax &= (DriverMode | LoadDACFlag | SetNotSimuMode | SetPALTV);
+	tempax &= (DriverMode | LoadDACFlag | SetAnaltSimuMode | SetPALTV);
 	tempbx |= tempax;
 
 #ifdef CONFIG_FB_SIS_315
 	if(SiS_Pr->ChipType >= SIS_315H) {
 	   if(SiS_Pr->SiS_VBType & VB_SISLCDA) {
-	      if(ModeNo == 0x03) {
+	      if(ModeAnal == 0x03) {
 		 /* Mode 0x03 is never in driver mode */
 		 SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x31,0xbf);
 	      }
 	      if(!(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & (DriverMode >> 8))) {
-		 /* Reset LCDA setting if not driver mode */
+		 /* Reset LCDA setting if analt driver mode */
 		 SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x38,0xfc);
 	      }
 	      if(IS_SIS650) {
 		 if(SiS_Pr->SiS_UseLCDA) {
 		    if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x5f) & 0xF0) {
-		       if((ModeNo <= 0x13) || (!(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & (DriverMode >> 8)))) {
+		       if((ModeAnal <= 0x13) || (!(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & (DriverMode >> 8)))) {
 			  SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x38,(EnableDualEdge | SetToLCDA));
 		       }
 		    }
@@ -1378,7 +1378,7 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	   unsigned short clearmask = ( DriverMode |
 				DisableCRT2Display |
 				LoadDACFlag 	   |
-				SetNotSimuMode 	   |
+				SetAnaltSimuMode 	   |
 				SetInSlaveMode 	   |
 				SetPALTV 	   |
 				SwitchCRT2	   |
@@ -1425,7 +1425,7 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	/* LVDS/CHRONTEL (LCD/TV) and 301BDH (LCD) can only be slave in 8bpp modes */
 	if(SiS_Pr->SiS_ModeType <= ModeVGA) {
 	   if( (SiS_Pr->SiS_IF_DEF_LVDS == 1) ||
-	       ((SiS_Pr->SiS_VBType & VB_NoLCD) && (tempbx & SetCRT2ToLCD)) ) {
+	       ((SiS_Pr->SiS_VBType & VB_AnalLCD) && (tempbx & SetCRT2ToLCD)) ) {
 	      modeflag &= (~CRT2Mode);
 	   }
 	}
@@ -1488,7 +1488,7 @@ SiS_SetYPbPr(struct SiS_Private *SiS_Pr)
 
    unsigned char temp;
 
-   /* Note: This variable is only used on 30xLV systems.
+   /* Analte: This variable is only used on 30xLV systems.
     * CR38 has a different meaning on LVDS/CH7019 systems.
     * On 661 and later, these bits moved to CR35.
     *
@@ -1526,7 +1526,7 @@ SiS_SetYPbPr(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 void
-SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
    unsigned short temp, temp1, resinfo = 0, romindex = 0;
@@ -1537,7 +1537,7 @@ SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
    if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)) return;
    if(SiS_Pr->UseCustomMode) return;
 
-   if(ModeNo > 0x13) {
+   if(ModeAnal > 0x13) {
       resinfo = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_RESINFO;
    }
 
@@ -1689,7 +1689,7 @@ SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
       }
 
       if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
-	 if(!(SiS_Pr->SiS_VBInfo & SetNotSimuMode)) {
+	 if(!(SiS_Pr->SiS_VBInfo & SetAnaltSimuMode)) {
 	    SiS_Pr->SiS_TVMode |= TVSetTVSimuMode;
 	 }
       }
@@ -1772,11 +1772,11 @@ SiS_GetLCDInfoBIOS(struct SiS_Private *SiS_Pr)
 
 static void
 SiS_CheckScaling(struct SiS_Private *SiS_Pr, unsigned short resinfo,
-			const unsigned char *nonscalingmodes)
+			const unsigned char *analnscalingmodes)
 {
    int i = 0;
-   while(nonscalingmodes[i] != 0xff) {
-      if(nonscalingmodes[i++] == resinfo) {
+   while(analnscalingmodes[i] != 0xff) {
+      if(analnscalingmodes[i++] == resinfo) {
 	 if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) ||
 	    (SiS_Pr->UsePanelScaler == -1)) {
 	    SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -1787,7 +1787,7 @@ SiS_CheckScaling(struct SiS_Private *SiS_Pr, unsigned short resinfo,
 }
 
 void
-SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned short temp,modeflag,resinfo=0,modexres=0,modeyres=0;
   bool panelcanscale = false;
@@ -1815,9 +1815,9 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 
   if(!(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA))) return;
 
-  modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+  modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
-  if((ModeNo > 0x13) && (!SiS_Pr->UseCustomMode)) {
+  if((ModeAnal > 0x13) && (!SiS_Pr->UseCustomMode)) {
      resinfo = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_RESINFO;
      modexres = SiS_Pr->SiS_ModeResInfo[resinfo].HTotal;
      modeyres = SiS_Pr->SiS_ModeResInfo[resinfo].VTotal;
@@ -1838,7 +1838,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   temp &= 0x0f;
 #ifdef CONFIG_FB_SIS_300
   if(SiS_Pr->ChipType < SIS_315H) {
-     /* Very old BIOSes only know 7 sizes (NetVista 2179, 1.01g) */
+     /* Very old BIOSes only kanalw 7 sizes (NetVista 2179, 1.01g) */
      if(SiS_Pr->SiS_VBType & VB_SIS301) {
         if(temp < 0x0f) temp &= 0x07;
      }
@@ -1895,7 +1895,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   SiS_Pr->SiS_LCDInfo = temp & ~0x000e;
   /* Need temp below! */
 
-  /* These must/can't scale no matter what */
+  /* These must/can't scale anal matter what */
   switch(SiS_Pr->SiS_LCDResInfo) {
   case Panel_320x240_1:
   case Panel_320x240_2:
@@ -1954,7 +1954,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 #endif
 
   /* Pass 1:1 */
-  if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_NoLCD)) {
+  if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_AnalLCD)) {
      /* Always center screen on LVDS (if scaling is disabled) */
      SiS_Pr->SiS_LCDInfo &= ~LCDPass11;
   } else if(SiS_Pr->SiS_VBType & VB_SISVB) {
@@ -2189,10 +2189,10 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   }
 
   /* DontExpand overrule */
-  if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
+  if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_AnalLCD))) {
 
-     if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) && (modeflag & NoSupportLCDScale)) {
-	/* No scaling for this mode on any panel (LCD=CRT2)*/
+     if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) && (modeflag & AnalSupportLCDScale)) {
+	/* Anal scaling for this mode on any panel (LCD=CRT2)*/
 	SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
      }
 
@@ -2205,40 +2205,40 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
 
      case Panel_800x600: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, 0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1024x768: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1280x720: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	if(SiS_Pr->PanelHT == 1650) {
 	   SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
 	}
 	break;
      }
      case Panel_1280x768_2: {  /* LVDS only */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:  if(SiS_Pr->UsePanelScaler == -1) {
 				  SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -2248,21 +2248,21 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x800: {  	/* SiS TMDS special (Averatec 6200 series) */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1280x720,SIS_RI_1280x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1280x800_2:  { 	/* SiS LVDS */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:
 	case SIS_RI_1280x768:  if(SiS_Pr->UsePanelScaler == -1) {
@@ -2273,12 +2273,12 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x854: {  	/* SiS LVDS */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:
 	case SIS_RI_1280x768:
@@ -2290,33 +2290,33 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x960: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	   SIS_RI_1280x854,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1280x1024: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	   SIS_RI_1280x854,SIS_RI_1280x960,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1400x1050: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x768,SIS_RI_1280x800,SIS_RI_1280x854,
 	     SIS_RI_1280x960,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:  if(SiS_Pr->UsePanelScaler == -1) {
 				  SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -2328,23 +2328,23 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1600x1200: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	     SIS_RI_1280x854,SIS_RI_1280x960,SIS_RI_1360x768,SIS_RI_1360x1024,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      case Panel_1680x1050: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char analnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x854,SIS_RI_1280x960,SIS_RI_1360x768,
 	     SIS_RI_1360x1024,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, analnscalingmodes);
 	break;
      }
      }
@@ -2367,7 +2367,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	   }
 	}
      } else if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
-	if((SiS_Pr->SiS_SetFlag & SetDOSMode) && ((ModeNo == 0x03) || (ModeNo == 0x10))) {
+	if((SiS_Pr->SiS_SetFlag & SetDOSMode) && ((ModeAnal == 0x03) || (ModeAnal == 0x10))) {
 	   SiS_Pr->SiS_LCDInfo &= (~DontExpandLCD);
 	}
      }
@@ -2403,7 +2403,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
      break;
   }
 
-  if((SiS_Pr->UseCustomMode) || (SiS_Pr->SiS_CustomT == CUT_UNKNOWNLCD)) {
+  if((SiS_Pr->UseCustomMode) || (SiS_Pr->SiS_CustomT == CUT_UNKANALWNLCD)) {
      SiS_Pr->SiS_LCDInfo |= (DontExpandLCD | LCDPass11);
   }
 
@@ -2415,13 +2415,13 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   /* LVDS DDA */
   if(!((SiS_Pr->ChipType < SIS_315H) && (SiS_Pr->SiS_SetFlag & SetDOSMode))) {
 
-     if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_NoLCD)) {
+     if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_AnalLCD)) {
 	if(SiS_Pr->SiS_IF_DEF_TRUMPION == 0) {
-	   if(ModeNo == 0x12) {
+	   if(ModeAnal == 0x12) {
 	      if(SiS_Pr->SiS_LCDInfo & LCDPass11) {
 		 SiS_Pr->SiS_SetFlag |= EnableLVDSDDA;
 	      }
-	   } else if(ModeNo > 0x13) {
+	   } else if(ModeAnal > 0x13) {
 	      if(SiS_Pr->SiS_LCDResInfo == Panel_1024x600) {
 		 if(!(SiS_Pr->SiS_LCDInfo & DontExpandLCD)) {
 		    if((resinfo == SIS_RI_800x600) || (resinfo == SIS_RI_400x300)) {
@@ -2440,7 +2440,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	   SiS_Pr->SiS_SetFlag |= EnableLVDSDDA;
 	} else if(SiS_Pr->SiS_LCDResInfo == Panel_640x480) {
 	   SiS_Pr->SiS_SetFlag |= EnableLVDSDDA;
-	} else if(ModeNo > 0x13) {
+	} else if(ModeAnal > 0x13) {
 	   if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
 	      if(resinfo == SIS_RI_512x384) SiS_Pr->SiS_SetFlag |= EnableLVDSDDA;
 	   } else if(SiS_Pr->SiS_LCDResInfo == Panel_800x600) {
@@ -2453,7 +2453,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 
   /* VESA timing */
   if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
-     if(SiS_Pr->SiS_VBInfo & SetNotSimuMode) {
+     if(SiS_Pr->SiS_VBInfo & SetAnaltSimuMode) {
 	SiS_Pr->SiS_SetFlag |= LCDVESATiming;
      }
   } else {
@@ -2471,14 +2471,14 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 /*********************************************/
 
 unsigned short
-SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned short CRT2Index, VCLKIndex = 0, VCLKIndexGEN = 0, VCLKIndexGENCRT = 0;
   unsigned short resinfo, tempbx;
   const unsigned char *CHTVVCLKPtr = NULL;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
      CRT2Index = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
      VCLKIndexGEN = (SiS_GetRegByte((SiS_Pr->SiS_P3ca+0x02)) >> 2) & 0x03;
@@ -2521,7 +2521,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 		 default:              VCLKIndex = VCLKIndexGEN;
 		 }
 
-		 if(ModeNo <= 0x13) {
+		 if(ModeAnal <= 0x13) {
 		    if(SiS_Pr->ChipType <= SIS_315PRO) {
 		       if(SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC == 1) VCLKIndex = 0x42;
 		    } else {
@@ -2554,7 +2554,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 
 	   VCLKIndex = VCLKIndexGENCRT;
 	   if(SiS_Pr->ChipType < SIS_315H) {
-	      if(ModeNo > 0x13) {
+	      if(ModeAnal > 0x13) {
 		 if( (SiS_Pr->ChipType == SIS_630) &&
 		     (SiS_Pr->ChipRevision >= 0x30)) {
 		    if(VCLKIndex == 0x14) VCLKIndex = 0x34;
@@ -2565,11 +2565,11 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	   }
 	}
 
-     } else {   /* If not programming CRT2 */
+     } else {   /* If analt programming CRT2 */
 
 	VCLKIndex = VCLKIndexGENCRT;
 	if(SiS_Pr->ChipType < SIS_315H) {
-	   if(ModeNo > 0x13) {
+	   if(ModeAnal > 0x13) {
 	      if( (SiS_Pr->ChipType != SIS_630) &&
 		  (SiS_Pr->ChipType != SIS_300) ) {
 		 if(VCLKIndex == 0x1b) VCLKIndex = 0x48;
@@ -2644,7 +2644,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 
 	   VCLKIndex = VCLKIndexGENCRT;
 	   if(SiS_Pr->ChipType < SIS_315H) {
-	      if(ModeNo > 0x13) {
+	      if(ModeAnal > 0x13) {
 		 if( (SiS_Pr->ChipType == SIS_630) &&
 		     (SiS_Pr->ChipRevision >= 0x30) ) {
 		    if(VCLKIndex == 0x14) VCLKIndex = 0x2e;
@@ -2653,11 +2653,11 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	   }
 	}
 
-     } else {  /* if not programming CRT2 */
+     } else {  /* if analt programming CRT2 */
 
 	VCLKIndex = VCLKIndexGENCRT;
 	if(SiS_Pr->ChipType < SIS_315H) {
-	   if(ModeNo > 0x13) {
+	   if(ModeAnal > 0x13) {
 	      if( (SiS_Pr->ChipType != SIS_630) &&
 		  (SiS_Pr->ChipType != SIS_300) ) {
 		 if(VCLKIndex == 0x1b) VCLKIndex = 0x48;
@@ -2683,7 +2683,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 /*********************************************/
 
 static void
-SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned short i, j, modeflag, tempah=0;
   short tempcl;
@@ -2695,7 +2695,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
   unsigned short tempah2, tempbl2;
 #endif
 
-  modeflag = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
+  modeflag = SiS_GetModeFlag(SiS_Pr, ModeAnal, ModeIdIndex);
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
 
@@ -2716,7 +2716,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 #ifdef CONFIG_FB_SIS_300    /* ---- 300 series ---- */
 
 	/* For 301BDH: (with LCD via LVDS) */
-	if(SiS_Pr->SiS_VBType & VB_NoLCD) {
+	if(SiS_Pr->SiS_VBType & VB_AnalLCD) {
 	   tempbl = SiS_GetReg(SiS_Pr->SiS_P3c4,0x32);
 	   tempbl &= 0xef;
 	   tempbl |= 0x02;
@@ -2727,7 +2727,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	   SiS_SetReg(SiS_Pr->SiS_P3c4,0x32,tempbl);
 	}
 
-	if(ModeNo > 0x13) {
+	if(ModeAnal > 0x13) {
 	   tempcl -= ModeVGA;
 	   if(tempcl >= 0) {
 	      tempah = ((0x10 >> tempcl) | 0x80);
@@ -2742,7 +2742,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 
 #ifdef CONFIG_FB_SIS_315    /* ------- 315/330 series ------ */
 
-	if(ModeNo > 0x13) {
+	if(ModeAnal > 0x13) {
 	   tempcl -= ModeVGA;
 	   if(tempcl >= 0) {
 	      tempah = (0x08 >> tempcl);
@@ -2891,8 +2891,8 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	/* The following is nearly unpreditable and varies from machine
 	 * to machine. Especially the 301DH seems to be a real trouble
 	 * maker. Some BIOSes simply set the registers (like in the
-	 * NoLCD-if-statements here), some set them according to the
-	 * LCDA stuff. It is very likely that some machines are not
+	 * AnalLCD-if-statements here), some set them according to the
+	 * LCDA stuff. It is very likely that some machines are analt
 	 * treated correctly in the following, very case-orientated
 	 * code. What do I do then...?
 	 */
@@ -2912,10 +2912,10 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	}
 
 	/* The following two are responsible for eventually wrong colors
-	 * in TV output. The DH (VB_NoLCD) conditions are unknown; the
+	 * in TV output. The DH (VB_AnalLCD) conditions are unkanalwn; the
 	 * b0 was found in some 651 machine (Pim; P4_23=0xe5); the b1 version
 	 * in a 650 box (Jake). What is the criteria?
-	 * Addendum: Another combination 651+301B-DH(b1) (Rapo) needs same
+	 * Addendum: Aanalther combination 651+301B-DH(b1) (Rapo) needs same
 	 * treatment like the 651+301B-DH(b0) case. Seems more to be the
 	 * chipset than the bridge revision.
 	 */
@@ -2937,7 +2937,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	} else if(SiS_Pr->SiS_VBType & VB_SISLVDS) {
 	   SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x2c,0x30);	/* For 30xLV */
 	   SiS_SetRegOR(SiS_Pr->SiS_Part4Port,0x21,0xc0);
-	} else if(SiS_Pr->SiS_VBType & VB_NoLCD) {		/* For 301B-DH */
+	} else if(SiS_Pr->SiS_VBType & VB_AnalLCD) {		/* For 301B-DH */
 	   tempah = 0x30; tempah2 = 0xc0;
 	   tempbl = 0xcf; tempbl2 = 0x3f;
 	   if(SiS_Pr->SiS_TVBlue == 0) {
@@ -2985,7 +2985,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	SiS_SetRegAND(SiS_Pr->SiS_Part4Port,0x21,0x3f);
 
 	if((SiS_Pr->SiS_VBInfo & DisableCRT2Display) ||
-	   ((SiS_Pr->SiS_VBType & VB_NoLCD) &&
+	   ((SiS_Pr->SiS_VBType & VB_AnalLCD) &&
 	    (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD))) {
 	   SiS_SetRegAND(SiS_Pr->SiS_Part4Port,0x23,0x7F);
 	} else {
@@ -3042,16 +3042,16 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 /*********************************************/
 
 unsigned short
-SiS_GetResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_GetResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
-   if(ModeNo <= 0x13)
+   if(ModeAnal <= 0x13)
       return ((unsigned short)SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo);
    else
       return ((unsigned short)SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_RESINFO);
 }
 
 static void
-SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short xres, yres, modeflag=0, resindex;
 
@@ -3064,9 +3064,9 @@ SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
       return;
    }
 
-   resindex = SiS_GetResInfo(SiS_Pr,ModeNo,ModeIdIndex);
+   resindex = SiS_GetResInfo(SiS_Pr,ModeAnal,ModeIdIndex);
 
-   if(ModeNo <= 0x13) {
+   if(ModeAnal <= 0x13) {
       xres = SiS_Pr->SiS_StResInfo[resindex].HTotal;
       yres = SiS_Pr->SiS_StResInfo[resindex].VTotal;
    } else {
@@ -3078,11 +3078,11 @@ SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
    if(!SiS_Pr->SiS_IF_DEF_DSTN && !SiS_Pr->SiS_IF_DEF_FSTN) {
 
       if((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->SiS_IF_DEF_LVDS == 1)) {
-	 if((ModeNo != 0x03) && (SiS_Pr->SiS_SetFlag & SetDOSMode)) {
+	 if((ModeAnal != 0x03) && (SiS_Pr->SiS_SetFlag & SetDOSMode)) {
 	    if(yres == 350) yres = 400;
 	 }
 	 if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x3a) & 0x01) {
-	    if(ModeNo == 0x12) yres = 400;
+	    if(ModeAnal == 0x12) yres = 400;
 	 }
       }
 
@@ -3091,7 +3091,7 @@ SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
    }
 
-   if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
+   if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_AnalLCD))) {
 
       if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) {
 	 switch(SiS_Pr->SiS_LCDResInfo) {
@@ -3150,13 +3150,13 @@ SiS_GetCRT2ResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 /*********************************************/
 
 static void
-SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 	       unsigned short RefreshRateTableIndex, unsigned short *CRT2Index,
 	       unsigned short *ResIndex)
 {
   unsigned short tempbx=0, tempal=0, resinfo=0;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      tempal = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   } else {
      tempal = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
@@ -3183,9 +3183,9 @@ SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 	if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
 	   /* Pass 1:1 only (center-screen handled outside) */
 	   /* This is never called for the panel's native resolution */
-	   /* since Pass1:1 will not be set in this case */
+	   /* since Pass1:1 will analt be set in this case */
 	   tempbx = 100;
-	   if(ModeNo >= 0x13) {
+	   if(ModeAnal >= 0x13) {
 	      tempal = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC_NS;
 	   }
 	}
@@ -3225,8 +3225,8 @@ SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
      tempal &= 0x3F;
 
-     if(ModeNo > 0x13) {
-        if(SiS_Pr->SiS_VBInfo & SetCRT2ToTVNoHiVision) {
+     if(ModeAnal > 0x13) {
+        if(SiS_Pr->SiS_VBInfo & SetCRT2ToTVAnalHiVision) {
 	   switch(resinfo) {
 	   case SIS_RI_720x480:
 	      tempal = 6;
@@ -3234,7 +3234,7 @@ SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 	      break;
 	   case SIS_RI_720x576:
 	   case SIS_RI_768x576:
-	   case SIS_RI_1024x576: /* Not in NTSC or YPBPR mode (except 1080i)! */
+	   case SIS_RI_1024x576: /* Analt in NTSC or YPBPR mode (except 1080i)! */
 	      tempal = 6;
 	      if(SiS_Pr->SiS_VBInfo & SetCRT2ToYPbPr525750) {
 		 if(SiS_Pr->SiS_TVMode & TVSetYPbPr750p)	tempal = 8;
@@ -3330,7 +3330,7 @@ SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 }
 
 static void
-SiS_GetRAMDAC2DATA(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetRAMDAC2DATA(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned short tempax=0, tempbx=0, index, dotclock;
@@ -3339,10 +3339,10 @@ SiS_GetRAMDAC2DATA(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   SiS_Pr->SiS_RVBHCMAX  = 1;
   SiS_Pr->SiS_RVBHCFACT = 1;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
 
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
-     index = SiS_GetModePtr(SiS_Pr,ModeNo,ModeIdIndex);
+     index = SiS_GetModePtr(SiS_Pr,ModeAnal,ModeIdIndex);
 
      tempax = SiS_Pr->SiS_StandTable[index].CRTC[0];
      tempbx = SiS_Pr->SiS_StandTable[index].CRTC[6];
@@ -3383,7 +3383,7 @@ SiS_GetRAMDAC2DATA(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 }
 
 static void
-SiS_CalcPanelLinkTiming(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_CalcPanelLinkTiming(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 		unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex)
 {
    unsigned short ResIndex;
@@ -3396,7 +3396,7 @@ SiS_CalcPanelLinkTiming(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	    SiS_Pr->SiS_VGAHT = SiS_Pr->SiS_HT = ResIndex;
 	    SiS_Pr->SiS_VGAVT = SiS_Pr->SiS_VT = SiS_Pr->CVTotal;
 	 } else {
-	    if(ModeNo < 0x13) {
+	    if(ModeAnal < 0x13) {
 	       ResIndex = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
 	    } else {
 	       ResIndex = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC_NS;
@@ -3405,10 +3405,10 @@ SiS_CalcPanelLinkTiming(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 	       if(SiS_Pr->Alternate1600x1200)        ResIndex = 0x20; /* 1600x1200 LCDA */
 	       else if(SiS_Pr->SiS_IF_DEF_LVDS == 1) ResIndex = 0x21; /* 1600x1200 LVDS */
 	    }
-	    SiS_Pr->SiS_VGAHT = SiS_Pr->SiS_NoScaleData[ResIndex].VGAHT;
-	    SiS_Pr->SiS_VGAVT = SiS_Pr->SiS_NoScaleData[ResIndex].VGAVT;
-	    SiS_Pr->SiS_HT    = SiS_Pr->SiS_NoScaleData[ResIndex].LCDHT;
-	    SiS_Pr->SiS_VT    = SiS_Pr->SiS_NoScaleData[ResIndex].LCDVT;
+	    SiS_Pr->SiS_VGAHT = SiS_Pr->SiS_AnalScaleData[ResIndex].VGAHT;
+	    SiS_Pr->SiS_VGAVT = SiS_Pr->SiS_AnalScaleData[ResIndex].VGAVT;
+	    SiS_Pr->SiS_HT    = SiS_Pr->SiS_AnalScaleData[ResIndex].LCDHT;
+	    SiS_Pr->SiS_VT    = SiS_Pr->SiS_AnalScaleData[ResIndex].LCDVT;
 	 }
       } else {
 	 SiS_Pr->SiS_VGAHT = SiS_Pr->SiS_HT = SiS_Pr->PanelHT;
@@ -3426,13 +3426,13 @@ SiS_CalcPanelLinkTiming(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 }
 
 static void
-SiS_GetCRT2DataLVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetCRT2DataLVDS(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                     unsigned short RefreshRateTableIndex)
 {
    unsigned short CRT2Index, ResIndex, backup;
    const struct SiS_LVDSData *LVDSData = NULL;
 
-   SiS_GetCRT2ResInfo(SiS_Pr, ModeNo, ModeIdIndex);
+   SiS_GetCRT2ResInfo(SiS_Pr, ModeAnal, ModeIdIndex);
 
    if(SiS_Pr->SiS_VBType & VB_SISVB) {
       SiS_Pr->SiS_RVBHCMAX  = 1;
@@ -3449,19 +3449,19 @@ SiS_GetCRT2DataLVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
    if((SiS_Pr->SiS_VBType & VB_SISVB) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)) {
 
 #ifdef CONFIG_FB_SIS_315
-      SiS_CalcPanelLinkTiming(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
-      SiS_CalcLCDACRT1Timing(SiS_Pr, ModeNo, ModeIdIndex);
+      SiS_CalcPanelLinkTiming(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
+      SiS_CalcLCDACRT1Timing(SiS_Pr, ModeAnal, ModeIdIndex);
 #endif
 
    } else {
 
       /* 301BDH needs LVDS Data */
       backup = SiS_Pr->SiS_IF_DEF_LVDS;
-      if((SiS_Pr->SiS_VBType & VB_NoLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
+      if((SiS_Pr->SiS_VBType & VB_AnalLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
 	 SiS_Pr->SiS_IF_DEF_LVDS = 1;
       }
 
-      SiS_GetCRT2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex,
+      SiS_GetCRT2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex,
                      		            &CRT2Index, &ResIndex);
 
       SiS_Pr->SiS_IF_DEF_LVDS = backup;
@@ -3497,7 +3497,7 @@ SiS_GetCRT2DataLVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	 SiS_Pr->SiS_HT    = (LVDSData+ResIndex)->LCDHT;
 	 SiS_Pr->SiS_VT    = (LVDSData+ResIndex)->LCDVT;
       } else {
-	 SiS_CalcPanelLinkTiming(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	 SiS_CalcPanelLinkTiming(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
       }
 
       if( (!(SiS_Pr->SiS_VBType & VB_SISVB)) &&
@@ -3521,7 +3521,7 @@ SiS_GetCRT2DataLVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 }
 
 static void
-SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned char  *ROMAddr = NULL;
@@ -3533,7 +3533,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   short resinfo661;
 #endif
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
   } else if(SiS_Pr->UseCustomMode) {
@@ -3566,7 +3566,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   SiS_Pr->SiS_RY4COE = 0;
   SiS_Pr->SiS_RVBHRS2 = 0;
 
-  SiS_GetCRT2ResInfo(SiS_Pr,ModeNo,ModeIdIndex);
+  SiS_GetCRT2ResInfo(SiS_Pr,ModeAnal,ModeIdIndex);
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToRAMDAC) {
 
@@ -3584,13 +3584,13 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
      } else {
 
-	SiS_GetRAMDAC2DATA(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	SiS_GetRAMDAC2DATA(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 
      }
 
   } else if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV) {
 
-     SiS_GetCRT2Ptr(SiS_Pr,ModeNo,ModeIdIndex,RefreshRateTableIndex,
+     SiS_GetCRT2Ptr(SiS_Pr,ModeAnal,ModeIdIndex,RefreshRateTableIndex,
 		    &CRT2Index,&ResIndex);
 
      switch(CRT2Index) {
@@ -3752,7 +3752,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
 	if(!gotit) {
 
-	   SiS_GetCRT2Ptr(SiS_Pr,ModeNo,ModeIdIndex,RefreshRateTableIndex,
+	   SiS_GetCRT2Ptr(SiS_Pr,ModeAnal,ModeIdIndex,RefreshRateTableIndex,
 			  &CRT2Index,&ResIndex);
 
 	   switch(CRT2Index) {
@@ -3778,7 +3778,7 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	      case Panel_1600x1200 + 32: LCDPtr = SiS_Pr->SiS_StLCD1600x1200Data;   break;
 	      case Panel_1680x1050     :
 	      case Panel_1680x1050 + 32: LCDPtr = SiS_Pr->SiS_LCD1680x1050Data;     break;
-	      case 100		       : LCDPtr = SiS_Pr->SiS_NoScaleData;	    break;
+	      case 100		       : LCDPtr = SiS_Pr->SiS_AnalScaleData;	    break;
 #ifdef CONFIG_FB_SIS_315
 	      case 200                 : LCDPtr = SiS310_ExtCompaq1280x1024Data;    break;
 	      case 201                 : LCDPtr = SiS_Pr->SiS_St2LCD1280x1024Data;  break;
@@ -3844,26 +3844,26 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 }
 
 static void
-SiS_GetCRT2Data(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetCRT2Data(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                 unsigned short RefreshRateTableIndex)
 {
 
    if(SiS_Pr->SiS_VBType & VB_SISVB) {
 
       if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
-         SiS_GetCRT2DataLVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+         SiS_GetCRT2DataLVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
       } else {
-	 if((SiS_Pr->SiS_VBType & VB_NoLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
+	 if((SiS_Pr->SiS_VBType & VB_AnalLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
 	    /* Need LVDS Data for LCD on 301B-DH */
-	    SiS_GetCRT2DataLVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	    SiS_GetCRT2DataLVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	 } else {
-	    SiS_GetCRT2Data301(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	    SiS_GetCRT2Data301(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	 }
       }
 
    } else {
 
-      SiS_GetCRT2DataLVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+      SiS_GetCRT2DataLVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 
    }
 }
@@ -3901,7 +3901,7 @@ SiS_GetLVDSDesPtr(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                    unsigned short RefreshRateTableIndex)
 {
   unsigned short modeflag, ResIndex;
@@ -3944,14 +3944,14 @@ SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
      return;
   }
 
-  if(ModeNo <= 0x13) ResIndex = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
+  if(ModeAnal <= 0x13) ResIndex = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   else               ResIndex = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
 
   if((SiS_Pr->SiS_VBType & VB_SIS30xBLV) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)) {
 
 #ifdef CONFIG_FB_SIS_315
      if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
-	/* non-pass 1:1 only, see above */
+	/* analn-pass 1:1 only, see above */
 	if(SiS_Pr->SiS_VGAHDE != SiS_Pr->PanelXRes) {
 	   SiS_Pr->SiS_LCDHDES = SiS_Pr->SiS_HT - ((SiS_Pr->PanelXRes - SiS_Pr->SiS_VGAHDE) / 2);
 	}
@@ -3977,7 +3977,7 @@ SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	   break;
 	case Panel_1280x800:	/* Verified for Averatec 6240 */
 	case Panel_1280x800_2:	/* Verified for Asus A4L */
-	case Panel_1280x854:    /* Not verified yet FIXME */
+	case Panel_1280x854:    /* Analt verified yet FIXME */
 	   SiS_Pr->SiS_LCDVDES = SiS_Pr->PanelVT - 1;
 	   break;
 	}
@@ -4087,7 +4087,7 @@ SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	}
      }
 
-     if((ModeNo <= 0x13) && (SiS_Pr->SiS_LCDInfo & DontExpandLCD)) {
+     if((ModeAnal <= 0x13) && (SiS_Pr->SiS_LCDInfo & DontExpandLCD)) {
 	modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
 	if((SiS_Pr->SiS_VBType & VB_SIS30xBLV) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)) {
 	   if(!(modeflag & HalfDCLK)) SiS_Pr->SiS_LCDHDES = 632;
@@ -4249,7 +4249,7 @@ SiS_DisableBridge(struct SiS_Private *SiS_Pr)
 
 	   }
 
-	   if(!(SiS_IsNotM650orLater(SiS_Pr))) {
+	   if(!(SiS_IsAnaltM650orLater(SiS_Pr))) {
 	      /* if(SiS_Pr->ChipType < SIS_340) {*/
 		 tempah = 0xef;
 		 if(SiS_IsVAMode(SiS_Pr)) tempah = 0xf7;
@@ -4301,7 +4301,7 @@ SiS_DisableBridge(struct SiS_Private *SiS_Pr)
 
 	   }
 
-	   if(SiS_IsNotM650orLater(SiS_Pr)) {
+	   if(SiS_IsAnaltM650orLater(SiS_Pr)) {
 	      SiS_SetRegAND(SiS_Pr->SiS_Part1Port,0x2e,0x7f);
 	   }
 
@@ -4425,7 +4425,7 @@ SiS_DisableBridge(struct SiS_Private *SiS_Pr)
 
 #ifdef CONFIG_FB_SIS_315	/* 315 series */
 
-	if(!(SiS_IsNotM650orLater(SiS_Pr))) {
+	if(!(SiS_IsAnaltM650orLater(SiS_Pr))) {
 	   /*if(SiS_Pr->ChipType < SIS_340) { */ /* XGI needs this */
 	      SiS_SetRegAND(SiS_Pr->SiS_Part1Port,0x4c,~0x18);
 	   /* } */
@@ -4573,17 +4573,17 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 	 if(SiS_CRT2IsLCD(SiS_Pr)) {
 	    if(SiS_Pr->SiS_VBType & VB_SISLVDS) {
 	       SiS_SetRegOR(SiS_Pr->SiS_Part4Port,0x26,0x02);
-	    } else if(SiS_Pr->SiS_VBType & VB_NoLCD) {
+	    } else if(SiS_Pr->SiS_VBType & VB_AnalLCD) {
 	       SiS_SetRegSR11ANDOR(SiS_Pr,0xFB,0x00);
 	    }
-	    if(SiS_Pr->SiS_VBType & (VB_SISLVDS | VB_NoLCD)) {
+	    if(SiS_Pr->SiS_VBType & (VB_SISLVDS | VB_AnalLCD)) {
 	       if(!(SiS_CR36BIOSWord23d(SiS_Pr))) {
 		  SiS_PanelDelay(SiS_Pr, 0);
 	       }
 	    }
 	 }
 
-	 if((SiS_Pr->SiS_VBType & VB_NoLCD) &&
+	 if((SiS_Pr->SiS_VBType & VB_AnalLCD) &&
 	    (SiS_CRT2IsLCD(SiS_Pr))) {
 
 	    SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x1E,0x20);   		/* Enable CRT2 */
@@ -4652,7 +4652,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 #endif
 	 }
 
-	 if(!(SiS_IsNotM650orLater(SiS_Pr))) {
+	 if(!(SiS_IsAnaltM650orLater(SiS_Pr))) {
 	    /*if(SiS_Pr->ChipType < SIS_340) { */
 	       tempah = 0x10;
 	       if(SiS_LCDAEnabled(SiS_Pr)) {
@@ -4781,15 +4781,15 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 		  }
 
 		  /*                                              (P4_30|0x40)  */
-		  /* Compal 1400x1050: 0x05, 0x60, 0x00                YES  (1.10.7w;  CR36=69)      */
-		  /* Compal 1400x1050: 0x0d, 0x70, 0x40                YES  (1.10.7x;  CR36=69)      */
-		  /* Acer   1280x1024: 0x12, 0xd0, 0x6b                NO   (1.10.9k;  CR36=73)      */
-		  /* Compaq 1280x1024: 0x0d, 0x70, 0x6b                YES  (1.12.04b; CR36=03)      */
-		  /* Clevo   1024x768: 0x05, 0x60, 0x33                NO   (1.10.8e;  CR36=12, DL!) */
-		  /* Clevo   1024x768: 0x0d, 0x70, 0x40 (if type == 3) YES  (1.10.8y;  CR36=?2)      */
-		  /* Clevo   1024x768: 0x05, 0x60, 0x33 (if type != 3) YES  (1.10.8y;  CR36=?2)      */
+		  /* Compal 1400x1050: 0x05, 0x60, 0x00                ANAL  (1.10.7w;  CR36=69)      */
+		  /* Compal 1400x1050: 0x0d, 0x70, 0x40                ANAL  (1.10.7x;  CR36=69)      */
+		  /* Acer   1280x1024: 0x12, 0xd0, 0x6b                ANAL   (1.10.9k;  CR36=73)      */
+		  /* Compaq 1280x1024: 0x0d, 0x70, 0x6b                ANAL  (1.12.04b; CR36=03)      */
+		  /* Clevo   1024x768: 0x05, 0x60, 0x33                ANAL   (1.10.8e;  CR36=12, DL!) */
+		  /* Clevo   1024x768: 0x0d, 0x70, 0x40 (if type == 3) ANAL  (1.10.8y;  CR36=?2)      */
+		  /* Clevo   1024x768: 0x05, 0x60, 0x33 (if type != 3) ANAL  (1.10.8y;  CR36=?2)      */
 		  /* Asus    1024x768: ?                                ?   (1.10.8o;  CR36=?2)      */
-		  /* Asus    1024x768: 0x08, 0x10, 0x3c (problematic)  YES  (1.10.8q;  CR36=22)      */
+		  /* Asus    1024x768: 0x08, 0x10, 0x3c (problematic)  ANAL  (1.10.8q;  CR36=22)      */
 
 		  if(SiS_Pr->HaveEMI) {
 		     r30 = SiS_Pr->EMI_30; r31 = SiS_Pr->EMI_31;
@@ -4800,8 +4800,8 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 
 		  /* EMI_30 is read at driver start; however, the BIOS sets this
 		   * (if it is used) only if the LCD is in use. In case we caught
-		   * the machine while on TV output, this bit is not set and we
-		   * don't know if it should be set - hence our detection is wrong.
+		   * the machine while on TV output, this bit is analt set and we
+		   * don't kanalw if it should be set - hence our detection is wrong.
 		   * Work-around this here:
 		   */
 
@@ -4835,7 +4835,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 			   }
 			}
 			break;
-		     case 11: /* 1600x1200 - unknown */
+		     case 11: /* 1600x1200 - unkanalwn */
 			r30 |= 0x40;
 			if(!SiS_Pr->HaveEMI) {
 			   r31 = 0x05; r32 = 0x60; r33 = 0x00;
@@ -5035,7 +5035,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 
 #ifdef CONFIG_FB_SIS_315    /* 315 series */
 
-       if(!(SiS_IsNotM650orLater(SiS_Pr))) {
+       if(!(SiS_IsAnaltM650orLater(SiS_Pr))) {
 	  /*if(SiS_Pr->ChipType < SIS_340) {*/  /* XGI needs this */
 	     SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x4c,0x18);
 	  /*}*/
@@ -5141,7 +5141,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 
 /* Set CRT2 OFFSET / PITCH */
 static void
-SiS_SetCRT2Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetCRT2Offset(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RRTI)
 {
    unsigned short offset;
@@ -5149,7 +5149,7 @@ SiS_SetCRT2Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 
    if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) return;
 
-   offset = SiS_GetOffset(SiS_Pr,ModeNo,ModeIdIndex,RRTI);
+   offset = SiS_GetOffset(SiS_Pr,ModeAnal,ModeIdIndex,RRTI);
 
    SiS_SetReg(SiS_Pr->SiS_Part1Port,0x07,(offset & 0xFF));
    SiS_SetReg(SiS_Pr->SiS_Part1Port,0x09,(offset >> 8));
@@ -5161,7 +5161,7 @@ SiS_SetCRT2Offset(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 
 /* Set CRT2 sync and PanelLink mode */
 static void
-SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short RefreshRateTableIndex)
+SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short RefreshRateTableIndex)
 {
    unsigned short tempah=0, tempbl, infoflag;
 
@@ -5205,7 +5205,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    tempah >>= 3;
 	    tempah &= 0x18;
 	    SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x13,0xE7,tempah);
-	    /* Don't care about 12/18/24 bit mode - TV is via VGA, not PL */
+	    /* Don't care about 12/18/24 bit mode - TV is via VGA, analt PL */
 	 } else {
 	    SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x19,0x0F,0xe0);
 	 }
@@ -5234,7 +5234,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    if(!(SiS_Pr->SiS_LCDInfo & LCDRGB18Bit)) tempah |= 0x10;
 	    tempah |= 0xc0;
 	    SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x19,0x0F,tempah);
-	    if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
+	    if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) && (!(SiS_Pr->SiS_VBType & VB_AnalLCD))) {
 	       SiS_SetRegANDOR(SiS_Pr->SiS_Part2Port,0x1a,0xf0,tempbl);
 	    }
 
@@ -5288,7 +5288,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    if(!SiS_Pr->UseCustomMode) {
 	       tempbl = 0;
 	       if((SiS_Pr->SiS_VBType & VB_SIS30xC) && (SiS_Pr->SiS_VBInfo & SetCRT2ToRAMDAC)) {
-		  if(ModeNo <= 0x13) {
+		  if(ModeAnal <= 0x13) {
 		     tempah = SiS_GetRegByte((SiS_Pr->SiS_P3ca+0x02));
 		  }
 	       }
@@ -5304,7 +5304,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    tempah &= 0xC0;
 	    tempah |= 0x20;
 	    if(!(SiS_Pr->SiS_LCDInfo & LCDRGB18Bit)) tempah |= 0x10;
-	    if(SiS_Pr->SiS_VBType & VB_NoLCD) {
+	    if(SiS_Pr->SiS_VBType & VB_AnalLCD) {
 	       /* Imitate BIOS bug */
 	       if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)  tempah |= 0xc0;
 	    }
@@ -5330,12 +5330,12 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 /* Set CRT2 FIFO on 300/540/630/730 */
 #ifdef CONFIG_FB_SIS_300
 static void
-SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
+SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeAnal)
 {
   unsigned char  *ROMAddr  = SiS_Pr->VirtualRomBase;
   unsigned short temp, index, modeidindex, refreshratetableindex;
   unsigned short VCLK = 0, MCLK, colorth = 0, data2 = 0;
-  unsigned short tempbx, tempcl, CRT1ModeNo, CRT2ModeNo, SelectRate_backup;
+  unsigned short tempbx, tempcl, CRT1ModeAnal, CRT2ModeAnal, SelectRate_backup;
   unsigned int   data, pci50, pciA0;
   static const unsigned char colortharray[] = {
   	1, 1, 2, 2, 3, 4
@@ -5345,25 +5345,25 @@ SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
 
   if(!SiS_Pr->CRT1UsesCustomMode) {
 
-     CRT1ModeNo = SiS_Pr->SiS_CRT1Mode;                                 /* get CRT1 ModeNo */
-     SiS_SearchModeID(SiS_Pr, &CRT1ModeNo, &modeidindex);
+     CRT1ModeAnal = SiS_Pr->SiS_CRT1Mode;                                 /* get CRT1 ModeAnal */
+     SiS_SearchModeID(SiS_Pr, &CRT1ModeAnal, &modeidindex);
      SiS_Pr->SiS_SetFlag &= (~ProgrammingCRT2);
      SiS_Pr->SiS_SelectCRT2Rate = 0;
-     refreshratetableindex = SiS_GetRatePtr(SiS_Pr, CRT1ModeNo, modeidindex);
+     refreshratetableindex = SiS_GetRatePtr(SiS_Pr, CRT1ModeAnal, modeidindex);
 
-     if(CRT1ModeNo >= 0x13) {
+     if(CRT1ModeAnal >= 0x13) {
         /* Get VCLK */
 	index = SiS_GetRefCRTVCLK(SiS_Pr, refreshratetableindex, SiS_Pr->SiS_UseWide);
 	VCLK = SiS_Pr->SiS_VCLKData[index].CLOCK;
 
 	/* Get colordepth */
-	colorth = SiS_GetColorDepth(SiS_Pr,CRT1ModeNo,modeidindex) >> 1;
+	colorth = SiS_GetColorDepth(SiS_Pr,CRT1ModeAnal,modeidindex) >> 1;
 	if(!colorth) colorth++;
      }
 
   } else {
 
-     CRT1ModeNo = 0xfe;
+     CRT1ModeAnal = 0xfe;
 
      /* Get VCLK */
      VCLK = SiS_Pr->CSRClock_CRT1;
@@ -5373,7 +5373,7 @@ SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
 
   }
 
-  if(CRT1ModeNo >= 0x13) {
+  if(CRT1ModeAnal >= 0x13) {
      /* Get MCLK */
      if(SiS_Pr->ChipType == SIS_300) {
         index = SiS_GetReg(SiS_Pr->SiS_P3c4,0x3A);
@@ -5437,13 +5437,13 @@ SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
 
      if(!SiS_Pr->UseCustomMode) {
 
-	CRT2ModeNo = ModeNo;
-	SiS_SearchModeID(SiS_Pr, &CRT2ModeNo, &modeidindex);
+	CRT2ModeAnal = ModeAnal;
+	SiS_SearchModeID(SiS_Pr, &CRT2ModeAnal, &modeidindex);
 
-	refreshratetableindex = SiS_GetRatePtr(SiS_Pr, CRT2ModeNo, modeidindex);
+	refreshratetableindex = SiS_GetRatePtr(SiS_Pr, CRT2ModeAnal, modeidindex);
 
 	/* Get VCLK  */
-	index = SiS_GetVCLK2Ptr(SiS_Pr, CRT2ModeNo, modeidindex, refreshratetableindex);
+	index = SiS_GetVCLK2Ptr(SiS_Pr, CRT2ModeAnal, modeidindex, refreshratetableindex);
 	VCLK = SiS_Pr->SiS_VCLKData[index].CLOCK;
 
 	if((SiS_Pr->SiS_CustomT == CUT_BARCO1366) || (SiS_Pr->SiS_CustomT == CUT_BARCO1024)) {
@@ -5457,13 +5457,13 @@ SiS_SetCRT2FIFO_300(struct SiS_Private *SiS_Pr,unsigned short ModeNo)
      } else {
 
 	/* Get VCLK */
-	CRT2ModeNo = 0xfe;
+	CRT2ModeAnal = 0xfe;
 	VCLK = SiS_Pr->CSRClock;
 
      }
 
      /* Get colordepth */
-     colorth = SiS_GetColorDepth(SiS_Pr,CRT2ModeNo,modeidindex) >> 1;
+     colorth = SiS_GetColorDepth(SiS_Pr,CRT2ModeAnal,modeidindex) >> 1;
      if(!colorth) colorth++;
 
      data = data * VCLK * colorth;
@@ -5539,7 +5539,7 @@ SiS_GetVGAHT2(struct SiS_Private *SiS_Pr)
 
 /* Set Part 1 / SiS bridge slave mode */
 static void
-SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex,
+SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex,
                   unsigned short RefreshRateTableIndex)
 {
   unsigned short temp, modeflag, i, j, xres=0, VGAVDE;
@@ -5552,7 +5552,7 @@ SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned sho
 	  0x0c, 0x0d, 0x0e, 0x00, 0x0f, 0x10, 0x11, 0x00
   };
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
   } else if(SiS_Pr->UseCustomMode) {
      modeflag = SiS_Pr->CModeFlag;
@@ -5614,7 +5614,7 @@ SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned sho
   SiS_Pr->CVBlankStart = SiS_Pr->CVDisplay;
 
   SiS_Pr->CVBlankEnd = 1;
-  if(ModeNo == 0x3c) SiS_Pr->CVBlankEnd = 226;
+  if(ModeAnal == 0x3c) SiS_Pr->CVBlankEnd = 226;
 
   temp = (SiS_Pr->SiS_VGAVT - VGAVDE) >> 1;
   SiS_Pr->CVSyncStart = VGAVDE + temp;
@@ -5668,7 +5668,7 @@ SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned sho
  * 300/LVDS+TV, 300/301B-DH, 315/LVDS+TV, 315/LCDA
  */
 static void
-SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned short modeflag, resinfo = 0;
@@ -5682,7 +5682,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   unsigned short pushcx;
 #endif
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
 #ifdef CONFIG_FB_SIS_300
@@ -5699,12 +5699,12 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   }
 
   /* is lvds if really LVDS, or 301B-DH with external LVDS transmitter */
-  if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_NoLCD)) {
+  if((SiS_Pr->SiS_IF_DEF_LVDS == 1) || (SiS_Pr->SiS_VBType & VB_AnalLCD)) {
      islvds = true;
   }
 
-  /* is really sis if sis bridge, but not 301B-DH */
-  if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
+  /* is really sis if sis bridge, but analt 301B-DH */
+  if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_AnalLCD))) {
      issis = true;
   }
 
@@ -5796,7 +5796,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
      if(SiS_Pr->SiS_IF_DEF_TRUMPION) {
 	if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
-	   switch(ModeNo) {
+	   switch(ModeAnal) {
 	   case 0x04:
 	   case 0x05:
 	   case 0x0d: temp = 0x56; break;
@@ -5878,7 +5878,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   temp = tempbx & 0x00FF;
   if(SiS_Pr->SiS_IF_DEF_TRUMPION) {
      if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
-	if(ModeNo == 0x10) temp = 0xa9;
+	if(ModeAnal == 0x10) temp = 0xa9;
      }
   }
   SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,temp);			/* BPLVRS */
@@ -6104,11 +6104,11 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	SiS_SetTrumpionBlock(SiS_Pr, trumpdata);
      }
      if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
-	if(ModeNo == 0x13) {
+	if(ModeAnal == 0x13) {
 	   for(i=0; i<4; i++) {
 	      SiS_SetTrumpionBlock(SiS_Pr, &TrumpMode13[0]);
 	   }
-	} else if(ModeNo == 0x10) {
+	} else if(ModeAnal == 0x10) {
 	   for(i=0; i<4; i++) {
 	      SiS_SetTrumpionBlock(SiS_Pr, &TrumpMode10_1[0]);
 	      SiS_SetTrumpionBlock(SiS_Pr, &TrumpMode10_2[0]);
@@ -6224,7 +6224,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
 /* Set Part 1 */
 static void
-SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
 #if defined(CONFIG_FB_SIS_300) || defined(CONFIG_FB_SIS_315)
@@ -6237,11 +6237,11 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 #endif
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
-     SiS_SetGroup1_LVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+     SiS_SetGroup1_LVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
      return;
   }
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
   } else if(SiS_Pr->UseCustomMode) {
      modeflag = SiS_Pr->CModeFlag;
@@ -6251,7 +6251,7 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
      modeflag = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
   }
 
-  SiS_SetCRT2Offset(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+  SiS_SetCRT2Offset(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 
   if( ! ((SiS_Pr->ChipType >= SIS_315H) &&
          (SiS_Pr->SiS_IF_DEF_LVDS == 1) &&
@@ -6259,7 +6259,7 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 
      if(SiS_Pr->ChipType < SIS_315H ) {
 #ifdef CONFIG_FB_SIS_300
-	SiS_SetCRT2FIFO_300(SiS_Pr, ModeNo);
+	SiS_SetCRT2FIFO_300(SiS_Pr, ModeAnal);
 #endif
      } else {
 #ifdef CONFIG_FB_SIS_315
@@ -6497,7 +6497,7 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 	   }
 	   if(SiS_Pr->SiS_UseROM) {
 	      if(ROMAddr[0x220] & 0x80) {
-		 if(SiS_Pr->SiS_VBInfo & SetCRT2ToTVNoYPbPrHiVision)
+		 if(SiS_Pr->SiS_VBInfo & SetCRT2ToTVAnalYPbPrHiVision)
 		    temp = ROMAddr[0x221];
 		 else if(SiS_Pr->SiS_VBInfo & SetCRT2ToHiVision)
 		    temp = ROMAddr[0x222];
@@ -6576,22 +6576,22 @@ SiS_SetGroup1(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   }  /* Slavemode */
 
   if(SiS_Pr->SiS_VBType & VB_SISVB) {
-     if((SiS_Pr->SiS_VBType & VB_NoLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
+     if((SiS_Pr->SiS_VBType & VB_AnalLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
 	/* For 301BDH with LCD, we set up the Panel Link */
-	SiS_SetGroup1_LVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	SiS_SetGroup1_LVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
      } else if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
-	SiS_SetGroup1_301(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	SiS_SetGroup1_301(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
      }
   } else {
      if(SiS_Pr->ChipType < SIS_315H) {
-	SiS_SetGroup1_LVDS(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	SiS_SetGroup1_LVDS(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
      } else {
 	if(SiS_Pr->SiS_IF_DEF_CH70xx != 0) {
 	   if((!(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)) || (SiS_Pr->SiS_VBInfo & SetInSlaveMode)) {
-	      SiS_SetGroup1_LVDS(SiS_Pr, ModeNo,ModeIdIndex,RefreshRateTableIndex);
+	      SiS_SetGroup1_LVDS(SiS_Pr, ModeAnal,ModeIdIndex,RefreshRateTableIndex);
 	   }
 	} else {
-	   SiS_SetGroup1_LVDS(SiS_Pr, ModeNo,ModeIdIndex,RefreshRateTableIndex);
+	   SiS_SetGroup1_LVDS(SiS_Pr, ModeAnal,ModeIdIndex,RefreshRateTableIndex);
 	}
      }
   }
@@ -6643,7 +6643,7 @@ SiS_GetGroup2CLVXPtr(struct SiS_Private *SiS_Pr, int tabletype)
 }
 
 static void
-SiS_SetGroup2_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetGroup2_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 	      	    unsigned short RefreshRateTableIndex)
 {
    unsigned char *tableptr;
@@ -6668,14 +6668,14 @@ SiS_SetGroup2_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 }
 
 static bool
-SiS_GetCRT2Part2Ptr(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned short ModeIdIndex,
+SiS_GetCRT2Part2Ptr(struct SiS_Private *SiS_Pr,unsigned short ModeAnal,unsigned short ModeIdIndex,
 		    unsigned short RefreshRateTableIndex,unsigned short *CRT2Index,
 		    unsigned short *ResIndex)
 {
 
   if(SiS_Pr->ChipType < SIS_315H) return false;
 
-  if(ModeNo <= 0x13)
+  if(ModeAnal <= 0x13)
      (*ResIndex) = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   else
      (*ResIndex) = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
@@ -6700,7 +6700,7 @@ SiS_GetCRT2Part2Ptr(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned sh
 
 #ifdef CONFIG_FB_SIS_300
 static void
-SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short crt2crtc)
+SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short crt2crtc)
 {
    unsigned short tempcx;
    static const unsigned char atable[] = {
@@ -6715,7 +6715,7 @@ SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned
 	  (SiS_Pr->SiS_LCDResInfo == Panel_1024x768) &&
 	  (!(SiS_Pr->SiS_SetFlag & LCDVESATiming))  &&
 	  (!(SiS_Pr->SiS_LCDInfo & DontExpandLCD)) ) {
-	 if(ModeNo == 0x13) {
+	 if(ModeAnal == 0x13) {
 	    SiS_SetReg(SiS_Pr->SiS_Part2Port,0x04,0xB9);
 	    SiS_SetReg(SiS_Pr->SiS_Part2Port,0x05,0xCC);
 	    SiS_SetReg(SiS_Pr->SiS_Part2Port,0x06,0xA6);
@@ -6732,7 +6732,7 @@ SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned
 	 if(SiS_Pr->SiS_LCDTypeInfo == 0x0c) {
 	    crt2crtc &= 0x1f;
 	    tempcx = 0;
-	    if(!(SiS_Pr->SiS_VBInfo & SetNotSimuMode)) {
+	    if(!(SiS_Pr->SiS_VBInfo & SetAnaltSimuMode)) {
 	       if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
 		  tempcx += 7;
 	       }
@@ -6742,7 +6742,7 @@ SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned
 	       SiS_SetReg(SiS_Pr->SiS_Part2Port,0x06,0xff);
 	    }
 
-	    if(!(SiS_Pr->SiS_VBInfo & SetNotSimuMode)) {
+	    if(!(SiS_Pr->SiS_VBInfo & SetAnaltSimuMode)) {
 	       if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
 		  if(crt2crtc == 4) {
 		     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x01,0x28);
@@ -6759,7 +6759,7 @@ SiS_Group2LCDSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned
 /* For ECS A907. Highly preliminary. */
 static void
 SiS_Set300Part2Regs(struct SiS_Private *SiS_Pr, unsigned short ModeIdIndex, unsigned short RefreshRateTableIndex,
-		    unsigned short ModeNo)
+		    unsigned short ModeAnal)
 {
   const struct SiS_Part2PortTbl *CRT2Part2Ptr = NULL;
   unsigned short crt2crtc, resindex;
@@ -6769,7 +6769,7 @@ SiS_Set300Part2Regs(struct SiS_Private *SiS_Pr, unsigned short ModeIdIndex, unsi
   if(!(SiS_Pr->SiS_VBType & VB_SIS30xBLV)) return;
   if(SiS_Pr->UseCustomMode) return;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      crt2crtc = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   } else {
      crt2crtc = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
@@ -6780,7 +6780,7 @@ SiS_Set300Part2Regs(struct SiS_Private *SiS_Pr, unsigned short ModeIdIndex, unsi
   else                                    CRT2Part2Ptr = SiS_Pr->SiS_CRT2Part2_1024x768_2;
 
   /* The BIOS code (1.16.51,56) is obviously a fragment! */
-  if(ModeNo > 0x13) {
+  if(ModeAnal > 0x13) {
      CRT2Part2Ptr = SiS_Pr->SiS_CRT2Part2_1024x768_1;
      resindex = 4;
   }
@@ -6802,10 +6802,10 @@ SiS_Set300Part2Regs(struct SiS_Private *SiS_Pr, unsigned short ModeIdIndex, unsi
 #endif
 
 static void
-SiS_SetTVSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_SetTVSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
   if(!(SiS_Pr->SiS_VBType & VB_SIS30xBLV)) return;
-  if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToTVNoHiVision)) return;
+  if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToTVAnalHiVision)) return;
   if(SiS_Pr->SiS_TVMode & (TVSetYPbPr525p | TVSetYPbPr750p)) return;
 
   if(!(SiS_Pr->SiS_TVMode & TVSetPAL)) {
@@ -6831,8 +6831,8 @@ SiS_SetTVSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	}
      }
   } else {
-     if((ModeNo == 0x38) || (ModeNo == 0x4a) || (ModeNo == 0x64) ||
-        (ModeNo == 0x52) || (ModeNo == 0x58) || (ModeNo == 0x5c)) {
+     if((ModeAnal == 0x38) || (ModeAnal == 0x4a) || (ModeAnal == 0x64) ||
+        (ModeAnal == 0x52) || (ModeAnal == 0x58) || (ModeAnal == 0x5c)) {
         SiS_SetReg(SiS_Pr->SiS_Part2Port,0x01,0x1b);  /* 21 */
         SiS_SetReg(SiS_Pr->SiS_Part2Port,0x02,0x54);  /* 5a */
      } else {
@@ -6843,7 +6843,7 @@ SiS_SetTVSpecial(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 }
 
 static void
-SiS_SetGroup2_Tail(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_SetGroup2_Tail(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
   unsigned short temp;
 
@@ -6870,10 +6870,10 @@ SiS_SetGroup2_Tail(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
      if(SiS_Pr->SiS_LCDResInfo == Panel_1400x1050) {
 	if(SiS_Pr->SiS_VBType & VB_SIS30xB) {
 	   SiS_SetRegOR(SiS_Pr->SiS_Part2Port,0x1a,0x03);
-	   /* Not always for LV, see SetGrp2 */
+	   /* Analt always for LV, see SetGrp2 */
 	}
 	temp = 1;
-	if(ModeNo <= 0x13) temp = 3;
+	if(ModeAnal <= 0x13) temp = 3;
 	SiS_SetReg(SiS_Pr->SiS_Part2Port,0x0b,temp);
      }
 #if 0
@@ -6902,7 +6902,7 @@ SiS_SetGroup2_Tail(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 }
 
 static void
-SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned short i, j, tempax, tempbx, tempcx, tempch, tempcl, temp;
@@ -6917,7 +6917,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) return;
 #endif
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      crt2crtc = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   } else if(SiS_Pr->UseCustomMode) {
@@ -7025,7 +7025,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   else						tempax = 440; /* NTSC, YPbPr 525 */
 
   if( ((SiS_Pr->SiS_VBInfo & SetCRT2ToHiVision) && (SiS_Pr->SiS_VDE <= tempax)) ||
-      ( (SiS_Pr->SiS_VBInfo & SetCRT2ToTVNoHiVision) &&
+      ( (SiS_Pr->SiS_VBInfo & SetCRT2ToTVAnalHiVision) &&
         ((SiS_Pr->SiS_VGAHDE == 1024) || (SiS_Pr->SiS_VDE <= tempax)) ) ) {
 
      tempax -= SiS_Pr->SiS_VDE;
@@ -7041,7 +7041,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
      temp = tempax + (unsigned short)TimingPoint[1];
      SiS_SetReg(SiS_Pr->SiS_Part2Port,0x02,temp);
 
-     if((SiS_Pr->SiS_VBInfo & SetCRT2ToTVNoYPbPrHiVision) && (SiS_Pr->SiS_VGAHDE >= 1024)) {
+     if((SiS_Pr->SiS_VBInfo & SetCRT2ToTVAnalYPbPrHiVision) && (SiS_Pr->SiS_VGAHDE >= 1024)) {
         if(SiS_Pr->SiS_TVMode & TVSetPAL) {
            SiS_SetReg(SiS_Pr->SiS_Part2Port,0x01,0x1b);
            SiS_SetReg(SiS_Pr->SiS_Part2Port,0x02,0x54);
@@ -7109,7 +7109,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
      tempbx >>= 1;
      if(SiS_Pr->ChipType >= SIS_315H) {
         if(SiS_Pr->SiS_TVMode & TVSetTVSimuMode) {
-	   if((ModeNo <= 0x13) && (crt2crtc == 1)) tempbx++;
+	   if((ModeAnal <= 0x13) && (crt2crtc == 1)) tempbx++;
 	} else if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
 	   if(SiS_Pr->SiS_ModeType <= ModeVGA) {
 	      if(crt2crtc == 4) tempbx++;
@@ -7118,10 +7118,10 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
      }
      if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
         if(SiS_Pr->SiS_VBInfo & SetCRT2ToHiVision) {
-	   if((ModeNo == 0x2f) || (ModeNo == 0x5d) || (ModeNo == 0x5e)) tempbx++;
+	   if((ModeAnal == 0x2f) || (ModeAnal == 0x5d) || (ModeAnal == 0x5e)) tempbx++;
 	}
 	if(!(SiS_Pr->SiS_TVMode & TVSetPAL)) {
-	   if(ModeNo == 0x03) tempbx++; /* From 1.10.7w - doesn't make sense */
+	   if(ModeAnal == 0x03) tempbx++; /* From 1.10.7w - doesn't make sense */
         }
      }
   }
@@ -7219,7 +7219,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
      temp = SiS_GetReg(SiS_Pr->SiS_Part2Port,0x43);
      SiS_SetReg(SiS_Pr->SiS_Part2Port,0x43,(temp - 3));
 
-     SiS_SetTVSpecial(SiS_Pr, ModeNo);
+     SiS_SetTVSpecial(SiS_Pr, ModeAnal);
 
      if(SiS_Pr->SiS_VBType & VB_SIS30xCLV) {
         temp = 0;
@@ -7288,7 +7288,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   SiS_SetRegAND(SiS_Pr->SiS_Part2Port,0x18,0xDF);
 
 #ifdef CONFIG_FB_SIS_315
-  if(SiS_GetCRT2Part2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex,
+  if(SiS_GetCRT2Part2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex,
                           			&CRT2Index, &resindex)) {
       switch(CRT2Index) {
         case 206: CRT2Part2Ptr = SiS310_CRT2Part2_Asus1024x768_3;    break;
@@ -7310,7 +7310,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
       SiS_SetReg(SiS_Pr->SiS_Part2Port,0x23,(CRT2Part2Ptr+resindex)->CR[10]);
       SiS_SetRegANDOR(SiS_Pr->SiS_Part2Port,0x25,0x0f,(CRT2Part2Ptr+resindex)->CR[11]);
 
-      SiS_SetGroup2_Tail(SiS_Pr, ModeNo);
+      SiS_SetGroup2_Tail(SiS_Pr, ModeAnal);
 
   } else {
 #endif
@@ -7346,7 +7346,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        tempbx -= tempax; /* lcdvdee */
     }
 
-    /* Non-expanding: lcdvdes = tempcx = VT-1; lcdvdee = tempbx = VDE-1 */
+    /* Analn-expanding: lcdvdes = tempcx = VT-1; lcdvdee = tempbx = VDE-1 */
 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x05,tempcx);	/* lcdvdes  */
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x06,tempbx);	/* lcdvdee  */
@@ -7390,7 +7390,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        }
     }
 
-    /* non-expanding: lcdvrs = ((VT + VDE) / 2) - 10 */
+    /* analn-expanding: lcdvrs = ((VT + VDE) / 2) - 10 */
 
     if(SiS_Pr->UseCustomMode) {
        tempbx = SiS_Pr->CVSyncStart;
@@ -7410,7 +7410,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x01,temp);
 
 #ifdef CONFIG_FB_SIS_300
-    SiS_Group2LCDSpecial(SiS_Pr, ModeNo, crt2crtc);
+    SiS_Group2LCDSpecial(SiS_Pr, ModeAnal, crt2crtc);
 #endif
 
     bridgeoffset = 7;
@@ -7490,10 +7490,10 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x21,tempbx);	    /* lcdhre */
 
-    SiS_SetGroup2_Tail(SiS_Pr, ModeNo);
+    SiS_SetGroup2_Tail(SiS_Pr, ModeAnal);
 
 #ifdef CONFIG_FB_SIS_300
-    SiS_Set300Part2Regs(SiS_Pr, ModeIdIndex, RefreshRateTableIndex, ModeNo);
+    SiS_Set300Part2Regs(SiS_Pr, ModeIdIndex, RefreshRateTableIndex, ModeAnal);
 #endif
 #ifdef CONFIG_FB_SIS_315
   } /* CRT2-LCD from table */
@@ -7505,7 +7505,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 /*********************************************/
 
 static void
-SiS_SetGroup3(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetGroup3(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned short i;
   const unsigned char *tempdi;
@@ -7588,7 +7588,7 @@ SiS_ShiftXPos(struct SiS_Private *SiS_Pr, int shift)
 #endif
 
 static void
-SiS_SetGroup4_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetGroup4_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
    unsigned short temp, temp1;
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
@@ -7622,16 +7622,16 @@ SiS_SetGroup4_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	 if(SiS_Pr->SiS_TVMode & TVAspect43LB) temp |= 0x01;
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x26,0x7c,(temp & 0xff));
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x3a,0xfb,(temp >> 8));
-	 if(ModeNo > 0x13) {
+	 if(ModeAnal > 0x13) {
             SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x39,0xfd);
          }
       } else {
          temp1 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x3b) & 0x03;
 	 if(temp1 == 0x01) temp |= 0x01;
-	 if(temp1 == 0x03) temp |= 0x04;  /* ? why not 0x10? */
+	 if(temp1 == 0x03) temp |= 0x04;  /* ? why analt 0x10? */
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x26,0xf8,(temp & 0xff));
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x3a,0xfb,(temp >> 8));
-	 if(ModeNo > 0x13) {
+	 if(ModeAnal > 0x13) {
             SiS_SetRegAND(SiS_Pr->SiS_Part4Port,0x3b,0xfd);
          }
       }
@@ -7658,7 +7658,7 @@ SiS_SetGroup4_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 #endif
 
 static void
-SiS_SetCRT2VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetCRT2VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                  unsigned short RefreshRateTableIndex)
 {
   unsigned short vclkindex, temp, reg1, reg2;
@@ -7667,7 +7667,7 @@ SiS_SetCRT2VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      reg1 = SiS_Pr->CSR2B;
      reg2 = SiS_Pr->CSR2C;
   } else {
-     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
      reg1 = SiS_Pr->SiS_VBVCLKData[vclkindex].Part4_A;
      reg2 = SiS_Pr->SiS_VBVCLKData[vclkindex].Part4_B;
   }
@@ -7717,13 +7717,13 @@ SiS_SetDualLinkEtc(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_SetGroup4(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetGroup4(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex)
 {
   unsigned short tempax, tempcx, tempbx, modeflag, temp, resinfo;
   unsigned int   tempebx, tempeax, templong;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
   } else if(SiS_Pr->UseCustomMode) {
@@ -7907,7 +7907,7 @@ SiS_SetGroup4(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 
   }  /* 301B */
 
-  SiS_SetCRT2VCLK(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+  SiS_SetCRT2VCLK(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 }
 
 /*********************************************/
@@ -7915,7 +7915,7 @@ SiS_SetGroup4(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 /*********************************************/
 
 static void
-SiS_SetGroup5(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_SetGroup5(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA)  return;
@@ -7923,7 +7923,7 @@ SiS_SetGroup5(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   if(SiS_Pr->SiS_ModeType == ModeVGA) {
      if(!(SiS_Pr->SiS_VBInfo & (SetInSlaveMode | LoadDACFlag))) {
         SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x1E,0x20);
-        SiS_LoadDAC(SiS_Pr, ModeNo, ModeIdIndex);
+        SiS_LoadDAC(SiS_Pr, ModeAnal, ModeIdIndex);
      }
   }
 }
@@ -7933,16 +7933,16 @@ SiS_SetGroup5(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 /*********************************************/
 
 static bool
-SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		   unsigned short RefreshRateTableIndex, unsigned short *ResIndex,
 		   unsigned short *DisplayType)
  {
   unsigned short modeflag = 0;
   bool checkhd = true;
 
-  /* Pass 1:1 not supported here */
+  /* Pass 1:1 analt supported here */
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      (*ResIndex) = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   } else {
@@ -7997,7 +7997,7 @@ SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 }
 
 static void
-SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                 unsigned short RefreshRateTableIndex)
 {
   unsigned short tempah, i, modeflag, j, ResIndex, DisplayType;
@@ -8027,7 +8027,7 @@ SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      if(SiS_Pr->SiS_SetFlag & SetDOSMode) return;
   }
 
-  if(!(SiS_GetLVDSCRT1Ptr(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex,
+  if(!(SiS_GetLVDSCRT1Ptr(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex,
                           &ResIndex, &DisplayType))) {
      return;
   }
@@ -8070,7 +8070,7 @@ SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      tempah = (LVDSCRT1Ptr + ResIndex)->CR[14] & 0xE0;
      SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0E,0x1f,tempah);
 
-     if(ModeNo <= 0x13) modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
+     if(ModeAnal <= 0x13) modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      else               modeflag = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
      tempah = ((LVDSCRT1Ptr + ResIndex)->CR[14] & 0x01) << 5;
@@ -8079,7 +8079,7 @@ SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 
   } else {
 
-     SiS_CalcLCDACRT1Timing(SiS_Pr, ModeNo, ModeIdIndex);
+     SiS_CalcLCDACRT1Timing(SiS_Pr, ModeAnal, ModeIdIndex);
 
   }
 }
@@ -8089,7 +8089,7 @@ SiS_ModCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 /*********************************************/
 
 static void
-SiS_SetCRT2ECLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetCRT2ECLK(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
            unsigned short RefreshRateTableIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
@@ -8101,11 +8101,11 @@ SiS_SetCRT2ECLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      if(SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK == 2) {
 	RefreshRateTableIndex--;
      }
-     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex,
+     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex,
                                     RefreshRateTableIndex);
      SiS_Pr->SiS_SetFlag |= ProgrammingCRT2;
   } else {
-     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeNo, ModeIdIndex,
+     vclkindex = SiS_GetVCLK2Ptr(SiS_Pr, ModeAnal, ModeIdIndex,
                                     RefreshRateTableIndex);
   }
 
@@ -8144,13 +8144,13 @@ SiS_SetCRT2ECLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 /*********************************************/
 
 static void
-SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
                unsigned short RefreshRateTableIndex)
 {
    unsigned short TVType, resindex;
    const struct SiS_CHTVRegData *CHTVRegData = NULL;
 
-   if(ModeNo <= 0x13)
+   if(ModeAnal <= 0x13)
       resindex = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
    else
       resindex = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
@@ -8191,16 +8191,16 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
 #ifdef CONFIG_FB_SIS_300
 
-      /* Chrontel 7005 - I assume that it does not come with a 315 series chip */
+      /* Chrontel 7005 - I assume that it does analt come with a 315 series chip */
 
       /* We don't support modes >800x600 */
       if (resindex > 5) return;
 
       if(SiS_Pr->SiS_TVMode & TVSetPAL) {
-	 SiS_SetCH700x(SiS_Pr,0x04,0x43);  /* 0x40=76uA (PAL); 0x03=15bit non-multi RGB*/
+	 SiS_SetCH700x(SiS_Pr,0x04,0x43);  /* 0x40=76uA (PAL); 0x03=15bit analn-multi RGB*/
 	 SiS_SetCH700x(SiS_Pr,0x09,0x69);  /* Black level for PAL (105)*/
       } else {
-	 SiS_SetCH700x(SiS_Pr,0x04,0x03);   /* upper nibble=71uA (NTSC), 0x03=15bit non-multi RGB*/
+	 SiS_SetCH700x(SiS_Pr,0x04,0x03);   /* upper nibble=71uA (NTSC), 0x03=15bit analn-multi RGB*/
 	 SiS_SetCH700x(SiS_Pr,0x09,0x71);   /* Black level for NTSC (113)*/
       }
 
@@ -8226,7 +8226,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       */
       SiS_SetCH700x(SiS_Pr,0x03,0xb1);       /* old: 3103 */
 
-      /* Register 0x3D does not exist in non-macrovision register map
+      /* Register 0x3D does analt exist in analn-macrovision register map
             (Maybe this is a macrovision register?)
        */
 #ifndef SIS_CP
@@ -8251,7 +8251,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
          if(SiS_Pr->SiS_TVMode & TVSetCHOverScan) {
             if(resindex == 0x04) {   			/* 640x480 overscan: Mode 16 */
       	       SiS_SetCH70xxANDOR(SiS_Pr,0x20,0x00,0xEF);	/* loop filter off */
-               SiS_SetCH70xxANDOR(SiS_Pr,0x21,0x01,0xFE);	/* ACIV on, no need to set FSCI */
+               SiS_SetCH70xxANDOR(SiS_Pr,0x21,0x01,0xFE);	/* ACIV on, anal need to set FSCI */
             } else if(resindex == 0x05) {    		/* 800x600 overscan: Mode 23 */
                SiS_SetCH70xxANDOR(SiS_Pr,0x18,0x01,0xF0);	/* 0x18-0x1f: FSCI 469,762,048 */
                SiS_SetCH70xxANDOR(SiS_Pr,0x19,0x0C,0xF0);
@@ -8295,7 +8295,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
    } else {
 
-      /* Chrontel 7019 - assumed that it does not come with a 300 series chip */
+      /* Chrontel 7019 - assumed that it does analt come with a 300 series chip */
 
 #ifdef CONFIG_FB_SIS_315
 
@@ -8332,7 +8332,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       /* D1 should be set for PAL, PAL-N and NTSC-J,
          but I won't do that for PAL unless somebody
 	 tells me to do so. Since the BIOS uses
-	 non-default CIV values and blacklevels,
+	 analn-default CIV values and blacklevels,
 	 this might be compensated anyway.
        */
       if(SiS_Pr->SiS_TVMode & (TVSetPALN | TVSetNTSCJ)) temp |= 0x02;
@@ -8667,7 +8667,7 @@ SiS_ChrontelInitTVVSync(struct SiS_Private *SiS_Pr)
         SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* Power up LVDS block */
         temp = SiS_GetCH701x(SiS_Pr,0x49);
         temp &= 1;
-        if(temp != 1) {  /* TV block powered? (0 = yes, 1 = no) */
+        if(temp != 1) {  /* TV block powered? (0 = anal, 1 = anal) */
 	   temp = SiS_GetCH701x(SiS_Pr,0x47);
 	   temp &= 0x70;
 	   SiS_SetCH701x(SiS_Pr,0x47,temp);  /* enable VSYNC */
@@ -8681,7 +8681,7 @@ SiS_ChrontelInitTVVSync(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_ChrontelDoSomething3(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_ChrontelDoSomething3(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
      unsigned short temp,temp1;
 
@@ -8710,7 +8710,7 @@ SiS_ChrontelDoSomething3(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
         temp = SiS_GetCH701x(SiS_Pr,0x66);
         temp |= 0x5f;
         SiS_SetCH701x(SiS_Pr,0x66,temp);
-        if(ModeNo > 0x13) {
+        if(ModeAnal > 0x13) {
            if(SiS_WeHaveBacklightCtrl(SiS_Pr)) {
 	      SiS_GenericDelay(SiS_Pr, 1023);
 	   } else {
@@ -8744,7 +8744,7 @@ SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
        if(temp == 0x04) break;
 
        if(SiS_Pr->ChipType == SIS_740) {
-          /* Power down LVDS output, PLL normal operation */
+          /* Power down LVDS output, PLL analrmal operation */
           SiS_SetCH701x(SiS_Pr,0x76,0xac);
        }
 
@@ -8755,7 +8755,7 @@ SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
        SiS_SetCH701x(SiS_Pr,0x76,temp);
        SiS_LongDelay(SiS_Pr, 2);
        temp = SiS_GetCH701x(SiS_Pr,0x76);
-       temp |= 0x04;  /* PLL normal operation */
+       temp |= 0x04;  /* PLL analrmal operation */
        SiS_SetCH701x(SiS_Pr,0x76,temp);
        if(SiS_Pr->ChipType == SIS_740) {
           SiS_SetCH701x(SiS_Pr,0x78,0xe0);	/* PLL loop filter */
@@ -8781,13 +8781,13 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
      if(SiS_Pr->ChipType == SIS_740) {
 
         temp = SiS_GetCH701x(SiS_Pr,0x1c);
-        temp &= 0xfb;	/* Normal XCLK phase */
+        temp &= 0xfb;	/* Analrmal XCLK phase */
         SiS_SetCH701x(SiS_Pr,0x1c,temp);
 
         SiS_SetReg(SiS_Pr->SiS_Part1Port,0x2d,0x03);
 
         temp = SiS_GetCH701x(SiS_Pr,0x64);
-        temp |= 0x40;	/* ? Bit not defined */
+        temp |= 0x40;	/* ? Bit analt defined */
         SiS_SetCH701x(SiS_Pr,0x64,temp);
 
         temp = SiS_GetCH701x(SiS_Pr,0x03);
@@ -8816,7 +8816,7 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
         SiS_ChrontelDoSomething2(SiS_Pr);
         temp = SiS_GetReg(SiS_Pr->SiS_P3d4,0x34);
         SiS_ChrontelDoSomething3(SiS_Pr,temp);
-        SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* All power on, LVDS normal operation */
+        SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* All power on, LVDS analrmal operation */
 
      }
 
@@ -8828,7 +8828,7 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
 /*********************************************/
 
 bool
-SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
 #ifdef CONFIG_FB_SIS_300
    unsigned char  *ROMAddr  = SiS_Pr->VirtualRomBase;
@@ -8838,7 +8838,7 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_Pr->SiS_SetFlag |= ProgrammingCRT2;
 
    if(!SiS_Pr->UseCustomMode) {
-      SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex);
+      SiS_SearchModeID(SiS_Pr, &ModeAnal, &ModeIdIndex);
    } else {
       ModeIdIndex = 0;
    }
@@ -8848,16 +8848,16 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    SiS_UnLockCRT2(SiS_Pr);
 
-   RefreshRateTableIndex = SiS_GetRatePtr(SiS_Pr, ModeNo, ModeIdIndex);
+   RefreshRateTableIndex = SiS_GetRatePtr(SiS_Pr, ModeAnal, ModeIdIndex);
 
-   SiS_SaveCRT2Info(SiS_Pr,ModeNo);
+   SiS_SaveCRT2Info(SiS_Pr,ModeAnal);
 
    if(SiS_Pr->SiS_SetFlag & LowModeTests) {
       SiS_DisableBridge(SiS_Pr);
       if((SiS_Pr->SiS_IF_DEF_LVDS == 1) && (SiS_Pr->ChipType == SIS_730)) {
          SiS_SetReg(SiS_Pr->SiS_Part1Port,0x00,0x80);
       }
-      SiS_SetCRT2ModeRegs(SiS_Pr, ModeNo, ModeIdIndex);
+      SiS_SetCRT2ModeRegs(SiS_Pr, ModeAnal, ModeIdIndex);
    }
 
    if(SiS_Pr->SiS_VBInfo & DisableCRT2Display) {
@@ -8866,56 +8866,56 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       return true;
    }
 
-   SiS_GetCRT2Data(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+   SiS_GetCRT2Data(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 
    /* Set up Panel Link for LVDS and LCDA */
    SiS_Pr->SiS_LCDHDES = SiS_Pr->SiS_LCDVDES = 0;
    if( (SiS_Pr->SiS_IF_DEF_LVDS == 1) ||
-       ((SiS_Pr->SiS_VBType & VB_NoLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) ||
+       ((SiS_Pr->SiS_VBType & VB_AnalLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) ||
        ((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->SiS_VBType & VB_SIS30xBLV)) ) {
-      SiS_GetLVDSDesData(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+      SiS_GetLVDSDesData(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
    }
 
    if(SiS_Pr->SiS_SetFlag & LowModeTests) {
-      SiS_SetGroup1(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+      SiS_SetGroup1(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
    }
 
    if(SiS_Pr->SiS_VBType & VB_SISVB) {
 
       if(SiS_Pr->SiS_SetFlag & LowModeTests) {
 
-	 SiS_SetGroup2(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	 SiS_SetGroup2(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 #ifdef CONFIG_FB_SIS_315
-	 SiS_SetGroup2_C_ELV(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	 SiS_SetGroup2_C_ELV(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 #endif
-	 SiS_SetGroup3(SiS_Pr, ModeNo, ModeIdIndex);
-	 SiS_SetGroup4(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	 SiS_SetGroup3(SiS_Pr, ModeAnal, ModeIdIndex);
+	 SiS_SetGroup4(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 #ifdef CONFIG_FB_SIS_315
-	 SiS_SetGroup4_C_ELV(SiS_Pr, ModeNo, ModeIdIndex);
+	 SiS_SetGroup4_C_ELV(SiS_Pr, ModeAnal, ModeIdIndex);
 #endif
-	 SiS_SetGroup5(SiS_Pr, ModeNo, ModeIdIndex);
+	 SiS_SetGroup5(SiS_Pr, ModeAnal, ModeIdIndex);
 
-	 SiS_SetCRT2Sync(SiS_Pr, ModeNo, RefreshRateTableIndex);
+	 SiS_SetCRT2Sync(SiS_Pr, ModeAnal, RefreshRateTableIndex);
 
 	 /* For 301BDH (Panel link initialization): */
-	 if((SiS_Pr->SiS_VBType & VB_NoLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
+	 if((SiS_Pr->SiS_VBType & VB_AnalLCD) && (SiS_Pr->SiS_VBInfo & SetCRT2ToLCD)) {
 
-	    if(!((SiS_Pr->SiS_SetFlag & SetDOSMode) && ((ModeNo == 0x03) || (ModeNo == 0x10)))) {
+	    if(!((SiS_Pr->SiS_SetFlag & SetDOSMode) && ((ModeAnal == 0x03) || (ModeAnal == 0x10)))) {
 	       if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
-		  SiS_ModCRT1CRTC(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+		  SiS_ModCRT1CRTC(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	       }
             }
-	    SiS_SetCRT2ECLK(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	    SiS_SetCRT2ECLK(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	 }
       }
 
    } else {
 
-      SiS_SetCRT2Sync(SiS_Pr, ModeNo, RefreshRateTableIndex);
+      SiS_SetCRT2Sync(SiS_Pr, ModeAnal, RefreshRateTableIndex);
 
-      SiS_ModCRT1CRTC(SiS_Pr,ModeNo,ModeIdIndex,RefreshRateTableIndex);
+      SiS_ModCRT1CRTC(SiS_Pr,ModeAnal,ModeIdIndex,RefreshRateTableIndex);
 
-      SiS_SetCRT2ECLK(SiS_Pr,ModeNo,ModeIdIndex,RefreshRateTableIndex);
+      SiS_SetCRT2ECLK(SiS_Pr,ModeAnal,ModeIdIndex,RefreshRateTableIndex);
 
       if(SiS_Pr->SiS_SetFlag & LowModeTests) {
 	 if(SiS_Pr->SiS_IF_DEF_CH70xx != 0) {
@@ -8927,7 +8927,7 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	       }
 	    }
 	    if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV) {
-	       SiS_SetCHTVReg(SiS_Pr,ModeNo,ModeIdIndex,RefreshRateTableIndex);
+	       SiS_SetCHTVReg(SiS_Pr,ModeAnal,ModeIdIndex,RefreshRateTableIndex);
 	    }
 	 }
       }
@@ -8940,16 +8940,16 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	 if(SiS_Pr->SiS_UseOEM) {
 	    if((SiS_Pr->SiS_UseROM) && (SiS_Pr->SiS_UseOEM == -1)) {
 	       if((ROMAddr[0x233] == 0x12) && (ROMAddr[0x234] == 0x34)) {
-		  SiS_OEM300Setting(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+		  SiS_OEM300Setting(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	       }
 	    } else {
-	       SiS_OEM300Setting(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	       SiS_OEM300Setting(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	    }
 	 }
 	 if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
 	    if((SiS_Pr->SiS_CustomT == CUT_BARCO1366) ||
 	       (SiS_Pr->SiS_CustomT == CUT_BARCO1024)) {
-	       SetOEMLCDData2(SiS_Pr, ModeNo, ModeIdIndex,RefreshRateTableIndex);
+	       SetOEMLCDData2(SiS_Pr, ModeAnal, ModeIdIndex,RefreshRateTableIndex);
 	    }
 	    SiS_DisplayOn(SiS_Pr);
          }
@@ -8961,10 +8961,10 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    if(SiS_Pr->ChipType >= SIS_315H) {
       if(SiS_Pr->SiS_SetFlag & LowModeTests) {
 	 if(SiS_Pr->ChipType < SIS_661) {
-	    SiS_FinalizeLCD(SiS_Pr, ModeNo, ModeIdIndex);
-	    SiS_OEM310Setting(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	    SiS_FinalizeLCD(SiS_Pr, ModeAnal, ModeIdIndex);
+	    SiS_OEM310Setting(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	 } else {
-	    SiS_OEM661Setting(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
+	    SiS_OEM661Setting(SiS_Pr, ModeAnal, ModeIdIndex, RefreshRateTableIndex);
 	 }
 	 SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x01,0x40);
       }
@@ -9055,10 +9055,10 @@ SiS_SetTrumpBlockLoop(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
      if(SiS_SetStart(SiS_Pr)) continue;		/* Set start condition */
      tempah = SiS_Pr->SiS_DDC_DeviceAddr;
      temp = SiS_WriteDDC2Data(SiS_Pr,tempah);	/* Write DAB (S0=0=write) */
-     if(temp) continue;				/*    (ERROR: no ack) */
+     if(temp) continue;				/*    (ERROR: anal ack) */
      tempah = *mydataptr++;
      temp = SiS_WriteDDC2Data(SiS_Pr,tempah);	/* Write register number */
-     if(temp) continue;				/*    (ERROR: no ack) */
+     if(temp) continue;				/*    (ERROR: anal ack) */
      for(j=0; j<num; j++) {
         tempah = *mydataptr++;
         temp = SiS_WriteDDC2Data(SiS_Pr,tempah);/* Write DAB (S0=0=write) */
@@ -9109,11 +9109,11 @@ SiS_SetChReg(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val, 
      }
      if(SiS_SetStart(SiS_Pr)) continue;					/* Set start condition */
      temp = SiS_WriteDDC2Data(SiS_Pr, SiS_Pr->SiS_DDC_DeviceAddr);	/* Write DAB (S0=0=write) */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: anal ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr, (reg | myor));			/* Write RAB (700x: set bit 7, see datasheet) */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: anal ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr, val);				/* Write data */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: anal ack) */
      if(SiS_SetStop(SiS_Pr)) continue;					/* Set stop condition */
      SiS_Pr->SiS_ChrontelInit = 1;
      return true;
@@ -9148,7 +9148,7 @@ SiS_SetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val)
 }
 
 /* Write to Chrontel 701x */
-/* Parameter is [Data (S15-S8) | Register no (S7-S0)] */
+/* Parameter is [Data (S15-S8) | Register anal (S7-S0)] */
 void
 SiS_SetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val)
 {
@@ -9182,12 +9182,12 @@ SiS_GetChReg(struct SiS_Private *SiS_Pr, unsigned short myor)
      }
      if(SiS_SetStart(SiS_Pr)) continue;					/* Set start condition */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_DeviceAddr);	/* Write DAB (S0=0=write) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: anal ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_ReadAddr | myor);	/* Write RAB (700x: | 0x80) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: anal ack) */
      if (SiS_SetStart(SiS_Pr)) continue;				/* Re-start */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_DeviceAddr | 0x01);/* DAB (S0=1=read) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: anal ack) */
      tempah = SiS_ReadDDC2Data(SiS_Pr);					/* Read byte */
      if(SiS_SetStop(SiS_Pr)) continue;					/* Stop condition */
      SiS_Pr->SiS_ChrontelInit = 1;
@@ -9197,7 +9197,7 @@ SiS_GetChReg(struct SiS_Private *SiS_Pr, unsigned short myor)
 }
 
 /* Read from Chrontel 700x */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register anal (S7-S0)] */
 unsigned short
 SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 {
@@ -9230,7 +9230,7 @@ SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 }
 
 /* Read from Chrontel 701x */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register anal (S7-S0)] */
 unsigned short
 SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 {
@@ -9246,7 +9246,7 @@ SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 }
 
 /* Read from Chrontel 70xx */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register anal (S7-S0)] */
 static
 unsigned short
 SiS_GetCH70xx(struct SiS_Private *SiS_Pr, unsigned short tempbx)
@@ -9411,10 +9411,10 @@ SiS_PrepareDDC(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short yesno)
+SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short analanal)
 {
    SiS_SetSCLKLow(SiS_Pr);
-   if(yesno) {
+   if(analanal) {
       SiS_SetRegANDOR(SiS_Pr->SiS_DDC_Port,
 		      SiS_Pr->SiS_DDC_Index,
 		      SiS_Pr->SiS_DDC_NData,
@@ -9685,7 +9685,7 @@ SiS_WriteDDC2Data(struct SiS_Private *SiS_Pr, unsigned short tempax)
     SiS_SetSCLKHigh(SiS_Pr);					/* SC->high */
     flag >>= 1;
   }
-  temp = SiS_CheckACK(SiS_Pr);					/* Check acknowledge */
+  temp = SiS_CheckACK(SiS_Pr);					/* Check ackanalwledge */
   return temp;
 }
 
@@ -9739,8 +9739,8 @@ SiS_SetSCLKHigh(struct SiS_Private *SiS_Pr)
   return 0;
 }
 
-/* Check I2C acknowledge */
-/* Returns 0 if ack ok, non-0 if ack not ok */
+/* Check I2C ackanalwledge */
+/* Returns 0 if ack ok, analn-0 if ack analt ok */
 static unsigned short
 SiS_CheckACK(struct SiS_Private *SiS_Pr)
 {
@@ -9825,7 +9825,7 @@ GetLCDPtrIndexBIOS(struct SiS_Private *SiS_Pr)
   unsigned short index;
 
   if((IS_SIS650) && (SiS_Pr->SiS_VBType & VB_SISLVDS)) {
-     if(!(SiS_IsNotM650orLater(SiS_Pr))) {
+     if(!(SiS_IsAnaltM650orLater(SiS_Pr))) {
         if((index = SiS_GetReg(SiS_Pr->SiS_P3d4,0x36) & 0xf0)) {
 	   index >>= 4;
 	   index *= 3;
@@ -9838,7 +9838,7 @@ GetLCDPtrIndexBIOS(struct SiS_Private *SiS_Pr)
 
   index = SiS_GetBIOSLCDResInfo(SiS_Pr) & 0x0F;
   if(SiS_Pr->SiS_LCDResInfo == Panel_1400x1050)      index -= 5;
-  if(SiS_Pr->SiS_VBType & VB_SIS301C) {  /* 1.15.20 and later (not VB specific) */
+  if(SiS_Pr->SiS_VBType & VB_SIS301C) {  /* 1.15.20 and later (analt VB specific) */
      if(SiS_Pr->SiS_LCDResInfo == Panel_1600x1200) index -= 5;
      if(SiS_Pr->SiS_LCDResInfo == Panel_1280x768) index -= 5;
   } else {
@@ -9947,7 +9947,7 @@ GetOEMTVPtr661(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
+SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeAnal)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short delay=0,index,myindex,temp,romptr=0;
@@ -9986,7 +9986,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
      bool gotitfrompci = false;
 
-     /* Could we detect a PDC for LCD or did we get a user-defined? If yes, use it */
+     /* Could we detect a PDC for LCD or did we get a user-defined? If anal, use it */
 
      if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) {
 	if(SiS_Pr->PDC != -1) {
@@ -10028,8 +10028,8 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
      }
 
      /* This is a piece of typical SiS crap: They code the OEM LCD
-      * delay into the code, at no defined place in the BIOS.
-      * We now have to start doing a PCI subsystem check here.
+      * delay into the code, at anal defined place in the BIOS.
+      * We analw have to start doing a PCI subsystem check here.
       */
 
      switch(SiS_Pr->SiS_CustomT) {
@@ -10059,7 +10059,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	break;
      }
 
-     /* Could we find it through the PCI ID? If no, use ROM or table */
+     /* Could we find it through the PCI ID? If anal, use ROM or table */
 
      if(!gotitfrompci) {
 
@@ -10068,7 +10068,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
         if(IS_SIS650 && (SiS_Pr->SiS_VBType & VB_SISLVDS)) {
 
-           if(SiS_IsNotM650orLater(SiS_Pr)) {
+           if(SiS_IsAnaltM650orLater(SiS_Pr)) {
 
               if((SiS_Pr->SiS_UseROM) && (!(SiS_Pr->SiS_ROMNew))) {
 	         /* Always use the second pointer on 650; some BIOSes */
@@ -10138,7 +10138,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
      if(IS_SIS650 && (SiS_Pr->SiS_VBType & VB_SISLVDS)) {
 
-        if(SiS_IsNotM650orLater(SiS_Pr)) {
+        if(SiS_IsAnaltM650orLater(SiS_Pr)) {
 
            if((SiS_Pr->SiS_UseROM) && (!(SiS_Pr->SiS_ROMNew))) {
 	      /* Always use the second pointer on 650; some BIOSes */
@@ -10252,14 +10252,14 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 }
 
 static void
-SetAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,temp1,romptr=0;
 
   if(SiS_Pr->SiS_TVMode & (TVSetYPbPr750p|TVSetYPbPr525p)) return;
 
-  if(ModeNo<=0x13)
+  if(ModeAnal<=0x13)
      index = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].VB_StTVFlickerIndex;
   else
      index = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].VB_ExtTVFlickerIndex;
@@ -10295,14 +10295,14 @@ SetAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 }
 
 static void
-SetEdgeEnhance(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex)
+SetEdgeEnhance(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,temp1,romptr=0;
 
   temp = temp1 = GetTVPtrIndex(SiS_Pr) >> 1; 	/* 0: NTSC/YPbPr, 1: PAL, 2: HiTV */
 
-  if(ModeNo <= 0x13)
+  if(ModeAnal <= 0x13)
      index = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].VB_StTVEdgeIndex;
   else
      index = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].VB_ExtTVEdgeIndex;
@@ -10333,11 +10333,11 @@ SetEdgeEnhance(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short 
 }
 
 static void
-SetYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex)
+SetYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex)
 {
   unsigned short index, temp, i, j;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      index = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].VB_StTVYFilterIndex;
   } else {
      index = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].VB_ExtTVYFilterIndex;
@@ -10365,7 +10365,7 @@ SetYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short Mode
 }
 
 static void
-SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,i,j,resinfo,romptr=0;
@@ -10373,7 +10373,7 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
 
   if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)) return;
 
-  /* NTSC-J data not in BIOS, and already set in SetGroup2 */
+  /* NTSC-J data analt in BIOS, and already set in SetGroup2 */
   if(SiS_Pr->SiS_TVMode & TVSetNTSCJ) return;
 
   if((SiS_Pr->ChipType >= SIS_661) || SiS_Pr->SiS_ROMNew) {
@@ -10385,10 +10385,10 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
      return;
   }
 
-  /* PAL-M, PAL-N not in BIOS, and already set in SetGroup2 */
+  /* PAL-M, PAL-N analt in BIOS, and already set in SetGroup2 */
   if(SiS_Pr->SiS_TVMode & (TVSetPALM | TVSetPALN)) return;
 
-  if(ModeNo<=0x13) {
+  if(ModeAnal<=0x13) {
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
   } else {
      resinfo = SiS_Pr->SiS_EModeIDTable[ModeIdIndex].Ext_RESINFO;
@@ -10435,7 +10435,7 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
   }
 
   if((SiS_Pr->SiS_VBType & VB_SIS30xBLV) && (!(SiS_Pr->SiS_VBInfo & SetCRT2ToHiVision))) {
-     if((!(SiS_Pr->SiS_TVMode & (TVSetPAL | TVSetYPbPr525p | TVSetYPbPr750p))) && (ModeNo > 0x13)) {
+     if((!(SiS_Pr->SiS_TVMode & (TVSetPAL | TVSetYPbPr525p | TVSetYPbPr750p))) && (ModeAnal > 0x13)) {
         if((resinfo == SIS_RI_640x480) ||
 	   (resinfo == SIS_RI_800x600)) {
 	   SiS_SetReg(SiS_Pr->SiS_Part2Port,0x31,0x21);
@@ -10453,7 +10453,7 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
 }
 
 static void
-SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
                 unsigned short ModeIdIndex, unsigned short RTI)
 {
    unsigned short delay = 0, romptr = 0, index, lcdpdcindex;
@@ -10472,8 +10472,8 @@ SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
          index = 25;
          if(SiS_Pr->UseCustomMode) {
 	    index = SiS_Pr->CSRClock;
-         } else if(ModeNo > 0x13) {
-            index = SiS_GetVCLK2Ptr(SiS_Pr,ModeNo,ModeIdIndex,RTI);
+         } else if(ModeAnal > 0x13) {
+            index = SiS_GetVCLK2Ptr(SiS_Pr,ModeAnal,ModeIdIndex,RTI);
             index = SiS_Pr->SiS_VCLKData[index].CLOCK;
          }
 	 if(index < 25) index = 25;
@@ -10497,7 +10497,7 @@ SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    /* 2. Old ROM: VGA2 and LCD/LCDA-Pass 1:1 */
 
    if(SiS_Pr->UseCustomMode) delay = 0x04;
-   else if(ModeNo <= 0x13)   delay = 0x04;
+   else if(ModeAnal <= 0x13)   delay = 0x04;
    else                      delay = (SiS_Pr->SiS_RefIndex[RTI].Ext_PDC >> 4);
    delay |= (delay << 8);
 
@@ -10546,20 +10546,20 @@ SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    } else if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 
-      /* 4. LCD, LCDA (for new ROM only LV and non-Pass 1:1) */
+      /* 4. LCD, LCDA (for new ROM only LV and analn-Pass 1:1) */
 
       if( (SiS_Pr->SiS_LCDResInfo != Panel_Custom) &&
           ((romptr = GetLCDStructPtr661_2(SiS_Pr))) ) {
 
 	 lcdpdcindex = (SiS_Pr->SiS_VBType & VB_UMC) ? 14 : 12;
 
-	 /* For LVDS (and sometimes TMDS), the BIOS must know about the correct value */
+	 /* For LVDS (and sometimes TMDS), the BIOS must kanalw about the correct value */
 	 delay = ROMAddr[romptr + lcdpdcindex + 1];	/* LCD  */
 	 delay |= (ROMAddr[romptr + lcdpdcindex] << 8);	/* LCDA */
 
       } else {
 
-         /* TMDS: Set our own, since BIOS has no idea */
+         /* TMDS: Set our own, since BIOS has anal idea */
 	 /* (This is done on >=661 only, since <661 is calling this only for LVDS) */
          if(!(SiS_Pr->SiS_LCDInfo & LCDPass11)) {
 	    switch(SiS_Pr->SiS_LCDResInfo) {
@@ -10613,14 +10613,14 @@ SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 }
 
 static void
-SetCRT2SyncDither661(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short RTI)
+SetCRT2SyncDither661(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short RTI)
 {
    unsigned short infoflag;
    unsigned char  temp;
 
    if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 
-      if(ModeNo <= 0x13) {
+      if(ModeAnal <= 0x13) {
          infoflag = SiS_GetRegByte(SiS_Pr->SiS_P3ca+2);
       } else if(SiS_Pr->UseCustomMode) {
          infoflag = SiS_Pr->CInfoFlag;
@@ -10629,7 +10629,7 @@ SetCRT2SyncDither661(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned
       }
 
       if(!(SiS_Pr->SiS_LCDInfo & LCDPass11)) {
-         infoflag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x37); /* No longer check D5 */
+         infoflag = SiS_GetReg(SiS_Pr->SiS_P3d4,0x37); /* Anal longer check D5 */
       }
 
       infoflag &= 0xc0;
@@ -10694,47 +10694,47 @@ SetPanelParms661(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_OEM310Setting(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RRTI)
+SiS_OEM310Setting(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex, unsigned short RRTI)
 {
    if((SiS_Pr->SiS_ROMNew) && (SiS_Pr->SiS_VBType & VB_SISLVDS)) {
-      SetDelayComp661(SiS_Pr, ModeNo, ModeIdIndex, RRTI);
+      SetDelayComp661(SiS_Pr, ModeAnal, ModeIdIndex, RRTI);
       if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-         SetCRT2SyncDither661(SiS_Pr, ModeNo, RRTI);
+         SetCRT2SyncDither661(SiS_Pr, ModeAnal, RRTI);
          SetPanelParms661(SiS_Pr);
       }
    } else {
-      SetDelayComp(SiS_Pr,ModeNo);
+      SetDelayComp(SiS_Pr,ModeAnal);
    }
 
    if((SiS_Pr->SiS_VBType & VB_SISVB) && (SiS_Pr->SiS_VBInfo & SetCRT2ToTV)) {
-      SetAntiFlicker(SiS_Pr,ModeNo,ModeIdIndex);
-      SetPhaseIncr(SiS_Pr,ModeNo,ModeIdIndex);
-      SetYFilter(SiS_Pr,ModeNo,ModeIdIndex);
+      SetAntiFlicker(SiS_Pr,ModeAnal,ModeIdIndex);
+      SetPhaseIncr(SiS_Pr,ModeAnal,ModeIdIndex);
+      SetYFilter(SiS_Pr,ModeAnal,ModeIdIndex);
       if(SiS_Pr->SiS_VBType & VB_SIS301) {
-         SetEdgeEnhance(SiS_Pr,ModeNo,ModeIdIndex);
+         SetEdgeEnhance(SiS_Pr,ModeAnal,ModeIdIndex);
       }
    }
 }
 
 static void
-SiS_OEM661Setting(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
+SiS_OEM661Setting(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,
 			unsigned short ModeIdIndex, unsigned short RRTI)
 {
    if(SiS_Pr->SiS_VBType & VB_SISVB) {
 
-      SetDelayComp661(SiS_Pr, ModeNo, ModeIdIndex, RRTI);
+      SetDelayComp661(SiS_Pr, ModeAnal, ModeIdIndex, RRTI);
 
       if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
-         SetCRT2SyncDither661(SiS_Pr, ModeNo, RRTI);
+         SetCRT2SyncDither661(SiS_Pr, ModeAnal, RRTI);
          SetPanelParms661(SiS_Pr);
       }
 
       if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV) {
-         SetPhaseIncr(SiS_Pr, ModeNo, ModeIdIndex);
-         SetYFilter(SiS_Pr, ModeNo, ModeIdIndex);
-         SetAntiFlicker(SiS_Pr, ModeNo, ModeIdIndex);
+         SetPhaseIncr(SiS_Pr, ModeAnal, ModeIdIndex);
+         SetYFilter(SiS_Pr, ModeAnal, ModeIdIndex);
+         SetAntiFlicker(SiS_Pr, ModeAnal, ModeIdIndex);
          if(SiS_Pr->SiS_VBType & VB_SIS301) {
-            SetEdgeEnhance(SiS_Pr, ModeNo, ModeIdIndex);
+            SetEdgeEnhance(SiS_Pr, ModeAnal, ModeIdIndex);
          }
       }
    }
@@ -10748,7 +10748,7 @@ SiS_OEM661Setting(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
  * pray that we have a backup...
  */
 static void
-SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned short tempcl,tempch,tempbl,tempbh,tempbx,tempax,temp;
   unsigned short resinfo,modeflag;
@@ -10773,7 +10773,7 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      return;
   }
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      resinfo = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ResInfo;
      modeflag =  SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
   } else {
@@ -10848,7 +10848,7 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1c,0x00);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1d,0x1b);
 	   }
-	   if(SiS_Pr->Backup && (SiS_Pr->Backup_Mode == ModeNo)) {
+	   if(SiS_Pr->Backup && (SiS_Pr->Backup_Mode == ModeAnal)) {
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x14,SiS_Pr->Backup_14);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x15,SiS_Pr->Backup_15);
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x16,SiS_Pr->Backup_16);
@@ -10861,14 +10861,14 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1d,SiS_Pr->Backup_1d);
 	   } else if(!(SiS_Pr->SiS_LCDInfo & DontExpandLCD)) {	/* 1.10.8w */
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x14,0x90);
-	      if(ModeNo <= 0x13) {
+	      if(ModeAnal <= 0x13) {
 	         SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x11);
 		 if((resinfo == 0) || (resinfo == 2)) return;
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x18);
 		 if((resinfo == 1) || (resinfo == 3)) return;
 	      }
 	      SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x02);
-	      if((ModeNo > 0x13) && (resinfo == SIS_RI_1024x768)) {
+	      if((ModeAnal > 0x13) && (resinfo == SIS_RI_1024x768)) {
 	         SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x02);  /* 1.10.7u */
 #if 0
 	         tempbx = 806;  /* 0x326 */			 /* other older BIOSes */
@@ -10879,8 +10879,8 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 		 SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x1d,0xf8,temp);
 #endif
 	      }
-	   } else if(ModeNo <= 0x13) {
-	      if(ModeNo <= 1) {
+	   } else if(ModeAnal <= 0x13) {
+	      if(ModeAnal <= 1) {
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x70);
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x19,0xff);
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1b,0x48);
@@ -10893,7 +10893,7 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x17,0x00);
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x4c);
 		 SiS_SetReg(SiS_Pr->SiS_Part1Port,0x19,0xdc);
-		 if(ModeNo == 0x12) {
+		 if(ModeAnal == 0x12) {
 		    switch(tempch) {
 		       case 0:
 			  SiS_SetReg(SiS_Pr->SiS_Part1Port,0x18,0x95);
@@ -10952,14 +10952,14 @@ SiS_FinalizeLCD(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 #ifdef CONFIG_FB_SIS_300
 
 static void
-SetOEMLCDData2(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex,
+SetOEMLCDData2(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex,
 		unsigned short RefTabIndex)
 {
   unsigned short crt2crtc=0, modeflag, myindex=0;
   unsigned char  temp;
   int i;
 
-  if(ModeNo <= 0x13) {
+  if(ModeAnal <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
      crt2crtc = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_CRT2CRTC;
   } else {
@@ -11058,7 +11058,7 @@ GetOEMLCDPtr(struct SiS_Private *SiS_Pr, int Flag)
 }
 
 static void
-SetOEMLCDDelay(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex)
+SetOEMLCDDelay(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,romptr=0;
@@ -11131,7 +11131,7 @@ SetOEMLCDDelay(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short 
 }
 
 static void
-SetOEMLCDData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetOEMLCDData(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
 #if 0  /* Unfinished; Data table missing */
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
@@ -11140,7 +11140,7 @@ SetOEMLCDData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
   if((SiS_Pr->SiS_UseROM) {
      if(!(ROMAddr[0x237] & 0x01)) return;
      if(!(ROMAddr[0x237] & 0x04)) return;
-     /* No rom pointer in BIOS header! */
+     /* Anal rom pointer in BIOS header! */
   }
 
   temp = GetOEMLCDPtr(SiS_Pr, 1);
@@ -11181,7 +11181,7 @@ GetOEMTVPtr(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SetOEMTVDelay(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetOEMTVDelay(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,romptr=0;
@@ -11213,7 +11213,7 @@ SetOEMTVDelay(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 }
 
 static void
-SetOEMAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetOEMAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,romptr=0;
@@ -11241,7 +11241,7 @@ SetOEMAntiFlicker(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 }
 
 static void
-SetOEMPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short ModeIdIndex)
+SetOEMPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeAnal,unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,i,j,temp,romptr=0;
@@ -11281,7 +11281,7 @@ SetOEMPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned short
 }
 
 static void
-SetOEMYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
+SetOEMYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex)
 {
   unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
   unsigned short index,temp,i,j,romptr=0;
@@ -11326,20 +11326,20 @@ SetOEMYFilter(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 }
 
 static unsigned short
-SiS_SearchVBModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo)
+SiS_SearchVBModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeAnal)
 {
    unsigned short ModeIdIndex;
    unsigned char  VGAINFO = SiS_Pr->SiS_VGAINFO;
 
-   if(*ModeNo <= 5) *ModeNo |= 1;
+   if(*ModeAnal <= 5) *ModeAnal |= 1;
 
    for(ModeIdIndex=0; ; ModeIdIndex++) {
-      if(SiS_Pr->SiS_VBModeIDTable[ModeIdIndex].ModeID == *ModeNo) break;
+      if(SiS_Pr->SiS_VBModeIDTable[ModeIdIndex].ModeID == *ModeAnal) break;
       if(SiS_Pr->SiS_VBModeIDTable[ModeIdIndex].ModeID == 0xFF)    return 0;
    }
 
-   if(*ModeNo != 0x07) {
-      if(*ModeNo > 0x03) return ModeIdIndex;
+   if(*ModeAnal != 0x07) {
+      if(*ModeAnal > 0x03) return ModeIdIndex;
       if(VGAINFO & 0x80) return ModeIdIndex;
       ModeIdIndex++;
    }
@@ -11350,29 +11350,29 @@ SiS_SearchVBModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo)
 }
 
 static void
-SiS_OEM300Setting(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex,
+SiS_OEM300Setting(struct SiS_Private *SiS_Pr, unsigned short ModeAnal, unsigned short ModeIdIndex,
 		  unsigned short RefTableIndex)
 {
   unsigned short OEMModeIdIndex = 0;
 
   if(!SiS_Pr->UseCustomMode) {
-     OEMModeIdIndex = SiS_SearchVBModeID(SiS_Pr,&ModeNo);
+     OEMModeIdIndex = SiS_SearchVBModeID(SiS_Pr,&ModeAnal);
      if(!(OEMModeIdIndex)) return;
   }
 
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) {
-     SetOEMLCDDelay(SiS_Pr, ModeNo, OEMModeIdIndex);
+     SetOEMLCDDelay(SiS_Pr, ModeAnal, OEMModeIdIndex);
      if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
-        SetOEMLCDData(SiS_Pr, ModeNo, OEMModeIdIndex);
+        SetOEMLCDData(SiS_Pr, ModeAnal, OEMModeIdIndex);
      }
   }
   if(SiS_Pr->UseCustomMode) return;
   if(SiS_Pr->SiS_VBInfo & SetCRT2ToTV) {
-     SetOEMTVDelay(SiS_Pr, ModeNo,OEMModeIdIndex);
+     SetOEMTVDelay(SiS_Pr, ModeAnal,OEMModeIdIndex);
      if(SiS_Pr->SiS_VBType & VB_SISVB) {
-        SetOEMAntiFlicker(SiS_Pr, ModeNo, OEMModeIdIndex);
-    	SetOEMPhaseIncr(SiS_Pr, ModeNo, OEMModeIdIndex);
-       	SetOEMYFilter(SiS_Pr, ModeNo, OEMModeIdIndex);
+        SetOEMAntiFlicker(SiS_Pr, ModeAnal, OEMModeIdIndex);
+    	SetOEMPhaseIncr(SiS_Pr, ModeAnal, OEMModeIdIndex);
+       	SetOEMYFilter(SiS_Pr, ModeAnal, OEMModeIdIndex);
      }
   }
 }

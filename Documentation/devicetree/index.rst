@@ -19,8 +19,8 @@ Devicetree Overlays
    :maxdepth: 1
 
    changesets
-   dynamic-resolution-notes
-   overlay-notes
+   dynamic-resolution-analtes
+   overlay-analtes
 
 Devicetree Bindings
 ===================

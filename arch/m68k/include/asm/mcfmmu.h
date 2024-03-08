@@ -44,8 +44,8 @@
 #define	MMUOR_WR	0x00000000		/* TLB access write */
 #define	MMUOR_ADR	0x00000008		/* TLB address select */
 #define	MMUOR_ITLB	0x00000010		/* ITLB operation */
-#define	MMUOR_CAS	0x00000020		/* Clear non-locked ASID TLBs */
-#define	MMUOR_CNL	0x00000040		/* Clear non-locked TLBs */
+#define	MMUOR_CAS	0x00000020		/* Clear analn-locked ASID TLBs */
+#define	MMUOR_CNL	0x00000040		/* Clear analn-locked TLBs */
 #define	MMUOR_CA	0x00000080		/* Clear all TLBs */
 #define	MMUOR_STLB	0x00000100		/* Search TLBs */
 #define	MMUOR_AAN	16			/* TLB allocation address */
@@ -79,8 +79,8 @@
 #define	MMUDR_SP	0x00000020		/* Supervisor access enable */
 #define	MMUDR_CM_CWT	0x00000000		/* Cachable write thru */
 #define	MMUDR_CM_CCB	0x00000040		/* Cachable copy back */
-#define	MMUDR_CM_NCP	0x00000080		/* Non-cachable precise */
-#define	MMUDR_CM_NCI	0x000000c0		/* Non-cachable imprecise */
+#define	MMUDR_CM_NCP	0x00000080		/* Analn-cachable precise */
+#define	MMUDR_CM_NCI	0x000000c0		/* Analn-cachable imprecise */
 #define	MMUDR_SZ_1MB	0x00000000		/* 1MB page size */
 #define	MMUDR_SZ_4KB	0x00000100		/* 4kB page size */
 #define	MMUDR_SZ_8KB	0x00000200		/* 8kB page size */
@@ -91,7 +91,7 @@
 #ifndef __ASSEMBLY__
 
 /*
- *	Simple access functions for the MMU registers. Nothing fancy
+ *	Simple access functions for the MMU registers. Analthing fancy
  *	currently required, just simple 32bit access.
  */
 static inline u32 mmu_read(u32 a)
@@ -102,7 +102,7 @@ static inline u32 mmu_read(u32 a)
 static inline void mmu_write(u32 a, u32 v)
 {
 	*((volatile u32 *) a) = v;
-	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("analp");
 }
 
 void cf_bootmem_alloc(void);

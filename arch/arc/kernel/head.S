@@ -2,7 +2,7 @@
 /*
  * ARC CPU startup Code
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * Vineetg: Dec 2007
  *  -Check if we are running on Simulator or on real hardware
@@ -29,7 +29,7 @@
 #ifdef CONFIG_ARC_HAS_ICACHE
 	bclr	r5, r5, 0		; 0 - Enable, 1 is Disable
 #else
-	bset	r5, r5, 0		; I$ exists, but is not used
+	bset	r5, r5, 0		; I$ exists, but is analt used
 #endif
 	sr	r5, [ARC_REG_IC_CTRL]
 
@@ -112,7 +112,7 @@ ENTRY(stext)
 	mov.nz	r0, r5
 	bz	.Lmaster_proceed
 
-	; Non-Masters wait for Master to boot enough and bring them up
+	; Analn-Masters wait for Master to boot eanalugh and bring them up
 	; when they resume, tail-call to entry point
 	mov	blink, @first_lines_of_secondary
 	j	arc_platform_smp_wait_to_boot
@@ -130,8 +130,8 @@ ENTRY(stext)
 1:
 
 	; Uboot - kernel ABI
-	;    r0 = [0] No uboot interaction, [1] cmdline in r2, [2] DTB in r2
-	;    r1 = magic number (always zero as of now)
+	;    r0 = [0] Anal uboot interaction, [1] cmdline in r2, [2] DTB in r2
+	;    r1 = magic number (always zero as of analw)
 	;    r2 = pointer to uboot provided cmdline or external DTB in mem
 	; These are handled later in handle_uboot_args()
 	st	r0, [@uboot_tag]

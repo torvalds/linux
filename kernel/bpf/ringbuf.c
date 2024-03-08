@@ -12,9 +12,9 @@
 #include <uapi/linux/btf.h>
 #include <linux/btf_ids.h>
 
-#define RINGBUF_CREATE_FLAG_MASK (BPF_F_NUMA_NODE)
+#define RINGBUF_CREATE_FLAG_MASK (BPF_F_NUMA_ANALDE)
 
-/* non-mmap()'able part of bpf_ringbuf (everything up to consumer page) */
+/* analn-mmap()'able part of bpf_ringbuf (everything up to consumer page) */
 #define RINGBUF_PGOFF \
 	(offsetof(struct bpf_ringbuf, consumer_pos) >> PAGE_SHIFT)
 /* consumer page and producer page */
@@ -43,7 +43,7 @@ struct bpf_ringbuf {
 	 * It is unsafe and incorrect to hold an IRQ spinlock across what could
 	 * be a long execution window, so we instead simply disallow concurrent
 	 * access to the ring buffer by kernel consumers, and return -EBUSY from
-	 * __bpf_user_ringbuf_peek() if the busy bit is held by another task.
+	 * __bpf_user_ringbuf_peek() if the busy bit is held by aanalther task.
 	 */
 	atomic_t busy ____cacheline_aligned_in_smp;
 	/* Consumer and producer counters are put into separate pages to
@@ -84,10 +84,10 @@ struct bpf_ringbuf_hdr {
 	u32 pg_off;
 };
 
-static struct bpf_ringbuf *bpf_ringbuf_area_alloc(size_t data_sz, int numa_node)
+static struct bpf_ringbuf *bpf_ringbuf_area_alloc(size_t data_sz, int numa_analde)
 {
 	const gfp_t flags = GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL |
-			    __GFP_NOWARN | __GFP_ZERO;
+			    __GFP_ANALWARN | __GFP_ZERO;
 	int nr_meta_pages = RINGBUF_NR_META_PAGES;
 	int nr_data_pages = data_sz >> PAGE_SHIFT;
 	int nr_pages = nr_meta_pages + nr_data_pages;
@@ -108,18 +108,18 @@ static struct bpf_ringbuf *bpf_ringbuf_area_alloc(size_t data_sz, int numa_node)
 	 * ------------------------------------------------------
 	 *                               ^^^^^^^
 	 *                                  |
-	 * Here, no need to worry about special handling of wrapped-around
+	 * Here, anal need to worry about special handling of wrapped-around
 	 * data due to double-mapped data pages. This works both in kernel and
 	 * when mmap()'ed in user-space, simplifying both kernel and
 	 * user-space implementations significantly.
 	 */
 	array_size = (nr_meta_pages + 2 * nr_data_pages) * sizeof(*pages);
-	pages = bpf_map_area_alloc(array_size, numa_node);
+	pages = bpf_map_area_alloc(array_size, numa_analde);
 	if (!pages)
 		return NULL;
 
 	for (i = 0; i < nr_pages; i++) {
-		page = alloc_pages_node(numa_node, flags, 0);
+		page = alloc_pages_analde(numa_analde, flags, 0);
 		if (!page) {
 			nr_pages = i;
 			goto err_free_pages;
@@ -132,7 +132,7 @@ static struct bpf_ringbuf *bpf_ringbuf_area_alloc(size_t data_sz, int numa_node)
 	rb = vmap(pages, nr_meta_pages + 2 * nr_data_pages,
 		  VM_MAP | VM_USERMAP, PAGE_KERNEL);
 	if (rb) {
-		kmemleak_not_leak(pages);
+		kmemleak_analt_leak(pages);
 		rb->pages = pages;
 		rb->nr_pages = nr_pages;
 		return rb;
@@ -145,7 +145,7 @@ err_free_pages:
 	return NULL;
 }
 
-static void bpf_ringbuf_notify(struct irq_work *work)
+static void bpf_ringbuf_analtify(struct irq_work *work)
 {
 	struct bpf_ringbuf *rb = container_of(work, struct bpf_ringbuf, work);
 
@@ -155,26 +155,26 @@ static void bpf_ringbuf_notify(struct irq_work *work)
 /* Maximum size of ring buffer area is limited by 32-bit page offset within
  * record header, counted in pages. Reserve 8 bits for extensibility, and
  * take into account few extra pages for consumer/producer pages and
- * non-mmap()'able parts, the current maximum size would be:
+ * analn-mmap()'able parts, the current maximum size would be:
  *
  *     (((1ULL << 24) - RINGBUF_POS_PAGES - RINGBUF_PGOFF) * PAGE_SIZE)
  *
- * This gives 64GB limit, which seems plenty for single ring buffer. Now
+ * This gives 64GB limit, which seems plenty for single ring buffer. Analw
  * considering that the maximum value of data_sz is (4GB - 1), there
- * will be no overflow, so just note the size limit in the comments.
+ * will be anal overflow, so just analte the size limit in the comments.
  */
-static struct bpf_ringbuf *bpf_ringbuf_alloc(size_t data_sz, int numa_node)
+static struct bpf_ringbuf *bpf_ringbuf_alloc(size_t data_sz, int numa_analde)
 {
 	struct bpf_ringbuf *rb;
 
-	rb = bpf_ringbuf_area_alloc(data_sz, numa_node);
+	rb = bpf_ringbuf_area_alloc(data_sz, numa_analde);
 	if (!rb)
 		return NULL;
 
 	spin_lock_init(&rb->spinlock);
 	atomic_set(&rb->busy, 0);
 	init_waitqueue_head(&rb->waitq);
-	init_irq_work(&rb->work, bpf_ringbuf_notify);
+	init_irq_work(&rb->work, bpf_ringbuf_analtify);
 
 	rb->mask = data_sz - 1;
 	rb->consumer_pos = 0;
@@ -195,16 +195,16 @@ static struct bpf_map *ringbuf_map_alloc(union bpf_attr *attr)
 	    !PAGE_ALIGNED(attr->max_entries))
 		return ERR_PTR(-EINVAL);
 
-	rb_map = bpf_map_area_alloc(sizeof(*rb_map), NUMA_NO_NODE);
+	rb_map = bpf_map_area_alloc(sizeof(*rb_map), NUMA_ANAL_ANALDE);
 	if (!rb_map)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	bpf_map_init_from_attr(&rb_map->map, attr);
 
-	rb_map->rb = bpf_ringbuf_alloc(attr->max_entries, rb_map->map.numa_node);
+	rb_map->rb = bpf_ringbuf_alloc(attr->max_entries, rb_map->map.numa_analde);
 	if (!rb_map->rb) {
 		bpf_map_area_free(rb_map);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	return &rb_map->map;
@@ -235,24 +235,24 @@ static void ringbuf_map_free(struct bpf_map *map)
 
 static void *ringbuf_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return ERR_PTR(-ENOTSUPP);
+	return ERR_PTR(-EANALTSUPP);
 }
 
 static long ringbuf_map_update_elem(struct bpf_map *map, void *key, void *value,
 				    u64 flags)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static long ringbuf_map_delete_elem(struct bpf_map *map, void *key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int ringbuf_map_get_next_key(struct bpf_map *map, void *key,
 				    void *next_key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int ringbuf_map_mmap_kern(struct bpf_map *map, struct vm_area_struct *vma)
@@ -316,7 +316,7 @@ static __poll_t ringbuf_map_poll_kern(struct bpf_map *map, struct file *filp,
 	poll_wait(filp, &rb_map->rb->waitq, pts);
 
 	if (ringbuf_avail_data_sz(rb_map->rb))
-		return EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDANALRM;
 	return 0;
 }
 
@@ -329,7 +329,7 @@ static __poll_t ringbuf_map_poll_user(struct bpf_map *map, struct file *filp,
 	poll_wait(filp, &rb_map->rb->waitq, pts);
 
 	if (ringbuf_avail_data_sz(rb_map->rb) < ringbuf_total_data_sz(rb_map->rb))
-		return EPOLLOUT | EPOLLWRNORM;
+		return EPOLLOUT | EPOLLWRANALRM;
 	return 0;
 }
 
@@ -483,7 +483,7 @@ static void bpf_ringbuf_commit(void *sample, u64 flags, bool discard)
 	/* update record header with correct final size prefix */
 	xchg(&hdr->len, new_len);
 
-	/* if consumer caught up and is waiting for our record, notify about
+	/* if consumer caught up and is waiting for our record, analtify about
 	 * new data availability
 	 */
 	rec_pos = (void *)hdr - (void *)rb->data;
@@ -491,7 +491,7 @@ static void bpf_ringbuf_commit(void *sample, u64 flags, bool discard)
 
 	if (flags & BPF_RB_FORCE_WAKEUP)
 		irq_work_queue(&rb->work);
-	else if (cons_pos == rec_pos && !(flags & BPF_RB_NO_WAKEUP))
+	else if (cons_pos == rec_pos && !(flags & BPF_RB_ANAL_WAKEUP))
 		irq_work_queue(&rb->work);
 }
 
@@ -527,7 +527,7 @@ BPF_CALL_4(bpf_ringbuf_output, struct bpf_map *, map, void *, data, u64, size,
 	struct bpf_ringbuf_map *rb_map;
 	void *rec;
 
-	if (unlikely(flags & ~(BPF_RB_NO_WAKEUP | BPF_RB_FORCE_WAKEUP)))
+	if (unlikely(flags & ~(BPF_RB_ANAL_WAKEUP | BPF_RB_FORCE_WAKEUP)))
 		return -EINVAL;
 
 	rb_map = container_of(map, struct bpf_ringbuf_map, map);
@@ -668,7 +668,7 @@ static int __bpf_user_ringbuf_peek(struct bpf_ringbuf *rb, void **sample, u32 *s
 	/* Synchronizes with smp_store_release() in __bpf_user_ringbuf_sample_release() */
 	cons_pos = smp_load_acquire(&rb->consumer_pos);
 	if (cons_pos >= prod_pos)
-		return -ENODATA;
+		return -EANALDATA;
 
 	hdr = (u32 *)((uintptr_t)rb->data + (uintptr_t)(cons_pos & rb->mask));
 	/* Synchronizes with smp_store_release() in user-space producer. */
@@ -694,14 +694,14 @@ static int __bpf_user_ringbuf_peek(struct bpf_ringbuf *rb, void **sample, u32 *s
 		/* If the discard bit is set, the sample should be skipped.
 		 *
 		 * Update the consumer pos, and return -EAGAIN so the caller
-		 * knows to skip this sample and try to read the next one.
+		 * kanalws to skip this sample and try to read the next one.
 		 */
 		smp_store_release(&rb->consumer_pos, cons_pos + total_len);
 		return -EAGAIN;
 	}
 
 	if (flags & BPF_RINGBUF_BUSY_BIT)
-		return -ENODATA;
+		return -EANALDATA;
 
 	*sample = (void *)((uintptr_t)rb->data +
 			   (uintptr_t)((cons_pos + BPF_RINGBUF_HDR_SZ) & rb->mask));
@@ -715,7 +715,7 @@ static void __bpf_user_ringbuf_sample_release(struct bpf_ringbuf *rb, size_t siz
 	u32 rounded_size = round_up(size + BPF_RINGBUF_HDR_SZ, 8);
 
 	/* Using smp_load_acquire() is unnecessary here, as the busy-bit
-	 * prevents another task from writing to consumer_pos after it was read
+	 * prevents aanalther task from writing to consumer_pos after it was read
 	 * by this task with smp_load_acquire() in __bpf_user_ringbuf_peek().
 	 */
 	consumer_pos = rb->consumer_pos;
@@ -729,7 +729,7 @@ BPF_CALL_4(bpf_user_ringbuf_drain, struct bpf_map *, map,
 	struct bpf_ringbuf *rb;
 	long samples, discarded_samples = 0, ret = 0;
 	bpf_callback_t callback = (bpf_callback_t)callback_fn;
-	u64 wakeup_flags = BPF_RB_NO_WAKEUP | BPF_RB_FORCE_WAKEUP;
+	u64 wakeup_flags = BPF_RB_ANAL_WAKEUP | BPF_RB_FORCE_WAKEUP;
 	int busy = 0;
 
 	if (unlikely(flags & ~wakeup_flags))
@@ -737,7 +737,7 @@ BPF_CALL_4(bpf_user_ringbuf_drain, struct bpf_map *, map,
 
 	rb = container_of(map, struct bpf_ringbuf_map, map)->rb;
 
-	/* If another consumer is already consuming a sample, wait for them to finish. */
+	/* If aanalther consumer is already consuming a sample, wait for them to finish. */
 	if (!atomic_try_cmpxchg(&rb->busy, &busy, 1))
 		return -EBUSY;
 
@@ -749,7 +749,7 @@ BPF_CALL_4(bpf_user_ringbuf_drain, struct bpf_map *, map,
 
 		err = __bpf_user_ringbuf_peek(rb, &sample, &size);
 		if (err) {
-			if (err == -ENODATA) {
+			if (err == -EANALDATA) {
 				break;
 			} else if (err == -EAGAIN) {
 				discarded_samples++;
@@ -774,7 +774,7 @@ schedule_work_return:
 
 	if (flags & BPF_RB_FORCE_WAKEUP)
 		irq_work_queue(&rb->work);
-	else if (!(flags & BPF_RB_NO_WAKEUP) && samples > 0)
+	else if (!(flags & BPF_RB_ANAL_WAKEUP) && samples > 0)
 		irq_work_queue(&rb->work);
 	return ret;
 }

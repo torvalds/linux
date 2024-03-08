@@ -46,7 +46,7 @@ static bool is_pipe_dsc(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 	    cpu_transcoder == TRANSCODER_DSI_1)
 		return false;
 
-	/* There's no pipe A DSC engine on ICL */
+	/* There's anal pipe A DSC engine on ICL */
 	drm_WARN_ON(&i915->drm, crtc->pipe == PIPE_A);
 
 	return true;
@@ -69,7 +69,7 @@ intel_vdsc_set_min_max_qp(struct drm_dsc_config *vdsc_cfg, int buf,
  * We are using the method provided in DSC 1.2a C-Model in codec_main.c
  * Above method use a common formula to derive values for any combination of DSC
  * variables. The formula approach may yield slight differences in the derived PPS
- * parameters from the original parameter sets. These differences are not consequential
+ * parameters from the original parameter sets. These differences are analt consequential
  * to the coding performance because all parameter sets have been shown to produce
  * visually lossless quality (provides the same PPS values as
  * DSCParameterValuesVESA V1-2 spreadsheet).
@@ -275,7 +275,7 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	err = intel_dsc_slice_dimensions_valid(pipe_config, vdsc_cfg);
 
 	if (err) {
-		drm_dbg_kms(&dev_priv->drm, "Slice dimension requirements not met\n");
+		drm_dbg_kms(&dev_priv->drm, "Slice dimension requirements analt met\n");
 		return err;
 	}
 
@@ -289,10 +289,10 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	if (DISPLAY_VER(dev_priv) >= 14 &&
 	    pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		vdsc_cfg->native_420 = true;
-	/* We do not support YcBCr422 as of now */
+	/* We do analt support YcBCr422 as of analw */
 	vdsc_cfg->native_422 = false;
 	vdsc_cfg->simple_422 = false;
-	/* Gen 11 does not support VBR */
+	/* Gen 11 does analt support VBR */
 	vdsc_cfg->vbr_enable = false;
 
 	vdsc_cfg->bits_per_pixel = pipe_config->dsc.compressed_bpp_x16;
@@ -360,8 +360,8 @@ intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 	 *  - Display version 12 (except RKL) pipe A
 	 *
 	 * For any other pipe, VDSC/joining uses the power well associated with
-	 * the pipe in use. Hence another reference on the pipe power domain
-	 * will suffice. (Except no VDSC/joining on ICL pipe A.)
+	 * the pipe in use. Hence aanalther reference on the pipe power domain
+	 * will suffice. (Except anal VDSC/joining on ICL pipe A.)
 	 */
 	if (DISPLAY_VER(i915) == 12 && !IS_ROCKETLAKE(i915) && pipe == PIPE_A)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
@@ -439,10 +439,10 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 
 	/* PPS 0 */
 	pps_val = DSC_PPS0_VER_MAJOR(1) |
-		DSC_PPS0_VER_MINOR(vdsc_cfg->dsc_version_minor) |
+		DSC_PPS0_VER_MIANALR(vdsc_cfg->dsc_version_mianalr) |
 		DSC_PPS0_BPC(vdsc_cfg->bits_per_component) |
 		DSC_PPS0_LINE_BUF_DEPTH(vdsc_cfg->line_buf_depth);
-	if (vdsc_cfg->dsc_version_minor == 2) {
+	if (vdsc_cfg->dsc_version_mianalr == 2) {
 		pps_val |= DSC_PPS0_ALT_ICH_SEL;
 		if (vdsc_cfg->native_420)
 			pps_val |= DSC_PPS0_NATIVE_420_ENABLE;

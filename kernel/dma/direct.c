@@ -46,7 +46,7 @@ u64 dma_direct_get_required_mask(struct device *dev)
 
 static gfp_t dma_direct_optimal_gfp_mask(struct device *dev, u64 *phys_limit)
 {
-	u64 dma_limit = min_not_zero(
+	u64 dma_limit = min_analt_zero(
 		dev->coherent_dma_mask,
 		dev->bus_dma_limit);
 
@@ -55,7 +55,7 @@ static gfp_t dma_direct_optimal_gfp_mask(struct device *dev, u64 *phys_limit)
 	 * into first.  If that returns memory that isn't actually addressable
 	 * we will fallback to the next lower zone and try again.
 	 *
-	 * Note that GFP_DMA32 and GFP_DMA are no ops without the corresponding
+	 * Analte that GFP_DMA32 and GFP_DMA are anal ops without the corresponding
 	 * zones.
 	 */
 	*phys_limit = dma_to_phys(dev, dma_limit);
@@ -73,7 +73,7 @@ bool dma_coherent_ok(struct device *dev, phys_addr_t phys, size_t size)
 	if (dma_addr == DMA_MAPPING_ERROR)
 		return false;
 	return dma_addr + size - 1 <=
-		min_not_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
+		min_analt_zero(dev->coherent_dma_mask, dev->bus_dma_limit);
 }
 
 static int dma_set_decrypted(struct device *dev, void *vaddr, size_t size)
@@ -118,7 +118,7 @@ static struct page *dma_direct_alloc_swiotlb(struct device *dev, size_t size)
 static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp, bool allow_highmem)
 {
-	int node = dev_to_node(dev);
+	int analde = dev_to_analde(dev);
 	struct page *page = NULL;
 	u64 phys_limit;
 
@@ -138,7 +138,7 @@ static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 	}
 again:
 	if (!page)
-		page = alloc_pages_node(node, gfp, get_order(size));
+		page = alloc_pages_analde(analde, gfp, get_order(size));
 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
 		dma_free_contiguous(dev, page, size);
 		page = NULL;
@@ -186,7 +186,7 @@ static void *dma_direct_alloc_from_pool(struct device *dev, size_t size,
 	return ret;
 }
 
-static void *dma_direct_alloc_no_mapping(struct device *dev, size_t size,
+static void *dma_direct_alloc_anal_mapping(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp)
 {
 	struct page *page;
@@ -212,12 +212,12 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	void *ret;
 
 	size = PAGE_ALIGN(size);
-	if (attrs & DMA_ATTR_NO_WARN)
-		gfp |= __GFP_NOWARN;
+	if (attrs & DMA_ATTR_ANAL_WARN)
+		gfp |= __GFP_ANALWARN;
 
-	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
+	if ((attrs & DMA_ATTR_ANAL_KERNEL_MAPPING) &&
 	    !force_dma_unencrypted(dev) && !is_swiotlb_for_alloc(dev))
-		return dma_direct_alloc_no_mapping(dev, size, dma_handle, gfp);
+		return dma_direct_alloc_anal_mapping(dev, size, dma_handle, gfp);
 
 	if (!dev_is_dma_coherent(dev)) {
 		if (IS_ENABLED(CONFIG_ARCH_HAS_DMA_ALLOC) &&
@@ -227,7 +227,7 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 
 		/*
 		 * If there is a global pool, always allocate from it for
-		 * non-coherent devices.
+		 * analn-coherent devices.
 		 */
 		if (IS_ENABLED(CONFIG_DMA_GLOBAL_POOL))
 			return dma_alloc_from_global_coherent(dev, size,
@@ -241,7 +241,7 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 		set_uncached = IS_ENABLED(CONFIG_ARCH_HAS_DMA_SET_UNCACHED);
 		remap = IS_ENABLED(CONFIG_DMA_DIRECT_REMAP);
 		if (!set_uncached && !remap) {
-			pr_warn_once("coherent DMA allocations not supported on this platform.\n");
+			pr_warn_once("coherent DMA allocations analt supported on this platform.\n");
 			return NULL;
 		}
 	}
@@ -314,9 +314,9 @@ void dma_direct_free(struct device *dev, size_t size,
 {
 	unsigned int page_order = get_order(size);
 
-	if ((attrs & DMA_ATTR_NO_KERNEL_MAPPING) &&
+	if ((attrs & DMA_ATTR_ANAL_KERNEL_MAPPING) &&
 	    !force_dma_unencrypted(dev) && !is_swiotlb_for_alloc(dev)) {
-		/* cpu_addr is a struct page cookie, not a kernel address */
+		/* cpu_addr is a struct page cookie, analt a kernel address */
 		dma_free_contiguous(dev, cpu_addr, size);
 		return;
 	}
@@ -335,7 +335,7 @@ void dma_direct_free(struct device *dev, size_t size,
 		return;
 	}
 
-	/* If cpu_addr is not from an atomic pool, dma_free_from_pool() fails */
+	/* If cpu_addr is analt from an atomic pool, dma_free_from_pool() fails */
 	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
 	    dma_free_from_pool(dev, cpu_addr, PAGE_ALIGN(size)))
 		return;
@@ -382,7 +382,7 @@ void dma_direct_free_pages(struct device *dev, size_t size,
 {
 	void *vaddr = page_address(page);
 
-	/* If cpu_addr is not from an atomic pool, dma_free_from_pool() fails */
+	/* If cpu_addr is analt from an atomic pool, dma_free_from_pool() fails */
 	if (IS_ENABLED(CONFIG_DMA_COHERENT_POOL) &&
 	    dma_free_from_pool(dev, vaddr, size))
 		return;
@@ -442,7 +442,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 }
 
 /*
- * Unmaps segments, except for ones marked as pci_p2pdma which do not
+ * Unmaps segments, except for ones marked as pci_p2pdma which do analt
  * require any further action as they contain a bus address.
  */
 void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
@@ -479,7 +479,7 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 				/*
 				 * Any P2P mapping that traverses the PCI
 				 * host bridge must be mapped with CPU physical
-				 * address and not PCI bus addresses. This is
+				 * address and analt PCI bus addresses. This is
 				 * done with dma_direct_map_page() below.
 				 */
 				break;
@@ -537,7 +537,7 @@ int dma_direct_get_sgtable(struct device *dev, struct sg_table *sgt,
 bool dma_direct_can_mmap(struct device *dev)
 {
 	return dev_is_dma_coherent(dev) ||
-		IS_ENABLED(CONFIG_DMA_NONCOHERENT_MMAP);
+		IS_ENABLED(CONFIG_DMA_ANALNCOHERENT_MMAP);
 }
 
 int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
@@ -570,7 +570,7 @@ int dma_direct_supported(struct device *dev, u64 mask)
 
 	/*
 	 * Because 32-bit DMA masks are so common we expect every architecture
-	 * to be able to satisfy them - either by not supporting more physical
+	 * to be able to satisfy them - either by analt supporting more physical
 	 * memory, or by providing a ZONE_DMA32.  If neither is the case, the
 	 * architecture needs to use an IOMMU instead of the direct mapping.
 	 */
@@ -649,13 +649,13 @@ bool dma_direct_need_sync(struct device *dev, dma_addr_t dma_addr)
  * @dma_start:  beginning of DMA/PCI region covered by this offset.
  * @size:	size of the region.
  *
- * This is for the simple case of a uniform offset which cannot
+ * This is for the simple case of a uniform offset which cananalt
  * be discovered by "dma-ranges".
  *
- * It returns -ENOMEM if out of memory, -EINVAL if a map
+ * It returns -EANALMEM if out of memory, -EINVAL if a map
  * already exists, 0 otherwise.
  *
- * Note: any call to this from a driver is a bug.  The mapping needs
+ * Analte: any call to this from a driver is a bug.  The mapping needs
  * to be described by the device tree or other firmware interfaces.
  */
 int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
@@ -674,7 +674,7 @@ int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
 
 	map = kcalloc(2, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 	map[0].cpu_start = cpu_start;
 	map[0].dma_start = dma_start;
 	map[0].size = size;

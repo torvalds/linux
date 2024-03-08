@@ -8,7 +8,7 @@
  * Author: Cyrille Pitchen <cyrille.pitchen@atmel.com>
  * Author: Piotr Bugalski <bugalski.piotr@gmail.com>
  *
- * This driver is based on drivers/mtd/spi-nor/fsl-quadspi.c from Freescale.
+ * This driver is based on drivers/mtd/spi-analr/fsl-quadspi.c from Freescale.
  */
 
 #include <linux/clk.h>
@@ -62,7 +62,7 @@
 #define QSPI_MR_WDRBT                   BIT(2)
 #define QSPI_MR_SMRM                    BIT(3)
 #define QSPI_MR_CSMODE_MASK             GENMASK(5, 4)
-#define QSPI_MR_CSMODE_NOT_RELOADED     (0 << 4)
+#define QSPI_MR_CSMODE_ANALT_RELOADED     (0 << 4)
 #define QSPI_MR_CSMODE_LASTXFER         (1 << 4)
 #define QSPI_MR_CSMODE_SYSTEMATICALLY   (2 << 4)
 #define QSPI_MR_NBBITS_MASK             GENMASK(11, 8)
@@ -272,7 +272,7 @@ static int atmel_qspi_find_mode(const struct spi_mem_op *op)
 		if (atmel_qspi_is_compatible(op, &atmel_qspi_modes[i]))
 			return i;
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static bool atmel_qspi_supports_op(struct spi_mem *mem,
@@ -284,7 +284,7 @@ static bool atmel_qspi_supports_op(struct spi_mem *mem,
 	if (atmel_qspi_find_mode(op) < 0)
 		return false;
 
-	/* special case not supported by hardware */
+	/* special case analt supported by hardware */
 	if (op->addr.nbytes == 2 && op->cmd.buswidth != op->addr.buswidth &&
 	    op->dummy.nbytes == 0)
 		return false;
@@ -320,7 +320,7 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	 * Otherwise opcode is disabled and the first byte of the address
 	 * contains the command opcode (works only if the opcode and address
 	 * use the same buswidth). The limitation is when the 16-bit address is
-	 * used without enough dummy cycles and the opcode is using a different
+	 * used without eanalugh dummy cycles and the opcode is using a different
 	 * buswidth than the address.
 	 */
 	if (op->addr.buswidth) {
@@ -352,7 +352,7 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 			iar = op->addr.val & 0x7ffffff;
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -416,7 +416,7 @@ static int atmel_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	 * when the flash memories overrun the controller's memory space.
 	 */
 	if (op->addr.val + op->data.nbytes > aq->mmap_size)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	err = pm_runtime_resume_and_get(&aq->pdev->dev);
 	if (err < 0)
@@ -426,7 +426,7 @@ static int atmel_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	if (err)
 		goto pm_runtime_put;
 
-	/* Skip to the final steps if there is no data */
+	/* Skip to the final steps if there is anal data */
 	if (op->data.nbytes) {
 		/* Dummy read of QSPI_IFR to synchronize APB and AHB accesses */
 		(void)atmel_qspi_read(aq, QSPI_IFR);
@@ -566,7 +566,7 @@ static irqreturn_t atmel_qspi_interrupt(int irq, void *dev_id)
 	pending = status & mask;
 
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	aq->pending |= pending;
 	if ((aq->pending & QSPI_SR_CMD_COMPLETED) == QSPI_SR_CMD_COMPLETED)
@@ -584,7 +584,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 
 	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*aq));
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_DUAL | SPI_TX_QUAD;
 	ctrl->setup = atmel_qspi_setup;
@@ -592,7 +592,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &atmel_qspi_mem_ops;
 	ctrl->num_chipselect = 1;
-	ctrl->dev.of_node = pdev->dev.of_node;
+	ctrl->dev.of_analde = pdev->dev.of_analde;
 	platform_set_drvdata(pdev, ctrl);
 
 	aq = spi_controller_get_devdata(ctrl);
@@ -637,7 +637,7 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 
 	aq->caps = of_device_get_match_data(&pdev->dev);
 	if (!aq->caps) {
-		dev_err(&pdev->dev, "Could not retrieve QSPI caps\n");
+		dev_err(&pdev->dev, "Could analt retrieve QSPI caps\n");
 		err = -EINVAL;
 		goto disable_pclk;
 	}
@@ -675,13 +675,13 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_analresume(&pdev->dev);
 
 	atmel_qspi_init(aq);
 
 	err = spi_register_controller(ctrl);
 	if (err) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_analidle(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
 		pm_runtime_set_suspended(&pdev->dev);
 		pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -726,7 +726,7 @@ static void atmel_qspi_remove(struct platform_device *pdev)
 	clk_unprepare(aq->pclk);
 
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_analidle(&pdev->dev);
 }
 
 static int __maybe_unused atmel_qspi_suspend(struct device *dev)

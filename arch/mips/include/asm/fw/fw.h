@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2012 MIPS Technologies, Inc.
+ * Copyright (C) 2012 MIPS Techanallogies, Inc.
  */
 #ifndef __ASM_FW_H_
 #define __ASM_FW_H_

@@ -147,7 +147,7 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 		return size;
 
 	spin_lock_irqsave(&sgpio_lock, flags);
-	ecx_parse_sgpio(pdata, ap->port_no, state);
+	ecx_parse_sgpio(pdata, ap->port_anal, state);
 	sgpio_out = pdata->sgpio_pattern;
 	for (i = 0; i < pdata->pre_clocks; i++)
 		ecx_led_cycle_clock(pdata);
@@ -178,7 +178,7 @@ static void highbank_set_em_messages(struct device *dev,
 					struct ahci_host_priv *hpriv,
 					struct ata_port_info *pi)
 {
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct ecx_plat_data *pdata = hpriv->plat_data;
 	int i;
 
@@ -325,10 +325,10 @@ static void highbank_cphy_override_lane(u8 sata_port)
 
 static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 {
-	struct device_node *sata_node = dev->of_node;
+	struct device_analde *sata_analde = dev->of_analde;
 	int phy_count = 0, phy, port = 0, i;
 	void __iomem *cphy_base[CPHY_PHY_COUNT] = {};
-	struct device_node *phy_nodes[CPHY_PHY_COUNT] = {};
+	struct device_analde *phy_analdes[CPHY_PHY_COUNT] = {};
 	u32 tx_atten[CPHY_PORT_COUNT] = {};
 
 	memset(port_data, 0, sizeof(struct phy_lane_info) * CPHY_PORT_COUNT);
@@ -336,30 +336,30 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 	do {
 		u32 tmp;
 		struct of_phandle_args phy_data;
-		if (of_parse_phandle_with_args(sata_node,
+		if (of_parse_phandle_with_args(sata_analde,
 				"calxeda,port-phys", "#phy-cells",
 				port, &phy_data))
 			break;
 		for (phy = 0; phy < phy_count; phy++) {
-			if (phy_nodes[phy] == phy_data.np)
+			if (phy_analdes[phy] == phy_data.np)
 				break;
 		}
-		if (phy_nodes[phy] == NULL) {
-			phy_nodes[phy] = phy_data.np;
-			cphy_base[phy] = of_iomap(phy_nodes[phy], 0);
+		if (phy_analdes[phy] == NULL) {
+			phy_analdes[phy] = phy_data.np;
+			cphy_base[phy] = of_iomap(phy_analdes[phy], 0);
 			if (cphy_base[phy] == NULL) {
 				return 0;
 			}
 			phy_count += 1;
 		}
 		port_data[port].lane_mapping = phy_data.args[0];
-		of_property_read_u32(phy_nodes[phy], "phydev", &tmp);
+		of_property_read_u32(phy_analdes[phy], "phydev", &tmp);
 		port_data[port].phy_devs = tmp;
 		port_data[port].phy_base = cphy_base[phy];
-		of_node_put(phy_data.np);
+		of_analde_put(phy_data.np);
 		port += 1;
 	} while (port < CPHY_PORT_COUNT);
-	of_property_read_u32_array(sata_node, "calxeda,tx-atten",
+	of_property_read_u32_array(sata_analde, "calxeda,tx-atten",
 				tx_atten, port);
 	for (i = 0; i < port; i++)
 		port_data[i].tx_atten = (u8) tx_atten[i];
@@ -379,7 +379,7 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
  * uses a much shorter time-out period and never experiences a time out
  * issue. Reducing the time-out to 500ms improves the responsiveness.
  * The other timing constants were kept the same as the stock AHCI driver.
- * This change was also tested 15000 times on 24 drives and none of them
+ * This change was also tested 15000 times on 24 drives and analne of them
  * experienced a time out.
  */
 static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
@@ -404,11 +404,11 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
 	do {
-		highbank_cphy_disable_overrides(link->ap->port_no);
+		highbank_cphy_disable_overrides(link->ap->port_anal);
 		rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
-		highbank_cphy_override_lane(link->ap->port_no);
+		highbank_cphy_override_lane(link->ap->port_anal);
 
-		/* If the status is 1, we are connected, but the link did not
+		/* If the status is 1, we are connected, but the link did analt
 		 * come up. So retry resetting the link again.
 		 */
 		if (sata_scr_read(link, SCR_STATUS, &sstatus))
@@ -464,7 +464,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(dev, "no mmio space\n");
+		dev_err(dev, "anal mmio space\n");
 		return -EINVAL;
 	}
 
@@ -477,12 +477,12 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv) {
 		dev_err(dev, "can't alloc ahci_host_priv\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		dev_err(dev, "can't alloc ecx_plat_data\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	hpriv->irq = irq;
@@ -491,7 +491,7 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 	hpriv->mmio = devm_ioremap(dev, mem->start, resource_size(mem));
 	if (!hpriv->mmio) {
 		dev_err(dev, "can't map %pR\n", mem);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = highbank_initialize_phys(dev, hpriv->mmio);
@@ -524,26 +524,26 @@ static int ahci_highbank_probe(struct platform_device *pdev)
 
 	host = ata_host_alloc_pinfo(dev, ppi, n_ports);
 	if (!host) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err0;
 	}
 
 	host->private_data = hpriv;
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_iganalre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 
 		ata_port_desc(ap, "mmio %pR", mem);
-		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_no * 0x80);
+		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_anal * 0x80);
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
 
-		/* disabled/not-implemented port */
+		/* disabled/analt-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}
@@ -572,7 +572,7 @@ static int ahci_highbank_suspend(struct device *dev)
 	void __iomem *mmio = hpriv->mmio;
 	u32 ctl;
 
-	if (hpriv->flags & AHCI_HFLAG_NO_SUSPEND) {
+	if (hpriv->flags & AHCI_HFLAG_ANAL_SUSPEND) {
 		dev_err(dev, "firmware update required for suspend/resume\n");
 		return -EIO;
 	}

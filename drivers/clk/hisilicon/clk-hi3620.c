@@ -191,7 +191,7 @@ static struct hisi_gate_clock hi3620_separated_gate_clks[] __initdata = {
 	{ HI3620_MCU_CLK,      "mcu_clk",      "acp_clk",      CLK_SET_RATE_PARENT, 0x50, 24, 0, },
 };
 
-static void __init hi3620_clk_init(struct device_node *np)
+static void __init hi3620_clk_init(struct device_analde *np)
 {
 	struct hisi_clock_data *clk_data;
 
@@ -408,7 +408,7 @@ static const struct clk_ops clk_mmc_ops = {
 };
 
 static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
-			void __iomem *base, struct device_node *np)
+			void __iomem *base, struct device_analde *np)
 {
 	struct clk_mmc *mclk;
 	struct clk *clk;
@@ -416,7 +416,7 @@ static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 
 	mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
 	if (!mclk)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = mmc_clk->name;
 	init.ops = &clk_mmc_ops;
@@ -444,18 +444,18 @@ static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 	return clk;
 }
 
-static void __init hi3620_mmc_clk_init(struct device_node *node)
+static void __init hi3620_mmc_clk_init(struct device_analde *analde)
 {
 	void __iomem *base;
 	int i, num = ARRAY_SIZE(hi3620_mmc_clks);
 	struct clk_onecell_data *clk_data;
 
-	if (!node) {
-		pr_err("failed to find pctrl node in DTS\n");
+	if (!analde) {
+		pr_err("failed to find pctrl analde in DTS\n");
 		return;
 	}
 
-	base = of_iomap(node, 0);
+	base = of_iomap(analde, 0);
 	if (!base) {
 		pr_err("failed to map pctrl\n");
 		return;
@@ -474,11 +474,11 @@ static void __init hi3620_mmc_clk_init(struct device_node *node)
 	for (i = 0; i < num; i++) {
 		struct hisi_mmc_clock *mmc_clk = &hi3620_mmc_clks[i];
 		clk_data->clks[mmc_clk->id] =
-			hisi_register_clk_mmc(mmc_clk, base, node);
+			hisi_register_clk_mmc(mmc_clk, base, analde);
 	}
 
 	clk_data->clk_num = num;
-	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	of_clk_add_provider(analde, of_clk_src_onecell_get, clk_data);
 }
 
 CLK_OF_DECLARE(hi3620_mmc_clk, "hisilicon,hi3620-mmc-clock", hi3620_mmc_clk_init);

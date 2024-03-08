@@ -84,24 +84,24 @@ static ssize_t major_show(struct hyp_sysfs_attr *attr, char *buffer)
 	int version = HYPERVISOR_xen_version(XENVER_version, NULL);
 	if (version)
 		return sprintf(buffer, "%d\n", version >> 16);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 HYPERVISOR_ATTR_RO(major);
 
-static ssize_t minor_show(struct hyp_sysfs_attr *attr, char *buffer)
+static ssize_t mianalr_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
 	int version = HYPERVISOR_xen_version(XENVER_version, NULL);
 	if (version)
 		return sprintf(buffer, "%d\n", version & 0xff);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-HYPERVISOR_ATTR_RO(minor);
+HYPERVISOR_ATTR_RO(mianalr);
 
 static ssize_t extra_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char *extra;
 
 	extra = kmalloc(XEN_EXTRAVERSION_LEN, GFP_KERNEL);
@@ -119,7 +119,7 @@ HYPERVISOR_ATTR_RO(extra);
 
 static struct attribute *version_attrs[] = {
 	&major_attr.attr,
-	&minor_attr.attr,
+	&mianalr_attr.attr,
 	&extra_attr.attr,
 	NULL
 };
@@ -179,7 +179,7 @@ static int __init xen_sysfs_uuid_init(void)
 
 static ssize_t compiler_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct xen_compile_info *info;
 
 	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
@@ -197,7 +197,7 @@ HYPERVISOR_ATTR_RO(compiler);
 
 static ssize_t compiled_by_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct xen_compile_info *info;
 
 	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
@@ -215,7 +215,7 @@ HYPERVISOR_ATTR_RO(compiled_by);
 
 static ssize_t compile_date_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct xen_compile_info *info;
 
 	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
@@ -252,7 +252,7 @@ static int __init xen_sysfs_compilation_init(void)
 
 static ssize_t capabilities_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char *caps;
 
 	caps = kmalloc(XEN_CAPABILITIES_INFO_LEN, GFP_KERNEL);
@@ -270,7 +270,7 @@ HYPERVISOR_ATTR_RO(capabilities);
 
 static ssize_t changeset_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	char *cset;
 
 	cset = kmalloc(XEN_CHANGESET_INFO_LEN, GFP_KERNEL);
@@ -288,7 +288,7 @@ HYPERVISOR_ATTR_RO(changeset);
 
 static ssize_t virtual_start_show(struct hyp_sysfs_attr *attr, char *buffer)
 {
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 	struct xen_platform_parameters *parms;
 
 	parms = kmalloc(sizeof(struct xen_platform_parameters), GFP_KERNEL);
@@ -369,7 +369,7 @@ static ssize_t buildid_show(struct hyp_sysfs_attr *attr, char *buffer)
 
 	buildid = kmalloc(sizeof(*buildid) + ret, GFP_KERNEL);
 	if (!buildid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	buildid->len = ret;
 	ret = HYPERVISOR_xen_version(XENVER_build_id, buildid);
@@ -402,7 +402,7 @@ static int __init xen_sysfs_properties_init(void)
 	return sysfs_create_group(hypervisor_kobj, &xen_properties_group);
 }
 
-#define FLAG_UNAME "unknown"
+#define FLAG_UNAME "unkanalwn"
 #define FLAG_UNAME_FMT FLAG_UNAME "%02u"
 #define FLAG_UNAME_MAX sizeof(FLAG_UNAME "XX")
 #define FLAG_COUNT (sizeof(xen_start_flags) * BITS_PER_BYTE)
@@ -418,22 +418,22 @@ static ssize_t flag_show(struct hyp_sysfs_attr *attr, char *buffer)
 	return p - buffer;
 }
 
-#define FLAG_NODE(flag, node)				\
+#define FLAG_ANALDE(flag, analde)				\
 	[ilog2(flag)] = {				\
-		.attr = { .name = #node, .mode = 0444 },\
+		.attr = { .name = #analde, .mode = 0444 },\
 		.show = flag_show,			\
 		.hyp_attr_value = flag			\
 	}
 
 /*
- * Add new, known flags here.  No other changes are required, but
- * note that each known flag wastes one entry in flag_unames[].
+ * Add new, kanalwn flags here.  Anal other changes are required, but
+ * analte that each kanalwn flag wastes one entry in flag_unames[].
  * The code/complexity machinations to avoid this isn't worth it
  * for a few entries, but keep it in mind.
  */
 static struct hyp_sysfs_attr flag_attrs[FLAG_COUNT] = {
-	FLAG_NODE(SIF_PRIVILEGED, privileged),
-	FLAG_NODE(SIF_INITDOMAIN, initdomain)
+	FLAG_ANALDE(SIF_PRIVILEGED, privileged),
+	FLAG_ANALDE(SIF_INITDOMAIN, initdomain)
 };
 static struct attribute_group xen_flags_group = {
 	.name = "start_flags",
@@ -576,7 +576,7 @@ static int __init hyper_sysfs_init(void)
 	int ret;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = xen_sysfs_type_init();
 	if (ret)
@@ -662,7 +662,7 @@ static const struct kobj_type hyp_sysfs_kobj_type = {
 static int __init hypervisor_subsys_init(void)
 {
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	hypervisor_kobj->ktype = &hyp_sysfs_kobj_type;
 	return 0;

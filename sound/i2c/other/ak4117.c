@@ -70,7 +70,7 @@ int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&chip->lock);
 	chip->card = card;
 	chip->read = read;
@@ -120,7 +120,7 @@ void snd_ak4117_reinit(struct ak4117 *chip)
 	udelay(200);
 	for (reg = 1; reg < 5; reg++)
 		reg_write(chip, reg, chip->regmap[reg]);
-	/* release powerdown, everything is initialized now */
+	/* release powerdown, everything is initialized analw */
 	reg_write(chip, AK4117_REG_PWRDN, old | AK4117_RST | AK4117_PWN);
 	chip->init = 0;
 	mod_timer(&chip->timer, 1 + jiffies);
@@ -163,7 +163,7 @@ static int snd_ak4117_in_error_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define snd_ak4117_in_bit_info		snd_ctl_boolean_mono_info
+#define snd_ak4117_in_bit_info		snd_ctl_boolean_moanal_info
 
 static int snd_ak4117_in_bit_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -384,7 +384,7 @@ static const struct snd_kcontrol_new snd_ak4117_iec958_controls[] = {
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
-	.name =		"IEC958 Non-PCM Bitstream",
+	.name =		"IEC958 Analn-PCM Bitstream",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4117_in_bit_info,
 	.get =		snd_ak4117_in_bit_get,
@@ -420,7 +420,7 @@ int snd_ak4117_build(struct ak4117 *ak4117, struct snd_pcm_substream *cap_substr
 	for (idx = 0; idx < AK4117_CONTROLS; idx++) {
 		kctl = snd_ctl_new1(&snd_ak4117_iec958_controls[idx], ak4117);
 		if (kctl == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 		kctl->id.device = cap_substream->pcm->device;
 		kctl->id.subdevice = cap_substream->number;
 		err = snd_ctl_add(ak4117->card, kctl);
@@ -448,7 +448,7 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
 	unsigned char c0, c1;
 
 	rcs1 = reg_read(ak4117, AK4117_REG_RCS1);
-	if (flags & AK4117_CHECK_NO_STAT)
+	if (flags & AK4117_CHECK_ANAL_STAT)
 		goto __rate;
 	rcs0 = reg_read(ak4117, AK4117_REG_RCS0);
 	rcs2 = reg_read(ak4117, AK4117_REG_RCS2);
@@ -472,29 +472,29 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
 	spin_unlock_irqrestore(&ak4117->lock, _flags);
 
 	if (rcs0 & AK4117_PAR)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[0]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[0]->id);
 	if (rcs0 & AK4117_V)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[1]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[1]->id);
 	if (rcs2 & AK4117_CCRC)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[2]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[2]->id);
 	if (rcs2 & AK4117_QCRC)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[3]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[3]->id);
 
 	/* rate change */
 	if (c1 & 0x0f)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[4]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[4]->id);
 
 	if ((c1 & AK4117_PEM) | (c0 & AK4117_CINT))
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[6]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[6]->id);
 	if (c0 & AK4117_QINT)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[8]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[8]->id);
 
 	if (c0 & AK4117_AUDION)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[9]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[9]->id);
 	if (c1 & AK4117_NPCM)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[10]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[10]->id);
 	if (c1 & AK4117_DTSCD)
-		snd_ctl_notify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[11]->id);
+		snd_ctl_analtify(ak4117->card, SNDRV_CTL_EVENT_MASK_VALUE, &ak4117->kctls[11]->id);
 		
 	if (ak4117->change_callback && (c0 | c1) != 0)
 		ak4117->change_callback(ak4117, c0, c1);
@@ -502,7 +502,7 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
       __rate:
 	/* compare rate */
 	res = external_rate(rcs1);
-	if (!(flags & AK4117_CHECK_NO_RATE) && runtime && runtime->rate != res) {
+	if (!(flags & AK4117_CHECK_ANAL_RATE) && runtime && runtime->rate != res) {
 		snd_pcm_stream_lock_irqsave(ak4117->substream, _flags);
 		if (snd_pcm_running(ak4117->substream)) {
 			// printk(KERN_DEBUG "rate changed (%i <- %i)\n", runtime->rate, res);

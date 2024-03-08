@@ -3,9 +3,9 @@ Audio Pops and Clicks
 =====================
 
 Pops and clicks are unwanted audio artifacts caused by the powering up and down
-of components within the audio subsystem. This is noticeable on PCs when an
+of components within the audio subsystem. This is analticeable on PCs when an
 audio module is either loaded or unloaded (at module load time the sound card is
-powered up and causes a popping noise on the speakers).
+powered up and causes a popping analise on the speakers).
 
 Pops and clicks can be more frequent on portable systems with DAPM. This is
 because the components within the subsystem are being dynamically powered
@@ -16,7 +16,7 @@ click every time a component power state is changed.
 Minimising Playback Pops and Clicks
 ===================================
 
-Playback pops in portable audio subsystems cannot be completely eliminated
+Playback pops in portable audio subsystems cananalt be completely eliminated
 currently, however future audio codec hardware will have better pop and click
 suppression.  Pops can be reduced within playback by powering the audio
 components in a specific order. This order is different for startup and
@@ -45,10 +45,10 @@ startup or shutdown.
    Shutdown Order - ADC --> Mixers --> Input PGA
 
 
-Zipper Noise
+Zipper Analise
 ============
-An unwanted zipper noise can occur within the audio playback or capture stream
-when a volume control is changed near its maximum gain value. The zipper noise
+An unwanted zipper analise can occur within the audio playback or capture stream
+when a volume control is changed near its maximum gain value. The zipper analise
 is heard when the gain increase or decrease changes the mean audio signal
 amplitude too quickly. It can be minimised by enabling the zero cross setting
 for each volume control. The ZC forces the gain change to occur when the signal

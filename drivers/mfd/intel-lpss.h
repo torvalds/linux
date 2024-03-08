@@ -15,15 +15,15 @@
 
 struct device;
 struct resource;
-struct software_node;
+struct software_analde;
 
 struct intel_lpss_platform_info {
 	struct resource *mem;
-	bool ignore_resource_conflicts;
+	bool iganalre_resource_conflicts;
 	int irq;
 	unsigned long clk_rate;
 	const char *clk_con_id;
-	const struct software_node *swnode;
+	const struct software_analde *swanalde;
 };
 
 int intel_lpss_probe(struct device *dev,

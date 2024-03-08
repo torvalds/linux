@@ -66,15 +66,15 @@ struct rq_wb {
 	 * Settings that govern how we throttle
 	 */
 	unsigned int wb_background;		/* background writeback */
-	unsigned int wb_normal;			/* normal writeback */
+	unsigned int wb_analrmal;			/* analrmal writeback */
 
 	short enable_state;			/* WBT_STATE_* */
 
 	/*
-	 * Number of consecutive periods where we don't have enough
+	 * Number of consecutive periods where we don't have eanalugh
 	 * information to make a firm scale up/down decision.
 	 */
-	unsigned int unknown_cnt;
+	unsigned int unkanalwn_cnt;
 
 	u64 win_nsec;				/* default window size */
 	u64 cur_win_nsec;			/* current window size */
@@ -84,8 +84,8 @@ struct rq_wb {
 	u64 sync_issue;
 	void *sync_cookie;
 
-	unsigned long last_issue;		/* last non-throttled issue */
-	unsigned long last_comp;		/* last non-throttled comp */
+	unsigned long last_issue;		/* last analn-throttled issue */
+	unsigned long last_comp;		/* last analn-throttled comp */
 	unsigned long min_lat_nsec;
 	struct rq_qos rqos;
 	struct rq_wait rq_wait[WBT_NUM_RWQ];
@@ -135,10 +135,10 @@ enum {
 	RWB_MIN_WRITE_SAMPLES	= 3,
 
 	/*
-	 * If we have this number of consecutive windows with not enough
+	 * If we have this number of consecutive windows with analt eanalugh
 	 * information to scale up or down, scale up.
 	 */
-	RWB_UNKNOWN_BUMP	= 5,
+	RWB_UNKANALWN_BUMP	= 5,
 };
 
 static inline bool rwb_enabled(struct rq_wb *rwb)
@@ -209,10 +209,10 @@ static void wbt_rqw_done(struct rq_wb *rwb, struct rq_wait *rqw,
 	         !wb_recent_wait(rwb))
 		limit = 0;
 	else
-		limit = rwb->wb_normal;
+		limit = rwb->wb_analrmal;
 
 	/*
-	 * Don't wake anyone up if we are above the normal limit.
+	 * Don't wake anyone up if we are above the analrmal limit.
 	 */
 	if (inflight && inflight >= limit)
 		return;
@@ -238,7 +238,7 @@ static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
 }
 
 /*
- * Called on completion of a request. Note that it's also called when
+ * Called on completion of a request. Analte that it's also called when
  * a request is merged, when the request gets freed.
  */
 static void wbt_done(struct rq_qos *rqos, struct request *rq)
@@ -264,8 +264,8 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 {
 	/*
 	 * We need at least one read sample, and a minimum of
-	 * RWB_MIN_WRITE_SAMPLES. We require some write samples to know
-	 * that it's writes impacting us, and not just some sole read on
+	 * RWB_MIN_WRITE_SAMPLES. We require some write samples to kanalw
+	 * that it's writes impacting us, and analt just some sole read on
 	 * a device that is in a lower power state.
 	 */
 	return (stat[READ].nr_samples >= 1 &&
@@ -274,13 +274,13 @@ static inline bool stat_sample_valid(struct blk_rq_stat *stat)
 
 static u64 rwb_sync_issue_lat(struct rq_wb *rwb)
 {
-	u64 now, issue = READ_ONCE(rwb->sync_issue);
+	u64 analw, issue = READ_ONCE(rwb->sync_issue);
 
 	if (!issue || !rwb->sync_cookie)
 		return 0;
 
-	now = ktime_to_ns(ktime_get());
-	return now - issue;
+	analw = ktime_to_ns(ktime_get());
+	return analw - issue;
 }
 
 static inline unsigned int wbt_inflight(struct rq_wb *rwb)
@@ -295,8 +295,8 @@ static inline unsigned int wbt_inflight(struct rq_wb *rwb)
 
 enum {
 	LAT_OK = 1,
-	LAT_UNKNOWN,
-	LAT_UNKNOWN_WRITES,
+	LAT_UNKANALWN,
+	LAT_UNKANALWN_WRITES,
 	LAT_EXCEEDED,
 };
 
@@ -323,7 +323,7 @@ static int latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 	}
 
 	/*
-	 * No read/write mix, if stat isn't valid
+	 * Anal read/write mix, if stat isn't valid
 	 */
 	if (!stat_sample_valid(stat)) {
 		/*
@@ -334,8 +334,8 @@ static int latency_exceeded(struct rq_wb *rwb, struct blk_rq_stat *stat)
 		 */
 		if (stat[WRITE].nr_samples || wb_recent_wait(rwb) ||
 		    wbt_inflight(rwb))
-			return LAT_UNKNOWN_WRITES;
-		return LAT_UNKNOWN;
+			return LAT_UNKANALWN_WRITES;
+		return LAT_UNKANALWN;
 	}
 
 	/*
@@ -359,18 +359,18 @@ static void rwb_trace_step(struct rq_wb *rwb, const char *msg)
 	struct rq_depth *rqd = &rwb->rq_depth;
 
 	trace_wbt_step(bdi, msg, rqd->scale_step, rwb->cur_win_nsec,
-			rwb->wb_background, rwb->wb_normal, rqd->max_depth);
+			rwb->wb_background, rwb->wb_analrmal, rqd->max_depth);
 }
 
 static void calc_wb_limits(struct rq_wb *rwb)
 {
 	if (rwb->min_lat_nsec == 0) {
-		rwb->wb_normal = rwb->wb_background = 0;
+		rwb->wb_analrmal = rwb->wb_background = 0;
 	} else if (rwb->rq_depth.max_depth <= 2) {
-		rwb->wb_normal = rwb->rq_depth.max_depth;
+		rwb->wb_analrmal = rwb->rq_depth.max_depth;
 		rwb->wb_background = 1;
 	} else {
-		rwb->wb_normal = (rwb->rq_depth.max_depth + 1) / 2;
+		rwb->wb_analrmal = (rwb->rq_depth.max_depth + 1) / 2;
 		rwb->wb_background = (rwb->rq_depth.max_depth + 3) / 4;
 	}
 }
@@ -380,7 +380,7 @@ static void scale_up(struct rq_wb *rwb)
 	if (!rq_depth_scale_up(&rwb->rq_depth))
 		return;
 	calc_wb_limits(rwb);
-	rwb->unknown_cnt = 0;
+	rwb->unkanalwn_cnt = 0;
 	rwb_wake_all(rwb);
 	rwb_trace_step(rwb, tracepoint_string("scale up"));
 }
@@ -390,7 +390,7 @@ static void scale_down(struct rq_wb *rwb, bool hard_throttle)
 	if (!rq_depth_scale_down(&rwb->rq_depth, hard_throttle))
 		return;
 	calc_wb_limits(rwb);
-	rwb->unknown_cnt = 0;
+	rwb->unkanalwn_cnt = 0;
 	rwb_trace_step(rwb, tracepoint_string("scale down"));
 }
 
@@ -402,7 +402,7 @@ static void rwb_arm_timer(struct rq_wb *rwb)
 		/*
 		 * We should speed this up, using some variant of a fast
 		 * integer inverse square root calculation. Since we only do
-		 * this for every window expiration, it's not a huge deal,
+		 * this for every window expiration, it's analt a huge deal,
 		 * though.
 		 */
 		rwb->cur_win_nsec = div_u64(rwb->win_nsec << 4,
@@ -433,8 +433,8 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 	trace_wbt_timer(rwb->rqos.disk->bdi, status, rqd->scale_step, inflight);
 
 	/*
-	 * If we exceeded the latency target, step down. If we did not,
-	 * step one level up. If we don't know enough to say either exceeded
+	 * If we exceeded the latency target, step down. If we did analt,
+	 * step one level up. If we don't kanalw eanalugh to say either exceeded
 	 * or ok, then don't do anything.
 	 */
 	switch (status) {
@@ -444,7 +444,7 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 	case LAT_OK:
 		scale_up(rwb);
 		break;
-	case LAT_UNKNOWN_WRITES:
+	case LAT_UNKANALWN_WRITES:
 		/*
 		 * We started a the center step, but don't have a valid
 		 * read/write sample, but we do have writes going on.
@@ -452,8 +452,8 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 		 */
 		scale_up(rwb);
 		break;
-	case LAT_UNKNOWN:
-		if (++rwb->unknown_cnt < RWB_UNKNOWN_BUMP)
+	case LAT_UNKANALWN:
+		if (++rwb->unkanalwn_cnt < RWB_UNKANALWN_BUMP)
 			break;
 		/*
 		 * We get here when previously scaled reduced depth, and we
@@ -522,10 +522,10 @@ void wbt_set_min_lat(struct request_queue *q, u64 val)
 
 static bool close_io(struct rq_wb *rwb)
 {
-	const unsigned long now = jiffies;
+	const unsigned long analw = jiffies;
 
-	return time_before(now, rwb->last_issue + HZ / 10) ||
-		time_before(now, rwb->last_comp + HZ / 10);
+	return time_before(analw, rwb->last_issue + HZ / 10) ||
+		time_before(analw, rwb->last_comp + HZ / 10);
 }
 
 #define REQ_HIPRIO	(REQ_SYNC | REQ_META | REQ_PRIO)
@@ -538,11 +538,11 @@ static inline unsigned int get_limit(struct rq_wb *rwb, blk_opf_t opf)
 		return rwb->wb_background;
 
 	/*
-	 * At this point we know it's a buffered write. If this is
+	 * At this point we kanalw it's a buffered write. If this is
 	 * kswapd trying to free memory, or REQ_SYNC is set, then
 	 * it's WB_SYNC_ALL writeback, and we'll use the max limit for
 	 * that. If the write is marked as a background write, then use
-	 * the idle limit, or go to normal if we haven't had competing
+	 * the idle limit, or go to analrmal if we haven't had competing
 	 * IO for a bit.
 	 */
 	if ((opf & REQ_HIPRIO) || wb_recent_wait(rwb) || current_is_kswapd())
@@ -554,7 +554,7 @@ static inline unsigned int get_limit(struct rq_wb *rwb, blk_opf_t opf)
 		 */
 		limit = rwb->wb_background;
 	} else
-		limit = rwb->wb_normal;
+		limit = rwb->wb_analrmal;
 
 	return limit;
 }
@@ -676,7 +676,7 @@ static void wbt_issue(struct rq_qos *rqos, struct request *rq)
 
 	/*
 	 * Track sync issue, in case it takes a long time to complete. Allows us
-	 * to react quicker, if a sync IO takes a long time to complete. Note
+	 * to react quicker, if a sync IO takes a long time to complete. Analte
 	 * that this is just a hint. The request can go away when it completes,
 	 * so it's important we never dereference it. We only use the address to
 	 * compare with, which is why we store the sync_issue time locally.
@@ -719,7 +719,7 @@ void wbt_enable_default(struct gendisk *disk)
 		return;
 	}
 
-	/* Queue not registered? Maybe shutting down... */
+	/* Queue analt registered? Maybe shutting down... */
 	if (!blk_queue_registered(q))
 		return;
 
@@ -731,10 +731,10 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
 u64 wbt_default_latency_nsec(struct request_queue *q)
 {
 	/*
-	 * We default to 2msec for non-rotational storage, and 75msec
+	 * We default to 2msec for analn-rotational storage, and 75msec
 	 * for rotational storage.
 	 */
-	if (blk_queue_nonrot(q))
+	if (blk_queue_analnrot(q))
 		return 2000000ULL;
 	else
 		return 75000000ULL;
@@ -833,21 +833,21 @@ static int wbt_min_lat_nsec_show(void *data, struct seq_file *m)
 	return 0;
 }
 
-static int wbt_unknown_cnt_show(void *data, struct seq_file *m)
+static int wbt_unkanalwn_cnt_show(void *data, struct seq_file *m)
 {
 	struct rq_qos *rqos = data;
 	struct rq_wb *rwb = RQWB(rqos);
 
-	seq_printf(m, "%u\n", rwb->unknown_cnt);
+	seq_printf(m, "%u\n", rwb->unkanalwn_cnt);
 	return 0;
 }
 
-static int wbt_normal_show(void *data, struct seq_file *m)
+static int wbt_analrmal_show(void *data, struct seq_file *m)
 {
 	struct rq_qos *rqos = data;
 	struct rq_wb *rwb = RQWB(rqos);
 
-	seq_printf(m, "%u\n", rwb->wb_normal);
+	seq_printf(m, "%u\n", rwb->wb_analrmal);
 	return 0;
 }
 
@@ -866,8 +866,8 @@ static const struct blk_mq_debugfs_attr wbt_debugfs_attrs[] = {
 	{"id", 0400, wbt_id_show},
 	{"inflight", 0400, wbt_inflight_show},
 	{"min_lat_nsec", 0400, wbt_min_lat_nsec_show},
-	{"unknown_cnt", 0400, wbt_unknown_cnt_show},
-	{"wb_normal", 0400, wbt_normal_show},
+	{"unkanalwn_cnt", 0400, wbt_unkanalwn_cnt_show},
+	{"wb_analrmal", 0400, wbt_analrmal_show},
 	{"wb_background", 0400, wbt_background_show},
 	{},
 };
@@ -896,12 +896,12 @@ int wbt_init(struct gendisk *disk)
 
 	rwb = kzalloc(sizeof(*rwb), GFP_KERNEL);
 	if (!rwb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rwb->cb = blk_stat_alloc_callback(wb_timer_fn, wbt_data_dir, 2, rwb);
 	if (!rwb->cb) {
 		kfree(rwb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	for (i = 0; i < WBT_NUM_RWQ; i++)

@@ -92,7 +92,7 @@ struct clk_si570 {
  * @rfreq:	Fractional multiplier (output)
  * @n1:		Divider N1 (output)
  * @hs_div:	Divider HSDIV (output)
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  *
  * Retrieve clock dividers and multipliers from the HW.
  */
@@ -129,7 +129,7 @@ static int si570_get_divs(struct clk_si570 *data, u64 *rfreq,
  * @data:	Driver data structure
  * @fout:	Factory frequency output
  * @skip_recall:	If true, don't recall NVM into RAM
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  */
 static int si570_get_defaults(struct clk_si570 *data, u64 fout,
 			      bool skip_recall)
@@ -147,7 +147,7 @@ static int si570_get_defaults(struct clk_si570 *data, u64 fout,
 
 	/*
 	 * Accept optional precision loss to avoid arithmetic overflows.
-	 * Acceptable per Silicon Labs Application Note AN334.
+	 * Acceptable per Silicon Labs Application Analte AN334.
 	 */
 	fdco = fout * data->n1 * data->hs_div;
 	if (fdco >= (1LL << 36))
@@ -187,7 +187,7 @@ static int si570_update_rfreq(struct clk_si570 *data)
  * @out_rfreq:	RFREG fractional multiplier (output)
  * @out_n1:	Clock divider N1 (output)
  * @out_hs_div:	Clock divider HSDIV (output)
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erranal otherwise.
  *
  * Calculate the clock dividers (@out_hs_div, @out_n1) and clock multiplier
  * (@out_rfreq) for a given target @frequency.
@@ -413,7 +413,7 @@ static int si570_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init.ops = &si570_clk_ops;
 	init.flags = 0;
@@ -423,7 +423,7 @@ static int si570_probe(struct i2c_client *client)
 
 	data->info = i2c_get_match_data(client);
 	if (data->info->has_temperature_stability) {
-		err = of_property_read_u32(client->dev.of_node,
+		err = of_property_read_u32(client->dev.of_analde,
 				"temperature-stability", &stability);
 		if (err) {
 			dev_err(&client->dev,
@@ -435,18 +435,18 @@ static int si570_probe(struct i2c_client *client)
 			data->div_offset = SI570_DIV_OFFSET_7PPM;
 	}
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
+	if (of_property_read_string(client->dev.of_analde, "clock-output-names",
 			&init.name))
-		init.name = client->dev.of_node->name;
+		init.name = client->dev.of_analde->name;
 
-	err = of_property_read_u32(client->dev.of_node, "factory-fout",
+	err = of_property_read_u32(client->dev.of_analde, "factory-fout",
 			&factory_fout);
 	if (err) {
 		dev_err(&client->dev, "'factory-fout' property missing\n");
 		return err;
 	}
 
-	skip_recall = of_property_read_bool(client->dev.of_node,
+	skip_recall = of_property_read_bool(client->dev.of_analde,
 					    "silabs,skip-recall");
 
 	data->regmap = devm_regmap_init_i2c(client, &si570_regmap_config);
@@ -473,7 +473,7 @@ static int si570_probe(struct i2c_client *client)
 	}
 
 	/* Read the requested initial output frequency from device tree */
-	if (!of_property_read_u32(client->dev.of_node, "clock-frequency",
+	if (!of_property_read_u32(client->dev.of_analde, "clock-frequency",
 				&initial_fout)) {
 		err = clk_set_rate(data->hw.clk, initial_fout);
 		if (err)

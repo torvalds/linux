@@ -2,7 +2,7 @@
 
 All GPIOs are pin-shared with other functions. DCRs control whether a
 particular pin that has GPIO capabilities acts as a GPIO or is used for
-another purpose. GPIO outputs are separately programmable to emulate
+aanalther purpose. GPIO outputs are separately programmable to emulate
 an open-drain driver.
 
 Required properties:
@@ -12,7 +12,7 @@ Required properties:
 		and the second cell is used to specify the gpio polarity:
 		0 = active high
 		1 = active low
-	- gpio-controller: marks the device node as a gpio controller.
+	- gpio-controller: marks the device analde as a gpio controller.
 
 Example:
 

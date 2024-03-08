@@ -10,7 +10,7 @@
 #include <linux/module.h>
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -61,11 +61,11 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 	max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 	if (max_stat_ctxs <= BNXT_MIN_ROCE_STAT_CTXS ||
 	    bp->cp_nr_rings == max_stat_ctxs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ulp = edev->ulp_tbl;
 	if (!ulp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ulp->handle = handle;
 	rcu_assign_pointer(ulp->ulp_ops, ulp_ops);
@@ -300,7 +300,7 @@ void bnxt_rdma_aux_device_uninit(struct bnxt *bp)
 	struct bnxt_aux_priv *aux_priv;
 	struct auxiliary_device *adev;
 
-	/* Skip if no auxiliary device init was done. */
+	/* Skip if anal auxiliary device init was done. */
 	if (!bp->aux_priv)
 		return;
 

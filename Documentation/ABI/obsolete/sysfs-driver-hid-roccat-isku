@@ -1,4 +1,4 @@
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/actual_profile
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/actual_profile
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The integer value of this attribute ranges from 0-4.
@@ -9,7 +9,7 @@ Description:	The integer value of this attribute ranges from 0-4.
 		and the device activates this profile immediately.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/info
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/info
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When read, this file returns general data like firmware version.
@@ -17,7 +17,7 @@ Description:	When read, this file returns general data like firmware version.
 		This file is readonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/key_mask
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/key_mask
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one deactivate certain keys like
@@ -28,7 +28,7 @@ Description:	When written, this file lets one deactivate certain keys like
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_capslock
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_capslock
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -38,7 +38,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_easyzone
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_easyzone
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -48,7 +48,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_function
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_function
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -58,7 +58,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_macro
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_macro
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the macro
@@ -68,7 +68,7 @@ Description:	When written, this file lets one set the function of the macro
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_media
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_media
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the media
@@ -78,7 +78,7 @@ Description:	When written, this file lets one set the function of the media
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/keys_thumbster
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/keys_thumbster
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the function of the
@@ -88,7 +88,7 @@ Description:	When written, this file lets one set the function of the
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/last_set
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/last_set
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the time in secs since
@@ -96,7 +96,7 @@ Description:	When written, this file lets one set the time in secs since
 		The data has to be 20 bytes long.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/light
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/light
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the backlight intensity for
@@ -107,7 +107,7 @@ Description:	When written, this file lets one set the backlight intensity for
 		which profile to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/macro
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/macro
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one store macros with max 500
@@ -118,15 +118,15 @@ Description:	When written, this file lets one store macros with max 500
 		which profile and key to read.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/reset
-Date:		November 2012
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/reset
+Date:		Analvember 2012
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one reset the device.
 		The data has to be 3 bytes long.
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/control
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/control
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one select which data from which
@@ -134,7 +134,7 @@ Description:	When written, this file lets one select which data from which
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/talk
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/talk
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one trigger easyshift functionality
@@ -143,7 +143,7 @@ Description:	When written, this file lets one trigger easyshift functionality
 		This file is writeonly.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/talkfx
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<mianalr>/talkfx
 Date:		February 2013
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one trigger temporary color schemes

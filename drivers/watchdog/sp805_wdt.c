@@ -74,9 +74,9 @@ struct sp805_wdt {
 	unsigned int			load_val;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
 		"Set to 1 to keep watchdog running after device release");
 
 /* returns true if wdt is running; otherwise returns false */
@@ -237,7 +237,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 
 	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -247,21 +247,21 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/*
 	 * When driver probe with ACPI device, clock devices
-	 * are not available, so watchdog rate get from
+	 * are analt available, so watchdog rate get from
 	 * clock-frequency property given in _DSD object.
 	 */
 	device_property_read_u64(&adev->dev, "clock-frequency", &rate);
 
 	wdt->clk = devm_clk_get_optional(&adev->dev, NULL);
 	if (IS_ERR(wdt->clk))
-		return dev_err_probe(&adev->dev, PTR_ERR(wdt->clk), "Clock not found\n");
+		return dev_err_probe(&adev->dev, PTR_ERR(wdt->clk), "Clock analt found\n");
 
 	wdt->rate = clk_get_rate(wdt->clk);
 	if (!wdt->rate)
 		wdt->rate = rate;
 	if (!wdt->rate) {
-		dev_err(&adev->dev, "no clock-frequency property\n");
-		return -ENODEV;
+		dev_err(&adev->dev, "anal clock-frequency property\n");
+		return -EANALDEV;
 	}
 
 	wdt->adev = adev;
@@ -270,7 +270,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	wdt->wdd.parent = &adev->dev;
 
 	spin_lock_init(&wdt->lock);
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_analwayout(&wdt->wdd, analwayout);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	watchdog_set_restart_priority(&wdt->wdd, 128);
 	watchdog_stop_on_unregister(&wdt->wdd);

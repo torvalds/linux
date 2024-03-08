@@ -10,7 +10,7 @@ maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>
 
 properties:
-  $nodename:
+  $analdename:
     const: '/'
   compatible:
     items:

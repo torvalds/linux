@@ -40,7 +40,7 @@ struct reciprocal_value_adv reciprocal_value_adv(u32 d, u8 prec)
 
 	/* ceil(log2(d)) */
 	l = fls(d - 1);
-	/* NOTE: mlow/mhigh could overflow u64 when l == 32. This case needs to
+	/* ANALTE: mlow/mhigh could overflow u64 when l == 32. This case needs to
 	 * be handled before calling "reciprocal_value_adv", please see the
 	 * comment at include/linux/reciprocal_div.h.
 	 */

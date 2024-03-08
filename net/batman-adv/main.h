@@ -28,7 +28,7 @@
 /* maximum sequence number age of broadcast messages */
 #define BATADV_BCAST_MAX_AGE 64
 
-/* purge originators after time in seconds if no valid packet comes in
+/* purge originators after time in seconds if anal valid packet comes in
  * -> TODO: check influence on BATADV_TQ_LOCAL_WINDOW_SIZE
  */
 #define BATADV_PURGE_TIMEOUT 200000 /* 200 seconds */
@@ -53,7 +53,7 @@
 
 /* B.A.T.M.A.N. V */
 #define BATADV_THROUGHPUT_DEFAULT_VALUE 10 /* 1 Mbps */
-#define BATADV_ELP_PROBES_PER_NODE 2
+#define BATADV_ELP_PROBES_PER_ANALDE 2
 #define BATADV_ELP_MIN_PROBE_SIZE 200 /* bytes */
 #define BATADV_ELP_PROBE_MAX_TX_DIFF 100 /* milliseconds */
 #define BATADV_ELP_MAX_AGE 64
@@ -69,15 +69,15 @@
 #define BATADV_ROAMING_MAX_TIME 20000
 #define BATADV_ROAMING_MAX_COUNT 5
 
-#define BATADV_NO_FLAGS 0
+#define BATADV_ANAL_FLAGS 0
 
 #define BATADV_NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
-#define BATADV_NO_MARK 0
+#define BATADV_ANAL_MARK 0
 
 /* default interface for multi interface operation. The default interface is
- * used for communication which originated locally (i.e. is not forwarded)
- * or where special forwarding is not desired/necessary.
+ * used for communication which originated locally (i.e. is analt forwarded)
+ * or where special forwarding is analt desired/necessary.
  */
 #define BATADV_IF_DEFAULT	((struct batadv_hard_iface *)NULL)
 
@@ -102,7 +102,7 @@
  */
 #define BATADV_TQ_SIMILARITY_THRESHOLD 50
 
-/* should not be bigger than 512 bytes or change the size of
+/* should analt be bigger than 512 bytes or change the size of
  * forw_packet->direct_link_flags
  */
 #define BATADV_MAX_AGGREGATION_BYTES 512
@@ -119,9 +119,9 @@
 #define BATADV_DUPLIST_TIMEOUT		500	/* 500 ms */
 /* don't reset again within 30 seconds */
 #define BATADV_RESET_PROTECTION_MS 30000
-#define BATADV_EXPECTED_SEQNO_RANGE	65536
+#define BATADV_EXPECTED_SEQANAL_RANGE	65536
 
-#define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
+#define BATADV_NC_ANALDE_TIMEOUT 10000 /* Milliseconds */
 
 /**
  * BATADV_TP_MAX_NUM - maximum number of simultaneously active tp sessions
@@ -132,7 +132,7 @@
  * enum batadv_mesh_state - State of a soft interface
  */
 enum batadv_mesh_state {
-	/** @BATADV_MESH_INACTIVE: soft interface is not yet running */
+	/** @BATADV_MESH_INACTIVE: soft interface is analt yet running */
 	BATADV_MESH_INACTIVE,
 
 	/** @BATADV_MESH_ACTIVE: interface is up and running */
@@ -149,11 +149,11 @@ enum batadv_mesh_state {
  * enum batadv_uev_action - action type of uevent
  */
 enum batadv_uev_action {
-	/** @BATADV_UEV_ADD: gateway was selected (after none was selected) */
+	/** @BATADV_UEV_ADD: gateway was selected (after analne was selected) */
 	BATADV_UEV_ADD = 0,
 
 	/**
-	 * @BATADV_UEV_DEL: selected gateway was removed and none is selected
+	 * @BATADV_UEV_DEL: selected gateway was removed and analne is selected
 	 * anymore
 	 */
 	BATADV_UEV_DEL,
@@ -164,7 +164,7 @@ enum batadv_uev_action {
 	BATADV_UEV_CHANGE,
 
 	/**
-	 * @BATADV_UEV_LOOPDETECT: loop was detected which cannot be handled by
+	 * @BATADV_UEV_LOOPDETECT: loop was detected which cananalt be handled by
 	 * bridge loop avoidance
 	 */
 	BATADV_UEV_LOOPDETECT,
@@ -183,7 +183,7 @@ enum batadv_uev_type {
 
 #define BATADV_GW_THRESHOLD	50
 
-/* Number of fragment chains for each orig_node */
+/* Number of fragment chains for each orig_analde */
 #define BATADV_FRAG_BUFFER_COUNT 8
 /* Maximum number of fragments for one packet */
 #define BATADV_FRAG_MAX_FRAGMENTS 16
@@ -192,7 +192,7 @@ enum batadv_uev_type {
 /* Time to keep fragments while waiting for rest of the fragments */
 #define BATADV_FRAG_TIMEOUT 10000
 
-#define BATADV_DAT_CANDIDATE_NOT_FOUND	0
+#define BATADV_DAT_CANDIDATE_ANALT_FOUND	0
 #define BATADV_DAT_CANDIDATE_ORIG	1
 
 /* Debug Messages */
@@ -222,7 +222,7 @@ enum batadv_uev_type {
  * batadv_print_vid() - return printable version of vid information
  * @vid: the VLAN identifier
  *
- * Return: -1 when no VLAN is used, VLAN id otherwise
+ * Return: -1 when anal VLAN is used, VLAN id otherwise
  */
 static inline int batadv_print_vid(unsigned short vid)
 {
@@ -254,11 +254,11 @@ void batadv_recv_handler_unregister(u8 packet_type);
 __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
 
 /**
- * batadv_compare_eth() - Compare two not u16 aligned Ethernet addresses
+ * batadv_compare_eth() - Compare two analt u16 aligned Ethernet addresses
  * @data1: Pointer to a six-byte array containing the Ethernet address
  * @data2: Pointer other six-byte array containing the Ethernet address
  *
- * note: can't use ether_addr_equal() as it requires aligned memory
+ * analte: can't use ether_addr_equal() as it requires aligned memory
  *
  * Return: true if they are the same ethernet addr
  */
@@ -282,12 +282,12 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 }
 
 /**
- * batadv_atomic_dec_not_zero() - Decrease unless the number is 0
+ * batadv_atomic_dec_analt_zero() - Decrease unless the number is 0
  * @v: pointer of type atomic_t
  *
- * Return: non-zero if v was not 0, and zero otherwise.
+ * Return: analn-zero if v was analt 0, and zero otherwise.
  */
-#define batadv_atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+#define batadv_atomic_dec_analt_zero(v)	atomic_add_unless((v), -1, 0)
 
 /**
  * batadv_smallest_signed_int() - Returns the smallest signed integer in two's
@@ -309,9 +309,9 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *
  * This means that for a u8 with the maximum value 255, it would think:
  *
- * * when adding nothing - it is neither a predecessor nor a successor
+ * * when adding analthing - it is neither a predecessor analr a successor
  * * before adding more than 127 to the starting value - it is a predecessor,
- * * when adding 128 - it is neither a predecessor nor a successor,
+ * * when adding 128 - it is neither a predecessor analr a successor,
  * * after adding more than 127 to the starting value - it is a successor
  *
  * Return: true when x is a predecessor of y, false otherwise
@@ -335,9 +335,9 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *
  * This means that for a u8 with the maximum value 255, it would think:
  *
- * * when adding nothing - it is neither a predecessor nor a successor
+ * * when adding analthing - it is neither a predecessor analr a successor
  * * before adding more than 127 to the starting value - it is a predecessor,
- * * when adding 128 - it is neither a predecessor nor a successor,
+ * * when adding 128 - it is neither a predecessor analr a successor,
  * * after adding more than 127 to the starting value - it is a successor
  *
  * Return: true when x is a successor of y, false otherwise

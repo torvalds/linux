@@ -121,21 +121,21 @@ static struct blogic_probeinfo *blogic_probeinfo_list;
 
 /*
   blogic_cmd_failure_reason holds a string identifying the reason why a
-  call to blogic_cmd failed.  It is only non-NULL when blogic_cmd
+  call to blogic_cmd failed.  It is only analn-NULL when blogic_cmd
   returns a failure code.
 */
 
 static char *blogic_cmd_failure_reason;
 
 /*
-  blogic_announce_drvr announces the Driver Version and Date, Author's
-  Name, Copyright Notice, and Electronic Mail Address.
+  blogic_ananalunce_drvr ananalunces the Driver Version and Date, Author's
+  Name, Copyright Analtice, and Electronic Mail Address.
 */
 
-static void blogic_announce_drvr(struct blogic_adapter *adapter)
+static void blogic_ananalunce_drvr(struct blogic_adapter *adapter)
 {
-	blogic_announce("***** BusLogic SCSI Driver Version " blogic_drvr_version " of " blogic_drvr_date " *****\n", adapter);
-	blogic_announce("Copyright 1995-1998 by Leonard N. Zubkoff <lnz@dandelion.com>\n", adapter);
+	blogic_ananalunce("***** BusLogic SCSI Driver Version " blogic_drvr_version " of " blogic_drvr_date " *****\n", adapter);
+	blogic_ananalunce("Copyright 1995-1998 by Leonard N. Zubkoff <lnz@dandelion.com>\n", adapter);
 }
 
 
@@ -236,8 +236,8 @@ static void blogic_destroy_ccbs(struct blogic_adapter *adapter)
 
 /*
   blogic_create_addlccbs allocates Additional CCBs for Host Adapter.  If
-  allocation fails and there are no remaining CCBs available, the Driver Queue
-  Depth is decreased to a known safe value to avoid potential deadlocks when
+  allocation fails and there are anal remaining CCBs available, the Driver Queue
+  Depth is decreased to a kanalwn safe value to avoid potential deadlocks when
   multiple host adapters share the same IRQ Channel.
 */
 
@@ -259,10 +259,10 @@ static void blogic_create_addlccbs(struct blogic_adapter *adapter,
 	}
 	if (adapter->alloc_ccbs > prev_alloc) {
 		if (print_success)
-			blogic_notice("Allocated %d additional CCBs (total now %d)\n", adapter, adapter->alloc_ccbs - prev_alloc, adapter->alloc_ccbs);
+			blogic_analtice("Allocated %d additional CCBs (total analw %d)\n", adapter, adapter->alloc_ccbs - prev_alloc, adapter->alloc_ccbs);
 		return;
 	}
-	blogic_notice("Failed to allocate additional CCBs\n", adapter);
+	blogic_analtice("Failed to allocate additional CCBs\n", adapter);
 	if (adapter->drvr_qdepth > adapter->alloc_ccbs - adapter->tgt_count) {
 		adapter->drvr_qdepth = adapter->alloc_ccbs - adapter->tgt_count;
 		adapter->scsi_host->can_queue = adapter->drvr_qdepth;
@@ -334,10 +334,10 @@ static void blogic_dealloc_ccb(struct blogic_ccb *ccb, int dma_unmap)
   -1 if the command was invalid, or -2 if a timeout occurred.
 
   blogic_cmd is called exclusively during host adapter detection and
-  initialization, so performance and latency are not critical, and exclusive
+  initialization, so performance and latency are analt critical, and exclusive
   access to the Host Adapter hardware is assumed.  Once the host adapter and
   driver are initialized, the only Host Adapter command that is issued is the
-  single byte Execute Mailbox Command operation code, which does not require
+  single byte Execute Mailbox Command operation code, which does analt require
   waiting for the Host Adapter Ready bit to be set in the Status Register.
 */
 
@@ -357,10 +357,10 @@ static int blogic_cmd(struct blogic_adapter *adapter, enum blogic_opcode opcode,
 	if (replylen > 0)
 		memset(reply, 0, replylen);
 	/*
-	   If the IRQ Channel has not yet been acquired, then interrupts
+	   If the IRQ Channel has analt yet been acquired, then interrupts
 	   must be disabled while issuing host adapter commands since a
 	   Command Complete interrupt could occur if the IRQ Channel was
-	   previously enabled by another BusLogic Host Adapter or another
+	   previously enabled by aanalther BusLogic Host Adapter or aanalther
 	   driver sharing the same IRQ Channel.
 	 */
 	if (!adapter->irq_acquired)
@@ -394,9 +394,9 @@ static int blogic_cmd(struct blogic_adapter *adapter, enum blogic_opcode opcode,
 	timeout = 10000;
 	while (paramlen > 0 && --timeout >= 0) {
 		/*
-		   Wait 100 microseconds to give the Host Adapter enough
+		   Wait 100 microseconds to give the Host Adapter eanalugh
 		   time to determine whether the last value written to the
-		   Command/Parameter Register was valid or not. If the
+		   Command/Parameter Register was valid or analt. If the
 		   Command Complete bit is set in the Interrupt Register,
 		   then the Command Invalid bit in the Status Register will
 		   be reset if the Operation Code or Parameter was valid
@@ -429,7 +429,7 @@ static int blogic_cmd(struct blogic_adapter *adapter, enum blogic_opcode opcode,
 		goto done;
 	}
 	/*
-	   The Modify I/O Address command does not cause a Command Complete
+	   The Modify I/O Address command does analt cause a Command Complete
 	   Interrupt.
 	 */
 	if (opcode == BLOGIC_MOD_IOADDR) {
@@ -441,7 +441,7 @@ static int blogic_cmd(struct blogic_adapter *adapter, enum blogic_opcode opcode,
 			goto done;
 		}
 		if (blogic_global_options.trace_config)
-			blogic_notice("blogic_cmd(%02X) Status = %02X: (Modify I/O Address)\n", adapter, opcode, statusreg.all);
+			blogic_analtice("blogic_cmd(%02X) Status = %02X: (Modify I/O Address)\n", adapter, opcode, statusreg.all);
 		result = 0;
 		goto done;
 	}
@@ -499,27 +499,27 @@ static int blogic_cmd(struct blogic_adapter *adapter, enum blogic_opcode opcode,
 	 */
 	if (blogic_global_options.trace_config) {
 		int i;
-		blogic_notice("blogic_cmd(%02X) Status = %02X: %2d ==> %2d:",
+		blogic_analtice("blogic_cmd(%02X) Status = %02X: %2d ==> %2d:",
 				adapter, opcode, statusreg.all, replylen,
 				reply_b);
 		if (replylen > reply_b)
 			replylen = reply_b;
 		for (i = 0; i < replylen; i++)
-			blogic_notice(" %02X", adapter,
+			blogic_analtice(" %02X", adapter,
 					((unsigned char *) reply)[i]);
-		blogic_notice("\n", adapter);
+		blogic_analtice("\n", adapter);
 	}
 	/*
 	   Process Command Invalid conditions.
 	 */
 	if (statusreg.sr.cmd_invalid) {
 		/*
-		   Some early BusLogic Host Adapters may not recover
+		   Some early BusLogic Host Adapters may analt recover
 		   properly from a Command Invalid condition, so if this
 		   appears to be the case, a Soft Reset is issued to the
 		   Host Adapter.  Potentially invalid commands are never
 		   attempted after Mailbox Initialization is performed,
-		   so there should be no Host Adapter state lost by a
+		   so there should be anal Host Adapter state lost by a
 		   Soft Reset in response to a Command Invalid condition.
 		 */
 		udelay(1000);
@@ -609,8 +609,8 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 {
 	struct blogic_probeinfo *pr_probeinfo =
 		&blogic_probeinfo_list[blogic_probeinfo_count];
-	int nonpr_mmindex = blogic_probeinfo_count + 1;
-	int nonpr_mmcount = 0, mmcount = 0;
+	int analnpr_mmindex = blogic_probeinfo_count + 1;
+	int analnpr_mmcount = 0, mmcount = 0;
 	bool force_scan_order = false;
 	bool force_scan_order_checked = false;
 	struct pci_dev *pci_device = NULL;
@@ -629,8 +629,8 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 	   and finally any host adapters located at the remaining
 	   standard ISA I/O Addresses.  When a PCI host adapter is found
 	   with its ISA Compatible I/O Port enabled, a command is issued
-	   to disable the ISA Compatible I/O Port, and it is noted that the
-	   particular standard ISA I/O Address need not be probed.
+	   to disable the ISA Compatible I/O Port, and it is analted that the
+	   particular standard ISA I/O Address need analt be probed.
 	 */
 	pr_probeinfo->io_addr = 0;
 	while ((pci_device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC,
@@ -660,12 +660,12 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		pci_addr = base_addr1 = pci_resource_start(pci_device, 1);
 
 		if (pci_resource_flags(pci_device, 0) & IORESOURCE_MEM) {
-			blogic_err("BusLogic: Base Address0 0x%lX not I/O for MultiMaster Host Adapter\n", NULL, base_addr0);
+			blogic_err("BusLogic: Base Address0 0x%lX analt I/O for MultiMaster Host Adapter\n", NULL, base_addr0);
 			blogic_err("at PCI Bus %d Device %d I/O Address 0x%lX\n", NULL, bus, device, io_addr);
 			continue;
 		}
 		if (pci_resource_flags(pci_device, 1) & IORESOURCE_IO) {
-			blogic_err("BusLogic: Base Address1 0x%lX not Memory for MultiMaster Host Adapter\n", NULL, base_addr1);
+			blogic_err("BusLogic: Base Address1 0x%lX analt Memory for MultiMaster Host Adapter\n", NULL, base_addr1);
 			blogic_err("at PCI Bus %d Device %d PCI Address 0x%lX\n", NULL, bus, device, pci_addr);
 			continue;
 		}
@@ -675,14 +675,14 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 			continue;
 		}
 		if (blogic_global_options.trace_probe) {
-			blogic_notice("BusLogic: PCI MultiMaster Host Adapter detected at\n", NULL);
-			blogic_notice("BusLogic: PCI Bus %d Device %d I/O Address 0x%lX PCI Address 0x%lX\n", NULL, bus, device, io_addr, pci_addr);
+			blogic_analtice("BusLogic: PCI MultiMaster Host Adapter detected at\n", NULL);
+			blogic_analtice("BusLogic: PCI Bus %d Device %d I/O Address 0x%lX PCI Address 0x%lX\n", NULL, bus, device, io_addr, pci_addr);
 		}
 		/*
 		   Issue the Inquire PCI Host Adapter Information command to determine
 		   the ISA Compatible I/O Port.  If the ISA Compatible I/O Port is
-		   known and enabled, note that the particular Standard ISA I/O
-		   Address should not be probed.
+		   kanalwn and enabled, analte that the particular Standard ISA I/O
+		   Address should analt be probed.
 		 */
 		host_adapter->io_addr = io_addr;
 		blogic_intreset(host_adapter);
@@ -695,7 +695,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   ISA Compatible I/O Port. On PCI Host Adapters, the
 		   Modify I/O Address command allows modification of the
 		   ISA compatible I/O Address that the Host Adapter
-		   responds to; it does not affect the PCI compliant
+		   responds to; it does analt affect the PCI compliant
 		   I/O Address assigned at system initialization.
 		 */
 		mod_ioaddr_req = BLOGIC_IO_DISABLE;
@@ -732,7 +732,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 		   ISA Compatible I/O Port enabled and is assigned the
 		   Primary I/O Address. If it does, then it is the Primary
 		   MultiMaster Host Adapter and must be recognized first.
-		   If it does not, then it is added to the list for probing
+		   If it does analt, then it is added to the list for probing
 		   after any Primary MultiMaster Host Adapter is probed.
 		 */
 		if (adapter_info.isa_port == BLOGIC_IO_330) {
@@ -756,7 +756,7 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 			probeinfo->dev = device;
 			probeinfo->irq_ch = irq_ch;
 			probeinfo->pci_device = pci_dev_get(pci_device);
-			nonpr_mmcount++;
+			analnpr_mmcount++;
 			mmcount++;
 		} else
 			blogic_warn("BusLogic: Too many Host Adapters detected\n", NULL);
@@ -770,14 +770,14 @@ static int __init blogic_init_mm_probeinfo(struct blogic_adapter *adapter)
 	   sort the probe information into the same order the BIOS uses.
 	   If this option is OFF, then the MultiMaster BIOS will recognize
 	   MultiMaster Host Adapters in the order they are enumerated by
-	   the PCI BIOS, and hence no sorting is necessary.
+	   the PCI BIOS, and hence anal sorting is necessary.
 	 */
 	if (force_scan_order)
-		blogic_sort_probeinfo(&blogic_probeinfo_list[nonpr_mmindex],
-					nonpr_mmcount);
+		blogic_sort_probeinfo(&blogic_probeinfo_list[analnpr_mmindex],
+					analnpr_mmcount);
 	/*
-	   Iterate over the older non-compliant MultiMaster PCI Host Adapters,
-	   noting the PCI bus location and assigned IRQ Channel.
+	   Iterate over the older analn-compliant MultiMaster PCI Host Adapters,
+	   analting the PCI bus location and assigned IRQ Channel.
 	 */
 	pci_device = NULL;
 	while ((pci_device = pci_get_device(PCI_VENDOR_ID_BUSLOGIC,
@@ -858,12 +858,12 @@ static int __init blogic_init_fp_probeinfo(struct blogic_adapter *adapter)
 		pci_addr = base_addr1 = pci_resource_start(pci_device, 1);
 #ifdef CONFIG_SCSI_FLASHPOINT
 		if (pci_resource_flags(pci_device, 0) & IORESOURCE_MEM) {
-			blogic_err("BusLogic: Base Address0 0x%lX not I/O for FlashPoint Host Adapter\n", NULL, base_addr0);
+			blogic_err("BusLogic: Base Address0 0x%lX analt I/O for FlashPoint Host Adapter\n", NULL, base_addr0);
 			blogic_err("at PCI Bus %d Device %d I/O Address 0x%lX\n", NULL, bus, device, io_addr);
 			continue;
 		}
 		if (pci_resource_flags(pci_device, 1) & IORESOURCE_IO) {
-			blogic_err("BusLogic: Base Address1 0x%lX not Memory for FlashPoint Host Adapter\n", NULL, base_addr1);
+			blogic_err("BusLogic: Base Address1 0x%lX analt Memory for FlashPoint Host Adapter\n", NULL, base_addr1);
 			blogic_err("at PCI Bus %d Device %d PCI Address 0x%lX\n", NULL, bus, device, pci_addr);
 			continue;
 		}
@@ -873,8 +873,8 @@ static int __init blogic_init_fp_probeinfo(struct blogic_adapter *adapter)
 			continue;
 		}
 		if (blogic_global_options.trace_probe) {
-			blogic_notice("BusLogic: FlashPoint Host Adapter detected at\n", NULL);
-			blogic_notice("BusLogic: PCI Bus %d Device %d I/O Address 0x%lX PCI Address 0x%lX\n", NULL, bus, device, io_addr, pci_addr);
+			blogic_analtice("BusLogic: FlashPoint Host Adapter detected at\n", NULL);
+			blogic_analtice("BusLogic: PCI Bus %d Device %d I/O Address 0x%lX PCI Address 0x%lX\n", NULL, bus, device, io_addr, pci_addr);
 		}
 		if (blogic_probeinfo_count < BLOGIC_MAX_ADAPTERS) {
 			struct blogic_probeinfo *probeinfo =
@@ -926,7 +926,7 @@ static void __init blogic_init_probeinfo_list(struct blogic_adapter *adapter)
 	   FlashPoint Host Adapters; otherwise, default to the standard
 	   ISA MultiMaster probe.
 	 */
-	if (!blogic_probe_options.noprobe_pci) {
+	if (!blogic_probe_options.analprobe_pci) {
 		if (blogic_probe_options.multimaster_first) {
 			blogic_init_mm_probeinfo(adapter);
 			blogic_init_fp_probeinfo(adapter);
@@ -963,7 +963,7 @@ static void __init blogic_init_probeinfo_list(struct blogic_adapter *adapter)
 				   Adapters are probed before FlashPoint Host
 				   Adapters.
 				 */
-				if (d0_mapbyte.diskgeom != BLOGIC_BIOS_NODISK) {
+				if (d0_mapbyte.diskgeom != BLOGIC_BIOS_ANALDISK) {
 					struct blogic_probeinfo saved_probeinfo[BLOGIC_MAX_ADAPTERS];
 					int mmcount = blogic_probeinfo_count - fpcount;
 
@@ -989,7 +989,7 @@ static void __init blogic_init_probeinfo_list(struct blogic_adapter *adapter)
 
 static bool blogic_failure(struct blogic_adapter *adapter, char *msg)
 {
-	blogic_announce_drvr(adapter);
+	blogic_ananalunce_drvr(adapter);
 	if (adapter->adapter_bus_type == BLOGIC_PCI_BUS) {
 		blogic_err("While configuring BusLogic PCI Host Adapter at\n",
 				adapter);
@@ -1029,7 +1029,7 @@ static bool __init blogic_probe(struct blogic_adapter *adapter)
 			return false;
 		}
 		if (blogic_global_options.trace_probe)
-			blogic_notice("BusLogic_Probe(0x%lX): FlashPoint Found\n", adapter, adapter->io_addr);
+			blogic_analtice("BusLogic_Probe(0x%lX): FlashPoint Found\n", adapter, adapter->io_addr);
 		/*
 		   Indicate the Host Adapter Probe completed successfully.
 		 */
@@ -1038,22 +1038,22 @@ static bool __init blogic_probe(struct blogic_adapter *adapter)
 	/*
 	   Read the Status, Interrupt, and Geometry Registers to test if there are I/O
 	   ports that respond, and to check the values to determine if they are from a
-	   BusLogic Host Adapter.  A nonexistent I/O port will return 0xFF, in which
-	   case there is definitely no BusLogic Host Adapter at this base I/O Address.
+	   BusLogic Host Adapter.  A analnexistent I/O port will return 0xFF, in which
+	   case there is definitely anal BusLogic Host Adapter at this base I/O Address.
 	   The test here is a subset of that used by the BusLogic Host Adapter BIOS.
 	 */
 	statusreg.all = blogic_rdstatus(adapter);
 	intreg.all = blogic_rdint(adapter);
 	georeg.all = blogic_rdgeom(adapter);
 	if (blogic_global_options.trace_probe)
-		blogic_notice("BusLogic_Probe(0x%lX): Status 0x%02X, Interrupt 0x%02X, Geometry 0x%02X\n", adapter, adapter->io_addr, statusreg.all, intreg.all, georeg.all);
+		blogic_analtice("BusLogic_Probe(0x%lX): Status 0x%02X, Interrupt 0x%02X, Geometry 0x%02X\n", adapter, adapter->io_addr, statusreg.all, intreg.all, georeg.all);
 	if (statusreg.all == 0 || statusreg.sr.diag_active ||
 			statusreg.sr.cmd_param_busy || statusreg.sr.rsvd ||
 			statusreg.sr.cmd_invalid || intreg.ir.rsvd != 0)
 		return false;
 	/*
 	   Check the undocumented Geometry Register to test if there is
-	   an I/O port that responded.  Adaptec Host Adapters do not
+	   an I/O port that responded.  Adaptec Host Adapters do analt
 	   implement the Geometry Register, so this test helps serve to
 	   avoid incorrectly recognizing an Adaptec 1542A or 1542B as a
 	   BusLogic.  Unfortunately, the Adaptec 1542C series does respond
@@ -1078,7 +1078,7 @@ static bool __init blogic_probe(struct blogic_adapter *adapter)
 
 /*
   blogic_hwreset issues a Hardware Reset to the Host Adapter
-  and waits for Host Adapter Diagnostics to complete.  If hard_reset is true, a
+  and waits for Host Adapter Diaganalstics to complete.  If hard_reset is true, a
   Hard Reset is performed which also initiates a SCSI Bus Reset.  Otherwise, a
   Soft Reset is performed which only resets the Host Adapter without forcing a
   SCSI Bus Reset.
@@ -1107,7 +1107,7 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 	}
 	/*
 	   Issue a Hard Reset or Soft Reset Command to the Host Adapter.
-	   The Host Adapter should respond by setting Diagnostic Active in
+	   The Host Adapter should respond by setting Diaganalstic Active in
 	   the Status Register.
 	 */
 	if (hard_reset)
@@ -1115,7 +1115,7 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 	else
 		blogic_softreset(adapter);
 	/*
-	   Wait until Diagnostic Active is set in the Status Register.
+	   Wait until Diaganalstic Active is set in the Status Register.
 	 */
 	timeout = 5 * 10000;
 	while (--timeout >= 0) {
@@ -1125,17 +1125,17 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 		udelay(100);
 	}
 	if (blogic_global_options.trace_hw_reset)
-		blogic_notice("BusLogic_HardwareReset(0x%lX): Diagnostic Active, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
+		blogic_analtice("BusLogic_HardwareReset(0x%lX): Diaganalstic Active, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
 	if (timeout < 0)
 		return false;
 	/*
-	   Wait 100 microseconds to allow completion of any initial diagnostic
+	   Wait 100 microseconds to allow completion of any initial diaganalstic
 	   activity which might leave the contents of the Status Register
 	   unpredictable.
 	 */
 	udelay(100);
 	/*
-	   Wait until Diagnostic Active is reset in the Status Register.
+	   Wait until Diaganalstic Active is reset in the Status Register.
 	 */
 	timeout = 10 * 10000;
 	while (--timeout >= 0) {
@@ -1145,11 +1145,11 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 		udelay(100);
 	}
 	if (blogic_global_options.trace_hw_reset)
-		blogic_notice("BusLogic_HardwareReset(0x%lX): Diagnostic Completed, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
+		blogic_analtice("BusLogic_HardwareReset(0x%lX): Diaganalstic Completed, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
 	if (timeout < 0)
 		return false;
 	/*
-	   Wait until at least one of the Diagnostic Failure, Host Adapter
+	   Wait until at least one of the Diaganalstic Failure, Host Adapter
 	   Ready, or Data In Register Ready bits is set in the Status Register.
 	 */
 	timeout = 10000;
@@ -1161,18 +1161,18 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 		udelay(100);
 	}
 	if (blogic_global_options.trace_hw_reset)
-		blogic_notice("BusLogic_HardwareReset(0x%lX): Host Adapter Ready, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
+		blogic_analtice("BusLogic_HardwareReset(0x%lX): Host Adapter Ready, Status 0x%02X\n", adapter, adapter->io_addr, statusreg.all);
 	if (timeout < 0)
 		return false;
 	/*
-	   If Diagnostic Failure is set or Host Adapter Ready is reset,
-	   then an error occurred during the Host Adapter diagnostics.
+	   If Diaganalstic Failure is set or Host Adapter Ready is reset,
+	   then an error occurred during the Host Adapter diaganalstics.
 	   If Data In Register Ready is set, then there is an Error Code
 	   available.
 	 */
 	if (statusreg.sr.diag_failed || !statusreg.sr.adapter_ready) {
 		blogic_cmd_failure_reason = NULL;
-		blogic_failure(adapter, "HARD RESET DIAGNOSTICS");
+		blogic_failure(adapter, "HARD RESET DIAGANALSTICS");
 		blogic_err("HOST ADAPTER STATUS REGISTER = %02X\n", adapter,
 				statusreg.all);
 		if (statusreg.sr.datain_ready)
@@ -1198,7 +1198,7 @@ static bool __init blogic_checkadapter(struct blogic_adapter *adapter)
 	unsigned char req_replylen;
 	bool result = true;
 	/*
-	   FlashPoint Host Adapters do not require this protection.
+	   FlashPoint Host Adapters do analt require this protection.
 	 */
 	if (blogic_flashpoint_type(adapter))
 		return true;
@@ -1217,9 +1217,9 @@ static bool __init blogic_checkadapter(struct blogic_adapter *adapter)
 	   Provide tracing information if requested and return.
 	 */
 	if (blogic_global_options.trace_probe)
-		blogic_notice("BusLogic_Check(0x%lX): MultiMaster %s\n", adapter,
+		blogic_analtice("BusLogic_Check(0x%lX): MultiMaster %s\n", adapter,
 				adapter->io_addr,
-				(result ? "Found" : "Not Found"));
+				(result ? "Found" : "Analt Found"));
 	return result;
 }
 
@@ -1347,7 +1347,7 @@ static bool __init blogic_rdconfig(struct blogic_adapter *adapter)
 		strcpy(model, "747A");
 	else {
 		req_replylen = sizeof(model);
-		if (blogic_cmd(adapter, BLOGIC_INQ_MODELNO, &req_replylen,
+		if (blogic_cmd(adapter, BLOGIC_INQ_MODELANAL, &req_replylen,
 					sizeof(req_replylen), &model,
 					sizeof(model)) != sizeof(model))
 			return blogic_failure(adapter,
@@ -1504,7 +1504,7 @@ static bool __init blogic_rdconfig(struct blogic_adapter *adapter)
 			adapter->high_term = autoscsi.high_term;
 		}
 		/*
-		   Save the Wide Permitted, Fast Permitted, Synchronous
+		   Save the Wide Permitted, Fast Permitted, Synchroanalus
 		   Permitted, Disconnect Permitted, Ultra Permitted, and
 		   SCAM Information in the Host Adapter structure.
 		 */
@@ -1546,12 +1546,12 @@ static bool __init blogic_rdconfig(struct blogic_adapter *adapter)
 	/*
 	   Select appropriate values for the Mailbox Count, Driver Queue Depth,
 	   Initial CCBs, and Incremental CCBs variables based on whether
-	   or not Strict Round Robin Mode is supported.  If Strict Round
-	   Robin Mode is supported, then there is no performance degradation
+	   or analt Strict Round Robin Mode is supported.  If Strict Round
+	   Robin Mode is supported, then there is anal performance degradation
 	   in using the maximum possible number of Outgoing and Incoming
 	   Mailboxes and allowing the Tagged and Untagged Queue Depths to
 	   determine the actual utilization.  If Strict Round Robin Mode is
-	   not supported, then the Host Adapter must scan all the Outgoing
+	   analt supported, then the Host Adapter must scan all the Outgoing
 	   Mailboxes whenever an Outgoing Mailbox entry is made, which can
 	   cause a substantial performance penalty.  The host adapters
 	   actually have room to store the following number of CCBs
@@ -1709,12 +1709,12 @@ static bool __init blogic_reportconfig(struct blogic_adapter *adapter)
 	blogic_info("Configuring BusLogic Model %s %s%s%s%s SCSI Host Adapter\n", adapter, adapter->model, blogic_adapter_busnames[adapter->adapter_bus_type], (adapter->wide ? " Wide" : ""), (adapter->differential ? " Differential" : ""), (adapter->ultra ? " Ultra" : ""));
 	blogic_info("  Firmware Version: %s, I/O Address: 0x%lX, IRQ Channel: %d/%s\n", adapter, adapter->fw_ver, adapter->io_addr, adapter->irq_ch, (adapter->level_int ? "Level" : "Edge"));
 	if (adapter->adapter_bus_type != BLOGIC_PCI_BUS) {
-		blogic_info("  DMA Channel: None, ", adapter);
+		blogic_info("  DMA Channel: Analne, ", adapter);
 		if (adapter->bios_addr > 0)
 			blogic_info("BIOS Address: 0x%X, ", adapter,
 					adapter->bios_addr);
 		else
-			blogic_info("BIOS Address: None, ", adapter);
+			blogic_info("BIOS Address: Analne, ", adapter);
 	} else {
 		blogic_info("  PCI Bus: %d, Device: %d, Address: ", adapter,
 				adapter->bus, adapter->dev);
@@ -1794,7 +1794,7 @@ static bool __init blogic_reportconfig(struct blogic_adapter *adapter)
 		tagq_str[adapter->scsi_id] = '#';
 		tagq_str[adapter->maxdev] = '\0';
 	}
-	blogic_info("  Synchronous Negotiation: %s, Wide Negotiation: %s\n",
+	blogic_info("  Synchroanalus Negotiation: %s, Wide Negotiation: %s\n",
 			adapter, syncmsg, widemsg);
 	blogic_info("  Disconnect/Reconnect: %s, Tagged Queuing: %s\n", adapter,
 			discon_msg, tagq_msg);
@@ -1847,7 +1847,7 @@ static bool __init blogic_reportconfig(struct blogic_adapter *adapter)
 static bool __init blogic_getres(struct blogic_adapter *adapter)
 {
 	if (adapter->irq_ch == 0) {
-		blogic_err("NO LEGAL INTERRUPT CHANNEL ASSIGNED - DETACHING\n",
+		blogic_err("ANAL LEGAL INTERRUPT CHANNEL ASSIGNED - DETACHING\n",
 				adapter);
 		return false;
 	}
@@ -1881,7 +1881,7 @@ static void blogic_relres(struct blogic_adapter *adapter)
 	if (adapter->irq_acquired)
 		free_irq(adapter->irq_ch, adapter);
 	/*
-	   Release any allocated memory structs not released elsewhere
+	   Release any allocated memory structs analt released elsewhere
 	 */
 	if (adapter->mbox_space)
 		dma_free_coherent(&adapter->pci_device->dev, adapter->mbox_sz,
@@ -1927,7 +1927,7 @@ static bool blogic_initadapter(struct blogic_adapter *adapter)
 	}
 
 	/*
-	   FlashPoint Host Adapters do not use Outgoing and Incoming Mailboxes.
+	   FlashPoint Host Adapters do analt use Outgoing and Incoming Mailboxes.
 	 */
 	if (blogic_flashpoint_type(adapter))
 		goto done;
@@ -1993,7 +1993,7 @@ static bool blogic_initadapter(struct blogic_adapter *adapter)
 	}
 
 	/*
-	   Announce Successful Initialization.
+	   Ananalunce Successful Initialization.
 	 */
 done:
 	if (!adapter->adapter_initd) {
@@ -2034,7 +2034,7 @@ static bool __init blogic_inquiry(struct blogic_adapter *adapter)
 	 */
 	blogic_delay(adapter->bus_settle_time);
 	/*
-	   FlashPoint Host Adapters do not provide for Target Device Inquiry.
+	   FlashPoint Host Adapters do analt provide for Target Device Inquiry.
 	 */
 	if (blogic_flashpoint_type(adapter))
 		return true;
@@ -2047,8 +2047,8 @@ static bool __init blogic_inquiry(struct blogic_adapter *adapter)
 	   Issue the Inquire Target Devices command for host adapters with
 	   firmware version 4.25 or later, or the Inquire Installed Devices
 	   ID 0 to 7 command for older host adapters.  This is necessary to
-	   force Synchronous Transfer Negotiation so that the Inquire Setup
-	   Information and Inquire Synchronous Period commands will return
+	   force Synchroanalus Transfer Negotiation so that the Inquire Setup
+	   Information and Inquire Synchroanalus Period commands will return
 	   valid data.  The Inquire Target Devices command is preferable to
 	   Inquire Installed Devices ID 0 to 7 since it only probes Logical
 	   Unit 0 of each Target Device.
@@ -2102,13 +2102,13 @@ static bool __init blogic_inquiry(struct blogic_adapter *adapter)
 		for (tgt_id = 0; tgt_id < adapter->maxdev; tgt_id++)
 			adapter->tgt_flags[tgt_id].wide_active = (tgt_id < 8 ? (setupinfo.wide_tx_active0to7 & (1 << tgt_id) ? true : false) : (setupinfo.wide_tx_active8to15 & (1 << (tgt_id - 8)) ? true : false));
 	/*
-	   Issue the Inquire Synchronous Period command.
+	   Issue the Inquire Synchroanalus Period command.
 	 */
 	if (adapter->fw_ver[0] >= '3') {
 
-		/* Issue a Inquire Synchronous Period command. For each
+		/* Issue a Inquire Synchroanalus Period command. For each
 		   Target Device, a byte is returned which represents the
-		   Synchronous Transfer Period in units of 10 nanoseconds.
+		   Synchroanalus Transfer Period in units of 10 naanalseconds.
 		 */
 
 		req_replylen = sizeof(sync_period);
@@ -2116,7 +2116,7 @@ static bool __init blogic_inquiry(struct blogic_adapter *adapter)
 				sizeof(req_replylen), &sync_period,
 				sizeof(sync_period)) != sizeof(sync_period))
 			return blogic_failure(adapter,
-					"INQUIRE SYNCHRONOUS PERIOD");
+					"INQUIRE SYNCHROANALUS PERIOD");
 		for (tgt_id = 0; tgt_id < adapter->maxdev; tgt_id++)
 			adapter->sync_period[tgt_id] = sync_period[tgt_id];
 	} else
@@ -2207,22 +2207,22 @@ static int __init blogic_init(void)
 		blogic_setup(BusLogic);
 #endif
 
-	if (blogic_probe_options.noprobe)
-		return -ENODEV;
+	if (blogic_probe_options.analprobe)
+		return -EANALDEV;
 	blogic_probeinfo_list =
 	    kcalloc(BLOGIC_MAX_ADAPTERS, sizeof(struct blogic_probeinfo),
 			    GFP_KERNEL);
 	if (blogic_probeinfo_list == NULL) {
 		blogic_err("BusLogic: Unable to allocate Probe Info List\n",
 				NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	adapter = kzalloc(sizeof(struct blogic_adapter), GFP_KERNEL);
 	if (adapter == NULL) {
 		kfree(blogic_probeinfo_list);
 		blogic_err("BusLogic: Unable to allocate Prototype Host Adapter\n", NULL);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 #ifdef MODULE
@@ -2290,10 +2290,10 @@ static int __init blogic_init(void)
 			myadapter->drvr_opts =
 				&blogic_drvr_options[drvr_optindex++];
 		/*
-		   Announce the Driver Version and Date, Author's Name,
-		   Copyright Notice, and Electronic Mail Address.
+		   Ananalunce the Driver Version and Date, Author's Name,
+		   Copyright Analtice, and Electronic Mail Address.
 		 */
-		blogic_announce_drvr(myadapter);
+		blogic_ananalunce_drvr(myadapter);
 		/*
 		   Register the SCSI Host structure.
 		 */
@@ -2308,7 +2308,7 @@ static int __init blogic_init(void)
 		myadapter = (struct blogic_adapter *) host->hostdata;
 		memcpy(myadapter, adapter, sizeof(struct blogic_adapter));
 		myadapter->scsi_host = host;
-		myadapter->host_no = host->host_no;
+		myadapter->host_anal = host->host_anal;
 		/*
 		   Add Host Adapter to the end of the list of registered
 		   BusLogic Host Adapters.
@@ -2324,7 +2324,7 @@ static int __init blogic_init(void)
 		   assumed to be due to a problem with the Host Adapter,
 		   rather than due to having mistakenly identified this port
 		   as belonging to a BusLogic Host Adapter. The I/O Address
-		   range will not be released, thereby preventing it from
+		   range will analt be released, thereby preventing it from
 		   being incorrectly identified as any other type of Host
 		   Adapter.
 		 */
@@ -2353,7 +2353,7 @@ static int __init blogic_init(void)
 				blogic_relres(myadapter);
 				list_del(&myadapter->host_list);
 				scsi_host_put(host);
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 			} else {
 				blogic_inithoststruct(myadapter,
 								 host);
@@ -2367,7 +2367,7 @@ static int __init blogic_init(void)
 					blogic_relres(myadapter);
 					list_del(&myadapter->host_list);
 					scsi_host_put(host);
-					ret = -ENODEV;
+					ret = -EANALDEV;
 				} else
 					scsi_scan_host(host);
 			}
@@ -2386,7 +2386,7 @@ static int __init blogic_init(void)
 			blogic_relres(myadapter);
 			list_del(&myadapter->host_list);
 			scsi_host_put(host);
-			ret = -ENODEV;
+			ret = -EANALDEV;
 		}
 	}
 	kfree(adapter);
@@ -2468,7 +2468,7 @@ static int blogic_resultcode(struct blogic_adapter *adapter,
 	int hoststatus;
 
 	switch (adapter_status) {
-	case BLOGIC_CMD_CMPLT_NORMAL:
+	case BLOGIC_CMD_CMPLT_ANALRMAL:
 	case BLOGIC_LINK_CMD_CMPLT:
 	case BLOGIC_LINK_CMD_CMPLT_FLAG:
 		hoststatus = DID_OK;
@@ -2484,7 +2484,7 @@ static int blogic_resultcode(struct blogic_adapter *adapter,
 		fallthrough;
 	case BLOGIC_DATA_UNDERRUN:
 	case BLOGIC_DATA_OVERRUN:
-	case BLOGIC_NOEXPECT_BUSFREE:
+	case BLOGIC_ANALEXPECT_BUSFREE:
 	case BLOGIC_LINKCCB_BADLUN:
 	case BLOGIC_AUTOREQSENSE_FAIL:
 	case BLOGIC_TAGQUEUE_REJECT:
@@ -2498,14 +2498,14 @@ static int blogic_resultcode(struct blogic_adapter *adapter,
 		hoststatus = DID_ERROR;
 		break;
 	case BLOGIC_INVALID_BUSPHASE:
-	case BLOGIC_NORESPONSE_TO_ATN:
+	case BLOGIC_ANALRESPONSE_TO_ATN:
 	case BLOGIC_HW_RESET:
 	case BLOGIC_RST_FROM_OTHERDEV:
 	case BLOGIC_HW_BDR:
 		hoststatus = DID_RESET;
 		break;
 	default:
-		blogic_warn("Unknown Host Adapter Status 0x%02X\n", adapter,
+		blogic_warn("Unkanalwn Host Adapter Status 0x%02X\n", adapter,
 				adapter_status);
 		hoststatus = DID_ERROR;
 		break;
@@ -2543,10 +2543,10 @@ static void blogic_scan_inbox(struct blogic_adapter *adapter)
 	   only Incoming Mailboxes with completion code Command Completed
 	   Without Error, Command Completed With Error, or Command Aborted
 	   At Host Request are saved for completion processing. When an
-	   Incoming Mailbox has a completion code of Aborted Command Not
+	   Incoming Mailbox has a completion code of Aborted Command Analt
 	   Found, the CCB had already completed or been aborted before the
 	   current Abort request was processed, and so completion processing
-	   has already occurred and no further action should be taken.
+	   has already occurred and anal further action should be taken.
 	 */
 	struct blogic_inbox *next_inbox = adapter->next_inbox;
 	enum blogic_cmplt_code comp_code;
@@ -2558,8 +2558,8 @@ static void blogic_scan_inbox(struct blogic_adapter *adapter)
 			 * This should never happen, unless the CCB list is
 			 * corrupted in memory.
 			 */
-			blogic_warn("Could not find CCB for dma address %x\n", adapter, next_inbox->ccb);
-		} else if (comp_code != BLOGIC_CMD_NOTFOUND) {
+			blogic_warn("Could analt find CCB for dma address %x\n", adapter, next_inbox->ccb);
+		} else if (comp_code != BLOGIC_CMD_ANALTFOUND) {
 			if (ccb->status == BLOGIC_CCB_ACTIVE ||
 					ccb->status == BLOGIC_CCB_RESET) {
 				/*
@@ -2571,7 +2571,7 @@ static void blogic_scan_inbox(struct blogic_adapter *adapter)
 			} else {
 				/*
 				   If a CCB ever appears in an Incoming Mailbox
-				   and is not marked as status Active or Reset,
+				   and is analt marked as status Active or Reset,
 				   then there is most likely a bug in
 				   the Host Adapter firmware.
 				 */
@@ -2622,10 +2622,10 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 #if 0			/* this needs to be redone different for new EH */
 			/*
 			   Bus Device Reset CCBs have the command field
-			   non-NULL only when a Bus Device Reset was requested
-			   for a command that did not have a currently active
-			   CCB in the Host Adapter (i.e., a Synchronous Bus
-			   Device Reset), and hence would not have its
+			   analn-NULL only when a Bus Device Reset was requested
+			   for a command that did analt have a currently active
+			   CCB in the Host Adapter (i.e., a Synchroanalus Bus
+			   Device Reset), and hence would analt have its
 			   Completion Routine called otherwise.
 			 */
 			while (command != NULL) {
@@ -2661,7 +2661,7 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 			 */
 			switch (ccb->comp_code) {
 			case BLOGIC_INBOX_FREE:
-			case BLOGIC_CMD_NOTFOUND:
+			case BLOGIC_CMD_ANALTFOUND:
 			case BLOGIC_INVALID_CCB:
 				blogic_warn("CCB #%ld to Target %d Impossible State\n", adapter, ccb->serial, ccb->tgt_id);
 				break;
@@ -2686,27 +2686,27 @@ static void blogic_process_ccbs(struct blogic_adapter *adapter)
 					    .cmds_complete++;
 					if (blogic_global_options.trace_err) {
 						int i;
-						blogic_notice("CCB #%ld Target %d: Result %X Host "
+						blogic_analtice("CCB #%ld Target %d: Result %X Host "
 								"Adapter Status %02X Target Status %02X\n", adapter, ccb->serial, ccb->tgt_id, command->result, ccb->adapter_status, ccb->tgt_status);
-						blogic_notice("CDB   ", adapter);
+						blogic_analtice("CDB   ", adapter);
 						for (i = 0; i < ccb->cdblen; i++)
-							blogic_notice(" %02X", adapter, ccb->cdb[i]);
-						blogic_notice("\n", adapter);
-						blogic_notice("Sense ", adapter);
+							blogic_analtice(" %02X", adapter, ccb->cdb[i]);
+						blogic_analtice("\n", adapter);
+						blogic_analtice("Sense ", adapter);
 						for (i = 0; i < ccb->sense_datalen; i++)
-							blogic_notice(" %02X", adapter, command->sense_buffer[i]);
-						blogic_notice("\n", adapter);
+							blogic_analtice(" %02X", adapter, command->sense_buffer[i]);
+						blogic_analtice("\n", adapter);
 					}
 				}
 				break;
 			}
 			/*
-			   When an INQUIRY command completes normally, save the
+			   When an INQUIRY command completes analrmally, save the
 			   CmdQue (Tagged Queuing Supported) and WBus16 (16 Bit
 			   Wide Data Transfers Supported) bits.
 			 */
 			if (ccb->cdb[0] == INQUIRY && ccb->cdb[1] == 0 &&
-				ccb->adapter_status == BLOGIC_CMD_CMPLT_NORMAL) {
+				ccb->adapter_status == BLOGIC_CMD_CMPLT_ANALRMAL) {
 				struct blogic_tgt_flags *tgt_flags =
 					&adapter->tgt_flags[ccb->tgt_id];
 				struct scsi_inquiry *inquiry =
@@ -2753,15 +2753,15 @@ static irqreturn_t blogic_inthandler(int irq_ch, void *devid)
 		intreg.all = blogic_rdint(adapter);
 		if (intreg.ir.int_valid) {
 			/*
-			   Acknowledge the interrupt and reset the Host Adapter
+			   Ackanalwledge the interrupt and reset the Host Adapter
 			   Interrupt Register.
 			 */
 			blogic_intreset(adapter);
 			/*
 			   Process valid External SCSI Bus Reset and Incoming
 			   Mailbox Loaded Interrupts. Command Complete
-			   Interrupts are noted, and Outgoing Mailbox Available
-			   Interrupts are ignored, as they are never enabled.
+			   Interrupts are analted, and Outgoing Mailbox Available
+			   Interrupts are iganalred, as they are never enabled.
 			 */
 			if (intreg.ir.ext_busreset)
 				adapter->adapter_extreset = true;
@@ -2776,7 +2776,7 @@ static irqreturn_t blogic_inthandler(int irq_ch, void *devid)
 		 */
 		if (FlashPoint_InterruptPending(adapter->cardhandle))
 			switch (FlashPoint_HandleInterrupt(adapter->cardhandle)) {
-			case FPOINT_NORMAL_INT:
+			case FPOINT_ANALRMAL_INT:
 				break;
 			case FPOINT_EXT_RESET:
 				adapter->adapter_extreset = true;
@@ -2830,8 +2830,8 @@ static bool blogic_write_outbox(struct blogic_adapter *adapter,
 		ccb->status = BLOGIC_CCB_ACTIVE;
 		/*
 		   The CCB field must be written before the Action Code field
-		   since the Host Adapter is operating asynchronously and the
-		   locking code does not protect against simultaneous access
+		   since the Host Adapter is operating asynchroanalusly and the
+		   locking code does analt protect against simultaneous access
 		   by the Host Adapter.
 		 */
 		next_outbox->ccb = ccb->dma_handle;
@@ -2894,8 +2894,8 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command)
 
 	/*
 	   SCSI REQUEST_SENSE commands will be executed automatically by the
-	   Host Adapter for any errors, so they should not be executed
-	   explicitly unless the Sense Data is zero indicating that no error
+	   Host Adapter for any errors, so they should analt be executed
+	   explicitly unless the Sense Data is zero indicating that anal error
 	   occurred.
 	 */
 	if (cdb[0] == REQUEST_SENSE && command->sense_buffer[0] != 0) {
@@ -2905,7 +2905,7 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command)
 	}
 	/*
 	   Allocate a CCB from the Host Adapter's free list. In the unlikely
-	   event that there are none available and memory allocation fails,
+	   event that there are analne available and memory allocation fails,
 	   wait 1 second and try again. If that fails, the Host Adapter is
 	   probably hung so signal an error as a Host Adapter Hard Reset
 	   should be initiated soon.
@@ -2979,18 +2979,18 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command)
 	ccb->legacytag_enable = false;
 	/*
 	   BusLogic recommends that after a Reset the first couple of
-	   commands that are sent to a Target Device be sent in a non
+	   commands that are sent to a Target Device be sent in a analn
 	   Tagged Queue fashion so that the Host Adapter and Target Device
-	   can establish Synchronous and Wide Transfer before Queue Tag
-	   messages can interfere with the Synchronous and Wide Negotiation
+	   can establish Synchroanalus and Wide Transfer before Queue Tag
+	   messages can interfere with the Synchroanalus and Wide Negotiation
 	   messages.  By waiting to enable Tagged Queuing until after the
 	   first BLOGIC_MAX_TAG_DEPTH commands have been queued, it is
 	   assured that after a Reset any pending commands are requeued
 	   before Tagged Queuing is enabled and that the Tagged Queuing
-	   message will not occur while the partition table is being printed.
-	   In addition, some devices do not properly handle the transition
-	   from non-tagged to tagged commands, so it is necessary to wait
-	   until there are no pending commands for a target device
+	   message will analt occur while the partition table is being printed.
+	   In addition, some devices do analt properly handle the transition
+	   from analn-tagged to tagged commands, so it is necessary to wait
+	   until there are anal pending commands for a target device
 	   before queuing tagged commands.
 	 */
 	if (adapter->cmds_since_rst[tgt_id]++ >= BLOGIC_MAX_TAG_DEPTH &&
@@ -2999,15 +2999,15 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command)
 			&& tgt_flags->tagq_ok &&
 			(adapter->tagq_ok & (1 << tgt_id))) {
 		tgt_flags->tagq_active = true;
-		blogic_notice("Tagged Queuing now active for Target %d\n",
+		blogic_analtice("Tagged Queuing analw active for Target %d\n",
 					adapter, tgt_id);
 	}
 	if (tgt_flags->tagq_active) {
 		enum blogic_queuetag queuetag = BLOGIC_SIMPLETAG;
 		/*
 		   When using Tagged Queuing with Simple Queue Tags, it
-		   appears that disk drive controllers do not guarantee that
-		   a queued command will not remain in a disconnected state
+		   appears that disk drive controllers do analt guarantee that
+		   a queued command will analt remain in a disconnected state
 		   indefinitely if commands that read or write nearer the
 		   head position continue to arrive without interruption.
 		   Therefore, for each Target Device this driver keeps track
@@ -3050,10 +3050,10 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command)
 	if (blogic_multimaster_type(adapter)) {
 		/*
 		   Place the CCB in an Outgoing Mailbox. The higher levels
-		   of the SCSI Subsystem should not attempt to queue more
+		   of the SCSI Subsystem should analt attempt to queue more
 		   commands than can be placed in Outgoing Mailboxes, so
 		   there should always be one free.  In the unlikely event
-		   that there are none available, wait 1 second and try
+		   that there are analne available, wait 1 second and try
 		   again. If that fails, the Host Adapter is probably hung
 		   so signal an error as a Host Adapter Hard Reset should
 		   be initiated soon.
@@ -3108,14 +3108,14 @@ static int blogic_abort(struct scsi_cmnd *command)
 	blogic_inc_count(&adapter->tgt_stats[tgt_id].aborts_request);
 
 	/*
-	   Attempt to find an Active CCB for this Command. If no Active
-	   CCB for this Command is found, then no Abort is necessary.
+	   Attempt to find an Active CCB for this Command. If anal Active
+	   CCB for this Command is found, then anal Abort is necessary.
 	 */
 	for (ccb = adapter->all_ccbs; ccb != NULL; ccb = ccb->next_all)
 		if (ccb->command == command)
 			break;
 	if (ccb == NULL) {
-		blogic_warn("Unable to Abort Command to Target %d - No CCB Found\n", adapter, tgt_id);
+		blogic_warn("Unable to Abort Command to Target %d - Anal CCB Found\n", adapter, tgt_id);
 		return SUCCESS;
 	} else if (ccb->status == BLOGIC_CCB_COMPLETE) {
 		blogic_warn("Unable to Abort Command to Target %d - CCB Completed\n", adapter, tgt_id);
@@ -3127,11 +3127,11 @@ static int blogic_abort(struct scsi_cmnd *command)
 	if (blogic_multimaster_type(adapter)) {
 		/*
 		   Attempt to Abort this CCB.  MultiMaster Firmware versions
-		   prior to 5.xx do not generate Abort Tag messages, but only
-		   generate the non-tagged Abort message.  Since non-tagged
-		   commands are not sent by the Host Adapter until the queue
+		   prior to 5.xx do analt generate Abort Tag messages, but only
+		   generate the analn-tagged Abort message.  Since analn-tagged
+		   commands are analt sent by the Host Adapter until the queue
 		   of outstanding tagged commands has completed, and the
-		   Abort message is treated as a non-tagged command, it is
+		   Abort message is treated as a analn-tagged command, it is
 		   effectively impossible to abort commands when Tagged
 		   Queuing is active. Firmware version 5.xx does generate
 		   Abort Tag messages, so it is possible to abort commands
@@ -3139,7 +3139,7 @@ static int blogic_abort(struct scsi_cmnd *command)
 		 */
 		if (adapter->tgt_flags[tgt_id].tagq_active &&
 				adapter->fw_ver[0] < '5') {
-			blogic_warn("Unable to Abort CCB #%ld to Target %d - Abort Tag Not Supported\n", adapter, ccb->serial, tgt_id);
+			blogic_warn("Unable to Abort CCB #%ld to Target %d - Abort Tag Analt Supported\n", adapter, ccb->serial, tgt_id);
 			return FAILURE;
 		} else if (blogic_write_outbox(adapter, BLOGIC_MBOX_ABORT,
 					ccb)) {
@@ -3148,7 +3148,7 @@ static int blogic_abort(struct scsi_cmnd *command)
 			blogic_inc_count(&adapter->tgt_stats[tgt_id].aborts_tried);
 			return SUCCESS;
 		} else {
-			blogic_warn("Unable to Abort CCB #%ld to Target %d - No Outgoing Mailboxes\n", adapter, ccb->serial, tgt_id);
+			blogic_warn("Unable to Abort CCB #%ld to Target %d - Anal Outgoing Mailboxes\n", adapter, ccb->serial, tgt_id);
 			return FAILURE;
 		}
 	} else {
@@ -3224,7 +3224,7 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
 /*
   blogic_diskparam returns the Heads/Sectors/Cylinders BIOS Disk
   Parameters for Disk.  The default disk geometry is 64 heads, 32 sectors, and
-  the appropriate number of cylinders so as not to exceed drive capacity.  In
+  the appropriate number of cylinders so as analt to exceed drive capacity.  In
   order for disks equal to or larger than 1 GB to be addressable by the BIOS
   without exceeding the BIOS limitation of 1024 cylinders, Extended Translation
   may be enabled in AutoSCSI on FlashPoint Host Adapters and on "W" and "C"
@@ -3233,7 +3233,7 @@ static int blogic_resetadapter(struct blogic_adapter *adapter, bool hard_reset)
   between 1 GB inclusive and 2 GB exclusive are given a disk geometry of 128
   heads and 32 sectors, and drives above 2 GB inclusive are given a disk
   geometry of 255 heads and 63 sectors.  However, if the BIOS detects that the
-  Extended Translation setting does not match the geometry in the partition
+  Extended Translation setting does analt match the geometry in the partition
   table, then the translation inferred from the partition table will be used by
   the BIOS, and a warning may be displayed.
 */
@@ -3271,10 +3271,10 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 		struct msdos_partition *part1_entry =
 				(struct msdos_partition *)buf;
 		struct msdos_partition *part_entry = part1_entry;
-		int saved_cyl = diskparam->cylinders, part_no;
+		int saved_cyl = diskparam->cylinders, part_anal;
 		unsigned char part_end_head = 0, part_end_sector = 0;
 
-		for (part_no = 0; part_no < 4; part_no++) {
+		for (part_anal = 0; part_anal < 4; part_anal++) {
 			part_end_head = part_entry->end_head;
 			part_end_sector = part_entry->end_sector & 0x3F;
 			if (part_end_head == 64 - 1) {
@@ -3292,17 +3292,17 @@ static int blogic_diskparam(struct scsi_device *sdev, struct block_device *dev,
 			}
 			part_entry++;
 		}
-		if (part_no == 4) {
+		if (part_anal == 4) {
 			part_end_head = part1_entry->end_head;
 			part_end_sector = part1_entry->end_sector & 0x3F;
 		}
 		diskparam->cylinders = (unsigned long) capacity / (diskparam->heads * diskparam->sectors);
-		if (part_no < 4 && part_end_sector == diskparam->sectors) {
+		if (part_anal < 4 && part_end_sector == diskparam->sectors) {
 			if (diskparam->cylinders != saved_cyl)
 				blogic_warn("Adopting Geometry %d/%d from Partition Table\n", adapter, diskparam->heads, diskparam->sectors);
 		} else if (part_end_head > 0 || part_end_sector > 0) {
 			blogic_warn("Warning: Partition Table appears to have Geometry %d/%d which is\n", adapter, part_end_head + 1, part_end_sector);
-			blogic_warn("not compatible with current BusLogic Host Adapter Geometry %d/%d\n", adapter, diskparam->heads, diskparam->sectors);
+			blogic_warn("analt compatible with current BusLogic Host Adapter Geometry %d/%d\n", adapter, diskparam->heads, diskparam->sectors);
 		}
 	}
 	kfree(buf);
@@ -3350,7 +3350,7 @@ Target	Tagged Queuing	Queue Depth  Active  Attempted	Completed\n\
 			continue;
 		seq_printf(m, "  %2d	%s", tgt, (tgt_flags->tagq_ok ? (tgt_flags->tagq_active ? "    Active" : (adapter->tagq_ok & (1 << tgt)
 																				    ? "  Permitted" : "   Disabled"))
-									  : "Not Supported"));
+									  : "Analt Supported"));
 		seq_printf(m,
 				  "	    %3d       %3u    %9u	%9u\n", adapter->qdepth[tgt], adapter->active_cmds[tgt], tgt_stats[tgt].cmds_tried, tgt_stats[tgt].cmds_complete);
 	}
@@ -3446,7 +3446,7 @@ static void blogic_msg(enum blogic_msglevel msglevel, char *fmt,
 	va_start(args, adapter);
 	len = vscnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	if (msglevel == BLOGIC_ANNOUNCE_LEVEL) {
+	if (msglevel == BLOGIC_ANANALUNCE_LEVEL) {
 		static int msglines = 0;
 		strcpy(&adapter->msgbuf[adapter->msgbuflen], buf);
 		adapter->msgbuflen += len;
@@ -3457,13 +3457,13 @@ static void blogic_msg(enum blogic_msglevel msglevel, char *fmt,
 		adapter->msgbuflen += len;
 		if (begin) {
 			if (buf[0] != '\n' || len > 1)
-				printk("%sscsi%d: %s", blogic_msglevelmap[msglevel], adapter->host_no, buf);
+				printk("%sscsi%d: %s", blogic_msglevelmap[msglevel], adapter->host_anal, buf);
 		} else
 			pr_cont("%s", buf);
 	} else {
 		if (begin) {
 			if (adapter != NULL && adapter->adapter_initd)
-				printk("%sscsi%d: %s", blogic_msglevelmap[msglevel], adapter->host_no, buf);
+				printk("%sscsi%d: %s", blogic_msglevelmap[msglevel], adapter->host_anal, buf);
 			else
 				printk("%s%s", blogic_msglevelmap[msglevel], buf);
 		} else
@@ -3522,12 +3522,12 @@ static int __init blogic_parseopts(char *options)
 
 		memset(drvr_opts, 0, sizeof(struct blogic_drvr_options));
 		while (*options != '\0' && *options != ';') {
-			if (blogic_parse(&options, "NoProbePCI"))
-				blogic_probe_options.noprobe_pci = true;
-			else if (blogic_parse(&options, "NoProbe"))
-				blogic_probe_options.noprobe = true;
-			else if (blogic_parse(&options, "NoSortPCI"))
-				blogic_probe_options.nosort_pci = true;
+			if (blogic_parse(&options, "AnalProbePCI"))
+				blogic_probe_options.analprobe_pci = true;
+			else if (blogic_parse(&options, "AnalProbe"))
+				blogic_probe_options.analprobe = true;
+			else if (blogic_parse(&options, "AnalSortPCI"))
+				blogic_probe_options.analsort_pci = true;
 			else if (blogic_parse(&options, "MultiMasterFirst"))
 				blogic_probe_options.multimaster_first = true;
 			else if (blogic_parse(&options, "FlashPointFirst"))
@@ -3631,19 +3631,19 @@ static int __init blogic_parseopts(char *options)
 			if (*options == ',')
 				options++;
 			else if (*options != ';' && *options != '\0') {
-				blogic_err("BusLogic: Unexpected Driver Option '%s' ignored\n", NULL, options);
+				blogic_err("BusLogic: Unexpected Driver Option '%s' iganalred\n", NULL, options);
 				*options = '\0';
 			}
 		}
 		if (!(blogic_drvr_options_count == 0 ||
 			blogic_probeinfo_count == 0 ||
 			blogic_drvr_options_count == blogic_probeinfo_count)) {
-			blogic_err("BusLogic: Invalid Driver Options (all or no I/O Addresses must be specified)\n", NULL);
+			blogic_err("BusLogic: Invalid Driver Options (all or anal I/O Addresses must be specified)\n", NULL);
 			return 0;
 		}
 		/*
 		   Tagged Queuing is disabled when the Queue Depth is 1 since queuing
-		   multiple commands is not possible.
+		   multiple commands is analt possible.
 		 */
 		for (tgt_id = 0; tgt_id < BLOGIC_MAXDEV; tgt_id++)
 			if (drvr_opts->qdepth[tgt_id] == 1) {
@@ -3691,7 +3691,7 @@ static int __init blogic_setup(char *str)
 	(void) get_options(str, ARRAY_SIZE(ints), ints);
 
 	if (ints[0] != 0) {
-		blogic_err("BusLogic: Obsolete Command Line Entry Format Ignored\n", NULL);
+		blogic_err("BusLogic: Obsolete Command Line Entry Format Iganalred\n", NULL);
 		return 0;
 	}
 	if (str == NULL || *str == '\0')

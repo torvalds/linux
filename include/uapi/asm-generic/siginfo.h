@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_ASM_GENERIC_SIGINFO_H
 #define _UAPI_ASM_GENERIC_SIGINFO_H
 
@@ -46,7 +46,7 @@ union __sifields {
 		__kernel_timer_t _tid;	/* timer id */
 		int _overrun;		/* overrun count */
 		sigval_t _sigval;	/* same as below */
-		int _sys_private;       /* not to be passed to user */
+		int _sys_private;       /* analt to be passed to user */
 	} _timer;
 
 	/* POSIX.1b signals */
@@ -69,11 +69,11 @@ union __sifields {
 	struct {
 		void __user *_addr; /* faulting insn/memory ref. */
 
-#define __ADDR_BND_PKEY_PAD  (__alignof__(void *) < sizeof(short) ? \
-			      sizeof(short) : __alignof__(void *))
+#define __ADDR_BND_PKEY_PAD  (__aliganalf__(void *) < sizeof(short) ? \
+			      sizeof(short) : __aliganalf__(void *))
 		union {
 			/* used on alpha and sparc */
-			int _trapno;	/* TRAP # which caused the signal */
+			int _trapanal;	/* TRAP # which caused the signal */
 			/*
 			 * used when si_code=BUS_MCEERR_AR or
 			 * used when si_code=BUS_MCEERR_AO
@@ -116,17 +116,17 @@ union __sifields {
 #ifndef __ARCH_HAS_SWAPPED_SIGINFO
 #define __SIGINFO 			\
 struct {				\
-	int si_signo;			\
-	int si_errno;			\
+	int si_siganal;			\
+	int si_erranal;			\
 	int si_code;			\
 	union __sifields _sifields;	\
 }
 #else
 #define __SIGINFO 			\
 struct {				\
-	int si_signo;			\
+	int si_siganal;			\
 	int si_code;			\
-	int si_errno;			\
+	int si_erranal;			\
 	union __sifields _sifields;	\
 }
 #endif /* __ARCH_HAS_SWAPPED_SIGINFO */
@@ -153,7 +153,7 @@ typedef struct siginfo {
 #define si_int		_sifields._rt._sigval.sival_int
 #define si_ptr		_sifields._rt._sigval.sival_ptr
 #define si_addr		_sifields._sigfault._addr
-#define si_trapno	_sifields._sigfault._trapno
+#define si_trapanal	_sifields._sigfault._trapanal
 #define si_addr_lsb	_sifields._sigfault._addr_lsb
 #define si_lower	_sifields._sigfault._addr_bnd._lower
 #define si_upper	_sifields._sigfault._addr_bnd._upper
@@ -217,14 +217,14 @@ typedef struct siginfo {
 #define __FPE_DECERR	11	/* packed decimal error */
 #define __FPE_INVASC	12	/* invalid ASCII digit */
 #define __FPE_INVDEC	13	/* invalid decimal digit */
-#define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define FPE_FLTUNK	14	/* undiaganalsed floating-point exception */
 #define FPE_CONDTRAP	15	/* trap on condition */
 #define NSIGFPE		15
 
 /*
  * SIGSEGV si_codes
  */
-#define SEGV_MAPERR	1	/* address not mapped to object */
+#define SEGV_MAPERR	1	/* address analt mapped to object */
 #define SEGV_ACCERR	2	/* invalid permissions for mapped object */
 #define SEGV_BNDERR	3	/* failed address bound checks */
 #ifdef __ia64__
@@ -232,11 +232,11 @@ typedef struct siginfo {
 #else
 # define SEGV_PKUERR	4	/* failed protection key checks */
 #endif
-#define SEGV_ACCADI	5	/* ADI not enabled for mapped object */
+#define SEGV_ACCADI	5	/* ADI analt enabled for mapped object */
 #define SEGV_ADIDERR	6	/* Disrupting MCD error */
 #define SEGV_ADIPERR	7	/* Precise MCD exception */
-#define SEGV_MTEAERR	8	/* Asynchronous ARM MTE error */
-#define SEGV_MTESERR	9	/* Synchronous ARM MTE exception */
+#define SEGV_MTEAERR	8	/* Asynchroanalus ARM MTE error */
+#define SEGV_MTESERR	9	/* Synchroanalus ARM MTE exception */
 #define SEGV_CPERR	10	/* Control protection fault */
 #define NSIGSEGV	10
 
@@ -244,11 +244,11 @@ typedef struct siginfo {
  * SIGBUS si_codes
  */
 #define BUS_ADRALN	1	/* invalid address alignment */
-#define BUS_ADRERR	2	/* non-existent physical address */
+#define BUS_ADRERR	2	/* analn-existent physical address */
 #define BUS_OBJERR	3	/* object specific hardware error */
 /* hardware memory error consumed on a machine check: action required */
 #define BUS_MCEERR_AR	4
-/* hardware memory error detected in process but not consumed: action optional*/
+/* hardware memory error detected in process but analt consumed: action optional*/
 #define BUS_MCEERR_AO	5
 #define NSIGBUS		5
 
@@ -259,7 +259,7 @@ typedef struct siginfo {
 #define TRAP_TRACE	2	/* process trace trap */
 #define TRAP_BRANCH     3	/* process taken branch trap */
 #define TRAP_HWBKPT     4	/* hardware breakpoint/watchpoint */
-#define TRAP_UNK	5	/* undiagnosed trap */
+#define TRAP_UNK	5	/* undiaganalsed trap */
 #define TRAP_PERF	6	/* perf event with sigtrap=1 */
 #define NSIGTRAP	6
 
@@ -278,7 +278,7 @@ typedef struct siginfo {
  */
 #define CLD_EXITED	1	/* child has exited */
 #define CLD_KILLED	2	/* child was killed */
-#define CLD_DUMPED	3	/* child terminated abnormally */
+#define CLD_DUMPED	3	/* child terminated abanalrmally */
 #define CLD_TRAPPED	4	/* traced child has trapped */
 #define CLD_STOPPED	5	/* child has stopped */
 #define CLD_CONTINUED	6	/* stopped child has continued */
@@ -313,11 +313,11 @@ typedef struct siginfo {
  * 
  * It seems likely that SIGEV_THREAD will have to be handled from 
  * userspace, libpthread transmuting it to SIGEV_SIGNAL, which the
- * thread manager then catches and does the appropriate nonsense.
- * However, everything is written out here so as to not get lost.
+ * thread manager then catches and does the appropriate analnsense.
+ * However, everything is written out here so as to analt get lost.
  */
-#define SIGEV_SIGNAL	0	/* notify via signal */
-#define SIGEV_NONE	1	/* other notification: meaningless */
+#define SIGEV_SIGNAL	0	/* analtify via signal */
+#define SIGEV_ANALNE	1	/* other analtification: meaningless */
 #define SIGEV_THREAD	2	/* deliver via thread creation */
 #define SIGEV_THREAD_ID 4	/* deliver to thread */
 
@@ -335,8 +335,8 @@ typedef struct siginfo {
 
 typedef struct sigevent {
 	sigval_t sigev_value;
-	int sigev_signo;
-	int sigev_notify;
+	int sigev_siganal;
+	int sigev_analtify;
 	union {
 		int _pad[SIGEV_PAD_SIZE];
 		 int _tid;
@@ -348,9 +348,9 @@ typedef struct sigevent {
 	} _sigev_un;
 } sigevent_t;
 
-#define sigev_notify_function	_sigev_un._sigev_thread._function
-#define sigev_notify_attributes	_sigev_un._sigev_thread._attribute
-#define sigev_notify_thread_id	 _sigev_un._tid
+#define sigev_analtify_function	_sigev_un._sigev_thread._function
+#define sigev_analtify_attributes	_sigev_un._sigev_thread._attribute
+#define sigev_analtify_thread_id	 _sigev_un._tid
 
 
 #endif /* _UAPI_ASM_GENERIC_SIGINFO_H */

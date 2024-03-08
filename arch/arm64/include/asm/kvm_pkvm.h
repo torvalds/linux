@@ -116,7 +116,7 @@ static inline unsigned long hyp_ffa_proxy_pages(void)
 	size_t desc_max;
 
 	/*
-	 * The hypervisor FFA proxy needs enough memory to buffer a fragmented
+	 * The hypervisor FFA proxy needs eanalugh memory to buffer a fragmented
 	 * descriptor returned from EL3 in response to a RETRIEVE_REQ call.
 	 */
 	desc_max = sizeof(struct ffa_mem_region) +

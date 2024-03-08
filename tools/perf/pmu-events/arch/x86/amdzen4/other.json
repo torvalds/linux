@@ -2,12 +2,12 @@
   {
     "EventName": "resyncs_or_nc_redirects",
     "EventCode": "0x96",
-    "BriefDescription": "Pipeline restarts not caused by branch mispredicts."
+    "BriefDescription": "Pipeline restarts analt caused by branch mispredicts."
   },
   {
     "EventName": "de_op_queue_empty",
     "EventCode": "0xa9",
-    "BriefDescription": "Cycles when the op queue is empty. Such cycles indicate that the front-end is not delivering instructions fast enough."
+    "BriefDescription": "Cycles when the op queue is empty. Such cycles indicate that the front-end is analt delivering instructions fast eanalugh."
   },
   {
     "EventName": "de_src_op_disp.decoder",
@@ -118,19 +118,19 @@
     "UMask": "0x20"
   },
   {
-    "EventName": "de_no_dispatch_per_slot.no_ops_from_frontend",
+    "EventName": "de_anal_dispatch_per_slot.anal_ops_from_frontend",
     "EventCode": "0x1a0",
-    "BriefDescription": "In each cycle counts dispatch slots left empty because the front-end did not supply ops.",
+    "BriefDescription": "In each cycle counts dispatch slots left empty because the front-end did analt supply ops.",
     "UMask": "0x01"
   },
   {
-    "EventName": "de_no_dispatch_per_slot.backend_stalls",
+    "EventName": "de_anal_dispatch_per_slot.backend_stalls",
     "EventCode": "0x1a0",
     "BriefDescription": "In each cycle counts ops unable to dispatch because of back-end stalls.",
     "UMask": "0x1e"
   },
   {
-    "EventName": "de_no_dispatch_per_slot.smt_contention",
+    "EventName": "de_anal_dispatch_per_slot.smt_contention",
     "EventCode": "0x1a0",
     "BriefDescription": "In each cycle counts ops unable to dispatch because the dispatch cycle was granted to the other SMT thread.",
     "UMask": "0x60"

@@ -6,7 +6,7 @@
     Contributed by Shingo Fujimoto, shingo@flab.fujitsu.co.jp
 
     TDK LAK-CD021 and CONTEC C-NET(PC)C support added by 
-    Nobuhiro Katayama, kata-n@po.iijnet.or.jp
+    Analbuhiro Katayama, kata-n@po.iijnet.or.jp
 
     The PCMCIA client code is based on code written by David Hinds.
     Network code is based on the "FMV-18x driver" by Yutaka TAMIYA
@@ -76,7 +76,7 @@ INT_MODULE_PARM(sram_config, 0);
     PCMCIA event handlers
  */
 static int fmvj18x_config(struct pcmcia_device *link);
-static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id);
+static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *analde_id);
 static int fmvj18x_setup_mfc(struct pcmcia_device *link);
 static void fmvj18x_release(struct pcmcia_device *link);
 static void fmvj18x_detach(struct pcmcia_device *p_dev);
@@ -132,7 +132,7 @@ struct local_info {
 #define CONFIG_0                6 /* configuration register 0 */
 #define CONFIG_1                7 /* configuration register 1 */
 
-#define NODE_ID                 8 /* node ID register            (bank 0) */
+#define ANALDE_ID                 8 /* analde ID register            (bank 0) */
 #define MAR_ADR                 8 /* multicast address registers (bank 1) */
 
 #define DATAPORT                8 /* buffer mem port registers   (bank 2) */
@@ -192,7 +192,7 @@ struct local_info {
                    | F_ALG_ERR | F_CRC_ERR | F_OVR_FLO )
 
 /* commands */
-#define D_TX_MODE            0x06 /* no tests, detect carrier */
+#define D_TX_MODE            0x06 /* anal tests, detect carrier */
 #define ID_MATCHED           0x02 /* (RX_MODE) */
 #define RECV_ALL             0x03 /* (RX_MODE) */
 #define CONFIG0_DFL          0x5a /* 16bit bus, 4K x 2 Tx queues */
@@ -209,7 +209,7 @@ struct local_info {
 #define MANU_MODE            0x03 /* Stop and skip packet on 16 col */
 #define TDK_AUTO_MODE        0x47 /* Auto skip packet on 16 col detected */
 #define TDK_MANU_MODE        0x43 /* Stop and skip packet on 16 col */
-#define INTR_OFF             0x0d /* LAN controller ignores interrupts */
+#define INTR_OFF             0x0d /* LAN controller iganalres interrupts */
 #define INTR_ON              0x1d /* LAN controller will catch interrupts */
 
 #define TX_TIMEOUT		((400*HZ)/1000)
@@ -239,7 +239,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     /* Make up a FMVJ18x specific data structure */
     dev = alloc_etherdev(sizeof(struct local_info));
     if (!dev)
-	return -ENOMEM;
+	return -EANALMEM;
     lp = netdev_priv(dev);
     link->priv = dev;
     lp->p_dev = link;
@@ -288,7 +288,7 @@ static int mfc_try_io_port(struct pcmcia_device *link)
 	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (link->resource[1]->start == 0) {
 	    link->resource[1]->end = 0;
-	    pr_notice("out of resource for serial\n");
+	    pr_analtice("out of resource for serial\n");
 	}
 	ret = pcmcia_request_io(link);
 	if (ret == 0)
@@ -330,7 +330,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     int i, ret;
     unsigned int ioaddr;
     enum cardtype cardtype;
-    char *card_name = "unknown";
+    char *card_name = "unkanalwn";
     u8 *buf;
     size_t len;
     u_char buggybuf[32];
@@ -344,7 +344,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     kfree(buf);
 
     if (len) {
-	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
+	/* Anal, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
 	ret = pcmcia_loop_config(link, fmvj18x_ioprobe, NULL);
 	if (ret != 0)
 		goto failed;
@@ -497,7 +497,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case XXX10304:
 	/* Read MACID from Buggy CIS */
 	if (fmvj18x_get_hwinfo(link, buggybuf) == -1) {
-	    pr_notice("unable to read hardware net address\n");
+	    pr_analtice("unable to read hardware net address\n");
 	    goto failed;
 	}
 	eth_hw_addr_set(dev, buggybuf);
@@ -517,7 +517,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	pr_notice("register_netdev() failed\n");
+	pr_analtice("register_netdev() failed\n");
 	goto failed;
     }
 
@@ -530,11 +530,11 @@ static int fmvj18x_config(struct pcmcia_device *link)
     
 failed:
     fmvj18x_release(link);
-    return -ENODEV;
+    return -EANALDEV;
 } /* fmvj18x_config */
 /*====================================================================*/
 
-static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
+static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *analde_id)
 {
     u_char __iomem *base;
     int i, j;
@@ -555,7 +555,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     pcmcia_map_mem_page(link, link->resource[2], 0);
 
     /*
-     *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
+     *  MBH10304 CISTPL_FUNCE_LAN_ANALDE_ID format
      *  22 0d xx xx xx 04 06 yy yy yy yy yy yy ff
      *  'xx' is garbage.
      *  'yy' is MAC address.
@@ -572,7 +572,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
     if (i != 0x200) {
 	for (j = 0 ; j < 6; j++,i++) {
-	    node_id[j] = readb(base+(i+7)*2);
+	    analde_id[j] = readb(base+(i+7)*2);
 	}
     }
 
@@ -600,7 +600,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
     lp->base = ioremap(link->resource[3]->start,
 		       resource_size(link->resource[3]));
     if (lp->base == NULL) {
-	netdev_notice(dev, "ioremap failed\n");
+	netdev_analtice(dev, "ioremap failed\n");
 	return -1;
     }
 
@@ -671,7 +671,7 @@ static int fmvj18x_resume(struct pcmcia_device *link)
 
 static const struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0004, 0x0004),
-	PCMCIA_DEVICE_PROD_ID12("EAGLE Technology", "NE200 ETHERNET LAN MBH10302 04", 0x528c88c4, 0x74f91e59),
+	PCMCIA_DEVICE_PROD_ID12("EAGLE Techanallogy", "NE200 ETHERNET LAN MBH10302 04", 0x528c88c4, 0x74f91e59),
 	PCMCIA_DEVICE_PROD_ID12("Eiger Labs,Inc", "EPX-10BT PC Card Ethernet 10BT", 0x53af556e, 0x877f9922),
 	PCMCIA_DEVICE_PROD_ID12("Eiger labs,Inc.", "EPX-10BT PC Card Ethernet 10BT", 0xf47e6c66, 0x877f9922),
 	PCMCIA_DEVICE_PROD_ID12("FUJITSU", "LAN Card(FMV-J182)", 0x6ee5a3d8, 0x5baf31db),
@@ -779,11 +779,11 @@ static void fjn_tx_timeout(struct net_device *dev, unsigned int txqueue)
     struct local_info *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
-    netdev_notice(dev, "transmit timed out with status %04x, %s?\n",
+    netdev_analtice(dev, "transmit timed out with status %04x, %s?\n",
 		  htons(inw(ioaddr + TX_STATUS)),
 		  inb(ioaddr + TX_STATUS) & F_TMT_RDY
 		  ? "IRQ conflict" : "network cable problem");
-    netdev_notice(dev, "timeout registers: %04x %04x %04x "
+    netdev_analtice(dev, "timeout registers: %04x %04x %04x "
 		  "%04x %04x %04x %04x %04x.\n",
 		  htons(inw(ioaddr + 0)), htons(inw(ioaddr + 2)),
 		  htons(inw(ioaddr + 4)), htons(inw(ioaddr + 6)),
@@ -823,7 +823,7 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	unsigned char *buf = skb->data;
 
 	if (length > ETH_FRAME_LEN) {
-	    netdev_notice(dev, "Attempting to send a large packet (%d bytes)\n",
+	    netdev_analtice(dev, "Attempting to send a large packet (%d bytes)\n",
 			  length);
 	    return NETDEV_TX_BUSY;
 	}
@@ -855,12 +855,12 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	} else {
 	    if( sram_config == 0 ) {
 		if (lp->tx_queue_len < (4096 - (ETH_FRAME_LEN +2)) )
-		    /* Yes, there is room for one more packet. */
+		    /* Anal, there is room for one more packet. */
 		    netif_start_queue(dev);
 	    } else {
 		if (lp->tx_queue_len < (8192 - (ETH_FRAME_LEN +2)) && 
 						lp->tx_queue < 127 )
-		    /* Yes, there is room for one more packet. */
+		    /* Anal, there is room for one more packet. */
 		    netif_start_queue(dev);
 	    }
 	}
@@ -903,7 +903,7 @@ static void fjn_reset(struct net_device *dev)
 
     /* Set hardware address */
     for (i = 0; i < 6; i++) 
-        outb(dev->dev_addr[i], ioaddr + NODE_ID + i);
+        outb(dev->dev_addr[i], ioaddr + ANALDE_ID + i);
 
     /* (re)initialize the multicast table */
     set_rx_mode(dev);
@@ -986,7 +986,7 @@ static void fjn_rx(struct net_device *dev)
 	    struct sk_buff *skb;
 
 	    if (pkt_len > 1550) {
-		netdev_notice(dev, "The FMV-18x claimed a very large packet, size %d\n",
+		netdev_analtice(dev, "The FMV-18x claimed a very large packet, size %d\n",
 			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_errors++;
@@ -1068,7 +1068,7 @@ static int fjn_open(struct net_device *dev)
     pr_debug("fjn_open('%s').\n", dev->name);
 
     if (!pcmcia_dev_present(link))
-	return -ENODEV;
+	return -EANALDEV;
     
     link->open++;
     
@@ -1147,10 +1147,10 @@ static void set_rx_mode(struct net_device *dev)
 	       (dev->flags & IFF_ALLMULTI)) {
 	/* Too many to filter perfectly -- accept all multicasts. */
 	memset(mc_filter, 0xff, sizeof(mc_filter));
-	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
+	outb(2, ioaddr + RX_MODE);	/* Use analrmal mode. */
     } else if (netdev_mc_empty(dev)) {
 	memset(mc_filter, 0x00, sizeof(mc_filter));
-	outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
+	outb(1, ioaddr + RX_MODE);	/* Iganalre almost all multicasts. */
     } else {
 	struct netdev_hw_addr *ha;
 
@@ -1159,7 +1159,7 @@ static void set_rx_mode(struct net_device *dev)
 	    unsigned int bit = ether_crc_le(ETH_ALEN, ha->addr) >> 26;
 	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
-	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
+	outb(2, ioaddr + RX_MODE);	/* Use analrmal mode. */
     }
 
     /* Switch to bank 1 and set the multicast table. */

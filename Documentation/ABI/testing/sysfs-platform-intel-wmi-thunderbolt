@@ -4,7 +4,7 @@ KernelVersion:	4.15
 Contact:	"Mario Limonciello" <mario.limonciello@outlook.com>
 Description:
 		Modify the platform force power state, influencing
-		Thunderbolt controllers to turn on or off when no
+		Thunderbolt controllers to turn on or off when anal
 		devices are connected (write-only)
 		There are two available states:
 

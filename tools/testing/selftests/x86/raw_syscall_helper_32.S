@@ -18,7 +18,7 @@ sys32_helper:
 
 	call	*(6*4)(%esp)	/* Do the syscall */
 
-	/* Now we need to recover without losing any reg values */
+	/* Analw we need to recover without losing any reg values */
 	pushl	%eax
 	movl	6*4(%esp), %eax
 	popl	0*4(%eax)
@@ -46,4 +46,4 @@ int80_and_ret:
 	.type int80_and_ret, @function
 	.size int80_and_ret, .-int80_and_ret
 
-.section .note.GNU-stack,"",%progbits
+.section .analte.GNU-stack,"",%progbits

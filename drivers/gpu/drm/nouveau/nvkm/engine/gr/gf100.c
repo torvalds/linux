@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -65,7 +65,7 @@ gf100_gr_zbc_color_get(struct gf100_gr *gr, int format,
 		       const u32 ds[4], const u32 l2[4])
 {
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
-	int zbc = -ENOSPC, i;
+	int zbc = -EANALSPC, i;
 
 	for (i = ltc->zbc_color_min; i <= ltc->zbc_color_max; i++) {
 		if (gr->zbc_color[i].format) {
@@ -112,7 +112,7 @@ gf100_gr_zbc_depth_get(struct gf100_gr *gr, int format,
 		       const u32 ds, const u32 l2)
 {
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
-	int zbc = -ENOSPC, i;
+	int zbc = -EANALSPC, i;
 
 	for (i = ltc->zbc_depth_min; i <= ltc->zbc_depth_max; i++) {
 		if (gr->zbc_depth[i].format) {
@@ -164,12 +164,12 @@ gf100_fermi_mthd_zbc_color(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct fermi_a_zbc_color_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		switch (args->v0.format) {
 		case FERMI_A_ZBC_COLOR_V0_FMT_ZERO:
-		case FERMI_A_ZBC_COLOR_V0_FMT_UNORM_ONE:
+		case FERMI_A_ZBC_COLOR_V0_FMT_UANALRM_ONE:
 		case FERMI_A_ZBC_COLOR_V0_FMT_RF32_GF32_BF32_AF32:
 		case FERMI_A_ZBC_COLOR_V0_FMT_R16_G16_B16_A16:
 		case FERMI_A_ZBC_COLOR_V0_FMT_RN16_GN16_BN16_AN16:
@@ -210,7 +210,7 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 	union {
 		struct fermi_a_zbc_depth_v0 v0;
 	} *args = data;
-	int ret = -ENOSYS;
+	int ret = -EANALSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		switch (args->v0.format) {
@@ -218,7 +218,7 @@ gf100_fermi_mthd_zbc_depth(struct nvkm_object *object, void *data, u32 size)
 			ret = gf100_gr_zbc_depth_get(gr, args->v0.format,
 							   args->v0.ds,
 							   args->v0.l2);
-			return (ret >= 0) ? 0 : -ENOSPC;
+			return (ret >= 0) ? 0 : -EANALSPC;
 		default:
 			return -EINVAL;
 		}
@@ -286,7 +286,7 @@ gf100_gr_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct gf100_gr_object *object;
 
 	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &object->object;
 
 	nvkm_object_ctor(oclass->base.func ? oclass->base.func :
@@ -360,7 +360,7 @@ gf100_gr_chan_dtor(struct nvkm_object *object)
 	nvkm_memory_unref(&chan->mmio);
 
 	nvkm_vmm_put(chan->vmm, &chan->attrib_cb);
-	nvkm_vmm_put(chan->vmm, &chan->unknown);
+	nvkm_vmm_put(chan->vmm, &chan->unkanalwn);
 	nvkm_vmm_put(chan->vmm, &chan->bundle_cb);
 	nvkm_vmm_put(chan->vmm, &chan->pagepool);
 	nvkm_vmm_unref(&chan->vmm);
@@ -385,7 +385,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	int ret;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&gf100_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	chan->vmm = nvkm_vmm_ref(fifoch->vmm);
@@ -425,13 +425,13 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 			return ret;
 	}
 
-	/* Map some context buffer of unknown purpose. */
-	if (gr->func->grctx->unknown_size) {
-		ret = nvkm_vmm_get(chan->vmm, 12, nvkm_memory_size(gr->unknown), &chan->unknown);
+	/* Map some context buffer of unkanalwn purpose. */
+	if (gr->func->grctx->unkanalwn_size) {
+		ret = nvkm_vmm_get(chan->vmm, 12, nvkm_memory_size(gr->unkanalwn), &chan->unkanalwn);
 		if (ret)
 			return ret;
 
-		ret = nvkm_memory_map(gr->unknown, 0, chan->vmm, chan->unknown,
+		ret = nvkm_memory_map(gr->unkanalwn, 0, chan->vmm, chan->unkanalwn,
 				      &args, sizeof(args));
 		if (ret)
 			return ret;
@@ -474,8 +474,8 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	gr->func->grctx->attrib(chan);
 	if (gr->func->grctx->patch_ltc)
 		gr->func->grctx->patch_ltc(chan);
-	if (gr->func->grctx->unknown_size)
-		gr->func->grctx->unknown(chan, chan->unknown->addr, gr->func->grctx->unknown_size);
+	if (gr->func->grctx->unkanalwn_size)
+		gr->func->grctx->unkanalwn(chan, chan->unkanalwn->addr, gr->func->grctx->unkanalwn_size);
 	nvkm_done(chan->mmio);
 	return 0;
 }
@@ -1042,7 +1042,7 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 
 /**
  * Wait until GR goes idle. GR is considered idle if it is disabled by the
- * MC (0x200) register, or GR is not busy and a context switch is not in
+ * MC (0x200) register, or GR is analt busy and a context switch is analt in
  * progress.
  */
 int
@@ -1172,13 +1172,13 @@ gf100_gr_units(struct nvkm_gr *base)
 static const struct nvkm_bitfield gf100_dispatch_error[] = {
 	{ 0x00000001, "INJECTED_BUNDLE_ERROR" },
 	{ 0x00000002, "CLASS_SUBCH_MISMATCH" },
-	{ 0x00000004, "SUBCHSW_DURING_NOTIFY" },
+	{ 0x00000004, "SUBCHSW_DURING_ANALTIFY" },
 	{}
 };
 
 static const struct nvkm_bitfield gf100_m2mf_error[] = {
 	{ 0x00000001, "PUSH_TOO_MUCH_DATA" },
-	{ 0x00000002, "PUSH_NOT_ENOUGH_DATA" },
+	{ 0x00000002, "PUSH_ANALT_EANALUGH_DATA" },
 	{}
 };
 
@@ -1353,7 +1353,7 @@ gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 	}
 
 	if (stat) {
-		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unknown\n", gpc, tpc, stat);
+		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unkanalwn\n", gpc, tpc, stat);
 	}
 }
 
@@ -1401,7 +1401,7 @@ gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 	}
 
 	if (stat) {
-		nvkm_error(subdev, "GPC%d/%08x: unknown\n", gpc, stat);
+		nvkm_error(subdev, "GPC%d/%08x: unkanalwn\n", gpc, stat);
 	}
 }
 
@@ -1618,7 +1618,7 @@ gf100_gr_intr(struct nvkm_inth *inth)
 	u32 data = nvkm_rd32(device, 0x400708);
 	u32 code = nvkm_rd32(device, 0x400110);
 	u32 class;
-	const char *name = "unknown";
+	const char *name = "unkanalwn";
 	int chid = -1;
 
 	chan = nvkm_chan_get_inst(&gr->base.engine, (u64)inst << 12, &flags);
@@ -1634,8 +1634,8 @@ gf100_gr_intr(struct nvkm_inth *inth)
 
 	if (stat & 0x00000001) {
 		/*
-		 * notifier interrupt, only needed for cyclestats
-		 * can be safely ignored
+		 * analtifier interrupt, only needed for cyclestats
+		 * can be safely iganalred
 		 */
 		nvkm_wr32(device, 0x400100, 0x00000001);
 		stat &= ~0x00000001;
@@ -1745,7 +1745,7 @@ gf100_gr_init_csdata(struct gf100_gr *gr,
 	nvkm_wr32(device, falcon + 0x01c4, star + 4);
 }
 
-/* Initialize context from an external (secure or not) firmware */
+/* Initialize context from an external (secure or analt) firmware */
 static int
 gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 {
@@ -1814,8 +1814,8 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 
 	/*XXX: We (likely) require PMU support to even bother with this.
 	 *
-	 *     Also, it seems like not all GPUs support ELPG.  Traces I
-	 *     have here show RM enabling it on Kepler/Turing, but none
+	 *     Also, it seems like analt all GPUs support ELPG.  Traces I
+	 *     have here show RM enabling it on Kepler/Turing, but analne
 	 *     of the GPUs between those.  NVGPU decides this by PCIID.
 	 */
 	if (0) {
@@ -1835,7 +1835,7 @@ gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 	struct nvkm_device *device = subdev->device;
 
 	if (!gr->func->fecs.ucode) {
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 
 	/* load HUB microcode */
@@ -1916,7 +1916,7 @@ gf100_gr_oneinit_tiles(struct gf100_gr *gr)
 		3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61
 	};
 	int init_frac[GPC_MAX], init_err[GPC_MAX], run_err[GPC_MAX], i, j;
-	u32 mul_factor, comm_denom;
+	u32 mul_factor, comm_deanalm;
 	u8  gpc_map[GPC_MAX];
 	bool sorted;
 
@@ -1965,19 +1965,19 @@ gf100_gr_oneinit_tiles(struct gf100_gr *gr)
 	else
 		mul_factor = 1;
 
-	comm_denom = gr->gpc_nr * gr->tpc_max * mul_factor;
+	comm_deanalm = gr->gpc_nr * gr->tpc_max * mul_factor;
 
 	for (i = 0; i < gr->gpc_nr; i++) {
 		init_frac[i] = gr->tpc_nr[gpc_map[i]] * gr->gpc_nr * mul_factor;
-		init_err[i] = i * gr->tpc_max * mul_factor - comm_denom/2;
+		init_err[i] = i * gr->tpc_max * mul_factor - comm_deanalm/2;
 		run_err[i] = init_frac[i] + init_err[i];
 	}
 
 	for (i = 0; i < gr->tpc_total;) {
 		for (j = 0; j < gr->gpc_nr; j++) {
-			if ((run_err[j] * 2) >= comm_denom) {
+			if ((run_err[j] * 2) >= comm_deanalm) {
 				gr->tile[i++] = gpc_map[j];
-				run_err[j] += init_frac[j] - comm_denom;
+				run_err[j] += init_frac[j] - comm_deanalm;
 			} else {
 				run_err[j] += init_frac[j];
 			}
@@ -1998,7 +1998,7 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	if (gr->func->oneinit_intr)
 		intr = gr->func->oneinit_intr(gr, &intr_type);
 
-	ret = nvkm_inth_add(intr, intr_type, NVKM_INTR_PRIO_NORMAL, &gr->base.engine.subdev,
+	ret = nvkm_inth_add(intr, intr_type, NVKM_INTR_PRIO_ANALRMAL, &gr->base.engine.subdev,
 			    gf100_gr_intr, &gr->base.engine.subdev.inth);
 	if (ret)
 		return ret;
@@ -2047,9 +2047,9 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
-	if (gr->func->grctx->unknown_size) {
-		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->unknown_size,
-				      0x100, false, &gr->unknown);
+	if (gr->func->grctx->unkanalwn_size) {
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->unkanalwn_size,
+				      0x100, false, &gr->unkanalwn);
 		if (ret)
 			return ret;
 	}
@@ -2074,14 +2074,14 @@ gf100_gr_init_(struct nvkm_gr *base)
 	 * SEC2 RTOS to boot the GR falcons.  This happens with far more
 	 * frequency when cold-booting a board (ie. returning from D3).
 	 *
-	 * The root cause for this is not known and has proven difficult
+	 * The root cause for this is analt kanalwn and has proven difficult
 	 * to isolate, with many avenues being dead-ends.
 	 *
 	 * A workaround was discovered by Karol, whereby putting GR into
 	 * reset for an extended period right before initialisation
 	 * prevents the problem from occuring.
 	 *
-	 * XXX: As RM does not require any such workaround, this is more
+	 * XXX: As RM does analt require any such workaround, this is more
 	 *      of a hack than a true fix.
 	 */
 	reset = nvkm_boolopt(device->cfgopt, "NvGrResetWar", reset);
@@ -2131,7 +2131,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 
 	kfree(gr->data);
 
-	nvkm_memory_unref(&gr->unknown);
+	nvkm_memory_unref(&gr->unkanalwn);
 	nvkm_memory_unref(&gr->attrib_cb);
 	nvkm_memory_unref(&gr->bundle_cb);
 	nvkm_memory_unref(&gr->pagepool);
@@ -2149,11 +2149,11 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	vfree(gr->bundle);
 	vfree(gr->method);
 	vfree(gr->sw_ctx);
-	vfree(gr->sw_nonctx);
-	vfree(gr->sw_nonctx1);
-	vfree(gr->sw_nonctx2);
-	vfree(gr->sw_nonctx3);
-	vfree(gr->sw_nonctx4);
+	vfree(gr->sw_analnctx);
+	vfree(gr->sw_analnctx1);
+	vfree(gr->sw_analnctx2);
+	vfree(gr->sw_analnctx3);
+	vfree(gr->sw_analnctx4);
 
 	return gr;
 }
@@ -2348,14 +2348,14 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_gpc_mmu(gr);
 
-	if (gr->sw_nonctx1) {
-		gf100_gr_mmio(gr, gr->sw_nonctx1);
-		gf100_gr_mmio(gr, gr->sw_nonctx2);
-		gf100_gr_mmio(gr, gr->sw_nonctx3);
-		gf100_gr_mmio(gr, gr->sw_nonctx4);
+	if (gr->sw_analnctx1) {
+		gf100_gr_mmio(gr, gr->sw_analnctx1);
+		gf100_gr_mmio(gr, gr->sw_analnctx2);
+		gf100_gr_mmio(gr, gr->sw_analnctx3);
+		gf100_gr_mmio(gr, gr->sw_analnctx4);
 	} else
-	if (gr->sw_nonctx) {
-		gf100_gr_mmio(gr, gr->sw_nonctx);
+	if (gr->sw_analnctx) {
+		gf100_gr_mmio(gr, gr->sw_analnctx);
 	} else {
 		gf100_gr_mmio(gr, gr->func->mmio);
 	}
@@ -2495,12 +2495,12 @@ gf100_gr_gpccs_ucode = {
 };
 
 static int
-gf100_gr_nonstall(struct nvkm_gr *base)
+gf100_gr_analnstall(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 
-	if (gr->func->nonstall)
-		return gr->func->nonstall(gr);
+	if (gr->func->analnstall)
+		return gr->func->analnstall(gr);
 
 	return -EINVAL;
 }
@@ -2511,7 +2511,7 @@ gf100_gr_ = {
 	.oneinit = gf100_gr_oneinit,
 	.init = gf100_gr_init_,
 	.fini = gf100_gr_fini,
-	.nonstall = gf100_gr_nonstall,
+	.analnstall = gf100_gr_analnstall,
 	.reset = gf100_gr_reset,
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,
@@ -2558,7 +2558,7 @@ gf100_gr = {
 };
 
 int
-gf100_gr_nofw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+gf100_gr_analfw(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 {
 	gr->firmware = false;
 	return 0;
@@ -2574,10 +2574,10 @@ gf100_gr_load_fw(struct gf100_gr *gr, const char *name,
 	char f[32];
 	int ret;
 
-	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, name);
+	snprintf(f, sizeof(f), "analuveau/nv%02x_%s", device->chipset, name);
 	ret = request_firmware(&fw, f, device->dev);
 	if (ret) {
-		snprintf(f, sizeof(f), "nouveau/%s", name);
+		snprintf(f, sizeof(f), "analuveau/%s", name);
 		ret = request_firmware(&fw, f, device->dev);
 		if (ret) {
 			nvkm_error(subdev, "failed to load %s\n", name);
@@ -2588,7 +2588,7 @@ gf100_gr_load_fw(struct gf100_gr *gr, const char *name,
 	blob->size = fw->size;
 	blob->data = kmemdup(fw->data, blob->size, GFP_KERNEL);
 	release_firmware(fw);
-	return (blob->data != NULL) ? 0 : -ENOMEM;
+	return (blob->data != NULL) ? 0 : -EANALMEM;
 }
 
 int
@@ -2603,7 +2603,7 @@ gf100_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 	    gf100_gr_load_fw(gr, "fuc409d", &gr->fecs.data) ||
 	    gf100_gr_load_fw(gr, "fuc41ac", &gr->gpccs.inst) ||
 	    gf100_gr_load_fw(gr, "fuc41ad", &gr->gpccs.data))
-		return -ENOENT;
+		return -EANALENT;
 
 	gr->firmware = true;
 	return 0;
@@ -2612,7 +2612,7 @@ gf100_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
 static const struct gf100_gr_fwif
 gf100_gr_fwif[] = {
 	{ -1, gf100_gr_load, &gf100_gr },
-	{ -1, gf100_gr_nofw, &gf100_gr },
+	{ -1, gf100_gr_analfw, &gf100_gr },
 	{}
 };
 
@@ -2624,7 +2624,7 @@ gf100_gr_new_(const struct gf100_gr_fwif *fwif, struct nvkm_device *device,
 	int ret;
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pgr = &gr->base;
 
 	ret = nvkm_gr_ctor(&gf100_gr_, device, type, inst, true, &gr->base);

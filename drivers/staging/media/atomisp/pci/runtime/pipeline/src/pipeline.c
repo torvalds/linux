@@ -51,7 +51,7 @@ static int pipeline_stage_create(
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_pipeline_stage **new_stage);
 static void ia_css_pipeline_set_zoom_stage(struct ia_css_pipeline *pipeline);
-static void ia_css_pipeline_configure_inout_port(struct ia_css_pipeline *me,
+static void ia_css_pipeline_configure_ianalut_port(struct ia_css_pipeline *me,
 	bool continuous);
 
 /*******************************************************
@@ -102,7 +102,7 @@ void ia_css_pipeline_map(unsigned int pipe_num, bool map)
 /* @brief destroy a pipeline
  *
  * @param[in] pipeline
- * @return    None
+ * @return    Analne
  *
  */
 void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline)
@@ -138,7 +138,7 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 	pipeline->pipe_id = pipe_id;
 	sh_css_sp_init_pipeline(pipeline, pipe_id, pipe_num,
 				false, false, false, true, SH_CSS_BDS_FACTOR_1_00,
-				SH_CSS_PIPE_CONFIG_OVRD_NO_OVRD,
+				SH_CSS_PIPE_CONFIG_OVRD_ANAL_OVRD,
 				IA_CSS_INPUT_MODE_MEMORY, NULL, NULL,
 				(enum mipi_port_id)0);
 
@@ -264,7 +264,7 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline)
  * @param[out]	stage         The successor of the stage.
  * @return      0 or error code upon error.
  *
- * Add a new stage to a non-NULL pipeline.
+ * Add a new stage to a analn-NULL pipeline.
  * The stage consists of an ISP binary or firmware and input and
  * output arguments.
 */
@@ -284,7 +284,7 @@ int ia_css_pipeline_create_and_add_stage(
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_pipeline_create_and_add_stage() enter:\n");
 	if (!stage_desc->binary && !stage_desc->firmware
-	    && (stage_desc->sp_func == IA_CSS_PIPELINE_NO_FUNC)) {
+	    && (stage_desc->sp_func == IA_CSS_PIPELINE_ANAL_FUNC)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_pipeline_create_and_add_stage() done: Invalid args\n");
 
@@ -295,10 +295,10 @@ int ia_css_pipeline_create_and_add_stage(
 	while (last && last->next)
 		last = last->next;
 
-	/* if in_frame is not set, we use the out_frame from the previous
-	 * stage, if no previous stage, it's an error.
+	/* if in_frame is analt set, we use the out_frame from the previous
+	 * stage, if anal previous stage, it's an error.
 	 */
-	if ((stage_desc->sp_func == IA_CSS_PIPELINE_NO_FUNC)
+	if ((stage_desc->sp_func == IA_CSS_PIPELINE_ANAL_FUNC)
 	    && (!stage_desc->in_frame)
 	    && (!stage_desc->firmware)
 	    && (!stage_desc->binary->online)) {
@@ -346,7 +346,7 @@ void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
 	pipeline->num_stages = i;
 
 	ia_css_pipeline_set_zoom_stage(pipeline);
-	ia_css_pipeline_configure_inout_port(pipeline, continuous);
+	ia_css_pipeline_configure_ianalut_port(pipeline, continuous);
 }
 
 int ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
@@ -428,7 +428,7 @@ int ia_css_pipeline_get_output_stage(
 	}
 	if (*stage)
 		return 0;
-	/* If no firmware, find binary in pipe */
+	/* If anal firmware, find binary in pipe */
 	return ia_css_pipeline_get_stage(pipeline, mode, stage);
 }
 
@@ -486,11 +486,11 @@ bool ia_css_pipeline_is_mapped(unsigned int key)
  * To organize the several different binaries for each type of mode,
  * we use a pipeline. A pipeline contains a number of stages, each with
  * their own binary and frame pointers.
- * When stages are added to a pipeline, output frames that are not passed
+ * When stages are added to a pipeline, output frames that are analt passed
  * from outside are automatically allocated.
- * When input frames are not passed from outside, each stage will use the
+ * When input frames are analt passed from outside, each stage will use the
  * output frame of the previous stage as input (the full resolution output,
- * not the viewfinder output).
+ * analt the viewfinder output).
  * Pipelines must be cleaned and re-created when settings of the binaries
  * change.
  */
@@ -527,7 +527,7 @@ static void pipeline_map_num_to_sp_thread(unsigned int pipe_num)
 	unsigned int i;
 	bool found_sp_thread = false;
 
-	/* pipe is not mapped to any thread */
+	/* pipe is analt mapped to any thread */
 	assert(pipeline_num_to_sp_thread_map[pipe_num]
 	       == (unsigned int)PIPELINE_NUM_UNMAPPED);
 
@@ -591,7 +591,7 @@ static int pipeline_stage_create(
 
 	stage = kvzalloc(sizeof(*stage), GFP_KERNEL);
 	if (!stage) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto ERR;
 	}
 
@@ -628,7 +628,7 @@ static int pipeline_stage_create(
 			stage->out_frame_allocated[i] = true;
 		}
 	}
-	/* VF frame is not needed in case of need_pp
+	/* VF frame is analt needed in case of need_pp
 	   However, the capture binary needs a vf frame to write to.
 	 */
 	if (!vf_frame) {
@@ -722,53 +722,53 @@ static void ia_css_pipeline_set_zoom_stage(struct ia_css_pipeline *pipeline)
 }
 
 static void
-ia_css_pipeline_configure_inout_port(struct ia_css_pipeline *me,
+ia_css_pipeline_configure_ianalut_port(struct ia_css_pipeline *me,
 				     bool continuous)
 {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-			    "ia_css_pipeline_configure_inout_port() enter: pipe_id(%d) continuous(%d)\n",
+			    "ia_css_pipeline_configure_ianalut_port() enter: pipe_id(%d) continuous(%d)\n",
 			    me->pipe_id, continuous);
 	switch (me->pipe_id) {
 	case IA_CSS_PIPE_ID_PREVIEW:
 	case IA_CSS_PIPE_ID_VIDEO:
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)(continuous ? SH_CSS_COPYSINK_TYPE : SH_CSS_HOST_TYPE), 1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		break;
 	case IA_CSS_PIPE_ID_COPY: /*Copy pipe ports configured to "offline" mode*/
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		if (continuous) {
-			SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+			SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 						    (uint8_t)SH_CSS_PORT_OUTPUT,
 						    (uint8_t)SH_CSS_COPYSINK_TYPE, 1);
-			SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+			SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 						    (uint8_t)SH_CSS_PORT_OUTPUT,
 						    (uint8_t)SH_CSS_TAGGERSINK_TYPE, 1);
 		} else {
-			SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+			SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 						    (uint8_t)SH_CSS_PORT_OUTPUT,
 						    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		}
 		break;
 	case IA_CSS_PIPE_ID_CAPTURE:
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)(continuous ? SH_CSS_TAGGERSINK_TYPE : SH_CSS_HOST_TYPE),
 					    1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		break;
 	case IA_CSS_PIPE_ID_YUVPP:
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_INPUT,
 					    (uint8_t)(SH_CSS_HOST_TYPE), 1);
-		SH_CSS_PIPE_PORT_CONFIG_SET(me->inout_port_config,
+		SH_CSS_PIPE_PORT_CONFIG_SET(me->ianalut_port_config,
 					    (uint8_t)SH_CSS_PORT_OUTPUT,
 					    (uint8_t)SH_CSS_HOST_TYPE, 1);
 		break;
@@ -776,6 +776,6 @@ ia_css_pipeline_configure_inout_port(struct ia_css_pipeline *me,
 		break;
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-			    "ia_css_pipeline_configure_inout_port() leave: inout_port_config(%x)\n",
-			    me->inout_port_config);
+			    "ia_css_pipeline_configure_ianalut_port() leave: ianalut_port_config(%x)\n",
+			    me->ianalut_port_config);
 }

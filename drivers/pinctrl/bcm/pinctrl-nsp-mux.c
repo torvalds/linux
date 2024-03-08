@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2015 Broadcom Corporation
  *
- * This file contains the Northstar plus (NSP) IOMUX driver that supports
- * group based PINMUX configuration. The Northstar plus IOMUX controller
+ * This file contains the Analrthstar plus (NSP) IOMUX driver that supports
+ * group based PINMUX configuration. The Analrthstar plus IOMUX controller
  * allows pins to be individually muxed to GPIO function. The NAND and MMC is
  * a group based selection. The gpio_a 8 - 11 are muxed with gpio_b and pwm.
  * To select PWM, one need to enable the corresponding gpio_b as well.
@@ -347,7 +347,7 @@ static const struct pinctrl_ops nsp_pinctrl_ops = {
 	.get_group_name = nsp_get_group_name,
 	.get_group_pins = nsp_get_group_pins,
 	.pin_dbg_show = nsp_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_analde_to_map = pinconf_generic_dt_analde_to_map_group,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -531,15 +531,15 @@ static int nsp_mux_log_init(struct nsp_pinctrl *pinctrl)
 {
 	struct nsp_mux_log *log;
 	unsigned int i;
-	u32 no_of_groups = ARRAY_SIZE(nsp_pin_groups);
+	u32 anal_of_groups = ARRAY_SIZE(nsp_pin_groups);
 
-	pinctrl->mux_log = devm_kcalloc(pinctrl->dev, no_of_groups,
+	pinctrl->mux_log = devm_kcalloc(pinctrl->dev, anal_of_groups,
 					sizeof(struct nsp_mux_log),
 					GFP_KERNEL);
 	if (!pinctrl->mux_log)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	for (i = 0; i < no_of_groups; i++) {
+	for (i = 0; i < anal_of_groups; i++) {
 		log = &pinctrl->mux_log[i];
 		log->mux.base = nsp_pin_groups[i].mux.base;
 		log->mux.shift = nsp_pin_groups[i].mux.shift;
@@ -560,7 +560,7 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 
 	pinctrl = devm_kzalloc(&pdev->dev, sizeof(*pinctrl), GFP_KERNEL);
 	if (!pinctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 	pinctrl->dev = &pdev->dev;
 	platform_set_drvdata(pdev, pinctrl);
 	spin_lock_init(&pinctrl->lock);
@@ -576,7 +576,7 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 					      resource_size(res));
 	if (!pinctrl->base1) {
 		dev_err(&pdev->dev, "unable to map I/O space\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pinctrl->base2 = devm_platform_ioremap_resource(pdev, 2);
@@ -591,7 +591,7 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 
 	pins = devm_kcalloc(&pdev->dev, num_pins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < num_pins; i++) {
 		pins[i].number = nsp_pins[i].pin;

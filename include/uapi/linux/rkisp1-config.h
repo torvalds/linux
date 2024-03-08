@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-analte) OR MIT) */
 /*
  * Rockchip ISP1 userspace API
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
@@ -41,9 +41,9 @@
 #define RKISP1_CIF_ISP_MODULE_AEC		(1U << 14)
 /* Wide Dynamic Range */
 #define RKISP1_CIF_ISP_MODULE_WDR		(1U << 15)
-/* Denoise Pre-Filter */
+/* Deanalise Pre-Filter */
 #define RKISP1_CIF_ISP_MODULE_DPF		(1U << 16)
-/* Denoise Pre-Filter Strength */
+/* Deanalise Pre-Filter Strength */
 #define RKISP1_CIF_ISP_MODULE_DPF_STRENGTH	(1U << 17)
 
 #define RKISP1_CIF_ISP_CTK_COEFF_MAX            0x100
@@ -103,7 +103,7 @@
 
 /*
  * The following matches the tuning process,
- * not the max capabilities of the chip.
+ * analt the max capabilities of the chip.
  */
 #define RKISP1_CIF_ISP_LSC_SAMPLES_MAX             17
 
@@ -159,7 +159,7 @@
 #define RKISP1_CIF_ISP_DPCC_RND_OFFS_n_RB(n, v)			((v) << ((n) * 4 + 2))
 
 /*
- * Denoising pre filter
+ * Deanalising pre filter
  */
 #define RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS      17
 #define RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS  6
@@ -176,7 +176,7 @@
  * enum rkisp1_cif_isp_version - ISP variants
  *
  * @RKISP1_V10: used at least in rk3288 and rk3399
- * @RKISP1_V11: declared in the original vendor code, but not used
+ * @RKISP1_V11: declared in the original vendor code, but analt used
  * @RKISP1_V12: used at least in rk3326 and px30
  * @RKISP1_V13: used at least in rk1808
  */
@@ -389,8 +389,8 @@ struct rkisp1_cif_isp_sdg_config {
  * @y_grad_tbl: gradient table y
  * @x_size_tbl: size table x
  * @y_size_tbl: size table y
- * @config_width: not used at the moment
- * @config_height: not used at the moment
+ * @config_width: analt used at the moment
+ * @config_height: analt used at the moment
  */
 struct rkisp1_cif_isp_lsc_config {
 	__u16 r_data_tbl[RKISP1_CIF_ISP_LSC_SAMPLES_MAX][RKISP1_CIF_ISP_LSC_SAMPLES_MAX];
@@ -471,11 +471,11 @@ struct rkisp1_cif_isp_cproc_config {
  *	    (ucFrames=0 means 1 Frame)
  * @awb_ref_cr: reference Cr value for AWB regulation, target for AWB
  * @awb_ref_cb: reference Cb value for AWB regulation, target for AWB
- * @enable_ymax_cmp: enable Y_MAX compare (Not valid in RGB measurement mode.)
+ * @enable_ymax_cmp: enable Y_MAX compare (Analt valid in RGB measurement mode.)
  */
 struct rkisp1_cif_isp_awb_meas_config {
 	/*
-	 * Note: currently the h and v offsets are mapped to grid offsets
+	 * Analte: currently the h and v offsets are mapped to grid offsets
 	 */
 	struct rkisp1_cif_isp_window awb_wnd;
 	__u32 awb_mode;
@@ -637,7 +637,7 @@ struct rkisp1_cif_isp_aec_config {
  *
  * @num_afm_win: max RKISP1_CIF_ISP_AFM_MAX_WINDOWS
  * @afm_win: coordinates of the meas window
- * @thres: threshold used for minimizing the influence of noise
+ * @thres: threshold used for minimizing the influence of analise
  * @var_shift: the number of bits for the shift operation at the end of the
  *	       calculation chain.
  */
@@ -651,10 +651,10 @@ struct rkisp1_cif_isp_afc_config {
 /**
  * enum rkisp1_cif_isp_dpf_gain_usage - dpf gain usage
  * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED: don't use any gains in preprocessing stage
- * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_GAINS: use only the noise function gains from
+ * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_GAINS: use only the analise function gains from
  *				    registers DPF_NF_GAIN_R, ...
  * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS:  use only the gains from LSC module
- * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_LSC_GAINS: use the noise function gains and the
+ * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_LSC_GAINS: use the analise function gains and the
  *					gains from LSC module
  * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS: use only the gains from AWB module
  * @RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS: use the gains from AWB and LSC module
@@ -683,7 +683,7 @@ enum rkisp1_cif_isp_dpf_rb_filtersize {
 };
 
 /**
- * enum rkisp1_cif_isp_dpf_nll_scale_mode - dpf noise level scale mode
+ * enum rkisp1_cif_isp_dpf_nll_scale_mode - dpf analise level scale mode
  * @RKISP1_CIF_ISP_NLL_SCALE_LINEAR: use a linear scaling
  * @RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC: use a logarithmic scaling
  */
@@ -693,10 +693,10 @@ enum rkisp1_cif_isp_dpf_nll_scale_mode {
 };
 
 /**
- * struct rkisp1_cif_isp_dpf_nll - Noise level lookup
+ * struct rkisp1_cif_isp_dpf_nll - Analise level lookup
  *
- * @coeff: Noise level Lookup coefficient
- * @scale_mode: dpf noise level scale mode (from enum rkisp1_cif_isp_dpf_nll_scale_mode)
+ * @coeff: Analise level Lookup coefficient
+ * @scale_mode: dpf analise level scale mode (from enum rkisp1_cif_isp_dpf_nll_scale_mode)
  */
 struct rkisp1_cif_isp_dpf_nll {
 	__u16 coeff[RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS];
@@ -733,14 +733,14 @@ struct rkisp1_cif_isp_dpf_g_flt {
 };
 
 /**
- * struct rkisp1_cif_isp_dpf_gain - Noise function Configuration
+ * struct rkisp1_cif_isp_dpf_gain - Analise function Configuration
  *
  * @mode: dpf gain usage  (from enum rkisp1_cif_isp_dpf_gain_usage)
- * @nf_r_gain: Noise function Gain that replaces the AWB gain for red pixels
- * @nf_b_gain: Noise function Gain that replaces the AWB gain for blue pixels
- * @nf_gr_gain: Noise function Gain that replaces the AWB gain
+ * @nf_r_gain: Analise function Gain that replaces the AWB gain for red pixels
+ * @nf_b_gain: Analise function Gain that replaces the AWB gain for blue pixels
+ * @nf_gr_gain: Analise function Gain that replaces the AWB gain
  *		for green pixels in a red line
- * @nf_gb_gain: Noise function Gain that replaces the AWB gain
+ * @nf_gb_gain: Analise function Gain that replaces the AWB gain
  *		for green pixels in a blue line
  */
 struct rkisp1_cif_isp_dpf_gain {
@@ -752,12 +752,12 @@ struct rkisp1_cif_isp_dpf_gain {
 };
 
 /**
- * struct rkisp1_cif_isp_dpf_config - Configuration used by De-noising pre-filter
+ * struct rkisp1_cif_isp_dpf_config - Configuration used by De-analising pre-filter
  *
- * @gain: noise function gain
+ * @gain: analise function gain
  * @g_flt: green filter config
  * @rb_flt: red blue filter config
- * @nll: noise level lookup
+ * @nll: analise level lookup
  */
 struct rkisp1_cif_isp_dpf_config {
 	struct rkisp1_cif_isp_dpf_gain gain;
@@ -792,7 +792,7 @@ struct rkisp1_cif_isp_dpf_strength_config {
  * @ctk_config: cross talk config
  * @goc_config: gamma out config
  * @bls_config: black level subtraction config
- * @dpf_config: De-noising pre-filter config
+ * @dpf_config: De-analising pre-filter config
  * @dpf_strength_config: dpf strength config
  * @cproc_config: color process config
  * @ie_config: image effects config

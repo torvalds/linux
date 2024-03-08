@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/zalloc.h>
 
 #include "values.h"
@@ -41,7 +41,7 @@ out_free_pid:
 	zfree(&values->pid);
 	zfree(&values->tid);
 	zfree(&values->value);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void perf_read_values_destroy(struct perf_read_values *values)
@@ -82,7 +82,7 @@ out_err:
 	free(ntid);
 	free(nvalue);
 	pr_debug("failed to enlarge read_values threads arrays");
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int perf_read_values__findnew_thread(struct perf_read_values *values,
@@ -105,7 +105,7 @@ static int perf_read_values__findnew_thread(struct perf_read_values *values,
 	values->value[i] = zalloc(values->counters_max * sizeof(**values->value));
 	if (!values->value[i]) {
 		pr_debug("failed to allocate read_values counters array");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	values->pid[i] = pid;
 	values->tid[i] = tid;
@@ -122,7 +122,7 @@ static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 
 	if (!counterrawid) {
 		pr_debug("failed to enlarge read_values rawid array");
-		goto out_enomem;
+		goto out_eanalmem;
 	}
 
 	countername = realloc(values->countername, counters_max * sizeof(*values->countername));
@@ -155,8 +155,8 @@ out_free_name:
 	free(countername);
 out_free_rawid:
 	free(counterrawid);
-out_enomem:
-	return -ENOMEM;
+out_eanalmem:
+	return -EANALMEM;
 }
 
 static int perf_read_values__findnew_counter(struct perf_read_values *values,

@@ -10,21 +10,21 @@ Description:
 		to the driver_override file (echo vfio-platform > \
 		driver_override) and may be cleared with an empty string
 		(echo > driver_override).  This returns the device to standard
-		matching rules binding.  Writing to driver_override does not
+		matching rules binding.  Writing to driver_override does analt
 		automatically unbind the device from its current driver or make
-		any attempt to automatically load the specified driver.  If no
+		any attempt to automatically load the specified driver.  If anal
 		driver with a matching name is currently loaded in the kernel,
-		the device will not bind to any driver.  This also allows
+		the device will analt bind to any driver.  This also allows
 		devices to opt-out of driver binding using a driver_override
-		name such as "none".  Only a single driver may be specified in
-		the override, there is no support for parsing delimiters.
+		name such as "analne".  Only a single driver may be specified in
+		the override, there is anal support for parsing delimiters.
 
-What:		/sys/bus/platform/devices/.../numa_node
+What:		/sys/bus/platform/devices/.../numa_analde
 Date:		June 2020
 Contact:	Barry Song <song.bao.hua@hisilicon.com>
 Description:
-		This file contains the NUMA node to which the platform device
-		is attached. It won't be visible if the node is unknown. The
+		This file contains the NUMA analde to which the platform device
+		is attached. It won't be visible if the analde is unkanalwn. The
 		value comes from an ACPI _PXM method or a similar firmware
 		source. Initial users for this file would be devices like
 		arm smmu which are populated by arm64 acpi_iort.
@@ -49,7 +49,7 @@ Description:
 
 		A platform device that it is exposed via devicetree uses:
 
-			- of:N`of node name`T`type`
+			- of:N`of analde name`T`type`
 
 		Other platform devices use, instead:
 

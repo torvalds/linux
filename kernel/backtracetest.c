@@ -13,10 +13,10 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 
-static void backtrace_test_normal(void)
+static void backtrace_test_analrmal(void)
 {
 	pr_info("Testing a backtrace from process context.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and analt a bug!\n");
 
 	dump_stack();
 }
@@ -34,7 +34,7 @@ static DECLARE_TASKLET_OLD(backtrace_tasklet, &backtrace_test_irq_callback);
 static void backtrace_test_irq(void)
 {
 	pr_info("Testing a backtrace from irq context.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and analt a bug!\n");
 
 	init_completion(&backtrace_work);
 	tasklet_schedule(&backtrace_tasklet);
@@ -48,7 +48,7 @@ static void backtrace_test_saved(void)
 	unsigned int nr_entries;
 
 	pr_info("Testing a saved backtrace.\n");
-	pr_info("The following trace is a kernel self test and not a bug!\n");
+	pr_info("The following trace is a kernel self test and analt a bug!\n");
 
 	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 0);
 	stack_trace_print(entries, nr_entries, 0);
@@ -64,7 +64,7 @@ static int backtrace_regression_test(void)
 {
 	pr_info("====[ backtrace testing ]===========\n");
 
-	backtrace_test_normal();
+	backtrace_test_analrmal();
 	backtrace_test_irq();
 	backtrace_test_saved();
 

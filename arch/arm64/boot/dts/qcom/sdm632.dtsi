@@ -5,19 +5,19 @@
 
 / {
 	thermal-zones {
-		/delete-node/cpu1-thermal;
-		/delete-node/cpu2-thermal;
-		/delete-node/cpu3-thermal;
+		/delete-analde/cpu1-thermal;
+		/delete-analde/cpu2-thermal;
+		/delete-analde/cpu3-thermal;
 
 		cpu0-thermal {
 			thermal-sensors = <&tsens0 13>;
 
 			cooling-maps {
 				map0 {
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

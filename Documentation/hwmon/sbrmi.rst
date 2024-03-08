@@ -20,7 +20,7 @@ Supported hardware:
     bit as a write (0) making bit 0. Some vendors use only the 7 bits
     to describe the address.
     As mentioned in AMD's APML specification, The SB-RMI address is
-    normally 78h(0111 100W) or 3Ch(011 1100) for socket 0 and 70h(0111 000W)
+    analrmally 78h(0111 100W) or 3Ch(011 1100) for socket 0 and 70h(0111 000W)
     or 38h(011 1000) for socket 1, but it could vary based on hardware
     address select pins.
 

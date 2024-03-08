@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -219,17 +219,17 @@ enum {	/* This is the timeout as defined in DP 1.2a,
 
 	/* Ideally, the SW timeout should be just above 550usec
 	 * which is programmed in HW.
-	 * But the SW timeout of 600usec is not reliable,
+	 * But the SW timeout of 600usec is analt reliable,
 	 * because on some systems, delay_in_microseconds()
 	 * returns faster than it should.
 	 * EPR #379763: by trial-and-error on different systems,
 	 * 700usec is the minimum reliable SW timeout for polling
 	 * the AUX_SW_STATUS.AUX_SW_DONE bit.
 	 * This timeout expires *only* when there is
-	 * AUX Error or AUX Timeout conditions - not during normal operation.
-	 * During normal operation, AUX_SW_STATUS.AUX_SW_DONE bit is set
+	 * AUX Error or AUX Timeout conditions - analt during analrmal operation.
+	 * During analrmal operation, AUX_SW_STATUS.AUX_SW_DONE bit is set
 	 * at most within ~240usec. That means,
-	 * increasing this timeout will not affect normal operation,
+	 * increasing this timeout will analt affect analrmal operation,
 	 * and we'll timeout after
 	 * SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD = 2400usec.
 	 * This timeout is especially important for

@@ -112,16 +112,16 @@ examples:
           opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
         };
 
-        rpmhpd_opp_nom: opp6 {
-          opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+        rpmhpd_opp_analm: opp6 {
+          opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
         };
 
-        rpmhpd_opp_nom_l1: opp7 {
-          opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+        rpmhpd_opp_analm_l1: opp7 {
+          opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
         };
 
-        rpmhpd_opp_nom_l2: opp8 {
-          opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+        rpmhpd_opp_analm_l2: opp8 {
+          opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
         };
 
         rpmhpd_opp_turbo: opp9 {
@@ -158,7 +158,7 @@ examples:
           opp-level = <3>;
         };
 
-        rpmpd_opp_normal: opp4 {
+        rpmpd_opp_analrmal: opp4 {
           opp-level = <4>;
         };
 
@@ -202,7 +202,7 @@ examples:
 
       opp4 {
         opp-hz = /bits/ 64 <25000000>;
-        required-opps = <&rpmpd_opp_normal>;
+        required-opps = <&rpmpd_opp_analrmal>;
       };
     };
 ...

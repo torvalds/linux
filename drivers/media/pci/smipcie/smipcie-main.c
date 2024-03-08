@@ -21,9 +21,9 @@ static int smi_hw_init(struct smi_dev *dev)
 	/* set port mux.*/
 	port_mux = smi_read(MUX_MODE_CTRL);
 	port_mux &= ~(rbPaMSMask);
-	port_mux |= rbPaMSDtvNoGpio;
+	port_mux |= rbPaMSDtvAnalGpio;
 	port_mux &= ~(rbPbMSMask);
-	port_mux |= rbPbMSDtvNoGpio;
+	port_mux |= rbPbMSDtvAnalGpio;
 	port_mux &= ~(0x0f0000);
 	port_mux |= 0x50000;
 	smi_write(MUX_MODE_CTRL, port_mux);
@@ -432,7 +432,7 @@ static int smi_port_init(struct smi_port *port, int dmaChanUsed)
 	return 0;
 err:
 	smi_port_dma_free(port);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void smi_port_exit(struct smi_port *port)
@@ -539,7 +539,7 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	port->fe = dvb_attach(m88ds3103_attach,
 			&smi_dvbsky_m88ds3103_cfg, i2c, &tuner_i2c_adapter);
 	if (!port->fe) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		return ret;
 	}
 	/* attach tuner */
@@ -549,7 +549,7 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	tuner_info.platform_data = &ts2020_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
 	if (!tuner_client) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_tuner_i2c_device;
 	}
 
@@ -595,7 +595,7 @@ static int smi_dvbsky_m88rs6000_fe_attach(struct smi_port *port)
 	port->fe = dvb_attach(m88ds3103_attach,
 			&smi_dvbsky_m88rs6000_cfg, i2c, &tuner_i2c_adapter);
 	if (!port->fe) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		return ret;
 	}
 	/* attach tuner */
@@ -605,7 +605,7 @@ static int smi_dvbsky_m88rs6000_fe_attach(struct smi_port *port)
 	tuner_info.platform_data = &m88rs6000t_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
 	if (!tuner_client) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_tuner_i2c_device;
 	}
 
@@ -648,7 +648,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 
 	client_demod = smi_add_i2c_client(i2c, &client_info);
 	if (!client_demod) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		return ret;
 	}
 	port->i2c_client_demod = client_demod;
@@ -667,7 +667,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 	if (!client_tuner) {
 		smi_del_i2c_client(port->i2c_client_demod);
 		port->i2c_client_demod = NULL;
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		return ret;
 	}
 	port->i2c_client_tuner = client_tuner;
@@ -941,14 +941,14 @@ static void smi_port_detach(struct smi_port *port)
 static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct smi_dev *dev;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	if (pci_enable_device(pdev) < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	dev = kzalloc(sizeof(struct smi_dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pci_disable_device;
 	}
 
@@ -962,7 +962,7 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->lmmio = ioremap(pci_resource_start(dev->pci_dev, 0),
 			    pci_resource_len(dev->pci_dev, 0));
 	if (!dev->lmmio) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_kfree;
 	}
 
@@ -1001,7 +1001,7 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_msi_enabled())
 		ret = pci_enable_msi(dev->pci_dev);
 	if (ret)
-		dev_info(&dev->pci_dev->dev, "MSI not available.\n");
+		dev_info(&dev->pci_dev->dev, "MSI analt available.\n");
 #endif
 
 	ret = request_irq(dev->pci_dev->irq, smi_irq_handler,
@@ -1085,9 +1085,9 @@ static const struct smi_cfg_info dvbsky_t9580_cfg = {
 	.rc_map = RC_MAP_DVBSKY,
 };
 
-static const struct smi_cfg_info technotrend_s2_4200_cfg = {
-	.type = SMI_TECHNOTREND_S2_4200,
-	.name = "TechnoTrend TT-budget S2-4200 Twin",
+static const struct smi_cfg_info techanaltrend_s2_4200_cfg = {
+	.type = SMI_TECHANALTREND_S2_4200,
+	.name = "TechanalTrend TT-budget S2-4200 Twin",
 	.ts_0 = SMI_TS_DMA_BOTH,
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_M88RS6000,
@@ -1105,7 +1105,7 @@ static const struct pci_device_id smi_id_table[] = {
 	SMI_ID(0x4254, 0x0550, dvbsky_s950_cfg),
 	SMI_ID(0x4254, 0x0552, dvbsky_s952_cfg),
 	SMI_ID(0x4254, 0x5580, dvbsky_t9580_cfg),
-	SMI_ID(0x13c2, 0x3016, technotrend_s2_4200_cfg),
+	SMI_ID(0x13c2, 0x3016, techanaltrend_s2_4200_cfg),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, smi_id_table);

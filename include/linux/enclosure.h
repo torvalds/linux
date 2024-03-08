@@ -30,10 +30,10 @@ enum enclosure_status {
 	ENCLOSURE_STATUS_UNSUPPORTED = 0,
 	ENCLOSURE_STATUS_OK,
 	ENCLOSURE_STATUS_CRITICAL,
-	ENCLOSURE_STATUS_NON_CRITICAL,
+	ENCLOSURE_STATUS_ANALN_CRITICAL,
 	ENCLOSURE_STATUS_UNRECOVERABLE,
-	ENCLOSURE_STATUS_NOT_INSTALLED,
-	ENCLOSURE_STATUS_UNKNOWN,
+	ENCLOSURE_STATUS_ANALT_INSTALLED,
+	ENCLOSURE_STATUS_UNKANALWN,
 	ENCLOSURE_STATUS_UNAVAILABLE,
 	/* last element for counting purposes */
 	ENCLOSURE_STATUS_MAX
@@ -97,7 +97,7 @@ struct enclosure_component {
 
 struct enclosure_device {
 	void *scratch;
-	struct list_head node;
+	struct list_head analde;
 	struct device edev;
 	struct enclosure_component_callbacks *cb;
 	int components;

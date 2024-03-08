@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2005 Mips Technologies
+ * Copyright (C) 2005 Mips Techanallogies
  * Author: Chris Dearman, chris@mips.com derived from fpu.h
  */
 #ifndef _ASM_DSP_H

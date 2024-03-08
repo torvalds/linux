@@ -6,10 +6,10 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  coh/file.c
- *  Copyright (C) 1993  Pascal Haible, Bruno Haible
+ *  Copyright (C) 1993  Pascal Haible, Bruanal Haible
  *
  *  sysv/file.c
- *  Copyright (C) 1993  Bruno Haible
+ *  Copyright (C) 1993  Bruanal Haible
  *
  *  SystemV/Coherent regular file handling primitives
  */
@@ -32,28 +32,28 @@ const struct file_operations sysv_file_operations = {
 static int sysv_setattr(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
+	struct ianalde *ianalde = d_ianalde(dentry);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(&analp_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = inode_newsize_ok(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(ianalde)) {
+		error = ianalde_newsize_ok(ianalde, attr->ia_size);
 		if (error)
 			return error;
-		truncate_setsize(inode, attr->ia_size);
-		sysv_truncate(inode);
+		truncate_setsize(ianalde, attr->ia_size);
+		sysv_truncate(ianalde);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(&analp_mnt_idmap, ianalde, attr);
+	mark_ianalde_dirty(ianalde);
 	return 0;
 }
 
-const struct inode_operations sysv_file_inode_operations = {
+const struct ianalde_operations sysv_file_ianalde_operations = {
 	.setattr	= sysv_setattr,
 	.getattr	= sysv_getattr,
 };

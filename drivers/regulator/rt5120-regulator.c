@@ -62,7 +62,7 @@ static int rt5120_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int mask = RT5120_FPWM_MASK(rid), val;
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		val = 0;
 		break;
 	case REGULATOR_MODE_FAST:
@@ -88,7 +88,7 @@ static unsigned int rt5120_buck_get_mode(struct regulator_dev *rdev)
 	if (val & RT5120_FPWM_MASK(rid))
 		return REGULATOR_MODE_FAST;
 
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static int rt5120_regulator_get_error_flags(struct regulator_dev *rdev,
@@ -205,7 +205,7 @@ static unsigned int rt5120_buck_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
 	case RT5120_AUTO_MODE:
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 	case RT5120_FPWM_MODE:
 		return REGULATOR_MODE_FAST;
 	default:
@@ -290,7 +290,7 @@ static struct of_regulator_match rt5120_regu_match[RT5120_MAX_REGULATOR] = {
 static int rt5120_parse_regulator_dt_data(struct rt5120_priv *priv)
 {
 	struct device *dev = priv->dev->parent;
-	struct device_node *reg_node;
+	struct device_analde *reg_analde;
 	int i, ret;
 
 	for (i = 0; i < RT5120_MAX_REGULATOR; i++) {
@@ -299,16 +299,16 @@ static int rt5120_parse_regulator_dt_data(struct rt5120_priv *priv)
 		rt5120_regu_match[i].desc = priv->rdesc + i;
 	}
 
-	reg_node = of_get_child_by_name(dev->of_node, "regulators");
-	if (!reg_node) {
-		dev_err(priv->dev, "Couldn't find 'regulators' node\n");
-		return -ENODEV;
+	reg_analde = of_get_child_by_name(dev->of_analde, "regulators");
+	if (!reg_analde) {
+		dev_err(priv->dev, "Couldn't find 'regulators' analde\n");
+		return -EANALDEV;
 	}
 
-	ret = of_regulator_match(priv->dev, reg_node, rt5120_regu_match,
+	ret = of_regulator_match(priv->dev, reg_analde, rt5120_regu_match,
 				 ARRAY_SIZE(rt5120_regu_match));
 
-	of_node_put(reg_node);
+	of_analde_put(reg_analde);
 
 	if (ret < 0) {
 		dev_err(priv->dev,
@@ -330,7 +330,7 @@ static int rt5120_parse_regulator_dt_data(struct rt5120_priv *priv)
 static int rt5120_device_property_init(struct rt5120_priv *priv)
 {
 	struct device *dev = priv->dev->parent;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	bool prot_enable;
 	unsigned int prot_enable_val = 0;
 
@@ -359,14 +359,14 @@ static int rt5120_regulator_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 
 	priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!priv->regmap) {
 		dev_err(&pdev->dev, "Failed to init regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = rt5120_device_property_init(priv);
@@ -385,7 +385,7 @@ static int rt5120_regulator_probe(struct platform_device *pdev)
 	config.regmap = priv->regmap;
 
 	for (i = 0; i < RT5120_MAX_REGULATOR; i++) {
-		config.of_node = rt5120_regu_match[i].of_node;
+		config.of_analde = rt5120_regu_match[i].of_analde;
 		config.init_data = rt5120_regu_match[i].init_data;
 
 		rdev = devm_regulator_register(&pdev->dev, priv->rdesc + i,
@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(platform, rt5120_regulator_dev_table);
 static struct platform_driver rt5120_regulator_driver = {
 	.driver = {
 		.name = "rt5120-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.id_table = rt5120_regulator_dev_table,
 	.probe = rt5120_regulator_probe,

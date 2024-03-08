@@ -51,13 +51,13 @@ extern void msgqueue_free(MsgQueue_t *msgq);
 extern int msgqueue_msglength(MsgQueue_t *msgq);
 
 /*
- * Function: struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgno)
+ * Function: struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msganal)
  * Purpose : return a message & its length
  * Params  : msgq   - queue to obtain message from
- *         : msgno  - message number
+ *         : msganal  - message number
  * Returns : pointer to message string, or NULL
  */
-extern struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msgno);
+extern struct message *msgqueue_getmsg(MsgQueue_t *msgq, int msganal);
 
 /*
  * Function: int msgqueue_addmsg(MsgQueue_t *msgq, int length, ...)

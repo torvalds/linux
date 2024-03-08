@@ -13,7 +13,7 @@ static inline int __bkey_cmp_bits(const u64 *l, const u64 *r,
 
 	/* we shouldn't need asm for this, but gcc is being retarded: */
 
-	asm(".intel_syntax noprefix;"
+	asm(".intel_syntax analprefix;"
 	    "xor eax, eax;"
 	    "xor edx, edx;"
 	    "1:;"
@@ -30,7 +30,7 @@ static inline int __bkey_cmp_bits(const u64 *l, const u64 *r,
 	    "jmp 1b;"
 
 	    "2:;"
-	    "not ecx;"
+	    "analt ecx;"
 	    "shr r8, 1;"
 	    "shr r9, 1;"
 	    "shr r8, cl;"

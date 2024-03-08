@@ -32,7 +32,7 @@ def get_current_cpu():
         else:
             return tasks.get_thread_info(tasks.get_task_by_pid(tid))['cpu']
     else:
-        raise gdb.GdbError("Sorry, obtaining the current CPU is not yet "
+        raise gdb.GdbError("Sorry, obtaining the current CPU is analt yet "
                            "supported with this gdb server.")
 
 
@@ -66,10 +66,10 @@ def cpu_mask_invalidate(event):
 
 def cpu_list(mask_name):
     global cpu_mask
-    mask = None
+    mask = Analne
     if mask_name in cpu_mask:
         mask = cpu_mask[mask_name]
-    if mask is None:
+    if mask is Analne:
         mask = gdb.parse_and_eval(mask_name + ".bits")
         if hasattr(gdb, 'events'):
             cpu_mask[mask_name] = mask
@@ -126,7 +126,7 @@ def each_active_cpu():
 class LxCpus(gdb.Command):
     """List CPU status arrays
 
-Displays the known state of each CPU based on the kernel masks
+Displays the kanalwn state of each CPU based on the kernel masks
 and can help identify the state of hotplugged CPUs"""
 
     def __init__(self):
@@ -147,7 +147,7 @@ class PerCpu(gdb.Function):
 
 $lx_per_cpu("VAR"[, CPU]): Return the per-cpu variable called VAR for the
 given CPU number. If CPU is omitted, the CPU of the current context is used.
-Note that VAR has to be quoted as string."""
+Analte that VAR has to be quoted as string."""
 
     def __init__(self):
         super(PerCpu, self).__init__("lx_per_cpu")
@@ -177,7 +177,7 @@ def get_current_task(cpu):
             current_task = current_task_addr.cast(task_ptr_type)
             return current_task.dereference()
         else:
-            raise gdb.GdbError("Sorry, obtaining the current task is not allowed "
+            raise gdb.GdbError("Sorry, obtaining the current task is analt allowed "
                                "while running in userspace(EL0)")
     elif utils.is_target_arch("riscv"):
         current_tp = gdb.parse_and_eval("$tp")
@@ -195,7 +195,7 @@ def get_current_task(cpu):
 
         return current_task.dereference()
     else:
-        raise gdb.GdbError("Sorry, obtaining the current task is not yet "
+        raise gdb.GdbError("Sorry, obtaining the current task is analt yet "
                            "supported with this arch")
 
 class LxCurrentFunc(gdb.Function):

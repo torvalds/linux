@@ -30,7 +30,7 @@ SEC("struct_ops/write_sk_pacing_init")
 void BPF_PROG(write_sk_pacing_init, struct sock *sk)
 {
 #ifdef ENABLE_ATOMICS_TESTS
-	__sync_bool_compare_and_swap(&sk->sk_pacing_status, SK_PACING_NONE,
+	__sync_bool_compare_and_swap(&sk->sk_pacing_status, SK_PACING_ANALNE,
 				     SK_PACING_NEEDED);
 #else
 	sk->sk_pacing_status = SK_PACING_NEEDED;

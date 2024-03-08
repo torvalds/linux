@@ -79,7 +79,7 @@
 		printk(KERN_DEBUG f, ## a);				\
 	} while (0)
 #else
-#define ext4_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define ext4_debug(fmt, ...)	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
  /*
@@ -91,13 +91,13 @@
  * Dynamic printk for controlled extents debugging.
  */
 #ifdef CONFIG_EXT4_DEBUG
-#define ext_debug(ino, fmt, ...)					\
-	pr_debug("[%s/%d] EXT4-fs (%s): ino %lu: (%s, %d): %s:" fmt,	\
+#define ext_debug(ianal, fmt, ...)					\
+	pr_debug("[%s/%d] EXT4-fs (%s): ianal %lu: (%s, %d): %s:" fmt,	\
 		 current->comm, task_pid_nr(current),			\
-		 ino->i_sb->s_id, ino->i_ino, __FILE__, __LINE__,	\
+		 ianal->i_sb->s_id, ianal->i_ianal, __FILE__, __LINE__,	\
 		 __func__, ##__VA_ARGS__)
 #else
-#define ext_debug(ino, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#define ext_debug(ianal, fmt, ...)	anal_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define ASSERT(assert)						\
@@ -131,7 +131,7 @@ enum SHIFT_DIRECTION {
  * For each criteria, mballoc has slightly different way of finding
  * the required blocks nad usually, higher the criteria the slower the
  * allocation.  We start at lower criterias and keep falling back to
- * higher ones if we are not able to find any blocks.  Lower (earlier)
+ * higher ones if we are analt able to find any blocks.  Lower (earlier)
  * criteria are faster.
  */
 enum criteria {
@@ -144,7 +144,7 @@ enum criteria {
 
 	/*
 	 * Tries to lookup in-memory data structures to find the most
-	 * suitable group that satisfies goal request. No disk IO
+	 * suitable group that satisfies goal request. Anal disk IO
 	 * except block prefetch.
 	 */
 	CR_GOAL_LEN_FAST,
@@ -158,8 +158,8 @@ enum criteria {
 	/*
 	 * Reads each block group sequentially, performing disk IO if
 	 * necessary, to find find_suitable block group. Tries to
-	 * allocate goal length but might trim the request if nothing
-	 * is found after enough tries.
+	 * allocate goal length but might trim the request if analthing
+	 * is found after eanalugh tries.
 	 */
 	CR_GOAL_LEN_SLOW,
 
@@ -196,10 +196,10 @@ enum criteria {
 /* data is being allocated */
 #define EXT4_MB_HINT_DATA		0x0020
 /* don't preallocate (for tails) */
-#define EXT4_MB_HINT_NOPREALLOC		0x0040
+#define EXT4_MB_HINT_ANALPREALLOC		0x0040
 /* allocate for locality group */
 #define EXT4_MB_HINT_GROUP_ALLOC	0x0080
-/* allocate goal blocks or none */
+/* allocate goal blocks or analne */
 #define EXT4_MB_HINT_GOAL_ONLY		0x0100
 /* goal is meaningful */
 #define EXT4_MB_HINT_TRY_GOAL		0x0200
@@ -221,11 +221,11 @@ enum criteria {
 #define EXT4_MB_CR_BEST_AVAIL_LEN_OPTIMIZED		0x00020000
 
 struct ext4_allocation_request {
-	/* target inode for block we're allocating */
-	struct inode *inode;
+	/* target ianalde for block we're allocating */
+	struct ianalde *ianalde;
 	/* how many blocks we want to allocate */
 	unsigned int len;
-	/* logical block in target inode */
+	/* logical block in target ianalde */
 	ext4_lblk_t logical;
 	/* the closest logical allocated block to the left */
 	ext4_lblk_t lleft;
@@ -291,10 +291,10 @@ typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
 	handle_t		*handle;	/* handle reserved for extent
 						 * conversion */
-	struct inode		*inode;		/* file being written to */
+	struct ianalde		*ianalde;		/* file being written to */
 	struct bio		*bio;		/* Linked list of completed
 						 * bios covering the extent */
-	unsigned int		flag;		/* unwritten or not */
+	unsigned int		flag;		/* unwritten or analt */
 	refcount_t		count;		/* reference counter */
 	struct list_head	list_vec;	/* list of ext4_io_end_vec */
 } ext4_io_end_t;
@@ -307,19 +307,19 @@ struct ext4_io_submit {
 };
 
 /*
- * Special inodes numbers
+ * Special ianaldes numbers
  */
-#define	EXT4_BAD_INO		 1	/* Bad blocks inode */
-#define EXT4_ROOT_INO		 2	/* Root inode */
-#define EXT4_USR_QUOTA_INO	 3	/* User quota inode */
-#define EXT4_GRP_QUOTA_INO	 4	/* Group quota inode */
-#define EXT4_BOOT_LOADER_INO	 5	/* Boot loader inode */
-#define EXT4_UNDEL_DIR_INO	 6	/* Undelete directory inode */
-#define EXT4_RESIZE_INO		 7	/* Reserved group descriptors inode */
-#define EXT4_JOURNAL_INO	 8	/* Journal inode */
+#define	EXT4_BAD_IANAL		 1	/* Bad blocks ianalde */
+#define EXT4_ROOT_IANAL		 2	/* Root ianalde */
+#define EXT4_USR_QUOTA_IANAL	 3	/* User quota ianalde */
+#define EXT4_GRP_QUOTA_IANAL	 4	/* Group quota ianalde */
+#define EXT4_BOOT_LOADER_IANAL	 5	/* Boot loader ianalde */
+#define EXT4_UNDEL_DIR_IANAL	 6	/* Undelete directory ianalde */
+#define EXT4_RESIZE_IANAL		 7	/* Reserved group descriptors ianalde */
+#define EXT4_JOURNAL_IANAL	 8	/* Journal ianalde */
 
-/* First non-reserved inode for old ext4 filesystems */
-#define EXT4_GOOD_OLD_FIRST_INO	11
+/* First analn-reserved ianalde for old ext4 filesystems */
+#define EXT4_GOOD_OLD_FIRST_IANAL	11
 
 /*
  * Maximal count of links to a file
@@ -350,15 +350,15 @@ struct ext4_io_submit {
 #endif
 #ifdef __KERNEL__
 #define	EXT4_ADDR_PER_BLOCK_BITS(s)	(EXT4_SB(s)->s_addr_per_block_bits)
-#define EXT4_INODE_SIZE(s)		(EXT4_SB(s)->s_inode_size)
-#define EXT4_FIRST_INO(s)		(EXT4_SB(s)->s_first_ino)
+#define EXT4_IANALDE_SIZE(s)		(EXT4_SB(s)->s_ianalde_size)
+#define EXT4_FIRST_IANAL(s)		(EXT4_SB(s)->s_first_ianal)
 #else
-#define EXT4_INODE_SIZE(s)	(((s)->s_rev_level == EXT4_GOOD_OLD_REV) ? \
-				 EXT4_GOOD_OLD_INODE_SIZE : \
-				 (s)->s_inode_size)
-#define EXT4_FIRST_INO(s)	(((s)->s_rev_level == EXT4_GOOD_OLD_REV) ? \
-				 EXT4_GOOD_OLD_FIRST_INO : \
-				 (s)->s_first_ino)
+#define EXT4_IANALDE_SIZE(s)	(((s)->s_rev_level == EXT4_GOOD_OLD_REV) ? \
+				 EXT4_GOOD_OLD_IANALDE_SIZE : \
+				 (s)->s_ianalde_size)
+#define EXT4_FIRST_IANAL(s)	(((s)->s_rev_level == EXT4_GOOD_OLD_REV) ? \
+				 EXT4_GOOD_OLD_FIRST_IANAL : \
+				 (s)->s_first_ianal)
 #endif
 #define EXT4_BLOCK_ALIGN(size, blkbits)		ALIGN((size), (1 << (blkbits)))
 #define EXT4_MAX_BLOCKS(size, offset, blkbits) \
@@ -392,32 +392,32 @@ struct ext4_io_submit {
 struct ext4_group_desc
 {
 	__le32	bg_block_bitmap_lo;	/* Blocks bitmap block */
-	__le32	bg_inode_bitmap_lo;	/* Inodes bitmap block */
-	__le32	bg_inode_table_lo;	/* Inodes table block */
+	__le32	bg_ianalde_bitmap_lo;	/* Ianaldes bitmap block */
+	__le32	bg_ianalde_table_lo;	/* Ianaldes table block */
 	__le16	bg_free_blocks_count_lo;/* Free blocks count */
-	__le16	bg_free_inodes_count_lo;/* Free inodes count */
+	__le16	bg_free_ianaldes_count_lo;/* Free ianaldes count */
 	__le16	bg_used_dirs_count_lo;	/* Directories count */
-	__le16	bg_flags;		/* EXT4_BG_flags (INODE_UNINIT, etc) */
+	__le16	bg_flags;		/* EXT4_BG_flags (IANALDE_UNINIT, etc) */
 	__le32  bg_exclude_bitmap_lo;   /* Exclude bitmap for snapshots */
 	__le16  bg_block_bitmap_csum_lo;/* crc32c(s_uuid+grp_num+bbitmap) LE */
-	__le16  bg_inode_bitmap_csum_lo;/* crc32c(s_uuid+grp_num+ibitmap) LE */
-	__le16  bg_itable_unused_lo;	/* Unused inodes count */
+	__le16  bg_ianalde_bitmap_csum_lo;/* crc32c(s_uuid+grp_num+ibitmap) LE */
+	__le16  bg_itable_unused_lo;	/* Unused ianaldes count */
 	__le16  bg_checksum;		/* crc16(sb_uuid+group+desc) */
 	__le32	bg_block_bitmap_hi;	/* Blocks bitmap block MSB */
-	__le32	bg_inode_bitmap_hi;	/* Inodes bitmap block MSB */
-	__le32	bg_inode_table_hi;	/* Inodes table block MSB */
+	__le32	bg_ianalde_bitmap_hi;	/* Ianaldes bitmap block MSB */
+	__le32	bg_ianalde_table_hi;	/* Ianaldes table block MSB */
 	__le16	bg_free_blocks_count_hi;/* Free blocks count MSB */
-	__le16	bg_free_inodes_count_hi;/* Free inodes count MSB */
+	__le16	bg_free_ianaldes_count_hi;/* Free ianaldes count MSB */
 	__le16	bg_used_dirs_count_hi;	/* Directories count MSB */
-	__le16  bg_itable_unused_hi;    /* Unused inodes count MSB */
+	__le16  bg_itable_unused_hi;    /* Unused ianaldes count MSB */
 	__le32  bg_exclude_bitmap_hi;   /* Exclude bitmap block MSB */
 	__le16  bg_block_bitmap_csum_hi;/* crc32c(s_uuid+grp_num+bbitmap) BE */
-	__le16  bg_inode_bitmap_csum_hi;/* crc32c(s_uuid+grp_num+ibitmap) BE */
+	__le16  bg_ianalde_bitmap_csum_hi;/* crc32c(s_uuid+grp_num+ibitmap) BE */
 	__u32   bg_reserved;
 };
 
-#define EXT4_BG_INODE_BITMAP_CSUM_HI_END	\
-	(offsetof(struct ext4_group_desc, bg_inode_bitmap_csum_hi) + \
+#define EXT4_BG_IANALDE_BITMAP_CSUM_HI_END	\
+	(offsetof(struct ext4_group_desc, bg_ianalde_bitmap_csum_hi) + \
 	 sizeof(__le16))
 #define EXT4_BG_BLOCK_BITMAP_CSUM_HI_END	\
 	(offsetof(struct ext4_group_desc, bg_block_bitmap_csum_hi) + \
@@ -429,13 +429,13 @@ struct ext4_group_desc
 
 struct flex_groups {
 	atomic64_t	free_clusters;
-	atomic_t	free_inodes;
+	atomic_t	free_ianaldes;
 	atomic_t	used_dirs;
 };
 
-#define EXT4_BG_INODE_UNINIT	0x0001 /* Inode table/bitmap not in use */
-#define EXT4_BG_BLOCK_UNINIT	0x0002 /* Block bitmap not in use */
-#define EXT4_BG_INODE_ZEROED	0x0004 /* On-disk itable initialized to zero */
+#define EXT4_BG_IANALDE_UNINIT	0x0001 /* Ianalde table/bitmap analt in use */
+#define EXT4_BG_BLOCK_UNINIT	0x0002 /* Block bitmap analt in use */
+#define EXT4_BG_IANALDE_ZEROED	0x0004 /* On-disk itable initialized to zero */
 
 /*
  * Macro-instructions used to manage group descriptors
@@ -448,12 +448,12 @@ struct flex_groups {
 # define EXT4_BLOCKS_PER_GROUP(s)	(EXT4_SB(s)->s_blocks_per_group)
 # define EXT4_CLUSTERS_PER_GROUP(s)	(EXT4_SB(s)->s_clusters_per_group)
 # define EXT4_DESC_PER_BLOCK(s)		(EXT4_SB(s)->s_desc_per_block)
-# define EXT4_INODES_PER_GROUP(s)	(EXT4_SB(s)->s_inodes_per_group)
+# define EXT4_IANALDES_PER_GROUP(s)	(EXT4_SB(s)->s_ianaldes_per_group)
 # define EXT4_DESC_PER_BLOCK_BITS(s)	(EXT4_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT4_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
 # define EXT4_DESC_PER_BLOCK(s)		(EXT4_BLOCK_SIZE(s) / EXT4_DESC_SIZE(s))
-# define EXT4_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
+# define EXT4_IANALDES_PER_GROUP(s)	((s)->s_ianaldes_per_group)
 #endif
 
 /*
@@ -466,38 +466,38 @@ struct flex_groups {
 #define	EXT4_N_BLOCKS			(EXT4_TIND_BLOCK + 1)
 
 /*
- * Inode flags
+ * Ianalde flags
  */
 #define	EXT4_SECRM_FL			0x00000001 /* Secure deletion */
 #define	EXT4_UNRM_FL			0x00000002 /* Undelete */
 #define	EXT4_COMPR_FL			0x00000004 /* Compress file */
-#define EXT4_SYNC_FL			0x00000008 /* Synchronous updates */
+#define EXT4_SYNC_FL			0x00000008 /* Synchroanalus updates */
 #define EXT4_IMMUTABLE_FL		0x00000010 /* Immutable file */
 #define EXT4_APPEND_FL			0x00000020 /* writes to file may only append */
-#define EXT4_NODUMP_FL			0x00000040 /* do not dump file */
-#define EXT4_NOATIME_FL			0x00000080 /* do not update atime */
+#define EXT4_ANALDUMP_FL			0x00000040 /* do analt dump file */
+#define EXT4_ANALATIME_FL			0x00000080 /* do analt update atime */
 /* Reserved for compression usage... */
 #define EXT4_DIRTY_FL			0x00000100
 #define EXT4_COMPRBLK_FL		0x00000200 /* One or more compressed clusters */
-#define EXT4_NOCOMPR_FL			0x00000400 /* Don't compress */
+#define EXT4_ANALCOMPR_FL			0x00000400 /* Don't compress */
 	/* nb: was previously EXT2_ECOMPR_FL */
 #define EXT4_ENCRYPT_FL			0x00000800 /* encrypted file */
-/* End compression flags --- maybe not all used */
+/* End compression flags --- maybe analt all used */
 #define EXT4_INDEX_FL			0x00001000 /* hash-indexed directory */
 #define EXT4_IMAGIC_FL			0x00002000 /* AFS directory */
 #define EXT4_JOURNAL_DATA_FL		0x00004000 /* file data should be journaled */
-#define EXT4_NOTAIL_FL			0x00008000 /* file tail should not be merged */
+#define EXT4_ANALTAIL_FL			0x00008000 /* file tail should analt be merged */
 #define EXT4_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define EXT4_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define EXT4_HUGE_FILE_FL               0x00040000 /* Set to each huge file */
-#define EXT4_EXTENTS_FL			0x00080000 /* Inode uses extents */
-#define EXT4_VERITY_FL			0x00100000 /* Verity protected inode */
-#define EXT4_EA_INODE_FL	        0x00200000 /* Inode used for large EA */
+#define EXT4_EXTENTS_FL			0x00080000 /* Ianalde uses extents */
+#define EXT4_VERITY_FL			0x00100000 /* Verity protected ianalde */
+#define EXT4_EA_IANALDE_FL	        0x00200000 /* Ianalde used for large EA */
 /* 0x00400000 was formerly EXT4_EOFBLOCKS_FL */
 
-#define EXT4_DAX_FL			0x02000000 /* Inode is DAX */
+#define EXT4_DAX_FL			0x02000000 /* Ianalde is DAX */
 
-#define EXT4_INLINE_DATA_FL		0x10000000 /* Inode has inline data. */
+#define EXT4_INLINE_DATA_FL		0x10000000 /* Ianalde has inline data. */
 #define EXT4_PROJINHERIT_FL		0x20000000 /* Create with parents projid */
 #define EXT4_CASEFOLD_FL		0x40000000 /* Casefolded directory */
 #define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
@@ -509,10 +509,10 @@ struct flex_groups {
 					 EXT4_SYNC_FL | \
 					 EXT4_IMMUTABLE_FL | \
 					 EXT4_APPEND_FL | \
-					 EXT4_NODUMP_FL | \
-					 EXT4_NOATIME_FL | \
+					 EXT4_ANALDUMP_FL | \
+					 EXT4_ANALATIME_FL | \
 					 EXT4_JOURNAL_DATA_FL | \
-					 EXT4_NOTAIL_FL | \
+					 EXT4_ANALTAIL_FL | \
 					 EXT4_DIRSYNC_FL | \
 					 EXT4_TOPDIR_FL | \
 					 EXT4_EXTENTS_FL | \
@@ -525,17 +525,17 @@ struct flex_groups {
 #define EXT4_FL_USER_VISIBLE		(EXT4_FL_USER_MODIFIABLE | \
 					 EXT4_DIRTY_FL | \
 					 EXT4_COMPRBLK_FL | \
-					 EXT4_NOCOMPR_FL | \
+					 EXT4_ANALCOMPR_FL | \
 					 EXT4_ENCRYPT_FL | \
 					 EXT4_INDEX_FL | \
 					 EXT4_VERITY_FL | \
 					 EXT4_INLINE_DATA_FL)
 
-/* Flags that should be inherited by new inodes from their parent. */
+/* Flags that should be inherited by new ianaldes from their parent. */
 #define EXT4_FL_INHERITED (EXT4_SECRM_FL | EXT4_UNRM_FL | EXT4_COMPR_FL |\
-			   EXT4_SYNC_FL | EXT4_NODUMP_FL | EXT4_NOATIME_FL |\
-			   EXT4_NOCOMPR_FL | EXT4_JOURNAL_DATA_FL |\
-			   EXT4_NOTAIL_FL | EXT4_DIRSYNC_FL |\
+			   EXT4_SYNC_FL | EXT4_ANALDUMP_FL | EXT4_ANALATIME_FL |\
+			   EXT4_ANALCOMPR_FL | EXT4_JOURNAL_DATA_FL |\
+			   EXT4_ANALTAIL_FL | EXT4_DIRSYNC_FL |\
 			   EXT4_PROJINHERIT_FL | EXT4_CASEFOLD_FL |\
 			   EXT4_DAX_FL)
 
@@ -543,8 +543,8 @@ struct flex_groups {
 #define EXT4_REG_FLMASK (~(EXT4_DIRSYNC_FL | EXT4_TOPDIR_FL | EXT4_CASEFOLD_FL |\
 			   EXT4_PROJINHERIT_FL))
 
-/* Flags that are appropriate for non-directories/regular files. */
-#define EXT4_OTHER_FLMASK (EXT4_NODUMP_FL | EXT4_NOATIME_FL)
+/* Flags that are appropriate for analn-directories/regular files. */
+#define EXT4_OTHER_FLMASK (EXT4_ANALDUMP_FL | EXT4_ANALATIME_FL)
 
 /* The only flags that should be swapped */
 #define EXT4_FL_SHOULD_SWAP (EXT4_HUGE_FILE_FL | EXT4_EXTENTS_FL)
@@ -553,7 +553,7 @@ struct flex_groups {
 #define EXT4_DAX_MUT_EXCL (EXT4_VERITY_FL | EXT4_ENCRYPT_FL |\
 			   EXT4_JOURNAL_DATA_FL | EXT4_INLINE_DATA_FL)
 
-/* Mask out flags that are inappropriate for the given type of inode. */
+/* Mask out flags that are inappropriate for the given type of ianalde. */
 static inline __u32 ext4_mask_flags(umode_t mode, __u32 flags)
 {
 	if (S_ISDIR(mode))
@@ -565,55 +565,55 @@ static inline __u32 ext4_mask_flags(umode_t mode, __u32 flags)
 }
 
 /*
- * Inode flags used for atomic set/get
+ * Ianalde flags used for atomic set/get
  */
 enum {
-	EXT4_INODE_SECRM	= 0,	/* Secure deletion */
-	EXT4_INODE_UNRM		= 1,	/* Undelete */
-	EXT4_INODE_COMPR	= 2,	/* Compress file */
-	EXT4_INODE_SYNC		= 3,	/* Synchronous updates */
-	EXT4_INODE_IMMUTABLE	= 4,	/* Immutable file */
-	EXT4_INODE_APPEND	= 5,	/* writes to file may only append */
-	EXT4_INODE_NODUMP	= 6,	/* do not dump file */
-	EXT4_INODE_NOATIME	= 7,	/* do not update atime */
+	EXT4_IANALDE_SECRM	= 0,	/* Secure deletion */
+	EXT4_IANALDE_UNRM		= 1,	/* Undelete */
+	EXT4_IANALDE_COMPR	= 2,	/* Compress file */
+	EXT4_IANALDE_SYNC		= 3,	/* Synchroanalus updates */
+	EXT4_IANALDE_IMMUTABLE	= 4,	/* Immutable file */
+	EXT4_IANALDE_APPEND	= 5,	/* writes to file may only append */
+	EXT4_IANALDE_ANALDUMP	= 6,	/* do analt dump file */
+	EXT4_IANALDE_ANALATIME	= 7,	/* do analt update atime */
 /* Reserved for compression usage... */
-	EXT4_INODE_DIRTY	= 8,
-	EXT4_INODE_COMPRBLK	= 9,	/* One or more compressed clusters */
-	EXT4_INODE_NOCOMPR	= 10,	/* Don't compress */
-	EXT4_INODE_ENCRYPT	= 11,	/* Encrypted file */
-/* End compression flags --- maybe not all used */
-	EXT4_INODE_INDEX	= 12,	/* hash-indexed directory */
-	EXT4_INODE_IMAGIC	= 13,	/* AFS directory */
-	EXT4_INODE_JOURNAL_DATA	= 14,	/* file data should be journaled */
-	EXT4_INODE_NOTAIL	= 15,	/* file tail should not be merged */
-	EXT4_INODE_DIRSYNC	= 16,	/* dirsync behaviour (directories only) */
-	EXT4_INODE_TOPDIR	= 17,	/* Top of directory hierarchies*/
-	EXT4_INODE_HUGE_FILE	= 18,	/* Set to each huge file */
-	EXT4_INODE_EXTENTS	= 19,	/* Inode uses extents */
-	EXT4_INODE_VERITY	= 20,	/* Verity protected inode */
-	EXT4_INODE_EA_INODE	= 21,	/* Inode used for large EA */
-/* 22 was formerly EXT4_INODE_EOFBLOCKS */
-	EXT4_INODE_DAX		= 25,	/* Inode is DAX */
-	EXT4_INODE_INLINE_DATA	= 28,	/* Data in inode. */
-	EXT4_INODE_PROJINHERIT	= 29,	/* Create with parents projid */
-	EXT4_INODE_CASEFOLD	= 30,	/* Casefolded directory */
-	EXT4_INODE_RESERVED	= 31,	/* reserved for ext4 lib */
+	EXT4_IANALDE_DIRTY	= 8,
+	EXT4_IANALDE_COMPRBLK	= 9,	/* One or more compressed clusters */
+	EXT4_IANALDE_ANALCOMPR	= 10,	/* Don't compress */
+	EXT4_IANALDE_ENCRYPT	= 11,	/* Encrypted file */
+/* End compression flags --- maybe analt all used */
+	EXT4_IANALDE_INDEX	= 12,	/* hash-indexed directory */
+	EXT4_IANALDE_IMAGIC	= 13,	/* AFS directory */
+	EXT4_IANALDE_JOURNAL_DATA	= 14,	/* file data should be journaled */
+	EXT4_IANALDE_ANALTAIL	= 15,	/* file tail should analt be merged */
+	EXT4_IANALDE_DIRSYNC	= 16,	/* dirsync behaviour (directories only) */
+	EXT4_IANALDE_TOPDIR	= 17,	/* Top of directory hierarchies*/
+	EXT4_IANALDE_HUGE_FILE	= 18,	/* Set to each huge file */
+	EXT4_IANALDE_EXTENTS	= 19,	/* Ianalde uses extents */
+	EXT4_IANALDE_VERITY	= 20,	/* Verity protected ianalde */
+	EXT4_IANALDE_EA_IANALDE	= 21,	/* Ianalde used for large EA */
+/* 22 was formerly EXT4_IANALDE_EOFBLOCKS */
+	EXT4_IANALDE_DAX		= 25,	/* Ianalde is DAX */
+	EXT4_IANALDE_INLINE_DATA	= 28,	/* Data in ianalde. */
+	EXT4_IANALDE_PROJINHERIT	= 29,	/* Create with parents projid */
+	EXT4_IANALDE_CASEFOLD	= 30,	/* Casefolded directory */
+	EXT4_IANALDE_RESERVED	= 31,	/* reserved for ext4 lib */
 };
 
 /*
  * Since it's pretty easy to mix up bit numbers and hex values, we use a
  * build-time check to make sure that EXT4_XXX_FL is consistent with respect to
- * EXT4_INODE_XXX. If all is well, the macros will be dropped, so, it won't cost
+ * EXT4_IANALDE_XXX. If all is well, the macros will be dropped, so, it won't cost
  * any extra space in the compiled kernel image, otherwise, the build will fail.
  * It's important that these values are the same, since we are using
- * EXT4_INODE_XXX to test for flag values, but EXT4_XXX_FL must be consistent
+ * EXT4_IANALDE_XXX to test for flag values, but EXT4_XXX_FL must be consistent
  * with the values of FS_XXX_FL defined in include/linux/fs.h and the on-disk
  * values found in ext2, ext3 and ext4 filesystems, and of course the values
  * defined in e2fsprogs.
  *
- * It's not paranoia if the Murphy's Law really *is* out to get you.  :-)
+ * It's analt paraanalia if the Murphy's Law really *is* out to get you.  :-)
  */
-#define TEST_FLAG_VALUE(FLAG) (EXT4_##FLAG##_FL == (1U << EXT4_INODE_##FLAG))
+#define TEST_FLAG_VALUE(FLAG) (EXT4_##FLAG##_FL == (1U << EXT4_IANALDE_##FLAG))
 #define CHECK_FLAG_VALUE(FLAG) BUILD_BUG_ON(!TEST_FLAG_VALUE(FLAG))
 
 static inline void ext4_check_flag_values(void)
@@ -624,22 +624,22 @@ static inline void ext4_check_flag_values(void)
 	CHECK_FLAG_VALUE(SYNC);
 	CHECK_FLAG_VALUE(IMMUTABLE);
 	CHECK_FLAG_VALUE(APPEND);
-	CHECK_FLAG_VALUE(NODUMP);
-	CHECK_FLAG_VALUE(NOATIME);
+	CHECK_FLAG_VALUE(ANALDUMP);
+	CHECK_FLAG_VALUE(ANALATIME);
 	CHECK_FLAG_VALUE(DIRTY);
 	CHECK_FLAG_VALUE(COMPRBLK);
-	CHECK_FLAG_VALUE(NOCOMPR);
+	CHECK_FLAG_VALUE(ANALCOMPR);
 	CHECK_FLAG_VALUE(ENCRYPT);
 	CHECK_FLAG_VALUE(INDEX);
 	CHECK_FLAG_VALUE(IMAGIC);
 	CHECK_FLAG_VALUE(JOURNAL_DATA);
-	CHECK_FLAG_VALUE(NOTAIL);
+	CHECK_FLAG_VALUE(ANALTAIL);
 	CHECK_FLAG_VALUE(DIRSYNC);
 	CHECK_FLAG_VALUE(TOPDIR);
 	CHECK_FLAG_VALUE(HUGE_FILE);
 	CHECK_FLAG_VALUE(EXTENTS);
 	CHECK_FLAG_VALUE(VERITY);
-	CHECK_FLAG_VALUE(EA_INODE);
+	CHECK_FLAG_VALUE(EA_IANALDE);
 	CHECK_FLAG_VALUE(INLINE_DATA);
 	CHECK_FLAG_VALUE(PROJINHERIT);
 	CHECK_FLAG_VALUE(CASEFOLD);
@@ -650,8 +650,8 @@ static inline void ext4_check_flag_values(void)
 struct compat_ext4_new_group_input {
 	u32 group;
 	compat_u64 block_bitmap;
-	compat_u64 inode_bitmap;
-	compat_u64 inode_table;
+	compat_u64 ianalde_bitmap;
+	compat_u64 ianalde_table;
 	u32 blocks_count;
 	u16 reserved_blocks;
 	u16 unused;
@@ -662,8 +662,8 @@ struct compat_ext4_new_group_input {
 struct ext4_new_group_data {
 	__u32 group;
 	__u64 block_bitmap;
-	__u64 inode_bitmap;
-	__u64 inode_table;
+	__u64 ianalde_bitmap;
+	__u64 ianalde_table;
 	__u32 blocks_count;
 	__u16 reserved_blocks;
 	__u16 mdata_blocks;
@@ -673,8 +673,8 @@ struct ext4_new_group_data {
 /* Indexes used to index group tables in ext4_new_group_data */
 enum {
 	BLOCK_BITMAP = 0,	/* block bitmap */
-	INODE_BITMAP,		/* inode bitmap */
-	INODE_TABLE,		/* inode tables */
+	IANALDE_BITMAP,		/* ianalde bitmap */
+	IANALDE_TABLE,		/* ianalde tables */
 	GROUP_TABLE_COUNT,
 };
 
@@ -692,7 +692,7 @@ enum {
 	 * finally doing the actual allocation of delayed blocks */
 #define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
 	/* caller is from the direct IO path, request to creation of an
-	unwritten extents if not allocated, split the unwritten
+	unwritten extents if analt allocated, split the unwritten
 	extent if blocks has been preallocated already*/
 #define EXT4_GET_BLOCKS_PRE_IO			0x0008
 #define EXT4_GET_BLOCKS_CONVERT			0x0010
@@ -702,10 +702,10 @@ enum {
 #define EXT4_GET_BLOCKS_IO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
 					 EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT)
 	/* Eventual metadata allocation (due to growing extent tree)
-	 * should not fail, so try to use reserved blocks for that.*/
-#define EXT4_GET_BLOCKS_METADATA_NOFAIL		0x0020
-	/* Don't normalize allocation size (used for fallocate) */
-#define EXT4_GET_BLOCKS_NO_NORMALIZE		0x0040
+	 * should analt fail, so try to use reserved blocks for that.*/
+#define EXT4_GET_BLOCKS_METADATA_ANALFAIL		0x0020
+	/* Don't analrmalize allocation size (used for fallocate) */
+#define EXT4_GET_BLOCKS_ANAL_ANALRMALIZE		0x0040
 	/* Convert written extents to unwritten */
 #define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0100
 	/* Write zeros to newly created written extents */
@@ -716,20 +716,20 @@ enum {
 	 * allows jbd2 to avoid submitting data before commit. */
 #define EXT4_GET_BLOCKS_IO_SUBMIT		0x0400
 	/* Caller is in the atomic contex, find extent if it has been cached */
-#define EXT4_GET_BLOCKS_CACHED_NOWAIT		0x0800
+#define EXT4_GET_BLOCKS_CACHED_ANALWAIT		0x0800
 
 /*
- * The bit position of these flags must not overlap with any of the
+ * The bit position of these flags must analt overlap with any of the
  * EXT4_GET_BLOCKS_*.  They are used by ext4_find_extent(),
  * read_extent_tree_block(), ext4_split_extent_at(),
  * ext4_ext_insert_extent(), and ext4_ext_create_new_leaf().
- * EXT4_EX_NOCACHE is used to indicate that the we shouldn't be
+ * EXT4_EX_ANALCACHE is used to indicate that the we shouldn't be
  * caching the extents when reading from the extent tree while a
  * truncate or punch hole operation is in progress.
  */
-#define EXT4_EX_NOCACHE				0x40000000
+#define EXT4_EX_ANALCACHE				0x40000000
 #define EXT4_EX_FORCE_CACHE			0x20000000
-#define EXT4_EX_NOFAIL				0x10000000
+#define EXT4_EX_ANALFAIL				0x10000000
 
 /*
  * Flags used by ext4_free_blocks
@@ -737,9 +737,9 @@ enum {
 #define EXT4_FREE_BLOCKS_METADATA		0x0001
 #define EXT4_FREE_BLOCKS_FORGET			0x0002
 #define EXT4_FREE_BLOCKS_VALIDATED		0x0004
-#define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE		0x0008
-#define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
-#define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
+#define EXT4_FREE_BLOCKS_ANAL_QUOT_UPDATE		0x0008
+#define EXT4_FREE_BLOCKS_ANALFREE_FIRST_CLUSTER	0x0010
+#define EXT4_FREE_BLOCKS_ANALFREE_LAST_CLUSTER	0x0020
 #define EXT4_FREE_BLOCKS_RERESERVE_CLUSTER      0x0040
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
@@ -763,14 +763,14 @@ enum {
 #define EXT4_MAX_LOGICAL_BLOCK		0xFFFFFFFE
 
 /*
- * Structure of an inode on the disk
+ * Structure of an ianalde on the disk
  */
-struct ext4_inode {
+struct ext4_ianalde {
 	__le16	i_mode;		/* File mode */
 	__le16	i_uid;		/* Low 16 bits of Owner Uid */
 	__le32	i_size_lo;	/* Size in bytes */
 	__le32	i_atime;	/* Access time */
-	__le32	i_ctime;	/* Inode Change time */
+	__le32	i_ctime;	/* Ianalde Change time */
 	__le32	i_mtime;	/* Modification time */
 	__le32	i_dtime;	/* Deletion Time */
 	__le16	i_gid;		/* Low 16 bits of Group Id */
@@ -799,7 +799,7 @@ struct ext4_inode {
 			__le16	l_i_file_acl_high;
 			__le16	l_i_uid_high;	/* these 2 fields */
 			__le16	l_i_gid_high;	/* were reserved2[0] */
-			__le16	l_i_checksum_lo;/* crc32c(uuid+inum+inode) LE */
+			__le16	l_i_checksum_lo;/* crc32c(uuid+inum+ianalde) LE */
 			__le16	l_i_reserved;
 		} linux2;
 		struct {
@@ -816,7 +816,7 @@ struct ext4_inode {
 		} masix2;
 	} osd2;				/* OS dependent 2 */
 	__le16	i_extra_isize;
-	__le16	i_checksum_hi;	/* crc32c(uuid+inum+inode) BE */
+	__le16	i_checksum_hi;	/* crc32c(uuid+inum+ianalde) BE */
 	__le32  i_ctime_extra;  /* extra Change time      (nsec << 2 | epoch) */
 	__le32  i_mtime_extra;  /* extra Modification time(nsec << 2 | epoch) */
 	__le32  i_atime_extra;  /* extra Access time      (nsec << 2 | epoch) */
@@ -831,20 +831,20 @@ struct ext4_inode {
 #define EXT4_NSEC_MASK  (~0UL << EXT4_EPOCH_BITS)
 
 /*
- * Extended fields will fit into an inode if the filesystem was formatted
- * with large inodes (-I 256 or larger) and there are not currently any EAs
- * consuming all of the available space. For new inodes we always reserve
- * enough space for the kernel's known extended fields, but for inodes
- * created with an old kernel this might not have been the case. None of
- * the extended inode fields is critical for correct filesystem operation.
- * This macro checks if a certain field fits in the inode. Note that
- * inode-size = GOOD_OLD_INODE_SIZE + i_extra_isize
+ * Extended fields will fit into an ianalde if the filesystem was formatted
+ * with large ianaldes (-I 256 or larger) and there are analt currently any EAs
+ * consuming all of the available space. For new ianaldes we always reserve
+ * eanalugh space for the kernel's kanalwn extended fields, but for ianaldes
+ * created with an old kernel this might analt have been the case. Analne of
+ * the extended ianalde fields is critical for correct filesystem operation.
+ * This macro checks if a certain field fits in the ianalde. Analte that
+ * ianalde-size = GOOD_OLD_IANALDE_SIZE + i_extra_isize
  */
-#define EXT4_FITS_IN_INODE(ext4_inode, einode, field)	\
-	((offsetof(typeof(*ext4_inode), field) +	\
-	  sizeof((ext4_inode)->field))			\
-	<= (EXT4_GOOD_OLD_INODE_SIZE +			\
-	    (einode)->i_extra_isize))			\
+#define EXT4_FITS_IN_IANALDE(ext4_ianalde, eianalde, field)	\
+	((offsetof(typeof(*ext4_ianalde), field) +	\
+	  sizeof((ext4_ianalde)->field))			\
+	<= (EXT4_GOOD_OLD_IANALDE_SIZE +			\
+	    (eianalde)->i_extra_isize))			\
 
 /*
  * We use an encoding that preserves the times for extra epoch "00":
@@ -861,7 +861,7 @@ struct ext4_inode {
  * 1 1    1    0x280000000..0x2ffffffff  0x300000000 2310-04-04..2378-04-22
  * 1 1    0    0x300000000..0x37fffffff  0x300000000 2378-04-22..2446-05-10
  *
- * Note that previous versions of the kernel on 64-bit systems would
+ * Analte that previous versions of the kernel on 64-bit systems would
  * incorrectly use extra epoch bits 1,1 for dates between 1901 and
  * 1970.  e2fsck will correct this, assuming that it is run on the
  * affected filesystem before 2242.
@@ -884,63 +884,63 @@ static inline struct timespec64 ext4_decode_extra_time(__le32 base,
 	return ts;
 }
 
-#define EXT4_INODE_SET_XTIME_VAL(xtime, inode, raw_inode, ts)			\
+#define EXT4_IANALDE_SET_XTIME_VAL(xtime, ianalde, raw_ianalde, ts)			\
 do {										\
-	if (EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra)) {	\
-		(raw_inode)->xtime = cpu_to_le32((ts).tv_sec);			\
-		(raw_inode)->xtime ## _extra = ext4_encode_extra_time(ts);	\
+	if (EXT4_FITS_IN_IANALDE(raw_ianalde, EXT4_I(ianalde), xtime ## _extra)) {	\
+		(raw_ianalde)->xtime = cpu_to_le32((ts).tv_sec);			\
+		(raw_ianalde)->xtime ## _extra = ext4_encode_extra_time(ts);	\
 	} else									\
-		(raw_inode)->xtime = cpu_to_le32(clamp_t(int32_t, (ts).tv_sec, S32_MIN, S32_MAX));	\
+		(raw_ianalde)->xtime = cpu_to_le32(clamp_t(int32_t, (ts).tv_sec, S32_MIN, S32_MAX));	\
 } while (0)
 
-#define EXT4_INODE_SET_ATIME(inode, raw_inode)						\
-	EXT4_INODE_SET_XTIME_VAL(i_atime, inode, raw_inode, inode_get_atime(inode))
+#define EXT4_IANALDE_SET_ATIME(ianalde, raw_ianalde)						\
+	EXT4_IANALDE_SET_XTIME_VAL(i_atime, ianalde, raw_ianalde, ianalde_get_atime(ianalde))
 
-#define EXT4_INODE_SET_MTIME(inode, raw_inode)						\
-	EXT4_INODE_SET_XTIME_VAL(i_mtime, inode, raw_inode, inode_get_mtime(inode))
+#define EXT4_IANALDE_SET_MTIME(ianalde, raw_ianalde)						\
+	EXT4_IANALDE_SET_XTIME_VAL(i_mtime, ianalde, raw_ianalde, ianalde_get_mtime(ianalde))
 
-#define EXT4_INODE_SET_CTIME(inode, raw_inode)						\
-	EXT4_INODE_SET_XTIME_VAL(i_ctime, inode, raw_inode, inode_get_ctime(inode))
+#define EXT4_IANALDE_SET_CTIME(ianalde, raw_ianalde)						\
+	EXT4_IANALDE_SET_XTIME_VAL(i_ctime, ianalde, raw_ianalde, ianalde_get_ctime(ianalde))
 
-#define EXT4_EINODE_SET_XTIME(xtime, einode, raw_inode)				\
-	if (EXT4_FITS_IN_INODE(raw_inode, einode, xtime))			\
-		EXT4_INODE_SET_XTIME_VAL(xtime, &((einode)->vfs_inode),		\
-					 raw_inode, (einode)->xtime)
+#define EXT4_EIANALDE_SET_XTIME(xtime, eianalde, raw_ianalde)				\
+	if (EXT4_FITS_IN_IANALDE(raw_ianalde, eianalde, xtime))			\
+		EXT4_IANALDE_SET_XTIME_VAL(xtime, &((eianalde)->vfs_ianalde),		\
+					 raw_ianalde, (eianalde)->xtime)
 
-#define EXT4_INODE_GET_XTIME_VAL(xtime, inode, raw_inode)			\
-	(EXT4_FITS_IN_INODE(raw_inode, EXT4_I(inode), xtime ## _extra) ?	\
-		ext4_decode_extra_time((raw_inode)->xtime,				\
-				       (raw_inode)->xtime ## _extra) :		\
+#define EXT4_IANALDE_GET_XTIME_VAL(xtime, ianalde, raw_ianalde)			\
+	(EXT4_FITS_IN_IANALDE(raw_ianalde, EXT4_I(ianalde), xtime ## _extra) ?	\
+		ext4_decode_extra_time((raw_ianalde)->xtime,				\
+				       (raw_ianalde)->xtime ## _extra) :		\
 		(struct timespec64) {						\
-			.tv_sec = (signed)le32_to_cpu((raw_inode)->xtime)	\
+			.tv_sec = (signed)le32_to_cpu((raw_ianalde)->xtime)	\
 		})
 
-#define EXT4_INODE_GET_ATIME(inode, raw_inode)					\
+#define EXT4_IANALDE_GET_ATIME(ianalde, raw_ianalde)					\
 do {										\
-	inode_set_atime_to_ts(inode,						\
-		EXT4_INODE_GET_XTIME_VAL(i_atime, inode, raw_inode));		\
+	ianalde_set_atime_to_ts(ianalde,						\
+		EXT4_IANALDE_GET_XTIME_VAL(i_atime, ianalde, raw_ianalde));		\
 } while (0)
 
-#define EXT4_INODE_GET_MTIME(inode, raw_inode)					\
+#define EXT4_IANALDE_GET_MTIME(ianalde, raw_ianalde)					\
 do {										\
-	inode_set_mtime_to_ts(inode,						\
-		EXT4_INODE_GET_XTIME_VAL(i_mtime, inode, raw_inode));		\
+	ianalde_set_mtime_to_ts(ianalde,						\
+		EXT4_IANALDE_GET_XTIME_VAL(i_mtime, ianalde, raw_ianalde));		\
 } while (0)
 
-#define EXT4_INODE_GET_CTIME(inode, raw_inode)					\
+#define EXT4_IANALDE_GET_CTIME(ianalde, raw_ianalde)					\
 do {										\
-	inode_set_ctime_to_ts(inode,						\
-		EXT4_INODE_GET_XTIME_VAL(i_ctime, inode, raw_inode));		\
+	ianalde_set_ctime_to_ts(ianalde,						\
+		EXT4_IANALDE_GET_XTIME_VAL(i_ctime, ianalde, raw_ianalde));		\
 } while (0)
 
-#define EXT4_EINODE_GET_XTIME(xtime, einode, raw_inode)				\
+#define EXT4_EIANALDE_GET_XTIME(xtime, eianalde, raw_ianalde)				\
 do {										\
-	if (EXT4_FITS_IN_INODE(raw_inode, einode, xtime)) 			\
-		(einode)->xtime =						\
-			EXT4_INODE_GET_XTIME_VAL(xtime, &(einode->vfs_inode),	\
-						 raw_inode);			\
+	if (EXT4_FITS_IN_IANALDE(raw_ianalde, eianalde, xtime)) 			\
+		(eianalde)->xtime =						\
+			EXT4_IANALDE_GET_XTIME_VAL(xtime, &(eianalde->vfs_ianalde),	\
+						 raw_ianalde);			\
 	else									\
-		(einode)->xtime = (struct timespec64){0, 0};			\
+		(eianalde)->xtime = (struct timespec64){0, 0};			\
 } while (0)
 
 #define i_disk_version osd1.linux1.l_i_version
@@ -974,24 +974,24 @@ do {										\
 #include "fast_commit.h"
 
 /*
- * Lock subclasses for i_data_sem in the ext4_inode_info structure.
+ * Lock subclasses for i_data_sem in the ext4_ianalde_info structure.
  *
  * These are needed to avoid lockdep false positives when we need to
- * allocate blocks to the quota inode during ext4_map_blocks(), while
- * holding i_data_sem for a normal (non-quota) inode.  Since we don't
- * do quota tracking for the quota inode, this avoids deadlock (as
+ * allocate blocks to the quota ianalde during ext4_map_blocks(), while
+ * holding i_data_sem for a analrmal (analn-quota) ianalde.  Since we don't
+ * do quota tracking for the quota ianalde, this avoids deadlock (as
  * well as infinite recursion, since it isn't turtles all the way
  * down...)
  *
- *  I_DATA_SEM_NORMAL - Used for most inodes
- *  I_DATA_SEM_OTHER  - Used by move_inode.c for the second normal inode
- *			  where the second inode has larger inode number
+ *  I_DATA_SEM_ANALRMAL - Used for most ianaldes
+ *  I_DATA_SEM_OTHER  - Used by move_ianalde.c for the second analrmal ianalde
+ *			  where the second ianalde has larger ianalde number
  *			  than the first
- *  I_DATA_SEM_QUOTA  - Used for quota inodes only
- *  I_DATA_SEM_EA     - Used for ea_inodes only
+ *  I_DATA_SEM_QUOTA  - Used for quota ianaldes only
+ *  I_DATA_SEM_EA     - Used for ea_ianaldes only
  */
 enum {
-	I_DATA_SEM_NORMAL = 0,
+	I_DATA_SEM_ANALRMAL = 0,
 	I_DATA_SEM_OTHER,
 	I_DATA_SEM_QUOTA,
 	I_DATA_SEM_EA
@@ -999,19 +999,19 @@ enum {
 
 
 /*
- * fourth extended file system inode data in memory
+ * fourth extended file system ianalde data in memory
  */
-struct ext4_inode_info {
+struct ext4_ianalde_info {
 	__le32	i_data[15];	/* unconverted */
 	__u32	i_dtime;
 	ext4_fsblk_t	i_file_acl;
 
 	/*
 	 * i_block_group is the number of the block group which contains
-	 * this file's inode.  Constant across the lifetime of the inode,
+	 * this file's ianalde.  Constant across the lifetime of the ianalde,
 	 * it is used for making block allocation decisions - we try to
-	 * place a file's data blocks near its inode block, and new inodes
-	 * near to their parent directory's inode.
+	 * place a file's data blocks near its ianalde block, and new ianaldes
+	 * near to their parent directory's ianalde.
 	 */
 	ext4_group_t	i_block_group;
 	ext4_lblk_t	i_dir_start_lookup;
@@ -1030,11 +1030,11 @@ struct ext4_inode_info {
 	struct rw_semaphore xattr_sem;
 
 	/*
-	 * Inodes with EXT4_STATE_ORPHAN_FILE use i_orphan_idx. Otherwise
+	 * Ianaldes with EXT4_STATE_ORPHAN_FILE use i_orphan_idx. Otherwise
 	 * i_orphan is used.
 	 */
 	union {
-		struct list_head i_orphan;	/* unlinked but open inodes */
+		struct list_head i_orphan;	/* unlinked but open ianaldes */
 		unsigned int i_orphan_idx;	/* Index in orphan file */
 	};
 
@@ -1043,7 +1043,7 @@ struct ext4_inode_info {
 	/* For tracking dentry create updates */
 	struct list_head i_fc_dilist;
 	struct list_head i_fc_list;	/*
-					 * inodes that need fast commit
+					 * ianaldes that need fast commit
 					 * protected by sbi->s_fc_lock.
 					 */
 
@@ -1053,17 +1053,17 @@ struct ext4_inode_info {
 	/* End of lblk range that needs to be committed in this fast commit */
 	ext4_lblk_t i_fc_lblk_len;
 
-	/* Number of ongoing updates on this inode */
+	/* Number of ongoing updates on this ianalde */
 	atomic_t  i_fc_updates;
 
-	/* Fast commit wait queue for this inode */
+	/* Fast commit wait queue for this ianalde */
 	wait_queue_head_t i_fc_wait;
 
 	/* Protect concurrent accesses on i_fc_lblk_start, i_fc_lblk_len */
 	struct mutex i_fc_lock;
 
 	/*
-	 * i_disksize keeps track of what the inode size is ON DISK, not
+	 * i_disksize keeps track of what the ianalde size is ON DISK, analt
 	 * in memory.  During truncate, i_size is set to the new size by
 	 * the VFS prior to calling ext4_truncate(), but the filesystem won't
 	 * set i_disksize to 0 until the truncate is actually under way.
@@ -1071,7 +1071,7 @@ struct ext4_inode_info {
 	 * The intent is that i_disksize always represents the blocks which
 	 * are used by this file.  This allows recovery to restart truncate
 	 * on orphans if we crash during truncate.  We actually write i_disksize
-	 * into the on-disk inode when writing inodes out, instead of i_size.
+	 * into the on-disk ianalde when writing ianaldes out, instead of i_size.
 	 *
 	 * The only time when i_disksize and i_size may be different is when
 	 * a truncate is in progress.  The only things which change i_disksize
@@ -1081,29 +1081,29 @@ struct ext4_inode_info {
 
 	/*
 	 * i_data_sem is for serialising ext4_truncate() against
-	 * ext4_getblock().  In the 2.4 ext2 design, great chunks of inode's
+	 * ext4_getblock().  In the 2.4 ext2 design, great chunks of ianalde's
 	 * data tree are chopped off during truncate. We can't do that in
 	 * ext4 because whenever we perform intermediate commits during
-	 * truncate, the inode and all the metadata blocks *must* be in a
+	 * truncate, the ianalde and all the metadata blocks *must* be in a
 	 * consistent state which allows truncation of the orphans to restart
 	 * during recovery.  Hence we must fix the get_block-vs-truncate race
 	 * by other means, so we have i_data_sem.
 	 */
 	struct rw_semaphore i_data_sem;
-	struct inode vfs_inode;
-	struct jbd2_inode *jinode;
+	struct ianalde vfs_ianalde;
+	struct jbd2_ianalde *jianalde;
 
-	spinlock_t i_raw_lock;	/* protects updates to the raw inode */
+	spinlock_t i_raw_lock;	/* protects updates to the raw ianalde */
 
 	/*
 	 * File creation time. Its function is same as that of
-	 * struct timespec64 i_{a,c,m}time in the generic inode.
+	 * struct timespec64 i_{a,c,m}time in the generic ianalde.
 	 */
 	struct timespec64 i_crtime;
 
 	/* mballoc */
 	atomic_t i_prealloc_active;
-	struct rb_root i_prealloc_node;
+	struct rb_root i_prealloc_analde;
 	rwlock_t i_prealloc_lock;
 
 	/* extents status tree */
@@ -1151,7 +1151,7 @@ struct ext4_inode_info {
 	spinlock_t i_block_reservation_lock;
 
 	/*
-	 * Transactions that contain inode's metadata needed to complete
+	 * Transactions that contain ianalde's metadata needed to complete
 	 * fsync and fdatasync, respectively.
 	 */
 	tid_t i_sync_tid;
@@ -1161,7 +1161,7 @@ struct ext4_inode_info {
 	struct dquot *i_dquot[MAXQUOTAS];
 #endif
 
-	/* Precomputed uuid+inum+igen checksum for seeding inode checksums */
+	/* Precomputed uuid+inum+igen checksum for seeding ianalde checksums */
 	__u32 i_csum_seed;
 
 	kprojid_t i_projid;
@@ -1185,7 +1185,7 @@ struct ext4_inode_info {
 /*
  * Mount flags set via mount options or defaults
  */
-#define EXT4_MOUNT_NO_MBCACHE		0x00001 /* Do not use mbcache */
+#define EXT4_MOUNT_ANAL_MBCACHE		0x00001 /* Do analt use mbcache */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
 #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
@@ -1193,7 +1193,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_ERRORS_PANIC		0x00040	/* Panic on errors */
 #define EXT4_MOUNT_ERRORS_MASK		0x00070
 #define EXT4_MOUNT_MINIX_DF		0x00080	/* Mimics the Minix statfs */
-#define EXT4_MOUNT_NOLOAD		0x00100	/* Don't use existing journal*/
+#define EXT4_MOUNT_ANALLOAD		0x00100	/* Don't use existing journal*/
 #ifdef CONFIG_FS_DAX
 #define EXT4_MOUNT_DAX_ALWAYS		0x00200	/* Direct Access */
 #else
@@ -1202,12 +1202,12 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_DATA_FLAGS		0x00C00	/* Mode for data writes: */
 #define EXT4_MOUNT_JOURNAL_DATA		0x00400	/* Write data to journal */
 #define EXT4_MOUNT_ORDERED_DATA		0x00800	/* Flush data before commit */
-#define EXT4_MOUNT_WRITEBACK_DATA	0x00C00	/* No data ordering */
+#define EXT4_MOUNT_WRITEBACK_DATA	0x00C00	/* Anal data ordering */
 #define EXT4_MOUNT_UPDATE_JOURNAL	0x01000	/* Update the journal format */
-#define EXT4_MOUNT_NO_UID32		0x02000  /* Disable 32-bit UIDs */
+#define EXT4_MOUNT_ANAL_UID32		0x02000  /* Disable 32-bit UIDs */
 #define EXT4_MOUNT_XATTR_USER		0x04000	/* Extended user attributes */
 #define EXT4_MOUNT_POSIX_ACL		0x08000	/* POSIX Access Control Lists */
-#define EXT4_MOUNT_NO_AUTO_DA_ALLOC	0x10000	/* No auto delalloc mapping */
+#define EXT4_MOUNT_ANAL_AUTO_DA_ALLOC	0x10000	/* Anal auto delalloc mapping */
 #define EXT4_MOUNT_BARRIER		0x20000 /* Use block barriers */
 #define EXT4_MOUNT_QUOTA		0x40000 /* Some quota option set */
 #define EXT4_MOUNT_USRQUOTA		0x80000 /* "old" user quota,
@@ -1218,19 +1218,19 @@ struct ext4_inode_info {
 						  * files */
 #define EXT4_MOUNT_PRJQUOTA		0x200000 /* Enable project quota
 						  * enforcement */
-#define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
+#define EXT4_MOUNT_DIOREAD_ANALLOCK	0x400000 /* Enable support for dio read anallocking */
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 #define EXT4_MOUNT_WARN_ON_ERROR	0x2000000 /* Trigger WARN_ON on error */
-#define EXT4_MOUNT_NO_PREFETCH_BLOCK_BITMAPS 0x4000000
+#define EXT4_MOUNT_ANAL_PREFETCH_BLOCK_BITMAPS 0x4000000
 #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
 #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
 #define EXT4_MOUNT_DISCARD		0x40000000 /* Issue DISCARD requests */
-#define EXT4_MOUNT_INIT_INODE_TABLE	0x80000000 /* Initialize uninitialized itables */
+#define EXT4_MOUNT_INIT_IANALDE_TABLE	0x80000000 /* Initialize uninitialized itables */
 
 /*
- * Mount flags set either automatically (could not be set by mount option)
+ * Mount flags set either automatically (could analt be set by mount option)
  * based on per file system feature or property or in special cases such as
  * distinguishing between explicit mount option definition and default.
  */
@@ -1245,8 +1245,8 @@ struct ext4_inode_info {
 						specified journal checksum */
 
 #define EXT4_MOUNT2_JOURNAL_FAST_COMMIT	0x00000010 /* Journal fast commit */
-#define EXT4_MOUNT2_DAX_NEVER		0x00000020 /* Do not allow Direct Access */
-#define EXT4_MOUNT2_DAX_INODE		0x00000040 /* For printing options only */
+#define EXT4_MOUNT2_DAX_NEVER		0x00000020 /* Do analt allow Direct Access */
+#define EXT4_MOUNT2_DAX_IANALDE		0x00000040 /* For printing options only */
 #define EXT4_MOUNT2_MB_OPTIMIZE_SCAN	0x00000080 /* Optimize group
 						    * scanning in mballoc
 						    */
@@ -1299,17 +1299,17 @@ extern void mb_set_bits(void *bm, int cur, int len);
  * Structure of the super block
  */
 struct ext4_super_block {
-/*00*/	__le32	s_inodes_count;		/* Inodes count */
+/*00*/	__le32	s_ianaldes_count;		/* Ianaldes count */
 	__le32	s_blocks_count_lo;	/* Blocks count */
 	__le32	s_r_blocks_count_lo;	/* Reserved blocks count */
 	__le32	s_free_blocks_count_lo;	/* Free blocks count */
-/*10*/	__le32	s_free_inodes_count;	/* Free inodes count */
+/*10*/	__le32	s_free_ianaldes_count;	/* Free ianaldes count */
 	__le32	s_first_data_block;	/* First Data Block */
 	__le32	s_log_block_size;	/* Block size */
 	__le32	s_log_cluster_size;	/* Allocation cluster size */
 /*20*/	__le32	s_blocks_per_group;	/* # Blocks per group */
 	__le32	s_clusters_per_group;	/* # Clusters per group */
-	__le32	s_inodes_per_group;	/* # Inodes per group */
+	__le32	s_ianaldes_per_group;	/* # Ianaldes per group */
 	__le32	s_mtime;		/* Mount time */
 /*30*/	__le32	s_wtime;		/* Write time */
 	__le16	s_mnt_count;		/* Mount count */
@@ -1317,7 +1317,7 @@ struct ext4_super_block {
 	__le16	s_magic;		/* Magic signature */
 	__le16	s_state;		/* File system state */
 	__le16	s_errors;		/* Behaviour when detecting errors */
-	__le16	s_minor_rev_level;	/* minor revision level */
+	__le16	s_mianalr_rev_level;	/* mianalr revision level */
 /*40*/	__le32	s_lastcheck;		/* time of last check */
 	__le32	s_checkinterval;	/* max. time between checks */
 	__le32	s_creator_os;		/* OS */
@@ -1327,25 +1327,25 @@ struct ext4_super_block {
 	/*
 	 * These fields are for EXT4_DYNAMIC_REV superblocks only.
 	 *
-	 * Note: the difference between the compatible feature set and
+	 * Analte: the difference between the compatible feature set and
 	 * the incompatible feature set is that if there is a bit set
 	 * in the incompatible feature set that the kernel doesn't
-	 * know about, it should refuse to mount the filesystem.
+	 * kanalw about, it should refuse to mount the filesystem.
 	 *
-	 * e2fsck's requirements are more strict; if it doesn't know
+	 * e2fsck's requirements are more strict; if it doesn't kanalw
 	 * about a feature in either the compatible or incompatible
-	 * feature set, it must abort and not try to meddle with
+	 * feature set, it must abort and analt try to meddle with
 	 * things it doesn't understand...
 	 */
-	__le32	s_first_ino;		/* First non-reserved inode */
-	__le16  s_inode_size;		/* size of inode structure */
+	__le32	s_first_ianal;		/* First analn-reserved ianalde */
+	__le16  s_ianalde_size;		/* size of ianalde structure */
 	__le16	s_block_group_nr;	/* block group # of this superblock */
 	__le32	s_feature_compat;	/* compatible feature set */
 /*60*/	__le32	s_feature_incompat;	/* incompatible feature set */
 	__le32	s_feature_ro_compat;	/* readonly-compatible feature set */
 /*68*/	__u8	s_uuid[16];		/* 128-bit uuid for volume */
 /*78*/	char	s_volume_name[EXT4_LABEL_MAX];	/* volume name */
-/*88*/	char	s_last_mounted[64] __nonstring;	/* directory where last mounted */
+/*88*/	char	s_last_mounted[64] __analnstring;	/* directory where last mounted */
 /*C8*/	__le32	s_algorithm_usage_bitmap; /* For compression */
 	/*
 	 * Performance hints.  Directory preallocation should only
@@ -1358,9 +1358,9 @@ struct ext4_super_block {
 	 * Journaling support valid if EXT4_FEATURE_COMPAT_HAS_JOURNAL set.
 	 */
 /*D0*/	__u8	s_journal_uuid[16];	/* uuid of journal superblock */
-/*E0*/	__le32	s_journal_inum;		/* inode number of journal file */
+/*E0*/	__le32	s_journal_inum;		/* ianalde number of journal file */
 	__le32	s_journal_dev;		/* device number of journal file */
-	__le32	s_last_orphan;		/* start of list of inodes to delete */
+	__le32	s_last_orphan;		/* start of list of ianaldes to delete */
 	__le32	s_hash_seed[4];		/* HTREE hash seed */
 	__u8	s_def_hash_version;	/* Default hash version to use */
 	__u8	s_jnl_backup_type;
@@ -1368,13 +1368,13 @@ struct ext4_super_block {
 /*100*/	__le32	s_default_mount_opts;
 	__le32	s_first_meta_bg;	/* First metablock block group */
 	__le32	s_mkfs_time;		/* When the filesystem was created */
-	__le32	s_jnl_blocks[17];	/* Backup of the journal inode */
+	__le32	s_jnl_blocks[17];	/* Backup of the journal ianalde */
 	/* 64bit support valid if EXT4_FEATURE_INCOMPAT_64BIT */
 /*150*/	__le32	s_blocks_count_hi;	/* Blocks count */
 	__le32	s_r_blocks_count_hi;	/* Reserved blocks count */
 	__le32	s_free_blocks_count_hi;	/* Free blocks count */
-	__le16	s_min_extra_isize;	/* All inodes have at least # bytes */
-	__le16	s_want_extra_isize; 	/* New inodes should reserve # bytes */
+	__le16	s_min_extra_isize;	/* All ianaldes have at least # bytes */
+	__le16	s_want_extra_isize; 	/* New ianaldes should reserve # bytes */
 	__le32	s_flags;		/* Miscellaneous flags */
 	__le16  s_raid_stride;		/* RAID stride */
 	__le16  s_mmp_update_interval;  /* # seconds to wait in MMP checking */
@@ -1385,34 +1385,34 @@ struct ext4_super_block {
 	__u8	s_encryption_level;	/* versioning level for encryption */
 	__u8	s_reserved_pad;		/* Padding to next 32bits */
 	__le64	s_kbytes_written;	/* nr of lifetime kilobytes written */
-	__le32	s_snapshot_inum;	/* Inode number of active snapshot */
+	__le32	s_snapshot_inum;	/* Ianalde number of active snapshot */
 	__le32	s_snapshot_id;		/* sequential ID of active snapshot */
 	__le64	s_snapshot_r_blocks_count; /* reserved blocks for active
 					      snapshot's future use */
-	__le32	s_snapshot_list;	/* inode number of the head of the
+	__le32	s_snapshot_list;	/* ianalde number of the head of the
 					   on-disk snapshot list */
 #define EXT4_S_ERR_START offsetof(struct ext4_super_block, s_error_count)
 	__le32	s_error_count;		/* number of fs errors */
 	__le32	s_first_error_time;	/* first time an error happened */
-	__le32	s_first_error_ino;	/* inode involved in first error */
+	__le32	s_first_error_ianal;	/* ianalde involved in first error */
 	__le64	s_first_error_block;	/* block involved of first error */
-	__u8	s_first_error_func[32] __nonstring;	/* function where the error happened */
+	__u8	s_first_error_func[32] __analnstring;	/* function where the error happened */
 	__le32	s_first_error_line;	/* line number where error happened */
 	__le32	s_last_error_time;	/* most recent time of an error */
-	__le32	s_last_error_ino;	/* inode involved in last error */
+	__le32	s_last_error_ianal;	/* ianalde involved in last error */
 	__le32	s_last_error_line;	/* line number where error happened */
 	__le64	s_last_error_block;	/* block involved of last error */
-	__u8	s_last_error_func[32] __nonstring;	/* function where the error happened */
+	__u8	s_last_error_func[32] __analnstring;	/* function where the error happened */
 #define EXT4_S_ERR_END offsetof(struct ext4_super_block, s_mount_opts)
 	__u8	s_mount_opts[64];
-	__le32	s_usr_quota_inum;	/* inode for tracking user quota */
-	__le32	s_grp_quota_inum;	/* inode for tracking group quota */
+	__le32	s_usr_quota_inum;	/* ianalde for tracking user quota */
+	__le32	s_grp_quota_inum;	/* ianalde for tracking group quota */
 	__le32	s_overhead_clusters;	/* overhead blocks/clusters in fs */
 	__le32	s_backup_bgs[2];	/* groups with sparse_super2 SBs */
 	__u8	s_encrypt_algos[4];	/* Encryption algorithms in use  */
 	__u8	s_encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
-	__le32	s_lpf_ino;		/* Location of the lost+found inode */
-	__le32	s_prj_quota_inum;	/* inode for tracking project quota */
+	__le32	s_lpf_ianal;		/* Location of the lost+found ianalde */
+	__le32	s_prj_quota_inum;	/* ianalde for tracking project quota */
 	__le32	s_checksum_seed;	/* crc32c(uuid) if csum_seed set */
 	__u8	s_wtime_hi;
 	__u8	s_mtime_hi;
@@ -1424,7 +1424,7 @@ struct ext4_super_block {
 	__u8    s_last_error_errcode;
 	__le16  s_encoding;		/* Filename charset encoding */
 	__le16  s_encoding_flags;	/* Filename charset encoding flags */
-	__le32  s_orphan_file_inum;	/* Inode for tracking orphan inodes */
+	__le32  s_orphan_file_inum;	/* Ianalde for tracking orphan ianaldes */
 	__le32	s_reserved[94];		/* Padding to the end of the block */
 	__le32	s_checksum;		/* crc32c(superblock) */
 };
@@ -1441,10 +1441,10 @@ struct ext4_super_block {
 /* Types of ext4 journal triggers */
 enum ext4_journal_trigger_type {
 	EXT4_JTR_ORPHAN_FILE,
-	EXT4_JTR_NONE	/* This must be the last entry for indexing to work! */
+	EXT4_JTR_ANALNE	/* This must be the last entry for indexing to work! */
 };
 
-#define EXT4_JOURNAL_TRIGGER_COUNT EXT4_JTR_NONE
+#define EXT4_JOURNAL_TRIGGER_COUNT EXT4_JTR_ANALNE
 
 struct ext4_journal_trigger {
 	struct jbd2_buffer_trigger_type tr_triggers;
@@ -1465,7 +1465,7 @@ struct ext4_orphan_block_tail {
 	__le32 ob_checksum;
 };
 
-static inline int ext4_inodes_per_orphan_block(struct super_block *sb)
+static inline int ext4_ianaldes_per_orphan_block(struct super_block *sb)
 {
 	return (sb->s_blocksize - sizeof(struct ext4_orphan_block_tail)) /
 			sizeof(u32);
@@ -1491,15 +1491,15 @@ struct ext4_orphan_info {
  */
 struct ext4_sb_info {
 	unsigned long s_desc_size;	/* Size of a group descriptor in bytes */
-	unsigned long s_inodes_per_block;/* Number of inodes per block */
+	unsigned long s_ianaldes_per_block;/* Number of ianaldes per block */
 	unsigned long s_blocks_per_group;/* Number of blocks in a group */
 	unsigned long s_clusters_per_group; /* Number of clusters in a group */
-	unsigned long s_inodes_per_group;/* Number of inodes in a group */
-	unsigned long s_itb_per_group;	/* Number of inode table blocks per group */
+	unsigned long s_ianaldes_per_group;/* Number of ianaldes in a group */
+	unsigned long s_itb_per_group;	/* Number of ianalde table blocks per group */
 	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
 	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
 	ext4_group_t s_groups_count;	/* Number of groups in the fs */
-	ext4_group_t s_blockfile_groups;/* Groups acceptable for non-extent files */
+	ext4_group_t s_blockfile_groups;/* Groups acceptable for analn-extent files */
 	unsigned long s_overhead;  /* # of fs overhead clusters */
 	unsigned int s_cluster_ratio;	/* Number of blocks per cluster */
 	unsigned int s_cluster_bits;	/* log2 of s_cluster_ratio */
@@ -1521,15 +1521,15 @@ struct ext4_sb_info {
 	unsigned short s_pad;
 	int s_addr_per_block_bits;
 	int s_desc_per_block_bits;
-	int s_inode_size;
-	int s_first_ino;
-	unsigned int s_inode_readahead_blks;
-	unsigned int s_inode_goal;
+	int s_ianalde_size;
+	int s_first_ianal;
+	unsigned int s_ianalde_readahead_blks;
+	unsigned int s_ianalde_goal;
 	u32 s_hash_seed[4];
 	int s_def_hash_version;
-	int s_hash_unsigned;	/* 3 if hash should be unsigned, 0 if not */
+	int s_hash_unsigned;	/* 3 if hash should be unsigned, 0 if analt */
 	struct percpu_counter s_freeclusters_counter;
-	struct percpu_counter s_freeinodes_counter;
+	struct percpu_counter s_freeianaldes_counter;
 	struct percpu_counter s_dirs_counter;
 	struct percpu_counter s_dirtyclusters_counter;
 	struct percpu_counter s_sra_exceeded_retry_limit;
@@ -1544,7 +1544,7 @@ struct ext4_sb_info {
 	struct journal_s *s_journal;
 	unsigned long s_ext4_flags;		/* Ext4 superblock flags */
 	struct mutex s_orphan_lock;	/* Protects on disk list changes */
-	struct list_head s_orphan;	/* List of orphaned inodes in on disk
+	struct list_head s_orphan;	/* List of orphaned ianaldes in on disk
 					   list */
 	struct ext4_orphan_info s_orphan_info;
 	unsigned long s_commit_interval;
@@ -1556,7 +1556,7 @@ struct ext4_sb_info {
 	char __rcu *s_qf_names[EXT4_MAXQUOTAS];
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
-	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
+	unsigned int s_want_extra_isize; /* New ianaldes should reserve # bytes */
 	struct ext4_system_blocks __rcu *s_system_blks;
 
 #ifdef EXTENTS_STATS
@@ -1571,7 +1571,7 @@ struct ext4_sb_info {
 
 	/* for buddy allocator */
 	struct ext4_group_info ** __rcu *s_group_info;
-	struct inode *s_buddy_cache;
+	struct ianalde *s_buddy_cache;
 	spinlock_t s_md_lock;
 	unsigned short *s_mb_offsets;
 	unsigned int *s_mb_maxs;
@@ -1606,7 +1606,7 @@ struct ext4_sb_info {
 
 	/* stats for buddy allocator */
 	atomic_t s_bal_reqs;	/* number of reqs with len > 1 */
-	atomic_t s_bal_success;	/* we found long enough chunks */
+	atomic_t s_bal_success;	/* we found long eanalugh chunks */
 	atomic_t s_bal_allocated;	/* in blocks */
 	atomic_t s_bal_ex_scanned;	/* total extents scanned */
 	atomic_t s_bal_cX_ex_scanned[EXT4_MB_NUM_CRS];	/* total extents scanned */
@@ -1648,7 +1648,7 @@ struct ext4_sb_info {
 	/* timer for periodic error stats printing */
 	struct timer_list s_err_report;
 
-	/* Lazy inode table initialization info */
+	/* Lazy ianalde table initialization info */
 	struct ext4_li_request *s_li_request;
 	/* Wait multiplier for lazy initialization thread */
 	unsigned int s_li_wait_mult;
@@ -1667,11 +1667,11 @@ struct ext4_sb_info {
 
 	/* Reclaim extents from extent status tree */
 	struct shrinker *s_es_shrinker;
-	struct list_head s_es_list;	/* List of inodes with reclaimable extents */
-	long s_es_nr_inode;
+	struct list_head s_es_list;	/* List of ianaldes with reclaimable extents */
+	long s_es_nr_ianalde;
 	struct ext4_es_stats s_es_stats;
 	struct mb_cache *s_ea_block_cache;
-	struct mb_cache *s_ea_inode_cache;
+	struct mb_cache *s_ea_ianalde_cache;
 	spinlock_t s_es_lock ____cacheline_aligned_in_smp;
 
 	/* Journal triggers for checksum computation */
@@ -1688,9 +1688,9 @@ struct ext4_sb_info {
 	struct fscrypt_dummy_policy s_dummy_enc_policy;
 
 	/*
-	 * Barrier between writepages ops and changing any inode's JOURNAL_DATA
+	 * Barrier between writepages ops and changing any ianalde's JOURNAL_DATA
 	 * or EXTENTS flag or between writepages ops and changing DELALLOC or
-	 * DIOREAD_NOLOCK mount options on remount.
+	 * DIOREAD_ANALLOCK mount options on remount.
 	 */
 	struct percpu_rw_semaphore s_writepages_rwsem;
 	struct dax_device *s_daxdev;
@@ -1707,18 +1707,18 @@ struct ext4_sb_info {
 	int s_add_error_count;
 	int s_first_error_code;
 	__u32 s_first_error_line;
-	__u32 s_first_error_ino;
+	__u32 s_first_error_ianal;
 	__u64 s_first_error_block;
 	const char *s_first_error_func;
 	time64_t s_first_error_time;
 	int s_last_error_code;
 	__u32 s_last_error_line;
-	__u32 s_last_error_ino;
+	__u32 s_last_error_ianal;
 	__u64 s_last_error_block;
 	const char *s_last_error_func;
 	time64_t s_last_error_time;
 	/*
-	 * If we are in a context where we cannot update the on-disk
+	 * If we are in a context where we cananalt update the on-disk
 	 * superblock, we queue the work here.  This is used to update
 	 * the error information in the superblock, and for periodic
 	 * updates of the superblock called from the commit callback
@@ -1735,7 +1735,7 @@ struct ext4_sb_info {
 	 */
 #define FC_Q_MAIN	0
 #define FC_Q_STAGING	1
-	struct list_head s_fc_q[2];	/* Inodes staged for fast commit
+	struct list_head s_fc_q[2];	/* Ianaldes staged for fast commit
 					 * that have data changes in them.
 					 */
 	struct list_head s_fc_dentry_q[2];	/* directory entry updates */
@@ -1759,40 +1759,40 @@ static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
-static inline struct ext4_inode_info *EXT4_I(struct inode *inode)
+static inline struct ext4_ianalde_info *EXT4_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct ext4_inode_info, vfs_inode);
+	return container_of(ianalde, struct ext4_ianalde_info, vfs_ianalde);
 }
 
 static inline int ext4_writepages_down_read(struct super_block *sb)
 {
 	percpu_down_read(&EXT4_SB(sb)->s_writepages_rwsem);
-	return memalloc_nofs_save();
+	return memalloc_analfs_save();
 }
 
 static inline void ext4_writepages_up_read(struct super_block *sb, int ctx)
 {
-	memalloc_nofs_restore(ctx);
+	memalloc_analfs_restore(ctx);
 	percpu_up_read(&EXT4_SB(sb)->s_writepages_rwsem);
 }
 
 static inline int ext4_writepages_down_write(struct super_block *sb)
 {
 	percpu_down_write(&EXT4_SB(sb)->s_writepages_rwsem);
-	return memalloc_nofs_save();
+	return memalloc_analfs_save();
 }
 
 static inline void ext4_writepages_up_write(struct super_block *sb, int ctx)
 {
-	memalloc_nofs_restore(ctx);
+	memalloc_analfs_restore(ctx);
 	percpu_up_write(&EXT4_SB(sb)->s_writepages_rwsem);
 }
 
-static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
+static inline int ext4_valid_inum(struct super_block *sb, unsigned long ianal)
 {
-	return ino == EXT4_ROOT_INO ||
-		(ino >= EXT4_FIRST_INO(sb) &&
-		 ino <= le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count));
+	return ianal == EXT4_ROOT_IANAL ||
+		(ianal >= EXT4_FIRST_IANAL(sb) &&
+		 ianal <= le32_to_cpu(EXT4_SB(sb)->s_es->s_ianaldes_count));
 }
 
 /*
@@ -1843,8 +1843,8 @@ static inline int ext4_test_mount_flag(struct super_block *sb, int bit)
 #define EXT4_SIM_BBITMAP_CRC	2
 #define EXT4_SIM_IBITMAP_EIO	3
 #define EXT4_SIM_IBITMAP_CRC	4
-#define EXT4_SIM_INODE_EIO	5
-#define EXT4_SIM_INODE_CRC	6
+#define EXT4_SIM_IANALDE_EIO	5
+#define EXT4_SIM_IANALDE_CRC	6
 #define EXT4_SIM_DIRBLOCK_EIO	7
 #define EXT4_SIM_DIRBLOCK_CRC	8
 
@@ -1871,104 +1871,104 @@ static inline void ext4_simulate_fail_bh(struct super_block *sb,
 }
 
 /*
- * Error number codes for s_{first,last}_error_errno
+ * Error number codes for s_{first,last}_error_erranal
  *
- * Linux errno numbers are architecture specific, so we need to translate
+ * Linux erranal numbers are architecture specific, so we need to translate
  * them into something which is architecture independent.   We don't define
- * codes for all errno's; just the ones which are most likely to be the cause
+ * codes for all erranal's; just the ones which are most likely to be the cause
  * of an ext4_error() call.
  */
-#define EXT4_ERR_UNKNOWN	 1
+#define EXT4_ERR_UNKANALWN	 1
 #define EXT4_ERR_EIO		 2
-#define EXT4_ERR_ENOMEM		 3
+#define EXT4_ERR_EANALMEM		 3
 #define EXT4_ERR_EFSBADCRC	 4
 #define EXT4_ERR_EFSCORRUPTED	 5
-#define EXT4_ERR_ENOSPC		 6
-#define EXT4_ERR_ENOKEY		 7
+#define EXT4_ERR_EANALSPC		 6
+#define EXT4_ERR_EANALKEY		 7
 #define EXT4_ERR_EROFS		 8
 #define EXT4_ERR_EFBIG		 9
 #define EXT4_ERR_EEXIST		10
 #define EXT4_ERR_ERANGE		11
 #define EXT4_ERR_EOVERFLOW	12
 #define EXT4_ERR_EBUSY		13
-#define EXT4_ERR_ENOTDIR	14
-#define EXT4_ERR_ENOTEMPTY	15
+#define EXT4_ERR_EANALTDIR	14
+#define EXT4_ERR_EANALTEMPTY	15
 #define EXT4_ERR_ESHUTDOWN	16
 #define EXT4_ERR_EFAULT		17
 
 /*
- * Inode dynamic state flags
+ * Ianalde dynamic state flags
  */
 enum {
-	EXT4_STATE_NEW,			/* inode is newly created */
-	EXT4_STATE_XATTR,		/* has in-inode xattrs */
-	EXT4_STATE_NO_EXPAND,		/* No space for expansion */
+	EXT4_STATE_NEW,			/* ianalde is newly created */
+	EXT4_STATE_XATTR,		/* has in-ianalde xattrs */
+	EXT4_STATE_ANAL_EXPAND,		/* Anal space for expansion */
 	EXT4_STATE_DA_ALLOC_CLOSE,	/* Alloc DA blks on close */
-	EXT4_STATE_EXT_MIGRATE,		/* Inode is migrating */
+	EXT4_STATE_EXT_MIGRATE,		/* Ianalde is migrating */
 	EXT4_STATE_NEWENTRY,		/* File just added to dir */
-	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
+	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-ianalde data */
 	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
-	EXT4_STATE_LUSTRE_EA_INODE,	/* Lustre-style ea_inode */
+	EXT4_STATE_LUSTRE_EA_IANALDE,	/* Lustre-style ea_ianalde */
 	EXT4_STATE_VERITY_IN_PROGRESS,	/* building fs-verity Merkle tree */
 	EXT4_STATE_FC_COMMITTING,	/* Fast commit ongoing */
-	EXT4_STATE_ORPHAN_FILE,		/* Inode orphaned in orphan file */
+	EXT4_STATE_ORPHAN_FILE,		/* Ianalde orphaned in orphan file */
 };
 
-#define EXT4_INODE_BIT_FNS(name, field, offset)				\
-static inline int ext4_test_inode_##name(struct inode *inode, int bit)	\
+#define EXT4_IANALDE_BIT_FNS(name, field, offset)				\
+static inline int ext4_test_ianalde_##name(struct ianalde *ianalde, int bit)	\
 {									\
-	return test_bit(bit + (offset), &EXT4_I(inode)->i_##field);	\
+	return test_bit(bit + (offset), &EXT4_I(ianalde)->i_##field);	\
 }									\
-static inline void ext4_set_inode_##name(struct inode *inode, int bit)	\
+static inline void ext4_set_ianalde_##name(struct ianalde *ianalde, int bit)	\
 {									\
-	set_bit(bit + (offset), &EXT4_I(inode)->i_##field);		\
+	set_bit(bit + (offset), &EXT4_I(ianalde)->i_##field);		\
 }									\
-static inline void ext4_clear_inode_##name(struct inode *inode, int bit) \
+static inline void ext4_clear_ianalde_##name(struct ianalde *ianalde, int bit) \
 {									\
-	clear_bit(bit + (offset), &EXT4_I(inode)->i_##field);		\
+	clear_bit(bit + (offset), &EXT4_I(ianalde)->i_##field);		\
 }
 
 /* Add these declarations here only so that these functions can be
  * found by name.  Otherwise, they are very hard to locate. */
-static inline int ext4_test_inode_flag(struct inode *inode, int bit);
-static inline void ext4_set_inode_flag(struct inode *inode, int bit);
-static inline void ext4_clear_inode_flag(struct inode *inode, int bit);
-EXT4_INODE_BIT_FNS(flag, flags, 0)
+static inline int ext4_test_ianalde_flag(struct ianalde *ianalde, int bit);
+static inline void ext4_set_ianalde_flag(struct ianalde *ianalde, int bit);
+static inline void ext4_clear_ianalde_flag(struct ianalde *ianalde, int bit);
+EXT4_IANALDE_BIT_FNS(flag, flags, 0)
 
 /* Add these declarations here only so that these functions can be
  * found by name.  Otherwise, they are very hard to locate. */
-static inline int ext4_test_inode_state(struct inode *inode, int bit);
-static inline void ext4_set_inode_state(struct inode *inode, int bit);
-static inline void ext4_clear_inode_state(struct inode *inode, int bit);
+static inline int ext4_test_ianalde_state(struct ianalde *ianalde, int bit);
+static inline void ext4_set_ianalde_state(struct ianalde *ianalde, int bit);
+static inline void ext4_clear_ianalde_state(struct ianalde *ianalde, int bit);
 #if (BITS_PER_LONG < 64)
-EXT4_INODE_BIT_FNS(state, state_flags, 0)
+EXT4_IANALDE_BIT_FNS(state, state_flags, 0)
 
-static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
+static inline void ext4_clear_state_flags(struct ext4_ianalde_info *ei)
 {
 	(ei)->i_state_flags = 0;
 }
 #else
-EXT4_INODE_BIT_FNS(state, flags, 32)
+EXT4_IANALDE_BIT_FNS(state, flags, 32)
 
-static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
+static inline void ext4_clear_state_flags(struct ext4_ianalde_info *ei)
 {
 	/* We depend on the fact that callers will set i_flags */
 }
 #endif
 #else
-/* Assume that user mode programs are passing in an ext4fs superblock, not
+/* Assume that user mode programs are passing in an ext4fs superblock, analt
  * a kernel struct super_block.  This will allow us to call the feature-test
  * macros from user land. */
 #define EXT4_SB(sb)	(sb)
 #endif
 
-static inline bool ext4_verity_in_progress(struct inode *inode)
+static inline bool ext4_verity_in_progress(struct ianalde *ianalde)
 {
 	return IS_ENABLED(CONFIG_FS_VERITY) &&
-	       ext4_test_inode_state(inode, EXT4_STATE_VERITY_IN_PROGRESS);
+	       ext4_test_ianalde_state(ianalde, EXT4_STATE_VERITY_IN_PROGRESS);
 }
 
-#define NEXT_ORPHAN(inode) EXT4_I(inode)->i_dtime
+#define NEXT_ORPHAN(ianalde) EXT4_I(ianalde)->i_dtime
 
 /*
  * Codes for operating systems
@@ -1983,14 +1983,14 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
  * Revision levels
  */
 #define EXT4_GOOD_OLD_REV	0	/* The good old (original) format */
-#define EXT4_DYNAMIC_REV	1	/* V2 format w/ dynamic inode sizes */
+#define EXT4_DYNAMIC_REV	1	/* V2 format w/ dynamic ianalde sizes */
 
 #define EXT4_MAX_SUPP_REV	EXT4_DYNAMIC_REV
 
-#define EXT4_GOOD_OLD_INODE_SIZE 128
+#define EXT4_GOOD_OLD_IANALDE_SIZE 128
 
 #define EXT4_EXTRA_TIMESTAMP_MAX	(((s64)1 << 34) - 1  + S32_MIN)
-#define EXT4_NON_EXTRA_TIMESTAMP_MAX	S32_MAX
+#define EXT4_ANALN_EXTRA_TIMESTAMP_MAX	S32_MAX
 #define EXT4_TIMESTAMP_MIN		S32_MIN
 
 /*
@@ -1998,10 +1998,10 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
  */
 
 #define EXT4_FEATURE_COMPAT_DIR_PREALLOC	0x0001
-#define EXT4_FEATURE_COMPAT_IMAGIC_INODES	0x0002
+#define EXT4_FEATURE_COMPAT_IMAGIC_IANALDES	0x0002
 #define EXT4_FEATURE_COMPAT_HAS_JOURNAL		0x0004
 #define EXT4_FEATURE_COMPAT_EXT_ATTR		0x0008
-#define EXT4_FEATURE_COMPAT_RESIZE_INODE	0x0010
+#define EXT4_FEATURE_COMPAT_RESIZE_IANALDE	0x0010
 #define EXT4_FEATURE_COMPAT_DIR_INDEX		0x0020
 #define EXT4_FEATURE_COMPAT_SPARSE_SUPER2	0x0200
 /*
@@ -2012,7 +2012,7 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
  * there are fast commit blocks present in the journal.
  */
 #define EXT4_FEATURE_COMPAT_FAST_COMMIT		0x0400
-#define EXT4_FEATURE_COMPAT_STABLE_INODES	0x0800
+#define EXT4_FEATURE_COMPAT_STABLE_IANALDES	0x0800
 #define EXT4_FEATURE_COMPAT_ORPHAN_FILE		0x1000	/* Orphan file exists */
 
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
@@ -2035,7 +2035,7 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
 #define EXT4_FEATURE_RO_COMPAT_PROJECT		0x2000
 #define EXT4_FEATURE_RO_COMPAT_VERITY		0x8000
 #define EXT4_FEATURE_RO_COMPAT_ORPHAN_PRESENT	0x10000 /* Orphan file may be
-							   non-empty */
+							   analn-empty */
 
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION	0x0001
 #define EXT4_FEATURE_INCOMPAT_FILETYPE		0x0002
@@ -2046,11 +2046,11 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
 #define EXT4_FEATURE_INCOMPAT_64BIT		0x0080
 #define EXT4_FEATURE_INCOMPAT_MMP               0x0100
 #define EXT4_FEATURE_INCOMPAT_FLEX_BG		0x0200
-#define EXT4_FEATURE_INCOMPAT_EA_INODE		0x0400 /* EA in inode */
+#define EXT4_FEATURE_INCOMPAT_EA_IANALDE		0x0400 /* EA in ianalde */
 #define EXT4_FEATURE_INCOMPAT_DIRDATA		0x1000 /* data in dirent */
 #define EXT4_FEATURE_INCOMPAT_CSUM_SEED		0x2000
 #define EXT4_FEATURE_INCOMPAT_LARGEDIR		0x4000 /* >2GB or 3-lvl htree */
-#define EXT4_FEATURE_INCOMPAT_INLINE_DATA	0x8000 /* data in inode */
+#define EXT4_FEATURE_INCOMPAT_INLINE_DATA	0x8000 /* data in ianalde */
 #define EXT4_FEATURE_INCOMPAT_ENCRYPT		0x10000
 #define EXT4_FEATURE_INCOMPAT_CASEFOLD		0x20000
 
@@ -2111,14 +2111,14 @@ static inline void ext4_clear_feature_##name(struct super_block *sb) \
 }
 
 EXT4_FEATURE_COMPAT_FUNCS(dir_prealloc,		DIR_PREALLOC)
-EXT4_FEATURE_COMPAT_FUNCS(imagic_inodes,	IMAGIC_INODES)
+EXT4_FEATURE_COMPAT_FUNCS(imagic_ianaldes,	IMAGIC_IANALDES)
 EXT4_FEATURE_COMPAT_FUNCS(journal,		HAS_JOURNAL)
 EXT4_FEATURE_COMPAT_FUNCS(xattr,		EXT_ATTR)
-EXT4_FEATURE_COMPAT_FUNCS(resize_inode,		RESIZE_INODE)
+EXT4_FEATURE_COMPAT_FUNCS(resize_ianalde,		RESIZE_IANALDE)
 EXT4_FEATURE_COMPAT_FUNCS(dir_index,		DIR_INDEX)
 EXT4_FEATURE_COMPAT_FUNCS(sparse_super2,	SPARSE_SUPER2)
 EXT4_FEATURE_COMPAT_FUNCS(fast_commit,		FAST_COMMIT)
-EXT4_FEATURE_COMPAT_FUNCS(stable_inodes,	STABLE_INODES)
+EXT4_FEATURE_COMPAT_FUNCS(stable_ianaldes,	STABLE_IANALDES)
 EXT4_FEATURE_COMPAT_FUNCS(orphan_file,		ORPHAN_FILE)
 
 EXT4_FEATURE_RO_COMPAT_FUNCS(sparse_super,	SPARSE_SUPER)
@@ -2145,7 +2145,7 @@ EXT4_FEATURE_INCOMPAT_FUNCS(extents,		EXTENTS)
 EXT4_FEATURE_INCOMPAT_FUNCS(64bit,		64BIT)
 EXT4_FEATURE_INCOMPAT_FUNCS(mmp,		MMP)
 EXT4_FEATURE_INCOMPAT_FUNCS(flex_bg,		FLEX_BG)
-EXT4_FEATURE_INCOMPAT_FUNCS(ea_inode,		EA_INODE)
+EXT4_FEATURE_INCOMPAT_FUNCS(ea_ianalde,		EA_IANALDE)
 EXT4_FEATURE_INCOMPAT_FUNCS(dirdata,		DIRDATA)
 EXT4_FEATURE_INCOMPAT_FUNCS(csum_seed,		CSUM_SEED)
 EXT4_FEATURE_INCOMPAT_FUNCS(largedir,		LARGEDIR)
@@ -2176,7 +2176,7 @@ EXT4_FEATURE_INCOMPAT_FUNCS(casefold,		CASEFOLD)
 					 EXT4_FEATURE_INCOMPAT_EXTENTS| \
 					 EXT4_FEATURE_INCOMPAT_64BIT| \
 					 EXT4_FEATURE_INCOMPAT_FLEX_BG| \
-					 EXT4_FEATURE_INCOMPAT_EA_INODE| \
+					 EXT4_FEATURE_INCOMPAT_EA_IANALDE| \
 					 EXT4_FEATURE_INCOMPAT_MMP | \
 					 EXT4_FEATURE_INCOMPAT_INLINE_DATA | \
 					 EXT4_FEATURE_INCOMPAT_ENCRYPT | \
@@ -2198,17 +2198,17 @@ EXT4_FEATURE_INCOMPAT_FUNCS(casefold,		CASEFOLD)
 					 EXT4_FEATURE_RO_COMPAT_ORPHAN_PRESENT)
 
 #define EXTN_FEATURE_FUNCS(ver) \
-static inline bool ext4_has_unknown_ext##ver##_compat_features(struct super_block *sb) \
+static inline bool ext4_has_unkanalwn_ext##ver##_compat_features(struct super_block *sb) \
 { \
 	return ((EXT4_SB(sb)->s_es->s_feature_compat & \
 		cpu_to_le32(~EXT##ver##_FEATURE_COMPAT_SUPP)) != 0); \
 } \
-static inline bool ext4_has_unknown_ext##ver##_ro_compat_features(struct super_block *sb) \
+static inline bool ext4_has_unkanalwn_ext##ver##_ro_compat_features(struct super_block *sb) \
 { \
 	return ((EXT4_SB(sb)->s_es->s_feature_ro_compat & \
 		cpu_to_le32(~EXT##ver##_FEATURE_RO_COMPAT_SUPP)) != 0); \
 } \
-static inline bool ext4_has_unknown_ext##ver##_incompat_features(struct super_block *sb) \
+static inline bool ext4_has_unkanalwn_ext##ver##_incompat_features(struct super_block *sb) \
 { \
 	return ((EXT4_SB(sb)->s_es->s_feature_incompat & \
 		cpu_to_le32(~EXT##ver##_FEATURE_INCOMPAT_SUPP)) != 0); \
@@ -2256,7 +2256,7 @@ static inline int ext4_forced_shutdown(struct super_block *sb)
  */
 #define	EXT4_DEF_PROJID		0
 
-#define EXT4_DEF_INODE_READAHEAD_BLKS	32
+#define EXT4_DEF_IANALDE_READAHEAD_BLKS	32
 
 /*
  * Default mount options
@@ -2270,10 +2270,10 @@ static inline int ext4_forced_shutdown(struct super_block *sb)
 #define EXT4_DEFM_JMODE_DATA	0x0020
 #define EXT4_DEFM_JMODE_ORDERED	0x0040
 #define EXT4_DEFM_JMODE_WBACK	0x0060
-#define EXT4_DEFM_NOBARRIER	0x0100
+#define EXT4_DEFM_ANALBARRIER	0x0100
 #define EXT4_DEFM_BLOCK_VALIDITY 0x0200
 #define EXT4_DEFM_DISCARD	0x0400
-#define EXT4_DEFM_NODELALLOC	0x0800
+#define EXT4_DEFM_ANALDELALLOC	0x0800
 
 /*
  * Default journal batch times
@@ -2297,7 +2297,7 @@ static inline int ext4_forced_shutdown(struct super_block *sb)
 #define EXT4_BASE_DIR_LEN (sizeof(struct ext4_dir_entry_2) - EXT4_NAME_LEN)
 
 struct ext4_dir_entry {
-	__le32	inode;			/* Inode number */
+	__le32	ianalde;			/* Ianalde number */
 	__le16	rec_len;		/* Directory entry length */
 	__le16	name_len;		/* Name length */
 	char	name[EXT4_NAME_LEN];	/* File name */
@@ -2311,7 +2311,7 @@ struct ext4_dir_entry {
  */
 struct ext4_dir_entry_hash {
 	__le32 hash;
-	__le32 minor_hash;
+	__le32 mianalr_hash;
 };
 
 /*
@@ -2321,7 +2321,7 @@ struct ext4_dir_entry_hash {
  * file_type field.
  */
 struct ext4_dir_entry_2 {
-	__le32	inode;			/* Inode number */
+	__le32	ianalde;			/* Ianalde number */
 	__le16	rec_len;		/* Directory entry length */
 	__u8	name_len;		/* Name length */
 	__u8	file_type;		/* See file type macros EXT4_FT_* below */
@@ -2336,12 +2336,12 @@ struct ext4_dir_entry_2 {
 		(((void *)(entry)) + \
 		((8 + (entry)->name_len + EXT4_DIR_ROUND) & ~EXT4_DIR_ROUND)))
 #define EXT4_DIRENT_HASH(entry) le32_to_cpu(EXT4_DIRENT_HASHES(de)->hash)
-#define EXT4_DIRENT_MINOR_HASH(entry) \
-		le32_to_cpu(EXT4_DIRENT_HASHES(de)->minor_hash)
+#define EXT4_DIRENT_MIANALR_HASH(entry) \
+		le32_to_cpu(EXT4_DIRENT_HASHES(de)->mianalr_hash)
 
-static inline bool ext4_hash_in_dirent(const struct inode *inode)
+static inline bool ext4_hash_in_dirent(const struct ianalde *ianalde)
 {
-	return IS_CASEFOLDED(inode) && IS_ENCRYPTED(inode);
+	return IS_CASEFOLDED(ianalde) && IS_ENCRYPTED(ianalde);
 }
 
 /*
@@ -2363,9 +2363,9 @@ struct ext4_dir_entry_tail {
 
 /*
  * Ext4 directory file types.  Only the low 3 bits are used.  The
- * other bits are reserved for now.
+ * other bits are reserved for analw.
  */
-#define EXT4_FT_UNKNOWN		0
+#define EXT4_FT_UNKANALWN		0
 #define EXT4_FT_REG_FILE	1
 #define EXT4_FT_DIR		2
 #define EXT4_FT_CHRDEV		3
@@ -2381,7 +2381,7 @@ struct ext4_dir_entry_tail {
 /*
  * EXT4_DIR_PAD defines the directory entries boundaries
  *
- * NOTE: It must be a multiple of 4
+ * ANALTE: It must be a multiple of 4
  */
 #define EXT4_DIR_PAD			4
 #define EXT4_DIR_ROUND			(EXT4_DIR_PAD - 1)
@@ -2391,10 +2391,10 @@ struct ext4_dir_entry_tail {
  * The rec_len is dependent on the type of directory. Directories that are
  * casefolded and encrypted need to store the hash as well, so we add room for
  * ext4_extended_dir_entry_2. For all entries related to '.' or '..' you should
- * pass NULL for dir, as those entries do not use the extra fields.
+ * pass NULL for dir, as those entries do analt use the extra fields.
  */
 static inline unsigned int ext4_dir_rec_len(__u8 name_len,
-						const struct inode *dir)
+						const struct ianalde *dir)
 {
 	int rec_len = (name_len + 8 + EXT4_DIR_ROUND);
 
@@ -2445,7 +2445,7 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
  */
 
 #define is_dx(dir) (ext4_has_feature_dir_index((dir)->i_sb) && \
-		    ext4_test_inode_flag((dir), EXT4_INODE_INDEX))
+		    ext4_test_ianalde_flag((dir), EXT4_IANALDE_INDEX))
 #define EXT4_DIR_LINK_MAX(dir) unlikely((dir)->i_nlink >= EXT4_LINK_MAX && \
 		    !(ext4_has_feature_dir_nlink((dir)->i_sb) && is_dx(dir)))
 #define EXT4_DIR_LINK_EMPTY(dir) ((dir)->i_nlink == 2 || (dir)->i_nlink == 1)
@@ -2484,7 +2484,7 @@ static inline u32 ext4_chksum(struct ext4_sb_info *sbi, u32 crc,
 struct dx_hash_info
 {
 	u32		hash;
-	u32		minor_hash;
+	u32		mianalr_hash;
 	int		hash_version;
 	u32		*seed;
 };
@@ -2517,7 +2517,7 @@ struct ext4_filename {
 #define fname_len(p)  ((p)->disk_name.len)
 
 /*
- * Describe an inode's exact location on disk and in memory
+ * Describe an ianalde's exact location on disk and in memory
  */
 struct ext4_iloc
 {
@@ -2526,15 +2526,15 @@ struct ext4_iloc
 	ext4_group_t block_group;
 };
 
-static inline struct ext4_inode *ext4_raw_inode(struct ext4_iloc *iloc)
+static inline struct ext4_ianalde *ext4_raw_ianalde(struct ext4_iloc *iloc)
 {
-	return (struct ext4_inode *) (iloc->bh->b_data + iloc->offset);
+	return (struct ext4_ianalde *) (iloc->bh->b_data + iloc->offset);
 }
 
-static inline bool ext4_is_quota_file(struct inode *inode)
+static inline bool ext4_is_quota_file(struct ianalde *ianalde)
 {
-	return IS_NOQUOTA(inode) &&
-	       !(EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL);
+	return IS_ANALQUOTA(ianalde) &&
+	       !(EXT4_I(ianalde)->i_flags & EXT4_EA_IANALDE_FL);
 }
 
 /*
@@ -2544,26 +2544,26 @@ static inline bool ext4_is_quota_file(struct inode *inode)
  */
 struct dir_private_info {
 	struct rb_root	root;
-	struct rb_node	*curr_node;
+	struct rb_analde	*curr_analde;
 	struct fname	*extra_fname;
 	loff_t		last_pos;
 	__u32		curr_hash;
-	__u32		curr_minor_hash;
+	__u32		curr_mianalr_hash;
 	__u32		next_hash;
 };
 
 /* calculate the first block number of the group */
 static inline ext4_fsblk_t
-ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
+ext4_group_first_block_anal(struct super_block *sb, ext4_group_t group_anal)
 {
-	return group_no * (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
+	return group_anal * (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 }
 
 /*
  * Special error return code only used by dx_probe() and its callers.
  */
-#define ERR_BAD_DX_DIR	(-(MAX_ERRNO - 1))
+#define ERR_BAD_DX_DIR	(-(MAX_ERRANAL - 1))
 
 /* htree levels for ext4 */
 #define	EXT4_HTREE_LEVEL_COMPAT	2
@@ -2576,7 +2576,7 @@ static inline int ext4_dir_htree_level(struct super_block *sb)
 }
 
 /*
- * Timeout and state flag for lazy initialization inode thread.
+ * Timeout and state flag for lazy initialization ianalde thread.
  */
 #define EXT4_DEF_LI_WAIT_MULT			10
 #define EXT4_DEF_LI_MAX_START_DELAY		5
@@ -2584,7 +2584,7 @@ static inline int ext4_dir_htree_level(struct super_block *sb)
 #define EXT4_LAZYINIT_RUNNING			0x0002
 
 /*
- * Lazy inode table initialization info
+ * Lazy ianalde table initialization info
  */
 struct ext4_lazy_init {
 	unsigned long		li_state;
@@ -2600,7 +2600,7 @@ enum ext4_li_mode {
 struct ext4_li_request {
 	struct super_block	*lr_super;
 	enum ext4_li_mode	lr_mode;
-	ext4_group_t		lr_first_not_zeroed;
+	ext4_group_t		lr_first_analt_zeroed;
 	ext4_group_t		lr_next_group;
 	struct list_head	lr_request;
 	unsigned long		lr_next_sched;
@@ -2616,7 +2616,7 @@ struct ext4_features {
  * This structure will be used for multiple mount protection. It will be
  * written into the block number saved in the s_mmp_block field in the
  * superblock. Programs that check MMP should assume that if
- * SEQ_FSCK (or any unknown code above SEQ_MAX) is present then it is NOT safe
+ * SEQ_FSCK (or any unkanalwn code above SEQ_MAX) is present then it is ANALT safe
  * to use the filesystem, regardless of how old the timestamp is.
  */
 #define EXT4_MMP_MAGIC     0x004D4D50U /* ASCII for MMP */
@@ -2626,14 +2626,14 @@ struct ext4_features {
 
 struct mmp_struct {
 	__le32	mmp_magic;		/* Magic number for MMP */
-	__le32	mmp_seq;		/* Sequence no. updated periodically */
+	__le32	mmp_seq;		/* Sequence anal. updated periodically */
 
 	/*
-	 * mmp_time, mmp_nodename & mmp_bdevname are only used for information
-	 * purposes and do not affect the correctness of the algorithm
+	 * mmp_time, mmp_analdename & mmp_bdevname are only used for information
+	 * purposes and do analt affect the correctness of the algorithm
 	 */
 	__le64	mmp_time;		/* Time last updated */
-	char	mmp_nodename[64];	/* Node which last updated MMP block */
+	char	mmp_analdename[64];	/* Analde which last updated MMP block */
 	char	mmp_bdevname[32];	/* Bdev which last updated MMP block */
 
 	/*
@@ -2659,7 +2659,7 @@ struct mmpd_data {
  * The MMP block is written every update interval and initially checked every
  * update interval x the multiplier (the value is then adapted based on the
  * write latency). The reason is that writes can be delayed under load and we
- * don't want readers to incorrectly assume that the filesystem is no longer
+ * don't want readers to incorrectly assume that the filesystem is anal longer
  * in use.
  */
 #define EXT4_MMP_CHECK_MULT		2UL
@@ -2679,19 +2679,19 @@ struct mmpd_data {
  */
 
 /*
- * Ok, these declarations are also in <linux/kernel.h> but none of the
+ * Ok, these declarations are also in <linux/kernel.h> but analne of the
  * ext4 source programs needs to include it so they are duplicated here.
  */
-# define NORET_TYPE	/**/
-# define ATTRIB_NORET	__attribute__((noreturn))
-# define NORET_AND	noreturn,
+# define ANALRET_TYPE	/**/
+# define ATTRIB_ANALRET	__attribute__((analreturn))
+# define ANALRET_AND	analreturn,
 
 /* bitmap.c */
 extern unsigned int ext4_count_free(char *bitmap, unsigned numchars);
-void ext4_inode_bitmap_csum_set(struct super_block *sb,
+void ext4_ianalde_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
 				struct buffer_head *bh, int sz);
-int ext4_inode_bitmap_csum_verify(struct super_block *sb,
+int ext4_ianalde_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
 				  struct buffer_head *bh, int sz);
 void ext4_block_bitmap_csum_set(struct super_block *sb,
@@ -2702,7 +2702,7 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb,
 				  struct buffer_head *bh);
 
 /* balloc.c */
-extern void ext4_get_group_no_and_offset(struct super_block *sb,
+extern void ext4_get_group_anal_and_offset(struct super_block *sb,
 					 ext4_fsblk_t blocknr,
 					 ext4_group_t *blockgrpp,
 					 ext4_grpblk_t *offsetp);
@@ -2712,7 +2712,7 @@ extern ext4_group_t ext4_get_group_number(struct super_block *sb,
 extern int ext4_bg_has_super(struct super_block *sb, ext4_group_t group);
 extern unsigned long ext4_bg_num_gdb(struct super_block *sb,
 			ext4_group_t group);
-extern ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
+extern ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct ianalde *ianalde,
 					 ext4_fsblk_t goal,
 					 unsigned int flags,
 					 unsigned long *count,
@@ -2727,9 +2727,9 @@ extern struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
 						   ext4_group_t group);
 extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
 
-extern struct buffer_head *ext4_read_block_bitmap_nowait(struct super_block *sb,
+extern struct buffer_head *ext4_read_block_bitmap_analwait(struct super_block *sb,
 						ext4_group_t block_group,
-						bool ignore_locked);
+						bool iganalre_locked);
 extern int ext4_wait_block_bitmap(struct super_block *sb,
 				  ext4_group_t block_group,
 				  struct buffer_head *bh);
@@ -2738,10 +2738,10 @@ extern struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
 extern unsigned ext4_free_clusters_after_init(struct super_block *sb,
 					      ext4_group_t block_group,
 					      struct ext4_group_desc *gdp);
-ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
+ext4_fsblk_t ext4_ianalde_to_goal_block(struct ianalde *);
 
 #if IS_ENABLED(CONFIG_UNICODE)
-extern int ext4_fname_setup_ci_filename(struct inode *dir,
+extern int ext4_fname_setup_ci_filename(struct ianalde *dir,
 					 const struct qstr *iname,
 					 struct ext4_filename *fname);
 #endif
@@ -2750,10 +2750,10 @@ extern int ext4_fname_setup_ci_filename(struct inode *dir,
 #ifdef CONFIG_FS_ENCRYPTION
 extern const struct fscrypt_operations ext4_cryptops;
 
-int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
+int ext4_fname_setup_filename(struct ianalde *dir, const struct qstr *iname,
 			      int lookup, struct ext4_filename *fname);
 
-int ext4_fname_prepare_lookup(struct inode *dir, struct dentry *dentry,
+int ext4_fname_prepare_lookup(struct ianalde *dir, struct dentry *dentry,
 			      struct ext4_filename *fname);
 
 void ext4_fname_free_filename(struct ext4_filename *fname);
@@ -2761,7 +2761,7 @@ void ext4_fname_free_filename(struct ext4_filename *fname);
 int ext4_ioctl_get_encryption_pwsalt(struct file *filp, void __user *arg);
 
 #else /* !CONFIG_FS_ENCRYPTION */
-static inline int ext4_fname_setup_filename(struct inode *dir,
+static inline int ext4_fname_setup_filename(struct ianalde *dir,
 					    const struct qstr *iname,
 					    int lookup,
 					    struct ext4_filename *fname)
@@ -2778,7 +2778,7 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 	return err;
 }
 
-static inline int ext4_fname_prepare_lookup(struct inode *dir,
+static inline int ext4_fname_prepare_lookup(struct ianalde *dir,
 					    struct dentry *dentry,
 					    struct ext4_filename *fname)
 {
@@ -2796,12 +2796,12 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 static inline int ext4_ioctl_get_encryption_pwsalt(struct file *filp,
 						   void __user *arg)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* !CONFIG_FS_ENCRYPTION */
 
 /* dir.c */
-extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
+extern int __ext4_check_dir_entry(const char *, unsigned int, struct ianalde *,
 				  struct file *,
 				  struct ext4_dir_entry_2 *,
 				  struct buffer_head *, char *, int,
@@ -2810,102 +2810,102 @@ extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
 	unlikely(__ext4_check_dir_entry(__func__, __LINE__, (dir), (filp), \
 				(de), (bh), (buf), (size), (offset)))
 extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
-				__u32 minor_hash,
+				__u32 mianalr_hash,
 				struct ext4_dir_entry_2 *dirent,
 				struct fscrypt_str *ent_name);
 extern void ext4_htree_free_dir_info(struct dir_private_info *p);
-extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
+extern int ext4_find_dest_de(struct ianalde *dir, struct ianalde *ianalde,
 			     struct buffer_head *bh,
 			     void *buf, int buf_size,
 			     struct ext4_filename *fname,
 			     struct ext4_dir_entry_2 **dest_de);
-void ext4_insert_dentry(struct inode *dir, struct inode *inode,
+void ext4_insert_dentry(struct ianalde *dir, struct ianalde *ianalde,
 			struct ext4_dir_entry_2 *de,
 			int buf_size,
 			struct ext4_filename *fname);
-static inline void ext4_update_dx_flag(struct inode *inode)
+static inline void ext4_update_dx_flag(struct ianalde *ianalde)
 {
-	if (!ext4_has_feature_dir_index(inode->i_sb) &&
-	    ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) {
+	if (!ext4_has_feature_dir_index(ianalde->i_sb) &&
+	    ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_INDEX)) {
 		/* ext4_iget() should have caught this... */
-		WARN_ON_ONCE(ext4_has_feature_metadata_csum(inode->i_sb));
-		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
+		WARN_ON_ONCE(ext4_has_feature_metadata_csum(ianalde->i_sb));
+		ext4_clear_ianalde_flag(ianalde, EXT4_IANALDE_INDEX);
 	}
 }
 static const unsigned char ext4_filetype_table[] = {
-	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
+	DT_UNKANALWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
 };
 
 static inline  unsigned char get_dtype(struct super_block *sb, int filetype)
 {
 	if (!ext4_has_feature_filetype(sb) || filetype >= EXT4_FT_MAX)
-		return DT_UNKNOWN;
+		return DT_UNKANALWN;
 
 	return ext4_filetype_table[filetype];
 }
-extern int ext4_check_all_de(struct inode *dir, struct buffer_head *bh,
+extern int ext4_check_all_de(struct ianalde *dir, struct buffer_head *bh,
 			     void *buf, int buf_size);
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, loff_t, loff_t, int);
 
 /* hash.c */
-extern int ext4fs_dirhash(const struct inode *dir, const char *name, int len,
+extern int ext4fs_dirhash(const struct ianalde *dir, const char *name, int len,
 			  struct dx_hash_info *hinfo);
 
 /* ialloc.c */
-extern int ext4_mark_inode_used(struct super_block *sb, int ino);
-extern struct inode *__ext4_new_inode(struct mnt_idmap *, handle_t *,
-				      struct inode *, umode_t,
+extern int ext4_mark_ianalde_used(struct super_block *sb, int ianal);
+extern struct ianalde *__ext4_new_ianalde(struct mnt_idmap *, handle_t *,
+				      struct ianalde *, umode_t,
 				      const struct qstr *qstr, __u32 goal,
 				      uid_t *owner, __u32 i_flags,
-				      int handle_type, unsigned int line_no,
+				      int handle_type, unsigned int line_anal,
 				      int nblocks);
 
-#define ext4_new_inode(handle, dir, mode, qstr, goal, owner, i_flags)          \
-	__ext4_new_inode(&nop_mnt_idmap, (handle), (dir), (mode), (qstr),      \
+#define ext4_new_ianalde(handle, dir, mode, qstr, goal, owner, i_flags)          \
+	__ext4_new_ianalde(&analp_mnt_idmap, (handle), (dir), (mode), (qstr),      \
 			 (goal), (owner), i_flags, 0, 0, 0)
-#define ext4_new_inode_start_handle(idmap, dir, mode, qstr, goal, owner, \
+#define ext4_new_ianalde_start_handle(idmap, dir, mode, qstr, goal, owner, \
 				    type, nblocks)		    \
-	__ext4_new_inode((idmap), NULL, (dir), (mode), (qstr), (goal), (owner), \
+	__ext4_new_ianalde((idmap), NULL, (dir), (mode), (qstr), (goal), (owner), \
 			 0, (type), __LINE__, (nblocks))
 
 
-extern void ext4_free_inode(handle_t *, struct inode *);
-extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);
-extern unsigned long ext4_count_free_inodes(struct super_block *);
+extern void ext4_free_ianalde(handle_t *, struct ianalde *);
+extern struct ianalde * ext4_orphan_get(struct super_block *, unsigned long);
+extern unsigned long ext4_count_free_ianaldes(struct super_block *);
 extern unsigned long ext4_count_dirs(struct super_block *);
 extern void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap);
-extern int ext4_init_inode_table(struct super_block *sb,
+extern int ext4_init_ianalde_table(struct super_block *sb,
 				 ext4_group_t group, int barrier);
 extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 
 /* fast_commit.c */
 int ext4_fc_info_show(struct seq_file *seq, void *v);
 void ext4_fc_init(struct super_block *sb, journal_t *journal);
-void ext4_fc_init_inode(struct inode *inode);
-void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
+void ext4_fc_init_ianalde(struct ianalde *ianalde);
+void ext4_fc_track_range(handle_t *handle, struct ianalde *ianalde, ext4_lblk_t start,
 			 ext4_lblk_t end);
-void __ext4_fc_track_unlink(handle_t *handle, struct inode *inode,
+void __ext4_fc_track_unlink(handle_t *handle, struct ianalde *ianalde,
 	struct dentry *dentry);
-void __ext4_fc_track_link(handle_t *handle, struct inode *inode,
+void __ext4_fc_track_link(handle_t *handle, struct ianalde *ianalde,
 	struct dentry *dentry);
 void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry);
 void ext4_fc_track_link(handle_t *handle, struct dentry *dentry);
-void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
+void __ext4_fc_track_create(handle_t *handle, struct ianalde *ianalde,
 			    struct dentry *dentry);
 void ext4_fc_track_create(handle_t *handle, struct dentry *dentry);
-void ext4_fc_track_inode(handle_t *handle, struct inode *inode);
+void ext4_fc_track_ianalde(handle_t *handle, struct ianalde *ianalde);
 void ext4_fc_mark_ineligible(struct super_block *sb, int reason, handle_t *handle);
-void ext4_fc_start_update(struct inode *inode);
-void ext4_fc_stop_update(struct inode *inode);
-void ext4_fc_del(struct inode *inode);
+void ext4_fc_start_update(struct ianalde *ianalde);
+void ext4_fc_stop_update(struct ianalde *ianalde);
+void ext4_fc_del(struct ianalde *ianalde);
 bool ext4_fc_replay_check_excluded(struct super_block *sb, ext4_fsblk_t block);
 void ext4_fc_replay_cleanup(struct super_block *sb);
 int ext4_fc_commit(journal_t *journal, tid_t commit_tid);
 int __init ext4_fc_init_dentry_cache(void);
 void ext4_fc_destroy_dentry_cache(void);
-int ext4_fc_record_regions(struct super_block *sb, int ino,
+int ext4_fc_record_regions(struct super_block *sb, int ianal,
 			   ext4_lblk_t lblk, ext4_fsblk_t pblk,
 			   int len, int replay);
 
@@ -2917,7 +2917,7 @@ extern int ext4_mb_init(struct super_block *);
 extern void ext4_mb_release(struct super_block *);
 extern ext4_fsblk_t ext4_mb_new_blocks(handle_t *,
 				struct ext4_allocation_request *, int *);
-extern void ext4_discard_preallocations(struct inode *);
+extern void ext4_discard_preallocations(struct ianalde *);
 extern int __init ext4_init_mballoc(void);
 extern void ext4_exit_mballoc(void);
 extern ext4_group_t ext4_mb_prefetch(struct super_block *sb,
@@ -2926,7 +2926,7 @@ extern ext4_group_t ext4_mb_prefetch(struct super_block *sb,
 extern void ext4_mb_prefetch_fini(struct super_block *sb, ext4_group_t group,
 				  unsigned int nr);
 
-extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
+extern void ext4_free_blocks(handle_t *handle, struct ianalde *ianalde,
 			     struct buffer_head *bh, ext4_fsblk_t block,
 			     unsigned long count, int flags);
 extern int ext4_mb_alloc_groupinfo(struct super_block *sb,
@@ -2944,91 +2944,91 @@ static inline bool ext4_mb_cr_expensive(enum criteria cr)
 	return cr >= CR_GOAL_LEN_SLOW;
 }
 
-/* inode.c */
-void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
-			 struct ext4_inode_info *ei);
-int ext4_inode_is_fast_symlink(struct inode *inode);
-struct buffer_head *ext4_getblk(handle_t *, struct inode *, ext4_lblk_t, int);
-struct buffer_head *ext4_bread(handle_t *, struct inode *, ext4_lblk_t, int);
-int ext4_bread_batch(struct inode *inode, ext4_lblk_t block, int bh_count,
+/* ianalde.c */
+void ext4_ianalde_csum_set(struct ianalde *ianalde, struct ext4_ianalde *raw,
+			 struct ext4_ianalde_info *ei);
+int ext4_ianalde_is_fast_symlink(struct ianalde *ianalde);
+struct buffer_head *ext4_getblk(handle_t *, struct ianalde *, ext4_lblk_t, int);
+struct buffer_head *ext4_bread(handle_t *, struct ianalde *, ext4_lblk_t, int);
+int ext4_bread_batch(struct ianalde *ianalde, ext4_lblk_t block, int bh_count,
 		     bool wait, struct buffer_head **bhs);
-int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
+int ext4_get_block_unwritten(struct ianalde *ianalde, sector_t iblock,
 			     struct buffer_head *bh_result, int create);
-int ext4_get_block(struct inode *inode, sector_t iblock,
+int ext4_get_block(struct ianalde *ianalde, sector_t iblock,
 		   struct buffer_head *bh_result, int create);
-int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
+int ext4_da_get_block_prep(struct ianalde *ianalde, sector_t iblock,
 			   struct buffer_head *bh, int create);
 int ext4_walk_page_buffers(handle_t *handle,
-			   struct inode *inode,
+			   struct ianalde *ianalde,
 			   struct buffer_head *head,
 			   unsigned from,
 			   unsigned to,
 			   int *partial,
-			   int (*fn)(handle_t *handle, struct inode *inode,
+			   int (*fn)(handle_t *handle, struct ianalde *ianalde,
 				     struct buffer_head *bh));
-int do_journal_get_write_access(handle_t *handle, struct inode *inode,
+int do_journal_get_write_access(handle_t *handle, struct ianalde *ianalde,
 				struct buffer_head *bh);
-#define FALL_BACK_TO_NONDELALLOC 1
+#define FALL_BACK_TO_ANALNDELALLOC 1
 #define CONVERT_INLINE_DATA	 2
 
 typedef enum {
-	EXT4_IGET_NORMAL =	0,
-	EXT4_IGET_SPECIAL =	0x0001, /* OK to iget a system inode */
-	EXT4_IGET_HANDLE = 	0x0002,	/* Inode # is from a handle */
-	EXT4_IGET_BAD =		0x0004, /* Allow to iget a bad inode */
-	EXT4_IGET_EA_INODE =	0x0008	/* Inode should contain an EA value */
+	EXT4_IGET_ANALRMAL =	0,
+	EXT4_IGET_SPECIAL =	0x0001, /* OK to iget a system ianalde */
+	EXT4_IGET_HANDLE = 	0x0002,	/* Ianalde # is from a handle */
+	EXT4_IGET_BAD =		0x0004, /* Allow to iget a bad ianalde */
+	EXT4_IGET_EA_IANALDE =	0x0008	/* Ianalde should contain an EA value */
 } ext4_iget_flags;
 
-extern struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
+extern struct ianalde *__ext4_iget(struct super_block *sb, unsigned long ianal,
 				 ext4_iget_flags flags, const char *function,
 				 unsigned int line);
 
-#define ext4_iget(sb, ino, flags) \
-	__ext4_iget((sb), (ino), (flags), __func__, __LINE__)
+#define ext4_iget(sb, ianal, flags) \
+	__ext4_iget((sb), (ianal), (flags), __func__, __LINE__)
 
-extern int  ext4_write_inode(struct inode *, struct writeback_control *);
+extern int  ext4_write_ianalde(struct ianalde *, struct writeback_control *);
 extern int  ext4_setattr(struct mnt_idmap *, struct dentry *,
 			 struct iattr *);
-extern u32  ext4_dio_alignment(struct inode *inode);
+extern u32  ext4_dio_alignment(struct ianalde *ianalde);
 extern int  ext4_getattr(struct mnt_idmap *, const struct path *,
 			 struct kstat *, u32, unsigned int);
-extern void ext4_evict_inode(struct inode *);
-extern void ext4_clear_inode(struct inode *);
+extern void ext4_evict_ianalde(struct ianalde *);
+extern void ext4_clear_ianalde(struct ianalde *);
 extern int  ext4_file_getattr(struct mnt_idmap *, const struct path *,
 			      struct kstat *, u32, unsigned int);
-extern void ext4_dirty_inode(struct inode *, int);
-extern int ext4_change_inode_journal_flag(struct inode *, int);
-extern int ext4_get_inode_loc(struct inode *, struct ext4_iloc *);
-extern int ext4_get_fc_inode_loc(struct super_block *sb, unsigned long ino,
+extern void ext4_dirty_ianalde(struct ianalde *, int);
+extern int ext4_change_ianalde_journal_flag(struct ianalde *, int);
+extern int ext4_get_ianalde_loc(struct ianalde *, struct ext4_iloc *);
+extern int ext4_get_fc_ianalde_loc(struct super_block *sb, unsigned long ianal,
 			  struct ext4_iloc *iloc);
-extern int ext4_inode_attach_jinode(struct inode *inode);
-extern int ext4_can_truncate(struct inode *inode);
-extern int ext4_truncate(struct inode *);
-extern int ext4_break_layouts(struct inode *);
+extern int ext4_ianalde_attach_jianalde(struct ianalde *ianalde);
+extern int ext4_can_truncate(struct ianalde *ianalde);
+extern int ext4_truncate(struct ianalde *);
+extern int ext4_break_layouts(struct ianalde *);
 extern int ext4_punch_hole(struct file *file, loff_t offset, loff_t length);
-extern void ext4_set_inode_flags(struct inode *, bool init);
-extern int ext4_alloc_da_blocks(struct inode *inode);
-extern void ext4_set_aops(struct inode *inode);
-extern int ext4_writepage_trans_blocks(struct inode *);
-extern int ext4_normal_submit_inode_data_buffers(struct jbd2_inode *jinode);
-extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
-extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
+extern void ext4_set_ianalde_flags(struct ianalde *, bool init);
+extern int ext4_alloc_da_blocks(struct ianalde *ianalde);
+extern void ext4_set_aops(struct ianalde *ianalde);
+extern int ext4_writepage_trans_blocks(struct ianalde *);
+extern int ext4_analrmal_submit_ianalde_data_buffers(struct jbd2_ianalde *jianalde);
+extern int ext4_chunk_trans_blocks(struct ianalde *, int nrblocks);
+extern int ext4_zero_partial_blocks(handle_t *handle, struct ianalde *ianalde,
 			     loff_t lstart, loff_t lend);
 extern vm_fault_t ext4_page_mkwrite(struct vm_fault *vmf);
-extern qsize_t *ext4_get_reserved_space(struct inode *inode);
-extern int ext4_get_projid(struct inode *inode, kprojid_t *projid);
-extern void ext4_da_release_space(struct inode *inode, int to_free);
-extern void ext4_da_update_reserve_space(struct inode *inode,
+extern qsize_t *ext4_get_reserved_space(struct ianalde *ianalde);
+extern int ext4_get_projid(struct ianalde *ianalde, kprojid_t *projid);
+extern void ext4_da_release_space(struct ianalde *ianalde, int to_free);
+extern void ext4_da_update_reserve_space(struct ianalde *ianalde,
 					int used, int quota_claim);
-extern int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk,
+extern int ext4_issue_zeroout(struct ianalde *ianalde, ext4_lblk_t lblk,
 			      ext4_fsblk_t pblk, ext4_lblk_t len);
 
 /* indirect.c */
-extern int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
+extern int ext4_ind_map_blocks(handle_t *handle, struct ianalde *ianalde,
 				struct ext4_map_blocks *map, int flags);
-extern int ext4_ind_trans_blocks(struct inode *inode, int nrblocks);
-extern void ext4_ind_truncate(handle_t *, struct inode *inode);
-extern int ext4_ind_remove_space(handle_t *handle, struct inode *inode,
+extern int ext4_ind_trans_blocks(struct ianalde *ianalde, int nrblocks);
+extern void ext4_ind_truncate(handle_t *, struct ianalde *ianalde);
+extern int ext4_ind_remove_space(handle_t *handle, struct ianalde *ianalde,
 				 ext4_lblk_t start, ext4_lblk_t end);
 
 /* ioctl.c */
@@ -3037,35 +3037,35 @@ extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
 int ext4_fileattr_set(struct mnt_idmap *idmap,
 		      struct dentry *dentry, struct fileattr *fa);
 int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-extern void ext4_reset_inode_seed(struct inode *inode);
+extern void ext4_reset_ianalde_seed(struct ianalde *ianalde);
 int ext4_update_overhead(struct super_block *sb, bool force);
 int ext4_force_shutdown(struct super_block *sb, u32 flags);
 
 /* migrate.c */
-extern int ext4_ext_migrate(struct inode *);
-extern int ext4_ind_migrate(struct inode *inode);
+extern int ext4_ext_migrate(struct ianalde *);
+extern int ext4_ind_migrate(struct ianalde *ianalde);
 
 /* namei.c */
-extern int ext4_init_new_dir(handle_t *handle, struct inode *dir,
-			     struct inode *inode);
-extern int ext4_dirblock_csum_verify(struct inode *inode,
+extern int ext4_init_new_dir(handle_t *handle, struct ianalde *dir,
+			     struct ianalde *ianalde);
+extern int ext4_dirblock_csum_verify(struct ianalde *ianalde,
 				     struct buffer_head *bh);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
-				__u32 start_minor_hash, __u32 *next_hash);
+				__u32 start_mianalr_hash, __u32 *next_hash);
 extern int ext4_search_dir(struct buffer_head *bh,
 			   char *search_buf,
 			   int buf_size,
-			   struct inode *dir,
+			   struct ianalde *dir,
 			   struct ext4_filename *fname,
 			   unsigned int offset,
 			   struct ext4_dir_entry_2 **res_dir);
-extern int ext4_generic_delete_entry(struct inode *dir,
+extern int ext4_generic_delete_entry(struct ianalde *dir,
 				     struct ext4_dir_entry_2 *de_del,
 				     struct buffer_head *bh,
 				     void *entry_buf,
 				     int buf_size,
 				     int csum_size);
-extern bool ext4_empty_dir(struct inode *inode);
+extern bool ext4_empty_dir(struct ianalde *ianalde);
 
 /* resize.c */
 extern void ext4_kvfree_array_rcu(void *to_free);
@@ -3084,7 +3084,7 @@ extern struct buffer_head *ext4_sb_bread(struct super_block *sb,
 					 sector_t block, blk_opf_t op_flags);
 extern struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 						   sector_t block);
-extern void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
+extern void ext4_read_bh_analwait(struct buffer_head *bh, blk_opf_t op_flags,
 				bh_end_io_t *end_io);
 extern int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 			bh_end_io_t *end_io);
@@ -3097,7 +3097,7 @@ extern __le32 ext4_superblock_csum(struct super_block *sb,
 extern void ext4_superblock_csum_set(struct super_block *sb);
 extern int ext4_alloc_flex_bg_array(struct super_block *sb,
 				    ext4_group_t ngroup);
-extern const char *ext4_decode_error(struct super_block *sb, int errno,
+extern const char *ext4_decode_error(struct super_block *sb, int erranal,
 				     char nbuf[16]);
 extern void ext4_mark_group_bitmap_corrupted(struct super_block *sb,
 					     ext4_group_t block_group,
@@ -3109,7 +3109,7 @@ extern __printf(7, 8)
 void __ext4_error(struct super_block *, const char *, unsigned int, bool,
 		  int, __u64, const char *, ...);
 extern __printf(6, 7)
-void __ext4_error_inode(struct inode *, const char *, unsigned int,
+void __ext4_error_ianalde(struct ianalde *, const char *, unsigned int,
 			ext4_fsblk_t, int, const char *, ...);
 extern __printf(5, 6)
 void __ext4_error_file(struct file *, const char *, unsigned int, ext4_fsblk_t,
@@ -3120,7 +3120,7 @@ extern __printf(4, 5)
 void __ext4_warning(struct super_block *, const char *, unsigned int,
 		    const char *, ...);
 extern __printf(4, 5)
-void __ext4_warning_inode(const struct inode *inode, const char *function,
+void __ext4_warning_ianalde(const struct ianalde *ianalde, const char *function,
 			  unsigned int line, const char *fmt, ...);
 extern __printf(3, 4)
 void __ext4_msg(struct super_block *, const char *, const char *, ...);
@@ -3132,14 +3132,14 @@ void __ext4_grp_locked_error(const char *, unsigned int,
 			     unsigned long, ext4_fsblk_t,
 			     const char *, ...);
 
-#define EXT4_ERROR_INODE(inode, fmt, a...) \
-	ext4_error_inode((inode), __func__, __LINE__, 0, (fmt), ## a)
+#define EXT4_ERROR_IANALDE(ianalde, fmt, a...) \
+	ext4_error_ianalde((ianalde), __func__, __LINE__, 0, (fmt), ## a)
 
-#define EXT4_ERROR_INODE_ERR(inode, err, fmt, a...)			\
-	__ext4_error_inode((inode), __func__, __LINE__, 0, (err), (fmt), ## a)
+#define EXT4_ERROR_IANALDE_ERR(ianalde, err, fmt, a...)			\
+	__ext4_error_ianalde((ianalde), __func__, __LINE__, 0, (err), (fmt), ## a)
 
-#define ext4_error_inode_block(inode, block, err, fmt, a...)		\
-	__ext4_error_inode((inode), __func__, __LINE__, (block), (err),	\
+#define ext4_error_ianalde_block(ianalde, block, err, fmt, a...)		\
+	__ext4_error_ianalde((ianalde), __func__, __LINE__, (block), (err),	\
 			   (fmt), ## a)
 
 #define EXT4_ERROR_FILE(file, block, fmt, a...)				\
@@ -3150,10 +3150,10 @@ void __ext4_grp_locked_error(const char *, unsigned int,
 
 #ifdef CONFIG_PRINTK
 
-#define ext4_error_inode(inode, func, line, block, fmt, ...)		\
-	__ext4_error_inode(inode, func, line, block, 0, fmt, ##__VA_ARGS__)
-#define ext4_error_inode_err(inode, func, line, block, err, fmt, ...)	\
-	__ext4_error_inode((inode), (func), (line), (block), 		\
+#define ext4_error_ianalde(ianalde, func, line, block, fmt, ...)		\
+	__ext4_error_ianalde(ianalde, func, line, block, 0, fmt, ##__VA_ARGS__)
+#define ext4_error_ianalde_err(ianalde, func, line, block, err, fmt, ...)	\
+	__ext4_error_ianalde((ianalde), (func), (line), (block), 		\
 			   (err), (fmt), ##__VA_ARGS__)
 #define ext4_error_file(file, func, line, block, fmt, ...)		\
 	__ext4_error_file(file, func, line, block, fmt, ##__VA_ARGS__)
@@ -3165,77 +3165,77 @@ void __ext4_grp_locked_error(const char *, unsigned int,
 		##__VA_ARGS__)
 #define ext4_warning(sb, fmt, ...)					\
 	__ext4_warning(sb, __func__, __LINE__, fmt, ##__VA_ARGS__)
-#define ext4_warning_inode(inode, fmt, ...)				\
-	__ext4_warning_inode(inode, __func__, __LINE__, fmt, ##__VA_ARGS__)
+#define ext4_warning_ianalde(ianalde, fmt, ...)				\
+	__ext4_warning_ianalde(ianalde, __func__, __LINE__, fmt, ##__VA_ARGS__)
 #define ext4_msg(sb, level, fmt, ...)				\
 	__ext4_msg(sb, level, fmt, ##__VA_ARGS__)
 #define dump_mmp_msg(sb, mmp, msg)					\
 	__dump_mmp_msg(sb, mmp, __func__, __LINE__, msg)
-#define ext4_grp_locked_error(sb, grp, ino, block, fmt, ...)		\
-	__ext4_grp_locked_error(__func__, __LINE__, sb, grp, ino, block, \
+#define ext4_grp_locked_error(sb, grp, ianal, block, fmt, ...)		\
+	__ext4_grp_locked_error(__func__, __LINE__, sb, grp, ianal, block, \
 				fmt, ##__VA_ARGS__)
 
 #else
 
-#define ext4_error_inode(inode, func, line, block, fmt, ...)		\
+#define ext4_error_ianalde(ianalde, func, line, block, fmt, ...)		\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
-	__ext4_error_inode(inode, "", 0, block, 0, " ");		\
+	anal_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_error_ianalde(ianalde, "", 0, block, 0, " ");		\
 } while (0)
-#define ext4_error_inode_err(inode, func, line, block, err, fmt, ...)	\
+#define ext4_error_ianalde_err(ianalde, func, line, block, err, fmt, ...)	\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
-	__ext4_error_inode(inode, "", 0, block, err, " ");		\
+	anal_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_error_ianalde(ianalde, "", 0, block, err, " ");		\
 } while (0)
 #define ext4_error_file(file, func, line, block, fmt, ...)		\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
+	anal_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_error_file(file, "", 0, block, " ");			\
 } while (0)
 #define ext4_error(sb, fmt, ...)					\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
+	anal_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_error(sb, "", 0, false, 0, 0, " ");			\
 } while (0)
 #define ext4_error_err(sb, err, fmt, ...)				\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
+	anal_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_error(sb, "", 0, false, err, 0, " ");			\
 } while (0)
 #define ext4_warning(sb, fmt, ...)					\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
+	anal_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_warning(sb, "", 0, " ");					\
 } while (0)
-#define ext4_warning_inode(inode, fmt, ...)				\
+#define ext4_warning_ianalde(ianalde, fmt, ...)				\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
-	__ext4_warning_inode(inode, "", 0, " ");			\
+	anal_printk(fmt, ##__VA_ARGS__);					\
+	__ext4_warning_ianalde(ianalde, "", 0, " ");			\
 } while (0)
 #define ext4_msg(sb, level, fmt, ...)					\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);					\
+	anal_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_msg(sb, "", " ");					\
 } while (0)
 #define dump_mmp_msg(sb, mmp, msg)					\
 	__dump_mmp_msg(sb, mmp, "", 0, "")
-#define ext4_grp_locked_error(sb, grp, ino, block, fmt, ...)		\
+#define ext4_grp_locked_error(sb, grp, ianal, block, fmt, ...)		\
 do {									\
-	no_printk(fmt, ##__VA_ARGS__);				\
-	__ext4_grp_locked_error("", 0, sb, grp, ino, block, " ");	\
+	anal_printk(fmt, ##__VA_ARGS__);				\
+	__ext4_grp_locked_error("", 0, sb, grp, ianal, block, " ");	\
 } while (0)
 
 #endif
 
 extern ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
-extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
+extern ext4_fsblk_t ext4_ianalde_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
-extern ext4_fsblk_t ext4_inode_table(struct super_block *sb,
+extern ext4_fsblk_t ext4_ianalde_table(struct super_block *sb,
 				     struct ext4_group_desc *bg);
 extern __u32 ext4_free_group_clusters(struct super_block *sb,
 				      struct ext4_group_desc *bg);
-extern __u32 ext4_free_inodes_count(struct super_block *sb,
+extern __u32 ext4_free_ianaldes_count(struct super_block *sb,
 				 struct ext4_group_desc *bg);
 extern __u32 ext4_used_dirs_count(struct super_block *sb,
 				struct ext4_group_desc *bg);
@@ -3243,14 +3243,14 @@ extern __u32 ext4_itable_unused_count(struct super_block *sb,
 				   struct ext4_group_desc *bg);
 extern void ext4_block_bitmap_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
-extern void ext4_inode_bitmap_set(struct super_block *sb,
+extern void ext4_ianalde_bitmap_set(struct super_block *sb,
 				  struct ext4_group_desc *bg, ext4_fsblk_t blk);
-extern void ext4_inode_table_set(struct super_block *sb,
+extern void ext4_ianalde_table_set(struct super_block *sb,
 				 struct ext4_group_desc *bg, ext4_fsblk_t blk);
 extern void ext4_free_group_clusters_set(struct super_block *sb,
 					 struct ext4_group_desc *bg,
 					 __u32 count);
-extern void ext4_free_inodes_set(struct super_block *sb,
+extern void ext4_free_ianaldes_set(struct super_block *sb,
 				struct ext4_group_desc *bg, __u32 count);
 extern void ext4_used_dirs_set(struct super_block *sb,
 				struct ext4_group_desc *bg, __u32 count);
@@ -3261,7 +3261,7 @@ extern int ext4_group_desc_csum_verify(struct super_block *sb, __u32 group,
 extern void ext4_group_desc_csum_set(struct super_block *sb, __u32 group,
 				     struct ext4_group_desc *gdp);
 extern int ext4_register_li_request(struct super_block *sb,
-				    ext4_group_t first_not_zeroed);
+				    ext4_group_t first_analt_zeroed);
 
 static inline int ext4_has_metadata_csum(struct super_block *sb)
 {
@@ -3319,20 +3319,20 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 }
 
 static inline loff_t ext4_isize(struct super_block *sb,
-				struct ext4_inode *raw_inode)
+				struct ext4_ianalde *raw_ianalde)
 {
 	if (ext4_has_feature_largedir(sb) ||
-	    S_ISREG(le16_to_cpu(raw_inode->i_mode)))
-		return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
-			le32_to_cpu(raw_inode->i_size_lo);
+	    S_ISREG(le16_to_cpu(raw_ianalde->i_mode)))
+		return ((loff_t)le32_to_cpu(raw_ianalde->i_size_high) << 32) |
+			le32_to_cpu(raw_ianalde->i_size_lo);
 
-	return (loff_t) le32_to_cpu(raw_inode->i_size_lo);
+	return (loff_t) le32_to_cpu(raw_ianalde->i_size_lo);
 }
 
-static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)
+static inline void ext4_isize_set(struct ext4_ianalde *raw_ianalde, loff_t i_size)
 {
-	raw_inode->i_size_lo = cpu_to_le32(i_size);
-	raw_inode->i_size_high = cpu_to_le32(i_size >> 32);
+	raw_ianalde->i_size_lo = cpu_to_le32(i_size);
+	raw_ianalde->i_size_high = cpu_to_le32(i_size >> 32);
 }
 
 /*
@@ -3359,10 +3359,10 @@ static inline unsigned int ext4_flex_bg_size(struct ext4_sb_info *sbi)
 	return 1 << sbi->s_log_groups_per_flex;
 }
 
-#define ext4_std_error(sb, errno)				\
+#define ext4_std_error(sb, erranal)				\
 do {								\
-	if ((errno))						\
-		__ext4_std_error((sb), __func__, __LINE__, (errno));	\
+	if ((erranal))						\
+		__ext4_std_error((sb), __func__, __LINE__, (erranal));	\
 } while (0)
 
 #ifdef CONFIG_SMP
@@ -3376,33 +3376,33 @@ do {								\
 #endif
 
 /* Update i_disksize. Requires i_rwsem to avoid races with truncate */
-static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
+static inline void ext4_update_i_disksize(struct ianalde *ianalde, loff_t newsize)
 {
-	WARN_ON_ONCE(S_ISREG(inode->i_mode) &&
-		     !inode_is_locked(inode));
-	down_write(&EXT4_I(inode)->i_data_sem);
-	if (newsize > EXT4_I(inode)->i_disksize)
-		WRITE_ONCE(EXT4_I(inode)->i_disksize, newsize);
-	up_write(&EXT4_I(inode)->i_data_sem);
+	WARN_ON_ONCE(S_ISREG(ianalde->i_mode) &&
+		     !ianalde_is_locked(ianalde));
+	down_write(&EXT4_I(ianalde)->i_data_sem);
+	if (newsize > EXT4_I(ianalde)->i_disksize)
+		WRITE_ONCE(EXT4_I(ianalde)->i_disksize, newsize);
+	up_write(&EXT4_I(ianalde)->i_data_sem);
 }
 
 /* Update i_size, i_disksize. Requires i_rwsem to avoid races with truncate */
-static inline int ext4_update_inode_size(struct inode *inode, loff_t newsize)
+static inline int ext4_update_ianalde_size(struct ianalde *ianalde, loff_t newsize)
 {
 	int changed = 0;
 
-	if (newsize > inode->i_size) {
-		i_size_write(inode, newsize);
+	if (newsize > ianalde->i_size) {
+		i_size_write(ianalde, newsize);
 		changed = 1;
 	}
-	if (newsize > EXT4_I(inode)->i_disksize) {
-		ext4_update_i_disksize(inode, newsize);
+	if (newsize > EXT4_I(ianalde)->i_disksize) {
+		ext4_update_i_disksize(ianalde, newsize);
 		changed |= 2;
 	}
 	return changed;
 }
 
-int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
+int ext4_update_disksize_before_punch(struct ianalde *ianalde, loff_t offset,
 				      loff_t len);
 
 struct ext4_group_info {
@@ -3423,8 +3423,8 @@ struct ext4_group_info {
 	void            *bb_bitmap;
 #endif
 	struct rw_semaphore alloc_sem;
-	struct list_head bb_avg_fragment_size_node;
-	struct list_head bb_largest_free_order_node;
+	struct list_head bb_avg_fragment_size_analde;
+	struct list_head bb_largest_free_order_analde;
 	ext4_grpblk_t	bb_counters[];	/* Nr of free power-of-two-block
 					 * regions, index is order.
 					 * bb_counters[3] = 5 means
@@ -3467,7 +3467,7 @@ static inline spinlock_t *ext4_group_lock_ptr(struct super_block *sb,
 }
 
 /*
- * Returns true if the filesystem is busy enough that attempts to
+ * Returns true if the filesystem is busy eanalugh that attempts to
  * access the block group locks has run into contention.
  */
 static inline int ext4_fs_is_busy(struct ext4_sb_info *sbi)
@@ -3520,102 +3520,102 @@ int ext4_enable_quotas(struct super_block *sb);
 /*
  * Block validity checking
  */
-#define ext4_check_indirect_blockref(inode, bh)				\
-	ext4_check_blockref(__func__, __LINE__, inode,			\
+#define ext4_check_indirect_blockref(ianalde, bh)				\
+	ext4_check_blockref(__func__, __LINE__, ianalde,			\
 			    (__le32 *)(bh)->b_data,			\
-			    EXT4_ADDR_PER_BLOCK((inode)->i_sb))
+			    EXT4_ADDR_PER_BLOCK((ianalde)->i_sb))
 
-#define ext4_ind_check_inode(inode)					\
-	ext4_check_blockref(__func__, __LINE__, inode,			\
-			    EXT4_I(inode)->i_data,			\
+#define ext4_ind_check_ianalde(ianalde)					\
+	ext4_check_blockref(__func__, __LINE__, ianalde,			\
+			    EXT4_I(ianalde)->i_data,			\
 			    EXT4_NDIR_BLOCKS)
 
 /*
- * Inodes and files operations
+ * Ianaldes and files operations
  */
 
 /* dir.c */
 extern const struct file_operations ext4_dir_operations;
 
 /* file.c */
-extern const struct inode_operations ext4_file_inode_operations;
+extern const struct ianalde_operations ext4_file_ianalde_operations;
 extern const struct file_operations ext4_file_operations;
 extern loff_t ext4_llseek(struct file *file, loff_t offset, int origin);
 
 /* inline.c */
-extern int ext4_get_max_inline_size(struct inode *inode);
-extern int ext4_find_inline_data_nolock(struct inode *inode);
-extern int ext4_destroy_inline_data(handle_t *handle, struct inode *inode);
+extern int ext4_get_max_inline_size(struct ianalde *ianalde);
+extern int ext4_find_inline_data_anallock(struct ianalde *ianalde);
+extern int ext4_destroy_inline_data(handle_t *handle, struct ianalde *ianalde);
 
-int ext4_readpage_inline(struct inode *inode, struct folio *folio);
+int ext4_readpage_inline(struct ianalde *ianalde, struct folio *folio);
 extern int ext4_try_to_write_inline_data(struct address_space *mapping,
-					 struct inode *inode,
+					 struct ianalde *ianalde,
 					 loff_t pos, unsigned len,
 					 struct page **pagep);
-int ext4_write_inline_data_end(struct inode *inode, loff_t pos, unsigned len,
+int ext4_write_inline_data_end(struct ianalde *ianalde, loff_t pos, unsigned len,
 			       unsigned copied, struct folio *folio);
 extern int ext4_da_write_inline_data_begin(struct address_space *mapping,
-					   struct inode *inode,
+					   struct ianalde *ianalde,
 					   loff_t pos, unsigned len,
 					   struct page **pagep,
 					   void **fsdata);
 extern int ext4_try_add_inline_entry(handle_t *handle,
 				     struct ext4_filename *fname,
-				     struct inode *dir, struct inode *inode);
+				     struct ianalde *dir, struct ianalde *ianalde);
 extern int ext4_try_create_inline_dir(handle_t *handle,
-				      struct inode *parent,
-				      struct inode *inode);
+				      struct ianalde *parent,
+				      struct ianalde *ianalde);
 extern int ext4_read_inline_dir(struct file *filp,
 				struct dir_context *ctx,
 				int *has_inline_data);
 extern int ext4_inlinedir_to_tree(struct file *dir_file,
-				  struct inode *dir, ext4_lblk_t block,
+				  struct ianalde *dir, ext4_lblk_t block,
 				  struct dx_hash_info *hinfo,
-				  __u32 start_hash, __u32 start_minor_hash,
+				  __u32 start_hash, __u32 start_mianalr_hash,
 				  int *has_inline_data);
-extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
+extern struct buffer_head *ext4_find_inline_entry(struct ianalde *dir,
 					struct ext4_filename *fname,
 					struct ext4_dir_entry_2 **res_dir,
 					int *has_inline_data);
 extern int ext4_delete_inline_entry(handle_t *handle,
-				    struct inode *dir,
+				    struct ianalde *dir,
 				    struct ext4_dir_entry_2 *de_del,
 				    struct buffer_head *bh,
 				    int *has_inline_data);
-extern bool empty_inline_dir(struct inode *dir, int *has_inline_data);
-extern struct buffer_head *ext4_get_first_inline_block(struct inode *inode,
+extern bool empty_inline_dir(struct ianalde *dir, int *has_inline_data);
+extern struct buffer_head *ext4_get_first_inline_block(struct ianalde *ianalde,
 					struct ext4_dir_entry_2 **parent_de,
 					int *retval);
-extern void *ext4_read_inline_link(struct inode *inode);
+extern void *ext4_read_inline_link(struct ianalde *ianalde);
 
 struct iomap;
-extern int ext4_inline_data_iomap(struct inode *inode, struct iomap *iomap);
+extern int ext4_inline_data_iomap(struct ianalde *ianalde, struct iomap *iomap);
 
-extern int ext4_inline_data_truncate(struct inode *inode, int *has_inline);
+extern int ext4_inline_data_truncate(struct ianalde *ianalde, int *has_inline);
 
-extern int ext4_convert_inline_data(struct inode *inode);
+extern int ext4_convert_inline_data(struct ianalde *ianalde);
 
-static inline int ext4_has_inline_data(struct inode *inode)
+static inline int ext4_has_inline_data(struct ianalde *ianalde)
 {
-	return ext4_test_inode_flag(inode, EXT4_INODE_INLINE_DATA) &&
-	       EXT4_I(inode)->i_inline_off;
+	return ext4_test_ianalde_flag(ianalde, EXT4_IANALDE_INLINE_DATA) &&
+	       EXT4_I(ianalde)->i_inline_off;
 }
 
 /* namei.c */
-extern const struct inode_operations ext4_dir_inode_operations;
-extern const struct inode_operations ext4_special_inode_operations;
+extern const struct ianalde_operations ext4_dir_ianalde_operations;
+extern const struct ianalde_operations ext4_special_ianalde_operations;
 extern struct dentry *ext4_get_parent(struct dentry *child);
-extern struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct inode *inode,
+extern struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct ianalde *ianalde,
 				 struct ext4_dir_entry_2 *de,
 				 int blocksize, int csum_size,
-				 unsigned int parent_ino, int dotdot_real_len);
+				 unsigned int parent_ianal, int dotdot_real_len);
 extern void ext4_initialize_dirent_tail(struct buffer_head *bh,
 					unsigned int blocksize);
-extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
+extern int ext4_handle_dirty_dirblock(handle_t *handle, struct ianalde *ianalde,
 				      struct buffer_head *bh);
-extern int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
-			 struct inode *inode, struct dentry *dentry);
-extern int __ext4_link(struct inode *dir, struct inode *inode,
+extern int __ext4_unlink(struct ianalde *dir, const struct qstr *d_name,
+			 struct ianalde *ianalde, struct dentry *dentry);
+extern int __ext4_link(struct ianalde *dir, struct ianalde *ianalde,
 		       struct dentry *dentry);
 
 #define S_SHIFT 12
@@ -3637,18 +3637,18 @@ static inline void ext4_set_de_type(struct super_block *sb,
 }
 
 /* readpages.c */
-extern int ext4_mpage_readpages(struct inode *inode,
+extern int ext4_mpage_readpages(struct ianalde *ianalde,
 		struct readahead_control *rac, struct folio *folio);
 extern int __init ext4_init_post_read_processing(void);
 extern void ext4_exit_post_read_processing(void);
 
 /* symlink.c */
-extern const struct inode_operations ext4_encrypted_symlink_inode_operations;
-extern const struct inode_operations ext4_symlink_inode_operations;
-extern const struct inode_operations ext4_fast_symlink_inode_operations;
+extern const struct ianalde_operations ext4_encrypted_symlink_ianalde_operations;
+extern const struct ianalde_operations ext4_symlink_ianalde_operations;
+extern const struct ianalde_operations ext4_fast_symlink_ianalde_operations;
 
 /* sysfs.c */
-extern void ext4_notify_error_sysfs(struct ext4_sb_info *sbi);
+extern void ext4_analtify_error_sysfs(struct ext4_sb_info *sbi);
 extern int ext4_register_sysfs(struct super_block *sb);
 extern void ext4_unregister_sysfs(struct super_block *sb);
 extern int __init ext4_init_sysfs(void);
@@ -3659,12 +3659,12 @@ extern void ext4_release_system_zone(struct super_block *sb);
 extern int ext4_setup_system_zone(struct super_block *sb);
 extern int __init ext4_init_system_zone(void);
 extern void ext4_exit_system_zone(void);
-extern int ext4_inode_block_valid(struct inode *inode,
+extern int ext4_ianalde_block_valid(struct ianalde *ianalde,
 				  ext4_fsblk_t start_blk,
 				  unsigned int count);
 extern int ext4_check_blockref(const char *, unsigned int,
-			       struct inode *, __le32 *, unsigned int);
-extern int ext4_sb_block_valid(struct super_block *sb, struct inode *inode,
+			       struct ianalde *, __le32 *, unsigned int);
+extern int ext4_sb_block_valid(struct super_block *sb, struct ianalde *ianalde,
 				ext4_fsblk_t start_blk, unsigned int count);
 
 
@@ -3678,69 +3678,69 @@ struct ext4_extent;
  */
 #define EXT_MAX_BLOCKS	0xffffffff
 
-extern void ext4_ext_tree_init(handle_t *handle, struct inode *inode);
-extern int ext4_ext_index_trans_blocks(struct inode *inode, int extents);
-extern int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
+extern void ext4_ext_tree_init(handle_t *handle, struct ianalde *ianalde);
+extern int ext4_ext_index_trans_blocks(struct ianalde *ianalde, int extents);
+extern int ext4_ext_map_blocks(handle_t *handle, struct ianalde *ianalde,
 			       struct ext4_map_blocks *map, int flags);
-extern int ext4_ext_truncate(handle_t *, struct inode *);
-extern int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start,
+extern int ext4_ext_truncate(handle_t *, struct ianalde *);
+extern int ext4_ext_remove_space(struct ianalde *ianalde, ext4_lblk_t start,
 				 ext4_lblk_t end);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
 			  loff_t len);
-extern int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
+extern int ext4_convert_unwritten_extents(handle_t *handle, struct ianalde *ianalde,
 					  loff_t offset, ssize_t len);
 extern int ext4_convert_unwritten_io_end_vec(handle_t *handle,
 					     ext4_io_end_t *io_end);
-extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
+extern int ext4_map_blocks(handle_t *handle, struct ianalde *ianalde,
 			   struct ext4_map_blocks *map, int flags);
-extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
+extern int ext4_ext_calc_credits_for_single_extent(struct ianalde *ianalde,
 						   int num,
 						   struct ext4_ext_path *path);
-extern int ext4_ext_insert_extent(handle_t *, struct inode *,
+extern int ext4_ext_insert_extent(handle_t *, struct ianalde *,
 				  struct ext4_ext_path **,
 				  struct ext4_extent *, int);
-extern struct ext4_ext_path *ext4_find_extent(struct inode *, ext4_lblk_t,
+extern struct ext4_ext_path *ext4_find_extent(struct ianalde *, ext4_lblk_t,
 					      struct ext4_ext_path **,
 					      int flags);
 extern void ext4_free_ext_path(struct ext4_ext_path *);
-extern int ext4_ext_check_inode(struct inode *inode);
+extern int ext4_ext_check_ianalde(struct ianalde *ianalde);
 extern ext4_lblk_t ext4_ext_next_allocated_block(struct ext4_ext_path *path);
-extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+extern int ext4_fiemap(struct ianalde *ianalde, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
-extern int ext4_get_es_cache(struct inode *inode,
+extern int ext4_get_es_cache(struct ianalde *ianalde,
 			     struct fiemap_extent_info *fieinfo,
 			     __u64 start, __u64 len);
-extern int ext4_ext_precache(struct inode *inode);
-extern int ext4_swap_extents(handle_t *handle, struct inode *inode1,
-				struct inode *inode2, ext4_lblk_t lblk1,
+extern int ext4_ext_precache(struct ianalde *ianalde);
+extern int ext4_swap_extents(handle_t *handle, struct ianalde *ianalde1,
+				struct ianalde *ianalde2, ext4_lblk_t lblk1,
 			     ext4_lblk_t lblk2,  ext4_lblk_t count,
 			     int mark_unwritten,int *err);
-extern int ext4_clu_mapped(struct inode *inode, ext4_lblk_t lclu);
-extern int ext4_datasem_ensure_credits(handle_t *handle, struct inode *inode,
+extern int ext4_clu_mapped(struct ianalde *ianalde, ext4_lblk_t lclu);
+extern int ext4_datasem_ensure_credits(handle_t *handle, struct ianalde *ianalde,
 				       int check_cred, int restart_cred,
 				       int revoke_cred);
-extern void ext4_ext_replay_shrink_inode(struct inode *inode, ext4_lblk_t end);
-extern int ext4_ext_replay_set_iblocks(struct inode *inode);
-extern int ext4_ext_replay_update_ex(struct inode *inode, ext4_lblk_t start,
+extern void ext4_ext_replay_shrink_ianalde(struct ianalde *ianalde, ext4_lblk_t end);
+extern int ext4_ext_replay_set_iblocks(struct ianalde *ianalde);
+extern int ext4_ext_replay_update_ex(struct ianalde *ianalde, ext4_lblk_t start,
 		int len, int unwritten, ext4_fsblk_t pblk);
-extern int ext4_ext_clear_bb(struct inode *inode);
+extern int ext4_ext_clear_bb(struct ianalde *ianalde);
 
 
 /* move_extent.c */
-extern void ext4_double_down_write_data_sem(struct inode *first,
-					    struct inode *second);
-extern void ext4_double_up_write_data_sem(struct inode *orig_inode,
-					  struct inode *donor_inode);
+extern void ext4_double_down_write_data_sem(struct ianalde *first,
+					    struct ianalde *second);
+extern void ext4_double_up_write_data_sem(struct ianalde *orig_ianalde,
+					  struct ianalde *doanalr_ianalde);
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
-			     __u64 start_orig, __u64 start_donor,
+			     __u64 start_orig, __u64 start_doanalr,
 			     __u64 len, __u64 *moved_len);
 
 /* page-io.c */
 extern int __init ext4_init_pageio(void);
 extern void ext4_exit_pageio(void);
-extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
+extern ext4_io_end_t *ext4_init_io_end(struct ianalde *ianalde, gfp_t flags);
 extern ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end);
 extern int ext4_put_io_end(ext4_io_end_t *io_end);
 extern void ext4_put_io_end_defer(ext4_io_end_t *io_end);
@@ -3763,8 +3763,8 @@ extern void ext4_stop_mmpd(struct ext4_sb_info *sbi);
 extern const struct fsverity_operations ext4_verityops;
 
 /* orphan.c */
-extern int ext4_orphan_add(handle_t *, struct inode *);
-extern int ext4_orphan_del(handle_t *, struct inode *);
+extern int ext4_orphan_add(handle_t *, struct ianalde *);
+extern int ext4_orphan_del(handle_t *, struct ianalde *);
 extern void ext4_orphan_cleanup(struct super_block *sb,
 				struct ext4_super_block *es);
 extern void ext4_release_orphan_info(struct super_block *sb);
@@ -3776,8 +3776,8 @@ extern void ext4_orphan_file_block_trigger(
 				void *data, size_t size);
 
 /*
- * Add new method to test whether block and inode bitmaps are properly
- * initialized. With uninit_bg reading the block from disk is not enough
+ * Add new method to test whether block and ianalde bitmaps are properly
+ * initialized. With uninit_bg reading the block from disk is analt eanalugh
  * to mark the bitmap uptodate. We need to also zero-out the bitmap
  */
 #define BH_BITMAP_UPTODATE BH_JBDPrivateStart
@@ -3801,24 +3801,24 @@ extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 extern int ext4_resize_begin(struct super_block *sb);
 extern int ext4_resize_end(struct super_block *sb, bool update_backups);
 
-static inline void ext4_set_io_unwritten_flag(struct inode *inode,
+static inline void ext4_set_io_unwritten_flag(struct ianalde *ianalde,
 					      struct ext4_io_end *io_end)
 {
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		io_end->flag |= EXT4_IO_END_UNWRITTEN;
-		atomic_inc(&EXT4_I(inode)->i_unwritten);
+		atomic_inc(&EXT4_I(ianalde)->i_unwritten);
 	}
 }
 
 static inline void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
 {
-	struct inode *inode = io_end->inode;
+	struct ianalde *ianalde = io_end->ianalde;
 
 	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
 		io_end->flag &= ~EXT4_IO_END_UNWRITTEN;
 		/* Wake up anyone waiting on unwritten extent conversion */
-		if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-			wake_up_all(ext4_ioend_wq(inode));
+		if (atomic_dec_and_test(&EXT4_I(ianalde)->i_unwritten))
+			wake_up_all(ext4_ioend_wq(ianalde));
 	}
 }
 

@@ -77,7 +77,7 @@ struct imx_pll14xx_clk imx_1443x_dram_pll = {
 	.type = PLL_1443X,
 	.rate_table = imx_pll1443x_tbl,
 	.rate_count = ARRAY_SIZE(imx_pll1443x_tbl),
-	.flags = CLK_GET_RATE_NOCACHE,
+	.flags = CLK_GET_RATE_ANALCACHE,
 };
 EXPORT_SYMBOL_GPL(imx_1443x_dram_pll);
 
@@ -360,7 +360,7 @@ static int clk_pll1443x_set_rate(struct clk_hw *hw, unsigned long drate,
 	div_ctl0 = readl_relaxed(pll->base + DIV_CTL0);
 
 	if (!clk_pll14xx_mp_change(&rate, div_ctl0)) {
-		/* only sdiv and/or kdiv changed - no need to RESET PLL */
+		/* only sdiv and/or kdiv changed - anal need to RESET PLL */
 		div_ctl0 &= ~SDIV_MASK;
 		div_ctl0 |= FIELD_PREP(SDIV_MASK, rate.sdiv);
 		writel_relaxed(div_ctl0, pll->base + DIV_CTL0);
@@ -418,7 +418,7 @@ static int clk_pll14xx_prepare(struct clk_hw *hw)
 	int ret;
 
 	/*
-	 * RESETB = 1 from 0, PLL starts its normal
+	 * RESETB = 1 from 0, PLL starts its analrmal
 	 * operation after lock time
 	 */
 	val = readl_relaxed(pll->base + GNRL_CTL);
@@ -497,7 +497,7 @@ struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.flags = pll_clk->flags;
@@ -515,7 +515,7 @@ struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 		init.ops = &clk_pll1443x_ops;
 		break;
 	default:
-		pr_err("Unknown pll type for pll clk %s\n", name);
+		pr_err("Unkanalwn pll type for pll clk %s\n", name);
 		kfree(pll);
 		return ERR_PTR(-EINVAL);
 	}

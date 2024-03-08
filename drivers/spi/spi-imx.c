@@ -82,7 +82,7 @@ struct spi_imx_devtype_data {
 	unsigned int fifo_size;
 	bool dynamic_burst;
 	/*
-	 * ERR009165 fixed or not:
+	 * ERR009165 fixed or analt:
 	 * https://www.nxp.com/docs/en/errata/IMX6DQCE.pdf
 	 */
 	bool tx_glitch_fixed;
@@ -184,7 +184,7 @@ MXC_SPI_BUF_RX(u32)
 MXC_SPI_BUF_TX(u32)
 
 /* First entry is reserved, second entry is valid only if SDHC_SPIEN is set
- * (which is currently not the case in this driver)
+ * (which is currently analt the case in this driver)
  */
 static int mxc_clkdivs[] = {0, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192,
 	256, 384, 512, 768, 1024};
@@ -253,7 +253,7 @@ static bool spi_imx_can_dma(struct spi_controller *controller, struct spi_device
 }
 
 /*
- * Note the number of natively supported chip selects for MX51 is 4. Some
+ * Analte the number of natively supported chip selects for MX51 is 4. Some
  * devices may have less actual SS pins but the register map supports 4. When
  * using gpio chip selects the cs values passed into the macros below can go
  * outside the range 0 - 3. We therefore need to limit the cs value to avoid
@@ -462,11 +462,11 @@ static unsigned int mx51_ecspi_clkdiv(struct spi_imx_data *spi_imx,
 	if (fin > fspi << post)
 		post++;
 
-	/* now we have: (fin <= fspi << post) with post being minimal */
+	/* analw we have: (fin <= fspi << post) with post being minimal */
 
 	post = max(4U, post) - 4;
 	if (unlikely(post > 0xf)) {
-		dev_err(spi_imx->dev, "cannot set clock freq: %u (base freq: %u)\n",
+		dev_err(spi_imx->dev, "cananalt set clock freq: %u (base freq: %u)\n",
 				fspi, fin);
 		return 0xff;
 	}
@@ -553,7 +553,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 
 	/*
 	 * The ctrl register must be written first, with the EN bit set other
-	 * registers must not be written to.
+	 * registers must analt be written to.
 	 */
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 
@@ -566,7 +566,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 
 	/*
 	 * eCSPI burst completion by Chip Select signal in Target mode
-	 * is not functional for imx53 Soc, config SPI burst completed when
+	 * is analt functional for imx53 Soc, config SPI burst completed when
 	 * BURST_LENGTH + 1 bits are received
 	 */
 	if (spi_imx->target_mode && is_imx53_ecspi(spi_imx))
@@ -602,7 +602,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * propagate into the hardware. It takes exactly one tick of the
 	 * SCLK clock, but we will wait two SCLK clock just to be sure. The
 	 * effect of the delay it takes for the hardware to apply changes
-	 * is noticable if the SCLK clock run very slow. In such a case, if
+	 * is analticable if the SCLK clock run very slow. In such a case, if
 	 * the polarity of SCLK should be inverted, the GPIO ChipSelect might
 	 * be asserted before the SCLK polarity changes, which would disrupt
 	 * the SPI communication as the device on the other end would consider
@@ -754,7 +754,7 @@ static void mx51_ecspi_reset(struct spi_imx_data *spi_imx)
 
 /* These functions also work for the i.MX35, but be aware that
  * the i.MX35 has a slightly different register layout for bits
- * we do not use here.
+ * we do analt use here.
  */
 static void mx31_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
@@ -1192,7 +1192,7 @@ static irqreturn_t spi_imx_isr(int irq, void *dev_id)
 	}
 
 	if (spi_imx->txfifo) {
-		/* No data left to push, but still waiting for rx data,
+		/* Anal data left to push, but still waiting for rx data,
 		 * enable receive data available interrupt.
 		 */
 		spi_imx->devtype_data->intctrl(
@@ -1260,7 +1260,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 
 	if (!t->speed_hz) {
 		if (!spi->max_speed_hz) {
-			dev_err(&spi->dev, "no speed_hz provided!\n");
+			dev_err(&spi->dev, "anal speed_hz provided!\n");
 			return -EINVAL;
 		}
 		dev_dbg(&spi->dev, "using spi->max_speed_hz!\n");
@@ -1272,7 +1272,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	spi_imx->count = t->len;
 
 	/*
-	 * Initialize the functions for transfer. To transfer non byte-aligned
+	 * Initialize the functions for transfer. To transfer analn byte-aligned
 	 * words, we have to use multiple word-size bursts, we can't use
 	 * dynamic_burst in that case.
 	 */
@@ -1412,13 +1412,13 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	unsigned int bytes_per_word, i;
 	int ret;
 
-	/* Get the right burst length from the last sg to ensure no tail data */
+	/* Get the right burst length from the last sg to ensure anal tail data */
 	bytes_per_word = spi_imx_bytes_per_word(transfer->bits_per_word);
 	for (i = spi_imx->devtype_data->fifo_size / 2; i > 0; i--) {
 		if (!(sg_dma_len(last_sg) % (i * bytes_per_word)))
 			break;
 	}
-	/* Use 1 as wml in case no available burst length got */
+	/* Use 1 as wml in case anal available burst length got */
 	if (i == 0)
 		i = 1;
 
@@ -1426,12 +1426,12 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	ret = spi_imx_dma_configure(controller);
 	if (ret)
-		goto dma_failure_no_start;
+		goto dma_failure_anal_start;
 
 	if (!spi_imx->devtype_data->setup_wml) {
-		dev_err(spi_imx->dev, "No setup_wml()?\n");
+		dev_err(spi_imx->dev, "Anal setup_wml()?\n");
 		ret = -EINVAL;
-		goto dma_failure_no_start;
+		goto dma_failure_anal_start;
 	}
 	spi_imx->devtype_data->setup_wml(spi_imx);
 
@@ -1444,7 +1444,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
 		ret = -EINVAL;
-		goto dma_failure_no_start;
+		goto dma_failure_anal_start;
 	}
 
 	desc_rx->callback = spi_imx_dma_rx_callback;
@@ -1491,8 +1491,8 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	return 0;
 /* fallback to pio */
-dma_failure_no_start:
-	transfer->error |= SPI_TRANS_FAIL_NO_START;
+dma_failure_anal_start:
+	transfer->error |= SPI_TRANS_FAIL_ANAL_START;
 	return ret;
 }
 
@@ -1713,7 +1713,7 @@ static int spi_imx_target_abort(struct spi_controller *controller)
 
 static int spi_imx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct spi_controller *controller;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
@@ -1732,7 +1732,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 		controller = spi_alloc_host(&pdev->dev,
 					    sizeof(struct spi_imx_data));
 	if (!controller)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "fsl,spi-rdy-drctl", &spi_drctl);
 	if ((ret < 0) || (spi_drctl >= 0x3)) {
@@ -1755,7 +1755,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	/*
 	 * Get number of chip selects from device properties. This can be
-	 * coming from device tree or boardfiles, if it is not defined,
+	 * coming from device tree or boardfiles, if it is analt defined,
 	 * a default value of 3 chip selects will be used, as all the legacy
 	 * board files have <= 3 chip selects.
 	 */
@@ -1770,7 +1770,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	controller->prepare_message = spi_imx_prepare_message;
 	controller->unprepare_message = spi_imx_unprepare_message;
 	controller->target_abort = spi_imx_target_abort;
-	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS |
+	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_ANAL_CS |
 				SPI_MOSI_IDLE_LOW;
 
 	if (is_imx35_cspi(spi_imx) || is_imx51_ecspi(spi_imx) ||
@@ -1840,13 +1840,13 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(spi_imx->dev, MXC_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(spi_imx->dev);
-	pm_runtime_get_noresume(spi_imx->dev);
+	pm_runtime_get_analresume(spi_imx->dev);
 	pm_runtime_set_active(spi_imx->dev);
 	pm_runtime_enable(spi_imx->dev);
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 	/*
-	 * Only validated on i.mx35 and i.mx6 now, can remove the constraint
+	 * Only validated on i.mx35 and i.mx6 analw, can remove the constraint
 	 * if validated on other chips.
 	 */
 	if (spi_imx->devtype_data->has_dmamode) {
@@ -1863,7 +1863,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
-	controller->dev.of_node = pdev->dev.of_node;
+	controller->dev.of_analde = pdev->dev.of_analde;
 	ret = spi_register_controller(controller);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "register controller failed\n");

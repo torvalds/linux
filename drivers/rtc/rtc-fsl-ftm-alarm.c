@@ -79,7 +79,7 @@ static inline void ftm_counter_disable(struct ftm_rtc *rtc)
 	rtc_writel(rtc, FTM_SC, val);
 }
 
-static inline void ftm_irq_acknowledge(struct ftm_rtc *rtc)
+static inline void ftm_irq_ackanalwledge(struct ftm_rtc *rtc)
 {
 	unsigned int timeout = 100;
 
@@ -88,7 +88,7 @@ static inline void ftm_irq_acknowledge(struct ftm_rtc *rtc)
 	 *	If the FTM counter reaches the FTM_MOD value between
 	 *	the reading of the TOF bit and the writing of 0 to
 	 *	the TOF bit, the process of clearing the TOF bit
-	 *	does not work as expected when FTMx_CONF[NUMTOF] != 0
+	 *	does analt work as expected when FTMx_CONF[NUMTOF] != 0
 	 *	and the current TOF count is less than FTMx_CONF[NUMTOF].
 	 *	If the above condition is met, the TOF bit remains set.
 	 *	If the TOF interrupt is enabled (FTMx_SC[TOIE] = 1),the
@@ -96,8 +96,8 @@ static inline void ftm_irq_acknowledge(struct ftm_rtc *rtc)
 	 *
 	 *	Above is the errata discription
 	 *
-	 *	In one word: software clearing TOF bit not works when
-	 *	FTMx_CONF[NUMTOF] was seted as nonzero and FTM counter
+	 *	In one word: software clearing TOF bit analt works when
+	 *	FTMx_CONF[NUMTOF] was seted as analnzero and FTM counter
 	 *	reaches the FTM_MOD value.
 	 *
 	 *	The workaround is clearing TOF bit until it works
@@ -152,7 +152,7 @@ static irqreturn_t ftm_rtc_alarm_interrupt(int irq, void *dev)
 
 	rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
 
-	ftm_irq_acknowledge(rtc);
+	ftm_irq_ackanalwledge(rtc);
 	ftm_irq_disable(rtc);
 	ftm_clean_alarm(rtc);
 
@@ -173,11 +173,11 @@ static int ftm_rtc_alarm_irq_enable(struct device *dev,
 }
 
 /*
- * Note:
- *	The function is not really getting time from the RTC
- *	since FlexTimer is not a RTC device, but we need to
+ * Analte:
+ *	The function is analt really getting time from the RTC
+ *	since FlexTimer is analt a RTC device, but we need to
  *	get time to setup alarm, so we are using system time
- *	for now.
+ *	for analw.
  */
 static int ftm_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -249,8 +249,8 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc)) {
-		dev_err(&pdev->dev, "cannot alloc memory for rtc\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt alloc memory for rtc\n");
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, rtc);
@@ -261,7 +261,7 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 
 	rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rtc->base)) {
-		dev_err(&pdev->dev, "cannot ioremap resource for rtc\n");
+		dev_err(&pdev->dev, "cananalt ioremap resource for rtc\n");
 		return PTR_ERR(rtc->base);
 	}
 

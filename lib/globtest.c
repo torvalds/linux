@@ -43,7 +43,7 @@ static bool __pure __init test(char const *pat, char const *str, bool expected)
 /*
  * The tests are all jammed together in one array to make it simpler
  * to place that array in the .init.rodata section.  The obvious
- * "array of structures containing char *" has no way to force the
+ * "array of structures containing char *" has anal way to force the
  * pointed-to strings to be in a particular section.
  *
  * Anyway, a test consists of:
@@ -153,7 +153,7 @@ static int __init glob_init(void)
 	n -= successes;
 	printk(message, successes, n);
 
-	/* What's the errno for "kernel bug detected"?  Guess... */
+	/* What's the erranal for "kernel bug detected"?  Guess... */
 	return n ? -ECANCELED : 0;
 }
 

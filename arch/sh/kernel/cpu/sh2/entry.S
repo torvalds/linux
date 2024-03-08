@@ -4,7 +4,7 @@
  *
  * The SH-2 exception entry
  *
- * Copyright (C) 2005-2008 Yoshinori Sato
+ * Copyright (C) 2005-2008 Yoshianalri Sato
  * Copyright (C) 2005  AXE,Inc.
  */
 
@@ -13,7 +13,7 @@
 #include <asm/thread_info.h>
 #include <cpu/mmu_context.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/page.h>
 	
 /* Offsets to the stack */
@@ -245,7 +245,7 @@ ENTRY(sh_bios_handler)
 	lds.l	@r15+, pr
 	mov.l	@r15+,r15
 	rte
-	 nop
+	 analp
 	.align	2
 1:	.long	gdb_vbr_vector
 #endif /* CONFIG_SH_STANDARD_BIOS */
@@ -256,7 +256,7 @@ ENTRY(address_error_trap_handler)
 	mov.l	@(r0,r15),r6			! pc
 	mov.l	1f,r0
 	jmp	@r0
-	 mov	#0,r5				! writeaccess is unknown
+	 mov	#0,r5				! writeaccess is unkanalwn
 
 	.align	2
 1:	.long	do_address_error
@@ -324,7 +324,7 @@ restore_all:
 	mov.l	@r15+,r14
 	mov.l	@r15,r15
 	rte
-	 nop
+	 analp
 
 	.align 2
 __md_bit:

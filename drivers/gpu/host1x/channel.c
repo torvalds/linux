@@ -19,12 +19,12 @@ int host1x_channel_list_init(struct host1x_channel_list *chlist,
 	chlist->channels = kcalloc(num_channels, sizeof(struct host1x_channel),
 				   GFP_KERNEL);
 	if (!chlist->channels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chlist->allocated_channels = bitmap_zalloc(num_channels, GFP_KERNEL);
 	if (!chlist->allocated_channels) {
 		kfree(chlist->channels);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	mutex_init(&chlist->lock);

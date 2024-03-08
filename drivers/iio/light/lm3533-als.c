@@ -354,7 +354,7 @@ static int lm3533_als_set_threshold(struct iio_dev *indio_dev, unsigned nr,
 		goto out;
 	}
 	/*
-	 * This device does not allow negative hysteresis (in fact, it uses
+	 * This device does analt allow negative hysteresis (in fact, it uses
 	 * whichever value is smaller as the lower bound) so we need to make
 	 * sure that thresh_falling <= thresh_raising.
 	 */
@@ -840,13 +840,13 @@ static int lm3533_als_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "anal platform data\n");
 		return -EINVAL;
 	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*als));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &lm3533_als_info;
 	indio_dev->channels = lm3533_als_channels;

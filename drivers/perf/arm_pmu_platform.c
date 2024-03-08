@@ -11,7 +11,7 @@
 #include <linux/bug.h>
 #include <linux/cpumask.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/kconfig.h>
@@ -27,7 +27,7 @@ static int probe_current_pmu(struct arm_pmu *pmu,
 {
 	int cpu = get_cpu();
 	unsigned int cpuid = read_cpuid_id();
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
@@ -57,14 +57,14 @@ static int pmu_parse_percpu_irq(struct arm_pmu *pmu, int irq)
 	return 0;
 }
 
-static bool pmu_has_irq_affinity(struct device_node *node)
+static bool pmu_has_irq_affinity(struct device_analde *analde)
 {
-	return !!of_find_property(node, "interrupt-affinity", NULL);
+	return !!of_find_property(analde, "interrupt-affinity", NULL);
 }
 
 static int pmu_parse_irq_affinity(struct device *dev, int i)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 	int cpu;
 
 	/*
@@ -72,22 +72,22 @@ static int pmu_parse_irq_affinity(struct device *dev, int i)
 	 * affinity matches our logical CPU order, as we used to assume.
 	 * This is fragile, so we'll warn in pmu_parse_irqs().
 	 */
-	if (!pmu_has_irq_affinity(dev->of_node))
+	if (!pmu_has_irq_affinity(dev->of_analde))
 		return i;
 
-	dn = of_parse_phandle(dev->of_node, "interrupt-affinity", i);
+	dn = of_parse_phandle(dev->of_analde, "interrupt-affinity", i);
 	if (!dn) {
 		dev_warn(dev, "failed to parse interrupt-affinity[%d]\n", i);
 		return -EINVAL;
 	}
 
-	cpu = of_cpu_node_to_id(dn);
+	cpu = of_cpu_analde_to_id(dn);
 	if (cpu < 0) {
 		dev_warn(dev, "failed to find logical CPU for %pOFn\n", dn);
 		cpu = nr_cpu_ids;
 	}
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	return cpu;
 }
@@ -104,12 +104,12 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 		return dev_err_probe(dev, num_irqs, "unable to count PMU IRQs\n");
 
 	/*
-	 * In this case we have no idea which CPUs are covered by the PMU.
+	 * In this case we have anal idea which CPUs are covered by the PMU.
 	 * To match our prior behaviour, we assume all CPUs in this case.
 	 */
 	if (num_irqs == 0) {
-		dev_warn(dev, "no irqs for PMU, sampling events not supported\n");
-		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
+		dev_warn(dev, "anal irqs for PMU, sampling events analt supported\n");
+		pmu->pmu.capabilities |= PERF_PMU_CAP_ANAL_INTERRUPT;
 		cpumask_setall(&pmu->supported_cpus);
 		return 0;
 	}
@@ -120,8 +120,8 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			return pmu_parse_percpu_irq(pmu, irq);
 	}
 
-	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(dev->of_node))
-		dev_warn(dev, "no interrupt-affinity property, guessing.\n");
+	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(dev->of_analde))
+		dev_warn(dev, "anal interrupt-affinity property, guessing.\n");
 
 	for (i = 0; i < num_irqs; i++) {
 		int cpu, irq;
@@ -190,11 +190,11 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 	armpmu_init_fn init_fn;
 	struct device *dev = &pdev->dev;
 	struct arm_pmu *pmu;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	pmu = armpmu_alloc();
 	if (!pmu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pmu->plat_device = pdev;
 
@@ -204,12 +204,12 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 
 	init_fn = of_device_get_match_data(dev);
 	if (init_fn) {
-		pmu->secure_access = of_property_read_bool(dev->of_node,
+		pmu->secure_access = of_property_read_bool(dev->of_analde,
 							   "secure-reg-access");
 
-		/* arm64 systems boot only as non-secure */
+		/* arm64 systems boot only as analn-secure */
 		if (IS_ENABLED(CONFIG_ARM64) && pmu->secure_access) {
-			dev_warn(dev, "ignoring \"secure-reg-access\" property for arm64\n");
+			dev_warn(dev, "iganalring \"secure-reg-access\" property for arm64\n");
 			pmu->secure_access = false;
 		}
 

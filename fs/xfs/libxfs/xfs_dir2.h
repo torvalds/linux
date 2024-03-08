@@ -10,7 +10,7 @@
 #include "xfs_da_btree.h"
 
 struct xfs_da_args;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_dir2_sf_hdr;
@@ -24,7 +24,7 @@ struct xfs_dir3_icleaf_hdr;
 extern const struct xfs_name	xfs_name_dotdot;
 
 /*
- * Convert inode mode to directory entry filetype
+ * Convert ianalde mode to directory entry filetype
  */
 extern unsigned char xfs_mode_to_ftype(int mode);
 
@@ -35,22 +35,22 @@ extern void xfs_dir_startup(void);
 extern int xfs_da_mount(struct xfs_mount *mp);
 extern void xfs_da_unmount(struct xfs_mount *mp);
 
-extern int xfs_dir_isempty(struct xfs_inode *dp);
-extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_inode *pdp);
-extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t inum,
+extern int xfs_dir_isempty(struct xfs_ianalde *dp);
+extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_ianalde *dp,
+				struct xfs_ianalde *pdp);
+extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_ianalde *dp,
+				const struct xfs_name *name, xfs_ianal_t inum,
 				xfs_extlen_t tot);
-extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t *inum,
+extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_ianalde *dp,
+				const struct xfs_name *name, xfs_ianal_t *inum,
 				struct xfs_name *ci_name);
-extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, xfs_ino_t ino,
+extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_ianalde *dp,
+				struct xfs_name *name, xfs_ianal_t ianal,
 				xfs_extlen_t tot);
-extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t inum,
+extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_ianalde *dp,
+				const struct xfs_name *name, xfs_ianal_t inum,
 				xfs_extlen_t tot);
-extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
+extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_ianalde *dp,
 				struct xfs_name *name);
 
 /*
@@ -63,7 +63,7 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
  */
 extern int xfs_dir2_isblock(struct xfs_da_args *args, bool *isblock);
 extern int xfs_dir2_isleaf(struct xfs_da_args *args, bool *isleaf);
-extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
+extern int xfs_dir2_shrink_ianalde(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
 extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
@@ -86,7 +86,7 @@ extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
 		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
 		struct xfs_dir2_data_unused *dup);
 
-extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
+extern int xfs_dir_ianal_validate(struct xfs_mount *mp, xfs_ianal_t ianal);
 
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;
@@ -97,7 +97,7 @@ extern const struct xfs_buf_ops xfs_dir3_data_buf_ops;
 /*
  * Directory offset/block conversion functions.
  *
- * DB blocks here are logical directory block numbers, not filesystem blocks.
+ * DB blocks here are logical directory block numbers, analt filesystem blocks.
  */
 
 /*
@@ -231,14 +231,14 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 /*
  * The Linux API doesn't pass down the total size of the buffer
  * we read into down to the filesystem.  With the filldir concept
- * it's not needed for correct information, but the XFS dir2 leaf
+ * it's analt needed for correct information, but the XFS dir2 leaf
  * code wants an estimate of the buffer size to calculate it's
  * readahead window and size the buffers used for mapping to
  * physical blocks.
  *
- * Try to give it an estimate that's good enough, maybe at some
+ * Try to give it an estimate that's good eanalugh, maybe at some
  * point we can change the ->readdir prototype to include the
- * buffer size.  For now we use the current glibc buffer size.
+ * buffer size.  For analw we use the current glibc buffer size.
  * musl libc hardcodes 2k and dietlibc uses PAGE_SIZE.
  */
 #define XFS_READDIR_BUFSIZE	(32768)
@@ -259,7 +259,7 @@ bool xfs_dir2_namecheck(const void *name, size_t length);
  *
  * To provide consistent hashing behavior between the userspace and kernel,
  * these functions prepare names for hashing by transforming specific bytes
- * to other bytes.  Robustness with other encodings is not guaranteed.
+ * to other bytes.  Robustness with other encodings is analt guaranteed.
  */
 static inline bool xfs_ascii_ci_need_xfrm(unsigned char c)
 {

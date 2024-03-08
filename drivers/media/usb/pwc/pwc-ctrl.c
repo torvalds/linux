@@ -6,12 +6,12 @@
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
    (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
 
-   NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
-   driver and thus may have bugs that are not present in the original version.
+   ANALTE: this version of pwc is an uanalfficial (modified) release of pwc & pcwx
+   driver and thus may have bugs that are analt present in the original version.
    Please send bug reports and support requests to <luc@saillard.org>.
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
@@ -29,7 +29,7 @@
 #ifdef __KERNEL__
 #include <linux/uaccess.h>
 #endif
-#include <asm/errno.h>
+#include <asm/erranal.h>
 
 #include "pwc.h"
 #include "pwc-kiara.h"
@@ -69,16 +69,16 @@ static const char *size2name[PSZ_MAX] =
 /********/
 
 /* Entries for the Nala (645/646) camera; the Nala doesn't have compression
-   preferences, so you either get compressed or non-compressed streams.
+   preferences, so you either get compressed or analn-compressed streams.
 
-   An alternate value of 0 means this mode is not available at all.
+   An alternate value of 0 means this mode is analt available at all.
  */
 
 #define PWC_FPS_MAX_NALA 8
 
 struct Nala_table_entry {
 	char alternate;			/* USB alternate setting */
-	int compressed;			/* Compressed yes/no */
+	int compressed;			/* Compressed anal/anal */
 
 	unsigned char mode[3];		/* precomputed mode table */
 };
@@ -206,7 +206,7 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 	else
 		pdev->vbandlength = 0;
 
-	/* Let pwc-if.c:isoc_init know we don't support higher compression */
+	/* Let pwc-if.c:isoc_init kanalw we don't support higher compression */
 	*compression = 3;
 
 	return 0;
@@ -238,7 +238,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 	} while (*compression <= 3);
 
 	if (pChoose->alternate == 0)
-		return -ENOENT; /* Not supported. */
+		return -EANALENT; /* Analt supported. */
 
 	if (send_to_cam)
 		ret = send_video_command(pdev, pdev->vendpoint,
@@ -289,7 +289,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	} while (*compression <= 3);
 
 	if (pChoose->alternate == 0)
-		return -ENOENT; /* Not supported. */
+		return -EANALENT; /* Analt supported. */
 
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
 	if (send_to_cam)
@@ -479,7 +479,7 @@ void pwc_camera_power(struct pwc_device *pdev, int power)
 		return;
 
 	if (pdev->type < 675 || (pdev->type < 730 && pdev->release < 6))
-		return;	/* Not supported by Nala or Timon < release 6 */
+		return;	/* Analt supported by Nala or Timon < release 6 */
 
 	if (power)
 		pdev->ctrl_buf[0] = 0x00; /* active */

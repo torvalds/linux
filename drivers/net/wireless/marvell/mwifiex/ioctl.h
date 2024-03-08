@@ -262,7 +262,7 @@ struct mwifiex_power_cfg {
 
 struct mwifiex_ds_hs_cfg {
 	u32 is_invoke_hostcmd;
-	/*  Bit0: non-unicast data
+	/*  Bit0: analn-unicast data
 	 *  Bit1: unicast data
 	 *  Bit2: mac events
 	 *  Bit3: magic packet
@@ -390,7 +390,7 @@ struct mwifiex_ds_misc_subsc_evt {
 	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
-#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* analn-adjustable */
 #define MWIFIEX_MEF_MAX_FILTERS		10
 
 struct mwifiex_mef_filter {
@@ -438,7 +438,7 @@ enum COALESCE_PACKET_TYPE {
 };
 
 #define MWIFIEX_COALESCE_MAX_RULES	8
-#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* non-adjustable */
+#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* analn-adjustable */
 #define MWIFIEX_COALESCE_MAX_FILTERS	4
 #define MWIFIEX_MAX_COALESCING_DELAY	100     /* in msecs */
 

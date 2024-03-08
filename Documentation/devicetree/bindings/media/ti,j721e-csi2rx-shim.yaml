@@ -41,7 +41,7 @@ properties:
 patternProperties:
   "^csi-bridge@":
     type: object
-    description: CSI2 bridge node.
+    description: CSI2 bridge analde.
     $ref: cdns,csi2rx.yaml#
 
 required:

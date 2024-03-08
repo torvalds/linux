@@ -172,13 +172,13 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 
 static int speyside_late_probe(struct snd_soc_card *card)
 {
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main AMIC");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main DMIC");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main Speaker");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Output");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Input");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "Headset Mic");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "Main AMIC");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "Main DMIC");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "Main Speaker");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "WM1250 Output");
+	snd_soc_dapm_iganalre_suspend(&card->dapm, "WM1250 Input");
 
 	return 0;
 }
@@ -221,7 +221,7 @@ static struct snd_soc_dai_link speyside_dai[] = {
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.c2c_params = &dsp_codec_params,
 		.num_c2c_params = 1,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(dsp_codec),
 	},
 	{
@@ -229,7 +229,7 @@ static struct snd_soc_dai_link speyside_dai[] = {
 		.stream_name = "Baseband",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ignore_suspend = 1,
+		.iganalre_suspend = 1,
 		SND_SOC_DAILINK_REG(baseband),
 	},
 };

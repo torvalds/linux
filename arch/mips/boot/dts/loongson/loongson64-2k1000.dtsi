@@ -110,7 +110,7 @@
 			clock-frequency = <125000000>;
 			interrupt-parent = <&liointc0>;
 			interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-			no-loopback-test;
+			anal-loopback-test;
 		};
 
 		pci@1a000000 {

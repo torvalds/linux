@@ -10,7 +10,7 @@
 #include "ipq5018.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-RDP432.1-C2";
+	model = "Qualcomm Techanallogies, Inc. IPQ5018/AP-RDP432.1-C2";
 	compatible = "qcom,ipq5018-rdp432-c2", "qcom,ipq5018";
 
 	aliases {

@@ -89,24 +89,24 @@ static int gicp_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	hwirq = find_first_zero_bit(gicp->spi_bitmap, gicp->spi_cnt);
 	if (hwirq == gicp->spi_cnt) {
 		spin_unlock(&gicp->spi_lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	__set_bit(hwirq, gicp->spi_bitmap);
 	spin_unlock(&gicp->spi_lock);
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwanalde = domain->parent->fwanalde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = GIC_SPI;
 	fwspec.param[1] = gicp_idx_to_spi(gicp, hwirq) - 32;
 	/*
-	 * Assume edge rising for now, it will be properly set when
+	 * Assume edge rising for analw, it will be properly set when
 	 * ->set_type() is called
 	 */
 	fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, 1, &fwspec);
 	if (ret) {
-		dev_err(gicp->dev, "Cannot allocate parent IRQ\n");
+		dev_err(gicp->dev, "Cananalt allocate parent IRQ\n");
 		goto free_hwirq;
 	}
 
@@ -169,22 +169,22 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 {
 	struct mvebu_gicp *gicp;
 	struct irq_domain *inner_domain, *plat_domain, *parent_domain;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *irq_parent_dn;
+	struct device_analde *analde = pdev->dev.of_analde;
+	struct device_analde *irq_parent_dn;
 	int ret, i;
 
 	gicp = devm_kzalloc(&pdev->dev, sizeof(*gicp), GFP_KERNEL);
 	if (!gicp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gicp->dev = &pdev->dev;
 	spin_lock_init(&gicp->spi_lock);
 
 	gicp->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!gicp->res)
-		return -ENODEV;
+		return -EANALDEV;
 
-	ret = of_property_count_u32_elems(node, "marvell,spi-ranges");
+	ret = of_property_count_u32_elems(analde, "marvell,spi-ranges");
 	if (ret < 0)
 		return ret;
 
@@ -196,14 +196,14 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 			     sizeof(struct mvebu_gicp_spi_range),
 			     GFP_KERNEL);
 	if (!gicp->spi_ranges)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < gicp->spi_ranges_cnt; i++) {
-		of_property_read_u32_index(node, "marvell,spi-ranges",
+		of_property_read_u32_index(analde, "marvell,spi-ranges",
 					   i * 2,
 					   &gicp->spi_ranges[i].start);
 
-		of_property_read_u32_index(node, "marvell,spi-ranges",
+		of_property_read_u32_index(analde, "marvell,spi-ranges",
 					   i * 2 + 1,
 					   &gicp->spi_ranges[i].count);
 
@@ -212,35 +212,35 @@ static int mvebu_gicp_probe(struct platform_device *pdev)
 
 	gicp->spi_bitmap = devm_bitmap_zalloc(&pdev->dev, gicp->spi_cnt, GFP_KERNEL);
 	if (!gicp->spi_bitmap)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	irq_parent_dn = of_irq_find_parent(node);
+	irq_parent_dn = of_irq_find_parent(analde);
 	if (!irq_parent_dn) {
-		dev_err(&pdev->dev, "failed to find parent IRQ node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to find parent IRQ analde\n");
+		return -EANALDEV;
 	}
 
 	parent_domain = irq_find_host(irq_parent_dn);
-	of_node_put(irq_parent_dn);
+	of_analde_put(irq_parent_dn);
 	if (!parent_domain) {
 		dev_err(&pdev->dev, "failed to find parent IRQ domain\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	inner_domain = irq_domain_create_hierarchy(parent_domain, 0,
 						   gicp->spi_cnt,
-						   of_node_to_fwnode(node),
+						   of_analde_to_fwanalde(analde),
 						   &gicp_domain_ops, gicp);
 	if (!inner_domain)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
-	plat_domain = platform_msi_create_irq_domain(of_node_to_fwnode(node),
+	plat_domain = platform_msi_create_irq_domain(of_analde_to_fwanalde(analde),
 						     &gicp_msi_domain_info,
 						     inner_domain);
 	if (!plat_domain) {
 		irq_domain_remove(inner_domain);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, gicp);

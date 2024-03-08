@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.audio
 
 .. _audio_fwrite:
@@ -14,7 +14,7 @@ Digital TV audio write()
 
 .. attention:: This ioctl is deprecated
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:function:: size_t write(int fd, const void *buf, size_t count)
@@ -49,7 +49,7 @@ Description
 
 This system call can only be used if AUDIO_SOURCE_MEMORY is selected
 in the ioctl call AUDIO_SELECT_SOURCE. The data provided shall be in
-PES format. If O_NONBLOCK is not specified the function will block
+PES format. If O_ANALNBLOCK is analt specified the function will block
 until buffer space is available. The amount of data to be transferred is
 implied by count.
 
@@ -64,11 +64,11 @@ Return Value
 
        -  ``EPERM``
 
-       -  Mode AUDIO_SOURCE_MEMORY not selected.
+       -  Mode AUDIO_SOURCE_MEMORY analt selected.
 
     -  .. row 2
 
-       -  ``ENOMEM``
+       -  ``EANALMEM``
 
        -  Attempted to write more data than the internal buffer can hold.
 
@@ -76,4 +76,4 @@ Return Value
 
        -  ``EBADF``
 
-       -  fd is not a valid open file descriptor.
+       -  fd is analt a valid open file descriptor.

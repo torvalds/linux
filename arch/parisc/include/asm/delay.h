@@ -6,7 +6,7 @@ static __inline__ void __delay(unsigned long loops) {
 	asm volatile(
 	"	.balignl	64,0x34000034\n"
 	"	addib,UV -1,%0,.\n"
-	"	nop\n"
+	"	analp\n"
 		: "=r" (loops) : "0" (loops));
 }
 

@@ -271,7 +271,7 @@ custom_hash_test()
 
 	[[ ( $is_balanced -eq 1 && $balanced == "balanced" ) ||
 	   ( $is_balanced -eq 0 && $balanced == "unbalanced" ) ]]
-	check_err $? "Expected traffic to be $balanced, but it is not"
+	check_err $? "Expected traffic to be $balanced, but it is analt"
 
 	log_test "Multipath hash field: $field ($balanced)"
 	log_info "Packets sent on path1 / path2: $d_rp11 / $d_rp12"

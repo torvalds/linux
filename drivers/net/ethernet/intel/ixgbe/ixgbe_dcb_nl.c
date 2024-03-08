@@ -15,8 +15,8 @@
 
 /* Responses for the DCB_C_SET_ALL command */
 #define DCB_HW_CHG_RST  0  /* DCB configuration changed with reset */
-#define DCB_NO_HW_CHG   1  /* DCB configuration did not change */
-#define DCB_HW_CHG      2  /* DCB configuration changed, no reset */
+#define DCB_ANAL_HW_CHG   1  /* DCB configuration did analt change */
+#define DCB_HW_CHG      2  /* DCB configuration changed, anal reset */
 
 static int ixgbe_copy_dcb_cfg(struct ixgbe_adapter *adapter, int tc_max)
 {
@@ -127,11 +127,11 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	/* Fail command if not in CEE mode */
+	/* Fail command if analt in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 1;
 
-	/* verify there is something to do, if not then exit */
+	/* verify there is something to do, if analt then exit */
 	if (!state == !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		return 0;
 
@@ -297,17 +297,17 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_dcb_config *dcb_cfg = &adapter->dcb_cfg;
 	struct ixgbe_hw *hw = &adapter->hw;
-	int ret = DCB_NO_HW_CHG;
+	int ret = DCB_ANAL_HW_CHG;
 	int i;
 
-	/* Fail command if not in CEE mode */
+	/* Fail command if analt in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
-		return DCB_NO_HW_CHG;
+		return DCB_ANAL_HW_CHG;
 
 	adapter->dcb_set_bitmap |= ixgbe_copy_dcb_cfg(adapter,
 						      MAX_TRAFFIC_CLASS);
 	if (!adapter->dcb_set_bitmap)
-		return DCB_NO_HW_CHG;
+		return DCB_ANAL_HW_CHG;
 
 	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
 		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
@@ -464,7 +464,7 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
  * @idtype : identifies the id as ether type or TCP/UDP port number
  * @id: id is either ether type or TCP/UDP port number
  *
- * Returns : on success, returns a non-zero 802.1p user priority bitmap
+ * Returns : on success, returns a analn-zero 802.1p user priority bitmap
  * otherwise returns -EINVAL as the invalid user priority bitmap to indicate an
  * error.
  */
@@ -490,7 +490,7 @@ static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
 
 	ets->ets_cap = adapter->dcb_cfg.num_tcs.pg_tcs;
 
-	/* No IEEE PFC settings available */
+	/* Anal IEEE PFC settings available */
 	if (!my_ets)
 		return 0;
 
@@ -518,7 +518,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 		adapter->ixgbe_ieee_ets = kmalloc(sizeof(struct ieee_ets),
 						  GFP_KERNEL);
 		if (!adapter->ixgbe_ieee_ets)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* initialize UP2TC mappings to invalid value */
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
@@ -564,7 +564,7 @@ static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
 
 	pfc->pfc_cap = adapter->dcb_cfg.num_tcs.pfc_tcs;
 
-	/* No IEEE PFC settings available */
+	/* Anal IEEE PFC settings available */
 	if (!my_pfc)
 		return 0;
 
@@ -595,7 +595,7 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 		adapter->ixgbe_ieee_pfc = kmalloc(sizeof(struct ieee_pfc),
 						  GFP_KERNEL);
 		if (!adapter->ixgbe_ieee_pfc)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
@@ -715,7 +715,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	struct ieee_pfc pfc = {0};
 	int err = 0;
 
-	/* no support for LLD_MANAGED modes or CEE+IEEE */
+	/* anal support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
 	    ((mode & DCB_CAP_DCBX_VER_IEEE) && (mode & DCB_CAP_DCBX_VER_CEE)) ||
 	    !(mode & DCB_CAP_DCBX_HOST))

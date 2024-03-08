@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *    pata_jmicron.c - JMicron ATA driver for non AHCI mode. This drives the
+ *    pata_jmicron.c - JMicron ATA driver for analn AHCI mode. This drives the
  *			PATA port of the controller. The SATA ports are
  *			driven by AHCI in the usual configuration although
  *			this driver can handle other setups if we need it.
@@ -45,14 +45,14 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 control;
 	u32 control5;
-	int port_mask = 1<< (4 * ap->port_no);
-	int port = ap->port_no;
+	int port_mask = 1<< (4 * ap->port_anal);
+	int port = ap->port_anal;
 	port_type port_map[2];
 
 	/* Check if our port is enabled */
 	pci_read_config_dword(pdev, 0x40, &control);
 	if ((control & port_mask) == 0)
-		return -ENOENT;
+		return -EANALENT;
 
 	/* There are two basic mappings. One has the two SATA ports merged
 	   as master/slave and the secondary as PATA, the other has only the
@@ -76,14 +76,14 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 		port = port ^ 1;
 
 	/*
-	 *	Now we know which physical port we are talking about we can
+	 *	Analw we kanalw which physical port we are talking about we can
 	 *	actually do our cable checking etc. Thankfully we don't need
 	 *	to do the plumbing for other cases.
 	 */
 	switch (port_map[port]) {
 	case PORT_PATA0:
 		if ((control & (1 << 5)) == 0)
-			return -ENOENT;
+			return -EANALENT;
 		if (control & (1 << 3))	/* 40/80 pin primary */
 			ap->cbl = ATA_CBL_PATA40;
 		else
@@ -92,7 +92,7 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	case PORT_PATA1:
 		/* Bit 21 is set if the port is enabled */
 		if ((control5 & (1 << 21)) == 0)
-			return -ENOENT;
+			return -EANALENT;
 		if (control5 & (1 << 19))	/* 40/80 pin secondary */
 			ap->cbl = ATA_CBL_PATA40;
 		else
@@ -105,7 +105,7 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_sff_prereset(link, deadline);
 }
 
-/* No PIO or DMA methods needed for this device */
+/* Anal PIO or DMA methods needed for this device */
 
 static const struct scsi_host_template jmicron_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
@@ -128,7 +128,7 @@ static struct ata_port_operations jmicron_ops = {
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, or -ERRNO value.
+ *	Zero on success, or -ERRANAL value.
  */
 
 static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *id)

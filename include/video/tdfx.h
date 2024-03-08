@@ -81,11 +81,11 @@
 
 #define COMMAND_3D	(0x00200000 + 0x120)
 
-/* register bitfields (not all, only as needed) */
+/* register bitfields (analt all, only as needed) */
 
 /* COMMAND_2D reg. values */
 #define TDFX_ROP_COPY		0xcc	/* src */
-#define TDFX_ROP_INVERT		0x55	/* NOT dst */
+#define TDFX_ROP_INVERT		0x55	/* ANALT dst */
 #define TDFX_ROP_XOR		0x66	/* src XOR dst */
 
 #define AUTOINC_DSTX			BIT(10)
@@ -94,7 +94,7 @@
 #define COMMAND_2D_S2S_BITBLT		0x01	/* screen to screen */
 #define COMMAND_2D_H2S_BITBLT		0x03	/* host to screen */
 
-#define COMMAND_3D_NOP			0x00
+#define COMMAND_3D_ANALP			0x00
 #define STATUS_RETRACE			BIT(6)
 #define STATUS_BUSY			BIT(9)
 #define MISCINIT1_CLUT_INV		BIT(0)

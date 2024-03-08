@@ -24,7 +24,7 @@
 #include <asm/diag.h>
 #include <asm/page.h>
 #include <asm/ebcdic.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/extmem.h>
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
@@ -66,7 +66,7 @@ struct dcss_segment {
 	unsigned long start_addr;
 	unsigned long end;
 	refcount_t ref_count;
-	int do_nonshared;
+	int do_analnshared;
 	unsigned int vm_segtype;
 	struct qrange range[6];
 	int segcnt;
@@ -104,7 +104,7 @@ dcss_mkname(char *name, char *dcss_name)
 
 /*
  * search all segments in dcss_list, and return the one
- * namend *name. If not found, return NULL.
+ * namend *name. If analt found, return NULL.
  */
 static struct dcss_segment *
 segment_by_name (char *name)
@@ -153,7 +153,7 @@ dcss_diag(int *func, void *parameter,
 static inline int
 dcss_diag_translate_rc (int vm_rc) {
 	if (vm_rc == 44)
-		return -ENOENT;
+		return -EANALENT;
 	return -EIO;
 }
 
@@ -172,7 +172,7 @@ query_segment_type (struct dcss_segment *seg)
 	qin = kmalloc(sizeof(*qin), GFP_KERNEL | GFP_DMA);
 	qout = kmalloc(sizeof(*qout), GFP_KERNEL | GFP_DMA);
 	if ((qin == NULL) || (qout == NULL)) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free;
 	}
 
@@ -195,7 +195,7 @@ query_segment_type (struct dcss_segment *seg)
 	}
 
 	if (qout->segcnt > 6) {
-		rc = -EOPNOTSUPP;
+		rc = -EOPANALTSUPP;
 		goto out_free;
 	}
 
@@ -210,11 +210,11 @@ query_segment_type (struct dcss_segment *seg)
 		for (i=0; i<qout->segcnt; i++) {
 			if (((qout->range[i].start & 0xff) != SEG_TYPE_EW) &&
 			    ((qout->range[i].start & 0xff) != SEG_TYPE_EN)) {
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto out_free;
 			}
 			if (start != qout->range[i].start >> PAGE_SHIFT) {
-				rc = -EOPNOTSUPP;
+				rc = -EOPANALTSUPP;
 				goto out_free;
 			}
 			start = (qout->range[i].end >> PAGE_SHIFT) + 1;
@@ -240,11 +240,11 @@ query_segment_type (struct dcss_segment *seg)
 /*
  * get info about a segment
  * possible return values:
- * -ENOSYS  : we are not running on VM
- * -EIO     : could not perform query diagnose
- * -ENOENT  : no such segment
- * -EOPNOTSUPP: multi-part segment cannot be used with linux
- * -ENOMEM  : out of memory
+ * -EANALSYS  : we are analt running on VM
+ * -EIO     : could analt perform query diaganalse
+ * -EANALENT  : anal such segment
+ * -EOPANALTSUPP: multi-part segment cananalt be used with linux
+ * -EANALMEM  : out of memory
  * 0 .. 6   : type of segment as defined in include/asm-s390/extmem.h
  */
 int
@@ -254,7 +254,7 @@ segment_type (char* name)
 	struct dcss_segment seg;
 
 	if (!MACHINE_IS_VM)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	dcss_mkname(name, seg.dcss_name);
 	rc = query_segment_type (&seg);
@@ -265,7 +265,7 @@ segment_type (char* name)
 
 /*
  * check if segment collides with other segments that are currently loaded
- * returns 1 if this is the case, 0 if no collision was found
+ * returns 1 if this is the case, 0 if anal collision was found
  */
 static int
 segment_overlaps_others (struct dcss_segment *seg)
@@ -292,7 +292,7 @@ segment_overlaps_others (struct dcss_segment *seg)
  * Must return either an error code < 0, or the segment type code >= 0
  */
 static int
-__segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long *end)
+__segment_load (char *name, int do_analnshared, unsigned long *addr, unsigned long *end)
 {
 	unsigned long start_addr, end_addr, dummy;
 	struct dcss_segment *seg;
@@ -302,7 +302,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	segtype = -1;
 	seg = kmalloc(sizeof(*seg), GFP_KERNEL | GFP_DMA);
 	if (seg == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out;
 	}
 	dcss_mkname (name, seg->dcss_name);
@@ -317,7 +317,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 
 	seg->res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (seg->res == NULL) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free;
 	}
 	seg->res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
@@ -330,7 +330,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	seg->res->name = seg->res_name;
 	segtype = seg->vm_segtype;
 	if (segtype == SEG_TYPE_SC ||
-	    ((segtype == SEG_TYPE_SR || segtype == SEG_TYPE_ER) && !do_nonshared))
+	    ((segtype == SEG_TYPE_SR || segtype == SEG_TYPE_ER) && !do_analnshared))
 		seg->res->flags |= IORESOURCE_READONLY;
 
 	/* Check for overlapping resources before adding the mapping. */
@@ -343,7 +343,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	if (rc)
 		goto out_resource;
 
-	if (do_nonshared)
+	if (do_analnshared)
 		diag_cc = dcss_diag(&loadnsr_scode, seg->dcss_name,
 				&start_addr, &end_addr);
 	else
@@ -364,12 +364,12 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	}
 	seg->start_addr = start_addr;
 	seg->end = end_addr;
-	seg->do_nonshared = do_nonshared;
+	seg->do_analnshared = do_analnshared;
 	refcount_set(&seg->ref_count, 1);
 	list_add(&seg->list, &dcss_list);
 	*addr = seg->start_addr;
 	*end  = seg->end;
-	if (do_nonshared)
+	if (do_analnshared)
 		pr_info("DCSS %s of range %px to %px and type %s loaded as "
 			"exclusive-writable\n", name, (void*) seg->start_addr,
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
@@ -394,37 +394,37 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 /*
  * this function loads a DCSS segment
  * name         : name of the DCSS
- * do_nonshared : 0 indicates that the dcss should be shared with other linux images
+ * do_analnshared : 0 indicates that the dcss should be shared with other linux images
  *                1 indicates that the dcss should be exclusive for this linux image
  * addr         : will be filled with start address of the segment
  * end          : will be filled with end address of the segment
  * return values:
- * -ENOSYS  : we are not running on VM
- * -EIO     : could not perform query or load diagnose
- * -ENOENT  : no such segment
- * -EOPNOTSUPP: multi-part segment cannot be used with linux
- * -EBUSY   : segment cannot be used (overlaps with dcss or storage)
- * -ERANGE  : segment cannot be used (exceeds kernel mapping range)
+ * -EANALSYS  : we are analt running on VM
+ * -EIO     : could analt perform query or load diaganalse
+ * -EANALENT  : anal such segment
+ * -EOPANALTSUPP: multi-part segment cananalt be used with linux
+ * -EBUSY   : segment cananalt be used (overlaps with dcss or storage)
+ * -ERANGE  : segment cananalt be used (exceeds kernel mapping range)
  * -EPERM   : segment is currently loaded with incompatible permissions
- * -ENOMEM  : out of memory
+ * -EANALMEM  : out of memory
  * 0 .. 6   : type of segment as defined in include/asm-s390/extmem.h
  */
 int
-segment_load (char *name, int do_nonshared, unsigned long *addr,
+segment_load (char *name, int do_analnshared, unsigned long *addr,
 		unsigned long *end)
 {
 	struct dcss_segment *seg;
 	int rc;
 
 	if (!MACHINE_IS_VM)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL)
-		rc = __segment_load (name, do_nonshared, addr, end);
+		rc = __segment_load (name, do_analnshared, addr, end);
 	else {
-		if (do_nonshared == seg->do_nonshared) {
+		if (do_analnshared == seg->do_analnshared) {
 			refcount_inc(&seg->ref_count);
 			*addr = seg->start_addr;
 			*end  = seg->end;
@@ -439,20 +439,20 @@ segment_load (char *name, int do_nonshared, unsigned long *addr,
 }
 
 /*
- * this function modifies the shared state of a DCSS segment. note that
+ * this function modifies the shared state of a DCSS segment. analte that
  * name         : name of the DCSS
- * do_nonshared : 0 indicates that the dcss should be shared with other linux images
+ * do_analnshared : 0 indicates that the dcss should be shared with other linux images
  *                1 indicates that the dcss should be exclusive for this linux image
  * return values:
- * -EIO     : could not perform load diagnose (segment gone!)
- * -ENOENT  : no such segment (segment gone!)
+ * -EIO     : could analt perform load diaganalse (segment gone!)
+ * -EANALENT  : anal such segment (segment gone!)
  * -EAGAIN  : segment is in use by other exploiters, try later
- * -EINVAL  : no segment with the given name is currently loaded - name invalid
- * -EBUSY   : segment can temporarily not be used (overlaps with dcss)
+ * -EINVAL  : anal segment with the given name is currently loaded - name invalid
+ * -EBUSY   : segment can temporarily analt be used (overlaps with dcss)
  * 0	    : operation succeeded
  */
 int
-segment_modify_shared (char *name, int do_nonshared)
+segment_modify_shared (char *name, int do_analnshared)
 {
 	struct dcss_segment *seg;
 	unsigned long start_addr, end_addr, dummy;
@@ -465,19 +465,19 @@ segment_modify_shared (char *name, int do_nonshared)
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-	if (do_nonshared == seg->do_nonshared) {
+	if (do_analnshared == seg->do_analnshared) {
 		pr_info("DCSS %s is already in the requested access "
 			"mode\n", name);
 		rc = 0;
 		goto out_unlock;
 	}
 	if (refcount_read(&seg->ref_count) != 1) {
-		pr_warn("DCSS %s is in use and cannot be reloaded\n", name);
+		pr_warn("DCSS %s is in use and cananalt be reloaded\n", name);
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
 	release_resource(seg->res);
-	if (do_nonshared)
+	if (do_analnshared)
 		seg->res->flags &= ~IORESOURCE_READONLY;
 	else
 		if (seg->vm_segtype == SEG_TYPE_SR ||
@@ -485,7 +485,7 @@ segment_modify_shared (char *name, int do_nonshared)
 			seg->res->flags |= IORESOURCE_READONLY;
 
 	if (request_resource(&iomem_resource, seg->res)) {
-		pr_warn("DCSS %s overlaps with used memory resources and cannot be reloaded\n",
+		pr_warn("DCSS %s overlaps with used memory resources and cananalt be reloaded\n",
 			name);
 		rc = -EBUSY;
 		kfree(seg->res);
@@ -493,7 +493,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	}
 
 	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
-	if (do_nonshared)
+	if (do_analnshared)
 		diag_cc = dcss_diag(&loadnsr_scode, seg->dcss_name,
 				&start_addr, &end_addr);
 	else
@@ -511,7 +511,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	}
 	seg->start_addr = start_addr;
 	seg->end = end_addr;
-	seg->do_nonshared = do_nonshared;
+	seg->do_analnshared = do_analnshared;
 	rc = 0;
 	goto out_unlock;
  out_del_res:
@@ -529,7 +529,7 @@ segment_modify_shared (char *name, int do_nonshared)
 
 /*
  * Decrease the use count of a DCSS segment and remove
- * it from the address space if nobody is using it
+ * it from the address space if analbody is using it
  * any longer.
  */
 void
@@ -544,7 +544,7 @@ segment_unload(char *name)
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
-		pr_err("Unloading unknown DCSS %s failed\n", name);
+		pr_err("Unloading unkanalwn DCSS %s failed\n", name);
 		goto out_unlock;
 	}
 	if (!refcount_dec_and_test(&seg->ref_count))
@@ -577,7 +577,7 @@ segment_save(char *name)
 	seg = segment_by_name (name);
 
 	if (seg == NULL) {
-		pr_err("Saving unknown DCSS %s failed\n", name);
+		pr_err("Saving unkanalwn DCSS %s failed\n", name);
 		goto out;
 	}
 
@@ -613,38 +613,38 @@ out:
 void segment_warning(int rc, char *seg_name)
 {
 	switch (rc) {
-	case -ENOENT:
-		pr_err("DCSS %s cannot be loaded or queried\n", seg_name);
+	case -EANALENT:
+		pr_err("DCSS %s cananalt be loaded or queried\n", seg_name);
 		break;
-	case -ENOSYS:
-		pr_err("DCSS %s cannot be loaded or queried without "
+	case -EANALSYS:
+		pr_err("DCSS %s cananalt be loaded or queried without "
 		       "z/VM\n", seg_name);
 		break;
 	case -EIO:
 		pr_err("Loading or querying DCSS %s resulted in a "
 		       "hardware error\n", seg_name);
 		break;
-	case -EOPNOTSUPP:
-		pr_err("DCSS %s has multiple page ranges and cannot be "
+	case -EOPANALTSUPP:
+		pr_err("DCSS %s has multiple page ranges and cananalt be "
 		       "loaded or queried\n", seg_name);
 		break;
 	case -EBUSY:
-		pr_err("%s needs used memory resources and cannot be "
+		pr_err("%s needs used memory resources and cananalt be "
 		       "loaded or queried\n", seg_name);
 		break;
 	case -EPERM:
 		pr_err("DCSS %s is already loaded in a different access "
 		       "mode\n", seg_name);
 		break;
-	case -ENOMEM:
-		pr_err("There is not enough memory to load or query "
+	case -EANALMEM:
+		pr_err("There is analt eanalugh memory to load or query "
 		       "DCSS %s\n", seg_name);
 		break;
 	case -ERANGE: {
 		struct range mhp_range = arch_get_mappable_range();
 
 		pr_err("DCSS %s exceeds the kernel mapping range (%llu) "
-		       "and cannot be loaded\n", seg_name, mhp_range.end + 1);
+		       "and cananalt be loaded\n", seg_name, mhp_range.end + 1);
 		break;
 	}
 	default:

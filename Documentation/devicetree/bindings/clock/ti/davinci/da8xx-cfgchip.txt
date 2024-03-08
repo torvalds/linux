@@ -4,7 +4,7 @@ TI DA8XX/OMAP-L13X/AM17XX/AM18XX SoCs contain a general purpose set of
 registers call CFGCHIPn. Some of these registers function as clock
 gates. This document describes the bindings for those clocks.
 
-All of the clock nodes described below must be child nodes of a CFGCHIP node
+All of the clock analdes described below must be child analdes of a CFGCHIP analde
 (compatible = "ti,da830-cfgchip").
 
 USB PHY clocks
@@ -15,7 +15,7 @@ Required properties:
 - clocks: phandles to the parent clocks corresponding to clock-names
 - clock-names: shall be "fck", "usb_refclkin", "auxclk"
 
-This node provides two clocks. The clock at index 0 is the USB 2.0 PHY 48MHz
+This analde provides two clocks. The clock at index 0 is the USB 2.0 PHY 48MHz
 clock and the clock at index 1 is the USB 1.1 PHY 48MHz clock.
 
 eHRPWM Time Base Clock (TBCLK)

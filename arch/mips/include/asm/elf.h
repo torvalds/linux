@@ -38,7 +38,7 @@
 #define PT_MIPS_ABIFLAGS	0x70000003
 
 /* Flags in the e_flags field of the header */
-#define EF_MIPS_NOREORDER	0x00000001
+#define EF_MIPS_ANALREORDER	0x00000001
 #define EF_MIPS_PIC		0x00000002
 #define EF_MIPS_CPIC		0x00000004
 #define EF_MIPS_ABI2		0x00000020
@@ -54,23 +54,23 @@
 #define DT_MIPS_ICHECKSUM	0x70000003
 #define DT_MIPS_IVERSION	0x70000004
 #define DT_MIPS_FLAGS		0x70000005
-	#define RHF_NONE	0x00000000
+	#define RHF_ANALNE	0x00000000
 	#define RHF_HARDWAY	0x00000001
-	#define RHF_NOTPOT	0x00000002
+	#define RHF_ANALTPOT	0x00000002
 	#define RHF_SGI_ONLY	0x00000010
 #define DT_MIPS_BASE_ADDRESS	0x70000006
 #define DT_MIPS_CONFLICT	0x70000008
 #define DT_MIPS_LIBLIST		0x70000009
-#define DT_MIPS_LOCAL_GOTNO	0x7000000a
-#define DT_MIPS_CONFLICTNO	0x7000000b
-#define DT_MIPS_LIBLISTNO	0x70000010
-#define DT_MIPS_SYMTABNO	0x70000011
-#define DT_MIPS_UNREFEXTNO	0x70000012
+#define DT_MIPS_LOCAL_GOTANAL	0x7000000a
+#define DT_MIPS_CONFLICTANAL	0x7000000b
+#define DT_MIPS_LIBLISTANAL	0x70000010
+#define DT_MIPS_SYMTABANAL	0x70000011
+#define DT_MIPS_UNREFEXTANAL	0x70000012
 #define DT_MIPS_GOTSYM		0x70000013
-#define DT_MIPS_HIPAGENO	0x70000014
+#define DT_MIPS_HIPAGEANAL	0x70000014
 #define DT_MIPS_RLD_MAP		0x70000016
 
-#define R_MIPS_NONE		0
+#define R_MIPS_ANALNE		0
 #define R_MIPS_16		1
 #define R_MIPS_32		2
 #define R_MIPS_REL32		3
@@ -83,7 +83,7 @@
 #define R_MIPS_PC16		10
 #define R_MIPS_CALL16		11
 #define R_MIPS_GPREL32		12
-/* The remaining relocs are defined on Irix, although they are not
+/* The remaining relocs are defined on Irix, although they are analt
    in the MIPS ELF ABI.	 */
 #define R_MIPS_UNUSED1		13
 #define R_MIPS_UNUSED2		14
@@ -96,7 +96,7 @@
 #define R_MIPS_GOT_OFST		21
 /*
  * The following two relocation types are specified in the MIPS ABI
- * conformance guide version 1.2 but not yet in the psABI.
+ * conformance guide version 1.2 but analt yet in the psABI.
  */
 #define R_MIPS_GOTHI16		22
 #define R_MIPS_GOTLO16		23
@@ -108,7 +108,7 @@
 #define R_MIPS_HIGHEST		29
 /*
  * The following two relocation types are specified in the MIPS ABI
- * conformance guide version 1.2 but not yet in the psABI.
+ * conformance guide version 1.2 but analt yet in the psABI.
  */
 #define R_MIPS_CALLHI16		30
 #define R_MIPS_CALLLO16		31
@@ -172,10 +172,10 @@
 #define SHF_MIPS_MERGE		0x20000000
 #define SHF_MIPS_ADDR		0x40000000
 #define SHF_MIPS_STRING		0x80000000
-#define SHF_MIPS_NOSTRIP	0x08000000
+#define SHF_MIPS_ANALSTRIP	0x08000000
 #define SHF_MIPS_LOCAL		0x04000000
 #define SHF_MIPS_NAMES		0x02000000
-#define SHF_MIPS_NODUPES	0x01000000
+#define SHF_MIPS_ANALDUPES	0x01000000
 
 #define MIPS_ABI_FP_ANY		0	/* FP ABI doesn't matter */
 #define MIPS_ABI_FP_DOUBLE	1	/* -mdouble-float */
@@ -184,7 +184,7 @@
 #define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
 #define MIPS_ABI_FP_XX		5	/* -mfpxx */
 #define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
-#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
+#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -manal-odd-spreg */
 
 struct mips_elf_abiflags_v0 {
 	uint16_t version;	/* Version of flags structure */
@@ -259,7 +259,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 
 /*
  * In order to be sure that we don't attempt to execute an O32 binary which
- * requires 64 bit FP (FR=1) on a system which does not support it we refuse
+ * requires 64 bit FP (FR=1) on a system which does analt support it we refuse
  * to execute any binary which has bits specified by the following macro set
  * in its ELF header flags.
  */
@@ -275,7 +275,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 #define vmcore_elf64_check_arch mips_elf_check_machine
 
 /*
- * Return non-zero if HDR identifies an o32 or n32 ELF binary.
+ * Return analn-zero if HDR identifies an o32 or n32 ELF binary.
  */
 #define elf32_check_arch(hdr)						\
 ({									\
@@ -303,7 +303,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 })
 
 /*
- * Return non-zero if HDR identifies an n64 ELF binary.
+ * Return analn-zero if HDR identifies an n64 ELF binary.
  */
 #define elf64_check_arch(hdr)						\
 ({									\
@@ -415,7 +415,7 @@ do {									\
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
-   but it's not easy, and we've already done it here.  */
+   but it's analt easy, and we've already done it here.  */
 
 #define ELF_HWCAP	(elf_hwcap)
 extern unsigned int elf_hwcap;
@@ -476,12 +476,12 @@ struct arch_elf_state {
 	int overall_fp_mode;
 };
 
-#define MIPS_ABI_FP_UNKNOWN	(-1)	/* Unknown FP ABI (kernel internal) */
+#define MIPS_ABI_FP_UNKANALWN	(-1)	/* Unkanalwn FP ABI (kernel internal) */
 
 #define INIT_ARCH_ELF_STATE {			\
 	.nan_2008 = -1,				\
-	.fp_abi = MIPS_ABI_FP_UNKNOWN,		\
-	.interp_fp_abi = MIPS_ABI_FP_UNKNOWN,	\
+	.fp_abi = MIPS_ABI_FP_UNKANALWN,		\
+	.interp_fp_abi = MIPS_ABI_FP_UNKANALWN,	\
 	.overall_fp_mode = -1,			\
 }
 
@@ -504,12 +504,12 @@ struct arch_elf_state;
 
 static inline void mips_set_personality_nan(struct arch_elf_state *state)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 static inline void mips_set_personality_fp(struct arch_elf_state *state)
 {
-	/* no-op */
+	/* anal-op */
 }
 
 #endif /* !CONFIG_MIPS_FP_SUPPORT */

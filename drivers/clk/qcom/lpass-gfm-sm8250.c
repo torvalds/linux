@@ -245,7 +245,7 @@ static int lpass_gfm_clk_driver_probe(struct platform_device *pdev)
 
 	cc = devm_kzalloc(dev, sizeof(*cc), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cc->base))

@@ -17,7 +17,7 @@ s64 nvif_timer_wait_test(struct nvif_timer_wait *);
 /* Delay based on GPU time (ie. PTIMER).
  *
  * Will return -ETIMEDOUT unless the loop was terminated with 'break',
- * where it will return the number of nanoseconds taken instead.
+ * where it will return the number of naanalseconds taken instead.
  */
 #define nvif_nsec(d,n,cond...) ({                                              \
 	struct nvif_timer_wait _wait;                                          \

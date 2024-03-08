@@ -16,7 +16,7 @@ enum pnv_phb_type {
 
 /* Precise PHB model for error management */
 enum pnv_phb_model {
-	PNV_PHB_MODEL_UNKNOWN,
+	PNV_PHB_MODEL_UNKANALWN,
 	PNV_PHB_MODEL_P7IOC,
 	PNV_PHB_MODEL_PHB3,
 };
@@ -30,13 +30,13 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
 
 /*
- * A brief note on PNV_IODA_PE_BUS_ALL
+ * A brief analte on PNV_IODA_PE_BUS_ALL
  *
  * This is needed because of the behaviour of PCIe-to-PCI bridges. The PHB uses
  * the Requester ID field of the PCIe request header to determine the device
  * (and PE) that initiated a DMA. In legacy PCI individual memory read/write
  * requests aren't tagged with the RID. To work around this the PCIe-to-PCI
- * bridge will use (secondary_bus_no << 8) | 0x00 as the RID on the PCIe side.
+ * bridge will use (secondary_bus_anal << 8) | 0x00 as the RID on the PCIe side.
  *
  * PCIe-to-X bridges have a similar issue even though PCI-X requests also have
  * a RID in the transaction header. The PCIe-to-X bridge is permitted to "take
@@ -83,14 +83,14 @@ struct pnv_ioda_pe {
 	uint64_t		tce_bypass_base;
 
 	/*
-	 * Used to track whether we've done DMA setup for this PE or not. We
+	 * Used to track whether we've done DMA setup for this PE or analt. We
 	 * want to defer allocating TCE tables, etc until we've added a
-	 * non-bridge device to the PE.
+	 * analn-bridge device to the PE.
 	 */
 	bool			dma_setup_done;
 
 	/* MSIs. MVE index is identical for 32 and 64 bit MSI
-	 * and -1 if not supported. (It's actually identical to the
+	 * and -1 if analt supported. (It's actually identical to the
 	 * PE number)
 	 */
 	int			mve_number;
@@ -124,9 +124,9 @@ struct pnv_phb {
 	unsigned int		msi_base;
 	struct msi_bitmap	msi_bmp;
 	int (*init_m64)(struct pnv_phb *phb);
-	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
-	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
-	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_no, int opt);
+	int (*get_pe_state)(struct pnv_phb *phb, int pe_anal);
+	void (*freeze_pe)(struct pnv_phb *phb, int pe_anal);
+	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_anal, int opt);
 
 	struct {
 		/* Global bridge info */
@@ -176,7 +176,7 @@ struct pnv_phb {
 		unsigned int		pe_rmap[0x10000];
 	} ioda;
 
-	/* PHB and hub diagnostics */
+	/* PHB and hub diaganalstics */
 	unsigned int		diag_data_size;
 	u8			*diag_data;
 };
@@ -187,7 +187,7 @@ struct pnv_phb {
 static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 {
 	/*
-	 * WARNING: We cannot rely on the resource flags. The Linux PCI
+	 * WARNING: We cananalt rely on the resource flags. The Linux PCI
 	 * allocation code sometimes decides to put a 64-bit prefetchable
 	 * BAR in the 32-bit window, so we have to compare the addresses.
 	 *
@@ -247,7 +247,7 @@ struct pnv_iov_data {
 	 * parts of that window will be "claimed" by other PEs.
 	 *
 	 * "holes" here is used to reserve the leading portion
-	 * of the window that is used by other (non VF) PEs.
+	 * of the window that is used by other (analn VF) PEs.
 	 */
 	struct resource holes[PCI_SRIOV_NUM_BARS];
 };
@@ -258,7 +258,7 @@ static inline struct pnv_iov_data *pnv_iov_get(struct pci_dev *pdev)
 }
 
 void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev);
-resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev, int resno);
+resource_size_t pnv_pci_iov_resource_alignment(struct pci_dev *pdev, int resanal);
 
 int pnv_pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs);
 int pnv_pcibios_sriov_disable(struct pci_dev *pdev);
@@ -274,9 +274,9 @@ int pnv_pci_cfg_write(struct pci_dn *pdn,
 		      int where, int size, u32 val);
 extern struct iommu_table *pnv_pci_table_alloc(int nid);
 
-extern void pnv_pci_init_ioda_hub(struct device_node *np);
-extern void pnv_pci_init_ioda2_phb(struct device_node *np);
-extern void pnv_pci_init_npu2_opencapi_phb(struct device_node *np);
+extern void pnv_pci_init_ioda_hub(struct device_analde *np);
+extern void pnv_pci_init_ioda2_phb(struct device_analde *np);
+extern void pnv_pci_init_npu2_opencapi_phb(struct device_analde *np);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
@@ -316,7 +316,7 @@ extern long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 		bool alloc_userspace_copy, struct iommu_table *tbl);
 extern void pnv_pci_ioda2_table_free_pages(struct iommu_table *tbl);
 
-extern long pnv_pci_link_table_and_group(int node, int num,
+extern long pnv_pci_link_table_and_group(int analde, int num,
 		struct iommu_table *tbl,
 		struct iommu_table_group *table_group);
 extern void pnv_pci_unlink_table_and_group(struct iommu_table *tbl,

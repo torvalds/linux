@@ -4,8 +4,8 @@ Introduction
 ------------
 
 The V4L2 drivers tend to be very complex due to the complexity of the
-hardware: most devices have multiple ICs, export multiple device nodes in
-/dev, and create also non-V4L2 devices such as DVB, ALSA, FB, I2C and input
+hardware: most devices have multiple ICs, export multiple device analdes in
+/dev, and create also analn-V4L2 devices such as DVB, ALSA, FB, I2C and input
 (IR) devices.
 
 Especially the fact that V4L2 drivers have to setup supporting ICs to
@@ -15,8 +15,8 @@ more I2C buses, but other buses can also be used. Such devices are
 called 'sub-devices'.
 
 For a long time the framework was limited to the video_device struct for
-creating V4L device nodes and video_buf for handling the video buffers
-(note that this document does not discuss the video_buf framework).
+creating V4L device analdes and video_buf for handling the video buffers
+(analte that this document does analt discuss the video_buf framework).
 
 This meant that all drivers had to do the setup of device instances and
 connecting to sub-devices themselves. Some of this is quite complicated
@@ -43,8 +43,8 @@ All drivers have the following structure:
 
 2) A way of initializing and commanding sub-devices (if any).
 
-3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX and /dev/radioX)
-   and keeping track of device-node specific data.
+3) Creating V4L2 device analdes (/dev/videoX, /dev/vbiX and /dev/radioX)
+   and keeping track of device-analde specific data.
 
 4) Filehandle-specific structs containing per-filehandle data;
 
@@ -52,13 +52,13 @@ All drivers have the following structure:
 
 This is a rough schematic of how it all relates:
 
-.. code-block:: none
+.. code-block:: analne
 
     device instances
       |
       +-sub-device instances
       |
-      \-V4L2 device nodes
+      \-V4L2 device analdes
 	  |
 	  \-filehandle instances
 
@@ -68,9 +68,9 @@ Structure of the V4L2 framework
 
 The framework closely resembles the driver structure: it has a v4l2_device
 struct for the device instance data, a v4l2_subdev struct to refer to
-sub-device instances, the video_device struct stores V4L2 device node data
+sub-device instances, the video_device struct stores V4L2 device analde data
 and the v4l2_fh struct keeps track of filehandle instances.
 
 The V4L2 framework also optionally integrates with the media framework. If a
-driver sets the struct v4l2_device mdev field, sub-devices and video nodes
+driver sets the struct v4l2_device mdev field, sub-devices and video analdes
 will automatically appear in the media framework as entities.

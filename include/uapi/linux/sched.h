@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI_LINUX_SCHED_H
 #define _UAPI_LINUX_SCHED_H
 
@@ -22,7 +22,7 @@
 #define CLONE_SETTLS	0x00080000	/* create a new TLS for the child */
 #define CLONE_PARENT_SETTID	0x00100000	/* set the TID in the parent */
 #define CLONE_CHILD_CLEARTID	0x00200000	/* clear the TID in the child */
-#define CLONE_DETACHED		0x00400000	/* Unused, ignored */
+#define CLONE_DETACHED		0x00400000	/* Unused, iganalred */
 #define CLONE_UNTRACED		0x00800000	/* set if the tracing process can't force CLONE_PTRACE on this clone */
 #define CLONE_CHILD_SETTID	0x01000000	/* set the TID in the child */
 #define CLONE_NEWCGROUP		0x02000000	/* New cgroup namespace */
@@ -61,7 +61,7 @@
  *                sent when the child exits.
  * @stack:        Specify the location of the stack for the
  *                child process.
- *                Note, @stack is expected to point to the
+ *                Analte, @stack is expected to point to the
  *                lowest address. The stack direction will be
  *                determined by the kernel and set up
  *                appropriately based on @stack_size.
@@ -80,7 +80,7 @@
  *                nested PID namespaces only the PIDs in the
  *                corresponding namespaces are set.
  * @set_tid_size: This defines the size of the array referenced
- *                in @set_tid. This cannot be larger than the
+ *                in @set_tid. This cananalt be larger than the
  *                kernel's limit of nested PID namespaces.
  * @cgroup:       If CLONE_INTO_CGROUP is specified set this to
  *                a file descriptor for the cgroup.
@@ -111,15 +111,15 @@ struct clone_args {
 /*
  * Scheduling policies
  */
-#define SCHED_NORMAL		0
+#define SCHED_ANALRMAL		0
 #define SCHED_FIFO		1
 #define SCHED_RR		2
 #define SCHED_BATCH		3
-/* SCHED_ISO: reserved but not implemented yet */
+/* SCHED_ISO: reserved but analt implemented yet */
 #define SCHED_IDLE		5
 #define SCHED_DEADLINE		6
 
-/* Can be ORed in to make sure the process is reverted back to SCHED_NORMAL on fork */
+/* Can be ORed in to make sure the process is reverted back to SCHED_ANALRMAL on fork */
 #define SCHED_RESET_ON_FORK     0x40000000
 
 /*

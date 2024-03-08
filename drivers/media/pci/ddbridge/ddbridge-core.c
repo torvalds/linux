@@ -76,9 +76,9 @@ static int alt_dma;
 module_param(alt_dma, int, 0444);
 MODULE_PARM_DESC(alt_dma, "use alternative DMA buffer handling");
 
-static int no_init;
-module_param(no_init, int, 0444);
-MODULE_PARM_DESC(no_init, "do not initialize most devices");
+static int anal_init;
+module_param(anal_init, int, 0444);
+MODULE_PARM_DESC(anal_init, "do analt initialize most devices");
 
 static int stv0910_single;
 module_param(stv0910_single, int, 0444);
@@ -301,7 +301,7 @@ static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 		if (alt_dma) {
 			dma->vbuf[i] = kmalloc(dma->size, __GFP_RETRY_MAYFAIL);
 			if (!dma->vbuf[i])
-				return -ENOMEM;
+				return -EANALMEM;
 			dma->pbuf[i] = dma_map_single(&pdev->dev,
 						      dma->vbuf[i],
 						      dma->size,
@@ -310,7 +310,7 @@ static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 			if (dma_mapping_error(&pdev->dev, dma->pbuf[i])) {
 				kfree(dma->vbuf[i]);
 				dma->vbuf[i] = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		} else {
 			dma->vbuf[i] = dma_alloc_coherent(&pdev->dev,
@@ -318,7 +318,7 @@ static int dma_alloc(struct pci_dev *pdev, struct ddb_dma *dma, int dir)
 							  &dma->pbuf[i],
 							  GFP_KERNEL);
 			if (!dma->vbuf[i])
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 	}
 	return 0;
@@ -716,7 +716,7 @@ static ssize_t ts_write(struct file *file, const __user char *buf,
 		return -EINVAL;
 	while (left) {
 		if (ddb_output_free(output) < 188) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				break;
 			if (wait_event_interruptible(
 				    output->dma->wq,
@@ -746,7 +746,7 @@ static ssize_t ts_read(struct file *file, __user char *buf,
 		return -EINVAL;
 	while (left) {
 		if (ddb_input_avail(input) < 188) {
-			if (file->f_flags & O_NONBLOCK)
+			if (file->f_flags & O_ANALNBLOCK)
 				break;
 			if (wait_event_interruptible(
 				    input->dma->wq,
@@ -773,13 +773,13 @@ static __poll_t ts_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &input->dma->wq, wait);
 	poll_wait(file, &output->dma->wq, wait);
 	if (ddb_input_avail(input) >= 188)
-		mask |= EPOLLIN | EPOLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDANALRM;
 	if (ddb_output_free(output) >= 188)
-		mask |= EPOLLOUT | EPOLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRANALRM;
 	return mask;
 }
 
-static int ts_release(struct inode *inode, struct file *file)
+static int ts_release(struct ianalde *ianalde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct ddb_output *output = NULL;
@@ -799,10 +799,10 @@ static int ts_release(struct inode *inode, struct file *file)
 			return -EINVAL;
 		ddb_output_stop(output);
 	}
-	return dvb_generic_release(inode, file);
+	return dvb_generic_release(ianalde, file);
 }
 
-static int ts_open(struct inode *inode, struct file *file)
+static int ts_open(struct ianalde *ianalde, struct file *file)
 {
 	int err;
 	struct dvb_device *dvbdev = file->private_data;
@@ -826,7 +826,7 @@ static int ts_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 	}
 
-	err = dvb_generic_open(inode, file);
+	err = dvb_generic_open(ianalde, file);
 	if (err < 0)
 		return err;
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
@@ -887,8 +887,8 @@ static int demod_attach_drxk(struct ddb_input *input)
 
 	dvb->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!dvb->fe) {
-		dev_err(dev, "No DRXK found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal DRXK found!\n");
+		return -EANALDEV;
 	}
 	dvb->fe->sec_priv = input;
 	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
@@ -909,8 +909,8 @@ static int tuner_attach_tda18271(struct ddb_input *input)
 	if (dvb->fe->ops.i2c_gate_ctrl)
 		dvb->fe->ops.i2c_gate_ctrl(dvb->fe, 0);
 	if (!fe) {
-		dev_err(dev, "No TDA18271 found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal TDA18271 found!\n");
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -924,14 +924,14 @@ static struct stv0367_config ddb_stv0367_config[] = {
 		.demod_address = 0x1f,
 		.xtal = 27000000,
 		.if_khz = 0,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	}, {
 		.demod_address = 0x1e,
 		.xtal = 27000000,
 		.if_khz = 0,
-		.if_iq_mode = FE_TER_NORMAL_IF_TUNER,
+		.if_iq_mode = FE_TER_ANALRMAL_IF_TUNER,
 		.ts_mode = STV0367_SERIAL_PUNCT_CLOCK,
 		.clk_pol = STV0367_CLOCKPOLARITY_DEFAULT,
 	},
@@ -948,8 +948,8 @@ static int demod_attach_stv0367(struct ddb_input *input)
 			     &ddb_stv0367_config[(input->nr & 1)], i2c);
 
 	if (!dvb->fe) {
-		dev_err(dev, "No stv0367 found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal stv0367 found!\n");
+		return -EANALDEV;
 	}
 	dvb->fe->sec_priv = input;
 	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
@@ -992,7 +992,7 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 
 	cfg.xtal = osc24 ? SONY_XTAL_24000 : SONY_XTAL_20500;
 	cfg.flags = CXD2841ER_AUTO_IFHZ | CXD2841ER_EARLY_TUNE |
-		CXD2841ER_NO_WAIT_LOCK | CXD2841ER_NO_AGCNEG |
+		CXD2841ER_ANAL_WAIT_LOCK | CXD2841ER_ANAL_AGCNEG |
 		CXD2841ER_TSBITS;
 
 	if (!par)
@@ -1002,8 +1002,8 @@ static int demod_attach_cxd28xx(struct ddb_input *input, int par, int osc24)
 	dvb->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
 
 	if (!dvb->fe) {
-		dev_err(dev, "No cxd2837/38/43/54 found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal cxd2837/38/43/54 found!\n");
+		return -EANALDEV;
 	}
 	dvb->fe->sec_priv = input;
 	dvb->i2c_gate_ctrl = dvb->fe->ops.i2c_gate_ctrl;
@@ -1044,8 +1044,8 @@ static int tuner_attach_tda18212(struct ddb_input *input, u32 porttype)
 	dvb->i2c_client[0] = client;
 	return 0;
 err:
-	dev_err(dev, "TDA18212 tuner not found. Device is not fully operational.\n");
-	return -ENODEV;
+	dev_err(dev, "TDA18212 tuner analt found. Device is analt fully operational.\n");
+	return -EANALDEV;
 }
 
 /****************************************************************************/
@@ -1119,15 +1119,15 @@ static int demod_attach_stv0900(struct ddb_input *input, int type)
 			     (input->nr & 1) ? STV090x_DEMODULATOR_1
 			     : STV090x_DEMODULATOR_0);
 	if (!dvb->fe) {
-		dev_err(dev, "No STV0900 found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal STV0900 found!\n");
+		return -EANALDEV;
 	}
 	if (!dvb_attach(lnbh24_attach, dvb->fe, i2c, 0,
 			0, (input->nr & 1) ?
 			(0x09 - type) : (0x0b - type))) {
-		dev_err(dev, "No LNBH24 found!\n");
+		dev_err(dev, "Anal LNBH24 found!\n");
 		dvb_frontend_detach(dvb->fe);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -1144,8 +1144,8 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 
 	ctl = dvb_attach(stv6110x_attach, dvb->fe, tunerconf, i2c);
 	if (!ctl) {
-		dev_err(dev, "No STV6110X found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal STV6110X found!\n");
+		return -EANALDEV;
 	}
 	dev_info(dev, "attach tuner input %d adr %02x\n",
 		 input->nr, tunerconf->addr);
@@ -1211,8 +1211,8 @@ static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 				     &cfg, (input->nr & 1));
 	}
 	if (!dvb->fe) {
-		dev_err(dev, "No STV0910 found!\n");
-		return -ENODEV;
+		dev_err(dev, "Anal STV0910 found!\n");
+		return -EANALDEV;
 	}
 
 	/* attach lnbh25 - leftshift by one as the lnbh25 driver expects 8bit
@@ -1224,9 +1224,9 @@ static int demod_attach_stv0910(struct ddb_input *input, int type, int tsfast)
 		lnbcfg.i2c_address = (((input->nr & 1) ? 0x09 : 0x08) << 1);
 
 	if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
-		dev_err(dev, "No LNBH25 found!\n");
+		dev_err(dev, "Anal LNBH25 found!\n");
 		dvb_frontend_detach(dvb->fe);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1244,8 +1244,8 @@ static int tuner_attach_stv6111(struct ddb_input *input, int type)
 	if (!fe) {
 		fe = dvb_attach(stv6111_attach, dvb->fe, i2c, adr & ~4);
 		if (!fe) {
-			dev_err(dev, "No STV6111 found at 0x%02x!\n", adr);
-			return -ENODEV;
+			dev_err(dev, "Anal STV6111 found at 0x%02x!\n", adr);
+			return -EANALDEV;
 		}
 	}
 	return 0;
@@ -1259,7 +1259,7 @@ static int demod_attach_dummy(struct ddb_input *input)
 	dvb->fe = dvb_attach(ddbridge_dummy_fe_qam_attach);
 	if (!dvb->fe) {
 		dev_err(dev, "QAM dummy attach failed!\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1621,7 +1621,7 @@ err_detach:
 	if (ret < 0)
 		return ret;
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int port_has_encti(struct ddb_port *port)
@@ -1840,9 +1840,9 @@ static void ddb_port_probe(struct ddb_port *port)
 	struct ddb_link *link = &dev->link[l];
 	u8 id, type;
 
-	port->name = "NO MODULE";
-	port->type_name = "NONE";
-	port->class = DDB_PORT_NONE;
+	port->name = "ANAL MODULE";
+	port->type_name = "ANALNE";
+	port->class = DDB_PORT_ANALNE;
 
 	/* Handle missing ports and ports without I2C */
 
@@ -1863,8 +1863,8 @@ static void ddb_port_probe(struct ddb_port *port)
 
 	if (port->nr == 1 && link->info->type == DDB_OCTOPUS_CI &&
 	    link->info->i2c_mask == 1) {
-		port->name = "NO TAB";
-		port->class = DDB_PORT_NONE;
+		port->name = "ANAL TAB";
+		port->class = DDB_PORT_ANALNE;
 		return;
 	}
 
@@ -1927,8 +1927,8 @@ static void ddb_port_probe(struct ddb_port *port)
 		}
 		id >>= 2;
 		if (id > 5) {
-			port->name = "unknown XO2 DuoFlex";
-			port->type_name = "UNKNOWN";
+			port->name = "unkanalwn XO2 DuoFlex";
+			port->type_name = "UNKANALWN";
 		} else {
 			port->name = xo2names[id];
 			port->class = DDB_PORT_TUNER;
@@ -2060,7 +2060,7 @@ int ddb_ports_attach(struct ddb *dev)
 
 	for (i = 0; i < dev->port_num; i++) {
 		port = &dev->port[i];
-		if (port->class != DDB_PORT_NONE) {
+		if (port->class != DDB_PORT_ANALNE) {
 			ret = ddb_port_attach(port);
 			if (ret)
 				err_ports++;
@@ -2072,7 +2072,7 @@ int ddb_ports_attach(struct ddb *dev)
 	if (err_ports) {
 		if (err_ports == numports) {
 			dev_err(dev->dev, "All connected ports failed to initialise!\n");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		dev_warn(dev->dev, "%d of %d connected ports failed to initialise!\n",
@@ -2133,7 +2133,7 @@ static void input_write_dvb(struct ddb_input *input,
 	dma = input->dma;
 	dma2 = input->dma;
 	/*
-	 * if there also is an output connected, do not ACK.
+	 * if there also is an output connected, do analt ACK.
 	 * input_write_output will ACK.
 	 */
 	if (input->redo) {
@@ -2387,7 +2387,7 @@ void ddb_ports_init(struct ddb *dev)
 			port->dvb[0].adap = &dev->adap[2 * p];
 			port->dvb[1].adap = &dev->adap[2 * p + 1];
 
-			if (port->class == DDB_PORT_NONE && i && p &&
+			if (port->class == DDB_PORT_ANALNE && i && p &&
 			    dev->port[p - 1].type == DDB_CI_EXTERNAL_XO2) {
 				port->class = DDB_PORT_CI;
 				port->type = DDB_CI_EXTERNAL_XO2_B;
@@ -2413,7 +2413,7 @@ void ddb_ports_init(struct ddb *dev)
 				continue;
 			}
 
-			if (port->class == DDB_PORT_NONE)
+			if (port->class == DDB_PORT_ANALNE)
 				continue;
 
 			switch (dev->link[l].info->type) {
@@ -2514,10 +2514,10 @@ irqreturn_t ddb_irq_handler0(int irq, void *dev_id)
 	u32 s = mask & ddbreadl(dev, INTERRUPT_STATUS);
 
 	if (!s)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	do {
 		if (s & 0x80000000)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		ddbwritel(dev, s, INTERRUPT_ACK);
 		irq_handle_io(dev, s);
 	} while ((s = mask & ddbreadl(dev, INTERRUPT_STATUS)));
@@ -2532,10 +2532,10 @@ irqreturn_t ddb_irq_handler1(int irq, void *dev_id)
 	u32 s = mask & ddbreadl(dev, INTERRUPT_STATUS);
 
 	if (!s)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	do {
 		if (s & 0x80000000)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		ddbwritel(dev, s, INTERRUPT_ACK);
 		irq_handle_msg(dev, s);
 	} while ((s = mask & ddbreadl(dev, INTERRUPT_STATUS)));
@@ -2550,10 +2550,10 @@ irqreturn_t ddb_irq_handler(int irq, void *dev_id)
 	int ret = IRQ_HANDLED;
 
 	if (!s)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	do {
 		if (s & 0x80000000)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 		ddbwritel(dev, s, INTERRUPT_ACK);
 
 		if (s & 0x0000000f)
@@ -2681,7 +2681,7 @@ static u32 ddb_num;
 static int ddb_major;
 static DEFINE_MUTEX(ddb_mutex);
 
-static int ddb_release(struct inode *inode, struct file *file)
+static int ddb_release(struct ianalde *ianalde, struct file *file)
 {
 	struct ddb *dev = file->private_data;
 
@@ -2689,9 +2689,9 @@ static int ddb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ddb_open(struct inode *inode, struct file *file)
+static int ddb_open(struct ianalde *ianalde, struct file *file)
 {
-	struct ddb *dev = ddbs[iminor(inode)];
+	struct ddb *dev = ddbs[imianalr(ianalde)];
 
 	if (dev->ddb_dev_users)
 		return -EBUSY;
@@ -2707,7 +2707,7 @@ static long ddb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	dev_warn(dev->dev, "DDB IOCTLs unsupported (cmd: %d, arg: %lu)\n",
 		 cmd, arg);
 
-	return -ENOTTY;
+	return -EANALTTY;
 }
 
 static const struct file_operations ddb_fops = {
@@ -2716,7 +2716,7 @@ static const struct file_operations ddb_fops = {
 	.release        = ddb_release,
 };
 
-static char *ddb_devnode(const struct device *device, umode_t *mode)
+static char *ddb_devanalde(const struct device *device, umode_t *mode)
 {
 	const struct ddb *dev = dev_get_drvdata(device);
 
@@ -2802,7 +2802,7 @@ static ssize_t temp_show(struct device *device,
 	u8 tmp[2];
 
 	if (!link->info->temp_num)
-		return sprintf(buf, "no sensor\n");
+		return sprintf(buf, "anal sensor\n");
 	adap = &dev->i2c[link->info->temp_bus].adap;
 	if (i2c_read_regs(adap, 0x48, 0, tmp, 2) < 0)
 		return sprintf(buf, "read_error\n");
@@ -2832,7 +2832,7 @@ static ssize_t ctemp_show(struct device *device,
 		return 0;
 	if (i2c_read_regs(adap, 0x49, 0, tmp, 2) < 0)
 		if (i2c_read_regs(adap, 0x4d, 0, tmp, 2) < 0)
-			return sprintf(buf, "no sensor\n");
+			return sprintf(buf, "anal sensor\n");
 	temp = tmp[0] * 1000;
 	return sprintf(buf, "%d\n", temp);
 }
@@ -2906,7 +2906,7 @@ static ssize_t snr_show(struct device *device,
 
 	if (dev->port[num].type >= DDB_TUNER_XO2) {
 		if (i2c_read_regs(&dev->i2c[num].adap, 0x10, 0x10, snr, 16) < 0)
-			return sprintf(buf, "NO SNR\n");
+			return sprintf(buf, "ANAL SNR\n");
 		snr[16] = 0;
 	} else {
 		/* serial number at 0x100-0x11f */
@@ -2914,8 +2914,8 @@ static ssize_t snr_show(struct device *device,
 				    0x57, 0x100, snr, 32) < 0)
 			if (i2c_read_regs16(&dev->i2c[num].adap,
 					    0x50, 0x100, snr, 32) < 0)
-				return sprintf(buf, "NO SNR\n");
-		snr[31] = 0; /* in case it is not terminated on EEPROM */
+				return sprintf(buf, "ANAL SNR\n");
+		snr[31] = 0; /* in case it is analt terminated on EEPROM */
 	}
 	return sprintf(buf, "%s\n", snr);
 }
@@ -2927,7 +2927,7 @@ static ssize_t bsnr_show(struct device *device,
 	char snr[16];
 
 	ddbridge_flashread(dev, 0, snr, 0x10, 15);
-	snr[15] = 0; /* in case it is not terminated on EEPROM */
+	snr[15] = 0; /* in case it is analt terminated on EEPROM */
 	return sprintf(buf, "%s\n", snr);
 }
 
@@ -2943,8 +2943,8 @@ static ssize_t bpsnr_show(struct device *device,
 	if (i2c_read_regs16(&dev->i2c[0].adap,
 			    0x50, 0x0000, snr, 32) < 0 ||
 	    snr[0] == 0xff)
-		return sprintf(buf, "NO SNR\n");
-	snr[31] = 0; /* in case it is not terminated on EEPROM */
+		return sprintf(buf, "ANAL SNR\n");
+	snr[31] = 0; /* in case it is analt terminated on EEPROM */
 	return sprintf(buf, "%s\n", snr);
 }
 
@@ -3117,7 +3117,7 @@ static struct device_attribute ddb_attrs_fanspeed[] = {
 
 static struct class ddb_class = {
 	.name		= "ddbridge",
-	.devnode        = ddb_devnode,
+	.devanalde        = ddb_devanalde,
 };
 
 static int ddb_class_create(void)
@@ -3196,7 +3196,7 @@ int ddb_device_create(struct ddb *dev)
 	int res = 0;
 
 	if (ddb_num == DDB_MAX_ADAPTER)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_lock(&ddb_mutex);
 	dev->nr = ddb_num;
 	ddbs[dev->nr] = dev;
@@ -3205,7 +3205,7 @@ int ddb_device_create(struct ddb *dev)
 				     dev, "ddbridge%d", dev->nr);
 	if (IS_ERR(dev->ddb_dev)) {
 		res = PTR_ERR(dev->ddb_dev);
-		dev_info(dev->dev, "Could not create ddbridge%d\n", dev->nr);
+		dev_info(dev->dev, "Could analt create ddbridge%d\n", dev->nr);
 		goto fail;
 	}
 	res = ddb_device_attrs_add(dev);
@@ -3213,7 +3213,7 @@ int ddb_device_create(struct ddb *dev)
 		ddb_device_attrs_del(dev);
 		device_destroy(&ddb_class, MKDEV(ddb_major, dev->nr));
 		ddbs[dev->nr] = NULL;
-		dev->ddb_dev = ERR_PTR(-ENODEV);
+		dev->ddb_dev = ERR_PTR(-EANALDEV);
 	} else {
 		ddb_num++;
 	}
@@ -3357,7 +3357,7 @@ int ddb_init(struct ddb *dev)
 {
 	mutex_init(&dev->link[0].lnb.lock);
 	mutex_init(&dev->link[0].flash_mutex);
-	if (no_init) {
+	if (anal_init) {
 		ddb_device_create(dev);
 		return 0;
 	}
@@ -3368,7 +3368,7 @@ int ddb_init(struct ddb *dev)
 		goto fail1;
 	ddb_ports_init(dev);
 	if (ddb_buffers_alloc(dev) < 0) {
-		dev_info(dev->dev, "Could not allocate buffer memory\n");
+		dev_info(dev->dev, "Could analt allocate buffer memory\n");
 		goto fail2;
 	}
 	if (ddb_ports_attach(dev) < 0)

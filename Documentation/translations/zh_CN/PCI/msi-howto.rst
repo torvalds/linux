@@ -86,7 +86,7 @@ MSI功能。
 
 它为一个PCI设备分配最多至max_vecs的中断向量。它返回分配的向量数量或一个负的错误。
 如果设备对最小数量的向量有要求，驱动程序可以传递一个min_vecs参数，设置为这个限制，
-如果PCI核不能满足最小数量的向量，将返回-ENOSPC。
+如果PCI核不能满足最小数量的向量，将返回-EANALSPC。
 
 flags参数用来指定设备和驱动程序可以使用哪种类型的中断（PCI_IRQ_LEGACY, PCI_IRQ_MSI,
 PCI_IRQ_MSIX）。一个方便的短语（PCI_IRQ_ALL_TYPES）也可以用来要求任何可能的中断类型。
@@ -187,7 +187,7 @@ ACPI FADT表中指明了它。在这种情况下，Linux会自动禁用MSI。有
 有包括这一信息，因此我们必须自己检测它们。完整的列表可以在drivers/pci/quirks.c
 中的quirk_disable_all_msi()函数附近找到。
 
-如果你有一块有MSI问题的板子，你可以在内核命令行中传递pci=nomsi来禁用所有设
+如果你有一块有MSI问题的板子，你可以在内核命令行中传递pci=analmsi来禁用所有设
 备上的MSI。你最好把问题报告给linux-pci@vger.kernel.org，包括完整的
 “lspci -v“，这样我们就可以把这些怪癖添加到内核中。
 

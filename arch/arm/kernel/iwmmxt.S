@@ -86,7 +86,7 @@ ENTRY(iwmmxt_task_enable)
 	@ CP0 and CP1 accessible?
 	XSC(tst	r2, #0x3)
 	PJ4(tst	r2, #0xf)
-	bne	4f				@ if so no business here
+	bne	4f				@ if so anal business here
 	@ enable access to CP0 and CP1
 	XSC(orr	r2, r2, #0x3)
 	XSC(mcr	p15, 0, r2, c15, c1, 0)
@@ -99,7 +99,7 @@ ENTRY(iwmmxt_task_enable)
 	sub	r2, r2, #4			@ adjust pc back
 	str	r2, [r0, #S_PC]
 	add	r0, r10, #TI_IWMMXT_STATE	@ get task Concan save area
-	str	r0, [r3]			@ this task now owns Concan regs
+	str	r0, [r3]			@ this task analw owns Concan regs
 
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
@@ -109,12 +109,12 @@ ENTRY(iwmmxt_task_enable)
 	get_thread_info r10
 #endif
 4:	dec_preempt_count r10, r3
-	ret	r9				@ normal exit from exception
+	ret	r9				@ analrmal exit from exception
 
 concan_save:
 
 	teq	r1, #0				@ test for last ownership
-	beq	concan_load			@ no owner, skip save
+	beq	concan_load			@ anal owner, skip save
 
 	tmrc	r2, wCon
 
@@ -153,7 +153,7 @@ concan_dump:
 	wstrd	wR15, r1, MMX_WR15
 
 2:	teq	r0, #0				@ anything to load?
-	reteq	lr				@ if not, return
+	reteq	lr				@ if analt, return
 
 concan_load:
 
@@ -212,10 +212,10 @@ ENTRY(iwmmxt_task_disable)
 	add	r2, r0, #TI_IWMMXT_STATE	@ get task Concan save area
 	ldr	r1, [r3]			@ get current Concan owner
 	teq	r1, #0				@ any current owner?
-	beq	1f				@ no: quit
+	beq	1f				@ anal: quit
 	teq	r0, #0				@ any owner?
 	teqne	r1, r2				@ or specified one?
-	bne	1f				@ no: quit
+	bne	1f				@ anal: quit
 
 	@ enable access to CP0 and CP1
 	XSC(mrc	p15, 0, r4, c15, c1, 0)
@@ -225,8 +225,8 @@ ENTRY(iwmmxt_task_disable)
 	PJ4(orr	r4, r4, #0xf)
 	PJ4(mcr	p15, 0, r4, c1, c0, 2)
 
-	mov	r0, #0				@ nothing to load
-	str	r0, [r3]			@ no more current owner
+	mov	r0, #0				@ analthing to load
+	str	r0, [r3]			@ anal more current owner
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
 	bl	concan_save
@@ -274,7 +274,7 @@ ENTRY(iwmmxt_task_copy)
 	b	memcpy
 
 1:	@ this task owns Concan regs -- grab a copy from there
-	mov	r0, #0				@ nothing to load
+	mov	r0, #0				@ analthing to load
 	mov	r2, #3				@ save all regs
 	mov	r3, lr				@ preserve return address
 	bl	concan_dump
@@ -326,7 +326,7 @@ ENDPROC(iwmmxt_task_restore)
  *
  * r0 = next thread_info pointer
  *
- * Called only from the iwmmxt notifier with task preemption disabled.
+ * Called only from the iwmmxt analtifier with task preemption disabled.
  */
 ENTRY(iwmmxt_task_switch)
 
@@ -335,13 +335,13 @@ ENTRY(iwmmxt_task_switch)
 	@ CP0 and CP1 accessible?
 	XSC(tst	r1, #0x3)
 	PJ4(tst	r1, #0xf)
-	bne	1f				@ yes: block them for next task
+	bne	1f				@ anal: block them for next task
 
 	ldr	r2, =concan_owner
 	add	r3, r0, #TI_IWMMXT_STATE	@ get next task Concan save area
 	ldr	r2, [r2]			@ get current Concan owner
 	teq	r2, r3				@ next task owns it?
-	retne	lr				@ no: leave Concan disabled
+	retne	lr				@ anal: leave Concan disabled
 
 1:	@ flip Concan access
 	XSC(eor	r1, r1, #0x3)

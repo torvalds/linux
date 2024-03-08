@@ -366,7 +366,7 @@ static const struct regmap_config rt715_sdw_regmap = {
 	.reg_bits = 32, /* Total register space for SDW */
 	.val_bits = 8, /* Total number of bits in register */
 	.max_register = 0xff01, /* Maximum number of register */
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -451,7 +451,7 @@ static int rt715_read_prop(struct sdw_slave *slave)
 					sizeof(*prop->src_dpn_prop),
 					GFP_KERNEL);
 	if (!prop->src_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dpn = prop->src_dpn_prop;
 	i = 0;
@@ -554,7 +554,7 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "Initialization analt complete, timed out\n");
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

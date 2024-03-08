@@ -20,7 +20,7 @@
 		CHECK_FAIL(true);                                              \
 	})
 #define FAIL(fmt...) _FAIL(0, fmt)
-#define FAIL_ERRNO(fmt...) _FAIL(errno, fmt)
+#define FAIL_ERRANAL(fmt...) _FAIL(erranal, fmt)
 #define FAIL_LIBBPF(err, msg)                                                  \
 	({                                                                     \
 		char __buf[MAX_STRERR_LEN];                                    \
@@ -30,12 +30,12 @@
 
 /* Wrappers that fail the test on error and report it. */
 
-#define xaccept_nonblock(fd, addr, len)                                        \
+#define xaccept_analnblock(fd, addr, len)                                        \
 	({                                                                     \
 		int __ret =                                                    \
 			accept_timeout((fd), (addr), (len), IO_TIMEOUT_SEC);   \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("accept");                                  \
+			FAIL_ERRANAL("accept");                                  \
 		__ret;                                                         \
 	})
 
@@ -43,7 +43,7 @@
 	({                                                                     \
 		int __ret = bind((fd), (addr), (len));                         \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("bind");                                    \
+			FAIL_ERRANAL("bind");                                    \
 		__ret;                                                         \
 	})
 
@@ -51,7 +51,7 @@
 	({                                                                     \
 		int __ret = close((fd));                                       \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("close");                                   \
+			FAIL_ERRANAL("close");                                   \
 		__ret;                                                         \
 	})
 
@@ -59,7 +59,7 @@
 	({                                                                     \
 		int __ret = connect((fd), (addr), (len));                      \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("connect");                                 \
+			FAIL_ERRANAL("connect");                                 \
 		__ret;                                                         \
 	})
 
@@ -67,7 +67,7 @@
 	({                                                                     \
 		int __ret = getsockname((fd), (addr), (len));                  \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("getsockname");                             \
+			FAIL_ERRANAL("getsockname");                             \
 		__ret;                                                         \
 	})
 
@@ -75,7 +75,7 @@
 	({                                                                     \
 		int __ret = getsockopt((fd), (level), (name), (val), (len));   \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("getsockopt(" #name ")");                   \
+			FAIL_ERRANAL("getsockopt(" #name ")");                   \
 		__ret;                                                         \
 	})
 
@@ -83,7 +83,7 @@
 	({                                                                     \
 		int __ret = listen((fd), (backlog));                           \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("listen");                                  \
+			FAIL_ERRANAL("listen");                                  \
 		__ret;                                                         \
 	})
 
@@ -91,7 +91,7 @@
 	({                                                                     \
 		int __ret = setsockopt((fd), (level), (name), (val), (len));   \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("setsockopt(" #name ")");                   \
+			FAIL_ERRANAL("setsockopt(" #name ")");                   \
 		__ret;                                                         \
 	})
 
@@ -99,16 +99,16 @@
 	({                                                                     \
 		ssize_t __ret = send((fd), (buf), (len), (flags));             \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("send");                                    \
+			FAIL_ERRANAL("send");                                    \
 		__ret;                                                         \
 	})
 
-#define xrecv_nonblock(fd, buf, len, flags)                                    \
+#define xrecv_analnblock(fd, buf, len, flags)                                    \
 	({                                                                     \
 		ssize_t __ret = recv_timeout((fd), (buf), (len), (flags),      \
 					     IO_TIMEOUT_SEC);                  \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("recv");                                    \
+			FAIL_ERRANAL("recv");                                    \
 		__ret;                                                         \
 	})
 
@@ -116,7 +116,7 @@
 	({                                                                     \
 		int __ret = socket(family, sotype, flags);                     \
 		if (__ret == -1)                                               \
-			FAIL_ERRNO("socket");                                  \
+			FAIL_ERRANAL("socket");                                  \
 		__ret;                                                         \
 	})
 
@@ -124,7 +124,7 @@
 	({                                                                     \
 		int __ret = bpf_map_delete_elem((fd), (key));                  \
 		if (__ret < 0)                                               \
-			FAIL_ERRNO("map_delete");                              \
+			FAIL_ERRANAL("map_delete");                              \
 		__ret;                                                         \
 	})
 
@@ -132,7 +132,7 @@
 	({                                                                     \
 		int __ret = bpf_map_lookup_elem((fd), (key), (val));           \
 		if (__ret < 0)                                               \
-			FAIL_ERRNO("map_lookup");                              \
+			FAIL_ERRANAL("map_lookup");                              \
 		__ret;                                                         \
 	})
 
@@ -140,7 +140,7 @@
 	({                                                                     \
 		int __ret = bpf_map_update_elem((fd), (key), (val), (flags));  \
 		if (__ret < 0)                                               \
-			FAIL_ERRNO("map_update");                              \
+			FAIL_ERRANAL("map_update");                              \
 		__ret;                                                         \
 	})
 
@@ -149,7 +149,7 @@
 		int __ret =                                                    \
 			bpf_prog_attach((prog), (target), (type), (flags));    \
 		if (__ret < 0)                                               \
-			FAIL_ERRNO("prog_attach(" #type ")");                  \
+			FAIL_ERRANAL("prog_attach(" #type ")");                  \
 		__ret;                                                         \
 	})
 
@@ -157,25 +157,25 @@
 	({                                                                     \
 		int __ret = bpf_prog_detach2((prog), (target), (type));        \
 		if (__ret < 0)                                               \
-			FAIL_ERRNO("prog_detach2(" #type ")");                 \
+			FAIL_ERRANAL("prog_detach2(" #type ")");                 \
 		__ret;                                                         \
 	})
 
 #define xpthread_create(thread, attr, func, arg)                               \
 	({                                                                     \
 		int __ret = pthread_create((thread), (attr), (func), (arg));   \
-		errno = __ret;                                                 \
+		erranal = __ret;                                                 \
 		if (__ret)                                                     \
-			FAIL_ERRNO("pthread_create");                          \
+			FAIL_ERRANAL("pthread_create");                          \
 		__ret;                                                         \
 	})
 
 #define xpthread_join(thread, retval)                                          \
 	({                                                                     \
 		int __ret = pthread_join((thread), (retval));                  \
-		errno = __ret;                                                 \
+		erranal = __ret;                                                 \
 		if (__ret)                                                     \
-			FAIL_ERRNO("pthread_join");                            \
+			FAIL_ERRANAL("pthread_join");                            \
 		__ret;                                                         \
 	})
 
@@ -191,14 +191,14 @@ static inline int poll_connect(int fd, unsigned int timeout_sec)
 
 	r = select(fd + 1, NULL, &wfds, NULL, &timeout);
 	if (r == 0)
-		errno = ETIME;
+		erranal = ETIME;
 	if (r != 1)
 		return -1;
 
 	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &eval, &esize) < 0)
 		return -1;
 	if (eval != 0) {
-		errno = eval;
+		erranal = eval;
 		return -1;
 	}
 
@@ -216,7 +216,7 @@ static inline int poll_read(int fd, unsigned int timeout_sec)
 
 	r = select(fd + 1, &rfds, NULL, NULL, &timeout);
 	if (r == 0)
-		errno = ETIME;
+		erranal = ETIME;
 
 	return r == 1 ? 0 : -1;
 }
@@ -303,13 +303,13 @@ static inline int add_to_sockmap(int sock_mapfd, int fd1, int fd2)
 
 	key = 0;
 	value = fd1;
-	err = xbpf_map_update_elem(sock_mapfd, &key, &value, BPF_NOEXIST);
+	err = xbpf_map_update_elem(sock_mapfd, &key, &value, BPF_ANALEXIST);
 	if (err)
 		return err;
 
 	key = 1;
 	value = fd2;
-	return xbpf_map_update_elem(sock_mapfd, &key, &value, BPF_NOEXIST);
+	return xbpf_map_update_elem(sock_mapfd, &key, &value, BPF_ANALEXIST);
 }
 
 static inline int create_pair(int s, int family, int sotype, int *c, int *p)
@@ -325,16 +325,16 @@ static inline int create_pair(int s, int family, int sotype, int *c, int *p)
 
 	*c = xsocket(family, sotype, 0);
 	if (*c < 0)
-		return errno;
+		return erranal;
 	err = xconnect(*c, sockaddr(&addr), len);
 	if (err) {
-		err = errno;
+		err = erranal;
 		goto close_cli0;
 	}
 
-	*p = xaccept_nonblock(s, NULL, NULL);
+	*p = xaccept_analnblock(s, NULL, NULL);
 	if (*p < 0) {
-		err = errno;
+		err = erranal;
 		goto close_cli0;
 	}
 	return err;

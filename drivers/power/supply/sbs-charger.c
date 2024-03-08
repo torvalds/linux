@@ -59,10 +59,10 @@ static int sbs_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+		val->intval = POWER_SUPPLY_STATUS_UNKANALWN;
 
 		if (!(reg & SBS_CHARGER_STATUS_BATTERY_PRESENT))
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		else if (reg & SBS_CHARGER_STATUS_AC_PRESENT &&
 			 !(reg & SBS_CHARGER_STATUS_CHARGE_INHIBITED))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -120,7 +120,7 @@ static irqreturn_t sbs_irq_thread(int irq, void *data)
 
 	ret = sbs_check_state(chip);
 
-	return ret ? IRQ_HANDLED : IRQ_NONE;
+	return ret ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 static enum power_supply_property sbs_properties[] = {
@@ -170,10 +170,10 @@ static int sbs_probe(struct i2c_client *client)
 
 	chip = devm_kzalloc(&client->dev, sizeof(struct sbs_info), GFP_KERNEL);
 	if (!chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip->client = client;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_analde = client->dev.of_analde;
 	psy_cfg.drv_data = chip;
 
 	i2c_set_clientdata(client, chip);

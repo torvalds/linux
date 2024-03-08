@@ -2,7 +2,7 @@
 /*
  * Amlogic Meson6 and Meson8 DWMAC glue layer
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/device.h>
@@ -58,7 +58,7 @@ static int meson6_dwmac_probe(struct platform_device *pdev)
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dwmac->reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->reg))
@@ -87,6 +87,6 @@ static struct platform_driver meson6_dwmac_driver = {
 };
 module_platform_driver(meson6_dwmac_driver);
 
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamianal Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("Amlogic Meson6 and Meson8 DWMAC glue layer");
 MODULE_LICENSE("GPL v2");

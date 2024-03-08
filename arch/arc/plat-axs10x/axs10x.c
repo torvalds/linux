@@ -2,7 +2,7 @@
 /*
  * AXS101/AXS103 Software Development Platform
  *
- * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2013-15 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/of_fdt.h>
@@ -48,8 +48,8 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	 *
 	 * Current implementation of "irq-dw-apb-ictl" driver doesn't work well
 	 * with stacked INTCs. In particular problem happens if its master INTC
-	 * not yet instantiated. See discussion here -
-	 * https://lore.kernel.org/lkml/54F6FE2C.7020309@synopsys.com
+	 * analt yet instantiated. See discussion here -
+	 * https://lore.kernel.org/lkml/54F6FE2C.7020309@syanalpsys.com
 	 *
 	 * So setup the first gpio block as a passive pass thru and hide it from
 	 * DT hardware topology - connect MB intc directly to cpu intc
@@ -138,7 +138,7 @@ struct aperture {
 };
 
 /* CPU Card target slaves */
-#define AXC001_SLV_NONE			0
+#define AXC001_SLV_ANALNE			0
 #define AXC001_SLV_DDR_PORT0		1
 #define AXC001_SLV_SRAM			2
 #define AXC001_SLV_AXI_TUNNEL		3
@@ -146,7 +146,7 @@ struct aperture {
 #define AXC001_SLV_DDR_PORT1		7
 
 /* MB AXI Target slaves */
-#define AXS_MB_SLV_NONE			0
+#define AXS_MB_SLV_ANALNE			0
 #define AXS_MB_SLV_AXI_TUNNEL_CPU	1
 #define AXS_MB_SLV_AXI_TUNNEL_HAPS	2
 #define AXS_MB_SLV_SRAM			3
@@ -163,16 +163,16 @@ static const struct aperture axc001_memmap[16] = {
 	{AXC001_SLV_AXI_TUNNEL,		0x0},
 	{AXC001_SLV_AXI_TUNNEL,		0x1},
 	{AXC001_SLV_SRAM,		0x0}, /* 0x2000_0000: Local SRAM */
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
 	{AXC001_SLV_DDR_PORT0,		0x0}, /* 0x8000_0000: DDR   0..256M */
 	{AXC001_SLV_DDR_PORT0,		0x1}, /* 0x9000_0000: DDR 256..512M */
 	{AXC001_SLV_DDR_PORT0,		0x2},
 	{AXC001_SLV_DDR_PORT0,		0x3},
-	{AXC001_SLV_NONE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
 	{AXC001_SLV_AXI_TUNNEL,		0xD},
 	{AXC001_SLV_AXI_TUNNEL,		0xE}, /* MB: CREG, CGU... */
 	{AXC001_SLV_AXI2APB,		0x0}, /* CPU Card local CREG, CGU... */
@@ -186,16 +186,16 @@ static const struct aperture axc001_axi_tunnel_memmap[16] = {
 	{AXC001_SLV_AXI_TUNNEL,		0x0},
 	{AXC001_SLV_AXI_TUNNEL,		0x1},
 	{AXC001_SLV_SRAM,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
-	{AXC001_SLV_NONE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
 	{AXC001_SLV_DDR_PORT1,		0x0},
 	{AXC001_SLV_DDR_PORT1,		0x1},
 	{AXC001_SLV_DDR_PORT1,		0x2},
 	{AXC001_SLV_DDR_PORT1,		0x3},
-	{AXC001_SLV_NONE,		0x0},
+	{AXC001_SLV_ANALNE,		0x0},
 	{AXC001_SLV_AXI_TUNNEL,		0xD},
 	{AXC001_SLV_AXI_TUNNEL,		0xE},
 	{AXC001_SLV_AXI2APB,		0x0},
@@ -208,23 +208,23 @@ static const struct aperture axc001_axi_tunnel_memmap[16] = {
 static const struct aperture axs_mb_memmap[16] = {
 	{AXS_MB_SLV_SRAM,		0x0},
 	{AXS_MB_SLV_SRAM,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
-	{AXS_MB_SLV_NONE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0x8},	/* DDR on CPU Card */
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0x9},	/* DDR on CPU Card */
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0xA},
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0xB},
-	{AXS_MB_SLV_NONE,		0x0},
+	{AXS_MB_SLV_ANALNE,		0x0},
 	{AXS_MB_SLV_AXI_TUNNEL_HAPS,	0xD},
 	{AXS_MB_SLV_CONTROL,		0x0},	/* MB Local CREG, CGU... */
 	{AXS_MB_SLV_AXI_TUNNEL_CPU,	0xF},
 };
 
-static noinline void __init
+static analinline void __init
 axs101_set_memmap(void __iomem *base, const struct aperture map[16])
 {
 	unsigned int slave_select, slave_offset;

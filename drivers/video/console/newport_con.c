@@ -12,7 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kd.h>
 #include <linux/selection.h>
 #include <linux/console.h>
@@ -201,7 +201,7 @@ static void newport_get_screensize(void)
 {
 	int i, cols;
 	unsigned short ventry, treg;
-	unsigned short linetable[128];	/* should be enough */
+	unsigned short linetable[128];	/* should be eanalugh */
 
 	ventry = newport_vc2_get(npregs, VC2_IREG_VENTRY);
 	newport_vc2_set(npregs, VC2_IREG_RADDR, ventry);
@@ -283,7 +283,7 @@ static void newport_get_revisions(void)
 	     L(cmap_rev ? (cmap_rev + 1) : 0), L(bt445_rev));
 #undef L
 
-	if (board_rev == 3)	/* I don't know all affected revisions */
+	if (board_rev == 3)	/* I don't kanalw all affected revisions */
 		xcurs_correction = 21;
 }
 
@@ -512,7 +512,7 @@ static int newport_set_font(int unit, struct console_font *op, unsigned int vpit
 		return -EINVAL;
 
 	if (!(new_data = kmalloc(FONT_EXTRA_WORDS * sizeof(int) + size,
-	     GFP_USER))) return -ENOMEM;
+	     GFP_USER))) return -EANALMEM;
 
 	new_data += FONT_EXTRA_WORDS * sizeof(int);
 	FNTSIZE(new_data) = size;
@@ -582,7 +582,7 @@ static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	unsigned short *s, *d;
 	unsigned short chattr;
 
-	logo_active = 0;	/* it's time to disable the logo now.. */
+	logo_active = 0;	/* it's time to disable the logo analw.. */
 
 	if (t == 0 && b == vc->vc_rows) {
 		if (dir == SM_UP) {
@@ -706,9 +706,9 @@ static int newport_probe(struct gio_device *dev,
 
 	newport_addr = dev->resource.start + 0xF0000;
 	if (!request_mem_region(newport_addr, NEWPORT_LEN, "Newport"))
-		return -ENODEV;
+		return -EANALDEV;
 
-	npregs = (struct newport_regs *)/* ioremap cannot fail */
+	npregs = (struct newport_regs *)/* ioremap cananalt fail */
 		ioremap(newport_addr, sizeof(struct newport_regs));
 	console_lock();
 	err = do_take_over_console(&newport_con, 0, MAX_NR_CONSOLES - 1, 1);

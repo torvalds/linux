@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/devfreq/governor_userspace.c
+ *  linux/drivers/devfreq/goveranalr_userspace.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -12,7 +12,7 @@
 #include <linux/pm.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
-#include "governor.h"
+#include "goveranalr.h"
 
 struct userspace_data {
 	unsigned long user_frequency;
@@ -21,12 +21,12 @@ struct userspace_data {
 
 static int devfreq_userspace_func(struct devfreq *df, unsigned long *freq)
 {
-	struct userspace_data *data = df->governor_data;
+	struct userspace_data *data = df->goveranalr_data;
 
 	if (data->valid)
 		*freq = data->user_frequency;
 	else
-		*freq = df->previous_freq; /* No user freq specified yet */
+		*freq = df->previous_freq; /* Anal user freq specified yet */
 
 	return 0;
 }
@@ -40,7 +40,7 @@ static ssize_t set_freq_store(struct device *dev, struct device_attribute *attr,
 	int err = 0;
 
 	mutex_lock(&devfreq->lock);
-	data = devfreq->governor_data;
+	data = devfreq->goveranalr_data;
 
 	sscanf(buf, "%lu", &wanted);
 	data->user_frequency = wanted;
@@ -60,7 +60,7 @@ static ssize_t set_freq_show(struct device *dev,
 	int err = 0;
 
 	mutex_lock(&devfreq->lock);
-	data = devfreq->governor_data;
+	data = devfreq->goveranalr_data;
 
 	if (data->valid)
 		err = sprintf(buf, "%lu\n", data->user_frequency);
@@ -87,11 +87,11 @@ static int userspace_init(struct devfreq *devfreq)
 					      GFP_KERNEL);
 
 	if (!data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	data->valid = false;
-	devfreq->governor_data = data;
+	devfreq->goveranalr_data = data;
 
 	err = sysfs_create_group(&devfreq->dev.kobj, &dev_attr_group);
 out:
@@ -107,8 +107,8 @@ static void userspace_exit(struct devfreq *devfreq)
 	if (devfreq->dev.kobj.sd)
 		sysfs_remove_group(&devfreq->dev.kobj, &dev_attr_group);
 
-	kfree(devfreq->governor_data);
-	devfreq->governor_data = NULL;
+	kfree(devfreq->goveranalr_data);
+	devfreq->goveranalr_data = NULL;
 }
 
 static int devfreq_userspace_handler(struct devfreq *devfreq,
@@ -130,7 +130,7 @@ static int devfreq_userspace_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_userspace = {
+static struct devfreq_goveranalr devfreq_userspace = {
 	.name = DEVFREQ_GOV_USERSPACE,
 	.get_target_freq = devfreq_userspace_func,
 	.event_handler = devfreq_userspace_handler,
@@ -138,7 +138,7 @@ static struct devfreq_governor devfreq_userspace = {
 
 static int __init devfreq_userspace_init(void)
 {
-	return devfreq_add_governor(&devfreq_userspace);
+	return devfreq_add_goveranalr(&devfreq_userspace);
 }
 subsys_initcall(devfreq_userspace_init);
 
@@ -146,9 +146,9 @@ static void __exit devfreq_userspace_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_userspace);
+	ret = devfreq_remove_goveranalr(&devfreq_userspace);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveranalr %d\n", __func__, ret);
 
 	return;
 }

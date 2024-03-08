@@ -5,7 +5,7 @@
  *
  * Derived from: ROMFS file system, Linux implementation
  *
- * Copyright © 1997-1999  Janos Farkas <chexum@shadow.banki.hu>
+ * Copyright © 1997-1999  Jaanals Farkas <chexum@shadow.banki.hu>
  *
  * Using parts of the minix filesystem
  * Copyright © 1991, 1992  Linus Torvalds
@@ -22,7 +22,7 @@
  *					Changed to work with 2.1.45+ fs
  *	Jul 1997			Fixed follow_link
  *			2.1.47
- *					lookup shouldn't return -ENOENT
+ *					lookup shouldn't return -EANALENT
  *					from Horst von Brand:
  *					  fail on wrong checksum
  *					  double unlock_super was possible
@@ -33,21 +33,21 @@
  *					  exposed a problem in readdir
  *			2.1.107		code-freeze spellchecker run
  *	Aug 1998			2.1.118+ VFS changes
- *	Sep 1998	2.1.122		another VFS change (follow_link)
- *	Apr 1999	2.2.7		no more EBADF checking in
+ *	Sep 1998	2.1.122		aanalther VFS change (follow_link)
+ *	Apr 1999	2.2.7		anal more EBADF checking in
  *					  lookup/readdir, use ERR_PTR
  *	Jun 1999	2.3.6		d_alloc_root use changed
- *			2.3.9		clean up usage of ENOENT/negative
+ *			2.3.9		clean up usage of EANALENT/negative
  *					  dentries in lookup
  *					clean up page flags setting
  *					  (error, uptodate, locking) in
  *					  in read_folio
- *					use init_special_inode for
+ *					use init_special_ianalde for
  *					  fifos/sockets (and streamline) in
- *					  read_inode, fix _ops table order
+ *					  read_ianalde, fix _ops table order
  *	Aug 1999	2.3.16		__initfunc() => __init change
  *	Oct 1999	2.3.24		page->owner hack obsoleted
- *	Nov 1999	2.3.27		2.3.25+ page->offset => index change
+ *	Analv 1999	2.3.27		2.3.25+ page->offset => index change
  *
  *
  * This program is free software; you can redistribute it and/or
@@ -77,7 +77,7 @@
 #include <linux/major.h>
 #include "internal.h"
 
-static struct kmem_cache *romfs_inode_cachep;
+static struct kmem_cache *romfs_ianalde_cachep;
 
 static const umode_t romfs_modemap[8] = {
 	0,			/* hard link */
@@ -91,10 +91,10 @@ static const umode_t romfs_modemap[8] = {
 };
 
 static const unsigned char romfs_dtype_table[] = {
-	DT_UNKNOWN, DT_DIR, DT_REG, DT_LNK, DT_BLK, DT_CHR, DT_SOCK, DT_FIFO
+	DT_UNKANALWN, DT_DIR, DT_REG, DT_LNK, DT_BLK, DT_CHR, DT_SOCK, DT_FIFO
 };
 
-static struct inode *romfs_iget(struct super_block *sb, unsigned long pos);
+static struct ianalde *romfs_iget(struct super_block *sb, unsigned long pos);
 
 /*
  * read a page worth of data from the image
@@ -102,7 +102,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos);
 static int romfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct ianalde *ianalde = page->mapping->host;
 	loff_t offset, size;
 	unsigned long fillsize, pos;
 	void *buf;
@@ -110,20 +110,20 @@ static int romfs_read_folio(struct file *file, struct folio *folio)
 
 	buf = kmap(page);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* 32 bit warning -- but not for us :) */
+	/* 32 bit warning -- but analt for us :) */
 	offset = page_offset(page);
-	size = i_size_read(inode);
+	size = i_size_read(ianalde);
 	fillsize = 0;
 	ret = 0;
 	if (offset < size) {
 		size -= offset;
 		fillsize = size > PAGE_SIZE ? PAGE_SIZE : size;
 
-		pos = ROMFS_I(inode)->i_dataoffset + offset;
+		pos = ROMFS_I(ianalde)->i_dataoffset + offset;
 
-		ret = romfs_dev_read(inode->i_sb, pos, buf, fillsize);
+		ret = romfs_dev_read(ianalde->i_sb, pos, buf, fillsize);
 		if (ret < 0) {
 			SetPageError(page);
 			fillsize = 0;
@@ -151,10 +151,10 @@ static const struct address_space_operations romfs_aops = {
  */
 static int romfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *i = file_inode(file);
-	struct romfs_inode ri;
+	struct ianalde *i = file_ianalde(file);
+	struct romfs_ianalde ri;
 	unsigned long offset, maxoff;
-	int j, ino, nextfh;
+	int j, ianal, nextfh;
 	char fsname[ROMFS_MAXFN];	/* XXX dynamic? */
 	int ret;
 
@@ -162,14 +162,14 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 
 	offset = ctx->pos;
 	if (!offset) {
-		offset = i->i_ino & ROMFH_MASK;
+		offset = i->i_ianal & ROMFH_MASK;
 		ret = romfs_dev_read(i->i_sb, offset, &ri, ROMFH_SIZE);
 		if (ret < 0)
 			goto out;
 		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
 	}
 
-	/* Not really failsafe, but we are read-only... */
+	/* Analt really failsafe, but we are read-only... */
 	for (;;) {
 		if (!offset || offset >= maxoff) {
 			offset = maxoff;
@@ -178,7 +178,7 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 		}
 		ctx->pos = offset;
 
-		/* Fetch inode info */
+		/* Fetch ianalde info */
 		ret = romfs_dev_read(i->i_sb, offset, &ri, ROMFH_SIZE);
 		if (ret < 0)
 			goto out;
@@ -193,11 +193,11 @@ static int romfs_readdir(struct file *file, struct dir_context *ctx)
 			goto out;
 		fsname[j] = '\0';
 
-		ino = offset;
+		ianal = offset;
 		nextfh = be32_to_cpu(ri.next);
 		if ((nextfh & ROMFH_TYPE) == ROMFH_HRD)
-			ino = be32_to_cpu(ri.spec);
-		if (!dir_emit(ctx, fsname, j, ino,
+			ianal = be32_to_cpu(ri.spec);
+		if (!dir_emit(ctx, fsname, j, ianal,
 			    romfs_dtype_table[nextfh & ROMFH_TYPE]))
 			goto out;
 
@@ -210,16 +210,16 @@ out:
 /*
  * look up an entry in a directory
  */
-static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *romfs_lookup(struct ianalde *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
 	unsigned long offset, maxoff;
-	struct inode *inode = NULL;
-	struct romfs_inode ri;
+	struct ianalde *ianalde = NULL;
+	struct romfs_ianalde ri;
 	const char *name;		/* got from dentry */
 	int len, ret;
 
-	offset = dir->i_ino & ROMFH_MASK;
+	offset = dir->i_ianal & ROMFH_MASK;
 	ret = romfs_dev_read(dir->i_sb, offset, &ri, ROMFH_SIZE);
 	if (ret < 0)
 		goto error;
@@ -249,7 +249,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 			/* Hard link handling */
 			if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
 				offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
-			inode = romfs_iget(dir->i_sb, offset);
+			ianalde = romfs_iget(dir->i_sb, offset);
 			break;
 		}
 
@@ -257,7 +257,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 		offset = be32_to_cpu(ri.next) & ROMFH_MASK;
 	}
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(ianalde, dentry);
 error:
 	return ERR_PTR(ret);
 }
@@ -268,19 +268,19 @@ static const struct file_operations romfs_dir_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static const struct inode_operations romfs_dir_inode_operations = {
+static const struct ianalde_operations romfs_dir_ianalde_operations = {
 	.lookup		= romfs_lookup,
 };
 
 /*
- * get a romfs inode based on its position in the image (which doubles as the
- * inode number)
+ * get a romfs ianalde based on its position in the image (which doubles as the
+ * ianalde number)
  */
-static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
+static struct ianalde *romfs_iget(struct super_block *sb, unsigned long pos)
 {
-	struct romfs_inode_info *inode;
-	struct romfs_inode ri;
-	struct inode *i;
+	struct romfs_ianalde_info *ianalde;
+	struct romfs_ianalde ri;
+	struct ianalde *i;
 	unsigned long nlen;
 	unsigned nextfh;
 	int ret;
@@ -307,23 +307,23 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	if (IS_ERR_VALUE(nlen))
 		goto eio;
 
-	/* get an inode for this image position */
+	/* get an ianalde for this image position */
 	i = iget_locked(sb, pos);
 	if (!i)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!(i->i_state & I_NEW))
 		return i;
 
 	/* precalculate the data offset */
-	inode = ROMFS_I(i);
-	inode->i_metasize = (ROMFH_SIZE + nlen + 1 + ROMFH_PAD) & ROMFH_MASK;
-	inode->i_dataoffset = pos + inode->i_metasize;
+	ianalde = ROMFS_I(i);
+	ianalde->i_metasize = (ROMFH_SIZE + nlen + 1 + ROMFH_PAD) & ROMFH_MASK;
+	ianalde->i_dataoffset = pos + ianalde->i_metasize;
 
 	set_nlink(i, 1);		/* Hard to decide.. */
 	i->i_size = be32_to_cpu(ri.size);
-	inode_set_mtime_to_ts(i,
-			      inode_set_atime_to_ts(i, inode_set_ctime(i, 0, 0)));
+	ianalde_set_mtime_to_ts(i,
+			      ianalde_set_atime_to_ts(i, ianalde_set_ctime(i, 0, 0)));
 
 	/* set up mode and ops */
 	mode = romfs_modemap[nextfh & ROMFH_TYPE];
@@ -331,7 +331,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	switch (nextfh & ROMFH_TYPE) {
 	case ROMFH_DIR:
 		i->i_size = ROMFS_I(i)->i_metasize;
-		i->i_op = &romfs_dir_inode_operations;
+		i->i_op = &romfs_dir_ianalde_operations;
 		i->i_fop = &romfs_dir_operations;
 		if (nextfh & ROMFH_EXEC)
 			mode |= S_IXUGO;
@@ -343,15 +343,15 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 			mode |= S_IXUGO;
 		break;
 	case ROMFH_SYM:
-		i->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(i);
+		i->i_op = &page_symlink_ianalde_operations;
+		ianalde_analhighmem(i);
 		i->i_data.a_ops = &romfs_aops;
 		mode |= S_IRWXUGO;
 		break;
 	default:
 		/* depending on MBZ for sock/fifos */
 		nextfh = be32_to_cpu(ri.spec);
-		init_special_inode(i, mode, MKDEV(nextfh >> 16,
+		init_special_ianalde(i, mode, MKDEV(nextfh >> 16,
 						  nextfh & 0xffff));
 		break;
 	}
@@ -359,33 +359,33 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	i->i_mode = mode;
 	i->i_blocks = (i->i_size + 511) >> 9;
 
-	unlock_new_inode(i);
+	unlock_new_ianalde(i);
 	return i;
 
 eio:
 	ret = -EIO;
 error:
-	pr_err("read error for inode 0x%lx\n", pos);
+	pr_err("read error for ianalde 0x%lx\n", pos);
 	return ERR_PTR(ret);
 }
 
 /*
- * allocate a new inode
+ * allocate a new ianalde
  */
-static struct inode *romfs_alloc_inode(struct super_block *sb)
+static struct ianalde *romfs_alloc_ianalde(struct super_block *sb)
 {
-	struct romfs_inode_info *inode;
+	struct romfs_ianalde_info *ianalde;
 
-	inode = alloc_inode_sb(sb, romfs_inode_cachep, GFP_KERNEL);
-	return inode ? &inode->vfs_inode : NULL;
+	ianalde = alloc_ianalde_sb(sb, romfs_ianalde_cachep, GFP_KERNEL);
+	return ianalde ? &ianalde->vfs_ianalde : NULL;
 }
 
 /*
- * return a spent inode to the slab cache
+ * return a spent ianalde to the slab cache
  */
-static void romfs_free_inode(struct inode *inode)
+static void romfs_free_ianalde(struct ianalde *ianalde)
 {
-	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
+	kmem_cache_free(romfs_ianalde_cachep, ROMFS_I(ianalde));
 }
 
 /*
@@ -432,8 +432,8 @@ static int romfs_reconfigure(struct fs_context *fc)
 }
 
 static const struct super_operations romfs_super_ops = {
-	.alloc_inode	= romfs_alloc_inode,
-	.free_inode	= romfs_free_inode,
+	.alloc_ianalde	= romfs_alloc_ianalde,
+	.free_ianalde	= romfs_free_ianalde,
 	.statfs		= romfs_statfs,
 };
 
@@ -460,7 +460,7 @@ static __u32 romfs_checksum(const void *data, int size)
 static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct romfs_super_block *rsb;
-	struct inode *root;
+	struct ianalde *root;
 	unsigned long pos, img_size;
 	const char *storage;
 	size_t len;
@@ -477,7 +477,7 @@ static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_maxbytes = 0xFFFFFFFF;
 	sb->s_magic = ROMFS_MAGIC;
-	sb->s_flags |= SB_RDONLY | SB_NOATIME;
+	sb->s_flags |= SB_RDONLY | SB_ANALATIME;
 	sb->s_time_min = 0;
 	sb->s_time_max = 0;
 	sb->s_op = &romfs_super_ops;
@@ -490,7 +490,7 @@ static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/* read the image superblock and check it */
 	rsb = kmalloc(512, GFP_KERNEL);
 	if (!rsb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sb->s_fs_info = (void *) 512;
 	ret = romfs_dev_read(sb, 0, rsb, 512);
@@ -521,7 +521,7 @@ static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	len = strnlen(rsb->name, ROMFS_MAXFN);
 	if (!(fc->sb_flags & SB_SILENT))
-		pr_notice("Mounting image '%*.*s' through %s\n",
+		pr_analtice("Mounting image '%*.*s' through %s\n",
 			  (unsigned) len, (unsigned) len, rsb->name, storage);
 
 	kfree(rsb);
@@ -536,7 +536,7 @@ static int romfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 
@@ -609,13 +609,13 @@ static struct file_system_type romfs_fs_type = {
 MODULE_ALIAS_FS("romfs");
 
 /*
- * inode storage initialiser
+ * ianalde storage initialiser
  */
-static void romfs_i_init_once(void *_inode)
+static void romfs_i_init_once(void *_ianalde)
 {
-	struct romfs_inode_info *inode = _inode;
+	struct romfs_ianalde_info *ianalde = _ianalde;
 
-	inode_init_once(&inode->vfs_inode);
+	ianalde_init_once(&ianalde->vfs_ianalde);
 }
 
 /*
@@ -627,15 +627,15 @@ static int __init init_romfs_fs(void)
 
 	pr_info("ROMFS MTD (C) 2007 Red Hat, Inc.\n");
 
-	romfs_inode_cachep =
+	romfs_ianalde_cachep =
 		kmem_cache_create("romfs_i",
-				  sizeof(struct romfs_inode_info), 0,
+				  sizeof(struct romfs_ianalde_info), 0,
 				  SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
 				  SLAB_ACCOUNT, romfs_i_init_once);
 
-	if (!romfs_inode_cachep) {
-		pr_err("Failed to initialise inode cache\n");
-		return -ENOMEM;
+	if (!romfs_ianalde_cachep) {
+		pr_err("Failed to initialise ianalde cache\n");
+		return -EANALMEM;
 	}
 	ret = register_filesystem(&romfs_fs_type);
 	if (ret) {
@@ -645,7 +645,7 @@ static int __init init_romfs_fs(void)
 	return 0;
 
 error_register:
-	kmem_cache_destroy(romfs_inode_cachep);
+	kmem_cache_destroy(romfs_ianalde_cachep);
 	return ret;
 }
 
@@ -656,11 +656,11 @@ static void __exit exit_romfs_fs(void)
 {
 	unregister_filesystem(&romfs_fs_type);
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(romfs_inode_cachep);
+	kmem_cache_destroy(romfs_ianalde_cachep);
 }
 
 module_init(init_romfs_fs);

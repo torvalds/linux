@@ -104,8 +104,8 @@ TC_INDIRECT_SCOPE int cls_bpf_classify(struct sk_buff *skb,
 			bpf_compute_data_pointers(skb);
 			filter_res = bpf_prog_run(prog->filter, skb);
 		}
-		if (unlikely(!skb->tstamp && skb->mono_delivery_time))
-			skb->mono_delivery_time = 0;
+		if (unlikely(!skb->tstamp && skb->moanal_delivery_time))
+			skb->moanal_delivery_time = 0;
 
 		if (prog->exts_integrated) {
 			res->class   = 0;
@@ -246,7 +246,7 @@ static int cls_bpf_init(struct tcf_proto *tp)
 
 	head = kzalloc(sizeof(*head), GFP_KERNEL);
 	if (head == NULL)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	INIT_LIST_HEAD_RCU(&head->plist);
 	idr_init(&head->handle_idr);
@@ -354,7 +354,7 @@ static int cls_bpf_prog_from_ops(struct nlattr **tb, struct cls_bpf_prog *prog)
 
 	bpf_ops = kmemdup(nla_data(tb[TCA_BPF_OPS]), bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fprog_tmp.len = bpf_num_ops;
 	fprog_tmp.filter = bpf_ops;
@@ -392,7 +392,7 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 		name = nla_memdup(tb[TCA_BPF_NAME], GFP_KERNEL);
 		if (!name) {
 			bpf_prog_put(fp);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -431,7 +431,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 
 	prog = kzalloc(sizeof(*prog), GFP_KERNEL);
 	if (!prog)
-		return -ENOBUFS;
+		return -EANALBUFS;
 
 	ret = tcf_exts_init(&prog->exts, net, TCA_BPF_ACT, TCA_BPF_POLICE);
 	if (ret < 0)
@@ -507,7 +507,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_parms;
 
 	if (!tc_in_hw(prog->gen_flags))
-		prog->gen_flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+		prog->gen_flags |= TCA_CLS_FLAGS_ANALT_IN_HW;
 
 	if (oldprog) {
 		idr_replace(&head->handle_idr, prog, handle);
@@ -589,7 +589,7 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	cls_bpf_offload_update_stats(tp, prog);
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_analflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

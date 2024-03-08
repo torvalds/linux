@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PCIe RC driver for Synopsys DesignWare Core
+ * PCIe RC driver for Syanalpsys DesignWare Core
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syanalpsys, Inc. (www.syanalpsys.com)
  *
- * Authors: Joao Pinto <Joao.Pinto@synopsys.com>
+ * Authors: Joao Pinto <Joao.Pinto@syanalpsys.com>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -35,33 +35,33 @@ static const struct dw_pcie_host_ops dw_plat_pcie_host_ops = {
 static void dw_plat_pcie_ep_init(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
-	enum pci_barno bar;
+	enum pci_baranal bar;
 
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int dw_plat_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_anal,
 				     unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+		return dw_pcie_ep_raise_intx_irq(ep, func_anal);
 	case PCI_IRQ_MSI:
-		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msi_irq(ep, func_anal, interrupt_num);
 	case PCI_IRQ_MSIX:
-		return dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
+		return dw_pcie_ep_raise_msix_irq(ep, func_anal, interrupt_num);
 	default:
-		dev_err(pci->dev, "UNKNOWN IRQ type\n");
+		dev_err(pci->dev, "UNKANALWN IRQ type\n");
 	}
 
 	return 0;
 }
 
 static const struct pci_epc_features dw_plat_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_analtifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
 };
@@ -119,11 +119,11 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 
 	dw_plat_pcie = devm_kzalloc(dev, sizeof(*dw_plat_pcie), GFP_KERNEL);
 	if (!dw_plat_pcie)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci = devm_kzalloc(dev, sizeof(*pci), GFP_KERNEL);
 	if (!pci)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pci->dev = dev;
 
@@ -135,13 +135,13 @@ static int dw_plat_pcie_probe(struct platform_device *pdev)
 	switch (dw_plat_pcie->mode) {
 	case DW_PCIE_RC_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_DW_PLAT_HOST))
-			return -ENODEV;
+			return -EANALDEV;
 
 		ret = dw_plat_add_pcie_port(dw_plat_pcie, pdev);
 		break;
 	case DW_PCIE_EP_TYPE:
 		if (!IS_ENABLED(CONFIG_PCIE_DW_PLAT_EP))
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci->ep.ops = &pcie_ep_ops;
 		ret = dw_pcie_ep_init(&pci->ep);

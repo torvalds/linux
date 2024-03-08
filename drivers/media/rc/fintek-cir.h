@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
+ * Driver for Feature Integration Techanallogy Inc. (aka Fintek) LPC CIR
  *
  * Copyright (C) 2011 Jarod Wilson <jarod@redhat.com>
  *
@@ -72,7 +72,7 @@ struct fintek_dev {
 
 	/* hardware id */
 	u8 chip_major;
-	u8 chip_minor;
+	u8 chip_mianalr;
 	u16 chip_vendor;
 	u8 logical_dev_cir;
 
@@ -147,7 +147,7 @@ struct fintek_dev {
  *      Global Control                  def.
  *      Register name           addr    val. */
 #define GCR_SOFTWARE_RESET	0x02 /* 0x00 */
-#define GCR_LOGICAL_DEV_NO	0x07 /* 0x00 */
+#define GCR_LOGICAL_DEV_ANAL	0x07 /* 0x00 */
 #define GCR_CHIP_ID_HI		0x20 /* 0x04 */
 #define GCR_CHIP_ID_LO		0x21 /* 0x08 */
 #define GCR_VENDOR_ID_HI	0x23 /* 0x19 */

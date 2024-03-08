@@ -30,12 +30,12 @@ static int wm831x_i2c_probe(struct i2c_client *i2c)
 	type = (uintptr_t)i2c_get_match_data(i2c);
 	if (!type) {
 		dev_err(&i2c->dev, "Failed to match device\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	wm831x = devm_kzalloc(&i2c->dev, sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(i2c, wm831x);
 	wm831x->dev = &i2c->dev;

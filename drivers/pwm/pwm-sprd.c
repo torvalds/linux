@@ -114,9 +114,9 @@ static int sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	duty = val & SPRD_PWM_DUTY_MSK;
 	tmp = (prescale + 1) * NSEC_PER_SEC * duty;
 	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, chn->clk_rate);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 
-	/* Disable PWM clocks if the PWM channel is not in enable state. */
+	/* Disable PWM clocks if the PWM channel is analt in enable state. */
 	if (!state->enabled)
 		clk_bulk_disable_unprepare(SPRD_PWM_CHN_CLKS_NUM, chn->clks);
 
@@ -137,7 +137,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 	 *
 	 * To keep the maths simple we're always using MOD = SPRD_PWM_MOD_MAX.
 	 * The value for PRESCALE is selected such that the resulting period
-	 * gets the maximal length not bigger than the requested one with the
+	 * gets the maximal length analt bigger than the requested one with the
 	 * given settings (MOD = SPRD_PWM_MOD_MAX and input clock).
 	 */
 	duty = duty_ns * SPRD_PWM_MOD_MAX / period_ns;
@@ -149,7 +149,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 		prescale = SPRD_PWM_PRESCALE_MSK;
 
 	/*
-	 * Note: Writing DUTY triggers the hardware to actually apply the
+	 * Analte: Writing DUTY triggers the hardware to actually apply the
 	 * values written to MOD and DUTY to the output, so must keep writing
 	 * DUTY last.
 	 *
@@ -171,7 +171,7 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct pwm_state *cstate = &pwm->state;
 	int ret;
 
-	if (state->polarity != PWM_POLARITY_NORMAL)
+	if (state->polarity != PWM_POLARITY_ANALRMAL)
 		return -EINVAL;
 
 	if (state->enabled) {
@@ -198,8 +198,8 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		sprd_pwm_write(spc, pwm->hwpwm, SPRD_PWM_ENABLE, 1);
 	} else if (cstate->enabled) {
 		/*
-		 * Note: After setting SPRD_PWM_ENABLE to zero, the controller
-		 * will not wait for current period to be completed, instead it
+		 * Analte: After setting SPRD_PWM_ENABLE to zero, the controller
+		 * will analt wait for current period to be completed, instead it
 		 * will stop the PWM channel immediately.
 		 */
 		sprd_pwm_write(spc, pwm->hwpwm, SPRD_PWM_ENABLE, 0);
@@ -231,7 +231,7 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 		ret = devm_clk_bulk_get(spc->dev, SPRD_PWM_CHN_CLKS_NUM,
 					chn->clks);
 		if (ret) {
-			if (ret == -ENOENT)
+			if (ret == -EANALENT)
 				break;
 
 			return dev_err_probe(spc->dev, ret,
@@ -243,7 +243,7 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 	}
 
 	if (!i)
-		return dev_err_probe(spc->dev, -ENODEV, "no available PWM channels\n");
+		return dev_err_probe(spc->dev, -EANALDEV, "anal available PWM channels\n");
 
 	spc->num_pwms = i;
 
@@ -257,7 +257,7 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 
 	spc = devm_kzalloc(&pdev->dev, sizeof(*spc), GFP_KERNEL);
 	if (!spc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spc->base))

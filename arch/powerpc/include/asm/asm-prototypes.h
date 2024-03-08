@@ -22,11 +22,11 @@
 
 /* Ultravisor */
 #if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
-long ucall_norets(unsigned long opcode, ...);
+long ucall_analrets(unsigned long opcode, ...);
 #else
-static inline long ucall_norets(unsigned long opcode, ...)
+static inline long ucall_analrets(unsigned long opcode, ...)
 {
-	return U_NOT_AVAILABLE;
+	return U_ANALT_AVAILABLE;
 }
 #endif
 

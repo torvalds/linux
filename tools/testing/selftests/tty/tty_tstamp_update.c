@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@ static int write_dev_tty(void)
 
 	f = fopen("/dev/tty", "r+");
 	if (!f)
-		return -errno;
+		return -erranal;
 
 	r = fprintf(f, "hello, world!\n");
 	if (r != strlen("hello, world!\n"))
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 	/* We wrote to the terminal so timestamps should have been updated */
 	if (st1.st_atim.tv_sec == st2.st_atim.tv_sec &&
 	    st1.st_mtim.tv_sec == st2.st_mtim.tv_sec) {
-		ksft_test_result_fail("tty timestamps not updated\n");
+		ksft_test_result_fail("tty timestamps analt updated\n");
 		ksft_exit_fail();
 	}
 

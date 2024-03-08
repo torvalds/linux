@@ -166,10 +166,10 @@ static int zynq_gpio_is_zynq(struct zynq_gpio *gpio)
 }
 
 /**
- * gpio_data_ro_bug - test if HW bug exists or not
+ * gpio_data_ro_bug - test if HW bug exists or analt
  * @gpio:       Pointer to driver data struct
  *
- * Return: 0 if bug doesnot exist, 1 if bug exists.
+ * Return: 0 if bug doesanalt exist, 1 if bug exists.
  */
 static int gpio_data_ro_bug(struct zynq_gpio *gpio)
 {
@@ -263,7 +263,7 @@ static int zynq_gpio_get_value(struct gpio_chip *chip, unsigned int pin)
  *
  * This function calculates the register offset (i.e to lower 16 bits or
  * upper 16 bits) based on the given pin number and sets the state of a
- * gpio pin to the specified value. The state is either 0 or non-zero.
+ * gpio pin to the specified value. The state is either 0 or analn-zero.
  */
 static void zynq_gpio_set_value(struct gpio_chip *chip, unsigned int pin,
 				int state)
@@ -312,7 +312,7 @@ static int zynq_gpio_dir_in(struct gpio_chip *chip, unsigned int pin)
 	zynq_gpio_get_bank_pin(pin, &bank_num, &bank_pin_num, gpio);
 
 	/*
-	 * On zynq bank 0 pins 7 and 8 are special and cannot be used
+	 * On zynq bank 0 pins 7 and 8 are special and cananalt be used
 	 * as inputs.
 	 */
 	if (zynq_gpio_is_zynq(gpio) && bank_num == 0 &&
@@ -441,7 +441,7 @@ static void zynq_gpio_irq_unmask(struct irq_data *irq_data)
 }
 
 /**
- * zynq_gpio_irq_ack - Acknowledge the interrupt of a gpio pin
+ * zynq_gpio_irq_ack - Ackanalwledge the interrupt of a gpio pin
  * @irq_data:	irq data containing irq number of gpio pin for the interrupt
  *		to ack
  *
@@ -470,13 +470,13 @@ static void zynq_gpio_irq_ack(struct irq_data *irq_data)
 static void zynq_gpio_irq_enable(struct irq_data *irq_data)
 {
 	/*
-	 * The Zynq GPIO controller does not disable interrupt detection when
+	 * The Zynq GPIO controller does analt disable interrupt detection when
 	 * the interrupt is masked and only disables the propagation of the
 	 * interrupt. This means when the controller detects an interrupt
 	 * condition while the interrupt is logically disabled it will propagate
 	 * that interrupt event once the interrupt is enabled. This will cause
 	 * the interrupt consumer to see spurious interrupts to prevent this
-	 * first make sure that the interrupt is not asserted and then enable
+	 * first make sure that the interrupt is analt asserted and then enable
 	 * it.
 	 */
 	zynq_gpio_irq_ack(irq_data);
@@ -646,7 +646,7 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
  * gpio pin number which has triggered an interrupt. It then acks the triggered
  * interrupt and calls the pin specific handler set by the higher layer
  * application for that pin.
- * Note: A bug is reported if no handler is set for the gpio pin.
+ * Analte: A bug is reported if anal handler is set for the gpio pin.
  */
 static void zynq_gpio_irqhandler(struct irq_desc *desc)
 {
@@ -892,7 +892,7 @@ MODULE_DEVICE_TABLE(of, zynq_gpio_of_match);
  * This function allocates memory resources for the gpio device and registers
  * all the banks of the device. It will also set up interrupts for the gpio
  * pins.
- * Note: Interrupts are disabled for all the banks during initialization.
+ * Analte: Interrupts are disabled for all the banks during initialization.
  *
  * Return: 0 on success, negative error otherwise.
  */
@@ -906,11 +906,11 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 
 	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	match = of_match_node(zynq_gpio_of_match, pdev->dev.of_node);
+	match = of_match_analde(zynq_gpio_of_match, pdev->dev.of_analde);
 	if (!match) {
-		dev_err(&pdev->dev, "of_match_node() failed\n");
+		dev_err(&pdev->dev, "of_match_analde() failed\n");
 		return -EINVAL;
 	}
 	gpio->p_data = match->data;
@@ -936,13 +936,13 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 	chip->direction_input = zynq_gpio_dir_in;
 	chip->direction_output = zynq_gpio_dir_out;
 	chip->get_direction = zynq_gpio_get_direction;
-	chip->base = of_alias_get_id(pdev->dev.of_node, "gpio");
+	chip->base = of_alias_get_id(pdev->dev.of_analde, "gpio");
 	chip->ngpio = gpio->p_data->ngpio;
 
 	/* Retrieve GPIO clock */
 	gpio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(gpio->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->clk), "input clock not found.\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(gpio->clk), "input clock analt found.\n");
 
 	ret = clk_prepare_enable(gpio->clk);
 	if (ret) {
@@ -975,11 +975,11 @@ static int zynq_gpio_probe(struct platform_device *pdev)
 				     sizeof(*girq->parents),
 				     GFP_KERNEL);
 	if (!girq->parents) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_pm_put;
 	}
 	girq->parents[0] = gpio->irq;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_level_irq;
 
 	/* report a bug if gpio chip registration fails */

@@ -45,7 +45,7 @@ const struct device_type cxl_nvdimm_bridge_type = {
 struct cxl_nvdimm_bridge *to_cxl_nvdimm_bridge(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, dev->type != &cxl_nvdimm_bridge_type,
-			  "not a cxl_nvdimm_bridge device\n"))
+			  "analt a cxl_nvdimm_bridge device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_nvdimm_bridge, dev);
 }
@@ -90,7 +90,7 @@ static struct cxl_nvdimm_bridge *cxl_nvdimm_bridge_alloc(struct cxl_port *port)
 
 	cxl_nvb = kzalloc(sizeof(*cxl_nvb), GFP_KERNEL);
 	if (!cxl_nvb)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rc = ida_alloc(&cxl_nvdimm_bridge_ida, GFP_KERNEL);
 	if (rc < 0)
@@ -101,7 +101,7 @@ static struct cxl_nvdimm_bridge *cxl_nvdimm_bridge_alloc(struct cxl_port *port)
 	cxl_nvb->port = port;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_nvdimm_bridge_key);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = &port->dev;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_nvdimm_bridge_type;
@@ -189,7 +189,7 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_nvdimm, CXL);
 struct cxl_nvdimm *to_cxl_nvdimm(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_cxl_nvdimm(dev),
-			  "not a cxl_nvdimm device\n"))
+			  "analt a cxl_nvdimm device\n"))
 		return NULL;
 	return container_of(dev, struct cxl_nvdimm, dev);
 }
@@ -205,14 +205,14 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_nvdimm_bridge *cxl_nvb,
 
 	cxl_nvd = kzalloc(sizeof(*cxl_nvd), GFP_KERNEL);
 	if (!cxl_nvd)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	dev = &cxl_nvd->dev;
 	cxl_nvd->cxlmd = cxlmd;
 	cxlmd->cxl_nvd = cxl_nvd;
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_nvdimm_key);
-	device_set_pm_not_required(dev);
+	device_set_pm_analt_required(dev);
 	dev->parent = &cxlmd->dev;
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_nvdimm_type;
@@ -255,7 +255,7 @@ int devm_cxl_add_nvdimm(struct cxl_memdev *cxlmd)
 
 	cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 	if (!cxl_nvb)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cxl_nvd = cxl_nvdimm_alloc(cxl_nvb, cxlmd);
 	if (IS_ERR(cxl_nvd)) {

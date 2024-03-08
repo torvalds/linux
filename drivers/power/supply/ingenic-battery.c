@@ -40,7 +40,7 @@ static int ingenic_battery_get_property(struct power_supply *psy,
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		return ret;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = iio_read_channel_processed(bat->channel, &val->intval);
 		val->intval *= 1000;
 		return ret;
@@ -115,7 +115,7 @@ static int ingenic_battery_set_scale(struct ingenic_battery *bat)
 
 static enum power_supply_property ingenic_battery_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 };
@@ -130,7 +130,7 @@ static int ingenic_battery_probe(struct platform_device *pdev)
 
 	bat = devm_kzalloc(dev, sizeof(*bat), GFP_KERNEL);
 	if (!bat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bat->dev = dev;
 	bat->channel = devm_iio_channel_get(dev, "battery");
@@ -144,7 +144,7 @@ static int ingenic_battery_probe(struct platform_device *pdev)
 	desc->num_properties = ARRAY_SIZE(ingenic_battery_properties);
 	desc->get_property = ingenic_battery_get_property;
 	psy_cfg.drv_data = bat;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
 	bat->battery = devm_power_supply_register(dev, desc, &psy_cfg);
 	if (IS_ERR(bat->battery))

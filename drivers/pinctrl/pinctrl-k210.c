@@ -51,7 +51,7 @@
 #define K210_PC_DO_INV		BIT(15) /* INVert final Data Output */
 #define K210_PC_PU		BIT(16) /* Pull Up */
 #define K210_PC_PD		BIT(17) /* Pull Down */
-/* Strong pull up not implemented on K210 */
+/* Strong pull up analt implemented on K210 */
 #define K210_PC_SL		BIT(19) /* reduce SLew rate */
 /* Same semantics as OE above */
 #define K210_PC_IE		BIT(20) /* Input Enable */
@@ -127,9 +127,9 @@ static const struct pinctrl_pin_desc k210_pins[] = {
 /*
  * Pin groups: each of the 48 programmable pins is a group.
  * To this are added 8 power domain groups, which for the purposes of
- * the pin subsystem, contain no pins. The power domain groups only exist
+ * the pin subsystem, contain anal pins. The power domain groups only exist
  * to set the power level. The id should never be used (since there are
- * no pins 48-55).
+ * anal pins 48-55).
  */
 static const char *const k210_group_names[] = {
 	/* The first 48 groups are for pins, one each */
@@ -630,7 +630,7 @@ static int k210_pinconf_group_set(struct pinctrl_dev *pctldev,
 	u32 bit;
 	int i;
 
-	/* Pins should be configured with pinmux, not groups*/
+	/* Pins should be configured with pinmux, analt groups*/
 	if (selector < K210_NPINS)
 		return -EINVAL;
 
@@ -757,8 +757,8 @@ static void k210_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, "%s", dev_name(pctldev->dev));
 }
 
-static int k210_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					  struct device_node *np,
+static int k210_pinctrl_dt_subanalde_to_map(struct pinctrl_dev *pctldev,
+					  struct device_analde *np,
 					  struct pinctrl_map **map,
 					  unsigned int *reserved_maps,
 					  unsigned int *num_maps)
@@ -773,20 +773,20 @@ static int k210_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	ret = of_property_count_strings(np, "groups");
 	if (!ret)
-		return pinconf_generic_dt_subnode_to_map(pctldev, np, map,
+		return pinconf_generic_dt_subanalde_to_map(pctldev, np, map,
 						reserved_maps, num_maps,
 						PIN_MAP_TYPE_CONFIGS_GROUP);
 
 	pinmux_groups = of_property_count_u32_elems(np, "pinmux");
 	if (pinmux_groups <= 0) {
-		/* Ignore this node */
+		/* Iganalre this analde */
 		return 0;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctldev->dev, "%pOF: could not parse node property\n",
+		dev_err(pctldev->dev, "%pOF: could analt parse analde property\n",
 			np);
 		return ret;
 	}
@@ -843,29 +843,29 @@ exit:
 	return ret;
 }
 
-static int k210_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				       struct device_node *np_config,
+static int k210_pinctrl_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				       struct device_analde *np_config,
 				       struct pinctrl_map **map,
 				       unsigned int *num_maps)
 {
 	unsigned int reserved_maps;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = k210_pinctrl_dt_subnode_to_map(pctldev, np_config, map,
+	ret = k210_pinctrl_dt_subanalde_to_map(pctldev, np_config, map,
 					     &reserved_maps, num_maps);
 	if (ret < 0)
 		goto err;
 
-	for_each_available_child_of_node(np_config, np) {
-		ret = k210_pinctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_available_child_of_analde(np_config, np) {
+		ret = k210_pinctrl_dt_subanalde_to_map(pctldev, np, map,
 						     &reserved_maps, num_maps);
 		if (ret < 0) {
-			of_node_put(np);
+			of_analde_put(np);
 			goto err;
 		}
 	}
@@ -882,7 +882,7 @@ static const struct pinctrl_ops k210_pinctrl_ops = {
 	.get_group_name = k210_pinctrl_get_group_name,
 	.get_group_pins = k210_pinctrl_get_group_pins,
 	.pin_dbg_show = k210_pinctrl_pin_dbg_show,
-	.dt_node_to_map = k210_pinctrl_dt_node_to_map,
+	.dt_analde_to_map = k210_pinctrl_dt_analde_to_map,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -928,7 +928,7 @@ static void k210_fpioa_init_ties(struct k210_fpioa_data *pdata)
 static int k210_fpioa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct k210_fpioa_data *pdata;
 	int ret;
 
@@ -936,7 +936,7 @@ static int k210_fpioa_probe(struct platform_device *pdev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdata->dev = dev;
 	platform_set_drvdata(pdev, pdata);

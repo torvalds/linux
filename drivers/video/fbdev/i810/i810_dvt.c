@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/i810_dvt.c -- Intel 810 Discrete Video Timings (Intel)
  *
- *      Copyright (C) 2001 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2001 Antonianal Daplas<adaplas@pol.net>
  *      All Rights Reserved      
  *
  *

@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "vhci_driver.h"
 #include "usbip_common.h"
@@ -46,7 +46,7 @@ static int record_connection(char *host, char *port, char *busid, int rhport)
 	ret = mkdir(VHCI_STATE_PATH, 0700);
 	if (ret < 0) {
 		/* if VHCI_STATE_PATH exists, then it better be a directory */
-		if (errno == EEXIST) {
+		if (erranal == EEXIST) {
 			struct stat s;
 
 			ret = stat(VHCI_STATE_PATH, &s);
@@ -93,7 +93,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 	do {
 		port = usbip_vhci_get_free_port(speed);
 		if (port < 0) {
-			err("no free port");
+			err("anal free port");
 			goto err_driver_close;
 		}
 
@@ -101,7 +101,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 
 		rc = usbip_vhci_attach_device(port, sockfd, udev->busnum,
 					      udev->devnum, udev->speed);
-		if (rc < 0 && errno != EBUSY) {
+		if (rc < 0 && erranal != EBUSY) {
 			err("import device");
 			goto err_driver_close;
 		}

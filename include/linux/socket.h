@@ -40,7 +40,7 @@ struct sockaddr {
 };
 
 struct linger {
-	int		l_onoff;	/* Linger active		*/
+	int		l_oanalff;	/* Linger active		*/
 	int		l_linger;	/* How long to linger for	*/
 };
 
@@ -48,7 +48,7 @@ struct linger {
 
 /*
  *	As we do 4.4BSD message passing we use a 4.4BSD message passing
- *	system, not 4.3. Thus msg_accrights(len) are now missing. They
+ *	system, analt 4.3. Thus msg_accrights(len) are analw missing. They
  *	belong in an obscure libc emulation or the bin.
  */
 
@@ -140,11 +140,11 @@ struct cmsghdr {
 /*
  *	Get the next cmsg header
  *
- *	PLEASE, do not touch this function. If you think, that it is
+ *	PLEASE, do analt touch this function. If you think, that it is
  *	incorrect, grep kernel sources and think about consequences
  *	before trying to improve it.
  *
- *	Now it always returns valid, not truncated ancillary object
+ *	Analw it always returns valid, analt truncated ancillary object
  *	HEADER. But caller still MUST check, that cmsg->cmsg_len is
  *	inside range, given by msg->msg_controllen before using
  *	ancillary object DATA.				--ANK (980731)
@@ -191,7 +191,7 @@ struct ucred {
 #define AF_LOCAL	1	/* POSIX name for AF_UNIX	*/
 #define AF_INET		2	/* Internet IP Protocol 	*/
 #define AF_AX25		3	/* Amateur Radio AX.25 		*/
-#define AF_IPX		4	/* Novell IPX 			*/
+#define AF_IPX		4	/* Analvell IPX 			*/
 #define AF_APPLETALK	5	/* AppleTalk DDP 		*/
 #define AF_NETROM	6	/* Amateur Radio NET/ROM 	*/
 #define AF_BRIDGE	7	/* Multiprotocol bridge 	*/
@@ -240,7 +240,7 @@ struct ucred {
 				 * transport protocol
 				 */
 
-#define AF_MAX		46	/* For now.. */
+#define AF_MAX		46	/* For analw.. */
 
 /* Protocol families, same as address families. */
 #define PF_UNSPEC	AF_UNSPEC
@@ -297,17 +297,17 @@ struct ucred {
 #define SOMAXCONN	4096
 
 /* Flags we can use with send/ and recv.
-   Added those for 1003.1g not all are supported yet
+   Added those for 1003.1g analt all are supported yet
  */
 
 #define MSG_OOB		1
 #define MSG_PEEK	2
 #define MSG_DONTROUTE	4
-#define MSG_TRYHARD     4       /* Synonym for MSG_DONTROUTE for DECnet */
+#define MSG_TRYHARD     4       /* Syanalnym for MSG_DONTROUTE for DECnet */
 #define MSG_CTRUNC	8
-#define MSG_PROBE	0x10	/* Do not send. Only probe path f.e. for MTU */
+#define MSG_PROBE	0x10	/* Do analt send. Only probe path f.e. for MTU */
 #define MSG_TRUNC	0x20
-#define MSG_DONTWAIT	0x40	/* Nonblocking io		 */
+#define MSG_DONTWAIT	0x40	/* Analnblocking io		 */
 #define MSG_EOR         0x80	/* End of record */
 #define MSG_WAITALL	0x100	/* Wait for a full request */
 #define MSG_FIN         0x200
@@ -315,13 +315,13 @@ struct ucred {
 #define MSG_CONFIRM	0x800	/* Confirm path validity */
 #define MSG_RST		0x1000
 #define MSG_ERRQUEUE	0x2000	/* Fetch message from error queue */
-#define MSG_NOSIGNAL	0x4000	/* Do not generate SIGPIPE */
+#define MSG_ANALSIGNAL	0x4000	/* Do analt generate SIGPIPE */
 #define MSG_MORE	0x8000	/* Sender will send more */
 #define MSG_WAITFORONE	0x10000	/* recvmmsg(): block until 1+ packets avail */
-#define MSG_SENDPAGE_NOPOLICY 0x10000 /* sendpage() internal : do no apply policy */
+#define MSG_SENDPAGE_ANALPOLICY 0x10000 /* sendpage() internal : do anal apply policy */
 #define MSG_BATCH	0x40000 /* sendmmsg(): more messages coming */
 #define MSG_EOF         MSG_FIN
-#define MSG_NO_SHARED_FRAGS 0x80000 /* sendpage() internal : page frags are not shared */
+#define MSG_ANAL_SHARED_FRAGS 0x80000 /* sendpage() internal : page frags are analt shared */
 #define MSG_SENDPAGE_DECRYPTED	0x100000 /* sendpage() internal : page may carry
 					  * plain text and require encryption
 					  */
@@ -340,11 +340,11 @@ struct ucred {
 
 /* Flags to be cleared on entry by sendmsg and sendmmsg syscalls */
 #define MSG_INTERNAL_SENDMSG_FLAGS \
-	(MSG_SPLICE_PAGES | MSG_SENDPAGE_NOPOLICY | MSG_SENDPAGE_DECRYPTED)
+	(MSG_SPLICE_PAGES | MSG_SENDPAGE_ANALPOLICY | MSG_SENDPAGE_DECRYPTED)
 
 /* Setsockoptions(2) level. Thanks to BSD these must match IPPROTO_xxx */
 #define SOL_IP		0
-/* #define SOL_ICMP	1	No-no-no! Due to Linux :-) we cannot use SOL_ICMP=1 */
+/* #define SOL_ICMP	1	Anal-anal-anal! Due to Linux :-) we cananalt use SOL_ICMP=1 */
 #define SOL_TCP		6
 #define SOL_UDP		17
 #define SOL_IPV6	41

@@ -4,10 +4,10 @@
  *
  * Implementation of the SSI McSAAB improved protocol.
  *
- * Copyright (C) 2010 Nokia Corporation. All rights reserved.
+ * Copyright (C) 2010 Analkia Corporation. All rights reserved.
  * Copyright (C) 2013 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@analkia.com>
  */
 
 #include <linux/atomic.h>
@@ -23,7 +23,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/scatterlist.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -273,7 +273,7 @@ static int ssip_alloc_cmds(struct ssi_protocol *ssi)
 out:
 	ssip_free_cmds(ssi);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void ssip_set_rxstate(struct ssi_protocol *ssi, unsigned int state)
@@ -324,7 +324,7 @@ static void ssip_set_txstate(struct ssi_protocol *ssi, unsigned int state)
 
 struct hsi_client *ssip_slave_get_master(struct hsi_client *slave)
 {
-	struct hsi_client *master = ERR_PTR(-ENODEV);
+	struct hsi_client *master = ERR_PTR(-EANALDEV);
 	struct ssi_protocol *ssi;
 
 	list_for_each_entry(ssi, &ssip_list, link)
@@ -521,7 +521,7 @@ static void ssip_start_rx(struct hsi_client *cl)
 	spin_lock_bh(&ssi->lock);
 	/*
 	 * We can have two UP events in a row due to a short low
-	 * high transition. Therefore we need to ignore the sencond UP event.
+	 * high transition. Therefore we need to iganalre the sencond UP event.
 	 */
 	if ((ssi->main_state != ACTIVE) || (ssi->recv_state == RECV_READY)) {
 		spin_unlock_bh(&ssi->lock);
@@ -658,7 +658,7 @@ static void ssip_rx_bootinforeq(struct hsi_client *cl, u32 cmd)
 	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
 	struct hsi_msg *msg;
 
-	/* Workaroud: Ignore CMT Loader message leftover */
+	/* Workaroud: Iganalre CMT Loader message leftover */
 	if (cmd == SSIP_CMT_LOADER_SYNC)
 		return;
 
@@ -703,10 +703,10 @@ static void ssip_rx_bootinforesp(struct hsi_client *cl, u32 cmd)
 
 	spin_lock_bh(&ssi->lock);
 	if (ssi->main_state != ACTIVE)
-		/* Use tx_wd as a boot watchdog in non ACTIVE state */
+		/* Use tx_wd as a boot watchdog in analn ACTIVE state */
 		mod_timer(&ssi->tx_wd, jiffies + msecs_to_jiffies(SSIP_WDTOUT));
 	else
-		dev_dbg(&cl->device, "boot info resp ignored M(%d)\n",
+		dev_dbg(&cl->device, "boot info resp iganalred M(%d)\n",
 							ssi->main_state);
 	spin_unlock_bh(&ssi->lock);
 }
@@ -718,7 +718,7 @@ static void ssip_rx_waketest(struct hsi_client *cl, u32 cmd)
 
 	spin_lock_bh(&ssi->lock);
 	if (ssi->main_state != HANDSHAKE) {
-		dev_dbg(&cl->device, "wake lines test ignored M(%d)\n",
+		dev_dbg(&cl->device, "wake lines test iganalred M(%d)\n",
 							ssi->main_state);
 		spin_unlock_bh(&ssi->lock);
 		return;
@@ -733,7 +733,7 @@ static void ssip_rx_waketest(struct hsi_client *cl, u32 cmd)
 	del_timer(&ssi->tx_wd); /* Stop boot handshake timer */
 	spin_unlock_bh(&ssi->lock);
 
-	dev_notice(&cl->device, "WAKELINES TEST %s\n",
+	dev_analtice(&cl->device, "WAKELINES TEST %s\n",
 				wkres & SSIP_WAKETEST_FAILED ? "FAILED" : "OK");
 	if (wkres & SSIP_WAKETEST_FAILED) {
 		ssip_error(cl);
@@ -756,7 +756,7 @@ static void ssip_rx_ready(struct hsi_client *cl)
 		return;
 	}
 	if (ssi->send_state != WAIT4READY) {
-		dev_dbg(&cl->device, "Ignore spurious READY command\n");
+		dev_dbg(&cl->device, "Iganalre spurious READY command\n");
 		spin_unlock_bh(&ssi->lock);
 		return;
 	}
@@ -791,13 +791,13 @@ static void ssip_rx_strans(struct hsi_client *cl, u32 cmd)
 	spin_unlock_bh(&ssi->lock);
 	skb = netdev_alloc_skb(ssi->netdev, len * 4);
 	if (unlikely(!skb)) {
-		dev_err(&cl->device, "No memory for rx skb\n");
+		dev_err(&cl->device, "Anal memory for rx skb\n");
 		goto out1;
 	}
 	skb_put(skb, len * 4);
 	msg = ssip_alloc_data(ssi, skb, GFP_ATOMIC);
 	if (unlikely(!msg)) {
-		dev_err(&cl->device, "No memory for RX data msg\n");
+		dev_err(&cl->device, "Anal memory for RX data msg\n");
 		goto out2;
 	}
 	msg->complete = ssip_rx_data_complete;
@@ -826,7 +826,7 @@ static void ssip_rxcmd_complete(struct hsi_msg *msg)
 	dev_dbg(&cl->device, "RX cmd: 0x%08x\n", cmd);
 	switch (cmdid) {
 	case SSIP_SW_BREAK:
-		/* Ignored */
+		/* Iganalred */
 		break;
 	case SSIP_BOOTINFO_REQ:
 		ssip_rx_bootinforeq(cl, cmd);
@@ -844,7 +844,7 @@ static void ssip_rxcmd_complete(struct hsi_msg *msg)
 		ssip_rx_ready(cl);
 		break;
 	default:
-		dev_warn(&cl->device, "command 0x%08x not supported\n", cmd);
+		dev_warn(&cl->device, "command 0x%08x analt supported\n", cmd);
 		break;
 	}
 }
@@ -991,7 +991,7 @@ static netdev_tx_t ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	msg = ssip_alloc_data(ssi, skb, GFP_ATOMIC);
 	if (!msg) {
-		dev_dbg(&cl->device, "Dropping tx data: No memory\n");
+		dev_dbg(&cl->device, "Dropping tx data: Anal memory\n");
 		goto drop;
 	}
 	msg->complete = ssip_tx_data_complete;
@@ -1058,7 +1058,7 @@ static void ssip_pn_setup(struct net_device *dev)
 	dev->features		= 0;
 	dev->netdev_ops		= &ssip_pn_ops;
 	dev->type		= ARPHRD_PHONET;
-	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
+	dev->flags		= IFF_POINTOPOINT | IFF_ANALARP;
 	dev->mtu		= SSIP_DEFAULT_MTU;
 	dev->hard_header_len	= 1;
 	dev->addr_len		= 1;
@@ -1078,7 +1078,7 @@ static int ssi_protocol_probe(struct device *dev)
 
 	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
 	if (!ssi)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&ssi->lock);
 	timer_setup(&ssi->rx_wd, ssip_rx_wd, TIMER_DEFERRABLE);
@@ -1094,27 +1094,27 @@ static int ssi_protocol_probe(struct device *dev)
 	ssi->channel_id_cmd = hsi_get_channel_id_by_name(cl, "mcsaab-control");
 	if (ssi->channel_id_cmd < 0) {
 		err = ssi->channel_id_cmd;
-		dev_err(dev, "Could not get cmd channel (%d)\n", err);
+		dev_err(dev, "Could analt get cmd channel (%d)\n", err);
 		goto out;
 	}
 
 	ssi->channel_id_data = hsi_get_channel_id_by_name(cl, "mcsaab-data");
 	if (ssi->channel_id_data < 0) {
 		err = ssi->channel_id_data;
-		dev_err(dev, "Could not get data channel (%d)\n", err);
+		dev_err(dev, "Could analt get data channel (%d)\n", err);
 		goto out;
 	}
 
 	err = ssip_alloc_cmds(ssi);
 	if (err < 0) {
-		dev_err(dev, "No memory for commands\n");
+		dev_err(dev, "Anal memory for commands\n");
 		goto out;
 	}
 
-	ssi->netdev = alloc_netdev(0, ifname, NET_NAME_UNKNOWN, ssip_pn_setup);
+	ssi->netdev = alloc_netdev(0, ifname, NET_NAME_UNKANALWN, ssip_pn_setup);
 	if (!ssi->netdev) {
-		dev_err(dev, "No memory for netdev\n");
-		err = -ENOMEM;
+		dev_err(dev, "Anal memory for netdev\n");
+		err = -EANALMEM;
 		goto out1;
 	}
 
@@ -1185,7 +1185,7 @@ static void __exit ssip_exit(void)
 module_exit(ssip_exit);
 
 MODULE_ALIAS("hsi:ssi-protocol");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
-MODULE_AUTHOR("Remi Denis-Courmont <remi.denis-courmont@nokia.com>");
+MODULE_AUTHOR("Carlos Chinea <carlos.chinea@analkia.com>");
+MODULE_AUTHOR("Remi Denis-Courmont <remi.denis-courmont@analkia.com>");
 MODULE_DESCRIPTION("SSI protocol improved aka McSAAB");
 MODULE_LICENSE("GPL");

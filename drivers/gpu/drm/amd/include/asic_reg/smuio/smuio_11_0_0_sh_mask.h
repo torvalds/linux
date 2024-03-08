@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright analtice and this permission analtice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -227,14 +227,14 @@
 #define CKSVII2C_IC_SDA_HOLD__IC_SDA_HOLD_MASK                                                                0x00FFFFFFL
 //CKSVII2C_IC_TX_ABRT_SOURCE
 
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_NOACK__SHIFT                                                  0x0
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_NOACK__SHIFT                                                  0x1
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_NOACK__SHIFT                                                  0x2
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_NOACK__SHIFT                                                   0x3
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_NOACK_MASK                                                   0x00000001L
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_NOACK_MASK                                                   0x00000002L
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_NOACK_MASK                                                   0x00000004L
-#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_NOACK_MASK                                                    0x00000008L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_ANALACK__SHIFT                                                  0x0
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_ANALACK__SHIFT                                                  0x1
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_ANALACK__SHIFT                                                  0x2
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_ANALACK__SHIFT                                                   0x3
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_7B_ADDR_ANALACK_MASK                                                   0x00000001L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR1_ANALACK_MASK                                                   0x00000002L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_10ADDR2_ANALACK_MASK                                                   0x00000004L
+#define CKSVII2C_IC_TX_ABRT_SOURCE__ABRT_TXDATA_ANALACK_MASK                                                    0x00000008L
 //CKSVII2C_IC_SLV_DATA_NACK_ONLY
 //CKSVII2C_IC_DMA_CR
 //CKSVII2C_IC_DMA_TDLR

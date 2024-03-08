@@ -19,8 +19,8 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	struct mwifiex_wep_key wep_key;
 
 	if (!params->privacy) {
-		bss_config->protocol = PROTOCOL_NO_SECURITY;
-		bss_config->key_mgmt = KEY_MGMT_NONE;
+		bss_config->protocol = PROTOCOL_ANAL_SECURITY;
+		bss_config->key_mgmt = KEY_MGMT_ANALNE;
 		bss_config->wpa_cfg.length = 0;
 		priv->sec_info.wep_enabled = 0;
 		priv->sec_info.wpa_enabled = 0;
@@ -107,7 +107,7 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 	case WLAN_CIPHER_SUITE_WEP104:
 		if (priv->sec_info.wep_enabled) {
 			bss_config->protocol = PROTOCOL_STATIC_WEP;
-			bss_config->key_mgmt = KEY_MGMT_NONE;
+			bss_config->key_mgmt = KEY_MGMT_ANALNE;
 			bss_config->wpa_cfg.length = 0;
 
 			for (i = 0; i < NUM_WEP_KEYS; i++) {
@@ -273,7 +273,7 @@ mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 }
 
 /* This function initializes some of mwifiex_uap_bss_param variables.
- * This helps FW in ignoring invalid values. These values may or may not
+ * This helps FW in iganalring invalid values. These values may or may analt
  * be get updated to valid ones at later stage.
  */
 void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
@@ -773,13 +773,13 @@ static int mwifiex_cmd_uap_sta_deauth(struct mwifiex_private *priv,
  * This is a generic function which calls specific command preparation
  * routines based upon the command number.
  */
-int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
+int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_anal,
 			    u16 cmd_action, u32 type,
 			    void *data_buf, void *cmd_buf)
 {
 	struct host_cmd_ds_command *cmd = cmd_buf;
 
-	switch (cmd_no) {
+	switch (cmd_anal) {
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		if (mwifiex_cmd_uap_sys_config(cmd, cmd_action, type, data_buf))
 			return -1;
@@ -788,7 +788,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	case HostCmd_CMD_UAP_BSS_STOP:
 	case HOST_CMD_APCMD_SYS_RESET:
 	case HOST_CMD_APCMD_STA_LIST:
-		cmd->command = cpu_to_le16(cmd_no);
+		cmd->command = cpu_to_le16(cmd_anal);
 		cmd->size = cpu_to_le16(S_DS_GEN);
 		break;
 	case HostCmd_CMD_UAP_STA_DEAUTH:
@@ -802,7 +802,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "PREP_CMD: unknown cmd %#x\n", cmd_no);
+			    "PREP_CMD: unkanalwn cmd %#x\n", cmd_anal);
 		return -1;
 	}
 
@@ -825,13 +825,13 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 		bss_cfg->band_cfg = BAND_CONFIG_BG;
 		config_bands = BAND_B | BAND_G;
 
-		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+		if (chandef.width > NL80211_CHAN_WIDTH_20_ANALHT)
 			config_bands |= BAND_GN;
 	} else {
 		bss_cfg->band_cfg = BAND_CONFIG_A;
 		config_bands = BAND_A;
 
-		if (chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
+		if (chandef.width > NL80211_CHAN_WIDTH_20_ANALHT)
 			config_bands |= BAND_AN;
 
 		if (chandef.width > NL80211_CHAN_WIDTH_40)
@@ -841,7 +841,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 	switch (chandef.width) {
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		break;
 	case NL80211_CHAN_WIDTH_40:
@@ -858,7 +858,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter,
-			    WARN, "Unknown channel width: %d\n",
+			    WARN, "Unkanalwn channel width: %d\n",
 			    chandef.width);
 		break;
 	}

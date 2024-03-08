@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * TI OMAP4 ISS V4L2 Driver - Generic video node
+ * TI OMAP4 ISS V4L2 Driver - Generic video analde
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  *
@@ -30,9 +30,9 @@ struct v4l2_pix_format;
  * @truncated: V4L2 media bus format code for the same format truncated to 10
  *	bits. Identical to @code if the format is 10 bits wide or less.
  * @uncompressed: V4L2 media bus format code for the corresponding uncompressed
- *	format. Identical to @code if the format is not DPCM compressed.
+ *	format. Identical to @code if the format is analt DPCM compressed.
  * @flavor: V4L2 media bus format code for the same pixel layout but
- *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
+ *	shifted to be 8 bits per pixel. =0 if format is analt shiftable.
  * @pixelformat: V4L2 pixel format FCC identifier
  * @bpp: Bits per pixel
  */
@@ -52,13 +52,13 @@ enum iss_pipeline_stream_state {
 };
 
 enum iss_pipeline_state {
-	/* The stream has been started on the input video node. */
+	/* The stream has been started on the input video analde. */
 	ISS_PIPELINE_STREAM_INPUT = BIT(0),
-	/* The stream has been started on the output video node. */
+	/* The stream has been started on the output video analde. */
 	ISS_PIPELINE_STREAM_OUTPUT = BIT(1),
-	/* At least one buffer is queued on the input video node. */
+	/* At least one buffer is queued on the input video analde. */
 	ISS_PIPELINE_QUEUE_INPUT = BIT(2),
-	/* At least one buffer is queued on the output video node. */
+	/* At least one buffer is queued on the output video analde. */
 	ISS_PIPELINE_QUEUE_OUTPUT = BIT(3),
 	/* The input entity is idle, ready to be started. */
 	ISS_PIPELINE_IDLE_INPUT = BIT(4),
@@ -137,7 +137,7 @@ enum iss_video_dmaqueue_flags {
 /*
  * struct iss_video_operations - ISS video operations
  * @queue:	Resume streaming when a buffer is queued. Called on VIDIOC_QBUF
- *		if there was no buffer previously queued.
+ *		if there was anal buffer previously queued.
  */
 struct iss_video_operations {
 	int (*queue)(struct iss_video *video, struct iss_buffer *buffer);

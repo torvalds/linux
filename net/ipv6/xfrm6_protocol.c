@@ -132,7 +132,7 @@ static int xfrm6_esp_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int xfrm6_ah_rcv(struct sk_buff *skb)
@@ -161,7 +161,7 @@ static int xfrm6_ah_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int xfrm6_ipcomp_rcv(struct sk_buff *skb)
@@ -190,25 +190,25 @@ static int xfrm6_ipcomp_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
 			return 0;
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static const struct inet6_protocol esp6_protocol = {
 	.handler	=	xfrm6_esp_rcv,
 	.err_handler	=	xfrm6_esp_err,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 static const struct inet6_protocol ah6_protocol = {
 	.handler	=	xfrm6_ah_rcv,
 	.err_handler	=	xfrm6_ah_err,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 static const struct inet6_protocol ipcomp6_protocol = {
 	.handler	=	xfrm6_ipcomp_rcv,
 	.err_handler	=	xfrm6_ipcomp_err,
-	.flags		=	INET6_PROTO_NOPOLICY,
+	.flags		=	INET6_PROTO_ANALPOLICY,
 };
 
 static const struct xfrm_input_afinfo xfrm6_input_afinfo = {
@@ -282,7 +282,7 @@ int xfrm6_protocol_deregister(struct xfrm6_protocol *handler,
 {
 	struct xfrm6_protocol __rcu **pprev;
 	struct xfrm6_protocol *t;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	if (!proto_handlers(protocol) || !netproto(protocol))
 		return -EINVAL;

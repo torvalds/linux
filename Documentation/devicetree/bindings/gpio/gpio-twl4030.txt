@@ -6,11 +6,11 @@ Required properties:
 - #gpio-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify optional parameters (unused)
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device analde as a GPIO controller.
 - #interrupt-cells : Should be 2.
-- interrupt-controller: Mark the device node as an interrupt controller
+- interrupt-controller: Mark the device analde as an interrupt controller
   The first cell is the GPIO number.
-  The second cell is not used.
+  The second cell is analt used.
 - ti,use-leds : Enables LEDA and LEDB outputs if set
 - ti,debounce : if n-th bit is set, debounces GPIO-n
 - ti,mmc-cd : if n-th bit is set, GPIO-n controls VMMC(n+1)

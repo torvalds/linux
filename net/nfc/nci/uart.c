@@ -21,7 +21,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -111,11 +111,11 @@ static int nci_uart_set_driver(struct tty_struct *tty, unsigned int driver)
 		return -EINVAL;
 
 	if (!nci_uart_drivers[driver])
-		return -ENOENT;
+		return -EANALENT;
 
 	nu = kzalloc(sizeof(*nu), GFP_KERNEL);
 	if (!nu)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(nu, nci_uart_drivers[driver], sizeof(struct nci_uart));
 	nu->tty = tty;
@@ -132,7 +132,7 @@ static int nci_uart_set_driver(struct tty_struct *tty, unsigned int driver)
 		nu->ops.close(nu);
 		tty->disc_data = NULL;
 		kfree(nu);
-		return -ENOENT;
+		return -EANALENT;
 	}
 	return ret;
 }
@@ -150,11 +150,11 @@ static int nci_uart_set_driver(struct tty_struct *tty, unsigned int driver)
  */
 static int nci_uart_tty_open(struct tty_struct *tty)
 {
-	/* Error if the tty has no write op instead of leaving an exploitable
+	/* Error if the tty has anal write op instead of leaving an exploitable
 	 * hole
 	 */
 	if (!tty->ops->write)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	tty->disc_data = NULL;
 	tty->receive_room = 65536;
@@ -200,7 +200,7 @@ static void nci_uart_tty_close(struct tty_struct *tty)
  *    device driver can accept more send data.
  *
  * Arguments:        tty    pointer to associated tty instance data
- * Return Value:    None
+ * Return Value:    Analne
  */
 static void nci_uart_tty_wakeup(struct tty_struct *tty)
 {
@@ -230,7 +230,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 
 	if (!nu->ndev) {
 		nfc_err(nu->tty->dev,
-			"receive data from tty but no NCI dev is attached yet, drop buffer\n");
+			"receive data from tty but anal NCI dev is attached yet, drop buffer\n");
 		return 0;
 	}
 
@@ -245,7 +245,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 						   NCI_MAX_PACKET_SIZE,
 						   GFP_ATOMIC);
 			if (!nu->rx_skb)
-				return -ENOMEM;
+				return -EANALMEM;
 		}
 
 		/* Eat byte after byte till full packet header is received */
@@ -255,7 +255,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 			continue;
 		}
 
-		/* Header was received but packet len was not read */
+		/* Header was received but packet len was analt read */
 		if (nu->rx_packet_len < 0)
 			nu->rx_packet_len = NCI_CTRL_HDR_SIZE +
 				nci_plen(nu->rx_skb->data);
@@ -293,7 +293,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
  *             flags        pointer to flags for data
  *             count        count of received data in bytes
  *
- * Return Value:    None
+ * Return Value:    Analne
  */
 static void nci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 				 const u8 *flags, size_t count)

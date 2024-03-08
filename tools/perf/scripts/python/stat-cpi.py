@@ -11,13 +11,13 @@ def get_key(time, event, cpu, thread):
     return "%d-%s-%d-%d" % (time, event, cpu, thread)
 
 def store_key(time, cpu, thread):
-    if (time not in times):
+    if (time analt in times):
         times.append(time)
 
-    if (cpu not in cpus):
+    if (cpu analt in cpus):
         cpus.append(cpu)
 
-    if (thread not in threads):
+    if (thread analt in threads):
         threads.append(thread)
 
 def store(time, event, cpu, thread, val, ena, run):

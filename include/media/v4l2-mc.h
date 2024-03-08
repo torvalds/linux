@@ -3,7 +3,7 @@
  * v4l2-mc.h - Media Controller V4L2 types and prototypes
  *
  * Copyright (C) 2016 Mauro Carvalho Chehab <mchehab@kernel.org>
- * Copyright (C) 2006-2010 Nokia Corporation
+ * Copyright (C) 2006-2010 Analkia Corporation
  * Copyright (c) 2016 Intel Corporation.
  */
 
@@ -29,13 +29,13 @@ struct usb_device;
  * the V4L2 side: camera sensors, audio and video PLL-IF decoders, tuners,
  * analog TV decoder and I/O entities (video, VBI and Software Defined Radio).
  *
- * .. note::
+ * .. analte::
  *
  *    Webcams are modelled on a very simple way: the sensor is
  *    connected directly to the I/O entity. All dirty details, like
- *    scaler and crop HW are hidden. While such mapping is enough for v4l2
+ *    scaler and crop HW are hidden. While such mapping is eanalugh for v4l2
  *    interface centric PC-consumer's hardware, V4L2 subdev centric camera
- *    hardware should not use this routine, as it will not build the right graph.
+ *    hardware should analt use this routine, as it will analt build the right graph.
  */
 int v4l2_mc_create_media_graph(struct media_device *mdev);
 
@@ -86,17 +86,17 @@ void v4l_disable_media_source(struct video_device *vdev);
 int v4l_vb2q_enable_media_source(struct vb2_queue *q);
 
 /**
- * v4l2_create_fwnode_links_to_pad - Create fwnode-based links from a
+ * v4l2_create_fwanalde_links_to_pad - Create fwanalde-based links from a
  *                                   source subdev to a sink pad.
  *
  * @src_sd: pointer to a source subdev
  * @sink:  pointer to a sink pad
  * @flags: the link flags
  *
- * This function searches for fwnode endpoint connections from a source
+ * This function searches for fwanalde endpoint connections from a source
  * subdevice to a single sink pad, and if suitable connections are found,
  * translates them into media links to that pad. The function can be
- * called by the sink, in its v4l2-async notifier bound callback, to create
+ * called by the sink, in its v4l2-async analtifier bound callback, to create
  * links from a bound source subdevice.
  *
  * The @flags argument specifies the link flags. The caller shall ensure that
@@ -104,53 +104,53 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  * For instance, setting the MEDIA_LNK_FL_ENABLED flag will cause all created
  * links to be enabled, which isn't valid if more than one link is created.
  *
- * .. note::
+ * .. analte::
  *
  *    Any sink subdevice that calls this function must implement the
- *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    .get_fwanalde_pad media operation in order to verify endpoints passed
  *    to the sink are owned by the sink.
  *
  * Return 0 on success or a negative error code on failure.
  */
-int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
+int v4l2_create_fwanalde_links_to_pad(struct v4l2_subdev *src_sd,
 				    struct media_pad *sink, u32 flags);
 
 /**
- * v4l2_create_fwnode_links - Create fwnode-based links from a source
+ * v4l2_create_fwanalde_links - Create fwanalde-based links from a source
  *                            subdev to a sink subdev.
  *
  * @src_sd: pointer to a source subdevice
  * @sink_sd: pointer to a sink subdevice
  *
- * This function searches for any and all fwnode endpoint connections
+ * This function searches for any and all fwanalde endpoint connections
  * between source and sink subdevices, and translates them into media
  * links. The function can be called by the sink subdevice, in its
- * v4l2-async notifier subdev bound callback, to create all links from
+ * v4l2-async analtifier subdev bound callback, to create all links from
  * a bound source subdevice.
  *
- * .. note::
+ * .. analte::
  *
  *    Any sink subdevice that calls this function must implement the
- *    .get_fwnode_pad media operation in order to verify endpoints passed
+ *    .get_fwanalde_pad media operation in order to verify endpoints passed
  *    to the sink are owned by the sink.
  *
  * Return 0 on success or a negative error code on failure.
  */
-int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
+int v4l2_create_fwanalde_links(struct v4l2_subdev *src_sd,
 			     struct v4l2_subdev *sink_sd);
 
 /**
  * v4l2_pipeline_pm_get - Increase the use count of a pipeline
  * @entity: The root entity of a pipeline
  *
- * THIS FUNCTION IS DEPRECATED. DO NOT USE IN NEW DRIVERS. USE RUNTIME PM
+ * THIS FUNCTION IS DEPRECATED. DO ANALT USE IN NEW DRIVERS. USE RUNTIME PM
  * ON SUB-DEVICE DRIVERS INSTEAD.
  *
  * Update the use count of all entities in the pipeline and power entities on.
  *
- * This function is intended to be called in video node open. It uses
+ * This function is intended to be called in video analde open. It uses
  * struct media_entity.use_count to track the power status. The use
- * of this function should be paired with v4l2_pipeline_link_notify().
+ * of this function should be paired with v4l2_pipeline_link_analtify().
  *
  * Return 0 on success or a negative error code on failure.
  */
@@ -160,23 +160,23 @@ int v4l2_pipeline_pm_get(struct media_entity *entity);
  * v4l2_pipeline_pm_put - Decrease the use count of a pipeline
  * @entity: The root entity of a pipeline
  *
- * THIS FUNCTION IS DEPRECATED. DO NOT USE IN NEW DRIVERS. USE RUNTIME PM
+ * THIS FUNCTION IS DEPRECATED. DO ANALT USE IN NEW DRIVERS. USE RUNTIME PM
  * ON SUB-DEVICE DRIVERS INSTEAD.
  *
  * Update the use count of all entities in the pipeline and power entities off.
  *
- * This function is intended to be called in video node release. It uses
+ * This function is intended to be called in video analde release. It uses
  * struct media_entity.use_count to track the power status. The use
- * of this function should be paired with v4l2_pipeline_link_notify().
+ * of this function should be paired with v4l2_pipeline_link_analtify().
  */
 void v4l2_pipeline_pm_put(struct media_entity *entity);
 
 
 /**
- * v4l2_pipeline_link_notify - Link management notification callback
+ * v4l2_pipeline_link_analtify - Link management analtification callback
  * @link: The link
  * @flags: New link flags that will be applied
- * @notification: The link's state change notification type (MEDIA_DEV_NOTIFY_*)
+ * @analtification: The link's state change analtification type (MEDIA_DEV_ANALTIFY_*)
  *
  * React to link management on powered pipelines by updating the use count of
  * all entities in the source and sink sides of the link. Entities are powered
@@ -184,11 +184,11 @@ void v4l2_pipeline_pm_put(struct media_entity *entity);
  * with v4l2_pipeline_pm_{get,put}().
  *
  * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. This function will not fail for disconnection
+ * off is assumed to never fail. This function will analt fail for disconnection
  * events.
  */
-int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-			      unsigned int notification);
+int v4l2_pipeline_link_analtify(struct media_link *link, u32 flags,
+			      unsigned int analtification);
 
 #else /* CONFIG_MEDIA_CONTROLLER */
 
@@ -219,8 +219,8 @@ static inline int v4l2_pipeline_pm_get(struct media_entity *entity)
 static inline void v4l2_pipeline_pm_put(struct media_entity *entity)
 {}
 
-static inline int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-					    unsigned int notification)
+static inline int v4l2_pipeline_link_analtify(struct media_link *link, u32 flags,
+					    unsigned int analtification)
 {
 	return 0;
 }

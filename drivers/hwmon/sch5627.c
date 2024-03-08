@@ -40,38 +40,38 @@
 #define SCH5627_CTRL_LOCK		BIT(1)
 #define SCH5627_CTRL_VBAT		BIT(4)
 
-#define SCH5627_NO_TEMPS		8
-#define SCH5627_NO_FANS			4
-#define SCH5627_NO_IN			5
+#define SCH5627_ANAL_TEMPS		8
+#define SCH5627_ANAL_FANS			4
+#define SCH5627_ANAL_IN			5
 
-static const u16 SCH5627_REG_TEMP_MSB[SCH5627_NO_TEMPS] = {
+static const u16 SCH5627_REG_TEMP_MSB[SCH5627_ANAL_TEMPS] = {
 	0x2B, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x180, 0x181 };
-static const u16 SCH5627_REG_TEMP_LSN[SCH5627_NO_TEMPS] = {
+static const u16 SCH5627_REG_TEMP_LSN[SCH5627_ANAL_TEMPS] = {
 	0xE2, 0xE1, 0xE1, 0xE5, 0xE5, 0xE6, 0x182, 0x182 };
-static const u16 SCH5627_REG_TEMP_HIGH_NIBBLE[SCH5627_NO_TEMPS] = {
+static const u16 SCH5627_REG_TEMP_HIGH_NIBBLE[SCH5627_ANAL_TEMPS] = {
 	0, 0, 1, 1, 0, 0, 0, 1 };
-static const u16 SCH5627_REG_TEMP_HIGH[SCH5627_NO_TEMPS] = {
+static const u16 SCH5627_REG_TEMP_HIGH[SCH5627_ANAL_TEMPS] = {
 	0x61, 0x57, 0x59, 0x5B, 0x5D, 0x5F, 0x184, 0x186 };
-static const u16 SCH5627_REG_TEMP_ABS[SCH5627_NO_TEMPS] = {
+static const u16 SCH5627_REG_TEMP_ABS[SCH5627_ANAL_TEMPS] = {
 	0x9B, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x1A8, 0x1A9 };
 
-static const u16 SCH5627_REG_FAN[SCH5627_NO_FANS] = {
+static const u16 SCH5627_REG_FAN[SCH5627_ANAL_FANS] = {
 	0x2C, 0x2E, 0x30, 0x32 };
-static const u16 SCH5627_REG_FAN_MIN[SCH5627_NO_FANS] = {
+static const u16 SCH5627_REG_FAN_MIN[SCH5627_ANAL_FANS] = {
 	0x62, 0x64, 0x66, 0x68 };
 
-static const u16 SCH5627_REG_PWM_MAP[SCH5627_NO_FANS] = {
+static const u16 SCH5627_REG_PWM_MAP[SCH5627_ANAL_FANS] = {
 	0xA0, 0xA1, 0xA2, 0xA3 };
 
-static const u16 SCH5627_REG_IN_MSB[SCH5627_NO_IN] = {
+static const u16 SCH5627_REG_IN_MSB[SCH5627_ANAL_IN] = {
 	0x22, 0x23, 0x24, 0x25, 0x189 };
-static const u16 SCH5627_REG_IN_LSN[SCH5627_NO_IN] = {
+static const u16 SCH5627_REG_IN_LSN[SCH5627_ANAL_IN] = {
 	0xE4, 0xE4, 0xE3, 0xE3, 0x18A };
-static const u16 SCH5627_REG_IN_HIGH_NIBBLE[SCH5627_NO_IN] = {
+static const u16 SCH5627_REG_IN_HIGH_NIBBLE[SCH5627_ANAL_IN] = {
 	1, 0, 1, 0, 1 };
-static const u16 SCH5627_REG_IN_FACTOR[SCH5627_NO_IN] = {
+static const u16 SCH5627_REG_IN_FACTOR[SCH5627_ANAL_IN] = {
 	10745, 3660, 9765, 10745, 3660 };
-static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
+static const char * const SCH5627_IN_LABELS[SCH5627_ANAL_IN] = {
 	"VCC", "VTT", "VBAT", "VTR", "V_IN" };
 
 struct sch5627_data {
@@ -87,9 +87,9 @@ struct sch5627_data {
 	unsigned long temp_last_updated;	/* In jiffies */
 	unsigned long fan_last_updated;
 	unsigned long in_last_updated;
-	u16 temp[SCH5627_NO_TEMPS];
-	u16 fan[SCH5627_NO_FANS];
-	u16 in[SCH5627_NO_IN];
+	u16 temp[SCH5627_ANAL_TEMPS];
+	u16 fan[SCH5627_ANAL_FANS];
+	u16 in[SCH5627_ANAL_IN];
 };
 
 static const struct regmap_range sch5627_tunables_ranges[] = {
@@ -107,8 +107,8 @@ static const struct regmap_range sch5627_tunables_ranges[] = {
 };
 
 static const struct regmap_access_table sch5627_tunables_table = {
-	.yes_ranges = sch5627_tunables_ranges,
-	.n_yes_ranges = ARRAY_SIZE(sch5627_tunables_ranges),
+	.anal_ranges = sch5627_tunables_ranges,
+	.n_anal_ranges = ARRAY_SIZE(sch5627_tunables_ranges),
 };
 
 static const struct regmap_config sch5627_regmap_config = {
@@ -131,7 +131,7 @@ static int sch5627_update_temp(struct sch5627_data *data)
 
 	/* Cache the values for 1 second */
 	if (time_after(jiffies, data->temp_last_updated + HZ) || !data->temp_valid) {
-		for (i = 0; i < SCH5627_NO_TEMPS; i++) {
+		for (i = 0; i < SCH5627_ANAL_TEMPS; i++) {
 			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_TEMP_MSB[i],
 							 SCH5627_REG_TEMP_LSN[i],
 							 SCH5627_REG_TEMP_HIGH_NIBBLE[i]);
@@ -158,7 +158,7 @@ static int sch5627_update_fan(struct sch5627_data *data)
 
 	/* Cache the values for 1 second */
 	if (time_after(jiffies, data->fan_last_updated + HZ) || !data->fan_valid) {
-		for (i = 0; i < SCH5627_NO_FANS; i++) {
+		for (i = 0; i < SCH5627_ANAL_FANS; i++) {
 			val = sch56xx_read_virtual_reg16(data->addr, SCH5627_REG_FAN[i]);
 			if (unlikely(val < 0)) {
 				ret = val;
@@ -190,7 +190,7 @@ static int sch5627_update_in(struct sch5627_data *data)
 
 	/* Cache the values for 1 second */
 	if (time_after(jiffies, data->in_last_updated + HZ) || !data->in_valid) {
-		for (i = 0; i < SCH5627_NO_IN; i++) {
+		for (i = 0; i < SCH5627_ANAL_IN; i++) {
 			val = sch56xx_read_virtual_reg12(data->addr, SCH5627_REG_IN_MSB[i],
 							 SCH5627_REG_IN_LSN[i],
 							 SCH5627_REG_IN_HIGH_NIBBLE[i]);
@@ -398,7 +398,7 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sch5627_read_string(struct device *dev, enum hwmon_sensor_types type, u32 attr,
@@ -418,7 +418,7 @@ static int sch5627_read_string(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 attr, int channel,
@@ -468,7 +468,7 @@ static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static const struct hwmon_ops sch5627_ops = {
@@ -526,7 +526,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
 			    GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
 	mutex_init(&data->update_lock);
@@ -539,7 +539,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	if (val != SCH5627_HWMON_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "hwmon",
 		       val, SCH5627_HWMON_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_COMPANY_ID);
@@ -549,7 +549,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	if (val != SCH5627_COMPANY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "company",
 		       val, SCH5627_COMPANY_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	val = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PRIMARY_ID);
@@ -559,7 +559,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	if (val != SCH5627_PRIMARY_ID) {
 		pr_err("invalid %s id: 0x%02X (expected 0x%02X)\n", "primary",
 		       val, SCH5627_PRIMARY_ID);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	build_code = sch56xx_read_virtual_reg(data->addr,
@@ -583,8 +583,8 @@ static int sch5627_probe(struct platform_device *pdev)
 
 	data->control = val;
 	if (!(data->control & SCH5627_CTRL_START)) {
-		pr_err("hardware monitoring not enabled\n");
-		return -ENODEV;
+		pr_err("hardware monitoring analt enabled\n");
+		return -EANALDEV;
 	}
 
 	data->regmap = devm_regmap_init_sch56xx(&pdev->dev, &data->update_lock, data->addr,
@@ -606,7 +606,7 @@ static int sch5627_probe(struct platform_device *pdev)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	/* Note failing to register the watchdog is not a fatal error */
+	/* Analte failing to register the watchdog is analt a fatal error */
 	sch56xx_watchdog_register(&pdev->dev, data->addr,
 				  (build_code << 24) | (build_id << 8) | hwmon_rev,
 				  &data->update_lock, 1);
@@ -629,7 +629,7 @@ static int sch5627_resume(struct device *dev)
 	struct sch5627_data *data = dev_get_drvdata(dev);
 
 	regcache_cache_only(data->regmap, false);
-	/* We must not access the virtual registers when the lock bit is set */
+	/* We must analt access the virtual registers when the lock bit is set */
 	if (data->control & SCH5627_CTRL_LOCK)
 		return regcache_drop_region(data->regmap, 0, U16_MAX);
 

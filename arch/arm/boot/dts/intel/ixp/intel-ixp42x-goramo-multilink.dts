@@ -46,7 +46,7 @@
 	 * FIXME:
 	 * - Create device tree bindings for this as GPIO expander
 	 * - Write a pure DT GPIO driver using these bindings
-	 * - Support cascading in the style of gpio-74x164.c (cannot be reused, very different)
+	 * - Support cascading in the style of gpio-74x164.c (cananalt be reused, very different)
 	 */
 	gpio_74: gpio-74hc4094 {
 		compatible = "nxp,74hc4094";
@@ -56,7 +56,7 @@
 		/* oe-gpios is optional */
 		gpio-controller;
 		#gpio-cells = <2>;
-		/* We are not cascaded */
+		/* We are analt cascaded */
 		registers-number = <1>;
 		gpio-line-names = "CONTROL_HSS0_CLK_INT", "CONTROL_HSS1_CLK_INT", "CONTROL_HSS0_DTR_N",
 				"CONTROL_HSS1_DTR_N", "CONTROL_EXT", "CONTROL_AUTO_RESET",

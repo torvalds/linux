@@ -226,7 +226,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rtc->dev = &pdev->dev;
 	rtc->irq = platform_get_irq(pdev, 0);
@@ -256,7 +256,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->rtc->start_secs = mktime64(2009, 1, 1, 0, 0, 0);
 	rtc->rtc->set_start_time = true;
 
-	irq_set_status_flags(rtc->irq, IRQ_NOAUTOEN);
+	irq_set_status_flags(rtc->irq, IRQ_ANALAUTOEN);
 
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				tps6586x_rtc_irq,

@@ -91,7 +91,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 {
 	struct resource *mmio;
 	struct resource res;
-	struct device_node *mem_region;
+	struct device_analde *mem_region;
 	struct device *dev = &pdev->dev;
 	struct mtk_adsp_chip_info *adsp = data;
 	int ret;
@@ -102,14 +102,14 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 		return ret;
 	}
 
-	mem_region = of_parse_phandle(dev->of_node, "memory-region", 1);
+	mem_region = of_parse_phandle(dev->of_analde, "memory-region", 1);
 	if (!mem_region) {
-		dev_err(dev, "no memory-region sysmem phandle\n");
-		return -ENODEV;
+		dev_err(dev, "anal memory-region sysmem phandle\n");
+		return -EANALDEV;
 	}
 
 	ret = of_address_to_resource(mem_region, 0, &res);
-	of_node_put(mem_region);
+	of_analde_put(mem_region);
 	if (ret) {
 		dev_err(dev, "of_address_to_resource sysmem failed\n");
 		return ret;
@@ -117,14 +117,14 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	adsp->pa_dram = (phys_addr_t)res.start;
 	if (adsp->pa_dram & DRAM_REMAP_MASK) {
-		dev_err(dev, "adsp memory(%#x) is not 4K-aligned\n",
+		dev_err(dev, "adsp memory(%#x) is analt 4K-aligned\n",
 			(u32)adsp->pa_dram);
 		return -EINVAL;
 	}
 
 	adsp->dramsize = resource_size(&res);
 	if (adsp->dramsize < TOTAL_SIZE_SHARED_DRAM_FROM_TAIL) {
-		dev_err(dev, "adsp memory(%#x) is not enough for share\n",
+		dev_err(dev, "adsp memory(%#x) is analt eanalugh for share\n",
 			adsp->dramsize);
 		return -EINVAL;
 	}
@@ -133,7 +133,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	mmio = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
 	if (!mmio) {
-		dev_err(dev, "no ADSP-CFG register resource\n");
+		dev_err(dev, "anal ADSP-CFG register resource\n");
 		return -ENXIO;
 	}
 
@@ -148,7 +148,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	mmio = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sram");
 	if (!mmio) {
-		dev_err(dev, "no SRAM resource\n");
+		dev_err(dev, "anal SRAM resource\n");
 		return -ENXIO;
 	}
 
@@ -159,7 +159,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	mmio = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sec");
 	if (!mmio) {
-		dev_err(dev, "no SEC register resource\n");
+		dev_err(dev, "anal SEC register resource\n");
 		return -ENXIO;
 	}
 
@@ -174,7 +174,7 @@ static int platform_parse_resource(struct platform_device *pdev, void *data)
 
 	mmio = platform_get_resource_byname(pdev, IORESOURCE_MEM, "bus");
 	if (!mmio) {
-		dev_err(dev, "no BUS register resource\n");
+		dev_err(dev, "anal BUS register resource\n");
 		return -ENXIO;
 	}
 
@@ -244,7 +244,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sdev->pdata->hw_pdata = priv;
 	priv->dev = sdev->dev;
@@ -252,7 +252,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 
 	priv->adsp = devm_kzalloc(&pdev->dev, sizeof(struct mtk_adsp_chip_info), GFP_KERNEL);
 	if (!priv->adsp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_parse_resource(pdev, priv->adsp);
 	if (ret)
@@ -264,7 +264,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_IRAM]) {
 		dev_err(sdev->dev, "failed to ioremap base %pa size %#x\n",
 			&priv->adsp->pa_sram, priv->adsp->sramsize);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->adsp->va_sram = sdev->bar[SOF_FW_BLK_TYPE_IRAM];
@@ -276,7 +276,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 	if (!sdev->bar[SOF_FW_BLK_TYPE_SRAM]) {
 		dev_err(sdev->dev, "failed to ioremap base %pa size %#x\n",
 			&priv->adsp->pa_dram, priv->adsp->dramsize);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	priv->adsp->va_dram = sdev->bar[SOF_FW_BLK_TYPE_SRAM];
@@ -313,7 +313,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 	adsp_sram_power_on(sdev);
 
 	priv->ipc_dev = platform_device_register_data(&pdev->dev, "mtk-adsp-ipc",
-						      PLATFORM_DEVID_NONE,
+						      PLATFORM_DEVID_ANALNE,
 						      pdev, sizeof(*pdev));
 	if (IS_ERR(priv->ipc_dev)) {
 		ret = PTR_ERR(priv->ipc_dev);
@@ -543,7 +543,7 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+			SNDRV_PCM_INFO_ANAL_PERIOD_WAKEUP,
 };
 
 static struct snd_sof_of_mach sof_mt8186_machs[] = {
@@ -567,7 +567,7 @@ static const struct sof_dev_desc sof_of_mt8186_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-mt8186.ri",
 	},
-	.nocodec_tplg_filename = "sof-mt8186-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-mt8186-analcodec.tplg",
 	.ops = &sof_mt8186_ops,
 };
 
@@ -641,7 +641,7 @@ static const struct sof_dev_desc sof_of_mt8188_desc = {
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_3] = "sof-mt8188.ri",
 	},
-	.nocodec_tplg_filename = "sof-mt8188-nocodec.tplg",
+	.analcodec_tplg_filename = "sof-mt8188-analcodec.tplg",
 	.ops = &sof_mt8188_ops,
 	.ops_init = sof_mt8188_ops_init,
 };

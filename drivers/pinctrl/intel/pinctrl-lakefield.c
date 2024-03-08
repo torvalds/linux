@@ -95,7 +95,7 @@ static const struct pinctrl_pin_desc lkf_pins[] = {
 	PINCTRL_PIN(57, "ISH_GP_21"),
 	PINCTRL_PIN(58, "ISH_GP_22"),
 	PINCTRL_PIN(59, "ISH_GP_23"),
-	/* NORTHWEST */
+	/* ANALRTHWEST */
 	PINCTRL_PIN(60, "MCSI_GPIO_0"),
 	PINCTRL_PIN(61, "MCSI_GPIO_1"),
 	PINCTRL_PIN(62, "MCSI_GPIO_2"),
@@ -313,9 +313,9 @@ static const struct intel_padgroup lkf_community0_gpps[] = {
 };
 
 static const struct intel_padgroup lkf_community1_gpps[] = {
-	LKF_GPP(0, 60, 91, 64),		/* NORTHWEST_0 */
-	LKF_GPP(1, 92, 123, 96),	/* NORTHWEST_1 */
-	LKF_GPP(2, 124, 148, 128),	/* NORTHWEST_2 */
+	LKF_GPP(0, 60, 91, 64),		/* ANALRTHWEST_0 */
+	LKF_GPP(1, 92, 123, 96),	/* ANALRTHWEST_1 */
+	LKF_GPP(2, 124, 148, 128),	/* ANALRTHWEST_2 */
 };
 
 static const struct intel_padgroup lkf_community2_gpps[] = {
@@ -330,7 +330,7 @@ static const struct intel_padgroup lkf_community3_gpps[] = {
 
 static const struct intel_community lkf_communities[] = {
 	LKF_COMMUNITY(0, 0, 59, lkf_community0_gpps),		/* EAST */
-	LKF_COMMUNITY(1, 60, 148, lkf_community1_gpps),		/* NORTHWEST */
+	LKF_COMMUNITY(1, 60, 148, lkf_community1_gpps),		/* ANALRTHWEST */
 	LKF_COMMUNITY(2, 149, 237, lkf_community2_gpps),	/* WEST */
 	LKF_COMMUNITY(3, 238, 266, lkf_community3_gpps),	/* SOUTHEAST */
 };

@@ -7,7 +7,7 @@
 /*
  * bpf_perf uses a hashmap, the attr_map, to track all the leader programs.
  * The hashmap is pinned in bpffs. flock() on this file is used to ensure
- * no concurrent access to the attr_map.  The key of attr_map is struct
+ * anal concurrent access to the attr_map.  The key of attr_map is struct
  * perf_event_attr, and the value is struct perf_event_attr_map_entry.
  *
  * struct perf_event_attr_map_entry contains two __u32 IDs, bpf_link of the
@@ -16,7 +16,7 @@
  * tracepoint.
  *
  * Since the hashmap only contains IDs of the bpf_link and diff_map, it
- * does not hold any references to the leader program. Once all perf-stat
+ * does analt hold any references to the leader program. Once all perf-stat
  * sessions of these events exit, the leader prog, its maps, and the
  * perf_events will be freed.
  */

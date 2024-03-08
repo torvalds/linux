@@ -6,7 +6,7 @@ C Z6.0+pooncelock+poonceLock+pombonce
  * This litmus test demonstrates how smp_mb__after_spinlock() may be
  * used to ensure that accesses in different critical sections for a
  * given lock running on different CPUs are nevertheless seen in order
- * by CPUs not holding that lock.
+ * by CPUs analt holding that lock.
  *)
 
 {}

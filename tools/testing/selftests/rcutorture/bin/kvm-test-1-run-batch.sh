@@ -28,7 +28,7 @@ do
 	fi
 	if ! test -d "$i"
 	then
-		echo Scenario name not a directory: \"$i\" 1>&2
+		echo Scenario name analt a directory: \"$i\" 1>&2
 		exit 2
 	fi
 	if ! test -f "$i/qemu-cmd"
@@ -49,7 +49,7 @@ grep '^#' $1/qemu-cmd | sed -e 's/^# //' > $T/qemu-cmd-settings
 echo ---- System running test: `uname -a`
 echo ---- Starting kernels. `date` | tee -a log
 $TORTURE_JITTER_START
-kvm-assign-cpus.sh /sys/devices/system/node > $T/cpuarray.awk
+kvm-assign-cpus.sh /sys/devices/system/analde > $T/cpuarray.awk
 for i in "$@"
 do
 	echo ---- System running test: `uname -a` > $i/kvm-test-1-run-qemu.sh.out
@@ -60,15 +60,15 @@ do
 	END {
 		affinitylist = "";
 		if (!gotcpus()) {
-			print "echo No CPU-affinity information, so no taskset command.";
+			print "echo Anal CPU-affinity information, so anal taskset command.";
 		} else if (cpu_count !~ /^[0-9][0-9]*$/) {
-			print "echo " scenario ": Bogus number of CPUs (old qemu-cmd?), so no taskset command.";
+			print "echo " scenario ": Bogus number of CPUs (old qemu-cmd?), so anal taskset command.";
 		} else {
 			affinitylist = nextcpus(cpu_count);
 			if (!(affinitylist ~ /^[0-9,-][0-9,-]*$/))
-				print "echo " scenario ": Bogus CPU-affinity information, so no taskset command.";
+				print "echo " scenario ": Bogus CPU-affinity information, so anal taskset command.";
 			else if (!dumpcpustate())
-				print "echo " scenario ": Could not dump state, so no taskset command.";
+				print "echo " scenario ": Could analt dump state, so anal taskset command.";
 			else
 				print "export TORTURE_AFFINITY=" affinitylist;
 		}

@@ -82,7 +82,7 @@ static struct rc_map_list behold_columbus_map = {
 	.map = {
 		.scan     = behold_columbus,
 		.size     = ARRAY_SIZE(behold_columbus),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_BEHOLD_COLUMBUS,
 	}
 };

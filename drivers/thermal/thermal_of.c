@@ -18,27 +18,27 @@
 
 #include "thermal_core.h"
 
-/***   functions parsing device tree nodes   ***/
+/***   functions parsing device tree analdes   ***/
 
-static int of_find_trip_id(struct device_node *np, struct device_node *trip)
+static int of_find_trip_id(struct device_analde *np, struct device_analde *trip)
 {
-	struct device_node *trips;
-	struct device_node *t;
+	struct device_analde *trips;
+	struct device_analde *t;
 	int i = 0;
 
 	trips = of_get_child_by_name(np, "trips");
 	if (!trips) {
-		pr_err("Failed to find 'trips' node\n");
+		pr_err("Failed to find 'trips' analde\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * Find the trip id point associated with the cooling device map
 	 */
-	for_each_child_of_node(trips, t) {
+	for_each_child_of_analde(trips, t) {
 
 		if (t == trip) {
-			of_node_put(t);
+			of_analde_put(t);
 			goto out;
 		}
 		i++;
@@ -46,7 +46,7 @@ static int of_find_trip_id(struct device_node *np, struct device_node *trip)
 
 	i = -ENXIO;
 out:
-	of_node_put(trips);
+	of_analde_put(trips);
 
 	return i;
 }
@@ -63,16 +63,16 @@ static const char * const trip_types[] = {
 };
 
 /**
- * thermal_of_get_trip_type - Get phy mode for given device_node
- * @np:	Pointer to the given device_node
+ * thermal_of_get_trip_type - Get phy mode for given device_analde
+ * @np:	Pointer to the given device_analde
  * @type: Pointer to resulting trip type
  *
  * The function gets trip type string from property 'type',
  * and store its index in trip_types table in @type,
  *
- * Return: 0 on success, or errno in error case.
+ * Return: 0 on success, or erranal in error case.
  */
-static int thermal_of_get_trip_type(struct device_node *np,
+static int thermal_of_get_trip_type(struct device_analde *np,
 				    enum thermal_trip_type *type)
 {
 	const char *t;
@@ -88,10 +88,10 @@ static int thermal_of_get_trip_type(struct device_node *np,
 			return 0;
 		}
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static int thermal_of_populate_trip(struct device_node *np,
+static int thermal_of_populate_trip(struct device_analde *np,
 				    struct thermal_trip *trip)
 {
 	int prop;
@@ -120,69 +120,69 @@ static int thermal_of_populate_trip(struct device_node *np,
 	return 0;
 }
 
-static struct thermal_trip *thermal_of_trips_init(struct device_node *np, int *ntrips)
+static struct thermal_trip *thermal_of_trips_init(struct device_analde *np, int *ntrips)
 {
 	struct thermal_trip *tt;
-	struct device_node *trips, *trip;
+	struct device_analde *trips, *trip;
 	int ret, count;
 
 	trips = of_get_child_by_name(np, "trips");
 	if (!trips) {
-		pr_err("Failed to find 'trips' node\n");
+		pr_err("Failed to find 'trips' analde\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	count = of_get_child_count(trips);
 	if (!count) {
-		pr_err("No trip point defined\n");
+		pr_err("Anal trip point defined\n");
 		ret = -EINVAL;
-		goto out_of_node_put;
+		goto out_of_analde_put;
 	}
 
 	tt = kzalloc(sizeof(*tt) * count, GFP_KERNEL);
 	if (!tt) {
-		ret = -ENOMEM;
-		goto out_of_node_put;
+		ret = -EANALMEM;
+		goto out_of_analde_put;
 	}
 
 	*ntrips = count;
 
 	count = 0;
-	for_each_child_of_node(trips, trip) {
+	for_each_child_of_analde(trips, trip) {
 		ret = thermal_of_populate_trip(trip, &tt[count++]);
 		if (ret)
 			goto out_kfree;
 	}
 
-	of_node_put(trips);
+	of_analde_put(trips);
 
 	return tt;
 
 out_kfree:
 	kfree(tt);
 	*ntrips = 0;
-out_of_node_put:
-	of_node_put(trips);
+out_of_analde_put:
+	of_analde_put(trips);
 
 	return ERR_PTR(ret);
 }
 
-static struct device_node *of_thermal_zone_find(struct device_node *sensor, int id)
+static struct device_analde *of_thermal_zone_find(struct device_analde *sensor, int id)
 {
-	struct device_node *np, *tz;
+	struct device_analde *np, *tz;
 	struct of_phandle_args sensor_specs;
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
+	np = of_find_analde_by_name(NULL, "thermal-zones");
 	if (!np) {
-		pr_debug("No thermal zones description\n");
-		return ERR_PTR(-ENODEV);
+		pr_debug("Anal thermal zones description\n");
+		return ERR_PTR(-EANALDEV);
 	}
 
 	/*
 	 * Search for each thermal zone, a defined sensor
 	 * corresponding to the one passed as parameter
 	 */
-	for_each_available_child_of_node(np, tz) {
+	for_each_available_child_of_analde(np, tz) {
 
 		int count, i;
 
@@ -214,13 +214,13 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 			}
 		}
 	}
-	tz = ERR_PTR(-ENODEV);
+	tz = ERR_PTR(-EANALDEV);
 out:
-	of_node_put(np);
+	of_analde_put(np);
 	return tz;
 }
 
-static int thermal_of_monitor_init(struct device_node *np, int *delay, int *pdelay)
+static int thermal_of_monitor_init(struct device_analde *np, int *delay, int *pdelay)
 {
 	int ret;
 
@@ -239,20 +239,20 @@ static int thermal_of_monitor_init(struct device_node *np, int *delay, int *pdel
 	return 0;
 }
 
-static void thermal_of_parameters_init(struct device_node *np,
+static void thermal_of_parameters_init(struct device_analde *np,
 				       struct thermal_zone_params *tzp)
 {
 	int coef[2];
 	int ncoef = ARRAY_SIZE(coef);
 	int prop, ret;
 
-	tzp->no_hwmon = true;
+	tzp->anal_hwmon = true;
 
 	if (!of_property_read_u32(np, "sustainable-power", &prop))
 		tzp->sustainable_power = prop;
 
 	/*
-	 * For now, the thermal framework supports only one sensor per
+	 * For analw, the thermal framework supports only one sensor per
 	 * thermal zone. Thus, we are considering only the first two
 	 * values as slope and offset.
 	 */
@@ -266,25 +266,25 @@ static void thermal_of_parameters_init(struct device_node *np,
 	tzp->offset = coef[1];
 }
 
-static struct device_node *thermal_of_zone_get_by_name(struct thermal_zone_device *tz)
+static struct device_analde *thermal_of_zone_get_by_name(struct thermal_zone_device *tz)
 {
-	struct device_node *np, *tz_np;
+	struct device_analde *np, *tz_np;
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
+	np = of_find_analde_by_name(NULL, "thermal-zones");
 	if (!np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	tz_np = of_get_child_by_name(np, tz->type);
 
-	of_node_put(np);
+	of_analde_put(np);
 
 	if (!tz_np)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return tz_np;
 }
 
-static int __thermal_of_unbind(struct device_node *map_np, int index, int trip_id,
+static int __thermal_of_unbind(struct device_analde *map_np, int index, int trip_id,
 			       struct thermal_zone_device *tz, struct thermal_cooling_device *cdev)
 {
 	struct of_phandle_args cooling_spec;
@@ -298,7 +298,7 @@ static int __thermal_of_unbind(struct device_node *map_np, int index, int trip_i
 		return ret;
 	}
 
-	of_node_put(cooling_spec.np);
+	of_analde_put(cooling_spec.np);
 
 	if (cooling_spec.args_count < 2) {
 		pr_err("wrong reference to cooling device, missing limits\n");
@@ -315,7 +315,7 @@ static int __thermal_of_unbind(struct device_node *map_np, int index, int trip_i
 	return ret;
 }
 
-static int __thermal_of_bind(struct device_node *map_np, int index, int trip_id,
+static int __thermal_of_bind(struct device_analde *map_np, int index, int trip_id,
 			     struct thermal_zone_device *tz, struct thermal_cooling_device *cdev)
 {
 	struct of_phandle_args cooling_spec;
@@ -331,7 +331,7 @@ static int __thermal_of_bind(struct device_node *map_np, int index, int trip_id,
 		return ret;
 	}
 
-	of_node_put(cooling_spec.np);
+	of_analde_put(cooling_spec.np);
 
 	if (cooling_spec.args_count < 2) {
 		pr_err("wrong reference to cooling device, missing limits\n");
@@ -350,17 +350,17 @@ static int __thermal_of_bind(struct device_node *map_np, int index, int trip_id,
 	return ret;
 }
 
-static int thermal_of_for_each_cooling_device(struct device_node *tz_np, struct device_node *map_np,
+static int thermal_of_for_each_cooling_device(struct device_analde *tz_np, struct device_analde *map_np,
 					      struct thermal_zone_device *tz, struct thermal_cooling_device *cdev,
-					      int (*action)(struct device_node *, int, int,
+					      int (*action)(struct device_analde *, int, int,
 							    struct thermal_zone_device *, struct thermal_cooling_device *))
 {
-	struct device_node *tr_np;
+	struct device_analde *tr_np;
 	int count, i, trip_id;
 
 	tr_np = of_parse_phandle(map_np, "trip", 0);
 	if (!tr_np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	trip_id = of_find_trip_id(tz_np, tr_np);
 	if (trip_id < 0)
@@ -369,7 +369,7 @@ static int thermal_of_for_each_cooling_device(struct device_node *tz_np, struct 
 	count = of_count_phandle_with_args(map_np, "cooling-device", "#cooling-cells");
 	if (count <= 0) {
 		pr_err("Add a cooling_device property with at least one device\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/*
@@ -385,15 +385,15 @@ static int thermal_of_for_each_cooling_device(struct device_node *tz_np, struct 
 
 static int thermal_of_for_each_cooling_maps(struct thermal_zone_device *tz,
 					    struct thermal_cooling_device *cdev,
-					    int (*action)(struct device_node *, int, int,
+					    int (*action)(struct device_analde *, int, int,
 							  struct thermal_zone_device *, struct thermal_cooling_device *))
 {
-	struct device_node *tz_np, *cm_np, *child;
+	struct device_analde *tz_np, *cm_np, *child;
 	int ret = 0;
 
 	tz_np = thermal_of_zone_get_by_name(tz);
 	if (IS_ERR(tz_np)) {
-		pr_err("Failed to get node tz by name\n");
+		pr_err("Failed to get analde tz by name\n");
 		return PTR_ERR(tz_np);
 	}
 
@@ -401,17 +401,17 @@ static int thermal_of_for_each_cooling_maps(struct thermal_zone_device *tz,
 	if (!cm_np)
 		goto out;
 
-	for_each_child_of_node(cm_np, child) {
+	for_each_child_of_analde(cm_np, child) {
 		ret = thermal_of_for_each_cooling_device(tz_np, child, tz, cdev, action);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(cm_np);
+	of_analde_put(cm_np);
 out:
-	of_node_put(tz_np);
+	of_analde_put(tz_np);
 
 	return ret;
 }
@@ -448,33 +448,33 @@ static void thermal_of_zone_unregister(struct thermal_zone_device *tz)
 }
 
 /**
- * thermal_of_zone_register - Register a thermal zone with device node
+ * thermal_of_zone_register - Register a thermal zone with device analde
  * sensor
  *
  * The thermal_of_zone_register() parses a device tree given a device
- * node sensor and identifier. It searches for the thermal zone
+ * analde sensor and identifier. It searches for the thermal zone
  * associated to the couple sensor/id and retrieves all the thermal
  * zone properties and registers new thermal zone with those
  * properties.
  *
- * @sensor: A device node pointer corresponding to the sensor in the device tree
+ * @sensor: A device analde pointer corresponding to the sensor in the device tree
  * @id: An integer as sensor identifier
  * @data: A private data to be stored in the thermal zone dedicated private area
  * @ops: A set of thermal sensor ops
  *
  * Return: a valid thermal zone structure pointer on success.
  * 	- EINVAL: if the device tree thermal description is malformed
- *	- ENOMEM: if one structure can not be allocated
+ *	- EANALMEM: if one structure can analt be allocated
  *	- Other negative errors are returned by the underlying called functions
  */
-static struct thermal_zone_device *thermal_of_zone_register(struct device_node *sensor, int id, void *data,
+static struct thermal_zone_device *thermal_of_zone_register(struct device_analde *sensor, int id, void *data,
 							    const struct thermal_zone_device_ops *ops)
 {
 	struct thermal_zone_device *tz;
 	struct thermal_trip *trips;
 	struct thermal_zone_params tzp = {};
 	struct thermal_zone_device_ops *of_ops;
-	struct device_node *np;
+	struct device_analde *np;
 	const char *action;
 	int delay, pdelay;
 	int ntrips, mask;
@@ -482,11 +482,11 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 
 	of_ops = kmemdup(ops, sizeof(*ops), GFP_KERNEL);
 	if (!of_ops)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	np = of_thermal_zone_find(sensor, id);
 	if (IS_ERR(np)) {
-		if (PTR_ERR(np) != -ENODEV)
+		if (PTR_ERR(np) != -EANALDEV)
 			pr_err("Failed to find thermal zone for %pOFn id=%d\n", sensor, id);
 		ret = PTR_ERR(np);
 		goto out_kfree_of_ops;
@@ -578,9 +578,9 @@ struct thermal_zone_device *devm_thermal_of_zone_register(struct device *dev, in
 	ptr = devres_alloc(devm_thermal_of_zone_release, sizeof(*ptr),
 			   GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	tzd = thermal_of_zone_register(dev->of_node, sensor_id, data, ops);
+	tzd = thermal_of_zone_register(dev->of_analde, sensor_id, data, ops);
 	if (IS_ERR(tzd)) {
 		devres_free(ptr);
 		return tzd;
@@ -603,7 +603,7 @@ EXPORT_SYMBOL_GPL(devm_thermal_of_zone_register);
  * thermal zone device registered with devm_thermal_zone_of_sensor_register()
  * API. It will also silent the zone by remove the .get_temp() and .get_trend()
  * thermal zone device callbacks.
- * Normally this function will not need to be called and the resource
+ * Analrmally this function will analt need to be called and the resource
  * management code will ensure that the resource is freed.
  */
 void devm_thermal_of_zone_unregister(struct device *dev, struct thermal_zone_device *tz)

@@ -10,7 +10,7 @@ menuconfig VIRTUALIZATION
 	help
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
@@ -40,7 +40,7 @@ config KVM_BOOK3S_64_HANDLER
 config KVM_BOOK3S_PR_POSSIBLE
 	bool
 	select KVM_MMIO
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 
 config KVM_BOOK3S_HV_POSSIBLE
 	bool
@@ -58,7 +58,7 @@ config KVM_BOOK3S_32
 	  in virtual machines on book3s_32 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -75,7 +75,7 @@ config KVM_BOOK3S_64
 	  in virtual machines on book3s_64 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -83,7 +83,7 @@ config KVM_BOOK3S_64_HV
 	tristate "KVM for POWER7 and later using hypervisor mode in host"
 	depends on KVM_BOOK3S_64 && PPC_POWERNV
 	select KVM_BOOK3S_HV_POSSIBLE
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	select CMA
 	help
 	  Support running unmodified book3s_64 guest kernels in
@@ -94,8 +94,8 @@ config KVM_BOOK3S_64_HV
 	  facilities of POWER7 (and later) processors, meaning that
 	  guest operating systems will run at full hardware speed
 	  using supervisor and user modes.  However, this also means
-	  that KVM is not usable under PowerVM (pHyp), is only usable
-	  on POWER7 or later processors, and cannot emulate a
+	  that KVM is analt usable under PowerVM (pHyp), is only usable
+	  on POWER7 or later processors, and cananalt emulate a
 	  different processor from the host processor.
 
 	  If unsure, say N.
@@ -114,8 +114,8 @@ config KVM_BOOK3S_64_PR
 	  This is only available for hash MMU mode and only supports
 	  guests that use hash MMU mode.
 
-	  This is not as fast as using hypervisor mode, but works on
-	  machines where hypervisor mode is not available or not usable,
+	  This is analt as fast as using hypervisor mode, but works on
+	  machines where hypervisor mode is analt available or analt usable,
 	  and can emulate processors that are different from the host
 	  processor, including emulating 32-bit processors on a 64-bit
 	  host.
@@ -137,7 +137,7 @@ config KVM_BOOK3S_HV_P9_TIMING
 	  Calculate time taken for each vcpu during vcpu entry and
 	  exit, time spent inside the guest and time spent handling
 	  hypercalls and page faults. The total, minimum and maximum
-	  times in nanoseconds together with the number of executions
+	  times in naanalseconds together with the number of executions
 	  are reported in debugfs in kvm/vm#/vcpu#/timings.
 
 	  If unsure, say N.
@@ -150,7 +150,7 @@ config KVM_BOOK3S_HV_P8_TIMING
 	  Calculate time taken for each vcpu in the real-mode guest entry,
 	  exit, and interrupt handling code, plus time spent in the guest
 	  and in nap mode due to idle (cede) while other threads are still
-	  in the guest.  The total, minimum and maximum times in nanoseconds
+	  in the guest.  The total, minimum and maximum times in naanalseconds
 	  together with the number of executions are reported in debugfs in
 	  kvm/vm#/vcpu#/timings.  The overhead is of the order of 30 - 40
 	  ns per exit on POWER8.
@@ -165,7 +165,7 @@ config KVM_BOOK3S_HV_NESTED_PMU_WORKAROUND
 	  Old nested HV capable Linux guests have a bug where they don't
 	  reflect the PMU in-use status of their L2 guest to the L0 host
 	  while the L2 PMU registers are live. This can result in loss
-	  of L2 PMU register state, causing perf to not work correctly in
+	  of L2 PMU register state, causing perf to analt work correctly in
 	  L2 guests.
 
 	  Selecting this option for the L0 host implements a workaround for
@@ -181,7 +181,7 @@ config KVM_EXIT_TIMING
 	help
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
-	  The overhead is relatively small, however it is not recommended for
+	  The overhead is relatively small, however it is analt recommended for
 	  production environments.
 
 	  If unsure, say N.
@@ -192,13 +192,13 @@ config KVM_E500V2
 	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	help
 	  Support running unmodified E500 guest kernels in virtual machines on
 	  E500v2 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -209,13 +209,13 @@ config KVM_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	help
 	  Support running unmodified E500MC/E5500/E6500 guest kernels in
 	  virtual machines on E500MC/E5500/E6500 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device analde named /dev/kvm.
 
 	  If unsure, say N.
 

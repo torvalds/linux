@@ -32,9 +32,9 @@ l0_%=:	r0 += 3;					\
 }
 
 SEC("tracepoint")
-__description("bounded loop, count from positive unknown to 4")
+__description("bounded loop, count from positive unkanalwn to 4")
 __success
-__naked void from_positive_unknown_to_4(void)
+__naked void from_positive_unkanalwn_to_4(void)
 {
 	asm volatile ("					\
 	call %[bpf_get_prandom_u32];			\
@@ -48,9 +48,9 @@ l0_%=:	exit;						\
 }
 
 SEC("tracepoint")
-__description("bounded loop, count from totally unknown to 4")
+__description("bounded loop, count from totally unkanalwn to 4")
 __success
-__naked void from_totally_unknown_to_4(void)
+__naked void from_totally_unkanalwn_to_4(void)
 {
 	asm volatile ("					\
 	call %[bpf_get_prandom_u32];			\
@@ -149,7 +149,7 @@ __naked void bounded_recursion(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void bounded_recursion__1(void)
 {
 	asm volatile ("					\
@@ -198,7 +198,7 @@ l1_%=:	r0 += 1;					\
 }
 
 SEC("xdp")
-__description("not-taken loop with back jump to 1st insn")
+__description("analt-taken loop with back jump to 1st insn")
 __success __retval(123)
 __naked void back_jump_to_1st_insn_1(void)
 {
@@ -222,7 +222,7 @@ __naked void back_jump_to_1st_insn_2(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void back_jump_to_1st_insn_2__1(void)
 {
 	asm volatile ("					\
@@ -247,7 +247,7 @@ __naked void jump_to_1st_insn_2(void)
 "	::: __clobber_all);
 }
 
-static __naked __noinline __attribute__((used))
+static __naked __analinline __attribute__((used))
 void jump_to_1st_insn_2__1(void)
 {
 	asm volatile ("					\

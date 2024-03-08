@@ -48,7 +48,7 @@ struct imx8qxp_ldb {
 	struct clk *clk_pixel;
 	struct clk *clk_bypass;
 	struct drm_bridge *companion;
-	int active_chno;
+	int active_chanal;
 };
 
 static inline struct imx8qxp_ldb_channel *
@@ -137,7 +137,7 @@ imx8qxp_ldb_bridge_mode_set(struct drm_bridge *bridge,
 	bool is_split = ldb_channel_is_split_link(ldb_ch);
 	union phy_configure_opts opts = { };
 	struct phy_configure_opts_lvds *phy_cfg = &opts.lvds;
-	u32 chno = ldb_ch->chno;
+	u32 chanal = ldb_ch->chanal;
 	int ret;
 
 	ret = pm_runtime_get_sync(dev);
@@ -167,7 +167,7 @@ imx8qxp_ldb_bridge_mode_set(struct drm_bridge *bridge,
 	if (ret < 0)
 		DRM_DEV_ERROR(dev, "failed to configure PHY: %d\n", ret);
 
-	if (chno == 0)
+	if (chanal == 0)
 		ldb->ldb_ctrl &= ~LDB_CH_SEL;
 	else
 		ldb->ldb_ctrl |= LDB_CH_SEL;
@@ -188,16 +188,16 @@ imx8qxp_ldb_bridge_mode_set(struct drm_bridge *bridge,
 	ldb_bridge_mode_set_helper(bridge, mode, adjusted_mode);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-		regmap_update_bits(ldb->regmap, SS_CTRL, CH_VSYNC_M(chno), 0);
+		regmap_update_bits(ldb->regmap, SS_CTRL, CH_VSYNC_M(chanal), 0);
 	else if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		regmap_update_bits(ldb->regmap, SS_CTRL,
-				   CH_VSYNC_M(chno), CH_PVSYNC(chno));
+				   CH_VSYNC_M(chanal), CH_PVSYNC(chanal));
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-		regmap_update_bits(ldb->regmap, SS_CTRL, CH_HSYNC_M(chno), 0);
+		regmap_update_bits(ldb->regmap, SS_CTRL, CH_HSYNC_M(chanal), 0);
 	else if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		regmap_update_bits(ldb->regmap, SS_CTRL,
-				   CH_HSYNC_M(chno), CH_PHSYNC(chno));
+				   CH_HSYNC_M(chanal), CH_PHSYNC(chanal));
 
 	if (is_split && companion)
 		companion->funcs->mode_set(companion, mode, adjusted_mode);
@@ -234,12 +234,12 @@ imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 	bool is_split = ldb_channel_is_split_link(ldb_ch);
 	int ret;
 
-	if (ldb_ch->chno == 0 || is_split) {
+	if (ldb_ch->chanal == 0 || is_split) {
 		ldb->ldb_ctrl &= ~LDB_CH0_MODE_EN_MASK;
 		ldb->ldb_ctrl |= imx8qxp_ldb_ch->di_id == 0 ?
 				LDB_CH0_MODE_EN_TO_DI0 : LDB_CH0_MODE_EN_TO_DI1;
 	}
-	if (ldb_ch->chno == 1 || is_split) {
+	if (ldb_ch->chanal == 1 || is_split) {
 		ldb->ldb_ctrl &= ~LDB_CH1_MODE_EN_MASK;
 		ldb->ldb_ctrl |= imx8qxp_ldb_ch->di_id == 0 ?
 				LDB_CH1_MODE_EN_TO_DI0 : LDB_CH1_MODE_EN_TO_DI1;
@@ -336,7 +336,7 @@ imx8qxp_ldb_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 
 		/*
 		 * Look at the first bus format to determine input format.
-		 * Default to MEDIA_BUS_FMT_RGB888_1X24, if no match.
+		 * Default to MEDIA_BUS_FMT_RGB888_1X24, if anal match.
 		 */
 		if (di->num_bus_formats) {
 			finfo = drm_format_info(di->bus_formats[0]);
@@ -413,9 +413,9 @@ static const struct drm_bridge_funcs imx8qxp_ldb_bridge_funcs = {
 static int imx8qxp_ldb_set_di_id(struct imx8qxp_ldb *imx8qxp_ldb)
 {
 	struct imx8qxp_ldb_channel *imx8qxp_ldb_ch =
-			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
+			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chanal];
 	struct ldb_channel *ldb_ch = &imx8qxp_ldb_ch->base;
-	struct device_node *ep, *remote;
+	struct device_analde *ep, *remote;
 	struct device *dev = imx8qxp_ldb->dev;
 	struct of_endpoint endpoint;
 	int ret;
@@ -427,14 +427,14 @@ static int imx8qxp_ldb_set_di_id(struct imx8qxp_ldb *imx8qxp_ldb)
 	}
 
 	remote = of_graph_get_remote_endpoint(ep);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (!remote) {
 		DRM_DEV_ERROR(dev, "failed to get port0 remote endpoint\n");
 		return -EINVAL;
 	}
 
 	ret = of_graph_parse_endpoint(remote, &endpoint);
-	of_node_put(remote);
+	of_analde_put(remote);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to parse port0 remote endpoint: %d\n",
 			      ret);
@@ -447,10 +447,10 @@ static int imx8qxp_ldb_set_di_id(struct imx8qxp_ldb *imx8qxp_ldb)
 }
 
 static int
-imx8qxp_ldb_check_chno_and_dual_link(struct ldb_channel *ldb_ch, int link)
+imx8qxp_ldb_check_chanal_and_dual_link(struct ldb_channel *ldb_ch, int link)
 {
-	if ((link == DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS && ldb_ch->chno != 0) ||
-	    (link == DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS && ldb_ch->chno != 1))
+	if ((link == DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS && ldb_ch->chanal != 0) ||
+	    (link == DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS && ldb_ch->chanal != 1))
 		return -EINVAL;
 
 	return 0;
@@ -459,13 +459,13 @@ imx8qxp_ldb_check_chno_and_dual_link(struct ldb_channel *ldb_ch, int link)
 static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 {
 	struct imx8qxp_ldb_channel *imx8qxp_ldb_ch =
-			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chno];
+			 &imx8qxp_ldb->channel[imx8qxp_ldb->active_chanal];
 	struct ldb_channel *ldb_ch = &imx8qxp_ldb_ch->base;
 	struct ldb_channel *companion_ldb_ch;
-	struct device_node *companion;
-	struct device_node *child;
-	struct device_node *companion_port = NULL;
-	struct device_node *port1, *port2;
+	struct device_analde *companion;
+	struct device_analde *child;
+	struct device_analde *companion_port = NULL;
+	struct device_analde *port1, *port2;
 	struct device *dev = imx8qxp_ldb->dev;
 	const struct of_device_id *match;
 	u32 i;
@@ -473,13 +473,13 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 	int ret;
 
 	/* Locate the companion LDB for dual-link operation, if any. */
-	companion = of_parse_phandle(dev->of_node, "fsl,companion-ldb", 0);
+	companion = of_parse_phandle(dev->of_analde, "fsl,companion-ldb", 0);
 	if (!companion)
 		return 0;
 
 	if (!of_device_is_available(companion)) {
-		DRM_DEV_ERROR(dev, "companion LDB is not available\n");
-		ret = -ENODEV;
+		DRM_DEV_ERROR(dev, "companion LDB is analt available\n");
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -494,13 +494,13 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 		goto out;
 	}
 
-	for_each_available_child_of_node(companion, child) {
+	for_each_available_child_of_analde(companion, child) {
 		ret = of_property_read_u32(child, "reg", &i);
 		if (ret || i > MAX_LDB_CHAN_NUM - 1) {
 			DRM_DEV_ERROR(dev,
-				      "invalid channel node address: %u\n", i);
+				      "invalid channel analde address: %u\n", i);
 			ret = -EINVAL;
-			of_node_put(child);
+			of_analde_put(child);
 			goto out;
 		}
 
@@ -508,7 +508,7 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 		 * Channel numbers have to be different, because channel0
 		 * transmits odd pixels and channel1 transmits even pixels.
 		 */
-		if (i == (ldb_ch->chno ^ 0x1)) {
+		if (i == (ldb_ch->chanal ^ 0x1)) {
 			companion_port = child;
 			break;
 		}
@@ -523,15 +523,15 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 
 	/*
 	 * We need to work out if the sink is expecting us to function in
-	 * dual-link mode.  We do this by looking at the DT port nodes we are
+	 * dual-link mode.  We do this by looking at the DT port analdes we are
 	 * connected to.  If they are marked as expecting odd pixels and
 	 * even pixels than we need to enable LDB split mode.
 	 */
 	port1 = of_graph_get_port_by_id(ldb_ch->np, 1);
 	port2 = of_graph_get_port_by_id(companion_port, 1);
 	dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
-	of_node_put(port1);
-	of_node_put(port2);
+	of_analde_put(port1);
+	of_analde_put(port2);
 
 	switch (dual_link) {
 	case DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:
@@ -547,11 +547,11 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 		goto out;
 	}
 
-	ret = imx8qxp_ldb_check_chno_and_dual_link(ldb_ch, dual_link);
+	ret = imx8qxp_ldb_check_chanal_and_dual_link(ldb_ch, dual_link);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev,
 			      "unmatched channel number(%u) vs dual link(%d)\n",
-			      ldb_ch->chno, dual_link);
+			      ldb_ch->chanal, dual_link);
 		goto out;
 	}
 
@@ -571,8 +571,8 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 	companion_ldb_ch = bridge_to_ldb_ch(imx8qxp_ldb->companion);
 	companion_ldb_ch->link_type = ldb_ch->link_type;
 out:
-	of_node_put(companion_port);
-	of_node_put(companion);
+	of_analde_put(companion_port);
+	of_analde_put(companion);
 	return ret;
 }
 
@@ -587,7 +587,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 
 	imx8qxp_ldb = devm_kzalloc(dev, sizeof(*imx8qxp_ldb), GFP_KERNEL);
 	if (!imx8qxp_ldb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imx8qxp_ldb->clk_pixel = devm_clk_get(dev, "pixel");
 	if (IS_ERR(imx8qxp_ldb->clk_pixel)) {
@@ -621,7 +621,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 		return ret;
 
 	if (ldb->available_ch_cnt == 0) {
-		DRM_DEV_DEBUG_DRIVER(dev, "no available channel\n");
+		DRM_DEV_DEBUG_DRIVER(dev, "anal available channel\n");
 		return 0;
 	} else if (ldb->available_ch_cnt > 1) {
 		DRM_DEV_ERROR(dev, "invalid available channel number(%u)\n",
@@ -634,7 +634,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 		ldb_ch = &imx8qxp_ldb_ch->base;
 
 		if (ldb_ch->is_available) {
-			imx8qxp_ldb->active_chno = ldb_ch->chno;
+			imx8qxp_ldb->active_chanal = ldb_ch->chanal;
 			break;
 		}
 	}
@@ -644,7 +644,7 @@ static int imx8qxp_ldb_probe(struct platform_device *pdev)
 		ret = PTR_ERR(imx8qxp_ldb_ch->phy);
 		if (ret != -EPROBE_DEFER)
 			DRM_DEV_ERROR(dev, "failed to get channel%d PHY: %d\n",
-				      imx8qxp_ldb->active_chno, ret);
+				      imx8qxp_ldb->active_chanal, ret);
 		return ret;
 	}
 

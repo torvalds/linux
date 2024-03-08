@@ -61,14 +61,14 @@ static void st_nci_i2c_disable(void *phy_id)
 {
 	struct st_nci_i2c_phy *phy = phy_id;
 
-	disable_irq_nosync(phy->i2c_dev->irq);
+	disable_irq_analsync(phy->i2c_dev->irq);
 	phy->irq_active = false;
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must analt return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must analt alter the skb
  */
 static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -101,7 +101,7 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
  * 0 : if received frame is complete
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * -ENOMEM : cannot allocate skb, frame dropped
+ * -EANALMEM : cananalt allocate skb, frame dropped
  */
 static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 				 struct sk_buff **skb)
@@ -128,7 +128,7 @@ static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 
 	*skb = alloc_skb(ST_NCI_I2C_MIN_SIZE + len, GFP_KERNEL);
 	if (*skb == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(*skb, ST_NCI_I2C_MIN_SIZE);
 	skb_put(*skb, ST_NCI_I2C_MIN_SIZE);
@@ -162,7 +162,7 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 
 	if (!phy || !phy->ndlc || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (phy->ndlc->hard_fault)
@@ -174,7 +174,7 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 	}
 
 	r = st_nci_i2c_read(phy, &skb);
-	if (r == -EREMOTEIO || r == -ENOMEM || r == -EBADMSG)
+	if (r == -EREMOTEIO || r == -EANALMEM || r == -EBADMSG)
 		return IRQ_HANDLED;
 
 	ndlc_recv(phy->ndlc, skb);
@@ -203,12 +203,12 @@ static int st_nci_i2c_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy = devm_kzalloc(dev, sizeof(struct st_nci_i2c_phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->i2c_dev = client;
 
@@ -222,7 +222,7 @@ static int st_nci_i2c_probe(struct i2c_client *client)
 	phy->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(phy->gpiod_reset)) {
 		nfc_err(dev, "Unable to get RESET GPIO\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	phy->se_status.is_ese_present =

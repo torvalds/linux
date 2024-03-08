@@ -24,7 +24,7 @@
 	cap-power-off-card;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	analn-removable;
 	ti,fails-without-test-cd;
 	ti,driver-strength-ohm = <50>;
 	vmmc-supply = <&reg_3v3>;

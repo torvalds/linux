@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2012,2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2016-2017 Erik Stromdahl <erik.stromdahl@gmail.com>
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -59,7 +59,7 @@ static inline int ath10k_sdio_mbox_alloc_rx_pkt(struct ath10k_sdio_rx_data *pkt,
 {
 	pkt->skb = dev_alloc_skb(full_len);
 	if (!pkt->skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pkt->act_len = act_len;
 	pkt->alloc_len = full_len;
@@ -248,7 +248,7 @@ static int ath10k_sdio_writesb32(struct ath10k *ar, u32 addr, u32 val)
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*buf = cpu_to_le32(val);
 
@@ -439,15 +439,15 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 		if (id >= ATH10K_HTC_EP_COUNT) {
 			ath10k_warn(ar, "invalid endpoint in look-ahead: %d\n",
 				    id);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 
 		ep = &htc->endpoint[id];
 
 		if (ep->service_id == 0) {
-			ath10k_warn(ar, "ep %d is not connected\n", id);
-			ret = -ENOMEM;
+			ath10k_warn(ar, "ep %d is analt connected\n", id);
+			ret = -EANALMEM;
 			goto out;
 		}
 
@@ -480,7 +480,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 			kfree_skb(pkt->skb);
 		}
 
-		/* The RX complete handler now owns the skb...*/
+		/* The RX complete handler analw owns the skb...*/
 		pkt->skb = NULL;
 		pkt->alloc_len = 0;
 	}
@@ -488,7 +488,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 	ret = 0;
 
 out:
-	/* Free all packets that was not passed on to the RX completion
+	/* Free all packets that was analt passed on to the RX completion
 	 * handler...
 	 */
 	for (; i < ar_sdio->n_rx_pkts; i++)
@@ -513,12 +513,12 @@ static int ath10k_sdio_mbox_alloc_bundle(struct ath10k *ar,
 			    "HTC bundle length %u exceeds maximum %u\n",
 			    le16_to_cpu(htc_hdr->len),
 			    max_msgs);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Allocate bndl_cnt extra skb's for the bundle.
 	 * The package containing the
-	 * ATH10K_HTC_FLAG_BUNDLE_MASK flag is not included
+	 * ATH10K_HTC_FLAG_BUNDLE_MASK flag is analt included
 	 * in bndl_cnt. The skb for that packet will be
 	 * allocated separately.
 	 */
@@ -548,7 +548,7 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 	if (n_lookaheads > ATH10K_SDIO_MAX_RX_MSGS) {
 		ath10k_warn(ar, "the total number of pkts to be fetched (%u) exceeds maximum %u\n",
 			    n_lookaheads, ATH10K_SDIO_MAX_RX_MSGS);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -560,7 +560,7 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 			ath10k_warn(ar, "payload length %d exceeds max htc length: %zu\n",
 				    le16_to_cpu(htc_hdr->len),
 				    ATH10K_HTC_MBOX_MAX_PAYLOAD_LENGTH);
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 
 			ath10k_core_start_recovery(ar);
 			ath10k_warn(ar, "exceeds length, start recovery\n");
@@ -714,7 +714,7 @@ static int ath10k_sdio_mbox_rx_fetch_bundle(struct ath10k *ar)
 	return 0;
 
 err:
-	/* Free all packets that was not successfully fetched. */
+	/* Free all packets that was analt successfully fetched. */
 	for (i = 0; i < ar_sdio->n_rx_pkts; i++)
 		ath10k_sdio_mbox_free_rx_pkt(&ar_sdio->rx_pkts[i]);
 
@@ -824,7 +824,7 @@ static int ath10k_sdio_mbox_proc_counter_intr(struct ath10k *ar)
 	counter_int_status = irq_data->irq_proc_reg->counter_int_status &
 			     irq_data->irq_en_reg->cntr_int_status_en;
 
-	/* NOTE: other modules like GMBOX may use the counter interrupt for
+	/* ANALTE: other modules like GMBOX may use the counter interrupt for
 	 * credit flow control on other counters, we only need to check for
 	 * the debug assertion counter interrupt.
 	 */
@@ -942,11 +942,11 @@ static int ath10k_sdio_mbox_read_int_status(struct ath10k *ar,
 	*lookahead = 0;
 	*host_int_status = 0;
 
-	/* int_status_en is supposed to be non zero, otherwise interrupts
+	/* int_status_en is supposed to be analn zero, otherwise interrupts
 	 * shouldn't be enabled. There is however a short time frame during
 	 * initialization between the irq register and int_status_en init
 	 * where this can happen.
-	 * We silently ignore this condition.
+	 * We silently iganalre this condition.
 	 */
 	if (!irq_en_reg->int_status_en) {
 		ret = 0;
@@ -1000,8 +1000,8 @@ static int ath10k_sdio_mbox_proc_pending_irqs(struct ath10k *ar,
 	u32 lookahead;
 	int ret;
 
-	/* NOTE: HIF implementation guarantees that the context of this
-	 * call allows us to perform SYNCHRONOUS I/O, that is we can block,
+	/* ANALTE: HIF implementation guarantees that the context of this
+	 * call allows us to perform SYNCHROANALUS I/O, that is we can block,
 	 * sleep or call any API that can block or switch thread/task
 	 * contexts. This is a fully schedulable context.
 	 */
@@ -1032,7 +1032,7 @@ static int ath10k_sdio_mbox_proc_pending_irqs(struct ath10k *ar,
 			goto out;
 	}
 
-	/* now, handle the rest of the interrupts */
+	/* analw, handle the rest of the interrupts */
 	ath10k_dbg(ar, ATH10K_DBG_SDIO,
 		   "sdio host_int_status 0x%x\n", host_int_status);
 
@@ -1060,11 +1060,11 @@ out:
 	/* An optimization to bypass reading the IRQ status registers
 	 * unnecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
-	 * taking another interrupt rather than re-checking the status
+	 * taking aanalther interrupt rather than re-checking the status
 	 * registers which can re-wake the target.
 	 *
-	 * NOTE : for host interfaces that makes use of detecting pending
-	 * mbox messages at hif can not use this optimization due to
+	 * ANALTE : for host interfaces that makes use of detecting pending
+	 * mbox messages at hif can analt use this optimization due to
 	 * possible side effects, SPI requires the host to drain all
 	 * messages from the mailbox before exiting the ISR routine.
 	 */
@@ -1136,7 +1136,7 @@ static int ath10k_sdio_bmi_credits(struct ath10k *ar)
 	while (time_before(jiffies, timeout) && !cmd_credits) {
 		/* Hit the credit counter with a 4-byte access, the first byte
 		 * read will hit the counter and cause a decrement, while the
-		 * remaining 3 bytes has no effect. The rationale behind this
+		 * remaining 3 bytes has anal effect. The rationale behind this
 		 * is to make all HIF accesses 4-byte aligned.
 		 */
 		ret = ath10k_sdio_read32(ar, addr, &cmd_credits);
@@ -1148,7 +1148,7 @@ static int ath10k_sdio_bmi_credits(struct ath10k *ar)
 		}
 
 		/* The counter is only 8 bits.
-		 * Ignore anything in the upper 3 bytes
+		 * Iganalre anything in the upper 3 bytes
 		 */
 		cmd_credits &= 0xFF;
 	}
@@ -1217,20 +1217,20 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	}
 
 	if (!resp || !resp_len)
-		/* No response expected */
+		/* Anal response expected */
 		return 0;
 
-	/* During normal bootup, small reads may be required.
+	/* During analrmal bootup, small reads may be required.
 	 * Rather than issue an HIF Read and then wait as the Target
 	 * adds successive bytes to the FIFO, we wait here until
-	 * we know that response data is available.
+	 * we kanalw that response data is available.
 	 *
 	 * This allows us to cleanly timeout on an unexpected
 	 * Target failure rather than risk problems at the HIF level.
 	 * In particular, this avoids SDIO timeouts and possibly garbage
 	 * data on some host controllers.  And on an interconnect
 	 * such as Compact Flash (as well as some SDIO masters) which
-	 * does not provide any indication on data timeout, it avoids
+	 * does analt provide any indication on data timeout, it avoids
 	 * a potential hang or garbage response.
 	 *
 	 * Synchronization is more difficult for reads larger than the
@@ -1239,11 +1239,11 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 * HIF Read and removes some FIFO data.  So for large reads the
 	 * Host proceeds to post an HIF Read BEFORE all the data is
 	 * actually available to read.  Fortunately, large BMI reads do
-	 * not occur in practice -- they're supported for debug/development.
+	 * analt occur in practice -- they're supported for debug/development.
 	 *
 	 * So Host/Target BMI synchronization is divided into these cases:
 	 *  CASE 1: length < 4
-	 *        Should not happen
+	 *        Should analt happen
 	 *
 	 *  CASE 2: 4 <= length <= 128
 	 *        Wait for first 4 bytes to be in FIFO
@@ -1257,12 +1257,12 @@ static int ath10k_sdio_bmi_exchange_msg(struct ath10k *ar,
 	 * For most uses, a small timeout should be sufficient and we will
 	 * usually see a response quickly; but there may be some unusual
 	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
-	 * For now, we use an unbounded busy loop while waiting for
+	 * For analw, we use an unbounded busy loop while waiting for
 	 * BMI_EXECUTE.
 	 *
 	 * If BMI_EXECUTE ever needs to support longer-latency execution,
 	 * especially in production, this code needs to be enhanced to sleep
-	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * and yield.  Also analte that BMI_COMMUNICATION_TIMEOUT is currently
 	 * a function of Host processor speed.
 	 */
 	ret = ath10k_sdio_bmi_get_rx_lookahead(ar);
@@ -1330,12 +1330,12 @@ static void __ath10k_sdio_write_async(struct ath10k *ar,
 	skb = req->skb;
 	ret = ath10k_sdio_write(ar, req->address, skb->data, skb->len);
 	if (ret)
-		ath10k_warn(ar, "failed to write skb to 0x%x asynchronously: %d",
+		ath10k_warn(ar, "failed to write skb to 0x%x asynchroanalusly: %d",
 			    req->address, ret);
 
 	if (req->htc_msg) {
 		ep = &ar->htc.endpoint[req->eid];
-		ath10k_htc_notify_tx_completion(ep, skb);
+		ath10k_htc_analtify_tx_completion(ep, skb);
 	} else if (req->comp) {
 		complete(req->comp);
 	}
@@ -1499,7 +1499,7 @@ static int ath10k_sdio_prep_async_req(struct ath10k *ar, u32 addr,
 	if (!bus_req) {
 		ath10k_warn(ar,
 			    "unable to allocate bus request for async request\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bus_req->skb = skb;
@@ -1690,8 +1690,8 @@ static int ath10k_sdio_enable_intrs(struct ath10k *ar)
 			      FIELD_PREP(MBOX_INT_STATUS_ENABLE_CPU_MASK, 1) |
 			      FIELD_PREP(MBOX_INT_STATUS_ENABLE_COUNTER_MASK, 1);
 
-	/* NOTE: There are some cases where HIF can do detection of
-	 * pending mbox messages which is disabled now.
+	/* ANALTE: There are some cases where HIF can do detection of
+	 * pending mbox messages which is disabled analw.
 	 */
 	regs->int_status_en |=
 		FIELD_PREP(MBOX_INT_STATUS_ENABLE_MBOX_DATA_MASK, 1);
@@ -1724,7 +1724,7 @@ static int ath10k_sdio_enable_intrs(struct ath10k *ar)
 	return ret;
 }
 
-/* HIF diagnostics */
+/* HIF diaganalstics */
 
 static int ath10k_sdio_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
 				     size_t buf_len)
@@ -1734,7 +1734,7 @@ static int ath10k_sdio_hif_diag_read(struct ath10k *ar, u32 address, void *buf,
 
 	mem = kzalloc(buf_len, GFP_KERNEL);
 	if (!mem)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* set window register to start read cycle */
 	ret = ath10k_sdio_write32(ar, MBOX_WINDOW_READ_ADDR_ADDRESS, address);
@@ -1767,7 +1767,7 @@ static int ath10k_sdio_diag_read32(struct ath10k *ar, u32 address,
 
 	val = kzalloc(sizeof(*val), GFP_KERNEL);
 	if (!val)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = ath10k_sdio_hif_diag_read(ar, address, val, sizeof(*val));
 	if (ret)
@@ -1851,7 +1851,7 @@ static int ath10k_sdio_get_htt_tx_complete(struct ath10k *ar)
 	ret = (val & HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_FW_ACK);
 
 	ath10k_dbg(ar, ATH10K_DBG_SDIO, "sdio reduce tx complete fw%sack\n",
-		   ret ? " " : " not ");
+		   ret ? " " : " analt ");
 
 	return ret;
 }
@@ -1979,7 +1979,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 	spin_lock_bh(&ar_sdio->wr_async_lock);
 
-	/* Free all bus requests that have not been handled */
+	/* Free all bus requests that have analt been handled */
 	list_for_each_entry_safe(req, tmp_req, &ar_sdio->wr_asyncq, list) {
 		struct ath10k_htc_ep *ep;
 
@@ -1987,7 +1987,7 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 
 		if (req->htc_msg) {
 			ep = &ar->htc.endpoint[req->eid];
-			ath10k_htc_notify_tx_completion(ep, req->skb);
+			ath10k_htc_analtify_tx_completion(ep, req->skb);
 		} else if (req->skb) {
 			kfree_skb(req->skb);
 		}
@@ -2058,7 +2058,7 @@ static int ath10k_sdio_hif_map_service_to_pipe(struct ath10k *ar,
 	 */
 	*ul_pipe = *dl_pipe = (u8)eid;
 
-	/* Normally, HTT will use the upper part of the extended
+	/* Analrmally, HTT will use the upper part of the extended
 	 * mailbox address space (ext_info[1].htc_ext_addr) and WMI ctrl
 	 * the lower part (ext_info[0].htc_ext_addr).
 	 * If fw wants swapping of mailbox addresses, the opposite is true.
@@ -2311,7 +2311,7 @@ static int ath10k_sdio_dump_memory_section(struct ath10k *ar,
 	 * start address
 	 */
 	for (i = 0; i < skip_size; i++) {
-		*buf = ATH10K_MAGIC_NOT_COPIED;
+		*buf = ATH10K_MAGIC_ANALT_COPIED;
 		buf++;
 	}
 
@@ -2365,7 +2365,7 @@ static int ath10k_sdio_dump_memory_section(struct ath10k *ar,
 
 		/* fill in the gap between this section and the next */
 		for (j = 0; j < skip_size; j++) {
-			*buf = ATH10K_MAGIC_NOT_COPIED;
+			*buf = ATH10K_MAGIC_ANALT_COPIED;
 			buf++;
 		}
 
@@ -2390,7 +2390,7 @@ static int ath10k_sdio_dump_memory_generic(struct ath10k *ar,
 						      buf,
 						      current_region->len);
 
-	/* No individual memory sections defined so we can
+	/* Anal individual memory sections defined so we can
 	 * copy the entire memory region.
 	 */
 	if (fast_dump)
@@ -2465,7 +2465,7 @@ static void ath10k_sdio_dump_memory(struct ath10k *ar,
 		hdr->length = cpu_to_le32(count);
 
 		if (count == 0)
-			/* Note: the header remains, just with zero length. */
+			/* Analte: the header remains, just with zero length. */
 			break;
 
 		buf += count;
@@ -2518,9 +2518,9 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	int ret, i;
 
 	/* Assumption: All SDIO based chipsets (so far) are QCA6174 based.
-	 * If there will be newer chipsets that does not use the hw reg
+	 * If there will be newer chipsets that does analt use the hw reg
 	 * setup as defined in qca6174_regs and qca6174_values, this
-	 * assumption is no longer valid and hw_rev must be setup differently
+	 * assumption is anal longer valid and hw_rev must be setup differently
 	 * depending on chipset.
 	 */
 	hw_rev = ATH10K_HW_QCA6174;
@@ -2529,7 +2529,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 				hw_rev, &ath10k_sdio_hif_ops);
 	if (!ar) {
 		dev_err(&func->dev, "failed to allocate core\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_sdio_napi_poll);
@@ -2545,13 +2545,13 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_proc_regs),
 			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_proc_reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_core_destroy;
 	}
 
 	ar_sdio->vsg_buffer = devm_kmalloc(ar->dev, ATH10K_SDIO_VSG_BUF_SIZE, GFP_KERNEL);
 	if (!ar_sdio->vsg_buffer) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_core_destroy;
 	}
 
@@ -2559,13 +2559,13 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_enable_regs),
 			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_en_reg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_core_destroy;
 	}
 
 	ar_sdio->bmi_buf = devm_kzalloc(ar->dev, BMI_MAX_LARGE_CMDBUF_SIZE, GFP_KERNEL);
 	if (!ar_sdio->bmi_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_core_destroy;
 	}
 
@@ -2585,7 +2585,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	INIT_WORK(&ar_sdio->wr_async_work, ath10k_sdio_write_async_work);
 	ar_sdio->workqueue = create_singlethread_workqueue("ath10k_sdio_wq");
 	if (!ar_sdio->workqueue) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_core_destroy;
 	}
 
@@ -2598,7 +2598,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	dev_id_base = (id->device & 0x0F00);
 	if (dev_id_base != (SDIO_DEVICE_ID_ATHEROS_AR6005 & 0x0F00) &&
 	    dev_id_base != (SDIO_DEVICE_ID_ATHEROS_QCA9377 & 0x0F00)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		ath10k_err(ar, "unsupported device id %u (0x%x)\n",
 			   dev_id_base, id->device);
 		goto err_free_wq;
@@ -2611,7 +2611,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ath10k_sdio_set_mbox_info(ar);
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
-	/* TODO: don't know yet how to get chip_id with SDIO */
+	/* TODO: don't kanalw yet how to get chip_id with SDIO */
 	bus_params.chip_id = 0;
 	bus_params.hl_msdu_ids = true;
 

@@ -204,7 +204,7 @@ static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
 	 * This chip (stupidly) stops monitoring fan speed if PWM is
 	 * enabled and duty cycle is 0%. This is fine if the monitoring
 	 * and control concern the same fan, but troublesome if they are
-	 * not (which could as well happen).
+	 * analt (which could as well happen).
 	 */
 	int rpm = (data->pwm[nr] & 0x7F) == 0x00 ? 0 :
 		  FAN_FROM_REG(data->fan[nr],
@@ -295,7 +295,7 @@ static ssize_t fan_min_store(struct device *dev,
 }
 
 /*
- * Note: we save and restore the fan minimum here, because its value is
+ * Analte: we save and restore the fan minimum here, because its value is
  * determined in part by the fan clock divider.  This follows the principle
  * of least surprise; the user doesn't expect the fan minimum to change just
  * because the divider changed.
@@ -316,7 +316,7 @@ static ssize_t fan_div_store(struct device *dev,
 	if (err)
 		return err;
 
-	if (new_div == old_div) /* No change */
+	if (new_div == old_div) /* Anal change */
 		return count;
 
 	mutex_lock(&data->update_lock);
@@ -547,7 +547,7 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 	 * The LPC47M292 (device id 0x6B) is somewhat compatible, but it
 	 * supports a 3rd fan, and the pin configuration registers are
 	 * unfortunately different.
-	 * The LPC47M233 has the same device id (0x6B) but is not compatible.
+	 * The LPC47M233 has the same device id (0x6B) but is analt compatible.
 	 * We check the high bit of the device revision register to
 	 * differentiate them.
 	 */
@@ -572,7 +572,7 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 		if (superio_inb(SUPERIO_REG_DEVREV) & 0x80) {
 			pr_debug("Found SMSC LPC47M233, unsupported\n");
 			superio_exit();
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		pr_info("Found SMSC LPC47M292\n");
@@ -580,16 +580,16 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 		break;
 	default:
 		superio_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	superio_select();
 	addr = (superio_inb(SUPERIO_REG_BASE) << 8)
 	      |  superio_inb(SUPERIO_REG_BASE + 1);
 	if (addr == 0) {
-		pr_info("Device address not set, will not use\n");
+		pr_info("Device address analt set, will analt use\n");
 		superio_exit();
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/*
@@ -726,7 +726,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct smsc47m1_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->addr = res->start;
 	data->type = sio_data->type;
@@ -735,7 +735,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	/*
-	 * If no function is properly configured, there's no point in
+	 * If anal function is properly configured, there's anal point in
 	 * actually registering the chip.
 	 */
 	pwm1 = (smsc47m1_read_value(data, SMSC47M1_REG_PPIN(0)) & 0x05)
@@ -760,8 +760,8 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		pwm3 = 0;
 	}
 	if (!(fan1 || fan2 || fan3 || pwm1 || pwm2 || pwm3)) {
-		dev_warn(dev, "Device not configured, will not use\n");
-		return -ENODEV;
+		dev_warn(dev, "Device analt configured, will analt use\n");
+		return -EANALDEV;
 	}
 
 	/*
@@ -781,7 +781,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "Fan 1 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 1 analt enabled by hardware, skipping\n");
 
 	if (fan2) {
 		err = sysfs_create_group(&dev->kobj,
@@ -789,7 +789,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "Fan 2 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 2 analt enabled by hardware, skipping\n");
 
 	if (fan3) {
 		err = sysfs_create_group(&dev->kobj,
@@ -797,7 +797,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
-		dev_dbg(dev, "Fan 3 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 3 analt enabled by hardware, skipping\n");
 
 	if (pwm1) {
 		err = sysfs_create_group(&dev->kobj,
@@ -805,7 +805,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "PWM 1 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 1 analt enabled by hardware, skipping\n");
 
 	if (pwm2) {
 		err = sysfs_create_group(&dev->kobj,
@@ -813,7 +813,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "PWM 2 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 2 analt enabled by hardware, skipping\n");
 
 	if (pwm3) {
 		err = sysfs_create_group(&dev->kobj,
@@ -821,7 +821,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
-		dev_dbg(dev, "PWM 3 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 3 analt enabled by hardware, skipping\n");
 
 	err = sysfs_create_group(&dev->kobj, &smsc47m1_group);
 	if (err)
@@ -850,7 +850,7 @@ static void __exit smsc47m1_remove(struct platform_device *pdev)
 
 /*
  * smsc47m1_remove() lives in .exit.text. For drivers registered via
- * module_platform_driver_probe() this ok because they cannot get unbound at
+ * module_platform_driver_probe() this ok because they cananalt get unbound at
  * runtime. The driver needs to be marked with __refdata, otherwise modpost
  * triggers a section mismatch warning.
  */

@@ -11,7 +11,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -23,7 +23,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-ioctl.h>
 
 #include "adv748x.h"
@@ -38,7 +38,7 @@
 	.reg_bits = 8, \
 	.val_bits = 8, \
 	.max_register = 0xff, \
-	.cache_type = REGCACHE_NONE, \
+	.cache_type = REGCACHE_ANALNE, \
 }
 
 static const struct regmap_config adv748x_regmap_cnf[] = {
@@ -61,7 +61,7 @@ static int adv748x_configure_regmap(struct adv748x_state *state, int region)
 	int err;
 
 	if (!state->i2c_clients[region])
-		return -ENODEV;
+		return -EANALDEV;
 
 	state->regmap[region] =
 		devm_regmap_init_i2c(state->i2c_clients[region],
@@ -138,7 +138,7 @@ static int adv748x_write_check(struct adv748x_state *state, u8 page, u8 reg,
 /* adv748x_write_block(): Write raw data with a maximum of I2C_SMBUS_BLOCK_MAX
  * size to one or more registers.
  *
- * A value of zero will be returned on success, a negative errno will
+ * A value of zero will be returned on success, a negative erranal will
  * be returned in error cases.
  */
 int adv748x_write_block(struct adv748x_state *state, int client_page,
@@ -315,12 +315,12 @@ int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 		return val;
 
 	/*
-	 * This test against BIT(6) is not documented by the datasheet, but was
+	 * This test against BIT(6) is analt documented by the datasheet, but was
 	 * specified in the downstream driver.
 	 * Track with a WARN_ONCE to determine if it is ever set by HW.
 	 */
-	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKNOWN),
-			"Enabling with unknown bit set");
+	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKANALWN),
+			"Enabling with unkanalwn bit set");
 
 	return on ? adv748x_power_up_tx(tx) : adv748x_power_down_tx(tx);
 }
@@ -367,7 +367,7 @@ static int adv748x_link_setup(struct media_entity *entity,
 			tx->active_lanes = min(tx->num_lanes, 2U);
 			io10 |= ADV748X_IO_10_CSI4_IN_SEL_AFE;
 		} else {
-			/* TXB has a single data lane, no need to adjust. */
+			/* TXB has a single data lane, anal need to adjust. */
 			io10 |= ADV748X_IO_10_CSI1_EN;
 		}
 	}
@@ -586,7 +586,7 @@ void adv748x_subdev_init(struct v4l2_subdev *sd, struct adv748x_state *state,
 			 const char *ident)
 {
 	v4l2_subdev_init(sd, ops);
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = state->dev->driver->owner;
@@ -607,16 +607,16 @@ void adv748x_subdev_init(struct v4l2_subdev *sd, struct adv748x_state *state,
 
 static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 				    unsigned int port,
-				    struct device_node *ep)
+				    struct device_analde *ep)
 {
-	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
+	struct v4l2_fwanalde_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	unsigned int num_lanes;
 	int ret;
 
 	if (port != ADV748X_PORT_TXA && port != ADV748X_PORT_TXB)
 		return 0;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &vep);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep), &vep);
 	if (ret)
 		return ret;
 
@@ -651,31 +651,31 @@ static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
 
 static int adv748x_parse_dt(struct adv748x_state *state)
 {
-	struct device_node *ep_np = NULL;
+	struct device_analde *ep_np = NULL;
 	struct of_endpoint ep;
 	bool out_found = false;
 	bool in_found = false;
 	int ret;
 
-	for_each_endpoint_of_node(state->dev->of_node, ep_np) {
+	for_each_endpoint_of_analde(state->dev->of_analde, ep_np) {
 		of_graph_parse_endpoint(ep_np, &ep);
-		adv_info(state, "Endpoint %pOF on port %d", ep.local_node,
+		adv_info(state, "Endpoint %pOF on port %d", ep.local_analde,
 			 ep.port);
 
 		if (ep.port >= ADV748X_PORT_MAX) {
 			adv_err(state, "Invalid endpoint %pOF on port %d",
-				ep.local_node, ep.port);
+				ep.local_analde, ep.port);
 
 			continue;
 		}
 
 		if (state->endpoints[ep.port]) {
 			adv_err(state,
-				"Multiple port endpoints are not supported");
+				"Multiple port endpoints are analt supported");
 			continue;
 		}
 
-		of_node_get(ep_np);
+		of_analde_get(ep_np);
 		state->endpoints[ep.port] = ep_np;
 
 		/*
@@ -693,7 +693,7 @@ static int adv748x_parse_dt(struct adv748x_state *state)
 			return ret;
 	}
 
-	return in_found && out_found ? 0 : -ENODEV;
+	return in_found && out_found ? 0 : -EANALDEV;
 }
 
 static void adv748x_dt_cleanup(struct adv748x_state *state)
@@ -701,7 +701,7 @@ static void adv748x_dt_cleanup(struct adv748x_state *state)
 	unsigned int i;
 
 	for (i = 0; i < ADV748X_PORT_MAX; i++)
-		of_node_put(state->endpoints[i]);
+		of_analde_put(state->endpoints[i]);
 }
 
 static int adv748x_probe(struct i2c_client *client)
@@ -715,7 +715,7 @@ static int adv748x_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&state->mutex);
 
@@ -725,7 +725,7 @@ static int adv748x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, state);
 
 	/*
-	 * We can not use container_of to get back to the state with two TXs;
+	 * We can analt use container_of to get back to the state with two TXs;
 	 * Initialize the TXs's fields unconditionally on the endpoint
 	 * presence to access them later.
 	 */

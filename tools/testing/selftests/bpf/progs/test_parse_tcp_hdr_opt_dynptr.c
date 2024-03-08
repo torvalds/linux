@@ -45,7 +45,7 @@ static int parse_hdr_opt(struct bpf_dynptr *ptr, __u32 *off, __u8 *hdr_bytes_rem
 	if (kind == TCPOPT_EOL)
 		return -1;
 
-	if (kind == TCPOPT_NOP) {
+	if (kind == TCPOPT_ANALP) {
 		*off += 1;
 		*hdr_bytes_remaining -= 1;
 		return 0;

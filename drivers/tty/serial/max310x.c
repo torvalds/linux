@@ -28,7 +28,7 @@
 
 #define MAX310X_NAME			"max310x"
 #define MAX310X_MAJOR			204
-#define MAX310X_MINOR			209
+#define MAX310X_MIANALR			209
 #define MAX310X_UART_NRMAX		16
 
 /* MAX310X register definitions */
@@ -92,7 +92,7 @@
 #define MAX310X_LSR_RXPAR_BIT		(1 << 2) /* RX parity error */
 #define MAX310X_LSR_FRERR_BIT		(1 << 3) /* Frame error */
 #define MAX310X_LSR_RXBRK_BIT		(1 << 4) /* RX break */
-#define MAX310X_LSR_RXNOISE_BIT		(1 << 5) /* RX noise */
+#define MAX310X_LSR_RXANALISE_BIT		(1 << 5) /* RX analise */
 #define MAX310X_LSR_CTS_BIT		(1 << 7) /* CTS pin state */
 
 /* Special character register bits */
@@ -183,7 +183,7 @@
 #define MAX310X_FLOWCTRL_SWFLOW1_BIT	(1 << 5) /* SWFLOW bit 1
 						  *
 						  * SWFLOW bits 1 & 0 table:
-						  * 00 -> no transmitter flow
+						  * 00 -> anal transmitter flow
 						  *       control
 						  * 01 -> receiver compares
 						  *       XON2 and XOFF2
@@ -202,7 +202,7 @@
 #define MAX310X_FLOWCTRL_SWFLOW3_BIT	(1 << 7) /* SWFLOW bit 3
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no received flow
+						  * 00 -> anal received flow
 						  *       control
 						  * 01 -> transmitter generates
 						  *       XON2 and XOFF2
@@ -301,7 +301,7 @@ static struct uart_driver max310x_uart = {
 	.driver_name	= MAX310X_NAME,
 	.dev_name	= "ttyMAX",
 	.major		= MAX310X_MAJOR,
-	.minor		= MAX310X_MINOR,
+	.mianalr		= MAX310X_MIANALR,
 	.nr		= MAX310X_UART_NRMAX,
 };
 
@@ -343,8 +343,8 @@ static int max3107_detect(struct device *dev)
 
 	if (((val & MAX310x_REV_MASK) != MAX3107_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
-		return -ENODEV;
+			"%s ID 0x%02x does analt match\n", s->devtype->name, val);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -356,7 +356,7 @@ static int max3108_detect(struct device *dev)
 	unsigned int val = 0;
 	int ret;
 
-	/* MAX3108 have not REV ID register, we just check default value
+	/* MAX3108 have analt REV ID register, we just check default value
 	 * from clocksource register to make sure everything works.
 	 */
 	ret = regmap_read(s->regmap, MAX310X_CLKSRC_REG, &val);
@@ -364,8 +364,8 @@ static int max3108_detect(struct device *dev)
 		return ret;
 
 	if (val != (MAX310X_CLKSRC_EXTCLK_BIT | MAX310X_CLKSRC_PLLBYP_BIT)) {
-		dev_err(dev, "%s not present\n", s->devtype->name);
-		return -ENODEV;
+		dev_err(dev, "%s analt present\n", s->devtype->name);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -385,8 +385,8 @@ static int max3109_detect(struct device *dev)
 	s->if_cfg->extended_reg_enable(dev, false);
 	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
-		return -ENODEV;
+			"%s ID 0x%02x does analt match\n", s->devtype->name, val);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -415,8 +415,8 @@ static int max14830_detect(struct device *dev)
 	s->if_cfg->extended_reg_enable(dev, false);
 	if (((val & MAX310x_REV_MASK) != MAX14830_REV_ID)) {
 		dev_err(dev,
-			"%s ID 0x%02x does not match\n", s->devtype->name, val);
-		return -ENODEV;
+			"%s ID 0x%02x does analt match\n", s->devtype->name, val);
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -533,7 +533,7 @@ static bool max310x_reg_precious(struct device *dev, unsigned int reg)
 	return false;
 }
 
-static bool max310x_reg_noinc(struct device *dev, unsigned int reg)
+static bool max310x_reg_analinc(struct device *dev, unsigned int reg)
 {
 	return reg == MAX310X_RHR_REG;
 }
@@ -662,7 +662,7 @@ static s32 max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
 
 		if (!stable)
 			return dev_err_probe(dev, -EAGAIN,
-					     "clock is not stable\n");
+					     "clock is analt stable\n");
 	}
 
 	return bestfreq;
@@ -672,14 +672,14 @@ static void max310x_batch_write(struct uart_port *port, u8 *txbuf, unsigned int 
 {
 	struct max310x_one *one = to_max310x_port(port);
 
-	regmap_noinc_write(one->regmap, MAX310X_THR_REG, txbuf, len);
+	regmap_analinc_write(one->regmap, MAX310X_THR_REG, txbuf, len);
 }
 
 static void max310x_batch_read(struct uart_port *port, u8 *rxbuf, unsigned int len)
 {
 	struct max310x_one *one = to_max310x_port(port);
 
-	regmap_noinc_read(one->regmap, MAX310X_RHR_REG, rxbuf, len);
+	regmap_analinc_read(one->regmap, MAX310X_RHR_REG, rxbuf, len);
 }
 
 static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
@@ -689,14 +689,14 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 	u8 ch, flag;
 
 	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
-		/* We are just reading, happily ignoring any error conditions.
+		/* We are just reading, happily iganalring any error conditions.
 		 * Break condition, parity checking, framing errors -- they
-		 * are all ignored. That means that we can do a batch-read.
+		 * are all iganalred. That means that we can do a batch-read.
 		 *
 		 * There is a small opportunity for race if the RX FIFO
 		 * overruns while we're reading the buffer; the datasheets says
 		 * that the LSR register applies to the "current" character.
-		 * That's also the reason why we cannot do batched reads when
+		 * That's also the reason why we cananalt do batched reads when
 		 * asked to check the individual statuses.
 		 * */
 
@@ -704,7 +704,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 		max310x_batch_read(port, one->rx_buf, rxlen);
 
 		port->icount.rx += rxlen;
-		flag = TTY_NORMAL;
+		flag = TTY_ANALRMAL;
 		sts &= port->read_status_mask;
 
 		if (sts & MAX310X_LSR_RXOVR_BIT) {
@@ -739,7 +739,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 			       MAX310X_LSR_RXOVR_BIT | MAX310X_LSR_RXBRK_BIT;
 
 			port->icount.rx++;
-			flag = TTY_NORMAL;
+			flag = TTY_ANALRMAL;
 
 			if (unlikely(sts)) {
 				if (sts & MAX310X_LSR_RXBRK_BIT) {
@@ -767,7 +767,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
-			if (sts & port->ignore_status_mask)
+			if (sts & port->iganalre_status_mask)
 				continue;
 
 			uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT, ch, flag);
@@ -823,10 +823,10 @@ static void max310x_start_tx(struct uart_port *port)
 	schedule_work(&one->tx_work);
 }
 
-static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
+static irqreturn_t max310x_port_irq(struct max310x_port *s, int portanal)
 {
-	struct uart_port *port = &s->p[portno].port;
-	irqreturn_t res = IRQ_NONE;
+	struct uart_port *port = &s->p[portanal].port;
+	irqreturn_t res = IRQ_ANALNE;
 
 	do {
 		unsigned int ists, lsr, rxlen;
@@ -892,7 +892,7 @@ static unsigned int max310x_tx_empty(struct uart_port *port)
 
 static unsigned int max310x_get_mctrl(struct uart_port *port)
 {
-	/* DCD and DSR are not wired and CTS/RTS is handled automatically
+	/* DCD and DSR are analt wired and CTS/RTS is handled automatically
 	 * so just indicate DSR and CAR asserted
 	 */
 	return TIOCM_DSR | TIOCM_CAR;
@@ -970,12 +970,12 @@ static void max310x_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= MAX310X_LSR_RXBRK_BIT;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status iganalre mask */
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= MAX310X_LSR_RXBRK_BIT;
+		port->iganalre_status_mask |= MAX310X_LSR_RXBRK_BIT;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= MAX310X_LSR_RXPAR_BIT |
+		port->iganalre_status_mask |= MAX310X_LSR_RXPAR_BIT |
 					    MAX310X_LSR_RXOVR_BIT |
 					    MAX310X_LSR_FRERR_BIT |
 					    MAX310X_LSR_RXBRK_BIT;
@@ -1137,7 +1137,7 @@ static const char *max310x_type(struct uart_port *port)
 
 static int max310x_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 	return 0;
 }
 
@@ -1149,7 +1149,7 @@ static void max310x_config_port(struct uart_port *port, int flags)
 
 static int max310x_verify_port(struct uart_port *port, struct serial_struct *s)
 {
-	if ((s->type != PORT_UNKNOWN) && (s->type != PORT_MAX310X))
+	if ((s->type != PORT_UNKANALWN) && (s->type != PORT_MAX310X))
 		return -EINVAL;
 	if (s->irq != port->irq)
 		return -EINVAL;
@@ -1159,7 +1159,7 @@ static int max310x_verify_port(struct uart_port *port, struct serial_struct *s)
 
 static void max310x_null_void(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do analthing */
 }
 
 static const struct uart_ops max310x_ops = {
@@ -1270,7 +1270,7 @@ static int max310x_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 				1 << ((offset % 4) + 4), 0);
 		return 0;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 #endif
@@ -1298,7 +1298,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr), GFP_KERNEL);
 	if (!s) {
 		dev_err(dev, "Error allocating port structure\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Always ask for fixed clock rate from a property. */
@@ -1320,7 +1320,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	if (freq == 0)
 		freq = uartclk;
 	if (freq == 0) {
-		dev_err(dev, "Cannot get clock rate\n");
+		dev_err(dev, "Cananalt get clock rate\n");
 		ret = -EINVAL;
 		goto out_clk;
 	}
@@ -1404,8 +1404,8 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		s->p[i].port.iobase	= i;
 		/*
 		 * Use all ones as membase to make sure uart_configure_port() in
-		 * serial_core.c does not abort for SPI/I2C devices where the
-		 * membase address is not applicable.
+		 * serial_core.c does analt abort for SPI/I2C devices where the
+		 * membase address is analt applicable.
 		 */
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.uartclk	= uartclk;
@@ -1512,8 +1512,8 @@ static struct regmap_config regcfg = {
 	.writeable_reg = max310x_reg_writeable,
 	.volatile_reg = max310x_reg_volatile,
 	.precious_reg = max310x_reg_precious,
-	.writeable_noinc_reg = max310x_reg_noinc,
-	.readable_noinc_reg = max310x_reg_noinc,
+	.writeable_analinc_reg = max310x_reg_analinc,
+	.readable_analinc_reg = max310x_reg_analinc,
 	.max_raw_read = MAX310X_FIFO_SIZE,
 	.max_raw_write = MAX310X_FIFO_SIZE,
 };
@@ -1601,8 +1601,8 @@ static struct regmap_config regcfg_i2c = {
 	.volatile_reg = max310x_reg_volatile,
 	.precious_reg = max310x_reg_precious,
 	.max_register = MAX310X_I2C_REVID_EXTREG,
-	.writeable_noinc_reg = max310x_reg_noinc,
-	.readable_noinc_reg = max310x_reg_noinc,
+	.writeable_analinc_reg = max310x_reg_analinc,
+	.readable_analinc_reg = max310x_reg_analinc,
 	.max_raw_read = MAX310X_FIFO_SIZE,
 	.max_raw_write = MAX310X_FIFO_SIZE,
 };

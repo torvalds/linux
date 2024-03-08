@@ -22,7 +22,7 @@ properties:
 
   clocks:
     items:
-      - description: gcc_cfg_noc_lpass_clk from GCC
+      - description: gcc_cfg_analc_lpass_clk from GCC
 
   clock-names:
     items:
@@ -64,7 +64,7 @@ examples:
       compatible = "qcom,sc7280-lpasscc";
       reg = <0x03000000 0x40>, <0x03c04000 0x4>;
       reg-names = "qdsp6ss", "top_cc";
-      clocks = <&gcc GCC_CFG_NOC_LPASS_CLK>;
+      clocks = <&gcc GCC_CFG_ANALC_LPASS_CLK>;
       clock-names = "iface";
       qcom,adsp-pil-mode;
       #clock-cells = <1>;

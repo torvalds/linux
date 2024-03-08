@@ -51,7 +51,7 @@ END {
 	print configfile " results:";
 	newNR = asort(readertimes);
 	if (newNR <= 0) {
-		print "No refscale records found???"
+		print "Anal refscale records found???"
 		exit;
 	}
 	medianidx = int(newNR / 2);
@@ -63,7 +63,7 @@ END {
 	for (i = 1; i <= newNR; i++)
 		points = points " " readertimes[i];
 	print points;
-	print "Average reader duration: " sum / newNR " nanoseconds";
+	print "Average reader duration: " sum / newNR " naanalseconds";
 	print "Minimum reader duration: " readertimes[1];
 	print "Median reader duration: " medianvalue;
 	print "Maximum reader duration: " readertimes[newNR];

@@ -84,9 +84,9 @@ static unsigned int ks8851_rdreg16(struct ks8851_net *ks,
  * Issue the relevant soft-reset command to the device's GRR register
  * specified by @op.
  *
- * Note, the delays are in there as a caution to ensure that the reset
+ * Analte, the delays are in there as a caution to ensure that the reset
  * has time to take effect and then complete. Since the datasheet does
- * not currently specify the exact sequence, we have chosen something
+ * analt currently specify the exact sequence, we have chosen something
  * that seems to work with our device.
  */
 static void ks8851_soft_reset(struct ks8851_net *ks, unsigned op)
@@ -123,7 +123,7 @@ static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
  *
  * Update the KS8851 MAC address registers from the address in @dev.
  *
- * This call assumes that the chip is not running, so there is no need to
+ * This call assumes that the chip is analt running, so there is anal need to
  * shutdown the RXQ process whilst setting this.
 */
 static int ks8851_write_mac_addr(struct net_device *dev)
@@ -137,9 +137,9 @@ static int ks8851_write_mac_addr(struct net_device *dev)
 
 	/*
 	 * Wake up chip in case it was powered off when stopped; otherwise,
-	 * the first write to the MAC address does not take effect.
+	 * the first write to the MAC address does analt take effect.
 	 */
-	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
+	ks8851_set_powermode(ks, PMECR_PM_ANALRMAL);
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		val = (dev->dev_addr[i] << 8) | dev->dev_addr[i + 1];
@@ -183,15 +183,15 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 /**
  * ks8851_init_mac - initialise the mac address
  * @ks: The device structure
- * @np: The device node pointer
+ * @np: The device analde pointer
  *
  * Get or create the initial mac address for the device and then set that
  * into the station address register. A mac address supplied in the device
  * tree takes precedence. Otherwise, if there is an EEPROM present, then
- * we try that. If no valid mac address is found we use eth_random_addr()
+ * we try that. If anal valid mac address is found we use eth_random_addr()
  * to create a new one.
  */
-static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
+static void ks8851_init_mac(struct ks8851_net *ks, struct device_analde *np)
 {
 	struct net_device *dev = ks->netdev;
 	int ret;
@@ -298,7 +298,7 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 				/* 4 bytes of status header + 4 bytes of
 				 * garbage: we put them before ethernet
 				 * header, so that they are copied,
-				 * but ignored.
+				 * but iganalred.
 				 */
 
 				rxpkt = skb_put(skb, rxlen) - 8;
@@ -327,11 +327,11 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
  * @_ks: cookie
  *
  * This handler is invoked when the IRQ line asserts to find out what happened.
- * As we cannot allow ourselves to sleep in HARDIRQ context, this handler runs
+ * As we cananalt allow ourselves to sleep in HARDIRQ context, this handler runs
  * in thread context.
  *
  * Read the interrupt status, work out what needs to be done and then clear
- * any of the interrupts that are not needed.
+ * any of the interrupts that are analt needed.
  */
 static irqreturn_t ks8851_irq(int irq, void *_ks)
 {
@@ -389,7 +389,7 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 	if (status & IRQ_RXI) {
 		/* the datasheet says to disable the rx interrupt during
 		 * packet read-out, however we're masking the interrupt
-		 * from the device so do not bother masking just the RX
+		 * from the device so do analt bother masking just the RX
 		 * from the device. */
 
 		ks8851_rx_pkts(ks);
@@ -450,16 +450,16 @@ static int ks8851_net_open(struct net_device *dev)
 		return ret;
 	}
 
-	/* lock the card, even if we may not actually be doing anything
+	/* lock the card, even if we may analt actually be doing anything
 	 * else at the moment */
 	ks8851_lock(ks, &flags);
 
 	netif_dbg(ks, ifup, ks->netdev, "opening\n");
 
 	/* bring chip out of any power saving mode it was in */
-	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
+	ks8851_set_powermode(ks, PMECR_PM_ANALRMAL);
 
-	/* issue a soft reset to the RX/TX QMU to put it into a known
+	/* issue a soft reset to the RX/TX QMU to put it into a kanalwn
 	 * state. */
 	ks8851_soft_reset(ks, GRR_QMU);
 
@@ -515,7 +515,7 @@ static int ks8851_net_open(struct net_device *dev)
  *
  * Called to close down a network device which has been active. Cancell any
  * work, shutdown the RX and TX process and then place the chip into a low
- * power state whilst it is not being used.
+ * power state whilst it is analt being used.
  */
 static int ks8851_net_stop(struct net_device *dev)
 {
@@ -671,7 +671,7 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 		return -EBUSY;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	eth_hw_addr_set(dev, sa->sa_data);
 	return ks8851_write_mac_addr(dev);
@@ -825,7 +825,7 @@ static int ks8851_set_eeprom(struct net_device *dev,
 		return -EINVAL;
 
 	if (!(ks->rc_ccr & CCR_EEPROM))
-		return -ENOENT;
+		return -EANALENT;
 
 	ks8851_lock(ks, &flags);
 
@@ -868,7 +868,7 @@ static int ks8851_get_eeprom(struct net_device *dev,
 		return -EINVAL;
 
 	if (!(ks->rc_ccr & CCR_EEPROM))
-		return -ENOENT;
+		return -EANALENT;
 
 	ks8851_lock(ks, &flags);
 
@@ -911,7 +911,7 @@ static const struct ethtool_ops ks8851_ethtool_ops = {
  * @reg: MII register number.
  *
  * Return the KS8851 register number for the corresponding MII PHY register
- * if possible. Return zero if the MII register has no direct mapping to the
+ * if possible. Return zero if the MII register has anal direct mapping to the
  * KS8851 register set.
  */
 static int ks8851_phy_reg(int reg)
@@ -931,7 +931,7 @@ static int ks8851_phy_reg(int reg)
 		return KS_P1ANLPR;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ks8851_phy_read_common(struct net_device *dev, int phy_addr, int reg)
@@ -955,14 +955,14 @@ static int ks8851_phy_read_common(struct net_device *dev, int phy_addr, int reg)
 /**
  * ks8851_phy_read - MII interface PHY register read.
  * @dev: The network device the PHY is on.
- * @phy_addr: Address of PHY (ignored as we only have one)
+ * @phy_addr: Address of PHY (iganalred as we only have one)
  * @reg: The register to read.
  *
  * This call reads data from the PHY register specified in @reg. Since the
- * device does not support all the MII registers, the non-existent values
+ * device does analt support all the MII registers, the analn-existent values
  * are always returned as zero.
  *
- * We return zero for unsupported registers as the MII code does not check
+ * We return zero for unsupported registers as the MII code does analt check
  * the value returned for any error status, and simply returns it to the
  * caller. The mii-tool that the driver was tested with takes any -ve error
  * as real PHY capabilities, thus displaying incorrect data to the user.
@@ -973,7 +973,7 @@ static int ks8851_phy_read(struct net_device *dev, int phy_addr, int reg)
 
 	ret = ks8851_phy_read_common(dev, phy_addr, reg);
 	if (ret < 0)
-		return 0x0;	/* no error return allowed, so use zero */
+		return 0x0;	/* anal error return allowed, so use zero */
 
 	return ret;
 }
@@ -998,7 +998,7 @@ static int ks8851_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	struct ks8851_net *ks = bus->priv;
 
 	if (phy_id != 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* KS8851 PHY ID registers are swapped in HW, swap them back. */
 	if (reg == MII_PHYSID1)
@@ -1031,7 +1031,7 @@ static void ks8851_read_selftest(struct ks8851_net *ks)
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
-		netdev_warn(ks->netdev, "Memory selftest not finished\n");
+		netdev_warn(ks->netdev, "Memory selftest analt finished\n");
 		return;
 	}
 
@@ -1082,7 +1082,7 @@ static int ks8851_register_mdiobus(struct ks8851_net *ks, struct device *dev)
 
 	mii_bus = mdiobus_alloc();
 	if (!mii_bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mii_bus->name = "ks8851_eth_mii";
 	mii_bus->read = ks8851_mdio_read;
@@ -1212,7 +1212,7 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 	cider = ks8851_rdreg16(ks, KS_CIDER);
 	if ((cider & ~CIDER_REV_MASK) != CIDER_ID) {
 		dev_err(dev, "failed to read device ID\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_id;
 	}
 
@@ -1220,7 +1220,7 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 	ks->rc_ccr = ks8851_rdreg16(ks, KS_CCR);
 
 	ks8851_read_selftest(ks);
-	ks8851_init_mac(ks, dev->of_node);
+	ks8851_init_mac(ks, dev->of_analde);
 
 	ret = register_netdev(netdev);
 	if (ret) {
@@ -1230,7 +1230,7 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 
 	netdev_info(netdev, "revision %d, MAC %pM, IRQ %d, %s EEPROM\n",
 		    CIDER_REV_GET(cider), netdev->dev_addr, netdev->irq,
-		    ks->rc_ccr & CCR_EEPROM ? "has" : "no");
+		    ks->rc_ccr & CCR_EEPROM ? "has" : "anal");
 
 	return 0;
 

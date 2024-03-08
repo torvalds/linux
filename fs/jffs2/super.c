@@ -29,43 +29,43 @@
 #include <linux/seq_file.h>
 #include <linux/exportfs.h>
 #include "compr.h"
-#include "nodelist.h"
+#include "analdelist.h"
 
 static void jffs2_put_super(struct super_block *);
 
-static struct kmem_cache *jffs2_inode_cachep;
+static struct kmem_cache *jffs2_ianalde_cachep;
 
-static struct inode *jffs2_alloc_inode(struct super_block *sb)
+static struct ianalde *jffs2_alloc_ianalde(struct super_block *sb)
 {
-	struct jffs2_inode_info *f;
+	struct jffs2_ianalde_info *f;
 
-	f = alloc_inode_sb(sb, jffs2_inode_cachep, GFP_KERNEL);
+	f = alloc_ianalde_sb(sb, jffs2_ianalde_cachep, GFP_KERNEL);
 	if (!f)
 		return NULL;
-	return &f->vfs_inode;
+	return &f->vfs_ianalde;
 }
 
-static void jffs2_free_inode(struct inode *inode)
+static void jffs2_free_ianalde(struct ianalde *ianalde)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
+	struct jffs2_ianalde_info *f = JFFS2_IANALDE_INFO(ianalde);
 
 	kfree(f->target);
-	kmem_cache_free(jffs2_inode_cachep, f);
+	kmem_cache_free(jffs2_ianalde_cachep, f);
 }
 
 static void jffs2_i_init_once(void *foo)
 {
-	struct jffs2_inode_info *f = foo;
+	struct jffs2_ianalde_info *f = foo;
 
 	mutex_init(&f->sem);
-	inode_init_once(&f->vfs_inode);
+	ianalde_init_once(&f->vfs_ianalde);
 }
 
 static const char *jffs2_compr_name(unsigned int compr)
 {
 	switch (compr) {
-	case JFFS2_COMPR_MODE_NONE:
-		return "none";
+	case JFFS2_COMPR_MODE_ANALNE:
+		return "analne";
 #ifdef CONFIG_JFFS2_LZO
 	case JFFS2_COMPR_MODE_FORCELZO:
 		return "lzo";
@@ -109,48 +109,48 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 	return 0;
 }
 
-static struct inode *jffs2_nfs_get_inode(struct super_block *sb, uint64_t ino,
+static struct ianalde *jffs2_nfs_get_ianalde(struct super_block *sb, uint64_t ianal,
 					 uint32_t generation)
 {
 	/* We don't care about i_generation. We'll destroy the flash
-	   before we start re-using inode numbers anyway. And even
+	   before we start re-using ianalde numbers anyway. And even
 	   if that wasn't true, we'd have other problems...*/
-	return jffs2_iget(sb, ino);
+	return jffs2_iget(sb, ianal);
 }
 
 static struct dentry *jffs2_fh_to_dentry(struct super_block *sb, struct fid *fid,
 					 int fh_len, int fh_type)
 {
         return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
-                                    jffs2_nfs_get_inode);
+                                    jffs2_nfs_get_ianalde);
 }
 
 static struct dentry *jffs2_fh_to_parent(struct super_block *sb, struct fid *fid,
 					 int fh_len, int fh_type)
 {
         return generic_fh_to_parent(sb, fid, fh_len, fh_type,
-                                    jffs2_nfs_get_inode);
+                                    jffs2_nfs_get_ianalde);
 }
 
 static struct dentry *jffs2_get_parent(struct dentry *child)
 {
-	struct jffs2_inode_info *f;
-	uint32_t pino;
+	struct jffs2_ianalde_info *f;
+	uint32_t pianal;
 
 	BUG_ON(!d_is_dir(child));
 
-	f = JFFS2_INODE_INFO(d_inode(child));
+	f = JFFS2_IANALDE_INFO(d_ianalde(child));
 
-	pino = f->inocache->pino_nlink;
+	pianal = f->ianalcache->pianal_nlink;
 
-	JFFS2_DEBUG("Parent of directory ino #%u is #%u\n",
-		    f->inocache->ino, pino);
+	JFFS2_DEBUG("Parent of directory ianal #%u is #%u\n",
+		    f->ianalcache->ianal, pianal);
 
-	return d_obtain_alias(jffs2_iget(child->d_sb, pino));
+	return d_obtain_alias(jffs2_iget(child->d_sb, pianal));
 }
 
 static const struct export_operations jffs2_export_ops = {
-	.encode_fh = generic_encode_ino32_fh,
+	.encode_fh = generic_encode_ianal32_fh,
 	.get_parent = jffs2_get_parent,
 	.fh_to_dentry = jffs2_fh_to_dentry,
 	.fh_to_parent = jffs2_fh_to_parent,
@@ -169,7 +169,7 @@ enum {
 };
 
 static const struct constant_table jffs2_param_compr[] = {
-	{"none",	JFFS2_COMPR_MODE_NONE },
+	{"analne",	JFFS2_COMPR_MODE_ANALNE },
 #ifdef CONFIG_JFFS2_LZO
 	{"lzo",		JFFS2_COMPR_MODE_FORCELZO },
 #endif
@@ -242,12 +242,12 @@ static int jffs2_reconfigure(struct fs_context *fc)
 
 static const struct super_operations jffs2_super_operations =
 {
-	.alloc_inode =	jffs2_alloc_inode,
-	.free_inode =	jffs2_free_inode,
+	.alloc_ianalde =	jffs2_alloc_ianalde,
+	.free_ianalde =	jffs2_free_ianalde,
 	.put_super =	jffs2_put_super,
 	.statfs =	jffs2_statfs,
-	.evict_inode =	jffs2_evict_inode,
-	.dirty_inode =	jffs2_dirty_inode,
+	.evict_ianalde =	jffs2_evict_ianalde,
+	.dirty_ianalde =	jffs2_dirty_ianalde,
 	.show_options =	jffs2_show_options,
 	.sync_fs =	jffs2_sync_fs,
 };
@@ -275,13 +275,13 @@ static int jffs2_fill_super(struct super_block *sb, struct fs_context *fc)
 	mutex_init(&c->alloc_sem);
 	mutex_init(&c->erase_free_sem);
 	init_waitqueue_head(&c->erase_wait);
-	init_waitqueue_head(&c->inocache_wq);
+	init_waitqueue_head(&c->ianalcache_wq);
 	spin_lock_init(&c->erase_completion_lock);
-	spin_lock_init(&c->inocache_lock);
+	spin_lock_init(&c->ianalcache_lock);
 
 	sb->s_op = &jffs2_super_operations;
 	sb->s_export_op = &jffs2_export_ops;
-	sb->s_flags = sb->s_flags | SB_NOATIME;
+	sb->s_flags = sb->s_flags | SB_ANALATIME;
 	sb->s_xattr = jffs2_xattr_handlers;
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 	sb->s_flags |= SB_POSIXACL;
@@ -312,7 +312,7 @@ static int jffs2_init_fs_context(struct fs_context *fc)
 
 	ctx = kzalloc(sizeof(struct jffs2_sb_info), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fc->s_fs_info = ctx;
 	fc->ops = &jffs2_context_ops;
@@ -331,11 +331,11 @@ static void jffs2_put_super (struct super_block *sb)
 
 	jffs2_sum_exit(c);
 
-	jffs2_free_ino_caches(c);
-	jffs2_free_raw_node_refs(c);
+	jffs2_free_ianal_caches(c);
+	jffs2_free_raw_analde_refs(c);
 	kvfree(c->blocks);
 	jffs2_flash_cleanup(c);
-	kfree(c->inocache_list);
+	kfree(c->ianalcache_list);
 	jffs2_clear_xattr_subsystem(c);
 	mtd_sync(c->mtd);
 	jffs2_dbg(1, "%s(): returning\n", __func__);
@@ -363,16 +363,16 @@ static int __init init_jffs2_fs(void)
 {
 	int ret;
 
-	/* Paranoia checks for on-medium structures. If we ask GCC
+	/* Paraanalia checks for on-medium structures. If we ask GCC
 	   to pack them with __attribute__((packed)) then it _also_
-	   assumes that they're not aligned -- so it emits crappy
+	   assumes that they're analt aligned -- so it emits crappy
 	   code on some architectures. Ideally we want an attribute
-	   which means just 'no padding', without the alignment
+	   which means just 'anal padding', without the alignment
 	   thing. But GCC doesn't have that -- we have to just
 	   hope the structs are the right sizes, instead. */
-	BUILD_BUG_ON(sizeof(struct jffs2_unknown_node) != 12);
+	BUILD_BUG_ON(sizeof(struct jffs2_unkanalwn_analde) != 12);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_dirent) != 40);
-	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
+	BUILD_BUG_ON(sizeof(struct jffs2_raw_ianalde) != 68);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
 	pr_info("version 2.2."
@@ -384,14 +384,14 @@ static int __init init_jffs2_fs(void)
 #endif
 	       " © 2001-2006 Red Hat, Inc.\n");
 
-	jffs2_inode_cachep = kmem_cache_create("jffs2_i",
-					     sizeof(struct jffs2_inode_info),
+	jffs2_ianalde_cachep = kmem_cache_create("jffs2_i",
+					     sizeof(struct jffs2_ianalde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     jffs2_i_init_once);
-	if (!jffs2_inode_cachep) {
-		pr_err("error: Failed to initialise inode cache\n");
-		return -ENOMEM;
+	if (!jffs2_ianalde_cachep) {
+		pr_err("error: Failed to initialise ianalde cache\n");
+		return -EANALMEM;
 	}
 	ret = jffs2_compressors_init();
 	if (ret) {
@@ -415,7 +415,7 @@ static int __init init_jffs2_fs(void)
  out_compressors:
 	jffs2_compressors_exit();
  out:
-	kmem_cache_destroy(jffs2_inode_cachep);
+	kmem_cache_destroy(jffs2_ianalde_cachep);
 	return ret;
 }
 
@@ -426,11 +426,11 @@ static void __exit exit_jffs2_fs(void)
 	jffs2_compressors_exit();
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free ianaldes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(jffs2_inode_cachep);
+	kmem_cache_destroy(jffs2_ianalde_cachep);
 }
 
 module_init(init_jffs2_fs);

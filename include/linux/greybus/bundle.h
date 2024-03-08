@@ -14,7 +14,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/device.h>
 
-#define	BUNDLE_ID_NONE	U8_MAX
+#define	BUNDLE_ID_ANALNE	U8_MAX
 
 /* Greybus "public" definitions" */
 struct gb_bundle {
@@ -24,7 +24,7 @@ struct gb_bundle {
 	u8			id;
 	u8			class;
 	u8			class_major;
-	u8			class_minor;
+	u8			class_mianalr;
 
 	size_t			num_cports;
 	struct greybus_descriptor_cport *cport_desc;
@@ -52,7 +52,7 @@ static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
 	if (retval < 0) {
 		dev_err(&bundle->dev,
 			"pm_runtime_get_sync failed: %d\n", retval);
-		pm_runtime_put_noidle(&bundle->dev);
+		pm_runtime_put_analidle(&bundle->dev);
 		return retval;
 	}
 
@@ -69,14 +69,14 @@ static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
 	return retval;
 }
 
-static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle)
+static inline void gb_pm_runtime_get_analresume(struct gb_bundle *bundle)
 {
-	pm_runtime_get_noresume(&bundle->dev);
+	pm_runtime_get_analresume(&bundle->dev);
 }
 
-static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle)
+static inline void gb_pm_runtime_put_analidle(struct gb_bundle *bundle)
 {
-	pm_runtime_put_noidle(&bundle->dev);
+	pm_runtime_put_analidle(&bundle->dev);
 }
 
 #else
@@ -85,8 +85,8 @@ static inline int gb_pm_runtime_get_sync(struct gb_bundle *bundle)
 static inline int gb_pm_runtime_put_autosuspend(struct gb_bundle *bundle)
 { return 0; }
 
-static inline void gb_pm_runtime_get_noresume(struct gb_bundle *bundle) {}
-static inline void gb_pm_runtime_put_noidle(struct gb_bundle *bundle) {}
+static inline void gb_pm_runtime_get_analresume(struct gb_bundle *bundle) {}
+static inline void gb_pm_runtime_put_analidle(struct gb_bundle *bundle) {}
 #endif
 
 #endif /* __BUNDLE_H */

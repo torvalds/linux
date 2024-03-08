@@ -21,7 +21,7 @@
 
 
 /* *** library symbols visibility *** */
-/* Note : when linking with -fvisibility=hidden on gcc, or by default on Visual,
+/* Analte : when linking with -fvisibility=hidden on gcc, or by default on Visual,
  *        HUF symbols remain "private" (internal symbols for library only).
  *        Set macro FSE_DLL_EXPORT to 1 if you want HUF symbols visible on DLL interface */
 #if defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1) && defined(__GNUC__) && (__GNUC__ >= 4)
@@ -29,7 +29,7 @@
 #elif defined(FSE_DLL_EXPORT) && (FSE_DLL_EXPORT==1)   /* Visual expected */
 #  define HUF_PUBLIC_API __declspec(dllexport)
 #elif defined(FSE_DLL_IMPORT) && (FSE_DLL_IMPORT==1)
-#  define HUF_PUBLIC_API __declspec(dllimport)  /* not required, just to generate faster code (saves a function pointer load from IAT and an indirect jump) */
+#  define HUF_PUBLIC_API __declspec(dllimport)  /* analt required, just to generate faster code (saves a function pointer load from IAT and an indirect jump) */
 #else
 #  define HUF_PUBLIC_API
 #endif
@@ -45,7 +45,7 @@
  *  Compression runs faster if `dstCapacity` >= HUF_compressBound(srcSize).
  * `srcSize` must be <= `HUF_BLOCKSIZE_MAX` == 128 KB.
  * @return : size of compressed data (<= `dstCapacity`).
- *  Special values : if return == 0, srcData is not compressible => Nothing is stored within dst !!!
+ *  Special values : if return == 0, srcData is analt compressible => Analthing is stored within dst !!!
  *                   if HUF_isError(return), compression failed (more details using HUF_getErrorName())
  */
 HUF_PUBLIC_API size_t HUF_compress(void* dst, size_t dstCapacity,
@@ -55,9 +55,9 @@ HUF_PUBLIC_API size_t HUF_compress(void* dst, size_t dstCapacity,
  *  Decompress HUF data from buffer 'cSrc', of size 'cSrcSize',
  *  into already allocated buffer 'dst', of minimum size 'dstSize'.
  * `originalSize` : **must** be the ***exact*** size of original (uncompressed) data.
- *  Note : in contrast with FSE, HUF_decompress can regenerate
+ *  Analte : in contrast with FSE, HUF_decompress can regenerate
  *         RLE (cSrcSize==1) and uncompressed (cSrcSize==dstSize) data,
- *         because it knows size to regenerate (originalSize).
+ *         because it kanalws size to regenerate (originalSize).
  * @return : size of regenerated data (== originalSize),
  *           or an error code, which can be tested using HUF_isError()
  */
@@ -100,7 +100,7 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity,
  *  WARNING !!
  *  The following section contains advanced and experimental definitions
  *  which shall never be used in the context of a dynamic library,
- *  because they are not guaranteed to remain stable in the future.
+ *  because they are analt guaranteed to remain stable in the future.
  *  Only consider them in association with static linking.
  * *****************************************************************/
 #if !defined(HUF_H_HUF_STATIC_LINKING_ONLY)
@@ -114,10 +114,10 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity,
 
 /* *** Constants *** */
 #define HUF_TABLELOG_MAX      12      /* max runtime value of tableLog (due to static allocation); can be modified up to HUF_TABLELOG_ABSOLUTEMAX */
-#define HUF_TABLELOG_DEFAULT  11      /* default tableLog value when none specified */
+#define HUF_TABLELOG_DEFAULT  11      /* default tableLog value when analne specified */
 #define HUF_SYMBOLVALUE_MAX  255
 
-#define HUF_TABLELOG_ABSOLUTEMAX  12  /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does not work */
+#define HUF_TABLELOG_ABSOLUTEMAX  12  /* absolute limit of HUF_MAX_TABLELOG. Beyond that value, code does analt work */
 #if (HUF_TABLELOG_MAX > HUF_TABLELOG_ABSOLUTEMAX)
 #  error "HUF_TABLELOG_MAX is too large !"
 #endif
@@ -137,7 +137,7 @@ typedef size_t HUF_CElt;   /* consider it an incomplete type */
 #define HUF_CTABLE_SIZE_ST(maxSymbolValue)   ((maxSymbolValue)+2)   /* Use tables of size_t, for proper alignment */
 #define HUF_CTABLE_SIZE(maxSymbolValue)       (HUF_CTABLE_SIZE_ST(maxSymbolValue) * sizeof(size_t))
 #define HUF_CREATE_STATIC_CTABLE(name, maxSymbolValue) \
-    HUF_CElt name[HUF_CTABLE_SIZE_ST(maxSymbolValue)] /* no final ; */
+    HUF_CElt name[HUF_CTABLE_SIZE_ST(maxSymbolValue)] /* anal final ; */
 
 /* static allocation of HUF's DTable */
 typedef U32 HUF_DTable;
@@ -192,14 +192,14 @@ size_t HUF_estimateCompressedSize(const HUF_CElt* CTable, const unsigned* count,
 int HUF_validateCTable(const HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue);
 
 typedef enum {
-   HUF_repeat_none,  /*< Cannot use the previous table */
-   HUF_repeat_check, /*< Can use the previous table but it must be checked. Note : The previous table must have been constructed by HUF_compress{1, 4}X_repeat */
+   HUF_repeat_analne,  /*< Cananalt use the previous table */
+   HUF_repeat_check, /*< Can use the previous table but it must be checked. Analte : The previous table must have been constructed by HUF_compress{1, 4}X_repeat */
    HUF_repeat_valid  /*< Can use the previous table and it is assumed to be valid */
  } HUF_repeat;
 /* HUF_compress4X_repeat() :
- *  Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
- *  If it uses hufTable it does not modify hufTable or repeat.
- *  If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
+ *  Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_analne.
+ *  If it uses hufTable it does analt modify hufTable or repeat.
+ *  If it doesn't, it sets *repeat = HUF_repeat_analne, and it sets hufTable to the table used.
  *  If preferRepeat then the old table will always be used if valid.
  *  If suspectUncompressible then some sampling checks will be run to potentially skip huffman coding */
 size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
@@ -222,7 +222,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree,
  *  Read compact Huffman tree, saved by HUF_writeCTable().
  * `huffWeight` is destination buffer.
  * @return : size read from `src` , or an error Code .
- *  Note : Needed by HUF_readCTable() and HUF_readDTableXn() . */
+ *  Analte : Needed by HUF_readCTable() and HUF_readDTableXn() . */
 size_t HUF_readStats(BYTE* huffWeight, size_t hwSize,
                      U32* rankStats, U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize);
@@ -246,7 +246,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void
 
 /* HUF_getNbBitsFromCTable() :
  *  Read nbBits from CTable symbolTable, for symbol `symbolValue` presumed <= HUF_SYMBOLVALUE_MAX
- *  Note 1 : is not inlined, as HUF_CElt definition is private */
+ *  Analte 1 : is analt inlined, as HUF_CElt definition is private */
 U32 HUF_getNbBitsFromCTable(const HUF_CElt* symbolTable, U32 symbolValue);
 
 /*
@@ -303,9 +303,9 @@ size_t HUF_compress1X_wksp (void* dst, size_t dstSize, const void* src, size_t s
 size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable);
 size_t HUF_compress1X_usingCTable_bmi2(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable, int bmi2);
 /* HUF_compress1X_repeat() :
- *  Same as HUF_compress1X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
- *  If it uses hufTable it does not modify hufTable or repeat.
- *  If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
+ *  Same as HUF_compress1X_wksp(), but considers using hufTable if *repeat != HUF_repeat_analne.
+ *  If it uses hufTable it does analt modify hufTable or repeat.
+ *  If it doesn't, it sets *repeat = HUF_repeat_analne, and it sets hufTable to the table used.
  *  If preferRepeat then the old table will always be used if valid.
  *  If suspectUncompressible then some sampling checks will be run to potentially skip huffman coding */
 size_t HUF_compress1X_repeat(void* dst, size_t dstSize,

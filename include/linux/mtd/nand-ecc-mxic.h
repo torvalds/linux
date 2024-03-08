@@ -32,7 +32,7 @@ static inline struct nand_ecc_engine_ops *mxic_ecc_get_pipelined_ops(void)
 static inline struct nand_ecc_engine *
 mxic_ecc_get_pipelined_engine(struct platform_device *spi_pdev)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline void mxic_ecc_put_pipelined_engine(struct nand_ecc_engine *eng) {}
@@ -41,7 +41,7 @@ static inline int mxic_ecc_process_data_pipelined(struct nand_ecc_engine *eng,
 						  unsigned int direction,
 						  dma_addr_t dirmap)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 #endif /* CONFIG_MTD_NAND_ECC_MXIC */

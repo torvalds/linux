@@ -41,7 +41,7 @@
 #define   GMBUS_SW_CLR_INT		(1 << 31)
 #define   GMBUS_SW_RDY			(1 << 30)
 #define   GMBUS_ENT			(1 << 29) /* enable timeout */
-#define   GMBUS_CYCLE_NONE		(0 << 25)
+#define   GMBUS_CYCLE_ANALNE		(0 << 25)
 #define   GMBUS_CYCLE_WAIT		(1 << 25)
 #define   GMBUS_CYCLE_INDEX		(2 << 25)
 #define   GMBUS_CYCLE_STOP		(4 << 25)

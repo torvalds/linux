@@ -61,7 +61,7 @@ extern void xfs_qm_exit(void);
 #ifdef DEBUG
 # define XFS_DBG_STRING		"debug"
 #else
-# define XFS_DBG_STRING		"no debug"
+# define XFS_DBG_STRING		"anal debug"
 #endif
 
 #define XFS_VERSION_STRING	"SGI XFS"
@@ -81,13 +81,13 @@ extern void xfs_qm_exit(void);
 # define XFS_WQFLAGS(wqflags)	(wqflags)
 #endif
 
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_mount;
 struct xfs_buftarg;
 struct block_device;
 
-extern void xfs_flush_inodes(struct xfs_mount *mp);
-extern xfs_agnumber_t xfs_set_inode_alloc(struct xfs_mount *,
+extern void xfs_flush_ianaldes(struct xfs_mount *mp);
+extern xfs_agnumber_t xfs_set_ianalde_alloc(struct xfs_mount *,
 					   xfs_agnumber_t agcount);
 
 extern const struct export_operations xfs_export_operations;

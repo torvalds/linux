@@ -23,7 +23,7 @@ static int gb_log_request_handler(struct gb_operation *op)
 	u16 len;
 
 	if (op->type != GB_LOG_TYPE_SEND_LOG) {
-		dev_err(dev, "unknown request type 0x%02x\n", op->type);
+		dev_err(dev, "unkanalwn request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 
@@ -71,15 +71,15 @@ static int gb_log_probe(struct gb_bundle *bundle,
 	int retval;
 
 	if (bundle->num_cports != 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	cport_desc = &bundle->cport_desc[0];
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LOG)
-		return -ENODEV;
+		return -EANALDEV;
 
 	log = kzalloc(sizeof(*log), GFP_KERNEL);
 	if (!log)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
 					  gb_log_request_handler);

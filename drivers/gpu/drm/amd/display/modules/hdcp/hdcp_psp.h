@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -27,7 +27,7 @@
 #define MODULES_HDCP_HDCP_PSP_H_
 
 /*
- * NOTE: These parameters are a one-to-one copy of the
+ * ANALTE: These parameters are a one-to-one copy of the
  * parameters required by PSP
  */
 enum bgd_security_hdcp_encryption_level {
@@ -64,7 +64,7 @@ enum ta_dtm_status {
  * Input structures
  */
 enum ta_dtm_hdcp_version_max_supported {
-	TA_DTM_HDCP_VERSION_MAX_SUPPORTED__NONE = 0,
+	TA_DTM_HDCP_VERSION_MAX_SUPPORTED__ANALNE = 0,
 	TA_DTM_HDCP_VERSION_MAX_SUPPORTED__1_x = 10,
 	TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_0 = 20,
 	TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_1 = 21,
@@ -87,7 +87,7 @@ struct ta_dtm_topology_update_input_v2 {
 	uint32_t max_hdcp_supported_version;
 };
 
-/* For security reason/HW may change value, these encoder type enum values are not HW register values */
+/* For security reason/HW may change value, these encoder type enum values are analt HW register values */
 /* Security code will check real HW register values and these SW enum values */
 enum ta_dtm_encoder_type {
 	TA_DTM_ENCODER_TYPE__INVALID    = 0,
@@ -106,7 +106,7 @@ typedef enum {
 struct ta_dtm_topology_update_input_v3 {
 	/* display handle is unique across the driver and is used to identify a display */
 	/* for all security interfaces which reference displays such as HDCP */
-	/* link_hdcp_cap means link is HDCP-capable for audio HDCP capable property(informational), not for other logic(e.g. Crossbar) */
+	/* link_hdcp_cap means link is HDCP-capable for audio HDCP capable property(informational), analt for other logic(e.g. Crossbar) */
 	uint32_t display_handle;
 	uint32_t is_active;
 	uint32_t is_miracast;
@@ -132,7 +132,7 @@ struct ta_dtm_topology_assr_enable {
  * Output structures
  */
 
-/* No output structures yet */
+/* Anal output structures yet */
 
 union ta_dtm_cmd_input {
 	struct ta_dtm_topology_update_input_v2 topology_update_v2;
@@ -185,7 +185,7 @@ enum ta_hdcp2_msg_id {
 	TA_HDCP_HDCP2_MSG_ID__NULL_MESSAGE = 1,
 	TA_HDCP_HDCP2_MSG_ID__AKE_INIT = 2,
 	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_CERT = 3,
-	TA_HDCP_HDCP2_MSG_ID__AKE_NO_STORED_KM = 4,
+	TA_HDCP_HDCP2_MSG_ID__AKE_ANAL_STORED_KM = 4,
 	TA_HDCP_HDCP2_MSG_ID__AKE_STORED_KM = 5,
 	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_RRX = 6,
 	TA_HDCP_HDCP2_MSG_ID__AKE_SEND_H_PRIME = 7,
@@ -209,7 +209,7 @@ enum ta_hdcp2_hdcp2_msg_id_max_size {
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__NULL_MESSAGE = 0,
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_INIT = 12,
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_CERT = 534,
-	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_NO_STORED_KM = 129,
+	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_ANAL_STORED_KM = 129,
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_STORED_KM = 33,
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_RRX = 9,
 	TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_SEND_H_PRIME = 33,
@@ -237,7 +237,7 @@ enum ta_hdcp2_hdcp2_msg_id_max_size {
 #define TA_HDCP__HDCP1_KSV_LIST_MAX_ENTRIES 127
 #define TA_HDCP__HDCP1_V_PRIME_SIZE 20
 #define TA_HDCP__HDCP2_TX_BUF_MAX_SIZE                                                                                 \
-	(TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_NO_STORED_KM + TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_STORED_KM + 6)
+	(TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_ANAL_STORED_KM + TA_HDCP_HDCP2_MSG_ID_MAX_SIZE__AKE_STORED_KM + 6)
 
 // 64 bits boundaries
 #define TA_HDCP__HDCP2_RX_BUF_MAX_SIZE                                                                                 \
@@ -251,11 +251,11 @@ enum ta_hdcp_status {
 	TA_HDCP_STATUS__FAILED_SETUP_TX = 0x04,
 	TA_HDCP_STATUS__INVALID_PARAMETER = 0x05,
 	TA_HDCP_STATUS__VHX_ERROR = 0x06,
-	TA_HDCP_STATUS__SESSION_NOT_CLOSED_PROPERLY = 0x07,
+	TA_HDCP_STATUS__SESSION_ANALT_CLOSED_PROPERLY = 0x07,
 	TA_HDCP_STATUS__SRM_FAILURE = 0x08,
 	TA_HDCP_STATUS__MST_AUTHENTICATED_ALREADY_STARTED = 0x09,
 	TA_HDCP_STATUS__AKE_SEND_CERT_FAILURE = 0x0A,
-	TA_HDCP_STATUS__AKE_NO_STORED_KM_FAILURE = 0x0B,
+	TA_HDCP_STATUS__AKE_ANAL_STORED_KM_FAILURE = 0x0B,
 	TA_HDCP_STATUS__AKE_SEND_HPRIME_FAILURE = 0x0C,
 	TA_HDCP_STATUS__LC_SEND_LPRIME_FAILURE = 0x0D,
 	TA_HDCP_STATUS__SKE_SEND_EKS_FAILURE = 0x0E,
@@ -265,13 +265,13 @@ enum ta_hdcp_status {
 	TA_HDCP_STATUS__UNWRAP_SECRET_FAILURE = 0x12,
 	TA_HDCP_STATUS__ENABLE_ENCR_FAILURE = 0x13,
 	TA_HDCP_STATUS__DISABLE_ENCR_FAILURE = 0x14,
-	TA_HDCP_STATUS__NOT_ENOUGH_MEMORY_FAILURE = 0x15,
-	TA_HDCP_STATUS__UNKNOWN_MESSAGE = 0x16,
+	TA_HDCP_STATUS__ANALT_EANALUGH_MEMORY_FAILURE = 0x15,
+	TA_HDCP_STATUS__UNKANALWN_MESSAGE = 0x16,
 	TA_HDCP_STATUS__TOO_MANY_STREAM = 0x17
 };
 
 enum ta_hdcp_authentication_status {
-	TA_HDCP_AUTHENTICATION_STATUS__NOT_STARTED = 0x00,
+	TA_HDCP_AUTHENTICATION_STATUS__ANALT_STARTED = 0x00,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_FIRST_PART_FAILED = 0x01,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_FIRST_PART_COMPLETE = 0x02,
 	TA_HDCP_AUTHENTICATION_STATUS__HDCP1_SECOND_PART_FAILED = 0x03,
@@ -285,14 +285,14 @@ enum ta_hdcp_authentication_status {
 
 enum ta_hdcp2_msg_authentication_status {
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__SUCCESS = 0,
-	TA_HDCP2_MSG_AUTHENTICATION_STATUS__KM_NOT_AVAILABLE,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__KM_ANALT_AVAILABLE,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__UNUSED,
-	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID = 100, // everything above does not fail the request
-	TA_HDCP2_MSG_AUTHENTICATION_STATUS__NOT_ENOUGH_MEMORY,
-	TA_HDCP2_MSG_AUTHENTICATION_STATUS__NOT_EXPECTED_MSG,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID = 100, // everything above does analt fail the request
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__ANALT_EANALUGH_MEMORY,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__ANALT_EXPECTED_MSG,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__SIGNATURE_CERTIFICAT_ERROR,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INCORRECT_HDCP_VERSION,
-	TA_HDCP2_MSG_AUTHENTICATION_STATUS__UNKNOWN_MESSAGE,
+	TA_HDCP2_MSG_AUTHENTICATION_STATUS__UNKANALWN_MESSAGE,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_HMAC,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_TOPOLOGY,
 	TA_HDCP2_MSG_AUTHENTICATION_STATUS__INVALID_SEQ_NUM,
@@ -314,7 +314,7 @@ enum ta_hdcp_content_type_negotiation_type {
 };
 
 enum ta_hdcp2_version {
-	TA_HDCP2_VERSION_UNKNOWN = 0,
+	TA_HDCP2_VERSION_UNKANALWN = 0,
 	TA_HDCP2_VERSION_2_0 = 20,
 	TA_HDCP2_VERSION_2_1 = 21,
 	TA_HDCP2_VERSION_2_2 = 22,

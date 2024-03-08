@@ -2,7 +2,7 @@
 /*
  * IMG PowerDown Controller (PDC)
  *
- * Copyright 2010-2013 Imagination Technologies Ltd.
+ * Copyright 2010-2013 Imagination Techanallogies Ltd.
  *
  * Exposes the syswake and PDC peripheral wake interrupts to the system.
  *
@@ -60,7 +60,7 @@
 #define PDC_SYS_WAKE_INT_DOWN		0x2
 #define PDC_SYS_WAKE_INT_UP		0x3
 #define PDC_SYS_WAKE_INT_CHANGE		0x6
-#define PDC_SYS_WAKE_INT_NONE		0x4
+#define PDC_SYS_WAKE_INT_ANALNE		0x4
 
 /**
  * struct pdc_intc_priv - private pdc interrupt data.
@@ -124,7 +124,7 @@ static struct pdc_intc_priv *irqd_to_priv(struct irq_data *data)
 
 /*
  * perip_irq_mask() and perip_irq_unmask() use IRQ_ROUTE which also contains
- * wake bits, therefore we cannot use the generic irqchip mask callbacks as they
+ * wake bits, therefore we cananalt use the generic irqchip mask callbacks as they
  * cache the mask.
  */
 
@@ -283,9 +283,9 @@ static void pdc_intc_setup(struct pdc_intc_priv *priv)
 
 	/* Initialise syswake IRQ */
 	for (i = 0; i < priv->nr_syswakes; ++i) {
-		/* set the IRQ mode to none */
+		/* set the IRQ mode to analne */
 		soc_sys_wake_regoff = PDC_SYS_WAKE_BASE + i*PDC_SYS_WAKE_STRIDE;
-		soc_sys_wake = PDC_SYS_WAKE_INT_NONE
+		soc_sys_wake = PDC_SYS_WAKE_INT_ANALNE
 				<< PDC_SYS_WAKE_INT_MODE_SHIFT;
 		pdc_write(priv, soc_sys_wake_regoff, soc_sys_wake);
 	}
@@ -294,27 +294,27 @@ static void pdc_intc_setup(struct pdc_intc_priv *priv)
 static int pdc_intc_probe(struct platform_device *pdev)
 {
 	struct pdc_intc_priv *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct resource *res_regs;
 	struct irq_chip_generic *gc;
 	unsigned int i;
 	int irq, ret;
 	u32 val;
 
-	if (!node)
-		return -ENOENT;
+	if (!analde)
+		return -EANALENT;
 
 	/* Get registers */
 	res_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_regs == NULL) {
-		dev_err(&pdev->dev, "cannot find registers resource\n");
-		return -ENOENT;
+		dev_err(&pdev->dev, "cananalt find registers resource\n");
+		return -EANALENT;
 	}
 
 	/* Allocate driver data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	raw_spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
 
@@ -325,9 +325,9 @@ static int pdc_intc_probe(struct platform_device *pdev)
 		return -EIO;
 
 	/* Get number of peripherals */
-	ret = of_property_read_u32(node, "num-perips", &val);
+	ret = of_property_read_u32(analde, "num-perips", &val);
 	if (ret) {
-		dev_err(&pdev->dev, "No num-perips node property found\n");
+		dev_err(&pdev->dev, "Anal num-perips analde property found\n");
 		return -EINVAL;
 	}
 	if (val > SYS0_HWIRQ) {
@@ -337,9 +337,9 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->nr_perips = val;
 
 	/* Get number of syswakes */
-	ret = of_property_read_u32(node, "num-syswakes", &val);
+	ret = of_property_read_u32(analde, "num-syswakes", &val);
 	if (ret) {
-		dev_err(&pdev->dev, "No num-syswakes node property found\n");
+		dev_err(&pdev->dev, "Anal num-syswakes analde property found\n");
 		return -EINVAL;
 	}
 	if (val > SYS0_HWIRQ) {
@@ -352,7 +352,7 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->perip_irqs = devm_kcalloc(&pdev->dev, 4, priv->nr_perips,
 					GFP_KERNEL);
 	if (!priv->perip_irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < priv->nr_perips; ++i) {
 		irq = platform_get_irq(pdev, 1 + i);
 		if (irq < 0)
@@ -372,11 +372,11 @@ static int pdc_intc_probe(struct platform_device *pdev)
 	priv->syswake_irq = irq;
 
 	/* Set up an IRQ domain */
-	priv->domain = irq_domain_add_linear(node, 16, &irq_generic_chip_ops,
+	priv->domain = irq_domain_add_linear(analde, 16, &irq_generic_chip_ops,
 					     priv);
 	if (unlikely(!priv->domain)) {
-		dev_err(&pdev->dev, "cannot add IRQ domain\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "cananalt add IRQ domain\n");
+		return -EANALMEM;
 	}
 
 	/*

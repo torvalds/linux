@@ -34,8 +34,8 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 	chandef->edmg.channels = 0;
 
 	switch (chan_type) {
-	case NL80211_CHAN_NO_HT:
-		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+	case NL80211_CHAN_ANAL_HT:
+		chandef->width = NL80211_CHAN_WIDTH_20_ANALHT;
 		chandef->center_freq1 = chan->center_freq;
 		break;
 	case NL80211_CHAN_HT20:
@@ -113,7 +113,7 @@ static bool cfg80211_edmg_chandef_valid(const struct cfg80211_chan_def *chandef)
 		return false;
 	}
 
-	/* check bw_config against aggregated (non contiguous) edmg channels */
+	/* check bw_config against aggregated (analn contiguous) edmg channels */
 	switch (chandef->edmg.bw_config) {
 	case IEEE80211_EDMG_BW_CONFIG_4:
 	case IEEE80211_EDMG_BW_CONFIG_5:
@@ -168,7 +168,7 @@ int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width)
 		mhz = 10;
 		break;
 	case NL80211_CHAN_WIDTH_20:
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		mhz = 20;
 		break;
 	case NL80211_CHAN_WIDTH_40:
@@ -214,7 +214,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20:
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 		if (ieee80211_chandef_to_khz(chandef) !=
 		    ieee80211_channel_to_khz(chandef->chan))
 			return false;
@@ -252,7 +252,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	case NL80211_CHAN_WIDTH_80P80:
 		if (!chandef->center_freq2)
 			return false;
-		/* adjacent is not allowed -- that's a 160 MHz channel */
+		/* adjacent is analt allowed -- that's a 160 MHz channel */
 		if (chandef->center_freq1 - chandef->center_freq2 == 80 ||
 		    chandef->center_freq2 - chandef->center_freq1 == 80)
 			return false;
@@ -267,7 +267,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20:
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_1:
 	case NL80211_CHAN_WIDTH_2:
 	case NL80211_CHAN_WIDTH_4:
@@ -310,7 +310,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 
 	/* channel 14 is only for IEEE 802.11b */
 	if (chandef->center_freq1 == 2484 &&
-	    chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
+	    chandef->width != NL80211_CHAN_WIDTH_20_ANALHT)
 		return false;
 
 	if (cfg80211_chandef_is_edmg(chandef) &&
@@ -405,11 +405,11 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 	    c2->width == NL80211_CHAN_WIDTH_10)
 		return NULL;
 
-	if (c1->width == NL80211_CHAN_WIDTH_20_NOHT ||
+	if (c1->width == NL80211_CHAN_WIDTH_20_ANALHT ||
 	    c1->width == NL80211_CHAN_WIDTH_20)
 		return c2;
 
-	if (c2->width == NL80211_CHAN_WIDTH_20_NOHT ||
+	if (c2->width == NL80211_CHAN_WIDTH_20_ANALHT ||
 	    c2->width == NL80211_CHAN_WIDTH_20)
 		return c1;
 
@@ -685,7 +685,7 @@ static int cfg80211_get_chans_dfs_usable(struct wiphy *wiphy,
 	 * Check entire range of channels for the bandwidth.
 	 * Check all channels are DFS channels (DFS_USABLE or
 	 * DFS_AVAILABLE). Return number of usable channels
-	 * (require CAC). Allow DFS and non-DFS channel mix.
+	 * (require CAC). Allow DFS and analn-DFS channel mix.
 	 */
 	for (freq = start_freq; freq <= end_freq; freq += MHZ_TO_KHZ(20)) {
 		c = ieee80211_get_channel_khz(wiphy, freq);
@@ -931,7 +931,7 @@ static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
 
 	/*
 	 * Check entire range of channels for the bandwidth.
-	 * If any channel in between is disabled or has not
+	 * If any channel in between is disabled or has analt
 	 * had gone through CAC return false
 	 */
 	for (freq = start_freq; freq <= end_freq; freq += MHZ_TO_KHZ(20)) {
@@ -1169,7 +1169,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		width = 5;
 		break;
 	case NL80211_CHAN_WIDTH_10:
-		prohibited_flags |= IEEE80211_CHAN_NO_10MHZ;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_10MHZ;
 		width = 10;
 		break;
 	case NL80211_CHAN_WIDTH_20:
@@ -1177,8 +1177,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		    chandef->chan->band != NL80211_BAND_6GHZ)
 			return false;
 		fallthrough;
-	case NL80211_CHAN_WIDTH_20_NOHT:
-		prohibited_flags |= IEEE80211_CHAN_NO_20MHZ;
+	case NL80211_CHAN_WIDTH_20_ANALHT:
+		prohibited_flags |= IEEE80211_CHAN_ANAL_20MHZ;
 		width = 20;
 		break;
 	case NL80211_CHAN_WIDTH_40:
@@ -1191,10 +1191,10 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT)
 			return false;
 		if (chandef->center_freq1 < control_freq &&
-		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+		    chandef->chan->flags & IEEE80211_CHAN_ANAL_HT40MINUS)
 			return false;
 		if (chandef->center_freq1 > control_freq &&
-		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+		    chandef->chan->flags & IEEE80211_CHAN_ANAL_HT40PLUS)
 			return false;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
@@ -1209,7 +1209,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_80:
-		prohibited_flags |= IEEE80211_CHAN_NO_80MHZ;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_80MHZ;
 		width = 80;
 		if (chandef->chan->band == NL80211_BAND_6GHZ)
 			break;
@@ -1217,7 +1217,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		prohibited_flags |= IEEE80211_CHAN_NO_160MHZ;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_160MHZ;
 		width = 160;
 		if (chandef->chan->band == NL80211_BAND_6GHZ)
 			break;
@@ -1231,7 +1231,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		break;
 	case NL80211_CHAN_WIDTH_320:
-		prohibited_flags |= IEEE80211_CHAN_NO_320MHZ;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_320MHZ;
 		width = 320;
 
 		if (chandef->chan->band != NL80211_BAND_6GHZ)
@@ -1263,20 +1263,20 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	/*
 	 * TODO: What if there are only certain 80/160/80+80 MHz channels
 	 *	 allowed by the driver, or only certain combinations?
-	 *	 For 40 MHz the driver can set the NO_HT40 flags, but for
+	 *	 For 40 MHz the driver can set the ANAL_HT40 flags, but for
 	 *	 80/160 MHz and in particular 80+80 MHz this isn't really
-	 *	 feasible and we only have NO_80MHZ/NO_160MHZ so far but
-	 *	 no way to cover 80+80 MHz or more complex restrictions.
-	 *	 Note that such restrictions also need to be advertised to
+	 *	 feasible and we only have ANAL_80MHZ/ANAL_160MHZ so far but
+	 *	 anal way to cover 80+80 MHz or more complex restrictions.
+	 *	 Analte that such restrictions also need to be advertised to
 	 *	 userspace, for example for P2P channel selection.
 	 */
 
 	if (width > 20)
-		prohibited_flags |= IEEE80211_CHAN_NO_OFDM;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_OFDM;
 
 	/* 5 and 10 MHz are only defined for the OFDM PHY */
 	if (width < 20)
-		prohibited_flags |= IEEE80211_CHAN_NO_OFDM;
+		prohibited_flags |= IEEE80211_CHAN_ANAL_OFDM;
 
 
 	if (!cfg80211_secondary_chans_ok(wiphy,
@@ -1309,8 +1309,8 @@ static bool cfg80211_ir_permissive_check_wdev(enum nl80211_iftype iftype,
 		 * If a GO already operates on the same GO_CONCURRENT channel,
 		 * this one (maybe the same one) can beacon as well. We allow
 		 * the operation even if the station we relied on with
-		 * GO_CONCURRENT is disconnected now. But then we must make sure
-		 * we're not outdoor on an indoor-only channel.
+		 * GO_CONCURRENT is disconnected analw. But then we must make sure
+		 * we're analt outdoor on an indoor-only channel.
 		 */
 		if (iftype == NL80211_IFTYPE_P2P_GO &&
 		    wdev->iftype == NL80211_IFTYPE_P2P_GO &&
@@ -1341,7 +1341,7 @@ static bool cfg80211_ir_permissive_check_wdev(enum nl80211_iftype iftype,
 			 * station interface connected to an AP on channel 165,
 			 * it is assumed that channels 149-161 are allowed for
 			 * GO operations. However, having a station interface
-			 * connected to an AP on channels 149-161, does not
+			 * connected to an AP on channels 149-161, does analt
 			 * allow GO operation on channel 165.
 			 */
 			if (chan->center_freq == 5825 &&
@@ -1372,8 +1372,8 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 
 	lockdep_assert_held(&rdev->wiphy.mtx);
 
-	if (!IS_ENABLED(CONFIG_CFG80211_REG_RELAX_NO_IR) ||
-	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR))
+	if (!IS_ENABLED(CONFIG_CFG80211_REG_RELAX_ANAL_IR) ||
+	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_ANAL_IR))
 		return false;
 
 	/* only valid for GO and TDLS off-channel (station/p2p-CL) */
@@ -1390,7 +1390,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 		return false;
 
 	/*
-	 * Generally, it is possible to rely on another device/driver to allow
+	 * Generally, it is possible to rely on aanalther device/driver to allow
 	 * the IR concurrent relaxation, however, since the device can further
 	 * enforce the relaxation (by doing a similar verifications as this),
 	 * and thus fail the GO instantiation, consider only the interfaces of
@@ -1410,16 +1410,16 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 				     struct cfg80211_chan_def *chandef,
 				     enum nl80211_iftype iftype,
-				     bool check_no_ir)
+				     bool check_anal_ir)
 {
 	bool res;
 	u32 prohibited_flags = IEEE80211_CHAN_DISABLED;
 	int dfs_required;
 
-	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_anal_ir);
 
-	if (check_no_ir)
-		prohibited_flags |= IEEE80211_CHAN_NO_IR;
+	if (check_anal_ir)
+		prohibited_flags |= IEEE80211_CHAN_ANAL_IR;
 
 	dfs_required = cfg80211_chandef_dfs_required(wiphy, chandef, iftype);
 	if (dfs_required != 0)
@@ -1427,7 +1427,7 @@ static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 
 	if (dfs_required > 0 &&
 	    cfg80211_chandef_dfs_available(wiphy, chandef)) {
-		/* We can skip IEEE80211_CHAN_NO_IR if chandef dfs available */
+		/* We can skip IEEE80211_CHAN_ANAL_IR if chandef dfs available */
 		prohibited_flags = IEEE80211_CHAN_DISABLED;
 	}
 
@@ -1450,20 +1450,20 @@ bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
 				   enum nl80211_iftype iftype)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	bool check_no_ir;
+	bool check_anal_ir;
 
 	lockdep_assert_held(&rdev->wiphy.mtx);
 
 	/*
 	 * Under certain conditions suggested by some regulatory bodies a
-	 * GO/STA can IR on channels marked with IEEE80211_NO_IR. Set this flag
-	 * only if such relaxations are not enabled and the conditions are not
+	 * GO/STA can IR on channels marked with IEEE80211_ANAL_IR. Set this flag
+	 * only if such relaxations are analt enabled and the conditions are analt
 	 * met.
 	 */
-	check_no_ir = !cfg80211_ir_permissive_chan(wiphy, iftype,
+	check_anal_ir = !cfg80211_ir_permissive_chan(wiphy, iftype,
 						   chandef->chan);
 
-	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_anal_ir);
 }
 EXPORT_SYMBOL(cfg80211_reg_can_beacon_relax);
 
@@ -1471,7 +1471,7 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_chan_def *chandef)
 {
 	if (!rdev->ops->set_monitor_channel)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (!cfg80211_has_monitors_only(rdev))
 		return -EBUSY;
 

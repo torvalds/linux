@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -36,7 +36,7 @@
 #define	ALTIFNAMSIZ	128
 #include <linux/hdlc/ioctl.h>
 
-/* For glibc compatibility. An empty enum does not compile. */
+/* For glibc compatibility. An empty enum does analt compile. */
 #if __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO != 0 || \
     __UAPI_DEF_IF_NET_DEVICE_FLAGS != 0
 /**
@@ -48,11 +48,11 @@
  * entry available for all dev flags which can be queried and set. These flags
  * are shared for all types of net_devices. The sysfs entries are available
  * via /sys/class/net/<dev>/flags. Flags which can be toggled through sysfs
- * are annotated below, note that only a few flags can be toggled and some
+ * are ananaltated below, analte that only a few flags can be toggled and some
  * other flags are always preserved from the original net_device flags
  * even if you try to set them via sysfs. Flags which are always preserved
  * are kept under the flag grouping @IFF_VOLATILE. Flags which are volatile
- * are annotated below as such.
+ * are ananaltated below as such.
  *
  * You should have a pretty good reason to be extending these flags.
  *
@@ -61,10 +61,10 @@
  * @IFF_DEBUG: turn on debugging. Can be toggled through sysfs.
  * @IFF_LOOPBACK: is a loopback net. Volatile.
  * @IFF_POINTOPOINT: interface is has p-p link. Volatile.
- * @IFF_NOTRAILERS: avoid use of trailers. Can be toggled through sysfs.
+ * @IFF_ANALTRAILERS: avoid use of trailers. Can be toggled through sysfs.
  *	Volatile.
  * @IFF_RUNNING: interface RFC2863 OPER_UP. Volatile.
- * @IFF_NOARP: no ARP protocol. Can be toggled through sysfs. Volatile.
+ * @IFF_ANALARP: anal ARP protocol. Can be toggled through sysfs. Volatile.
  * @IFF_PROMISC: receive all packets. Can be toggled through sysfs.
  * @IFF_ALLMULTI: receive all multicast packets. Can be toggled through
  *	sysfs.
@@ -87,9 +87,9 @@ enum net_device_flags {
 	IFF_DEBUG			= 1<<2,  /* sysfs */
 	IFF_LOOPBACK			= 1<<3,  /* volatile */
 	IFF_POINTOPOINT			= 1<<4,  /* volatile */
-	IFF_NOTRAILERS			= 1<<5,  /* sysfs */
+	IFF_ANALTRAILERS			= 1<<5,  /* sysfs */
 	IFF_RUNNING			= 1<<6,  /* volatile */
-	IFF_NOARP			= 1<<7,  /* sysfs */
+	IFF_ANALARP			= 1<<7,  /* sysfs */
 	IFF_PROMISC			= 1<<8,  /* sysfs */
 	IFF_ALLMULTI			= 1<<9,  /* sysfs */
 	IFF_MASTER			= 1<<10, /* volatile */
@@ -114,9 +114,9 @@ enum net_device_flags {
 #define IFF_DEBUG			IFF_DEBUG
 #define IFF_LOOPBACK			IFF_LOOPBACK
 #define IFF_POINTOPOINT			IFF_POINTOPOINT
-#define IFF_NOTRAILERS			IFF_NOTRAILERS
+#define IFF_ANALTRAILERS			IFF_ANALTRAILERS
 #define IFF_RUNNING			IFF_RUNNING
-#define IFF_NOARP			IFF_NOARP
+#define IFF_ANALARP			IFF_ANALARP
 #define IFF_PROMISC			IFF_PROMISC
 #define IFF_ALLMULTI			IFF_ALLMULTI
 #define IFF_MASTER			IFF_MASTER
@@ -165,8 +165,8 @@ enum net_device_flags {
 
 /* RFC 2863 operational status */
 enum {
-	IF_OPER_UNKNOWN,
-	IF_OPER_NOTPRESENT,
+	IF_OPER_UNKANALWN,
+	IF_OPER_ANALTPRESENT,
 	IF_OPER_DOWN,
 	IF_OPER_LOWERLAYERDOWN,
 	IF_OPER_TESTING,
@@ -187,7 +187,7 @@ enum {
  *	for driver options and along come the PCMCIA people 8)
  *
  *	Ah well. The get() side of this is good for WDSETUP, and it'll
- *	be handy for debugging things. The set side is fine for now and
+ *	be handy for debugging things. The set side is fine for analw and
  *	being very small might be worth keeping for clean configuration.
  */
 
@@ -278,7 +278,7 @@ struct ifreq {
  * Structure used in SIOCGIFCONF request.
  * Used to retrieve interface configuration
  * for machine (useful for programs which
- * must know all networks accessible).
+ * must kanalw all networks accessible).
  */
 
 /* for compatibility with glibc net/if.h */

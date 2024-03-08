@@ -239,7 +239,7 @@ static int xgmac_mdio_read_c22(struct mii_bus *bus, int phy_id, int regnum)
 	if (ret)
 		goto irq_restore;
 
-	/* Return all Fs if nothing was there */
+	/* Return all Fs if analthing was there */
 	if ((xgmac_read32(&regs->mdio_stat, endian) & MDIO_STAT_RD_ER) &&
 	    !priv->has_a011043) {
 		dev_dbg(&bus->dev,
@@ -305,7 +305,7 @@ static int xgmac_mdio_read_c45(struct mii_bus *bus, int phy_id, int dev_addr,
 	if (ret)
 		goto irq_restore;
 
-	/* Return all Fs if nothing was there */
+	/* Return all Fs if analthing was there */
 	if ((xgmac_read32(&regs->mdio_stat, endian) & MDIO_STAT_RD_ER) &&
 	    !priv->has_a011043) {
 		dev_dbg(&bus->dev,
@@ -336,13 +336,13 @@ static int xgmac_mdio_set_mdc_freq(struct mii_bus *bus)
 
 	priv->enet_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->enet_clk)) {
-		dev_err(dev, "Input clock unknown, not changing MDC frequency");
+		dev_err(dev, "Input clock unkanalwn, analt changing MDC frequency");
 		return PTR_ERR(priv->enet_clk);
 	}
 
 	div = ((clk_get_rate(priv->enet_clk) / priv->mdc_freq) - 1) / 2;
 	if (div < 5 || div > 0x1ff) {
-		dev_err(dev, "Requested MDC frequency is out of range, ignoring");
+		dev_err(dev, "Requested MDC frequency is out of range, iganalring");
 		return -EINVAL;
 	}
 
@@ -370,7 +370,7 @@ static void xgmac_mdio_set_suppress_preamble(struct mii_bus *bus)
 
 static int xgmac_mdio_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	struct mdio_fsl_priv *priv;
 	struct resource *res;
 	struct mii_bus *bus;
@@ -378,18 +378,18 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 
 	/* In DPAA-1, MDIO is one of the many FMan sub-devices. The FMan
 	 * defines a register space that spans a large area, covering all the
-	 * subdevice areas. Therefore, MDIO cannot claim exclusive access to
+	 * subdevice areas. Therefore, MDIO cananalt claim exclusive access to
 	 * this register area.
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "could not obtain address\n");
+		dev_err(&pdev->dev, "could analt obtain address\n");
 		return -EINVAL;
 	}
 
 	bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(struct mdio_fsl_priv));
 	if (!bus)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bus->name = "Freescale XGMAC MDIO Bus";
 	bus->read = xgmac_mdio_read_c22;
@@ -403,7 +403,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	priv->mdio_base = devm_ioremap(&pdev->dev, res->start,
 				       resource_size(res));
 	if (!priv->mdio_base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* For both ACPI and DT cases, endianness of MDIO controller
 	 * needs to be specified using "little-endian" property.
@@ -422,15 +422,15 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	fwnode = dev_fwnode(&pdev->dev);
-	if (is_of_node(fwnode))
-		ret = of_mdiobus_register(bus, to_of_node(fwnode));
-	else if (is_acpi_node(fwnode))
-		ret = acpi_mdiobus_register(bus, fwnode);
+	fwanalde = dev_fwanalde(&pdev->dev);
+	if (is_of_analde(fwanalde))
+		ret = of_mdiobus_register(bus, to_of_analde(fwanalde));
+	else if (is_acpi_analde(fwanalde))
+		ret = acpi_mdiobus_register(bus, fwanalde);
 	else
 		ret = -EINVAL;
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register MDIO bus\n");
+		dev_err(&pdev->dev, "cananalt register MDIO bus\n");
 		return ret;
 	}
 

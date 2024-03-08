@@ -101,7 +101,7 @@ static int max98363_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 					   msecs_to_jiffies(MAX98363_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(dev, "Initialization not complete, timed out\n");
+		dev_err(dev, "Initialization analt complete, timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -138,7 +138,7 @@ static int max98363_read_prop(struct sdw_slave *slave)
 					   sizeof(*prop->sink_dpn_prop),
 					   GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
 	dpn = prop->sink_dpn_prop;
@@ -171,7 +171,7 @@ static int max98363_io_init(struct sdw_slave *slave)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 
 	ret = regmap_read(max98363->regmap, MAX98363_R21FF_REV_ID, &reg);
 	if (!ret)
@@ -364,7 +364,7 @@ static const struct snd_kcontrol_new max98363_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget max98363_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("AIFIN", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIFIN", "HiFi Playback", 0, SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 };
 
@@ -393,7 +393,7 @@ static int max98363_init(struct sdw_slave *slave, struct regmap *regmap)
 	/*  Allocate and assign private driver data structure  */
 	max98363 = devm_kzalloc(dev, sizeof(*max98363), GFP_KERNEL);
 	if (!max98363)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, max98363);
 	max98363->regmap = regmap;
@@ -417,14 +417,14 @@ static int max98363_init(struct sdw_slave *slave, struct regmap *regmap)
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
 
-	/* make sure the device does not suspend immediately */
+	/* make sure the device does analt suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	pm_runtime_enable(dev);
 
-	/* important note: the device is NOT tagged as 'active' and will remain
+	/* important analte: the device is ANALT tagged as 'active' and will remain
 	 * 'suspended' until the hardware is enumerated/initialized. This is required
-	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does analt silently
 	 * fail with -EACCESS because of race conditions between card creation and enumeration
 	 */
 	return 0;

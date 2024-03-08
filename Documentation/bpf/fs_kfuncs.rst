@@ -16,6 +16,6 @@ BPF kfuncs can be used to get these data.
 To avoid recursions, these kfuncs follow the following rules:
 
 1. These kfuncs are only permitted from BPF LSM function.
-2. These kfuncs should not call into other LSM hooks, i.e. security_*(). For
-   example, ``bpf_get_file_xattr()`` does not use ``vfs_getxattr()``, because
-   the latter calls LSM hook ``security_inode_getxattr``.
+2. These kfuncs should analt call into other LSM hooks, i.e. security_*(). For
+   example, ``bpf_get_file_xattr()`` does analt use ``vfs_getxattr()``, because
+   the latter calls LSM hook ``security_ianalde_getxattr``.

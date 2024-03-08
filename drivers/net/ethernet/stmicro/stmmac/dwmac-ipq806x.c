@@ -5,11 +5,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -80,7 +80,7 @@
 #define QSGMII_PCS_CAL_LCKDT_CTL		0x120
 #define QSGMII_PCS_CAL_LCKDT_CTL_RST		BIT(19)
 
-/* Only GMAC1/2/3 support SGMII and their CTL register are not contiguous */
+/* Only GMAC1/2/3 support SGMII and their CTL register are analt contiguous */
 #define QSGMII_PHY_SGMII_CTL(x)			((x == 1) ? 0x134 : \
 						 (0x13c + (4 * (x - 2))))
 #define QSGMII_PHY_CDR_EN			BIT(0)
@@ -131,7 +131,7 @@ static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 		break;
 
 	default:
-		dev_err(dev, "Speed %dMbps not supported in SGMII\n", speed);
+		dev_err(dev, "Speed %dMbps analt supported in SGMII\n", speed);
 		return -EINVAL;
 	}
 
@@ -157,7 +157,7 @@ static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 		break;
 
 	default:
-		dev_err(dev, "Speed %dMbps not supported in RGMII\n", speed);
+		dev_err(dev, "Speed %dMbps analt supported in RGMII\n", speed);
 		return -EINVAL;
 	}
 
@@ -213,13 +213,13 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	struct device *dev = &gmac->pdev->dev;
 	int ret;
 
-	ret = of_get_phy_mode(dev->of_node, &gmac->phy_mode);
+	ret = of_get_phy_mode(dev->of_analde, &gmac->phy_mode);
 	if (ret) {
 		dev_err(dev, "missing phy mode property\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dev->of_node, "qcom,id", &gmac->id) < 0) {
+	if (of_property_read_u32(dev->of_analde, "qcom,id", &gmac->id) < 0) {
 		dev_err(dev, "missing qcom id property\n");
 		return -EINVAL;
 	}
@@ -241,18 +241,18 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	clk_set_rate(gmac->core_clk, 266000000);
 
 	/* Setup the register map for the nss common registers */
-	gmac->nss_common = syscon_regmap_lookup_by_phandle(dev->of_node,
+	gmac->nss_common = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							   "qcom,nss-common");
 	if (IS_ERR(gmac->nss_common)) {
-		dev_err(dev, "missing nss-common node\n");
+		dev_err(dev, "missing nss-common analde\n");
 		return PTR_ERR(gmac->nss_common);
 	}
 
 	/* Setup the register map for the qsgmii csr registers */
-	gmac->qsgmii_csr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	gmac->qsgmii_csr = syscon_regmap_lookup_by_phandle(dev->of_analde,
 							   "qcom,qsgmii-csr");
 	if (IS_ERR(gmac->qsgmii_csr))
-		dev_err(dev, "missing qsgmii-csr node\n");
+		dev_err(dev, "missing qsgmii-csr analde\n");
 
 	return PTR_ERR_OR_ZERO(gmac->qsgmii_csr);
 }
@@ -269,23 +269,23 @@ ipq806x_gmac_configure_qsgmii_pcs_speed(struct ipq806x_gmac *gmac)
 {
 	struct platform_device *pdev = gmac->pdev;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn;
+	struct device_analde *dn;
 	int link_speed;
 	int val = 0;
 	int ret;
 
 	/* Some bootloader may apply wrong configuration and cause
-	 * not functioning port. If fixed link is not set,
+	 * analt functioning port. If fixed link is analt set,
 	 * reset the force speed bit.
 	 */
-	if (!of_phy_is_fixed_link(pdev->dev.of_node))
+	if (!of_phy_is_fixed_link(pdev->dev.of_analde))
 		goto write;
 
-	dn = of_get_child_by_name(pdev->dev.of_node, "fixed-link");
+	dn = of_get_child_by_name(pdev->dev.of_analde, "fixed-link");
 	ret = of_property_read_u32(dn, "speed", &link_speed);
-	of_node_put(dn);
+	of_analde_put(dn);
 	if (ret) {
-		dev_err(dev, "found fixed-link node with no speed");
+		dev_err(dev, "found fixed-link analde with anal speed");
 		return ret;
 	}
 
@@ -390,7 +390,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 
 	gmac = devm_kzalloc(dev, sizeof(*gmac), GFP_KERNEL);
 	if (!gmac)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gmac->pdev = pdev;
 

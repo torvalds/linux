@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -258,11 +258,11 @@ void cypress_enable_mclk_control(struct radeon_device *rdev,
 		WREG32_P(MCLK_PWRMGT_CNTL, MPLL_PWRMGT_OFF, ~MPLL_PWRMGT_OFF);
 }
 
-int cypress_notify_smc_display_change(struct radeon_device *rdev,
+int cypress_analtify_smc_display_change(struct radeon_device *rdev,
 				      bool has_display)
 {
 	PPSMC_Msg msg = has_display ?
-		(PPSMC_Msg)PPSMC_MSG_HasDisplay : (PPSMC_Msg)PPSMC_MSG_NoDisplay;
+		(PPSMC_Msg)PPSMC_MSG_HasDisplay : (PPSMC_Msg)PPSMC_MSG_AnalDisplay;
 
 	if (rv770_send_msg_to_smc(rdev, msg) != PPSMC_Result_OK)
 		return -EINVAL;
@@ -330,7 +330,7 @@ void cypress_advertise_gen2_capability(struct radeon_device *rdev)
 	u32 tmp;
 
 #if defined(CONFIG_ACPI)
-	radeon_acpi_pcie_notify_device_ready(rdev);
+	radeon_acpi_pcie_analtify_device_ready(rdev);
 #endif
 
 	tmp = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
@@ -355,7 +355,7 @@ static enum radeon_pcie_gen cypress_get_maximum_link_speed(struct radeon_ps *rad
 	return 0;
 }
 
-void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev,
+void cypress_analtify_link_speed_change_after_state_change(struct radeon_device *rdev,
 							 struct radeon_ps *radeon_new_state,
 							 struct radeon_ps *radeon_current_state)
 {
@@ -377,7 +377,7 @@ void cypress_notify_link_speed_change_after_state_change(struct radeon_device *r
 	}
 }
 
-void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev,
+void cypress_analtify_link_speed_change_before_state_change(struct radeon_device *rdev,
 							  struct radeon_ps *radeon_new_state,
 							  struct radeon_ps *radeon_current_state)
 {
@@ -1472,15 +1472,15 @@ static void cypress_trim_voltage_table_to_fit_state_table(struct radeon_device *
 {
 	unsigned int i, diff;
 
-	if (voltage_table->count <= MAX_NO_VREG_STEPS)
+	if (voltage_table->count <= MAX_ANAL_VREG_STEPS)
 		return;
 
-	diff = voltage_table->count - MAX_NO_VREG_STEPS;
+	diff = voltage_table->count - MAX_ANAL_VREG_STEPS;
 
-	for (i= 0; i < MAX_NO_VREG_STEPS; i++)
+	for (i= 0; i < MAX_ANAL_VREG_STEPS; i++)
 		voltage_table->entries[i] = voltage_table->entries[i + diff];
 
-	voltage_table->count = MAX_NO_VREG_STEPS;
+	voltage_table->count = MAX_ANAL_VREG_STEPS;
 }
 
 int cypress_construct_voltage_tables(struct radeon_device *rdev)
@@ -1493,7 +1493,7 @@ int cypress_construct_voltage_tables(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
-	if (eg_pi->vddc_voltage_table.count > MAX_NO_VREG_STEPS)
+	if (eg_pi->vddc_voltage_table.count > MAX_ANAL_VREG_STEPS)
 		cypress_trim_voltage_table_to_fit_state_table(rdev,
 							      &eg_pi->vddc_voltage_table);
 
@@ -1503,7 +1503,7 @@ int cypress_construct_voltage_tables(struct radeon_device *rdev)
 		if (ret)
 			return ret;
 
-		if (eg_pi->vddci_voltage_table.count > MAX_NO_VREG_STEPS)
+		if (eg_pi->vddci_voltage_table.count > MAX_ANAL_VREG_STEPS)
 			cypress_trim_voltage_table_to_fit_state_table(rdev,
 								      &eg_pi->vddci_voltage_table);
 	}
@@ -1627,8 +1627,8 @@ static int cypress_init_smc_table(struct radeon_device *rdev,
 	case THERMAL_TYPE_EMC2103_WITH_INTERNAL:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_INTERNAL;
 		break;
-	case THERMAL_TYPE_NONE:
-		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_NONE;
+	case THERMAL_TYPE_ANALNE:
+		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_ANALNE;
 		break;
 	default:
 		table->thermalProtectType = PPSMC_THERMAL_PROTECT_TYPE_EXTERNAL;
@@ -1733,12 +1733,12 @@ void cypress_enable_display_gap(struct radeon_device *rdev)
 	u32 tmp = RREG32(CG_DISPLAY_GAP_CNTL);
 
 	tmp &= ~(DISP1_GAP_MASK | DISP2_GAP_MASK);
-	tmp |= (DISP1_GAP(R600_PM_DISPLAY_GAP_IGNORE) |
-		DISP2_GAP(R600_PM_DISPLAY_GAP_IGNORE));
+	tmp |= (DISP1_GAP(R600_PM_DISPLAY_GAP_IGANALRE) |
+		DISP2_GAP(R600_PM_DISPLAY_GAP_IGANALRE));
 
 	tmp &= ~(DISP1_GAP_MCHG_MASK | DISP2_GAP_MCHG_MASK);
 	tmp |= (DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK) |
-		DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE));
+		DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGANALRE));
 	WREG32(CG_DISPLAY_GAP_CNTL, tmp);
 }
 
@@ -1751,12 +1751,12 @@ static void cypress_program_display_gap(struct radeon_device *rdev)
 	if (rdev->pm.dpm.new_active_crtc_count > 0)
 		tmp |= DISP1_GAP(R600_PM_DISPLAY_GAP_VBLANK_OR_WM);
 	else
-		tmp |= DISP1_GAP(R600_PM_DISPLAY_GAP_IGNORE);
+		tmp |= DISP1_GAP(R600_PM_DISPLAY_GAP_IGANALRE);
 
 	if (rdev->pm.dpm.new_active_crtc_count > 1)
 		tmp |= DISP2_GAP(R600_PM_DISPLAY_GAP_VBLANK_OR_WM);
 	else
-		tmp |= DISP2_GAP(R600_PM_DISPLAY_GAP_IGNORE);
+		tmp |= DISP2_GAP(R600_PM_DISPLAY_GAP_IGANALRE);
 
 	WREG32(CG_DISPLAY_GAP_CNTL, tmp);
 
@@ -1780,7 +1780,7 @@ static void cypress_program_display_gap(struct radeon_device *rdev)
 		WREG32(DCCG_DISP_SLOW_SELECT_REG, tmp);
 	}
 
-	cypress_notify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
+	cypress_analtify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
 }
 
 void cypress_dpm_setup_asic(struct radeon_device *rdev)
@@ -1891,9 +1891,9 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 
 	r7xx_start_smc(rdev);
 
-	ret = cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_analtify_smc_display_change(rdev, false);
 	if (ret) {
-		DRM_ERROR("cypress_notify_smc_display_change failed\n");
+		DRM_ERROR("cypress_analtify_smc_display_change failed\n");
 		return ret;
 	}
 	cypress_enable_sclk_control(rdev, true);
@@ -1967,7 +1967,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
+		cypress_analtify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
@@ -2003,7 +2003,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
+		cypress_analtify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	return 0;
 }
@@ -2030,7 +2030,7 @@ int cypress_dpm_init(struct radeon_device *rdev)
 
 	eg_pi = kzalloc(sizeof(struct evergreen_power_info), GFP_KERNEL);
 	if (eg_pi == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	rdev->pm.dpm.priv = eg_pi;
 	pi = &eg_pi->rv7xx;
 
@@ -2101,7 +2101,7 @@ int cypress_dpm_init(struct radeon_device *rdev)
 
 	pi->dynamic_pcie_gen2 = true;
 
-	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_ANALNE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;
@@ -2157,7 +2157,7 @@ bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	/* we never hit the non-gddr5 limit so disable it */
+	/* we never hit the analn-gddr5 limit so disable it */
 	u32 switch_limit = pi->mem_gddr5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)

@@ -11,7 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
@@ -77,7 +77,7 @@ static unsigned int rx_irq_mod_usec = 60;
 /* Initial interrupt moderation settings.  They can be modified after
  * module load with ethtool.
  *
- * This default is chosen to ensure that a 10G link does not go idle
+ * This default is chosen to ensure that a 10G link does analt go idle
  * while a TX queue is stopped after it has become full.  A queue is
  * restarted when it drops below half full.  The time this takes (assuming
  * worst case 3 descriptors per packet and 1024 descriptors) is
@@ -211,17 +211,17 @@ static void efx_associate(struct efx_nic *efx)
 		/* Adding primary function; look for secondaries */
 
 		netif_dbg(efx, probe, efx->net_dev, "adding to primary list\n");
-		list_add_tail(&efx->node, &efx_primary_list);
+		list_add_tail(&efx->analde, &efx_primary_list);
 
 		list_for_each_entry_safe(other, next, &efx_unassociated_list,
-					 node) {
+					 analde) {
 			if (efx_same_controller(efx, other)) {
-				list_del(&other->node);
+				list_del(&other->analde);
 				netif_dbg(other, probe, other->net_dev,
 					  "moving to secondary list of %s %s\n",
 					  pci_name(efx->pci_dev),
 					  efx->net_dev->name);
-				list_add_tail(&other->node,
+				list_add_tail(&other->analde,
 					      &efx->secondary_list);
 				other->primary = efx;
 			}
@@ -229,13 +229,13 @@ static void efx_associate(struct efx_nic *efx)
 	} else {
 		/* Adding secondary function; look for primary */
 
-		list_for_each_entry(other, &efx_primary_list, node) {
+		list_for_each_entry(other, &efx_primary_list, analde) {
 			if (efx_same_controller(efx, other)) {
 				netif_dbg(efx, probe, efx->net_dev,
 					  "adding to secondary list of %s %s\n",
 					  pci_name(other->pci_dev),
 					  other->net_dev->name);
-				list_add_tail(&efx->node,
+				list_add_tail(&efx->analde,
 					      &other->secondary_list);
 				efx->primary = other;
 				return;
@@ -244,7 +244,7 @@ static void efx_associate(struct efx_nic *efx)
 
 		netif_dbg(efx, probe, efx->net_dev,
 			  "adding to unassociated list\n");
-		list_add_tail(&efx->node, &efx_unassociated_list);
+		list_add_tail(&efx->analde, &efx_unassociated_list);
 	}
 }
 
@@ -252,14 +252,14 @@ static void efx_dissociate(struct efx_nic *efx)
 {
 	struct efx_nic *other, *next;
 
-	list_del(&efx->node);
+	list_del(&efx->analde);
 	efx->primary = NULL;
 
-	list_for_each_entry_safe(other, next, &efx->secondary_list, node) {
-		list_del(&other->node);
+	list_for_each_entry_safe(other, next, &efx->secondary_list, analde) {
+		list_del(&other->analde);
 		netif_dbg(other, probe, other->net_dev,
 			  "moving to unassociated list\n");
-		list_add_tail(&other->node, &efx_unassociated_list);
+		list_add_tail(&other->analde, &efx_unassociated_list);
 		other->primary = NULL;
 	}
 }
@@ -280,7 +280,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 			netif_err(efx, drv, efx->net_dev,
 				  "Insufficient resources to allocate"
 				  " any channels\n");
-			rc = -ENOSPC;
+			rc = -EANALSPC;
 			goto fail1;
 		}
 
@@ -363,10 +363,10 @@ static int efx_probe_all(struct efx_nic *efx)
 
 #ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx->type->vswitching_probe(efx);
-	if (rc) /* not fatal; the PF will still work fine */
+	if (rc) /* analt fatal; the PF will still work fine */
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to setup vswitching rc=%d;"
-			   " VFs may not function\n", rc);
+			   " VFs may analt function\n", rc);
 #endif
 
 	rc = efx_siena_probe_filters(efx);
@@ -469,7 +469,7 @@ void efx_siena_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 
 	/* If channels are shared between RX and TX, so is IRQ
 	 * moderation.  Otherwise, IRQ moderation is the same for all
-	 * TX channels and is not adaptive.
+	 * TX channels and is analt adaptive.
 	 */
 	if (efx->tx_channel_offset == 0) {
 		*tx_usecs = *rx_usecs;
@@ -526,7 +526,7 @@ static int efx_net_open(struct net_device *net_dev)
 	if (efx_siena_mcdi_poll_reboot(efx) && efx_siena_reset(efx, RESET_TYPE_ALL))
 		return -EIO;
 
-	/* Notify the kernel of the link state polled during driver load,
+	/* Analtify the kernel of the link state polled during driver load,
 	 * before the monitor starts running */
 	efx_siena_link_status_changed(efx);
 
@@ -538,7 +538,7 @@ static int efx_net_open(struct net_device *net_dev)
 }
 
 /* Context: process, rtnl_lock() held.
- * Note that the kernel will ignore our return code; this method
+ * Analte that the kernel will iganalre our return code; this method
  * should really be a void.
  */
 static int efx_net_stop(struct net_device *net_dev)
@@ -561,7 +561,7 @@ static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid
 	if (efx->type->vlan_rx_add_vid)
 		return efx->type->vlan_rx_add_vid(efx, proto, vid);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vid)
@@ -571,7 +571,7 @@ static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vi
 	if (efx->type->vlan_rx_kill_vid)
 		return efx->type->vlan_rx_kill_vid(efx, proto, vid);
 	else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 
 static int efx_siena_hwtstamp_set(struct net_device *net_dev,
@@ -682,20 +682,20 @@ static void efx_update_name(struct efx_nic *efx)
 	efx_siena_set_channel_names(efx);
 }
 
-static int efx_netdev_event(struct notifier_block *this,
+static int efx_netdev_event(struct analtifier_block *this,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *net_dev = netdev_analtifier_info_to_dev(ptr);
 
 	if ((net_dev->netdev_ops == &efx_netdev_ops) &&
 	    event == NETDEV_CHANGENAME)
 		efx_update_name(netdev_priv(net_dev));
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block efx_netdev_notifier = {
-	.notifier_call = efx_netdev_event,
+static struct analtifier_block efx_netdev_analtifier = {
+	.analtifier_call = efx_netdev_event,
 };
 
 static ssize_t phy_type_show(struct device *dev,
@@ -776,7 +776,7 @@ fail_registered:
 fail_locked:
 	efx->state = STATE_UNINIT;
 	rtnl_unlock();
-	netif_err(efx, drv, efx->net_dev, "could not register net dev\n");
+	netif_err(efx, drv, efx->net_dev, "could analt register net dev\n");
 	return rc;
 }
 
@@ -818,13 +818,13 @@ static const struct pci_device_id efx_pci_table[] = {
 
 void efx_siena_update_sw_stats(struct efx_nic *efx, u64 *stats)
 {
-	u64 n_rx_nodesc_trunc = 0;
+	u64 n_rx_analdesc_trunc = 0;
 	struct efx_channel *channel;
 
 	efx_for_each_channel(channel, efx)
-		n_rx_nodesc_trunc += channel->n_rx_nodesc_trunc;
-	stats[GENERIC_STAT_rx_nodesc_trunc] = n_rx_nodesc_trunc;
-	stats[GENERIC_STAT_rx_noskb_drops] = atomic_read(&efx->n_rx_noskb_drops);
+		n_rx_analdesc_trunc += channel->n_rx_analdesc_trunc;
+	stats[GENERIC_STAT_rx_analdesc_trunc] = n_rx_analdesc_trunc;
+	stats[GENERIC_STAT_rx_analskb_drops] = atomic_read(&efx->n_rx_analskb_drops);
 }
 
 /**************************************************************************
@@ -838,8 +838,8 @@ void efx_siena_update_sw_stats(struct efx_nic *efx, u64 *stats)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
-	/* Flush reset_work. It can no longer be scheduled since we
-	 * are not READY.
+	/* Flush reset_work. It can anal longer be scheduled since we
+	 * are analt READY.
 	 */
 	BUG_ON(efx->state == STATE_READY);
 	efx_siena_flush_reset_workqueue(efx);
@@ -907,16 +907,16 @@ static void efx_probe_vpd_strings(struct efx_nic *efx)
 	}
 
 	start = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
-					     PCI_VPD_RO_KEYWORD_PARTNO, &kw_len);
+					     PCI_VPD_RO_KEYWORD_PARTANAL, &kw_len);
 	if (start < 0)
-		pci_err(dev, "Part number not found or incomplete\n");
+		pci_err(dev, "Part number analt found or incomplete\n");
 	else
 		pci_info(dev, "Part Number : %.*s\n", kw_len, vpd_data + start);
 
 	start = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
-					     PCI_VPD_RO_KEYWORD_SERIALNO, &kw_len);
+					     PCI_VPD_RO_KEYWORD_SERIALANAL, &kw_len);
 	if (start < 0)
-		pci_err(dev, "Serial number not found or incomplete\n");
+		pci_err(dev, "Serial number analt found or incomplete\n");
 	else
 		efx->vpd_sn = kmemdup_nul(vpd_data + start, kw_len, GFP_KERNEL);
 
@@ -1035,7 +1035,7 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
  * This is called at module load (or hotplug insertion,
  * theoretically).  It sets up PCI mappings, resets the NIC,
  * sets up and registers the network devices with the kernel and hooks
- * the interrupt service routine.  It does not prepare the device for
+ * the interrupt service routine.  It does analt prepare the device for
  * transmission; this is left to the first time one of the network
  * interfaces is brought up (i.e. efx_net_open).
  */
@@ -1050,7 +1050,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	net_dev = alloc_etherdev_mqs(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES,
 				     EFX_MAX_RX_QUEUES);
 	if (!net_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 	efx = netdev_priv(net_dev);
 	efx->type = (const struct efx_nic_type *) entry->driver_data;
 	efx->fixed_features |= NETIF_F_HIGHDMA;
@@ -1081,7 +1081,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		efx->reset_pending = 0;
 		rc = efx_pci_probe_post_io(efx);
 		if (rc) {
-			/* On another failure, retry once more
+			/* On aanalther failure, retry once more
 			 * after a 50-305ms delay.
 			 */
 			unsigned char r;
@@ -1137,7 +1137,7 @@ static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 		else
 			return num_vfs;
 	} else
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 }
 #endif
 
@@ -1190,7 +1190,7 @@ static int efx_pm_thaw(struct device *dev)
 
 		efx_siena_start_all(efx);
 
-		efx_device_attach_if_not_resetting(efx);
+		efx_device_attach_if_analt_resetting(efx);
 
 		efx->state = STATE_READY;
 
@@ -1295,9 +1295,9 @@ static int __init efx_init_module(void)
 
 	pr_info("Solarflare Siena driver\n");
 
-	rc = register_netdevice_notifier(&efx_netdev_notifier);
+	rc = register_netdevice_analtifier(&efx_netdev_analtifier);
 	if (rc)
-		goto err_notifier;
+		goto err_analtifier;
 
 #ifdef CONFIG_SFC_SIENA_SRIOV
 	rc = efx_init_sriov();
@@ -1322,8 +1322,8 @@ static int __init efx_init_module(void)
 	efx_fini_sriov();
  err_sriov:
 #endif
-	unregister_netdevice_notifier(&efx_netdev_notifier);
- err_notifier:
+	unregister_netdevice_analtifier(&efx_netdev_analtifier);
+ err_analtifier:
 	return rc;
 }
 
@@ -1336,7 +1336,7 @@ static void __exit efx_exit_module(void)
 #ifdef CONFIG_SFC_SIENA_SRIOV
 	efx_fini_sriov();
 #endif
-	unregister_netdevice_notifier(&efx_netdev_notifier);
+	unregister_netdevice_analtifier(&efx_netdev_analtifier);
 
 }
 

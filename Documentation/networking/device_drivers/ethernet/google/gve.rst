@@ -109,9 +109,9 @@ look at the GVE_DEVICE_STATUS register.
 The handler for the management irq simply queues the service task in
 the workqueue to check the register and acks the irq.
 
-Notification Block Interrupts
+Analtification Block Interrupts
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The notification block interrupts are used to tell the driver to poll
+The analtification block interrupts are used to tell the driver to poll
 the queues associated with that interrupt.
 
 The handler for these irqs schedule the napi for that block to run
@@ -120,7 +120,7 @@ and poll the queues.
 GQI Traffic Queues
 ------------------
 GQI queues are composed of a descriptor ring and a buffer and are assigned to a
-notification block.
+analtification block.
 
 The descriptor rings are power-of-two-sized ring buffers consisting of
 fixed-size descriptors. They advance their head pointer using a __be32
@@ -144,25 +144,25 @@ the rings together.
 
 DQO Traffic Queues
 ------------------
-- Every TX and RX queue is assigned a notification block.
+- Every TX and RX queue is assigned a analtification block.
 
 - TX and RX buffers queues, which send descriptors to the device, use MMIO
-  doorbells to notify the device of new descriptors.
+  doorbells to analtify the device of new descriptors.
 
 - RX and TX completion queues, which receive descriptors from the device, use a
-  "generation bit" to know when a descriptor was populated by the device. The
+  "generation bit" to kanalw when a descriptor was populated by the device. The
   driver initializes all bits with the "current generation". The device will
   populate received descriptors with the "next generation" which is inverted
   from the current generation. When the ring wraps, the current/next generation
   are swapped.
 
 - It's the driver's responsibility to ensure that the RX and TX completion
-  queues are not overrun. This can be accomplished by limiting the number of
+  queues are analt overrun. This can be accomplished by limiting the number of
   descriptors posted to HW.
 
 - TX packets have a 16 bit completion_tag and RX buffers have a 16 bit
   buffer_id. These will be returned on the TX completion and RX queues
-  respectively to let the driver know which packet/buffer was completed.
+  respectively to let the driver kanalw which packet/buffer was completed.
 
 Transmit
 ~~~~~~~~

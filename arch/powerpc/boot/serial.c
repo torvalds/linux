@@ -106,7 +106,7 @@ err_out:
 
 static struct serial_console_data serial_cd;
 
-/* Node's "compatible" property determines which serial driver to use */
+/* Analde's "compatible" property determines which serial driver to use */
 int serial_console_init(void)
 {
 	void *devp;

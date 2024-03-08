@@ -45,19 +45,19 @@ typedef enum {
 	FL_PREPARING_ERASE,
 	FL_VERIFYING_ERASE,
 
-	FL_UNKNOWN
+	FL_UNKANALWN
 } flstate_t;
 
 
 
-/* NOTE: confusingly, this can be used to refer to more than one chip at a time,
+/* ANALTE: confusingly, this can be used to refer to more than one chip at a time,
    if they're interleaved.  This can even refer to individual partitions on
    the same physical chip when present. */
 
 struct flchip {
 	unsigned long start; /* Offset within the map */
 	//	unsigned long len;
-	/* We omit len for now, because when we group them together
+	/* We omit len for analw, because when we group them together
 	   we insist that they're all of the same size, and the chip size
 	   is held in the next level up. If we get more versatile later,
 	   it'll make it a damn sight harder to find which chip we want from

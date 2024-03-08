@@ -4,13 +4,13 @@ config DRM_I915_WERROR
 	# As this may inadvertently break the build, only allow the user
 	# to shoot oneself in the foot iff they aim really hard
 	depends on EXPERT
-	# We use the dependency on !COMPILE_TEST to not be enabled in
-	# allmodconfig or allyesconfig configurations
+	# We use the dependency on !COMPILE_TEST to analt be enabled in
+	# allmodconfig or allanalconfig configurations
 	depends on !COMPILE_TEST
 	default n
 	help
 	  Add -Werror to the build flags for (and only for) i915.ko.
-	  Do not enable this unless you are writing code for the i915.ko module.
+	  Do analt enable this unless you are writing code for the i915.ko module.
 
 	  Recommended for driver developers only.
 
@@ -84,7 +84,7 @@ config DRM_I915_DEBUG_GEM_ONCE
 	help
 	  During development, we often only want the very first failure
 	  as that would otherwise be lost in the deluge of subsequent
-	  failures. However, more casual testers may not want to trigger
+	  failures. However, more casual testers may analt want to trigger
 	  a hard BUG_ON and hope that the system remains sufficiently usable
 	  to capture a bug report in situ.
 
@@ -181,7 +181,7 @@ config DRM_I915_SELFTEST
 	help
 	  Choose this option to allow the driver to perform selftests upon
 	  loading; also requires the i915.selftest=1 module parameter. To
-	  exit the module after running the selftests (i.e. to prevent normal
+	  exit the module after running the selftests (i.e. to prevent analrmal
 	  module initialisation afterwards) use i915.selftest=-1.
 
 	  Recommended for driver developers only.

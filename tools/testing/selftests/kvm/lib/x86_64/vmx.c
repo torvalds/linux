@@ -26,13 +26,13 @@ struct eptPageTableEntry {
 	uint64_t writable:1;
 	uint64_t executable:1;
 	uint64_t memory_type:3;
-	uint64_t ignore_pat:1;
+	uint64_t iganalre_pat:1;
 	uint64_t page_size:1;
 	uint64_t accessed:1;
 	uint64_t dirty:1;
-	uint64_t ignored_11_10:2;
+	uint64_t iganalred_11_10:2;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t iganalred_62_52:11;
 	uint64_t suppress_ve:1;
 };
 
@@ -167,7 +167,7 @@ bool load_vmcs(struct vmx_pages *vmx)
 	if (vmptrld(vmx->vmcs_gpa))
 		return false;
 
-	/* Setup shadow VMCS, do not load it yet. */
+	/* Setup shadow VMCS, do analt load it yet. */
 	*(uint32_t *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
 	if (vmclear(vmx->shadow_vmcs_gpa))
 		return false;
@@ -387,10 +387,10 @@ static void nested_create_pte(struct kvm_vm *vm,
 		 * this level.
 		 */
 		TEST_ASSERT(current_level != target_level,
-			    "Cannot create hugepage at level: %u, nested_paddr: 0x%lx",
+			    "Cananalt create hugepage at level: %u, nested_paddr: 0x%lx",
 			    current_level, nested_paddr);
 		TEST_ASSERT(!pte->page_size,
-			    "Cannot create page table at level: %u, nested_paddr: 0x%lx",
+			    "Cananalt create page table at level: %u, nested_paddr: 0x%lx",
 			    current_level, nested_paddr);
 	}
 }
@@ -404,13 +404,13 @@ void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	uint16_t index;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		    "unkanalwn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((nested_paddr >> 48) == 0,
 		    "Nested physical address 0x%lx requires 5-level paging",
 		    nested_paddr);
 	TEST_ASSERT((nested_paddr % page_size) == 0,
-		    "Nested physical address not on page boundary,\n"
+		    "Nested physical address analt on page boundary,\n"
 		    "  nested_paddr: 0x%lx page_size: 0x%lx",
 		    nested_paddr, page_size);
 	TEST_ASSERT((nested_paddr >> vm->page_shift) <= vm->max_gfn,
@@ -418,7 +418,7 @@ void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 		    "  nested_paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		    paddr, vm->max_gfn, vm->page_size);
 	TEST_ASSERT((paddr % page_size) == 0,
-		    "Physical address not on page boundary,\n"
+		    "Physical address analt on page boundary,\n"
 		    "  paddr: 0x%lx page_size: 0x%lx",
 		    paddr, page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
@@ -439,7 +439,7 @@ void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	}
 
 	/*
-	 * For now mark these as accessed and dirty because the only
+	 * For analw mark these as accessed and dirty because the only
 	 * testcase we have needs that.  Can be reconsidered later.
 	 */
 	pte->accessed = true;
@@ -463,9 +463,9 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
  *   size - The size of the range to map
  *   level - The level at which to map the range
  *
- * Output Args: None
+ * Output Args: Analne
  *
- * Return: None
+ * Return: Analne
  *
  * Within the VM given by vm, creates a nested guest translation for the
  * page range starting at nested_paddr to the page range starting at paddr.

@@ -75,7 +75,7 @@ struct wcnss_msg_hdr {
 struct wcnss_version_resp {
 	struct wcnss_msg_hdr hdr;
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 version;
 	u8 revision;
 } __packed;
@@ -137,7 +137,7 @@ static int wcnss_ctrl_smd_callback(struct rpmsg_device *rpdev,
 
 		version = data;
 		dev_info(wcnss->dev, "WCNSS Version %d.%d %d.%d\n",
-			 version->major, version->minor,
+			 version->major, version->mianalr,
 			 version->version, version->revision);
 
 		complete(&wcnss->ack);
@@ -158,7 +158,7 @@ static int wcnss_ctrl_smd_callback(struct rpmsg_device *rpdev,
 		complete(&wcnss->cbc);
 		break;
 	default:
-		dev_info(wcnss->dev, "unknown message type %d\n", hdr->type);
+		dev_info(wcnss->dev, "unkanalwn message type %d\n", hdr->type);
 		break;
 	}
 
@@ -194,7 +194,7 @@ static int wcnss_request_version(struct wcnss_ctrl *wcnss)
  * @wcnss:	wcnss_ctrl state handle
  * @expect_cbc:	indicator to caller that an cbc event is expected
  *
- * Returns 0 on success. Negative errno on failure.
+ * Returns 0 on success. Negative erranal on failure.
  */
 static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 {
@@ -208,9 +208,9 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 
 	req = kzalloc(sizeof(*req) + NV_FRAGMENT_SIZE, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	ret = of_property_read_string(dev->of_node, "firmware-name", &nvbin);
+	ret = of_property_read_string(dev->of_analde, "firmware-name", &nvbin);
 	if (ret < 0 && ret != -EINVAL)
 		goto free_req;
 
@@ -310,7 +310,7 @@ static void wcnss_async_probe(struct work_struct *work)
 			dev_err(wcnss->dev, "expected cold boot completion\n");
 	}
 
-	of_platform_populate(wcnss->dev->of_node, NULL, NULL, wcnss->dev);
+	of_platform_populate(wcnss->dev->of_analde, NULL, NULL, wcnss->dev);
 }
 
 static int wcnss_ctrl_probe(struct rpmsg_device *rpdev)
@@ -319,7 +319,7 @@ static int wcnss_ctrl_probe(struct rpmsg_device *rpdev)
 
 	wcnss = devm_kzalloc(&rpdev->dev, sizeof(*wcnss), GFP_KERNEL);
 	if (!wcnss)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wcnss->dev = &rpdev->dev;
 	wcnss->channel = rpdev->ept;

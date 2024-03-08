@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019, Mellanox Technologies */
+/* Copyright (c) 2019, Mellaanalx Techanallogies */
 
 #ifndef	_DR_TYPES_
 #define	_DR_TYPES_
@@ -95,7 +95,7 @@ enum {
 };
 
 enum mlx5dr_ste_ctx_action_cap {
-	DR_STE_CTX_ACTION_CAP_NONE = 0,
+	DR_STE_CTX_ACTION_CAP_ANALNE = 0,
 	DR_STE_CTX_ACTION_CAP_TX_POP   = 1 << 0,
 	DR_STE_CTX_ACTION_CAP_RX_PUSH  = 1 << 1,
 	DR_STE_CTX_ACTION_CAP_RX_ENCAP = 1 << 2,
@@ -166,7 +166,7 @@ struct mlx5dr_ste {
 	u8 ste_chain_location;
 
 	/* attached to the miss_list head at each htbl entry */
-	struct list_head miss_list_node;
+	struct list_head miss_list_analde;
 
 	/* this ste is member of htbl */
 	struct mlx5dr_ste_htbl *htbl;
@@ -179,7 +179,7 @@ struct mlx5dr_ste {
 
 struct mlx5dr_ste_htbl_ctrl {
 	/* total number of valid entries belonging to this hash table. This
-	 * includes the non collision and collision entries
+	 * includes the analn collision and collision entries
 	 */
 	unsigned int num_of_valid_entries;
 
@@ -367,7 +367,7 @@ static inline void mlx5dr_ste_get(struct mlx5dr_ste *ste)
 	ste->refcount++;
 }
 
-static inline bool mlx5dr_ste_is_not_used(struct mlx5dr_ste *ste)
+static inline bool mlx5dr_ste_is_analt_used(struct mlx5dr_ste *ste)
 {
 	return !ste->refcount;
 }
@@ -551,16 +551,16 @@ struct mlx5dr_match_spec {
 	 * Traffic Class/TOS field of IPv6/v4
 	 */
 	u32 ip_dscp:6;
-	/* Explicit Congestion Notification derived from
+	/* Explicit Congestion Analtification derived from
 	 * Traffic Class/TOS field of IPv6/v4
 	 */
 	u32 ip_ecn:2;
 	/* The first vlan in the packet is c-vlan (0x8100).
-	 * cvlan_tag and svlan_tag cannot be set together
+	 * cvlan_tag and svlan_tag cananalt be set together
 	 */
 	u32 cvlan_tag:1;
 	/* The first vlan in the packet is s-vlan (0x8a88).
-	 * cvlan_tag and svlan_tag cannot be set together
+	 * cvlan_tag and svlan_tag cananalt be set together
 	 */
 	u32 svlan_tag:1;
 	u32 frag:1;		/* Packet is an IP fragment */
@@ -672,19 +672,19 @@ struct mlx5dr_match_misc {
 	u32 outer_second_cvlan_tag:1;
 	u32 inner_second_cvlan_tag:1;
 	/* The second vlan in the outer header of the packet is c-vlan (0x8100).
-	 * outer_second_cvlan_tag and outer_second_svlan_tag cannot be set together
+	 * outer_second_cvlan_tag and outer_second_svlan_tag cananalt be set together
 	 */
 	u32 outer_second_svlan_tag:1;
 	/* The second vlan in the inner header of the packet is c-vlan (0x8100).
-	 * inner_second_cvlan_tag and inner_second_svlan_tag cannot be set together
+	 * inner_second_cvlan_tag and inner_second_svlan_tag cananalt be set together
 	 */
 	u32 inner_second_svlan_tag:1;
 	/* The second vlan in the outer header of the packet is s-vlan (0x8a88).
-	 * outer_second_cvlan_tag and outer_second_svlan_tag cannot be set together
+	 * outer_second_cvlan_tag and outer_second_svlan_tag cananalt be set together
 	 */
 	u32 reserved_auto2:12;
 	/* The second vlan in the inner header of the packet is s-vlan (0x8a88).
-	 * inner_second_cvlan_tag and inner_second_svlan_tag cannot be set together
+	 * inner_second_cvlan_tag and inner_second_svlan_tag cananalt be set together
 	 */
 	u32 gre_protocol:16;		/* GRE Protocol (outer) */
 
@@ -974,7 +974,7 @@ struct mlx5dr_table {
 	struct list_head matcher_list;
 	struct mlx5dr_action *miss_action;
 	refcount_t refcount;
-	struct list_head dbg_node;
+	struct list_head dbg_analde;
 };
 
 struct mlx5dr_matcher_rx_tx {
@@ -989,7 +989,7 @@ struct mlx5dr_matcher_rx_tx {
 	u64 default_icm_addr;
 	struct mlx5dr_table_rx_tx *nic_tbl;
 	u32 prio;
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 rules;
 };
 
@@ -997,7 +997,7 @@ struct mlx5dr_matcher {
 	struct mlx5dr_table *tbl;
 	struct mlx5dr_matcher_rx_tx rx;
 	struct mlx5dr_matcher_rx_tx tx;
-	struct list_head list_node; /* Used for both matchers and dbg managing */
+	struct list_head list_analde; /* Used for both matchers and dbg managing */
 	u32 prio;
 	struct mlx5dr_match_param mask;
 	u8 match_criteria;
@@ -1025,7 +1025,7 @@ struct mlx5dr_ptrn_obj {
 struct mlx5dr_arg_obj {
 	u32 obj_id;
 	u32 obj_offset;
-	struct list_head list_node;
+	struct list_head list_analde;
 	u32 log_chunk_size;
 };
 
@@ -1158,7 +1158,7 @@ struct mlx5dr_rule {
 	struct mlx5dr_rule_rx_tx rx;
 	struct mlx5dr_rule_rx_tx tx;
 	struct list_head rule_actions_list;
-	struct list_head dbg_node;
+	struct list_head dbg_analde;
 	u32 flow_source;
 };
 
@@ -1462,7 +1462,7 @@ struct mlx5dr_send_ring {
 	u8 *sync_buff;
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */
-	bool err_state; /* send_ring is not usable in err state */
+	bool err_state; /* send_ring is analt usable in err state */
 };
 
 int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn);
@@ -1526,7 +1526,7 @@ struct mlx5dr_cmd_fte_info {
 	u32 *val;
 	struct mlx5_flow_act action;
 	struct mlx5dr_cmd_flow_destination_hw_info *dest_arr;
-	bool ignore_flow_level;
+	bool iganalre_flow_level;
 };
 
 int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
@@ -1557,7 +1557,7 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    bool reformat_req,
 			    u32 *tbl_id,
 			    u32 *group_id,
-			    bool ignore_flow_level,
+			    bool iganalre_flow_level,
 			    u32 flow_source);
 void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 			      u32 group_id);

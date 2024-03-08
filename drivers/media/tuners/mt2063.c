@@ -50,7 +50,7 @@ if (debug >= level)							\
  *
  *  When compiling the tuner driver, the preprocessor will
  *  check against this version number to make sure that
- *  it matches the version that the tuner driver knows about.
+ *  it matches the version that the tuner driver kanalws about.
  */
 
 /* DECT Frequency Avoidance */
@@ -63,10 +63,10 @@ if (debug >= level)							\
 #define MT2063_EXCLUDE_EURO_DECT_FREQUENCIES(s) (((s) & MT2063_DECT_AVOID_EURO_FREQS) != 0)
 
 enum MT2063_DECT_Avoid_Type {
-	MT2063_NO_DECT_AVOIDANCE = 0,				/* Do not create DECT exclusion zones.     */
+	MT2063_ANAL_DECT_AVOIDANCE = 0,				/* Do analt create DECT exclusion zones.     */
 	MT2063_AVOID_US_DECT = MT2063_DECT_AVOID_US_FREQS,	/* Avoid US DECT frequencies.              */
 	MT2063_AVOID_EURO_DECT = MT2063_DECT_AVOID_EURO_FREQS,	/* Avoid European DECT frequencies.        */
-	MT2063_AVOID_BOTH					/* Avoid both regions. Not typically used. */
+	MT2063_AVOID_BOTH					/* Avoid both regions. Analt typically used. */
 };
 
 #define MT2063_MAX_ZONES 48
@@ -127,14 +127,14 @@ enum MT2063_Mask_Bits {
 	MT2063_VGA_SD = 0x0200,		/* Enable VGA shutdown                */
 	MT2063_AMP_SD = 0x0100,		/* Enable AMP shutdown                */
 	MT2063_ALL_SD = 0xFF73,		/* All shutdown bits for this tuner   */
-	MT2063_NONE_SD = 0x0000		/* No shutdown bits                   */
+	MT2063_ANALNE_SD = 0x0000		/* Anal shutdown bits                   */
 };
 
 /*
  *  Possible values for MT2063_DNC_OUTPUT
  */
 enum MT2063_DNC_Output_Enable {
-	MT2063_DNC_NONE = 0,
+	MT2063_DNC_ANALNE = 0,
 	MT2063_DNC_1,
 	MT2063_DNC_2,
 	MT2063_DNC_BOTH
@@ -142,7 +142,7 @@ enum MT2063_DNC_Output_Enable {
 
 /*
  *  Two-wire serial bus subaddresses of the tuner registers.
- *  Also known as the tuner's register addresses.
+ *  Also kanalwn as the tuner's register addresses.
  */
 enum MT2063_Register_Offsets {
 	MT2063_REG_PART_REV = 0,	/*  0x00: Part/Rev Code         */
@@ -359,56 +359,56 @@ struct MT2063_FIFZone_t {
 	s32 max_;
 };
 
-static struct MT2063_ExclZone_t *InsertNode(struct MT2063_AvoidSpursData_t
+static struct MT2063_ExclZone_t *InsertAnalde(struct MT2063_AvoidSpursData_t
 					    *pAS_Info,
-					    struct MT2063_ExclZone_t *pPrevNode)
+					    struct MT2063_ExclZone_t *pPrevAnalde)
 {
-	struct MT2063_ExclZone_t *pNode;
+	struct MT2063_ExclZone_t *pAnalde;
 
 	dprintk(2, "\n");
 
-	/*  Check for a node in the free list  */
+	/*  Check for a analde in the free list  */
 	if (pAS_Info->freeZones != NULL) {
 		/*  Use one from the free list  */
-		pNode = pAS_Info->freeZones;
-		pAS_Info->freeZones = pNode->next_;
+		pAnalde = pAS_Info->freeZones;
+		pAS_Info->freeZones = pAnalde->next_;
 	} else {
-		/*  Grab a node from the array  */
-		pNode = &pAS_Info->MT2063_ExclZones[pAS_Info->nZones];
+		/*  Grab a analde from the array  */
+		pAnalde = &pAS_Info->MT2063_ExclZones[pAS_Info->nZones];
 	}
 
-	if (pPrevNode != NULL) {
-		pNode->next_ = pPrevNode->next_;
-		pPrevNode->next_ = pNode;
+	if (pPrevAnalde != NULL) {
+		pAnalde->next_ = pPrevAnalde->next_;
+		pPrevAnalde->next_ = pAnalde;
 	} else {		/*  insert at the beginning of the list  */
 
-		pNode->next_ = pAS_Info->usedZones;
-		pAS_Info->usedZones = pNode;
+		pAnalde->next_ = pAS_Info->usedZones;
+		pAS_Info->usedZones = pAnalde;
 	}
 
 	pAS_Info->nZones++;
-	return pNode;
+	return pAnalde;
 }
 
-static struct MT2063_ExclZone_t *RemoveNode(struct MT2063_AvoidSpursData_t
+static struct MT2063_ExclZone_t *RemoveAnalde(struct MT2063_AvoidSpursData_t
 					    *pAS_Info,
-					    struct MT2063_ExclZone_t *pPrevNode,
+					    struct MT2063_ExclZone_t *pPrevAnalde,
 					    struct MT2063_ExclZone_t
-					    *pNodeToRemove)
+					    *pAnaldeToRemove)
 {
-	struct MT2063_ExclZone_t *pNext = pNodeToRemove->next_;
+	struct MT2063_ExclZone_t *pNext = pAnaldeToRemove->next_;
 
 	dprintk(2, "\n");
 
-	/*  Make previous node point to the subsequent node  */
-	if (pPrevNode != NULL)
-		pPrevNode->next_ = pNext;
+	/*  Make previous analde point to the subsequent analde  */
+	if (pPrevAnalde != NULL)
+		pPrevAnalde->next_ = pNext;
 
-	/*  Add pNodeToRemove to the beginning of the freeZones  */
-	pNodeToRemove->next_ = pAS_Info->freeZones;
-	pAS_Info->freeZones = pNodeToRemove;
+	/*  Add pAnaldeToRemove to the beginning of the freeZones  */
+	pAnaldeToRemove->next_ = pAS_Info->freeZones;
+	pAS_Info->freeZones = pAnaldeToRemove;
 
-	/*  Decrement node count  */
+	/*  Decrement analde count  */
 	pAS_Info->nZones--;
 
 	return pNext;
@@ -419,13 +419,13 @@ static struct MT2063_ExclZone_t *RemoveNode(struct MT2063_AvoidSpursData_t
  *
  * Add (and merge) an exclusion zone into the list.
  * If the range (f_min, f_max) is totally outside the
- * 1st IF BW, ignore the entry.
- * If the range (f_min, f_max) is negative, ignore the entry.
+ * 1st IF BW, iganalre the entry.
+ * If the range (f_min, f_max) is negative, iganalre the entry.
  */
 static void MT2063_AddExclZone(struct MT2063_AvoidSpursData_t *pAS_Info,
 			       u32 f_min, u32 f_max)
 {
-	struct MT2063_ExclZone_t *pNode = pAS_Info->usedZones;
+	struct MT2063_ExclZone_t *pAnalde = pAS_Info->usedZones;
 	struct MT2063_ExclZone_t *pPrev = NULL;
 	struct MT2063_ExclZone_t *pNext = NULL;
 
@@ -444,30 +444,30 @@ static void MT2063_AddExclZone(struct MT2063_AvoidSpursData_t *pAS_Info,
 		 */
 
 		/*  Check for our place in the list  */
-		while ((pNode != NULL) && (pNode->max_ < f_min)) {
-			pPrev = pNode;
-			pNode = pNode->next_;
+		while ((pAnalde != NULL) && (pAnalde->max_ < f_min)) {
+			pPrev = pAnalde;
+			pAnalde = pAnalde->next_;
 		}
 
-		if ((pNode != NULL) && (pNode->min_ < f_max)) {
-			/*  Combine me with pNode  */
-			if (f_min < pNode->min_)
-				pNode->min_ = f_min;
-			if (f_max > pNode->max_)
-				pNode->max_ = f_max;
+		if ((pAnalde != NULL) && (pAnalde->min_ < f_max)) {
+			/*  Combine me with pAnalde  */
+			if (f_min < pAnalde->min_)
+				pAnalde->min_ = f_min;
+			if (f_max > pAnalde->max_)
+				pAnalde->max_ = f_max;
 		} else {
-			pNode = InsertNode(pAS_Info, pPrev);
-			pNode->min_ = f_min;
-			pNode->max_ = f_max;
+			pAnalde = InsertAnalde(pAS_Info, pPrev);
+			pAnalde->min_ = f_min;
+			pAnalde->max_ = f_max;
 		}
 
 		/*  Look for merging possibilities  */
-		pNext = pNode->next_;
-		while ((pNext != NULL) && (pNext->min_ < pNode->max_)) {
-			if (pNext->max_ > pNode->max_)
-				pNode->max_ = pNext->max_;
+		pNext = pAnalde->next_;
+		while ((pNext != NULL) && (pNext->min_ < pAnalde->max_)) {
+			if (pNext->max_ > pAnalde->max_)
+				pAnalde->max_ = pNext->max_;
 			/*  Remove pNext, return ptr to pNext->next  */
-			pNext = RemoveNode(pAS_Info, pNode, pNext);
+			pNext = RemoveAnalde(pAS_Info, pAnalde, pNext);
 		}
 	}
 }
@@ -543,9 +543,9 @@ static void MT2063_ResetExclZones(struct MT2063_AvoidSpursData_t *pAS_Info)
 
 /*
  * MT_ChooseFirstIF - Choose the best available 1st IF
- *                    If f_Desired is not excluded, choose that first.
+ *                    If f_Desired is analt excluded, choose that first.
  *                    Otherwise, return the value closest to f_Center that is
- *                    not excluded
+ *                    analt excluded
  */
 static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 {
@@ -554,7 +554,7 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 	 * "f_LO1_Step".
 	 * The resulting number, F_LO1 must be a multiple of f_LO1_Step.
 	 * And F_LO1 is the arithmetic sum of f_in + f_Center.
-	 * Neither f_in, nor f_Center must be a multiple of f_LO1_Step.
+	 * Neither f_in, analr f_Center must be a multiple of f_LO1_Step.
 	 * However, the sum must be.
 	 */
 	const u32 f_Desired =
@@ -573,7 +573,7 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 	u32 bZeroExcluded = 0;
 	s32 tmpMin, tmpMax;
 	s32 bestDiff;
-	struct MT2063_ExclZone_t *pNode = pAS_Info->usedZones;
+	struct MT2063_ExclZone_t *pAnalde = pAS_Info->usedZones;
 	struct MT2063_FIFZone_t zones[MT2063_MAX_ZONES];
 
 	dprintk(2, "\n");
@@ -602,16 +602,16 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 	 * Take MT_ExclZones, center around f_Center and change the
 	 * resolution to f_Step
 	 */
-	while (pNode != NULL) {
+	while (pAnalde != NULL) {
 		/*  floor function  */
 		tmpMin =
-		    floor((s32) (pNode->min_ - f_Center), (s32) f_Step);
+		    floor((s32) (pAnalde->min_ - f_Center), (s32) f_Step);
 
 		/*  ceil function  */
 		tmpMax =
-		    ceil((s32) (pNode->max_ - f_Center), (s32) f_Step);
+		    ceil((s32) (pAnalde->max_ - f_Center), (s32) f_Step);
 
-		if ((pNode->min_ < f_Desired) && (pNode->max_ > f_Desired))
+		if ((pAnalde->min_ < f_Desired) && (pAnalde->max_ > f_Desired))
 			bDesiredExcluded = 1;
 
 		if ((tmpMin < 0) && (tmpMax > 0))
@@ -626,7 +626,7 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
 			zones[j].max_ = tmpMax;
 			j++;
 		}
-		pNode = pNode->next_;
+		pAnalde = pAnalde->next_;
 	}
 
 	/*
@@ -666,7 +666,7 @@ static u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info)
  *                     ^   b=-fIFOut+fIFBW/2      -b=+fIFOut-fIFBW/2   ^
  *                     a=-fIFOut-fIFBW/2              -a=+fIFOut+fIFBW/2
  *
- *                  Note that some equations are doubled to prevent round-off
+ *                  Analte that some equations are doubled to prevent round-off
  *                  problems when calculating fIFBW/2
  *
  * @pAS_Info:	Avoid Spurs information block
@@ -717,14 +717,14 @@ static u32 IsSpurInBand(struct MT2063_AvoidSpursData_t *pAS_Info,
 		md = (n * ((f_LO1 + hgds) / gd_Scale) -
 		      ((d + hgds) / gd_Scale)) / ((f_LO2 + hgds) / gd_Scale);
 
-		/*  If # fLO2 harmonics > m_maxLOSpurHarmonic, then no spurs present  */
+		/*  If # fLO2 harmonics > m_maxLOSpurHarmonic, then anal spurs present  */
 		if (md >= pAS_Info->maxH1)
 			break;
 
 		ma = (n * ((f_LO1 + hgds) / gd_Scale) +
 		      ((d + hgds) / gd_Scale)) / ((f_LO2 + hgds) / gd_Scale);
 
-		/*  If no spurs between +/- (f_out + f_IFBW/2), then try next harmonic  */
+		/*  If anal spurs between +/- (f_out + f_IFBW/2), then try next harmonic  */
 		if (md == ma)
 			continue;
 
@@ -774,7 +774,7 @@ static u32 IsSpurInBand(struct MT2063_AvoidSpursData_t *pAS_Info,
 		}
 	}
 
-	/*  No spurs found  */
+	/*  Anal spurs found  */
 	return 0;
 }
 
@@ -799,13 +799,13 @@ static u32 MT2063_AvoidSpurs(struct MT2063_AvoidSpursData_t *pAS_Info)
 	/*
 	 * Avoid LO Generated Spurs
 	 *
-	 * Make sure that have no LO-related spurs within the IF output
+	 * Make sure that have anal LO-related spurs within the IF output
 	 * bandwidth.
 	 *
 	 * If there is an LO spur in this band, start at the current IF1 frequency
 	 * and work out until we find a spur-free frequency or run up against the
 	 * 1st IF SAW band edge.  Use temporary copies of fLO1 and fLO2 so that they
-	 * will be unchanged if a spur-free setting is not found.
+	 * will be unchanged if a spur-free setting is analt found.
 	 */
 	pAS_Info->bSpurPresent = IsSpurInBand(pAS_Info, &fm, &fp);
 	if (pAS_Info->bSpurPresent) {
@@ -903,7 +903,7 @@ static u32 MT2063_AvoidSpurs(struct MT2063_AvoidSpursData_t *pAS_Info)
  *
  * @state:	struct mt2063_state pointer
  *
- * This function returns 0, if no lock, 1 if locked and a value < 1 if error
+ * This function returns 0, if anal lock, 1 if locked and a value < 1 if error
  */
 static int mt2063_lockStatus(struct mt2063_state *state)
 {
@@ -936,7 +936,7 @@ static int mt2063_lockStatus(struct mt2063_state *state)
 	} while (++nDelays < nMaxLoops);
 
 	/*
-	 * Got no lock or partial lock
+	 * Got anal lock or partial lock
 	 */
 	return 0;
 }
@@ -1021,7 +1021,7 @@ static u32 mt2063_get_dnc_output_enable(struct mt2063_state *state,
 
 	if ((state->reg[MT2063_REG_DNC_GAIN] & 0x03) == 0x03) {	/* if DNC1 is off */
 		if ((state->reg[MT2063_REG_VGA_GAIN] & 0x03) == 0x03)	/* if DNC2 is off */
-			*pValue = MT2063_DNC_NONE;
+			*pValue = MT2063_DNC_ANALNE;
 		else
 			*pValue = MT2063_DNC_2;
 	} else {	/* DNC1 is on */
@@ -1046,7 +1046,7 @@ static u32 mt2063_set_dnc_output_enable(struct mt2063_state *state,
 
 	/* selects, which DNC output is used */
 	switch (nValue) {
-	case MT2063_DNC_NONE:
+	case MT2063_DNC_ANALNE:
 		val = (state->reg[MT2063_REG_DNC_GAIN] & 0xFC) | 0x03;	/* Set DNC1GC=3 */
 		if (state->reg[MT2063_REG_DNC_GAIN] !=
 		    val)
@@ -1167,7 +1167,7 @@ static u32 mt2063_set_dnc_output_enable(struct mt2063_state *state,
  * @state:	ptr to mt2063_state structure
  * @Mode:	desired receiver delivery system
  *
- * Note: Register cache must be valid for it to work
+ * Analte: Register cache must be valid for it to work
  */
 
 static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
@@ -1278,7 +1278,7 @@ static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
 			status |= mt2063_setreg(state, MT2063_REG_PD2_TGT, val);
 	}
 
-	/* Ignore ATN Overload */
+	/* Iganalre ATN Overload */
 	if (status >= 0) {
 		val = (state->reg[MT2063_REG_LNA_TGT] & ~0x80) |
 		      (RFOVDIS[Mode] ? 0x80 : 0x00);
@@ -1286,7 +1286,7 @@ static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
 			status |= mt2063_setreg(state, MT2063_REG_LNA_TGT, val);
 	}
 
-	/* Ignore FIF Overload */
+	/* Iganalre FIF Overload */
 	if (status >= 0) {
 		val = (state->reg[MT2063_REG_PD1_TGT] & ~0x80) |
 		      (FIFOVDIS[Mode] ? 0x80 : 0x00);
@@ -1383,30 +1383,30 @@ static u32 MT2063_Round_fLO(u32 f_LO, u32 f_LO_Step, u32 f_ref)
 }
 
 /**
- * MT2063_fLO_FractionalTerm - Calculates the portion contributed by FracN / denom.
+ * MT2063_fLO_FractionalTerm - Calculates the portion contributed by FracN / deanalm.
  *                        This function preserves maximum precision without
  *                        risk of overflow.  It accurately calculates
- *                        f_ref * num / denom to within 1 HZ with fixed math.
+ *                        f_ref * num / deanalm to within 1 HZ with fixed math.
  *
  * @f_ref:	SRO frequency.
  * @num:	Fractional portion of the multiplier
- * @denom:	denominator portion of the ratio
+ * @deanalm:	deanalminator portion of the ratio
  *
  * This calculation handles f_ref as two separate 14-bit fields.
  * Therefore, a maximum value of 2^28-1 may safely be used for f_ref.
  * This is the genesis of the magic number "14" and the magic mask value of
  * 0x03FFF.
  *
- * This routine successfully handles denom values up to and including 2^18.
- *  Returns:        f_ref * num / denom
+ * This routine successfully handles deanalm values up to and including 2^18.
+ *  Returns:        f_ref * num / deanalm
  */
-static u32 MT2063_fLO_FractionalTerm(u32 f_ref, u32 num, u32 denom)
+static u32 MT2063_fLO_FractionalTerm(u32 f_ref, u32 num, u32 deanalm)
 {
 	u32 t1 = (f_ref >> 14) * num;
-	u32 term1 = t1 / denom;
-	u32 loss = t1 % denom;
+	u32 term1 = t1 / deanalm;
+	u32 loss = t1 % deanalm;
 	u32 term2 =
-	    (((f_ref & 0x00003FFF) * num + (loss << 14)) + (denom / 2)) / denom;
+	    (((f_ref & 0x00003FFF) * num + (loss << 14)) + (deanalm / 2)) / deanalm;
 	return (term1 << 14) + term2;
 }
 
@@ -1661,7 +1661,7 @@ static u32 MT2063_Tune(struct mt2063_state *state, u32 f_in)
 			state->reg[MT2063_REG_LO2CQ_3] = (u8) (0xE0 | (Num2 & 0x000F));	/* NUM2q (lo) */
 
 			/*
-			 * Now write out the computed register values
+			 * Analw write out the computed register values
 			 * IMPORTANT: There is a required order for writing
 			 *            (0x05 must follow all the others).
 			 */
@@ -1808,21 +1808,21 @@ static int mt2063_init(struct dvb_frontend *fe)
 		step = "B3";
 		break;
 	default:
-		printk(KERN_ERR "mt2063: Unknown mt2063 device ID (0x%02x)\n",
+		printk(KERN_ERR "mt2063: Unkanalwn mt2063 device ID (0x%02x)\n",
 		       state->reg[MT2063_REG_PART_REV]);
-		return -ENODEV;	/*  Wrong tuner Part/Rev code */
+		return -EANALDEV;	/*  Wrong tuner Part/Rev code */
 	}
 
 	/*  Check the 2nd byte of the Part/Rev code from the tuner */
 	status = mt2063_read(state, MT2063_REG_RSVD_3B,
 			     &state->reg[MT2063_REG_RSVD_3B], 1);
 
-	/* b7 != 0 ==> NOT MT2063 */
+	/* b7 != 0 ==> ANALT MT2063 */
 	if (status < 0 || ((state->reg[MT2063_REG_RSVD_3B] & 0x80) != 0x00)) {
-		printk(KERN_ERR "mt2063: Unknown part ID (0x%02x%02x)\n",
+		printk(KERN_ERR "mt2063: Unkanalwn part ID (0x%02x%02x)\n",
 		       state->reg[MT2063_REG_PART_REV],
 		       state->reg[MT2063_REG_RSVD_3B]);
-		return -ENODEV;	/*  Wrong tuner Part/Rev code */
+		return -EANALDEV;	/*  Wrong tuner Part/Rev code */
 	}
 
 	printk(KERN_INFO "mt2063: detected a mt2063 %s\n", step);
@@ -1848,7 +1848,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 		break;
 
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	while (status >= 0 && *def) {
@@ -1872,7 +1872,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 	}
 
 	if (FCRUN != 0 || status < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	status = mt2063_read(state,
 			   MT2063_REG_FIFFC,
@@ -1993,7 +1993,7 @@ static int mt2063_get_status(struct dvb_frontend *fe, u32 *tuner_status)
 	dprintk(2, "\n");
 
 	if (!state->init)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*tuner_status = 0;
 	status = mt2063_lockStatus(state);
@@ -2162,7 +2162,7 @@ static int mt2063_get_if_frequency(struct dvb_frontend *fe, u32 *freq)
 	dprintk(2, "\n");
 
 	if (!state->init)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*freq = state->AS_Data.f_out;
 
@@ -2178,7 +2178,7 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 	dprintk(2, "\n");
 
 	if (!state->init)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*bw = state->AS_Data.f_out_bw - 750000;
 

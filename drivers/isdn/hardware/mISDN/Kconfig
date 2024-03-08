@@ -81,7 +81,7 @@ config MISDN_NETJET
 	select MISDN_IPAC
 	select MISDN_HDLC
 	help
-	  Enable support for Traverse Technologies NETJet PCI cards.
+	  Enable support for Traverse Techanallogies NETJet PCI cards.
 
 config MISDN_HDLC
 	tristate

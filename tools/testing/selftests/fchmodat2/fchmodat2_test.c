@@ -13,7 +13,7 @@ int sys_fchmodat2(int dfd, const char *filename, mode_t mode, int flags)
 {
 	int ret = syscall(__NR_fchmodat2, dfd, filename, mode, flags);
 
-	return ret >= 0 ? ret : -errno;
+	return ret >= 0 ? ret : -erranal;
 }
 
 int setup_testdir(void)
@@ -46,7 +46,7 @@ int setup_testdir(void)
 int expect_mode(int dfd, const char *filename, mode_t expect_mode)
 {
 	struct stat st;
-	int ret = fstatat(dfd, filename, &st, AT_SYMLINK_NOFOLLOW);
+	int ret = fstatat(dfd, filename, &st, AT_SYMLINK_ANALFOLLOW);
 
 	if (ret)
 		ksft_exit_fail_msg("%s: %s: fstatat failed\n",
@@ -64,20 +64,20 @@ void test_regfile(void)
 	ret = sys_fchmodat2(dfd, "regfile", 0640, 0);
 
 	if (ret < 0)
-		ksft_exit_fail_msg("%s: fchmodat2(noflag) failed\n", __func__);
+		ksft_exit_fail_msg("%s: fchmodat2(analflag) failed\n", __func__);
 
 	if (!expect_mode(dfd, "regfile", 0100640))
 		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2\n",
 				__func__);
 
-	ret = sys_fchmodat2(dfd, "regfile", 0600, AT_SYMLINK_NOFOLLOW);
+	ret = sys_fchmodat2(dfd, "regfile", 0600, AT_SYMLINK_ANALFOLLOW);
 
 	if (ret < 0)
-		ksft_exit_fail_msg("%s: fchmodat2(AT_SYMLINK_NOFOLLOW) failed\n",
+		ksft_exit_fail_msg("%s: fchmodat2(AT_SYMLINK_ANALFOLLOW) failed\n",
 				__func__);
 
 	if (!expect_mode(dfd, "regfile", 0100600))
-		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2 with nofollow\n",
+		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2 with analfollow\n",
 				__func__);
 
 	ksft_test_result_pass("fchmodat2(regfile)\n");
@@ -92,7 +92,7 @@ void test_symlink(void)
 	ret = sys_fchmodat2(dfd, "symlink", 0640, 0);
 
 	if (ret < 0)
-		ksft_exit_fail_msg("%s: fchmodat2(noflag) failed\n", __func__);
+		ksft_exit_fail_msg("%s: fchmodat2(analflag) failed\n", __func__);
 
 	if (!expect_mode(dfd, "regfile", 0100640))
 		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2\n",
@@ -102,7 +102,7 @@ void test_symlink(void)
 		ksft_exit_fail_msg("%s: wrong symlink mode bits after fchmodat2\n",
 				__func__);
 
-	ret = sys_fchmodat2(dfd, "symlink", 0600, AT_SYMLINK_NOFOLLOW);
+	ret = sys_fchmodat2(dfd, "symlink", 0600, AT_SYMLINK_ANALFOLLOW);
 
 	/*
 	 * On certain filesystems (xfs or btrfs), chmod operation fails. So we
@@ -112,11 +112,11 @@ void test_symlink(void)
 	 * https://sourceware.org/legacy-ml/libc-alpha/2020-02/msg00467.html
 	 */
 	if (ret == 0 && !expect_mode(dfd, "symlink", 0120600))
-		ksft_exit_fail_msg("%s: wrong symlink mode bits after fchmodat2 with nofollow\n",
+		ksft_exit_fail_msg("%s: wrong symlink mode bits after fchmodat2 with analfollow\n",
 				__func__);
 
 	if (!expect_mode(dfd, "regfile", 0100640))
-		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2 with nofollow\n",
+		ksft_exit_fail_msg("%s: wrong file mode bits after fchmodat2 with analfollow\n",
 				__func__);
 
 	if (ret != 0)

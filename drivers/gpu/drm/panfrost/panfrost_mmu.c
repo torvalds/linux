@@ -31,7 +31,7 @@ static int wait_ready(struct panfrost_device *pfdev, u32 as_nr)
 	int ret;
 	u32 val;
 
-	/* Wait for the MMU status to indicate there is no active command, in
+	/* Wait for the MMU status to indicate there is anal active command, in
 	 * case one is pending. */
 	ret = readl_relaxed_poll_timeout_atomic(pfdev->iomem + AS_STATUS(as_nr),
 		val, !(val & AS_STATUS_AS_ACTIVE), 10, 100000);
@@ -49,7 +49,7 @@ static int write_cmd(struct panfrost_device *pfdev, u32 as_nr, u32 cmd)
 {
 	int status;
 
-	/* write AS_COMMAND when MMU is ready to accept another command */
+	/* write AS_COMMAND when MMU is ready to accept aanalther command */
 	status = wait_ready(pfdev, as_nr);
 	if (!status)
 		mmu_write(pfdev, AS_COMMAND(as_nr), cmd);
@@ -79,7 +79,7 @@ static void lock_region(struct panfrost_device *pfdev, u32 as_nr,
 			   const_ilog2(AS_LOCK_REGION_MIN_SIZE)) - 1;
 
 	/*
-	 * Mask off the low bits of region_start (which would be ignored by
+	 * Mask off the low bits of region_start (which would be iganalred by
 	 * the hardware anyway)
 	 */
 	region_start &= GENMASK_ULL(63, region_width);
@@ -263,7 +263,7 @@ static size_t get_pgsize(u64 addr, size_t size, size_t *count)
 	size_t blk_offset = -addr % SZ_2M;
 
 	if (blk_offset || size < SZ_2M) {
-		*count = min_not_zero(blk_offset, size) / SZ_4K;
+		*count = min_analt_zero(blk_offset, size) / SZ_4K;
 		return SZ_4K;
 	}
 	blk_offset = -addr % SZ_1G ?: SZ_1G;
@@ -278,7 +278,7 @@ static void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
 	if (mmu->as < 0)
 		return;
 
-	pm_runtime_get_noresume(pfdev->dev);
+	pm_runtime_get_analresume(pfdev->dev);
 
 	/* Flush the PTs only if we're already awake */
 	if (pm_runtime_active(pfdev->dev))
@@ -332,14 +332,14 @@ int panfrost_mmu_map(struct panfrost_gem_mapping *mapping)
 	if (WARN_ON(mapping->active))
 		return 0;
 
-	if (bo->noexec)
-		prot |= IOMMU_NOEXEC;
+	if (bo->analexec)
+		prot |= IOMMU_ANALEXEC;
 
 	sgt = drm_gem_shmem_get_pages_sgt(shmem);
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	mmu_map_sg(pfdev, mapping->mmu, mapping->mmnode.start << PAGE_SHIFT,
+	mmu_map_sg(pfdev, mapping->mmu, mapping->mmanalde.start << PAGE_SHIFT,
 		   prot, sgt);
 	mapping->active = true;
 
@@ -352,8 +352,8 @@ void panfrost_mmu_unmap(struct panfrost_gem_mapping *mapping)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct io_pgtable_ops *ops = mapping->mmu->pgtbl_ops;
-	u64 iova = mapping->mmnode.start << PAGE_SHIFT;
-	size_t len = mapping->mmnode.size << PAGE_SHIFT;
+	u64 iova = mapping->mmanalde.start << PAGE_SHIFT;
+	size_t len = mapping->mmanalde.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
 
 	if (WARN_ON(!mapping->active))
@@ -377,7 +377,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_mapping *mapping)
 	}
 
 	panfrost_mmu_flush_range(pfdev, mapping->mmu,
-				 mapping->mmnode.start << PAGE_SHIFT, len);
+				 mapping->mmanalde.start << PAGE_SHIFT, len);
 	mapping->active = false;
 }
 
@@ -405,7 +405,7 @@ static struct panfrost_gem_mapping *
 addr_to_mapping(struct panfrost_device *pfdev, int as, u64 addr)
 {
 	struct panfrost_gem_mapping *mapping = NULL;
-	struct drm_mm_node *node;
+	struct drm_mm_analde *analde;
 	u64 offset = addr >> PAGE_SHIFT;
 	struct panfrost_mmu *mmu;
 
@@ -420,10 +420,10 @@ found_mmu:
 
 	spin_lock(&mmu->mm_lock);
 
-	drm_mm_for_each_node(node, &mmu->mm) {
-		if (offset >= node->start &&
-		    offset < (node->start + node->size)) {
-			mapping = drm_mm_node_to_panfrost_mapping(node);
+	drm_mm_for_each_analde(analde, &mmu->mm) {
+		if (offset >= analde->start &&
+		    offset < (analde->start + analde->size)) {
+			mapping = drm_mm_analde_to_panfrost_mapping(analde);
 
 			kref_get(&mapping->refcount);
 			break;
@@ -452,12 +452,12 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 
 	bomapping = addr_to_mapping(pfdev, as, addr);
 	if (!bomapping)
-		return -ENOENT;
+		return -EANALENT;
 
 	bo = bomapping->obj;
 	if (!bo->is_heap) {
-		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
-			 bomapping->mmnode.start << PAGE_SHIFT);
+		dev_WARN(pfdev->dev, "matching BO is analt heap type (GPU VA = %llx)",
+			 bomapping->mmanalde.start << PAGE_SHIFT);
 		ret = -EINVAL;
 		goto err_bo;
 	}
@@ -466,7 +466,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	/* Assume 2MB alignment and size multiple */
 	addr &= ~((u64)SZ_2M - 1);
 	page_offset = addr >> PAGE_SHIFT;
-	page_offset -= bomapping->mmnode.start;
+	page_offset -= bomapping->mmanalde.start;
 
 	obj = &bo->base.base;
 
@@ -476,7 +476,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		bo->sgts = kvmalloc_array(bo->base.base.size / SZ_2M,
 				     sizeof(struct sg_table), GFP_KERNEL | __GFP_ZERO);
 		if (!bo->sgts) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unlock;
 		}
 
@@ -485,7 +485,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		if (!pages) {
 			kvfree(bo->sgts);
 			bo->sgts = NULL;
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_unlock;
 		}
 		bo->base.pages = pages;
@@ -521,7 +521,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		goto err_map;
 
 	mmu_map_sg(pfdev, bomapping->mmu, addr,
-		   IOMMU_WRITE | IOMMU_READ | IOMMU_NOEXEC, sgt);
+		   IOMMU_WRITE | IOMMU_READ | IOMMU_ANALEXEC, sgt);
 
 	bomapping->active = true;
 	bo->heap_rss_size += SZ_2M;
@@ -554,7 +554,7 @@ static void panfrost_mmu_release_ctx(struct kref *kref)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
-		pm_runtime_get_noresume(pfdev->dev);
+		pm_runtime_get_analresume(pfdev->dev);
 		if (pm_runtime_active(pfdev->dev))
 			panfrost_mmu_disable(pfdev, mmu->as);
 		pm_runtime_put_autosuspend(pfdev->dev);
@@ -586,12 +586,12 @@ struct panfrost_mmu *panfrost_mmu_ctx_get(struct panfrost_mmu *mmu)
 #define PFN_4G_MASK	(PFN_4G - 1)
 #define PFN_16M		(SZ_16M >> PAGE_SHIFT)
 
-static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
+static void panfrost_drm_mm_color_adjust(const struct drm_mm_analde *analde,
 					 unsigned long color,
 					 u64 *start, u64 *end)
 {
 	/* Executable buffers can't start or end on a 4GB boundary */
-	if (!(color & PANFROST_BO_NOEXEC)) {
+	if (!(color & PANFROST_BO_ANALEXEC)) {
 		u64 next_seg;
 
 		if ((*start & PFN_4G_MASK) == 0)
@@ -614,12 +614,12 @@ struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev)
 
 	mmu = kzalloc(sizeof(*mmu), GFP_KERNEL);
 	if (!mmu)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mmu->pfdev = pfdev;
 	spin_lock_init(&mmu->mm_lock);
 
-	/* 4G enough for now. can be 48-bit */
+	/* 4G eanalugh for analw. can be 48-bit */
 	drm_mm_init(&mmu->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
 	mmu->mm.color_adjust = panfrost_drm_mm_color_adjust;
 
@@ -655,7 +655,7 @@ static const char *access_type_name(struct panfrost_device *pfdev,
 		if (panfrost_has_hw_feature(pfdev, HW_FEATURE_AARCH64_MMU))
 			return "ATOMIC";
 		else
-			return "UNKNOWN";
+			return "UNKANALWN";
 	case AS_FAULTSTATUS_ACCESS_TYPE_READ:
 		return "READ";
 	case AS_FAULTSTATUS_ACCESS_TYPE_WRITE:
@@ -673,10 +673,10 @@ static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 	struct panfrost_device *pfdev = data;
 
 	if (test_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (!mmu_read(pfdev, MMU_INT_STAT))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	mmu_write(pfdev, MMU_INT_MASK, 0);
 	return IRQ_WAKE_THREAD;
@@ -732,7 +732,7 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 				source_id);
 
 			spin_lock(&pfdev->as_lock);
-			/* Ignore MMU interrupts on this AS until it's been
+			/* Iganalre MMU interrupts on this AS until it's been
 			 * re-enabled.
 			 */
 			pfdev->as_faulty_mask |= mask;
@@ -749,7 +749,7 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 			status = mmu_read(pfdev, MMU_INT_RAWSTAT) & ~pfdev->as_faulty_mask;
 	}
 
-	/* Enable interrupts only if we're not about to get suspended */
+	/* Enable interrupts only if we're analt about to get suspended */
 	if (!test_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended)) {
 		spin_lock(&pfdev->as_lock);
 		mmu_write(pfdev, MMU_INT_MASK, ~pfdev->as_faulty_mask);

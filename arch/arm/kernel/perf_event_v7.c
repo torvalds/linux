@@ -32,9 +32,9 @@
 /*
  * Common ARMv7 event types
  *
- * Note: An implementation may not be able to count all of these events
+ * Analte: An implementation may analt be able to count all of these events
  * but the encodings are considered to be `reserved' in the case that
- * they are not available.
+ * they are analt available.
  */
 #define ARMV7_PERFCTR_PMNC_SW_INCR			0x00
 #define ARMV7_PERFCTR_L1_ICACHE_REFILL			0x01
@@ -152,7 +152,7 @@
  * Cortex-A8 HW events mapping
  *
  * The hardware events that we support. We do support cache operations but
- * we have harvard caches and no way to combine instruction and data
+ * we have harvard caches and anal way to combine instruction and data
  * accesses/misses in hardware.
  */
 static const unsigned armv7_a8_perf_map[PERF_COUNT_HW_MAX] = {
@@ -316,8 +316,8 @@ static const unsigned armv7_a15_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(L1D)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV7_A15_PERFCTR_L1_DCACHE_REFILL_WRITE,
 
 	/*
-	 * Not all performance counters differentiate between read and write
-	 * accesses/misses so we're not always strictly correct, but it's the
+	 * Analt all performance counters differentiate between read and write
+	 * accesses/misses so we're analt always strictly correct, but it's the
 	 * best we can do. Writes and reads get combined in these cases.
 	 */
 	[C(L1I)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
@@ -414,8 +414,8 @@ static const unsigned armv7_a12_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 	[C(L1D)][C(OP_WRITE)][C(RESULT_MISS)]	= ARMV7_PERFCTR_L1_DCACHE_REFILL,
 
 	/*
-	 * Not all performance counters differentiate between read and write
-	 * accesses/misses so we're not always strictly correct, but it's the
+	 * Analt all performance counters differentiate between read and write
+	 * accesses/misses so we're analt always strictly correct, but it's the
 	 * best we can do. Writes and reads get combined in these cases.
 	 */
 	[C(L1I)][C(OP_READ)][C(RESULT_ACCESS)]	= ARMV7_PERFCTR_L1_ICACHE_ACCESS,
@@ -451,7 +451,7 @@ static const unsigned krait_perf_map[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_BUS_CYCLES]	    = ARMV7_PERFCTR_CLOCK_CYCLES,
 };
 
-static const unsigned krait_perf_map_no_branch[PERF_COUNT_HW_MAX] = {
+static const unsigned krait_perf_map_anal_branch[PERF_COUNT_HW_MAX] = {
 	PERF_MAP_ALL_UNSUPPORTED,
 	[PERF_COUNT_HW_CPU_CYCLES]	    = ARMV7_PERFCTR_CPU_CYCLES,
 	[PERF_COUNT_HW_INSTRUCTIONS]	    = ARMV7_PERFCTR_INSTR_EXECUTED,
@@ -677,7 +677,7 @@ static struct attribute_group armv7_pmuv2_events_attr_group = {
 #define ARMV7_PMNC_C		(1 << 2) /* Cycle counter reset */
 #define ARMV7_PMNC_D		(1 << 3) /* CCNT counts every 64th cpu cycle */
 #define ARMV7_PMNC_X		(1 << 4) /* Export to ETM */
-#define ARMV7_PMNC_DP		(1 << 5) /* Disable CCNT if non-invasive debug*/
+#define ARMV7_PMNC_DP		(1 << 5) /* Disable CCNT if analn-invasive debug*/
 #define	ARMV7_PMNC_N_SHIFT	11	 /* Number of counters supported */
 #define	ARMV7_PMNC_N_MASK	0x1f
 #define	ARMV7_PMNC_MASK		0x3f	 /* Mask for writable bits */
@@ -704,7 +704,7 @@ static struct attribute_group armv7_pmuv2_events_attr_group = {
 /*
  * Secure debug enable reg
  */
-#define ARMV7_SDER_SUNIDEN	BIT(1) /* Permit non-invasive debug */
+#define ARMV7_SDER_SUNIDEN	BIT(1) /* Permit analn-invasive debug */
 
 static inline u32 armv7_pmnc_read(void)
 {
@@ -953,7 +953,7 @@ static irqreturn_t armv7pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	 * Did an overflow occur?
 	 */
 	if (!armv7_pmnc_has_overflowed(pmnc))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Handle the counter(s) overflow(s)
@@ -964,7 +964,7 @@ static irqreturn_t armv7pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Iganalre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -988,9 +988,9 @@ static irqreturn_t armv7pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	/*
 	 * Handle the pending perf events.
 	 *
-	 * Note: this call *must* be run with interrupts disabled. For
+	 * Analte: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will analt work.
 	 */
 	irq_work_run();
 
@@ -1053,8 +1053,8 @@ static int armv7pmu_set_event_filter(struct hw_perf_event *event,
 	unsigned long config_base = 0;
 
 	if (attr->exclude_idle) {
-		pr_debug("ARM performance counters do not support mode exclusion\n");
-		return -EOPNOTSUPP;
+		pr_debug("ARM performance counters do analt support mode exclusion\n");
+		return -EOPANALTSUPP;
 	}
 	if (attr->exclude_user)
 		config_base |= ARMV7_EXCLUDE_USER;
@@ -1083,7 +1083,7 @@ static void armv7pmu_reset(void *info)
 		asm volatile("mcr p15, 0, %0, c1, c1, 1" : : "r" (val));
 	}
 
-	/* The counter and interrupt enable registers are unknown at reset. */
+	/* The counter and interrupt enable registers are unkanalwn at reset. */
 	for (idx = ARMV7_IDX_CYCLE_COUNTER; idx < nb_cnt; ++idx) {
 		armv7_pmnc_disable_counter(idx);
 		armv7_pmnc_disable_intens(idx);
@@ -1135,9 +1135,9 @@ static int krait_map_event(struct perf_event *event)
 				&krait_perf_cache_map, 0xFFFFF);
 }
 
-static int krait_map_event_no_branch(struct perf_event *event)
+static int krait_map_event_anal_branch(struct perf_event *event)
 {
-	return armpmu_map_event(event, &krait_perf_map_no_branch,
+	return armpmu_map_event(event, &krait_perf_map_anal_branch,
 				&krait_perf_cache_map, 0xFFFFF);
 }
 
@@ -1586,7 +1586,7 @@ static int krait_pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	bool krait_event = EVENT_CPU(hwc->config_base);
 
 	if (venum_event || krait_event) {
-		/* Ignore invalid events */
+		/* Iganalre invalid events */
 		if (group > 3 || region > 2)
 			return -EINVAL;
 		if (venum_event && (code & 0xe0))
@@ -1626,9 +1626,9 @@ static int krait_pmu_init(struct arm_pmu *cpu_pmu)
 	armv7pmu_init(cpu_pmu);
 	cpu_pmu->name		= "armv7_krait";
 	/* Some early versions of Krait don't support PC write events */
-	if (of_property_read_bool(cpu_pmu->plat_device->dev.of_node,
-				  "qcom,no-pc-write"))
-		cpu_pmu->map_event = krait_map_event_no_branch;
+	if (of_property_read_bool(cpu_pmu->plat_device->dev.of_analde,
+				  "qcom,anal-pc-write"))
+		cpu_pmu->map_event = krait_map_event_anal_branch;
 	else
 		cpu_pmu->map_event = krait_map_event;
 	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
@@ -1906,7 +1906,7 @@ static int scorpion_pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	bool scorpion_event = EVENT_CPU(hwc->config_base);
 
 	if (venum_event || scorpion_event) {
-		/* Ignore invalid events */
+		/* Iganalre invalid events */
 		if (group > 3 || region > 3)
 			return -EINVAL;
 

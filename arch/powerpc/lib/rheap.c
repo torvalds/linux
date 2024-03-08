@@ -1,7 +1,7 @@
 /*
  * A Remote Heap.  Remote means that we don't touch the memory that the
- * heap points to. Normal heap implementations use the memory they manage
- * to place their list. We cannot do that because the memory we manage may
+ * heap points to. Analrmal heap implementations use the memory they manage
+ * to place their list. We cananalt do that because the memory we manage may
  * have special properties, for example it is uncachable or of different
  * endianess.
  *
@@ -13,7 +13,7 @@
  * or implied.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -56,7 +56,7 @@ static int grow(rh_info_t * info, int max_blocks)
 
 	block = kmalloc_array(max_blocks, sizeof(rh_block_t), GFP_ATOMIC);
 	if (block == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (info->max_blocks > 0) {
 
@@ -104,11 +104,11 @@ static int assure_empty(rh_info_t * info, int slots)
 {
 	int max_blocks;
 
-	/* This function is not meant to be used to grow uncontrollably */
+	/* This function is analt meant to be used to grow uncontrollably */
 	if (slots >= 4)
 		return -EINVAL;
 
-	/* Enough space */
+	/* Eanalugh space */
 	if (info->empty_slots >= slots)
 		return 0;
 
@@ -122,7 +122,7 @@ static rh_block_t *get_slot(rh_info_t * info)
 {
 	rh_block_t *blk;
 
-	/* If no more free slots, and failure to extend. */
+	/* If anal more free slots, and failure to extend. */
 	/* XXX: You should have called assure_empty before */
 	if (info->empty_slots == 0) {
 		printk(KERN_ERR "rh: out of slots; crash is imminent.\n");
@@ -184,19 +184,19 @@ static void attach_free_block(rh_info_t * info, rh_block_t * blkn)
 		if (e == bs)
 			after = blk;
 
-		/* If both are not null, break now */
+		/* If both are analt null, break analw */
 		if (before != NULL && after != NULL)
 			break;
 	}
 
-	/* Now check if they are really adjacent */
+	/* Analw check if they are really adjacent */
 	if (before && s != (before->start + before->size))
 		before = NULL;
 
 	if (after && e != after->start)
 		after = NULL;
 
-	/* No coalescing; list insert and return */
+	/* Anal coalescing; list insert and return */
 	if (before == NULL && after == NULL) {
 
 		if (next != NULL)
@@ -247,7 +247,7 @@ static void attach_taken_block(rh_info_t * info, rh_block_t * blkn)
 }
 
 /*
- * Create a remote heap dynamically.  Note that no memory for the blocks
+ * Create a remote heap dynamically.  Analte that anal memory for the blocks
  * are allocated.  It will upon the first allocation
  */
 rh_info_t *rh_create(unsigned int alignment)
@@ -260,7 +260,7 @@ rh_info_t *rh_create(unsigned int alignment)
 
 	info = kmalloc(sizeof(*info), GFP_ATOMIC);
 	if (info == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	info->alignment = alignment;
 
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(rh_create);
 
 /*
  * Destroy a dynamically created remote heap.  Deallocate only if the areas
- * are not static
+ * are analt static
  */
 void rh_destroy(rh_info_t * info)
 {
@@ -294,7 +294,7 @@ EXPORT_SYMBOL_GPL(rh_destroy);
 
 /*
  * Initialize in place a remote heap info block.  This is needed to support
- * operation very early in the startup of the kernel, when it is not yet safe
+ * operation very early in the startup of the kernel, when it is analt yet safe
  * to call kmalloc.
  */
 void rh_init(rh_info_t * info, unsigned int alignment, int max_blocks,
@@ -389,7 +389,7 @@ unsigned long rh_detach_region(rh_info_t * info, unsigned long start, int size)
 	e = e & ~m;
 
 	if (assure_empty(info, 1) < 0)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	blk = NULL;
 	list_for_each(l, &info->free_list) {
@@ -403,7 +403,7 @@ unsigned long rh_detach_region(rh_info_t * info, unsigned long start, int size)
 	}
 
 	if (blk == NULL)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	/* Perfect fit */
 	if (bs == s && be == e) {
@@ -454,7 +454,7 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 	size = (size + (info->alignment - 1)) & ~(info->alignment - 1);
 
 	if (assure_empty(info, 2) < 0)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	blk = NULL;
 	list_for_each(l, &info->free_list) {
@@ -468,7 +468,7 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 	}
 
 	if (blk == NULL)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	/* Just fits */
 	if (blk->size == size) {
@@ -496,7 +496,7 @@ unsigned long rh_alloc_align(rh_info_t * info, int size, int alignment, const ch
 		 * for fragment in the end */
 		blk->start = start + size;
 		blk->size -= sp_size + size;
-		/* No fragment in the end, remove blk */
+		/* Anal fragment in the end, remove blk */
 		if (blk->size == 0) {
 			list_del(&blk->list);
 			release_slot(info, blk);
@@ -546,7 +546,7 @@ unsigned long rh_alloc_fixed(rh_info_t * info, unsigned long start, int size, co
 	e = e & ~m;
 
 	if (assure_empty(info, 2) < 0)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	blk = NULL;
 	list_for_each(l, &info->free_list) {
@@ -560,7 +560,7 @@ unsigned long rh_alloc_fixed(rh_info_t * info, unsigned long start, int size, co
 	}
 
 	if (blk == NULL)
-		return (unsigned long) -ENOMEM;
+		return (unsigned long) -EANALMEM;
 
 	/* Perfect fit */
 	if (bs == s && be == e) {

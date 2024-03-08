@@ -18,23 +18,23 @@
 /**
  * DOC: Video Input Unit
  *
- * VIU Handles the Pixel scanout and the basic Colorspace conversions
+ * VIU Handles the Pixel scaanalut and the basic Colorspace conversions
  * We handle the following features :
  *
- * - OSD1 RGB565/RGB888/xRGB8888 scanout
+ * - OSD1 RGB565/RGB888/xRGB8888 scaanalut
  * - RGB conversion to x/cb/cr
- * - Progressive or Interlace buffer scanout
+ * - Progressive or Interlace buffer scaanalut
  * - OSD1 Commit on Vsync
  * - HDR OSD matrix for GXL/GXM
  *
  * What is missing :
  *
  * - BGR888/xBGR8888/BGRx8888/BGRx8888 modes
- * - YUV4:2:2 Y0CbY1Cr scanout
+ * - YUV4:2:2 Y0CbY1Cr scaanalut
  * - Conversion to YUV 4:4:4 from 4:2:2 input
  * - Colorkey Alpha matching
- * - Big endian scanout
- * - X/Y reverse scanout
+ * - Big endian scaanalut
+ * - X/Y reverse scaanalut
  * - Global alpha setup
  * - OSD2 support, would need interlace switching on vsync
  * - OSD1 full scaling to support TV overscan
@@ -52,18 +52,18 @@ enum viu_lut_sel_e {
 	VIU_LUT_OSD_OETF,
 };
 
-#define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
+#define COEFF_ANALRM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5X3_COEF_SIZE 24
 
-#define EOTF_COEFF_NORM(a) ((int)((((a) * 4096.0) + 1) / 2))
+#define EOTF_COEFF_ANALRM(a) ((int)((((a) * 4096.0) + 1) / 2))
 #define EOTF_COEFF_SIZE 10
 #define EOTF_COEFF_RIGHTSHIFT 1
 
 static int RGB709_to_YUV709l_coeff[MATRIX_5X3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
-	COEFF_NORM(0.181873),	COEFF_NORM(0.611831),	COEFF_NORM(0.061765),
-	COEFF_NORM(-0.100251),	COEFF_NORM(-0.337249),	COEFF_NORM(0.437500),
-	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
+	COEFF_ANALRM(0.181873),	COEFF_ANALRM(0.611831),	COEFF_ANALRM(0.061765),
+	COEFF_ANALRM(-0.100251),	COEFF_ANALRM(-0.337249),	COEFF_ANALRM(0.437500),
+	COEFF_ANALRM(0.437500),	COEFF_ANALRM(-0.397384),	COEFF_ANALRM(-0.040116),
 	0, 0, 0, /* 10'/11'/12' */
 	0, 0, 0, /* 20'/21'/22' */
 	64, 512, 512, /* offset */
@@ -72,9 +72,9 @@ static int RGB709_to_YUV709l_coeff[MATRIX_5X3_COEF_SIZE] = {
 
 /*  eotf matrix: bypass */
 static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
-	EOTF_COEFF_NORM(1.0),	EOTF_COEFF_NORM(0.0),	EOTF_COEFF_NORM(0.0),
-	EOTF_COEFF_NORM(0.0),	EOTF_COEFF_NORM(1.0),	EOTF_COEFF_NORM(0.0),
-	EOTF_COEFF_NORM(0.0),	EOTF_COEFF_NORM(0.0),	EOTF_COEFF_NORM(1.0),
+	EOTF_COEFF_ANALRM(1.0),	EOTF_COEFF_ANALRM(0.0),	EOTF_COEFF_ANALRM(0.0),
+	EOTF_COEFF_ANALRM(0.0),	EOTF_COEFF_ANALRM(1.0),	EOTF_COEFF_ANALRM(0.0),
+	EOTF_COEFF_ANALRM(0.0),	EOTF_COEFF_ANALRM(0.0),	EOTF_COEFF_ANALRM(1.0),
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 

@@ -137,7 +137,7 @@ static const u16 count_lut[] = {
 };
 
 /*
- * This function is described into Taos TSL2550 Designer's Notebook
+ * This function is described into Taos TSL2550 Designer's Analtebook
  * pages 2, 3.
  */
 static int tsl2550_calculate_lux(u8 ch0, u8 ch1)
@@ -148,12 +148,12 @@ static int tsl2550_calculate_lux(u8 ch0, u8 ch1)
 	u16 c0 = count_lut[ch0];
 	u16 c1 = count_lut[ch1];
 
-	/* Avoid division by 0 and count 1 cannot be greater than count 0 */
+	/* Avoid division by 0 and count 1 cananalt be greater than count 0 */
 	if (c1 <= c0)
 		if (c0) {
 			/*
 			 * Calculate ratio.
-			 * Note: the "128" is a scaling factor
+			 * Analte: the "128" is a scaling factor
 			 */
 			u8 r = c1 * 128 / c0;
 
@@ -272,7 +272,7 @@ static ssize_t tsl2550_show_lux1_input(struct device *dev,
 	struct tsl2550_data *data = i2c_get_clientdata(client);
 	int ret;
 
-	/* No LUX data if not operational */
+	/* Anal LUX data if analt operational */
 	if (!data->power_state)
 		return -EBUSY;
 
@@ -314,7 +314,7 @@ static int tsl2550_init_client(struct i2c_client *client)
 	if (err < 0)
 		return err;
 	if (err != TSL2550_POWER_UP)
-		return -ENODEV;
+		return -EANALDEV;
 	data->power_state = 1;
 
 	/* Set the default operating mode */
@@ -345,7 +345,7 @@ static int tsl2550_probe(struct i2c_client *client)
 
 	data = kzalloc(sizeof(struct tsl2550_data), GFP_KERNEL);
 	if (!data) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 	data->client = client;

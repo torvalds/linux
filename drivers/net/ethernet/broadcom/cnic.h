@@ -358,8 +358,8 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_ISCSI_R2TQE_SIZE		8
 #define BNX2X_ISCSI_HQ_BD_SIZE		64
 #define BNX2X_ISCSI_GLB_BUF_SIZE	64
-#define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
-#define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
+#define BNX2X_ISCSI_PBL_ANALT_CACHED	0xff
+#define BNX2X_ISCSI_PDU_HEADER_ANALT_CACHED	0xff
 
 #define BNX2X_FCOE_NUM_CONNECTIONS	1024
 
@@ -419,7 +419,7 @@ struct bnx2x_bd_chain_next {
 #endif
 
 #define CNIC_SUPPORTS_FCOE(cp)						\
-	(BNX2X_CHIP_IS_E2_PLUS(bp) && !NO_FCOE(bp))
+	(BNX2X_CHIP_IS_E2_PLUS(bp) && !ANAL_FCOE(bp))
 
 #define CNIC_RAMROD_TMO			(HZ / 4)
 

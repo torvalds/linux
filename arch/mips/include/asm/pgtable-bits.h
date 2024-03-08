@@ -12,10 +12,10 @@
 
 
 /*
- * Note that we shift the lower 32bits of each EntryLo[01] entry
+ * Analte that we shift the lower 32bits of each EntryLo[01] entry
  * 6 bits to the left. That way we can convert the PFN into the
  * physical address by a single 'and' operation and gain 6 additional
- * bits for storing information which isn't present in a normal
+ * bits for storing information which isn't present in a analrmal
  * MIPS page table.
  *
  * Similar to the Alpha port, we need to keep track of the ref
@@ -28,7 +28,7 @@
  *
  * Certain revisions of the R4000 and R5000 have a bug where if a
  * certain sequence occurs in the last 3 instructions of an executable
- * page, and the following page is not mapped, the cpu can do
+ * page, and the following page is analt mapped, the cpu can do
  * unpredictable things.  The code (when it is written) to deal with
  * this problem will be in the update_mmu_cache() code for the r4k.
  */
@@ -40,8 +40,8 @@
  */
 enum pgtable_bits {
 	/* Used by TLB hardware (placed in EntryLo*) */
-	_PAGE_NO_EXEC_SHIFT,
-	_PAGE_NO_READ_SHIFT,
+	_PAGE_ANAL_EXEC_SHIFT,
+	_PAGE_ANAL_READ_SHIFT,
 	_PAGE_GLOBAL_SHIFT,
 	_PAGE_VALID_SHIFT,
 	_PAGE_DIRTY_SHIFT,
@@ -80,7 +80,7 @@ enum pgtable_bits {
 
 	/* Used only by software (masked out before writing EntryLo*) */
 	_PAGE_PRESENT_SHIFT = _CACHE_SHIFT + 3,
-	_PAGE_NO_READ_SHIFT,
+	_PAGE_ANAL_READ_SHIFT,
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
@@ -96,9 +96,9 @@ enum pgtable_bits {
 
 /* Page table bits used for r3k systems */
 enum pgtable_bits {
-	/* Used only by software (writes to EntryLo ignored) */
+	/* Used only by software (writes to EntryLo iganalred) */
 	_PAGE_PRESENT_SHIFT,
-	_PAGE_NO_READ_SHIFT,
+	_PAGE_ANAL_READ_SHIFT,
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
 	_PAGE_MODIFIED_SHIFT,
@@ -123,7 +123,7 @@ enum pgtable_bits {
 	/* Used only by software (masked out before writing EntryLo*) */
 	_PAGE_PRESENT_SHIFT,
 #if !defined(CONFIG_CPU_HAS_RIXI)
-	_PAGE_NO_READ_SHIFT,
+	_PAGE_ANAL_READ_SHIFT,
 #endif
 	_PAGE_WRITE_SHIFT,
 	_PAGE_ACCESSED_SHIFT,
@@ -139,8 +139,8 @@ enum pgtable_bits {
 #endif
 	/* Used by TLB hardware (placed in EntryLo*) */
 #if defined(CONFIG_CPU_HAS_RIXI)
-	_PAGE_NO_EXEC_SHIFT,
-	_PAGE_NO_READ_SHIFT,
+	_PAGE_ANAL_EXEC_SHIFT,
+	_PAGE_ANAL_READ_SHIFT,
 #endif
 	_PAGE_GLOBAL_SHIFT,
 	_PAGE_VALID_SHIFT,
@@ -171,11 +171,11 @@ enum pgtable_bits {
 
 /* Used by TLB hardware (placed in EntryLo*) */
 #if defined(CONFIG_XPA)
-# define _PAGE_NO_EXEC		(1 << _PAGE_NO_EXEC_SHIFT)
+# define _PAGE_ANAL_EXEC		(1 << _PAGE_ANAL_EXEC_SHIFT)
 #elif defined(CONFIG_CPU_HAS_RIXI)
-# define _PAGE_NO_EXEC		(cpu_has_rixi ? (1 << _PAGE_NO_EXEC_SHIFT) : 0)
+# define _PAGE_ANAL_EXEC		(cpu_has_rixi ? (1 << _PAGE_ANAL_EXEC_SHIFT) : 0)
 #endif
-#define _PAGE_NO_READ		(1 << _PAGE_NO_READ_SHIFT)
+#define _PAGE_ANAL_READ		(1 << _PAGE_ANAL_READ_SHIFT)
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
 #define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
@@ -188,8 +188,8 @@ enum pgtable_bits {
 # define PFN_PTE_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
 #endif
 
-#ifndef _PAGE_NO_EXEC
-#define _PAGE_NO_EXEC		0
+#ifndef _PAGE_ANAL_EXEC
+#define _PAGE_ANAL_EXEC		0
 #endif
 
 #define _PAGE_SILENT_READ	_PAGE_VALID
@@ -217,17 +217,17 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 	if (cpu_has_rixi) {
 		int sa;
 #ifdef CONFIG_32BIT
-		sa = 31 - _PAGE_NO_READ_SHIFT;
+		sa = 31 - _PAGE_ANAL_READ_SHIFT;
 #else
-		sa = 63 - _PAGE_NO_READ_SHIFT;
+		sa = 63 - _PAGE_ANAL_READ_SHIFT;
 #endif
 		/*
-		 * C has no way to express that this is a DSRL
-		 * _PAGE_NO_EXEC_SHIFT followed by a ROTR 2.  Luckily
+		 * C has anal way to express that this is a DSRL
+		 * _PAGE_ANAL_EXEC_SHIFT followed by a ROTR 2.  Luckily
 		 * in the fast path this is done in assembly
 		 */
 		return (pte_val >> _PAGE_GLOBAL_SHIFT) |
-			((pte_val & (_PAGE_NO_EXEC | _PAGE_NO_READ)) << sa);
+			((pte_val & (_PAGE_ANAL_EXEC | _PAGE_ANAL_READ)) << sa);
 	}
 #endif
 
@@ -239,20 +239,20 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
  */
 #if defined(CONFIG_CPU_R3K_TLB)
 
-#define _CACHE_CACHABLE_NONCOHERENT 0
+#define _CACHE_CACHABLE_ANALNCOHERENT 0
 #define _CACHE_UNCACHED_ACCELERATED _CACHE_UNCACHED
 
 #elif defined(CONFIG_CPU_SB1)
 
-/* No penalty for being coherent on the SB1, so just
-   use it for "noncoherent" spaces, too.  Shouldn't hurt. */
+/* Anal penalty for being coherent on the SB1, so just
+   use it for "analncoherent" spaces, too.  Shouldn't hurt. */
 
-#define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
+#define _CACHE_CACHABLE_ANALNCOHERENT (5<<_CACHE_SHIFT)
 
 #endif
 
-#ifndef _CACHE_CACHABLE_NO_WA
-#define _CACHE_CACHABLE_NO_WA		(0<<_CACHE_SHIFT)
+#ifndef _CACHE_CACHABLE_ANAL_WA
+#define _CACHE_CACHABLE_ANAL_WA		(0<<_CACHE_SHIFT)
 #endif
 #ifndef _CACHE_CACHABLE_WA
 #define _CACHE_CACHABLE_WA		(1<<_CACHE_SHIFT)
@@ -260,8 +260,8 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #ifndef _CACHE_UNCACHED
 #define _CACHE_UNCACHED			(2<<_CACHE_SHIFT)
 #endif
-#ifndef _CACHE_CACHABLE_NONCOHERENT
-#define _CACHE_CACHABLE_NONCOHERENT	(3<<_CACHE_SHIFT)
+#ifndef _CACHE_CACHABLE_ANALNCOHERENT
+#define _CACHE_CACHABLE_ANALNCOHERENT	(3<<_CACHE_SHIFT)
 #endif
 #ifndef _CACHE_CACHABLE_CE
 #define _CACHE_CACHABLE_CE		(4<<_CACHE_SHIFT)

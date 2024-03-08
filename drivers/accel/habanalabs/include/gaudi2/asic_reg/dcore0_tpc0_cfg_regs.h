@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_TPC0_CFG_REGS_H_
@@ -120,7 +120,7 @@
 
 #define mmDCORE0_TPC0_CFG_LUT_FUNC256_BASE2_ADDR_HI 0x400BCDC
 
-#define mmDCORE0_TPC0_CFG_SPE_LFSR_POLYNOM 0x400BCE0
+#define mmDCORE0_TPC0_CFG_SPE_LFSR_POLYANALM 0x400BCE0
 
 #define mmDCORE0_TPC0_CFG_TSB_CFG_MTRR_GLBL 0x400BCE4
 
@@ -162,7 +162,7 @@
 
 #define mmDCORE0_TPC0_CFG_SFLAGS 0x400BD7C
 
-#define mmDCORE0_TPC0_CFG_LFSR_POLYNOM 0x400BD80
+#define mmDCORE0_TPC0_CFG_LFSR_POLYANALM 0x400BD80
 
 #define mmDCORE0_TPC0_CFG_STATUS 0x400BD84
 

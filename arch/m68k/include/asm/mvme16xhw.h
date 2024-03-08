@@ -82,9 +82,9 @@ extern unsigned short mvme16x_config;
 /* Lower 8 bits must match the revision register in the MC2 chip */
 
 #define MVME16x_CONFIG_SPEED_32		0x0001
-#define MVME16x_CONFIG_NO_VMECHIP2	0x0002
-#define MVME16x_CONFIG_NO_SCSICHIP	0x0004
-#define MVME16x_CONFIG_NO_ETHERNET	0x0008
+#define MVME16x_CONFIG_ANAL_VMECHIP2	0x0002
+#define MVME16x_CONFIG_ANAL_SCSICHIP	0x0004
+#define MVME16x_CONFIG_ANAL_ETHERNET	0x0008
 #define MVME16x_CONFIG_GOT_FPU		0x0010
 
 #define MVME16x_CONFIG_GOT_LP		0x0100

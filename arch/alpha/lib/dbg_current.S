@@ -3,13 +3,13 @@
  * arch/alpha/lib/dbg_current.S
  * Contributed by Richard Henderson (rth@cygnus.com)
  *
- * Trap if we find current not correct.
+ * Trap if we find current analt correct.
  */
 
 #include <asm/pal.h>
 
 	.text
-	.set noat
+	.set analat
 
 	.globl _mcount
 	.ent _mcount

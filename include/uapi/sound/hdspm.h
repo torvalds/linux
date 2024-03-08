@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 #ifndef __SOUND_HDSPM_H
 #define __SOUND_HDSPM_H
 /*
@@ -90,7 +90,7 @@ enum hdspm_ltc_frame {
 enum hdspm_ltc_input_format {
 	ntsc,
 	pal,
-	no_video
+	anal_video
 };
 
 struct hdspm_ltc {
@@ -110,7 +110,7 @@ struct hdspm_ltc {
  */
 
 enum hdspm_sync {
-	hdspm_sync_no_lock = 0,
+	hdspm_sync_anal_lock = 0,
 	hdspm_sync_lock = 1,
 	hdspm_sync_sync = 2
 };
@@ -135,7 +135,7 @@ enum hdspm_syncsource {
 	syncsource_madi = 1,
 	syncsource_tco = 2,
 	syncsource_sync = 3,
-	syncsource_none = 4
+	syncsource_analne = 4
 };
 
 struct hdspm_status {

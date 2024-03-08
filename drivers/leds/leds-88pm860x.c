@@ -95,7 +95,7 @@ static int pm860x_led_set(struct led_classdev *cdev,
 		ret |= buf[1] & LED_PWM_MASK;
 		ret |= buf[2] & LED_PWM_MASK;
 		if (ret == 0) {
-			/* unset current since no led is lighting */
+			/* unset current since anal led is lighting */
 			pm860x_set_bits(led->i2c, led->reg_control,
 					LED_CURRENT_MASK, 0);
 			pm860x_set_bits(led->i2c, PM8606_WLED3B,
@@ -115,26 +115,26 @@ static int pm860x_led_set(struct led_classdev *cdev,
 static int pm860x_led_dt_init(struct platform_device *pdev,
 			      struct pm860x_led *data)
 {
-	struct device_node *nproot, *np;
+	struct device_analde *nproot, *np;
 	int iset = 0;
 
-	if (!dev_of_node(pdev->dev.parent))
-		return -ENODEV;
-	nproot = of_get_child_by_name(dev_of_node(pdev->dev.parent), "leds");
+	if (!dev_of_analde(pdev->dev.parent))
+		return -EANALDEV;
+	nproot = of_get_child_by_name(dev_of_analde(pdev->dev.parent), "leds");
 	if (!nproot) {
-		dev_err(&pdev->dev, "failed to find leds node\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "failed to find leds analde\n");
+		return -EANALDEV;
 	}
-	for_each_available_child_of_node(nproot, np) {
-		if (of_node_name_eq(np, data->name)) {
+	for_each_available_child_of_analde(nproot, np) {
+		if (of_analde_name_eq(np, data->name)) {
 			of_property_read_u32(np, "marvell,88pm860x-iset",
 					     &iset);
 			data->iset = PM8606_LED_CURRENT(iset);
-			of_node_put(np);
+			of_analde_put(np);
 			break;
 		}
 	}
-	of_node_put(nproot);
+	of_analde_put(nproot);
 	return 0;
 }
 #else
@@ -151,16 +151,16 @@ static int pm860x_led_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_led), GFP_KERNEL);
 	if (data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "control");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for control\n");
+		dev_err(&pdev->dev, "Anal REG resource for control\n");
 		return -ENXIO;
 	}
 	data->reg_control = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "blink");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resource for blink\n");
+		dev_err(&pdev->dev, "Anal REG resource for blink\n");
 		return -ENXIO;
 	}
 	data->reg_blink = res->start;

@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_analtify.h>
 #include <asm/cputype.h>
 
 asm("	.arch armv5te\n");
@@ -30,59 +30,59 @@ static inline void dsp_load_state(u32 *state)
 		: : "r" (state[0]), "r" (state[1]));
 }
 
-static int dsp_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int dsp_do(struct analtifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
 	switch (cmd) {
-	case THREAD_NOTIFY_FLUSH:
+	case THREAD_ANALTIFY_FLUSH:
 		thread->cpu_context.extra[0] = 0;
 		thread->cpu_context.extra[1] = 0;
 		break;
 
-	case THREAD_NOTIFY_SWITCH:
+	case THREAD_ANALTIFY_SWITCH:
 		dsp_save_state(current_thread_info()->cpu_context.extra);
 		dsp_load_state(thread->cpu_context.extra);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block dsp_notifier_block = {
-	.notifier_call	= dsp_do,
+static struct analtifier_block dsp_analtifier_block = {
+	.analtifier_call	= dsp_do,
 };
 
 
 #ifdef CONFIG_IWMMXT
-static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int iwmmxt_do(struct analtifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
 	switch (cmd) {
-	case THREAD_NOTIFY_FLUSH:
+	case THREAD_ANALTIFY_FLUSH:
 		/*
-		 * flush_thread() zeroes thread->fpstate, so no need
+		 * flush_thread() zeroes thread->fpstate, so anal need
 		 * to do anything here.
 		 *
 		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
 		 * initialised state information on the first fault.
 		 */
 
-	case THREAD_NOTIFY_EXIT:
+	case THREAD_ANALTIFY_EXIT:
 		iwmmxt_task_release(thread);
 		break;
 
-	case THREAD_NOTIFY_SWITCH:
+	case THREAD_ANALTIFY_SWITCH:
 		iwmmxt_task_switch(thread);
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block iwmmxt_notifier_block = {
-	.notifier_call	= iwmmxt_do,
+static struct analtifier_block iwmmxt_analtifier_block = {
+	.analtifier_call	= iwmmxt_do,
 };
 #endif
 
@@ -145,14 +145,14 @@ static int __init cpu_has_iwmmxt(void)
  * disable CP0/CP1 on boot, and let call_fpe() and the iWMMXt lazy
  * switch code handle iWMMXt context switching.  If on the other
  * hand the CPU has a DSP coprocessor, we keep access to CP0 enabled
- * all the time, and save/restore acc0 on context switch in non-lazy
+ * all the time, and save/restore acc0 on context switch in analn-lazy
  * fashion.
  */
 static int __init xscale_cp0_init(void)
 {
 	u32 cp_access;
 
-	/* do not attempt to probe iwmmxt on non-xscale family CPUs */
+	/* do analt attempt to probe iwmmxt on analn-xscale family CPUs */
 	if (!cpu_is_xscale_family())
 		return 0;
 
@@ -165,12 +165,12 @@ static int __init xscale_cp0_init(void)
 #else
 		pr_info("XScale iWMMXt coprocessor detected.\n");
 		elf_hwcap |= HWCAP_IWMMXT;
-		thread_register_notifier(&iwmmxt_notifier_block);
+		thread_register_analtifier(&iwmmxt_analtifier_block);
 		register_iwmmxt_undef_handler();
 #endif
 	} else {
 		pr_info("XScale DSP coprocessor detected.\n");
-		thread_register_notifier(&dsp_notifier_block);
+		thread_register_analtifier(&dsp_analtifier_block);
 		cp_access |= 1;
 	}
 

@@ -83,8 +83,8 @@ static inline size_t guehdr_priv_flags_len(__be32 flags)
 	return 0;
 }
 
-/* Validate standard and private flags. Returns non-zero (meaning invalid)
- * if there is an unknown standard or private flags, or the options length for
+/* Validate standard and private flags. Returns analn-zero (meaning invalid)
+ * if there is an unkanalwn standard or private flags, or the options length for
  * the flags exceeds the options length specific in hlen of the GUE header.
  */
 static inline int validate_gue_flags(struct guehdr *guehdr, size_t optlen)

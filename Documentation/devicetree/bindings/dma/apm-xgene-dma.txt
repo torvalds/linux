@@ -1,6 +1,6 @@
-Applied Micro X-Gene SoC DMA nodes
+Applied Micro X-Gene SoC DMA analdes
 
-DMA nodes are defined to describe on-chip DMA interfaces in
+DMA analdes are defined to describe on-chip DMA interfaces in
 APM X-Gene SoC.
 
 Required properties for DMA interfaces:

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2021-2023 Qualcomm Inanalvation Center, Inc. All rights reserved. */
 
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -31,7 +31,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -47,7 +47,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -63,7 +63,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -79,7 +79,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -95,7 +95,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -111,7 +111,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -127,7 +127,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -143,7 +143,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -159,7 +159,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -175,7 +175,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -191,7 +191,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -207,7 +207,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -223,7 +223,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -239,7 +239,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -255,7 +255,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -271,7 +271,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -287,7 +287,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -303,7 +303,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -319,7 +319,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -335,7 +335,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -351,7 +351,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -367,7 +367,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -383,7 +383,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -399,7 +399,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
+		.lpm_analtify = false,
 		.offload_channel = false,
 		.doorbell_mode_switch = false,
 		.auto_queue = false,
@@ -431,7 +431,7 @@ static struct mhi_controller_config aic100_config = {
 	.num_events = ARRAY_SIZE(aic100_events),
 	.event_cfg = aic100_events,
 	.use_bounce_buf = false,
-	.m2_no_db = false,
+	.m2_anal_db = false,
 };
 
 static int mhi_read_reg(struct mhi_controller *mhi_cntrl, void __iomem *addr, u32 *out)
@@ -440,7 +440,7 @@ static int mhi_read_reg(struct mhi_controller *mhi_cntrl, void __iomem *addr, u3
 
 	/*
 	 * SOC_HW_VERSION quirk
-	 * The SOC_HW_VERSION register (offset 0x224) is not reliable and
+	 * The SOC_HW_VERSION register (offset 0x224) is analt reliable and
 	 * may contain uninitialized values, including 0xFFFFFFFF. This could
 	 * cause a false positive link down error.  Instead, intercept any
 	 * reads and provide the correct value of the register.
@@ -480,7 +480,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl, enum mhi_callback re
 	/* this event occurs in atomic context */
 	if (reason == MHI_CB_FATAL_ERROR)
 		pci_err(qdev->pdev, "Fatal error received from device. Attempting to recover\n");
-	/* this event occurs in non-atomic context */
+	/* this event occurs in analn-atomic context */
 	if (reason == MHI_CB_SYS_ERROR)
 		qaic_dev_reset_clean_local_state(qdev);
 }
@@ -520,7 +520,7 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 
 	mhi_cntrl = devm_kzalloc(&pci_dev->dev, sizeof(*mhi_cntrl), GFP_KERNEL);
 	if (!mhi_cntrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mhi_cntrl->cntrl_dev = &pci_dev->dev;
 
@@ -542,11 +542,11 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 	mhi_cntrl->irq = devm_kmalloc(&pci_dev->dev, sizeof(*mhi_cntrl->irq), GFP_KERNEL);
 
 	if (!mhi_cntrl->irq)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mhi_cntrl->irq[0] = mhi_irq;
 
-	if (shared_msi) /* MSI shared with data path, no IRQF_NO_SUSPEND */
+	if (shared_msi) /* MSI shared with data path, anal IRQF_ANAL_SUSPEND */
 		mhi_cntrl->irq_flags = IRQF_SHARED;
 
 	mhi_cntrl->fw_image = "qcom/aic100/sbl.bin";

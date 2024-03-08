@@ -237,13 +237,13 @@ static int el15203000_pattern_clear(struct led_classdev *ldev)
 static int el15203000_probe_dt(struct el15203000 *priv)
 {
 	struct el15203000_led	*led = priv->leds;
-	struct fwnode_handle	*child;
+	struct fwanalde_handle	*child;
 	int			ret;
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_analde(priv->dev, child) {
 		struct led_init_data init_data = {};
 
-		ret = fwnode_property_read_u32(child, "reg", &led->reg);
+		ret = fwanalde_property_read_u32(child, "reg", &led->reg);
 		if (ret) {
 			dev_err(priv->dev, "LED without ID number");
 			goto err_child_out;
@@ -267,7 +267,7 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 			led->ldev.pattern_clear	= el15203000_pattern_clear;
 		}
 
-		init_data.fwnode = child;
+		init_data.fwanalde = child;
 		ret = devm_led_classdev_register_ext(priv->dev, &led->ldev,
 						     &init_data);
 		if (ret) {
@@ -283,7 +283,7 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 	return 0;
 
 err_child_out:
-	fwnode_handle_put(child);
+	fwanalde_handle_put(child);
 	return ret;
 }
 
@@ -292,16 +292,16 @@ static int el15203000_probe(struct spi_device *spi)
 	struct el15203000	*priv;
 	size_t			count;
 
-	count = device_get_child_node_count(&spi->dev);
+	count = device_get_child_analde_count(&spi->dev);
 	if (!count) {
-		dev_err(&spi->dev, "LEDs are not defined in device tree!");
-		return -ENODEV;
+		dev_err(&spi->dev, "LEDs are analt defined in device tree!");
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&spi->dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&priv->lock);
 	priv->count	= count;

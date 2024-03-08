@@ -88,7 +88,7 @@ int meson_mx_sdhc_register_clkc(struct device *dev, void __iomem *base,
 
 	clkc_data = devm_kzalloc(dev, sizeof(*clkc_data), GFP_KERNEL);
 	if (!clkc_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clkc_data->src_sel.reg = base + MESON_SDHC_CLKC;
 	clkc_data->src_sel.mask = 0x3;

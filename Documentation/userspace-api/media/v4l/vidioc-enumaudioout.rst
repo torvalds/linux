@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_ENUMAUDOUT:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_ENUMAUDOUT - Enumerate audio outputs
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_ENUMAUDOUT
@@ -39,10 +39,10 @@ structure or return an ``EINVAL`` error code when the index is out of
 bounds. To enumerate all audio outputs applications shall begin at index
 zero, incrementing by one until the driver returns ``EINVAL``.
 
-.. note::
+.. analte::
 
     Connectors on a TV card to loop back the received audio signal
-    to a sound card are not audio outputs in this sense.
+    to a sound card are analt audio outputs in this sense.
 
 See :ref:`VIDIOC_G_AUDIOout <VIDIOC_G_AUDOUT>` for a description of struct
 :c:type:`v4l2_audioout`.
@@ -50,7 +50,7 @@ See :ref:`VIDIOC_G_AUDIOout <VIDIOC_G_AUDOUT>` for a description of struct
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

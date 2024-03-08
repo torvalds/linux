@@ -30,7 +30,7 @@ With respect to the GPU, we have the following major IPs:
 
 GMC (Graphics Memory Controller)
     This was a dedicated IP on older pre-vega chips, but has since
-    become somewhat decentralized on vega and newer chips.  They now
+    become somewhat decentralized on vega and newer chips.  They analw
     have dedicated memory hubs for specific IPs or groups of IPs.  We
     still treat it as a single component in the driver however since
     the programming model is still pretty similar.  This is how the
@@ -93,10 +93,10 @@ CP (Command Processor)
         This is a new engine for managing queues.  This is currently unused.
 
 RLC (RunList Controller)
-    This is another microcontroller in the GFX/Compute engine.  It handles
+    This is aanalther microcontroller in the GFX/Compute engine.  It handles
     power management related functionality within the GFX/Compute engine.
     The name is a vestige of old hardware where it was originally added
-    and doesn't really have much relation to what the engine does now.
+    and doesn't really have much relation to what the engine does analw.
 
 Driver Structure
 ================
@@ -145,11 +145,11 @@ PRIME Buffer Sharing
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_dma_buf.c
    :internal:
 
-MMU Notifier
+MMU Analtifier
 ============
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_hmm.c
-   :doc: MMU Notifier
+   :doc: MMU Analtifier
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_hmm.c
    :internal:

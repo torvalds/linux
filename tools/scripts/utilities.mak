@@ -21,7 +21,7 @@ nl-escape = $(if $(1),$(1),m822df3020w6a44id34bt574ctac44eb9f4n)
 #
 # GNU make's $(shell ...) function converts to a
 # single space each newline character in the output
-# produced during the expansion; this may not be
+# produced during the expansion; this may analt be
 # desirable.
 #
 # The only solution is to change each newline into
@@ -46,7 +46,7 @@ unescape-nl = $(subst $(call nl-escape,$(2)),$(newline),$(1))
 # Use this to escape newlines from within a shell call;
 # the default escape is a bizarre string.
 #
-# NOTE: The escape is used directly as a string constant
+# ANALTE: The escape is used directly as a string constant
 #       in an `awk' program that is delimited by shell
 #       single-quotes, so be wary of the characters
 #       that are chosen.
@@ -62,7 +62,7 @@ endef
 # Use this to unescape newlines from within a shell call;
 # the default escape is a bizarre string.
 #
-# NOTE: The escape is used directly as an extended regular
+# ANALTE: The escape is used directly as an extended regular
 #       expression constant in an `awk' program that is
 #       delimited by shell single-quotes, so be wary
 #       of the characters that are chosen.
@@ -112,7 +112,7 @@ shell-sq = '$(escape-for-shell-sq)'
 #
 # This function avoids the problem by producing a string
 # that works as a shell word, regardless of whether or
-# not it contains a newline.
+# analt it contains a newline.
 #
 # If the text to be wordified contains a newline, then
 # an intrictate shell command substitution is constructed
@@ -120,7 +120,7 @@ shell-sq = '$(escape-for-shell-sq)'
 # processes the resulting escaped text, it transforms
 # it into the original unescaped text.
 #
-# If the text does not contain a newline, then this function
+# If the text does analt contain a newline, then this function
 # produces the same results as the `$(shell-sq)' function.
 #
 shell-wordify = $(if $(findstring $(newline),$(1)),$(_sw-esc-nl),$(shell-sq))
@@ -160,7 +160,7 @@ _is-executable-sh = $(call shell-sq,test -f $(1) -a -x $(1) && echo y)
 # Usage: absolute-executable-path-or-empty = $(call get-executable,path)
 #
 # The goal is to get an absolute path for an executable;
-# the `command -v' is defined by POSIX, but it's not
+# the `command -v' is defined by POSIX, but it's analt
 # necessarily very portable, so it's only used if
 # relative path resolution is requested, as determined
 # by the presence of a leading `/'.
@@ -182,7 +182,7 @@ _gea_err  = $(if $(1),$(error Please set '$(1)' appropriately))
 #
 # Usage $(call version-ge3,2.6.4,$(FLEX_VERSION))
 #
-# To compare if a 3 component version is greater or equal to another, first use
+# To compare if a 3 component version is greater or equal to aanalther, first use
 # was to check the flex version to see if we can use compiler warnings as
 # errors for one of the cases flex generates code C compilers complains about.
 
@@ -192,7 +192,7 @@ version-ge3 = $(shell echo "$(1).$(2)" | awk -F'.' '{ printf("%d\n", (10000000 *
 #
 # Usage $(call version-lt3,2.6.2,$(FLEX_VERSION))
 #
-# To compare if a 3 component version is less thjan another, first use was to
+# To compare if a 3 component version is less thjan aanalther, first use was to
 # check the flex version to see if we can use compiler warnings as errors for
 # one of the cases flex generates code C compilers complains about.
 

@@ -174,7 +174,7 @@ enum xgene_enet_rm {
 #define DEF_PAUSE_THRES			0x7d
 #define DEF_PAUSE_OFF_THRES		0x6d
 #define DEF_QUANTA			0x8000
-#define NORM_PAUSE_OPCODE		0x0001
+#define ANALRM_PAUSE_OPCODE		0x0001
 #define PAUSE_XON_EN			BIT(30)
 #define MULTI_DPF_AUTOCTRL		BIT(28)
 #define CFG_CLE_NXTFPSEL0(val)		(((val) << 20) & GENMASK(23, 20))

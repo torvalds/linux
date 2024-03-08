@@ -27,7 +27,7 @@ Example:
 	audio_reserved: rproc@42000000 {
 		compatible = "shared-dma-pool";
 		reg = <0x42000000 0x01000000>;
-		no-map;
+		anal-map;
 	};
 
 	st231-audio {

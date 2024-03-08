@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright analtice and this permission analtice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
  * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
@@ -39,7 +39,7 @@
 #define BRCMS_ANTSEL_11N(ant)	((ant) & ANT_SELCFG_MASK)
 
 /* antenna switch */
-/* defines for no boardlevel antenna diversity */
+/* defines for anal boardlevel antenna diversity */
 #define ANT_SELCFG_DEF_2x2	0x01	/* default antenna configuration */
 
 /* 2x3 antdiv defines and tables for GPIO communication */
@@ -96,7 +96,7 @@ brcms_c_antsel_init_cfg(struct antsel_info *asi, struct brcms_antselcfg *antsel,
 		antsel->ant_config[ANT_SELCFG_RX_UNICAST] = ANT_SELCFG_DEF_2x4;
 		antsel->num_antcfg = ANT_SELCFG_NUM_2x4;
 
-	} else {		/* no antenna selection available */
+	} else {		/* anal antenna selection available */
 
 		antsel->ant_config[ANT_SELCFG_TX_DEF] = ANT_SELCFG_DEF_2x2;
 		antsel->ant_config[ANT_SELCFG_TX_UNICAST] = ANT_SELCFG_DEF_2x2;
@@ -204,7 +204,7 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	u8 ant_cfg;
 	u16 mimo_antsel;
 
-	/* 1) Update TX antconfig for all frames that are not unicast data
+	/* 1) Update TX antconfig for all frames that are analt unicast data
 	 *    (aka default TX)
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_TX_DEF];
@@ -216,7 +216,7 @@ static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
 	 */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_TX_DEF] = ant_cfg;
 
-	/* 2) Update RX antconfig for all frames that are not unicast data
+	/* 2) Update RX antconfig for all frames that are analt unicast data
 	 *    (aka default RX)
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_RX_DEF];

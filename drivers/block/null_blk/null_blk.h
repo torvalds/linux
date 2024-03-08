@@ -85,7 +85,7 @@ struct nullb_device {
 	unsigned int nr_zones_imp_open;
 	unsigned int nr_zones_exp_open;
 	unsigned int nr_zones_closed;
-	unsigned int imp_close_zone_no;
+	unsigned int imp_close_zone_anal;
 	struct nullb_zone *zones;
 	sector_t zone_size_sects;
 	bool need_zone_res_mgmt;
@@ -103,7 +103,7 @@ struct nullb_device {
 	unsigned int prev_submit_queues; /* number of submission queues before change */
 	unsigned int poll_queues; /* number of IOPOLL submission queues */
 	unsigned int prev_poll_queues; /* number of IOPOLL submission queues before change */
-	unsigned int home_node; /* home node for the device */
+	unsigned int home_analde; /* home analde for the device */
 	unsigned int queue_mode; /* block interface */
 	unsigned int blocksize; /* block size */
 	unsigned int max_sectors; /* Max sectors per command */
@@ -112,13 +112,13 @@ struct nullb_device {
 	unsigned int index; /* index of the disk, only valid with a disk */
 	unsigned int mbps; /* Bandwidth throttle cap (in MB/s) */
 	bool blocking; /* blocking blk-mq device */
-	bool use_per_node_hctx; /* use per-node allocation for hardware context */
+	bool use_per_analde_hctx; /* use per-analde allocation for hardware context */
 	bool power; /* power on/off the device */
 	bool memory_backed; /* if data is stored in memory */
 	bool discard; /* if support discard */
 	bool zoned; /* if device is zoned */
 	bool virt_boundary; /* virtual boundary on/off for the device */
-	bool no_sched; /* no IO scheduler for the device */
+	bool anal_sched; /* anal IO scheduler for the device */
 	bool shared_tag_bitmap; /* use hostwide shared tags */
 };
 
@@ -162,18 +162,18 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 static inline int null_init_zoned_dev(struct nullb_device *dev,
 				      struct request_queue *q)
 {
-	pr_err("CONFIG_BLK_DEV_ZONED not enabled\n");
+	pr_err("CONFIG_BLK_DEV_ZONED analt enabled\n");
 	return -EINVAL;
 }
 static inline int null_register_zoned_dev(struct nullb *nullb)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 static inline void null_free_zoned_dev(struct nullb_device *dev) {}
 static inline blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd,
 			enum req_op op, sector_t sector, sector_t nr_sectors)
 {
-	return BLK_STS_NOTSUPP;
+	return BLK_STS_ANALTSUPP;
 }
 static inline size_t null_zone_valid_read_len(struct nullb *nullb,
 					      sector_t sector,
@@ -185,7 +185,7 @@ static inline ssize_t zone_cond_store(struct nullb_device *dev,
 				      const char *page, size_t count,
 				      enum blk_zone_cond cond)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #define null_report_zones	NULL
 #endif /* CONFIG_BLK_DEV_ZONED */

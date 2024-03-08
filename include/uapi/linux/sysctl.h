@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * sysctl.h: General linux system control interface
  *
@@ -9,11 +9,11 @@
  **
  **  WARNING:
  **  The values in this file are exported to user space via 
- **  the sysctl() binary interface.  Do *NOT* change the
- **  numbering of any existing values here, and do not change
+ **  the sysctl() binary interface.  Do *ANALT* change the
+ **  numbering of any existing values here, and do analt change
  **  any numbers within any one set of values.  If you have to
  **  redefine an existing interface, use a new number for it.
- **  The kernel will then return -ENOTDIR to any application using
+ **  The kernel will then return -EANALTDIR to any application using
  **  the old binary interface.
  **
  ****************************************************************
@@ -71,12 +71,12 @@ enum
 	CTL_BUS_ISA=1		/* ISA */
 };
 
-/* /proc/sys/fs/inotify/ */
+/* /proc/sys/fs/ianaltify/ */
 enum
 {
-	INOTIFY_MAX_USER_INSTANCES=1,	/* max instances per user */
-	INOTIFY_MAX_USER_WATCHES=2,	/* max watches per user */
-	INOTIFY_MAX_QUEUED_EVENTS=3	/* max queued events per instance */
+	IANALTIFY_MAX_USER_INSTANCES=1,	/* max instances per user */
+	IANALTIFY_MAX_USER_WATCHES=2,	/* max watches per user */
+	IANALTIFY_MAX_QUEUED_EVENTS=3	/* max queued events per instance */
 };
 
 /* CTL_KERN names: */
@@ -88,7 +88,7 @@ enum
 	KERN_VERSION=4,		/* string: compile time info */
 	KERN_SECUREMASK=5,	/* struct: maximum rights mask */
 	KERN_PROF=6,		/* table: profiling information */
-	KERN_NODENAME=7,	/* string: hostname */
+	KERN_ANALDENAME=7,	/* string: hostname */
 	KERN_DOMAINNAME=8,	/* string: domainname */
 
 	KERN_PANIC=15,		/* int: panic timeout */
@@ -129,7 +129,7 @@ enum
 	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */
 	KERN_TAINTED=53,	/* int: various kernel tainted flags */
-	KERN_CADPID=54,		/* int: PID of the process to notify on CAD */
+	KERN_CADPID=54,		/* int: PID of the process to analtify on CAD */
 	KERN_PIDMAX=55,		/* int: PID # limit */
   	KERN_CORE_PATTERN=56,	/* string: pattern for core-file names */
 	KERN_PANIC_ON_OOPS=57,  /* int: whether we will panic on an oops */
@@ -141,7 +141,7 @@ enum
 	KERN_NGROUPS_MAX=63,	/* int: NGROUPS_MAX */
 	KERN_SPARC_SCONS_PWROFF=64, /* int: serial console power-off halt */
 	KERN_HZ_TIMER=65,	/* int: hz timer on or off */
-	KERN_UNKNOWN_NMI_PANIC=66, /* int: unknown nmi panic flag */
+	KERN_UNKANALWN_NMI_PANIC=66, /* int: unkanalwn nmi panic flag */
 	KERN_BOOTLOADER_TYPE=67, /* int: boot loader type */
 	KERN_RANDOMIZE=68, /* int: randomize virtual address space */
 	KERN_SETUID_DUMPABLE=69, /* int: behaviour of dumps for setuid core */
@@ -191,11 +191,11 @@ enum
 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
-	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
+	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off analde */
 	VM_MIN_UNMAPPED=32,	/* Set min percent of unmapped pages */
 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
-	VM_MIN_SLAB=35,		 /* Percent pages ignored by node reclaim */
+	VM_MIN_SLAB=35,		 /* Percent pages iganalred by analde reclaim */
 };
 
 
@@ -266,8 +266,8 @@ enum
 	NET_CORE_OPTMEM_MAX=10,
 	NET_CORE_HOT_LIST_LENGTH=11,
 	NET_CORE_DIVERT_VERSION=12,
-	NET_CORE_NO_CONG_THRESH=13,
-	NET_CORE_NO_CONG=14,
+	NET_CORE_ANAL_CONG_THRESH=13,
+	NET_CORE_ANAL_CONG=14,
 	NET_CORE_LO_CONG=15,
 	NET_CORE_MOD_CONG=16,
 	NET_CORE_DEV_WEIGHT=17,
@@ -347,7 +347,7 @@ enum
 	NET_IPV4_TCP_RETRANS_COLLAPSE=36,
 	NET_IPV4_DEFAULT_TTL=37,
 	NET_IPV4_AUTOCONFIG=38,
-	NET_IPV4_NO_PMTU_DISC=39,
+	NET_IPV4_ANAL_PMTU_DISC=39,
 	NET_IPV4_TCP_SYN_RETRIES=40,
 	NET_IPV4_IPFRAG_HIGH_THRESH=41,
 	NET_IPV4_IPFRAG_LOW_THRESH=42,
@@ -365,14 +365,14 @@ enum
 	NET_TCP_SYN_TAILDROP=54,
 	NET_TCP_MAX_SYN_BACKLOG=55,
 	NET_IPV4_LOCAL_PORT_RANGE=56,
-	NET_IPV4_ICMP_ECHO_IGNORE_ALL=57,
-	NET_IPV4_ICMP_ECHO_IGNORE_BROADCASTS=58,
+	NET_IPV4_ICMP_ECHO_IGANALRE_ALL=57,
+	NET_IPV4_ICMP_ECHO_IGANALRE_BROADCASTS=58,
 	NET_IPV4_ICMP_SOURCEQUENCH_RATE=59,
 	NET_IPV4_ICMP_DESTUNREACH_RATE=60,
 	NET_IPV4_ICMP_TIMEEXCEED_RATE=61,
 	NET_IPV4_ICMP_PARAMPROB_RATE=62,
 	NET_IPV4_ICMP_ECHOREPLY_RATE=63,
-	NET_IPV4_ICMP_IGNORE_BOGUS_ERROR_RESPONSES=64,
+	NET_IPV4_ICMP_IGANALRE_BOGUS_ERROR_RESPONSES=64,
 	NET_IPV4_IGMP_MAX_MEMBERSHIPS=65,
 	NET_TCP_TW_RECYCLE=66,
 	NET_IPV4_ALWAYS_DEFRAG=67,
@@ -396,7 +396,7 @@ enum
 	NET_TCP_RMEM=85,
 	NET_TCP_APP_WIN=86,
 	NET_TCP_ADV_WIN_SCALE=87,
-	NET_IPV4_NONLOCAL_BIND=88,
+	NET_IPV4_ANALNLOCAL_BIND=88,
 	NET_IPV4_ICMP_RATELIMIT=89,
 	NET_IPV4_ICMP_RATEMASK=90,
 	NET_TCP_TW_REUSE=91,
@@ -404,7 +404,7 @@ enum
 	NET_TCP_LOW_LATENCY=93,
 	NET_IPV4_IPFRAG_SECRET_INTERVAL=94,
 	NET_IPV4_IGMP_MAX_MSF=96,
-	NET_TCP_NO_METRICS_SAVE=97,
+	NET_TCP_ANAL_METRICS_SAVE=97,
 	NET_TCP_DEFAULT_WIN_SCALE=105,
 	NET_TCP_MODERATE_RCVBUF=106,
 	NET_TCP_TSO_WIN_DIVISOR=107,
@@ -474,15 +474,15 @@ enum
 	NET_IPV4_CONF_TAG=12,
 	NET_IPV4_CONF_ARPFILTER=13,
 	NET_IPV4_CONF_MEDIUM_ID=14,
-	NET_IPV4_CONF_NOXFRM=15,
-	NET_IPV4_CONF_NOPOLICY=16,
+	NET_IPV4_CONF_ANALXFRM=15,
+	NET_IPV4_CONF_ANALPOLICY=16,
 	NET_IPV4_CONF_FORCE_IGMP_VERSION=17,
-	NET_IPV4_CONF_ARP_ANNOUNCE=18,
-	NET_IPV4_CONF_ARP_IGNORE=19,
+	NET_IPV4_CONF_ARP_ANANALUNCE=18,
+	NET_IPV4_CONF_ARP_IGANALRE=19,
 	NET_IPV4_CONF_PROMOTE_SECONDARIES=20,
 	NET_IPV4_CONF_ARP_ACCEPT=21,
-	NET_IPV4_CONF_ARP_NOTIFY=22,
-	NET_IPV4_CONF_ARP_EVICT_NOCARRIER=23,
+	NET_IPV4_CONF_ARP_ANALTIFY=22,
+	NET_IPV4_CONF_ARP_EVICT_ANALCARRIER=23,
 };
 
 /* /proc/sys/net/ipv4/netfilter */
@@ -579,7 +579,7 @@ enum {
 /* /proc/sys/net/ipv6/icmp */
 enum {
 	NET_IPV6_ICMP_RATELIMIT = 1,
-	NET_IPV6_ICMP_ECHO_IGNORE_ALL = 2
+	NET_IPV6_ICMP_ECHO_IGANALRE_ALL = 2
 };
 
 /* /proc/sys/net/<protocol>/neigh/<dev> */
@@ -656,10 +656,10 @@ enum {
 	NET_NETROM_NETWORK_TTL_INITIALISER=3,
 	NET_NETROM_TRANSPORT_TIMEOUT=4,
 	NET_NETROM_TRANSPORT_MAXIMUM_TRIES=5,
-	NET_NETROM_TRANSPORT_ACKNOWLEDGE_DELAY=6,
+	NET_NETROM_TRANSPORT_ACKANALWLEDGE_DELAY=6,
 	NET_NETROM_TRANSPORT_BUSY_DELAY=7,
 	NET_NETROM_TRANSPORT_REQUESTED_WINDOW_SIZE=8,
-	NET_NETROM_TRANSPORT_NO_ACTIVITY_TIMEOUT=9,
+	NET_NETROM_TRANSPORT_ANAL_ACTIVITY_TIMEOUT=9,
 	NET_NETROM_ROUTING_CONTROL=10,
 	NET_NETROM_LINK_FAILS_COUNT=11,
 	NET_NETROM_RESET=12
@@ -694,7 +694,7 @@ enum {
 	NET_ROSE_LINK_FAIL_TIMEOUT=7,
 	NET_ROSE_MAX_VCS=8,
 	NET_ROSE_WINDOW_SIZE=9,
-	NET_ROSE_NO_ACTIVITY_TIMEOUT=10
+	NET_ROSE_ANAL_ACTIVITY_TIMEOUT=10
 };
 
 /* /proc/sys/net/x25 */
@@ -715,9 +715,9 @@ enum
 
 /* /proc/sys/net/decnet/ */
 enum {
-	NET_DECNET_NODE_TYPE = 1,
-	NET_DECNET_NODE_ADDRESS = 2,
-	NET_DECNET_NODE_NAME = 3,
+	NET_DECNET_ANALDE_TYPE = 1,
+	NET_DECNET_ANALDE_ADDRESS = 2,
+	NET_DECNET_ANALDE_NAME = 3,
 	NET_DECNET_DEFAULT_DEVICE = 4,
 	NET_DECNET_TIME_WAIT = 5,
 	NET_DECNET_DN_COUNT = 6,
@@ -725,7 +725,7 @@ enum {
 	NET_DECNET_DR_COUNT = 8,
 	NET_DECNET_DST_GC_INTERVAL = 9,
 	NET_DECNET_CONF = 10,
-	NET_DECNET_NO_FC_MAX_CWND = 11,
+	NET_DECNET_ANAL_FC_MAX_CWND = 11,
 	NET_DECNET_MEM = 12,
 	NET_DECNET_RMEM = 13,
 	NET_DECNET_WMEM = 14,
@@ -789,9 +789,9 @@ enum {
 /* CTL_FS names: */
 enum
 {
-	FS_NRINODE=1,	/* int:current number of allocated inodes */
-	FS_STATINODE=2,
-	FS_MAXINODE=3,	/* int:maximum number of inodes that can be allocated */
+	FS_NRIANALDE=1,	/* int:current number of allocated ianaldes */
+	FS_STATIANALDE=2,
+	FS_MAXIANALDE=3,	/* int:maximum number of ianaldes that can be allocated */
 	FS_NRDQUOT=4,	/* int:current number of allocated dquots */
 	FS_MAXDQUOT=5,	/* int:maximum number of dquots that can be allocated */
 	FS_NRFILE=6,	/* int:current number of allocated filedescriptors */
@@ -802,13 +802,13 @@ enum
 	FS_OVERFLOWUID=11,	/* int: overflow UID */
 	FS_OVERFLOWGID=12,	/* int: overflow GID */
 	FS_LEASES=13,	/* int: leases enabled */
-	FS_DIR_NOTIFY=14,	/* int: directory notification enabled */
+	FS_DIR_ANALTIFY=14,	/* int: directory analtification enabled */
 	FS_LEASE_TIME=15,	/* int: maximum time to wait for a lease break */
 	FS_DQSTATS=16,	/* disc quota usage statistics and control */
 	FS_XFS=17,	/* struct: control xfs parameters */
 	FS_AIO_NR=18,	/* current system-wide number of aio requests */
 	FS_AIO_MAX_NR=19,	/* system-wide maximum number of aio requests */
-	FS_INOTIFY=20,	/* inotify submenu */
+	FS_IANALTIFY=20,	/* ianaltify submenu */
 	FS_OCFS2=988,	/* ocfs2 */
 };
 

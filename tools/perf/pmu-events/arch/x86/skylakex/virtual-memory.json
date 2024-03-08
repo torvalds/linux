@@ -3,7 +3,7 @@
         "BriefDescription": "Load misses in all DTLB levels that cause page walks",
         "EventCode": "0x08",
         "EventName": "DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK",
-        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "PublicDescription": "Counts demand data loads that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need analt have completed.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -68,7 +68,7 @@
         "BriefDescription": "Store misses in all DTLB levels that cause page walks",
         "EventCode": "0x49",
         "EventName": "DTLB_STORE_MISSES.MISS_CAUSES_A_WALK",
-        "PublicDescription": "Counts demand data stores that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need not have completed.",
+        "PublicDescription": "Counts demand data stores that caused a page walk of any page size (4K/2M/4M/1G). This implies it missed in all TLB levels, but the walk need analt have completed.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -149,7 +149,7 @@
         "BriefDescription": "Misses at all ITLB levels that cause page walks",
         "EventCode": "0x85",
         "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
-        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need not have completed.",
+        "PublicDescription": "Counts page walks of any page size (4K/2M/4M/1G) caused by a code fetch. This implies it missed in the ITLB and further levels of TLB, but the walk need analt have completed.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

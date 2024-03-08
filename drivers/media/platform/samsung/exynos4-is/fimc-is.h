@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
@@ -27,10 +27,10 @@
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
 
-#define FIMC_IS_DRV_NAME		"exynos4-fimc-is"
+#define FIMC_IS_DRV_NAME		"exyanals4-fimc-is"
 
-#define FIMC_IS_FW_FILENAME		"exynos4_fimc_is_fw.bin"
-#define FIMC_IS_SETFILE_6A3		"exynos4_s5k6a3_setfile.bin"
+#define FIMC_IS_FW_FILENAME		"exyanals4_fimc_is_fw.bin"
+#define FIMC_IS_SETFILE_6A3		"exyanals4_s5k6a3_setfile.bin"
 
 #define FIMC_IS_FW_LOAD_TIMEOUT		1000 /* ms */
 #define FIMC_IS_POWER_ON_TIMEOUT	1000 /* us */

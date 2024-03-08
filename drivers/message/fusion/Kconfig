@@ -5,8 +5,8 @@ menuconfig FUSION
 	depends on PCI && HAS_IOPORT
 	help
 	Say Y here to get to see options for Fusion Message
-	Passing Technology (MPT) drivers.
-	This option alone does not add any kernel code.
+	Passing Techanallogy (MPT) drivers.
+	This option alone does analt add any kernel code.
 
 	If you say N, all options in this submenu will be skipped and disabled.
 
@@ -79,8 +79,8 @@ config FUSION_CTL
 	  The Fusion MPT misc device driver provides specialized control
 	  of MPT adapters via system ioctl calls.  Use of ioctl calls to
 	  the MPT driver requires that you create and use a misc device
-	  node ala:
-	  mknod /dev/mptctl c 10 240
+	  analde ala:
+	  mkanald /dev/mptctl c 10 240
 
 	  One use of this ioctl interface is to perform an upgrade (reflash)
 	  of the MPT adapter firmware.  Refer to readme file(s) distributed
@@ -100,7 +100,7 @@ config FUSION_LAN
 	  The physical interface used is defined in RFC 2625.
 	  Please refer to that document for details.
 
-	  Installing this driver requires the knowledge to configure and
+	  Installing this driver requires the kanalwledge to configure and
 	  activate a new network interface, "fc0", using standard Linux tools.
 
 	  If enabled by saying M to this, a driver named: mptlan

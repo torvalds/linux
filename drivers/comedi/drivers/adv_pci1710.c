@@ -17,14 +17,14 @@
  * Updated: Fri, 29 Oct 2015 17:19:35 -0700
  * Status: works
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: analt applicable, uses PCI auto config
  *
  * This driver supports AI, AO, DI and DO subdevices.
  * AI subdevice supports cmd and insn interface,
  * other subdevices support only insn interface.
  *
  * The PCI-1710 and PCI-1710HG have the same PCI device ID, so the
- * driver cannot distinguish between them, as would be normal for a
+ * driver cananalt distinguish between them, as would be analrmal for a
  * PCI driver.
  */
 
@@ -172,7 +172,7 @@ struct pci1710_private {
 	unsigned int mux_scan;	/* used to set the channel interval to scan */
 	unsigned char ai_et;
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
-	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
+	unsigned char saved_seglen;	/* len of the analn-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
 	unsigned char unipolar_gain;	/* adjust for unipolar gain codes */
 };
@@ -206,7 +206,7 @@ static int pci1710_ai_check_chanlist(struct comedi_device *dev,
 
 		if (aref == AREF_DIFF && (chan & 1)) {
 			dev_err(dev->class_dev,
-				"Odd channel cannot be differential input!\n");
+				"Odd channel cananalt be differential input!\n");
 			return -EINVAL;
 		}
 
@@ -228,7 +228,7 @@ static int pci1710_ai_check_chanlist(struct comedi_device *dev,
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		if (cmd->chanlist[i] != chansegment[i % seglen]) {
 			dev_err(dev->class_dev,
-				"bad channel, reference or range number! chanlist[%i]=%d,%d,%d and not %d,%d,%d!\n",
+				"bad channel, reference or range number! chanlist[%i]=%d,%d,%d and analt %d,%d,%d!\n",
 				i, CR_CHAN(chansegment[i]),
 				CR_RANGE(chansegment[i]),
 				CR_AREF(chansegment[i]),
@@ -318,7 +318,7 @@ static int pci1710_ai_read_sample(struct comedi_device *dev,
 			dev_err(dev->class_dev,
 				"A/D data dropout: received from channel %d, expected %d\n",
 				chan, devpriv->act_chanlist[cur_chan]);
-			return -ENODATA;
+			return -EANALDATA;
 		}
 	}
 	*val = sample & s->maxdata;
@@ -442,7 +442,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 
 	status = inw(dev->iobase + PCI171X_STATUS_REG);
 	if (!(status & PCI171X_STATUS_FH)) {
-		dev_dbg(dev->class_dev, "A/D FIFO not half full!\n");
+		dev_dbg(dev->class_dev, "A/D FIFO analt half full!\n");
 		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
@@ -484,14 +484,14 @@ static irqreturn_t pci1710_irq_handler(int irq, void *d)
 	struct comedi_cmd *cmd;
 
 	if (!dev->attached)	/*  is device attached? */
-		return IRQ_NONE;	/*  no, exit */
+		return IRQ_ANALNE;	/*  anal, exit */
 
 	s = dev->read_subdev;
 	cmd = &s->async->cmd;
 
 	/*  is this interrupt from our board? */
 	if (!(inw(dev->iobase + PCI171X_STATUS_REG) & PCI171X_STATUS_IRQ))
-		return IRQ_NONE;	/*  no, exit */
+		return IRQ_ANALNE;	/*  anal, exit */
 
 	if (devpriv->ai_et) {	/*  Switch from initial TRIG_EXT to TRIG_xxx. */
 		devpriv->ai_et = 0;
@@ -501,7 +501,7 @@ static irqreturn_t pci1710_irq_handler(int irq, void *d)
 		devpriv->ctrl = devpriv->ctrl_ext;
 		outb(0, dev->iobase + PCI171X_CLRFIFO_REG);
 		outb(0, dev->iobase + PCI171X_CLRINT_REG);
-		/* no sample on this interrupt; reset the channel interval */
+		/* anal sample on this interrupt; reset the channel interval */
 		outw(devpriv->mux_scan, dev->iobase + PCI171X_MUX_REG);
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 		comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
@@ -544,12 +544,12 @@ static int pci1710_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 					   PCI171X_CTRL_GATE);
 			devpriv->ctrl |= PCI171X_CTRL_EXT;
 			devpriv->ai_et = 1;
-		} else {	/* TRIG_NOW */
+		} else {	/* TRIG_ANALW */
 			devpriv->ai_et = 0;
 		}
 		outw(devpriv->ctrl, dev->iobase + PCI171X_CTRL_REG);
 
-		if (cmd->start_src == TRIG_NOW)
+		if (cmd->start_src == TRIG_ANALW)
 			comedi_8254_pacer_enable(dev->pacer, 1, 2, true);
 	} else {	/* TRIG_EXT */
 		devpriv->ctrl |= PCI171X_CTRL_EXT | PCI171X_CTRL_IRQEN;
@@ -567,12 +567,12 @@ static int pci1710_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
 	err |= comedi_check_trigger_src(&cmd->convert_src,
 					TRIG_TIMER | TRIG_EXT);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -603,7 +603,7 @@ static int pci1710_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -754,13 +754,13 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	if (context < ARRAY_SIZE(boardtypes))
 		board = &boardtypes[context];
 	if (!board)
-		return -ENODEV;
+		return -EANALDEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)

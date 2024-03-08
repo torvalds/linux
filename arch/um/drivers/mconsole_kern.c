@@ -11,8 +11,8 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
-#include <linux/panic_notifier.h>
+#include <linux/analtifier.h>
+#include <linux/panic_analtifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/debug.h>
 #include <linux/proc_fs.h>
@@ -39,19 +39,19 @@
 
 static struct vfsmount *proc_mnt = NULL;
 
-static int do_unlink_socket(struct notifier_block *notifier,
+static int do_unlink_socket(struct analtifier_block *analtifier,
 			    unsigned long what, void *data)
 {
 	return mconsole_unlink_socket();
 }
 
 
-static struct notifier_block reboot_notifier = {
-	.notifier_call		= do_unlink_socket,
+static struct analtifier_block reboot_analtifier = {
+	.analtifier_call		= do_unlink_socket,
 	.priority		= 0,
 };
 
-/* Safe without explicit locking for now.  Tasklets provide their own
+/* Safe without explicit locking for analw.  Tasklets provide their own
  * locking, and the interrupt handler is safe because it can't interrupt
  * itself and it can only happen on CPU 0.
  */
@@ -87,7 +87,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id)
 		if (req.cmd->context == MCONSOLE_INTR)
 			(*req.cmd->handler)(&req);
 		else {
-			new = kmalloc(sizeof(*new), GFP_NOWAIT);
+			new = kmalloc(sizeof(*new), GFP_ANALWAIT);
 			if (new == NULL)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {
@@ -107,7 +107,7 @@ void mconsole_version(struct mc_request *req)
 	char version[256];
 
 	sprintf(version, "%s %s %s %s %s", utsname()->sysname,
-		utsname()->nodename, utsname()->release, utsname()->version,
+		utsname()->analdename, utsname()->release, utsname()->version,
 		utsname()->machine);
 	mconsole_reply(req, version, 0, 0);
 }
@@ -138,7 +138,7 @@ void mconsole_proc(struct mc_request *req)
 	ptr = skip_spaces(ptr);
 
 	if (!mnt) {
-		mconsole_reply(req, "Proc not available", 1, 0);
+		mconsole_reply(req, "Proc analt available", 1, 0);
 		goto out;
 	}
 	file = file_open_root_mnt(mnt, ptr, O_RDONLY, 0);
@@ -187,7 +187,7 @@ void mconsole_proc(struct mc_request *req)
     remove <dev> - Remove a device from UML \n\
     sysrq <letter> - Performs the SysRq action controlled by the letter \n\
     cad - invoke the Ctrl-Alt-Del handler \n\
-    stop - pause the UML; it will do nothing until it receives a 'go' \n\
+    stop - pause the UML; it will do analthing until it receives a 'go' \n\
     go - continue the UML after a 'stop' \n\
     log <string> - make UML enter <string> into the kernel log\n\
     proc <file> - returns the contents of the UML's /proc/<file>\n\
@@ -219,7 +219,7 @@ void mconsole_cad(struct mc_request *req)
 
 void mconsole_go(struct mc_request *req)
 {
-	mconsole_reply(req, "Not stopped", 1, 0);
+	mconsole_reply(req, "Analt stopped", 1, 0);
 }
 
 void mconsole_stop(struct mc_request *req)
@@ -362,7 +362,7 @@ static int mem_config(char *str, char **error_out)
 				err = os_drop_memory(addr, PAGE_SIZE);
 				if (err) {
 					printk(KERN_ERR "Failed to release "
-					       "memory - errno = %d\n", err);
+					       "memory - erranal = %d\n", err);
 					*error_out = "Failed to release memory";
 					goto out_unlock;
 				}
@@ -435,7 +435,7 @@ static void mconsole_get_config(int (*get_config)(char *, char *, int,
 	int n, size;
 
 	if (get_config == NULL) {
-		mconsole_reply(req, "No get_config routine defined", 1, 0);
+		mconsole_reply(req, "Anal get_config routine defined", 1, 0);
 		return;
 	}
 
@@ -532,7 +532,7 @@ void mconsole_remove(struct mc_request *req)
 	case 0:
 		err_msg = "";
 		break;
-	case -ENODEV:
+	case -EANALDEV:
 		if (err_msg == NULL)
 			err_msg = "Device doesn't exist";
 		break;
@@ -554,7 +554,7 @@ struct mconsole_output {
 
 static DEFINE_SPINLOCK(client_lock);
 static LIST_HEAD(clients);
-static char console_buf[MCONSOLE_MAX_DATA] __nonstring;
+static char console_buf[MCONSOLE_MAX_DATA] __analnstring;
 
 static void console_write(struct console *console, const char *string,
 			  unsigned int len)
@@ -642,7 +642,7 @@ void mconsole_sysrq(struct mc_request *req)
 #else
 void mconsole_sysrq(struct mc_request *req)
 {
-	mconsole_reply(req, "Sysrq not compiled in", 1, 0);
+	mconsole_reply(req, "Sysrq analt compiled in", 1, 0);
 }
 #endif
 
@@ -698,7 +698,7 @@ static int __init mount_proc(void)
 
 	proc_fs_type = get_fs_type("proc");
 	if (!proc_fs_type)
-		return -ENODEV;
+		return -EANALDEV;
 
 	mnt = kern_mount(proc_fs_type);
 	put_filesystem(proc_fs_type);
@@ -713,7 +713,7 @@ static int __init mount_proc(void)
  * Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
  */
-static char *notify_socket = NULL;
+static char *analtify_socket = NULL;
 
 static int __init mconsole_init(void)
 {
@@ -736,7 +736,7 @@ static int __init mconsole_init(void)
 	if (os_set_fd_block(sock, 0))
 		goto out;
 
-	register_reboot_notifier(&reboot_notifier);
+	register_reboot_analtifier(&reboot_analtifier);
 
 	err = um_request_irq(MCONSOLE_IRQ, sock, IRQ_READ, mconsole_interrupt,
 			     IRQF_SHARED, "mconsole", (void *)sock);
@@ -745,10 +745,10 @@ static int __init mconsole_init(void)
 		goto out;
 	}
 
-	if (notify_socket != NULL) {
-		notify_socket = kstrdup(notify_socket, GFP_KERNEL);
-		if (notify_socket != NULL)
-			mconsole_notify(notify_socket, MCONSOLE_SOCKET,
+	if (analtify_socket != NULL) {
+		analtify_socket = kstrdup(analtify_socket, GFP_KERNEL);
+		if (analtify_socket != NULL)
+			mconsole_analtify(analtify_socket, MCONSOLE_SOCKET,
 					mconsole_socket_name,
 					strlen(mconsole_socket_name) + 1);
 		else printk(KERN_ERR "mconsole_setup failed to strdup "
@@ -775,21 +775,21 @@ static ssize_t mconsole_proc_write(struct file *file,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	mconsole_notify(notify_socket, MCONSOLE_USER_NOTIFY, buf, count);
+	mconsole_analtify(analtify_socket, MCONSOLE_USER_ANALTIFY, buf, count);
 	kfree(buf);
 	return count;
 }
 
 static const struct proc_ops mconsole_proc_ops = {
 	.proc_write	= mconsole_proc_write,
-	.proc_lseek	= noop_llseek,
+	.proc_lseek	= analop_llseek,
 };
 
 static int create_proc_mconsole(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (notify_socket == NULL)
+	if (analtify_socket == NULL)
 		return 0;
 
 	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_ops);
@@ -800,72 +800,72 @@ static int create_proc_mconsole(void)
 	return 0;
 }
 
-static DEFINE_SPINLOCK(notify_spinlock);
+static DEFINE_SPINLOCK(analtify_spinlock);
 
-void lock_notify(void)
+void lock_analtify(void)
 {
-	spin_lock(&notify_spinlock);
+	spin_lock(&analtify_spinlock);
 }
 
-void unlock_notify(void)
+void unlock_analtify(void)
 {
-	spin_unlock(&notify_spinlock);
+	spin_unlock(&analtify_spinlock);
 }
 
 __initcall(create_proc_mconsole);
 
-#define NOTIFY "notify:"
+#define ANALTIFY "analtify:"
 
 static int mconsole_setup(char *str)
 {
-	if (!strncmp(str, NOTIFY, strlen(NOTIFY))) {
-		str += strlen(NOTIFY);
-		notify_socket = str;
+	if (!strncmp(str, ANALTIFY, strlen(ANALTIFY))) {
+		str += strlen(ANALTIFY);
+		analtify_socket = str;
 	}
-	else printk(KERN_ERR "mconsole_setup : Unknown option - '%s'\n", str);
+	else printk(KERN_ERR "mconsole_setup : Unkanalwn option - '%s'\n", str);
 	return 1;
 }
 
 __setup("mconsole=", mconsole_setup);
 
 __uml_help(mconsole_setup,
-"mconsole=notify:<socket>\n"
+"mconsole=analtify:<socket>\n"
 "    Requests that the mconsole driver send a message to the named Unix\n"
 "    socket containing the name of the mconsole socket.  This also serves\n"
-"    to notify outside processes when UML has booted far enough to respond\n"
+"    to analtify outside processes when UML has booted far eanalugh to respond\n"
 "    to mconsole requests.\n\n"
 );
 
-static int notify_panic(struct notifier_block *self, unsigned long unused1,
+static int analtify_panic(struct analtifier_block *self, unsigned long unused1,
 			void *ptr)
 {
 	char *message = ptr;
 
-	if (notify_socket == NULL)
+	if (analtify_socket == NULL)
 		return 0;
 
-	mconsole_notify(notify_socket, MCONSOLE_PANIC, message,
+	mconsole_analtify(analtify_socket, MCONSOLE_PANIC, message,
 			strlen(message) + 1);
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call	= notify_panic,
+static struct analtifier_block panic_exit_analtifier = {
+	.analtifier_call	= analtify_panic,
 	.priority	= INT_MAX, /* run as soon as possible */
 };
 
-static int add_notifier(void)
+static int add_analtifier(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-			&panic_exit_notifier);
+	atomic_analtifier_chain_register(&panic_analtifier_list,
+			&panic_exit_analtifier);
 	return 0;
 }
 
-__initcall(add_notifier);
+__initcall(add_analtifier);
 
-char *mconsole_notify_socket(void)
+char *mconsole_analtify_socket(void)
 {
-	return notify_socket;
+	return analtify_socket;
 }
 
-EXPORT_SYMBOL(mconsole_notify_socket);
+EXPORT_SYMBOL(mconsole_analtify_socket);

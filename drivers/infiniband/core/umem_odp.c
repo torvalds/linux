@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2014 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -48,7 +48,7 @@
 #include "uverbs.h"
 
 static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
-				   const struct mmu_interval_notifier_ops *ops)
+				   const struct mmu_interval_analtifier_ops *ops)
 {
 	int ret;
 
@@ -78,16 +78,16 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 		umem_odp->pfn_list = kvcalloc(
 			npfns, sizeof(*umem_odp->pfn_list), GFP_KERNEL);
 		if (!umem_odp->pfn_list)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		umem_odp->dma_list = kvcalloc(
 			ndmas, sizeof(*umem_odp->dma_list), GFP_KERNEL);
 		if (!umem_odp->dma_list) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out_pfn_list;
 		}
 
-		ret = mmu_interval_notifier_insert(&umem_odp->notifier,
+		ret = mmu_interval_analtifier_insert(&umem_odp->analtifier,
 						   umem_odp->umem.owning_mm,
 						   start, end - start, ops);
 		if (ret)
@@ -106,7 +106,7 @@ out_pfn_list:
 /**
  * ib_umem_odp_alloc_implicit - Allocate a parent implicit ODP umem
  *
- * Implicit ODP umems do not have a VA range and do not have any page lists.
+ * Implicit ODP umems do analt have a VA range and do analt have any page lists.
  * They exist only to hold the per_mm reference to help the driver create
  * children umems.
  *
@@ -125,7 +125,7 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_device *device,
 
 	umem_odp = kzalloc(sizeof(*umem_odp), GFP_KERNEL);
 	if (!umem_odp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	umem = &umem_odp->umem;
 	umem->ibdev = device;
 	umem->writable = ib_access_writable(access);
@@ -157,10 +157,10 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_implicit);
 struct ib_umem_odp *
 ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 			size_t size,
-			const struct mmu_interval_notifier_ops *ops)
+			const struct mmu_interval_analtifier_ops *ops)
 {
 	/*
-	 * Caller must ensure that root cannot be freed during the call to
+	 * Caller must ensure that root cananalt be freed during the call to
 	 * ib_alloc_odp_umem.
 	 */
 	struct ib_umem_odp *odp_data;
@@ -172,7 +172,7 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 
 	odp_data = kzalloc(sizeof(*odp_data), GFP_KERNEL);
 	if (!odp_data)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	umem = &odp_data->umem;
 	umem->ibdev = root->umem.ibdev;
 	umem->length     = size;
@@ -180,13 +180,13 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 	umem->writable   = root->umem.writable;
 	umem->owning_mm  = root->umem.owning_mm;
 	odp_data->page_shift = PAGE_SHIFT;
-	odp_data->notifier.ops = ops;
+	odp_data->analtifier.ops = ops;
 
 	/*
-	 * A mmget must be held when registering a notifier, the owming_mm only
+	 * A mmget must be held when registering a analtifier, the owming_mm only
 	 * has a mm_grab at this point.
 	 */
-	if (!mmget_not_zero(umem->owning_mm)) {
+	if (!mmget_analt_zero(umem->owning_mm)) {
 		ret = -EFAULT;
 		goto out_free;
 	}
@@ -218,11 +218,11 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_child);
  *
  * The driver should use when the access flags indicate ODP memory. It avoids
  * pinning, instead, stores the mm for future page fault handling in
- * conjunction with MMU notifiers.
+ * conjunction with MMU analtifiers.
  */
 struct ib_umem_odp *ib_umem_odp_get(struct ib_device *device,
 				    unsigned long addr, size_t size, int access,
-				    const struct mmu_interval_notifier_ops *ops)
+				    const struct mmu_interval_analtifier_ops *ops)
 {
 	struct ib_umem_odp *umem_odp;
 	int ret;
@@ -232,14 +232,14 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_device *device,
 
 	umem_odp = kzalloc(sizeof(struct ib_umem_odp), GFP_KERNEL);
 	if (!umem_odp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	umem_odp->umem.ibdev = device;
 	umem_odp->umem.length = size;
 	umem_odp->umem.address = addr;
 	umem_odp->umem.writable = ib_access_writable(access);
 	umem_odp->umem.owning_mm = current->mm;
-	umem_odp->notifier.ops = ops;
+	umem_odp->analtifier.ops = ops;
 
 	umem_odp->page_shift = PAGE_SHIFT;
 #ifdef CONFIG_HUGETLB_PAGE
@@ -263,17 +263,17 @@ EXPORT_SYMBOL(ib_umem_odp_get);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 {
 	/*
-	 * Ensure that no more pages are mapped in the umem.
+	 * Ensure that anal more pages are mapped in the umem.
 	 *
 	 * It is the driver's responsibility to ensure, before calling us,
-	 * that the hardware will not attempt to access the MR any more.
+	 * that the hardware will analt attempt to access the MR any more.
 	 */
 	if (!umem_odp->is_implicit_odp) {
 		mutex_lock(&umem_odp->umem_mutex);
 		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
 					    ib_umem_end(umem_odp));
 		mutex_unlock(&umem_odp->umem_mutex);
-		mmu_interval_notifier_remove(&umem_odp->notifier);
+		mmu_interval_analtifier_remove(&umem_odp->analtifier);
 		kvfree(umem_odp->dma_list);
 		kvfree(umem_odp->pfn_list);
 	}
@@ -305,7 +305,7 @@ static int ib_umem_odp_map_dma_single_page(
 	if (*dma_addr) {
 		/*
 		 * If the page is already dma mapped it means it went through
-		 * a non-invalidating trasition, like read-only to writable.
+		 * a analn-invalidating trasition, like read-only to writable.
 		 * Resync the flags.
 		 */
 		*dma_addr = (*dma_addr & ODP_DMA_ADDR_MASK) | access_mask;
@@ -367,15 +367,15 @@ int ib_umem_odp_map_dma_and_lock(struct ib_umem_odp *umem_odp, u64 user_virt,
 	/*
 	 * owning_process is allowed to be NULL, this means somehow the mm is
 	 * existing beyond the lifetime of the originating process.. Presumably
-	 * mmget_not_zero will fail in this case.
+	 * mmget_analt_zero will fail in this case.
 	 */
 	owning_process = get_pid_task(umem_odp->tgid, PIDTYPE_PID);
-	if (!owning_process || !mmget_not_zero(owning_mm)) {
+	if (!owning_process || !mmget_analt_zero(owning_mm)) {
 		ret = -EINVAL;
 		goto out_put_task;
 	}
 
-	range.notifier = &umem_odp->notifier;
+	range.analtifier = &umem_odp->analtifier;
 	range.start = ALIGN_DOWN(user_virt, 1UL << page_shift);
 	range.end = ALIGN(user_virt + bcnt, 1UL << page_shift);
 	pfn_start_idx = (range.start - ib_umem_start(umem_odp)) >> PAGE_SHIFT;
@@ -391,8 +391,8 @@ int ib_umem_odp_map_dma_and_lock(struct ib_umem_odp *umem_odp, u64 user_virt,
 	timeout = jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 
 retry:
-	current_seq = range.notifier_seq =
-		mmu_interval_read_begin(&umem_odp->notifier);
+	current_seq = range.analtifier_seq =
+		mmu_interval_read_begin(&umem_odp->analtifier);
 
 	mmap_read_lock(owning_mm);
 	ret = hmm_range_fault(&range);
@@ -407,7 +407,7 @@ retry:
 	dma_index = start_idx;
 
 	mutex_lock(&umem_odp->umem_mutex);
-	if (mmu_interval_read_retry(&umem_odp->notifier, current_seq)) {
+	if (mmu_interval_read_retry(&umem_odp->analtifier, current_seq)) {
 		mutex_unlock(&umem_odp->umem_mutex);
 		goto retry;
 	}
@@ -498,10 +498,10 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 				struct page *head_page = compound_head(page);
 				/*
 				 * set_page_dirty prefers being called with
-				 * the page lock. However, MMU notifiers are
+				 * the page lock. However, MMU analtifiers are
 				 * called sometimes with and sometimes without
 				 * the lock. We rely on the umem_mutex instead
-				 * to prevent other mmu notifiers from
+				 * to prevent other mmu analtifiers from
 				 * continuing and allowing the page mapping to
 				 * be removed.
 				 */

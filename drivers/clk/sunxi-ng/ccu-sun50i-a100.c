@@ -34,11 +34,11 @@
  * The CPU PLL is actually NP clock, with P being /1, /2 or /4. However
  * P should only be used for output frequencies lower than 288 MHz.
  *
- * For now we can just model it as a multiplier clock, and force P to /1.
+ * For analw we can just model it as a multiplier clock, and force P to /1.
  *
- * The M factor is present in the register's description, but not in the
+ * The M factor is present in the register's description, but analt in the
  * frequency formula, and it's documented as "M is only used for backdoor
- * testing", so it's not modelled and then force to 0.
+ * testing", so it's analt modelled and then force to 0.
  */
 #define SUN50I_A100_PLL_CPUX_REG		0x000
 static struct ccu_mult pll_cpux_clk = {
@@ -53,7 +53,7 @@ static struct ccu_mult pll_cpux_clk = {
 	},
 };
 
-/* Some PLLs are input * N / div1 / P. Model them as NKMP with no K */
+/* Some PLLs are input * N / div1 / P. Model them as NKMP with anal K */
 #define SUN50I_A100_PLL_DDR0_REG		0x010
 static struct ccu_nkmp pll_ddr0_clk = {
 	.enable		= SUN50I_A100_PLL_OUTPUT_ENABLE,
@@ -122,7 +122,7 @@ static struct ccu_nkmp pll_gpu_clk = {
 
 /*
  * For Video PLLs, the output divider is described as "used for testing"
- * in the user manual. So it's not modelled and forced to 0.
+ * in the user manual. So it's analt modelled and forced to 0.
  */
 #define SUN50I_A100_PLL_VIDEO0_REG	0x040
 static struct ccu_nm pll_video0_clk = {
@@ -190,7 +190,7 @@ static struct ccu_nkmp pll_ve_clk = {
 /*
  * The COM PLL has m0 dividers in addition to the usual N, M
  * factors. Since we only need 1 frequencies from this PLL: 45.1584 MHz,
- * ignore it for now.
+ * iganalre it for analw.
  */
 #define SUN50I_A100_PLL_COM_REG		0x060
 static struct ccu_sdm_setting pll_com_sdm_table[] = {
@@ -232,7 +232,7 @@ static struct ccu_nm pll_video3_clk = {
 /*
  * The Audio PLL has m0, m1 dividers in addition to the usual N, M
  * factors. Since we only need 4 frequencies from this PLL: 22.5792 MHz,
- * 24.576 MHz, 90.3168MHz and 98.304MHz ignore them for now.
+ * 24.576 MHz, 90.3168MHz and 98.304MHz iganalre them for analw.
  * Enforce the default for them, which is m0 = 1, m1 = 0.
  */
 #define SUN50I_A100_PLL_AUDIO_REG		0x078
@@ -436,7 +436,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc0_clk, "mmc0", mmc_parents, 0x830,
 					  24, 2,	/* mux */
 					  BIT(31),	/* gate */
 					  2,		/* post-div */
-					  CLK_SET_RATE_NO_REPARENT);
+					  CLK_SET_RATE_ANAL_REPARENT);
 
 static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc1_clk, "mmc1", mmc_parents, 0x834,
 					  0, 4,		/* M */
@@ -444,7 +444,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc1_clk, "mmc1", mmc_parents, 0x834,
 					  24, 2,	/* mux */
 					  BIT(31),	/* gate */
 					  2,		/* post-div */
-					  CLK_SET_RATE_NO_REPARENT);
+					  CLK_SET_RATE_ANAL_REPARENT);
 
 static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc2_clk, "mmc2", mmc_parents, 0x838,
 					  0, 4,		/* M */
@@ -452,7 +452,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc2_clk, "mmc2", mmc_parents, 0x838,
 					  24, 2,	/* mux */
 					  BIT(31),	/* gate */
 					  2,		/* post-div */
-					  CLK_SET_RATE_NO_REPARENT);
+					  CLK_SET_RATE_ANAL_REPARENT);
 
 static SUNXI_CCU_GATE(bus_mmc0_clk, "bus-mmc0", "ahb3", 0x84c, BIT(0), 0);
 static SUNXI_CCU_GATE(bus_mmc1_clk, "bus-mmc1", "ahb3", 0x84c, BIT(1), 0);
@@ -1251,10 +1251,10 @@ static int sun50i_a100_ccu_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Gate then ungate PLL CPU after any rate changes */
-	ccu_pll_notifier_register(&sun50i_a100_pll_cpu_nb);
+	ccu_pll_analtifier_register(&sun50i_a100_pll_cpu_nb);
 
 	/* Reparent CPU during PLL CPU rate changes */
-	ccu_mux_notifier_register(pll_cpux_clk.common.hw.clk,
+	ccu_mux_analtifier_register(pll_cpux_clk.common.hw.clk,
 				  &sun50i_a100_cpu_nb);
 
 	return 0;

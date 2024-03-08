@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  */
 #include <linux/efi.h>
 #include <linux/initrd.h>
@@ -58,6 +58,6 @@ void __init memblock_init(void)
 	memblock_reserve(__pa_symbol(&_text),
 			 __pa_symbol(&_end) - __pa_symbol(&_text));
 
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.reserved, 0);
+	memblock_set_analde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	memblock_set_analde(0, PHYS_ADDR_MAX, &memblock.reserved, 0);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology <kwliu@nuvoton.com>
+// Copyright (c) 2019 Nuvoton Techanallogy <kwliu@nuvoton.com>
 // Copyright (c) 2019 Quanta Computer Inc. <Samuel.Jiang@quantatw.com>
 
 /dts-v1/;
@@ -101,7 +101,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;
@@ -140,7 +140,7 @@
 	};
 
 	flash@1 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <1>;
@@ -167,7 +167,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

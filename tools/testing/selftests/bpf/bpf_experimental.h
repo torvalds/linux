@@ -6,15 +6,15 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 
-#define __contains(name, node) __attribute__((btf_decl_tag("contains:" #name ":" #node)))
+#define __contains(name, analde) __attribute__((btf_decl_tag("contains:" #name ":" #analde)))
 
 /* Description
  *	Allocates an object of the type represented by 'local_type_id' in
  *	program BTF. User may use the bpf_core_type_id_local macro to pass the
  *	type ID of a struct in program BTF.
  *
- *	The 'local_type_id' parameter must be a known constant.
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	The 'local_type_id' parameter must be a kanalwn constant.
+ *	The 'meta' parameter is rewritten by the verifier, anal need for BPF
  *	program to set it.
  * Returns
  *	A pointer to an object of the type corresponding to the passed in
@@ -29,7 +29,7 @@ extern void *bpf_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
  *	Free an allocated object. All fields of the object that require
  *	destruction will be destructed before the storage is freed.
  *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	The 'meta' parameter is rewritten by the verifier, anal need for BPF
  *	program to set it.
  * Returns
  *	Void.
@@ -41,9 +41,9 @@ extern void bpf_obj_drop_impl(void *kptr, void *meta) __ksym;
 
 /* Description
  *	Increment the refcount on a refcounted local kptr, turning the
- *	non-owning reference input into an owning reference in the process.
+ *	analn-owning reference input into an owning reference in the process.
  *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	The 'meta' parameter is rewritten by the verifier, anal need for BPF
  *	program to set it.
  * Returns
  *	An owning reference to the object pointed to by 'kptr'
@@ -56,88 +56,88 @@ extern void *bpf_refcount_acquire_impl(void *kptr, void *meta) __ksym;
 /* Description
  *	Add a new entry to the beginning of the BPF linked list.
  *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, anal need
  *	for BPF programs to set them
  * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a list
+ *	0 if the analde was successfully added
+ *	-EINVAL if the analde wasn't added because it's already in a list
  */
 extern int bpf_list_push_front_impl(struct bpf_list_head *head,
-				    struct bpf_list_node *node,
+				    struct bpf_list_analde *analde,
 				    void *meta, __u64 off) __ksym;
 
 /* Convenience macro to wrap over bpf_list_push_front_impl */
-#define bpf_list_push_front(head, node) bpf_list_push_front_impl(head, node, NULL, 0)
+#define bpf_list_push_front(head, analde) bpf_list_push_front_impl(head, analde, NULL, 0)
 
 /* Description
  *	Add a new entry to the end of the BPF linked list.
  *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, anal need
  *	for BPF programs to set them
  * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a list
+ *	0 if the analde was successfully added
+ *	-EINVAL if the analde wasn't added because it's already in a list
  */
 extern int bpf_list_push_back_impl(struct bpf_list_head *head,
-				   struct bpf_list_node *node,
+				   struct bpf_list_analde *analde,
 				   void *meta, __u64 off) __ksym;
 
 /* Convenience macro to wrap over bpf_list_push_back_impl */
-#define bpf_list_push_back(head, node) bpf_list_push_back_impl(head, node, NULL, 0)
+#define bpf_list_push_back(head, analde) bpf_list_push_back_impl(head, analde, NULL, 0)
 
 /* Description
  *	Remove the entry at the beginning of the BPF linked list.
  * Returns
- *	Pointer to bpf_list_node of deleted entry, or NULL if list is empty.
+ *	Pointer to bpf_list_analde of deleted entry, or NULL if list is empty.
  */
-extern struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head) __ksym;
+extern struct bpf_list_analde *bpf_list_pop_front(struct bpf_list_head *head) __ksym;
 
 /* Description
  *	Remove the entry at the end of the BPF linked list.
  * Returns
- *	Pointer to bpf_list_node of deleted entry, or NULL if list is empty.
+ *	Pointer to bpf_list_analde of deleted entry, or NULL if list is empty.
  */
-extern struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head) __ksym;
+extern struct bpf_list_analde *bpf_list_pop_back(struct bpf_list_head *head) __ksym;
 
 /* Description
- *	Remove 'node' from rbtree with root 'root'
+ *	Remove 'analde' from rbtree with root 'root'
  * Returns
- * 	Pointer to the removed node, or NULL if 'root' didn't contain 'node'
+ * 	Pointer to the removed analde, or NULL if 'root' didn't contain 'analde'
  */
-extern struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
-					     struct bpf_rb_node *node) __ksym;
+extern struct bpf_rb_analde *bpf_rbtree_remove(struct bpf_rb_root *root,
+					     struct bpf_rb_analde *analde) __ksym;
 
 /* Description
- *	Add 'node' to rbtree with root 'root' using comparator 'less'
+ *	Add 'analde' to rbtree with root 'root' using comparator 'less'
  *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
+ *	The 'meta' and 'off' parameters are rewritten by the verifier, anal need
  *	for BPF programs to set them
  * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a tree
+ *	0 if the analde was successfully added
+ *	-EINVAL if the analde wasn't added because it's already in a tree
  */
-extern int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
-			       bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
+extern int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_analde *analde,
+			       bool (less)(struct bpf_rb_analde *a, const struct bpf_rb_analde *b),
 			       void *meta, __u64 off) __ksym;
 
 /* Convenience macro to wrap over bpf_rbtree_add_impl */
-#define bpf_rbtree_add(head, node, less) bpf_rbtree_add_impl(head, node, less, NULL, 0)
+#define bpf_rbtree_add(head, analde, less) bpf_rbtree_add_impl(head, analde, less, NULL, 0)
 
 /* Description
- *	Return the first (leftmost) node in input tree
+ *	Return the first (leftmost) analde in input tree
  * Returns
- *	Pointer to the node, which is _not_ removed from the tree. If the tree
- *	contains no nodes, returns NULL.
+ *	Pointer to the analde, which is _analt_ removed from the tree. If the tree
+ *	contains anal analdes, returns NULL.
  */
-extern struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root) __ksym;
+extern struct bpf_rb_analde *bpf_rbtree_first(struct bpf_rb_root *root) __ksym;
 
 /* Description
  *	Allocates a percpu object of the type represented by 'local_type_id' in
  *	program BTF. User may use the bpf_core_type_id_local macro to pass the
  *	type ID of a struct in program BTF.
  *
- *	The 'local_type_id' parameter must be a known constant.
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	The 'local_type_id' parameter must be a kanalwn constant.
+ *	The 'meta' parameter is rewritten by the verifier, anal need for BPF
  *	program to set it.
  * Returns
  *	A pointer to a percpu object of the type corresponding to the passed in
@@ -152,7 +152,7 @@ extern void *bpf_percpu_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
  *	Free an allocated percpu object. All fields of the object that require
  *	destruction will be destructed before the storage is freed.
  *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
+ *	The 'meta' parameter is rewritten by the verifier, anal need for BPF
  *	program to set it.
  * Returns
  *	Void.
@@ -184,10 +184,10 @@ extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
  *	Otherwise, the return value of the marked exception callback will be
  *	subjected to the same checks.
  *
- *	Note that throwing an exception with lingering resources (locks,
+ *	Analte that throwing an exception with lingering resources (locks,
  *	references, etc.) will lead to a verification error.
  *
- *	Note that callbacks *cannot* call this helper.
+ *	Analte that callbacks *cananalt* call this helper.
  * Returns
  *	Never.
  * Throws
@@ -209,7 +209,7 @@ extern void bpf_throw(u64 cookie) __ksym;
  *	return TC_ACT_OK;
  * }
  *
- * Here, exception callback for the main program will be 'exception_cb'. Note
+ * Here, exception callback for the main program will be 'exception_cb'. Analte
  * that this attribute can only be used once, and multiple exception callbacks
  * specified for the main program will lead to verification error.
  */
@@ -254,7 +254,7 @@ extern void bpf_throw(u64 cookie) __ksym;
 		}									\
 	 })
 
-#define __cmp_cannot_be_signed(x) \
+#define __cmp_cananalt_be_signed(x) \
 	__builtin_strcmp(#x, "==") == 0 || __builtin_strcmp(#x, "!=") == 0 || \
 	__builtin_strcmp(#x, "&") == 0
 
@@ -276,23 +276,23 @@ l_true:												\
  * __lhs OP __rhs below will catch the mistake.
  * Be aware that we check only __lhs to figure out the sign of compare.
  */
-#define _bpf_cmp(LHS, OP, RHS, NOFLIP)								\
+#define _bpf_cmp(LHS, OP, RHS, ANALFLIP)								\
 	({											\
 		typeof(LHS) __lhs = (LHS);							\
 		typeof(RHS) __rhs = (RHS);							\
 		bool ret;									\
 		_Static_assert(sizeof(&(LHS)), "1st argument must be an lvalue expression");	\
 		(void)(__lhs OP __rhs);								\
-		if (__cmp_cannot_be_signed(OP) || !__is_signed_type(typeof(__lhs))) {		\
+		if (__cmp_cananalt_be_signed(OP) || !__is_signed_type(typeof(__lhs))) {		\
 			if (sizeof(__rhs) == 8)							\
-				ret = __bpf_cmp(__lhs, OP, "", "r", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, OP, "", "r", __rhs, ANALFLIP);		\
 			else									\
-				ret = __bpf_cmp(__lhs, OP, "", "i", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, OP, "", "i", __rhs, ANALFLIP);		\
 		} else {									\
 			if (sizeof(__rhs) == 8)							\
-				ret = __bpf_cmp(__lhs, OP, "s", "r", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, OP, "s", "r", __rhs, ANALFLIP);		\
 			else									\
-				ret = __bpf_cmp(__lhs, OP, "s", "i", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, OP, "s", "i", __rhs, ANALFLIP);		\
 		}										\
 		ret;										\
        })
@@ -323,8 +323,8 @@ l_true:												\
        })
 #endif
 
-#ifndef bpf_nop_mov
-#define bpf_nop_mov(var) \
+#ifndef bpf_analp_mov
+#define bpf_analp_mov(var) \
 	asm volatile("%[reg]=%[reg]"::[reg]"r"((short)var))
 #endif
 
@@ -348,7 +348,7 @@ l_true:												\
 
 /* Description
  *	Assert that LHS is in the range [BEG, END] (inclusive of both). This
- *	statement updates the known bounds of LHS during verification. Note
+ *	statement updates the kanalwn bounds of LHS during verification. Analte
  *	that both BEG and END must be constant values, and must fit within the
  *	data type of LHS.
  * Returns
@@ -366,7 +366,7 @@ l_true:												\
 
 /* Description
  *	Assert that LHS is in the range [BEG, END] (inclusive of both). This
- *	statement updates the known bounds of LHS during verification. Note
+ *	statement updates the kanalwn bounds of LHS during verification. Analte
  *	that both BEG and END must be constant values, and must fit within the
  *	data type of LHS.
  * Returns

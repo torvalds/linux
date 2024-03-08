@@ -342,7 +342,7 @@ static int pcmciamtd_cistpl_format(struct pcmcia_device *p_dev,
 		pr_debug("Format type: %u, Error Detection: %u, offset = %u, length =%u\n",
 			t->type, t->edc, t->offset, t->length);
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int pcmciamtd_cistpl_jedec(struct pcmcia_device *p_dev,
@@ -358,7 +358,7 @@ static int pcmciamtd_cistpl_jedec(struct pcmcia_device *p_dev,
 			pr_debug("JEDEC: 0x%02x 0x%02x\n",
 			      t->id[i].mfr, t->id[i].info);
 	}
-	return -ENOSPC;
+	return -EANALSPC;
 }
 
 static int pcmciamtd_cistpl_device(struct pcmcia_device *p_dev,
@@ -472,7 +472,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 	card_settings(dev, link, &new_name);
 
-	dev->pcmcia_map.phys = NO_XIP;
+	dev->pcmcia_map.phys = ANAL_XIP;
 	dev->pcmcia_map.copy_from = pcmcia_copy_from_remap;
 	dev->pcmcia_map.copy_to = pcmcia_copy_to_remap;
 	if (dev->pcmcia_map.bankwidth == 1) {
@@ -523,9 +523,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	pr_debug("dev->win_size = %d\n", dev->win_size);
 
 	if(!dev->win_size) {
-		dev_err(&dev->p_dev->dev, "Cannot allocate memory window\n");
+		dev_err(&dev->p_dev->dev, "Cananalt allocate memory window\n");
 		pcmciamtd_release(link);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pr_debug("Allocated a window of %dKiB\n", dev->win_size >> 10);
 
@@ -536,7 +536,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		dev_err(&dev->p_dev->dev, "ioremap(%pR) failed\n",
 			link->resource[2]);
 		pcmciamtd_release(link);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	pr_debug("mapped window dev = %p @ %pR, base = %p\n",
 	      dev, link->resource[2], dev->win_base);
@@ -560,7 +560,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 			iounmap(dev->win_base);
 			dev->win_base = NULL;
 		}
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if(mem_type == 1) {
@@ -579,9 +579,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	if(!mtd) {
-		pr_debug("Can not find an MTD\n");
+		pr_debug("Can analt find an MTD\n");
 		pcmciamtd_release(link);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev->mtd_info = mtd;
@@ -604,9 +604,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	/* If the memory found is fits completely into the mapped PCMCIA window,
-	   use the faster non-remapping read/write functions */
+	   use the faster analn-remapping read/write functions */
 	if(mtd->size <= dev->win_size) {
-		pr_debug("Using non remapping memory functions\n");
+		pr_debug("Using analn remapping memory functions\n");
 		dev->pcmcia_map.map_priv_2 = (unsigned long)dev->win_base;
 		if (dev->pcmcia_map.bankwidth == 1) {
 			dev->pcmcia_map.read = pcmcia_read8;
@@ -623,9 +623,9 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		map_destroy(mtd);
 		dev->mtd_info = NULL;
 		dev_err(&dev->p_dev->dev,
-			"Could not register the MTD device\n");
+			"Could analt register the MTD device\n");
 		pcmciamtd_release(link);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_info(&dev->p_dev->dev, "mtd%d: %s\n", mtd->index, mtd->name);
 	return 0;
@@ -674,7 +674,7 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 
 	/* Create new memory card device */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) return -ENOMEM;
+	if (!dev) return -EANALMEM;
 	pr_debug("dev=0x%p\n", dev);
 
 	dev->p_dev = link;
@@ -695,20 +695,20 @@ static const struct pcmcia_device_id pcmciamtd_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("intel", "SERIES2-04 ", 0x40ade711, 0x42064dda),
 	PCMCIA_DEVICE_PROD_ID12("intel", "SERIES2-20 ", 0x40ade711, 0x25ee5cb0),
 	PCMCIA_DEVICE_PROD_ID12("intel", "VALUE SERIES 100 ", 0x40ade711, 0xdf8506d8),
-	PCMCIA_DEVICE_PROD_ID12("KINGMAX TECHNOLOGY INC.", "SRAM 256K Bytes", 0x54d0c69c, 0xad12c29c),
+	PCMCIA_DEVICE_PROD_ID12("KINGMAX TECHANALLOGY INC.", "SRAM 256K Bytes", 0x54d0c69c, 0xad12c29c),
 	PCMCIA_DEVICE_PROD_ID12("Maxtor", "MAXFL MobileMax Flash Memory Card", 0xb68968c8, 0x2dfb47b0),
 	PCMCIA_DEVICE_PROD_ID123("M-Systems", "M-SYS Flash Memory Card", "(c) M-Systems", 0x7ed2ad87, 0x675dc3fb, 0x7aef3965),
 	PCMCIA_DEVICE_PROD_ID12("PRETEC", "  2MB SRAM CARD", 0xebf91155, 0x805360ca),
 	PCMCIA_DEVICE_PROD_ID12("PRETEC", "  4MB SRAM CARD", 0xebf91155, 0x20b6bf17),
 	PCMCIA_DEVICE_PROD_ID12("SEIKO EPSON", "WWB101EN20", 0xf9876baf, 0xad0b207b),
 	PCMCIA_DEVICE_PROD_ID12("SEIKO EPSON", "WWB513EN20", 0xf9876baf, 0xe8d884ad),
-	PCMCIA_DEVICE_PROD_ID12("SMART Modular Technologies", " 4MB FLASH Card", 0x96fd8277, 0x737a5b05),
+	PCMCIA_DEVICE_PROD_ID12("SMART Modular Techanallogies", " 4MB FLASH Card", 0x96fd8277, 0x737a5b05),
 	PCMCIA_DEVICE_PROD_ID12("Starfish, Inc.", "REX-3000", 0x05ddca47, 0xe7d67bca),
 	PCMCIA_DEVICE_PROD_ID12("Starfish, Inc.", "REX-4100", 0x05ddca47, 0x7bc32944),
 	/* the following was commented out in pcmcia-cs-3.2.7 */
 	/* PCMCIA_DEVICE_PROD_ID12("RATOC Systems,Inc.", "SmartMedia ADAPTER PC Card", 0xf4a2fefe, 0x5885b2ae), */
-#ifdef CONFIG_MTD_PCMCIA_ANONYMOUS
-	{ .match_flags = PCMCIA_DEV_ID_MATCH_ANONYMOUS, },
+#ifdef CONFIG_MTD_PCMCIA_AANALNYMOUS
+	{ .match_flags = PCMCIA_DEV_ID_MATCH_AANALNYMOUS, },
 #endif
 	PCMCIA_DEVICE_NULL
 };

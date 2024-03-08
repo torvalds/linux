@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * hvcserver.c
- * Copyright (C) 2004 Ryan S Arnold, IBM Corporation
+ * Copyright (C) 2004 Ryan S Aranalld, IBM Corporation
  *
  * PPC64 virtual I/O console server support.
  */
@@ -18,13 +18,13 @@
 
 #define HVCS_ARCH_VERSION "1.0.0"
 
-MODULE_AUTHOR("Ryan S. Arnold <rsa@us.ibm.com>");
+MODULE_AUTHOR("Ryan S. Aranalld <rsa@us.ibm.com>");
 MODULE_DESCRIPTION("IBM hvcs ppc64 API");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HVCS_ARCH_VERSION);
 
 /*
- * Convert arch specific return codes into relevant errnos.  The hvcs
+ * Convert arch specific return codes into relevant erranals.  The hvcs
  * functions aren't performance sensitive, so this conversion isn't an
  * issue.
  */
@@ -69,7 +69,7 @@ int hvcs_free_partner_info(struct list_head *head)
 
 	while (!list_empty(head)) {
 		element = head->next;
-		pi = list_entry(element, struct hvcs_partner_info, node);
+		pi = list_entry(element, struct hvcs_partner_info, analde);
 		list_del(element);
 		kfree(pi);
 	}
@@ -85,7 +85,7 @@ static int hvcs_next_partner(uint32_t unit_address,
 
 {
 	long retval;
-	retval = plpar_hcall_norets(H_VTERM_PARTNER_INFO, unit_address,
+	retval = plpar_hcall_analrets(H_VTERM_PARTNER_INFO, unit_address,
 			last_p_partition_ID,
 				last_p_unit_address, virt_to_phys(pi_buff));
 	return hvcs_convert(retval);
@@ -101,10 +101,10 @@ static int hvcs_next_partner(uint32_t unit_address,
  *	that is to be used to be used by firmware as an iterator to keep track
  *	of the partner info retrieval.
  *
- * This function returns non-zero on success, or if there is no partner info.
+ * This function returns analn-zero on success, or if there is anal partner info.
  *
  * The pi_buff is pre-allocated prior to calling this function because this
- * function may be called with a spin_lock held and kmalloc of a page is not
+ * function may be called with a spin_lock held and kmalloc of a page is analt
  * recommended as GFP_ATOMIC.
  *
  * The first long of this buffer is used to store a partner unit address.  The
@@ -153,7 +153,7 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 		last_p_partition_ID = be64_to_cpu(pi_buff[0]);
 		last_p_unit_address = be64_to_cpu(pi_buff[1]);
 
-		/* This indicates that there are no further partners */
+		/* This indicates that there are anal further partners */
 		if (last_p_partition_ID == ~0UL
 				&& last_p_unit_address == ~0UL)
 			break;
@@ -167,7 +167,7 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			printk(KERN_WARNING "HVCONSOLE: kmalloc() failed to"
 				" allocate partner info struct.\n");
 			hvcs_free_partner_info(head);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		next_partner_info->unit_address
@@ -180,7 +180,7 @@ int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
 			(char *)&pi_buff[2],
 			sizeof(next_partner_info->location_code));
 
-		list_add_tail(&(next_partner_info->node), head);
+		list_add_tail(&(next_partner_info->analde), head);
 		next_partner_info = NULL;
 
 	} while (more);
@@ -205,7 +205,7 @@ EXPORT_SYMBOL(hvcs_get_partner_info);
  * for a second time, -EINVAL is returned then it indicates that
  * there is probably already a partner connection registered to a
  * different vty-server adapter.  It is also possible that a second
- * -EINVAL may indicate that one of the parms is not valid, for
+ * -EINVAL may indicate that one of the parms is analt valid, for
  * instance if the link was removed between the vty-server adapter
  * and the vty adapter that you are trying to open.  Don't shoot the
  * messenger.  Firmware implemented it this way.
@@ -214,7 +214,7 @@ int hvcs_register_connection( uint32_t unit_address,
 		uint32_t p_partition_ID, uint32_t p_unit_address)
 {
 	long retval;
-	retval = plpar_hcall_norets(H_REGISTER_VTERM, unit_address,
+	retval = plpar_hcall_analrets(H_REGISTER_VTERM, unit_address,
 				p_partition_ID, p_unit_address);
 	return hvcs_convert(retval);
 }
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(hvcs_register_connection);
 int hvcs_free_connection(uint32_t unit_address)
 {
 	long retval;
-	retval = plpar_hcall_norets(H_FREE_VTERM, unit_address);
+	retval = plpar_hcall_analrets(H_FREE_VTERM, unit_address);
 	return hvcs_convert(retval);
 }
 EXPORT_SYMBOL(hvcs_free_connection);

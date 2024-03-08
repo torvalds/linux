@@ -23,8 +23,8 @@ intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	session_init_in.header.api_version = HDCP_API_VERSION;
@@ -66,7 +66,7 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 					       struct hdcp_port_data *data,
 					       struct hdcp2_ake_send_cert *rx_cert,
 					       bool *km_stored,
-					       struct hdcp2_ake_no_stored_km
+					       struct hdcp2_ake_anal_stored_km
 					       *ek_pub_km,
 					       size_t *msg_sz)
 {
@@ -80,8 +80,8 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	verify_rxcert_in.header.api_version = HDCP_API_VERSION;
@@ -119,8 +119,8 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 		ek_pub_km->msg_id = HDCP_2_2_AKE_STORED_KM;
 		*msg_sz = sizeof(struct hdcp2_ake_stored_km);
 	} else {
-		ek_pub_km->msg_id = HDCP_2_2_AKE_NO_STORED_KM;
-		*msg_sz = sizeof(struct hdcp2_ake_no_stored_km);
+		ek_pub_km->msg_id = HDCP_2_2_AKE_ANAL_STORED_KM;
+		*msg_sz = sizeof(struct hdcp2_ake_anal_stored_km);
 	}
 
 	memcpy(ek_pub_km->e_kpub_km, &verify_rxcert_out.ekm_buff,
@@ -143,8 +143,8 @@ intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	send_hprime_in.header.api_version = HDCP_API_VERSION;
@@ -191,8 +191,8 @@ intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *dat
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	pairing_info_in.header.api_version = HDCP_API_VERSION;
@@ -242,8 +242,8 @@ intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	lc_init_in.header.api_version = HDCP_API_VERSION;
@@ -288,8 +288,8 @@ intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	verify_lprime_in.header.api_version = HDCP_API_VERSION;
@@ -338,8 +338,8 @@ int intel_hdcp_gsc_get_session_key(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	get_skey_in.header.api_version = HDCP_API_VERSION;
@@ -390,8 +390,8 @@ intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	verify_repeater_in.header.api_version = HDCP_API_VERSION;
@@ -451,8 +451,8 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	cmd_size = struct_size(verify_mprime_in, streams, data->k);
@@ -461,7 +461,7 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 
 	verify_mprime_in = kzalloc(cmd_size, GFP_KERNEL);
 	if (!verify_mprime_in)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	verify_mprime_in->header.api_version = HDCP_API_VERSION;
 	verify_mprime_in->header.command_id = WIRED_REPEATER_AUTH_STREAM_REQ;
@@ -512,8 +512,8 @@ int intel_hdcp_gsc_enable_authentication(struct device *dev,
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	enable_auth_in.header.api_version = HDCP_API_VERSION;
@@ -557,8 +557,8 @@ intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 
 	i915 = kdev_to_i915(dev);
 	if (!i915) {
-		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
-		return -ENODEV;
+		dev_err(dev, "DRM analt initialized, aborting HDCP.\n");
+		return -EANALDEV;
 	}
 
 	session_close_in.header.api_version = HDCP_API_VERSION;

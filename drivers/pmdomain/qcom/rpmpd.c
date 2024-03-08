@@ -794,7 +794,7 @@ static struct rpmpd *sm6115_rpmpds[] = {
 static const struct rpmpd_desc sm6115_desc = {
 	.rpmpds = sm6115_rpmpds,
 	.num_pds = ARRAY_SIZE(sm6115_rpmpds),
-	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+	.max_state = RPM_SMD_LEVEL_TURBO_ANAL_CPR,
 };
 
 static struct rpmpd *sm6125_rpmpds[] = {
@@ -828,7 +828,7 @@ static struct rpmpd *sm6375_rpmpds[] = {
 static const struct rpmpd_desc sm6375_desc = {
 	.rpmpds = sm6375_rpmpds,
 	.num_pds = ARRAY_SIZE(sm6375_rpmpds),
-	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+	.max_state = RPM_SMD_LEVEL_TURBO_ANAL_CPR,
 };
 
 static struct rpmpd *qcm2290_rpmpds[] = {
@@ -845,7 +845,7 @@ static struct rpmpd *qcm2290_rpmpds[] = {
 static const struct rpmpd_desc qcm2290_desc = {
 	.rpmpds = qcm2290_rpmpds,
 	.num_pds = ARRAY_SIZE(qcm2290_rpmpds),
-	.max_state = RPM_SMD_LEVEL_TURBO_NO_CPR,
+	.max_state = RPM_SMD_LEVEL_TURBO_ANAL_CPR,
 };
 
 static const struct of_device_id rpmpd_match_table[] = {
@@ -1011,7 +1011,7 @@ static int rpmpd_probe(struct platform_device *pdev)
 	rpm = dev_get_drvdata(pdev->dev.parent);
 	if (!rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to RPM\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	desc = of_device_get_match_data(&pdev->dev);
@@ -1023,12 +1023,12 @@ static int rpmpd_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->domains = devm_kcalloc(&pdev->dev, num, sizeof(*data->domains),
 				     GFP_KERNEL);
 	if (!data->domains)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->num_domains = num;
 
@@ -1059,7 +1059,7 @@ static int rpmpd_probe(struct platform_device *pdev)
 			pm_genpd_add_subdomain(rpmpds[i]->parent, &rpmpds[i]->pd);
 	}
 
-	return of_genpd_add_provider_onecell(pdev->dev.of_node, data);
+	return of_genpd_add_provider_onecell(pdev->dev.of_analde, data);
 }
 
 static void rpmpd_sync_state(struct device *dev)
@@ -1104,5 +1104,5 @@ static int __init rpmpd_init(void)
 }
 core_initcall(rpmpd_init);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPM Power Domain Driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. RPM Power Domain Driver");
 MODULE_LICENSE("GPL v2");

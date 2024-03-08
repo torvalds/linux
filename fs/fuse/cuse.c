@@ -18,7 +18,7 @@
  * cdev		: the implemented character device
  * dev		: generic device for cdev
  *
- * Note that 'channel' is what 'dev' is in FUSE.  As CUSE deals with
+ * Analte that 'channel' is what 'dev' is in FUSE.  As CUSE deals with
  * devices, it's called 'channel' to reduce confusion.
  *
  * channel determines when the character device dies.  When channel is
@@ -77,7 +77,7 @@ static struct cuse_conn *fc_to_cc(struct fuse_conn *fc)
 
 static struct list_head *cuse_conntbl_head(dev_t devt)
 {
-	return &cuse_conntbl[(MAJOR(devt) + MINOR(devt)) % CUSE_CONNTBL_LEN];
+	return &cuse_conntbl[(MAJOR(devt) + MIANALR(devt)) % CUSE_CONNTBL_LEN];
 }
 
 
@@ -104,16 +104,16 @@ static ssize_t cuse_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb);
 	loff_t pos = 0;
 	/*
-	 * No locking or generic_write_checks(), the server is
+	 * Anal locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
 	return fuse_direct_io(&io, from, &pos,
 			      FUSE_DIO_WRITE | FUSE_DIO_CUSE);
 }
 
-static int cuse_open(struct inode *inode, struct file *file)
+static int cuse_open(struct ianalde *ianalde, struct file *file)
 {
-	dev_t devt = inode->i_cdev->dev;
+	dev_t devt = ianalde->i_cdev->dev;
 	struct cuse_conn *cc = NULL, *pos;
 	int rc;
 
@@ -129,7 +129,7 @@ static int cuse_open(struct inode *inode, struct file *file)
 
 	/* dead? */
 	if (!cc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Generic permission check is already done against the chrdev
@@ -141,7 +141,7 @@ static int cuse_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static int cuse_release(struct inode *inode, struct file *file)
+static int cuse_release(struct ianalde *ianalde, struct file *file)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_mount *fm = ff->fm;
@@ -187,7 +187,7 @@ static const struct file_operations cuse_frontend_fops = {
 	.unlocked_ioctl		= cuse_file_ioctl,
 	.compat_ioctl		= cuse_file_compat_ioctl,
 	.poll			= fuse_file_poll,
-	.llseek		= noop_llseek,
+	.llseek		= analop_llseek,
 };
 
 
@@ -208,12 +208,12 @@ struct cuse_devinfo {
  *
  * *@pp points to packed strings - "key0=val0\0key1=val1\0" which ends
  * at @end - 1.  This function parses one pair and set *@keyp to the
- * start of the key and *@valp to the start of the value.  Note that
+ * start of the key and *@valp to the start of the value.  Analte that
  * the original string is modified such that the key string is
  * terminated with '\0'.  *@pp is updated to point to the next string.
  *
  * RETURNS:
- * 1 on successful parse, 0 on EOF, -errno on failure.
+ * 1 on successful parse, 0 on EOF, -erranal on failure.
  */
 static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 {
@@ -226,7 +226,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 		return 0;
 
 	if (end[-1] != '\0') {
-		pr_err("info not properly terminated\n");
+		pr_err("info analt properly terminated\n");
 		return -EINVAL;
 	}
 
@@ -266,7 +266,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
  * them, so @p shouldn't be freed while @devinfo is in use.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
 static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 {
@@ -283,7 +283,7 @@ static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 		if (strcmp(key, "DEVNAME") == 0)
 			devinfo->name = val;
 		else
-			pr_warn("unknown device info \"%s\"\n", key);
+			pr_warn("unkanalwn device info \"%s\"\n", key);
 	}
 
 	if (!devinfo->name || !strlen(devinfo->name)) {
@@ -329,10 +329,10 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 	dev_t devt;
 	int rc, i;
 
-	if (error || arg->major != FUSE_KERNEL_VERSION || arg->minor < 11)
+	if (error || arg->major != FUSE_KERNEL_VERSION || arg->mianalr < 11)
 		goto err;
 
-	fc->minor = arg->minor;
+	fc->mianalr = arg->mianalr;
 	fc->max_read = max_t(unsigned, arg->max_read, 4096);
 	fc->max_write = max_t(unsigned, arg->max_write, 4096);
 
@@ -345,9 +345,9 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 		goto err;
 
 	/* determine and reserve devt */
-	devt = MKDEV(arg->dev_major, arg->dev_minor);
+	devt = MKDEV(arg->dev_major, arg->dev_mianalr);
 	if (!MAJOR(devt))
-		rc = alloc_chrdev_region(&devt, MINOR(devt), 1, devinfo.name);
+		rc = alloc_chrdev_region(&devt, MIANALR(devt), 1, devinfo.name);
 	else
 		rc = register_chrdev_region(devt, 1, devinfo.name);
 	if (rc) {
@@ -356,7 +356,7 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 	}
 
 	/* devt determined, create device */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		goto err_region;
@@ -383,7 +383,7 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 		goto err_unlock;
 
 	/* register cdev */
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	cdev = cdev_alloc();
 	if (!cdev)
 		goto err_unlock;
@@ -402,7 +402,7 @@ static void cuse_process_init_reply(struct fuse_mount *fm,
 	list_add(&cc->list, cuse_conntbl_head(devt));
 	mutex_unlock(&cuse_lock);
 
-	/* announce device availability */
+	/* ananalunce device availability */
 	dev_set_uevent_suppress(dev, 0);
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 out:
@@ -432,7 +432,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
-	rc = -ENOMEM;
+	rc = -EANALMEM;
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page)
 		goto err;
@@ -443,7 +443,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	ap = &ia->ap;
 	ia->in.major = FUSE_KERNEL_VERSION;
-	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
+	ia->in.mianalr = FUSE_KERNEL_MIANALR_VERSION;
 	ia->in.flags |= CUSE_UNRESTRICTED_IOCTL;
 	ap->args.opcode = CUSE_INIT;
 	ap->args.in_numargs = 1;
@@ -479,7 +479,7 @@ static void cuse_fc_release(struct fuse_conn *fc)
 
 /**
  * cuse_channel_open - open method for /dev/cuse
- * @inode: inode for /dev/cuse
+ * @ianalde: ianalde for /dev/cuse
  * @file: file struct being opened
  *
  * Userland CUSE server can create a CUSE device by opening /dev/cuse
@@ -490,9 +490,9 @@ static void cuse_fc_release(struct fuse_conn *fc)
  * init.  The rest is delegated to a kthread.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
-static int cuse_channel_open(struct inode *inode, struct file *file)
+static int cuse_channel_open(struct ianalde *ianalde, struct file *file)
 {
 	struct fuse_dev *fud;
 	struct cuse_conn *cc;
@@ -501,7 +501,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	/* set up cuse_conn */
 	cc = kzalloc(sizeof(*cc), GFP_KERNEL);
 	if (!cc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * Limit the cuse channel to requests that can
@@ -514,7 +514,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	fud = fuse_dev_alloc_install(&cc->fc);
 	fuse_conn_put(&cc->fc);
 	if (!fud)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&cc->list);
 
@@ -531,21 +531,21 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 
 /**
  * cuse_channel_release - release method for /dev/cuse
- * @inode: inode for /dev/cuse
+ * @ianalde: ianalde for /dev/cuse
  * @file: file struct being closed
  *
  * Disconnect the channel, deregister CUSE device and initiate
  * destruction by putting the default reference.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erranal on failure.
  */
-static int cuse_channel_release(struct inode *inode, struct file *file)
+static int cuse_channel_release(struct ianalde *ianalde, struct file *file)
 {
 	struct fuse_dev *fud = file->private_data;
 	struct cuse_conn *cc = fc_to_cc(fud->fc);
 
-	/* remove from the conntbl, no more access from this point on */
+	/* remove from the conntbl, anal more access from this point on */
 	mutex_lock(&cuse_lock);
 	list_del_init(&cc->list);
 	mutex_unlock(&cuse_lock);
@@ -558,7 +558,7 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 		cdev_del(cc->cdev);
 	}
 
-	return fuse_dev_release(inode, file);
+	return fuse_dev_release(ianalde, file);
 }
 
 static struct file_operations cuse_channel_fops; /* initialized during init */
@@ -598,12 +598,12 @@ static struct attribute *cuse_class_dev_attrs[] = {
 ATTRIBUTE_GROUPS(cuse_class_dev);
 
 static struct miscdevice cuse_miscdev = {
-	.minor		= CUSE_MINOR,
+	.mianalr		= CUSE_MIANALR,
 	.name		= "cuse",
 	.fops		= &cuse_channel_fops,
 };
 
-MODULE_ALIAS_MISCDEV(CUSE_MINOR);
+MODULE_ALIAS_MISCDEV(CUSE_MIANALR);
 MODULE_ALIAS("devname:cuse");
 
 static int __init cuse_init(void)
@@ -619,7 +619,7 @@ static int __init cuse_init(void)
 	cuse_channel_fops.owner		= THIS_MODULE;
 	cuse_channel_fops.open		= cuse_channel_open;
 	cuse_channel_fops.release	= cuse_channel_release;
-	/* CUSE is not prepared for FUSE_DEV_IOC_CLONE */
+	/* CUSE is analt prepared for FUSE_DEV_IOC_CLONE */
 	cuse_channel_fops.unlocked_ioctl	= NULL;
 
 	cuse_class = class_create("cuse");

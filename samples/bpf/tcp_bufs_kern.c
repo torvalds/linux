@@ -6,7 +6,7 @@
  *
  * BPF program to set initial receive window to 40 packets and send
  * and receive buffers to 1.5MB. This would usually be done after
- * doing appropriate checks that indicate the hosts are far enough
+ * doing appropriate checks that indicate the hosts are far eanalugh
  * away (i.e. large RTT).
  *
  * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
@@ -60,7 +60,7 @@ int bpf_bufs(struct bpf_sock_ops *skops)
 				     &bufsize, sizeof(bufsize));
 		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		/* Nothing to do */
+		/* Analthing to do */
 		break;
 	case BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB:
 		/* Set sndbuf and rcvbuf of passive connections */

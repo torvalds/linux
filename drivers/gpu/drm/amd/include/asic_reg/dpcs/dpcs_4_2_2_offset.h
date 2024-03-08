@@ -11941,7 +11941,7 @@
 
 
 //TODO: verify this still applies to DCN315
-//[Note] Hack. RDPCSPIPE only has 2 instances.
+//[Analte] Hack. RDPCSPIPE only has 2 instances.
 #define regRDPCSPIPE0_RDPCSPIPE_PHY_CNTL6                                                              0x2d73
 #define regRDPCSPIPE0_RDPCSPIPE_PHY_CNTL6_BASE_IDX                                                     2
 #define regRDPCSPIPE1_RDPCSPIPE_PHY_CNTL6                                                              0x2e4b

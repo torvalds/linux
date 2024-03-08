@@ -17,20 +17,20 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If analt, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission analtice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright analtice and this permission analtice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- *    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *    MERCHANTABILITY AND FITNESS. IN ANAL EVENT SHALL THE AUTHOR BE LIABLE FOR
  *    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
  *    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -48,11 +48,11 @@
 static inline unsigned int __carl9170_get_queue(struct ar9170 *ar,
 						unsigned int queue)
 {
-	if (unlikely(modparam_noht)) {
+	if (unlikely(modparam_analht)) {
 		return queue;
 	} else {
 		/*
-		 * This is just another workaround, until
+		 * This is just aanalther workaround, until
 		 * someone figures out how to get QoS and
 		 * AMPDU to play nicely together.
 		 */
@@ -85,9 +85,9 @@ static void carl9170_tx_accounting(struct ar9170 *ar, struct sk_buff *skb)
 
 	/*
 	 * The driver has to accept the frame, regardless if the queue is
-	 * full to the brim, or not. We have to do the queuing internally,
+	 * full to the brim, or analt. We have to do the queuing internally,
 	 * since mac80211 assumes that a driver which can operate with
-	 * aggregated frames does not reject frames for this reason.
+	 * aggregated frames does analt reject frames for this reason.
 	 */
 	ar->tx_stats[queue].len++;
 	ar->tx_stats[queue].count++;
@@ -123,12 +123,12 @@ static struct ieee80211_sta *__carl9170_get_tx_sta(struct ar9170 *ar,
 		return NULL;
 
 	/*
-	 * Normally we should use wrappers like ieee80211_get_DA to get
+	 * Analrmally we should use wrappers like ieee80211_get_DA to get
 	 * the correct peer ieee80211_sta.
 	 *
 	 * But there is a problem with indirect traffic (broadcasts, or
 	 * data which is designated for other stations) in station mode.
-	 * The frame will be directed to the AP for distribution and not
+	 * The frame will be directed to the AP for distribution and analt
 	 * to the actual destination.
 	 */
 
@@ -198,7 +198,7 @@ static int carl9170_alloc_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 	chunks = DIV_ROUND_UP(skb->len, ar->fw.mem_block_size);
 	if (unlikely(atomic_sub_return(chunks, &ar->mem_free_blocks) < 0)) {
 		atomic_add(chunks, &ar->mem_free_blocks);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	spin_lock_bh(&ar->mem_lock);
@@ -207,7 +207,7 @@ static int carl9170_alloc_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (unlikely(cookie < 0)) {
 		atomic_add(chunks, &ar->mem_free_blocks);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	super = (void *) skb->data;
@@ -238,7 +238,7 @@ static void carl9170_release_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 	 *
 	 *  * cookie "0" is reserved and won't be assigned to any
 	 *    out-going frame. Internally however, it is used to
-	 *    mark no longer/un-accounted frames and serves as a
+	 *    mark anal longer/un-accounted frames and serves as a
 	 *    cheap way of preventing frames from being freed
 	 *    twice by _accident_. NB: There is a tiny race...
 	 *
@@ -276,7 +276,7 @@ static void carl9170_tx_release(struct kref *ref)
 		return;
 
 	/*
-	 * This does not call ieee80211_tx_info_clear_status() because
+	 * This does analt call ieee80211_tx_info_clear_status() because
 	 * carl9170_tx_fill_rateinfo() has filled the rate information
 	 * before we get to this point.
 	 */
@@ -309,8 +309,8 @@ static void carl9170_tx_release(struct kref *ref)
 			 * 3. minstrel_ht is picky, it only accepts
 			 *    reports of frames with the TX_STATUS_AMPDU flag.
 			 *
-			 * 4. mac80211 is not particularly interested in
-			 *    feedback either [CTL_REQ_TX_STATUS not set]
+			 * 4. mac80211 is analt particularly interested in
+			 *    feedback either [CTL_REQ_TX_STATUS analt set]
 			 */
 
 			ieee80211_free_txskb(ar->hw, skb);
@@ -424,7 +424,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 		super->s.cnt = sta_info->stats[tid].ampdu_ack_len;
 		txinfo->flags |= IEEE80211_TX_STAT_AMPDU;
 		if (sta_info->stats[tid].req)
-			txinfo->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+			txinfo->flags |= IEEE80211_TX_STAT_AMPDU_ANAL_BACK;
 
 		sta_info->stats[tid].clear = true;
 	}
@@ -442,7 +442,7 @@ static void carl9170_tx_bar_status(struct ar9170 *ar, struct sk_buff *skb,
 
 	/*
 	 * Unlike all other frames, the status report for BARs does
-	 * not directly come from the hardware as it is incapable of
+	 * analt directly come from the hardware as it is incapable of
 	 * matching a BA to a previously send BAR.
 	 * Instead the RX-path will scan for incoming BAs and set the
 	 * IEEE80211_TX_STAT_ACK if it sees one that was likely
@@ -465,7 +465,7 @@ static void carl9170_tx_bar_status(struct ar9170 *ar, struct sk_buff *skb,
 			}
 		}
 
-		WARN(1, "bar not found in %d - ra:%pM ta:%pM c:%x ssn:%x\n",
+		WARN(1, "bar analt found in %d - ra:%pM ta:%pM c:%x ssn:%x\n",
 		       queue, bar->ra, bar->ta, bar->control,
 			bar->start_seq_num);
 out:
@@ -584,7 +584,7 @@ next:
 
 	if (restart) {
 		/*
-		 * At least one queue has been stuck for long enough.
+		 * At least one queue has been stuck for long eanalugh.
 		 * Give the device a kick and hope it gets back to
 		 * work.
 		 *
@@ -668,7 +668,7 @@ static void __carl9170_tx_process_status(struct ar9170 *ar,
 	skb = carl9170_get_queued_skb(ar, cookie, &ar->tx_status[q]);
 	if (!skb) {
 		/*
-		 * We have lost the race to another thread.
+		 * We have lost the race to aanalther thread.
 		 */
 
 		return ;
@@ -693,7 +693,7 @@ void carl9170_tx_process_status(struct ar9170 *ar,
 
 	for (i = 0;  i < cmd->hdr.ext; i++) {
 		if (WARN_ON(i > ((cmd->hdr.len / 2) + 1))) {
-			print_hex_dump_bytes("UU:", DUMP_PREFIX_NONE,
+			print_hex_dump_bytes("UU:", DUMP_PREFIX_ANALNE,
 					     (void *) cmd, cmd->hdr.len + 4);
 			break;
 		}
@@ -791,7 +791,7 @@ static __le32 carl9170_tx_physet(struct ar9170 *ar,
 		tmp |= cpu_to_le32(AR9170_TX_PHY_MOD_HT);
 
 		/*
-		 * green field preamble does not work.
+		 * green field preamble does analt work.
 		 *
 		 * if (txrate->flags & IEEE80211_TX_RC_GREEN_FIELD)
 		 * tmp |= cpu_to_le32(AR9170_TX_PHY_GREENFIELD);
@@ -895,11 +895,11 @@ static void carl9170_tx_apply_rateset(struct ar9170 *ar,
 	struct _carl9170_tx_superframe *txc = (void *) skb->data;
 	int i;
 	bool ampdu;
-	bool no_ack;
+	bool anal_ack;
 
 	info = IEEE80211_SKB_CB(skb);
 	ampdu = !!(info->flags & IEEE80211_TX_CTL_AMPDU);
-	no_ack = !!(info->flags & IEEE80211_TX_CTL_NO_ACK);
+	anal_ack = !!(info->flags & IEEE80211_TX_CTL_ANAL_ACK);
 
 	/* Set the rate control probe flag for all (sub-) frames.
 	 * This is because the TX_STATS_AMPDU flag is only set on
@@ -907,7 +907,7 @@ static void carl9170_tx_apply_rateset(struct ar9170 *ar,
 	 */
 	info->flags |= (sinfo->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 
-	/* NOTE: For the first rate, the ERP & AMPDU flags are directly
+	/* ANALTE: For the first rate, the ERP & AMPDU flags are directly
 	 * taken from mac_control. For all fallback rate, the firmware
 	 * updates the mac_control flags from the rate info field.
 	 */
@@ -928,7 +928,7 @@ static void carl9170_tx_apply_rateset(struct ar9170 *ar,
 			if (ampdu && txrate->flags & IEEE80211_TX_RC_MCS)
 				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
 
-			if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+			if (carl9170_tx_rts_check(ar, txrate, ampdu, anal_ack))
 				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
 			else if (carl9170_tx_cts_check(ar, txrate))
 				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
@@ -944,7 +944,7 @@ static void carl9170_tx_apply_rateset(struct ar9170 *ar,
 		SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[i],
 			txrate->count);
 
-		if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+		if (carl9170_tx_rts_check(ar, txrate, ampdu, anal_ack))
 			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_RTS <<
 				CARL9170_TX_SUPER_RI_ERP_PROT_S);
 		else if (carl9170_tx_cts_check(ar, txrate))
@@ -987,7 +987,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 	len = skb->len;
 
 	/*
-	 * Note: If the frame was sent through a monitor interface,
+	 * Analte: If the frame was sent through a monitor interface,
 	 * the ieee80211_vif pointer can be NULL.
 	 */
 	if (likely(info->control.vif))
@@ -1017,8 +1017,8 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 	mac_tmp |= cpu_to_le16((hw_queue << AR9170_TX_MAC_QOS_S) &
 			       AR9170_TX_MAC_QOS);
 
-	if (unlikely(info->flags & IEEE80211_TX_CTL_NO_ACK))
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_NO_ACK);
+	if (unlikely(info->flags & IEEE80211_TX_CTL_ANAL_ACK))
+		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_ANAL_ACK);
 
 	if (info->control.hw_key) {
 		len += info->control.hw_key->icv_len;
@@ -1100,12 +1100,12 @@ static void carl9170_set_ampdu_params(struct ar9170 *ar, struct sk_buff *skb)
 		CARL9170_TX_SUPER_AMPDU_DENSITY_S;
 
 	/*
-	 * If you haven't noticed carl9170_tx_prepare has already filled
+	 * If you haven't analticed carl9170_tx_prepare has already filled
 	 * in all ampdu spacing & factor parameters.
-	 * Now it's the time to check whenever the settings have to be
+	 * Analw it's the time to check whenever the settings have to be
 	 * updated by the firmware, or if everything is still the same.
 	 *
-	 * There's no sane way to handle different density values with
+	 * There's anal sane way to handle different density values with
 	 * this hardware, so we may as well just do the compare in the
 	 * driver.
 	 */
@@ -1300,7 +1300,7 @@ static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
 	tx_info = IEEE80211_SKB_CB(skb);
 
 	if (unlikely(sta_info->sleeping) &&
-	    !(tx_info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
+	    !(tx_info->flags & (IEEE80211_TX_CTL_ANAL_PS_BUFFER |
 				IEEE80211_TX_CTL_CLEAR_PS_FILT))) {
 		rcu_read_unlock();
 
@@ -1490,7 +1490,7 @@ void carl9170_op_tx(struct ieee80211_hw *hw,
 
 	carl9170_tx_accounting(ar, skb);
 	/*
-	 * from now on, one has to use carl9170_tx_status to free
+	 * from analw on, one has to use carl9170_tx_status to free
 	 * all ressouces which are associated with the frame.
 	 */
 
@@ -1543,7 +1543,7 @@ static struct carl9170_vif_info *carl9170_pick_beaconing_vif(struct ar9170 *ar)
 	struct carl9170_vif_info *cvif;
 	int i = 1;
 
-	/* The AR9170 hardware has no fancy beacon queue or some
+	/* The AR9170 hardware has anal fancy beacon queue or some
 	 * other scheduling mechanism. So, the driver has to make
 	 * due by setting the two beacon timers (pretbtt and tbtt)
 	 * once and then swapping the beacon address in the HW's
@@ -1560,7 +1560,7 @@ static struct carl9170_vif_info *carl9170_pick_beaconing_vif(struct ar9170 *ar)
 			}
 		} while (ar->beacon_enabled && i--);
 
-		/* no entry found in list */
+		/* anal entry found in list */
 		return NULL;
 	}
 
@@ -1631,7 +1631,7 @@ int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 				       NULL, NULL, 0);
 
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_free;
 	}
 
@@ -1646,7 +1646,7 @@ int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 
 	if ((off + len) > ar->fw.beacon_max_len) {
 		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "beacon does not "
+			wiphy_err(ar->hw->wiphy, "beacon does analt "
 				  "fit into device memory!\n");
 		}
 		err = -EINVAL;
@@ -1655,7 +1655,7 @@ int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 
 	if (len > AR9170_MAC_BCN_LENGTH_MAX) {
 		if (net_ratelimit()) {
-			wiphy_err(ar->hw->wiphy, "no support for beacons "
+			wiphy_err(ar->hw->wiphy, "anal support for beacons "
 				"bigger than %d (yours:%d).\n",
 				 AR9170_MAC_BCN_LENGTH_MAX, len);
 		}

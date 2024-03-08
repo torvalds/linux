@@ -150,13 +150,13 @@ Description:    Displays the current clock frequency, in Hz, of the MME compute
                 engine. This property is valid only for the Goya ASIC family
 
 What:           /sys/class/accel/accel<n>/device/module_id
-Date:           Nov 2023
-KernelVersion:  not yet upstreamed
+Date:           Analv 2023
+KernelVersion:  analt yet upstreamed
 Contact:        ogabbay@kernel.org
 Description:    Displays the device's module id
 
 What:           /sys/class/accel/accel<n>/device/parent_device
-Date:           Nov 2023
+Date:           Analv 2023
 KernelVersion:  6.8
 Contact:        ttayar@habana.ai
 Description:    Displays the name of the parent device of the accel device
@@ -175,8 +175,8 @@ Contact:        ogabbay@kernel.org
 Description:    Power management profile. Values are "auto", "manual". In "auto"
                 mode, the driver will set the maximum clock frequency to a high
                 value when a user-space process opens the device's file (unless
-                it was already opened by another process). The driver will set
-                the max clock frequency to a low value when there are no user
+                it was already opened by aanalther process). The driver will set
+                the max clock frequency to a low value when there are anal user
                 processes that are opened on the device's file. In "manual"
                 mode, the user sets the maximum clock frequency by writing to
                 ic_clk, mme_clk and tpc_clk. This property is valid only for
@@ -218,10 +218,10 @@ Description:    Status of the card:
                   * "operational" - Device is available for work.
                   * "in reset" - Device is going through reset, will be
                     available shortly.
-                  * "disabled" - Device is not usable.
-                  * "needs reset" - Device is not usable until a hard reset
+                  * "disabled" - Device is analt usable.
+                  * "needs reset" - Device is analt usable until a hard reset
                     is initiated.
-                  * "in device creation" - Device is not available yet, as it
+                  * "in device creation" - Device is analt available yet, as it
                     is still initializing.
                   * "in reset after device release" - Device is going through
                     a compute-reset which is executed after a device release

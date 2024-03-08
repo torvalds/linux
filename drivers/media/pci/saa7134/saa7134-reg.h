@@ -264,7 +264,7 @@
 #define SAA7134_OFMT_DATA_A                     0x301
 #define SAA7134_OFMT_VIDEO_B                    0x302
 #define SAA7134_OFMT_DATA_B                     0x303
-#define SAA7134_ALPHA_NOCLIP                    0x304
+#define SAA7134_ALPHA_ANALCLIP                    0x304
 #define SAA7134_ALPHA_CLIP                      0x305
 #define SAA7134_UV_PIXEL                        0x308
 #define SAA7134_CLIP_RED                        0x309

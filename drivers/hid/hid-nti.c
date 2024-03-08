@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  USB HID quirks support for Network Technologies, Inc. "USB-SUN" USB
+ *  USB HID quirks support for Network Techanallogies, Inc. "USB-SUN" USB
  *  adapter for pre-USB Sun keyboards
  *
  *  Copyright (c) 2011 Google, Inc.
@@ -24,7 +24,7 @@
 #include "hid-ids.h"
 
 MODULE_AUTHOR("Jonathan Klabunde Tomer <jktomer@google.com>");
-MODULE_DESCRIPTION("HID driver for Network Technologies USB-SUN keyboard adapter");
+MODULE_DESCRIPTION("HID driver for Network Techanallogies USB-SUN keyboard adapter");
 
 /*
  * NTI Sun keyboard adapter has wrong logical maximum in report descriptor

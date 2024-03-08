@@ -24,12 +24,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -42,7 +42,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>
@@ -52,7 +52,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/gfp.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/percpu-defs.h>
@@ -109,7 +109,7 @@ static struct ctl_table balloon_table[] = {
 /*
  * balloon_thread() state:
  *
- * BP_DONE: done or nothing to do,
+ * BP_DONE: done or analthing to do,
  * BP_WAIT: wait to be rescheduled,
  * BP_EAGAIN: error, go to sleep,
  * BP_ECANCELED: error, balloon operation canceled.
@@ -141,7 +141,7 @@ static DECLARE_WAIT_QUEUE_HEAD(balloon_wq);
 /* When ballooning out (allocating memory to return to Xen) we don't really
    want the kernel to try too hard since that can trigger the oom killer. */
 #define GFP_BALLOON \
-	(GFP_HIGHUSER | __GFP_NOWARN | __GFP_NORETRY | __GFP_NOMEMALLOC)
+	(GFP_HIGHUSER | __GFP_ANALWARN | __GFP_ANALRETRY | __GFP_ANALMEMALLOC)
 
 /* balloon_append: add the given page to the balloon. */
 static void balloon_append(struct page *page)
@@ -159,7 +159,7 @@ static void balloon_append(struct page *page)
 	wake_up(&balloon_wq);
 }
 
-/* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
+/* balloon_retrieve: rescue a page from the balloon, if it is analt empty. */
 static struct page *balloon_retrieve(bool require_lowmem)
 {
 	struct page *page;
@@ -225,8 +225,8 @@ static void release_memory_resource(struct resource *resource)
 		return;
 
 	/*
-	 * No need to reset region to identity mapped since we now
-	 * know that no I/O can be in this region
+	 * Anal need to reset region to identity mapped since we analw
+	 * kanalw that anal I/O can be in this region
 	 */
 	release_resource(resource);
 	kfree(resource);
@@ -248,7 +248,7 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 				size, 0, -1,
 				PAGES_PER_SECTION * PAGE_SIZE, NULL, NULL);
 	if (ret < 0) {
-		pr_err("Cannot allocate new System RAM resource\n");
+		pr_err("Cananalt allocate new System RAM resource\n");
 		kfree(res);
 		return NULL;
 	}
@@ -267,7 +267,7 @@ static enum bp_state reserve_additional_memory(void)
 		- balloon_stats.total_pages;
 
 	/*
-	 * Already hotplugged enough pages?  Wait for them to be
+	 * Already hotplugged eanalugh pages?  Wait for them to be
 	 * onlined.
 	 */
 	if (credit <= 0)
@@ -291,10 +291,10 @@ static enum bp_state reserve_additional_memory(void)
         /*
          * add_memory() will build page tables for the new memory so
          * the p2m must contain invalid entries so the correct
-         * non-present PTEs will be written.
+         * analn-present PTEs will be written.
          *
          * If a failure occurs, the original (identity) p2m entries
-         * are not restored since this region is now known not to
+         * are analt restored since this region is analw kanalwn analt to
          * conflict with any devices.
          */ 
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -303,7 +303,7 @@ static enum bp_state reserve_additional_memory(void)
 		pfn = PFN_DOWN(resource->start);
 		for (i = 0; i < balloon_hotplug; i++) {
 			if (!set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY)) {
-				pr_warn("set_phys_to_machine() failed, no memory added\n");
+				pr_warn("set_phys_to_machine() failed, anal memory added\n");
 				goto err;
 			}
                 }
@@ -324,7 +324,7 @@ static enum bp_state reserve_additional_memory(void)
 	mutex_lock(&balloon_mutex);
 
 	if (rc) {
-		pr_warn("Cannot add additional memory (%i)\n", rc);
+		pr_warn("Cananalt add additional memory (%i)\n", rc);
 		goto err;
 	}
 
@@ -351,16 +351,16 @@ static void xen_online_page(struct page *page, unsigned int order)
 	mutex_unlock(&balloon_mutex);
 }
 
-static int xen_memory_notifier(struct notifier_block *nb, unsigned long val, void *v)
+static int xen_memory_analtifier(struct analtifier_block *nb, unsigned long val, void *v)
 {
 	if (val == MEM_ONLINE)
 		wake_up(&balloon_thread_wq);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block xen_memory_nb = {
-	.notifier_call = xen_memory_notifier,
+static struct analtifier_block xen_memory_nb = {
+	.analtifier_call = xen_memory_analtifier,
 	.priority = 0
 };
 #else
@@ -480,7 +480,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 
 /*
  * Stop waiting if either state is BP_DONE and ballooning action is
- * needed, or if the credit has changed while state is not BP_DONE.
+ * needed, or if the credit has changed while state is analt BP_DONE.
  */
 static bool balloon_thread_cond(long credit)
 {
@@ -557,7 +557,7 @@ static int balloon_thread(void *unused)
 /* Resets the Xen limit, sets new target, and kicks off processing. */
 void balloon_set_new_target(unsigned long target)
 {
-	/* No need for lock. Not read-modify-write updates. */
+	/* Anal need for lock. Analt read-modify-write updates. */
 	balloon_stats.target_pages = target;
 	wake_up(&balloon_thread_wq);
 }
@@ -576,16 +576,16 @@ static int add_ballooned_pages(unsigned int nr_pages)
 			rc = wait_event_interruptible(balloon_wq,
 				   !list_empty(&ballooned_pages));
 			mutex_lock(&balloon_mutex);
-			return rc ? -ENOMEM : 0;
+			return rc ? -EANALMEM : 0;
 		}
 	}
 
 	if (si_mem_available() < nr_pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = decrease_reservation(nr_pages, GFP_USER);
 	if (st != BP_DONE)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -598,7 +598,7 @@ static int add_ballooned_pages(unsigned int nr_pages)
  */
 int xen_alloc_ballooned_pages(unsigned int nr_pages, struct page **pages)
 {
-	unsigned int pgno = 0;
+	unsigned int pganal = 0;
 	struct page *page;
 	int ret;
 
@@ -606,10 +606,10 @@ int xen_alloc_ballooned_pages(unsigned int nr_pages, struct page **pages)
 
 	balloon_stats.target_unpopulated += nr_pages;
 
-	while (pgno < nr_pages) {
+	while (pganal < nr_pages) {
 		page = balloon_retrieve(true);
 		if (page) {
-			pages[pgno++] = page;
+			pages[pganal++] = page;
 #ifdef CONFIG_XEN_HAVE_PVMMU
 			/*
 			 * We don't support PV MMU when Linux and Xen is using
@@ -624,7 +624,7 @@ int xen_alloc_ballooned_pages(unsigned int nr_pages, struct page **pages)
 			}
 #endif
 		} else {
-			ret = add_ballooned_pages(nr_pages - pgno);
+			ret = add_ballooned_pages(nr_pages - pganal);
 			if (ret < 0)
 				goto out_undo;
 		}
@@ -633,13 +633,13 @@ int xen_alloc_ballooned_pages(unsigned int nr_pages, struct page **pages)
 	return 0;
  out_undo:
 	mutex_unlock(&balloon_mutex);
-	xen_free_ballooned_pages(pgno, pages);
+	xen_free_ballooned_pages(pganal, pages);
 	/*
-	 * NB: xen_free_ballooned_pages will only subtract pgno pages, but since
+	 * NB: xen_free_ballooned_pages will only subtract pganal pages, but since
 	 * target_unpopulated is incremented with nr_pages at the start we need
 	 * to remove the remaining ones also, or accounting will be screwed.
 	 */
-	balloon_stats.target_unpopulated -= nr_pages - pgno;
+	balloon_stats.target_unpopulated -= nr_pages - pganal;
 	return ret;
 }
 EXPORT_SYMBOL(xen_alloc_ballooned_pages);
@@ -662,7 +662,7 @@ void xen_free_ballooned_pages(unsigned int nr_pages, struct page **pages)
 
 	balloon_stats.target_unpopulated -= nr_pages;
 
-	/* The balloon may be too large now. Shrink it if needed. */
+	/* The balloon may be too large analw. Shrink it if needed. */
 	if (current_credit())
 		wake_up(&balloon_thread_wq);
 
@@ -704,7 +704,7 @@ static int __init balloon_init(void)
 	struct task_struct *task;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Initialising balloon driver\n");
 
@@ -727,7 +727,7 @@ static int __init balloon_init(void)
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
 	set_online_page_callback(&xen_online_page);
-	register_memory_notifier(&xen_memory_nb);
+	register_memory_analtifier(&xen_memory_nb);
 	register_sysctl_init("xen/balloon", balloon_table);
 #endif
 
@@ -735,7 +735,7 @@ static int __init balloon_init(void)
 
 	task = kthread_run(balloon_thread, NULL, "xen-balloon");
 	if (IS_ERR(task)) {
-		pr_err("xen-balloon thread could not be started, ballooning will not work!\n");
+		pr_err("xen-balloon thread could analt be started, ballooning will analt work!\n");
 		return PTR_ERR(task);
 	}
 
@@ -752,13 +752,13 @@ static int __init balloon_wait_finish(void)
 	unsigned long last_changed = 0;
 
 	if (!xen_domain())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* PV guests don't need to wait. */
 	if (xen_pv_domain() || !current_credit())
 		return 0;
 
-	pr_notice("Waiting for initial ballooning down having finished.\n");
+	pr_analtice("Waiting for initial ballooning down having finished.\n");
 
 	while ((credit = current_credit()) < 0) {
 		if (credit != last_credit) {
@@ -775,7 +775,7 @@ static int __init balloon_wait_finish(void)
 		schedule_timeout_interruptible(HZ / 10);
 	}
 
-	pr_notice("Initial ballooning down finished.\n");
+	pr_analtice("Initial ballooning down finished.\n");
 
 	return 0;
 }

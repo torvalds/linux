@@ -8,13 +8,13 @@
  */
 #define	NR_RAID_BIOS 256
 
-/* when we get a read error on a read-only array, we redirect to another
+/* when we get a read error on a read-only array, we redirect to aanalther
  * device without failing the first device, or trying to over-write to
  * correct the read error.  To keep track of bad blocks on a per-bio
  * level, we store IO_BLOCKED in the appropriate 'bios' pointer
  */
 #define IO_BLOCKED ((struct bio *)1)
-/* When we successfully write to a known bad-block, we need to remove the
+/* When we successfully write to a kanalwn bad-block, we need to remove the
  * bad-block marking which must be done from process context.  So we record
  * the success by setting devs[n].bio to IO_MADE_GOOD
  */
@@ -56,7 +56,7 @@ static inline int resync_alloc_pages(struct resync_pages *rp,
 out_free:
 	while (--i >= 0)
 		put_page(rp->pages[i]);
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline void resync_free_pages(struct resync_pages *rp)
@@ -124,10 +124,10 @@ static inline void raid1_submit_write(struct bio *bio)
 		bio_io_error(bio);
 	else if (unlikely(bio_op(bio) ==  REQ_OP_DISCARD &&
 			  !bdev_max_discard_sectors(bio->bi_bdev)))
-		/* Just ignore it */
+		/* Just iganalre it */
 		bio_endio(bio);
 	else
-		submit_bio_noacct(bio);
+		submit_bio_analacct(bio);
 }
 
 static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
@@ -137,7 +137,7 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
 	struct blk_plug_cb *cb;
 
 	/*
-	 * If bitmap is not enabled, it's safe to submit the io directly, and
+	 * If bitmap is analt enabled, it's safe to submit the io directly, and
 	 * this can get optimal performance.
 	 */
 	if (!md_bitmap_enabled(mddev->bitmap)) {
@@ -164,7 +164,7 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
  * current->bio_list will be set under submit_bio() context, in this case bitmap
  * io will be added to the list and wait for current io submission to finish,
  * while current io submission must wait for bitmap io to be done. In order to
- * avoid such deadlock, submit bitmap io asynchronously.
+ * avoid such deadlock, submit bitmap io asynchroanalusly.
  */
 static inline void raid1_prepare_flush_writes(struct bitmap *bitmap)
 {
@@ -217,9 +217,9 @@ static inline bool exceed_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 	check_decay_read_errors(mddev, rdev);
 	read_errors =  atomic_inc_return(&rdev->read_errors);
 	if (read_errors > max_read_errors) {
-		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Raid device exceeded read_error threshold [cur %d:max %d]\n",
+		pr_analtice("md/"RAID_1_10_NAME":%s: %pg: Raid device exceeded read_error threshold [cur %d:max %d]\n",
 			  mdname(mddev), rdev->bdev, read_errors, max_read_errors);
-		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Failing raid device\n",
+		pr_analtice("md/"RAID_1_10_NAME":%s: %pg: Failing raid device\n",
 			  mdname(mddev), rdev->bdev);
 		md_error(mddev, rdev);
 		return true;

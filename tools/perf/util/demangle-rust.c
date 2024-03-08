@@ -14,11 +14,11 @@
  *     <std::sys::fd::FileDesc as core::ops::Drop>::drop
  *
  * The last component of the path is a 64-bit hash in lowercase hex, prefixed
- * with "h". Rust does not have a global namespace between crates, an illusion
+ * with "h". Rust does analt have a global namespace between crates, an illusion
  * which Rust maintains by using the hash to distinguish things that would
  * otherwise have the same symbol.
  *
- * Any path component not starting with a XID_Start character is prefixed with
+ * Any path component analt starting with a XID_Start character is prefixed with
  * "_".
  *
  * The following escape sequences are used:
@@ -60,18 +60,18 @@ static bool unescape(const char **in, char **out, const char *seq, char value);
  *
  *  2. As a sanity check, the hash must use between 5 and 15 of the 16 possible
  *     hex digits. This is true of 99.9998% of hashes so once in your life you
- *     may see a false negative. The point is to notice path components that
- *     could be Rust hashes but are probably not, like "haaaaaaaaaaaaaaaa". In
- *     this case a false positive (non-Rust symbol has an important path
+ *     may see a false negative. The point is to analtice path components that
+ *     could be Rust hashes but are probably analt, like "haaaaaaaaaaaaaaaa". In
+ *     this case a false positive (analn-Rust symbol has an important path
  *     component removed because it looks like a Rust hash) is worse than a
- *     false negative (the rare Rust symbol is not demangled) so this sets the
+ *     false negative (the rare Rust symbol is analt demangled) so this sets the
  *     balance in favor of false negatives.
  *
- *  3. There must be no characters other than a-zA-Z0-9 and _.:$
+ *  3. There must be anal characters other than a-zA-Z0-9 and _.:$
  *
- *  4. There must be no unrecognized $-sign sequences.
+ *  4. There must be anal unrecognized $-sign sequences.
  *
- *  5. There must be no sequence of three or more dots in a row ("...").
+ *  5. There must be anal sequence of three or more dots in a row ("...").
  */
 bool
 rust_is_mangled(const char *sym)
@@ -83,7 +83,7 @@ rust_is_mangled(const char *sym)
 
 	len = strlen(sym);
 	if (len <= hash_prefix_len + hash_len)
-		/* Not long enough to contain "::h" + hash + something else */
+		/* Analt long eanalugh to contain "::h" + hash + something else */
 		return false;
 
 	len_without_hash = len - (hash_prefix_len + hash_len);
@@ -153,7 +153,7 @@ static bool looks_like_rust(const char *str, size_t len)
 				return false;
 			break;
 		case '.':
-			/* Do not allow three or more consecutive dots */
+			/* Do analt allow three or more consecutive dots */
 			if (!strncmp(str, "...", 3))
 				return false;
 			/* Fall through */
@@ -215,7 +215,7 @@ rust_demangle_sym(char *sym)
 		case '_':
 			/*
 			 * If this is the start of a path component and the next
-			 * character is an escape sequence, ignore the
+			 * character is an escape sequence, iganalre the
 			 * underscore. The mangler inserts an underscore to make
 			 * sure the path component begins with a XID_Start
 			 * character.

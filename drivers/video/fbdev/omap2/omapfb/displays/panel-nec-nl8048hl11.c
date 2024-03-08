@@ -141,7 +141,7 @@ static int nec_8048_enable(struct omap_dss_device *dssdev)
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
@@ -229,8 +229,8 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
+	if (!spi->dev.of_analde)
+		return -EANALDEV;
 
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 32;
@@ -245,13 +245,13 @@ static int nec_8048_probe(struct spi_device *spi)
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);
 	if (ddata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(&spi->dev, ddata);
 
 	ddata->spi = spi;
 
-	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_node);
+	ddata->in = omapdss_of_find_source_for_first_ep(spi->dev.of_analde);
 	r = PTR_ERR_OR_ZERO(ddata->in);
 	if (r) {
 		dev_err(&spi->dev, "failed to find video source: %d\n", r);

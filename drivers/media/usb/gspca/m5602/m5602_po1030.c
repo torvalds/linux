@@ -3,7 +3,7 @@
  * Driver for the po1030 sensor
  *
  * Copyright (c) 2008 Erik Andrén
- * Copyright (c) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (c) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (c) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -128,7 +128,7 @@ static struct v4l2_pix_format po1030_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage = 640 * 480,
 		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -163,9 +163,9 @@ int po1030_probe(struct sd *sd)
 			pr_info("Forcing a %s sensor\n", po1030.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor, don't try to probe this
+		/* If we want to force aanalther sensor, don't try to probe this
 		 * one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	gspca_dbg(gspca_dev, D_PROBE, "Probing for a po1030 sensor\n");
@@ -184,13 +184,13 @@ int po1030_probe(struct sd *sd)
 	}
 
 	if (m5602_read_sensor(sd, PO1030_DEVID_H, &dev_id_h, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (dev_id_h == 0x30) {
 		pr_info("Detected a po1030 sensor\n");
 		goto sensor_found;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = po1030_modes;
@@ -266,7 +266,7 @@ int po1030_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 

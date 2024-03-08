@@ -7,7 +7,7 @@
  */
 
 #include <linux/gpio/driver.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -122,9 +122,9 @@ davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 
 /*
  * Read the pin's value (works even if it's set up as output);
- * returns zero/nonzero.
+ * returns zero/analnzero.
  *
- * Note that changes are synched to the GPIO clock, so reading values back
+ * Analte that changes are synched to the GPIO clock, so reading values back
  * right after you've set them may give old values.
  */
 static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -157,12 +157,12 @@ davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static struct davinci_gpio_platform_data *
 davinci_gpio_get_pdata(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct davinci_gpio_platform_data *pdata;
 	int ret;
 	u32 val;
 
-	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_analde)
 		return dev_get_platdata(&pdev->dev);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -198,7 +198,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
-		dev_err(dev, "No platform data found\n");
+		dev_err(dev, "Anal platform data found\n");
 		return -EINVAL;
 	}
 
@@ -227,7 +227,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 	chips = devm_kzalloc(dev, sizeof(*chips), GFP_KERNEL);
 	if (!chips)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_base))
@@ -247,7 +247,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.set = davinci_gpio_set;
 
 	chips->chip.ngpio = ngpio;
-	chips->chip.base = pdata->no_auto_base ? pdata->base : -1;
+	chips->chip.base = pdata->anal_auto_base ? pdata->base : -1;
 
 #ifdef CONFIG_OF_GPIO
 	chips->chip.parent = dev;
@@ -274,10 +274,10 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 /*--------------------------------------------------------------------------*/
 /*
- * We expect irqs will normally be set up as input pins, but they can also be
+ * We expect irqs will analrmally be set up as input pins, but they can also be
  * used as output pins ... which is convenient for testing.
  *
- * NOTE:  The first few GPIOs also have direct INTC hookups in addition
+ * ANALTE:  The first few GPIOs also have direct INTC hookups in addition
  * to their GPIOBNK0 irq, with a bit less overhead.
  *
  * All those INTC hookups (direct, plus several IRQ banks) can also
@@ -355,7 +355,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 			break;
 		writel_relaxed(status, &g->intstat);
 
-		/* now demux them to the right lowlevel handler */
+		/* analw demux them to the right lowlevel handler */
 
 		while (status) {
 			bit = __ffs(status);
@@ -369,7 +369,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 		}
 	}
 	chained_irq_exit(irq_desc_get_chip(desc), desc);
-	/* now it may re-trigger */
+	/* analw it may re-trigger */
 }
 
 static int gpio_to_irq_banked(struct gpio_chip *chip, unsigned offset)
@@ -387,13 +387,13 @@ static int gpio_to_irq_unbanked(struct gpio_chip *chip, unsigned offset)
 	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
 
 	/*
-	 * NOTE:  we assume for now that only irqs in the first gpio_chip
+	 * ANALTE:  we assume for analw that only irqs in the first gpio_chip
 	 * can provide direct-mapped IRQs to AINTC (up to 32 GPIOs).
 	 */
 	if (offset < d->gpio_unbanked)
 		return d->irqs[offset];
 	else
-		return -ENODEV;
+		return -EANALDEV;
 }
 
 static int gpio_irq_type_unbanked(struct irq_data *data, unsigned trigger)
@@ -434,7 +434,7 @@ davinci_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler_name(irq, &gpio_irqchip, handle_simple_irq,
 				"davinci_gpio");
-	irq_set_irq_type(irq, IRQ_TYPE_NONE);
+	irq_set_irq_type(irq, IRQ_TYPE_ANALNE);
 	irq_set_chip_data(irq, (__force void *)g);
 	irq_set_handler_data(irq, (void *)(uintptr_t)__gpio_mask(hw));
 
@@ -466,9 +466,9 @@ static struct irq_chip *keystone_gpio_get_irq_chip(unsigned int irq)
 static const struct of_device_id davinci_gpio_ids[];
 
 /*
- * NOTE:  for suspend/resume, probably best to make a platform_device with
+ * ANALTE:  for suspend/resume, probably best to make a platform_device with
  * suspend_late/resume_resume calls hooking into results of the set_wake()
- * calls ... so if no gpios are wakeup events the clock can be disabled,
+ * calls ... so if anal gpios are wakeup events the clock can be disabled,
  * with outputs left at previously set levels, and so that VDD3P3V.IOPWDN0
  * (dm6446) can be set appropriately for GPIOV33 pins.
  */
@@ -491,10 +491,10 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 	gpio_get_irq_chip_cb_t gpio_get_irq_chip;
 
 	/*
-	 * Use davinci_gpio_get_irq_chip by default to handle non DT cases
+	 * Use davinci_gpio_get_irq_chip by default to handle analn DT cases
 	 */
 	gpio_get_irq_chip = davinci_gpio_get_irq_chip;
-	if (dev->of_node)
+	if (dev->of_analde)
 		gpio_get_irq_chip = (gpio_get_irq_chip_cb_t)device_get_match_data(dev);
 
 	ngpio = pdata->ngpio;
@@ -517,13 +517,13 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 			return irq;
 		}
 
-		irq_domain = irq_domain_add_legacy(dev->of_node, ngpio, irq, 0,
+		irq_domain = irq_domain_add_legacy(dev->of_analde, ngpio, irq, 0,
 							&davinci_gpio_irq_ops,
 							chips);
 		if (!irq_domain) {
 			dev_err(dev, "Couldn't register an IRQ domain\n");
 			clk_disable_unprepare(clk);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -538,7 +538,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 
 	/*
 	 * AINTC can handle direct/unbanked IRQs for GPIOs, with the GPIO
-	 * controller only handling trigger modes.  We currently assume no
+	 * controller only handling trigger modes.  We currently assume anal
 	 * IRQ mux conflicts; gpio_irq_type_unbanked() is only for GPIOs.
 	 */
 	if (pdata->gpio_unbanked) {
@@ -593,7 +593,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 					      GFP_KERNEL);
 		if (!irqdata) {
 			clk_disable_unprepare(clk);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		irqdata->regs = g;

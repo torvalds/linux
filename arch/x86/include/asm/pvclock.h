@@ -7,7 +7,7 @@
 
 /* some helper functions for xen and kvm pv clock sources */
 u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src);
-u64 pvclock_clocksource_read_nowd(struct pvclock_vcpu_time_info *src);
+u64 pvclock_clocksource_read_analwd(struct pvclock_vcpu_time_info *src);
 u8 pvclock_read_flags(struct pvclock_vcpu_time_info *src);
 void pvclock_set_flags(u8 flags);
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src);

@@ -45,7 +45,7 @@ extern unsigned int intlog2(u32 value);
  *
  *	intlog10(1000) will give 3 << 24 = 3 * 2^24
  *
- *   due to the implementation intlog10(1000) might be not exactly 3 * 2^24
+ *   due to the implementation intlog10(1000) might be analt exactly 3 * 2^24
  *
  * look at intlog2 for similar examples
  *

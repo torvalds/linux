@@ -6,7 +6,7 @@ config CAN_PEAK_PCIEFD
 	  This driver adds support for the PEAK-System PCI Express FD
 	  CAN-FD cards family.
 	  These 1x or 2x CAN-FD channels cards offer CAN 2.0 a/b as well as
-	  CAN-FD access to the CAN bus. Besides the nominal bitrate of up to
+	  CAN-FD access to the CAN bus. Besides the analminal bitrate of up to
 	  1 Mbit/s, the data bytes of CAN-FD frames can be transmitted with
 	  up to 12 Mbit/s. A galvanic isolation of the CAN ports protects the
 	  electronics of the card and the respective computer against

@@ -26,7 +26,7 @@
 
 enum legacy_fs_param {
 	LEGACY_FS_UNSET_PARAMS,
-	LEGACY_FS_MONOLITHIC_PARAMS,
+	LEGACY_FS_MOANALLITHIC_PARAMS,
 	LEGACY_FS_INDIVIDUAL_PARAMS,
 };
 
@@ -43,14 +43,14 @@ static const struct constant_table common_set_sb_flag[] = {
 	{ "lazytime",	SB_LAZYTIME },
 	{ "mand",	SB_MANDLOCK },
 	{ "ro",		SB_RDONLY },
-	{ "sync",	SB_SYNCHRONOUS },
+	{ "sync",	SB_SYNCHROANALUS },
 	{ },
 };
 
 static const struct constant_table common_clear_sb_flag[] = {
-	{ "async",	SB_SYNCHRONOUS },
-	{ "nolazytime",	SB_LAZYTIME },
-	{ "nomand",	SB_MANDLOCK },
+	{ "async",	SB_SYNCHROANALUS },
+	{ "anallazytime",	SB_LAZYTIME },
+	{ "analmand",	SB_MANDLOCK },
 	{ "rw",		SB_RDONLY },
 	{ },
 };
@@ -76,7 +76,7 @@ static int vfs_parse_sb_flag(struct fs_context *fc, const char *key)
 		return 0;
 	}
 
-	return -ENOPARAM;
+	return -EANALPARAM;
 }
 
 /**
@@ -87,17 +87,17 @@ static int vfs_parse_sb_flag(struct fs_context *fc, const char *key)
  * This is a simple helper for filesystems to verify that the "source" they
  * accept is sane.
  *
- * Returns 0 on success, -ENOPARAM if this is not  "source" parameter, and
+ * Returns 0 on success, -EANALPARAM if this is analt  "source" parameter, and
  * -EINVAL otherwise. In the event of failure, supplementary error information
  *  is logged.
  */
 int vfs_parse_fs_param_source(struct fs_context *fc, struct fs_parameter *param)
 {
 	if (strcmp(param->key, "source") != 0)
-		return -ENOPARAM;
+		return -EANALPARAM;
 
 	if (param->type != fs_value_is_string)
-		return invalf(fc, "Non-string source");
+		return invalf(fc, "Analn-string source");
 
 	if (fc->source)
 		return invalf(fc, "Multiple sources");
@@ -132,11 +132,11 @@ int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param)
 		return invalf(fc, "Unnamed parameter\n");
 
 	ret = vfs_parse_sb_flag(fc, param->key);
-	if (ret != -ENOPARAM)
+	if (ret != -EANALPARAM)
 		return ret;
 
 	ret = security_fs_context_parse_param(fc, param);
-	if (ret != -ENOPARAM)
+	if (ret != -EANALPARAM)
 		/* Param belongs to the LSM or is disallowed by the LSM; so
 		 * don't pass to the FS.
 		 */
@@ -144,7 +144,7 @@ int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param)
 
 	if (fc->ops->parse_param) {
 		ret = fc->ops->parse_param(fc, param);
-		if (ret != -ENOPARAM)
+		if (ret != -EANALPARAM)
 			return ret;
 	}
 
@@ -152,10 +152,10 @@ int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param)
 	 * default handling of source.
 	 */
 	ret = vfs_parse_fs_param_source(fc, param);
-	if (ret != -ENOPARAM)
+	if (ret != -EANALPARAM)
 		return ret;
 
-	return invalf(fc, "%s: Unknown parameter '%s'",
+	return invalf(fc, "%s: Unkanalwn parameter '%s'",
 		      fc->fs_type->name, param->key);
 }
 EXPORT_SYMBOL(vfs_parse_fs_param);
@@ -181,7 +181,7 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 	if (value) {
 		param.string = kmemdup_nul(value, v_size, GFP_KERNEL);
 		if (!param.string)
-			return -ENOMEM;
+			return -EANALMEM;
 		param.type = fs_value_is_string;
 	}
 
@@ -192,7 +192,7 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 EXPORT_SYMBOL(vfs_parse_fs_string);
 
 /**
- * vfs_parse_monolithic_sep - Parse key[=val][,key[=val]]* mount data
+ * vfs_parse_moanallithic_sep - Parse key[=val][,key[=val]]* mount data
  * @fc: The superblock configuration to fill in.
  * @data: The data to parse
  * @sep: callback for separating next option
@@ -203,7 +203,7 @@ EXPORT_SYMBOL(vfs_parse_fs_string);
  * Returns 0 on success or the error returned by the ->parse_option() fs_context
  * operation on failure.
  */
-int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
+int vfs_parse_moanallithic_sep(struct fs_context *fc, void *data,
 			     char *(*sep)(char **))
 {
 	char *options = data, *key;
@@ -235,7 +235,7 @@ int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
 
 	return ret;
 }
-EXPORT_SYMBOL(vfs_parse_monolithic_sep);
+EXPORT_SYMBOL(vfs_parse_moanallithic_sep);
 
 static char *vfs_parse_comma_sep(char **s)
 {
@@ -243,21 +243,21 @@ static char *vfs_parse_comma_sep(char **s)
 }
 
 /**
- * generic_parse_monolithic - Parse key[=val][,key[=val]]* mount data
+ * generic_parse_moanallithic - Parse key[=val][,key[=val]]* mount data
  * @fc: The superblock configuration to fill in.
  * @data: The data to parse
  *
  * Parse a blob of data that's in key[=val][,key[=val]]* form.  This can be
- * called from the ->monolithic_mount_data() fs_context operation.
+ * called from the ->moanallithic_mount_data() fs_context operation.
  *
  * Returns 0 on success or the error returned by the ->parse_option() fs_context
  * operation on failure.
  */
-int generic_parse_monolithic(struct fs_context *fc, void *data)
+int generic_parse_moanallithic(struct fs_context *fc, void *data)
 {
-	return vfs_parse_monolithic_sep(fc, data, vfs_parse_comma_sep);
+	return vfs_parse_moanallithic_sep(fc, data, vfs_parse_comma_sep);
 }
-EXPORT_SYMBOL(generic_parse_monolithic);
+EXPORT_SYMBOL(generic_parse_moanallithic);
 
 /**
  * alloc_fs_context - Create a filesystem context.
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(generic_parse_monolithic);
  *
  * Open a filesystem and create a mount context.  The mount context is
  * initialised with the supplied flags and, if a submount/automount from
- * another superblock (referred to by @reference) is supplied, may have
+ * aanalther superblock (referred to by @reference) is supplied, may have
  * parameters such as namespaces copied across from that superblock.
  */
 static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
@@ -280,11 +280,11 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 {
 	int (*init_fs_context)(struct fs_context *);
 	struct fs_context *fc;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	fc = kzalloc(sizeof(struct fs_context), GFP_KERNEL_ACCOUNT);
 	if (!fc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	fc->purpose	= purpose;
 	fc->sb_flags	= sb_flags;
@@ -391,11 +391,11 @@ struct fs_context *vfs_dup_fs_context(struct fs_context *src_fc)
 	int ret;
 
 	if (!src_fc->ops->dup)
-		return ERR_PTR(-EOPNOTSUPP);
+		return ERR_PTR(-EOPANALTSUPP);
 
 	fc = kmemdup(src_fc, sizeof(struct fs_context), GFP_KERNEL);
 	if (!fc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mutex_init(&fc->uapi_mutex);
 
@@ -430,7 +430,7 @@ EXPORT_SYMBOL(vfs_dup_fs_context);
  * logfc - Log a message to a filesystem context
  * @log: The filesystem context to log to, or NULL to use printk.
  * @prefix: A string to prefix the output with, or NULL.
- * @level: 'w' for a warning, 'e' for an error.  Anything else is a notice.
+ * @level: 'w' for a warning, 'e' for an error.  Anything else is a analtice.
  * @fmt: The format of the buffer.
  */
 void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, ...)
@@ -450,7 +450,7 @@ void logfc(struct fc_log *log, const char *prefix, char level, const char *fmt, 
 						prefix ? ": " : "", &vaf);
 			break;
 		default:
-			printk(KERN_NOTICE "%s%s%pV\n", prefix ? prefix : "",
+			printk(KERN_ANALTICE "%s%s%pV\n", prefix ? prefix : "",
 						prefix ? ": " : "", &vaf);
 			break;
 		}
@@ -554,14 +554,14 @@ static int legacy_fs_context_dup(struct fs_context *fc, struct fs_context *src_f
 
 	ctx = kmemdup(src_ctx, sizeof(*src_ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ctx->param_type == LEGACY_FS_INDIVIDUAL_PARAMS) {
 		ctx->legacy_data = kmemdup(src_ctx->legacy_data,
 					   src_ctx->data_size, GFP_KERNEL);
 		if (!ctx->legacy_data) {
 			kfree(ctx);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -581,11 +581,11 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	int ret;
 
 	ret = vfs_parse_fs_param_source(fc, param);
-	if (ret != -ENOPARAM)
+	if (ret != -EANALPARAM)
 		return ret;
 
-	if (ctx->param_type == LEGACY_FS_MONOLITHIC_PARAMS)
-		return invalf(fc, "VFS: Legacy: Can't mix monolithic and individual options");
+	if (ctx->param_type == LEGACY_FS_MOANALLITHIC_PARAMS)
+		return invalf(fc, "VFS: Legacy: Can't mix moanallithic and individual options");
 
 	switch (param->type) {
 	case fs_value_is_string:
@@ -595,7 +595,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		len += strlen(param->key);
 		break;
 	default:
-		return invalf(fc, "VFS: Legacy: Parameter type for '%s' not supported",
+		return invalf(fc, "VFS: Legacy: Parameter type for '%s' analt supported",
 			      param->key);
 	}
 
@@ -609,7 +609,7 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	if (!ctx->legacy_data) {
 		ctx->legacy_data = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!ctx->legacy_data)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (size)
@@ -629,19 +629,19 @@ static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
 }
 
 /*
- * Add monolithic mount data.
+ * Add moanallithic mount data.
  */
-static int legacy_parse_monolithic(struct fs_context *fc, void *data)
+static int legacy_parse_moanallithic(struct fs_context *fc, void *data)
 {
 	struct legacy_fs_context *ctx = fc->fs_private;
 
 	if (ctx->param_type != LEGACY_FS_UNSET_PARAMS) {
-		pr_warn("VFS: Can't mix monolithic and individual options\n");
+		pr_warn("VFS: Can't mix moanallithic and individual options\n");
 		return -EINVAL;
 	}
 
 	ctx->legacy_data = data;
-	ctx->param_type = LEGACY_FS_MONOLITHIC_PARAMS;
+	ctx->param_type = LEGACY_FS_MOANALLITHIC_PARAMS;
 	if (!ctx->legacy_data)
 		return 0;
 
@@ -690,7 +690,7 @@ const struct fs_context_operations legacy_fs_context_ops = {
 	.free			= legacy_fs_context_free,
 	.dup			= legacy_fs_context_dup,
 	.parse_param		= legacy_parse_param,
-	.parse_monolithic	= legacy_parse_monolithic,
+	.parse_moanallithic	= legacy_parse_moanallithic,
 	.get_tree		= legacy_get_tree,
 	.reconfigure		= legacy_reconfigure,
 };
@@ -703,27 +703,27 @@ static int legacy_init_fs_context(struct fs_context *fc)
 {
 	fc->fs_private = kzalloc(sizeof(struct legacy_fs_context), GFP_KERNEL_ACCOUNT);
 	if (!fc->fs_private)
-		return -ENOMEM;
+		return -EANALMEM;
 	fc->ops = &legacy_fs_context_ops;
 	return 0;
 }
 
-int parse_monolithic_mount_data(struct fs_context *fc, void *data)
+int parse_moanallithic_mount_data(struct fs_context *fc, void *data)
 {
-	int (*monolithic_mount_data)(struct fs_context *, void *);
+	int (*moanallithic_mount_data)(struct fs_context *, void *);
 
-	monolithic_mount_data = fc->ops->parse_monolithic;
-	if (!monolithic_mount_data)
-		monolithic_mount_data = generic_parse_monolithic;
+	moanallithic_mount_data = fc->ops->parse_moanallithic;
+	if (!moanallithic_mount_data)
+		moanallithic_mount_data = generic_parse_moanallithic;
 
-	return monolithic_mount_data(fc, data);
+	return moanallithic_mount_data(fc, data);
 }
 
 /*
  * Clean up a context after performing an action on it and put it into a state
  * from where it can be used to reconfigure a superblock.
  *
- * Note that here we do only the parts that can't fail; the rest is in
+ * Analte that here we do only the parts that can't fail; the rest is in
  * finish_clean_context() below and in between those fs_context is marked
  * FS_CONTEXT_AWAITING_RECONF.  The reason for splitup is that after
  * successful mount or remount we need to report success to userland.

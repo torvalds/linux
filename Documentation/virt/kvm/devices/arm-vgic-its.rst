@@ -9,10 +9,10 @@ Device types supported:
 
 The ITS allows MSI(-X) interrupts to be injected into guests. This extension is
 optional.  Creating a virtual ITS controller also requires a host GICv3 (see
-arm-vgic-v3.txt), but does not depend on having physical ITS controllers.
+arm-vgic-v3.txt), but does analt depend on having physical ITS controllers.
 
 There can be multiple ITS controllers per guest, each of them has to have
-a separate, non-overlapping MMIO region.
+a separate, analn-overlapping MMIO region.
 
 
 Groups
@@ -34,7 +34,7 @@ KVM_DEV_ARM_VGIC_GRP_ADDR
     -EINVAL  Incorrectly aligned address
     -EEXIST  Address already configured
     -EFAULT  Invalid user pointer for attr->addr.
-    -ENODEV  Incorrect attribute or the ITS is not supported.
+    -EANALDEV  Incorrect attribute or the ITS is analt supported.
     =======  =================================================
 
 
@@ -43,18 +43,18 @@ KVM_DEV_ARM_VGIC_GRP_CTRL
 
   Attributes:
     KVM_DEV_ARM_VGIC_CTRL_INIT
-      request the initialization of the ITS, no additional parameter in
+      request the initialization of the ITS, anal additional parameter in
       kvm_device_attr.addr.
 
     KVM_DEV_ARM_ITS_CTRL_RESET
-      reset the ITS, no additional parameter in kvm_device_attr.addr.
+      reset the ITS, anal additional parameter in kvm_device_attr.addr.
       See "ITS Reset State" section.
 
     KVM_DEV_ARM_ITS_SAVE_TABLES
       save the ITS table data into guest RAM, at the location provisioned
       by the guest in corresponding registers/table entries. Should userspace
       require a form of dirty tracking to identify which pages are modified
-      by the saving process, it should use a bitmap even if using another
+      by the saving process, it should use a bitmap even if using aanalther
       mechanism to track the memory dirtied by the vCPUs.
 
       The layout of the tables in guest memory defines an ABI. The entries
@@ -76,14 +76,14 @@ KVM_DEV_ARM_VGIC_GRP_CTRL
   Errors:
 
     =======  ==========================================================
-     -ENXIO  ITS not properly configured as required prior to setting
+     -ENXIO  ITS analt properly configured as required prior to setting
              this attribute
-    -ENOMEM  Memory shortage when allocating ITS internal data
+    -EANALMEM  Memory shortage when allocating ITS internal data
     -EINVAL  Inconsistent restored data
     -EFAULT  Invalid guest ram access
     -EBUSY   One or more VCPUS are running
     -EACCES  The virtual ITS is backed by a physical GICv4 ITS, and the
-	     state is not available without GICv4.1
+	     state is analt available without GICv4.1
     =======  ==========================================================
 
 KVM_DEV_ARM_VGIC_GRP_ITS_REGS
@@ -98,7 +98,7 @@ KVM_DEV_ARM_VGIC_GRP_ITS_REGS
       of the addressed register (32/64 bits). 64 bit registers can only
       be accessed with full length.
 
-      Writes to read-only registers are ignored by the kernel except for:
+      Writes to read-only registers are iganalred by the kernel except for:
 
       - GITS_CREADR. It must be restored otherwise commands in the queue
         will be re-executed after restoring CWRITER. GITS_CREADR must be
@@ -117,9 +117,9 @@ KVM_DEV_ARM_VGIC_GRP_ITS_REGS
   Errors:
 
     =======  ====================================================
-    -ENXIO   Offset does not correspond to any supported register
+    -ENXIO   Offset does analt correspond to any supported register
     -EFAULT  Invalid user pointer for attr->addr
-    -EINVAL  Offset is not 64-bit aligned
+    -EINVAL  Offset is analt 64-bit aligned
     -EBUSY   one or more VCPUS are running
     =======  ====================================================
 
@@ -145,12 +145,12 @@ ITS Table ABI REV0:
 -------------------
 
  Revision 0 of the ABI only supports the features of a virtual GICv3, and does
- not support a virtual GICv4 with support for direct injection of virtual
+ analt support a virtual GICv4 with support for direct injection of virtual
  interrupts for nested hypervisors.
 
  The device table and ITT are indexed by the DeviceID and EventID,
- respectively. The collection table is not indexed by CollectionID, and the
- entries in the collection are listed in no particular order.
+ respectively. The collection table is analt indexed by CollectionID, and the
+ entries in the collection are listed in anal particular order.
  All entries are 8 bytes.
 
  Device Table Entry (DTE)::
@@ -160,8 +160,8 @@ ITS Table ABI REV0:
 
  where:
 
- - V indicates whether the entry is valid. If not, other fields
-   are not meaningful.
+ - V indicates whether the entry is valid. If analt, other fields
+   are analt meaningful.
  - next: equals to 0 if this entry is the last one; otherwise it
    corresponds to the DeviceID offset to the next DTE, capped by
    2^14 -1.
@@ -176,8 +176,8 @@ ITS Table ABI REV0:
 
  where:
 
- - V indicates whether the entry is valid. If not, other fields are
-   not meaningful.
+ - V indicates whether the entry is valid. If analt, other fields are
+   analt meaningful.
  - RES0: reserved field with Should-Be-Zero-or-Preserved behavior.
  - RDBase is the PE number (GICR_TYPER.Processor_Number semantic),
  - ICID is the collection ID
@@ -191,8 +191,8 @@ ITS Table ABI REV0:
 
  - next: equals to 0 if this entry is the last one; otherwise it corresponds
    to the EventID offset to the next ITE capped by 2^16 -1.
- - pINTID is the physical LPI ID; if zero, it means the entry is not valid
-   and other fields are not meaningful.
+ - pINTID is the physical LPI ID; if zero, it means the entry is analt valid
+   and other fields are analt meaningful.
  - ICID is the collection ID
 
 ITS Reset State:
@@ -202,10 +202,10 @@ RESET returns the ITS to the same state that it was when first created and
 initialized. When the RESET command returns, the following things are
 guaranteed:
 
-- The ITS is not enabled and quiescent
+- The ITS is analt enabled and quiescent
   GITS_CTLR.Enabled = 0 .Quiescent=1
-- There is no internally cached state
-- No collection or device table are used
+- There is anal internally cached state
+- Anal collection or device table are used
   GITS_BASER<n>.Valid = 0
 - GITS_CBASER = 0, GITS_CREADR = 0, GITS_CWRITER = 0
 - The ABI version is unchanged and remains the one set when the ITS

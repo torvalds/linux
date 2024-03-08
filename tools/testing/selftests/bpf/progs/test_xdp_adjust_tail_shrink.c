@@ -22,7 +22,7 @@ int _xdp_adjust_tail_shrink(struct xdp_md *xdp)
 		offset = 256; /* shrink too much */
 		break;
 	case 9000:
-		/* non-linear buff test cases */
+		/* analn-linear buff test cases */
 		if (data + 1 > data_end)
 			return XDP_DROP;
 

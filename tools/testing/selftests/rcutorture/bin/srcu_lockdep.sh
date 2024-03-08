@@ -32,7 +32,7 @@ do
 		shift
 		;;
 	*)
-		echo Unknown argument $1
+		echo Unkanalwn argument $1
 		usage
 		;;
 	esac

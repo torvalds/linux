@@ -260,7 +260,7 @@ static struct clk_branch lpass_audio_core_lpaif_sec_ibit_clk = {
 	},
 };
 
-static struct clk_branch lpass_audio_core_sysnoc_mport_core_clk = {
+static struct clk_branch lpass_audio_core_sysanalc_mport_core_clk = {
 	.halt_reg = 0x23000,
 	.halt_check = BRANCH_HALT,
 	.hwcg_reg = 0x23000,
@@ -269,7 +269,7 @@ static struct clk_branch lpass_audio_core_sysnoc_mport_core_clk = {
 		.enable_reg = 0x23000,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "lpass_audio_core_sysnoc_mport_core_clk",
+			.name = "lpass_audio_core_sysanalc_mport_core_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&core_clk_src.clkr.hw,
 			},
@@ -290,8 +290,8 @@ static struct clk_regmap *lpass_core_cc_sc7180_clocks[] = {
 		&lpass_audio_core_lpaif_pri_ibit_clk.clkr,
 	[LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CLK] =
 		&lpass_audio_core_lpaif_sec_ibit_clk.clkr,
-	[LPASS_AUDIO_CORE_SYSNOC_MPORT_CORE_CLK] =
-		&lpass_audio_core_sysnoc_mport_core_clk.clkr,
+	[LPASS_AUDIO_CORE_SYSANALC_MPORT_CORE_CLK] =
+		&lpass_audio_core_sysanalc_mport_core_clk.clkr,
 	[LPASS_LPAAUDIO_DIG_PLL] = &lpass_lpaaudio_dig_pll.clkr,
 	[LPASS_LPAAUDIO_DIG_PLL_OUT_ODD] = &lpass_lpaaudio_dig_pll_out_odd.clkr,
 };
@@ -403,7 +403,7 @@ static int lpass_core_cc_sc7180_probe(struct platform_device *pdev)
 
 	/*
 	 * Keep the CLK always-ON
-	 * LPASS_AUDIO_CORE_SYSNOC_SWAY_CORE_CLK
+	 * LPASS_AUDIO_CORE_SYSANALC_SWAY_CORE_CLK
 	 */
 	regmap_update_bits(regmap, 0x24000, BIT(0), BIT(0));
 

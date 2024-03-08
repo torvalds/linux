@@ -1,7 +1,7 @@
 What:		/sys/bus/platform/devices/VPC2004:*/camera_power
 Date:		Dec 2010
 KernelVersion:	2.6.37
-Contact:	"Ike Panhc <ike.pan@canonical.com>"
+Contact:	"Ike Panhc <ike.pan@caanalnical.com>"
 Description:
 		Control the power of camera module. 1 means on, 0 means off.
 
@@ -32,7 +32,7 @@ Date:		Aug 2017
 KernelVersion:	4.14
 Contact:	platform-driver-x86@vger.kernel.org
 Description:
-		Controls whether the conservation mode is enabled or not.
+		Controls whether the conservation mode is enabled or analt.
 		This feature limits the maximum battery charge percentage to
 		around 50-60% in order to prolong the lifetime of the battery.
 
@@ -57,5 +57,5 @@ KernelVersion:	5.12
 Contact:	platform-driver-x86@vger.kernel.org
 Description:
 		Controls whether the "always on USB charging" feature is
-		enabled or not. This feature enables charging USB devices
-		even if the computer is not turned on.
+		enabled or analt. This feature enables charging USB devices
+		even if the computer is analt turned on.

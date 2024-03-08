@@ -43,7 +43,7 @@ int map_update(void *ctx)
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 
-	err = bpf_map_update_elem(&hash_map, &key, &val, BPF_NOEXIST);
+	err = bpf_map_update_elem(&hash_map, &key, &val, BPF_ANALEXIST);
 
 	return 0;
 }
@@ -123,7 +123,7 @@ int map_for_each_fail(void *ctx)
 {
 	const int key = 0;
 	const int val = 1;
-	const u64 flags = BPF_NOEXIST;
+	const u64 flags = BPF_ANALEXIST;
 	int callback_ctx;
 
 	if (pid != (bpf_get_current_pid_tgid() >> 32))
@@ -131,7 +131,7 @@ int map_for_each_fail(void *ctx)
 
 	bpf_map_update_elem(&array_map, &key, &val, flags);
 
-	/* calling for_each with non-zero flags will return error */
+	/* calling for_each with analn-zero flags will return error */
 	err = bpf_for_each_map_elem(&array_map, callback, &callback_ctx, flags);
 
 	return 0;

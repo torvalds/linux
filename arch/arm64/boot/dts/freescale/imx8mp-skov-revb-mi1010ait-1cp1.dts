@@ -9,7 +9,7 @@
 	compatible = "skov,imx8mp-skov-revb-mi1010ait-1cp1", "fsl,imx8mp";
 
 	panel {
-		compatible = "multi-inno,mi1010ait-1cp";
+		compatible = "multi-inanal,mi1010ait-1cp";
 		backlight = <&backlight>;
 		power-supply = <&reg_tft_vcom>;
 
@@ -65,7 +65,7 @@
 };
 
 &media_blk_ctrl {
-	/* currently it is not possible to let display clocks confugure
+	/* currently it is analt possible to let display clocks confugure
 	 * automatically, so we need to set them manually
 	 */
 	assigned-clock-rates = <500000000>, <200000000>, <0>,

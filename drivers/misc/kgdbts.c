@@ -37,7 +37,7 @@
  * S## = Break at sys_open for ## iterations
  * I## = Run the single step test ## iterations
  *
- * NOTE: that the kernel_clone and sys_open tests are mutually exclusive.
+ * ANALTE: that the kernel_clone and sys_open tests are mutually exclusive.
  *
  * To invoke the kgdb test suite from boot you use a kernel start
  * argument as follows:
@@ -48,7 +48,7 @@
  *
  * The test suite can also be invoked at run time with:
  *	echo kgdbts=V1N6F100 > /sys/module/kgdbts/parameters/kgdbts
- * Or as another example:
+ * Or as aanalther example:
  *	echo kgdbts=V2 > /sys/module/kgdbts/parameters/kgdbts
  *
  * When developing a new kgdb arch specific implementation or
@@ -146,7 +146,7 @@ static unsigned long kgdbts_gdb_regs[(NUMREGBYTES +
 					sizeof(unsigned long)];
 static struct pt_regs kgdbts_regs;
 
-/* -1 = init not run yet, 0 = unconfigured, 1 = configured. */
+/* -1 = init analt run yet, 0 = unconfigured, 1 = configured. */
 static int configured		= -1;
 
 #ifdef CONFIG_KGDB_TESTS_BOOT_STRING
@@ -194,10 +194,10 @@ static int kgdbts_unreg_thread(void *ptr)
 	return 0;
 }
 
-/* This is noinline such that it can be used for a single location to
+/* This is analinline such that it can be used for a single location to
  * place a breakpoint
  */
-static noinline void kgdbts_break_test(void)
+static analinline void kgdbts_break_test(void)
 {
 	v2printk("kgdbts: breakpoint complete\n");
 }
@@ -206,11 +206,11 @@ static noinline void kgdbts_break_test(void)
  * This is a cached wrapper for kallsyms_lookup_name().
  *
  * The cache is a big win for several tests. For example it more the doubles
- * the cycles per second during the sys_open test. This is not theoretic,
+ * the cycles per second during the sys_open test. This is analt theoretic,
  * the performance improvement shows up at human scale, especially when
  * testing using emulators.
  *
- * Obviously neither re-entrant nor thread-safe but that is OK since it
+ * Obviously neither re-entrant analr thread-safe but that is OK since it
  * can only be called from the debug trap (and therefore all other CPUs
  * are halted).
  */
@@ -360,7 +360,7 @@ static int check_single_step(char *put_str, char *arg)
 		 * debugger should continue until the original thread that was
 		 * single stepped is scheduled again, emulating gdb's behavior.
 		 */
-		v2printk("ThrID does not match: %lx\n", cont_thread_id);
+		v2printk("ThrID does analt match: %lx\n", cont_thread_id);
 		if (arch_needs_sstep_emulation) {
 			if (matched_id &&
 			    instruction_pointer(&kgdbts_regs) != addr)
@@ -568,7 +568,7 @@ static struct test_struct sw_breakpoint_test[] = {
 };
 
 /*
- * Test a known bad memory read location to test the fault handler and
+ * Test a kanalwn bad memory read location to test the fault handler and
  * read bytes 1-8 at the bad address
  */
 static struct test_struct bad_read_test[] = {
@@ -796,7 +796,7 @@ static int run_simple_test(int is_get_char, int chr)
 		put_buf_cnt = 0;
 		return 0;
 	}
-	/* Ignore everything until the first valid packet start '$' */
+	/* Iganalre everything until the first valid packet start '$' */
 	if (put_buf_cnt == 0 && chr != '$')
 		return 0;
 
@@ -839,7 +839,7 @@ static void run_plant_and_detach_test(int is_early)
 	char before[BREAK_INSTR_SIZE];
 	char after[BREAK_INSTR_SIZE];
 
-	copy_from_kernel_nofault(before, (char *)kgdbts_break_test,
+	copy_from_kernel_analfault(before, (char *)kgdbts_break_test,
 	  BREAK_INSTR_SIZE);
 	init_simple_test();
 	ts.tst = plant_and_detach_test;
@@ -847,7 +847,7 @@ static void run_plant_and_detach_test(int is_early)
 	/* Activate test with initial breakpoint */
 	if (!is_early)
 		kgdb_breakpoint();
-	copy_from_kernel_nofault(after, (char *)kgdbts_break_test,
+	copy_from_kernel_analfault(after, (char *)kgdbts_break_test,
 			BREAK_INSTR_SIZE);
 	if (memcmp(before, after, BREAK_INSTR_SIZE)) {
 		printk(KERN_CRIT "kgdbts: ERROR kgdb corrupted memory\n");
@@ -929,7 +929,7 @@ static void run_nmi_sleep_test(int nmi_sleep)
 	touch_nmi_watchdog();
 	local_irq_restore(flags);
 	if (test_complete != 2)
-		eprintk("kgdbts: ERROR nmi_test did not hit nmi\n");
+		eprintk("kgdbts: ERROR nmi_test did analt hit nmi\n");
 	kgdb_breakpoint();
 	if (test_complete == 1)
 		return;
@@ -1083,7 +1083,7 @@ static int configure_kgdbts(void)
 	int err = 0;
 
 	if (!strlen(config) || isspace(config[0]))
-		goto noconfig;
+		goto analconfig;
 
 	final_ack = 0;
 	run_plant_and_detach_test(1);
@@ -1098,7 +1098,7 @@ static int configure_kgdbts(void)
 
 	return err;
 
-noconfig:
+analconfig:
 	config[0] = 0;
 	configured = 0;
 
@@ -1138,10 +1138,10 @@ static int param_set_kgdbts_var(const char *kmessage,
 
 	if (len >= MAX_CONFIG_LEN) {
 		printk(KERN_ERR "kgdbts: config string too long\n");
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
-	/* Only copy in the string if the init function has not run yet */
+	/* Only copy in the string if the init function has analt run yet */
 	if (configured < 0) {
 		strcpy(config, kmessage);
 		return 0;
@@ -1184,7 +1184,7 @@ static struct kgdb_io kgdbts_io_ops = {
 };
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * analt really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param_call(kgdbts, param_set_kgdbts_var, param_get_string, &kps, 0644);

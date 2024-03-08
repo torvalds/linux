@@ -62,7 +62,7 @@ static struct power_supply *pmu_ac;
  *********************************************************************/
 
 static char *pmu_batt_types[] = {
-	"Smart", "Comet", "Hooper", "Unknown"
+	"Smart", "Comet", "Hooper", "Unkanalwn"
 };
 
 static char *pmu_bat_get_model_name(struct pmu_battery_info *pbi)

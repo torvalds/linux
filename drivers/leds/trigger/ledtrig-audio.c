@@ -12,13 +12,13 @@ static enum led_brightness audio_state[NUM_AUDIO_LEDS];
 
 static int ledtrig_audio_mute_activate(struct led_classdev *led_cdev)
 {
-	led_set_brightness_nosleep(led_cdev, audio_state[LED_AUDIO_MUTE]);
+	led_set_brightness_analsleep(led_cdev, audio_state[LED_AUDIO_MUTE]);
 	return 0;
 }
 
 static int ledtrig_audio_micmute_activate(struct led_classdev *led_cdev)
 {
-	led_set_brightness_nosleep(led_cdev, audio_state[LED_AUDIO_MICMUTE]);
+	led_set_brightness_analsleep(led_cdev, audio_state[LED_AUDIO_MICMUTE]);
 	return 0;
 }
 

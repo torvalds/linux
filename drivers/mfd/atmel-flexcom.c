@@ -36,13 +36,13 @@ struct atmel_flexcom {
 
 static int atmel_flexcom_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct atmel_flexcom *ddata;
 	int err;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ddata);
 
@@ -85,7 +85,7 @@ static const struct of_device_id atmel_flexcom_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_flexcom_of_match);
 
-static int __maybe_unused atmel_flexcom_resume_noirq(struct device *dev)
+static int __maybe_unused atmel_flexcom_resume_analirq(struct device *dev)
 {
 	struct atmel_flexcom *ddata = dev_get_drvdata(dev);
 	int err;
@@ -104,7 +104,7 @@ static int __maybe_unused atmel_flexcom_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops __maybe_unused atmel_flexcom_pm_ops = {
-	.resume_noirq = atmel_flexcom_resume_noirq,
+	.resume_analirq = atmel_flexcom_resume_analirq,
 };
 
 static struct platform_driver atmel_flexcom_driver = {

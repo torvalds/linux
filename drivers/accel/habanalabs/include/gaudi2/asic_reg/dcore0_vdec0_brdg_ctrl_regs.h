@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_DCORE0_VDEC0_BRDG_CTRL_REGS_H_
@@ -220,7 +220,7 @@
 
 #define mmDCORE0_VDEC0_BRDG_CTRL_AXI_SPLIT_CFG 0x41E3704
 
-#define mmDCORE0_VDEC0_BRDG_CTRL_AXI_SPLIT_NO_WR_INFLIGHT 0x41E3708
+#define mmDCORE0_VDEC0_BRDG_CTRL_AXI_SPLIT_ANAL_WR_INFLIGHT 0x41E3708
 
 #define mmDCORE0_VDEC0_BRDG_CTRL_HWEVENT_MASK 0x41E370C
 

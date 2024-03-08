@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -116,8 +116,8 @@
 #       define MRDCKH_RESET                             (1 << 23)
 #       define DLL_READY_READ                           (1 << 24)
 #       define USE_DISPLAY_GAP                          (1 << 25)
-#       define USE_DISPLAY_URGENT_NORMAL                (1 << 26)
-#       define MPLL_TURNOFF_D2                          (1 << 28)
+#       define USE_DISPLAY_URGENT_ANALRMAL                (1 << 26)
+#       define MPLL_TURANALFF_D2                          (1 << 28)
 #define	TCI_DLL_CNTL					0x64c
 
 #define	CG_PG_CNTL					0x858

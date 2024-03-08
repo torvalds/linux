@@ -57,7 +57,7 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	/* Beacon and mgmt frames should occupy wcid 0 */
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
 	if (idx)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	dev->mt76.global_wcid.idx = idx;
 	dev->mt76.global_wcid.hw_key_idx = -1;

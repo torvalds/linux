@@ -27,21 +27,21 @@
 #include <trace/events/handshake.h>
 
 /**
- * handshake_genl_notify - Notify handlers that a request is waiting
+ * handshake_genl_analtify - Analtify handlers that a request is waiting
  * @net: target network namespace
  * @proto: handshake protocol
  * @flags: memory allocation control flags
  *
- * Returns zero on success or a negative errno if notification failed.
+ * Returns zero on success or a negative erranal if analtification failed.
  */
-int handshake_genl_notify(struct net *net, const struct handshake_proto *proto,
+int handshake_genl_analtify(struct net *net, const struct handshake_proto *proto,
 			  gfp_t flags)
 {
 	struct sk_buff *msg;
 	void *hdr;
 
-	/* Disable notifications during unit testing */
-	if (!test_bit(HANDSHAKE_F_PROTO_NOTIFY, &proto->hp_flags))
+	/* Disable analtifications during unit testing */
+	if (!test_bit(HANDSHAKE_F_PROTO_ANALTIFY, &proto->hp_flags))
 		return 0;
 
 	if (!genl_has_listeners(&handshake_nl_family, net,
@@ -50,7 +50,7 @@ int handshake_genl_notify(struct net *net, const struct handshake_proto *proto,
 
 	msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, flags);
 	if (!msg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hdr = genlmsg_put(msg, 0, 0, &handshake_nl_family, 0,
 			  HANDSHAKE_CMD_READY);
@@ -95,7 +95,7 @@ int handshake_nl_accept_doit(struct sk_buff *skb, struct genl_info *info)
 	struct socket *sock;
 	int class, fd, err;
 
-	err = -EOPNOTSUPP;
+	err = -EOPANALTSUPP;
 	if (!hn)
 		goto out_status;
 
@@ -177,7 +177,7 @@ static int __net_init handshake_net_init(struct net *net)
 	struct sysinfo si;
 
 	/*
-	 * Arbitrary limit to prevent handshakes that do not make
+	 * Arbitrary limit to prevent handshakes that do analt make
 	 * progress from clogging up the system. The cap scales up
 	 * with the amount of physical memory on the system.
 	 */
@@ -213,8 +213,8 @@ static void __net_exit handshake_net_exit(struct net *net)
 		list_del(&req->hr_list);
 
 		/*
-		 * Requests on this list have not yet been
-		 * accepted, so they do not have an fd to put.
+		 * Requests on this list have analt yet been
+		 * accepted, so they do analt have an fd to put.
 		 */
 
 		handshake_complete(req, -ETIMEDOUT, NULL);
@@ -262,9 +262,9 @@ static int __init handshake_init(void)
 	/*
 	 * ORDER: register_pernet_subsys must be done last.
 	 *
-	 *	If initialization does not make it past pernet_subsys
+	 *	If initialization does analt make it past pernet_subsys
 	 *	registration, then handshake_net_id will remain 0. That
-	 *	shunts the handshake consumer API to return ENOTSUPP
+	 *	shunts the handshake consumer API to return EANALTSUPP
 	 *	to prevent it from dereferencing something that hasn't
 	 *	been allocated.
 	 */

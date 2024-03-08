@@ -7,7 +7,7 @@
 #include "snic_fwint.h"
 
 enum snic_disc_state {
-	SNIC_DISC_NONE,
+	SNIC_DISC_ANALNE,
 	SNIC_DISC_INIT,
 	SNIC_DISC_PENDING,
 	SNIC_DISC_DONE
@@ -30,7 +30,7 @@ struct snic_disc {
 #define SNIC_TGT_NAM_LEN	16
 
 enum snic_tgt_state {
-	SNIC_TGT_STAT_NONE,
+	SNIC_TGT_STAT_ANALNE,
 	SNIC_TGT_STAT_INIT,
 	SNIC_TGT_STAT_ONLINE,	/* Target is Online */
 	SNIC_TGT_STAT_OFFLINE,	/* Target is Offline */
@@ -102,7 +102,7 @@ snic_tgt_chkready(struct snic_tgt *tgt)
 	if (tgt->state == SNIC_TGT_STAT_ONLINE)
 		return 0;
 	else
-		return DID_NO_CONNECT << 16;
+		return DID_ANAL_CONNECT << 16;
 }
 
 const char *snic_tgt_state_to_str(int);

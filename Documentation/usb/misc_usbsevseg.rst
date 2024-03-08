@@ -9,7 +9,7 @@ Device Information
 USB VENDOR_ID	0x0fc5
 USB PRODUCT_ID	0x1227
 Both the 6 character and 8 character displays have PRODUCT_ID,
-and according to Delcom Engineering no queryable information
+and according to Delcom Engineering anal queryable information
 can be obtained from the device to tell them apart.
 
 Device Modes

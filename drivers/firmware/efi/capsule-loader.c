@@ -17,13 +17,13 @@
 #include <linux/efi.h>
 #include <linux/vmalloc.h>
 
-#define NO_FURTHER_WRITE_ACTION -1
+#define ANAL_FURTHER_WRITE_ACTION -1
 
 /**
  * efi_free_all_buff_pages - free all previous allocated buffer pages
  * @cap_info: pointer to current instance of capsule_info structure
  *
- *	In addition to freeing buffer pages, it flags NO_FURTHER_WRITE_ACTION
+ *	In addition to freeing buffer pages, it flags ANAL_FURTHER_WRITE_ACTION
  *	to cease processing data in subsequent write(2) calls until close(2)
  *	is called.
  **/
@@ -32,7 +32,7 @@ static void efi_free_all_buff_pages(struct capsule_info *cap_info)
 	while (cap_info->index > 0)
 		__free_page(cap_info->pages[--cap_info->index]);
 
-	cap_info->index = NO_FURTHER_WRITE_ACTION;
+	cap_info->index = ANAL_FURTHER_WRITE_ACTION;
 }
 
 int __efi_capsule_setup_info(struct capsule_info *cap_info)
@@ -54,7 +54,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 				    cap_info->header.imagesize,
 				    &cap_info->reset_type);
 	if (ret) {
-		pr_err("capsule not supported\n");
+		pr_err("capsule analt supported\n");
 		return ret;
 	}
 
@@ -62,7 +62,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 			     pages_needed * sizeof(void *),
 			     GFP_KERNEL | __GFP_ZERO);
 	if (!temp_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap_info->pages = temp_page;
 
@@ -70,7 +70,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 			     pages_needed * sizeof(phys_addr_t *),
 			     GFP_KERNEL | __GFP_ZERO);
 	if (!temp_page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap_info->phys = temp_page;
 
@@ -84,7 +84,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
  * @kbuff: a mapped first page buffer pointer
  * @hdr_bytes: the total received number of bytes for efi header
  *
- * Platforms with non-standard capsule update mechanisms can override
+ * Platforms with analn-standard capsule update mechanisms can override
  * this __weak function so they can perform any required capsule
  * image munging. See quark_quirk_function() for an example.
  **/
@@ -119,7 +119,7 @@ static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
 		cap_info->capsule = vmap(cap_info->pages, cap_info->index,
 					 VM_MAP, PAGE_KERNEL);
 		if (!cap_info->capsule)
-			return -ENOMEM;
+			return -EANALMEM;
 		do_vunmap = true;
 	}
 
@@ -132,7 +132,7 @@ static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
 	}
 
 	/* Indicate capsule binary uploading is done */
-	cap_info->index = NO_FURTHER_WRITE_ACTION;
+	cap_info->index = ANAL_FURTHER_WRITE_ACTION;
 
 	if (cap_info->header.flags & EFI_CAPSULE_PERSIST_ACROSS_RESET) {
 		pr_info("Successfully uploaded capsule file with reboot type '%s'\n",
@@ -152,12 +152,12 @@ static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
  * @file: file pointer
  * @buff: buffer pointer
  * @count: number of bytes in @buff
- * @offp: not used
+ * @offp: analt used
  *
  *	Expectation:
  *	- A user space tool should start at the beginning of capsule binary and
  *	  pass data in sequentially.
- *	- Users should close and re-open this file note in order to upload more
+ *	- Users should close and re-open this file analte in order to upload more
  *	  capsules.
  *	- After an error returned, user should close the file and restart the
  *	  operation for the next try otherwise -EIO will be returned until the
@@ -177,7 +177,7 @@ static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 	if (count == 0)
 		return 0;
 
-	/* Return error while NO_FURTHER_WRITE_ACTION is flagged */
+	/* Return error while ANAL_FURTHER_WRITE_ACTION is flagged */
 	if (cap_info->index < 0)
 		return -EIO;
 
@@ -185,7 +185,7 @@ static ssize_t efi_capsule_write(struct file *file, const char __user *buff,
 	if (!cap_info->page_bytes_remain) {
 		page = alloc_page(GFP_KERNEL);
 		if (!page) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto failed;
 		}
 
@@ -244,20 +244,20 @@ failed:
 
 /**
  * efi_capsule_release - called by file close
- * @inode: not used
+ * @ianalde: analt used
  * @file: file pointer
  *
- *	We will not free successfully submitted pages since efi update
+ *	We will analt free successfully submitted pages since efi update
  *	requires data to be maintained across system reboot.
  **/
-static int efi_capsule_release(struct inode *inode, struct file *file)
+static int efi_capsule_release(struct ianalde *ianalde, struct file *file)
 {
 	struct capsule_info *cap_info = file->private_data;
 
 	if (cap_info->index > 0 &&
 	    (cap_info->header.headersize == 0 ||
 	     cap_info->count < cap_info->total_size)) {
-		pr_err("capsule upload not complete\n");
+		pr_err("capsule upload analt complete\n");
 		efi_free_all_buff_pages(cap_info);
 	}
 
@@ -270,33 +270,33 @@ static int efi_capsule_release(struct inode *inode, struct file *file)
 
 /**
  * efi_capsule_open - called by file open
- * @inode: not used
+ * @ianalde: analt used
  * @file: file pointer
  *
  *	Will allocate each capsule_info memory for each file open call.
  *	This provided the capability to support multiple file open feature
- *	where user is not needed to wait for others to finish in order to
+ *	where user is analt needed to wait for others to finish in order to
  *	upload their capsule binary.
  **/
-static int efi_capsule_open(struct inode *inode, struct file *file)
+static int efi_capsule_open(struct ianalde *ianalde, struct file *file)
 {
 	struct capsule_info *cap_info;
 
 	cap_info = kzalloc(sizeof(*cap_info), GFP_KERNEL);
 	if (!cap_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cap_info->pages = kzalloc(sizeof(void *), GFP_KERNEL);
 	if (!cap_info->pages) {
 		kfree(cap_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cap_info->phys = kzalloc(sizeof(phys_addr_t), GFP_KERNEL);
 	if (!cap_info->phys) {
 		kfree(cap_info->pages);
 		kfree(cap_info);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	file->private_data = cap_info;
@@ -309,11 +309,11 @@ static const struct file_operations efi_capsule_fops = {
 	.open = efi_capsule_open,
 	.write = efi_capsule_write,
 	.release = efi_capsule_release,
-	.llseek = no_llseek,
+	.llseek = anal_llseek,
 };
 
 static struct miscdevice efi_capsule_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.mianalr = MISC_DYNAMIC_MIANALR,
 	.name = "efi_capsule_loader",
 	.fops = &efi_capsule_fops,
 };
@@ -323,7 +323,7 @@ static int __init efi_capsule_loader_init(void)
 	int ret;
 
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = misc_register(&efi_capsule_misc);
 	if (ret)

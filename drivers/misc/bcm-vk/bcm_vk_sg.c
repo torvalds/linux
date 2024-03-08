@@ -64,7 +64,7 @@ static int bcm_vk_dma_alloc(struct device *dev,
 				   sizeof(struct page *),
 				   GFP_KERNEL);
 	if (!dma->pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(dev, "Alloc DMA Pages [0x%llx+0x%x => %d pages]\n",
 		data, vkdata->size, dma->nr_pages);
@@ -93,7 +93,7 @@ static int bcm_vk_dma_alloc(struct device *dev,
 					 &dma->handle,
 					 GFP_KERNEL);
 	if (!dma->sglist)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma->sglist[SGLIST_NUM_SG] = 0;
 	dma->sglist[SGLIST_TOTALSIZE] = vkdata->size;
@@ -136,7 +136,7 @@ static int bcm_vk_dma_alloc(struct device *dev,
 			/* pages are contiguous, add to same sg entry */
 			transfer_size += size;
 		} else {
-			/* pages are not contiguous, write sg entry */
+			/* pages are analt contiguous, write sg entry */
 			sgdata->size = transfer_size;
 			put_unaligned(sg_addr, (u64 *)&sgdata->address);
 			dma->sglist[SGLIST_NUM_SG]++;
@@ -184,7 +184,7 @@ int bcm_vk_sg_alloc(struct device *dev,
 	for (i = 0; i < num; i++) {
 		if (vkdata[i].size && vkdata[i].address) {
 			/*
-			 * If both size and address are non-zero
+			 * If both size and address are analn-zero
 			 * then DMA alloc.
 			 */
 			rc = bcm_vk_dma_alloc(dev,

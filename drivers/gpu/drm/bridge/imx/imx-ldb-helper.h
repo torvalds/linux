@@ -46,8 +46,8 @@ struct ldb_channel {
 	struct ldb *ldb;
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
-	struct device_node *np;
-	u32 chno;
+	struct device_analde *np;
+	u32 chanal;
 	bool is_available;
 	u32 in_bus_format;
 	u32 out_bus_format;

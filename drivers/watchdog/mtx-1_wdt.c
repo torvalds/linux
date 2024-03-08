@@ -17,8 +17,8 @@
  *		use the Linux watchdog/timer APIs
  *
  *      The Watchdog is configured to reset the MTX-1
- *      if it is not triggered for 100 seconds.
- *      It should not be triggered more often than 1.6 seconds.
+ *      if it is analt triggered for 100 seconds.
+ *      It should analt be triggered more often than 1.6 seconds.
  *
  *      A timer triggers the watchdog every 5 seconds, until
  *      it is opened for the first time. After the first open
@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
@@ -112,15 +112,15 @@ static int mtx1_wdt_stop(void)
 
 /* Filesystem functions */
 
-static int mtx1_wdt_open(struct inode *inode, struct file *file)
+static int mtx1_wdt_open(struct ianalde *ianalde, struct file *file)
 {
 	if (test_and_set_bit(0, &mtx1_wdt_device.inuse))
 		return -EBUSY;
-	return stream_open(inode, file);
+	return stream_open(ianalde, file);
 }
 
 
-static int mtx1_wdt_release(struct inode *inode, struct file *file)
+static int mtx1_wdt_release(struct ianalde *ianalde, struct file *file)
 {
 	clear_bit(0, &mtx1_wdt_device.inuse);
 	return 0;
@@ -160,7 +160,7 @@ static long mtx1_wdt_ioctl(struct file *file, unsigned int cmd,
 		mtx1_wdt_reset();
 		break;
 	default:
-		return -ENOTTY;
+		return -EANALTTY;
 	}
 	return 0;
 }
@@ -177,7 +177,7 @@ static ssize_t mtx1_wdt_write(struct file *file, const char *buf,
 
 static const struct file_operations mtx1_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mtx1_wdt_open,
@@ -187,7 +187,7 @@ static const struct file_operations mtx1_wdt_fops = {
 
 
 static struct miscdevice mtx1_wdt_misc = {
-	.minor	= WATCHDOG_MINOR,
+	.mianalr	= WATCHDOG_MIANALR,
 	.name	= "watchdog",
 	.fops	= &mtx1_wdt_fops,
 };

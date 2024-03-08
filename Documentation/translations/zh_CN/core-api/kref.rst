@@ -54,7 +54,7 @@ kref可以出现在数据结构体中的任何地方。
 
      data = kmalloc(sizeof(*data), GFP_KERNEL);
      if (!data)
-            return -ENOMEM;
+            return -EANALMEM;
      kref_init(&data->refcount);
 
 这将kref中的refcount设置为1。
@@ -108,13 +108,13 @@ Kref规则
 	struct task_struct *task;
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	kref_init(&data->refcount);
 
 	kref_get(&data->refcount);
 	task = kthread_run(more_data_handling, data, "more_data_handling");
-	if (task == ERR_PTR(-ENOMEM)) {
-		rv = -ENOMEM;
+	if (task == ERR_PTR(-EANALMEM)) {
+		rv = -EANALMEM;
 	        kref_put(&data->refcount, data_release);
 		goto out;
 	}
@@ -137,8 +137,8 @@ refcount。put不需要锁，因为没有任何东西试图在没有持有指针
 请注意，规则1中的 "before "是非常重要的。你不应该做类似于::
 
 	task = kthread_run(more_data_handling, data, "more_data_handling");
-	if (task == ERR_PTR(-ENOMEM)) {
-		rv = -ENOMEM;
+	if (task == ERR_PTR(-EANALMEM)) {
+		rv = -EANALMEM;
 		goto out;
 	} else
 		/* BAD BAD BAD - 在交接后得到 */

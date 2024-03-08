@@ -10,16 +10,16 @@
 
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
 
 #include "dt_idle_states.h"
 
-static int init_state_node(struct cpuidle_state *idle_state,
+static int init_state_analde(struct cpuidle_state *idle_state,
 			   const struct of_device_id *match_id,
-			   struct device_node *state_node)
+			   struct device_analde *state_analde)
 {
 	int err;
 	const char *desc;
@@ -31,30 +31,30 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 */
 	idle_state->enter = match_id->data;
 	/*
-	 * Since this is not a "coupled" state, it's safe to assume interrupts
+	 * Since this is analt a "coupled" state, it's safe to assume interrupts
 	 * won't be enabled when it exits allowing the tick to be frozen
 	 * safely. So enter() can be also enter_s2idle() callback.
 	 */
 	idle_state->enter_s2idle = match_id->data;
 
-	err = of_property_read_u32(state_node, "wakeup-latency-us",
+	err = of_property_read_u32(state_analde, "wakeup-latency-us",
 				   &idle_state->exit_latency);
 	if (err) {
 		u32 entry_latency, exit_latency;
 
-		err = of_property_read_u32(state_node, "entry-latency-us",
+		err = of_property_read_u32(state_analde, "entry-latency-us",
 					   &entry_latency);
 		if (err) {
 			pr_debug(" * %pOF missing entry-latency-us property\n",
-				 state_node);
+				 state_analde);
 			return -EINVAL;
 		}
 
-		err = of_property_read_u32(state_node, "exit-latency-us",
+		err = of_property_read_u32(state_analde, "exit-latency-us",
 					   &exit_latency);
 		if (err) {
 			pr_debug(" * %pOF missing exit-latency-us property\n",
-				 state_node);
+				 state_analde);
 			return -EINVAL;
 		}
 		/*
@@ -64,27 +64,27 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		idle_state->exit_latency = entry_latency + exit_latency;
 	}
 
-	err = of_property_read_u32(state_node, "min-residency-us",
+	err = of_property_read_u32(state_analde, "min-residency-us",
 				   &idle_state->target_residency);
 	if (err) {
 		pr_debug(" * %pOF missing min-residency-us property\n",
-			     state_node);
+			     state_analde);
 		return -EINVAL;
 	}
 
-	err = of_property_read_string(state_node, "idle-state-name", &desc);
+	err = of_property_read_string(state_analde, "idle-state-name", &desc);
 	if (err)
-		desc = state_node->name;
+		desc = state_analde->name;
 
 	idle_state->flags = CPUIDLE_FLAG_RCU_IDLE;
-	if (of_property_read_bool(state_node, "local-timer-stop"))
+	if (of_property_read_bool(state_analde, "local-timer-stop"))
 		idle_state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 	/*
 	 * TODO:
 	 *	replace with kstrdup and pointer assignment when name
 	 *	and desc become string pointers
 	 */
-	strscpy(idle_state->name, state_node->name, CPUIDLE_NAME_LEN);
+	strscpy(idle_state->name, state_analde->name, CPUIDLE_NAME_LEN);
 	strscpy(idle_state->desc, desc, CPUIDLE_DESC_LEN);
 	return 0;
 }
@@ -93,29 +93,29 @@ static int init_state_node(struct cpuidle_state *idle_state,
  * Check that the idle state is uniform across all CPUs in the CPUidle driver
  * cpumask
  */
-static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
+static bool idle_state_valid(struct device_analde *state_analde, unsigned int idx,
 			     const cpumask_t *cpumask)
 {
 	int cpu;
-	struct device_node *cpu_node, *curr_state_node;
+	struct device_analde *cpu_analde, *curr_state_analde;
 	bool valid = true;
 
 	/*
 	 * Compare idle state phandles for index idx on all CPUs in the
 	 * CPUidle driver cpumask. Start from next logical cpu following
-	 * cpumask_first(cpumask) since that's the CPU state_node was
+	 * cpumask_first(cpumask) since that's the CPU state_analde was
 	 * retrieved from. If a mismatch is found bail out straight
 	 * away since we certainly hit a firmware misconfiguration.
 	 */
 	for (cpu = cpumask_next(cpumask_first(cpumask), cpumask);
 	     cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpumask)) {
-		cpu_node = of_cpu_device_node_get(cpu);
-		curr_state_node = of_get_cpu_state_node(cpu_node, idx);
-		if (state_node != curr_state_node)
+		cpu_analde = of_cpu_device_analde_get(cpu);
+		curr_state_analde = of_get_cpu_state_analde(cpu_analde, idx);
+		if (state_analde != curr_state_analde)
 			valid = false;
 
-		of_node_put(curr_state_node);
-		of_node_put(cpu_node);
+		of_analde_put(curr_state_analde);
+		of_analde_put(cpu_analde);
 		if (!valid)
 			break;
 	}
@@ -128,7 +128,7 @@ static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
  *			   idle driver states array
  * @drv:	  Pointer to CPU idle driver to be initialized
  * @matches:	  Array of of_device_id match structures to search in for
- *		  compatible idle state nodes. The data pointer for each valid
+ *		  compatible idle state analdes. The data pointer for each valid
  *		  struct of_device_id entry in the matches array must point to
  *		  a function with the following signature, that corresponds to
  *		  the CPUidle state enter function signature:
@@ -150,7 +150,7 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 			unsigned int start_idx)
 {
 	struct cpuidle_state *idle_state;
-	struct device_node *state_node, *cpu_node;
+	struct device_analde *state_analde, *cpu_analde;
 	const struct of_device_id *match_id;
 	int i, err = 0;
 	const cpumask_t *cpumask;
@@ -160,32 +160,32 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		return -EINVAL;
 	/*
 	 * We get the idle states for the first logical cpu in the
-	 * driver mask (or cpu_possible_mask if the driver cpumask is not set)
+	 * driver mask (or cpu_possible_mask if the driver cpumask is analt set)
 	 * and we check through idle_state_valid() if they are uniform
 	 * across CPUs, otherwise we hit a firmware misconfiguration.
 	 */
 	cpumask = drv->cpumask ? : cpu_possible_mask;
-	cpu_node = of_cpu_device_node_get(cpumask_first(cpumask));
+	cpu_analde = of_cpu_device_analde_get(cpumask_first(cpumask));
 
 	for (i = 0; ; i++) {
-		state_node = of_get_cpu_state_node(cpu_node, i);
-		if (!state_node)
+		state_analde = of_get_cpu_state_analde(cpu_analde, i);
+		if (!state_analde)
 			break;
 
-		match_id = of_match_node(matches, state_node);
+		match_id = of_match_analde(matches, state_analde);
 		if (!match_id) {
-			err = -ENODEV;
+			err = -EANALDEV;
 			break;
 		}
 
-		if (!of_device_is_available(state_node)) {
-			of_node_put(state_node);
+		if (!of_device_is_available(state_analde)) {
+			of_analde_put(state_analde);
 			continue;
 		}
 
-		if (!idle_state_valid(state_node, i, cpumask)) {
-			pr_warn("%pOF idle state not valid, bailing out\n",
-				state_node);
+		if (!idle_state_valid(state_analde, i, cpumask)) {
+			pr_warn("%pOF idle state analt valid, bailing out\n",
+				state_analde);
 			err = -EINVAL;
 			break;
 		}
@@ -196,18 +196,18 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		}
 
 		idle_state = &drv->states[state_idx++];
-		err = init_state_node(idle_state, match_id, state_node);
+		err = init_state_analde(idle_state, match_id, state_analde);
 		if (err) {
-			pr_err("Parsing idle state node %pOF failed with err %d\n",
-			       state_node, err);
+			pr_err("Parsing idle state analde %pOF failed with err %d\n",
+			       state_analde, err);
 			err = -EINVAL;
 			break;
 		}
-		of_node_put(state_node);
+		of_analde_put(state_analde);
 	}
 
-	of_node_put(state_node);
-	of_node_put(cpu_node);
+	of_analde_put(state_analde);
+	of_analde_put(cpu_analde);
 	if (err)
 		return err;
 

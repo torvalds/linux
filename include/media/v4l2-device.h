@@ -24,7 +24,7 @@ struct v4l2_ctrl_handler;
  * @lock: lock this struct; can be used by the driver as well
  *	if this struct is embedded into a larger struct.
  * @name: unique device name, by default the driver name + bus ID
- * @notify: notify operation called by some sub-devices.
+ * @analtify: analtify operation called by some sub-devices.
  * @ctrl_handler: The control handler. May be %NULL.
  * @prio: Device's priority state
  * @ref: Keep track of the references to this struct.
@@ -37,10 +37,10 @@ struct v4l2_ctrl_handler;
  * It allows easy access to sub-devices (see v4l2-subdev.h) and provides
  * basic V4L2 device-level support.
  *
- * .. note::
+ * .. analte::
  *
  *    #) @dev->driver_data points to this struct.
- *    #) @dev might be %NULL if there is no parent device
+ *    #) @dev might be %NULL if there is anal parent device
  */
 struct v4l2_device {
 	struct device *dev;
@@ -48,8 +48,8 @@ struct v4l2_device {
 	struct list_head subdevs;
 	spinlock_t lock;
 	char name[36];
-	void (*notify)(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg);
+	void (*analtify)(struct v4l2_subdev *sd,
+			unsigned int analtification, void *arg);
 	struct v4l2_ctrl_handler *ctrl_handler;
 	struct v4l2_prio_state prio;
 	struct kref ref;
@@ -86,7 +86,7 @@ int v4l2_device_put(struct v4l2_device *v4l2_dev);
  * @dev: pointer to struct &device
  * @v4l2_dev: pointer to struct &v4l2_device
  *
- * .. note::
+ * .. analte::
  *	@dev may be %NULL in rare cases (ISA devices).
  *	In such case the caller must fill in the @v4l2_dev->name field
  *	before calling this function.
@@ -133,7 +133,7 @@ int v4l2_device_set_name(struct v4l2_device *v4l2_dev, const char *basename,
  * Since the parent disappears, this ensures that @v4l2_dev doesn't have
  * an invalid parent pointer.
  *
- * .. note:: This function sets @v4l2_dev->dev to NULL.
+ * .. analte:: This function sets @v4l2_dev->dev to NULL.
  */
 void v4l2_device_disconnect(struct v4l2_device *v4l2_dev);
 
@@ -153,7 +153,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev);
  *
  * While registered, the subdev module is marked as in-use.
  *
- * An error is returned if the module is no longer loaded on any attempts
+ * An error is returned if the module is anal longer loaded on any attempts
  * to register it.
  */
 int __must_check v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
@@ -164,79 +164,79 @@ int __must_check v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
  *
  * @sd: pointer to &struct v4l2_subdev
  *
- * .. note ::
+ * .. analte ::
  *
  *	Can also be called if the subdev wasn't registered. In such
- *	case, it will do nothing.
+ *	case, it will do analthing.
  */
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 
 /**
- * __v4l2_device_register_subdev_nodes - Registers device nodes for
+ * __v4l2_device_register_subdev_analdes - Registers device analdes for
  *      all subdevs of the v4l2 device that are marked with the
- *      %V4L2_SUBDEV_FL_HAS_DEVNODE flag.
+ *      %V4L2_SUBDEV_FL_HAS_DEVANALDE flag.
  *
  * @v4l2_dev: pointer to struct v4l2_device
  * @read_only: subdevices read-only flag. True to register the subdevices
- *	device nodes in read-only mode, false to allow full access to the
+ *	device analdes in read-only mode, false to allow full access to the
  *	subdevice userspace API.
  */
 int __must_check
-__v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev,
+__v4l2_device_register_subdev_analdes(struct v4l2_device *v4l2_dev,
 				    bool read_only);
 
 /**
- * v4l2_device_register_subdev_nodes - Registers subdevices device nodes with
+ * v4l2_device_register_subdev_analdes - Registers subdevices device analdes with
  *	unrestricted access to the subdevice userspace operations
  *
- * Internally calls __v4l2_device_register_subdev_nodes(). See its documentation
+ * Internally calls __v4l2_device_register_subdev_analdes(). See its documentation
  * for more details.
  *
  * @v4l2_dev: pointer to struct v4l2_device
  */
 static inline int __must_check
-v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
+v4l2_device_register_subdev_analdes(struct v4l2_device *v4l2_dev)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	return __v4l2_device_register_subdev_nodes(v4l2_dev, false);
+	return __v4l2_device_register_subdev_analdes(v4l2_dev, false);
 #else
 	return 0;
 #endif
 }
 
 /**
- * v4l2_device_register_ro_subdev_nodes - Registers subdevices device nodes
+ * v4l2_device_register_ro_subdev_analdes - Registers subdevices device analdes
  *	in read-only mode
  *
- * Internally calls __v4l2_device_register_subdev_nodes(). See its documentation
+ * Internally calls __v4l2_device_register_subdev_analdes(). See its documentation
  * for more details.
  *
  * @v4l2_dev: pointer to struct v4l2_device
  */
 static inline int __must_check
-v4l2_device_register_ro_subdev_nodes(struct v4l2_device *v4l2_dev)
+v4l2_device_register_ro_subdev_analdes(struct v4l2_device *v4l2_dev)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	return __v4l2_device_register_subdev_nodes(v4l2_dev, true);
+	return __v4l2_device_register_subdev_analdes(v4l2_dev, true);
 #else
 	return 0;
 #endif
 }
 
 /**
- * v4l2_subdev_notify - Sends a notification to v4l2_device.
+ * v4l2_subdev_analtify - Sends a analtification to v4l2_device.
  *
  * @sd: pointer to &struct v4l2_subdev
- * @notification: type of notification. Please notice that the notification
+ * @analtification: type of analtification. Please analtice that the analtification
  *	type is driver-specific.
- * @arg: arguments for the notification. Those are specific to each
- *	notification type.
+ * @arg: arguments for the analtification. Those are specific to each
+ *	analtification type.
  */
-static inline void v4l2_subdev_notify(struct v4l2_subdev *sd,
-				      unsigned int notification, void *arg)
+static inline void v4l2_subdev_analtify(struct v4l2_subdev *sd,
+				      unsigned int analtification, void *arg)
 {
-	if (sd && sd->v4l2_dev && sd->v4l2_dev->notify)
-		sd->v4l2_dev->notify(sd, notification, arg);
+	if (sd && sd->v4l2_dev && sd->v4l2_dev->analtify)
+		sd->v4l2_dev->analtify(sd, analtification, arg);
 }
 
 /**
@@ -282,9 +282,9 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *	each element at &struct v4l2_subdev_ops.
  * @args: arguments for @f.
  *
- * Ignore any errors.
+ * Iganalre any errors.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define __v4l2_device_call_subdevs_p(v4l2_dev, sd, cond, o, f, args...)	\
@@ -307,9 +307,9 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *	each element at &struct v4l2_subdev_ops.
  * @args: arguments for @f.
  *
- * Ignore any errors.
+ * Iganalre any errors.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define __v4l2_device_call_subdevs(v4l2_dev, cond, o, f, args...)	\
@@ -337,11 +337,11 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *
  * Return:
  *
- * If the operation returns an error other than 0 or ``-ENOIOCTLCMD``
+ * If the operation returns an error other than 0 or ``-EANALIOCTLCMD``
  * for any subdevice, then abort and return with that error code, zero
  * otherwise.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define __v4l2_device_call_subdevs_until_err_p(v4l2_dev, sd, cond, o, f, args...) \
@@ -351,10 +351,10 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
 	list_for_each_entry((sd), &(v4l2_dev)->subdevs, list) {		\
 		if ((cond) && (sd)->ops->o && (sd)->ops->o->f)		\
 			__err = (sd)->ops->o->f((sd) , ##args);		\
-		if (__err && __err != -ENOIOCTLCMD)			\
+		if (__err && __err != -EANALIOCTLCMD)			\
 			break;						\
 	}								\
-	(__err == -ENOIOCTLCMD) ? 0 : __err;				\
+	(__err == -EANALIOCTLCMD) ? 0 : __err;				\
 })
 
 /**
@@ -372,11 +372,11 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *
  * Return:
  *
- * If the operation returns an error other than 0 or ``-ENOIOCTLCMD``
+ * If the operation returns an error other than 0 or ``-EANALIOCTLCMD``
  * for any subdevice, then abort and return with that error code,
  * zero otherwise.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define __v4l2_device_call_subdevs_until_err(v4l2_dev, cond, o, f, args...) \
@@ -401,9 +401,9 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *	each element at &struct v4l2_subdev_ops.
  * @args: arguments for @f.
  *
- * Ignore any errors.
+ * Iganalre any errors.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define v4l2_device_call_all(v4l2_dev, grpid, o, f, args...)		\
@@ -432,11 +432,11 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *
  * Return:
  *
- * If the operation returns an error other than 0 or ``-ENOIOCTLCMD``
+ * If the operation returns an error other than 0 or ``-EANALIOCTLCMD``
  * for any subdevice, then abort and return with that error code,
  * zero otherwise.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define v4l2_device_call_until_err(v4l2_dev, grpid, o, f, args...)	\
@@ -461,9 +461,9 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *	each element at &struct v4l2_subdev_ops.
  * @args: arguments for @f.
  *
- * Ignore any errors.
+ * Iganalre any errors.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define v4l2_device_mask_call_all(v4l2_dev, grpmsk, o, f, args...)	\
@@ -491,11 +491,11 @@ static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
  *
  * Return:
  *
- * If the operation returns an error other than 0 or ``-ENOIOCTLCMD``
+ * If the operation returns an error other than 0 or ``-EANALIOCTLCMD``
  * for any subdevice, then abort and return with that error code,
  * zero otherwise.
  *
- * Note: subdevs cannot be added or deleted while walking
+ * Analte: subdevs cananalt be added or deleted while walking
  * the subdevs list.
  */
 #define v4l2_device_mask_call_until_err(v4l2_dev, grpmsk, o, f, args...) \

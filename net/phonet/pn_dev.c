@@ -4,9 +4,9 @@
  *
  * Phonet network device
  *
- * Copyright (C) 2008 Nokia Corporation.
+ * Copyright (C) 2008 Analkia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@analkia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -101,7 +101,7 @@ static void phonet_device_destroy(struct net_device *dev)
 		u8 addr;
 
 		for_each_set_bit(addr, pnd->addrs, 64)
-			phonet_address_notify(RTM_DELADDR, dev, addr);
+			phonet_address_analtify(RTM_DELADDR, dev, addr);
 		kfree(pnd);
 	}
 }
@@ -139,7 +139,7 @@ int phonet_address_add(struct net_device *dev, u8 addr)
 	if (pnd == NULL)
 		pnd = __phonet_device_alloc(dev);
 	if (unlikely(pnd == NULL))
-		err = -ENOMEM;
+		err = -EANALMEM;
 	else if (test_and_set_bit(addr >> 2, pnd->addrs))
 		err = -EEXIST;
 	mutex_unlock(&pndevs->lock);
@@ -155,7 +155,7 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 	mutex_lock(&pndevs->lock);
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs)) {
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		pnd = NULL;
 	} else if (bitmap_empty(pnd->addrs, 64))
 		list_del_rcu(&pnd->list);
@@ -186,11 +186,11 @@ u8 phonet_address_get(struct net_device *dev, u8 daddr)
 		else
 			saddr = find_first_bit(pnd->addrs, 64) << 2;
 	} else
-		saddr = PN_NO_ADDR;
+		saddr = PN_ANAL_ADDR;
 	rcu_read_unlock();
 
-	if (saddr == PN_NO_ADDR) {
-		/* Fallback to another device */
+	if (saddr == PN_ANAL_ADDR) {
+		/* Fallback to aanalther device */
 		struct net_device *def_dev;
 
 		def_dev = phonet_device_get(dev_net(dev));
@@ -207,7 +207,7 @@ int phonet_address_lookup(struct net *net, u8 addr)
 {
 	struct phonet_device_list *pndevs = phonet_device_list(net);
 	struct phonet_device *pnd;
-	int err = -EADDRNOTAVAIL;
+	int err = -EADDRANALTAVAIL;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pnd, &pndevs->list, list) {
@@ -233,7 +233,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 	int ret;
 
 	if (!dev->netdev_ops->ndo_siocdevprivate)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = dev->netdev_ops->ndo_siocdevprivate(dev, (struct ifreq *)&req,
 						  NULL, SIOCPNGAUTOCONF);
@@ -244,7 +244,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 	ret = phonet_address_add(dev, req.ifr_phonet_autoconf.device);
 	if (ret)
 		return ret;
-	phonet_address_notify(RTM_NEWADDR, dev,
+	phonet_address_analtify(RTM_NEWADDR, dev,
 				req.ifr_phonet_autoconf.device);
 	return 0;
 }
@@ -269,16 +269,16 @@ static void phonet_route_autodel(struct net_device *dev)
 		return; /* short-circuit RCU */
 	synchronize_rcu();
 	for_each_set_bit(i, deleted, 64) {
-		rtm_phonet_notify(RTM_DELROUTE, dev, i);
+		rtm_phonet_analtify(RTM_DELROUTE, dev, i);
 		dev_put(dev);
 	}
 }
 
-/* notify Phonet of device events */
-static int phonet_device_notify(struct notifier_block *me, unsigned long what,
+/* analtify Phonet of device events */
+static int phonet_device_analtify(struct analtifier_block *me, unsigned long what,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_analtifier_info_to_dev(ptr);
 
 	switch (what) {
 	case NETDEV_REGISTER:
@@ -294,8 +294,8 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 
 }
 
-static struct notifier_block phonet_device_notifier = {
-	.notifier_call = phonet_device_notify,
+static struct analtifier_block phonet_device_analtifier = {
+	.analtifier_call = phonet_device_analtify,
 	.priority = 0,
 };
 
@@ -306,7 +306,7 @@ static int __net_init phonet_init_net(struct net *net)
 
 	if (!proc_create_net("phonet", 0, net->proc_net, &pn_sock_seq_ops,
 			sizeof(struct seq_net_private)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
 	mutex_init(&pnn->pndevs.lock);
@@ -338,7 +338,7 @@ int __init phonet_device_init(void)
 
 	proc_create_net("pnresource", 0, init_net.proc_net, &pn_res_seq_ops,
 			sizeof(struct seq_net_private));
-	register_netdevice_notifier(&phonet_device_notifier);
+	register_netdevice_analtifier(&phonet_device_analtifier);
 	err = phonet_netlink_register();
 	if (err)
 		phonet_device_exit();
@@ -348,7 +348,7 @@ int __init phonet_device_init(void)
 void phonet_device_exit(void)
 {
 	rtnl_unregister_all(PF_PHONET);
-	unregister_netdevice_notifier(&phonet_device_notifier);
+	unregister_netdevice_analtifier(&phonet_device_analtifier);
 	unregister_pernet_subsys(&phonet_net_ops);
 	remove_proc_entry("pnresource", init_net.proc_net);
 }
@@ -384,7 +384,7 @@ int phonet_route_del(struct net_device *dev, u8 daddr)
 	mutex_unlock(&routes->lock);
 
 	if (!dev)
-		return -ENOENT;
+		return -EANALENT;
 	synchronize_rcu();
 	dev_put(dev);
 	return 0;

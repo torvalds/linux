@@ -90,12 +90,12 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 {
 	struct scmi_reset_data *data;
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	const struct scmi_handle *handle = sdev->handle;
 	struct scmi_protocol_handle *ph;
 
 	if (!handle)
-		return -ENODEV;
+		return -EANALDEV;
 
 	reset_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_RESET, &ph);
 	if (IS_ERR(reset_ops))
@@ -103,11 +103,11 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->rcdev.ops = &scmi_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.of_node = np;
+	data->rcdev.of_analde = np;
 	data->rcdev.nr_resets = reset_ops->num_domains_get(ph);
 	data->ph = ph;
 

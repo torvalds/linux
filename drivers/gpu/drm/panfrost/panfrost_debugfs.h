@@ -8,7 +8,7 @@
 #define PANFROST_DEBUGFS_H
 
 #ifdef CONFIG_DEBUG_FS
-void panfrost_debugfs_init(struct drm_minor *minor);
+void panfrost_debugfs_init(struct drm_mianalr *mianalr);
 #endif
 
 #endif  /* PANFROST_DEBUGFS_H */

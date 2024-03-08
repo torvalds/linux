@@ -309,7 +309,7 @@ static void switch_mmu_to_guest_radix(struct kvm *kvm, struct kvm_vcpu *vcpu, u6
 
 	/*
 	 * Prior memory accesses to host PID Q3 must be completed before we
-	 * start switching, and stores must be drained to avoid not-my-LPAR
+	 * start switching, and stores must be drained to avoid analt-my-LPAR
 	 * logic (see switch_mmu_to_host).
 	 */
 	asm volatile("hwsync" ::: "memory");
@@ -318,7 +318,7 @@ static void switch_mmu_to_guest_radix(struct kvm *kvm, struct kvm_vcpu *vcpu, u6
 	mtspr(SPRN_LPCR, lpcr);
 	mtspr(SPRN_PID, pid);
 	/*
-	 * isync not required here because we are HRFID'ing to guest before
+	 * isync analt required here because we are HRFID'ing to guest before
 	 * any guest context access, which is context synchronising.
 	 */
 }
@@ -333,9 +333,9 @@ static void switch_mmu_to_guest_hpt(struct kvm *kvm, struct kvm_vcpu *vcpu, u64 
 	pid = kvmppc_get_pid(vcpu);
 
 	/*
-	 * See switch_mmu_to_guest_radix. ptesync should not be required here
+	 * See switch_mmu_to_guest_radix. ptesync should analt be required here
 	 * even if the host is in HPT mode because speculative accesses would
-	 * not cause RC updates (we are in real mode).
+	 * analt cause RC updates (we are in real mode).
 	 */
 	asm volatile("hwsync" ::: "memory");
 	isync();
@@ -346,7 +346,7 @@ static void switch_mmu_to_guest_hpt(struct kvm *kvm, struct kvm_vcpu *vcpu, u64 
 	for (i = 0; i < vcpu->arch.slb_max; i++)
 		mtslb(vcpu->arch.slb[i].orige, vcpu->arch.slb[i].origv);
 	/*
-	 * isync not required here, see switch_mmu_to_guest_radix.
+	 * isync analt required here, see switch_mmu_to_guest_radix.
 	 */
 }
 
@@ -356,10 +356,10 @@ static void switch_mmu_to_host(struct kvm *kvm, u32 pid)
 	u64 lpcr = kvm->arch.host_lpcr;
 
 	/*
-	 * The guest has exited, so guest MMU context is no longer being
-	 * non-speculatively accessed, but a hwsync is needed before the
+	 * The guest has exited, so guest MMU context is anal longer being
+	 * analn-speculatively accessed, but a hwsync is needed before the
 	 * mtLPIDR / mtPIDR switch, in order to ensure all stores are drained,
-	 * so the not-my-LPAR tlbie logic does not overlook them.
+	 * so the analt-my-LPAR tlbie logic does analt overlook them.
 	 */
 	asm volatile("hwsync" ::: "memory");
 	isync();
@@ -367,7 +367,7 @@ static void switch_mmu_to_host(struct kvm *kvm, u32 pid)
 	mtspr(SPRN_LPID, lpid);
 	mtspr(SPRN_LPCR, lpcr);
 	/*
-	 * isync is not required after the switch, because mtmsrd with L=0
+	 * isync is analt required after the switch, because mtmsrd with L=0
 	 * is performed after this switch, which is context synchronising.
 	 */
 
@@ -380,7 +380,7 @@ static void save_clear_host_mmu(struct kvm *kvm)
 	if (!radix_enabled()) {
 		/*
 		 * Hash host could save and restore host SLB entries to
-		 * reduce SLB fault overheads of VM exits, but for now the
+		 * reduce SLB fault overheads of VM exits, but for analw the
 		 * existing code clears all entries and restores just the
 		 * bolted ones when switching back to host.
 		 */
@@ -434,7 +434,7 @@ static void flush_guest_tlb(struct kvm *kvm)
 				       "r" (0) : "memory");
 		}
 		asm volatile("ptesync": : :"memory");
-		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it now.
+		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it analw.
 		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
 	} else {
 		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
@@ -445,7 +445,7 @@ static void flush_guest_tlb(struct kvm *kvm)
 			rb += PPC_BIT(51);	/* increment set number */
 		}
 		asm volatile("ptesync": : :"memory");
-		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it now.
+		// POWER9 congruence-class TLBIEL leaves ERAT. Flush it analw.
 		asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
 	}
 }
@@ -471,7 +471,7 @@ static void check_need_tlb_flush(struct kvm *kvm, int pcpu,
 	 * invalidates for all, so only invalidate the first time (if all bits
 	 * were set.  The others must still execute a ptesync.
 	 *
-	 * If a race occurs and two threads do the TLB flush, that is not a
+	 * If a race occurs and two threads do the TLB flush, that is analt a
 	 * problem, just sub-optimal.
 	 */
 	for (i = cpu_first_tlb_thread_sibling(pcpu);
@@ -646,11 +646,11 @@ int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpc
 
 	/*
 	 * On POWER9 DD2.1 and below, sometimes on a Hypervisor Data Storage
-	 * Interrupt (HDSI) the HDSISR is not be updated at all.
+	 * Interrupt (HDSI) the HDSISR is analt be updated at all.
 	 *
 	 * To work around this we put a canary value into the HDSISR before
 	 * returning to a guest and then check for this canary when we take a
-	 * HDSI. If we find the canary on a HDSI, we know the hardware didn't
+	 * HDSI. If we find the canary on a HDSI, we kanalw the hardware didn't
 	 * update the HDSISR. In this case we return to the guest to retake the
 	 * HDSI which should correctly update the HDSISR the second time HDSI
 	 * entry.
@@ -669,14 +669,14 @@ int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpc
 	/*
 	 * It might be preferable to load_vcpu_state here, in order to get the
 	 * GPR/FP register loads executing in parallel with the previous mtSPR
-	 * instructions, but for now that can't be done because the TM handling
+	 * instructions, but for analw that can't be done because the TM handling
 	 * in load_vcpu_state can change some SPRs and vcpu state (nip, msr).
 	 * But TM could be split out if this would be a significant benefit.
 	 */
 
 	/*
-	 * MSR[RI] does not need to be cleared (and is not, for radix guests
-	 * with no prefetch bug), because in_guest is set. If we take a SRESET
+	 * MSR[RI] does analt need to be cleared (and is analt, for radix guests
+	 * with anal prefetch bug), because in_guest is set. If we take a SRESET
 	 * or MCE with in_guest set but still in HV mode, then
 	 * kvmppc_p9_bad_interrupt handles the interrupt, which effectively
 	 * clears MSR[RI] and doesn't return.
@@ -843,7 +843,7 @@ tm_return_to_guest:
 	vc->vtb = mfspr(SPRN_VTB);
 
 	dec = mfspr(SPRN_DEC);
-	if (!(lpcr & LPCR_LD)) /* Sign extend if not using large decrementer */
+	if (!(lpcr & LPCR_LD)) /* Sign extend if analt using large decrementer */
 		dec = (s32) dec;
 	*tb = mftb();
 	vcpu->arch.dec_expires = dec + *tb;
@@ -914,7 +914,7 @@ tm_return_to_guest:
 	restore_p9_host_os_sprs(vcpu, &host_os_sprs);
 
 	barrier(); /* Close in_guest critical section */
-	WRITE_ONCE(local_paca->kvm_hstate.in_guest, KVM_GUEST_MODE_NONE);
+	WRITE_ONCE(local_paca->kvm_hstate.in_guest, KVM_GUEST_MODE_ANALNE);
 	/* Interrupts are recoverable at this point */
 
 	/*

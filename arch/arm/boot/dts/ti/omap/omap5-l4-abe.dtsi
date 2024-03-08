@@ -94,7 +94,7 @@
 					 SYSC_OMAP2_ENAWAKEUP |
 					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
 			clocks = <&abe_clkctrl OMAP5_MCBSP1_CLKCTRL 0>;
@@ -129,7 +129,7 @@
 					 SYSC_OMAP2_ENAWAKEUP |
 					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
 			clocks = <&abe_clkctrl OMAP5_MCBSP2_CLKCTRL 0>;
@@ -164,7 +164,7 @@
 					 SYSC_OMAP2_ENAWAKEUP |
 					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
 			clocks = <&abe_clkctrl OMAP5_MCBSP3_CLKCTRL 0>;
@@ -217,7 +217,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -257,7 +257,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -291,7 +291,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -323,7 +323,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -355,7 +355,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -386,7 +386,7 @@
 			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
 					 SYSC_OMAP4_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (V, P, C): core, abe_pwrdm, abe_clkdm */
@@ -443,11 +443,11 @@
 			      <0xf1010 0x4>;
 			reg-names = "rev", "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_ANAL>,
 					<SYSC_IDLE_SMART>;
 			/* Domains (V, P, C): iva, abe_pwrdm, abe_clkdm */
 			clocks = <&abe_clkctrl OMAP5_AESS_CLKCTRL 0>;

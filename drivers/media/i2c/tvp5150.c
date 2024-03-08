@@ -19,7 +19,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-rect.h>
 
@@ -63,7 +63,7 @@ enum tvp5150_pads {
 };
 
 struct tvp5150_connector {
-	struct v4l2_fwnode_connector base;
+	struct v4l2_fwanalde_connector base;
 	struct media_entity ent;
 	struct media_pad pad;
 };
@@ -81,8 +81,8 @@ struct tvp5150 {
 	struct regmap *regmap;
 	int irq;
 
-	v4l2_std_id norm;	/* Current set standard */
-	v4l2_std_id detected_norm;
+	v4l2_std_id analrm;	/* Current set standard */
+	v4l2_std_id detected_analrm;
 	u32 input;
 	u32 output;
 	u32 oe;
@@ -207,7 +207,7 @@ static int tvp5150_log_status(struct v4l2_subdev *sd)
 		tvp5150_read(sd, TVP5150_LSB_DEV_ID));
 	dprintk0(sd->dev, "tvp5150: ROM version = (hex) %02x.%02x\n",
 		tvp5150_read(sd, TVP5150_ROM_MAJOR_VER),
-		tvp5150_read(sd, TVP5150_ROM_MINOR_VER));
+		tvp5150_read(sd, TVP5150_ROM_MIANALR_VER));
 	dprintk0(sd->dev, "tvp5150: Vertical line count = 0x%02x%02x\n",
 		tvp5150_read(sd, TVP5150_VERT_LN_COUNT_MSB),
 		tvp5150_read(sd, TVP5150_VERT_LN_COUNT_LSB));
@@ -306,7 +306,7 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 		    "Selecting video route: route input=%s, output=%s => tvp5150 input=0x%02x, opmode=0x%02x\n",
 		    decoder->input == 0 ? "aip1a" :
 		    decoder->input == 2 ? "aip1b" : "svideo",
-		    decoder->output == 0 ? "normal" : "black-frame-gen",
+		    decoder->output == 0 ? "analrmal" : "black-frame-gen",
 		    input, opmode);
 
 	regmap_write(decoder->regmap, TVP5150_OP_MODE_CTL, opmode);
@@ -487,7 +487,7 @@ static const struct i2c_reg_value tvp5150_init_enable[] = {
 		TVP5150_CHROMA_PROC_CTL_1, 0x0c
 	}, {
 		TVP5150_CHROMA_PROC_CTL_2, 0x54
-	}, {	/* Non documented, but initialized on WinTV USB2 */
+	}, {	/* Analn documented, but initialized on WinTV USB2 */
 		0x27, 0x20
 	}, {
 		0xff, 0xff
@@ -517,7 +517,7 @@ struct i2c_vbi_ram_value {
 static struct i2c_vbi_ram_value vbi_ram_default[] = {
 
 	/*
-	 * FIXME: Current api doesn't handle all VBI types, those not
+	 * FIXME: Current api doesn't handle all VBI types, those analt
 	 * yet supported are placed under #if 0
 	 */
 #if 0
@@ -680,12 +680,12 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 			const int fields)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std = decoder->norm;
+	v4l2_std_id std = decoder->analrm;
 	u8 reg;
 	int i, pos = 0;
 
 	if (std == V4L2_STD_ALL) {
-		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
+		dev_err(sd->dev, "VBI can't be configured without kanalwing number of lines\n");
 		return 0;
 	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
@@ -723,13 +723,13 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 static int tvp5150_get_vbi(struct v4l2_subdev *sd, int line)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std = decoder->norm;
+	v4l2_std_id std = decoder->analrm;
 	u8 reg;
 	int pos, type = 0;
 	int i, ret = 0;
 
 	if (std == V4L2_STD_ALL) {
-		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
+		dev_err(sd->dev, "VBI can't be configured without kanalwing number of lines\n");
 		return 0;
 	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
@@ -788,7 +788,7 @@ static int tvp5150_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 
-	*std = decoder->norm;
+	*std = decoder->analrm;
 
 	return 0;
 }
@@ -799,10 +799,10 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	struct tvp5150_connector *cur_con = decoder->cur_connector;
 	v4l2_std_id supported_stds;
 
-	if (decoder->norm == std)
+	if (decoder->analrm == std)
 		return 0;
 
-	/* In case of no of-connectors are available no limitations are made */
+	/* In case of anal of-connectors are available anal limitations are made */
 	if (!decoder->connectors_num)
 		supported_stds = V4L2_STD_ALL;
 	else
@@ -822,7 +822,7 @@ static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		decoder->rect.height = TVP5150_V_MAX_OTHERS;
 
 	/* Set only the specific supported std in case of group of std's. */
-	decoder->norm = supported_stds & std;
+	decoder->analrm = supported_stds & std;
 
 	return tvp5150_set_std(sd, std);
 }
@@ -845,7 +845,7 @@ static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
 	case 0xb:
 		return V4L2_STD_SECAM;
 	default:
-		return V4L2_STD_UNKNOWN;
+		return V4L2_STD_UNKANALWN;
 	}
 }
 
@@ -865,7 +865,7 @@ static int query_lock(struct v4l2_subdev *sd)
 
 static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 {
-	*std_id = query_lock(sd) ? tvp5150_read_std(sd) : V4L2_STD_UNKNOWN;
+	*std_id = query_lock(sd) ? tvp5150_read_std(sd) : V4L2_STD_UNKANALWN;
 
 	return 0;
 }
@@ -893,7 +893,7 @@ static irqreturn_t tvp5150_isr(int irq, void *dev_id)
 			dev_dbg_lvl(decoder->sd.dev, 1, debug,
 				    "sync lo%s signal\n",
 				    decoder->lock ? "ck" : "ss");
-			v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
+			v4l2_subdev_analtify_event(&decoder->sd, &tvp5150_ev_fmt);
 			regmap_update_bits(map, TVP5150_MISC_CTL, mask,
 					   decoder->lock ? decoder->oe : 0);
 		}
@@ -954,17 +954,17 @@ static int tvp5150_enable(struct v4l2_subdev *sd)
 	/* Initializes TVP5150 to stream enabled values */
 	tvp5150_write_inittab(sd, tvp5150_init_enable);
 
-	if (decoder->norm == V4L2_STD_ALL)
+	if (decoder->analrm == V4L2_STD_ALL)
 		std = tvp5150_read_std(sd);
 	else
-		std = decoder->norm;
+		std = decoder->analrm;
 
 	/* Disable autoswitch mode */
 	tvp5150_set_std(sd, std);
 
 	/*
 	 * Enable the YCbCr and clock outputs. In discrete sync mode
-	 * (non-BT.656) additionally enable the sync outputs.
+	 * (analn-BT.656) additionally enable the sync outputs.
 	 */
 	switch (decoder->mbus_type) {
 	case V4L2_MBUS_PARALLEL:
@@ -1015,7 +1015,7 @@ static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static void tvp5150_set_default(v4l2_std_id std, struct v4l2_rect *crop)
 {
-	/* Default is no cropping */
+	/* Default is anal cropping */
 	crop->top = 0;
 	crop->left = 0;
 	crop->width = TVP5150_H_MAX;
@@ -1074,10 +1074,10 @@ static unsigned int tvp5150_get_hmax(struct v4l2_subdev *sd)
 	v4l2_std_id std;
 
 	/* Calculate height based on current standard */
-	if (decoder->norm == V4L2_STD_ALL)
+	if (decoder->analrm == V4L2_STD_ALL)
 		std = tvp5150_read_std(sd);
 	else
-		std = decoder->norm;
+		std = decoder->analrm;
 
 	return (std & V4L2_STD_525_60) ?
 		TVP5150_V_MAX_525_60 : TVP5150_V_MAX_OTHERS;
@@ -1126,7 +1126,7 @@ static int tvp5150_set_selection(struct v4l2_subdev *sd,
 	/*
 	 * alignments:
 	 *  - width = 2 due to UYVY colorspace
-	 *  - height, image = no special alignment
+	 *  - height, image = anal special alignment
 	 */
 	v4l_bound_align_image(&rect->width,
 			      TVP5150_H_MAX - TVP5150_MAX_CROP_LEFT - rect->left,
@@ -1170,10 +1170,10 @@ static int tvp5150_get_selection(struct v4l2_subdev *sd,
 		sel->r.width = TVP5150_H_MAX;
 
 		/* Calculate height based on current standard */
-		if (decoder->norm == V4L2_STD_ALL)
+		if (decoder->analrm == V4L2_STD_ALL)
 			std = tvp5150_read_std(sd);
 		else
-			std = decoder->norm;
+			std = decoder->analrm;
 		if (std & V4L2_STD_525_60)
 			sel->r.height = TVP5150_V_MAX_525_60;
 		else
@@ -1219,10 +1219,10 @@ static int tvp5150_init_state(struct v4l2_subdev *sd,
 	 * Reset selection to maximum on subdev_open() if autodetection is on
 	 * and a standard change is detected.
 	 */
-	if (decoder->norm == V4L2_STD_ALL) {
+	if (decoder->analrm == V4L2_STD_ALL) {
 		std = tvp5150_read_std(sd);
-		if (std != decoder->detected_norm) {
-			decoder->detected_norm = std;
+		if (std != decoder->detected_analrm) {
+			decoder->detected_analrm = std;
 			tvp5150_set_default(std, &decoder->rect);
 		}
 	}
@@ -1308,14 +1308,14 @@ static int tvp5150_link_setup(struct media_entity *entity,
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	struct media_pad *other_tvp5150_pad =
 		&decoder->pads[tvp5150_pad->index ^ 1];
-	struct v4l2_fwnode_connector *v4l2c;
+	struct v4l2_fwanalde_connector *v4l2c;
 	bool is_svideo = false;
 	unsigned int i;
 	int err;
 
 	/*
 	 * The TVP5150 state is determined by the enabled sink pad link(s).
-	 * Enabling or disabling the source pad link has no effect.
+	 * Enabling or disabling the source pad link has anal effect.
 	 */
 	if (tvp5150_pad->flags & MEDIA_PAD_FL_SOURCE)
 		return 0;
@@ -1361,12 +1361,12 @@ static int tvp5150_link_setup(struct media_entity *entity,
 		return err;
 
 	tvp5150_s_routing(sd, is_svideo ? TVP5150_SVIDEO : tvp5150_pad->index,
-			  flags & MEDIA_LNK_FL_ENABLED ? TVP5150_NORMAL :
+			  flags & MEDIA_LNK_FL_ENABLED ? TVP5150_ANALRMAL :
 			  TVP5150_BLACK_SCREEN, 0);
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		struct v4l2_fwnode_connector_analog *v4l2ca;
-		u32 new_norm;
+		struct v4l2_fwanalde_connector_analog *v4l2ca;
+		u32 new_analrm;
 
 		/*
 		 * S-Video connector is conneted to both ports AIP1A and AIP1B.
@@ -1388,19 +1388,19 @@ static int tvp5150_link_setup(struct media_entity *entity,
 			container_of(remote, struct tvp5150_connector, pad);
 
 		/*
-		 * Do nothing if the new connector supports the same tv-norms as
+		 * Do analthing if the new connector supports the same tv-analrms as
 		 * the old one.
 		 */
 		v4l2ca = &decoder->cur_connector->base.connector.analog;
-		new_norm = decoder->norm & v4l2ca->sdtv_stds;
-		if (decoder->norm == new_norm)
+		new_analrm = decoder->analrm & v4l2ca->sdtv_stds;
+		if (decoder->analrm == new_analrm)
 			return 0;
 
 		/*
-		 * Fallback to the new connector tv-norms if we can't find any
-		 * common between the current tv-norm and the new one.
+		 * Fallback to the new connector tv-analrms if we can't find any
+		 * common between the current tv-analrm and the new one.
 		 */
-		tvp5150_s_std(sd, new_norm ? new_norm : v4l2ca->sdtv_stds);
+		tvp5150_s_std(sd, new_analrm ? new_analrm : v4l2ca->sdtv_stds);
 	}
 
 	return 0;
@@ -1462,7 +1462,7 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 		else
 			val = decoder->oe;
 
-		v4l2_subdev_notify_event(&decoder->sd, &tvp5150_ev_fmt);
+		v4l2_subdev_analtify_event(&decoder->sd, &tvp5150_ev_fmt);
 	} else {
 		pm_runtime_put(sd->dev);
 	}
@@ -1613,11 +1613,11 @@ static int tvp5150_registered(struct v4l2_subdev *sd)
 	for (i = 0; i < decoder->connectors_num; i++) {
 		struct media_entity *con = &decoder->connectors[i].ent;
 		struct media_pad *pad = &decoder->connectors[i].pad;
-		struct v4l2_fwnode_connector *v4l2c =
+		struct v4l2_fwanalde_connector *v4l2c =
 			&decoder->connectors[i].base;
 		struct v4l2_connector_link *link =
 			v4l2_connector_first_link(v4l2c);
-		unsigned int port = link->fwnode_link.remote_port;
+		unsigned int port = link->fwanalde_link.remote_port;
 		unsigned int flags = i ? 0 : MEDIA_LNK_FL_ENABLED;
 		bool is_svideo = v4l2c->type == V4L2_CONN_SVIDEO;
 
@@ -1640,7 +1640,7 @@ static int tvp5150_registered(struct v4l2_subdev *sd)
 			 * information.
 			 */
 			link = v4l2_connector_last_link(v4l2c);
-			port = link->fwnode_link.remote_port;
+			port = link->fwanalde_link.remote_port;
 			ret = media_create_pad_link(con, 0, &sd->entity, port,
 						    flags);
 			if (ret < 0)
@@ -1808,8 +1808,8 @@ static bool tvp5150_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_access_table tvp5150_readable_table = {
-	.yes_ranges = tvp5150_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tvp5150_readable_ranges),
+	.anal_ranges = tvp5150_readable_ranges,
+	.n_anal_ranges = ARRAY_SIZE(tvp5150_readable_ranges),
 };
 
 static struct regmap_config tvp5150_config = {
@@ -1832,7 +1832,7 @@ static int tvp5150_detect_version(struct tvp5150 *core)
 
 	/*
 	 * Read consequent registers - TVP5150_MSB_DEV_ID, TVP5150_LSB_DEV_ID,
-	 * TVP5150_ROM_MAJOR_VER, TVP5150_ROM_MINOR_VER
+	 * TVP5150_ROM_MAJOR_VER, TVP5150_ROM_MIANALR_VER
 	 */
 	res = regmap_bulk_read(core->regmap, TVP5150_MSB_DEV_ID, regs, 4);
 	if (res < 0) {
@@ -1857,7 +1857,7 @@ static int tvp5150_detect_version(struct tvp5150 *core)
 	} else if (core->dev_id == 0x5151 && core->rom_ver == 0x0100) {
 		dev_info(sd->dev, "tvp5151 detected.\n");
 	} else {
-		dev_info(sd->dev, "*** unknown tvp%04x chip detected.\n",
+		dev_info(sd->dev, "*** unkanalwn tvp%04x chip detected.\n",
 			  core->dev_id);
 	}
 
@@ -1927,12 +1927,12 @@ static int tvp5150_validate_connectors(struct tvp5150 *decoder)
 {
 	struct device *dev = decoder->sd.dev;
 	struct tvp5150_connector *tvpc;
-	struct v4l2_fwnode_connector *v4l2c;
+	struct v4l2_fwanalde_connector *v4l2c;
 	unsigned int i;
 
 	if (!decoder->connectors_num) {
-		dev_err(dev, "No valid connector found\n");
-		return -ENODEV;
+		dev_err(dev, "Anal valid connector found\n");
+		return -EANALDEV;
 	}
 
 	for (i = 0; i < decoder->connectors_num; i++) {
@@ -1952,7 +1952,7 @@ static int tvp5150_validate_connectors(struct tvp5150 *decoder)
 				dev_err(dev, "Composite: invalid first link\n");
 				return -EINVAL;
 			}
-			if (link0->fwnode_link.remote_id == 1) {
+			if (link0->fwanalde_link.remote_id == 1) {
 				dev_err(dev, "Composite: invalid endpoint id\n");
 				return -EINVAL;
 			}
@@ -1969,15 +1969,15 @@ static int tvp5150_validate_connectors(struct tvp5150 *decoder)
 				return -EINVAL;
 			}
 			link1 = v4l2_connector_last_link(v4l2c);
-			if (link0->fwnode_link.remote_port ==
-			    link1->fwnode_link.remote_port) {
+			if (link0->fwanalde_link.remote_port ==
+			    link1->fwanalde_link.remote_port) {
 				dev_err(dev, "SVideo: invalid link setup\n");
 				return -EINVAL;
 			}
 		}
 
 		if (!(v4l2c->connector.analog.sdtv_stds & TVP5150_STD_MASK)) {
-			dev_err(dev, "Unsupported tv-norm on connector %s\n",
+			dev_err(dev, "Unsupported tv-analrm on connector %s\n",
 				v4l2c->name);
 			return -EINVAL;
 		}
@@ -1986,15 +1986,15 @@ static int tvp5150_validate_connectors(struct tvp5150 *decoder)
 	return 0;
 }
 
-static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
+static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_analde *np)
 {
 	struct device *dev = decoder->sd.dev;
-	struct v4l2_fwnode_endpoint bus_cfg = {
-		.bus_type = V4L2_MBUS_UNKNOWN
+	struct v4l2_fwanalde_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_UNKANALWN
 	};
-	struct device_node *ep_np;
+	struct device_analde *ep_np;
 	struct tvp5150_connector *tvpc;
-	struct v4l2_fwnode_connector *v4l2c;
+	struct v4l2_fwanalde_connector *v4l2c;
 	unsigned int flags, ep_num;
 	unsigned int i;
 	int ret;
@@ -2017,14 +2017,14 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	 * tvp-5150 port@2
 	 *	endpoint (video bitstream output at YOUT[0-7] parallel bus)
 	 */
-	for_each_endpoint_of_node(np, ep_np) {
-		struct fwnode_handle *ep_fwnode = of_fwnode_handle(ep_np);
+	for_each_endpoint_of_analde(np, ep_np) {
+		struct fwanalde_handle *ep_fwanalde = of_fwanalde_handle(ep_np);
 		unsigned int next_connector = decoder->connectors_num;
 		struct of_endpoint ep;
 
 		of_graph_parse_endpoint(ep_np, &ep);
 		if (ep.port > 1 || ep.id > 1) {
-			dev_dbg(dev, "Ignore connector on port@%u/ep@%u\n",
+			dev_dbg(dev, "Iganalre connector on port@%u/ep@%u\n",
 				ep.port, ep.id);
 			continue;
 		}
@@ -2033,10 +2033,10 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 		v4l2c = &tvpc->base;
 
 		if (ep.port == 0 || (ep.port == 1 && ep.id == 0)) {
-			ret = v4l2_fwnode_connector_parse(ep_fwnode, v4l2c);
+			ret = v4l2_fwanalde_connector_parse(ep_fwanalde, v4l2c);
 			if (ret)
 				goto err_put;
-			ret = v4l2_fwnode_connector_add_link(ep_fwnode, v4l2c);
+			ret = v4l2_fwanalde_connector_add_link(ep_fwanalde, v4l2c);
 			if (ret)
 				goto err_put;
 			decoder->connectors_num++;
@@ -2049,7 +2049,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 					break;
 			}
 
-			ret = v4l2_fwnode_connector_add_link(ep_fwnode, v4l2c);
+			ret = v4l2_fwanalde_connector_add_link(ep_fwanalde, v4l2c);
 			if (ret)
 				goto err_put;
 		}
@@ -2069,7 +2069,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 						v4l2c->name, v4l2c->label ?
 						v4l2c->label : "");
 		if (!tvpc->ent.name) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_free;
 		}
 	}
@@ -2077,11 +2077,11 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	ep_np = of_graph_get_endpoint_by_regs(np, TVP5150_PAD_VID_OUT, 0);
 	if (!ep_np) {
 		ret = -EINVAL;
-		dev_err(dev, "Error no output endpoint available\n");
+		dev_err(dev, "Error anal output endpoint available\n");
 		goto err_free;
 	}
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep_np), &bus_cfg);
-	of_node_put(ep_np);
+	ret = v4l2_fwanalde_endpoint_parse(of_fwanalde_handle(ep_np), &bus_cfg);
+	of_analde_put(ep_np);
 	if (ret)
 		goto err_free;
 
@@ -2099,10 +2099,10 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	return 0;
 
 err_put:
-	of_node_put(ep_np);
+	of_analde_put(ep_np);
 err_free:
 	for (i = 0; i < TVP5150_MAX_CONNECTORS; i++)
-		v4l2_fwnode_connector_free(&decoder->connectors[i].base);
+		v4l2_fwanalde_connector_free(&decoder->connectors[i].base);
 
 	return ret;
 }
@@ -2116,7 +2116,7 @@ static int tvp5150_probe(struct i2c_client *c)
 {
 	struct tvp5150 *core;
 	struct v4l2_subdev *sd;
-	struct device_node *np = c->dev.of_node;
+	struct device_analde *np = c->dev.of_analde;
 	struct regmap *map;
 	unsigned int i;
 	int res;
@@ -2132,7 +2132,7 @@ static int tvp5150_probe(struct i2c_client *c)
 
 	core = devm_kzalloc(&c->dev, sizeof(*core), GFP_KERNEL);
 	if (!core)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = devm_regmap_init_i2c(c, &tvp5150_config);
 	if (IS_ERR(map))
@@ -2142,7 +2142,7 @@ static int tvp5150_probe(struct i2c_client *c)
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &tvp5150_ops);
 	sd->internal_ops = &tvp5150_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		res = tvp5150_parse_dt(core, np);
@@ -2169,16 +2169,16 @@ static int tvp5150_probe(struct i2c_client *c)
 	 * aren't supported.
 	 */
 	for (i = 0; i < core->connectors_num; i++) {
-		struct v4l2_fwnode_connector *v4l2c;
+		struct v4l2_fwanalde_connector *v4l2c;
 
 		v4l2c = &core->connectors[i].base;
-		core->norm |= v4l2c->connector.analog.sdtv_stds;
+		core->analrm |= v4l2c->connector.analog.sdtv_stds;
 	}
 
 	if (!core->connectors_num)
-		core->norm = V4L2_STD_ALL;
+		core->analrm = V4L2_STD_ALL;
 
-	core->detected_norm = V4L2_STD_UNKNOWN;
+	core->detected_analrm = V4L2_STD_UNKANALWN;
 	core->input = TVP5150_COMPOSITE1;
 	core->enable = true;
 
@@ -2245,7 +2245,7 @@ static void tvp5150_remove(struct i2c_client *c)
 		c->addr << 1);
 
 	for (i = 0; i < decoder->connectors_num; i++)
-		v4l2_fwnode_connector_free(&decoder->connectors[i].base);
+		v4l2_fwanalde_connector_free(&decoder->connectors[i].base);
 	for (i = 0; i < decoder->connectors_num; i++) {
 		media_device_unregister_entity(&decoder->connectors[i].ent);
 		media_entity_cleanup(&decoder->connectors[i].ent);

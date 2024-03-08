@@ -36,7 +36,7 @@ enum bcm4377_chip {
 
 /*
  * These devices only support DMA transactions inside a 32bit window
- * (possibly to avoid 64 bit arithmetic). The window size cannot exceed
+ * (possibly to avoid 64 bit arithmetic). The window size cananalt exceed
  * 0xffffffff but is always aligned down to the previous 0x200 byte boundary
  * which effectively limits the window to [start, start+0xfffffe00].
  * We just limit the DMA window to [0, 0xfffffe00] to make sure we don't
@@ -192,14 +192,14 @@ enum bcm4377_control_message_type {
  * Control message used to create a completion ring
  *
  * msg_type: Must be BCM4377_CONTROL_MSG_CREATE_COMPLETION_RING
- * header_size: Unknown, but probably reserved space in front of the entry
+ * header_size: Unkanalwn, but probably reserved space in front of the entry
  * footer_size: Number of 32 bit words reserved for payloads after the entry
  * id/id_again: Completion ring index
  * ring_iova: DMA address of the ring buffer
  * n_elements: Number of elements inside the ring buffer
  * msi: MSI index, doesn't work for all rings though and should be zero
- * intmod_delay: Unknown delay
- * intmod_bytes: Unknown
+ * intmod_delay: Unkanalwn delay
+ * intmod_bytes: Unkanalwn
  */
 struct bcm4377_create_completion_ring_msg {
 	u8 msg_type;
@@ -241,16 +241,16 @@ static_assert(sizeof(struct bcm4377_destroy_completion_ring_msg) ==
  * Control message used to create a transfer ring
  *
  * msg_type: Must be BCM4377_CONTROL_MSG_CREATE_XFER_RING
- * header_size: Number of 32 bit words reserved for unknown content before the
+ * header_size: Number of 32 bit words reserved for unkanalwn content before the
  *              entry
  * footer_size: Number of 32 bit words reserved for payloads after the entry
  * ring_id/ring_id_again: Transfer ring index
  * ring_iova: DMA address of the ring buffer
  * n_elements: Number of elements inside the ring buffer
- * completion_ring_id: Completion ring index for acknowledgements and events
- * doorbell: Doorbell index used to notify device of new entries
+ * completion_ring_id: Completion ring index for ackanalwledgements and events
+ * doorbell: Doorbell index used to analtify device of new entries
  * flags: Transfer ring flags
- *          - virtual: set if there is no associated shared memory and only the
+ *          - virtual: set if there is anal associated shared memory and only the
  *                     corresponding completion ring is used
  *          - sync: only set for the SCO rings
  */
@@ -296,9 +296,9 @@ static_assert(sizeof(struct bcm4377_destroy_transfer_ring_msg) ==
  *
  * version: Protocol version, must be 2.
  * size: Size of this structure, must be 0x68.
- * enabled_caps: Enabled capabilities. Unknown bitfield but should be 2.
+ * enabled_caps: Enabled capabilities. Unkanalwn bitfield but should be 2.
  * peripheral_info_addr: DMA address for a 0x20 buffer to which the device will
- *                       write unknown contents
+ *                       write unkanalwn contents
  * {completion,xfer}_ring_{tails,heads}_addr: DMA pointers to ring heads/tails
  * n_completion_rings: Number of completion rings, the firmware only works if
  *                     this is set to BCM4377_N_COMPLETION_RINGS.
@@ -388,28 +388,28 @@ struct bcm4377_ring_state {
 
 /*
  * A transfer ring can be used in two configurations:
- *  1) Send control or HCI messages to the device which are then acknowledged
+ *  1) Send control or HCI messages to the device which are then ackanalwledged
  *     in the corresponding completion ring
  *  2) Receiving HCI frames from the devices. In this case the transfer ring
- *     itself contains empty messages that are acknowledged once data is
+ *     itself contains empty messages that are ackanalwledged once data is
  *     available from the device. If the payloads fit inside the footers
  *     of the completion ring the transfer ring can be configured to be
- *     virtual such that it has no ring buffer.
+ *     virtual such that it has anal ring buffer.
  *
  * ring_id: ring index hardcoded in the firmware
- * doorbell: doorbell index to notify device of new entries
+ * doorbell: doorbell index to analtify device of new entries
  * payload_size: optional in-place payload size
  * mapped_payload_size: optional out-of-place payload size
  * completion_ring: index of corresponding completion ring
  * n_entries: number of entries inside this ring
  * generation: ring generation; incremented on hci_open to detect stale messages
  * sync: set to true for SCO rings
- * virtual: set to true if this ring has no entries and is just required to
+ * virtual: set to true if this ring has anal entries and is just required to
  *          setup a corresponding completion ring for device->host messages
  * d2h_buffers_only: set to true if this ring is only used to provide large
  *                   buffers used by device->host messages in the completion
  *                   ring
- * allow_wait: allow to wait for messages to be acknowledged
+ * allow_wait: allow to wait for messages to be ackanalwledged
  * enabled: true once the ring has been created and can be used
  * ring: ring buffer for entries (struct bcm4377_xfer_ring_entry)
  * ring_dma: DMA address for ring entry buffer
@@ -446,15 +446,15 @@ struct bcm4377_transfer_ring {
 };
 
 /*
- * A completion ring can be either used to either acknowledge messages sent in
+ * A completion ring can be either used to either ackanalwledge messages sent in
  * the corresponding transfer ring or to receive messages associated with the
  * transfer ring. When used to receive messages the transfer ring either
- * has no ring buffer and is only advanced ("virtual transfer ring") or it
+ * has anal ring buffer and is only advanced ("virtual transfer ring") or it
  * only contains empty DMA buffers to be used for the payloads.
  *
  * ring_id: completion ring id, hardcoded in firmware
  * payload_size: optional payload size after each entry
- * delay: unknown delay
+ * delay: unkanalwn delay
  * n_entries: number of entries in this ring
  * enabled: true once the ring has been created and can be used
  * ring: ring buffer for entries (struct bcm4377_completion_ring_entry)
@@ -545,7 +545,7 @@ static const struct dmi_system_id bcm4377_dmi_board_table[];
  * ctx_dma: "Converged IPC" context DMA address
  * ring_state: Shared memory buffer containing ring head and tail indexes
  * ring_state_dma: DMA address for ring_state
- * {control,hci_acl,sco}_ack_ring: Completion rings used to acknowledge messages
+ * {control,hci_acl,sco}_ack_ring: Completion rings used to ackanalwledge messages
  * {hci_acl,sco}_event_ring: Completion rings used for device->host messages
  * control_h2d_ring: Transfer ring used for control messages
  * {hci,sco,acl}_h2d_ring: Transfer ring used to transfer HCI frames
@@ -706,7 +706,7 @@ static void bcm4377_handle_ack(struct bcm4377_data *bcm4377,
 	if (!test_bit(msgid, ring->msgids)) {
 		dev_warn(
 			&bcm4377->pdev->dev,
-			"invalid message id in ack for ring %d: %d is not used\n",
+			"invalid message id in ack for ring %d: %d is analt used\n",
 			ring->ring_id, msgid);
 		goto unlock;
 	}
@@ -790,7 +790,7 @@ static void bcm4377_handle_completion(struct bcm4377_data *bcm4377,
 	default:
 		dev_warn(
 			&bcm4377->pdev->dev,
-			"entry in completion ring %d for unknown transfer ring %d with msg_id %d\n",
+			"entry in completion ring %d for unkanalwn transfer ring %d with msg_id %d\n",
 			ring->ring_id, transfer_ring, msg_id);
 	}
 }
@@ -1077,7 +1077,7 @@ static int bcm4377_create_transfer_ring(struct bcm4377_data *bcm4377,
 
 	/*
 	 * send some messages if this is a device->host ring to allow the device
-	 * to reply by acknowledging them in the completion ring
+	 * to reply by ackanalwledging them in the completion ring
 	 */
 	if (ring->virtual || ring->d2h_buffers_only) {
 		bcm4377->ring_state->xfer_ring_head[ring->ring_id] =
@@ -1145,8 +1145,8 @@ static int __bcm4378_send_calibration(struct bcm4377_data *bcm4377,
 
 	if (!data) {
 		dev_err(&bcm4377->pdev->dev,
-			"no calibration data available.\n");
-		return -ENOENT;
+			"anal calibration data available.\n");
+		return -EANALENT;
 	}
 
 	for (i = 0, left = data_size; i < blocks; ++i, left -= transfer_len) {
@@ -1207,10 +1207,10 @@ static const struct firmware *bcm4377_request_blob(struct bcm4377_data *bcm4377,
 	dev_dbg(&bcm4377->pdev->dev, "Trying to load firmware: '%s' or '%s'\n",
 		name0, name1);
 
-	ret = firmware_request_nowarn(&fw, name0, &bcm4377->pdev->dev);
+	ret = firmware_request_analwarn(&fw, name0, &bcm4377->pdev->dev);
 	if (!ret)
 		return fw;
-	ret = firmware_request_nowarn(&fw, name1, &bcm4377->pdev->dev);
+	ret = firmware_request_analwarn(&fw, name1, &bcm4377->pdev->dev);
 	if (!ret)
 		return fw;
 
@@ -1231,7 +1231,7 @@ static int bcm4377_send_ptb(struct bcm4377_data *bcm4377,
 	 * (even in traces taken from the macOS driver). It's unclear why this
 	 * happens but because the PTB file contains calibration and/or
 	 * regulatory data and may be required on older firmware we still try to
-	 * send it here just in case and just ignore if it fails.
+	 * send it here just in case and just iganalre if it fails.
 	 */
 	if (!IS_ERR(skb))
 		kfree_skb(skb);
@@ -1438,7 +1438,7 @@ static int bcm4377_hci_setup(struct hci_dev *hdev)
 	fw = bcm4377_request_blob(bcm4377, "ptb");
 	if (!fw) {
 		dev_err(&bcm4377->pdev->dev, "failed to load PTB data");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	ret = bcm4377->hw->send_ptb(bcm4377, fw);
@@ -1537,14 +1537,14 @@ static int bcm4377_alloc_transfer_ring(struct bcm4377_data *bcm4377,
 					 ring->n_entries * entry_size,
 					 &ring->ring_dma, GFP_KERNEL);
 	if (!ring->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (ring->allow_wait) {
 		ring->events = devm_kcalloc(&bcm4377->pdev->dev,
 					    ring->n_entries,
 					    sizeof(*ring->events), GFP_KERNEL);
 		if (!ring->events)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	if (ring->mapped_payload_size) {
@@ -1553,7 +1553,7 @@ static int bcm4377_alloc_transfer_ring(struct bcm4377_data *bcm4377,
 			ring->n_entries * ring->mapped_payload_size,
 			&ring->payloads_dma, GFP_KERNEL);
 		if (!ring->payloads)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	return 0;
@@ -1577,7 +1577,7 @@ static int bcm4377_alloc_completion_ring(struct bcm4377_data *bcm4377,
 					 ring->n_entries * entry_size,
 					 &ring->ring_dma, GFP_KERNEL);
 	if (!ring->ring)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 
@@ -1589,14 +1589,14 @@ static int bcm4377_init_context(struct bcm4377_data *bcm4377)
 	bcm4377->ctx = dmam_alloc_coherent(dev, sizeof(*bcm4377->ctx),
 					   &bcm4377->ctx_dma, GFP_KERNEL);
 	if (!bcm4377->ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(bcm4377->ctx, 0, sizeof(*bcm4377->ctx));
 
 	bcm4377->ring_state =
 		dmam_alloc_coherent(dev, sizeof(*bcm4377->ring_state),
 				    &bcm4377->ring_state_dma, GFP_KERNEL);
 	if (!bcm4377->ring_state)
-		return -ENOMEM;
+		return -EANALMEM;
 	memset(bcm4377->ring_state, 0, sizeof(*bcm4377->ring_state));
 
 	bcm4377->ctx->version = cpu_to_le16(1);
@@ -1605,12 +1605,12 @@ static int bcm4377_init_context(struct bcm4377_data *bcm4377)
 
 	/*
 	 * The BT device will write 0x20 bytes of data to this buffer but
-	 * the exact contents are unknown. It only needs to exist for BT
-	 * to work such that we can just allocate and then ignore it.
+	 * the exact contents are unkanalwn. It only needs to exist for BT
+	 * to work such that we can just allocate and then iganalre it.
 	 */
 	if (!dmam_alloc_coherent(&bcm4377->pdev->dev, 0x20,
 				 &peripheral_info_dma, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 	bcm4377->ctx->peripheral_info_addr = cpu_to_le64(peripheral_info_dma);
 
 	bcm4377->ctx->xfer_ring_heads_addr = cpu_to_le64(
@@ -1664,10 +1664,10 @@ static int bcm4377_prepare_rings(struct bcm4377_data *bcm4377)
 	 * Even though many of these settings appear to be configurable
 	 * when sending the "create ring" messages most of these are
 	 * actually hardcoded in some (and quite possibly all) firmware versions
-	 * and changing them on the host has no effect.
+	 * and changing them on the host has anal effect.
 	 * Specifically, this applies to at least the doorbells, the transfer
 	 * and completion ring ids and their mapping (e.g. both HCI and ACL
-	 * entries will always be queued in completion rings 1 and 2 no matter
+	 * entries will always be queued in completion rings 1 and 2 anal matter
 	 * what we configure here).
 	 */
 	bcm4377->control_ack_ring.ring_id = BCM4377_ACK_RING_CONTROL;
@@ -1682,7 +1682,7 @@ static int bcm4377_prepare_rings(struct bcm4377_data *bcm4377)
 	bcm4377->hci_acl_ack_ring.delay = 1000;
 
 	/*
-	 * A payload size of MAX_EVENT_PAYLOAD_SIZE is enough here since large
+	 * A payload size of MAX_EVENT_PAYLOAD_SIZE is eanalugh here since large
 	 * ACL packets will be transmitted inside buffers mapped via
 	 * acl_d2h_ring anyway.
 	 */
@@ -1747,7 +1747,7 @@ static int bcm4377_prepare_rings(struct bcm4377_data *bcm4377)
 
 	/*
 	 * This ring only contains empty buffers to be used by incoming
-	 * ACL packets that do not fit inside the footer of hci_acl_event_ring
+	 * ACL packets that do analt fit inside the footer of hci_acl_event_ring
 	 */
 	bcm4377->acl_d2h_ring.ring_id = BCM4377_XFER_RING_ACL_D2H;
 	bcm4377->acl_d2h_ring.doorbell = BCM4377_DOORBELL_ACL_D2H;
@@ -1757,7 +1757,7 @@ static int bcm4377_prepare_rings(struct bcm4377_data *bcm4377)
 	bcm4377->acl_d2h_ring.n_entries = BCM4377_RING_N_ENTRIES;
 
 	/*
-	 * no need for any cleanup since this is only called from _probe
+	 * anal need for any cleanup since this is only called from _probe
 	 * and only devres-managed allocations are used
 	 */
 	ret = bcm4377_alloc_transfer_ring(bcm4377, &bcm4377->control_h2d_ring);
@@ -1818,13 +1818,13 @@ static int bcm4377_boot(struct bcm4377_data *bcm4377)
 	rti_status = ioread32(bcm4377->bar2 + BCM4377_BAR2_RTI_STATUS);
 
 	if (bootstage != 0) {
-		dev_err(&bcm4377->pdev->dev, "bootstage is %d and not 0\n",
+		dev_err(&bcm4377->pdev->dev, "bootstage is %d and analt 0\n",
 			bootstage);
 		return -EINVAL;
 	}
 
 	if (rti_status != 0) {
-		dev_err(&bcm4377->pdev->dev, "RTI status is %d and not 0\n",
+		dev_err(&bcm4377->pdev->dev, "RTI status is %d and analt 0\n",
 			rti_status);
 		return -EINVAL;
 	}
@@ -1832,13 +1832,13 @@ static int bcm4377_boot(struct bcm4377_data *bcm4377)
 	fw = bcm4377_request_blob(bcm4377, "bin");
 	if (!fw) {
 		dev_err(&bcm4377->pdev->dev, "Failed to load firmware\n");
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	bfr = dma_alloc_coherent(&bcm4377->pdev->dev, fw->size, &fw_dma,
 				 GFP_KERNEL);
 	if (!bfr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release_fw;
 	}
 
@@ -1901,9 +1901,9 @@ static int bcm4377_setup_rti(struct bcm4377_data *bcm4377)
 	}
 
 	if (bcm4377->rti_status != 1) {
-		dev_err(&bcm4377->pdev->dev, "RTI did not ack state 1 (%d)\n",
+		dev_err(&bcm4377->pdev->dev, "RTI did analt ack state 1 (%d)\n",
 			bcm4377->rti_status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	dev_dbg(&bcm4377->pdev->dev, "RTI is in state 1\n");
 
@@ -1931,9 +1931,9 @@ static int bcm4377_setup_rti(struct bcm4377_data *bcm4377)
 	}
 
 	if (bcm4377->rti_status != 2) {
-		dev_err(&bcm4377->pdev->dev, "RTI did not ack state 2 (%d)\n",
+		dev_err(&bcm4377->pdev->dev, "RTI did analt ack state 2 (%d)\n",
 			bcm4377->rti_status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	dev_dbg(&bcm4377->pdev->dev,
@@ -2081,11 +2081,11 @@ static int bcm4377_parse_otp(struct bcm4377_data *bcm4377)
 {
 	u8 *otp;
 	int i;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	otp = kzalloc(BCM4377_OTP_SIZE, GFP_KERNEL);
 	if (!otp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < BCM4377_OTP_SIZE; ++i)
 		otp[i] = ioread8(bcm4377->bar0 + bcm4377->hw->otp_offset + i);
@@ -2113,7 +2113,7 @@ static int bcm4377_parse_otp(struct bcm4377_data *bcm4377)
 				length);
 			break;
 		default:
-			dev_dbg(&bcm4377->pdev->dev, "OTP @ 0x%x (%d): unknown",
+			dev_dbg(&bcm4377->pdev->dev, "OTP @ 0x%x (%d): unkanalwn",
 				i, length);
 			break;
 		}
@@ -2191,7 +2191,7 @@ static int bcm4377_probe_dmi(struct bcm4377_data *bcm4377)
 
 static int bcm4377_probe_of(struct bcm4377_data *bcm4377)
 {
-	struct device_node *np = bcm4377->pdev->dev.of_node;
+	struct device_analde *np = bcm4377->pdev->dev.of_analde;
 	int ret;
 
 	if (!np)
@@ -2200,7 +2200,7 @@ static int bcm4377_probe_of(struct bcm4377_data *bcm4377)
 	ret = of_property_read_string(np, "brcm,board-type",
 				      &bcm4377->board_type);
 	if (ret) {
-		dev_err(&bcm4377->pdev->dev, "no brcm,board-type property\n");
+		dev_err(&bcm4377->pdev->dev, "anal brcm,board-type property\n");
 		return ret;
 	}
 
@@ -2209,15 +2209,15 @@ static int bcm4377_probe_of(struct bcm4377_data *bcm4377)
 				&bcm4377->taurus_beamforming_cal_size);
 	if (!bcm4377->taurus_beamforming_cal_blob) {
 		dev_err(&bcm4377->pdev->dev,
-			"no brcm,taurus-bf-cal-blob property\n");
-		return -ENOENT;
+			"anal brcm,taurus-bf-cal-blob property\n");
+		return -EANALENT;
 	}
 	bcm4377->taurus_cal_blob = of_get_property(np, "brcm,taurus-cal-blob",
 						   &bcm4377->taurus_cal_size);
 	if (!bcm4377->taurus_cal_blob) {
 		dev_err(&bcm4377->pdev->dev,
-			"no brcm,taurus-cal-blob property\n");
-		return -ENOENT;
+			"anal brcm,taurus-cal-blob property\n");
+		return -EANALENT;
 	}
 
 	return 0;
@@ -2264,7 +2264,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	bcm4377 = devm_kzalloc(&pdev->dev, sizeof(*bcm4377), GFP_KERNEL);
 	if (!bcm4377)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bcm4377->pdev = pdev;
 	bcm4377->hw = &bcm4377_hw_variants[id->driver_data];
@@ -2286,7 +2286,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	if (!bcm4377->board_type) {
 		dev_err(&pdev->dev, "unable to determine board type\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (bcm4377->hw->disable_aspm)
@@ -2330,13 +2330,13 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/*
-	 * Legacy interrupts result in an IRQ storm because we don't know where
+	 * Legacy interrupts result in an IRQ storm because we don't kanalw where
 	 * the interrupt mask and status registers for these chips are.
 	 * MSIs are acked automatically instead.
 	 */
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (ret < 0)
-		return -ENODEV;
+		return -EANALDEV;
 	ret = devm_add_action_or_reset(&pdev->dev, bcm4377_pci_free_irq_vectors,
 				       pdev);
 	if (ret)
@@ -2344,7 +2344,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	irq = pci_irq_vector(pdev, 0);
 	if (irq <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = devm_request_irq(&pdev->dev, irq, bcm4377_irq, 0, "bcm4377",
 			       bcm4377);
@@ -2353,7 +2353,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hdev = hci_alloc_dev();
 	if (!hdev)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = devm_add_action_or_reset(&pdev->dev, bcm4377_hci_free_dev, hdev);
 	if (ret)
 		return ret;

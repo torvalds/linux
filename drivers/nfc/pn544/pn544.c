@@ -58,7 +58,7 @@ enum pn544_state {
 #define PN544_RF_READER_NFCIP1_TARGET_GATE	0x31
 
 #define PN544_SYS_MGMT_GATE			0x90
-#define PN544_SYS_MGMT_INFO_NOTIFICATION	0x02
+#define PN544_SYS_MGMT_INFO_ANALTIFICATION	0x02
 
 #define PN544_POLLING_LOOP_MGMT_GATE		0x94
 #define PN544_DEP_MODE				0x01
@@ -276,7 +276,7 @@ static int pn544_hci_ready(struct nfc_hci_dev *hdev)
 
 	param[0] = 0x3d;
 	r = nfc_hci_set_param(hdev, PN544_SYS_MGMT_GATE,
-			      PN544_SYS_MGMT_INFO_NOTIFICATION, param, 1);
+			      PN544_SYS_MGMT_INFO_ANALTIFICATION, param, 1);
 	if (r < 0)
 		return r;
 
@@ -314,7 +314,7 @@ static int pn544_hci_ready(struct nfc_hci_dev *hdev)
 	}
 
 	print_hex_dump(KERN_DEBUG, "FULL VERSION SOFTWARE INFO: ",
-		       DUMP_PREFIX_NONE, 16, 1,
+		       DUMP_PREFIX_ANALNE, 16, 1,
 		       skb->data, FULL_VERSION_LEN, false);
 
 	kfree_skb(skb);
@@ -557,7 +557,7 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 	} else if (target->supported_protocols & NFC_PROTO_ISO14443_MASK) {
 		/*
 		 * TODO: maybe other ISO 14443 require some kind of continue
-		 * activation, but for now we've seen only this one below.
+		 * activation, but for analw we've seen only this one below.
 		 */
 		if (target->sens_res == 0x4403)	/* Type 4 Mifare DESFire */
 			r = nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
@@ -690,14 +690,14 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 	} else if (target->supported_protocols & NFC_PROTO_MIFARE_MASK) {
 		if (target->nfcid1_len != 4 && target->nfcid1_len != 7 &&
 		    target->nfcid1_len != 10)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
 				     target->nfcid1, target->nfcid1_len, NULL);
 	} else if (target->supported_protocols & (NFC_PROTO_JEWEL_MASK |
 						NFC_PROTO_FELICA_MASK)) {
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
 					PN544_HCI_CMD_ATTREQUEST,
@@ -710,7 +710,7 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does analt handle the event, please do standard processing
  */
 static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 				    struct sk_buff *skb)
@@ -773,7 +773,7 @@ static int pn544_hci_fw_download(struct nfc_hci_dev *hdev,
 	struct pn544_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	if (info->fw_download == NULL)
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 
 	return info->fw_download(info->phy_id, firmware_name, hdev->sw_romlib);
 }
@@ -912,7 +912,7 @@ int pn544_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 
 	info = kzalloc(sizeof(struct pn544_hci_info), GFP_KERNEL);
 	if (!info) {
-		r = -ENOMEM;
+		r = -EANALMEM;
 		goto err_info_alloc;
 	}
 
@@ -944,8 +944,8 @@ int pn544_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev\n");
-		r = -ENOMEM;
+		pr_err("Cananalt allocate nfc hdev\n");
+		r = -EANALMEM;
 		goto err_alloc_hdev;
 	}
 

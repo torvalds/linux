@@ -159,7 +159,7 @@ struct dvb_frontend *lnbh25_attach(struct dvb_frontend *fe,
 	fe->sec_priv = priv;
 	if (lnbh25_set_voltage(fe, SEC_VOLTAGE_OFF)) {
 		dev_err(&i2c->dev,
-			"%s(): no LNBH25 found at I2C addr 0x%02x\n",
+			"%s(): anal LNBH25 found at I2C addr 0x%02x\n",
 			__func__, priv->i2c_address);
 		kfree(priv);
 		fe->sec_priv = NULL;

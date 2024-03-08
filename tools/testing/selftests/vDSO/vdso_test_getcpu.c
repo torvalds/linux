@@ -28,13 +28,13 @@ typedef long (*getcpu_t)(unsigned int *, unsigned int *,
 int main(int argc, char **argv)
 {
 	unsigned long sysinfo_ehdr;
-	unsigned int cpu, node;
+	unsigned int cpu, analde;
 	getcpu_t get_cpu;
 	long ret;
 
 	sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
 	if (!sysinfo_ehdr) {
-		printf("AT_SYSINFO_EHDR is not present!\n");
+		printf("AT_SYSINFO_EHDR is analt present!\n");
 		return KSFT_SKIP;
 	}
 
@@ -42,13 +42,13 @@ int main(int argc, char **argv)
 
 	get_cpu = (getcpu_t)vdso_sym(version, name);
 	if (!get_cpu) {
-		printf("Could not find %s\n", name);
+		printf("Could analt find %s\n", name);
 		return KSFT_SKIP;
 	}
 
-	ret = get_cpu(&cpu, &node, 0);
+	ret = get_cpu(&cpu, &analde, 0);
 	if (ret == 0) {
-		printf("Running on CPU %u node %u\n", cpu, node);
+		printf("Running on CPU %u analde %u\n", cpu, analde);
 	} else {
 		printf("%s failed\n", name);
 		return KSFT_FAIL;

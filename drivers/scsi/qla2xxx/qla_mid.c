@@ -72,7 +72,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * Wait for all pending activities to finish before removing vport from
 	 * the list.
 	 * Lock needs to be held for safe removal from the list (it
-	 * ensures no active vp_list traversal while the vport is removed
+	 * ensures anal active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
 	bailout = 0;
@@ -134,7 +134,7 @@ qla24xx_find_vhost_by_name(struct qla_hw_data *ha, uint8_t *port_name)
  *	fcport = port structure pointer.
  *
  * Return:
- *	None.
+ *	Analne.
  *
  * Context:
  */
@@ -142,7 +142,7 @@ static void
 qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 {
 	/*
-	 * !!! NOTE !!!
+	 * !!! ANALTE !!!
 	 * This function, if called in contexts other than vp create, disable
 	 * or delete, please make sure this is synchronized with the
 	 * delete thread.
@@ -327,7 +327,7 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 
 	/*
 	 * To exclusively reset vport, we need to log it out first.
-	 * Note: This control_vp can fail if ISP reset is already
+	 * Analte: This control_vp can fail if ISP reset is already
 	 * issued, this is expected, as the vp would be already
 	 * logged out due to ISP reset.
 	 */
@@ -469,7 +469,7 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 
 	/* Check up whether npiv supported switch presented */
 	if (!(ha->switch_cap & FLOGI_MID_SUPPORT))
-		return VPCERR_NO_FABRIC_SUPP;
+		return VPCERR_ANAL_FABRIC_SUPP;
 
 	/* Check up unique WWPN */
 	u64_to_wwn(fc_vport->port_name, port_name);
@@ -509,7 +509,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host = vha->host;
 	fc_vport->dd_data = vha;
 	/* New host info */
-	u64_to_wwn(fc_vport->node_name, vha->node_name);
+	u64_to_wwn(fc_vport->analde_name, vha->analde_name);
 	u64_to_wwn(fc_vport->port_name, vha->port_name);
 
 	vha->fc_vport = fc_vport;
@@ -547,13 +547,13 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = ql2xmaxlun;
-	host->unique_id = host->host_no;
+	host->unique_id = host->host_anal;
 	host->max_id = ha->max_fibre_devices;
 	host->transportt = qla2xxx_transport_vport_template;
 
 	ql_dbg(ql_dbg_vport, vha, 0xa007,
 	    "Detect vport hba %ld at address = %p.\n",
-	    vha->host_no, vha);
+	    vha->host_anal, vha);
 
 	vha->flags.init_done = 1;
 
@@ -732,7 +732,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	if (que_id >= ha->max_req_queues) {
 		mutex_unlock(&ha->mq_lock);
 		ql_log(ql_log_warn, base_vha, 0x00db,
-		    "No resources to create additional request queue.\n");
+		    "Anal resources to create additional request queue.\n");
 		goto que_failed;
 	}
 	set_bit(que_id, ha->req_qid_map);
@@ -855,7 +855,7 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	if (que_id >= ha->max_rsp_queues) {
 		mutex_unlock(&ha->mq_lock);
 		ql_log(ql_log_warn, base_vha, 0x00e2,
-		    "No resources to create additional request queue.\n");
+		    "Anal resources to create additional request queue.\n");
 		goto que_failed;
 	}
 	set_bit(que_id, ha->rsp_qid_map);
@@ -1092,7 +1092,7 @@ int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
 	if (!qp->buf_pool.buf_map) {
 		ql_log(ql_log_warn, vha, 0x0186,
 		    "Failed to allocate buf_map(%zd).\n", sz * sizeof(unsigned long));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sz = qp->req->length * sizeof(void *);
 	qp->buf_pool.buf_array = kcalloc(qp->req->length, sizeof(void *), GFP_KERNEL);
@@ -1100,7 +1100,7 @@ int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
 		ql_log(ql_log_warn, vha, 0x0186,
 		    "Failed to allocate buf_array(%d).\n", sz);
 		kfree(qp->buf_pool.buf_map);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	sz = qp->req->length * sizeof(dma_addr_t);
 	qp->buf_pool.dma_array = kcalloc(qp->req->length, sizeof(dma_addr_t), GFP_KERNEL);
@@ -1109,7 +1109,7 @@ int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
 		    "Failed to allocate dma_array(%d).\n", sz);
 		kfree(qp->buf_pool.buf_map);
 		kfree(qp->buf_pool.buf_array);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	set_bit(0, qp->buf_pool.buf_map);
 	return 0;
@@ -1165,7 +1165,7 @@ again:
 		if (!buf) {
 			ql_log(ql_log_fatal, vha, 0x13b1,
 			    "Failed to allocate buf.\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		dsc->buf = qp->buf_pool.buf_array[tag] = buf;
@@ -1234,7 +1234,7 @@ static void __qla_adjust_buf(struct qla_qpair *qp)
 		trim = trim ? trim : 1;
 		qla_trim_buf(qp, trim);
 	} else if (!qp->buf_pool.prev_max  && !qp->buf_pool.max_used) {
-		/* 2 periods of no io */
+		/* 2 periods of anal io */
 		qla_trim_buf(qp, qp->buf_pool.num_alloc);
 	}
 }
@@ -1281,7 +1281,7 @@ void qla_adjust_buf(struct scsi_qla_host *vha)
 			continue;
 
 		if (qp->buf_pool.take_snapshot) {
-			/* no io has gone through in the last EXPIRE period */
+			/* anal io has gone through in the last EXPIRE period */
 			spin_lock_irqsave(qp->qp_lock_ptr, flags);
 			__qla_adjust_buf(qp);
 			spin_unlock_irqrestore(qp->qp_lock_ptr, flags);

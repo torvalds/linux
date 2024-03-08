@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/serio.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include "rmi_driver.h"
 
 #define RMI_F03_RX_DATA_OFB		0x01
@@ -147,7 +147,7 @@ static int rmi_f03_pt_open(struct serio *serio)
 
 	/*
 	 * Consume any pending data. Some devices like to spam with
-	 * 0xaa 0x00 announcements which may confuse us as we try to
+	 * 0xaa 0x00 ananaluncements which may confuse us as we try to
 	 * probe the device.
 	 */
 	error = rmi_read_block(fn->rmi_dev, data_addr, &obs, ob_len);
@@ -173,7 +173,7 @@ static int rmi_f03_register_pt(struct f03_data *f03)
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	serio->id.type = SERIO_PS_PSTHRU;
 	serio->write = rmi_f03_pt_write;
@@ -203,7 +203,7 @@ static int rmi_f03_probe(struct rmi_function *fn)
 
 	f03 = devm_kzalloc(dev, sizeof(struct f03_data), GFP_KERNEL);
 	if (!f03)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	f03->fn = fn;
 

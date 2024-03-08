@@ -33,7 +33,7 @@
 #ifdef HAVE_LIBCRYPTO_SUPPORT
 
 #define BUILD_ID_MD5
-#undef BUILD_ID_SHA	/* does not seem to work well when linked with Java */
+#undef BUILD_ID_SHA	/* does analt seem to work well when linked with Java */
 #undef BUILD_ID_URANDOM /* different uuid for each run */
 
 #ifdef BUILD_ID_SHA
@@ -49,10 +49,10 @@
 
 typedef struct {
   unsigned int namesz;  /* Size of entry's owner string */
-  unsigned int descsz;  /* Size of the note descriptor */
+  unsigned int descsz;  /* Size of the analte descriptor */
   unsigned int type;    /* Interpretation of the descriptor */
   char         name[0]; /* Start of the name+desc data */
-} Elf_Note;
+} Elf_Analte;
 
 struct options {
 	char *output;
@@ -73,17 +73,17 @@ static char shd_string_table[] = {
 	'.', 'e', 'h', '_', 'f', 'r', 'a', 'm', 'e', 0, /* 104 */
 };
 
-static struct buildid_note {
-	Elf_Note desc;		/* descsz: size of build-id, must be multiple of 4 */
+static struct buildid_analte {
+	Elf_Analte desc;		/* descsz: size of build-id, must be multiple of 4 */
 	char	 name[4];	/* GNU\0 */
 	char	 build_id[20];
-} bnote;
+} banalte;
 
 static Elf_Sym symtab[]={
 	/* symbol 0 MUST be the undefined symbol */
 	{ .st_name  = 0, /* index in sym_string table */
-	  .st_info  = ELF_ST_TYPE(STT_NOTYPE),
-	  .st_shndx = 0, /* for now */
+	  .st_info  = ELF_ST_TYPE(STT_ANALTYPE),
+	  .st_shndx = 0, /* for analw */
 	  .st_value = 0x0,
 	  .st_other = ELF_ST_VIS(STV_DEFAULT),
 	  .st_size  = 0,
@@ -91,57 +91,57 @@ static Elf_Sym symtab[]={
 	{ .st_name  = 1, /* index in sym_string table */
 	  .st_info  = ELF_ST_BIND(STB_LOCAL) | ELF_ST_TYPE(STT_FUNC),
 	  .st_shndx = 1,
-	  .st_value = 0, /* for now */
+	  .st_value = 0, /* for analw */
 	  .st_other = ELF_ST_VIS(STV_DEFAULT),
-	  .st_size  = 0, /* for now */
+	  .st_size  = 0, /* for analw */
 	}
 };
 
 #ifdef BUILD_ID_URANDOM
 static void
-gen_build_id(struct buildid_note *note,
+gen_build_id(struct buildid_analte *analte,
 	     unsigned long load_addr __maybe_unused,
 	     const void *code __maybe_unused,
 	     size_t csize __maybe_unused)
 {
 	int fd;
-	size_t sz = sizeof(note->build_id);
+	size_t sz = sizeof(analte->build_id);
 	ssize_t sret;
 
 	fd = open("/dev/urandom", O_RDONLY);
 	if (fd == -1)
-		err(1, "cannot access /dev/urandom for buildid");
+		err(1, "cananalt access /dev/urandom for buildid");
 
-	sret = read(fd, note->build_id, sz);
+	sret = read(fd, analte->build_id, sz);
 
 	close(fd);
 
 	if (sret != (ssize_t)sz)
-		memset(note->build_id, 0, sz);
+		memset(analte->build_id, 0, sz);
 }
 #endif
 
 #ifdef BUILD_ID_SHA
 static void
-gen_build_id(struct buildid_note *note,
+gen_build_id(struct buildid_analte *analte,
 	     unsigned long load_addr __maybe_unused,
 	     const void *code,
 	     size_t csize)
 {
-	if (sizeof(note->build_id) < SHA_DIGEST_LENGTH)
+	if (sizeof(analte->build_id) < SHA_DIGEST_LENGTH)
 		errx(1, "build_id too small for SHA1");
 
-	SHA1(code, csize, (unsigned char *)note->build_id);
+	SHA1(code, csize, (unsigned char *)analte->build_id);
 }
 #endif
 
 #ifdef BUILD_ID_MD5
 static void
-gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *code, size_t csize)
+gen_build_id(struct buildid_analte *analte, unsigned long load_addr, const void *code, size_t csize)
 {
 	EVP_MD_CTX *mdctx;
 
-	if (sizeof(note->build_id) < 16)
+	if (sizeof(analte->build_id) < 16)
 		errx(1, "build_id too small for MD5");
 
 	mdctx = EVP_MD_CTX_new();
@@ -151,7 +151,7 @@ gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *cod
 	EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
 	EVP_DigestUpdate(mdctx, &load_addr, sizeof(load_addr));
 	EVP_DigestUpdate(mdctx, code, csize);
-	EVP_DigestFinal_ex(mdctx, (unsigned char *)note->build_id, NULL);
+	EVP_DigestFinal_ex(mdctx, (unsigned char *)analte->build_id, NULL);
 	EVP_MD_CTX_free(mdctx);
 }
 #endif
@@ -170,13 +170,13 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		return -1;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		return -1;
 	}
 
@@ -189,7 +189,7 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		return -1;
 	}
 
@@ -204,13 +204,13 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		return -1;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		return -1;
 	}
 
@@ -223,7 +223,7 @@ jit_add_eh_frame_info(Elf *e, void* unwinding, uint64_t unwinding_header_size,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		return -1;
 	}
 
@@ -260,7 +260,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	int symlen;
 	int retval = -1;
 
-	if (elf_version(EV_CURRENT) == EV_NONE) {
+	if (elf_version(EV_CURRENT) == EV_ANALNE) {
 		warnx("ELF initialization failed");
 		return -1;
 	}
@@ -276,7 +276,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	 */
 	ehdr = elf_newehdr(e);
 	if (!ehdr) {
-		warnx("cannot get ehdr");
+		warnx("cananalt get ehdr");
 		goto error;
 	}
 
@@ -306,13 +306,13 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto error;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto error;
 	}
 
@@ -325,7 +325,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto error;
 	}
 
@@ -353,13 +353,13 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto error;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto error;
 	}
 
@@ -372,7 +372,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto error;
 	}
 
@@ -389,13 +389,13 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto error;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto error;
 	}
 
@@ -408,7 +408,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto error;
 	}
 
@@ -425,20 +425,20 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	symlen = 2 + strlen(sym);
 	strsym = calloc(1, symlen);
 	if (!strsym) {
-		warnx("cannot allocate strsym");
+		warnx("cananalt allocate strsym");
 		goto error;
 	}
 	strcpy(strsym + 1, sym);
 
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto error;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto error;
 	}
 
@@ -451,7 +451,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto error;
 	}
 
@@ -465,43 +465,43 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	 */
 	scn = elf_newscn(e);
 	if (!scn) {
-		warnx("cannot create section");
+		warnx("cananalt create section");
 		goto error;
 	}
 
 	d = elf_newdata(scn);
 	if (!d) {
-		warnx("cannot get new data");
+		warnx("cananalt get new data");
 		goto error;
 	}
 
 	/*
 	 * build-id generation
 	 */
-	gen_build_id(&bnote, load_addr, code, csize);
-	bnote.desc.namesz = sizeof(bnote.name); /* must include 0 termination */
-	bnote.desc.descsz = sizeof(bnote.build_id);
-	bnote.desc.type   = NT_GNU_BUILD_ID;
-	strcpy(bnote.name, "GNU");
+	gen_build_id(&banalte, load_addr, code, csize);
+	banalte.desc.namesz = sizeof(banalte.name); /* must include 0 termination */
+	banalte.desc.descsz = sizeof(banalte.build_id);
+	banalte.desc.type   = NT_GNU_BUILD_ID;
+	strcpy(banalte.name, "GNU");
 
 	d->d_align = 4;
 	d->d_off = 0LL;
-	d->d_buf = &bnote;
+	d->d_buf = &banalte;
 	d->d_type = ELF_T_BYTE;
-	d->d_size = sizeof(bnote);
+	d->d_size = sizeof(banalte);
 	d->d_version = EV_CURRENT;
 
 	shdr = elf_getshdr(scn);
 	if (!shdr) {
-		warnx("cannot get section header");
+		warnx("cananalt get section header");
 		goto error;
 	}
 
 	shdr->sh_name = 33; /* offset in shd_string_table */
-	shdr->sh_type = SHT_NOTE;
+	shdr->sh_type = SHT_ANALTE;
 	shdr->sh_addr = 0x0;
 	shdr->sh_flags = SHF_ALLOC;
-	shdr->sh_size = sizeof(bnote);
+	shdr->sh_size = sizeof(banalte);
 	shdr->sh_entsize = 0;
 
 #ifdef HAVE_DWARF_SUPPORT

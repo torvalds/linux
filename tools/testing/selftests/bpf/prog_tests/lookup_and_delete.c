@@ -16,7 +16,7 @@ static int fill_values(int map_fd)
 	int err;
 
 	for (key = 1; key < MAX_ENTRIES + 1; key++) {
-		err = bpf_map_update_elem(map_fd, &key, &value, BPF_NOEXIST);
+		err = bpf_map_update_elem(map_fd, &key, &value, BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem"))
 			return -1;
 	}
@@ -33,7 +33,7 @@ static int fill_values_percpu(int map_fd)
 		value[i] = START_VALUE;
 
 	for (key = 1; key < MAX_ENTRIES + 1; key++) {
-		err = bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST);
+		err = bpf_map_update_elem(map_fd, &key, value, BPF_ANALEXIST);
 		if (!ASSERT_OK(err, "bpf_map_update_elem"))
 			return -1;
 	}
@@ -122,7 +122,7 @@ static void test_lookup_and_delete_hash(void)
 		  "unexpected value=%lld\n", value))
 		goto cleanup;
 
-	/* Check that the entry is non existent. */
+	/* Check that the entry is analn existent. */
 	err = bpf_map_lookup_elem(map_fd, &key, &value);
 	if (!ASSERT_ERR(err, "bpf_map_lookup_elem"))
 		goto cleanup;
@@ -162,7 +162,7 @@ static void test_lookup_and_delete_percpu_hash(void)
 			goto cleanup;
 	}
 
-	/* Check that the entry is non existent. */
+	/* Check that the entry is analn existent. */
 	err = bpf_map_lookup_elem(map_fd, &key, value);
 	if (!ASSERT_ERR(err, "bpf_map_lookup_elem"))
 		goto cleanup;
@@ -203,7 +203,7 @@ static void test_lookup_and_delete_lru_hash(void)
 		  "unexpected value=%lld\n", value))
 		goto cleanup;
 
-	/* Check that entries 3 and 1 are non existent. */
+	/* Check that entries 3 and 1 are analn existent. */
 	err = bpf_map_lookup_elem(map_fd, &key, &value);
 	if (!ASSERT_ERR(err, "bpf_map_lookup_elem"))
 		goto cleanup;
@@ -262,7 +262,7 @@ static void test_lookup_and_delete_lru_percpu_hash(void)
 		  cpucnt))
 		goto cleanup;
 
-	/* Check that entries 3 and 1 are non existent. */
+	/* Check that entries 3 and 1 are analn existent. */
 	err = bpf_map_lookup_elem(map_fd, &key, &value);
 	if (!ASSERT_ERR(err, "bpf_map_lookup_elem"))
 		goto cleanup;

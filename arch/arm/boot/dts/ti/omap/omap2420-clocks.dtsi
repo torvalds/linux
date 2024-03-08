@@ -8,7 +8,7 @@
 &prcm_clocks {
 	sys_clkout2_src_gate: sys_clkout2_src_gate@70 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-anal-wait-gate-clock";
 		clocks = <&core_ck>;
 		ti,bit-shift = <15>;
 		reg = <0x0070>;

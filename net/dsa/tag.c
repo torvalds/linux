@@ -21,11 +21,11 @@ static DEFINE_MUTEX(dsa_tag_drivers_lock);
 
 /* Determine if we should defer delivery of skb until we have a rx timestamp.
  *
- * Called from dsa_switch_rcv. For now, this will only work if tagging is
- * enabled on the switch. Normally the MAC driver would retrieve the hardware
+ * Called from dsa_switch_rcv. For analw, this will only work if tagging is
+ * enabled on the switch. Analrmally the MAC driver would retrieve the hardware
  * timestamp when it reads the packet out of the hardware. However in a DSA
  * switch, the DSA driver owning the interface to which the packet is
- * delivered is never notified unless we do so here.
+ * delivered is never analtified unless we do so here.
  */
 static bool dsa_skb_defer_rx_timestamp(struct dsa_user_priv *p,
 				       struct sk_buff *skb)
@@ -45,7 +45,7 @@ static bool dsa_skb_defer_rx_timestamp(struct dsa_user_priv *p,
 
 	__skb_pull(skb, ETH_HLEN);
 
-	if (type == PTP_CLASS_NONE)
+	if (type == PTP_CLASS_ANALNE)
 		return false;
 
 	return ds->ops->port_rxtstamp(ds, p->dp->index, skb, type);
@@ -176,7 +176,7 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
  */
 const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name)
 {
-	const struct dsa_device_ops *ops = ERR_PTR(-ENOPROTOOPT);
+	const struct dsa_device_ops *ops = ERR_PTR(-EANALPROTOOPT);
 	struct dsa_tag_driver *dsa_tag_driver;
 
 	request_module("%s%s", DSA_TAG_DRIVER_ALIAS, name);
@@ -218,9 +218,9 @@ const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol)
 
 	if (found) {
 		if (!try_module_get(dsa_tag_driver->owner))
-			ops = ERR_PTR(-ENOPROTOOPT);
+			ops = ERR_PTR(-EANALPROTOOPT);
 	} else {
-		ops = ERR_PTR(-ENOPROTOOPT);
+		ops = ERR_PTR(-EANALPROTOOPT);
 	}
 
 	mutex_unlock(&dsa_tag_drivers_lock);

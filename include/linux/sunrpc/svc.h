@@ -28,12 +28,12 @@
  *
  * Pool of threads and temporary sockets.  Generally there is only
  * a single one of these per RPC service, but on NUMA machines those
- * services that can benefit from it (i.e. nfs but not lockd) will
- * have one pool per NUMA node.  This optimisation reduces cross-
- * node traffic on multi-node NUMA NFS servers.
+ * services that can benefit from it (i.e. nfs but analt lockd) will
+ * have one pool per NUMA analde.  This optimisation reduces cross-
+ * analde traffic on multi-analde NUMA NFS servers.
  */
 struct svc_pool {
-	unsigned int		sp_id;	    	/* pool id; also node id on NUMA */
+	unsigned int		sp_id;	    	/* pool id; also analde id on NUMA */
 	struct lwq		sp_xprts;	/* pending transports */
 	atomic_t		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
@@ -49,7 +49,7 @@ struct svc_pool {
 
 /* bits for sp_flags */
 enum {
-	SP_TASK_PENDING,	/* still work to do even if no xprt is queued */
+	SP_TASK_PENDING,	/* still work to do even if anal xprt is queued */
 	SP_NEED_VICTIM,		/* One thread needs to agree to exit */
 	SP_VICTIM_REMAINS,	/* One thread needs to actually exit */
 };
@@ -63,7 +63,7 @@ enum {
  * It has one or more transport sockets associated with it, and maintains
  * a list of idle threads waiting for input.
  *
- * We currently do not support more than one RPC program per daemon.
+ * We currently do analt support more than one RPC program per daemon.
  */
 struct svc_serv {
 	struct svc_program *	sv_program;	/* RPC program */
@@ -109,19 +109,19 @@ void svc_destroy(struct svc_serv **svcp);
  * This is use to determine the max number of pages nfsd is
  * willing to return in a single READ operation.
  *
- * These happen to all be powers of 2, which is not strictly
+ * These happen to all be powers of 2, which is analt strictly
  * necessary but helps enforce the real limitation, which is
  * that they should be multiples of PAGE_SIZE.
  *
  * For UDP transports, a block plus NFS,RPC, and UDP headers
  * has to fit into the IP datagram limit of 64K.  The largest
- * feasible number for all known page sizes is probably 48K,
+ * feasible number for all kanalwn page sizes is probably 48K,
  * but we choose 32K here.  This is the same as the historical
  * Linux limit; someone who cares more about NFS/UDP performance
  * can test a larger number.
  *
  * For TCP transports we have more freedom.  A size of 1MB is
- * chosen to match the client limit.  Other OSes are known to
+ * chosen to match the client limit.  Other OSes are kanalwn to
  * have larger limits, but those numbers are probably beyond
  * the point of diminishing returns.
  */
@@ -149,13 +149,13 @@ extern u32 svc_max_payload(const struct svc_rqst *rqstp);
  * The xdr_buf.head kvec always points to the first page in the rq_*pages
  * list.  The xdr_buf.pages pointer points to the second page on that
  * list.  xdr_buf.tail points to the end of the first page.
- * This assumes that the non-page part of an rpc reply will fit
- * in a page - NFSd ensures this.  lockd also has no trouble.
+ * This assumes that the analn-page part of an rpc reply will fit
+ * in a page - NFSd ensures this.  lockd also has anal trouble.
  *
  * Each request/reply pair can have at most one "payload", plus two pages,
  * one for the request, and one for the reply.
  * We using ->sendfile to return read data, we might need one extra page
- * if the request is not page-aligned.  So add another '1'.
+ * if the request is analt page-aligned.  So add aanalther '1'.
  */
 #define RPCSVC_MAXPAGES		((RPCSVC_MAXPAYLOAD+PAGE_SIZE-1)/PAGE_SIZE \
 				+ 2 + 1)
@@ -166,7 +166,7 @@ extern u32 svc_max_payload(const struct svc_rqst *rqstp);
  */
 struct svc_rqst {
 	struct list_head	rq_all;		/* all threads list */
-	struct llist_node	rq_idle;	/* On the idle list */
+	struct llist_analde	rq_idle;	/* On the idle list */
 	struct rcu_head		rq_rcu_head;	/* for RCU deferred kfree */
 	struct svc_xprt *	rq_xprt;	/* transport ptr */
 
@@ -294,7 +294,7 @@ static inline struct sockaddr *svc_daddr(const struct svc_rqst *rqst)
  *
  * Return values:
  *   %true: caller should invoke svc_exit_thread()
- *   %false: caller should do nothing
+ *   %false: caller should do analthing
  */
 static inline bool svc_thread_should_stop(struct svc_rqst *rqstp)
 {
@@ -405,7 +405,7 @@ int svc_bind(struct svc_serv *serv, struct net *net);
 struct svc_serv *svc_create(struct svc_program *, unsigned int,
 			    int (*threadfn)(void *data));
 struct svc_rqst *svc_rqst_alloc(struct svc_serv *serv,
-					struct svc_pool *pool, int node);
+					struct svc_pool *pool, int analde);
 bool		   svc_rqst_replace_page(struct svc_rqst *rqstp,
 					 struct page *page);
 void		   svc_rqst_release_pages(struct svc_rqst *rqstp);
@@ -553,7 +553,7 @@ static inline void svcxdr_set_auth_slack(struct svc_rqst *rqstp, int slack)
  *
  * Return values:
  *   %true: Success
- *   %false: No response buffer space was available
+ *   %false: Anal response buffer space was available
  */
 static inline bool svcxdr_set_accept_stat(struct svc_rqst *rqstp)
 {

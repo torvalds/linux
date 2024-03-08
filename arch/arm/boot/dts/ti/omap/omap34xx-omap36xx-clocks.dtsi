@@ -87,7 +87,7 @@
 
 	cam_ick: cam_ick@f10 {
 		#clock-cells = <0>;
-		compatible = "ti,omap3-no-wait-interface-clock";
+		compatible = "ti,omap3-anal-wait-interface-clock";
 		clocks = <&l4_ick>;
 		reg = <0x0f10>;
 		ti,bit-shift = <0>;

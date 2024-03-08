@@ -17,7 +17,7 @@ config QCOM_IPA
 	  driver supports only basic transport of network traffic
 	  between the AP and modem.
 
-	  Note that if selected, the selection type must match that
+	  Analte that if selected, the selection type must match that
 	  of QCOM_Q6V5_COMMON (Y or M).
 
 	  If unsure, say N.

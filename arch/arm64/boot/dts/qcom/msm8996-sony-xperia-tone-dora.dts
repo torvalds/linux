@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2021, AngeloGioacchino Del Regno
- *                     <angelogioacchino.delregno@somainline.org>
+ * Copyright (c) 2021, AngeloGioacchianal Del Reganal
+ *                     <angelogioacchianal.delreganal@somainline.org>
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
@@ -15,9 +15,9 @@
 	chassis-type = "handset";
 };
 
-/delete-node/ &tof_sensor;
-/delete-node/ &pm8994_l11;
-/delete-node/ &pm8994_l14;
+/delete-analde/ &tof_sensor;
+/delete-analde/ &pm8994_l11;
+/delete-analde/ &pm8994_l14;
 
 &usb_detect {
 	pins = "gpio24";

@@ -150,7 +150,7 @@ static int cs5345_probe(struct i2c_client *client)
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &cs5345_ops);
 

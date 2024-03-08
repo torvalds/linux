@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, Linaro Limited, Shannon Zhao
+ * Copyright (c) 2015, Linaro Limited, Shananaln Zhao
  */
 
 #include <linux/platform_device.h>
@@ -66,7 +66,7 @@ static int xen_map_device_mmio(const struct resource *resources,
 			kfree(gpfns);
 			kfree(idxs);
 			kfree(errs);
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto unmap;
 		}
 
@@ -101,87 +101,87 @@ unmap:
 	return rc;
 }
 
-static int xen_platform_notifier(struct notifier_block *nb,
+static int xen_platform_analtifier(struct analtifier_block *nb,
 				 unsigned long action, void *data)
 {
 	struct platform_device *pdev = to_platform_device(data);
 	int r = 0;
 
 	if (pdev->num_resources == 0 || pdev->resource == NULL)
-		return NOTIFY_OK;
+		return ANALTIFY_OK;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		r = xen_map_device_mmio(pdev->resource, pdev->num_resources);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		r = xen_unmap_device_mmio(pdev->resource, pdev->num_resources);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	if (r)
 		dev_err(&pdev->dev, "Platform: Failed to %s device %s MMIO!\n",
-			action == BUS_NOTIFY_ADD_DEVICE ? "map" :
-			(action == BUS_NOTIFY_DEL_DEVICE ? "unmap" : "?"),
+			action == BUS_ANALTIFY_ADD_DEVICE ? "map" :
+			(action == BUS_ANALTIFY_DEL_DEVICE ? "unmap" : "?"),
 			pdev->name);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block platform_device_nb = {
-	.notifier_call = xen_platform_notifier,
+static struct analtifier_block platform_device_nb = {
+	.analtifier_call = xen_platform_analtifier,
 };
 
-static int __init register_xen_platform_notifier(void)
+static int __init register_xen_platform_analtifier(void)
 {
 	if (!xen_initial_domain() || acpi_disabled)
 		return 0;
 
-	return bus_register_notifier(&platform_bus_type, &platform_device_nb);
+	return bus_register_analtifier(&platform_bus_type, &platform_device_nb);
 }
 
-arch_initcall(register_xen_platform_notifier);
+arch_initcall(register_xen_platform_analtifier);
 
 #ifdef CONFIG_ARM_AMBA
 #include <linux/amba/bus.h>
 
-static int xen_amba_notifier(struct notifier_block *nb,
+static int xen_amba_analtifier(struct analtifier_block *nb,
 			     unsigned long action, void *data)
 {
 	struct amba_device *adev = to_amba_device(data);
 	int r = 0;
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_ANALTIFY_ADD_DEVICE:
 		r = xen_map_device_mmio(&adev->res, 1);
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_ANALTIFY_DEL_DEVICE:
 		r = xen_unmap_device_mmio(&adev->res, 1);
 		break;
 	default:
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 	}
 	if (r)
 		dev_err(&adev->dev, "AMBA: Failed to %s device %s MMIO!\n",
-			action == BUS_NOTIFY_ADD_DEVICE ? "map" :
-			(action == BUS_NOTIFY_DEL_DEVICE ? "unmap" : "?"),
+			action == BUS_ANALTIFY_ADD_DEVICE ? "map" :
+			(action == BUS_ANALTIFY_DEL_DEVICE ? "unmap" : "?"),
 			adev->dev.init_name);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
-static struct notifier_block amba_device_nb = {
-	.notifier_call = xen_amba_notifier,
+static struct analtifier_block amba_device_nb = {
+	.analtifier_call = xen_amba_analtifier,
 };
 
-static int __init register_xen_amba_notifier(void)
+static int __init register_xen_amba_analtifier(void)
 {
 	if (!xen_initial_domain() || acpi_disabled)
 		return 0;
 
-	return bus_register_notifier(&amba_bustype, &amba_device_nb);
+	return bus_register_analtifier(&amba_bustype, &amba_device_nb);
 }
 
-arch_initcall(register_xen_amba_notifier);
+arch_initcall(register_xen_amba_analtifier);
 #endif

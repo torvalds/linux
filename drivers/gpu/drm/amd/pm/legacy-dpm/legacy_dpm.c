@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -52,9 +52,9 @@ void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 	const char *s;
 
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
-	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
+	case ATOM_PPLIB_CLASSIFICATION_UI_ANALNE:
 	default:
-		s = "none";
+		s = "analne";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
 		s = "battery";
@@ -70,7 +70,7 @@ void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		pr_cont(" none");
+		pr_cont(" analne");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
 			pr_cont(" boot");
@@ -116,7 +116,7 @@ void amdgpu_dpm_print_cap_info(u32 caps)
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
 		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		pr_cont(" no_dc");
+		pr_cont(" anal_dc");
 	pr_cont("\n");
 }
 
@@ -192,7 +192,7 @@ static int amdgpu_parse_clk_voltage_dep_table(struct amdgpu_clock_voltage_depend
 
 	amdgpu_table->entries = kzalloc(size, GFP_KERNEL);
 	if (!amdgpu_table->entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	entry = &atom_table->entries[0];
 	for (i = 0; i < atom_table->ucNumEntries; i++) {
@@ -332,7 +332,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 					sizeof(struct amdgpu_phase_shedding_limits_entry),
 					GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			entry = &psl->entries[0];
 			for (i = 0; i < psl->ucNumEntries; i++) {
@@ -374,7 +374,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			u32 size = cac_table->ucNumEntries * sizeof(struct amdgpu_cac_leakage_table);
 			adev->pm.dpm.dyn_state.cac_leakage_table.entries = kzalloc(size, GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.cac_leakage_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 			entry = &cac_table->entries[0];
 			for (i = 0; i < cac_table->ucNumEntries; i++) {
 				if (adev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_EVV) {
@@ -427,7 +427,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 			adev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.count =
 				limits->numEntries;
 			entry = &limits->entries[0];
@@ -480,7 +480,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 			adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count =
 				limits->numEntries;
 			entry = &limits->entries[0];
@@ -510,7 +510,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 			adev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.count =
 				limits->numEntries;
 			entry = &limits->entries[0];
@@ -531,7 +531,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.ppm_table =
 				kzalloc(sizeof(struct amdgpu_ppm_table), GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.ppm_table)
-				return -ENOMEM;
+				return -EANALMEM;
 			adev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;
 			adev->pm.dpm.dyn_state.ppm_table->cpu_core_number =
 				le16_to_cpu(ppm->usCpuCoreNumber);
@@ -564,7 +564,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries)
-				return -ENOMEM;
+				return -EANALMEM;
 			adev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.count =
 				limits->numEntries;
 			entry = &limits->entries[0];
@@ -585,7 +585,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			adev->pm.dpm.dyn_state.cac_tdp_table =
 				kzalloc(sizeof(struct amdgpu_cac_tdp_table), GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.cac_tdp_table)
-				return -ENOMEM;
+				return -EANALMEM;
 			if (rev > 0) {
 				ATOM_PPLIB_POWERTUNE_Table_V1 *ppt = (ATOM_PPLIB_POWERTUNE_Table_V1 *)
 					(mode_info->atom_context->bios + data_offset +
@@ -649,7 +649,7 @@ void amdgpu_free_extended_power_table(struct amdgpu_device *adev)
 }
 
 static const char *pp_lib_thermal_controller_names[] = {
-	"NONE",
+	"ANALNE",
 	"lm63",
 	"adm1032",
 	"adm1030",
@@ -659,12 +659,12 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"RV6xx",
 	"RV770",
 	"adt7473",
-	"NONE",
+	"ANALNE",
 	"External GPIO",
 	"Evergreen",
 	"emc2103",
 	"Sumo",
-	"Northern Islands",
+	"Analrthern Islands",
 	"Southern Islands",
 	"lm96163",
 	"Sea Islands",
@@ -690,8 +690,8 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 
 	/* add the i2c bus for thermal/fan chip */
 	if (controller->ucType > 0) {
-		if (controller->ucFanParameters & ATOM_PP_FANPARAMETERS_NOFAN)
-			adev->pm.no_fan = true;
+		if (controller->ucFanParameters & ATOM_PP_FANPARAMETERS_ANALFAN)
+			adev->pm.anal_fan = true;
 		adev->pm.fan_pulses_per_revolution =
 			controller->ucFanParameters & ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
 		if (adev->pm.fan_pulses_per_revolution) {
@@ -701,66 +701,66 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 		if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV770;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SUMO) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SUMO;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_NISLANDS) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_NI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SISLANDS) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_CISLANDS) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_CI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_KAVERI) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_KV;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) {
 			DRM_INFO("External GPIO thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL_GPIO;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) {
 			DRM_INFO("ADT7473 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_ADT7473_WITH_INTERNAL;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
 			DRM_INFO("EMC2103 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EMC2103_WITH_INTERNAL;
 		} else if (controller->ucType < ARRAY_SIZE(pp_lib_thermal_controller_names)) {
 			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
 				 pp_lib_thermal_controller_names[controller->ucType],
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL;
 			i2c_bus = amdgpu_atombios_lookup_i2c_gpio(adev, controller->ucI2cLine);
 			adev->pm.i2c_bus = amdgpu_i2c_lookup(adev, &i2c_bus);
@@ -772,11 +772,11 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				i2c_new_client_device(&adev->pm.i2c_bus->adapter, &info);
 			}
 		} else {
-			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
+			DRM_INFO("Unkanalwn thermal controller type %d at 0x%02x %s fan control\n",
 				 controller->ucType,
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
-				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				  ATOM_PP_FANPARAMETERS_ANALFAN) ? "without" : "with");
 		}
 	}
 }

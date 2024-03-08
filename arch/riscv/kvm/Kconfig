@@ -10,7 +10,7 @@ menuconfig VIRTUALIZATION
 	help
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does analt add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
@@ -29,7 +29,7 @@ config KVM
 	select KVM_GENERIC_HARDWARE_ENABLING
 	select KVM_MMIO
 	select KVM_XFER_TO_GUEST_WORK
-	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_GENERIC_MMU_ANALTIFIER
 	select SCHED_INFO
 	help
 	  Support hosting virtualized guest machines.

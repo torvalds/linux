@@ -13,7 +13,7 @@
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_da_format.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_btree.h"
 #include "xfs_da_btree.h"
 #include "xfs_alloc.h"

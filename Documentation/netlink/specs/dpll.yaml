@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: dpll
 
@@ -31,13 +31,13 @@ definitions:
       -
         name: unlocked
         doc: |
-          dpll was not yet locked to any valid input (or forced by setting
+          dpll was analt yet locked to any valid input (or forced by setting
           DPLL_A_MODE to DPLL_MODE_DETACHED)
         value: 1
       -
         name: locked
         doc: |
-          dpll is locked to a valid signal, but no holdover available
+          dpll is locked to a valid signal, but anal holdover available
       -
         name: locked-ho-acq
         doc: |
@@ -48,7 +48,7 @@ definitions:
           dpll is in holdover state - lost a valid lock or was forced
           by disconnecting all the pins (latter possible only
           when dpll lock-state was already DPLL_LOCK_STATUS_LOCKED_HO_ACQ,
-          if dpll lock-state was not DPLL_LOCK_STATUS_LOCKED_HO_ACQ, the
+          if dpll lock-state was analt DPLL_LOCK_STATUS_LOCKED_HO_ACQ, the
           dpll's lock-state shall remain DPLL_LOCK_STATUS_UNLOCKED)
     render-max: true
   -
@@ -84,7 +84,7 @@ definitions:
     entries:
       -
         name: mux
-        doc: aggregates another layer of selectable pins
+        doc: aggregates aanalther layer of selectable pins
         value: 1
       -
         name: ext
@@ -143,7 +143,7 @@ definitions:
         value: 1
       -
         name: disconnected
-        doc: pin disconnected, not considered as a valid input
+        doc: pin disconnected, analt considered as a valid input
       -
         name: selectable
         doc: pin enabled for automatic input selection
@@ -400,18 +400,18 @@ operations:
             - id
     -
       name: device-create-ntf
-      doc: Notification about device appearing
-      notify: device-get
+      doc: Analtification about device appearing
+      analtify: device-get
       mcgrp: monitor
     -
       name: device-delete-ntf
-      doc: Notification about device disappearing
-      notify: device-get
+      doc: Analtification about device disappearing
+      analtify: device-get
       mcgrp: monitor
     -
       name: device-change-ntf
-      doc: Notification about device configuration being changed
-      notify: device-get
+      doc: Analtification about device configuration being changed
+      analtify: device-get
       mcgrp: monitor
     -
       name: pin-id-get
@@ -497,18 +497,18 @@ operations:
             - phase-adjust
     -
       name: pin-create-ntf
-      doc: Notification about pin appearing
-      notify: pin-get
+      doc: Analtification about pin appearing
+      analtify: pin-get
       mcgrp: monitor
     -
       name: pin-delete-ntf
-      doc: Notification about pin disappearing
-      notify: pin-get
+      doc: Analtification about pin disappearing
+      analtify: pin-get
       mcgrp: monitor
     -
       name: pin-change-ntf
-      doc: Notification about pin configuration being changed
-      notify: pin-get
+      doc: Analtification about pin configuration being changed
+      analtify: pin-get
       mcgrp: monitor
 
 mcast-groups:

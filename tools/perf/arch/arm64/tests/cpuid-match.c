@@ -8,7 +8,7 @@
 int test__cpuid_match(struct test_suite *test __maybe_unused,
 			     int subtest __maybe_unused)
 {
-	/* midr with no leading zeros matches */
+	/* midr with anal leading zeros matches */
 	if (strcmp_cpuid_str("0x410fd0c0", "0x00000000410fd0c0"))
 		return -1;
 	/* Upper case matches */

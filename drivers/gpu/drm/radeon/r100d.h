@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -43,7 +43,7 @@
 #define		PACKET3_COUNT_SHIFT		16
 #define		PACKET3_COUNT_MASK		(0x3fff << 16)
 /* PACKET3 op code */
-#define		PACKET3_NOP			0x10
+#define		PACKET3_ANALP			0x10
 #define		PACKET3_3D_DRAW_VBUF		0x28
 #define		PACKET3_3D_DRAW_IMMD		0x29
 #define		PACKET3_3D_DRAW_INDX		0x2A
@@ -133,9 +133,9 @@
 #define   S_000030_BM_DAC_CRIPPLE(x)                   (((x) & 0x1) << 8)
 #define   G_000030_BM_DAC_CRIPPLE(x)                   (((x) >> 8) & 0x1)
 #define   C_000030_BM_DAC_CRIPPLE                      0xFFFFFEFF
-#define   S_000030_BUS_NON_PM4_READ_COMBINE_EN(x)      (((x) & 0x1) << 9)
-#define   G_000030_BUS_NON_PM4_READ_COMBINE_EN(x)      (((x) >> 9) & 0x1)
-#define   C_000030_BUS_NON_PM4_READ_COMBINE_EN         0xFFFFFDFF
+#define   S_000030_BUS_ANALN_PM4_READ_COMBINE_EN(x)      (((x) & 0x1) << 9)
+#define   G_000030_BUS_ANALN_PM4_READ_COMBINE_EN(x)      (((x) >> 9) & 0x1)
+#define   C_000030_BUS_ANALN_PM4_READ_COMBINE_EN         0xFFFFFDFF
 #define   S_000030_BUS_XFERD_DISCARD_EN(x)             (((x) & 0x1) << 10)
 #define   G_000030_BUS_XFERD_DISCARD_EN(x)             (((x) >> 10) & 0x1)
 #define   C_000030_BUS_XFERD_DISCARD_EN                0xFFFFFBFF
@@ -541,9 +541,9 @@
 #define   G_000360_CUR2_LOCK(x)                        (((x) >> 31) & 0x1)
 #define   C_000360_CUR2_LOCK                           0x7FFFFFFF
 #define R_0003C2_GENMO_WT                            0x0003C2
-#define   S_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) & 0x1) << 0)
-#define   G_0003C2_GENMO_MONO_ADDRESS_B(x)             (((x) >> 0) & 0x1)
-#define   C_0003C2_GENMO_MONO_ADDRESS_B                0xFE
+#define   S_0003C2_GENMO_MOANAL_ADDRESS_B(x)             (((x) & 0x1) << 0)
+#define   G_0003C2_GENMO_MOANAL_ADDRESS_B(x)             (((x) >> 0) & 0x1)
+#define   C_0003C2_GENMO_MOANAL_ADDRESS_B                0xFE
 #define   S_0003C2_VGA_RAM_EN(x)                       (((x) & 0x1) << 1)
 #define   G_0003C2_VGA_RAM_EN(x)                       (((x) >> 1) & 0x1)
 #define   C_0003C2_VGA_RAM_EN                          0xFD
@@ -609,9 +609,9 @@
 #define   G_0003F8_CRTC2_VSYNC_DIS(x)                  (((x) >> 29) & 0x1)
 #define   C_0003F8_CRTC2_VSYNC_DIS                     0xDFFFFFFF
 #define R_000420_OV0_SCALE_CNTL                      0x000420
-#define   S_000420_OV0_NO_READ_BEHIND_SCAN(x)          (((x) & 0x1) << 1)
-#define   G_000420_OV0_NO_READ_BEHIND_SCAN(x)          (((x) >> 1) & 0x1)
-#define   C_000420_OV0_NO_READ_BEHIND_SCAN             0xFFFFFFFD
+#define   S_000420_OV0_ANAL_READ_BEHIND_SCAN(x)          (((x) & 0x1) << 1)
+#define   G_000420_OV0_ANAL_READ_BEHIND_SCAN(x)          (((x) >> 1) & 0x1)
+#define   C_000420_OV0_ANAL_READ_BEHIND_SCAN             0xFFFFFFFD
 #define   S_000420_OV0_HORZ_PICK_NEAREST(x)            (((x) & 0x1) << 2)
 #define   G_000420_OV0_HORZ_PICK_NEAREST(x)            (((x) >> 2) & 0x1)
 #define   C_000420_OV0_HORZ_PICK_NEAREST               0xFFFFFFFB
@@ -836,11 +836,11 @@
 #define   GLOBAL_PMAN_EN                               (1 << 10)
 #define   DISP_PM                                      (1 << 20)
 #define PLL_PWRMGT_CNTL                                0x15
-#define   MPLL_TURNOFF                                 (1 << 0)
-#define   SPLL_TURNOFF                                 (1 << 1)
-#define   PPLL_TURNOFF                                 (1 << 2)
-#define   P2PLL_TURNOFF                                (1 << 3)
-#define   TVPLL_TURNOFF                                (1 << 4)
+#define   MPLL_TURANALFF                                 (1 << 0)
+#define   SPLL_TURANALFF                                 (1 << 1)
+#define   PPLL_TURANALFF                                 (1 << 2)
+#define   P2PLL_TURANALFF                                (1 << 3)
+#define   TVPLL_TURANALFF                                (1 << 4)
 #define   MOBILE_SU                                    (1 << 16)
 #define   SU_SCLK_USE_BCLK                             (1 << 17)
 #define SCLK_CNTL2                                     0x1e

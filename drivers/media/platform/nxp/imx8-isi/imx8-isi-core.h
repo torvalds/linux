@@ -29,7 +29,7 @@
 struct clk_bulk_data;
 struct dentry;
 struct device;
-struct media_intf_devnode;
+struct media_intf_devanalde;
 struct regmap;
 struct v4l2_m2m_dev;
 
@@ -264,7 +264,7 @@ struct mxc_isi_m2m {
 
 	struct media_pad		pad;
 	struct video_device		vdev;
-	struct media_intf_devnode	*intf;
+	struct media_intf_devanalde	*intf;
 	struct v4l2_m2m_dev		*m2m_dev;
 
 	/* Protects last_ctx, usage_count and chained_count */
@@ -290,7 +290,7 @@ struct mxc_isi_dev {
 
 	struct media_device		media_dev;
 	struct v4l2_device		v4l2_dev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 
 	struct dentry			*debugfs_root;
 };

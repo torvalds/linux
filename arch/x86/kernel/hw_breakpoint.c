@@ -18,7 +18,7 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/irqflags.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/percpu.h>
@@ -121,7 +121,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 
 	/*
 	 * Ensure we first write cpu_dr7 before we set the DR7 register.
-	 * This ensures an NMI never see cpu_dr7 0 when DR7 is not.
+	 * This ensures an NMI never see cpu_dr7 0 when DR7 is analt.
 	 */
 	barrier();
 
@@ -170,7 +170,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 
 	/*
 	 * Ensure the write to cpu_dr7 is after we've set the DR7 register.
-	 * This ensures an NMI never see cpu_dr7 0 when DR7 is not.
+	 * This ensures an NMI never see cpu_dr7 0 when DR7 is analt.
 	 */
 	barrier();
 
@@ -270,7 +270,7 @@ static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
 		return true;
 
 	/*
-	 * When FSGSBASE is enabled, paranoid_entry() fetches the per-CPU
+	 * When FSGSBASE is enabled, paraanalid_entry() fetches the per-CPU
 	 * GSBASE value via __per_cpu_offset or pcpu_unit_offsets.
 	 */
 #ifdef CONFIG_SMP
@@ -290,7 +290,7 @@ static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
 			return true;
 
 		/*
-		 * cpu_tss_rw is not directly referenced by hardware, but
+		 * cpu_tss_rw is analt directly referenced by hardware, but
 		 * cpu_tss_rw is also used in CPU entry code,
 		 */
 		if (within_area(addr, end,
@@ -352,8 +352,8 @@ static int arch_build_bp_info(struct perf_event *bp,
 		break;
 	case HW_BREAKPOINT_X:
 		/*
-		 * We don't allow kernel breakpoints in places that are not
-		 * acceptable for kprobes.  On non-kprobes kernels, we don't
+		 * We don't allow kernel breakpoints in places that are analt
+		 * acceptable for kprobes.  On analn-kprobes kernels, we don't
 		 * allow kernel breakpoints at all.
 		 */
 		if (attr->bp_addr >= TASK_SIZE_MAX) {
@@ -364,7 +364,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 		hw->type = X86_BREAKPOINT_EXECUTE;
 		/*
 		 * x86 inst breakpoints need to have a specific undefined len.
-		 * But we still need to check userspace is not trying to setup
+		 * But we still need to check userspace is analt trying to setup
 		 * an unsupported length, to get a range breakpoint for example.
 		 */
 		if (attr->bp_len == sizeof(long)) {
@@ -400,7 +400,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 			return -EINVAL;
 
 		if (!boot_cpu_has(X86_FEATURE_BPEXT))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/*
 		 * It's impossible to use a range breakpoint to fake out
@@ -492,24 +492,24 @@ void hw_breakpoint_restore(void)
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception analtifications.
  *
- * Return value is either NOTIFY_STOP or NOTIFY_DONE as explained below.
+ * Return value is either ANALTIFY_STOP or ANALTIFY_DONE as explained below.
  *
- * NOTIFY_DONE returned if one of the following conditions is true.
+ * ANALTIFY_DONE returned if one of the following conditions is true.
  * i) When the causative address is from user-space and the exception
- * is a valid one, i.e. not triggered as a result of lazy debug register
+ * is a valid one, i.e. analt triggered as a result of lazy debug register
  * switching
  * ii) When there are more bits than trap<n> set in DR6 register (such
  * as BD, BS or BT) indicating that more than one debug condition is
  * met and requires some more action in do_debug().
  *
- * NOTIFY_STOP returned for all other cases
+ * ANALTIFY_STOP returned for all other cases
  *
  */
 static int hw_breakpoint_handler(struct die_args *args)
 {
-	int i, rc = NOTIFY_STOP;
+	int i, rc = ANALTIFY_STOP;
 	struct perf_event *bp;
 	unsigned long *dr6_p;
 	unsigned long dr6;
@@ -519,9 +519,9 @@ static int hw_breakpoint_handler(struct die_args *args)
 	dr6_p = (unsigned long *)ERR_PTR(args->err);
 	dr6 = *dr6_p;
 
-	/* Do an early return if no trap bits are set in DR6 */
+	/* Do an early return if anal trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Handle all the breakpoints that were triggered */
 	for (i = 0; i < HBP_NUM; ++i) {
@@ -547,7 +547,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 			continue;
 
 		/*
-		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
+		 * Reset the 'i'th TRAP bit in dr6 to deanalte completion of
 		 * exception handling
 		 */
 		(*dr6_p) &= ~(DR_TRAP0 << i);
@@ -569,19 +569,19 @@ static int hw_breakpoint_handler(struct die_args *args)
 	 */
 	if ((current->thread.virtual_dr6 & DR_TRAP_BITS) ||
 	    (dr6 & (~DR_TRAP_BITS)))
-		rc = NOTIFY_DONE;
+		rc = ANALTIFY_DONE;
 
 	return rc;
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception analtifications.
  */
-int hw_breakpoint_exceptions_notify(
-		struct notifier_block *unused, unsigned long val, void *data)
+int hw_breakpoint_exceptions_analtify(
+		struct analtifier_block *unused, unsigned long val, void *data)
 {
 	if (val != DIE_DEBUG)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	return hw_breakpoint_handler(data);
 }

@@ -85,12 +85,12 @@ __live_active_setup(struct drm_i915_private *i915)
 
 	active = __live_alloc(i915);
 	if (!active)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	submit = heap_fence_create(GFP_KERNEL);
 	if (!submit) {
 		kfree(active);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	err = i915_active_acquire(&active->base);
@@ -126,7 +126,7 @@ __live_active_setup(struct drm_i915_private *i915)
 		err = -EINVAL;
 	}
 	if (atomic_read(&active->base.count) != count) {
-		pr_err("i915_active not tracking all requests, found %d, expected %d\n",
+		pr_err("i915_active analt tracking all requests, found %d, expected %d\n",
 		       atomic_read(&active->base.count), count);
 		err = -EINVAL;
 	}
@@ -158,7 +158,7 @@ static int live_active_wait(void *arg)
 	if (!READ_ONCE(active->retired)) {
 		struct drm_printer p = drm_err_printer(__func__);
 
-		pr_err("i915_active not retired after waiting!\n");
+		pr_err("i915_active analt retired after waiting!\n");
 		i915_active_print(&active->base, &p);
 
 		err = -EINVAL;
@@ -191,7 +191,7 @@ static int live_active_retire(void *arg)
 	if (!READ_ONCE(active->retired)) {
 		struct drm_printer p = drm_err_printer(__func__);
 
-		pr_err("i915_active not retired after flushing!\n");
+		pr_err("i915_active analt retired after flushing!\n");
 		i915_active_print(&active->base, &p);
 
 		err = -EINVAL;
@@ -213,7 +213,7 @@ static int live_active_barrier(void *arg)
 
 	active = __live_alloc(i915);
 	if (!active)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = i915_active_acquire(&active->base);
 	if (err)
@@ -234,7 +234,7 @@ static int live_active_barrier(void *arg)
 
 	__i915_active_wait(&active->base, TASK_UNINTERRUPTIBLE);
 	if (!READ_ONCE(active->retired)) {
-		pr_err("i915_active not retired after flushing barriers!\n");
+		pr_err("i915_active analt retired after flushing barriers!\n");
 		err = -EINVAL;
 	}
 
@@ -261,7 +261,7 @@ int i915_active_live_selftests(struct drm_i915_private *i915)
 	return i915_subtests(tests, i915);
 }
 
-static struct intel_engine_cs *node_to_barrier(struct active_node *it)
+static struct intel_engine_cs *analde_to_barrier(struct active_analde *it)
 {
 	struct intel_engine_cs *engine;
 
@@ -281,15 +281,15 @@ void i915_active_print(struct i915_active *ref, struct drm_printer *m)
 	drm_printf(m, "active %ps:%ps\n", ref->active, ref->retire);
 	drm_printf(m, "\tcount: %d\n", atomic_read(&ref->count));
 	drm_printf(m, "\tpreallocated barriers? %s\n",
-		   str_yes_no(!llist_empty(&ref->preallocated_barriers)));
+		   str_anal_anal(!llist_empty(&ref->preallocated_barriers)));
 
 	if (i915_active_acquire_if_busy(ref)) {
-		struct active_node *it, *n;
+		struct active_analde *it, *n;
 
-		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, analde) {
 			struct intel_engine_cs *engine;
 
-			engine = node_to_barrier(it);
+			engine = analde_to_barrier(it);
 			if (engine) {
 				drm_printf(m, "\tbarrier: %s\n", engine->name);
 				continue;
@@ -322,7 +322,7 @@ static void active_flush(struct i915_active *ref,
 		return;
 
 	spin_lock_irq(fence->lock);
-	__list_del_entry(&active->cb.node);
+	__list_del_entry(&active->cb.analde);
 	spin_unlock_irq(fence->lock); /* serialise with fence->cb_list */
 	atomic_dec(&ref->count);
 
@@ -332,12 +332,12 @@ static void active_flush(struct i915_active *ref,
 void i915_active_unlock_wait(struct i915_active *ref)
 {
 	if (i915_active_acquire_if_busy(ref)) {
-		struct active_node *it, *n;
+		struct active_analde *it, *n;
 
 		/* Wait for all active callbacks */
 		rcu_read_lock();
 		active_flush(ref, &ref->excl);
-		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node)
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, analde)
 			active_flush(ref, &it->base);
 		rcu_read_unlock();
 

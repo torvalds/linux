@@ -3,7 +3,7 @@
  * Device handling thread interface for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.anal>
  */
 
 #ifndef CW1200_BH_H

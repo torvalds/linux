@@ -21,7 +21,7 @@ struct network_helper_opts {
 	const char *cc;
 	int timeout_ms;
 	bool must_fail;
-	bool noconnect;
+	bool analconnect;
 	int type;
 	int proto;
 };

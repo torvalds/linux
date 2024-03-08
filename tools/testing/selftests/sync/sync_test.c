@@ -13,12 +13,12 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  *  Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
+ *  The above copyright analtice and this permission analtice shall be included in
  *  all copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ *  IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL
  *  THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  *  OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  *  ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -31,7 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
 #include "../kselftest.h"
@@ -71,14 +71,14 @@ static void sync_api_supported(void)
 	if (!ret)
 		return;
 
-	if (errno == ENOENT)
-		ksft_exit_skip("Sync framework not supported by kernel\n");
+	if (erranal == EANALENT)
+		ksft_exit_skip("Sync framework analt supported by kernel\n");
 
-	if (errno == EACCES)
+	if (erranal == EACCES)
 		ksft_exit_skip("Run Sync test as root.\n");
 
 	ksft_exit_fail_msg("stat failed on /sys/kernel/debug/sync/sw_sync: %s",
-				strerror(errno));
+				strerror(erranal));
 }
 
 int main(void)

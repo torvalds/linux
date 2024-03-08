@@ -265,7 +265,7 @@
  * R10 (0x0A) - DAC CTRL
  */
 #define WM8990_AIF_LRCLKRATE                    0x0400  /* AIF_LRCLKRATE */
-#define WM8990_DAC_MONO                         0x0200  /* DAC_MONO */
+#define WM8990_DAC_MOANAL                         0x0200  /* DAC_MOANAL */
 #define WM8990_DAC_SB_FILT                      0x0100  /* DAC_SB_FILT */
 #define WM8990_DAC_MUTERATE                     0x0080  /* DAC_MUTERATE */
 #define WM8990_DAC_MUTEMODE                     0x0040  /* DAC_MUTEMODE */

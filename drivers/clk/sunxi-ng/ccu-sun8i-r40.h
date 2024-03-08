@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #ifndef _CCU_SUN8I_R40_H_

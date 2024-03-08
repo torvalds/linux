@@ -100,7 +100,7 @@ static int cros_ec_light_prox_read(struct iio_dev *indio_dev,
 		 * y coded on 16 bits, between 0 and 9999.
 		 */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_RANGE;
-		st->core.param.sensor_range.data = EC_MOTION_SENSE_NO_VALUE;
+		st->core.param.sensor_range.data = EC_MOTION_SENSE_ANAL_VALUE;
 
 		ret = cros_ec_motion_send_host_cmd(&st->core, 0);
 		if (ret)
@@ -135,7 +135,7 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		st->core.calib[idx].offset = val;
-		/* Send to EC for each axis, even if not complete */
+		/* Send to EC for each axis, even if analt complete */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_OFFSET;
 		st->core.param.sensor_offset.flags = MOTION_SENSE_SET_OFFSET;
 		st->core.param.sensor_offset.offset[0] =
@@ -179,7 +179,7 @@ static int cros_ec_light_prox_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = cros_ec_sensors_core_init(pdev, indio_dev, true,
 					cros_ec_sensors_capture);
@@ -219,7 +219,7 @@ static int cros_ec_light_prox_probe(struct platform_device *pdev)
 			BIT(IIO_CHAN_INFO_CALIBSCALE);
 		break;
 	default:
-		dev_warn(dev, "Unknown motion sensor\n");
+		dev_warn(dev, "Unkanalwn motion sensor\n");
 		return -EINVAL;
 	}
 

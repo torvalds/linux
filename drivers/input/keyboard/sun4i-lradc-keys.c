@@ -11,7 +11,7 @@
  * a resistor network. This driver is for the keys on such boards.
  *
  * There are 2 channels, currently this driver only supports channel 0 since
- * there are no boards known to use channel 1.
+ * there are anal boards kanalwn to use channel 1.
  */
 
 #include <linux/clk.h>
@@ -62,28 +62,28 @@
 
 /* struct lradc_variant - Describe sun4i-a10-lradc-keys hardware variant
  * @divisor_numerator:		The numerator of lradc Vref internally divisor
- * @divisor_denominator:	The denominator of lradc Vref internally divisor
+ * @divisor_deanalminator:	The deanalminator of lradc Vref internally divisor
  * @has_clock_reset:		If the binding requires a clock and reset
  */
 struct lradc_variant {
 	u8 divisor_numerator;
-	u8 divisor_denominator;
+	u8 divisor_deanalminator;
 	bool has_clock_reset;
 };
 
 static const struct lradc_variant lradc_variant_a10 = {
 	.divisor_numerator = 2,
-	.divisor_denominator = 3
+	.divisor_deanalminator = 3
 };
 
 static const struct lradc_variant r_lradc_variant_a83t = {
 	.divisor_numerator = 3,
-	.divisor_denominator = 4
+	.divisor_deanalminator = 4
 };
 
 static const struct lradc_variant lradc_variant_r329 = {
 	.divisor_numerator = 3,
-	.divisor_denominator = 4,
+	.divisor_deanalminator = 4,
 	.has_clock_reset = true,
 };
 
@@ -114,7 +114,7 @@ static irqreturn_t sun4i_lradc_irq(int irq, void *dev_id)
 	ints  = readl(lradc->base + LRADC_INTS);
 
 	/*
-	 * lradc supports only one keypress at a time, release does not give
+	 * lradc supports only one keypress at a time, release does analt give
 	 * any info as to which key was released, so we cache the keycode.
 	 */
 
@@ -165,7 +165,7 @@ static int sun4i_lradc_open(struct input_dev *dev)
 
 	lradc->vref = regulator_get_voltage(lradc->vref_supply) *
 		      lradc->variant->divisor_numerator /
-		      lradc->variant->divisor_denominator;
+		      lradc->variant->divisor_deanalminator;
 	/*
 	 * Set sample time to 4 ms / 250 Hz. Wait 2 * 4 ms for key to
 	 * stabilize on press, wait (1 + 1) * 4 ms for key release
@@ -202,11 +202,11 @@ static void sun4i_lradc_close(struct input_dev *dev)
 static int sun4i_lradc_load_dt_keymap(struct device *dev,
 				      struct sun4i_lradc_data *lradc)
 {
-	struct device_node *np, *pp;
+	struct device_analde *np, *pp;
 	int i;
 	int error;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	if (!np)
 		return -EINVAL;
 
@@ -220,31 +220,31 @@ static int sun4i_lradc_load_dt_keymap(struct device *dev,
 					      sizeof(struct sun4i_lradc_keymap),
 					      GFP_KERNEL);
 	if (!lradc->chan0_map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i = 0;
-	for_each_child_of_node(np, pp) {
+	for_each_child_of_analde(np, pp) {
 		struct sun4i_lradc_keymap *map = &lradc->chan0_map[i];
 		u32 channel;
 
 		error = of_property_read_u32(pp, "channel", &channel);
 		if (error || channel != 0) {
 			dev_err(dev, "%pOFn: Inval channel prop\n", pp);
-			of_node_put(pp);
+			of_analde_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "voltage", &map->voltage);
 		if (error) {
 			dev_err(dev, "%pOFn: Inval voltage prop\n", pp);
-			of_node_put(pp);
+			of_analde_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "linux,code", &map->keycode);
 		if (error) {
 			dev_err(dev, "%pOFn: Inval linux,code prop\n", pp);
-			of_node_put(pp);
+			of_analde_put(pp);
 			return -EINVAL;
 		}
 
@@ -262,7 +262,7 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 
 	lradc = devm_kzalloc(dev, sizeof(struct sun4i_lradc_data), GFP_KERNEL);
 	if (!lradc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = sun4i_lradc_load_dt_keymap(dev, lradc);
 	if (error)
@@ -291,7 +291,7 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 	lradc->dev = dev;
 	lradc->input = devm_input_allocate_device(dev);
 	if (!lradc->input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lradc->input->name = pdev->name;
 	lradc->input->phys = "sun4i_lradc/input0";

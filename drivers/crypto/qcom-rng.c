@@ -129,7 +129,7 @@ static int qcom_rng_enable(struct qcom_rng *rng)
 	if (ret)
 		return ret;
 
-	/* Enable PRNG only if it is not already enabled */
+	/* Enable PRNG only if it is analt already enabled */
 	val = readl_relaxed(rng->base + PRNG_CONFIG);
 	if (val & PRNG_CONFIG_HW_ENABLE)
 		goto already_enabled;
@@ -183,7 +183,7 @@ static int qcom_rng_probe(struct platform_device *pdev)
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rng);
 	mutex_init(&rng->lock);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __HDLC_IOCTL_H__
 #define __HDLC_IOCTL_H__
 
@@ -21,7 +21,7 @@
 
 
 #define PARITY_DEFAULT		0 /* Default setting */
-#define PARITY_NONE		1 /* No parity */
+#define PARITY_ANALNE		1 /* Anal parity */
 #define PARITY_CRC16_PR0	2 /* CRC16, initial value 0x0000 */
 #define PARITY_CRC16_PR1	3 /* CRC16, initial value 0xFFFF */
 #define PARITY_CRC16_PR0_CCITT	4 /* CRC16, initial 0x0000, ITU-T version */
@@ -30,7 +30,7 @@
 #define PARITY_CRC32_PR1_CCITT	7 /* CRC32, initial value 0xFFFFFFFF */
 
 #define LMI_DEFAULT		0 /* Default setting */
-#define LMI_NONE		1 /* No LMI, all PVCs are static */
+#define LMI_ANALNE		1 /* Anal LMI, all PVCs are static */
 #define LMI_ANSI		2 /* ANSI Annex D */
 #define LMI_CCITT		3 /* ITU-T Annex A */
 #define LMI_CISCO		4 /* The "original" LMI, aka Gang of Four */
@@ -88,7 +88,7 @@ typedef struct {
 	unsigned int n2; /* frame retry counter */
 } x25_hdlc_proto;
 
-/* PPP doesn't need any info now - supply length = 0 to ioctl */
+/* PPP doesn't need any info analw - supply length = 0 to ioctl */
 
 #endif /* __ASSEMBLY__ */
 #endif /* __HDLC_IOCTL_H__ */

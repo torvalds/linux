@@ -4,7 +4,7 @@
 
 #include <linux/build_bug.h>
 
-#define MMU_NO_CONTEXT      (0)
+#define MMU_ANAL_CONTEXT      (0)
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */

@@ -53,7 +53,7 @@ nla_put_failure:
  * The dumping handle is marked to be in backward compatibility mode telling
  * all gnet_stats_copy_XXX() functions to fill a local copy of struct tc_stats.
  *
- * Returns 0 on success or -1 if the room in the socket buffer was not sufficient.
+ * Returns 0 on success or -1 if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(gnet_stats_start_copy_compat);
  * an empty TLV header to the socket buffer for use a container for all
  * other statistic TLVS.
  *
- * Returns 0 on success or -1 if the room in the socket buffer was not sufficient.
+ * Returns 0 on success or -1 if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
@@ -114,7 +114,7 @@ gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
 }
 EXPORT_SYMBOL(gnet_stats_start_copy);
 
-/* Must not be inlined, due to u64_stats seqcount_t lockdep key */
+/* Must analt be inlined, due to u64_stats seqcount_t lockdep key */
 void gnet_stats_basic_sync_init(struct gnet_stats_basic_sync *b)
 {
 	u64_stats_set(&b->bytes, 0);
@@ -248,13 +248,13 @@ ___gnet_stats_copy_basic(struct gnet_dump *d,
  *           internal values might change during basic reads.
  *           Only used if @cpu is NULL
  *
- * Context: task; must not be run from IRQ or BH contexts
+ * Context: task; must analt be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_copy_basic(struct gnet_dump *d,
@@ -275,13 +275,13 @@ EXPORT_SYMBOL(gnet_stats_copy_basic);
  *           internal values might change during basic reads.
  *           Only used if @cpu is NULL
  *
- * Context: task; must not be run from IRQ or BH contexts
+ * Context: task; must analt be run from IRQ or BH contexts
  *
  * Appends the basic statistics to the top level TLV created by
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_copy_basic_hw(struct gnet_dump *d,
@@ -302,7 +302,7 @@ EXPORT_SYMBOL(gnet_stats_copy_basic_hw);
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_copy_rate_est(struct gnet_dump *d,
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(gnet_stats_add_queue);
  * they are available.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_copy_queue(struct gnet_dump *d,
@@ -420,7 +420,7 @@ EXPORT_SYMBOL(gnet_stats_copy_queue);
  * handle is in backward compatibility mode.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_copy_app(struct gnet_dump *d, void *st, int len)
@@ -456,7 +456,7 @@ EXPORT_SYMBOL(gnet_stats_copy_app);
  * lock.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was analt sufficient.
  */
 int
 gnet_stats_finish_copy(struct gnet_dump *d)

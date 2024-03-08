@@ -77,11 +77,11 @@ static struct sk_buff *efx_rx_mk_skb(struct efx_channel *channel,
 			       efx->rx_ip_align + efx->rx_prefix_size +
 			       hdr_len);
 	if (unlikely(skb == NULL)) {
-		atomic_inc(&efx->n_rx_noskb_drops);
+		atomic_inc(&efx->n_rx_analskb_drops);
 		return NULL;
 	}
 
-	EFX_WARN_ON_ONCE_PARANOID(rx_buf->len < hdr_len);
+	EFX_WARN_ON_ONCE_PARAANALID(rx_buf->len < hdr_len);
 
 	memcpy(skb->data + efx->rx_ip_align, eh - efx->rx_prefix_size,
 	       efx->rx_prefix_size + hdr_len);
@@ -223,7 +223,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 	skb_record_rx_queue(skb, channel->rx_queue.core_index);
 
 	/* Set the SKB flags */
-	skb_checksum_none_assert(skb);
+	skb_checksum_analne_assert(skb);
 	if (likely(rx_buf->flags & EFX_RX_PKT_CSUMMED)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->csum_level = !!(rx_buf->flags & EFX_RX_PKT_CSUM_LEVEL);
@@ -240,7 +240,7 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 		/* Add to list, will pass up later */
 		list_add_tail(&skb->list, channel->rx_list);
 	else
-		/* No list, so pass it up now */
+		/* Anal list, so pass it up analw */
 		netif_receive_skb(skb);
 }
 
@@ -272,7 +272,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 				    channel->rx_pkt_n_frags);
 		if (net_ratelimit())
 			netif_err(efx, rx_err, efx->net_dev,
-				  "XDP is not possible with multiple receive fragments (%d)\n",
+				  "XDP is analt possible with multiple receive fragments (%d)\n",
 				  channel->rx_pkt_n_frags);
 		channel->n_rx_xdp_bad_drops++;
 		return false;
@@ -282,12 +282,12 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 				rx_buf->len, DMA_FROM_DEVICE);
 
 	/* Save the rx prefix. */
-	EFX_WARN_ON_PARANOID(efx->rx_prefix_size > EFX_MAX_RX_PREFIX_SIZE);
+	EFX_WARN_ON_PARAANALID(efx->rx_prefix_size > EFX_MAX_RX_PREFIX_SIZE);
 	memcpy(rx_prefix, *ehp - efx->rx_prefix_size,
 	       efx->rx_prefix_size);
 
 	xdp_init_buff(&xdp, efx->rx_page_buf_step, &rx_queue->xdp_rxq_info);
-	/* No support yet for XDP metadata */
+	/* Anal support yet for XDP metadata */
 	xdp_prepare_buff(&xdp, *ehp - EFX_XDP_HEADROOM, EFX_XDP_HEADROOM,
 			 rx_buf->len, false);
 
@@ -371,7 +371,7 @@ void __efx_rx_packet(struct efx_channel *channel)
 	if (rx_buf->flags & EFX_RX_PKT_PREFIX_LEN) {
 		rx_buf->len = le16_to_cpup((__le16 *)
 					   (eh + efx->rx_packet_len_offset));
-		/* A known issue may prevent this being filled in;
+		/* A kanalwn issue may prevent this being filled in;
 		 * if that happens, just drop the packet.
 		 * Must do that in the driver since passing a zero-length
 		 * packet up to the stack may cause a crash.

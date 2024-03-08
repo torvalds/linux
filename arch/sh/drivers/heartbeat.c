@@ -8,7 +8,7 @@
  * be independently controlled (either via a pre-defined hardware
  * function or via the LED class, if desired -- the hardware tends to
  * encapsulate some of the same "triggers" that the LED class supports,
- * so there's not too much value in it).
+ * so there's analt too much value in it).
  *
  * Additionally, most of these boards also have a LED bank that we've
  * traditionally used for strobing the load average. This use case is
@@ -93,7 +93,7 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 	} else {
 		hd = kzalloc(sizeof(struct heartbeat_data), GFP_KERNEL);
 		if (unlikely(!hd))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	hd->base = ioremap(res->start, resource_size(res));
@@ -146,7 +146,7 @@ static struct platform_driver heartbeat_driver = {
 
 static int __init heartbeat_init(void)
 {
-	printk(KERN_NOTICE DRV_NAME ": version %s loaded\n", DRV_VERSION);
+	printk(KERN_ANALTICE DRV_NAME ": version %s loaded\n", DRV_VERSION);
 	return platform_driver_register(&heartbeat_driver);
 }
 device_initcall(heartbeat_init);

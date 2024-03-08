@@ -17,7 +17,7 @@ static int lan966x_xdp_setup(struct net_device *dev, struct netdev_bpf *xdp)
 	if (!lan966x->fdma) {
 		NL_SET_ERR_MSG_MOD(xdp->extack,
 				   "Allow to set xdp only when using fdma");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	old_xdp = lan966x_xdp_present(lan966x);

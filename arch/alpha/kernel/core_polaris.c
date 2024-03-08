@@ -39,7 +39,7 @@
  * on POLARIS, since the chip itself generates Type 0 or Type 1
  * cycles automatically depending on the bus number (Bus 0 is
  * hardwired to Type 0, all others are Type 1.  Peer bridges
- * are not supported).
+ * are analt supported).
  *
  * All types:
  *
@@ -54,7 +54,7 @@
  *	10:8	function number
  *	 7:2	register number
  *  
- * Notes:
+ * Analtes:
  *	The function number selects which function of a multi-function device 
  *	(e.g., scsi and ethernet).
  * 
@@ -88,7 +88,7 @@ polaris_read_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -114,7 +114,7 @@ polaris_write_config(struct pci_bus *bus, unsigned int devfn, int where,
 	unsigned char type1;
 
 	if (mk_conf_addr(bus, devfn, where, &addr, &type1))
-                return PCIBIOS_DEVICE_NOT_FOUND;
+                return PCIBIOS_DEVICE_ANALT_FOUND;
 
 	switch (size) {
 	case 1:
@@ -149,7 +149,7 @@ polaris_init_arch(void)
 	struct pci_controller *hose;
 
 	/* May need to initialize error reporting (see PCICTL0/1), but
-	 * for now assume that the firmware has done the right thing
+	 * for analw assume that the firmware has done the right thing
 	 * already.
 	 */
 #if 0

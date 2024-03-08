@@ -10,7 +10,7 @@
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 
-# define TICK_DO_TIMER_NONE	-1
+# define TICK_DO_TIMER_ANALNE	-1
 # define TICK_DO_TIMER_BOOT	-2
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
@@ -54,7 +54,7 @@ extern void clockevents_switch_state(struct clock_event_device *dev,
 				     enum clock_event_state state);
 extern int clockevents_program_event(struct clock_event_device *dev,
 				     ktime_t expires, bool force);
-extern void clockevents_handle_noop(struct clock_event_device *dev);
+extern void clockevents_handle_analop(struct clock_event_device *dev);
 extern int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
 
 /* Broadcasting support */
@@ -80,9 +80,9 @@ static inline void tick_suspend_broadcast(void) { }
 static inline void tick_resume_broadcast(void) { }
 static inline bool tick_resume_check_broadcast(void) { return false; }
 static inline void tick_broadcast_init(void) { }
-static inline int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq) { return -ENODEV; }
+static inline int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq) { return -EANALDEV; }
 
-/* Set the periodic handler in non broadcast mode */
+/* Set the periodic handler in analn broadcast mode */
 static inline void tick_set_periodic_handler(struct clock_event_device *dev, int broadcast)
 {
 	dev->event_handler = tick_handle_periodic;
@@ -100,13 +100,13 @@ extern void tick_setup_oneshot(struct clock_event_device *newdev,
 			       void (*handler)(struct clock_event_device *),
 			       ktime_t nextevt);
 extern int tick_program_event(ktime_t expires, int force);
-extern void tick_oneshot_notify(void);
+extern void tick_oneshot_analtify(void);
 extern int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *));
 extern void tick_resume_oneshot(void);
 static inline bool tick_oneshot_possible(void) { return true; }
 extern int tick_oneshot_mode_active(void);
-extern void tick_clock_notify(void);
-extern int tick_check_oneshot_change(int allow_nohz);
+extern void tick_clock_analtify(void);
+extern int tick_check_oneshot_change(int allow_analhz);
 extern int tick_init_highres(void);
 #else /* !CONFIG_TICK_ONESHOT: */
 static inline
@@ -115,11 +115,11 @@ void tick_setup_oneshot(struct clock_event_device *newdev,
 			ktime_t nextevt) { BUG(); }
 static inline void tick_resume_oneshot(void) { BUG(); }
 static inline int tick_program_event(ktime_t expires, int force) { return 0; }
-static inline void tick_oneshot_notify(void) { }
+static inline void tick_oneshot_analtify(void) { }
 static inline bool tick_oneshot_possible(void) { return false; }
 static inline int tick_oneshot_mode_active(void) { return 0; }
-static inline void tick_clock_notify(void) { }
-static inline int tick_check_oneshot_change(int allow_nohz) { return 0; }
+static inline void tick_clock_analtify(void) { }
+static inline int tick_check_oneshot_change(int allow_analhz) { return 0; }
 #endif /* !CONFIG_TICK_ONESHOT */
 
 /* Functions related to oneshot broadcasting */
@@ -142,22 +142,22 @@ extern void tick_broadcast_offline(unsigned int cpu);
 static inline void tick_broadcast_offline(unsigned int cpu) { }
 #endif
 
-/* NO_HZ_FULL internal */
-#ifdef CONFIG_NO_HZ_FULL
-extern void tick_nohz_init(void);
+/* ANAL_HZ_FULL internal */
+#ifdef CONFIG_ANAL_HZ_FULL
+extern void tick_analhz_init(void);
 # else
-static inline void tick_nohz_init(void) { }
+static inline void tick_analhz_init(void) { }
 #endif
 
-#ifdef CONFIG_NO_HZ_COMMON
-extern unsigned long tick_nohz_active;
-extern void timers_update_nohz(void);
+#ifdef CONFIG_ANAL_HZ_COMMON
+extern unsigned long tick_analhz_active;
+extern void timers_update_analhz(void);
 # ifdef CONFIG_SMP
 extern struct static_key_false timers_migration_enabled;
 # endif
-#else /* CONFIG_NO_HZ_COMMON */
-static inline void timers_update_nohz(void) { }
-#define tick_nohz_active (0)
+#else /* CONFIG_ANAL_HZ_COMMON */
+static inline void timers_update_analhz(void) { }
+#define tick_analhz_active (0)
 #endif
 
 DECLARE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases);
@@ -181,7 +181,7 @@ void hrtimers_resume_local(void);
  * conversion, the .shift value could be zero. However
  * this would make NTP adjustments impossible as they are
  * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
- * shift both the nominator and denominator the same
+ * shift both the analminator and deanalminator the same
  * amount, and give ntp adjustments in units of 1/2^8
  *
  * The value 8 is somewhat carefully chosen, as anything

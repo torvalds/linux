@@ -106,7 +106,7 @@ asmlinkage void plat_irq_dispatch(void)
 		if (likely(irq > 0))
 			do_IRQ(irq + JAZZ_IRQ_START - 1);
 		else
-			panic("Unimplemented loc_no_irq handler");
+			panic("Unimplemented loc_anal_irq handler");
 	}
 }
 

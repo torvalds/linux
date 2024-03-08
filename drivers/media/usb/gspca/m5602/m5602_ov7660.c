@@ -3,7 +3,7 @@
  * Driver for the ov7660 sensor
  *
  * Copyright (C) 2009 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilanal Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -177,7 +177,7 @@ static struct v4l2_pix_format ov7660_modes[] = {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
+		V4L2_FIELD_ANALNE,
 		.sizeimage =
 			640 * 480,
 		.bytesperline = 640,
@@ -200,9 +200,9 @@ int ov7660_probe(struct sd *sd)
 			pr_info("Forcing an %s sensor\n", ov7660.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor,
+		/* If we want to force aanalther sensor,
 		don't try to probe this one */
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Do the preinit */
@@ -223,10 +223,10 @@ int ov7660_probe(struct sd *sd)
 		return err;
 
 	if (m5602_read_sensor(sd, OV7660_PID, &prod_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (m5602_read_sensor(sd, OV7660_VER, &ver_id, 1))
-		return -ENODEV;
+		return -EANALDEV;
 
 	pr_info("Sensor reported 0x%x%x\n", prod_id, ver_id);
 
@@ -234,7 +234,7 @@ int ov7660_probe(struct sd *sd)
 		pr_info("Detected a ov7660 sensor\n");
 		goto sensor_found;
 	}
-	return -ENODEV;
+	return -EANALDEV;
 
 sensor_found:
 	sd->gspca_dev.cam.cam_mode = ov7660_modes;
@@ -293,7 +293,7 @@ int ov7660_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 

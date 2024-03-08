@@ -225,7 +225,7 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 		fmt->fmt.pix.width = width;
 		fmt->fmt.pix.height = height;
 		fmt->fmt.pix.pixelformat = pixelformat;
-		fmt->fmt.pix.field = V4L2_FIELD_NONE;
+		fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 		fmt->fmt.pix.bytesperline = 0;
 		fmt->fmt.pix.sizeimage = GO7007_BUF_SIZE;
 		fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -313,7 +313,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	fmt->fmt.pix.width = go->width;
 	fmt->fmt.pix.height = go->height;
 	fmt->fmt.pix.pixelformat = go->format;
-	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.field = V4L2_FIELD_ANALNE;
 	fmt->fmt.pix.bytesperline = 0;
 	fmt->fmt.pix.sizeimage = GO7007_BUF_SIZE;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -391,7 +391,7 @@ static void go7007_buf_finish(struct vb2_buffer *vb)
 	vbuf->flags &= ~(V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_BFRAME |
 			V4L2_BUF_FLAG_PFRAME);
 	vbuf->flags |= frame_type_flag;
-	vbuf->field = V4L2_FIELD_NONE;
+	vbuf->field = V4L2_FIELD_ANALNE;
 }
 
 static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -462,7 +462,7 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 	struct go7007 *go = video_drvdata(filp);
 	struct v4l2_fract timeperframe = {
 		.numerator = 1001 *  go->fps_scale,
-		.denominator = go->sensor_framerate,
+		.deanalminator = go->sensor_framerate,
 	};
 
 	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -486,7 +486,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
 	n = go->sensor_framerate *
 		parm->parm.capture.timeperframe.numerator;
-	d = 1001 * parm->parm.capture.timeperframe.denominator;
+	d = 1001 * parm->parm.capture.timeperframe.deanalminator;
 	if (n != 0 && d != 0 && n > d)
 		go->fps_scale = (n + d/2) / d;
 	else
@@ -496,7 +496,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 }
 
 /* VIDIOC_ENUMSTD on go7007 were used for enumerating the supported fps and
-   its resolution, when the device is not connected to TV.
+   its resolution, when the device is analt connected to TV.
    This is were an API abuse, probably used by the lack of specific IOCTL's to
    enumerate it, by the time the driver was written.
 
@@ -548,7 +548,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 	}
 	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fival->discrete.numerator = 1001 * (fival->index + 1);
-	fival->discrete.denominator = go->sensor_framerate;
+	fival->discrete.deanalminator = go->sensor_framerate;
 	return 0;
 }
 
@@ -618,7 +618,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		inp->audioset = 0;
 	inp->tuner = 0;
 	if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
-		inp->std = video_devdata(file)->tvnorms;
+		inp->std = video_devdata(file)->tvanalrms;
 	else
 		inp->std = 0;
 
@@ -874,7 +874,7 @@ static const struct video_device go7007_template = {
 	.fops		= &go7007_fops,
 	.release	= video_device_release_empty,
 	.ioctl_ops	= &video_ioctl_ops,
-	.tvnorms	= V4L2_STD_ALL,
+	.tvanalrms	= V4L2_STD_ALL,
 };
 
 static const struct v4l2_ctrl_ops go7007_ctrl_ops = {
@@ -1060,7 +1060,7 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 	if (hdl->error) {
 		int rv = hdl->error;
 
-		v4l2_err(&go->v4l2_dev, "Could not register controls\n");
+		v4l2_err(&go->v4l2_dev, "Could analt register controls\n");
 		return rv;
 	}
 	go->v4l2_dev.ctrl_handler = hdl;
@@ -1082,7 +1082,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	go->vidq.mem_ops = &vb2_vmalloc_memops;
 	go->vidq.drv_priv = go;
 	go->vidq.buf_struct_size = sizeof(struct go7007_buffer);
-	go->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	go->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	go->vidq.lock = &go->queue_lock;
 	rv = vb2_queue_init(&go->vidq);
 	if (rv)
@@ -1116,7 +1116,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV)) {
 		v4l2_disable_ioctl(vdev, VIDIOC_G_STD);
 		v4l2_disable_ioctl(vdev, VIDIOC_S_STD);
-		vdev->tvnorms = 0;
+		vdev->tvanalrms = 0;
 	}
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING)
 		v4l2_disable_ioctl(vdev, VIDIOC_ENUM_FRAMESIZES);
@@ -1138,7 +1138,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	if (rv < 0)
 		return rv;
 	dev_info(go->dev, "registered device %s [v4l2]\n",
-		 video_device_node_name(vdev));
+		 video_device_analde_name(vdev));
 
 	return 0;
 }

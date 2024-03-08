@@ -85,7 +85,7 @@ static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
 	int val = num - MT2701_IO_I2S;
 
 	if (val < 0 || val >= afe_priv->soc->i2s_num) {
-		dev_err(afe->dev, "%s, num not available, num %d, val %d\n",
+		dev_err(afe->dev, "%s, num analt available, num %d, val %d\n",
 			__func__, num, val);
 		return -EINVAL;
 	}
@@ -174,10 +174,10 @@ static int mt2701_i2s_path_enable(struct mtk_base_afe *afe,
 {
 	const struct mt2701_i2s_data *i2s_data = i2s_path->i2s_data[stream_dir];
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	int reg, fs, w_len = 1; /* now we support bck 64bits only */
+	int reg, fs, w_len = 1; /* analw we support bck 64bits only */
 	unsigned int mask, val;
 
-	/* no need to enable if already done */
+	/* anal need to enable if already done */
 	if (++i2s_path->on[stream_dir] != 1)
 		return 0;
 
@@ -346,7 +346,7 @@ static void mt2701_btmrg_shutdown(struct snd_pcm_substream *substream,
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 
-	/* if the other direction stream is not occupied */
+	/* if the other direction stream is analt occupied */
 	if (!afe_priv->mrg_enable[!substream->stream]) {
 		regmap_update_bits(afe->regmap, AFE_DAIBT_CON0,
 				   AFE_DAIBT_CON0_DAIBT_EN, 0);
@@ -371,7 +371,7 @@ static int mt2701_simple_fe_startup(struct snd_pcm_substream *substream,
 	if (stream_dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		memif_tmp = &afe->memif[MT2701_MEMIF_DLM];
 		if (memif_tmp->substream) {
-			dev_warn(afe->dev, "memif is not available");
+			dev_warn(afe->dev, "memif is analt available");
 			return -EBUSY;
 		}
 	}
@@ -808,7 +808,7 @@ static const struct snd_kcontrol_new mt2701_afe_o31_mix[] = {
 };
 
 static const struct snd_kcontrol_new mt2701_afe_i02_mix[] = {
-	SOC_DAPM_SINGLE("I2S0 Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("I2S0 Switch", SND_SOC_ANALPM, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_i2s0[] = {
@@ -833,61 +833,61 @@ static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_i2s3[] = {
 
 static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
 	/* inter-connections */
-	SND_SOC_DAPM_MIXER("I00", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I01", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I02", SND_SOC_NOPM, 0, 0, mt2701_afe_i02_mix,
+	SND_SOC_DAPM_MIXER("I00", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I01", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I02", SND_SOC_ANALPM, 0, 0, mt2701_afe_i02_mix,
 			   ARRAY_SIZE(mt2701_afe_i02_mix)),
-	SND_SOC_DAPM_MIXER("I03", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I12", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I13", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I14", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I15", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I16", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I17", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I18", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I19", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I26", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("I35", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I03", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I12", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I13", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I14", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I15", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I16", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I17", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I18", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I19", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I26", SND_SOC_ANALPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I35", SND_SOC_ANALPM, 0, 0, NULL, 0),
 
-	SND_SOC_DAPM_MIXER("O00", SND_SOC_NOPM, 0, 0, mt2701_afe_o00_mix,
+	SND_SOC_DAPM_MIXER("O00", SND_SOC_ANALPM, 0, 0, mt2701_afe_o00_mix,
 			   ARRAY_SIZE(mt2701_afe_o00_mix)),
-	SND_SOC_DAPM_MIXER("O01", SND_SOC_NOPM, 0, 0, mt2701_afe_o01_mix,
+	SND_SOC_DAPM_MIXER("O01", SND_SOC_ANALPM, 0, 0, mt2701_afe_o01_mix,
 			   ARRAY_SIZE(mt2701_afe_o01_mix)),
-	SND_SOC_DAPM_MIXER("O02", SND_SOC_NOPM, 0, 0, mt2701_afe_o02_mix,
+	SND_SOC_DAPM_MIXER("O02", SND_SOC_ANALPM, 0, 0, mt2701_afe_o02_mix,
 			   ARRAY_SIZE(mt2701_afe_o02_mix)),
-	SND_SOC_DAPM_MIXER("O03", SND_SOC_NOPM, 0, 0, mt2701_afe_o03_mix,
+	SND_SOC_DAPM_MIXER("O03", SND_SOC_ANALPM, 0, 0, mt2701_afe_o03_mix,
 			   ARRAY_SIZE(mt2701_afe_o03_mix)),
-	SND_SOC_DAPM_MIXER("O14", SND_SOC_NOPM, 0, 0, mt2701_afe_o14_mix,
+	SND_SOC_DAPM_MIXER("O14", SND_SOC_ANALPM, 0, 0, mt2701_afe_o14_mix,
 			   ARRAY_SIZE(mt2701_afe_o14_mix)),
-	SND_SOC_DAPM_MIXER("O15", SND_SOC_NOPM, 0, 0, mt2701_afe_o15_mix,
+	SND_SOC_DAPM_MIXER("O15", SND_SOC_ANALPM, 0, 0, mt2701_afe_o15_mix,
 			   ARRAY_SIZE(mt2701_afe_o15_mix)),
-	SND_SOC_DAPM_MIXER("O16", SND_SOC_NOPM, 0, 0, mt2701_afe_o16_mix,
+	SND_SOC_DAPM_MIXER("O16", SND_SOC_ANALPM, 0, 0, mt2701_afe_o16_mix,
 			   ARRAY_SIZE(mt2701_afe_o16_mix)),
-	SND_SOC_DAPM_MIXER("O17", SND_SOC_NOPM, 0, 0, mt2701_afe_o17_mix,
+	SND_SOC_DAPM_MIXER("O17", SND_SOC_ANALPM, 0, 0, mt2701_afe_o17_mix,
 			   ARRAY_SIZE(mt2701_afe_o17_mix)),
-	SND_SOC_DAPM_MIXER("O18", SND_SOC_NOPM, 0, 0, mt2701_afe_o18_mix,
+	SND_SOC_DAPM_MIXER("O18", SND_SOC_ANALPM, 0, 0, mt2701_afe_o18_mix,
 			   ARRAY_SIZE(mt2701_afe_o18_mix)),
-	SND_SOC_DAPM_MIXER("O19", SND_SOC_NOPM, 0, 0, mt2701_afe_o19_mix,
+	SND_SOC_DAPM_MIXER("O19", SND_SOC_ANALPM, 0, 0, mt2701_afe_o19_mix,
 			   ARRAY_SIZE(mt2701_afe_o19_mix)),
-	SND_SOC_DAPM_MIXER("O20", SND_SOC_NOPM, 0, 0, mt2701_afe_o20_mix,
+	SND_SOC_DAPM_MIXER("O20", SND_SOC_ANALPM, 0, 0, mt2701_afe_o20_mix,
 			   ARRAY_SIZE(mt2701_afe_o20_mix)),
-	SND_SOC_DAPM_MIXER("O21", SND_SOC_NOPM, 0, 0, mt2701_afe_o21_mix,
+	SND_SOC_DAPM_MIXER("O21", SND_SOC_ANALPM, 0, 0, mt2701_afe_o21_mix,
 			   ARRAY_SIZE(mt2701_afe_o21_mix)),
-	SND_SOC_DAPM_MIXER("O22", SND_SOC_NOPM, 0, 0, mt2701_afe_o22_mix,
+	SND_SOC_DAPM_MIXER("O22", SND_SOC_ANALPM, 0, 0, mt2701_afe_o22_mix,
 			   ARRAY_SIZE(mt2701_afe_o22_mix)),
-	SND_SOC_DAPM_MIXER("O31", SND_SOC_NOPM, 0, 0, mt2701_afe_o31_mix,
+	SND_SOC_DAPM_MIXER("O31", SND_SOC_ANALPM, 0, 0, mt2701_afe_o31_mix,
 			   ARRAY_SIZE(mt2701_afe_o31_mix)),
 
-	SND_SOC_DAPM_MIXER("I12I13", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I12I13", SND_SOC_ANALPM, 0, 0,
 			   mt2701_afe_multi_ch_out_i2s0,
 			   ARRAY_SIZE(mt2701_afe_multi_ch_out_i2s0)),
-	SND_SOC_DAPM_MIXER("I14I15", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I14I15", SND_SOC_ANALPM, 0, 0,
 			   mt2701_afe_multi_ch_out_i2s1,
 			   ARRAY_SIZE(mt2701_afe_multi_ch_out_i2s1)),
-	SND_SOC_DAPM_MIXER("I16I17", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I16I17", SND_SOC_ANALPM, 0, 0,
 			   mt2701_afe_multi_ch_out_i2s2,
 			   ARRAY_SIZE(mt2701_afe_multi_ch_out_i2s2)),
-	SND_SOC_DAPM_MIXER("I18I19", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("I18I19", SND_SOC_ANALPM, 0, 0,
 			   mt2701_afe_multi_ch_out_i2s3,
 			   ARRAY_SIZE(mt2701_afe_multi_ch_out_i2s3)),
 };
@@ -981,8 +981,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 16,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 16,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 1,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -999,8 +999,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 17,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 17,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 2,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1017,8 +1017,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 18,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 18,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 3,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1035,8 +1035,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 19,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 19,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 4,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1053,8 +1053,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 20,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 20,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 20,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 5,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1071,8 +1071,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moanal_reg = -1,
+		.moanal_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 7,
 		.hd_reg = AFE_MEMIF_PBUF_SIZE,
@@ -1089,8 +1089,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 0,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 0,
+		.moanal_reg = AFE_DAC_CON4,
+		.moanal_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 10,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1107,8 +1107,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 5,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 2,
+		.moanal_reg = AFE_DAC_CON4,
+		.moanal_shift = 2,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 11,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1125,8 +1125,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 4,
+		.moanal_reg = AFE_DAC_CON4,
+		.moanal_shift = 4,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 12,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1143,8 +1143,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 15,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 6,
+		.moanal_reg = AFE_DAC_CON4,
+		.moanal_shift = 6,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 13,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1160,8 +1160,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.reg_ofs_cur = AFE_UL5_CUR,
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 20,
-		.mono_reg = AFE_DAC_CON4,
-		.mono_shift = 8,
+		.moanal_reg = AFE_DAC_CON4,
+		.moanal_shift = 8,
 		.fs_maskbit = 0x1f,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 14,
@@ -1179,8 +1179,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON3,
 		.fs_shift = 10,
 		.fs_maskbit = 0x1f,
-		.mono_reg = AFE_DAC_CON3,
-		.mono_shift = 22,
+		.moanal_reg = AFE_DAC_CON3,
+		.moanal_shift = 22,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 8,
 		.hd_reg = AFE_MEMIF_HD_CON0,
@@ -1197,8 +1197,8 @@ static const struct mtk_base_memif_data memif_data_array[MT2701_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = 30,
 		.fs_maskbit = 0x1,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moanal_reg = -1,
+		.moanal_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 17,
 		.hd_reg = AFE_MEMIF_HD_CON1,
@@ -1318,12 +1318,12 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
 	if (!afe)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe->platform_priv = devm_kzalloc(&pdev->dev, sizeof(*afe_priv),
 					  GFP_KERNEL);
 	if (!afe->platform_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	afe_priv = afe->platform_priv;
 	afe_priv->soc = of_device_get_match_data(&pdev->dev);
@@ -1335,22 +1335,22 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 					  sizeof(struct mt2701_i2s_path),
 					  GFP_KERNEL);
 	if (!afe_priv->i2s_path)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	irq_id = platform_get_irq_byname(pdev, "asys");
 	if (irq_id < 0)
 		return irq_id;
 
 	ret = devm_request_irq(dev, irq_id, mt2701_asys_isr,
-			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
+			       IRQF_TRIGGER_ANALNE, "asys-isr", (void *)afe);
 	if (ret) {
-		dev_err(dev, "could not request_irq for asys-isr\n");
+		dev_err(dev, "could analt request_irq for asys-isr\n");
 		return ret;
 	}
 
-	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
+	afe->regmap = syscon_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(afe->regmap)) {
-		dev_err(dev, "could not get regmap from parent\n");
+		dev_err(dev, "could analt get regmap from parent\n");
 		return PTR_ERR(afe->regmap);
 	}
 
@@ -1361,7 +1361,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->memif = devm_kcalloc(dev, afe->memif_size, sizeof(*afe->memif),
 				  GFP_KERNEL);
 	if (!afe->memif)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->memif_size; i++) {
 		afe->memif[i].data = &memif_data_array[i];
@@ -1373,7 +1373,7 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->irqs = devm_kcalloc(dev, afe->irqs_size, sizeof(*afe->irqs),
 				 GFP_KERNEL);
 	if (!afe->irqs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < afe->irqs_size; i++)
 		afe->irqs[i].irq_data = &irq_data[i];

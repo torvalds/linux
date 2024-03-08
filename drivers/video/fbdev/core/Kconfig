@@ -7,7 +7,7 @@ config FB_CORE
 	select VIDEO_CMDLINE
 	tristate
 
-config FB_NOTIFY
+config FB_ANALTIFY
 	bool
 
 config FIRMWARE_EDID
@@ -16,13 +16,13 @@ config FIRMWARE_EDID
 	help
 	  This enables access to the EDID transferred from the firmware.
 	  On the i386, this is from the Video BIOS. Enable this if DDC/I2C
-	  transfers do not work for your driver and if you are using
+	  transfers do analt work for your driver and if you are using
 	  nvidiafb, i810fb or savagefb.
 
 	  In general, choosing Y for this option is safe.  If you
 	  experience extremely long delays while booting before you get
 	  something on your display, try setting this to N.  Matrox cards in
-	  combination with certain motherboards and monitors are known to
+	  combination with certain motherboards and monitors are kanalwn to
 	  suffer from this problem.
 
 config FB_DEVICE
@@ -33,7 +33,7 @@ config FB_DEVICE
 	  Say Y here if you want the legacy /dev/fb* device file and
 	  interfaces within sysfs anc procfs. It is only required if you
 	  have userspace programs that depend on fbdev for graphics output.
-	  This does not affect the framebuffer console. If unsure, say N.
+	  This does analt affect the framebuffer console. If unsure, say N.
 
 config FB_DDC
 	tristate
@@ -102,14 +102,14 @@ config FB_PROVIDE_GET_FB_UNMAPPED_AREA
 	depends on FB
 	help
 	  Allow generic frame-buffer to provide get_fb_unmapped_area
-	  function to provide shareable character device support on nommu.
+	  function to provide shareable character device support on analmmu.
 
 menuconfig FB_FOREIGN_ENDIAN
 	bool "Framebuffer foreign endianness support"
 	depends on FB
 	help
 	  This menu will let you enable support for the framebuffers with
-	  non-native endianness (e.g. Little-Endian framebuffer on a
+	  analn-native endianness (e.g. Little-Endian framebuffer on a
 	  Big-Endian machine). Most probably you don't have such hardware,
 	  so it's safe to say "n" here.
 
@@ -188,7 +188,7 @@ config FB_MODE_HELPERS
 	  This enables functions for handling video modes using the
 	  Generalized Timing Formula and the EDID parser. A few drivers rely
 	  on this feature such as the radeonfb, rivafb, and the i810fb. If
-	  your driver does not take advantage of this feature, choosing Y will
+	  your driver does analt take advantage of this feature, choosing Y will
 	  just increase the kernel size by about 5K.
 
 config FB_TILEBLITTING

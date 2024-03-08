@@ -19,7 +19,7 @@
 
 /*
    Supports AMD756, AMD766, AMD768, AMD8111 and nVidia nForce
-   Note: we assume there can only be one device, with one SMBus interface.
+   Analte: we assume there can only be one device, with one SMBus interface.
 */
 
 #include <linux/module.h>
@@ -44,7 +44,7 @@
 #define SMB_HAS_DATA		(0xA + amd756_ioport)
 #define SMB_HAS_DEVICE_ADDRESS	(0xC + amd756_ioport)
 #define SMB_HAS_HOST_ADDRESS	(0xE + amd756_ioport)
-#define SMB_SNOOP_ADDRESS	(0xF + amd756_ioport)
+#define SMB_SANALOP_ADDRESS	(0xF + amd756_ioport)
 
 /* PCI Address Constants */
 
@@ -137,7 +137,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 
 	if (temp & GS_PRERR_STS) {
 		result = -ENXIO;
-		dev_dbg(&adap->dev, "SMBus Protocol error (no response)!\n");
+		dev_dbg(&adap->dev, "SMBus Protocol error (anal response)!\n");
 	}
 
 	if (temp & GS_COL_STS) {
@@ -177,7 +177,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 	return -EIO;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		  unsigned short flags, char read_write,
 		  u8 command, int size, union i2c_smbus_data * data)
@@ -234,7 +234,7 @@ static s32 amd756_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* How about enabling interrupts... */
@@ -320,24 +320,24 @@ static int amd756_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (amd756_ioport) {
 		dev_err(&pdev->dev, "Only one device supported "
 		       "(you have a strange motherboard, btw)\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (nforce) {
 		if (PCI_FUNC(pdev->devfn) != 1)
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci_read_config_word(pdev, SMBBANFORCE, &amd756_ioport);
 		amd756_ioport &= 0xfffc;
 	} else { /* amd */
 		if (PCI_FUNC(pdev->devfn) != 3)
-			return -ENODEV;
+			return -EANALDEV;
 
 		pci_read_config_byte(pdev, SMBGCFG, &temp);
 		if ((temp & 128) == 0) {
 			dev_err(&pdev->dev,
-				"Error: SMBus controller I/O not enabled!\n");
-			return -ENODEV;
+				"Error: SMBus controller I/O analt enabled!\n");
+			return -EANALDEV;
 		}
 
 		/* Determine the address of the SMBus areas */
@@ -350,12 +350,12 @@ static int amd756_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	error = acpi_check_region(amd756_ioport, SMB_IOSIZE,
 				  amd756_driver.name);
 	if (error)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_region(amd756_ioport, SMB_IOSIZE, amd756_driver.name)) {
 		dev_err(&pdev->dev, "SMB region 0x%x already in use!\n",
 			amd756_ioport);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pci_read_config_byte(pdev, SMBREV, &temp);

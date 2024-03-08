@@ -5,18 +5,18 @@
 
 */
 
-/* Note: we assume there can only be one SIS5595 with one SMBus interface */
+/* Analte: we assume there can only be one SIS5595 with one SMBus interface */
 
 /*
-   Note: all have mfr. ID 0x1039.
+   Analte: all have mfr. ID 0x1039.
    SUPPORTED		PCI ID		
 	5595		0008
 
-   Note: these chips contain a 0008 device which is incompatible with the
+   Analte: these chips contain a 0008 device which is incompatible with the
          5595. We recognize these by the presence of the listed
          "blacklist" PCI ID and refuse to load.
 
-   NOT SUPPORTED	PCI ID		BLACKLIST PCI ID	
+   ANALT SUPPORTED	PCI ID		BLACKLIST PCI ID	
 	 540		0008		0540
 	 550		0008		0550
 	5513		0008		5511
@@ -144,7 +144,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 		if (dev) {
 			dev_err(&SIS5595_dev->dev, "Looked for SIS5595 but found unsupported device %.4x\n", *i);
 			pci_dev_put(dev);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -152,7 +152,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 	pci_read_config_word(SIS5595_dev, ACPI_BASE, &sis5595_base);
 	if (sis5595_base == 0 && force_addr == 0) {
 		dev_err(&SIS5595_dev->dev, "ACPI base address uninitialized - upgrade BIOS or use force_addr=0xaddr\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (force_addr)
@@ -170,7 +170,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 			    sis5595_driver.name)) {
 		dev_err(&SIS5595_dev->dev, "SMBus registers 0x%04x-0x%04x already in use!\n",
 			sis5595_base + SMB_INDEX, sis5595_base + SMB_INDEX + 1);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (force_addr) {
@@ -183,7 +183,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 			goto error;
 		if ((a & ~(SIS5595_EXTENT - 1)) != sis5595_base) {
 			/* doesn't work for some chips! */
-			dev_err(&SIS5595_dev->dev, "force address failed - not supported?\n");
+			dev_err(&SIS5595_dev->dev, "force address failed - analt supported?\n");
 			goto error;
 		}
 	}
@@ -201,7 +201,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 			goto error;
 		if ((val & 0x80) == 0) {
 			/* doesn't work for some chips? */
-			dev_err(&SIS5595_dev->dev, "ACPI enable failed - not supported?\n");
+			dev_err(&SIS5595_dev->dev, "ACPI enable failed - analt supported?\n");
 			goto error;
 		}
 	}
@@ -211,7 +211,7 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 
 error:
 	release_region(sis5595_base + SMB_INDEX, 2);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int sis5595_transaction(struct i2c_adapter *adap)
@@ -256,7 +256,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 
 	if (temp & 0x20) {
 		dev_err(&adap->dev, "Bus collision! SMBus may be locked until "
-			"next hard reset (or not...)\n");
+			"next hard reset (or analt...)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 		result = -EIO;
 	}
@@ -274,7 +274,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erranal on error. */
 static s32 sis5595_access(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data)
@@ -312,7 +312,7 @@ static s32 sis5595_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	sis5595_write(SMB_CTL_LO, ((size & 0x0E)));
@@ -369,8 +369,8 @@ static int sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int err;
 
 	if (sis5595_setup(dev)) {
-		dev_err(&dev->dev, "SIS5595 not detected, module not inserted.\n");
-		return -ENODEV;
+		dev_err(&dev->dev, "SIS5595 analt detected, module analt inserted.\n");
+		return -EANALDEV;
 	}
 
 	/* set up the sysfs linkage to our parent device */
@@ -389,7 +389,7 @@ static int sis5595_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * pci device, we only wanted to read as few register values from it.
 	 */
 	sis5595_pdev =  pci_dev_get(dev);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static struct pci_driver sis5595_driver = {

@@ -91,7 +91,7 @@
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2-phy-pins {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		reset-gpios = <&gpio5 19 GPIO_ACTIVE_LOW>; /* gpio_147 */
 		vcc-supply = <&hsusb2_power>;
 		#phy-cells = <0>;

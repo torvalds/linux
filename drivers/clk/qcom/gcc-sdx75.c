@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -2865,19 +2865,19 @@ static const struct qcom_reset_map gcc_sdx75_resets[] = {
 	[GCC_EMMC_BCR] = { 0x6b000 },
 	[GCC_PCIE_1_BCR] = { 0x67000 },
 	[GCC_PCIE_1_LINK_DOWN_BCR] = { 0x9e700 },
-	[GCC_PCIE_1_NOCSR_COM_PHY_BCR] = { 0x56120 },
+	[GCC_PCIE_1_ANALCSR_COM_PHY_BCR] = { 0x56120 },
 	[GCC_PCIE_1_PHY_BCR] = { 0x56000 },
 	[GCC_PCIE_2_BCR] = { 0x68000 },
 	[GCC_PCIE_2_LINK_DOWN_BCR] = { 0x9f700 },
-	[GCC_PCIE_2_NOCSR_COM_PHY_BCR] = { 0x6e130 },
+	[GCC_PCIE_2_ANALCSR_COM_PHY_BCR] = { 0x6e130 },
 	[GCC_PCIE_2_PHY_BCR] = { 0x6e000 },
 	[GCC_PCIE_BCR] = { 0x53000 },
 	[GCC_PCIE_LINK_DOWN_BCR] = { 0x87000 },
-	[GCC_PCIE_NOCSR_COM_PHY_BCR] = { 0x88008 },
+	[GCC_PCIE_ANALCSR_COM_PHY_BCR] = { 0x88008 },
 	[GCC_PCIE_PHY_BCR] = { 0x54000 },
 	[GCC_PCIE_PHY_CFG_AHB_BCR] = { 0x88000 },
 	[GCC_PCIE_PHY_COM_BCR] = { 0x88004 },
-	[GCC_PCIE_PHY_NOCSR_COM_PHY_BCR] = { 0x8800c },
+	[GCC_PCIE_PHY_ANALCSR_COM_PHY_BCR] = { 0x8800c },
 	[GCC_QUSB2PHY_BCR] = { 0x2a000 },
 	[GCC_TCSR_PCIE_BCR] = { 0x84000 },
 	[GCC_USB30_BCR] = { 0x27000 },

@@ -4,7 +4,7 @@
 
 #include <linux/mm_types.h>
 
-#define SUID_DUMP_DISABLE	0	/* No setuid dumping */
+#define SUID_DUMP_DISABLE	0	/* Anal setuid dumping */
 #define SUID_DUMP_USER		1	/* Dump as user of process */
 #define SUID_DUMP_ROOT		2	/* Dump as root */
 
@@ -32,8 +32,8 @@ static inline int get_dumpable(struct mm_struct *mm)
 }
 
 /* coredump filter bits */
-#define MMF_DUMP_ANON_PRIVATE	2
-#define MMF_DUMP_ANON_SHARED	3
+#define MMF_DUMP_AANALN_PRIVATE	2
+#define MMF_DUMP_AANALN_SHARED	3
 #define MMF_DUMP_MAPPED_PRIVATE	4
 #define MMF_DUMP_MAPPED_SHARED	5
 #define MMF_DUMP_ELF_HEADERS	6
@@ -47,7 +47,7 @@ static inline int get_dumpable(struct mm_struct *mm)
 #define MMF_DUMP_FILTER_MASK \
 	(((1 << MMF_DUMP_FILTER_BITS) - 1) << MMF_DUMP_FILTER_SHIFT)
 #define MMF_DUMP_FILTER_DEFAULT \
-	((1 << MMF_DUMP_ANON_PRIVATE) |	(1 << MMF_DUMP_ANON_SHARED) |\
+	((1 << MMF_DUMP_AANALN_PRIVATE) |	(1 << MMF_DUMP_AANALN_SHARED) |\
 	 (1 << MMF_DUMP_HUGETLB_PRIVATE) | MMF_DUMP_MASK_DEFAULT_ELF)
 
 #ifdef CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS
@@ -67,7 +67,7 @@ static inline int get_dumpable(struct mm_struct *mm)
 
 #define MMF_HAS_UPROBES		19	/* has uprobes */
 #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
-#define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
+#define MMF_OOM_SKIP		21	/* mm is of anal interest for the OOM killer */
 #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
 #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
 #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
@@ -77,7 +77,7 @@ static inline int get_dumpable(struct mm_struct *mm)
 /*
  * MMF_HAS_PINNED: Whether this mm has pinned any pages.  This can be either
  * replaced in the future by mm.pinned_vm when it becomes stable, or grow into
- * a counter on its own. We're aggresive on this bit for now: even if the
+ * a counter on its own. We're aggresive on this bit for analw: even if the
  * pinned pages were unpinned later on, we'll still keep this bit set for the
  * lifecycle of this mm, just for simplicity.
  */
@@ -87,7 +87,7 @@ static inline int get_dumpable(struct mm_struct *mm)
 #define MMF_HAS_MDWE_MASK	(1 << MMF_HAS_MDWE)
 
 
-#define MMF_HAS_MDWE_NO_INHERIT	29
+#define MMF_HAS_MDWE_ANAL_INHERIT	29
 
 #define MMF_VM_MERGE_ANY	30
 #define MMF_VM_MERGE_ANY_MASK	(1 << MMF_VM_MERGE_ANY)
@@ -98,9 +98,9 @@ static inline int get_dumpable(struct mm_struct *mm)
 
 static inline unsigned long mmf_init_flags(unsigned long flags)
 {
-	if (flags & (1UL << MMF_HAS_MDWE_NO_INHERIT))
+	if (flags & (1UL << MMF_HAS_MDWE_ANAL_INHERIT))
 		flags &= ~((1UL << MMF_HAS_MDWE) |
-			   (1UL << MMF_HAS_MDWE_NO_INHERIT));
+			   (1UL << MMF_HAS_MDWE_ANAL_INHERIT));
 	return flags & MMF_INIT_MASK;
 }
 

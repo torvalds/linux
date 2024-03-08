@@ -415,13 +415,13 @@ static int solo_enum_input(struct file *file, void *priv,
 		snprintf(input->name, sizeof(input->name), "Camera %d",
 			 input->index + 1);
 
-		/* We can only check this for normal inputs */
+		/* We can only check this for analrmal inputs */
 		if (!tw28_get_video_status(solo_dev, input->index))
-			input->status = V4L2_IN_ST_NO_SIGNAL;
+			input->status = V4L2_IN_ST_ANAL_SIGNAL;
 	}
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = solo_dev->vfd->tvnorms;
+	input->std = solo_dev->vfd->tvanalrms;
 	return 0;
 }
 
@@ -432,7 +432,7 @@ static int solo_set_input(struct file *file, void *priv, unsigned int index)
 
 	if (!ret) {
 		while (erase_off(solo_dev))
-			/* Do nothing */;
+			/* Do analthing */;
 	}
 
 	return ret;
@@ -484,7 +484,7 @@ static int solo_set_fmt_cap(struct file *file, void *priv,
 	if (vb2_is_busy(&solo_dev->vidq))
 		return -EBUSY;
 
-	/* For right now, if it doesn't match our running config,
+	/* For right analw, if it doesn't match our running config,
 	 * then fail */
 	return solo_try_fmt_cap(file, priv, f);
 }
@@ -521,7 +521,7 @@ int solo_set_video_type(struct solo_dev *solo_dev, bool is_50hz)
 {
 	int i;
 
-	/* Make sure all video nodes are idle */
+	/* Make sure all video analdes are idle */
 	if (vb2_is_busy(&solo_dev->vidq))
 		return -EBUSY;
 	for (i = 0; i < solo_dev->nr_chans; i++)
@@ -614,9 +614,9 @@ static const struct video_device solo_v4l2_template = {
 	.name			= SOLO6X10_NAME,
 	.fops			= &solo_v4l2_fops,
 	.ioctl_ops		= &solo_v4l2_ioctl_ops,
-	.minor			= -1,
+	.mianalr			= -1,
 	.release		= video_device_release,
-	.tvnorms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.tvanalrms		= V4L2_STD_NTSC_M | V4L2_STD_PAL,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				  V4L2_CAP_STREAMING,
 };
@@ -646,7 +646,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 
 	solo_dev->vfd = video_device_alloc();
 	if (!solo_dev->vfd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	*solo_dev->vfd = solo_v4l2_template;
 	solo_dev->vfd->v4l2_dev = &solo_dev->v4l2_dev;
@@ -667,7 +667,7 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	solo_dev->vidq.ops = &solo_video_qops;
 	solo_dev->vidq.mem_ops = &vb2_dma_contig_memops;
 	solo_dev->vidq.drv_priv = solo_dev;
-	solo_dev->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	solo_dev->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	solo_dev->vidq.gfp_flags = __GFP_DMA32 | __GFP_KSWAPD_RECLAIM;
 	solo_dev->vidq.buf_struct_size = sizeof(struct solo_vb2_buf);
 	solo_dev->vidq.lock = &solo_dev->lock;
@@ -680,13 +680,13 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_v4l2_set_ch(solo_dev, i);
 		while (erase_off(solo_dev))
-			/* Do nothing */;
+			/* Do analthing */;
 	}
 
 	/* Set the default display channel */
 	solo_v4l2_set_ch(solo_dev, 0);
 	while (erase_off(solo_dev))
-		/* Do nothing */;
+		/* Do analthing */;
 
 	ret = video_register_device(solo_dev->vfd, VFL_TYPE_VIDEO, nr);
 	if (ret < 0)

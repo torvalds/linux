@@ -134,7 +134,7 @@
 #define IOVA_34_EN			BIT(9)
 #define SHARE_PGTABLE			BIT(10) /* 2 HW share pgtable */
 #define DCM_DISABLE			BIT(11)
-#define STD_AXI_MODE			BIT(12) /* For non MM iommu */
+#define STD_AXI_MODE			BIT(12) /* For analn MM iommu */
 /* 2 bits: iommu type */
 #define MTK_IOMMU_TYPE_MM		(0x0 << 13)
 #define MTK_IOMMU_TYPE_INFRA		(0x1 << 13)
@@ -269,7 +269,7 @@ struct mtk_iommu_data {
 
 	/*
 	 * In the sharing pgtable case, list data->list to the global list like m4ulist.
-	 * In the non-sharing pgtable case, list data->list to the itself hw_list_head.
+	 * In the analn-sharing pgtable case, list data->list to the itself hw_list_head.
 	 */
 	struct list_head		*hw_list;
 	struct list_head		hw_list_head;
@@ -327,7 +327,7 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data, unsigned int ban
  *                                 |---E---|---B---|---C---|---D---|
  *                                 +------------Memory-------------+
  *
- * The Region 'A'(I/O) can NOT be mapped by M4U; For Region 'B'/'C'/'D', the
+ * The Region 'A'(I/O) can ANALT be mapped by M4U; For Region 'B'/'C'/'D', the
  * bit32 of the CPU physical address always is needed to set, and for Region
  * 'E', the CPU physical address keep as is.
  * Additionally, The iommu consumers always use the CPU phyiscal address.
@@ -401,13 +401,13 @@ static void mtk_iommu_tlb_flush_range_sync(unsigned long iova, size_t size,
 	for_each_m4u(data, head) {
 		/*
 		 * To avoid resume the iommu device frequently when the iommu device
-		 * is not active, it doesn't always call pm_runtime_get here, then tlb
+		 * is analt active, it doesn't always call pm_runtime_get here, then tlb
 		 * flush depends on the tlb flush all in the runtime resume.
 		 *
 		 * There are 2 special cases:
 		 *
 		 * Case1: The iommu dev doesn't have power domain but has bclk. This case
-		 * should also avoid the tlb flush while the dev is not active to mute
+		 * should also avoid the tlb flush while the dev is analt active to mute
 		 * the tlb timeout log. like mt8173.
 		 *
 		 * Case2: The power/clock of infra iommu is always on, and it doesn't
@@ -571,7 +571,7 @@ static int mtk_iommu_get_iova_region_id(struct device *dev,
 			return i;
 	}
 
-	dev_err(dev, "Can NOT find the region for larb(%d-%x).\n",
+	dev_err(dev, "Can ANALT find the region for larb(%d-%x).\n",
 		larbid, portidmsk);
 	return -EINVAL;
 }
@@ -620,7 +620,7 @@ static int mtk_iommu_config(struct mtk_iommu_data *data, struct device *dev,
 			if (dev_is_pci(dev)) {
 				if (fwspec->num_ids != 1) {
 					dev_err(dev, "PCI dev can only have one port.\n");
-					return -ENODEV;
+					return -EANALDEV;
 				}
 				portid_msk |= BIT(portid + 1);
 			}
@@ -653,7 +653,7 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom,
 
 	dom->cfg = (struct io_pgtable_cfg) {
 		.quirks = IO_PGTABLE_QUIRK_ARM_NS |
-			IO_PGTABLE_QUIRK_NO_PERMS |
+			IO_PGTABLE_QUIRK_ANAL_PERMS |
 			IO_PGTABLE_QUIRK_ARM_MTK_EXT,
 		.pgsize_bitmap = mtk_iommu_ops.pgsize_bitmap,
 		.ias = MTK_IOMMU_HAS_FLAG(data->plat_data, IOVA_34_EN) ? 34 : 32,
@@ -671,7 +671,7 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom,
 	dom->iop = alloc_io_pgtable_ops(ARM_V7S, &dom->cfg, data);
 	if (!dom->iop) {
 		dev_err(data->dev, "Failed to alloc io pgtable\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Update our support page sizes bitmap */
@@ -801,7 +801,7 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 
-	/* The "4GB mode" M4U physically can not use the lower remap of Dram. */
+	/* The "4GB mode" M4U physically can analt use the lower remap of Dram. */
 	if (dom->bank->parent_data->enable_4GB)
 		paddr |= BIT_ULL(32);
 
@@ -938,7 +938,7 @@ static struct iommu_group *mtk_iommu_device_group(struct device *dev)
 
 	data = mtk_iommu_get_frst_data(hw_list);
 	if (!data)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	groupid = mtk_iommu_get_group_id(dev, data->plat_data);
 	if (groupid < 0)
@@ -969,7 +969,7 @@ static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 
 	if (!dev_iommu_priv_get(dev)) {
 		/* Get the m4u device */
-		m4updev = of_find_device_by_node(args->np);
+		m4updev = of_find_device_by_analde(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
@@ -1039,7 +1039,7 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data, unsigned int ban
 
 	/*
 	 * Global control settings are in bank0. May re-init these global registers
-	 * since no sure if there is bank0 consumers.
+	 * since anal sure if there is bank0 consumers.
 	 */
 	if (MTK_IOMMU_HAS_FLAG(data->plat_data, TF_PORT_TO_ADDR_MT8173)) {
 		regval = F_MMU_PREFETCH_RT_REPLACE_MOD |
@@ -1112,7 +1112,7 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data, unsigned int ban
 			     dev_name(bankx->parent_dev), (void *)bankx)) {
 		writel_relaxed(0, bankx->base + REG_MMU_PT_BASE_ADDR);
 		dev_err(bankx->parent_dev, "Failed @ IRQ-%d Request\n", bankx->irq);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -1126,45 +1126,45 @@ static const struct component_master_ops mtk_iommu_com_ops = {
 static int mtk_iommu_mm_dts_parse(struct device *dev, struct component_match **match,
 				  struct mtk_iommu_data *data)
 {
-	struct device_node *larbnode, *frst_avail_smicomm_node = NULL;
+	struct device_analde *larbanalde, *frst_avail_smicomm_analde = NULL;
 	struct platform_device *plarbdev, *pcommdev;
 	struct device_link *link;
 	int i, larb_nr, ret;
 
-	larb_nr = of_count_phandle_with_args(dev->of_node, "mediatek,larbs", NULL);
+	larb_nr = of_count_phandle_with_args(dev->of_analde, "mediatek,larbs", NULL);
 	if (larb_nr < 0)
 		return larb_nr;
 	if (larb_nr == 0 || larb_nr > MTK_LARB_NR_MAX)
 		return -EINVAL;
 
 	for (i = 0; i < larb_nr; i++) {
-		struct device_node *smicomm_node, *smi_subcomm_node;
+		struct device_analde *smicomm_analde, *smi_subcomm_analde;
 		u32 id;
 
-		larbnode = of_parse_phandle(dev->of_node, "mediatek,larbs", i);
-		if (!larbnode) {
+		larbanalde = of_parse_phandle(dev->of_analde, "mediatek,larbs", i);
+		if (!larbanalde) {
 			ret = -EINVAL;
 			goto err_larbdev_put;
 		}
 
-		if (!of_device_is_available(larbnode)) {
-			of_node_put(larbnode);
+		if (!of_device_is_available(larbanalde)) {
+			of_analde_put(larbanalde);
 			continue;
 		}
 
-		ret = of_property_read_u32(larbnode, "mediatek,larb-id", &id);
-		if (ret)/* The id is consecutive if there is no this property */
+		ret = of_property_read_u32(larbanalde, "mediatek,larb-id", &id);
+		if (ret)/* The id is consecutive if there is anal this property */
 			id = i;
 		if (id >= MTK_LARB_NR_MAX) {
-			of_node_put(larbnode);
+			of_analde_put(larbanalde);
 			ret = -EINVAL;
 			goto err_larbdev_put;
 		}
 
-		plarbdev = of_find_device_by_node(larbnode);
-		of_node_put(larbnode);
+		plarbdev = of_find_device_by_analde(larbanalde);
+		of_analde_put(larbanalde);
 		if (!plarbdev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto err_larbdev_put;
 		}
 		if (data->larb_imu[id].dev) {
@@ -1180,48 +1180,48 @@ static int mtk_iommu_mm_dts_parse(struct device *dev, struct component_match **m
 		}
 
 		/* Get smi-(sub)-common dev from the last larb. */
-		smi_subcomm_node = of_parse_phandle(larbnode, "mediatek,smi", 0);
-		if (!smi_subcomm_node) {
+		smi_subcomm_analde = of_parse_phandle(larbanalde, "mediatek,smi", 0);
+		if (!smi_subcomm_analde) {
 			ret = -EINVAL;
 			goto err_larbdev_put;
 		}
 
 		/*
-		 * It may have two level smi-common. the node is smi-sub-common if it
+		 * It may have two level smi-common. the analde is smi-sub-common if it
 		 * has a new mediatek,smi property. otherwise it is smi-commmon.
 		 */
-		smicomm_node = of_parse_phandle(smi_subcomm_node, "mediatek,smi", 0);
-		if (smicomm_node)
-			of_node_put(smi_subcomm_node);
+		smicomm_analde = of_parse_phandle(smi_subcomm_analde, "mediatek,smi", 0);
+		if (smicomm_analde)
+			of_analde_put(smi_subcomm_analde);
 		else
-			smicomm_node = smi_subcomm_node;
+			smicomm_analde = smi_subcomm_analde;
 
 		/*
 		 * All the larbs that connect to one IOMMU must connect with the same
 		 * smi-common.
 		 */
-		if (!frst_avail_smicomm_node) {
-			frst_avail_smicomm_node = smicomm_node;
-		} else if (frst_avail_smicomm_node != smicomm_node) {
-			dev_err(dev, "mediatek,smi property is not right @larb%d.", id);
-			of_node_put(smicomm_node);
+		if (!frst_avail_smicomm_analde) {
+			frst_avail_smicomm_analde = smicomm_analde;
+		} else if (frst_avail_smicomm_analde != smicomm_analde) {
+			dev_err(dev, "mediatek,smi property is analt right @larb%d.", id);
+			of_analde_put(smicomm_analde);
 			ret = -EINVAL;
 			goto err_larbdev_put;
 		} else {
-			of_node_put(smicomm_node);
+			of_analde_put(smicomm_analde);
 		}
 
 		component_match_add(dev, match, component_compare_dev, &plarbdev->dev);
 		platform_device_put(plarbdev);
 	}
 
-	if (!frst_avail_smicomm_node)
+	if (!frst_avail_smicomm_analde)
 		return -EINVAL;
 
-	pcommdev = of_find_device_by_node(frst_avail_smicomm_node);
-	of_node_put(frst_avail_smicomm_node);
+	pcommdev = of_find_device_by_analde(frst_avail_smicomm_analde);
+	of_analde_put(frst_avail_smicomm_analde);
 	if (!pcommdev)
-		return -ENODEV;
+		return -EANALDEV;
 	data->smicomm_dev = &pcommdev->dev;
 
 	link = device_link_add(data->smicomm_dev, dev,
@@ -1259,26 +1259,26 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->dev = dev;
 	data->plat_data = of_device_get_match_data(dev);
 
 	/* Protect memory. HW will access here while translation fault.*/
 	protect = devm_kzalloc(dev, MTK_PROTECT_PA_ALIGN * 2, GFP_KERNEL);
 	if (!protect)
-		return -ENOMEM;
+		return -EANALMEM;
 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
 
 	if (MTK_IOMMU_HAS_FLAG(data->plat_data, HAS_4GB_MODE)) {
-		infracfg = syscon_regmap_lookup_by_phandle(dev->of_node, "mediatek,infracfg");
+		infracfg = syscon_regmap_lookup_by_phandle(dev->of_analde, "mediatek,infracfg");
 		if (IS_ERR(infracfg)) {
 			/*
-			 * Legacy devicetrees will not specify a phandle to
+			 * Legacy devicetrees will analt specify a phandle to
 			 * mediatek,infracfg: in that case, we use the older
 			 * way to retrieve a syscon to infra.
 			 *
 			 * This is for retrocompatibility purposes only, hence
-			 * no more compatibles shall be added to this.
+			 * anal more compatibles shall be added to this.
 			 */
 			switch (data->plat_data->m4u_plat) {
 			case M4U_MT2712:
@@ -1307,7 +1307,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 	if (resource_size(res) < banks_num * MTK_IOMMU_BANK_SZ) {
-		dev_err(dev, "banknr %d. res %pR is not enough.\n", banks_num, res);
+		dev_err(dev, "banknr %d. res %pR is analt eanalugh.\n", banks_num, res);
 		return -EINVAL;
 	}
 	base = devm_ioremap_resource(dev, res);
@@ -1317,7 +1317,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 
 	data->bank = devm_kmalloc(dev, banks_num * sizeof(*data->bank), GFP_KERNEL);
 	if (!data->bank)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	do {
 		if (!data->plat_data->banks_enable[i])
@@ -1473,7 +1473,7 @@ static int __maybe_unused mtk_iommu_runtime_resume(struct device *dev)
 
 	/*
 	 * Uppon first resume, only enable the clk and return, since the values of the
-	 * registers are not yet set.
+	 * registers are analt yet set.
 	 */
 	if (!reg->wr_len_ctrl)
 		return 0;

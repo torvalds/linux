@@ -16,15 +16,15 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If analt, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ARE DISCLAIMED. IN ANAL EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -59,7 +59,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -473,7 +473,7 @@ static void setup_SCBs(struct orc_host * host)
  *	@host: host map to configure
  *
  *	Initialise the allocation maps for this device. If the device
- *	is not quiescent the caller must hold the allocation lock
+ *	is analt quiescent the caller must hold the allocation lock
  */
 
 static void init_alloc_map(struct orc_host * host)
@@ -520,7 +520,7 @@ static int init_orchid(struct orc_host * host)
 		} else {
 			setup_SCBs(host);	/* Setup SCB base and SCB Size registers */
 		}
-	} else {		/* Orchid is not Ready          */
+	} else {		/* Orchid is analt Ready          */
 		outb(DEVRST, host->base + ORC_HCTRL);	/* Reset Host Adapter   */
 		if (wait_chip_ready(host) == 0)
 			return -1;
@@ -620,7 +620,7 @@ static int orc_device_reset(struct orc_host * host, struct scsi_cmnd *cmd, unsig
 	}
 
 	if (i == ORC_MAXQUEUE) {
-		printk(KERN_ERR "Unable to Reset - No SCB Found\n");
+		printk(KERN_ERR "Unable to Reset - Anal SCB Found\n");
 		spin_unlock_irqrestore(&(host->allocation_lock), flags);
 		return FAILED;
 	}
@@ -657,7 +657,7 @@ static int orc_device_reset(struct orc_host * host, struct scsi_cmnd *cmd, unsig
  *	@host: host to allocate from
  *
  *	Allocate an SCB and return a pointer to the SCB object. NULL
- *	is returned if no SCB is free. The caller must already hold
+ *	is returned if anal SCB is free. The caller must already hold
  *	the allocator lock at this point.
  */
 
@@ -690,7 +690,7 @@ static struct orc_scb *__orc_alloc_scb(struct orc_host * host)
  *	@host: host to allocate from
  *
  *	Allocate an SCB and return a pointer to the SCB object. NULL
- *	is returned if no SCB is free.
+ *	is returned if anal SCB is free.
  */
 
 static struct orc_scb *orc_alloc_scb(struct orc_host * host)
@@ -707,7 +707,7 @@ static struct orc_scb *orc_alloc_scb(struct orc_host * host)
 /**
  *	orc_release_scb			-	release an SCB
  *	@host: host owning the SCB
- *	@scb: SCB that is now free
+ *	@scb: SCB that is analw free
  *
  *	Called to return a completed SCB to the allocation pool. Before
  *	calling the SCB must be out of use on both the host and the HA.
@@ -772,7 +772,7 @@ static int inia100_abort_cmd(struct orc_host * host, struct scsi_cmnd *cmd)
 
 	/* Walk the queue until we find the SCB that belongs to the command
 	   block. This isn't a performance critical path so a walk in the park
-	   here does no harm */
+	   here does anal harm */
 
 	for (i = 0; i < ORC_MAXQUEUE; i++, scb++) {
 		escb = scb->escb;
@@ -805,7 +805,7 @@ out:
  *	index into a host address pointer to the scb and call the scb
  *	handler.
  *
- *	Returns IRQ_HANDLED if any SCBs were processed, IRQ_NONE otherwise
+ *	Returns IRQ_HANDLED if any SCBs were processed, IRQ_ANALNE otherwise
  */
 
 static irqreturn_t orc_interrupt(struct orc_host * host)
@@ -815,7 +815,7 @@ static irqreturn_t orc_interrupt(struct orc_host * host)
 
 	/* Check if we have an SCB queued for servicing */
 	if (inb(host->base + ORC_RQUEUECNT) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	do {
 		/* Get the SCB index of the SCB to service */
@@ -853,7 +853,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 
 	/* Set up the SCB to do a SCSI command block */
 	scb->opcode = ORC_EXECSCSI;
-	scb->flags = SCF_NO_DCHK;	/* Clear done bit               */
+	scb->flags = SCF_ANAL_DCHK;	/* Clear done bit               */
 	scb->target = cmd->device->id;
 	scb->lun = cmd->device->lun;
 	scb->reserved0 = 0;
@@ -895,7 +895,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 	if (cmd->device->tagged_supported) {	/* Tag Support                  */
 		scb->tag_msg = SIMPLE_QUEUE_TAG;	/* Do simple tag only   */
 	} else {
-		scb->tag_msg = 0;	/* No tag support               */
+		scb->tag_msg = 0;	/* Anal tag support               */
 	}
 	memcpy(scb->cdb, cmd->cmnd, scb->cdb_len);
 	return 0;
@@ -934,7 +934,7 @@ static DEF_SCSI_QCMD(inia100_queue)
  Description    : Abort a queued command.
 	                 (commands that are on the bus can't be aborted easily)
  Input          : host  -       Pointer to host adapter structure
- Output         : None.
+ Output         : Analne.
  Return         : pSRB  -       Pointer to SCSI request block.
 *****************************************************************************/
 static int inia100_abort(struct scsi_cmnd * cmd)
@@ -950,7 +950,7 @@ static int inia100_abort(struct scsi_cmnd * cmd)
  Description    : Reset registers, reset a hanging bus and
                   kill active and disconnected commands for target w/o soft reset
  Input          : host  -       Pointer to host adapter structure
- Output         : None.
+ Output         : Analne.
  Return         : pSRB  -       Pointer to SCSI request block.
 *****************************************************************************/
 static int inia100_bus_reset(struct scsi_cmnd * cmd)
@@ -964,7 +964,7 @@ static int inia100_bus_reset(struct scsi_cmnd * cmd)
  Function name  : inia100_device_reset
  Description    : Reset the device
  Input          : host  -       Pointer to host adapter structure
- Output         : None.
+ Output         : Analne.
  Return         : pSRB  -       Pointer to SCSI request block.
 *****************************************************************************/
 static int inia100_device_reset(struct scsi_cmnd * cmd)
@@ -1000,19 +1000,19 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 
 	switch (scb->hastat) {
 	case 0x0:
-	case 0xa:		/* Linked command complete without error and linked normally */
+	case 0xa:		/* Linked command complete without error and linked analrmally */
 	case 0xb:		/* Linked command complete without error interrupt generated */
 		scb->hastat = 0;
 		break;
 
 	case 0x11:		/* Selection time out-The initiator selection or target
-				   reselection was not complete within the SCSI Time out period */
+				   reselection was analt complete within the SCSI Time out period */
 		scb->hastat = DID_TIME_OUT;
 		break;
 
 	case 0x14:		/* Target bus phase sequence failure-An invalid bus phase or bus
 				   phase sequence was requested by the target. The host adapter
-				   will generate a SCSI Reset Condition, notifying the host with
+				   will generate a SCSI Reset Condition, analtifying the host with
 				   a SCRD interrupt */
 		scb->hastat = DID_RESET;
 		break;
@@ -1039,19 +1039,19 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 	}
 	cmd->result = scb->tastat | (scb->hastat << 16);
 	scsi_dma_unmap(cmd);
-	scsi_done(cmd);		/* Notify system DONE           */
+	scsi_done(cmd);		/* Analtify system DONE           */
 	orc_release_scb(host, scb);	/* Release SCB for current channel */
 }
 
 /**
  *	inia100_intr		-	interrupt handler
- *	@irqno: Interrupt value
+ *	@irqanal: Interrupt value
  *	@devid: Host adapter
  *
  *	Entry point for IRQ handling. All the real work is performed
  *	by orc_interrupt.
  */
-static irqreturn_t inia100_intr(int irqno, void *devid)
+static irqreturn_t inia100_intr(int irqanal, void *devid)
 {
 	struct Scsi_Host *shost = (struct Scsi_Host *)devid;
 	struct orc_host *host = (struct orc_host *)shost->hostdata;
@@ -1083,14 +1083,14 @@ static int inia100_probe_one(struct pci_dev *pdev,
 	struct Scsi_Host *shost;
 	struct orc_host *host;
 	unsigned long port, bios;
-	int error = -ENODEV;
+	int error = -EANALDEV;
 	u32 sz;
 
 	if (pci_enable_device(pdev))
 		goto out;
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "Unable to set 32bit DMA "
-				    "on inia100 adapter, ignoring.\n");
+				    "on inia100 adapter, iganalring.\n");
 		goto out_disable_device;
 	}
 

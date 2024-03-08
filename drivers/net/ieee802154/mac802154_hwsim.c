@@ -8,7 +8,7 @@
  * Based on fakelb, original Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -100,7 +100,7 @@ static int hwsim_update_pib(struct ieee802154_hw *hw, u8 page, u8 channel,
 
 	pib = kzalloc(sizeof(*pib), GFP_ATOMIC);
 	if (!pib)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pib_old = rtnl_dereference(phy->pib);
 
@@ -222,12 +222,12 @@ static void hwsim_hw_receive(struct ieee802154_hw *hw, struct sk_buff *skb,
 			goto drop;
 		}
 
-		/* d4) Specific PAN coordinator case (no parent) */
+		/* d4) Specific PAN coordinator case (anal parent) */
 		if ((mac_cb(skb)->type == IEEE802154_FC_TYPE_DATA ||
 		     mac_cb(skb)->type == IEEE802154_FC_TYPE_MAC_CMD) &&
-		    mac_cb(skb)->dest.mode == IEEE802154_ADDR_NONE) {
+		    mac_cb(skb)->dest.mode == IEEE802154_ADDR_ANALNE) {
 			dev_dbg(hw->parent,
-				"relaying is not supported\n");
+				"relaying is analt supported\n");
 			goto drop;
 		}
 
@@ -314,7 +314,7 @@ hwsim_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	int ret;
 
 	if (on)
-		filt_level = IEEE802154_FILTERING_NONE;
+		filt_level = IEEE802154_FILTERING_ANALNE;
 	else
 		filt_level = IEEE802154_FILTERING_4_FRAME_FIELDS;
 
@@ -362,7 +362,7 @@ static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	}
 	mutex_unlock(&hwsim_phys_lock);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static int append_radio_msg(struct sk_buff *skb, struct hwsim_phy *phy)
@@ -382,20 +382,20 @@ static int append_radio_msg(struct sk_buff *skb, struct hwsim_phy *phy)
 		return 0;
 	}
 
-	nl_edges = nla_nest_start_noflag(skb,
+	nl_edges = nla_nest_start_analflag(skb,
 					 MAC802154_HWSIM_ATTR_RADIO_EDGES);
 	if (!nl_edges) {
 		rcu_read_unlock();
-		return -ENOBUFS;
+		return -EANALBUFS;
 	}
 
 	list_for_each_entry_rcu(e, &phy->edges, list) {
-		nl_edge = nla_nest_start_noflag(skb,
+		nl_edge = nla_nest_start_analflag(skb,
 						MAC802154_HWSIM_ATTR_RADIO_EDGE);
 		if (!nl_edge) {
 			rcu_read_unlock();
 			nla_nest_cancel(skb, nl_edges);
-			return -ENOBUFS;
+			return -EANALBUFS;
 		}
 
 		ret = nla_put_u32(skb, MAC802154_HWSIM_EDGE_ATTR_ENDPOINT_ID,
@@ -457,7 +457,7 @@ static int hwsim_get_radio_nl(struct sk_buff *msg, struct genl_info *info)
 {
 	struct hwsim_phy *phy;
 	struct sk_buff *skb;
-	int idx, res = -ENODEV;
+	int idx, res = -EANALDEV;
 
 	if (!info->attrs[MAC802154_HWSIM_ATTR_RADIO_ID])
 		return -EINVAL;
@@ -470,7 +470,7 @@ static int hwsim_get_radio_nl(struct sk_buff *msg, struct genl_info *info)
 
 		skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 		if (!skb) {
-			res = -ENOMEM;
+			res = -EANALMEM;
 			goto out_err;
 		}
 
@@ -601,13 +601,13 @@ static int hwsim_new_edge_nl(struct sk_buff *msg, struct genl_info *info)
 	phy_v0 = hwsim_get_radio_by_id(v0);
 	if (!phy_v0) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	phy_v1 = hwsim_get_radio_by_id(v1);
 	if (!phy_v1) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rcu_read_lock();
@@ -623,12 +623,12 @@ static int hwsim_new_edge_nl(struct sk_buff *msg, struct genl_info *info)
 	e = hwsim_alloc_edge(phy_v1, 0xff);
 	if (!e) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	list_add_rcu(&e->list, &phy_v0->edges);
 	/* wait until changes are done under hwsim_phys_lock lock
 	 * should prevent of calling this function twice while
-	 * edges list has not the changes yet.
+	 * edges list has analt the changes yet.
 	 */
 	synchronize_rcu();
 	mutex_unlock(&hwsim_phys_lock);
@@ -660,7 +660,7 @@ static int hwsim_del_edge_nl(struct sk_buff *msg, struct genl_info *info)
 	phy_v0 = hwsim_get_radio_by_id(v0);
 	if (!phy_v0) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	rcu_read_lock();
@@ -679,7 +679,7 @@ static int hwsim_del_edge_nl(struct sk_buff *msg, struct genl_info *info)
 
 	mutex_unlock(&hwsim_phys_lock);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 static int hwsim_set_edge_lqi(struct sk_buff *msg, struct genl_info *info)
@@ -710,13 +710,13 @@ static int hwsim_set_edge_lqi(struct sk_buff *msg, struct genl_info *info)
 	phy_v0 = hwsim_get_radio_by_id(v0);
 	if (!phy_v0) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
 	if (!einfo) {
 		mutex_unlock(&hwsim_phys_lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rcu_read_lock();
@@ -736,7 +736,7 @@ static int hwsim_set_edge_lqi(struct sk_buff *msg, struct genl_info *info)
 	kfree(einfo);
 	mutex_unlock(&hwsim_phys_lock);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /* MAC802154_HWSIM netlink policy */
@@ -804,7 +804,7 @@ static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
 				   struct genl_info *info)
 {
 	if (info)
-		genl_notify(&hwsim_genl_family, mcast_skb, info,
+		genl_analtify(&hwsim_genl_family, mcast_skb, info,
 			    HWSIM_MCGRP_CONFIG, GFP_KERNEL);
 	else
 		genlmsg_multicast(&hwsim_genl_family, mcast_skb, 0,
@@ -890,7 +890,7 @@ me_fail:
 		hwsim_free_edge(e);
 	}
 	rcu_read_unlock();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int hwsim_add_one(struct genl_info *info, struct device *dev,
@@ -906,7 +906,7 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 
 	hw = ieee802154_alloc_hw(sizeof(*phy), &hwsim_ops);
 	if (!hw)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy = hw->priv;
 	phy->hw = hw;
@@ -948,7 +948,7 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 	hw->phy->current_channel = 13;
 	pib = kzalloc(sizeof(*pib), GFP_KERNEL);
 	if (!pib) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_pib;
 	}
 

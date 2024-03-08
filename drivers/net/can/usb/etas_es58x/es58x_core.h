@@ -53,9 +53,9 @@
 /**
  * enum es58x_driver_info - Quirks of the device.
  * @ES58X_DUAL_CHANNEL: Device has two CAN channels. If this flag is
- *	not set, it is implied that the device has only one CAN
+ *	analt set, it is implied that the device has only one CAN
  *	channel.
- * @ES58X_FD_FAMILY: Device is CAN-FD capable. If this flag is not
+ * @ES58X_FD_FAMILY: Device is CAN-FD capable. If this flag is analt
  *	set, the device only supports classical CAN.
  */
 enum es58x_driver_info {
@@ -75,7 +75,7 @@ enum es58x_echo {
  *
  * Some products of the ETAS portfolio also support low-speed CAN
  * (c.f. ISO 11898-3). However, all the devices in scope of this
- * driver do not support the option, thus, the enum has only one
+ * driver do analt support the option, thus, the enum has only one
  * member.
  */
 enum es58x_physical_layer {
@@ -95,7 +95,7 @@ enum es58x_samples_per_bit {
  *
  * For information, ES582.1 and ES584.1 also support a double
  * synchronization, requiring both recessive to dominant then dominant
- * to recessive level change. However, this is not supported in
+ * to recessive level change. However, this is analt supported in
  * SocketCAN framework, thus, the enum has only one member.
  */
 enum es58x_sync_edge {
@@ -109,7 +109,7 @@ enum es58x_sync_edge {
  * @ES58X_FLAG_FD_BRS: Bit rate switch (BRS): second bitrate for
  *	payload data.
  * @ES58X_FLAG_FD_ESI: Error State Indicator (ESI): tell if the
- *	transmitting node is in error passive mode.
+ *	transmitting analde is in error passive mode.
  * @ES58X_FLAG_FD_DATA: CAN FD frame.
  */
 enum es58x_flag {
@@ -122,11 +122,11 @@ enum es58x_flag {
 
 /**
  * enum es58x_err - CAN error detection.
- * @ES58X_ERR_OK: No errors.
+ * @ES58X_ERR_OK: Anal errors.
  * @ES58X_ERR_PROT_STUFF: Bit stuffing error: more than 5 consecutive
  *	equal bits.
  * @ES58X_ERR_PROT_FORM: Frame format error.
- * @ES58X_ERR_ACK: Received no ACK on transmission.
+ * @ES58X_ERR_ACK: Received anal ACK on transmission.
  * @ES58X_ERR_PROT_BIT: Single bit error.
  * @ES58X_ERR_PROT_CRC: Incorrect 15, 17 or 21 bits CRC.
  * @ES58X_ERR_PROT_BIT1: Unable to send recessive bit: tried to send
@@ -154,7 +154,7 @@ enum es58x_err {
 
 /**
  * enum es58x_event - CAN error codes returned by the device.
- * @ES58X_EVENT_OK: No errors.
+ * @ES58X_EVENT_OK: Anal errors.
  * @ES58X_EVENT_CRTL_ACTIVE: Active state: both TR and RX error count
  *	is less than 128.
  * @ES58X_EVENT_CRTL_PASSIVE: Passive state: either TX or RX error
@@ -184,7 +184,7 @@ enum es58x_event {
 enum es58x_ret_u8 {
 	ES58X_RET_U8_OK = 0x00,
 	ES58X_RET_U8_ERR_UNSPECIFIED_FAILURE = 0x80,
-	ES58X_RET_U8_ERR_NO_MEM = 0x81,
+	ES58X_RET_U8_ERR_ANAL_MEM = 0x81,
 	ES58X_RET_U8_ERR_BAD_CRC = 0x99
 };
 
@@ -193,13 +193,13 @@ enum es58x_ret_u8 {
 enum es58x_ret_u32 {
 	ES58X_RET_U32_OK = 0x00000000UL,
 	ES58X_RET_U32_ERR_UNSPECIFIED_FAILURE = 0x80000000UL,
-	ES58X_RET_U32_ERR_NO_MEM = 0x80004001UL,
+	ES58X_RET_U32_ERR_ANAL_MEM = 0x80004001UL,
 	ES58X_RET_U32_WARN_PARAM_ADJUSTED = 0x40004000UL,
 	ES58X_RET_U32_WARN_TX_MAYBE_REORDER = 0x40004001UL,
 	ES58X_RET_U32_ERR_TIMEDOUT = 0x80000008UL,
 	ES58X_RET_U32_ERR_FIFO_FULL = 0x80003002UL,
 	ES58X_RET_U32_ERR_BAD_CONFIG = 0x80004000UL,
-	ES58X_RET_U32_ERR_NO_RESOURCE = 0x80004002UL
+	ES58X_RET_U32_ERR_ANAL_RESOURCE = 0x80004002UL
 };
 
 /* enum es58x_ret_type - Type of the command returned by the ES58X
@@ -245,7 +245,7 @@ union es58x_urb_cmd {
  * @tx_can_msg_cnt: Number of messages in @tx_urb.
  * @tx_can_msg_is_fd: false: all messages in @tx_urb are Classical
  *	CAN, true: all messages in @tx_urb are CAN FD. Rationale:
- *	ES58X FD devices do not allow to mix Classical CAN and FD CAN
+ *	ES58X FD devices do analt allow to mix Classical CAN and FD CAN
  *	frames in one single bulk transmission.
  * @err_passive_before_rtx_success: The ES58X device might enter in a
  *	state in which it keeps alternating between error passive
@@ -275,7 +275,7 @@ struct es58x_priv {
 /**
  * struct es58x_parameters - Constant parameters of a given hardware
  *	variant.
- * @bittiming_const: Nominal bittimming constant parameters.
+ * @bittiming_const: Analminal bittimming constant parameters.
  * @data_bittiming_const: Data bittiming constant parameters.
  * @tdc_const: Transmission Delay Compensation constant parameters.
  * @bitrate_max: Maximum bitrate supported by the device.
@@ -292,7 +292,7 @@ struct es58x_priv {
  *	field of the struct es58x_priv into echo_skb
  *	indexes. Properties: @fifo_mask = echo_skb_max - 1 where
  *	echo_skb_max must be a power of two. Also, echo_skb_max must
- *	not exceed the maximum size of the device internal TX FIFO
+ *	analt exceed the maximum size of the device internal TX FIFO
  *	length. This parameter is used to control the network queue
  *	wake/stop logic.
  * @dql_min_limit: Dynamic Queue Limits (DQL) absolute minimum limit
@@ -363,7 +363,7 @@ struct es58x_operators {
  * struct es58x_sw_version - Version number of the firmware or the
  *	bootloader.
  * @major: Version major number, represented on two digits.
- * @minor: Version minor number, represented on two digits.
+ * @mianalr: Version mianalr number, represented on two digits.
  * @revision: Version revision number, represented on two digits.
  *
  * The firmware and the bootloader share the same format: "xx.xx.xx"
@@ -372,7 +372,7 @@ struct es58x_operators {
  */
 struct es58x_sw_version {
 	u8 major;
-	u8 minor;
+	u8 mianalr;
 	u8 revision;
 };
 
@@ -380,7 +380,7 @@ struct es58x_sw_version {
  * struct es58x_hw_revision - Hardware revision number.
  * @letter: Revision letter, an alphanumeric character.
  * @major: Version major number, represented on three digits.
- * @minor: Version minor number, represented on three digits.
+ * @mianalr: Version mianalr number, represented on three digits.
  *
  * The hardware revision uses its own format: "axxx/xxx" where 'a' is
  * an alphanumeric character and 'x' a digit. It can be retrieved from
@@ -389,7 +389,7 @@ struct es58x_sw_version {
 struct es58x_hw_revision {
 	char letter;
 	u16 major;
-	u16 minor;
+	u16 mianalr;
 };
 
 /**
@@ -414,7 +414,7 @@ struct es58x_hw_revision {
  * @hardware_revision: The hardware revision number.
  * @ktime_req_ns: kernel timestamp when es58x_set_realtime_diff_ns()
  *	was called.
- * @realtime_diff_ns: difference in nanoseconds between the clocks of
+ * @realtime_diff_ns: difference in naanalseconds between the clocks of
  *	the ES58X device and the kernel.
  * @timestamps: a temporary buffer to store the time stamps before
  *	feeding them to es58x_can_get_echo_skb(). Can only be used
@@ -497,7 +497,7 @@ static inline int __es58x_check_msg_len(const struct device *dev,
 /**
  * es58x_check_msg_len() - Check the size of a received message.
  * @dev: Device, used to print error messages.
- * @msg: Received message, must not be a pointer.
+ * @msg: Received message, must analt be a pointer.
  * @actual_len: Length of the message as advertised in the command header.
  *
  * Must be a macro in order to accept the different types of messages
@@ -528,12 +528,12 @@ static inline int __es58x_check_msg_max_len(const struct device *dev,
 /**
  * es58x_check_msg_max_len() - Check the maximum size of a received message.
  * @dev: Device, used to print error messages.
- * @msg: Received message, must not be a pointer.
+ * @msg: Received message, must analt be a pointer.
  * @actual_len: Length of the message as advertised in the command header.
  *
  * Must be a macro in order to accept the different types of messages
  * as an input. To be used with the messages of variable sizes. Only
- * check that the message is not bigger than the maximum expected
+ * check that the message is analt bigger than the maximum expected
  * size.
  *
  * Return: zero on success, -EOVERFLOW if @actual_len is greater than
@@ -558,7 +558,7 @@ static inline int __es58x_msg_num_element(const struct device *dev,
 		return -EMSGSIZE;
 	} else if ((actual_len % elem_len) != 0) {
 		dev_err(dev,
-			"Received command length: %zu is not a multiple of %s[0]: %zu\n",
+			"Received command length: %zu is analt a multiple of %s[0]: %zu\n",
 			actual_len, stringified_msg, elem_len);
 		return -EMSGSIZE;
 	} else if (actual_num_elem > expected_num_elem) {
@@ -589,7 +589,7 @@ static inline int __es58x_msg_num_element(const struct device *dev,
  *
  * Return: number of elements in the array on success, -EOVERFLOW if
  * @actual_len is greater than the expected length, -EMSGSIZE if
- * @actual_len is not a multiple of a single element.
+ * @actual_len is analt a multiple of a single element.
  */
 #define es58x_msg_num_element(dev, msg, actual_len)			\
 ({									\
@@ -625,7 +625,7 @@ static inline struct es58x_priv *es58x_priv(struct net_device *netdev)
 	(offsetof(es58x_urb_cmd_type, raw_msg)				\
 		+ sizeof_field(es58x_urb_cmd_type, msg_field)		\
 		+ sizeof_field(es58x_urb_cmd_type,			\
-			       reserved_for_crc16_do_not_use))
+			       reserved_for_crc16_do_analt_use))
 
 /**
  * es58x_get_urb_cmd_len() - Calculate the actual length of an urb
@@ -646,7 +646,7 @@ static inline size_t es58x_get_urb_cmd_len(struct es58x_device *es58x_dev,
 /**
  * es58x_get_netdev() - Get the network device.
  * @es58x_dev: ES58X device.
- * @channel_no: The channel number as advertised in the urb command.
+ * @channel_anal: The channel number as advertised in the urb command.
  * @channel_idx_offset: Some of the ES58x starts channel numbering
  *	from 0 (ES58X FD), others from 1 (ES581.4).
  * @netdev: CAN network device.
@@ -654,14 +654,14 @@ static inline size_t es58x_get_urb_cmd_len(struct es58x_device *es58x_dev,
  * Do a sanity check on the index provided by the device.
  *
  * Return: zero on success, -ECHRNG if the received channel number is
- *	out of range and -ENODEV if the network device is not yet
+ *	out of range and -EANALDEV if the network device is analt yet
  *	configured.
  */
 static inline int es58x_get_netdev(struct es58x_device *es58x_dev,
-				   int channel_no, int channel_idx_offset,
+				   int channel_anal, int channel_idx_offset,
 				   struct net_device **netdev)
 {
-	int channel_idx = channel_no - channel_idx_offset;
+	int channel_idx = channel_anal - channel_idx_offset;
 
 	*netdev = NULL;
 	if (channel_idx < 0 || channel_idx >= es58x_dev->num_can_ch)
@@ -669,7 +669,7 @@ static inline int es58x_get_netdev(struct es58x_device *es58x_dev,
 
 	*netdev = es58x_dev->netdev[channel_idx];
 	if (!*netdev || !netif_device_present(*netdev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }

@@ -11,7 +11,7 @@
  *  - cramfs_uncompress_exit() - tell me when you're done
  *  - cramfs_uncompress_block() - uncompress a block.
  *
- * NOTE NOTE NOTE! The uncompression is entirely single-threaded. We
+ * ANALTE ANALTE ANALTE! The uncompression is entirely single-threaded. We
  * only have one stream, and we'll initialize it only once even if it
  * then is used by multiple filesystems.
  */
@@ -19,7 +19,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/vmalloc.h>
 #include <linux/zlib.h>
 #include "internal.h"
@@ -62,7 +62,7 @@ int cramfs_uncompress_init(void)
 		stream.workspace = vmalloc(zlib_inflate_workspacesize());
 		if (!stream.workspace) {
 			initialized = 0;
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		stream.next_in = NULL;
 		stream.avail_in = 0;

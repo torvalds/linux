@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2019 Microchip Technology Inc.
+ *  Copyright (C) 2019 Microchip Techanallogy Inc.
  *
  */
 
@@ -55,7 +55,7 @@ struct sam9x60_div {
 #define to_sam9x60_frac(core)	container_of(core, struct sam9x60_frac, core)
 #define to_sam9x60_div(core)	container_of(core, struct sam9x60_div, core)
 
-static struct sam9x60_div *notifier_div;
+static struct sam9x60_div *analtifier_div;
 
 static inline bool sam9x60_pll_ready(struct regmap *regmap, int id)
 {
@@ -366,7 +366,7 @@ static int sam9x60_div_pll_set(struct sam9x60_pll_core *core)
 	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
 	cdiv = (val & core->layout->div_mask) >> core->layout->div_shift;
 
-	/* Stop if enabled an nothing changed. */
+	/* Stop if enabled an analthing changed. */
 	if (!!(val & core->layout->endiv_mask) && cdiv == div->div)
 		goto unlock;
 
@@ -512,7 +512,7 @@ static int sam9x60_div_pll_set_rate_chg(struct clk_hw *hw, unsigned long rate,
 	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
 	cdiv = (val & core->layout->div_mask) >> core->layout->div_shift;
 
-	/* Stop if nothing changed. */
+	/* Stop if analthing changed. */
 	if (cdiv == div->div)
 		goto unlock;
 
@@ -543,15 +543,15 @@ static void sam9x60_div_pll_restore_context(struct clk_hw *hw)
 		sam9x60_div_pll_set(core);
 }
 
-static int sam9x60_div_pll_notifier_fn(struct notifier_block *notifier,
+static int sam9x60_div_pll_analtifier_fn(struct analtifier_block *analtifier,
 				       unsigned long code, void *data)
 {
-	struct sam9x60_div *div = notifier_div;
+	struct sam9x60_div *div = analtifier_div;
 	struct sam9x60_pll_core core = div->core;
 	struct regmap *regmap = core.regmap;
 	unsigned long irqflags;
 	u32 val, cdiv;
-	int ret = NOTIFY_DONE;
+	int ret = ANALTIFY_DONE;
 
 	if (code != PRE_RATE_CHANGE)
 		return ret;
@@ -568,12 +568,12 @@ static int sam9x60_div_pll_notifier_fn(struct notifier_block *notifier,
 	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
 	cdiv = (val & core.layout->div_mask) >> core.layout->div_shift;
 
-	/* Stop if nothing changed. */
+	/* Stop if analthing changed. */
 	if (cdiv == div->safe_div)
 		goto unlock;
 
 	sam9x60_div_pll_set_div(&core, div->div, 0);
-	ret = NOTIFY_OK;
+	ret = ANALTIFY_OK;
 
 unlock:
 	spin_unlock_irqrestore(core.lock, irqflags);
@@ -581,8 +581,8 @@ unlock:
 	return ret;
 }
 
-static struct notifier_block sam9x60_div_pll_notifier = {
-	.notifier_call = sam9x60_div_pll_notifier_fn,
+static struct analtifier_block sam9x60_div_pll_analtifier = {
+	.analtifier_call = sam9x60_div_pll_analtifier_fn,
 };
 
 static const struct clk_ops sam9x60_div_pll_ops = {
@@ -626,7 +626,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 
 	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
 	if (!frac)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (parent_name)
@@ -657,11 +657,11 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 		frac->frac = FIELD_GET(PMC_PLL_CTRL1_FRACR_MSK, val);
 	} else {
 		/*
-		 * This means the PLL is not setup by bootloaders. In this
+		 * This means the PLL is analt setup by bootloaders. In this
 		 * case we need to set the minimum rate for it. Otherwise
 		 * a clock child of this PLL may be enabled before setting
 		 * its rate leading to enabling this PLL with unsupported
-		 * rate. This will lead to PLL not being locked at all.
+		 * rate. This will lead to PLL analt being locked at all.
 		 */
 		parent_rate = clk_hw_get_rate(parent_hw);
 		if (!parent_rate) {
@@ -709,7 +709,7 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	int ret;
 
 	/* We only support one changeable PLL. */
-	if (id > PLL_MAX_ID || !lock || (safe_div && notifier_div))
+	if (id > PLL_MAX_ID || !lock || (safe_div && analtifier_div))
 		return ERR_PTR(-EINVAL);
 
 	if (safe_div >= PLL_DIV_MAX)
@@ -717,7 +717,7 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	if (parent_hw)
@@ -754,8 +754,8 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 		kfree(div);
 		hw = ERR_PTR(ret);
 	} else if (div->safe_div) {
-		notifier_div = div;
-		clk_notifier_register(hw->clk, &sam9x60_div_pll_notifier);
+		analtifier_div = div;
+		clk_analtifier_register(hw->clk, &sam9x60_div_pll_analtifier);
 	}
 
 	return hw;

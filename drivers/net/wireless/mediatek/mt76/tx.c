@@ -129,10 +129,10 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	memset(cb, 0, sizeof(*cb));
 
 	if (!wcid || !rcu_access_pointer(dev->wcid[wcid->idx]))
-		return MT_PACKET_ID_NO_ACK;
+		return MT_PACKET_ID_ANAL_ACK;
 
-	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-		return MT_PACKET_ID_NO_ACK;
+	if (info->flags & IEEE80211_TX_CTL_ANAL_ACK)
+		return MT_PACKET_ID_ANAL_ACK;
 
 	if (!(info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			     IEEE80211_TX_CTL_RATE_CTRL_PROBE))) {
@@ -141,7 +141,7 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 		     ieee80211_is_data(hdr->frame_control)))
 			return MT_PACKET_ID_WED;
 
-		return MT_PACKET_ID_NO_SKB;
+		return MT_PACKET_ID_ANAL_SKB;
 	}
 
 	spin_lock_bh(&dev->status_lock);
@@ -149,7 +149,7 @@ mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	pid = idr_alloc(&wcid->pktid, skb, MT_PACKET_ID_FIRST,
 			MT_PACKET_ID_MASK, GFP_ATOMIC);
 	if (pid < 0) {
-		pid = MT_PACKET_ID_NO_SKB;
+		pid = MT_PACKET_ID_ANAL_SKB;
 		goto out;
 	}
 
@@ -222,7 +222,7 @@ mt76_tx_status_check(struct mt76_dev *dev, bool flush)
 EXPORT_SYMBOL_GPL(mt76_tx_status_check);
 
 static void
-mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
+mt76_tx_check_analn_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
 		      struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -231,9 +231,9 @@ mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	if (!wcid || info->tx_time_est)
 		return;
 
-	pending = atomic_dec_return(&wcid->non_aql_packets);
+	pending = atomic_dec_return(&wcid->analn_aql_packets);
 	if (pending < 0)
-		atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
+		atomic_cmpxchg(&wcid->analn_aql_packets, pending, 0);
 }
 
 void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *skb,
@@ -253,7 +253,7 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
 	if (wcid_idx < ARRAY_SIZE(dev->wcid))
 		wcid = rcu_dereference(dev->wcid[wcid_idx]);
 
-	mt76_tx_check_non_aql(dev, wcid, skb);
+	mt76_tx_check_analn_aql(dev, wcid, skb);
 
 #ifdef CONFIG_NL80211_TESTMODE
 	if (mt76_is_testmode_skb(dev, skb, &hw)) {
@@ -303,11 +303,11 @@ __mt76_tx_queue_skb(struct mt76_phy *phy, int qid, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76_queue *q = phy->q_tx[qid];
 	struct mt76_dev *dev = phy->dev;
-	bool non_aql;
+	bool analn_aql;
 	int pending;
 	int idx;
 
-	non_aql = !info->tx_time_est;
+	analn_aql = !info->tx_time_est;
 	idx = dev->queue_ops->tx_queue_skb(dev, q, qid, skb, wcid, sta);
 	if (idx < 0 || !sta)
 		return idx;
@@ -315,11 +315,11 @@ __mt76_tx_queue_skb(struct mt76_phy *phy, int qid, struct sk_buff *skb,
 	wcid = (struct mt76_wcid *)sta->drv_priv;
 	q->entry[idx].wcid = wcid->idx;
 
-	if (!non_aql)
+	if (!analn_aql)
 		return idx;
 
-	pending = atomic_inc_return(&wcid->non_aql_packets);
-	if (stop && pending >= MT_MAX_NON_AQL_PKT)
+	pending = atomic_inc_return(&wcid->analn_aql_packets);
+	if (stop && pending >= MT_MAX_ANALN_AQL_PKT)
 		*stop = true;
 
 	return idx;
@@ -459,7 +459,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
 	if (test_bit(MT_WCID_FLAG_PS, &wcid->flags))
 		return 0;
 
-	if (atomic_read(&wcid->non_aql_packets) >= MT_MAX_NON_AQL_PKT)
+	if (atomic_read(&wcid->analn_aql_packets) >= MT_MAX_ANALN_AQL_PKT)
 		return 0;
 
 	skb = mt76_txq_dequeue(phy, mtxq);
@@ -770,7 +770,7 @@ int mt76_skb_adjust_pad(struct sk_buff *skb, int pad)
 	}
 
 	if (skb_pad(last, pad))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__skb_put(last, pad);
 

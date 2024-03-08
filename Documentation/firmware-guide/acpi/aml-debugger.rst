@@ -40,7 +40,7 @@ sufficiently privileged user).
 After booting the kernel with the debugger built-in, the debugger can be
 started by using the following commands::
 
-   # mount -t debugfs none /sys/kernel/debug
+   # mount -t debugfs analne /sys/kernel/debug
    # modprobe acpi_dbg
    # tools/power/acpi/acpidbg
 

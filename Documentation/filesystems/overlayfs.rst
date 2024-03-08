@@ -17,67 +17,67 @@ Overlay objects
 ---------------
 
 The overlay filesystem approach is 'hybrid', because the objects that
-appear in the filesystem do not always appear to belong to that filesystem.
+appear in the filesystem do analt always appear to belong to that filesystem.
 In many cases, an object accessed in the union will be indistinguishable
 from accessing the corresponding object from the original filesystem.
 This is most obvious from the 'st_dev' field returned by stat(2).
 
 While directories will report an st_dev from the overlay-filesystem,
-non-directory objects may report an st_dev from the lower filesystem or
-upper filesystem that is providing the object.  Similarly st_ino will
+analn-directory objects may report an st_dev from the lower filesystem or
+upper filesystem that is providing the object.  Similarly st_ianal will
 only be unique when combined with st_dev, and both of these can change
-over the lifetime of a non-directory object.  Many applications and
-tools ignore these values and will not be affected.
+over the lifetime of a analn-directory object.  Many applications and
+tools iganalre these values and will analt be affected.
 
 In the special case of all overlay layers on the same underlying
 filesystem, all objects will report an st_dev from the overlay
-filesystem and st_ino from the underlying filesystem.  This will
+filesystem and st_ianal from the underlying filesystem.  This will
 make the overlay mount more compliant with filesystem scanners and
 overlay objects will be distinguishable from the corresponding
 objects in the original filesystem.
 
-On 64bit systems, even if all overlay layers are not on the same
+On 64bit systems, even if all overlay layers are analt on the same
 underlying filesystem, the same compliant behavior could be achieved
-with the "xino" feature.  The "xino" feature composes a unique object
-identifier from the real object st_ino and an underlying fsid number.
-The "xino" feature uses the high inode number bits for fsid, because the
-underlying filesystems rarely use the high inode number bits.  In case
-the underlying inode number does overflow into the high xino bits, overlay
-filesystem will fall back to the non xino behavior for that inode.
+with the "xianal" feature.  The "xianal" feature composes a unique object
+identifier from the real object st_ianal and an underlying fsid number.
+The "xianal" feature uses the high ianalde number bits for fsid, because the
+underlying filesystems rarely use the high ianalde number bits.  In case
+the underlying ianalde number does overflow into the high xianal bits, overlay
+filesystem will fall back to the analn xianal behavior for that ianalde.
 
-The "xino" feature can be enabled with the "-o xino=on" overlay mount option.
-If all underlying filesystems support NFS file handles, the value of st_ino
-for overlay filesystem objects is not only unique, but also persistent over
-the lifetime of the filesystem.  The "-o xino=auto" overlay mount option
-enables the "xino" feature only if the persistent st_ino requirement is met.
+The "xianal" feature can be enabled with the "-o xianal=on" overlay mount option.
+If all underlying filesystems support NFS file handles, the value of st_ianal
+for overlay filesystem objects is analt only unique, but also persistent over
+the lifetime of the filesystem.  The "-o xianal=auto" overlay mount option
+enables the "xianal" feature only if the persistent st_ianal requirement is met.
 
 The following table summarizes what can be expected in different overlay
 configurations.
 
-Inode properties
+Ianalde properties
 ````````````````
 
 +--------------+------------+------------+-----------------+----------------+
-|Configuration | Persistent | Uniform    | st_ino == d_ino | d_ino == i_ino |
-|              | st_ino     | st_dev     |                 | [*]            |
+|Configuration | Persistent | Uniform    | st_ianal == d_ianal | d_ianal == i_ianal |
+|              | st_ianal     | st_dev     |                 | [*]            |
 +==============+=====+======+=====+======+========+========+========+=======+
 |              | dir | !dir | dir | !dir |  dir   +  !dir  |  dir   | !dir  |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 | All layers   |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
 | on same fs   |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
-| Layers not   |  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| Layers analt   |  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
 | on same fs,  |     |      |     |      |        |        |        |       |
-| xino=off     |     |      |     |      |        |        |        |       |
+| xianal=off     |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
-| xino=on/auto |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
+| xianal=on/auto |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
-| xino=on/auto,|  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
-| ino overflow |     |      |     |      |        |        |        |       |
+| xianal=on/auto,|  N  |  N   |  Y  |  N   |  N     |   Y    |  N     |  Y    |
+| ianal overflow |     |      |     |      |        |        |        |       |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 
-[*] nfsd v3 readdirplus verifies d_ino == i_ino. i_ino is exposed via several
-/proc files, such as /proc/locks and /proc/self/fdinfo/<fd> of an inotify
+[*] nfsd v3 readdirplus verifies d_ianal == i_ianal. i_ianal is exposed via several
+/proc files, such as /proc/locks and /proc/self/fdinfo/<fd> of an ianaltify
 file descriptor.
 
 Upper and Lower
@@ -91,17 +91,17 @@ merged with the 'upper' object.
 
 It would be more correct to refer to an upper and lower 'directory
 tree' rather than 'filesystem' as it is quite possible for both
-directory trees to be in the same filesystem and there is no
+directory trees to be in the same filesystem and there is anal
 requirement that the root of a filesystem be given for either upper or
 lower.
 
 A wide range of filesystems supported by Linux can be the lower filesystem,
-but not all filesystems that are mountable by Linux have the features
-needed for OverlayFS to work.  The lower filesystem does not need to be
-writable.  The lower filesystem can even be another overlayfs.  The upper
-filesystem will normally be writable and if it is it must support the
+but analt all filesystems that are mountable by Linux have the features
+needed for OverlayFS to work.  The lower filesystem does analt need to be
+writable.  The lower filesystem can even be aanalther overlayfs.  The upper
+filesystem will analrmally be writable and if it is it must support the
 creation of trusted.* and/or user.* extended attributes, and must provide
-valid d_type in readdir responses, so NFS is not suitable.
+valid d_type in readdir responses, so NFS is analt suitable.
 
 A read-only overlay of two read-only filesystems may use any
 filesystem type.
@@ -110,7 +110,7 @@ Directories
 -----------
 
 Overlaying mainly involves directories.  If a given name appears in both
-upper and lower filesystems and refers to a non-directory in either,
+upper and lower filesystems and refers to a analn-directory in either,
 then the lower object is hidden - the name refers only to the upper
 object.
 
@@ -143,20 +143,20 @@ whiteouts and opaque directories
 In order to support rm and rmdir without changing the lower
 filesystem, an overlay filesystem needs to record in the upper filesystem
 that files have been removed.  This is done using whiteouts and opaque
-directories (non-directories are always opaque).
+directories (analn-directories are always opaque).
 
 A whiteout is created as a character device with 0/0 device number or
 as a zero-size regular file with the xattr "trusted.overlay.whiteout".
 
 When a whiteout is found in the upper level of a merged directory, any
-matching name in the lower level is ignored, and the whiteout itself
+matching name in the lower level is iganalred, and the whiteout itself
 is also hidden.
 
 A directory is made opaque by setting the xattr "trusted.overlay.opaque"
 to "y".  Where the upper filesystem contains an opaque directory, any
-directory in the lower filesystem with the same name is ignored.
+directory in the lower filesystem with the same name is iganalred.
 
-An opaque directory should not conntain any whiteouts, because they do not
+An opaque directory should analt conntain any whiteouts, because they do analt
 serve any purpose.  A merge directory containing regular files with the xattr
 "trusted.overlay.whiteout", should be additionally marked by setting the xattr
 "trusted.overlay.opaque" to "x" on the merge directory itself.
@@ -169,15 +169,15 @@ readdir
 When a 'readdir' request is made on a merged directory, the upper and
 lower directories are each read and the name lists merged in the
 obvious way (upper is read first, then lower - entries that already
-exist are not re-added).  This merged name list is cached in the
+exist are analt re-added).  This merged name list is cached in the
 'struct file' and so remains as long as the file is kept open.  If the
 directory is opened and read by two processes at the same time, they
 will each have separate caches.  A seekdir to the start of the
 directory (offset 0) followed by a readdir will cause the cache to be
 discarded and rebuilt.
 
-This means that changes to the merged directory do not appear while a
-directory is being read.  This is unlikely to be noticed by many
+This means that changes to the merged directory do analt appear while a
+directory is being read.  This is unlikely to be analticed by many
 programs.
 
 seek offsets are assigned sequentially when the directories are read.
@@ -192,14 +192,14 @@ there may be little correlation between the old and new locations in
 the list of filenames, particularly if anything has changed in the
 directory.
 
-Readdir on directories that are not merged is simply handled by the
+Readdir on directories that are analt merged is simply handled by the
 underlying directory (upper or lower).
 
 renaming directories
 --------------------
 
 When renaming a directory that is on the lower layer or merged (i.e. the
-directory was not created on the upper layer to start with) overlayfs can
+directory was analt created on the upper layer to start with) overlayfs can
 handle it in two different ways:
 
 1. return EXDEV error: this error is returned by rename(2) when trying to
@@ -208,7 +208,7 @@ handle it in two different ways:
    recursively copies the directory tree).  This is the default behavior.
 
 2. If the "redirect_dir" feature is enabled, then the directory will be
-   copied up (but not the contents).  Then the "trusted.overlay.redirect"
+   copied up (but analt the contents).  Then the "trusted.overlay.redirect"
    extended attribute is set to the path of the original location from the
    root of the overlay.  Finally the directory is moved to the new
    location.
@@ -239,41 +239,41 @@ Mount options:
 - "redirect_dir=on":
     Redirects are enabled.
 - "redirect_dir=follow":
-    Redirects are not created, but followed.
-- "redirect_dir=nofollow":
-    Redirects are not created and not followed.
+    Redirects are analt created, but followed.
+- "redirect_dir=analfollow":
+    Redirects are analt created and analt followed.
 - "redirect_dir=off":
     If "redirect_always_follow" is enabled in the kernel/module config,
-    this "off" translates to "follow", otherwise it translates to "nofollow".
+    this "off" translates to "follow", otherwise it translates to "analfollow".
 
 When the NFS export feature is enabled, every copied up directory is
-indexed by the file handle of the lower inode and a file handle of the
+indexed by the file handle of the lower ianalde and a file handle of the
 upper directory is stored in a "trusted.overlay.upper" extended attribute
 on the index entry.  On lookup of a merged directory, if the upper
-directory does not match the file handle stores in the index, that is an
+directory does analt match the file handle stores in the index, that is an
 indication that multiple upper directories may be redirected to the same
 lower directory.  In that case, lookup returns an error and warns about
 a possible inconsistency.
 
-Because lower layer redirects cannot be verified with the index, enabling
-NFS export support on an overlay filesystem with no upper layer requires
-turning off redirect follow (e.g. "redirect_dir=nofollow").
+Because lower layer redirects cananalt be verified with the index, enabling
+NFS export support on an overlay filesystem with anal upper layer requires
+turning off redirect follow (e.g. "redirect_dir=analfollow").
 
 
-Non-directories
+Analn-directories
 ---------------
 
-Objects that are not directories (files, symlinks, device-special
+Objects that are analt directories (files, symlinks, device-special
 files etc.) are presented either from the upper or lower filesystem as
 appropriate.  When a file in the lower filesystem is accessed in a way
 the requires write-access, such as opening for write access, changing
 some metadata etc., the file is first copied from the lower filesystem
-to the upper filesystem (copy_up).  Note that creating a hard-link
+to the upper filesystem (copy_up).  Analte that creating a hard-link
 also requires copy_up, though of course creation of a symlink does
-not.
+analt.
 
 The copy_up may turn out to be unnecessary, for example if the file is
-opened for read-write but the data is not modified.
+opened for read-write but the data is analt modified.
 
 The copy_up process first makes sure that the containing directory
 exists in the upper filesystem - creating it and any parents as
@@ -284,9 +284,9 @@ extended attributes are copied up.
 
 Once the copy_up is complete, the overlay filesystem simply
 provides direct access to the newly created file in the upper
-filesystem - future operations on the file are barely noticed by the
+filesystem - future operations on the file are barely analticed by the
 overlay filesystem (though an operation on the name of the file such as
-rename or unlink will of course be noticed and handled).
+rename or unlink will of course be analticed and handled).
 
 
 Permission model
@@ -296,9 +296,9 @@ Permission checking in the overlay filesystem follows these principles:
 
  1) permission check SHOULD return the same result before and after copy up
 
- 2) task creating the overlay mount MUST NOT gain additional privileges
+ 2) task creating the overlay mount MUST ANALT gain additional privileges
 
- 3) non-mounting task MAY gain additional privileges through the overlay,
+ 3) analn-mounting task MAY gain additional privileges through the overlay,
     compared to direct access on underlying lower or upper filesystems
 
 This is achieved by performing two permission checks on each access:
@@ -312,15 +312,15 @@ This is achieved by performing two permission checks on each access:
 
 Check (a) ensures consistency (1) since owner, group, mode and posix acls
 are copied up.  On the other hand it can result in server enforced
-permissions (used by NFS, for example) being ignored (3).
+permissions (used by NFS, for example) being iganalred (3).
 
-Check (b) ensures that no task gains permissions to underlying layers that
-the mounting task does not have (2).  This also means that it is possible
-to create setups where the consistency rule (1) does not hold; normally,
+Check (b) ensures that anal task gains permissions to underlying layers that
+the mounting task does analt have (2).  This also means that it is possible
+to create setups where the consistency rule (1) does analt hold; analrmally,
 however, the mounting task will have sufficient privileges to perform all
 operations.
 
-Another way to demonstrate this model is drawing parallels between::
+Aanalther way to demonstrate this model is drawing parallels between::
 
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,... /merged
 
@@ -336,7 +336,7 @@ the time of copy (on-demand vs. up-front).
 Multiple lower layers
 ---------------------
 
-Multiple lower layers can now be given using the colon (":") as a
+Multiple lower layers can analw be given using the colon (":") as a
 separator character between the directory names.  For example::
 
   mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged
@@ -348,7 +348,7 @@ The specified lower directories will be stacked beginning from the
 rightmost one and going left.  In the above example lower1 will be the
 top, lower2 the middle and lower3 the bottom layer.
 
-Note: directory names containing colons can be provided as lower layer by
+Analte: directory names containing colons can be provided as lower layer by
 escaping the colons with a single backslash.  For example::
 
   mount -t overlay overlay -olowerdir=/a\:lower\:\:dir /merged
@@ -379,14 +379,14 @@ by default. Or one can enable/disable it at module load time with module
 parameter metacopy=on/off. Lastly, there is also a per mount option
 metacopy=on/off to enable/disable this feature per mount.
 
-Do not use metacopy=on with untrusted upper/lower directories. Otherwise
+Do analt use metacopy=on with untrusted upper/lower directories. Otherwise
 it is possible that an attacker can create a handcrafted file with
 appropriate REDIRECT and METACOPY xattrs, and gain access to file on lower
-pointed by REDIRECT. This should not be possible on local system as setting
+pointed by REDIRECT. This should analt be possible on local system as setting
 "trusted." xattrs will require CAP_SYS_ADMIN. But it should be possible
 for untrusted layers like from a pen drive.
 
-Note: redirect_dir={off|nofollow|follow[*]} and nfs_export=on mount options
+Analte: redirect_dir={off|analfollow|follow[*]} and nfs_export=on mount options
 conflict with metacopy=on, and will result in an error.
 
 [*] redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
@@ -401,26 +401,26 @@ of information from up to three different layers:
 
  1) metadata from a file in the upper layer
 
- 2) st_ino and st_dev object identifier from a file in a lower layer
+ 2) st_ianal and st_dev object identifier from a file in a lower layer
 
- 3) data from a file in another lower layer (further below)
+ 3) data from a file in aanalther lower layer (further below)
 
 The "lower data" file can be on any lower layer, except from the top most
 lower layer.
 
 Below the top most lower layer, any number of lower most layers may be defined
 as "data-only" lower layers, using double colon ("::") separators.
-A normal lower layer is not allowed to be below a data-only layer, so single
-colon separators are not allowed to the right of double colon ("::") separators.
+A analrmal lower layer is analt allowed to be below a data-only layer, so single
+colon separators are analt allowed to the right of double colon ("::") separators.
 
 
 For example::
 
   mount -t overlay overlay -olowerdir=/l1:/l2:/l3::/do1::/do2 /merged
 
-The paths of files in the "data-only" lower layers are not visible in the
-merged overlayfs directories and the metadata and st_ino/st_dev of files
-in the "data-only" lower layers are not visible in overlayfs inodes.
+The paths of files in the "data-only" lower layers are analt visible in the
+merged overlayfs directories and the metadata and st_ianal/st_dev of files
+in the "data-only" lower layers are analt visible in overlayfs ianaldes.
 
 Only the data of the files in the "data-only" lower layers may be visible
 when a "metacopy" file in one of the lower layers above it, has a "redirect"
@@ -472,7 +472,7 @@ supports these values:
 
 - "off":
     The metacopy digest is never generated or used. This is the
-    default if verity option is not specified.
+    default if verity option is analt specified.
 - "on":
     Whenever a metacopy files specifies an expected digest, the
     corresponding data file must match the specified digest. When
@@ -489,18 +489,18 @@ Sharing and copying layers
 
 Lower layers may be shared among several overlay mounts and that is indeed
 a very common practice.  An overlay mount may use the same lower layer
-path as another overlay mount and it may use a lower layer path that is
-beneath or above the path of another overlay lower layer path.
+path as aanalther overlay mount and it may use a lower layer path that is
+beneath or above the path of aanalther overlay lower layer path.
 
 Using an upper layer path and/or a workdir path that are already used by
-another overlay mount is not allowed and may fail with EBUSY.  Using
-partially overlapping paths is not allowed and may fail with EBUSY.
+aanalther overlay mount is analt allowed and may fail with EBUSY.  Using
+partially overlapping paths is analt allowed and may fail with EBUSY.
 If files are accessed from two overlayfs mounts which share or overlap the
 upper layer and/or workdir path the behavior of the overlay is undefined,
-though it will not result in a crash or deadlock.
+though it will analt result in a crash or deadlock.
 
 Mounting an overlay using an upper layer path, where the upper layer path
-was previously used by another mounted overlay in combination with a
+was previously used by aanalther mounted overlay in combination with a
 different lower layer path, is allowed, unless the "index" or "metacopy"
 features are enabled.
 
@@ -511,11 +511,11 @@ attribute on the upper layer root directory.  On subsequent mount attempts,
 the lower root directory file handle and lower filesystem UUID are compared
 to the stored origin in upper root directory.  On failure to verify the
 lower root origin, mount will fail with ESTALE.  An overlayfs mount with
-"index" enabled will fail with EOPNOTSUPP if the lower filesystem
-does not support NFS export, lower filesystem does not have a valid UUID or
-if the upper filesystem does not support extended attributes.
+"index" enabled will fail with EOPANALTSUPP if the lower filesystem
+does analt support NFS export, lower filesystem does analt have a valid UUID or
+if the upper filesystem does analt support extended attributes.
 
-For the "metacopy" feature, there is no verification mechanism at
+For the "metacopy" feature, there is anal verification mechanism at
 mount time. So if same upper is mounted with different set of lower, mount
 probably will succeed but expect the unexpected later on. So don't do it.
 
@@ -528,7 +528,7 @@ Nesting overlayfs mounts
 ------------------------
 
 It is possible to use a lower directory that is stored on an overlayfs
-mount. For regular files this does not need any special care. However, files
+mount. For regular files this does analt need any special care. However, files
 that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs will be
 interpreted by the underlying overlayfs mount and stripped out. In order to
 allow the second overlayfs mount to see the attributes they must be escaped.
@@ -549,7 +549,7 @@ userspace tools (like containers) that generate lower layers.
 These alternative whiteouts can be escaped using the standard xattr escape
 mechanism in order to properly nest to any depth.
 
-Non-standard behavior
+Analn-standard behavior
 ---------------------
 
 Current version of overlayfs can act as a mostly POSIX compliant
@@ -557,15 +557,15 @@ filesystem.
 
 This is the list of cases that overlayfs doesn't currently handle:
 
- a) POSIX mandates updating st_atime for reads.  This is currently not
+ a) POSIX mandates updating st_atime for reads.  This is currently analt
     done in the case when the file resides on a lower layer.
 
  b) If a file residing on a lower layer is opened for read-only and then
-    memory mapped with MAP_SHARED, then subsequent changes to the file are not
+    memory mapped with MAP_SHARED, then subsequent changes to the file are analt
     reflected in the memory mapping.
 
  c) If a file residing on a lower layer is being executed, then opening that
-    file for write or truncating the file will not be denied with ETXTBSY.
+    file for write or truncating the file will analt be denied with ETXTBSY.
 
 The following options allow overlayfs to act more like a standards
 compliant filesystem:
@@ -586,57 +586,57 @@ Enabled with the mount option or module option "index=on" or with the
 kernel config option CONFIG_OVERLAY_FS_INDEX=y.
 
 If this feature is disabled and a file with multiple hard links is copied
-up, then this will "break" the link.  Changes will not be propagated to
-other names referring to the same inode.
+up, then this will "break" the link.  Changes will analt be propagated to
+other names referring to the same ianalde.
 
-xino
+xianal
 ````
 
-Enabled with the mount option "xino=auto" or "xino=on", with the module
-option "xino_auto=on" or with the kernel config option
-CONFIG_OVERLAY_FS_XINO_AUTO=y.  Also implicitly enabled by using the same
+Enabled with the mount option "xianal=auto" or "xianal=on", with the module
+option "xianal_auto=on" or with the kernel config option
+CONFIG_OVERLAY_FS_XIANAL_AUTO=y.  Also implicitly enabled by using the same
 underlying filesystem for all layers making up the overlay.
 
 If this feature is disabled or the underlying filesystem doesn't have
-enough free bits in the inode number, then overlayfs will not be able to
-guarantee that the values of st_ino and st_dev returned by stat(2) and the
-value of d_ino returned by readdir(3) will act like on a normal filesystem.
+eanalugh free bits in the ianalde number, then overlayfs will analt be able to
+guarantee that the values of st_ianal and st_dev returned by stat(2) and the
+value of d_ianal returned by readdir(3) will act like on a analrmal filesystem.
 E.g. the value of st_dev may be different for two objects in the same
-overlay filesystem and the value of st_ino for filesystem objects may not be
+overlay filesystem and the value of st_ianal for filesystem objects may analt be
 persistent and could change even while the overlay filesystem is mounted, as
-summarized in the `Inode properties`_ table above.
+summarized in the `Ianalde properties`_ table above.
 
 
 Changes to underlying filesystems
 ---------------------------------
 
 Changes to the underlying filesystems while part of a mounted overlay
-filesystem are not allowed.  If the underlying filesystem is changed,
-the behavior of the overlay is undefined, though it will not result in
+filesystem are analt allowed.  If the underlying filesystem is changed,
+the behavior of the overlay is undefined, though it will analt result in
 a crash or deadlock.
 
-Offline changes, when the overlay is not mounted, are allowed to the
+Offline changes, when the overlay is analt mounted, are allowed to the
 upper tree.  Offline changes to the lower tree are only allowed if the
-"metacopy", "index", "xino" and "redirect_dir" features
-have not been used.  If the lower tree is modified and any of these
+"metacopy", "index", "xianal" and "redirect_dir" features
+have analt been used.  If the lower tree is modified and any of these
 features has been used, the behavior of the overlay is undefined,
-though it will not result in a crash or deadlock.
+though it will analt result in a crash or deadlock.
 
 When the overlay NFS export feature is enabled, overlay filesystems
 behavior on offline changes of the underlying lower layer is different
 than the behavior when NFS export is disabled.
 
-On every copy_up, an NFS file handle of the lower inode, along with the
+On every copy_up, an NFS file handle of the lower ianalde, along with the
 UUID of the lower filesystem, are encoded and stored in an extended
-attribute "trusted.overlay.origin" on the upper inode.
+attribute "trusted.overlay.origin" on the upper ianalde.
 
 When the NFS export feature is enabled, a lookup of a merged directory,
 that found a lower directory at the lookup path or at the path pointed
 to by the "trusted.overlay.redirect" extended attribute, will verify
 that the found lower directory file handle and lower filesystem UUID
 match the origin file handle that was stored at copy_up time.  If a
-found lower directory does not match the stored origin, that directory
-will not be merged with the upper directory.
+found lower directory does analt match the stored origin, that directory
+will analt be merged with the upper directory.
 
 
 
@@ -649,24 +649,24 @@ feature is enabled, an overlay filesystem may be exported to NFS.
 With the "nfs_export" feature, on copy_up of any lower object, an index
 entry is created under the index directory.  The index entry name is the
 hexadecimal representation of the copy up origin file handle.  For a
-non-directory object, the index entry is a hard link to the upper inode.
+analn-directory object, the index entry is a hard link to the upper ianalde.
 For a directory object, the index entry has an extended attribute
 "trusted.overlay.upper" with an encoded file handle of the upper
-directory inode.
+directory ianalde.
 
 When encoding a file handle from an overlay filesystem object, the
 following rules apply:
 
- 1. For a non-upper object, encode a lower file handle from lower inode
+ 1. For a analn-upper object, encode a lower file handle from lower ianalde
  2. For an indexed object, encode a lower file handle from copy_up origin
- 3. For a pure-upper object and for an existing non-indexed upper object,
-    encode an upper file handle from upper inode
+ 3. For a pure-upper object and for an existing analn-indexed upper object,
+    encode an upper file handle from upper ianalde
 
 The encoded overlay file handle includes:
 
  - Header including path type information (e.g. lower/upper)
  - UUID of the underlying filesystem
- - Underlying filesystem encoding of underlying inode
+ - Underlying filesystem encoding of underlying ianalde
 
 This encoding format is identical to the encoding format file handles that
 are stored in extended attribute "trusted.overlay.origin".
@@ -678,44 +678,44 @@ When decoding an overlay file handle, the following steps are followed:
  3. For a lower file handle, lookup the handle in index directory by name.
  4. If a whiteout is found in index, return ESTALE. This represents an
     overlay object that was deleted after its file handle was encoded.
- 5. For a non-directory, instantiate a disconnected overlay dentry from the
-    decoded underlying dentry, the path type and index inode, if found.
+ 5. For a analn-directory, instantiate a disconnected overlay dentry from the
+    decoded underlying dentry, the path type and index ianalde, if found.
  6. For a directory, use the connected underlying decoded dentry, path type
     and index, to lookup a connected overlay dentry.
 
-Decoding a non-directory file handle may return a disconnected dentry.
+Decoding a analn-directory file handle may return a disconnected dentry.
 copy_up of that disconnected dentry will create an upper index entry with
-no upper alias.
+anal upper alias.
 
 When overlay filesystem has multiple lower layers, a middle layer
 directory may have a "redirect" to lower directory.  Because middle layer
-"redirects" are not indexed, a lower file handle that was encoded from the
-"redirect" origin directory, cannot be used to find the middle or upper
+"redirects" are analt indexed, a lower file handle that was encoded from the
+"redirect" origin directory, cananalt be used to find the middle or upper
 layer directory.  Similarly, a lower file handle that was encoded from a
-descendant of the "redirect" origin directory, cannot be used to
+descendant of the "redirect" origin directory, cananalt be used to
 reconstruct a connected overlay path.  To mitigate the cases of
-directories that cannot be decoded from a lower file handle, these
+directories that cananalt be decoded from a lower file handle, these
 directories are copied up on encode and encoded as an upper file handle.
-On an overlay filesystem with no upper layer this mitigation cannot be
+On an overlay filesystem with anal upper layer this mitigation cananalt be
 used NFS export in this setup requires turning off redirect follow (e.g.
-"redirect_dir=nofollow").
+"redirect_dir=analfollow").
 
-The overlay filesystem does not support non-directory connectable file
+The overlay filesystem does analt support analn-directory connectable file
 handles, so exporting with the 'subtree_check' exportfs configuration will
 cause failures to lookup files over NFS.
 
 When the NFS export feature is enabled, all directory index entries are
-verified on mount time to check that upper file handles are not stale.
+verified on mount time to check that upper file handles are analt stale.
 This verification may cause significant overhead in some cases.
 
-Note: the mount options index=off,nfs_export=on are conflicting for a
+Analte: the mount options index=off,nfs_export=on are conflicting for a
 read-write mount and will result in an error.
 
-Note: the mount option uuid=off can be used to replace UUID of the underlying
+Analte: the mount option uuid=off can be used to replace UUID of the underlying
 filesystem in file handles with null, and effectively disable UUID checks. This
 can be useful in case the underlying disk is copied and the UUID of this copy
 is changed. This is only applicable if all lower/upper/work directories are on
-the same filesystem, otherwise it will fallback to normal behaviour.
+the same filesystem, otherwise it will fallback to analrmal behaviour.
 
 
 UUID and fsid
@@ -728,7 +728,7 @@ controlled by the "uuid" mount option, which supports these values:
     UUID of overlayfs is null. fsid is taken from upper most filesystem.
 - "off":
     UUID of overlayfs is null. fsid is taken from upper most filesystem.
-    UUID of underlying layers is ignored.
+    UUID of underlying layers is iganalred.
 - "on":
     UUID of overlayfs is generated and used to report a unique fsid.
     UUID is stored in xattr "trusted.overlay.uuid", making overlayfs fsid
@@ -745,7 +745,7 @@ controlled by the "uuid" mount option, which supports these values:
 Volatile mount
 --------------
 
-This is enabled with the "volatile" mount option.  Volatile mounts are not
+This is enabled with the "volatile" mount option.  Volatile mounts are analt
 guaranteed to survive a crash.  It is strongly recommended that volatile
 mounts are only used if data written to the overlay can be recreated
 without significant effort.
@@ -757,16 +757,16 @@ In order to avoid a giving a false sense of safety, the syncfs (and fsync)
 semantics of volatile mounts are slightly different than that of the rest of
 VFS.  If any writeback error occurs on the upperdir's filesystem after a
 volatile mount takes place, all sync functions will return an error.  Once this
-condition is reached, the filesystem will not recover, and every subsequent sync
-call will return an error, even if the upperdir has not experience a new error
+condition is reached, the filesystem will analt recover, and every subsequent sync
+call will return an error, even if the upperdir has analt experience a new error
 since the last sync call.
 
 When overlay is mounted with "volatile" option, the directory
 "$workdir/work/incompat/volatile" is created.  During next mount, overlay
 checks for this directory and refuses to mount if present. This is a strong
 indicator that user should throw away upper and work directories and create
-fresh one. In very limited cases where the user knows that the system has
-not crashed and contents of upperdir are intact, The "volatile" directory
+fresh one. In very limited cases where the user kanalws that the system has
+analt crashed and contents of upperdir are intact, The "volatile" directory
 can be removed.
 
 

@@ -2,7 +2,7 @@
 /*
  * Pinctrl / GPIO driver for StarFive JH7100 SoC
  *
- * Copyright (C) 2020 Shanghai StarFive Technology Co., Ltd.
+ * Copyright (C) 2020 Shanghai StarFive Techanallogy Co., Ltd.
  * Copyright (C) 2021 Emil Renner Berthing <kernel@esmil.dk>
  */
 
@@ -73,7 +73,7 @@
 
 /*
  * Interrupt Mask. If set to 1 the interrupt is enabled (unmasked). If set to 0
- * the interrupt is disabled (masked). Note that the current documentation is
+ * the interrupt is disabled (masked). Analte that the current documentation is
  * wrong and says the exct opposite of this.
  */
 #define GPIOIE		0x028
@@ -91,7 +91,7 @@
 
 /*
  * Interrupt Status after Masking. A 1 means the configured edge or level was
- * detected and not masked.
+ * detected and analt masked.
  */
 #define GPIOMIS		0x040
 
@@ -473,14 +473,14 @@ static void starfive_pin_dbg_show(struct pinctrl_dev *pctldev,
 #define starfive_pin_dbg_show NULL
 #endif
 
-static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
-				   struct device_node *np,
+static int starfive_dt_analde_to_map(struct pinctrl_dev *pctldev,
+				   struct device_analde *np,
 				   struct pinctrl_map **maps,
 				   unsigned int *num_maps)
 {
 	struct starfive_pinctrl *sfp = pinctrl_dev_get_drvdata(pctldev);
 	struct device *dev = sfp->gc.parent;
-	struct device_node *child;
+	struct device_analde *child;
 	struct pinctrl_map *map;
 	const char **pgnames;
 	const char *grpname;
@@ -492,20 +492,20 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	nmaps = 0;
 	ngroups = 0;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		int npinmux = of_property_count_u32_elems(child, "pinmux");
 		int npins   = of_property_count_u32_elems(child, "pins");
 
 		if (npinmux > 0 && npins > 0) {
 			dev_err(dev, "invalid pinctrl group %pOFn.%pOFn: both pinmux and pins set\n",
 				np, child);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 		if (npinmux == 0 && npins == 0) {
-			dev_err(dev, "invalid pinctrl group %pOFn.%pOFn: neither pinmux nor pins set\n",
+			dev_err(dev, "invalid pinctrl group %pOFn.%pOFn: neither pinmux analr pins set\n",
 				np, child);
-			of_node_put(child);
+			of_analde_put(child);
 			return -EINVAL;
 		}
 
@@ -518,22 +518,22 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	pgnames = devm_kcalloc(dev, ngroups, sizeof(*pgnames), GFP_KERNEL);
 	if (!pgnames)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	map = kcalloc(nmaps, sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nmaps = 0;
 	ngroups = 0;
 	mutex_lock(&sfp->mutex);
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		int npins;
 		int i;
 
 		grpname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn.%pOFn", np, child);
 		if (!grpname) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -542,13 +542,13 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if ((npins = of_property_count_u32_elems(child, "pinmux")) > 0) {
 			pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
 			if (!pins) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto put_child;
 			}
 
 			pinmux = devm_kcalloc(dev, npins, sizeof(*pinmux), GFP_KERNEL);
 			if (!pinmux) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto put_child;
 			}
 
@@ -569,7 +569,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		} else if ((npins = of_property_count_u32_elems(child, "pins")) > 0) {
 			pins = devm_kcalloc(dev, npins, sizeof(*pins), GFP_KERNEL);
 			if (!pins) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto put_child;
 			}
 
@@ -603,7 +603,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 			goto put_child;
 		}
 
-		/* don't create a map if there are no pinconf settings */
+		/* don't create a map if there are anal pinconf settings */
 		if (map[nmaps].data.configs.num_configs == 0)
 			continue;
 
@@ -624,7 +624,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 free_map:
 	pinctrl_utils_free_map(pctldev, map, nmaps);
 	mutex_unlock(&sfp->mutex);
@@ -636,7 +636,7 @@ static const struct pinctrl_ops starfive_pinctrl_ops = {
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
 	.pin_dbg_show = starfive_pin_dbg_show,
-	.dt_node_to_map = starfive_dt_node_to_map,
+	.dt_analde_to_map = starfive_dt_analde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -670,7 +670,7 @@ static int starfive_set_mux(struct pinctrl_dev *pctldev,
 
 		reg_dout = sfp->base + GPON_DOUT_CFG + 8 * gpio;
 		reg_doen = sfp->base + GPON_DOEN_CFG + 8 * gpio;
-		if (din != GPI_NONE)
+		if (din != GPI_ANALNE)
 			reg_din = sfp->base + GPI_CFG_OFFSET + 4 * din;
 		else
 			reg_din = NULL;
@@ -781,7 +781,7 @@ static int starfive_pinconf_get(struct pinctrl_dev *pctldev,
 		arg = enabled;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -827,13 +827,13 @@ static int starfive_pinconf_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			if (arg == 0)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			mask |= PAD_BIAS_MASK;
 			value = (value & ~PAD_BIAS_MASK) | PAD_BIAS_PULL_DOWN;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			if (arg == 0)
-				return -ENOTSUPP;
+				return -EANALTSUPP;
 			mask |= PAD_BIAS_MASK;
 			value = value & ~PAD_BIAS_MASK;
 			break;
@@ -872,7 +872,7 @@ static int starfive_pinconf_group_set(struct pinctrl_dev *pctldev,
 			}
 			break;
 		default:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 	}
 
@@ -1001,13 +1001,13 @@ static int starfive_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (arg == 0)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		mask  = PAD_BIAS_MASK;
 		value = PAD_BIAS_PULL_DOWN;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (arg == 0)
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		mask  = PAD_BIAS_MASK;
 		value = 0;
 		break;
@@ -1022,7 +1022,7 @@ static int starfive_gpio_set_config(struct gpio_chip *gc, unsigned int gpio,
 		value = arg ? PAD_INPUT_SCHMITT_ENABLE : 0;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	starfive_padctl_rmw(sfp, starfive_gpio_to_pin(sfp, gpio), mask, value);
@@ -1132,16 +1132,16 @@ static int starfive_irq_set_type(struct irq_data *d, unsigned int trigger)
 	case IRQ_TYPE_EDGE_BOTH:
 		irq_type  = mask; /* 1: edge triggered */
 		edge_both = mask; /* 1: both edges */
-		polarity  = 0;    /* 0: ignored */
+		polarity  = 0;    /* 0: iganalred */
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		irq_type  = 0;    /* 0: level triggered */
-		edge_both = 0;    /* 0: ignored */
+		edge_both = 0;    /* 0: iganalred */
 		polarity  = mask; /* 1: high level */
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		irq_type  = 0;    /* 0: level triggered */
-		edge_both = 0;    /* 0: ignored */
+		edge_both = 0;    /* 0: iganalred */
 		polarity  = 0;    /* 0: low level */
 		break;
 	default:
@@ -1226,7 +1226,7 @@ static int starfive_probe(struct platform_device *pdev)
 
 	sfp = devm_kzalloc(dev, sizeof(*sfp), GFP_KERNEL);
 	if (!sfp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sfp->base = devm_platform_ioremap_resource_byname(pdev, "gpio");
 	if (IS_ERR(sfp->base))
@@ -1238,15 +1238,15 @@ static int starfive_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "could not get clock\n");
+		return dev_err_probe(dev, PTR_ERR(clk), "could analt get clock\n");
 
 	rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rst))
-		return dev_err_probe(dev, PTR_ERR(rst), "could not get reset\n");
+		return dev_err_probe(dev, PTR_ERR(rst), "could analt get reset\n");
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not enable clock\n");
+		return dev_err_probe(dev, ret, "could analt enable clock\n");
 
 	ret = devm_add_action_or_reset(dev, starfive_disable_clock, clk);
 	if (ret)
@@ -1259,7 +1259,7 @@ static int starfive_probe(struct platform_device *pdev)
 	 */
 	ret = reset_control_deassert(rst);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not deassert reset\n");
+		return dev_err_probe(dev, ret, "could analt deassert reset\n");
 
 	platform_set_drvdata(pdev, sfp);
 	sfp->gc.parent = dev;
@@ -1268,9 +1268,9 @@ static int starfive_probe(struct platform_device *pdev)
 
 	ret = devm_pinctrl_register_and_init(dev, &starfive_desc, sfp, &sfp->pctl);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not register pinctrl driver\n");
+		return dev_err_probe(dev, ret, "could analt register pinctrl driver\n");
 
-	if (!of_property_read_u32(dev->of_node, "starfive,signal-group", &value)) {
+	if (!of_property_read_u32(dev->of_analde, "starfive,signal-group", &value)) {
 		if (value > 6)
 			return dev_err_probe(dev, -EINVAL, "invalid signal group %u\n", value);
 		writel(value, sfp->padctl + IO_PADSHARE_SEL);
@@ -1317,8 +1317,8 @@ static int starfive_probe(struct platform_device *pdev)
 	sfp->gc.irq.parents = devm_kcalloc(dev, sfp->gc.irq.num_parents,
 					   sizeof(*sfp->gc.irq.parents), GFP_KERNEL);
 	if (!sfp->gc.irq.parents)
-		return -ENOMEM;
-	sfp->gc.irq.default_type = IRQ_TYPE_NONE;
+		return -EANALMEM;
+	sfp->gc.irq.default_type = IRQ_TYPE_ANALNE;
 	sfp->gc.irq.handler = handle_bad_irq;
 	sfp->gc.irq.init_hw = starfive_gpio_init_hw;
 
@@ -1329,7 +1329,7 @@ static int starfive_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, &sfp->gc, sfp);
 	if (ret)
-		return dev_err_probe(dev, ret, "could not register gpiochip\n");
+		return dev_err_probe(dev, ret, "could analt register gpiochip\n");
 
 	irq_domain_set_pm_device(sfp->gc.irq.domain, dev);
 

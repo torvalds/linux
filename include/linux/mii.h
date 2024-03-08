@@ -59,11 +59,11 @@ static inline struct mii_ioctl_data *if_mii(struct ifreq *rq)
  *
  * Given a set of MII abilities, check each bit and returns the
  * currently supported media, in the priority order defined by
- * IEEE 802.3u.  We use LPA_xxx constants but note this is not the
+ * IEEE 802.3u.  We use LPA_xxx constants but analte this is analt the
  * value of LPA solely, as described above.
  *
  * The one exception to IEEE 802.3u is that 100baseT4 is placed
- * between 100T-full and 100T-half.  If your phy does not support
+ * between 100T-full and 100T-half.  If your phy does analt support
  * 100T4 this is fine.  If your phy places 100T4 elsewhere in the
  * priority order, you will need to roll your own function.
  */
@@ -87,7 +87,7 @@ static inline unsigned int mii_nway_result (unsigned int negotiated)
 
 /**
  * mii_duplex
- * @duplex_lock: Non-zero if duplex is locked at full
+ * @duplex_lock: Analn-zero if duplex is locked at full
  * @negotiated: value of MII ANAR and'd with ANLPAR
  *
  * A small helper function for a common case.  Returns one
@@ -294,7 +294,7 @@ static inline u32 mii_stat1000_to_ethtool_lpa_t(u32 lpa)
  *
  * A small helper function that translates MII_STAT1000 bits, when in
  * 1000Base-T mode, to linkmode advertisement settings. Other bits in
- * advertising are not changes.
+ * advertising are analt changes.
  */
 static inline void mii_stat1000_mod_linkmode_lpa_t(unsigned long *advertising,
 						   u32 lpa)
@@ -552,7 +552,7 @@ static inline u8 mii_resolve_flowctrl_fdx(u16 lcladv, u16 rmtadv)
  *
  * Encode the speed and duplex to a BMCR value. 2500, 1000, 100 and 10 Mbps are
  * supported. 2500Mbps is encoded to 1000Mbps. Other speeds are encoded as 10
- * Mbps. Unknown duplex values are encoded to half-duplex.
+ * Mbps. Unkanalwn duplex values are encoded to half-duplex.
  */
 static inline u16 mii_bmcr_encode_fixed(int speed, int duplex)
 {

@@ -13,7 +13,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erranal == EINTR)
 			goto again;
 
 		return -1;
@@ -63,14 +63,14 @@ static void test_userns_create_bpf(void)
 		cap_enable_effective(cap_mask, NULL);
 }
 
-static void test_unpriv_userns_create_no_bpf(void)
+static void test_unpriv_userns_create_anal_bpf(void)
 {
 	__u32 cap_mask = 1ULL << CAP_SYS_ADMIN;
 	__u64 old_caps = 0;
 
 	cap_disable_effective(cap_mask, &old_caps);
 
-	ASSERT_OK(create_user_ns(), "no-bpf unpriv new user ns");
+	ASSERT_OK(create_user_ns(), "anal-bpf unpriv new user ns");
 
 	if (cap_mask & old_caps)
 		cap_enable_effective(cap_mask, NULL);
@@ -81,8 +81,8 @@ void test_deny_namespace(void)
 	struct test_deny_namespace *skel = NULL;
 	int err;
 
-	if (test__start_subtest("unpriv_userns_create_no_bpf"))
-		test_unpriv_userns_create_no_bpf();
+	if (test__start_subtest("unpriv_userns_create_anal_bpf"))
+		test_unpriv_userns_create_anal_bpf();
 
 	skel = test_deny_namespace__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel load"))

@@ -157,7 +157,7 @@ static int mmp3_usb_phy_init(struct phy *phy)
 			| 0xf0 << USB2_PLL_FBDIV_SHIFT_MMP3_B0);
 	} else {
 		dev_err(&phy->dev, "unsupported silicon revision\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	u2o_clear(base, USB2_PLL_REG1, USB2_PLL_PU_PLL_MASK
@@ -224,7 +224,7 @@ static int mmp3_usb_phy_calibrate(struct phy *phy)
 		mdelay(1);
 		loops++;
 		if (loops > 100) {
-			dev_err(&phy->dev, "PLL_READY not set after 100mS.\n");
+			dev_err(&phy->dev, "PLL_READY analt set after 100mS.\n");
 			return -ETIMEDOUT;
 		}
 	}
@@ -252,7 +252,7 @@ static int mmp3_usb_phy_probe(struct platform_device *pdev)
 
 	mmp3_usb_phy = devm_kzalloc(dev, sizeof(*mmp3_usb_phy), GFP_KERNEL);
 	if (!mmp3_usb_phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mmp3_usb_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mmp3_usb_phy->base)) {

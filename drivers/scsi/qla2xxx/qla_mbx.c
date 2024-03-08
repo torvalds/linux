@@ -35,7 +35,7 @@ static const char *mb_to_str(uint16_t cmd)
 		if (cmd == e->cmd)
 			return e->str;
 	}
-	return "unknown";
+	return "unkanalwn";
 }
 
 static struct rom_cmd {
@@ -179,7 +179,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
-	 * non ISP abort time.
+	 * analn ISP abort time.
 	 */
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
@@ -261,7 +261,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 	/* Wait for mbx cmd completion until timeout */
 	atomic_inc(&ha->num_pend_mbx_stage2);
-	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
+	if ((!abort_active && io_lock_on) || IS_ANALPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 		if (IS_P3P_TYPE(ha))
@@ -466,7 +466,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			}
 
 			/* Attempt to capture firmware dump for further
-			 * anallysis of the current formware state. we do not
+			 * anallysis of the current formware state. we do analt
 			 * need to do this if we are intentionally generating
 			 * a dump
 			 */
@@ -482,11 +482,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/* Clean up */
 	ha->mcp = NULL;
 
-	if ((abort_active || !io_lock_on) && !IS_NOPOLLING_TYPE(ha)) {
+	if ((abort_active || !io_lock_on) && !IS_ANALPOLLING_TYPE(ha)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x101a,
 		    "Checking for additional resp interrupt.\n");
 
-		/* polling mode for non isp_abort commands. */
+		/* polling mode for analn isp_abort commands. */
 		qla2x00_poll(ha->rsp_q_map[0]);
 	}
 
@@ -494,7 +494,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	    mcp->mb[0] != MBC_GEN_SYSTEM_ERROR) {
 		if (!io_lock_on || (mcp->flags & IOCTL_CMD) ||
 		    ha->flags.eeh_busy) {
-			/* not in dpc. schedule it for dpc to take over. */
+			/* analt in dpc. schedule it for dpc to take over. */
 			ql_dbg(ql_dbg_mbx, vha, 0x101b,
 			    "Timeout, schedule isp_abort_needed.\n");
 
@@ -572,7 +572,7 @@ mbx_done:
 		if (ql2xextended_error_logging & (ql_dbg_disc|ql_dbg_mbx)) {
 			pr_warn("%s [%s]-%04x:%ld: **** Failed=%x", QL_MSGHDR,
 			    dev_name(&ha->pdev->dev), 0x1020+0x800,
-			    vha->host_no, rval);
+			    vha->host_anal, rval);
 			mboxes = mcp->in_mb;
 			cnt = 4;
 			for (i = 0; i < ha->mbx_count && cnt; i++, mboxes >>= 1)
@@ -604,7 +604,7 @@ mbx_done:
 		/*
 		 * The caller of this mailbox encounter pci error.
 		 * Hold the thread until PCIE link reset complete to make
-		 * sure caller does not unmap dma while recovery is
+		 * sure caller does analt unmap dma while recovery is
 		 * in progress.
 		 */
 		msleep(1);
@@ -795,7 +795,7 @@ again:
 		ql_dbg(ql_dbg_mbx, vha, 0x119b, "max_supported_speed=%s.\n",
 		    ha->max_supported_speed == 0 ? "16Gps" :
 		    ha->max_supported_speed == 1 ? "32Gps" :
-		    ha->max_supported_speed == 2 ? "64Gps" : "unknown");
+		    ha->max_supported_speed == 2 ? "64Gps" : "unkanalwn");
 		if (vha->min_supported_speed) {
 			ha->min_supported_speed = mcp->mb[5] &
 			    (BIT_0 | BIT_1 | BIT_2);
@@ -805,7 +805,7 @@ again:
 			    ha->min_supported_speed == 5 ? "32Gps" :
 			    ha->min_supported_speed == 4 ? "16Gps" :
 			    ha->min_supported_speed == 3 ? "8Gps" :
-			    ha->min_supported_speed == 2 ? "4Gps" : "unknown");
+			    ha->min_supported_speed == 2 ? "4Gps" : "unkanalwn");
 		}
 	}
 
@@ -1048,8 +1048,8 @@ qla_set_exchoffld_mem_cfg(scsi_qla_host_t *vha)
  * Input:
  *	ha:		adapter state pointer.
  *	major:		pointer for major number.
- *	minor:		pointer for minor number.
- *	subminor:	pointer for subminor number.
+ *	mianalr:		pointer for mianalr number.
+ *	submianalr:	pointer for submianalr number.
  *
  * Returns:
  *	qla2x00 local function return status code.
@@ -1088,8 +1088,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 
 	/* Return mailbox data. */
 	ha->fw_major_version = mcp->mb[1];
-	ha->fw_minor_version = mcp->mb[2];
-	ha->fw_subminor_version = mcp->mb[3];
+	ha->fw_mianalr_version = mcp->mb[2];
+	ha->fw_submianalr_version = mcp->mb[3];
 	ha->fw_attributes = mcp->mb[6];
 	if (IS_QLA2100(vha->hw) || IS_QLA2200(vha->hw))
 		ha->fw_memory_size = 0x1FFFF;		/* Defaults to 128KB. */
@@ -1180,7 +1180,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 			ql_log(ql_log_info, vha, 0xffff,
 			    "Secure Flash Update in FW: %s\n",
 			    (ha->flags.secure_fw) ? "Supported" :
-			    "Not Supported");
+			    "Analt Supported");
 		}
 
 		if (ha->flags.scm_supported_a &&
@@ -1190,7 +1190,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		}
 		ql_log(ql_log_info, vha, 0x11a3, "SCM in FW: %s\n",
 		       (ha->flags.scm_supported_f) ? "Supported" :
-		       "Not Supported");
+		       "Analt Supported");
 
 		if (vha->flags.nvme2_enabled) {
 			/* set BIT_15 of special feature control block for SLER */
@@ -1548,7 +1548,7 @@ qla2x00_abort_command(srb_t *sp)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (handle == req->num_outstanding_cmds) {
-		/* command not found */
+		/* command analt found */
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -1902,7 +1902,7 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 		mcp->out_mb |= MBX_19|MBX_18|MBX_17|MBX_16|MBX_15;
 	}
 
-	/* 1 and 2 should normally be captured. */
+	/* 1 and 2 should analrmally be captured. */
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		/* mb3 is additional info about the installed SFP. */
@@ -1943,7 +1943,7 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 
 /*
  * qla2x00_get_port_database
- *	Issue normal/enhanced get port database mailbox command
+ *	Issue analrmal/enhanced get port database mailbox command
  *	and copy device name as necessary.
  *
  * Input:
@@ -2041,16 +2041,16 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 				goto gpd_error_out;
 		}
 
-		if (fcport->loop_id == FC_NO_LOOP_ID ||
+		if (fcport->loop_id == FC_ANAL_LOOP_ID ||
 		    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
 		     memcmp(fcport->port_name, pd24->port_name, 8))) {
 			/* We lost the device mid way. */
-			rval = QLA_NOT_LOGGED_IN;
+			rval = QLA_ANALT_LOGGED_IN;
 			goto gpd_error_out;
 		}
 
 		/* Names are little-endian. */
-		memcpy(fcport->node_name, pd24->node_name, WWN_SIZE);
+		memcpy(fcport->analde_name, pd24->analde_name, WWN_SIZE);
 		memcpy(fcport->port_name, pd24->port_name, WWN_SIZE);
 
 		/* Get port_id of device. */
@@ -2059,7 +2059,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		fcport->d_id.b.al_pa = pd24->port_id[2];
 		fcport->d_id.b.rsvd_1 = 0;
 
-		/* If not target must be initiator or unknown type. */
+		/* If analt target must be initiator or unkanalwn type. */
 		if ((pd24->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -2086,16 +2086,16 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 			goto gpd_error_out;
 		}
 
-		if (fcport->loop_id == FC_NO_LOOP_ID ||
+		if (fcport->loop_id == FC_ANAL_LOOP_ID ||
 		    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
 		     memcmp(fcport->port_name, pd->port_name, 8))) {
 			/* We lost the device mid way. */
-			rval = QLA_NOT_LOGGED_IN;
+			rval = QLA_ANALT_LOGGED_IN;
 			goto gpd_error_out;
 		}
 
 		/* Names are little-endian. */
-		memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
+		memcpy(fcport->analde_name, pd->analde_name, WWN_SIZE);
 		memcpy(fcport->port_name, pd->port_name, WWN_SIZE);
 
 		/* Get port_id of device. */
@@ -2104,7 +2104,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		fcport->d_id.b.al_pa = pd->port_id[2];
 		fcport->d_id.b.rsvd_1 = 0;
 
-		/* If not target must be initiator or unknown type. */
+		/* If analt target must be initiator or unkanalwn type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -2522,7 +2522,7 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
-	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	lg->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
 	lg->handle = make_handle(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
@@ -2562,19 +2562,19 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 		case LSC_SCODE_NPORT_USED:
 			mb[0] = MBS_LOOP_ID_USED;
 			break;
-		case LSC_SCODE_NOLINK:
-		case LSC_SCODE_NOIOCB:
-		case LSC_SCODE_NOXCB:
+		case LSC_SCODE_ANALLINK:
+		case LSC_SCODE_ANALIOCB:
+		case LSC_SCODE_ANALXCB:
 		case LSC_SCODE_CMD_FAILED:
-		case LSC_SCODE_NOFABRIC:
-		case LSC_SCODE_FW_NOT_READY:
-		case LSC_SCODE_NOT_LOGGED_IN:
-		case LSC_SCODE_NOPCB:
+		case LSC_SCODE_ANALFABRIC:
+		case LSC_SCODE_FW_ANALT_READY:
+		case LSC_SCODE_ANALT_LOGGED_IN:
+		case LSC_SCODE_ANALPCB:
 		case LSC_SCODE_ELS_REJECT:
 		case LSC_SCODE_CMD_PARAM_ERR:
-		case LSC_SCODE_NONPORT:
+		case LSC_SCODE_ANALNPORT:
 		case LSC_SCODE_LOGGED_IN:
-		case LSC_SCODE_NOFLOGI_ACC:
+		case LSC_SCODE_ANALFLOGI_ACC:
 		default:
 			mb[0] = MBS_COMMAND_ERROR;
 			break;
@@ -2673,9 +2673,9 @@ qla2x00_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	if (rval != QLA_SUCCESS) {
 		/* RLU tmp code: need to change main mailbox_command function to
-		 * return ok even when the mailbox completion value is not
+		 * return ok even when the mailbox completion value is analt
 		 * SUCCESS. The caller needs to be responsible to interpret
-		 * the return values of this mailbox command if we're not
+		 * the return values of this mailbox command if we're analt
 		 * to change too much of the existing code.
 		 */
 		if (mcp->mb[0] == 0x4001 || mcp->mb[0] == 0x4002 ||
@@ -2751,9 +2751,9 @@ qla2x00_login_local_device(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	if (rval != QLA_SUCCESS) {
  		/* AV tmp code: need to change main mailbox_command function to
- 		 * return ok even when the mailbox completion value is not
+ 		 * return ok even when the mailbox completion value is analt
  		 * SUCCESS. The caller needs to be responsible to interpret
- 		 * the return values of this mailbox command if we're not
+ 		 * the return values of this mailbox command if we're analt
  		 * to change too much of the existing code.
  		 */
  		if (mcp->mb[0] == 0x4005 || mcp->mb[0] == 0x4006)
@@ -2792,7 +2792,7 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	}
 
 	req = vha->req;
-	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
+	lg->entry_type = LOGIANALUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
 	lg->handle = make_handle(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
@@ -3261,7 +3261,7 @@ qla24xx_abort_command(srb_t *sp)
 	if (sp->qpair)
 		req = sp->qpair->req;
 	else
-		return QLA_ERR_NO_QPAIR;
+		return QLA_ERR_ANAL_QPAIR;
 
 	if (ql2xasynctmfenable)
 		return qla24xx_async_abort_command(sp);
@@ -3273,8 +3273,8 @@ qla24xx_abort_command(srb_t *sp)
 	}
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 	if (handle == req->num_outstanding_cmds) {
-		/* Command not found. */
-		return QLA_ERR_NOT_FOUND;
+		/* Command analt found. */
+		return QLA_ERR_ANALT_FOUND;
 	}
 
 	abt = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
@@ -3294,7 +3294,7 @@ qla24xx_abort_command(srb_t *sp)
 	abt->port_id[2] = fcport->d_id.b.domain;
 	abt->vp_index = fcport->vha->vp_idx;
 
-	abt->req_que_no = cpu_to_le16(req->id);
+	abt->req_que_anal = cpu_to_le16(req->id);
 	/* Need to pass original sp */
 	qla_nvme_abort_set_option(abt, sp);
 
@@ -3404,7 +3404,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	    SS_RESPONSE_INFO_LEN_VALID) {
 		if (le32_to_cpu(sts->rsp_data_len) < 4) {
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1097,
-			    "Ignoring inconsistent data length -- not enough "
+			    "Iganalring inconsistent data length -- analt eanalugh "
 			    "response info (%d).\n",
 			    le32_to_cpu(sts->rsp_data_len));
 		} else if (sts->data[3]) {
@@ -4089,7 +4089,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			} else {
 				qla24xx_post_newsess_work(vha, &id,
 				    rptid_entry->u.f1.port_name,
-				    rptid_entry->u.f1.node_name,
+				    rptid_entry->u.f1.analde_name,
 				    NULL,
 				    FS_FCP_IS_N2N);
 			}
@@ -4134,7 +4134,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			if (rptid_entry->vp_status != VP_STAT_COMPL &&
 				rptid_entry->vp_status != VP_STAT_ID_CHG) {
 				ql_dbg(ql_dbg_mbx, vha, 0x10ba,
-				    "Could not acquire ID for VP[%d].\n",
+				    "Could analt acquire ID for VP[%d].\n",
 				    rptid_entry->vp_idx);
 				return;
 			}
@@ -4155,7 +4155,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 			qla_update_host_map(vp, id);
 
 			/*
-			 * Cannot configure here as we are still sitting on the
+			 * Cananalt configure here as we are still sitting on the
 			 * response queue. Handle it in dpc context.
 			 */
 			set_bit(VP_IDX_ACQUIRED, &vp->vp_flags);
@@ -4263,7 +4263,7 @@ qla24xx_modify_vp_config(scsi_qla_host_t *vha)
 
 	qlt_modify_vp_config(vha, vpmod);
 
-	memcpy(vpmod->node_name_idx1, vha->node_name, WWN_SIZE);
+	memcpy(vpmod->analde_name_idx1, vha->analde_name, WWN_SIZE);
 	memcpy(vpmod->port_name_idx1, vha->port_name, WWN_SIZE);
 	vpmod->entry_count = 1;
 
@@ -4422,7 +4422,7 @@ qla84xx_verify_chip(struct scsi_qla_host *vha, uint16_t *status)
 
 	/* Force Update? */
 	options = ha->cs84xx->fw_update ? VCO_FORCE_UPDATE : 0;
-	/* Diagnostic firmware? */
+	/* Diaganalstic firmware? */
 	/* options |= MENLO_DIAG_FW; */
 	/* We update the firmware with only one data sequence. */
 	options |= VCO_END_OF_DATA;
@@ -4472,7 +4472,7 @@ qla84xx_verify_chip(struct scsi_qla_host *vha, uint16_t *status)
 			    "Firmware updated to %x.\n",
 			    le32_to_cpu(mn->p.rsp.fw_ver));
 
-			/* NOTE: we only update OP firmware. */
+			/* ANALTE: we only update OP firmware. */
 			spin_lock_irqsave(&ha->cs84xx->access_lock, flags);
 			ha->cs84xx->op_fw_version =
 			    le32_to_cpu(mn->p.rsp.fw_ver);
@@ -5139,7 +5139,7 @@ qla2x00_read_sfp(scsi_qla_host_t *vha, dma_addr_t sfp_dma, uint8_t *sfp,
 		ql_dbg(ql_dbg_mbx, vha, 0x10e9,
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
 		if (mcp->mb[0] == MBS_COMMAND_ERROR && mcp->mb[1] == 0x22) {
-			/* sfp is not there */
+			/* sfp is analt there */
 			rval = QLA_INTERFACE_ERROR;
 		}
 	} else {
@@ -5322,7 +5322,7 @@ qla2x00_loopback_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 	    "Entered %s.\n", __func__);
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
-	mcp->mb[0] = MBC_DIAGNOSTIC_LOOP_BACK;
+	mcp->mb[0] = MBC_DIAGANALSTIC_LOOP_BACK;
 	mcp->mb[1] = mreq->options | BIT_6;	// BIT_6 specifies 64 bit addressing
 
 	/* transfer count */
@@ -5385,7 +5385,7 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 	    "Entered %s.\n", __func__);
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
-	mcp->mb[0] = MBC_DIAGNOSTIC_ECHO;
+	mcp->mb[0] = MBC_DIAGANALSTIC_ECHO;
 	/* BIT_6 specifies 64bit address */
 	mcp->mb[1] = mreq->options | BIT_15 | BIT_6;
 	if (IS_CNA_CAPABLE(ha)) {
@@ -5437,17 +5437,17 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 }
 
 int
-qla84xx_reset_chip(scsi_qla_host_t *vha, uint16_t enable_diagnostic)
+qla84xx_reset_chip(scsi_qla_host_t *vha, uint16_t enable_diaganalstic)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10fd,
-	    "Entered %s enable_diag=%d.\n", __func__, enable_diagnostic);
+	    "Entered %s enable_diag=%d.\n", __func__, enable_diaganalstic);
 
 	mcp->mb[0] = MBC_ISP84XX_RESET;
-	mcp->mb[1] = enable_diagnostic;
+	mcp->mb[1] = enable_diaganalstic;
 	mcp->out_mb = MBX_1|MBX_0;
 	mcp->in_mb = MBX_1|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
@@ -5784,7 +5784,7 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 
 	if (!IS_FWI2_CAPABLE(ha) || IS_QLA24XX_TYPE(ha) || IS_QLA81XX(ha)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1150,
-		    "Thermal not supported by this card.\n");
+		    "Thermal analt supported by this card.\n");
 		return rval;
 	}
 
@@ -5804,7 +5804,7 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp)
 			return rval;
 		}
 		ql_dbg(ql_dbg_mbx, vha, 0x10c9,
-		    "Thermal not supported by this card.\n");
+		    "Thermal analt supported by this card.\n");
 		return rval;
 	}
 
@@ -5904,8 +5904,8 @@ qla82xx_md_get_template_size(scsi_qla_host_t *vha)
 	    "Entered %s.\n", __func__);
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
-	mcp->mb[0] = LSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
-	mcp->mb[1] = MSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[0] = LSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[1] = MSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
 	mcp->mb[2] = LSW(RQST_TMPLT_SIZE);
 	mcp->mb[3] = MSW(RQST_TMPLT_SIZE);
 
@@ -5956,8 +5956,8 @@ qla82xx_md_get_template(scsi_qla_host_t *vha)
 	}
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
-	mcp->mb[0] = LSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
-	mcp->mb[1] = MSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[0] = LSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[1] = MSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
 	mcp->mb[2] = LSW(RQST_TMPLT);
 	mcp->mb[3] = MSW(RQST_TMPLT);
 	mcp->mb[4] = LSW(LSD(ha->md_tmplt_hdr_dma));
@@ -6007,8 +6007,8 @@ qla8044_md_get_template(scsi_qla_host_t *vha)
 
 	memset(mcp->mb, 0 , sizeof(mcp->mb));
 	while (offset < ha->md_template_size) {
-		mcp->mb[0] = LSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
-		mcp->mb[1] = MSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+		mcp->mb[0] = LSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
+		mcp->mb[1] = MSW(MBC_DIAGANALSTIC_MINIDUMP_TEMPLATE);
 		mcp->mb[2] = LSW(RQST_TMPLT);
 		mcp->mb[3] = MSW(RQST_TMPLT);
 		mcp->mb[4] = LSW(LSD(ha->md_tmplt_hdr_dma + offset));
@@ -6424,7 +6424,7 @@ qla2x00_dump_mctp_data(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t addr,
 }
 
 int
-qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
+qla26xx_dport_diaganalstics(scsi_qla_host_t *vha,
 	void *dd_buf, uint size, uint options)
 {
 	int rval;
@@ -6448,7 +6448,7 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 
 	memset(dd_buf, 0, size);
 
-	mcp->mb[0] = MBC_DPORT_DIAGNOSTICS;
+	mcp->mb[0] = MBC_DPORT_DIAGANALSTICS;
 	mcp->mb[1] = options;
 	mcp->mb[2] = MSW(LSD(dd_dma));
 	mcp->mb[3] = LSW(LSD(dd_dma));
@@ -6476,7 +6476,7 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 }
 
 int
-qla26xx_dport_diagnostics_v2(scsi_qla_host_t *vha,
+qla26xx_dport_diaganalstics_v2(scsi_qla_host_t *vha,
 			     struct qla_dport_diag_v2 *dd,  mbx_cmd_t *mcp)
 {
 	int rval;
@@ -6497,7 +6497,7 @@ qla26xx_dport_diagnostics_v2(scsi_qla_host_t *vha,
 
 	memset(dd->buf, 0, size);
 
-	mcp->mb[0] = MBC_DPORT_DIAGNOSTICS;
+	mcp->mb[0] = MBC_DPORT_DIAGANALSTICS;
 	mcp->mb[1] = options;
 	mcp->mb[2] = MSW(LSD(dd_dma));
 	mcp->mb[3] = LSW(LSD(dd_dma));
@@ -6533,7 +6533,7 @@ static void qla2x00_async_mb_sp_done(srb_t *sp, int res)
 
 /*
  * This mailbox uses the iocb interface to send MB command.
- * This allows non-critial (non chip setup) command to go
+ * This allows analn-critial (analn chip setup) command to go
  * out in parrallel.
  */
 int qla24xx_send_mb_cmd(struct scsi_qla_host *vha, mbx_cmd_t *mcp)
@@ -6599,7 +6599,7 @@ done:
 
 /*
  * qla24xx_gpdb_wait
- * NOTE: Do not call this routine from DPC thread
+ * ANALTE: Do analt call this routine from DPC thread
  */
 int qla24xx_gpdb_wait(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 {
@@ -6672,16 +6672,16 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 		goto gpd_error_out;
 	}
 
-	if (fcport->loop_id == FC_NO_LOOP_ID ||
+	if (fcport->loop_id == FC_ANAL_LOOP_ID ||
 	    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
 	     memcmp(fcport->port_name, pd->port_name, 8))) {
 		/* We lost the device mid way. */
-		rval = QLA_NOT_LOGGED_IN;
+		rval = QLA_ANALT_LOGGED_IN;
 		goto gpd_error_out;
 	}
 
 	/* Names are little-endian. */
-	memcpy(fcport->node_name, pd->node_name, WWN_SIZE);
+	memcpy(fcport->analde_name, pd->analde_name, WWN_SIZE);
 	memcpy(fcport->port_name, pd->port_name, WWN_SIZE);
 
 	/* Get port_id of device. */
@@ -6705,7 +6705,7 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if ((pd->prli_svc_param_word_3[0] & BIT_3) == 0)
 			fcport->port_type |= FCT_NVME_DISCOVERY;
 	} else {
-		/* If not target must be initiator or unknown type. */
+		/* If analt target must be initiator or unkanalwn type. */
 		if ((pd->prli_svc_param_word_3[0] & BIT_4) == 0)
 			fcport->port_type = FCT_INITIATOR;
 		else
@@ -6726,7 +6726,7 @@ gpd_error_out:
 
 /*
  * qla24xx_gidlist__wait
- * NOTE: don't call this routine from DPC thread.
+ * ANALTE: don't call this routine from DPC thread.
  */
 int qla24xx_gidlist_wait(struct scsi_qla_host *vha,
 	void *id_list, dma_addr_t id_list_dma, uint16_t *entries)
@@ -6920,7 +6920,7 @@ int qla28xx_secure_flash_update(scsi_qla_host_t *vha, uint16_t opts,
 
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s(%ld): failed rval 0x%x, %x %x %x",
-			__func__, vha->host_no, rval, mcp->mb[0], mcp->mb[1],
+			__func__, vha->host_anal, rval, mcp->mb[0], mcp->mb[1],
 			mcp->mb[2]);
 	}
 
@@ -7049,20 +7049,20 @@ ql26xx_led_config(scsi_qla_host_t *vha, uint16_t options, uint16_t *led)
 }
 
 /**
- * qla_no_op_mb(): This MB is used to check if FW is still alive and
+ * qla_anal_op_mb(): This MB is used to check if FW is still alive and
  * able to generate an interrupt. Otherwise, a timeout will trigger
  * FW dump + reset
  * @vha: host adapter pointer
- * Return: None
+ * Return: Analne
  */
-void qla_no_op_mb(struct scsi_qla_host *vha)
+void qla_anal_op_mb(struct scsi_qla_host *vha)
 {
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 	int rval;
 
 	memset(&mc, 0, sizeof(mc));
-	mcp->mb[0] = 0; // noop cmd= 0
+	mcp->mb[0] = 0; // analop cmd= 0
 	mcp->out_mb = MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->tov = 5;

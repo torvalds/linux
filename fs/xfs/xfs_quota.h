@@ -16,15 +16,15 @@ struct xfs_trans;
 struct xfs_buf;
 
 /*
- * This check is done typically without holding the inode lock;
+ * This check is done typically without holding the ianalde lock;
  * that may seem racy, but it is harmless in the context that it is used.
- * The inode cannot go inactive as long a reference is kept, and
+ * The ianalde cananalt go inactive as long a reference is kept, and
  * therefore if dquot(s) were attached, they'll stay consistent.
- * If, for example, the ownership of the inode changes while
- * we didn't have the inode locked, the appropriate dquot(s) will be
+ * If, for example, the ownership of the ianalde changes while
+ * we didn't have the ianalde locked, the appropriate dquot(s) will be
  * attached atomically.
  */
-#define XFS_NOT_DQATTACHED(mp, ip) \
+#define XFS_ANALT_DQATTACHED(mp, ip) \
 	((XFS_IS_UQUOTA_ON(mp) && (ip)->i_udquot == NULL) || \
 	 (XFS_IS_GQUOTA_ON(mp) && (ip)->i_gdquot == NULL) || \
 	 (XFS_IS_PQUOTA_ON(mp) && (ip)->i_pdquot == NULL))
@@ -69,19 +69,19 @@ struct xfs_dqtrx {
 	int64_t		qt_rtbcount_delta;/* dquot realtime blk changes */
 	int64_t		qt_delrtb_delta;  /* delayed RT blk count changes */
 
-	uint64_t	qt_ino_res;	  /* inode reserved on a dquot */
-	uint64_t	qt_ino_res_used;  /* inodes used from the reservation */
-	int64_t		qt_icount_delta;  /* dquot inode count changes */
+	uint64_t	qt_ianal_res;	  /* ianalde reserved on a dquot */
+	uint64_t	qt_ianal_res_used;  /* ianaldes used from the reservation */
+	int64_t		qt_icount_delta;  /* dquot ianalde count changes */
 };
 
 #ifdef CONFIG_XFS_QUOTA
 extern void xfs_trans_dup_dqinfo(struct xfs_trans *, struct xfs_trans *);
 extern void xfs_trans_free_dqinfo(struct xfs_trans *);
-extern void xfs_trans_mod_dquot_byino(struct xfs_trans *, struct xfs_inode *,
+extern void xfs_trans_mod_dquot_byianal(struct xfs_trans *, struct xfs_ianalde *,
 		uint, int64_t);
 extern void xfs_trans_apply_dquot_deltas(struct xfs_trans *);
 extern void xfs_trans_unreserve_and_mod_dquots(struct xfs_trans *);
-int xfs_trans_reserve_quota_nblks(struct xfs_trans *tp, struct xfs_inode *ip,
+int xfs_trans_reserve_quota_nblks(struct xfs_trans *tp, struct xfs_ianalde *ip,
 		int64_t dblocks, int64_t rblocks, bool force);
 extern int xfs_trans_reserve_quota_bydquots(struct xfs_trans *,
 		struct xfs_mount *, struct xfs_dquot *,
@@ -90,33 +90,33 @@ int xfs_trans_reserve_quota_icreate(struct xfs_trans *tp,
 		struct xfs_dquot *udqp, struct xfs_dquot *gdqp,
 		struct xfs_dquot *pdqp, int64_t dblocks);
 
-extern int xfs_qm_vop_dqalloc(struct xfs_inode *, kuid_t, kgid_t,
+extern int xfs_qm_vop_dqalloc(struct xfs_ianalde *, kuid_t, kgid_t,
 		prid_t, uint, struct xfs_dquot **, struct xfs_dquot **,
 		struct xfs_dquot **);
-extern void xfs_qm_vop_create_dqattach(struct xfs_trans *, struct xfs_inode *,
+extern void xfs_qm_vop_create_dqattach(struct xfs_trans *, struct xfs_ianalde *,
 		struct xfs_dquot *, struct xfs_dquot *, struct xfs_dquot *);
-extern int xfs_qm_vop_rename_dqattach(struct xfs_inode **);
+extern int xfs_qm_vop_rename_dqattach(struct xfs_ianalde **);
 extern struct xfs_dquot *xfs_qm_vop_chown(struct xfs_trans *,
-		struct xfs_inode *, struct xfs_dquot **, struct xfs_dquot *);
-extern int xfs_qm_dqattach(struct xfs_inode *);
-extern int xfs_qm_dqattach_locked(struct xfs_inode *ip, bool doalloc);
-extern void xfs_qm_dqdetach(struct xfs_inode *);
+		struct xfs_ianalde *, struct xfs_dquot **, struct xfs_dquot *);
+extern int xfs_qm_dqattach(struct xfs_ianalde *);
+extern int xfs_qm_dqattach_locked(struct xfs_ianalde *ip, bool doalloc);
+extern void xfs_qm_dqdetach(struct xfs_ianalde *);
 extern void xfs_qm_dqrele(struct xfs_dquot *);
-extern void xfs_qm_statvfs(struct xfs_inode *, struct kstatfs *);
+extern void xfs_qm_statvfs(struct xfs_ianalde *, struct kstatfs *);
 extern int xfs_qm_newmount(struct xfs_mount *, uint *, uint *);
 extern void xfs_qm_mount_quotas(struct xfs_mount *);
 extern void xfs_qm_unmount(struct xfs_mount *);
 extern void xfs_qm_unmount_quotas(struct xfs_mount *);
 
 static inline int
-xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
+xfs_quota_reserve_blkres(struct xfs_ianalde *ip, int64_t blocks)
 {
 	return xfs_trans_reserve_quota_nblks(NULL, ip, blocks, 0, false);
 }
-bool xfs_inode_near_dquot_enforcement(struct xfs_inode *ip, xfs_dqtype_t type);
+bool xfs_ianalde_near_dquot_enforcement(struct xfs_ianalde *ip, xfs_dqtype_t type);
 #else
 static inline int
-xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
+xfs_qm_vop_dqalloc(struct xfs_ianalde *ip, kuid_t kuid, kgid_t kgid,
 		prid_t prid, uint flags, struct xfs_dquot **udqp,
 		struct xfs_dquot **gdqp, struct xfs_dquot **pdqp)
 {
@@ -127,14 +127,14 @@ xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
 }
 #define xfs_trans_dup_dqinfo(tp, tp2)
 #define xfs_trans_free_dqinfo(tp)
-static inline void xfs_trans_mod_dquot_byino(struct xfs_trans *tp,
-		struct xfs_inode *ip, uint field, int64_t delta)
+static inline void xfs_trans_mod_dquot_byianal(struct xfs_trans *tp,
+		struct xfs_ianalde *ip, uint field, int64_t delta)
 {
 }
 #define xfs_trans_apply_dquot_deltas(tp)
 #define xfs_trans_unreserve_and_mod_dquots(tp)
 static inline int xfs_trans_reserve_quota_nblks(struct xfs_trans *tp,
-		struct xfs_inode *ip, int64_t dblocks, int64_t rblocks,
+		struct xfs_ianalde *ip, int64_t dblocks, int64_t rblocks,
 		bool force)
 {
 	return 0;
@@ -148,7 +148,7 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 }
 
 static inline int
-xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
+xfs_quota_reserve_blkres(struct xfs_ianalde *ip, int64_t blocks)
 {
 	return 0;
 }
@@ -172,11 +172,11 @@ xfs_trans_reserve_quota_icreate(struct xfs_trans *tp, struct xfs_dquot *udqp,
 #define xfs_qm_mount_quotas(mp)
 #define xfs_qm_unmount(mp)
 #define xfs_qm_unmount_quotas(mp)
-#define xfs_inode_near_dquot_enforcement(ip, type)			(false)
+#define xfs_ianalde_near_dquot_enforcement(ip, type)			(false)
 #endif /* CONFIG_XFS_QUOTA */
 
 static inline int
-xfs_quota_unreserve_blkres(struct xfs_inode *ip, int64_t blocks)
+xfs_quota_unreserve_blkres(struct xfs_ianalde *ip, int64_t blocks)
 {
 	return xfs_quota_reserve_blkres(ip, -blocks);
 }

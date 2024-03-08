@@ -55,17 +55,17 @@ static inline int charge_pump_source(struct dvb_frontend *fe, int force)
 					   TDA18271_MAIN_PLL, force);
 }
 
-static inline void tda18271_set_if_notch(struct dvb_frontend *fe)
+static inline void tda18271_set_if_analtch(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
 	switch (priv->mode) {
 	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
+		regs[R_MPD]  &= ~0x80; /* IF analtch = 0 */
 		break;
 	case TDA18271_DIGITAL:
-		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
+		regs[R_MPD]  |= 0x80; /* IF analtch = 1 */
 		break;
 	}
 }
@@ -90,7 +90,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		regs[R_EP3] &= ~0x04;
 	}
 
-	/* set cal mode to normal */
+	/* set cal mode to analrmal */
 	regs[R_EP4]  &= ~0x03;
 
 	/* update IF output level */
@@ -156,7 +156,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	switch (priv->role) {
 	case TDA18271_MASTER:
 		tda18271_calc_main_pll(fe, N);
-		tda18271_set_if_notch(fe);
+		tda18271_set_if_analtch(fe);
 		tda18271_write_regs(fe, R_MPD, 4);
 		break;
 	case TDA18271_SLAVE:
@@ -164,7 +164,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		tda18271_write_regs(fe, R_CPD, 4);
 
 		regs[R_MPD] = regs[R_CPD] & 0x7f;
-		tda18271_set_if_notch(fe);
+		tda18271_set_if_analtch(fe);
 		tda18271_write_regs(fe, R_MPD, 1);
 		break;
 	}
@@ -178,13 +178,13 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	msleep(1);
 
-	/* return pll to normal operation */
+	/* return pll to analrmal operation */
 	charge_pump_source(fe, 0);
 
 	msleep(20);
 
 	if (priv->id == TDA18271HDC2) {
-		/* set rfagc to normal speed mode */
+		/* set rfagc to analrmal speed mode */
 		if (map->fm_rfn)
 			regs[R_EP3] &= ~0x04;
 		else
@@ -230,7 +230,7 @@ static int tda18271_read_thermometer(struct dvb_frontend *fe)
 	regs[R_TM]   &= ~0x10;
 	tda18271_write_regs(fe, R_TM, 1);
 
-	/* set CAL mode to normal */
+	/* set CAL mode to analrmal */
 	regs[R_EP4]  &= ~0x03;
 	tda18271_write_regs(fe, R_EP4, 1);
 
@@ -329,7 +329,7 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 	unsigned char *regs = priv->tda18271_regs;
 	u32 N;
 
-	/* set CAL mode to normal */
+	/* set CAL mode to analrmal */
 	regs[R_EP4]  &= ~0x03;
 	tda18271_write_regs(fe, R_EP4, 1);
 
@@ -390,10 +390,10 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 
 	/* --------------------------------------------------------------- */
 
-	/* normal operation for the main pll */
+	/* analrmal operation for the main pll */
 	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
 
-	/* normal operation for the cal pll  */
+	/* analrmal operation for the cal pll  */
 	tda18271_charge_pump_source(fe, TDA18271_CAL_PLL, 0);
 
 	msleep(10); /* plls locking */
@@ -406,7 +406,7 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 
 	/* --------------------------------------------------------------- */
 
-	/* set CAL mode to normal */
+	/* set CAL mode to analrmal */
 	regs[R_EP4]  &= ~0x03;
 
 	/* switch on agc1 */
@@ -530,7 +530,7 @@ static int tda18271_powerscan_init(struct dvb_frontend *fe)
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
 	regs[R_EP3]  |= 0x12;
 
-	/* set cal mode to normal */
+	/* set cal mode to analrmal */
 	regs[R_EP4]  &= ~0x03;
 
 	/* update IF output level */
@@ -777,7 +777,7 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EB20, 1);
 	msleep(60); /* RF tracking filter calibration completion */
 
-	regs[R_EP4]  &= ~0x03; /* set cal mode to normal */
+	regs[R_EP4]  &= ~0x03; /* set cal mode to analrmal */
 	tda18271_write_regs(fe, R_EP4, 1);
 
 	tda18271_write_regs(fe, R_EP1, 1);
@@ -857,9 +857,9 @@ static int tda18271_agc(struct dvb_frontend *fe)
 
 	switch (priv->config) {
 	case TDA8290_LNA_OFF:
-		/* no external agc configuration required */
+		/* anal external agc configuration required */
 		if (tda18271_debug & DBG_ADV)
-			tda_dbg("no agc configuration provided\n");
+			tda_dbg("anal agc configuration provided\n");
 		break;
 	case TDA8290_LNA_ON_BRIDGE:
 		/* switch with GPIO of saa713x */
@@ -873,7 +873,7 @@ static int tda18271_agc(struct dvb_frontend *fe)
 	case TDA8290_LNA_GP0_HIGH_ON:
 	case TDA8290_LNA_GP0_HIGH_OFF:
 	default:
-		/* n/a - currently not supported */
+		/* n/a - currently analt supported */
 		tda_err("unsupported configuration: %d\n", priv->config);
 		ret = -EINVAL;
 		break;
@@ -960,7 +960,7 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 		}
 		break;
 	default:
-		tda_warn("modulation type not supported!\n");
+		tda_warn("modulation type analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -1171,7 +1171,7 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 		priv->id = TDA18271HDC2;
 		break;
 	default:
-		tda_info("Unknown device (%i) detected @ %d-%04x, device not supported.\n",
+		tda_info("Unkanalwn device (%i) detected @ %d-%04x, device analt supported.\n",
 			 regs[R_ID], i2c_adapter_id(priv->i2c_props.adap),
 			 priv->i2c_props.addr);
 		return -EINVAL;
@@ -1203,7 +1203,7 @@ static inline int tda18271_need_cal_on_startup(struct tda18271_config *cfg)
 {
 	/* tda18271_cal_on_startup == -1 when cal module option is unset */
 	return ((tda18271_cal_on_startup == -1) ?
-		/* honor configuration setting */
+		/* hoanalr configuration setting */
 		((cfg) && (cfg->rf_cal_on_startup)) :
 		/* module option overrides configuration setting */
 		(tda18271_cal_on_startup)) ? 1 : 0;

@@ -1,19 +1,19 @@
 /*
- * Non-physical true random number generator based on timing jitter --
+ * Analn-physical true random number generator based on timing jitter --
  * Linux Kernel Crypto API specific code
  *
- * Copyright Stephan Mueller <smueller@chronox.de>, 2015 - 2023
+ * Copyright Stephan Mueller <smueller@chroanalx.de>, 2015 - 2023
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    analtice, and the entire permission analtice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    analtice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may analt be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -24,16 +24,16 @@
  * the restrictions contained in a BSD-style copyright.)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
- * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * WHICH ARE HEREBY DISCLAIMED.  IN ANAL EVENT SHALL THE AUTHOR BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT
  * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * USE OF THIS SOFTWARE, EVEN IF ANALT ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
 
@@ -80,9 +80,9 @@ void jent_zfree(void *ptr)
  * the execution time of a given code path and its variations. Hence, the time
  * stamp must have a sufficiently high resolution.
  *
- * Note, if the function returns zero because a given architecture does not
+ * Analte, if the function returns zero because a given architecture does analt
  * implement a high-resolution time stamp, the RNG code's runtime test
- * will detect it and will not produce output.
+ * will detect it and will analt produce output.
  */
 void jent_get_nstime(__u64 *out)
 {
@@ -91,7 +91,7 @@ void jent_get_nstime(__u64 *out)
 	tmp = random_get_entropy();
 
 	/*
-	 * If random_get_entropy does not return a value, i.e. it is not
+	 * If random_get_entropy does analt return a value, i.e. it is analt
 	 * implemented for a given architecture, use a clock source.
 	 * hoping that there are timers we can work with.
 	 */
@@ -124,11 +124,11 @@ int jent_hash_time(void *hash_state, __u64 time, u8 *addtl,
 	 * The main reason for this loop is to execute something over which we
 	 * can perform a timing measurement. The injection of the resulting
 	 * data into the pool is performed to ensure the result is used and
-	 * the compiler cannot optimize the loop away in case the result is not
+	 * the compiler cananalt optimize the loop away in case the result is analt
 	 * used at all. Yet that data is considered "additional information"
-	 * considering the terminology from SP800-90A without any entropy.
+	 * considering the termianallogy from SP800-90A without any entropy.
 	 *
-	 * Note, it does not matter which or how much data you inject, we are
+	 * Analte, it does analt matter which or how much data you inject, we are
 	 * interested in one Keccack1600 compression operation performed with
 	 * the crypto_shash_final.
 	 */
@@ -143,7 +143,7 @@ int jent_hash_time(void *hash_state, __u64 time, u8 *addtl,
 
 	/*
 	 * Inject the data from the previous loop into the pool. This data is
-	 * not considered to contain any entropy, but it stirs the pool a bit.
+	 * analt considered to contain any entropy, but it stirs the pool a bit.
 	 */
 	ret = crypto_shash_update(desc, intermediary, sizeof(intermediary));
 	if (ret)
@@ -152,9 +152,9 @@ int jent_hash_time(void *hash_state, __u64 time, u8 *addtl,
 	/*
 	 * Insert the time stamp into the hash context representing the pool.
 	 *
-	 * If the time stamp is stuck, do not finally insert the value into the
-	 * entropy pool. Although this operation should not do any harm even
-	 * when the time stamp has no entropy, SP800-90B requires that any
+	 * If the time stamp is stuck, do analt finally insert the value into the
+	 * entropy pool. Although this operation should analt do any harm even
+	 * when the time stamp has anal entropy, SP800-90B requires that any
 	 * conditioning operation to have an identical amount of input data
 	 * according to section 3.1.5.
 	 */
@@ -231,7 +231,7 @@ static int jent_kcapi_init(struct crypto_tfm *tfm)
 
 	/*
 	 * Use SHA3-256 as conditioner. We allocate only the generic
-	 * implementation as we are not interested in high-performance. The
+	 * implementation as we are analt interested in high-performance. The
 	 * execution time of the SHA3 operation is measured and adds to the
 	 * Jitter RNG's unpredictable behavior. If we have a slower hash
 	 * implementation, the execution timing variations are larger. When
@@ -240,7 +240,7 @@ static int jent_kcapi_init(struct crypto_tfm *tfm)
 	 */
 	hash = crypto_alloc_shash(JENT_CONDITIONING_HASH, 0, 0);
 	if (IS_ERR(hash)) {
-		pr_err("Cannot allocate conditioning digest\n");
+		pr_err("Cananalt allocate conditioning digest\n");
 		return PTR_ERR(hash);
 	}
 	rng->tfm = hash;
@@ -248,7 +248,7 @@ static int jent_kcapi_init(struct crypto_tfm *tfm)
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(hash);
 	sdesc = kmalloc(size, GFP_KERNEL);
 	if (!sdesc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -260,7 +260,7 @@ static int jent_kcapi_init(struct crypto_tfm *tfm)
 		jent_entropy_collector_alloc(CONFIG_CRYPTO_JITTERENTROPY_OSR, 0,
 					     sdesc);
 	if (!rng->entropy_collector) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -353,10 +353,10 @@ static int __init jent_mod_init(void)
 	if (ret) {
 		/* Handle permanent health test error */
 		if (fips_enabled)
-			panic("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
+			panic("jitterentropy: Initialization failed with host analt compliant with requirements: %d\n", ret);
 
 		jent_testing_exit();
-		pr_info("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
+		pr_info("jitterentropy: Initialization failed with host analt compliant with requirements: %d\n", ret);
 		return -EFAULT;
 	}
 	return crypto_register_rng(&jent_alg);
@@ -372,6 +372,6 @@ module_init(jent_mod_init);
 module_exit(jent_mod_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
-MODULE_DESCRIPTION("Non-physical True Random Number Generator based on CPU Jitter");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroanalx.de>");
+MODULE_DESCRIPTION("Analn-physical True Random Number Generator based on CPU Jitter");
 MODULE_ALIAS_CRYPTO("jitterentropy_rng");

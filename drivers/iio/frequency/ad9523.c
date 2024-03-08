@@ -83,7 +83,7 @@
 /* AD9523_PLL1_CHARGE_PUMP_CTRL */
 #define AD9523_PLL1_CHARGE_PUMP_CURRENT_nA(x)	(((x) / 500) & 0x7F)
 #define AD9523_PLL1_CHARGE_PUMP_TRISTATE	(1 << 7)
-#define AD9523_PLL1_CHARGE_PUMP_MODE_NORMAL	(3 << 8)
+#define AD9523_PLL1_CHARGE_PUMP_MODE_ANALRMAL	(3 << 8)
 #define AD9523_PLL1_CHARGE_PUMP_MODE_PUMP_DOWN	(2 << 8)
 #define AD9523_PLL1_CHARGE_PUMP_MODE_PUMP_UP	(1 << 8)
 #define AD9523_PLL1_CHARGE_PUMP_MODE_TRISTATE	(0 << 8)
@@ -132,7 +132,7 @@
 #define AD9523_PLL2_FB_NDIV(a, b)		(4 * (b) + (a))
 
 /* AD9523_PLL2_CTRL */
-#define AD9523_PLL2_CHARGE_PUMP_MODE_NORMAL	(3 << 0)
+#define AD9523_PLL2_CHARGE_PUMP_MODE_ANALRMAL	(3 << 0)
 #define AD9523_PLL2_CHARGE_PUMP_MODE_PUMP_DOWN	(2 << 0)
 #define AD9523_PLL2_CHARGE_PUMP_MODE_PUMP_UP	(1 << 0)
 #define AD9523_PLL2_CHARGE_PUMP_MODE_TRISTATE	(0 << 0)
@@ -171,7 +171,7 @@
 #define AD9523_CLK_DIST_DIV(x)			((((x) - 1) & 0x3FF) << 8)
 #define AD9523_CLK_DIST_DIV_REV(x)		(((ret >> 8) & 0x3FF) + 1)
 #define AD9523_CLK_DIST_INV_DIV_OUTPUT_EN	(1 << 7)
-#define AD9523_CLK_DIST_IGNORE_SYNC_EN		(1 << 6)
+#define AD9523_CLK_DIST_IGANALRE_SYNC_EN		(1 << 6)
 #define AD9523_CLK_DIST_PWR_DOWN_EN		(1 << 5)
 #define AD9523_CLK_DIST_LOW_PWR_MODE_EN		(1 << 4)
 #define AD9523_CLK_DIST_DRIVER_MODE(x)		(((x) & 0xF) << 0)
@@ -435,7 +435,7 @@ static int ad9523_set_clock_provider(struct iio_dev *indio_dev,
 		use_alt_clk_src = (abs(tmp1 - freq) > abs(tmp2 - freq));
 		break;
 	default:
-		/* Ch 10..14: No action required, return success */
+		/* Ch 10..14: Anal action required, return success */
 		return 0;
 	}
 
@@ -531,7 +531,7 @@ static ssize_t ad9523_store(struct device *dev,
 		ret = ad9523_store_eeprom(indio_dev);
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 	mutex_unlock(&st->lock);
 
@@ -799,7 +799,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 	ret = ad9523_write(indio_dev, AD9523_PLL1_CHARGE_PUMP_CTRL,
 		AD9523_PLL1_CHARGE_PUMP_CURRENT_nA(pdata->
 			pll1_charge_pump_current_nA) |
-		AD9523_PLL1_CHARGE_PUMP_MODE_NORMAL |
+		AD9523_PLL1_CHARGE_PUMP_MODE_ANALRMAL |
 		AD9523_PLL1_BACKLASH_PW_MIN);
 	if (ret < 0)
 		return ret;
@@ -854,7 +854,7 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 		return ret;
 
 	ret = ad9523_write(indio_dev, AD9523_PLL2_CTRL,
-		AD9523_PLL2_CHARGE_PUMP_MODE_NORMAL |
+		AD9523_PLL2_CHARGE_PUMP_MODE_ANALRMAL |
 		AD9523_PLL2_BACKLASH_CTRL_EN |
 		AD_IF(pll2_freq_doubler_en, AD9523_PLL2_FREQ_DOUBLER_EN));
 	if (ret < 0)
@@ -914,8 +914,8 @@ static int ad9523_setup(struct iio_dev *indio_dev)
 				AD9523_CLK_DIST_DRIVER_MODE(chan->driver_mode) |
 				AD9523_CLK_DIST_DIV(chan->channel_divider) |
 				AD9523_CLK_DIST_DIV_PHASE(chan->divider_phase) |
-				(chan->sync_ignore_en ?
-					AD9523_CLK_DIST_IGNORE_SYNC_EN : 0) |
+				(chan->sync_iganalre_en ?
+					AD9523_CLK_DIST_IGANALRE_SYNC_EN : 0) |
 				(chan->divider_output_invert_en ?
 					AD9523_CLK_DIST_INV_DIV_OUTPUT_EN : 0) |
 				(chan->low_power_mode_en ?
@@ -976,13 +976,13 @@ static int ad9523_probe(struct spi_device *spi)
 	int ret;
 
 	if (!pdata) {
-		dev_err(&spi->dev, "no platform data?\n");
+		dev_err(&spi->dev, "anal platform data?\n");
 		return -EINVAL;
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 

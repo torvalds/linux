@@ -37,7 +37,7 @@
  * parameter to enable cmf during boot, possible uses are:
  *  "s390cmf" -- enable cmf and allocate 2 MB of ram so measuring can be
  *               used on any subchannel
- *  "s390cmf=<num>" -- enable cmf and allocate enough memory to measure
+ *  "s390cmf=<num>" -- enable cmf and allocate eanalugh memory to measure
  *                     <num> subchannel, where <num> is an integer
  *                     between 1 and 65535, default is 1024
  */
@@ -122,7 +122,7 @@ struct cmb_data {
 };
 
 /*
- * Our user interface is designed in terms of nanoseconds,
+ * Our user interface is designed in terms of naanalseconds,
  * while the hardware measures total times in its own
  * unit.
  */
@@ -133,7 +133,7 @@ static inline u64 time_to_nsec(u32 value)
 
 /*
  * Users are usually interested in average times,
- * not accumulated time.
+ * analt accumulated time.
  * This also helps us with atomicity problems
  * when reading sinlge values.
  */
@@ -141,7 +141,7 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
 {
 	u64 ret;
 
-	/* no samples yet, avoid division by 0 */
+	/* anal samples yet, avoid division by 0 */
 	if (count == 0)
 		return 0;
 
@@ -161,7 +161,7 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
  * be active in order to measure subchannels, which also need
  * to be enabled.
  */
-static inline void cmf_activate(void *area, unsigned int onoff)
+static inline void cmf_activate(void *area, unsigned int oanalff)
 {
 	/* activate channel measurement */
 	asm volatile(
@@ -169,7 +169,7 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 		"	lgr	2,%[mbo]\n"
 		"	schm\n"
 		:
-		: [r1] "d" ((unsigned long)onoff), [mbo] "d" (area)
+		: [r1] "d" ((unsigned long)oanalff), [mbo] "d" (area)
 		: "1", "2");
 }
 
@@ -188,7 +188,7 @@ static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 		sch->config.mbi = address;
 
 	ret = cio_commit_config(sch);
-	if (!mme && ret == -ENODEV) {
+	if (!mme && ret == -EANALDEV) {
 		/*
 		 * The task was to disable measurement block updates but
 		 * the subchannel is already gone. Report success.
@@ -213,7 +213,7 @@ static int set_schib_wait(struct ccw_device *cdev, u32 mme,
 			  int mbfc, unsigned long address)
 {
 	struct set_schib_struct set_data;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	spin_lock_irq(cdev->ccwlock);
 	if (!cdev->private->cmb)
@@ -223,7 +223,7 @@ static int set_schib_wait(struct ccw_device *cdev, u32 mme,
 	if (ret != -EBUSY)
 		goto out;
 
-	/* if the device is not online, don't even try again */
+	/* if the device is analt online, don't even try again */
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		goto out;
 
@@ -274,7 +274,7 @@ static int cmf_copy_block(struct ccw_device *cdev)
 	void *hw_block;
 
 	if (cio_update_schib(sch))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (scsw_fctl(&sch->schib.scsw) & SCSW_FCTL_START_FUNC) {
 		/* Don't copy if a start function is in progress. */
@@ -299,7 +299,7 @@ struct copy_block_struct {
 static int cmf_cmb_copy_wait(struct ccw_device *cdev)
 {
 	struct copy_block_struct copy_block;
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 
 	spin_lock_irq(cdev->ccwlock);
 	if (!cdev->private->cmb)
@@ -391,7 +391,7 @@ static struct cmb_area cmb_area = {
 
 /*
  * Basic channel measurement blocks are allocated in one contiguous
- * block of memory, which can not be moved as long as any channel
+ * block of memory, which can analt be moved as long as any channel
  * is active. Therefore, a maximum number of subchannels needs to
  * be defined somewhere. This is a module parameter, defaulting to
  * a reasonable value of 1024, or 32 kb of memory.
@@ -416,7 +416,7 @@ module_param_named(maxchannels, cmb_area.num_channels, uint, 0444);
  * further in z/Architecture Principles of Operation, chapter 17.
  *
  * The cmb area made up from these blocks must be a contiguous array and may
- * not be reallocated or freed.
+ * analt be reallocated or freed.
  * Only one cmb area can be present in the system.
  */
 struct cmb {
@@ -438,7 +438,7 @@ static int alloc_cmb_single(struct ccw_device *cdev,
 			    struct cmb_data *cmb_data)
 {
 	struct cmb *cmb;
-	struct ccw_device_private *node;
+	struct ccw_device_private *analde;
 	int ret;
 
 	spin_lock_irq(cdev->ccwlock);
@@ -453,20 +453,20 @@ static int alloc_cmb_single(struct ccw_device *cdev,
 	 * remains sorted by ->cmb->hw_data pointers.
 	 */
 	cmb = cmb_area.mem;
-	list_for_each_entry(node, &cmb_area.list, cmb_list) {
+	list_for_each_entry(analde, &cmb_area.list, cmb_list) {
 		struct cmb_data *data;
-		data = node->cmb;
+		data = analde->cmb;
 		if ((struct cmb*)data->hw_block > cmb)
 			break;
 		cmb++;
 	}
 	if (cmb - cmb_area.mem >= cmb_area.num_channels) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	/* insert new cmb */
-	list_add_tail(&cdev->private->cmb_list, &node->cmb_list);
+	list_add_tail(&cdev->private->cmb_list, &analde->cmb_list);
 	cmb_data->hw_block = cmb;
 	cdev->private->cmb = cmb_data;
 	ret = 0;
@@ -485,18 +485,18 @@ static int alloc_cmb(struct ccw_device *cdev)
 	/* Allocate private cmb_data. */
 	cmb_data = kzalloc(sizeof(struct cmb_data), GFP_KERNEL);
 	if (!cmb_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmb_data->last_block = kzalloc(sizeof(struct cmb), GFP_KERNEL);
 	if (!cmb_data->last_block) {
 		kfree(cmb_data);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	cmb_data->size = sizeof(struct cmb);
 	spin_lock(&cmb_area.lock);
 
 	if (!cmb_area.mem) {
-		/* there is no user yet, so we need a new area */
+		/* there is anal user yet, so we need a new area */
 		size = sizeof(struct cmb) * cmb_area.num_channels;
 		WARN_ON(!list_empty(&cmb_area.list));
 
@@ -506,11 +506,11 @@ static int alloc_cmb(struct ccw_device *cdev)
 		spin_lock(&cmb_area.lock);
 
 		if (cmb_area.mem) {
-			/* ok, another thread was faster */
+			/* ok, aanalther thread was faster */
 			free_pages((unsigned long)mem, get_order(size));
 		} else if (!mem) {
-			/* no luck */
-			ret = -ENOMEM;
+			/* anal luck */
+			ret = -EANALMEM;
 			goto out;
 		} else {
 			/* everything ok */
@@ -658,7 +658,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 	spin_lock_irqsave(cdev->ccwlock, flags);
 	cmb_data = cdev->private->cmb;
 	if (!cmb_data) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	if (cmb_data->last_update == 0) {
@@ -670,7 +670,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 
 	memset(data, 0, sizeof(struct cmbdata));
 
-	/* we only know values before device_busy_time */
+	/* we only kanalw values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
 	data->elapsed_time = tod_to_ns(time);
@@ -679,7 +679,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
 	data->sample_count = cmb->sample_count;
 
-	/* time fields are converted to nanoseconds while copying */
+	/* time fields are converted to naanalseconds while copying */
 	data->device_connect_time = time_to_nsec(cmb->device_connect_time);
 	data->function_pending_time = time_to_nsec(cmb->function_pending_time);
 	data->device_disconnect_time =
@@ -761,7 +761,7 @@ static int alloc_cmbe(struct ccw_device *cdev)
 {
 	struct cmb_data *cmb_data;
 	struct cmbe *cmbe;
-	int ret = -ENOMEM;
+	int ret = -EANALMEM;
 
 	cmbe = kmem_cache_zalloc(cmbe_cache, GFP_KERNEL);
 	if (!cmbe)
@@ -918,7 +918,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 	spin_lock_irqsave(cdev->ccwlock, flags);
 	cmb_data = cdev->private->cmb;
 	if (!cmb_data) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 	if (cmb_data->last_update == 0) {
@@ -929,7 +929,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 
 	memset (data, 0, sizeof(struct cmbdata));
 
-	/* we only know values before device_busy_time */
+	/* we only kanalw values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
 	data->elapsed_time = tod_to_ns(time);
@@ -939,7 +939,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
 	data->sample_count = cmb->sample_count;
 
-	/* time fields are converted to nanoseconds while copying */
+	/* time fields are converted to naanalseconds while copying */
 	data->device_connect_time = time_to_nsec(cmb->device_connect_time);
 	data->function_pending_time = time_to_nsec(cmb->function_pending_time);
 	data->device_disconnect_time =
@@ -1119,7 +1119,7 @@ DEVICE_ATTR_RW(cmb_enable);
  *  measurement data is triggered.
  *  Returns: %0 for success or a negative error value.
  *  Context:
- *    non-atomic
+ *    analn-atomic
  */
 int enable_cmf(struct ccw_device *cdev)
 {
@@ -1160,7 +1160,7 @@ out_unlock:
  *  Returns: %0 for success or a negative error value.
  *
  *  Context:
- *    non-atomic, device_lock() held.
+ *    analn-atomic, device_lock() held.
  */
 int __disable_cmf(struct ccw_device *cdev)
 {
@@ -1184,7 +1184,7 @@ int __disable_cmf(struct ccw_device *cdev)
  *  Returns: %0 for success or a negative error value.
  *
  *  Context:
- *    non-atomic
+ *    analn-atomic
  */
 int disable_cmf(struct ccw_device *cdev)
 {
@@ -1202,7 +1202,7 @@ int disable_cmf(struct ccw_device *cdev)
  * @cdev:	the channel to be read
  * @index:	the index of the value to be read
  *
- * Returns: The value read or %0 if the value cannot be read.
+ * Returns: The value read or %0 if the value cananalt be read.
  *
  *  Context:
  *    any
@@ -1250,9 +1250,9 @@ void cmf_reactivate(void)
 static int __init init_cmbe(void)
 {
 	cmbe_cache = kmem_cache_create("cmbe_cache", sizeof(struct cmbe),
-				       __alignof__(struct cmbe), 0, NULL);
+				       __aliganalf__(struct cmbe), 0, NULL);
 
-	return cmbe_cache ? 0 : -ENOMEM;
+	return cmbe_cache ? 0 : -EANALMEM;
 }
 
 static int __init init_cmf(void)
@@ -1262,7 +1262,7 @@ static int __init init_cmf(void)
 	int ret;
 
 	/*
-	 * If the user did not give a parameter, see if we are running on a
+	 * If the user did analt give a parameter, see if we are running on a
 	 * machine supporting extended measurement blocks, otherwise fall back
 	 * to basic mode.
 	 */

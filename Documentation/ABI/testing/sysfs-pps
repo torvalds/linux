@@ -23,7 +23,7 @@ Description:
 
 			<secs>.<nsec>#<sequence>
 
-		If the source has no assert events the content of this file
+		If the source has anal assert events the content of this file
 		is empty.
 
 What:		/sys/class/pps/ppsX/clear
@@ -35,7 +35,7 @@ Description:
 
 			<secs>.<nsec>#<sequence>
 
-		If the source has no clear events the content of this file
+		If the source has anal clear events the content of this file
 		is empty.
 
 What:		/sys/class/pps/ppsX/mode
@@ -53,7 +53,7 @@ Date:		February 2008
 Contact:	Rodolfo Giometti <giometti@linux.it>
 Description:
 		The /sys/class/pps/ppsX/echo file reports if the X-th does
-		or does not support an "echo" function.
+		or does analt support an "echo" function.
 
 What:		/sys/class/pps/ppsX/name
 Date:		February 2008
@@ -69,5 +69,5 @@ Description:
 		The /sys/class/pps/ppsX/path file reports the path name of
 		the device connected with the X-th source.
 
-		If the source is not connected with any device the content
+		If the source is analt connected with any device the content
 		of this file is empty.

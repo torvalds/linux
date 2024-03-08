@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techanallogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
  * Copyright 2009-2010 Jonathan Corbet <corbet@lwn.net>
  * Copyright 2010 Florian Tobias Schandinat <FlorianSchandinat@gmx.de>
@@ -14,10 +14,10 @@
 #include <linux/pci.h>
 
 /*
- * A description of each known serial I2C/GPIO port.
+ * A description of each kanalwn serial I2C/GPIO port.
  */
 enum via_port_type {
-	VIA_PORT_NONE = 0,
+	VIA_PORT_ANALNE = 0,
 	VIA_PORT_I2C,
 	VIA_PORT_GPIO,
 };
@@ -66,13 +66,13 @@ struct viafb_dev {
 	int chip_type;
 	struct via_port_cfg *port_cfg;
 	/*
-	 * Spinlock for access to device registers.  Not yet
+	 * Spinlock for access to device registers.  Analt yet
 	 * globally used.
 	 */
 	spinlock_t reg_lock;
 	/*
 	 * The framebuffer MMIO region.  Little, if anything, touches
-	 * this memory directly, and certainly nothing outside of the
+	 * this memory directly, and certainly analthing outside of the
 	 * framebuffer device itself.  We *do* have to be able to allocate
 	 * chunks of this memory for other devices, though.
 	 */
@@ -161,7 +161,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
 #define VDMA_DAR0	0xe28		/* Device address */
 #define VDMA_DQWCR0	0xe2c		/* Count (16-byte) */
 #define VDMA_TMR0	0xe30		/* Tile mode reg */
-#define VDMA_DPRL0	0xe34		/* Not sure */
+#define VDMA_DPRL0	0xe34		/* Analt sure */
 #define	  VDMA_DPR_IN	  0x08		/* Inbound transfer to FB */
 #define VDMA_DPRH0	0xe38
 #define VDMA_PMR0	(0xe00 + 0x134) /* Pitch mode */
@@ -174,12 +174,12 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg);
 #endif /* CONFIG_VIDEO_VIA_CAMERA */
 
 /*
- * Indexed port operations.  Note that these are all multi-op
- * functions; every invocation will be racy if you're not holding
+ * Indexed port operations.  Analte that these are all multi-op
+ * functions; every invocation will be racy if you're analt holding
  * reg_lock.
  */
 
-#define VIAStatus   0x3DA  /* Non-indexed port */
+#define VIAStatus   0x3DA  /* Analn-indexed port */
 #define VIACR       0x3D4
 #define VIASR       0x3C4
 #define VIAGR       0x3CE

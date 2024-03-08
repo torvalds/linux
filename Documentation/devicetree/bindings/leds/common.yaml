@@ -19,7 +19,7 @@ description:
   to one or more discrete LED component. Since the arrangement of connections
   can influence the way of the LED device initialization, the LED components
   have to be tightly coupled with the LED device binding. They are represented
-  by child nodes of the parent LED device binding.
+  by child analdes of the parent LED device binding.
 
 properties:
   led-sources:
@@ -32,14 +32,14 @@ properties:
   function:
     description:
       LED function. Use one of the LED_FUNCTION_* prefixed definitions
-      from the header include/dt-bindings/leds/common.h. If there is no
+      from the header include/dt-bindings/leds/common.h. If there is anal
       matching LED_FUNCTION available, add a new one.
     $ref: /schemas/types.yaml#/definitions/string
 
   color:
     description:
       Color of the LED. Use one of the LED_COLOR_ID_* prefixed definitions from
-      the header include/dt-bindings/leds/common.h. If there is no matching
+      the header include/dt-bindings/leds/common.h. If there is anal matching
       LED_COLOR_ID available, add a new one.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
@@ -53,16 +53,16 @@ properties:
 
   label:
     description:
-      The label for this LED. If omitted, the label is taken from the node name
+      The label for this LED. If omitted, the label is taken from the analde name
       (excluding the unit address). It has to uniquely identify a device, i.e.
-      no other LED class device can be assigned the same label. This property is
+      anal other LED class device can be assigned the same label. This property is
       deprecated - use 'function' and 'color' properties instead.
-      function-enumerator has no effect when this property is present.
+      function-enumerator has anal effect when this property is present.
 
   default-state:
     description:
       The initial state of the LED. If the LED is already on or off and the
-      default-state property is set the to same value, then no glitch should be
+      default-state property is set the to same value, then anal glitch should be
       produced where the LED momentarily turns off (or on). The "keep" setting
       will keep the LED at whatever its current state is, without producing a
       glitch.
@@ -113,9 +113,9 @@ properties:
             # LED indicates NAND memory activity (deprecated),
             # in new implementations use "mtd"
           - nand-disk
-            # No trigger assigned to the LED. This is the default mode
+            # Anal trigger assigned to the LED. This is the default mode
             # if trigger is absent
-          - none
+          - analne
             # LED indicates camera torch state
           - torch
             # LED indicates USB gadget activity
@@ -155,16 +155,16 @@ properties:
       mandatory for the board configurations introducing a risk of hardware
       damage in case an excessive current is set.
       For flash LED controllers with configurable current this property is
-      mandatory for the LEDs in the non-flash modes (e.g. torch or indicator).
+      mandatory for the LEDs in the analn-flash modes (e.g. torch or indicator).
 
   max-brightness:
     description:
-      Normally, the maximum brightness is determined by the hardware, and this
-      property is not required. This property is used to set a software limit.
+      Analrmally, the maximum brightness is determined by the hardware, and this
+      property is analt required. This property is used to set a software limit.
       It could happen that an LED is made so bright that it gets damaged or
       causes damage due to restrictions in a specific system, such as mounting
       conditions.
-      Note that this flag is mainly used for PWM-LEDs, where it is not possible
+      Analte that this flag is mainly used for PWM-LEDs, where it is analt possible
       to map brightness to current. Drivers for other controllers should use
       led-max-microamp.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -177,7 +177,7 @@ properties:
 
   retain-state-shutdown:
     description:
-      This property specifies that the LED should not be turned off or changed
+      This property specifies that the LED should analt be turned off or changed
       when the system shuts down.
     type: boolean
 
@@ -187,29 +187,29 @@ properties:
       activity. Some LEDs can be related to a specific device and should somehow
       indicate its state. E.g. USB 2.0 LED may react to device(s) in a USB 2.0
       port(s).
-      Another common example is switch or router with multiple Ethernet ports
-      each of them having its own LED assigned (assuming they are not
+      Aanalther common example is switch or router with multiple Ethernet ports
+      each of them having its own LED assigned (assuming they are analt
       hardwired). In such cases this property should contain phandle(s) of
       related source device(s).
-      Another example is a GPIO line that will be monitored and mirror the
+      Aanalther example is a GPIO line that will be monitored and mirror the
       state of the line (with or without inversion flags) to the LED.
       In many cases LED can be related to more than one device (e.g. one USB LED
-      vs. multiple USB ports). Each source should be represented by a node in
+      vs. multiple USB ports). Each source should be represented by a analde in
       the device tree and be referenced by a phandle and a set of phandle
       arguments. A length of arguments should be specified by the
-      #trigger-source-cells property in the source node.
+      #trigger-source-cells property in the source analde.
     $ref: /schemas/types.yaml#/definitions/phandle-array
 
-  # Required properties for flash LED child nodes:
+  # Required properties for flash LED child analdes:
   flash-max-microamp:
     description:
       Maximum flash LED supply current in microamperes. Required for flash LED
-      nodes with configurable current.
+      analdes with configurable current.
 
   flash-max-timeout-us:
     description:
       Maximum timeout in microseconds after which the flash LED is turned off.
-      Required for flash LED nodes with configurable timeout.
+      Required for flash LED analdes with configurable timeout.
 
 additionalProperties: true
 

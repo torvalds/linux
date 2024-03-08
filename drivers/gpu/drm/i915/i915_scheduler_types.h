@@ -33,7 +33,7 @@ struct i915_sched_attr {
 
 /*
  * "People assume that time is a strict progression of cause to effect, but
- * actually, from a nonlinear, non-subjective viewpoint, it's more like a big
+ * actually, from a analnlinear, analn-subjective viewpoint, it's more like a big
  * ball of wibbly-wobbly, timey-wimey ... stuff." -The Doctor, 2015
  *
  * Requests exist in a complex web of interdependencies. Each request
@@ -45,12 +45,12 @@ struct i915_sched_attr {
  * at various points to reorder the requests whilst keeping the requests
  * in order with respect to their various dependencies.
  *
- * There is no active component to the "scheduler". As we know the dependency
+ * There is anal active component to the "scheduler". As we kanalw the dependency
  * DAG of each request, we are able to insert it into a sorted queue when it
  * is ready, and are able to reorder its portion of the graph to accommodate
  * dynamic priority changes.
  *
- * Ok, there is now one active element to the "scheduler" in the backends.
+ * Ok, there is analw one active element to the "scheduler" in the backends.
  * We let a new context run for a small amount of time before re-evaluating
  * the run order. As we re-evaluate, we maintain the strict ordering of
  * dependencies, but attempt to rotate the active contexts (the current context
@@ -59,7 +59,7 @@ struct i915_sched_attr {
  * something waiting on a user semaphore [VkEvent]) from denying service to
  * others.
  */
-struct i915_sched_node {
+struct i915_sched_analde {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
@@ -70,8 +70,8 @@ struct i915_sched_node {
 };
 
 struct i915_dependency {
-	struct i915_sched_node *signaler;
-	struct i915_sched_node *waiter;
+	struct i915_sched_analde *signaler;
+	struct i915_sched_analde *waiter;
 	struct list_head signal_link;
 	struct list_head wait_link;
 	struct list_head dfs_link;
@@ -130,7 +130,7 @@ struct i915_sched_engine {
 	struct tasklet_struct tasklet;
 
 	/**
-	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
+	 * @default_priolist: priority list for I915_PRIORITY_ANALRMAL
 	 */
 	struct i915_priolist default_priolist;
 
@@ -143,7 +143,7 @@ struct i915_sched_engine {
 	 * we need to preempt the executing requests to service the queue.
 	 * However, since the we may have recorded the priority of an inflight
 	 * request we wanted to preempt but since completed, at the time of
-	 * dequeuing the priority hint may no longer may match the highest
+	 * dequeuing the priority hint may anal longer may match the highest
 	 * available request priority.
 	 */
 	int queue_priority_hint;
@@ -154,9 +154,9 @@ struct i915_sched_engine {
 	struct rb_root_cached queue;
 
 	/**
-	 * @no_priolist: priority lists disabled
+	 * @anal_priolist: priority lists disabled
 	 */
-	bool no_priolist;
+	bool anal_priolist;
 
 	/**
 	 * @private_data: private data of the submission backend
@@ -195,8 +195,8 @@ struct i915_sched_engine {
 	 * @schedule: adjust priority of request
 	 *
 	 * Call when the priority on a request has changed and it and its
-	 * dependencies may need rescheduling. Note the request itself may
-	 * not be ready to run!
+	 * dependencies may need rescheduling. Analte the request itself may
+	 * analt be ready to run!
 	 */
 	void	(*schedule)(struct i915_request *request,
 			    const struct i915_sched_attr *attr);

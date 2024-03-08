@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -323,7 +323,7 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 	amdgpu_crtc->pll_flags = AMDGPU_PLL_USE_FRAC_FB_DIV;
 
 	if ((amdgpu_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
-	    (amdgpu_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)) {
+	    (amdgpu_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_ANALNE)) {
 		if (connector) {
 			struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 			struct amdgpu_connector_atom_dig *dig_connector =
@@ -421,7 +421,7 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 						DISPPLL_CONFIG_DUAL_LINK;
 			}
 			if (amdgpu_encoder_get_dp_bridge_encoder_id(encoder) !=
-			    ENCODER_OBJECT_ID_NONE)
+			    ENCODER_OBJECT_ID_ANALNE)
 				args.v3.sInput.ucExtTransmitterID =
 					amdgpu_encoder_get_dp_bridge_encoder_id(encoder);
 			else
@@ -442,12 +442,12 @@ static u32 amdgpu_atombios_crtc_adjust_pll(struct drm_crtc *crtc,
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return adjusted_clock;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return adjusted_clock;
 	}
 
@@ -464,7 +464,7 @@ union set_pixel_clock {
 	PIXEL_CLOCK_PARAMETERS_V7 v7;
 };
 
-/* on DCE5, make sure the voltage is high enough to support the
+/* on DCE5, make sure the voltage is high eanalugh to support the
  * required disp clk.
  */
 void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
@@ -506,12 +506,12 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 				args.v6.ucPpll = ATOM_EXT_PLL1;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return;
 	}
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -548,12 +548,12 @@ u32 amdgpu_atombios_crtc_set_dce_clock(struct amdgpu_device *adev,
 			ret_freq = le32_to_cpu(args.v2_1.asParam.ulDCEClkFreq) * 10;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return 0;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return 0;
 	}
 
@@ -657,11 +657,11 @@ void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_24BPP;
 					break;
 				case 10:
-					/* yes this is correct, the atom define is wrong */
+					/* anal this is correct, the atom define is wrong */
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_32BPP;
 					break;
 				case 12:
-					/* yes this is correct, the atom define is wrong */
+					/* anal this is correct, the atom define is wrong */
 					args.v5.ucMiscInfo |= PIXEL_CLOCK_V5_MISC_HDMI_30BPP;
 					break;
 				}
@@ -731,12 +731,12 @@ void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v7.ucPpll = pll_id;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+		DRM_ERROR("Unkanalwn table version %d %d\n", frev, crev);
 		return;
 	}
 
@@ -757,7 +757,7 @@ int amdgpu_atombios_crtc_prepare_pll(struct drm_crtc *crtc,
 	amdgpu_crtc->ss_enabled = false;
 
 	if ((amdgpu_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
-	    (amdgpu_encoder_get_dp_bridge_encoder_id(amdgpu_crtc->encoder) != ENCODER_OBJECT_ID_NONE)) {
+	    (amdgpu_encoder_get_dp_bridge_encoder_id(amdgpu_crtc->encoder) != ENCODER_OBJECT_ID_ANALNE)) {
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
 		struct drm_connector *connector =
 			amdgpu_get_connector_for_encoder(amdgpu_crtc->encoder);

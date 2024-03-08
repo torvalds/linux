@@ -42,7 +42,7 @@ static int a6xx_hfi_queue_read(struct a6xx_gmu *gmu,
 
 	/*
 	 * If we are to assume that the GMU firmware is in fact a rational actor
-	 * and is programmed to not send us a larger response than we expect
+	 * and is programmed to analt send us a larger response than we expect
 	 * then we can also assume that if the header size is unexpectedly large
 	 * that it is due to memory corruption and/or hardware failure. In this
 	 * case the only reasonable course of action is to BUG() to help harden
@@ -76,7 +76,7 @@ static int a6xx_hfi_queue_write(struct a6xx_gmu *gmu,
 	if (space < dwords) {
 		header->dropped++;
 		spin_unlock(&queue->lock);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 
 	queue->history[(queue->history_idx++) % HFI_HISTORY_SZ] = index;
@@ -86,7 +86,7 @@ static int a6xx_hfi_queue_write(struct a6xx_gmu *gmu,
 		index = (index + 1) % header->size;
 	}
 
-	/* Cookify any non used data at the end of the write buffer */
+	/* Cookify any analn used data at the end of the write buffer */
 	if (!gmu->legacy) {
 		for (; index % 4; index = (index + 1) % header->size)
 			queue->data[index] = 0xfafafafa;
@@ -133,7 +133,7 @@ static int a6xx_hfi_wait_for_ack(struct a6xx_gmu *gmu, u32 id, u32 seqnum,
 			DRM_DEV_ERROR(gmu->dev,
 				"The HFI response queue is unexpectedly empty\n");
 
-			return -ENOENT;
+			return -EANALENT;
 		}
 
 		if (HFI_HEADER_ID(resp.header) == HFI_F2H_MSG_ERROR) {
@@ -276,15 +276,15 @@ static void a618_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x5007c;
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_addrs[0] = 0x5007c;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
 }
 
 static void a619_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -338,12 +338,12 @@ static void a619_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[12][1] = 0x600011ea;
 	msg->ddr_cmds_data[12][2] = 0x60000008;
 
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x0;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x0;
 
-	msg->cnoc_cmds_addrs[0] = 0x50054;
+	msg->canalc_cmds_addrs[0] = 0x50054;
 
-	msg->cnoc_cmds_data[0][0] = 0x40000000;
+	msg->canalc_cmds_data[0][0] = 0x40000000;
 }
 
 static void a640_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -366,23 +366,23 @@ static void a640_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 3;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 3;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x50034;
-	msg->cnoc_cmds_addrs[1] = 0x5007c;
-	msg->cnoc_cmds_addrs[2] = 0x5004c;
+	msg->canalc_cmds_addrs[0] = 0x50034;
+	msg->canalc_cmds_addrs[1] = 0x5007c;
+	msg->canalc_cmds_addrs[2] = 0x5004c;
 
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[0][1] =  0x00000000;
-	msg->cnoc_cmds_data[0][2] =  0x40000000;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[0][1] =  0x00000000;
+	msg->canalc_cmds_data[0][2] =  0x40000000;
 
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
-	msg->cnoc_cmds_data[1][1] =  0x20000001;
-	msg->cnoc_cmds_data[1][2] =  0x60000001;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_data[1][1] =  0x20000001;
+	msg->canalc_cmds_data[1][2] =  0x60000001;
 }
 
 static void a650_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -405,15 +405,15 @@ static void a650_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x500a4;
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_addrs[0] = 0x500a4;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
 }
 
 static void a690_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -436,15 +436,15 @@ static void a690_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x5003c;
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_addrs[0] = 0x5003c;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
 }
 
 static void a660_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -467,18 +467,18 @@ static void a660_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x50070;
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_addrs[0] = 0x50070;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
 }
 
-static void adreno_7c3_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
+static void adreanal_7c3_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 {
 	/*
 	 * Send a single "off" entry just to get things running
@@ -498,15 +498,15 @@ static void adreno_7c3_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes - these are used by the GMU but the
-	 * votes are known and fixed for the target
+	 * These are the CX (CANALC) votes - these are used by the GMU but the
+	 * votes are kanalwn and fixed for the target
 	 */
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x01;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x01;
 
-	msg->cnoc_cmds_addrs[0] = 0x5006c;
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_addrs[0] = 0x5006c;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
 }
 
 static void a730_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -557,12 +557,12 @@ static void a730_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[11][1] = 0x60003fe5;
 	msg->ddr_cmds_data[11][2] = 0x60000008;
 
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x1;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x1;
 
-	msg->cnoc_cmds_addrs[0] = cmd_db_read_addr("CN0");
-	msg->cnoc_cmds_data[0][0] = 0x40000000;
-	msg->cnoc_cmds_data[1][0] = 0x60000001;
+	msg->canalc_cmds_addrs[0] = cmd_db_read_addr("CN0");
+	msg->canalc_cmds_data[0][0] = 0x40000000;
+	msg->canalc_cmds_data[1][0] = 0x60000001;
 }
 
 static void a740_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -582,12 +582,12 @@ static void a740_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 
 	/* TODO: add a proper dvfs table */
 
-	msg->cnoc_cmds_num = 1;
-	msg->cnoc_wait_bitmask = 0x1;
+	msg->canalc_cmds_num = 1;
+	msg->canalc_wait_bitmask = 0x1;
 
-	msg->cnoc_cmds_addrs[0] = cmd_db_read_addr("CN0");
-	msg->cnoc_cmds_data[0][0] = 0x40000000;
-	msg->cnoc_cmds_data[1][0] = 0x60000001;
+	msg->canalc_cmds_addrs[0] = cmd_db_read_addr("CN0");
+	msg->canalc_cmds_data[0][0] = 0x40000000;
+	msg->canalc_cmds_data[1][0] = 0x60000001;
 }
 
 static void a6xx_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -607,24 +607,24 @@ static void a6xx_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->ddr_cmds_data[0][2] =  0x40000000;
 
 	/*
-	 * These are the CX (CNOC) votes.  This is used but the values for the
-	 * sdm845 GMU are known and fixed so we can hard code them.
+	 * These are the CX (CANALC) votes.  This is used but the values for the
+	 * sdm845 GMU are kanalwn and fixed so we can hard code them.
 	 */
 
-	msg->cnoc_cmds_num = 3;
-	msg->cnoc_wait_bitmask = 0x05;
+	msg->canalc_cmds_num = 3;
+	msg->canalc_wait_bitmask = 0x05;
 
-	msg->cnoc_cmds_addrs[0] = 0x50034;
-	msg->cnoc_cmds_addrs[1] = 0x5007c;
-	msg->cnoc_cmds_addrs[2] = 0x5004c;
+	msg->canalc_cmds_addrs[0] = 0x50034;
+	msg->canalc_cmds_addrs[1] = 0x5007c;
+	msg->canalc_cmds_addrs[2] = 0x5004c;
 
-	msg->cnoc_cmds_data[0][0] =  0x40000000;
-	msg->cnoc_cmds_data[0][1] =  0x00000000;
-	msg->cnoc_cmds_data[0][2] =  0x40000000;
+	msg->canalc_cmds_data[0][0] =  0x40000000;
+	msg->canalc_cmds_data[0][1] =  0x00000000;
+	msg->canalc_cmds_data[0][2] =  0x40000000;
 
-	msg->cnoc_cmds_data[1][0] =  0x60000001;
-	msg->cnoc_cmds_data[1][1] =  0x20000001;
-	msg->cnoc_cmds_data[1][2] =  0x60000001;
+	msg->canalc_cmds_data[1][0] =  0x60000001;
+	msg->canalc_cmds_data[1][1] =  0x20000001;
+	msg->canalc_cmds_data[1][2] =  0x60000001;
 }
 
 
@@ -632,25 +632,25 @@ static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 {
 	struct a6xx_hfi_msg_bw_table msg = { 0 };
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct adreanal_gpu *adreanal_gpu = &a6xx_gpu->base;
 
-	if (adreno_is_a618(adreno_gpu))
+	if (adreanal_is_a618(adreanal_gpu))
 		a618_build_bw_table(&msg);
-	else if (adreno_is_a619(adreno_gpu))
+	else if (adreanal_is_a619(adreanal_gpu))
 		a619_build_bw_table(&msg);
-	else if (adreno_is_a640_family(adreno_gpu))
+	else if (adreanal_is_a640_family(adreanal_gpu))
 		a640_build_bw_table(&msg);
-	else if (adreno_is_a650(adreno_gpu))
+	else if (adreanal_is_a650(adreanal_gpu))
 		a650_build_bw_table(&msg);
-	else if (adreno_is_7c3(adreno_gpu))
-		adreno_7c3_build_bw_table(&msg);
-	else if (adreno_is_a660(adreno_gpu))
+	else if (adreanal_is_7c3(adreanal_gpu))
+		adreanal_7c3_build_bw_table(&msg);
+	else if (adreanal_is_a660(adreanal_gpu))
 		a660_build_bw_table(&msg);
-	else if (adreno_is_a690(adreno_gpu))
+	else if (adreanal_is_a690(adreanal_gpu))
 		a690_build_bw_table(&msg);
-	else if (adreno_is_a730(adreno_gpu))
+	else if (adreanal_is_a730(adreanal_gpu))
 		a730_build_bw_table(&msg);
-	else if (adreno_is_a740_family(adreno_gpu))
+	else if (adreanal_is_a740_family(adreanal_gpu))
 		a740_build_bw_table(&msg);
 	else
 		a6xx_build_bw_table(&msg);
@@ -699,7 +699,7 @@ int a6xx_hfi_send_prep_slumber(struct a6xx_gmu *gmu)
 {
 	struct a6xx_hfi_prep_slumber_cmd msg = { 0 };
 
-	/* TODO: should freq and bw fields be non-zero ? */
+	/* TODO: should freq and bw fields be analn-zero ? */
 
 	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_PREPARE_SLUMBER, &msg,
 		sizeof(msg), NULL, 0);
@@ -719,7 +719,7 @@ static int a6xx_hfi_start_v1(struct a6xx_gmu *gmu, int boot_state)
 
 	/*
 	 * We have to get exchange version numbers per the sequence but at this
-	 * point th kernel driver doesn't need to know the exact version of
+	 * point th kernel driver doesn't need to kanalw the exact version of
 	 * the GMU firmware
 	 */
 
@@ -732,7 +732,7 @@ static int a6xx_hfi_start_v1(struct a6xx_gmu *gmu, int boot_state)
 		return ret;
 
 	/*
-	 * Let the GMU know that there won't be any more HFI messages until next
+	 * Let the GMU kanalw that there won't be any more HFI messages until next
 	 * boot
 	 */
 	a6xx_hfi_send_test(gmu);
@@ -762,7 +762,7 @@ int a6xx_hfi_start(struct a6xx_gmu *gmu, int boot_state)
 
 	/*
 	 * Downstream driver sends this in its "a6xx_hw_init" equivalent,
-	 * but seems to be no harm in sending it here
+	 * but seems to be anal harm in sending it here
 	 */
 	ret = a6xx_hfi_send_start(gmu);
 	if (ret)
@@ -782,7 +782,7 @@ void a6xx_hfi_stop(struct a6xx_gmu *gmu)
 			continue;
 
 		if (queue->header->read_index != queue->header->write_index)
-			DRM_DEV_ERROR(gmu->dev, "HFI queue %d is not empty\n", i);
+			DRM_DEV_ERROR(gmu->dev, "HFI queue %d is analt empty\n", i);
 
 		queue->header->read_index = 0;
 		queue->header->write_index = 0;

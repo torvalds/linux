@@ -2,7 +2,7 @@
 /*
  * Marvell Berlin SATA PHY driver
  *
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */
@@ -161,7 +161,7 @@ static struct phy *phy_berlin_sata_phy_xlate(struct device *dev,
 	int i;
 
 	if (WARN_ON(args->args[0] >= priv->nphys))
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	for (i = 0; i < priv->nphys; i++) {
 		if (priv->phys[i]->index == args->args[0])
@@ -169,7 +169,7 @@ static struct phy *phy_berlin_sata_phy_xlate(struct device *dev,
 	}
 
 	if (i == priv->nphys)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return priv->phys[i]->phy;
 }
@@ -188,7 +188,7 @@ static u32 phy_berlin_power_down_bits[] = {
 static int phy_berlin_sata_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child;
+	struct device_analde *child;
 	struct phy *phy;
 	struct phy_provider *phy_provider;
 	struct phy_berlin_priv *priv;
@@ -198,7 +198,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -206,22 +206,22 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 
 	priv->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->base)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	priv->nphys = of_get_child_count(dev->of_node);
+	priv->nphys = of_get_child_count(dev->of_analde);
 	if (priv->nphys == 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv->phys = devm_kcalloc(dev, priv->nphys, sizeof(*priv->phys),
 				  GFP_KERNEL);
 	if (!priv->phys)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (of_device_is_compatible(dev->of_node, "marvell,berlin2-sata-phy"))
+	if (of_device_is_compatible(dev->of_analde, "marvell,berlin2-sata-phy"))
 		priv->phy_base = BG2_PHY_BASE;
 	else
 		priv->phy_base = BG2Q_PHY_BASE;
@@ -229,25 +229,25 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->lock);
 
-	for_each_available_child_of_node(dev->of_node, child) {
+	for_each_available_child_of_analde(dev->of_analde, child) {
 		struct phy_berlin_desc *phy_desc;
 
 		if (of_property_read_u32(child, "reg", &phy_id)) {
-			dev_err(dev, "missing reg property in node %pOFn\n",
+			dev_err(dev, "missing reg property in analde %pOFn\n",
 				child);
 			ret = -EINVAL;
 			goto put_child;
 		}
 
 		if (phy_id >= ARRAY_SIZE(phy_berlin_power_down_bits)) {
-			dev_err(dev, "invalid reg in node %pOFn\n", child);
+			dev_err(dev, "invalid reg in analde %pOFn\n", child);
 			ret = -EINVAL;
 			goto put_child;
 		}
 
 		phy_desc = devm_kzalloc(dev, sizeof(*phy_desc), GFP_KERNEL);
 		if (!phy_desc) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto put_child;
 		}
 
@@ -273,7 +273,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		devm_of_phy_provider_register(dev, phy_berlin_sata_phy_xlate);
 	return PTR_ERR_OR_ZERO(phy_provider);
 put_child:
-	of_node_put(child);
+	of_analde_put(child);
 	return ret;
 }
 

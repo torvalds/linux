@@ -34,7 +34,7 @@
 #define AXI_I2S_CTRL_TX_EN	BIT(0)
 #define AXI_I2S_CTRL_RX_EN	BIT(1)
 
-/* The frame size is configurable, but for now we always set it 64 bit */
+/* The frame size is configurable, but for analw we always set it 64 bit */
 #define AXI_I2S_BITS_PER_FRAME 64
 
 struct axi_i2s {
@@ -171,7 +171,7 @@ static const struct regmap_config axi_i2s_regmap_config = {
 	.max_register = AXI_I2S_REG_STATUS,
 };
 
-static void axi_i2s_parse_of(struct axi_i2s *i2s, const struct device_node *np)
+static void axi_i2s_parse_of(struct axi_i2s *i2s, const struct device_analde *np)
 {
 	struct property *dma_names;
 	const char *dma_name;
@@ -193,11 +193,11 @@ static int axi_i2s_probe(struct platform_device *pdev)
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, i2s);
 
-	axi_i2s_parse_of(i2s, pdev->dev.of_node);
+	axi_i2s_parse_of(i2s, pdev->dev.of_analde);
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base))
@@ -223,7 +223,7 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	if (i2s->has_playback) {
 		axi_i2s_dai.playback.channels_min = 2;
 		axi_i2s_dai.playback.channels_max = 2;
-		axi_i2s_dai.playback.rates = SNDRV_PCM_RATE_KNOT;
+		axi_i2s_dai.playback.rates = SNDRV_PCM_RATE_KANALT;
 		axi_i2s_dai.playback.formats =
 			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE;
 
@@ -235,7 +235,7 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	if (i2s->has_capture) {
 		axi_i2s_dai.capture.channels_min = 2;
 		axi_i2s_dai.capture.channels_max = 2;
-		axi_i2s_dai.capture.rates = SNDRV_PCM_RATE_KNOT;
+		axi_i2s_dai.capture.rates = SNDRV_PCM_RATE_KANALT;
 		axi_i2s_dai.capture.formats =
 			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE;
 

@@ -18,14 +18,14 @@ ACPI_MODULE_NAME("nsutils")
 
 /* Local prototypes */
 #ifdef ACPI_OBSOLETE_FUNCTIONS
-acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
+acpi_name acpi_ns_find_parent_name(struct acpi_namespace_analde *analde_to_search);
 #endif
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_print_node_pathname
+ * FUNCTION:    acpi_ns_print_analde_pathname
  *
- * PARAMETERS:  node            - Object
+ * PARAMETERS:  analde            - Object
  *              message         - Prefix message
  *
  * DESCRIPTION: Print an object's full namespace pathname
@@ -34,13 +34,13 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
  ******************************************************************************/
 
 void
-acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
+acpi_ns_print_analde_pathname(struct acpi_namespace_analde *analde,
 			    const char *message)
 {
 	struct acpi_buffer buffer;
 	acpi_status status;
 
-	if (!node) {
+	if (!analde) {
 		acpi_os_printf("[NULL NAME]");
 		return;
 	}
@@ -49,7 +49,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
+	status = acpi_ns_handle_to_pathname(analde, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
 			acpi_os_printf("%s ", message);
@@ -64,24 +64,24 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_get_type
  *
- * PARAMETERS:  node        - Parent Node to be examined
+ * PARAMETERS:  analde        - Parent Analde to be examined
  *
- * RETURN:      Type field from Node whose handle is passed
+ * RETURN:      Type field from Analde whose handle is passed
  *
- * DESCRIPTION: Return the type of a Namespace node
+ * DESCRIPTION: Return the type of a Namespace analde
  *
  ******************************************************************************/
 
-acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
+acpi_object_type acpi_ns_get_type(struct acpi_namespace_analde * analde)
 {
 	ACPI_FUNCTION_TRACE(ns_get_type);
 
-	if (!node) {
-		ACPI_WARNING((AE_INFO, "Null Node parameter"));
+	if (!analde) {
+		ACPI_WARNING((AE_INFO, "Null Analde parameter"));
 		return_UINT8(ACPI_TYPE_ANY);
 	}
 
-	return_UINT8(node->type);
+	return_UINT8(analde->type);
 }
 
 /*******************************************************************************
@@ -106,7 +106,7 @@ u32 acpi_ns_local(acpi_object_type type)
 		/* Type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type 0x%X", type));
-		return_UINT32(ACPI_NS_NORMAL);
+		return_UINT32(ACPI_NS_ANALRMAL);
 	}
 
 	return_UINT32(acpi_gbl_ns_properties[type] & ACPI_NS_LOCAL);
@@ -119,7 +119,7 @@ u32 acpi_ns_local(acpi_object_type type)
  * PARAMETERS:  info            - Info struct initialized with the
  *                                external name pointer.
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Calculate the length of the internal (AML) namestring
  *              corresponding to the external (ASL) namestring.
@@ -141,10 +141,10 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	/*
 	 * For the internal name, the required length is 4 bytes per segment,
 	 * plus 1 each for root_prefix, multi_name_prefix_op, segment count,
-	 * trailing null (which is not really needed, but no there's harm in
+	 * trailing null (which is analt really needed, but anal there's harm in
 	 * putting it there)
 	 *
-	 * strlen() + 1 covers the first name_seg, which has no path separator
+	 * strlen() + 1 covers the first name_seg, which has anal path separator
 	 */
 	if (ACPI_IS_ROOT_PREFIX(*next_external_char)) {
 		info->fully_qualified = TRUE;
@@ -224,7 +224,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 		}
 	} else {
 		/*
-		 * Not fully qualified.
+		 * Analt fully qualified.
 		 * Handle Carats first, then append the name segments
 		 */
 		i = 0;
@@ -264,7 +264,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 			}
 		}
 
-		/* Now we must have a path separator, or the pathname is bad */
+		/* Analw we must have a path separator, or the pathname is bad */
 
 		if (!ACPI_IS_PATH_SEPARATOR(*external_name) &&
 		    (*external_name != 0)) {
@@ -330,7 +330,7 @@ acpi_ns_internalize_name(const char *external_name, char **converted_name)
 
 	internal_name = ACPI_ALLOCATE_ZEROED(info.length);
 	if (!internal_name) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	/* Build the name */
@@ -411,7 +411,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	}
 
 	/*
-	 * Check for object names. Note that there could be 0-255 of these
+	 * Check for object names. Analte that there could be 0-255 of these
 	 * 4-byte elements.
 	 */
 	if (prefix_length < internal_name_length) {
@@ -460,7 +460,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	    ((num_segments > 0) ? (num_segments - 1) : 0) + 1;
 
 	/*
-	 * Check to see if we're still in bounds. If not, there's a problem
+	 * Check to see if we're still in bounds. If analt, there's a problem
 	 * with internal_name (invalid format).
 	 */
 	if (required_length > internal_name_length) {
@@ -472,7 +472,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 
 	*converted_name = ACPI_ALLOCATE_ZEROED(required_length);
 	if (!(*converted_name)) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_ANAL_MEMORY);
 	}
 
 	j = 0;
@@ -510,22 +510,22 @@ acpi_ns_externalize_name(u32 internal_name_length,
  * FUNCTION:    acpi_ns_validate_handle
  *
  * PARAMETERS:  handle          - Handle to be validated and typecast to a
- *                                namespace node.
+ *                                namespace analde.
  *
- * RETURN:      A pointer to a namespace node
+ * RETURN:      A pointer to a namespace analde
  *
- * DESCRIPTION: Convert a namespace handle to a namespace node. Handles special
- *              cases for the root node.
+ * DESCRIPTION: Convert a namespace handle to a namespace analde. Handles special
+ *              cases for the root analde.
  *
- * NOTE: Real integer handles would allow for more verification
+ * ANALTE: Real integer handles would allow for more verification
  *       and keep all pointers within this subsystem - however this introduces
- *       more overhead and has not been necessary to this point. Drivers
- *       holding handles are typically notified before a node becomes invalid
+ *       more overhead and has analt been necessary to this point. Drivers
+ *       holding handles are typically analtified before a analde becomes invalid
  *       due to a table unload.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
+struct acpi_namespace_analde *acpi_ns_validate_handle(acpi_handle handle)
 {
 
 	ACPI_FUNCTION_ENTRY();
@@ -533,7 +533,7 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 	/* Parameter validation */
 
 	if ((!handle) || (handle == ACPI_ROOT_OBJECT)) {
-		return (acpi_gbl_root_node);
+		return (acpi_gbl_root_analde);
 	}
 
 	/* We can at least attempt to verify the handle */
@@ -542,16 +542,16 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 		return (NULL);
 	}
 
-	return (ACPI_CAST_PTR(struct acpi_namespace_node, handle));
+	return (ACPI_CAST_PTR(struct acpi_namespace_analde, handle));
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_terminate
  *
- * PARAMETERS:  none
+ * PARAMETERS:  analne
  *
- * RETURN:      none
+ * RETURN:      analne
  *
  * DESCRIPTION: free memory allocated for namespace and ACPI table storage.
  *
@@ -564,19 +564,19 @@ void acpi_ns_terminate(void)
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
 	/*
-	 * Free the entire namespace -- all nodes and all objects
-	 * attached to the nodes
+	 * Free the entire namespace -- all analdes and all objects
+	 * attached to the analdes
 	 */
-	acpi_ns_delete_namespace_subtree(acpi_gbl_root_node);
+	acpi_ns_delete_namespace_subtree(acpi_gbl_root_analde);
 
-	/* Delete any objects attached to the root node */
+	/* Delete any objects attached to the root analde */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
-	acpi_ns_delete_node(acpi_gbl_root_node);
+	acpi_ns_delete_analde(acpi_gbl_root_analde);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
@@ -603,7 +603,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 		/* type code out of range  */
 
 		ACPI_WARNING((AE_INFO, "Invalid Object Type 0x%X", type));
-		return (ACPI_NS_NORMAL);
+		return (ACPI_NS_ANALRMAL);
 	}
 
 	return (((u32)acpi_gbl_ns_properties[type]) & ACPI_NS_NEWSCOPE);
@@ -611,44 +611,44 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node_unlocked
+ * FUNCTION:    acpi_ns_get_analde_unlocked
  *
  * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
- *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
+ *              prefix_analde  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space. If Name is fully
  *                            qualified (first s8 is '\'), the passed value
- *                            of Scope will not be accessed.
+ *                            of Scope will analt be accessed.
  *              flags       - Used to indicate whether to perform upsearch or
- *                            not.
- *              return_node - Where the Node is returned
+ *                            analt.
+ *              return_analde - Where the Analde is returned
  *
  * DESCRIPTION: Look up a name relative to a given scope and return the
- *              corresponding Node. NOTE: Scope can be null.
+ *              corresponding Analde. ANALTE: Scope can be null.
  *
  * MUTEX:       Doesn't locks namespace
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
+acpi_ns_get_analde_unlocked(struct acpi_namespace_analde *prefix_analde,
 			  const char *pathname,
-			  u32 flags, struct acpi_namespace_node **return_node)
+			  u32 flags, struct acpi_namespace_analde **return_analde)
 {
 	union acpi_generic_state scope_info;
 	acpi_status status;
 	char *internal_path;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node_unlocked,
+	ACPI_FUNCTION_TRACE_PTR(ns_get_analde_unlocked,
 				ACPI_CAST_PTR(char, pathname));
 
 	/* Simplest case is a null pathname */
 
 	if (!pathname) {
-		*return_node = prefix_node;
-		if (!prefix_node) {
-			*return_node = acpi_gbl_root_node;
+		*return_analde = prefix_analde;
+		if (!prefix_analde) {
+			*return_analde = acpi_gbl_root_analde;
 		}
 
 		return_ACPI_STATUS(AE_OK);
@@ -657,7 +657,7 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 	/* Quick check for a reference to the root */
 
 	if (ACPI_IS_ROOT_PREFIX(pathname[0]) && (!pathname[1])) {
-		*return_node = acpi_gbl_root_node;
+		*return_analde = acpi_gbl_root_analde;
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -670,14 +670,14 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 
 	/* Setup lookup scope (search starting point) */
 
-	scope_info.scope.node = prefix_node;
+	scope_info.scope.analde = prefix_analde;
 
 	/* Lookup the name in the namespace */
 
 	status = acpi_ns_lookup(&scope_info, internal_path, ACPI_TYPE_ANY,
 				ACPI_IMODE_EXECUTE,
 				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
-				return_node);
+				return_analde);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s, %s\n",
 				  pathname, acpi_format_exception(status)));
@@ -689,42 +689,42 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node
+ * FUNCTION:    acpi_ns_get_analde
  *
  * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
- *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
+ *              prefix_analde  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space. If Name is fully
  *                            qualified (first s8 is '\'), the passed value
- *                            of Scope will not be accessed.
+ *                            of Scope will analt be accessed.
  *              flags       - Used to indicate whether to perform upsearch or
- *                            not.
- *              return_node - Where the Node is returned
+ *                            analt.
+ *              return_analde - Where the Analde is returned
  *
  * DESCRIPTION: Look up a name relative to a given scope and return the
- *              corresponding Node. NOTE: Scope can be null.
+ *              corresponding Analde. ANALTE: Scope can be null.
  *
  * MUTEX:       Locks namespace
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
+acpi_ns_get_analde(struct acpi_namespace_analde *prefix_analde,
 		 const char *pathname,
-		 u32 flags, struct acpi_namespace_node **return_node)
+		 u32 flags, struct acpi_namespace_analde **return_analde)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
+	ACPI_FUNCTION_TRACE_PTR(ns_get_analde, ACPI_CAST_PTR(char, pathname));
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ns_get_node_unlocked(prefix_node, pathname,
-					   flags, return_node);
+	status = acpi_ns_get_analde_unlocked(prefix_analde, pathname,
+					   flags, return_analde);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);

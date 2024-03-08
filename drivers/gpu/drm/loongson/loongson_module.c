@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2023 Loongson Techanallogy Corporation Limited
  */
 
 #include <linux/pci.h>
 
-#include <video/nomodeset.h>
+#include <video/analmodeset.h>
 
 #include "loongson_module.h"
 
@@ -20,7 +20,7 @@ module_param_named(vblank, loongson_vblank, int, 0400);
 static int __init loongson_module_init(void)
 {
 	if (!loongson_modeset || video_firmware_drivers_only())
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&lsdc_pci_driver);
 }

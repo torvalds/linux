@@ -51,8 +51,8 @@ void cros_ec_lpc_mec_init(unsigned int base, unsigned int end);
  * @offset: Address offset
  * @length: Number of bytes to check
  *
- * Return: 1 if in range, 0 if not, and -EINVAL on failure
- *         such as the mec range not being initialized
+ * Return: 1 if in range, 0 if analt, and -EINVAL on failure
+ *         such as the mec range analt being initialized
  */
 int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length);
 

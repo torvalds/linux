@@ -47,7 +47,7 @@ struct ad7766 {
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
-	 * Make the buffer large enough for one 24 bit sample and one 64 bit
+	 * Make the buffer large eanalugh for one 24 bit sample and one 64 bit
 	 * aligned 64 bit timestamp.
 	 */
 	unsigned char data[ALIGN(3, sizeof(s64)) + sizeof(s64)]	__aligned(IIO_DMA_MINALIGN);
@@ -77,7 +77,7 @@ static irqreturn_t ad7766_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, ad7766->data,
 		pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_analtify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -113,8 +113,8 @@ static int ad7766_postdisable(struct iio_dev *indio_dev)
 	gpiod_set_value(ad7766->pd_gpio, 1);
 
 	/*
-	 * The PD pin is synchronous to the clock, so give it some time to
-	 * notice the change before we disable the clock.
+	 * The PD pin is synchroanalus to the clock, so give it some time to
+	 * analtice the change before we disable the clock.
 	 */
 	msleep(20);
 
@@ -216,7 +216,7 @@ static int ad7766_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*ad7766));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ad7766 = iio_priv(indio_dev);
 	ad7766->chip_info = &ad7766_chip_info[id->driver_data];
@@ -250,18 +250,18 @@ static int ad7766_probe(struct spi_device *spi)
 						      indio_dev->name,
 						      iio_device_id(indio_dev));
 		if (!ad7766->trig)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ad7766->trig->ops = &ad7766_trigger_ops;
 		iio_trigger_set_drvdata(ad7766->trig, ad7766);
 
 		/*
 		 * The device generates interrupts as long as it is powered up.
-		 * Some platforms might not allow the option to power it down so
+		 * Some platforms might analt allow the option to power it down so
 		 * don't enable the interrupt to avoid extra load on the system
 		 */
 		ret = devm_request_irq(&spi->dev, spi->irq, ad7766_irq,
-				       IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
+				       IRQF_TRIGGER_FALLING | IRQF_ANAL_AUTOEN,
 				       dev_name(&spi->dev),
 				       ad7766->trig);
 		if (ret < 0)

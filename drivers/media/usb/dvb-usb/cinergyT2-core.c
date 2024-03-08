@@ -125,7 +125,7 @@ static struct rc_map_table rc_map_cinergyt2_table[] = {
 	{ 0x045c, KEY_NEXT }
 };
 
-/* Number of keypresses to ignore before detect repeating */
+/* Number of keypresses to iganalre before detect repeating */
 #define RC_REPEAT_DELAY 3
 
 static int repeatable_keys[] = {
@@ -144,7 +144,7 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	struct cinergyt2_state *st = d->priv;
 	int i, ret;
 
-	*state = REMOTE_NO_KEY_PRESSED;
+	*state = REMOTE_ANAL_KEY_PRESSED;
 
 	mutex_lock(&d->data_mutex);
 	st->data[0] = CINERGYT2_EP1_GET_RC_EVENTS;
@@ -166,7 +166,7 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					goto ret;
 				}
 			}
-			deb_rc("repeated key (non repeatable)\n");
+			deb_rc("repeated key (analn repeatable)\n");
 		}
 		goto ret;
 	}

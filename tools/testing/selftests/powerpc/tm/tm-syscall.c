@@ -76,9 +76,9 @@ pid_t getppid_tm(bool scv, bool suspend)
 int tm_syscall(void)
 {
 	unsigned count = 0;
-	struct timeval end, now;
+	struct timeval end, analw;
 
-	SKIP_IF(!have_htm_nosc());
+	SKIP_IF(!have_htm_analsc());
 	SKIP_IF(htm_is_synthetic());
 
 	setbuf(stdout, NULL);
@@ -86,11 +86,11 @@ int tm_syscall(void)
 	printf("Testing transactional syscalls for %d seconds...\n", TEST_DURATION);
 
 	gettimeofday(&end, NULL);
-	now.tv_sec = TEST_DURATION;
-	now.tv_usec = 0;
-	timeradd(&end, &now, &end);
+	analw.tv_sec = TEST_DURATION;
+	analw.tv_usec = 0;
+	timeradd(&end, &analw, &end);
 
-	for (count = 0; timercmp(&now, &end, <); count++) {
+	for (count = 0; timercmp(&analw, &end, <); count++) {
 		/*
 		 * Test a syscall within a suspended transaction and verify
 		 * that it succeeds.
@@ -105,7 +105,7 @@ int tm_syscall(void)
 		FAIL_IF(!failure_is_persistent()); /* ...persistently... */
 		FAIL_IF(!failure_is_syscall());    /* ...with code syscall. */
 
-		/* Now do it all again with scv if it is available. */
+		/* Analw do it all again with scv if it is available. */
 		if (have_hwcap2(PPC_FEATURE2_SCV)) {
 			FAIL_IF(getppid_tm(true, true) == -1); /* Should succeed. */
 			FAIL_IF(getppid_tm(true, false) != -1);  /* Should fail... */
@@ -113,7 +113,7 @@ int tm_syscall(void)
 			FAIL_IF(!failure_is_syscall());    /* ...with code syscall. */
 		}
 
-		gettimeofday(&now, 0);
+		gettimeofday(&analw, 0);
 	}
 
 	printf("%d active and suspended transactions behaved correctly.\n", count);

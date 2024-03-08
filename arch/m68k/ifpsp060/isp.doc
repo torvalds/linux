@@ -1,5 +1,5 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+MOTOROLA MICROPROCESSOR & MEMORY TECHANALLOGY GROUP
 M68000 Hi-Performance Microprocessor Division
 M68060 Software Package
 Production Release P1.00 -- October 10, 1994
@@ -14,16 +14,16 @@ and any warranty against infringement with regard to the SOFTWARE
 (INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
 
 To the maximum extent permitted by applicable law,
-IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+IN ANAL EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
 (INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
 BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
 ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
-Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+Motorola assumes anal responsibility for the maintenance and support of the SOFTWARE.
 
 You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
-so long as this entire notice is retained without alteration in any modified and/or
+so long as this entire analtice is retained without alteration in any modified and/or
 redistributed versions, and that such modified versions are clearly identified as such.
-No licenses are granted by implication, estoppel or otherwise under any patents
+Anal licenses are granted by implication, estoppel or otherwise under any patents
 or trademarks of Motorola, Inc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 68060 INTEGER SOFTWARE PACKAGE (Kernel version)
@@ -34,7 +34,7 @@ This package is essentially an exception handler that can be
 integrated into an operating system to handle the "Unimplemented
 Integer Instruction" exception vector #61.
 This exception is taken when any of the integer instructions
-not hardware implemented on the 68060 are encountered. The
+analt hardware implemented on the 68060 are encountered. The
 isp.sa provides full emulation support for these instructions.
 
 The unimplemented integer instructions are:
@@ -86,7 +86,7 @@ Release file structure:
 (bottom of module)
 
 The first section of this module is the "Call-out" section. This section
-is NOT INCLUDED in isp.sa (an example "Call-out" section is provided at
+is ANALT INCLUDED in isp.sa (an example "Call-out" section is provided at
 the end of the file iskeleton.s). The purpose of this section is to allow
 the ISP routines to reference external functions that must be provided
 by the host operating system. This section MUST be exactly 128 bytes in
@@ -99,7 +99,7 @@ isp.sa image in memory.
 
 The second section, the "Entry-point" section, is used by external routines
 to access the functions within the ISP. Since the isp.sa hex file contains
-no symbol names, this section contains function entry points that are fixed
+anal symbol names, this section contains function entry points that are fixed
 with respect to the top of the package. The currently defined entry-points
 are listed in section "68060 ISP entry points" below. A calling routine
 would simply execute a "bra" or "jmp" that jumped to the selected function

@@ -164,7 +164,7 @@ static int gpio_nand_exec_op(struct nand_chip *chip,
 static int gpio_nand_attach_chip(struct nand_chip *chip)
 {
 	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
-	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKANALWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -187,10 +187,10 @@ static int gpio_nand_get_config_of(const struct device *dev,
 {
 	u32 val;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	if (!dev->of_analde)
+		return -EANALDEV;
 
-	if (!of_property_read_u32(dev->of_node, "bank-width", &val)) {
+	if (!of_property_read_u32(dev->of_analde, "bank-width", &val)) {
 		if (val == 2) {
 			plat->options |= NAND_BUSWIDTH_16;
 		} else if (val != 1) {
@@ -199,7 +199,7 @@ static int gpio_nand_get_config_of(const struct device *dev,
 		}
 	}
 
-	if (!of_property_read_u32(dev->of_node, "chip-delay", &val))
+	if (!of_property_read_u32(dev->of_analde, "chip-delay", &val))
 		plat->chip_delay = val;
 
 	return 0;
@@ -210,7 +210,7 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 	struct resource *r;
 	u64 addr;
 
-	if (of_property_read_u64(pdev->dev.of_node,
+	if (of_property_read_u64(pdev->dev.of_analde,
 				       "gpio-control-nand,io-sync-reg", &addr))
 		return NULL;
 
@@ -228,7 +228,7 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 static inline int gpio_nand_get_config_of(const struct device *dev,
 					  struct gpio_nand_platdata *plat)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline struct resource *
@@ -291,12 +291,12 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret = 0;
 
-	if (!dev->of_node && !dev_get_platdata(dev))
+	if (!dev->of_analde && !dev_get_platdata(dev))
 		return -EINVAL;
 
 	gpiomtd = devm_kzalloc(dev, sizeof(*gpiomtd), GFP_KERNEL);
 	if (!gpiomtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = &gpiomtd->nand_chip;
 
@@ -320,7 +320,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(gpiomtd->nce))
 		return PTR_ERR(gpiomtd->nce);
 
-	/* We disable write protection once we know probe() will succeed */
+	/* We disable write protection once we kanalw probe() will succeed */
 	gpiomtd->nwp = devm_gpiod_get_optional(dev, "nwp", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiomtd->nwp)) {
 		ret = PTR_ERR(gpiomtd->nwp);
@@ -348,7 +348,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	nand_controller_init(&gpiomtd->base);
 	gpiomtd->base.ops = &gpio_nand_ops;
 
-	nand_set_flash_node(chip, pdev->dev.of_node);
+	nand_set_flash_analde(chip, pdev->dev.of_analde);
 	chip->options		= gpiomtd->plat.options;
 	chip->controller	= &gpiomtd->base;
 

@@ -242,8 +242,8 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 out_print:
 	str += sprintf(str,
 		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       version->major, version->minor,
-		       version->rev_major, version->rev_minor);
+		       version->major, version->mianalr,
+		       version->rev_major, version->rev_mianalr);
 
 	rc = str - buf;
 
@@ -379,15 +379,15 @@ static ssize_t pcr_value_show(struct device *dev,
  * The following set of defines represents all the magic to build
  * the per hash attribute groups for displaying each bank of PCRs.
  * The only slight problem with this approach is that every PCR is
- * hard coded to be present, so you don't know if an PCR is missing
+ * hard coded to be present, so you don't kanalw if an PCR is missing
  * until a cat of the file returns -EINVAL
  *
- * Also note you must ignore checkpatch warnings in this macro
+ * Also analte you must iganalre checkpatch warnings in this macro
  * code. This is deep macro magic that checkpatch.pl doesn't
  * understand.
  */
 
-/* Note, this must match TPM2_PLATFORM_PCR which is fixed at 24. */
+/* Analte, this must match TPM2_PLATFORM_PCR which is fixed at 24. */
 #define _TPM_HELPER(_alg, _hash, F) \
 	F(_alg, _hash, 0)	    \
 	F(_alg, _hash, 1)	    \
@@ -414,7 +414,7 @@ static ssize_t pcr_value_show(struct device *dev,
 	F(_alg, _hash, 22)	    \
 	F(_alg, _hash, 23)
 
-/* ignore checkpatch warning about trailing ; in macro. */
+/* iganalre checkpatch warning about trailing ; in macro. */
 #define PCR_ATTR(_alg, _hash, _pcr)				   \
 	static struct tpm_pcr_attr dev_attr_pcr_##_hash##_##_pcr = {	\
 		.alg_id = _alg,					   \
@@ -431,7 +431,7 @@ static ssize_t pcr_value_show(struct device *dev,
 #define PCR_ATTRS(_alg, _hash)			\
 	_TPM_HELPER(_alg, _hash, PCR_ATTR)
 
-/* ignore checkpatch warning about trailing , in macro. */
+/* iganalre checkpatch warning about trailing , in macro. */
 #define PCR_ATTR_VAL(_alg, _hash, _pcr)		\
 	&dev_attr_pcr_##_hash##_##_pcr.attr.attr,
 
@@ -462,9 +462,9 @@ static ssize_t pcr_value_show(struct device *dev,
  * added to chip->groups[].
  *
  * The first argument is the TPM algorithm id and the second is the
- * hash used as both the suffix and the group name.  Note: the group
+ * hash used as both the suffix and the group name.  Analte: the group
  * name is a directory in the top level tpm class with the name
- * pcr-<hash>, so it must not clash with any other names already
+ * pcr-<hash>, so it must analt clash with any other names already
  * in the sysfs directory.
  */
 PCR_ATTR_BUILD(TPM_ALG_SHA1, sha1);

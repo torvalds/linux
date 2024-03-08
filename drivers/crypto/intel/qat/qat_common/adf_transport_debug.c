@@ -94,7 +94,7 @@ int adf_ring_debugfs_add(struct adf_etr_ring_data *ring, const char *name)
 
 	ring_debug = kzalloc(sizeof(*ring_debug), GFP_KERNEL);
 	if (!ring_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	strscpy(ring_debug->ring_name, name, sizeof(ring_debug->ring_name));
 	snprintf(entry_name, sizeof(entry_name), "ring_%02d",

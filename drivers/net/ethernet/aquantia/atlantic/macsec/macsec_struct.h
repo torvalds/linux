@@ -23,7 +23,7 @@ struct aq_mss_egress_ctlf_record {
 	 *  masks.
 	 */
 	u32 match_mask;
-	/*! 0: No compare, i.e. This entry is not used
+	/*! 0: Anal compare, i.e. This entry is analt used
 	 *  1: compare DA only
 	 *  2: compare SA only
 	 *  3: compare half DA + half SA
@@ -142,7 +142,7 @@ struct aq_mss_egress_class_record {
 	/*! Mask is per-byte.
 	 *  0: don't care
 	 *  1: enable comparison of SCI
-	 *  Note: If this field is not 0, this means the input packet's
+	 *  Analte: If this field is analt 0, this means the input packet's
 	 *  SECTAG is explicitly tagged and MACSEC module will only update
 	 *  the MSDU.
 	 *  PN number is hardware controlled.
@@ -154,14 +154,14 @@ struct aq_mss_egress_class_record {
 	 */
 	u32 eth_type_mask;
 	/*! Mask is per-byte.
-	 *  0: don't care and no SNAP header exist.
+	 *  0: don't care and anal SNAP header exist.
 	 *  1: compare the SNAP header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  SNAP header exist as encapsulated in 802.3 (RFC 1042). I.E. the
 	 *  next 5 bytes after the LLC header is SNAP header.
 	 */
 	u32 snap_mask;
-	/*! 0: don't care and no LLC header exist.
+	/*! 0: don't care and anal LLC header exist.
 	 *  1: compare the LLC header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  LLC header exist as encapsulated in 802.3 (RFC 1042). I.E. the
@@ -204,15 +204,15 @@ struct aq_mss_egress_class_record {
 	 *  2'b10: 1 SC has 2 SA.
 	 *  SC index is equivalent to SC_Index[4:1]
 	 *  SA index is equivalent to {SC_Index[4:1], SC entry's current AN[0]}
-	 *  2'b11: 1 SC has 1 SA. No SC entry exists for the specific SA.
+	 *  2'b11: 1 SC has 1 SA. Anal SC entry exists for the specific SA.
 	 *  SA index is equivalent to SC_Index[4:0]
-	 *  Note: if specified as 2'b11, hardware AN roll over is not
+	 *  Analte: if specified as 2'b11, hardware AN roll over is analt
 	 *  supported.
 	 */
 	u32 sc_sa;
 	/*! 0: the packets will be sent to MAC FIFO
 	 *  1: The packets will be sent to Debug/Loopback FIFO.
-	 *  If the above's action is drop, this bit has no meaning.
+	 *  If the above's action is drop, this bit has anal meaning.
 	 */
 	u32 debug;
 	/*! 0: forward to remaining modules
@@ -222,7 +222,7 @@ struct aq_mss_egress_class_record {
 	 *  3: Reserved.
 	 */
 	u32 action;
-	/*! 0: Not valid entry. This entry is not used
+	/*! 0: Analt valid entry. This entry is analt used
 	 *  1: valid entry.
 	 */
 	u32 valid;
@@ -235,32 +235,32 @@ struct aq_mss_egress_sc_record {
 	/*! This is to specify when the SC was last used. Set by HW. */
 	u32 stop_time;
 	/*! This is to specify which of the SA entries are used by current HW.
-	 *  Note: This value need to be set by SW after reset.  It will be
+	 *  Analte: This value need to be set by SW after reset.  It will be
 	 *  automatically updated by HW, if AN roll over is enabled.
 	 */
 	u32 curr_an;
 	/*! 0: Clear the SA Valid Bit after PN expiry.
-	 *  1: Do not Clear the SA Valid bit after PN expiry of the current SA.
-	 *  When the Enable AN roll over is set, S/W does not need to
+	 *  1: Do analt Clear the SA Valid bit after PN expiry of the current SA.
+	 *  When the Enable AN roll over is set, S/W does analt need to
 	 *  program the new SA's and the H/W will automatically roll over
 	 *  between the SA's without session expiry.
-	 *  For normal operation, Enable AN Roll over will be set to '0'
+	 *  For analrmal operation, Enable AN Roll over will be set to '0'
 	 *  and in which case, the SW needs to program the new SA values
 	 *  after the current PN expires.
 	 */
 	u32 an_roll;
-	/*! This is the TCI field used if packet is not explicitly tagged. */
+	/*! This is the TCI field used if packet is analt explicitly tagged. */
 	u32 tci;
 	/*! This value indicates the offset where the decryption will start.
 	 *  [[Values of 0, 4, 8-50].
 	 */
 	u32 enc_off;
-	/*! 0: Do not protect frames, all the packets will be forwarded
+	/*! 0: Do analt protect frames, all the packets will be forwarded
 	 *     unchanged. MIB counter (OutPktsUntagged) will be updated.
 	 *  1: Protect.
 	 */
 	u32 protect;
-	/*! 0: when none of the SA related to SC has inUse set.
+	/*! 0: when analne of the SA related to SC has inUse set.
 	 *  1: when either of the SA related to the SC has inUse set.
 	 *  This bit is set by HW.
 	 */
@@ -331,7 +331,7 @@ struct aq_mss_ingress_prectlf_record {
 	 *  16 nibbles masks.
 	 */
 	u32 match_mask;
-	/*! 0: No compare, i.e. This entry is not used
+	/*! 0: Anal compare, i.e. This entry is analt used
 	 *  1: compare DA only
 	 *  2: compare SA only
 	 *  3: compare half DA + half SA
@@ -376,7 +376,7 @@ struct aq_mss_ingress_preclass_record {
 	u32 mac_sa[2];
 	/*! The 48 bit MAC_DA field used to compare with extracted value. */
 	u32 mac_da[2];
-	/*! 0: this is to compare with non-LPBK packet
+	/*! 0: this is to compare with analn-LPBK packet
 	 *  1: this is to compare with LPBK packet.
 	 *  This value is used to compare with a controlled-tag which goes
 	 *  with the packet when looped back from Egress port.
@@ -387,23 +387,23 @@ struct aq_mss_ingress_preclass_record {
 	 *  2'b00: 1 SC has 4 SA.
 	 *    SC index is equivalent to {SC_Index[4:2], 1'b0}.
 	 *    SA index is equivalent to {SC_Index[4:2], SECTAG's AN[1:0]}
-	 *    Here AN bits are not compared.
+	 *    Here AN bits are analt compared.
 	 *  2'b10: 1 SC has 2 SA.
 	 *    SC index is equivalent to SC_Index[4:1]
 	 *    SA index is equivalent to {SC_Index[4:1], SECTAG's AN[0]}
 	 *    Compare AN[1] field only
-	 *  2'b11: 1 SC has 1 SA. No SC entry exists for the specific SA.
+	 *  2'b11: 1 SC has 1 SA. Anal SC entry exists for the specific SA.
 	 *    SA index is equivalent to SC_Index[4:0]
 	 *    AN[1:0] bits are compared.
-	 *    NOTE: This design is to supports different usage of AN. User
+	 *    ANALTE: This design is to supports different usage of AN. User
 	 *    can either ping-pong buffer 2 SA by using only the AN[0] bit.
 	 *    Or use 4 SA per SC by use AN[1:0] bits. Or even treat each SA
-	 *    as independent. i.e. AN[1:0] is just another matching pointer
+	 *    as independent. i.e. AN[1:0] is just aanalther matching pointer
 	 *    to select SA.
 	 */
 	u32 an_mask;
 	/*! This is bit mask to enable comparison the upper 6 bits TCI
-	 *  field, which does not include the AN field.
+	 *  field, which does analt include the AN field.
 	 *  0: don't compare
 	 *  1: enable comparison of the bits.
 	 */
@@ -418,7 +418,7 @@ struct aq_mss_ingress_preclass_record {
 	 */
 	u32 eth_type_mask;
 	/*! Mask is per-byte.
-	 *  0: don't care and no SNAP header exist.
+	 *  0: don't care and anal SNAP header exist.
 	 *  1: compare the SNAP header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  SNAP header exist as encapsulated in 802.3 (RFC 1042). I.E. the
@@ -426,7 +426,7 @@ struct aq_mss_ingress_preclass_record {
 	 */
 	u32 snap_mask;
 	/*! Mask is per-byte.
-	 *  0: don't care and no LLC header exist.
+	 *  0: don't care and anal LLC header exist.
 	 *  1: compare the LLC header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  LLC header exist as encapsulated in 802.3 (RFC 1042). I.E. the
@@ -446,7 +446,7 @@ struct aq_mss_ingress_preclass_record {
 	 */
 	u32 da_mask;
 	/*! 0: don't care
-	 *  1: enable checking if this is loopback packet or not.
+	 *  1: enable checking if this is loopback packet or analt.
 	 */
 	u32 lpbk_mask;
 	/*! If packet matches and tagged as controlled-packet. This SC/SA
@@ -455,7 +455,7 @@ struct aq_mss_ingress_preclass_record {
 	u32 sc_idx;
 	/*! 0: the packets will be sent to MAC FIFO
 	 *  1: The packets will be sent to Debug/Loopback FIFO.
-	 *  If the above's action is drop. This bit has no meaning.
+	 *  If the above's action is drop. This bit has anal meaning.
 	 */
 	u32 proc_dest;
 	/*! 0: Process: Forward to next two modules for 802.1AE decryption.
@@ -472,12 +472,12 @@ struct aq_mss_ingress_preclass_record {
 	 */
 	u32 ctrl_unctrl;
 	/*! Use the SCI value from the Table if 'SC' bit of the input
-	 *  packet is not present.
+	 *  packet is analt present.
 	 */
 	u32 sci_from_table;
 	/*! Reserved. */
 	u32 reserved;
-	/*! 0: Not valid entry. This entry is not used
+	/*! 0: Analt valid entry. This entry is analt used
 	 *  1: valid entry.
 	 */
 	u32 valid;
@@ -502,7 +502,7 @@ struct aq_mss_ingress_sc_record {
 	 *  0: is strict order enforcement.
 	 */
 	u32 anti_replay_window;
-	/*! 0: when none of the SA related to SC has inUse set.
+	/*! 0: when analne of the SA related to SC has inUse set.
 	 *  1: when either of the SA related to the SC has inUse set.
 	 *  This bit is set by HW.
 	 */
@@ -512,12 +512,12 @@ struct aq_mss_ingress_sc_record {
 	 *  1: This bit is set by SW, when it sets up the SC.
 	 */
 	u32 fresh;
-	/*! 0: The AN number will not automatically roll over if Next_PN is
+	/*! 0: The AN number will analt automatically roll over if Next_PN is
 	 *     saturated.
 	 *  1: The AN number will automatically roll over if Next_PN is
 	 *     saturated.
-	 *  Rollover is valid only after expiry. Normal roll over between
-	 *  SA's should be normal process.
+	 *  Rollover is valid only after expiry. Analrmal roll over between
+	 *  SA's should be analrmal process.
 	 */
 	u32 an_rol;
 	/*! Reserved. */
@@ -542,7 +542,7 @@ struct aq_mss_ingress_sa_record {
 	 *  to 0. set by HW.
 	 */
 	u32 sat_nextpn;
-	/*! 0: This SA is not yet used.
+	/*! 0: This SA is analt yet used.
 	 *  1: This SA is inUse.
 	 */
 	u32 in_use;
@@ -646,7 +646,7 @@ struct aq_mss_ingress_postclass_record {
 	u32 sai_mask;
 	/*! Mask for SAI_HIT. */
 	u32 sai_hit_mask;
-	/*! Action if only first level matches and second level does not.
+	/*! Action if only first level matches and second level does analt.
 	 *  0: pass
 	 *  1: drop (fail).
 	 */
@@ -658,7 +658,7 @@ struct aq_mss_ingress_postclass_record {
 	u32 secondlevel_actions;
 	/*! Reserved. */
 	u32 reserved;
-	/*! 0: Not valid entry. This entry is not used
+	/*! 0: Analt valid entry. This entry is analt used
 	 *  1: valid entry.
 	 */
 	u32 valid;
@@ -681,7 +681,7 @@ struct aq_mss_ingress_postctlf_record {
 	 *  16 nibbles masks.
 	 */
 	u32 match_mask;
-	/*! 0: No compare, i.e. This entry is not used
+	/*! 0: Anal compare, i.e. This entry is analt used
 	 *  1: compare DA only
 	 *  2: compare SA only
 	 *  3: compare half DA + half SA
@@ -701,7 +701,7 @@ struct aq_mss_ingress_postctlf_record {
  *  64 bits, lower 32 bits in field[0].
  */
 struct aq_mss_egress_sc_counters {
-	/*! The number of integrity protected but not encrypted packets
+	/*! The number of integrity protected but analt encrypted packets
 	 *  for this transmitting SC.
 	 */
 	u32 sc_protected_pkts[2];
@@ -710,7 +710,7 @@ struct aq_mss_egress_sc_counters {
 	 */
 	u32 sc_encrypted_pkts[2];
 	/*! The number of plain text octets that are integrity protected
-	 *  but not encrypted on the transmitting SC.
+	 *  but analt encrypted on the transmitting SC.
 	 */
 	u32 sc_protected_octets[2];
 	/*! The number of plain text octets that are integrity protected
@@ -727,7 +727,7 @@ struct aq_mss_egress_sa_counters {
 	u32 sa_hit_drop_redirect[2];
 	/*! TODO */
 	u32 sa_protected2_pkts[2];
-	/*! The number of integrity protected but not encrypted packets
+	/*! The number of integrity protected but analt encrypted packets
 	 *  for this transmitting SA.
 	 */
 	u32 sa_protected_pkts[2];
@@ -737,17 +737,17 @@ struct aq_mss_egress_sa_counters {
 	u32 sa_encrypted_pkts[2];
 };
 
-/*! Represents the common Egress MIB counters; the counter not
+/*! Represents the common Egress MIB counters; the counter analt
  *  associated with a particular SC/SA. Counters are 64 bits, lower 32
  *  bits in field[0].
  */
 struct aq_mss_egress_common_counters {
 	/*! The number of transmitted packets classified as MAC_CTL packets. */
 	u32 ctl_pkt[2];
-	/*! The number of transmitted packets that did not match any rows
+	/*! The number of transmitted packets that did analt match any rows
 	 *  in the Egress Packet Classifier table.
 	 */
-	u32 unknown_sa_pkts[2];
+	u32 unkanalwn_sa_pkts[2];
 	/*! The number of transmitted packets where the SC table entry has
 	 *  protect=0 (so packets are forwarded unchanged).
 	 */
@@ -774,26 +774,26 @@ struct aq_mss_ingress_sa_counters {
 	u32 untagged_hit_pkts[2];
 	/*! For this SA, the number of received packets that were dropped. */
 	u32 ctrl_hit_drop_redir_pkts[2];
-	/*! For this SA which is not currently in use, the number of
+	/*! For this SA which is analt currently in use, the number of
 	 *  received packets that have been discarded, and have either the
 	 *  packets encrypted or the matched row in the Ingress SC Lookup
 	 *  table has validate_frames=Strict.
 	 */
-	u32 not_using_sa[2];
-	/*! For this SA which is not currently in use, the number of
+	u32 analt_using_sa[2];
+	/*! For this SA which is analt currently in use, the number of
 	 *  received, unencrypted, packets with the matched row in the
 	 *  Ingress SC Lookup table has validate_frames!=Strict.
 	 */
 	u32 unused_sa[2];
 	/*! For this SA, the number discarded packets with the condition
-	 *  that the packets are not valid and one of the following
+	 *  that the packets are analt valid and one of the following
 	 *  conditions are true: either the matched row in the Ingress SC
 	 *  Lookup table has validate_frames=Strict or the packets
 	 *  encrypted.
 	 */
-	u32 not_valid_pkts[2];
+	u32 analt_valid_pkts[2];
 	/*! For this SA, the number of packets with the condition that the
-	 *  packets are not valid and the matched row in the Ingress SC
+	 *  packets are analt valid and the matched row in the Ingress SC
 	 *  Lookup table has validate_frames=Check.
 	 */
 	u32 invalid_pkts[2];
@@ -814,7 +814,7 @@ struct aq_mss_ingress_sa_counters {
 	 *  - the matched row in the Ingress SC Lookup table has
 	 *    replay_protect=0 or
 	 *  - the matched row in the Ingress SC Lookup table has
-	 *    replay_protect=1 and the packet is not encrypted and the
+	 *    replay_protect=1 and the packet is analt encrypted and the
 	 *    integrity check has failed or
 	 *  - the matched row in the Ingress SC Lookup table has
 	 *    replay_protect=1 and the packet is encrypted and integrity
@@ -822,7 +822,7 @@ struct aq_mss_ingress_sa_counters {
 	 */
 	u32 unchecked_pkts[2];
 	/*! The number of octets of plaintext recovered from received
-	 *  packets that were integrity protected but not encrypted.
+	 *  packets that were integrity protected but analt encrypted.
 	 */
 	u32 validated_octets[2];
 	/*! The number of octets of plaintext recovered from received
@@ -831,7 +831,7 @@ struct aq_mss_ingress_sa_counters {
 	u32 decrypted_octets[2];
 };
 
-/*! Represents the common Ingress MIB counters; the counter not
+/*! Represents the common Ingress MIB counters; the counter analt
  *  associated with a particular SA. Counters are 64 bits, lower 32
  *  bits in field[0].
  */
@@ -839,12 +839,12 @@ struct aq_mss_ingress_common_counters {
 	/*! The number of received packets classified as MAC_CTL packets. */
 	u32 ctl_pkts[2];
 	/*! The number of received packets with the MAC security tag
-	 *  (SecTAG), not matching any rows in the Ingress Pre-MACSec
+	 *  (SecTAG), analt matching any rows in the Ingress Pre-MACSec
 	 *  Packet Classifier table.
 	 */
 	u32 tagged_miss_pkts[2];
 	/*! The number of received packets without the MAC security tag
-	 *  (SecTAG), not matching any rows in the Ingress Pre-MACSec
+	 *  (SecTAG), analt matching any rows in the Ingress Pre-MACSec
 	 *  Packet Classifier table.
 	 */
 	u32 untagged_miss_pkts[2];
@@ -852,7 +852,7 @@ struct aq_mss_ingress_common_counters {
 	 *  security tag (SecTAG) and with the matched row in the Ingress
 	 *  SC Lookup table having validate_frames=Strict.
 	 */
-	u32 notag_pkts[2];
+	u32 analtag_pkts[2];
 	/*! The number of received packets without the MAC security tag
 	 *  (SecTAG) and with the matched row in the Ingress SC Lookup
 	 *  table having validate_frames!=Strict.
@@ -862,17 +862,17 @@ struct aq_mss_ingress_common_counters {
 	 *  SecTAG or a zero value PN or an invalid ICV.
 	 */
 	u32 bad_tag_pkts[2];
-	/*! The number of received packets discarded with unknown SCI
+	/*! The number of received packets discarded with unkanalwn SCI
 	 *  information with the condition:
 	 *  the matched row in the Ingress SC Lookup table has
 	 *  validate_frames=Strict or the C bit in the SecTAG is set.
 	 */
-	u32 no_sci_pkts[2];
-	/*! The number of received packets with unknown SCI with the condition:
+	u32 anal_sci_pkts[2];
+	/*! The number of received packets with unkanalwn SCI with the condition:
 	 *  The matched row in the Ingress SC Lookup table has
-	 *  validate_frames!=Strict and the C bit in the SecTAG is not set.
+	 *  validate_frames!=Strict and the C bit in the SecTAG is analt set.
 	 */
-	u32 unknown_sci_pkts[2];
+	u32 unkanalwn_sci_pkts[2];
 	/*! The number of received packets by the controlled port service
 	 *  that passed the Ingress Post-MACSec Packet Classifier table
 	 *  check.

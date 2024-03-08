@@ -2,9 +2,9 @@
 /*
  * nzxt-kraken2.c - hwmon driver for NZXT Kraken X42/X52/X62/X72 coolers
  *
- * The device asynchronously sends HID reports (with id 0x04) twice a second to
+ * The device asynchroanalusly sends HID reports (with id 0x04) twice a second to
  * communicate current fan speed, pump speed and coolant temperature.  The
- * device does not respond to Get_Report requests for this status report.
+ * device does analt respond to Get_Report requests for this status report.
  *
  * Copyright 2019-2021  Jonas Malaco <jonas@protocubo.io>
  */
@@ -48,7 +48,7 @@ static int kraken2_read(struct device *dev, enum hwmon_sensor_types type,
 	struct kraken2_priv_data *priv = dev_get_drvdata(dev);
 
 	if (time_after(jiffies, priv->updated + STATUS_VALIDITY * HZ))
-		return -ENODATA;
+		return -EANALDATA;
 
 	switch (type) {
 	case hwmon_temp:
@@ -58,7 +58,7 @@ static int kraken2_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = priv->fan_input[channel];
 		break;
 	default:
-		return -EOPNOTSUPP; /* unreachable */
+		return -EOPANALTSUPP; /* unreachable */
 	}
 
 	return 0;
@@ -75,7 +75,7 @@ static int kraken2_read_string(struct device *dev, enum hwmon_sensor_types type,
 		*str = kraken2_fan_label[channel];
 		break;
 	default:
-		return -EOPNOTSUPP; /* unreachable */
+		return -EOPANALTSUPP; /* unreachable */
 	}
 	return 0;
 }
@@ -137,7 +137,7 @@ static int kraken2_probe(struct hid_device *hdev,
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->hid_dev = hdev;
 	hid_set_drvdata(hdev, priv);

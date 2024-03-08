@@ -458,7 +458,7 @@ struct port100 {
 
 	u8 cmd_type;
 
-	/* The digital stack serializes commands to be sent. There is no need
+	/* The digital stack serializes commands to be sent. There is anal need
 	 * for any queuing/locking mechanism at driver level.
 	 */
 	struct port100_cmd *cmd;
@@ -623,7 +623,7 @@ static void port100_recv_response(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		nfc_dbg(&dev->interface->dev,
 			"The urb has been canceled (status %d)\n", urb->status);
 		goto sched_wq;
@@ -642,12 +642,12 @@ static void port100_recv_response(struct urb *urb)
 		goto sched_wq;
 	}
 
-	print_hex_dump_debug("PORT100 RX: ", DUMP_PREFIX_NONE, 16, 1, in_frame,
+	print_hex_dump_debug("PORT100 RX: ", DUMP_PREFIX_ANALNE, 16, 1, in_frame,
 			     port100_rx_frame_size(in_frame), false);
 
 	if (!port100_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_err(&dev->interface->dev,
-			"It's not the response to the last command\n");
+			"It's analt the response to the last command\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -677,7 +677,7 @@ static void port100_recv_ack(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		nfc_dbg(&dev->interface->dev,
 			"The urb has been stopped (status %d)\n", urb->status);
 		goto sched_wq;
@@ -777,7 +777,7 @@ static int port100_send_frame_async(struct port100 *dev,
 	dev->in_urb->transfer_buffer = in->data;
 	dev->in_urb->transfer_buffer_length = in_len;
 
-	print_hex_dump_debug("PORT100 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("PORT100 TX: ", DUMP_PREFIX_ANALNE, 16, 1,
 			     out->data, out->len, false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
@@ -857,12 +857,12 @@ static int port100_send_cmd_async(struct port100 *dev, u8 cmd_code,
 
 	resp = alloc_skb(resp_len, GFP_KERNEL);
 	if (!resp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd) {
 		dev_kfree_skb(resp);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cmd->code = cmd_code;
@@ -941,7 +941,7 @@ static void port100_send_complete(struct urb *urb)
 	case 0:
 		break; /* success */
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 		nfc_dbg(&dev->interface->dev,
 			"The urb has been stopped (status %d)\n", urb->status);
 		break;
@@ -983,7 +983,7 @@ static int port100_set_command_type(struct port100 *dev, u8 command_type)
 
 	skb = port100_alloc_skb(dev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, command_type);
 
@@ -1051,7 +1051,7 @@ static int port100_switch_rf(struct nfc_digital_dev *ddev, bool on)
 
 	skb = port100_alloc_skb(dev, 1);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_u8(skb, on ? 1 : 0);
 
@@ -1081,7 +1081,7 @@ static int port100_in_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 
 	skb = port100_alloc_skb(dev, sizeof(struct port100_in_rf_setting));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &in_rf_settings[rf],
 		     sizeof(struct port100_in_rf_setting));
@@ -1124,7 +1124,7 @@ static int port100_in_set_framing(struct nfc_digital_dev *ddev, int param)
 
 	skb = port100_alloc_skb(dev, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, protocols, size);
 
@@ -1213,7 +1213,7 @@ static int port100_in_send_cmd(struct nfc_digital_dev *ddev,
 
 	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->complete_cb = cb;
 	cb_arg->complete_arg = arg;
@@ -1238,7 +1238,7 @@ static int port100_tg_set_rf(struct nfc_digital_dev *ddev, u8 rf)
 
 	skb = port100_alloc_skb(dev, sizeof(struct port100_tg_rf_setting));
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, &tg_rf_settings[rf],
 		     sizeof(struct port100_tg_rf_setting));
@@ -1281,7 +1281,7 @@ static int port100_tg_set_framing(struct nfc_digital_dev *ddev, int param)
 
 	skb = port100_alloc_skb(dev, size);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_put_data(skb, protocols, size);
 
@@ -1322,7 +1322,7 @@ static bool port100_tg_target_activated(struct port100 *dev, u8 tgt_activated)
 		       PORT100_MDAA_TGT_WAS_ACTIVATED_MASK;
 		break;
 	default:
-		nfc_err(&dev->interface->dev, "Unknown command type\n");
+		nfc_err(&dev->interface->dev, "Unkanalwn command type\n");
 		return false;
 	}
 
@@ -1379,7 +1379,7 @@ static int port100_tg_send_cmd(struct nfc_digital_dev *ddev,
 
 	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->complete_cb = cb;
 	cb_arg->complete_arg = arg;
@@ -1420,7 +1420,7 @@ static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
 
 	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
 	if (!cb_arg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cb_arg->complete_cb = cb;
 	cb_arg->complete_arg = arg;
@@ -1429,7 +1429,7 @@ static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
 	skb = port100_alloc_skb(dev, 0);
 	if (!skb) {
 		kfree(cb_arg);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_push(skb, sizeof(struct port100_tg_comm_rf_cmd));
@@ -1461,7 +1461,7 @@ static int port100_listen(struct nfc_digital_dev *ddev, u16 timeout,
 
 	skb = port100_alloc_skb(dev, 0);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return port100_tg_send_cmd(ddev, skb, timeout, cb, arg);
 }
@@ -1501,7 +1501,7 @@ static int port100_probe(struct usb_interface *interface,
 
 	dev = devm_kzalloc(&interface->dev, sizeof(struct port100), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_init(&dev->out_urb_lock);
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
@@ -1522,8 +1522,8 @@ static int port100_probe(struct usb_interface *interface,
 
 	if (!in_endpoint || !out_endpoint) {
 		nfc_err(&interface->dev,
-			"Could not find bulk-in or bulk-out endpoint\n");
-		rc = -ENODEV;
+			"Could analt find bulk-in or bulk-out endpoint\n");
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -1531,8 +1531,8 @@ static int port100_probe(struct usb_interface *interface,
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!dev->in_urb || !dev->out_urb) {
-		nfc_err(&interface->dev, "Could not allocate USB URBs\n");
-		rc = -ENOMEM;
+		nfc_err(&interface->dev, "Could analt allocate USB URBs\n");
+		rc = -EANALMEM;
 		goto error;
 	}
 
@@ -1557,8 +1557,8 @@ static int port100_probe(struct usb_interface *interface,
 	cmd_type_mask = port100_get_command_type_mask(dev);
 	if (!cmd_type_mask) {
 		nfc_err(&interface->dev,
-			"Could not get supported command types\n");
-		rc = -ENODEV;
+			"Could analt get supported command types\n");
+		rc = -EANALDEV;
 		goto error;
 	}
 
@@ -1570,7 +1570,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = port100_set_command_type(dev, dev->cmd_type);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"The device does not support command type %u\n",
+			"The device does analt support command type %u\n",
 			dev->cmd_type);
 		goto error;
 	}
@@ -1578,7 +1578,7 @@ static int port100_probe(struct usb_interface *interface,
 	fw_version = port100_get_firmware_version(dev);
 	if (!fw_version)
 		nfc_err(&interface->dev,
-			"Could not get device firmware version\n");
+			"Could analt get device firmware version\n");
 
 	nfc_info(&interface->dev,
 		 "Sony NFC Port-100 Series attached (firmware v%x.%02x)\n",
@@ -1591,8 +1591,8 @@ static int port100_probe(struct usb_interface *interface,
 							   dev->skb_tailroom);
 	if (!dev->nfc_digital_dev) {
 		nfc_err(&interface->dev,
-			"Could not allocate nfc_digital_dev\n");
-		rc = -ENOMEM;
+			"Could analt allocate nfc_digital_dev\n");
+		rc = -EANALMEM;
 		goto error;
 	}
 
@@ -1602,7 +1602,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = nfc_digital_register_device(dev->nfc_digital_dev);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"Could not register digital device\n");
+			"Could analt register digital device\n");
 		goto free_nfc_dev;
 	}
 

@@ -2,12 +2,12 @@
 
 Media Data Path is used for scaling and color space conversion.
 
-Required properties (controller node):
+Required properties (controller analde):
 - compatible: "mediatek,mt8173-mdp"
-- mediatek,vpu: the node of video processor unit, see
+- mediatek,vpu: the analde of video processor unit, see
   Documentation/devicetree/bindings/media/mediatek-vpu.txt for details.
 
-Required properties (all function blocks, child node):
+Required properties (all function blocks, child analde):
 - compatible: Should be one of
         "mediatek,mt8173-mdp-rdma"  - read DMA
         "mediatek,mt8173-mdp-rsz"   - resizer
@@ -19,7 +19,7 @@ Required properties (all function blocks, child node):
 - power-domains: a phandle to the power domain, see
   Documentation/devicetree/bindings/power/power_domain.txt for details.
 
-Required properties (DMA function blocks, child node):
+Required properties (DMA function blocks, child analde):
 - compatible: Should be one of
         "mediatek,mt8173-mdp-rdma"
         "mediatek,mt8173-mdp-wdma"

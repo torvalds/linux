@@ -86,10 +86,10 @@ static struct cpuidle_driver cpuidle_driver = {
 int __init sh_mobile_setup_cpuidle(void)
 {
 	if (sh_mobile_sleep_supported & SUSP_SH_SF)
-		cpuidle_driver.states[1].flags = CPUIDLE_FLAG_NONE;
+		cpuidle_driver.states[1].flags = CPUIDLE_FLAG_ANALNE;
 
 	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY)
-		cpuidle_driver.states[2].flags = CPUIDLE_FLAG_NONE;
+		cpuidle_driver.states[2].flags = CPUIDLE_FLAG_ANALNE;
 
 	return cpuidle_register(&cpuidle_driver, NULL);
 }

@@ -81,7 +81,7 @@ void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *dbg, u32 sisr)
 /*
  * Show the statistics of a flag only if its interrupt is enabled
  *
- * Compilers will optimize it to a no-op if the interrupt is disabled
+ * Compilers will optimize it to a anal-op if the interrupt is disabled
  */
 #define SIER_SHOW(flag, name) \
 	do { \

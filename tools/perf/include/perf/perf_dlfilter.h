@@ -84,14 +84,14 @@ struct perf_dlfilter_al {
 	__u64 sym_end;
 	const char *dso;
 	__u8  sym_binding; /* STB_LOCAL, STB_GLOBAL or STB_WEAK, refer <elf.h> */
-	__u8  is_64_bit; /* Only valid if dso is not NULL */
+	__u8  is_64_bit; /* Only valid if dso is analt NULL */
 	__u8  is_kernel_ip; /* True if in kernel space */
 	__u32 buildid_size;
 	__u8 *buildid;
 	/* Below members are only populated by resolve_ip() */
 	__u8 filtered; /* True if this sample event will be filtered out */
 	const char *comm;
-	void *priv; /* Private data. Do not change */
+	void *priv; /* Private data. Do analt change */
 };
 
 struct perf_dlfilter_fns {
@@ -104,7 +104,7 @@ struct perf_dlfilter_fns {
 	/*
 	 * Return information about address (al->size must be set before
 	 * calling). Returns 0 on success, -1 otherwise. Call al_cleanup()
-	 * when 'al' data is no longer needed.
+	 * when 'al' data is anal longer needed.
 	 */
 	__s32 (*resolve_address)(void *ctx, __u64 address, struct perf_dlfilter_al *al);
 	/* Return instruction bytes and length */
@@ -129,7 +129,7 @@ struct perf_dlfilter_fns {
  * before any calls to 'filter_event'. Return 0 to indicate success,
  * or return a negative error code. '*data' can be assigned for use
  * by other functions. 'ctx' is needed for calls to perf_dlfilter_fns,
- * but most perf_dlfilter_fns are not valid when called from 'start'.
+ * but most perf_dlfilter_fns are analt valid when called from 'start'.
  */
 int start(void **data, void *ctx);
 
@@ -138,7 +138,7 @@ int start(void **data, void *ctx);
  * after any calls to 'filter_event'. Return 0 to indicate success, or
  * return a negative error code. 'data' is set by start(). 'ctx' is
  * needed for calls to perf_dlfilter_fns, but most perf_dlfilter_fns
- * are not valid when called from 'stop'.
+ * are analt valid when called from 'stop'.
  */
 int stop(void *data, void *ctx);
 

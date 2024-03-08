@@ -71,7 +71,7 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 	default:
 		/*
 		 * For other chips parking of I2C register
-		 * to a safe place is not required.
+		 * to a safe place is analt required.
 		 */
 		break;
 	}
@@ -131,7 +131,7 @@ static int da9052_i2c_probe(struct i2c_client *client)
 
 	da9052 = devm_kzalloc(&client->dev, sizeof(struct da9052), GFP_KERNEL);
 	if (!da9052)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	da9052->dev = &client->dev;
 	da9052->chip_irq = client->irq;
@@ -157,7 +157,7 @@ static int da9052_i2c_probe(struct i2c_client *client)
 #endif
 
 	if (!id) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		dev_err(&client->dev, "id is null.\n");
 		return ret;
 	}

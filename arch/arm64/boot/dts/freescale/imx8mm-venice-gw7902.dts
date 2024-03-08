@@ -723,7 +723,7 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	vmmc-supply = <&reg_wifi>;
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -742,7 +742,7 @@
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 

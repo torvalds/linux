@@ -8,7 +8,7 @@ Required Properties:
   "qca,<soctype>-cpu-intc", "qca,ar7240-misc-intc"
 - reg: Base address and size of the controllers memory area
 - interrupts: Interrupt specifier for the controllers interrupt.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the analde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode interrupt
 		     source, should be 1
 
@@ -31,7 +31,7 @@ Example:
 		#interrupt-cells = <1>;
 	};
 
-Another example:
+Aanalther example:
 
 	interrupt-controller@18060010 {
 		compatible = "qca,ar9331-misc-intc", qca,ar7240-misc-intc";

@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/io.h>
@@ -38,7 +38,7 @@ struct pai_userdata {
  * and requires a 512 byte boundary alignment.
  */
 struct paiext_cb {		/* PAI extension 1 control block */
-	u64 header;		/* Not used */
+	u64 header;		/* Analt used */
 	u64 reserved1;
 	u64 acc;		/* Addr to analytics counter control block */
 	u8 reserved2[488];
@@ -46,7 +46,7 @@ struct paiext_cb {		/* PAI extension 1 control block */
 
 struct paiext_map {
 	unsigned long *area;		/* Area for CPU to store counters */
-	struct pai_userdata *save;	/* Area to store non-zero counters */
+	struct pai_userdata *save;	/* Area to store analn-zero counters */
 	enum paievt_mode mode;		/* Type of event */
 	unsigned int active_events;	/* # of PAI Extension users */
 	refcount_t refcnt;
@@ -79,16 +79,16 @@ static void paiext_root_free(void)
  */
 static int paiext_root_alloc(void)
 {
-	if (!refcount_inc_not_zero(&paiext_root.refcnt)) {
+	if (!refcount_inc_analt_zero(&paiext_root.refcnt)) {
 		/* The memory is already zeroed. */
 		paiext_root.mapptr = alloc_percpu(struct paiext_mapptr);
 		if (!paiext_root.mapptr) {
 			/* Returning without refcnt adjustment is ok. The
 			 * error code is handled by paiext_alloc() which
-			 * decrements refcnt when an event can not be
+			 * decrements refcnt when an event can analt be
 			 * created.
 			 */
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		refcount_set(&paiext_root.refcnt, 1);
 	}
@@ -135,12 +135,12 @@ static void paiext_event_destroy(struct perf_event *event)
  * sampling for pai_extension events.
  *
  * Only one instance of event pai_ext/NNPA_ALL/ for sampling is
- * allowed and when this event is running, no counting event is allowed.
- * Several counting events are allowed in parallel, but no sampling event
+ * allowed and when this event is running, anal counting event is allowed.
+ * Several counting events are allowed in parallel, but anal sampling event
  * is allowed while one (or more) counting events are running.
  *
  * This function is called in process context and it is safe to block.
- * When the event initialization functions fails, no other call back will
+ * When the event initialization functions fails, anal other call back will
  * be invoked.
  *
  * Allocate the memory for the event.
@@ -160,7 +160,7 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 	mp = per_cpu_ptr(paiext_root.mapptr, event->cpu);
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paiext_map allocated? */
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
 		if (!cpump)
 			goto undo;
@@ -171,7 +171,7 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 		 * - a 1KB byte block and requires 1KB boundary alignment.
 		 * Only the first counting event has to allocate the area.
 		 *
-		 * Note: This works with commit 59bb47985c1d by default.
+		 * Analte: This works with commit 59bb47985c1d by default.
 		 * Backporting this to kernels without this commit might
 		 * need adjustment.
 		 */
@@ -207,14 +207,14 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 undo:
 	if (rc) {
 		/* Error in allocation of event, decrement anchor. Since
-		 * the event in not created, its destroy() function is never
+		 * the event in analt created, its destroy() function is never
 		 * invoked. Adjust the reference counter for the anchor.
 		 */
 		paiext_root_free();
 	}
 unlock:
 	mutex_unlock(&paiext_reserve_mutex);
-	/* If rc is non-zero, no increment of counter/sampler was done. */
+	/* If rc is analn-zero, anal increment of counter/sampler was done. */
 	return rc;
 }
 
@@ -242,14 +242,14 @@ static int paiext_event_init(struct perf_event *event)
 
 	/* PMU pai_ext registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
-		return -ENOENT;
+		return -EANALENT;
 	/* PAI extension event must be valid and in supported range */
 	rc = paiext_event_valid(event);
 	if (rc)
 		return rc;
-	/* Allow only CPU wide operation, no process context for now. */
+	/* Allow only CPU wide operation, anal process context for analw. */
 	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
-		return -ENOENT;
+		return -EANALENT;
 	/* Allow only event NNPA_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_NNPA_BASE)
 		return -EINVAL;
@@ -400,9 +400,9 @@ static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
 	return outidx * sizeof(*userdata);
 }
 
-/* Write sample when one or more counters values are nonzero.
+/* Write sample when one or more counters values are analnzero.
  *
- * Note: The function paiext_sched_task() and paiext_push_sample() are not
+ * Analte: The function paiext_sched_task() and paiext_push_sample() are analt
  * invoked after function paiext_del() has been called because of function
  * perf_sched_cb_dec().
  * The function paiext_sched_task() and paiext_push_sample() are only
@@ -412,7 +412,7 @@ static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
  *
  * This causes function perf_event_context_sched_out() and
  * perf_event_context_sched_in() to check whether the PMU has installed an
- * sched_task() callback. That callback is not active after paiext_del()
+ * sched_task() callback. That callback is analt active after paiext_del()
  * returns and has deleted the event on that CPU.
  */
 static int paiext_push_sample(size_t rawsize, struct paiext_map *cpump,
@@ -468,7 +468,7 @@ static int paiext_have_sample(void)
 	return rc;
 }
 
-/* Called on schedule-in and schedule-out. No access to event structure,
+/* Called on schedule-in and schedule-out. Anal access to event structure,
  * but for sampling only event NNPA_ALL is allowed.
  */
 static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
@@ -486,8 +486,8 @@ static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched
  * the QUERY PROCESSOR ACTIVITY COUNTER INFORMATION (QPACI) instruction
  * to determine the number of mapped counters. The instructions returns
  * a positive number, which is the highest number of supported counters.
- * All counters less than this number are also supported, there are no
- * holes. A returned number of zero means no support for mapped counters.
+ * All counters less than this number are also supported, there are anal
+ * holes. A returned number of zero means anal support for mapped counters.
  *
  * The identification of the counter is a unique number. The chosen range
  * is 0x1800 + offset in mapped kernel page.
@@ -550,7 +550,7 @@ static const char * const paiext_ctrnames[] = {
 	[11] = "NNPA_TANH",
 	[12] = "NNPA_SIGMOID",
 	[13] = "NNPA_SOFTMAX",
-	[14] = "NNPA_BATCHNORM",
+	[14] = "NNPA_BATCHANALRM",
 	[15] = "NNPA_MAXPOOL2D",
 	[16] = "NNPA_AVGPOOL2D",
 	[17] = "NNPA_LSTMACT",
@@ -586,7 +586,7 @@ static int __init attr_event_init_one(struct attribute **attrs, int num)
 
 	pa = kzalloc(sizeof(*pa), GFP_KERNEL);
 	if (!pa)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sysfs_attr_init(&pa->attr.attr);
 	pa->id = PAI_NNPA_BASE + num;
@@ -607,7 +607,7 @@ static int __init attr_event_init(void)
 	attrs = kmalloc_array(ARRAY_SIZE(paiext_ctrnames) + 1, sizeof(*attrs),
 			      GFP_KERNEL);
 	if (!attrs)
-		return -ENOMEM;
+		return -EANALMEM;
 	for (i = 0; i < ARRAY_SIZE(paiext_ctrnames); i++) {
 		ret = attr_event_init_one(attrs, i);
 		if (ret) {
@@ -623,7 +623,7 @@ static int __init attr_event_init(void)
 static int __init paiext_init(void)
 {
 	struct qpaci_info_block ib;
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	if (!test_facility(197))
 		return 0;
@@ -645,7 +645,7 @@ static int __init paiext_init(void)
 	paiext_dbg = debug_register(KMSG_COMPONENT, 2, 256, 128);
 	if (!paiext_dbg) {
 		pr_err("Registration of s390dbf " KMSG_COMPONENT " failed\n");
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_init;
 	}
 	debug_register_view(paiext_dbg, &debug_sprintf_view);

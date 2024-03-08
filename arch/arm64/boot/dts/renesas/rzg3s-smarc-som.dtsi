@@ -42,7 +42,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "iganalre_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -174,7 +174,7 @@
 	vqmmc-supply = <&reg_1p8v>;
 	bus-width = <8>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	fixed-emmc-driver-type = <1>;
 	max-frequency = <125000000>;
 	status = "okay";

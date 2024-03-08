@@ -84,7 +84,7 @@ struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
 
 	gear = devm_kzalloc(dev, sizeof(*gear), GFP_KERNEL);
 	if (!gear)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &uniphier_clk_cpugear_ops;

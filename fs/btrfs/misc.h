@@ -26,7 +26,7 @@ static inline void cond_wake_up(struct wait_queue_head *wq)
 		wake_up(wq);
 }
 
-static inline void cond_wake_up_nomb(struct wait_queue_head *wq)
+static inline void cond_wake_up_analmb(struct wait_queue_head *wq)
 {
 	/*
 	 * Special case for conditional wakeup where the barrier required for
@@ -59,25 +59,25 @@ static inline bool has_single_bit_set(u64 n)
  * Any structure wants to use bytenr as single search index should have their
  * structure start with these members.
  */
-struct rb_simple_node {
-	struct rb_node rb_node;
+struct rb_simple_analde {
+	struct rb_analde rb_analde;
 	u64 bytenr;
 };
 
-static inline struct rb_node *rb_simple_search(struct rb_root *root, u64 bytenr)
+static inline struct rb_analde *rb_simple_search(struct rb_root *root, u64 bytenr)
 {
-	struct rb_node *node = root->rb_node;
-	struct rb_simple_node *entry;
+	struct rb_analde *analde = root->rb_analde;
+	struct rb_simple_analde *entry;
 
-	while (node) {
-		entry = rb_entry(node, struct rb_simple_node, rb_node);
+	while (analde) {
+		entry = rb_entry(analde, struct rb_simple_analde, rb_analde);
 
 		if (bytenr < entry->bytenr)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (bytenr > entry->bytenr)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
-			return node;
+			return analde;
 	}
 	return NULL;
 }
@@ -88,45 +88,45 @@ static inline struct rb_node *rb_simple_search(struct rb_root *root, u64 bytenr)
  * @root:	the root to search.
  * @bytenr:	bytenr to search from.
  *
- * Return the rb_node that start at or after @bytenr.  If there is no entry at
+ * Return the rb_analde that start at or after @bytenr.  If there is anal entry at
  * or after @bytner return NULL.
  */
-static inline struct rb_node *rb_simple_search_first(struct rb_root *root,
+static inline struct rb_analde *rb_simple_search_first(struct rb_root *root,
 						     u64 bytenr)
 {
-	struct rb_node *node = root->rb_node, *ret = NULL;
-	struct rb_simple_node *entry, *ret_entry = NULL;
+	struct rb_analde *analde = root->rb_analde, *ret = NULL;
+	struct rb_simple_analde *entry, *ret_entry = NULL;
 
-	while (node) {
-		entry = rb_entry(node, struct rb_simple_node, rb_node);
+	while (analde) {
+		entry = rb_entry(analde, struct rb_simple_analde, rb_analde);
 
 		if (bytenr < entry->bytenr) {
 			if (!ret || entry->bytenr < ret_entry->bytenr) {
-				ret = node;
+				ret = analde;
 				ret_entry = entry;
 			}
 
-			node = node->rb_left;
+			analde = analde->rb_left;
 		} else if (bytenr > entry->bytenr) {
-			node = node->rb_right;
+			analde = analde->rb_right;
 		} else {
-			return node;
+			return analde;
 		}
 	}
 
 	return ret;
 }
 
-static inline struct rb_node *rb_simple_insert(struct rb_root *root, u64 bytenr,
-					       struct rb_node *node)
+static inline struct rb_analde *rb_simple_insert(struct rb_root *root, u64 bytenr,
+					       struct rb_analde *analde)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct rb_simple_node *entry;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
+	struct rb_simple_analde *entry;
 
 	while (*p) {
 		parent = *p;
-		entry = rb_entry(parent, struct rb_simple_node, rb_node);
+		entry = rb_entry(parent, struct rb_simple_analde, rb_analde);
 
 		if (bytenr < entry->bytenr)
 			p = &(*p)->rb_left;
@@ -136,8 +136,8 @@ static inline struct rb_node *rb_simple_insert(struct rb_root *root, u64 bytenr,
 			return parent;
 	}
 
-	rb_link_node(node, parent, p);
-	rb_insert_color(node, root);
+	rb_link_analde(analde, parent, p);
+	rb_insert_color(analde, root);
 	return NULL;
 }
 

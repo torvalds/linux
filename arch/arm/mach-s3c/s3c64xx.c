@@ -11,7 +11,7 @@
 // Common Codes for S3C64XX machines
 
 /*
- * NOTE: Code in this file is not used when booting with Device Tree support.
+ * ANALTE: Code in this file is analt used when booting with Device Tree support.
  */
 
 #include <linux/kernel.h>
@@ -65,9 +65,9 @@ void __init s3c64xx_set_xusbxti_freq(unsigned long freq)
 
 /* uart registration process */
 
-static void __init s3c64xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+static void __init s3c64xx_init_uarts(struct s3c2410_uartcfg *cfg, int anal)
 {
-	s3c24xx_init_uartdevs("s3c6400-uart", s3c64xx_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c6400-uart", s3c64xx_uart_resources, cfg, anal);
 }
 
 /* table of supported CPUs */
@@ -88,7 +88,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 /* minimal IO mapping */
 
 /*
- * note, for the boot process to work we have to keep the UART
+ * analte, for the boot process to work we have to keep the UART
  * virtual address aligned to an 1MiB boundary for the L1
  * mapping the head code makes. We keep the UART virtual address
  * aligned and add in the offset when we load the value here.
@@ -201,7 +201,7 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 
 static __init int s3c64xx_dev_init(void)
 {
-	/* Not applicable when using DT. */
+	/* Analt applicable when using DT. */
 	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 
@@ -212,7 +212,7 @@ core_initcall(s3c64xx_dev_init);
 
 /*
  * setup the sources the vic should advertise resume
- * for, even though it is not doing the wake
+ * for, even though it is analt doing the wake
  * (set_irq_wake needs to be valid)
  */
 #define IRQ_VIC0_RESUME (1 << (IRQ_RTC_TIC - IRQ_VIC0_BASE))
@@ -284,8 +284,8 @@ static int s3c_irq_eint_set_type(struct irq_data *data, unsigned int type)
 		reg = S3C64XX_EINT0CON1;
 
 	switch (type) {
-	case IRQ_TYPE_NONE:
-		printk(KERN_WARNING "No edge setting!\n");
+	case IRQ_TYPE_ANALNE:
+		printk(KERN_WARNING "Anal edge setting!\n");
 		break;
 
 	case IRQ_TYPE_EDGE_RISING:
@@ -309,7 +309,7 @@ static int s3c_irq_eint_set_type(struct irq_data *data, unsigned int type)
 		break;
 
 	default:
-		printk(KERN_ERR "No such irq type %d", type);
+		printk(KERN_ERR "Anal such irq type %d", type);
 		return -1;
 	}
 
@@ -402,12 +402,12 @@ static int __init s3c64xx_init_irq_eint(void)
 
 	/* On DT-enabled systems EINTs are handled by pinctrl-s3c64xx driver. */
 	if (of_have_populated_dt() || !soc_is_s3c64xx())
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(27); irq++) {
 		irq_set_chip_and_handler(irq, &s3c_irq_eint, handle_level_irq);
 		irq_set_chip_data(irq, (void *)eint_irq_to_bit(irq));
-		irq_clear_status_flags(irq, IRQ_NOREQUEST);
+		irq_clear_status_flags(irq, IRQ_ANALREQUEST);
 	}
 
 	irq_set_chained_handler(IRQ_EINT0_3, s3c_irq_demux_eint0_3);

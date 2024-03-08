@@ -7,7 +7,7 @@
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
  *
  * Luben Tuikov: Some register value updates to make it work with the window
- * agnostic register r/w functions.  Some register corrections, sizes,
+ * aganalstic register r/w functions.  Some register corrections, sizes,
  * etc.
  *
  * $Id: //depot/aic94xx/aic94xx_reg_def.h#27 $
@@ -1008,7 +1008,7 @@
 #define		LmDISALIGN		0x20
 #define		LmROTSTPALIGN		0x10
 #define		LmSTPALIGN		0x08
-#define		LmROTNOTIFY		0x04
+#define		LmROTANALTIFY		0x04
 #define		LmDUALALIGN		0x02
 #define		LmROTALIGN		0x01
 
@@ -1066,7 +1066,7 @@
 /* mode 0-1 */
 #define LmMnDDMAMODE(LinkNum, Mode)	LmSEQ_PHY_REG(Mode, LinkNum, 0x5E)
 
-#define 	LmMnDMATYPE_NORMAL		0x0000
+#define 	LmMnDMATYPE_ANALRMAL		0x0000
 #define 	LmMnDMATYPE_HOST_ONLY_TX	0x0001
 #define 	LmMnDMATYPE_DEVICE_ONLY_TX	0x0002
 #define 	LmMnDMATYPE_INVALID		0x0003
@@ -1124,7 +1124,7 @@
 
 #define		LmFRAMERCVD		0x80000000
 #define		LmXFRRDYRCVD		0x40000000
-#define		LmUNKNOWNP		0x20000000
+#define		LmUNKANALWNP		0x20000000
 #define		LmBREAK			0x10000000
 #define		LmDONE			0x08000000
 #define		LmOPENACPT		0x04000000
@@ -1132,12 +1132,12 @@
 #define		LmOPENRTRY		0x01000000
 #define		LmCLOSERV1		0x00800000
 #define		LmCLOSERV0		0x00400000
-#define		LmCLOSENORM		0x00200000
+#define		LmCLOSEANALRM		0x00200000
 #define		LmCLOSECLAF		0x00100000
-#define		LmNOTIFYRV2		0x00080000
-#define		LmNOTIFYRV1		0x00040000
-#define		LmNOTIFYRV0		0x00020000
-#define		LmNOTIFYSPIN		0x00010000
+#define		LmANALTIFYRV2		0x00080000
+#define		LmANALTIFYRV1		0x00040000
+#define		LmANALTIFYRV0		0x00020000
+#define		LmANALTIFYSPIN		0x00010000
 #define		LmBROADRV4		0x00008000
 #define		LmBROADRV3		0x00004000
 #define		LmBROADRV2		0x00002000
@@ -1260,7 +1260,7 @@
 
 #define	LmPRIMSTAT0EN(LinkNum)		LmSEQ_PHY_REG(0, LinkNum, 0xE0)
 
-#define 	EN_LmUNKNOWNP 		0x20000000
+#define 	EN_LmUNKANALWNP 		0x20000000
 #define 	EN_LmBREAK		0x10000000
 #define 	EN_LmDONE		0x08000000
 #define 	EN_LmOPENACPT		0x04000000
@@ -1268,12 +1268,12 @@
 #define 	EN_LmOPENRTRY		0x01000000
 #define 	EN_LmCLOSERV1		0x00800000
 #define 	EN_LmCLOSERV0		0x00400000
-#define 	EN_LmCLOSENORM		0x00200000
+#define 	EN_LmCLOSEANALRM		0x00200000
 #define 	EN_LmCLOSECLAF		0x00100000
-#define 	EN_LmNOTIFYRV2		0x00080000
-#define 	EN_LmNOTIFYRV1		0x00040000
-#define 	EN_LmNOTIFYRV0		0x00020000
-#define 	EN_LmNOTIFYSPIN		0x00010000
+#define 	EN_LmANALTIFYRV2		0x00080000
+#define 	EN_LmANALTIFYRV1		0x00040000
+#define 	EN_LmANALTIFYRV0		0x00020000
+#define 	EN_LmANALTIFYSPIN		0x00010000
 #define 	EN_LmBROADRV4		0x00008000
 #define 	EN_LmBROADRV3		0x00004000
 #define 	EN_LmBROADRV2		0x00002000
@@ -1295,7 +1295,7 @@
 					 EN_LmDONE | EN_LmOPENACPT | \
 					 EN_LmOPENRJCT | EN_LmOPENRTRY | \
 					 EN_LmCLOSERV1 | EN_LmCLOSERV0 | \
-					 EN_LmCLOSENORM | EN_LmCLOSECLAF | \
+					 EN_LmCLOSEANALRM | EN_LmCLOSECLAF | \
 					 EN_LmBROADRV4 | EN_LmBROADRV3 | \
 					 EN_LmBROADRV2 | EN_LmBROADRV1 | \
 					 EN_LmBROADRV0 | EN_LmBROADRVCH1 | \
@@ -1737,8 +1737,8 @@
 #define PCIC_PM_CSR		0x5C
 
 #define		PWR_STATE_D0		0
-#define		PWR_STATE_D1		1	/* not supported */
-#define		PWR_STATE_D2		2 	/* not supported */
+#define		PWR_STATE_D1		1	/* analt supported */
+#define		PWR_STATE_D2		2 	/* analt supported */
 #define		PWR_STATE_D3		3
 
 #define PCIC_BASE1	0x6C	/* internal use only */
@@ -1963,8 +1963,8 @@
  * byte memory.  It is dword accessible and has byte parity
  * protection. The CSEQ accesses it in 32 byte windows, either as mode
  * dependent or mode independent memory. Each mode has 96 bytes,
- * (three 32 byte pages 0-2, not contiguous), leaving 128 bytes of
- * Mode Independent memory (four 32 byte pages 3-7). Note that mode
+ * (three 32 byte pages 0-2, analt contiguous), leaving 128 bytes of
+ * Mode Independent memory (four 32 byte pages 3-7). Analte that mode
  * dependent scratch memory, Mode 8, page 0-3 overlaps mode
  * independent scratch memory, pages 0-3.
  * - 896 bytes of mode dependent scratch, 96 bytes per Modes 0-7, and
@@ -2166,7 +2166,7 @@
 #define LmSEQ_OPCODE_TO_CSEQ(LinkNum)	(LmSCRATCH(LinkNum) + 0x000B)
 #define LmSEQ_DATA_TO_CSEQ(LinkNum)	(LmSCRATCH(LinkNum) + 0x000C)
 
-/* Mode dependent scratch page 0 macros for mode 0 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 0 (analn-common) */
 /* Absolute offsets */
 #define LmSEQ_FIRST_INV_DDB_SITE(LinkNum)	(LmSCRATCH(LinkNum) + 0x000E)
 #define LmSEQ_EMPTY_TRANS_CTX(LinkNum)		(LmSCRATCH(LinkNum) + 0x0010)
@@ -2179,7 +2179,7 @@
 #define LmSEQ_LAST_LOADED_SGE(LinkNum)		(LmSCRATCH(LinkNum) + 0x001D)
 #define LmSEQ_SAVE_SCBPTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x001E)
 
-/* Mode dependent scratch page 0 macros for mode 1 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 1 (analn-common) */
 /* Absolute offsets */
 #define LmSEQ_Q_XMIT_HEAD(LinkNum)		(LmSCRATCH(LinkNum) + 0x008E)
 #define LmSEQ_M1_EMPTY_TRANS_CTX(LinkNum)	(LmSCRATCH(LinkNum) + 0x0090)
@@ -2190,7 +2190,7 @@
 #define LmSEQ_M1_LAST_LOADED_SGE(LinkNum)	(LmSCRATCH(LinkNum) + 0x009D)
 #define LmSEQ_M1_SAVE_SCBPTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x009E)
 
-/* Mode dependent scratch page 0 macros for mode 2 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 2 (analn-common) */
 #define LmSEQ_PORT_COUNTER(LinkNum)		(LmSCRATCH(LinkNum) + 0x010E)
 #define LmSEQ_PM_TABLE_PTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x0110)
 #define LmSEQ_SATA_INTERLOCK_TMR_SAVE(LinkNum)	(LmSCRATCH(LinkNum) + 0x0112)
@@ -2198,7 +2198,7 @@
 #define LmSEQ_COPY_SMP_CONN_TAG(LinkNum)	(LmSCRATCH(LinkNum) + 0x0116)
 #define LmSEQ_P0M2_OFFS1AH(LinkNum)		(LmSCRATCH(LinkNum) + 0x011A)
 
-/* Mode dependent scratch page 0 macros for modes 4/5 (non-common) */
+/* Mode dependent scratch page 0 macros for modes 4/5 (analn-common) */
 /* Absolute offsets */
 #define LmSEQ_SAVED_OOB_STATUS(LinkNum)		(LmSCRATCH(LinkNum) + 0x006E)
 #define LmSEQ_SAVED_OOB_MODE(LinkNum)		(LmSCRATCH(LinkNum) + 0x006F)
@@ -2209,9 +2209,9 @@
 #define LmSEQ_LINK_RESET_RETRY_COUNT(LinkNum)	(LmSCRATCH(LinkNum) + 0x0075)
 #define LmSEQ_NUM_LINK_RESET_RETRIES(LinkNum)	(LmSCRATCH(LinkNum) + 0x0076)
 #define LmSEQ_OOB_INT_ENABLES(LinkNum)		(LmSCRATCH(LinkNum) + 0x0078)
-#define LmSEQ_NOTIFY_TIMER_DOWN_COUNT(LinkNum)	(LmSCRATCH(LinkNum) + 0x007A)
-#define LmSEQ_NOTIFY_TIMER_TIMEOUT(LinkNum)	(LmSCRATCH(LinkNum) + 0x007C)
-#define LmSEQ_NOTIFY_TIMER_INITIAL_COUNT(LinkNum) (LmSCRATCH(LinkNum) + 0x007E)
+#define LmSEQ_ANALTIFY_TIMER_DOWN_COUNT(LinkNum)	(LmSCRATCH(LinkNum) + 0x007A)
+#define LmSEQ_ANALTIFY_TIMER_TIMEOUT(LinkNum)	(LmSCRATCH(LinkNum) + 0x007C)
+#define LmSEQ_ANALTIFY_TIMER_INITIAL_COUNT(LinkNum) (LmSCRATCH(LinkNum) + 0x007E)
 
 /* Mode dependent scratch page 1, mode 0 and mode 1 */
 #define LmSEQ_SG_LIST_PTR_ADDR0(LinkNum)        (LmSCRATCH(LinkNum) + 0x0020)
@@ -2268,10 +2268,10 @@
 #define LmSEQ_DEV_PRES_TIMER_TERM_TS(LinkNum)	(LmSCRATCH(LinkNum) + 0x016C)
 
 /* Mode dependent scratch page 3 macros for modes 0 and 1 */
-/* None defined */
+/* Analne defined */
 
 /* Mode dependent scratch page 3 macros for modes 2 and 5 */
-/* None defined */
+/* Analne defined */
 
 /* Mode Independent Scratch page 0 macros. */
 #define LmSEQ_Q_TGTXFR_HEAD(LinkNum)	(LmSCRATCH(LinkNum) + 0x0180)
@@ -2313,7 +2313,7 @@
 /* Connection states (byte 3) */
 #define		SAS_PHY_LOSS_OF_SIGNAL_CS	0x01
 #define		SAS_DWS_TIMER_EXPIRED_CS	0x02
-#define		SAS_LINK_RESET_NOT_COMPLETE_CS	0x04
+#define		SAS_LINK_RESET_ANALT_COMPLETE_CS	0x04
 #define		SAS_PHY_DISABLED_CS		0x08
 #define		SAS_LINK_CTL_TASK_ACTIVE_CS	0x10
 #define		SAS_PHY_EVENT_TASK_ACTIVE_CS	0x20
@@ -2322,7 +2322,7 @@
 #define		SAS_DEVICE_SENT_HARD_RESET_CS	0x80
 #define  	SAS_PHY_IS_DOWN_FLAGS	(SAS_PHY_LOSS_OF_SIGNAL_CS|\
 					 SAS_DWS_TIMER_EXPIRED_CS |\
-					 SAS_LINK_RESET_NOT_COMPLETE_CS|\
+					 SAS_LINK_RESET_ANALT_COMPLETE_CS|\
 					 SAS_PHY_DISABLED_CS)
 
 #define		SAS_LINK_CTL_PHY_EVENT_FLAGS   (SAS_LINK_CTL_TASK_ACTIVE_CS |\

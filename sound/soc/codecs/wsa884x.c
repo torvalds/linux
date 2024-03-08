@@ -207,8 +207,8 @@
 #define WSA884X_ZX_CTRL1_ZX_DET_STAGE_DEFAULT_SHIFT		5
 #define WSA884X_ZX_CTRL1_ZX_DET_SW_SEL_MASK			0x18
 #define WSA884X_ZX_CTRL1_ZX_DET_SW_SEL_SHIFT			3
-#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGNORE_MASK		0x04
-#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGNORE_SHIFT		2
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGANALRE_MASK		0x04
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGANALRE_SHIFT		2
 #define WSA884X_ZX_CTRL1_ZX_BYP_MASK_DEL_MASK			0x02
 #define WSA884X_ZX_CTRL1_ZX_BYP_MASK_DEL_SHIFT			1
 #define WSA884X_ZX_CTRL1_BOOTCAP_REFRESH_DIS_MASK		0x01
@@ -288,7 +288,7 @@
 #define WSA884X_PA_FSM_EN_GLOBAL_PA_EN_SHIFT		0
 #define WSA884X_PA_FSM_CTL0		(WSA884X_DIG_CTRL0_BASE + 0x31)
 #define WSA884X_PA_FSM_CTL1		(WSA884X_DIG_CTRL0_BASE + 0x32)
-#define WSA884X_PA_FSM_CTL1_NOISE_GATE_BLOCK_MASK	0x38
+#define WSA884X_PA_FSM_CTL1_ANALISE_GATE_BLOCK_MASK	0x38
 #define WSA884X_PA_FSM_TIMER0		(WSA884X_DIG_CTRL0_BASE + 0x33)
 #define WSA884X_PA_FSM_TIMER1		(WSA884X_DIG_CTRL0_BASE + 0x34)
 #define WSA884X_PA_FSM_STA0		(WSA884X_DIG_CTRL0_BASE + 0x35)
@@ -1350,8 +1350,8 @@ static const struct reg_sequence wsa884x_reg_init[] = {
 			      FIELD_PREP_CONST(WSA884X_ILIM_CTRL1_ILIM_OFFSET_PB_MASK, 0x3) },
 	{ WSA884X_CKWD_CTL_1, FIELD_PREP_CONST(WSA884X_CKWD_CTL_1_VPP_SW_CTL_MASK, 0x0) |
 			      FIELD_PREP_CONST(WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_MASK, 0x13) },
-	{ WSA884X_PA_FSM_CTL1, (0xfe & ~WSA884X_PA_FSM_CTL1_NOISE_GATE_BLOCK_MASK) |
-			       FIELD_PREP_CONST(WSA884X_PA_FSM_CTL1_NOISE_GATE_BLOCK_MASK, 0x4) }, /* == 0xfe */
+	{ WSA884X_PA_FSM_CTL1, (0xfe & ~WSA884X_PA_FSM_CTL1_ANALISE_GATE_BLOCK_MASK) |
+			       FIELD_PREP_CONST(WSA884X_PA_FSM_CTL1_ANALISE_GATE_BLOCK_MASK, 0x4) }, /* == 0xfe */
 	{ WSA884X_VBAT_THRM_FLT_CTL, (0x7f & ~WSA884X_VBAT_THRM_FLT_CTL_VBAT_COEF_SEL_MASK) |
 				     FIELD_PREP_CONST(WSA884X_VBAT_THRM_FLT_CTL_VBAT_COEF_SEL_MASK, 0x4) },
 	{ WSA884X_VBAT_CAL_CTL, FIELD_PREP_CONST(WSA884X_VBAT_CAL_CTL_RESERVE_MASK, 0x2) |
@@ -1412,7 +1412,7 @@ static void wsa884x_set_gain_parameters(struct wsa884x_priv *wsa884x)
 
 	/*
 	 * Downstream sets gain parameters customized per boards per use-case.
-	 * Choose here some sane values matching knowon users, like QRD8550
+	 * Choose here some sane values matching kanalwon users, like QRD8550
 	 * board:.
 	 *
 	 * Values match here downstream:
@@ -1504,7 +1504,7 @@ static int wsa884x_update_status(struct sdw_slave *slave,
 	regcache_cache_only(wsa884x->regmap, false);
 	ret = regcache_sync(wsa884x->regmap);
 	if (ret < 0) {
-		dev_err(&slave->dev, "Cannot sync regmap cache\n");
+		dev_err(&slave->dev, "Cananalt sync regmap cache\n");
 		return ret;
 	}
 
@@ -1819,7 +1819,7 @@ static int wsa884x_probe(struct sdw_slave *pdev,
 
 	wsa884x = devm_kzalloc(dev, sizeof(*wsa884x), GFP_KERNEL);
 	if (!wsa884x)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < WSA884X_SUPPLIES_NUM; i++)
 		wsa884x->supplies[i].supply = wsa884x_supply_name[i];
@@ -1842,7 +1842,7 @@ static int wsa884x_probe(struct sdw_slave *pdev,
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(wsa884x->sd_n))
 		return dev_err_probe(dev, PTR_ERR(wsa884x->sd_n),
-				     "Shutdown Control GPIO not found\n");
+				     "Shutdown Control GPIO analt found\n");
 
 	dev_set_drvdata(dev, wsa884x);
 	wsa884x->slave = pdev;

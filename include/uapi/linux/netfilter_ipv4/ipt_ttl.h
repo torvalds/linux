@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /* IP tables module for matching the value of the TTL
  * (C) 2000 by Harald Welte <laforge@gnumonks.org> */
 
@@ -9,7 +9,7 @@
 
 enum {
 	IPT_TTL_EQ = 0,		/* equals */
-	IPT_TTL_NE,		/* not equals */
+	IPT_TTL_NE,		/* analt equals */
 	IPT_TTL_LT,		/* less than */
 	IPT_TTL_GT,		/* greater than */
 };

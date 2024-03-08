@@ -37,7 +37,7 @@
 
 		timer {
 			compatible = "mti,gic-timer";
-			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+			interrupts = <GIC_LOCAL 1 IRQ_TYPE_ANALNE>;
 		};
 	};
 

@@ -11,15 +11,15 @@ config PPC_MPC5200_SIMPLE
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for a simple MPC52xx based boards which
-	  do not need a custom platform specific setup. Such boards are
+	  do analt need a custom platform specific setup. Such boards are
 	  supported assuming the following:
 
 	  - GPIO pins are configured by the firmware,
 	  - CDM configuration (clocking) is setup correctly by firmware,
 	  - if the 'fsl,has-wdt' property is present in one of the
-	    gpt nodes, then it is safe to use such gpt to reset the board,
+	    gpt analdes, then it is safe to use such gpt to reset the board,
 	  - PCI is supported if enabled in the kernel configuration
-	    and if there is a PCI bus node defined in the device tree.
+	    and if there is a PCI bus analde defined in the device tree.
 
 	  Boards that are compatible with this generic platform support
 	  are:
@@ -50,7 +50,7 @@ config PPC_MPC5200_BUGFIX
 	bool "MPC5200 (L25R) bugfix support"
 	depends on PPC_MPC52xx
 	help
-	  Enable workarounds for original MPC5200 errata.  This is not required
+	  Enable workarounds for original MPC5200 errata.  This is analt required
 	  for MPC5200B based boards.
 
 	  It is safe to say 'Y' here

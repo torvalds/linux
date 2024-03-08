@@ -2,8 +2,8 @@
 
 This is a standalone 10 MBit ethernet controller with SPI interface.
 
-For each device connected to a SPI bus, define a child node within
-the SPI master node.
+For each device connected to a SPI bus, define a child analde within
+the SPI master analde.
 
 Required properties:
 - compatible: Should be "microchip,enc28j60"

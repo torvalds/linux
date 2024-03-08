@@ -1199,7 +1199,7 @@
     },
     {
         "id": "e790",
-        "name": "Add pedit action with LAYERED_OP ip set ce, df, mf, firstfrag, nofrag fields",
+        "name": "Add pedit action with LAYERED_OP ip set ce, df, mf, firstfrag, analfrag fields",
         "category": [
             "actions",
             "pedit",
@@ -1216,7 +1216,7 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action pedit munge ip ce set 0xff munge ip df set 0xff munge ip mf set 0xff munge ip firstfrag set 0xff munge ip nofrag set 0xff",
+        "cmdUnderTest": "$TC actions add action pedit munge ip ce set 0xff munge ip df set 0xff munge ip mf set 0xff munge ip firstfrag set 0xff munge ip analfrag set 0xff",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action pedit | grep 'key '",
         "matchPattern": " 4: val 00008000 mask ffff7fff.* 4: val 00004000 mask ffffbfff.* 4: val 00002000 mask ffffdfff.* 4: val 00001f00 mask ffffe0ff.* 4: val 00003f00 mask ffffc0ff",

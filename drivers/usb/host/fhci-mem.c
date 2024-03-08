@@ -23,7 +23,7 @@
 static void init_td(struct td *td)
 {
 	memset(td, 0, sizeof(*td));
-	INIT_LIST_HEAD(&td->node);
+	INIT_LIST_HEAD(&td->analde);
 	INIT_LIST_HEAD(&td->frame_lh);
 }
 
@@ -31,7 +31,7 @@ static void init_ed(struct ed *ed)
 {
 	memset(ed, 0, sizeof(*ed));
 	INIT_LIST_HEAD(&ed->td_list);
-	INIT_LIST_HEAD(&ed->node);
+	INIT_LIST_HEAD(&ed->analde);
 }
 
 static struct td *get_empty_td(struct fhci_hcd *fhci)
@@ -39,12 +39,12 @@ static struct td *get_empty_td(struct fhci_hcd *fhci)
 	struct td *td;
 
 	if (!list_empty(&fhci->empty_tds)) {
-		td = list_entry(fhci->empty_tds.next, struct td, node);
+		td = list_entry(fhci->empty_tds.next, struct td, analde);
 		list_del(fhci->empty_tds.next);
 	} else {
 		td = kmalloc(sizeof(*td), GFP_ATOMIC);
 		if (!td)
-			fhci_err(fhci, "No memory to allocate to TD\n");
+			fhci_err(fhci, "Anal memory to allocate to TD\n");
 		else
 			init_td(td);
 	}
@@ -55,7 +55,7 @@ static struct td *get_empty_td(struct fhci_hcd *fhci)
 void fhci_recycle_empty_td(struct fhci_hcd *fhci, struct td *td)
 {
 	init_td(td);
-	list_add(&td->node, &fhci->empty_tds);
+	list_add(&td->analde, &fhci->empty_tds);
 }
 
 struct ed *fhci_get_empty_ed(struct fhci_hcd *fhci)
@@ -63,12 +63,12 @@ struct ed *fhci_get_empty_ed(struct fhci_hcd *fhci)
 	struct ed *ed;
 
 	if (!list_empty(&fhci->empty_eds)) {
-		ed = list_entry(fhci->empty_eds.next, struct ed, node);
+		ed = list_entry(fhci->empty_eds.next, struct ed, analde);
 		list_del(fhci->empty_eds.next);
 	} else {
 		ed = kmalloc(sizeof(*ed), GFP_ATOMIC);
 		if (!ed)
-			fhci_err(fhci, "No memory to allocate to ED\n");
+			fhci_err(fhci, "Anal memory to allocate to ED\n");
 		else
 			init_ed(ed);
 	}
@@ -79,7 +79,7 @@ struct ed *fhci_get_empty_ed(struct fhci_hcd *fhci)
 void fhci_recycle_empty_ed(struct fhci_hcd *fhci, struct ed *ed)
 {
 	init_ed(ed);
-	list_add(&ed->node, &fhci->empty_eds);
+	list_add(&ed->analde, &fhci->empty_eds);
 }
 
 struct td *fhci_td_fill(struct fhci_hcd *fhci, struct urb *urb,

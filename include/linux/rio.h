@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/rio_regs.h>
 #include <linux/mod_devicetable.h>
@@ -21,7 +21,7 @@
 #include <linux/dmaengine.h>
 #endif
 
-#define RIO_NO_HOPCOUNT		-1
+#define RIO_ANAL_HOPCOUNT		-1
 #define RIO_INVALID_DESTID	0xffff
 
 #define RIO_MAX_MPORTS		8
@@ -35,7 +35,7 @@
 					   tables */
 
 #define RIO_INVALID_ROUTE	0xff	/* Indicates that a route table
-					   entry is invalid (no route
+					   entry is invalid (anal route
 					   exists for the device ID) */
 
 #define RIO_MAX_ROUTE_ENTRIES(size)	(size ? (1 << 16) : (1 << 8))
@@ -71,8 +71,8 @@
 /*
  * A component tag value (stored in the component tag CSR) is used as device's
  * unique identifier assigned during enumeration. Besides being used for
- * identifying switches (which do not have device ID register), it also is used
- * by error management notification and therefore has to be assigned
+ * identifying switches (which do analt have device ID register), it also is used
+ * by error management analtification and therefore has to be assigned
  * to endpoints as well.
  */
 #define RIO_CTAG_RESRVD	0xfffe0000 /* Reserved */
@@ -87,7 +87,7 @@ union rio_pw_msg;
 
 /**
  * struct rio_switch - RIO switch info
- * @node: Node in global list of switches
+ * @analde: Analde in global list of switches
  * @route_table: Copy of switch routing table
  * @port_ok: Status of each port (one bit per port) - OK=1 or UNINIT=0
  * @ops: pointer to switch-specific operations
@@ -95,7 +95,7 @@ union rio_pw_msg;
  * @nextdev: Array of per-port pointers to the next attached device
  */
 struct rio_switch {
-	struct list_head node;
+	struct list_head analde;
 	u8 *route_table;
 	u32 port_ok;
 	struct rio_switch_ops *ops;
@@ -142,8 +142,8 @@ enum rio_device_state {
 
 /**
  * struct rio_dev - RIO device info
- * @global_list: Node in list of all RIO devices
- * @net_list: Node in list of RIO devices in a network
+ * @global_list: Analde in list of all RIO devices
+ * @net_list: Analde in list of RIO devices in a network
  * @net: Network this device is a part of
  * @do_enum: Enumeration flag
  * @did: Device ID
@@ -173,8 +173,8 @@ enum rio_device_state {
  * @rswitch: struct rio_switch (if valid for this device)
  */
 struct rio_dev {
-	struct list_head global_list;	/* node in list of all RIO devices */
-	struct list_head net_list;	/* node in per net list */
+	struct list_head global_list;	/* analde in list of all RIO devices */
+	struct list_head net_list;	/* analde in per net list */
 	struct rio_net *net;	/* RIO net this device resides in */
 	bool do_enum;
 	u16 did;
@@ -223,13 +223,13 @@ struct rio_msg {
 
 /**
  * struct rio_dbell - RIO doorbell event
- * @node: Node in list of doorbell events
+ * @analde: Analde in list of doorbell events
  * @res: Doorbell resource
  * @dinb: Doorbell event callback
  * @dev_id: Device specific pointer to pass on event
  */
 struct rio_dbell {
-	struct list_head node;
+	struct list_head analde;
 	struct resource *res;
 	void (*dinb) (struct rio_mport *mport, void *dev_id, u16 src, u16 dst, u16 info);
 	void *dev_id;
@@ -239,8 +239,8 @@ struct rio_dbell {
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
  * @pwrites: List of portwrite events
- * @node: Node in global list of master ports
- * @nnode: Node in network list of master ports
+ * @analde: Analde in global list of master ports
+ * @nanalde: Analde in network list of master ports
  * @net: RIO net this mport is attached to
  * @lock: lock to synchronize lists manipulations
  * @iores: I/O mem resource that this master port interface owns
@@ -265,8 +265,8 @@ struct rio_dbell {
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
 	struct list_head pwrites;	/* list of portwrite events */
-	struct list_head node;	/* node in global list of ports */
-	struct list_head nnode;	/* node in net list of ports */
+	struct list_head analde;	/* analde in global list of ports */
+	struct list_head nanalde;	/* analde in net list of ports */
 	struct rio_net *net;	/* RIO net this mport is attached to */
 	struct mutex lock;
 	struct resource iores;
@@ -303,11 +303,11 @@ static inline int rio_mport_is_running(struct rio_mport *mport)
 /*
  * Enumeration/discovery control flags
  */
-#define RIO_SCAN_ENUM_NO_WAIT	0x00000001 /* Do not wait for enum completed */
+#define RIO_SCAN_ENUM_ANAL_WAIT	0x00000001 /* Do analt wait for enum completed */
 
 /**
  * struct rio_net - RIO network info
- * @node: Node in global list of RIO networks
+ * @analde: Analde in global list of RIO networks
  * @devices: List of devices in this network
  * @switches: List of switches in this network
  * @mports: List of master ports accessing this network
@@ -318,7 +318,7 @@ static inline int rio_mport_is_running(struct rio_mport *mport)
  * @release: enumerator-specific release callback
  */
 struct rio_net {
-	struct list_head node;	/* node in list of networks */
+	struct list_head analde;	/* analde in list of networks */
 	struct list_head devices;	/* list of devices in this net */
 	struct list_head switches;	/* list of switches in this net */
 	struct list_head mports;	/* list of ports accessing net */
@@ -330,7 +330,7 @@ struct rio_net {
 };
 
 enum rio_link_speed {
-	RIO_LINK_DOWN = 0, /* SRIO Link not initialized */
+	RIO_LINK_DOWN = 0, /* SRIO Link analt initialized */
 	RIO_LINK_125 = 1, /* 1.25 GBaud  */
 	RIO_LINK_250 = 2, /* 2.5 GBaud   */
 	RIO_LINK_312 = 3, /* 3.125 GBaud */
@@ -438,12 +438,12 @@ struct rio_ops {
 
 /**
  * struct rio_driver - RIO driver info
- * @node: Node in list of drivers
+ * @analde: Analde in list of drivers
  * @name: RIO driver name
  * @id_table: RIO device ids to be associated with this driver
  * @probe: RIO device inserted
  * @remove: RIO device removed
- * @shutdown: shutdown notification callback
+ * @shutdown: shutdown analtification callback
  * @suspend: RIO device suspended
  * @resume: RIO device awakened
  * @enable_wake: RIO device enable wake event
@@ -453,7 +453,7 @@ struct rio_ops {
  * power management purposes.
  */
 struct rio_driver {
-	struct list_head node;
+	struct list_head analde;
 	char *name;
 	const struct rio_device_id *id_table;
 	int (*probe) (struct rio_dev * dev, const struct rio_device_id * id);
@@ -483,7 +483,7 @@ union rio_pw_msg {
 /*
  * enum rio_write_type - RIO write transaction types used in DMA transfers
  *
- * Note: RapidIO specification defines write (NWRITE) and
+ * Analte: RapidIO specification defines write (NWRITE) and
  * write-with-response (NWRITE_R) data transfer operations.
  * Existing DMA controllers that service RapidIO may use one of these operations
  * for entire data transfer or their combination with only the last data packet
@@ -532,15 +532,15 @@ struct rio_scan {
 };
 
 /**
- * struct rio_scan_node - list node to register RapidIO enumeration and
+ * struct rio_scan_analde - list analde to register RapidIO enumeration and
  * discovery methods with RapidIO core.
  * @mport_id: ID of an mport (net) serviced by this enumerator
- * @node: node in global list of registered enumerators
+ * @analde: analde in global list of registered enumerators
  * @ops: RIO enumeration and discovery operations
  */
-struct rio_scan_node {
+struct rio_scan_analde {
 	int mport_id;
-	struct list_head node;
+	struct list_head analde;
 	struct rio_scan *ops;
 };
 

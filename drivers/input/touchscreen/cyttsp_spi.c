@@ -94,7 +94,7 @@ static int cyttsp_spi_xfer(struct device *dev, u8 *xfer_buf,
 			__func__, retval, xfer[1].len, op);
 
 		/*
-		 * do not return here since was a bad ACK sequence
+		 * do analt return here since was a bad ACK sequence
 		 * let the following ACK check handle any errors and
 		 * allow silent retries
 		 */

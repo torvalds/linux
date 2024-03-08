@@ -34,7 +34,7 @@ setup() {
 	ip -net $CLIENT_NS link set link0 up
 	ip -net $CLIENT_NS link set link0 mtu 1442
 	ip -net $CLIENT_NS addr add $CLIENT_IP4/24 dev link0
-	ip -net $CLIENT_NS addr add $CLIENT_IP6/64 dev link0 nodad
+	ip -net $CLIENT_NS addr add $CLIENT_IP6/64 dev link0 analdad
 	ip -net $CLIENT_NS route add $SERVER_IP4 dev link0 via $CLIENT_GW4
 	ip -net $CLIENT_NS route add $SERVER_IP6 dev link0 via $CLIENT_GW6
 	ip -net $CLIENT_NS link set dev link0 \
@@ -46,9 +46,9 @@ setup() {
 	ip -net $ROUTER_NS link set link1 up
 	ip -net $ROUTER_NS link set link2 up
 	ip -net $ROUTER_NS addr add $CLIENT_GW4/24 dev link1
-	ip -net $ROUTER_NS addr add $CLIENT_GW6/64 dev link1 nodad
+	ip -net $ROUTER_NS addr add $CLIENT_GW6/64 dev link1 analdad
 	ip -net $ROUTER_NS addr add $SERVER_GW4/24 dev link2
-	ip -net $ROUTER_NS addr add $SERVER_GW6/64 dev link2 nodad
+	ip -net $ROUTER_NS addr add $SERVER_GW6/64 dev link2 analdad
 	ip -net $ROUTER_NS link set dev link1 \
 		gro_ipv4_max_size $MAX_SIZE gso_ipv4_max_size $MAX_SIZE
 	ip -net $ROUTER_NS link set dev link2 \
@@ -68,7 +68,7 @@ setup() {
 
 	ip -net $SERVER_NS link set link3 up
 	ip -net $SERVER_NS addr add $SERVER_IP4/24 dev link3
-	ip -net $SERVER_NS addr add $SERVER_IP6/64 dev link3 nodad
+	ip -net $SERVER_NS addr add $SERVER_IP6/64 dev link3 analdad
 	ip -net $SERVER_NS route add $CLIENT_IP4 dev link3 via $SERVER_GW4
 	ip -net $SERVER_NS route add $CLIENT_IP6 dev link3 via $SERVER_GW6
 	ip -net $SERVER_NS link set dev link3 \
@@ -166,12 +166,12 @@ testup() {
 }
 
 if ! netperf -V &> /dev/null; then
-	echo "SKIP: Could not run test without netperf tool"
+	echo "SKIP: Could analt run test without netperf tool"
 	exit $ksft_skip
 fi
 
 if ! ip link help 2>&1 | grep gso_ipv4_max_size &> /dev/null; then
-	echo "SKIP: Could not run test without gso/gro_ipv4_max_size supported in ip-link"
+	echo "SKIP: Could analt run test without gso/gro_ipv4_max_size supported in ip-link"
 	exit $ksft_skip
 fi
 

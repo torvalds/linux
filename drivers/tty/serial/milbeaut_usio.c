@@ -161,7 +161,7 @@ static void mlb_usio_rx_chars(struct uart_port *port)
 		if (!(status & (MLB_USIO_SSR_ORE | MLB_USIO_SSR_FRE |
 				MLB_USIO_SSR_PE))) {
 			ch = readw(port->membase + MLB_USIO_REG_DR);
-			flag = TTY_NORMAL;
+			flag = TTY_ANALRMAL;
 			port->icount.rx++;
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
@@ -265,7 +265,7 @@ static int mlb_usio_startup(struct uart_port *port)
 	}
 
 	escr = readb(port->membase + MLB_USIO_REG_ESCR);
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(port->dev->of_analde, "auto-flow-control"))
 		escr |= MLB_USIO_ESCR_FLWEN;
 	uart_port_lock_irqsave(port, &flags);
 	writeb(0, port->membase + MLB_USIO_REG_SCR);
@@ -327,7 +327,7 @@ static void mlb_usio_set_termios(struct uart_port *port,
 			escr |= MLB_USIO_ESCR_P;
 	}
 	/* Set hard flow control */
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control") ||
+	if (of_property_read_bool(port->dev->of_analde, "auto-flow-control") ||
 			(termios->c_cflag & CRTSCTS))
 		escr |= MLB_USIO_ESCR_FLWEN;
 
@@ -344,13 +344,13 @@ static void mlb_usio_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
 
-	port->ignore_status_mask = 0;
+	port->iganalre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
+		port->iganalre_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
 	if ((termios->c_iflag & IGNBRK) && (termios->c_iflag & IGNPAR))
-		port->ignore_status_mask |= MLB_USIO_SSR_ORE;
+		port->iganalre_status_mask |= MLB_USIO_SSR_ORE;
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= MLB_USIO_SSR_RDRF;
+		port->iganalre_status_mask |= MLB_USIO_SSR_RDRF;
 
 	writeb(0, port->membase + MLB_USIO_REG_SCR);
 	writeb(MLB_USIO_SCR_UPCL, port->membase + MLB_USIO_REG_SCR);
@@ -424,17 +424,17 @@ static int __init mlb_usio_console_setup(struct console *co, char *options)
 	int bits = 8;
 
 	if (co->index >= CONFIG_SERIAL_MILBEAUT_USIO_PORTS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	port = &mlb_usio_ports[co->index];
 	if (!port->membase)
-		return -ENODEV;
+		return -EANALDEV;
 
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(port->dev->of_analde, "auto-flow-control"))
 		flow = 'r';
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
@@ -472,7 +472,7 @@ static int __init mlb_usio_early_console_setup(struct earlycon_device *device,
 						const char *opt)
 {
 	if (!device->port.membase)
-		return -ENODEV;
+		return -EANALDEV;
 	device->con->write = mlb_usio_early_console_write;
 	return 0;
 }
@@ -510,14 +510,14 @@ static int mlb_usio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Clock enable failed: %d\n", ret);
 		return ret;
 	}
-	of_property_read_u32(pdev->dev.of_node, "index", &index);
+	of_property_read_u32(pdev->dev.of_analde, "index", &index);
 	port = &mlb_usio_ports[index];
 
 	port->private_data = (void *)clk;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "Missing regs\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto failed;
 	}
 	port->membase = devm_ioremap(&pdev->dev, res->start,

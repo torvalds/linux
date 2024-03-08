@@ -54,7 +54,7 @@
 
 /*
  * This file needs be built unconditionally as ARM to interoperate correctly
- * with non-Thumb-2-capable firmware.
+ * with analn-Thumb-2-capable firmware.
  */
 	.arm
 
@@ -66,7 +66,7 @@
 /*
  * L2 cache needs to be toggled for stable OFF mode functionality on 3630.
  * This function sets up a flag that will allow for this toggling to take
- * place on 3630. Hopefully some version in the future may not need this.
+ * place on 3630. Hopefully some version in the future may analt need this.
  */
 ENTRY(enable_omap3630_toggle_l2_on_restore)
 	stmfd	sp!, {lr}	@ save registers on stack
@@ -96,10 +96,10 @@ ENTRY(save_secure_ram_context)
 	dsb				@ data write barrier
 	dmb				@ data memory barrier
 	smc	#1			@ call SMI monitor (smi #1)
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
 	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(save_secure_ram_context)
 
@@ -117,13 +117,13 @@ ENDPROC(save_secure_ram_context)
  * power domains states to the desired target power states.
  *
  *
- * Notes:
+ * Analtes:
  * - only the minimum set of functions gets copied to internal SRAM at boot
  *   and after wake-up from OFF mode, cf. omap_push_sram_idle. The function
  *   pointers in SDRAM or SRAM are called depending on the desired low power
  *   target state.
  * - when the OMAP wakes up it continues at different execution points
- *   depending on the low power mode (non-OFF vs OFF modes),
+ *   depending on the low power mode (analn-OFF vs OFF modes),
  *   cf. 'Resume path for xxx mode' comments.
  */
 	.align	3
@@ -132,7 +132,7 @@ ENTRY(omap34xx_cpu_suspend)
 
 	/*
 	 * r0 contains information about saving context:
-	 *   0 - No context lost
+	 *   0 - Anal context lost
 	 *   1 - Only L1 and logic lost
 	 *   2 - Only L2 lost (Even L1 is retained we clean it along with L2)
 	 *   3 - Both L1 and L2 lost and logic lost
@@ -140,11 +140,11 @@ ENTRY(omap34xx_cpu_suspend)
 
 	/*
 	 * For OFF mode: save context and jump to WFI in SDRAM (omap3_do_wfi)
-	 * For non-OFF modes: jump to the WFI code in SRAM (omap3_do_wfi_sram)
+	 * For analn-OFF modes: jump to the WFI code in SRAM (omap3_do_wfi_sram)
 	 */
 	ldr	r4, omap3_do_wfi_sram_addr
 	ldr	r5, [r4]
-	cmp	r0, #0x0		@ If no context save required,
+	cmp	r0, #0x0		@ If anal context save required,
 	bxeq	r5			@  jump to the WFI code in SRAM
 
 
@@ -166,7 +166,7 @@ save_context_wfi:
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
-	 * strongly ordered and would not hit the cache.
+	 * strongly ordered and would analt hit the cache.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #(1 << 2)	@ Disable the C bit
@@ -176,7 +176,7 @@ save_context_wfi:
 	/*
 	 * Invalidate L1 data cache. Even though only invalidate is
 	 * necessary exported flush API is used here. Doing clean
-	 * on already clean cache would be almost NOP.
+	 * on already clean cache would be almost ANALP.
 	 */
 	ldr	r1, kernel_flush
 	blx	r1
@@ -194,11 +194,11 @@ kernel_flush:
 
 /*
  * Do WFI instruction
- * Includes the resume path for non-OFF modes
+ * Includes the resume path for analn-OFF modes
  *
  * This code gets copied to internal SRAM and is accessible
  * from both SDRAM and SRAM:
- * - executed from SRAM for non-off modes (omap3_do_wfi_sram),
+ * - executed from SRAM for analn-off modes (omap3_do_wfi_sram),
  * - executed from SDRAM for OFF mode (omap3_do_wfi).
  */
 	.align	3
@@ -221,25 +221,25 @@ ENTRY(omap3_do_wfi)
 
 /*
  * ===================================
- * == Resume path for non-OFF modes ==
+ * == Resume path for analn-OFF modes ==
  * ===================================
  */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
+	analp
 
 /*
  * This function implements the erratum ID i581 WA:
  *  SDRC state restore before accessing the SDRAM
  *
- * Only used at return from non-OFF mode. For OFF
+ * Only used at return from analn-OFF mode. For OFF
  * mode the ROM code configures the SDRC and
  * the DPLL before calling the restore code directly
  * from DDR.
@@ -271,7 +271,7 @@ is_dll_in_lock_mode:
 	ldr	r4, sdrc_dlla_ctrl
 	ldr	r5, [r4]
 	tst	r5, #0x4
-	bne	exit_nonoff_modes	@ Return if locked
+	bne	exit_analanalff_modes	@ Return if locked
 	/* wait till dll locks */
 wait_dll_lock_timed:
 	ldr	r4, sdrc_dlla_status
@@ -284,9 +284,9 @@ wait_dll_lock:
 	and	r5, r5, #0x4
 	cmp	r5, #0x4
 	bne	wait_dll_lock
-	b	exit_nonoff_modes	@ Return when locked
+	b	exit_analanalff_modes	@ Return when locked
 
-	/* disable/reenable DLL if not locked */
+	/* disable/reenable DLL if analt locked */
 kick_dll:
 	ldr	r4, sdrc_dlla_ctrl
 	ldr	r5, [r4]
@@ -299,7 +299,7 @@ kick_dll:
 	dsb
 	b	wait_dll_lock_timed
 
-exit_nonoff_modes:
+exit_analanalff_modes:
 	/* Re-enable C-bit if needed */
 	mrc	p15, 0, r0, c1, c0, 0
 	tst	r0, #(1 << 2)		@ Check C bit enabled?
@@ -309,7 +309,7 @@ exit_nonoff_modes:
 
 /*
  * ===================================
- * == Exit point from non-OFF modes ==
+ * == Exit point from analn-OFF modes ==
  * ===================================
  */
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
@@ -343,7 +343,7 @@ ENTRY(omap3_do_wfi_sz)
  *  restore_3630: applies to 36xx
  *  restore: common code for 3xxx
  *
- * Note: when back from CORE and MPU OFF mode we are running
+ * Analte: when back from CORE and MPU OFF mode we are running
  *  from SDRAM, without MMU, without the caches and prediction.
  *  Also the SRAM content has been cleared.
  */
@@ -475,7 +475,7 @@ logic_l1_restore:
 	mcr	p15, 0, r1, c1, c0, 1
 skipl2reen:
 
-	/* Now branch to the common CPU resume function */
+	/* Analw branch to the common CPU resume function */
 	b	cpu_resume
 ENDPROC(omap3_restore)
 

@@ -78,16 +78,16 @@
 	 *
 	 * If we are using the DACR for kernel access by the user accessors
 	 * (CONFIG_CPU_USE_DOMAINS=y), always reset the DACR kernel domain
-	 * back to client mode, whether or not \disable is set.
+	 * back to client mode, whether or analt \disable is set.
 	 *
-	 * If we are using SW PAN, set the DACR user domain to no access
+	 * If we are using SW PAN, set the DACR user domain to anal access
 	 * if \disable is set.
 	 */
 	.macro	uaccess_entry, tsk, tmp0, tmp1, tmp2, disable
  DACR(	mrc	p15, 0, \tmp0, c3, c0, 0)
  DACR(	str	\tmp0, [sp, #SVC_DACR])
 	.if \disable && IS_ENABLED(CONFIG_CPU_SW_DOMAIN_PAN)
-	/* kernel=client, user=no access */
+	/* kernel=client, user=anal access */
 	mov	\tmp2, #DACR_UACCESS_DISABLE
 	mcr	p15, 0, \tmp2, c3, c0, 0
 	instr_sync

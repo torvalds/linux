@@ -12,7 +12,7 @@ maintainers:
 description: |
   When an io-channel measures the output voltage from a current sense
   amplifier, the interesting measurement is almost always the current
-  through the sense resistor, not the voltage output. This binding
+  through the sense resistor, analt the voltage output. This binding
   describes such a current sense circuit.
 
 properties:
@@ -22,7 +22,7 @@ properties:
   io-channels:
     maxItems: 1
     description: |
-      Channel node of a voltage io-channel.
+      Channel analde of a voltage io-channel.
 
   sense-resistor-micro-ohms:
     description: The sense resistance.

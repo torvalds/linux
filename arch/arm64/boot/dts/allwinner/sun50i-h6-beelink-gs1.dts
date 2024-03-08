@@ -136,7 +136,7 @@
 &mmc2 {
 	vmmc-supply = <&reg_cldo1>;
 	vqmmc-supply = <&reg_bldo2>;
-	non-removable;
+	analn-removable;
 	cap-mmc-hw-reset;
 	bus-width = <8>;
 	status = "okay";
@@ -158,7 +158,7 @@
 
 &r_pio {
 	/*
-	 * FIXME: We can't add that supply for now since it would
+	 * FIXME: We can't add that supply for analw since it would
 	 * create a circular dependency between pinctrl, the regulator
 	 * and the RSB Bus.
 	 *

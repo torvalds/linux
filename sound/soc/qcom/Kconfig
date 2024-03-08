@@ -4,7 +4,7 @@ menuconfig SND_SOC_QCOM
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Say Y or M if you want to add support to use audio devices
-	  in Qualcomm Technologies SOC-based platforms.
+	  in Qualcomm Techanallogies SOC-based platforms.
 
 if SND_SOC_QCOM
 
@@ -54,14 +54,14 @@ config SND_SOC_STORM
 	select SND_SOC_MAX98357A
 	help
 	  Say Y or M if you want add support for SoC audio on the
-	  Qualcomm Technologies IPQ806X-based Storm board.
+	  Qualcomm Techanallogies IPQ806X-based Storm board.
 
 config SND_SOC_APQ8016_SBC
 	tristate "SoC Audio support for APQ8016 SBC platforms"
 	select SND_SOC_LPASS_APQ8016
 	select SND_SOC_QCOM_COMMON
 	help
-	  Support for Qualcomm Technologies LPASS audio block in
+	  Support for Qualcomm Techanallogies LPASS audio block in
 	  APQ8016 SOC-based systems.
 	  Say Y if you want to use audio devices on MI2S.
 
@@ -147,7 +147,7 @@ config SND_SOC_MSM8996
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
 	help
-	  Support for Qualcomm Technologies LPASS audio block in
+	  Support for Qualcomm Techanallogies LPASS audio block in
 	  APQ8096 SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs
 
@@ -161,7 +161,7 @@ config SND_SOC_SDM845
 	select SND_SOC_MAX98927
 	imply SND_SOC_CROS_EC_CODEC
 	help
-	  To add support for audio on Qualcomm Technologies Inc.
+	  To add support for audio on Qualcomm Techanallogies Inc.
 	  SDM845 SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs.
 
@@ -173,7 +173,7 @@ config SND_SOC_SM8250
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
 	help
-	  To add support for audio on Qualcomm Technologies Inc.
+	  To add support for audio on Qualcomm Techanallogies Inc.
 	  SM8250 SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs.
 
@@ -185,7 +185,7 @@ config SND_SOC_SC8280XP
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
 	help
-	  To add support for audio on Qualcomm Technologies Inc.
+	  To add support for audio on Qualcomm Techanallogies Inc.
 	  SC8280XP SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs.
 
@@ -200,7 +200,7 @@ config SND_SOC_SC7180
 	select SND_SOC_RT5682S
 	select SND_SOC_ADAU7002
 	help
-	  To add support for audio on Qualcomm Technologies Inc.
+	  To add support for audio on Qualcomm Techanallogies Inc.
 	  SC7180 SoC-based systems.
 	  Say Y if you want to use audio device on this SoCs.
 
@@ -217,7 +217,7 @@ config SND_SOC_SC7280
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_RT5682S
 	help
-	  Add support for audio on Qualcomm Technologies Inc.
+	  Add support for audio on Qualcomm Techanallogies Inc.
 	  SC7280 SoC-based systems.
 	  Say Y or M if you want to use audio device on this SoCs.
 
@@ -229,7 +229,7 @@ config SND_SOC_X1E80100
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
 	help
-	  Add support for audio on Qualcomm Technologies Inc.
+	  Add support for audio on Qualcomm Techanallogies Inc.
 	  X1E80100 SoC-based systems.
 	  Say Y or M if you want to use audio device on this SoCs.
 

@@ -3,7 +3,7 @@
  * Copyright (c) 2023, Nikita Travkin <nikita@trvn.ru>
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -70,7 +70,7 @@ struct pm8916_lbc_charger {
 
 static const unsigned int pm8916_lbc_charger_cable[] = {
 	EXTCON_USB,
-	EXTCON_NONE,
+	EXTCON_ANALNE,
 };
 
 enum {
@@ -259,13 +259,13 @@ static int pm8916_lbc_charger_probe(struct platform_device *pdev)
 
 	chg = devm_kzalloc(dev, sizeof(*chg), GFP_KERNEL);
 	if (!chg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chg->dev = dev;
 
 	chg->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!chg->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	len = device_property_count_u32(dev, "reg");
 	if (len < 0)
@@ -315,14 +315,14 @@ static int pm8916_lbc_charger_probe(struct platform_device *pdev)
 	if (ret)
 		goto comm_error;
 	if (tmp != PM8916_LBC_CHGR_PMIC_CHARGER)
-		dev_err_probe(dev, -ENODEV, "The system is using an external charger\n");
+		dev_err_probe(dev, -EANALDEV, "The system is using an external charger\n");
 
 	ret = pm8916_lbc_charger_probe_dt(chg);
 	if (ret)
 		dev_err_probe(dev, ret, "Error while parsing device tree\n");
 
 	psy_cfg.drv_data = chg;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_analde = dev->of_analde;
 
 	chg->charger = devm_power_supply_register(dev, &pm8916_lbc_charger_psy_desc, &psy_cfg);
 	if (IS_ERR(chg->charger))
@@ -358,7 +358,7 @@ comm_error:
 	return dev_err_probe(dev, ret, "Unable to communicate with device\n");
 
 type_error:
-	return dev_err_probe(dev, -ENODEV, "Device reported wrong type: 0x%X\n", tmp);
+	return dev_err_probe(dev, -EANALDEV, "Device reported wrong type: 0x%X\n", tmp);
 }
 
 static const struct of_device_id pm8916_lbc_charger_of_match[] = {

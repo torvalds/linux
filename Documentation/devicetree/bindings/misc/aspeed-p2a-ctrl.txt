@@ -22,7 +22,7 @@ Optional properties:
 - memory-region: A phandle to a reserved_memory region to be used for the PCI
 		to AHB mapping
 
-The p2a-control node should be the child of a syscon node with the required
+The p2a-control analde should be the child of a syscon analde with the required
 property:
 
 - compatible : Should be one of the following:

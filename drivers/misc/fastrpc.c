@@ -202,18 +202,18 @@ struct fastrpc_buf {
 	struct mutex lock;
 	struct list_head attachments;
 	/* mmap support */
-	struct list_head node; /* list of user requested mmaps */
+	struct list_head analde; /* list of user requested mmaps */
 	uintptr_t raddr;
 };
 
 struct fastrpc_dma_buf_attachment {
 	struct device *dev;
 	struct sg_table sgt;
-	struct list_head node;
+	struct list_head analde;
 };
 
 struct fastrpc_map {
-	struct list_head node;
+	struct list_head analde;
 	struct fastrpc_user *fl;
 	int fd;
 	struct dma_buf *buf;
@@ -239,7 +239,7 @@ struct fastrpc_invoke_ctx {
 	u64 ctxid;
 	u64 msg_sz;
 	struct kref refcount;
-	struct list_head node; /* list of ctxs */
+	struct list_head analde; /* list of ctxs */
 	struct completion work;
 	struct work_struct put_work;
 	struct fastrpc_msg msg;
@@ -339,7 +339,7 @@ static void fastrpc_free_map(struct kref *ref)
 
 	if (map->fl) {
 		spin_lock(&map->fl->lock);
-		list_del(&map->node);
+		list_del(&map->analde);
 		spin_unlock(&map->fl->lock);
 		map->fl = NULL;
 	}
@@ -356,9 +356,9 @@ static void fastrpc_map_put(struct fastrpc_map *map)
 static int fastrpc_map_get(struct fastrpc_map *map)
 {
 	if (!map)
-		return -ENOENT;
+		return -EANALENT;
 
-	return kref_get_unless_zero(&map->refcount) ? 0 : -ENOENT;
+	return kref_get_unless_zero(&map->refcount) ? 0 : -EANALENT;
 }
 
 
@@ -367,10 +367,10 @@ static int fastrpc_map_lookup(struct fastrpc_user *fl, int fd,
 {
 	struct fastrpc_session_ctx *sess = fl->sctx;
 	struct fastrpc_map *map = NULL;
-	int ret = -ENOENT;
+	int ret = -EANALENT;
 
 	spin_lock(&fl->lock);
-	list_for_each_entry(map, &fl->maps, node) {
+	list_for_each_entry(map, &fl->maps, analde) {
 		if (map->fd != fd)
 			continue;
 
@@ -406,10 +406,10 @@ static int __fastrpc_buf_alloc(struct fastrpc_user *fl, struct device *dev,
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&buf->attachments);
-	INIT_LIST_HEAD(&buf->node);
+	INIT_LIST_HEAD(&buf->analde);
 	mutex_init(&buf->lock);
 
 	buf->fl = fl;
@@ -424,7 +424,7 @@ static int __fastrpc_buf_alloc(struct fastrpc_user *fl, struct device *dev,
 	if (!buf->virt) {
 		mutex_destroy(&buf->lock);
 		kfree(buf);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	*obuf = buf;
@@ -582,9 +582,9 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	INIT_LIST_HEAD(&ctx->node);
+	INIT_LIST_HEAD(&ctx->analde);
 	ctx->fl = user;
 	ctx->nscalars = REMOTE_SCALARS_LENGTH(sc);
 	ctx->nbufs = REMOTE_SCALARS_INBUFS(sc) +
@@ -595,14 +595,14 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 				    sizeof(*ctx->maps), GFP_KERNEL);
 		if (!ctx->maps) {
 			kfree(ctx);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		ctx->olaps = kcalloc(ctx->nscalars,
 				    sizeof(*ctx->olaps), GFP_KERNEL);
 		if (!ctx->olaps) {
 			kfree(ctx->maps);
 			kfree(ctx);
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 		}
 		ctx->args = args;
 		fastrpc_get_buff_overlaps(ctx);
@@ -620,7 +620,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	INIT_WORK(&ctx->put_work, fastrpc_context_put_wq);
 
 	spin_lock(&user->lock);
-	list_add_tail(&ctx->node, &user->pending);
+	list_add_tail(&ctx->analde, &user->pending);
 	spin_unlock(&user->lock);
 
 	spin_lock_irqsave(&cctx->lock, flags);
@@ -638,7 +638,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	return ctx;
 err_idr:
 	spin_lock(&user->lock);
-	list_del(&ctx->node);
+	list_del(&ctx->analde);
 	spin_unlock(&user->lock);
 	fastrpc_channel_ctx_put(cctx);
 	kfree(ctx->maps);
@@ -687,7 +687,7 @@ static int fastrpc_dma_buf_attach(struct dma_buf *dmabuf,
 
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
 	if (!a)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = dma_get_sgtable(buffer->dev, &a->sgt, buffer->virt,
 			      FASTRPC_PHYS(buffer->phys), buffer->size);
@@ -698,11 +698,11 @@ static int fastrpc_dma_buf_attach(struct dma_buf *dmabuf,
 	}
 
 	a->dev = attachment->dev;
-	INIT_LIST_HEAD(&a->node);
+	INIT_LIST_HEAD(&a->analde);
 	attachment->priv = a;
 
 	mutex_lock(&buffer->lock);
-	list_add(&a->node, &buffer->attachments);
+	list_add(&a->analde, &buffer->attachments);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
@@ -715,7 +715,7 @@ static void fastrpc_dma_buf_detatch(struct dma_buf *dmabuf,
 	struct fastrpc_buf *buffer = dmabuf->priv;
 
 	mutex_lock(&buffer->lock);
-	list_del(&a->node);
+	list_del(&a->analde);
 	mutex_unlock(&buffer->lock);
 	sg_free_table(&a->sgt);
 	kfree(a);
@@ -765,9 +765,9 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	INIT_LIST_HEAD(&map->node);
+	INIT_LIST_HEAD(&map->analde);
 	kref_init(&map->refcount);
 
 	map->fl = fl;
@@ -823,7 +823,7 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 		}
 	}
 	spin_lock(&fl->lock);
-	list_add_tail(&map->node, &fl->maps);
+	list_add_tail(&map->analde, &fl->maps);
 	spin_unlock(&fl->lock);
 	*ppmap = map;
 
@@ -1195,15 +1195,15 @@ bail:
 	if (err != -ERESTARTSYS && err != -ETIMEDOUT) {
 		/* We are done with this compute context */
 		spin_lock(&fl->lock);
-		list_del(&ctx->node);
+		list_del(&ctx->analde);
 		spin_unlock(&fl->lock);
 		fastrpc_context_put(ctx);
 	}
 
 	if (err == -ERESTARTSYS) {
-		list_for_each_entry_safe(buf, b, &fl->mmaps, node) {
-			list_del(&buf->node);
-			list_add_tail(&buf->node, &fl->cctx->invoke_interrupted_mmaps);
+		list_for_each_entry_safe(buf, b, &fl->mmaps, analde) {
+			list_del(&buf->analde);
+			list_add_tail(&buf->analde, &fl->cctx->invoke_interrupted_mmaps);
 		}
 	}
 
@@ -1215,12 +1215,12 @@ bail:
 
 static bool is_session_rejected(struct fastrpc_user *fl, bool unsigned_pd_request)
 {
-	/* Check if the device node is non-secure and channel is secure*/
+	/* Check if the device analde is analn-secure and channel is secure*/
 	if (!fl->is_secure_dev && fl->cctx->secure) {
 		/*
 		 * Allow untrusted applications to offload only to Unsigned PD when
 		 * channel is configured as secure and block untrusted apps on channel
-		 * that does not support unsigned PD offload
+		 * that does analt support unsigned PD offload
 		 */
 		if (!fl->cctx->unsigned_support || !unsigned_pd_request) {
 			dev_err(&fl->cctx->rpdev->dev, "Error: Untrusted application trying to offload to signed PD");
@@ -1248,7 +1248,7 @@ static int fastrpc_init_create_static_process(struct fastrpc_user *fl,
 
 	args = kcalloc(FASTRPC_CREATE_STATIC_PROCESS_NARGS, sizeof(*args), GFP_KERNEL);
 	if (!args)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(&init, argp, sizeof(init))) {
 		err = -EFAULT;
@@ -1262,7 +1262,7 @@ static int fastrpc_init_create_static_process(struct fastrpc_user *fl,
 
 	name = kzalloc(init.namelen, GFP_KERNEL);
 	if (!name) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -1372,7 +1372,7 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 
 	args = kcalloc(FASTRPC_CREATE_PROCESS_NARGS, sizeof(*args), GFP_KERNEL);
 	if (!args)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (copy_from_user(&init, argp, sizeof(init))) {
 		err = -EFAULT;
@@ -1511,7 +1511,7 @@ static int fastrpc_release_current_dsp_process(struct fastrpc_user *fl)
 				       sc, &args[0]);
 }
 
-static int fastrpc_device_release(struct inode *inode, struct file *file)
+static int fastrpc_device_release(struct ianalde *ianalde, struct file *file)
 {
 	struct fastrpc_user *fl = (struct fastrpc_user *)file->private_data;
 	struct fastrpc_channel_ctx *cctx = fl->cctx;
@@ -1529,16 +1529,16 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	if (fl->init_mem)
 		fastrpc_buf_free(fl->init_mem);
 
-	list_for_each_entry_safe(ctx, n, &fl->pending, node) {
-		list_del(&ctx->node);
+	list_for_each_entry_safe(ctx, n, &fl->pending, analde) {
+		list_del(&ctx->analde);
 		fastrpc_context_put(ctx);
 	}
 
-	list_for_each_entry_safe(map, m, &fl->maps, node)
+	list_for_each_entry_safe(map, m, &fl->maps, analde)
 		fastrpc_map_put(map);
 
-	list_for_each_entry_safe(buf, b, &fl->mmaps, node) {
-		list_del(&buf->node);
+	list_for_each_entry_safe(buf, b, &fl->mmaps, analde) {
+		list_del(&buf->analde);
 		fastrpc_buf_free(buf);
 	}
 
@@ -1552,7 +1552,7 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fastrpc_device_open(struct inode *inode, struct file *filp)
+static int fastrpc_device_open(struct ianalde *ianalde, struct file *filp)
 {
 	struct fastrpc_channel_ctx *cctx;
 	struct fastrpc_device *fdevice;
@@ -1564,7 +1564,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 
 	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
 	if (!fl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Released in fastrpc_device_release() */
 	fastrpc_channel_ctx_get(cctx);
@@ -1582,7 +1582,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 
 	fl->sctx = fastrpc_session_alloc(cctx);
 	if (!fl->sctx) {
-		dev_err(&cctx->rpdev->dev, "No session available\n");
+		dev_err(&cctx->rpdev->dev, "Anal session available\n");
 		mutex_destroy(&fl->mutex);
 		kfree(fl);
 
@@ -1631,7 +1631,7 @@ static int fastrpc_dmabuf_alloc(struct fastrpc_user *fl, char __user *argp)
 		 * The usercopy failed, but we can't do much about it, as
 		 * dma_buf_fd() already called fd_install() and made the
 		 * file descriptor accessible for the current process. It
-		 * might already be closed and dmabuf no longer valid when
+		 * might already be closed and dmabuf anal longer valid when
 		 * we reach this point. Therefore "leak" the fd and rely on
 		 * the process exit path to do any required cleanup.
 		 */
@@ -1672,7 +1672,7 @@ static int fastrpc_invoke(struct fastrpc_user *fl, char __user *argp)
 	if (nscalars) {
 		args = kcalloc(nscalars, sizeof(*args), GFP_KERNEL);
 		if (!args)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (copy_from_user(args, (void __user *)(uintptr_t)inv.args,
 				   nscalars * sizeof(*args))) {
@@ -1727,14 +1727,14 @@ static int fastrpc_get_info_from_kernel(struct fastrpc_ioctl_capability *cap,
 
 	dsp_attributes = kzalloc(FASTRPC_MAX_DSP_ATTRIBUTES_LEN, GFP_KERNEL);
 	if (!dsp_attributes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = fastrpc_get_info_from_dsp(fl, dsp_attributes, FASTRPC_MAX_DSP_ATTRIBUTES_LEN);
 	if (err == DSP_UNSUPPORTED_API) {
 		dev_info(&cctx->rpdev->dev,
-			 "Warning: DSP capabilities not supported on domain: %d\n", domain);
+			 "Warning: DSP capabilities analt supported on domain: %d\n", domain);
 		kfree(dsp_attributes);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	} else if (err) {
 		dev_err(&cctx->rpdev->dev, "Error: dsp information is incorrect err: %d\n", err);
 		kfree(dsp_attributes);
@@ -1766,9 +1766,9 @@ static int fastrpc_get_dsp_info(struct fastrpc_user *fl, char __user *argp)
 		return -ECHRNG;
 	}
 
-	/* Fastrpc Capablities does not support modem domain */
+	/* Fastrpc Capablities does analt support modem domain */
 	if (cap.domain == MDSP_DOMAIN_ID) {
-		dev_err(&fl->cctx->rpdev->dev, "Error: modem not supported %d\n", err);
+		dev_err(&fl->cctx->rpdev->dev, "Error: modem analt supported %d\n", err);
 		return -ECHRNG;
 	}
 
@@ -1809,7 +1809,7 @@ static int fastrpc_req_munmap_impl(struct fastrpc_user *fl, struct fastrpc_buf *
 	if (!err) {
 		dev_dbg(dev, "unmmap\tpt 0x%09lx OK\n", buf->raddr);
 		spin_lock(&fl->lock);
-		list_del(&buf->node);
+		list_del(&buf->analde);
 		spin_unlock(&fl->lock);
 		fastrpc_buf_free(buf);
 	} else {
@@ -1829,7 +1829,7 @@ static int fastrpc_req_munmap(struct fastrpc_user *fl, char __user *argp)
 		return -EFAULT;
 
 	spin_lock(&fl->lock);
-	list_for_each_entry_safe(iter, b, &fl->mmaps, node) {
+	list_for_each_entry_safe(iter, b, &fl->mmaps, analde) {
 		if ((iter->raddr == req.vaddrout) && (iter->size == req.size)) {
 			buf = iter;
 			break;
@@ -1838,7 +1838,7 @@ static int fastrpc_req_munmap(struct fastrpc_user *fl, char __user *argp)
 	spin_unlock(&fl->lock);
 
 	if (!buf) {
-		dev_err(dev, "mmap\t\tpt 0x%09llx [len 0x%08llx] not in list\n",
+		dev_err(dev, "mmap\t\tpt 0x%09llx [len 0x%08llx] analt in list\n",
 			req.vaddrout, req.size);
 		return -EINVAL;
 	}
@@ -1862,13 +1862,13 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 		return -EFAULT;
 
 	if (req.flags != ADSP_MMAP_ADD_PAGES && req.flags != ADSP_MMAP_REMOTE_HEAP_ADDR) {
-		dev_err(dev, "flag not supported 0x%x\n", req.flags);
+		dev_err(dev, "flag analt supported 0x%x\n", req.flags);
 
 		return -EINVAL;
 	}
 
 	if (req.vaddrin) {
-		dev_err(dev, "adding user allocated pages is not supported\n");
+		dev_err(dev, "adding user allocated pages is analt supported\n");
 		return -EINVAL;
 	}
 
@@ -1910,7 +1910,7 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 	/* update the buffer to be able to deallocate the memory on the DSP */
 	buf->raddr = (uintptr_t) rsp_msg.vaddr;
 
-	/* let the client know the address to use */
+	/* let the client kanalw the address to use */
 	req.vaddrout = rsp_msg.vaddr;
 
 	/* Add memory to static PD pool, protection thru hypervisor */
@@ -1925,7 +1925,7 @@ static int fastrpc_req_mmap(struct fastrpc_user *fl, char __user *argp)
 	}
 
 	spin_lock(&fl->lock);
-	list_add_tail(&buf->node, &fl->mmaps);
+	list_add_tail(&buf->analde, &fl->mmaps);
 	spin_unlock(&fl->lock);
 
 	if (copy_to_user((void __user *)argp, &req, sizeof(req))) {
@@ -1956,7 +1956,7 @@ static int fastrpc_req_mem_unmap_impl(struct fastrpc_user *fl, struct fastrpc_me
 	struct device *dev = fl->sctx->dev;
 
 	spin_lock(&fl->lock);
-	list_for_each_entry_safe(iter, m, &fl->maps, node) {
+	list_for_each_entry_safe(iter, m, &fl->maps, analde) {
 		if ((req->fd < 0 || iter->fd == req->fd) && (iter->raddr == req->vaddr)) {
 			map = iter;
 			break;
@@ -1966,7 +1966,7 @@ static int fastrpc_req_mem_unmap_impl(struct fastrpc_user *fl, struct fastrpc_me
 	spin_unlock(&fl->lock);
 
 	if (!map) {
-		dev_err(dev, "map not in list\n");
+		dev_err(dev, "map analt in list\n");
 		return -EINVAL;
 	}
 
@@ -2058,7 +2058,7 @@ static int fastrpc_req_mem_map(struct fastrpc_user *fl, char __user *argp)
 	/* update the buffer to be able to deallocate the memory on the DSP */
 	map->raddr = rsp_msg.vaddr;
 
-	/* let the client know the address to use */
+	/* let the client kanalw the address to use */
 	req.vaddrout = rsp_msg.vaddr;
 
 	if (copy_to_user((void __user *)argp, &req, sizeof(req))) {
@@ -2119,7 +2119,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int cmd,
 		err = fastrpc_get_dsp_info(fl, argp);
 		break;
 	default:
-		err = -ENOTTY;
+		err = -EANALTTY;
 		break;
 	}
 
@@ -2146,13 +2146,13 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	if (!cctx)
 		return -EINVAL;
 
-	of_property_read_u32(dev->of_node, "qcom,nsessions", &sessions);
+	of_property_read_u32(dev->of_analde, "qcom,nsessions", &sessions);
 
 	spin_lock_irqsave(&cctx->lock, flags);
 	if (cctx->sesscount >= FASTRPC_MAX_SESSIONS) {
 		dev_err(&pdev->dev, "too many sessions\n");
 		spin_unlock_irqrestore(&cctx->lock, flags);
-		return -ENOSPC;
+		return -EANALSPC;
 	}
 	sess = &cctx->session[cctx->sesscount++];
 	sess->used = false;
@@ -2160,8 +2160,8 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	sess->dev = dev;
 	dev_set_drvdata(dev, sess);
 
-	if (of_property_read_u32(dev->of_node, "reg", &sess->sid))
-		dev_info(dev, "FastRPC Session ID not specified in DT\n");
+	if (of_property_read_u32(dev->of_analde, "reg", &sess->sid))
+		dev_info(dev, "FastRPC Session ID analt specified in DT\n");
 
 	if (sessions > 0) {
 		struct fastrpc_session_ctx *dup_sess;
@@ -2225,16 +2225,16 @@ static int fastrpc_device_register(struct device *dev, struct fastrpc_channel_ct
 
 	fdev = devm_kzalloc(dev, sizeof(*fdev), GFP_KERNEL);
 	if (!fdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fdev->secure = is_secured;
 	fdev->cctx = cctx;
-	fdev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	fdev->miscdev.mianalr = MISC_DYNAMIC_MIANALR;
 	fdev->miscdev.fops = &fastrpc_fops;
 	fdev->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "fastrpc-%s%s",
 					    domain, is_secured ? "-secure" : "");
 	if (!fdev->miscdev.name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = misc_register(&fdev->miscdev);
 	if (!err) {
@@ -2256,9 +2256,9 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	bool secure_dsp;
 	unsigned int vmids[FASTRPC_MAX_VMIDS];
 
-	err = of_property_read_string(rdev->of_node, "label", &domain);
+	err = of_property_read_string(rdev->of_analde, "label", &domain);
 	if (err) {
-		dev_info(rdev, "FastRPC Domain not specified in DT\n");
+		dev_info(rdev, "FastRPC Domain analt specified in DT\n");
 		return err;
 	}
 
@@ -2274,10 +2274,10 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 		return -EINVAL;
 	}
 
-	if (of_reserved_mem_device_init_by_idx(rdev, rdev->of_node, 0))
-		dev_info(rdev, "no reserved DMA memory for FASTRPC\n");
+	if (of_reserved_mem_device_init_by_idx(rdev, rdev->of_analde, 0))
+		dev_info(rdev, "anal reserved DMA memory for FASTRPC\n");
 
-	vmcount = of_property_read_variable_u32_array(rdev->of_node,
+	vmcount = of_property_read_variable_u32_array(rdev->of_analde,
 				"qcom,vmids", &vmids[0], 0, FASTRPC_MAX_VMIDS);
 	if (vmcount < 0)
 		vmcount = 0;
@@ -2286,7 +2286,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (vmcount) {
 		data->vmcount = vmcount;
@@ -2297,7 +2297,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 		}
 	}
 
-	secure_dsp = !(of_property_read_bool(rdev->of_node, "qcom,non-secure-domain"));
+	secure_dsp = !(of_property_read_bool(rdev->of_analde, "qcom,analn-secure-domain"));
 	data->secure = secure_dsp;
 
 	switch (domain_id) {
@@ -2312,7 +2312,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 		break;
 	case CDSP_DOMAIN_ID:
 		data->unsigned_support = true;
-		/* Create both device nodes so that we can allow both Signed and Unsigned PD */
+		/* Create both device analdes so that we can allow both Signed and Unsigned PD */
 		err = fastrpc_device_register(rdev, data, true, domains[domain_id]);
 		if (err)
 			goto fdev_error;
@@ -2338,7 +2338,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	data->domain_id = domain_id;
 	data->rpdev = rpdev;
 
-	err = of_platform_populate(rdev->of_node, NULL, NULL, rdev);
+	err = of_platform_populate(rdev->of_analde, NULL, NULL, rdev);
 	if (err)
 		goto populate_error;
 
@@ -2355,12 +2355,12 @@ fdev_error:
 	return err;
 }
 
-static void fastrpc_notify_users(struct fastrpc_user *user)
+static void fastrpc_analtify_users(struct fastrpc_user *user)
 {
 	struct fastrpc_invoke_ctx *ctx;
 
 	spin_lock(&user->lock);
-	list_for_each_entry(ctx, &user->pending, node) {
+	list_for_each_entry(ctx, &user->pending, analde) {
 		ctx->retval = -EPIPE;
 		complete(&ctx->work);
 	}
@@ -2374,11 +2374,11 @@ static void fastrpc_rpmsg_remove(struct rpmsg_device *rpdev)
 	struct fastrpc_user *user;
 	unsigned long flags;
 
-	/* No invocations past this point */
+	/* Anal invocations past this point */
 	spin_lock_irqsave(&cctx->lock, flags);
 	cctx->rpdev = NULL;
 	list_for_each_entry(user, &cctx->users, user)
-		fastrpc_notify_users(user);
+		fastrpc_analtify_users(user);
 	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	if (cctx->fdevice)
@@ -2387,8 +2387,8 @@ static void fastrpc_rpmsg_remove(struct rpmsg_device *rpdev)
 	if (cctx->secure_fdevice)
 		misc_deregister(&cctx->secure_fdevice->miscdev);
 
-	list_for_each_entry_safe(buf, b, &cctx->invoke_interrupted_mmaps, node)
-		list_del(&buf->node);
+	list_for_each_entry_safe(buf, b, &cctx->invoke_interrupted_mmaps, analde)
+		list_del(&buf->analde);
 
 	if (cctx->remote_heap)
 		fastrpc_buf_free(cctx->remote_heap);
@@ -2417,15 +2417,15 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	if (!ctx) {
-		dev_err(&rpdev->dev, "No context ID matches response\n");
-		return -ENOENT;
+		dev_err(&rpdev->dev, "Anal context ID matches response\n");
+		return -EANALENT;
 	}
 
 	ctx->retval = rsp->retval;
 	complete(&ctx->work);
 
 	/*
-	 * The DMA buffer associated with the context cannot be freed in
+	 * The DMA buffer associated with the context cananalt be freed in
 	 * interrupt context so schedule it through a worker thread to
 	 * avoid a kernel BUG.
 	 */

@@ -12,7 +12,7 @@ Scope
 =====
 
 This document discusses the functionality of the rbu driver only.
-It does not cover the support needed from applications to enable the BIOS to
+It does analt cover the support needed from applications to enable the BIOS to
 update itself with the image downloaded in to the memory.
 
 Overview
@@ -20,7 +20,7 @@ Overview
 
 This driver works with Dell OpenManage or Dell Update Packages for updating
 the BIOS on Dell servers (starting from servers sold since 1999), desktops
-and notebooks (starting from those sold in 2005).
+and analtebooks (starting from those sold in 2005).
 
 Please go to  http://support.dell.com register and you can find info on
 OpenManage and Dell Update packages (DUP).
@@ -28,8 +28,8 @@ OpenManage and Dell Update packages (DUP).
 Libsmbios can also be used to update BIOS on Dell systems go to
 https://linux.dell.com/libsmbios/ for details.
 
-Dell_RBU driver supports BIOS update using the monolithic image and packetized
-image methods. In case of monolithic the driver allocates a contiguous chunk
+Dell_RBU driver supports BIOS update using the moanallithic image and packetized
+image methods. In case of moanallithic the driver allocates a contiguous chunk
 of physical pages having the BIOS image. In case of packetized the app
 using the driver breaks the image in to packets of fixed sizes and the driver
 would place each packet in contiguous physical memory. The driver also
@@ -40,7 +40,7 @@ If the dell_rbu driver is unloaded all the allocated memory is freed.
 The rbu driver needs to have an application (as mentioned above) which will
 inform the BIOS to enable the update in the next system reboot.
 
-The user should not unload the rbu driver after downloading the BIOS image
+The user should analt unload the rbu driver after downloading the BIOS image
 or updating.
 
 The driver load creates the following directories under the /sys file system::
@@ -51,15 +51,15 @@ The driver load creates the following directories under the /sys file system::
 	/sys/devices/platform/dell_rbu/data
 	/sys/devices/platform/dell_rbu/packet_size
 
-The driver supports two types of update mechanism; monolithic and packetized.
+The driver supports two types of update mechanism; moanallithic and packetized.
 These update mechanism depends upon the BIOS currently running on the system.
-Most of the Dell systems support a monolithic update where the BIOS image is
+Most of the Dell systems support a moanallithic update where the BIOS image is
 copied to a single contiguous block of physical memory.
 
 In case of packet mechanism the single memory can be broken in smaller chunks
 of contiguous memory and the BIOS image is scattered in these packets.
 
-By default the driver uses monolithic memory for the update type. This can be
+By default the driver uses moanallithic memory for the update type. This can be
 changed to packets during the driver load time by specifying the load
 parameter image_type=packet.  This can also be changed later as below::
 
@@ -73,7 +73,7 @@ be downloaded. It is done as below::
 In the packet update mechanism, the user needs to create a new file having
 packets of data arranged back to back. It can be done as follows:
 The user creates packets header, gets the chunk of the BIOS image and
-places it next to the packetheader; now, the packetheader + BIOS image chunk
+places it next to the packetheader; analw, the packetheader + BIOS image chunk
 added together should match the specified packet_size. This makes one
 packet, the user needs to create more such packets out of the entire BIOS
 image file and then arrange all these packets back to back in to one single
@@ -86,7 +86,7 @@ space.
 
 This method makes sure that all the packets get to the driver in a single operation.
 
-In monolithic update the user simply get the BIOS image (.hdr file) and copies
+In moanallithic update the user simply get the BIOS image (.hdr file) and copies
 to the data file as is without any change to the BIOS image itself.
 
 Do the steps below to download the BIOS image.
@@ -102,9 +102,9 @@ done.
 
 	echo -1 > /sys/class/firmware/dell_rbu/loading
 
-Until this step is completed the driver cannot be unloaded.
+Until this step is completed the driver cananalt be unloaded.
 
-Also echoing either mono, packet or init in to image_type will free up the
+Also echoing either moanal, packet or init in to image_type will free up the
 memory allocated by the driver.
 
 If a user by accident executes steps 1 and 3 above without executing step 2;
@@ -114,15 +114,15 @@ The entries can be recreated by doing the following::
 
 	echo init > /sys/devices/platform/dell_rbu/image_type
 
-.. note:: echoing init in image_type does not change its original value.
+.. analte:: echoing init in image_type does analt change its original value.
 
 Also the driver provides /sys/devices/platform/dell_rbu/data readonly file to
 read back the image downloaded.
 
-.. note::
+.. analte::
 
    After updating the BIOS image a user mode application needs to execute
    code which sends the BIOS update request to the BIOS. So on the next reboot
-   the BIOS knows about the new image downloaded and it updates itself.
+   the BIOS kanalws about the new image downloaded and it updates itself.
    Also don't unload the rbu driver if the image has to be updated.
 

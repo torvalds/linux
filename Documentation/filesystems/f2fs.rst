@@ -6,18 +6,18 @@ WHAT IS Flash-Friendly File System (F2FS)?
 
 NAND flash memory-based storage devices, such as SSD, eMMC, and SD cards, have
 been equipped on a variety systems ranging from mobile to server systems. Since
-they are known to have different characteristics from the conventional rotating
+they are kanalwn to have different characteristics from the conventional rotating
 disks, a file system, an upper layer to the storage device, should adapt to the
 changes from the sketch in the design level.
 
 F2FS is a file system exploiting NAND flash memory-based storage devices, which
 is based on Log-structured File System (LFS). The design has been focused on
-addressing the fundamental issues in LFS, which are snowball effect of wandering
+addressing the fundamental issues in LFS, which are sanalwball effect of wandering
 tree and high cleaning overhead.
 
 Since a NAND flash memory-based storage device shows different characteristic
 according to its internal geometry or flash memory management scheme, namely FTL,
-F2FS and its tools support various parameters not only for configuring on-disk
+F2FS and its tools support various parameters analt only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
 The following git tree provides the file system formatting tool (mkfs.f2fs),
@@ -53,7 +53,7 @@ Wandering Tree Problem
 In LFS, when a file data is updated and written to the end of log, its direct
 pointer block is updated due to the changed location. Then the indirect pointer
 block is also updated due to the direct pointer block update. In this manner,
-the upper index structures such as inode, inode map, and checkpoint block are
+the upper index structures such as ianalde, ianalde map, and checkpoint block are
 also updated recursively. This problem is called as wandering tree problem [1],
 and in order to enhance the performance, it should eliminate or relax the update
 propagation as much as possible.
@@ -90,8 +90,8 @@ Flash Awareness
 
 Wandering Tree Problem
 ----------------------
-- Use a term, “node”, that represents inodes as well as various pointer blocks
-- Introduce Node Address Table (NAT) containing the locations of all the “node”
+- Use a term, “analde”, that represents ianaldes as well as various pointer blocks
+- Introduce Analde Address Table (NAT) containing the locations of all the “analde”
   blocks; this will cut off the update propagation.
 
 Cleaning Overhead
@@ -111,7 +111,7 @@ background_gc=%s	 Turn on/off cleaning operations, namely garbage
 			 idle. If background_gc=on, it will turn on the garbage
 			 collection and if background_gc=off, garbage collection
 			 will be turned off. If background_gc=sync, it will turn
-			 on synchronous garbage collection running in background.
+			 on synchroanalus garbage collection running in background.
 			 Default value for this option is on. So garbage
 			 collection is on by default.
 gc_merge		 When background_gc is on, this option can be enabled to
@@ -119,57 +119,57 @@ gc_merge		 When background_gc is on, this option can be enabled to
 			 it can eliminate the sluggish issue caused by slow foreground
 			 GC operation when GC is triggered from a process with limited
 			 I/O and CPU resources.
-nogc_merge		 Disable GC merge feature.
+analgc_merge		 Disable GC merge feature.
 disable_roll_forward	 Disable the roll-forward recovery routine
-norecovery		 Disable the roll-forward recovery routine, mounted read-
+analrecovery		 Disable the roll-forward recovery routine, mounted read-
 			 only (i.e., -o ro,disable_roll_forward)
-discard/nodiscard	 Enable/disable real-time discard in f2fs, if discard is
+discard/analdiscard	 Enable/disable real-time discard in f2fs, if discard is
 			 enabled, f2fs will issue discard/TRIM commands when a
 			 segment is cleaned.
-no_heap			 Disable heap-style segment allocation which finds free
+anal_heap			 Disable heap-style segment allocation which finds free
 			 segments for data from the beginning of main area, while
-			 for node from the end of main area.
-nouser_xattr		 Disable Extended User Attributes. Note: xattr is enabled
+			 for analde from the end of main area.
+analuser_xattr		 Disable Extended User Attributes. Analte: xattr is enabled
 			 by default if CONFIG_F2FS_FS_XATTR is selected.
-noacl			 Disable POSIX Access Control List. Note: acl is enabled
+analacl			 Disable POSIX Access Control List. Analte: acl is enabled
 			 by default if CONFIG_F2FS_FS_POSIX_ACL is selected.
 active_logs=%u		 Support configuring the number of active logs. In the
 			 current design, f2fs supports only 2, 4, and 6 logs.
 			 Default number is 6.
 disable_ext_identify	 Disable the extension list configured by mkfs, so f2fs
-			 is not aware of cold files such as media files.
+			 is analt aware of cold files such as media files.
 inline_xattr		 Enable the inline xattrs feature.
-noinline_xattr		 Disable the inline xattrs feature.
+analinline_xattr		 Disable the inline xattrs feature.
 inline_xattr_size=%u	 Support configuring inline xattr size, it depends on
 			 flexible inline xattr feature.
 inline_data		 Enable the inline data feature: Newly created small (<~3.4k)
-			 files can be written into inode block.
+			 files can be written into ianalde block.
 inline_dentry		 Enable the inline dir feature: data in newly created
-			 directory entries can be written into inode block. The
-			 space of inode block which is used to store inline
+			 directory entries can be written into ianalde block. The
+			 space of ianalde block which is used to store inline
 			 dentries is limited to ~3.4k.
-noinline_dentry		 Disable the inline dentry feature.
+analinline_dentry		 Disable the inline dentry feature.
 flush_merge		 Merge concurrent cache_flush commands as much as possible
 			 to eliminate redundant command issues. If the underlying
 			 device handles the cache_flush command relatively slowly,
 			 recommend to enable this option.
-nobarrier		 This option can be used if underlying storage guarantees
-			 its cached data should be written to the novolatile area.
-			 If this option is set, no cache_flush commands are issued
+analbarrier		 This option can be used if underlying storage guarantees
+			 its cached data should be written to the analvolatile area.
+			 If this option is set, anal cache_flush commands are issued
 			 but f2fs still guarantees the write ordering of all the
 			 data writes.
 barrier			 If this option is set, cache_flush commands are allowed to be
 			 issued.
 fastboot		 This option is used when a system wants to reduce mount
-			 time as much as possible, even though normal performance
+			 time as much as possible, even though analrmal performance
 			 can be sacrificed.
 extent_cache		 Enable an extent cache based on rb-tree, it can cache
 			 as many as extent which map between contiguous logical
-			 address and physical address per inode, resulting in
+			 address and physical address per ianalde, resulting in
 			 increasing the cache hit ratio. Set by default.
-noextent_cache		 Disable an extent cache based on rb-tree explicitly, see
+analextent_cache		 Disable an extent cache based on rb-tree explicitly, see
 			 the above extent_cache mount option.
-noinline_data		 Disable the inline data feature, inline data feature is
+analinline_data		 Disable the inline data feature, inline data feature is
 			 enabled by default.
 data_flush		 Enable data flushing before checkpoint in order to
 			 persist data of regular and symlink.
@@ -196,7 +196,7 @@ fault_type=%d		 Support configuring fault injection type, should be
 			 FAULT_ORPHAN		  0x000000040
 			 FAULT_BLOCK		  0x000000080
 			 FAULT_DIR_DEPTH	  0x000000100
-			 FAULT_EVICT_INODE	  0x000000200
+			 FAULT_EVICT_IANALDE	  0x000000200
 			 FAULT_TRUNCATE		  0x000000400
 			 FAULT_READ_IO		  0x000000800
 			 FAULT_CHECKPOINT	  0x000001000
@@ -208,7 +208,7 @@ fault_type=%d		 Support configuring fault injection type, should be
 			 FAULT_BLKADDR		  0x000040000
 			 ===================	  ===========
 mode=%s			 Control block allocation mode which supports "adaptive"
-			 and "lfs". In "lfs" mode, there should be no random
+			 and "lfs". In "lfs" mode, there should be anal random
 			 writes towards main area.
 			 "fragment:segment" and "fragment:block" are newly added here.
 			 These are developer options for experiments to simulate filesystem
@@ -218,13 +218,13 @@ mode=%s			 Control block allocation mode which supports "adaptive"
 			 In "fragment:segment", f2fs allocates a new segment in ramdom
 			 position. With this, we can simulate the after-GC condition.
 			 In "fragment:block", we can scatter block allocation with
-			 "max_fragment_chunk" and "max_fragment_hole" sysfs nodes.
+			 "max_fragment_chunk" and "max_fragment_hole" sysfs analdes.
 			 We added some randomness to both chunk and hole size to make
 			 it close to realistic IO pattern. So, in this mode, f2fs will allocate
 			 1..<max_fragment_chunk> blocks in a chunk and make a hole in the
 			 length of 1..<max_fragment_hole> by turns. With this, the newly
 			 allocated blocks will be scattered throughout the whole partition.
-			 Note that "fragment:block" implicitly enables "fragment:segment"
+			 Analte that "fragment:block" implicitly enables "fragment:segment"
 			 option for more randomness.
 			 Please, use these options for your experiments and we strongly
 			 recommend to re-format the filesystem after using these options.
@@ -241,18 +241,18 @@ offusrjquota		 Turn off user journalled quota.
 offgrpjquota		 Turn off group journalled quota.
 offprjjquota		 Turn off project journalled quota.
 quota			 Enable plain user disk quota accounting.
-noquota			 Disable all plain disk quota option.
+analquota			 Disable all plain disk quota option.
 alloc_mode=%s		 Adjust block allocation policy, which supports "reuse"
 			 and "default".
 fsync_mode=%s		 Control the policy of fsync. Currently supports "posix",
-			 "strict", and "nobarrier". In "posix" mode, which is
+			 "strict", and "analbarrier". In "posix" mode, which is
 			 default, fsync will follow POSIX semantics and does a
 			 light operation to improve the filesystem performance.
 			 In "strict" mode, fsync will be heavy and behaves in line
 			 with xfs, ext4 and btrfs, where xfstest generic/342 will
-			 pass, but the performance will regress. "nobarrier" is
+			 pass, but the performance will regress. "analbarrier" is
 			 based on "posix", but doesn't issue flush command for
-			 non-atomic files likewise "nobarrier" mount option.
+			 analn-atomic files likewise "analbarrier" mount option.
 test_dummy_encryption
 test_dummy_encryption=%s
 			 Enable dummy encryption, which provides a fake fscrypt
@@ -285,10 +285,10 @@ checkpoint_merge	 When checkpoint is enabled, this can be used to create a kerne
 			 to "3", to give one higher priority than other kernel threads.
 			 This is the same way to give a I/O priority to the jbd2
 			 journaling thread of ext4 filesystem.
-nocheckpoint_merge	 Disable checkpoint merge feature.
+analcheckpoint_merge	 Disable checkpoint merge feature.
 compress_algorithm=%s	 Control compress algorithm, currently f2fs supports "lzo",
 			 "lz4", "zstd" and "lzo-rle" algorithm.
-compress_algorithm=%s:%d Control compress algorithm and its compress level, now, only
+compress_algorithm=%s:%d Control compress algorithm and its compress level, analw, only
 			 "lz4" and "zstd" support compress level config.
 			 algorithm	level range
 			 lz4		3 - 16
@@ -301,18 +301,18 @@ compress_extension=%s	 Support adding specified extension, so that f2fs can enab
 			 on compression extension list and enable compression on
 			 these file by default rather than to enable it via ioctl.
 			 For other files, we can still enable compression via ioctl.
-			 Note that, there is one reserved special extension '*', it
+			 Analte that, there is one reserved special extension '*', it
 			 can be set to enable compression for all files.
-nocompress_extension=%s	 Support adding specified extension, so that f2fs can disable
+analcompress_extension=%s	 Support adding specified extension, so that f2fs can disable
 			 compression on those corresponding files, just contrary to compression extension.
-			 If you know exactly which files cannot be compressed, you can use this.
-			 The same extension name can't appear in both compress and nocompress
+			 If you kanalw exactly which files cananalt be compressed, you can use this.
+			 The same extension name can't appear in both compress and analcompress
 			 extension at the same time.
 			 If the compress extension specifies all files, the types specified by the
-			 nocompress extension will be treated as special cases and will not be compressed.
-			 Don't allow use '*' to specifie all file in nocompress extension.
-			 After add nocompress_extension, the priority should be:
-			 dir_flag < comp_extention,nocompress_extension < comp_file_flag,no_comp_file_flag.
+			 analcompress extension will be treated as special cases and will analt be compressed.
+			 Don't allow use '*' to specifie all file in analcompress extension.
+			 After add analcompress_extension, the priority should be:
+			 dir_flag < comp_extention,analcompress_extension < comp_file_flag,anal_comp_file_flag.
 			 See more in compression sections.
 
 compress_chksum		 Support verifying chksum of raw data in compressed cluster.
@@ -323,7 +323,7 @@ compress_mode=%s	 Control file compression mode. This supports "fs" and "user"
 			 choosing the target file and the timing. The user can do manual
 			 compression/decompression on the compression enabled files using
 			 ioctls.
-compress_cache		 Support to use address space of a filesystem managed inode to
+compress_cache		 Support to use address space of a filesystem managed ianalde to
 			 cache compressed block, in order to improve cache hit ratio of
 			 random read.
 inlinecrypt		 When possible, encrypt/decrypt the contents of encrypted
@@ -342,13 +342,13 @@ discard_unit=%s		 Control discard unit, the argument can be "block", "segment"
 			 default, it is helpful for large sized SMR or ZNS devices to
 			 reduce memory cost by getting rid of fs metadata supports small
 			 discard.
-memory=%s		 Control memory mode. This supports "normal" and "low" modes.
+memory=%s		 Control memory mode. This supports "analrmal" and "low" modes.
 			 "low" mode is introduced to support low memory devices.
 			 Because of the nature of low memory devices, in this mode, f2fs
 			 will try to save memory sometimes by sacrificing performance.
-			 "normal" mode is the default mode and same as before.
+			 "analrmal" mode is the default mode and same as before.
 age_extent_cache	 Enable an age extent cache based on rb-tree. It records
-			 data block update frequency of the extent per inode, in
+			 data block update frequency of the extent per ianalde, in
 			 order to provide better temperature hints for data block
 			 allocation.
 errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
@@ -359,12 +359,12 @@ errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
 			 ====================== =============== =============== ========
 			 mode			continue	remount-ro	panic
 			 ====================== =============== =============== ========
-			 access ops		normal		normal		N/A
+			 access ops		analrmal		analrmal		N/A
 			 syscall errors		-EIO		-EROFS		N/A
 			 mount option		rw		ro		N/A
 			 pending dir write	keep		keep		N/A
-			 pending non-dir write	drop		keep		N/A
-			 pending node write	drop		keep		N/A
+			 pending analn-dir write	drop		keep		N/A
+			 pending analde write	drop		keep		N/A
 			 pending meta write	keep		keep		N/A
 			 ====================== =============== =============== ========
 ======================== ============================================================
@@ -433,64 +433,64 @@ The quick options consist of:
 
                    1 is set by default.
 ``-e [str]``       Set basic extension list. e.g. "mp3,gif,mov"
-``-t [0 or 1]``    Disable discard command or not.
+``-t [0 or 1]``    Disable discard command or analt.
 
                    1 is set by default, which conducts discard.
 ===============    ===========================================================
 
-Note: please refer to the manpage of mkfs.f2fs(8) to get full option list.
+Analte: please refer to the manpage of mkfs.f2fs(8) to get full option list.
 
 fsck.f2fs
 ---------
 The fsck.f2fs is a tool to check the consistency of an f2fs-formatted
 partition, which examines whether the filesystem metadata and user-made data
-are cross-referenced correctly or not.
-Note that, initial version of the tool does not fix any inconsistency.
+are cross-referenced correctly or analt.
+Analte that, initial version of the tool does analt fix any inconsistency.
 
 The quick options consist of::
 
   -d debug level [default:0]
 
-Note: please refer to the manpage of fsck.f2fs(8) to get full option list.
+Analte: please refer to the manpage of fsck.f2fs(8) to get full option list.
 
 dump.f2fs
 ---------
-The dump.f2fs shows the information of specific inode and dumps SSA and SIT to
+The dump.f2fs shows the information of specific ianalde and dumps SSA and SIT to
 file. Each file is dump_ssa and dump_sit.
 
 The dump.f2fs is used to debug on-disk data structures of the f2fs filesystem.
-It shows on-disk inode information recognized by a given inode number, and is
+It shows on-disk ianalde information recognized by a given ianalde number, and is
 able to dump all the SSA and SIT entries into predefined files, ./dump_ssa and
 ./dump_sit respectively.
 
 The options consist of::
 
   -d debug level [default:0]
-  -i inode no (hex)
-  -s [SIT dump segno from #1~#2 (decimal), for all 0~-1]
-  -a [SSA dump segno from #1~#2 (decimal), for all 0~-1]
+  -i ianalde anal (hex)
+  -s [SIT dump seganal from #1~#2 (decimal), for all 0~-1]
+  -a [SSA dump seganal from #1~#2 (decimal), for all 0~-1]
 
 Examples::
 
-    # dump.f2fs -i [ino] /dev/sdx
+    # dump.f2fs -i [ianal] /dev/sdx
     # dump.f2fs -s 0~-1 /dev/sdx (SIT dump)
     # dump.f2fs -a 0~-1 /dev/sdx (SSA dump)
 
-Note: please refer to the manpage of dump.f2fs(8) to get full option list.
+Analte: please refer to the manpage of dump.f2fs(8) to get full option list.
 
 sload.f2fs
 ----------
 The sload.f2fs gives a way to insert files and directories in the existing disk
 image. This tool is useful when building f2fs images given compiled files.
 
-Note: please refer to the manpage of sload.f2fs(8) to get full option list.
+Analte: please refer to the manpage of sload.f2fs(8) to get full option list.
 
 resize.f2fs
 -----------
 The resize.f2fs lets a user resize the f2fs-formatted disk image, while preserving
 all the files and directories stored in the image.
 
-Note: please refer to the manpage of resize.f2fs(8) to get full option list.
+Analte: please refer to the manpage of resize.f2fs(8) to get full option list.
 
 defrag.f2fs
 -----------
@@ -498,14 +498,14 @@ The defrag.f2fs can be used to defragment scattered written data as well as
 filesystem metadata across the disk. This can improve the write speed by giving
 more free consecutive space.
 
-Note: please refer to the manpage of defrag.f2fs(8) to get full option list.
+Analte: please refer to the manpage of defrag.f2fs(8) to get full option list.
 
 f2fs_io
 -------
 The f2fs_io is a simple tool to issue various filesystem APIs as well as
 f2fs-specific ones, which is very useful for QA tests.
 
-Note: please refer to the manpage of f2fs_io(8) to get full option list.
+Analte: please refer to the manpage of f2fs_io(8) to get full option list.
 
 Design
 ======
@@ -524,7 +524,7 @@ consist of multiple segments as described below::
                                             align with the zone size <-|
                  |-> align with the segment size
      _________________________________________________________________________
-    |            |            |   Segment   |    Node     |   Segment  |      |
+    |            |            |   Segment   |    Analde     |   Segment  |      |
     | Superblock | Checkpoint |    Info.    |   Address   |   Summary  | Main |
     |    (SB)    |   (CP)     | Table (SIT) | Table (NAT) | Area (SSA) |      |
     |____________|_____2______|______N______|______N______|______N_____|__N___|
@@ -547,19 +547,19 @@ consist of multiple segments as described below::
 
 - Checkpoint (CP)
    It contains file system information, bitmaps for valid NAT/SIT sets, orphan
-   inode lists, and summary entries of current active segments.
+   ianalde lists, and summary entries of current active segments.
 
 - Segment Information Table (SIT)
    It contains segment information such as valid block count and bitmap for the
    validity of all the blocks.
 
-- Node Address Table (NAT)
-   It is composed of a block address table for all the node blocks stored in
+- Analde Address Table (NAT)
+   It is composed of a block address table for all the analde blocks stored in
    Main area.
 
 - Segment Summary Area (SSA)
    It contains summary entries which contains the owner information of all the
-   data and node blocks stored in Main area.
+   data and analde blocks stored in Main area.
 
 - Main Area
    It contains file and directory data including their indices.
@@ -600,31 +600,31 @@ valid, as shown as below::
 Index Structure
 ---------------
 
-The key data structure to manage the data locations is a "node". Similar to
-traditional file structures, F2FS has three types of node: inode, direct node,
-indirect node. F2FS assigns 4KB to an inode block which contains 923 data block
-indices, two direct node pointers, two indirect node pointers, and one double
-indirect node pointer as described below. One direct node block contains 1018
-data blocks, and one indirect node block contains also 1018 node blocks. Thus,
-one inode block (i.e., a file) covers::
+The key data structure to manage the data locations is a "analde". Similar to
+traditional file structures, F2FS has three types of analde: ianalde, direct analde,
+indirect analde. F2FS assigns 4KB to an ianalde block which contains 923 data block
+indices, two direct analde pointers, two indirect analde pointers, and one double
+indirect analde pointer as described below. One direct analde block contains 1018
+data blocks, and one indirect analde block contains also 1018 analde blocks. Thus,
+one ianalde block (i.e., a file) covers::
 
   4KB * (923 + 2 * 1018 + 2 * 1018 * 1018 + 1018 * 1018 * 1018) := 3.94TB.
 
-   Inode block (4KB)
+   Ianalde block (4KB)
      |- data (923)
-     |- direct node (2)
+     |- direct analde (2)
      |          `- data (1018)
-     |- indirect node (2)
-     |            `- direct node (1018)
+     |- indirect analde (2)
+     |            `- direct analde (1018)
      |                       `- data (1018)
-     `- double indirect node (1)
-                         `- indirect node (1018)
-			              `- direct node (1018)
+     `- double indirect analde (1)
+                         `- indirect analde (1018)
+			              `- direct analde (1018)
 	                                         `- data (1018)
 
-Note that all the node blocks are mapped by NAT which means the location of
-each node is translated by the NAT table. In the consideration of the wandering
-tree problem, F2FS is able to cut off the propagation of node updates caused by
+Analte that all the analde blocks are mapped by NAT which means the location of
+each analde is translated by the NAT table. In the consideration of the wandering
+tree problem, F2FS is able to cut off the propagation of analde updates caused by
 leaf data writes.
 
 Directory Structure
@@ -633,12 +633,12 @@ Directory Structure
 A directory entry occupies 11 bytes, which consists of the following attributes.
 
 - hash		hash value of the file name
-- ino		inode number
+- ianal		ianalde number
 - len		the length of file name
 - type		file type such as directory, symlink, etc
 
 A dentry block consists of 214 dentry slots and file names. Therein a bitmap is
-used to represent whether each dentry is valid or not. A dentry block occupies
+used to represent whether each dentry is valid or analt. A dentry block occupies
 4KB with the following composition.
 
 ::
@@ -660,12 +660,12 @@ used to represent whether each dentry is valid or not. A dentry block occupies
 		 .               .
             .                          .
             +------+------+-----+------+
-            | hash | ino  | len | type |
+            | hash | ianal  | len | type |
             +------+------+-----+------+
             [Dentry Structure: 11 bytes]
 
 F2FS implements multi-level hash tables for directory structure. Each level has
-a hash table with dedicated number of hash buckets as shown below. Note that
+a hash table with dedicated number of hash buckets as shown below. Analte that
 "A(2B)" means a bucket includes 2 data blocks.
 
 ::
@@ -700,7 +700,7 @@ The number of blocks and buckets are determined by::
 
 When F2FS finds a file name in a directory, at first a hash value of the file
 name is calculated. Then, F2FS scans the hash table in level #0 to find the
-dentry consisting of the file name and its inode number. If not found, F2FS
+dentry consisting of the file name and its ianalde number. If analt found, F2FS
 scans the next hash table in level #1. In this way, F2FS scans hash tables in
 each levels incrementally from 1 to N. In each level F2FS needs to scan only
 one bucket determined by the following equation, which shows O(log(# of files))
@@ -729,22 +729,22 @@ The following figure shows an example of two cases holding children::
 Default Block Allocation
 ------------------------
 
-At runtime, F2FS manages six active logs inside "Main" area: Hot/Warm/Cold node
+At runtime, F2FS manages six active logs inside "Main" area: Hot/Warm/Cold analde
 and Hot/Warm/Cold data.
 
-- Hot node	contains direct node blocks of directories.
-- Warm node	contains direct node blocks except hot node blocks.
-- Cold node	contains indirect node blocks
+- Hot analde	contains direct analde blocks of directories.
+- Warm analde	contains direct analde blocks except hot analde blocks.
+- Cold analde	contains indirect analde blocks
 - Hot data	contains dentry blocks
 - Warm data	contains data blocks except hot and cold data blocks
 - Cold data	contains multimedia data or migrated data blocks
 
 LFS has two schemes for free space management: threaded log and copy-and-compac-
-tion. The copy-and-compaction scheme which is known as cleaning, is well-suited
+tion. The copy-and-compaction scheme which is kanalwn as cleaning, is well-suited
 for devices showing very good sequential write performance, since free segments
 are served all the time for writing new data. However, it suffers from cleaning
 overhead under high utilization. Contrarily, the threaded log scheme suffers
-from random writes, but no cleaning process is needed. F2FS adopts a hybrid
+from random writes, but anal cleaning process is needed. F2FS adopts a hybrid
 scheme where the copy-and-compaction scheme is adopted by default, but the
 policy is dynamically changed to the threaded log scheme according to the file
 system status.
@@ -760,7 +760,7 @@ Cleaning process
 ----------------
 
 F2FS does cleaning both on demand and in the background. On-demand cleaning is
-triggered when there are not enough free segments to serve VFS calls. Background
+triggered when there are analt eanalugh free segments to serve VFS calls. Background
 cleaner is operated by a kernel thread, and triggers the cleaning job when the
 system is idle.
 
@@ -772,7 +772,7 @@ log block thrashing problem in the greedy algorithm. F2FS adopts the greedy
 algorithm for on-demand cleaner, while background cleaner adopts cost-benefit
 algorithm.
 
-In order to identify whether the data in the victim segment are valid or not,
+In order to identify whether the data in the victim segment are valid or analt,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
 
@@ -786,7 +786,7 @@ Allocating disk space
     the disk space within the range specified by offset and len.  The
     file size (as reported by stat(2)) will be changed if offset+len is
     greater than the file size.  Any subregion within the range specified
-    by offset and len that did not contain data before the call will be
+    by offset and len that did analt contain data before the call will be
     initialized to zero.  This default behavior closely resembles the
     behavior of the posix_fallocate(3) library function, and is intended
     as a method of optimally implementing that function.
@@ -808,10 +808,10 @@ Compression implementation
 - New term named cluster is defined as basic unit of compression, file can
   be divided into multiple clusters logically. One cluster includes 4 << n
   (n >= 0) logical pages, compression size is also cluster size, each of
-  cluster can be compressed or not.
+  cluster can be compressed or analt.
 
 - In cluster metadata layout, one special block address is used to indicate
-  a cluster is a compressed one or normal one; for compressed cluster, following
+  a cluster is a compressed one or analrmal one; for compressed cluster, following
   metadata maps cluster to [1, 4 << n - 1] physical blocks, in where f2fs
   stores data including compress header and compressed data.
 
@@ -820,27 +820,27 @@ Compression implementation
   all logical blocks in cluster contain valid data and compress ratio of
   cluster data is lower than specified threshold.
 
-- To enable compression on regular inode, there are four ways:
+- To enable compression on regular ianalde, there are four ways:
 
   * chattr +c file
   * chattr +c dir; touch dir/file
   * mount w/ -o compress_extension=ext; touch file.ext
   * mount w/ -o compress_extension=*; touch any_file
 
-- To disable compression on regular inode, there are two ways:
+- To disable compression on regular ianalde, there are two ways:
 
   * chattr -c file
-  * mount w/ -o nocompress_extension=ext; touch file.ext
+  * mount w/ -o analcompress_extension=ext; touch file.ext
 
-- Priority in between FS_COMPR_FL, FS_NOCOMP_FS, extensions:
+- Priority in between FS_COMPR_FL, FS_ANALCOMP_FS, extensions:
 
-  * compress_extension=so; nocompress_extension=zip; chattr +c dir; touch
+  * compress_extension=so; analcompress_extension=zip; chattr +c dir; touch
     dir/foo.so; touch dir/bar.zip; touch dir/baz.txt; then foo.so and baz.txt
-    should be compresse, bar.zip should be non-compressed. chattr +c dir/bar.zip
+    should be compresse, bar.zip should be analn-compressed. chattr +c dir/bar.zip
     can enable compress on bar.zip.
-  * compress_extension=so; nocompress_extension=zip; chattr -c dir; touch
+  * compress_extension=so; analcompress_extension=zip; chattr -c dir; touch
     dir/foo.so; touch dir/bar.zip; touch dir/baz.txt; then foo.so should be
-    compresse, bar.zip and baz.txt should be non-compressed.
+    compresse, bar.zip and baz.txt should be analn-compressed.
     chattr+c dir/bar.zip; chattr+c dir/baz.txt; can enable compress on bar.zip
     and baz.txt.
 
@@ -850,20 +850,20 @@ Compression implementation
   possible, resulting in extending disk life time as well as relaxing IO
   congestion. Alternatively, we've added ioctl(F2FS_IOC_RELEASE_COMPRESS_BLOCKS)
   interface to reclaim compressed space and show it to user after setting a
-  special flag to the inode. Once the compressed space is released, the flag
+  special flag to the ianalde. Once the compressed space is released, the flag
   will block writing data to the file until either the compressed space is
   reserved via ioctl(F2FS_IOC_RESERVE_COMPRESS_BLOCKS) or the file size is
   truncated to zero.
 
 Compress metadata layout::
 
-				[Dnode Structure]
+				[Danalde Structure]
 		+-----------------------------------------------+
 		| cluster 1 | cluster 2 | ......... | cluster N |
 		+-----------------------------------------------+
 		.           .                       .           .
 	  .                      .                .                      .
-    .         Compressed Cluster       .        .        Normal Cluster            .
+    .         Compressed Cluster       .        .        Analrmal Cluster            .
     +----------+---------+---------+---------+  +---------+---------+---------+---------+
     |compr flag| block 1 | block 2 | block 3 |  | block 1 | block 2 | block 3 | block 4 |
     +----------+---------+---------+---------+  +---------+---------+---------+---------+
@@ -880,7 +880,7 @@ Compression mode
 f2fs supports "fs" and "user" compression modes with "compression_mode" mount option.
 With this option, f2fs provides a choice to select the way how to compress the
 compression enabled files (refer to "Compression implementation" section for how to
-enable compression on a regular inode).
+enable compression on a regular ianalde).
 
 1) compress_mode=fs
 This is the default option. f2fs does automatic compression in the writeback of the
@@ -908,11 +908,11 @@ NVMe Zoned Namespace devices
 - ZNS defines a per-zone capacity which can be equal or less than the
   zone-size. Zone-capacity is the number of usable blocks in the zone.
   F2FS checks if zone-capacity is less than zone-size, if it is, then any
-  segment which starts after the zone-capacity is marked as not-free in
+  segment which starts after the zone-capacity is marked as analt-free in
   the free segment bitmap at initial mount time. These segments are marked
-  as permanently used so they are not allocated for writes and
-  consequently are not needed to be garbage collected. In case the
-  zone-capacity is not aligned to default segment size(2MB), then a segment
+  as permanently used so they are analt allocated for writes and
+  consequently are analt needed to be garbage collected. In case the
+  zone-capacity is analt aligned to default segment size(2MB), then a segment
   can start before the zone-capacity and span across zone-capacity boundary.
   Such spanning segments are also considered as usable segments. All blocks
   past the zone-capacity are considered unusable in these segments.

@@ -11,9 +11,9 @@ maintainers:
 
 description: |+
   Bindings for eMMC PHY on Intel's Lightning Mountain SoC, syscon
-  node is used to reference the base address of eMMC phy registers.
+  analde is used to reference the base address of eMMC phy registers.
 
-  The eMMC PHY node should be the child of a syscon node with the
+  The eMMC PHY analde should be the child of a syscon analde with the
   required property:
 
   - compatible:         Should be one of the following:

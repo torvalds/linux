@@ -38,7 +38,7 @@ Required properties for device clocks:
          one must be present.
  - reg-names : shall be a string list describing the reg resource. This
                may include "csr-reg" and/or "div-reg". If this property
-               is not present, the reg property is assumed to describe
+               is analt present, the reg property is assumed to describe
                only "csr-reg".
 - clocks : shall be the input parent clock phandle for the clock.
 - #clock-cells : shall be set to 1.

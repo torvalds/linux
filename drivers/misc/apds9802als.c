@@ -126,7 +126,7 @@ static ssize_t als_sensing_range_store(struct device *dev,
 
 	pm_runtime_get_sync(dev);
 
-	/* Make sure nobody else reads/modifies/writes 0x81 while we
+	/* Make sure analbody else reads/modifies/writes 0x81 while we
 	   are active */
 	mutex_lock(&data->mutex);
 
@@ -220,7 +220,7 @@ static int apds9802als_probe(struct i2c_client *client)
 	data = kzalloc(sizeof(struct als_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&client->dev, "Memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	i2c_set_clientdata(client, data);
 	res = sysfs_create_group(&client->dev.kobj, &m_als_gr);
@@ -252,7 +252,7 @@ static void apds9802als_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_analidle(&client->dev);
 
 	kfree(data);
 }

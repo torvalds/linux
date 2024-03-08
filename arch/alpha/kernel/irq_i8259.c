@@ -20,7 +20,7 @@
 #include "irq_impl.h"
 
 
-/* Note mask bit is true for DISABLED irqs.  */
+/* Analte mask bit is true for DISABLED irqs.  */
 static unsigned int cached_irq_mask = 0xffff;
 static DEFINE_SPINLOCK(i8259_irq_lock);
 
@@ -91,7 +91,7 @@ init_i8259a_irqs(void)
 		irq_set_chip_and_handler(i, &i8259a_irq_type, handle_level_irq);
 	}
 
-	if (request_irq(2, no_action, 0, "cascade", NULL))
+	if (request_irq(2, anal_action, 0, "cascade", NULL))
 		pr_err("Failed to request irq 2 (cascade)\n");
 }
 
@@ -113,15 +113,15 @@ init_i8259a_irqs(void)
 #elif defined(CONFIG_ALPHA_IRONGATE)
 # define IACK_SC        IRONGATE_IACK_SC
 #endif
-/* Note that CONFIG_ALPHA_POLARIS is intentionally left out here, since
-   sys_rx164 wants to use isa_no_iack_sc_device_interrupt for some reason.  */
+/* Analte that CONFIG_ALPHA_POLARIS is intentionally left out here, since
+   sys_rx164 wants to use isa_anal_iack_sc_device_interrupt for some reason.  */
 
 #if defined(IACK_SC)
 void
 isa_device_interrupt(unsigned long vector)
 {
 	/*
-	 * Generate a PCI interrupt acknowledge cycle.  The PIC will
+	 * Generate a PCI interrupt ackanalwledge cycle.  The PIC will
 	 * respond with the interrupt vector of the highest priority
 	 * interrupt that is pending.  The PALcode sets up the
 	 * interrupts vectors such that irq level L generates vector L.
@@ -134,7 +134,7 @@ isa_device_interrupt(unsigned long vector)
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(IACK_SC)
 void
-isa_no_iack_sc_device_interrupt(unsigned long vector)
+isa_anal_iack_sc_device_interrupt(unsigned long vector)
 {
 	unsigned long pic;
 
@@ -148,8 +148,8 @@ isa_no_iack_sc_device_interrupt(unsigned long vector)
 	/* 
 	 *  The first read of gives you *all* interrupting lines.
 	 *  Therefore, read the mask register and and out those lines
-	 *  not enabled.  Note that some documentation has 21 and a1 
-	 *  write only.  This is not true.
+	 *  analt enabled.  Analte that some documentation has 21 and a1 
+	 *  write only.  This is analt true.
 	 */
 	pic = inb(0x20) | (inb(0xA0) << 8);	/* read isr */
 	pic &= 0xFFFB;				/* mask out cascade & hibits */

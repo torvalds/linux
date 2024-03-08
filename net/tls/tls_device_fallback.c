@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Mellanox Technologies All rights reserved.
+/* Copyright (c) 2018, Mellaanalx Techanallogies All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -11,18 +11,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -99,7 +99,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 		 * trim len accordingly. The resulting authentication tag
 		 * will contain garbage, but we don't care, so we won't
 		 * include any of it in the output skb
-		 * Note that we assume the output buffer length
+		 * Analte that we assume the output buffer length
 		 * is larger then input buffer length + tag size
 		 */
 		if (*in_len < 0)
@@ -263,7 +263,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 		 * to drop the packet and avoid retransmission.
 		 *
 		 * There is a corner case where the packet contains
-		 * both an acked and a non-acked record.
+		 * both an acked and a analn-acked record.
 		 * We currently don't handle that case and rely
 		 * on TCP to retransmit a packet that doesn't contain
 		 * already acked payload.

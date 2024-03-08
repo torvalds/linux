@@ -45,7 +45,7 @@ int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
 		ofs = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
 				       &frag_off);
 		if (ofs < 0 || (frag_off & htons(~0x7)) != 0) {
-			pr_debug("proto header not found\n");
+			pr_debug("proto header analt found\n");
 			return NF_ACCEPT;
 		}
 		protoff = ofs;
@@ -53,7 +53,7 @@ int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
 		break;
 	}
 	default:
-		WARN_ONCE(1, "helper invoked on non-IP family!");
+		WARN_ONCE(1, "helper invoked on analn-IP family!");
 		return NF_DROP;
 	}
 
@@ -89,7 +89,7 @@ int nf_ct_add_helper(struct nf_conn *ct, const char *name, u8 family,
 	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 	if (!help) {
 		nf_conntrack_helper_put(helper);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 #if IS_ENABLED(CONFIG_NF_NAT)
 	if (nat) {
@@ -138,7 +138,7 @@ int nf_ct_skb_network_trim(struct sk_buff *skb, int family)
 }
 EXPORT_SYMBOL_GPL(nf_ct_skb_network_trim);
 
-/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
+/* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other analnzero
  * value if 'skb' is freed.
  */
 int nf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
@@ -174,11 +174,11 @@ int nf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 #endif
 	} else {
 		kfree_skb(skb);
-		return -EPFNOSUPPORT;
+		return -EPFANALSUPPORT;
 	}
 
 	skb_clear_hash(skb);
-	skb->ignore_df = 1;
+	skb->iganalre_df = 1;
 
 	return 0;
 }

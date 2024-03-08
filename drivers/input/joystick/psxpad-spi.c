@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2017 Tomohiro Yoshidomi <sylph23k@gmail.com>
  *
- * PlayStation 1/2 joypad's plug (not socket)
+ * PlayStation 1/2 joypad's plug (analt socket)
  *  123 456 789
  * (...|...|...)
  *
  * 1: DAT -> MISO (pullup with 1k owm to 3.3V)
  * 2: CMD -> MOSI
- * 3: 9V (for motor, if not use N.C.)
+ * 3: 9V (for motor, if analt use N.C.)
  * 4: GND
  * 5: 3.3V
  * 6: Attention -> CS(SS)
@@ -290,12 +290,12 @@ static int psxpad_spi_probe(struct spi_device *spi)
 
 	pad = devm_kzalloc(&spi->dev, sizeof(struct psxpad), GFP_KERNEL);
 	if (!pad)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(&spi->dev);
 	if (!idev) {
 		dev_err(&spi->dev, "failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* input poll device settings */

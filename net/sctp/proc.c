@@ -29,10 +29,10 @@ static const struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpChecksumErrors", SCTP_MIB_CHECKSUMERRORS),
 	SNMP_MIB_ITEM("SctpOutCtrlChunks", SCTP_MIB_OUTCTRLCHUNKS),
 	SNMP_MIB_ITEM("SctpOutOrderChunks", SCTP_MIB_OUTORDERCHUNKS),
-	SNMP_MIB_ITEM("SctpOutUnorderChunks", SCTP_MIB_OUTUNORDERCHUNKS),
+	SNMP_MIB_ITEM("SctpOutUanalrderChunks", SCTP_MIB_OUTUANALRDERCHUNKS),
 	SNMP_MIB_ITEM("SctpInCtrlChunks", SCTP_MIB_INCTRLCHUNKS),
-	SNMP_MIB_ITEM("SctpInOrderChunks", SCTP_MIB_INORDERCHUNKS),
-	SNMP_MIB_ITEM("SctpInUnorderChunks", SCTP_MIB_INUNORDERCHUNKS),
+	SNMP_MIB_ITEM("SctpInOrderChunks", SCTP_MIB_IANALRDERCHUNKS),
+	SNMP_MIB_ITEM("SctpInUanalrderChunks", SCTP_MIB_INUANALRDERCHUNKS),
 	SNMP_MIB_ITEM("SctpFragUsrMsgs", SCTP_MIB_FRAGUSRMSGS),
 	SNMP_MIB_ITEM("SctpReasmUsrMsgs", SCTP_MIB_REASMUSRMSGS),
 	SNMP_MIB_ITEM("SctpOutSCTPPacks", SCTP_MIB_OUTSCTPPACKS),
@@ -138,7 +138,7 @@ static void *sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 		*pos = 0;
 
 	if (*pos == 0)
-		seq_printf(seq, " ENDPT     SOCK   STY SST HBKT LPORT   UID INODE LADDRS\n");
+		seq_printf(seq, " ENDPT     SOCK   STY SST HBKT LPORT   UID IANALDE LADDRS\n");
 
 	return (void *)pos;
 }
@@ -166,7 +166,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	int    hash = *(loff_t *)v;
 
 	if (hash >= sctp_ep_hashsize)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	head = &sctp_ep_hashtable[hash];
 	read_lock_bh(&head->lock);
@@ -178,7 +178,7 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   ep->base.bind_addr.port,
 			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-			   sock_i_ino(sk));
+			   sock_i_ianal(sk));
 
 		sctp_seq_dump_local_addrs(seq, &ep->base);
 		seq_printf(seq, "\n");
@@ -247,7 +247,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT "
-				"ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
+				"ASSOC-ID TX_QUEUE RX_QUEUE UID IANALDE LPORT "
 				"RPORT LADDRS <-> RADDRS "
 				"HBINT INS OUTS MAXRT T1X T2X RTXC "
 				"wmema wmemq sndbuf rcvbuf\n");
@@ -268,7 +268,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		   assoc->sndbuf_used,
 		   atomic_read(&assoc->rmem_alloc),
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
-		   sock_i_ino(sk),
+		   sock_i_ianal(sk),
 		   epb->bind_addr.port,
 		   assoc->peer.port);
 	seq_printf(seq, " ");
@@ -325,7 +325,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 		/*
 		 * If the Heartbeat is active (HB_ACT)
-		 * Note: 1 = Active, 0 = Inactive
+		 * Analte: 1 = Active, 0 = Inactive
 		 */
 		seq_printf(seq, "%d ", timer_pending(&tsp->hb_timer));
 
@@ -341,13 +341,13 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 		/*
 		 * remote address retransmit count (REM_ADDR_RTX)
-		 * Note: We don't have a way to tally this at the moment
+		 * Analte: We don't have a way to tally this at the moment
 		 * so lets just leave it as zero for the moment
 		 */
 		seq_puts(seq, "0 ");
 
 		/*
-		 * remote address start time (START).  This is also not
+		 * remote address start time (START).  This is also analt
 		 * currently implemented, but we can record it with a
 		 * jiffies marker in a subsequent patch
 		 */
@@ -377,7 +377,7 @@ int __net_init sctp_proc_init(struct net *net)
 {
 	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
 	if (!net->sctp.proc_net_sctp)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!proc_create_net_single("snmp", 0444, net->sctp.proc_net_sctp,
 			 sctp_snmp_seq_show, NULL))
 		goto cleanup;
@@ -395,5 +395,5 @@ int __net_init sctp_proc_init(struct net *net)
 cleanup:
 	remove_proc_subtree("sctp", net->proc_net);
 	net->sctp.proc_net_sctp = NULL;
-	return -ENOMEM;
+	return -EANALMEM;
 }

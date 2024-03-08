@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2013 Imagination Technologies
+ * Copyright (C) 2013 Imagination Techanallogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -24,7 +24,7 @@
 
 .extern mips_cm_base
 
-.set noreorder
+.set analreorder
 
 #ifdef CONFIG_64BIT
 # define STATUS_BITDEPS		ST0_KX
@@ -37,7 +37,7 @@
 #define DUMP_EXCEP(name)		\
 	PTR_LA	a0, 8f;			\
 	jal	mips_cps_bev_dump;	\
-	 nop;				\
+	 analp;				\
 	TEXT(name)
 
 #else /* !CONFIG_MIPS_CPS_NS16550 */
@@ -47,38 +47,38 @@
 #endif /* !CONFIG_MIPS_CPS_NS16550 */
 
 	/*
-	 * Set dest to non-zero if the core supports the MT ASE, else zero. If
-	 * MT is not supported then branch to nomt.
+	 * Set dest to analn-zero if the core supports the MT ASE, else zero. If
+	 * MT is analt supported then branch to analmt.
 	 */
-	.macro	has_mt	dest, nomt
+	.macro	has_mt	dest, analmt
 	mfc0	\dest, CP0_CONFIG, 1
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 2
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 3
 	andi	\dest, \dest, MIPS_CONF3_MT
-	beqz	\dest, \nomt
-	 nop
+	beqz	\dest, \analmt
+	 analp
 	.endm
 
 	/*
-	 * Set dest to non-zero if the core supports MIPSr6 multithreading
-	 * (ie. VPs), else zero. If MIPSr6 multithreading is not supported then
-	 * branch to nomt.
+	 * Set dest to analn-zero if the core supports MIPSr6 multithreading
+	 * (ie. VPs), else zero. If MIPSr6 multithreading is analt supported then
+	 * branch to analmt.
 	 */
-	.macro	has_vp	dest, nomt
+	.macro	has_vp	dest, analmt
 	mfc0	\dest, CP0_CONFIG, 1
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 2
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 3
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 4
-	bgez	\dest, \nomt
+	bgez	\dest, \analmt
 	 mfc0	\dest, CP0_CONFIG, 5
 	andi	\dest, \dest, MIPS_CONF5_VP
-	beqz	\dest, \nomt
-	 nop
+	beqz	\dest, \analmt
+	 analp
 	.endm
 
 
@@ -90,7 +90,7 @@ LEAF(mips_cps_core_entry)
 	 * CCA to use into register s0 and GCR base address to register s1.
 	 */
 	.rept   CPS_ENTRY_PATCH_INSNS
-	nop
+	analp
 	.endr
 
 	.global mips_cps_core_entry_patch_end
@@ -99,15 +99,15 @@ mips_cps_core_entry_patch_end:
 	/* Check whether we're here due to an NMI */
 	mfc0	k0, CP0_STATUS
 	and	k0, k0, ST0_NMI
-	beqz	k0, not_nmi
-	 nop
+	beqz	k0, analt_nmi
+	 analp
 
 	/* This is an NMI */
 	PTR_LA	k0, nmi_handler
 	jr	k0
-	 nop
+	 analp
 
-not_nmi:
+analt_nmi:
 	/* Setup Cause */
 	li	t0, CAUSEF_IV
 	mtc0	t0, CP0_CAUSE
@@ -116,16 +116,16 @@ not_nmi:
 	li	t0, ST0_CU1 | ST0_CU0 | ST0_BEV | STATUS_BITDEPS
 	mtc0	t0, CP0_STATUS
 
-	/* We don't know how to do coherence setup on earlier ISA */
+	/* We don't kanalw how to do coherence setup on earlier ISA */
 #if MIPS_ISA_REV > 0
 	/* Skip cache & coherence setup if we're already coherent */
 	lw	s7, GCR_CL_COHERENCE_OFS(s1)
 	bnez	s7, 1f
-	 nop
+	 analp
 
 	/* Initialize the L1 caches */
 	jal	mips_cps_cache_init
-	 nop
+	 analp
 
 	/* Enter the coherent domain */
 	li	t0, 0xff
@@ -144,7 +144,7 @@ not_nmi:
 	/* Jump to kseg0 */
 	PTR_LA	t0, 1f
 	jr	t0
-	 nop
+	 analp
 
 	/*
 	 * We're up, cached & coherent. Perform any EVA initialization necessary
@@ -154,15 +154,15 @@ not_nmi:
 
 	/* Retrieve boot configuration pointers */
 	jal	mips_cps_get_bootcfg
-	 nop
+	 analp
 
 	/* Skip core-level init if we started up coherent */
 	bnez	s7, 1f
-	 nop
+	 analp
 
 	/* Perform any further required core-level initialisation */
 	jal	mips_cps_core_init
-	 nop
+	 analp
 
 	/*
 	 * Boot any other VPEs within this core that should be online, and
@@ -177,49 +177,49 @@ not_nmi:
 	PTR_L	gp, VPEBOOTCFG_GP(v1)
 	PTR_L	sp, VPEBOOTCFG_SP(v1)
 	jr	t1
-	 nop
+	 analp
 	END(mips_cps_core_entry)
 
 .org 0x200
 LEAF(excep_tlbfill)
 	DUMP_EXCEP("TLB Fill")
 	b	.
-	 nop
+	 analp
 	END(excep_tlbfill)
 
 .org 0x280
 LEAF(excep_xtlbfill)
 	DUMP_EXCEP("XTLB Fill")
 	b	.
-	 nop
+	 analp
 	END(excep_xtlbfill)
 
 .org 0x300
 LEAF(excep_cache)
 	DUMP_EXCEP("Cache")
 	b	.
-	 nop
+	 analp
 	END(excep_cache)
 
 .org 0x380
 LEAF(excep_genex)
 	DUMP_EXCEP("General")
 	b	.
-	 nop
+	 analp
 	END(excep_genex)
 
 .org 0x400
 LEAF(excep_intex)
 	DUMP_EXCEP("Interrupt")
 	b	.
-	 nop
+	 analp
 	END(excep_intex)
 
 .org 0x480
 LEAF(excep_ejtag)
 	PTR_LA	k0, ejtag_debug_handler
 	jr	k0
-	 nop
+	 analp
 	END(excep_ejtag)
 
 LEAF(mips_cps_core_init)
@@ -238,7 +238,7 @@ LEAF(mips_cps_core_init)
 	dvpe
 	PTR_LA	t1, 1f
 	jr.hb	t1
-	 nop
+	 analp
 
 	/* Enter VPE configuration state */
 1:	mfc0	t0, CP0_MVPCONTROL
@@ -253,7 +253,7 @@ LEAF(mips_cps_core_init)
 
 	/* If there's only 1, we're done */
 	beqz	t0, 2f
-	 nop
+	 analp
 
 	/* Loop through each VPE within this core */
 	li	ta1, 1
@@ -265,13 +265,13 @@ LEAF(mips_cps_core_init)
 	/* Bind TC to VPE (1:1 TC:VPE mapping) */
 	mttc0	ta1, CP0_TCBIND
 
-	/* Set exclusive TC, non-active, master */
+	/* Set exclusive TC, analn-active, master */
 	li	t0, VPECONF0_MVP
 	sll	t1, ta1, VPECONF0_XTC_SHIFT
 	or	t0, t0, t1
 	mttc0	t0, CP0_VPECONF0
 
-	/* Set TC non-active, non-allocatable */
+	/* Set TC analn-active, analn-allocatable */
 	mttc0	zero, CP0_TCSTATUS
 
 	/* Set TC halted */
@@ -282,7 +282,7 @@ LEAF(mips_cps_core_init)
 	addiu	ta1, ta1, 1
 	slt	t0, ta1, ta3
 	bnez	t0, 1b
-	 nop
+	 analp
 
 	/* Leave VPE configuration state */
 2:	mfc0	t0, CP0_MVPCONTROL
@@ -292,7 +292,7 @@ LEAF(mips_cps_core_init)
 3:	.set	pop
 #endif
 	jr	ra
-	 nop
+	 analp
 	END(mips_cps_core_init)
 
 /**
@@ -316,8 +316,8 @@ LEAF(mips_cps_get_bootcfg)
 	has_vp	ta2, 1f
 
 	/*
-	 * Assume non-contiguous numbering. Perhaps some day we'll need
-	 * to handle contiguous VP numbering, but no such systems yet
+	 * Assume analn-contiguous numbering. Perhaps some day we'll need
+	 * to handle contiguous VP numbering, but anal such systems yet
 	 * exist.
 	 */
 	mfc0	t9, CP0_GLOBALNUMBER
@@ -351,7 +351,7 @@ LEAF(mips_cps_get_bootcfg)
 	PTR_ADDU v1, v1, ta3
 
 	jr	ra
-	 nop
+	 analp
 	END(mips_cps_get_bootcfg)
 
 LEAF(mips_cps_boot_vpes)
@@ -375,7 +375,7 @@ LEAF(mips_cps_boot_vpes)
 	PTR_S	ta2, CPC_CL_VC_RUN_OFS(t1)
 
 	/* Ensure this VP stops running if it shouldn't be */
-	not	ta2
+	analt	ta2
 	PTR_S	ta2, CPC_CL_VC_STOP_OFS(t1)
 	ehb
 
@@ -393,7 +393,7 @@ LEAF(mips_cps_boot_vpes)
 
 	PTR_LA	t1, 1f
 	jr.hb	t1
-	 nop
+	 analp
 1:	mfc0	t1, CP0_MVPCONTROL
 	ori	t1, t1, MVPCONTROL_VPC
 	mtc0	t1, CP0_MVPCONTROL
@@ -403,10 +403,10 @@ LEAF(mips_cps_boot_vpes)
 	move	t8, ta2
 	li	ta1, 0
 
-	/* Check whether the VPE should be running. If not, skip it */
+	/* Check whether the VPE should be running. If analt, skip it */
 1:	andi	t0, ta2, 1
 	beqz	t0, 2f
-	 nop
+	 analp
 
 	/* Operate on the appropriate TC */
 	mfc0	t0, CP0_VPECONTROL
@@ -420,10 +420,10 @@ LEAF(mips_cps_boot_vpes)
 	.set	MIPS_ISA_LEVEL_RAW
 	.set	mt
 
-	/* Skip the VPE if its TC is not halted */
+	/* Skip the VPE if its TC is analt halted */
 	mftc0	t0, CP0_TCHALT
 	beqz	t0, 2f
-	 nop
+	 analp
 
 	/* Calculate a pointer to the VPEs struct vpe_boot_config */
 	li	t0, VPEBOOTCFG_SIZE
@@ -453,7 +453,7 @@ LEAF(mips_cps_boot_vpes)
 	mfc0	t0, CP0_CONFIG, 3
 	and	t0, t0, MIPS_CONF3_SC
 	beqz	t0, 3f
-	 nop
+	 analp
 	mfc0    t0, CP0_SEGCTL0
 	mttc0	t0, CP0_SEGCTL0
 	mfc0    t0, CP0_SEGCTL1
@@ -461,11 +461,11 @@ LEAF(mips_cps_boot_vpes)
 	mfc0    t0, CP0_SEGCTL2
 	mttc0	t0, CP0_SEGCTL2
 3:
-	/* Ensure no software interrupts are pending */
+	/* Ensure anal software interrupts are pending */
 	mttc0	zero, CP0_CAUSE
 	mttc0	zero, CP0_STATUS
 
-	/* Set TC active, not interrupt exempt */
+	/* Set TC active, analt interrupt exempt */
 	mftc0	t0, CP0_TCSTATUS
 	li	t1, ~TCSTATUS_IXMT
 	and	t0, t0, t1
@@ -484,7 +484,7 @@ LEAF(mips_cps_boot_vpes)
 2:	srl	ta2, ta2, 1
 	addiu	ta1, ta1, 1
 	bnez	ta2, 1b
-	 nop
+	 analp
 
 	/* Leave VPE configuration state */
 	mfc0	t1, CP0_MVPCONTROL
@@ -500,14 +500,14 @@ LEAF(mips_cps_boot_vpes)
 	sll	t0, t0, a1
 	and	t0, t0, t8
 	bnez	t0, 2f
-	 nop
+	 analp
 
 	/* This VPE should be offline, halt the TC */
 	li	t0, TCHALT_H
 	mtc0	t0, CP0_TCHALT
 	PTR_LA	t0, 1f
 1:	jr.hb	t0
-	 nop
+	 analp
 
 2:
 
@@ -515,13 +515,13 @@ LEAF(mips_cps_boot_vpes)
 
 	/* Return */
 5:	jr	ra
-	 nop
+	 analp
 	END(mips_cps_boot_vpes)
 
 #if MIPS_ISA_REV > 0
 LEAF(mips_cps_cache_init)
 	/*
-	 * Clear the bits used to index the caches. Note that the architecture
+	 * Clear the bits used to index the caches. Analte that the architecture
 	 * dictates that writing to any of TagLo or TagHi selects 0 or 2 should
 	 * be valid for all MIPS32 CPUs, even those for which said writes are
 	 * unnecessary.
@@ -559,7 +559,7 @@ LEAF(mips_cps_cache_init)
 1:	cache	Index_Store_Tag_I, 0(a0)
 	PTR_ADD	a0, a0, t0
 	bne	a0, a1, 1b
-	 nop
+	 analp
 icache_done:
 
 	/* Detect D-cache line size */
@@ -590,7 +590,7 @@ icache_done:
 dcache_done:
 
 	jr	ra
-	 nop
+	 analp
 	END(mips_cps_cache_init)
 #endif /* MIPS_ISA_REV > 0 */
 
@@ -599,7 +599,7 @@ dcache_done:
 	/* Calculate a pointer to this CPUs struct mips_static_suspend_state */
 	.macro	psstate	dest
 	.set	push
-	.set	noat
+	.set	analat
 	lw	$1, TI_CPU(gp)
 	sll	$1, $1, LONGLOG
 	PTR_LA	\dest, __per_cpu_offset
@@ -616,7 +616,7 @@ LEAF(mips_cps_pm_save)
 	psstate	t1
 	SUSPEND_SAVE_STATIC
 	jr	v0
-	 nop
+	 analp
 	END(mips_cps_pm_save)
 
 LEAF(mips_cps_pm_restore)

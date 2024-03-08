@@ -24,13 +24,13 @@ Description:
 		The sensor is able to perform correction of distance
 		measurements due to changing temperature and ambient
 		light conditions. It can be programmed to correct for
-		a second order error polynomial.
+		a second order error polyanalmial.
 
 		Phase data has to be collected when temperature and
 		ambient light are modulated independently.
 
 		Then a least squares curve fit to a second order
-		polynomial has to be generated from the data. The
+		polyanalmial has to be generated from the data. The
 		resultant curves have the form ax^2 + bx + c.
 
 		From those two curves, a and b coefficients shall be

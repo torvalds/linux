@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -120,8 +120,8 @@ static const struct spread_spectrum_data *get_ss_data_entry(
  *
  * @calc_pll_cs:	    Pointer to clock source information
  * @target_pix_clk_100hz:   Desired frequency in 100 Hz
- * @ref_divider:            Reference divider (already known)
- * @post_divider:           Post Divider (already known)
+ * @ref_divider:            Reference divider (already kanalwn)
+ * @post_divider:           Post Divider (already kanalwn)
  * @feedback_divider_param: Pointer where to store
  *			    calculated feedback divider value
  * @fract_feedback_divider_param: Pointer where to store
@@ -130,7 +130,7 @@ static const struct spread_spectrum_data *get_ss_data_entry(
  * return:
  * It fills the locations pointed by feedback_divider_param
  *					and fract_feedback_divider_param
- * It returns	- true if feedback divider not 0
+ * It returns	- true if feedback divider analt 0
  *		- false should never happen)
  */
 static bool calculate_fb_and_fractional_fb_divider(
@@ -182,15 +182,15 @@ static bool calculate_fb_and_fractional_fb_divider(
  *                                      checking for tolerance.
  * @calc_pll_cs:	Pointer to clock source information
  * @pll_settings:	Pointer to PLL settings
- * @ref_divider:	Reference divider (already known)
- * @post_divider:	Post Divider (already known)
+ * @ref_divider:	Reference divider (already kanalwn)
+ * @post_divider:	Post Divider (already kanalwn)
  * @tolerance:		Tolerance for Calculated Pixel Clock to be within
  *
  * return:
  *  It fills the PLLSettings structure with PLL Dividers values
  *  if calculated values are within required tolerance
  *  It returns	- true if error is within tolerance
- *		- false if error is not within tolerance
+ *		- false if error is analt within tolerance
  */
 static bool calc_fb_divider_checking_tolerance(
 		struct calc_pll_clock_source *calc_pll_cs,
@@ -331,7 +331,7 @@ static uint32_t calculate_pixel_clock_pll_dividers(
 
 /* 2) Find Reference divider ranges
  * When SS is enabled, or for Display Port even without SS,
- * pll_settings->referenceDivider is not zero.
+ * pll_settings->referenceDivider is analt zero.
  * So calculate PPLL FB and fractional FB divider
  * using the passed reference divider*/
 
@@ -480,7 +480,7 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 	uint32_t field = 0;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
 	DC_LOGGER_INIT();
-	/* Check if reference clock is external (not pcie/xtalin)
+	/* Check if reference clock is external (analt pcie/xtalin)
 	* HW Dce80 spec:
 	* 00 - PCIE_REFCLK, 01 - XTALIN,    02 - GENERICA,    03 - GENERICB
 	* 04 - HSYNCA,      05 - GENLK_CLK, 06 - PCIE_REFCLK, 07 - DVOCLK0 */
@@ -488,8 +488,8 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 	pll_settings->use_external_clk = (field > 1);
 
 	/* VBIOS by default enables DP SS (spread on IDCLK) for DCE 8.0 always
-	 * (we do not care any more from SI for some older DP Sink which
-	 * does not report SS support, no known issues) */
+	 * (we do analt care any more from SI for some older DP Sink which
+	 * does analt report SS support, anal kanalwn issues) */
 	if ((pix_clk_params->flags.ENABLE_SS) ||
 			(dc_is_dp_signal(pix_clk_params->signal_type))) {
 
@@ -519,13 +519,13 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 
 	/* Calculate Dividers */
 	if (pix_clk_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A)
-		/*Calculate Dividers by HDMI object, no SS case or SS case */
+		/*Calculate Dividers by HDMI object, anal SS case or SS case */
 		pll_calc_error =
 			calculate_pixel_clock_pll_dividers(
 					&clk_src->calc_pll_hdmi,
 					pll_settings);
 	else
-		/*Calculate Dividers by default object, no SS case or SS case */
+		/*Calculate Dividers by default object, anal SS case or SS case */
 		pll_calc_error =
 			calculate_pixel_clock_pll_dividers(
 					&clk_src->calc_pll,
@@ -725,8 +725,8 @@ static bool enable_spread_spectrum(
 			pll_settings->calculated_pix_clk_100hz / 10);
 
 /* Pixel clock PLL has been programmed to generate desired pixel clock,
- * now enable SS on pixel clock */
-/* TODO is it OK to return true not doing anything ??*/
+ * analw enable SS on pixel clock */
+/* TODO is it OK to return true analt doing anything ??*/
 	if (ss_data != NULL && pll_settings->ss_percentage != 0) {
 		if (calculate_ss(pll_settings, ss_data, &d_s_data)) {
 			bp_params.ds.feedback_amount =
@@ -852,7 +852,7 @@ static bool dce110_program_pix_clk(
 
 	/* First disable SS
 	 * ATOMBIOS will enable by default SS on PLL for DP,
-	 * do not disable it here
+	 * do analt disable it here
 	 */
 	if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL &&
 			!dc_is_dp_signal(pix_clk_params->signal_type) &&
@@ -895,7 +895,7 @@ static bool dce110_program_pix_clk(
 	/* Enable SS
 	 * ATOMBIOS will enable by default SS for DP on PLL ( DP ID clock),
 	 * based on HW display PLL team, SS control settings should be programmed
-	 * during PLL Reset, but they do not have effect
+	 * during PLL Reset, but they do analt have effect
 	 * until SS_EN is asserted.*/
 	if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL
 			&& !dc_is_dp_signal(pix_clk_params->signal_type)) {
@@ -926,7 +926,7 @@ static bool dce112_program_pix_clk(
 
 	/* First disable SS
 	 * ATOMBIOS will enable by default SS on PLL for DP,
-	 * do not disable it here
+	 * do analt disable it here
 	 */
 	if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL &&
 			!dc_is_dp_signal(pix_clk_params->signal_type) &&
@@ -1101,8 +1101,8 @@ static bool get_pixel_clk_frequency_100hz(
 
 		if (clock_source->ctx->dc->hwss.enable_vblanks_synchronization &&
 			clock_source->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0) {
-			/* NOTE: In case VBLANK syncronization is enabled, MODULO may
-			 * not be programmed equal to DPREFCLK
+			/* ANALTE: In case VBLANK syncronization is enabled, MODULO may
+			 * analt be programmed equal to DPREFCLK
 			 */
 			modulo_hz = REG_READ(MODULO[inst]);
 			if (modulo_hz)
@@ -1112,7 +1112,7 @@ static bool get_pixel_clk_frequency_100hz(
 			else
 				*pixel_clk_khz = 0;
 		} else {
-			/* NOTE: There is agreement with VBIOS here that MODULO is
+			/* ANALTE: There is agreement with VBIOS here that MODULO is
 			 * programmed equal to DPREFCLK, in which case PHASE will be
 			 * equivalent to pixel clock.
 			 */
@@ -1124,7 +1124,7 @@ static bool get_pixel_clk_frequency_100hz(
 	return false;
 }
 
-/* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
+/* this table is use to find *1.001 and /1.001 pixel rates from analn-precise pixel rate */
 const struct pixel_rate_range_table_entry video_optimized_pixel_rates[] = {
 	// /1.001 rates
 	{25170, 25180, 25200, 1000, 1001},	//25.2MHz   ->   25.17
@@ -1188,9 +1188,9 @@ static bool dcn20_program_pix_clk(
 
 	if (clock_source->ctx->dc->hwss.enable_vblanks_synchronization &&
 			clock_source->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0) {
-		/* NOTE: In case VBLANK syncronization is enabled,
+		/* ANALTE: In case VBLANK syncronization is enabled,
 		 * we need to set modulo to default DPREFCLK first
-		 * dce112_program_pix_clk does not set default DPREFCLK
+		 * dce112_program_pix_clk does analt set default DPREFCLK
 		 */
 		REG_WRITE(MODULO[inst],
 			clock_source->ctx->dc->clk_mgr->dprefclk_khz*1000);
@@ -1407,7 +1407,7 @@ static void get_ss_info_from_atombios(
 		 * if it is > 6 (0.06%), the ATOMBIOS table info is invalid*/
 		if (as_signal == AS_SIGNAL_TYPE_HDMI
 				&& ss_info_cur->spread_spectrum_percentage > 6){
-			/* invalid input, do nothing */
+			/* invalid input, do analthing */
 			DC_LOG_SYNC(
 				"Invalid SS percentage ");
 			DC_LOG_SYNC(
@@ -1583,7 +1583,7 @@ bool dce110_clk_src_construct(
 
 	clk_src->ext_clk_khz = clk_src->bios->fw_info.external_clock_source_frequency_for_dp;
 
-	/* structure normally used with PLL ranges from ATOMBIOS; DS on by default */
+	/* structure analrmally used with PLL ranges from ATOMBIOS; DS on by default */
 	calc_pll_cs_init_data.bp = bios;
 	calc_pll_cs_init_data.min_pix_clk_pll_post_divider = 1;
 	calc_pll_cs_init_data.max_pix_clk_pll_post_divider =
@@ -1602,7 +1602,7 @@ bool dce110_clk_src_construct(
 			FRACT_FB_DIVIDER_DEC_POINTS_MAX_NUM;
 	calc_pll_cs_init_data.ctx =	ctx;
 
-	/*structure for HDMI, no SS or SS% <= 0.06% for 27 MHz Ref clock */
+	/*structure for HDMI, anal SS or SS% <= 0.06% for 27 MHz Ref clock */
 	calc_pll_cs_init_data_hdmi.bp = bios;
 	calc_pll_cs_init_data_hdmi.min_pix_clk_pll_post_divider = 1;
 	calc_pll_cs_init_data_hdmi.max_pix_clk_pll_post_divider =

@@ -19,9 +19,9 @@ Required properties:
 - #interrupt-cells: number of cells to define an SEI wired interrupt
                     coming from the AP, should be 1. The cell is the IRQ
                     number.
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the analde as an interrupt controller
                         for AP interrupts.
-- msi-controller: identifies the node as an MSI controller for the CPs
+- msi-controller: identifies the analde as an MSI controller for the CPs
                   interrupts.
 
 Example:

@@ -1,5 +1,5 @@
-#include "juno-r1.dts"
-#include "juno-scmi.dtsi"
+#include "juanal-r1.dts"
+#include "juanal-scmi.dtsi"
 
 / {
 	funnel@20130000 {

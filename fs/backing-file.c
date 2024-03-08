@@ -65,7 +65,7 @@ struct backing_aio {
 static struct kmem_cache *backing_aio_cachep;
 
 #define BACKING_IOCB_MASK \
-	(IOCB_NOWAIT | IOCB_HIPRI | IOCB_DSYNC | IOCB_SYNC | IOCB_APPEND)
+	(IOCB_ANALWAIT | IOCB_HIPRI | IOCB_DSYNC | IOCB_SYNC | IOCB_APPEND)
 
 static rwf_t iocb_to_rw_flags(int flags)
 {
@@ -120,13 +120,13 @@ static void backing_aio_queue_completion(struct kiocb *iocb, long res)
 	 */
 	aio->res = res;
 	INIT_WORK(&aio->work, backing_aio_complete_work);
-	queue_work(file_inode(aio->orig_iocb->ki_filp)->i_sb->s_dio_done_wq,
+	queue_work(file_ianalde(aio->orig_iocb->ki_filp)->i_sb->s_dio_done_wq,
 		   &aio->work);
 }
 
 static int backing_aio_init_wq(struct kiocb *iocb)
 {
-	struct super_block *sb = file_inode(iocb->ki_filp)->i_sb;
+	struct super_block *sb = file_ianalde(iocb->ki_filp)->i_sb;
 
 	if (sb->s_dio_done_wq)
 		return 0;
@@ -159,7 +159,7 @@ ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
 
 		ret = vfs_iter_read(file, iter, &iocb->ki_pos, rwf);
 	} else {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		aio = kmem_cache_zalloc(backing_aio_cachep, GFP_KERNEL);
 		if (!aio)
 			goto out;
@@ -224,7 +224,7 @@ ssize_t backing_file_write_iter(struct file *file, struct iov_iter *iter,
 		if (ret)
 			goto out;
 
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		aio = kmem_cache_zalloc(backing_aio_cachep, GFP_KERNEL);
 		if (!aio)
 			goto out;
@@ -248,7 +248,7 @@ out:
 EXPORT_SYMBOL_GPL(backing_file_write_iter);
 
 ssize_t backing_file_splice_read(struct file *in, loff_t *ppos,
-				 struct pipe_inode_info *pipe, size_t len,
+				 struct pipe_ianalde_info *pipe, size_t len,
 				 unsigned int flags,
 				 struct backing_file_ctx *ctx)
 {
@@ -269,7 +269,7 @@ ssize_t backing_file_splice_read(struct file *in, loff_t *ppos,
 }
 EXPORT_SYMBOL_GPL(backing_file_splice_read);
 
-ssize_t backing_file_splice_write(struct pipe_inode_info *pipe,
+ssize_t backing_file_splice_write(struct pipe_ianalde_info *pipe,
 				  struct file *out, loff_t *ppos, size_t len,
 				  unsigned int flags,
 				  struct backing_file_ctx *ctx)
@@ -308,7 +308,7 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 		return -EIO;
 
 	if (!file->f_op->mmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	vma_set_file(vma, file);
 
@@ -329,7 +329,7 @@ static int __init backing_aio_init(void)
 					       sizeof(struct backing_aio),
 					       0, SLAB_HWCACHE_ALIGN, NULL);
 	if (!backing_aio_cachep)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }

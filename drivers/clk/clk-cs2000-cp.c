@@ -3,7 +3,7 @@
  * CS2000  --  CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>
  */
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -422,7 +422,7 @@ static u8 cs2000_get_parent(struct clk_hw *hw)
 
 	/*
 	 * In dynamic mode, output rates are derived from CLK_IN.
-	 * In static mode, CLK_IN is ignored, so we return REF_CLK instead.
+	 * In static mode, CLK_IN is iganalred, so we return REF_CLK instead.
 	 */
 	return priv->dynamic_mode ? CLK_IN : REF_CLK;
 }
@@ -442,12 +442,12 @@ static int cs2000_clk_get(struct cs2000_priv *priv)
 	struct clk *clk_in, *ref_clk;
 
 	clk_in = devm_clk_get(dev, "clk_in");
-	/* not yet provided */
+	/* analt yet provided */
 	if (IS_ERR(clk_in))
 		return -EPROBE_DEFER;
 
 	ref_clk = devm_clk_get(dev, "ref_clk");
-	/* not yet provided */
+	/* analt yet provided */
 	if (IS_ERR(ref_clk))
 		return -EPROBE_DEFER;
 
@@ -460,7 +460,7 @@ static int cs2000_clk_get(struct cs2000_priv *priv)
 static int cs2000_clk_register(struct cs2000_priv *priv)
 {
 	struct device *dev = priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct clk_init_data init;
 	const char *name = np->name;
 	static const char *parent_names[CLK_MAX];
@@ -561,7 +561,7 @@ static void cs2000_remove(struct i2c_client *client)
 {
 	struct cs2000_priv *priv = i2c_get_clientdata(client);
 	struct device *dev = priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 
 	of_clk_del_provider(np);
 
@@ -576,7 +576,7 @@ static int cs2000_probe(struct i2c_client *client)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
@@ -630,5 +630,5 @@ static struct i2c_driver cs2000_driver = {
 module_i2c_driver(cs2000_driver);
 
 MODULE_DESCRIPTION("CS2000-CP driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kunianalri Morimoto <kunianalri.morimoto.gx@renesas.com>");
 MODULE_LICENSE("GPL v2");

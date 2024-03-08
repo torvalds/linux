@@ -32,7 +32,7 @@
  * Data-Format for Simple-Framebuffers
  * @name: unique 0-terminated name that can be used to identify the mode
  * @red,green,blue: Offsets and sizes of the single RGB parts
- * @transp: Offset and size of the alpha bits. length=0 means no alpha
+ * @transp: Offset and size of the alpha bits. length=0 means anal alpha
  * @fourcc: 32bit DRM four-CC code (see drm_fourcc.h)
  */
 struct simplefb_format {

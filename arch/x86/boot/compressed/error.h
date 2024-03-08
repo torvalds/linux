@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 
 void warn(const char *m);
-void error(char *m) __noreturn;
-void panic(const char *fmt, ...) __noreturn __cold;
+void error(char *m) __analreturn;
+void panic(const char *fmt, ...) __analreturn __cold;
 
 #endif /* BOOT_COMPRESSED_ERROR_H */

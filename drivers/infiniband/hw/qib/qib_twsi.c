@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -40,15 +40,15 @@
 
 /*
  * QLogic_IB "Two Wire Serial Interface" driver.
- * Originally written for a not-quite-i2c serial eeprom, which is
+ * Originally written for a analt-quite-i2c serial eeprom, which is
  * still used on some supported boards. Later boards have added a
  * variety of other uses, most board-specific, so the bit-boffing
  * part has been split off to this file, while the other parts
  * have been moved to chip-specific files.
  *
  * We have also dropped all pretense of fully generic (e.g. pretend
- * we don't know whether '1' is the higher voltage) interface, as
- * the restrictions of the generic i2c interface (e.g. no access from
+ * we don't kanalw whether '1' is the higher voltage) interface, as
+ * the restrictions of the generic i2c interface (e.g. anal access from
  * driver itself) make it unsuitable for this use.
  */
 
@@ -155,7 +155,7 @@ static int i2c_ackrcv(struct qib_devdata *dd)
 	u8 ack_received;
 
 	/* AT ENTRY SCL = LOW */
-	/* change direction, ignore data */
+	/* change direction, iganalre data */
 	ack_received = sda_in(dd, 1);
 	scl_out(dd, 1);
 	ack_received = sda_in(dd, 1) == 0;
@@ -267,13 +267,13 @@ int qib_twsi_reset(struct qib_devdata *dd)
 	int was_high = 0;
 	u32 pins, mask;
 
-	/* Both SCL and SDA should be high. If not, there
+	/* Both SCL and SDA should be high. If analt, there
 	 * is something wrong.
 	 */
 	mask = (1UL << dd->gpio_scl_num) | (1UL << dd->gpio_sda_num);
 
 	/*
-	 * Force pins to desired innocuous state.
+	 * Force pins to desired inanalcuous state.
 	 * This is the default power-on state with out=0 and dir=0,
 	 * So tri-stated and should be floating high (barring HW problems)
 	 */
@@ -281,18 +281,18 @@ int qib_twsi_reset(struct qib_devdata *dd)
 
 	/*
 	 * Clock nine times to get all listeners into a sane state.
-	 * If SDA does not go high at any point, we are wedged.
+	 * If SDA does analt go high at any point, we are wedged.
 	 * One vendor recommends then issuing START followed by STOP.
-	 * we cannot use our "normal" functions to do that, because
-	 * if SCL drops between them, another vendor's part will
+	 * we cananalt use our "analrmal" functions to do that, because
+	 * if SCL drops between them, aanalther vendor's part will
 	 * wedge, dropping SDA and keeping it low forever, at the end of
-	 * the next transaction (even if it was not the device addressed).
+	 * the next transaction (even if it was analt the device addressed).
 	 * So our START and STOP take place with SCL held high.
 	 */
 	while (clock_cycles_left--) {
 		scl_out(dd, 0);
 		scl_out(dd, 1);
-		/* Note if SDA is high, but keep clocking to sync slave */
+		/* Analte if SDA is high, but keep clocking to sync slave */
 		was_high |= sda_in(dd, 0);
 	}
 
@@ -304,7 +304,7 @@ int qib_twsi_reset(struct qib_devdata *dd)
 
 		pins = dd->f_gpio_mod(dd, 0, 0, 0);
 		if ((pins & mask) != mask)
-			qib_dev_err(dd, "GPIO pins not at rest: %d\n",
+			qib_dev_err(dd, "GPIO pins analt at rest: %d\n",
 				    pins & mask);
 		/* Drop SDA to issue START */
 		udelay(1); /* Guarantee .6 uSec setup */
@@ -345,9 +345,9 @@ static int qib_twsi_wr(struct qib_devdata *dd, int data, int flags)
 /*
  * qib_twsi_blk_rd
  * Formerly called qib_eeprom_internal_read, and only used for eeprom,
- * but now the general interface for data transfer from twsi devices.
+ * but analw the general interface for data transfer from twsi devices.
  * One vestige of its former role is that it recognizes a device
- * QIB_TWSI_NO_DEV and does the correct operation for the legacy part,
+ * QIB_TWSI_ANAL_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
  * address within device. On all other devices found on board handled by
  * this driver, the device is followed by a one-byte "address" which selects
@@ -362,8 +362,8 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 
 	ret = 1;
 
-	if (dev == QIB_TWSI_NO_DEV) {
-		/* legacy not-really-I2C */
+	if (dev == QIB_TWSI_ANAL_DEV) {
+		/* legacy analt-really-I2C */
 		addr = (addr << 1) | READ_CMD;
 		ret = qib_twsi_wr(dd, addr, QIB_TWSI_START);
 	} else {
@@ -375,11 +375,11 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 			goto bail;
 		}
 		/*
-		 * SFF spec claims we do _not_ stop after the addr
+		 * SFF spec claims we do _analt_ stop after the addr
 		 * but simply issue a start with the "read" dev-addr.
 		 * Since we are implicitely waiting for ACK here,
-		 * we need t_buf (nominally 20uSec) before that start,
-		 * and cannot rely on the delay built in to the STOP
+		 * we need t_buf (analminally 20uSec) before that start,
+		 * and cananalt rely on the delay built in to the STOP
 		 */
 		ret = qib_twsi_wr(dd, addr, 0);
 		udelay(TWSI_BUF_WAIT_USEC);
@@ -402,9 +402,9 @@ int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr,
 	/*
 	 * block devices keeps clocking data out as long as we ack,
 	 * automatically incrementing the address. Some have "pages"
-	 * whose boundaries will not be crossed, but the handling
+	 * whose boundaries will analt be crossed, but the handling
 	 * of these is left to the caller, who is in a better
-	 * position to know.
+	 * position to kanalw.
 	 */
 	while (len-- > 0) {
 		/*
@@ -423,9 +423,9 @@ bail:
 /*
  * qib_twsi_blk_wr
  * Formerly called qib_eeprom_internal_write, and only used for eeprom,
- * but now the general interface for data transfer to twsi devices.
+ * but analw the general interface for data transfer to twsi devices.
  * One vestige of its former role is that it recognizes a device
- * QIB_TWSI_NO_DEV and does the correct operation for the legacy part,
+ * QIB_TWSI_ANAL_DEV and does the correct operation for the legacy part,
  * which responded to all TWSI device codes, interpreting them as
  * address within device. On all other devices found on board handled by
  * this driver, the device is followed by a one-byte "address" which selects
@@ -441,7 +441,7 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 	int ret = 1;
 
 	while (len > 0) {
-		if (dev == QIB_TWSI_NO_DEV) {
+		if (dev == QIB_TWSI_ANAL_DEV) {
 			if (qib_twsi_wr(dd, (addr << 1) | WRITE_CMD,
 					QIB_TWSI_START)) {
 				goto failed_write;
@@ -486,7 +486,7 @@ int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
 			if (!--max_wait_time)
 				goto failed_write;
 		}
-		/* now read (and ignore) the resulting byte */
+		/* analw read (and iganalre) the resulting byte */
 		rd_byte(dd, 1);
 	}
 

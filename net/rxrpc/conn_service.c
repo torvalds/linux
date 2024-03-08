@@ -12,7 +12,7 @@
  * Find a service connection under RCU conditions.
  *
  * We could use a hash table, but that is subject to bucket stuffing by an
- * attacker as the client gets to pick the epoch and cid values and would know
+ * attacker as the client gets to pick the epoch and cid values and would kanalw
  * the hash function.  So, instead, we use a hash table for the peer and from
  * that an rbtree to find the service connection.  Under ordinary circumstances
  * it might be slower than a large hash table, but it is at least limited in
@@ -24,7 +24,7 @@ struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *peer,
 	struct rxrpc_connection *conn = NULL;
 	struct rxrpc_conn_proto k;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rb_node *p;
+	struct rb_analde *p;
 	unsigned int seq = 1;
 
 	k.epoch	= sp->hdr.epoch;
@@ -38,9 +38,9 @@ struct rxrpc_connection *rxrpc_find_service_conn_rcu(struct rxrpc_peer *peer,
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&peer->service_conn_lock, &seq);
 
-		p = rcu_dereference_raw(peer->service_conns.rb_node);
+		p = rcu_dereference_raw(peer->service_conns.rb_analde);
 		while (p) {
-			conn = rb_entry(p, struct rxrpc_connection, service_node);
+			conn = rb_entry(p, struct rxrpc_connection, service_analde);
 
 			if (conn->proto.index_key < k.index_key)
 				p = rcu_dereference_raw(p->rb_left);
@@ -66,16 +66,16 @@ static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
 {
 	struct rxrpc_connection *cursor = NULL;
 	struct rxrpc_conn_proto k = conn->proto;
-	struct rb_node **pp, *parent;
+	struct rb_analde **pp, *parent;
 
 	write_seqlock(&peer->service_conn_lock);
 
-	pp = &peer->service_conns.rb_node;
+	pp = &peer->service_conns.rb_analde;
 	parent = NULL;
 	while (*pp) {
 		parent = *pp;
 		cursor = rb_entry(parent,
-				  struct rxrpc_connection, service_node);
+				  struct rxrpc_connection, service_analde);
 
 		if (cursor->proto.index_key < k.index_key)
 			pp = &(*pp)->rb_left;
@@ -85,8 +85,8 @@ static void rxrpc_publish_service_conn(struct rxrpc_peer *peer,
 			goto found_extant_conn;
 	}
 
-	rb_link_node_rcu(&conn->service_node, parent, pp);
-	rb_insert_color(&conn->service_node, &peer->service_conns);
+	rb_link_analde_rcu(&conn->service_analde, parent, pp);
+	rb_insert_color(&conn->service_analde, &peer->service_conns);
 conn_published:
 	set_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags);
 	write_sequnlock(&peer->service_conn_lock);
@@ -97,8 +97,8 @@ found_extant_conn:
 	if (refcount_read(&cursor->ref) == 0)
 		goto replace_old_connection;
 	write_sequnlock(&peer->service_conn_lock);
-	/* We should not be able to get here.  rxrpc_incoming_connection() is
-	 * called in a non-reentrant context, so there can't be a race to
+	/* We should analt be able to get here.  rxrpc_incoming_connection() is
+	 * called in a analn-reentrant context, so there can't be a race to
 	 * insert a new connection.
 	 */
 	BUG();
@@ -106,8 +106,8 @@ found_extant_conn:
 replace_old_connection:
 	/* The old connection is from an outdated epoch. */
 	_debug("replace conn");
-	rb_replace_node_rcu(&cursor->service_node,
-			    &conn->service_node,
+	rb_replace_analde_rcu(&cursor->service_analde,
+			    &conn->service_analde,
 			    &peer->service_conns);
 	clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &cursor->flags);
 	goto conn_published;
@@ -190,6 +190,6 @@ void rxrpc_unpublish_service_conn(struct rxrpc_connection *conn)
 
 	write_seqlock(&peer->service_conn_lock);
 	if (test_and_clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags))
-		rb_erase(&conn->service_node, &peer->service_conns);
+		rb_erase(&conn->service_analde, &peer->service_conns);
 	write_sequnlock(&peer->service_conn_lock);
 }

@@ -18,14 +18,14 @@
  * load time. It is also possible to use this display with a standard
  * PC parallel port.
  *
- * General notes:
+ * General analtes:
  * - User must set dio_addr=0xIOADDR cio_addr=0xIOADDR c2io_addr=0xIOADDR
  *
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -42,7 +42,7 @@ static unsigned long dio_addr;
 static unsigned long cio_addr;
 static unsigned long c2io_addr;
 static unsigned long splashval;
-static unsigned int nosplash;
+static unsigned int analsplash;
 static unsigned char ctl;
 
 static void n411_set_ctl(struct hecubafb_par *par, unsigned char bit, unsigned
@@ -107,7 +107,7 @@ static int n411_init_control(struct hecubafb_par *par)
 	ctl = HCB_WUP_BIT | HCB_RW_BIT | HCB_CD_BIT ;
 	n411_set_ctl(par, HCB_DS_BIT, 1);
 
-	/* check ACK is not lo */
+	/* check ACK is analt lo */
 	tmp = n411_get_ctl(par);
 	if (tmp & HCB_ACK_BIT) {
 		printk(KERN_ERR "Fail because ACK is already low\n");
@@ -133,7 +133,7 @@ static int n411_init_board(struct hecubafb_par *par)
 	udelay(1000);
 
 	/* if we were told to splash the screen, we just clear it */
-	if (!nosplash) {
+	if (!analsplash) {
 		par->send_command(par, APOLLO_ERASE_DISPLAY);
 		par->send_data(par, splashval);
 	}
@@ -154,7 +154,7 @@ static int __init n411_init(void)
 {
 	int ret;
 	if (!dio_addr || !cio_addr || !c2io_addr) {
-		printk(KERN_WARNING "no IO addresses supplied\n");
+		printk(KERN_WARNING "anal IO addresses supplied\n");
 		return -EINVAL;
 	}
 
@@ -163,7 +163,7 @@ static int __init n411_init(void)
 
 	n411_device = platform_device_alloc("hecubafb", -1);
 	if (!n411_device)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = platform_device_add_data(n411_device, &n411_board,
 				       sizeof(n411_board));
@@ -191,8 +191,8 @@ static void __exit n411_exit(void)
 module_init(n411_init);
 module_exit(n411_exit);
 
-module_param(nosplash, uint, 0);
-MODULE_PARM_DESC(nosplash, "Disable doing the splash screen");
+module_param(analsplash, uint, 0);
+MODULE_PARM_DESC(analsplash, "Disable doing the splash screen");
 module_param_hw(dio_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(dio_addr, "IO address for data, eg: 0x480");
 module_param_hw(cio_addr, ulong, ioport, 0);

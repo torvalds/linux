@@ -1,33 +1,33 @@
 * Marvell Armada 37xx SoC pin and gpio controller
 
 Each Armada 37xx SoC come with two pin and gpio controller one for the
-south bridge and the other for the north bridge.
+south bridge and the other for the analrth bridge.
 
 Inside this set of register the gpio latch allows exposing some
 configuration of the SoC and especially the clock frequency of the
-xtal. Hence, this node is a represent as syscon allowing sharing the
+xtal. Hence, this analde is a represent as syscon allowing sharing the
 register between multiple hardware block.
 
 GPIO and pin controller:
 ------------------------
 
-Main node:
+Main analde:
 
 Refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning
-of the phrase "pin configuration node".
+of the phrase "pin configuration analde".
 
 Required properties for pinctrl driver:
 
 - compatible:	"marvell,armada3710-sb-pinctrl", "syscon, "simple-mfd"
 		for the south bridge
 		"marvell,armada3710-nb-pinctrl", "syscon, "simple-mfd"
-		for the north bridge
+		for the analrth bridge
 - reg: The first set of register are for pinctrl/gpio and the second
   set for the interrupt controller
 - interrupts: list of the interrupt use by the gpio
 
-Available groups and functions for the North bridge:
+Available groups and functions for the Analrth bridge:
 
 group: jtag
  - pins 20-24
@@ -151,14 +151,14 @@ group mii_col
  - pin 59
  - functions mii, mii_err
 
-GPIO subnode:
+GPIO subanalde:
 
 Please refer to gpio.txt in this directory for details of gpio-ranges property
 and the common GPIO bindings used by client devices.
 
-Required properties for gpio driver under the gpio subnode:
+Required properties for gpio driver under the gpio subanalde:
 - interrupts: List of interrupt specifier for the controllers interrupt.
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device analde as a gpio controller.
 - #gpio-cells: Should be 2. The first cell is the GPIO number and the
    second cell specifies GPIO flags, as defined in
    <dt-bindings/gpio/gpio.h>. Only the GPIO_ACTIVE_HIGH and

@@ -2,7 +2,7 @@ Aeroflex Gaisler APBPS2 PS/2 Core, supporting Keyboard or Mouse.
 
 The APBPS2 PS/2 core is available in the GRLIB VHDL IP core library.
 
-Note: In the ordinary environment for the APBPS2 core, a LEON SPARC system,
+Analte: In the ordinary environment for the APBPS2 core, a LEON SPARC system,
 these properties are built from information in the AMBA plug&play and from
 bootloader settings.
 

@@ -23,7 +23,7 @@ struct scsi_transport_template;
 
 #define SG_ALL	SG_CHUNK_SIZE
 
-#define MODE_UNKNOWN 0x00
+#define MODE_UNKANALWN 0x00
 #define MODE_INITIATOR 0x01
 #define MODE_TARGET 0x02
 
@@ -31,12 +31,12 @@ struct scsi_transport_template;
  * enum scsi_timeout_action - How to handle a command that timed out.
  * @SCSI_EH_DONE: The command has already been completed.
  * @SCSI_EH_RESET_TIMER: Reset the timer and continue waiting for completion.
- * @SCSI_EH_NOT_HANDLED: The command has not yet finished. Abort the command.
+ * @SCSI_EH_ANALT_HANDLED: The command has analt yet finished. Abort the command.
  */
 enum scsi_timeout_action {
 	SCSI_EH_DONE,
 	SCSI_EH_RESET_TIMER,
-	SCSI_EH_NOT_HANDLED,
+	SCSI_EH_ANALT_HANDLED,
 };
 
 struct scsi_host_template {
@@ -57,14 +57,14 @@ struct scsi_host_template {
 	 *
 	 * If queuecommand returns 0, then the driver has accepted the
 	 * command.  It must also push it to the HBA if the scsi_cmnd
-	 * flag SCMD_LAST is set, or if the driver does not implement
+	 * flag SCMD_LAST is set, or if the driver does analt implement
 	 * commit_rqs.  The done() function must be called on the command
 	 * when the driver has finished with it. (you may call done on the
 	 * command before queuecommand returns, but in this case you
 	 * *must* return 0 from queuecommand).
 	 *
 	 * Queuecommand may also reject the command, in which case it may
-	 * not touch the command and must not call done() for it.
+	 * analt touch the command and must analt call done() for it.
 	 *
 	 * There are two possible rejection returns:
 	 *
@@ -74,12 +74,12 @@ struct scsi_host_template {
 	 *   SCSI_MLQUEUE_HOST_BUSY: Block all devices served by this
 	 *   host temporarily.
 	 *
-         * For compatibility, any other non-zero return is treated the
+         * For compatibility, any other analn-zero return is treated the
          * same as SCSI_MLQUEUE_HOST_BUSY.
 	 *
-	 * NOTE: "temporarily" means either until the next command for#
+	 * ANALTE: "temporarily" means either until the next command for#
 	 * this device/host completes, or a period of time determined by
-	 * I/O pressure in the system if there are no other outstanding
+	 * I/O pressure in the system if there are anal other outstanding
 	 * commands.
 	 *
 	 * STATUS: REQUIRED
@@ -101,7 +101,7 @@ struct scsi_host_template {
 
 	/*
 	 * The info function will return whatever useful information the
-	 * developer sees fit.  If not provided, then the name field will
+	 * developer sees fit.  If analt provided, then the name field will
 	 * be used instead.
 	 *
 	 * Status: OPTIONAL
@@ -120,7 +120,7 @@ struct scsi_host_template {
 #ifdef CONFIG_COMPAT
 	/*
 	 * Compat handler. Handle 32bit ABI.
-	 * When unknown ioctl is passed return -ENOIOCTLCMD.
+	 * When unkanalwn ioctl is passed return -EANALIOCTLCMD.
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -136,16 +136,16 @@ struct scsi_host_template {
 	 * define one of these if you don't want to - there is a default
 	 * routine that is present that should work in most cases.  For those
 	 * driver authors that have the inclination and ability to write their
-	 * own strategy routine, this is where it is specified.  Note - the
+	 * own strategy routine, this is where it is specified.  Analte - the
 	 * strategy routine is *ALWAYS* run in the context of the kernel eh
-	 * thread.  Thus you are guaranteed to *NOT* be in an interrupt
+	 * thread.  Thus you are guaranteed to *ANALT* be in an interrupt
 	 * handler when you execute this, and you are also guaranteed to
-	 * *NOT* have any other commands being queued while you are in the
+	 * *ANALT* have any other commands being queued while you are in the
 	 * strategy routine. When you return from this function, operations
-	 * return to normal.
+	 * return to analrmal.
 	 *
 	 * See scsi_error.c scsi_unjam_host for additional comments about
-	 * what this function should and should not be attempting to do.
+	 * what this function should and should analt be attempting to do.
 	 *
 	 * Status: REQUIRED	(at least one of them)
 	 */
@@ -156,7 +156,7 @@ struct scsi_host_template {
 	int (* eh_host_reset_handler)(struct scsi_cmnd *);
 
 	/*
-	 * Before the mid layer attempts to scan for a new device where none
+	 * Before the mid layer attempts to scan for a new device where analne
 	 * currently exists, it will call this entry in your driver.  Should
 	 * your driver need to allocate any structs or perform any other init
 	 * items in order to send commands to a currently unused target/lun
@@ -165,7 +165,7 @@ struct scsi_host_template {
 	 * "is this a new device" checks in their queuecommand routine,
 	 * thereby making the hot path a bit quicker.
 	 *
-	 * Return values: 0 on success, non-0 on failure
+	 * Return values: 0 on success, analn-0 on failure
 	 *
 	 * Deallocation:  If we didn't find any devices at this ID, you will
 	 * get an immediate call to slave_destroy().  If we find something
@@ -184,7 +184,7 @@ struct scsi_host_template {
 	int (* slave_alloc)(struct scsi_device *);
 
 	/*
-	 * Once the device has responded to an INQUIRY and we know the
+	 * Once the device has responded to an INQUIRY and we kanalw the
 	 * device is online, we call into the low level driver with the
 	 * struct scsi_device *.  If the low level device driver implements
 	 * this function, it *must* perform the task of setting the queue
@@ -195,7 +195,7 @@ struct scsi_host_template {
 	 *
 	 * 1.  Setting the device queue depth.  Proper setting of this is
 	 *     described in the comments for scsi_change_queue_depth.
-	 * 2.  Determining if the device supports the various synchronous
+	 * 2.  Determining if the device supports the various synchroanalus
 	 *     negotiation protocols.  The device struct will already have
 	 *     responded to INQUIRY and the results of the standard items
 	 *     will have been shoved into the various device flag bits, eg.
@@ -204,11 +204,11 @@ struct scsi_host_template {
 	 * 4.  Setting the default timeout on this device (if needed).
 	 * 5.  Anything else the low level driver might want to do on a device
 	 *     specific setup basis...
-	 * 6.  Return 0 on success, non-0 on error.  The device will be marked
-	 *     as offline on error so that no access will occur.  If you return
-	 *     non-0, your slave_destroy routine will never get called for this
+	 * 6.  Return 0 on success, analn-0 on error.  The device will be marked
+	 *     as offline on error so that anal access will occur.  If you return
+	 *     analn-0, your slave_destroy routine will never get called for this
 	 *     device, so don't leave any loose memory hanging around, clean
-	 *     up after yourself before returning non-0
+	 *     up after yourself before returning analn-0
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -227,13 +227,13 @@ struct scsi_host_template {
 
 	/*
 	 * Before the mid layer attempts to scan for a new device attached
-	 * to a target where no target currently exists, it will call this
+	 * to a target where anal target currently exists, it will call this
 	 * entry in your driver.  Should your driver need to allocate any
 	 * structs or perform any other init items in order to send commands
 	 * to a currently unused target, then this is where you can perform
 	 * those allocations.
 	 *
-	 * Return values: 0 on success, non-0 on failure
+	 * Return values: 0 on success, analn-0 on failure
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -245,8 +245,8 @@ struct scsi_host_template {
 	 * midlayer calls this point so that the driver may deallocate
 	 * and terminate any references to the target.
 	 *
-	 * Note: This callback is called with the host lock held and hence
-	 * must not sleep.
+	 * Analte: This callback is called with the host lock held and hence
+	 * must analt sleep.
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -373,7 +373,7 @@ struct scsi_host_template {
 	const char *proc_name;
 
 	/*
-	 * This determines if we will use a non-interrupt driven
+	 * This determines if we will use a analn-interrupt driven
 	 * or an interrupt driven scheme.  It is set to the maximum number
 	 * of simultaneous commands a single hw queue in HBA will accept.
 	 */
@@ -415,7 +415,7 @@ struct scsi_host_template {
 
 	/*
 	 * This specifies "machine infinity" for host templates which don't
-	 * limit the transfer size.  Note this limit represents an absolute
+	 * limit the transfer size.  Analte this limit represents an absolute
 	 * maximum, and may be over the transfer limits allowed for
 	 * individual devices (e.g. 256 for SCSI-1).
 	 */
@@ -426,7 +426,7 @@ struct scsi_host_template {
 	 * This will allow more than one command to be queued to a given
 	 * unit on a given host.  Set this to the maximum number of command
 	 * blocks to be provided for each device.  Set this to 1 for one
-	 * command block per lun, 2 for two, etc.  Do not set this to 0.
+	 * command block per lun, 2 for two, etc.  Do analt set this to 0.
 	 * You should make sure that the host adapter will do the right thing
 	 * before you try setting this above 1.
 	 */
@@ -455,8 +455,8 @@ struct scsi_host_template {
 	 */
 	unsigned skip_settle_delay:1;
 
-	/* True if the controller does not support WRITE SAME */
-	unsigned no_write_same:1;
+	/* True if the controller does analt support WRITE SAME */
+	unsigned anal_write_same:1;
 
 	/* True if the host uses host-wide tagspace */
 	unsigned host_tagset:1;
@@ -465,7 +465,7 @@ struct scsi_host_template {
 	unsigned queuecommand_may_block:1;
 
 	/*
-	 * Countdown for host blocking with no commands outstanding.
+	 * Countdown for host blocking with anal commands outstanding.
 	 */
 	unsigned int max_host_blocked;
 
@@ -492,7 +492,7 @@ struct scsi_host_template {
 	/*
 	 * Vendor Identifier associated with the host
 	 *
-	 * Note: When specifying vendor_id, be sure to read the
+	 * Analte: When specifying vendor_id, be sure to read the
 	 *   Vendor Type and ID formatting requirements specified in
 	 *   scsi_netlink.h
 	 */
@@ -574,7 +574,7 @@ struct Scsi_Host {
 					      protected by host_lock */
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
-	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
+	unsigned int host_anal;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
 
 	/* next two fields are used to bound the time spent in error handling */
 	int eh_deadline;
@@ -594,8 +594,8 @@ struct Scsi_Host {
 	/*
 	 * This is a unique identifier that must be assigned so that we
 	 * have some way of identifying each detected host adapter properly
-	 * and uniquely.  For hosts that do not support more than one card
-	 * in the system at one time, this does not need to be set.  It is
+	 * and uniquely.  For hosts that do analt support more than one card
+	 * in the system at one time, this does analt need to be set.  It is
 	 * initialized to 0 in scsi_register.
 	 */
 	unsigned int unique_id;
@@ -622,7 +622,7 @@ struct Scsi_Host {
 	/*
 	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
 	 *
-	 * Note: it is assumed that each hardware queue has a queue depth of
+	 * Analte: it is assumed that each hardware queue has a queue depth of
 	 * can_queue. In other words, the total queue depth per host
 	 * is nr_hw_queues * can_queue. However, for when host_tagset is set,
 	 * the total queue depth is can_queue.
@@ -632,14 +632,14 @@ struct Scsi_Host {
 	unsigned active_mode:2;
 
 	/*
-	 * Host has requested that no further requests come through for the
+	 * Host has requested that anal further requests come through for the
 	 * time being.
 	 */
 	unsigned host_self_blocked:1;
     
 	/*
-	 * Host uses correct SCSI ordering not PC ordering. The bit is
-	 * set for the minority of drivers whose authors actually read
+	 * Host uses correct SCSI ordering analt PC ordering. The bit is
+	 * set for the mianalrity of drivers whose authors actually read
 	 * the spec ;).
 	 */
 	unsigned reverse_ordering:1;
@@ -647,14 +647,14 @@ struct Scsi_Host {
 	/* Task mgmt function in progress */
 	unsigned tmf_in_progress:1;
 
-	/* Asynchronous scan in progress */
+	/* Asynchroanalus scan in progress */
 	unsigned async_scan:1;
 
 	/* Don't resume host in EH */
-	unsigned eh_noresume:1;
+	unsigned eh_analresume:1;
 
-	/* The controller does not support WRITE SAME */
-	unsigned no_write_same:1;
+	/* The controller does analt support WRITE SAME */
+	unsigned anal_write_same:1;
 
 	/* True if the host uses host-wide tagspace */
 	unsigned host_tagset:1;
@@ -665,8 +665,8 @@ struct Scsi_Host {
 	/* Host responded with short (<36 bytes) INQUIRY result */
 	unsigned short_inquiry:1;
 
-	/* The transport requires the LUN bits NOT to be stored in CDB[1] */
-	unsigned no_scsi2_lun_in_cdb:1;
+	/* The transport requires the LUN bits ANALT to be stored in CDB[1] */
+	unsigned anal_scsi2_lun_in_cdb:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport
@@ -878,7 +878,7 @@ static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsign
 /*
  * All DIX-capable initiators must support the T10-mandated CRC
  * checksum.  Controllers can optionally implement the IP checksum
- * scheme which has much lower impact on system performance.  Note
+ * scheme which has much lower impact on system performance.  Analte
  * that the main rationale for the checksum is to match integrity
  * metadata with data.  Detecting bit errors are a job for ECC memory
  * and buses.

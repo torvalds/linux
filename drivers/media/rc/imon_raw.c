@@ -30,11 +30,11 @@ static void imon_ir_data(struct imon *imon)
 {
 	struct ir_raw_event rawir = {};
 	u64 data = be64_to_cpup(imon->ir_buf);
-	u8 packet_no = data & 0xff;
+	u8 packet_anal = data & 0xff;
 	int offset = 40;
 	int bit;
 
-	if (packet_no == 0xff)
+	if (packet_anal == 0xff)
 		return;
 
 	dev_dbg(imon->dev, "data: %*ph", 8, imon->ir_buf);
@@ -54,7 +54,7 @@ static void imon_ir_data(struct imon *imon)
 		 * data & (BIT_ULL(offset) - 1) masks off any unwanted bits,
 		 * so we have just bits less than offset.
 		 *
-		 * fls will tell us the highest bit set plus 1 (or 0 if no
+		 * fls will tell us the highest bit set plus 1 (or 0 if anal
 		 * bits are set).
 		 */
 		rawir.pulse = !rawir.pulse;
@@ -71,7 +71,7 @@ static void imon_ir_data(struct imon *imon)
 		data = ~data;
 	} while (offset > 0);
 
-	if (packet_no == 0x0a && !imon->rcdev->idle) {
+	if (packet_anal == 0x0a && !imon->rcdev->idle) {
 		ir_raw_event_set_idle(imon->rcdev, true);
 		ir_raw_event_handle(imon->rcdev);
 	}
@@ -87,7 +87,7 @@ static void imon_ir_rx(struct urb *urb)
 		imon_ir_data(imon);
 		break;
 	case -ECONNRESET:
-	case -ENOENT:
+	case -EANALENT:
 	case -ESHUTDOWN:
 		usb_unlink_urb(urb);
 		return;
@@ -98,7 +98,7 @@ static void imon_ir_rx(struct urb *urb)
 	}
 
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret && ret != -ENODEV)
+	if (ret && ret != -EANALDEV)
 		dev_warn(imon->dev, "failed to resubmit urb: %d", ret);
 }
 
@@ -126,20 +126,20 @@ static int imon_probe(struct usb_interface *intf,
 
 	if (!ir_ep) {
 		dev_err(&intf->dev, "IR endpoint missing");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	imon = devm_kmalloc(&intf->dev, sizeof(*imon), GFP_KERNEL);
 	if (!imon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imon->ir_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!imon->ir_urb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	imon->ir_buf = kmalloc(sizeof(__be64), GFP_KERNEL);
 	if (!imon->ir_buf) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_urb;
 	}
 
@@ -151,7 +151,7 @@ static int imon_probe(struct usb_interface *intf,
 
 	rcdev = devm_rc_allocate_device(&intf->dev, RC_DRIVER_IR_RAW);
 	if (!rcdev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_urb;
 	}
 

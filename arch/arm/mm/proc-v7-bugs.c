@@ -136,12 +136,12 @@ static void cpu_v7_spectre_v2_init(void)
 		break;
 
 	case ARM_CPU_PART_BRAHMA_B53:
-		/* Requires no workaround */
+		/* Requires anal workaround */
 		state = SPECTRE_UNAFFECTED;
 		break;
 
 	default:
-		/* Other ARM CPUs require no workaround */
+		/* Other ARM CPUs require anal workaround */
 		if (read_cpuid_implementor() == ARM_CPU_IMP_ARM) {
 			state = SPECTRE_UNAFFECTED;
 			break;
@@ -190,7 +190,7 @@ static const char *spectre_bhb_method_name(int method)
 		return "BPIALL";
 
 	default:
-		return "unknown";
+		return "unkanalwn";
 	}
 }
 
@@ -274,7 +274,7 @@ static bool check_spectre_auxcr(bool *warned, u32 bit)
 {
 	return IS_ENABLED(CONFIG_HARDEN_BRANCH_PREDICTOR) &&
 		cpu_v7_check_auxcr_set(warned, bit,
-				       "Spectre v2: firmware did not set auxiliary control register IBE bit, system vulnerable\n");
+				       "Spectre v2: firmware did analt set auxiliary control register IBE bit, system vulnerable\n");
 }
 
 void cpu_v7_ca8_ibe(void)

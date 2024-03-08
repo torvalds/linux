@@ -90,7 +90,7 @@
 	pinctrl-0 = <&mmc0_8bit_pins_a>;
 	bus-width = <8>;
 	vmmc-supply = <&reg_3v3>;
-	non-removable;
+	analn-removable;
 	status = "okay";
 };
 
@@ -108,7 +108,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		spi-max-frequency = <40000000>;
 		reg = <0>;
 

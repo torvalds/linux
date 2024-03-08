@@ -15,13 +15,13 @@ description: |
   controlled over an I2C, SPI or UART bus, and SoC internal IP blocks, including
   video DMA engines and video data processors.
 
-  SoC internal blocks are described by DT nodes, placed similarly to other SoC
-  blocks.  External devices are represented as child nodes of their respective
-  bus controller nodes, e.g. I2C.
+  SoC internal blocks are described by DT analdes, placed similarly to other SoC
+  blocks.  External devices are represented as child analdes of their respective
+  bus controller analdes, e.g. I2C.
 
-  Data interfaces on all video devices are described by their child 'port' nodes.
+  Data interfaces on all video devices are described by their child 'port' analdes.
   Configuration of a port depends on other devices participating in the data
-  transfer and is described by 'endpoint' subnodes.
+  transfer and is described by 'endpoint' subanaldes.
 
   device {
       ...
@@ -39,20 +39,20 @@ description: |
   };
 
   If a port can be configured to work with more than one remote device on the same
-  bus, an 'endpoint' child node must be provided for each of them.  If more than
-  one port is present in a device node or there is more than one endpoint at a
-  port, or port node needs to be associated with a selected hardware interface,
+  bus, an 'endpoint' child analde must be provided for each of them.  If more than
+  one port is present in a device analde or there is more than one endpoint at a
+  port, or port analde needs to be associated with a selected hardware interface,
   a common scheme using '#address-cells', '#size-cells' and 'reg' properties is
   used.
 
-  All 'port' nodes can be grouped under optional 'ports' node, which allows to
+  All 'port' analdes can be grouped under optional 'ports' analde, which allows to
   specify #address-cells, #size-cells properties independently for the 'port'
-  and 'endpoint' nodes and any child device nodes a device might have.
+  and 'endpoint' analdes and any child device analdes a device might have.
 
-  Two 'endpoint' nodes are linked with each other through their 'remote-endpoint'
-  phandles.  An endpoint subnode of a device contains all properties needed for
+  Two 'endpoint' analdes are linked with each other through their 'remote-endpoint'
+  phandles.  An endpoint subanalde of a device contains all properties needed for
   configuration of this device for data exchange with other device.  In most
-  cases properties at the peer 'endpoint' nodes will be identical, however they
+  cases properties at the peer 'endpoint' analdes will be identical, however they
   might need to be different when there is any signal modifications on the bus
   between two devices, e.g. there are logic signal inverters on the lines.
 
@@ -61,14 +61,14 @@ description: |
   a device is partitioned into multiple data busses, e.g. 16-bit input port
   divided into two separate ITU-R BT.656 8-bit busses.  In such case bus-width
   and data-shift properties can be used to assign physical data lines to each
-  endpoint node (logical bus).
+  endpoint analde (logical bus).
 
   Documenting bindings for devices
   --------------------------------
 
   All required and optional bindings the device supports shall be explicitly
   documented in device DT binding documentation. This also includes port and
-  endpoint nodes for the device, including unit-addresses and reg properties
+  endpoint analdes for the device, including unit-addresses and reg properties
   where relevant.
 
 allOf:
@@ -79,7 +79,7 @@ properties:
     type: boolean
     description:
       Indicates that the link is run in slave mode. The default when this
-      property is not specified is master mode. In the slave mode horizontal and
+      property is analt specified is master mode. In the slave mode horizontal and
       vertical synchronization signals are provided to the slave device (data
       source) by the master device (data sink). In the master mode the data
       source device is also the source of the synchronization signals.
@@ -121,8 +121,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 0, 1 ]
     description:
-      Active state of the VSYNC signal, 0/1 for LOW/HIGH respectively. Note,
-      that if HSYNC and VSYNC polarities are not specified, embedded
+      Active state of the VSYNC signal, 0/1 for LOW/HIGH respectively. Analte,
+      that if HSYNC and VSYNC polarities are analt specified, embedded
       synchronization may be required, where supported.
 
   data-active:
@@ -168,9 +168,9 @@ properties:
       An array of physical data lane indexes. Position of an entry determines
       the logical lane number, while the value of an entry indicates physical
       lane, e.g. for 2-lane MIPI CSI-2 bus we could have "data-lanes = <1 2>;",
-      assuming the clock lane is on hardware lane 0. If the hardware does not
-      support lane reordering, monotonically incremented values shall be used
-      from 0 or 1 onwards, depending on whether or not there is also a clock
+      assuming the clock lane is on hardware lane 0. If the hardware does analt
+      support lane reordering, moanaltonically incremented values shall be used
+      from 0 or 1 onwards, depending on whether or analt there is also a clock
       lane. This property is valid for serial busses only (e.g. MIPI CSI-2).
 
   clock-lanes:
@@ -184,16 +184,16 @@ properties:
       clock lane on hardware lane 0. This property is valid for serial busses
       only (e.g. MIPI CSI-2).
 
-  clock-noncontinuous:
+  clock-analncontinuous:
     type: boolean
     description:
-      Allow MIPI CSI-2 non-continuous clock mode.
+      Allow MIPI CSI-2 analn-continuous clock mode.
 
   link-frequencies:
     $ref: /schemas/types.yaml#/definitions/uint64-array
     description:
       Allowed data bus frequencies. For MIPI CSI-2, for instance, this is the
-      actual frequency of the bus, not bits per clock per lane value. An array
+      actual frequency of the bus, analt bits per clock per lane value. An array
       of 64-bit unsigned integers.
 
   lane-polarities:
@@ -205,10 +205,10 @@ properties:
     description:
       An array of polarities of the lanes starting from the clock lane and
       followed by the data lanes in the same order as in data-lanes. Valid
-      values are 0 (normal) and 1 (inverted). The length of the array should be
+      values are 0 (analrmal) and 1 (inverted). The length of the array should be
       the combined length of data-lanes and clock-lanes properties. If the
       lane-polarities property is omitted, the value must be interpreted as 0
-      (normal). This property is valid for serial busses only.
+      (analrmal). This property is valid for serial busses only.
 
   strobe:
     $ref: /schemas/types.yaml#/definitions/uint32

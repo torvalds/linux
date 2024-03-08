@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright Sunplus Technology Co., Ltd.
+/* Copyright Sunplus Techanallogy Co., Ltd.
  *       All rights reserved.
  */
 
@@ -21,7 +21,7 @@ static int spl2sw_mdio_access(struct spl2sw_common *comm, u8 cmd, u8 addr, u8 re
 	u32 val;
 	int ret;
 
-	/* Note that addr (of phy) should match either ext_phy0_addr
+	/* Analte that addr (of phy) should match either ext_phy0_addr
 	 * or ext_phy1_addr, or mdio commands won't be sent out.
 	 */
 	reg = readl(comm->l2sw_reg_base + L2SW_MAC_FORCE_MODE);
@@ -32,7 +32,7 @@ static int spl2sw_mdio_access(struct spl2sw_common *comm, u8 cmd, u8 addr, u8 re
 	       FIELD_PREP(MAC_CPU_PHY_REG_ADDR, regnum) | FIELD_PREP(MAC_CPU_PHY_ADDR, addr);
 
 	/* Set ext_phy0_addr and then issue mdio command.
-	 * No interrupt is allowed in between.
+	 * Anal interrupt is allowed in between.
 	 */
 	spin_lock_irq(&comm->mdio_lock);
 	writel(reg, comm->l2sw_reg_base + L2SW_MAC_FORCE_MODE);
@@ -78,21 +78,21 @@ static int spl2sw_mii_write(struct mii_bus *bus, int addr, int regnum, u16 val)
 
 u32 spl2sw_mdio_init(struct spl2sw_common *comm)
 {
-	struct device_node *mdio_np;
+	struct device_analde *mdio_np;
 	struct mii_bus *mii_bus;
 	int ret;
 
-	/* Get mdio child node. */
-	mdio_np = of_get_child_by_name(comm->pdev->dev.of_node, "mdio");
+	/* Get mdio child analde. */
+	mdio_np = of_get_child_by_name(comm->pdev->dev.of_analde, "mdio");
 	if (!mdio_np) {
-		dev_err(&comm->pdev->dev, "No mdio child node found!\n");
-		return -ENODEV;
+		dev_err(&comm->pdev->dev, "Anal mdio child analde found!\n");
+		return -EANALDEV;
 	}
 
 	/* Allocate and register mdio bus. */
 	mii_bus = devm_mdiobus_alloc(&comm->pdev->dev);
 	if (!mii_bus) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -112,7 +112,7 @@ u32 spl2sw_mdio_init(struct spl2sw_common *comm)
 	comm->mii_bus = mii_bus;
 
 out:
-	of_node_put(mdio_np);
+	of_analde_put(mdio_np);
 	return ret;
 }
 

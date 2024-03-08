@@ -241,12 +241,12 @@
 							opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
 						};
 
-						rpmpd_opp_nom: opp7 {
-							opp-level = <RPM_SMD_LEVEL_NOM>;
+						rpmpd_opp_analm: opp7 {
+							opp-level = <RPM_SMD_LEVEL_ANALM>;
 						};
 
-						rpmpd_opp_nom_plus: opp8 {
-							opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+						rpmpd_opp_analm_plus: opp8 {
+							opp-level = <RPM_SMD_LEVEL_ANALM_PLUS>;
 						};
 
 						rpmpd_opp_turbo: opp9 {
@@ -266,12 +266,12 @@
 		zap_shader_region: zap@81800000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x81800000 0x0 0x2000>;
-			no-map;
+			anal-map;
 		};
 
 		qseecom_mem: qseecom@85b00000 {
 			reg = <0x0 0x85b00000 0x0 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: smem@86300000 {
@@ -279,53 +279,53 @@
 			reg = <0x0 0x86300000 0x0 0x100000>;
 			qcom,rpm-msg-ram = <&rpm_msg_ram>;
 			hwlocks = <&tcsr_mutex 3>;
-			no-map;
+			anal-map;
 		};
 
 		reserved@86400000 {
 			reg = <0x0 0x86400000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		mpss_mem: mpss@86c00000 {
 			reg = <0x0 0x86c00000 0x0 0x6a00000>;
-			no-map;
+			anal-map;
 		};
 
 		adsp_fw_mem: adsp@8d600000 {
 			reg = <0x0 0x8d600000 0x0 0x1100000>;
-			no-map;
+			anal-map;
 		};
 
 		wcnss_fw_mem: wcnss@8e700000 {
 			reg = <0x0 0x8e700000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		dfps_data_mem: dfps-data@90000000 {
 			reg = <0 0x90000000 0 0x1000>;
-			no-map;
+			anal-map;
 		};
 
 		cont_splash_mem: cont-splash@90001000 {
 			reg = <0x0 0x90001000 0x0 0x13ff000>;
-			no-map;
+			anal-map;
 		};
 
 		venus_mem: venus@91400000 {
 			reg = <0x0 0x91400000 0x0 0x700000>;
-			no-map;
+			anal-map;
 		};
 
 		mba_mem: mba@92000000 {
 			reg = <0x0 0x92000000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		rmtfs@f2d00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xf2d00000 0x0 0x180000>;
-			no-map;
+			anal-map;
 
 			qcom,client-id = <1>;
 		};
@@ -1166,10 +1166,10 @@
 
 			clocks = <&gcc GCC_USB_PHY_CFG_AHB_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
-				 <&gcc GCC_PCNOC_USB3_AXI_CLK>,
+				 <&gcc GCC_PCANALC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -1228,7 +1228,7 @@
 			mmc-hs200-1_8v;
 			mmc-ddr-1_8v;
 			bus-width = <8>;
-			non-removable;
+			analn-removable;
 
 			status = "disabled";
 
@@ -1252,12 +1252,12 @@
 
 				opp-192000000 {
 					opp-hz = /bits/ 64 <192000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 				};
 
 				opp-384000000 {
 					opp-hz = /bits/ 64 <384000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 				};
 			};
 		};
@@ -1308,12 +1308,12 @@
 
 				opp-177770000 {
 					opp-hz = /bits/ 64 <177770000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 				};
 
 				opp-200000000 {
 					opp-hz = /bits/ 64 <200000000>;
-					required-opps = <&rpmpd_opp_nom>;
+					required-opps = <&rpmpd_opp_analm>;
 				};
 			};
 		};
@@ -1847,7 +1847,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1870,7 +1870,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert>;
-					cooling-device = <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1893,7 +1893,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert>;
-					cooling-device = <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1916,7 +1916,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert>;
-					cooling-device = <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1939,7 +1939,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu4_alert>;
-					cooling-device = <&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU4 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1962,7 +1962,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu5_alert>;
-					cooling-device = <&CPU5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU5 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -1985,7 +1985,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu6_alert>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};
@@ -2008,7 +2008,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu7_alert>;
-					cooling-device = <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

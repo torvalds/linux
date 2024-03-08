@@ -2,12 +2,12 @@
 #ifndef __CGROUP_HELPERS_H
 #define __CGROUP_HELPERS_H
 
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
-#define clean_errno() (errno == 0 ? "None" : strerror(errno))
-#define log_err(MSG, ...) fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
-	__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+#define clean_erranal() (erranal == 0 ? "Analne" : strerror(erranal))
+#define log_err(MSG, ...) fprintf(stderr, "(%s:%d: erranal: %s) " MSG "\n", \
+	__FILE__, __LINE__, clean_erranal(), ##__VA_ARGS__)
 
 /* cgroupv2 related */
 int enable_controllers(const char *relative_path, const char *controllers);

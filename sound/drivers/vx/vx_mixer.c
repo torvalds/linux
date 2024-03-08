@@ -239,7 +239,7 @@ static int vx_adjust_audio_level(struct vx_core *chip, int audio, int capture,
 }
 
     
-#if 0 // not used
+#if 0 // analt used
 static int vx_read_audio_level(struct vx_core *chip, int audio, int capture,
 			       struct vx_audio_level *info)
 {
@@ -261,11 +261,11 @@ static int vx_read_audio_level(struct vx_core *chip, int audio, int capture,
 	info.monitor_mute = (rmh.Stat[i] & AUDIO_IO_HAS_MUTE_MONITORING_1) ? 1 : 0;
 	return 0;
 }
-#endif // not used
+#endif // analt used
 
 /*
  * set the monitoring level and mute state of the given audio
- * no more static, because must be called from vx_pcm to demute monitoring
+ * anal more static, because must be called from vx_pcm to demute monitoring
  */
 int vx_set_monitor_level(struct vx_core *chip, int audio, int level, int active)
 {

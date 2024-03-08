@@ -157,7 +157,7 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 			break;
 
 		default:
-			diodes = "no diode,";
+			diodes = "anal diode,";
 			break;
 		}
 
@@ -359,7 +359,7 @@ static int ds1343_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(&spi->dev, sizeof(struct ds1343_priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* RTC DS1347 works in spi mode 3 and
 	 * its chip select is active high. Active high should be defined as

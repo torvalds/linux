@@ -4,7 +4,7 @@
 #define __CROS_EC_TYPEC__
 
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/usb/pd.h>
 #include <linux/usb/role.h>
@@ -21,8 +21,8 @@ enum {
 	CROS_EC_ALTMODE_MAX,
 };
 
-/* Container for altmode pointer nodes. */
-struct cros_typec_altmode_node {
+/* Container for altmode pointer analdes. */
+struct cros_typec_altmode_analde {
 	struct typec_altmode *amode;
 	struct list_head list;
 };
@@ -35,7 +35,7 @@ struct cros_typec_data {
 	unsigned int pd_ctrl_ver;
 	/* Array of ports, indexed by port number. */
 	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
-	struct notifier_block nb;
+	struct analtifier_block nb;
 	struct work_struct port_work;
 	bool typec_cmd_supported;
 	bool needs_mux_ack;

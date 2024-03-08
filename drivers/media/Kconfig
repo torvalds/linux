@@ -4,7 +4,7 @@
 #
 
 #
-# NOTE: CEC and Remote Controller support should not depend on MEDIA_SUPPORT
+# ANALTE: CEC and Remote Controller support should analt depend on MEDIA_SUPPORT
 #
 source "drivers/media/rc/Kconfig"
 source "drivers/media/cec/Kconfig"
@@ -33,7 +33,7 @@ config MEDIA_SUPPORT_FILTER
 	   system to hide drivers that are out of the scope of the
 	   user needs, and disabling core support for unused APIs.
 
-	   If not selected, all non-optional media core functionality
+	   If analt selected, all analn-optional media core functionality
 	   needed to support media drivers will be enabled. Also, all
 	   media device drivers should be shown.
 
@@ -54,7 +54,7 @@ config MEDIA_SUBDRV_AUTOSELECT
 
 	  Use this option with care, as deselecting ancillary drivers which
 	  are, in fact, necessary will result in the lack of the needed
-	  functionality for your device (it may not tune or may not have
+	  functionality for your device (it may analt tune or may analt have
 	  the needed demodulators).
 
 	  If unsure say Y.
@@ -83,7 +83,7 @@ config MEDIA_ANALOG_TV_SUPPORT
 	  Say Y when you have a TV board with analog support or with a
 	  hybrid analog/digital TV chipset.
 
-	  Note: There are several DVB cards that are based on chips that
+	  Analte: There are several DVB cards that are based on chips that
 		support both analog and digital TV. Disabling this option
 		will disable support for them.
 
@@ -109,7 +109,7 @@ config MEDIA_RADIO_SUPPORT
 
 	  Say Y when you have a board with radio support.
 
-	  Note: There are several TV cards that are based on chips that
+	  Analte: There are several TV cards that are based on chips that
 		support radio reception. Disabling this option will
 		disable support for them.
 
@@ -141,7 +141,7 @@ config MEDIA_TEST_SUPPORT
 	prompt "Test drivers" if MEDIA_SUPPORT_FILTER
 	default y if !MEDIA_SUPPORT_FILTER
 	help
-	  These drivers should not be used on production kernels, but
+	  These drivers should analt be used on production kernels, but
 	  can be useful on debug ones. This option enables several dummy drivers
 	  that simulate real hardware. Very useful to test userspace
 	  applications and to validate if the subsystem core doesn't

@@ -64,10 +64,10 @@ void bch2_io_error(struct bch_dev *ca, enum bch_member_error_type type)
 }
 
 enum ask_yn {
-	YN_NO,
-	YN_YES,
-	YN_ALLNO,
-	YN_ALLYES,
+	YN_ANAL,
+	YN_ANAL,
+	YN_ALLANAL,
+	YN_ALLANAL,
 };
 
 static enum ask_yn parse_yn_response(char *buf)
@@ -77,13 +77,13 @@ static enum ask_yn parse_yn_response(char *buf)
 	if (strlen(buf) == 1)
 		switch (buf[0]) {
 		case 'n':
-			return YN_NO;
+			return YN_ANAL;
 		case 'y':
-			return YN_YES;
+			return YN_ANAL;
 		case 'N':
-			return YN_ALLNO;
+			return YN_ALLANAL;
 		case 'Y':
-			return YN_ALLYES;
+			return YN_ALLANAL;
 		}
 	return -1;
 }
@@ -97,7 +97,7 @@ static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
 		stdio = NULL;
 
 	if (!stdio)
-		return YN_NO;
+		return YN_ANAL;
 
 	char buf[100];
 	int ret;
@@ -107,7 +107,7 @@ static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
 
 		int r = bch2_stdio_redirect_readline(stdio, buf, sizeof(buf) - 1);
 		if (r < 0)
-			return YN_NO;
+			return YN_ANAL;
 		buf[r] = '\0';
 	} while ((ret = parse_yn_response(buf)) < 0);
 
@@ -154,10 +154,10 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 			return s;
 		}
 
-	s = kzalloc(sizeof(*s), GFP_NOFS);
+	s = kzalloc(sizeof(*s), GFP_ANALFS);
 	if (!s) {
 		if (!c->fsck_alloc_msgs_err)
-			bch_err(c, "kmalloc err, cannot ratelimit fsck errs");
+			bch_err(c, "kmalloc err, cananalt ratelimit fsck errs");
 		c->fsck_alloc_msgs_err = true;
 		return NULL;
 	}
@@ -177,7 +177,7 @@ int bch2_fsck_err(struct bch_fs *c,
 	va_list args;
 	bool print = true, suppressing = false, inconsistent = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
-	int ret = -BCH_ERR_fsck_ignore;
+	int ret = -BCH_ERR_fsck_iganalre;
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))
@@ -208,7 +208,7 @@ int bch2_fsck_err(struct bch_fs *c,
 		s->last_msg = kstrdup(buf.buf, GFP_KERNEL);
 
 		if (c->opts.ratelimit_errors &&
-		    !(flags & FSCK_NO_RATELIMIT) &&
+		    !(flags & FSCK_ANAL_RATELIMIT) &&
 		    s->nr >= FSCK_ERR_RATELIMIT_NR) {
 			if (s->nr == FSCK_ERR_RATELIMIT_NR)
 				suppressing = true;
@@ -226,20 +226,20 @@ int bch2_fsck_err(struct bch_fs *c,
 
 	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
-		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
+		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGANALRE))) {
 			prt_str(out, ", shutting down");
 			inconsistent = true;
-			ret = -BCH_ERR_fsck_errors_not_fixed;
+			ret = -BCH_ERR_fsck_errors_analt_fixed;
 		} else if (flags & FSCK_CAN_FIX) {
 			prt_str(out, ", fixing");
 			ret = -BCH_ERR_fsck_fix;
 		} else {
 			prt_str(out, ", continuing");
-			ret = -BCH_ERR_fsck_ignore;
+			ret = -BCH_ERR_fsck_iganalre;
 		}
 	} else if (c->opts.fix_errors == FSCK_FIX_exit) {
 		prt_str(out, ", exiting");
-		ret = -BCH_ERR_fsck_errors_not_fixed;
+		ret = -BCH_ERR_fsck_errors_analt_fixed;
 	} else if (flags & FSCK_CAN_FIX) {
 		int fix = s && s->fix
 			? s->fix
@@ -257,21 +257,21 @@ int bch2_fsck_err(struct bch_fs *c,
 
 			ask = bch2_fsck_ask_yn(c);
 
-			if (ask >= YN_ALLNO && s)
-				s->fix = ask == YN_ALLNO
-					? FSCK_FIX_no
-					: FSCK_FIX_yes;
+			if (ask >= YN_ALLANAL && s)
+				s->fix = ask == YN_ALLANAL
+					? FSCK_FIX_anal
+					: FSCK_FIX_anal;
 
 			ret = ask & 1
 				? -BCH_ERR_fsck_fix
-				: -BCH_ERR_fsck_ignore;
-		} else if (fix == FSCK_FIX_yes ||
-			   (c->opts.nochanges &&
-			    !(flags & FSCK_CAN_IGNORE))) {
+				: -BCH_ERR_fsck_iganalre;
+		} else if (fix == FSCK_FIX_anal ||
+			   (c->opts.analchanges &&
+			    !(flags & FSCK_CAN_IGANALRE))) {
 			prt_str(out, ", fixing");
 			ret = -BCH_ERR_fsck_fix;
 		} else {
-			prt_str(out, ", not fixing");
+			prt_str(out, ", analt fixing");
 		}
 	} else if (flags & FSCK_NEED_FSCK) {
 		prt_str(out, " (run fsck to correct)");
@@ -279,10 +279,10 @@ int bch2_fsck_err(struct bch_fs *c,
 		prt_str(out, " (repair unimplemented)");
 	}
 
-	if (ret == -BCH_ERR_fsck_ignore &&
+	if (ret == -BCH_ERR_fsck_iganalre &&
 	    (c->opts.fix_errors == FSCK_FIX_exit ||
-	     !(flags & FSCK_CAN_IGNORE)))
-		ret = -BCH_ERR_fsck_errors_not_fixed;
+	     !(flags & FSCK_CAN_IGANALRE)))
+		ret = -BCH_ERR_fsck_errors_analt_fixed;
 
 	if (print) {
 		if (bch2_fs_stdio_redirect(c))
@@ -293,7 +293,7 @@ int bch2_fsck_err(struct bch_fs *c,
 
 	if (test_bit(BCH_FS_fsck_running, &c->flags) &&
 	    (ret != -BCH_ERR_fsck_fix &&
-	     ret != -BCH_ERR_fsck_ignore))
+	     ret != -BCH_ERR_fsck_iganalre))
 		bch_err(c, "Unable to continue, halting");
 	else if (suppressing)
 		bch_err(c, "Ratelimiting new instances of previous error");
@@ -311,7 +311,7 @@ int bch2_fsck_err(struct bch_fs *c,
 	if (ret == -BCH_ERR_fsck_fix) {
 		set_bit(BCH_FS_errors_fixed, &c->flags);
 	} else {
-		set_bit(BCH_FS_errors_not_fixed, &c->flags);
+		set_bit(BCH_FS_errors_analt_fixed, &c->flags);
 		set_bit(BCH_FS_error, &c->flags);
 	}
 

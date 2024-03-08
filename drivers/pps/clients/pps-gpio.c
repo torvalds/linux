@@ -3,7 +3,7 @@
  * pps-gpio.c -- PPS client driver using GPIO
  *
  * Copyright (C) 2010 Ricardo Martins <rasm@fe.up.pt>
- * Copyright (C) 2011 James Nuss <jamesnuss@nanometrics.ca>
+ * Copyright (C) 2011 James Nuss <jamesnuss@naanalmetrics.ca>
  */
 
 #define PPS_GPIO_NAME "pps-gpio"
@@ -162,7 +162,7 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	/* allocate space for device info */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_set_drvdata(dev, data);
 
@@ -249,7 +249,7 @@ static struct platform_driver pps_gpio_driver = {
 
 module_platform_driver(pps_gpio_driver);
 MODULE_AUTHOR("Ricardo Martins <rasm@fe.up.pt>");
-MODULE_AUTHOR("James Nuss <jamesnuss@nanometrics.ca>");
+MODULE_AUTHOR("James Nuss <jamesnuss@naanalmetrics.ca>");
 MODULE_DESCRIPTION("Use GPIO pin as PPS source");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.2.0");

@@ -31,7 +31,7 @@ __clean-files	:= \
 	$(hostprogs-always-y) $(hostprogs-always-m) $(hostprogs-always-) \
 	$(userprogs-always-y) $(userprogs-always-m) $(userprogs-always-)
 
-__clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
+__clean-files   := $(filter-out $(anal-clean-files), $(__clean-files))
 
 __clean-files   := $(wildcard $(addprefix $(obj)/, $(__clean-files)))
 

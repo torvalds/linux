@@ -26,13 +26,13 @@ static void do_exec(unsigned long parent_dscr)
 	cur_dscr_usr = get_dscr_usr();
 
 	if (cur_dscr != parent_dscr) {
-		fprintf(stderr, "Parent DSCR %ld was not inherited "
+		fprintf(stderr, "Parent DSCR %ld was analt inherited "
 				"over exec (kernel value)\n", parent_dscr);
 		exit(1);
 	}
 
 	if (cur_dscr_usr != parent_dscr) {
-		fprintf(stderr, "Parent DSCR %ld was not inherited "
+		fprintf(stderr, "Parent DSCR %ld was analt inherited "
 				"over exec (user value)\n", parent_dscr);
 		exit(1);
 	}

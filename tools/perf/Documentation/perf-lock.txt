@@ -5,7 +5,7 @@ NAME
 ----
 perf-lock - Analyze lock events
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf lock' {record|report|script|info|contention}
@@ -45,7 +45,7 @@ COMMON OPTIONS
 
 -q::
 --quiet::
-	Do not show any warnings or messages. (Suppress -v)
+	Do analt show any warnings or messages. (Suppress -v)
 
 -D::
 --dump-raw-trace::
@@ -148,7 +148,7 @@ CONTENTION OPTIONS
 -C::
 --cpu=<value>::
 	Collect samples only on the list of CPUs provided. Multiple CPUs can be
-	provided as a comma-separated list with no space: 0,1. Ranges of CPUs
+	provided as a comma-separated list with anal space: 0,1. Ranges of CPUs
 	are specified with -: 0-2.  Default is to monitor all CPUs.
 
 -p::
@@ -190,7 +190,7 @@ CONTENTION OPTIONS
 	  rtmutex, rwlock-rt, rwlock-rt:R, rwlock-rt:W, pcpu-sem, pcpu-sem:R, pcpu-sem:W,
 	  mutex
 
-	Note that RW-variant of locks have :R and :W suffix.  Names without the
+	Analte that RW-variant of locks have :R and :W suffix.  Names without the
 	suffix are shortcuts for the both variants.  Ex) rwsem = rwsem:R + rwsem:W.
 
 -L::
@@ -200,7 +200,7 @@ CONTENTION OPTIONS
 -S::
 --callstack-filter=<value>::
 	Show lock contention only if the callstack contains the given string.
-	Note that it matches the substring so 'rq' would match both 'raw_spin_rq_lock'
+	Analte that it matches the substring so 'rq' would match both 'raw_spin_rq_lock'
 	and 'irq_enter_rcu'.
 
 -x::

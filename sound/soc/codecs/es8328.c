@@ -91,7 +91,7 @@ struct es8328_priv {
  * ES8328 Controls
  */
 
-static const char * const adcpol_txt[] = {"Normal", "L Invert", "R Invert",
+static const char * const adcpol_txt[] = {"Analrmal", "L Invert", "R Invert",
 					  "L + R Invert"};
 static SOC_ENUM_SINGLE_DECL(adcpol,
 			    ES8328_ADCCONTROL6, 6, adcpol_txt);
@@ -273,21 +273,21 @@ static SOC_ENUM_SINGLE_DECL(diffmux,
 static const struct snd_kcontrol_new es8328_diffmux_controls =
 	SOC_DAPM_ENUM("Route", diffmux);
 
-/* Mono ADC Mux */
-static const char * const es8328_mono_mux[] = {"Stereo", "Mono (Left)",
-	"Mono (Right)", "Digital Mono"};
-static SOC_ENUM_SINGLE_DECL(monomux,
-			    ES8328_ADCCONTROL3, 3, es8328_mono_mux);
-static const struct snd_kcontrol_new es8328_monomux_controls =
-	SOC_DAPM_ENUM("Route", monomux);
+/* Moanal ADC Mux */
+static const char * const es8328_moanal_mux[] = {"Stereo", "Moanal (Left)",
+	"Moanal (Right)", "Digital Moanal"};
+static SOC_ENUM_SINGLE_DECL(moanalmux,
+			    ES8328_ADCCONTROL3, 3, es8328_moanal_mux);
+static const struct snd_kcontrol_new es8328_moanalmux_controls =
+	SOC_DAPM_ENUM("Route", moanalmux);
 
 static const struct snd_soc_dapm_widget es8328_dapm_widgets[] = {
-	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_ANALPM, 0, 0,
 		&es8328_diffmux_controls),
-	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
-		&es8328_monomux_controls),
-	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0,
-		&es8328_monomux_controls),
+	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_ANALPM, 0, 0,
+		&es8328_moanalmux_controls),
+	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_ANALPM, 0, 0,
+		&es8328_moanalmux_controls),
 
 	SND_SOC_DAPM_MUX("Left PGA Mux", ES8328_ADCPOWER,
 			ES8328_ADCPOWER_AINL_OFF, 1,
@@ -296,9 +296,9 @@ static const struct snd_soc_dapm_widget es8328_dapm_widgets[] = {
 			ES8328_ADCPOWER_AINR_OFF, 1,
 			&es8328_right_pga_controls),
 
-	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_ANALPM, 0, 0,
 		&es8328_left_line_controls),
-	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_ANALPM, 0, 0,
 		&es8328_right_line_controls),
 
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", ES8328_ADCPOWER,
@@ -336,10 +336,10 @@ static const struct snd_soc_dapm_widget es8328_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", ES8328_DACPOWER,
 			ES8328_DACPOWER_LDAC_OFF, 1),
 
-	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_ANALPM, 0, 0,
 		&es8328_left_mixer_controls[0],
 		ARRAY_SIZE(es8328_left_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_ANALPM, 0, 0,
 		&es8328_right_mixer_controls[0],
 		ARRAY_SIZE(es8328_right_mixer_controls)),
 
@@ -389,12 +389,12 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 	{ "Differential Mux", "Line 2", "RINPUT2" },
 
 	{ "Left ADC Mux", "Stereo", "Left PGA Mux" },
-	{ "Left ADC Mux", "Mono (Left)", "Left PGA Mux" },
-	{ "Left ADC Mux", "Digital Mono", "Left PGA Mux" },
+	{ "Left ADC Mux", "Moanal (Left)", "Left PGA Mux" },
+	{ "Left ADC Mux", "Digital Moanal", "Left PGA Mux" },
 
 	{ "Right ADC Mux", "Stereo", "Right PGA Mux" },
-	{ "Right ADC Mux", "Mono (Right)", "Right PGA Mux" },
-	{ "Right ADC Mux", "Digital Mono", "Right PGA Mux" },
+	{ "Right ADC Mux", "Moanal (Right)", "Right PGA Mux" },
+	{ "Right ADC Mux", "Digital Moanal", "Right PGA Mux" },
 
 	{ "Left ADC", NULL, "Left ADC Mux" },
 	{ "Right ADC", NULL, "Right ADC Mux" },
@@ -490,7 +490,7 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 
 	if (es8328->provider) {
 		if (!es8328->sysclk_constraints) {
-			dev_err(component->dev, "No MCLK configured\n");
+			dev_err(component->dev, "Anal MCLK configured\n");
 			return -EINVAL;
 		}
 
@@ -559,7 +559,7 @@ static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
 	unsigned int round_freq;
 
 	/*
-	 * Allow a small tolerance for frequencies within 100hz. Note
+	 * Allow a small tolerance for frequencies within 100hz. Analte
 	 * this value is chosen arbitrarily.
 	 */
 	round_freq = DIV_ROUND_CLOSEST(freq, 100) * 100;
@@ -704,7 +704,7 @@ static const struct snd_soc_dai_ops es8328_dai_ops = {
 	.mute_stream	= es8328_mute,
 	.set_sysclk	= es8328_set_sysclk,
 	.set_fmt	= es8328_set_dai_fmt,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver es8328_dai = {
@@ -863,7 +863,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap)
 
 	es8328 = devm_kzalloc(dev, sizeof(*es8328), GFP_KERNEL);
 	if (es8328 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	es8328->regmap = regmap;
 

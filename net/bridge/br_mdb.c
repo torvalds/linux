@@ -79,7 +79,7 @@ int br_rports_fill_info(struct sk_buff *skb,
 	if (!brmctx->multicast_router || !br_rports_have_mc_router(brmctx))
 		return 0;
 
-	nest = nla_nest_start_noflag(skb, MDBA_ROUTER);
+	nest = nla_nest_start_analflag(skb, MDBA_ROUTER);
 	if (nest == NULL)
 		return -EMSGSIZE;
 
@@ -103,11 +103,11 @@ int br_rports_fill_info(struct sk_buff *skb,
 		if (!have_ip4_mc_rtr && !have_ip6_mc_rtr)
 			continue;
 
-		port_nest = nla_nest_start_noflag(skb, MDBA_ROUTER_PORT);
+		port_nest = nla_nest_start_analflag(skb, MDBA_ROUTER_PORT);
 		if (!port_nest)
 			goto fail;
 
-		if (nla_put_nohdr(skb, sizeof(u32), &p->dev->ifindex) ||
+		if (nla_put_analhdr(skb, sizeof(u32), &p->dev->ifindex) ||
 		    nla_put_u32(skb, MDBA_ROUTER_PATTR_TIMER,
 				max(ip4_timer, ip6_timer)) ||
 		    nla_put_u8(skb, MDBA_ROUTER_PATTR_TYPE,
@@ -184,7 +184,7 @@ static int __mdb_fill_srcs(struct sk_buff *skb,
 	if (!nest)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry_rcu(ent, &p->src_list, node,
+	hlist_for_each_entry_rcu(ent, &p->src_list, analde,
 				 lockdep_is_held(&p->key.port->br->multicast_lock)) {
 		nest_ent = nla_nest_start(skb, MDBA_MDB_SRCLIST_ENTRY);
 		if (!nest_ent)
@@ -262,12 +262,12 @@ static int __mdb_fill_info(struct sk_buff *skb,
 		e.state = MDB_PERMANENT;
 	}
 	e.addr.proto = mp->addr.proto;
-	nest_ent = nla_nest_start_noflag(skb,
+	nest_ent = nla_nest_start_analflag(skb,
 					 MDBA_MDB_ENTRY_INFO);
 	if (!nest_ent)
 		return -EMSGSIZE;
 
-	if (nla_put_nohdr(skb, sizeof(e), &e) ||
+	if (nla_put_analhdr(skb, sizeof(e), &e) ||
 	    nla_put_u32(skb,
 			MDBA_MDB_EATTR_TIMER,
 			br_timer_value(mtimer)))
@@ -323,18 +323,18 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	struct net_bridge_mdb_entry *mp;
 	struct nlattr *nest, *nest2;
 
-	nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (nest == NULL)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry_rcu(mp, &br->mdb_list, mdb_node) {
+	hlist_for_each_entry_rcu(mp, &br->mdb_list, mdb_analde) {
 		struct net_bridge_port_group *p;
 		struct net_bridge_port_group __rcu **pp;
 
 		if (idx < s_idx)
 			goto skip;
 
-		nest2 = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+		nest2 = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 		if (!nest2) {
 			err = -EMSGSIZE;
 			break;
@@ -428,10 +428,10 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 	memset(bpm, 0, sizeof(*bpm));
 	bpm->family  = AF_BRIDGE;
 	bpm->ifindex = dev->ifindex;
-	nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (nest == NULL)
 		goto cancel;
-	nest2 = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	nest2 = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 	if (nest2 == NULL)
 		goto end;
 
@@ -494,7 +494,7 @@ static size_t rtnl_mdb_nlmsg_pg_size(const struct net_bridge_port_group *pg)
 	if (!hlist_empty(&pg->src_list))
 		nlmsg_size += nla_total_size(0);
 
-	hlist_for_each_entry(ent, &pg->src_list, node) {
+	hlist_for_each_entry(ent, &pg->src_list, analde) {
 		/* MDBA_MDB_SRCLIST_ENTRY nested attr +
 		 * MDBA_MDB_SRCATTR_ADDRESS + MDBA_MDB_SRCATTR_TIMER
 		 */
@@ -517,16 +517,16 @@ static size_t rtnl_mdb_nlmsg_size(const struct net_bridge_port_group *pg)
 	       rtnl_mdb_nlmsg_pg_size(pg);
 }
 
-void br_mdb_notify(struct net_device *dev,
+void br_mdb_analtify(struct net_device *dev,
 		   struct net_bridge_mdb_entry *mp,
 		   struct net_bridge_port_group *pg,
 		   int type)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 
-	br_switchdev_mdb_notify(dev, mp, pg, type);
+	br_switchdev_mdb_analtify(dev, mp, pg, type);
 
 	skb = nlmsg_new(rtnl_mdb_nlmsg_size(pg), GFP_ATOMIC);
 	if (!skb)
@@ -538,7 +538,7 @@ void br_mdb_notify(struct net_device *dev,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
+	rtnl_analtify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
 	return;
 errout:
 	rtnl_set_sk_err(net, RTNLGRP_MDB, err);
@@ -561,14 +561,14 @@ static int nlmsg_populate_rtr_fill(struct sk_buff *skb,
 	memset(bpm, 0, sizeof(*bpm));
 	bpm->family = AF_BRIDGE;
 	bpm->ifindex = dev->ifindex;
-	nest = nla_nest_start_noflag(skb, MDBA_ROUTER);
+	nest = nla_nest_start_analflag(skb, MDBA_ROUTER);
 	if (!nest)
 		goto cancel;
 
-	port_nest = nla_nest_start_noflag(skb, MDBA_ROUTER_PORT);
+	port_nest = nla_nest_start_analflag(skb, MDBA_ROUTER_PORT);
 	if (!port_nest)
 		goto end;
-	if (nla_put_nohdr(skb, sizeof(u32), &ifindex)) {
+	if (nla_put_analhdr(skb, sizeof(u32), &ifindex)) {
 		nla_nest_cancel(skb, port_nest);
 		goto end;
 	}
@@ -596,12 +596,12 @@ static inline size_t rtnl_rtr_nlmsg_size(void)
 		+ nla_total_size(sizeof(u16));
 }
 
-void br_rtr_notify(struct net_device *dev, struct net_bridge_mcast_port *pmctx,
+void br_rtr_analtify(struct net_device *dev, struct net_bridge_mcast_port *pmctx,
 		   int type)
 {
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
-	int err = -ENOBUFS;
+	int err = -EANALBUFS;
 	int ifindex;
 	u16 vid;
 
@@ -619,7 +619,7 @@ void br_rtr_notify(struct net_device *dev, struct net_bridge_mcast_port *pmctx,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
+	rtnl_analtify(skb, net, 0, RTNLGRP_MDB, NULL, GFP_ATOMIC);
 	return;
 
 errout:
@@ -658,7 +658,7 @@ static bool is_valid_mdb_source(struct nlattr *attr, __be16 proto,
 			return false;
 		}
 		if (ipv4_is_multicast(nla_get_in_addr(attr))) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv4 multicast source address is not allowed");
+			NL_SET_ERR_MSG_MOD(extack, "IPv4 multicast source address is analt allowed");
 			return false;
 		}
 		break;
@@ -672,7 +672,7 @@ static bool is_valid_mdb_source(struct nlattr *attr, __be16 proto,
 		}
 		src = nla_get_in6_addr(attr);
 		if (ipv6_addr_is_multicast(&src)) {
-			NL_SET_ERR_MSG_MOD(extack, "IPv6 multicast source address is not allowed");
+			NL_SET_ERR_MSG_MOD(extack, "IPv6 multicast source address is analt allowed");
 			return false;
 		}
 		break;
@@ -694,19 +694,19 @@ __br_mdb_choose_context(struct net_bridge *br,
 	struct net_bridge_mcast *brmctx = NULL;
 	struct net_bridge_vlan *v;
 
-	if (!br_opt_get(br, BROPT_MCAST_VLAN_SNOOPING_ENABLED)) {
+	if (!br_opt_get(br, BROPT_MCAST_VLAN_SANALOPING_ENABLED)) {
 		brmctx = &br->multicast_ctx;
 		goto out;
 	}
 
 	if (!entry->vid) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot add an entry without a vlan when vlan snooping is enabled");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt add an entry without a vlan when vlan sanaloping is enabled");
 		goto out;
 	}
 
 	v = br_vlan_find(br_vlan_group(br), entry->vid);
 	if (!v) {
-		NL_SET_ERR_MSG_MOD(extack, "Vlan is not configured");
+		NL_SET_ERR_MSG_MOD(extack, "Vlan is analt configured");
 		goto out;
 	}
 	if (br_multicast_ctx_vlan_global_disabled(&v->br_mcast_ctx)) {
@@ -724,17 +724,17 @@ static int br_mdb_replace_group_sg(const struct br_mdb_config *cfg,
 				   struct net_bridge_mcast *brmctx,
 				   unsigned char flags)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	pg->flags = flags;
 	pg->rt_protocol = cfg->rt_protocol;
 	if (!(flags & MDB_PG_FLAGS_PERMANENT) && !cfg->src_entry)
 		mod_timer(&pg->timer,
-			  now + brmctx->multicast_membership_interval);
+			  analw + brmctx->multicast_membership_interval);
 	else
 		del_timer(&pg->timer);
 
-	br_mdb_notify(cfg->br->dev, mp, pg, RTM_NEWMDB);
+	br_mdb_analtify(cfg->br->dev, mp, pg, RTM_NEWMDB);
 
 	return 0;
 }
@@ -747,7 +747,7 @@ static int br_mdb_add_group_sg(const struct br_mdb_config *cfg,
 {
 	struct net_bridge_port_group __rcu **pp;
 	struct net_bridge_port_group *p;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 
 	for (pp = &mp->ports;
 	     (p = mlock_dereference(*pp, cfg->br)) != NULL;
@@ -767,13 +767,13 @@ static int br_mdb_add_group_sg(const struct br_mdb_config *cfg,
 	p = br_multicast_new_port_group(cfg->p, &cfg->group, *pp, flags, NULL,
 					MCAST_INCLUDE, cfg->rt_protocol, extack);
 	if (unlikely(!p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rcu_assign_pointer(*pp, p);
 	if (!(flags & MDB_PG_FLAGS_PERMANENT) && !cfg->src_entry)
 		mod_timer(&p->timer,
-			  now + brmctx->multicast_membership_interval);
-	br_mdb_notify(cfg->br->dev, mp, p, RTM_NEWMDB);
+			  analw + brmctx->multicast_membership_interval);
+	br_mdb_analtify(cfg->br->dev, mp, p, RTM_NEWMDB);
 
 	/* All of (*, G) EXCLUDE ports need to be added to the new (S, G) for
 	 * proper replication.
@@ -834,7 +834,7 @@ static int br_mdb_add_group_src(const struct br_mdb_config *cfg,
 				struct netlink_ext_ack *extack)
 {
 	struct net_bridge_group_src *ent;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int err;
 
 	ent = br_multicast_find_group_src(pg, &src->addr);
@@ -842,7 +842,7 @@ static int br_mdb_add_group_src(const struct br_mdb_config *cfg,
 		ent = br_multicast_new_group_src(pg, &src->addr);
 		if (!ent) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to add new source entry");
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 	} else if (!(cfg->nlflags & NLM_F_REPLACE)) {
 		NL_SET_ERR_MSG_MOD(extack, "Source entry already exists");
@@ -851,7 +851,7 @@ static int br_mdb_add_group_src(const struct br_mdb_config *cfg,
 
 	if (cfg->filter_mode == MCAST_INCLUDE &&
 	    cfg->entry->state == MDB_TEMPORARY)
-		mod_timer(&ent->timer, now + br_multicast_gmi(brmctx));
+		mod_timer(&ent->timer, analw + br_multicast_gmi(brmctx));
 	else
 		del_timer(&ent->timer);
 
@@ -908,17 +908,17 @@ static int br_mdb_replace_group_srcs(const struct br_mdb_config *cfg,
 				     struct netlink_ext_ack *extack)
 {
 	struct net_bridge_group_src *ent;
-	struct hlist_node *tmp;
+	struct hlist_analde *tmp;
 	int err;
 
-	hlist_for_each_entry(ent, &pg->src_list, node)
+	hlist_for_each_entry(ent, &pg->src_list, analde)
 		ent->flags |= BR_SGRP_F_DELETE;
 
 	err = br_mdb_add_group_srcs(cfg, pg, brmctx, extack);
 	if (err)
 		goto err_clear_delete;
 
-	hlist_for_each_entry_safe(ent, tmp, &pg->src_list, node) {
+	hlist_for_each_entry_safe(ent, tmp, &pg->src_list, analde) {
 		if (ent->flags & BR_SGRP_F_DELETE)
 			br_multicast_del_group_src(ent, false);
 	}
@@ -926,7 +926,7 @@ static int br_mdb_replace_group_srcs(const struct br_mdb_config *cfg,
 	return 0;
 
 err_clear_delete:
-	hlist_for_each_entry(ent, &pg->src_list, node)
+	hlist_for_each_entry(ent, &pg->src_list, analde)
 		ent->flags &= ~BR_SGRP_F_DELETE;
 	return err;
 }
@@ -938,7 +938,7 @@ static int br_mdb_replace_group_star_g(const struct br_mdb_config *cfg,
 				       unsigned char flags,
 				       struct netlink_ext_ack *extack)
 {
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int err;
 
 	err = br_mdb_replace_group_srcs(cfg, pg, brmctx, extack);
@@ -951,11 +951,11 @@ static int br_mdb_replace_group_star_g(const struct br_mdb_config *cfg,
 	if (!(flags & MDB_PG_FLAGS_PERMANENT) &&
 	    cfg->filter_mode == MCAST_EXCLUDE)
 		mod_timer(&pg->timer,
-			  now + brmctx->multicast_membership_interval);
+			  analw + brmctx->multicast_membership_interval);
 	else
 		del_timer(&pg->timer);
 
-	br_mdb_notify(cfg->br->dev, mp, pg, RTM_NEWMDB);
+	br_mdb_analtify(cfg->br->dev, mp, pg, RTM_NEWMDB);
 
 	if (br_multicast_should_handle_mode(brmctx, cfg->group.proto))
 		br_multicast_star_g_handle_mode(pg, cfg->filter_mode);
@@ -971,7 +971,7 @@ static int br_mdb_add_group_star_g(const struct br_mdb_config *cfg,
 {
 	struct net_bridge_port_group __rcu **pp;
 	struct net_bridge_port_group *p;
-	unsigned long now = jiffies;
+	unsigned long analw = jiffies;
 	int err;
 
 	for (pp = &mp->ports;
@@ -993,7 +993,7 @@ static int br_mdb_add_group_star_g(const struct br_mdb_config *cfg,
 					cfg->filter_mode, cfg->rt_protocol,
 					extack);
 	if (unlikely(!p))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = br_mdb_add_group_srcs(cfg, p, brmctx, extack);
 	if (err)
@@ -1003,8 +1003,8 @@ static int br_mdb_add_group_star_g(const struct br_mdb_config *cfg,
 	if (!(flags & MDB_PG_FLAGS_PERMANENT) &&
 	    cfg->filter_mode == MCAST_EXCLUDE)
 		mod_timer(&p->timer,
-			  now + brmctx->multicast_membership_interval);
-	br_mdb_notify(cfg->br->dev, mp, p, RTM_NEWMDB);
+			  analw + brmctx->multicast_membership_interval);
+	br_mdb_analtify(cfg->br->dev, mp, p, RTM_NEWMDB);
 	/* If we are adding a new EXCLUDE port group (*, G), it needs to be
 	 * also added to all (S, G) entries for proper replication.
 	 */
@@ -1046,7 +1046,7 @@ static int br_mdb_add_group(const struct br_mdb_config *cfg,
 		}
 
 		br_multicast_host_join(brmctx, mp, false);
-		br_mdb_notify(br->dev, mp, NULL, RTM_NEWMDB);
+		br_mdb_analtify(br->dev, mp, NULL, RTM_NEWMDB);
 
 		return 0;
 	}
@@ -1118,7 +1118,7 @@ static int br_mdb_config_src_list_init(struct nlattr *src_list,
 	cfg->src_entries = kcalloc(cfg->num_src_entries,
 				   sizeof(struct br_mdb_src_entry), GFP_KERNEL);
 	if (!cfg->src_entries)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	nla_for_each_nested(src_entry, src_list, rem) {
 		err = br_mdb_config_src_entry_init(src_entry,
@@ -1163,7 +1163,7 @@ static int br_mdb_config_attrs_init(struct nlattr *set_attrs,
 
 	if (mdb_attrs[MDBE_ATTR_GROUP_MODE]) {
 		if (!cfg->p) {
-			NL_SET_ERR_MSG_MOD(extack, "Filter mode cannot be set for host groups");
+			NL_SET_ERR_MSG_MOD(extack, "Filter mode cananalt be set for host groups");
 			return -EINVAL;
 		}
 		if (!br_multicast_is_star_g(&cfg->group)) {
@@ -1177,7 +1177,7 @@ static int br_mdb_config_attrs_init(struct nlattr *set_attrs,
 
 	if (mdb_attrs[MDBE_ATTR_SRC_LIST]) {
 		if (!cfg->p) {
-			NL_SET_ERR_MSG_MOD(extack, "Source list cannot be set for host groups");
+			NL_SET_ERR_MSG_MOD(extack, "Source list cananalt be set for host groups");
 			return -EINVAL;
 		}
 		if (!br_multicast_is_star_g(&cfg->group)) {
@@ -1185,7 +1185,7 @@ static int br_mdb_config_attrs_init(struct nlattr *set_attrs,
 			return -EINVAL;
 		}
 		if (!mdb_attrs[MDBE_ATTR_GROUP_MODE]) {
-			NL_SET_ERR_MSG_MOD(extack, "Source list cannot be set without filter mode");
+			NL_SET_ERR_MSG_MOD(extack, "Source list cananalt be set without filter mode");
 			return -EINVAL;
 		}
 		err = br_mdb_config_src_list_init(mdb_attrs[MDBE_ATTR_SRC_LIST],
@@ -1195,13 +1195,13 @@ static int br_mdb_config_attrs_init(struct nlattr *set_attrs,
 	}
 
 	if (!cfg->num_src_entries && cfg->filter_mode == MCAST_INCLUDE) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot add (*, G) INCLUDE with an empty source list");
+		NL_SET_ERR_MSG_MOD(extack, "Cananalt add (*, G) INCLUDE with an empty source list");
 		return -EINVAL;
 	}
 
 	if (mdb_attrs[MDBE_ATTR_RTPROT]) {
 		if (!cfg->p) {
-			NL_SET_ERR_MSG_MOD(extack, "Protocol cannot be set for host groups");
+			NL_SET_ERR_MSG_MOD(extack, "Protocol cananalt be set for host groups");
 			return -EINVAL;
 		}
 		cfg->rt_protocol = nla_get_u8(mdb_attrs[MDBE_ATTR_RTPROT]);
@@ -1224,7 +1224,7 @@ static int br_mdb_config_init(struct br_mdb_config *cfg, struct net_device *dev,
 	cfg->br = netdev_priv(dev);
 
 	if (!netif_running(cfg->br->dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Bridge device is not running");
+		NL_SET_ERR_MSG_MOD(extack, "Bridge device is analt running");
 		return -EINVAL;
 	}
 
@@ -1241,12 +1241,12 @@ static int br_mdb_config_init(struct br_mdb_config *cfg, struct net_device *dev,
 		pdev = __dev_get_by_index(net, cfg->entry->ifindex);
 		if (!pdev) {
 			NL_SET_ERR_MSG_MOD(extack, "Port net device doesn't exist");
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		cfg->p = br_port_get_rtnl(pdev);
 		if (!cfg->p) {
-			NL_SET_ERR_MSG_MOD(extack, "Net device is not a bridge port");
+			NL_SET_ERR_MSG_MOD(extack, "Net device is analt a bridge port");
 			return -EINVAL;
 		}
 
@@ -1258,7 +1258,7 @@ static int br_mdb_config_init(struct br_mdb_config *cfg, struct net_device *dev,
 
 	if (cfg->entry->addr.proto == htons(ETH_P_IP) &&
 	    ipv4_is_zeronet(cfg->entry->addr.u.ip4)) {
-		NL_SET_ERR_MSG_MOD(extack, "IPv4 entry group address 0.0.0.0 is not allowed");
+		NL_SET_ERR_MSG_MOD(extack, "IPv4 entry group address 0.0.0.0 is analt allowed");
 		return -EINVAL;
 	}
 
@@ -1293,11 +1293,11 @@ int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
 	if (!cfg.p && !br_group_is_l2(&cfg.group)) {
 		/* don't allow any flags for host-joined IP groups */
 		if (cfg.entry->state) {
-			NL_SET_ERR_MSG_MOD(extack, "Flags are not allowed for host groups");
+			NL_SET_ERR_MSG_MOD(extack, "Flags are analt allowed for host groups");
 			goto out;
 		}
 		if (!br_multicast_is_star_g(&cfg.group)) {
-			NL_SET_ERR_MSG_MOD(extack, "Groups with sources cannot be manually host joined");
+			NL_SET_ERR_MSG_MOD(extack, "Groups with sources cananalt be manually host joined");
 			goto out;
 		}
 	}
@@ -1309,7 +1309,7 @@ int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
 
 	if (cfg.p) {
 		if (cfg.p->state == BR_STATE_DISABLED && cfg.entry->state != MDB_PERMANENT) {
-			NL_SET_ERR_MSG_MOD(extack, "Port is in disabled state and entry is not permanent");
+			NL_SET_ERR_MSG_MOD(extack, "Port is in disabled state and entry is analt permanent");
 			goto out;
 		}
 		vg = nbp_vlan_group(cfg.p);
@@ -1317,7 +1317,7 @@ int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
 		vg = br_vlan_group(cfg.br);
 	}
 
-	/* If vlan filtering is enabled and VLAN is not specified
+	/* If vlan filtering is enabled and VLAN is analt specified
 	 * install mdb entry on all vlans configured on the port.
 	 */
 	if (br_vlan_enabled(cfg.br->dev) && vg && cfg.entry->vid == 0) {
@@ -1356,7 +1356,7 @@ static int __br_mdb_del(const struct br_mdb_config *cfg)
 	if (entry->ifindex == mp->br->dev->ifindex && mp->host_joined) {
 		br_multicast_host_leave(mp, false);
 		err = 0;
-		br_mdb_notify(br->dev, mp, NULL, RTM_DELMDB);
+		br_mdb_analtify(br->dev, mp, NULL, RTM_DELMDB);
 		if (!mp->ports && netif_running(br->dev))
 			mod_timer(&mp->timer, jiffies);
 		goto unlock;
@@ -1395,7 +1395,7 @@ int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	else
 		vg = br_vlan_group(cfg.br);
 
-	/* If vlan filtering is enabled and VLAN is not specified
+	/* If vlan filtering is enabled and VLAN is analt specified
 	 * delete mdb entry on all vlans configured on the port.
 	 */
 	if (br_vlan_enabled(cfg.br->dev) && vg && cfg.entry->vid == 0) {
@@ -1515,10 +1515,10 @@ static void br_mdb_flush(struct net_bridge *br,
 
 	spin_lock_bh(&br->multicast_lock);
 
-	/* Safe variant is not needed because entries are removed from the list
+	/* Safe variant is analt needed because entries are removed from the list
 	 * upon group timer expiration or bridge deletion.
 	 */
-	hlist_for_each_entry(mp, &br->mdb_list, mdb_node) {
+	hlist_for_each_entry(mp, &br->mdb_list, mdb_analde) {
 		if (desc->vid && desc->vid != mp->addr.vid)
 			continue;
 
@@ -1619,12 +1619,12 @@ static int br_mdb_get_reply_fill(struct sk_buff *skb,
 	memset(bpm, 0, sizeof(*bpm));
 	bpm->family  = AF_BRIDGE;
 	bpm->ifindex = mp->br->dev->ifindex;
-	mdb_nest = nla_nest_start_noflag(skb, MDBA_MDB);
+	mdb_nest = nla_nest_start_analflag(skb, MDBA_MDB);
 	if (!mdb_nest) {
 		err = -EMSGSIZE;
 		goto cancel;
 	}
-	mdb_entry_nest = nla_nest_start_noflag(skb, MDBA_MDB_ENTRY);
+	mdb_entry_nest = nla_nest_start_analflag(skb, MDBA_MDB_ENTRY);
 	if (!mdb_entry_nest) {
 		err = -EMSGSIZE;
 		goto cancel;
@@ -1667,7 +1667,7 @@ int br_mdb_get(struct net_device *dev, struct nlattr *tb[], u32 portid, u32 seq,
 	if (err)
 		return err;
 
-	/* Hold the multicast lock to ensure that the MDB entry does not change
+	/* Hold the multicast lock to ensure that the MDB entry does analt change
 	 * between the time the reply size is determined and when the reply is
 	 * filled in.
 	 */
@@ -1675,14 +1675,14 @@ int br_mdb_get(struct net_device *dev, struct nlattr *tb[], u32 portid, u32 seq,
 
 	mp = br_mdb_ip_get(br, &group);
 	if (!mp) {
-		NL_SET_ERR_MSG_MOD(extack, "MDB entry not found");
-		err = -ENOENT;
+		NL_SET_ERR_MSG_MOD(extack, "MDB entry analt found");
+		err = -EANALENT;
 		goto unlock;
 	}
 
 	skb = br_mdb_get_reply_alloc(mp);
 	if (!skb) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto unlock;
 	}
 

@@ -18,14 +18,14 @@
 #define IWL_RX_INFO_ENERGY_ANT_C_POS 16
 
 enum iwl_mac_context_info {
-	MAC_CONTEXT_INFO_NONE,
+	MAC_CONTEXT_INFO_ANALNE,
 	MAC_CONTEXT_INFO_GSCAN,
 };
 
 /**
  * struct iwl_rx_phy_info - phy info
  * (REPLY_RX_PHY_CMD = 0xc0)
- * @non_cfg_phy_cnt: non configurable DSP phy data byte count
+ * @analn_cfg_phy_cnt: analn configurable DSP phy data byte count
  * @cfg_phy_cnt: configurable DSP phy data byte count
  * @stat_id: configurable DSP phy data set ID
  * @reserved1: reserved
@@ -34,7 +34,7 @@ enum iwl_mac_context_info {
  * @beacon_time_stamp: beacon at on-air rise
  * @phy_flags: general phy flags: band, modulation, ...
  * @channel: channel number
- * @non_cfg_phy: for various implementations of non_cfg_phy
+ * @analn_cfg_phy: for various implementations of analn_cfg_phy
  * @rate_n_flags: RATE_MCS_*
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
@@ -47,7 +47,7 @@ enum iwl_mac_context_info {
  * about the reception of the packet.
  */
 struct iwl_rx_phy_info {
-	u8 non_cfg_phy_cnt;
+	u8 analn_cfg_phy_cnt;
 	u8 cfg_phy_cnt;
 	u8 stat_id;
 	u8 reserved1;
@@ -56,7 +56,7 @@ struct iwl_rx_phy_info {
 	__le32 beacon_time_stamp;
 	__le16 phy_flags;
 	__le16 channel;
-	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
+	__le32 analn_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
 	u8 mac_active_msk;
@@ -122,16 +122,16 @@ enum iwl_rx_phy_flags {
 /**
  * enum iwl_mvm_rx_status - written by fw for each Rx packet
  * @RX_MPDU_RES_STATUS_CRC_OK: CRC is fine
- * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
+ * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was anal RXE overflow
  * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
  * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
- * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
+ * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if analt, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
  * @RX_MPDU_RES_STATUS_TTAK_OK: TTAK is fine
  * @RX_MPDU_RES_STATUS_MNG_FRAME_REPLAY_ERR:  valid for alg = CCM_CMAC or
  *	alg = CCM only. Checks replay attack for 11w frames.
- * @RX_MPDU_RES_STATUS_SEC_NO_ENC: this frame is not encrypted
+ * @RX_MPDU_RES_STATUS_SEC_ANAL_ENC: this frame is analt encrypted
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
  * @RX_MPDU_RES_STATUS_SEC_TKIP_ENC: this frame is encrypted using TKIP
@@ -143,7 +143,7 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_SEC_ENC_MSK: bitmask of the encryption algorithm
  * @RX_MPDU_RES_STATUS_DEC_DONE: this frame has been successfully decrypted
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
- * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
+ * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found anal errors
  * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
  * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
  */
@@ -156,7 +156,7 @@ enum iwl_mvm_rx_status {
 	RX_MPDU_RES_STATUS_MIC_OK			= BIT(6),
 	RX_MPDU_RES_STATUS_TTAK_OK			= BIT(7),
 	RX_MPDU_RES_STATUS_MNG_FRAME_REPLAY_ERR		= BIT(7),
-	RX_MPDU_RES_STATUS_SEC_NO_ENC			= (0 << 8),
+	RX_MPDU_RES_STATUS_SEC_ANAL_ENC			= (0 << 8),
 	RX_MPDU_RES_STATUS_SEC_WEP_ENC			= (1 << 8),
 	RX_MPDU_RES_STATUS_SEC_CCM_ENC			= (2 << 8),
 	RX_MPDU_RES_STATUS_SEC_TKIP_ENC			= (3 << 8),
@@ -199,7 +199,7 @@ enum iwl_rx_mpdu_amsdu_info {
 	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
 
 enum iwl_rx_l3_proto_values {
-	IWL_RX_L3_TYPE_NONE,
+	IWL_RX_L3_TYPE_ANALNE,
 	IWL_RX_L3_TYPE_IPV4,
 	IWL_RX_L3_TYPE_IPV4_FRAG,
 	IWL_RX_L3_TYPE_IPV6_FRAG,
@@ -232,8 +232,8 @@ enum iwl_rx_mpdu_status {
 	/* overlayed since IWL_UCODE_TLV_API_DEPRECATE_TTAK */
 	IWL_RX_MPDU_STATUS_REPLAY_ERROR		= BIT(7),
 	IWL_RX_MPDU_STATUS_SEC_MASK		= 0x7 << 8,
-	IWL_RX_MPDU_STATUS_SEC_UNKNOWN		= IWL_RX_MPDU_STATUS_SEC_MASK,
-	IWL_RX_MPDU_STATUS_SEC_NONE		= 0x0 << 8,
+	IWL_RX_MPDU_STATUS_SEC_UNKANALWN		= IWL_RX_MPDU_STATUS_SEC_MASK,
+	IWL_RX_MPDU_STATUS_SEC_ANALNE		= 0x0 << 8,
 	IWL_RX_MPDU_STATUS_SEC_WEP		= 0x1 << 8,
 	IWL_RX_MPDU_STATUS_SEC_CCM		= 0x2 << 8,
 	IWL_RX_MPDU_STATUS_SEC_TKIP		= 0x3 << 8,
@@ -262,7 +262,7 @@ enum iwl_rx_mpdu_phy_info {
 	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
 	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
 	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
-	/* short preamble is only for CCK, for non-CCK overridden by this */
+	/* short preamble is only for CCK, for analn-CCK overridden by this */
 	IWL_RX_MPDU_PHY_NCCK_ADDTL_NTFY	= BIT(7),
 	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
 };
@@ -309,7 +309,7 @@ enum iwl_rx_phy_eht_data0 {
 };
 
 enum iwl_rx_phy_info_type {
-	IWL_RX_PHY_INFO_TYPE_NONE				= 0,
+	IWL_RX_PHY_INFO_TYPE_ANALNE				= 0,
 	IWL_RX_PHY_INFO_TYPE_CCK				= 1,
 	IWL_RX_PHY_INFO_TYPE_OFDM_LGCY				= 2,
 	IWL_RX_PHY_INFO_TYPE_HT					= 3,
@@ -408,7 +408,7 @@ enum iwl_rx_phy_he_he_data4 {
 	IWL_RX_PHY_DATA4_HE_MU_EXT_PREAMBLE_PUNC_TYPE_MASK	= 0x0600,
 };
 
-/* goes into Metadata DW 8 (Qu has no EHT) */
+/* goes into Metadata DW 8 (Qu has anal EHT) */
 enum iwl_rx_phy_eht_data2 {
 	/* info type: EHT-MU-EXT */
 	IWL_RX_PHY_DATA2_EHT_MU_EXT_RU_ALLOC_A1	= 0x000001ff,
@@ -419,9 +419,9 @@ enum iwl_rx_phy_eht_data2 {
 	IWL_RX_PHY_DATA2_EHT_TB_EXT_TRIG_SIGA1	= 0xffffffff,
 };
 
-/* goes into Metadata DW 7 (Qu has no EHT) */
+/* goes into Metadata DW 7 (Qu has anal EHT) */
 enum iwl_rx_phy_eht_data3 {
-	/* note: low 8 bits cannot be used */
+	/* analte: low 8 bits cananalt be used */
 	/* info type: EHT-MU-EXT */
 	IWL_RX_PHY_DATA3_EHT_MU_EXT_RU_ALLOC_C1	= 0x0003fe00,
 	IWL_RX_PHY_DATA3_EHT_MU_EXT_RU_ALLOC_C2	= 0x07fc0000,
@@ -446,7 +446,7 @@ enum iwl_rx_phy_data5 {
 	/* info type: EHT-MU */
 	IWL_RX_PHY_DATA5_EHT_MU_PUNC_CH_CODE		= 0x0000007c,
 	IWL_RX_PHY_DATA5_EHT_MU_STA_ID_USR		= 0x0003ff80,
-	IWL_RX_PHY_DATA5_EHT_MU_NUM_USR_NON_OFDMA	= 0x001c0000,
+	IWL_RX_PHY_DATA5_EHT_MU_NUM_USR_ANALN_OFDMA	= 0x001c0000,
 	IWL_RX_PHY_DATA5_EHT_MU_SPATIAL_CONF_USR_FIELD	= 0x0fe00000,
 };
 
@@ -719,36 +719,36 @@ struct iwl_rx_mpdu_desc {
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
-#define RX_NO_DATA_CHAIN_A_POS		0
-#define RX_NO_DATA_CHAIN_A_MSK		(0xff << RX_NO_DATA_CHAIN_A_POS)
-#define RX_NO_DATA_CHAIN_B_POS		8
-#define RX_NO_DATA_CHAIN_B_MSK		(0xff << RX_NO_DATA_CHAIN_B_POS)
-#define RX_NO_DATA_CHANNEL_POS		16
-#define RX_NO_DATA_CHANNEL_MSK		(0xff << RX_NO_DATA_CHANNEL_POS)
+#define RX_ANAL_DATA_CHAIN_A_POS		0
+#define RX_ANAL_DATA_CHAIN_A_MSK		(0xff << RX_ANAL_DATA_CHAIN_A_POS)
+#define RX_ANAL_DATA_CHAIN_B_POS		8
+#define RX_ANAL_DATA_CHAIN_B_MSK		(0xff << RX_ANAL_DATA_CHAIN_B_POS)
+#define RX_ANAL_DATA_CHANNEL_POS		16
+#define RX_ANAL_DATA_CHANNEL_MSK		(0xff << RX_ANAL_DATA_CHANNEL_POS)
 
-#define RX_NO_DATA_INFO_TYPE_POS	0
-#define RX_NO_DATA_INFO_TYPE_MSK	(0xff << RX_NO_DATA_INFO_TYPE_POS)
-#define RX_NO_DATA_INFO_TYPE_NONE	0
-#define RX_NO_DATA_INFO_TYPE_RX_ERR	1
-#define RX_NO_DATA_INFO_TYPE_NDP	2
-#define RX_NO_DATA_INFO_TYPE_MU_UNMATCHED	3
-#define RX_NO_DATA_INFO_TYPE_TB_UNMATCHED	4
+#define RX_ANAL_DATA_INFO_TYPE_POS	0
+#define RX_ANAL_DATA_INFO_TYPE_MSK	(0xff << RX_ANAL_DATA_INFO_TYPE_POS)
+#define RX_ANAL_DATA_INFO_TYPE_ANALNE	0
+#define RX_ANAL_DATA_INFO_TYPE_RX_ERR	1
+#define RX_ANAL_DATA_INFO_TYPE_NDP	2
+#define RX_ANAL_DATA_INFO_TYPE_MU_UNMATCHED	3
+#define RX_ANAL_DATA_INFO_TYPE_TB_UNMATCHED	4
 
-#define RX_NO_DATA_INFO_ERR_POS		8
-#define RX_NO_DATA_INFO_ERR_MSK		(0xff << RX_NO_DATA_INFO_ERR_POS)
-#define RX_NO_DATA_INFO_ERR_NONE	0
-#define RX_NO_DATA_INFO_ERR_BAD_PLCP	1
-#define RX_NO_DATA_INFO_ERR_UNSUPPORTED_RATE	2
-#define RX_NO_DATA_INFO_ERR_NO_DELIM		3
-#define RX_NO_DATA_INFO_ERR_BAD_MAC_HDR	4
-#define RX_NO_DATA_INFO_LOW_ENERGY		5
+#define RX_ANAL_DATA_INFO_ERR_POS		8
+#define RX_ANAL_DATA_INFO_ERR_MSK		(0xff << RX_ANAL_DATA_INFO_ERR_POS)
+#define RX_ANAL_DATA_INFO_ERR_ANALNE	0
+#define RX_ANAL_DATA_INFO_ERR_BAD_PLCP	1
+#define RX_ANAL_DATA_INFO_ERR_UNSUPPORTED_RATE	2
+#define RX_ANAL_DATA_INFO_ERR_ANAL_DELIM		3
+#define RX_ANAL_DATA_INFO_ERR_BAD_MAC_HDR	4
+#define RX_ANAL_DATA_INFO_LOW_ENERGY		5
 
-#define RX_NO_DATA_FRAME_TIME_POS	0
-#define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
+#define RX_ANAL_DATA_FRAME_TIME_POS	0
+#define RX_ANAL_DATA_FRAME_TIME_MSK	(0xfffff << RX_ANAL_DATA_FRAME_TIME_POS)
 
-#define RX_NO_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
-#define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
-#define RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK	0x00f00000
+#define RX_ANAL_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
+#define RX_ANAL_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
+#define RX_ANAL_DATA_RX_VEC2_EHT_NSTS_MSK	0x00f00000
 
 /* content of OFDM_RX_VECTOR_USIG_A1_OUT */
 enum iwl_rx_usig_a1 {
@@ -780,7 +780,7 @@ enum iwl_rx_usig_a2_eht {
 };
 
 /**
- * struct iwl_rx_no_data - RX no data descriptor
+ * struct iwl_rx_anal_data - RX anal data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
  * @rssi: 7:0 energy chain-A,
  *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
@@ -793,7 +793,7 @@ enum iwl_rx_usig_a2_eht {
  *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
  *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
  */
-struct iwl_rx_no_data {
+struct iwl_rx_anal_data {
 	__le32 info;
 	__le32 rssi;
 	__le32 on_air_rise_time;
@@ -801,11 +801,11 @@ struct iwl_rx_no_data {
 	__le32 rate;
 	__le32 phy_info[2];
 	__le32 rx_vec[2];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
-	       RX_NO_DATA_NTFY_API_S_VER_2 */
+} __packed; /* RX_ANAL_DATA_NTFY_API_S_VER_1,
+	       RX_ANAL_DATA_NTFY_API_S_VER_2 */
 
 /**
- * struct iwl_rx_no_data_ver_3 - RX no data descriptor
+ * struct iwl_rx_anal_data_ver_3 - RX anal data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
  * @rssi: 7:0 energy chain-A,
  *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
@@ -819,7 +819,7 @@ struct iwl_rx_no_data {
  *	for EHT: OFDM_RX_VECTOR_USIG_A1_OUT, OFDM_RX_VECTOR_USIG_A2_EHT_OUT,
  *	OFDM_RX_VECTOR_EHT_OUT, OFDM_RX_VECTOR_EHT_USER_FIELD_OUT
  */
-struct iwl_rx_no_data_ver_3 {
+struct iwl_rx_anal_data_ver_3 {
 	__le32 info;
 	__le32 rssi;
 	__le32 on_air_rise_time;
@@ -827,9 +827,9 @@ struct iwl_rx_no_data_ver_3 {
 	__le32 rate;
 	__le32 phy_info[2];
 	__le32 rx_vec[4];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
-	       RX_NO_DATA_NTFY_API_S_VER_2
-	       RX_NO_DATA_NTFY_API_S_VER_3 */
+} __packed; /* RX_ANAL_DATA_NTFY_API_S_VER_1,
+	       RX_ANAL_DATA_NTFY_API_S_VER_2
+	       RX_ANAL_DATA_NTFY_API_S_VER_3 */
 
 struct iwl_frame_release {
 	u8 baid;
@@ -850,7 +850,7 @@ enum iwl_bar_frame_release_sta_tid {
 /**
  * enum iwl_bar_frame_release_ba_info - BA information for BAR release
  * @IWL_BAR_FRAME_RELEASE_NSSN_MASK: NSSN mask
- * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (ignored by driver)
+ * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (iganalred by driver)
  * @IWL_BAR_FRAME_RELEASE_BAID_MASK: BAID mask
  */
 enum iwl_bar_frame_release_ba_info {
@@ -903,10 +903,10 @@ struct iwl_rss_config_cmd {
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
 /**
- * struct iwl_rxq_sync_cmd - RXQ notification trigger
+ * struct iwl_rxq_sync_cmd - RXQ analtification trigger
  *
- * @flags: flags of the notification. bit 0:3 are the sender queue
- * @rxq_mask: rx queues to send the notification on
+ * @flags: flags of the analtification. bit 0:3 are the sender queue
+ * @rxq_mask: rx queues to send the analtification on
  * @count: number of bytes in payload, should be DWORD aligned
  * @payload: data to send to rx queues
  */
@@ -918,13 +918,13 @@ struct iwl_rxq_sync_cmd {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_rxq_sync_notification - Notification triggered by RXQ
+ * struct iwl_rxq_sync_analtification - Analtification triggered by RXQ
  * sync command
  *
  * @count: number of bytes in payload
  * @payload: data to send to rx queues
  */
-struct iwl_rxq_sync_notification {
+struct iwl_rxq_sync_analtification {
 	__le32 count;
 	u8 payload[];
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
@@ -944,11 +944,11 @@ enum iwl_mvm_pm_event {
 }; /* PEER_PM_NTFY_API_E_VER_1 */
 
 /**
- * struct iwl_mvm_pm_state_notification - station PM state notification
+ * struct iwl_mvm_pm_state_analtification - station PM state analtification
  * @sta_id: station ID of the station changing state
  * @type: the new powersave state, see &enum iwl_mvm_pm_event
  */
-struct iwl_mvm_pm_state_notification {
+struct iwl_mvm_pm_state_analtification {
 	u8 sta_id;
 	u8 type;
 	/* private: */
@@ -962,13 +962,13 @@ struct iwl_mvm_pm_state_notification {
 #define BA_WINDOW_STATUS_VALID_MSK	BIT(9)
 
 /**
- * struct iwl_ba_window_status_notif - reordering window's status notification
+ * struct iwl_ba_window_status_analtif - reordering window's status analtification
  * @bitmap: bitmap of received frames [start_seq_num + 0]..[start_seq_num + 63]
  * @ra_tid: bit 3:0 - TID, bit 8:4 - STA_ID, bit 9 - valid
  * @start_seq_num: the start sequence number of the bitmap
  * @mpdu_rx_count: the number of received MPDUs since entering D0i3
  */
-struct iwl_ba_window_status_notif {
+struct iwl_ba_window_status_analtif {
 	__le64 bitmap[BA_WINDOW_STREAMS_MAX];
 	__le16 ra_tid[BA_WINDOW_STREAMS_MAX];
 	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];

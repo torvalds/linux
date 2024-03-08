@@ -22,34 +22,34 @@
  */
 static int set_secret(struct ceph_crypto_key *key, void *buf)
 {
-	unsigned int noio_flag;
+	unsigned int analio_flag;
 	int ret;
 
 	key->key = NULL;
 	key->tfm = NULL;
 
 	switch (key->type) {
-	case CEPH_CRYPTO_NONE:
-		return 0; /* nothing to do */
+	case CEPH_CRYPTO_ANALNE:
+		return 0; /* analthing to do */
 	case CEPH_CRYPTO_AES:
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	if (!key->len)
 		return -EINVAL;
 
-	key->key = kmemdup(buf, key->len, GFP_NOIO);
+	key->key = kmemdup(buf, key->len, GFP_ANALIO);
 	if (!key->key) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto fail;
 	}
 
 	/* crypto_alloc_sync_skcipher() allocates with GFP_KERNEL */
-	noio_flag = memalloc_noio_save();
+	analio_flag = memalloc_analio_save();
 	key->tfm = crypto_alloc_sync_skcipher("cbc(aes)", 0, 0);
-	memalloc_noio_restore(noio_flag);
+	memalloc_analio_restore(analio_flag);
 	if (IS_ERR(key->tfm)) {
 		ret = PTR_ERR(key->tfm);
 		key->tfm = NULL;
@@ -113,9 +113,9 @@ int ceph_crypto_key_unarmor(struct ceph_crypto_key *key, const char *inkey)
 	int ret;
 
 	dout("crypto_key_unarmor %s\n", inkey);
-	buf = kmalloc(blen, GFP_NOFS);
+	buf = kmalloc(blen, GFP_ANALFS);
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 	blen = ceph_unarmor(buf, inkey, inkey+inlen);
 	if (blen < 0) {
 		kfree(buf);
@@ -154,7 +154,7 @@ static const u8 *aes_iv = (u8 *)CEPH_AES_IV;
  * Dispose of @sgt with teardown_sgtable().
  *
  * @prealloc_sg is to avoid memory allocation inside sg_alloc_table()
- * in cases where a single sg is sufficient.  No attempt to reduce the
+ * in cases where a single sg is sufficient.  Anal attempt to reduce the
  * number of sgs by squeezing physically contiguous pages together is
  * made though, for simplicity.
  */
@@ -180,7 +180,7 @@ static int setup_sgtable(struct sg_table *sgt, struct scatterlist *prealloc_sg,
 	}
 
 	if (chunk_cnt > 1) {
-		ret = sg_alloc_table(sgt, chunk_cnt, GFP_NOFS);
+		ret = sg_alloc_table(sgt, chunk_cnt, GFP_ANALFS);
 		if (ret)
 			return ret;
 	} else {
@@ -240,9 +240,9 @@ static int ceph_aes_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	skcipher_request_set_crypt(req, sgt.sgl, sgt.sgl, crypt_len, iv);
 
 	/*
-	print_hex_dump(KERN_ERR, "key: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_ERR, "key: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       key->key, key->len, 1);
-	print_hex_dump(KERN_ERR, " in: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_ERR, " in: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       buf, crypt_len, 1);
 	*/
 	if (encrypt)
@@ -256,7 +256,7 @@ static int ceph_aes_crypt(const struct ceph_crypto_key *key, bool encrypt,
 		goto out_sgt;
 	}
 	/*
-	print_hex_dump(KERN_ERR, "out: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump(KERN_ERR, "out: ", DUMP_PREFIX_ANALNE, 16, 1,
 		       buf, crypt_len, 1);
 	*/
 
@@ -284,14 +284,14 @@ int ceph_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	       void *buf, int buf_len, int in_len, int *pout_len)
 {
 	switch (key->type) {
-	case CEPH_CRYPTO_NONE:
+	case CEPH_CRYPTO_ANALNE:
 		*pout_len = in_len;
 		return 0;
 	case CEPH_CRYPTO_AES:
 		return ceph_aes_crypt(key, encrypt, buf, buf_len, in_len,
 				      pout_len);
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 }
 
@@ -306,7 +306,7 @@ static int ceph_key_preparse(struct key_preparsed_payload *prep)
 	if (datalen <= 0 || datalen > 32767 || !prep->data)
 		goto err;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	ckey = kmalloc(sizeof(*ckey), GFP_KERNEL);
 	if (!ckey)
 		goto err;

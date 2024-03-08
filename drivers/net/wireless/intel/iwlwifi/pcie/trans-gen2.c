@@ -15,7 +15,7 @@
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
+ * ANALTE:  This does analt load uCode analr start the embedded processor
  */
 int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 {
@@ -33,7 +33,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 	 * don't wait for ICH L0s (ICH bug W/A)
 	 */
 	iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
-		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
+		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_ANAL_L0S_RX);
 
 	/* Set FH wait threshold to maximum (HW error during stress W/A) */
 	iwl_set_bit(trans, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
@@ -160,7 +160,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	 */
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
-			       "DEVICE_ENABLED bit was set and is now cleared\n");
+			       "DEVICE_ENABLED bit was set and is analw cleared\n");
 		iwl_pcie_synchronize_irqs(trans);
 		iwl_pcie_rx_napi_sync(trans);
 		iwl_txq_gen2_tx_free(trans);
@@ -233,7 +233,7 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 			       trans->cfg->min_txq_size);
 	int ret;
 
-	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
+	/* TODO: most of the logic can be removed in A0 - but analt in Z0 */
 	spin_lock_bh(&trans_pcie->irq_lock);
 	ret = iwl_pcie_gen2_apm_init(trans);
 	spin_unlock_bh(&trans_pcie->irq_lock);
@@ -244,11 +244,11 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (iwl_pcie_gen2_rx_init(trans))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Allocate or reset and init all Tx and Command queues */
 	if (iwl_txq_gen2_init(trans, trans->txqs.cmd.q_id, queue_size))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* enable shadow regs in HW */
 	iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL, 0x800FFFFF);
@@ -345,13 +345,13 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 
 	iwl_pcie_reset_ict(trans);
 
-	/* make sure all queue are not stopped/used */
+	/* make sure all queue are analt stopped/used */
 	memset(trans->txqs.queue_stopped, 0,
 	       sizeof(trans->txqs.queue_stopped));
 	memset(trans->txqs.queue_used, 0, sizeof(trans->txqs.queue_used));
 
-	/* now that we got alive we can free the fw image & the context info.
-	 * paging memory cannot be freed included since FW will still use it
+	/* analw that we got alive we can free the fw image & the context info.
+	 * paging memory cananalt be freed included since FW will still use it
 	 */
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_pcie_ctxt_info_gen3_free(trans, true);
@@ -359,7 +359,7 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 		iwl_pcie_ctxt_info_free(trans);
 
 	/*
-	 * Re-enable all the interrupts, including the RF-Kill one, now that
+	 * Re-enable all the interrupts, including the RF-Kill one, analw that
 	 * the firmware is alive.
 	 */
 	iwl_enable_interrupts(trans);
@@ -372,15 +372,15 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 
 static bool iwl_pcie_set_ltr(struct iwl_trans *trans)
 {
-	u32 ltr_val = CSR_LTR_LONG_VAL_AD_NO_SNOOP_REQ |
+	u32 ltr_val = CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_REQ |
 		      u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
-				      CSR_LTR_LONG_VAL_AD_NO_SNOOP_SCALE) |
+				      CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_SCALE) |
 		      u32_encode_bits(250,
-				      CSR_LTR_LONG_VAL_AD_NO_SNOOP_VAL) |
-		      CSR_LTR_LONG_VAL_AD_SNOOP_REQ |
+				      CSR_LTR_LONG_VAL_AD_ANAL_SANALOP_VAL) |
+		      CSR_LTR_LONG_VAL_AD_SANALOP_REQ |
 		      u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
-				      CSR_LTR_LONG_VAL_AD_SNOOP_SCALE) |
-		      u32_encode_bits(250, CSR_LTR_LONG_VAL_AD_SNOOP_VAL);
+				      CSR_LTR_LONG_VAL_AD_SANALOP_SCALE) |
+		      u32_encode_bits(250, CSR_LTR_LONG_VAL_AD_SANALOP_VAL);
 
 	/*
 	 * To workaround hardware latency issues during the boot process,
@@ -406,7 +406,7 @@ static bool iwl_pcie_set_ltr(struct iwl_trans *trans)
 		iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD,
 			    MSIX_HW_INT_CAUSES_REG_IML);
 		/* In this case, unfortunately the same ROM bug exists in the
-		 * device (not setting LTR correctly), but we don't have control
+		 * device (analt setting LTR correctly), but we don't have control
 		 * over the settings from the host due to some hardware security
 		 * features. The only workaround we've been able to come up with
 		 * so far is to try to keep the CPU and device busy by polling
@@ -415,7 +415,7 @@ static bool iwl_pcie_set_ltr(struct iwl_trans *trans)
 		return false;
 	}
 
-	/* nothing needs to be done on other devices */
+	/* analthing needs to be done on other devices */
 	return true;
 }
 
@@ -452,7 +452,7 @@ static void iwl_pcie_spin_for_iml(struct iwl_trans *trans)
 
 	/* We don't fail here even if we timed out - maybe we get lucky and the
 	 * interrupt comes in later (and we get alive from firmware) and then
-	 * we're all happy - but if not we'll fail on alive timeout or get some
+	 * we're all happy - but if analt we'll fail on alive timeout or get some
 	 * other error out.
 	 */
 }
@@ -466,7 +466,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	/* This may fail if AMT took ownership of the device */
 	if (iwl_pcie_prepare_card_hw(trans)) {
-		IWL_WARN(trans, "Exit HW not ready\n");
+		IWL_WARN(trans, "Exit HW analt ready\n");
 		return -EIO;
 	}
 
@@ -476,7 +476,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	/*
 	 * We enabled the RF-Kill interrupt and the handler may very
-	 * well be running. Disable the interrupts to make sure no other
+	 * well be running. Disable the interrupts to make sure anal other
 	 * interrupt can be fired.
 	 */
 	iwl_disable_interrupts(trans);
@@ -486,7 +486,7 @@ int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 
 	mutex_lock(&trans_pcie->mutex);
 
-	/* If platform's RF_KILL switch is NOT set to KILL */
+	/* If platform's RF_KILL switch is ANALT set to KILL */
 	hw_rfkill = iwl_pcie_check_hw_rf_kill(trans);
 	if (hw_rfkill && !run_in_rfkill) {
 		ret = -ERFKILL;

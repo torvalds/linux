@@ -195,7 +195,7 @@ static void aica_chn_halt(void)
 
 /* ALSA code below */
 static const struct snd_pcm_hardware snd_pcm_aica_playback_hw = {
-	.info = (SNDRV_PCM_INFO_NONINTERLEAVED),
+	.info = (SNDRV_PCM_INFO_ANALNINTERLEAVED),
 	.formats =
 	    (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |
 	     SNDRV_PCM_FMTBIT_IMA_ADPCM),
@@ -287,7 +287,7 @@ static void aica_period_elapsed(struct timer_list *t)
 	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
 							      t, timer);
 	struct snd_pcm_substream *substream = dreamcastcard->substream;
-	/*timer function - so cannot sleep */
+	/*timer function - so cananalt sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
 	runtime = substream->runtime;
@@ -328,18 +328,18 @@ static int snd_aicapcm_pcm_open(struct snd_pcm_substream
 	struct aica_channel *channel;
 	struct snd_card_aica *dreamcastcard;
 	if (!enable)
-		return -ENOENT;
+		return -EANALENT;
 	dreamcastcard = substream->pcm->private_data;
 	channel = kmalloc(sizeof(struct aica_channel), GFP_KERNEL);
 	if (!channel)
-		return -ENOMEM;
+		return -EANALMEM;
 	/* set defaults for channel */
 	channel->sfmt = SM_8BIT;
 	channel->cmd = AICA_CMD_START;
 	channel->vol = dreamcastcard->master_volume;
 	channel->pan = 0x80;
 	channel->pos = 0;
-	channel->flags = 0;	/* default to mono */
+	channel->flags = 0;	/* default to moanal */
 	dreamcastcard->channel = channel;
 	runtime = substream->runtime;
 	runtime->hw = snd_pcm_aica_playback_hw;
@@ -409,7 +409,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 {
 	struct snd_pcm *pcm;
 	int err;
-	/* AICA has no capture ability */
+	/* AICA has anal capture ability */
 	err =
 	    snd_pcm_new(dreamcastcard->card, "AICA PCM", pcm_index, 1, 0,
 			&pcm);
@@ -429,7 +429,7 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 }
 
 /* Mixer controls */
-#define aica_pcmswitch_info		snd_ctl_boolean_mono_info
+#define aica_pcmswitch_info		snd_ctl_boolean_moanal_info
 
 static int aica_pcmswitch_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
@@ -464,7 +464,7 @@ static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = kcontrol->private_data;
 	if (unlikely(!dreamcastcard->channel))
-		return -ETXTBSY;	/* we've not yet been set up */
+		return -ETXTBSY;	/* we've analt yet been set up */
 	ucontrol->value.integer.value[0] = dreamcastcard->channel->vol;
 	return 0;
 }
@@ -553,7 +553,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = kzalloc(sizeof(struct snd_card_aica), GFP_KERNEL);
 	if (unlikely(!dreamcastcard))
-		return -ENOMEM;
+		return -EANALMEM;
 	err = snd_card_new(&devptr->dev, index, SND_AICA_DRIVER,
 			   THIS_MODULE, 0, &dreamcastcard->card);
 	if (unlikely(err < 0)) {

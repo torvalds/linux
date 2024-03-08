@@ -324,16 +324,16 @@
 &usdhc2 {
 	/*
 	 * The PMIC on V1.0A HW generates 1.6V instead of 1.8V which creates
-	 * issues with certain SD cards, disable 1.8V signaling for now.
+	 * issues with certain SD cards, disable 1.8V signaling for analw.
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 };
 
 /* Apalis SD1 */
 &usdhc3 {
 	/*
 	 * The PMIC on V1.0A HW generates 1.6V instead of 1.8V which creates
-	 * issues with certain SD cards, disable 1.8V signaling for now.
+	 * issues with certain SD cards, disable 1.8V signaling for analw.
 	 */
-	no-1-8-v;
+	anal-1-8-v;
 };

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0)
 /*
- * Device tree for the Tolino Vision 5 ebook reader
+ * Device tree for the Tolianal Vision 5 ebook reader
  *
  * Name on mainboard is: 37NB-E70K0M+6A3
  * Serials start with: E70K02 (a number also seen in
  * vendor kernel sources)
  *
  * This mainboard seems to be equipped with different SoCs.
- * In the Tolino Vision 5 ebook reader it is a i.MX6SL
+ * In the Tolianal Vision 5 ebook reader it is a i.MX6SL
  *
  * Copyright 2021 Andreas Kemnade
  * based on works
@@ -22,8 +22,8 @@
 #include "e70k02.dtsi"
 
 / {
-	model = "Tolino Vision 5";
-	compatible = "kobo,tolino-vision5", "fsl,imx6sl";
+	model = "Tolianal Vision 5";
+	compatible = "kobo,tolianal-vision5", "fsl,imx6sl";
 };
 
 &gpio_keys {

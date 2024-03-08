@@ -54,11 +54,11 @@ static int tps65219_pb_probe(struct platform_device *pdev)
 
 	pwr = devm_kzalloc(dev, sizeof(*pwr), GFP_KERNEL);
 	if (!pwr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = pdev->name;
 	snprintf(pwr->phys, sizeof(pwr->phys), "%s/input0",

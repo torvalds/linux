@@ -20,7 +20,7 @@
   .get = snd_gf1_get_single, .put = snd_gf1_put_single, \
   .private_value = shift | (invert << 8) }
 
-#define snd_gf1_info_single	snd_ctl_boolean_mono_info
+#define snd_gf1_info_single	snd_ctl_boolean_moanal_info
 
 static int snd_gf1_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {

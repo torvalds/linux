@@ -108,9 +108,9 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Indirect non call branches executed",
+        "BriefDescription": "Indirect analn call branches executed",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.INDIRECT_NON_CALL",
+        "EventName": "BR_INST_EXEC.INDIRECT_ANALN_CALL",
         "SampleAfterValue": "20000",
         "UMask": "0x4"
     },
@@ -122,9 +122,9 @@
         "UMask": "0x30"
     },
     {
-        "BriefDescription": "All non call branches executed",
+        "BriefDescription": "All analn call branches executed",
         "EventCode": "0x88",
-        "EventName": "BR_INST_EXEC.NON_CALLS",
+        "EventName": "BR_INST_EXEC.ANALN_CALLS",
         "SampleAfterValue": "200000",
         "UMask": "0x7"
     },
@@ -188,7 +188,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Mispredicted non call branches executed",
+        "BriefDescription": "Mispredicted analn call branches executed",
         "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.DIRECT_NEAR_CALL",
         "SampleAfterValue": "2000",
@@ -202,9 +202,9 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Mispredicted indirect non call branches executed",
+        "BriefDescription": "Mispredicted indirect analn call branches executed",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.INDIRECT_NON_CALL",
+        "EventName": "BR_MISP_EXEC.INDIRECT_ANALN_CALL",
         "SampleAfterValue": "2000",
         "UMask": "0x4"
     },
@@ -216,9 +216,9 @@
         "UMask": "0x30"
     },
     {
-        "BriefDescription": "Mispredicted non call branches executed",
+        "BriefDescription": "Mispredicted analn call branches executed",
         "EventCode": "0x89",
-        "EventName": "BR_MISP_EXEC.NON_CALLS",
+        "EventName": "BR_MISP_EXEC.ANALN_CALLS",
         "SampleAfterValue": "20000",
         "UMask": "0x7"
     },
@@ -261,24 +261,24 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Reference cycles when thread is not halted (fixed counter)",
+        "BriefDescription": "Reference cycles when thread is analt halted (fixed counter)",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000000"
     },
     {
-        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is not halted (programmable counter)",
+        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is analt halted (programmable counter)",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.REF_P",
         "SampleAfterValue": "100000",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles when thread is not halted (fixed counter)",
+        "BriefDescription": "Cycles when thread is analt halted (fixed counter)",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000000"
     },
     {
-        "BriefDescription": "Cycles when thread is not halted (programmable counter)",
+        "BriefDescription": "Cycles when thread is analt halted (programmable counter)",
         "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000000"
@@ -412,7 +412,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles no uops were delivered by the LSD",
+        "BriefDescription": "Cycles anal uops were delivered by the LSD",
         "CounterMask": "1",
         "EventCode": "0xA8",
         "EventName": "LSD.INACTIVE",
@@ -602,7 +602,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles no Uops are decoded",
+        "BriefDescription": "Cycles anal Uops are decoded",
         "CounterMask": "1",
         "EventCode": "0xD1",
         "EventName": "UOPS_DECODED.STALL_CYCLES",
@@ -624,7 +624,7 @@
         "BriefDescription": "Cycles Uops executed on ports 0-4 (core count)",
         "CounterMask": "1",
         "EventCode": "0xB1",
-        "EventName": "UOPS_EXECUTED.CORE_ACTIVE_CYCLES_NO_PORT5",
+        "EventName": "UOPS_EXECUTED.CORE_ACTIVE_CYCLES_ANAL_PORT5",
         "SampleAfterValue": "2000000",
         "UMask": "0x1f"
     },
@@ -645,14 +645,14 @@
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0xB1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT_NO_PORT5",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT_ANAL_PORT5",
         "Invert": "1",
         "SampleAfterValue": "2000000",
         "UMask": "0x1f"
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles no Uops issued on any port (core count)",
+        "BriefDescription": "Cycles anal Uops issued on any port (core count)",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES",
@@ -662,10 +662,10 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles no Uops issued on ports 0-4 (core count)",
+        "BriefDescription": "Cycles anal Uops issued on ports 0-4 (core count)",
         "CounterMask": "1",
         "EventCode": "0xB1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES_NO_PORT5",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES_ANAL_PORT5",
         "Invert": "1",
         "SampleAfterValue": "2000000",
         "UMask": "0x1f"
@@ -685,7 +685,7 @@
         "UMask": "0x40"
     },
     {
-        "BriefDescription": "Cycles no Uops issued on ports 0, 1 or 5",
+        "BriefDescription": "Cycles anal Uops issued on ports 0, 1 or 5",
         "CounterMask": "1",
         "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT015_STALL_CYCLES",
@@ -748,7 +748,7 @@
     },
     {
         "AnyThread": "1",
-        "BriefDescription": "Cycles no Uops were issued on any thread",
+        "BriefDescription": "Cycles anal Uops were issued on any thread",
         "CounterMask": "1",
         "EventCode": "0xE",
         "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
@@ -773,7 +773,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles no Uops were issued",
+        "BriefDescription": "Cycles anal Uops were issued",
         "CounterMask": "1",
         "EventCode": "0xE",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
@@ -815,7 +815,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Cycles Uops are not retiring (Precise Event)",
+        "BriefDescription": "Cycles Uops are analt retiring (Precise Event)",
         "CounterMask": "1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",

@@ -81,38 +81,38 @@ static struct reg_default max98390_reg_defaults[] = {
 	{MAX98390_ADC_CH1_FILT_CFG, 0x00},
 	{MAX98390_ADC_CH2_FILT_CFG, 0x00},
 	{MAX98390_PWR_GATE_CTL, 0x2c},
-	{MAX98390_BROWNOUT_EN, 0x00},
-	{MAX98390_BROWNOUT_INFINITE_HOLD, 0x00},
-	{MAX98390_BROWNOUT_INFINITE_HOLD_CLR, 0x00},
-	{MAX98390_BROWNOUT_LVL_HOLD, 0x00},
-	{MAX98390_BROWNOUT_LVL1_THRESH, 0x00},
-	{MAX98390_BROWNOUT_LVL2_THRESH, 0x00},
-	{MAX98390_BROWNOUT_LVL3_THRESH, 0x00},
-	{MAX98390_BROWNOUT_LVL4_THRESH, 0x00},
-	{MAX98390_BROWNOUT_THRESH_HYSTERYSIS, 0x00},
-	{MAX98390_BROWNOUT_AMP_LIMITER_ATK_REL, 0x1f},
-	{MAX98390_BROWNOUT_AMP_GAIN_ATK_REL, 0x00},
-	{MAX98390_BROWNOUT_AMP1_CLIP_MODE, 0x00},
-	{MAX98390_BROWNOUT_LVL1_CUR_LIMIT, 0x00},
-	{MAX98390_BROWNOUT_LVL1_AMP1_CTRL1, 0x00},
-	{MAX98390_BROWNOUT_LVL1_AMP1_CTRL2, 0x00},
-	{MAX98390_BROWNOUT_LVL1_AMP1_CTRL3, 0x00},
-	{MAX98390_BROWNOUT_LVL2_CUR_LIMIT, 0x00},
-	{MAX98390_BROWNOUT_LVL2_AMP1_CTRL1, 0x00},
-	{MAX98390_BROWNOUT_LVL2_AMP1_CTRL2, 0x00},
-	{MAX98390_BROWNOUT_LVL2_AMP1_CTRL3, 0x00},
-	{MAX98390_BROWNOUT_LVL3_CUR_LIMIT, 0x00},
-	{MAX98390_BROWNOUT_LVL3_AMP1_CTRL1, 0x00},
-	{MAX98390_BROWNOUT_LVL3_AMP1_CTRL2, 0x00},
-	{MAX98390_BROWNOUT_LVL3_AMP1_CTRL3, 0x00},
-	{MAX98390_BROWNOUT_LVL4_CUR_LIMIT, 0x00},
-	{MAX98390_BROWNOUT_LVL4_AMP1_CTRL1, 0x00},
-	{MAX98390_BROWNOUT_LVL4_AMP1_CTRL2, 0x00},
-	{MAX98390_BROWNOUT_LVL4_AMP1_CTRL3, 0x00},
-	{MAX98390_BROWNOUT_ILIM_HLD, 0x00},
-	{MAX98390_BROWNOUT_LIM_HLD, 0x00},
-	{MAX98390_BROWNOUT_CLIP_HLD, 0x00},
-	{MAX98390_BROWNOUT_GAIN_HLD, 0x00},
+	{MAX98390_BROWANALUT_EN, 0x00},
+	{MAX98390_BROWANALUT_INFINITE_HOLD, 0x00},
+	{MAX98390_BROWANALUT_INFINITE_HOLD_CLR, 0x00},
+	{MAX98390_BROWANALUT_LVL_HOLD, 0x00},
+	{MAX98390_BROWANALUT_LVL1_THRESH, 0x00},
+	{MAX98390_BROWANALUT_LVL2_THRESH, 0x00},
+	{MAX98390_BROWANALUT_LVL3_THRESH, 0x00},
+	{MAX98390_BROWANALUT_LVL4_THRESH, 0x00},
+	{MAX98390_BROWANALUT_THRESH_HYSTERYSIS, 0x00},
+	{MAX98390_BROWANALUT_AMP_LIMITER_ATK_REL, 0x1f},
+	{MAX98390_BROWANALUT_AMP_GAIN_ATK_REL, 0x00},
+	{MAX98390_BROWANALUT_AMP1_CLIP_MODE, 0x00},
+	{MAX98390_BROWANALUT_LVL1_CUR_LIMIT, 0x00},
+	{MAX98390_BROWANALUT_LVL1_AMP1_CTRL1, 0x00},
+	{MAX98390_BROWANALUT_LVL1_AMP1_CTRL2, 0x00},
+	{MAX98390_BROWANALUT_LVL1_AMP1_CTRL3, 0x00},
+	{MAX98390_BROWANALUT_LVL2_CUR_LIMIT, 0x00},
+	{MAX98390_BROWANALUT_LVL2_AMP1_CTRL1, 0x00},
+	{MAX98390_BROWANALUT_LVL2_AMP1_CTRL2, 0x00},
+	{MAX98390_BROWANALUT_LVL2_AMP1_CTRL3, 0x00},
+	{MAX98390_BROWANALUT_LVL3_CUR_LIMIT, 0x00},
+	{MAX98390_BROWANALUT_LVL3_AMP1_CTRL1, 0x00},
+	{MAX98390_BROWANALUT_LVL3_AMP1_CTRL2, 0x00},
+	{MAX98390_BROWANALUT_LVL3_AMP1_CTRL3, 0x00},
+	{MAX98390_BROWANALUT_LVL4_CUR_LIMIT, 0x00},
+	{MAX98390_BROWANALUT_LVL4_AMP1_CTRL1, 0x00},
+	{MAX98390_BROWANALUT_LVL4_AMP1_CTRL2, 0x00},
+	{MAX98390_BROWANALUT_LVL4_AMP1_CTRL3, 0x00},
+	{MAX98390_BROWANALUT_ILIM_HLD, 0x00},
+	{MAX98390_BROWANALUT_LIM_HLD, 0x00},
+	{MAX98390_BROWANALUT_CLIP_HLD, 0x00},
+	{MAX98390_BROWANALUT_GAIN_HLD, 0x00},
 	{MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0f},
 	{MAX98390_ENV_TRACK_BOOST_VOUT_DELAY, 0x80},
 	{MAX98390_ENV_TRACK_REL_RATE, 0x07},
@@ -133,7 +133,7 @@ static struct reg_default max98390_reg_defaults[] = {
 	{DSMIG_WB_DRC_COMPRESSION_RATIO, 0x00},
 	{DSMIG_WB_DRC_COMPRESSION_THRESHOLD, 0x00},
 	{DSMIG_WB_DRC_MAKEUPGAIN, 0x00},
-	{DSMIG_WB_DRC_NOISE_GATE_THRESHOLD, 0x00},
+	{DSMIG_WB_DRC_ANALISE_GATE_THRESHOLD, 0x00},
 	{DSMIG_WBDRC_HPF_ENABLE, 0x00},
 	{DSMIG_WB_DRC_TEST_SMOOTHER_OUT_EN, 0x00},
 	{DSMIG_PPR_THRESHOLD, 0x00},
@@ -364,7 +364,7 @@ static int max98390_dai_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = MAX98390_PCM_SR_SET1_SR_48000;
 		break;
 	default:
-		dev_err(component->dev, "rate %d not supported\n",
+		dev_err(component->dev, "rate %d analt supported\n",
 			params_rate(params));
 		goto err;
 	}
@@ -402,7 +402,7 @@ static int max98390_dai_tdm_slot(struct snd_soc_dai *dai,
 	/* BCLK configuration */
 	bsel = max98390_get_bclk_sel(slots * slot_width);
 	if (!bsel) {
-		dev_err(component->dev, "BCLK %d not supported\n",
+		dev_err(component->dev, "BCLK %d analt supported\n",
 			slots * slot_width);
 		return -EINVAL;
 	}
@@ -602,7 +602,7 @@ static int max98390_adaptive_rdc_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component =
 		snd_soc_kcontrol_component(kcontrol);
 
-	dev_warn(component->dev, "Put adaptive rdc not supported\n");
+	dev_warn(component->dev, "Put adaptive rdc analt supported\n");
 
 	return 0;
 }
@@ -626,7 +626,7 @@ static int max98390_adaptive_rdc_get(struct snd_kcontrol *kcontrol,
 static int max98390_dsm_calib_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	/* Do nothing */
+	/* Do analthing */
 	return 0;
 }
 
@@ -694,13 +694,13 @@ static const struct snd_kcontrol_new max98390_snd_controls[] = {
 		MAX98390_BOOST_CLK_PHASE_CFG_SHIFT, 3, 0),
 	SOC_ENUM("Boost Output Voltage", max98390_boost_voltage),
 	SOC_ENUM("Current Limit", max98390_current_limit),
-	SOC_SINGLE_EXT("DSM Rdc", SND_SOC_NOPM, 0, 0xffffff, 0,
+	SOC_SINGLE_EXT("DSM Rdc", SND_SOC_ANALPM, 0, 0xffffff, 0,
 		max98390_ref_rdc_get, max98390_ref_rdc_put),
-	SOC_SINGLE_EXT("DSM Ambient Temp", SND_SOC_NOPM, 0, 0xffff, 0,
+	SOC_SINGLE_EXT("DSM Ambient Temp", SND_SOC_ANALPM, 0, 0xffff, 0,
 		max98390_ambient_temp_get, max98390_ambient_temp_put),
-	SOC_SINGLE_EXT("DSM Adaptive Rdc", SND_SOC_NOPM, 0, 0xffff, 0,
+	SOC_SINGLE_EXT("DSM Adaptive Rdc", SND_SOC_ANALPM, 0, 0xffff, 0,
 		max98390_adaptive_rdc_get, max98390_adaptive_rdc_put),
-	SOC_SINGLE_EXT("DSM Calibration", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("DSM Calibration", SND_SOC_ANALPM, 0, 1, 0,
 		max98390_dsm_calib_get, max98390_dsm_calib_put),
 };
 
@@ -714,9 +714,9 @@ static const struct snd_kcontrol_new max98390_dai_controls =
 
 static const struct snd_soc_dapm_widget max98390_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback",
-		SND_SOC_NOPM, 0, 0, max98390_dac_event,
+		SND_SOC_ANALPM, 0, 0, max98390_dac_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_ANALPM, 0, 0,
 		&max98390_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
 };
@@ -735,8 +735,8 @@ static bool max98390_readable_register(struct device *dev, unsigned int reg)
 	case MAX98390_SOFTWARE_RESET ... MAX98390_INT_EN3:
 	case MAX98390_IRQ_CTRL ... MAX98390_WDOG_CTRL:
 	case MAX98390_MEAS_ADC_THERM_WARN_THRESH
-		... MAX98390_BROWNOUT_INFINITE_HOLD:
-	case MAX98390_BROWNOUT_LVL_HOLD ... DSMIG_DEBUZZER_THRESHOLD:
+		... MAX98390_BROWANALUT_INFINITE_HOLD:
+	case MAX98390_BROWANALUT_LVL_HOLD ... DSMIG_DEBUZZER_THRESHOLD:
 	case DSM_VOL_ENA ... MAX98390_R24FF_REV_ID:
 		return true;
 	default:
@@ -749,8 +749,8 @@ static bool max98390_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case MAX98390_SOFTWARE_RESET ... MAX98390_INT_EN3:
 	case MAX98390_MEAS_ADC_CH0_READ ... MAX98390_MEAS_ADC_CH2_READ:
-	case MAX98390_PWR_GATE_STATUS ... MAX98390_BROWNOUT_STATUS:
-	case MAX98390_BROWNOUT_LOWEST_STATUS:
+	case MAX98390_PWR_GATE_STATUS ... MAX98390_BROWANALUT_STATUS:
+	case MAX98390_BROWANALUT_LOWEST_STATUS:
 	case MAX98390_ENV_TRACK_BOOST_VOUT_READ:
 	case DSM_STBASS_HPF_B0_BYTE0 ... DSM_DEBUZZER_ATTACK_TIME_BYTE2:
 	case THERMAL_RDC_RD_BACK_BYTE1 ... DSMIG_DEBUZZER_THRESHOLD:
@@ -1004,12 +1004,12 @@ static void max98390_slot_config(struct i2c_client *i2c,
 	int value;
 	struct device *dev = &i2c->dev;
 
-	if (!device_property_read_u32(dev, "maxim,vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,vmon-slot-anal", &value))
 		max98390->v_l_slot = value & 0xF;
 	else
 		max98390->v_l_slot = 0;
 
-	if (!device_property_read_u32(dev, "maxim,imon-slot-no", &value))
+	if (!device_property_read_u32(dev, "maxim,imon-slot-anal", &value))
 		max98390->i_l_slot = value & 0xF;
 	else
 		max98390->i_l_slot = 1;
@@ -1034,7 +1034,7 @@ static int max98390_i2c_probe(struct i2c_client *i2c)
 
 	max98390 = devm_kzalloc(&i2c->dev, sizeof(*max98390), GFP_KERNEL);
 	if (!max98390) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		return ret;
 	}
 	i2c_set_clientdata(i2c, max98390);
@@ -1043,13 +1043,13 @@ static int max98390_i2c_probe(struct i2c_client *i2c)
 				       &max98390->ambient_temp_value);
 	if (ret) {
 		dev_info(&i2c->dev,
-			 "no optional property 'temperature_calib' found, default:\n");
+			 "anal optional property 'temperature_calib' found, default:\n");
 	}
 	ret = device_property_read_u32(&i2c->dev, "maxim,r0_calib",
 				       &max98390->ref_rdc_value);
 	if (ret) {
 		dev_info(&i2c->dev,
-			 "no optional property 'r0_calib' found, default:\n");
+			 "anal optional property 'r0_calib' found, default:\n");
 	}
 
 	dev_info(&i2c->dev,

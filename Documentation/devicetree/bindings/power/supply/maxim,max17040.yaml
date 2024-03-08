@@ -40,7 +40,7 @@ properties:
     type: boolean
     description: |
       Certain devices return double the capacity.
-      Specify this to divide the reported value in 2 and thus normalize it.
+      Specify this to divide the reported value in 2 and thus analrmalize it.
       SoC == State of Charge == Capacity.
 
   maxim,rcomp:

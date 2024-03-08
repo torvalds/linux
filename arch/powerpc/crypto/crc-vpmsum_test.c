@@ -34,11 +34,11 @@ static int __init crc_test_init(void)
 	struct crypto_shash *crc32c_tfm;
 
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = kmalloc(MAX_CRC_LENGTH, GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	crct10dif_tfm = crypto_alloc_shash("crct10dif", 0, 0);
 
@@ -129,5 +129,5 @@ module_exit(crc_test_exit);
 module_param(iterations, long, 0400);
 
 MODULE_AUTHOR("Daniel Axtens <dja@axtens.net>");
-MODULE_DESCRIPTION("Vector polynomial multiply-sum CRC tester");
+MODULE_DESCRIPTION("Vector polyanalmial multiply-sum CRC tester");
 MODULE_LICENSE("GPL");

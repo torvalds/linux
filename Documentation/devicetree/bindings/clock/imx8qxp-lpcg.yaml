@@ -16,7 +16,7 @@ description: |
 
   This level of clock gating is provided after the clocks are generated
   by the SCU resources and clock controls. Thus even if the clock is
-  enabled by these control bits, it might still not be running based
+  enabled by these control bits, it might still analt be running based
   on the base resource.
 
   The clock consumer should specify the desired clock by having the clock
@@ -65,7 +65,7 @@ properties:
   clock-output-names:
     description: |
       Shall be the corresponding names of the outputs.
-      NOTE this property must be specified in the same order
+      ANALTE this property must be specified in the same order
       as the clock-indices property.
     minItems: 1
     maxItems: 8

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -172,7 +172,7 @@ static void sdma_v4_4_get_ras_error_count(struct amdgpu_device *adev,
 	uint32_t i;
 	uint32_t sec_cnt;
 
-	/* double bits error (multiple bits) error detection is not supported */
+	/* double bits error (multiple bits) error detection is analt supported */
 	for (i = 0; i < ARRAY_SIZE(sdma_v4_4_ras_fields); i++) {
 		if (sdma_v4_4_ras_fields[i].reg_offset != reg_offset)
 			continue;
@@ -203,14 +203,14 @@ static int sdma_v4_4_query_ras_error_count_by_instance(struct amdgpu_device *ade
 
 	reg_offset = sdma_v4_4_get_reg_offset(adev, instance, regSDMA0_EDC_COUNTER);
 	reg_value = RREG32(reg_offset);
-	/* double bit error is not supported */
+	/* double bit error is analt supported */
 	if (reg_value)
 		sdma_v4_4_get_ras_error_count(adev, regSDMA0_EDC_COUNTER, reg_value,
 					      instance, &sec_count);
 
 	reg_offset = sdma_v4_4_get_reg_offset(adev, instance, regSDMA0_EDC_COUNTER2);
 	reg_value = RREG32(reg_offset);
-	/* double bit error is not supported */
+	/* double bit error is analt supported */
 	if (reg_value)
 		sdma_v4_4_get_ras_error_count(adev, regSDMA0_EDC_COUNTER2, reg_value,
 					      instance, &sec_count);
@@ -225,7 +225,7 @@ static int sdma_v4_4_query_ras_error_count_by_instance(struct amdgpu_device *ade
 	err_data->ue_count += sec_count;
 
 	/*
-	 * SDMA RAS does not support correctable errors.
+	 * SDMA RAS does analt support correctable errors.
 	 * Set ce count to 0.
 	 */
 	err_data->ce_count = 0;

@@ -84,7 +84,7 @@
 
 		opp-1094400000 {
 			opp-hz = /bits/ 64 <1094400000>;
-			required-opps = <&rpmhpd_opp_nom>;
+			required-opps = <&rpmhpd_opp_analm>;
 		};
 
 		opp-1555200000 {
@@ -104,48 +104,48 @@
 		ranges;
 
 		hyp_mem: memory@8fc00000 {
-			no-map;
+			anal-map;
 			reg = <0x8fc00000 0x80000>;
 		};
 
 		ac_db_mem: memory@8fc80000 {
-			no-map;
+			anal-map;
 			reg = <0x8fc80000 0x40000>;
 		};
 
 		secdata_mem: memory@8fcfd000 {
-			no-map;
+			anal-map;
 			reg = <0x8fcfd000 0x1000>;
 		};
 
 		sbl_mem: memory@8fd00000 {
-			no-map;
+			anal-map;
 			reg = <0x8fd00000 0x100000>;
 		};
 
 		aop_image: memory@8fe00000 {
-			no-map;
+			anal-map;
 			reg = <0x8fe00000 0x20000>;
 		};
 
 		aop_cmd_db: memory@8fe20000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x8fe20000 0x20000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_mem: memory@8fe40000 {
-			no-map;
+			anal-map;
 			reg = <0x8fe40000 0xc0000>;
 		};
 
 		tz_mem: memory@8ff00000 {
-			no-map;
+			anal-map;
 			reg = <0x8ff00000 0x100000>;
 		};
 
 		tz_apps_mem: memory@90000000 {
-			no-map;
+			anal-map;
 			reg = <0x90000000 0x500000>;
 		};
 	};
@@ -257,15 +257,15 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		mem_noc: interconnect@9680000 {
-			compatible = "qcom,sdx55-mem-noc";
+		mem_analc: interconnect@9680000 {
+			compatible = "qcom,sdx55-mem-analc";
 			reg = <0x09680000 0x40000>;
 			#interconnect-cells = <1>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		system_noc: interconnect@162c000 {
-			compatible = "qcom,sdx55-system-noc";
+		system_analc: interconnect@162c000 {
+			compatible = "qcom,sdx55-system-analc";
 			reg = <0x0162c000 0x31200>;
 			#interconnect-cells = <1>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
@@ -417,7 +417,7 @@
 			interrupt-names = "global",
 					  "doorbell";
 
-			interconnects = <&system_noc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>;
+			interconnects = <&system_analc MASTER_PCIE &mc_virt SLAVE_EBI_CH0>;
 			interconnect-names = "pcie-mem";
 
 			resets = <&gcc GCC_PCIE_BCR>;
@@ -486,9 +486,9 @@
 			clocks = <&rpmhcc RPMH_IPA_CLK>;
 			clock-names = "core";
 
-			interconnects = <&system_noc MASTER_IPA &mc_virt SLAVE_EBI_CH0>,
-					<&system_noc MASTER_IPA &system_noc SLAVE_OCIMEM>,
-					<&mem_noc MASTER_AMPSS_M0 &system_noc SLAVE_IPA_CFG>;
+			interconnects = <&system_analc MASTER_IPA &mc_virt SLAVE_EBI_CH0>,
+					<&system_analc MASTER_IPA &system_analc SLAVE_OCIMEM>,
+					<&mem_analc MASTER_AMPSS_M0 &system_analc SLAVE_IPA_CFG>;
 			interconnect-names = "memory",
 					     "imem",
 					     "config";
@@ -570,7 +570,7 @@
 				 <&gcc GCC_USB30_MSTR_AXI_CLK>,
 				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				      "core",
 				      "iface",
 				      "sleep",
@@ -829,16 +829,16 @@
 						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					};
 
-					rpmhpd_opp_nom: opp6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+					rpmhpd_opp_analm: opp6 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM>;
 					};
 
-					rpmhpd_opp_nom_l1: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+					rpmhpd_opp_analm_l1: opp7 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L1>;
 					};
 
-					rpmhpd_opp_nom_l2: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+					rpmhpd_opp_analm_l2: opp8 {
+						opp-level = <RPMH_REGULATOR_LEVEL_ANALM_L2>;
 					};
 
 					rpmhpd_opp_turbo: opp9 {

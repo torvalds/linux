@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,21 +31,21 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     analtice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     analtice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation analr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
@@ -53,60 +53,60 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SCU_REMOTE_NODE_CONTEXT_HEADER__
-#define __SCU_REMOTE_NODE_CONTEXT_HEADER__
+#ifndef __SCU_REMOTE_ANALDE_CONTEXT_HEADER__
+#define __SCU_REMOTE_ANALDE_CONTEXT_HEADER__
 
 /**
  * This file contains the structures and constatns used by the SCU hardware to
- *    describe a remote node context.
+ *    describe a remote analde context.
  *
  *
  */
 
 /**
- * struct ssp_remote_node_context - This structure contains the SCU hardware
- *    definition for an SSP remote node.
+ * struct ssp_remote_analde_context - This structure contains the SCU hardware
+ *    definition for an SSP remote analde.
  *
  *
  */
-struct ssp_remote_node_context {
+struct ssp_remote_analde_context {
 	/* WORD 0 */
 
 	/**
-	 * This field is the remote node index assigned for this remote node. All
-	 * remote nodes must have a unique remote node index. The value of the remote
-	 * node index can not exceed the maximum number of remote nodes reported in
+	 * This field is the remote analde index assigned for this remote analde. All
+	 * remote analdes must have a unique remote analde index. The value of the remote
+	 * analde index can analt exceed the maximum number of remote analdes reported in
 	 * the SCU device context capacity register.
 	 */
-	u32 remote_node_index:12;
+	u32 remote_analde_index:12;
 	u32 reserved0_1:4;
 
 	/**
 	 * This field tells the SCU hardware how many simultaneous connections that
-	 * this remote node will support.
+	 * this remote analde will support.
 	 */
-	u32 remote_node_port_width:4;
+	u32 remote_analde_port_width:4;
 
 	/**
 	 * This field tells the SCU hardware which logical port to associate with this
-	 * remote node.
+	 * remote analde.
 	 */
 	u32 logical_port_index:3;
 	u32 reserved0_2:5;
 
 	/**
-	 * This field will enable the I_T nexus loss timer for this remote node.
+	 * This field will enable the I_T nexus loss timer for this remote analde.
 	 */
 	u32 nexus_loss_timer_enable:1;
 
 	/**
-	 * This field is the for driver debug only and is not used.
+	 * This field is the for driver debug only and is analt used.
 	 */
 	u32 check_bit:1;
 
 	/**
-	 * This field must be set to true when the hardware DMAs the remote node
-	 * context to the hardware SRAM.  When the remote node is being invalidated
+	 * This field must be set to true when the hardware DMAs the remote analde
+	 * context to the hardware SRAM.  When the remote analde is being invalidated
 	 * this field must be set to false.
 	 */
 	u32 is_valid:1;
@@ -114,7 +114,7 @@ struct ssp_remote_node_context {
 	/**
 	 * This field must be set to true.
 	 */
-	u32 is_remote_node_context:1;
+	u32 is_remote_analde_context:1;
 
 	/* WORD 1 - 2 */
 
@@ -139,7 +139,7 @@ struct ssp_remote_node_context {
 
 	/**
 	 * This field provides the driver a way to cheat on the arbitration wait time
-	 * for this remote node.
+	 * for this remote analde.
 	 */
 	u32 arbitration_wait_time:16;
 
@@ -152,14 +152,14 @@ struct ssp_remote_node_context {
 
 	/**
 	 * This field tells the SCU hardware how long to maintain a connection when
-	 * there are no frames being transmitted on the link.
+	 * there are anal frames being transmitted on the link.
 	 */
 	u32 connection_inactivity_timeout:16;
 
 	/* WORD  5 */
 	/**
 	 * This field allows the driver to cheat on the arbitration wait time for this
-	 * remote node.
+	 * remote analde.
 	 */
 	u32 initial_arbitration_wait_time:16;
 
@@ -194,36 +194,36 @@ struct ssp_remote_node_context {
 };
 
 /**
- * struct stp_remote_node_context - This structure contains the SCU hardware
- *    definition for a STP remote node.
+ * struct stp_remote_analde_context - This structure contains the SCU hardware
+ *    definition for a STP remote analde.
  *
- * STP Targets are not yet supported so this definition is a placeholder until
+ * STP Targets are analt yet supported so this definition is a placeholder until
  * we do support them.
  */
-struct stp_remote_node_context {
+struct stp_remote_analde_context {
 	/**
-	 * Placeholder data for the STP remote node.
+	 * Placeholder data for the STP remote analde.
 	 */
 	u32 data[8];
 
 };
 
 /**
- * This union combines the SAS and SATA remote node definitions.
+ * This union combines the SAS and SATA remote analde definitions.
  *
- * union scu_remote_node_context
+ * union scu_remote_analde_context
  */
-union scu_remote_node_context {
+union scu_remote_analde_context {
 	/**
-	 * SSP Remote Node
+	 * SSP Remote Analde
 	 */
-	struct ssp_remote_node_context ssp;
+	struct ssp_remote_analde_context ssp;
 
 	/**
-	 * STP Remote Node
+	 * STP Remote Analde
 	 */
-	struct stp_remote_node_context stp;
+	struct stp_remote_analde_context stp;
 
 };
 
-#endif /* __SCU_REMOTE_NODE_CONTEXT_HEADER__ */
+#endif /* __SCU_REMOTE_ANALDE_CONTEXT_HEADER__ */

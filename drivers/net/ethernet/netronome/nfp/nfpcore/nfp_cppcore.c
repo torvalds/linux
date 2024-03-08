@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroanalme Systems, Inc. */
 
 /*
  * nfp_cppcore.c
  * Provides low-level access to the NFP's internal CPP bus
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroanalme.com>
+ *          Jason McMullan <jason.mcmullan@netroanalme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroanalme.com>
  */
 
 #include <asm/unaligned.h>
@@ -172,7 +172,7 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 		kfree(cache);
 	}
 
-	/* There should be no dangling areas at this point */
+	/* There should be anal dangling areas at this point */
 	WARN_ON(!list_empty(&cpp->resource_list));
 
 	/* .. but if they weren't, try to clean up. */
@@ -277,7 +277,7 @@ unsigned int nfp_cpp_mu_locality_lsb(struct nfp_cpp *cpp)
  * Allocate and initialize a CPP area structure.  The area must later
  * be locked down with an 'acquire' before it can be safely accessed.
  *
- * NOTE: @address and @size must be 32-bit aligned values.
+ * ANALTE: @address and @size must be 32-bit aligned values.
  *
  * Return: NFP CPP area handle, or NULL
  */
@@ -349,7 +349,7 @@ nfp_cpp_area_alloc_with_name(struct nfp_cpp *cpp, u32 dest, const char *name,
  * Allocate and initialize a CPP area structure.  The area must later
  * be locked down with an 'acquire' before it can be safely accessed.
  *
- * NOTE: @address and @size must be 32-bit aligned values.
+ * ANALTE: @address and @size must be 32-bit aligned values.
  *
  * Return: NFP CPP Area handle, or NULL
  */
@@ -371,7 +371,7 @@ nfp_cpp_area_alloc(struct nfp_cpp *cpp, u32 dest,
  * Allocate and initialize a CPP area structure, and lock it down so
  * that it can be accessed directly.
  *
- * NOTE: @address and @size must be 32-bit aligned values.
+ * ANALTE: @address and @size must be 32-bit aligned values.
  * The area must also be 'released' when the structure is freed.
  *
  * Return: NFP CPP Area handle, or NULL
@@ -446,7 +446,7 @@ static int __nfp_cpp_area_acquire(struct nfp_cpp_area *area)
  * Locks down the CPP area for a potential long term activity.  Area
  * must always be locked down before being accessed.
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_area_acquire(struct nfp_cpp_area *area)
 {
@@ -460,17 +460,17 @@ int nfp_cpp_area_acquire(struct nfp_cpp_area *area)
 }
 
 /**
- * nfp_cpp_area_acquire_nonblocking() - lock down a CPP area for access
+ * nfp_cpp_area_acquire_analnblocking() - lock down a CPP area for access
  * @area:	CPP area handle
  *
  * Locks down the CPP area for a potential long term activity.  Area
  * must always be locked down before being accessed.
  *
- * NOTE: Returns -EAGAIN is no area is available
+ * ANALTE: Returns -EAGAIN is anal area is available
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
-int nfp_cpp_area_acquire_nonblocking(struct nfp_cpp_area *area)
+int nfp_cpp_area_acquire_analnblocking(struct nfp_cpp_area *area)
 {
 	mutex_lock(&area->mutex);
 	if (atomic_inc_return(&area->refcount) == 1) {
@@ -534,10 +534,10 @@ void nfp_cpp_area_release_free(struct nfp_cpp_area *area)
  *
  * Read data from indicated CPP region.
  *
- * NOTE: @offset and @length must be 32-bit aligned values.
+ * ANALTE: @offset and @length must be 32-bit aligned values.
  * Area must have been locked down with an 'acquire'.
  *
- * Return: length of io, or -ERRNO
+ * Return: length of io, or -ERRANAL
  */
 int nfp_cpp_area_read(struct nfp_cpp_area *area,
 		      unsigned long offset, void *kernel_vaddr,
@@ -555,10 +555,10 @@ int nfp_cpp_area_read(struct nfp_cpp_area *area,
  *
  * Write data to indicated CPP region.
  *
- * NOTE: @offset and @length must be 32-bit aligned values.
+ * ANALTE: @offset and @length must be 32-bit aligned values.
  * Area must have been locked down with an 'acquire'.
  *
- * Return: length of io, or -ERRNO
+ * Return: length of io, or -ERRANAL
  */
 int nfp_cpp_area_write(struct nfp_cpp_area *area,
 		       unsigned long offset, const void *kernel_vaddr,
@@ -615,7 +615,7 @@ struct nfp_cpp *nfp_cpp_area_cpp(struct nfp_cpp_area *cpp_area)
  * nfp_cpp_area_resource() - get resource
  * @area:	CPP area handle
  *
- * NOTE: Area must have been locked down with an 'acquire'.
+ * ANALTE: Area must have been locked down with an 'acquire'.
  *
  * Return: struct resource pointer, or NULL
  */
@@ -633,7 +633,7 @@ struct resource *nfp_cpp_area_resource(struct nfp_cpp_area *area)
  * nfp_cpp_area_phys() - get physical address of CPP area
  * @area:	CPP area handle
  *
- * NOTE: Area must have been locked down with an 'acquire'.
+ * ANALTE: Area must have been locked down with an 'acquire'.
  *
  * Return: phy_addr_t of the area, or NULL
  */
@@ -654,7 +654,7 @@ phys_addr_t nfp_cpp_area_phys(struct nfp_cpp_area *area)
  * Returns an iomem pointer for use with readl()/writel() style
  * operations.
  *
- * NOTE: Area must have been locked down with an 'acquire'.
+ * ANALTE: Area must have been locked down with an 'acquire'.
  *
  * Return: __iomem pointer to the area, or NULL
  */
@@ -674,7 +674,7 @@ void __iomem *nfp_cpp_area_iomem(struct nfp_cpp_area *area)
  * @offset:	Offset into area
  * @value:	Pointer to read buffer
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_area_readl(struct nfp_cpp_area *area,
 		       unsigned long offset, u32 *value)
@@ -696,7 +696,7 @@ int nfp_cpp_area_readl(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Value to write
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_area_writel(struct nfp_cpp_area *area,
 			unsigned long offset, u32 value)
@@ -716,7 +716,7 @@ int nfp_cpp_area_writel(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Pointer to read buffer
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_area_readq(struct nfp_cpp_area *area,
 		       unsigned long offset, u64 *value)
@@ -738,7 +738,7 @@ int nfp_cpp_area_readq(struct nfp_cpp_area *area,
  * @offset:	Offset into area
  * @value:	Value to write
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_cpp_area_writeq(struct nfp_cpp_area *area,
 			unsigned long offset, u64 value)
@@ -761,7 +761,7 @@ int nfp_cpp_area_writeq(struct nfp_cpp_area *area,
  *
  * Fill indicated area with given value.
  *
- * Return: length of io, or -ERRNO
+ * Return: length of io, or -ERRANAL
  */
 int nfp_cpp_area_fill(struct nfp_cpp_area *area,
 		      unsigned long offset, u32 value, size_t length)
@@ -800,12 +800,12 @@ int nfp_cpp_area_cache_add(struct nfp_cpp *cpp, size_t size)
 	area = nfp_cpp_area_alloc(cpp, NFP_CPP_ID(7, NFP_CPP_ACTION_RW, 0),
 				  0, size);
 	if (!area)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache) {
 		nfp_cpp_area_free(area);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	cache->id = 0;
@@ -855,7 +855,7 @@ area_cache_get(struct nfp_cpp *cpp, u32 id,
 			goto exit;
 	}
 
-	/* No matches - inspect the tail of the LRU */
+	/* Anal matches - inspect the tail of the LRU */
 	cache = list_entry(cpp->area_cache_list.prev,
 			   struct nfp_cpp_area_cache, entry);
 
@@ -928,7 +928,7 @@ static int __nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
 	} else {
 		area = nfp_cpp_area_alloc(cpp, destination, address, length);
 		if (!area)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = nfp_cpp_area_acquire(area);
 		if (err) {
@@ -955,7 +955,7 @@ static int __nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
  * @kernel_vaddr:	kernel buffer for result
  * @length:		number of bytes to read
  *
- * Return: length of io, or -ERRNO
+ * Return: length of io, or -ERRANAL
  */
 int nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
 		 unsigned long long address, void *kernel_vaddr,
@@ -997,7 +997,7 @@ static int __nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
 	} else {
 		area = nfp_cpp_area_alloc(cpp, destination, address, length);
 		if (!area)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		err = nfp_cpp_area_acquire(area);
 		if (err) {
@@ -1024,7 +1024,7 @@ static int __nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
  * @kernel_vaddr:	kernel buffer to read from
  * @length:		number of bytes to write
  *
- * Return: length of io, or -ERRNO
+ * Return: length of io, or -ERRANAL
  */
 int nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
 		  unsigned long long address,
@@ -1058,7 +1058,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
 	u32 xpb;
 
 	xpb = NFP_CPP_ID(14, NFP_CPP_ACTION_RW, 0);
-	/* Ensure that non-local XPB accesses go
+	/* Ensure that analn-local XPB accesses go
 	 * out through the global XPBM bus.
 	 */
 	island = (*xpb_addr >> 24) & 0x3f;
@@ -1075,7 +1075,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
 	if (*xpb_addr < 0x60000) {
 		*xpb_addr |= 1 << 30;
 	} else {
-		/* And only non-ARM interfaces use the island id = 1 */
+		/* And only analn-ARM interfaces use the island id = 1 */
 		if (NFP_CPP_INTERFACE_TYPE_of(nfp_cpp_interface(cpp))
 		    != NFP_CPP_INTERFACE_TYPE_ARM)
 			*xpb_addr |= 1 << 24;
@@ -1090,7 +1090,7 @@ static u32 nfp_xpb_to_cpp(struct nfp_cpp *cpp, u32 *xpb_addr)
  * @xpb_addr:	Address for operation
  * @value:	Pointer to read buffer
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_xpb_readl(struct nfp_cpp *cpp, u32 xpb_addr, u32 *value)
 {
@@ -1105,7 +1105,7 @@ int nfp_xpb_readl(struct nfp_cpp *cpp, u32 xpb_addr, u32 *value)
  * @xpb_addr:	Address for operation
  * @value:	Value to write
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_xpb_writel(struct nfp_cpp *cpp, u32 xpb_addr, u32 value)
 {
@@ -1123,7 +1123,7 @@ int nfp_xpb_writel(struct nfp_cpp *cpp, u32 xpb_addr, u32 value)
  *
  * KERNEL: This operation is safe to call in interrupt or softirq context.
  *
- * Return: 0 on success, or -ERRNO
+ * Return: 0 on success, or -ERRANAL
  */
 int nfp_xpb_writelm(struct nfp_cpp *cpp, u32 xpb_tgt,
 		    u32 mask, u32 value)
@@ -1145,7 +1145,7 @@ static struct lock_class_key nfp_cpp_resource_lock_key;
 
 static void nfp_cpp_dev_release(struct device *dev)
 {
-	/* Nothing to do here - it just makes the kernel happy */
+	/* Analthing to do here - it just makes the kernel happy */
 }
 
 /**
@@ -1155,7 +1155,7 @@ static void nfp_cpp_dev_release(struct device *dev)
  * @parent:	Parent device
  * @priv:	Private data of low-level implementation
  *
- * NOTE: On failure, cpp_ops->free will be called!
+ * ANALTE: On failure, cpp_ops->free will be called!
  *
  * Return: NFP CPP handle on success, ERR_PTR on failure
  */
@@ -1172,7 +1172,7 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 
 	cpp = kzalloc(sizeof(*cpp), GFP_KERNEL);
 	if (!cpp) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_malloc;
 	}
 
@@ -1208,7 +1208,7 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 
 	dev_set_drvdata(&cpp->dev, cpp);
 
-	/* NOTE: cpp_lock is NOT locked for op->init,
+	/* ANALTE: cpp_lock is ANALT locked for op->init,
 	 * since it may call NFP CPP API operations
 	 */
 	if (cpp->op->init) {
@@ -1287,7 +1287,7 @@ struct device *nfp_cpp_device(struct nfp_cpp *cpp)
 #define NFP_EXPL_OP(func, expl, args...)			  \
 	({							  \
 		struct nfp_cpp *cpp = nfp_cpp_explicit_cpp(expl); \
-		int err = -ENODEV;				  \
+		int err = -EANALDEV;				  \
 								  \
 		if (cpp->op->func)				  \
 			err = cpp->op->func(expl, ##args);	  \
@@ -1338,7 +1338,7 @@ struct nfp_cpp_explicit *nfp_cpp_explicit_acquire(struct nfp_cpp *cpp)
  * @len:	CPP Length field
  * @mask:	CPP Mask field
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_set_target(struct nfp_cpp_explicit *expl,
 				u32 cpp_id, u8 len, u8 mask)
@@ -1356,7 +1356,7 @@ int nfp_cpp_explicit_set_target(struct nfp_cpp_explicit *expl,
  * @data_master: CPP Data Master field
  * @data_ref:	CPP Data Ref field
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_set_data(struct nfp_cpp_explicit *expl,
 			      u8 data_master, u16 data_ref)
@@ -1373,7 +1373,7 @@ int nfp_cpp_explicit_set_data(struct nfp_cpp_explicit *expl,
  * @signal_master: CPP Signal Master field
  * @signal_ref:	CPP Signal Ref field
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_set_signal(struct nfp_cpp_explicit *expl,
 				u8 signal_master, u8 signal_ref)
@@ -1393,7 +1393,7 @@ int nfp_cpp_explicit_set_signal(struct nfp_cpp_explicit *expl,
  * @sigb:	CPP Signal B field
  * @sigb_mode:	CPP Signal B Mode field
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_set_posted(struct nfp_cpp_explicit *expl, int posted,
 				u8 siga,
@@ -1421,7 +1421,7 @@ int nfp_cpp_explicit_set_posted(struct nfp_cpp_explicit *expl, int posted,
  * If this function is called before the configuration
  * registers are set, it will return -EINVAL.
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_put(struct nfp_cpp_explicit *expl,
 			 const void *buff, size_t len)
@@ -1435,9 +1435,9 @@ int nfp_cpp_explicit_put(struct nfp_cpp_explicit *expl,
  * @address:	Address to send in the explicit transaction
  *
  * If this function is called before the configuration
- * registers are set, it will return -1, with an errno of EINVAL.
+ * registers are set, it will return -1, with an erranal of EINVAL.
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_do(struct nfp_cpp_explicit *expl, u64 address)
 {
@@ -1453,12 +1453,12 @@ int nfp_cpp_explicit_do(struct nfp_cpp_explicit *expl, u64 address)
  * The 'len' parameter must be less than or equal to 128 bytes.
  *
  * If this function is called before all three configuration
- * registers are set, it will return -1, with an errno of EINVAL.
+ * registers are set, it will return -1, with an erranal of EINVAL.
  *
  * If this function is called before nfp_cpp_explicit_do()
- * has completed, it will return -1, with an errno of EBUSY.
+ * has completed, it will return -1, with an erranal of EBUSY.
  *
- * Return: 0, or -ERRNO
+ * Return: 0, or -ERRANAL
  */
 int nfp_cpp_explicit_get(struct nfp_cpp_explicit *expl, void *buff, size_t len)
 {

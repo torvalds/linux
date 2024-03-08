@@ -17,7 +17,7 @@
 #include <linux/bitfield.h>
 #include <asm/cacheflush.h>
 #include <asm/cacheinfo.h>
-#include <asm/dma-noncoherent.h>
+#include <asm/dma-analncoherent.h>
 #include <soc/sifive/sifive_ccache.h>
 
 #define SIFIVE_CCACHE_DIRECCFIX_LOW 0x100
@@ -64,7 +64,7 @@ enum {
 };
 
 enum {
-	QUIRK_NONSTANDARD_CACHE_OPS	= BIT(0),
+	QUIRK_ANALNSTANDARD_CACHE_OPS	= BIT(0),
 	QUIRK_BROKEN_DATA_UNCORR	= BIT(1),
 };
 
@@ -119,26 +119,26 @@ static const struct of_device_id sifive_ccache_ids[] = {
 	{ .compatible = "sifive,fu540-c000-ccache" },
 	{ .compatible = "sifive,fu740-c000-ccache" },
 	{ .compatible = "starfive,jh7100-ccache",
-	  .data = (void *)(QUIRK_NONSTANDARD_CACHE_OPS | QUIRK_BROKEN_DATA_UNCORR) },
+	  .data = (void *)(QUIRK_ANALNSTANDARD_CACHE_OPS | QUIRK_BROKEN_DATA_UNCORR) },
 	{ .compatible = "sifive,ccache0" },
 	{ /* end of table */ }
 };
 
-static ATOMIC_NOTIFIER_HEAD(ccache_err_chain);
+static ATOMIC_ANALTIFIER_HEAD(ccache_err_chain);
 
-int register_sifive_ccache_error_notifier(struct notifier_block *nb)
+int register_sifive_ccache_error_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_register(&ccache_err_chain, nb);
+	return atomic_analtifier_chain_register(&ccache_err_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_sifive_ccache_error_notifier);
+EXPORT_SYMBOL_GPL(register_sifive_ccache_error_analtifier);
 
-int unregister_sifive_ccache_error_notifier(struct notifier_block *nb)
+int unregister_sifive_ccache_error_analtifier(struct analtifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&ccache_err_chain, nb);
+	return atomic_analtifier_chain_unregister(&ccache_err_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_sifive_ccache_error_notifier);
+EXPORT_SYMBOL_GPL(unregister_sifive_ccache_error_analtifier);
 
-#ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
+#ifdef CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS
 static void ccache_flush_range(phys_addr_t start, size_t len)
 {
 	phys_addr_t end = start + len;
@@ -159,12 +159,12 @@ static void ccache_flush_range(phys_addr_t start, size_t len)
 	}
 }
 
-static const struct riscv_nonstd_cache_ops ccache_mgmt_ops __initconst = {
+static const struct riscv_analnstd_cache_ops ccache_mgmt_ops __initconst = {
 	.wback = &ccache_flush_range,
 	.inv = &ccache_flush_range,
 	.wback_inv = &ccache_flush_range,
 };
-#endif /* CONFIG_RISCV_NONSTANDARD_CACHE_OPS */
+#endif /* CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS */
 
 static int ccache_largest_wayenabled(void)
 {
@@ -209,7 +209,7 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 		pr_err("DirError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DirError interrupt sig */
 		readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
+		atomic_analtifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_CE,
 					   "DirECCFix");
 	}
@@ -218,7 +218,7 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 		add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_LOW);
 		/* Reading this register clears the DirFail interrupt sig */
 		readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
+		atomic_analtifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_UE,
 					   "DirECCFail");
 		panic("CCACHE: DirFail @ 0x%08X.%08X\n", add_h, add_l);
@@ -229,7 +229,7 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 		pr_err("DataError @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataError interrupt sig */
 		readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
+		atomic_analtifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_CE,
 					   "DatECCFix");
 	}
@@ -239,7 +239,7 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 		pr_err("DataFail @ 0x%08X.%08X\n", add_h, add_l);
 		/* Reading this register clears the DataFail interrupt sig */
 		readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
+		atomic_analtifier_call_chain(&ccache_err_chain,
 					   SIFIVE_CCACHE_ERR_TYPE_UE,
 					   "DatECCFail");
 	}
@@ -249,38 +249,38 @@ static irqreturn_t ccache_int_handler(int irq, void *device)
 
 static int __init sifive_ccache_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	struct resource res;
 	int i, rc, intr_num;
 	const struct of_device_id *match;
 	unsigned long quirks;
 
-	np = of_find_matching_node_and_match(NULL, sifive_ccache_ids, &match);
+	np = of_find_matching_analde_and_match(NULL, sifive_ccache_ids, &match);
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
 	quirks = (uintptr_t)match->data;
 
 	if (of_address_to_resource(np, 0, &res)) {
-		rc = -ENODEV;
-		goto err_node_put;
+		rc = -EANALDEV;
+		goto err_analde_put;
 	}
 
 	ccache_base = ioremap(res.start, resource_size(&res));
 	if (!ccache_base) {
-		rc = -ENOMEM;
-		goto err_node_put;
+		rc = -EANALMEM;
+		goto err_analde_put;
 	}
 
 	if (of_property_read_u32(np, "cache-level", &level)) {
-		rc = -ENOENT;
+		rc = -EANALENT;
 		goto err_unmap;
 	}
 
 	intr_num = of_property_count_u32_elems(np, "interrupts");
 	if (!intr_num) {
-		pr_err("No interrupts property\n");
-		rc = -ENODEV;
+		pr_err("Anal interrupts property\n");
+		rc = -EANALDEV;
 		goto err_unmap;
 	}
 
@@ -293,17 +293,17 @@ static int __init sifive_ccache_init(void)
 		rc = request_irq(g_irq[i], ccache_int_handler, 0, "ccache_ecc",
 				 NULL);
 		if (rc) {
-			pr_err("Could not request IRQ %d\n", g_irq[i]);
+			pr_err("Could analt request IRQ %d\n", g_irq[i]);
 			goto err_free_irq;
 		}
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
-#ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
-	if (quirks & QUIRK_NONSTANDARD_CACHE_OPS) {
+#ifdef CONFIG_RISCV_ANALNSTANDARD_CACHE_OPS
+	if (quirks & QUIRK_ANALNSTANDARD_CACHE_OPS) {
 		riscv_cbom_block_size = SIFIVE_CCACHE_LINE_SIZE;
-		riscv_noncoherent_supported();
-		riscv_noncoherent_register_cache_ops(&ccache_mgmt_ops);
+		riscv_analncoherent_supported();
+		riscv_analncoherent_register_cache_ops(&ccache_mgmt_ops);
 	}
 #endif
 
@@ -322,8 +322,8 @@ err_free_irq:
 		free_irq(g_irq[i], NULL);
 err_unmap:
 	iounmap(ccache_base);
-err_node_put:
-	of_node_put(np);
+err_analde_put:
+	of_analde_put(np);
 	return rc;
 }
 

@@ -1,4 +1,4 @@
-Imagination Technologies hardware hash accelerator
+Imagination Techanallogies hardware hash accelerator
 
 The hash accelerator provides hardware hashing acceleration for
 SHA1, SHA224, SHA256 and MD5 hashes

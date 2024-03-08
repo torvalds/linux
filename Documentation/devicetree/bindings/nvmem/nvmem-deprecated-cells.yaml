@@ -11,8 +11,8 @@ maintainers:
 
 description: |
   Before introducing NVMEM layouts all NVMEM (fixed) cells were defined
-  as direct device subnodes. That syntax was replaced by "fixed-layout"
-  and is deprecated now. No new bindings should use it.
+  as direct device subanaldes. That syntax was replaced by "fixed-layout"
+  and is deprecated analw. Anal new bindings should use it.
 
 patternProperties:
   "@[0-9a-f]+(,[0-7])?$":

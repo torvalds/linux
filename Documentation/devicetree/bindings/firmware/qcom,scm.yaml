@@ -97,7 +97,7 @@ properties:
     description:
       Indicates that the SDI (Secure Debug Image) has been enabled by TZ
       by default and it needs to be disabled.
-      If not disabled WDT assertion or reboot will cause the board to hang
+      If analt disabled WDT assertion or reboot will cause the board to hang
       in the debug mode.
     type: boolean
 
@@ -182,7 +182,7 @@ allOf:
 
   # Interrupts
   - if:
-      not:
+      analt:
         properties:
           compatible:
             contains:

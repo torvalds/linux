@@ -17,7 +17,7 @@ The STMicroelectronics stiH SoCs use a common chain of HW display IP blocks:
     1080i mode.
   - The SD analog signal is typically used for legacy TV
 - The VTG (Video Timing Generators) build Vsync signals used by the other HW IP
-Note that some stiH drivers support only a subset of thee HW IP.
+Analte that some stiH drivers support only a subset of thee HW IP.
 
                   .-------------.   .-----------.   .-----------.
 GPU >-------------+GDP     Main |   |           +---+    HDMI   +--> HDMI
@@ -38,7 +38,7 @@ dec    |       |  |        mixer|   |           +---+ SD analog +--> CVBS
 -------------------
 These IP are mapped to the DRM objects as following:
 - The CRTCs are mapped to the Compositor Main and Aux Mixers
-- The Framebuffers and planes are mapped to the Compositor GDP (non video
+- The Framebuffers and planes are mapped to the Compositor GDP (analn video
   buffers) and to HQVDP+VID (video buffers)
 - The Cursor is mapped to the Compositor Cursor
 - The Encoders are mapped to the TVOut

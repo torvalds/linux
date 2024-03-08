@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: rf function code
@@ -160,7 +160,7 @@ static unsigned long al2230_power_table[AL2230_PWR_IDX_LEN] = {
  *      iobase      - I/O base address
  *      dwData      - data to write
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -193,7 +193,7 @@ bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -206,7 +206,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 
 	ret = true;
 
-	/* 3-wire control for normal mode */
+	/* 3-wire control for analrmal mode */
 	iowrite8(0, iobase + MAC_REG_SOFTPWRCTL);
 
 	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL,
@@ -214,7 +214,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	/* PLL  Off */
 	vt6655_mac_word_reg_bits_off(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	/* patch abnormal AL2230 frequency output */
+	/* patch abanalrmal AL2230 frequency output */
 	IFRFbWriteEmbedded(priv, (0x07168700 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW));
 
 	for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++)
@@ -253,7 +253,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
 	ret &= IFRFbWriteEmbedded(priv, al2230_channel_table0[byChannel - 1]);
 	ret &= IFRFbWriteEmbedded(priv, al2230_channel_table1[byChannel - 1]);
 
-	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	/* Set Channel[7] = 0 to tell H/W channel is changing analw. */
 	iowrite8(byChannel & 0x7F, iobase + MAC_REG_CHANNEL);
 	MACvTimer0MicroSDelay(priv, SWITCH_CHANNEL_DELAY_AL2230);
 	/* Set Channel[7] = 1 to tell H/W channel change is done. */
@@ -270,7 +270,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
  *      byBBType
  *      rf_type
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -285,7 +285,7 @@ bool RFbInit(struct vnt_private *priv)
 		priv->max_pwr_level = AL2230_PWR_IDX_LEN;
 		ret = RFbAL2230Init(priv);
 		break;
-	case RF_NOTHING:
+	case RF_ANALTHING:
 		ret = true;
 		break;
 	default:
@@ -303,7 +303,7 @@ bool RFbInit(struct vnt_private *priv)
  *      rf_type
  *      byChannel    - Channel number
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -319,7 +319,7 @@ bool RFbSelectChannel(struct vnt_private *priv, unsigned char rf_type,
 		ret = RFbAL2230SelectChannel(priv, byChannel);
 		break;
 		/*{{ RobertYu: 20050104 */
-	case RF_NOTHING:
+	case RF_ANALTHING:
 		ret = true;
 		break;
 	default:
@@ -371,7 +371,7 @@ bool rf_write_wake_prog_syn(struct vnt_private *priv, unsigned char rf_type,
 
 		/* Need to check, PLLON need to be low for channel setting */
 
-	case RF_NOTHING:
+	case RF_ANALTHING:
 		return true;
 
 	default:
@@ -391,7 +391,7 @@ bool rf_write_wake_prog_syn(struct vnt_private *priv, unsigned char rf_type,
  *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -456,7 +456,7 @@ bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
  *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -510,7 +510,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
  *  Out:
  *      pdwdbm          - Translated dbm number
  *
- * Return Value: none
+ * Return Value: analne
  *
  */
 void

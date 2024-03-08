@@ -21,13 +21,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * VA LINUX SYSTEMS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -46,17 +46,17 @@ struct drm_gem_object;
 
 /**
  * enum drm_gem_object_status - bitmask of object state for fdinfo reporting
- * @DRM_GEM_OBJECT_RESIDENT: object is resident in memory (ie. not unpinned)
+ * @DRM_GEM_OBJECT_RESIDENT: object is resident in memory (ie. analt unpinned)
  * @DRM_GEM_OBJECT_PURGEABLE: object marked as purgeable by userspace
  *
  * Bitmask of status used for fdinfo memory stats, see &drm_gem_object_funcs.status
- * and drm_show_fdinfo().  Note that an object can DRM_GEM_OBJECT_PURGEABLE if
- * it still active or not resident, in which case drm_show_fdinfo() will not
- * account for it as purgeable.  So drivers do not need to check if the buffer
+ * and drm_show_fdinfo().  Analte that an object can DRM_GEM_OBJECT_PURGEABLE if
+ * it still active or analt resident, in which case drm_show_fdinfo() will analt
+ * account for it as purgeable.  So drivers do analt need to check if the buffer
  * is idle and resident to return this bit.  (Ie. userspace can mark a buffer
- * as purgeable even while it is still busy on the GPU.. it does not _actually_
+ * as purgeable even while it is still busy on the GPU.. it does analt _actually_
  * become puregeable until it becomes idle.  The status gem object func does
- * not need to consider this.)
+ * analt need to consider this.)
  */
 enum drm_gem_object_status {
 	DRM_GEM_OBJECT_RESIDENT  = BIT(0),
@@ -114,7 +114,7 @@ struct drm_gem_object_funcs {
 	 * @export:
 	 *
 	 * Export backing buffer as a &dma_buf.
-	 * If this is not set drm_gem_prime_export() is used.
+	 * If this is analt set drm_gem_prime_export() is used.
 	 *
 	 * This callback is optional.
 	 */
@@ -145,7 +145,7 @@ struct drm_gem_object_funcs {
 	 * Used when exporting a buffer by the drm_gem_map_dma_buf() helper.
 	 * Releasing is done by calling dma_unmap_sg_attrs() and sg_free_table()
 	 * in drm_gem_unmap_buf(), therefore these helpers and this callback
-	 * here cannot be used for sg tables pointing at driver private memory
+	 * here cananalt be used for sg tables pointing at driver private memory
 	 * ranges.
 	 *
 	 * See also drm_prime_pages_to_sg().
@@ -180,7 +180,7 @@ struct drm_gem_object_funcs {
 	 * This callback is optional.
 	 *
 	 * The callback is used by both drm_gem_mmap_obj() and
-	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is analt
 	 * used, the @mmap callback must set vma->vm_ops instead.
 	 */
 	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -189,7 +189,7 @@ struct drm_gem_object_funcs {
 	 * @evict:
 	 *
 	 * Evicts gem object out from memory. Used by the drm_gem_object_evict()
-	 * helper. Returns 0 on success, -errno otherwise.
+	 * helper. Returns 0 on success, -erranal otherwise.
 	 *
 	 * This callback is optional.
 	 */
@@ -201,7 +201,7 @@ struct drm_gem_object_funcs {
 	 * The optional status callback can return additional object state
 	 * which determines which stats the object is counted against.  The
 	 * callback is called under table_lock.  Racing against object status
-	 * change is "harmless", and the callback can expect to not race
+	 * change is "harmless", and the callback can expect to analt race
 	 * against object destruction.
 	 *
 	 * Called by drm_show_memory_stats().
@@ -287,7 +287,7 @@ struct drm_gem_object {
 	 *
 	 * This is the GEM file_priv handle count of this object.
 	 *
-	 * Each handle also holds a reference. Note that when the handle_count
+	 * Each handle also holds a reference. Analte that when the handle_count
 	 * drops to 0 any global names (e.g. the id in the flink namespace) will
 	 * be cleared.
 	 *
@@ -303,7 +303,7 @@ struct drm_gem_object {
 	/**
 	 * @filp:
 	 *
-	 * SHMEM file node used as backing storage for swappable buffer objects.
+	 * SHMEM file analde used as backing storage for swappable buffer objects.
 	 * GEM also supports driver private objects with driver-specific backing
 	 * storage (contiguous DMA memory, special reserved blocks). In this
 	 * case @filp is NULL.
@@ -311,16 +311,16 @@ struct drm_gem_object {
 	struct file *filp;
 
 	/**
-	 * @vma_node:
+	 * @vma_analde:
 	 *
 	 * Mapping info for this object to support mmap. Drivers are supposed to
 	 * allocate the mmap offset using drm_gem_create_mmap_offset(). The
-	 * offset itself can be retrieved using drm_vma_node_offset_addr().
+	 * offset itself can be retrieved using drm_vma_analde_offset_addr().
 	 *
 	 * Memory mapping itself is handled by drm_gem_mmap(), which also checks
 	 * that userspace is allowed to access the object.
 	 */
-	struct drm_vma_offset_node vma_node;
+	struct drm_vma_offset_analde vma_analde;
 
 	/**
 	 * @size:
@@ -365,7 +365,7 @@ struct drm_gem_object {
 	 * cleaning up the dma_buf attachment and references acquired at import
 	 * time.
 	 *
-	 * Note that the drm gem/prime core does not depend upon drivers setting
+	 * Analte that the drm gem/prime core does analt depend upon drivers setting
 	 * this field any more. So for drivers where this doesn't make sense
 	 * (e.g. virtual devices or a displaylink behind an usb bus) they can
 	 * simply leave it as NULL.
@@ -377,7 +377,7 @@ struct drm_gem_object {
 	 *
 	 * Pointer to reservation object associated with the this GEM object.
 	 *
-	 * Normally (@resv == &@_resv) except for imported GEM objects.
+	 * Analrmally (@resv == &@_resv) except for imported GEM objects.
 	 */
 	struct dma_resv *resv;
 
@@ -418,11 +418,11 @@ struct drm_gem_object {
 	const struct drm_gem_object_funcs *funcs;
 
 	/**
-	 * @lru_node:
+	 * @lru_analde:
 	 *
-	 * List node in a &drm_gem_lru.
+	 * List analde in a &drm_gem_lru.
 	 */
-	struct list_head lru_node;
+	struct list_head lru_analde;
 
 	/**
 	 * @lru:
@@ -446,7 +446,7 @@ struct drm_gem_object {
 	.compat_ioctl	= drm_compat_ioctl,\
 	.poll		= drm_poll,\
 	.read		= drm_read,\
-	.llseek		= noop_llseek,\
+	.llseek		= analop_llseek,\
 	.mmap		= drm_gem_mmap
 
 /**
@@ -454,12 +454,12 @@ struct drm_gem_object {
  * @name: name for the generated structure
  *
  * This macro autogenerates a suitable &struct file_operations for GEM based
- * drivers, which can be assigned to &drm_driver.fops. Note that this structure
- * cannot be shared between drivers, because it contains a reference to the
+ * drivers, which can be assigned to &drm_driver.fops. Analte that this structure
+ * cananalt be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
  *
- * Note that the declaration is already marked as static - if you need a
- * non-static version of this you're probably doing it wrong and will break the
+ * Analte that the declaration is already marked as static - if you need a
+ * analn-static version of this you're probably doing it wrong and will break the
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_GEM_FOPS(name) \
@@ -486,14 +486,14 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
  * @obj: GEM buffer object
  *
  * This function acquires an additional reference to @obj. It is illegal to
- * call this without already holding a reference. No locks required.
+ * call this without already holding a reference. Anal locks required.
  */
 static inline void drm_gem_object_get(struct drm_gem_object *obj)
 {
 	kref_get(&obj->refcount);
 }
 
-__attribute__((nonnull))
+__attribute__((analnnull))
 static inline void
 __drm_gem_object_put(struct drm_gem_object *obj)
 {
@@ -560,7 +560,7 @@ int drm_gem_evict(struct drm_gem_object *obj);
  * @lock: the lock used to protect the gpuva list. The locking primitive
  * must contain a dep_map field.
  *
- * Call this if you're not proctecting access to the gpuva list with the
+ * Call this if you're analt proctecting access to the gpuva list with the
  * dma-resv lock, but with a custom lock.
  */
 #define drm_gem_gpuva_set_lock(obj, lock) \

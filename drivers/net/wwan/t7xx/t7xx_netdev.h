@@ -46,7 +46,7 @@ struct t7xx_ccmni_ctrl {
 	struct dpmaif_callbacks		callbacks;
 	unsigned int			nic_dev_num;
 	unsigned int			md_sta;
-	struct t7xx_fsm_notifier	md_status_notify;
+	struct t7xx_fsm_analtifier	md_status_analtify;
 	bool				wwan_is_registered;
 	struct net_device		dummy_dev;
 	struct napi_struct		*napi[RXQ_NUM];

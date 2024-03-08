@@ -27,7 +27,7 @@
 
 #define MAX_PT_LOAD_CNT		8
 
-/* NT_AUXV note related info */
+/* NT_AUXV analte related info */
 #define AUXV_CNT		1
 #define AUXV_DESC_SZ		(((2 * AUXV_CNT) + 1) * sizeof(Elf64_Off))
 
@@ -52,7 +52,7 @@ struct opalcore_config {
 	/* Total size of opalcore file. */
 	size_t			opalcore_size;
 
-	/* Buffer for all the ELF core headers and the PT_NOTE */
+	/* Buffer for all the ELF core headers and the PT_ANALTE */
 	size_t			opalcorebuf_sz;
 	char			*opalcorebuf;
 
@@ -89,17 +89,17 @@ static inline int is_opalcore_usable(void)
 	return (oc_conf && oc_conf->opalcorebuf != NULL) ? 1 : 0;
 }
 
-static Elf64_Word *__init append_elf64_note(Elf64_Word *buf, char *name,
+static Elf64_Word *__init append_elf64_analte(Elf64_Word *buf, char *name,
 				     u32 type, void *data,
 				     size_t data_len)
 {
-	Elf64_Nhdr *note = (Elf64_Nhdr *)buf;
+	Elf64_Nhdr *analte = (Elf64_Nhdr *)buf;
 	Elf64_Word namesz = strlen(name) + 1;
 
-	note->n_namesz = cpu_to_be32(namesz);
-	note->n_descsz = cpu_to_be32(data_len);
-	note->n_type   = cpu_to_be32(type);
-	buf += DIV_ROUND_UP(sizeof(*note), sizeof(Elf64_Word));
+	analte->n_namesz = cpu_to_be32(namesz);
+	analte->n_descsz = cpu_to_be32(data_len);
+	analte->n_type   = cpu_to_be32(type);
+	buf += DIV_ROUND_UP(sizeof(*analte), sizeof(Elf64_Word));
 	memcpy(buf, name, namesz);
 	buf += DIV_ROUND_UP(namesz, sizeof(Elf64_Word));
 	memcpy(buf, data, data_len);
@@ -134,7 +134,7 @@ static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 	}
 }
 
-static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
+static Elf64_Word *__init auxv_to_elf64_analtes(Elf64_Word *buf,
 				       u64 opal_boot_entry)
 {
 	Elf64_Off *bufp = (Elf64_Off *)oc_conf->auxv_buf;
@@ -149,14 +149,14 @@ static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
 	/* end of vector */
 	bufp[idx++] = cpu_to_be64(AT_NULL);
 
-	buf = append_elf64_note(buf, CRASH_CORE_NOTE_NAME, NT_AUXV,
+	buf = append_elf64_analte(buf, CRASH_CORE_ANALTE_NAME, NT_AUXV,
 				oc_conf->auxv_buf, AUXV_DESC_SZ);
 	return buf;
 }
 
 /*
  * Read from the ELF header and then the crash dump.
- * Returns number of bytes read on success, -errno on failure.
+ * Returns number of bytes read on success, -erranal on failure.
  */
 static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
 			     struct bin_attribute *bin_attr, char *to,
@@ -177,7 +177,7 @@ static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
 	if (count == 0)
 		return 0;
 
-	/* Read ELF core header and/or PT_NOTE segment */
+	/* Read ELF core header and/or PT_ANALTE segment */
 	if (tpos < oc_conf->opalcorebuf_sz) {
 		tsz = min_t(size_t, oc_conf->opalcorebuf_sz - tpos, count);
 		memcpy(to, oc_conf->opalcorebuf + tpos, tsz);
@@ -187,7 +187,7 @@ static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
 	}
 
 	list_for_each_entry(m, &opalcore_list, list) {
-		/* nothing more to read here */
+		/* analthing more to read here */
 		if (count == 0)
 			break;
 
@@ -212,18 +212,18 @@ static struct bin_attribute opal_core_attr = {
 };
 
 /*
- * Read CPU state dump data and convert it into ELF notes.
+ * Read CPU state dump data and convert it into ELF analtes.
  *
  * Each register entry is of 16 bytes, A numerical identifier along with
  * a GPR/SPR flag in the first 8 bytes and the register value in the next
  * 8 bytes. For more details refer to F/W documentation.
  */
-static Elf64_Word * __init opalcore_append_cpu_notes(Elf64_Word *buf)
+static Elf64_Word * __init opalcore_append_cpu_analtes(Elf64_Word *buf)
 {
 	u32 thread_pir, size_per_thread, regs_offset, regs_cnt, reg_esize;
 	struct hdat_fadump_thread_hdr *thdr;
 	struct elf_prstatus prstatus;
-	Elf64_Word *first_cpu_note;
+	Elf64_Word *first_cpu_analte;
 	struct pt_regs regs;
 	char *bufp;
 	int i;
@@ -248,11 +248,11 @@ static Elf64_Word * __init opalcore_append_cpu_notes(Elf64_Word *buf)
 		 regs_offset, reg_esize, regs_cnt);
 
 	/*
-	 * Skip past the first CPU note. Fill this note with the
+	 * Skip past the first CPU analte. Fill this analte with the
 	 * crashing CPU's prstatus.
 	 */
-	first_cpu_note = buf;
-	buf = append_elf64_note(buf, CRASH_CORE_NOTE_NAME, NT_PRSTATUS,
+	first_cpu_analte = buf;
+	buf = append_elf64_analte(buf, CRASH_CORE_ANALTE_NAME, NT_PRSTATUS,
 				&prstatus, sizeof(prstatus));
 
 	for (i = 0; i < oc_conf->num_cpus; i++, bufp += size_per_thread) {
@@ -264,7 +264,7 @@ static Elf64_Word * __init opalcore_append_cpu_notes(Elf64_Word *buf)
 
 		/*
 		 * Register state data of MAX cores is provided by firmware,
-		 * but some of this cores may not be active. So, while
+		 * but some of this cores may analt be active. So, while
 		 * processing register state data, check core state and
 		 * skip threads that belong to inactive cores.
 		 */
@@ -279,15 +279,15 @@ static Elf64_Word * __init opalcore_append_cpu_notes(Elf64_Word *buf)
 		fill_prstatus(&prstatus, thread_pir, &regs);
 
 		if (thread_pir != oc_conf->crashing_cpu) {
-			buf = append_elf64_note(buf, CRASH_CORE_NOTE_NAME,
+			buf = append_elf64_analte(buf, CRASH_CORE_ANALTE_NAME,
 						NT_PRSTATUS, &prstatus,
 						sizeof(prstatus));
 		} else {
 			/*
-			 * Add crashing CPU as the first NT_PRSTATUS note for
+			 * Add crashing CPU as the first NT_PRSTATUS analte for
 			 * GDB to process the core file appropriately.
 			 */
-			append_elf64_note(first_cpu_note, CRASH_CORE_NOTE_NAME,
+			append_elf64_analte(first_cpu_analte, CRASH_CORE_ANALTE_NAME,
 					  NT_PRSTATUS, &prstatus,
 					  sizeof(prstatus));
 		}
@@ -299,8 +299,8 @@ static Elf64_Word * __init opalcore_append_cpu_notes(Elf64_Word *buf)
 static int __init create_opalcore(void)
 {
 	u64 opal_boot_entry, opal_base_addr, paddr;
-	u32 hdr_size, cpu_notes_size, count;
-	struct device_node *dn;
+	u32 hdr_size, cpu_analtes_size, count;
+	struct device_analde *dn;
 	struct opalcore *new;
 	loff_t opalcore_off;
 	struct page *page;
@@ -309,24 +309,24 @@ static int __init create_opalcore(void)
 	int i, ret;
 	char *bufp;
 
-	/* Get size of header & CPU notes for OPAL core */
+	/* Get size of header & CPU analtes for OPAL core */
 	hdr_size = (sizeof(Elf64_Ehdr) +
 		    ((oc_conf->ptload_cnt + 1) * sizeof(Elf64_Phdr)));
-	cpu_notes_size = ((oc_conf->num_cpus * (CRASH_CORE_NOTE_HEAD_BYTES +
-			  CRASH_CORE_NOTE_NAME_BYTES +
-			  CRASH_CORE_NOTE_DESC_BYTES)) +
-			  (CRASH_CORE_NOTE_HEAD_BYTES +
-			  CRASH_CORE_NOTE_NAME_BYTES + AUXV_DESC_SZ));
+	cpu_analtes_size = ((oc_conf->num_cpus * (CRASH_CORE_ANALTE_HEAD_BYTES +
+			  CRASH_CORE_ANALTE_NAME_BYTES +
+			  CRASH_CORE_ANALTE_DESC_BYTES)) +
+			  (CRASH_CORE_ANALTE_HEAD_BYTES +
+			  CRASH_CORE_ANALTE_NAME_BYTES + AUXV_DESC_SZ));
 
 	/* Allocate buffer to setup OPAL core */
-	oc_conf->opalcorebuf_sz = PAGE_ALIGN(hdr_size + cpu_notes_size);
+	oc_conf->opalcorebuf_sz = PAGE_ALIGN(hdr_size + cpu_analtes_size);
 	oc_conf->opalcorebuf = alloc_pages_exact(oc_conf->opalcorebuf_sz,
 						 GFP_KERNEL | __GFP_ZERO);
 	if (!oc_conf->opalcorebuf) {
-		pr_err("Not enough memory to setup OPAL core (size: %lu)\n",
+		pr_err("Analt eanalugh memory to setup OPAL core (size: %lu)\n",
 		       oc_conf->opalcorebuf_sz);
 		oc_conf->opalcorebuf_sz = 0;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	count = oc_conf->opalcorebuf_sz / PAGE_SIZE;
 	page = virt_to_page(oc_conf->opalcorebuf);
@@ -336,7 +336,7 @@ static int __init create_opalcore(void)
 	pr_debug("opalcorebuf = 0x%llx\n", (u64)oc_conf->opalcorebuf);
 
 	/* Read OPAL related device-tree entries */
-	dn = of_find_node_by_name(NULL, "ibm,opal");
+	dn = of_find_analde_by_name(NULL, "ibm,opal");
 	if (dn) {
 		ret = of_property_read_u64(dn, "opal-base-address",
 					   &opal_base_addr);
@@ -348,7 +348,7 @@ static int __init create_opalcore(void)
 	if (!dn || ret)
 		pr_warn("WARNING: Failed to read OPAL base & entry values\n");
 
-	of_node_put(dn);
+	of_analde_put(dn);
 
 	/* Use count to keep track of the program headers */
 	count = 0;
@@ -379,12 +379,12 @@ static int __init create_opalcore(void)
 
 	phdr = (Elf64_Phdr *)bufp;
 	bufp += sizeof(Elf64_Phdr);
-	phdr->p_type	= cpu_to_be32(PT_NOTE);
+	phdr->p_type	= cpu_to_be32(PT_ANALTE);
 	phdr->p_flags	= 0;
 	phdr->p_align	= 0;
 	phdr->p_paddr	= phdr->p_vaddr = 0;
 	phdr->p_offset	= cpu_to_be64(hdr_size);
-	phdr->p_filesz	= phdr->p_memsz = cpu_to_be64(cpu_notes_size);
+	phdr->p_filesz	= phdr->p_memsz = cpu_to_be64(cpu_analtes_size);
 	count++;
 
 	opalcore_off = oc_conf->opalcorebuf_sz;
@@ -399,7 +399,7 @@ static int __init create_opalcore(void)
 
 		new = get_new_element();
 		if (!new)
-			return -ENOMEM;
+			return -EANALMEM;
 		new->paddr  = oc_conf->ptload_addr[i];
 		new->size   = oc_conf->ptload_size[i];
 		new->offset = opalcore_off;
@@ -418,8 +418,8 @@ static int __init create_opalcore(void)
 
 	elf->e_phnum = cpu_to_be16(count);
 
-	bufp = (char *)opalcore_append_cpu_notes((Elf64_Word *)bufp);
-	bufp = (char *)auxv_to_elf64_notes((Elf64_Word *)bufp, opal_boot_entry);
+	bufp = (char *)opalcore_append_cpu_analtes((Elf64_Word *)bufp);
+	bufp = (char *)auxv_to_elf64_analtes((Elf64_Word *)bufp, opal_boot_entry);
 
 	oc_conf->opalcore_size = opalcore_off;
 	return 0;
@@ -453,12 +453,12 @@ __exitcall(opalcore_cleanup);
 static void __init opalcore_config_init(void)
 {
 	u32 idx, cpu_data_version;
-	struct device_node *np;
+	struct device_analde *np;
 	const __be32 *prop;
 	u64 addr = 0;
 	int i, ret;
 
-	np = of_find_node_by_path("/ibm,opal/dump");
+	np = of_find_analde_by_path("/ibm,opal/dump");
 	if (np == NULL)
 		return;
 
@@ -470,7 +470,7 @@ static void __init opalcore_config_init(void)
 	/* Check if dump has been initiated on last reboot */
 	prop = of_get_property(np, "mpipl-boot", NULL);
 	if (!prop) {
-		of_node_put(np);
+		of_analde_put(np);
 		return;
 	}
 
@@ -525,7 +525,7 @@ static void __init opalcore_config_init(void)
 	oc_conf->crashing_cpu = be32_to_cpu(opalc_metadata->crashing_pir);
 
 	if (!oc_conf->ptload_cnt) {
-		pr_err("OPAL memory regions not found\n");
+		pr_err("OPAL memory regions analt found\n");
 		goto error_out;
 	}
 
@@ -539,7 +539,7 @@ static void __init opalcore_config_init(void)
 
 	addr = be64_to_cpu(opalc_cpu_metadata->region[0].dest);
 	if (!addr) {
-		pr_err("CPU state data not found!\n");
+		pr_err("CPU state data analt found!\n");
 		goto error_out;
 	}
 	oc_conf->cpu_state_destination_vaddr = (u64)__va(addr);
@@ -557,13 +557,13 @@ static void __init opalcore_config_init(void)
 	oc_conf->num_cpus = (oc_conf->cpu_state_data_size /
 			     oc_conf->cpu_state_entry_size);
 
-	of_node_put(np);
+	of_analde_put(np);
 	return;
 
 error_out:
-	pr_err("Could not export /sys/firmware/opal/core\n");
+	pr_err("Could analt export /sys/firmware/opal/core\n");
 	opalcore_cleanup();
-	of_node_put(np);
+	of_analde_put(np);
 }
 
 static ssize_t release_core_store(struct kobject *kobj,
@@ -577,7 +577,7 @@ static ssize_t release_core_store(struct kobject *kobj,
 
 	if (input == 1) {
 		if (oc_conf == NULL) {
-			pr_err("'/sys/firmware/opal/core' file not accessible!\n");
+			pr_err("'/sys/firmware/opal/core' file analt accessible!\n");
 			return -EPERM;
 		}
 
@@ -637,7 +637,7 @@ static int __init opalcore_init(void)
 	mpipl_kobj = kobject_create_and_add("mpipl", opal_kobj);
 	if (!mpipl_kobj) {
 		pr_err("unable to create mpipl kobject\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* Export OPAL core sysfs file */

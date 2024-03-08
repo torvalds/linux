@@ -61,7 +61,7 @@ struct atmel_hlcdc_plane_state {
 
 	int ahb_id;
 
-	/* These fields are private and should not be touched */
+	/* These fields are private and should analt be touched */
 	int bpp[ATMEL_HLCDC_LAYER_MAX_PLANES];
 	unsigned int offsets[ATMEL_HLCDC_LAYER_MAX_PLANES];
 	int xstride[ATMEL_HLCDC_LAYER_MAX_PLANES];
@@ -186,7 +186,7 @@ static int atmel_hlcdc_format_to_plane_mode(u32 format, u32 *mode)
 		*mode = ATMEL_HLCDC_YUV422_MODE;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	return 0;
@@ -364,7 +364,7 @@ atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
 	const struct drm_format_info *format = state->base.fb->format;
 
 	/*
-	 * Rotation optimization is not working on RGB888 (rotation is still
+	 * Rotation optimization is analt working on RGB888 (rotation is still
 	 * working but without any optimization).
 	 */
 	if (format->format == DRM_FORMAT_RGB888)
@@ -823,7 +823,7 @@ void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
 	isr = atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
 
 	/*
-	 * There's not much we can do in case of overrun except informing
+	 * There's analt much we can do in case of overrun except informing
 	 * the user. However, we are in interrupt context here, hence the
 	 * use of dev_dbg().
 	 */
@@ -870,7 +870,7 @@ err:
 			      state->dscrs[i]->self);
 	}
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void atmel_hlcdc_plane_reset(struct drm_plane *p)
@@ -959,7 +959,7 @@ static int atmel_hlcdc_plane_create(struct drm_device *dev,
 
 	plane = devm_kzalloc(dev->dev, sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	atmel_hlcdc_layer_init(&plane->layer, desc, dc->hlcdc->regmap);
 
@@ -1002,7 +1002,7 @@ int atmel_hlcdc_create_planes(struct drm_device *dev)
 				sizeof(struct atmel_hlcdc_dma_channel_dscr),
 				sizeof(u64), 0);
 	if (!dc->dscrpool)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < nlayers; i++) {
 		if (descs[i].type != ATMEL_HLCDC_BASE_LAYER &&

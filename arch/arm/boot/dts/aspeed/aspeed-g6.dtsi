@@ -69,7 +69,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
 		clocks = <&syscon ASPEED_CLK_HPLL>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-analt-fw-configured;
 		always-on;
 	};
 
@@ -113,21 +113,21 @@
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
@@ -143,14 +143,14 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
@@ -166,21 +166,21 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-analr";
 				spi-max-frequency = <50000000>;
 				spi-rx-bus-width = <2>;
 				status = "disabled";
@@ -299,8 +299,8 @@
 			clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
 			status = "disabled";
 			/*
-			 * No default pinmux, it will follow EHCI, use an
-			 * explicit pinmux override if EHCI is not enabled.
+			 * Anal default pinmux, it will follow EHCI, use an
+			 * explicit pinmux override if EHCI is analt enabled.
 			 */
 		};
 
@@ -541,7 +541,7 @@
 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
 				resets = <&lpc_reset 4>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
 				status = "disabled";
@@ -553,7 +553,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 			};
 
 			wdt1: watchdog@1e785000 {
@@ -639,8 +639,8 @@
 					status = "disabled";
 				};
 
-				lpc_snoop: lpc-snoop@80 {
-					compatible = "aspeed,ast2600-lpc-snoop";
+				lpc_sanalop: lpc-sanalop@80 {
+					compatible = "aspeed,ast2600-lpc-sanalop";
 					reg = <0x80 0x80>;
 					interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
@@ -727,7 +727,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -737,7 +737,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -747,7 +747,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -757,7 +757,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
-				no-loopback-test;
+				anal-loopback-test;
 				status = "disabled";
 			};
 
@@ -769,7 +769,7 @@
 				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
 				resets = <&lpc_reset 5>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
 				status = "disabled";
@@ -783,7 +783,7 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
 				resets = <&lpc_reset 6>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
 				status = "disabled";
@@ -797,7 +797,7 @@
 				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
 				resets = <&lpc_reset 7>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
 				status = "disabled";
@@ -810,7 +810,7 @@
 				reg-io-width = <4>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART6CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart6_default>;
 
@@ -824,7 +824,7 @@
 				reg-io-width = <4>;
 				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART7CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart7_default>;
 
@@ -838,7 +838,7 @@
 				reg-io-width = <4>;
 				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART8CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart8_default>;
 
@@ -852,7 +852,7 @@
 				reg-io-width = <4>;
 				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART9CLK>;
-				no-loopback-test;
+				anal-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart9_default>;
 

@@ -168,7 +168,7 @@ static struct regmap_bus gsc_regmap_bus = {
 static const struct regmap_config gsc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
+	.cache_type = REGCACHE_ANALNE,
 	.max_register = GSC_WP,
 };
 
@@ -204,7 +204,7 @@ static int gsc_probe(struct i2c_client *client)
 
 	gsc = devm_kzalloc(dev, sizeof(*gsc), GFP_KERNEL);
 	if (!gsc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gsc->dev = &client->dev;
 	gsc->i2c = client;

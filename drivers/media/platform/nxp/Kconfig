@@ -10,7 +10,7 @@ config VIDEO_IMX7_CSI
 	depends on HAS_DMA
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_SUBDEV_API
 	help
@@ -22,7 +22,7 @@ config VIDEO_IMX8MQ_MIPI_CSI2
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Video4Linux2 driver for the MIPI CSI-2 receiver found on the i.MX8MQ
@@ -33,7 +33,7 @@ config VIDEO_IMX_MIPI_CSIS
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Video4Linux2 sub-device driver for the MIPI CSI-2 CSIS receiver

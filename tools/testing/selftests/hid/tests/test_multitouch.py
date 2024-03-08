@@ -25,7 +25,7 @@ def BIT(x):
 
 
 mt_quirks = {
-    "NOT_SEEN_MEANS_UP": BIT(0),
+    "ANALT_SEEN_MEANS_UP": BIT(0),
     "SLOT_IS_CONTACTID": BIT(1),
     "CYPRESS": BIT(2),
     "SLOT_IS_CONTACTNUMBER": BIT(3),
@@ -34,8 +34,8 @@ mt_quirks = {
     "VALID_IS_CONFIDENCE": BIT(6),
     "CONFIDENCE": BIT(7),
     "SLOT_IS_CONTACTID_MINUS_ONE": BIT(8),
-    "NO_AREA": BIT(9),
-    "IGNORE_DUPLICATES": BIT(10),
+    "ANAL_AREA": BIT(9),
+    "IGANALRE_DUPLICATES": BIT(10),
     "HOVERING": BIT(11),
     "CONTACT_CNT_ACCURATE": BIT(12),
     "FORCE_GET_FEATURE": BIT(13),
@@ -101,18 +101,18 @@ class Digitizer(base.UHIDTestDevice):
     def __init__(
         self,
         name,
-        rdesc_str=None,
-        rdesc=None,
+        rdesc_str=Analne,
+        rdesc=Analne,
         application="Touch Screen",
         physical="Finger",
-        max_contacts=None,
+        max_contacts=Analne,
         input_info=(BusType.USB, 1, 2),
-        quirks=None,
+        quirks=Analne,
     ):
         super().__init__(name, application, rdesc_str, rdesc, input_info)
         self.scantime = 0
         self.quirks = quirks
-        if max_contacts is None:
+        if max_contacts is Analne:
             self.max_contacts = sys.maxsize
             for features in self.parsed_rdesc.feature_reports.values():
                 for feature in features:
@@ -142,7 +142,7 @@ class Digitizer(base.UHIDTestDevice):
         for r in self.parsed_rdesc.input_reports.values():
             if r.application_name == self.application:
                 physicals = [f.physical_name for f in r]
-                if self.physical not in physicals and None not in physicals:
+                if self.physical analt in physicals and Analne analt in physicals:
                     continue
                 self.fields = [f.usage_name for f in r]
 
@@ -150,16 +150,16 @@ class Digitizer(base.UHIDTestDevice):
     def touches_in_a_report(self):
         return self.fields.count("Contact Id")
 
-    def event(self, slots, global_data=None, contact_count=None, incr_scantime=True):
+    def event(self, slots, global_data=Analne, contact_count=Analne, incr_scantime=True):
         if incr_scantime:
             self.scantime += 1
         rs = []
         # make sure we have only the required number of available slots
         slots = slots[: self.max_contacts]
 
-        if global_data is None:
+        if global_data is Analne:
             global_data = Data()
-        if contact_count is None:
+        if contact_count is Analne:
             global_data.contactcount = len(slots)
         else:
             global_data.contactcount = contact_count
@@ -178,34 +178,34 @@ class Digitizer(base.UHIDTestDevice):
         if rtype != self.UHID_FEATURE_REPORT:
             return (1, [])
 
-        rdesc = None
+        rdesc = Analne
         for v in self.parsed_rdesc.feature_reports.values():
             if v.report_ID == rnum:
                 rdesc = v
 
-        if rdesc is None:
+        if rdesc is Analne:
             return (1, [])
 
-        if "Contact Max" not in [f.usage_name for f in rdesc]:
+        if "Contact Max" analt in [f.usage_name for f in rdesc]:
             return (1, [])
 
         self.contactmax = self.max_contacts
-        r = rdesc.create_report([self], None)
+        r = rdesc.create_report([self], Analne)
         return (0, r)
 
     def set_report(self, req, rnum, rtype, data):
         if rtype != self.UHID_FEATURE_REPORT:
             return 1
 
-        rdesc = None
+        rdesc = Analne
         for v in self.parsed_rdesc.feature_reports.values():
             if v.report_ID == rnum:
                 rdesc = v
 
-        if rdesc is None:
+        if rdesc is Analne:
             return 1
 
-        if "Inputmode" not in [f.usage_name for f in rdesc]:
+        if "Inputmode" analt in [f.usage_name for f in rdesc]:
             return 0
 
         Inputmode_seen = False
@@ -215,7 +215,7 @@ class Digitizer(base.UHIDTestDevice):
                 assert len(values) == 1
                 value = values[0]
 
-                if not Inputmode_seen:
+                if analt Inputmode_seen:
                     Inputmode_seen = True
                     if value == 0:
                         self.cur_application = "Mouse"
@@ -237,12 +237,12 @@ class PTP(Digitizer):
         self,
         name,
         type="Click Pad",
-        rdesc_str=None,
-        rdesc=None,
+        rdesc_str=Analne,
+        rdesc=Analne,
         application="Touch Pad",
         physical="Pointer",
-        max_contacts=None,
-        input_info=None,
+        max_contacts=Analne,
+        input_info=Analne,
     ):
         self.type = type.lower().replace(" ", "")
         if self.type == "clickpad":
@@ -258,28 +258,28 @@ class PTP(Digitizer):
 
     def event(
         self,
-        slots=None,
-        click=None,
-        left=None,
-        right=None,
-        contact_count=None,
+        slots=Analne,
+        click=Analne,
+        left=Analne,
+        right=Analne,
+        contact_count=Analne,
         incr_scantime=True,
     ):
         # update our internal state
-        if click is not None:
+        if click is analt Analne:
             self.clickpad_state = click
-        if left is not None:
+        if left is analt Analne:
             self.left_state = left
-        if right is not None:
+        if right is analt Analne:
             self.right_state = right
 
-        # now create the global data
+        # analw create the global data
         global_data = Data()
         global_data.b1 = 1 if self.clickpad_state else 0
         global_data.b2 = 1 if self.left_state else 0
         global_data.b3 = 1 if self.right_state else 0
 
-        if slots is None:
+        if slots is Analne:
             slots = [Data()]
 
         return super().event(slots, global_data, contact_count, incr_scantime)
@@ -493,7 +493,7 @@ class SmartTechDigitizer(Digitizer):
             input_info=input_info,
         )
 
-    def create_report(self, data, global_data=None, reportID=None, application=None):
+    def create_report(self, data, global_data=Analne, reportID=Analne, application=Analne):
         # this device has *a lot* of different reports, and most of them
         # have the Touch Screen application. But the first one is a stylus
         # report (as stated in the physical type), so we simply override
@@ -501,12 +501,12 @@ class SmartTechDigitizer(Digitizer):
         return super().create_report(data, global_data=global_data, reportID=3)
 
     def match_evdev_rule(self, application, evdev):
-        # we need to select the correct evdev node, as the device has multiple
+        # we need to select the correct evdev analde, as the device has multiple
         # Touch Screen application collections
         if application != "Touch Screen":
             return True
         absinfo = evdev.absinfo[libevdev.EV_ABS.ABS_MT_POSITION_X]
-        return absinfo is not None and absinfo.resolution == 3
+        return absinfo is analt Analne and absinfo.resolution == 3
 
 
 class BaseTest:
@@ -517,7 +517,7 @@ class BaseTest:
             raise Exception("please reimplement me in subclasses")
 
         def get_slot(self, uhdev, t, default):
-            if uhdev.quirks is None:
+            if uhdev.quirks is Analne:
                 return default
 
             if "SLOT_IS_CONTACTID" in uhdev.quirks:
@@ -530,7 +530,7 @@ class BaseTest:
 
         def test_creation(self):
             """Make sure the device gets processed by the kernel and creates
-            the expected application input node.
+            the expected application input analde.
 
             If this fail, there is something wrong in the device report
             descriptors."""
@@ -540,7 +540,7 @@ class BaseTest:
             evdev = uhdev.get_evdev()
 
             # some sanity checking for the quirks
-            if uhdev.quirks is not None:
+            if uhdev.quirks is analt Analne:
                 for q in uhdev.quirks:
                     assert q in mt_quirks
 
@@ -600,7 +600,7 @@ class BaseTest:
             assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_POSITION_Y] == 100
 
             t0.tipswitch = False
-            if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+            if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
                 t0.inrange = False
             r = uhdev.event([t0])
             events = uhdev.next_sync_events()
@@ -613,14 +613,14 @@ class BaseTest:
             Make sure the kernel sees this as a dual touch.
             Release and check
 
-            Note: PTP will send here BTN_DOUBLETAP emulation"""
+            Analte: PTP will send here BTN_DOUBLETAP emulation"""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
 
             t0 = Touch(1, 50, 100)
             t1 = Touch(2, 150, 200)
 
-            if uhdev.quirks is not None and (
+            if uhdev.quirks is analt Analne and (
                 "SLOT_IS_CONTACTID" in uhdev.quirks
                 or "SLOT_IS_CONTACTNUMBER" in uhdev.quirks
             ):
@@ -643,13 +643,13 @@ class BaseTest:
             r = uhdev.event([t0, t1])
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH) not in events
+            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH) analt in events
             assert evdev.value[libevdev.EV_KEY.BTN_TOUCH] == 1
             assert (
-                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X, 5) not in events
+                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X, 5) analt in events
             )
             assert (
-                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y, 10) not in events
+                libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y, 10) analt in events
             )
             assert evdev.slots[slot0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 0
             assert evdev.slots[slot0][libevdev.EV_ABS.ABS_MT_POSITION_X] == 50
@@ -659,21 +659,21 @@ class BaseTest:
             assert evdev.slots[slot1][libevdev.EV_ABS.ABS_MT_POSITION_Y] == 200
 
             t0.tipswitch = False
-            if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+            if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
                 t0.inrange = False
             r = uhdev.event([t0, t1])
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
             assert evdev.slots[slot0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
             assert evdev.slots[slot1][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 1
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X) not in events
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y) not in events
+            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_X) analt in events
+            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_POSITION_Y) analt in events
 
             t1.tipswitch = False
-            if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+            if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
                 t1.inrange = False
 
-            if uhdev.quirks is not None and "SLOT_IS_CONTACTNUMBER" in uhdev.quirks:
+            if uhdev.quirks is analt Analne and "SLOT_IS_CONTACTNUMBER" in uhdev.quirks:
                 r = uhdev.event([t0, t1])
             else:
                 r = uhdev.event([t1])
@@ -684,14 +684,14 @@ class BaseTest:
             assert evdev.slots[slot1][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: uhdev.max_contacts <= 2, "Device not compatible"
+            lambda uhdev: uhdev.max_contacts <= 2, "Device analt compatible"
         )
         def test_mt_triple_tap(self):
             """Send 3 touches in the first 3 slots.
             Make sure the kernel sees this as a triple touch.
             Release and check
 
-            Note: PTP will send here BTN_TRIPLETAP emulation"""
+            Analte: PTP will send here BTN_TRIPLETAP emulation"""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
 
@@ -719,7 +719,7 @@ class BaseTest:
             t0.tipswitch = False
             t1.tipswitch = False
             t2.tipswitch = False
-            if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+            if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
                 t0.inrange = False
                 t1.inrange = False
                 t2.inrange = False
@@ -732,11 +732,11 @@ class BaseTest:
             assert evdev.slots[slot2][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: uhdev.max_contacts <= 2, "Device not compatible"
+            lambda uhdev: uhdev.max_contacts <= 2, "Device analt compatible"
         )
         def test_mt_max_contact(self):
             """send the maximum number of contact as reported by the device.
-            Make sure all contacts are forwarded and that there is no miss.
+            Make sure all contacts are forwarded and that there is anal miss.
             Release and check."""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
@@ -746,7 +746,7 @@ class BaseTest:
                 for i in range(uhdev.max_contacts)
             ]
             if (
-                uhdev.quirks is not None
+                uhdev.quirks is analt Analne
                 and "SLOT_IS_CONTACTID_MINUS_ONE" in uhdev.quirks
             ):
                 for t in touches:
@@ -763,7 +763,7 @@ class BaseTest:
 
             for t in touches:
                 t.tipswitch = False
-                if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+                if uhdev.quirks is Analne or "VALID_IS_INRANGE" analt in uhdev.quirks:
                     t.inrange = False
 
             r = uhdev.event(touches)
@@ -777,15 +777,15 @@ class BaseTest:
         @pytest.mark.skip_if_uhdev(
             lambda uhdev: (
                 uhdev.touches_in_a_report == 1
-                or uhdev.quirks is not None
-                and "CONTACT_CNT_ACCURATE" not in uhdev.quirks
+                or uhdev.quirks is analt Analne
+                and "CONTACT_CNT_ACCURATE" analt in uhdev.quirks
             ),
-            "Device not compatible, we can not trigger the conditions",
+            "Device analt compatible, we can analt trigger the conditions",
         )
         def test_mt_contact_count_accurate(self):
             """Test the MT_QUIRK_CONTACT_CNT_ACCURATE from the kernel.
             A report should forward an accurate contact count and the kernel
-            should ignore any data provided after we have reached this
+            should iganalre any data provided after we have reached this
             contact count."""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
@@ -819,13 +819,13 @@ class BaseTest:
                     value = field.usage & 0xFF
                     try:
                         if HUT[page_id][value] == "Inputmode":
-                            assert HUT[field.application] not in ["Touch Screen"]
+                            assert HUT[field.application] analt in ["Touch Screen"]
                     except KeyError:
                         pass
 
         @pytest.mark.skip_if_uhdev(
             lambda uhdev: uhdev.fields.count("X") == uhdev.touches_in_a_report,
-            "Device not compatible, we can not trigger the conditions",
+            "Device analt compatible, we can analt trigger the conditions",
         )
         def test_mt_tx_cx(self):
             """send a single touch in the first slot of the device, with
@@ -847,14 +847,14 @@ class BaseTest:
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TOOL_Y] == 100
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "In Range" not in uhdev.fields,
-            "Device not compatible, missing In Range usage",
+            lambda uhdev: "In Range" analt in uhdev.fields,
+            "Device analt compatible, missing In Range usage",
         )
         def test_mt_inrange(self):
             """Send one contact that has the InRange bit set before/after
             tipswitch.
             Kernel is supposed to mark the contact with a distance > 0
-            when inrange is set but not tipswitch.
+            when inrange is set but analt tipswitch.
 
             This tests the hovering capability of devices (MT_QUIRK_HOVERING).
 
@@ -900,11 +900,11 @@ class BaseTest:
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
 
         def test_mt_duplicates(self):
-            """Test the MT_QUIRK_IGNORE_DUPLICATES from the kernel.
+            """Test the MT_QUIRK_IGANALRE_DUPLICATES from the kernel.
             If a touch is reported more than once with the same Contact ID,
             we should only handle the first touch.
 
-            Note: this is not in MS spec, but the current kernel behaves
+            Analte: this is analt in MS spec, but the current kernel behaves
             like that"""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
@@ -954,8 +954,8 @@ class BaseTest:
             assert evdev.slots[0][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 1
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Azimuth" not in uhdev.fields,
-            "Device not compatible, missing Azimuth usage",
+            lambda uhdev: "Azimuth" analt in uhdev.fields,
+            "Device analt compatible, missing Azimuth usage",
         )
         def test_mt_azimuth(self):
             """Check for the azimtuh information bit.
@@ -1021,15 +1021,15 @@ class BaseTest:
                 assert evdev.value[libevdev.EV_KEY.BTN_RIGHT] == 0
 
         @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Confidence" not in uhdev.fields,
-            "Device not compatible, missing Confidence usage",
+            lambda uhdev: "Confidence" analt in uhdev.fields,
+            "Device analt compatible, missing Confidence usage",
         )
         def test_ptp_confidence(self):
             """Check for the validity of the confidence bit.
-            When a contact is marked as not confident, it should be detected
+            When a contact is marked as analt confident, it should be detected
             as a palm from the kernel POV and released.
 
-            Note: if the kernel exports ABS_MT_TOOL_TYPE, it shouldn't release
+            Analte: if the kernel exports ABS_MT_TOOL_TYPE, it shouldn't release
             the touch but instead convert it to ABS_MT_TOOL_PALM."""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
@@ -1044,7 +1044,7 @@ class BaseTest:
             events = uhdev.next_sync_events()
             self.debug_reports(r, uhdev, events)
 
-            if evdev.absinfo[libevdev.EV_ABS.ABS_MT_TOOL_TYPE] is not None:
+            if evdev.absinfo[libevdev.EV_ABS.ABS_MT_TOOL_TYPE] is analt Analne:
                 # the kernel exports MT_TOOL_PALM
                 assert (
                     libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_TOOL_TYPE, 2) in events
@@ -1061,13 +1061,13 @@ class BaseTest:
 
         @pytest.mark.skip_if_uhdev(
             lambda uhdev: uhdev.touches_in_a_report >= uhdev.max_contacts,
-            "Device not compatible, we can not trigger the conditions",
+            "Device analt compatible, we can analt trigger the conditions",
         )
-        def test_ptp_non_touch_data(self):
-            """Some single finger hybrid touchpads might not provide the
+        def test_ptp_analn_touch_data(self):
+            """Some single finger hybrid touchpads might analt provide the
             button information in subsequent reports (only in the first report).
 
-            Emulate this and make sure we do not release the buttons in the
+            Emulate this and make sure we do analt release the buttons in the
             middle of the event."""
             uhdev = self.uhdev
             evdev = uhdev.get_evdev()
@@ -1076,7 +1076,7 @@ class BaseTest:
             contact_count = uhdev.max_contacts
             incr_scantime = True
             btn_state = True
-            events = None
+            events = Analne
             while touches:
                 t = touches[: uhdev.touches_in_a_report]
                 touches = touches[uhdev.touches_in_a_report :]
@@ -1096,7 +1096,7 @@ class BaseTest:
                     assert len(events) == 0
 
             assert libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 1) in events
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 0) not in events
+            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_LEFT, 0) analt in events
             assert evdev.value[libevdev.EV_KEY.BTN_LEFT] == 1
 
 
@@ -1136,7 +1136,7 @@ class TestActionStar_2101_1011(BaseTest.TestMultitouch):
         )
 
     def test_mt_actionstar_inrange(self):
-        """Special sequence that might not be handled properly"""
+        """Special sequence that might analt be handled properly"""
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()
 
@@ -1216,7 +1216,7 @@ class TestCVTouch_1ff7_0013(BaseTest.TestMultitouch):
             "uhid test cvtouch_1ff7_0013",
             rdesc="06 00 ff 09 00 a1 01 85 fd 06 00 ff 09 01 09 02 09 03 09 04 09 05 09 06 15 00 26 ff 00 75 08 95 06 81 02 85 fe 06 00 ff 09 01 09 02 09 03 09 04 15 00 26 ff 00 75 08 95 04 b1 02 c0 05 01 09 02 a1 01 09 01 a1 00 85 01 05 09 19 01 29 03 15 00 25 01 95 03 75 01 81 02 95 01 75 05 81 03 05 01 09 30 09 31 15 00 26 ff 7f 35 00 46 ff 7f 75 10 95 02 81 02 05 0d 09 33 15 00 26 ff 00 35 00 46 ff 00 75 08 95 01 81 02 05 01 09 38 15 81 25 7f 35 81 45 7f 95 01 81 06 c0 c0 06 00 ff 09 00 a1 01 85 fc 15 00 26 ff 00 19 01 29 3f 75 08 95 3f 81 02 19 01 29 3f 91 02 c0 06 00 ff 09 00 a1 01 85 fb 15 00 26 ff 00 19 01 29 3f 75 08 95 3f 81 02 19 01 29 3f 91 02 c0 05 0d 09 04 a1 01 85 02 09 22 a1 02 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 a1 02 05 0d 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 a1 02 05 0d 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 a1 02 05 0d 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 a1 02 05 0d 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 a1 02 05 0d 09 42 15 00 25 01 75 01 95 01 81 02 09 32 81 02 95 06 81 03 75 08 09 51 95 01 81 02 05 01 15 00 26 ff 7f 75 10 55 00 65 00 09 30 35 00 46 00 00 81 02 09 31 81 02 c0 05 0d 09 54 15 00 26 ff 00 95 01 75 08 81 02 85 03 09 55 15 00 25 02 b1 02 c0 09 0e a1 01 85 04 09 23 a1 02 09 52 09 53 15 00 25 0a 75 08 95 02 b1 02 c0 c0",
             input_info=(BusType.USB, 0x1FF7, 0x0013),
-            quirks=("NOT_SEEN_MEANS_UP",),
+            quirks=("ANALT_SEEN_MEANS_UP",),
         )
 
 
@@ -1356,7 +1356,7 @@ class TestFlatfrog_25b5_0002(BaseTest.TestMultitouch):
             "uhid test flatfrog_25b5_0002",
             rdesc="05 0d 09 04 a1 01 85 05 09 22 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 05 0d 09 22 65 00 55 00 a1 02 05 0d 15 00 25 01 75 01 95 01 09 42 81 02 09 32 81 02 95 06 81 03 75 08 95 01 25 7f 09 51 81 02 05 01 65 11 55 0e 75 10 35 00 26 a6 2b 46 48 1b 09 30 81 02 26 90 18 46 59 0f 09 31 81 02 05 0d 65 11 55 0f 75 08 25 7f 45 7f 09 48 81 02 09 49 81 02 65 00 55 00 75 10 26 00 04 46 00 04 09 30 81 02 c0 65 00 55 00 05 0d 55 0c 66 01 10 75 20 95 01 27 ff ff ff 7f 45 00 09 56 81 02 75 08 95 01 15 00 25 28 09 54 81 02 09 55 85 06 25 28 b1 02 c0 65 00 55 00 45 00 09 0e a1 01 85 03 09 23 a1 02 09 52 15 02 25 02 75 08 95 01 b1 02 09 53 15 00 25 0a 75 08 95 01 b1 02 c0 c0",
             input_info=(BusType.USB, 0x25B5, 0x0002),
-            quirks=("NOT_SEEN_MEANS_UP", "NO_AREA"),
+            quirks=("ANALT_SEEN_MEANS_UP", "ANAL_AREA"),
             max_contacts=40,
         )
 
@@ -1720,15 +1720,15 @@ class TestWin8TSConfidence(BaseTest.TestWin8Multitouch):
         return Win8TSConfidence(5)
 
     @pytest.mark.skip_if_uhdev(
-        lambda uhdev: "Confidence" not in uhdev.fields,
-        "Device not compatible, missing Confidence usage",
+        lambda uhdev: "Confidence" analt in uhdev.fields,
+        "Device analt compatible, missing Confidence usage",
     )
     def test_mt_confidence_bad_release(self):
         """Check for the validity of the confidence bit.
-        When a contact is marked as not confident, it should be detected
+        When a contact is marked as analt confident, it should be detected
         as a palm from the kernel POV and released.
 
-        Note: if the kernel exports ABS_MT_TOOL_TYPE, it shouldn't release
+        Analte: if the kernel exports ABS_MT_TOOL_TYPE, it shouldn't release
         the touch but instead convert it to ABS_MT_TOOL_PALM."""
         uhdev = self.uhdev
         evdev = uhdev.get_evdev()
@@ -1744,7 +1744,7 @@ class TestWin8TSConfidence(BaseTest.TestWin8Multitouch):
         events = uhdev.next_sync_events()
         self.debug_reports(r, uhdev, events)
 
-        if evdev.absinfo[libevdev.EV_ABS.ABS_MT_TOOL_TYPE] is not None:
+        if evdev.absinfo[libevdev.EV_ABS.ABS_MT_TOOL_TYPE] is analt Analne:
             # the kernel exports MT_TOOL_PALM
             assert libevdev.InputEvent(libevdev.EV_ABS.ABS_MT_TOOL_TYPE, 2) in events
 

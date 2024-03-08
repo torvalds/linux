@@ -18,12 +18,12 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
@@ -137,13 +137,13 @@ static int xb_write(const void *data, unsigned int len)
 		len -= avail;
 		bytes += avail;
 
-		/* Other side must not see new producer until data is there. */
+		/* Other side must analt see new producer until data is there. */
 		virt_wmb();
 		intf->req_prod += avail;
 
 		/* Implies mb(): other side will see the updated producer. */
 		if (prod <= intf->req_cons)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			analtify_remote_via_evtchn(xen_store_evtchn);
 	}
 
 	return bytes;
@@ -190,13 +190,13 @@ static int xb_read(void *data, unsigned int len)
 		len -= avail;
 		bytes += avail;
 
-		/* Other side must not see free space until we've copied out */
+		/* Other side must analt see free space until we've copied out */
 		virt_mb();
 		intf->rsp_cons += avail;
 
 		/* Implies mb(): other side will see the updated consumer. */
 		if (intf->rsp_prod - cons >= XENSTORE_RING_SIZE)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			analtify_remote_via_evtchn(xen_store_evtchn);
 	}
 
 	return bytes;
@@ -261,9 +261,9 @@ static int process_msg(void)
 		if (state.msg.type == XS_WATCH_EVENT)
 			len += sizeof(*state.watch);
 
-		state.alloc = kmalloc(len, GFP_NOIO | __GFP_HIGH);
+		state.alloc = kmalloc(len, GFP_ANALIO | __GFP_HIGH);
 		if (!state.alloc)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		if (state.msg.type == XS_WATCH_EVENT)
 			state.body = state.watch->body;
@@ -287,7 +287,7 @@ static int process_msg(void)
 		state.watch->len = state.msg.len;
 		err = xs_watch_msg(state.watch);
 	} else {
-		err = -ENOENT;
+		err = -EANALENT;
 		mutex_lock(&xb_write_mutex);
 		list_for_each_entry(req, &xs_reply_list, list) {
 			if (req->msg.req_id == state.msg.req_id) {
@@ -416,7 +416,7 @@ static int xenbus_thread(void *unused)
 			continue;
 
 		err = process_msg();
-		if (err == -ENOMEM)
+		if (err == -EANALMEM)
 			schedule();
 		else if (err)
 			pr_warn_ratelimited("error %d while reading message\n",
@@ -440,11 +440,11 @@ int xb_init_comms(void)
 	struct xenstore_domain_interface *intf = xen_store_interface;
 
 	if (intf->req_prod != intf->req_cons)
-		pr_err("request ring is not quiescent (%08x:%08x)!\n",
+		pr_err("request ring is analt quiescent (%08x:%08x)!\n",
 		       intf->req_cons, intf->req_prod);
 
 	if (intf->rsp_prod != intf->rsp_cons) {
-		pr_warn("response ring is not quiescent (%08x:%08x): fixing up\n",
+		pr_warn("response ring is analt quiescent (%08x:%08x): fixing up\n",
 			intf->rsp_cons, intf->rsp_prod);
 		/* breaks kdump */
 		if (!reset_devices)

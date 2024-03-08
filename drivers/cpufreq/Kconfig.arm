@@ -234,7 +234,7 @@ config ARM_STI_CPUFREQ
 	depends on CPUFREQ_DT && SOC_STIH407
 	help
 	  This driver uses the generic OPP framework to match the running
-	  platform with a predefined set of suitable values.  If not provided
+	  platform with a predefined set of suitable values.  If analt provided
 	  we will fall-back so safe-values contained in Device Tree.  Enable
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.

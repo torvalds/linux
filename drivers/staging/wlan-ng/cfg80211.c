@@ -59,8 +59,8 @@ static int prism2_result2err(int prism2_result)
 	case P80211ENUM_resultcode_implementation_failure:
 		err = -EIO;
 		break;
-	case P80211ENUM_resultcode_not_supported:
-		err = -EOPNOTSUPP;
+	case P80211ENUM_resultcode_analt_supported:
+		err = -EOPANALTSUPP;
 		break;
 	default:
 		err = 0;
@@ -124,8 +124,8 @@ static int prism2_change_virtual_intf(struct wiphy *wiphy,
 		data = 1;
 		break;
 	default:
-		netdev_warn(dev, "Operation mode: %d not support\n", type);
-		return -EOPNOTSUPP;
+		netdev_warn(dev, "Operation mode: %d analt support\n", type);
+		return -EOPANALTSUPP;
 	}
 
 	/* Set Operation mode to the PORT TYPE RID */
@@ -191,7 +191,7 @@ static int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
 	else if (len == 5)
 		params.cipher = WLAN_CIPHER_SUITE_WEP104;
 	else
-		return -ENOENT;
+		return -EANALENT;
 	params.key_len = len;
 	params.key = wlandev->wep_keys[key_index];
 	params.seq_len = 0;
@@ -210,7 +210,7 @@ static int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
 	int err = 0;
 	int result = 0;
 
-	/* There is no direct way in the hardware (AFAIK) of removing
+	/* There is anal direct way in the hardware (AFAIK) of removing
 	 * a key, so we will cheat by setting the key to a bogus value
 	 */
 
@@ -248,7 +248,7 @@ static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 	memset(sinfo, 0, sizeof(*sinfo));
 
 	if (!wlandev || (wlandev->msdstate != WLAN_MSD_RUNNING))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* build request message */
 	quality.msgcode = DIDMSG_LNXREQ_COMMSQUALITY;
@@ -257,7 +257,7 @@ static int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	/* send message to nsd */
 	if (!wlandev->mlmerequest)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	result = wlandev->mlmerequest(wlandev, (struct p80211msg *)&quality);
 
@@ -300,12 +300,12 @@ static int prism2_scan(struct wiphy *wiphy,
 
 	if (wlandev->macmode == WLAN_MACMODE_ESS_AP) {
 		netdev_err(dev, "Can't scan in AP mode\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	msg2 = kzalloc(sizeof(*msg2), GFP_KERNEL);
 	if (!msg2)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->scan_request = request;
 
@@ -341,7 +341,7 @@ static int prism2_scan(struct wiphy *wiphy,
 		err = prism2_result2err(msg1.resultcode.data);
 		goto exit;
 	}
-	/* Now retrieve scan results */
+	/* Analw retrieve scan results */
 	numbss = msg1.numbss.data;
 
 	for (i = 0; i < numbss; i++) {
@@ -364,7 +364,7 @@ static int prism2_scan(struct wiphy *wiphy,
 						      NL80211_BAND_2GHZ);
 		bss = cfg80211_inform_bss(wiphy,
 					  ieee80211_get_channel(wiphy, freq),
-					  CFG80211_BSS_FTYPE_UNKNOWN,
+					  CFG80211_BSS_FTYPE_UNKANALWN,
 					  (const u8 *)&msg2->bssid.data.data,
 					  msg2->timestamp.data, msg2->capinfo.data,
 					  msg2->beaconperiod.data,
@@ -374,7 +374,7 @@ static int prism2_scan(struct wiphy *wiphy,
 					  GFP_KERNEL);
 
 		if (!bss) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto exit;
 		}
 
@@ -524,7 +524,7 @@ static int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 	}
 
-	/* Now do the actual join. Note there is no way that I can
+	/* Analw do the actual join. Analte there is anal way that I can
 	 * see to request a specific bssid
 	 */
 	msg_join.msgcode = DIDMSG_LNXREQ_AUTOJOIN;
@@ -566,12 +566,12 @@ static int prism2_disconnect(struct wiphy *wiphy, struct net_device *dev,
 static int prism2_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_ibss_params *params)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int prism2_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int prism2_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,

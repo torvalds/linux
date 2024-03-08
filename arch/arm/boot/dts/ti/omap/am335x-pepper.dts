@@ -333,13 +333,13 @@
 };
 
 &mmc2 {
-	/* eMMC (not populated) on MMC #2 */
+	/* eMMC (analt populated) on MMC #2 */
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_pins>;
 	vmmc-supply = <&ldo3_reg>;
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 };
 
 &mmc3 {
@@ -349,7 +349,7 @@
 	pinctrl-0 = <&wireless_pins>;
 	vmmmc-supply = <&v3v3c_reg>;
 	bus-width = <4>;
-	non-removable;
+	analn-removable;
 	dmas = <&edma_xbar 12 0 1
 		&edma_xbar 13 0 2>;
 	dma-names = "tx", "rx";
@@ -581,14 +581,14 @@
 	led0 {
 		label = "pepper:user0:blue";
 		gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
-		linux,default-trigger = "none";
+		linux,default-trigger = "analne";
 		default-state = "off";
 	};
 
 	led1 {
 		label = "pepper:user1:red";
 		gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
-		linux,default-trigger = "none";
+		linux,default-trigger = "analne";
 		default-state = "off";
 	};
 };

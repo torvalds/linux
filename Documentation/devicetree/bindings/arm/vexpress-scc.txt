@@ -5,7 +5,7 @@ Test chips for ARM Versatile Express platform implement SCC (Serial
 Configuration Controller) interface, used to set initial conditions
 for the test chip.
 
-In some cases its registers are also mapped in normal address space
+In some cases its registers are also mapped in analrmal address space
 and can be used to obtain runtime information about the chip internals
 (like silicon temperature sensors) and as interface to other subsystems
 like platform configuration control and power management.

@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -44,7 +44,7 @@
  * Access to ATC/IOMMU mapped memory w/ associated extension of VA to 48b
  *
  * “Flat” shader memory access – These are new shader vector memory
- * operations that do not reference a T#/V# so a “pointer” is what is
+ * operations that do analt reference a T#/V# so a “pointer” is what is
  * sourced from the vector gprs for direct access to memory.
  * This pointer space has the Shared(LDS) and Private(Scratch) memory
  * mapped into this pointer space as apertures.
@@ -80,13 +80,13 @@
  *
  * HSA64 - ATC/IOMMU 64b
  *
- * A 64b pointer in the AMD64/IA64 CPU architecture is not fully utilized
+ * A 64b pointer in the AMD64/IA64 CPU architecture is analt fully utilized
  * by the CPU so an AMD CPU can only access the high area
  * (VA[63:47] == 0x1FFFF) and low area (VA[63:47 == 0) of the address space
  * so the actual VA carried to translation is 48b.  There is a “hole” in
  * the middle of the 64b VA space.
  *
- * The GPU not only has access to all of the CPU accessible address space via
+ * The GPU analt only has access to all of the CPU accessible address space via
  * ATC/IOMMU, but it also has access to the GPUVM address space.  The “system
  * unified address” feature (SUA) is the mapping of GPUVM and ATC address
  * spaces into a unified pointer space.  The method we take for 64b mode is
@@ -100,7 +100,7 @@
  *
  * 64b to 49b Address conversion
  *
- * Note that there are still significant portions of unused regions (holes)
+ * Analte that there are still significant portions of unused regions (holes)
  * in the 64b address space even for the GPU.  There are several places in
  * the pipeline (sw and hw), we wish to compress the 64b virtual address
  * to a 49b address.  This 49b address is constituted of an “ATC” bit
@@ -125,8 +125,8 @@
  * the driver is what handles the 64b to 49b conversion and the base
  * address in the descriptor (ex. V# or T# or shader program location)
  * is defined as a 48b address w/ an ATC bit.  For this usage a given
- * memory object cannot straddle multiple apertures in the 64b address
- * space. For example a shader program cannot jump in/out between ATC
+ * memory object cananalt straddle multiple apertures in the 64b address
+ * space. For example a shader program cananalt jump in/out between ATC
  * and GPUVM space.
  *
  * In some cases we wish to pass a 64b pointer to the GPU hardware and
@@ -135,7 +135,7 @@
  * S_LOAD and FLAT_* shader memory instructions where we have 64b pointers
  * in scalar and vector GPRs respectively.
  *
- * In all cases (no matter where the 64b -> 49b conversion is done), the gfxip
+ * In all cases (anal matter where the 64b -> 49b conversion is done), the gfxip
  * hardware sends a 48b address along w/ an ATC bit, to the memory controller
  * on the memory request interfaces.
  *
@@ -156,7 +156,7 @@
  * address space that doesn’t hit any defined base/limit apertures.
  * The following diagram is a complete picture of the gfxip7.x SUA apertures.
  * The APE1 can be placed either below or above
- * the hole (cannot be in the hole).
+ * the hole (cananalt be in the hole).
  *
  *
  * General Aperture definitions and rules
@@ -173,16 +173,16 @@
  * The base and limit are considered inclusive to an aperture so being
  * inside an aperture means (address >= Base) AND (address <= Limit).
  *
- * In no case is a payload that straddles multiple apertures expected to work.
- * For example a load_dword_x4 that starts in one aperture and ends in another,
- * does not work.  For the vector FLAT_* ops we have detection capability in
+ * In anal case is a payload that straddles multiple apertures expected to work.
+ * For example a load_dword_x4 that starts in one aperture and ends in aanalther,
+ * does analt work.  For the vector FLAT_* ops we have detection capability in
  * the shader for reporting a “memory violation” back to the
  * SQ block for use in traps.
  * A memory violation results when an op falls into the hole,
  * or a payload straddles multiple apertures.  The S_LOAD instruction
- * does not have this detection.
+ * does analt have this detection.
  *
- * Apertures cannot overlap.
+ * Apertures cananalt overlap.
  *
  *
  *
@@ -190,17 +190,17 @@
  *
  * For HSA32 mode, the pointers are interpreted as 32 bits and use a single GPR
  * instead of two for the S_LOAD and FLAT_* ops. The entire GPUVM space of 40b
- * will not fit so there is only partial visibility to the GPUVM
+ * will analt fit so there is only partial visibility to the GPUVM
  * space (defined by the aperture) for S_LOAD and FLAT_* ops.
- * There is no spare (APE1) aperture for HSA32 mode.
+ * There is anal spare (APE1) aperture for HSA32 mode.
  *
  *
  * GPUVM 64b mode (driver model)
  *
  * This mode is related to HSA64 in that the difference really is that
- * the default aperture is GPUVM (ATC==0) and not ATC space.
+ * the default aperture is GPUVM (ATC==0) and analt ATC space.
  * We have gfxip7.x hardware that has FLAT_* and S_LOAD support for
- * SUA GPUVM mode, but does not support HSA32/HSA64.
+ * SUA GPUVM mode, but does analt support HSA32/HSA64.
  *
  *
  * Device Unified Address - DUA
@@ -234,7 +234,7 @@
  *
  * In HSA32 mode, the Private and Shared apertures can be placed anywhere
  * in the 32b space except at 0 (Private or Shared Base at zero disables
- * the apertures). If the base address of the apertures are non-zero
+ * the apertures). If the base address of the apertures are analn-zero
  * (ie apertures exists), the size is always 64KB.
  *
  *
@@ -267,7 +267,7 @@
  *
  * 0                                              X                 GPUVM64
  *
- * In general the hardware will ignore the PTR32 bit and treat
+ * In general the hardware will iganalre the PTR32 bit and treat
  * as “0” whenever DATA_ATC = “0”, but sw should set PTR32=0
  * when DATA_ATC=0.
  *
@@ -296,18 +296,18 @@
 /* On GFXv9 the LDS and scratch apertures are programmed independently
  * using the high 16 bits of the 64-bit virtual address. They must be
  * in the hole, which will be the case as long as the high 16 bits are
- * not 0.
+ * analt 0.
  *
  * The aperture sizes are still 4GB implicitly.
  *
- * A GPUVM aperture is not applicable on GFXv9.
+ * A GPUVM aperture is analt applicable on GFXv9.
  */
 #define MAKE_LDS_APP_BASE_V9() ((uint64_t)(0x1UL) << 48)
 #define MAKE_SCRATCH_APP_BASE_V9() ((uint64_t)(0x2UL) << 48)
 
 /* User mode manages most of the SVM aperture address space. The low
  * 16MB are reserved for kernel use (CWSR trap handler and kernel IB
- * for now).
+ * for analw).
  */
 #define SVM_USER_BASE (u64)(KFD_CWSR_TBA_TMA_SIZE + 2*PAGE_SIZE)
 #define SVM_CWSR_BASE (SVM_USER_BASE - KFD_CWSR_TBA_TMA_SIZE)
@@ -316,7 +316,7 @@
 static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 {
 	/*
-	 * node id couldn't be 0 - the three MSB bits of
+	 * analde id couldn't be 0 - the three MSB bits of
 	 * aperture shouldn't be 0
 	 */
 	pdd->lds_base = MAKE_LDS_APP_BASE_VI();
@@ -324,7 +324,7 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 
 	/* dGPUs: SVM aperture starting at 0
 	 * with small reserved space for kernel.
-	 * Set them to CANONICAL addresses.
+	 * Set them to CAANALNICAL addresses.
 	 */
 	pdd->gpuvm_base = SVM_USER_BASE;
 	pdd->gpuvm_limit =
@@ -342,7 +342,7 @@ static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
         /* Raven needs SVM to support graphic handle, etc. Leave the small
          * reserved space before SVM on Raven as well, even though we don't
          * have to.
-         * Set gpuvm_base and gpuvm_limit to CANONICAL addresses so that they
+         * Set gpuvm_base and gpuvm_limit to CAANALNICAL addresses so that they
          * are used in Thunk to reserve SVM.
          */
         pdd->gpuvm_base = SVM_USER_BASE;
@@ -356,14 +356,14 @@ static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 int kfd_init_apertures(struct kfd_process *process)
 {
 	uint8_t id  = 0;
-	struct kfd_node *dev;
+	struct kfd_analde *dev;
 	struct kfd_process_device *pdd;
 
 	/*Iterating over all devices*/
 	while (kfd_topology_enum_kfd_devices(id, &dev) == 0) {
 		if (!dev || kfd_devcgroup_check_permission(dev)) {
-			/* Skip non GPU devices and devices to which the
-			 * current process have no access to. Access can be
+			/* Skip analn GPU devices and devices to which the
+			 * current process have anal access to. Access can be
 			 * limited by placing the process in a specific
 			 * cgroup hierarchy
 			 */
@@ -374,11 +374,11 @@ int kfd_init_apertures(struct kfd_process *process)
 		pdd = kfd_create_process_device_data(dev, process);
 		if (!pdd) {
 			pr_err("Failed to create process device data\n");
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		/*
 		 * For 64 bit process apertures will be statically reserved in
-		 * the x86_64 non canonical process address space
+		 * the x86_64 analn caanalnical process address space
 		 * amdkfd doesn't currently support apertures for 32 bit process
 		 */
 		if (process->is_32bit_user_mode) {
@@ -415,7 +415,7 @@ int kfd_init_apertures(struct kfd_process *process)
                         pdd->qpd.ib_base = SVM_IB_BASE;
 		}
 
-		dev_dbg(kfd_device, "node id %u\n", id);
+		dev_dbg(kfd_device, "analde id %u\n", id);
 		dev_dbg(kfd_device, "gpu id %u\n", pdd->dev->id);
 		dev_dbg(kfd_device, "lds_base %llX\n", pdd->lds_base);
 		dev_dbg(kfd_device, "lds_limit %llX\n", pdd->lds_limit);

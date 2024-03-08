@@ -10,7 +10,7 @@ description:
   This binding describes a fixed-rate clock for which the frequency can
   be read from a single 32-bit memory mapped I/O register.
 
-  It was designed for test systems, like FPGA, not for complete,
+  It was designed for test systems, like FPGA, analt for complete,
   finished SoCs.
 
 maintainers:

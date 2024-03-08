@@ -66,7 +66,7 @@ static int cfvei_receive(struct cflayer *layr, struct cfpkt *pkt)
 		cfpkt_destroy(pkt);
 		return 0;
 	default:		/* SET RS232 PIN */
-		pr_warn("Unknown VEI control packet %d (0x%x)!\n", cmd, cmd);
+		pr_warn("Unkanalwn VEI control packet %d (0x%x)!\n", cmd, cmd);
 		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}

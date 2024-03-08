@@ -587,7 +587,7 @@
 	bus-width = <8>;
 	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_bus8 &emmc_clk &emmc_cmd>;
 	supports-emmc;
@@ -596,8 +596,8 @@
 
 &sdmmc0 {
 	max-frequency = <150000000>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -694,31 +694,31 @@
 &pinctrl {
 	leds {
 		user_led_pin: user-status-led-pin {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	usb {
 		vcc5v0_usb20_host_en: vcc5v0-usb20-host-en {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_usb30_host_en: vcc5v0-usb30-host-en {
-			rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc5v0_otg_vbus_en: vcc5v0-otg-vbus-en {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 
 	pcie {
 		vcc3v3_m2_pcie_en: vcc3v3-m2-pcie-en {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 
 		vcc3v3_mini_pcie_en: vcc3v3-mini-pcie-en {
-			rockchip,pins = <3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_analne>;
 		};
 	};
 

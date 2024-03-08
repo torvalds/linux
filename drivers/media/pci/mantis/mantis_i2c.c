@@ -153,7 +153,7 @@ static int mantis_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, in
 
 			/* check for xfer completion */
 			if (stat & MANTIS_INT_I2CDONE) {
-				/* check xfer was acknowledged */
+				/* check xfer was ackanalwledged */
 				if (stat & MANTIS_INT_I2CRACK) {
 					data = mmread(MANTIS_I2CDATA_CTL);
 					msgs[i + 1].buf[0] = (data >> 8) & 0xff;

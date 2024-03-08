@@ -5,7 +5,7 @@
  * Copyright (c) 2021 TOSHIBA CORPORATION
  * Copyright (c) 2021 Toshiba Electronic Devices & Storage Corporation
  *
- * Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
+ * Analbuhiro Iwamatsu <analbuhiro1.iwamatsu@toshiba.co.jp>
  */
 
 #include <linux/bitfield.h>
@@ -252,10 +252,10 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
-	init.flags = CLK_IGNORE_UNUSED;
+	init.flags = CLK_IGANALRE_UNUSED;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
@@ -265,7 +265,7 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 	pll->rate_table = kmemdup(rate_table,
 				  pll->rate_count * sizeof(struct visconti_pll_rate_table),
 				  GFP_KERNEL);
-	WARN(!pll->rate_table, "%s: could not allocate rate table for %s\n", __func__, name);
+	WARN(!pll->rate_table, "%s: could analt allocate rate table for %s\n", __func__, name);
 
 	init.ops = &visconti_pll_ops;
 	pll->hw.init = &init;
@@ -318,7 +318,7 @@ void __init visconti_register_plls(struct visconti_pll_provider *ctx,
 	}
 }
 
-struct visconti_pll_provider * __init visconti_init_pll(struct device_node *np,
+struct visconti_pll_provider * __init visconti_init_pll(struct device_analde *np,
 							void __iomem *base,
 							unsigned long nr_plls)
 {
@@ -327,14 +327,14 @@ struct visconti_pll_provider * __init visconti_init_pll(struct device_node *np,
 
 	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_plls), GFP_KERNEL);
 	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	ctx->node = np;
+	ctx->analde = np;
 	ctx->reg_base = base;
 	ctx->clk_data.num = nr_plls;
 
 	for (i = 0; i < nr_plls; ++i)
-		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
+		ctx->clk_data.hws[i] = ERR_PTR(-EANALENT);
 
 	return ctx;
 }

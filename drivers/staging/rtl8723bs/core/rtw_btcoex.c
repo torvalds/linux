@@ -9,17 +9,17 @@
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 
-void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
+void rtw_btcoex_MediaStatusAnaltify(struct adapter *padapter, u8 mediaStatus)
 {
 	if ((mediaStatus == RT_MEDIA_CONNECT)
 		&& (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_DL_RSVD_PAGE, NULL);
 	}
 
-	hal_btcoex_MediaStatusNotify(padapter, mediaStatus);
+	hal_btcoex_MediaStatusAnaltify(padapter, mediaStatus);
 }
 
-void rtw_btcoex_HaltNotify(struct adapter *padapter)
+void rtw_btcoex_HaltAnaltify(struct adapter *padapter)
 {
 	if (!padapter->bup)
 		return;
@@ -27,7 +27,7 @@ void rtw_btcoex_HaltNotify(struct adapter *padapter)
 	if (padapter->bSurpriseRemoved)
 		return;
 
-	hal_btcoex_HaltNotify(padapter);
+	hal_btcoex_HaltAnaltify(padapter);
 }
 
 /*  ================================================== */

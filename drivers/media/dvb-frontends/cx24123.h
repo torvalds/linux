@@ -18,10 +18,10 @@ struct cx24123_config {
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 
-	/* 0 = LNB voltage normal, 1 = LNB voltage inverted */
+	/* 0 = LNB voltage analrmal, 1 = LNB voltage inverted */
 	int lnb_polarity;
 
-	/* this device has another tuner */
+	/* this device has aanalther tuner */
 	u8 dont_use_pll;
 	void (*agc_callback) (struct dvb_frontend *);
 };

@@ -3,7 +3,7 @@
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -328,7 +328,7 @@ static int spmi_drv_probe(struct device *dev)
 	struct spmi_device *sdev = to_spmi_device(dev);
 	int err;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_analresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -341,7 +341,7 @@ static int spmi_drv_probe(struct device *dev)
 fail_probe:
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	return err;
 }
 
@@ -352,11 +352,11 @@ static void spmi_drv_remove(struct device *dev)
 	pm_runtime_get_sync(dev);
 	if (sdrv->remove)
 		sdrv->remove(to_spmi_device(dev));
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 }
 
 static void spmi_drv_shutdown(struct device *dev)
@@ -372,7 +372,7 @@ static int spmi_drv_uevent(const struct device *dev, struct kobj_uevent_env *env
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
-	if (ret != -ENODEV)
+	if (ret != -EANALDEV)
 		return ret;
 
 	return 0;
@@ -388,24 +388,24 @@ static struct bus_type spmi_bus_type = {
 };
 
 /**
- * spmi_find_device_by_of_node() - look up an SPMI device from a device node
+ * spmi_find_device_by_of_analde() - look up an SPMI device from a device analde
  *
- * @np:		device node
+ * @np:		device analde
  *
  * Takes a reference to the embedded struct device which needs to be dropped
  * after use.
  *
- * Returns the struct spmi_device associated with a device node or NULL.
+ * Returns the struct spmi_device associated with a device analde or NULL.
  */
-struct spmi_device *spmi_find_device_by_of_node(struct device_node *np)
+struct spmi_device *spmi_find_device_by_of_analde(struct device_analde *np)
 {
-	struct device *dev = bus_find_device_by_of_node(&spmi_bus_type, np);
+	struct device *dev = bus_find_device_by_of_analde(&spmi_bus_type, np);
 
 	if (dev)
 		return to_spmi_device(dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(spmi_find_device_by_of_node);
+EXPORT_SYMBOL_GPL(spmi_find_device_by_of_analde);
 
 /**
  * spmi_device_alloc() - Allocate a new SPMI device
@@ -452,13 +452,13 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 
 	ctrl = kzalloc(sizeof(*ctrl) + size, GFP_KERNEL);
 	if (!ctrl)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	device_initialize(&ctrl->dev);
 	ctrl->dev.type = &spmi_ctrl_type;
 	ctrl->dev.bus = &spmi_bus_type;
 	ctrl->dev.parent = parent;
-	ctrl->dev.of_node = parent->of_node;
+	ctrl->dev.of_analde = parent->of_analde;
 	spmi_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	id = ida_alloc(&ctrl_ida, GFP_KERNEL);
@@ -479,35 +479,35 @@ EXPORT_SYMBOL_GPL(spmi_controller_alloc);
 
 static void of_spmi_register_devices(struct spmi_controller *ctrl)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 	int err;
 
-	if (!ctrl->dev.of_node)
+	if (!ctrl->dev.of_analde)
 		return;
 
-	for_each_available_child_of_node(ctrl->dev.of_node, node) {
+	for_each_available_child_of_analde(ctrl->dev.of_analde, analde) {
 		struct spmi_device *sdev;
 		u32 reg[2];
 
-		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);
+		dev_dbg(&ctrl->dev, "adding child %pOF\n", analde);
 
-		err = of_property_read_u32_array(node, "reg", reg, 2);
+		err = of_property_read_u32_array(analde, "reg", reg, 2);
 		if (err) {
 			dev_err(&ctrl->dev,
-				"node %pOF err (%d) does not have 'reg' property\n",
-				node, err);
+				"analde %pOF err (%d) does analt have 'reg' property\n",
+				analde, err);
 			continue;
 		}
 
 		if (reg[1] != SPMI_USID) {
 			dev_err(&ctrl->dev,
-				"node %pOF contains unsupported 'reg' entry\n",
-				node);
+				"analde %pOF contains unsupported 'reg' entry\n",
+				analde);
 			continue;
 		}
 
 		if (reg[0] >= SPMI_MAX_SLAVE_ID) {
-			dev_err(&ctrl->dev, "invalid usid on node %pOF\n", node);
+			dev_err(&ctrl->dev, "invalid usid on analde %pOF\n", analde);
 			continue;
 		}
 
@@ -517,7 +517,7 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 		if (!sdev)
 			continue;
 
-		sdev->dev.of_node = node;
+		sdev->dev.of_analde = analde;
 		sdev->usid = (u8)reg[0];
 
 		err = spmi_device_add(sdev);

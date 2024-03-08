@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -58,7 +58,7 @@
 #define STRAP_ASIC_RO_MSB    2175
 
 #define PPSMC_MSG_ApplyAvfsCksOffVoltage      ((uint16_t) 0x415)
-#define PPSMC_MSG_EnableModeSwitchRLCNotification  ((uint16_t) 0x305)
+#define PPSMC_MSG_EnableModeSwitchRLCAnaltification  ((uint16_t) 0x305)
 
 static const struct vegam_pt_defaults
 vegam_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
@@ -85,7 +85,7 @@ static int vegam_smu_init(struct pp_hwmgr *hwmgr)
 
 	smu_data = kzalloc(sizeof(struct vegam_smumgr), GFP_KERNEL);
 	if (smu_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	hwmgr->smu_backend = smu_data;
 
@@ -152,7 +152,7 @@ static int vegam_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int vegam_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
+static int vegam_start_smu_in_analn_protection_mode(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 
@@ -194,8 +194,8 @@ static int vegam_start_smu(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
 
-	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
+	/* Only start SMC if SMC RAM is analt running */
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->analt_vf) {
 		smu_data->protected_mode = (uint8_t)(PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t)(PHM_READ_VFPF_INDIRECT_FIELD(
@@ -203,7 +203,7 @@ static int vegam_start_smu(struct pp_hwmgr *hwmgr)
 
 		/* Check if SMU is running in protected mode */
 		if (smu_data->protected_mode == 0)
-			result = vegam_start_smu_in_non_protection_mode(hwmgr);
+			result = vegam_start_smu_in_analn_protection_mode(hwmgr);
 		else
 			result = vegam_start_smu_in_protection_mode(hwmgr);
 
@@ -211,7 +211,7 @@ static int vegam_start_smu(struct pp_hwmgr *hwmgr)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
 	}
 
-	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is not executed */
+	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is analt executed */
 	smu7_read_smc_sram_dword(hwmgr,
 			SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU75_Firmware_Header, SoftRegisters),
 			&(smu_data->smu7_data.soft_regs_start),
@@ -616,7 +616,7 @@ static int vegam_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		if (dep_table->entries[i].clk >= clock) {
 			*voltage |= (dep_table->entries[i].vddc *
 					VOLTAGE_SCALE) << VDDC_SHIFT;
-			if (SMU7_VOLTAGE_CONTROL_NONE == data->vddci_control)
+			if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vddci_control)
 				*voltage |= (data->vbios_boot_state.vddci_bootup_value *
 						VOLTAGE_SCALE) << VDDCI_SHIFT;
 			else if (dep_table->entries[i].vddci)
@@ -629,7 +629,7 @@ static int vegam_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 				*voltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
 			}
 
-			if (SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control)
+			if (SMU7_VOLTAGE_CONTROL_ANALNE == data->mvdd_control)
 				*mvdd = data->vbios_boot_state.mvdd_bootup_value *
 					VOLTAGE_SCALE;
 			else if (dep_table->entries[i].mvdd)
@@ -644,7 +644,7 @@ static int vegam_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	/* sclk is bigger than max sclk in the dependence table */
 	*voltage |= (dep_table->entries[i - 1].vddc * VOLTAGE_SCALE) << VDDC_SHIFT;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->vddci_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->vddci_control)
 		*voltage |= (data->vbios_boot_state.vddci_bootup_value *
 				VOLTAGE_SCALE) << VDDCI_SHIFT;
 	else if (dep_table->entries[i - 1].vddci)
@@ -658,7 +658,7 @@ static int vegam_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		*voltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
 	}
 
-	if (SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE == data->mvdd_control)
 		*mvdd = data->vbios_boot_state.mvdd_bootup_value * VOLTAGE_SCALE;
 	else if (dep_table->entries[i].mvdd)
 		*mvdd = (uint32_t) dep_table->entries[i - 1].mvdd * VOLTAGE_SCALE;
@@ -764,13 +764,13 @@ static int vegam_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	do_div(temp, ref_clock);
 	sclk_setting->Fcw_frac = temp & 0xffff;
 
-	pcc_target_percent = 10; /*  Hardcode 10% for now. */
+	pcc_target_percent = 10; /*  Hardcode 10% for analw. */
 	pcc_target_freq = clock - (clock * pcc_target_percent / 100);
 	sclk_setting->Pcc_fcw_int = (uint16_t)
 			((pcc_target_freq << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv) /
 					ref_clock);
 
-	ss_target_percent = 2; /*  Hardcode 2% for now. */
+	ss_target_percent = 2; /*  Hardcode 2% for analw. */
 	sclk_setting->SSc_En = 0;
 	if (ss_target_percent) {
 		sclk_setting->SSc_En = 1;
@@ -825,7 +825,7 @@ static int vegam_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 			&level->MinVoltage, &mvdd);
 
 	PP_ASSERT_WITH_CODE((0 == result),
-			"can not find VDDC voltage value for "
+			"can analt find VDDC voltage value for "
 			"VDDC engine clock dependency table",
 			return result);
 	level->ActivityLevel = (uint16_t)(SclkDPMTuning_VEGAM >> DPMTuning_Activity_Shift);
@@ -993,7 +993,7 @@ static int vegam_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 				table_info->vdd_dep_on_mclk, clock,
 				&mem_level->MinVoltage, &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE(!result,
-				"can not find MinVddc voltage value from memory "
+				"can analt find MinVddc voltage value from memory "
 				"VDDC voltage dependency table", return result);
 	}
 
@@ -1048,7 +1048,7 @@ static int vegam_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < dpm_table->mclk_table.count; i++) {
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
-				"can not populate memory level as memory clock is zero",
+				"can analt populate memory level as memory clock is zero",
 				return -EINVAL);
 		result = vegam_populate_single_memory_level(hwmgr,
 				dpm_table->mclk_table.dpm_levels[i].value,
@@ -1090,7 +1090,7 @@ static int vegam_populate_mvdd_value(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint32_t i = 0;
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != data->mvdd_control) {
 		/* find mvdd value which clock is more than request */
 		for (i = 0; i < table_info->vdd_dep_on_mclk->count; i++) {
 			if (mclk <= table_info->vdd_dep_on_mclk->entries[i].clk) {
@@ -1128,7 +1128,7 @@ static int vegam_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			sclk_frequency,
 			&table->ACPILevel.MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE(!result,
-			"Cannot find ACPI VDDC voltage value "
+			"Cananalt find ACPI VDDC voltage value "
 			"in Clock Dependency Table",
 			);
 
@@ -1166,7 +1166,7 @@ static int vegam_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			table->MemoryACPILevel.MclkFrequency,
 			&table->MemoryACPILevel.MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((0 == result),
-			"Cannot find ACPI VDDCI voltage value "
+			"Cananalt find ACPI VDDCI voltage value "
 			"in Clock Dependency Table",
 			);
 
@@ -1230,7 +1230,7 @@ static int vegam_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->VceLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for VCE engine clock",
+				"can analt find divide id for VCE engine clock",
 				return result);
 
 		table->VceLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
@@ -1342,14 +1342,14 @@ static int vegam_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].VclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Vclk clock", return result);
+				"can analt find divide id for Vclk clock", return result);
 
 		table->UvdLevel[count].VclkDivider = (uint8_t)dividers.pll_post_divider;
 
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].DclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Dclk clock", return result);
+				"can analt find divide id for Dclk clock", return result);
 
 		table->UvdLevel[count].DclkDivider = (uint8_t)dividers.pll_post_divider;
 
@@ -1533,7 +1533,7 @@ static int vegam_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported\n",
+				"Stretch Amount in PPTable analt supported\n",
 				return -EINVAL);
 	}
 
@@ -1787,7 +1787,7 @@ static int vegam_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 	int i;
 	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently analt used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.LPMLTemperatureScaler[i] = 0;
 
@@ -1814,7 +1814,7 @@ static int vegam_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	int i;
 	struct vegam_smumgr *smu_data = (struct vegam_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently analt used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.GnbLPML[i] = 0;
 
@@ -1907,7 +1907,7 @@ static int vegam_enable_reconfig_cus(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
-					    PPSMC_MSG_EnableModeSwitchRLCNotification,
+					    PPSMC_MSG_EnableModeSwitchRLCAnaltification,
 					    adev->gfx.cu_info.number,
 					    NULL);
 
@@ -1934,7 +1934,7 @@ static int vegam_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	vegam_initialize_power_tune_defaults(hwmgr);
 
-	if (SMU7_VOLTAGE_CONTROL_NONE != hw_data->voltage_control)
+	if (SMU7_VOLTAGE_CONTROL_ANALNE != hw_data->voltage_control)
 		vegam_populate_smc_voltage_tables(hwmgr, table);
 
 	table->SystemFlags = 0;
@@ -2104,7 +2104,7 @@ static int vegam_init_smc_table(struct pp_hwmgr *hwmgr)
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				smu_data->bif_sclk_table[i], &dividers);
 		PP_ASSERT_WITH_CODE(!result,
-				"Can not find DFS divide id for Sclk",
+				"Can analt find DFS divide id for Sclk",
 				return result);
 
 		if (i == 0)
@@ -2218,7 +2218,7 @@ static int vegam_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_SclkThrottleLowNotification)
+			PHM_PlatformCaps_SclkThrottleLowAnaltification)
 	    && (data->low_sclk_interrupt_threshold != 0)) {
 		low_sclk_interrupt_threshold =
 				data->low_sclk_interrupt_threshold;
@@ -2266,8 +2266,8 @@ static int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 
 static int vegam_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
-	PP_ASSERT_WITH_CODE(hwmgr->thermal_controller.fanInfo.bNoFan,
-			"VBIOS fan info is not correct!",
+	PP_ASSERT_WITH_CODE(hwmgr->thermal_controller.fanInfo.bAnalFan,
+			"VBIOS fan info is analt correct!",
 			);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl);

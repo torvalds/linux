@@ -17,8 +17,8 @@ MODULE_DESCRIPTION("Sensoray 2250/2251 i2c v4l2 subdev driver");
 MODULE_LICENSE("GPL v2");
 
 /*
- * Note: this board has two i2c devices: a vpx3226f and a tlv320aic23b.
- * Due to the unusual way these are accessed on this device we do not
+ * Analte: this board has two i2c devices: a vpx3226f and a tlv320aic23b.
+ * Due to the unusual way these are accessed on this device we do analt
  * reuse the i2c drivers, but instead they are implemented in this
  * driver. It would be nice to improve on this, though.
  */
@@ -157,14 +157,14 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 	u8 *buf;
 
 	if (go == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (go->status == STATUS_SHUTDOWN)
 		return -EBUSY;
 
 	buf = kzalloc(16, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
@@ -191,7 +191,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 	struct s2250 *dec = i2c_get_clientdata(client);
 
 	if (go == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (go->status == STATUS_SHUTDOWN)
 		return -EBUSY;
@@ -199,7 +199,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 	buf = kzalloc(16, GFP_KERNEL);
 
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 
@@ -254,7 +254,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 	u8 *buf;
 
 	if (go == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (go->status == STATUS_SHUTDOWN)
 		return -EBUSY;
@@ -262,7 +262,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 	buf = kzalloc(16, GFP_KERNEL);
 
 	if (buf == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 
@@ -341,14 +341,14 @@ static int s2250_s_video_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	return 0;
 }
 
-static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id analrm)
 {
 	struct s2250 *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u16 vidsource;
 
 	vidsource = (state->input == 1) ? 0x040 : 0x020;
-	if (norm & V4L2_STD_625_50) {
+	if (analrm & V4L2_STD_625_50) {
 		write_regs_fp(client, vid_regs_fp);
 		write_regs_fp(client, vid_regs_fp_pal);
 		write_reg_fp(client, 0x20, vidsource);
@@ -356,7 +356,7 @@ static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 		write_regs_fp(client, vid_regs_fp);
 		write_reg_fp(client, 0x20, vidsource | 1);
 	}
-	state->std = norm;
+	state->std = analrm;
 	return 0;
 }
 
@@ -451,7 +451,7 @@ static int s2250_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Standard: %s\n", state->std == V4L2_STD_NTSC ? "NTSC" :
 					state->std == V4L2_STD_PAL ? "PAL" :
 					state->std == V4L2_STD_SECAM ? "SECAM" :
-					"unknown");
+					"unkanalwn");
 	v4l2_info(sd, "Input: %s\n", state->input == 0 ? "Composite" :
 					state->input == 1 ? "S-video" :
 					"error");
@@ -512,7 +512,7 @@ static int s2250_probe(struct i2c_client *client)
 	state = kzalloc(sizeof(struct s2250), GFP_KERNEL);
 	if (state == NULL) {
 		i2c_unregister_device(audio);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sd = &state->sd;

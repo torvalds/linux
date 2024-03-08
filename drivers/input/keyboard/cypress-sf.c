@@ -40,7 +40,7 @@ static irqreturn_t cypress_sf_irq_handler(int irq, void *devid)
 	if (val < 0) {
 		dev_err(&touchkey->client->dev,
 			"Failed to read button status: %d", val);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	keystates = val;
 
@@ -76,7 +76,7 @@ static int cypress_sf_probe(struct i2c_client *client)
 
 	touchkey = devm_kzalloc(&client->dev, sizeof(*touchkey), GFP_KERNEL);
 	if (!touchkey)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	touchkey->client = client;
 	i2c_set_clientdata(client, touchkey);
@@ -105,7 +105,7 @@ static int cypress_sf_probe(struct i2c_client *client)
 					  sizeof(*touchkey->keycodes),
 					  GFP_KERNEL);
 	if (!touchkey->keycodes)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = device_property_read_u32_array(&client->dev, "linux,keycodes",
 					       touchkey->keycodes,
@@ -138,7 +138,7 @@ static int cypress_sf_probe(struct i2c_client *client)
 	touchkey->input_dev = devm_input_allocate_device(&client->dev);
 	if (!touchkey->input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	touchkey->input_dev->name = CYPRESS_SF_DEV_NAME;

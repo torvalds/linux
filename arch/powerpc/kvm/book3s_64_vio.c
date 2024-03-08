@@ -16,7 +16,7 @@
 #include <linux/sched/signal.h>
 #include <linux/hugetlb.h>
 #include <linux/list.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/iommu.h>
 #include <linux/file.h>
 #include <linux/mm.h>
@@ -170,10 +170,10 @@ long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 			/* stit is being destroyed */
 			iommu_tce_table_put(tbl);
 			rcu_read_unlock();
-			return -ENOTTY;
+			return -EANALTTY;
 		}
 		/*
-		 * The table is already known to this KVM, we just increased
+		 * The table is already kanalwn to this KVM, we just increased
 		 * its KVM reference counter and can return.
 		 */
 		rcu_read_unlock();
@@ -184,7 +184,7 @@ long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 	stit = kzalloc(sizeof(*stit), GFP_KERNEL);
 	if (!stit) {
 		iommu_tce_table_put(tbl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	stit->tbl = tbl;
@@ -256,7 +256,7 @@ static int kvm_spapr_tce_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
+static int kvm_spapr_tce_release(struct ianalde *ianalde, struct file *filp)
 {
 	struct kvmppc_spapr_tce_table *stt = filp->private_data;
 	struct kvmppc_spapr_tce_iommu_table *stit, *tmp;
@@ -307,8 +307,8 @@ int kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
-	stt = kzalloc(struct_size(stt, pages, npages), GFP_KERNEL | __GFP_NOWARN);
+	ret = -EANALMEM;
+	stt = kzalloc(struct_size(stt, pages, npages), GFP_KERNEL | __GFP_ANALWARN);
 	if (!stt)
 		goto fail_acct;
 
@@ -333,13 +333,13 @@ int kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 
 	kvm_get_kvm(kvm);
 	if (!ret)
-		ret = anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
+		ret = aanaln_ianalde_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
 				       stt, O_RDWR | O_CLOEXEC);
 
 	if (ret >= 0)
 		list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
 	else
-		kvm_put_kvm_no_destroy(kvm);
+		kvm_put_kvm_anal_destroy(kvm);
 
 	mutex_unlock(&kvm->lock);
 
@@ -377,7 +377,7 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	unsigned long ua = 0;
 
 	/* Allow userspace to poison TCE table */
-	if (dir == DMA_NONE)
+	if (dir == DMA_ANALNE)
 		return H_SUCCESS;
 
 	if (iommu_tce_check_gpa(stt->page_shift, gpa))
@@ -406,7 +406,7 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 /*
  * Handles TCE requests for emulated devices.
  * Puts guest TCE values to the table and expects user space to convert them.
- * Cannot fail so kvmppc_tce_validate must be called before it.
+ * Cananalt fail so kvmppc_tce_validate must be called before it.
  */
 static void kvmppc_tce_put(struct kvmppc_spapr_tce_table *stt,
 		unsigned long idx, unsigned long tce)
@@ -420,7 +420,7 @@ static void kvmppc_tce_put(struct kvmppc_spapr_tce_table *stt,
 	page = stt->pages[sttpage];
 
 	if (!page) {
-		/* We allow any TCE, not just with read|write permissions */
+		/* We allow any TCE, analt just with read|write permissions */
 		if (!tce)
 			return;
 
@@ -442,9 +442,9 @@ static void kvmppc_clear_tce(struct mm_struct *mm, struct kvmppc_spapr_tce_table
 
 	for (i = 0; i < subpages; ++i) {
 		unsigned long hpa = 0;
-		enum dma_data_direction dir = DMA_NONE;
+		enum dma_data_direction dir = DMA_ANALNE;
 
-		iommu_tce_xchg_no_kill(mm, tbl, io_entry + i, &hpa, &dir);
+		iommu_tce_xchg_anal_kill(mm, tbl, io_entry + i, &hpa, &dir);
 	}
 }
 
@@ -472,20 +472,20 @@ static long kvmppc_tce_iommu_mapped_dec(struct kvm *kvm,
 static long kvmppc_tce_iommu_do_unmap(struct kvm *kvm,
 		struct iommu_table *tbl, unsigned long entry)
 {
-	enum dma_data_direction dir = DMA_NONE;
+	enum dma_data_direction dir = DMA_ANALNE;
 	unsigned long hpa = 0;
 	long ret;
 
-	if (WARN_ON_ONCE(iommu_tce_xchg_no_kill(kvm->mm, tbl, entry, &hpa,
+	if (WARN_ON_ONCE(iommu_tce_xchg_anal_kill(kvm->mm, tbl, entry, &hpa,
 					&dir)))
 		return H_TOO_HARD;
 
-	if (dir == DMA_NONE)
+	if (dir == DMA_ANALNE)
 		return H_SUCCESS;
 
 	ret = kvmppc_tce_iommu_mapped_dec(kvm, tbl, entry);
 	if (ret != H_SUCCESS)
-		iommu_tce_xchg_no_kill(kvm->mm, tbl, entry, &hpa, &dir);
+		iommu_tce_xchg_anal_kill(kvm->mm, tbl, entry, &hpa, &dir);
 
 	return ret;
 }
@@ -533,13 +533,13 @@ static long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 	if (mm_iommu_mapped_inc(mem))
 		return H_TOO_HARD;
 
-	ret = iommu_tce_xchg_no_kill(kvm->mm, tbl, entry, &hpa, &dir);
+	ret = iommu_tce_xchg_anal_kill(kvm->mm, tbl, entry, &hpa, &dir);
 	if (WARN_ON_ONCE(ret)) {
 		mm_iommu_mapped_dec(mem);
 		return H_TOO_HARD;
 	}
 
-	if (dir != DMA_NONE)
+	if (dir != DMA_ANALNE)
 		kvmppc_tce_iommu_mapped_dec(kvm, tbl, entry);
 
 	*pua = cpu_to_be64(ua);
@@ -598,7 +598,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 
 	dir = iommu_tce_direction(tce);
 
-	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua)) {
+	if ((dir != DMA_ANALNE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua)) {
 		ret = H_PARAMETER;
 		goto unlock_exit;
 	}
@@ -606,7 +606,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	entry = ioba >> stt->page_shift;
 
 	list_for_each_entry_lockless(stit, &stt->iommu_tables, next) {
-		if (dir == DMA_NONE)
+		if (dir == DMA_ANALNE)
 			ret = kvmppc_tce_iommu_unmap(vcpu->kvm, stt,
 					stit->tbl, entry);
 		else
@@ -682,7 +682,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 		/*
 		 * This looks unsafe, because we validate, then regrab
 		 * the TCE from userspace which could have been changed by
-		 * another thread.
+		 * aanalther thread.
 		 *
 		 * But it actually is safe, because the relevant checks will be
 		 * re-executed in the following code.  If userspace tries to

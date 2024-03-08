@@ -9,9 +9,9 @@ the DT and operate in the usual way.
 Frequency Scaling only
 ----------------------
 
-No vendor specific driver required for this.
+Anal vendor specific driver required for this.
 
-Located in CPU's node:
+Located in CPU's analde:
 
 - operating-points		: [See: ../power/opp-v1.yaml]
 
@@ -33,7 +33,7 @@ Dynamic Voltage and Frequency Scaling (DVFS)
 
 This requires the ST CPUFreq driver to supply 'process' and 'version' info.
 
-Located in CPU's node:
+Located in CPU's analde:
 
 - operating-points-v2		: [See ../power/opp-v2.yaml]
 
@@ -50,11 +50,11 @@ cpu0_opp_table: opp_table {
 	compatible = "operating-points-v2";
 
 	/* ############################################################### */
-	/* # WARNING: Do not attempt to copy/replicate these nodes,      # */
+	/* # WARNING: Do analt attempt to copy/replicate these analdes,      # */
 	/* #          they are only to be supplied by the bootloader !!! # */
 	/* ############################################################### */
 	opp0 {
-		/*			   Major       Minor       Substrate */
+		/*			   Major       Mianalr       Substrate */
 		/*			   2           all         all       */
 		opp-supported-hw	= <0x00000004  0xffffffff  0xffffffff>;
 		opp-hz			= /bits/ 64 <1500000000>;
@@ -71,7 +71,7 @@ cpu0_opp_table: opp_table {
 	};
 
 	opp1 {
-		/*			   Major       Minor       Substrate */
+		/*			   Major       Mianalr       Substrate */
 		/*			   all         all         all       */
 		opp-supported-hw	= <0xffffffff  0xffffffff  0xffffffff>;
 		opp-hz			= /bits/ 64 <1200000000>;

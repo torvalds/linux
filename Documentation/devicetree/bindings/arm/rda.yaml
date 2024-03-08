@@ -10,7 +10,7 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
-  $nodename:
+  $analdename:
     const: "/"
   compatible:
     items:

@@ -57,7 +57,7 @@ allOf:
       properties:
         SPKVDD-supply:
           description:
-            Mono speaker driver power supply.
+            Moanal speaker driver power supply.
 
       required:
         - SPKVDD-supply
@@ -212,7 +212,7 @@ properties:
 
   MICVDD-supply:
     description:
-      Microphone power supply, normally supplied internally except on
+      Microphone power supply, analrmally supplied internally except on
       cs47l24, wm1831 where it is mandatory.
 
 required:

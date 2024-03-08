@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
+ * Copyright (C) 2020-2022 Loongson Techanallogy Corporation Limited
  *
  * Derived from MIPS:
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techanallogies, Inc.
  */
 
 #include <asm/asm.h>
@@ -72,7 +72,7 @@ SYM_CODE_START(handle_syscall)
 
 	RESTORE_ALL_AND_RET
 SYM_CODE_END(handle_syscall)
-_ASM_NOKPROBE(handle_syscall)
+_ASM_ANALKPROBE(handle_syscall)
 
 SYM_CODE_START(ret_from_fork)
 	bl		schedule_tail		# a0 = struct task_struct *prev

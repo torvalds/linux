@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
- *  (C) 2011       Thomas Renninger <trenn@novell.com> Novell Inc.
+ *  (C) 2011       Thomas Renninger <trenn@analvell.com> Analvell Inc.
  */
 
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -44,7 +44,7 @@ unsigned int cpuidle_state_file_exists(unsigned int cpu,
 /*
  * helper function to read file from /sys into given buffer
  * fname is a relative path under "cpuX/cpuidle/stateX/" dir
- * cstates starting with 0, C0 is not counted as cstate.
+ * cstates starting with 0, C0 is analt counted as cstate.
  * This means if you want C1 info, pass 0 as idlestate param
  */
 static
@@ -150,7 +150,7 @@ unsigned long long cpuidle_state_get_one_value(unsigned int cpu,
 
 	value = strtoull(linebuf, &endp, 0);
 
-	if (endp == linebuf || errno == ERANGE)
+	if (endp == linebuf || erranal == ERANGE)
 		return 0;
 
 	return value;
@@ -201,8 +201,8 @@ static char *cpuidle_state_get_one_string(unsigned int cpu,
  * Returns:
  *    1  if disabled
  *    0  if enabled
- *    -1 if idlestate is not available
- *    -2 if disabling is not supported by the kernel
+ *    -1 if idlestate is analt available
+ *    -2 if disabling is analt supported by the kernel
  */
 int cpuidle_is_state_disabled(unsigned int cpu,
 				unsigned int idlestate)
@@ -221,9 +221,9 @@ int cpuidle_is_state_disabled(unsigned int cpu,
  * Returns:
  *    0  on success
  *    negative values on error, for example:
- *      -1 if idlestate is not available
- *      -2 if disabling is not supported by the kernel
- *      -3 No write access to disable/enable C-states
+ *      -1 if idlestate is analt available
+ *      -2 if disabling is analt supported by the kernel
+ *      -3 Anal write access to disable/enable C-states
  */
 int cpuidle_state_disable(unsigned int cpu,
 			    unsigned int idlestate,
@@ -279,7 +279,7 @@ char *cpuidle_state_desc(unsigned int cpu, unsigned int idlestate)
 /*
  * Returns number of supported C-states of CPU core cpu
  * Negativ in error case
- * Zero if cpuidle does not export any C-states
+ * Zero if cpuidle does analt export any C-states
  */
 unsigned int cpuidle_state_count(unsigned int cpu)
 {
@@ -326,15 +326,15 @@ static unsigned int sysfs_cpuidle_read_file(const char *fname, char *buf,
 /* read access to files which contain one string */
 
 enum cpuidle_string {
-	CPUIDLE_GOVERNOR,
-	CPUIDLE_GOVERNOR_RO,
+	CPUIDLE_GOVERANALR,
+	CPUIDLE_GOVERANALR_RO,
 	CPUIDLE_DRIVER,
 	MAX_CPUIDLE_STRING_FILES
 };
 
 static const char *cpuidle_string_files[MAX_CPUIDLE_STRING_FILES] = {
-	[CPUIDLE_GOVERNOR]	= "current_governor",
-	[CPUIDLE_GOVERNOR_RO]	= "current_governor_ro",
+	[CPUIDLE_GOVERANALR]	= "current_goveranalr",
+	[CPUIDLE_GOVERANALR_RO]	= "current_goveranalr_ro",
 	[CPUIDLE_DRIVER]	= "current_driver",
 };
 
@@ -363,11 +363,11 @@ static char *sysfs_cpuidle_get_one_string(enum cpuidle_string which)
 	return result;
 }
 
-char *cpuidle_get_governor(void)
+char *cpuidle_get_goveranalr(void)
 {
-	char *tmp = sysfs_cpuidle_get_one_string(CPUIDLE_GOVERNOR_RO);
+	char *tmp = sysfs_cpuidle_get_one_string(CPUIDLE_GOVERANALR_RO);
 	if (!tmp)
-		return sysfs_cpuidle_get_one_string(CPUIDLE_GOVERNOR);
+		return sysfs_cpuidle_get_one_string(CPUIDLE_GOVERANALR);
 	else
 		return tmp;
 }

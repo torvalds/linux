@@ -317,7 +317,7 @@ armada_disable_overheat_interrupt(struct armada_thermal_priv *priv)
 	regmap_write(priv->syscon, data->syscon_control1_off, reg);
 }
 
-/* There is currently no board with more than one sensor per channel */
+/* There is currently anal board with more than one sensor per channel */
 static int armada_select_channel(struct armada_thermal_priv *priv, int channel)
 {
 	struct armada_thermal_data *data = priv->data;
@@ -518,9 +518,9 @@ static irqreturn_t armada_overheat_isr(int irq, void *blob)
 {
 	/*
 	 * Disable the IRQ and continue in thread context (thermal core
-	 * notification and temperature monitoring).
+	 * analtification and temperature monitoring).
 	 */
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -533,14 +533,14 @@ static irqreturn_t armada_overheat_isr_thread(int irq, void *blob)
 	u32 dummy;
 	int ret;
 
-	/* Notify the core in thread context */
+	/* Analtify the core in thread context */
 	thermal_zone_device_update(priv->overheat_sensor,
 				   THERMAL_EVENT_UNSPECIFIED);
 
 	/*
 	 * The overheat interrupt must be cleared by reading the DFX interrupt
 	 * cause _after_ the temperature has fallen down to the low threshold.
-	 * Otherwise future interrupts might not be served.
+	 * Otherwise future interrupts might analt be served.
 	 */
 	do {
 		msleep(OVERHEAT_INT_POLL_DELAY_MS);
@@ -553,7 +553,7 @@ static irqreturn_t armada_overheat_isr_thread(int irq, void *blob)
 
 	regmap_read(priv->syscon, priv->data->dfx_irq_cause_off, &dummy);
 
-	/* Notify the thermal core that the temperature is acceptable again */
+	/* Analtify the thermal core that the temperature is acceptable again */
 	thermal_zone_device_update(priv->overheat_sensor,
 				   THERMAL_EVENT_UNSPECIFIED);
 
@@ -740,7 +740,7 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 	 * Fix up from the old individual DT register specification to
 	 * cover all the registers.  We do this by adjusting the ioremap()
 	 * result, which should be fine as ioremap() deals with pages.
-	 * However, validate that we do not cross a page boundary while
+	 * However, validate that we do analt cross a page boundary while
 	 * making this adjustment.
 	 */
 	if (((unsigned long)base & ~PAGE_MASK) < data->syscon_status_off)
@@ -755,7 +755,7 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 static int armada_thermal_probe_syscon(struct platform_device *pdev,
 				       struct armada_thermal_priv *priv)
 {
-	priv->syscon = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	priv->syscon = syscon_analde_to_regmap(pdev->dev.parent->of_analde);
 	return PTR_ERR_OR_ZERO(priv->syscon);
 }
 
@@ -781,7 +781,7 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	/* Save the name locally */
 	strscpy(priv->zone_name, name, THERMAL_NAME_LENGTH);
 
-	/* Then check there are no '-' or hwmon core will complain */
+	/* Then check there are anal '-' or hwmon core will complain */
 	do {
 		insane_char = strpbrk(priv->zone_name, "-");
 		if (insane_char)
@@ -814,7 +814,7 @@ static int armada_configure_overheat_int(struct armada_thermal_priv *priv,
 		return ret;
 
 	/*
-	 * A critical temperature does not have a hysteresis
+	 * A critical temperature does analt have a hysteresis
 	 */
 	armada_set_overheat_thresholds(priv, temperature, 0);
 	priv->overheat_sensor = tz;
@@ -836,15 +836,15 @@ static int armada_thermal_probe(struct platform_device *pdev)
 
 	match = of_match_device(armada_thermal_id_table, &pdev->dev);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->dev = &pdev->dev;
 	priv->data = (struct armada_thermal_data *)match->data;
@@ -859,11 +859,11 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	 *
 	 * The logic of defining sporadic registers is broken. For instance, it
 	 * blocked the addition of the overheat interrupt feature that needed
-	 * another resource somewhere else in the same memory area. One solution
-	 * is to define an overall system controller and put the thermal node
+	 * aanalther resource somewhere else in the same memory area. One solution
+	 * is to define an overall system controller and put the thermal analde
 	 * into it, which requires the use of regmaps across all the driver.
 	 */
-	if (IS_ERR(syscon_node_to_regmap(pdev->dev.parent->of_node))) {
+	if (IS_ERR(syscon_analde_to_regmap(pdev->dev.parent->of_analde))) {
 		/* Ensure device name is correct for the thermal core */
 		armada_set_sane_name(pdev, priv);
 
@@ -912,14 +912,14 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	if (irq == -EPROBE_DEFER)
 		return irq;
 
-	/* The overheat interrupt feature is not mandatory */
+	/* The overheat interrupt feature is analt mandatory */
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq,
 						armada_overheat_isr,
 						armada_overheat_isr_thread,
 						0, NULL, priv);
 		if (ret) {
-			dev_err(&pdev->dev, "Cannot request threaded IRQ %d\n",
+			dev_err(&pdev->dev, "Cananalt request threaded IRQ %d\n",
 				irq);
 			return ret;
 		}
@@ -934,7 +934,7 @@ static int armada_thermal_probe(struct platform_device *pdev)
 				      sizeof(struct armada_thermal_sensor),
 				      GFP_KERNEL);
 		if (!sensor)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		/* Register the sensor */
 		sensor->priv = priv;
@@ -952,15 +952,15 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/*
 		 * The first channel that has a critical trip point registered
 		 * in the DT will serve as interrupt source. Others possible
-		 * critical trip points will simply be ignored by the driver.
+		 * critical trip points will simply be iganalred by the driver.
 		 */
 		if (irq > 0 && !priv->overheat_sensor)
 			armada_configure_overheat_int(priv, tz, sensor->id);
 	}
 
-	/* Just complain if no overheat interrupt was set up */
+	/* Just complain if anal overheat interrupt was set up */
 	if (!priv->overheat_sensor)
-		dev_warn(&pdev->dev, "Overheat interrupt not available\n");
+		dev_warn(&pdev->dev, "Overheat interrupt analt available\n");
 
 	return 0;
 }

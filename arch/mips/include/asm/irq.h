@@ -44,12 +44,12 @@ static inline bool on_irq_stack(int cpu, unsigned long sp)
 }
 
 #ifdef CONFIG_I8259
-static inline int irq_canonicalize(int irq)
+static inline int irq_caanalnicalize(int irq)
 {
 	return ((irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq);
 }
 #else
-#define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
+#define irq_caanalnicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
 asmlinkage void plat_irq_dispatch(void);

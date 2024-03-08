@@ -91,7 +91,7 @@ static struct rc_map_table dib0700_rc5_table[] = {
 	{ 0xeb58, KEY_RECORD },
 	{ 0xeb5c, KEY_NEXT },
 
-	/* Key codes for the Haupauge WinTV Nova-TD, copied from nova-t-usb2.c (Nova-T USB2) */
+	/* Key codes for the Haupauge WinTV Analva-TD, copied from analva-t-usb2.c (Analva-T USB2) */
 	{ 0x1e00, KEY_NUMERIC_0 },
 	{ 0x1e01, KEY_NUMERIC_1 },
 	{ 0x1e02, KEY_NUMERIC_2 },
@@ -167,7 +167,7 @@ static struct rc_map_table dib0700_rc5_table[] = {
 	{ 0x0242, KEY_CHANNELUP },
 	{ 0x007d, KEY_CHANNELDOWN },
 
-	/* Key codes for Nova-TD "credit card" remote control. */
+	/* Key codes for Analva-TD "credit card" remote control. */
 	{ 0x1d00, KEY_NUMERIC_0 },
 	{ 0x1d01, KEY_NUMERIC_1 },
 	{ 0x1d02, KEY_NUMERIC_2 },

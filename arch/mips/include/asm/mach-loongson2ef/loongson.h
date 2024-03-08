@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-/* loongson internal northbridge initialization */
+/* loongson internal analrthbridge initialization */
 extern void bonito_irq_init(void);
 
 /* machine-specific reboot/halt operation */
@@ -131,7 +131,7 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_GENCFG LOONGSON_REG(LOONGSON_REGBASE + LOONGSON_GENCFG_OFFSET)
 
 #define LOONGSON_GENCFG_DEBUGMODE	0x00000001
-#define LOONGSON_GENCFG_SNOOPEN		0x00000002
+#define LOONGSON_GENCFG_SANALOPEN		0x00000002
 #define LOONGSON_GENCFG_CPUSELFRESET	0x00000004
 
 #define LOONGSON_GENCFG_FORCE_IRQA	0x00000008
@@ -148,7 +148,7 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_GENCFG_CACHESTOP	0x00002000
 #define LOONGSON_GENCFG_MSTRBYTESWAP	0x00004000
 #define LOONGSON_GENCFG_BUSERREN	0x00008000
-#define LOONGSON_GENCFG_NORETRYTIMEOUT	0x00010000
+#define LOONGSON_GENCFG_ANALRETRYTIMEOUT	0x00010000
 #define LOONGSON_GENCFG_SHORTCOPYTIMEOUT	0x00020000
 
 /* PCI address map control */
@@ -241,7 +241,7 @@ extern int loongson2_cpu_set_rate(unsigned long rate_khz);
 /*
  * address windows configuration module
  *
- * loongson2e do not have this module
+ * loongson2e do analt have this module
  */
 #ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 

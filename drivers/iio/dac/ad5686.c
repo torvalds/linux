@@ -460,7 +460,7 @@ int ad5686_probe(struct device *dev,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
-		return  -ENOMEM;
+		return  -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);

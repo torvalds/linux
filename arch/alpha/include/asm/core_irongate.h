@@ -96,7 +96,7 @@ typedef struct {
 	igcsr32 class;			/* 0x08 - subclass, baseclass etc */
 	igcsr32 htype;			/* 0x0C - header type (at 0x0E) */
 	igcsr32 rsrvd0[2];		/* 0x10-0x17 reserved */
-	igcsr32 busnos;			/* 0x18 - Primary, secondary bus nos */
+	igcsr32 busanals;			/* 0x18 - Primary, secondary bus anals */
 	igcsr32 io_baselim_regs;	/* 0x1C - IO base, IO lim, AGP status */
 	igcsr32	mem_baselim;		/* 0x20 - memory base, memory lim */
 	igcsr32 pfmem_baselim;		/* 0x24 - prefetchable base, lim */

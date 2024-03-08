@@ -7,7 +7,7 @@ static u32 tcp_rack_reo_wnd(const struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 
 	if (!tp->reord_seen) {
-		/* If reordering has not been observed, be aggressive during
+		/* If reordering has analt been observed, be aggressive during
 		 * the recovery or starting the recovery by DUPACK threshold.
 		 */
 		if (inet_csk(sk)->icsk_ca_state >= TCP_CA_Recovery)
@@ -15,7 +15,7 @@ static u32 tcp_rack_reo_wnd(const struct sock *sk)
 
 		if (tp->sacked_out >= tp->reordering &&
 		    !(READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_recovery) &
-		      TCP_RACK_NO_DUPTHRESH))
+		      TCP_RACK_ANAL_DUPTHRESH))
 			return 0;
 	}
 
@@ -46,12 +46,12 @@ s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb, u32 reo_wnd)
  * RACK: sent time delta to the latest delivered packet (time domain)
  *
  * The advantage of RACK is it applies to both original and retransmitted
- * packet and therefore is robust against tail losses. Another advantage
+ * packet and therefore is robust against tail losses. Aanalther advantage
  * is being more resilient to reordering by simply allowing some
  * "settling delay", instead of tweaking the dupthresh.
  *
  * When tcp_rack_detect_loss() detects some packets are lost and we
- * are not already in the CA_Recovery state, either tcp_rack_reo_timeout()
+ * are analt already in the CA_Recovery state, either tcp_rack_reo_timeout()
  * or tcp_time_to_recover()'s "Trick#1: the loss is proven" code path will
  * make us enter the CA_Recovery state.
  */
@@ -68,7 +68,7 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		s32 remaining;
 
-		/* Skip ones marked lost but not yet retransmitted */
+		/* Skip ones marked lost but analt yet retransmitted */
 		if ((scb->sacked & TCPCB_LOST) &&
 		    !(scb->sacked & TCPCB_SACKED_RETRANS))
 			continue;
@@ -78,7 +78,7 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 					tp->rack.end_seq, scb->end_seq))
 			break;
 
-		/* A packet is lost if it has not been s/acked beyond
+		/* A packet is lost if it has analt been s/acked beyond
 		 * the recent RTT plus the reordering window.
 		 */
 		remaining = tcp_rack_skb_timeout(tp, skb, reo_wnd);
@@ -126,7 +126,7 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 		 * whether the retransmission or the original (or the prior
 		 * retransmission) was sacked.
 		 *
-		 * If the original is lost, there is no ambiguity. Otherwise
+		 * If the original is lost, there is anal ambiguity. Otherwise
 		 * we assume the original can be delayed up to aRTT + min_rtt.
 		 * the aRTT term is bounded by the fast recovery or timeout,
 		 * so it's at least one RTT (i.e., retransmission is at least
@@ -143,7 +143,7 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 	}
 }
 
-/* We have waited long enough to accommodate reordering. Mark the expired
+/* We have waited long eanalugh to accommodate reordering. Mark the expired
  * packets lost and retransmit them.
  */
 void tcp_rack_reo_timeout(struct sock *sk)
@@ -166,7 +166,7 @@ void tcp_rack_reo_timeout(struct sock *sk)
 		tcp_rearm_rto(sk);
 }
 
-/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
+/* Updates the RACK's reo_wnd based on DSACK and anal. of recoveries.
  *
  * If a DSACK is received that seems like it may have been due to reordering
  * triggering fast recovery, increment reo_wnd by min_rtt/4 (upper bounded
@@ -174,7 +174,7 @@ void tcp_rack_reo_timeout(struct sock *sk)
  * due to reordering delay longer than reo_wnd.
  *
  * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
- * no. of successful recoveries (accounts for full DSACK-based loss
+ * anal. of successful recoveries (accounts for full DSACK-based loss
  * recovery undo). After that, reset it to default (min_rtt/4).
  *
  * At max, reo_wnd is incremented only once per rtt. So that the new
@@ -193,7 +193,7 @@ void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
 	    !rs->prior_delivered)
 		return;
 
-	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
+	/* Disregard DSACK if a rtt has analt passed since we adjusted reo_wnd */
 	if (before(rs->prior_delivered, tp->rack.last_delivered))
 		tp->rack.dsack_seen = 0;
 
@@ -209,12 +209,12 @@ void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
 	}
 }
 
-/* RFC6582 NewReno recovery for non-SACK connection. It simply retransmits
+/* RFC6582 NewReanal recovery for analn-SACK connection. It simply retransmits
  * the next unacked packet upon receiving
  * a) three or more DUPACKs to start the fast recovery
- * b) an ACK acknowledging new data during the fast recovery.
+ * b) an ACK ackanalwledging new data during the fast recovery.
  */
-void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced)
+void tcp_newreanal_mark_lost(struct sock *sk, bool snd_una_advanced)
 {
 	const u8 state = inet_csk(sk)->icsk_ca_state;
 	struct tcp_sock *tp = tcp_sk(sk);

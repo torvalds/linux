@@ -68,7 +68,7 @@ enum vadc_calibration {
 /**
  * struct vadc_linear_graph - Represent ADC characteristics.
  * @dy: numerator slope to calculate the gain.
- * @dx: denominator slope to calculate the gain.
+ * @dx: deanalminator slope to calculate the gain.
  * @gnd: A/D word of the ground reference used for the channel.
  *
  * Each ADC device has different offset and gain parameters which are

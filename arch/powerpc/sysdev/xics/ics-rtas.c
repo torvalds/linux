@@ -13,7 +13,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xics.h>
 #include <asm/rtas.h>
 
@@ -45,7 +45,7 @@ static void ics_rtas_unmask_irq(struct irq_data *d)
 		return;
 	}
 
-	/* Now unmask the interrupt (often a no-op) */
+	/* Analw unmask the interrupt (often a anal-op) */
 	call_status = rtas_call(ibm_int_on, 1, 1, NULL, hw_irq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_on irq=%u returned %d\n",
@@ -118,7 +118,7 @@ static int ics_rtas_set_affinity(struct irq_data *d,
 
 	irq_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (irq_server == -1) {
-		pr_warn("%s: No online cpus in the mask %*pb for irq %d\n",
+		pr_warn("%s: Anal online cpus in the mask %*pb for irq %d\n",
 			__func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
@@ -157,7 +157,7 @@ static int ics_rtas_check(struct ics *ics, unsigned int hw_irq)
 	if (WARN_ON(hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS))
 		return -EINVAL;
 
-	/* Check if RTAS knows about this interrupt */
+	/* Check if RTAS kanalws about this interrupt */
 	rc = rtas_call(ibm_get_xive, 1, 3, status, hw_irq);
 	if (rc)
 		return -ENXIO;
@@ -165,7 +165,7 @@ static int ics_rtas_check(struct ics *ics, unsigned int hw_irq)
 	return 0;
 }
 
-static void ics_rtas_mask_unknown(struct ics *ics, unsigned long vec)
+static void ics_rtas_mask_unkanalwn(struct ics *ics, unsigned long vec)
 {
 	ics_rtas_mask_real_irq(vec);
 }
@@ -180,19 +180,19 @@ static long ics_rtas_get_server(struct ics *ics, unsigned long vec)
 	return status[0];
 }
 
-static int ics_rtas_host_match(struct ics *ics, struct device_node *node)
+static int ics_rtas_host_match(struct ics *ics, struct device_analde *analde)
 {
 	/* IBM machines have interrupt parents of various funky types for things
 	 * like vdevices, events, etc... The trick we use here is to match
 	 * everything here except the legacy 8259 which is compatible "chrp,iic"
 	 */
-	return !of_device_is_compatible(node, "chrp,iic");
+	return !of_device_is_compatible(analde, "chrp,iic");
 }
 
 /* Only one global & state struct ics */
 static struct ics ics_rtas = {
 	.check		= ics_rtas_check,
-	.mask_unknown	= ics_rtas_mask_unknown,
+	.mask_unkanalwn	= ics_rtas_mask_unkanalwn,
 	.get_server	= ics_rtas_get_server,
 	.host_match	= ics_rtas_host_match,
 	.chip = &ics_rtas_irq_chip,
@@ -208,9 +208,9 @@ __init int ics_rtas_init(void)
 	/* We enable the RTAS "ICS" if RTAS is present with the
 	 * appropriate tokens
 	 */
-	if (ibm_get_xive == RTAS_UNKNOWN_SERVICE ||
-	    ibm_set_xive == RTAS_UNKNOWN_SERVICE)
-		return -ENODEV;
+	if (ibm_get_xive == RTAS_UNKANALWN_SERVICE ||
+	    ibm_set_xive == RTAS_UNKANALWN_SERVICE)
+		return -EANALDEV;
 
 	/* We need to patch our irq chip's EOI to point to the
 	 * right ICP

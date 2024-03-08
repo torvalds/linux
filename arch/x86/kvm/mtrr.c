@@ -124,7 +124,7 @@ static u8 mtrr_disabled_type(struct kvm_vcpu *vcpu)
 	 * memory type is applied to all of physical memory.
 	 *
 	 * However, virtual machines can be run with CPUID such that
-	 * there are no MTRRs.  In that case, the firmware will never
+	 * there are anal MTRRs.  In that case, the firmware will never
 	 * enable MTRRs and it is obviously undesirable to run the
 	 * guest entirely with UC memory and we use WB.
 	 */
@@ -200,13 +200,13 @@ static bool fixed_msr_to_seg_unit(u32 msr, int *seg, int *unit)
 		break;
 	case MSR_MTRRfix16K_80000 ... MSR_MTRRfix16K_A0000:
 		*seg = 1;
-		*unit = array_index_nospec(
+		*unit = array_index_analspec(
 			msr - MSR_MTRRfix16K_80000,
 			MSR_MTRRfix16K_A0000 - MSR_MTRRfix16K_80000 + 1);
 		break;
 	case MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000:
 		*seg = 2;
-		*unit = array_index_nospec(
+		*unit = array_index_analspec(
 			msr - MSR_MTRRfix4K_C0000,
 			MSR_MTRRfix4K_F8000 - MSR_MTRRfix4K_C0000 + 1);
 		break;
@@ -309,7 +309,7 @@ static void var_mtrr_range(struct kvm_mtrr_range *range, u64 *start, u64 *end)
 
 	mask = range->mask & PAGE_MASK;
 
-	/* This cannot overflow because writing to the reserved bits of
+	/* This cananalt overflow because writing to the reserved bits of
 	 * variable MTRRs causes a #GP.
 	 */
 	*end = (*start | ~mask) + 1;
@@ -320,7 +320,7 @@ static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
 	struct kvm_mtrr *mtrr_state = &vcpu->arch.mtrr_state;
 	gfn_t start, end;
 
-	if (!kvm_mmu_honors_guest_mtrrs(vcpu->kvm))
+	if (!kvm_mmu_hoanalrs_guest_mtrrs(vcpu->kvm))
 		return;
 
 	if (!mtrr_is_enabled(mtrr_state) && msr != MSR_MTRRdefType)
@@ -355,7 +355,7 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 	/* remove the entry if it's in the list. */
 	if (var_mtrr_range_is_valid(cur))
-		list_del(&cur->node);
+		list_del(&cur->analde);
 
 	/*
 	 * Set all illegal GPA bits in the mask, since those bits must
@@ -368,10 +368,10 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 	/* add it to the list if it's enabled. */
 	if (var_mtrr_range_is_valid(cur)) {
-		list_for_each_entry(tmp, &mtrr_state->head, node)
+		list_for_each_entry(tmp, &mtrr_state->head, analde)
 			if (cur->base >= tmp->base)
 				break;
-		list_add_tail(&cur->node, &tmp->node);
+		list_add_tail(&cur->analde, &tmp->analde);
 	}
 }
 
@@ -446,7 +446,7 @@ struct mtrr_iter {
 	int mem_type;
 	/* mtrr is completely disabled? */
 	bool mtrr_disabled;
-	/* [start, end) is not fully covered in MTRRs? */
+	/* [start, end) is analt fully covered in MTRRs? */
 	bool partial_map;
 
 	/* private fields. */
@@ -514,7 +514,7 @@ static void __mtrr_lookup_var_next(struct mtrr_iter *iter)
 {
 	struct kvm_mtrr *mtrr_state = iter->mtrr_state;
 
-	list_for_each_entry_continue(iter->range, &mtrr_state->head, node)
+	list_for_each_entry_continue(iter->range, &mtrr_state->head, analde)
 		if (match_var_range(iter, iter->range))
 			return;
 
@@ -529,7 +529,7 @@ static void mtrr_lookup_var_start(struct mtrr_iter *iter)
 	iter->fixed = false;
 	iter->start_max = iter->start;
 	iter->range = NULL;
-	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, node);
+	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, analde);
 
 	__mtrr_lookup_var_next(iter);
 }
@@ -662,7 +662,7 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 		}
 
 		/*
-		 * For overlaps not defined by the above rules, processor
+		 * For overlaps analt defined by the above rules, processor
 		 * behavior is undefined.
 		 */
 
@@ -673,7 +673,7 @@ u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 	if (iter.mtrr_disabled)
 		return mtrr_disabled_type(vcpu);
 
-	/* not contained in any MTRRs. */
+	/* analt contained in any MTRRs. */
 	if (type == -1)
 		return mtrr_default_type(mtrr_state);
 

@@ -55,17 +55,17 @@ MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
  *
  * During interrupt and other critical calls, a spinlock is used to
  * protect the system, but the calls themselves save the address
- * in the address register in case they are interrupting another
+ * in the address register in case they are interrupting aanalther
  * access to the device.
  *
  * For general accesses a lock is provided so that calls which are
  * allowed to sleep are serialised so that the address register does
- * not need to be saved. This lock also serves to serialise access
+ * analt need to be saved. This lock also serves to serialise access
  * to the EEPROM and PHY access registers which are shared between
  * these two devices.
  */
 
-/* The driver supports the original EMACE, and now the two newer
+/* The driver supports the original EMACE, and analw the two newer
  * devices, EMACA and EMACB.
  */
 
@@ -81,7 +81,7 @@ struct emac_board_info {
 
 	int			emacrx_completed_flag;
 
-	struct device_node	*phy_node;
+	struct device_analde	*phy_analde;
 	unsigned int		link;
 	unsigned int		speed;
 	unsigned int		duplex;
@@ -169,15 +169,15 @@ static int emac_mdio_probe(struct net_device *dev)
 	struct emac_board_info *db = netdev_priv(dev);
 	struct phy_device *phydev;
 
-	/* to-do: PHY interrupts are currently not supported */
+	/* to-do: PHY interrupts are currently analt supported */
 
 	/* attach the mac to the phy */
-	phydev = of_phy_connect(db->ndev, db->phy_node,
+	phydev = of_phy_connect(db->ndev, db->phy_analde,
 				&emac_handle_link_change, 0,
 				db->phy_interface);
 	if (!phydev) {
-		netdev_err(db->ndev, "could not find the PHY\n");
-		return -ENODEV;
+		netdev_err(db->ndev, "could analt find the PHY\n");
+		return -EANALDEV;
 	}
 
 	/* mask with MAC supported features */
@@ -292,14 +292,14 @@ static int emac_dma_inblk_32bit(struct emac_board_info *db,
 					   DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(db->dev, "prepare slave single failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto prepare_err;
 	}
 
 	req = emac_alloc_dma_req(db, desc, skb, rxbuf, count);
 	if (!req) {
 		dev_err(db->dev, "alloc emac dma req error.\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto alloc_req_err;
 	}
 
@@ -623,7 +623,7 @@ static void emac_rx(struct net_device *dev)
 	unsigned int reg_val;
 	u32 rxhdr, rxstatus, rxcount, rxlen;
 
-	/* Check packet ready or not */
+	/* Check packet ready or analt */
 	while (1) {
 		/* race warning: the first packet might arrive with
 		 * the interrupts disabled, but the second will fix
@@ -681,7 +681,7 @@ static void emac_rx(struct net_device *dev)
 			return;
 		}
 
-		/* A packet ready now  & Get status/length */
+		/* A packet ready analw  & Get status/length */
 		good_packet = true;
 
 		rxhdr = readl(db->membase + EMAC_RX_IO_DATA_REG);
@@ -842,7 +842,7 @@ static int emac_open(struct net_device *dev)
 	ret = emac_mdio_probe(dev);
 	if (ret < 0) {
 		free_irq(dev->irq, dev);
-		netdev_err(dev, "cannot probe MDIO bus\n");
+		netdev_err(dev, "cananalt probe MDIO bus\n");
 		return ret;
 	}
 
@@ -919,7 +919,7 @@ static int emac_configure_dma(struct emac_board_info *db)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
 		netdev_err(ndev, "get io resource from device failed.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_clear_chan;
 	}
 
@@ -964,15 +964,15 @@ out_clear_chan:
  */
 static int emac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct emac_board_info *db;
 	struct net_device *ndev;
 	int ret = 0;
 
 	ndev = alloc_etherdev(sizeof(struct emac_board_info));
 	if (!ndev) {
-		dev_err(&pdev->dev, "could not allocate device.\n");
-		return -ENOMEM;
+		dev_err(&pdev->dev, "could analt allocate device.\n");
+		return -EANALMEM;
 	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -989,7 +989,7 @@ static int emac_probe(struct platform_device *pdev)
 	db->membase = of_iomap(np, 0);
 	if (!db->membase) {
 		dev_err(&pdev->dev, "failed to remap registers\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -997,7 +997,7 @@ static int emac_probe(struct platform_device *pdev)
 	ndev->base_addr = (unsigned long)db->membase;
 	ndev->irq = irq_of_parse_and_map(np, 0);
 	if (ndev->irq == -ENXIO) {
-		netdev_err(ndev, "No irq resource\n");
+		netdev_err(ndev, "Anal irq resource\n");
 		ret = ndev->irq;
 		goto out_iounmap;
 	}
@@ -1023,12 +1023,12 @@ static int emac_probe(struct platform_device *pdev)
 		goto out_clk_disable_unprepare;
 	}
 
-	db->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!db->phy_node)
-		db->phy_node = of_parse_phandle(np, "phy", 0);
-	if (!db->phy_node) {
-		dev_err(&pdev->dev, "no associated PHY\n");
-		ret = -ENODEV;
+	db->phy_analde = of_parse_phandle(np, "phy-handle", 0);
+	if (!db->phy_analde)
+		db->phy_analde = of_parse_phandle(np, "phy", 0);
+	if (!db->phy_analde) {
+		dev_err(&pdev->dev, "anal associated PHY\n");
+		ret = -EANALDEV;
 		goto out_release_sram;
 	}
 
@@ -1057,7 +1057,7 @@ static int emac_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "Registering netdev failed!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out_release_sram;
 	}
 
@@ -1076,7 +1076,7 @@ out_dispose_mapping:
 out_iounmap:
 	iounmap(db->membase);
 out:
-	dev_err(db->dev, "not found (%d).\n", ret);
+	dev_err(db->dev, "analt found (%d).\n", ret);
 
 	free_netdev(ndev);
 

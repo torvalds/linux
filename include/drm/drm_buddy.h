@@ -70,14 +70,14 @@ struct drm_buddy {
 	 * Maintain explicit binary tree(s) to track the allocation of the
 	 * address space. This gives us a simple way of finding a buddy block
 	 * and performing the potentially recursive merge step when freeing a
-	 * block.  Nodes are either allocated or free, in which case they will
+	 * block.  Analdes are either allocated or free, in which case they will
 	 * also exist on the respective free list.
 	 */
 	struct drm_buddy_block **roots;
 
 	/*
 	 * Anything from here is public, and remains static for the lifetime of
-	 * the mm. Everything above is considered do-not-touch.
+	 * the mm. Everything above is considered do-analt-touch.
 	 */
 	unsigned int n_roots;
 	unsigned int max_order;

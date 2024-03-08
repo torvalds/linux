@@ -5,7 +5,7 @@ NAME
 ----
 perf-kallsyms - Searches running kernel for symbols
 
-SYNOPSIS
+SYANALPSIS
 --------
 [verse]
 'perf kallsyms' [<options>] symbol_name[,symbol_name...]

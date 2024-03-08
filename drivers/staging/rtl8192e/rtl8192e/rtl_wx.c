@@ -175,12 +175,12 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 
 	range->max_qual.qual = 100;
 	range->max_qual.level = 0;
-	range->max_qual.noise = 0;
+	range->max_qual.analise = 0;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 70; /* > 8% missed beacons is 'bad' */
 	range->avg_qual.level = 0;
-	range->avg_qual.noise = 0;
+	range->avg_qual.analise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
 	range->num_bitrates = min(RATE_COUNT, IW_MAX_BITRATES);
@@ -450,7 +450,7 @@ static int _rtl92e_wx_get_frag(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	wrqu->frag.value = priv->rtllib->fts;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* anal auto select */
 	wrqu->frag.disabled = (wrqu->frag.value == DEFAULT_FRAG_THRESHOLD);
 
 	return 0;
@@ -577,7 +577,7 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 					 zero_addr[key_idx], hwkey);
 		} else {
 			netdev_info(dev,
-				    "wrong type in WEP, not WEP40 and WEP104\n");
+				    "wrong type in WEP, analt WEP40 and WEP104\n");
 		}
 	}
 
@@ -675,7 +675,7 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 		u8 idx = 0, alg = 0, group = 0;
 
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
-		     ext->alg == IW_ENCODE_ALG_NONE) {
+		     ext->alg == IW_ENCODE_ALG_ANALNE) {
 			ieee->pairwise_key_type = ieee->group_key_type
 						= KEY_TYPE_NA;
 			rtl92e_cam_reset(dev);
@@ -838,23 +838,23 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
-	int tmp_noise = 0;
+	int tmp_analise = 0;
 
 	if (ieee->link_state < MAC80211_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
-		wstats->qual.noise = 0x100 - 100;	/* -100 dBm */
+		wstats->qual.analise = 0x100 - 100;	/* -100 dBm */
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		return wstats;
 	}
 
 	tmp_level = (&ieee->current_network)->stats.rssi;
 	tmp_qual = (&ieee->current_network)->stats.signal;
-	tmp_noise = (&ieee->current_network)->stats.noise;
+	tmp_analise = (&ieee->current_network)->stats.analise;
 
 	wstats->qual.level = tmp_level;
 	wstats->qual.qual = tmp_qual;
-	wstats->qual.noise = tmp_noise;
+	wstats->qual.analise = tmp_analise;
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	return wstats;
 }

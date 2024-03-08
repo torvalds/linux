@@ -20,8 +20,8 @@
  * Configuration options:
  *   [0] - I/O port base
  *
- * Interrupts are not supported.
- * The ACL-7130 card has an 8254 timer/counter not supported by this driver.
+ * Interrupts are analt supported.
+ * The ACL-7130 card has an 8254 timer/counter analt supported by this driver.
  */
 
 #include <linux/module.h>
@@ -47,7 +47,7 @@
  *     BASE+2  TTL outputs 0-7 (write) / inputs 0-7 (read)
  *     BASE+3  TTL outputs 8-15 (write) / inputs 8-15 (read)
  *
- * The pcm3730 board does not have register BASE+1.
+ * The pcm3730 board does analt have register BASE+1.
  *
  * The pcl725 and p8r8dio only have registers BASE+0 and BASE+1:
  *
@@ -75,7 +75,7 @@
  *     BASE+2  Isolated inputs 0-7 (read)
  *     BASE+3  Isolated inputs 8-15 (read)
  *
- *     These registers are not currently supported:
+ *     These registers are analt currently supported:
  *
  *     BASE+2  Relay select register (write)
  *     BASE+3  Board reset control register (write)

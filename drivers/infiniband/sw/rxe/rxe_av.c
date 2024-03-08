@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellaanalx Techanallogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
@@ -120,7 +120,7 @@ void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 		type = RXE_NETWORK_TYPE_IPV6;
 		break;
 	default:
-		/* not reached - checked in rxe_av_chk_attr */
+		/* analt reached - checked in rxe_av_chk_attr */
 		type = 0;
 		break;
 	}

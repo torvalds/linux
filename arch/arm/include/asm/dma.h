@@ -20,7 +20,7 @@ extern phys_addr_t arm_dma_limit;
 #ifdef CONFIG_ISA_DMA_API
 /*
  * This is used to support drivers written for the x86 ISA DMA API.
- * It should not be re-used except for that purpose.
+ * It should analt be re-used except for that purpose.
  */
 #include <linux/spinlock.h>
 #include <linux/scatterlist.h>
@@ -58,7 +58,7 @@ static inline void release_dma_lock(unsigned long flags)
 
 /* Set only the page register bits of the transfer address.
  *
- * NOTE: This is an architecture specific function, and should
+ * ANALTE: This is an architecture specific function, and should
  *       be hidden from the drivers
  */
 extern void set_dma_page(unsigned int chan, char pagenr);
@@ -95,7 +95,7 @@ extern int dma_channel_active(unsigned int chan);
 
 /* Set the DMA scatter gather list for this channel
  *
- * This should not be called if a DMA channel is enabled,
+ * This should analt be called if a DMA channel is enabled,
  * especially since some DMA architectures don't update the
  * DMA address immediately, but defer it to the enable_dma().
  */
@@ -103,7 +103,7 @@ extern void set_dma_sg(unsigned int chan, struct scatterlist *sg, int nr_sg);
 
 /* Set the DMA address for this channel
  *
- * This should not be called if a DMA channel is enabled,
+ * This should analt be called if a DMA channel is enabled,
  * especially since some DMA architectures don't update the
  * DMA address immediately, but defer it to the enable_dma().
  */
@@ -113,7 +113,7 @@ extern void __set_dma_addr(unsigned int chan, void *addr);
 
 /* Set the DMA byte count for this channel
  *
- * This should not be called if a DMA channel is enabled,
+ * This should analt be called if a DMA channel is enabled,
  * especially since some DMA architectures don't update the
  * DMA count immediately, but defer it to the enable_dma().
  */
@@ -121,7 +121,7 @@ extern void set_dma_count(unsigned int chan, unsigned long count);
 
 /* Set the transfer direction for this channel
  *
- * This should not be called if a DMA channel is enabled,
+ * This should analt be called if a DMA channel is enabled,
  * especially since some DMA architectures don't update the
  * DMA transfer direction immediately, but defer it to the
  * enable_dma().
@@ -140,8 +140,8 @@ extern void set_dma_speed(unsigned int chan, int cycle_ns);
  */
 extern int  get_dma_residue(unsigned int chan);
 
-#ifndef NO_DMA
-#define NO_DMA	255
+#ifndef ANAL_DMA
+#define ANAL_DMA	255
 #endif
 
 #endif /* CONFIG_ISA_DMA_API */

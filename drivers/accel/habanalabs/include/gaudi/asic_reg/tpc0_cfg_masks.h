@@ -7,7 +7,7 @@
 
 /************************************
  ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
+ **       DO ANALT EDIT BELOW        **
  ************************************/
 
 #ifndef ASIC_REG_TPC0_CFG_MASKS_H_
@@ -1177,9 +1177,9 @@
 #define TPC0_CFG_SFLAGS_V_SHIFT                                      0
 #define TPC0_CFG_SFLAGS_V_MASK                                       0xF
 
-/* TPC0_CFG_LFSR_POLYNOM */
-#define TPC0_CFG_LFSR_POLYNOM_V_SHIFT                                0
-#define TPC0_CFG_LFSR_POLYNOM_V_MASK                                 0xFFFFFFFF
+/* TPC0_CFG_LFSR_POLYANALM */
+#define TPC0_CFG_LFSR_POLYANALM_V_SHIFT                                0
+#define TPC0_CFG_LFSR_POLYANALM_V_MASK                                 0xFFFFFFFF
 
 /* TPC0_CFG_STATUS */
 #define TPC0_CFG_STATUS_SCALAR_PIPE_EMPTY_SHIFT                      1

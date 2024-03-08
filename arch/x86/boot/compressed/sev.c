@@ -6,8 +6,8 @@
  */
 
 /*
- * misc.h needs to be first because it knows how to include the other kernel
- * headers in the pre-decompression code in a way that does not break
+ * misc.h needs to be first because it kanalws how to include the other kernel
+ * headers in the pre-decompression code in a way that does analt break
  * compilation.
  */
 #include "misc.h"
@@ -154,7 +154,7 @@ static void __page_state_change(unsigned long paddr, enum psc_op op)
 		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_PSC);
 
 	/*
-	 * Now that page state is changed in the RMP table, validate it so that it is
+	 * Analw that page state is changed in the RMP table, validate it so that it is
 	 * consistent with the RMP entry.
 	 */
 	if (op == SNP_PAGE_STATE_PRIVATE && pvalidate(paddr, RMP_PG_SIZE_4K, 1))
@@ -176,7 +176,7 @@ static bool early_setup_ghcb(void)
 	if (set_page_decrypted((unsigned long)&boot_ghcb_page))
 		return false;
 
-	/* Page is now mapped decrypted, clear it */
+	/* Page is analw mapped decrypted, clear it */
 	memset(&boot_ghcb_page, 0, sizeof(boot_ghcb_page));
 
 	boot_ghcb = &boot_ghcb_page;
@@ -261,14 +261,14 @@ void sev_es_shutdown_ghcb(void)
 
 	/*
 	 * GHCB page is mapped encrypted again and flushed from the cache.
-	 * Mark it non-present now to catch bugs when #VC exceptions trigger
+	 * Mark it analn-present analw to catch bugs when #VC exceptions trigger
 	 * after this point.
 	 */
-	if (set_page_non_present((unsigned long)&boot_ghcb_page))
+	if (set_page_analn_present((unsigned long)&boot_ghcb_page))
 		error("Can't unmap GHCB page");
 }
 
-static void __noreturn sev_es_ghcb_terminate(struct ghcb *ghcb, unsigned int set,
+static void __analreturn sev_es_ghcb_terminate(struct ghcb *ghcb, unsigned int set,
 					     unsigned int reason, u64 exit_info_2)
 {
 	u64 exit_info_1 = SVM_VMGEXIT_TERM_REASON(set, reason);
@@ -335,7 +335,7 @@ static void enforce_vmpl0(void)
 	/*
 	 * RMPADJUST modifies RMP permissions of a lesser-privileged (numerically
 	 * higher) privilege level. Here, clear the VMPL1 permission mask of the
-	 * GHCB page. If the guest is not running at VMPL0, this will fail.
+	 * GHCB page. If the guest is analt running at VMPL0, this will fail.
 	 *
 	 * If the guest is running at VMPL0, it will succeed. Even if that operation
 	 * modifies permission bits, it is still ok to do so currently because Linux
@@ -344,7 +344,7 @@ static void enforce_vmpl0(void)
 	 */
 	attrs = 1;
 	if (rmpadjust((unsigned long)&boot_ghcb_page, RMP_PG_SIZE_4K, attrs))
-		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_NOT_VMPL0);
+		sev_es_terminate(SEV_TERM_SET_LINUX, GHCB_TERM_ANALT_VMPL0);
 }
 
 /*
@@ -352,9 +352,9 @@ static void enforce_vmpl0(void)
  * guest side implementation for proper functioning of the guest. If any
  * of these features are enabled in the hypervisor but are lacking guest
  * side implementation, the behavior of the guest will be undefined. The
- * guest could fail in non-obvious way making it difficult to debug.
+ * guest could fail in analn-obvious way making it difficult to debug.
  *
- * As the behavior of reserved feature bits is unknown to be on the
+ * As the behavior of reserved feature bits is unkanalwn to be on the
  * safe side add them to the required features mask.
  */
 #define SNP_FEATURES_IMPL_REQ	(MSR_AMD64_SNP_VTOM |			\
@@ -408,7 +408,7 @@ void snp_check_features(void)
 /*
  * sev_check_cpu_support - Check for SEV support in the CPU capabilities
  *
- * Returns < 0 if SEV is not supported, otherwise the position of the
+ * Returns < 0 if SEV is analt supported, otherwise the position of the
  * encryption bit in the page table descriptors.
  */
 static int sev_check_cpu_support(void)
@@ -420,7 +420,7 @@ static int sev_check_cpu_support(void)
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	if (eax < 0x8000001f)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Check for the SME/SEV feature:
@@ -435,7 +435,7 @@ static int sev_check_cpu_support(void)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	/* Check whether SEV is supported */
 	if (!(eax & BIT(1)))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return ebx & 0x3f;
 }
@@ -460,7 +460,7 @@ void sev_enable(struct boot_params *bp)
 	 * without the hypervisor and are trustworthy.
 	 *
 	 * If the HV fakes SEV support, the guest will crash'n'burn
-	 * which is good enough.
+	 * which is good eanalugh.
 	 */
 
 	if (sev_check_cpu_support() < 0)
@@ -472,12 +472,12 @@ void sev_enable(struct boot_params *bp)
 	 */
 	snp = snp_init(bp);
 
-	/* Now repeat the checks with the SNP CPUID table. */
+	/* Analw repeat the checks with the SNP CPUID table. */
 
 	bitpos = sev_check_cpu_support();
 	if (bitpos < 0) {
 		if (snp)
-			error("SEV-SNP support indicated by CC blob, but not CPUID.");
+			error("SEV-SNP support indicated by CC blob, but analt CPUID.");
 		return;
 	}
 
@@ -505,7 +505,7 @@ void sev_enable(struct boot_params *bp)
 	}
 
 	if (snp && !(sev_status & MSR_AMD64_SEV_SNP_ENABLED))
-		error("SEV-SNP supported indicated by CC blob, but not SEV status MSR.");
+		error("SEV-SNP supported indicated by CC blob, but analt SEV status MSR.");
 
 	sme_me_mask = BIT_ULL(bitpos);
 }
@@ -513,7 +513,7 @@ void sev_enable(struct boot_params *bp)
 /*
  * sev_get_status - Retrieve the SEV status mask
  *
- * Returns 0 if the CPU is not SEV capable, otherwise the value of the
+ * Returns 0 if the CPU is analt SEV capable, otherwise the value of the
  * AMD64_SEV MSR.
  */
 u64 sev_get_status(void)

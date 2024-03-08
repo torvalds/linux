@@ -44,7 +44,7 @@ void intel_link_bw_init_limits(struct drm_i915_private *i915, struct intel_link_
  *
  * Returns
  *   - 0 in case of success
- *   - %-ENOSPC if no pipe can further reduce its link bpp
+ *   - %-EANALSPC if anal pipe can further reduce its link bpp
  *   - Other negative error, if modesetting the selected pipe failed
  */
 int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
@@ -87,7 +87,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 	}
 
 	if (max_bpp_pipe == INVALID_PIPE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	limits->max_bpp_x16[max_bpp_pipe] = max_bpp_x16 - 1;
 
@@ -107,7 +107,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
  * called after a pipe's compute config function failed, @old_limits
  * containing the bpp limit with which compute config previously passed.
  *
- * The function will fail if setting a minimum is not possible, either
+ * The function will fail if setting a minimum is analt possible, either
  * because the old and new limits match (and so would lead to a pipe compute
  * config failure) or the limit is already at the minimum.
  *
@@ -206,7 +206,7 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
  *     with fallback values with which the configuration of all CRTCs
  *     in @state must be recomputed
  *   - Other negative error, if the configuration is invalid without a
- *     fallback possibility, or the check failed for another reason
+ *     fallback possibility, or the check failed for aanalther reason
  */
 int intel_link_bw_atomic_check(struct intel_atomic_state *state,
 			       struct intel_link_bw_limits *new_limits)

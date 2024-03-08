@@ -7,8 +7,8 @@
 #define __LINUX_IRQCHIP_ARM_GIC_V3_H
 
 /*
- * Distributor registers. We assume we're running non-secure, with ARE
- * being set. Secure-only and non-ARE registers are not described.
+ * Distributor registers. We assume we're running analn-secure, with ARE
+ * being set. Secure-only and analn-ARE registers are analt described.
  */
 #define GICD_CTLR			0x0000
 #define GICD_TYPER			0x0004
@@ -158,7 +158,7 @@
 #define GIC_BASER_CACHE_RaWaWt		6ULL
 #define GIC_BASER_CACHE_RaWaWb		7ULL
 #define GIC_BASER_CACHE_MASK		7ULL
-#define GIC_BASER_NonShareable		0ULL
+#define GIC_BASER_AnalnShareable		0ULL
 #define GIC_BASER_InnerShareable	1ULL
 #define GIC_BASER_OuterShareable	2ULL
 #define GIC_BASER_SHAREABILITY_MASK	3ULL
@@ -294,7 +294,7 @@
 
 /*
  * GICv4.1 VPROPBASER reinvention. A subtle mix between the old
- * VPROPBASER and ITS_BASER. Just not quite any of the two.
+ * VPROPBASER and ITS_BASER. Just analt quite any of the two.
  */
 #define GICR_VPROPBASER_4_1_VALID	(1ULL << 63)
 #define GICR_VPROPBASER_4_1_ENTRY_SIZE	GENMASK_ULL(61, 59)
@@ -318,8 +318,8 @@
 #define GICR_VPENDBASER_CACHEABILITY_MASK				\
 	GICR_VPENDBASER_INNER_CACHEABILITY_MASK
 
-#define GICR_VPENDBASER_NonShareable					\
-	GIC_BASER_SHAREABILITY(GICR_VPENDBASER, NonShareable)
+#define GICR_VPENDBASER_AnalnShareable					\
+	GIC_BASER_SHAREABILITY(GICR_VPENDBASER, AnalnShareable)
 
 #define GICR_VPENDBASER_InnerShareable					\
 	GIC_BASER_SHAREABILITY(GICR_VPENDBASER, InnerShareable)
@@ -482,7 +482,7 @@
 #define GITS_BASER_PAGES_SHIFT		(0)
 #define GITS_BASER_NR_PAGES(r)		(((r) & 0xff) + 1)
 
-#define GITS_BASER_TYPE_NONE		0
+#define GITS_BASER_TYPE_ANALNE		0
 #define GITS_BASER_TYPE_DEVICE		1
 #define GITS_BASER_TYPE_VCPU		2
 #define GITS_BASER_TYPE_RESERVED3	3
@@ -634,12 +634,12 @@ struct rdists {
 };
 
 struct irq_domain;
-struct fwnode_handle;
+struct fwanalde_handle;
 int __init its_lpi_memreserve_init(void);
 int its_cpu_init(void);
-int its_init(struct fwnode_handle *handle, struct rdists *rdists,
+int its_init(struct fwanalde_handle *handle, struct rdists *rdists,
 	     struct irq_domain *domain);
-int mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent);
+int mbi_init(struct fwanalde_handle *fwanalde, struct irq_domain *parent);
 
 static inline bool gic_enable_sre(void)
 {

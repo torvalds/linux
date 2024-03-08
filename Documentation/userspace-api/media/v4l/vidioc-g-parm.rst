@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: V4L
 
 .. _VIDIOC_G_PARM:
@@ -12,7 +12,7 @@ Name
 
 VIDIOC_G_PARM - VIDIOC_S_PARM - Get or set streaming parameters
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: VIDIOC_G_PARM
@@ -120,7 +120,7 @@ union holding separate parameters for input and output devices.
 	the actual frame period.
 
 	Changing the video standard (also implicitly by switching
-	the video input) may reset this parameter to the nominal frame
+	the video input) may reset this parameter to the analminal frame
 	period. To reset manually applications can just set this field to
 	zero.
 
@@ -180,7 +180,7 @@ union holding separate parameters for input and output devices.
 	the actual frame period.
 
 	Changing the video standard (also implicitly by switching
-	the video output) may reset this parameter to the nominal frame
+	the video output) may reset this parameter to the analminal frame
 	period. To reset manually applications can just set this field to
 	zero.
 
@@ -234,7 +234,7 @@ union holding separate parameters for input and output devices.
       - 0x0001
       - High quality imaging mode. High quality mode is intended for still
 	imaging applications. The idea is to get the best possible image
-	quality that the hardware can deliver. It is not defined how the
+	quality that the hardware can deliver. It is analt defined how the
 	driver writer may achieve that; it will depend on the hardware and
 	the ingenuity of the driver writer. High quality mode is a
 	different mode from the regular motion video capture modes. In
@@ -248,7 +248,7 @@ union holding separate parameters for input and output devices.
 
 	-  The driver may capture and arithmetically combine multiple
 	   successive fields or frames to remove color edge artifacts and
-	   reduce the noise in the video data.
+	   reduce the analise in the video data.
 
 	-  The driver may capture images in slices like a scanner in order
 	   to handle larger format images than would otherwise be
@@ -264,6 +264,6 @@ union holding separate parameters for input and output devices.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

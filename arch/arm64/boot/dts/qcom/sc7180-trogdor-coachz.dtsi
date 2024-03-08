@@ -8,12 +8,12 @@
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
-/* Deleted nodes from sc7180-trogdor.dtsi */
+/* Deleted analdes from sc7180-trogdor.dtsi */
 
-/delete-node/ &pp3300_codec;
+/delete-analde/ &pp3300_codec;
 
 / {
-	/* BOARD-SPECIFIC TOP LEVEL NODES */
+	/* BOARD-SPECIFIC TOP LEVEL ANALDES */
 
 	adau7002: audio-codec-1 {
 		compatible = "adi,adau7002";
@@ -53,14 +53,14 @@
 			cooling-maps {
 				map0 {
 					trip = <&skin_temp_alert0>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 
 				map1 {
 					trip = <&skin_temp_alert1>;
-					cooling-device = <&CPU6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&CPU7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&CPU6 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&CPU7 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

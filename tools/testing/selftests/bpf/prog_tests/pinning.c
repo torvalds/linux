@@ -20,7 +20,7 @@ __u32 get_map_id(struct bpf_object *obj, const char *name)
 
 	err = bpf_map_get_info_by_fd(bpf_map__fd(map),
 				     &map_info, &map_info_len);
-	CHECK(err, "get map info", "err %d errno %d", err, errno);
+	CHECK(err, "get map info", "err %d erranal %d", err, erranal);
 	return map_info.id;
 }
 
@@ -28,8 +28,8 @@ void test_pinning(void)
 {
 	const char *file_invalid = "./test_pinning_invalid.bpf.o";
 	const char *custpinpath = "/sys/fs/bpf/custom/pinmap";
-	const char *nopinpath = "/sys/fs/bpf/nopinmap";
-	const char *nopinpath2 = "/sys/fs/bpf/nopinmap2";
+	const char *analpinpath = "/sys/fs/bpf/analpinmap";
+	const char *analpinpath2 = "/sys/fs/bpf/analpinmap2";
 	const char *custpath = "/sys/fs/bpf/custom";
 	const char *pinpath = "/sys/fs/bpf/pinmap";
 	const char *file = "./test_pinning.bpf.o";
@@ -45,7 +45,7 @@ void test_pinning(void)
 	/* check that opening fails with invalid pinning value in map def */
 	obj = bpf_object__open_file(file_invalid, NULL);
 	err = libbpf_get_error(obj);
-	if (CHECK(err != -EINVAL, "invalid open", "err %d errno %d\n", err, errno)) {
+	if (CHECK(err != -EINVAL, "invalid open", "err %d erranal %d\n", err, erranal)) {
 		obj = NULL;
 		goto out;
 	}
@@ -53,30 +53,30 @@ void test_pinning(void)
 	/* open the valid object file  */
 	obj = bpf_object__open_file(file, NULL);
 	err = libbpf_get_error(obj);
-	if (CHECK(err, "default open", "err %d errno %d\n", err, errno)) {
+	if (CHECK(err, "default open", "err %d erranal %d\n", err, erranal)) {
 		obj = NULL;
 		goto out;
 	}
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "default load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "default load", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* check that pinmap was pinned */
 	err = stat(pinpath, &statbuf);
-	if (CHECK(err, "stat pinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat pinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
-	/* check that nopinmap was *not* pinned */
-	err = stat(nopinpath, &statbuf);
-	if (CHECK(!err || errno != ENOENT, "stat nopinpath",
-		  "err %d errno %d\n", err, errno))
+	/* check that analpinmap was *analt* pinned */
+	err = stat(analpinpath, &statbuf);
+	if (CHECK(!err || erranal != EANALENT, "stat analpinpath",
+		  "err %d erranal %d\n", err, erranal))
 		goto out;
 
-	/* check that nopinmap2 was *not* pinned */
-	err = stat(nopinpath2, &statbuf);
-	if (CHECK(!err || errno != ENOENT, "stat nopinpath2",
-		  "err %d errno %d\n", err, errno))
+	/* check that analpinmap2 was *analt* pinned */
+	err = stat(analpinpath2, &statbuf);
+	if (CHECK(!err || erranal != EANALENT, "stat analpinpath2",
+		  "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	map_id = get_map_id(obj, "pinmap");
@@ -92,37 +92,37 @@ void test_pinning(void)
 	}
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "default load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "default load", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* check that same map ID was reused for second load */
 	map_id2 = get_map_id(obj, "pinmap");
 	if (CHECK(map_id != map_id2, "check reuse",
-		  "err %d errno %d id %d id2 %d\n", err, errno, map_id, map_id2))
+		  "err %d erranal %d id %d id2 %d\n", err, erranal, map_id, map_id2))
 		goto out;
 
-	/* should be no-op to re-pin same map */
+	/* should be anal-op to re-pin same map */
 	map = bpf_object__find_map_by_name(obj, "pinmap");
 	if (CHECK(!map, "find map", "NULL map"))
 		goto out;
 
 	err = bpf_map__pin(map, NULL);
-	if (CHECK(err, "re-pin map", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "re-pin map", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* but error to pin at different location */
 	err = bpf_map__pin(map, "/sys/fs/bpf/other");
-	if (CHECK(!err, "pin map different", "err %d errno %d\n", err, errno))
+	if (CHECK(!err, "pin map different", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* unpin maps with a pin_path set */
 	err = bpf_object__unpin_maps(obj, NULL);
-	if (CHECK(err, "unpin maps", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "unpin maps", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* and re-pin them... */
 	err = bpf_object__pin_maps(obj, NULL);
-	if (CHECK(err, "pin maps", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "pin maps", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* get pinning path */
@@ -130,12 +130,12 @@ void test_pinning(void)
 		goto out;
 
 	/* set pinning path of other map and re-pin all */
-	map = bpf_object__find_map_by_name(obj, "nopinmap");
+	map = bpf_object__find_map_by_name(obj, "analpinmap");
 	if (CHECK(!map, "find map", "NULL map"))
 		goto out;
 
 	err = bpf_map__set_pin_path(map, custpinpath);
-	if (CHECK(err, "set pin path", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "set pin path", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* get pinning path after set */
@@ -145,21 +145,21 @@ void test_pinning(void)
 
 	/* should only pin the one unpinned map */
 	err = bpf_object__pin_maps(obj, NULL);
-	if (CHECK(err, "pin maps", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "pin maps", "err %d erranal %d\n", err, erranal))
 		goto out;
 
-	/* check that nopinmap was pinned at the custom path */
+	/* check that analpinmap was pinned at the custom path */
 	err = stat(custpinpath, &statbuf);
-	if (CHECK(err, "stat custpinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat custpinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* remove the custom pin path to re-test it with auto-pinning below */
 	err = unlink(custpinpath);
-	if (CHECK(err, "unlink custpinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "unlink custpinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	err = rmdir(custpath);
-	if (CHECK(err, "rmdir custpindir", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "rmdir custpindir", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	bpf_object__close(obj);
@@ -167,41 +167,41 @@ void test_pinning(void)
 	/* open the valid object file again */
 	obj = bpf_object__open_file(file, NULL);
 	err = libbpf_get_error(obj);
-	if (CHECK(err, "default open", "err %d errno %d\n", err, errno)) {
+	if (CHECK(err, "default open", "err %d erranal %d\n", err, erranal)) {
 		obj = NULL;
 		goto out;
 	}
 
-	/* set pin paths so that nopinmap2 will attempt to reuse the map at
-	 * pinpath (which will fail), but not before pinmap has already been
+	/* set pin paths so that analpinmap2 will attempt to reuse the map at
+	 * pinpath (which will fail), but analt before pinmap has already been
 	 * reused
 	 */
 	bpf_object__for_each_map(map, obj) {
-		if (!strcmp(bpf_map__name(map), "nopinmap"))
-			err = bpf_map__set_pin_path(map, nopinpath2);
-		else if (!strcmp(bpf_map__name(map), "nopinmap2"))
+		if (!strcmp(bpf_map__name(map), "analpinmap"))
+			err = bpf_map__set_pin_path(map, analpinpath2);
+		else if (!strcmp(bpf_map__name(map), "analpinmap2"))
 			err = bpf_map__set_pin_path(map, pinpath);
 		else
 			continue;
 
-		if (CHECK(err, "set pin path", "err %d errno %d\n", err, errno))
+		if (CHECK(err, "set pin path", "err %d erranal %d\n", err, erranal))
 			goto out;
 	}
 
 	/* should fail because of map parameter mismatch */
 	err = bpf_object__load(obj);
-	if (CHECK(err != -EINVAL, "param mismatch load", "err %d errno %d\n", err, errno))
+	if (CHECK(err != -EINVAL, "param mismatch load", "err %d erranal %d\n", err, erranal))
 		goto out;
 
-	/* nopinmap2 should have been pinned and cleaned up again */
-	err = stat(nopinpath2, &statbuf);
-	if (CHECK(!err || errno != ENOENT, "stat nopinpath2",
-		  "err %d errno %d\n", err, errno))
+	/* analpinmap2 should have been pinned and cleaned up again */
+	err = stat(analpinpath2, &statbuf);
+	if (CHECK(!err || erranal != EANALENT, "stat analpinpath2",
+		  "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* pinmap should still be there */
 	err = stat(pinpath, &statbuf);
-	if (CHECK(err, "stat pinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat pinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	bpf_object__close(obj);
@@ -214,21 +214,21 @@ void test_pinning(void)
 	}
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "custom load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "custom load", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* check that pinmap was pinned at the custom path */
 	err = stat(custpinpath, &statbuf);
-	if (CHECK(err, "stat custpinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat custpinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	/* remove the custom pin path to re-test it with reuse fd below */
 	err = unlink(custpinpath);
-	if (CHECK(err, "unlink custpinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "unlink custpinpath", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	err = rmdir(custpath);
-	if (CHECK(err, "rmdir custpindir", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "rmdir custpindir", "err %d erranal %d\n", err, erranal))
 		goto out;
 
 	bpf_object__close(obj);
@@ -236,7 +236,7 @@ void test_pinning(void)
 	/* test pinning at custom path with reuse fd */
 	obj = bpf_object__open_file(file, NULL);
 	err = libbpf_get_error(obj);
-	if (CHECK(err, "default open", "err %d errno %d\n", err, errno)) {
+	if (CHECK(err, "default open", "err %d erranal %d\n", err, erranal)) {
 		obj = NULL;
 		goto out;
 	}
@@ -251,28 +251,28 @@ void test_pinning(void)
 		goto close_map_fd;
 
 	err = bpf_map__reuse_fd(map, map_fd);
-	if (CHECK(err, "reuse pinmap fd", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "reuse pinmap fd", "err %d erranal %d\n", err, erranal))
 		goto close_map_fd;
 
 	err = bpf_map__set_pin_path(map, custpinpath);
-	if (CHECK(err, "set pin path", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "set pin path", "err %d erranal %d\n", err, erranal))
 		goto close_map_fd;
 
 	err = bpf_object__load(obj);
-	if (CHECK(err, "custom load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "custom load", "err %d erranal %d\n", err, erranal))
 		goto close_map_fd;
 
 	/* check that pinmap was pinned at the custom path */
 	err = stat(custpinpath, &statbuf);
-	if (CHECK(err, "stat custpinpath", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat custpinpath", "err %d erranal %d\n", err, erranal))
 		goto close_map_fd;
 
 close_map_fd:
 	close(map_fd);
 out:
 	unlink(pinpath);
-	unlink(nopinpath);
-	unlink(nopinpath2);
+	unlink(analpinpath);
+	unlink(analpinpath2);
 	unlink(custpinpath);
 	rmdir(custpath);
 	if (obj)

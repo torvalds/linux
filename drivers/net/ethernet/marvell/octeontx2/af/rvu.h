@@ -31,7 +31,7 @@
 #define PCI_SUBSYS_DEVID_CNF10K_B              0xBC00
 #define PCI_SUBSYS_DEVID_CN10K_B               0xBD00
 
-/* PCI BAR nos */
+/* PCI BAR anals */
 #define	PCI_AF_REG_BAR_NUM			0
 #define	PCI_PF_REG_BAR_NUM			2
 #define	PCI_MBOX_BAR_NUM			4
@@ -160,7 +160,7 @@ struct npc_layer_mdata {
  * generated key. A key field may present anywhere and can
  * be of any size in the generated key. Once this structure
  * is populated for fields of interest then field's presence
- * and location (if present) can be known.
+ * and location (if present) can be kanalwn.
  */
 struct npc_key_field {
 	/* Masks where all set bits indicate position
@@ -276,7 +276,7 @@ struct rvu_pfvf {
 	u64     lmt_base_addr; /* Preseving the pcifunc's lmtst base addr*/
 	u64     lmt_map_ent_w1; /* Preseving the word1 of lmtst map table entry*/
 	unsigned long flags;
-	struct  sdp_node_info *sdp_info;
+	struct  sdp_analde_info *sdp_info;
 };
 
 enum rvu_pfvf_flags {
@@ -404,11 +404,11 @@ struct rvu_hwinfo {
 	u8	lbk_links;
 	u8	sdp_links;
 	u8	cpt_links;	/* Number of CPT links */
-	u8	npc_kpus;          /* No of parser units */
-	u8	npc_pkinds;        /* No of port kinds */
-	u8	npc_intfs;         /* No of interfaces */
-	u8	npc_kpu_entries;   /* No of KPU entries */
-	u16	npc_counters;	   /* No of match stats counters */
+	u8	npc_kpus;          /* Anal of parser units */
+	u8	npc_pkinds;        /* Anal of port kinds */
+	u8	npc_intfs;         /* Anal of interfaces */
+	u8	npc_kpu_entries;   /* Anal of KPU entries */
+	u16	npc_counters;	   /* Anal of match stats counters */
 	u32	lbk_bufsize;	   /* FIFO size supported by LBK */
 	bool	npc_ext_set;	   /* Extended register set */
 	u64     npc_stat_ena;      /* Match stats enable bit */
@@ -461,7 +461,7 @@ struct rvu_fwdata {
 		struct cgx_lmac_fwdata_s
 			cgx_fw_data_usx[CGX_MAX][CGX_LMACS_USX];
 	};
-	/* Do not add new fields below this line */
+	/* Do analt add new fields below this line */
 };
 
 struct ptp;
@@ -530,7 +530,7 @@ struct rvu {
 	u64			*cgxlmac2pf_map; /* bitmap of mapped pfs for
 						  * every cgx lmac port
 						  */
-	unsigned long		pf_notify_bmap; /* Flags for PF notification */
+	unsigned long		pf_analtify_bmap; /* Flags for PF analtification */
 	void			**cgx_idmap; /* cgx id to cgx data map table */
 	struct			work_struct cgx_evh_work;
 	struct			workqueue_struct *cgx_evh_wq;
@@ -635,7 +635,7 @@ static inline bool is_rvu_95xx_A0(struct rvu *rvu)
 }
 
 /* REVID for PCIe devices.
- * Bits 0..1: minor pass, bit 3..2: major pass
+ * Bits 0..1: mianalr pass, bit 3..2: major pass
  * bits 7..4: midr id
  */
 #define PCI_REVISION_ID_96XX		0x00

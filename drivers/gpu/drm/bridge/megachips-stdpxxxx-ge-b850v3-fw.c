@@ -11,7 +11,7 @@
  * display bridge of the GE B850v3. There are two physical bridges on the video
  * signal pipeline: a STDP4028(LVDS to DP) and a STDP2690(DP to DP++). The
  * physical bridges are automatically configured by the input video signal, and
- * the driver has no access to the video processing pipeline. The driver is
+ * the driver has anal access to the video processing pipeline. The driver is
  * only needed to read EDID from the STDP2690 and to handle HPD events from the
  * STDP4028. The driver communicates with both bridges over i2c. The video
  * signal pipeline is as follows:
@@ -142,7 +142,7 @@ static enum drm_connector_status ge_b850v3_lvds_bridge_detect(struct drm_bridge 
 	if (link_state == 0)
 		return connector_status_disconnected;
 
-	return connector_status_unknown;
+	return connector_status_unkanalwn;
 }
 
 static enum drm_connector_status ge_b850v3_lvds_detect(struct drm_connector *connector,
@@ -166,8 +166,8 @@ static int ge_b850v3_lvds_create_connector(struct drm_bridge *bridge)
 	int ret;
 
 	if (!bridge->encoder) {
-		DRM_ERROR("Parent encoder object not found");
-		return -ENODEV;
+		DRM_ERROR("Parent encoder object analt found");
+		return -EANALDEV;
 	}
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -217,7 +217,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 				  STDP4028_DPTX_IRQ_EN_REG,
 				  STDP4028_DPTX_IRQ_CONFIG);
 
-	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+	if (flags & DRM_BRIDGE_ATTACH_ANAL_CONNECTOR)
 		return 0;
 
 	return ge_b850v3_lvds_create_connector(bridge);
@@ -242,7 +242,7 @@ static int ge_b850v3_lvds_init(struct device *dev)
 
 	if (!ge_b850v3_lvds_ptr) {
 		mutex_unlock(&ge_b850v3_lvds_dev_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 success:
@@ -279,7 +279,7 @@ static int ge_b850v3_register(void)
 	ge_b850v3_lvds_ptr->bridge.ops = DRM_BRIDGE_OP_DETECT |
 					 DRM_BRIDGE_OP_EDID;
 	ge_b850v3_lvds_ptr->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
-	ge_b850v3_lvds_ptr->bridge.of_node = dev->of_node;
+	ge_b850v3_lvds_ptr->bridge.of_analde = dev->of_analde;
 	drm_bridge_add(&ge_b850v3_lvds_ptr->bridge);
 
 	/* Clear pending interrupts since power up. */

@@ -6,7 +6,7 @@
  */
 
 #include <linux/sys.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/suspend.h>
@@ -28,7 +28,7 @@ ENTRY(migor_sdram_enter_start)
 	mov.l	r2, @r4
 
 	rts
-	 nop
+	 analp
 
 	.balign 4
 1:	.long	0xfe400008 /* SDCR0 */
@@ -55,7 +55,7 @@ ENTRY(migor_sdram_leave_start)
 	mov.l	r0, @r1
 
 	rts
-	 nop
+	 analp
 
 	.balign 4
 1:	.long	0xfe400008 /* SDCR0 */

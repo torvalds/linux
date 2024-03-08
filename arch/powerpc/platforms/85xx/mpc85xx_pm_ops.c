@@ -90,15 +90,15 @@ static const struct fsl_pm_ops mpc85xx_pm_ops = {
 
 int __init mpc85xx_setup_pmc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, mpc85xx_smp_guts_ids);
+	np = of_find_matching_analde(NULL, mpc85xx_smp_guts_ids);
 	if (np) {
 		guts = of_iomap(np, 0);
-		of_node_put(np);
+		of_analde_put(np);
 		if (!guts) {
-			pr_err("Could not map guts node address\n");
-			return -ENOMEM;
+			pr_err("Could analt map guts analde address\n");
+			return -EANALMEM;
 		}
 		qoriq_pm_ops = &mpc85xx_pm_ops;
 	}

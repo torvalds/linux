@@ -10,7 +10,7 @@
  * - Base prescale of (2 << 25), providing tick duration T_0: 168ms @ 200MHz
  * - PRESCALE: logarithmic prescaler adding a factor of {1, 2, 4, 8}
  * - Phase 1: Times out after (PHASE1 + 1) × PRESCALE × T_0
- *   Generates an interrupt, WDT cannot be stopped after phase 1
+ *   Generates an interrupt, WDT cananalt be stopped after phase 1
  * - Phase 2: starts after phase 1, times out after (PHASE2 + 1) × PRESCALE × T_0
  *   Resets the system according to RST_MODE
  */
@@ -212,7 +212,7 @@ static irqreturn_t otto_wdt_phase1_isr(int irq, void *dev_id)
 
 	iowrite32(OTTO_WDT_INTR_PHASE_1, ctrl->base + OTTO_WDT_REG_INTR);
 	dev_crit(ctrl->dev, "phase 1 timeout\n");
-	watchdog_notify_pretimeout(&ctrl->wdev);
+	watchdog_analtify_pretimeout(&ctrl->wdev);
 
 	return IRQ_HANDLED;
 }
@@ -253,15 +253,15 @@ static int otto_wdt_probe_clk(struct otto_wdt_ctrl *ctrl)
 static int otto_wdt_probe_reset_mode(struct otto_wdt_ctrl *ctrl)
 {
 	static const char *mode_property = "realtek,reset-mode";
-	const struct fwnode_handle *node = ctrl->dev->fwnode;
+	const struct fwanalde_handle *analde = ctrl->dev->fwanalde;
 	int mode_count;
 	u32 mode;
 	u32 v;
 
-	if (!node)
+	if (!analde)
 		return -ENXIO;
 
-	mode_count = fwnode_property_string_array_count(node, mode_property);
+	mode_count = fwanalde_property_string_array_count(analde, mode_property);
 	if (mode_count < 0)
 		return mode_count;
 	else if (mode_count == 0)
@@ -269,11 +269,11 @@ static int otto_wdt_probe_reset_mode(struct otto_wdt_ctrl *ctrl)
 	else if (mode_count != 1)
 		return -EINVAL;
 
-	if (fwnode_property_match_string(node, mode_property, "soc") == 0)
+	if (fwanalde_property_match_string(analde, mode_property, "soc") == 0)
 		mode = OTTO_WDT_MODE_SOC;
-	else if (fwnode_property_match_string(node, mode_property, "cpu") == 0)
+	else if (fwanalde_property_match_string(analde, mode_property, "cpu") == 0)
 		mode = OTTO_WDT_MODE_CPU;
-	else if (fwnode_property_match_string(node, mode_property, "software") == 0)
+	else if (fwanalde_property_match_string(analde, mode_property, "software") == 0)
 		mode = OTTO_WDT_MODE_SOFTWARE;
 	else
 		return -EINVAL;
@@ -295,7 +295,7 @@ static int otto_wdt_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->dev = dev;
 	ctrl->base = devm_platform_ioremap_resource(pdev, 0);
@@ -329,7 +329,7 @@ static int otto_wdt_probe(struct platform_device *pdev)
 	ctrl->wdev.ops = &otto_wdt_ops;
 
 	/*
-	 * Since pretimeout cannot be disabled, min. timeout is twice the
+	 * Since pretimeout cananalt be disabled, min. timeout is twice the
 	 * subsystem resolution. Max. timeout is ca. 43s at a bus clock of 200MHz.
 	 */
 	ctrl->wdev.min_timeout = 2;

@@ -278,7 +278,7 @@ static void vdec_handle_resolution_change(struct vpu_inst *inst)
 		return;
 
 	vdec->source_change--;
-	vpu_notify_source_change(inst);
+	vpu_analtify_source_change(inst);
 	vpu_set_last_buffer_dequeued(inst, false);
 }
 
@@ -902,7 +902,7 @@ static void vdec_init_fmt(struct vpu_inst *inst)
 	f.fmt.pix_mp.width = vdec->codec_info.decoded_width;
 	f.fmt.pix_mp.height = vdec->codec_info.decoded_height;
 	if (vdec->codec_info.progressive)
-		f.fmt.pix_mp.field = V4L2_FIELD_NONE;
+		f.fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	else
 		f.fmt.pix_mp.field = V4L2_FIELD_SEQ_TB;
 	vpu_try_fmt_common(inst, &f, &inst->cap_format);
@@ -1015,7 +1015,7 @@ static int vdec_response_fs(struct vpu_inst *inst, struct vdec_fs_info *fs)
 	return 0;
 }
 
-static int vdec_response_frame_abnormal(struct vpu_inst *inst)
+static int vdec_response_frame_abanalrmal(struct vpu_inst *inst)
 {
 	struct vdec_t *vdec = inst->priv;
 	struct vpu_fs_info info;
@@ -1099,7 +1099,7 @@ static void vdec_response_fs_request(struct vpu_inst *inst, bool force)
 
 	if (force) {
 		for (i = vdec->req_frame_count; i > 0; i--)
-			vdec_response_frame_abnormal(inst);
+			vdec_response_frame_abanalrmal(inst);
 		return;
 	}
 
@@ -1322,7 +1322,7 @@ static void vdec_event_eos(struct vpu_inst *inst)
 	vpu_inst_unlock(inst);
 }
 
-static void vdec_event_notify(struct vpu_inst *inst, u32 event, void *data)
+static void vdec_event_analtify(struct vpu_inst *inst, u32 event, void *data)
 {
 	switch (event) {
 	case VPU_MSG_ID_SEQ_HDR_FOUND:
@@ -1371,12 +1371,12 @@ static int vdec_process_output(struct vpu_inst *inst, struct vb2_buffer *vb)
 
 	free_space = vpu_helper_get_free_space(inst);
 	if (free_space < vb2_get_plane_payload(vb, 0) + 0x40000)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_INUSE);
 	ret = vpu_iface_input_frame(inst, vb);
 	if (ret < 0)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev_dbg(inst->dev, "[%d][INPUT  TS]%32lld\n", inst->id, vb->timestamp);
 	vdec->params.frame_count++;
@@ -1653,7 +1653,7 @@ static int vdec_get_debug_info(struct vpu_inst *inst, char *str, u32 size, u32 i
 	case 8:
 		num = scnprintf(str, size, "fps = %d/%d\n",
 				vdec->codec_info.frame_rate.numerator,
-				vdec->codec_info.frame_rate.denominator);
+				vdec->codec_info.frame_rate.deanalminator);
 		break;
 	case 9:
 		num = scnprintf(str, size, "colorspace: %d, %d, %d, %d (%d)\n",
@@ -1676,7 +1676,7 @@ static struct vpu_inst_ops vdec_inst_ops = {
 	.buf_done = vdec_buf_done,
 	.get_one_frame = vdec_frame_decoded,
 	.stop_done = vdec_stop_done,
-	.event_notify = vdec_event_notify,
+	.event_analtify = vdec_event_analtify,
 	.release = vdec_release,
 	.cleanup = vdec_cleanup,
 	.start = vdec_start_session,
@@ -1699,7 +1699,7 @@ static void vdec_init(struct file *file)
 	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_H264;
 	f.fmt.pix_mp.width = 1280;
 	f.fmt.pix_mp.height = 720;
-	f.fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f.fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	vdec_s_fmt(file, &inst->fh, &f);
 
 	memset(&f, 0, sizeof(f));
@@ -1707,7 +1707,7 @@ static void vdec_init(struct file *file)
 	f.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_NV12M_8L128;
 	f.fmt.pix_mp.width = 1280;
 	f.fmt.pix_mp.height = 720;
-	f.fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f.fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	vdec_s_fmt(file, &inst->fh, &f);
 }
 
@@ -1719,12 +1719,12 @@ static int vdec_open(struct file *file)
 
 	inst = vzalloc(sizeof(*inst));
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vdec = vzalloc(sizeof(*vdec));
 	if (!vdec) {
 		vfree(inst);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	inst->ops = &vdec_inst_ops;

@@ -28,7 +28,7 @@ static inline void fadump_cleanup(void) { }
 #endif /* !CONFIG_FA_DUMP */
 
 #if defined(CONFIG_FA_DUMP) || defined(CONFIG_PRESERVE_FA_DUMP)
-extern int early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
+extern int early_init_dt_scan_fw_dump(unsigned long analde, const char *uname,
 				      int depth, void *data);
 extern int fadump_reserve_mem(void);
 #endif

@@ -96,11 +96,11 @@ struct ac100_dev {
 #define AC100_ADC_DAP_L_A_T		0x8b /* Left Attack Time */
 #define AC100_ADC_DAP_R_D_T		0x8c /* Right Decay Time */
 #define AC100_ADC_DAP_R_A_T		0x8d /* Right Attack Time */
-#define AC100_ADC_DAP_N_TH		0x8e /* Noise Threshold */
-#define AC100_ADC_DAP_L_H_N_A_C		0x8f /* Left High Noise Avg. Coef */
-#define AC100_ADC_DAP_L_L_N_A_C		0x90 /* Left Low Noise Avg. Coef */
-#define AC100_ADC_DAP_R_H_N_A_C		0x91 /* Right High Noise Avg. Coef */
-#define AC100_ADC_DAP_R_L_N_A_C		0x92 /* Right Low Noise Avg. Coef */
+#define AC100_ADC_DAP_N_TH		0x8e /* Analise Threshold */
+#define AC100_ADC_DAP_L_H_N_A_C		0x8f /* Left High Analise Avg. Coef */
+#define AC100_ADC_DAP_L_L_N_A_C		0x90 /* Left Low Analise Avg. Coef */
+#define AC100_ADC_DAP_R_H_N_A_C		0x91 /* Right High Analise Avg. Coef */
+#define AC100_ADC_DAP_R_L_N_A_C		0x92 /* Right Low Analise Avg. Coef */
 #define AC100_ADC_DAP_H_HPF_C		0x93 /* High High-Pass-Filter Coef */
 #define AC100_ADC_DAP_L_HPF_C		0x94 /* Low High-Pass-Filter Coef */
 #define AC100_ADC_DAP_OPT		0x95 /* AGC Optimum */

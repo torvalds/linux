@@ -43,7 +43,7 @@
 #define SSM2518_REG_DRC_9		0x12
 
 #define SSM2518_POWER1_RESET			BIT(7)
-#define SSM2518_POWER1_NO_BCLK			BIT(5)
+#define SSM2518_POWER1_ANAL_BCLK			BIT(5)
 #define SSM2518_POWER1_MCS_MASK			(0xf << 1)
 #define SSM2518_POWER1_MCS_64FS			(0x0 << 1)
 #define SSM2518_POWER1_MCS_128FS		(0x1 << 1)
@@ -70,7 +70,7 @@
 #define SSM2518_SAI_CTRL1_SAI_TDM_4		(0x2 << 2)
 #define SSM2518_SAI_CTRL1_SAI_TDM_8		(0x3 << 2)
 #define SSM2518_SAI_CTRL1_SAI_TDM_16		(0x4 << 2)
-#define SSM2518_SAI_CTRL1_SAI_MONO		(0x5 << 2)
+#define SSM2518_SAI_CTRL1_SAI_MOANAL		(0x5 << 2)
 
 #define SSM2518_SAI_CTRL1_FS_MASK		(0x3)
 #define SSM2518_SAI_CTRL1_FS_8000_12000		(0x0)
@@ -141,7 +141,7 @@ static const struct reg_default ssm2518_reg_defaults[] = {
 static const DECLARE_TLV_DB_MINMAX_MUTE(ssm2518_vol_tlv, -7125, 2400);
 static const DECLARE_TLV_DB_SCALE(ssm2518_compressor_tlv, -3400, 200, 0);
 static const DECLARE_TLV_DB_SCALE(ssm2518_expander_tlv, -8100, 300, 0);
-static const DECLARE_TLV_DB_SCALE(ssm2518_noise_gate_tlv, -9600, 300, 0);
+static const DECLARE_TLV_DB_SCALE(ssm2518_analise_gate_tlv, -9600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(ssm2518_post_drc_tlv, -2400, 300, 0);
 
 static const DECLARE_TLV_DB_RANGE(ssm2518_limiter_tlv,
@@ -177,7 +177,7 @@ static SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
 	SSM2518_REG_DRC_6, 0, ssm2518_drc_peak_detector_release_time_text);
 static SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
 	SSM2518_REG_DRC_7, 4, ssm2518_drc_hold_time_text);
-static SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_analise_gate_hold_time_enum,
 	SSM2518_REG_DRC_7, 0, ssm2518_drc_hold_time_text);
 static SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
 	SSM2518_REG_DRC_9, 0, ssm2518_drc_peak_detector_release_time_text);
@@ -195,7 +195,7 @@ static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
 	SOC_SINGLE("DRC Limiter Switch", SSM2518_REG_DRC_1, 5, 1, 0),
 	SOC_SINGLE("DRC Compressor Switch", SSM2518_REG_DRC_1, 4, 1, 0),
 	SOC_SINGLE("DRC Expander Switch", SSM2518_REG_DRC_1, 3, 1, 0),
-	SOC_SINGLE("DRC Noise Gate Switch", SSM2518_REG_DRC_1, 2, 1, 0),
+	SOC_SINGLE("DRC Analise Gate Switch", SSM2518_REG_DRC_1, 2, 1, 0),
 	SOC_DOUBLE("DRC Switch", SSM2518_REG_DRC_1, 0, 1, 1, 0),
 
 	SOC_SINGLE_TLV("DRC Limiter Threshold Volume",
@@ -204,12 +204,12 @@ static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
 			SSM2518_REG_DRC_3, 0, 15, 1, ssm2518_compressor_tlv),
 	SOC_SINGLE_TLV("DRC Expander Upper Threshold Volume", SSM2518_REG_DRC_4,
 			4, 15, 1, ssm2518_expander_tlv),
-	SOC_SINGLE_TLV("DRC Noise Gate Threshold Volume",
-			SSM2518_REG_DRC_4, 0, 15, 1, ssm2518_noise_gate_tlv),
+	SOC_SINGLE_TLV("DRC Analise Gate Threshold Volume",
+			SSM2518_REG_DRC_4, 0, 15, 1, ssm2518_analise_gate_tlv),
 	SOC_SINGLE_TLV("DRC Upper Output Threshold Volume",
 			SSM2518_REG_DRC_5, 4, 15, 1, ssm2518_limiter_tlv),
 	SOC_SINGLE_TLV("DRC Lower Output Threshold Volume",
-			SSM2518_REG_DRC_5, 0, 15, 1, ssm2518_noise_gate_tlv),
+			SSM2518_REG_DRC_5, 0, 15, 1, ssm2518_analise_gate_tlv),
 	SOC_SINGLE_TLV("DRC Post Volume", SSM2518_REG_DRC_8,
 			2, 15, 1, ssm2518_post_drc_tlv),
 
@@ -220,8 +220,8 @@ static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
 	SOC_ENUM("DRC Attack Time", ssm2518_drc_attack_time_enum),
 	SOC_ENUM("DRC Decay Time", ssm2518_drc_decay_time_enum),
 	SOC_ENUM("DRC Hold Time", ssm2518_drc_hold_time_enum),
-	SOC_ENUM("DRC Noise Gate Hold Time",
-		ssm2518_drc_noise_gate_hold_time_enum),
+	SOC_ENUM("DRC Analise Gate Hold Time",
+		ssm2518_drc_analise_gate_hold_time_enum),
 	SOC_ENUM("DRC RMS Averaging Time", ssm2518_drc_rms_averaging_time_enum),
 };
 
@@ -571,7 +571,7 @@ static int ssm2518_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 
 	switch (slots) {
 	case 1:
-		ctrl1 = SSM2518_SAI_CTRL1_SAI_MONO;
+		ctrl1 = SSM2518_SAI_CTRL1_SAI_MOANAL;
 		break;
 	case 2:
 		ctrl1 = SSM2518_SAI_CTRL1_SAI_TDM_2;
@@ -625,7 +625,7 @@ static const struct snd_soc_dai_ops ssm2518_dai_ops = {
 	.mute_stream	= ssm2518_mute,
 	.set_fmt	= ssm2518_set_dai_fmt,
 	.set_tdm_slot	= ssm2518_set_tdm_slot,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm2518_dai = {
@@ -657,7 +657,7 @@ static int ssm2518_set_sysclk(struct snd_soc_component *component, int clk_id,
 		/* In this case the bitclock is used as the system clock, and
 		 * the bitclock signal needs to be connected to the MCLK pin and
 		 * the BCLK pin is left unconnected */
-		val = SSM2518_POWER1_NO_BCLK;
+		val = SSM2518_POWER1_ANAL_BCLK;
 		break;
 	default:
 		return -EINVAL;
@@ -706,7 +706,7 @@ static int ssm2518_set_sysclk(struct snd_soc_component *component, int clk_id,
 	ssm2518->sysclk = freq;
 
 	return regmap_update_bits(ssm2518->regmap, SSM2518_REG_POWER1,
-			SSM2518_POWER1_NO_BCLK, val);
+			SSM2518_POWER1_ANAL_BCLK, val);
 }
 
 static const struct snd_soc_component_driver ssm2518_component_driver = {
@@ -740,7 +740,7 @@ static int ssm2518_i2c_probe(struct i2c_client *i2c)
 
 	ssm2518 = devm_kzalloc(&i2c->dev, sizeof(*ssm2518), GFP_KERNEL);
 	if (ssm2518 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Start with enabling the chip */
 	ssm2518->enable_gpio = devm_gpiod_get_optional(&i2c->dev, NULL,

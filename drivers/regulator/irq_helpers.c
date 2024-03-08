@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 //
 // Copyright (C) 2021 ROHM Semiconductors
-// regulator IRQ based event notification helpers
+// regulator IRQ based event analtification helpers
 //
 // Logic has been partially adapted from qcom-labibb driver.
 //
@@ -46,7 +46,7 @@ static void rdev_clear_err(struct regulator_dev *rdev, int err)
 	spin_unlock(&rdev->err_lock);
 }
 
-static void regulator_notifier_isr_work(struct work_struct *work)
+static void regulator_analtifier_isr_work(struct work_struct *work)
 {
 	struct regulator_irq *h;
 	struct regulator_irq_desc *d;
@@ -64,12 +64,12 @@ static void regulator_notifier_isr_work(struct work_struct *work)
 reread:
 	if (d->fatal_cnt && h->retry_cnt > d->fatal_cnt) {
 		if (!d->die)
-			return hw_protection_shutdown("Regulator HW failure? - no IC recovery",
+			return hw_protection_shutdown("Regulator HW failure? - anal IC recovery",
 						      REGULATOR_FORCED_SAFETY_SHUTDOWN_WAIT_MS);
 		ret = d->die(rid);
 		/*
 		 * If the 'last resort' IC recovery failed we will have
-		 * nothing else left to do...
+		 * analthing else left to do...
 		 */
 		if (ret)
 			return hw_protection_shutdown("Regulator HW failure. IC recovery failed",
@@ -86,7 +86,7 @@ reread:
 		ret = d->renable(rid);
 
 		if (ret == REGULATOR_FAILED_RETRY) {
-			/* Driver could not get current status */
+			/* Driver could analt get current status */
 			h->retry_cnt++;
 			if (!d->reread_ms)
 				goto reread;
@@ -111,7 +111,7 @@ reread:
 			}
 			h->retry_cnt++;
 			/*
-			 * The IC indicated problem is still ON - no point in
+			 * The IC indicated problem is still ON - anal point in
 			 * re-enabling the IRQ. Retry later.
 			 */
 			tmo = d->irq_off_ms;
@@ -120,8 +120,8 @@ reread:
 	}
 
 	/*
-	 * Either IC reported problem cleared or no status checker was provided.
-	 * If problems are gone - good. If not - then the IRQ will fire again
+	 * Either IC reported problem cleared or anal status checker was provided.
+	 * If problems are gone - good. If analt - then the IRQ will fire again
 	 * and we'll have a new nice loop. In any case we should clear error
 	 * flags here and re-enable IRQs.
 	 */
@@ -153,7 +153,7 @@ reschedule:
 				 msecs_to_jiffies(tmo));
 }
 
-static irqreturn_t regulator_notifier_isr(int irq, void *data)
+static irqreturn_t regulator_analtifier_isr(int irq, void *data)
 {
 	struct regulator_irq *h = data;
 	struct regulator_irq_desc *d;
@@ -170,7 +170,7 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 		h->retry_cnt++;
 
 	/*
-	 * we spare a few cycles by not clearing statuses prior to this call.
+	 * we spare a few cycles by analt clearing statuses prior to this call.
 	 * The IC driver must initialize the status buffers for rdevs
 	 * which it indicates having active events via rdev_map.
 	 *
@@ -184,11 +184,11 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 	 * If retry_count exceeds the given safety limit we call IC specific die
 	 * handler which can try disabling regulator(s).
 	 *
-	 * If no die handler is given we will just power-off as a last resort.
+	 * If anal die handler is given we will just power-off as a last resort.
 	 *
 	 * We could try disabling all associated rdevs - but we might shoot
 	 * ourselves in the head and leave the problematic regulator enabled. So
-	 * if IC has no die-handler populated we just assume the regulator
+	 * if IC has anal die-handler populated we just assume the regulator
 	 * can't be disabled.
 	 */
 	if (unlikely(ret == REGULATOR_FAILED_RETRY))
@@ -196,11 +196,11 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 
 	h->retry_cnt = 0;
 	/*
-	 * Let's not disable IRQ if there were no status bits for us. We'd
+	 * Let's analt disable IRQ if there were anal status bits for us. We'd
 	 * better leave spurious IRQ handling to genirq
 	 */
 	if (ret || !rdev_map)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/*
 	 * Some events are bogus if the regulator is disabled. Skip such events
@@ -222,15 +222,15 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 				break;
 		}
 		if (i == num_rdevs)
-			return IRQ_NONE;
+			return IRQ_ANALNE;
 	}
 
 	/* Disable IRQ if HW keeps line asserted */
 	if (d->irq_off_ms)
-		disable_irq_nosync(irq);
+		disable_irq_analsync(irq);
 
 	/*
-	 * IRQ seems to be for us. Let's fire correct notifiers / store error
+	 * IRQ seems to be for us. Let's fire correct analtifiers / store error
 	 * flags
 	 */
 	for_each_set_bit(i, &rdev_map, num_rdevs) {
@@ -240,10 +240,10 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 		stat = &rid->states[i];
 		rdev = stat->rdev;
 
-		rdev_dbg(rdev, "Sending regulator notification EVT 0x%lx\n",
-			 stat->notifs);
+		rdev_dbg(rdev, "Sending regulator analtification EVT 0x%lx\n",
+			 stat->analtifs);
 
-		regulator_notifier_call_chain(rdev, stat->notifs, NULL);
+		regulator_analtifier_call_chain(rdev, stat->analtifs, NULL);
 		rdev_flag_err(rdev, stat->errors);
 	}
 
@@ -261,7 +261,7 @@ static irqreturn_t regulator_notifier_isr(int irq, void *data)
 
 fail_out:
 	if (d->fatal_cnt && h->retry_cnt > d->fatal_cnt) {
-		/* If we have no recovery, just try shut down straight away */
+		/* If we have anal recovery, just try shut down straight away */
 		if (!d->die) {
 			hw_protection_shutdown("Regulator failure. Retry count exceeded",
 					       REGULATOR_FORCED_SAFETY_SHUTDOWN_WAIT_MS);
@@ -274,7 +274,7 @@ fail_out:
 		}
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int init_rdev_state(struct device *dev, struct regulator_irq *h,
@@ -286,7 +286,7 @@ static int init_rdev_state(struct device *dev, struct regulator_irq *h,
 	h->rdata.states = devm_kzalloc(dev, sizeof(*h->rdata.states) *
 				       rdev_amount, GFP_KERNEL);
 	if (!h->rdata.states)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	h->rdata.num_states = rdev_amount;
 	h->rdata.data = h->desc.data;
@@ -311,11 +311,11 @@ static void init_rdev_errors(struct regulator_irq *h)
 }
 
 /**
- * regulator_irq_helper - register IRQ based regulator event/error notifier
+ * regulator_irq_helper - register IRQ based regulator event/error analtifier
  *
  * @dev:		device providing the IRQs
  * @d:			IRQ helper descriptor.
- * @irq:		IRQ used to inform events/errors to be notified.
+ * @irq:		IRQ used to inform events/errors to be analtified.
  * @irq_flags:		Extra IRQ flags to be OR'ed with the default
  *			IRQF_ONESHOT when requesting the (threaded) irq.
  * @common_errs:	Errors which can be flagged by this IRQ for all rdevs.
@@ -327,7 +327,7 @@ static void init_rdev_errors(struct regulator_irq *h)
  *			for only some of the regulators. These errors will be
  *			or'ed with common errors. If this is given the array
  *			should contain rdev_amount flags. Can be set to NULL
- *			if there is no regulator specific error flags for this
+ *			if there is anal regulator specific error flags for this
  *			IRQ.
  * @rdev:		Array of pointers to regulators associated with this
  *			IRQ.
@@ -348,7 +348,7 @@ void *regulator_irq_helper(struct device *dev,
 
 	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	h->irq = irq;
 	h->desc = *d;
@@ -361,9 +361,9 @@ void *regulator_irq_helper(struct device *dev,
 	init_rdev_errors(h);
 
 	if (h->desc.irq_off_ms)
-		INIT_DELAYED_WORK(&h->isr_work, regulator_notifier_isr_work);
+		INIT_DELAYED_WORK(&h->isr_work, regulator_analtifier_isr_work);
 
-	ret = request_threaded_irq(h->irq, NULL, regulator_notifier_isr,
+	ret = request_threaded_irq(h->irq, NULL, regulator_analtifier_isr,
 				   IRQF_ONESHOT | irq_flags, h->desc.name, h);
 	if (ret) {
 		dev_err(dev, "Failed to request IRQ %d\n", irq);
@@ -376,7 +376,7 @@ void *regulator_irq_helper(struct device *dev,
 EXPORT_SYMBOL_GPL(regulator_irq_helper);
 
 /**
- * regulator_irq_helper_cancel - drop IRQ based regulator event/error notifier
+ * regulator_irq_helper_cancel - drop IRQ based regulator event/error analtifier
  *
  * @handle:		Pointer to handle returned by a successful call to
  *			regulator_irq_helper(). Will be NULLed upon return.
@@ -399,7 +399,7 @@ void regulator_irq_helper_cancel(void **handle)
 EXPORT_SYMBOL_GPL(regulator_irq_helper_cancel);
 
 /**
- * regulator_irq_map_event_simple - regulator IRQ notification for trivial IRQs
+ * regulator_irq_map_event_simple - regulator IRQ analtification for trivial IRQs
  *
  * @irq:	Number of IRQ that occurred
  * @rid:	Information about the event IRQ indicates
@@ -408,7 +408,7 @@ EXPORT_SYMBOL_GPL(regulator_irq_helper_cancel);
  * Regulators whose IRQ has single, well defined purpose (always indicate
  * exactly one event, and are relevant to exactly one regulator device) can
  * use this function as their map_event callbac for their regulator IRQ
- * notification helperk. Exactly one rdev and exactly one error (in
+ * analtification helperk. Exactly one rdev and exactly one error (in
  * "common_errs"-field) can be given at IRQ helper registration for
  * regulator_irq_map_event_simple() to be viable.
  */
@@ -428,7 +428,7 @@ int regulator_irq_map_event_simple(int irq, struct regulator_irq_data *rid,
 		return 0;
 
 	rid->states[0].errors = err;
-	rid->states[0].notifs = regulator_err2notif(err);
+	rid->states[0].analtifs = regulator_err2analtif(err);
 
 	return 0;
 }

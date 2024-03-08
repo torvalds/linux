@@ -60,7 +60,7 @@ properties:
 
   gain:
     description: Allows setting the sensitivity in the range from 0 to 31.
-                 Note that lower values indicate higher sensitivity.
+                 Analte that lower values indicate higher sensitivity.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 31

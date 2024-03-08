@@ -95,7 +95,7 @@ struct tps65219_regulator_irq_data {
 	{								\
 		.name			= _name,			\
 		.of_match		= _of,				\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_analde	= of_match_ptr("regulators"),	\
 		.supply_name		= _of,				\
 		.id			= _id,				\
 		.ops			= &(_ops),			\
@@ -141,7 +141,7 @@ static int tps65219_set_mode(struct regulator_dev *dev, unsigned int mode)
 	struct tps65219 *tps = rdev_get_drvdata(dev);
 
 	switch (mode) {
-	case REGULATOR_MODE_NORMAL:
+	case REGULATOR_MODE_ANALRMAL:
 		return regmap_set_bits(tps->regmap, TPS65219_REG_STBY_1_CONFIG,
 				       dev->desc->enable_mask);
 
@@ -170,7 +170,7 @@ static unsigned int tps65219_get_mode(struct regulator_dev *dev)
 	if (value)
 		return REGULATOR_MODE_STANDBY;
 	else
-		return REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_ANALRMAL;
 }
 
 /* Operations permitted on BUCK1/2/3 */
@@ -273,13 +273,13 @@ static irqreturn_t tps65219_regulator_irq_handler(int irq, void *data)
 	struct tps65219_regulator_irq_data *irq_data = data;
 
 	if (irq_data->type->event_name[0] == '\0') {
-		/* This is the timeout interrupt no specific regulator */
+		/* This is the timeout interrupt anal specific regulator */
 		dev_err(irq_data->dev,
 			"System was put in shutdown due to timeout during an active or standby transition.\n");
 		return IRQ_HANDLED;
 	}
 
-	regulator_notifier_call_chain(irq_data->rdev,
+	regulator_analtifier_call_chain(irq_data->rdev,
 				      irq_data->type->event, NULL);
 
 	dev_err(irq_data->dev, "Error IRQ trap %s for %s\n",
@@ -336,7 +336,7 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 				sizeof(struct tps65219_regulator_irq_data),
 				GFP_KERNEL);
 	if (!irq_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < ARRAY_SIZE(tps65219_regulator_irq_types); ++i) {
 		irq_type = &tps65219_regulator_irq_types[i];
@@ -380,7 +380,7 @@ MODULE_DEVICE_TABLE(platform, tps65219_regulator_id_table);
 static struct platform_driver tps65219_regulator_driver = {
 	.driver = {
 		.name = "tps65219-pmic",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = tps65219_regulator_probe,
 	.id_table = tps65219_regulator_id_table,

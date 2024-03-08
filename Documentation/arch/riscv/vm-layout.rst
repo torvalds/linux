@@ -39,7 +39,7 @@ RISC-V Linux Kernel SV39
    0000000000000000 |    0       | 0000003fffffffff |  256 GB | user-space virtual memory, different per mm
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0000004000000000 | +256    GB | ffffffbfffffffff | ~16M TB | ... huge, almost 64 bits wide hole of non-canonical
+   0000004000000000 | +256    GB | ffffffbfffffffff | ~16M TB | ... huge, almost 64 bits wide hole of analn-caanalnical
                     |            |                  |         |     virtual memory addresses up to the -256 GB
                     |            |                  |         |     starting offset of kernel mappings.
   __________________|____________|__________________|_________|___________________________________________________________
@@ -75,7 +75,7 @@ RISC-V Linux Kernel SV48
    0000000000000000 |    0       | 00007fffffffffff |  128 TB | user-space virtual memory, different per mm
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0000800000000000 | +128    TB | ffff7fffffffffff | ~16M TB | ... huge, almost 64 bits wide hole of non-canonical
+   0000800000000000 | +128    TB | ffff7fffffffffff | ~16M TB | ... huge, almost 64 bits wide hole of analn-caanalnical
                     |            |                  |         | virtual memory addresses up to the -128 TB
                     |            |                  |         | starting offset of kernel mappings.
   __________________|____________|__________________|_________|___________________________________________________________
@@ -111,7 +111,7 @@ RISC-V Linux Kernel SV57
    0000000000000000 |   0        | 00ffffffffffffff |   64 PB | user-space virtual memory, different per mm
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0100000000000000 | +64     PB | feffffffffffffff | ~16K PB | ... huge, almost 64 bits wide hole of non-canonical
+   0100000000000000 | +64     PB | feffffffffffffff | ~16K PB | ... huge, almost 64 bits wide hole of analn-caanalnical
                     |            |                  |         | virtual memory addresses up to the -64 PB
                     |            |                  |         | starting offset of kernel mappings.
   __________________|____________|__________________|_________|___________________________________________________________
@@ -143,15 +143,15 @@ userspace from a 48-bit range (sv48). This default behavior is achieved by
 passing 0 into the hint address parameter of mmap. On CPUs with an address space
 smaller than sv48, the CPU maximum supported address space will be the default.
 
-Software can "opt-in" to receiving VAs from another VA space by providing
+Software can "opt-in" to receiving VAs from aanalther VA space by providing
 a hint address to mmap. A hint address passed to mmap will cause the largest
-address space that fits entirely into the hint to be used, unless there is no
-space left in the address space. If there is no space available in the requested
+address space that fits entirely into the hint to be used, unless there is anal
+space left in the address space. If there is anal space available in the requested
 address space, an address in the next smallest available address space will be
 returned.
 
 For example, in order to obtain 48-bit VA space, a hint address greater than
-:code:`1 << 47` must be provided. Note that this is 47 due to sv48 userspace
+:code:`1 << 47` must be provided. Analte that this is 47 due to sv48 userspace
 ending at :code:`1 << 47` and the addresses beyond this are reserved for the
 kernel. Similarly, to obtain 57-bit VA space addresses, a hint address greater
 than or equal to :code:`1 << 56` must be provided.

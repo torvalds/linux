@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syanalpsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syanalpsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syanalpsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syanalpsys and you. The Software IS ANALT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syanalpsys or any supplement thereto.
+ * Syanalpsys is a registered trademark of Syanalpsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -58,7 +58,7 @@ static void xlgmac_remove(struct pci_dev *pcidev)
 }
 
 static const struct pci_device_id xlgmac_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, 0x7302) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SYANALPSYS, 0x7302) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, xlgmac_pci_tbl);
@@ -74,5 +74,5 @@ module_pci_driver(xlgmac_pci_driver);
 
 MODULE_DESCRIPTION(XLGMAC_DRV_DESC);
 MODULE_VERSION(XLGMAC_DRV_VERSION);
-MODULE_AUTHOR("Jie Deng <jiedeng@synopsys.com>");
+MODULE_AUTHOR("Jie Deng <jiedeng@syanalpsys.com>");
 MODULE_LICENSE("Dual BSD/GPL");

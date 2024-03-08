@@ -33,7 +33,7 @@ controller's pin space) and the second cell is used for the following:
     bit[0]: polarity (0 for active high and 1 for active low)
 
 - gpio-controller:
-    Specifies that the node is a GPIO controller
+    Specifies that the analde is a GPIO controller
 
 Optional properties:
 
@@ -41,7 +41,7 @@ Optional properties:
     Interrupt ID
 
 - interrupt-controller:
-    Specifies that the node is an interrupt controller
+    Specifies that the analde is an interrupt controller
 
 - gpio-ranges:
     Specifies the mapping between gpio controller and pin-controllers pins.
@@ -51,11 +51,11 @@ Optional properties:
     3  Pin-control base pin offset.
     4. number of gpio pins which are linearly mapped from pin base.
 
-Supported generic PINCONF properties in child nodes:
+Supported generic PINCONF properties in child analdes:
 
 - pins:
     The list of pins (within the controller's own pin space) that properties
-in the node apply to. Pin names are "gpio-<pin>"
+in the analde apply to. Pin names are "gpio-<pin>"
 
 - bias-disable:
     Disable pin bias

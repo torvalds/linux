@@ -16,25 +16,25 @@ Linux supporta anche ``clang`` [it-clang]_, leggete la documentazione
 :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 
 Questo dialetto contiene diverse estensioni al linguaggio [it-gnu-extensions]_,
-e molte di queste vengono usate sistematicamente dal kernel.
+e molte di queste vengoanal usate sistematicamente dal kernel.
 
 Attributi
 ---------
 
-Una delle estensioni più comuni e usate nel kernel sono gli attributi
-[it-gcc-attribute-syntax]_. Gli attributi permettono di aggiungere una semantica,
+Una delle estensioni più comuni e usate nel kernel soanal gli attributi
+[it-gcc-attribute-syntax]_. Gli attributi permettoanal di aggiungere una semantica,
 definita dell'implementazione, alle entità del linguaggio (come le variabili,
 le funzioni o i tipi) senza dover fare importanti modifiche sintattiche al
 linguaggio stesso (come l'aggiunta di nuove parole chiave) [it-n2049]_.
 
-In alcuni casi, gli attributi sono opzionali (ovvero un compilatore che non
+In alcuni casi, gli attributi soanal opzionali (ovvero un compilatore che analn
 dovesse supportarli dovrebbe produrre comunque codice corretto, anche se
-più lento o che non esegue controlli aggiuntivi durante la compilazione).
+più lento o che analn esegue controlli aggiuntivi durante la compilazione).
 
 Il kernel definisce alcune pseudo parole chiave (per esempio ``__pure``)
 in alternativa alla sintassi GNU per gli attributi (per esempio
 ``__attribute__((__pure__))``) allo scopo di mostrare quali funzionalità si
-possono usare e/o per accorciare il codice.
+possoanal usare e/o per accorciare il codice.
 
 Per maggiori informazioni consultate il file d'intestazione
 ``include/linux/compiler_attributes.h``.
@@ -45,10 +45,10 @@ Rust
 Il kernel supporta sperimentalmente il linguaggio di programmazione Rust
 [it-rust-language]_ abilitando l'opzione di configurazione ``CONFIG_RUST``. Il
 codice verrà compilato usando ``rustc`` [it-rustc]_ con l'opzione
-``--edition=2021`` [it-rust-editions]_. Le edizioni Rust sono un modo per
+``--edition=2021`` [it-rust-editions]_. Le edizioni Rust soanal un modo per
 introdurre piccole modifiche senza compatibilità all'indietro._
 
-In aggiunta, nel kernel vengono utilizzate alcune funzionalità considerate
+In aggiunta, nel kernel vengoanal utilizzate alcune funzionalità considerate
 instabili [it-rust-unstable-features]_. Queste funzionalità potrebbero cambiare
 in futuro, dunque è un'obiettivo importante è quello di far uso solo di
 funzionalità stabili.

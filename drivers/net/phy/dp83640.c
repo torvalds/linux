@@ -142,7 +142,7 @@ struct dp83640_clock {
 	struct mutex clock_lock;
 	/* the one phyter from which we shall read */
 	struct dp83640_private *chosen;
-	/* list of the other attached phyters, not chosen */
+	/* list of the other attached phyters, analt chosen */
 	struct list_head phylist;
 	/* reference to our PTP hardware clock */
 	struct ptp_clock *ptp_clock;
@@ -483,13 +483,13 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 					PTP_RISING_EDGE |
 					PTP_FALLING_EDGE |
 					PTP_STRICT_FLAGS))
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		/* Reject requests to enable time stamping on both edges. */
 		if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
 		    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
 		    (rq->extts.flags & PTP_EXTTS_EDGES) == PTP_EXTTS_EDGES)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 
 		index = rq->extts.index;
 		if (index >= N_EXT_TS)
@@ -515,7 +515,7 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 	case PTP_CLK_REQ_PEROUT:
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags)
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		if (rq->perout.index >= N_PER_OUT)
 			return -EINVAL;
 		return periodic_output(clock, rq, on, rq->perout.index);
@@ -524,7 +524,7 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		break;
 	}
 
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static int ptp_dp83640_verify(struct ptp_clock_info *ptp, unsigned int pin,
@@ -628,7 +628,7 @@ static void enable_broadcast(struct phy_device *phydev, int init_page, int on)
 
 static void recalibrate(struct dp83640_clock *clock)
 {
-	s64 now, diff;
+	s64 analw, diff;
 	struct phy_txts event_ts;
 	struct timespec64 ts;
 	struct dp83640_private *tmp;
@@ -638,7 +638,7 @@ static void recalibrate(struct dp83640_clock *clock)
 	trigger = CAL_TRIGGER;
 	cal_gpio = 1 + ptp_find_pin_unlocked(clock->ptp_clock, PTP_PF_PHYSYNC, 0);
 	if (cal_gpio < 1) {
-		pr_err("PHY calibration pin not available - PHY is not calibrated.");
+		pr_err("PHY calibration pin analt available - PHY is analt calibrated.");
 		return;
 	}
 
@@ -703,7 +703,7 @@ static void recalibrate(struct dp83640_clock *clock)
 	event_ts.ns_hi  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_lo = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_hi = ext_read(master, PAGE4, PTP_EDATA);
-	now = phy2txts(&event_ts);
+	analw = phy2txts(&event_ts);
 
 	list_for_each_entry(tmp, &clock->phylist, list) {
 		val = ext_read(tmp->phydev, PAGE4, PTP_STS);
@@ -714,8 +714,8 @@ static void recalibrate(struct dp83640_clock *clock)
 		event_ts.ns_hi  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_lo = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_hi = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
-		diff = now - (s64) phy2txts(&event_ts);
-		phydev_info(tmp->phydev, "slave offset %lld nanoseconds\n",
+		diff = analw - (s64) phy2txts(&event_ts);
+		phydev_info(tmp->phydev, "slave offset %lld naanalseconds\n",
 			    diff);
 		diff += ADJTIME_FIX;
 		ts = ns_to_timespec64(diff);
@@ -754,7 +754,7 @@ static int decode_evnt(struct dp83640_private *dp83640,
 	else
 		parsed = (words + 1) * sizeof(u16);
 
-	/* check if enough data is available */
+	/* check if eanalugh data is available */
 	if (len < parsed)
 		return len;
 
@@ -973,7 +973,7 @@ static void dp83640_free_clocks(void)
 	list_for_each_safe(this, next, &phyter_clocks) {
 		clock = list_entry(this, struct dp83640_clock, list);
 		if (!list_empty(&clock->phylist)) {
-			pr_warn("phy list non-empty while unloading\n");
+			pr_warn("phy list analn-empty while unloading\n");
 			BUG();
 		}
 		list_del(&clock->list);
@@ -1039,7 +1039,7 @@ static struct dp83640_clock *dp83640_clock_get(struct dp83640_clock *clock)
 
 /*
  * Look up and lock a clock by bus instance.
- * If there is no clock for this bus, then create it first.
+ * If there is anal clock for this bus, then create it first.
  */
 static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
 {
@@ -1196,11 +1196,11 @@ static irqreturn_t dp83640_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, MII_DP83640_MISR);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & MII_DP83640_MISR_INT_MASK))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -1221,7 +1221,7 @@ static int dp83640_hwtstamp(struct mii_timestamper *mii_ts,
 	dp83640->hwts_tx_en = cfg->tx_type;
 
 	switch (cfg->rx_filter) {
-	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ANALNE:
 		dp83640->hwts_rx_en = 0;
 		dp83640->layer = 0;
 		dp83640->version = 0;
@@ -1410,7 +1410,7 @@ static int dp83640_ts_info(struct mii_timestamper *mii_ts,
 		(1 << HWTSTAMP_TX_ON) |
 		(1 << HWTSTAMP_TX_ONESTEP_SYNC);
 	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
+		(1 << HWTSTAMP_FILTER_ANALNE) |
 		(1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
 		(1 << HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
@@ -1422,18 +1422,18 @@ static int dp83640_probe(struct phy_device *phydev)
 {
 	struct dp83640_clock *clock;
 	struct dp83640_private *dp83640;
-	int err = -ENOMEM, i;
+	int err = -EANALMEM, i;
 
 	if (phydev->mdio.addr == BROADCAST_ADDR)
 		return 0;
 
 	clock = dp83640_clock_get_bus(phydev->mdio.bus);
 	if (!clock)
-		goto no_clock;
+		goto anal_clock;
 
 	dp83640 = kzalloc(sizeof(struct dp83640_private), GFP_KERNEL);
 	if (!dp83640)
-		goto no_memory;
+		goto anal_memory;
 
 	dp83640->phydev = phydev;
 	dp83640->mii_ts.rxtstamp = dp83640_rxtstamp;
@@ -1462,7 +1462,7 @@ static int dp83640_probe(struct phy_device *phydev)
 						      &phydev->mdio.dev);
 		if (IS_ERR(clock->ptp_clock)) {
 			err = PTR_ERR(clock->ptp_clock);
-			goto no_register;
+			goto anal_register;
 		}
 	} else
 		list_add_tail(&dp83640->list, &clock->phylist);
@@ -1470,12 +1470,12 @@ static int dp83640_probe(struct phy_device *phydev)
 	dp83640_clock_put(clock);
 	return 0;
 
-no_register:
+anal_register:
 	clock->chosen = NULL;
 	kfree(dp83640);
-no_memory:
+anal_memory:
 	dp83640_clock_put(clock);
-no_clock:
+anal_clock:
 	return err;
 }
 

@@ -46,7 +46,7 @@
  * +--------+--------+--------+--------+--------+--------+--------+--------+
  * |   0    |   0    |  CALIB |  INTRM |   0    |   0    |   0    |   0    |
  * +--------+--------+--------+--------+--------+--------+--------+--------+
- * CALIB: 0 = not to use calibration result (*)
+ * CALIB: 0 = analt to use calibration result (*)
  *        1 = use calibration result
  * INTRM: 0 = INT output depend on "pen down" (*)
  *        1 = INT output always "0"
@@ -101,7 +101,7 @@
  *        1 = internal pull-up resistance for touch detection is ~90kohms
  * DUAL: 0 = dual touch detection off (*)
  *       1 = dual touch detection on
- * PIDAC_OFS: dual touch detection circuit adjustment, it is not necessary
+ * PIDAC_OFS: dual touch detection circuit adjustment, it is analt necessary
  *            to change this from initial value
  */
 #define BU21029_CFR3_REG	(0x0B << 3)
@@ -288,7 +288,7 @@ static int bu21029_start_chip(struct input_dev *dev)
 	if (be16_to_cpu(hwid) != SUPPORTED_HWID) {
 		dev_err(&i2c->dev,
 			"unsupported HW ID 0x%x\n", be16_to_cpu(hwid));
-		error = -ENODEV;
+		error = -EANALDEV;
 		goto err_out;
 	}
 
@@ -342,13 +342,13 @@ static int bu21029_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-		dev_err(dev, "i2c functionality support is not sufficient\n");
+		dev_err(dev, "i2c functionality support is analt sufficient\n");
 		return -EIO;
 	}
 
 	bu21029 = devm_kzalloc(dev, sizeof(*bu21029), GFP_KERNEL);
 	if (!bu21029)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	error = device_property_read_u32(dev, "rohm,x-plate-ohms", &bu21029->x_plate_ohms);
 	if (error) {
@@ -369,7 +369,7 @@ static int bu21029_probe(struct i2c_client *client)
 	in_dev = devm_input_allocate_device(dev);
 	if (!in_dev) {
 		dev_err(dev, "unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	bu21029->client = client;
@@ -391,7 +391,7 @@ static int bu21029_probe(struct i2c_client *client)
 
 	error = devm_request_threaded_irq(dev, client->irq, NULL,
 					  bu21029_touch_soft_irq,
-					  IRQF_ONESHOT | IRQF_NO_AUTOEN,
+					  IRQF_ONESHOT | IRQF_ANAL_AUTOEN,
 					  DRIVER_NAME, bu21029);
 	if (error) {
 		dev_err(dev, "unable to request touch irq: %d\n", error);

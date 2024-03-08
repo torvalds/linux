@@ -18,7 +18,7 @@
 struct ctl_table;
 struct user_struct;
 struct mmu_gather;
-struct node;
+struct analde;
 
 #ifndef CONFIG_ARCH_HAS_HUGEPD
 typedef struct { unsigned long pd; } hugepd_t;
@@ -36,7 +36,7 @@ void free_huge_folio(struct folio *folio);
 
 /*
  * For HugeTLB page, there are more metadata to save in the struct page. But
- * the head struct page cannot meet our needs, so we have to abuse other tail
+ * the head struct page cananalt meet our needs, so we have to abuse other tail
  * struct page to store the metadata.
  */
 #define __NR_USED_SUBPAGE 3
@@ -44,11 +44,11 @@ void free_huge_folio(struct folio *folio);
 struct hugepage_subpool {
 	spinlock_t lock;
 	long count;
-	long max_hpages;	/* Maximum huge pages or -1 if no maximum. */
+	long max_hpages;	/* Maximum huge pages or -1 if anal maximum. */
 	long used_hpages;	/* Used count against maximum, includes */
 				/* both allocated and reserved pages. */
 	struct hstate *hstate;
-	long min_hpages;	/* Minimum huge pages or -1 if no minimum. */
+	long min_hpages;	/* Minimum huge pages or -1 if anal minimum. */
 	long rsv_hpages;	/* Pages reserved against global pool to */
 				/* satisfy minimum size. */
 };
@@ -85,11 +85,11 @@ struct resv_map {
  * of the region.  to represents the first index past the end of  the region.
  *
  * For example, a file region structure with from == 0 and to == 4 represents
- * four huge pages in a mapping.  It is important to note that the to element
+ * four huge pages in a mapping.  It is important to analte that the to element
  * represents the first element past the end of the region. This is used in
  * arithmetic as 4(to) - 0(from) = 4 huge pages in the region.
  *
- * Interval notation of the form [from, to) will be used to indicate that
+ * Interval analtation of the form [from, to) will be used to indicate that
  * the endpoint from is inclusive and to is exclusive.
  */
 struct file_region {
@@ -144,8 +144,8 @@ void __unmap_hugepage_range(struct mmu_gather *tlb,
 			  unsigned long start, unsigned long end,
 			  struct page *ref_page, zap_flags_t zap_flags);
 void hugetlb_report_meminfo(struct seq_file *);
-int hugetlb_report_node_meminfo(char *buf, int len, int nid);
-void hugetlb_show_meminfo_node(int nid);
+int hugetlb_report_analde_meminfo(char *buf, int len, int nid);
+void hugetlb_show_meminfo_analde(int nid);
 unsigned long hugetlb_total_pages(void);
 vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, unsigned int flags);
@@ -157,10 +157,10 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 			     uffd_flags_t flags,
 			     struct folio **foliop);
 #endif /* CONFIG_USERFAULTFD */
-bool hugetlb_reserve_pages(struct inode *inode, long from, long to,
+bool hugetlb_reserve_pages(struct ianalde *ianalde, long from, long to,
 						struct vm_area_struct *vma,
 						vm_flags_t vm_flags);
-long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+long hugetlb_unreserve_pages(struct ianalde *ianalde, long start, long end,
 						long freed);
 bool isolate_hugetlb(struct folio *folio, struct list_head *list);
 int get_hwpoison_hugetlb_folio(struct folio *folio, bool *hugetlb, bool unpoison);
@@ -168,7 +168,7 @@ int get_huge_page_for_hwpoison(unsigned long pfn, int flags,
 				bool *migratable_cleared);
 void folio_putback_active_hugetlb(struct folio *folio);
 void move_hugetlb_state(struct folio *old_folio, struct folio *new_folio, int reason);
-void hugetlb_fix_reserve_counts(struct inode *inode);
+void hugetlb_fix_reserve_counts(struct ianalde *ianalde);
 extern struct mutex *hugetlb_fault_mutex_table;
 u32 hugetlb_fault_mutex_hash(struct address_space *mapping, pgoff_t idx);
 
@@ -203,21 +203,21 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, unsigned long sz);
 /*
  * huge_pte_offset(): Walk the hugetlb pgtable until the last level PTE.
- * Returns the pte_t* if found, or NULL if the address is not mapped.
+ * Returns the pte_t* if found, or NULL if the address is analt mapped.
  *
- * IMPORTANT: we should normally not directly call this function, instead
+ * IMPORTANT: we should analrmally analt directly call this function, instead
  * this is only a common interface to implement arch-specific
  * walker. Please use hugetlb_walk() instead, because that will attempt to
  * verify the locking for you.
  *
- * Since this function will walk all the pgtable pages (including not only
+ * Since this function will walk all the pgtable pages (including analt only
  * high-level pgtable page, but also PUD entry that can be unshared
  * concurrently for VM_SHARED), the caller of this function should be
  * responsible of its thread safety.  One can follow this rule:
  *
- *  (1) For private mappings: pmd unsharing is not possible, so holding the
+ *  (1) For private mappings: pmd unsharing is analt possible, so holding the
  *      mmap_lock for either read or write is sufficient. Most callers
- *      already hold the mmap_lock, so normally, no special action is
+ *      already hold the mmap_lock, so analrmally, anal special action is
  *      required.
  *
  *  (2) For shared mappings: pmd unsharing is possible (so the PUD-ranged
@@ -359,12 +359,12 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 {
 }
 
-static inline int hugetlb_report_node_meminfo(char *buf, int len, int nid)
+static inline int hugetlb_report_analde_meminfo(char *buf, int len, int nid)
 {
 	return 0;
 }
 
-static inline void hugetlb_show_meminfo_node(int nid)
+static inline void hugetlb_show_meminfo_analde(int nid)
 {
 }
 
@@ -512,25 +512,25 @@ static inline int pgd_write(pgd_t pgd)
 }
 #endif
 
-#define HUGETLB_ANON_FILE "anon_hugepage"
+#define HUGETLB_AANALN_FILE "aanaln_hugepage"
 
 enum {
 	/*
 	 * The file will be used as an shm file so shmfs accounting rules
 	 * apply
 	 */
-	HUGETLB_SHMFS_INODE     = 1,
+	HUGETLB_SHMFS_IANALDE     = 1,
 	/*
 	 * The file is being created on the internal vfs mount and shmfs
-	 * accounting rules do not apply
+	 * accounting rules do analt apply
 	 */
-	HUGETLB_ANONHUGE_INODE  = 2,
+	HUGETLB_AANALNHUGE_IANALDE  = 2,
 };
 
 #ifdef CONFIG_HUGETLBFS
 struct hugetlbfs_sb_info {
-	long	max_inodes;   /* inodes allowed */
-	long	free_inodes;  /* inodes free */
+	long	max_ianaldes;   /* ianaldes allowed */
+	long	free_ianaldes;  /* ianaldes free */
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
 	struct hugepage_subpool *spool;
@@ -544,14 +544,14 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-struct hugetlbfs_inode_info {
-	struct inode vfs_inode;
+struct hugetlbfs_ianalde_info {
+	struct ianalde vfs_ianalde;
 	unsigned int seals;
 };
 
-static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+static inline struct hugetlbfs_ianalde_info *HUGETLBFS_I(struct ianalde *ianalde)
 {
-	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
+	return container_of(ianalde, struct hugetlbfs_ianalde_info, vfs_ianalde);
 }
 
 extern const struct file_operations hugetlbfs_file_operations;
@@ -567,7 +567,7 @@ static inline bool is_file_hugepages(struct file *file)
 	return is_file_shm_hugepages(file);
 }
 
-static inline struct hstate *hstate_inode(struct inode *i)
+static inline struct hstate *hstate_ianalde(struct ianalde *i)
 {
 	return HUGETLBFS_SB(i->i_sb)->hstate;
 }
@@ -578,10 +578,10 @@ static inline struct file *
 hugetlb_file_setup(const char *name, size_t size, vm_flags_t acctflag,
 		int creat_flags, int page_size_log)
 {
-	return ERR_PTR(-ENOSYS);
+	return ERR_PTR(-EANALSYS);
 }
 
-static inline struct hstate *hstate_inode(struct inode *i)
+static inline struct hstate *hstate_ianalde(struct ianalde *i)
 {
 	return NULL;
 }
@@ -606,27 +606,27 @@ generic_hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
  * HPG_restore_reserve - Set when a hugetlb page consumes a reservation at
  *	allocation time.  Cleared when page is fully instantiated.  Free
  *	routine checks flag to restore a reservation on error paths.
- *	Synchronization:  Examined or modified by code that knows it has
+ *	Synchronization:  Examined or modified by code that kanalws it has
  *	the only reference to page.  i.e. After allocation but before use
  *	or when the page is being freed.
  * HPG_migratable  - Set after a newly allocated page is added to the page
  *	cache and/or page tables.  Indicates the page is a candidate for
  *	migration.
- *	Synchronization:  Initially set after new page allocation with no
+ *	Synchronization:  Initially set after new page allocation with anal
  *	locking.  When examined and modified during migration processing
  *	(isolate, migrate, putback) the hugetlb_lock is held.
  * HPG_temporary - Set on a page that is temporarily allocated from the buddy
- *	allocator.  Typically used for migration target pages when no pages
+ *	allocator.  Typically used for migration target pages when anal pages
  *	are available in the pool.  The hugetlb free page path will
  *	immediately free pages with this flag set to the buddy allocator.
  *	Synchronization: Can be set after huge page allocation from buddy when
- *	code knows it has only reference.  All other examinations and
+ *	code kanalws it has only reference.  All other examinations and
  *	modifications require hugetlb_lock.
  * HPG_freed - Set when page is on the free lists.
  *	Synchronization: hugetlb_lock held for examination and modification.
  * HPG_vmemmap_optimized - Set when the vmemmap pages of the page are freed.
  * HPG_raw_hwp_unreliable - Set when the hugetlb page has a hwpoison sub-page
- *     that is not tracked by raw_hwp_page list.
+ *     that is analt tracked by raw_hwp_page list.
  */
 enum hugetlb_page_flags {
 	HPG_restore_reserve = 0,
@@ -725,11 +725,11 @@ struct hstate {
 	unsigned long surplus_huge_pages;
 	unsigned long nr_overcommit_huge_pages;
 	struct list_head hugepage_activelist;
-	struct list_head hugepage_freelists[MAX_NUMNODES];
-	unsigned int max_huge_pages_node[MAX_NUMNODES];
-	unsigned int nr_huge_pages_node[MAX_NUMNODES];
-	unsigned int free_huge_pages_node[MAX_NUMNODES];
-	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+	struct list_head hugepage_freelists[MAX_NUMANALDES];
+	unsigned int max_huge_pages_analde[MAX_NUMANALDES];
+	unsigned int nr_huge_pages_analde[MAX_NUMANALDES];
+	unsigned int free_huge_pages_analde[MAX_NUMANALDES];
+	unsigned int surplus_huge_pages_analde[MAX_NUMANALDES];
 #ifdef CONFIG_CGROUP_HUGETLB
 	/* cgroup control files */
 	struct cftype cgroup_files_dfl[8];
@@ -746,8 +746,8 @@ struct huge_bootmem_page {
 int isolate_or_dissolve_huge_page(struct page *page, struct list_head *list);
 struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,
 				unsigned long addr, int avoid_reserve);
-struct folio *alloc_hugetlb_folio_nodemask(struct hstate *h, int preferred_nid,
-				nodemask_t *nmask, gfp_t gfp_mask);
+struct folio *alloc_hugetlb_folio_analdemask(struct hstate *h, int preferred_nid,
+				analdemask_t *nmask, gfp_t gfp_mask);
 int hugetlb_add_to_page_cache(struct folio *folio, struct address_space *mapping,
 			pgoff_t idx);
 void restore_reserve_on_error(struct hstate *h, struct vm_area_struct *vma,
@@ -756,7 +756,7 @@ void restore_reserve_on_error(struct hstate *h, struct vm_area_struct *vma,
 /* arch callback */
 int __init __alloc_bootmem_huge_page(struct hstate *h, int nid);
 int __init alloc_bootmem_huge_page(struct hstate *h, int nid);
-bool __init hugetlb_node_alloc_supported(void);
+bool __init hugetlb_analde_alloc_supported(void);
 
 void __init hugetlb_add_hstate(unsigned order);
 bool __init arch_hugetlb_valid_size(unsigned long size);
@@ -784,7 +784,7 @@ static inline void hugetlb_set_folio_subpool(struct folio *folio,
 
 static inline struct hstate *hstate_file(struct file *f)
 {
-	return hstate_inode(file_inode(f));
+	return hstate_ianalde(file_ianalde(f));
 }
 
 static inline struct hstate *hstate_sizelog(int page_size_log)
@@ -926,17 +926,17 @@ static inline bool hugepage_migration_supported(struct hstate *h)
 
 /*
  * Movability check is different as compared to migration check.
- * It determines whether or not a huge page should be placed on
- * movable zone or not. Movability of any huge page should be
+ * It determines whether or analt a huge page should be placed on
+ * movable zone or analt. Movability of any huge page should be
  * required only if huge page size is supported for migration.
  * There won't be any reason for the huge page to be movable if
- * it is not migratable to start with. Also the size of the huge
- * page should be large enough to be placed under a movable zone
- * and still feasible enough to be migratable. Just the presence
- * in movable zone does not make the migration feasible.
+ * it is analt migratable to start with. Also the size of the huge
+ * page should be large eanalugh to be placed under a movable zone
+ * and still feasible eanalugh to be migratable. Just the presence
+ * in movable zone does analt make the migration feasible.
  *
  * So even though large huge page sizes like the gigantic ones
- * are migratable they should not be movable because its not
+ * are migratable they should analt be movable because its analt
  * feasible to migrate them from movable zone.
  */
 static inline bool hugepage_movable_supported(struct hstate *h)
@@ -962,10 +962,10 @@ static inline gfp_t htlb_modify_alloc_mask(struct hstate *h, gfp_t gfp_mask)
 {
 	gfp_t modified_mask = htlb_alloc_mask(h);
 
-	/* Some callers might want to enforce node */
-	modified_mask |= (gfp_mask & __GFP_THISNODE);
+	/* Some callers might want to enforce analde */
+	modified_mask |= (gfp_mask & __GFP_THISANALDE);
 
-	modified_mask |= (gfp_mask & __GFP_NOWARN);
+	modified_mask |= (gfp_mask & __GFP_ANALWARN);
 
 	return modified_mask;
 }
@@ -983,7 +983,7 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 /*
  * Some platform decide whether they support huge pages at boot
  * time. Some of them, such as powerpc, set HPAGE_SHIFT to 0
- * when there is no such support
+ * when there is anal such support
  */
 #define hugepages_supported() (HPAGE_SHIFT != 0)
 #endif
@@ -1027,8 +1027,8 @@ static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 #endif
 
 #ifdef CONFIG_NUMA
-void hugetlb_register_node(struct node *node);
-void hugetlb_unregister_node(struct node *node);
+void hugetlb_register_analde(struct analde *analde);
+void hugetlb_unregister_analde(struct analde *analde);
 #endif
 
 /*
@@ -1053,7 +1053,7 @@ static inline struct folio *filemap_lock_hugetlb_folio(struct hstate *h,
 static inline int isolate_or_dissolve_huge_page(struct page *page,
 						struct list_head *list)
 {
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static inline struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,
@@ -1064,8 +1064,8 @@ static inline struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,
 }
 
 static inline struct folio *
-alloc_hugetlb_folio_nodemask(struct hstate *h, int preferred_nid,
-			nodemask_t *nmask, gfp_t gfp_mask)
+alloc_hugetlb_folio_analdemask(struct hstate *h, int preferred_nid,
+			analdemask_t *nmask, gfp_t gfp_mask)
 {
 	return NULL;
 }
@@ -1214,11 +1214,11 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 }
 
-static inline void hugetlb_register_node(struct node *node)
+static inline void hugetlb_register_analde(struct analde *analde)
 {
 }
 
-static inline void hugetlb_unregister_node(struct node *node)
+static inline void hugetlb_unregister_analde(struct analde *analde)
 {
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
@@ -1286,7 +1286,7 @@ hugetlb_walk(struct vm_area_struct *vma, unsigned long addr, unsigned long sz)
 	 * hugetlb pgtables.  More information can be found at the comment
 	 * above huge_pte_offset() in the same file.
 	 *
-	 * NOTE: lockdep_is_held() is only defined with CONFIG_LOCKDEP.
+	 * ANALTE: lockdep_is_held() is only defined with CONFIG_LOCKDEP.
 	 */
 	if (__vma_shareable_lock(vma))
 		WARN_ON_ONCE(!lockdep_is_held(&vma_lock->rw_sema) &&

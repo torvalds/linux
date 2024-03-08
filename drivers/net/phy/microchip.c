@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2015 Microchip Technology
+ * Copyright (C) 2015 Microchip Techanallogy
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -61,11 +61,11 @@ static irqreturn_t lan88xx_handle_interrupt(struct phy_device *phydev)
 	irq_status = phy_read(phydev, LAN88XX_INT_STS);
 	if (irq_status < 0) {
 		phy_error(phydev);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (!(irq_status & LAN88XX_INT_STS_LINK_CHANGE_))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	phy_trigger_machine(phydev);
 
@@ -76,7 +76,7 @@ static int lan88xx_suspend(struct phy_device *phydev)
 {
 	struct lan88xx_priv *priv = phydev->priv;
 
-	/* do not power down PHY when WOL is enabled */
+	/* do analt power down PHY when WOL is enabled */
 	if (!priv->wolopts)
 		genphy_suspend(phydev);
 
@@ -136,7 +136,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 {
 	int err;
 
-	/* Get access to Channel 0x1, Node 0xF , Register 0x01.
+	/* Get access to Channel 0x1, Analde 0xF , Register 0x01.
 	 * Write 24-bit value 0x12B00A to register. Setting MrvlTrFix1000Kf,
 	 * MrvlTrFix1000Kp, MasterEnableTR bits.
 	 */
@@ -144,7 +144,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x0F82]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x06.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x06.
 	 * Write 24-bit value 0xD2C46F to register. Setting SSTrKf1000Slv,
 	 * SSTrKp1000Mas bits.
 	 */
@@ -152,7 +152,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x168C]\n");
 
-	/* Get access to Channel b'10, Node b'1111, Register 0x11.
+	/* Get access to Channel b'10, Analde b'1111, Register 0x11.
 	 * Write 24-bit value 0x620 to register. Setting rem_upd_done_thresh
 	 * bits
 	 */
@@ -160,7 +160,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x17A2]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x10.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x10.
 	 * Write 24-bit value 0xEEFFDD to register. Setting
 	 * eee_TrKp1Long_1000, eee_TrKp2Long_1000, eee_TrKp3Long_1000,
 	 * eee_TrKp1Short_1000,eee_TrKp2Short_1000, eee_TrKp3Short_1000 bits.
@@ -169,7 +169,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x16A0]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x13.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x13.
 	 * Write 24-bit value 0x071448 to register. Setting
 	 * slv_lpi_tr_tmr_val1, slv_lpi_tr_tmr_val2 bits.
 	 */
@@ -177,7 +177,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x16A6]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x12.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x12.
 	 * Write 24-bit value 0x13132F to register. Setting
 	 * slv_sigdet_timer_val1, slv_sigdet_timer_val2 bits.
 	 */
@@ -185,7 +185,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x16A4]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x14.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x14.
 	 * Write 24-bit value 0x0 to register. Setting eee_3level_delay,
 	 * eee_TrKf_freeze_delay bits.
 	 */
@@ -193,7 +193,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x16A8]\n");
 
-	/* Get access to Channel b'01, Node b'1111, Register 0x34.
+	/* Get access to Channel b'01, Analde b'1111, Register 0x34.
 	 * Write 24-bit value 0x91B06C to register. Setting
 	 * FastMseSearchThreshLong1000, FastMseSearchThreshShort1000,
 	 * FastMseSearchUpdGain1000 bits.
@@ -202,7 +202,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x0FE8]\n");
 
-	/* Get access to Channel b'01, Node b'1111, Register 0x3E.
+	/* Get access to Channel b'01, Analde b'1111, Register 0x3E.
 	 * Write 24-bit value 0xC0A028 to register. Setting
 	 * FastMseKp2ThreshLong1000, FastMseKp2ThreshShort1000,
 	 * FastMseKp2UpdGain1000, FastMseKp2ExitEn1000 bits.
@@ -211,7 +211,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x0FFC]\n");
 
-	/* Get access to Channel b'01, Node b'1111, Register 0x35.
+	/* Get access to Channel b'01, Analde b'1111, Register 0x35.
 	 * Write 24-bit value 0x041600 to register. Setting
 	 * FastMseSearchPhShNum1000, FastMseSearchClksPerPh1000,
 	 * FastMsePhChangeDelay1000 bits.
@@ -220,7 +220,7 @@ static void lan88xx_config_TR_regs(struct phy_device *phydev)
 	if (err < 0)
 		phydev_warn(phydev, "Failed to Set Register[0x0FEA]\n");
 
-	/* Get access to Channel b'10, Node b'1101, Register 0x03.
+	/* Get access to Channel b'10, Analde b'1101, Register 0x03.
 	 * Write 24-bit value 0x000004 to register. Setting TrFreeze bits.
 	 */
 	err = lan88xx_TR_reg_set(phydev, 0x1686, 0x000004);
@@ -237,11 +237,11 @@ static int lan88xx_probe(struct phy_device *phydev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->wolopts = 0;
 
-	len = of_property_read_variable_u32_array(dev->of_node,
+	len = of_property_read_variable_u32_array(dev->of_analde,
 						  "microchip,led-modes",
 						  led_modes,
 						  0,
@@ -342,7 +342,7 @@ static int lan88xx_config_aneg(struct phy_device *phydev)
 	return genphy_config_aneg(phydev);
 }
 
-static void lan88xx_link_change_notify(struct phy_device *phydev)
+static void lan88xx_link_change_analtify(struct phy_device *phydev)
 {
 	int temp;
 
@@ -390,7 +390,7 @@ static struct phy_driver microchip_phy_driver[] = {
 
 	.config_init	= lan88xx_config_init,
 	.config_aneg	= lan88xx_config_aneg,
-	.link_change_notify = lan88xx_link_change_notify,
+	.link_change_analtify = lan88xx_link_change_analtify,
 
 	.config_intr	= lan88xx_phy_config_intr,
 	.handle_interrupt = lan88xx_handle_interrupt,

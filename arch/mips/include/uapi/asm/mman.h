@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -11,15 +11,15 @@
 
 /*
  * Protections are chosen from these bits, OR'd together.  The
- * implementation does not necessarily support PROT_EXEC or PROT_WRITE
- * without PROT_READ.  The only guarantees are that no writing will be
- * allowed without PROT_WRITE and no access will be allowed for PROT_NONE.
+ * implementation does analt necessarily support PROT_EXEC or PROT_WRITE
+ * without PROT_READ.  The only guarantees are that anal writing will be
+ * allowed without PROT_WRITE and anal access will be allowed for PROT_ANALNE.
  */
-#define PROT_NONE	0x00		/* page can not be accessed */
+#define PROT_ANALNE	0x00		/* page can analt be accessed */
 #define PROT_READ	0x01		/* page can be read */
 #define PROT_WRITE	0x02		/* page can be written */
 #define PROT_EXEC	0x04		/* page can be executed */
-/*			0x08		   reserved for PROT_EXEC_NOFLUSH */
+/*			0x08		   reserved for PROT_EXEC_ANALFLUSH */
 #define PROT_SEM	0x10		/* page may be used for atomic ops */
 #define PROT_GROWSDOWN	0x01000000	/* mprotect flag: extend change to start of growsdown vma */
 #define PROT_GROWSUP	0x02000000	/* mprotect flag: extend change to end of growsup vma */
@@ -31,31 +31,31 @@
 #define MAP_TYPE	0x00f		/* Mask for type of mapping */
 #define MAP_FIXED	0x010		/* Interpret addr exactly */
 
-/* not used by linux, but here to make sure we don't clash with ABI defines */
+/* analt used by linux, but here to make sure we don't clash with ABI defines */
 #define MAP_RENAME	0x020		/* Assign page to file */
 #define MAP_AUTOGROW	0x040		/* File may grow by writing */
 #define MAP_LOCAL	0x080		/* Copy on fork/sproc */
 #define MAP_AUTORSRV	0x100		/* Logical swap reserved on demand */
 
 /* These are linux-specific */
-#define MAP_NORESERVE	0x0400		/* don't check for reservations */
-#define MAP_ANONYMOUS	0x0800		/* don't use a file */
+#define MAP_ANALRESERVE	0x0400		/* don't check for reservations */
+#define MAP_AANALNYMOUS	0x0800		/* don't use a file */
 #define MAP_GROWSDOWN	0x1000		/* stack-like segment */
 #define MAP_DENYWRITE	0x2000		/* ETXTBSY */
 #define MAP_EXECUTABLE	0x4000		/* mark it as an executable */
 #define MAP_LOCKED	0x8000		/* pages are locked */
 #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
-#define MAP_NONBLOCK	0x20000		/* do not block on IO */
+#define MAP_ANALNBLOCK	0x20000		/* do analt block on IO */
 #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
 #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
-#define MAP_FIXED_NOREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+#define MAP_FIXED_ANALREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
 
 /*
  * Flags for msync
  */
-#define MS_ASYNC	0x0001		/* sync memory asynchronously */
+#define MS_ASYNC	0x0001		/* sync memory asynchroanalusly */
 #define MS_INVALIDATE	0x0002		/* invalidate mappings & caches */
-#define MS_SYNC		0x0004		/* synchronous memory sync */
+#define MS_SYNC		0x0004		/* synchroanalus memory sync */
 
 /*
  * Flags for mlockall
@@ -67,9 +67,9 @@
 /*
  * Flags for mlock
  */
-#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do analt prefault */
 
-#define MADV_NORMAL	0		/* no further special treatment */
+#define MADV_ANALRMAL	0		/* anal further special treatment */
 #define MADV_RANDOM	1		/* expect random page references */
 #define MADV_SEQUENTIAL 2		/* expect sequential page references */
 #define MADV_WILLNEED	3		/* will need these pages */
@@ -82,15 +82,15 @@
 #define MADV_DOFORK	11		/* do inherit across fork */
 
 #define MADV_MERGEABLE	 12		/* KSM may merge identical pages */
-#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+#define MADV_UNMERGEABLE 13		/* KSM may analt merge identical pages */
 #define MADV_HWPOISON	 100		/* poison a page for testing */
 
 #define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
-#define MADV_NOHUGEPAGE 15		/* Not worth backing with hugepages */
+#define MADV_ANALHUGEPAGE 15		/* Analt worth backing with hugepages */
 
 #define MADV_DONTDUMP	16		/* Explicitly exclude from core dump,
 					   overrides the coredump filter bits */
-#define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
+#define MADV_DODUMP	17		/* Clear the MADV_ANALDUMP flag */
 
 #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
 #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
@@ -103,7 +103,7 @@
 
 #define MADV_DONTNEED_LOCKED	24	/* like DONTNEED, but drop locked pages too */
 
-#define MADV_COLLAPSE	25		/* Synchronous hugepage collapse */
+#define MADV_COLLAPSE	25		/* Synchroanalus hugepage collapse */
 
 /* compatibility flags */
 #define MAP_FILE	0

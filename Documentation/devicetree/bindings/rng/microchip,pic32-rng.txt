@@ -1,7 +1,7 @@
 * Microchip PIC32 Random Number Generator
 
 The PIC32 RNG provides a pseudo random number generator which can be seeded by
-another true random number generator.
+aanalther true random number generator.
 
 Required properties:
 - compatible : should be "microchip,pic32mzda-rng"

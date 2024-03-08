@@ -63,7 +63,7 @@ config NF_DUP_IPV4
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	help
 	  This option enables the nf_dup_ipv4 core, which duplicates an IPv4
-	  packet to be rerouted to another destination.
+	  packet to be rerouted to aanalther destination.
 
 config NF_LOG_ARP
 	tristate "ARP packet logging"
@@ -123,7 +123,7 @@ config IP_NF_IPTABLES
 	help
 	  iptables is a general, extensible packet identification framework.
 	  The packet filtering and full NAT (masquerading, port forwarding,
-	  etc) subsystems now use this: say `Y' or `M' here if you want to use
+	  etc) subsystems analw use this: say `Y' or `M' here if you want to use
 	  either of those.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
@@ -285,7 +285,7 @@ config IP_NF_TARGET_TTL
 
 # raw + specific targets
 config IP_NF_RAW
-	tristate  'raw table support (required for NOTRACK/TRACE)'
+	tristate  'raw table support (required for ANALTRACK/TRACE)'
 	help
 	  This option adds a `raw' table to iptables. This table is the very
 	  first in the netfilter framework and hooks in at the PREROUTING

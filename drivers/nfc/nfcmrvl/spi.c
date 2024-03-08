@@ -38,7 +38,7 @@ static irqreturn_t nfcmrvl_spi_int_irq_thread_fn(int irq, void *drv_data_ptr)
 		return IRQ_HANDLED;
 	}
 
-	/* Normal case, SPI_INT deasserted by slave to trigger a master read */
+	/* Analrmal case, SPI_INT deasserted by slave to trigger a master read */
 
 	skb = nci_spi_read(drv_data->nci_spi);
 	if (!skb) {
@@ -103,18 +103,18 @@ static const struct nfcmrvl_if_ops spi_ops = {
 	.nci_update_config = nfcmrvl_spi_nci_update_config,
 };
 
-static int nfcmrvl_spi_parse_dt(struct device_node *node,
+static int nfcmrvl_spi_parse_dt(struct device_analde *analde,
 				struct nfcmrvl_platform_data *pdata)
 {
 	int ret;
 
-	ret = nfcmrvl_parse_dt(node, pdata);
+	ret = nfcmrvl_parse_dt(analde, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
 		return ret;
 	}
 
-	ret = irq_of_parse_and_map(node, 0);
+	ret = irq_of_parse_and_map(analde, 0);
 	if (!ret) {
 		pr_err("Unable to get irq\n");
 		return -EINVAL;
@@ -133,7 +133,7 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 
 	drv_data = devm_kzalloc(&spi->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv_data->spi = spi;
 	drv_data->priv = NULL;
@@ -141,8 +141,8 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 
 	pdata = spi->dev.platform_data;
 
-	if (!pdata && spi->dev.of_node)
-		if (nfcmrvl_spi_parse_dt(spi->dev.of_node, &config) == 0)
+	if (!pdata && spi->dev.of_analde)
+		if (nfcmrvl_spi_parse_dt(spi->dev.of_analde, &config) == 0)
 			pdata = &config;
 
 	if (!pdata)
@@ -154,7 +154,7 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 					"nfcmrvl_spi_int", drv_data);
 	if (ret < 0) {
 		nfc_err(&drv_data->spi->dev, "Unable to register IRQ handler");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	drv_data->priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_SPI,

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# __restore_processor_state() restores %gs after S3 resume and so should not
+# __restore_processor_state() restores %gs after S3 resume and so should analt
 # itself be stack-protected
-CFLAGS_cpu.o	:= -fno-stack-protector
+CFLAGS_cpu.o	:= -fanal-stack-protector
 
 # Clang may incorrectly inline functions with stack protector enabled into
 # __restore_processor_state(): https://bugs.llvm.org/show_bug.cgi?id=47479

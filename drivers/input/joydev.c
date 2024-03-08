@@ -10,7 +10,7 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/joystick.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
@@ -28,8 +28,8 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Joystick device interfaces");
 MODULE_LICENSE("GPL");
 
-#define JOYDEV_MINOR_BASE	0
-#define JOYDEV_MINORS		16
+#define JOYDEV_MIANALR_BASE	0
+#define JOYDEV_MIANALRS		16
 #define JOYDEV_BUFFER_SIZE	64
 
 struct joydev {
@@ -62,14 +62,14 @@ struct joydev_client {
 	spinlock_t buffer_lock; /* protects access to buffer, head and tail */
 	struct fasync_struct *fasync;
 	struct joydev *joydev;
-	struct list_head node;
+	struct list_head analde;
 };
 
 static int joydev_correct(int value, struct js_corr *corr)
 {
 	switch (corr->type) {
 
-	case JS_CORR_NONE:
+	case JS_CORR_ANALNE:
 		break;
 
 	case JS_CORR_BROKEN:
@@ -143,7 +143,7 @@ static void joydev_event(struct input_handle *handle,
 	event.time = jiffies_to_msecs(jiffies);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(client, &joydev->client_list, node)
+	list_for_each_entry_rcu(client, &joydev->client_list, analde)
 		joydev_pass_event(client, &event);
 	rcu_read_unlock();
 
@@ -169,7 +169,7 @@ static void joydev_attach_client(struct joydev *joydev,
 				 struct joydev_client *client)
 {
 	spin_lock(&joydev->client_lock);
-	list_add_tail_rcu(&client->node, &joydev->client_list);
+	list_add_tail_rcu(&client->analde, &joydev->client_list);
 	spin_unlock(&joydev->client_lock);
 }
 
@@ -177,7 +177,7 @@ static void joydev_detach_client(struct joydev *joydev,
 				 struct joydev_client *client)
 {
 	spin_lock(&joydev->client_lock);
-	list_del_rcu(&client->node);
+	list_del_rcu(&client->analde);
 	spin_unlock(&joydev->client_lock);
 	synchronize_rcu();
 }
@@ -202,7 +202,7 @@ static int joydev_open_device(struct joydev *joydev)
 		return retval;
 
 	if (!joydev->exist)
-		retval = -ENODEV;
+		retval = -EANALDEV;
 	else if (!joydev->open++) {
 		retval = input_open_device(&joydev->handle);
 		if (retval)
@@ -234,14 +234,14 @@ static void joydev_hangup(struct joydev *joydev)
 	struct joydev_client *client;
 
 	spin_lock(&joydev->client_lock);
-	list_for_each_entry(client, &joydev->client_list, node)
+	list_for_each_entry(client, &joydev->client_list, analde)
 		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	spin_unlock(&joydev->client_lock);
 
 	wake_up_interruptible(&joydev->wait);
 }
 
-static int joydev_release(struct inode *inode, struct file *file)
+static int joydev_release(struct ianalde *ianalde, struct file *file)
 {
 	struct joydev_client *client = file->private_data;
 	struct joydev *joydev = client->joydev;
@@ -254,16 +254,16 @@ static int joydev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int joydev_open(struct inode *inode, struct file *file)
+static int joydev_open(struct ianalde *ianalde, struct file *file)
 {
 	struct joydev *joydev =
-			container_of(inode->i_cdev, struct joydev, cdev);
+			container_of(ianalde->i_cdev, struct joydev, cdev);
 	struct joydev_client *client;
 	int error;
 
 	client = kzalloc(sizeof(struct joydev_client), GFP_KERNEL);
 	if (!client)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&client->buffer_lock);
 	client->joydev = joydev;
@@ -274,7 +274,7 @@ static int joydev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	stream_open(inode, file);
+	stream_open(ianalde, file);
 
 	return 0;
 
@@ -390,7 +390,7 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 	int retval;
 
 	if (!joydev->exist)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (count < sizeof(struct js_event))
 		return -EINVAL;
@@ -398,7 +398,7 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 	if (count == sizeof(struct JS_DATA_TYPE))
 		return joydev_0x_read(client, input, buf);
 
-	if (!joydev_data_pending(client) && (file->f_flags & O_NONBLOCK))
+	if (!joydev_data_pending(client) && (file->f_flags & O_ANALNBLOCK))
 		return -EAGAIN;
 
 	retval = wait_event_interruptible(joydev->wait,
@@ -407,7 +407,7 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 		return retval;
 
 	if (!joydev->exist)
-		return -ENODEV;
+		return -EANALDEV;
 
 	while (retval + sizeof(struct js_event) <= count &&
 	       joydev_generate_startup_event(client, input, &event)) {
@@ -430,14 +430,14 @@ static ssize_t joydev_read(struct file *file, char __user *buf,
 	return retval;
 }
 
-/* No kernel lock - fine */
+/* Anal kernel lock - fine */
 static __poll_t joydev_poll(struct file *file, poll_table *wait)
 {
 	struct joydev_client *client = file->private_data;
 	struct joydev *joydev = client->joydev;
 
 	poll_wait(file, &joydev->wait, wait);
-	return (joydev_data_pending(client) ? (EPOLLIN | EPOLLRDNORM) : 0) |
+	return (joydev_data_pending(client) ? (EPOLLIN | EPOLLRDANALRM) : 0) |
 		(joydev->exist ?  0 : (EPOLLHUP | EPOLLERR));
 }
 
@@ -607,7 +607,7 @@ static long joydev_compat_ioctl(struct file *file,
 		return retval;
 
 	if (!joydev->exist) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -672,7 +672,7 @@ static long joydev_ioctl(struct file *file,
 		return retval;
 
 	if (!joydev->exist) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto out;
 	}
 
@@ -718,11 +718,11 @@ static const struct file_operations joydev_fops = {
 	.compat_ioctl	= joydev_compat_ioctl,
 #endif
 	.fasync		= joydev_fasync,
-	.llseek		= no_llseek,
+	.llseek		= anal_llseek,
 };
 
 /*
- * Mark device non-existent. This disables writes, ioctls and
+ * Mark device analn-existent. This disables writes, ioctls and
  * prevents new users from opening the device. Already posted
  * blocking reads will stay, however new ones will fail.
  */
@@ -740,13 +740,13 @@ static void joydev_cleanup(struct joydev *joydev)
 	joydev_mark_dead(joydev);
 	joydev_hangup(joydev);
 
-	/* joydev is marked dead so no one else accesses joydev->open */
+	/* joydev is marked dead so anal one else accesses joydev->open */
 	if (joydev->open)
 		input_close_device(handle);
 }
 
 /*
- * These codes are copied from hid-ids.h, unfortunately there is no common
+ * These codes are copied from hid-ids.h, unfortunately there is anal common
  * usb_ids/bt_ids.h header.
  */
 #define USB_VENDOR_ID_SONY			0x054c
@@ -847,7 +847,7 @@ static bool joydev_dev_is_absolute_mouse(struct input_dev *dev)
 	 *      EV_ABS, EV_KEY, EV_SYN, EV_MSC and EV_REL.
 	 * 2) Absolute events are exactly ABS_X and ABS_Y.
 	 * 3) Keys are exactly BTN_LEFT, BTN_RIGHT and BTN_MIDDLE.
-	 * 4) Device is not on "Amiga" bus.
+	 * 4) Device is analt on "Amiga" bus.
 	 */
 
 	bitmap_zero(jd_scratch, EV_CNT);
@@ -912,20 +912,20 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			  const struct input_device_id *id)
 {
 	struct joydev *joydev;
-	int i, j, t, minor, dev_no;
+	int i, j, t, mianalr, dev_anal;
 	int error;
 
-	minor = input_get_new_minor(JOYDEV_MINOR_BASE, JOYDEV_MINORS, true);
-	if (minor < 0) {
-		error = minor;
-		pr_err("failed to reserve new minor: %d\n", error);
+	mianalr = input_get_new_mianalr(JOYDEV_MIANALR_BASE, JOYDEV_MIANALRS, true);
+	if (mianalr < 0) {
+		error = mianalr;
+		pr_err("failed to reserve new mianalr: %d\n", error);
 		return error;
 	}
 
 	joydev = kzalloc(sizeof(struct joydev), GFP_KERNEL);
 	if (!joydev) {
-		error = -ENOMEM;
-		goto err_free_minor;
+		error = -EANALMEM;
+		goto err_free_mianalr;
 	}
 
 	INIT_LIST_HEAD(&joydev->client_list);
@@ -934,11 +934,11 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	init_waitqueue_head(&joydev->wait);
 	joydev->exist = true;
 
-	dev_no = minor;
-	/* Normalize device number if it falls into legacy range */
-	if (dev_no < JOYDEV_MINOR_BASE + JOYDEV_MINORS)
-		dev_no -= JOYDEV_MINOR_BASE;
-	dev_set_name(&joydev->dev, "js%d", dev_no);
+	dev_anal = mianalr;
+	/* Analrmalize device number if it falls into legacy range */
+	if (dev_anal < JOYDEV_MIANALR_BASE + JOYDEV_MIANALRS)
+		dev_anal -= JOYDEV_MIANALR_BASE;
+	dev_set_name(&joydev->dev, "js%d", dev_anal);
 
 	joydev->handle.dev = input_get_device(dev);
 	joydev->handle.name = dev_name(&joydev->dev);
@@ -968,7 +968,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	for (i = 0; i < joydev->nabs; i++) {
 		j = joydev->abspam[i];
 		if (input_abs_get_max(dev, j) == input_abs_get_min(dev, j)) {
-			joydev->corr[i].type = JS_CORR_NONE;
+			joydev->corr[i].type = JS_CORR_ANALNE;
 			continue;
 		}
 		joydev->corr[i].type = JS_CORR_BROKEN;
@@ -986,7 +986,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 		}
 	}
 
-	joydev->dev.devt = MKDEV(INPUT_MAJOR, minor);
+	joydev->dev.devt = MKDEV(INPUT_MAJOR, mianalr);
 	joydev->dev.class = &input_class;
 	joydev->dev.parent = &dev->dev;
 	joydev->dev.release = joydev_free;
@@ -1009,8 +1009,8 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	input_unregister_handle(&joydev->handle);
  err_free_joydev:
 	put_device(&joydev->dev);
- err_free_minor:
-	input_free_minor(minor);
+ err_free_mianalr:
+	input_free_mianalr(mianalr);
 	return error;
 }
 
@@ -1020,7 +1020,7 @@ static void joydev_disconnect(struct input_handle *handle)
 
 	cdev_device_del(&joydev->cdev, &joydev->dev);
 	joydev_cleanup(joydev);
-	input_free_minor(MINOR(joydev->dev.devt));
+	input_free_mianalr(MIANALR(joydev->dev.devt));
 	input_unregister_handle(handle);
 	put_device(&joydev->dev);
 }
@@ -1078,8 +1078,8 @@ static struct input_handler joydev_handler = {
 	.match		= joydev_match,
 	.connect	= joydev_connect,
 	.disconnect	= joydev_disconnect,
-	.legacy_minors	= true,
-	.minor		= JOYDEV_MINOR_BASE,
+	.legacy_mianalrs	= true,
+	.mianalr		= JOYDEV_MIANALR_BASE,
 	.name		= "joydev",
 	.id_table	= joydev_ids,
 };

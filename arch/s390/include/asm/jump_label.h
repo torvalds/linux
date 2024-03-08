@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/stringify.h>
 
-#define JUMP_LABEL_NOP_SIZE 6
+#define JUMP_LABEL_ANALP_SIZE 6
 
 #ifdef CONFIG_CC_IS_CLANG
 #define JUMP_LABEL_STATIC_KEY_CONSTRAINT "i"

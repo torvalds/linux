@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.fe
 
 .. _FE_GET_PROPERTY:
@@ -12,7 +12,7 @@ Name
 
 FE_SET_PROPERTY - FE_GET_PROPERTY - FE_SET_PROPERTY sets one or more frontend properties. - FE_GET_PROPERTY returns one or more frontend properties.
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: FE_GET_PROPERTY
@@ -48,7 +48,7 @@ depends on the delivery system and on the device:
 
    -  This call requires read/write access to the device.
 
-.. note::
+.. analte::
 
    At return, the values aren't updated to reflect the actual
    parameters used. If the actual parameters are needed, an explicit
@@ -59,7 +59,7 @@ depends on the delivery system and on the device:
    -  This ioctl is used to get properties and statistics from the
       frontend.
 
-   -  No properties are changed, and statistics aren't reset.
+   -  Anal properties are changed, and statistics aren't reset.
 
    -  This call only requires read-only access to the device.
 
@@ -68,7 +68,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erranal`` variable is set
 appropriately.
 
 Generic error codes are described at the

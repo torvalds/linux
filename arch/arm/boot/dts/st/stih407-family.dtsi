@@ -20,13 +20,13 @@
 		gp0_reserved: rproc@45000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x45000000 0x00400000>;
-			no-map;
+			anal-map;
 		};
 
 		delta_reserved: rproc@44000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x44000000 0x01000000>;
-			no-map;
+			anal-map;
 		};
 	};
 

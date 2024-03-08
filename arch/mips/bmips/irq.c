@@ -26,12 +26,12 @@ unsigned int get_c0_compare_int(void)
 
 void __init arch_init_irq(void)
 {
-	struct device_node *dn;
+	struct device_analde *dn;
 
 	/* Only these controllers support SMP IRQ affinity */
-	dn = of_find_matching_node(NULL, smp_intc_dt_match);
+	dn = of_find_matching_analde(NULL, smp_intc_dt_match);
 	if (dn)
-		of_node_put(dn);
+		of_analde_put(dn);
 	else
 		bmips_tp1_irqs = 0;
 

@@ -46,7 +46,7 @@ aoe_init(void)
 
 	aoe_wq = alloc_workqueue("aoe_wq", 0, 0);
 	if (!aoe_wq)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = aoedev_init();
 	if (ret)

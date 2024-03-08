@@ -54,7 +54,7 @@ type-safety.
 
 When a driver is registered with the bus, the bus's list of devices is
 iterated over, and the match callback is called for each device that
-does not have a driver associated with it.
+does analt have a driver associated with it.
 
 
 
@@ -81,7 +81,7 @@ for each device or driver in the list. All list accesses are
 synchronized by taking the bus's lock (read currently). The reference
 count on each object in the list is incremented before the callback is
 called; it is decremented after the next object has been obtained. The
-lock is not held when calling the callback.
+lock is analt held when calling the callback.
 
 
 sysfs

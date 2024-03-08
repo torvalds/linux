@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/samsung,exynos-ext-clock.yaml#
+$id: http://devicetree.org/schemas/clock/samsung,exyanals-ext-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Samsung SoC external/osc/XXTI/XusbXTI clock
@@ -20,7 +20,7 @@ properties:
     enum:
       - samsung,clock-xxti
       - samsung,clock-xusbxti
-      - samsung,exynos5420-oscclk
+      - samsung,exyanals5420-oscclk
 
   "#clock-cells":
     const: 0

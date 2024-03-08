@@ -3,7 +3,7 @@ XFS Maintainer Entry Profile
 
 Overview
 --------
-XFS is a well known high-performance filesystem in the Linux kernel.
+XFS is a well kanalwn high-performance filesystem in the Linux kernel.
 The aim of this project is to provide and maintain a robust and
 performant filesystem.
 
@@ -26,14 +26,14 @@ There are eight key roles in the XFS project.
 A person can take on multiple roles, and a role can be filled by
 multiple people.
 Anyone taking on a role is advised to check in with themselves and
-others on a regular basis about burnout.
+others on a regular basis about buranalut.
 
-- **Outside Contributor**: Anyone who sends a patch but is not involved
+- **Outside Contributor**: Anyone who sends a patch but is analt involved
   in the XFS project on a regular basis.
   These folks are usually people who work on other filesystems or
   elsewhere in the kernel community.
 
-- **Developer**: Someone who is familiar with the XFS codebase enough to
+- **Developer**: Someone who is familiar with the XFS codebase eanalugh to
   write new code, documentation, and tests.
 
   Developers can often be found in the IRC channel mentioned by the ``C:``
@@ -69,7 +69,7 @@ others on a regular basis about burnout.
   the XFS section of the fstests MAINTAINERS file.
 
 - **Bug Triager**: Someone who examines incoming bug reports in just
-  enough detail to identify the person to whom the report should be
+  eanalugh detail to identify the person to whom the report should be
   forwarded.
 
   The bug triagers should identify themselves with a ``B:`` entry in
@@ -78,7 +78,7 @@ others on a regular basis about burnout.
 - **Release Manager**: This person merges reviewed patchsets into an
   integration branch, tests the result locally, pushes the branch to a
   public git repository, and sends pull requests further upstream.
-  The release manager is not expected to work on new feature patchsets.
+  The release manager is analt expected to work on new feature patchsets.
   If a developer and a reviewer fail to reach a resolution on some point,
   the release manager must have the ability to intervene to try to drive a
   resolution.
@@ -114,7 +114,7 @@ Please follow these additional rules when submitting to XFS:
   proceed with a merge.
 
 - Any patchset changing XFS should be cc'd in its entirety to linux-xfs.
-  Do not send partial patchsets; that makes analysis of the broader
+  Do analt send partial patchsets; that makes analysis of the broader
   context of the changes unnecessarily difficult.
 
 - Anyone making kernel changes that have corresponding changes to the
@@ -122,7 +122,7 @@ Please follow these additional rules when submitting to XFS:
   patchsets immediately after the kernel patchsets.
 
 - Authors of bug fix patches are expected to use fstests[2] to perform
-  an A/B test of the patch to determine that there are no regressions.
+  an A/B test of the patch to determine that there are anal regressions.
   When possible, a new regression test case should be written for
   fstests.
 
@@ -151,7 +151,7 @@ Please follow these additional rules when submitting to XFS:
 
   The design document should be committed in the kernel documentation
   directory.
-  It may be omitted if the feature is already well known to the
+  It may be omitted if the feature is already well kanalwn to the
   community.
 
 - Patchsets for the new tests should be submitted as separate patchsets

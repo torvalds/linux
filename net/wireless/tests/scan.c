@@ -35,7 +35,7 @@ static struct gen_new_ie_case {
 	struct test_elem result_ies[16];
 } gen_new_ie_cases[] = {
 	{
-		.desc = "ML not inherited",
+		.desc = "ML analt inherited",
 		.parent_ies = {
 			{ .id = WLAN_EID_EXTENSION, .len = 255,
 			  .eid = WLAN_EID_EXT_EHT_MULTI_LINK },
@@ -48,7 +48,7 @@ static struct gen_new_ie_case {
 		},
 	},
 	{
-		.desc = "fragments are ignored if previous len not 255",
+		.desc = "fragments are iganalred if previous len analt 255",
 		.parent_ies = {
 			{ .id = WLAN_EID_REDUCED_NEIGHBOR_REPORT, .len = 254, },
 			{ .id = WLAN_EID_FRAGMENT, .len = 125, },
@@ -152,7 +152,7 @@ static struct gen_new_ie_case {
 		},
 	},
 	{
-		.desc = "invalid extended elements ignored",
+		.desc = "invalid extended elements iganalred",
 		.parent_ies = {
 			{ .id = WLAN_EID_EXTENSION, .len = 0 },
 		},
@@ -198,7 +198,7 @@ static struct gen_new_ie_case {
 		},
 	},
 	{
-		.desc = "non-inherit element",
+		.desc = "analn-inherit element",
 		.parent_ies = {
 			{ .id = 0x1, .len = 7, },
 			{ .id = 0x2, .len = 11, },
@@ -210,7 +210,7 @@ static struct gen_new_ie_case {
 		},
 		.child_ies = {
 			{ .id = WLAN_EID_EXTENSION,
-			  .eid = WLAN_EID_EXT_NON_INHERITANCE,
+			  .eid = WLAN_EID_EXT_ANALN_INHERITANCE,
 			  .len = 10,
 			  .edata = { 0x3, 0x1, 0x2, 0x3,
 				     0x4, 0x10, 0x11, 0x13, 0x14 } },
@@ -234,10 +234,10 @@ static void test_gen_new_ie(struct kunit *test)
 	size_t len;
 	int i;
 
-	KUNIT_ASSERT_NOT_NULL(test, parent);
-	KUNIT_ASSERT_NOT_NULL(test, child);
-	KUNIT_ASSERT_NOT_NULL(test, reference);
-	KUNIT_ASSERT_NOT_NULL(test, out);
+	KUNIT_ASSERT_ANALT_NULL(test, parent);
+	KUNIT_ASSERT_ANALT_NULL(test, child);
+	KUNIT_ASSERT_ANALT_NULL(test, reference);
+	KUNIT_ASSERT_ANALT_NULL(test, out);
 
 	for (i = 0; i < ARRAY_SIZE(params->parent_ies); i++) {
 		if (params->parent_ies[i].len != 0) {
@@ -269,7 +269,7 @@ static void test_gen_new_ie(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, out, reference->data, reference->len);
 	memset(out, 0, IEEE80211_MAX_DATA_LEN);
 
-	/* Exactly enough space */
+	/* Exactly eanalugh space */
 	len = cfg80211_gen_new_ie(parent->data, parent->len,
 				  child->data, child->len,
 				  out, reference->len);
@@ -277,7 +277,7 @@ static void test_gen_new_ie(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, out, reference->data, reference->len);
 	memset(out, 0, IEEE80211_MAX_DATA_LEN);
 
-	/* Not enough space (or expected zero length) */
+	/* Analt eanalugh space (or expected zero length) */
 	len = cfg80211_gen_new_ie(parent->data, parent->len,
 				  child->data, child->len,
 				  out, reference->len - 1);
@@ -290,8 +290,8 @@ static void test_gen_new_ie_malformed(struct kunit *test)
 	u8 *out = kunit_kzalloc(test, IEEE80211_MAX_DATA_LEN, GFP_KERNEL);
 	size_t len;
 
-	KUNIT_ASSERT_NOT_NULL(test, malformed);
-	KUNIT_ASSERT_NOT_NULL(test, out);
+	KUNIT_ASSERT_ANALT_NULL(test, malformed);
+	KUNIT_ASSERT_ANALT_NULL(test, out);
 
 	skb_put_u8(malformed, WLAN_EID_SSID);
 	skb_put_u8(malformed, 3);
@@ -358,14 +358,14 @@ static void test_inform_bss_ssid_only(struct kunit *test)
 	w_priv->ops->inform_bss = inform_bss_inc_counter;
 
 	inform_bss.chan = ieee80211_get_channel_khz(wiphy, MHZ_TO_KHZ(2412));
-	KUNIT_ASSERT_NOT_NULL(test, inform_bss.chan);
+	KUNIT_ASSERT_ANALT_NULL(test, inform_bss.chan);
 
 	bss = cfg80211_inform_bss_data(wiphy, &inform_bss,
 				       CFG80211_BSS_FTYPE_PRESP, bssid, tsf,
 				       capability, beacon_int,
 				       input, sizeof(input),
 				       GFP_KERNEL);
-	KUNIT_EXPECT_NOT_NULL(test, bss);
+	KUNIT_EXPECT_ANALT_NULL(test, bss);
 	KUNIT_EXPECT_EQ(test, ctx.inform_bss_count, 1);
 
 	/* Check values in returned bss are correct */
@@ -379,7 +379,7 @@ static void test_inform_bss_ssid_only(struct kunit *test)
 	/* Check the IEs have the expected value */
 	rcu_read_lock();
 	ies = rcu_dereference(bss->ies);
-	KUNIT_EXPECT_NOT_NULL(test, ies);
+	KUNIT_EXPECT_ANALT_NULL(test, ies);
 	KUNIT_EXPECT_EQ(test, ies->tsf, tsf);
 	KUNIT_EXPECT_EQ(test, ies->len, sizeof(input));
 	KUNIT_EXPECT_MEMEQ(test, ies->data, input, sizeof(input));
@@ -407,7 +407,7 @@ static struct inform_bss_ml_sta_case {
 	int mld_id;
 	bool sta_prof_vendor_elems;
 } inform_bss_ml_sta_cases[] = {
-	{ .desc = "no_mld_id", .mld_id = 0, .sta_prof_vendor_elems = false },
+	{ .desc = "anal_mld_id", .mld_id = 0, .sta_prof_vendor_elems = false },
 	{ .desc = "mld_id_eq_1", .mld_id = 1, .sta_prof_vendor_elems = true },
 };
 KUNIT_ARRAY_PARAM_DESC(inform_bss_ml_sta, inform_bss_ml_sta_cases, desc)
@@ -504,12 +504,12 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 		.capabilities = cpu_to_le16(0xdead),
 	};
 
-	KUNIT_ASSERT_NOT_NULL(test, input);
+	KUNIT_ASSERT_ANALT_NULL(test, input);
 
 	w_priv->ops->inform_bss = inform_bss_inc_counter;
 
 	inform_bss.chan = ieee80211_get_channel_khz(wiphy, MHZ_TO_KHZ(2412));
-	KUNIT_ASSERT_NOT_NULL(test, inform_bss.chan);
+	KUNIT_ASSERT_ANALT_NULL(test, inform_bss.chan);
 
 	skb_put_u8(input, WLAN_EID_SSID);
 	skb_put_u8(input, 4);
@@ -559,14 +559,14 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 				       capability, beacon_int,
 				       input->data, input->len,
 				       GFP_KERNEL);
-	KUNIT_EXPECT_NOT_NULL(test, bss);
+	KUNIT_EXPECT_ANALT_NULL(test, bss);
 	KUNIT_EXPECT_EQ(test, ctx.inform_bss_count, 2);
 
 	/* Check link_bss *****************************************************/
 	link_bss = cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
 				    IEEE80211_BSS_TYPE_ANY,
 				    IEEE80211_PRIVACY_ANY);
-	KUNIT_ASSERT_NOT_NULL(test, link_bss);
+	KUNIT_ASSERT_ANALT_NULL(test, link_bss);
 	KUNIT_EXPECT_EQ(test, link_bss->signal, 0);
 	KUNIT_EXPECT_EQ(test, link_bss->beacon_interval,
 			      le16_to_cpu(sta_prof.beacon_int));
@@ -578,7 +578,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 
 	rcu_read_lock();
 	ies = rcu_dereference(link_bss->ies);
-	KUNIT_EXPECT_NOT_NULL(test, ies);
+	KUNIT_EXPECT_ANALT_NULL(test, ies);
 	KUNIT_EXPECT_EQ(test, ies->tsf, tsf + le64_to_cpu(sta_prof.tsf_offset));
 	/* Resulting length should be:
 	 * SSID (inherited) + RNR (inherited) + vendor element(s) +

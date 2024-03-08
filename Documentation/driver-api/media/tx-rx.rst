@@ -47,7 +47,7 @@ Link frequency
 ^^^^^^^^^^^^^^
 
 The :ref:`V4L2_CID_LINK_FREQ <v4l2-cid-link-freq>` control is used to tell the
-receiver the frequency of the bus (i.e. it is not the same as the symbol rate).
+receiver the frequency of the bus (i.e. it is analt the same as the symbol rate).
 
 ``.s_stream()`` callback
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -85,9 +85,9 @@ where
    * - k
      - 16 for D-PHY and 7 for C-PHY
 
-.. note::
+.. analte::
 
-	The pixel rate calculated this way is **not** the same thing as the
+	The pixel rate calculated this way is **analt** the same thing as the
 	pixel rate on the camera sensor's pixel array which is indicated by the
 	:ref:`V4L2_CID_PIXEL_RATE <v4l2-cid-pixel-rate>` control.
 
@@ -99,19 +99,19 @@ briefly sets the bus to LP-11 or LP-111 state, depending on the PHY. This period
 may be as short as 100 µs, during which the receiver observes this state and
 proceeds its own part of high speed mode transition.
 
-Most receivers are capable of autonomously handling this once the software has
+Most receivers are capable of autoanalmously handling this once the software has
 configured them to do so, but there are receivers which require software
 involvement in observing LP-11 or LP-111 state. 100 µs is a brief period to hit
-in software, especially when there is no interrupt telling something is
+in software, especially when there is anal interrupt telling something is
 happening.
 
 One way to address this is to configure the transmitter side explicitly to LP-11
 or LP-111 state, which requires support from the transmitter hardware. This is
-not universally available. Many devices return to this state once streaming is
+analt universally available. Many devices return to this state once streaming is
 stopped while the state after power-on is LP-00 or LP-000.
 
 The ``.pre_streamon()`` callback may be used to prepare a transmitter for
-transitioning to streaming state, but not yet start streaming. Similarly, the
+transitioning to streaming state, but analt yet start streaming. Similarly, the
 ``.post_streamoff()`` callback is used to undo what was done by the
 ``.pre_streamon()`` callback. The caller of ``.pre_streamon()`` is thus required
 to call ``.post_streamoff()`` for each successful call of ``.pre_streamon()``.
@@ -120,7 +120,7 @@ In the context of CSI-2, the ``.pre_streamon()`` callback is used to transition
 the transmitter to the LP-11 or LP-111 state. This also requires powering on the
 device, so this should be only done when it is needed.
 
-Receiver drivers that do not need explicit LP-11 or LP-111 state setup are
+Receiver drivers that do analt need explicit LP-11 or LP-111 state setup are
 waived from calling the two callbacks.
 
 Stopping the transmitter
@@ -130,5 +130,5 @@ A transmitter stops sending the stream of images as a result of
 calling the ``.s_stream()`` callback. Some transmitters may stop the
 stream at a frame boundary whereas others stop immediately,
 effectively leaving the current frame unfinished. The receiver driver
-should not make assumptions either way, but function properly in both
+should analt make assumptions either way, but function properly in both
 cases.

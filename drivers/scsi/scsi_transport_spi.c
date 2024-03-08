@@ -38,7 +38,7 @@
 
 /* Our blacklist flags */
 enum {
-	SPI_BLIST_NOIUS = (__force blist_flags_t)0x1,
+	SPI_BLIST_ANALIUS = (__force blist_flags_t)0x1,
 };
 
 /* blacklist table, modelled on scsi_devinfo.c */
@@ -47,8 +47,8 @@ static struct {
 	char *model;
 	blist_flags_t flags;
 } spi_static_device_list[] __initdata = {
-	{"HP", "Ultrium 3-SCSI", SPI_BLIST_NOIUS },
-	{"IBM", "ULTRIUM-TD3", SPI_BLIST_NOIUS },
+	{"HP", "Ultrium 3-SCSI", SPI_BLIST_ANALIUS },
+	{"IBM", "ULTRIUM-TD3", SPI_BLIST_ANALIUS },
 	{NULL, NULL, 0}
 };
 
@@ -84,20 +84,20 @@ static const int ppr_to_ps[] = {
  * by 4 */
 #define SPI_STATIC_PPR	0x0c
 
-static int sprint_frac(char *dest, int value, int denom)
+static int sprint_frac(char *dest, int value, int deanalm)
 {
-	int frac = value % denom;
-	int result = sprintf(dest, "%d", value / denom);
+	int frac = value % deanalm;
+	int result = sprintf(dest, "%d", value / deanalm);
 
 	if (frac == 0)
 		return result;
 	dest[result++] = '.';
 
 	do {
-		denom /= 10;
-		sprintf(dest + result, "%d", frac / denom);
+		deanalm /= 10;
+		sprintf(dest + result, "%d", frac / deanalm);
 		result++;
-		frac %= denom;
+		frac %= deanalm;
 	} while (frac);
 
 	dest[result++] = '\0';
@@ -137,7 +137,7 @@ static struct {
 	enum spi_signal_type	value;
 	char			*name;
 } signal_types[] = {
-	{ SPI_SIGNAL_UNKNOWN, "unknown" },
+	{ SPI_SIGNAL_UNKANALWN, "unkanalwn" },
 	{ SPI_SIGNAL_SE, "SE" },
 	{ SPI_SIGNAL_LVD, "LVD" },
 	{ SPI_SIGNAL_HVD, "HVD" },
@@ -163,7 +163,7 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 		    (name[len] == '\n' || name[len] == '\0'))
 			return signal_types[i].value;
 	}
-	return SPI_SIGNAL_UNKNOWN;
+	return SPI_SIGNAL_UNKANALWN;
 }
 
 static int spi_host_setup(struct transport_container *tc, struct device *dev,
@@ -171,7 +171,7 @@ static int spi_host_setup(struct transport_container *tc, struct device *dev,
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 
-	spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+	spi_signalling(shost) = SPI_SIGNAL_UNKANALWN;
 
 	return 0;
 }
@@ -226,7 +226,7 @@ static int spi_device_configure(struct transport_container *tc,
 	spi_support_dt(starget) = scsi_device_dt(sdev);
 	spi_support_dt_only(starget) = scsi_device_dt_only(sdev);
 	spi_support_ius(starget) = scsi_device_ius(sdev);
-	if (bflags & SPI_BLIST_NOIUS) {
+	if (bflags & SPI_BLIST_ANALIUS) {
 		dev_info(dev, "Information Units disabled by blacklist\n");
 		spi_support_ius(starget) = 0;
 	}
@@ -247,7 +247,7 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_max_offset(starget) = 255;
 	spi_width(starget) = 0;	/* narrow */
 	spi_max_width(starget) = 1;
-	spi_iu(starget) = 0;	/* no IU */
+	spi_iu(starget) = 0;	/* anal IU */
 	spi_max_iu(starget) = 1;
 	spi_dt(starget) = 0;	/* ST */
 	spi_qas(starget) = 0;
@@ -578,7 +578,7 @@ static ssize_t store_spi_host_signalling(struct device *dev,
 	if (!i->f->set_signalling)
 		return -EINVAL;
 
-	if (type != SPI_SIGNAL_UNKNOWN)
+	if (type != SPI_SIGNAL_UNKANALWN)
 		i->f->set_signalling(shost, type);
 
 	return count;
@@ -790,7 +790,7 @@ spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
 
 			if (unlikely(period > 0xff || period == prevperiod)) {
 				/* Total failure; set to async and return */
-				starget_printk(KERN_ERR, starget, "Domain Validation Failure, dropping back to Asynchronous\n");
+				starget_printk(KERN_ERR, starget, "Domain Validation Failure, dropping back to Asynchroanalus\n");
 				DV_SET(offset, 0);
 				return SPI_COMPARE_FAILURE;
 			}
@@ -824,7 +824,7 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 	/* We send a set of three TURs to clear any outstanding 
 	 * unit attention conditions if they exist (Otherwise the
 	 * buffer tests won't be happy).  If the TUR still fails
-	 * (reservation conflict, device not ready, etc) just
+	 * (reservation conflict, device analt ready, etc) just
 	 * skip the write tests */
 	for (l = 0; ; l++) {
 		result = spi_execute(sdev, spi_test_unit_ready, REQ_OP_DRV_IN,
@@ -843,7 +843,7 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 			     REQ_OP_DRV_IN, buffer, 4, NULL);
 
 	if (result)
-		/* Device has no echo buffer */
+		/* Device has anal echo buffer */
 		return 0;
 
 	return buffer[3] + ((buffer[2] & 0x1f) << 8);
@@ -895,7 +895,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	if (!i->f->set_period)
 		return;
 
-	/* device can't handle synchronous */
+	/* device can't handle synchroanalus */
 	if (!spi_support_sync(starget) && !spi_support_dt(starget))
 		return;
 
@@ -906,7 +906,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
  retry:
 
-	/* now set up to the maximum */
+	/* analw set up to the maximum */
 	DV_SET(offset, spi_max_offset(starget));
 	DV_SET(period, min_period);
 
@@ -932,8 +932,8 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		DV_SET(iu, 0);
 	}
 
-	/* now that we've done all this, actually check the bus
-	 * signal type (if known).  Some devices are stupid on
+	/* analw that we've done all this, actually check the bus
+	 * signal type (if kanalwn).  Some devices are stupid on
 	 * a SE bus and still claim they can try LVD only settings */
 	if (i->f->get_signalling)
 		i->f->get_signalling(shost);
@@ -989,7 +989,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
  *
  *	Performs the domain validation on the given device in the
  *	current execution thread.  Since DV operations may sleep,
- *	the current thread must have user context.  Also no SCSI
+ *	the current thread must have user context.  Also anal SCSI
  *	related locks that would deadlock I/O issued by the DV may
  *	be held.
  */
@@ -1003,7 +1003,7 @@ spi_dv_device(struct scsi_device *sdev)
 
 	/*
 	 * Because this function and the power management code both call
-	 * scsi_device_quiesce(), it is not safe to perform domain validation
+	 * scsi_device_quiesce(), it is analt safe to perform domain validation
 	 * while suspend or resume is in progress. Hence the
 	 * lock/unlock_system_sleep() calls.
 	 */
@@ -1174,7 +1174,7 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 			 tp->hold_mcs ? " HMCS" : "",
 			 tmp, tp->offset);
 	} else {
-		dev_info(&starget->dev, "%sasynchronous\n",
+		dev_info(&starget->dev, "%sasynchroanalus\n",
 				tp->width ? "wide " : "");
 	}
 }
@@ -1221,7 +1221,7 @@ EXPORT_SYMBOL_GPL(spi_populate_ppr_msg);
  * @msg:	pointer to the area to place the tag
  * @cmd:	pointer to the scsi command for the tag
  *
- * Notes:
+ * Analtes:
  *	designed to create the correct type of tag message for the 
  *	particular request.  Returns the size of the tag message.
  *	May return 0 if TCQ is disabled for this device.
@@ -1242,7 +1242,7 @@ EXPORT_SYMBOL_GPL(spi_populate_tag_msg);
 static const char * const one_byte_msgs[] = {
 /* 0x00 */ "Task Complete", NULL /* Extended Message */, "Save Pointers",
 /* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error", 
-/* 0x06 */ "Abort Task Set", "Message Reject", "Nop", "Message Parity Error",
+/* 0x06 */ "Abort Task Set", "Message Reject", "Analp", "Message Parity Error",
 /* 0x0a */ "Linked Command Complete", "Linked Command Complete w/flag",
 /* 0x0c */ "Target Reset", "Abort Task", "Clear Task Set", 
 /* 0x0f */ "Initiate Recovery", "Release Recovery",
@@ -1252,11 +1252,11 @@ static const char * const one_byte_msgs[] = {
 
 static const char * const two_byte_msgs[] = {
 /* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag",
-/* 0x23 */ "Ignore Wide Residue", "ACA"
+/* 0x23 */ "Iganalre Wide Residue", "ACA"
 };
 
 static const char * const extended_msgs[] = {
-/* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
+/* 0x00 */ "Modify Data Pointer", "Synchroanalus Data Transfer Request",
 /* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request",
 /* 0x04 */ "Parallel Protocol Request", "Modify Bidirectional Data Pointer"
 };
@@ -1318,10 +1318,10 @@ int spi_print_msg(const unsigned char *msg)
 	/* Identify */
 	} else if (msg[0] & 0x80) {
 		printk("Identify disconnect %sallowed %s %d ",
-			(msg[0] & 0x40) ? "" : "not ",
+			(msg[0] & 0x40) ? "" : "analt ",
 			(msg[0] & 0x20) ? "target routine" : "lun",
 			msg[0] & 0x7);
-	/* Normal One byte */
+	/* Analrmal One byte */
 	} else if (msg[0] < 0x1f) {
 		if (msg[0] < ARRAY_SIZE(one_byte_msgs) && one_byte_msgs[msg[0]])
 			printk("%s ", one_byte_msgs[msg[0]]);
@@ -1359,7 +1359,7 @@ int spi_print_msg(const unsigned char *msg)
 	/* Identify */
 	} else if (msg[0] & 0x80) {
 		printk("%02x ", msg[0]);
-	/* Normal One byte */
+	/* Analrmal One byte */
 	} else if ((msg[0] < 0x1f) || (msg[0] == 0x55)) {
 		printk("%02x ", msg[0]);
 	/* Two byte */
@@ -1388,8 +1388,8 @@ static int spi_device_match(struct attribute_container *cont,
 	if (!shost->transportt  || shost->transportt->host_attrs.ac.class
 	    != &spi_host_class.class)
 		return 0;
-	/* Note: this class has no device attributes, so it has
-	 * no per-HBA allocation and thus we don't need to distinguish
+	/* Analte: this class has anal device attributes, so it has
+	 * anal per-HBA allocation and thus we don't need to distinguish
 	 * the attribute containers for the device */
 	i = to_spi_internal(shost->transportt);
 	if (i->f->deny_binding && i->f->deny_binding(sdev->sdev_target))
@@ -1427,7 +1427,7 @@ static DECLARE_TRANSPORT_CLASS(spi_transport_class,
 			       NULL,
 			       spi_target_configure);
 
-static DECLARE_ANON_TRANSPORT_CLASS(spi_device_class,
+static DECLARE_AANALN_TRANSPORT_CLASS(spi_device_class,
 				    spi_device_match,
 				    spi_device_configure);
 
@@ -1620,14 +1620,14 @@ static __init int spi_transport_init(void)
 	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
-	error = anon_transport_class_register(&spi_device_class);
+	error = aanaln_transport_class_register(&spi_device_class);
 	return transport_class_register(&spi_host_class);
 }
 
 static void __exit spi_transport_exit(void)
 {
 	transport_class_unregister(&spi_transport_class);
-	anon_transport_class_unregister(&spi_device_class);
+	aanaln_transport_class_unregister(&spi_device_class);
 	transport_class_unregister(&spi_host_class);
 	scsi_dev_info_remove_list(SCSI_DEVINFO_SPI);
 }

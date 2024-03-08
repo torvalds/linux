@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. _legacy_dvb_apis:
 
@@ -6,7 +6,7 @@
 Digital TV Deprecated APIs
 ***************************
 
-The APIs described here **should not** be used on new drivers or applications.
+The APIs described here **should analt** be used on new drivers or applications.
 
 The DVBv3 frontend API has issues with new delivery systems, including
 DVB-S2, DVB-T2, ISDB, etc.

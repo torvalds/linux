@@ -26,7 +26,7 @@ struct pat_area {
 };
 
 struct tiler_block {
-	struct list_head alloc_node;	/* node for global block list */
+	struct list_head alloc_analde;	/* analde for global block list */
 	struct tcm_area area;		/* area */
 	enum tiler_fmt fmt;		/* format */
 };

@@ -43,11 +43,11 @@ properties:
     properties:
       port@0:
         $ref: /schemas/graph.yaml#/properties/port
-        description: The PXL2DPI input port node from pixel link.
+        description: The PXL2DPI input port analde from pixel link.
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
-        description: The PXL2DPI output port node to downstream bridge.
+        description: The PXL2DPI output port analde to downstream bridge.
 
     required:
       - port@0

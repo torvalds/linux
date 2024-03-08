@@ -505,7 +505,7 @@ static int ina209_init_client(struct i2c_client *client,
 		if (pdata->shunt_uohms <= 0)
 			return -EINVAL;
 		shunt = pdata->shunt_uohms;
-	} else if (!of_property_read_u32(client->dev.of_node, "shunt-resistor",
+	} else if (!of_property_read_u32(client->dev.of_analde, "shunt-resistor",
 					 &shunt)) {
 		if (shunt == 0)
 			return -EINVAL;
@@ -539,11 +539,11 @@ static int ina209_probe(struct i2c_client *client)
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, data);
 	data->client = client;

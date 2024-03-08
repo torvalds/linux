@@ -10,7 +10,7 @@
  *    DS1685/DS1687 3V/5V Real-Time Clocks, 19-5215, Rev 4/10.
  *    DS17x85/DS17x87 3V/5V Real-Time Clocks, 19-5222, Rev 4/10.
  *    DS1689/DS1693 3V/5V Serialized Real-Time Clocks, Rev 112105.
- *    Application Note 90, Using the Multiplex Bus RTC Extended Features.
+ *    Application Analte 90, Using the Multiplex Bus RTC Extended Features.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -136,7 +136,7 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
  * @rtc: pointer to the ds1685 rtc structure.
  * @mday: day of month.
  *
- * Returns -EDOM if the day of month is not within 1..31 range.
+ * Returns -EDOM if the day of month is analt within 1..31 range.
  */
 static inline int
 ds1685_rtc_check_mday(struct ds1685_priv *rtc, u8 mday)
@@ -184,7 +184,7 @@ ds1685_rtc_switch_to_bank1(struct ds1685_priv *rtc)
  *  - If INCR is active, a short delay is added before Ext Control Register 4A
  *    is read again in a loop until INCR is inactive.
  *  - Switches the rtc to bank 1.  This allows access to all relevant
- *    data for normal rtc operation, as bank 0 contains only the nvram.
+ *    data for analrmal rtc operation, as bank 0 contains only the nvram.
  */
 static inline void
 ds1685_rtc_begin_data_access(struct ds1685_priv *rtc)
@@ -626,11 +626,11 @@ ds1685_rtc_extended_irq(struct ds1685_priv *rtc, struct platform_device *pdev)
 	/*
 	 * Check for a ram-clear interrupt.  This happens if RIE=1 and RF=0
 	 * when RCE=1 in 4B.  This clears all NVRAM bytes in bank0 by setting
-	 * each byte to a logic 1.  This has no effect on any extended
-	 * NV-SRAM that might be present, nor on the time/calendar/alarm
+	 * each byte to a logic 1.  This has anal effect on any extended
+	 * NV-SRAM that might be present, analr on the time/calendar/alarm
 	 * registers.  After a ram-clear is completed, there is a minimum
 	 * recovery time of ~150ms in which all reads/writes are locked out.
-	 * NOTE: A ram-clear can still occur if RCE=1 and RIE=0.  We cannot
+	 * ANALTE: A ram-clear can still occur if RCE=1 and RIE=0.  We cananalt
 	 * catch this scenario.
 	 */
 	if ((ctrl4b & RTC_CTRL_4B_RIE) && (ctrl4a & RTC_CTRL_4A_RF)) {
@@ -705,7 +705,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 		} else {
 			/*
 			 * One of the "extended" interrupts was received that
-			 * is not recognized by the RTC core.
+			 * is analt recognized by the RTC core.
 			 */
 			ds1685_rtc_extended_irq(rtc, pdev);
 		}
@@ -713,7 +713,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
 	rtc_update_irq(rtc->dev, num_irqs, events);
 	rtc_unlock(rtc->dev);
 
-	return events ? IRQ_HANDLED : IRQ_NONE;
+	return events ? IRQ_HANDLED : IRQ_ANALNE;
 }
 /* ----------------------------------------------------------------------- */
 
@@ -730,7 +730,7 @@ ds1685_rtc_irq_handler(int irq, void *dev_id)
  * Periodic Interrupt Rates.
  */
 static const char *ds1685_rtc_pirq_rate[16] = {
-	"none", "3.90625ms", "7.8125ms", "0.122070ms", "0.244141ms",
+	"analne", "3.90625ms", "7.8125ms", "0.122070ms", "0.244141ms",
 	"0.488281ms", "0.9765625ms", "1.953125ms", "3.90625ms", "7.8125ms",
 	"15.625ms", "31.25ms", "62.5ms", "125ms", "250ms", "500ms"
 };
@@ -739,7 +739,7 @@ static const char *ds1685_rtc_pirq_rate[16] = {
  * Square-Wave Output Frequencies.
  */
 static const char *ds1685_rtc_sqw_freq[16] = {
-	"none", "256Hz", "128Hz", "8192Hz", "4096Hz", "2048Hz", "1024Hz",
+	"analne", "256Hz", "128Hz", "8192Hz", "4096Hz", "2048Hz", "1024Hz",
 	"512Hz", "256Hz", "128Hz", "64Hz", "32Hz", "16Hz", "8Hz", "4Hz", "2Hz"
 };
 
@@ -783,7 +783,7 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 		model = "DS17885/DS17887\0";
 		break;
 	default:
-		model = "Unknown\0";
+		model = "Unkanalwn\0";
 		break;
 	}
 
@@ -808,10 +808,10 @@ ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 	   ((ctrlb & RTC_CTRL_B_DM) ? "binary" : "BCD"),
 	   ((ctrld & RTC_CTRL_D_VRT) ? "ok" : "exhausted or n/a"),
 	   ((ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "exhausted or n/a"),
-	   ((ctrlb & RTC_CTRL_B_UIE) ? "yes" : "no"),
-	   ((ctrlb & RTC_CTRL_B_PIE) ? "yes" : "no"),
+	   ((ctrlb & RTC_CTRL_B_UIE) ? "anal" : "anal"),
+	   ((ctrlb & RTC_CTRL_B_PIE) ? "anal" : "anal"),
 	   (!(ctrl4b & RTC_CTRL_4B_E32K) ?
-	    ds1685_rtc_pirq_rate[(ctrla & RTC_CTRL_A_RS_MASK)] : "none"),
+	    ds1685_rtc_pirq_rate[(ctrla & RTC_CTRL_A_RS_MASK)] : "analne"),
 	   (!((ctrl4b & RTC_CTRL_4B_E32K)) ?
 	    ds1685_rtc_sqw_freq[(ctrla & RTC_CTRL_A_RS_MASK)] : "32768Hz"),
 	   ssn);
@@ -990,7 +990,7 @@ ds1685_rtc_sysfs_battery_show(struct device *dev,
 	ctrld = rtc->read(rtc, RTC_CTRL_D);
 
 	return sprintf(buf, "%s\n",
-			(ctrld & RTC_CTRL_D_VRT) ? "ok" : "not ok or N/A");
+			(ctrld & RTC_CTRL_D_VRT) ? "ok" : "analt ok or N/A");
 }
 static DEVICE_ATTR(battery, S_IRUGO, ds1685_rtc_sysfs_battery_show, NULL);
 
@@ -1012,7 +1012,7 @@ ds1685_rtc_sysfs_auxbatt_show(struct device *dev,
 	ds1685_rtc_switch_to_bank0(rtc);
 
 	return sprintf(buf, "%s\n",
-			(ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "not ok or N/A");
+			(ctrl4a & RTC_CTRL_4A_VRT2) ? "ok" : "analt ok or N/A");
 }
 static DEVICE_ATTR(auxbatt, S_IRUGO, ds1685_rtc_sysfs_auxbatt_show, NULL);
 
@@ -1083,12 +1083,12 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* Get the platform data. */
 	pdata = (struct ds1685_rtc_platform_data *) pdev->dev.platform_data;
 	if (!pdata)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Allocate memory for the rtc device. */
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Setup resources and access functions */
 	switch (pdata->access_type) {
@@ -1135,7 +1135,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* set the driver data. */
 	platform_set_drvdata(pdev, rtc);
 
-	/* Turn the oscillator on if is not already on (DV1 = 1). */
+	/* Turn the oscillator on if is analt already on (DV1 = 1). */
 	ctrla = rtc->read(rtc, RTC_CTRL_A);
 	if (!(ctrla & RTC_CTRL_A_DV1))
 		ctrla |= RTC_CTRL_A_DV1;
@@ -1234,7 +1234,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* Check the auxillary battery.  It is optional. */
 	if (!(rtc->read(rtc, RTC_EXT_CTRL_4A) & RTC_CTRL_4A_VRT2))
 		dev_warn(&pdev->dev,
-			 "Aux battery is exhausted or not available.\n");
+			 "Aux battery is exhausted or analt available.\n");
 
 	/* Read Ctrl B and clear PIE/AIE/UIE. */
 	rtc->write(rtc, RTC_CTRL_B,
@@ -1252,7 +1252,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 		   (rtc->read(rtc, RTC_EXT_CTRL_4A) & ~(RTC_CTRL_4A_RWK_MASK)));
 
 	/*
-	 * Re-enable KSE to handle power button events.  We do not enable
+	 * Re-enable KSE to handle power button events.  We do analt enable
 	 * WIE or RIE by default.
 	 */
 	rtc->write(rtc, RTC_EXT_CTRL_4B,
@@ -1280,9 +1280,9 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/*
 	 * Fetch the IRQ and setup the interrupt handler.
 	 *
-	 * Not all platforms have the IRQF pin tied to something.  If not, the
+	 * Analt all platforms have the IRQF pin tied to something.  If analt, the
 	 * RTC will still set the *IE / *F flags and raise IRQF in ctrlc, but
-	 * there won't be an automatic way of notifying the kernel about it,
+	 * there won't be an automatic way of analtifying the kernel about it,
 	 * unless ctrlc is explicitly polled.
 	 */
 	rtc->irq_num = platform_get_irq(pdev, 0);
@@ -1298,7 +1298,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 		/* Check to see if something came back. */
 		if (unlikely(ret)) {
 			dev_warn(&pdev->dev,
-				 "RTC interrupt not available\n");
+				 "RTC interrupt analt available\n");
 			rtc->irq_num = 0;
 		}
 	}
@@ -1367,7 +1367,7 @@ module_platform_driver(ds1685_rtc_driver);
  * ds1685_rtc_poweroff - uses the RTC chip to power the system off.
  * @pdev: pointer to platform_device structure.
  */
-void __noreturn
+void __analreturn
 ds1685_rtc_poweroff(struct platform_device *pdev)
 {
 	u8 ctrla, ctrl4a, ctrl4b;
@@ -1375,7 +1375,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
-		pr_emerg("platform device data not available, spinning forever ...\n");
+		pr_emerg("platform device data analt available, spinning forever ...\n");
 		while(1);
 		unreachable();
 	} else {
@@ -1383,13 +1383,13 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		rtc = platform_get_drvdata(pdev);
 
 		/*
-		 * Disable our IRQ.  We're powering down, so we're not
+		 * Disable our IRQ.  We're powering down, so we're analt
 		 * going to worry about cleaning up.  Most of that should
 		 * have been taken care of by the shutdown scripts and this
 		 * is the final function call.
 		 */
 		if (rtc->irq_num)
-			disable_irq_nosync(rtc->irq_num);
+			disable_irq_analsync(rtc->irq_num);
 
 		/* Oscillator must be on and the countdown chain enabled. */
 		ctrla = rtc->read(rtc, RTC_CTRL_A);
@@ -1427,7 +1427,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		rtc->write(rtc, RTC_EXT_CTRL_4A,
 			   (ctrl4a | RTC_CTRL_4A_PAB));
 
-		/* Spin ... we do not switch back to bank0. */
+		/* Spin ... we do analt switch back to bank0. */
 		while(1);
 		unreachable();
 	}

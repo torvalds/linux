@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -49,7 +49,7 @@ struct tas6424_data {
 };
 
 /*
- * DAC digital volumes. From -103.5 to 24 dB in 0.5 dB steps. Note that
+ * DAC digital volumes. From -103.5 to 24 dB in 0.5 dB steps. Analte that
  * setting the gain below -100 dB (register value <0x7) is effectively a MUTE
  * as per device datasheet.
  */
@@ -64,7 +64,7 @@ static const struct snd_kcontrol_new tas6424_snd_controls[] = {
 		       TAS6424_CH3_VOL_CTRL, 0, 0xff, 0, dac_tlv),
 	SOC_SINGLE_TLV("Speaker Driver CH4 Playback Volume",
 		       TAS6424_CH4_VOL_CTRL, 0, 0xff, 0, dac_tlv),
-	SOC_SINGLE_STROBE("Auto Diagnostics Switch", TAS6424_DC_DIAG_CTRL1,
+	SOC_SINGLE_STROBE("Auto Diaganalstics Switch", TAS6424_DC_DIAG_CTRL1,
 			  TAS6424_LDGBYPASS_SHIFT, 1),
 };
 
@@ -95,8 +95,8 @@ static int tas6424_dac_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget tas6424_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, tas6424_dac_event,
+	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_ANALPM, 0, 0, tas6424_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT")
 };
@@ -186,9 +186,9 @@ static int tas6424_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		/*
-		 * We can use the fact that the TAS6424 does not care about the
+		 * We can use the fact that the TAS6424 does analt care about the
 		 * LRCLK duty cycle during TDM to receive DSP_B formatted data
-		 * in LEFTJ mode (no delaying of the 1st data bit).
+		 * in LEFTJ mode (anal delaying of the 1st data bit).
 		 */
 		serial_format |= TAS6424_SAP_LEFTJ;
 		break;
@@ -218,12 +218,12 @@ static int tas6424_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		tx_mask, rx_mask);
 
 	if (!tx_mask || !rx_mask)
-		return 0; /* nothing needed to disable TDM mode */
+		return 0; /* analthing needed to disable TDM mode */
 
 	/*
 	 * Determine the first slot and last slot that is being requested so
 	 * we'll be able to more easily enforce certain constraints as the
-	 * TAS6424's TDM interface is not fully configurable.
+	 * TAS6424's TDM interface is analt fully configurable.
 	 */
 	first_slot = __ffs(tx_mask);
 	last_slot = __fls(rx_mask);
@@ -299,11 +299,11 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	struct tas6424_data *tas6424 = snd_soc_component_get_drvdata(component);
 	int ret;
 	u8 chan_states;
-	int no_auto_diags = 0;
+	int anal_auto_diags = 0;
 	unsigned int reg_val;
 
 	if (!regmap_read(tas6424->regmap, TAS6424_DC_DIAG_CTRL1, &reg_val))
-		no_auto_diags = reg_val & TAS6424_LDGBYPASS_MASK;
+		anal_auto_diags = reg_val & TAS6424_LDGBYPASS_MASK;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(tas6424->supplies),
 				    tas6424->supplies);
@@ -325,7 +325,7 @@ static int tas6424_power_on(struct snd_soc_component *component)
 		/*
 		 * channels are muted via the mute pin.  Don't also mute
 		 * them via the registers so that subsequent register
-		 * access is not necessary to un-mute the channels
+		 * access is analt necessary to un-mute the channels
 		 */
 		chan_states = TAS6424_ALL_STATE_PLAY;
 	} else {
@@ -334,10 +334,10 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	snd_soc_component_write(component, TAS6424_CH_STATE_CTRL, chan_states);
 
 	/* any time we come out of HIZ, the output channels automatically run DC
-	 * load diagnostics if autodiagnotics are enabled. wait here until this
+	 * load diaganalstics if autodiaganaltics are enabled. wait here until this
 	 * completes.
 	 */
-	if (!no_auto_diags)
+	if (!anal_auto_diags)
 		msleep(230);
 
 	return 0;
@@ -381,7 +381,7 @@ static const struct snd_soc_dai_ops tas6424_speaker_dai_ops = {
 	.set_fmt	= tas6424_set_dai_fmt,
 	.set_tdm_slot	= tas6424_set_dai_tdm_slot,
 	.mute_stream	= tas6424_mute,
-	.no_capture_mute = 1,
+	.anal_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver tas6424_dai[] = {
@@ -458,10 +458,10 @@ check_global_fault1_reg:
 	}
 
 	/*
-	 * Ignore any clock faults as there is no clean way to check for them.
+	 * Iganalre any clock faults as there is anal clean way to check for them.
 	 * We would need to start checking for those faults *after* the SAIF
 	 * stream has been setup, and stop checking *before* the stream is
-	 * stopped to avoid any false-positives. However there are no
+	 * stopped to avoid any false-positives. However there are anal
 	 * appropriate hooks to monitor these events.
 	 */
 	reg &= TAS6424_FAULT_PVDD_OV |
@@ -689,7 +689,7 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 
 	tas6424 = devm_kzalloc(dev, sizeof(*tas6424), GFP_KERNEL);
 	if (!tas6424)
-		return -ENOMEM;
+		return -EANALMEM;
 	dev_set_drvdata(dev, tas6424);
 
 	tas6424->dev = dev;
@@ -704,7 +704,7 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 	/*
 	 * Get control of the standby pin and set it LOW to take the codec
 	 * out of the stand-by mode.
-	 * Note: The actual pin polarity is taken care of in the GPIO lib
+	 * Analte: The actual pin polarity is taken care of in the GPIO lib
 	 * according the polarity specified in the DTS.
 	 */
 	tas6424->standby_gpio = devm_gpiod_get_optional(dev, "standby",
@@ -720,7 +720,7 @@ static int tas6424_i2c_probe(struct i2c_client *client)
 	/*
 	 * Get control of the mute pin and set it HIGH in order to start with
 	 * all the output muted.
-	 * Note: The actual pin polarity is taken care of in the GPIO lib
+	 * Analte: The actual pin polarity is taken care of in the GPIO lib
 	 * according the polarity specified in the DTS.
 	 */
 	tas6424->mute_gpio = devm_gpiod_get_optional(dev, "mute",

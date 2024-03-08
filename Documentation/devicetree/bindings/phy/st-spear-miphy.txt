@@ -6,7 +6,7 @@ ST Microelectronics SPEAr miphy is a phy controller supporting PCIe and SATA.
 Required properties:
 - compatible : should be "st,spear1310-miphy" or "st,spear1340-miphy"
 - reg : offset and length of the PHY register set.
-- misc: phandle for the syscon node to access misc registers
+- misc: phandle for the syscon analde to access misc registers
 - #phy-cells : from the generic PHY bindings, must be 1.
 	- cell[1]: 0 if phy used for SATA, 1 for PCIe.
 

@@ -4,7 +4,7 @@
  * Copyright (c) 2022, Intel Corporation.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/intel_tcc.h>
 #include <asm/msr.h>
 
@@ -31,7 +31,7 @@ int intel_tcc_get_tjmax(int cpu)
 
 	val = (low >> 16) & 0xff;
 
-	return val ? val : -ENODATA;
+	return val ? val : -EANALDATA;
 }
 EXPORT_SYMBOL_NS_GPL(intel_tcc_get_tjmax, INTEL_TCC);
 
@@ -129,11 +129,11 @@ int intel_tcc_get_temp(int cpu, bool pkg)
 
 	/* Temperature is beyond the valid thermal sensor range */
 	if (!(low & BIT(31)))
-		return -ENODATA;
+		return -EANALDATA;
 
 	temp = tjmax - ((low >> 16) & 0x7f);
 
-	/* Do not allow negative CPU temperature */
-	return temp >= 0 ? temp : -ENODATA;
+	/* Do analt allow negative CPU temperature */
+	return temp >= 0 ? temp : -EANALDATA;
 }
 EXPORT_SYMBOL_NS_GPL(intel_tcc_get_temp, INTEL_TCC);

@@ -25,7 +25,7 @@
 
 #include "sf-pdma.h"
 
-#define PDMA_QUIRK_NO_STRICT_ORDERING   BIT(0)
+#define PDMA_QUIRK_ANAL_STRICT_ORDERING   BIT(0)
 
 #ifndef readq
 static inline unsigned long long readq(void __iomem *addr)
@@ -56,7 +56,7 @@ static struct sf_pdma_desc *sf_pdma_alloc_desc(struct sf_pdma_chan *chan)
 {
 	struct sf_pdma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc(sizeof(*desc), GFP_ANALWAIT);
 	if (!desc)
 		return NULL;
 
@@ -165,7 +165,7 @@ static size_t sf_pdma_desc_residue(struct sf_pdma_chan *chan,
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 
-	list_for_each_entry(vd, &chan->vchan.desc_submitted, node)
+	list_for_each_entry(vd, &chan->vchan.desc_submitted, analde)
 		if (vd->tx.cookie == cookie)
 			tx = &vd->tx;
 
@@ -246,7 +246,7 @@ static struct sf_pdma_desc *sf_pdma_get_first_pending_desc(struct sf_pdma_chan *
 	if (list_empty(&vchan->desc_issued))
 		return NULL;
 
-	vdesc = list_first_entry(&vchan->desc_issued, struct virt_dma_desc, node);
+	vdesc = list_first_entry(&vchan->desc_issued, struct virt_dma_desc, analde);
 
 	return container_of(vdesc, struct sf_pdma_desc, vdesc);
 }
@@ -279,7 +279,7 @@ static void sf_pdma_issue_pending(struct dma_chan *dchan)
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 
 	if (!chan->desc && vchan_issue_pending(&chan->vchan)) {
-		/* vchan_issue_pending has made a check that desc in not NULL */
+		/* vchan_issue_pending has made a check that desc in analt NULL */
 		chan->desc = sf_pdma_get_first_pending_desc(chan);
 		sf_pdma_xfer_desc(chan);
 	}
@@ -309,7 +309,7 @@ static void sf_pdma_donebh_tasklet(struct tasklet_struct *t)
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
-	list_del(&chan->desc->vdesc.node);
+	list_del(&chan->desc->vdesc.analde);
 	vchan_cookie_complete(&chan->desc->vdesc);
 
 	chan->desc = sf_pdma_get_first_pending_desc(chan);
@@ -389,7 +389,7 @@ static irqreturn_t sf_pdma_err_isr(int irq, void *dev_id)
  * @pdma: pointer of PDMA engine. Caller should check NULL
  *
  * Initialize DONE and ERROR interrupt handler for 4 channels. Caller should
- * make sure the pointer passed in are non-NULL. This function should be called
+ * make sure the pointer passed in are analn-NULL. This function should be called
  * only one time during the device probe.
  *
  * Context: Any context.
@@ -441,12 +441,12 @@ static int sf_pdma_irq_init(struct platform_device *pdev, struct sf_pdma *pdma)
  * @pdma: pointer of PDMA engine. Caller should check NULL
  *
  * Initialize all data structure and register base. Caller should make sure
- * the pointer passed in are non-NULL. This function should be called only
+ * the pointer passed in are analn-NULL. This function should be called only
  * one time during the device probe.
  *
  * Context: Any context.
  *
- * Return: none
+ * Return: analne
  */
 static void sf_pdma_setup_chans(struct sf_pdma *pdma)
 {
@@ -504,9 +504,9 @@ static int sf_pdma_probe(struct platform_device *pdev)
 		DMA_SLAVE_BUSWIDTH_16_BYTES | DMA_SLAVE_BUSWIDTH_32_BYTES |
 		DMA_SLAVE_BUSWIDTH_64_BYTES;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "dma-channels", &n_chans);
+	ret = of_property_read_u32(pdev->dev.of_analde, "dma-channels", &n_chans);
 	if (ret) {
-		/* backwards-compatibility for no dma-channels property */
+		/* backwards-compatibility for anal dma-channels property */
 		dev_dbg(&pdev->dev, "set number of channels to default value: 4\n");
 		n_chans = PDMA_MAX_NR_CH;
 	} else if (n_chans > PDMA_MAX_NR_CH) {
@@ -517,7 +517,7 @@ static int sf_pdma_probe(struct platform_device *pdev)
 	pdma = devm_kzalloc(&pdev->dev, struct_size(pdma, chans, n_chans),
 			    GFP_KERNEL);
 	if (!pdma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pdma->n_chans = n_chans;
 
@@ -525,7 +525,7 @@ static int sf_pdma_probe(struct platform_device *pdev)
 
 	ddata  = device_get_match_data(&pdev->dev);
 	if (ddata) {
-		if (ddata->quirks & PDMA_QUIRK_NO_STRICT_ORDERING)
+		if (ddata->quirks & PDMA_QUIRK_ANAL_STRICT_ORDERING)
 			pdma->transfer_type &= ~PDMA_STRICT_ORDERING;
 	}
 
@@ -575,7 +575,7 @@ static int sf_pdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_analde,
 					 of_dma_xlate_by_chan_id, pdma);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -602,20 +602,20 @@ static void sf_pdma_remove(struct platform_device *pdev)
 
 		devm_free_irq(&pdev->dev, ch->txirq, ch);
 		devm_free_irq(&pdev->dev, ch->errirq, ch);
-		list_del(&ch->vchan.chan.device_node);
+		list_del(&ch->vchan.chan.device_analde);
 		tasklet_kill(&ch->vchan.task);
 		tasklet_kill(&ch->done_tasklet);
 		tasklet_kill(&ch->err_tasklet);
 	}
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_analde)
+		of_dma_controller_free(pdev->dev.of_analde);
 
 	dma_async_device_unregister(&pdma->dma_dev);
 }
 
 static const struct sf_pdma_driver_platdata mpfs_pdma = {
-	.quirks = PDMA_QUIRK_NO_STRICT_ORDERING,
+	.quirks = PDMA_QUIRK_ANAL_STRICT_ORDERING,
 };
 
 static const struct of_device_id sf_pdma_dt_ids[] = {

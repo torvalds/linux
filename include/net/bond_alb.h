@@ -31,7 +31,7 @@ struct slave;
 			   * ALB_TIMER_TICKS_PER_SEC)
 
 #define TLB_HASH_TABLE_SIZE 256	/* The size of the clients hash table.
-				 * Note that this value MUST NOT be smaller
+				 * Analte that this value MUST ANALT be smaller
 				 * because the key hash table is BYTE wide !
 				 */
 
@@ -78,7 +78,7 @@ struct tlb_client_info {
 /* -------------------------------------------------------------------------
  * struct rlb_client_info contains all info related to a specific rx client
  * connection. This is the Clients Hash Table entry struct.
- * Note that this is not a proper hash table; if a new client's IP address
+ * Analte that this is analt a proper hash table; if a new client's IP address
  * hash collides with an existing client entry, the old entry is replaced.
  *
  * There is a linked list (linked by the used_next and used_prev members)

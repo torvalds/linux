@@ -13,7 +13,7 @@
  * amplifier with programmable gains and die temperature reading from
  * Maxim max9611/max9612.
  *
- * Op-amp, analog comparator, and watchdog functionalities are not
+ * Op-amp, analog comparator, and watchdog functionalities are analt
  * supported by this driver.
  */
 
@@ -92,7 +92,7 @@
 
 /*
  * Conversion time is 2 ms (typically) at Ta=25 degreeC
- * No maximum value is known, so play it safe.
+ * Anal maximum value is kanalwn, so play it safe.
  */
 #define MAX9611_CONV_TIME_US_RANGE	3000, 3300
 
@@ -198,7 +198,7 @@ static const struct iio_chan_spec max9611_channels[] = {
  * Data registers are 16 bit long, spread between two 8 bit registers
  * with consecutive addresses.
  * Configure ADC mux first, then read register at address "reg_addr".
- * The smbus_read_word routine asks for 16 bits and the ADC is kind enough
+ * The smbus_read_word routine asks for 16 bits and the ADC is kind eanalugh
  * to return values from "reg_addr" and "reg_addr + 1" consecutively.
  * Data are transmitted with big-endian ordering: MSB arrives first.
  *
@@ -462,7 +462,7 @@ static int max9611_init(struct max9611_dev *max9611)
 				     I2C_FUNC_SMBUS_WRITE_BYTE	|
 				     I2C_FUNC_SMBUS_READ_WORD_DATA)) {
 		dev_err(max9611->dev,
-			"I2c adapter does not support smbus write_byte or read_word functionalities: aborting probe.\n");
+			"I2c adapter does analt support smbus write_byte or read_word functionalities: aborting probe.\n");
 		return -EINVAL;
 	}
 
@@ -521,7 +521,7 @@ static int max9611_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*max9611));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	i2c_set_clientdata(client, indio_dev);
 
@@ -532,8 +532,8 @@ static int max9611_probe(struct i2c_client *client)
 
 	ret = device_property_read_u32(dev, shunt_res_prop, &of_shunt);
 	if (ret) {
-		dev_err(dev, "Missing %s property for %pfw node\n",
-			shunt_res_prop, dev_fwnode(dev));
+		dev_err(dev, "Missing %s property for %pfw analde\n",
+			shunt_res_prop, dev_fwanalde(dev));
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;

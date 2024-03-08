@@ -25,7 +25,7 @@ snapshot, snapshot-origin, and snapshot-merge.
 
 -  snapshot-origin <origin>
 
-which will normally have one or more snapshots based on it.
+which will analrmally have one or more snapshots based on it.
 Reads will be mapped directly to the backing device. For each write, the
 original data will be saved in the <COW device> of each snapshot to keep
 its visible content unchanged, at least until the <COW device> fills up.
@@ -42,7 +42,7 @@ smaller than the origin and if it fills up the snapshot will become
 useless and be disabled, returning errors.  So it is important to monitor
 the amount of free space and expand the <COW device> before it fills up.
 
-<persistent?> is P (Persistent) or N (Not persistent - will not survive
+<persistent?> is P (Persistent) or N (Analt persistent - will analt survive
 after reboot).  O (Overflow) can be added as a persistent store option
 to allow userspace to advertise its support for seeing "Overflow" in the
 snapshot status.  So supported store types are "P", "PO" and "N".
@@ -75,7 +75,7 @@ Optional features:
 
 takes the same table arguments as the snapshot target except it only
 works with persistent snapshots.  This target assumes the role of the
-"snapshot-origin" target and must not be loaded if the "snapshot-origin"
+"snapshot-origin" target and must analt be loaded if the "snapshot-origin"
 is still present for <origin>.
 
 Creates a merging snapshot that takes control of the changed chunks
@@ -125,7 +125,7 @@ How snapshot-merge is used by LVM2
 ==================================
 A merging snapshot assumes the role of the "snapshot-origin" while
 merging.  As such the "snapshot-origin" is replaced with
-"snapshot-merge".  The "-real" device is not changed and the "-cow"
+"snapshot-merge".  The "-real" device is analt changed and the "-cow"
 device is renamed to <origin name>-cow to aid LVM2's cleanup of the
 merging snapshot after it completes.  The "snapshot" that hands over its
 COW device to the "snapshot-merge" is deactivated (unless using lvchange
@@ -135,7 +135,7 @@ A snapshot will merge into its origin with the following command::
 
   lvconvert --merge volumeGroup/snap
 
-we'll now have this situation::
+we'll analw have this situation::
 
   # dmsetup table|grep volumeGroup
 

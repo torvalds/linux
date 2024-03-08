@@ -12,7 +12,7 @@
 struct file_operations;
 
 /* declared over in file.c */
-extern const struct file_operations debugfs_noop_file_operations;
+extern const struct file_operations debugfs_analop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
 
@@ -50,7 +50,7 @@ struct debugfs_fsdata {
 #ifdef CONFIG_DEBUG_FS_DISALLOW_MOUNT
 #define DEFAULT_DEBUGFS_ALLOW_BITS (DEBUGFS_ALLOW_API)
 #endif
-#ifdef CONFIG_DEBUG_FS_ALLOW_NONE
+#ifdef CONFIG_DEBUG_FS_ALLOW_ANALNE
 #define DEFAULT_DEBUGFS_ALLOW_BITS (0)
 #endif
 

@@ -157,7 +157,7 @@
 				board {
 					pinctrl_macb0_phy_irq: macb0_phy_irq {
 						atmel,pins =
-							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_mmc0_cd: mmc0_cd {
 						atmel,pins =
@@ -169,7 +169,7 @@
 					};
 					pinctrl_pck2_as_audio_mck: pck2_as_audio_mck {
 						atmel,pins =
-							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_ANALNE>;
 					};
 					pinctrl_usba_vbus: usba_vbus {
 						atmel,pins =

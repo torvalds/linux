@@ -14,7 +14,7 @@
 ACPI_MODULE_NAME("dbobject")
 
 /* Local prototypes */
-static void acpi_db_decode_node(struct acpi_namespace_node *node);
+static void acpi_db_decode_analde(struct acpi_namespace_analde *analde);
 
 /*******************************************************************************
  *
@@ -23,7 +23,7 @@ static void acpi_db_decode_node(struct acpi_namespace_node *node);
  * PARAMETERS:  status          - Method execution status
  *              walk_state      - Current state of the parse tree walk
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Called when a method has been aborted because of an error.
  *              Dumps the method execution stack, and the method locals/args,
@@ -35,17 +35,17 @@ void
 acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	struct acpi_thread_state *thread;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 
-	node = walk_state->method_node;
+	analde = walk_state->method_analde;
 
-	/* There are no locals or arguments for the module-level code case */
+	/* There are anal locals or arguments for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (analde == acpi_gbl_root_analde) {
 		return;
 	}
 
-	/* Ignore control codes, they are not errors */
+	/* Iganalre control codes, they are analt errors */
 
 	if (ACPI_CNTL_EXCEPTION(status)) {
 		return;
@@ -53,13 +53,13 @@ acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
 
 	/* We may be executing a deferred opcode */
 
-	if (walk_state->deferred_node) {
+	if (walk_state->deferred_analde) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
 
 	/*
-	 * If there is no Thread, we are not actually executing a method.
+	 * If there is anal Thread, we are analt actually executing a method.
 	 * This can happen when the iASL compiler calls the interpreter
 	 * to perform constant folding.
 	 */
@@ -83,7 +83,7 @@ acpi_db_dump_method_info(acpi_status status, struct acpi_walk_state *walk_state)
  *
  * PARAMETERS:  obj_desc        - Object to be displayed
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Short display of an internal object. Numbers/Strings/Buffers.
  *
@@ -143,32 +143,32 @@ void acpi_db_decode_internal_object(union acpi_operand_object *obj_desc)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_db_decode_node
+ * FUNCTION:    acpi_db_decode_analde
  *
- * PARAMETERS:  node        - Object to be displayed
+ * PARAMETERS:  analde        - Object to be displayed
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
- * DESCRIPTION: Short display of a namespace node
+ * DESCRIPTION: Short display of a namespace analde
  *
  ******************************************************************************/
 
-static void acpi_db_decode_node(struct acpi_namespace_node *node)
+static void acpi_db_decode_analde(struct acpi_namespace_analde *analde)
 {
 
-	acpi_os_printf("<Node>          Name %4.4s",
-		       acpi_ut_get_node_name(node));
+	acpi_os_printf("<Analde>          Name %4.4s",
+		       acpi_ut_get_analde_name(analde));
 
-	if (node->flags & ANOBJ_METHOD_ARG) {
+	if (analde->flags & AANALBJ_METHOD_ARG) {
 		acpi_os_printf(" [Method Arg]");
 	}
-	if (node->flags & ANOBJ_METHOD_LOCAL) {
+	if (analde->flags & AANALBJ_METHOD_LOCAL) {
 		acpi_os_printf(" [Method Local]");
 	}
 
-	switch (node->type) {
+	switch (analde->type) {
 
-		/* These types have no attached object */
+		/* These types have anal attached object */
 
 	case ACPI_TYPE_DEVICE:
 
@@ -183,7 +183,7 @@ static void acpi_db_decode_node(struct acpi_namespace_node *node)
 	default:
 
 		acpi_db_decode_internal_object(acpi_ns_get_attached_object
-					       (node));
+					       (analde));
 		break;
 	}
 }
@@ -195,7 +195,7 @@ static void acpi_db_decode_node(struct acpi_namespace_node *node)
  * PARAMETERS:  obj_desc        - Object to be displayed
  *              walk_state      - Current walk state
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Short display of an internal object
  *
@@ -224,7 +224,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 
 	case ACPI_DESC_TYPE_NAMED:
 
-		acpi_db_decode_node((struct acpi_namespace_node *)obj_desc);
+		acpi_db_decode_analde((struct acpi_namespace_analde *)obj_desc);
 		break;
 
 	case ACPI_DESC_TYPE_OPERAND:
@@ -303,7 +303,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 				default:
 
 					acpi_os_printf
-					    ("Unknown index target type");
+					    ("Unkanalwn index target type");
 					break;
 				}
 				break;
@@ -316,13 +316,13 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 					break;
 				}
 
-				/* Reference can be to a Node or an Operand object */
+				/* Reference can be to a Analde or an Operand object */
 
 				switch (ACPI_GET_DESCRIPTOR_TYPE
 					(obj_desc->reference.object)) {
 				case ACPI_DESC_TYPE_NAMED:
 
-					acpi_db_decode_node(obj_desc->reference.
+					acpi_db_decode_analde(obj_desc->reference.
 							    object);
 					break;
 
@@ -339,7 +339,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 
 			case ACPI_REFCLASS_NAME:
 
-				acpi_db_decode_node(obj_desc->reference.node);
+				acpi_db_decode_analde(obj_desc->reference.analde);
 				break;
 
 			case ACPI_REFCLASS_DEBUG:
@@ -348,7 +348,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 				acpi_os_printf("\n");
 				break;
 
-			default:	/* Unknown reference class */
+			default:	/* Unkanalwn reference class */
 
 				acpi_os_printf("%2.2X\n",
 					       obj_desc->reference.class);
@@ -366,7 +366,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
 
 	default:
 
-		acpi_os_printf("<Not a valid ACPI Object Descriptor> [%s]",
+		acpi_os_printf("<Analt a valid ACPI Object Descriptor> [%s]",
 			       acpi_ut_get_descriptor_name(obj_desc));
 		break;
 	}
@@ -380,7 +380,7 @@ acpi_db_display_internal_object(union acpi_operand_object *obj_desc,
  *
  * PARAMETERS:  walk_state      - State for current method
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display all locals for the currently running control method
  *
@@ -390,24 +390,24 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	u8 display_locals = FALSE;
 
-	node = walk_state->method_node;
+	analde = walk_state->method_analde;
 
-	/* There are no locals for the module-level code case */
+	/* There are anal locals for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (analde == acpi_gbl_root_analde) {
 		return;
 	}
 
-	if (!node) {
+	if (!analde) {
 		acpi_os_printf
-		    ("No method node (Executing subtree for buffer or opregion)\n");
+		    ("Anal method analde (Executing subtree for buffer or opregion)\n");
 		return;
 	}
 
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (analde->type != ACPI_TYPE_METHOD) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
@@ -427,7 +427,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 	if (display_locals) {
 		acpi_os_printf
 		    ("\nInitialized Local Variables for Method [%4.4s]:\n",
-		     acpi_ut_get_node_name(node));
+		     acpi_ut_get_analde_name(analde));
 
 		for (i = 0; i < ACPI_METHOD_NUM_LOCALS; i++) {
 			obj_desc = walk_state->local_variables[i].object;
@@ -439,8 +439,8 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
 		}
 	} else {
 		acpi_os_printf
-		    ("No Local Variables are initialized for Method [%4.4s]\n",
-		     acpi_ut_get_node_name(node));
+		    ("Anal Local Variables are initialized for Method [%4.4s]\n",
+		     acpi_ut_get_analde_name(analde));
 	}
 }
 
@@ -450,7 +450,7 @@ void acpi_db_decode_locals(struct acpi_walk_state *walk_state)
  *
  * PARAMETERS:  walk_state      - State for current method
  *
- * RETURN:      None
+ * RETURN:      Analne
  *
  * DESCRIPTION: Display all arguments for the currently running control method
  *
@@ -460,24 +460,24 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 {
 	u32 i;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	u8 display_args = FALSE;
 
-	node = walk_state->method_node;
+	analde = walk_state->method_analde;
 
-	/* There are no arguments for the module-level code case */
+	/* There are anal arguments for the module-level code case */
 
-	if (node == acpi_gbl_root_node) {
+	if (analde == acpi_gbl_root_analde) {
 		return;
 	}
 
-	if (!node) {
+	if (!analde) {
 		acpi_os_printf
-		    ("No method node (Executing subtree for buffer or opregion)\n");
+		    ("Anal method analde (Executing subtree for buffer or opregion)\n");
 		return;
 	}
 
-	if (node->type != ACPI_TYPE_METHOD) {
+	if (analde->type != ACPI_TYPE_METHOD) {
 		acpi_os_printf("Executing subtree for Buffer/Package/Region\n");
 		return;
 	}
@@ -497,8 +497,8 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 	if (display_args) {
 		acpi_os_printf("Initialized Arguments for Method [%4.4s]:  "
 			       "(%X arguments defined for method invocation)\n",
-			       acpi_ut_get_node_name(node),
-			       node->object->method.param_count);
+			       acpi_ut_get_analde_name(analde),
+			       analde->object->method.param_count);
 
 		for (i = 0; i < ACPI_METHOD_NUM_ARGS; i++) {
 			obj_desc = walk_state->arguments[i].object;
@@ -510,7 +510,7 @@ void acpi_db_decode_arguments(struct acpi_walk_state *walk_state)
 		}
 	} else {
 		acpi_os_printf
-		    ("No Arguments are initialized for method [%4.4s]\n",
-		     acpi_ut_get_node_name(node));
+		    ("Anal Arguments are initialized for method [%4.4s]\n",
+		     acpi_ut_get_analde_name(analde));
 	}
 }

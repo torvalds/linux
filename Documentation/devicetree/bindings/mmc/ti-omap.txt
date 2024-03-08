@@ -6,7 +6,7 @@ an interface for MMC, SD, and SDIO types of memory cards.
 This file documents differences between the core properties described
 by mmc.txt and the properties used by the omap mmc driver.
 
-Note that this driver will not work with omap2430 or later omaps,
+Analte that this driver will analt work with omap2430 or later omaps,
 please see the omap hsmmc driver for the current omaps.
 
 Required properties:

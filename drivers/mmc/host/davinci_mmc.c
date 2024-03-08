@@ -100,7 +100,7 @@
 #define MMCCMD_PPLEN          (1 << 7)
 #define MMCCMD_BSYEXP         (1 << 8)
 #define MMCCMD_RSPFMT_MASK    (3 << 9)
-#define MMCCMD_RSPFMT_NONE    (0 << 9)
+#define MMCCMD_RSPFMT_ANALNE    (0 << 9)
 #define MMCCMD_RSPFMT_R1456   (1 << 9)
 #define MMCCMD_RSPFMT_R2      (2 << 9)
 #define MMCCMD_RSPFMT_R3      (3 << 9)
@@ -162,7 +162,7 @@ MODULE_PARM_DESC(poll_loopcount,
 
 static unsigned use_dma = 1;
 module_param(use_dma, uint, 0);
-MODULE_PARM_DESC(use_dma, "Whether to use DMA or not. Default = 1");
+MODULE_PARM_DESC(use_dma, "Whether to use DMA or analt. Default = 1");
 
 struct mmc_davinci_host {
 	struct mmc_command *cmd;
@@ -175,7 +175,7 @@ struct mmc_davinci_host {
 	int mmc_irq, sdio_irq;
 	unsigned char bus_mode;
 
-#define DAVINCI_MMC_DATADIR_NONE	0
+#define DAVINCI_MMC_DATADIR_ANALNE	0
 #define DAVINCI_MMC_DATADIR_READ	1
 #define DAVINCI_MMC_DATADIR_WRITE	2
 	unsigned char data_dir;
@@ -206,7 +206,7 @@ struct mmc_davinci_host {
 	/* Number of sg segments */
 	u8 nr_sg;
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct analtifier_block	freq_transition;
 #endif
 };
 
@@ -238,8 +238,8 @@ static void davinci_fifo_data_trans(struct mmc_davinci_host *host,
 	host->buffer_bytes_left -= n;
 	host->bytes_left -= n;
 
-	/* NOTE:  we never transfer more than rw_threshold bytes
-	 * to/from the fifo here; there's no I/O overlap.
+	/* ANALTE:  we never transfer more than rw_threshold bytes
+	 * to/from the fifo here; there's anal I/O overlap.
 	 * This also assumes that access width( i.e. ACCWD) is 4 bytes
 	 */
 	if (host->data_dir == DAVINCI_MMC_DATADIR_WRITE) {
@@ -306,12 +306,12 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 	case MMC_RSP_R2:		/* 136 bits, CRC */
 		cmd_reg |= MMCCMD_RSPFMT_R2;
 		break;
-	case MMC_RSP_R3:		/* 48 bits, no CRC */
+	case MMC_RSP_R3:		/* 48 bits, anal CRC */
 		cmd_reg |= MMCCMD_RSPFMT_R3;
 		break;
 	default:
-		cmd_reg |= MMCCMD_RSPFMT_NONE;
-		dev_dbg(mmc_dev(host->mmc), "unknown resp_type %04x\n",
+		cmd_reg |= MMCCMD_RSPFMT_ANALNE;
+		dev_dbg(mmc_dev(host->mmc), "unkanalwn resp_type %04x\n",
 			mmc_resp_type(cmd));
 		break;
 	}
@@ -327,7 +327,7 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 			host->data_dir == DAVINCI_MMC_DATADIR_READ)
 		cmd_reg |= MMCCMD_DMATRIG;
 
-	/* Setting whether command involves data transfer or not */
+	/* Setting whether command involves data transfer or analt */
 	if (cmd->data)
 		cmd_reg |= MMCCMD_WDATX;
 
@@ -356,7 +356,7 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 	}
 
 	/*
-	 * Before non-DMA WRITE commands the controller needs priming:
+	 * Before analn-DMA WRITE commands the controller needs priming:
 	 * FIFO should be populated with 32 bytes i.e. whatever is the FIFO size
 	 */
 	if (!host->do_dma && (host->data_dir == DAVINCI_MMC_DATADIR_WRITE))
@@ -466,7 +466,7 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 				  mmc_get_dma_dir(data));
 
-	/* no individual DMA segment should need a partial FIFO */
+	/* anal individual DMA segment should need a partial FIFO */
 	for (i = 0; i < host->sg_len; i++) {
 		if (sg_dma_len(data->sg + i) & mask) {
 			dma_unmap_sg(mmc_dev(host->mmc),
@@ -523,7 +523,7 @@ mmc_davinci_prepare_data(struct mmc_davinci_host *host, struct mmc_request *req)
 
 	host->data = data;
 	if (data == NULL) {
-		host->data_dir = DAVINCI_MMC_DATADIR_NONE;
+		host->data_dir = DAVINCI_MMC_DATADIR_ANALNE;
 		writel(0, host->base + DAVINCI_MMCBLEN);
 		writel(0, host->base + DAVINCI_MMCNBLK);
 		return;
@@ -561,7 +561,7 @@ mmc_davinci_prepare_data(struct mmc_davinci_host *host, struct mmc_request *req)
 	host->buffer = NULL;
 	host->bytes_left = data->blocks * data->blksz;
 
-	/* For now we try to use DMA whenever we won't need partial FIFO
+	/* For analw we try to use DMA whenever we won't need partial FIFO
 	 * reads or writes, either for the whole transfer (as tested here)
 	 * or for any individual scatterlist segment (tested when we call
 	 * start_dma_transfer).
@@ -571,7 +571,7 @@ mmc_davinci_prepare_data(struct mmc_davinci_host *host, struct mmc_request *req)
 	 */
 	if (host->use_dma && (host->bytes_left & (rw_threshold - 1)) == 0
 			&& mmc_davinci_start_dma_transfer(host, data) == 0) {
-		/* zero this to ensure we take no PIO paths */
+		/* zero this to ensure we take anal PIO paths */
 		host->bytes_left = 0;
 	} else {
 		/* Revert to CPU Copy */
@@ -645,7 +645,7 @@ static void calculate_clk_divider(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
 		u32 temp;
 
-		/* Ignoring the init clock value passed for fixing the inter
+		/* Iganalring the init clock value passed for fixing the inter
 		 * operability with different cards.
 		 */
 		open_drain_freq = ((unsigned int)mmc_pclk
@@ -786,7 +786,7 @@ mmc_davinci_xfer_done(struct mmc_davinci_host *host, struct mmc_data *data)
 			     mmc_get_dma_dir(data));
 		host->do_dma = false;
 	}
-	host->data_dir = DAVINCI_MMC_DATADIR_NONE;
+	host->data_dir = DAVINCI_MMC_DATADIR_ANALNE;
 
 	if (!data->stop || (host->cmd && host->cmd->error)) {
 		mmc_request_done(host->mmc, data->mrq);
@@ -874,7 +874,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 			"Spurious interrupt 0x%04x\n", status);
 		/* Disable the interrupt from mmcsd */
 		writel(0, host->base + DAVINCI_MMCIM);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	status = readl(host->base + DAVINCI_MMCST0);
@@ -884,8 +884,8 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 	 * bytes_left will decrease to zero as I/O progress and status will
 	 * read zero over iteration because this controller status
 	 * register(MMCST0) reports any status only once and it is cleared
-	 * by read. So, it is not unbouned loop even in the case of
-	 * non-dma.
+	 * by read. So, it is analt unbouned loop even in the case of
+	 * analn-dma.
 	 */
 	if (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
 		unsigned long im_val;
@@ -921,7 +921,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 		if (data != NULL) {
 			if ((host->do_dma == 0) && (host->bytes_left > 0)) {
 				/* if datasize < rw_threshold
-				 * no RX ints are generated
+				 * anal RX ints are generated
 				 */
 				davinci_fifo_data_trans(host, host->bytes_left);
 			}
@@ -929,7 +929,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else {
 			dev_err(mmc_dev(host->mmc),
-					"DATDNE with no host->data\n");
+					"DATDNE with anal host->data\n");
 		}
 	}
 
@@ -950,7 +950,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 		data->error = -EILSEQ;
 		end_transfer = 1;
 
-		/* NOTE:  this controller uses CRCWR to report both CRC
+		/* ANALTE:  this controller uses CRCWR to report both CRC
 		 * errors and timeouts (on writes).  MMCDRSP values are
 		 * only weakly documented, but 0x9f was clearly a timeout
 		 * case and the two three-bit patterns in various SD specs
@@ -1058,7 +1058,7 @@ static const struct mmc_host_ops mmc_davinci_ops = {
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_CPU_FREQ
-static int mmc_davinci_cpufreq_transition(struct notifier_block *nb,
+static int mmc_davinci_cpufreq_transition(struct analtifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct mmc_davinci_host *host;
@@ -1082,16 +1082,16 @@ static int mmc_davinci_cpufreq_transition(struct notifier_block *nb,
 
 static inline int mmc_davinci_cpufreq_register(struct mmc_davinci_host *host)
 {
-	host->freq_transition.notifier_call = mmc_davinci_cpufreq_transition;
+	host->freq_transition.analtifier_call = mmc_davinci_cpufreq_transition;
 
-	return cpufreq_register_notifier(&host->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
+	return cpufreq_register_analtifier(&host->freq_transition,
+					 CPUFREQ_TRANSITION_ANALTIFIER);
 }
 
 static inline void mmc_davinci_cpufreq_deregister(struct mmc_davinci_host *host)
 {
-	cpufreq_unregister_notifier(&host->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
+	cpufreq_unregister_analtifier(&host->freq_transition,
+				    CPUFREQ_TRANSITION_ANALTIFIER);
 }
 #else
 static inline int mmc_davinci_cpufreq_register(struct mmc_davinci_host *host)
@@ -1172,7 +1172,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	if (pdata && pdata->caps)
 		mmc->caps |= pdata->caps;
 
-	/* Register a cd gpio, if there is not one, enable polling */
+	/* Register a cd gpio, if there is analt one, enable polling */
 	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 	if (ret == -EPROBE_DEFER)
 		return ret;
@@ -1197,7 +1197,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r)
-		return -ENODEV;
+		return -EANALDEV;
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1210,7 +1210,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct mmc_davinci_host), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;	/* Important */
@@ -1218,7 +1218,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	host->mem_res = mem;
 	host->base = devm_ioremap(&pdev->dev, mem->start, mem_size);
 	if (!host->base) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto ioremap_fail;
 	}
 
@@ -1238,14 +1238,14 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 		ret = mmc_of_parse(mmc);
 		if (ret) {
 			dev_err_probe(&pdev->dev, ret,
-				      "could not parse of data\n");
+				      "could analt parse of data\n");
 			goto parse_fail;
 		}
 	} else {
 		ret = mmc_davinci_parse_pdata(mmc);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"could not parse platform data: %d\n", ret);
+				"could analt parse platform data: %d\n", ret);
 			goto parse_fail;
 	}	}
 
@@ -1275,7 +1275,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	mmc->ops = &mmc_davinci_ops;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
-	/* With no iommu coalescing pages, each phys_seg is a hw_seg.
+	/* With anal iommu coalescing pages, each phys_seg is a hw_seg.
 	 * Each hw_seg uses one EDMA parameter RAM slot, always one
 	 * channel and then usually some linked slots.
 	 */
@@ -1394,7 +1394,7 @@ static const struct dev_pm_ops davinci_mmcsd_pm = {
 static struct platform_driver davinci_mmcsd_driver = {
 	.driver		= {
 		.name	= "davinci_mmc",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.pm	= davinci_mmcsd_pm_ops,
 		.of_match_table = davinci_mmc_dt_ids,
 	},

@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2019 ARM Limited
  *
- * Place a fake sigframe on the stack including a BAD Unknown magic
+ * Place a fake sigframe on the stack including a BAD Unkanalwn magic
  * record: on sigreturn Kernel must spot this attempt and the test
  * case is expected to be terminated via SEGV.
  */
@@ -30,7 +30,7 @@ static int fake_sigreturn_bad_magic_run(struct tdescr *td,
 		return 0;
 
 	/*
-	 * use a well known NON existent bad magic...something
+	 * use a well kanalwn ANALN existent bad magic...something
 	 * we should pretty sure won't be ever defined in Kernel
 	 */
 	head->magic = KSFT_BAD_MAGIC;

@@ -7,7 +7,7 @@
  *
  *  Implements emulation of the SWP/SWPB instructions using load-exclusive and
  *  store-exclusive for processors that have them disabled (or future ones that
- *  might not implement them).
+ *  might analt implement them).
  *
  *  Syntax of SWP{B} instruction: SWP{B}<c> <Rt>, <Rt2>, [<Rn>]
  *  Where: Rt  = destination
@@ -106,7 +106,7 @@ static void set_segfault(struct pt_regs *regs, unsigned long addr)
 	mmap_read_unlock(current->mm);
 
 	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm_notify_die("Illegal memory access", regs,
+	arm_analtify_die("Illegal memory access", regs,
 		       SIGSEGV, si_code,
 		       (void __user *)instruction_pointer(regs),
 		       0, 0);
@@ -120,7 +120,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	unsigned int res = 0;
 
 	if ((type != TYPE_SWPB) && (address & 0x3)) {
-		/* SWP to unaligned address not permitted */
+		/* SWP to unaligned address analt permitted */
 		pr_debug("SWP instruction on unaligned pointer!\n");
 		return -EFAULT;
 	}
@@ -173,7 +173,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 		regs->ARM_pc += 4;
 		return 0;
 	case ARM_OPCODE_CONDTEST_UNCOND:
-		/* If unconditional encoding - not a SWP, undef */
+		/* If unconditional encoding - analt a SWP, undef */
 		return -EFAULT;
 	default:
 		return -EINVAL;
@@ -197,7 +197,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 
 	/* Check access in reasonable access range for both SWP and SWPB */
 	if (!access_ok((void __user *)(address & ~3), 4)) {
-		pr_debug("SWP{B} emulation: access to %p not allowed!\n",
+		pr_debug("SWP{B} emulation: access to %p analt allowed!\n",
 			 (void *)address);
 		res = -EFAULT;
 	} else {
@@ -214,7 +214,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 		regs->uregs[destreg] = data;
 	} else if (res == -EFAULT) {
 		/*
-		 * Memory errors do not mean emulation failed.
+		 * Memory errors do analt mean emulation failed.
 		 * Set up signal info to return SEGV, then return OK
 		 */
 		set_segfault(regs, address);
@@ -225,7 +225,7 @@ static int swp_handler(struct pt_regs *regs, unsigned int instr)
 
 /*
  * Only emulate SWP/SWPB executed in ARM state/User mode.
- * The kernel must be SWP free and SWP{B} does not exist in Thumb/ThumbEE.
+ * The kernel must be SWP free and SWP{B} does analt exist in Thumb/ThumbEE.
  */
 static struct undef_hook swp_hook = {
 	.instr_mask = 0x0fb00ff0,
@@ -237,7 +237,7 @@ static struct undef_hook swp_hook = {
 
 /*
  * Register handler and create status file in /proc/cpu
- * Invoked as late_initcall, since not needed before init spawned.
+ * Invoked as late_initcall, since analt needed before init spawned.
  */
 static int __init swp_emulation_init(void)
 {
@@ -247,10 +247,10 @@ static int __init swp_emulation_init(void)
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_single("cpu/swp_emulation", S_IRUGO, NULL,
 			proc_status_show))
-		return -ENOMEM;
+		return -EANALMEM;
 #endif /* CONFIG_PROC_FS */
 
-	pr_notice("Registering SWP/SWPB emulation handler\n");
+	pr_analtice("Registering SWP/SWPB emulation handler\n");
 	register_undef_hook(&swp_hook);
 
 	return 0;

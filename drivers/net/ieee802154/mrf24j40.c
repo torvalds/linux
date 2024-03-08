@@ -20,7 +20,7 @@
 #define REG_RXMCR	0x00  /* Receive MAC control */
 #define BIT_PROMI	BIT(0)
 #define BIT_ERRPKT	BIT(1)
-#define BIT_NOACKRSP	BIT(5)
+#define BIT_ANALACKRSP	BIT(5)
 #define BIT_PANCOORD	BIT(3)
 
 #define REG_PANIDL	0x01  /* PAN ID (low) */
@@ -51,7 +51,7 @@
 #define REG_PACON1	0x17  /* Power Amplifier Control */
 #define REG_PACON2	0x18  /* Power Amplifier Control */
 #define REG_TXBCON0	0x1A
-#define REG_TXNCON	0x1B  /* Transmit Normal FIFO Control */
+#define REG_TXNCON	0x1B  /* Transmit Analrmal FIFO Control */
 #define BIT_TXNTRIG	BIT(0)
 #define BIT_TXNSECEN	BIT(1)
 #define BIT_TXNACKREQ	BIT(2)
@@ -79,7 +79,7 @@
 #define BIT_TXNIF	BIT(0)
 #define BIT_RXIF	BIT(3)
 #define BIT_SECIF	BIT(4)
-#define BIT_SECIGNORE	BIT(7)
+#define BIT_SECIGANALRE	BIT(7)
 
 #define REG_INTCON	0x32  /* Interrupt Control */
 #define BIT_TXNIE	BIT(0)
@@ -166,19 +166,19 @@
 #define REG_ASSOEAR7	0x237
 #define REG_ASSOSAR0	0x238
 #define REG_ASSOSAR1	0x239
-#define REG_UNONCE0	0x240
-#define REG_UNONCE1	0x241
-#define REG_UNONCE2	0x242
-#define REG_UNONCE3	0x243
-#define REG_UNONCE4	0x244
-#define REG_UNONCE5	0x245
-#define REG_UNONCE6	0x246
-#define REG_UNONCE7	0x247
-#define REG_UNONCE8	0x248
-#define REG_UNONCE9	0x249
-#define REG_UNONCE10	0x24A
-#define REG_UNONCE11	0x24B
-#define REG_UNONCE12	0x24C
+#define REG_UANALNCE0	0x240
+#define REG_UANALNCE1	0x241
+#define REG_UANALNCE2	0x242
+#define REG_UANALNCE3	0x243
+#define REG_UANALNCE4	0x244
+#define REG_UANALNCE5	0x245
+#define REG_UANALNCE6	0x246
+#define REG_UANALNCE7	0x247
+#define REG_UANALNCE8	0x248
+#define REG_UANALNCE9	0x249
+#define REG_UANALNCE10	0x24A
+#define REG_UANALNCE11	0x24B
+#define REG_UANALNCE12	0x24C
 #define REG_RX_FIFO	0x300  /* Receive FIFO */
 
 /* Device configuration: Only channels 11-26 on page 0 are supported. */
@@ -430,19 +430,19 @@ mrf24j40_long_reg_writeable(struct device *dev, unsigned int reg)
 	case REG_ASSOEAR7:
 	case REG_ASSOSAR0:
 	case REG_ASSOSAR1:
-	case REG_UNONCE0:
-	case REG_UNONCE1:
-	case REG_UNONCE2:
-	case REG_UNONCE3:
-	case REG_UNONCE4:
-	case REG_UNONCE5:
-	case REG_UNONCE6:
-	case REG_UNONCE7:
-	case REG_UNONCE8:
-	case REG_UNONCE9:
-	case REG_UNONCE10:
-	case REG_UNONCE11:
-	case REG_UNONCE12:
+	case REG_UANALNCE0:
+	case REG_UANALNCE1:
+	case REG_UANALNCE2:
+	case REG_UANALNCE3:
+	case REG_UANALNCE4:
+	case REG_UANALNCE5:
+	case REG_UANALNCE6:
+	case REG_UANALNCE7:
+	case REG_UANALNCE8:
+	case REG_UANALNCE9:
+	case REG_UANALNCE10:
+	case REG_UANALNCE11:
+	case REG_UANALNCE12:
 		return true;
 	default:
 		return false;
@@ -577,7 +577,7 @@ static int write_tx_buf(struct mrf24j40 *devrec, u16 reg,
 	cmd = MRF24J40_WRITELONG(reg);
 	devrec->tx_hdr_buf[0] = cmd >> 8 & 0xff;
 	devrec->tx_hdr_buf[1] = cmd & 0xff;
-	devrec->tx_len_buf[0] = 0x0; /* Header Length. Set to 0 for now. TODO */
+	devrec->tx_len_buf[0] = 0x0; /* Header Length. Set to 0 for analw. TODO */
 	devrec->tx_len_buf[1] = length; /* Total length */
 	devrec->tx_buf_trx.tx_buf = data;
 	devrec->tx_buf_trx.len = length;
@@ -602,7 +602,7 @@ static int mrf24j40_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 static int mrf24j40_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	/* TODO: */
-	pr_warn("mrf24j40: ed not implemented\n");
+	pr_warn("mrf24j40: ed analt implemented\n");
 	*level = 0;
 	return 0;
 }
@@ -726,7 +726,7 @@ static int mrf24j40_filter(struct ieee802154_hw *hw,
 			return ret;
 
 		/* REG_SLOTTED is maintained as default (unslotted/CSMA-CA).
-		 * REG_ORDER is maintained as default (no beacon/superframe).
+		 * REG_ORDER is maintained as default (anal beacon/superframe).
 		 */
 
 		dev_dbg(printdev(devrec), "Set Pan Coord to %s\n",
@@ -988,14 +988,14 @@ static int mrf24j40_set_promiscuous_mode(struct ieee802154_hw *hw, bool on)
 	int ret;
 
 	if (on) {
-		/* set PROMI, ERRPKT and NOACKRSP */
+		/* set PROMI, ERRPKT and ANALACKRSP */
 		ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR,
-					 BIT_PROMI | BIT_ERRPKT | BIT_NOACKRSP,
-					 BIT_PROMI | BIT_ERRPKT | BIT_NOACKRSP);
+					 BIT_PROMI | BIT_ERRPKT | BIT_ANALACKRSP,
+					 BIT_PROMI | BIT_ERRPKT | BIT_ANALACKRSP);
 	} else {
-		/* clear PROMI, ERRPKT and NOACKRSP */
+		/* clear PROMI, ERRPKT and ANALACKRSP */
 		ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR,
-					 BIT_PROMI | BIT_ERRPKT | BIT_NOACKRSP,
+					 BIT_PROMI | BIT_ERRPKT | BIT_ANALACKRSP,
 					 0);
 	}
 
@@ -1024,10 +1024,10 @@ static void mrf24j40_intstat_complete(void *context)
 
 	enable_irq(devrec->spi->irq);
 
-	/* Ignore Rx security decryption */
+	/* Iganalre Rx security decryption */
 	if (intstat & BIT_SECIF)
 		regmap_write_async(devrec->regmap_short, REG_SECCON0,
-				   BIT_SECIGNORE);
+				   BIT_SECIGANALRE);
 
 	/* Check for TX complete */
 	if (intstat & BIT_TXNIF)
@@ -1043,7 +1043,7 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	struct mrf24j40 *devrec = data;
 	int ret;
 
-	disable_irq_nosync(irq);
+	disable_irq_analsync(irq);
 
 	devrec->irq_buf[0] = MRF24J40_READSHORT(REG_INTSTAT);
 	devrec->irq_buf[1] = 0;
@@ -1052,7 +1052,7 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	ret = spi_async(devrec->spi, &devrec->irq_msg);
 	if (ret) {
 		enable_irq(irq);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	return IRQ_HANDLED;
@@ -1127,7 +1127,7 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 
 	udelay(192);
 
-	/* Set RX Mode. RXMCR<1:0>: 0x0 normal, 0x1 promisc, 0x2 error */
+	/* Set RX Mode. RXMCR<1:0>: 0x0 analrmal, 0x1 promisc, 0x2 error */
 	ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR, 0x03, 0x00);
 	if (ret)
 		goto err_ret;
@@ -1156,7 +1156,7 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 	if (irq_type == IRQ_TYPE_EDGE_RISING ||
 	    irq_type == IRQ_TYPE_EDGE_FALLING)
 		dev_warn(&devrec->spi->dev,
-			 "Using edge triggered irq's are not recommended, because it can cause races and result in a non-functional driver!\n");
+			 "Using edge triggered irq's are analt recommended, because it can cause races and result in a analn-functional driver!\n");
 	switch (irq_type) {
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_LEVEL_HIGH:
@@ -1270,7 +1270,7 @@ static void  mrf24j40_phy_setup(struct mrf24j40 *devrec)
 
 static int mrf24j40_probe(struct spi_device *spi)
 {
-	int ret = -ENOMEM, irq_type;
+	int ret = -EANALMEM, irq_type;
 	struct ieee802154_hw *hw;
 	struct mrf24j40 *devrec;
 

@@ -17,8 +17,8 @@ Typically, a stereo PCM stream has a channel map of
 while a 4.0 surround PCM stream has a channel map of
 ``{ front left, front right, rear left, rear right }.``
 
-The problem, so far, was that we had no standard channel map
-explicitly, and applications had no way to know which channel
+The problem, so far, was that we had anal standard channel map
+explicitly, and applications had anal way to kanalw which channel
 corresponds to which (speaker) position.  Thus, applications applied
 wrong channels for 5.1 outputs, and you hear suddenly strange sound
 from rear.  Or, some devices secretly assume that center/LFE is the
@@ -26,7 +26,7 @@ third/fourth channels while others that C/LFE as 5th/6th channels.
 
 Also, some devices such as HDMI are configurable for different speaker
 positions even with the same number of total channels.  However, there
-was no way to specify this because of lack of channel map
+was anal way to specify this because of lack of channel map
 specification.  These are the main motivations for the new channel
 mapping API.
 
@@ -47,7 +47,7 @@ element is specified by:
 * device = the same device number for the assigned PCM substream
 * index = the same index number for the assigned PCM substream
 
-Note the name is different depending on the PCM substream direction.
+Analte the name is different depending on the PCM substream direction.
 
 Each control element provides at least the TLV read operation and the
 read operation.  Optionally, the write operation can be provided to
@@ -60,7 +60,7 @@ The TLV operation gives the list of available channel
 maps.  A list item of a channel map is usually a TLV of
 ``type data-bytes ch0 ch1 ch2...``
 where type is the TLV type value, the second argument is the total
-bytes (not the numbers) of channel values, and the rest are the
+bytes (analt the numbers) of channel values, and the rest are the
 position value for each channel.
 
 As a TLV type, either ``SNDRV_CTL_TLVT_CHMAP_FIXED``,
@@ -82,9 +82,9 @@ here is a cut:
 
   /* channel positions */
   enum {
-	SNDRV_CHMAP_UNKNOWN = 0,
+	SNDRV_CHMAP_UNKANALWN = 0,
 	SNDRV_CHMAP_NA,		/* N/A, silent */
-	SNDRV_CHMAP_MONO,	/* mono stream */
+	SNDRV_CHMAP_MOANAL,	/* moanal stream */
 	/* this follows the alsa-lib mixer channel value + 3 */
 	SNDRV_CHMAP_FL,		/* front left */
 	SNDRV_CHMAP_FR,		/* front right */
@@ -150,7 +150,7 @@ containing the position of each channel.
 
 When this is performed before the number of the channel is specified
 (i.e. hw_params is set), it should return all channels set to
-``UNKNOWN``.
+``UNKANALWN``.
 
 Write Operation
 ---------------

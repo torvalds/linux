@@ -63,7 +63,7 @@ extern unsigned long kvmppc_booke_handlers;
 extern unsigned long kvmppc_booke_handler_addr[];
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr);
-void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr);
+void kvmppc_mmu_msr_analtify(struct kvm_vcpu *vcpu, u32 old_msr);
 
 void kvmppc_set_epcr(struct kvm_vcpu *vcpu, u32 new_epcr);
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr);
@@ -86,7 +86,7 @@ void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu);
 
 enum int_class {
-	INT_CLASS_NONCRIT,
+	INT_CLASS_ANALNCRIT,
 	INT_CLASS_CRIT,
 	INT_CLASS_MC,
 	INT_CLASS_DBG,

@@ -11,7 +11,7 @@
 
 unsigned long __must_check __copy_user_ll
 		(void *to, const void *from, unsigned long n);
-unsigned long __must_check __copy_from_user_ll_nocache_nozero
+unsigned long __must_check __copy_from_user_ll_analcache_analzero
 		(void *to, const void __user *from, unsigned long n);
 
 static __always_inline unsigned long __must_check
@@ -27,10 +27,10 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 }
 
 static __always_inline unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+__copy_from_user_inatomic_analcache(void *to, const void __user *from,
 				  unsigned long n)
 {
-       return __copy_from_user_ll_nocache_nozero(to, from, n);
+       return __copy_from_user_ll_analcache_analzero(to, from, n);
 }
 
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);

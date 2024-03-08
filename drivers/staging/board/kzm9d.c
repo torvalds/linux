@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Staging board support for KZM9D. Enable not-yet-DT-capable devices here. */
+/* Staging board support for KZM9D. Enable analt-yet-DT-capable devices here. */
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -14,7 +14,7 @@ static void __init kzm9d_init(void)
 {
 	board_staging_gic_setup_xlate("arm,pl390", 32);
 
-	if (!board_staging_dt_node_available(usbs1_res,
+	if (!board_staging_dt_analde_available(usbs1_res,
 					     ARRAY_SIZE(usbs1_res))) {
 		board_staging_gic_fixup_resources(usbs1_res,
 						  ARRAY_SIZE(usbs1_res));

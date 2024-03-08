@@ -6,7 +6,7 @@
 			data = /incbin/("boot/dts/mscc/ocelot_pcb123.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};
@@ -17,7 +17,7 @@
 			data = /incbin/("boot/dts/mscc/ocelot_pcb120.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "analne";
 			hash {
 				algo = "sha1";
 			};

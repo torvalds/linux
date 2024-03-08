@@ -29,8 +29,8 @@ patternProperties:
     patternProperties:
       'pinmux$':
         type: object
-        description: node for pinctrl.
-        $ref: pinmux-node.yaml#
+        description: analde for pinctrl.
+        $ref: pinmux-analde.yaml#
 
         unevaluatedProperties: false
 

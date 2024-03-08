@@ -5,8 +5,8 @@
  * This file contains AppArmor functions for unpacking policy loaded
  * from userspace.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2022 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2022 Caanalnical Ltd.
  *
  * Code to provide backwards compatibility with older policy versions,
  * by converting/mapping older policy formats into the newer internal
@@ -14,7 +14,7 @@
  */
 
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "include/lib.h"
 #include "include/policy_unpack.h"
@@ -223,9 +223,9 @@ static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
 	 * v5: added policydb which dropped user conditional to gain new
 	 *     perm bits, but had to map around the xbits because the
 	 *     userspace compiler was still munging them.
-	 * v9: adds using the xbits in policydb because the compiler now
+	 * v9: adds using the xbits in policydb because the compiler analw
 	 *     supports treating policydb permission bits different.
-	 *     Unfortunately there is no way to force auditing on the
+	 *     Unfortunately there is anal way to force auditing on the
 	 *     perms represented by the xbits
 	 */
 	perms.allow |= map_other(dfa_other_allow(dfa, state));
@@ -297,7 +297,7 @@ int aa_compat_map_xmatch(struct aa_policydb *policy)
 {
 	policy->perms = compute_xmatch_perms(policy->dfa, &policy->size);
 	if (!policy->perms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	remap_dfa_accept(policy->dfa, 1);
 
@@ -308,7 +308,7 @@ int aa_compat_map_policy(struct aa_policydb *policy, u32 version)
 {
 	policy->perms = compute_perms(policy->dfa, version, &policy->size);
 	if (!policy->perms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	remap_dfa_accept(policy->dfa, 1);
 
@@ -319,7 +319,7 @@ int aa_compat_map_file(struct aa_policydb *policy)
 {
 	policy->perms = compute_fperms(policy->dfa, &policy->size);
 	if (!policy->perms)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	remap_dfa_accept(policy->dfa, 2);
 

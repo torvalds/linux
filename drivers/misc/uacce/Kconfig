@@ -10,4 +10,4 @@ config UACCE
 
 	  See Documentation/misc-devices/uacce.rst for more details.
 
-	  If you don't know what to do here, say N.
+	  If you don't kanalw what to do here, say N.

@@ -33,7 +33,7 @@ static int imx_sgtl5000_dai_init(struct snd_soc_pcm_runtime *rtd)
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(rtd, 0), SGTL5000_SYSCLK,
 				     data->clk_frequency, SND_SOC_CLOCK_IN);
 	if (ret) {
-		dev_err(dev, "could not set codec driver clock params\n");
+		dev_err(dev, "could analt set codec driver clock params\n");
 		return ret;
 	}
 
@@ -50,8 +50,8 @@ static const struct snd_soc_dapm_widget imx_sgtl5000_dapm_widgets[] = {
 
 static int imx_sgtl5000_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np, *codec_np;
+	struct device_analde *np = pdev->dev.of_analde;
+	struct device_analde *ssi_np, *codec_np;
 	struct platform_device *ssi_pdev;
 	struct i2c_client *codec_dev;
 	struct imx_sgtl5000_data *data = NULL;
@@ -95,22 +95,22 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ssi_np = of_parse_phandle(pdev->dev.of_node, "ssi-controller", 0);
-	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
+	ssi_np = of_parse_phandle(pdev->dev.of_analde, "ssi-controller", 0);
+	codec_np = of_parse_phandle(pdev->dev.of_analde, "audio-codec", 0);
 	if (!ssi_np || !codec_np) {
 		dev_err(&pdev->dev, "phandle missing or invalid\n");
 		ret = -EINVAL;
 		goto fail;
 	}
 
-	ssi_pdev = of_find_device_by_node(ssi_np);
+	ssi_pdev = of_find_device_by_analde(ssi_np);
 	if (!ssi_pdev) {
 		dev_dbg(&pdev->dev, "failed to find SSI platform device\n");
 		ret = -EPROBE_DEFER;
 		goto fail;
 	}
 	put_device(&ssi_pdev->dev);
-	codec_dev = of_find_i2c_device_by_node(codec_np);
+	codec_dev = of_find_i2c_device_by_analde(codec_np);
 	if (!codec_dev) {
 		dev_dbg(&pdev->dev, "failed to find codec platform device\n");
 		ret = -EPROBE_DEFER;
@@ -119,13 +119,13 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
 	comp = devm_kzalloc(&pdev->dev, 3 * sizeof(*comp), GFP_KERNEL);
 	if (!comp) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto put_device;
 	}
 
@@ -148,9 +148,9 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	data->dai.name = "HiFi";
 	data->dai.stream_name = "HiFi";
 	data->dai.codecs->dai_name = "sgtl5000";
-	data->dai.codecs->of_node = codec_np;
-	data->dai.cpus->of_node = ssi_np;
-	data->dai.platforms->of_node = ssi_np;
+	data->dai.codecs->of_analde = codec_np;
+	data->dai.cpus->of_analde = ssi_np;
+	data->dai.platforms->of_analde = ssi_np;
 	data->dai.init = &imx_sgtl5000_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBP_CFP;
@@ -177,8 +177,8 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	of_node_put(ssi_np);
-	of_node_put(codec_np);
+	of_analde_put(ssi_np);
+	of_analde_put(codec_np);
 
 	return 0;
 
@@ -187,8 +187,8 @@ put_device:
 fail:
 	if (data && !IS_ERR(data->codec_clk))
 		clk_put(data->codec_clk);
-	of_node_put(ssi_np);
-	of_node_put(codec_np);
+	of_analde_put(ssi_np);
+	of_analde_put(codec_np);
 
 	return ret;
 }

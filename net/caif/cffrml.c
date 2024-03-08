@@ -91,7 +91,7 @@ static int cffrml_receive(struct cflayer *layr, struct cfpkt *pkt)
 	cfpkt_extr_head(pkt, &tmp, 2);
 	len = le16_to_cpu(tmp);
 
-	/* Subtract for FCS on length if FCS is not used. */
+	/* Subtract for FCS on length if FCS is analt used. */
 	if (!this->dofcs)
 		len -= 2;
 
@@ -160,7 +160,7 @@ static int cffrml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 
 	if (layr->dn == NULL) {
 		cfpkt_destroy(pkt);
-		return -ENODEV;
+		return -EANALDEV;
 
 	}
 	return layr->dn->transmit(layr->dn, pkt);

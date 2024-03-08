@@ -25,11 +25,11 @@ static int __patch_instruction(u32 *exec_addr, ppc_inst_t instr, u32 *patch_addr
 	if (!ppc_inst_prefixed(instr)) {
 		u32 val = ppc_inst_val(instr);
 
-		__put_kernel_nofault(patch_addr, &val, u32, failed);
+		__put_kernel_analfault(patch_addr, &val, u32, failed);
 	} else {
 		u64 val = ppc_inst_as_ulong(instr);
 
-		__put_kernel_nofault(patch_addr, &val, u64, failed);
+		__put_kernel_analfault(patch_addr, &val, u64, failed);
 	}
 
 	asm ("dcbst 0, %0; sync; icbi 0,%1; sync; isync" :: "r" (patch_addr),
@@ -68,7 +68,7 @@ static bool mm_patch_enabled(void)
 
 /*
  * The following applies for Radix MMU. Hash MMU has different requirements,
- * and so is not supported.
+ * and so is analt supported.
  *
  * Changing mm requires context synchronising instructions on both sides of
  * the context switch, as well as a hwsync between the last instruction for
@@ -155,7 +155,7 @@ static int text_area_cpu_up_mm(unsigned int cpu)
 
 	mm = mm_alloc();
 	if (WARN_ON(!mm))
-		goto fail_no_mm;
+		goto fail_anal_mm;
 
 	/*
 	 * Choose a random page-aligned address from the interval
@@ -166,7 +166,7 @@ static int text_area_cpu_up_mm(unsigned int cpu)
 
 	/*
 	 * PTE allocation uses GFP_KERNEL which means we need to
-	 * pre-allocate the PTE here because we cannot do the
+	 * pre-allocate the PTE here because we cananalt do the
 	 * allocation during patching when IRQs are disabled.
 	 *
 	 * Using get_locked_pte() to avoid open coding, the lock
@@ -174,7 +174,7 @@ static int text_area_cpu_up_mm(unsigned int cpu)
 	 */
 	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto fail_no_pte;
+		goto fail_anal_pte;
 	pte_unmap_unlock(pte, ptl);
 
 	this_cpu_write(cpu_patching_context.mm, mm);
@@ -182,10 +182,10 @@ static int text_area_cpu_up_mm(unsigned int cpu)
 
 	return 0;
 
-fail_no_pte:
+fail_anal_pte:
 	put_patching_mm(mm, addr);
-fail_no_mm:
-	return -ENOMEM;
+fail_anal_mm:
+	return -EANALMEM;
 }
 
 static int text_area_cpu_down_mm(unsigned int cpu)
@@ -250,23 +250,23 @@ static void unmap_patch_area(unsigned long addr)
 	pgd_t *pgdp;
 
 	pgdp = pgd_offset_k(addr);
-	if (WARN_ON(pgd_none(*pgdp)))
+	if (WARN_ON(pgd_analne(*pgdp)))
 		return;
 
 	p4dp = p4d_offset(pgdp, addr);
-	if (WARN_ON(p4d_none(*p4dp)))
+	if (WARN_ON(p4d_analne(*p4dp)))
 		return;
 
 	pudp = pud_offset(p4dp, addr);
-	if (WARN_ON(pud_none(*pudp)))
+	if (WARN_ON(pud_analne(*pudp)))
 		return;
 
 	pmdp = pmd_offset(pudp, addr);
-	if (WARN_ON(pmd_none(*pmdp)))
+	if (WARN_ON(pmd_analne(*pmdp)))
 		return;
 
 	ptep = pte_offset_kernel(pmdp, addr);
-	if (WARN_ON(pte_none(*ptep)))
+	if (WARN_ON(pte_analne(*ptep)))
 		return;
 
 	/*
@@ -293,7 +293,7 @@ static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
 
 	pte = get_locked_pte(patching_mm, text_poke_addr, &ptl);
 	if (!pte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__set_pte_at(patching_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
 
@@ -354,7 +354,7 @@ int patch_instruction(u32 *addr, ppc_inst_t instr)
 
 	/*
 	 * During early early boot patch_instruction is called
-	 * when text_poke_area is not ready, but we still need
+	 * when text_poke_area is analt ready, but we still need
 	 * to allow patching. We just do the plain old patching
 	 */
 	if (!IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) ||
@@ -370,7 +370,7 @@ int patch_instruction(u32 *addr, ppc_inst_t instr)
 
 	return err;
 }
-NOKPROBE_SYMBOL(patch_instruction);
+ANALKPROBE_SYMBOL(patch_instruction);
 
 static int __patch_instructions(u32 *patch_addr, u32 *code, size_t len, bool repeat_instr)
 {
@@ -418,7 +418,7 @@ static int __do_patch_instructions_mm(u32 *addr, u32 *code, size_t len, bool rep
 
 	pte = get_locked_pte(patching_mm, text_poke_addr, &ptl);
 	if (!pte)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	__set_pte_at(patching_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
 
@@ -508,7 +508,7 @@ int patch_instructions(u32 *addr, u32 *code, size_t len, bool repeat_instr)
 
 	return 0;
 }
-NOKPROBE_SYMBOL(patch_instructions);
+ANALKPROBE_SYMBOL(patch_instructions);
 
 int patch_branch(u32 *addr, unsigned long target, int flags)
 {
@@ -540,7 +540,7 @@ bool is_conditional_branch(ppc_inst_t instr)
 	}
 	return false;
 }
-NOKPROBE_SYMBOL(is_conditional_branch);
+ANALKPROBE_SYMBOL(is_conditional_branch);
 
 int create_cond_branch(ppc_inst_t *instr, const u32 *addr,
 		       unsigned long target, int flags)

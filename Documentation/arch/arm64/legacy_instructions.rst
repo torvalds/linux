@@ -8,9 +8,9 @@ the architecture. The infrastructure code uses undefined instruction
 hooks to support emulation. Where available it also allows turning on
 the instruction execution in hardware.
 
-The emulation mode can be controlled by writing to sysctl nodes
+The emulation mode can be controlled by writing to sysctl analdes
 (/proc/sys/abi). The following explains the different execution
-behaviours and the corresponding values of the sysctl nodes -
+behaviours and the corresponding values of the sysctl analdes -
 
 * Undef
     Value: 0
@@ -39,30 +39,30 @@ The default mode depends on the status of the instruction in the
 architecture. Deprecated instructions should default to emulation
 while obsolete instructions must be undefined by default.
 
-Note: Instruction emulation may not be possible in all cases. See
-individual instruction notes for further information.
+Analte: Instruction emulation may analt be possible in all cases. See
+individual instruction analtes for further information.
 
 Supported legacy instructions
 -----------------------------
 * SWP{B}
 
-:Node: /proc/sys/abi/swp
+:Analde: /proc/sys/abi/swp
 :Status: Obsolete
 :Default: Undef (0)
 
 * CP15 Barriers
 
-:Node: /proc/sys/abi/cp15_barrier
+:Analde: /proc/sys/abi/cp15_barrier
 :Status: Deprecated
 :Default: Emulate (1)
 
 * SETEND
 
-:Node: /proc/sys/abi/setend
+:Analde: /proc/sys/abi/setend
 :Status: Deprecated
 :Default: Emulate (1)*
 
-  Note: All the cpus on the system must have mixed endian support at EL0
+  Analte: All the cpus on the system must have mixed endian support at EL0
   for this feature to be enabled. If a new CPU - which doesn't support mixed
   endian - is hotplugged in after this feature has been enabled, there could
   be unexpected results in the application.

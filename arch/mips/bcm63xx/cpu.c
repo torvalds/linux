@@ -324,7 +324,7 @@ void __init bcm63xx_cpu_init(void)
 	}
 
 	/*
-	 * really early to panic, but delaying panic would not help since we
+	 * really early to panic, but delaying panic would analt help since we
 	 * will never get any working console
 	 */
 	if (!chipid_reg)

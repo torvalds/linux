@@ -40,7 +40,7 @@ struct k210_clk_cfg {
 };
 
 enum k210_clk_div_type {
-	K210_DIV_NONE,
+	K210_DIV_ANALNE,
 	K210_DIV_ONE_BASED,
 	K210_DIV_DOUBLE_ONE_BASED,
 	K210_DIV_POWER_OF_TWO,
@@ -61,7 +61,7 @@ enum k210_clk_div_type {
 	.mux_bit = (_bit)
 
 static struct k210_clk_cfg k210_clk_cfgs[K210_NUM_CLKS] = {
-	/* Gated clocks, no mux, no divider */
+	/* Gated clocks, anal mux, anal divider */
 	[K210_CLK_CPU] = {
 		.name = "cpu",
 		K210_GATE(K210_SYSCTL_EN_CENT, 0)
@@ -208,7 +208,7 @@ static struct k210_clk_cfg k210_clk_cfgs[K210_NUM_CLKS] = {
 		K210_DIV(K210_SYSCTL_THR4, 0, 16, K210_DIV_DOUBLE_ONE_BASED)
 	},
 
-	/* Divider clocks, no gate, no mux */
+	/* Divider clocks, anal gate, anal mux */
 	[K210_CLK_I2S0_M] = {
 		.name = "i2s0_m",
 		K210_DIV(K210_SYSCTL_THR4, 16, 8, K210_DIV_DOUBLE_ONE_BASED)
@@ -413,14 +413,14 @@ static void k210_pll_enable_hw(void __iomem *regs, struct k210_pll *pll)
 
 	/*
 	 * Reset the PLL: ensure reset is low before asserting it.
-	 * The magic NOPs come from the Kendryte reference SDK.
+	 * The magic ANALPs come from the Kendryte reference SDK.
 	 */
 	reg &= ~K210_PLL_RESET;
 	writel(reg, pll->reg);
 	reg |= K210_PLL_RESET;
 	writel(reg, pll->reg);
-	nop();
-	nop();
+	analp();
+	analp();
 	reg &= ~K210_PLL_RESET;
 	writel(reg, pll->reg);
 
@@ -457,7 +457,7 @@ static void k210_pll_disable(struct clk_hw *hw)
 	u32 reg;
 
 	/*
-	 * Bypassing before powering off is important so child clocks do not
+	 * Bypassing before powering off is important so child clocks do analt
 	 * stop working. This is especially important for pll0, the indirect
 	 * parent of the cpu clock.
 	 */
@@ -536,12 +536,12 @@ static const struct clk_ops k210_pll2_ops = {
 	.disable	= k210_pll_disable,
 	.is_enabled	= k210_pll_is_enabled,
 	.recalc_rate	= k210_pll_get_rate,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent	= k210_pll2_set_parent,
 	.get_parent	= k210_pll2_get_parent,
 };
 
-static int __init k210_register_pll(struct device_node *np,
+static int __init k210_register_pll(struct device_analde *np,
 				    struct k210_sysclk *ksc,
 				    enum k210_pll_id pllid, const char *name,
 				    int num_parents, const struct clk_ops *ops)
@@ -565,7 +565,7 @@ static int __init k210_register_pll(struct device_node *np,
 	return of_clk_hw_register(np, &pll->hw);
 }
 
-static int __init k210_register_plls(struct device_node *np,
+static int __init k210_register_plls(struct device_analde *np,
 				     struct k210_sysclk *ksc)
 {
 	int i, ret;
@@ -635,7 +635,7 @@ static unsigned long k210_aclk_get_rate(struct clk_hw *hw,
 }
 
 static const struct clk_ops k210_aclk_ops = {
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent	= k210_aclk_set_parent,
 	.get_parent	= k210_aclk_get_parent,
 	.recalc_rate	= k210_aclk_get_rate,
@@ -644,7 +644,7 @@ static const struct clk_ops k210_aclk_ops = {
 /*
  * ACLK has IN0 and PLL0 as parents.
  */
-static int __init k210_register_aclk(struct device_node *np,
+static int __init k210_register_aclk(struct device_analde *np,
 				     struct k210_sysclk *ksc)
 {
 	struct clk_init_data init = {};
@@ -766,7 +766,7 @@ static unsigned long k210_clk_get_rate(struct clk_hw *hw,
 		return parent_rate / ((div_val + 1) * 2);
 	case K210_DIV_POWER_OF_TWO:
 		return parent_rate / (2UL << div_val);
-	case K210_DIV_NONE:
+	case K210_DIV_ANALNE:
 	default:
 		return 0;
 	}
@@ -775,7 +775,7 @@ static unsigned long k210_clk_get_rate(struct clk_hw *hw,
 static const struct clk_ops k210_clk_mux_ops = {
 	.enable		= k210_clk_enable,
 	.disable	= k210_clk_disable,
-	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.determine_rate = clk_hw_determine_rate_anal_reparent,
 	.set_parent	= k210_clk_set_parent,
 	.get_parent	= k210_clk_get_parent,
 	.recalc_rate	= k210_clk_get_rate,
@@ -787,7 +787,7 @@ static const struct clk_ops k210_clk_ops = {
 	.recalc_rate	= k210_clk_get_rate,
 };
 
-static void __init k210_register_clk(struct device_node *np,
+static void __init k210_register_clk(struct device_analde *np,
 				     struct k210_sysclk *ksc, int id,
 				     const struct clk_parent_data *parent_data,
 				     int num_parents, unsigned long flags)
@@ -820,7 +820,7 @@ static void __init k210_register_clk(struct device_node *np,
 /*
  * All muxed clocks have IN0 and PLL0 as parents.
  */
-static inline void __init k210_register_mux_clk(struct device_node *np,
+static inline void __init k210_register_mux_clk(struct device_analde *np,
 						struct k210_sysclk *ksc, int id)
 {
 	const struct clk_parent_data parent_data[2] = {
@@ -831,7 +831,7 @@ static inline void __init k210_register_mux_clk(struct device_node *np,
 	k210_register_clk(np, ksc, id, parent_data, 2, 0);
 }
 
-static inline void __init k210_register_in0_child(struct device_node *np,
+static inline void __init k210_register_in0_child(struct device_analde *np,
 						struct k210_sysclk *ksc, int id)
 {
 	const struct clk_parent_data parent_data = {
@@ -841,7 +841,7 @@ static inline void __init k210_register_in0_child(struct device_node *np,
 	k210_register_clk(np, ksc, id, &parent_data, 1, 0);
 }
 
-static inline void __init k210_register_pll_child(struct device_node *np,
+static inline void __init k210_register_pll_child(struct device_analde *np,
 						struct k210_sysclk *ksc, int id,
 						enum k210_pll_id pllid,
 						unsigned long flags)
@@ -853,7 +853,7 @@ static inline void __init k210_register_pll_child(struct device_node *np,
 	k210_register_clk(np, ksc, id, &parent_data, 1, flags);
 }
 
-static inline void __init k210_register_aclk_child(struct device_node *np,
+static inline void __init k210_register_aclk_child(struct device_analde *np,
 						struct k210_sysclk *ksc, int id,
 						unsigned long flags)
 {
@@ -864,7 +864,7 @@ static inline void __init k210_register_aclk_child(struct device_node *np,
 	k210_register_clk(np, ksc, id, &parent_data, 1, flags);
 }
 
-static inline void __init k210_register_clk_child(struct device_node *np,
+static inline void __init k210_register_clk_child(struct device_analde *np,
 						struct k210_sysclk *ksc, int id,
 						int parent_id)
 {
@@ -887,9 +887,9 @@ static struct clk_hw *k210_clk_hw_onecell_get(struct of_phandle_args *clkspec,
 	return &ksc->clks[idx].hw;
 }
 
-static void __init k210_clk_init(struct device_node *np)
+static void __init k210_clk_init(struct device_analde *np)
 {
-	struct device_node *sysctl_np;
+	struct device_analde *sysctl_np;
 	struct k210_sysclk *ksc;
 	int i, ret;
 
@@ -900,7 +900,7 @@ static void __init k210_clk_init(struct device_node *np)
 	spin_lock_init(&ksc->clk_lock);
 	sysctl_np = of_get_parent(np);
 	ksc->regs = of_iomap(sysctl_np, 0);
-	of_node_put(sysctl_np);
+	of_analde_put(sysctl_np);
 	if (!ksc->regs) {
 		pr_err("%pOFP: failed to map registers\n", np);
 		return;
@@ -915,10 +915,10 @@ static void __init k210_clk_init(struct device_node *np)
 		return;
 
 	/*
-	 * Critical clocks: there are no consumers of the SRAM clocks,
+	 * Critical clocks: there are anal consumers of the SRAM clocks,
 	 * including the AI clock for the third SRAM bank. The CPU clock
 	 * is only referenced by the uarths serial device and so would be
-	 * disabled if the serial console is disabled to switch to another
+	 * disabled if the serial console is disabled to switch to aanalther
 	 * console. Mark all these clocks as critical so that they are never
 	 * disabled by the core clock management.
 	 */

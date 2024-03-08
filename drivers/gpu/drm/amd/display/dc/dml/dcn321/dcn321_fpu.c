@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -139,13 +139,13 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_21_soc = {
 	.pct_ideal_sdp_bw_after_urgent = 90.0,
 	.pct_ideal_fabric_bw_after_urgent = 67.0,
 	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 20.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0, // N/A, for now keep as is until DML implemented
-	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0, // N/A, for now keep as is until DML implemented
+	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 60.0, // N/A, for analw keep as is until DML implemented
+	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 30.0, // N/A, for analw keep as is until DML implemented
 	.pct_ideal_dram_bw_after_urgent_strobe = 67.0,
-	.max_avg_sdp_bw_use_normal_percent = 80.0,
-	.max_avg_fabric_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_strobe_percent = 50.0,
-	.max_avg_dram_bw_use_normal_percent = 15.0,
+	.max_avg_sdp_bw_use_analrmal_percent = 80.0,
+	.max_avg_fabric_bw_use_analrmal_percent = 60.0,
+	.max_avg_dram_bw_use_analrmal_strobe_percent = 50.0,
+	.max_avg_dram_bw_use_analrmal_percent = 15.0,
 	.num_chans = 8,
 	.dram_channel_width_bytes = 2,
 	.fabric_datapath_to_dcn_data_return_bytes = 64,
@@ -291,8 +291,8 @@ static void sort_entries_with_same_bw(struct _vcs_dpi_voltage_scaling_st *table,
 }
 
 /*
- * remove_inconsistent_entries - Ensure entries with the same bandwidth have MEMCLK and FCLK monotonically increasing
- *                               and remove entries that do not follow this order
+ * remove_inconsistent_entries - Ensure entries with the same bandwidth have MEMCLK and FCLK moanaltonically increasing
+ *                               and remove entries that do analt follow this order
  */
 static void remove_inconsistent_entries(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
 {
@@ -311,7 +311,7 @@ static void remove_inconsistent_entries(struct _vcs_dpi_voltage_scaling_st *tabl
  *	max_clk_limit - struct containing the desired clock timings
  * Output:
  *	curr_clk_limit  - struct containing the timings that need to be overwritten
- * Return: 0 upon success, non-zero for failure
+ * Return: 0 upon success, analn-zero for failure
  */
 static int override_max_clk_values(struct clk_limit_table_entry *max_clk_limit,
 		struct clk_limit_table_entry *curr_clk_limit)
@@ -555,7 +555,7 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		}
 	}
 
-	// Remove duplicate states, note duplicate states are always neighbouring since table is sorted.
+	// Remove duplicate states, analte duplicate states are always neighbouring since table is sorted.
 	i = 0;
 	while (i < *num_entries - 1) {
 		if (table[i].dcfclk_mhz == table[i + 1].dcfclk_mhz &&
@@ -581,19 +581,19 @@ static void dcn321_get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
 	double bw_from_dram, bw_from_dram1, bw_from_dram2;
 
 	bw_from_dram1 = uclk_mts * dcn3_21_soc.num_chans *
-		dcn3_21_soc.dram_channel_width_bytes * (dcn3_21_soc.max_avg_dram_bw_use_normal_percent / 100);
+		dcn3_21_soc.dram_channel_width_bytes * (dcn3_21_soc.max_avg_dram_bw_use_analrmal_percent / 100);
 	bw_from_dram2 = uclk_mts * dcn3_21_soc.num_chans *
-		dcn3_21_soc.dram_channel_width_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_normal_percent / 100);
+		dcn3_21_soc.dram_channel_width_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_analrmal_percent / 100);
 
 	bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
 
 	if (optimal_fclk)
 		*optimal_fclk = bw_from_dram /
-		(dcn3_21_soc.fabric_datapath_to_dcn_data_return_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		(dcn3_21_soc.fabric_datapath_to_dcn_data_return_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 
 	if (optimal_dcfclk)
 		*optimal_dcfclk =  bw_from_dram /
-		(dcn3_21_soc.return_bus_width_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_normal_percent / 100));
+		(dcn3_21_soc.return_bus_width_bytes * (dcn3_21_soc.max_avg_sdp_bw_use_analrmal_percent / 100));
 }
 
 /** dcn321_update_bw_bounding_box
@@ -836,7 +836,7 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 			else
 				dcn3_21_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
 
-			/* These clocks cannot come from bw_params, always fill from dcn3_21_soc[0] */
+			/* These clocks cananalt come from bw_params, always fill from dcn3_21_soc[0] */
 			/* PHYCLK_D18, PHYCLK_D32 */
 			dcn3_21_soc.clock_limits[i].phyclk_d18_mhz = dcn3_21_soc.clock_limits[0].phyclk_d18_mhz;
 			dcn3_21_soc.clock_limits[i].phyclk_d32_mhz = dcn3_21_soc.clock_limits[0].phyclk_d32_mhz;

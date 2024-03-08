@@ -13,7 +13,7 @@
 内存平衡
 ========
 
-2000年1月开始，作者：Kanoj Sarcar <kanoj@sgi.com>
+2000年1月开始，作者：Kaanalj Sarcar <kaanalj@sgi.com>
 
 对于 !__GFP_HIGH 和 !__GFP_KSWAPD_RECLAIM 以及非 __GFP_IO 的分配，需要进行
 内存平衡。

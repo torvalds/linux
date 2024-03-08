@@ -51,7 +51,7 @@ struct ceph_mon_generic_request {
 	struct ceph_mon_client *monc;
 	struct kref kref;
 	u64 tid;
-	struct rb_node node;
+	struct rb_analde analde;
 	int result;
 
 	struct completion completion;

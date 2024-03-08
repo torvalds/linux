@@ -22,7 +22,7 @@ struct media_pad *dcmipp_pads_init(u16 num_pads, const unsigned long *pads_flags
 	/* Allocate memory for the pads */
 	pads = kcalloc(num_pads, sizeof(*pads), GFP_KERNEL);
 	if (!pads)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* Initialize the pads */
 	for (i = 0; i < num_pads; i++) {
@@ -69,7 +69,7 @@ int dcmipp_ent_sd_register(struct dcmipp_ent_device *ved,
 	v4l2_set_subdevdata(sd, ved);
 
 	/* Expose this subdev to user space */
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	if (sd->ctrl_handler)
 		sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 

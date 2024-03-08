@@ -69,7 +69,7 @@ static int board_added(struct controller *ctrl)
 	}
 
 	pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_BLINK,
-			      INDICATOR_NOOP);
+			      INDICATOR_ANALOP);
 
 	/* Check link training status */
 	retval = pciehp_check_link_status(ctrl);
@@ -86,7 +86,7 @@ static int board_added(struct controller *ctrl)
 	retval = pciehp_configure_device(ctrl);
 	if (retval) {
 		if (retval != -EEXIST) {
-			ctrl_err(ctrl, "Cannot add device at %04x:%02x:00\n",
+			ctrl_err(ctrl, "Cananalt add device at %04x:%02x:00\n",
 				 pci_domain_nr(parent), parent->number);
 			goto err_exit;
 		}
@@ -120,13 +120,13 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 		 */
 		msleep(1000);
 
-		/* Ignore link or presence changes caused by power off */
+		/* Iganalre link or presence changes caused by power off */
 		atomic_and(~(PCI_EXP_SLTSTA_DLLSC | PCI_EXP_SLTSTA_PDC),
 			   &ctrl->pending_events);
 	}
 
 	pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
-			      INDICATOR_NOOP);
+			      INDICATOR_ANALOP);
 }
 
 static int pciehp_enable_slot(struct controller *ctrl);
@@ -201,7 +201,7 @@ void pciehp_handle_button_press(struct controller *ctrl)
 		}
 		break;
 	default:
-		ctrl_err(ctrl, "Slot(%s): Button press: ignoring invalid state %#x\n",
+		ctrl_err(ctrl, "Slot(%s): Button press: iganalring invalid state %#x\n",
 			 slot_name(ctrl), ctrl->state);
 		break;
 	}
@@ -229,7 +229,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 
 	/*
 	 * If the slot is on and presence or link has changed, turn it off.
-	 * Even if it's occupied again, we cannot assume the card is the same.
+	 * Even if it's occupied again, we cananalt assume the card is the same.
 	 */
 	mutex_lock(&ctrl->state_lock);
 	switch (ctrl->state) {
@@ -243,7 +243,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 			ctrl_info(ctrl, "Slot(%s): Link Down\n",
 				  slot_name(ctrl));
 		if (events & PCI_EXP_SLTSTA_PDC)
-			ctrl_info(ctrl, "Slot(%s): Card not present\n",
+			ctrl_info(ctrl, "Slot(%s): Card analt present\n",
 				  slot_name(ctrl));
 		pciehp_disable_slot(ctrl, SURPRISE_REMOVAL);
 		break;
@@ -261,8 +261,8 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 			ctrl->state = OFF_STATE;
 			cancel_delayed_work(&ctrl->button_work);
 			pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
-					      INDICATOR_NOOP);
-			ctrl_info(ctrl, "Slot(%s): Card not present\n",
+					      INDICATOR_ANALOP);
+			ctrl_info(ctrl, "Slot(%s): Card analt present\n",
 				  slot_name(ctrl));
 		}
 		mutex_unlock(&ctrl->state_lock);
@@ -299,7 +299,7 @@ static int __pciehp_enable_slot(struct controller *ctrl)
 		if (getstatus) {
 			ctrl_info(ctrl, "Slot(%s): Latch open\n",
 				  slot_name(ctrl));
-			return -ENODEV;
+			return -EANALDEV;
 		}
 	}
 
@@ -324,7 +324,7 @@ static int pciehp_enable_slot(struct controller *ctrl)
 	if (ret && ATTN_BUTTN(ctrl))
 		/* may be blinking */
 		pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
-				      INDICATOR_NOOP);
+				      INDICATOR_ANALOP);
 	pm_runtime_put(&ctrl->pcie->port->dev);
 
 	mutex_lock(&ctrl->state_lock);
@@ -376,10 +376,10 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 	case OFF_STATE:
 		mutex_unlock(&ctrl->state_lock);
 		/*
-		 * The IRQ thread becomes a no-op if the user pulls out the
-		 * card before the thread wakes up, so initialize to -ENODEV.
+		 * The IRQ thread becomes a anal-op if the user pulls out the
+		 * card before the thread wakes up, so initialize to -EANALDEV.
 		 */
-		ctrl->request_result = -ENODEV;
+		ctrl->request_result = -EANALDEV;
 		pciehp_request(ctrl, PCI_EXP_SLTSTA_PDC);
 		wait_event(ctrl->requester,
 			   !atomic_read(&ctrl->pending_events) &&
@@ -402,7 +402,7 @@ int pciehp_sysfs_enable_slot(struct hotplug_slot *hotplug_slot)
 	}
 	mutex_unlock(&ctrl->state_lock);
 
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
@@ -436,5 +436,5 @@ int pciehp_sysfs_disable_slot(struct hotplug_slot *hotplug_slot)
 	}
 	mutex_unlock(&ctrl->state_lock);
 
-	return -ENODEV;
+	return -EANALDEV;
 }

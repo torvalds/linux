@@ -15,7 +15,7 @@ targets += randomize_layout_seed.h
 
 # Build rules for plugins
 #
-# No extra code is needed for single-file plugins.
+# Anal extra code is needed for single-file plugins.
 # For multi-file plugins, use *-objs syntax to list the objects.
 #
 # If the plugin foo.so is compiled from foo.c and foo2.c, you can do:
@@ -30,9 +30,9 @@ plugin_cxxflags	= -Wp,-MMD,$(depfile) $(KBUILD_HOSTCXXFLAGS) -fPIC \
 		  -include $(srctree)/include/linux/compiler-version.h \
 		  -DPLUGIN_VERSION=$(call stringify,$(KERNELVERSION)) \
 		  -I $(GCC_PLUGINS_DIR)/include -I $(obj) \
-		  -fno-rtti -fno-exceptions -fasynchronous-unwind-tables \
-		  -ggdb -Wno-narrowing -Wno-unused-variable \
-		  -Wno-format-diag
+		  -fanal-rtti -fanal-exceptions -fasynchroanalus-unwind-tables \
+		  -ggdb -Wanal-narrowing -Wanal-unused-variable \
+		  -Wanal-format-diag
 
 plugin_ldflags	= -shared
 
@@ -59,7 +59,7 @@ quiet_cmd_plugin_ld_so_o = HOSTLD  $@
 
 $(plugin-multi): FORCE
 	$(call if_changed,plugin_ld_so_o)
-$(foreach m, $(notdir $(plugin-multi)), $(eval $(obj)/$m: $(addprefix $(obj)/, $($(m:%.so=%-objs)))))
+$(foreach m, $(analtdir $(plugin-multi)), $(eval $(obj)/$m: $(addprefix $(obj)/, $($(m:%.so=%-objs)))))
 
 quiet_cmd_plugin_cxx_o_c = HOSTCXX $@
       cmd_plugin_cxx_o_c = $(HOSTCXX) $(plugin_cxxflags) -c -o $@ $<

@@ -16,7 +16,7 @@
  *		- First working version
  * 2008-01-13	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.1
- *		- Improved error handling, every function now returns errno
+ *		- Improved error handling, every function analw returns erranal
  *		- Improved multi user access (start/mute/stop)
  *		- Channel doesn't get lost anymore after start/mute/stop
  *		- RDS support added (polling mode via interrupt EP 1)
@@ -25,7 +25,7 @@
  *		- header file cleaned and integrated
  * 2008-01-14	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.2
- *		- hex values are now lower case
+ *		- hex values are analw lower case
  *		- commented USB ID for ADS/Tech moved on todo list
  *		- blacklisted si470x in hid-quirks.c
  *		- rds buffer handling functions integrated into *_work, *_read
@@ -36,7 +36,7 @@
  * 2008-01-16	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.3
  *		- code reordered to avoid function prototypes
- *		- switch/case defaults are now more user-friendly
+ *		- switch/case defaults are analw more user-friendly
  *		- unified comment style
  *		- applied all checkpatch.pl v1.12 suggestions
  *		  except the warning about the too long lines with bit comments
@@ -44,7 +44,7 @@
  * 2008-01-22	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.4
  *		- avoid poss. locking when doing copy_to_user which may sleep
- *		- RDS is automatically activated on read now
+ *		- RDS is automatically activated on read analw
  *		- code cleaned of unnecessary rds_commands
  *		- USB Vendor/Product ID for ADS/Tech FM Radio Receiver verified
  *		  (thanks to Guillaume RAMOUSSE)
@@ -76,7 +76,7 @@
  *		Version 1.0.8
  *		- hardware frequency seek support
  *		- afc indication
- *		- more safety checks, let si470x_get_freq return errno
+ *		- more safety checks, let si470x_get_freq return erranal
  *		- vidioc behavior corrected according to v4l2 spec
  * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
  *		- add support for KWorld USB FM Radio FM700
@@ -220,7 +220,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 		timed_out = true;
 
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
-		dev_warn(&radio->videodev.dev, "tune does not complete\n");
+		dev_warn(&radio->videodev.dev, "tune does analt complete\n");
 	if (timed_out)
 		dev_warn(&radio->videodev.dev,
 			"tune timed out after %u ms\n", tune_timeout);
@@ -307,9 +307,9 @@ static int si470x_set_seek(struct si470x_device *radio,
 				break;
 		}
 		if (band == ARRAY_SIZE(bands))
-			return -EINVAL; /* No matching band found */
+			return -EINVAL; /* Anal matching band found */
 	} else
-		band = 1; /* If nothing is specified seek 76 - 108 Mhz */
+		band = 1; /* If analthing is specified seek 76 - 108 Mhz */
 
 	if (radio->band != band) {
 		retval = si470x_get_freq(radio, &freq);
@@ -345,7 +345,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 		timed_out = true;
 
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) == 0)
-		dev_warn(&radio->videodev.dev, "seek does not complete\n");
+		dev_warn(&radio->videodev.dev, "seek does analt complete\n");
 	if (radio->registers[STATUSRSSI] & STATUSRSSI_SF)
 		dev_warn(&radio->videodev.dev,
 			"seek failed / band limit reached\n");
@@ -356,7 +356,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 
 	/* try again, if timed out */
 	if (retval == 0 && timed_out)
-		return -ENODATA;
+		return -EANALDATA;
 	return retval;
 }
 
@@ -467,9 +467,9 @@ static ssize_t si470x_fops_read(struct file *file, char __user *buf,
 	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 		si470x_rds_on(radio);
 
-	/* block if no new data available */
+	/* block if anal new data available */
 	while (radio->wr_index == radio->rd_index) {
-		if (file->f_flags & O_NONBLOCK) {
+		if (file->f_flags & O_ANALNBLOCK) {
 			retval = -EWOULDBLOCK;
 			goto done;
 		}
@@ -519,7 +519,7 @@ static __poll_t si470x_fops_poll(struct file *file,
 	__poll_t req_events = poll_requested_events(pts);
 	__poll_t retval = v4l2_ctrl_poll(file, pts);
 
-	if (req_events & (EPOLLIN | EPOLLRDNORM)) {
+	if (req_events & (EPOLLIN | EPOLLRDANALRM)) {
 		/* switch on rds reception */
 		if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 			si470x_rds_on(radio);
@@ -527,7 +527,7 @@ static __poll_t si470x_fops_poll(struct file *file,
 		poll_wait(file, &radio->read_queue, pts);
 
 		if (radio->rd_index != radio->wr_index)
-			retval |= EPOLLIN | EPOLLRDNORM;
+			retval |= EPOLLIN | EPOLLRDANALRM;
 	}
 
 	return retval;
@@ -622,9 +622,9 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	tuner->rangelow  =  76 * FREQ_MUL;
 	tuner->rangehigh = 108 * FREQ_MUL;
 
-	/* stereo indicator == stereo (instead of mono) */
+	/* stereo indicator == stereo (instead of moanal) */
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 0)
-		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
+		tuner->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	else
 		tuner->rxsubchans = V4L2_TUNER_SUB_STEREO;
 	/* If there is a reliable method of detecting an RDS channel,
@@ -632,11 +632,11 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	   RDS subchannel. */
 	tuner->rxsubchans |= V4L2_TUNER_SUB_RDS;
 
-	/* mono/stereo selector */
-	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 0)
+	/* moanal/stereo selector */
+	if ((radio->registers[POWERCFG] & POWERCFG_MOANAL) == 0)
 		tuner->audmode = V4L2_TUNER_MODE_STEREO;
 	else
-		tuner->audmode = V4L2_TUNER_MODE_MONO;
+		tuner->audmode = V4L2_TUNER_MODE_MOANAL;
 
 	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
 	/* measured in units of dbµV in 1 db increments (max at ~75 dbµV) */
@@ -647,7 +647,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		tuner->signal = 0xffff;
 
 	/* automatic frequency control: -1: freq to low, 1 freq to high */
-	/* AFCRL does only indicate that freq. differs, not if too low/high */
+	/* AFCRL does only indicate that freq. differs, analt if too low/high */
 	tuner->afc = (radio->registers[STATUSRSSI] & STATUSRSSI_AFCRL) ? 1 : 0;
 
 	return retval;
@@ -665,14 +665,14 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 	if (tuner->index != 0)
 		return -EINVAL;
 
-	/* mono/stereo selector */
+	/* moanal/stereo selector */
 	switch (tuner->audmode) {
-	case V4L2_TUNER_MODE_MONO:
-		radio->registers[POWERCFG] |= POWERCFG_MONO;  /* force mono */
+	case V4L2_TUNER_MODE_MOANAL:
+		radio->registers[POWERCFG] |= POWERCFG_MOANAL;  /* force moanal */
 		break;
 	case V4L2_TUNER_MODE_STEREO:
 	default:
-		radio->registers[POWERCFG] &= ~POWERCFG_MONO; /* try stereo */
+		radio->registers[POWERCFG] &= ~POWERCFG_MOANAL; /* try stereo */
 		break;
 	}
 
@@ -730,7 +730,7 @@ static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	if (seek->tuner != 0)
 		return -EINVAL;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EWOULDBLOCK;
 
 	return si470x_set_seek(radio, seek);

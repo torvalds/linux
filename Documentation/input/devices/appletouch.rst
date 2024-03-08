@@ -12,12 +12,12 @@ February 2005 and October 2005 Apple Aluminium Powerbooks.
 This driver is derived from Johannes Berg's appletrackpad driver [#f1]_,
 but it has been improved in some areas:
 
-	* appletouch is a full kernel driver, no userspace program is necessary
+	* appletouch is a full kernel driver, anal userspace program is necessary
 	* appletouch can be interfaced with the synaptics X11 driver, in order
 	  to have touchpad acceleration, scrolling, etc.
 
 Credits go to Johannes Berg for reverse-engineering the touchpad protocol,
-Frank Arnold for further improvements, and Alex Harper for some additional
+Frank Aranalld for further improvements, and Alex Harper for some additional
 information about the inner workings of the touchpad sensors. Michael
 Hanselmann added support for the October 2005 models.
 
@@ -69,11 +69,11 @@ Fuzz problems
 -------------
 
 The touchpad sensors are very sensitive to heat, and will generate a lot of
-noise when the temperature changes. This is especially true when you power-on
+analise when the temperature changes. This is especially true when you power-on
 the laptop for the first time.
 
-The appletouch driver tries to handle this noise and auto adapt itself, but it
-is not perfect. If finger movements are not recognized anymore, try reloading
+The appletouch driver tries to handle this analise and auto adapt itself, but it
+is analt perfect. If finger movements are analt recognized anymore, try reloading
 the driver.
 
 You can activate debugging using the 'debug' module parameter. A value of 0

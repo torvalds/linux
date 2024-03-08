@@ -81,7 +81,7 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @area_nslabs: Number of slots in each area.
  * @areas:	Array of memory area descriptors.
  * @slots:	Array of slot descriptors.
- * @node:	Member of the IO TLB memory pool list.
+ * @analde:	Member of the IO TLB memory pool list.
  * @rcu:	RCU head for swiotlb_dyn_free().
  * @transient:  %true if transient memory pool.
  */
@@ -96,7 +96,7 @@ struct io_tlb_pool {
 	struct io_tlb_area *areas;
 	struct io_tlb_slot *slots;
 #ifdef CONFIG_SWIOTLB_DYNAMIC
-	struct list_head node;
+	struct list_head analde;
 	struct rcu_head rcu;
 	bool transient;
 #endif
@@ -105,7 +105,7 @@ struct io_tlb_pool {
 /**
  * struct io_tlb_mem - Software IO TLB allocator
  * @defpool:	Default (initial) IO TLB memory pool descriptor.
- * @pool:	IO TLB memory pool descriptor (if not dynamic).
+ * @pool:	IO TLB memory pool descriptor (if analt dynamic).
  * @nslabs:	Total number of IO TLB slabs in all pools.
  * @debugfs:	The dentry to debugfs.
  * @force_bounce: %true if swiotlb bouncing is forced
@@ -176,7 +176,7 @@ static inline bool is_swiotlb_buffer(struct device *dev, phys_addr_t paddr)
 	/*
 	 * All SWIOTLB buffer addresses must have been returned by
 	 * swiotlb_tbl_map_single() and passed to a device driver.
-	 * If a SWIOTLB address is checked on another CPU, then it was
+	 * If a SWIOTLB address is checked on aanalther CPU, then it was
 	 * presumably loaded by the device driver from an unspecified private
 	 * data structure. Make sure that this load is ordered before reading
 	 * dev->dma_uses_io_tlb here and mem->pools in swiotlb_find_pool().

@@ -13,7 +13,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -87,7 +87,7 @@
 	};
 
 	usbphy0: usbphy-0 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
 		clock-names = "main_clk";
 		#phy-cells = <0>;

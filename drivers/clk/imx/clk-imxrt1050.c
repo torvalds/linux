@@ -38,23 +38,23 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *anp;
+	struct device_analde *np = dev->of_analde;
+	struct device_analde *anp;
 	int ret;
 
 	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
 					  IMXRT1050_CLK_END), GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_hw_data->num = IMXRT1050_CLK_END;
 	hws = clk_hw_data->hws;
 
 	hws[IMXRT1050_CLK_OSC] = imx_get_clk_hw_by_name(np, "osc");
 
-	anp = of_find_compatible_node(NULL, NULL, "fsl,imxrt-anatop");
+	anp = of_find_compatible_analde(NULL, NULL, "fsl,imxrt-anatop");
 	pll_base = devm_of_iomap(dev, anp, 0, NULL);
-	of_node_put(anp);
+	of_analde_put(anp);
 	if (WARN_ON(IS_ERR(pll_base))) {
 		ret = PTR_ERR(pll_base);
 		goto unregister_hws;

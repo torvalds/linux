@@ -2,12 +2,12 @@
 /*
  * Thunderbolt driver - capabilities lookup
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Analever <andreas.analever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #include "tb.h"
 
@@ -48,7 +48,7 @@ static void tb_port_dummy_read(struct tb_port *port)
 {
 	/*
 	 * When reading from next capability pointer location in port
-	 * config space the read data is not cleared on LR. To avoid
+	 * config space the read data is analt cleared on LR. To avoid
 	 * reading stale data on next read perform one dummy read after
 	 * port capabilities are walked.
 	 */
@@ -66,8 +66,8 @@ static void tb_port_dummy_read(struct tb_port *port)
  *
  * Returns dword offset of the next capability in port config space
  * capability list and returns it. Passing %0 returns the first entry in
- * the capability list. If no next capability is found returns %0. In case
- * of failure returns negative errno.
+ * the capability list. If anal next capability is found returns %0. In case
+ * of failure returns negative erranal.
  */
 int tb_port_next_cap(struct tb_port *port, unsigned int offset)
 {
@@ -104,7 +104,7 @@ static int __tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
 			return offset;
 	} while (offset > 0);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -112,8 +112,8 @@ static int __tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
  * @port: Port to find the capability for
  * @cap: Capability to look
  *
- * Returns offset to start of capability or %-ENOENT if no such
- * capability was found. Negative errno is returned if there was an
+ * Returns offset to start of capability or %-EANALENT if anal such
+ * capability was found. Negative erranal is returned if there was an
  * error.
  */
 int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
@@ -139,8 +139,8 @@ int tb_port_find_cap(struct tb_port *port, enum tb_port_cap cap)
  *
  * Finds dword offset of the next capability in router config space
  * capability list and returns it. Passing %0 returns the first entry in
- * the capability list. If no next capability is found returns %0. In case
- * of failure returns negative errno.
+ * the capability list. If anal next capability is found returns %0. In case
+ * of failure returns negative erranal.
  */
 int tb_switch_next_cap(struct tb_switch *sw, unsigned int offset)
 {
@@ -167,7 +167,7 @@ int tb_switch_next_cap(struct tb_switch *sw, unsigned int offset)
 		break;
 
 	default:
-		tb_sw_dbg(sw, "unknown capability %#x at %#x\n",
+		tb_sw_dbg(sw, "unkanalwn capability %#x at %#x\n",
 			  header.basic.cap, offset);
 		ret = -EINVAL;
 		break;
@@ -181,8 +181,8 @@ int tb_switch_next_cap(struct tb_switch *sw, unsigned int offset)
  * @sw: Switch to find the capability for
  * @cap: Capability to look
  *
- * Returns offset to start of capability or %-ENOENT if no such
- * capability was found. Negative errno is returned if there was an
+ * Returns offset to start of capability or %-EANALENT if anal such
+ * capability was found. Negative erranal is returned if there was an
  * error.
  */
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap)
@@ -205,7 +205,7 @@ int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap)
 			return offset;
 	} while (offset);
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /**
@@ -214,9 +214,9 @@ int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap)
  * @vsec: Vendor specific capability to look
  *
  * Functions enumerates vendor specific capabilities (VSEC) of a switch
- * and returns offset when capability matching @vsec is found. If no
- * such capability is found returns %-ENOENT. In case of error returns
- * negative errno.
+ * and returns offset when capability matching @vsec is found. If anal
+ * such capability is found returns %-EANALENT. In case of error returns
+ * negative erranal.
  */
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec)
 {
@@ -239,5 +239,5 @@ int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec)
 			return offset;
 	} while (offset);
 
-	return -ENOENT;
+	return -EANALENT;
 }

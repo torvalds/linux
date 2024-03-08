@@ -7,7 +7,7 @@
 /*
  * Physical memory map, RAM is mapped at 0x0.
  *
- * Note that size MUST be a power of two.
+ * Analte that size MUST be a power of two.
  */
 #define BCM_PCMCIA_COMMON_BASE_PA	(0x20000000)
 #define BCM_PCMCIA_COMMON_SIZE		(16 * 1024 * 1024)

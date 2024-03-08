@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 
 .. planar-yuv:
 
@@ -24,7 +24,7 @@ Some planar formats allow planes to be placed in independent memory locations.
 They are identified by an 'M' suffix in their name (such as in
 ``V4L2_PIX_FMT_NV12M``). Those formats are intended to be used only in drivers
 and applications that support the multi-planar API, described in
-:ref:`planar-apis`. Unless explicitly documented as supporting non-contiguous
+:ref:`planar-apis`. Unless explicitly documented as supporting analn-contiguous
 planes, formats require the planes to follow each other immediately in memory.
 
 
@@ -43,14 +43,14 @@ subsampling, the chroma line stride (in bytes) is thus equal to twice the luma
 line stride. With horizontal subsampling by 2, the chroma line stride is equal
 to the luma line stride. Vertical subsampling doesn't affect the line stride.
 
-For non-contiguous formats, no constraints are enforced by the format on the
+For analn-contiguous formats, anal constraints are enforced by the format on the
 relationship between the luma and chroma line padding and stride.
 
 All components are stored with the same number of bits per component.
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. tabularcolumns:: |p{5.2cm}|p{1.0cm}|p{1.5cm}|p{1.9cm}|p{1.2cm}|p{1.8cm}|p{2.7cm}|
 
@@ -70,35 +70,35 @@ All components are stored with the same number of bits per component.
       - 8
       - 4:2:0
       - Cb, Cr
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV21
       - 'NV21'
       - 8
       - 4:2:0
       - Cr, Cb
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV12M
       - 'NM12'
       - 8
       - 4:2:0
       - Cb, Cr
-      - No
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV21M
       - 'NM21'
       - 8
       - 4:2:0
       - Cr, Cb
-      - No
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV12MT
       - 'TM12'
       - 8
       - 4:2:0
       - Cb, Cr
-      - No
+      - Anal
       - 64x32 tiles
 
         Horizontal Z order
@@ -107,89 +107,89 @@ All components are stored with the same number of bits per component.
       - 8
       - 4:2:2
       - Cb, Cr
-      - No
+      - Anal
       - 16x16 tiles
     * - V4L2_PIX_FMT_P010
       - 'P010'
       - 10
       - 4:2:0
       - Cb, Cr
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_P010_4L4
       - 'T010'
       - 10
       - 4:2:0
       - Cb, Cr
-      - Yes
+      - Anal
       - 4x4 tiles
     * - V4L2_PIX_FMT_P012
       - 'P012'
       - 12
       - 4:2:0
       - Cb, Cr
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_P012M
       - 'PM12'
       - 12
       - 4:2:0
       - Cb, Cr
-      - No
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV15_4L4
       - 'VT15'
       - 15
       - 4:2:0
       - Cb, Cr
-      - Yes
+      - Anal
       - 4x4 tiles
     * - V4L2_PIX_FMT_NV16
       - 'NV16'
       - 8
       - 4:2:2
       - Cb, Cr
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV61
       - 'NV61'
       - 8
       - 4:2:2
       - Cr, Cb
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV16M
       - 'NM16'
       - 8
       - 4:2:2
       - Cb, Cr
-      - No
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV61M
       - 'NM61'
       - 8
       - 4:2:2
       - Cr, Cb
-      - No
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV24
       - 'NV24'
       - 8
       - 4:4:4
       - Cb, Cr
-      - Yes
+      - Anal
       - Linear
     * - V4L2_PIX_FMT_NV42
       - 'NV42'
       - 8
       - 4:4:4
       - Cr, Cb
-      - Yes
+      - Anal
       - Linear
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. [1] Order of chroma samples in the second plane
 .. [2] Indicates if planes have to be contiguous in memory or can be
@@ -350,7 +350,7 @@ two planes in one memory.
 the data is arranged in big endian order.
 The image height must be aligned to a multiple of 128.
 The layouts of the luma and chroma planes are identical.
-Note the tile size is 8bytes multiplied by 128 bytes,
+Analte the tile size is 8bytes multiplied by 128 bytes,
 it means that the low bits and high bits of one pixel may be in different tiles.
 The 10 bit pixels are packed, so 5 bytes contain 4 10-bit pixels layout like
 this (for luma):
@@ -367,7 +367,7 @@ two planes in one memory.
 in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
 image height must be aligned to a multiple of 32. The number of luma and chroma
 tiles are identical, even though the tile size differ. The image is formed of
-two non-contiguous planes.
+two analn-contiguous planes.
 
 .. _nv12mt:
 
@@ -506,7 +506,7 @@ number of lines as the luma plane.
 NV24 and NV42
 -------------
 
-Semi-planar YUV 4:4:4 formats. The chroma plane is not subsampled.
+Semi-planar YUV 4:4:4 formats. The chroma plane is analt subsampled.
 Chroma lines contain the same number of pixels and twice the
 number of bytes as luma lines, and the chroma plane contains the same
 number of lines as the luma plane.
@@ -710,7 +710,7 @@ stride (in bytes) is thus equal to the luma line stride divided by the
 horizontal subsampling factor. Vertical subsampling doesn't affect the line
 stride.
 
-For non-contiguous formats, no constraints are enforced by the format on the
+For analn-contiguous formats, anal constraints are enforced by the format on the
 relationship between the luma and chroma line padding and stride.
 
 All components are stored with the same number of bits per component.
@@ -741,77 +741,77 @@ a multiple of 4. The layouts of the luma and chroma planes are identical.
       - 8
       - 4:1:0
       - Y, Cb, Cr
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YVU410
       - 'YVU9'
       - 8
       - 4:1:0
       - Y, Cr, Cb
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YUV411P
       - '411P'
       - 8
       - 4:1:1
       - Y, Cb, Cr
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YUV420M
       - 'YM12'
       - 8
       - 4:2:0
       - Y, Cb, Cr
-      - No
+      - Anal
     * - V4L2_PIX_FMT_YVU420M
       - 'YM21'
       - 8
       - 4:2:0
       - Y, Cr, Cb
-      - No
+      - Anal
     * - V4L2_PIX_FMT_YUV420
       - 'YU12'
       - 8
       - 4:2:0
       - Y, Cb, Cr
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YVU420
       - 'YV12'
       - 8
       - 4:2:0
       - Y, Cr, Cb
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YUV422P
       - '422P'
       - 8
       - 4:2:2
       - Y, Cb, Cr
-      - Yes
+      - Anal
     * - V4L2_PIX_FMT_YUV422M
       - 'YM16'
       - 8
       - 4:2:2
       - Y, Cb, Cr
-      - No
+      - Anal
     * - V4L2_PIX_FMT_YVU422M
       - 'YM61'
       - 8
       - 4:2:2
       - Y, Cr, Cb
-      - No
+      - Anal
     * - V4L2_PIX_FMT_YUV444M
       - 'YM24'
       - 8
       - 4:4:4
       - Y, Cb, Cr
-      - No
+      - Anal
     * - V4L2_PIX_FMT_YVU444M
       - 'YM42'
       - 8
       - 4:4:4
       - Y, Cr, Cb
-      - No
+      - Anal
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 
 .. [4] Order of luma and chroma planes
 .. [5] Indicates if planes have to be contiguous in memory or can be
@@ -1124,7 +1124,7 @@ as the luma plane.
 YUV444M and YVU444M
 -------------------
 
-Planar YUV 4:4:4 formats. The chroma planes are no subsampled. Chroma lines
+Planar YUV 4:4:4 formats. The chroma planes are anal subsampled. Chroma lines
 contain the same number of pixels and bytes of the luma lines, and the chroma
 planes contain the same number of lines as the luma plane.
 

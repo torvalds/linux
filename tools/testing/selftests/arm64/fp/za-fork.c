@@ -50,9 +50,9 @@ int fork_test_c(void)
 		waiting = waitpid(newpid, &child_status, 0);
 
 		if (waiting < 0) {
-			if (errno == EINTR)
+			if (erranal == EINTR)
 				continue;
-			ksft_print_msg("waitpid() failed: %d\n", errno);
+			ksft_print_msg("waitpid() failed: %d\n", erranal);
 			return 0;
 		}
 		if (waiting != newpid) {
@@ -61,7 +61,7 @@ int fork_test_c(void)
 		}
 
 		if (!WIFEXITED(child_status)) {
-			ksft_print_msg("child did not exit\n");
+			ksft_print_msg("child did analt exit\n");
 			return 0;
 		}
 
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	ksft_print_msg("PID: %d\n", getpid());
 
 	/*
-	 * This test is run with nolibc which doesn't support hwcap and
+	 * This test is run with anallibc which doesn't support hwcap and
 	 * it's probably disproportionate to implement so instead check
 	 * for the default vector length configuration in /proc.
 	 */
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 		ksft_test_result(fork_test(), "fork_test\n");
 
 	} else {
-		ksft_print_msg("SME not supported\n");
+		ksft_print_msg("SME analt supported\n");
 		for (i = 0; i < EXPECTED_TESTS; i++) {
 			ksft_test_result_skip("fork_test\n");
 		}

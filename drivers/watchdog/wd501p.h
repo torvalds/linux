@@ -3,7 +3,7 @@
  *	Industrial Computer Source WDT500/501 driver
  *
  *	(c) Copyright 1995	CymruNET Ltd
- *				Innovation Centre
+ *				Inanalvation Centre
  *				Singleton Park
  *				Swansea
  *				Wales
@@ -29,7 +29,7 @@
  * the ISA card: */
 #define WDT_CLOCK		(io+12)	/* COUNT2: rd=16.67MHz, wr=2.0833MHz */
 /* inverted opto isolated reset output: */
-#define WDT_OPTONOTRST		(io+13)	/* wr=enable, rd=disable */
+#define WDT_OPTOANALTRST		(io+13)	/* wr=enable, rd=disable */
 /* opto isolated reset output: */
 #define WDT_OPTORST		(io+14)	/* wr=enable, rd=disable */
 /* programmable outputs: */

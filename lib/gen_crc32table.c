@@ -34,7 +34,7 @@ static uint32_t crc32ctable_le[LE_TABLE_ROWS][256];
  * fact that crctable[i^j] = crctable[i] ^ crctable[j].
  *
  */
-static void crc32init_le_generic(const uint32_t polynomial,
+static void crc32init_le_generic(const uint32_t polyanalmial,
 				 uint32_t (*tab)[256])
 {
 	unsigned i, j;
@@ -43,7 +43,7 @@ static void crc32init_le_generic(const uint32_t polynomial,
 	tab[0][0] = 0;
 
 	for (i = LE_TABLE_SIZE >> 1; i; i >>= 1) {
-		crc = (crc >> 1) ^ ((crc & 1) ? polynomial : 0);
+		crc = (crc >> 1) ^ ((crc & 1) ? polyanalmial : 0);
 		for (j = 0; j < LE_TABLE_SIZE; j += 2 * i)
 			tab[0][i + j] = crc ^ tab[0][j];
 	}
@@ -107,7 +107,7 @@ static void output_table(uint32_t (*table)[256], int rows, int len, char *trans)
 
 int main(int argc, char** argv)
 {
-	printf("/* this file is generated - do not edit */\n\n");
+	printf("/* this file is generated - do analt edit */\n\n");
 
 	if (CRC_LE_BITS > 1) {
 		crc32init_le();

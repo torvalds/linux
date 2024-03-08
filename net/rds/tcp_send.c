@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -60,7 +60,7 @@ static int rds_tcp_sendmsg(struct socket *sock, void *data, unsigned int len)
 		.iov_len = len,
 	};
 	struct msghdr msg = {
-		.msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL,
+		.msg_flags = MSG_DONTWAIT | MSG_ANALSIGNAL,
 	};
 
 	return kernel_sendmsg(sock, &msg, &vec, 1, vec.iov_len);
@@ -100,7 +100,7 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 	if (hdr_off < sizeof(struct rds_header)) {
 		/* see rds_tcp_write_space() */
-		set_bit(SOCK_NOSPACE, &tc->t_sock->sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &tc->t_sock->sk->sk_socket->flags);
 
 		ret = rds_tcp_sendmsg(tc->t_sock,
 				      (void *)&rm->m_inc.i_hdr + hdr_off,
@@ -113,7 +113,7 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	while (sg < rm->data.op_nents) {
-		msg.msg_flags = MSG_SPLICE_PAGES | MSG_DONTWAIT | MSG_NOSIGNAL;
+		msg.msg_flags = MSG_SPLICE_PAGES | MSG_DONTWAIT | MSG_ANALSIGNAL;
 		if (sg + 1 < rm->data.op_nents)
 			msg.msg_flags |= MSG_MORE;
 
@@ -144,7 +144,7 @@ out:
 			rds_tcp_stats_inc(s_tcp_sndbuf_full);
 			ret = 0;
 		} else {
-			/* No need to disconnect/reconnect if path_drop
+			/* Anal need to disconnect/reconnect if path_drop
 			 * has already been triggered, because, e.g., of
 			 * an incoming RST.
 			 */
@@ -209,12 +209,12 @@ out:
 
 	/*
 	 * write_space is only called when data leaves tcp's send queue if
-	 * SOCK_NOSPACE is set.  We set SOCK_NOSPACE every time we put
+	 * SOCK_ANALSPACE is set.  We set SOCK_ANALSPACE every time we put
 	 * data in tcp's send queue because we use write_space to parse the
-	 * sequence numbers and notice that rds messages have been fully
+	 * sequence numbers and analtice that rds messages have been fully
 	 * received.
 	 *
-	 * tcp's write_space clears SOCK_NOSPACE if the send queue has more
+	 * tcp's write_space clears SOCK_ANALSPACE if the send queue has more
 	 * than a certain amount of space. So we need to set it again *after*
 	 * we call tcp's write_space or else we might only get called on the
 	 * first of a series of incoming tcp acks.
@@ -222,5 +222,5 @@ out:
 	write_space(sk);
 
 	if (sk->sk_socket)
-		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+		set_bit(SOCK_ANALSPACE, &sk->sk_socket->flags);
 }

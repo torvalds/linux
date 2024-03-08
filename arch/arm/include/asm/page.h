@@ -16,7 +16,7 @@
 
 #ifndef CONFIG_MMU
 
-#include <asm/page-nommu.h>
+#include <asm/page-analmmu.h>
 
 #else
 
@@ -101,7 +101,7 @@
 #endif
 
 #if !defined(_USER) && !defined(MULTI_USER)
-#error Unknown user operations model
+#error Unkanalwn user operations model
 #endif
 
 struct page;

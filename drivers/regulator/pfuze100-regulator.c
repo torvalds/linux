@@ -125,7 +125,7 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 
 	switch (pfuze100->chip_id) {
 	case PFUZE3001:
-		/* no dynamic voltage scaling for PF3001 */
+		/* anal dynamic voltage scaling for PF3001 */
 		reg_has_ramp_delay = false;
 		break;
 	case PFUZE3000:
@@ -326,7 +326,7 @@ static const struct regulator_ops pfuze3000_sw_regulator_ops = {
 	.stby_mask = 0x20,	\
 }
 
-/* No linar case for the some switches of PFUZE3000 */
+/* Anal linar case for the some switches of PFUZE3000 */
 #define PFUZE3000_SW_REG(_chip, _name, base, mask, voltages)	\
 	[_chip ## _ ##  _name] = {	\
 		.desc = {	\
@@ -509,10 +509,10 @@ static struct of_regulator_match *pfuze_matches;
 static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 {
 	struct device *dev = chip->dev;
-	struct device_node *np, *parent;
+	struct device_analde *np, *parent;
 	int ret;
 
-	np = of_node_get(dev->of_node);
+	np = of_analde_get(dev->of_analde);
 	if (!np)
 		return -EINVAL;
 
@@ -521,8 +521,8 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 
 	parent = of_get_child_by_name(np, "regulators");
 	if (!parent) {
-		dev_err(dev, "regulators node not found\n");
-		of_node_put(np);
+		dev_err(dev, "regulators analde analt found\n");
+		of_analde_put(np);
 		return -EINVAL;
 	}
 
@@ -551,8 +551,8 @@ static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 		break;
 	}
 
-	of_node_put(parent);
-	of_node_put(np);
+	of_analde_put(parent);
+	of_analde_put(np);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n",
 			ret);
@@ -567,9 +567,9 @@ static inline struct regulator_init_data *match_init_data(int index)
 	return pfuze_matches[index].init_data;
 }
 
-static inline struct device_node *match_of_node(int index)
+static inline struct device_analde *match_of_analde(int index)
 {
-	return pfuze_matches[index].of_node;
+	return pfuze_matches[index].of_analde;
 }
 
 static int pfuze_power_off_prepare(struct sys_off_data *data)
@@ -611,7 +611,7 @@ static int pfuze_power_off_prepare(struct sys_off_data *data)
 			   PFUZE100_VGENxLPWR | PFUZE100_VGENxSTBY,
 			   PFUZE100_VGENxSTBY);
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int pfuze_power_off_prepare_init(struct pfuze_chip *pfuze_chip)
@@ -619,8 +619,8 @@ static int pfuze_power_off_prepare_init(struct pfuze_chip *pfuze_chip)
 	int err;
 
 	if (pfuze_chip->chip_id != PFUZE100) {
-		dev_warn(pfuze_chip->dev, "Requested pm_power_off_prepare handler for not supported chip\n");
-		return -ENODEV;
+		dev_warn(pfuze_chip->dev, "Requested pm_power_off_prepare handler for analt supported chip\n");
+		return -EANALDEV;
 	}
 
 	err = devm_register_sys_off_handler(pfuze_chip->dev,
@@ -655,9 +655,9 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 	} else if ((value & 0x0f) != pfuze_chip->chip_id &&
 		   (value & 0xf0) >> 4 != pfuze_chip->chip_id &&
 		   (value != pfuze_chip->chip_id)) {
-		/* device id NOT match with your setting */
+		/* device id ANALT match with your setting */
 		dev_warn(pfuze_chip->dev, "Illegal ID: %x\n", value);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = regmap_read(pfuze_chip->regmap, PFUZE100_REVID, &value);
@@ -696,20 +696,20 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 	pfuze_chip = devm_kzalloc(&client->dev, sizeof(*pfuze_chip),
 			GFP_KERNEL);
 	if (!pfuze_chip)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_analde) {
 		match = of_match_device(pfuze_dt_ids, &client->dev);
 		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
+			dev_err(&client->dev, "Error: Anal device match found\n");
+			return -EANALDEV;
 		}
 		pfuze_chip->chip_id = (int)(long)match->data;
 	} else if (id) {
 		pfuze_chip->chip_id = id->driver_data;
 	} else {
-		dev_err(&client->dev, "No dts match or id table match found\n");
-		return -ENODEV;
+		dev_err(&client->dev, "Anal dts match or id table match found\n");
+		return -EANALDEV;
 	}
 
 	i2c_set_clientdata(client, pfuze_chip);
@@ -823,7 +823,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 		config.dev = &client->dev;
 		config.init_data = init_data;
 		config.driver_data = pfuze_chip;
-		config.of_node = match_of_node(i);
+		config.of_analde = match_of_analde(i);
 
 		pfuze_chip->regulators[i] =
 			devm_regulator_register(&client->dev, desc, &config);
@@ -834,7 +834,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 		}
 	}
 
-	if (of_property_read_bool(client->dev.of_node,
+	if (of_property_read_bool(client->dev.of_analde,
 				  "fsl,pmic-stby-poweroff"))
 		return pfuze_power_off_prepare_init(pfuze_chip);
 
@@ -844,7 +844,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 static struct i2c_driver pfuze_driver = {
 	.driver = {
 		.name = "pfuze100-regulator",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = pfuze_dt_ids,
 	},
 	.probe = pfuze100_regulator_probe,

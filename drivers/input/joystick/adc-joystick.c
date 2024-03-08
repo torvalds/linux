@@ -122,54 +122,54 @@ static void adc_joystick_cleanup(void *data)
 static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 {
 	struct adc_joystick_axis *axes;
-	struct fwnode_handle *child;
+	struct fwanalde_handle *child;
 	int num_axes, error, i;
 
-	num_axes = device_get_child_node_count(dev);
+	num_axes = device_get_child_analde_count(dev);
 	if (!num_axes) {
-		dev_err(dev, "Unable to find child nodes\n");
+		dev_err(dev, "Unable to find child analdes\n");
 		return -EINVAL;
 	}
 
 	if (num_axes != joy->num_chans) {
-		dev_err(dev, "Got %d child nodes for %d channels\n",
+		dev_err(dev, "Got %d child analdes for %d channels\n",
 			num_axes, joy->num_chans);
 		return -EINVAL;
 	}
 
 	axes = devm_kmalloc_array(dev, num_axes, sizeof(*axes), GFP_KERNEL);
 	if (!axes)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	device_for_each_child_node(dev, child) {
-		error = fwnode_property_read_u32(child, "reg", &i);
+	device_for_each_child_analde(dev, child) {
+		error = fwanalde_property_read_u32(child, "reg", &i);
 		if (error) {
 			dev_err(dev, "reg invalid or missing\n");
-			goto err_fwnode_put;
+			goto err_fwanalde_put;
 		}
 
 		if (i >= num_axes) {
 			error = -EINVAL;
-			dev_err(dev, "No matching axis for reg %d\n", i);
-			goto err_fwnode_put;
+			dev_err(dev, "Anal matching axis for reg %d\n", i);
+			goto err_fwanalde_put;
 		}
 
-		error = fwnode_property_read_u32(child, "linux,code",
+		error = fwanalde_property_read_u32(child, "linux,code",
 						 &axes[i].code);
 		if (error) {
 			dev_err(dev, "linux,code invalid or missing\n");
-			goto err_fwnode_put;
+			goto err_fwanalde_put;
 		}
 
-		error = fwnode_property_read_u32_array(child, "abs-range",
+		error = fwanalde_property_read_u32_array(child, "abs-range",
 						       axes[i].range, 2);
 		if (error) {
 			dev_err(dev, "abs-range invalid or missing\n");
-			goto err_fwnode_put;
+			goto err_fwanalde_put;
 		}
 
-		fwnode_property_read_u32(child, "abs-fuzz", &axes[i].fuzz);
-		fwnode_property_read_u32(child, "abs-flat", &axes[i].flat);
+		fwanalde_property_read_u32(child, "abs-fuzz", &axes[i].fuzz);
+		fwanalde_property_read_u32(child, "abs-flat", &axes[i].flat);
 
 		input_set_abs_params(joy->input, axes[i].code,
 				     axes[i].range[0], axes[i].range[1],
@@ -181,8 +181,8 @@ static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 
 	return 0;
 
-err_fwnode_put:
-	fwnode_handle_put(child);
+err_fwanalde_put:
+	fwanalde_handle_put(child);
 	return error;
 }
 
@@ -198,7 +198,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
 
 	joy = devm_kzalloc(dev, sizeof(*joy), GFP_KERNEL);
 	if (!joy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	joy->chans = devm_iio_channel_get_all(dev);
 	if (IS_ERR(joy->chans)) {
@@ -222,7 +222,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
 
 	/*
 	 * Count how many channels we got. NULL terminated.
-	 * Do not check the storage size if using polling.
+	 * Do analt check the storage size if using polling.
 	 */
 	for (i = 0; joy->chans[i].indio_dev; i++) {
 		if (joy->polled)
@@ -242,7 +242,7 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	input = devm_input_allocate_device(dev);
 	if (!input) {
 		dev_err(dev, "Unable to allocate input device\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	joy->input = input;

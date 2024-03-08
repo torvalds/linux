@@ -190,7 +190,7 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 		c->strength.stat[0].uvalue = strength;
 	} else {
 		c->strength.len = 1;
-		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->strength.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* CNR */
@@ -225,7 +225,7 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 		c->cnr.stat[0].svalue = cnr;
 	} else {
 		c->cnr.len = 1;
-		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->cnr.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	/* BER */
@@ -266,7 +266,7 @@ int cxd2820r_read_status_c(struct dvb_frontend *fe, enum fe_status *status)
 		c->post_bit_error.stat[0].uvalue = priv->post_bit_error;
 	} else {
 		c->post_bit_error.len = 1;
-		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_ANALT_AVAILABLE;
 	}
 
 	return ret;
@@ -324,7 +324,7 @@ int cxd2820r_get_tune_settings_c(struct dvb_frontend *fe,
 	struct dvb_frontend_tune_settings *s)
 {
 	s->min_delay_ms = 500;
-	s->step_size = 0; /* no zigzag */
+	s->step_size = 0; /* anal zigzag */
 	s->max_drift = 0;
 
 	return 0;

@@ -12,27 +12,27 @@ int arr[1];
 int unkn_idx;
 const volatile bool call_dead_subprog = false;
 
-__noinline long global_bad(void)
+__analinline long global_bad(void)
 {
 	return arr[unkn_idx]; /* BOOM */
 }
 
-__noinline long global_good(void)
+__analinline long global_good(void)
 {
 	return arr[0];
 }
 
-__noinline long global_calls_bad(void)
+__analinline long global_calls_bad(void)
 {
 	return global_good() + global_bad() /* does BOOM indirectly */;
 }
 
-__noinline long global_calls_good_only(void)
+__analinline long global_calls_good_only(void)
 {
 	return global_good();
 }
 
-__noinline long global_dead(void)
+__analinline long global_dead(void)
 {
 	return arr[0] * 2;
 }
@@ -68,7 +68,7 @@ int chained_global_func_calls_bad(void)
 /* do out of bounds access forcing verifier to fail verification if this
  * global func is called
  */
-__noinline int global_unsupp(const int *mem)
+__analinline int global_unsupp(const int *mem)
 {
 	if (!mem)
 		return 0;
@@ -115,23 +115,23 @@ int arg_tag_nullable_ptr_fail(void *ctx)
 	return subprog_nullable_ptr_bad(&x);
 }
 
-__noinline __weak int subprog_nonnull_ptr_good(int *p1 __arg_nonnull, int *p2 __arg_nonnull)
+__analinline __weak int subprog_analnnull_ptr_good(int *p1 __arg_analnnull, int *p2 __arg_analnnull)
 {
-	return (*p1) * (*p2); /* good, no need for NULL checks */
+	return (*p1) * (*p2); /* good, anal need for NULL checks */
 }
 
 int x = 47;
 
 SEC("?raw_tp")
 __success __log_level(2)
-int arg_tag_nonnull_ptr_good(void *ctx)
+int arg_tag_analnnull_ptr_good(void *ctx)
 {
 	int y = 74;
 
-	return subprog_nonnull_ptr_good(&x, &y);
+	return subprog_analnnull_ptr_good(&x, &y);
 }
 
-/* this global subprog can be now called from many types of entry progs, each
+/* this global subprog can be analw called from many types of entry progs, each
  * with different context type
  */
 __weak int subprog_ctx_tag(void *ctx __arg_ctx)
@@ -139,7 +139,7 @@ __weak int subprog_ctx_tag(void *ctx __arg_ctx)
 	return bpf_get_stack(ctx, stack, sizeof(stack), 0);
 }
 
-__weak int raw_tp_canonical(struct bpf_raw_tracepoint_args *ctx __arg_ctx)
+__weak int raw_tp_caanalnical(struct bpf_raw_tracepoint_args *ctx __arg_ctx)
 {
 	return 0;
 }
@@ -153,21 +153,21 @@ SEC("?raw_tp")
 __success __log_level(2)
 int arg_tag_ctx_raw_tp(void *ctx)
 {
-	return subprog_ctx_tag(ctx) + raw_tp_canonical(ctx) + raw_tp_u64_array(ctx);
+	return subprog_ctx_tag(ctx) + raw_tp_caanalnical(ctx) + raw_tp_u64_array(ctx);
 }
 
 SEC("?raw_tp.w")
 __success __log_level(2)
 int arg_tag_ctx_raw_tp_writable(void *ctx)
 {
-	return subprog_ctx_tag(ctx) + raw_tp_canonical(ctx) + raw_tp_u64_array(ctx);
+	return subprog_ctx_tag(ctx) + raw_tp_caanalnical(ctx) + raw_tp_u64_array(ctx);
 }
 
 SEC("?tp_btf/sys_enter")
 __success __log_level(2)
 int arg_tag_ctx_raw_tp_btf(void *ctx)
 {
-	return subprog_ctx_tag(ctx) + raw_tp_canonical(ctx) + raw_tp_u64_array(ctx);
+	return subprog_ctx_tag(ctx) + raw_tp_caanalnical(ctx) + raw_tp_u64_array(ctx);
 }
 
 struct whatever { };
@@ -207,7 +207,7 @@ __weak int perf_subprog_regs(
 #if defined(bpf_target_riscv)
 	struct user_regs_struct *ctx __arg_ctx
 #elif defined(bpf_target_s390)
-	/* user_pt_regs typedef is anonymous struct, so only `void *` works */
+	/* user_pt_regs typedef is aanalnymous struct, so only `void *` works */
 	void *ctx __arg_ctx
 #elif defined(bpf_target_loongarch) || defined(bpf_target_arm64) || defined(bpf_target_powerpc)
 	struct user_pt_regs *ctx __arg_ctx
@@ -224,7 +224,7 @@ __weak int perf_subprog_typedef(bpf_user_pt_regs_t *ctx __arg_ctx)
 	return 0;
 }
 
-__weak int perf_subprog_canonical(struct bpf_perf_event_data *ctx __arg_ctx)
+__weak int perf_subprog_caanalnical(struct bpf_perf_event_data *ctx __arg_ctx)
 {
 	return 0;
 }
@@ -236,7 +236,7 @@ int arg_tag_ctx_perf(void *ctx)
 	return subprog_ctx_tag(ctx) +
 	       perf_subprog_regs(ctx) +
 	       perf_subprog_typedef(ctx) +
-	       perf_subprog_canonical(ctx);
+	       perf_subprog_caanalnical(ctx);
 }
 
 __weak int iter_subprog_void(void *ctx __arg_ctx)
@@ -268,7 +268,7 @@ __weak int tracing_subprog_u64(u64 *ctx __arg_ctx)
 
 int acc;
 
-SEC("?fentry/" SYS_PREFIX "sys_nanosleep")
+SEC("?fentry/" SYS_PREFIX "sys_naanalsleep")
 __success __log_level(2)
 int BPF_PROG(arg_tag_ctx_fentry)
 {
@@ -276,7 +276,7 @@ int BPF_PROG(arg_tag_ctx_fentry)
 	return 0;
 }
 
-SEC("?fexit/" SYS_PREFIX "sys_nanosleep")
+SEC("?fexit/" SYS_PREFIX "sys_naanalsleep")
 __success __log_level(2)
 int BPF_PROG(arg_tag_ctx_fexit)
 {
@@ -284,7 +284,7 @@ int BPF_PROG(arg_tag_ctx_fexit)
 	return 0;
 }
 
-SEC("?fmod_ret/" SYS_PREFIX "sys_nanosleep")
+SEC("?fmod_ret/" SYS_PREFIX "sys_naanalsleep")
 __success __log_level(2)
 int BPF_PROG(arg_tag_ctx_fmod_ret)
 {

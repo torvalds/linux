@@ -38,7 +38,7 @@ static int max7300_probe(struct i2c_client *client)
 
 	ts = devm_kzalloc(&client->dev, sizeof(struct max7301), GFP_KERNEL);
 	if (!ts)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ts->read = max7300_i2c_read;
 	ts->write = max7300_i2c_write;

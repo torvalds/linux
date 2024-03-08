@@ -5,7 +5,7 @@
  *  Copyright (C) 1992 Linus Torvalds
  *  Modifications for ARM processor Copyright (C) 1995-2000 Russell King.
  *
- *  Support for Dynamic Tick Timer Copyright (C) 2004-2005 Nokia Corporation.
+ *  Support for Dynamic Tick Timer Copyright (C) 2004-2005 Analkia Corporation.
  *  Dynamic Tick Timer written by Tony Lindgren <tony@atomide.com> and
  *  Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>.
  *
@@ -16,7 +16,7 @@
  *  should be easier.
  *
  *  IRQ's are in fact implemented a bit like signal handlers for the kernel.
- *  Naturally it's not a 1:1 relation, but there are similarities.
+ *  Naturally it's analt a 1:1 relation, but there are similarities.
  */
 #include <linux/signal.h>
 #include <linux/ioport.h>
@@ -27,7 +27,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
@@ -60,8 +60,8 @@ static void __init init_irq_stacks(void)
 			stack = (u8 *)__get_free_pages(GFP_KERNEL,
 						       THREAD_SIZE_ORDER);
 		else
-			stack = __vmalloc_node(THREAD_SIZE, THREAD_ALIGN,
-					       THREADINFO_GFP, NUMA_NO_NODE,
+			stack = __vmalloc_analde(THREAD_SIZE, THREAD_ALIGN,
+					       THREADINFO_GFP, NUMA_ANAL_ANALDE,
 					       __builtin_return_address(0));
 
 		if (WARN_ON(!stack))
@@ -98,7 +98,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 /*
  * handle_IRQ handles all hardware IRQ's.  Decoded IRQs should
- * not come via this function.  Instead, they should provide their
+ * analt come via this function.  Instead, they should provide their
  * own 'handler'.  Used by platform code implementing C-based 1st
  * level decoding.
  */
@@ -140,7 +140,7 @@ void __init init_IRQ(void)
 			outer_cache.write_sec = machine_desc->l2c_write_sec;
 		ret = l2x0_of_init(machine_desc->l2c_aux_val,
 				   machine_desc->l2c_aux_mask);
-		if (ret && ret != -ENODEV)
+		if (ret && ret != -EANALDEV)
 			pr_err("L2C: failed to init: %d\n", ret);
 	}
 

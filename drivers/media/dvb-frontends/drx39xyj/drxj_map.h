@@ -5,22 +5,22 @@
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
 
-  * Redistributions of source code must retain the above copyright notice,
+  * Redistributions of source code must retain the above copyright analtice,
     this list of conditions and the following disclaimer.
-  * Redistributions in binary form must reproduce the above copyright notice,
+  * Redistributions in binary form must reproduce the above copyright analtice,
     this list of conditions and the following disclaimer in the documentation
 	and/or other materials provided with the distribution.
-  * Neither the name of Trident Microsystems nor Hauppauge Computer Works
-    nor the names of its contributors may be used to endorse or promote
+  * Neither the name of Trident Microsystems analr Hauppauge Computer Works
+    analr the names of its contributors may be used to endorse or promote
 	products derived from this software without specific prior written
 	permission.
 
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT LIMITED TO, THE
   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+  ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF
   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
@@ -30,7 +30,7 @@
 
 /*
  ***********************************************************************************************************************
- * WARNING - THIS FILE HAS BEEN GENERATED - DO NOT CHANGE
+ * WARNING - THIS FILE HAS BEEN GENERATED - DO ANALT CHANGE
  *
  * Filename:        drxj_map.h
  * Generated on:    Mon Jan 18 12:09:24 2010
@@ -273,11 +273,11 @@
 #define   ATV_TOP_CR_OVM_TH_MN                                              0xA0
 #define   ATV_TOP_CR_OVM_TH_FM                                              0x0
 
-#define ATV_TOP_NOISE_TH__A                                                 0xC10013
-#define ATV_TOP_NOISE_TH__W                                                 4
-#define ATV_TOP_NOISE_TH__M                                                 0xF
-#define ATV_TOP_NOISE_TH__PRE                                               0x8
-#define   ATV_TOP_NOISE_TH_MN                                               0x8
+#define ATV_TOP_ANALISE_TH__A                                                 0xC10013
+#define ATV_TOP_ANALISE_TH__W                                                 4
+#define ATV_TOP_ANALISE_TH__M                                                 0xF
+#define ATV_TOP_ANALISE_TH__PRE                                               0x8
+#define   ATV_TOP_ANALISE_TH_MN                                               0x8
 
 #define ATV_TOP_EQU0__A                                                     0xC10014
 #define ATV_TOP_EQU0__W                                                     9
@@ -512,14 +512,14 @@
 #define   ATV_TOP_OUT_CONF_CVBS_DAC_BR__W                                   1
 #define   ATV_TOP_OUT_CONF_CVBS_DAC_BR__M                                   0x8
 #define   ATV_TOP_OUT_CONF_CVBS_DAC_BR__PRE                                 0x0
-#define     ATV_TOP_OUT_CONF_CVBS_DAC_BR_NORMAL                             0x0
+#define     ATV_TOP_OUT_CONF_CVBS_DAC_BR_ANALRMAL                             0x0
 #define     ATV_TOP_OUT_CONF_CVBS_DAC_BR_BITREVERSED                        0x8
 
 #define   ATV_TOP_OUT_CONF_SIF_DAC_BR__B                                    4
 #define   ATV_TOP_OUT_CONF_SIF_DAC_BR__W                                    1
 #define   ATV_TOP_OUT_CONF_SIF_DAC_BR__M                                    0x10
 #define   ATV_TOP_OUT_CONF_SIF_DAC_BR__PRE                                  0x0
-#define     ATV_TOP_OUT_CONF_SIF_DAC_BR_NORMAL                              0x0
+#define     ATV_TOP_OUT_CONF_SIF_DAC_BR_ANALRMAL                              0x0
 #define     ATV_TOP_OUT_CONF_SIF_DAC_BR_BITREVERSED                         0x10
 
 #define ATV_AFT_COMM_EXEC__A                                                0xFF0000
@@ -607,7 +607,7 @@
 #define   AUD_TOP_TR_MDE_RD_LOCK__W                                         1
 #define   AUD_TOP_TR_MDE_RD_LOCK__M                                         0x10
 #define   AUD_TOP_TR_MDE_RD_LOCK__PRE                                       0x10
-#define     AUD_TOP_TR_MDE_RD_LOCK_NORMAL                                   0x0
+#define     AUD_TOP_TR_MDE_RD_LOCK_ANALRMAL                                   0x0
 #define     AUD_TOP_TR_MDE_RD_LOCK_LOCK                                     0x10
 
 #define AUD_TOP_TR_CTR__A                                                   0x1010011
@@ -619,14 +619,14 @@
 #define   AUD_TOP_TR_CTR_FIFO_RD_RDY__W                                     1
 #define   AUD_TOP_TR_CTR_FIFO_RD_RDY__M                                     0x1
 #define   AUD_TOP_TR_CTR_FIFO_RD_RDY__PRE                                   0x0
-#define     AUD_TOP_TR_CTR_FIFO_RD_RDY_NOT_READY                            0x0
+#define     AUD_TOP_TR_CTR_FIFO_RD_RDY_ANALT_READY                            0x0
 #define     AUD_TOP_TR_CTR_FIFO_RD_RDY_READY                                0x1
 
 #define   AUD_TOP_TR_CTR_FIFO_EMPTY__B                                      1
 #define   AUD_TOP_TR_CTR_FIFO_EMPTY__W                                      1
 #define   AUD_TOP_TR_CTR_FIFO_EMPTY__M                                      0x2
 #define   AUD_TOP_TR_CTR_FIFO_EMPTY__PRE                                    0x0
-#define     AUD_TOP_TR_CTR_FIFO_EMPTY_NOT_EMPTY                             0x0
+#define     AUD_TOP_TR_CTR_FIFO_EMPTY_ANALT_EMPTY                             0x0
 #define     AUD_TOP_TR_CTR_FIFO_EMPTY_EMPTY                                 0x2
 
 #define   AUD_TOP_TR_CTR_FIFO_LOCK__B                                       2
@@ -698,7 +698,7 @@
 #define   AUD_DEM_WR_MODUS_MOD_HDEV_A__W                                    1
 #define   AUD_DEM_WR_MODUS_MOD_HDEV_A__M                                    0x100
 #define   AUD_DEM_WR_MODUS_MOD_HDEV_A__PRE                                  0x0
-#define     AUD_DEM_WR_MODUS_MOD_HDEV_A_NORMAL                              0x0
+#define     AUD_DEM_WR_MODUS_MOD_HDEV_A_ANALRMAL                              0x0
 #define     AUD_DEM_WR_MODUS_MOD_HDEV_A_HIGH_DEVIATION                      0x100
 
 #define   AUD_DEM_WR_MODUS_MOD_CM_A__B                                      9
@@ -706,14 +706,14 @@
 #define   AUD_DEM_WR_MODUS_MOD_CM_A__M                                      0x200
 #define   AUD_DEM_WR_MODUS_MOD_CM_A__PRE                                    0x0
 #define     AUD_DEM_WR_MODUS_MOD_CM_A_MUTE                                  0x0
-#define     AUD_DEM_WR_MODUS_MOD_CM_A_NOISE                                 0x200
+#define     AUD_DEM_WR_MODUS_MOD_CM_A_ANALISE                                 0x200
 
 #define   AUD_DEM_WR_MODUS_MOD_CM_B__B                                      10
 #define   AUD_DEM_WR_MODUS_MOD_CM_B__W                                      1
 #define   AUD_DEM_WR_MODUS_MOD_CM_B__M                                      0x400
 #define   AUD_DEM_WR_MODUS_MOD_CM_B__PRE                                    0x0
 #define     AUD_DEM_WR_MODUS_MOD_CM_B_MUTE                                  0x0
-#define     AUD_DEM_WR_MODUS_MOD_CM_B_NOISE                                 0x400
+#define     AUD_DEM_WR_MODUS_MOD_CM_B_ANALISE                                 0x400
 
 #define   AUD_DEM_WR_MODUS_MOD_FMRADIO__B                                   11
 #define   AUD_DEM_WR_MODUS_MOD_FMRADIO__W                                   1
@@ -778,7 +778,7 @@
 #define   AUD_DEM_RD_STANDARD_RES_STD_RESULT__W                             16
 #define   AUD_DEM_RD_STANDARD_RES_STD_RESULT__M                             0xFFFF
 #define   AUD_DEM_RD_STANDARD_RES_STD_RESULT__PRE                           0x0
-#define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_NO_SOUND_STANDARD            0x0
+#define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_ANAL_SOUND_STANDARD            0x0
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_NTSC_M_DUAL_CARRIER_FM       0x2
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_B_G_DUAL_CARRIER_FM          0x3
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_D_K1_DUAL_CARRIER_FM         0x4
@@ -789,7 +789,7 @@
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_I_NICAM_FM                   0xA
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_D_K_NICAM_FM                 0xB
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_BTSC_STEREO                  0x20
-#define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_BTSC_MONO_SAP                0x21
+#define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_BTSC_MOANAL_SAP                0x21
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_NTSC_EIA_J                   0x30
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_FM_RADIO                     0x40
 #define     AUD_DEM_RD_STANDARD_RES_STD_RESULT_DETECTION_STILL_ACTIVE       0x7FF
@@ -803,7 +803,7 @@
 #define   AUD_DEM_RD_STATUS_STAT_NEW_RDS__W                                 1
 #define   AUD_DEM_RD_STATUS_STAT_NEW_RDS__M                                 0x1
 #define   AUD_DEM_RD_STATUS_STAT_NEW_RDS__PRE                               0x0
-#define     AUD_DEM_RD_STATUS_STAT_NEW_RDS_NO_RDS_DATA                      0x0
+#define     AUD_DEM_RD_STATUS_STAT_NEW_RDS_ANAL_RDS_DATA                      0x0
 #define     AUD_DEM_RD_STATUS_STAT_NEW_RDS_NEW_RDS_DATA                     0x1
 
 #define   AUD_DEM_RD_STATUS_STAT_CARR_A__B                                  1
@@ -811,41 +811,41 @@
 #define   AUD_DEM_RD_STATUS_STAT_CARR_A__M                                  0x2
 #define   AUD_DEM_RD_STATUS_STAT_CARR_A__PRE                                0x0
 #define     AUD_DEM_RD_STATUS_STAT_CARR_A_DETECTED                          0x0
-#define     AUD_DEM_RD_STATUS_STAT_CARR_A_NOT_DETECTED                      0x2
+#define     AUD_DEM_RD_STATUS_STAT_CARR_A_ANALT_DETECTED                      0x2
 
 #define   AUD_DEM_RD_STATUS_STAT_CARR_B__B                                  2
 #define   AUD_DEM_RD_STATUS_STAT_CARR_B__W                                  1
 #define   AUD_DEM_RD_STATUS_STAT_CARR_B__M                                  0x4
 #define   AUD_DEM_RD_STATUS_STAT_CARR_B__PRE                                0x0
 #define     AUD_DEM_RD_STATUS_STAT_CARR_B_DETECTED                          0x0
-#define     AUD_DEM_RD_STATUS_STAT_CARR_B_NOT_DETECTED                      0x4
+#define     AUD_DEM_RD_STATUS_STAT_CARR_B_ANALT_DETECTED                      0x4
 
 #define   AUD_DEM_RD_STATUS_STAT_NICAM__B                                   5
 #define   AUD_DEM_RD_STATUS_STAT_NICAM__W                                   1
 #define   AUD_DEM_RD_STATUS_STAT_NICAM__M                                   0x20
 #define   AUD_DEM_RD_STATUS_STAT_NICAM__PRE                                 0x0
-#define     AUD_DEM_RD_STATUS_STAT_NICAM_NO_NICAM                           0x0
+#define     AUD_DEM_RD_STATUS_STAT_NICAM_ANAL_NICAM                           0x0
 #define     AUD_DEM_RD_STATUS_STAT_NICAM_NICAM_DETECTED                     0x20
 
 #define   AUD_DEM_RD_STATUS_STAT_STEREO__B                                  6
 #define   AUD_DEM_RD_STATUS_STAT_STEREO__W                                  1
 #define   AUD_DEM_RD_STATUS_STAT_STEREO__M                                  0x40
 #define   AUD_DEM_RD_STATUS_STAT_STEREO__PRE                                0x0
-#define     AUD_DEM_RD_STATUS_STAT_STEREO_NO_STEREO                         0x0
+#define     AUD_DEM_RD_STATUS_STAT_STEREO_ANAL_STEREO                         0x0
 #define     AUD_DEM_RD_STATUS_STAT_STEREO_STEREO                            0x40
 
-#define   AUD_DEM_RD_STATUS_STAT_INDEP_MONO__B                              7
-#define   AUD_DEM_RD_STATUS_STAT_INDEP_MONO__W                              1
-#define   AUD_DEM_RD_STATUS_STAT_INDEP_MONO__M                              0x80
-#define   AUD_DEM_RD_STATUS_STAT_INDEP_MONO__PRE                            0x0
-#define     AUD_DEM_RD_STATUS_STAT_INDEP_MONO_DEPENDENT_FM_MONO_PROGRAM     0x0
-#define     AUD_DEM_RD_STATUS_STAT_INDEP_MONO_INDEPENDENT_FM_MONO_PROGRAM   0x80
+#define   AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL__B                              7
+#define   AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL__W                              1
+#define   AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL__M                              0x80
+#define   AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL__PRE                            0x0
+#define     AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL_DEPENDENT_FM_MOANAL_PROGRAM     0x0
+#define     AUD_DEM_RD_STATUS_STAT_INDEP_MOANAL_INDEPENDENT_FM_MOANAL_PROGRAM   0x80
 
 #define   AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__B                              8
 #define   AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__W                              1
 #define   AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__M                              0x100
 #define   AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP__PRE                            0x0
-#define     AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP_NO_SAP                        0x0
+#define     AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP_ANAL_SAP                        0x0
 #define     AUD_DEM_RD_STATUS_STAT_BIL_OR_SAP_SAP                           0x100
 
 #define   AUD_DEM_RD_STATUS_BAD_NICAM__B                                    9
@@ -864,7 +864,7 @@
 #define   AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT__W                          12
 #define   AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT__M                          0xFFF
 #define   AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT__PRE                        0x0
-#define     AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT_RDS_DATA_NOT_VALID        0xFFF
+#define     AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT_RDS_DATA_ANALT_VALID        0xFFF
 
 #define AUD_DEM_RD_RDS_DATA__A                                              0x1020210
 #define AUD_DEM_RD_RDS_DATA__W                                              12
@@ -911,7 +911,7 @@
 #define   AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__W                                8
 #define   AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__M                                0xFF00
 #define   AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S__PRE                              0x0
-#define     AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MONO                            0x0
+#define     AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_MOANAL                            0x0
 #define     AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_AB                       0x100
 #define     AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_A                        0x300
 #define     AUD_DSP_WR_SRC_I2S_MATR_SRC_I2S_STEREO_B                        0x400
@@ -923,7 +923,7 @@
 #define     AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_A                         0x0
 #define     AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_SOUND_B                         0x10
 #define     AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_STEREO                          0x20
-#define     AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MONO                            0x30
+#define     AUD_DSP_WR_SRC_I2S_MATR_MAT_I2S_MOANAL                            0x30
 
 #define AUD_DSP_WR_AVC__A                                                   0x1050029
 #define AUD_DSP_WR_AVC__W                                                   16
@@ -976,7 +976,7 @@
 #define   AUD_DSP_WR_QPEAK_SRC_QP__W                                        8
 #define   AUD_DSP_WR_QPEAK_SRC_QP__M                                        0xFF00
 #define   AUD_DSP_WR_QPEAK_SRC_QP__PRE                                      0x0
-#define     AUD_DSP_WR_QPEAK_SRC_QP_MONO                                    0x0
+#define     AUD_DSP_WR_QPEAK_SRC_QP_MOANAL                                    0x0
 #define     AUD_DSP_WR_QPEAK_SRC_QP_STEREO_AB                               0x100
 #define     AUD_DSP_WR_QPEAK_SRC_QP_STEREO_A                                0x300
 #define     AUD_DSP_WR_QPEAK_SRC_QP_STEREO_B                                0x400
@@ -988,7 +988,7 @@
 #define     AUD_DSP_WR_QPEAK_MAT_QP_SOUND_A                                 0x0
 #define     AUD_DSP_WR_QPEAK_MAT_QP_SOUND_B                                 0x10
 #define     AUD_DSP_WR_QPEAK_MAT_QP_STEREO                                  0x20
-#define     AUD_DSP_WR_QPEAK_MAT_QP_MONO                                    0x30
+#define     AUD_DSP_WR_QPEAK_MAT_QP_MOANAL                                    0x30
 
 #define AUD_DSP_RD_QPEAK_L__A                                               0x1040019
 #define AUD_DSP_RD_QPEAK_L__W                                               16
@@ -1024,7 +1024,7 @@
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL__W                              1
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL__M                              0x40
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL__PRE                            0x0
-#define     AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL_NORMAL                        0x0
+#define     AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL_ANALRMAL                        0x0
 #define     AUD_DEM_WR_I2S_CONFIG2_I2S_CL_POL_INVERTED                      0x40
 
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_ENABLE__B                              4
@@ -1052,7 +1052,7 @@
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__W                             1
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__M                             0x2
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE__PRE                           0x0
-#define     AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_NO_DELAY                     0x0
+#define     AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_ANAL_DELAY                     0x0
 #define     AUD_DEM_WR_I2S_CONFIG2_I2S_WS_MODE_DELAY                        0x2
 
 #define   AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN__B                            0
@@ -1088,7 +1088,7 @@
 #define   AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ__W                                1
 #define   AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ__M                                0x4000
 #define   AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ__PRE                              0x0
-#define     AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ_MONOCHROME                      0x0
+#define     AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ_MOANALCHROME                      0x0
 #define     AUD_DSP_WR_AV_SYNC_AV_AUTO_FREQ_NTSC                            0x4000
 
 #define   AUD_DSP_WR_AV_SYNC_AV_STD_SEL__B                                  0
@@ -1098,7 +1098,7 @@
 #define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_AUTO                              0x0
 #define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_PAL_SECAM                         0x1
 #define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_NTSC                              0x2
-#define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MONOCHROME                        0x3
+#define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MOANALCHROME                        0x3
 
 #define AUD_DSP_RD_STATUS2__A                                               0x104007B
 #define AUD_DSP_RD_STATUS2__W                                               16
@@ -1109,7 +1109,7 @@
 #define   AUD_DSP_RD_STATUS2_AV_ACTIVE__W                                   1
 #define   AUD_DSP_RD_STATUS2_AV_ACTIVE__M                                   0x8000
 #define   AUD_DSP_RD_STATUS2_AV_ACTIVE__PRE                                 0x0
-#define     AUD_DSP_RD_STATUS2_AV_ACTIVE_NO_SYNC                            0x0
+#define     AUD_DSP_RD_STATUS2_AV_ACTIVE_ANAL_SYNC                            0x0
 #define     AUD_DSP_RD_STATUS2_AV_ACTIVE_SYNC_ACTIVE                        0x8000
 
 #define AUD_DSP_RD_XDFP_FW__A                                               0x104001D
@@ -1210,7 +1210,7 @@
 #define   AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC__W                            1
 #define   AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC__M                            0x1
 #define   AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC__PRE                          0x0
-#define     AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC_NOT_SYNCED                  0x0
+#define     AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC_ANALT_SYNCED                  0x0
 #define     AUD_DEM_RD_NIC_C_AD_BITS_NICAM_SYNC_SYNCED                      0x1
 
 #define   AUD_DEM_RD_NIC_C_AD_BITS_C__B                                     1
@@ -1270,7 +1270,7 @@
 #define AUD_DEM_WR_FM_MATRIX__W                                             16
 #define AUD_DEM_WR_FM_MATRIX__M                                             0xFFFF
 #define AUD_DEM_WR_FM_MATRIX__PRE                                           0x0
-#define   AUD_DEM_WR_FM_MATRIX_NO_MATRIX                                    0x0
+#define   AUD_DEM_WR_FM_MATRIX_ANAL_MATRIX                                    0x0
 #define   AUD_DEM_WR_FM_MATRIX_GERMAN_MATRIX                                0x1
 #define   AUD_DEM_WR_FM_MATRIX_KOREAN_MATRIX                                0x2
 #define   AUD_DEM_WR_FM_MATRIX_SOUND_A                                      0x3
@@ -1306,24 +1306,24 @@
 #define   AUD_DSP_RD_FM_DC_LEVEL_B_FM_DC_LEV_B__M                           0xFFFF
 #define   AUD_DSP_RD_FM_DC_LEVEL_B_FM_DC_LEV_B__PRE                         0x0
 
-#define AUD_DEM_WR_FM_DC_NOTCH_SW__A                                        0x1030017
-#define AUD_DEM_WR_FM_DC_NOTCH_SW__W                                        16
-#define AUD_DEM_WR_FM_DC_NOTCH_SW__M                                        0xFFFF
-#define AUD_DEM_WR_FM_DC_NOTCH_SW__PRE                                      0x0
+#define AUD_DEM_WR_FM_DC_ANALTCH_SW__A                                        0x1030017
+#define AUD_DEM_WR_FM_DC_ANALTCH_SW__W                                        16
+#define AUD_DEM_WR_FM_DC_ANALTCH_SW__M                                        0xFFFF
+#define AUD_DEM_WR_FM_DC_ANALTCH_SW__PRE                                      0x0
 
-#define   AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW__B                          0
-#define   AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW__W                          16
-#define   AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW__M                          0xFFFF
-#define   AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW__PRE                        0x0
-#define     AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW_ON                        0x0
-#define     AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW_OFF                       0x3F
+#define   AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW__B                          0
+#define   AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW__W                          16
+#define   AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW__M                          0xFFFF
+#define   AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW__PRE                        0x0
+#define     AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW_ON                        0x0
+#define     AUD_DEM_WR_FM_DC_ANALTCH_SW_FM_DC_ANAL_SW_OFF                       0x3F
 
 #define AUD_DSP_WR_SYNC_OUT__A                                              0x1050026
 #define AUD_DSP_WR_SYNC_OUT__W                                              16
 #define AUD_DSP_WR_SYNC_OUT__M                                              0xFFFF
 #define AUD_DSP_WR_SYNC_OUT__PRE                                            0x0
 #define   AUD_DSP_WR_SYNC_OUT_OFF                                           0x0
-#define   AUD_DSP_WR_SYNC_OUT_SYNCHRONOUS                                   0x1
+#define   AUD_DSP_WR_SYNC_OUT_SYNCHROANALUS                                   0x1
 
 #define AUD_XFP_DRAM_1K__A                                                  0x1060000
 #define AUD_XFP_DRAM_1K__W                                                  16
@@ -1499,20 +1499,20 @@
 #define FEC_DI_MODE__M                                                      0x7
 #define FEC_DI_MODE__PRE                                                    0x0
 
-#define   FEC_DI_MODE_NO_SYNC__B                                            0
-#define   FEC_DI_MODE_NO_SYNC__W                                            1
-#define   FEC_DI_MODE_NO_SYNC__M                                            0x1
-#define   FEC_DI_MODE_NO_SYNC__PRE                                          0x0
+#define   FEC_DI_MODE_ANAL_SYNC__B                                            0
+#define   FEC_DI_MODE_ANAL_SYNC__W                                            1
+#define   FEC_DI_MODE_ANAL_SYNC__M                                            0x1
+#define   FEC_DI_MODE_ANAL_SYNC__PRE                                          0x0
 
-#define   FEC_DI_MODE_IGNORE_LOST_SYNC__B                                   1
-#define   FEC_DI_MODE_IGNORE_LOST_SYNC__W                                   1
-#define   FEC_DI_MODE_IGNORE_LOST_SYNC__M                                   0x2
-#define   FEC_DI_MODE_IGNORE_LOST_SYNC__PRE                                 0x0
+#define   FEC_DI_MODE_IGANALRE_LOST_SYNC__B                                   1
+#define   FEC_DI_MODE_IGANALRE_LOST_SYNC__W                                   1
+#define   FEC_DI_MODE_IGANALRE_LOST_SYNC__M                                   0x2
+#define   FEC_DI_MODE_IGANALRE_LOST_SYNC__PRE                                 0x0
 
-#define   FEC_DI_MODE_IGNORE_TIMEOUT__B                                     2
-#define   FEC_DI_MODE_IGNORE_TIMEOUT__W                                     1
-#define   FEC_DI_MODE_IGNORE_TIMEOUT__M                                     0x4
-#define   FEC_DI_MODE_IGNORE_TIMEOUT__PRE                                   0x0
+#define   FEC_DI_MODE_IGANALRE_TIMEOUT__B                                     2
+#define   FEC_DI_MODE_IGANALRE_TIMEOUT__W                                     1
+#define   FEC_DI_MODE_IGANALRE_TIMEOUT__M                                     0x4
+#define   FEC_DI_MODE_IGANALRE_TIMEOUT__PRE                                   0x0
 
 #define FEC_DI_CONTROL_WORD__A                                              0x2420012
 #define FEC_DI_CONTROL_WORD__W                                              4
@@ -1906,10 +1906,10 @@
 #define   FEC_OC_DPR_MODE_ERR_DISABLE__M                                    0x1
 #define   FEC_OC_DPR_MODE_ERR_DISABLE__PRE                                  0x0
 
-#define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__B                                  1
-#define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__W                                  1
-#define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__M                                  0x2
-#define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__PRE                                0x0
+#define   FEC_OC_DPR_MODE_ANALSYNC_ENABLE__B                                  1
+#define   FEC_OC_DPR_MODE_ANALSYNC_ENABLE__W                                  1
+#define   FEC_OC_DPR_MODE_ANALSYNC_ENABLE__M                                  0x2
+#define   FEC_OC_DPR_MODE_ANALSYNC_ENABLE__PRE                                0x0
 
 #define FEC_OC_DPR_UNLOCK__A                                                0x2440013
 #define FEC_OC_DPR_UNLOCK__W                                                1
@@ -3436,21 +3436,21 @@
 #define   IQM_AF_ADC_CONF_BITREVERSE_ADC__W                                 1
 #define   IQM_AF_ADC_CONF_BITREVERSE_ADC__M                                 0x2
 #define   IQM_AF_ADC_CONF_BITREVERSE_ADC__PRE                               0x0
-#define     IQM_AF_ADC_CONF_BITREVERSE_ADC_ADC_NORMAL                       0x0
+#define     IQM_AF_ADC_CONF_BITREVERSE_ADC_ADC_ANALRMAL                       0x0
 #define     IQM_AF_ADC_CONF_BITREVERSE_ADC_ADC_BITREVERSED                  0x2
 
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSI__B                                2
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSI__W                                1
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSI__M                                0x4
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSI__PRE                              0x0
-#define     IQM_AF_ADC_CONF_BITREVERSE_NSSI_IFAGC_DAC_NORMAL                0x0
+#define     IQM_AF_ADC_CONF_BITREVERSE_NSSI_IFAGC_DAC_ANALRMAL                0x0
 #define     IQM_AF_ADC_CONF_BITREVERSE_NSSI_IFAGC_DAC_BITREVERSED           0x4
 
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSR__B                                3
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSR__W                                1
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSR__M                                0x8
 #define   IQM_AF_ADC_CONF_BITREVERSE_NSSR__PRE                              0x0
-#define     IQM_AF_ADC_CONF_BITREVERSE_NSSR_RFAGC_DAC_NORMAL                0x0
+#define     IQM_AF_ADC_CONF_BITREVERSE_NSSR_RFAGC_DAC_ANALRMAL                0x0
 #define     IQM_AF_ADC_CONF_BITREVERSE_NSSR_RFAGC_DAC_BITREVERSED           0x8
 
 #define IQM_AF_CLP_CLIP__A                                                  0x1870022
@@ -3688,7 +3688,7 @@
 #define   ORX_TOP_AIF_CTRL_W_INV_MSB__W                                     1
 #define   ORX_TOP_AIF_CTRL_W_INV_MSB__M                                     0x4
 #define   ORX_TOP_AIF_CTRL_W_INV_MSB__PRE                                   0x0
-#define     ORX_TOP_AIF_CTRL_W_INV_MSB_NO_MSB_INVERSION_ADC                 0x0
+#define     ORX_TOP_AIF_CTRL_W_INV_MSB_ANAL_MSB_INVERSION_ADC                 0x0
 #define     ORX_TOP_AIF_CTRL_W_INV_MSB_MSB_INVERSION_ADC                    0x4
 
 #define ORX_FWP_COMM_EXEC__A                                                0x2020000
@@ -3900,7 +3900,7 @@
 #define ORX_EQU_FFF_UPD_W__W                                                1
 #define ORX_EQU_FFF_UPD_W__M                                                0x1
 #define ORX_EQU_FFF_UPD_W__PRE                                              0x0
-#define   ORX_EQU_FFF_UPD_W_NO_UPDATE                                       0x0
+#define   ORX_EQU_FFF_UPD_W_ANAL_UPDATE                                       0x0
 #define   ORX_EQU_FFF_UPD_W_LMS_UPDATE                                      0x1
 
 #define ORX_EQU_FFF_STP_W__A                                                0x2030012
@@ -4039,7 +4039,7 @@
 #define ORX_EQU_FBF_UPD_W__W                                                1
 #define ORX_EQU_FBF_UPD_W__M                                                0x1
 #define ORX_EQU_FBF_UPD_W__PRE                                              0x0
-#define   ORX_EQU_FBF_UPD_W_NO_UPDATE                                       0x0
+#define   ORX_EQU_FBF_UPD_W_ANAL_UPDATE                                       0x0
 #define   ORX_EQU_FBF_UPD_W_LMS_UPDATE                                      0x1
 
 #define ORX_EQU_FBF_STP_W__A                                                0x203002D
@@ -4669,7 +4669,7 @@
 #define QAM_TOP_CONSTELLATION__W                                            3
 #define QAM_TOP_CONSTELLATION__M                                            0x7
 #define QAM_TOP_CONSTELLATION__PRE                                          0x5
-#define   QAM_TOP_CONSTELLATION_NONE                                        0x0
+#define   QAM_TOP_CONSTELLATION_ANALNE                                        0x0
 #define   QAM_TOP_CONSTELLATION_QPSK                                        0x1
 #define   QAM_TOP_CONSTELLATION_QAM8                                        0x2
 #define   QAM_TOP_CONSTELLATION_QAM16                                       0x3
@@ -8148,14 +8148,14 @@
 #define   SCU_RAM_ATV_LOCK_CR_LOCK_BIT__W                                   1
 #define   SCU_RAM_ATV_LOCK_CR_LOCK_BIT__M                                   0x1
 #define   SCU_RAM_ATV_LOCK_CR_LOCK_BIT__PRE                                 0x0
-#define     SCU_RAM_ATV_LOCK_CR_LOCK_BIT_NO_LOCK                            0x0
+#define     SCU_RAM_ATV_LOCK_CR_LOCK_BIT_ANAL_LOCK                            0x0
 #define     SCU_RAM_ATV_LOCK_CR_LOCK_BIT_LOCK                               0x1
 
 #define   SCU_RAM_ATV_LOCK_SYNC_FLAG__B                                     1
 #define   SCU_RAM_ATV_LOCK_SYNC_FLAG__W                                     1
 #define   SCU_RAM_ATV_LOCK_SYNC_FLAG__M                                     0x2
 #define   SCU_RAM_ATV_LOCK_SYNC_FLAG__PRE                                   0x0
-#define     SCU_RAM_ATV_LOCK_SYNC_FLAG_NO_SYNC                              0x0
+#define     SCU_RAM_ATV_LOCK_SYNC_FLAG_ANAL_SYNC                              0x0
 #define     SCU_RAM_ATV_LOCK_SYNC_FLAG_SYNC                                 0x2
 
 #define SCU_RAM_ATV_CR_LOCK__A                                              0x831F4C
@@ -8474,7 +8474,7 @@
 #define   SCU_RAM_QAM_PARAM_CONSTELLATION_BIT__W                            3
 #define   SCU_RAM_QAM_PARAM_CONSTELLATION_BIT__M                            0x7
 #define   SCU_RAM_QAM_PARAM_CONSTELLATION_BIT__PRE                          0x0
-#define     SCU_RAM_QAM_PARAM_CONSTELLATION_BIT_UNKNOWN                     0x0
+#define     SCU_RAM_QAM_PARAM_CONSTELLATION_BIT_UNKANALWN                     0x0
 #define     SCU_RAM_QAM_PARAM_CONSTELLATION_BIT_QAM_16                      0x3
 #define     SCU_RAM_QAM_PARAM_CONSTELLATION_BIT_QAM_32                      0x4
 #define     SCU_RAM_QAM_PARAM_CONSTELLATION_BIT_QAM_64                      0x5
@@ -8505,7 +8505,7 @@
 #define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_I128_J8                        0xE
 #define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_I12_J17                        0x10
 #define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_I5_J4                          0x11
-#define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_UNKNOWN                        0xFE
+#define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_UNKANALWN                        0xFE
 #define     SCU_RAM_QAM_PARAM_INTERLEAVE_BIT_AUTO                           0xFF
 
 #define SCU_RAM_QAM_PARAM_SYM_RCRATE_HI__A                                  0x831F77
@@ -8637,7 +8637,7 @@
 #define   SCU_RAM_QAM_FSM_FMHUM_TO_BIT__W                                   16
 #define   SCU_RAM_QAM_FSM_FMHUM_TO_BIT__M                                   0xFFFF
 #define   SCU_RAM_QAM_FSM_FMHUM_TO_BIT__PRE                                 0x0
-#define     SCU_RAM_QAM_FSM_FMHUM_TO_BIT_NO_FMHUM_TO                        0x0
+#define     SCU_RAM_QAM_FSM_FMHUM_TO_BIT_ANAL_FMHUM_TO                        0x0
 
 #define SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A                                   0x831F84
 #define SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__W                                   16
@@ -8723,7 +8723,7 @@
 #define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_HUNTING_FREQ                      0x2
 #define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_HUNTING_UPRIGHT                   0x3
 #define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_HUNTING_PHASE                     0x4
-#define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_TRACKING_PHNOISE                  0x5
+#define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_TRACKING_PHANALISE                  0x5
 #define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_TRACKING                          0x6
 #define     SCU_RAM_QAM_FSM_STATE_TGT_BIT_TRACKING_BURST                    0x7
 
@@ -9291,7 +9291,7 @@
 #define   SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT__W                           3
 #define   SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT__M                           0x7
 #define   SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT__PRE                         0x0
-#define     SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT_UNKNOWN                    0x0
+#define     SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT_UNKANALWN                    0x0
 #define     SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT_QAM_16                     0x3
 #define     SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT_QAM_32                     0x4
 #define     SCU_RAM_QAM_ACTIVE_CONSTELLATION_BIT_QAM_64                     0x5
@@ -9322,7 +9322,7 @@
 #define     SCU_RAM_QAM_ACTIVE_INTERLEAVE_BIT_I128_J8                       0xE
 #define     SCU_RAM_QAM_ACTIVE_INTERLEAVE_BIT_I12_J17                       0x10
 #define     SCU_RAM_QAM_ACTIVE_INTERLEAVE_BIT_I5_J4                         0x11
-#define     SCU_RAM_QAM_ACTIVE_INTERLEAVE_BIT_UNKNOWN                       0xFE
+#define     SCU_RAM_QAM_ACTIVE_INTERLEAVE_BIT_UNKANALWN                       0xFE
 
 #define SCU_RAM_QAM_RD_RSV_4__A                                             0x831FB9
 #define SCU_RAM_QAM_RD_RSV_4__W                                             16
@@ -9343,20 +9343,20 @@
 #define   SCU_RAM_QAM_LOCKED_INTLEVEL__W                                    8
 #define   SCU_RAM_QAM_LOCKED_INTLEVEL__M                                    0xFF
 #define   SCU_RAM_QAM_LOCKED_INTLEVEL__PRE                                  0x0
-#define     SCU_RAM_QAM_LOCKED_INTLEVEL_NOT_LOCKED                          0x0
+#define     SCU_RAM_QAM_LOCKED_INTLEVEL_ANALT_LOCKED                          0x0
 #define     SCU_RAM_QAM_LOCKED_INTLEVEL_AMP_OK                              0x1
 #define     SCU_RAM_QAM_LOCKED_INTLEVEL_RATE_OK                             0x2
 #define     SCU_RAM_QAM_LOCKED_INTLEVEL_FREQ_OK                             0x3
 #define     SCU_RAM_QAM_LOCKED_INTLEVEL_UPRIGHT_OK                          0x4
-#define     SCU_RAM_QAM_LOCKED_INTLEVEL_PHNOISE_OK                          0x5
+#define     SCU_RAM_QAM_LOCKED_INTLEVEL_PHANALISE_OK                          0x5
 #define     SCU_RAM_QAM_LOCKED_INTLEVEL_TRACK_OK                            0x6
-#define     SCU_RAM_QAM_LOCKED_INTLEVEL_IMPNOISE_OK                         0x7
+#define     SCU_RAM_QAM_LOCKED_INTLEVEL_IMPANALISE_OK                         0x7
 
 #define   SCU_RAM_QAM_LOCKED_LOCKED__B                                      8
 #define   SCU_RAM_QAM_LOCKED_LOCKED__W                                      8
 #define   SCU_RAM_QAM_LOCKED_LOCKED__M                                      0xFF00
 #define   SCU_RAM_QAM_LOCKED_LOCKED__PRE                                    0x0
-#define     SCU_RAM_QAM_LOCKED_LOCKED_NOT_LOCKED                            0x0
+#define     SCU_RAM_QAM_LOCKED_LOCKED_ANALT_LOCKED                            0x0
 #define     SCU_RAM_QAM_LOCKED_LOCKED_DEMOD_LOCKED                          0x4000
 #define     SCU_RAM_QAM_LOCKED_LOCKED_LOCKED                                0x8000
 #define     SCU_RAM_QAM_LOCKED_LOCKED_NEVER_LOCK                            0xC000
@@ -9660,7 +9660,7 @@
 #define     SCU_RAM_QAM_FSM_STATE_BIT_HUNTING_FREQ                          0x2
 #define     SCU_RAM_QAM_FSM_STATE_BIT_HUNTING_UPRIGHT                       0x3
 #define     SCU_RAM_QAM_FSM_STATE_BIT_HUNTING_PHASE                         0x4
-#define     SCU_RAM_QAM_FSM_STATE_BIT_TRACKING_PHNOISE                      0x5
+#define     SCU_RAM_QAM_FSM_STATE_BIT_TRACKING_PHANALISE                      0x5
 #define     SCU_RAM_QAM_FSM_STATE_BIT_TRACKING                              0x6
 #define     SCU_RAM_QAM_FSM_STATE_BIT_TRACKING_BURST                        0x7
 
@@ -9678,7 +9678,7 @@
 #define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_HUNTING_FREQ                      0x2
 #define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_HUNTING_UPRIGHT                   0x3
 #define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_HUNTING_PHASE                     0x4
-#define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_TRACKING_PHNOISE                  0x5
+#define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_TRACKING_PHANALISE                  0x5
 #define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_TRACKING                          0x6
 #define     SCU_RAM_QAM_FSM_STATE_NEW_BIT_TRACKING_BURST                    0x7
 
@@ -9766,7 +9766,7 @@
 #define     SCU_RAM_QAM_ERR_STATE_BIT_HUNTING_FREQ                          0x2
 #define     SCU_RAM_QAM_ERR_STATE_BIT_HUNTING_UPRIGHT                       0x3
 #define     SCU_RAM_QAM_ERR_STATE_BIT_HUNTING_PHASE                         0x4
-#define     SCU_RAM_QAM_ERR_STATE_BIT_TRACKING_PHNOISE                      0x5
+#define     SCU_RAM_QAM_ERR_STATE_BIT_TRACKING_PHANALISE                      0x5
 #define     SCU_RAM_QAM_ERR_STATE_BIT_TRACKING                              0x6
 #define     SCU_RAM_QAM_ERR_STATE_BIT_TRACKING_BURST                        0x7
 
@@ -9859,10 +9859,10 @@
 #define     SCU_RAM_VSB_CTL_MODE_VSB_CTL_MODE_MON_OFF                       0x0
 #define     SCU_RAM_VSB_CTL_MODE_VSB_CTL_MODE_MON_ON                        0x2
 
-#define SCU_RAM_VSB_NOTCH_THRESHOLD__A                                      0x831FD8
-#define SCU_RAM_VSB_NOTCH_THRESHOLD__W                                      16
-#define SCU_RAM_VSB_NOTCH_THRESHOLD__M                                      0xFFFF
-#define SCU_RAM_VSB_NOTCH_THRESHOLD__PRE                                    0x0
+#define SCU_RAM_VSB_ANALTCH_THRESHOLD__A                                      0x831FD8
+#define SCU_RAM_VSB_ANALTCH_THRESHOLD__W                                      16
+#define SCU_RAM_VSB_ANALTCH_THRESHOLD__M                                      0xFFFF
+#define SCU_RAM_VSB_ANALTCH_THRESHOLD__PRE                                    0x0
 
 #define SCU_RAM_VSB_RSV_0__A                                                0x831FD9
 #define SCU_RAM_VSB_RSV_0__W                                                16
@@ -10038,7 +10038,7 @@
 #define SCU_RAM_PARAM_1__W                                                  16
 #define SCU_RAM_PARAM_1__M                                                  0xFFFF
 #define SCU_RAM_PARAM_1__PRE                                                0x0
-#define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_NOT_LOCKED                     0x0
+#define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_ANALT_LOCKED                     0x0
 #define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_DEMOD_LOCKED                   0x4000
 #define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_LOCKED                         0x8000
 #define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_NEVER_LOCK                     0xC000
@@ -10089,7 +10089,7 @@
 #define   SCU_RAM_COMMAND_CMD_DEBUG_GET_STACK_POINTER                       0x82
 #define   SCU_RAM_COMMAND_CMD_DEBUG_START_STACK_CHECK                       0x83
 #define   SCU_RAM_COMMAND_CMD_DEBUG_STOP_STACK_CHECK                        0x84
-#define   SCU_RAM_COMMAND_CMD_ADMIN_NOP                                     0xFF
+#define   SCU_RAM_COMMAND_CMD_ADMIN_ANALP                                     0xFF
 #define   SCU_RAM_COMMAND_CMD_ADMIN_GET_VERSION                             0xFE
 #define   SCU_RAM_COMMAND_CMD_ADMIN_GET_JTAG_VERSION                        0xFD
 #define   SCU_RAM_COMMAND_CMD_AUX_SCU_ATOMIC_ACCESS                         0xC0
@@ -10125,10 +10125,10 @@
 #define   SCU_RAM_VERSION_HI_VER_MAJOR_N1__M                                0xF0
 #define   SCU_RAM_VERSION_HI_VER_MAJOR_N1__PRE                              0x0
 
-#define   SCU_RAM_VERSION_HI_VER_MINOR_N1__B                                0
-#define   SCU_RAM_VERSION_HI_VER_MINOR_N1__W                                4
-#define   SCU_RAM_VERSION_HI_VER_MINOR_N1__M                                0xF
-#define   SCU_RAM_VERSION_HI_VER_MINOR_N1__PRE                              0x0
+#define   SCU_RAM_VERSION_HI_VER_MIANALR_N1__B                                0
+#define   SCU_RAM_VERSION_HI_VER_MIANALR_N1__W                                4
+#define   SCU_RAM_VERSION_HI_VER_MIANALR_N1__M                                0xF
+#define   SCU_RAM_VERSION_HI_VER_MIANALR_N1__PRE                              0x0
 
 #define SCU_RAM_VERSION_LO__A                                               0x831FFF
 #define SCU_RAM_VERSION_LO__W                                               16
@@ -10628,14 +10628,14 @@
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV0__W                                   1
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV0__M                                   0x1
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV0__PRE                                 0x0
-#define     SIO_HI_RA_RAM_PAR_5_CFG_SLV0_NO_SLAVE                           0x0
+#define     SIO_HI_RA_RAM_PAR_5_CFG_SLV0_ANAL_SLAVE                           0x0
 #define     SIO_HI_RA_RAM_PAR_5_CFG_SLV0_SLAVE                              0x1
 
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV1__B                                   1
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV1__W                                   1
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV1__M                                   0x2
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLV1__PRE                                 0x0
-#define     SIO_HI_RA_RAM_PAR_5_CFG_SLV1_NO_SLAVE                           0x0
+#define     SIO_HI_RA_RAM_PAR_5_CFG_SLV1_ANAL_SLAVE                           0x0
 #define     SIO_HI_RA_RAM_PAR_5_CFG_SLV1_SLAVE                              0x2
 
 #define   SIO_HI_RA_RAM_PAR_5_CFG_SLEEP__B                                  3
@@ -11015,7 +11015,7 @@
 #define   SIO_CC_PWD_MODE_LEVEL__W                                          2
 #define   SIO_CC_PWD_MODE_LEVEL__M                                          0x3
 #define   SIO_CC_PWD_MODE_LEVEL__PRE                                        0x0
-#define     SIO_CC_PWD_MODE_LEVEL_NONE                                      0x0
+#define     SIO_CC_PWD_MODE_LEVEL_ANALNE                                      0x0
 #define     SIO_CC_PWD_MODE_LEVEL_CLOCK                                     0x1
 #define     SIO_CC_PWD_MODE_LEVEL_PLL                                       0x2
 #define     SIO_CC_PWD_MODE_LEVEL_OSC                                       0x3
@@ -12310,10 +12310,10 @@
 #define   VSB_TOP_SYNCCTRLWORD_CPUAGCRST__M                                 0x8
 #define   VSB_TOP_SYNCCTRLWORD_CPUAGCRST__PRE                               0x0
 
-#define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__B                               4
-#define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__W                               1
-#define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__M                               0x10
-#define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__PRE                             0x0
+#define   VSB_TOP_SYNCCTRLWORD_AGCIGANALREFS__B                               4
+#define   VSB_TOP_SYNCCTRLWORD_AGCIGANALREFS__W                               1
+#define   VSB_TOP_SYNCCTRLWORD_AGCIGANALREFS__M                               0x10
+#define   VSB_TOP_SYNCCTRLWORD_AGCIGANALREFS__PRE                             0x0
 
 #define VSB_TOP_MAINSMUP__A                                                 0x1C1001B
 #define VSB_TOP_MAINSMUP__W                                                 8
@@ -12469,35 +12469,35 @@
 #define   VSB_TOP_CYSMSTATES_EQST__M                                        0xF0
 #define   VSB_TOP_CYSMSTATES_EQST__PRE                                      0x0
 
-#define VSB_TOP_SMALL_NOTCH_CONTROL__A                                      0x1C10024
-#define VSB_TOP_SMALL_NOTCH_CONTROL__W                                      8
-#define VSB_TOP_SMALL_NOTCH_CONTROL__M                                      0xFF
-#define VSB_TOP_SMALL_NOTCH_CONTROL__PRE                                    0x0
+#define VSB_TOP_SMALL_ANALTCH_CONTROL__A                                      0x1C10024
+#define VSB_TOP_SMALL_ANALTCH_CONTROL__W                                      8
+#define VSB_TOP_SMALL_ANALTCH_CONTROL__M                                      0xFF
+#define VSB_TOP_SMALL_ANALTCH_CONTROL__PRE                                    0x0
 
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_GO__B                                 0
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_GO__W                                 1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_GO__M                                 0x1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_GO__PRE                               0x0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_GO__B                                 0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_GO__W                                 1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_GO__M                                 0x1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_GO__PRE                               0x0
 
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS1__B                            1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS1__W                            1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS1__M                            0x2
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS1__PRE                          0x0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS1__B                            1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS1__W                            1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS1__M                            0x2
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS1__PRE                          0x0
 
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS2__B                            2
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS2__W                            1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS2__M                            0x4
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_BYPASS2__PRE                          0x0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS2__B                            2
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS2__W                            1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS2__M                            0x4
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_BYPASS2__PRE                          0x0
 
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SPARE__B                              3
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SPARE__W                              4
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SPARE__M                              0x78
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SPARE__PRE                            0x0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SPARE__B                              3
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SPARE__W                              4
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SPARE__M                              0x78
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SPARE__PRE                            0x0
 
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__B                         7
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__W                         1
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__M                         0x80
-#define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__PRE                       0x0
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SOFT_RESET__B                         7
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SOFT_RESET__W                         1
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SOFT_RESET__M                         0x80
+#define   VSB_TOP_SMALL_ANALTCH_CONTROL_SOFT_RESET__PRE                       0x0
 
 #define VSB_TOP_TAPREADCYC__A                                               0x1C10025
 #define VSB_TOP_TAPREADCYC__W                                               9
@@ -13266,30 +13266,30 @@
 #define VSB_TOP_UBAGCREFLVL__M                                              0xFFF
 #define VSB_TOP_UBAGCREFLVL__PRE                                            0x400
 
-#define VSB_TOP_NOTCH1_BIN_NUM__A                                           0x1C10040
-#define VSB_TOP_NOTCH1_BIN_NUM__W                                           11
-#define VSB_TOP_NOTCH1_BIN_NUM__M                                           0x7FF
-#define VSB_TOP_NOTCH1_BIN_NUM__PRE                                         0xB2
+#define VSB_TOP_ANALTCH1_BIN_NUM__A                                           0x1C10040
+#define VSB_TOP_ANALTCH1_BIN_NUM__W                                           11
+#define VSB_TOP_ANALTCH1_BIN_NUM__M                                           0x7FF
+#define VSB_TOP_ANALTCH1_BIN_NUM__PRE                                         0xB2
 
-#define VSB_TOP_NOTCH2_BIN_NUM__A                                           0x1C10041
-#define VSB_TOP_NOTCH2_BIN_NUM__W                                           11
-#define VSB_TOP_NOTCH2_BIN_NUM__M                                           0x7FF
-#define VSB_TOP_NOTCH2_BIN_NUM__PRE                                         0x40B
+#define VSB_TOP_ANALTCH2_BIN_NUM__A                                           0x1C10041
+#define VSB_TOP_ANALTCH2_BIN_NUM__W                                           11
+#define VSB_TOP_ANALTCH2_BIN_NUM__M                                           0x7FF
+#define VSB_TOP_ANALTCH2_BIN_NUM__PRE                                         0x40B
 
-#define VSB_TOP_NOTCH_START_BIN_NUM__A                                      0x1C10042
-#define VSB_TOP_NOTCH_START_BIN_NUM__W                                      11
-#define VSB_TOP_NOTCH_START_BIN_NUM__M                                      0x7FF
-#define VSB_TOP_NOTCH_START_BIN_NUM__PRE                                    0x7C0
+#define VSB_TOP_ANALTCH_START_BIN_NUM__A                                      0x1C10042
+#define VSB_TOP_ANALTCH_START_BIN_NUM__W                                      11
+#define VSB_TOP_ANALTCH_START_BIN_NUM__M                                      0x7FF
+#define VSB_TOP_ANALTCH_START_BIN_NUM__PRE                                    0x7C0
 
-#define VSB_TOP_NOTCH_STOP_BIN_NUM__A                                       0x1C10043
-#define VSB_TOP_NOTCH_STOP_BIN_NUM__W                                       11
-#define VSB_TOP_NOTCH_STOP_BIN_NUM__M                                       0x7FF
-#define VSB_TOP_NOTCH_STOP_BIN_NUM__PRE                                     0x43F
+#define VSB_TOP_ANALTCH_STOP_BIN_NUM__A                                       0x1C10043
+#define VSB_TOP_ANALTCH_STOP_BIN_NUM__W                                       11
+#define VSB_TOP_ANALTCH_STOP_BIN_NUM__M                                       0x7FF
+#define VSB_TOP_ANALTCH_STOP_BIN_NUM__PRE                                     0x43F
 
-#define VSB_TOP_NOTCH_TEST_DURATION__A                                      0x1C10044
-#define VSB_TOP_NOTCH_TEST_DURATION__W                                      11
-#define VSB_TOP_NOTCH_TEST_DURATION__M                                      0x7FF
-#define VSB_TOP_NOTCH_TEST_DURATION__PRE                                    0x7FF
+#define VSB_TOP_ANALTCH_TEST_DURATION__A                                      0x1C10044
+#define VSB_TOP_ANALTCH_TEST_DURATION__W                                      11
+#define VSB_TOP_ANALTCH_TEST_DURATION__M                                      0x7FF
+#define VSB_TOP_ANALTCH_TEST_DURATION__PRE                                    0x7FF
 
 #define VSB_TOP_RESULT_LARGE_PEAK_BIN__A                                    0x1C10045
 #define VSB_TOP_RESULT_LARGE_PEAK_BIN__W                                    11
@@ -13311,10 +13311,10 @@
 #define VSB_TOP_RESULT_SMALL_PEAK_VALUE__M                                  0xFFFF
 #define VSB_TOP_RESULT_SMALL_PEAK_VALUE__PRE                                0x0
 
-#define VSB_TOP_NOTCH_SWEEP_RUNNING__A                                      0x1C10049
-#define VSB_TOP_NOTCH_SWEEP_RUNNING__W                                      1
-#define VSB_TOP_NOTCH_SWEEP_RUNNING__M                                      0x1
-#define VSB_TOP_NOTCH_SWEEP_RUNNING__PRE                                    0x0
+#define VSB_TOP_ANALTCH_SWEEP_RUNNING__A                                      0x1C10049
+#define VSB_TOP_ANALTCH_SWEEP_RUNNING__W                                      1
+#define VSB_TOP_ANALTCH_SWEEP_RUNNING__M                                      0x1
+#define VSB_TOP_ANALTCH_SWEEP_RUNNING__PRE                                    0x0
 
 #define VSB_TOP_PREEQDAGCRATIO__A                                           0x1C1004A
 #define VSB_TOP_PREEQDAGCRATIO__W                                           13
@@ -13415,15 +13415,15 @@
 #define VSB_TOP_PTONCTL__M                                                  0x3
 #define VSB_TOP_PTONCTL__PRE                                                0x0
 
-#define VSB_TOP_NOTCH_SCALE_1__A                                            0x1C10059
-#define VSB_TOP_NOTCH_SCALE_1__W                                            8
-#define VSB_TOP_NOTCH_SCALE_1__M                                            0xFF
-#define VSB_TOP_NOTCH_SCALE_1__PRE                                          0xA
+#define VSB_TOP_ANALTCH_SCALE_1__A                                            0x1C10059
+#define VSB_TOP_ANALTCH_SCALE_1__W                                            8
+#define VSB_TOP_ANALTCH_SCALE_1__M                                            0xFF
+#define VSB_TOP_ANALTCH_SCALE_1__PRE                                          0xA
 
-#define VSB_TOP_NOTCH_SCALE_2__A                                            0x1C1005A
-#define VSB_TOP_NOTCH_SCALE_2__W                                            8
-#define VSB_TOP_NOTCH_SCALE_2__M                                            0xFF
-#define VSB_TOP_NOTCH_SCALE_2__PRE                                          0xA
+#define VSB_TOP_ANALTCH_SCALE_2__A                                            0x1C1005A
+#define VSB_TOP_ANALTCH_SCALE_2__W                                            8
+#define VSB_TOP_ANALTCH_SCALE_2__M                                            0xFF
+#define VSB_TOP_ANALTCH_SCALE_2__PRE                                          0xA
 
 #define VSB_TOP_FIRSTLARGFFETAP__A                                          0x1C1005B
 #define VSB_TOP_FIRSTLARGFFETAP__W                                          12

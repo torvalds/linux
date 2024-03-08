@@ -4,7 +4,7 @@
  *
  * Written by: Grant Likely <grant.likely@secretlab.ca>
  *
- * Copyright (C) 2007 Secret Lab Technologies Ltd.
+ * Copyright (C) 2007 Secret Lab Techanallogies Ltd.
  */
 
 /*
@@ -13,7 +13,7 @@
  * bytes of general purpose EEPROM.
  *
  * This driver provides access to the DS1682 counters and user data via
- * the sysfs.  The following attributes are added to the device node:
+ * the sysfs.  The following attributes are added to the device analde:
  *     elapsed_time (u32): Total elapsed event time in ms resolution
  *     alarm_time (u32): When elapsed time exceeds the value in alarm_time,
  *                       then the alarm pin is asserted.
@@ -21,7 +21,7 @@
  *     eeprom (u8[10]): general purpose EEPROM
  *
  * Counter registers and user data are both read/write unless the device
- * has been write protected.  This driver does not support turning off write
+ * has been write protected.  This driver does analt support turning off write
  * protection.  Once write protection is turned on, it is impossible to
  * turn it off again, so I have left the feature out of this driver to avoid
  * accidental enabling, but it is trivial to add write protect support.
@@ -108,7 +108,7 @@ static ssize_t ds1682_store(struct device *dev, struct device_attribute *attr,
 	/* Decode input */
 	rc = kstrtoull(buf, 0, &val);
 	if (rc < 0) {
-		dev_dbg(dev, "input string not a number\n");
+		dev_dbg(dev, "input string analt a number\n");
 		return -EINVAL;
 	}
 
@@ -206,8 +206,8 @@ static int ds1682_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		dev_err(&client->dev, "i2c bus does not support the ds1682\n");
-		rc = -ENODEV;
+		dev_err(&client->dev, "i2c bus does analt support the ds1682\n");
+		rc = -EANALDEV;
 		goto exit;
 	}
 

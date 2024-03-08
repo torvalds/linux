@@ -132,12 +132,12 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
 
-	/* Not a full tcp header? */
+	/* Analt a full tcp header? */
 	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
 
-	/* No data? */
+	/* Anal data? */
 	dataoff = protoff + th->doff*4;
 	if (dataoff >= skb->len)
 		return NF_ACCEPT;
@@ -196,7 +196,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 		for (i = 0; i < ARRAY_SIZE(dccprotos); i++) {
 			if (memcmp(data, dccprotos[i], strlen(dccprotos[i]))) {
-				/* no match */
+				/* anal match */
 				continue;
 			}
 			data += strlen(dccprotos[i]);
@@ -228,7 +228,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			exp = nf_ct_expect_alloc(ct);
 			if (exp == NULL) {
 				nf_ct_helper_log(skb, ct,
-						 "cannot alloc expectation");
+						 "cananalt alloc expectation");
 				ret = NF_DROP;
 				goto out;
 			}
@@ -247,7 +247,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 						 exp);
 			else if (nf_ct_expect_related(exp, 0) != 0) {
 				nf_ct_helper_log(skb, ct,
-						 "cannot add expectation");
+						 "cananalt add expectation");
 				ret = NF_DROP;
 			}
 			nf_ct_expect_put(exp);
@@ -267,12 +267,12 @@ static int __init nf_conntrack_irc_init(void)
 	int i, ret;
 
 	if (max_dcc_channels < 1) {
-		pr_err("max_dcc_channels must not be zero\n");
+		pr_err("max_dcc_channels must analt be zero\n");
 		return -EINVAL;
 	}
 
 	if (max_dcc_channels > NF_CT_EXPECT_MAX_CNT) {
-		pr_err("max_dcc_channels must not be more than %u\n",
+		pr_err("max_dcc_channels must analt be more than %u\n",
 		       NF_CT_EXPECT_MAX_CNT);
 		return -EINVAL;
 	}
@@ -282,9 +282,9 @@ static int __init nf_conntrack_irc_init(void)
 
 	irc_buffer = kmalloc(MAX_SEARCH_SIZE + 1, GFP_KERNEL);
 	if (!irc_buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	/* If no port given, default to standard irc port */
+	/* If anal port given, default to standard irc port */
 	if (ports_c == 0)
 		ports[ports_c++] = IRC_PORT;
 

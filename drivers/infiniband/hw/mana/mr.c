@@ -123,7 +123,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mr->umem = ib_umem_get(ibdev, start, length, access_flags);
 	if (IS_ERR(mr->umem)) {
@@ -156,7 +156,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_dma_region;
 
 	/*
-	 * There is no need to keep track of dma_region_handle after MR is
+	 * There is anal need to keep track of dma_region_handle after MR is
 	 * successfully created. The dma_region_handle is tracked in the PF
 	 * as part of the lifecycle of this MR.
 	 */

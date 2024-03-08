@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * core routines for the asynchronous memory transfer/transform api
+ * core routines for the asynchroanalus memory transfer/transform api
  *
  * Copyright © 2006, Intel Corporation.
  *
@@ -35,7 +35,7 @@ module_exit(async_tx_exit);
 
 /**
  * __async_tx_find_channel - find a channel to carry out the operation or let
- *	the transaction execute synchronously
+ *	the transaction execute synchroanalusly
  * @submit: transaction dependency and submission modifiers
  * @tx_type: transaction type
  */
@@ -94,8 +94,8 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 	if (intr_tx) {
 		intr_tx->callback = NULL;
 		intr_tx->callback_param = NULL;
-		/* safe to chain outside the lock since we know we are
-		 * not submitted yet
+		/* safe to chain outside the lock since we kanalw we are
+		 * analt submitted yet
 		 */
 		txd_chain(intr_tx, tx);
 
@@ -152,10 +152,10 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 		enum submit_disposition s;
 
 		/* sanity check the dependency chain:
-		 * 1/ if ack is already set then we cannot be sure
+		 * 1/ if ack is already set then we cananalt be sure
 		 * we are referring to the correct operation
 		 * 2/ dependencies are 1:1 i.e. two transactions can
-		 * not depend on the same parent
+		 * analt depend on the same parent
 		 */
 		BUG_ON(async_tx_test_ack(depend_tx) || txd_next(depend_tx) ||
 		       txd_parent(tx));
@@ -165,7 +165,7 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 		 */
 		txd_lock(depend_tx);
 		if (txd_parent(depend_tx)) {
-			/* we have a parent so we can not submit directly
+			/* we have a parent so we can analt submit directly
 			 * if we are staying on the same channel: append
 			 * else: channel switch
 			 */
@@ -175,7 +175,7 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 			} else
 				s = ASYNC_TX_CHANNEL_SWITCH;
 		} else {
-			/* we do not have a parent so we may be able to submit
+			/* we do analt have a parent so we may be able to submit
 			 * directly if we are staying on the same channel
 			 */
 			if (depend_tx->chan == chan)
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(async_tx_submit);
  * async_trigger_callback - schedules the callback function to be run
  * @submit: submission and completion parameters
  *
- * honored flags: ASYNC_TX_ACK
+ * hoanalred flags: ASYNC_TX_ACK
  *
  * The callback is run after any dependent operations have completed.
  */
@@ -263,7 +263,7 @@ EXPORT_SYMBOL_GPL(async_trigger_callback);
 void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 {
 	if (*tx) {
-		/* if ack is already set then we cannot be sure
+		/* if ack is already set then we cananalt be sure
 		 * we are referring to the correct operation
 		 */
 		BUG_ON(async_tx_test_ack(*tx));
@@ -277,5 +277,5 @@ void async_tx_quiesce(struct dma_async_tx_descriptor **tx)
 EXPORT_SYMBOL_GPL(async_tx_quiesce);
 
 MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("Asynchronous Bulk Memory Transactions API");
+MODULE_DESCRIPTION("Asynchroanalus Bulk Memory Transactions API");
 MODULE_LICENSE("GPL");

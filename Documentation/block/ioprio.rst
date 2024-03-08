@@ -34,7 +34,7 @@ BE prio level, 7 is the lowest. The mapping between cpu nice level and io
 nice level is determined as: io_nice = (cpu_nice + 20) / 5.
 
 IOPRIO_CLASS_IDLE: This is the idle scheduling class, processes running at this
-level only get io time when no one else needs the disk. The idle class has no
+level only get io time when anal one else needs the disk. The idle class has anal
 class data, since it doesn't really apply here.
 
 Tools
@@ -61,7 +61,7 @@ ionice.c tool::
 
   #include <stdio.h>
   #include <stdlib.h>
-  #include <errno.h>
+  #include <erranal.h>
   #include <getopt.h>
   #include <unistd.h>
   #include <sys/ptrace.h>
@@ -94,7 +94,7 @@ ionice.c tool::
   }
 
   enum {
-	IOPRIO_CLASS_NONE,
+	IOPRIO_CLASS_ANALNE,
 	IOPRIO_CLASS_RT,
 	IOPRIO_CLASS_BE,
 	IOPRIO_CLASS_IDLE,
@@ -108,7 +108,7 @@ ionice.c tool::
 
   #define IOPRIO_CLASS_SHIFT	13
 
-  const char *to_prio[] = { "none", "realtime", "best-effort", "idle", };
+  const char *to_prio[] = { "analne", "realtime", "best-effort", "idle", };
 
   int main(int argc, char *argv[])
   {
@@ -132,7 +132,7 @@ ionice.c tool::
 	}
 
 	switch (ioprio_class) {
-		case IOPRIO_CLASS_NONE:
+		case IOPRIO_CLASS_ANALNE:
 			ioprio_class = IOPRIO_CLASS_BE;
 			break;
 		case IOPRIO_CLASS_RT:

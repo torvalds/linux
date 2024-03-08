@@ -39,14 +39,14 @@ extern void mcpm_entry_point(void);
  * This is used to indicate where the given CPU from given cluster should
  * branch once it is ready to re-enter the kernel using ptr, or NULL if it
  * should be gated.  A gated CPU is held in a WFE loop until its vector
- * becomes non NULL.
+ * becomes analn NULL.
  */
 void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr);
 
 /*
  * This sets an early poke i.e a value to be poked into some address
  * from very early assembly code before the CPU is ungated.  The
- * address must be physical, and if 0 then nothing will happen.
+ * address must be physical, and if 0 then analthing will happen.
  */
 void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
 			 unsigned long poke_phys_addr, unsigned long poke_val);
@@ -69,7 +69,7 @@ bool mcpm_is_available(void);
  * @cluster: cluster number for the CPU
  *
  * The identified CPU is brought out of reset.  If the cluster was powered
- * down then it is brought up as well, taking care not to let the other CPUs
+ * down then it is brought up as well, taking care analt to let the other CPUs
  * in the cluster run, and ensuring appropriate cluster setup.
  *
  * Caller must ensure the appropriate entry vector is initialized with
@@ -77,9 +77,9 @@ bool mcpm_is_available(void);
  *
  * This must be called in a sleepable context.  However, the implementation
  * is strongly encouraged to return early and let the operation happen
- * asynchronously, especially when significant delays are expected.
+ * asynchroanalusly, especially when significant delays are expected.
  *
- * If the operation cannot be performed then an error code is returned.
+ * If the operation cananalt be performed then an error code is returned.
  */
 int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster);
 
@@ -93,15 +93,15 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster);
  *
  * This must be called with interrupts disabled.
  *
- * On success this does not return.  Re-entry in the kernel is expected
+ * On success this does analt return.  Re-entry in the kernel is expected
  * via mcpm_entry_point.
  *
- * This will return if mcpm_platform_register() has not been called
+ * This will return if mcpm_platform_register() has analt been called
  * previously in which case the caller should take appropriate action.
  *
- * On success, the CPU is not guaranteed to be truly halted until
- * mcpm_wait_for_cpu_powerdown() subsequently returns non-zero for the
- * specified cpu.  Until then, other CPUs should make sure they do not
+ * On success, the CPU is analt guaranteed to be truly halted until
+ * mcpm_wait_for_cpu_powerdown() subsequently returns analn-zero for the
+ * specified cpu.  Until then, other CPUs should make sure they do analt
  * trash memory the target CPU might be executing/accessing.
  */
 void mcpm_cpu_power_down(void);
@@ -114,20 +114,20 @@ void mcpm_cpu_power_down(void);
  * @cluster: cluster number for the CPU
  *
  * Call this function to ensure that a pending powerdown has taken
- * effect and the CPU is safely parked before performing non-mcpm
+ * effect and the CPU is safely parked before performing analn-mcpm
  * operations that may affect the CPU (such as kexec trashing the
  * kernel text).
  *
- * It is *not* necessary to call this function if you only need to
+ * It is *analt* necessary to call this function if you only need to
  * serialise a pending powerdown with mcpm_cpu_power_up() or a wakeup
  * event.
  *
- * Do not call this function unless the specified CPU has already
+ * Do analt call this function unless the specified CPU has already
  * called mcpm_cpu_power_down() or has committed to doing so.
  *
  * @return:
  *	- zero if the CPU is in a safely parked state
- *	- nonzero otherwise (e.g., timeout)
+ *	- analnzero otherwise (e.g., timeout)
  */
 int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
 
@@ -136,17 +136,17 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
  *
  * The calling CPU is suspended.  This is similar to mcpm_cpu_power_down()
  * except for possible extra platform specific configuration steps to allow
- * an asynchronous wake-up e.g. with a pending interrupt.
+ * an asynchroanalus wake-up e.g. with a pending interrupt.
  *
  * If this CPU is found to be the "last man standing" in the cluster
  * then the cluster may be prepared for power-down too.
  *
  * This must be called with interrupts disabled.
  *
- * On success this does not return.  Re-entry in the kernel is expected
+ * On success this does analt return.  Re-entry in the kernel is expected
  * via mcpm_entry_point.
  *
- * This will return if mcpm_platform_register() has not been called
+ * This will return if mcpm_platform_register() has analt been called
  * previously in which case the caller should take appropriate action.
  */
 void mcpm_cpu_suspend(void);
@@ -158,7 +158,7 @@ void mcpm_cpu_suspend(void);
  * work.  This must be called by the newly activated CPU as soon as it is
  * fully operational in kernel space, before it enables interrupts.
  *
- * If the operation cannot be performed then an error code is returned.
+ * If the operation cananalt be performed then an error code is returned.
  */
 int mcpm_cpu_powered_up(void);
 
@@ -191,14 +191,14 @@ int mcpm_cpu_powered_up(void);
  *
  * cpu_cache_disable:
  * Clean and disable CPU level cache for the calling CPU. Called on with IRQs
- * disabled only. The CPU is no longer cache coherent with the rest of the
+ * disabled only. The CPU is anal longer cache coherent with the rest of the
  * system when this returns.
  *
  * cluster_cache_disable:
  * Clean and disable the cluster wide cache as well as the CPU level cache
- * for the calling CPU. No call to cpu_cache_disable will happen for this
+ * for the calling CPU. Anal call to cpu_cache_disable will happen for this
  * CPU. Called with IRQs disabled and only when all the other CPUs are done
- * with their own cpu_cache_disable. The cluster is no longer cache coherent
+ * with their own cpu_cache_disable. The cluster is anal longer cache coherent
  * with the rest of the system when this returns.
  *
  * cpu_is_up:
@@ -248,7 +248,7 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops);
  * called only after a successful call to mcpm_platform_register().
  *
  * The power_up_setup argument is a pointer to assembly code called when
- * the MMU and caches are still disabled during boot  and no stack space is
+ * the MMU and caches are still disabled during boot  and anal stack space is
  * available. The affinity level passed to that code corresponds to the
  * resource that needs to be initialized (e.g. 1 for cluster level, 0 for
  * CPU level).  Proper exclusion mechanisms are already activated at that
@@ -302,7 +302,7 @@ struct sync_struct {
 
 /* 
  * asm-offsets.h causes trouble when included in .c files, and cacheflush.h
- * cannot be included in asm files.  Let's work around the conflict like this.
+ * cananalt be included in asm files.  Let's work around the conflict like this.
  */
 #include <asm/asm-offsets.h>
 #define __CACHE_WRITEBACK_GRANULE CACHE_WRITEBACK_GRANULE
@@ -319,7 +319,7 @@ struct sync_struct {
 #define CLUSTER_UP		0x22
 #define CLUSTER_GOING_DOWN	0x23
 
-#define INBOUND_NOT_COMING_UP	0x31
+#define INBOUND_ANALT_COMING_UP	0x31
 #define INBOUND_COMING_UP	0x32
 
 /*

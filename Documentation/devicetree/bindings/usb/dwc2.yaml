@@ -147,7 +147,7 @@ properties:
 
   g-np-tx-fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: size of non-periodic tx fifo size in gadget mode.
+    description: size of analn-periodic tx fifo size in gadget mode.
 
   g-tx-fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32-array

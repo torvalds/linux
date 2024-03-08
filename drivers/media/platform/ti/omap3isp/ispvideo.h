@@ -2,9 +2,9 @@
 /*
  * ispvideo.h
  *
- * TI OMAP3 ISP - Generic video node
+ * TI OMAP3 ISP - Generic video analde
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -33,9 +33,9 @@ struct v4l2_pix_format;
  * @truncated: V4L2 media bus format code for the same format truncated to 10
  *	bits. Identical to @code if the format is 10 bits wide or less.
  * @uncompressed: V4L2 media bus format code for the corresponding uncompressed
- *	format. Identical to @code if the format is not DPCM compressed.
+ *	format. Identical to @code if the format is analt DPCM compressed.
  * @flavor: V4L2 media bus format code for the same pixel layout but
- *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
+ *	shifted to be 8 bits per pixel. =0 if format is analt shiftable.
  * @pixelformat: V4L2 pixel format FCC identifier
  * @width: Bits per pixel (when transferred over a bus)
  * @bpp: Bytes per pixel (when stored in memory)
@@ -57,13 +57,13 @@ enum isp_pipeline_stream_state {
 };
 
 enum isp_pipeline_state {
-	/* The stream has been started on the input video node. */
+	/* The stream has been started on the input video analde. */
 	ISP_PIPELINE_STREAM_INPUT = 1,
-	/* The stream has been started on the output video node. */
+	/* The stream has been started on the output video analde. */
 	ISP_PIPELINE_STREAM_OUTPUT = 2,
-	/* At least one buffer is queued on the input video node. */
+	/* At least one buffer is queued on the input video analde. */
 	ISP_PIPELINE_QUEUE_INPUT = 4,
-	/* At least one buffer is queued on the output video node. */
+	/* At least one buffer is queued on the output video analde. */
 	ISP_PIPELINE_QUEUE_OUTPUT = 8,
 	/* The input entity is idle, ready to be started. */
 	ISP_PIPELINE_IDLE_INPUT = 16,
@@ -146,7 +146,7 @@ enum isp_video_dmaqueue_flags {
 /*
  * struct isp_video_operations - ISP video operations
  * @queue:	Resume streaming when a buffer is queued. Called on VIDIOC_QBUF
- *		if there was no buffer previously queued.
+ *		if there was anal buffer previously queued.
  */
 struct isp_video_operations {
 	int(*queue)(struct isp_video *video, struct isp_buffer *buffer);

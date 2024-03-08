@@ -5,7 +5,7 @@
  *  Copyright (c) 2005, Advanced Micro Devices, Inc.
  *
  *  Developed with help from the 2.4.30 MMC AU1XXX controller including
- *  the following copyright notices:
+ *  the following copyright analtices:
  *     Copyright (c) 2003-2004 Embedded Edge, LLC.
  *     Portions Copyright (C) 2002 Embedix, Inc
  *     Copyright 2002 Hewlett-Packard Company
@@ -26,8 +26,8 @@
  * and 1- or 4-data bit SecureDigital cards, then the solution is to
  * connect a weak (560KOhm) pull-up resistor to connector pin 1.
  * In doing so, a MMC card never enters SPI-mode communications,
- * but now the SecureDigital card-detect feature of CD/DAT3 is ineffective
- * (the low to high transition will not occur).
+ * but analw the SecureDigital card-detect feature of CD/DAT3 is ineffective
+ * (the low to high transition will analt occur).
  */
 
 #include <linux/clk.h>
@@ -221,7 +221,7 @@ static int au1xmmc_card_inserted(struct mmc_host *mmc)
 	if (host->platdata && host->platdata->card_inserted)
 		return !!host->platdata->card_inserted(host->mmc);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static int au1xmmc_card_readonly(struct mmc_host *mmc)
@@ -231,7 +231,7 @@ static int au1xmmc_card_readonly(struct mmc_host *mmc)
 	if (host->platdata && host->platdata->card_readonly)
 		return !!host->platdata->card_readonly(mmc);
 
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static void au1xmmc_finish_request(struct au1xmmc_host *host)
@@ -265,7 +265,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host,
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
+	case MMC_RSP_ANALNE:
 		break;
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
@@ -307,7 +307,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host,
 
 	/* Wait for the command to go on the line */
 	while (__raw_readl(HOST_CMD(host)) & SD_CMD_GO)
-		/* nop */;
+		/* analp */;
 
 	return 0;
 }
@@ -628,7 +628,7 @@ static int au1xmmc_prepare_data(struct au1xmmc_host *host,
 		au1xxx_dbdma_stop(channel);
 
 		for (i = 0; i < host->dma.len; i++) {
-			u32 ret = 0, flags = DDMA_FLAGS_NOIE;
+			u32 ret = 0, flags = DDMA_FLAGS_ANALIE;
 			struct scatterlist *sg = &data->sg[i];
 			int sg_len = sg->length;
 
@@ -682,9 +682,9 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 	host->mrq = mrq;
 	host->status = HOST_S_CMD;
 
-	/* fail request immediately if no card is present */
+	/* fail request immediately if anal card is present */
 	if (0 == au1xmmc_card_inserted(mmc)) {
-		mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -EANALMEDIUM;
 		au1xmmc_finish_request(host);
 		return;
 	}
@@ -782,7 +782,7 @@ static irqreturn_t au1xmmc_irq(int irq, void *dev_id)
 	status = __raw_readl(HOST_STATUS(host));
 
 	if (!(status & SD_STATUS_I))
-		return IRQ_NONE;	/* not ours */
+		return IRQ_ANALNE;	/* analt ours */
 
 	if (status & SD_STATUS_SI)	/* SDIO */
 		mmc_signal_sdio_irq(host->mmc);
@@ -864,30 +864,30 @@ static int au1xmmc_dbdma_init(struct au1xmmc_host *host)
 
 	res = platform_get_resource(host->pdev, IORESOURCE_DMA, 0);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 	txid = res->start;
 
 	res = platform_get_resource(host->pdev, IORESOURCE_DMA, 1);
 	if (!res)
-		return -ENODEV;
+		return -EANALDEV;
 	rxid = res->start;
 
 	if (!memid)
-		return -ENODEV;
+		return -EANALDEV;
 
 	host->tx_chan = au1xxx_dbdma_chan_alloc(memid, txid,
 				au1xmmc_dbdma_callback, (void *)host);
 	if (!host->tx_chan) {
-		dev_err(&host->pdev->dev, "cannot allocate TX DMA\n");
-		return -ENODEV;
+		dev_err(&host->pdev->dev, "cananalt allocate TX DMA\n");
+		return -EANALDEV;
 	}
 
 	host->rx_chan = au1xxx_dbdma_chan_alloc(rxid, memid,
 				au1xmmc_dbdma_callback, (void *)host);
 	if (!host->rx_chan) {
-		dev_err(&host->pdev->dev, "cannot allocate RX DMA\n");
+		dev_err(&host->pdev->dev, "cananalt allocate RX DMA\n");
 		au1xxx_dbdma_chan_free(host->tx_chan);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	au1xxx_dbdma_set_devwidth(host->tx_chan, 8);
@@ -938,8 +938,8 @@ static int au1xmmc_probe(struct platform_device *pdev)
 
 	mmc = mmc_alloc_host(sizeof(struct au1xmmc_host), &pdev->dev);
 	if (!mmc) {
-		dev_err(&pdev->dev, "no memory for mmc_host\n");
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "anal memory for mmc_host\n");
+		ret = -EANALMEM;
 		goto out0;
 	}
 
@@ -948,10 +948,10 @@ static int au1xmmc_probe(struct platform_device *pdev)
 	host->platdata = pdev->dev.platform_data;
 	host->pdev = pdev;
 
-	ret = -ENODEV;
+	ret = -EANALDEV;
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no mmio defined\n");
+		dev_err(&pdev->dev, "anal mmio defined\n");
 		goto out1;
 	}
 
@@ -964,7 +964,7 @@ static int au1xmmc_probe(struct platform_device *pdev)
 
 	host->iobase = ioremap(r->start, 0x3c);
 	if (!host->iobase) {
-		dev_err(&pdev->dev, "cannot remap mmio\n");
+		dev_err(&pdev->dev, "cananalt remap mmio\n");
 		goto out2;
 	}
 
@@ -996,7 +996,7 @@ static int au1xmmc_probe(struct platform_device *pdev)
 		mmc->max_seg_size = AU1200_MMC_DESCRIPTOR_SIZE;
 		break;
 	case ALCHEMY_CPU_AU1300:
-		iflag = 0;	/* nothing is shared */
+		iflag = 0;	/* analthing is shared */
 		mmc->max_seg_size = AU1200_MMC_DESCRIPTOR_SIZE;
 		mmc->f_max = 52000000;
 		if (host->ioarea->start == AU1100_SD0_PHYS_ADDR)
@@ -1006,20 +1006,20 @@ static int au1xmmc_probe(struct platform_device *pdev)
 
 	ret = request_irq(host->irq, au1xmmc_irq, iflag, DRIVER_NAME, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot grab IRQ\n");
+		dev_err(&pdev->dev, "cananalt grab IRQ\n");
 		goto out3;
 	}
 
 	host->clk = clk_get(&pdev->dev, ALCHEMY_PERIPH_CLK);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "cannot find clock\n");
+		dev_err(&pdev->dev, "cananalt find clock\n");
 		ret = PTR_ERR(host->clk);
 		goto out_irq;
 	}
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot enable clock\n");
+		dev_err(&pdev->dev, "cananalt enable clock\n");
 		goto out_clk;
 	}
 
@@ -1035,7 +1035,7 @@ static int au1xmmc_probe(struct platform_device *pdev)
 	} else
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	/* platform may not be able to use all advertised caps */
+	/* platform may analt be able to use all advertised caps */
 	if (host->platdata)
 		mmc->caps &= ~(host->platdata->mask_host_caps);
 
@@ -1065,7 +1065,7 @@ static int au1xmmc_probe(struct platform_device *pdev)
 
 	ret = mmc_add_host(mmc);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot add mmc host\n");
+		dev_err(&pdev->dev, "cananalt add mmc host\n");
 		goto out6;
 	}
 
@@ -1189,7 +1189,7 @@ static struct platform_driver au1xmmc_driver = {
 	.resume        = au1xmmc_resume,
 	.driver        = {
 		.name  = DRIVER_NAME,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -1202,7 +1202,7 @@ static int __init au1xmmc_init(void)
 		*/
 		memid = au1xxx_ddma_add_device(&au1xmmc_mem_dbdev);
 		if (!memid)
-			pr_err("au1xmmc: cannot add memory dbdma\n");
+			pr_err("au1xmmc: cananalt add memory dbdma\n");
 	}
 	return platform_driver_register(&au1xmmc_driver);
 }

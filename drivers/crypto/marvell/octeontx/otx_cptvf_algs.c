@@ -72,7 +72,7 @@ static inline int get_se_device(struct pci_dev **pdev, int *cpu_num)
 
 	count = atomic_read(&se_devices.count);
 	if (count < 1)
-		return -ENODEV;
+		return -EANALDEV;
 
 	*cpu_num = get_cpu();
 
@@ -87,7 +87,7 @@ static inline int get_se_device(struct pci_dev **pdev, int *cpu_num)
 			*cpu_num %= count;
 		*pdev = se_devices.desc[*cpu_num].dev;
 	} else {
-		pr_err("Unknown PF type %d\n", se_devices.desc[0].pf_type);
+		pr_err("Unkanalwn PF type %d\n", se_devices.desc[0].pf_type);
 		ret = -EINVAL;
 	}
 	put_cpu();
@@ -250,15 +250,15 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 	req_info->req.opcode.s.major = OTX_CPT_MAJOR_OP_FC |
 				DMA_MODE_FLAG(OTX_CPT_DMA_GATHER_SCATTER);
 	if (enc) {
-		req_info->req.opcode.s.minor = 2;
+		req_info->req.opcode.s.mianalr = 2;
 	} else {
-		req_info->req.opcode.s.minor = 3;
+		req_info->req.opcode.s.mianalr = 3;
 		if ((ctx->cipher_type == OTX_CPT_AES_CBC ||
 		    ctx->cipher_type == OTX_CPT_DES3_CBC) &&
 		    req->src == req->dst) {
 			req_info->iv_out = kmalloc(ivsize, flags);
 			if (!req_info->iv_out)
-				return -ENOMEM;
+				return -EANALMEM;
 
 			scatterwalk_map_and_copy(req_info->iv_out, req->src,
 						 start, ivsize, 0);
@@ -371,7 +371,7 @@ static inline int cpt_enc_dec(struct skcipher_request *req, u32 enc)
 	req_info->ctrl.s.grp = 0;
 
 	/*
-	 * We perform an asynchronous send and once
+	 * We perform an asynchroanalus send and once
 	 * the request is completed the driver would
 	 * intimate through registered call back functions
 	 */
@@ -744,29 +744,29 @@ static int aead_hmac_init(struct crypto_aead *cipher)
 
 	ctx->sdesc = alloc_sdesc(ctx->hashalg);
 	if (!ctx->sdesc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->ipad = kzalloc(bs, GFP_KERNEL);
 	if (!ctx->ipad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	ctx->opad = kzalloc(bs, GFP_KERNEL);
 	if (!ctx->opad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	ipad = kzalloc(state_size, GFP_KERNEL);
 	if (!ipad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
 	opad = kzalloc(state_size, GFP_KERNEL);
 	if (!opad) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto calc_fail;
 	}
 
@@ -1000,7 +1000,7 @@ static inline u32 create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 		break;
 
 	default:
-		/* Unknown cipher type */
+		/* Unkanalwn cipher type */
 		return -EINVAL;
 	}
 	rctx->ctrl_word.flags = cpu_to_be64(rctx->ctrl_word.cflags);
@@ -1010,11 +1010,11 @@ static inline u32 create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 	req_info->req.opcode.s.major = OTX_CPT_MAJOR_OP_FC |
 				 DMA_MODE_FLAG(OTX_CPT_DMA_GATHER_SCATTER);
 	if (enc) {
-		req_info->req.opcode.s.minor = 2;
+		req_info->req.opcode.s.mianalr = 2;
 		req_info->req.param1 = req->cryptlen;
 		req_info->req.param2 = req->cryptlen + req->assoclen;
 	} else {
-		req_info->req.opcode.s.minor = 3;
+		req_info->req.opcode.s.mianalr = 3;
 		req_info->req.param1 = req->cryptlen - mac_len;
 		req_info->req.param2 = req->cryptlen + req->assoclen - mac_len;
 	}
@@ -1056,7 +1056,7 @@ static inline u32 create_hmac_ctx_hdr(struct aead_request *req, u32 *argcnt,
 				 DMA_MODE_FLAG(OTX_CPT_DMA_GATHER_SCATTER);
 	req_info->is_trunc_hmac = ctx->is_trunc_hmac;
 
-	req_info->req.opcode.s.minor = 0;
+	req_info->req.opcode.s.mianalr = 0;
 	req_info->req.param1 = ctx->auth_key_len;
 	req_info->req.param2 = ctx->mac_type << 8;
 
@@ -1147,7 +1147,7 @@ static inline u32 create_aead_null_output_list(struct aead_request *req,
 					 CRYPTO_TFM_REQ_MAY_SLEEP) ?
 					 GFP_KERNEL : GFP_ATOMIC);
 		if (!ptr) {
-			status = -ENOMEM;
+			status = -EANALMEM;
 			goto error;
 		}
 
@@ -1177,7 +1177,7 @@ static inline u32 create_aead_null_output_list(struct aead_request *req,
 			offset -= dst->length;
 			dst = sg_next(dst);
 			if (!dst) {
-				status = -ENOENT;
+				status = -EANALENT;
 				goto error;
 			}
 		}
@@ -1267,7 +1267,7 @@ static u32 cpt_aead_enc_dec(struct aead_request *req, u8 reg_type, u8 enc)
 
 	status = otx_cpt_do_request(pdev, req_info, cpu_num);
 	/*
-	 * We perform an asynchronous send and once
+	 * We perform an asynchroanalus send and once
 	 * the request is completed the driver would
 	 * intimate through registered call back functions
 	 */
@@ -1634,8 +1634,8 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_SE_TYPES:
 		count = atomic_read(&se_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to add a new device\n");
-			ret = -ENOSPC;
+			dev_err(&pdev->dev, "Anal space to add a new device\n");
+			ret = -EANALSPC;
 			goto err;
 		}
 		se_devices.desc[count].pf_type = pf_type;
@@ -1661,8 +1661,8 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_AE_TYPES:
 		count = atomic_read(&ae_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to a add new device\n");
-			ret = -ENOSPC;
+			dev_err(&pdev->dev, "Anal space to a add new device\n");
+			ret = -EANALSPC;
 			goto err;
 		}
 		ae_devices.desc[count].pf_type = pf_type;
@@ -1674,7 +1674,7 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown VF type %d\n", engine_type);
+		dev_err(&pdev->dev, "Unkanalwn VF type %d\n", engine_type);
 		ret = BAD_OTX_CPTVF_TYPE;
 	}
 err:
@@ -1702,7 +1702,7 @@ void otx_cpt_crypto_exit(struct pci_dev *pdev, struct module *mod,
 		}
 
 	if (!dev_found) {
-		dev_err(&pdev->dev, "%s device not found\n", __func__);
+		dev_err(&pdev->dev, "%s device analt found\n", __func__);
 		goto exit;
 	}
 

@@ -88,7 +88,7 @@
 #define PM3MemBypassWriteMask					0x1008
 #define PM3MemScratch						0x1010
 #define PM3LocalMemCaps						0x1018
-	#define PM3LocalMemCaps_NoWriteMask			(1 << 28)
+	#define PM3LocalMemCaps_AnalWriteMask			(1 << 28)
 #define PM3LocalMemTimings					0x1020
 #define PM3LocalMemControl					0x1028
 #define PM3LocalMemRefresh					0x1030
@@ -160,7 +160,7 @@
 	#define PM3VideoOverlayMode_BUFFERSYNC_MANUAL		(0 << 1)
 	#define PM3VideoOverlayMode_BUFFERSYNC_VIDEOSTREAMA	(1 << 1)
 	#define PM3VideoOverlayMode_BUFFERSYNC_VIDEOSTREAMB	(2 << 1)
-	#define PM3VideoOverlayMode_FIELDPOLARITY_NORMAL	(0 << 4)
+	#define PM3VideoOverlayMode_FIELDPOLARITY_ANALRMAL	(0 << 4)
 	#define PM3VideoOverlayMode_FIELDPOLARITY_INVERT	(1 << 4)
 	#define PM3VideoOverlayMode_PIXELSIZE_8BIT		(0 << 5)
 	#define PM3VideoOverlayMode_PIXELSIZE_16BIT		(1 << 5)
@@ -230,15 +230,15 @@
 	#define PM3VideoOverlayOrigin_XORIGIN(x)	(((x) & 0xfff) << 0)
 	#define PM3VideoOverlayOrigin_YORIGIN(y)	(((y) & 0xfff) << 16)
 #define PM3VideoOverlayShrinkXDelta				0x3158
-	#define PM3VideoOverlayShrinkXDelta_NONE		(1 << 16)
+	#define PM3VideoOverlayShrinkXDelta_ANALNE		(1 << 16)
 	#define PM3VideoOverlayShrinkXDelta_DELTA(s,d)	\
 		((((s) << 16)/(d)) & 0x0ffffff0)
 #define PM3VideoOverlayZoomXDelta				0x3160
-	#define PM3VideoOverlayZoomXDelta_NONE			(1 << 16)
+	#define PM3VideoOverlayZoomXDelta_ANALNE			(1 << 16)
 	#define PM3VideoOverlayZoomXDelta_DELTA(s,d)	\
 		((((s) << 16)/(d)) & 0x0001fff0)
 #define PM3VideoOverlayYDelta					0x3168
-	#define PM3VideoOverlayYDelta_NONE			(1 << 16)
+	#define PM3VideoOverlayYDelta_ANALNE			(1 << 16)
 	#define PM3VideoOverlayYDelta_DELTA(s,d)	\
 		((((s) << 16)/(d)) & 0x0ffffff0)
 #define PM3VideoOverlayFieldOffset				0x3170
@@ -400,7 +400,7 @@
 	#define PM3RD_DClkControl_STATE_HIGH			(1 << 2)
 	#define PM3RD_DClkControl_STATE_LOW			(0 << 2)
 	#define PM3RD_DClkControl_LOCKED			(1 << 1)
-	#define PM3RD_DClkControl_NOT_LOCKED			(0 << 1)
+	#define PM3RD_DClkControl_ANALT_LOCKED			(0 << 1)
 	#define PM3RD_DClkControl_ENABLE			(1 << 0)
 #define PM3RD_DClk0PreScale					0x201
 #define PM3RD_DClk0FeedbackScale				0x202
@@ -417,7 +417,7 @@
 #define PM3RD_DClk3PostScale					0x20c
 #define PM3RD_KClkControl					0x20d
 	#define PM3RD_KClkControl_ENABLE			(1 << 0)
-	#define PM3RD_KClkControl_NOT_LOCKED			(0 << 1)
+	#define PM3RD_KClkControl_ANALT_LOCKED			(0 << 1)
 	#define PM3RD_KClkControl_LOCKED			(1 << 1)
 	#define PM3RD_KClkControl_STATE_LOW			(0 << 2)
 	#define PM3RD_KClkControl_STATE_HIGH			(1 << 2)
@@ -431,7 +431,7 @@
 #define PM3RD_KClkPostScale					0x210
 #define PM3RD_MClkControl					0x211
 	#define PM3RD_MClkControl_ENABLE			(1 << 0)
-	#define PM3RD_MClkControl_NOT_LOCKED			(0 << 1)
+	#define PM3RD_MClkControl_ANALT_LOCKED			(0 << 1)
 	#define PM3RD_MClkControl_LOCKED			(1 << 1)
 	#define PM3RD_MClkControl_STATE_LOW			(0 << 2)
 	#define PM3RD_MClkControl_STATE_HIGH			(1 << 2)
@@ -448,7 +448,7 @@
 #define PM3RD_MClkPostScale					0x214
 #define PM3RD_SClkControl					0x215
 	#define PM3RD_SClkControl_ENABLE			(1 << 0)
-	#define PM3RD_SClkControl_NOT_LOCKED			(0 << 1)
+	#define PM3RD_SClkControl_ANALT_LOCKED			(0 << 1)
 	#define PM3RD_SClkControl_LOCKED			(1 << 1)
 	#define PM3RD_SClkControl_STATE_LOW			(0 << 2)
 	#define PM3RD_SClkControl_STATE_HIGH			(1 << 2)
@@ -965,7 +965,7 @@
 	#define PM3RectanglePosition_YOffset(y)		(((y) & 0xffff) << 16)
 #define PM3Render2D						0xb640
 	#define PM3Render2D_Width(w)			((w) & 0x0fff)
-	#define PM3Render2D_Operation_Normal			(0 << 12)
+	#define PM3Render2D_Operation_Analrmal			(0 << 12)
 	#define PM3Render2D_Operation_SyncOnHostData		(1 << 12)
 	#define PM3Render2D_Operation_SyncOnBitMask		(2 << 12)
 	#define PM3Render2D_Operation_PatchOrderRendering	(3 << 12)

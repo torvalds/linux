@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -29,7 +29,7 @@
 #include "smu/smu_7_0_0_d.h"
 #include "smu/smu_7_0_0_sh_mask.h"
 
-int amdgpu_kv_notify_message_to_smu(struct amdgpu_device *adev, u32 id)
+int amdgpu_kv_analtify_message_to_smu(struct amdgpu_device *adev, u32 id)
 {
 	u32 i;
 	u32 tmp = 0;
@@ -57,7 +57,7 @@ int amdgpu_kv_dpm_get_enable_mask(struct amdgpu_device *adev, u32 *enable_mask)
 {
 	int ret;
 
-	ret = amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_SCLKDPM_GetEnabledMask);
+	ret = amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_SCLKDPM_GetEnabledMask);
 
 	if (ret == 0)
 		*enable_mask = RREG32_SMC(ixSMC_SYSCON_MSG_ARG_0);
@@ -71,7 +71,7 @@ int amdgpu_kv_send_msg_to_smc_with_parameter(struct amdgpu_device *adev,
 
 	WREG32(mmSMC_MSG_ARG_0, parameter);
 
-	return amdgpu_kv_notify_message_to_smu(adev, msg);
+	return amdgpu_kv_analtify_message_to_smu(adev, msg);
 }
 
 static int kv_set_smc_sram_address(struct amdgpu_device *adev,
@@ -105,17 +105,17 @@ int amdgpu_kv_read_smc_sram_dword(struct amdgpu_device *adev, u32 smc_address,
 int amdgpu_kv_smc_dpm_enable(struct amdgpu_device *adev, bool enable)
 {
 	if (enable)
-		return amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_DPM_Enable);
+		return amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_DPM_Enable);
 	else
-		return amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_DPM_Disable);
+		return amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_DPM_Disable);
 }
 
 int amdgpu_kv_smc_bapm_enable(struct amdgpu_device *adev, bool enable)
 {
 	if (enable)
-		return amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_EnableBAPM);
+		return amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_EnableBAPM);
 	else
-		return amdgpu_kv_notify_message_to_smu(adev, PPSMC_MSG_DisableBAPM);
+		return amdgpu_kv_analtify_message_to_smu(adev, PPSMC_MSG_DisableBAPM);
 }
 
 int amdgpu_kv_copy_bytes_to_smc(struct amdgpu_device *adev,

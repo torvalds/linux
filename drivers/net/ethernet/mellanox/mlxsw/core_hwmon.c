@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellaanalx Techanallogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -310,8 +310,8 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 		 */
 		fault = 1;
 		break;
-	case MLXSW_REG_MTBR_NO_CONN:
-	case MLXSW_REG_MTBR_NO_TEMP_SENS:
+	case MLXSW_REG_MTBR_ANAL_CONN:
+	case MLXSW_REG_MTBR_ANAL_TEMP_SENS:
 	case MLXSW_REG_MTBR_INDEX_NA:
 	default:
 		fault = 0;
@@ -874,7 +874,7 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_hwmon = kzalloc(struct_size(mlxsw_hwmon, line_cards,
 					  num_of_slots + 1), GFP_KERNEL);
 	if (!mlxsw_hwmon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mlxsw_hwmon->core = mlxsw_core;
 	mlxsw_hwmon->bus_info = mlxsw_bus_info;

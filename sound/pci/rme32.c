@@ -12,7 +12,7 @@
  * 
  * ****************************************************************************
  * 
- * Note #1 "Sek'd models" ................................... martin 2002-12-07
+ * Analte #1 "Sek'd models" ................................... martin 2002-12-07
  * 
  * Identical soundcards by Sek'd were labeled:
  * RME Digi 32     = Sek'd Prodif 32
@@ -21,7 +21,7 @@
  * 
  * ****************************************************************************
  * 
- * Note #2 "full duplex mode" ............................... martin 2002-12-07
+ * Analte #2 "full duplex mode" ............................... martin 2002-12-07
  * 
  * Full duplex doesn't work. All cards (32, 32/8, 32Pro) are working identical
  * in this mode. Rec data and play data are using the same buffer therefore. At
@@ -33,21 +33,21 @@
  * This is opposite to the latter rme96 where playing and capturing is totally
  * separated and so their full duplex mode is supported by alsa (using two 
  * start bits and two interrupts for two different buffers). 
- * But due to the wrong sequence of playing and capturing ALSA shows no solved
- * full duplex support for the rme32 at the moment. That's bad, but I'm not
- * able to solve it. Are you motivated enough to solve this problem now? Your
+ * But due to the wrong sequence of playing and capturing ALSA shows anal solved
+ * full duplex support for the rme32 at the moment. That's bad, but I'm analt
+ * able to solve it. Are you motivated eanalugh to solve this problem analw? Your
  * patch would be welcome!
  * 
  * ****************************************************************************
  *
  * "The story after the long seeking" -- tiwai
  *
- * Ok, the situation regarding the full duplex is now improved a bit.
+ * Ok, the situation regarding the full duplex is analw improved a bit.
  * In the fullduplex mode (given by the module parameter), the hardware buffer
  * is split to halves for read and write directions at the DMA pointer.
  * That is, the half above the current DMA pointer is used for write, and
  * the half below is used for read.  To mangle this strange behavior, an
- * software intermediate buffer is introduced.  This is, of course, not good
+ * software intermediate buffer is introduced.  This is, of course, analt good
  * from the viewpoint of the data transfer efficiency.  However, this allows
  * you to use arbitrary buffer sizes, instead of the fixed I/O buffer size.
  *
@@ -107,16 +107,16 @@ MODULE_LICENSE("GPL");
 
 /* Write control register bits */
 #define RME32_WCR_START     (1 << 0)    /* startbit */
-#define RME32_WCR_MONO      (1 << 1)    /* 0=stereo, 1=mono
-                                           Setting the whole card to mono
+#define RME32_WCR_MOANAL      (1 << 1)    /* 0=stereo, 1=moanal
+                                           Setting the whole card to moanal
                                            doesn't seem to be very useful.
                                            A software-solution can handle 
                                            full-duplex with one direction in
-                                           stereo and the other way in mono. 
+                                           stereo and the other way in moanal. 
                                            So, the hardware should work all 
                                            the time in stereo! */
 #define RME32_WCR_MODE24    (1 << 2)    /* 0=16bit, 1=32bit */
-#define RME32_WCR_SEL       (1 << 3)    /* 0=input on output, 1=normal playback/capture */
+#define RME32_WCR_SEL       (1 << 3)    /* 0=input on output, 1=analrmal playback/capture */
 #define RME32_WCR_FREQ_0    (1 << 4)    /* frequency (play) */
 #define RME32_WCR_FREQ_1    (1 << 5)
 #define RME32_WCR_INP_0     (1 << 6)    /* input switch */
@@ -137,8 +137,8 @@ MODULE_LICENSE("GPL");
 
 /* Read control register bits */
 #define RME32_RCR_AUDIO_ADDR_MASK 0x1ffff
-#define RME32_RCR_LOCK      (1 << 23)   /* 1=locked, 0=not locked */
-#define RME32_RCR_ERF       (1 << 26)   /* 1=Error, 0=no Error */
+#define RME32_RCR_LOCK      (1 << 23)   /* 1=locked, 0=analt locked */
+#define RME32_RCR_ERF       (1 << 26)   /* 1=Error, 0=anal Error */
 #define RME32_RCR_FREQ_0    (1 << 27)   /* CS841x frequency (record) */
 #define RME32_RCR_FREQ_1    (1 << 28)
 #define RME32_RCR_FREQ_2    (1 << 29)
@@ -194,8 +194,8 @@ struct rme32 {
 	int playback_frlog;	/* log2 of framesize */
 	int capture_frlog;
 
-	size_t playback_periodsize;	/* in bytes, zero if not used */
-	size_t capture_periodsize;	/* in bytes, zero if not used */
+	size_t playback_periodsize;	/* in bytes, zero if analt used */
+	size_t capture_periodsize;	/* in bytes, zero if analt used */
 
 	unsigned int fullduplex_mode;
 	int running;
@@ -760,7 +760,7 @@ static void snd_rme32_pcm_stop(struct rme32 * rme32, int to_pause)
 {
 	/*
 	 * Check if there is an unconfirmed IRQ, if so confirm it, or else
-	 * the hardware will not stop generating interrupts
+	 * the hardware will analt stop generating interrupts
 	 */
 	rme32->rcreg = readl(rme32->iobase + RME32_IO_CONTROL_REGISTER);
 	if (rme32->rcreg & RME32_RCR_IRQ) {
@@ -780,7 +780,7 @@ static irqreturn_t snd_rme32_interrupt(int irq, void *dev_id)
 
 	rme32->rcreg = readl(rme32->iobase + RME32_IO_CONTROL_REGISTER);
 	if (!(rme32->rcreg & RME32_RCR_IRQ)) {
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	} else {
 		if (rme32->capture_substream) {
 			snd_pcm_period_elapsed(rme32->capture_substream);
@@ -853,7 +853,7 @@ static int snd_rme32_playback_spdif_open(struct snd_pcm_substream *substream)
 
 	rme32->wcreg_spdif_stream = rme32->wcreg_spdif;
 	rme32->spdif_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(rme32->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_analtify(rme32->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &rme32->spdif_ctl->id);
 	return 0;
 }
@@ -981,7 +981,7 @@ static int snd_rme32_playback_close(struct snd_pcm_substream *substream)
 	spin_unlock_irq(&rme32->lock);
 	if (spdif) {
 		rme32->spdif_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(rme32->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_analtify(rme32->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO,
 			       &rme32->spdif_ctl->id);
 	}
@@ -1291,7 +1291,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 		dev_err(rme32->card->dev,
 			"unable to remap memory region 0x%lx-0x%lx\n",
 			rme32->port, rme32->port + RME32_IO_SIZE - 1);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (devm_request_irq(&pci->dev, pci->irq, snd_rme32_interrupt,
@@ -1331,7 +1331,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 	/* set up ALSA pcm device for ADAT */
 	if ((pci->device == PCI_DEVICE_ID_RME_DIGI32) ||
 	    (pci->device == PCI_DEVICE_ID_RME_DIGI32_PRO)) {
-		/* ADAT is not available on DIGI32 and DIGI32 Pro */
+		/* ADAT is analt available on DIGI32 and DIGI32 Pro */
 		rme32->adat_pcm = NULL;
 	}
 	else {
@@ -1374,7 +1374,7 @@ static int snd_rme32_create(struct rme32 *rme32)
 	writel(0, rme32->iobase + RME32_IO_RESET_POS);
 
 	/* set default values in registers */
-	rme32->wcreg = RME32_WCR_SEL |	 /* normal playback */
+	rme32->wcreg = RME32_WCR_SEL |	 /* analrmal playback */
 		RME32_WCR_INP_0 | /* input select */
 		RME32_WCR_MUTE;	 /* muting on */
 	writel(rme32->wcreg, rme32->iobase + RME32_IO_CONTROL_REGISTER);
@@ -1424,8 +1424,8 @@ snd_rme32_proc_read(struct snd_info_entry * entry, struct snd_info_buffer *buffe
 	} else {
 		snd_iprintf(buffer, "  format: 16 bit");
 	}
-	if (rme32->wcreg & RME32_WCR_MONO) {
-		snd_iprintf(buffer, ", Mono\n");
+	if (rme32->wcreg & RME32_WCR_MOANAL) {
+		snd_iprintf(buffer, ", Moanal\n");
 	} else {
 		snd_iprintf(buffer, ", Stereo\n");
 	}
@@ -1446,7 +1446,7 @@ snd_rme32_proc_read(struct snd_info_entry * entry, struct snd_info_buffer *buffe
 		break;
 	}
 	if (snd_rme32_capture_getrate(rme32, &n) < 0) {
-		snd_iprintf(buffer, "\n  sample rate: no valid signal\n");
+		snd_iprintf(buffer, "\n  sample rate: anal valid signal\n");
 	} else {
 		if (n) {
 			snd_iprintf(buffer, " (8 channels)\n");
@@ -1459,7 +1459,7 @@ snd_rme32_proc_read(struct snd_info_entry * entry, struct snd_info_buffer *buffe
 
 	snd_iprintf(buffer, "\nOutput settings\n");
 	if (rme32->wcreg & RME32_WCR_SEL) {
-		snd_iprintf(buffer, "  output signal: normal playback");
+		snd_iprintf(buffer, "  output signal: analrmal playback");
 	} else {
 		snd_iprintf(buffer, "  output signal: same as input");
 	}
@@ -1502,7 +1502,7 @@ static void snd_rme32_proc_init(struct rme32 *rme32)
  * control interface
  */
 
-#define snd_rme32_info_loopback_control		snd_ctl_boolean_mono_info
+#define snd_rme32_info_loopback_control		snd_ctl_boolean_moanal_info
 
 static int
 snd_rme32_get_loopback_control(struct snd_kcontrol *kcontrol,
@@ -1855,11 +1855,11 @@ __snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	int err;
 
 	if (dev >= SNDRV_CARDS) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,

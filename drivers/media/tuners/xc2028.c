@@ -45,16 +45,16 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-static int no_poweroff;
-module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
+static int anal_poweroff;
+module_param(anal_poweroff, int, 0644);
+MODULE_PARM_DESC(anal_poweroff, "0 (default) powers device off when analt used.\n"
 	"1 keep device energized and with tuner ready all the times.\n"
 	"  Faster, but consumes more power and keeps the device hotter\n");
 
 static char audio_std[8];
 module_param_string(audio_std, audio_std, sizeof(audio_std), 0);
 MODULE_PARM_DESC(audio_std,
-	"Audio standard. XC3028 audio decoder explicitly needs to know what audio\n"
+	"Audio standard. XC3028 audio decoder explicitly needs to kanalw what audio\n"
 	"standard is needed for some video standards with audio A2 or NICAM.\n"
 	"The valid values are:\n"
 	"A2\n"
@@ -91,11 +91,11 @@ struct firmware_properties {
 };
 
 enum xc2028_state {
-	XC2028_NO_FIRMWARE = 0,
+	XC2028_ANAL_FIRMWARE = 0,
 	XC2028_WAITING_FIRMWARE,
 	XC2028_ACTIVE,
 	XC2028_SLEEP,
-	XC2028_NODEV,
+	XC2028_ANALDEV,
 };
 
 struct xc2028_data {
@@ -203,10 +203,10 @@ static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 		printk(KERN_CONT "INPUT1 ");
 	if (type & LCD)
 		printk(KERN_CONT "LCD ");
-	if (type & NOGD)
-		printk(KERN_CONT "NOGD ");
-	if (type & MONO)
-		printk(KERN_CONT "MONO ");
+	if (type & ANALGD)
+		printk(KERN_CONT "ANALGD ");
+	if (type & MOANAL)
+		printk(KERN_CONT "MOANAL ");
 	if (type & ATSC)
 		printk(KERN_CONT "ATSC ");
 	if (type & IF)
@@ -260,15 +260,15 @@ static  v4l2_std_id parse_audio_std_option(void)
 static int check_device_status(struct xc2028_data *priv)
 {
 	switch (priv->state) {
-	case XC2028_NO_FIRMWARE:
+	case XC2028_ANAL_FIRMWARE:
 	case XC2028_WAITING_FIRMWARE:
 		return -EAGAIN;
 	case XC2028_ACTIVE:
 		return 1;
 	case XC2028_SLEEP:
 		return 0;
-	case XC2028_NODEV:
-		return -ENODEV;
+	case XC2028_ANALDEV:
+		return -EANALDEV;
 	}
 	return 0;
 }
@@ -283,7 +283,7 @@ static void free_firmware(struct xc2028_data *priv)
 		kfree(priv->fname);
 	priv->fname = NULL;
 
-	priv->state = XC2028_NO_FIRMWARE;
+	priv->state = XC2028_ANAL_FIRMWARE;
 	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
 
 	if (!priv->firm)
@@ -334,8 +334,8 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 
 	priv->firm = kcalloc(n_array, sizeof(*priv->firm), GFP_KERNEL);
 	if (priv->firm == NULL) {
-		tuner_err("Not enough memory to load firmware file.\n");
-		rc = -ENOMEM;
+		tuner_err("Analt eanalugh memory to load firmware file.\n");
+		rc = -EANALMEM;
 		goto err;
 	}
 	priv->firm_size = n_array;
@@ -352,7 +352,7 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			goto corrupt;
 		}
 
-		/* Checks if there's enough bytes to read */
+		/* Checks if there's eanalugh bytes to read */
 		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
 			goto header;
 
@@ -383,8 +383,8 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 
 		priv->firm[n].ptr = kmemdup(p, size, GFP_KERNEL);
 		if (priv->firm[n].ptr == NULL) {
-			tuner_err("Not enough memory to load firmware file.\n");
-			rc = -ENOMEM;
+			tuner_err("Analt eanalugh memory to load firmware file.\n");
+			rc = -EANALMEM;
 			goto err;
 		}
 		tuner_dbg("Reading firmware type ");
@@ -423,7 +423,7 @@ done:
 	if (rc == 0)
 		tuner_dbg("Firmware files loaded.\n");
 	else
-		priv->state = XC2028_NODEV;
+		priv->state = XC2028_ANALDEV;
 
 	return rc;
 }
@@ -443,7 +443,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	}
 
 	if (!priv->firm) {
-		tuner_err("Error! firmware not loaded\n");
+		tuner_err("Error! firmware analt loaded\n");
 		return -EINVAL;
 	}
 
@@ -506,7 +506,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	/*FIXME: Would make sense to seek for type "hint" match ? */
 
-	i = -ENOENT;
+	i = -EANALENT;
 	goto ret;
 
 found:
@@ -527,7 +527,7 @@ static inline int do_tuner_callback(struct dvb_frontend *fe, int cmd, int arg)
 	struct xc2028_data *priv = fe->tuner_priv;
 
 	/* analog side (tuner-core) uses i2c_adap->algo_data.
-	 * digital side is not guaranteed to have algo_data defined.
+	 * digital side is analt guaranteed to have algo_data defined.
 	 *
 	 * digital side will always have fe->dvb defined.
 	 * analog side (tuner-core) doesn't (yet) define fe->dvb.
@@ -566,7 +566,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	while (p < endp) {
 		__u16 size;
 
-		/* Checks if there's enough bytes to read */
+		/* Checks if there's eanalugh bytes to read */
 		if (p + sizeof(size) > endp) {
 			tuner_err("Firmware chunk size is wrong\n");
 			return -EINVAL;
@@ -670,7 +670,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 				break;
 		}
 		if (pos == priv->firm_size)
-			return -ENOENT;
+			return -EANALENT;
 	}
 
 	p = priv->firm[pos].ptr;
@@ -755,13 +755,13 @@ retry:
 	}
 
 	/*
-	 * No need to reload base firmware if it matches and if the tuner
-	 * is not at sleep mode
+	 * Anal need to reload base firmware if it matches and if the tuner
+	 * is analt at sleep mode
 	 */
 	if ((priv->state == XC2028_ACTIVE) &&
 	    (((BASE | new_fw.type) & BASE_TYPES) ==
 	    (priv->cur_fw.type & BASE_TYPES))) {
-		tuner_dbg("BASE firmware not changed.\n");
+		tuner_dbg("BASE firmware analt changed.\n");
 		goto skip_base;
 	}
 
@@ -786,10 +786,10 @@ retry:
 	tuner_dbg("Load init1 firmware, if exists\n");
 
 	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		rc = load_firmware(fe, (BASE | INIT1 | new_fw.type) & ~F8MHZ,
 				   &std0);
-	if (rc < 0 && rc != -ENOENT) {
+	if (rc < 0 && rc != -EANALENT) {
 		tuner_err("Error %d while loading init1 firmware\n",
 			  rc);
 		goto fail;
@@ -797,8 +797,8 @@ retry:
 
 skip_base:
 	/*
-	 * No need to reload standard specific firmware if base firmware
-	 * was not reloaded and requested video standards have not changed.
+	 * Anal need to reload standard specific firmware if base firmware
+	 * was analt reloaded and requested video standards have analt changed.
 	 */
 	if (priv->cur_fw.type == (BASE | new_fw.type) &&
 	    priv->cur_fw.std_req == std) {
@@ -810,7 +810,7 @@ skip_base:
 	priv->cur_fw.scode_table = 0;
 
 	rc = load_firmware(fe, new_fw.type, &new_fw.id);
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		rc = load_firmware(fe, new_fw.type & ~F8MHZ, &new_fw.id);
 
 	if (rc < 0)
@@ -844,16 +844,16 @@ check_device:
 		  (version & 0xf0) >> 4, version & 0xf);
 
 
-	if (priv->ctrl.read_not_reliable)
-		goto read_not_reliable;
+	if (priv->ctrl.read_analt_reliable)
+		goto read_analt_reliable;
 
 	/* Check firmware version against what we downloaded. */
 	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
-		if (!priv->ctrl.read_not_reliable) {
+		if (!priv->ctrl.read_analt_reliable) {
 			tuner_err("Incorrect readback of firmware version.\n");
 			goto fail;
 		} else {
-			tuner_err("Returned an incorrect version. However, read is not reliable enough. Ignoring it.\n");
+			tuner_err("Returned an incorrect version. However, read is analt reliable eanalugh. Iganalring it.\n");
 			hwmodel = 3028;
 		}
 	}
@@ -868,7 +868,7 @@ check_device:
 		goto fail;
 	}
 
-read_not_reliable:
+read_analt_reliable:
 	priv->cur_fw = new_fw;
 
 	/*
@@ -895,7 +895,7 @@ fail:
 	/* Firmware didn't load. Put the device to sleep */
 	xc2028_sleep(fe);
 
-	if (rc == -ENOENT)
+	if (rc == -EANALENT)
 		rc = -EINVAL;
 	return rc;
 }
@@ -912,7 +912,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 	if (rc < 0)
 		return rc;
 
-	/* If the device is sleeping, no channel is tuned */
+	/* If the device is sleeping, anal channel is tuned */
 	if (!rc) {
 		*strength = 0;
 		return 0;
@@ -965,7 +965,7 @@ static int xc2028_get_afc(struct dvb_frontend *fe, s32 *afc)
 	if (rc < 0)
 		return rc;
 
-	/* If the device is sleeping, no channel is tuned */
+	/* If the device is sleeping, anal channel is tuned */
 	if (!rc) {
 		*afc = 0;
 		return 0;
@@ -1057,13 +1057,13 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 
 		/*
 		 * The firmware DTV78 used to work fine in UHF band (8 MHz
-		 * bandwidth) but not at all in VHF band (7 MHz bandwidth).
+		 * bandwidth) but analt at all in VHF band (7 MHz bandwidth).
 		 * The real problem was connected to the formula used to
 		 * calculate the center frequency offset in VHF band.
 		 * In fact, removing the 500KHz adjustment fixed the problem.
 		 * This is coherent to what was implemented for the DTV7
 		 * firmware.
-		 * In the end, now the center frequency is the same for all 3
+		 * In the end, analw the center frequency is the same for all 3
 		 * firmwares (DTV7, DTV8, DTV78) and doesn't depend on channel
 		 * bandwidth.
 		 */
@@ -1090,7 +1090,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 #if 0
 		/*
 		 * Still need tests for XC3028L (firmware 3.2 or upper)
-		 * So, for now, let's just comment the per-firmware
+		 * So, for analw, let's just comment the per-firmware
 		 * version of this change. Reports with xc3028l working
 		 * with and without the lines below are welcome
 		 */
@@ -1170,7 +1170,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 				V4L2_TUNER_RADIO, type, 0, 0);
 	}
 
-	/* if std is not defined, choose one */
+	/* if std is analt defined, choose one */
 	if (!p->std)
 		p->std = V4L2_STD_MN;
 
@@ -1232,7 +1232,7 @@ static int xc2028_set_params(struct dvb_frontend *fe)
 		/* The only ATSC firmware (at least on v2.7) is D2633 */
 		type |= ATSC | D2633;
 		break;
-	/* DVB-S and pure QAM (FE_QAM) are not supported */
+	/* DVB-S and pure QAM (FE_QAM) are analt supported */
 	default:
 		return -EINVAL;
 	}
@@ -1297,7 +1297,7 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 		return 0;
 
 	/* Avoid firmware reload on slow devices or if PM disabled */
-	if (no_poweroff || priv->ctrl.disable_power_mgmt)
+	if (anal_poweroff || priv->ctrl.disable_power_mgmt)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
@@ -1364,10 +1364,10 @@ static void load_firmware_cb(const struct firmware *fw,
 	struct xc2028_data *priv = fe->tuner_priv;
 	int rc;
 
-	tuner_dbg("request_firmware_nowait(): %s\n", fw ? "OK" : "error");
+	tuner_dbg("request_firmware_analwait(): %s\n", fw ? "OK" : "error");
 	if (!fw) {
-		tuner_err("Could not load firmware %s.\n", priv->fname);
-		priv->state = XC2028_NODEV;
+		tuner_err("Could analt load firmware %s.\n", priv->fname);
+		priv->state = XC2028_ANALDEV;
 		return;
 	}
 
@@ -1397,7 +1397,7 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	/*
 	 * If firmware name changed, frees firmware. As free_firmware will
-	 * reset the status to NO_FIRMWARE, this forces a new request_firmware
+	 * reset the status to ANAL_FIRMWARE, this forces a new request_firmware
 	 */
 	if (!firmware_name[0] && p->fname &&
 	    priv->fname && strcmp(p->fname, priv->fname))
@@ -1406,18 +1406,18 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	if (priv->ctrl.max_len < 9)
 		priv->ctrl.max_len = 13;
 
-	if (priv->state == XC2028_NO_FIRMWARE) {
+	if (priv->state == XC2028_ANAL_FIRMWARE) {
 		if (!firmware_name[0])
 			priv->fname = kstrdup(p->fname, GFP_KERNEL);
 		else
 			priv->fname = firmware_name;
 
 		if (!priv->fname) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto unlock;
 		}
 
-		rc = request_firmware_nowait(THIS_MODULE, 1,
+		rc = request_firmware_analwait(THIS_MODULE, 1,
 					     priv->fname,
 					     priv->i2c_props.adap->dev.parent,
 					     GFP_KERNEL,
@@ -1425,7 +1425,7 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 		if (rc < 0) {
 			tuner_err("Failed to request firmware %s\n",
 				  priv->fname);
-			priv->state = XC2028_NODEV;
+			priv->state = XC2028_ANALDEV;
 		} else
 			priv->state = XC2028_WAITING_FIRMWARE;
 	}
@@ -1466,7 +1466,7 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 		return NULL;
 
 	if (!fe) {
-		printk(KERN_ERR "xc2028: No frontend!\n");
+		printk(KERN_ERR "xc2028: Anal frontend!\n");
 		return NULL;
 	}
 

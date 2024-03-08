@@ -81,7 +81,7 @@ int i915_gem_object_mock_selftests(void)
 
 	i915 = mock_gem_device();
 	if (!i915)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = i915_subtests(tests, i915);
 

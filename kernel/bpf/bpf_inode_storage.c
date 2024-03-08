@@ -19,47 +19,47 @@
 #include <linux/fdtable.h>
 #include <linux/rcupdate_trace.h>
 
-DEFINE_BPF_STORAGE_CACHE(inode_cache);
+DEFINE_BPF_STORAGE_CACHE(ianalde_cache);
 
 static struct bpf_local_storage __rcu **
-inode_storage_ptr(void *owner)
+ianalde_storage_ptr(void *owner)
 {
-	struct inode *inode = owner;
+	struct ianalde *ianalde = owner;
 	struct bpf_storage_blob *bsb;
 
-	bsb = bpf_inode(inode);
+	bsb = bpf_ianalde(ianalde);
 	if (!bsb)
 		return NULL;
 	return &bsb->storage;
 }
 
-static struct bpf_local_storage_data *inode_storage_lookup(struct inode *inode,
+static struct bpf_local_storage_data *ianalde_storage_lookup(struct ianalde *ianalde,
 							   struct bpf_map *map,
 							   bool cacheit_lockit)
 {
-	struct bpf_local_storage *inode_storage;
+	struct bpf_local_storage *ianalde_storage;
 	struct bpf_local_storage_map *smap;
 	struct bpf_storage_blob *bsb;
 
-	bsb = bpf_inode(inode);
+	bsb = bpf_ianalde(ianalde);
 	if (!bsb)
 		return NULL;
 
-	inode_storage =
+	ianalde_storage =
 		rcu_dereference_check(bsb->storage, bpf_rcu_lock_held());
-	if (!inode_storage)
+	if (!ianalde_storage)
 		return NULL;
 
 	smap = (struct bpf_local_storage_map *)map;
-	return bpf_local_storage_lookup(inode_storage, smap, cacheit_lockit);
+	return bpf_local_storage_lookup(ianalde_storage, smap, cacheit_lockit);
 }
 
-void bpf_inode_storage_free(struct inode *inode)
+void bpf_ianalde_storage_free(struct ianalde *ianalde)
 {
 	struct bpf_local_storage *local_storage;
 	struct bpf_storage_blob *bsb;
 
-	bsb = bpf_inode(inode);
+	bsb = bpf_ianalde(ianalde);
 	if (!bsb)
 		return;
 
@@ -75,7 +75,7 @@ void bpf_inode_storage_free(struct inode *inode)
 	rcu_read_unlock();
 }
 
-static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
+static void *bpf_fd_ianalde_storage_lookup_elem(struct bpf_map *map, void *key)
 {
 	struct bpf_local_storage_data *sdata;
 	struct fd f = fdget_raw(*(int *)key);
@@ -83,12 +83,12 @@ static void *bpf_fd_inode_storage_lookup_elem(struct bpf_map *map, void *key)
 	if (!f.file)
 		return ERR_PTR(-EBADF);
 
-	sdata = inode_storage_lookup(file_inode(f.file), map, true);
+	sdata = ianalde_storage_lookup(file_ianalde(f.file), map, true);
 	fdput(f);
 	return sdata ? sdata->data : NULL;
 }
 
-static long bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
+static long bpf_fd_ianalde_storage_update_elem(struct bpf_map *map, void *key,
 					     void *value, u64 map_flags)
 {
 	struct bpf_local_storage_data *sdata;
@@ -96,32 +96,32 @@ static long bpf_fd_inode_storage_update_elem(struct bpf_map *map, void *key,
 
 	if (!f.file)
 		return -EBADF;
-	if (!inode_storage_ptr(file_inode(f.file))) {
+	if (!ianalde_storage_ptr(file_ianalde(f.file))) {
 		fdput(f);
 		return -EBADF;
 	}
 
-	sdata = bpf_local_storage_update(file_inode(f.file),
+	sdata = bpf_local_storage_update(file_ianalde(f.file),
 					 (struct bpf_local_storage_map *)map,
 					 value, map_flags, GFP_ATOMIC);
 	fdput(f);
 	return PTR_ERR_OR_ZERO(sdata);
 }
 
-static int inode_storage_delete(struct inode *inode, struct bpf_map *map)
+static int ianalde_storage_delete(struct ianalde *ianalde, struct bpf_map *map)
 {
 	struct bpf_local_storage_data *sdata;
 
-	sdata = inode_storage_lookup(inode, map, false);
+	sdata = ianalde_storage_lookup(ianalde, map, false);
 	if (!sdata)
-		return -ENOENT;
+		return -EANALENT;
 
 	bpf_selem_unlink(SELEM(sdata), false);
 
 	return 0;
 }
 
-static long bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
+static long bpf_fd_ianalde_storage_delete_elem(struct bpf_map *map, void *key)
 {
 	struct fd f = fdget_raw(*(int *)key);
 	int err;
@@ -129,13 +129,13 @@ static long bpf_fd_inode_storage_delete_elem(struct bpf_map *map, void *key)
 	if (!f.file)
 		return -EBADF;
 
-	err = inode_storage_delete(file_inode(f.file), map);
+	err = ianalde_storage_delete(file_ianalde(f.file), map);
 	fdput(f);
 	return err;
 }
 
 /* *gfp_flags* is a hidden argument provided by the verifier */
-BPF_CALL_5(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
+BPF_CALL_5(bpf_ianalde_storage_get, struct bpf_map *, map, struct ianalde *, ianalde,
 	   void *, value, u64, flags, gfp_t, gfp_flags)
 {
 	struct bpf_local_storage_data *sdata;
@@ -144,25 +144,25 @@ BPF_CALL_5(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
 	if (flags & ~(BPF_LOCAL_STORAGE_GET_F_CREATE))
 		return (unsigned long)NULL;
 
-	/* explicitly check that the inode_storage_ptr is not
-	 * NULL as inode_storage_lookup returns NULL in this case and
+	/* explicitly check that the ianalde_storage_ptr is analt
+	 * NULL as ianalde_storage_lookup returns NULL in this case and
 	 * bpf_local_storage_update expects the owner to have a
 	 * valid storage pointer.
 	 */
-	if (!inode || !inode_storage_ptr(inode))
+	if (!ianalde || !ianalde_storage_ptr(ianalde))
 		return (unsigned long)NULL;
 
-	sdata = inode_storage_lookup(inode, map, true);
+	sdata = ianalde_storage_lookup(ianalde, map, true);
 	if (sdata)
 		return (unsigned long)sdata->data;
 
-	/* This helper must only called from where the inode is guaranteed
-	 * to have a refcount and cannot be freed.
+	/* This helper must only called from where the ianalde is guaranteed
+	 * to have a refcount and cananalt be freed.
 	 */
 	if (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) {
 		sdata = bpf_local_storage_update(
-			inode, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
+			ianalde, (struct bpf_local_storage_map *)map, value,
+			BPF_ANALEXIST, gfp_flags);
 		return IS_ERR(sdata) ? (unsigned long)NULL :
 					     (unsigned long)sdata->data;
 	}
@@ -170,68 +170,68 @@ BPF_CALL_5(bpf_inode_storage_get, struct bpf_map *, map, struct inode *, inode,
 	return (unsigned long)NULL;
 }
 
-BPF_CALL_2(bpf_inode_storage_delete,
-	   struct bpf_map *, map, struct inode *, inode)
+BPF_CALL_2(bpf_ianalde_storage_delete,
+	   struct bpf_map *, map, struct ianalde *, ianalde)
 {
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
-	if (!inode)
+	if (!ianalde)
 		return -EINVAL;
 
-	/* This helper must only called from where the inode is guaranteed
-	 * to have a refcount and cannot be freed.
+	/* This helper must only called from where the ianalde is guaranteed
+	 * to have a refcount and cananalt be freed.
 	 */
-	return inode_storage_delete(inode, map);
+	return ianalde_storage_delete(ianalde, map);
 }
 
-static int notsupp_get_next_key(struct bpf_map *map, void *key,
+static int analtsupp_get_next_key(struct bpf_map *map, void *key,
 				void *next_key)
 {
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
-static struct bpf_map *inode_storage_map_alloc(union bpf_attr *attr)
+static struct bpf_map *ianalde_storage_map_alloc(union bpf_attr *attr)
 {
-	return bpf_local_storage_map_alloc(attr, &inode_cache, false);
+	return bpf_local_storage_map_alloc(attr, &ianalde_cache, false);
 }
 
-static void inode_storage_map_free(struct bpf_map *map)
+static void ianalde_storage_map_free(struct bpf_map *map)
 {
-	bpf_local_storage_map_free(map, &inode_cache, NULL);
+	bpf_local_storage_map_free(map, &ianalde_cache, NULL);
 }
 
-const struct bpf_map_ops inode_storage_map_ops = {
+const struct bpf_map_ops ianalde_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
-	.map_alloc = inode_storage_map_alloc,
-	.map_free = inode_storage_map_free,
-	.map_get_next_key = notsupp_get_next_key,
-	.map_lookup_elem = bpf_fd_inode_storage_lookup_elem,
-	.map_update_elem = bpf_fd_inode_storage_update_elem,
-	.map_delete_elem = bpf_fd_inode_storage_delete_elem,
+	.map_alloc = ianalde_storage_map_alloc,
+	.map_free = ianalde_storage_map_free,
+	.map_get_next_key = analtsupp_get_next_key,
+	.map_lookup_elem = bpf_fd_ianalde_storage_lookup_elem,
+	.map_update_elem = bpf_fd_ianalde_storage_update_elem,
+	.map_delete_elem = bpf_fd_ianalde_storage_delete_elem,
 	.map_check_btf = bpf_local_storage_map_check_btf,
 	.map_mem_usage = bpf_local_storage_map_mem_usage,
 	.map_btf_id = &bpf_local_storage_map_btf_id[0],
-	.map_owner_storage_ptr = inode_storage_ptr,
+	.map_owner_storage_ptr = ianalde_storage_ptr,
 };
 
-BTF_ID_LIST_SINGLE(bpf_inode_storage_btf_ids, struct, inode)
+BTF_ID_LIST_SINGLE(bpf_ianalde_storage_btf_ids, struct, ianalde)
 
-const struct bpf_func_proto bpf_inode_storage_get_proto = {
-	.func		= bpf_inode_storage_get,
+const struct bpf_func_proto bpf_ianalde_storage_get_proto = {
+	.func		= bpf_ianalde_storage_get,
 	.gpl_only	= false,
 	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID_OR_NULL,
-	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
+	.arg2_btf_id	= &bpf_ianalde_storage_btf_ids[0],
 	.arg3_type	= ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type	= ARG_ANYTHING,
 };
 
-const struct bpf_func_proto bpf_inode_storage_delete_proto = {
-	.func		= bpf_inode_storage_delete,
+const struct bpf_func_proto bpf_ianalde_storage_delete_proto = {
+	.func		= bpf_ianalde_storage_delete,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID_OR_NULL,
-	.arg2_btf_id	= &bpf_inode_storage_btf_ids[0],
+	.arg2_btf_id	= &bpf_ianalde_storage_btf_ids[0],
 };

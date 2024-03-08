@@ -221,7 +221,7 @@ struct dpu_hw_vbif *dpu_hw_vbif_init(struct drm_device *dev,
 
 	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	c->hw.blk_addr = addr + cfg->base;
 	c->hw.log_mask = DPU_DBG_MASK_VBIF;
@@ -233,7 +233,7 @@ struct dpu_hw_vbif *dpu_hw_vbif_init(struct drm_device *dev,
 	c->cap = cfg;
 	_setup_vbif_ops(&c->ops, c->cap->features);
 
-	/* no need to register sub-range in dpu dbg, dump entire vbif io base */
+	/* anal need to register sub-range in dpu dbg, dump entire vbif io base */
 
 	return c;
 }

@@ -14,7 +14,7 @@ static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
 
 	link_id = ffz(mvm->fw_link_ids_map);
 
-	/* this case can happen if there're deactivated but not removed links */
+	/* this case can happen if there're deactivated but analt removed links */
 	if (link_id > IWL_MVM_FW_MAX_LINK_ID)
 		return IWL_MVM_FW_LINK_ID_INVALID;
 
@@ -108,7 +108,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (changes & LINK_CONTEXT_MODIFY_ACTIVE) {
 		/* When activating a link, phy context should be valid;
 		 * when deactivating a link, it also should be valid since
-		 * the link was active before. So, do nothing in this case.
+		 * the link was active before. So, do analthing in this case.
 		 * Since a link is added first with FW_CTXT_INVALID, then we
 		 * can get here in case it's removed before it was activated.
 		 */
@@ -130,7 +130,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 
 	/* The phy_id, link address and listen_lmac can be modified only until
-	 * the link becomes active, otherwise they will be ignored.
+	 * the link becomes active, otherwise they will be iganalred.
 	 */
 	phyctxt = link_info->phy_ctxt;
 	if (phyctxt)
@@ -152,7 +152,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd.cck_short_preamble = cpu_to_le32(link_conf->use_short_preamble);
 	cmd.short_slot = cpu_to_le32(link_conf->use_short_slot);
 
-	/* The fw does not distinguish between ht and fat */
+	/* The fw does analt distinguish between ht and fat */
 	ht_flag = LINK_PROT_FLG_HT_PROT | LINK_PROT_FLG_FAT_PROT;
 	iwl_mvm_set_fw_protection_flags(mvm, vif, link_conf,
 					&cmd.protection_flags,
@@ -213,7 +213,7 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		flags_mask |= LINK_FLG_RU_2MHZ_BLOCK;
 	}
 
-	if (link_conf->nontransmitted) {
+	if (link_conf->analntransmitted) {
 		ether_addr_copy(cmd.ref_bssid_addr,
 				link_conf->transmitter_bssid);
 		cmd.bssid_index = link_conf->bssid_index;

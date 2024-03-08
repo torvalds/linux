@@ -123,11 +123,11 @@
 #define RT5514_TDM_MODE_SFT			28
 #define RT5514_I2S_LR_MASK			(0x1 << 26)
 #define RT5514_I2S_LR_SFT			26
-#define RT5514_I2S_LR_NOR			(0x0 << 26)
+#define RT5514_I2S_LR_ANALR			(0x0 << 26)
 #define RT5514_I2S_LR_INV			(0x1 << 26)
 #define RT5514_I2S_BP_MASK			(0x1 << 25)
 #define RT5514_I2S_BP_SFT			25
-#define RT5514_I2S_BP_NOR			(0x0 << 25)
+#define RT5514_I2S_BP_ANALR			(0x0 << 25)
 #define RT5514_I2S_BP_INV			(0x1 << 25)
 #define RT5514_I2S_DF_MASK			(0x7 << 16)
 #define RT5514_I2S_DF_SFT			16

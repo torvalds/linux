@@ -183,19 +183,19 @@ static void sxgbe_dma_stop_rx(void __iomem *ioaddr, int rchannels)
 	}
 }
 
-static int sxgbe_tx_dma_int_status(void __iomem *ioaddr, int channel_no,
+static int sxgbe_tx_dma_int_status(void __iomem *ioaddr, int channel_anal,
 				   struct sxgbe_extra_stats *x)
 {
-	u32 int_status = readl(ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_no));
+	u32 int_status = readl(ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_anal));
 	u32 clear_val = 0;
 	u32 ret_val = 0;
 
-	/* TX Normal Interrupt Summary */
+	/* TX Analrmal Interrupt Summary */
 	if (likely(int_status & SXGBE_DMA_INT_STATUS_NIS)) {
-		x->normal_irq_n++;
+		x->analrmal_irq_n++;
 		if (int_status & SXGBE_DMA_INT_STATUS_TI) {
 			ret_val |= handle_tx;
-			x->tx_normal_irq_n++;
+			x->tx_analrmal_irq_n++;
 			clear_val |= SXGBE_DMA_INT_STATUS_TI;
 		}
 
@@ -205,7 +205,7 @@ static int sxgbe_tx_dma_int_status(void __iomem *ioaddr, int channel_no,
 			clear_val |= SXGBE_DMA_INT_STATUS_TBU;
 		}
 	} else if (unlikely(int_status & SXGBE_DMA_INT_STATUS_AIS)) {
-		/* TX Abnormal Interrupt Summary */
+		/* TX Abanalrmal Interrupt Summary */
 		if (int_status & SXGBE_DMA_INT_STATUS_TPS) {
 			ret_val |= tx_hard_error;
 			clear_val |= SXGBE_DMA_INT_STATUS_TPS;
@@ -250,28 +250,28 @@ static int sxgbe_tx_dma_int_status(void __iomem *ioaddr, int channel_no,
 	}
 
 	/* clear the served bits */
-	writel(clear_val, ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_no));
+	writel(clear_val, ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_anal));
 
 	return ret_val;
 }
 
-static int sxgbe_rx_dma_int_status(void __iomem *ioaddr, int channel_no,
+static int sxgbe_rx_dma_int_status(void __iomem *ioaddr, int channel_anal,
 				   struct sxgbe_extra_stats *x)
 {
-	u32 int_status = readl(ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_no));
+	u32 int_status = readl(ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_anal));
 	u32 clear_val = 0;
 	u32 ret_val = 0;
 
-	/* RX Normal Interrupt Summary */
+	/* RX Analrmal Interrupt Summary */
 	if (likely(int_status & SXGBE_DMA_INT_STATUS_NIS)) {
-		x->normal_irq_n++;
+		x->analrmal_irq_n++;
 		if (int_status & SXGBE_DMA_INT_STATUS_RI) {
 			ret_val |= handle_rx;
-			x->rx_normal_irq_n++;
+			x->rx_analrmal_irq_n++;
 			clear_val |= SXGBE_DMA_INT_STATUS_RI;
 		}
 	} else if (unlikely(int_status & SXGBE_DMA_INT_STATUS_AIS)) {
-		/* RX Abnormal Interrupt Summary */
+		/* RX Abanalrmal Interrupt Summary */
 		if (int_status & SXGBE_DMA_INT_STATUS_RBU) {
 			ret_val |= rx_bump_tc;
 			clear_val |= SXGBE_DMA_INT_STATUS_RBU;
@@ -316,7 +316,7 @@ static int sxgbe_rx_dma_int_status(void __iomem *ioaddr, int channel_no,
 	}
 
 	/* clear the served bits */
-	writel(clear_val, ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_no));
+	writel(clear_val, ioaddr + SXGBE_DMA_CHA_STATUS_REG(channel_anal));
 
 	return ret_val;
 }

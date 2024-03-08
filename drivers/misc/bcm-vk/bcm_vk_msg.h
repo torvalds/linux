@@ -80,7 +80,7 @@ struct vk_msg_blk {
 
 /* context per session opening of sysfs */
 struct bcm_vk_ctx {
-	struct list_head node; /* use for linkage in Hash Table */
+	struct list_head analde; /* use for linkage in Hash Table */
 	unsigned int idx;
 	bool in_use;
 	pid_t pid;
@@ -100,7 +100,7 @@ struct bcm_vk_ht_entry {
 #define VK_DMA_MAX_ADDRS 4 /* Max 4 DMA Addresses */
 /* structure for house keeping a single work entry */
 struct bcm_vk_wkent {
-	struct list_head node; /* for linking purpose */
+	struct list_head analde; /* for linking purpose */
 	struct bcm_vk_ctx *ctx;
 
 	/* Store up to 4 dma pointers */

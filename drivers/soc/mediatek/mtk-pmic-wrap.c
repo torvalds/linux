@@ -66,7 +66,7 @@
 #define PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE	(1 << 20)
 #define PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE	(1 << 6)
 #define PWRAP_WDT_SRC_MASK_ALL			0xffffffff
-#define PWRAP_WDT_SRC_MASK_NO_STAUPD	~(PWRAP_WDT_SRC_EN_STAUPD_TRIG | \
+#define PWRAP_WDT_SRC_MASK_ANAL_STAUPD	~(PWRAP_WDT_SRC_EN_STAUPD_TRIG | \
 					  PWRAP_WDT_SRC_EN_HARB_STAUPD_DLE | \
 					  PWRAP_WDT_SRC_EN_HARB_STAUPD_ALE)
 
@@ -102,7 +102,7 @@ enum dew_regs {
 
 	/* MT6323 only regs */
 	PWRAP_DEW_CIPHER_EN,
-	PWRAP_DEW_RDDMY_NO,
+	PWRAP_DEW_RDDMY_ANAL,
 
 	/* MT6358 only regs */
 	PWRAP_SMT_CON1,
@@ -168,7 +168,7 @@ static const u32 mt6323_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0x019e,
 	[PWRAP_DEW_CIPHER_MODE] =	0x01a0,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x01a2,
-	[PWRAP_DEW_RDDMY_NO] =		0x01a4,
+	[PWRAP_DEW_RDDMY_ANAL] =		0x01a4,
 };
 
 static const u32 mt6331_regs[] = {
@@ -185,7 +185,7 @@ static const u32 mt6331_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0x01a0,
 	[PWRAP_DEW_CIPHER_MODE] =	0x01a2,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x01a4,
-	[PWRAP_DEW_RDDMY_NO] =		0x01a6,
+	[PWRAP_DEW_RDDMY_ANAL] =		0x01a6,
 };
 
 static const u32 mt6332_regs[] = {
@@ -202,7 +202,7 @@ static const u32 mt6332_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0x810a,
 	[PWRAP_DEW_CIPHER_MODE] =	0x810c,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x810e,
-	[PWRAP_DEW_RDDMY_NO] =		0x8110,
+	[PWRAP_DEW_RDDMY_ANAL] =		0x8110,
 };
 
 static const u32 mt6351_regs[] = {
@@ -217,7 +217,7 @@ static const u32 mt6351_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0x0306,
 	[PWRAP_DEW_CIPHER_MODE] =	0x0308,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x030A,
-	[PWRAP_DEW_RDDMY_NO] =		0x030C,
+	[PWRAP_DEW_RDDMY_ANAL] =		0x030C,
 };
 
 static const u32 mt6357_regs[] = {
@@ -232,7 +232,7 @@ static const u32 mt6357_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =        0x041E,
 	[PWRAP_DEW_CIPHER_MODE] =       0x0420,
 	[PWRAP_DEW_CIPHER_SWRST] =      0x0422,
-	[PWRAP_DEW_RDDMY_NO] =          0x0424,
+	[PWRAP_DEW_RDDMY_ANAL] =          0x0424,
 };
 
 static const u32 mt6358_regs[] = {
@@ -277,7 +277,7 @@ static const u32 mt6359_regs[] = {
 	[PWRAP_DEW_CIPHER_RDY] =	0x041e,
 	[PWRAP_DEW_CIPHER_MODE] =	0x0420,
 	[PWRAP_DEW_CIPHER_SWRST] =	0x0422,
-	[PWRAP_DEW_RDDMY_NO] =		0x0424,
+	[PWRAP_DEW_RDDMY_ANAL] =		0x0424,
 	[PWRAP_DEW_RECORD_CMD0] =	0x0428,
 	[PWRAP_DEW_RECORD_CMD1] =	0x042a,
 	[PWRAP_DEW_RECORD_CMD2] =	0x042c,
@@ -1423,7 +1423,7 @@ static bool pwrap_is_fsm_vldclr(struct pmic_wrapper *wrp)
 
 /*
  * Timeout issue sometimes caused by the last read command
- * failed because pmic wrap could not got the FSM_VLDCLR
+ * failed because pmic wrap could analt got the FSM_VLDCLR
  * in time after finishing WACS2_CMD. It made state machine
  * still on FSM_VLDCLR and timeout next time.
  * Check the status of FSM and clear the vldclr to recovery the
@@ -1662,7 +1662,7 @@ static int pwrap_init_sidly(struct pmic_wrapper *wrp)
 	}
 
 	if (dly[pass] < 0) {
-		dev_err(wrp->dev, "sidly pass range 0x%x not continuous\n",
+		dev_err(wrp->dev, "sidly pass range 0x%x analt continuous\n",
 				pass);
 		return -EIO;
 	}
@@ -1741,11 +1741,11 @@ static int pwrap_common_init_reg_clock(struct pmic_wrapper *wrp)
 		if (wrp->slave->type == PMIC_MT6331) {
 			const u32 *dew_regs = wrp->slave->dew_regs;
 
-			pwrap_write(wrp, dew_regs[PWRAP_DEW_RDDMY_NO], 0x8);
+			pwrap_write(wrp, dew_regs[PWRAP_DEW_RDDMY_ANAL], 0x8);
 
 			if (wrp->slave->comp_type == PMIC_MT6332) {
 				dew_regs = wrp->slave->comp_dew_regs;
-				pwrap_write(wrp, dew_regs[PWRAP_DEW_RDDMY_NO], 0x8);
+				pwrap_write(wrp, dew_regs[PWRAP_DEW_RDDMY_ANAL], 0x8);
 			}
 		}
 		pwrap_writel(wrp, 0x88, PWRAP_RDDMY);
@@ -1775,7 +1775,7 @@ static int pwrap_mt2701_init_reg_clock(struct pmic_wrapper *wrp)
 
 	case PMIC_MT6323:
 		pwrap_writel(wrp, 0x8, PWRAP_RDDMY);
-		pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_RDDMY_NO],
+		pwrap_write(wrp, wrp->slave->dew_regs[PWRAP_DEW_RDDMY_ANAL],
 			    0x8);
 		pwrap_init_chip_select_ext(wrp, 5, 0, 2, 2);
 		break;
@@ -2142,7 +2142,7 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	return 0;
 }
 
-static irqreturn_t pwrap_interrupt(int irqno, void *dev_id)
+static irqreturn_t pwrap_interrupt(int irqanal, void *dev_id)
 {
 	u32 rdata;
 	struct pmic_wrapper *wrp = dev_id;
@@ -2313,7 +2313,7 @@ static const struct pmic_wrapper_type pwrap_mt6795 = {
 	.int_en_all = ~(u32)(BIT(31) | BIT(2) | BIT(1)),
 	.int1_en_all = 0,
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
-	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
+	.wdt_src = PWRAP_WDT_SRC_MASK_ANAL_STAUPD,
 	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt6795_init_soc_specific,
@@ -2378,7 +2378,7 @@ static const struct pmic_wrapper_type pwrap_mt8173 = {
 	.int_en_all = ~(u32)(BIT(31) | BIT(1)),
 	.int1_en_all = 0,
 	.spi_w = PWRAP_MAN_CMD_SPI_WRITE,
-	.wdt_src = PWRAP_WDT_SRC_MASK_NO_STAUPD,
+	.wdt_src = PWRAP_WDT_SRC_MASK_ANAL_STAUPD,
 	.caps = PWRAP_CAP_RESET | PWRAP_CAP_DCM,
 	.init_reg_clock = pwrap_common_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
@@ -2472,11 +2472,11 @@ static int pwrap_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 mask_done;
 	struct pmic_wrapper *wrp;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	const struct of_device_id *of_slave_id = NULL;
 
 	if (np->child)
-		of_slave_id = of_match_node(of_slave_match_tbl, np->child);
+		of_slave_id = of_match_analde(of_slave_match_tbl, np->child);
 
 	if (!of_slave_id) {
 		dev_dbg(&pdev->dev, "slave pmic should be defined in dts\n");
@@ -2485,7 +2485,7 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	wrp = devm_kzalloc(&pdev->dev, sizeof(*wrp), GFP_KERNEL);
 	if (!wrp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, wrp);
 
@@ -2501,7 +2501,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
 		if (IS_ERR(wrp->rstc)) {
 			ret = PTR_ERR(wrp->rstc);
-			dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
+			dev_dbg(wrp->dev, "cananalt get pwrap reset: %d\n", ret);
 			return ret;
 		}
 	}
@@ -2516,7 +2516,7 @@ static int pwrap_probe(struct platform_device *pdev)
 		if (IS_ERR(wrp->rstc_bridge)) {
 			ret = PTR_ERR(wrp->rstc_bridge);
 			dev_dbg(wrp->dev,
-				"cannot get pwrap-bridge reset: %d\n", ret);
+				"cananalt get pwrap-bridge reset: %d\n", ret);
 			return ret;
 		}
 	}
@@ -2592,16 +2592,16 @@ static int pwrap_probe(struct platform_device *pdev)
 
 	if (!(pwrap_readl(wrp, PWRAP_WACS2_RDATA) & mask_done)) {
 		dev_dbg(wrp->dev, "initialization isn't finished\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_out4;
 	}
 
-	/* Initialize watchdog, may not be done by the bootloader */
+	/* Initialize watchdog, may analt be done by the bootloader */
 	if (!HAS_CAP(wrp->master->caps, PWRAP_CAP_ARB))
 		pwrap_writel(wrp, 0xf, PWRAP_WDT_UNIT);
 
 	/*
-	 * Since STAUPD was not used on mt8173 platform,
+	 * Since STAUPD was analt used on mt8173 platform,
 	 * so STAUPD of WDT_SRC which should be turned off
 	 */
 	pwrap_writel(wrp, wrp->master->wdt_src, PWRAP_WDT_SRC_EN);

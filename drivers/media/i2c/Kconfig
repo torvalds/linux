@@ -29,7 +29,7 @@ menuconfig VIDEO_CAMERA_SENSOR
 	bool "Camera sensor devices"
 	depends on MEDIA_CAMERA_SUPPORT && I2C
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	default y
 
@@ -237,7 +237,7 @@ config VIDEO_MAX9271_LIB
 config VIDEO_MT9M001
 	tristate "mt9m001 support"
 	help
-	  This driver supports MT9M001 cameras from Micron, monochrome
+	  This driver supports MT9M001 cameras from Micron, moanalchrome
 	  and colour models.
 
 config VIDEO_MT9M111
@@ -677,7 +677,7 @@ config VIDEO_THP7312
 	select FW_LOADER
 	select MEDIA_CONTROLLER
 	select V4L2_CCI_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor-level driver for the THine
@@ -695,7 +695,7 @@ config VIDEO_AD5820
 	select V4L2_ASYNC
 	help
 	  This is a driver for the AD5820 camera lens voice coil.
-	  It is used for example in Nokia N900 (RX-51).
+	  It is used for example in Analkia N900 (RX-51).
 
 config VIDEO_AK7375
 	tristate "AK7375 lens voice coil support"
@@ -738,7 +738,7 @@ config VIDEO_DW9768
 	depends on I2C && VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This is a driver for the DW9768 camera lens voice coil.
 	  DW9768 is a 10 bit DAC with 100mA output current sink
@@ -769,7 +769,7 @@ config VIDEO_ADP1653
 	select V4L2_ASYNC
 	help
 	  This is a driver for the ADP1653 flash controller. It is used for
-	  example in Nokia N900.
+	  example in Analkia N900.
 
 config VIDEO_LM3560
 	tristate "LM3560 dual flash driver support"
@@ -860,7 +860,7 @@ config VIDEO_TDA1997X
 	depends on SND_SOC
 	select HDMI
 	select SND_PCM
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	help
@@ -1015,7 +1015,7 @@ config VIDEO_ADV748X
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  V4L2 subdevice driver for the Analog Devices
 	  ADV7481 and ADV7482 HDMI/Analog video decoders.
@@ -1031,7 +1031,7 @@ config VIDEO_ADV7604
 	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP_I2C
 	select HDMI
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -1105,7 +1105,7 @@ config VIDEO_ISL7998X
 	depends on OF_GPIO
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for Intersil ISL7998x analog to MIPI-CSI2 or
 	  BT.656 decoder.
@@ -1116,7 +1116,7 @@ config VIDEO_KS0127
 	help
 	  Support for KS0127 video decoder.
 
-	  This chip is used on AverMedia AVS6EYES Zoran-based MJPEG
+	  This chip is used on AverMedia AVS6EANAL Zoran-based MJPEG
 	  cards.
 
 	  To compile this driver as a module, choose M here: the
@@ -1127,7 +1127,7 @@ config VIDEO_MAX9286
 	depends on I2C && I2C_MUX
 	depends on VIDEO_DEV
 	depends on OF_GPIO
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
 	help
@@ -1169,7 +1169,7 @@ config VIDEO_TC358743
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select HDMI
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for the Toshiba TC358743 HDMI to MIPI CSI-2 bridge.
 
@@ -1189,7 +1189,7 @@ config VIDEO_TC358746
 	depends on VIDEO_DEV && PM && I2C
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select GENERIC_PHY
 	select GENERIC_PHY_MIPI_DPHY
 	select REGMAP_I2C
@@ -1204,7 +1204,7 @@ config VIDEO_TC358746
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_DEV && I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  This is a Video4Linux2 sensor driver for the TI TVP5146/47
 	  decoder. It is currently working with the TI OMAP3 camera
@@ -1216,7 +1216,7 @@ config VIDEO_TVP514X
 config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_DEV && I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select REGMAP_I2C
 	help
 	  Support for the Texas Instruments TVP5150 video decoder.
@@ -1227,7 +1227,7 @@ config VIDEO_TVP5150
 config VIDEO_TVP7002
 	tristate "Texas Instruments TVP7002 video decoder"
 	depends on VIDEO_DEV && I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for the Texas Instruments TVP7002 video decoder.
 
@@ -1505,7 +1505,7 @@ config VIDEO_ST_MIPID02
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_CCI_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	help
 	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.
 	  It is used to allow usage of CSI-2 sensor with PARALLEL port
@@ -1539,7 +1539,7 @@ config VIDEO_DS90UB913
 	select MEDIA_CONTROLLER
 	select GPIOLIB
 	select REGMAP_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Device driver for the Texas Instruments DS90UB913
@@ -1552,7 +1552,7 @@ config VIDEO_DS90UB953
 	select MEDIA_CONTROLLER
 	select GPIOLIB
 	select REGMAP_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Device driver for the Texas Instruments DS90UB953
@@ -1565,7 +1565,7 @@ config VIDEO_DS90UB960
 	select MEDIA_CONTROLLER
 	select GPIOLIB
 	select REGMAP_I2C
-	select V4L2_FWNODE
+	select V4L2_FWANALDE
 	select VIDEO_V4L2_SUBDEV_API
 	help
 	  Device driver for the Texas Instruments DS90UB960

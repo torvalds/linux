@@ -71,14 +71,14 @@ static const struct isl29028_prox_data isl29028_prox_data[] = {
 	{  13, 300000,  75 },
 	{  20,      0,  50 },
 	{  80,      0,  13 }, /*
-			       * Note: Data sheet lists 12.5 ms sleep time.
+			       * Analte: Data sheet lists 12.5 ms sleep time.
 			       * Round up a half millisecond for msleep().
 			       */
 	{ 100,  0,   0 }
 };
 
 enum isl29028_als_ir_mode {
-	ISL29028_MODE_NONE = 0,
+	ISL29028_MODE_ANALNE = 0,
 	ISL29028_MODE_ALS,
 	ISL29028_MODE_IR,
 };
@@ -208,7 +208,7 @@ static int isl29028_set_als_ir_mode(struct isl29028_chip *chip,
 					 ISL29028_CONF_ALS_IR_MODE_MASK,
 					 ISL29028_CONF_ALS_IR_MODE_IR);
 		break;
-	case ISL29028_MODE_NONE:
+	case ISL29028_MODE_ANALNE:
 		return regmap_update_bits(chip->regmap, ISL29028_REG_CONFIGURE,
 					  ISL29028_CONF_ALS_EN_MASK,
 					  ISL29028_CONF_ALS_DIS);
@@ -368,14 +368,14 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	case IIO_PROXIMITY:
 		if (mask != IIO_CHAN_INFO_SAMP_FREQ) {
 			dev_err(dev,
-				"%s(): proximity: Mask value 0x%08lx is not supported\n",
+				"%s(): proximity: Mask value 0x%08lx is analt supported\n",
 				__func__, mask);
 			break;
 		}
 
 		if (val < 1 || val > 100) {
 			dev_err(dev,
-				"%s(): proximity: Sampling frequency %d is not in the range [1:100]\n",
+				"%s(): proximity: Sampling frequency %d is analt in the range [1:100]\n",
 				__func__, val);
 			break;
 		}
@@ -385,14 +385,14 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	case IIO_LIGHT:
 		if (mask != IIO_CHAN_INFO_SCALE) {
 			dev_err(dev,
-				"%s(): light: Mask value 0x%08lx is not supported\n",
+				"%s(): light: Mask value 0x%08lx is analt supported\n",
 				__func__, mask);
 			break;
 		}
 
 		if (val != 125 && val != 2000) {
 			dev_err(dev,
-				"%s(): light: Lux scale %d is not in the set {125, 2000}\n",
+				"%s(): light: Lux scale %d is analt in the set {125, 2000}\n",
 				__func__, val);
 			break;
 		}
@@ -469,7 +469,7 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 	default:
-		dev_err(dev, "%s(): mask value 0x%08lx is not supported\n",
+		dev_err(dev, "%s(): mask value 0x%08lx is analt supported\n",
 			__func__, mask);
 		break;
 	}
@@ -537,7 +537,7 @@ static int isl29028_clear_configure_reg(struct isl29028_chip *chip)
 		dev_err(dev, "%s(): Error %d clearing the CONFIGURE register\n",
 			__func__, ret);
 
-	chip->als_ir_mode = ISL29028_MODE_NONE;
+	chip->als_ir_mode = ISL29028_MODE_ANALNE;
 	chip->enable_prox = false;
 
 	return ret;
@@ -574,7 +574,7 @@ static int isl29028_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 

@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/phy/qcom,usb-hs-28nm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Synopsys DesignWare Core 28nm High-Speed PHY
+title: Qualcomm Syanalpsys DesignWare Core 28nm High-Speed PHY
 
 maintainers:
-  - Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+  - Bryan O'Doanalghue <bryan.odoanalghue@linaro.org>
 
 description: |
   Qualcomm Low-Speed, Full-Speed, Hi-Speed 28nm USB PHY
@@ -46,13 +46,13 @@ properties:
       - const: por
 
   vdd-supply:
-    description: phandle to the regulator VDD supply node.
+    description: phandle to the regulator VDD supply analde.
 
   vdda1p8-supply:
-    description: phandle to the regulator 1.8V supply node.
+    description: phandle to the regulator 1.8V supply analde.
 
   vdda3p3-supply:
-    description: phandle to the regulator 3.3V supply node.
+    description: phandle to the regulator 3.3V supply analde.
 
 required:
   - compatible

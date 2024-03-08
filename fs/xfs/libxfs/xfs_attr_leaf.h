@@ -12,7 +12,7 @@ struct xfs_attr_list_context;
 struct xfs_da_args;
 struct xfs_da_state;
 struct xfs_da_state_blk;
-struct xfs_inode;
+struct xfs_ianalde;
 struct xfs_trans;
 
 /*
@@ -43,7 +43,7 @@ struct xfs_attr3_icleaf_hdr {
  *========================================================================*/
 
 /*
- * Internal routines when attribute fork size < XFS_LITINO(mp).
+ * Internal routines when attribute fork size < XFS_LITIANAL(mp).
  */
 void	xfs_attr_shortform_create(struct xfs_da_args *args);
 void	xfs_attr_shortform_add(struct xfs_da_args *args, int forkoff);
@@ -51,16 +51,16 @@ int	xfs_attr_shortform_getvalue(struct xfs_da_args *args);
 int	xfs_attr_shortform_to_leaf(struct xfs_da_args *args);
 int	xfs_attr_sf_removename(struct xfs_da_args *args);
 struct xfs_attr_sf_entry *xfs_attr_sf_findname(struct xfs_da_args *args);
-int	xfs_attr_shortform_allfit(struct xfs_buf *bp, struct xfs_inode *dp);
-int	xfs_attr_shortform_bytesfit(struct xfs_inode *dp, int bytes);
+int	xfs_attr_shortform_allfit(struct xfs_buf *bp, struct xfs_ianalde *dp);
+int	xfs_attr_shortform_bytesfit(struct xfs_ianalde *dp, int bytes);
 xfs_failaddr_t xfs_attr_shortform_verify(struct xfs_attr_sf_hdr *sfp,
 		size_t size);
-void	xfs_attr_fork_remove(struct xfs_inode *ip, struct xfs_trans *tp);
+void	xfs_attr_fork_remove(struct xfs_ianalde *ip, struct xfs_trans *tp);
 
 /*
  * Internal routines when attribute fork size == XFS_LBSIZE(mp).
  */
-int	xfs_attr3_leaf_to_node(struct xfs_da_args *args);
+int	xfs_attr3_leaf_to_analde(struct xfs_da_args *args);
 int	xfs_attr3_leaf_to_shortform(struct xfs_buf *bp,
 				   struct xfs_da_args *args, int forkoff);
 int	xfs_attr3_leaf_clearflag(struct xfs_da_args *args);
@@ -97,8 +97,8 @@ xfs_dahash_t	xfs_attr_leaf_lasthash(struct xfs_buf *bp, int *count);
 int	xfs_attr_leaf_order(struct xfs_buf *leaf1_bp,
 				   struct xfs_buf *leaf2_bp);
 int	xfs_attr_leaf_newentsize(struct xfs_da_args *args, int *local);
-int	xfs_attr3_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
-			xfs_dablk_t bno, struct xfs_buf **bpp);
+int	xfs_attr3_leaf_read(struct xfs_trans *tp, struct xfs_ianalde *dp,
+			xfs_dablk_t banal, struct xfs_buf **bpp);
 void	xfs_attr3_leaf_hdr_from_disk(struct xfs_da_geometry *geo,
 				     struct xfs_attr3_icleaf_hdr *to,
 				     struct xfs_attr_leafblock *from);

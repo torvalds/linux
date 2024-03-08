@@ -48,11 +48,11 @@ static int mdio_mux_gpio_probe(struct platform_device *pdev)
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
 	if (!s)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	s->gpios = gpios;
 
-	r = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+	r = mdio_mux_init(&pdev->dev, pdev->dev.of_analde,
 			  mdio_mux_gpio_switch_fn, &s->mux_handle, s, NULL);
 
 	if (r != 0)

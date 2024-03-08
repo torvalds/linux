@@ -16,7 +16,7 @@
 #include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/netdevice.h>
 #include <linux/major.h>
 #include <linux/init.h>
@@ -67,7 +67,7 @@ struct mkiss {
         int		crcmode;	/* MW: for FlexNet, SMACK etc.  */
 	int		crcauto;	/* CRC auto mode */
 
-#define CRC_MODE_NONE		0
+#define CRC_MODE_ANALNE		0
 #define CRC_MODE_FLEX		1
 #define CRC_MODE_SMACK		2
 #define CRC_MODE_FLEX_TEST	3
@@ -166,7 +166,7 @@ static int kiss_esc(unsigned char *s, unsigned char *d, int len)
 
 	/*
 	 * Send an initial END character to flush out any data that may have
-	 * accumulated in the receiver due to line noise.
+	 * accumulated in the receiver due to line analise.
 	 */
 
 	*ptr++ = END;
@@ -272,9 +272,9 @@ static void ax_bump(struct mkiss *ax)
 
 			/*
 			 * dl9sau bugfix: the trailling two bytes flexnet crc
-			 * will not be passed to the kernel. thus we have to
+			 * will analt be passed to the kernel. thus we have to
 			 * correct the kissparm signature, because it indicates
-			 * a crc but there's none
+			 * a crc but there's analne
 			 */
 			*ax->rbuff &= ~0x20;
 		}
@@ -364,7 +364,7 @@ static void ax_changedmtu(struct mkiss *ax)
 	len = dev->mtu * 2;
 
 	/*
-	 * allow for arrival of larger UDP packets, even if we say not to
+	 * allow for arrival of larger UDP packets, even if we say analt to
 	 * also fixes a bug in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
@@ -449,7 +449,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		switch (*p & 0xff) {
 		case 0x85:
 			/* command from userspace especially for us,
-			 * not for delivery to the tnc */
+			 * analt for delivery to the tnc */
 			if (len > 1) {
 				int cmd = (p[1] & 0xff);
 				switch(cmd) {
@@ -460,7 +460,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 				  ax->crcmode = CRC_MODE_FLEX;
 				  break;
 				case 1:
-				  ax->crcmode = CRC_MODE_NONE;
+				  ax->crcmode = CRC_MODE_ANALNE;
 				  break;
 				case 0:
 				default:
@@ -491,7 +491,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 			count = kiss_esc_crc(p, ax->xbuff, crc, len+2);
 			break;
 		case CRC_MODE_FLEX_TEST:
-			ax->crcmode = CRC_MODE_NONE;
+			ax->crcmode = CRC_MODE_ANALNE;
 			printk(KERN_INFO "mkiss: %s: Trying crc-flexnet\n", ax->dev->name);
 			fallthrough;
 		case CRC_MODE_FLEX:
@@ -535,7 +535,7 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		 *      14 Oct 1994 Dmitry Gorodchanin.
 		 */
 		if (time_before(jiffies, dev_trans_start(dev) + 20 * HZ)) {
-			/* 20 sec timeout not reached */
+			/* 20 sec timeout analt reached */
 			return NETDEV_TX_BUSY;
 		}
 
@@ -548,7 +548,7 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
-	/* We were not busy, so we are now... :-) */
+	/* We were analt busy, so we are analw... :-) */
 	netif_stop_queue(dev);
 	ax_encaps(dev, skb->data, skb->len);
 	kfree_skb(skb);
@@ -561,7 +561,7 @@ static int ax_open_dev(struct net_device *dev)
 	struct mkiss *ax = netdev_priv(dev);
 
 	if (ax->tty == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -573,7 +573,7 @@ static int ax_open(struct net_device *dev)
 	unsigned long len;
 
 	if (ax->tty == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Allocate the frame buffers:
@@ -584,7 +584,7 @@ static int ax_open(struct net_device *dev)
 	len = dev->mtu * 2;
 
 	/*
-	 * allow for arrival of larger UDP packets, even if we say not to
+	 * allow for arrival of larger UDP packets, even if we say analt to
 	 * also fixes a bug in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
@@ -592,10 +592,10 @@ static int ax_open(struct net_device *dev)
 		len = 576 * 2;
 
 	if ((ax->rbuff = kmalloc(len + 4, GFP_KERNEL)) == NULL)
-		goto norbuff;
+		goto analrbuff;
 
 	if ((ax->xbuff = kmalloc(len + 4, GFP_KERNEL)) == NULL)
-		goto noxbuff;
+		goto analxbuff;
 
 	ax->mtu	     = dev->mtu + 73;
 	ax->buffsize = len;
@@ -608,11 +608,11 @@ static int ax_open(struct net_device *dev)
 
 	return 0;
 
-noxbuff:
+analxbuff:
 	kfree(ax->rbuff);
 
-norbuff:
-	return -ENOMEM;
+analrbuff:
+	return -EANALMEM;
 }
 
 
@@ -656,10 +656,10 @@ static void ax_setup(struct net_device *dev)
 
 /*
  * We have a potential race on dereferencing tty->disc_data, because the tty
- * layer provides no locking at all - thus one cpu could be running
- * sixpack_receive_buf while another calls sixpack_close, which zeroes
+ * layer provides anal locking at all - thus one cpu could be running
+ * sixpack_receive_buf while aanalther calls sixpack_close, which zeroes
  * tty->disc_data and frees the memory that sixpack_receive_buf is using.  The
- * best way to fix this is to use a rwlock in the tty struct, but for now we
+ * best way to fix this is to use a rwlock in the tty struct, but for analw we
  * use a single global rwlock for all ttys in ppp line discipline.
  */
 static DEFINE_RWLOCK(disc_data_lock);
@@ -694,12 +694,12 @@ static int mkiss_open(struct tty_struct *tty)
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 	if (tty->ops->write == NULL)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
-	dev = alloc_netdev(sizeof(struct mkiss), "ax%d", NET_NAME_UNKNOWN,
+	dev = alloc_netdev(sizeof(struct mkiss), "ax%d", NET_NAME_UNKANALWN,
 			   ax_setup);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -741,7 +741,7 @@ static int mkiss_open(struct tty_struct *tty)
 		       ax->dev->name);
 		break;
 	case 1:
-		ax->crcmode  = CRC_MODE_NONE;
+		ax->crcmode  = CRC_MODE_ANALNE;
 		printk(KERN_INFO "mkiss: %s: crc mode disabled.\n",
 		       ax->dev->name);
 		break;
@@ -783,13 +783,13 @@ static void mkiss_close(struct tty_struct *tty)
 		return;
 
 	/*
-	 * We have now ensured that nobody can start using ap from now on, but
+	 * We have analw ensured that analbody can start using ap from analw on, but
 	 * we have to wait for all existing users to finish.
 	 */
 	if (!refcount_dec_and_test(&ax->refcnt))
 		wait_for_completion(&ax->dead);
 	/*
-	 * Halt the transmit queue so that a new transmit cannot scribble
+	 * Halt the transmit queue so that a new transmit cananalt scribble
 	 * on our buffers
 	 */
 	netif_stop_queue(ax->dev);
@@ -860,7 +860,7 @@ static int mkiss_ioctl(struct tty_struct *tty, unsigned int cmd,
 		break;
 	}
 	default:
-		err = -ENOIOCTLCMD;
+		err = -EANALIOCTLCMD;
 	}
 
 	mkiss_put(ax);
@@ -871,7 +871,7 @@ static int mkiss_ioctl(struct tty_struct *tty, unsigned int cmd,
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of data has been received, which can now be decapsulated
+ * a block of data has been received, which can analw be decapsulated
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const u8 *cp,
@@ -918,8 +918,8 @@ static void mkiss_write_wakeup(struct tty_struct *tty)
 		return;
 
 	if (ax->xleft <= 0)  {
-		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet
+		/* Analw serial buffer is almost free & we can start
+		 * transmission of aanalther packet
 		 */
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
@@ -972,7 +972,7 @@ static void __exit mkiss_exit_driver(void)
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("KISS driver for AX.25 over TTYs");
 module_param(crc_force, int, 0);
-MODULE_PARM_DESC(crc_force, "crc [0 = auto | 1 = none | 2 = flexnet | 3 = smack]");
+MODULE_PARM_DESC(crc_force, "crc [0 = auto | 1 = analne | 2 = flexnet | 3 = smack]");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_AX25);
 

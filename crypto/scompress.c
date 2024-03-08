@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synchronous Compression operations
+ * Synchroanalus Compression operations
  *
  * Copyright 2015 LG Electronics Inc.
  * Copyright (c) 2016, Intel Corporation
@@ -83,11 +83,11 @@ static int crypto_scomp_alloc_scratches(void)
 
 		scratch = per_cpu_ptr(&scomp_scratch, i);
 
-		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
+		mem = vmalloc_analde(SCOMP_SCRATCH_SIZE, cpu_to_analde(i));
 		if (!mem)
 			goto error;
 		scratch->src = mem;
-		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
+		mem = vmalloc_analde(SCOMP_SCRATCH_SIZE, cpu_to_analde(i));
 		if (!mem)
 			goto error;
 		scratch->dst = mem;
@@ -95,7 +95,7 @@ static int crypto_scomp_alloc_scratches(void)
 	return 0;
 error:
 	crypto_scomp_free_scratches();
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int crypto_scomp_init_tfm(struct crypto_tfm *tfm)
@@ -145,11 +145,11 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 		if (!req->dst) {
 			req->dst = sgl_alloc(req->dlen, GFP_ATOMIC, NULL);
 			if (!req->dst) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out;
 			}
 		} else if (req->dlen > dlen) {
-			ret = -ENOSPC;
+			ret = -EANALSPC;
 			goto out;
 		}
 		scatterwalk_map_and_copy(scratch->dst, req->dst, 0, req->dlen,
@@ -307,4 +307,4 @@ void crypto_unregister_scomps(struct scomp_alg *algs, int count)
 EXPORT_SYMBOL_GPL(crypto_unregister_scomps);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synchronous compression type");
+MODULE_DESCRIPTION("Synchroanalus compression type");

@@ -18,7 +18,7 @@
 #include "mgmt/share_config.h"
 
 /*for shortname implementation */
-static const char basechars[43] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-!@#$%";
+static const char basechars[43] = "0123456789ABCDEFGHIJKLMANALPQRSTUVWXYZ_-!@#$%";
 #define MANGLE_BASE (sizeof(basechars) / sizeof(char) - 1)
 #define MAGIC_CHAR '~'
 #define PERIOD '.'
@@ -165,7 +165,7 @@ bool ksmbd_smb_request(struct ksmbd_conn *conn)
 
 	proto = (__le32 *)smb2_get_msg(conn->request_buf);
 	if (*proto == SMB2_COMPRESSION_TRANSFORM_ID) {
-		pr_err_ratelimited("smb2 compression not support yet");
+		pr_err_ratelimited("smb2 compression analt support yet");
 		return false;
 	}
 
@@ -353,7 +353,7 @@ static int smb1_check_user_session(struct ksmbd_work *work)
  * smb1_allocate_rsp_buf() - allocate response buffer for a command
  * @work:	smb work containing smb request
  *
- * Return:      0 on success, otherwise -ENOMEM
+ * Return:      0 on success, otherwise -EANALMEM
  */
 static int smb1_allocate_rsp_buf(struct ksmbd_work *work)
 {
@@ -364,7 +364,7 @@ static int smb1_allocate_rsp_buf(struct ksmbd_work *work)
 	if (!work->response_buf) {
 		pr_err("Failed to allocate %u bytes buffer\n",
 				MAX_CIFS_SMALL_BUFFER_SIZE);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return 0;
@@ -377,7 +377,7 @@ static int smb1_allocate_rsp_buf(struct ksmbd_work *work)
  */
 static void set_smb1_rsp_status(struct ksmbd_work *work, __le32 err)
 {
-	work->send_no_response = 1;
+	work->send_anal_response = 1;
 }
 
 static struct smb_version_ops smb1_server_ops = {
@@ -502,7 +502,7 @@ int ksmbd_extract_shortname(struct ksmbd_conn *conn, const char *longname,
 
 	p = longname;
 	if ((*p == '.') || (!(strcmp(p, "..")))) {
-		/*no mangling required */
+		/*anal mangling required */
 		return 0;
 	}
 
@@ -571,7 +571,7 @@ static int smb_handle_negotiate(struct ksmbd_work *work)
 
 	if (ksmbd_iov_pin_rsp(work, (void *)neg_rsp,
 			      sizeof(struct smb_negotiate_rsp) - 4))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	neg_rsp->hdr.Status.CifsError = STATUS_SUCCESS;
 	neg_rsp->hdr.WordCount = 1;
@@ -604,7 +604,7 @@ int ksmbd_smb_negotiate_common(struct ksmbd_work *work, unsigned int command)
 		return smb_handle_negotiate(work);
 	}
 
-	pr_err("Unknown SMB negotiation command: %u\n", command);
+	pr_err("Unkanalwn SMB negotiation command: %u\n", command);
 	return -EINVAL;
 }
 
@@ -618,12 +618,12 @@ enum SHARED_MODE_ERRORS {
 };
 
 static const char * const shared_mode_errors[] = {
-	"Current access mode does not permit SHARE_DELETE",
-	"Current access mode does not permit SHARE_READ",
-	"Current access mode does not permit SHARE_WRITE",
-	"Desired access mode does not permit FILE_READ",
-	"Desired access mode does not permit FILE_WRITE",
-	"Desired access mode does not permit FILE_DELETE",
+	"Current access mode does analt permit SHARE_DELETE",
+	"Current access mode does analt permit SHARE_READ",
+	"Current access mode does analt permit SHARE_WRITE",
+	"Desired access mode does analt permit FILE_READ",
+	"Desired access mode does analt permit FILE_WRITE",
+	"Desired access mode does analt permit FILE_DELETE",
 };
 
 static void smb_shared_mode_error(int error, struct ksmbd_file *prev_fp,
@@ -644,8 +644,8 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 	 * shared mode between previous open and current open.
 	 */
 	read_lock(&curr_fp->f_ci->m_lock);
-	list_for_each_entry(prev_fp, &curr_fp->f_ci->m_fp_list, node) {
-		if (file_inode(filp) != file_inode(prev_fp->filp))
+	list_for_each_entry(prev_fp, &curr_fp->f_ci->m_fp_list, analde) {
+		if (file_ianalde(filp) != file_ianalde(prev_fp->filp))
 			continue;
 
 		if (filp == prev_fp->filp)
@@ -669,7 +669,7 @@ int ksmbd_smb_check_shared_mode(struct file *filp, struct ksmbd_file *curr_fp)
 
 		/*
 		 * Only check FILE_SHARE_DELETE if stream opened and
-		 * normal file opened.
+		 * analrmal file opened.
 		 */
 		if (ksmbd_stream_fd(prev_fp) && !ksmbd_stream_fd(curr_fp))
 			continue;
@@ -747,7 +747,7 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 
 	cred = prepare_kernel_cred(&init_task);
 	if (!cred)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cred->fsuid = make_kuid(&init_user_ns, uid);
 	cred->fsgid = make_kgid(&init_user_ns, gid);
@@ -755,7 +755,7 @@ int ksmbd_override_fsids(struct ksmbd_work *work)
 	gi = groups_alloc(0);
 	if (!gi) {
 		abort_creds(cred);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	set_groups(cred, gi);
 	put_group_info(gi);

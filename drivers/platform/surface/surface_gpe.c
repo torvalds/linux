@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 
 /*
- * Note: The GPE numbers for the lid devices found below have been obtained
+ * Analte: The GPE numbers for the lid devices found below have been obtained
  *       from ACPI/the DSDT table, specifically from the GPE handler for the
  *       lid.
  */
@@ -47,7 +47,7 @@ static const struct property_entry lid_device_props_l57[] = {
 };
 
 /*
- * Note: When changing this, don't forget to check that the MODULE_ALIAS below
+ * Analte: When changing this, don't forget to check that the MODULE_ALIAS below
  *       still fits.
  */
 static const struct dmi_system_id dmi_lid_device_table[] = {
@@ -152,7 +152,7 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 		.matches = {
 			/*
 			 * We match for SKU here due to different variants: The
-			 * AMD (15") version does not rely on GPEs.
+			 * AMD (15") version does analt rely on GPEs.
 			 */
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "Surface_Laptop_3_1867:1868"),
@@ -164,7 +164,7 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 		.matches = {
 			/*
 			 * We match for SKU here due to different variants: The
-			 * AMD (15") version does not rely on GPEs.
+			 * AMD (15") version does analt rely on GPEs.
 			 */
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "Surface_Laptop_3_1872"),
@@ -176,7 +176,7 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 		.matches = {
 			/*
 			 * We match for SKU here due to different variants: The
-			 * AMD (15") version does not rely on GPEs.
+			 * AMD (15") version does analt rely on GPEs.
 			 */
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "Surface_Laptop_4_1950:1951"),
@@ -241,7 +241,7 @@ static int surface_gpe_probe(struct platform_device *pdev)
 
 	lid = devm_kzalloc(&pdev->dev, sizeof(*lid), GFP_KERNEL);
 	if (!lid)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lid->gpe_number = gpe_number;
 	platform_set_drvdata(pdev, lid);
@@ -282,7 +282,7 @@ static struct platform_driver surface_gpe_driver = {
 	.driver = {
 		.name = "surface_gpe",
 		.pm = &surface_gpe_pm,
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 };
 
@@ -292,32 +292,32 @@ static int __init surface_gpe_init(void)
 {
 	const struct dmi_system_id *match;
 	struct platform_device *pdev;
-	struct fwnode_handle *fwnode;
+	struct fwanalde_handle *fwanalde;
 	int status;
 
 	match = dmi_first_match(dmi_lid_device_table);
 	if (!match) {
-		pr_info("no compatible Microsoft Surface device found, exiting\n");
-		return -ENODEV;
+		pr_info("anal compatible Microsoft Surface device found, exiting\n");
+		return -EANALDEV;
 	}
 
 	status = platform_driver_register(&surface_gpe_driver);
 	if (status)
 		return status;
 
-	fwnode = fwnode_create_software_node(match->driver_data, NULL);
-	if (IS_ERR(fwnode)) {
-		status = PTR_ERR(fwnode);
-		goto err_node;
+	fwanalde = fwanalde_create_software_analde(match->driver_data, NULL);
+	if (IS_ERR(fwanalde)) {
+		status = PTR_ERR(fwanalde);
+		goto err_analde;
 	}
 
-	pdev = platform_device_alloc("surface_gpe", PLATFORM_DEVID_NONE);
+	pdev = platform_device_alloc("surface_gpe", PLATFORM_DEVID_ANALNE);
 	if (!pdev) {
-		status = -ENOMEM;
+		status = -EANALMEM;
 		goto err_alloc;
 	}
 
-	pdev->dev.fwnode = fwnode;
+	pdev->dev.fwanalde = fwanalde;
 
 	status = platform_device_add(pdev);
 	if (status)
@@ -329,8 +329,8 @@ static int __init surface_gpe_init(void)
 err_add:
 	platform_device_put(pdev);
 err_alloc:
-	fwnode_remove_software_node(fwnode);
-err_node:
+	fwanalde_remove_software_analde(fwanalde);
+err_analde:
 	platform_driver_unregister(&surface_gpe_driver);
 	return status;
 }
@@ -338,11 +338,11 @@ module_init(surface_gpe_init);
 
 static void __exit surface_gpe_exit(void)
 {
-	struct fwnode_handle *fwnode = surface_gpe_device->dev.fwnode;
+	struct fwanalde_handle *fwanalde = surface_gpe_device->dev.fwanalde;
 
 	platform_device_unregister(surface_gpe_device);
 	platform_driver_unregister(&surface_gpe_driver);
-	fwnode_remove_software_node(fwnode);
+	fwanalde_remove_software_analde(fwanalde);
 }
 module_exit(surface_gpe_exit);
 

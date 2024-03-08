@@ -44,7 +44,7 @@ static int s500_wakeup_secondary(unsigned int cpu)
 	if (cpu > 3)
 		return -EINVAL;
 
-	/* The generic PM domain driver is not available this early. */
+	/* The generic PM domain driver is analt available this early. */
 	switch (cpu) {
 	case 2:
 		ret = owl_sps_set_pg(sps_base_addr,
@@ -96,42 +96,42 @@ static int s500_smp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init s500_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_find_compatible_node(NULL, NULL, "actions,s500-timer");
-	if (!node) {
+	analde = of_find_compatible_analde(NULL, NULL, "actions,s500-timer");
+	if (!analde) {
 		pr_err("%s: missing timer\n", __func__);
 		return;
 	}
 
-	timer_base_addr = of_iomap(node, 0);
+	timer_base_addr = of_iomap(analde, 0);
 	if (!timer_base_addr) {
-		pr_err("%s: could not map timer registers\n", __func__);
+		pr_err("%s: could analt map timer registers\n", __func__);
 		return;
 	}
 
-	node = of_find_compatible_node(NULL, NULL, "actions,s500-sps");
-	if (!node) {
+	analde = of_find_compatible_analde(NULL, NULL, "actions,s500-sps");
+	if (!analde) {
 		pr_err("%s: missing sps\n", __func__);
 		return;
 	}
 
-	sps_base_addr = of_iomap(node, 0);
+	sps_base_addr = of_iomap(analde, 0);
 	if (!sps_base_addr) {
-		pr_err("%s: could not map sps registers\n", __func__);
+		pr_err("%s: could analt map sps registers\n", __func__);
 		return;
 	}
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-		node = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
-		if (!node) {
+		analde = of_find_compatible_analde(NULL, NULL, "arm,cortex-a9-scu");
+		if (!analde) {
 			pr_err("%s: missing scu\n", __func__);
 			return;
 		}
 
-		scu_base_addr = of_iomap(node, 0);
+		scu_base_addr = of_iomap(analde, 0);
 		if (!scu_base_addr) {
-			pr_err("%s: could not map scu registers\n", __func__);
+			pr_err("%s: could analt map scu registers\n", __func__);
 			return;
 		}
 

@@ -27,8 +27,8 @@ void rproc_coredump_cleanup(struct rproc *rproc)
 {
 	struct rproc_dump_segment *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, analde) {
+		list_del(&entry->analde);
 		kfree(entry);
 	}
 }
@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(rproc_coredump_cleanup);
  * Add device memory to the list of segments to be included in a coredump for
  * the remoteproc.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
 {
@@ -51,12 +51,12 @@ int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
 
 	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
 	if (!segment)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	segment->da = da;
 	segment->size = size;
 
-	list_add_tail(&segment->node, &rproc->dump_segments);
+	list_add_tail(&segment->analde, &rproc->dump_segments);
 
 	return 0;
 }
@@ -74,7 +74,7 @@ EXPORT_SYMBOL(rproc_coredump_add_segment);
  * and associate the segment with the given custom dump function and private
  * data.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      dma_addr_t da, size_t size,
@@ -88,14 +88,14 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 
 	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
 	if (!segment)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	segment->da = da;
 	segment->size = size;
 	segment->priv = priv;
 	segment->dump = dumpfn;
 
-	list_add_tail(&segment->node, &rproc->dump_segments);
+	list_add_tail(&segment->analde, &rproc->dump_segments);
 
 	return 0;
 }
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(rproc_coredump_add_custom_segment);
  *
  * Set elf information which will be used for coredump elf file.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erranal on error.
  */
 int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine)
 {
@@ -137,7 +137,7 @@ static void *rproc_coredump_find_segment(loff_t user_offset,
 {
 	struct rproc_dump_segment *segment;
 
-	list_for_each_entry(segment, segments, node) {
+	list_for_each_entry(segment, segments, analde) {
 		if (user_offset < segment->size) {
 			*data_left = segment->size - user_offset;
 			return segment;
@@ -249,13 +249,13 @@ void rproc_coredump(struct rproc *rproc)
 	    dump_conf == RPROC_COREDUMP_DISABLED)
 		return;
 
-	if (class == ELFCLASSNONE) {
-		dev_err(&rproc->dev, "ELF class is not set\n");
+	if (class == ELFCLASSANALNE) {
+		dev_err(&rproc->dev, "ELF class is analt set\n");
 		return;
 	}
 
 	data_size = elf_size_of_hdr(class);
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, analde) {
 		/*
 		 * For default configuration buffer includes headers & segments.
 		 * For inline dump buffer just includes headers as segments are
@@ -291,7 +291,7 @@ void rproc_coredump(struct rproc *rproc)
 	offset = elf_hdr_get_e_phoff(class, ehdr);
 	offset += elf_size_of_phdr(class) * elf_hdr_get_e_phnum(class, ehdr);
 
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, analde) {
 		memset(phdr, 0, elf_size_of_phdr(class));
 		elf_phdr_set_p_type(class, phdr, PT_LOAD);
 		elf_phdr_set_p_offset(class, phdr, offset);
@@ -362,8 +362,8 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 	    dump_conf == RPROC_COREDUMP_DISABLED)
 		return;
 
-	if (class == ELFCLASSNONE) {
-		dev_err(&rproc->dev, "ELF class is not set\n");
+	if (class == ELFCLASSANALNE) {
+		dev_err(&rproc->dev, "ELF class is analt set\n");
 		return;
 	}
 
@@ -378,7 +378,7 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 	/* the extra byte is for the null character at index 0 */
 	strtbl_size += strlen(str_tbl) + 2;
 
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, analde) {
 		data_size += elf_size_of_shdr(class);
 		strtbl_size += strlen(segment->priv) + 1;
 		if (dump_conf == RPROC_COREDUMP_ENABLED)
@@ -431,7 +431,7 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 	offset += elf_shdr_get_sh_size(class, shdr);
 	shdr += elf_size_of_shdr(class);
 
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, analde) {
 		memset(shdr, 0, elf_size_of_shdr(class));
 		elf_shdr_set_sh_type(class, shdr, SHT_PROGBITS);
 		elf_shdr_set_sh_offset(class, shdr, offset);
@@ -442,7 +442,7 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 		elf_shdr_set_sh_name(class, shdr,
 				     elf_strtbl_add(segment->priv, ehdr, class, &strtbl_index));
 
-		/* No need to copy segments for inline dumps */
+		/* Anal need to copy segments for inline dumps */
 		if (dump_conf == RPROC_COREDUMP_ENABLED)
 			rproc_copy_segment(rproc, data + offset, segment, 0,
 					   segment->size);

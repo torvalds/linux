@@ -38,15 +38,15 @@ void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
 	ktime_t stop;
 
 	/*
-	 * Ideally channel must be free by now unless OS timeout last
+	 * Ideally channel must be free by analw unless OS timeout last
 	 * request and platform continued to process the same, wait
 	 * until it releases the shared memory, otherwise we may endup
 	 * overwriting its response with new message payload or vice-versa.
 	 * Giving up anyway after twice the expected channel timeout so as
-	 * not to bail-out on intermittent issues where the platform is
+	 * analt to bail-out on intermittent issues where the platform is
 	 * occasionally a bit slower to answer.
 	 *
-	 * Note that after a timeout is detected we bail-out and carry on but
+	 * Analte that after a timeout is detected we bail-out and carry on but
 	 * the transport functionality is probably permanently compromised:
 	 * this is just to ease debugging and avoid complete hangs on boot
 	 * due to a misbehaving SCMI firmware.
@@ -91,7 +91,7 @@ void shmem_fetch_response(struct scmi_shared_mem __iomem *shmem,
 	memcpy_fromio(xfer->rx.buf, shmem->msg_payload + 4, xfer->rx.len);
 }
 
-void shmem_fetch_notification(struct scmi_shared_mem __iomem *shmem,
+void shmem_fetch_analtification(struct scmi_shared_mem __iomem *shmem,
 			      size_t max_len, struct scmi_xfer *xfer)
 {
 	size_t len = ioread32(&shmem->length);

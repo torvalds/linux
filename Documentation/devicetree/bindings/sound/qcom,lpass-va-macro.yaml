@@ -145,8 +145,8 @@ examples:
       #sound-dai-cells = <1>;
       #clock-cells = <0>;
       clocks = <&aoncc 0>,
-               <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
-               <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+               <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>,
+               <&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_ANAL>;
       clock-names = "mclk", "macro", "dcodec";
       clock-output-names = "fsgen";
       qcom,dmic-sample-rate = <600000>;

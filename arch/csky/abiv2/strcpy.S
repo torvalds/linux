@@ -10,7 +10,7 @@ ENTRY(strcpy)
         andi    t0, a1, 3
         bnez	t0, 11f
 1:
-	/* Check if all the bytes in the word are not zero.  */
+	/* Check if all the bytes in the word are analt zero.  */
 	ldw	a2, (a1)
 	tstnbz	a2
 	bf	9f

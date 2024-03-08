@@ -307,7 +307,7 @@ static struct tda10048_config hauppauge_tda10048_config = {
 	.disable_gate_access = 1,
 };
 
-static struct tda829x_config tda829x_no_probe = {
+static struct tda829x_config tda829x_anal_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
@@ -340,7 +340,7 @@ static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 {
 	dvb_attach(tda829x_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x42,
-		   &tda829x_no_probe);
+		   &tda829x_anal_probe);
 	dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 		   &adap->channel.hdw->i2c_adap,
 		   &hauppauge_tda18271_dvb_config);
@@ -448,7 +448,7 @@ static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 {
 	dvb_attach(tda829x_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x42,
-		   &tda829x_no_probe);
+		   &tda829x_anal_probe);
 	dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 		   &adap->channel.hdw->i2c_adap,
 		   &hauppauge_tda18271_config);
@@ -549,7 +549,7 @@ static int pvr2_si2157_attach(struct pvr2_dvb_adapter *adap)
 						  0x60, &si2157_config);
 
 	if (!adap->i2c_client_tuner)
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -565,15 +565,15 @@ static int pvr2_si2168_attach(struct pvr2_dvb_adapter *adap)
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.ts_mode = SI2168_TS_PARALLEL; /*2, 1-serial, 2-parallel.*/
 	si2168_config.ts_clock_gapped = 1; /*0-disabled, 1-enabled.*/
-	si2168_config.ts_clock_inv = 0; /*0-not-invert, 1-invert*/
-	si2168_config.spectral_inversion = 1; /*0-not-invert, 1-invert*/
+	si2168_config.ts_clock_inv = 0; /*0-analt-invert, 1-invert*/
+	si2168_config.spectral_inversion = 1; /*0-analt-invert, 1-invert*/
 
 	adap->i2c_client_demod[1] = dvb_module_probe("si2168", NULL,
 						     &adap->channel.hdw->i2c_adap,
 						     0x64, &si2168_config);
 
 	if (!adap->i2c_client_demod[1])
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -601,7 +601,7 @@ static int pvr2_lgdt3306a_attach(struct pvr2_dvb_adapter *adap)
 						     0x59, &lgdt3306a_config);
 
 	if (!adap->i2c_client_demod[0])
-		return -ENODEV;
+		return -EANALDEV;
 
 	return 0;
 }
@@ -611,11 +611,11 @@ static int pvr2_dual_fe_attach(struct pvr2_dvb_adapter *adap)
 	pr_debug("%s()\n", __func__);
 
 	if (pvr2_lgdt3306a_attach(adap) != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (pvr2_si2168_attach(adap) != 0) {
 		dvb_module_release(adap->i2c_client_demod[0]);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return 0;

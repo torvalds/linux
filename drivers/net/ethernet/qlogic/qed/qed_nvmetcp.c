@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/list.h>
 #include <linux/qed/qed_nvmetcp_if.h>
 #include "qed.h"
@@ -39,7 +39,7 @@ static int qed_nvmetcp_async_event(struct qed_hwfn *p_hwfn, u8 fw_event_code,
 		return p_nvmetcp->event_cb(p_nvmetcp->event_context,
 					 fw_event_code, data);
 	} else {
-		DP_NOTICE(p_hwfn, "nvmetcp async completion is not set\n");
+		DP_ANALTICE(p_hwfn, "nvmetcp async completion is analt set\n");
 
 		return -EINVAL;
 	}
@@ -169,14 +169,14 @@ static int qed_nvmetcp_stop(struct qed_dev *cdev)
 	int rc;
 
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED)) {
-		DP_NOTICE(cdev, "nvmetcp already stopped\n");
+		DP_ANALTICE(cdev, "nvmetcp already stopped\n");
 
 		return 0;
 	}
 
 	if (!hash_empty(cdev->connections)) {
-		DP_NOTICE(cdev,
-			  "Can't stop nvmetcp - not all connections were returned\n");
+		DP_ANALTICE(cdev,
+			  "Can't stop nvmetcp - analt all connections were returned\n");
 
 		return -EINVAL;
 	}
@@ -198,7 +198,7 @@ static int qed_nvmetcp_start(struct qed_dev *cdev,
 	int rc;
 
 	if (cdev->flags & QED_FLAG_STORAGE_STARTED) {
-		DP_NOTICE(cdev, "nvmetcp already started;\n");
+		DP_ANALTICE(cdev, "nvmetcp already started;\n");
 
 		return 0;
 	}
@@ -207,7 +207,7 @@ static int qed_nvmetcp_start(struct qed_dev *cdev,
 				       QED_SPQ_MODE_EBLOCK, NULL,
 				       event_context, async_event_cb);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to start nvmetcp\n");
+		DP_ANALTICE(cdev, "Failed to start nvmetcp\n");
 
 		return rc;
 	}
@@ -222,12 +222,12 @@ static int qed_nvmetcp_start(struct qed_dev *cdev,
 	if (!tid_info) {
 		qed_nvmetcp_stop(cdev);
 
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rc = qed_cxt_get_tid_mem_info(QED_AFFIN_HWFN(cdev), tid_info);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to gather task information\n");
+		DP_ANALTICE(cdev, "Failed to gather task information\n");
 		qed_nvmetcp_stop(cdev);
 		kfree(tid_info);
 
@@ -252,7 +252,7 @@ static struct qed_hash_nvmetcp_con *qed_nvmetcp_get_hash(struct qed_dev *cdev,
 	if (!(cdev->flags & QED_FLAG_STORAGE_STARTED))
 		return NULL;
 
-	hash_for_each_possible(cdev->connections, hash_con, node, handle) {
+	hash_for_each_possible(cdev->connections, hash_con, analde, handle) {
 		if (hash_con->con->icid == handle)
 			break;
 	}
@@ -479,40 +479,40 @@ static int qed_nvmetcp_allocate_connection(struct qed_hwfn *p_hwfn,
 	p_params = &p_hwfn->pf_params.nvmetcp_pf_params;
 	p_conn = kzalloc(sizeof(*p_conn), GFP_KERNEL);
 	if (!p_conn)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	params.num_elems = p_params->num_r2tq_pages_in_ring *
 			   QED_CHAIN_PAGE_SIZE / sizeof(struct nvmetcp_wqe);
 	params.elem_size = sizeof(struct nvmetcp_wqe);
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->r2tq, &params);
 	if (rc)
-		goto nomem_r2tq;
+		goto analmem_r2tq;
 
 	params.num_elems = p_params->num_uhq_pages_in_ring *
 			   QED_CHAIN_PAGE_SIZE / sizeof(struct iscsi_uhqe);
 	params.elem_size = sizeof(struct iscsi_uhqe);
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->uhq, &params);
 	if (rc)
-		goto nomem_uhq;
+		goto analmem_uhq;
 
 	params.elem_size = sizeof(struct iscsi_xhqe);
 	rc = qed_chain_alloc(p_hwfn->cdev, &p_conn->xhq, &params);
 	if (rc)
-		goto nomem;
+		goto analmem;
 
 	p_conn->free_on_delete = true;
 	*p_out_conn = p_conn;
 
 	return 0;
 
-nomem:
+analmem:
 	qed_chain_free(p_hwfn->cdev, &p_conn->uhq);
-nomem_uhq:
+analmem_uhq:
 	qed_chain_free(p_hwfn->cdev, &p_conn->r2tq);
-nomem_r2tq:
+analmem_r2tq:
 	kfree(p_conn);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static int qed_nvmetcp_acquire_connection(struct qed_hwfn *p_hwfn,
@@ -570,7 +570,7 @@ int qed_nvmetcp_alloc(struct qed_hwfn *p_hwfn)
 
 	p_nvmetcp_info = kzalloc(sizeof(*p_nvmetcp_info), GFP_KERNEL);
 	if (!p_nvmetcp_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&p_nvmetcp_info->free_list);
 	p_hwfn->p_nvmetcp_info = p_nvmetcp_info;
@@ -613,13 +613,13 @@ static int qed_nvmetcp_acquire_conn(struct qed_dev *cdev,
 	/* Allocate a hashed connection */
 	hash_con = kzalloc(sizeof(*hash_con), GFP_ATOMIC);
 	if (!hash_con)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Acquire the connection */
 	rc = qed_nvmetcp_acquire_connection(QED_AFFIN_HWFN(cdev),
 					    &hash_con->con);
 	if (rc) {
-		DP_NOTICE(cdev, "Failed to acquire Connection\n");
+		DP_ANALTICE(cdev, "Failed to acquire Connection\n");
 		kfree(hash_con);
 
 		return rc;
@@ -628,7 +628,7 @@ static int qed_nvmetcp_acquire_conn(struct qed_dev *cdev,
 	/* Added the connection to hash table */
 	*handle = hash_con->con->icid;
 	*fw_cid = hash_con->con->fw_cid;
-	hash_add(cdev->connections, &hash_con->node, *handle);
+	hash_add(cdev->connections, &hash_con->analde, *handle);
 	if (p_doorbell)
 		*p_doorbell = qed_nvmetcp_get_db_addr(QED_AFFIN_HWFN(cdev),
 						      *handle);
@@ -642,13 +642,13 @@ static int qed_nvmetcp_release_conn(struct qed_dev *cdev, u32 handle)
 
 	hash_con = qed_nvmetcp_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 
 		return -EINVAL;
 	}
 
-	hlist_del(&hash_con->node);
+	hlist_del(&hash_con->analde);
 	qed_nvmetcp_release_connection(QED_AFFIN_HWFN(cdev), hash_con->con);
 	kfree(hash_con);
 
@@ -663,7 +663,7 @@ static int qed_nvmetcp_offload_conn(struct qed_dev *cdev, u32 handle,
 
 	hash_con = qed_nvmetcp_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 
 		return -EINVAL;
@@ -729,7 +729,7 @@ static int qed_nvmetcp_update_conn(struct qed_dev *cdev,
 
 	hash_con = qed_nvmetcp_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 
 		return -EINVAL;
@@ -764,7 +764,7 @@ static int qed_nvmetcp_clear_conn_sq(struct qed_dev *cdev, u32 handle)
 
 	hash_con = qed_nvmetcp_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 
 		return -EINVAL;
@@ -781,7 +781,7 @@ static int qed_nvmetcp_destroy_conn(struct qed_dev *cdev,
 
 	hash_con = qed_nvmetcp_get_hash(cdev, handle);
 	if (!hash_con) {
-		DP_NOTICE(cdev, "Failed to find connection for handle %d\n",
+		DP_ANALTICE(cdev, "Failed to find connection for handle %d\n",
 			  handle);
 
 		return -EINVAL;

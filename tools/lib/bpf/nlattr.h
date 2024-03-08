@@ -11,7 +11,7 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/genetlink.h>

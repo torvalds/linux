@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -191,8 +191,8 @@ void dcn314_init_clocks(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.ref_dtbclk_khz = ref_dtbclk;	// restore ref_dtbclk
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
-	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
-	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKNOWN;
+	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKANALWN;
+	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKANALWN;
 
 	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
 	if (dcn314_is_spll_ssc_enabled(clk_mgr))
@@ -234,7 +234,7 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 			dcn314_smu_set_dtbclk(clk_mgr, false);
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
 		}
-		/* check that we're not already in lower */
+		/* check that we're analt already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
 			display_count = dcn314_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
@@ -261,7 +261,7 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
 		}
 
-		/* check that we're not already in D0 */
+		/* check that we're analt already in D0 */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_MISSION_MODE) {
 			union display_idle_optimization_u idle_info = { 0 };
 
@@ -311,20 +311,20 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 		// increase global DPPCLK before lowering per DPP DTO
 		if (update_dppclk || update_dispclk)
 			dcn314_smu_set_dppclk(clk_mgr, clk_mgr_base->clks.dppclk_khz);
-		// always update dtos unless clock is lowered and not safe to lower
+		// always update dtos unless clock is lowered and analt safe to lower
 		if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 			dcn20_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower);
 	}
 
-	// notify DMCUB of latest clocks
+	// analtify DMCUB of latest clocks
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.notify_clocks.header.type = DMUB_CMD__CLK_MGR;
-	cmd.notify_clocks.header.sub_type = DMUB_CMD__CLK_MGR_NOTIFY_CLOCKS;
-	cmd.notify_clocks.clocks.dcfclk_khz = clk_mgr_base->clks.dcfclk_khz;
-	cmd.notify_clocks.clocks.dcfclk_deep_sleep_khz =
+	cmd.analtify_clocks.header.type = DMUB_CMD__CLK_MGR;
+	cmd.analtify_clocks.header.sub_type = DMUB_CMD__CLK_MGR_ANALTIFY_CLOCKS;
+	cmd.analtify_clocks.clocks.dcfclk_khz = clk_mgr_base->clks.dcfclk_khz;
+	cmd.analtify_clocks.clocks.dcfclk_deep_sleep_khz =
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz;
-	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
-	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
+	cmd.analtify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
+	cmd.analtify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -355,7 +355,7 @@ static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 	/* multiply by REFCLK period */
 	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
 
-	/* integer part is now VCO frequency in kHz */
+	/* integer part is analw VCO frequency in kHz */
 	return dc_fixpt_floor(pll_req);
 }
 
@@ -490,13 +490,13 @@ static void dcn314_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	num_valid_sets = 0;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
-		/* skip empty entries, the smu array has no holes*/
+		/* skip empty entries, the smu array has anal holes*/
 		if (!bw_params->wm_table.entries[i].valid)
 			continue;
 
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].WmSetting = bw_params->wm_table.entries[i].wm_inst;
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].WmType = bw_params->wm_table.entries[i].wm_type;
-		/* We will not select WM based on fclk, so leave it as unconstrained */
+		/* We will analt select WM based on fclk, so leave it as unconstrained */
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinClock = 0;
 		table->WatermarkRow[WM_DCFCLK][num_valid_sets].MaxClock = 0xFFFF;
 
@@ -504,7 +504,7 @@ static void dcn314_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 			if (i == 0)
 				table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinMclk = 0;
 			else {
-				/* add 1 to make it non-overlapping with next lvl */
+				/* add 1 to make it analn-overlapping with next lvl */
 				table->WatermarkRow[WM_DCFCLK][num_valid_sets].MinMclk =
 						bw_params->clk_table.entries[i - 1].dcfclk_mhz + 1;
 			}
@@ -530,7 +530,7 @@ static void dcn314_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	table->WatermarkRow[WM_DCFCLK][num_valid_sets - 1].MaxMclk = 0xFFFF;
 	table->WatermarkRow[WM_DCFCLK][num_valid_sets - 1].MaxClock = 0xFFFF;
 
-	/* This is for writeback only, does not matter currently as no writeback support*/
+	/* This is for writeback only, does analt matter currently as anal writeback support*/
 	table->WatermarkRow[WM_SOCCLK][0].WmSetting = WM_A;
 	table->WatermarkRow[WM_SOCCLK][0].MinClock = 0;
 	table->WatermarkRow[WM_SOCCLK][0].MaxClock = 0xFFFF;
@@ -538,7 +538,7 @@ static void dcn314_build_watermark_ranges(struct clk_bw_params *bw_params, struc
 	table->WatermarkRow[WM_SOCCLK][0].MaxMclk = 0xFFFF;
 }
 
-static void dcn314_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
+static void dcn314_analtify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct clk_mgr_dcn314 *clk_mgr_dcn314 = TO_CLK_MGR_DCN314(clk_mgr);
@@ -668,7 +668,7 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 		bw_params->clk_table.entries[i].phyclk_d18_mhz = bw_params->clk_table.entries[j].phyclk_d18_mhz;
 		bw_params->clk_table.entries[i].dtbclk_mhz = bw_params->clk_table.entries[j].dtbclk_mhz;
 
-		/* Now update clocks we do read */
+		/* Analw update clocks we do read */
 		bw_params->clk_table.entries[i].fclk_mhz = min_fclk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[min_pstate].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[min_pstate].Voltage;
@@ -708,7 +708,7 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 	bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
 
 	/*
-	 * Set any 0 clocks to max default setting. Not an issue for
+	 * Set any 0 clocks to max default setting. Analt an issue for
 	 * power since we aren't doing switching in such case anyway
 	 */
 	for (i = 0; i < bw_params->clk_table.num_entries; i++) {
@@ -758,7 +758,7 @@ static struct clk_mgr_funcs dcn314_funcs = {
 	.init_clocks = dcn314_init_clocks,
 	.enable_pme_wa = dcn314_enable_pme_wa,
 	.are_clock_states_equal = dcn314_are_clock_states_equal,
-	.notify_wm_ranges = dcn314_notify_wm_ranges
+	.analtify_wm_ranges = dcn314_analtify_wm_ranges
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 

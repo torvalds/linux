@@ -81,9 +81,9 @@ __failure __msg("R0 !read_ok")
 __naked void liveness_pruning_and_write_screening(void)
 {
 	asm volatile ("					\
-	/* Get an unknown value */			\
+	/* Get an unkanalwn value */			\
 	r2 = *(u32*)(r1 + 0);				\
-	/* branch conditions teach us nothing about R2 */\
+	/* branch conditions teach us analthing about R2 */\
 	if r2 >= 0 goto l0_%=;				\
 	r0 = 0;						\
 l0_%=:	if r2 >= 0 goto l1_%=;				\
@@ -126,9 +126,9 @@ l0_%=:	exit;						\
 }
 
 SEC("tracepoint")
-__description("search pruning: all branches should be verified (nop operation)")
+__description("search pruning: all branches should be verified (analp operation)")
 __failure __msg("R6 invalid mem access 'scalar'")
-__naked void should_be_verified_nop_operation(void)
+__naked void should_be_verified_analp_operation(void)
 {
 	asm volatile ("					\
 	r2 = r10;					\
@@ -251,16 +251,16 @@ l0_%=:	w3 /= 0;					\
 	*(u32*)(r10 - 4) = r6;				\
 	*(u32*)(r10 - 8) = r7;				\
 	r8 = *(u64*)(r10 - 8);				\
-	/* if r8 != X goto pc+1  r8 known in fallthrough branch */\
+	/* if r8 != X goto pc+1  r8 kanalwn in fallthrough branch */\
 	if r8 != 0xffffffff goto l1_%=;			\
 	r3 = 1;						\
 l1_%=:	/* if r8 == X goto pc+1  condition always true on first\
 	 * traversal, so starts backtracking to mark r8 as requiring\
-	 * precision. r7 marked as needing precision. r6 not marked\
-	 * since it's not tracked.			\
+	 * precision. r7 marked as needing precision. r6 analt marked\
+	 * since it's analt tracked.			\
 	 */						\
 	if r8 == 0xffffffff goto l2_%=;			\
-	/* fails if r8 correctly marked unknown after fill. */\
+	/* fails if r8 correctly marked unkanalwn after fill. */\
 	w3 /= 0;					\
 l2_%=:	r0 = 0;						\
 	exit;						\
@@ -302,7 +302,7 @@ l4_%=:	exit;						\
  * The test would be mistakenly marked as safe w/o dst register parent
  * preservation in verifier.c:copy_register_state() function.
  *
- * Note the usage of BPF_F_TEST_STATE_FREQ to force creation of the
+ * Analte the usage of BPF_F_TEST_STATE_FREQ to force creation of the
  * checkpoint state after conditional 64-bit assignment.
  */
 

@@ -151,7 +151,7 @@ static int elan_i2c_initialize(struct i2c_client *client)
 	/* Wait for the device to reset */
 	msleep(100);
 
-	/* get reset acknowledgement 0000 */
+	/* get reset ackanalwledgement 0000 */
 	error = i2c_master_recv(client, val, ETP_I2C_INF_LENGTH);
 	if (error < 0) {
 		dev_err(dev, "failed to read reset response: %d\n", error);
@@ -161,7 +161,7 @@ static int elan_i2c_initialize(struct i2c_client *client)
 	error = elan_i2c_read_block(client, ETP_I2C_DESC_CMD,
 				    val, ETP_I2C_DESC_LENGTH);
 	if (error) {
-		dev_err(dev, "cannot get device descriptor: %d\n", error);
+		dev_err(dev, "cananalt get device descriptor: %d\n", error);
 		return error;
 	}
 
@@ -258,8 +258,8 @@ static int elan_i2c_get_pattern(struct i2c_client *client, u8 *pattern)
 	}
 
 	/*
-	 * Not all versions of firmware implement "get pattern" command.
-	 * When this command is not implemented the device will respond
+	 * Analt all versions of firmware implement "get pattern" command.
+	 * When this command is analt implemented the device will respond
 	 * with 0xFF 0xFF, which we will treat as "old" pattern 0.
 	 */
 	*pattern = val[0] == 0xFF && val[1] == 0xFF ? 0 : val[1];
@@ -496,7 +496,7 @@ static int elan_i2c_iap_reset(struct i2c_client *client)
 	error = elan_i2c_write_cmd(client, ETP_I2C_IAP_RESET_CMD,
 				   ETP_I2C_IAP_RESET);
 	if (error) {
-		dev_err(&client->dev, "cannot reset IC: %d\n", error);
+		dev_err(&client->dev, "cananalt reset IC: %d\n", error);
 		return error;
 	}
 
@@ -510,7 +510,7 @@ static int elan_i2c_set_flash_key(struct i2c_client *client)
 	error = elan_i2c_write_cmd(client, ETP_I2C_IAP_CMD,
 				   ETP_I2C_IAP_PASSWORD);
 	if (error) {
-		dev_err(&client->dev, "cannot set flash key: %d\n", error);
+		dev_err(&client->dev, "cananalt set flash key: %d\n", error);
 		return error;
 	}
 
@@ -529,7 +529,7 @@ static int elan_read_write_iap_type(struct i2c_client *client, u16 fw_page_size)
 					   fw_page_size / 2);
 		if (error) {
 			dev_err(&client->dev,
-				"cannot write iap type: %d\n", error);
+				"cananalt write iap type: %d\n", error);
 			return error;
 		}
 
@@ -548,7 +548,7 @@ static int elan_read_write_iap_type(struct i2c_client *client, u16 fw_page_size)
 
 	} while (--retry > 0);
 
-	dev_err(&client->dev, "cannot set iap type\n");
+	dev_err(&client->dev, "cananalt set iap type\n");
 	return -EIO;
 }
 
@@ -583,7 +583,7 @@ static int elan_i2c_prepare_fw_update(struct i2c_client *client, u16 ic_type,
 	/* Wait for F/W IAP initialization */
 	msleep(mode == MAIN_MODE ? 100 : 30);
 
-	/* Check if we are in IAP mode or not */
+	/* Check if we are in IAP mode or analt */
 	error = elan_i2c_iap_get_mode(client, &mode);
 	if (error)
 		return error;
@@ -610,7 +610,7 @@ static int elan_i2c_prepare_fw_update(struct i2c_client *client, u16 ic_type,
 	/* read back to check we actually enabled successfully. */
 	error = elan_i2c_read_cmd(client, ETP_I2C_IAP_CMD, val);
 	if (error) {
-		dev_err(dev, "cannot read iap password: %d\n",
+		dev_err(dev, "cananalt read iap password: %d\n",
 			error);
 		return error;
 	}
@@ -635,7 +635,7 @@ static int elan_i2c_write_fw_block(struct i2c_client *client, u16 fw_page_size,
 
 	page_store = kmalloc(fw_page_size + 4, GFP_KERNEL);
 	if (!page_store)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	page_store[0] = ETP_I2C_IAP_REG_L;
 	page_store[1] = ETP_I2C_IAP_REG_H;

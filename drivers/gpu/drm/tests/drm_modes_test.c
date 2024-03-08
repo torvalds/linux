@@ -21,15 +21,15 @@ static int drm_test_modes_init(struct kunit *test)
 	struct drm_test_modes_priv *priv;
 
 	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, priv);
+	KUNIT_ASSERT_ANALT_NULL(test, priv);
 
 	priv->dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->dev);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->dev);
 
 	priv->drm = __drm_kunit_helper_alloc_drm_device(test, priv->dev,
 							sizeof(*priv->drm), 0,
 							DRIVER_MODESET);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->drm);
+	KUNIT_ASSERT_ANALT_ERR_OR_NULL(test, priv->drm);
 
 	test->priv = priv;
 
@@ -45,7 +45,7 @@ static void drm_test_modes_analog_tv_ntsc_480i(struct kunit *test)
 				  DRM_MODE_TV_MODE_NTSC,
 				  13500 * HZ_PER_KHZ, 720, 480,
 				  true);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	KUNIT_EXPECT_EQ(test, drm_mode_vrefresh(mode), 60);
 	KUNIT_EXPECT_EQ(test, mode->hdisplay, 720);
@@ -75,10 +75,10 @@ static void drm_test_modes_analog_tv_ntsc_480i_inlined(struct kunit *test)
 				      DRM_MODE_TV_MODE_NTSC,
 				      13500 * HZ_PER_KHZ, 720, 480,
 				      true);
-	KUNIT_ASSERT_NOT_NULL(test, expected);
+	KUNIT_ASSERT_ANALT_NULL(test, expected);
 
 	mode = drm_mode_analog_ntsc_480i(priv->drm);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected, mode));
 }
@@ -92,7 +92,7 @@ static void drm_test_modes_analog_tv_pal_576i(struct kunit *test)
 				  DRM_MODE_TV_MODE_PAL,
 				  13500 * HZ_PER_KHZ, 720, 576,
 				  true);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	KUNIT_EXPECT_EQ(test, drm_mode_vrefresh(mode), 50);
 	KUNIT_EXPECT_EQ(test, mode->hdisplay, 720);
@@ -122,10 +122,10 @@ static void drm_test_modes_analog_tv_pal_576i_inlined(struct kunit *test)
 				      DRM_MODE_TV_MODE_PAL,
 				      13500 * HZ_PER_KHZ, 720, 576,
 				      true);
-	KUNIT_ASSERT_NOT_NULL(test, expected);
+	KUNIT_ASSERT_ANALT_NULL(test, expected);
 
 	mode = drm_mode_analog_pal_576i(priv->drm);
-	KUNIT_ASSERT_NOT_NULL(test, mode);
+	KUNIT_ASSERT_ANALT_NULL(test, mode);
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected, mode));
 }
@@ -146,5 +146,5 @@ static struct kunit_suite drm_modes_analog_tv_test_suite = {
 
 kunit_test_suite(drm_modes_analog_tv_test_suite);
 
-MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_AUTHOR("Maxime Ripard <maxime@ceranal.tech>");
 MODULE_LICENSE("GPL");

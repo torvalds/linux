@@ -1,5 +1,5 @@
 =====================
-Kernel driver nouveau
+Kernel driver analuveau
 =====================
 
 Supported chips:
@@ -14,10 +14,10 @@ Description
 This driver allows to read the GPU core temperature, drive the GPU fan and
 set temperature alarms.
 
-Currently, due to the absence of in-kernel API to access HWMON drivers, Nouveau
-cannot access any of the i2c external monitoring chips it may find. If you
-have one of those, temperature and/or fan management through Nouveau's HWMON
-interface is likely not to work. This document may then not cover your situation
+Currently, due to the absence of in-kernel API to access HWMON drivers, Analuveau
+cananalt access any of the i2c external monitoring chips it may find. If you
+have one of those, temperature and/or fan management through Analuveau's HWMON
+interface is likely analt to work. This document may then analt cover your situation
 entirely.
 
 Temperature management
@@ -25,7 +25,7 @@ Temperature management
 
 Temperature is exposed under as a read-only HWMON attribute temp1_input.
 
-In order to protect the GPU from overheating, Nouveau supports 4 configurable
+In order to protect the GPU from overheating, Analuveau supports 4 configurable
 temperature thresholds:
 
  * Fan_boost:
@@ -38,7 +38,7 @@ temperature thresholds:
 	Shut the computer down to protect your GPU.
 
 WARNING:
-	Some of these thresholds may not be used by Nouveau depending
+	Some of these thresholds may analt be used by Analuveau depending
 	on your chipset.
 
 The default value for these thresholds comes from the GPU's vbios. These
@@ -49,17 +49,17 @@ thresholds can be configured thanks to the following HWMON attributes:
  * Critical: temp1_crit and temp1_crit_hyst;
  * Shutdown: temp1_emergency and temp1_emergency_hyst.
 
-NOTE: Remember that the values are stored as milli degrees Celsius. Don't forget
+ANALTE: Remember that the values are stored as milli degrees Celsius. Don't forget
 to multiply!
 
 Fan management
 --------------
 
-Not all cards have a drivable fan. If you do, then the following HWMON
+Analt all cards have a drivable fan. If you do, then the following HWMON
 attributes should be available:
 
  * pwm1_enable:
-	Current fan management mode (NONE, MANUAL or AUTO);
+	Current fan management mode (ANALNE, MANUAL or AUTO);
  * pwm1:
 	Current PWM value (power percentage);
  * pwm1_min:
@@ -78,19 +78,19 @@ Your fan can be driven in different modes:
  * 1: The fan can be driven in manual (use pwm1 to change the speed);
  * 2; The fan is driven automatically depending on the temperature.
 
-NOTE:
+ANALTE:
   Be sure to use the manual mode if you want to drive the fan speed manually
 
-NOTE2:
+ANALTE2:
   When operating in manual mode outside the vbios-defined
-  [PWM_min, PWM_max] range, the reported fan speed (RPM) may not be accurate
+  [PWM_min, PWM_max] range, the reported fan speed (RPM) may analt be accurate
   depending on your hardware.
 
 Bug reports
 -----------
 
-Thermal management on Nouveau is new and may not work on all cards. If you have
-inquiries, please ping mupuf on IRC (#nouveau, OFTC).
+Thermal management on Analuveau is new and may analt work on all cards. If you have
+inquiries, please ping mupuf on IRC (#analuveau, OFTC).
 
 Bug reports should be filled on Freedesktop's bug tracker. Please follow
-https://nouveau.freedesktop.org/wiki/Bugs
+https://analuveau.freedesktop.org/wiki/Bugs

@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@
 #include "dmub_dcn35.h"
 #include "os_types.h"
 /*
- * Note: the DMUB service is standalone. No additional headers should be
+ * Analte: the DMUB service is standalone. Anal additional headers should be
  * added below or above this line unless they reside within the DMUB
  * folder.
  */
@@ -194,7 +194,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn20_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn20_set_outbox0_rptr;
 
-		funcs->get_diagnostic_data = dmub_dcn20_get_diagnostic_data;
+		funcs->get_diaganalstic_data = dmub_dcn20_get_diaganalstic_data;
 
 		if (asic == DMUB_ASIC_DCN21)
 			dmub->regs = &dmub_srv_dcn21_regs;
@@ -267,7 +267,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn31_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
-		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
+		funcs->get_diaganalstic_data = dmub_dcn31_get_diaganalstic_data;
 		funcs->should_detect = dmub_dcn31_should_detect;
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
@@ -308,7 +308,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_outbox0_wptr = dmub_dcn32_get_outbox0_wptr;
 		funcs->set_outbox0_rptr = dmub_dcn32_set_outbox0_rptr;
 		funcs->get_current_time = dmub_dcn32_get_current_time;
-		funcs->get_diagnostic_data = dmub_dcn32_get_diagnostic_data;
+		funcs->get_diaganalstic_data = dmub_dcn32_get_diaganalstic_data;
 		funcs->init_reg_offsets = dmub_srv_dcn32_regs_init;
 
 		break;
@@ -347,7 +347,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->set_outbox0_rptr = dmub_dcn35_set_outbox0_rptr;
 
 			funcs->get_current_time = dmub_dcn35_get_current_time;
-			funcs->get_diagnostic_data = dmub_dcn35_get_diagnostic_data;
+			funcs->get_diaganalstic_data = dmub_dcn35_get_diaganalstic_data;
 
 			funcs->init_reg_offsets = dmub_srv_dcn35_regs_init;
 
@@ -477,7 +477,7 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 
 		/**
 		 * If DM didn't fill in a version, then fill it in based on
-		 * the firmware meta now that we have it.
+		 * the firmware meta analw that we have it.
 		 *
 		 * TODO: Make it easier for driver to extract this out to
 		 * pass during creation.
@@ -604,7 +604,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	if (dmub->hw_funcs.reset)
 		dmub->hw_funcs.reset(dmub);
 
-	/* reset the cache of the last wptr as well now that hw is reset */
+	/* reset the cache of the last wptr as well analw that hw is reset */
 	dmub->inbox1_last_wptr = 0;
 
 	cw0.offset.quad_part = inst_fb->gpu_addr;
@@ -647,7 +647,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 	/**
 	 * Doubled the mailbox region to accomodate inbox and outbox.
-	 * Note: Currently, currently total mailbox size is 16KB. It is split
+	 * Analte: Currently, currently total mailbox size is 16KB. It is split
 	 * equally into 8KB between inbox and outbox. If this config is
 	 * changed, then uncached base address configuration of outbox1
 	 * has to be updated in funcs->setup_out_mailbox.
@@ -1047,11 +1047,11 @@ bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entr
 	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
 }
 
-bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+bool dmub_srv_get_diaganalstic_data(struct dmub_srv *dmub, struct dmub_diaganalstic_data *diag_data)
 {
-	if (!dmub || !dmub->hw_funcs.get_diagnostic_data || !diag_data)
+	if (!dmub || !dmub->hw_funcs.get_diaganalstic_data || !diag_data)
 		return false;
-	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
+	dmub->hw_funcs.get_diaganalstic_data(dmub, diag_data);
 	return true;
 }
 

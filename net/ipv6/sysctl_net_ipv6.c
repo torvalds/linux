@@ -40,7 +40,7 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 			   ipv6.sysctl.multipath_hash_policy);
 	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
+		call_netevent_analtifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -56,7 +56,7 @@ proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
 			   ipv6.sysctl.multipath_hash_fields);
 	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
+		call_netevent_analtifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -120,8 +120,8 @@ static struct ctl_table ipv6_table_template[] = {
 		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
-		.procname	= "ip_nonlocal_bind",
-		.data		= &init_net.ipv6.sysctl.ip_nonlocal_bind,
+		.procname	= "ip_analnlocal_bind",
+		.data		= &init_net.ipv6.sysctl.ip_analnlocal_bind,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -189,8 +189,8 @@ static struct ctl_table ipv6_table_template[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "fib_notify_on_flag_change",
-		.data		= &init_net.ipv6.sysctl.fib_notify_on_flag_change,
+		.procname	= "fib_analtify_on_flag_change",
+		.data		= &init_net.ipv6.sysctl.fib_analtify_on_flag_change,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
@@ -258,7 +258,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	struct ctl_table *ipv6_icmp_table;
 	int err, i;
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	ipv6_table = kmemdup(ipv6_table_template, sizeof(ipv6_table_template),
 			     GFP_KERNEL);
 	if (!ipv6_table)
@@ -339,7 +339,7 @@ static struct ctl_table_header *ip6_header;
 
 int ipv6_sysctl_register(void)
 {
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	ip6_header = register_net_sysctl(&init_net, "net/ipv6", ipv6_rotable);
 	if (!ip6_header)

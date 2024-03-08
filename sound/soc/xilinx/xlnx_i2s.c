@@ -174,26 +174,26 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 	int ret;
 	u32 format;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
 	drv_data = devm_kzalloc(&pdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	drv_data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drv_data->base))
 		return PTR_ERR(drv_data->base);
 
-	ret = of_property_read_u32(node, "xlnx,num-channels", &drv_data->channels);
+	ret = of_property_read_u32(analde, "xlnx,num-channels", &drv_data->channels);
 	if (ret < 0) {
-		dev_err(dev, "cannot get supported channels\n");
+		dev_err(dev, "cananalt get supported channels\n");
 		return ret;
 	}
 	drv_data->channels *= 2;
 
-	ret = of_property_read_u32(node, "xlnx,dwidth", &drv_data->data_width);
+	ret = of_property_read_u32(analde, "xlnx,dwidth", &drv_data->data_width);
 	if (ret < 0) {
-		dev_err(dev, "cannot get data width\n");
+		dev_err(dev, "cananalt get data width\n");
 		return ret;
 	}
 	switch (drv_data->data_width) {
@@ -207,7 +207,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_device_is_compatible(node, "xlnx,i2s-transmitter-1.0")) {
+	if (of_device_is_compatible(analde, "xlnx,i2s-transmitter-1.0")) {
 		drv_data->dai_drv.name = "xlnx_i2s_playback";
 		drv_data->dai_drv.playback.stream_name = "Playback";
 		drv_data->dai_drv.playback.formats = format;
@@ -215,7 +215,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		drv_data->dai_drv.playback.channels_max = drv_data->channels;
 		drv_data->dai_drv.playback.rates	= SNDRV_PCM_RATE_8000_192000;
 		drv_data->dai_drv.ops = &xlnx_i2s_dai_ops;
-	} else if (of_device_is_compatible(node, "xlnx,i2s-receiver-1.0")) {
+	} else if (of_device_is_compatible(analde, "xlnx,i2s-receiver-1.0")) {
 		drv_data->dai_drv.name = "xlnx_i2s_capture";
 		drv_data->dai_drv.capture.stream_name = "Capture";
 		drv_data->dai_drv.capture.formats = format;
@@ -224,7 +224,7 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		drv_data->dai_drv.capture.rates = SNDRV_PCM_RATE_8000_192000;
 		drv_data->dai_drv.ops = &xlnx_i2s_dai_ops;
 	} else {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	drv_data->is_32bit_lrclk = readl(drv_data->base + I2S_CORE_CTRL_OFFSET) &
 				   I2S_CORE_CTRL_32BIT_LRCLK;

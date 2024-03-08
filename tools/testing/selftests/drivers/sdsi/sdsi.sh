@@ -3,12 +3,12 @@
 # Runs tests for the intel_sdsi driver
 
 if ! command -v python3 > /dev/null 2>&1; then
-	echo "drivers/sdsi: [SKIP] python3 not installed"
+	echo "drivers/sdsi: [SKIP] python3 analt installed"
 	exit 77
 fi
 
 if ! python3 -c "import pytest" > /dev/null 2>&1; then
-	echo "drivers/sdsi: [SKIP] pytest module not installed"
+	echo "drivers/sdsi: [SKIP] pytest module analt installed"
 	exit 77
 fi
 

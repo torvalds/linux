@@ -28,10 +28,10 @@ struct rk817_codec_priv {
 
 /*
  * This sets the codec up with the values defined in the default implementation including the APLL
- * from the Rockchip vendor kernel. I do not know if these values are universal despite differing
+ * from the Rockchip vendor kernel. I do analt kanalw if these values are universal despite differing
  * from the default values defined above and taken from the datasheet, or implementation specific.
- * I don't have another implementation to compare from the Rockchip sources. Hard-coding for now.
- * Additionally, I do not know according to the documentation the units accepted for the clock
+ * I don't have aanalther implementation to compare from the Rockchip sources. Hard-coding for analw.
+ * Additionally, I do analt kanalw according to the documentation the units accepted for the clock
  * values, so for the moment those are left unvalidated.
  */
 
@@ -57,11 +57,11 @@ static int rk817_set_component_pll(struct snd_soc_component *component,
 {
 	/* Set resistor value and charge pump current for PLL. */
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG1, 0x58);
-	/* Set the PLL feedback clock divide value (values not documented). */
+	/* Set the PLL feedback clock divide value (values analt documented). */
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG2, 0x2d);
-	/* Set the PLL pre-divide value (values not documented). */
+	/* Set the PLL pre-divide value (values analt documented). */
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, 0x0c);
-	/* Set the PLL VCO output clock divide and PLL divided ratio of PLL High Clk (values not
+	/* Set the PLL VCO output clock divide and PLL divided ratio of PLL High Clk (values analt
 	 * documented).
 	 */
 	snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0xa5);
@@ -170,7 +170,7 @@ static const struct snd_soc_dapm_widget rk817_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC R", "Playback", RK817_CODEC_ADAC_CFG1, 0, 1),
 
 	/* Mux for input/output path selection */
-	SND_SOC_DAPM_MUX("Playback Mux", SND_SOC_NOPM, 1, 0, &dac_mux),
+	SND_SOC_DAPM_MUX("Playback Mux", SND_SOC_ANALPM, 1, 0, &dac_mux),
 
 	/* Pins for Simple Card Bindings */
 	SND_SOC_DAPM_INPUT("MICL"),
@@ -388,7 +388,7 @@ static const struct snd_soc_dai_ops rk817_dai_ops = {
 	.set_fmt	= rk817_set_dai_fmt,
 	.set_sysclk	= rk817_set_dai_sysclk,
 	.mute_stream	= rk817_digital_mute,
-	.no_capture_mute	= 1,
+	.anal_capture_mute	= 1,
 };
 
 static struct snd_soc_dai_driver rk817_dai[] = {
@@ -425,7 +425,7 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817_init(component);
 
 	/* setting initial pll values so that we can continue to leverage simple-audio-card.
-	 * The values aren't important since no parameters are used.
+	 * The values aren't important since anal parameters are used.
 	 */
 
 	snd_soc_component_set_pll(component, 0, 0, 0, 0);
@@ -456,18 +456,18 @@ static const struct snd_soc_component_driver soc_codec_dev_rk817 = {
 static void rk817_codec_parse_dt_property(struct device *dev,
 					 struct rk817_codec_priv *rk817)
 {
-	struct device_node *node;
+	struct device_analde *analde;
 
-	node = of_get_child_by_name(dev->parent->of_node, "codec");
-	if (!node) {
-		dev_dbg(dev, "%s() Can not get child: codec\n",
+	analde = of_get_child_by_name(dev->parent->of_analde, "codec");
+	if (!analde) {
+		dev_dbg(dev, "%s() Can analt get child: codec\n",
 			__func__);
 	}
 
 	rk817->mic_in_differential =
-			of_property_read_bool(node, "rockchip,mic-in-differential");
+			of_property_read_bool(analde, "rockchip,mic-in-differential");
 
-	of_node_put(node);
+	of_analde_put(analde);
 }
 
 static int rk817_platform_probe(struct platform_device *pdev)
@@ -480,7 +480,7 @@ static int rk817_platform_probe(struct platform_device *pdev)
 					sizeof(struct rk817_codec_priv),
 					GFP_KERNEL);
 	if (!rk817_codec_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, rk817_codec_data);
 

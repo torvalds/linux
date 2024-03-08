@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,7 +63,7 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 					goto out;
 			}
 			if (!cnt) {
-				AUX_TRACE(aux, "no data after 32 retries");
+				AUX_TRACE(aux, "anal data after 32 retries");
 				ret = -EIO;
 				goto out;
 			}
@@ -97,7 +97,7 @@ void
 nvkm_i2c_aux_monitor(struct nvkm_i2c_aux *aux, bool monitor)
 {
 	struct nvkm_i2c_pad *pad = aux->pad;
-	AUX_TRACE(aux, "monitor: %s", str_yes_no(monitor));
+	AUX_TRACE(aux, "monitor: %s", str_anal_anal(monitor));
 	if (monitor)
 		nvkm_i2c_pad_mode(pad, NVKM_I2C_PAD_AUX);
 	else
@@ -138,7 +138,7 @@ nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *aux, bool retry, u8 type,
 {
 	if (!*size && !aux->func->address_only) {
 		AUX_ERR(aux, "address-only transaction dropped");
-		return -ENOSYS;
+		return -EANALSYS;
 	}
 	return aux->func->xfer(aux, retry, type, addr, data, size);
 }
@@ -148,7 +148,7 @@ nvkm_i2c_aux_lnk_ctl(struct nvkm_i2c_aux *aux, int nr, int bw, bool ef)
 {
 	if (aux->func->lnk_ctl)
 		return aux->func->lnk_ctl(aux, nr, bw, ef);
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void
@@ -210,6 +210,6 @@ nvkm_i2c_aux_new_(const struct nvkm_i2c_aux_func *func,
 		  struct nvkm_i2c_aux **paux)
 {
 	if (!(*paux = kzalloc(sizeof(**paux), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	return nvkm_i2c_aux_ctor(func, pad, id, *paux);
 }

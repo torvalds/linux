@@ -20,13 +20,13 @@ more details.
 
 /* Binary independent constants */
 
-#ifndef NO_HOIST
-#  define		NO_HOIST	HIVE_ATTRIBUTE((no_hoist))
+#ifndef ANAL_HOIST
+#  define		ANAL_HOIST	HIVE_ATTRIBUTE((anal_hoist))
 #endif
 
-#define NO_HOIST_CSE HIVE_ATTRIBUTE((no_hoist, no_cse))
+#define ANAL_HOIST_CSE HIVE_ATTRIBUTE((anal_hoist, anal_cse))
 
-#define UNION struct /* Union constructors not allowed in C++ */
+#define UNION struct /* Union constructors analt allowed in C++ */
 
 #define XMEM_WIDTH_BITS              HIVE_ISP_DDR_WORD_BITS
 #define XMEM_SHORTS_PER_WORD         (HIVE_ISP_DDR_WORD_BITS / 16)
@@ -114,10 +114,10 @@ more details.
 	CEIL_DIV(MAX_OUTPUT_C_FRAME_WIDTH, ISP_VEC_NELEMS)
 
 /* should be even */
-#define NO_CHUNKING (OUTPUT_NUM_CHUNKS == 1)
+#define ANAL_CHUNKING (OUTPUT_NUM_CHUNKS == 1)
 
 #define MAX_VECTORS_PER_CHUNK \
-	(NO_CHUNKING ? MAX_VECTORS_PER_LINE \
+	(ANAL_CHUNKING ? MAX_VECTORS_PER_LINE \
 				: 2 * CEIL_DIV(MAX_VECTORS_PER_LINE, \
 					     2 * OUTPUT_NUM_CHUNKS))
 
@@ -126,7 +126,7 @@ more details.
 
 /* should be even */
 #define MAX_VECTORS_PER_OUTPUT_CHUNK \
-	(NO_CHUNKING ? MAX_VECTORS_PER_OUTPUT_LINE \
+	(ANAL_CHUNKING ? MAX_VECTORS_PER_OUTPUT_LINE \
 				: 2 * CEIL_DIV(MAX_VECTORS_PER_OUTPUT_LINE, \
 					     2 * OUTPUT_NUM_CHUNKS))
 

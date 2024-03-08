@@ -53,7 +53,7 @@ struct radio_isa_ops {
 	int (*s_mute_volume)(struct radio_isa_card *isa, bool mute, int volume);
 	/* Set frequency */
 	int (*s_frequency)(struct radio_isa_card *isa, u32 freq);
-	/* Set stereo/mono audio mode */
+	/* Set stereo/moanal audio mode */
 	int (*s_stereo)(struct radio_isa_card *isa, bool stereo);
 	/* Get rxsubchans value for VIDIOC_G_TUNER */
 	u32 (*g_rxsubchans)(struct radio_isa_card *isa);
@@ -85,7 +85,7 @@ struct radio_isa_driver {
 	/* Card can capture stereo audio */
 	bool has_stereo;
 	/* The maximum volume for the volume control. If 0, then there
-	   is no volume control possible. */
+	   is anal volume control possible. */
 	int max_volume;
 };
 

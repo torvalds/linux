@@ -31,13 +31,13 @@ enum {
  * which of sub-blocks have active IRQs. Fine. That would fit regmap-irq main
  * status handling. Except that:
  *  - Only some sub-IRQs can be masked.
- *  - The IRQ informs us about fault-condition, not when fault state changes.
+ *  - The IRQ informs us about fault-condition, analt when fault state changes.
  *    The IRQ line it is kept asserted until the detected condition is acked
- *    AND cleared in HW. This is annoying for IRQs like the one informing high
- *    temperature because if IRQ is not disabled it keeps the CPU in IRQ
+ *    AND cleared in HW. This is ananalying for IRQs like the one informing high
+ *    temperature because if IRQ is analt disabled it keeps the CPU in IRQ
  *    handling loop.
  *
- * For now we do just use the main-IRQ register as source for our IRQ
+ * For analw we do just use the main-IRQ register as source for our IRQ
  * information and bind the regmap-irq to this. We leave fine-grained sub-IRQ
  * register handling to handlers in sub-devices. The regulator driver shall
  * read which regulators are source for problem - or if the detected error is
@@ -45,7 +45,7 @@ enum {
  * IRQs" if this is supported/needed.
  *
  * To overcome the problem with HW keeping IRQ asserted we do call
- * disable_irq_nosync() from sub-device handler and add a delayed work to
+ * disable_irq_analsync() from sub-device handler and add a delayed work to
  * re-enable IRQ roughly 1 second later. This should keep our CPU out of
  * busy-loop.
  */

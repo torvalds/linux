@@ -72,7 +72,7 @@ TABLE 1
 | Packed decimal          | 1 | 1 |    0    | 3 words |
 | Expanded packed decimal | 1 | 1 |    1    | 4 words |
 +-------------------------+---+---+---------+---------+
-Note: x = don't care
+Analte: x = don't care
 */
 
 /*
@@ -109,7 +109,7 @@ TABLE 3: Dyadic Floating Point Opcodes
 | 1 | 1 | 1 | 0 |          | undefined instruction | trap                  |
 | 1 | 1 | 1 | 1 |          | undefined instruction | trap                  |
 +---+---+---+---+----------+-----------------------+-----------------------+
-Note: POW, RPW, POL are deprecated, and are available for backwards
+Analte: POW, RPW, POL are deprecated, and are available for backwards
       compatibility only.
 */
 
@@ -132,10 +132,10 @@ TABLE 4: Monadic Floating Point Opcodes
 | 1 | 0 | 1 | 1 | ASN      | Arc Sine              | Fd := arcsin(Fm)      |
 | 1 | 1 | 0 | 0 | ACS      | Arc Cosine            | Fd := arccos(Fm)      |
 | 1 | 1 | 0 | 1 | ATN      | Arc Tangent           | Fd := arctan(Fm)      |
-| 1 | 1 | 1 | 0 | URD      | Unnormalized round    | Fd := int(Fm)         |
-| 1 | 1 | 1 | 1 | NRM      | Normalize             | Fd := norm(Fm)        |
+| 1 | 1 | 1 | 0 | URD      | Unanalrmalized round    | Fd := int(Fm)         |
+| 1 | 1 | 1 | 1 | NRM      | Analrmalize             | Fd := analrm(Fm)        |
 +---+---+---+---+----------+-----------------------+-----------------------+
-Note: LOG, LGN, EXP, SIN, COS, TAN, ASN, ACS, ATN are deprecated, and are
+Analte: LOG, LGN, EXP, SIN, COS, TAN, ASN, ACS, ATN are deprecated, and are
       available for backwards compatibility only.
 */
 
@@ -457,7 +457,7 @@ static inline unsigned int getDestinationSize(const unsigned int opcode)
 		nRc = typeExtended;
 		break;
 	default:
-		nRc = typeNone;
+		nRc = typeAnalne;
 	}
 
 	return (nRc);

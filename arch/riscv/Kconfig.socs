@@ -97,7 +97,7 @@ config SOC_CANAAN_K210_DTB_BUILTIN
 	select BUILTIN_DTB
 	help
 	  Build a device tree for the Kendryte K210 into the Linux image.
-	  This option should be selected if no bootloader is being used.
+	  This option should be selected if anal bootloader is being used.
 	  If unsure, say Y.
 
 config ARCH_CANAAN_K210_DTB_SOURCE

@@ -34,7 +34,7 @@ int bpf_prog1(struct pt_regs *ctx)
 	/* dispatch into next BPF program depending on syscall number */
 	bpf_tail_call(ctx, &progs, sc_nr);
 
-	/* fall through -> unknown syscall */
+	/* fall through -> unkanalwn syscall */
 	if (sc_nr >= __NR_getuid && sc_nr <= __NR_getsid) {
 		char fmt[] = "syscall=%d (one of get/set uid/pid/gid)\n";
 		bpf_trace_printk(fmt, sizeof(fmt), sc_nr);

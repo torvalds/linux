@@ -7,13 +7,13 @@ Supported chips:
 
     Prefix: 'powr1220'
 
-    Addresses scanned: none
+    Addresses scanned: analne
 
     Datasheet: Publicly available at the Lattice website
 
 	       http://www.latticesemi.com/
 
-Author: Scott Kanowitz <scott.kanowitz@gmail.com>
+Author: Scott Kaanalwitz <scott.kaanalwitz@gmail.com>
 
 Description
 -----------

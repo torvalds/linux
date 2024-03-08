@@ -3,8 +3,8 @@
  * RDMA Network Block Driver
  *
  * Copyright (c) 2014 - 2018 ProfitBricks GmbH. All rights reserved.
- * Copyright (c) 2018 - 2019 1&1 IONOS Cloud GmbH. All rights reserved.
- * Copyright (c) 2019 - 2020 1&1 IONOS SE. All rights reserved.
+ * Copyright (c) 2018 - 2019 1&1 IOANALS Cloud GmbH. All rights reserved.
+ * Copyright (c) 2019 - 2020 1&1 IOANALS SE. All rights reserved.
  */
 
 #ifndef RNBD_CLT_H
@@ -37,10 +37,10 @@ enum rnbd_clt_dev_state {
 
 struct rnbd_iu_comp {
 	wait_queue_head_t wait;
-	int errno;
+	int erranal;
 };
 
-#ifdef CONFIG_ARCH_NO_SG_CHAIN
+#ifdef CONFIG_ARCH_ANAL_SG_CHAIN
 #define RNBD_INLINE_SG_CNT 0
 #else
 #define RNBD_INLINE_SG_CNT 2
@@ -61,7 +61,7 @@ struct rnbd_iu {
 	};
 	struct sg_table		sgt;
 	struct work_struct	work;
-	int			errno;
+	int			erranal;
 	struct rnbd_iu_comp	comp;
 	atomic_t		refcount;
 	struct scatterlist	first_sgl[]; /* must be the last one */
@@ -111,7 +111,7 @@ struct rnbd_clt_dev {
 	struct request_queue	*queue;
 	struct rnbd_queue	*hw_queues;
 	u32			device_id;
-	/* local Idr index - used to track minor number allocations. */
+	/* local Idr index - used to track mianalr number allocations. */
 	u32			clt_device_id;
 	struct mutex		lock;
 	enum rnbd_clt_dev_state	dev_state;

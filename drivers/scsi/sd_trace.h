@@ -21,7 +21,7 @@ TRACE_EVENT(scsi_prepare_zone_append,
 	    TP_ARGS(cmnd, lba, wp_offset),
 
 	    TP_STRUCT__entry(
-		     __field( unsigned int, host_no )
+		     __field( unsigned int, host_anal )
 		     __field( unsigned int, channel )
 		     __field( unsigned int, id )
 		     __field( unsigned int, lun )
@@ -30,7 +30,7 @@ TRACE_EVENT(scsi_prepare_zone_append,
 	    ),
 
 	    TP_fast_assign(
-		__entry->host_no	= cmnd->device->host->host_no;
+		__entry->host_anal	= cmnd->device->host->host_anal;
 		__entry->channel	= cmnd->device->channel;
 		__entry->id		= cmnd->device->id;
 		__entry->lun		= cmnd->device->lun;
@@ -38,8 +38,8 @@ TRACE_EVENT(scsi_prepare_zone_append,
 		__entry->wp_offset	= wp_offset;
 	    ),
 
-	    TP_printk("host_no=%u, channel=%u id=%u lun=%u lba=%llu wp_offset=%u",
-		      __entry->host_no, __entry->channel, __entry->id,
+	    TP_printk("host_anal=%u, channel=%u id=%u lun=%u lba=%llu wp_offset=%u",
+		      __entry->host_anal, __entry->channel, __entry->id,
 		      __entry->lun, __entry->lba, __entry->wp_offset)
 );
 
@@ -51,7 +51,7 @@ TRACE_EVENT(scsi_zone_wp_update,
 	    TP_ARGS(cmnd, rq_sector, wp_offset, good_bytes),
 
 	    TP_STRUCT__entry(
-		     __field( unsigned int, host_no )
+		     __field( unsigned int, host_anal )
 		     __field( unsigned int, channel )
 		     __field( unsigned int, id )
 		     __field( unsigned int, lun )
@@ -61,7 +61,7 @@ TRACE_EVENT(scsi_zone_wp_update,
 	    ),
 
 	    TP_fast_assign(
-		__entry->host_no	= cmnd->device->host->host_no;
+		__entry->host_anal	= cmnd->device->host->host_anal;
 		__entry->channel	= cmnd->device->channel;
 		__entry->id		= cmnd->device->id;
 		__entry->lun		= cmnd->device->lun;
@@ -70,9 +70,9 @@ TRACE_EVENT(scsi_zone_wp_update,
 		__entry->good_bytes	= good_bytes;
 	    ),
 
-	    TP_printk("host_no=%u, channel=%u id=%u lun=%u rq_sector=%llu" \
+	    TP_printk("host_anal=%u, channel=%u id=%u lun=%u rq_sector=%llu" \
 		      " wp_offset=%u good_bytes=%u",
-		      __entry->host_no, __entry->channel, __entry->id,
+		      __entry->host_anal, __entry->channel, __entry->id,
 		      __entry->lun, __entry->rq_sector, __entry->wp_offset,
 		      __entry->good_bytes)
 );

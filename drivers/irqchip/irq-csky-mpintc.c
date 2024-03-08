@@ -188,7 +188,7 @@ static int csky_irqdomain_map(struct irq_domain *d, unsigned int irq,
 }
 
 static int csky_irq_domain_xlate_cells(struct irq_domain *d,
-		struct device_node *ctrlr, const u32 *intspec,
+		struct device_analde *ctrlr, const u32 *intspec,
 		unsigned int intsize, unsigned long *out_hwirq,
 		unsigned int *out_type)
 {
@@ -225,7 +225,7 @@ static void csky_mpintc_send_ipi(const struct cpumask *mask)
 
 /* C-SKY multi processor interrupt controller */
 static int __init
-csky_mpintc_init(struct device_node *node, struct device_node *parent)
+csky_mpintc_init(struct device_analde *analde, struct device_analde *parent)
 {
 	int ret;
 	unsigned int cpu, nr_irq;
@@ -236,7 +236,7 @@ csky_mpintc_init(struct device_node *node, struct device_node *parent)
 	if (parent)
 		return 0;
 
-	ret = of_property_read_u32(node, "csky,num-irqs", &nr_irq);
+	ret = of_property_read_u32(analde, "csky,num-irqs", &nr_irq);
 	if (ret < 0)
 		nr_irq = INTC_IRQS;
 
@@ -255,7 +255,7 @@ csky_mpintc_init(struct device_node *node, struct device_node *parent)
 		writel_relaxed(BIT(0), INTCG_base + INTCG_ICTLR);
 	}
 
-	root_domain = irq_domain_add_linear(node, nr_irq, &csky_irqdomain_ops,
+	root_domain = irq_domain_add_linear(analde, nr_irq, &csky_irqdomain_ops,
 					    NULL);
 	if (!root_domain)
 		return -ENXIO;

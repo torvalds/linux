@@ -119,7 +119,7 @@ struct da9030_battery_info {
 	int vbat_charge_stop;
 	int vbat_charge_restart;
 
-	/* battery nominal minimal and maximal voltages in millivolts */
+	/* battery analminal minimal and maximal voltages in millivolts */
 	int vcharge_min;
 	int vcharge_max;
 
@@ -201,10 +201,10 @@ struct da903x_platform_data {
 #define DA9034_EVENT_HOOKSWITCH		(1 << 26)
 #define DA9034_EVENT_WATCHDOG		(1 << 27)
 
-extern int da903x_register_notifier(struct device *dev,
-		struct notifier_block *nb, unsigned int events);
-extern int da903x_unregister_notifier(struct device *dev,
-		struct notifier_block *nb, unsigned int events);
+extern int da903x_register_analtifier(struct device *dev,
+		struct analtifier_block *nb, unsigned int events);
+extern int da903x_unregister_analtifier(struct device *dev,
+		struct analtifier_block *nb, unsigned int events);
 
 /* Status Query Interface */
 #define DA9030_STATUS_ONKEY		(1 << 0)
@@ -235,7 +235,7 @@ extern int da903x_unregister_notifier(struct device *dev,
 extern int da903x_query_status(struct device *dev, unsigned int status);
 
 
-/* NOTE: the functions below are not intended for use outside
+/* ANALTE: the functions below are analt intended for use outside
  * of the DA903x sub-device drivers
  */
 extern int da903x_write(struct device *dev, int reg, uint8_t val);

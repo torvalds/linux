@@ -52,7 +52,7 @@ static struct i2c_client *taos_instantiate_device(struct i2c_adapter *adapter)
 		return i2c_new_client_device(adapter, &tsl2550_info);
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
@@ -67,7 +67,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	   SMBus command and "#" for the data. */
 	p = taos->buffer;
 
-	/* The device remembers the last used address, no need to send it
+	/* The device remembers the last used address, anal need to send it
 	   again if it's the same */
 	if (addr != taos->addr)
 		p += sprintf(p, "@%02X", addr);
@@ -87,7 +87,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		break;
 	default:
 		dev_warn(&adapter->dev, "Unsupported transaction %d\n", size);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	/* Send the transaction to the TAOS EVM */
@@ -115,7 +115,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	p = taos->buffer + 1;
 	p[3] = '\0';
 	if (!strcmp(p, "NAK"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (read_write == I2C_SMBUS_WRITE) {
 		if (!strcmp(p, "ACK"))
@@ -205,7 +205,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 
 	taos = kzalloc(sizeof(struct taos_data), GFP_KERNEL);
 	if (!taos) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto exit;
 	}
 	taos->state = TAOS_STATE_INIT;
@@ -227,7 +227,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 					 msecs_to_jiffies(2000));
 
 	if (taos->state != TAOS_STATE_IDLE) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&serio->dev, "TAOS EVM reset failed (state=%d, "
 			"pos=%d)\n", taos->state, taos->pos);
 		goto exit_close;
@@ -235,7 +235,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 
 	name = taos_adapter_name(taos->buffer);
 	if (!name) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&serio->dev, "TAOS EVM identification failed\n");
 		goto exit_close;
 	}
@@ -248,7 +248,7 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
 	wait_event_interruptible_timeout(wq, taos->state == TAOS_STATE_IDLE,
 					 msecs_to_jiffies(250));
 	if (taos->state != TAOS_STATE_IDLE) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		dev_err(&serio->dev, "TAOS EVM echo off failed "
 			"(state=%d)\n", taos->state);
 		goto exit_close;

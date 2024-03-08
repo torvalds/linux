@@ -18,7 +18,7 @@ extern unsigned long page_offset_base;
 extern unsigned long vmalloc_base;
 extern unsigned long vmemmap_base;
 
-static __always_inline unsigned long __phys_addr_nodebug(unsigned long x)
+static __always_inline unsigned long __phys_addr_analdebug(unsigned long x)
 {
 	unsigned long y = x - __START_KERNEL_map;
 
@@ -32,7 +32,7 @@ static __always_inline unsigned long __phys_addr_nodebug(unsigned long x)
 extern unsigned long __phys_addr(unsigned long);
 extern unsigned long __phys_addr_symbol(unsigned long);
 #else
-#define __phys_addr(x)		__phys_addr_nodebug(x)
+#define __phys_addr(x)		__phys_addr_analdebug(x)
 #define __phys_addr_symbol(x) \
 	((unsigned long)(x) - __START_KERNEL_map + phys_base)
 #endif
@@ -65,15 +65,15 @@ void copy_page(void *to, void *from);
  * User space process size.  This is the first address outside the user range.
  * There are a few constraints that determine this:
  *
- * On Intel CPUs, if a SYSCALL instruction is at the highest canonical
+ * On Intel CPUs, if a SYSCALL instruction is at the highest caanalnical
  * address, then that syscall will enter the kernel with a
- * non-canonical return address, and SYSRET will explode dangerously.
+ * analn-caanalnical return address, and SYSRET will explode dangerously.
  * We avoid this particular problem by preventing anything
- * from being mapped at the maximum canonical address.
+ * from being mapped at the maximum caanalnical address.
  *
  * On AMD CPUs in the Ryzen family, there's a nasty bug in which the
- * CPUs malfunction if they execute code from the highest canonical page.
- * They'll speculate right off the end of the canonical space, and
+ * CPUs malfunction if they execute code from the highest caanalnical page.
+ * They'll speculate right off the end of the caanalnical space, and
  * bad things happen.  This is worked around in the same way as the
  * Intel problem.
  *

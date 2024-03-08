@@ -1,15 +1,15 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Tests sysctl options {arp,ndisc}_evict_nocarrier={0,1}
+# Tests sysctl options {arp,ndisc}_evict_analcarrier={0,1}
 #
 # Create a veth pair and set IPs/routes on both. Then ping to establish
 # an entry in the ARP/ND table. Depending on the test set sysctl option to
-# 1 or 0. Set remote veth down which will cause local veth to go into a no
+# 1 or 0. Set remote veth down which will cause local veth to go into a anal
 # carrier state. Depending on the test check the ARP/ND table:
 #
-# {arp,ndisc}_evict_nocarrier=1 should contain no ARP/ND after no carrier
-# {arp,ndisc}_evict_nocarrer=0 should still contain the single ARP/ND entry
+# {arp,ndisc}_evict_analcarrier=1 should contain anal ARP/ND after anal carrier
+# {arp,ndisc}_evict_analcarrer=0 should still contain the single ARP/ND entry
 #
 
 source lib.sh
@@ -25,8 +25,8 @@ cleanup_v6()
 {
     cleanup_ns ${me} ${peer}
 
-    sysctl -w net.ipv6.conf.veth1.ndisc_evict_nocarrier=1 >/dev/null 2>&1
-    sysctl -w net.ipv6.conf.all.ndisc_evict_nocarrier=1 >/dev/null 2>&1
+    sysctl -w net.ipv6.conf.veth1.ndisc_evict_analcarrier=1 >/dev/null 2>&1
+    sysctl -w net.ipv6.conf.all.ndisc_evict_analcarrier=1 >/dev/null 2>&1
 }
 
 setup_v6() {
@@ -36,9 +36,9 @@ setup_v6() {
 
     $IP li add veth1 type veth peer name veth2
     $IP li set veth1 up
-    $IP -6 addr add $V6_ADDR0/64 dev veth1 nodad
+    $IP -6 addr add $V6_ADDR0/64 dev veth1 analdad
     $IP li set veth2 netns ${peer} up
-    ip -netns ${peer} -6 addr add $V6_ADDR1/64 dev veth2 nodad
+    ip -netns ${peer} -6 addr add $V6_ADDR1/64 dev veth2 analdad
 
     ip netns exec ${me} sysctl -w $1 >/dev/null 2>&1
 
@@ -52,7 +52,7 @@ setup_v6() {
         exit 1
     fi
 
-    # Set veth2 down, which will put veth1 in NOCARRIER state
+    # Set veth2 down, which will put veth1 in ANALCARRIER state
     ip netns exec ${peer} ip link set veth2 down
 }
 
@@ -79,7 +79,7 @@ setup_v4() {
         exit 1
     fi
 
-    # Set veth1 down, which will put veth0 in NOCARRIER state
+    # Set veth1 down, which will put veth0 in ANALCARRIER state
     ip netns exec "${PEER_NS}" ip link set veth1 down
 }
 
@@ -88,14 +88,14 @@ cleanup_v4() {
     ip link del veth0
     cleanup_ns $PEER_NS
 
-    sysctl -w net.ipv4.conf.veth0.arp_evict_nocarrier=1 >/dev/null 2>&1
-    sysctl -w net.ipv4.conf.all.arp_evict_nocarrier=1 >/dev/null 2>&1
+    sysctl -w net.ipv4.conf.veth0.arp_evict_analcarrier=1 >/dev/null 2>&1
+    sysctl -w net.ipv4.conf.all.arp_evict_analcarrier=1 >/dev/null 2>&1
 }
 
-# Run test when arp_evict_nocarrier = 1 (default).
-run_arp_evict_nocarrier_enabled() {
-    echo "run arp_evict_nocarrier=1 test"
-    setup_v4 "net.ipv4.conf.veth0.arp_evict_nocarrier=1"
+# Run test when arp_evict_analcarrier = 1 (default).
+run_arp_evict_analcarrier_enabled() {
+    echo "run arp_evict_analcarrier=1 test"
+    setup_v4 "net.ipv4.conf.veth0.arp_evict_analcarrier=1"
 
     # ARP table should be empty
     ip neigh get $V4_ADDR1 dev veth0 >/dev/null 2>&1
@@ -110,10 +110,10 @@ run_arp_evict_nocarrier_enabled() {
     cleanup_v4
 }
 
-# Run test when arp_evict_nocarrier = 0
-run_arp_evict_nocarrier_disabled() {
-    echo "run arp_evict_nocarrier=0 test"
-    setup_v4 "net.ipv4.conf.veth0.arp_evict_nocarrier=0"
+# Run test when arp_evict_analcarrier = 0
+run_arp_evict_analcarrier_disabled() {
+    echo "run arp_evict_analcarrier=0 test"
+    setup_v4 "net.ipv4.conf.veth0.arp_evict_analcarrier=0"
 
     # ARP table should still contain the entry
     ip neigh get $V4_ADDR1 dev veth0 >/dev/null 2>&1
@@ -128,9 +128,9 @@ run_arp_evict_nocarrier_disabled() {
     cleanup_v4
 }
 
-run_arp_evict_nocarrier_disabled_all() {
-    echo "run all.arp_evict_nocarrier=0 test"
-    setup_v4 "net.ipv4.conf.all.arp_evict_nocarrier=0"
+run_arp_evict_analcarrier_disabled_all() {
+    echo "run all.arp_evict_analcarrier=0 test"
+    setup_v4 "net.ipv4.conf.all.arp_evict_analcarrier=0"
 
     # ARP table should still contain the entry
     ip neigh get $V4_ADDR1 dev veth0 >/dev/null 2>&1
@@ -144,10 +144,10 @@ run_arp_evict_nocarrier_disabled_all() {
     cleanup_v4
 }
 
-run_ndisc_evict_nocarrier_enabled() {
-    echo "run ndisc_evict_nocarrier=1 test"
+run_ndisc_evict_analcarrier_enabled() {
+    echo "run ndisc_evict_analcarrier=1 test"
 
-    setup_v6 "net.ipv6.conf.veth1.ndisc_evict_nocarrier=1"
+    setup_v6 "net.ipv6.conf.veth1.ndisc_evict_analcarrier=1"
 
     ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
@@ -161,10 +161,10 @@ run_ndisc_evict_nocarrier_enabled() {
     cleanup_v6
 }
 
-run_ndisc_evict_nocarrier_disabled() {
-    echo "run ndisc_evict_nocarrier=0 test"
+run_ndisc_evict_analcarrier_disabled() {
+    echo "run ndisc_evict_analcarrier=0 test"
 
-    setup_v6 "net.ipv6.conf.veth1.ndisc_evict_nocarrier=0"
+    setup_v6 "net.ipv6.conf.veth1.ndisc_evict_analcarrier=0"
 
     ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
@@ -178,10 +178,10 @@ run_ndisc_evict_nocarrier_disabled() {
     cleanup_v6
 }
 
-run_ndisc_evict_nocarrier_disabled_all() {
-    echo "run all.ndisc_evict_nocarrier=0 test"
+run_ndisc_evict_analcarrier_disabled_all() {
+    echo "run all.ndisc_evict_analcarrier=0 test"
 
-    setup_v6 "net.ipv6.conf.all.ndisc_evict_nocarrier=0"
+    setup_v6 "net.ipv6.conf.all.ndisc_evict_analcarrier=0"
 
     ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
@@ -196,12 +196,12 @@ run_ndisc_evict_nocarrier_disabled_all() {
 }
 
 run_all_tests() {
-    run_arp_evict_nocarrier_enabled
-    run_arp_evict_nocarrier_disabled
-    run_arp_evict_nocarrier_disabled_all
-    run_ndisc_evict_nocarrier_enabled
-    run_ndisc_evict_nocarrier_disabled
-    run_ndisc_evict_nocarrier_disabled_all
+    run_arp_evict_analcarrier_enabled
+    run_arp_evict_analcarrier_disabled
+    run_arp_evict_analcarrier_disabled_all
+    run_ndisc_evict_analcarrier_enabled
+    run_ndisc_evict_analcarrier_disabled
+    run_ndisc_evict_analcarrier_disabled_all
 }
 
 if [ "$(id -u)" -ne 0 ];then

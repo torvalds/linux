@@ -55,8 +55,8 @@
 		      <0x00 0x44860000 0x00 0x20000>;
 		/*
 		 * Marked Disabled:
-		 * Node is incomplete as it is meant for bootloaders and
-		 * firmware on non-MPU processors
+		 * Analde is incomplete as it is meant for bootloaders and
+		 * firmware on analn-MPU processors
 		 */
 		status = "disabled";
 	};
@@ -112,7 +112,7 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0x0000000f>;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -123,7 +123,7 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0x0000000f>;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -164,7 +164,7 @@
 		assigned-clock-parents = <&k3_clks 35 2>;
 		power-domains = <&k3_pds 35 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -178,7 +178,7 @@
 		assigned-clock-parents = <&k3_clks 83 2>;
 		power-domains = <&k3_pds 83 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -192,7 +192,7 @@
 		assigned-clock-parents = <&k3_clks 84 2>;
 		power-domains = <&k3_pds 84 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -206,7 +206,7 @@
 		assigned-clock-parents = <&k3_clks 85 2>;
 		power-domains = <&k3_pds 85 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -220,7 +220,7 @@
 		assigned-clock-parents = <&k3_clks 86 2>;
 		power-domains = <&k3_pds 86 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -234,7 +234,7 @@
 		assigned-clock-parents = <&k3_clks 87 2>;
 		power-domains = <&k3_pds 87 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -248,7 +248,7 @@
 		assigned-clock-parents = <&k3_clks 88 2>;
 		power-domains = <&k3_pds 88 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -262,7 +262,7 @@
 		assigned-clock-parents = <&k3_clks 89 2>;
 		power-domains = <&k3_pds 89 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -276,7 +276,7 @@
 		assigned-clock-parents = <&k3_clks 90 2>;
 		power-domains = <&k3_pds 90 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -290,7 +290,7 @@
 		assigned-clock-parents = <&k3_clks 91 2>;
 		power-domains = <&k3_pds 91 TI_SCI_PD_EXCLUSIVE>;
 		ti,timer-pwm;
-		/* Non-MPU Firmware usage */
+		/* Analn-MPU Firmware usage */
 		status = "reserved";
 	};
 
@@ -507,8 +507,8 @@
 		      <0x00 0x2a400000 0x00 0x80000>;
 		/*
 		 * Marked Disabled:
-		 * Node is incomplete as it is meant for bootloaders and
-		 * firmware on non-MPU processors
+		 * Analde is incomplete as it is meant for bootloaders and
+		 * firmware on analn-MPU processors
 		 */
 		status = "disabled";
 	};
@@ -624,7 +624,7 @@
 			 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>;
 
 		ospi0: spi@47040000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x00 0x47040000 0x00 0x100>,
 			      <0x05 0x00000000 0x01 0x00000000>;
 			interrupts = <GIC_SPI 840 IRQ_TYPE_LEVEL_HIGH>;
@@ -643,7 +643,7 @@
 		};
 
 		ospi1: spi@47050000 {
-			compatible = "ti,am654-ospi", "cdns,qspi-nor";
+			compatible = "ti,am654-ospi", "cdns,qspi-analr";
 			reg = <0x00 0x47050000 0x00 0x100>,
 			      <0x07 0x00000000 0x01 0x00000000>;
 			interrupts = <GIC_SPI 841 IRQ_TYPE_LEVEL_HIGH>;

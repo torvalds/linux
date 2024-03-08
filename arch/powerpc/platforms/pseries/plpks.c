@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) "plpks: " fmt
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/io.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
@@ -81,8 +81,8 @@ static int pseries_status_to_err(int rc)
 	case H_P6:
 		err = -EINVAL;
 		break;
-	case H_NOT_FOUND:
-		err = -ENOENT;
+	case H_ANALT_FOUND:
+		err = -EANALENT;
 		break;
 	case H_BUSY:
 	case H_LONG_BUSY_ORDER_1_MSEC:
@@ -96,8 +96,8 @@ static int pseries_status_to_err(int rc)
 	case H_AUTHORITY:
 		err = -EPERM;
 		break;
-	case H_NO_MEM:
-		err = -ENOMEM;
+	case H_ANAL_MEM:
+		err = -EANALMEM;
 		break;
 	case H_RESOURCE:
 		err = -EEXIST;
@@ -138,10 +138,10 @@ static int plpks_gen_password(void)
 		return 0;
 	}
 
-	// The password must not cross a page boundary, so we align to the next power of 2
+	// The password must analt cross a page boundary, so we align to the next power of 2
 	password = kzalloc(roundup_pow_of_two(maxpwsize), GFP_KERNEL);
 	if (!password)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rc = plpar_hcall(H_PKS_GEN_PASSWORD, retbuf, consumer, 0,
 			 virt_to_phys(password), maxpwsize);
@@ -151,7 +151,7 @@ static int plpks_gen_password(void)
 		ospassword = kzalloc(maxpwsize, GFP_KERNEL);
 		if (!ospassword) {
 			kfree_sensitive(password);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 		memcpy(ospassword, password, ospasswordlength);
 	} else {
@@ -175,11 +175,11 @@ static struct plpks_auth *construct_auth(u8 consumer)
 	if (consumer > PLPKS_OS_OWNER)
 		return ERR_PTR(-EINVAL);
 
-	// The auth structure must not cross a page boundary and must be
+	// The auth structure must analt cross a page boundary and must be
 	// 16 byte aligned. We align to the next largest power of 2
 	auth = kzalloc(roundup_pow_of_two(struct_size(auth, password, maxpwsize)), GFP_KERNEL);
 	if (!auth)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	auth->version = 1;
 	auth->consumer = consumer;
@@ -196,7 +196,7 @@ static struct plpks_auth *construct_auth(u8 consumer)
 
 /*
  * Label is combination of label attributes + name.
- * Label attributes are used internally by kernel and not exposed to the user.
+ * Label attributes are used internally by kernel and analt exposed to the user.
  */
 static struct label *construct_label(char *component, u8 varos, u8 *name,
 				     u16 namelen)
@@ -214,10 +214,10 @@ static struct label *construct_label(char *component, u8 varos, u8 *name,
 			return ERR_PTR(-EINVAL);
 	}
 
-	// The label structure must not cross a page boundary, so we align to the next power of 2
+	// The label structure must analt cross a page boundary, so we align to the next power of 2
 	label = kzalloc(roundup_pow_of_two(sizeof(*label)), GFP_KERNEL);
 	if (!label)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (component)
 		memcpy(&label->attr.prefix, component, slen);
@@ -255,11 +255,11 @@ static int _plpks_get_config(void)
 
 	size = sizeof(*config);
 
-	// Config struct must not cross a page boundary. So long as the struct
+	// Config struct must analt cross a page boundary. So long as the struct
 	// size is a power of 2, this should be fine as alignment is guaranteed
 	config = kzalloc(size, GFP_KERNEL);
 	if (!config) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto err;
 	}
 
@@ -405,7 +405,7 @@ static int plpks_confirm_object_flushed(struct label *label,
 		status = retbuf[0];
 		if (rc) {
 			timed_out = false;
-			if (rc == H_NOT_FOUND && status == 1)
+			if (rc == H_ANALT_FOUND && status == 1)
 				rc = 0;
 			break;
 		}
@@ -580,7 +580,7 @@ static int plpks_read_var(u8 consumer, struct plpks_var *var)
 
 	output = kzalloc(maxobjsize, GFP_KERNEL);
 	if (!output) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_label;
 	}
 
@@ -639,7 +639,7 @@ int plpks_populate_fdt(void *fdt)
 	int chosen_offset = fdt_path_offset(fdt, "/chosen");
 
 	if (chosen_offset < 0) {
-		pr_err("Can't find chosen node: %s\n",
+		pr_err("Can't find chosen analde: %s\n",
 		       fdt_strerror(chosen_offset));
 		return chosen_offset;
 	}
@@ -647,7 +647,7 @@ int plpks_populate_fdt(void *fdt)
 	return fdt_setprop(fdt, chosen_offset, "ibm,plpks-pw", ospassword, ospasswordlength);
 }
 
-// Once a password is registered with the hypervisor it cannot be cleared without
+// Once a password is registered with the hypervisor it cananalt be cleared without
 // rebooting the LPAR, so to keep using the PLPKS across kexec boots we need to
 // recover the previous password from the FDT.
 //
@@ -658,16 +658,16 @@ int plpks_populate_fdt(void *fdt)
 void __init plpks_early_init_devtree(void)
 {
 	void *fdt = initial_boot_params;
-	int chosen_node = fdt_path_offset(fdt, "/chosen");
+	int chosen_analde = fdt_path_offset(fdt, "/chosen");
 	const u8 *password;
 	int len;
 
-	if (chosen_node < 0)
+	if (chosen_analde < 0)
 		return;
 
-	password = fdt_getprop(fdt, chosen_node, "ibm,plpks-pw", &len);
+	password = fdt_getprop(fdt, chosen_analde, "ibm,plpks-pw", &len);
 	if (len <= 0) {
-		pr_debug("Couldn't find ibm,plpks-pw node.\n");
+		pr_debug("Couldn't find ibm,plpks-pw analde.\n");
 		return;
 	}
 
@@ -681,7 +681,7 @@ void __init plpks_early_init_devtree(void)
 	ospasswordlength = (u16)len;
 
 out:
-	fdt_nop_property(fdt, chosen_node, "ibm,plpks-pw");
+	fdt_analp_property(fdt, chosen_analde, "ibm,plpks-pw");
 	// Since we've cleared the password, we must update the FDT checksum
 	early_init_dt_verify(fdt);
 }
@@ -691,12 +691,12 @@ static __init int pseries_plpks_init(void)
 	int rc;
 
 	if (!firmware_has_feature(FW_FEATURE_PLPKS))
-		return -ENODEV;
+		return -EANALDEV;
 
 	rc = _plpks_get_config();
 
 	if (rc) {
-		pr_err("POWER LPAR Platform KeyStore is not supported or enabled\n");
+		pr_err("POWER LPAR Platform KeyStore is analt supported or enabled\n");
 		return rc;
 	}
 

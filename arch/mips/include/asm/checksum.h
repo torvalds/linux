@@ -7,7 +7,7 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2001 Thiemo Seufer.
  * Copyright (C) 2002 Maciej W. Rozycki
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techanallogies Ltd.
  */
 #ifndef _ASM_CHECKSUM_H
 #define _ASM_CHECKSUM_H
@@ -65,10 +65,10 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len)
  * we have just one address space, so this is identical to the above)
  */
 #define _HAVE_ARCH_CSUM_AND_COPY
-__wsum __csum_partial_copy_nocheck(const void *src, void *dst, int len);
-static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len)
+__wsum __csum_partial_copy_analcheck(const void *src, void *dst, int len);
+static inline __wsum csum_partial_copy_analcheck(const void *src, void *dst, int len)
 {
-	return __csum_partial_copy_nocheck(src, dst, len);
+	return __csum_partial_copy_analcheck(src, dst, len);
 }
 
 /*
@@ -126,7 +126,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 }
 #define ip_fast_csum ip_fast_csum
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_analfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum isum)
 {
@@ -142,7 +142,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 		sum += sum < tmp;
 
 	/*
-	 * We know PROTO + LEN has the sign bit clear, so cast to a signed
+	 * We kanalw PROTO + LEN has the sign bit clear, so cast to a signed
 	 * type to avoid an extraneous zero-extension where TMP is 64-bit.
 	 */
 	tmp = (__s32)(proto + len);
@@ -168,7 +168,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 
 	return (__force __wsum)osum;
 }
-#define csum_tcpudp_nofold csum_tcpudp_nofold
+#define csum_tcpudp_analfold csum_tcpudp_analfold
 
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
@@ -189,8 +189,8 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 
 	__asm__(
 	"	.set	push		# csum_ipv6_magic\n"
-	"	.set	noreorder	\n"
-	"	.set	noat		\n"
+	"	.set	analreorder	\n"
+	"	.set	analat		\n"
 	"	addu	%0, %5		# proto (long in network byte order)\n"
 	"	sltu	$1, %0, %5	\n"
 	"	addu	%0, $1		\n"

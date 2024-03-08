@@ -12,24 +12,24 @@
 typedef void (*event_cb_func_t)(const u32 *payload, void *data);
 
 #if IS_REACHABLE(CONFIG_XLNX_EVENT_MANAGER)
-int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id,
+int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 analde_id,
 			const u32 event, const bool wake,
 			event_cb_func_t cb_fun, void *data);
 
-int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id,
+int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 analde_id,
 			  const u32 event, event_cb_func_t cb_fun, void *data);
 #else
-static inline int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 node_id,
+static inline int xlnx_register_event(const enum pm_api_cb_id cb_type, const u32 analde_id,
 				      const u32 event, const bool wake,
 				      event_cb_func_t cb_fun, void *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
-static inline int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 node_id,
+static inline int xlnx_unregister_event(const enum pm_api_cb_id cb_type, const u32 analde_id,
 					const u32 event, event_cb_func_t cb_fun, void *data)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 #endif
 

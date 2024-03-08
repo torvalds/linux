@@ -122,7 +122,7 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
 |policy->min,                       | 必须包含该CPU的"默认策略"。稍后      |
 |policy->max,                       | 会用这些值调用                       |
 |policy->policy and, if necessary,  | cpufreq_driver.verify和下面函数      |
-|policy->governor                   | 之一：cpufreq_driver.setpolicy或     |
+|policy->goveranalr                   | 之一：cpufreq_driver.setpolicy或     |
 |                                   | cpufreq_driver.target/target_index   |
 |                                   |                                      |
 +-----------------------------------+--------------------------------------+
@@ -140,7 +140,7 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
 1.3 验证
 --------
 
-当用户决定设置一个新的策略(由"policy,governor,min,max组成")时，必须对这个策略进行验证，
+当用户决定设置一个新的策略(由"policy,goveranalr,min,max组成")时，必须对这个策略进行验证，
 以便纠正不兼容的值。为了验证这些值，cpufreq_verify_within_limits(``struct cpufreq_policy
 *policy``, ``unsigned int min_freq``, ``unsigned int max_freq``)函数可能会有帮助。
 关于频率表辅助函数的详细内容请参见第2节。
@@ -205,7 +205,7 @@ CPUFREQ_POLICY_PERFORMANCE时选择面向性能的设置，为CPUFREQ_POLICY_POW
 1.8 get_intermediate 和 target_intermediate
 --------------------------------------------
 
-仅适用于未设置 target_index() 和 CPUFREQ_ASYNC_NOTIFICATION 的驱动。
+仅适用于未设置 target_index() 和 CPUFREQ_ASYNC_ANALTIFICATION 的驱动。
 
 get_intermediate应该返回一个平台想要切换到的稳定的中间频率，target_intermediate()应该将CPU设置为
 该频率，然后再跳转到'index'对应的频率。cpufreq核心会负责发送通知，驱动不必在

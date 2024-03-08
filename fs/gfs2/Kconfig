@@ -22,7 +22,7 @@ config GFS2_FS
 	  the locking module below. Documentation and utilities for GFS2 can
 	  be found here: http://sources.redhat.com/cluster
 
-	  The "nolock" lock module is now built in to GFS2 by default. If
+	  The "anallock" lock module is analw built in to GFS2 by default. If
 	  you want to use the DLM, be sure to enable IPv4/6 networking.
 
 config GFS2_FS_LOCKING_DLM
@@ -30,7 +30,7 @@ config GFS2_FS_LOCKING_DLM
 	depends on (GFS2_FS!=n) && NET && INET && (IPV6 || IPV6=n) && \
 		CONFIGFS_FS && SYSFS && (DLM=y || DLM=GFS2_FS)
 	help
-	  Multiple node locking module for GFS2
+	  Multiple analde locking module for GFS2
 
 	  Most users of GFS2 will require this. It provides the locking
 	  interface between GFS2 and the DLM, which is required to use GFS2

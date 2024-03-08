@@ -23,7 +23,7 @@ static int prestera_flow_block_mall_cb(struct prestera_flow_block *block,
 		prestera_mall_destroy(block);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -44,7 +44,7 @@ static int prestera_flow_block_flower_cb(struct prestera_flow_block *block,
 		prestera_flower_tmplt_destroy(block, f);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -59,7 +59,7 @@ static int prestera_flow_block_cb(enum tc_setup_type type,
 	case TC_SETUP_CLSMATCHALL:
 		return prestera_flow_block_mall_cb(block, type_data);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -132,7 +132,7 @@ static int prestera_flow_block_bind(struct prestera_flow_block *block,
 
 	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
 	if (!binding)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	binding->span_id = PRESTERA_SPAN_INVALID_ID;
 	binding->port = port;
@@ -158,7 +158,7 @@ static int prestera_flow_block_unbind(struct prestera_flow_block *block,
 
 	binding = prestera_flow_block_lookup(block, port);
 	if (!binding)
-		return -ENOENT;
+		return -EANALENT;
 
 	list_del(&binding->list);
 
@@ -183,7 +183,7 @@ prestera_flow_block_get(struct prestera_switch *sw,
 	if (!block_cb) {
 		block = prestera_flow_block_create(sw, f->net, ingress);
 		if (!block)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		block_cb = flow_block_cb_alloc(prestera_flow_block_cb,
 					       sw, block,
@@ -297,7 +297,7 @@ static int prestera_setup_flow_block_clsact(struct prestera_port *port,
 		prestera_setup_flow_block_unbind(port, f, ingress);
 		return 0;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -310,6 +310,6 @@ int prestera_flow_block_setup(struct prestera_port *port,
 	case FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS:
 		return prestera_setup_flow_block_clsact(port, f, false);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }

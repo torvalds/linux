@@ -124,7 +124,7 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read underclock status: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	if (val & ARIZONA_AIF3_UNDERCLOCKED_STS)
@@ -164,7 +164,7 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read overclock status: %d\n",
 			ret);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	switch (arizona->type) {
@@ -595,7 +595,7 @@ static int arizona_runtime_resume(struct device *dev)
 		} else {
 			/*
 			 * As this is only called for the internal regulator
-			 * (where we know voltage ranges available) it is ok
+			 * (where we kanalw voltage ranges available) it is ok
 			 * to request an exact range.
 			 */
 			ret = regulator_set_voltage(arizona->dcvdd,
@@ -671,7 +671,7 @@ static int arizona_runtime_suspend(struct device *dev)
 		} else {
 			/*
 			 * As this is only called for the internal regulator
-			 * (where we know voltage ranges available) it is ok
+			 * (where we kanalw voltage ranges available) it is ok
 			 * to request an exact range.
 			 */
 			ret = regulator_set_voltage(arizona->dcvdd,
@@ -726,13 +726,13 @@ static int arizona_runtime_suspend(struct device *dev)
 	regcache_mark_dirty(arizona->regmap);
 	regulator_disable(arizona->dcvdd);
 
-	/* Allow us to completely power down if no jack detection */
+	/* Allow us to completely power down if anal jack detection */
 	if (!jd_active) {
 		dev_dbg(arizona->dev, "Fully powering off\n");
 
 		arizona->has_fully_powered_off = true;
 
-		disable_irq_nosync(arizona->irq);
+		disable_irq_analsync(arizona->irq);
 		arizona_enable_reset(arizona);
 		regulator_bulk_disable(arizona->num_core_supplies,
 				       arizona->core_supplies);
@@ -751,7 +751,7 @@ static int arizona_suspend(struct device *dev)
 	return 0;
 }
 
-static int arizona_suspend_noirq(struct device *dev)
+static int arizona_suspend_analirq(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
@@ -761,7 +761,7 @@ static int arizona_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int arizona_resume_noirq(struct device *dev)
+static int arizona_resume_analirq(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
 
@@ -786,8 +786,8 @@ EXPORT_GPL_DEV_PM_OPS(arizona_pm_ops) = {
 		       arizona_runtime_resume,
 		       NULL)
 	SYSTEM_SLEEP_PM_OPS(arizona_suspend, arizona_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_noirq,
-				  arizona_resume_noirq)
+	ANALIRQ_SYSTEM_SLEEP_PM_OPS(arizona_suspend_analirq,
+				  arizona_resume_analirq)
 };
 
 #ifdef CONFIG_OF
@@ -796,7 +796,7 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 	struct arizona_pdata *pdata = &arizona->pdata;
 	int ret, i;
 
-	/* Handle old non-standard DT binding */
+	/* Handle old analn-standard DT binding */
 	pdata->reset = devm_gpiod_get(arizona->dev, "wlf,reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pdata->reset)) {
 		ret = PTR_ERR(pdata->reset);
@@ -808,14 +808,14 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		 */
 		if (ret == -EPROBE_DEFER)
 			return ret;
-		else if (ret != -ENOENT && ret != -ENOSYS)
+		else if (ret != -EANALENT && ret != -EANALSYS)
 			dev_err(arizona->dev, "Reset GPIO malformed: %d\n",
 				ret);
 
 		pdata->reset = NULL;
 	}
 
-	ret = of_property_read_u32_array(arizona->dev->of_node,
+	ret = of_property_read_u32_array(arizona->dev->of_analde,
 					 "wlf,gpio-defaults",
 					 pdata->gpio_defaults,
 					 ARRAY_SIZE(pdata->gpio_defaults));
@@ -980,9 +980,9 @@ int arizona_dev_init(struct arizona *arizona)
 		arizona->num_core_supplies = ARRAY_SIZE(wm5102_core_supplies);
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device type %d\n",
+		dev_err(arizona->dev, "Unkanalwn device type %d\n",
 			arizona->type);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* Mark DCVDD as external, LDO1 driver will clear if internal */
@@ -991,7 +991,7 @@ int arizona_dev_init(struct arizona *arizona)
 	switch (arizona->type) {
 	case WM1831:
 	case CS47L24:
-		break; /* No LDO1 regulator */
+		break; /* Anal LDO1 regulator */
 	default:
 		ret = mfd_add_devices(arizona->dev, -1, early_devs,
 				      ARRAY_SIZE(early_devs), NULL, 0, NULL);
@@ -1057,7 +1057,7 @@ int arizona_dev_init(struct arizona *arizona)
 
 	regcache_cache_only(arizona->regmap, false);
 
-	/* Verify that this is a chip we know about */
+	/* Verify that this is a chip we kanalw about */
 	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
 	if (ret != 0) {
 		dev_err(dev, "Failed to read ID register: %d\n", ret);
@@ -1072,8 +1072,8 @@ int arizona_dev_init(struct arizona *arizona)
 	case 0x8997:
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
-		ret = -ENODEV;
+		dev_err(arizona->dev, "Unkanalwn device ID: %x\n", reg);
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 
@@ -1232,15 +1232,15 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 		break;
 	default:
-		dev_err(arizona->dev, "Unknown device ID %x\n", reg);
-		ret = -ENODEV;
+		dev_err(arizona->dev, "Unkanalwn device ID %x\n", reg);
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 
 	if (!subdevs) {
 		dev_err(arizona->dev,
-			"No kernel support for device ID %x\n", reg);
-		ret = -ENODEV;
+			"Anal kernel support for device ID %x\n", reg);
+		ret = -EANALDEV;
 		goto err_reset;
 	}
 
@@ -1299,7 +1299,7 @@ int arizona_dev_init(struct arizona *arizona)
 				   arizona->pdata.clk32k_src - 1);
 		arizona_clk32k_enable(arizona);
 		break;
-	case ARIZONA_32KZ_NONE:
+	case ARIZONA_32KZ_ANALNE:
 		regmap_update_bits(arizona->regmap, ARIZONA_CLOCK_32K_1,
 				   ARIZONA_CLK_32K_SRC_MASK, 2);
 		break;
@@ -1362,7 +1362,7 @@ int arizona_dev_init(struct arizona *arizona)
 	arizona_request_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, "Underclocked",
 			    arizona_underclocked, arizona);
 
-	ret = mfd_add_devices(arizona->dev, PLATFORM_DEVID_NONE,
+	ret = mfd_add_devices(arizona->dev, PLATFORM_DEVID_ANALNE,
 			      subdevs, n_subdevs, NULL, 0, NULL);
 
 	if (ret) {

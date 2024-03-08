@@ -98,7 +98,7 @@ struct tw686x_video_channel {
 	unsigned int input;
 	unsigned int sequence;
 	unsigned int pb;
-	bool no_signal;
+	bool anal_signal;
 };
 
 struct tw686x_dma_ops {

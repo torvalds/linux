@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
 ** asm/bootinfo-mac.h -- Macintosh-specific boot information definitions
 */
@@ -40,9 +40,9 @@
 #define BI_MAC_SCSI5396		0x8017	/* Mac NCR 53C96 SCSI (base address, multi) */
 #define BI_MAC_IDETYPE		0x8018	/* Mac IDE interface type */
 #define BI_MAC_IDEBASE		0x8019	/* Mac IDE interface base address */
-#define BI_MAC_NUBUS		0x801a	/* Mac Nubus type (none, regular, pseudo) */
+#define BI_MAC_NUBUS		0x801a	/* Mac Nubus type (analne, regular, pseudo) */
 #define BI_MAC_SLOTMASK		0x801b	/* Mac Nubus slots present */
-#define BI_MAC_SCCTYPE		0x801c	/* Mac SCC serial type (normal, IOP) */
+#define BI_MAC_SCCTYPE		0x801c	/* Mac SCC serial type (analrmal, IOP) */
 #define BI_MAC_ETHTYPE		0x801d	/* Mac builtin ethernet type (Sonic, MACE */
 #define BI_MAC_ETHBASE		0x801e	/* Mac builtin ethernet base address */
 #define BI_MAC_PMU		0x801f	/* Mac power management / poweroff hardware */
@@ -99,7 +99,7 @@
 #define MAC_MODEL_PB190		85	/* aka: PB190CS */
 #define MAC_MODEL_TV		88
 #define MAC_MODEL_P475		89	/* aka: LC475, P476 */
-#define MAC_MODEL_P475F		90	/* aka: P475 w/ FPU (no LC040) */
+#define MAC_MODEL_P475F		90	/* aka: P475 w/ FPU (anal LC040) */
 #define MAC_MODEL_P575		92	/* aka: LC575, P577/P578 */
 #define MAC_MODEL_Q605		94
 #define MAC_MODEL_Q605_ACC	95	/* Q605 accelerated to 33 MHz */

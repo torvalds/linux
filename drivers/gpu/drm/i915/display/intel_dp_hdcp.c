@@ -241,7 +241,7 @@ int intel_dp_hdcp_toggle_signalling(struct intel_digital_port *dig_port,
 				    enum transcoder cpu_transcoder,
 				    bool enable)
 {
-	/* Not used for single stream DisplayPort setups */
+	/* Analt used for single stream DisplayPort setups */
 	return 0;
 }
 
@@ -289,7 +289,7 @@ struct hdcp2_dp_msg_data {
 	u32 offset;
 	bool msg_detectable;
 	u32 timeout;
-	u32 timeout2; /* Added for non_paired situation */
+	u32 timeout2; /* Added for analn_paired situation */
 	/* Timeout to read entire msg */
 	u32 msg_read_timeout;
 };
@@ -298,13 +298,13 @@ static const struct hdcp2_dp_msg_data hdcp2_dp_msg_data[] = {
 	{ HDCP_2_2_AKE_INIT, DP_HDCP_2_2_AKE_INIT_OFFSET, false, 0, 0, 0},
 	{ HDCP_2_2_AKE_SEND_CERT, DP_HDCP_2_2_AKE_SEND_CERT_OFFSET,
 	  false, HDCP_2_2_CERT_TIMEOUT_MS, 0, HDCP_2_2_DP_CERT_READ_TIMEOUT_MS},
-	{ HDCP_2_2_AKE_NO_STORED_KM, DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET,
+	{ HDCP_2_2_AKE_ANAL_STORED_KM, DP_HDCP_2_2_AKE_ANAL_STORED_KM_OFFSET,
 	  false, 0, 0, 0 },
 	{ HDCP_2_2_AKE_STORED_KM, DP_HDCP_2_2_AKE_STORED_KM_OFFSET,
 	  false, 0, 0, 0 },
 	{ HDCP_2_2_AKE_SEND_HPRIME, DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET,
 	  true, HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS,
-	  HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS, HDCP_2_2_DP_HPRIME_READ_TIMEOUT_MS},
+	  HDCP_2_2_HPRIME_ANAL_PAIRED_TIMEOUT_MS, HDCP_2_2_DP_HPRIME_READ_TIMEOUT_MS},
 	{ HDCP_2_2_AKE_SEND_PAIRING_INFO,
 	  DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET, true,
 	  HDCP_2_2_PAIRING_TIMEOUT_MS, 0, HDCP_2_2_DP_PAIRING_READ_TIMEOUT_MS },
@@ -410,7 +410,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_connector *connector,
 		timeout = hdcp2_msg_data->timeout;
 
 	/*
-	 * There is no way to detect the CERT, LPRIME and STREAM_READY
+	 * There is anal way to detect the CERT, LPRIME and STREAM_READY
 	 * availability. So Wait for timeout and read the msg.
 	 */
 	if (!hdcp2_msg_data->msg_detectable) {
@@ -418,7 +418,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_connector *connector,
 		ret = 0;
 	} else {
 		/*
-		 * As we want to check the msg availability at timeout, Ignoring
+		 * As we want to check the msg availability at timeout, Iganalring
 		 * the timeout at wait for CP_IRQ.
 		 */
 		intel_dp_hdcp_wait_for_cp_irq(hdcp, timeout);
@@ -465,7 +465,7 @@ int intel_dp_hdcp2_write_msg(struct intel_connector *connector,
 
 	aux = intel_dp_hdcp_get_aux(connector);
 
-	/* No msg_id in DP HDCP2.2 msgs */
+	/* Anal msg_id in DP HDCP2.2 msgs */
 	bytes_to_write = size - 1;
 	byte++;
 
@@ -538,7 +538,7 @@ int intel_dp_hdcp2_read_msg(struct intel_connector *connector,
 
 	hdcp->cp_irq_count_cached = atomic_read(&hdcp->cp_irq_count);
 
-	/* DP adaptation msgs has no msg_id */
+	/* DP adaptation msgs has anal msg_id */
 	byte++;
 
 	if (msg_id == HDCP_2_2_REP_SEND_RECVID_LIST) {
@@ -788,7 +788,7 @@ int intel_dp_mst_hdcp2_check_link(struct intel_digital_port *dig_port,
 	/*
 	 * We do need to do the Link Check only for the connector involved with
 	 * HDCP port authentication and encryption.
-	 * We can re-use the hdcp->is_repeater flag to know that the connector
+	 * We can re-use the hdcp->is_repeater flag to kanalw that the connector
 	 * involved with HDCP port authentication and encryption.
 	 */
 	if (hdcp->is_repeater) {

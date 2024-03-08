@@ -63,7 +63,7 @@ static void __ilsel_enable(ilsel_source_t set, unsigned int bit)
 	unsigned int tmp, shift;
 	unsigned long addr;
 
-	pr_notice("enabling ILSEL set %d\n", set);
+	pr_analtice("enabling ILSEL set %d\n", set);
 
 	addr = mk_ilsel_addr(bit);
 	shift = mk_ilsel_shift(bit);
@@ -81,9 +81,9 @@ static void __ilsel_enable(ilsel_source_t set, unsigned int bit)
  * ilsel_enable - Enable an ILSEL set.
  * @set: ILSEL source (see ilsel_source_t enum in include/asm-sh/ilsel.h).
  *
- * Enables a given non-aliased ILSEL source (<= ILSEL_KEY) at the highest
+ * Enables a given analn-aliased ILSEL source (<= ILSEL_KEY) at the highest
  * available interrupt level. Callers should take care to order callsites
- * noting descending interrupt levels. Aliasing FPGA and external board
+ * analting descending interrupt levels. Aliasing FPGA and external board
  * IRQs need to use ilsel_enable_fixed().
  *
  * The return value is an IRQ number that can later be taken down with
@@ -143,7 +143,7 @@ void ilsel_disable(unsigned int irq)
 	unsigned long addr;
 	unsigned int tmp;
 
-	pr_notice("disabling ILSEL set %d\n", irq);
+	pr_analtice("disabling ILSEL set %d\n", irq);
 
 	addr = mk_ilsel_addr(irq);
 

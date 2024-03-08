@@ -84,7 +84,7 @@ enum tegra_io_pad {
 	TEGRA_IO_PAD_DAP3,
 	TEGRA_IO_PAD_DAP5,
 	TEGRA_IO_PAD_DBG,
-	TEGRA_IO_PAD_DEBUG_NONAO,
+	TEGRA_IO_PAD_DEBUG_ANALNAO,
 	TEGRA_IO_PAD_DMIC,
 	TEGRA_IO_PAD_DMIC_HV,
 	TEGRA_IO_PAD_DP,
@@ -176,49 +176,49 @@ bool tegra_pmc_core_domain_state_synced(void);
 #else
 static inline int tegra_powergate_power_on(unsigned int id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_powergate_power_off(unsigned int id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_powergate_remove_clamping(unsigned int id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_powergate_sequence_power_up(unsigned int id,
 						    struct clk *clk,
 						    struct reset_control *rst)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_io_pad_power_enable(enum tegra_io_pad id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_io_pad_power_disable(enum tegra_io_pad id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_io_pad_get_voltage(enum tegra_io_pad id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_io_rail_power_on(unsigned int id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline int tegra_io_rail_power_off(unsigned int id)
 {
-	return -ENOSYS;
+	return -EANALSYS;
 }
 
 static inline void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
@@ -241,7 +241,7 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void);
 #else
 static inline enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 {
-	return TEGRA_SUSPEND_NONE;
+	return TEGRA_SUSPEND_ANALNE;
 }
 #endif
 

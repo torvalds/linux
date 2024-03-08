@@ -6,11 +6,11 @@
  *  from driver/video/chipsfb.c and,
  *
  *  drivers/video/asiliantfb.c -- frame buffer device for
- *  Asiliant 69030 chip (formerly Intel, formerly Chips & Technologies)
+ *  Asiliant 69030 chip (formerly Intel, formerly Chips & Techanallogies)
  *  Author: apc@agelectronics.co.uk
  *  Copyright (C) 2000 AG Electronics
- *  Note: the data sheets don't seem to be available from Asiliant.
- *  They are available by searching developer.intel.com, but are not otherwise
+ *  Analte: the data sheets don't seem to be available from Asiliant.
+ *  They are available by searching developer.intel.com, but are analt otherwise
  *  linked to.
  *
  *  This driver should be portable with minimal effort to the 69000 display
@@ -32,7 +32,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -93,7 +93,7 @@ static int asiliantfb_pci_init(struct pci_dev *dp, const struct pci_device_id *)
 static int asiliantfb_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info);
 static int asiliantfb_set_par(struct fb_info *info);
-static int asiliantfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int asiliantfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 				u_int transp, struct fb_info *info);
 
 static const struct fb_ops asiliantfb_ops = {
@@ -118,7 +118,7 @@ static void asiliant_calc_dclk2(u32 *ppixclock, u8 *dclk2_m, u8 *dclk2_n, u8 *dc
 	unsigned remainder;
 	unsigned char divisor = 0;
 
-	/* Calculate the frequency required. This is hard enough. */
+	/* Calculate the frequency required. This is hard eanalugh. */
 	ratio = 1000000 / pixclock;
 	remainder = 1000000 % pixclock;
 	Ftarget = 1000000 * ratio + (1000000 * remainder) / pixclock;
@@ -305,38 +305,38 @@ static int asiliantfb_set_par(struct fb_info *p)
 	return 0;
 }
 
-static int asiliantfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int asiliantfb_setcolreg(u_int reganal, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *p)
 {
-	if (regno > 255)
+	if (reganal > 255)
 		return 1;
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
 
         /* Set hardware palete */
-	writeb(regno, mmio_base + 0x790);
+	writeb(reganal, mmio_base + 0x790);
 	udelay(1);
 	writeb(red, mmio_base + 0x791);
 	writeb(green, mmio_base + 0x791);
 	writeb(blue, mmio_base + 0x791);
 
-	if (regno < 16) {
+	if (reganal < 16) {
 		switch(p->var.red.offset) {
 		case 10: /* RGB 555 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[reganal] =
 				((red & 0xf8) << 7) |
 				((green & 0xf8) << 2) |
 				((blue & 0xf8) >> 3);
 			break;
 		case 11: /* RGB 565 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[reganal] =
 				((red & 0xf8) << 8) |
 				((green & 0xfc) << 3) |
 				((blue & 0xf8) >> 3);
 			break;
 		case 16: /* RGB 888 */
-			((u32 *)(p->pseudo_palette))[regno] =
+			((u32 *)(p->pseudo_palette))[reganal] =
 				(red << 16)  |
 				(green << 8) |
 				(blue);
@@ -480,7 +480,7 @@ static const struct fb_fix_screeninfo asiliantfb_fix = {
 	.id =		"Asiliant 69000",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_PSEUDOCOLOR,
-	.accel =	FB_ACCEL_NONE,
+	.accel =	FB_ACCEL_ANALNE,
 	.line_length =	640,
 	.smem_len =	0x200000,	/* 2MB */
 };
@@ -496,7 +496,7 @@ static const struct fb_var_screeninfo asiliantfb_var = {
 	.blue 		= { .length = 8 },
 	.height 	= -1,
 	.width 		= -1,
-	.vmode 		= FB_VMODE_NONINTERLACED,
+	.vmode 		= FB_VMODE_ANALNINTERLACED,
 	.pixclock 	= 39722,
 	.left_margin 	= 48,
 	.right_margin 	= 16,
@@ -548,18 +548,18 @@ static int asiliantfb_pci_init(struct pci_dev *dp,
 		return err;
 
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	addr = pci_resource_start(dp, 0);
 	size = pci_resource_len(dp, 0);
 	if (addr == 0)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!request_mem_region(addr, size, "asiliantfb"))
 		return -EBUSY;
 
 	p = framebuffer_alloc(sizeof(u32) * 16, &dp->dev);
 	if (!p)	{
 		release_mem_region(addr, size);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	p->pseudo_palette = p->par;
 	p->par = NULL;
@@ -568,7 +568,7 @@ static int asiliantfb_pci_init(struct pci_dev *dp,
 	if (p->screen_base == NULL) {
 		release_mem_region(addr, size);
 		framebuffer_release(p);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	pci_write_config_dword(dp, 4, 0x02800083);
@@ -614,10 +614,10 @@ static struct pci_driver asiliantfb_driver = {
 static int __init asiliantfb_init(void)
 {
 	if (fb_modesetting_disabled("asiliantfb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (fb_get_options("asiliantfb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return pci_register_driver(&asiliantfb_driver);
 }

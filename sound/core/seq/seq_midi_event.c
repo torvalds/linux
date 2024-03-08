@@ -7,7 +7,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -20,7 +20,7 @@ MODULE_DESCRIPTION("MIDI byte <-> sequencer event coder");
 MODULE_LICENSE("GPL");
 
 /* event type, index into status_event[] */
-/* from 0 to 6 are normal commands (note off, on, etc.) for 0x9?-0xe? */
+/* from 0 to 6 are analrmal commands (analte off, on, etc.) for 0x9?-0xe? */
 #define ST_INVALID	7
 #define ST_SPECIAL	8
 #define ST_SYSEX	ST_SPECIAL
@@ -30,13 +30,13 @@ MODULE_LICENSE("GPL");
 /*
  * prototypes
  */
-static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
+static void analte_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void one_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void pitchbend_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void two_param_ctrl_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void one_param_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
 static void songpos_event(struct snd_midi_event *dev, struct snd_seq_event *ev);
-static void note_decode(struct snd_seq_event *ev, unsigned char *buf);
+static void analte_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void one_param_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void pitchbend_decode(struct snd_seq_event *ev, unsigned char *buf);
 static void two_param_decode(struct snd_seq_event *ev, unsigned char *buf);
@@ -52,30 +52,30 @@ static struct status_event_list {
 	void (*decode)(struct snd_seq_event *ev, unsigned char *buf);
 } status_event[] = {
 	/* 0x80 - 0xef */
-	{SNDRV_SEQ_EVENT_NOTEOFF,	 2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_NOTEON,	 2, note_event, note_decode},
-	{SNDRV_SEQ_EVENT_KEYPRESS,	 2, note_event, note_decode},
+	{SNDRV_SEQ_EVENT_ANALTEOFF,	 2, analte_event, analte_decode},
+	{SNDRV_SEQ_EVENT_ANALTEON,	 2, analte_event, analte_decode},
+	{SNDRV_SEQ_EVENT_KEYPRESS,	 2, analte_event, analte_decode},
 	{SNDRV_SEQ_EVENT_CONTROLLER,	 2, two_param_ctrl_event, two_param_decode},
 	{SNDRV_SEQ_EVENT_PGMCHANGE,	 1, one_param_ctrl_event, one_param_decode},
 	{SNDRV_SEQ_EVENT_CHANPRESS,	 1, one_param_ctrl_event, one_param_decode},
 	{SNDRV_SEQ_EVENT_PITCHBEND,	 2, pitchbend_ctrl_event, pitchbend_decode},
 	/* invalid */
-	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL},
+	{SNDRV_SEQ_EVENT_ANALNE,		-1, NULL, NULL},
 	/* 0xf0 - 0xff */
 	{SNDRV_SEQ_EVENT_SYSEX,		 1, NULL, NULL}, /* sysex: 0xf0 */
 	{SNDRV_SEQ_EVENT_QFRAME,	 1, one_param_event, one_param_decode}, /* 0xf1 */
 	{SNDRV_SEQ_EVENT_SONGPOS,	 2, songpos_event, songpos_decode}, /* 0xf2 */
 	{SNDRV_SEQ_EVENT_SONGSEL,	 1, one_param_event, one_param_decode}, /* 0xf3 */
-	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf4 */
-	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf5 */
+	{SNDRV_SEQ_EVENT_ANALNE,		-1, NULL, NULL}, /* 0xf4 */
+	{SNDRV_SEQ_EVENT_ANALNE,		-1, NULL, NULL}, /* 0xf5 */
 	{SNDRV_SEQ_EVENT_TUNE_REQUEST,	 0, NULL, NULL}, /* 0xf6 */
-	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf7 */
+	{SNDRV_SEQ_EVENT_ANALNE,		-1, NULL, NULL}, /* 0xf7 */
 	{SNDRV_SEQ_EVENT_CLOCK,		 0, NULL, NULL}, /* 0xf8 */
-	{SNDRV_SEQ_EVENT_NONE,		-1, NULL, NULL}, /* 0xf9 */
+	{SNDRV_SEQ_EVENT_ANALNE,		-1, NULL, NULL}, /* 0xf9 */
 	{SNDRV_SEQ_EVENT_START,		 0, NULL, NULL}, /* 0xfa */
 	{SNDRV_SEQ_EVENT_CONTINUE,	 0, NULL, NULL}, /* 0xfb */
 	{SNDRV_SEQ_EVENT_STOP, 		 0, NULL, NULL}, /* 0xfc */
-	{SNDRV_SEQ_EVENT_NONE, 		-1, NULL, NULL}, /* 0xfd */
+	{SNDRV_SEQ_EVENT_ANALNE, 		-1, NULL, NULL}, /* 0xfd */
 	{SNDRV_SEQ_EVENT_SENSING, 	 0, NULL, NULL}, /* 0xfe */
 	{SNDRV_SEQ_EVENT_RESET, 	 0, NULL, NULL}, /* 0xff */
 };
@@ -91,7 +91,7 @@ static struct extra_event_list {
 		      struct snd_seq_event *ev);
 } extra_event[] = {
 	{SNDRV_SEQ_EVENT_CONTROL14, extra_decode_ctrl14},
-	{SNDRV_SEQ_EVENT_NONREGPARAM, extra_decode_xrpn},
+	{SNDRV_SEQ_EVENT_ANALNREGPARAM, extra_decode_xrpn},
 	{SNDRV_SEQ_EVENT_REGPARAM, extra_decode_xrpn},
 };
 
@@ -106,12 +106,12 @@ int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 	*rdev = NULL;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (bufsize > 0) {
 		dev->buf = kmalloc(bufsize, GFP_KERNEL);
 		if (dev->buf == NULL) {
 			kfree(dev);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	dev->bufsize = bufsize;
@@ -162,16 +162,16 @@ void snd_midi_event_reset_decode(struct snd_midi_event *dev)
 }
 EXPORT_SYMBOL(snd_midi_event_reset_decode);
 
-void snd_midi_event_no_status(struct snd_midi_event *dev, int on)
+void snd_midi_event_anal_status(struct snd_midi_event *dev, int on)
 {
-	dev->nostat = on ? 1 : 0;
+	dev->analstat = on ? 1 : 0;
 }
-EXPORT_SYMBOL(snd_midi_event_no_status);
+EXPORT_SYMBOL(snd_midi_event_anal_status);
 
 /*
  *  read one byte and encode to sequencer event:
  *  return true if MIDI bytes are encoded to an event
- *         false data is not finished
+ *         false data is analt finished
  */
 bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 				struct snd_seq_event *ev)
@@ -184,7 +184,7 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 		ev->type = status_event[ST_SPECIAL + c - 0xf0].event;
 		ev->flags &= ~SNDRV_SEQ_EVENT_LENGTH_MASK;
 		ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
-		return ev->type != SNDRV_SEQ_EVENT_NONE;
+		return ev->type != SNDRV_SEQ_EVENT_ANALNE;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -241,12 +241,12 @@ bool snd_midi_event_encode_byte(struct snd_midi_event *dev, unsigned char c,
 }
 EXPORT_SYMBOL(snd_midi_event_encode_byte);
 
-/* encode note event */
-static void note_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
+/* encode analte event */
+static void analte_event(struct snd_midi_event *dev, struct snd_seq_event *ev)
 {
-	ev->data.note.channel = dev->buf[0] & 0x0f;
-	ev->data.note.note = dev->buf[1];
-	ev->data.note.velocity = dev->buf[2];
+	ev->data.analte.channel = dev->buf[0] & 0x0f;
+	ev->data.analte.analte = dev->buf[1];
+	ev->data.analte.velocity = dev->buf[2];
 }
 
 /* encode one parameter controls */
@@ -292,8 +292,8 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 {
 	unsigned int cmd, type;
 
-	if (ev->type == SNDRV_SEQ_EVENT_NONE)
-		return -ENOENT;
+	if (ev->type == SNDRV_SEQ_EVENT_ANALNE)
+		return -EANALENT;
 
 	for (type = 0; type < ARRAY_SIZE(status_event); type++) {
 		if (ev->type == status_event[type].event)
@@ -303,14 +303,14 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 		if (ev->type == extra_event[type].event)
 			return extra_event[type].decode(dev, buf, count, ev);
 	}
-	return -ENOENT;
+	return -EANALENT;
 
       __found:
 	if (type >= ST_SPECIAL)
 		cmd = 0xf0 + (type - ST_SPECIAL);
 	else
-		/* data.note.channel and data.control.channel is identical */
-		cmd = 0x80 | (type << 4) | (ev->data.note.channel & 0x0f);
+		/* data.analte.channel and data.control.channel is identical */
+		cmd = 0x80 | (type << 4) | (ev->data.analte.channel & 0x0f);
 
 
 	if (cmd == MIDI_CMD_COMMON_SYSEX) {
@@ -322,7 +322,7 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 		unsigned long flags;
 
 		spin_lock_irqsave(&dev->lock, flags);
-		if ((cmd & 0xf0) == 0xf0 || dev->lastcmd != cmd || dev->nostat) {
+		if ((cmd & 0xf0) == 0xf0 || dev->lastcmd != cmd || dev->analstat) {
 			dev->lastcmd = cmd;
 			spin_unlock_irqrestore(&dev->lock, flags);
 			xbuf[0] = cmd;
@@ -336,7 +336,7 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 			qlen = status_event[type].qlen;
 		}
 		if (count < qlen)
-			return -ENOMEM;
+			return -EANALMEM;
 		memcpy(buf, xbuf, qlen);
 		return qlen;
 	}
@@ -344,11 +344,11 @@ long snd_midi_event_decode(struct snd_midi_event *dev, unsigned char *buf, long 
 EXPORT_SYMBOL(snd_midi_event_decode);
 
 
-/* decode note event */
-static void note_decode(struct snd_seq_event *ev, unsigned char *buf)
+/* decode analte event */
+static void analte_decode(struct snd_seq_event *ev, unsigned char *buf)
 {
-	buf[0] = ev->data.note.note & 0x7f;
-	buf[1] = ev->data.note.velocity & 0x7f;
+	buf[0] = ev->data.analte.analte & 0x7f;
+	buf[1] = ev->data.analte.velocity & 0x7f;
 }
 
 /* decode one parameter controls */
@@ -389,26 +389,26 @@ static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf,
 	cmd = MIDI_CMD_CONTROL|(ev->data.control.channel & 0x0f);
 	if (ev->data.control.param < 0x20) {
 		if (count < 4)
-			return -ENOMEM;
-		if (dev->nostat && count < 6)
-			return -ENOMEM;
-		if (cmd != dev->lastcmd || dev->nostat) {
+			return -EANALMEM;
+		if (dev->analstat && count < 6)
+			return -EANALMEM;
+		if (cmd != dev->lastcmd || dev->analstat) {
 			if (count < 5)
-				return -ENOMEM;
+				return -EANALMEM;
 			buf[idx++] = dev->lastcmd = cmd;
 		}
 		buf[idx++] = ev->data.control.param;
 		buf[idx++] = (ev->data.control.value >> 7) & 0x7f;
-		if (dev->nostat)
+		if (dev->analstat)
 			buf[idx++] = cmd;
 		buf[idx++] = ev->data.control.param + 0x20;
 		buf[idx++] = ev->data.control.value & 0x7f;
 	} else {
 		if (count < 2)
-			return -ENOMEM;
-		if (cmd != dev->lastcmd || dev->nostat) {
+			return -EANALMEM;
+		if (cmd != dev->lastcmd || dev->analstat) {
 			if (count < 3)
-				return -ENOMEM;
+				return -EANALMEM;
 			buf[idx++] = dev->lastcmd = cmd;
 		}
 		buf[idx++] = ev->data.control.param & 0x7f;
@@ -417,14 +417,14 @@ static int extra_decode_ctrl14(struct snd_midi_event *dev, unsigned char *buf,
 	return idx;
 }
 
-/* decode reg/nonreg param */
+/* decode reg/analnreg param */
 static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 			     int count, struct snd_seq_event *ev)
 {
 	unsigned char cmd;
 	const char *cbytes;
-	static const char cbytes_nrpn[4] = { MIDI_CTL_NONREG_PARM_NUM_MSB,
-				       MIDI_CTL_NONREG_PARM_NUM_LSB,
+	static const char cbytes_nrpn[4] = { MIDI_CTL_ANALNREG_PARM_NUM_MSB,
+				       MIDI_CTL_ANALNREG_PARM_NUM_LSB,
 				       MIDI_CTL_MSB_DATA_ENTRY,
 				       MIDI_CTL_LSB_DATA_ENTRY };
 	static const char cbytes_rpn[4] =  { MIDI_CTL_REGIST_PARM_NUM_MSB,
@@ -435,22 +435,22 @@ static int extra_decode_xrpn(struct snd_midi_event *dev, unsigned char *buf,
 	int idx = 0, i;
 
 	if (count < 8)
-		return -ENOMEM;
-	if (dev->nostat && count < 12)
-		return -ENOMEM;
+		return -EANALMEM;
+	if (dev->analstat && count < 12)
+		return -EANALMEM;
 	cmd = MIDI_CMD_CONTROL|(ev->data.control.channel & 0x0f);
 	bytes[0] = (ev->data.control.param & 0x3f80) >> 7;
 	bytes[1] = ev->data.control.param & 0x007f;
 	bytes[2] = (ev->data.control.value & 0x3f80) >> 7;
 	bytes[3] = ev->data.control.value & 0x007f;
-	if (cmd != dev->lastcmd && !dev->nostat) {
+	if (cmd != dev->lastcmd && !dev->analstat) {
 		if (count < 9)
-			return -ENOMEM;
+			return -EANALMEM;
 		buf[idx++] = dev->lastcmd = cmd;
 	}
-	cbytes = ev->type == SNDRV_SEQ_EVENT_NONREGPARAM ? cbytes_nrpn : cbytes_rpn;
+	cbytes = ev->type == SNDRV_SEQ_EVENT_ANALNREGPARAM ? cbytes_nrpn : cbytes_rpn;
 	for (i = 0; i < 4; i++) {
-		if (dev->nostat)
+		if (dev->analstat)
 			buf[idx++] = dev->lastcmd = cmd;
 		buf[idx++] = cbytes[i];
 		buf[idx++] = bytes[i];

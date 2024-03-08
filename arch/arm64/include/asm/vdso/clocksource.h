@@ -6,6 +6,6 @@
 	/* vdso clocksource for both 32 and 64bit tasks */	\
 	VDSO_CLOCKMODE_ARCHTIMER,				\
 	/* vdso clocksource for 64bit tasks only */		\
-	VDSO_CLOCKMODE_ARCHTIMER_NOCOMPAT
+	VDSO_CLOCKMODE_ARCHTIMER_ANALCOMPAT
 
 #endif

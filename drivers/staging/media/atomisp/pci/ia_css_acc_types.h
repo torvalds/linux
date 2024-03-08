@@ -31,21 +31,21 @@
 
 /* Should be included without the path.
    However, that requires adding the path to numerous makefiles
-   that have nothing to do with isp parameters.
+   that have analthing to do with isp parameters.
  */
 #include "runtime/isp_param/interface/ia_css_isp_param_types.h"
 
 /* Types for the acceleration API.
  * These should be moved to sh_css_internal.h once the old acceleration
  * argument handling has been completed.
- * After that, interpretation of these structures is no longer needed
+ * After that, interpretation of these structures is anal longer needed
  * in the kernel and HAL.
 */
 
 /* Type of acceleration.
  */
 enum ia_css_acc_type {
-	IA_CSS_ACC_NONE,	/** Normal binary */
+	IA_CSS_ACC_ANALNE,	/** Analrmal binary */
 	IA_CSS_ACC_OUTPUT,	/** Accelerator stage on output frame */
 	IA_CSS_ACC_VIEWFINDER,	/** Accelerator stage on viewfinder frame */
 	IA_CSS_ACC_STANDALONE,	/** Stand-alone acceleration */
@@ -344,7 +344,7 @@ struct ia_css_sp_info {
 };
 
 /* The following #if is there because this header file is also included
-   by SP and ISP code but they do not need this data and HIVECC has alignment
+   by SP and ISP code but they do analt need this data and HIVECC has alignment
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
@@ -352,7 +352,7 @@ struct ia_css_sp_info {
 /* Accelerator firmware information.
  */
 struct ia_css_acc_info {
-	u32 per_frame_data; /** Dummy for now */
+	u32 per_frame_data; /** Dummy for analw */
 };
 
 /* Firmware information.

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,7 +44,7 @@ static int dump_channels(const char *dev_dir_name)
 
 	dp = opendir(dev_dir_name);
 	if (!dp)
-		return -errno;
+		return -erranal;
 
 	while (ent = readdir(dp), ent)
 		if (check_prefix(ent->d_name, "in_") &&
@@ -52,7 +52,7 @@ static int dump_channels(const char *dev_dir_name)
 		    check_postfix(ent->d_name, "_input")))
 			printf("   %-10s\n", ent->d_name);
 
-	return (closedir(dp) == -1) ? -errno : 0;
+	return (closedir(dp) == -1) ? -erranal : 0;
 }
 
 static int dump_one_device(const char *dev_dir_name)
@@ -106,8 +106,8 @@ static int dump_devices(void)
 
 	dp = opendir(iio_dir);
 	if (!dp) {
-		fprintf(stderr, "No industrial I/O devices available\n");
-		return -ENODEV;
+		fprintf(stderr, "Anal industrial I/O devices available\n");
+		return -EANALDEV;
 	}
 
 	while (ent = readdir(dp), ent) {
@@ -116,7 +116,7 @@ static int dump_devices(void)
 
 			if (asprintf(&dev_dir_name, "%s%s", iio_dir,
 				     ent->d_name) < 0) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error_close_dir;
 			}
 
@@ -138,7 +138,7 @@ static int dump_devices(void)
 
 			if (asprintf(&dev_dir_name, "%s%s", iio_dir,
 				     ent->d_name) < 0) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error_close_dir;
 			}
 
@@ -152,7 +152,7 @@ static int dump_devices(void)
 		}
 	}
 
-	return (closedir(dp) == -1) ? -errno : 0;
+	return (closedir(dp) == -1) ? -erranal : 0;
 
 error_close_dir:
 	if (closedir(dp) == -1)

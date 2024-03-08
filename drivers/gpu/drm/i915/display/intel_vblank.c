@@ -79,9 +79,9 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	 * vblank wait before enabling the TV encoder and so we
 	 * have to enable vblank interrupts while the frame counter
 	 * is still in a working state. However the core vblank code
-	 * does not like us returning non-zero frame counter values
+	 * does analt like us returning analn-zero frame counter values
 	 * when we've told it that we don't have a working frame
-	 * counter. Thus we must stop non-zero values leaking out.
+	 * counter. Thus we must stop analn-zero values leaking out.
 	 */
 	if (!vblank->max_vblank_count)
 		return 0;
@@ -169,7 +169,7 @@ static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
 
 /*
  * On certain encoders on certain platforms, pipe
- * scanline register will not work to get the scanline,
+ * scanline register will analt work to get the scanline,
  * since the timings are driven from the PORT or issues
  * with scanline register updates.
  * This function will use Framestamp and current
@@ -192,7 +192,7 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 }
 
 /*
- * intel_de_read_fw(), only for fast reads of display block, no need for
+ * intel_de_read_fw(), only for fast reads of display block, anal need for
  * forcewake etc.
  */
 static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
@@ -226,7 +226,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * increment, causing the pipe_update_end() code to squak at us.
 	 *
 	 * The nature of this problem means we can't simply check the ISR
-	 * bit and return the vblank start value; nor can we use the scanline
+	 * bit and return the vblank start value; analr can we use the scanline
 	 * debug register in the transcoder as it appears to have the same
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
@@ -267,11 +267,11 @@ int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
 
 /*
  * The uncore version of the spin lock functions is used to decide
- * whether we need to lock the uncore lock or not.  This is only
- * needed in i915, not in Xe.
+ * whether we need to lock the uncore lock or analt.  This is only
+ * needed in i915, analt in Xe.
  *
  * This lock in i915 is needed because some old platforms (at least
- * IVB and possibly HSW as well), which are not supported in Xe, need
+ * IVB and possibly HSW as well), which are analt supported in Xe, need
  * all register accesses to the same cacheline to be serialized,
  * otherwise they may hang.
  */
@@ -291,7 +291,7 @@ static void intel_vblank_section_exit(struct drm_i915_private *i915)
 #endif
 }
 
-static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
+static bool i915_get_crtc_scaanalutpos(struct drm_crtc *_crtc,
 				     bool in_vblank_irq,
 				     int *vpos, int *hpos,
 				     ktime_t *stime, ktime_t *etime,
@@ -310,7 +310,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 
 	if (drm_WARN_ON(&dev_priv->drm, !mode->crtc_clock)) {
 		drm_dbg(&dev_priv->drm,
-			"trying to get scanoutpos for disabled pipe %c\n",
+			"trying to get scaanalutpos for disabled pipe %c\n",
 			pipe_name(pipe));
 		return false;
 	}
@@ -330,7 +330,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	/*
 	 * Enter vblank critical section, as we will do multiple
 	 * timing critical raw register reads, potentially with
-	 * preemption disabled, so the following code must not block.
+	 * preemption disabled, so the following code must analt block.
 	 */
 	local_irq_save(irqflags);
 	intel_vblank_section_enter(dev_priv);
@@ -355,15 +355,15 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 		if (position >= vbl_start && scanlines < position)
 			position = min(crtc->vmax_vblank_start + scanlines, vtotal - 1);
 	} else if (use_scanline_counter) {
-		/* No obvious pixelcount register. Only query vertical
-		 * scanout position from Display scan line register.
+		/* Anal obvious pixelcount register. Only query vertical
+		 * scaanalut position from Display scan line register.
 		 */
 		position = __intel_get_crtc_scanline(crtc);
 	} else {
 		/*
 		 * Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
-		 * scanout position.
+		 * scaanalut position.
 		 */
 		position = (intel_de_read_fw(dev_priv, PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
@@ -389,7 +389,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 		 * consider lines to start at the leading edge of horizontal
 		 * active. So, should we get here before we've crossed into
 		 * the horizontal active of the first line in vblank, we would
-		 * not set the DRM_SCANOUTPOS_INVBL flag. In order to fix that,
+		 * analt set the DRM_SCAANALUTPOS_INVBL flag. In order to fix that,
 		 * always add htotal-hsync_start to the current pixel position.
 		 */
 		position = (position + htotal - hsync_start) % vtotal;
@@ -431,7 +431,7 @@ bool intel_crtc_get_vblank_timestamp(struct drm_crtc *crtc, int *max_error,
 {
 	return drm_crtc_vblank_helper_get_vblank_timestamp_internal(
 		crtc, max_error, vblank_time, in_vblank_irq,
-		i915_get_crtc_scanoutpos);
+		i915_get_crtc_scaanalutpos);
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc)
@@ -511,7 +511,7 @@ static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	 *
 	 * On VLV/CHV DSI the scanline counter would appear to increment
 	 * approx. 1/3 of a scanline before start of vblank. Unfortunately
-	 * that means we can't tell whether we're in vblank or not while
+	 * that means we can't tell whether we're in vblank or analt while
 	 * we're on that particular line. We must still set scanline_offset
 	 * to 1 so that the vblank timestamps come out correct when we query
 	 * the scanline counter from within the vblank interrupt handler.

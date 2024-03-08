@@ -145,7 +145,7 @@ enum lan966x_sd6g40_mode {
 };
 
 enum lan966x_sd6g40_ltx2rx {
-	LAN966X_SD6G40_TX2RX_LOOP_NONE,
+	LAN966X_SD6G40_TX2RX_LOOP_ANALNE,
 	LAN966X_SD6G40_LTX2RX
 };
 
@@ -185,7 +185,7 @@ static int lan966x_sd6g40_reg_cfg(struct serdes_macro *macro,
 {
 	u32 value;
 
-	/* Note: SerDes HSIO is configured in 1G_LAN mode */
+	/* Analte: SerDes HSIO is configured in 1G_LAN mode */
 	lan_rmw(HSIO_SD_CFG_LANE_10BIT_SEL_SET(res_struct->lane_10bit_sel) |
 		HSIO_SD_CFG_RX_RATE_SET(res_struct->rx_rate) |
 		HSIO_SD_CFG_TX_RATE_SET(res_struct->tx_rate) |
@@ -330,7 +330,7 @@ static int lan966x_sd6g40_get_conf_from_mode(struct serdes_macro *macro,
 		break;
 
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -462,9 +462,9 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	unsigned int i;
 	int val;
 
-	/* As of now only PHY_MODE_ETHERNET is supported */
+	/* As of analw only PHY_MODE_ETHERNET is supported */
 	if (mode != PHY_MODE_ETHERNET)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (submode == PHY_INTERFACE_MODE_2500BASEX)
 		macro->speed = SPEED_2500;
@@ -505,7 +505,7 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 						   macro->idx - (SERDES6G_MAX + 1),
 						   macro->mode);
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return -EINVAL;
@@ -539,7 +539,7 @@ static struct phy *serdes_simple_xlate(struct device *dev,
 		return ctrl->phys[i];
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
@@ -552,7 +552,7 @@ static int serdes_phy_create(struct serdes_ctrl *ctrl, u8 idx, struct phy **phy)
 
 	macro = devm_kzalloc(ctrl->dev, sizeof(*macro), GFP_KERNEL);
 	if (!macro)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	macro->idx = idx;
 	macro->ctrl = ctrl;
@@ -574,7 +574,7 @@ static int serdes_probe(struct platform_device *pdev)
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctrl->dev = &pdev->dev;
 	ctrl->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);

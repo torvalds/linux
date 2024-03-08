@@ -3,8 +3,8 @@
  * Stefan Roese <sr@denx.de>
  *
  * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * of the GPL or the X11 license, at your option. Analte that this dual
+ * licensing only applies to this file, and analt this project as a
  * whole.
  *
  *  a) This library is free software; you can redistribute it and/or
@@ -28,13 +28,13 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright analtice and this permission analtice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT
  *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -135,7 +135,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu_alert0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 
@@ -549,8 +549,8 @@
 				 <&ccu CLK_PLL_VIDEO0_2X>,
 				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "pll-0", "pll-1";
-			dmas = <&dma SUN4I_DMA_NORMAL 16>,
-			       <&dma SUN4I_DMA_NORMAL 16>,
+			dmas = <&dma SUN4I_DMA_ANALRMAL 16>,
+			       <&dma SUN4I_DMA_ANALRMAL 16>,
 			       <&dma SUN4I_DMA_DEDICATED 24>;
 			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
 			status = "disabled";
@@ -679,7 +679,7 @@
 				function = "can";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi1_8bits_pg_pins: csi1-8bits-pg-pins {
 				pins = "PG0", "PG2", "PG3", "PG4", "PG5",
 				       "PG6", "PG7", "PG8", "PG9", "PG10",
@@ -687,7 +687,7 @@
 				function = "csi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi1_24bits_ph_pins: csi1-24bits-ph-pins {
 				pins = "PH0", "PH1", "PH2", "PH3", "PH4",
 				       "PH5", "PH6", "PH7", "PH8", "PH9",
@@ -698,7 +698,7 @@
 				function = "csi1";
 			};
 
-			/omit-if-no-ref/
+			/omit-if-anal-ref/
 			csi1_clk_pg_pin: csi1-clk-pg-pin {
 				pins = "PG1";
 				function = "csi1";
@@ -878,8 +878,8 @@
 			interrupts = <13>;
 			clocks = <&ccu CLK_APB0_SPDIF>, <&ccu CLK_SPDIF>;
 			clock-names = "apb", "spdif";
-			dmas = <&dma SUN4I_DMA_NORMAL 2>,
-			       <&dma SUN4I_DMA_NORMAL 2>;
+			dmas = <&dma SUN4I_DMA_ANALRMAL 2>,
+			       <&dma SUN4I_DMA_ANALRMAL 2>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -909,8 +909,8 @@
 			interrupts = <16>;
 			clocks = <&ccu CLK_APB0_I2S0>, <&ccu CLK_I2S0>;
 			clock-names = "apb", "mod";
-			dmas = <&dma SUN4I_DMA_NORMAL 3>,
-			       <&dma SUN4I_DMA_NORMAL 3>;
+			dmas = <&dma SUN4I_DMA_ANALRMAL 3>,
+			       <&dma SUN4I_DMA_ANALRMAL 3>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};
@@ -929,8 +929,8 @@
 			interrupts = <30>;
 			clocks = <&ccu CLK_APB0_CODEC>, <&ccu CLK_CODEC>;
 			clock-names = "apb", "codec";
-			dmas = <&dma SUN4I_DMA_NORMAL 19>,
-			       <&dma SUN4I_DMA_NORMAL 19>;
+			dmas = <&dma SUN4I_DMA_ANALRMAL 19>,
+			       <&dma SUN4I_DMA_ANALRMAL 19>;
 			dma-names = "rx", "tx";
 			status = "disabled";
 		};

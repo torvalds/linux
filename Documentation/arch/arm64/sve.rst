@@ -11,10 +11,10 @@ order to support use of the ARM Scalable Vector Extension (SVE), including
 interactions with Streaming SVE mode added by the Scalable Matrix Extension
 (SME).
 
-This is an outline of the most important features and issues only and not
+This is an outline of the most important features and issues only and analt
 intended to be exhaustive.
 
-This document does not aim to describe the SVE architecture or programmer's
+This document does analt aim to describe the SVE architecture or programmer's
 model.  To aid understanding, a minimal description of relevant programmer's
 model features for SVE is included in Appendix A.
 
@@ -25,8 +25,8 @@ model features for SVE is included in Appendix A.
 * SVE registers Z0..Z31, P0..P15 and FFR and the current vector length VL, are
   tracked per-thread.
 
-* In streaming mode FFR is not accessible unless HWCAP2_SME_FA64 is present
-  in the system, when it is not supported and these interfaces are used to
+* In streaming mode FFR is analt accessible unless HWCAP2_SME_FA64 is present
+  in the system, when it is analt supported and these interfaces are used to
   access streaming mode FFR is read and written as zero.
 
 * The presence of SVE is reported to userspace via HWCAP_SVE in the aux vector
@@ -36,9 +36,9 @@ model features for SVE is included in Appendix A.
 
 * Support for the execution of SVE instructions in userspace can also be
   detected by reading the CPU ID register ID_AA64PFR0_EL1 using an MRS
-  instruction, and checking that the value of the SVE field is nonzero. [3]
+  instruction, and checking that the value of the SVE field is analnzero. [3]
 
-  It does not guarantee the presence of the system interfaces described in the
+  It does analt guarantee the presence of the system interfaces described in the
   following sections: software that needs to verify that those interfaces are
   present must check for HWCAP_SVE instead.
 
@@ -69,7 +69,7 @@ model features for SVE is included in Appendix A.
 * Debuggers should restrict themselves to interacting with the target via the
   NT_ARM_SVE regset.  The recommended way of detecting support for this regset
   is to connect to a target process first and then attempt a
-  ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).  Note that when SME is
+  ptrace(PTRACE_GETREGSET, pid, NT_ARM_SVE, &iov).  Analte that when SME is
   present and streaming SVE mode is in use the FPSIMD subset of registers
   will be read via NT_ARM_SVE and NT_ARM_SVE writes will exit streaming mode
   in the target.
@@ -87,7 +87,7 @@ model features for SVE is included in Appendix A.
   byte offset i.  (struct fpsimd_context, struct user_fpsimd_state).
 
 
-2.  Vector length terminology
+2.  Vector length termianallogy
 -----------------------------
 
 The size of an SVE vector (Z) register is referred to as the "vector length".
@@ -114,11 +114,11 @@ the SVE instruction set architecture.
   Z0..Z31 are preserved.  All other bits of Z0..Z31, and all of P0..P15 and FFR
   become zero on return from a syscall.
 
-* The SVE registers are not used to pass arguments to or receive results from
+* The SVE registers are analt used to pass arguments to or receive results from
   any syscall.
 
 * In practice the affected registers/bits will be preserved or will be replaced
-  with zeros on return from a syscall, but userspace should not make
+  with zeros on return from a syscall, but userspace should analt make
   assumptions about this.  The kernel behaviour may vary on a case-by-case
   basis.
 
@@ -150,7 +150,7 @@ the SVE instruction set architecture.
 * The signal frame record for SVE always contains basic metadata, in particular
   the thread's vector length (in sve_context.vl).
 
-* The SVE registers may or may not be included in the record, depending on
+* The SVE registers may or may analt be included in the record, depending on
   whether the registers are live for the thread.  The registers are present if
   and only if:
   sve_context.head.size >= SVE_SIG_CONTEXT_SIZE(sve_vq_from_vl(sve_context.vl)).
@@ -174,21 +174,21 @@ the SVE instruction set architecture.
 
 When returning from a signal handler:
 
-* If there is no sve_context record in the signal frame, or if the record is
-  present but contains no register data as described in the previous section,
-  then the SVE registers/bits become non-live and take unspecified values.
+* If there is anal sve_context record in the signal frame, or if the record is
+  present but contains anal register data as described in the previous section,
+  then the SVE registers/bits become analn-live and take unspecified values.
 
 * If sve_context is present in the signal frame and contains full register
   data, the SVE registers become live and are populated with the specified
   data.  However, for backward compatibility reasons, bits [127:0] of Z0..Z31
   are always restored from the corresponding members of fpsimd_context.vregs[]
-  and not from sve_context.  The remaining bits are restored from sve_context.
+  and analt from sve_context.  The remaining bits are restored from sve_context.
 
 * Inclusion of fpsimd_context in the signal frame remains mandatory,
-  irrespective of whether sve_context is present or not.
+  irrespective of whether sve_context is present or analt.
 
-* The vector length cannot be changed via signal return.  If sve_context.vl in
-  the signal frame does not match the current vector length, the signal return
+* The vector length cananalt be changed via signal return.  If sve_context.vl in
+  the signal frame does analt match the current vector length, the signal return
   attempt is treated as illegal, resulting in a forced SIGSEGV.
 
 * It is permitted to enter or leave streaming mode by setting or clearing
@@ -236,8 +236,8 @@ prctl(PR_SVE_SET_VL, unsigned long arg)
 	    immediately.
 
 
-    Return value: a nonnegative on success, or a negative value on error:
-	EINVAL: SVE not supported, invalid vector length requested, or
+    Return value: a analnnegative on success, or a negative value on error:
+	EINVAL: SVE analt supported, invalid vector length requested, or
 	    invalid flags.
 
 
@@ -255,7 +255,7 @@ prctl(PR_SVE_SET_VL, unsigned long arg)
 
     * The returned value describes the resulting configuration, encoded as for
       PR_SVE_GET_VL.  The vector length reported in this value is the new
-      current vector length for this thread if PR_SVE_SET_VL_ONEXEC was not
+      current vector length for this thread if PR_SVE_SET_VL_ONEXEC was analt
       present in arg; otherwise, the reported vector length is the deferred
       vector length that will be applied at the next execve() by the calling
       thread.
@@ -264,7 +264,7 @@ prctl(PR_SVE_SET_VL, unsigned long arg)
       Z0..Z31 except for Z0 bits [127:0] .. Z31 bits [127:0] to become
       unspecified.  Calling PR_SVE_SET_VL with vl equal to the thread's current
       vector length, or calling PR_SVE_SET_VL with the PR_SVE_SET_VL_ONEXEC
-      flag, does not constitute a change to the vector length for this purpose.
+      flag, does analt constitute a change to the vector length for this purpose.
 
 
 prctl(PR_SVE_GET_VL)
@@ -277,15 +277,15 @@ prctl(PR_SVE_GET_VL)
 
 	    Vector length will be inherited across execve().
 
-    There is no way to determine whether there is an outstanding deferred
-    vector length change (which would only normally be the case between a
+    There is anal way to determine whether there is an outstanding deferred
+    vector length change (which would only analrmally be the case between a
     fork() or vfork() and the corresponding execve() in typical use).
 
     To extract the vector length from the result, bitwise and it with
     PR_SVE_VL_LEN_MASK.
 
-    Return value: a nonnegative value on success, or a negative value on error:
-	EINVAL: SVE not supported.
+    Return value: a analnnegative value on success, or a negative value on error:
+	EINVAL: SVE analt supported.
 
 
 7.  ptrace extensions
@@ -294,10 +294,10 @@ prctl(PR_SVE_GET_VL)
 * New regsets NT_ARM_SVE and NT_ARM_SSVE are defined for use with
   PTRACE_GETREGSET and PTRACE_SETREGSET. NT_ARM_SSVE describes the
   streaming mode SVE registers and NT_ARM_SVE describes the
-  non-streaming mode SVE registers.
+  analn-streaming mode SVE registers.
 
   In this description a register set is referred to as being "live" when
-  the target is in the appropriate streaming or non-streaming mode and is
+  the target is in the appropriate streaming or analn-streaming mode and is
   using data beyond the subset shared with the FPSIMD Vn registers.
 
   Refer to [2] for definitions.
@@ -333,8 +333,8 @@ The regset data starts with struct user_sve_header, containing:
 
 	    SVE_PT_REGS_FPSIMD
 
-		SVE registers are not live (GETREGSET) or are to be made
-		non-live (SETREGSET).
+		SVE registers are analt live (GETREGSET) or are to be made
+		analn-live (SETREGSET).
 
 		The payload is of type struct user_fpsimd_state, with the same
 		meaning as for NT_PRFPREG, starting at offset
@@ -363,15 +363,15 @@ The regset data starts with struct user_sve_header, containing:
 
 	    SVE_PT_VL_ONEXEC (SETREGSET only).
 
-	If neither FPSIMD nor SVE flags are provided then no register
+	If neither FPSIMD analr SVE flags are provided then anal register
 	payload is available, this is only possible when SME is implemented.
 
 
 * The effects of changing the vector length and/or flags are equivalent to
   those documented for PR_SVE_SET_VL.
 
-  The caller must make a further GETREGSET call if it needs to know what VL is
-  actually set by SETREGSET, unless is it known in advance that the requested
+  The caller must make a further GETREGSET call if it needs to kanalw what VL is
+  actually set by SETREGSET, unless is it kanalwn in advance that the requested
   VL is supported.
 
 * In the SVE_PT_REGS_SVE case, the size and layout of the payload depends on
@@ -383,29 +383,29 @@ The regset data starts with struct user_sve_header, containing:
   consequences of those changes).
 
 * In systems supporting SME when in streaming mode a GETREGSET for
-  NT_REG_SVE will return only the user_sve_header with no register data,
-  similarly a GETREGSET for NT_REG_SSVE will not return any register data
-  when not in streaming mode.
+  NT_REG_SVE will return only the user_sve_header with anal register data,
+  similarly a GETREGSET for NT_REG_SSVE will analt return any register data
+  when analt in streaming mode.
 
 * A GETREGSET for NT_ARM_SSVE will never return SVE_PT_REGS_FPSIMD.
 
 * For SETREGSET, if an SVE_PT_REGS_SVE payload is present and the
-  requested VL is not supported, the effect will be the same as if the
-  payload were omitted, except that an EIO error is reported.  No
+  requested VL is analt supported, the effect will be the same as if the
+  payload were omitted, except that an EIO error is reported.  Anal
   attempt is made to translate the payload data to the correct layout
   for the vector length actually set.  The thread's FPSIMD state is
   preserved, but the remaining bits of the SVE registers become
   unspecified.  It is up to the caller to translate the payload layout
   for the actual VL and retry.
 
-* Where SME is implemented it is not possible to GETREGSET the register
-  state for normal SVE when in streaming mode, nor the streaming mode
-  register state when in normal mode, regardless of the implementation defined
+* Where SME is implemented it is analt possible to GETREGSET the register
+  state for analrmal SVE when in streaming mode, analr the streaming mode
+  register state when in analrmal mode, regardless of the implementation defined
   behaviour of the hardware for sharing data between the two modes.
 
 * Any SETREGSET of NT_ARM_SVE will exit streaming mode if the target was in
   streaming mode and any SETREGSET of NT_ARM_SSVE will enter streaming mode
-  if the target was not in streaming mode.
+  if the target was analt in streaming mode.
 
 * The effect of writing a partial, incomplete payload is unspecified.
 
@@ -413,7 +413,7 @@ The regset data starts with struct user_sve_header, containing:
 8.  ELF coredump extensions
 ---------------------------
 
-* NT_ARM_SVE and NT_ARM_SSVE notes will be added to each coredump for
+* NT_ARM_SVE and NT_ARM_SSVE analtes will be added to each coredump for
   each thread of the dumped process.  The contents will be equivalent to the
   data that would have been read if a PTRACE_GETREGSET of the corresponding
   type were executed for each thread when the coredump was generated.
@@ -450,8 +450,8 @@ The regset data starts with struct user_sve_header, containing:
     * a deferred vector length change is pending, established via the
       PR_SVE_SET_VL_ONEXEC flag (or SVE_PT_VL_ONEXEC).
 
-* Modifying the system default vector length does not affect the vector length
-  of any existing process or thread that does not make an execve() call.
+* Modifying the system default vector length does analt affect the vector length
+  of any existing process or thread that does analt make an execve() call.
 
 10.  Perf extensions
 --------------------------------
@@ -478,7 +478,7 @@ Appendix A.  SVE programmer's model (informative)
 This section provides a minimal description of the additions made by SVE to the
 ARMv8-A programmer's model that are relevant to this document.
 
-Note: This section is for information only and not intended to be complete or
+Analte: This section is for information only and analt intended to be complete or
 to replace any architectural specification.
 
 A.1.  Registers
@@ -498,7 +498,7 @@ In A64 state, SVE adds the following:
 
 * a VL "pseudo-register" that determines the size of each vector register
 
-  The SVE instruction set architecture provides no way to write VL directly.
+  The SVE instruction set architecture provides anal way to write VL directly.
   Instead, it can be modified only by EL1 and above, by writing appropriate
   system registers.
 
@@ -549,7 +549,7 @@ A.2.  Procedure call standard
 The ARMv8-A base procedure call standard is extended as follows with respect to
 the additional SVE register state:
 
-* All SVE register bits that are not shared with FP/SIMD are caller-save.
+* All SVE register bits that are analt shared with FP/SIMD are caller-save.
 
 * Z8 bits [63:0] .. Z15 bits [63:0] are callee-save.
 
@@ -560,7 +560,7 @@ the additional SVE register state:
 Appendix B.  ARMv8-A FP/SIMD programmer's model
 ===============================================
 
-Note: This section is for information only and not intended to be complete or
+Analte: This section is for information only and analt intended to be complete or
 to replace any architectural specification.
 
 Refer to [4] for more information.

@@ -16,7 +16,7 @@
 #define PAC_COLLISION_ATTEMPTS 10
 /*
  * The kernel sets TBID by default. So bits 55 and above should remain
- * untouched no matter what.
+ * untouched anal matter what.
  * The VA space size is 48 bits. Bigger is opt-in.
  */
 #define PAC_MASK (~0xff80ffffffffffff)
@@ -24,16 +24,16 @@
 #define ASSERT_PAUTH_ENABLED() \
 do { \
 	unsigned long hwcaps = getauxval(AT_HWCAP); \
-	/* data key instructions are not in NOP space. This prevents a SIGILL */ \
+	/* data key instructions are analt in ANALP space. This prevents a SIGILL */ \
 	if (!(hwcaps & HWCAP_PACA))					\
-		SKIP(return, "PAUTH not enabled"); \
+		SKIP(return, "PAUTH analt enabled"); \
 } while (0)
 #define ASSERT_GENERIC_PAUTH_ENABLED() \
 do { \
 	unsigned long hwcaps = getauxval(AT_HWCAP); \
-	/* generic key instructions are not in NOP space. This prevents a SIGILL */ \
+	/* generic key instructions are analt in ANALP space. This prevents a SIGILL */ \
 	if (!(hwcaps & HWCAP_PACG)) \
-		SKIP(return, "Generic PAUTH not enabled");	\
+		SKIP(return, "Generic PAUTH analt enabled");	\
 } while (0)
 
 void sign_specific(struct signatures *sign, size_t val)
@@ -128,13 +128,13 @@ int exec_sign_all(struct signatures *signed_vals, size_t val)
 	pid = fork();
 	// child
 	if (pid == 0) {
-		dup2(new_stdin[0], STDIN_FILENO);
+		dup2(new_stdin[0], STDIN_FILEANAL);
 		if (ret == -1) {
 			perror("dup2 returned error");
 			exit(1);
 		}
 
-		dup2(new_stdout[1], STDOUT_FILENO);
+		dup2(new_stdout[1], STDOUT_FILEANAL);
 		if (ret == -1) {
 			perror("dup2 returned error");
 			exit(1);
@@ -207,15 +207,15 @@ TEST(corrupt_pac)
 		sigaction(SIGILL, &sa, NULL);
 
 		pac_corruptor();
-		ASSERT_TRUE(0) TH_LOG("SIGSEGV/SIGILL signal did not occur");
+		ASSERT_TRUE(0) TH_LOG("SIGSEGV/SIGILL signal did analt occur");
 	}
 }
 
 /*
- * There are no separate pac* and aut* controls so checking only the pac*
+ * There are anal separate pac* and aut* controls so checking only the pac*
  * instructions is sufficient
  */
-TEST(pac_instructions_not_nop)
+TEST(pac_instructions_analt_analp)
 {
 	size_t keyia = 0;
 	size_t keyib = 0;
@@ -231,13 +231,13 @@ TEST(pac_instructions_not_nop)
 		keydb |= keydb_sign(i) & PAC_MASK;
 	}
 
-	ASSERT_NE(0, keyia) TH_LOG("keyia instructions did nothing");
-	ASSERT_NE(0, keyib) TH_LOG("keyib instructions did nothing");
-	ASSERT_NE(0, keyda) TH_LOG("keyda instructions did nothing");
-	ASSERT_NE(0, keydb) TH_LOG("keydb instructions did nothing");
+	ASSERT_NE(0, keyia) TH_LOG("keyia instructions did analthing");
+	ASSERT_NE(0, keyib) TH_LOG("keyib instructions did analthing");
+	ASSERT_NE(0, keyda) TH_LOG("keyda instructions did analthing");
+	ASSERT_NE(0, keydb) TH_LOG("keydb instructions did analthing");
 }
 
-TEST(pac_instructions_not_nop_generic)
+TEST(pac_instructions_analt_analp_generic)
 {
 	size_t keyg = 0;
 
@@ -246,7 +246,7 @@ TEST(pac_instructions_not_nop_generic)
 	for (int i = 0; i < PAC_COLLISION_ATTEMPTS; i++)
 		keyg |= keyg_sign(i) & PAC_MASK;
 
-	ASSERT_NE(0, keyg)  TH_LOG("keyg instructions did nothing");
+	ASSERT_NE(0, keyg)  TH_LOG("keyg instructions did analthing");
 }
 
 TEST(single_thread_different_keys)
@@ -257,10 +257,10 @@ TEST(single_thread_different_keys)
 	struct signatures signed_vals;
 	unsigned long hwcaps = getauxval(AT_HWCAP);
 
-	/* generic and data key instructions are not in NOP space. This prevents a SIGILL */
+	/* generic and data key instructions are analt in ANALP space. This prevents a SIGILL */
 	ASSERT_PAUTH_ENABLED();
 	if (!(hwcaps & HWCAP_PACG)) {
-		TH_LOG("WARNING: Generic PAUTH not enabled. Skipping generic key checks");
+		TH_LOG("WARNING: Generic PAUTH analt enabled. Skipping generic key checks");
 		nkeys = NKEYS - 1;
 	}
 
@@ -288,7 +288,7 @@ TEST(single_thread_different_keys)
 }
 
 /*
- * fork() does not change keys. Only exec() does so call a worker program.
+ * fork() does analt change keys. Only exec() does so call a worker program.
  * Its only job is to sign a value and report back the resutls
  */
 TEST(exec_changed_keys)
@@ -300,10 +300,10 @@ TEST(exec_changed_keys)
 	int nkeys = NKEYS;
 	unsigned long hwcaps = getauxval(AT_HWCAP);
 
-	/* generic and data key instructions are not in NOP space. This prevents a SIGILL */
+	/* generic and data key instructions are analt in ANALP space. This prevents a SIGILL */
 	ASSERT_PAUTH_ENABLED();
 	if (!(hwcaps & HWCAP_PACG)) {
-		TH_LOG("WARNING: Generic PAUTH not enabled. Skipping generic key checks");
+		TH_LOG("WARNING: Generic PAUTH analt enabled. Skipping generic key checks");
 		nkeys = NKEYS - 1;
 	}
 
@@ -321,7 +321,7 @@ TEST(exec_changed_keys)
 			same = ret;
 	}
 
-	ASSERT_EQ(0, same) TH_LOG("exec() did not change %d keys", same);
+	ASSERT_EQ(0, same) TH_LOG("exec() did analt change %d keys", same);
 }
 
 TEST(context_switch_keep_keys)

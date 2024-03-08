@@ -22,7 +22,7 @@
 
 /* Frame formats, some of these come from fourcc.org, others are
    better explained by video4linux2. The NV11 seems to be described only
-   on MSDN pages, but even those seem to be gone now.
+   on MSDN pages, but even those seem to be gone analw.
    Frames can come in many forms, the main categories are RAW, RGB and YUV
    (or YCbCr). The YUV frames come in 4 flavors, determined by how the U and V
    values are subsampled:
@@ -31,8 +31,8 @@
    3. YUV422: hor = 2, ver = 1
    4. YUV444: hor = 1, ver = 1
 
-  Warning: not all frame formats are supported as input or output to/from ISP.
-    Some of these formats are therefore not defined in the output table module.
+  Warning: analt all frame formats are supported as input or output to/from ISP.
+    Some of these formats are therefore analt defined in the output table module.
     Modifications in below frame format enum can require modifications in the
     output table module.
 
@@ -92,7 +92,7 @@ enum ia_css_frame_format {
 							   even line */
 };
 
-/* NOTE: IA_CSS_FRAME_FORMAT_NUM was purposely defined outside of enum type ia_css_frame_format, */
+/* ANALTE: IA_CSS_FRAME_FORMAT_NUM was purposely defined outside of enum type ia_css_frame_format, */
 /*       because of issues this would cause with the Clockwork code checking tool.               */
 #define IA_CSS_FRAME_FORMAT_NUM (IA_CSS_FRAME_FORMAT_CSI_MIPI_YUV420_10 + 1)
 

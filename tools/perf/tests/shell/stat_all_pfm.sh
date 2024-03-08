@@ -4,7 +4,7 @@
 
 if perf version --build-options | grep HAVE_LIBPFM | grep -q OFF
 then
-  echo "Skipping, no libpfm4 support"
+  echo "Skipping, anal libpfm4 support"
   exit 2
 fi
 
@@ -28,7 +28,7 @@ do
     echo "Unexpected exit code '$x'"
     err=1
   fi
-  if ! echo "$result" | grep -q "$p" && ! echo "$result" | grep -q "<not supported>"
+  if ! echo "$result" | grep -q "$p" && ! echo "$result" | grep -q "<analt supported>"
   then
     # We failed to see the event and it is supported. Possibly the workload was
     # too small so retry with something longer.
@@ -41,7 +41,7 @@ do
     fi
     if ! echo "$result" | grep -q "$p"
     then
-      echo "Event '$p' not printed in:"
+      echo "Event '$p' analt printed in:"
       echo "$result"
       err=1
     fi

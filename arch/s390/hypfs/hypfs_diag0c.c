@@ -39,7 +39,7 @@ static void *diag0c_store(unsigned int *count)
 				GFP_KERNEL);
 	if (!cpu_vec)
 		goto fail_unlock_cpus;
-	/* Note: Diag 0c needs 8 byte alignment and real storage */
+	/* Analte: Diag 0c needs 8 byte alignment and real storage */
 	diag0c_data = kzalloc(struct_size(diag0c_data, entry, cpu_count),
 			      GFP_KERNEL | GFP_DMA);
 	if (!diag0c_data)
@@ -61,7 +61,7 @@ fail_kfree_cpu_vec:
 	kfree(cpu_vec);
 fail_unlock_cpus:
 	cpus_read_unlock();
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EANALMEM);
 }
 
 /*

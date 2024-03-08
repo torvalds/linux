@@ -8,7 +8,7 @@
  *  This driver is "hard-coded" to be used with the 1st generation of
  *  Technisat/B2C2's Air2PC ATSC PCI/USB cards/boxes. The pll-programming
  *  (Panasonic CT10S) is located here, which is actually wrong. Unless there is
- *  another device with a BCM3510, this is no problem.
+ *  aanalther device with a BCM3510, this is anal problem.
  *
  *  The driver works also with QAM64 DVB-C, but had an unreasonable high
  *  UNC. (Tested with the Air2PC ATSC 1st generation)
@@ -27,7 +27,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 675 Mass
+ * this program; if analt, write to the Free Software Foundation, Inc., 675 Mass
  * Ave, Cambridge, MA 02139, USA.
  */
 
@@ -243,7 +243,7 @@ error:
 }
 
 #if 0
-/* not needed, we use a semaphore to prevent HAB races */
+/* analt needed, we use a semaphore to prevent HAB races */
 static int bcm3510_is_ap_ready(struct bcm3510_state *st)
 {
 	bcm3510_register_value ap,hab;
@@ -306,7 +306,7 @@ static int bcm3510_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	if (*status & FE_HAS_LOCK)
 		st->status_check_interval = 1500;
-	else /* more frequently checks if no lock has been achieved yet */
+	else /* more frequently checks if anal lock has been achieved yet */
 		st->status_check_interval = 500;
 
 	deb_info("real_status: %02x\n",*status);
@@ -345,7 +345,7 @@ static int bcm3510_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 
 	t -= 90;
 	t = t * 0xff / 100;
-	/* normalize if necessary */
+	/* analrmalize if necessary */
 	*strength = (t << 8) | t;
 	return 0;
 }
@@ -637,7 +637,7 @@ static int bcm3510_download_firmware(struct dvb_frontend* fe)
 
 	deb_info("requesting firmware\n");
 	if ((ret = st->config->request_firmware(fe, &fw, BCM3510_DEFAULT_FIRMWARE)) < 0) {
-		err("could not load firmware (%s): %d",BCM3510_DEFAULT_FIRMWARE,ret);
+		err("could analt load firmware (%s): %d",BCM3510_DEFAULT_FIRMWARE,ret);
 		return ret;
 	}
 	deb_info("got firmware: %zu\n", fw->size);
@@ -673,7 +673,7 @@ static int bcm3510_check_firmware_version(struct bcm3510_state *st)
 		return 0;
 
 	deb_info("version check failed\n");
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 /* (un)resetting the AP */
@@ -729,7 +729,7 @@ static int bcm3510_init_cold(struct bcm3510_state *st)
 	int ret;
 	bcm3510_register_value v;
 
-	/* read Acquisation Processor status register and check it is not in RUN mode */
+	/* read Acquisation Processor status register and check it is analt in RUN mode */
 	if ((ret = bcm3510_readB(st,0xa2,&v)) < 0)
 		return ret;
 	if (v.APSTAT1_a2.RUN) {
@@ -780,7 +780,7 @@ static int bcm3510_init(struct dvb_frontend* fe)
 			bcm3510_check_firmware_version(st);
 			break;
 		default:
-			return -ENODEV;
+			return -EANALDEV;
 	}
 
 	memset(&c,0,1);

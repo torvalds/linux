@@ -2,11 +2,11 @@
 /*
  * Copyright (c) 2021 Dávid Virág
  *
- * Device Tree binding constants for Exynos7885 clock controller.
+ * Device Tree binding constants for Exyanals7885 clock controller.
  */
 
-#ifndef _DT_BINDINGS_CLOCK_EXYNOS_7885_H
-#define _DT_BINDINGS_CLOCK_EXYNOS_7885_H
+#ifndef _DT_BINDINGS_CLOCK_EXYANALS_7885_H
+#define _DT_BINDINGS_CLOCK_EXYANALS_7885_H
 
 /* CMU_TOP */
 #define CLK_FOUT_SHARED0_PLL		1
@@ -144,4 +144,4 @@
 #define CLK_GOUT_MMC_SDIO_ACLK		9
 #define CLK_GOUT_MMC_SDIO_SDCLKIN	10
 
-#endif /* _DT_BINDINGS_CLOCK_EXYNOS_7885_H */
+#endif /* _DT_BINDINGS_CLOCK_EXYANALS_7885_H */

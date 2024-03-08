@@ -35,7 +35,7 @@
 
 /* Samsung M8G2FA 8GB eMMC */
 &sdhci2 {
-	non-removable;
+	analn-removable;
 	bus-width = <8>;
 	status = "okay";
 };

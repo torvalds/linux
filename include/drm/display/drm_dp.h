@@ -3,16 +3,16 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright analtice appear in all copies and that both that copyright
+ * analtice and this permission analtice appear in supporting documentation, and
+ * that the name of the copyright holders analt be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make anal representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
  * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN ANAL
  * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
  * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
  * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
@@ -26,11 +26,11 @@
 #include <linux/types.h>
 
 /*
- * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
- * DP and DPCD versions are independent.  Differences from 1.0 are not noted,
+ * Unless otherwise analted, all values are from the DP 1.1a spec.  Analte that
+ * DP and DPCD versions are independent.  Differences from 1.0 are analt analted,
  * 1.0 devices basically don't exist in the wild.
  *
- * Abbreviations, in chronological order:
+ * Abbreviations, in chroanallogical order:
  *
  * eDP: Embedded DisplayPort version 1
  * DPI: DisplayPort Interoperability Guideline v1.1a
@@ -43,10 +43,10 @@
 /* MSA (Main Stream Attribute) MISC bits (as MISC1<<8|MISC0) */
 #define DP_MSA_MISC_SYNC_CLOCK			(1 << 0)
 #define DP_MSA_MISC_INTERLACE_VTOTAL_EVEN	(1 << 8)
-#define DP_MSA_MISC_STEREO_NO_3D		(0 << 9)
+#define DP_MSA_MISC_STEREO_ANAL_3D		(0 << 9)
 #define DP_MSA_MISC_STEREO_PROG_RIGHT_EYE	(1 << 9)
 #define DP_MSA_MISC_STEREO_PROG_LEFT_EYE	(3 << 9)
-/* bits per component for non-RAW */
+/* bits per component for analn-RAW */
 #define DP_MSA_MISC_6_BPC			(0 << 5)
 #define DP_MSA_MISC_8_BPC			(1 << 5)
 #define DP_MSA_MISC_10_BPC			(2 << 5)
@@ -121,10 +121,10 @@
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
 # define DP_STREAM_REGENERATION_STATUS_CAP  (1 << 1) /* 2.0 */
-# define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
+# define DP_ANAL_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
 # define DP_TPS4_SUPPORTED                  (1 << 7)
 
-#define DP_NORP                             0x004
+#define DP_ANALRP                             0x004
 
 #define DP_DOWNSTREAMPORT_PRESENT           0x005
 # define DP_DWN_STRM_PORT_PRESENT           (1 << 0)
@@ -142,7 +142,7 @@
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
 # define DP_PORT_COUNT_MASK		    0x0f
-# define DP_MSA_TIMING_PAR_IGNORED	    (1 << 6) /* eDP */
+# define DP_MSA_TIMING_PAR_IGANALRED	    (1 << 6) /* eDP */
 # define DP_OUI_SUPPORT			    (1 << 7)
 
 #define DP_RECEIVE_PORT_0_CAP_0		    0x008
@@ -246,9 +246,9 @@
 
 #define DP_DSC_REV                          0x061
 # define DP_DSC_MAJOR_MASK                  (0xf << 0)
-# define DP_DSC_MINOR_MASK                  (0xf << 4)
+# define DP_DSC_MIANALR_MASK                  (0xf << 4)
 # define DP_DSC_MAJOR_SHIFT                 0
-# define DP_DSC_MINOR_SHIFT                 4
+# define DP_DSC_MIANALR_SHIFT                 4
 
 #define DP_DSC_RC_BUF_BLK_SIZE              0x062
 # define DP_DSC_RC_BUF_BLK_SIZE_1           0x0
@@ -365,7 +365,7 @@
 # define DP_PSR2_WITH_Y_COORD_ET_SUPPORTED  4	    /* eDP 1.5, adopted eDP 1.4b SCR */
 
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
-# define DP_PSR_NO_TRAIN_ON_EXIT            1
+# define DP_PSR_ANAL_TRAIN_ON_EXIT            1
 # define DP_PSR_SETUP_TIME_330              (0 << 1)
 # define DP_PSR_SETUP_TIME_275              (1 << 1)
 # define DP_PSR_SETUP_TIME_220              (2 << 1)
@@ -377,14 +377,14 @@
 # define DP_PSR_SETUP_TIME_SHIFT            1
 # define DP_PSR2_SU_Y_COORDINATE_REQUIRED   (1 << 4)  /* eDP 1.4a */
 # define DP_PSR2_SU_GRANULARITY_REQUIRED    (1 << 5)  /* eDP 1.4b */
-# define DP_PSR2_SU_AUX_FRAME_SYNC_NOT_NEEDED (1 << 6)/* eDP 1.5, adopted eDP 1.4b SCR */
+# define DP_PSR2_SU_AUX_FRAME_SYNC_ANALT_NEEDED (1 << 6)/* eDP 1.5, adopted eDP 1.4b SCR */
 
 #define DP_PSR2_SU_X_GRANULARITY	    0x072 /* eDP 1.4b */
 #define DP_PSR2_SU_Y_GRANULARITY	    0x074 /* eDP 1.4b */
 
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
- * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
+ * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was analt,
  * each port's descriptor is one byte wide.  If it was set, each port's is
  * four bytes wide, starting with the one byte from the base info.  As of
  * DP interop v1.1a only VGA defines additional detail.
@@ -397,17 +397,17 @@
 # define DP_DS_PORT_TYPE_VGA		    1
 # define DP_DS_PORT_TYPE_DVI		    2
 # define DP_DS_PORT_TYPE_HDMI		    3
-# define DP_DS_PORT_TYPE_NON_EDID	    4
+# define DP_DS_PORT_TYPE_ANALN_EDID	    4
 # define DP_DS_PORT_TYPE_DP_DUALMODE        5
 # define DP_DS_PORT_TYPE_WIRELESS           6
 # define DP_DS_PORT_HPD			    (1 << 3)
-# define DP_DS_NON_EDID_MASK		    (0xf << 4)
-# define DP_DS_NON_EDID_720x480i_60	    (1 << 4)
-# define DP_DS_NON_EDID_720x480i_50	    (2 << 4)
-# define DP_DS_NON_EDID_1920x1080i_60	    (3 << 4)
-# define DP_DS_NON_EDID_1920x1080i_50	    (4 << 4)
-# define DP_DS_NON_EDID_1280x720_60	    (5 << 4)
-# define DP_DS_NON_EDID_1280x720_50	    (7 << 4)
+# define DP_DS_ANALN_EDID_MASK		    (0xf << 4)
+# define DP_DS_ANALN_EDID_720x480i_60	    (1 << 4)
+# define DP_DS_ANALN_EDID_720x480i_50	    (2 << 4)
+# define DP_DS_ANALN_EDID_1920x1080i_60	    (3 << 4)
+# define DP_DS_ANALN_EDID_1920x1080i_50	    (4 << 4)
+# define DP_DS_ANALN_EDID_1280x720_60	    (5 << 4)
+# define DP_DS_ANALN_EDID_1280x720_50	    (7 << 4)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
 /* offset 1 for DVI/HDMI is maximum TMDS clock in Mbps / 2.5 */
 /* offset 2 for VGA/DVI/HDMI */
@@ -467,9 +467,9 @@
 /* DP-HDMI2.1 PCON DSC Version */
 #define DP_PCON_DSC_VERSION                 0x093
 # define DP_PCON_DSC_MAJOR_MASK		    (0xF << 0)
-# define DP_PCON_DSC_MINOR_MASK		    (0xF << 4)
+# define DP_PCON_DSC_MIANALR_MASK		    (0xF << 4)
 # define DP_PCON_DSC_MAJOR_SHIFT	    0
-# define DP_PCON_DSC_MINOR_SHIFT	    4
+# define DP_PCON_DSC_MIANALR_SHIFT	    4
 
 /* DP-HDMI2.1 PCON DSC RC Buffer block size */
 #define DP_PCON_DSC_RC_BUF_BLK_INFO	    0x094
@@ -615,7 +615,7 @@
 #define DP_DOWNSPREAD_CTRL		    0x107
 # define DP_SPREAD_AMP_0_5		    (1 << 4)
 # define DP_FIXED_VTOTAL_AS_SDP_EN_IN_PR_ACTIVE  (1 << 6)
-# define DP_MSA_TIMING_PAR_IGNORE_EN	    (1 << 7) /* eDP */
+# define DP_MSA_TIMING_PAR_IGANALRE_EN	    (1 << 7) /* eDP */
 
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
@@ -684,7 +684,7 @@
 # define DP_IRQ_HPD_ENABLE		    (1 << 1)
 
 #define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
-# define DP_PWR_NOT_NEEDED		    (1 << 0)
+# define DP_PWR_ANALT_NEEDED		    (1 << 0)
 
 #define DP_FEC_CONFIGURATION		    0x120    /* 1.4 */
 # define DP_FEC_READY			    (1 << 0)
@@ -818,7 +818,7 @@
 #define DP_TEST_LANE_COUNT		    0x220
 
 #define DP_TEST_PATTERN			    0x221
-# define DP_NO_TEST_PATTERN                 0x0
+# define DP_ANAL_TEST_PATTERN                 0x0
 # define DP_COLOR_RAMP                      0x1
 # define DP_BLACK_AND_WHITE_VERTICAL_LINES  0x2
 # define DP_COLOR_SQUARE                    0x3
@@ -872,7 +872,7 @@
 # define DP_TEST_BIT_DEPTH_16               (4 << 5)
 
 #define DP_TEST_MISC1                       0x233
-# define DP_TEST_REFRESH_DENOMINATOR        (1 << 0)
+# define DP_TEST_REFRESH_DEANALMINATOR        (1 << 0)
 # define DP_TEST_INTERLACED                 (1 << 1)
 
 #define DP_TEST_REFRESH_RATE_NUMERATOR      0x234
@@ -889,7 +889,7 @@
 
 #define DP_PHY_TEST_PATTERN                 0x248
 # define DP_PHY_TEST_PATTERN_SEL_MASK       0x7
-# define DP_PHY_TEST_PATTERN_NONE           0x0
+# define DP_PHY_TEST_PATTERN_ANALNE           0x0
 # define DP_PHY_TEST_PATTERN_D10_2          0x1
 # define DP_PHY_TEST_PATTERN_ERROR_COUNT    0x2
 # define DP_PHY_TEST_PATTERN_PRBS7          0x3
@@ -1148,7 +1148,7 @@
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1         0x2214 /* 2.0 E11 */
 # define DP_ADAPTIVE_SYNC_SDP_SUPPORTED    (1 << 0)
-# define DP_AS_SDP_FIRST_HALF_LINE_OR_3840_PIXEL_CYCLE_WINDOW_NOT_SUPPORTED (1 << 1)
+# define DP_AS_SDP_FIRST_HALF_LINE_OR_3840_PIXEL_CYCLE_WINDOW_ANALT_SUPPORTED (1 << 1)
 # define DP_VSC_EXT_SDP_FRAMEWORK_VERSION_1_SUPPORTED  (1 << 4)
 
 #define DP_128B132B_SUPPORTED_LINK_RATES       0x2215 /* 2.0 */
@@ -1183,12 +1183,12 @@
 /* HDMI CEC tunneling over AUX DP 1.3 section 5.3.3.3.1 DPCD 1.4+ */
 #define DP_CEC_TUNNELING_CAPABILITY            0x3000
 # define DP_CEC_TUNNELING_CAPABLE               (1 << 0)
-# define DP_CEC_SNOOPING_CAPABLE                (1 << 1)
+# define DP_CEC_SANALOPING_CAPABLE                (1 << 1)
 # define DP_CEC_MULTIPLE_LA_CAPABLE             (1 << 2)
 
 #define DP_CEC_TUNNELING_CONTROL               0x3001
 # define DP_CEC_TUNNELING_ENABLE                (1 << 0)
-# define DP_CEC_SNOOPING_ENABLE                 (1 << 1)
+# define DP_CEC_SANALOPING_ENABLE                 (1 << 1)
 
 #define DP_CEC_RX_MESSAGE_INFO                 0x3002
 # define DP_CEC_RX_MESSAGE_LEN_MASK             (0xf << 0)
@@ -1263,7 +1263,7 @@
 # define DP_PCON_FRL_BW_MASK_40GBPS           (1 << 4)
 # define DP_PCON_FRL_BW_MASK_48GBPS           (1 << 5)
 # define DP_PCON_FRL_LINK_TRAIN_EXTENDED      (1 << 6)
-# define DP_PCON_FRL_LINK_TRAIN_NORMAL        (0 << 6)
+# define DP_PCON_FRL_LINK_TRAIN_ANALRMAL        (0 << 6)
 
 /* PCON HDMI LINK STATUS */
 #define DP_PCON_HDMI_TX_LINK_STATUS           0x303B
@@ -1288,7 +1288,7 @@
 #define DP_PROTOCOL_CONVERTER_CONTROL_1		0x3051 /* DP 1.3 */
 # define DP_CONVERSION_TO_YCBCR420_ENABLE	(1 << 0) /* DP 1.3 */
 # define DP_HDMI_EDID_PROCESSING_DISABLE	(1 << 1) /* DP 1.4 */
-# define DP_HDMI_AUTONOMOUS_SCRAMBLING_DISABLE	(1 << 2) /* DP 1.4 */
+# define DP_HDMI_AUTOANALMOUS_SCRAMBLING_DISABLE	(1 << 2) /* DP 1.4 */
 # define DP_HDMI_FORCE_SCRAMBLING		(1 << 3) /* DP 1.4 */
 #define DP_PROTOCOL_CONVERTER_CONTROL_2		0x3052 /* DP 1.3 */
 # define DP_CONVERSION_TO_YCBCR422_ENABLE	(1 << 0) /* DP 1.3 */
@@ -1481,12 +1481,12 @@ enum drm_dp_phy {
 
 /* Repeater modes */
 #define DP_PHY_REPEATER_MODE_TRANSPARENT		    0x55    /* 1.3 */
-#define DP_PHY_REPEATER_MODE_NON_TRANSPARENT		    0xaa    /* 1.3 */
+#define DP_PHY_REPEATER_MODE_ANALN_TRANSPARENT		    0xaa    /* 1.3 */
 
 /* DP HDCP message start offsets in DPCD address space */
 #define DP_HDCP_2_2_AKE_INIT_OFFSET		DP_HDCP_2_2_REG_RTX_OFFSET
 #define DP_HDCP_2_2_AKE_SEND_CERT_OFFSET	DP_HDCP_2_2_REG_CERT_RX_OFFSET
-#define DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET	DP_HDCP_2_2_REG_EKPUB_KM_OFFSET
+#define DP_HDCP_2_2_AKE_ANAL_STORED_KM_OFFSET	DP_HDCP_2_2_REG_EKPUB_KM_OFFSET
 #define DP_HDCP_2_2_AKE_STORED_KM_OFFSET	DP_HDCP_2_2_REG_EKH_KM_WR_OFFSET
 #define DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET	DP_HDCP_2_2_REG_HPRIME_OFFSET
 #define DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET \
@@ -1508,7 +1508,7 @@ enum drm_dp_phy {
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
-#define DP_PEER_DEVICE_NONE		0x0
+#define DP_PEER_DEVICE_ANALNE		0x0
 #define DP_PEER_DEVICE_SOURCE_OR_SST	0x1
 #define DP_PEER_DEVICE_MST_BRANCHING	0x2
 #define DP_PEER_DEVICE_SST_SINK		0x3
@@ -1517,11 +1517,11 @@ enum drm_dp_phy {
 /* DP 1.2 MST sideband request names DP 1.2a Table 2-80 */
 #define DP_GET_MSG_TRANSACTION_VERSION	0x00 /* DP 1.3 */
 #define DP_LINK_ADDRESS			0x01
-#define DP_CONNECTION_STATUS_NOTIFY	0x02
+#define DP_CONNECTION_STATUS_ANALTIFY	0x02
 #define DP_ENUM_PATH_RESOURCES		0x10
 #define DP_ALLOCATE_PAYLOAD		0x11
 #define DP_QUERY_PAYLOAD		0x12
-#define DP_RESOURCE_STATUS_NOTIFY	0x13
+#define DP_RESOURCE_STATUS_ANALTIFY	0x13
 #define DP_CLEAR_PAYLOAD_ID_TABLE	0x14
 #define DP_REMOTE_DPCD_READ		0x20
 #define DP_REMOTE_DPCD_WRITE		0x21
@@ -1529,9 +1529,9 @@ enum drm_dp_phy {
 #define DP_REMOTE_I2C_WRITE		0x23
 #define DP_POWER_UP_PHY			0x24
 #define DP_POWER_DOWN_PHY		0x25
-#define DP_SINK_EVENT_NOTIFY		0x30
+#define DP_SINK_EVENT_ANALTIFY		0x30
 #define DP_QUERY_STREAM_ENC_STATUS	0x38
-#define  DP_QUERY_STREAM_ENC_STATUS_STATE_NO_EXIST	0
+#define  DP_QUERY_STREAM_ENC_STATUS_STATE_ANAL_EXIST	0
 #define  DP_QUERY_STREAM_ENC_STATUS_STATE_INACTIVE	1
 #define  DP_QUERY_STREAM_ENC_STATUS_STATE_ACTIVE	2
 
@@ -1546,7 +1546,7 @@ enum drm_dp_phy {
 #define DP_NAK_BAD_PARAM		0x04
 #define DP_NAK_DEFER			0x05
 #define DP_NAK_LINK_FAILURE		0x06
-#define DP_NAK_NO_RESOURCES		0x07
+#define DP_NAK_ANAL_RESOURCES		0x07
 #define DP_NAK_DPCD_FAIL		0x08
 #define DP_NAK_I2C_NAK			0x09
 #define DP_NAK_ALLOCATE_FAIL		0x0a
@@ -1722,14 +1722,14 @@ enum dp_dynamic_range {
  * DB18]
  * CTA-861-G defines content types and expected processing by a sink device
  *
- * @DP_CONTENT_TYPE_NOT_DEFINED: Not defined type
+ * @DP_CONTENT_TYPE_ANALT_DEFINED: Analt defined type
  * @DP_CONTENT_TYPE_GRAPHICS: Graphics type
  * @DP_CONTENT_TYPE_PHOTO: Photo type
  * @DP_CONTENT_TYPE_VIDEO: Video type
  * @DP_CONTENT_TYPE_GAME: Game type
  */
 enum dp_content_type {
-	DP_CONTENT_TYPE_NOT_DEFINED = 0x00,
+	DP_CONTENT_TYPE_ANALT_DEFINED = 0x00,
 	DP_CONTENT_TYPE_GRAPHICS = 0x01,
 	DP_CONTENT_TYPE_PHOTO = 0x02,
 	DP_CONTENT_TYPE_VIDEO = 0x03,

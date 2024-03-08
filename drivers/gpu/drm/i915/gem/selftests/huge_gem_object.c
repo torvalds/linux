@@ -27,7 +27,7 @@ static void huge_free_pages(struct drm_i915_gem_object *obj,
 
 static int huge_get_pages(struct drm_i915_gem_object *obj)
 {
-#define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_RETRY_MAYFAIL)
+#define GFP (GFP_KERNEL | __GFP_ANALWARN | __GFP_RETRY_MAYFAIL)
 	const unsigned long nreal = obj->scratch / PAGE_SIZE;
 	unsigned int npages; /* restricted by sg_alloc_table */
 	struct scatterlist *sg, *src, *end;
@@ -40,11 +40,11 @@ static int huge_get_pages(struct drm_i915_gem_object *obj)
 	npages = obj->base.size / PAGE_SIZE;
 	pages = kmalloc(sizeof(*pages), GFP);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (sg_alloc_table(pages, npages, GFP)) {
 		kfree(pages);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	sg = pages->sgl;
@@ -78,7 +78,7 @@ static int huge_get_pages(struct drm_i915_gem_object *obj)
 
 err:
 	huge_free_pages(obj, pages);
-	return -ENOMEM;
+	return -EANALMEM;
 #undef GFP
 }
 
@@ -115,7 +115,7 @@ huge_gem_object(struct drm_i915_private *i915,
 
 	obj = i915_gem_object_alloc();
 	if (!obj)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, dma_size);
 	i915_gem_object_init(obj, &huge_ops, &lock_class, 0);
@@ -123,7 +123,7 @@ huge_gem_object(struct drm_i915_private *i915,
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
-	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_ANALNE;
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->scratch = phys_size;
 

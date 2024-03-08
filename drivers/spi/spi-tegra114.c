@@ -476,7 +476,7 @@ static int tegra_spi_start_tx_dma(struct tegra_spi_data *tspi, int len)
 				tspi->tx_dma_phys, len, DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
 	if (!tspi->tx_dma_desc) {
-		dev_err(tspi->dev, "Not able to get desc for Tx\n");
+		dev_err(tspi->dev, "Analt able to get desc for Tx\n");
 		return -EIO;
 	}
 
@@ -495,7 +495,7 @@ static int tegra_spi_start_rx_dma(struct tegra_spi_data *tspi, int len)
 				tspi->rx_dma_phys, len, DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
 	if (!tspi->rx_dma_desc) {
-		dev_err(tspi->dev, "Not able to get desc for Rx\n");
+		dev_err(tspi->dev, "Analt able to get desc for Rx\n");
 		return -EIO;
 	}
 
@@ -667,14 +667,14 @@ static int tegra_spi_init_dma_param(struct tegra_spi_data *tspi,
 	dma_chan = dma_request_chan(tspi->dev, dma_to_memory ? "rx" : "tx");
 	if (IS_ERR(dma_chan))
 		return dev_err_probe(tspi->dev, PTR_ERR(dma_chan),
-				     "Dma channel is not available\n");
+				     "Dma channel is analt available\n");
 
 	dma_buf = dma_alloc_coherent(tspi->dev, tspi->dma_buf_size,
 				&dma_phys, GFP_KERNEL);
 	if (!dma_buf) {
-		dev_err(tspi->dev, " Not able to allocate the dma buffer\n");
+		dev_err(tspi->dev, " Analt able to allocate the dma buffer\n");
 		dma_release_channel(dma_chan);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (dma_to_memory) {
@@ -912,11 +912,11 @@ static struct tegra_spi_client_data
 	*tegra_spi_parse_cdata_dt(struct spi_device *spi)
 {
 	struct tegra_spi_client_data *cdata;
-	struct device_node *target_np;
+	struct device_analde *target_np;
 
-	target_np = spi->dev.of_node;
+	target_np = spi->dev.of_analde;
 	if (!target_np) {
-		dev_dbg(&spi->dev, "device node not found\n");
+		dev_dbg(&spi->dev, "device analde analt found\n");
 		return NULL;
 	}
 
@@ -936,7 +936,7 @@ static void tegra_spi_cleanup(struct spi_device *spi)
 	struct tegra_spi_client_data *cdata = spi->controller_data;
 
 	spi->controller_data = NULL;
-	if (spi->dev.of_node)
+	if (spi->dev.of_analde)
 		kfree(cdata);
 }
 
@@ -1057,7 +1057,7 @@ static int tegra_spi_transfer_one_message(struct spi_controller *host,
 		ret = tegra_spi_start_transfer_one(spi, xfer, cmd1);
 		if (ret < 0) {
 			dev_err(tspi->dev,
-				"spi can not start transfer, err %d\n", ret);
+				"spi can analt start transfer, err %d\n", ret);
 			goto complete_xfer;
 		}
 
@@ -1302,12 +1302,12 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(*tspi));
 	if (!host) {
 		dev_err(&pdev->dev, "host allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	platform_set_drvdata(pdev, host);
 	tspi = spi_controller_get_devdata(host);
 
-	if (of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+	if (of_property_read_u32(pdev->dev.of_analde, "spi-max-frequency",
 				 &host->max_speed_hz))
 		host->max_speed_hz = 25000000; /* 25MHz */
 
@@ -1322,7 +1322,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	host->set_cs_timing = tegra_spi_set_hw_cs_timing;
 	host->num_chipselect = MAX_CHIP_SELECT;
 	host->auto_runtime_pm = true;
-	bus_num = of_alias_get_id(pdev->dev.of_node, "spi");
+	bus_num = of_alias_get_id(pdev->dev.of_analde, "spi");
 	if (bus_num >= 0)
 		host->bus_num = bus_num;
 
@@ -1333,7 +1333,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	tspi->soc_data = of_device_get_match_data(&pdev->dev);
 	if (!tspi->soc_data) {
 		dev_err(&pdev->dev, "unsupported tegra\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit_free_host;
 	}
 
@@ -1353,14 +1353,14 @@ static int tegra_spi_probe(struct platform_device *pdev)
 
 	tspi->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(tspi->clk)) {
-		dev_err(&pdev->dev, "can not get clock\n");
+		dev_err(&pdev->dev, "can analt get clock\n");
 		ret = PTR_ERR(tspi->clk);
 		goto exit_free_host;
 	}
 
 	tspi->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tspi->rst)) {
-		dev_err(&pdev->dev, "can not get reset\n");
+		dev_err(&pdev->dev, "can analt get reset\n");
 		ret = PTR_ERR(tspi->rst);
 		goto exit_free_host;
 	}
@@ -1412,10 +1412,10 @@ static int tegra_spi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can not register to host err %d\n", ret);
+		dev_err(&pdev->dev, "can analt register to host err %d\n", ret);
 		goto exit_free_irq;
 	}
 	return ret;

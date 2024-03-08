@@ -10,7 +10,7 @@
 #include "imx8mn-beacon-baseboard.dtsi"
 
 / {
-	model = "Beacon EmbeddedWorks i.MX8M Nano Development Kit";
+	model = "Beacon EmbeddedWorks i.MX8M Naanal Development Kit";
 	compatible = "beacon,imx8mn-beacon-kit", "fsl,imx8mn";
 
 	chosen {

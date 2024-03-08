@@ -54,7 +54,7 @@ struct configfs_dirent {
 #define CONFIGFS_USET_DROPPING	0x0100
 #define CONFIGFS_USET_IN_MKDIR	0x0200
 #define CONFIGFS_USET_CREATING	0x0400
-#define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR | CONFIGFS_ITEM_BIN_ATTR)
+#define CONFIGFS_ANALT_PINNED	(CONFIGFS_ITEM_ATTR | CONFIGFS_ITEM_BIN_ATTR)
 
 extern struct mutex configfs_symlink_mutex;
 extern spinlock_t configfs_dirent_lock;
@@ -63,8 +63,8 @@ extern struct kmem_cache *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
 
-extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
-extern struct inode *configfs_create(struct dentry *, umode_t mode);
+extern struct ianalde * configfs_new_ianalde(umode_t mode, struct configfs_dirent *, struct super_block *);
+extern struct ianalde *configfs_create(struct dentry *, umode_t mode);
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_create_bin_file(struct config_item *,
@@ -86,15 +86,15 @@ extern void configfs_release_fs(void);
 extern const struct file_operations configfs_dir_operations;
 extern const struct file_operations configfs_file_operations;
 extern const struct file_operations configfs_bin_file_operations;
-extern const struct inode_operations configfs_dir_inode_operations;
-extern const struct inode_operations configfs_root_inode_operations;
-extern const struct inode_operations configfs_symlink_inode_operations;
+extern const struct ianalde_operations configfs_dir_ianalde_operations;
+extern const struct ianalde_operations configfs_root_ianalde_operations;
+extern const struct ianalde_operations configfs_symlink_ianalde_operations;
 extern const struct dentry_operations configfs_dentry_ops;
 
 extern int configfs_symlink(struct mnt_idmap *idmap,
-			    struct inode *dir, struct dentry *dentry,
+			    struct ianalde *dir, struct dentry *dentry,
 			    const char *symname);
-extern int configfs_unlink(struct inode *dir, struct dentry *dentry);
+extern int configfs_unlink(struct ianalde *dir, struct dentry *dentry);
 
 int configfs_create_link(struct configfs_dirent *target, struct dentry *parent,
 		struct dentry *dentry, char *body);

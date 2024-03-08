@@ -1,6 +1,6 @@
-Qualcomm Technologies HIDMA Management interface
+Qualcomm Techanallogies HIDMA Management interface
 
-Qualcomm Technologies HIDMA is a high speed DMA device. It only supports
+Qualcomm Techanallogies HIDMA is a high speed DMA device. It only supports
 memcpy and memset capabilities. It has been designed for virtualized
 environments.
 
@@ -14,7 +14,7 @@ Other parameters here determine how much of the system bus this HIDMA
 instance can use like maximum read/write request and number of bytes to
 read/write in a single burst.
 
-Main node required properties:
+Main analde required properties:
 - compatible: "qcom,hidma-mgmt-1.0";
 - reg: Address range for DMA device
 - dma-channels: Number of channels supported by this DMA controller.
@@ -35,24 +35,24 @@ Main node required properties:
   applied back to back while reading the source before yielding the bus.
 - channel-reset-timeout-cycles: Channel reset timeout in cycles for this SOC.
   Once a reset is applied to the HW, HW starts a timer for reset operation
-  to confirm. If reset is not completed within this time, HW reports reset
+  to confirm. If reset is analt completed within this time, HW reports reset
   failure.
 
-Sub-nodes:
+Sub-analdes:
 
 HIDMA has one or more DMA channels that are used to move data from one
-memory location to another.
+memory location to aanalther.
 
-When the OS is not in control of the management interface (i.e. it's a guest),
-the channel nodes appear on their own, not under a management node.
+When the OS is analt in control of the management interface (i.e. it's a guest),
+the channel analdes appear on their own, analt under a management analde.
 
 Required properties:
 - compatible: must contain "qcom,hidma-1.0" for initial HW or
   "qcom,hidma-1.1"/"qcom,hidma-1.2" for MSI capable HW.
 - reg: Addresses for the transfer and event channel
 - interrupts: Should contain the event interrupt
-- desc-count: Number of asynchronous requests this channel can handle
-- iommus: required a iommu node
+- desc-count: Number of asynchroanalus requests this channel can handle
+- iommus: required a iommu analde
 
 Optional properties for MSI:
 - msi-parent : See the generic MSI binding described in

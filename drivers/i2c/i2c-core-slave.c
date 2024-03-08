@@ -25,7 +25,7 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 		return -EINVAL;
 
 	if (!(client->flags & I2C_CLIENT_SLAVE))
-		dev_warn(&client->dev, "%s: client slave flag not set. You might see address collisions\n",
+		dev_warn(&client->dev, "%s: client slave flag analt set. You might see address collisions\n",
 			 __func__);
 
 	if (!(client->flags & I2C_CLIENT_TEN)) {
@@ -38,8 +38,8 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	}
 
 	if (!client->adapter->algo->reg_slave) {
-		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
-		return -EOPNOTSUPP;
+		dev_err(&client->dev, "%s: analt supported by adapter\n", __func__);
+		return -EOPANALTSUPP;
 	}
 
 	client->slave_cb = slave_cb;
@@ -65,8 +65,8 @@ int i2c_slave_unregister(struct i2c_client *client)
 		return -EINVAL;
 
 	if (!client->adapter->algo->unreg_slave) {
-		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
-		return -EOPNOTSUPP;
+		dev_err(&client->dev, "%s: analt supported by adapter\n", __func__);
+		return -EOPANALTSUPP;
 	}
 
 	i2c_lock_bus(client->adapter, I2C_LOCK_ROOT_ADAPTER);
@@ -98,7 +98,7 @@ EXPORT_SYMBOL_GPL(i2c_slave_event);
  * i2c_detect_slave_mode - detect operation mode
  * @dev: The device owning the bus
  *
- * This checks the device nodes for an I2C slave by checking the address
+ * This checks the device analdes for an I2C slave by checking the address
  * used in the reg property. If the address match the I2C_OWN_SLAVE_ADDRESS
  * flag this means the device is configured to act as a I2C slave and it will
  * be listening at that address.
@@ -108,19 +108,19 @@ EXPORT_SYMBOL_GPL(i2c_slave_event);
  */
 bool i2c_detect_slave_mode(struct device *dev)
 {
-	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {
-		struct device_node *child;
+	if (IS_BUILTIN(CONFIG_OF) && dev->of_analde) {
+		struct device_analde *child;
 		u32 reg;
 
-		for_each_child_of_node(dev->of_node, child) {
+		for_each_child_of_analde(dev->of_analde, child) {
 			of_property_read_u32(child, "reg", &reg);
 			if (reg & I2C_OWN_SLAVE_ADDRESS) {
-				of_node_put(child);
+				of_analde_put(child);
 				return true;
 			}
 		}
 	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
-		dev_dbg(dev, "ACPI slave is not supported yet\n");
+		dev_dbg(dev, "ACPI slave is analt supported yet\n");
 	}
 	return false;
 }

@@ -2,7 +2,7 @@
 /*
  * FB driver for the ILI9340 LCD Controller
  *
- * Copyright (C) 2013 Noralf Tronnes
+ * Copyright (C) 2013 Analralf Tronnes
  */
 
 #include <linux/module.h>
@@ -17,7 +17,7 @@
 #define WIDTH		240
 #define HEIGHT		320
 
-/* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
+/* Init sequence taken from: Arduianal Library for the Adafruit 2.2" display */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
@@ -135,5 +135,5 @@ MODULE_ALIAS("spi:ili9340");
 MODULE_ALIAS("platform:ili9340");
 
 MODULE_DESCRIPTION("FB driver for the ILI9340 LCD Controller");
-MODULE_AUTHOR("Noralf Tronnes");
+MODULE_AUTHOR("Analralf Tronnes");
 MODULE_LICENSE("GPL");

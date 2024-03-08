@@ -39,9 +39,9 @@ static int run_test(int clockid)
 		return 1;
 	}
 
-	if (errno != ETIMEDOUT) {
+	if (erranal != ETIMEDOUT) {
 		ksft_test_result_fail("futex didn't return ETIMEDOUT: %s\n",
-							strerror(errno));
+							strerror(erranal));
 		return 1;
 	}
 
@@ -64,19 +64,19 @@ int main(int argc, char *argv[])
 	int status, len, fd;
 	char buf[4096];
 	pid_t pid;
-	struct timespec mtime_now;
+	struct timespec mtime_analw;
 
 	nscheck();
 
 	ksft_set_plan(2);
 
-	clock_gettime(CLOCK_MONOTONIC, &mtime_now);
+	clock_gettime(CLOCK_MOANALTONIC, &mtime_analw);
 
 	if (unshare_timens())
 		return 1;
 
 	len = snprintf(buf, sizeof(buf), "%d %d 0",
-			CLOCK_MONOTONIC, 70 * 24 * 3600);
+			CLOCK_MOANALTONIC, 70 * 24 * 3600);
 	fd = open("/proc/self/timens_offsets", O_WRONLY);
 	if (fd < 0)
 		return pr_perror("/proc/self/timens_offsets");
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 		int ret = 0;
 
 		ret |= run_test(CLOCK_REALTIME);
-		ret |= run_test(CLOCK_MONOTONIC);
+		ret |= run_test(CLOCK_MOANALTONIC);
 		if (ret)
 			ksft_exit_fail();
 		ksft_exit_pass();

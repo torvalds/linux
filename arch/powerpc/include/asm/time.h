@@ -65,7 +65,7 @@ static inline u64 get_dec(void)
 }
 
 /*
- * Note: Book E and 4xx processors differ from other PowerPC processors
+ * Analte: Book E and 4xx processors differ from other PowerPC processors
  * in when the decrementer generates its interrupt: on the 1 to 0
  * transition for Book E/4xx, but on the 0 to -1 transition for others.
  */
@@ -108,10 +108,10 @@ static inline u64 timer_get_next_tb(void)
 }
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-void timer_rearm_host_dec(u64 now);
+void timer_rearm_host_dec(u64 analw);
 #endif
 
-/* Convert timebase ticks to nanoseconds */
+/* Convert timebase ticks to naanalseconds */
 unsigned long long tb_to_ns(unsigned long long tb_ticks);
 
 void timer_broadcast_interrupt(void);

@@ -13,7 +13,7 @@
 #include "../vdec_vpu_if.h"
 #include "../vdec_drv_base.h"
 
-#define NAL_NON_IDR_SLICE			0x01
+#define NAL_ANALN_IDR_SLICE			0x01
 #define NAL_IDR_SLICE				0x05
 #define NAL_H264_PPS				0x08
 #define NAL_TYPE(value)				((value) & 0x1F)
@@ -29,7 +29,7 @@
 #define HDR_PARSING_BUF_SZ			1024
 
 #define DEC_ERR_RET(ret)			((ret) >> 16)
-#define H264_ERR_NOT_VALID			3
+#define H264_ERR_ANALT_VALID			3
 
 /**
  * struct h264_fb - h264 decode frame buffer information
@@ -67,7 +67,7 @@ struct h264_ring_fb_list {
  * struct vdec_h264_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
  * @resolution_changed  : resolution change happen
- * @realloc_mv_buf	: flag to notify driver to re-allocate mv buffer
+ * @realloc_mv_buf	: flag to analtify driver to re-allocate mv buffer
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -272,7 +272,7 @@ static int vdec_h264_init(struct mtk_vcodec_dec_ctx *ctx)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	inst->ctx = ctx;
 
@@ -381,7 +381,7 @@ static int vdec_h264_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	data[1] = nal_start;
 	err = vpu_dec_start(vpu, data, 2);
 	if (err) {
-		if (err > 0 && (DEC_ERR_RET(err) == H264_ERR_NOT_VALID)) {
+		if (err > 0 && (DEC_ERR_RET(err) == H264_ERR_ANALT_VALID)) {
 			mtk_vdec_err(inst->ctx, "- error bitstream - err = %d -", err);
 			err = -EIO;
 		}
@@ -402,7 +402,7 @@ static int vdec_h264_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		}
 	}
 
-	if (nal_type == NAL_NON_IDR_SLICE || nal_type == NAL_IDR_SLICE) {
+	if (nal_type == NAL_ANALN_IDR_SLICE || nal_type == NAL_IDR_SLICE) {
 		/* wait decoder done interrupt */
 		err = mtk_vcodec_wait_for_done_ctx(inst->ctx,
 						   MTK_INST_IRQ_RECEIVED,
@@ -432,7 +432,7 @@ static void vdec_h264_get_fb(struct vdec_h264_inst *inst,
 		return;
 
 	if (list->count == 0) {
-		mtk_vdec_debug(inst->ctx, "[FB] there is no %s fb", disp_list ? "disp" : "free");
+		mtk_vdec_debug(inst->ctx, "[FB] there is anal %s fb", disp_list ? "disp" : "free");
 		*out_fb = NULL;
 		return;
 	}

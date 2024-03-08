@@ -212,18 +212,18 @@
 	status = "disabled";
 };
 
-&nor_flash {
+&analr_flash {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nor_pins_default>;
+	pinctrl-0 = <&analr_pins_default>;
 	status = "okay";
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-analr";
 		reg = <0>;
 	};
 };
 
 &pio {
-	nor_pins_default: nor {
+	analr_pins_default: analr {
 		pins1 {
 			pinmux = <MT2701_PIN_240_EXT_XCS__FUNC_EXT_XCS>,
 				 <MT2701_PIN_241_EXT_SCK__FUNC_EXT_SCK>,

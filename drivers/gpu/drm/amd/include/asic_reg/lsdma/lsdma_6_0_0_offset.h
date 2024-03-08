@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -259,8 +259,8 @@
 #define regLSDMA_QUEUE0_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regLSDMA_QUEUE0_RB_AQL_CNTL                                                                     0x00b4
 #define regLSDMA_QUEUE0_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regLSDMA_QUEUE0_MINOR_PTR_UPDATE                                                                0x00b5
-#define regLSDMA_QUEUE0_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regLSDMA_QUEUE0_MIANALR_PTR_UPDATE                                                                0x00b5
+#define regLSDMA_QUEUE0_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regLSDMA_QUEUE0_CNTL                                                                            0x00b6
 #define regLSDMA_QUEUE0_CNTL_BASE_IDX                                                                   0
 #define regLSDMA_QUEUE0_DUMMY1                                                                          0x00b8
@@ -355,8 +355,8 @@
 #define regLSDMA_QUEUE1_RB_WPTR_POLL_ADDR_LO_BASE_IDX                                                   0
 #define regLSDMA_QUEUE1_RB_AQL_CNTL                                                                     0x010c
 #define regLSDMA_QUEUE1_RB_AQL_CNTL_BASE_IDX                                                            0
-#define regLSDMA_QUEUE1_MINOR_PTR_UPDATE                                                                0x010d
-#define regLSDMA_QUEUE1_MINOR_PTR_UPDATE_BASE_IDX                                                       0
+#define regLSDMA_QUEUE1_MIANALR_PTR_UPDATE                                                                0x010d
+#define regLSDMA_QUEUE1_MIANALR_PTR_UPDATE_BASE_IDX                                                       0
 #define regLSDMA_QUEUE1_CNTL                                                                            0x010e
 #define regLSDMA_QUEUE1_CNTL_BASE_IDX                                                                   0
 #define regLSDMA_QUEUE1_DUMMY1                                                                          0x0110

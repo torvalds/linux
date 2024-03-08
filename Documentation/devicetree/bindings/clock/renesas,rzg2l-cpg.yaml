@@ -12,7 +12,7 @@ maintainers:
 description: |
   On Renesas RZ/{G2L,V2L}-alike SoC's, the CPG (Clock Pulse Generator) and Module
   Standby Mode share the same register block. On RZ/V2M, the functionality is
-  similar, but does not have Clock Monitor Registers.
+  similar, but does analt have Clock Monitor Registers.
 
   They provide the following functionalities:
     - The CPG block generates various core clocks,
@@ -55,7 +55,7 @@ properties:
     description:
       SoC devices that are part of the CPG/Module Standby Mode Clock Domain and
       can be power-managed through Module Standby should refer to the CPG device
-      node in their "power-domains" property, as documented by the generic PM
+      analde in their "power-domains" property, as documented by the generic PM
       Domain bindings in Documentation/devicetree/bindings/power/power-domain.yaml.
     const: 0
 

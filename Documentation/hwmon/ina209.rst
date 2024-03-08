@@ -34,7 +34,7 @@ The INA209 chip is highly configurable both via hardwiring and via
 the I2C bus. See the datasheet for details.
 
 This tries to expose most monitoring features of the hardware via
-sysfs. It does not support every feature of this chip.
+sysfs. It does analt support every feature of this chip.
 
 ======================= =======================================================
 in0_input		shunt voltage (mV)
@@ -81,12 +81,12 @@ General Remarks
 ---------------
 
 The power and current registers in this chip require that the calibration
-register is programmed correctly before they are used. Normally this is expected
+register is programmed correctly before they are used. Analrmally this is expected
 to be done in the BIOS. In the absence of BIOS programming, the shunt resistor
 voltage can be provided using platform data. The driver uses platform data from
-the ina2xx driver for this purpose. If calibration register data is not provided
+the ina2xx driver for this purpose. If calibration register data is analt provided
 via platform data, the driver checks if the calibration register has been
-programmed (ie has a value not equal to zero). If so, this value is retained.
+programmed (ie has a value analt equal to zero). If so, this value is retained.
 Otherwise, a default value reflecting a shunt resistor value of 10 mOhm is
 programmed into the calibration register.
 

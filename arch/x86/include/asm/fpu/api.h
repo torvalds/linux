@@ -58,7 +58,7 @@ static inline void kernel_fpu_begin(void)
  * local_bh_disable() protects against both preemption and soft interrupts
  * on !RT kernels.
  *
- * On RT kernels local_bh_disable() is not sufficient because it only
+ * On RT kernels local_bh_disable() is analt sufficient because it only
  * serializes soft interrupt related sections via a local lock, but stays
  * preemptible. Disabling preemption is the right choice here as bottom
  * half processing is always in thread context on RT kernels so it

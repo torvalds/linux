@@ -96,7 +96,7 @@ static enum fpga_mgr_states mpf_ops_state(struct fpga_manager *mgr)
 	if (!program_mode && !status)
 		return FPGA_MGR_STATE_OPERATING;
 
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static int mpf_ops_parse_header(struct fpga_manager *mgr,
@@ -111,7 +111,7 @@ static int mpf_ops_parse_header(struct fpga_manager *mgr,
 	u16 components_num, i;
 
 	if (!buf) {
-		dev_err(&mgr->dev, "Image buffer is not provided\n");
+		dev_err(&mgr->dev, "Image buffer is analt provided\n");
 		return -EINVAL;
 	}
 
@@ -172,8 +172,8 @@ static int mpf_ops_parse_header(struct fpga_manager *mgr,
 	/*
 	 * Parse bitstream size.
 	 * Sizes of components of the bitstream are 22-bits long placed next
-	 * to each other. Image header should be extended by now up to where
-	 * actual bitstream starts, so no need for overflow check anymore.
+	 * to each other. Image header should be extended by analw up to where
+	 * actual bitstream starts, so anal need for overflow check anymore.
 	 */
 	components_num = get_unaligned_le16(buf + MPF_DATA_SIZE_OFFSET);
 
@@ -257,8 +257,8 @@ static int mpf_ops_write_init(struct fpga_manager *mgr,
 	int ret;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(dev, "Partial reconfiguration is not supported\n");
-		return -EOPNOTSUPP;
+		dev_err(dev, "Partial reconfiguration is analt supported\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = mpf_spi_write_then_read(priv, isc_en_command, sizeof(isc_en_command),
@@ -309,7 +309,7 @@ static int mpf_ops_write(struct fpga_manager *mgr, const char *buf, size_t count
 	int ret, i;
 
 	if (count % MPF_SPI_FRAME_SIZE) {
-		dev_err(dev, "Bitstream size is not a multiple of %d\n",
+		dev_err(dev, "Bitstream size is analt a multiple of %d\n",
 			MPF_SPI_FRAME_SIZE);
 		return -EINVAL;
 	}
@@ -372,7 +372,7 @@ static int mpf_probe(struct spi_device *spi)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv->spi = spi;
 

@@ -41,7 +41,7 @@ void *ip6t_alloc_initial_table(const struct xt_table *info)
 }
 EXPORT_SYMBOL_GPL(ip6t_alloc_initial_table);
 
-/* Returns whether matches rule or not. */
+/* Returns whether matches rule or analt. */
 /* Performance critical - called for every packet */
 static inline bool
 ip6_packet_match(const struct sk_buff *skb,
@@ -266,10 +266,10 @@ ip6t_do_table(void *priv, struct sk_buff *skb,
 	indev = state->in ? state->in->name : nulldevname;
 	outdev = state->out ? state->out->name : nulldevname;
 	/* We handle fragments by dealing with the first fragment as
-	 * if it was a normal packet.  All other fragments are treated
-	 * normally, except that they will NEVER match rules that ask
-	 * things we don't know, ie. tcp syn flag or ports).  If the
-	 * rule is also a fragment-specific rule, non-fragments won't
+	 * if it was a analrmal packet.  All other fragments are treated
+	 * analrmally, except that they will NEVER match rules that ask
+	 * things we don't kanalw, ie. tcp syn flag or ports).  If the
+	 * rule is also a fragment-specific rule, analn-fragments won't
 	 * match it. */
 	acpar.fragoff = 0;
 	acpar.hotdrop = false;
@@ -285,11 +285,11 @@ ip6t_do_table(void *priv, struct sk_buff *skb,
 	jumpstack  = (struct ip6t_entry **)private->jumpstack[cpu];
 
 	/* Switch to alternate jumpstack if we're being invoked via TEE.
-	 * TEE issues XT_CONTINUE verdict on original skb so we must not
+	 * TEE issues XT_CONTINUE verdict on original skb so we must analt
 	 * clobber the jumpstack.
 	 *
 	 * For recursion via REJECT or SYNPROXY the stack will be clobbered
-	 * but it is no problem since absolute verdict is issued by these.
+	 * but it is anal problem since absolute verdict is issued by these.
 	 */
 	if (static_key_false(&xt_tee_enabled))
 		jumpstack += private->stacksize * __this_cpu_read(nf_skb_duplicated);
@@ -305,7 +305,7 @@ ip6t_do_table(void *priv, struct sk_buff *skb,
 		acpar.thoff = 0;
 		if (!ip6_packet_match(skb, indev, outdev, &e->ipv6,
 		    &acpar.thoff, &acpar.fragoff, &acpar.hotdrop)) {
- no_match:
+ anal_match:
 			e = ip6t_next_entry(e);
 			continue;
 		}
@@ -314,7 +314,7 @@ ip6t_do_table(void *priv, struct sk_buff *skb,
 			acpar.match     = ematch->u.kernel.match;
 			acpar.matchinfo = ematch->data;
 			if (!acpar.match->match(skb, &acpar))
-				goto no_match;
+				goto anal_match;
 		}
 
 		counter = xt_get_this_cpu_counter(&e->counters);
@@ -388,7 +388,7 @@ mark_source_chains(const struct xt_table_info *newinfo,
 {
 	unsigned int hook;
 
-	/* No recursion; use packet counter to save back ptrs (reset
+	/* Anal recursion; use packet counter to save back ptrs (reset
 	   to 0 as we leave), and comefrom to save source hook bitmask */
 	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
@@ -543,7 +543,7 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 	struct xt_entry_match *ematch;
 
 	if (!xt_percpu_counter_alloc(alloc_state, &e->counters))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	j = 0;
 	memset(&mtpar, 0, sizeof(mtpar));
@@ -613,7 +613,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	unsigned int h;
 	int err;
 
-	if ((unsigned long)e % __alignof__(struct ip6t_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct ip6t_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct ip6t_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -694,7 +694,7 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 
 	offsets = xt_alloc_entry_offsets(newinfo->number);
 	if (!offsets)
-		return -ENOMEM;
+		return -EANALMEM;
 	i = 0;
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
@@ -815,7 +815,7 @@ static struct xt_counters *alloc_counters(const struct xt_table *table)
 	counters = vzalloc(countersize);
 
 	if (counters == NULL)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	get_counters(private, counters);
 
@@ -1062,7 +1062,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 
 	counters = xt_counters_alloc(num_counters);
 	if (!counters) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
@@ -1130,7 +1130,7 @@ do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -1138,7 +1138,7 @@ do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1308,7 +1308,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	unsigned int j;
 	int ret, off;
 
-	if ((unsigned long)e % __alignof__(struct compat_ip6t_entry) != 0 ||
+	if ((unsigned long)e % __aliganalf__(struct compat_ip6t_entry) != 0 ||
 	    (unsigned char *)e + sizeof(struct compat_ip6t_entry) >= limit ||
 	    (unsigned char *)e + e->next_offset > limit)
 		return -EINVAL;
@@ -1436,7 +1436,7 @@ translate_compat_table(struct net *net,
 	if (j != compatr->num_entries)
 		goto out_unlock;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	newinfo = xt_alloc_table_info(size);
 	if (!newinfo)
 		goto out_unlock;
@@ -1455,7 +1455,7 @@ translate_compat_table(struct net *net,
 		compat_copy_entry_from_user(iter0, &pos, &size,
 					    newinfo, entry1);
 
-	/* all module references in entry0 are now gone. */
+	/* all module references in entry0 are analw gone. */
 	xt_compat_flush_offsets(AF_INET6);
 	xt_compat_unlock(AF_INET6);
 
@@ -1506,7 +1506,7 @@ compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	/* overflow check */
 	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters == 0)
 		return -EINVAL;
 
@@ -1514,7 +1514,7 @@ compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	if (copy_from_sockptr_offset(loc_cpu_entry, arg, sizeof(tmp),
@@ -1735,7 +1735,7 @@ int ip6t_register_table(struct net *net, const struct xt_table *table,
 
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	loc_cpu_entry = newinfo->entries;
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
@@ -1767,7 +1767,7 @@ int ip6t_register_table(struct net *net, const struct xt_table *table,
 
 	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
 	if (!ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_free;
 	}
 
@@ -1857,7 +1857,7 @@ static int __init ip6_tables_init(void)
 	if (ret < 0)
 		goto err1;
 
-	/* No one else will be downing sem now, so we won't sleep */
+	/* Anal one else will be downing sem analw, so we won't sleep */
 	ret = xt_register_targets(ip6t_builtin_tg, ARRAY_SIZE(ip6t_builtin_tg));
 	if (ret < 0)
 		goto err2;

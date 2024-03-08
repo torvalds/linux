@@ -94,7 +94,7 @@
 		regulator-name = "+V5_SW";
 	};
 
-	/* Non PMIC On-module Supplies */
+	/* Analn PMIC On-module Supplies */
 	reg_ethphy: regulator-ethphy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -154,7 +154,7 @@
 		ranges;
 
 		/* Use the kernel configuration settings instead */
-		/delete-node/ linux,cma;
+		/delete-analde/ linux,cma;
 	};
 };
 
@@ -729,7 +729,7 @@
 
 /*
  * Verdin UART_4
- * Resource allocated to M4 by default, must not be accessed from Cortex-A35 or you get an OOPS
+ * Resource allocated to M4 by default, must analt be accessed from Cortex-A35 or you get an OOPS
  */
 &uart4 {
 	pinctrl-names = "default";
@@ -755,11 +755,11 @@
 	vbus-supply = <&reg_usb_otg2_vbus>;
 };
 
-&usbphynop1 {
+&usbphyanalp1 {
 	vcc-supply = <&reg_vdd_3v3>;
 };
 
-&usbphynop2 {
+&usbphyanalp2 {
 	power-domains = <&pgc_otg2>;
 	vcc-supply = <&reg_vdd_3v3>;
 };
@@ -768,7 +768,7 @@
 &usdhc1 {
 	bus-width = <8>;
 	keep-power-in-suspend;
-	non-removable;
+	analn-removable;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
@@ -1210,7 +1210,7 @@
 	};
 
 	/*
-	 * Note: Due to ERR050080 we use discrete external on-module resistors pulling-up to the
+	 * Analte: Due to ERR050080 we use discrete external on-module resistors pulling-up to the
 	 * on-module +V3.3_1.8_SD (LDO5) rail and explicitly disable the internal pull-ups here.
 	 */
 	pinctrl_usdhc2: usdhc2grp {

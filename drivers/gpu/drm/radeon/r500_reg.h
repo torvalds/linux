@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -88,7 +88,7 @@
 #       define R300_PIPE_AUTO_CONFIG    (1 << 31)
 #define R300_RB2D_DSTCACHE_MODE         0x3428
 #       define R300_DC_AUTOFLUSH_ENABLE (1 << 8)
-#       define R300_DC_DC_DISABLE_IGNORE_PE (1 << 17)
+#       define R300_DC_DC_DISABLE_IGANALRE_PE (1 << 17)
 
 #define RADEON_CP_STAT		0x7C0
 #define RADEON_RBBM_CMDFIFO_ADDR	0xE70
@@ -156,11 +156,11 @@
 #	define RS480_VA_SIZE_2GB	(6 << 1)
 #define RS480_AGP_MODE_CNTL             0x39
 #	define RS480_POST_GART_Q_SIZE	(1 << 18)
-#	define RS480_NONGART_SNOOP	(1 << 19)
+#	define RS480_ANALNGART_SANALOP	(1 << 19)
 #	define RS480_AGP_RD_BUF_SIZE	(1 << 20)
-#	define RS480_REQ_TYPE_SNOOP_SHIFT 22
-#	define RS480_REQ_TYPE_SNOOP_MASK  0x3
-#	define RS480_REQ_TYPE_SNOOP_DIS	(1 << 24)
+#	define RS480_REQ_TYPE_SANALOP_SHIFT 22
+#	define RS480_REQ_TYPE_SANALOP_MASK  0x3
+#	define RS480_REQ_TYPE_SANALOP_DIS	(1 << 24)
 
 #define RS690_AIC_CTRL_SCRATCH		0x3A
 #	define RS690_DIS_OUT_OF_PCI_GART_ACCESS	(1 << 1)
@@ -219,7 +219,7 @@
 #       define RS600_SYSTEM_ACCESS_MODE_PA_ONLY             (0 << 8)
 #       define RS600_SYSTEM_ACCESS_MODE_USE_SYS_MAP         (1 << 8)
 #       define RS600_SYSTEM_ACCESS_MODE_IN_SYS              (2 << 8)
-#       define RS600_SYSTEM_ACCESS_MODE_NOT_IN_SYS          (3 << 8)
+#       define RS600_SYSTEM_ACCESS_MODE_ANALT_IN_SYS          (3 << 8)
 #       define RS600_SYSTEM_APERTURE_UNMAPPED_ACCESS_PASSTHROUGH        (0 << 10)
 #       define RS600_SYSTEM_APERTURE_UNMAPPED_ACCESS_DEFAULT_PAGE       (1 << 10)
 #       define RS600_EFFECTIVE_L1_CACHE_SIZE(x) ((x) << 11)
@@ -379,7 +379,7 @@
 #       define AVIVO_D1GRPH_CONTROL_16BPP_RGB565                (1 << 8)
 #       define AVIVO_D1GRPH_CONTROL_16BPP_ARGB4444              (2 << 8)
 #       define AVIVO_D1GRPH_CONTROL_16BPP_AI88                  (3 << 8)
-#       define AVIVO_D1GRPH_CONTROL_16BPP_MONO16                (4 << 8)
+#       define AVIVO_D1GRPH_CONTROL_16BPP_MOANAL16                (4 << 8)
 
 #       define AVIVO_D1GRPH_CONTROL_32BPP_ARGB8888              (0 << 8)
 #       define AVIVO_D1GRPH_CONTROL_32BPP_ARGB2101010           (1 << 8)

@@ -90,7 +90,7 @@ examples:
         pinctrl-0 = <&pinctrl_spi0_default>;
 
         flash@0 {
-            compatible = "jedec,spi-nor";
+            compatible = "jedec,spi-analr";
             spi-max-frequency = <50000000>;
             reg = <0>;
             spi-rx-bus-width = <4>;

@@ -117,7 +117,7 @@ union mhi_ep_ring_ctx {
 };
 
 struct mhi_ep_ring_item {
-	struct list_head node;
+	struct list_head analde;
 	struct mhi_ep_ring *ring;
 };
 
@@ -150,7 +150,7 @@ struct mhi_ep_event {
 };
 
 struct mhi_ep_state_transition {
-	struct list_head node;
+	struct list_head analde;
 	enum mhi_state state;
 };
 

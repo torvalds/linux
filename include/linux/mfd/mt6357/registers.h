@@ -191,7 +191,7 @@
 #define MT6357_DEW_CIPHER_RDY                0x41e
 #define MT6357_DEW_CIPHER_MODE               0x420
 #define MT6357_DEW_CIPHER_SWRST              0x422
-#define MT6357_DEW_RDDMY_NO                  0x424
+#define MT6357_DEW_RDDMY_ANAL                  0x424
 #define MT6357_INT_TYPE_CON0                 0x426
 #define MT6357_INT_TYPE_CON0_SET             0x428
 #define MT6357_INT_TYPE_CON0_CLR             0x42a

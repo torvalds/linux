@@ -43,7 +43,7 @@
  *  |   +-------+--------------------------------------------------------------+
  *  |   | 30:28 | TYPE = GUC_HXG_TYPE_RESPONSE_SUCCESS_                        |
  *  |   +-------+--------------------------------------------------------------+
- *  |   |  27:0 | DATA0 = **NUM** - 1 if KLV was parsed, 0 if not recognized   |
+ *  |   |  27:0 | DATA0 = **NUM** - 1 if KLV was parsed, 0 if analt recognized   |
  *  +---+-------+--------------------------------------------------------------+
  */
 #define GUC_ACTION_HOST2GUC_SELF_CFG			0x0508
@@ -125,8 +125,8 @@ enum xe_guc_action {
 	XE_GUC_ACTION_SET_CONTEXT_PRIORITY = 0x1005,
 	XE_GUC_ACTION_SET_CONTEXT_EXECUTION_QUANTUM = 0x1006,
 	XE_GUC_ACTION_SET_CONTEXT_PREEMPTION_TIMEOUT = 0x1007,
-	XE_GUC_ACTION_CONTEXT_RESET_NOTIFICATION = 0x1008,
-	XE_GUC_ACTION_ENGINE_FAILURE_NOTIFICATION = 0x1009,
+	XE_GUC_ACTION_CONTEXT_RESET_ANALTIFICATION = 0x1008,
+	XE_GUC_ACTION_ENGINE_FAILURE_ANALTIFICATION = 0x1009,
 	XE_GUC_ACTION_HOST2GUC_UPDATE_CONTEXT_POLICIES = 0x100B,
 	XE_GUC_ACTION_SETUP_PC_GUCRC = 0x3004,
 	XE_GUC_ACTION_AUTHENTICATE_HUC = 0x4000,
@@ -139,17 +139,17 @@ enum xe_guc_action {
 	XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_LRC = 0x4601,
 	XE_GUC_ACTION_CLIENT_SOFT_RESET = 0x5507,
 	XE_GUC_ACTION_SET_ENG_UTIL_BUFF = 0x550A,
-	XE_GUC_ACTION_NOTIFY_MEMORY_CAT_ERROR = 0x6000,
+	XE_GUC_ACTION_ANALTIFY_MEMORY_CAT_ERROR = 0x6000,
 	XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC = 0x6002,
 	XE_GUC_ACTION_PAGE_FAULT_RES_DESC = 0x6003,
-	XE_GUC_ACTION_ACCESS_COUNTER_NOTIFY = 0x6004,
+	XE_GUC_ACTION_ACCESS_COUNTER_ANALTIFY = 0x6004,
 	XE_GUC_ACTION_TLB_INVALIDATION = 0x7000,
 	XE_GUC_ACTION_TLB_INVALIDATION_DONE = 0x7001,
 	XE_GUC_ACTION_TLB_INVALIDATION_ALL = 0x7002,
-	XE_GUC_ACTION_STATE_CAPTURE_NOTIFICATION = 0x8002,
-	XE_GUC_ACTION_NOTIFY_FLUSH_LOG_BUFFER_TO_FILE = 0x8003,
-	XE_GUC_ACTION_NOTIFY_CRASH_DUMP_POSTED = 0x8004,
-	XE_GUC_ACTION_NOTIFY_EXCEPTION = 0x8005,
+	XE_GUC_ACTION_STATE_CAPTURE_ANALTIFICATION = 0x8002,
+	XE_GUC_ACTION_ANALTIFY_FLUSH_LOG_BUFFER_TO_FILE = 0x8003,
+	XE_GUC_ACTION_ANALTIFY_CRASH_DUMP_POSTED = 0x8004,
+	XE_GUC_ACTION_ANALTIFY_EXCEPTION = 0x8005,
 	XE_GUC_ACTION_LIMIT
 };
 
@@ -164,7 +164,7 @@ enum xe_guc_preempt_options {
 };
 
 enum xe_guc_report_status {
-	XE_GUC_REPORT_STATUS_UNKNOWN = 0x0,
+	XE_GUC_REPORT_STATUS_UNKANALWN = 0x0,
 	XE_GUC_REPORT_STATUS_ACKED = 0x1,
 	XE_GUC_REPORT_STATUS_ERROR = 0x2,
 	XE_GUC_REPORT_STATUS_COMPLETE = 0x4,
@@ -201,14 +201,14 @@ enum xe_guc_tlb_invalidation_type {
  * Observed before completing the TLB invalidation
  * 1: Lite mode of Invalidation:
  * TLBs of the targeted engine(s) are immediately invalidated.
- * In-flight transactions are NOT guaranteed to be Globally Observed before
+ * In-flight transactions are ANALT guaranteed to be Globally Observed before
  * completing TLB invalidation.
  * Light Invalidation Mode is to be used only when
  * it can be guaranteed (by SW) that the address translations remain invariant
  * for the in-flight transactions across the TLB invalidation. In other words,
  * this mode can be used when the TLB invalidation is intended to clear out the
- * stale cached translations that are no longer in use. Light Invalidation Mode
- * is much faster than the Heavy Invalidation Mode, as it does not wait for the
+ * stale cached translations that are anal longer in use. Light Invalidation Mode
+ * is much faster than the Heavy Invalidation Mode, as it does analt wait for the
  * in-flight transactions to be GOd.
  */
 enum xe_guc_tlb_inval_mode {

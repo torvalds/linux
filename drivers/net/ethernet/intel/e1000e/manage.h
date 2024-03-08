@@ -10,7 +10,7 @@ s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw);
 
 enum e1000_mng_mode {
-	e1000_mng_mode_none = 0,
+	e1000_mng_mode_analne = 0,
 	e1000_mng_mode_asf,
 	e1000_mng_mode_pt,
 	e1000_mng_mode_ipmi,
@@ -41,7 +41,7 @@ enum e1000_mng_mode {
 #define E1000_HICR_FW_RESET_ENABLE	0x40
 #define E1000_HICR_FW_RESET		0x80
 
-/* Intel(R) Active Management Technology signature */
+/* Intel(R) Active Management Techanallogy signature */
 #define E1000_IAMT_SIGNATURE		0x544D4149
 
 #endif

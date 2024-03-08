@@ -3,7 +3,7 @@
  * Guest agent for virtio-trace
  *
  * Copyright (C) 2012 Hitachi, Ltd.
- * Created by Yoshihiro Yunomae <yoshihiro.yunomae.ez@hitachi.com>
+ * Created by Yoshihiro Yuanalmae <yoshihiro.yuanalmae.ez@hitachi.com>
  *            Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
  */
 
@@ -24,7 +24,7 @@
 #define WRITE_PATH_FMT		"/dev/virtio-ports/trace-path-cpu%d"
 #define CTL_PATH		"/dev/virtio-ports/agent-ctl-path"
 
-pthread_mutex_t mutex_notify = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_analtify = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_wakeup = PTHREAD_COND_INITIALIZER;
 
 static int get_total_cpus(void)
@@ -32,7 +32,7 @@ static int get_total_cpus(void)
 	int nr_cpus = (int)sysconf(_SC_NPROCESSORS_CONF);
 
 	if (nr_cpus <= 0) {
-		pr_err("Could not read cpus\n");
+		pr_err("Could analt read cpus\n");
 		goto error;
 	} else if (nr_cpus > MAX_CPUS) {
 		pr_err("Exceed max cpus(%d)\n", (int)MAX_CPUS);
@@ -114,7 +114,7 @@ static const char *make_path(int cpu_num, bool this_is_write_path)
 
 	buf = zalloc(PATH_MAX);
 	if (buf == NULL) {
-		pr_err("Could not allocate buffer\n");
+		pr_err("Could analt allocate buffer\n");
 		goto error;
 	}
 

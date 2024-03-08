@@ -1,5 +1,5 @@
 ===============================
-LIBNVDIMM: Non-Volatile Devices
+LIBNVDIMM: Analn-Volatile Devices
 ===============================
 
 libnvdimm - kernel / libndctl - userspace helper library
@@ -30,7 +30,7 @@ Version 13
 	    LIBNVDIMM/LIBNDCTL: Region
 	        libnvdimm: region
 	        libndctl: region enumeration example
-	        Why Not Encode the Region Type into the Region Name?
+	        Why Analt Encode the Region Type into the Region Name?
 	        How Do I Determine the Major Type of a Region?
 	    LIBNVDIMM/LIBNDCTL: Namespace
 	        libnvdimm: namespace
@@ -82,7 +82,7 @@ LABEL:
   Metadata stored on a DIMM device that partitions and identifies
   (persistently names) capacity allocated to different PMEM namespaces. It
   also indicates whether an address abstraction like a BTT is applied to
-  the namespace.  Note that traditional partition tables, GPT/MBR, are
+  the namespace.  Analte that traditional partition tables, GPT/MBR, are
   layered on top of a PMEM namespace, or an address abstraction like BTT
   if present, but partition support is deprecated going forward.
 
@@ -124,11 +124,11 @@ LIBNDCTL:
 LIBNVDIMM PMEM
 ==============
 
-Prior to the arrival of the NFIT, non-volatile memory was described to a
+Prior to the arrival of the NFIT, analn-volatile memory was described to a
 system in various ad-hoc ways.  Usually only the bare minimum was
 provided, namely, a single system-physical-address range where writes
-are expected to be durable after a system power loss.  Now, the NFIT
-specification standardizes not only the description of PMEM, but also
+are expected to be durable after a system power loss.  Analw, the NFIT
+specification standardizes analt only the description of PMEM, but also
 platform message-passing entry points for control and configuration.
 
 PMEM (nd_pmem.ko): Drives a system-physical-address range.  This range is
@@ -136,8 +136,8 @@ contiguous in system memory and may be interleaved (hardware memory controller
 striped) across multiple DIMMs.  When interleaved the platform may optionally
 provide details of which DIMMs are participating in the interleave.
 
-It is worth noting that when the labeling capability is detected (a EFI
-namespace label index block is found), then no block device is created
+It is worth analting that when the labeling capability is detected (a EFI
+namespace label index block is found), then anal block device is created
 by default as userspace needs to do at least one allocation of DPA to
 the PMEM range.  In contrast ND_NAMESPACE_IO ranges, once registered,
 can be immediately attached to nd_pmem. This latter mode is called
@@ -181,7 +181,7 @@ a dynamically assigned id.
        single PMEM namespace is created in the REGION0-SPA-range that spans most
        of DIMM0 and DIMM1 with a user-specified name of "pm0.0". Some of that
        interleaved system-physical-address range is left free for
-       another PMEM namespace to be defined.
+       aanalther PMEM namespace to be defined.
 
     2. In the last portion of DIMM0 and DIMM1 we have an interleaved
        system-physical-address range, REGION1, that spans those two DIMMs as
@@ -230,7 +230,7 @@ LIBNVDIMM/LIBNDCTL: Bus
 A bus has a 1:1 relationship with an NFIT.  The current expectation for
 ACPI based systems is that there is only ever one platform-global NFIT.
 That said, it is trivial to register multiple NFITs, the specification
-does not preclude it.  The infrastructure supports multiple busses and
+does analt preclude it.  The infrastructure supports multiple busses and
 we use this capability to test multiple NFIT configurations in the unit
 test.
 
@@ -304,9 +304,9 @@ hardware, and it is a container for LABELs.  If the DIMM is defined by
 NFIT then an optional 'nfit' attribute sub-directory is available to add
 NFIT-specifics.
 
-Note that the kernel device name for "DIMMs" is "nmemX".  The NFIT
+Analte that the kernel device name for "DIMMs" is "nmemX".  The NFIT
 describes these devices via "Memory Device to System Physical Address
-Range Mapping Structure", and there is no requirement that they actually
+Range Mapping Structure", and there is anal requirement that they actually
 be physical DIMMs, so we use a more generic name.
 
 LIBNVDIMM: DIMM (NMEM)
@@ -346,15 +346,15 @@ LIBNVDIMM: DIMM (NMEM)
 LIBNDCTL: DIMM enumeration example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Note, in this example we are assuming NFIT-defined DIMMs which are
+Analte, in this example we are assuming NFIT-defined DIMMs which are
 identified by an "nfit_handle" a 32-bit value where:
 
    - Bit 3:0 DIMM number within the memory channel
    - Bit 7:4 memory channel number
    - Bit 11:8 memory controller ID
-   - Bit 15:12 socket ID (within scope of a Node controller if node
+   - Bit 15:12 socket ID (within scope of a Analde controller if analde
      controller is present)
-   - Bit 27:16 Node Controller ID
+   - Bit 27:16 Analde Controller ID
    - Bit 31:28 Reserved
 
 ::
@@ -418,7 +418,7 @@ LIBNVDIMM: region::
 	|   |-- modalias
 	|   |-- namespace0.0
 	|   |-- namespace_seed
-	|   |-- numa_node
+	|   |-- numa_analde
 	|   |-- nfit
 	|   |   `-- spa_index
 	|   |-- nstype
@@ -463,9 +463,9 @@ LIBNVDIMM: namespace
 ^^^^^^^^^^^^^^^^^^^^
 
 Here is a sample layout from the 2 major types of NAMESPACE where namespace0.0
-represents DIMM-info-backed PMEM (note that it has a 'uuid' attribute), and
-namespace1.0 represents an anonymous PMEM namespace (note that has no 'uuid'
-attribute due to not support a LABEL)
+represents DIMM-info-backed PMEM (analte that it has a 'uuid' attribute), and
+namespace1.0 represents an aanalnymous PMEM namespace (analte that has anal 'uuid'
+attribute due to analt support a LABEL)
 
 ::
 
@@ -475,7 +475,7 @@ attribute due to not support a LABEL)
 	|-- dpa_extents
 	|-- force_raw
 	|-- modalias
-	|-- numa_node
+	|-- numa_analde
 	|-- resource
 	|-- size
 	|-- subsystem -> ../../../../../../bus/nd
@@ -489,7 +489,7 @@ attribute due to not support a LABEL)
 	|-- driver -> ../../../../../../bus/nd/drivers/pmem
 	|-- force_raw
 	|-- modalias
-	|-- numa_node
+	|-- numa_analde
 	|-- resource
 	|-- size
 	|-- subsystem -> ../../../../../../bus/nd
@@ -500,7 +500,7 @@ LIBNDCTL: namespace enumeration example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Namespaces are indexed relative to their parent region, example below.
 These indexes are mostly static from boot to boot, but subsystem makes
-no guarantees in this regard.  For a static namespace identifier use its
+anal guarantees in this regard.  For a static namespace identifier use its
 'uuid' attribute.
 
 ::
@@ -521,7 +521,7 @@ LIBNDCTL: namespace creation example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Idle namespaces are automatically created by the kernel if a given
-region has enough available capacity to create a new namespace.
+region has eanalugh available capacity to create a new namespace.
 Namespace instantiation involves finding an idle namespace and
 configuring it.  For the most part the setting of namespace attributes
 can occur in any order, the only constraint is that 'uuid' must be set
@@ -551,7 +551,7 @@ internally with a static identifier::
 Why the Term "namespace"?
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    1. Why not "volume" for instance?  "volume" ran the risk of confusing
+    1. Why analt "volume" for instance?  "volume" ran the risk of confusing
        ND (libnvdimm subsystem) to a volume manager like device-mapper.
 
     2. The term originated to describe the sub-devices that can be created
@@ -581,7 +581,7 @@ nd_blk driver depending on the region type::
 	|-- delete
 	|-- devtype
 	|-- modalias
-	|-- numa_node
+	|-- numa_analde
 	|-- sector_size
 	|-- subsystem -> ../../../../../bus/nd
 	|-- uevent
@@ -629,7 +629,7 @@ the region.
 Once a "namespace" is removed from a BTT that instance of the BTT device
 will be deleted or otherwise reset to default values.  This deletion is
 only at the device model level.  In order to destroy a BTT the "info
-block" needs to be destroyed.  Note, that to destroy a BTT the media
+block" needs to be destroyed.  Analte, that to destroy a BTT the media
 needs to be written in raw mode.  By default, the kernel will autodetect
 the presence of a BTT and disable raw mode.  This autodetect behavior
 can be suppressed by enabling raw mode for the namespace via the

@@ -37,7 +37,7 @@ static irqreturn_t a2091_intr(int irq, void *data)
 	unsigned long flags;
 
 	if (!(status & (ISTR_INT_F | ISTR_INT_P)) || !(status & ISTR_INTS))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock_irqsave(instance->host_lock, flags);
 	wd33c93_intr(instance);
@@ -59,7 +59,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
 			      len, DMA_DIR(dir_in));
 	if (dma_mapping_error(hdata->dev, addr)) {
-		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+		dev_warn(hdata->dev, "cananalt map SCSI data block %p\n",
 			 scsi_pointer->ptr);
 		return 1;
 	}
@@ -94,12 +94,12 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 				      wh->dma_bounce_len, DMA_DIR(dir_in));
 		/* can't map buffer; use PIO */
 		if (dma_mapping_error(hdata->dev, addr)) {
-			dev_warn(hdata->dev, "cannot map bounce buffer %p\n",
+			dev_warn(hdata->dev, "cananalt map bounce buffer %p\n",
 				 wh->dma_bounce_buffer);
 			return 1;
 		}
 
-		/* the bounce buffer may not be in the first 16M of physmem */
+		/* the bounce buffer may analt be in the first 16M of physmem */
 		if (addr & A2091_XFER_MASK) {
 			/* we could use chipmem... maybe later */
 			kfree(wh->dma_bounce_buffer);
@@ -123,7 +123,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	/* no more cache flush here - dma_map_single() takes care */
+	/* anal more cache flush here - dma_map_single() takes care */
 
 	/* start DMA */
 	regs->ST_DMA = 1;
@@ -206,8 +206,8 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	struct a2091_hostdata *hdata;
 
 	if (dma_set_mask_and_coherent(&z->dev, DMA_BIT_MASK(24))) {
-		dev_warn(&z->dev, "cannot use 24 bit DMA\n");
-		return -ENODEV;
+		dev_warn(&z->dev, "cananalt use 24 bit DMA\n");
+		return -EANALDEV;
 	}
 
 	if (!request_mem_region(z->resource.start, 256, "wd33c93"))
@@ -216,7 +216,7 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	instance = scsi_host_alloc(&a2091_scsi_template,
 				   sizeof(struct a2091_hostdata));
 	if (!instance) {
-		error = -ENOMEM;
+		error = -EANALMEM;
 		goto fail_alloc;
 	}
 
@@ -231,7 +231,7 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 
 	hdata = shost_priv(instance);
 	hdata->dev = &z->dev;
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.anal_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

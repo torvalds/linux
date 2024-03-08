@@ -38,7 +38,7 @@ bad_access1(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to read before the pointer.
+ * analt be able to read before the pointer.
  */
 SEC("?raw_tp")
 __failure __msg("negative offset dynptr_ptr ptr")
@@ -61,7 +61,7 @@ bad_access2(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to read past the end of the pointer.
+ * analt be able to read past the end of the pointer.
  */
 SEC("?raw_tp")
 __failure __msg("dereference of modified dynptr_ptr ptr")
@@ -81,7 +81,7 @@ write_forbidden(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to write to that pointer.
+ * analt be able to write to that pointer.
  */
 SEC("?raw_tp")
 __failure __msg("invalid mem access 'dynptr_ptr'")
@@ -101,7 +101,7 @@ null_context_write(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to write to that pointer.
+ * analt be able to write to that pointer.
  */
 SEC("?raw_tp")
 __failure __msg("invalid mem access 'scalar'")
@@ -123,7 +123,7 @@ null_context_read(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to write to that pointer.
+ * analt be able to write to that pointer.
  */
 SEC("?raw_tp")
 __failure __msg("invalid mem access 'scalar'")
@@ -143,10 +143,10 @@ try_discard_dynptr(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to read past the end of the pointer.
+ * analt be able to read past the end of the pointer.
  */
 SEC("?raw_tp")
-__failure __msg("cannot release unowned const bpf_dynptr")
+__failure __msg("cananalt release uanalwned const bpf_dynptr")
 int user_ringbuf_callback_discard_dynptr(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, try_discard_dynptr, NULL, 0);
@@ -163,10 +163,10 @@ try_submit_dynptr(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to read past the end of the pointer.
+ * analt be able to read past the end of the pointer.
  */
 SEC("?raw_tp")
-__failure __msg("cannot release unowned const bpf_dynptr")
+__failure __msg("cananalt release uanalwned const bpf_dynptr")
 int user_ringbuf_callback_submit_dynptr(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, try_submit_dynptr, NULL, 0);
@@ -181,7 +181,7 @@ invalid_drain_callback_return(struct bpf_dynptr *dynptr, void *context)
 }
 
 /* A callback that accesses a dynptr in a bpf_user_ringbuf_drain callback should
- * not be able to write to that pointer.
+ * analt be able to write to that pointer.
  */
 SEC("?raw_tp")
 __failure __msg("At callback return the register R0 has ")

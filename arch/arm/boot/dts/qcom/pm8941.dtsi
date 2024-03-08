@@ -115,7 +115,7 @@
 
 			boost_bypass_n_pin: boost-bypass-state {
 				pins = "gpio21";
-				function = "normal";
+				function = "analrmal";
 			};
 		};
 

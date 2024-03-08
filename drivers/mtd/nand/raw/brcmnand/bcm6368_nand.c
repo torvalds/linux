@@ -91,7 +91,7 @@ static int bcm6368_nand_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	soc = &priv->soc;
 
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "nand-int-base");

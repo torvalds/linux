@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config FSNOTIFY
+config FSANALTIFY
 	def_bool n
 
-source "fs/notify/dnotify/Kconfig"
-source "fs/notify/inotify/Kconfig"
-source "fs/notify/fanotify/Kconfig"
+source "fs/analtify/danaltify/Kconfig"
+source "fs/analtify/ianaltify/Kconfig"
+source "fs/analtify/faanaltify/Kconfig"

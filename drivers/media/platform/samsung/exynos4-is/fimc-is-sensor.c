@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung EXYANALS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
@@ -22,10 +22,10 @@ static const struct of_device_id fimc_is_sensor_of_ids[] = {
 };
 
 const struct sensor_drv_data *fimc_is_sensor_get_drvdata(
-			struct device_node *node)
+			struct device_analde *analde)
 {
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(fimc_is_sensor_of_ids, node);
+	of_id = of_match_analde(fimc_is_sensor_of_ids, analde);
 	return of_id ? of_id->data : NULL;
 }

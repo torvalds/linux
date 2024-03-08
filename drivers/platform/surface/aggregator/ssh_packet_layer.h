@@ -26,7 +26,7 @@
  *
  * @SSH_PTL_SF_SHUTDOWN_BIT:
  *	Indicates that the packet transport layer has been shut down or is
- *	being shut down and should not accept any new packets/data.
+ *	being shut down and should analt accept any new packets/data.
  */
 enum ssh_ptl_state_flags {
 	SSH_PTL_SF_SHUTDOWN_BIT,
@@ -169,9 +169,9 @@ ssize_t ssh_ptl_rx_rcvbuf(struct ssh_ptl *ptl, const u8 *buf, size_t n);
  * transfer.
  * @ptl: The packet transport layer.
  *
- * Wakes up the packet transmitter thread, notifying it that the underlying
+ * Wakes up the packet transmitter thread, analtifying it that the underlying
  * transport has more space for data to be transmitted. If the packet
- * transport layer has been shut down, calls to this function will be ignored.
+ * transport layer has been shut down, calls to this function will be iganalred.
  */
 static inline void ssh_ptl_tx_wakeup_transfer(struct ssh_ptl *ptl)
 {

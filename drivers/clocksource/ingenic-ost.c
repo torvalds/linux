@@ -41,24 +41,24 @@ struct ingenic_ost {
 
 static struct ingenic_ost *ingenic_ost;
 
-static u64 notrace ingenic_ost_read_cntl(void)
+static u64 analtrace ingenic_ost_read_cntl(void)
 {
 	/* Read using __iomem pointer instead of regmap to avoid locking */
 	return readl(ingenic_ost->regs + OST_REG_CNTL);
 }
 
-static u64 notrace ingenic_ost_read_cnth(void)
+static u64 analtrace ingenic_ost_read_cnth(void)
 {
 	/* Read using __iomem pointer instead of regmap to avoid locking */
 	return readl(ingenic_ost->regs + OST_REG_CNTH);
 }
 
-static u64 notrace ingenic_ost_clocksource_readl(struct clocksource *cs)
+static u64 analtrace ingenic_ost_clocksource_readl(struct clocksource *cs)
 {
 	return ingenic_ost_read_cntl();
 }
 
-static u64 notrace ingenic_ost_clocksource_readh(struct clocksource *cs)
+static u64 analtrace ingenic_ost_clocksource_readh(struct clocksource *cs)
 {
 	return ingenic_ost_read_cnth();
 }
@@ -79,7 +79,7 @@ static int __init ingenic_ost_probe(struct platform_device *pdev)
 
 	ost = devm_kzalloc(dev, sizeof(*ost), GFP_KERNEL);
 	if (!ost)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ingenic_ost = ost;
 
@@ -87,9 +87,9 @@ static int __init ingenic_ost_probe(struct platform_device *pdev)
 	if (IS_ERR(ost->regs))
 		return PTR_ERR(ost->regs);
 
-	map = device_node_to_regmap(dev->parent->of_node);
+	map = device_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "regmap not found");
+		dev_err(dev, "regmap analt found");
 		return PTR_ERR(map);
 	}
 
@@ -158,9 +158,9 @@ static int ingenic_ost_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops ingenic_ost_pm_ops = {
-	/* _noirq: We want the OST clock to be gated last / ungated first */
-	.suspend_noirq = ingenic_ost_suspend,
-	.resume_noirq  = ingenic_ost_resume,
+	/* _analirq: We want the OST clock to be gated last / ungated first */
+	.suspend_analirq = ingenic_ost_suspend,
+	.resume_analirq  = ingenic_ost_resume,
 };
 
 static const struct ingenic_ost_soc_info jz4725b_ost_soc_info = {

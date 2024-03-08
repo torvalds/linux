@@ -5,7 +5,7 @@
 #include "qcom-msm8226.dtsi"
 #include "pm8226.dtsi"
 
-/delete-node/ &smem_region;
+/delete-analde/ &smem_region;
 
 / {
 	model = "Motorola Moto G 4G (2013)";
@@ -58,12 +58,12 @@
 
 		framebuffer@3200000 {
 			reg = <0x03200000 0x800000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
-			no-map;
+			anal-map;
 		};
 	};
 };
@@ -254,7 +254,7 @@
 	vqmmc-supply = <&pm8226_l6>;
 
 	bus-width = <8>;
-	non-removable;
+	analn-removable;
 
 	status = "okay";
 };

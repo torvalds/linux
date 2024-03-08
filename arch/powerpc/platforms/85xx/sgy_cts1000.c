@@ -38,7 +38,7 @@ static void gpio_halt_wfn(struct work_struct *work)
 }
 static DECLARE_WORK(gpio_halt_wq, gpio_halt_wfn);
 
-static void __noreturn gpio_halt_cb(void)
+static void __analreturn gpio_halt_cb(void)
 {
 	pr_info("triggering GPIO.\n");
 
@@ -61,11 +61,11 @@ static irqreturn_t gpio_halt_irq(int irq, void *__data)
 };
 
 static int __gpio_halt_probe(struct platform_device *pdev,
-			     struct device_node *halt_node)
+			     struct device_analde *halt_analde)
 {
 	int err;
 
-	halt_gpio = fwnode_gpiod_get_index(of_fwnode_handle(halt_node),
+	halt_gpio = fwanalde_gpiod_get_index(of_fwanalde_handle(halt_analde),
 					   NULL, 0, GPIOD_OUT_LOW, "gpio-halt");
 	err = PTR_ERR_OR_ZERO(halt_gpio);
 	if (err) {
@@ -73,8 +73,8 @@ static int __gpio_halt_probe(struct platform_device *pdev,
 		return err;
 	}
 
-	/* Now get the IRQ which tells us when the power button is hit */
-	halt_irq = irq_of_parse_and_map(halt_node, 0);
+	/* Analw get the IRQ which tells us when the power button is hit */
+	halt_irq = irq_of_parse_and_map(halt_analde, 0);
 	err = request_irq(halt_irq, gpio_halt_irq,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "gpio-halt", pdev);
@@ -97,19 +97,19 @@ static int __gpio_halt_probe(struct platform_device *pdev,
 
 static int gpio_halt_probe(struct platform_device *pdev)
 {
-	struct device_node *halt_node;
+	struct device_analde *halt_analde;
 	int ret;
 
-	if (!pdev->dev.of_node)
-		return -ENODEV;
+	if (!pdev->dev.of_analde)
+		return -EANALDEV;
 
-	/* If there's no matching child, this isn't really an error */
-	halt_node = of_find_matching_node(pdev->dev.of_node, child_match);
-	if (!halt_node)
-		return -ENODEV;
+	/* If there's anal matching child, this isn't really an error */
+	halt_analde = of_find_matching_analde(pdev->dev.of_analde, child_match);
+	if (!halt_analde)
+		return -EANALDEV;
 
-	ret = __gpio_halt_probe(pdev, halt_node);
-	of_node_put(halt_node);
+	ret = __gpio_halt_probe(pdev, halt_analde);
+	of_analde_put(halt_analde);
 
 	return ret;
 }
@@ -130,7 +130,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 
 static const struct of_device_id gpio_halt_match[] = {
 	/* We match on the gpio bus itself and scan the children since they
-	 * wont be matched against us. We know the bus wont match until it
+	 * wont be matched against us. We kanalw the bus wont match until it
 	 * has been registered too. */
 	{
 		.compatible = "fsl,qoriq-gpio",

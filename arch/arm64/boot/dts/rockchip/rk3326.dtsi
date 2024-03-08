@@ -9,7 +9,7 @@
 	ports = <&vopb_out>;
 };
 
-/delete-node/ &dsi_in_vopl;
-/delete-node/ &lvds_vopl_in;
-/delete-node/ &vopl;
-/delete-node/ &vopl_mmu;
+/delete-analde/ &dsi_in_vopl;
+/delete-analde/ &lvds_vopl_in;
+/delete-analde/ &vopl;
+/delete-analde/ &vopl_mmu;

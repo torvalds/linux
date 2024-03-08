@@ -21,8 +21,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_GEN_MAJOR	2
-#define DRV_MODULE_GEN_MINOR	1
-#define DRV_MODULE_GEN_SUBMINOR 0
+#define DRV_MODULE_GEN_MIANALR	1
+#define DRV_MODULE_GEN_SUBMIANALR 0
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -106,7 +106,7 @@
  * We wait for 6 sec just to be on the safe side.
  */
 #define ENA_DEVICE_KALIVE_TIMEOUT	(6 * HZ)
-#define ENA_MAX_NO_INTERRUPT_ITERATIONS 3
+#define ENA_MAX_ANAL_INTERRUPT_ITERATIONS 3
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
@@ -154,11 +154,11 @@ struct ena_tx_buffer {
 	u8 print_once;
 	/* Save the last jiffies to detect missing tx packets
 	 *
-	 * sets to non zero value on ena_start_xmit and set to zero on
+	 * sets to analn zero value on ena_start_xmit and set to zero on
 	 * napi and timer_Service_routine.
 	 *
-	 * while this value is not protected by lock,
-	 * a given packet is not expected to be handled by ena_start_xmit
+	 * while this value is analt protected by lock,
+	 * a given packet is analt expected to be handled by ena_start_xmit
 	 * and by napi/timer_service at the same time.
 	 */
 	unsigned long last_jiffies;
@@ -255,11 +255,11 @@ struct ena_ring {
 	u8 tx_max_header_size;
 
 	bool disable_meta_caching;
-	u16 no_interrupt_event_cnt;
+	u16 anal_interrupt_event_cnt;
 
 	/* cpu and NUMA for TPH */
 	int cpu;
-	int numa_node;
+	int numa_analde;
 
 	/* number of tx/rx_buffer_info's entries */
 	int ring_size;
@@ -269,7 +269,7 @@ struct ena_ring {
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 	u32  smoothed_interval;
 	u32  per_napi_packets;
-	u16 non_empty_napi_events;
+	u16 analn_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {
 		struct ena_stats_tx tx_stats;
@@ -331,7 +331,7 @@ struct ena_adapter {
 
 	/* large_llq_header_enabled is used for two purposes:
 	 * 1. Indicates that large LLQ has been requested.
-	 * 2. Indicates whether large LLQ is set or not after device
+	 * 2. Indicates whether large LLQ is set or analt after device
 	 *    initialization / configuration.
 	 */
 	bool large_llq_header_enabled;
@@ -449,6 +449,6 @@ void ena_free_all_io_tx_resources(struct ena_adapter *adapter);
 void ena_down(struct ena_adapter *adapter);
 int ena_up(struct ena_adapter *adapter);
 void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
-void ena_update_ring_numa_node(struct ena_ring *tx_ring,
+void ena_update_ring_numa_analde(struct ena_ring *tx_ring,
 			       struct ena_ring *rx_ring);
 #endif /* !(ENA_H) */

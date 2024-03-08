@@ -10,11 +10,11 @@
 #include <linux/debugfs.h>
 #include <linux/sched/smt.h>
 #include <linux/task_work.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/nospec-branch.h>
+#include <asm/analspec-branch.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/apic.h>
@@ -23,9 +23,9 @@
 #include "mm_internal.h"
 
 #ifdef CONFIG_PARAVIRT
-# define STATIC_NOPV
+# define STATIC_ANALPV
 #else
-# define STATIC_NOPV			static
+# define STATIC_ANALPV			static
 # define __flush_tlb_local		native_flush_tlb_local
 # define __flush_tlb_global		native_flush_tlb_global
 # define __flush_tlb_one_user(addr)	native_flush_tlb_one_user(addr)
@@ -37,7 +37,7 @@
  *		c/o Linus Torvalds.
  *
  *	These mean you can really definitely utterly forget about
- *	writing to user space from interrupts. (Its not allowed anyway).
+ *	writing to user space from interrupts. (Its analt allowed anyway).
  *
  *	Optimizations Manfred Spraul <manfred@colorfullife.com>
  *
@@ -72,7 +72,7 @@
  * use different names for each of them:
  *
  * ASID  - [0, TLB_NR_DYN_ASIDS-1]
- *         the canonical identifier for an mm
+ *         the caanalnical identifier for an mm
  *
  * kPCID - [1, TLB_NR_DYN_ASIDS]
  *         the value we write into the PCID part of CR3; corresponds to the
@@ -80,7 +80,7 @@
  *
  * uPCID - [2048 + 1, 2048 + TLB_NR_DYN_ASIDS]
  *         for KPTI each mm has two address spaces and thus needs two
- *         PCID values, but we can still do with a single ASID denomination
+ *         PCID values, but we can still do with a single ASID deanalmination
  *         for each mm. Corresponds to kPCID + 2048.
  *
  */
@@ -102,8 +102,8 @@
 
 /*
  * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
- * for them being zero-based.  Another -1 is because PCID 0 is reserved for
- * use by non-PCID-aware users.
+ * for them being zero-based.  Aanalther -1 is because PCID 0 is reserved for
+ * use by analn-PCID-aware users.
  */
 #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_PCID_BITS) - 2)
 
@@ -116,7 +116,7 @@ static inline u16 kern_pcid(u16 asid)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	/*
-	 * Make sure that the dynamic ASID space does not conflict with the
+	 * Make sure that the dynamic ASID space does analt conflict with the
 	 * bit we are using to switch between user and kernel ASIDs.
 	 */
 	BUILD_BUG_ON(TLB_NR_DYN_ASIDS >= (1 << X86_CR3_PTI_PCID_USER_BIT));
@@ -130,13 +130,13 @@ static inline u16 kern_pcid(u16 asid)
 	/*
 	 * The dynamically-assigned ASIDs that get passed in are small
 	 * (<TLB_NR_DYN_ASIDS).  They never have the high switch bit set,
-	 * so do not bother to clear it.
+	 * so do analt bother to clear it.
 	 *
 	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
 	 * PCID bits.  This serves two purposes.  It prevents a nasty
 	 * situation in which PCID-unaware code saves CR3, loads some other
 	 * value (with PCID == 0), and then restores CR3, thus corrupting
-	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
+	 * the TLB for ASID 0 if the saved ASID was analnzero.  It also means
 	 * that any bugs involving loading a PCID-enabled CR3 with
 	 * CR4.PCIDE off will trigger deterministically.
 	 */
@@ -169,7 +169,7 @@ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid, unsigned long lam)
 	return cr3;
 }
 
-static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid,
+static inline unsigned long build_cr3_analflush(pgd_t *pgd, u16 asid,
 					      unsigned long lam)
 {
 	/*
@@ -178,12 +178,12 @@ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid,
 	 * boot because all CPU's the have same capabilities:
 	 */
 	VM_WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_PCID));
-	return build_cr3(pgd, asid, lam) | CR3_NOFLUSH;
+	return build_cr3(pgd, asid, lam) | CR3_ANALFLUSH;
 }
 
 /*
  * We get here when we do something requiring a TLB invalidation
- * but could not go invalidate all of the contexts.  We do the
+ * but could analt go invalidate all of the contexts.  We do the
  * necessary invalidation by clearing out the 'ctx_id' which
  * forces a TLB flush when the context is loaded.
  */
@@ -201,7 +201,7 @@ static void clear_asid_other(void)
 	}
 
 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-		/* Do not need to flush the current asid */
+		/* Do analt need to flush the current asid */
 		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
 			continue;
 		/*
@@ -261,7 +261,7 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
  */
 static inline void invalidate_user_asid(u16 asid)
 {
-	/* There is no user ASID if address space separation is off */
+	/* There is anal user ASID if address space separation is off */
 	if (!IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
 		return;
 
@@ -288,7 +288,7 @@ static void load_new_mm_cr3(pgd_t *pgdir, u16 new_asid, unsigned long lam,
 		invalidate_user_asid(new_asid);
 		new_mm_cr3 = build_cr3(pgdir, new_asid, lam);
 	} else {
-		new_mm_cr3 = build_cr3_noflush(pgdir, new_asid, lam);
+		new_mm_cr3 = build_cr3_analflush(pgdir, new_asid, lam);
 	}
 
 	/*
@@ -314,7 +314,7 @@ void leave_mm(int cpu)
 	if (loaded_mm == &init_mm)
 		return;
 
-	/* Warn if we're not lazy. */
+	/* Warn if we're analt lazy. */
 	WARN_ON(!this_cpu_read(cpu_tlbstate_shared.is_lazy));
 
 	switch_mm(NULL, &init_mm, NULL);
@@ -334,7 +334,7 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 /*
  * Invoked from return to user/guest by a task that opted-in to L1D
  * flushing but ended up running on an SMT enabled core due to wrong
- * affinity settings or CPU hotplug. This is part of the paranoid L1D flush
+ * affinity settings or CPU hotplug. This is part of the paraanalid L1D flush
  * contract which this task requested.
  */
 static void l1d_flush_force_sigbus(struct callback_head *ch)
@@ -354,9 +354,9 @@ static void l1d_flush_evaluate(unsigned long prev_mm, unsigned long next_mm,
 		return;
 
 	/*
-	 * Validate that it is not running on an SMT sibling as this would
+	 * Validate that it is analt running on an SMT sibling as this would
 	 * make the exercise pointless because the siblings share L1D. If
-	 * it runs on a SMT sibling, notify it with SIGBUS on return to
+	 * it runs on a SMT sibling, analtify it with SIGBUS on return to
 	 * user/guest
 	 */
 	if (this_cpu_read(cpu_info.smt_active)) {
@@ -393,7 +393,7 @@ static void cond_mitigation(struct task_struct *next)
 	/*
 	 * Avoid user/user BTB poisoning by flushing the branch predictor
 	 * when switching between processes. This stops one process from
-	 * doing Spectre-v2 attacks on another.
+	 * doing Spectre-v2 attacks on aanalther.
 	 *
 	 * Both, the conditional and the always IBPB mode use the mm
 	 * pointer to avoid the IBPB when switching between tasks of the
@@ -401,7 +401,7 @@ static void cond_mitigation(struct task_struct *next)
 	 * opens a hypothetical hole vs. mm_struct reuse, which is more or
 	 * less impossible to control by an attacker. Aside of that it
 	 * would only affect the first schedule so the theoretically
-	 * exposed data is not really interesting.
+	 * exposed data is analt really interesting.
 	 */
 	if (static_branch_likely(&switch_mm_cond_ibpb)) {
 		/*
@@ -410,10 +410,10 @@ static void cond_mitigation(struct task_struct *next)
 		 *
 		 * 1) Switch from a user space task (potential attacker)
 		 *    which has TIF_SPEC_IB set to a user space task
-		 *    (potential victim) which has TIF_SPEC_IB not set.
+		 *    (potential victim) which has TIF_SPEC_IB analt set.
 		 *
 		 * 2) Switch from a user space task (potential attacker)
-		 *    which has TIF_SPEC_IB not set to a user space task
+		 *    which has TIF_SPEC_IB analt set to a user space task
 		 *    (potential victim) which has TIF_SPEC_IB set.
 		 *
 		 * This could be done by unconditionally issuing IBPB when
@@ -483,7 +483,7 @@ static inline void cr4_update_pce_mm(struct mm_struct *mm)
 		cr4_clear_bits_irqsoff(X86_CR4_PCE);
 }
 
-void cr4_update_pce(void *ignored)
+void cr4_update_pce(void *iganalred)
 {
 	cr4_update_pce_mm(this_cpu_read(cpu_tlbstate.loaded_mm));
 }
@@ -506,7 +506,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 	/*
 	 * NB: The scheduler will call us with prev == next when switching
-	 * from lazy TLB mode to normal mode if active_mm isn't changing.
+	 * from lazy TLB mode to analrmal mode if active_mm isn't changing.
 	 * When this happens, we don't assume that CR3 (and hence
 	 * cpu_tlbstate.loaded_mm) matches next.
 	 *
@@ -532,14 +532,14 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		/*
 		 * If we were to BUG here, we'd be very likely to kill
 		 * the system so hard that we don't see the call trace.
-		 * Try to recover instead by ignoring the error and doing
+		 * Try to recover instead by iganalring the error and doing
 		 * a global flush to minimize the chance of corruption.
 		 *
 		 * (This is far from being a fully correct recovery.
 		 *  Architecturally, the CPU could prefetch something
 		 *  back into an incorrect ASID slot and leave it there
 		 *  to cause trouble down the road.  It's better than
-		 *  nothing, though.)
+		 *  analthing, though.)
 		 */
 		__flush_tlb_all();
 	}
@@ -552,36 +552,36 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * core serialization before returning to user-space, after
 	 * storing to rq->curr, when changing mm.  This is because
 	 * membarrier() sends IPIs to all CPUs that are in the target mm
-	 * to make them issue memory barriers.  However, if another CPU
+	 * to make them issue memory barriers.  However, if aanalther CPU
 	 * switches to/from the target mm concurrently with
-	 * membarrier(), it can cause that CPU not to receive an IPI
+	 * membarrier(), it can cause that CPU analt to receive an IPI
 	 * when it really should issue a memory barrier.  Writing to CR3
 	 * provides that full memory barrier and core serializing
 	 * instruction.
 	 */
 	if (real_prev == next) {
-		/* Not actually switching mm's */
+		/* Analt actually switching mm's */
 		VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
 			   next->context.ctx_id);
 
 		/*
-		 * If this races with another thread that enables lam, 'new_lam'
-		 * might not match tlbstate_lam_cr3_mask().
+		 * If this races with aanalther thread that enables lam, 'new_lam'
+		 * might analt match tlbstate_lam_cr3_mask().
 		 */
 
 		/*
 		 * Even in lazy TLB mode, the CPU should stay set in the
 		 * mm_cpumask. The TLB shootdown code can figure out from
-		 * cpu_tlbstate_shared.is_lazy whether or not to send an IPI.
+		 * cpu_tlbstate_shared.is_lazy whether or analt to send an IPI.
 		 */
 		if (WARN_ON_ONCE(real_prev != &init_mm &&
 				 !cpumask_test_cpu(cpu, mm_cpumask(next))))
 			cpumask_set_cpu(cpu, mm_cpumask(next));
 
 		/*
-		 * If the CPU is not in lazy TLB mode, we are just switching
-		 * from one thread in a process to another thread in the same
-		 * process. No TLB flush required.
+		 * If the CPU is analt in lazy TLB mode, we are just switching
+		 * from one thread in a process to aanalther thread in the same
+		 * process. Anal TLB flush required.
 		 */
 		if (!was_lazy)
 			return;
@@ -631,7 +631,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 
 		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
 
-		/* Let nmi_uaccess_okay() know that we're changing CR3. */
+		/* Let nmi_uaccess_okay() kanalw that we're changing CR3. */
 		this_cpu_write(cpu_tlbstate.loaded_mm, LOADED_MM_SWITCHING);
 		barrier();
 	}
@@ -663,16 +663,16 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 }
 
 /*
- * Please ignore the name of this function.  It should be called
+ * Please iganalre the name of this function.  It should be called
  * switch_to_kernel_thread().
  *
  * enter_lazy_tlb() is a hint from the scheduler that we are entering a
  * kernel thread or other context without an mm.  Acceptable implementations
- * include doing nothing whatsoever, switching to init_mm, or various clever
+ * include doing analthing whatsoever, switching to init_mm, or various clever
  * lazy tricks to try to minimize TLB flushes.
  *
  * The scheduler reserves the right to call enter_lazy_tlb() several times
- * in a row.  It will notify us that we're going back to a real mm by
+ * in a row.  It will analtify us that we're going back to a real mm by
  * calling switch_mm_irqs_off().
  */
 void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
@@ -759,7 +759,7 @@ static void flush_tlb_func(void *info)
 	unsigned long nr_invalidate = 0;
 	u64 mm_tlb_gen;
 
-	/* This code cannot presently handle being reentered. */
+	/* This code cananalt presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
 
 	if (!local) {
@@ -810,9 +810,9 @@ static void flush_tlb_func(void *info)
 
 	if (unlikely(local_tlb_gen == mm_tlb_gen)) {
 		/*
-		 * There's nothing to do: we're already up to date.  This can
+		 * There's analthing to do: we're already up to date.  This can
 		 * happen if two concurrent flushes happen -- the first flush to
-		 * be handled can catch us all the way up, leaving no work for
+		 * be handled can catch us all the way up, leaving anal work for
 		 * the second flush.
 		 */
 		goto done;
@@ -822,8 +822,8 @@ static void flush_tlb_func(void *info)
 	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
 
 	/*
-	 * If we get to this point, we know that our TLB is out of date.
-	 * This does not strictly imply that we need to flush (it's
+	 * If we get to this point, we kanalw that our TLB is out of date.
+	 * This does analt strictly imply that we need to flush (it's
 	 * possible that f->new_tlb_gen <= local_tlb_gen), but we're
 	 * going to need to flush in the very near future, so we might
 	 * as well get it over with.
@@ -836,7 +836,7 @@ static void flush_tlb_func(void *info)
 	 * 1. f->new_tlb_gen == local_tlb_gen + 1.  We have an invariant that
 	 *    we've always done all needed flushes to catch up to
 	 *    local_tlb_gen.  If, for example, local_tlb_gen == 2 and
-	 *    f->new_tlb_gen == 3, then we know that the flush needed to bring
+	 *    f->new_tlb_gen == 3, then we kanalw that the flush needed to bring
 	 *    us up to date for tlb_gen 3 is the partial flush we're
 	 *    processing.
 	 *
@@ -851,12 +851,12 @@ static void flush_tlb_func(void *info)
 	 *    1 without the full flush that's needed for tlb_gen 2.
 	 *
 	 * 2. f->new_tlb_gen == mm_tlb_gen.  This is purely an optimization.
-	 *    Partial TLB flushes are not all that much cheaper than full TLB
+	 *    Partial TLB flushes are analt all that much cheaper than full TLB
 	 *    flushes, so it seems unlikely that it would be a performance win
 	 *    to do a partial flush if that won't bring our TLB fully up to
 	 *    date.  By doing a full flush instead, we can increase
 	 *    local_tlb_gen all the way to mm_tlb_gen and we can probably
-	 *    avoid another flush in the very near future.
+	 *    avoid aanalther flush in the very near future.
 	 */
 	if (f->end != TLB_FLUSH_ALL &&
 	    f->new_tlb_gen == local_tlb_gen + 1 &&
@@ -864,7 +864,7 @@ static void flush_tlb_func(void *info)
 		/* Partial flush */
 		unsigned long addr = f->start;
 
-		/* Partial flush cannot have invalid generations */
+		/* Partial flush cananalt have invalid generations */
 		VM_WARN_ON(f->new_tlb_gen == TLB_GENERATION_INVALID);
 
 		/* Partial flush must have valid mm */
@@ -898,7 +898,7 @@ done:
 			nr_invalidate);
 }
 
-static bool tlb_is_not_lazy(int cpu, void *data)
+static bool tlb_is_analt_lazy(int cpu, void *data)
 {
 	return !per_cpu(cpu_tlbstate_shared.is_lazy, cpu);
 }
@@ -906,13 +906,13 @@ static bool tlb_is_not_lazy(int cpu, void *data)
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state_shared, cpu_tlbstate_shared);
 EXPORT_PER_CPU_SYMBOL(cpu_tlbstate_shared);
 
-STATIC_NOPV void native_flush_tlb_multi(const struct cpumask *cpumask,
+STATIC_ANALPV void native_flush_tlb_multi(const struct cpumask *cpumask,
 					 const struct flush_tlb_info *info)
 {
 	/*
-	 * Do accounting and tracing. Note that there are (and have always been)
+	 * Do accounting and tracing. Analte that there are (and have always been)
 	 * cases in which a remote TLB flush will be traced, but eventually
-	 * would not happen.
+	 * would analt happen.
 	 */
 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
 	if (info->end == TLB_FLUSH_ALL)
@@ -922,7 +922,7 @@ STATIC_NOPV void native_flush_tlb_multi(const struct cpumask *cpumask,
 				(info->end - info->start) >> PAGE_SHIFT);
 
 	/*
-	 * If no page tables were freed, we can skip sending IPIs to
+	 * If anal page tables were freed, we can skip sending IPIs to
 	 * CPUs in lazy TLB mode. They will flush the CPU themselves
 	 * at the next context switch.
 	 *
@@ -934,7 +934,7 @@ STATIC_NOPV void native_flush_tlb_multi(const struct cpumask *cpumask,
 	if (info->freed_tables)
 		on_each_cpu_mask(cpumask, flush_tlb_func, (void *)info, true);
 	else
-		on_each_cpu_cond_mask(tlb_is_not_lazy, flush_tlb_func,
+		on_each_cpu_cond_mask(tlb_is_analt_lazy, flush_tlb_func,
 				(void *)info, 1, cpumask);
 }
 
@@ -946,9 +946,9 @@ void flush_tlb_multi(const struct cpumask *cpumask,
 
 /*
  * See Documentation/arch/x86/tlb.rst for details.  We choose 33
- * because it is large enough to cover the vast majority (at
- * least 95%) of allocations, and is small enough that we are
- * confident it will not cause too much overhead.  Each single
+ * because it is large eanalugh to cover the vast majority (at
+ * least 95%) of allocations, and is small eanalugh that we are
+ * confident it will analt cause too much overhead.  Each single
  * flush is about 100 ns, so this caps the maximum overhead at
  * _about_ 3,000 ns.
  *
@@ -971,8 +971,8 @@ static struct flush_tlb_info *get_flush_tlb_info(struct mm_struct *mm,
 
 #ifdef CONFIG_DEBUG_VM
 	/*
-	 * Ensure that the following code is non-reentrant and flush_tlb_info
-	 * is not overwritten. This means no TLB flushing is initiated by
+	 * Ensure that the following code is analn-reentrant and flush_tlb_info
+	 * is analt overwritten. This means anal TLB flushing is initiated by
 	 * interrupt handlers and machine-check exception handlers.
 	 */
 	BUG_ON(this_cpu_inc_return(flush_tlb_info_idx) != 1);
@@ -1022,7 +1022,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 				  new_tlb_gen);
 
 	/*
-	 * flush_tlb_multi() is not optimized for the common case in which only
+	 * flush_tlb_multi() is analt optimized for the common case in which only
 	 * a local TLB flush is needed. Optimize this use-case by calling
 	 * flush_tlb_func_local() directly in this case.
 	 */
@@ -1037,7 +1037,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 
 	put_flush_tlb_info();
 	put_cpu();
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+	mmu_analtifier_arch_invalidate_secondary_tlbs(mm, start, end);
 }
 
 
@@ -1097,7 +1097,7 @@ unsigned long __get_current_cr3_fast(void)
 			  this_cpu_read(cpu_tlbstate.loaded_mm_asid),
 			  tlbstate_lam_cr3_mask());
 
-	/* For now, be very restrictive about when this can be called. */
+	/* For analw, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || preemptible());
 
 	VM_BUG_ON(cr3 != __read_cr3());
@@ -1118,10 +1118,10 @@ void flush_tlb_one_kernel(unsigned long addr)
 	 * use PCID if we also use global PTEs for the kernel mapping, and
 	 * INVLPG flushes global translations across all address spaces.
 	 *
-	 * If PTI is on, then the kernel is mapped with non-global PTEs, and
+	 * If PTI is on, then the kernel is mapped with analn-global PTEs, and
 	 * __flush_tlb_one_user() will flush the given address for the current
 	 * kernel address space and for its usermode counterpart, but it does
-	 * not flush it for other address spaces.
+	 * analt flush it for other address spaces.
 	 */
 	flush_tlb_one_user(addr);
 
@@ -1131,7 +1131,7 @@ void flush_tlb_one_kernel(unsigned long addr)
 	/*
 	 * See above.  We need to propagate the flush to all other address
 	 * spaces.  In principle, we only need to propagate it to kernelmode
-	 * address spaces, but the extra bookkeeping we would need is not
+	 * address spaces, but the extra bookkeeping we would need is analt
 	 * worth it.
 	 */
 	this_cpu_write(cpu_tlbstate.invalidate_other, true);
@@ -1140,7 +1140,7 @@ void flush_tlb_one_kernel(unsigned long addr)
 /*
  * Flush one page in the user mapping
  */
-STATIC_NOPV void native_flush_tlb_one_user(unsigned long addr)
+STATIC_ANALPV void native_flush_tlb_one_user(unsigned long addr)
 {
 	u32 loaded_mm_asid;
 	bool cpu_pcide;
@@ -1148,7 +1148,7 @@ STATIC_NOPV void native_flush_tlb_one_user(unsigned long addr)
 	/* Flush 'addr' from the kernel PCID: */
 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
 
-	/* If PTI is off there is no user PCID and nothing to flush. */
+	/* If PTI is off there is anal user PCID and analthing to flush. */
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;
 
@@ -1157,7 +1157,7 @@ STATIC_NOPV void native_flush_tlb_one_user(unsigned long addr)
 
 	/*
 	 * invpcid_flush_one(pcid>0) will #GP if CR4.PCIDE==0.  Check
-	 * 'cpu_pcide' to ensure that *this* CPU will not trigger those
+	 * 'cpu_pcide' to ensure that *this* CPU will analt trigger those
 	 * #GP's even if called before CR4.PCIDE has been initialized.
 	 */
 	if (boot_cpu_has(X86_FEATURE_INVPCID) && cpu_pcide)
@@ -1174,7 +1174,7 @@ void flush_tlb_one_user(unsigned long addr)
 /*
  * Flush everything
  */
-STATIC_NOPV void native_flush_tlb_global(void)
+STATIC_ANALPV void native_flush_tlb_global(void)
 {
 	unsigned long flags;
 
@@ -1183,7 +1183,7 @@ STATIC_NOPV void native_flush_tlb_global(void)
 		 * Using INVPCID is considerably faster than a pair of writes
 		 * to CR4 sandwiched inside an IRQ flag save/restore.
 		 *
-		 * Note, this works with CR4.PCIDE=0 or 1.
+		 * Analte, this works with CR4.PCIDE=0 or 1.
 		 */
 		invpcid_flush_all();
 		return;
@@ -1204,7 +1204,7 @@ STATIC_NOPV void native_flush_tlb_global(void)
 /*
  * Flush the entire current user mapping
  */
-STATIC_NOPV void native_flush_tlb_local(void)
+STATIC_ANALPV void native_flush_tlb_local(void)
 {
 	/*
 	 * Preemption or interrupts must be disabled to protect the access
@@ -1255,7 +1255,7 @@ void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 	info = get_flush_tlb_info(NULL, 0, TLB_FLUSH_ALL, 0, false,
 				  TLB_GENERATION_INVALID);
 	/*
-	 * flush_tlb_multi() is not optimized for the common case in which only
+	 * flush_tlb_multi() is analt optimized for the common case in which only
 	 * a local TLB flush is needed. Optimize this use-case by calling
 	 * flush_tlb_func_local() directly in this case.
 	 */

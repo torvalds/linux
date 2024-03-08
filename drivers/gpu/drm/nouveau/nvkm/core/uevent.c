@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -39,7 +39,7 @@ static int
 nvkm_uevent_mthd_block(struct nvkm_uevent *uevent, union nvif_event_block_args *args, u32 argc)
 {
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	nvkm_event_ntfy_block(&uevent->ntfy);
 	atomic_set(&uevent->allowed, 0);
@@ -50,7 +50,7 @@ static int
 nvkm_uevent_mthd_allow(struct nvkm_uevent *uevent, union nvif_event_allow_args *args, u32 argc)
 {
 	if (argc != sizeof(args->vn))
-		return -ENOSYS;
+		return -EANALSYS;
 
 	nvkm_event_ntfy_allow(&uevent->ntfy);
 	atomic_set(&uevent->allowed, 1);
@@ -142,10 +142,10 @@ nvkm_uevent_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	union nvif_event_args *args = argv;
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
+		return -EANALSYS;
 
 	if (!(uevent = kzalloc(sizeof(*uevent), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	*pobject = &uevent->object;
 
 	nvkm_object_ctor(&nvkm_uevent, oclass, &uevent->object);

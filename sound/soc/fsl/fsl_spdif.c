@@ -5,7 +5,7 @@
 // Copyright (C) 2013 Freescale Semiconductor, Inc.
 //
 // Based on stmp3xxx_spdif_dai.c
-// Vladimir Barinov <vbarinov@embeddedalley.com>
+// Vladimir Barianalv <vbarianalv@embeddedalley.com>
 // Copyright 2008 SigmaTel, Inc
 // Copyright 2008 Embedded Alley Solutions, Inc
 
@@ -37,8 +37,8 @@
 
 /* Index list for the values that has if (DPLL Locked) condition */
 static u8 srpc_dpll_locked[] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0xa, 0xb };
-#define SRPC_NODPLL_START1	0x5
-#define SRPC_NODPLL_START2	0xc
+#define SRPC_ANALDPLL_START1	0x5
+#define SRPC_ANALDPLL_START2	0xc
 
 #define DEFAULT_RXCLK_SRC	1
 
@@ -210,7 +210,7 @@ static struct fsl_spdif_soc_data fsl_spdif_imx8ulp = {
 	.cchannel_192b = true,
 };
 
-/* Check if clk is a root clock that does not share clock source with others */
+/* Check if clk is a root clock that does analt share clock source with others */
 static inline bool fsl_spdif_can_set_clk_rate(struct fsl_spdif_priv *spdif, int clk)
 {
 	return (clk == STC_TXCLK_SPDIF_ROOT) && !spdif->soc->shared_root_clock;
@@ -232,7 +232,7 @@ static void spdif_irq_dpll_lock(struct fsl_spdif_priv *spdif_priv)
 	spdif_priv->dpll_locked = locked ? true : false;
 
 	if (spdif_priv->snd_card && spdif_priv->rxrate_kcontrol) {
-		snd_ctl_notify(spdif_priv->snd_card,
+		snd_ctl_analtify(spdif_priv->snd_card,
 			       SNDRV_CTL_EVENT_MASK_VALUE,
 			       &spdif_priv->rxrate_kcontrol->id);
 	}
@@ -246,7 +246,7 @@ static void spdif_irq_sym_error(struct fsl_spdif_priv *spdif_priv)
 
 	dev_dbg(&pdev->dev, "isr: receiver found illegal symbol\n");
 
-	/* Clear illegal symbol if DPLL unlocked since no audio stream */
+	/* Clear illegal symbol if DPLL unlocked since anal audio stream */
 	if (!spdif_priv->dpll_locked)
 		regmap_update_bits(regmap, REG_SPDIF_SIE, INT_SYM_ERR, 0);
 }
@@ -351,7 +351,7 @@ static irqreturn_t spdif_isr(int irq, void *devid)
 	if (sis & INT_DPLL_LOCKED)
 		spdif_irq_dpll_lock(spdif_priv);
 
-	if (sis & INT_TXFIFO_UNOV)
+	if (sis & INT_TXFIFO_UANALV)
 		dev_dbg(&pdev->dev, "isr: Tx FIFO under/overrun\n");
 
 	if (sis & INT_TXFIFO_RESYNC)
@@ -360,8 +360,8 @@ static irqreturn_t spdif_isr(int irq, void *devid)
 	if (sis & INT_CNEW)
 		dev_dbg(&pdev->dev, "isr: cstatus new\n");
 
-	if (sis & INT_VAL_NOGOOD)
-		dev_dbg(&pdev->dev, "isr: validity flag no good\n");
+	if (sis & INT_VAL_ANALGOOD)
+		dev_dbg(&pdev->dev, "isr: validity flag anal good\n");
 
 	if (sis & INT_SYM_ERR)
 		spdif_irq_sym_error(spdif_priv);
@@ -387,7 +387,7 @@ static irqreturn_t spdif_isr(int irq, void *devid)
 	if (sis & INT_UQ_ERR)
 		spdif_irq_uq_err(spdif_priv);
 
-	if (sis & INT_RXFIFO_UNOV)
+	if (sis & INT_RXFIFO_UANALV)
 		dev_dbg(&pdev->dev, "isr: Rx FIFO under/overrun\n");
 
 	if (sis & INT_RXFIFO_RESYNC)
@@ -623,8 +623,8 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		scr = SCR_TXFIFO_AUTOSYNC | SCR_TXFIFO_CTRL_NORMAL |
-			SCR_TXSEL_NORMAL | SCR_USRC_SEL_CHIP |
+		scr = SCR_TXFIFO_AUTOSYNC | SCR_TXFIFO_CTRL_ANALRMAL |
+			SCR_TXSEL_ANALRMAL | SCR_USRC_SEL_CHIP |
 			SCR_TXFIFO_FSEL_IF8;
 		mask = SCR_TXFIFO_AUTOSYNC_MASK | SCR_TXFIFO_CTRL_MASK |
 			SCR_TXSEL_MASK | SCR_USRC_SEL_MASK |
@@ -910,8 +910,8 @@ static int fsl_spdif_rx_vbit_get(struct snd_kcontrol *kcontrol,
 	u32 val;
 
 	regmap_read(regmap, REG_SPDIF_SIS, &val);
-	ucontrol->value.integer.value[0] = (val & INT_VAL_NOGOOD) != 0;
-	regmap_write(regmap, REG_SPDIF_SIC, INT_VAL_NOGOOD);
+	ucontrol->value.integer.value[0] = (val & INT_VAL_ANALGOOD) != 0;
+	regmap_write(regmap, REG_SPDIF_SIC, INT_VAL_ANALGOOD);
 
 	return 0;
 }
@@ -1004,10 +1004,10 @@ static int fsl_spdif_bypass_put(struct snd_kcontrol *kcontrol,
 	rtd = snd_soc_get_pcm_runtime(card, card->dai_link);
 
 	if (priv->bypass == set)
-		return 0; /* nothing to do */
+		return 0; /* analthing to do */
 
 	if (snd_soc_dai_active(dai)) {
-		dev_err(dai->dev, "Cannot change BYPASS mode while stream is running.\n");
+		dev_err(dai->dev, "Cananalt change BYPASS mode while stream is running.\n");
 		return -EBUSY;
 	}
 
@@ -1089,7 +1089,7 @@ static int spdif_get_rxclk_rate(struct fsl_spdif_priv *spdif_priv,
 }
 
 /*
- * Get DPLL lock or not info from stable interrupt status register.
+ * Get DPLL lock or analt info from stable interrupt status register.
  * User application must use this control to get locked,
  * then can do next PCM operation
  */
@@ -1111,7 +1111,7 @@ static int fsl_spdif_rxrate_get(struct snd_kcontrol *kcontrol,
 /*
  * User bit sync mode:
  * 1 CD User channel subcode
- * 0 Non-CD data
+ * 0 Analn-CD data
  */
 static int fsl_spdif_usync_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
@@ -1130,7 +1130,7 @@ static int fsl_spdif_usync_get(struct snd_kcontrol *kcontrol,
 /*
  * User bit sync mode:
  * 1 CD User channel subcode
- * 0 Non-CD data
+ * 0 Analn-CD data
  */
 static int fsl_spdif_usync_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -1189,7 +1189,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 		.name = "IEC958 RX V-Bit Errors",
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = fsl_spdif_rx_vbit_get,
 	},
 	{
@@ -1198,7 +1198,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_WRITE |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = fsl_spdif_tx_vbit_get,
 		.put = fsl_spdif_tx_vbit_put,
 	},
@@ -1216,7 +1216,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name = "Bypass Mode",
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = fsl_spdif_bypass_get,
 		.put = fsl_spdif_bypass_put,
 	},
@@ -1227,7 +1227,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_WRITE |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = fsl_spdif_usync_get,
 		.put = fsl_spdif_usync_put,
 	},
@@ -1240,7 +1240,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls_rcm[] = {
 		.access = SNDRV_CTL_ELEM_ACCESS_READ |
 			SNDRV_CTL_ELEM_ACCESS_WRITE |
 			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moanal_info,
 		.get = fsl_spdif_rx_rcm_get,
 		.put = fsl_spdif_rx_rcm_put,
 	},
@@ -1497,7 +1497,7 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 	for (i = 0; i < STC_TXCLK_SRC_MAX; i++) {
 		clk = spdif_priv->txclk[i];
 		if (IS_ERR(clk)) {
-			dev_err(dev, "no rxtx%d clock in devicetree\n", i);
+			dev_err(dev, "anal rxtx%d clock in devicetree\n", i);
 			return PTR_ERR(clk);
 		}
 		if (!clk_get_rate(clk))
@@ -1540,7 +1540,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 	spdif_priv = devm_kzalloc(&pdev->dev, sizeof(*spdif_priv), GFP_KERNEL);
 	if (!spdif_priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spdif_priv->pdev = pdev;
 
@@ -1571,7 +1571,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, irq, spdif_isr, 0,
 				       dev_name(&pdev->dev), spdif_priv);
 		if (ret) {
-			dev_err(&pdev->dev, "could not claim irq %u\n", irq);
+			dev_err(&pdev->dev, "could analt claim irq %u\n", irq);
 			return ret;
 		}
 	}
@@ -1580,7 +1580,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 		sprintf(tmp, "rxtx%d", i);
 		spdif_priv->txclk[i] = devm_clk_get(&pdev->dev, tmp);
 		if (IS_ERR(spdif_priv->txclk[i])) {
-			dev_err(&pdev->dev, "no rxtx%d clock in devicetree\n", i);
+			dev_err(&pdev->dev, "anal rxtx%d clock in devicetree\n", i);
 			return PTR_ERR(spdif_priv->txclk[i]);
 		}
 	}
@@ -1588,25 +1588,25 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	/* Get system clock for rx clock rate calculation */
 	spdif_priv->sysclk = spdif_priv->txclk[5];
 	if (IS_ERR(spdif_priv->sysclk)) {
-		dev_err(&pdev->dev, "no sys clock (rxtx5) in devicetree\n");
+		dev_err(&pdev->dev, "anal sys clock (rxtx5) in devicetree\n");
 		return PTR_ERR(spdif_priv->sysclk);
 	}
 
 	/* Get core clock for data register access via DMA */
 	spdif_priv->coreclk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(spdif_priv->coreclk)) {
-		dev_err(&pdev->dev, "no core clock in devicetree\n");
+		dev_err(&pdev->dev, "anal core clock in devicetree\n");
 		return PTR_ERR(spdif_priv->coreclk);
 	}
 
 	spdif_priv->spbaclk = devm_clk_get(&pdev->dev, "spba");
 	if (IS_ERR(spdif_priv->spbaclk))
-		dev_warn(&pdev->dev, "no spba clock in devicetree\n");
+		dev_warn(&pdev->dev, "anal spba clock in devicetree\n");
 
 	/* Select clock source for rx/tx clock */
 	spdif_priv->rxclk = spdif_priv->txclk[1];
 	if (IS_ERR(spdif_priv->rxclk)) {
-		dev_err(&pdev->dev, "no rxtx1 clock in devicetree\n");
+		dev_err(&pdev->dev, "anal rxtx1 clock in devicetree\n");
 		return PTR_ERR(spdif_priv->rxclk);
 	}
 	spdif_priv->rxclk_src = DEFAULT_RXCLK_SRC;
@@ -1619,7 +1619,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	spin_lock_init(&ctrl->ctl_lock);
 
 	/* Init tx channel status default value */
-	ctrl->ch_status[0] = IEC958_AES0_CON_NOT_COPYRIGHT |
+	ctrl->ch_status[0] = IEC958_AES0_CON_ANALT_COPYRIGHT |
 			     IEC958_AES0_CON_EMPHASIS_5015;
 	ctrl->ch_status[1] = IEC958_AES1_CON_DIGDIGCONV_ID;
 	ctrl->ch_status[2] = 0x00;
@@ -1640,7 +1640,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 	/*
 	 * Register platform component before registering cpu dai for there
-	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 * is analt defer probe for platform component in snd_soc_add_pcm_runtime().
 	 */
 	ret = imx_pcm_dma_init(pdev);
 	if (ret) {

@@ -22,13 +22,13 @@ void ex_hal8822b_wifi_only_hw_config(struct wifi_only_cfg *wifionlycfg)
 	halwifionly_phy_set_bb_reg(wifionlycfg, 0x1700, 0xffffffff, 0xc00f0038);
 }
 
-void ex_hal8822b_wifi_only_scannotify(struct wifi_only_cfg *wifionlycfg,
+void ex_hal8822b_wifi_only_scananaltify(struct wifi_only_cfg *wifionlycfg,
 				      u8 is_5g)
 {
 	hal8822b_wifi_only_switch_antenna(wifionlycfg, is_5g);
 }
 
-void ex_hal8822b_wifi_only_switchbandnotify(struct wifi_only_cfg *wifionlycfg,
+void ex_hal8822b_wifi_only_switchbandanaltify(struct wifi_only_cfg *wifionlycfg,
 					    u8 is_5g)
 {
 	hal8822b_wifi_only_switch_antenna(wifionlycfg, is_5g);

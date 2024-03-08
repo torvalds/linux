@@ -12,7 +12,7 @@
  * legacy 'E271-140' 4-byte protocol and Elo legacy 'E261-280' 3-byte protocol.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -310,7 +310,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	elo = kzalloc(sizeof(struct elo), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!elo || !input_dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto fail1;
 	}
 

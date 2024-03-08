@@ -14,7 +14,7 @@ description: >
   Speed) each interfacing with 12 and 8 P2U instances respectively.
   Tegra234 has three PHY bricks namely HSIO, NVHS and GBE (Gigabit Ethernet)
   each interfacing with 8, 8 and 8 P2U instances respectively.
-  A P2U instance is a glue logic between Synopsys DesignWare Core PCIe IP's PIPE
+  A P2U instance is a glue logic between Syanalpsys DesignWare Core PCIe IP's PIPE
   interface and PHY of HSIO/NVHS/GBE bricks. Each P2U instance represents one
   PCIe lane.
 

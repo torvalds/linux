@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -46,7 +46,7 @@ static int wf_lm75_get(struct wf_sensor *sr, s32 *value)
 	s32 data;
 
 	if (lm->i2c == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Init chip if necessary */
 	if (!lm->inited) {
@@ -56,7 +56,7 @@ static int wf_lm75_get(struct wf_sensor *sr, s32 *value)
 		    sr->name, cfg);
 
 		/* clear shutdown bit, keep other settings as left by
-		 * the firmware for now
+		 * the firmware for analw
 		 */
 		cfg_new = cfg & ~0x01;
 		i2c_smbus_write_byte_data(lm->i2c, 1, cfg_new);
@@ -102,13 +102,13 @@ static int wf_lm75_probe(struct i2c_client *client)
 	DBG("wf_lm75: creating  %s device at address 0x%02x\n",
 	    ds1775 ? "ds1775" : "lm75", client->addr);
 
-	loc = of_get_property(client->dev.of_node, "hwsensor-location", NULL);
+	loc = of_get_property(client->dev.of_analde, "hwsensor-location", NULL);
 	if (!loc) {
 		dev_warn(&client->dev, "Missing hwsensor-location property!\n");
 		return -ENXIO;
 	}
 
-	/* Usual rant about sensor names not beeing very consistent in
+	/* Usual rant about sensor names analt beeing very consistent in
 	 * the device-tree, oh well ...
 	 * Add more entries below as you deal with more setups
 	 */
@@ -132,7 +132,7 @@ static int wf_lm75_probe(struct i2c_client *client)
 
 	lm = kzalloc(sizeof(struct wf_lm75_sensor), GFP_KERNEL);
 	if (lm == NULL)
-		return -ENODEV;
+		return -EANALDEV;
 
 	lm->inited = 0;
 	lm->ds1775 = ds1775;

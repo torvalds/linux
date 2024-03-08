@@ -36,15 +36,15 @@ static inline bool mempool_is_saturated(mempool_t *pool)
 }
 
 void mempool_exit(mempool_t *pool);
-int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
+int mempool_init_analde(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		      mempool_free_t *free_fn, void *pool_data,
-		      gfp_t gfp_mask, int node_id);
+		      gfp_t gfp_mask, int analde_id);
 int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		 mempool_free_t *free_fn, void *pool_data);
 
 extern mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 			mempool_free_t *free_fn, void *pool_data);
-extern mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+extern mempool_t *mempool_create_analde(int min_nr, mempool_alloc_t *alloc_fn,
 			mempool_free_t *free_fn, void *pool_data,
 			gfp_t gfp_mask, int nid);
 
@@ -57,7 +57,7 @@ extern void mempool_free(void *element, mempool_t *pool);
 /*
  * A mempool_alloc_t and mempool_free_t that get the memory from
  * a slab cache that is passed in through pool_data.
- * Note: the slab cache may not have a ctor function.
+ * Analte: the slab cache may analt have a ctor function.
  */
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
 void mempool_free_slab(void *element, void *pool_data);

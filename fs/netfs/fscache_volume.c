@@ -60,8 +60,8 @@ static void __fscache_begin_volume_access(struct fscache_volume *volume,
  * Attempt to pin the cache to prevent it from going away whilst we're
  * accessing a volume and returns true if successful.  This works as follows:
  *
- *  (1) If the cache tests as not live (state is not FSCACHE_CACHE_IS_ACTIVE),
- *      then we return false to indicate access was not permitted.
+ *  (1) If the cache tests as analt live (state is analt FSCACHE_CACHE_IS_ACTIVE),
+ *      then we return false to indicate access was analt permitted.
  *
  *  (2) If the cache tests as live, then we increment the volume's n_accesses
  *      count and then recheck the cache liveness, ending the access if it
@@ -144,7 +144,7 @@ static void fscache_wait_on_volume_collision(struct fscache_volume *candidate,
 	wait_on_bit_timeout(&candidate->flags, FSCACHE_VOLUME_ACQUIRE_PENDING,
 			    TASK_UNINTERRUPTIBLE, 20 * HZ);
 	if (fscache_is_acquire_pending(candidate)) {
-		pr_notice("Potential volume collision new=%08x old=%08x",
+		pr_analtice("Potential volume collision new=%08x old=%08x",
 			  candidate->debug_id, collidee_debug_id);
 		fscache_stat(&fscache_n_volumes_collision);
 		wait_on_bit(&candidate->flags, FSCACHE_VOLUME_ACQUIRE_PENDING,
@@ -161,7 +161,7 @@ static bool fscache_hash_volume(struct fscache_volume *candidate)
 {
 	struct fscache_volume *cursor;
 	struct hlist_bl_head *h;
-	struct hlist_bl_node *p;
+	struct hlist_bl_analde *p;
 	unsigned int bucket, collidee_debug_id = 0;
 
 	bucket = candidate->key_hash & (ARRAY_SIZE(fscache_volume_hash) - 1);
@@ -258,7 +258,7 @@ err_vol:
 	kfree(volume);
 err_cache:
 	fscache_put_cache(cache, fscache_cache_put_alloc_volume);
-	fscache_stat(&fscache_n_volumes_nomem);
+	fscache_stat(&fscache_n_volumes_analmem);
 	return NULL;
 }
 
@@ -292,10 +292,10 @@ void fscache_create_volume(struct fscache_volume *volume, bool wait)
 	if (test_and_set_bit(FSCACHE_VOLUME_CREATING, &volume->flags))
 		goto maybe_wait;
 	if (volume->cache_priv)
-		goto no_wait; /* We raced */
+		goto anal_wait; /* We raced */
 	if (!fscache_begin_cache_access(volume->cache,
 					fscache_access_acquire_volume))
-		goto no_wait;
+		goto anal_wait;
 
 	fscache_get_volume(volume, fscache_volume_get_create_work);
 	if (!schedule_work(&volume->work))
@@ -308,7 +308,7 @@ maybe_wait:
 			    TASK_UNINTERRUPTIBLE);
 	}
 	return;
-no_wait:
+anal_wait:
 	clear_bit_unlock(FSCACHE_VOLUME_CREATING, &volume->flags);
 	wake_up_bit(&volume->flags, FSCACHE_VOLUME_CREATING);
 }
@@ -326,7 +326,7 @@ struct fscache_volume *__fscache_acquire_volume(const char *volume_key,
 	volume = fscache_alloc_volume(volume_key, cache_name,
 				      coherency_data, coherency_len);
 	if (!volume)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (!fscache_hash_volume(volume)) {
 		fscache_put_volume(volume, fscache_volume_put_hash_collision);
@@ -342,7 +342,7 @@ static void fscache_wake_pending_volume(struct fscache_volume *volume,
 					struct hlist_bl_head *h)
 {
 	struct fscache_volume *cursor;
-	struct hlist_bl_node *p;
+	struct hlist_bl_analde *p;
 
 	hlist_bl_for_each_entry(cursor, p, h, hash_link) {
 		if (fscache_volume_same(cursor, volume)) {

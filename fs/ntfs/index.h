@@ -13,31 +13,31 @@
 
 #include "types.h"
 #include "layout.h"
-#include "inode.h"
+#include "ianalde.h"
 #include "attrib.h"
 #include "mft.h"
 #include "aops.h"
 
 /**
- * @idx_ni:	index inode containing the @entry described by this context
+ * @idx_ni:	index ianalde containing the @entry described by this context
  * @entry:	index entry (points into @ir or @ia)
  * @data:	index entry data (points into @entry)
  * @data_len:	length in bytes of @data
  * @is_in_root:	'true' if @entry is in @ir and 'false' if it is in @ia
  * @ir:		index root if @is_in_root and NULL otherwise
  * @actx:	attribute search context if @is_in_root and NULL otherwise
- * @base_ni:	base inode if @is_in_root and NULL otherwise
+ * @base_ni:	base ianalde if @is_in_root and NULL otherwise
  * @ia:		index block if @is_in_root is 'false' and NULL otherwise
  * @page:	page if @is_in_root is 'false' and NULL otherwise
  *
- * @idx_ni is the index inode this context belongs to.
+ * @idx_ni is the index ianalde this context belongs to.
  *
  * @entry is the index entry described by this context.  @data and @data_len
  * are the index entry data and its length in bytes, respectively.  @data
  * simply points into @entry.  This is probably what the user is interested in.
  *
  * If @is_in_root is 'true', @entry is in the index root attribute @ir described
- * by the attribute search context @actx and the base inode @base_ni.  @ia and
+ * by the attribute search context @actx and the base ianalde @base_ni.  @ia and
  * @page are NULL in this case.
  *
  * If @is_in_root is 'false', @entry is in the index allocation attribute and @ia
@@ -59,19 +59,19 @@
  * ensure that the changes are written to disk.
  */
 typedef struct {
-	ntfs_inode *idx_ni;
+	ntfs_ianalde *idx_ni;
 	INDEX_ENTRY *entry;
 	void *data;
 	u16 data_len;
 	bool is_in_root;
 	INDEX_ROOT *ir;
 	ntfs_attr_search_ctx *actx;
-	ntfs_inode *base_ni;
+	ntfs_ianalde *base_ni;
 	INDEX_ALLOCATION *ia;
 	struct page *page;
 } ntfs_index_context;
 
-extern ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni);
+extern ntfs_index_context *ntfs_index_ctx_get(ntfs_ianalde *idx_ni);
 extern void ntfs_index_ctx_put(ntfs_index_context *ictx);
 
 extern int ntfs_index_lookup(const void *key, const int key_len,
@@ -97,7 +97,7 @@ extern int ntfs_index_lookup(const void *key, const int key_len,
 static inline void ntfs_index_entry_flush_dcache_page(ntfs_index_context *ictx)
 {
 	if (ictx->is_in_root)
-		flush_dcache_mft_record_page(ictx->actx->ntfs_ino);
+		flush_dcache_mft_record_page(ictx->actx->ntfs_ianal);
 	else
 		flush_dcache_page(ictx->page);
 }
@@ -116,14 +116,14 @@ static inline void ntfs_index_entry_flush_dcache_page(ntfs_index_context *ictx)
  * If the index entry is in an index block belonging to the index allocation
  * attribute, mark the buffers belonging to the index record as well as the
  * page cache page the index block is in dirty.  This automatically marks the
- * VFS inode of the ntfs index inode to which the index entry belongs dirty,
+ * VFS ianalde of the ntfs index ianalde to which the index entry belongs dirty,
  * too (I_DIRTY_PAGES) and this in turn ensures the page buffers, and hence the
  * dirty index block, will be written out to disk later.
  */
 static inline void ntfs_index_entry_mark_dirty(ntfs_index_context *ictx)
 {
 	if (ictx->is_in_root)
-		mark_mft_record_dirty(ictx->actx->ntfs_ino);
+		mark_mft_record_dirty(ictx->actx->ntfs_ianal);
 	else
 		mark_ntfs_record_dirty(ictx->page,
 				(u8*)ictx->ia - (u8*)page_address(ictx->page));

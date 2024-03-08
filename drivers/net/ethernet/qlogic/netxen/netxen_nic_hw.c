@@ -5,7 +5,7 @@
  * All rights reserved.
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-analnatomic-lo-hi.h>
 #include <linux/slab.h>
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
@@ -523,7 +523,7 @@ static void netxen_p2_nic_set_multi(struct net_device *netdev)
 
 	if (netdev_mc_empty(netdev)) {
 		adapter->set_promisc(adapter,
-				NETXEN_NIU_NON_PROMISC_MODE);
+				NETXEN_NIU_ANALN_PROMISC_MODE);
 		netxen_nic_disable_mcast_filter(adapter);
 		return;
 	}
@@ -636,7 +636,7 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 
 	cur = kzalloc(sizeof(nx_mac_list_t), GFP_ATOMIC);
 	if (cur == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 	list_add_tail(&cur->list, &adapter->mac_list);
@@ -758,7 +758,7 @@ int netxen_config_intr_coalesce(struct netxen_adapter *adapter)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could analt send "
 			"interrupt coalescing parameters\n");
 	}
 
@@ -785,7 +785,7 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could analt send "
 			"configure hw lro request\n");
 	}
 
@@ -813,7 +813,7 @@ int netxen_config_bridged_mode(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "ERROR. Could not send "
+		printk(KERN_ERR "ERROR. Could analt send "
 				"configure bridge mode request\n");
 	}
 
@@ -865,7 +865,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not configure RSS\n",
+		printk(KERN_ERR "%s: could analt configure RSS\n",
 				adapter->netdev->name);
 	}
 
@@ -889,7 +889,7 @@ int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not notify %s IP 0x%x request\n",
+		printk(KERN_ERR "%s: could analt analtify %s IP 0x%x request\n",
 				adapter->netdev->name,
 				(cmd == NX_IP_UP) ? "Add" : "Remove", ip);
 	}
@@ -911,7 +911,7 @@ int netxen_linkevent_request(struct netxen_adapter *adapter, int enable)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not configure link notification\n",
+		printk(KERN_ERR "%s: could analt configure link analtification\n",
 				adapter->netdev->name);
 	}
 
@@ -938,7 +938,7 @@ int netxen_send_lro_cleanup(struct netxen_adapter *adapter)
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
-		printk(KERN_ERR "%s: could not cleanup lro flows\n",
+		printk(KERN_ERR "%s: could analt cleanup lro flows\n",
 				adapter->netdev->name);
 	}
 	return rv;
@@ -1074,10 +1074,10 @@ netxen_nic_pci_set_crbwindow_128M(struct netxen_adapter *adapter,
 }
 
 /*
- * Returns < 0 if off is not valid,
+ * Returns < 0 if off is analt valid,
  *	 1 if window access is needed. 'off' is set to offset from
  *	   CRB space in 128M pci map
- *	 0 if no window access is needed. 'off' is set to 2M addr
+ *	 0 if anal window access is needed. 'off' is set to 2M addr
  * In: 'off' is offset from base in 128M pci map
  */
 static int
@@ -1104,7 +1104,7 @@ netxen_nic_pci_get_crb_addr_2M(struct netxen_adapter *adapter,
 	}
 
 	/*
-	 * Not in direct map, use crb window
+	 * Analt in direct map, use crb window
 	 */
 	*addr = adapter->ahw.pci_base0 + CRB_INDIRECT_2M +
 		(off & MASK(16));
@@ -1144,7 +1144,7 @@ netxen_nic_map_indirect_address_128M(struct netxen_adapter *adapter,
 	resource_size_t mem_base;
 
 	if (ADDR_IN_WINDOW1(win_off))
-		off = NETXEN_CRB_NORMAL(win_off);
+		off = NETXEN_CRB_ANALRMAL(win_off);
 
 	addr = pci_base_offset(adapter, off);
 	if (addr)
@@ -1320,7 +1320,7 @@ netxen_get_ioaddr(struct netxen_adapter *adapter, u32 offset)
 				(offset > NETXEN_CRB_PCIX_HOST))
 			addr = PCI_OFFSET_SECOND_RANGE(adapter, offset);
 		else
-			addr = NETXEN_CRB_NORMALIZE(adapter, offset);
+			addr = NETXEN_CRB_ANALRMALIZE(adapter, offset);
 	} else {
 		WARN_ON(netxen_nic_pci_get_crb_addr_2M(adapter,
 					offset, &addr));
@@ -1382,7 +1382,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 	} else {
 		addr = pci_base_offset(adapter, start);
 		if (addr)
-			goto noremap;
+			goto analremap;
 
 		mem_base = pci_resource_start(adapter->pdev, 0) +
 					(start & PAGE_MASK);
@@ -1394,7 +1394,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 
 		addr = mem_ptr + (start & (PAGE_SIZE-1));
 	}
-noremap:
+analremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
 	else		/* write */
@@ -1825,7 +1825,7 @@ int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 			NETXEN_NIC_XGBE : NETXEN_NIC_GBE;
 		break;
 	default:
-		dev_err(&pdev->dev, "unknown board type %x\n", board_type);
+		dev_err(&pdev->dev, "unkanalwn board type %x\n", board_type);
 		adapter->ahw.port_type = NETXEN_NIC_XGBE;
 		break;
 	}
@@ -2304,7 +2304,7 @@ netxen_md_rdqueue(struct netxen_adapter *adapter,
 
 
 /*
-* We catch an error where driver does not read
+* We catch an error where driver does analt read
 * as much data as we expect from the entry.
 */
 
@@ -2361,7 +2361,7 @@ static int netxen_parse_md_template(struct netxen_adapter *adapter)
 			continue;
 		}
 		switch (entry->hdr.entry_type) {
-		case RDNOP:
+		case RDANALP:
 			entry->hdr.driver_flags |= NX_DUMP_SKIP;
 			break;
 		case RDEND:
@@ -2540,7 +2540,7 @@ netxen_dump_fw(struct netxen_adapter *adapter)
 
 	} else {
 		dev_info(&adapter->pdev->dev,
-					"Cannot overwrite previously collected "
+					"Cananalt overwrite previously collected "
 							"firmware minidump.\n");
 		adapter->fw_mdump_rdy = 1;
 		return;

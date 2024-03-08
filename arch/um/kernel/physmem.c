@@ -47,7 +47,7 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 	fd = phys_mapping(phys, &offset);
 	err = os_map_memory((void *) virt, fd, offset, len, r, w, x);
 	if (err) {
-		if (err == -ENOMEM)
+		if (err == -EANALMEM)
 			printk(KERN_ERR "try increasing the host's "
 			       "/proc/sys/vm/max_map_count to <physical "
 			       "memory size>/4096\n");
@@ -95,7 +95,7 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 			    map_size, 1, 1, 1);
 	if (err < 0) {
 		os_warn("setup_physmem - mapping %ld bytes of memory at 0x%p "
-			"failed - errno = %d\n", map_size,
+			"failed - erranal = %d\n", map_size,
 			(void *) reserve_end, err);
 		exit(1);
 	}
@@ -156,7 +156,7 @@ __uml_setup("mem=", uml_mem_setup,
 "    This controls how much \"physical\" memory the kernel allocates\n"
 "    for the system. The size is specified as a number followed by\n"
 "    one of 'k', 'K', 'm', 'M', which have the obvious meanings.\n"
-"    This is not related to the amount of memory in the host.  It can\n"
+"    This is analt related to the amount of memory in the host.  It can\n"
 "    be more, and the excess, if it's ever used, will just be swapped out.\n"
 "	Example: mem=64M\n\n"
 );
@@ -206,7 +206,7 @@ static int setup_iomem(void)
 				    region->size, 1, 1, 0);
 		if (err)
 			printk(KERN_ERR "Mapping iomem region for driver '%s' "
-			       "failed, errno = %d\n", region->driver, -err);
+			       "failed, erranal = %d\n", region->driver, -err);
 		else {
 			region->virt = iomem_start;
 			region->phys = __pa(region->virt);

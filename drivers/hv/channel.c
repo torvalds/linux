@@ -44,7 +44,7 @@ static inline u32 hv_gpadl_size(enum hv_gpadl_type type, u32 size)
 		/* The size of a ringbuffer must be page-aligned */
 		BUG_ON(size % PAGE_SIZE);
 		/*
-		 * Two things to notice here:
+		 * Two things to analtice here:
 		 * 1) We're processing two ring buffers as a unit
 		 * 2) We're skipping any space larger than HV_HYP_PAGE_SIZE in
 		 * the first guest-size page of each of the two ring buffers.
@@ -117,7 +117,7 @@ static inline u64 hv_gpadl_hvpfn(enum hv_gpadl_type type, void *kbuffer,
 }
 
 /*
- * vmbus_setevent- Trigger an event notification on the specified
+ * vmbus_setevent- Trigger an event analtification on the specified
  * channel.
  */
 void vmbus_setevent(struct vmbus_channel *channel)
@@ -173,14 +173,14 @@ int vmbus_alloc_ring(struct vmbus_channel *newchannel,
 
 	/* Allocate the ring buffer */
 	order = get_order(send_size + recv_size);
-	page = alloc_pages_node(cpu_to_node(newchannel->target_cpu),
+	page = alloc_pages_analde(cpu_to_analde(newchannel->target_cpu),
 				GFP_KERNEL|__GFP_ZERO, order);
 
 	if (!page)
 		page = alloc_pages(GFP_KERNEL|__GFP_ZERO, order);
 
 	if (!page)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	newchannel->ringbuffer_page = page;
 	newchannel->ringbuffer_pagecount = (send_size + recv_size) >> PAGE_SHIFT;
@@ -237,7 +237,7 @@ static int send_modifychannel_with_ack(struct vmbus_channel *channel, u32 target
 				sizeof(struct vmbus_channel_modifychannel),
 		       GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&info->waitevent);
 	info->waiting_channel = channel;
@@ -261,7 +261,7 @@ static int send_modifychannel_with_ack(struct vmbus_channel *channel, u32 target
 	}
 
 	/*
-	 * Release channel_mutex; otherwise, vmbus_onoffer_rescind() could block on
+	 * Release channel_mutex; otherwise, vmbus_oanalffer_rescind() could block on
 	 * the mutex and be unable to signal the completion.
 	 *
 	 * See the caller target_cpu_store() for information about the usage of the
@@ -286,10 +286,10 @@ free_info:
 /*
  * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
  *
- * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  When VMbus version 5.3
+ * CHANNELMSG_MODIFYCHANNEL messages are aynchroanalus.  When VMbus version 5.3
  * or later is negotiated, Hyper-V always sends an ACK in response to such a
  * message.  For VMbus version 5.2 and earlier, it never sends an ACK.  With-
- * out an ACK, we can not know when the host will stop interrupting the "old"
+ * out an ACK, we can analt kanalw when the host will stop interrupting the "old"
  * vCPU and start interrupting the "new" vCPU for the given channel.
  *
  * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
@@ -332,7 +332,7 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 		  sizeof(struct gpa_range) + pfncount * sizeof(u64);
 	msgheader =  kzalloc(msgsize, GFP_KERNEL);
 	if (!msgheader)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	INIT_LIST_HEAD(&msgheader->submsglist);
 	msgheader->msgsize = msgsize;
@@ -358,7 +358,7 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 	pfncount = pfnsize / sizeof(u64);
 
 	/*
-	 * If pfnleft is zero, everything fits in the header and no body
+	 * If pfnleft is zero, everything fits in the header and anal body
 	 * messages are needed
 	 */
 	while (pfnleft) {
@@ -382,7 +382,7 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 				kfree(pos);
 			}
 			kfree(msgheader);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		msgbody->msgsize = msgsize;
@@ -464,7 +464,7 @@ static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	if (channel->rescind) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto cleanup;
 	}
 
@@ -506,7 +506,7 @@ static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
 	}
 
 	if (channel->rescind) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto cleanup;
 	}
 
@@ -554,7 +554,7 @@ EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
  * request_arr_init - Allocates memory for the requestor array. Each slot
  * keeps track of the next available slot in the array. Initially, each
  * slot points to the next one (as in a Linked List). The last slot
- * does not point to anything, so its value is U64_MAX by default.
+ * does analt point to anything, so its value is U64_MAX by default.
  * @size The size of the array
  */
 static u64 *request_arr_init(u32 size)
@@ -569,7 +569,7 @@ static u64 *request_arr_init(u32 size)
 	for (i = 0; i < size - 1; i++)
 		req_arr[i] = i + 1;
 
-	/* Last slot (no more available slots) */
+	/* Last slot (anal more available slots) */
 	req_arr[i] = U64_MAX;
 
 	return req_arr;
@@ -587,12 +587,12 @@ static int vmbus_alloc_requestor(struct vmbus_requestor *rqstor, u32 size)
 
 	rqst_arr = request_arr_init(size);
 	if (!rqst_arr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	bitmap = bitmap_zalloc(size, GFP_KERNEL);
 	if (!bitmap) {
 		kfree(rqst_arr);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	rqstor->req_arr = rqst_arr;
@@ -637,7 +637,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	/* Create and init requestor */
 	if (newchannel->rqstor_size) {
 		if (vmbus_alloc_requestor(&newchannel->requestor, newchannel->rqstor_size))
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	newchannel->state = CHANNEL_OPENING_STATE;
@@ -673,7 +673,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 			   sizeof(struct vmbus_channel_open_channel),
 			   GFP_KERNEL);
 	if (!open_info) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto error_free_gpadl;
 	}
 
@@ -704,7 +704,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	if (newchannel->rescind) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error_clean_msglist;
 	}
 
@@ -723,7 +723,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
 	if (newchannel->rescind) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto error_free_info;
 	}
 
@@ -799,7 +799,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, struct vmbus_gpadl *gpad
 	info = kzalloc(sizeof(*info) +
 		       sizeof(struct vmbus_channel_gpadl_teardown), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	init_completion(&info->waitevent);
 	info->waiting_channel = channel;
@@ -868,7 +868,7 @@ void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 	 * vmbus_chan_sched() might call the netvsc driver callback function
 	 * that ends up scheduling NAPI work that accesses the ring buffer.
 	 * At this point, we have to ensure that any such work is completed
-	 * and that the channel ring buffer is no longer being accessed, cf.
+	 * and that the channel ring buffer is anal longer being accessed, cf.
 	 * the calls to napi_disable() in netvsc_device_remove().
 	 */
 	tasklet_disable(&channel->callback_event);
@@ -893,7 +893,7 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 
 	/*
 	 * In case a device driver's probe() fails (e.g.,
-	 * util_probe() -> vmbus_open() returns -ENOMEM) and the device is
+	 * util_probe() -> vmbus_open() returns -EANALMEM) and the device is
 	 * rescinded later (e.g., we dynamically disable an Integrated Service
 	 * in Hyper-V Manager), the driver's remove() invokes vmbus_close():
 	 * here we should skip most of the below cleanup work.
@@ -965,7 +965,7 @@ int vmbus_disconnect_ring(struct vmbus_channel *channel)
 	}
 
 	/*
-	 * Now close the primary.
+	 * Analw close the primary.
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 	ret = vmbus_close_internal(channel);
@@ -1060,7 +1060,7 @@ EXPORT_SYMBOL(vmbus_sendpacket);
 /*
  * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
  * packets using a GPADL Direct packet type. This interface allows you
- * to control notifying the host. This will be useful for sending
+ * to control analtifying the host. This will be useful for sending
  * batched data. Also the sender can control the send flags
  * explicitly.
  */
@@ -1214,7 +1214,7 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 
 	/* Check rqstor has been initialized */
 	if (!channel->rqstor_size)
-		return VMBUS_NO_RQSTOR;
+		return VMBUS_ANAL_RQSTOR;
 
 	lock_requestor(channel, flags);
 	current_id = rqstor->next_request_id;
@@ -1234,8 +1234,8 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 	unlock_requestor(channel, flags);
 
 	/*
-	 * Cannot return an ID of 0, which is reserved for an unsolicited
-	 * message from Hyper-V; Hyper-V does not acknowledge (respond to)
+	 * Cananalt return an ID of 0, which is reserved for an unsolicited
+	 * message from Hyper-V; Hyper-V does analt ackanalwledge (respond to)
 	 * VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED requests with ID of
 	 * 0 sent by the guest.
 	 */
@@ -1252,7 +1252,7 @@ u64 __vmbus_request_addr_match(struct vmbus_channel *channel, u64 trans_id,
 
 	/* Check rqstor has been initialized */
 	if (!channel->rqstor_size)
-		return VMBUS_NO_RQSTOR;
+		return VMBUS_ANAL_RQSTOR;
 
 	/* Hyper-V can send an unsolicited message with ID of 0 */
 	if (!trans_id)
@@ -1284,7 +1284,7 @@ EXPORT_SYMBOL_GPL(__vmbus_request_addr_match);
  * (or provided @rqst_addr matches the sentinel value VMBUS_RQST_ADDR_ANY).
  *
  * Returns the memory address stored at @trans_id, or VMBUS_RQST_ERROR if
- * @trans_id is not contained in the requestor.
+ * @trans_id is analt contained in the requestor.
  *
  * Acquires and releases the requestor spin lock.
  */

@@ -5,8 +5,8 @@
  * (C) Copyright IBM Corporation 2001-2005
  * (C) Copyright Red Hat, Inc. 2005
  *
- * Author(s): Maximino Augilar <IBM STI Design Center>
- *	    : Ryan S. Arnold <rsa@us.ibm.com>
+ * Author(s): Maximianal Augilar <IBM STI Design Center>
+ *	    : Ryan S. Aranalld <rsa@us.ibm.com>
  *	    : Utz Bacher <utz.bacher@de.ibm.com>
  *	    : David Woodhouse <dwmw2@infradead.org>
  *
@@ -28,10 +28,10 @@
 #define hvc_rtas_cookie 0x67781e15
 static struct hvc_struct *hvc_rtas_dev;
 
-static int rtascons_put_char_token = RTAS_UNKNOWN_SERVICE;
-static int rtascons_get_char_token = RTAS_UNKNOWN_SERVICE;
+static int rtascons_put_char_token = RTAS_UNKANALWN_SERVICE;
+static int rtascons_get_char_token = RTAS_UNKANALWN_SERVICE;
 
-static ssize_t hvc_rtas_write_console(uint32_t vtermno, const u8 *buf,
+static ssize_t hvc_rtas_write_console(uint32_t vtermanal, const u8 *buf,
 				      size_t count)
 {
 	size_t i;
@@ -44,7 +44,7 @@ static ssize_t hvc_rtas_write_console(uint32_t vtermno, const u8 *buf,
 	return i;
 }
 
-static ssize_t hvc_rtas_read_console(uint32_t vtermno, u8 *buf, size_t count)
+static ssize_t hvc_rtas_read_console(uint32_t vtermanal, u8 *buf, size_t count)
 {
 	size_t i;
 	int c;
@@ -68,14 +68,14 @@ static int __init hvc_rtas_init(void)
 {
 	struct hvc_struct *hp;
 
-	if (rtascons_put_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_put_char_token == RTAS_UNKANALWN_SERVICE)
 		rtascons_put_char_token = rtas_token("put-term-char");
-	if (rtascons_put_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_put_char_token == RTAS_UNKANALWN_SERVICE)
 		return -EIO;
 
-	if (rtascons_get_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_get_char_token == RTAS_UNKANALWN_SERVICE)
 		rtascons_get_char_token = rtas_token("get-term-char");
-	if (rtascons_get_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_get_char_token == RTAS_UNKANALWN_SERVICE)
 		return -EIO;
 
 	BUG_ON(hvc_rtas_dev);
@@ -92,15 +92,15 @@ static int __init hvc_rtas_init(void)
 }
 device_initcall(hvc_rtas_init);
 
-/* This will happen prior to module init.  There is no tty at this time? */
+/* This will happen prior to module init.  There is anal tty at this time? */
 static int __init hvc_rtas_console_init(void)
 {
 	rtascons_put_char_token = rtas_token("put-term-char");
-	if (rtascons_put_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_put_char_token == RTAS_UNKANALWN_SERVICE)
 		return -EIO;
 
 	rtascons_get_char_token = rtas_token("get-term-char");
-	if (rtascons_get_char_token == RTAS_UNKNOWN_SERVICE)
+	if (rtascons_get_char_token == RTAS_UNKANALWN_SERVICE)
 		return -EIO;
 
 	hvc_instantiate(hvc_rtas_cookie, 0, &hvc_rtas_get_put_ops);

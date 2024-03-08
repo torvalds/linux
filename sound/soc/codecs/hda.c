@@ -23,7 +23,7 @@ static int hda_codec_create_dais(struct hda_codec *codec, int pcm_count,
 
 	drvs = devm_kcalloc(dev, pcm_count, sizeof(*drvs), GFP_KERNEL);
 	if (!drvs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pcm = list_first_entry(&codec->pcm_list_head, struct hda_pcm, list);
 
@@ -47,7 +47,7 @@ static int hda_codec_create_dais(struct hda_codec *codec, int pcm_count,
 			devm_kasprintf(dev, GFP_KERNEL, "%s %s", pcm->name,
 				       snd_pcm_direction_name(dir));
 		if (!stream->stream_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		stream->channels_min = pcm->stream[dir].channels_min;
 		stream->channels_max = pcm->stream[dir].channels_max;
 		stream->rates = pcm->stream[dir].rates;
@@ -67,7 +67,7 @@ capture_dais:
 			devm_kasprintf(dev, GFP_KERNEL, "%s %s", pcm->name,
 				       snd_pcm_direction_name(dir));
 		if (!stream->stream_name)
-			return -ENOMEM;
+			return -EANALMEM;
 		stream->channels_min = pcm->stream[dir].channels_min;
 		stream->channels_max = pcm->stream[dir].channels_max;
 		stream->rates = pcm->stream[dir].rates;
@@ -155,7 +155,7 @@ int hda_codec_probe_complete(struct hda_codec *codec)
 		goto out;
 	}
 
-	/* Bus suspended codecs as it does not manage their pm */
+	/* Bus suspended codecs as it does analt manage their pm */
 	pm_runtime_set_active(&hdev->dev);
 	/* rpm was forbidden in snd_hda_codec_device_new() */
 	snd_hda_codec_set_power_save(codec, 2000);
@@ -186,7 +186,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_addr(bus, hdev->addr);
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link analt found\n");
 		return -EIO;
 	}
 
@@ -216,7 +216,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 
 	patch = (hda_codec_patch_t)codec->preset->driver_data;
 	if (!patch) {
-		dev_err(&hdev->dev, "no patch specified\n");
+		dev_err(&hdev->dev, "anal patch specified\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -285,7 +285,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 		codec->patch_ops.free(codec);
 
 	snd_hda_codec_cleanup_for_unbind(codec);
-	pm_runtime_put_noidle(&hdev->dev);
+	pm_runtime_put_analidle(&hdev->dev);
 	/* snd_hdac_device_exit() is only called on bus remove */
 	pm_runtime_set_suspended(&hdev->dev);
 
@@ -297,7 +297,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 	/*
 	 * HDMI card's hda_codec_probe_complete() (see late_probe()) may
-	 * not be called due to early error, leaving bus uc unbalanced
+	 * analt be called due to early error, leaving bus uc unbalanced
 	 */
 	if (!was_registered) {
 		pm_runtime_mark_last_busy(bus->dev);
@@ -322,12 +322,12 @@ static const struct snd_soc_dapm_route hda_dapm_routes[] = {
 
 static const struct snd_soc_dapm_widget hda_dapm_widgets[] = {
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("AIF1RX", "Analog Codec Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF2RX", "Digital Codec Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("AIF3RX", "Alt Analog Codec Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF1TX", "Analog Codec Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF2TX", "Digital Codec Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIF3TX", "Alt Analog Codec Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF1RX", "Analog Codec Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF2RX", "Digital Codec Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("AIF3RX", "Alt Analog Codec Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF1TX", "Analog Codec Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF2TX", "Digital Codec Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("AIF3TX", "Alt Analog Codec Capture", 0, SND_SOC_ANALPM, 0, 0),
 
 	/* Input Pins */
 	SND_SOC_DAPM_INPUT("Codec Input Pin1"),
@@ -352,7 +352,7 @@ static int hda_hdev_attach(struct hdac_device *hdev)
 
 	comp_drv = devm_kzalloc(&hdev->dev, sizeof(*comp_drv), GFP_KERNEL);
 	if (!comp_drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * It's save to rely on dev_name() rather than a copy as component

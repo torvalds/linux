@@ -13,7 +13,7 @@
  * more details.
  */
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 #include "ia_css_debug.h"
 #endif
 
@@ -26,7 +26,7 @@
 /* WARNING1: Number of inv points should be less or equal to 16,
  * due to implementation limitation. See kernel design document
  * for more details.
- * WARNING2: Do not modify the number of inv points without correcting
+ * WARNING2: Do analt modify the number of inv points without correcting
  * the EED1_8 kernel implementation assumptions.
  */
 #define NUMBER_OF_CHGRINV_POINTS 15
@@ -257,8 +257,8 @@ ia_css_eed1_8_encode(
 	to->coring_neg0 = from->coring_neg0;
 	to->coring_neg_diff = (from->coring_neg1 - from->coring_neg0);
 
-	/* Note: (ISP_VEC_ELEMBITS -1)
-	 * TODO: currently the testbench does not support to use
+	/* Analte: (ISP_VEC_ELEMBITS -1)
+	 * TODO: currently the testbench does analt support to use
 	 * ISP_VEC_ELEMBITS. Investigate how to fix this
 	 */
 	to->gain_exp = (13 - from->gain_exp);
@@ -289,7 +289,7 @@ ia_css_init_eed1_8_state(
 	memset(state, 0, size);
 }
 
-#ifndef IA_CSS_NO_DEBUG
+#ifndef IA_CSS_ANAL_DEBUG
 void
 ia_css_eed1_8_debug_dtrace(
     const struct ia_css_eed1_8_config *eed,

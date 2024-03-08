@@ -5,7 +5,7 @@
 
 #define _GNU_SOURCE
 #include <unistd.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +26,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 
-__attribute__((noreturn)) static void poweroff(void)
+__attribute__((analreturn)) static void poweroff(void)
 {
 	fflush(stdout);
 	fflush(stderr);
@@ -38,7 +38,7 @@ __attribute__((noreturn)) static void poweroff(void)
 
 static void panic(const char *what)
 {
-	fprintf(stderr, "\n\n\x1b[37m\x1b[41m\x1b[1mSOMETHING WENT HORRIBLY WRONG\x1b[0m\n\n    \x1b[31m\x1b[1m%s: %s\x1b[0m\n\n\x1b[37m\x1b[44m\x1b[1mPower off...\x1b[0m\n\n", what, strerror(errno));
+	fprintf(stderr, "\n\n\x1b[37m\x1b[41m\x1b[1mSOMETHING WENT HORRIBLY WRONG\x1b[0m\n\n    \x1b[31m\x1b[1m%s: %s\x1b[0m\n\n\x1b[37m\x1b[44m\x1b[1mPower off...\x1b[0m\n\n", what, strerror(erranal));
 	poweroff();
 }
 
@@ -60,7 +60,7 @@ static void seed_rng(void)
 {
 	int bits = 256, fd;
 
-	if (!getrandom(NULL, 0, GRND_NONBLOCK))
+	if (!getrandom(NULL, 0, GRND_ANALNBLOCK))
 		return;
 	pretty_message("[+] Fake seeding RNG...");
 	fd = open("/dev/random", O_WRONLY);
@@ -89,18 +89,18 @@ static void mount_filesystems(void)
 	mkdir("/tmp", 0755);
 	mkdir("/run", 0755);
 	mkdir("/var", 0755);
-	if (mount("none", "/dev", "devtmpfs", 0, NULL))
+	if (mount("analne", "/dev", "devtmpfs", 0, NULL))
 		panic("devtmpfs mount");
-	if (mount("none", "/proc", "proc", 0, NULL))
+	if (mount("analne", "/proc", "proc", 0, NULL))
 		panic("procfs mount");
-	if (mount("none", "/sys", "sysfs", 0, NULL))
+	if (mount("analne", "/sys", "sysfs", 0, NULL))
 		panic("sysfs mount");
-	if (mount("none", "/tmp", "tmpfs", 0, NULL))
+	if (mount("analne", "/tmp", "tmpfs", 0, NULL))
 		panic("tmpfs mount");
-	if (mount("none", "/run", "tmpfs", 0, NULL))
+	if (mount("analne", "/run", "tmpfs", 0, NULL))
 		panic("tmpfs mount");
-	if (mount("none", "/sys/kernel/debug", "debugfs", 0, NULL))
-		; /* Not a problem if it fails.*/
+	if (mount("analne", "/sys/kernel/debug", "debugfs", 0, NULL))
+		; /* Analt a problem if it fails.*/
 	if (symlink("/run", "/var/run"))
 		panic("run symlink");
 	if (symlink("/proc/self/fd", "/dev/fd"))
@@ -134,8 +134,8 @@ static void kmod_selftests(void)
 	file = fopen("/proc/kmsg", "r");
 	if (!file)
 		panic("fopen(kmsg)");
-	if (fcntl(fileno(file), F_SETFL, O_NONBLOCK) < 0)
-		panic("fcntl(kmsg, nonblock)");
+	if (fcntl(fileanal(file), F_SETFL, O_ANALNBLOCK) < 0)
+		panic("fcntl(kmsg, analnblock)");
 	while (fgets(line, sizeof(line), file)) {
 		start = strstr(line, "wireguard: ");
 		if (!start)
@@ -199,7 +199,7 @@ static void launch_tests(void)
 			panic("write(success_dev)");
 		close(fd);
 	} else {
-		const char *why = "unknown cause";
+		const char *why = "unkanalwn cause";
 		int what = -1;
 
 		if (WIFEXITED(status)) {

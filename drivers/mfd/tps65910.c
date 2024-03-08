@@ -226,12 +226,12 @@ static int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 	static struct regmap_irq_chip *tps6591x_irqs_chip;
 
 	if (!irq) {
-		dev_warn(tps65910->dev, "No interrupt support, no core IRQ\n");
+		dev_warn(tps65910->dev, "Anal interrupt support, anal core IRQ\n");
 		return -EINVAL;
 	}
 
 	if (!pdata) {
-		dev_warn(tps65910->dev, "No interrupt support, no pdata\n");
+		dev_warn(tps65910->dev, "Anal interrupt support, anal pdata\n");
 		return -EINVAL;
 	}
 
@@ -266,7 +266,7 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 	 * TPS65910 and TPS65911
 	 */
 	if ((reg >= TPS65910_VIO) && (reg <= TPS65910_VDAC)) {
-		/* Check for non-existing register */
+		/* Check for analn-existing register */
 		if (tps65910_chip_id(tps65910) == TPS65910)
 			if ((reg == TPS65911_VDDCTRL_OP) ||
 				(reg == TPS65911_VDDCTRL_SR))
@@ -371,7 +371,7 @@ static const struct of_device_id tps65910_of_match[] = {
 static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 						unsigned long *chip_id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_analde *np = client->dev.of_analde;
 	struct tps65910_board *board_info;
 	unsigned int prop;
 	int ret;
@@ -446,7 +446,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c)
 
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 
-	if (!pmic_plat_data && i2c->dev.of_node) {
+	if (!pmic_plat_data && i2c->dev.of_analde) {
 		pmic_plat_data = tps65910_parse_dt(i2c, &chip_id);
 		of_pmic_plat_data = pmic_plat_data;
 	}
@@ -456,11 +456,11 @@ static int tps65910_i2c_probe(struct i2c_client *i2c)
 
 	init_data = devm_kzalloc(&i2c->dev, sizeof(*init_data), GFP_KERNEL);
 	if (init_data == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65910 = devm_kzalloc(&i2c->dev, sizeof(*tps65910), GFP_KERNEL);
 	if (tps65910 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tps65910->of_plat_data = of_pmic_plat_data;
 	i2c_set_clientdata(i2c, tps65910);
@@ -491,7 +491,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c)
 		/*
 		 * The PWR_OFF bit needs to be set separately, before
 		 * transitioning to the OFF state. It enables the "sequential"
-		 * power-off mode on TPS65911, it's a NO-OP on TPS65910.
+		 * power-off mode on TPS65911, it's a ANAL-OP on TPS65910.
 		 */
 		ret = regmap_set_bits(tps65910->regmap, TPS65910_DEVCTRL,
 				      DEVCTRL_PWR_OFF_MASK);

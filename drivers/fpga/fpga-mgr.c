@@ -35,7 +35,7 @@ static inline enum fpga_mgr_states fpga_mgr_state(struct fpga_manager *mgr)
 {
 	if (mgr->mops->state)
 		return  mgr->mops->state(mgr);
-	return FPGA_MGR_STATE_UNKNOWN;
+	return FPGA_MGR_STATE_UNKANALWN;
 }
 
 static inline u64 fpga_mgr_status(struct fpga_manager *mgr)
@@ -49,7 +49,7 @@ static inline int fpga_mgr_write(struct fpga_manager *mgr, const char *buf, size
 {
 	if (mgr->mops->write)
 		return  mgr->mops->write(mgr, buf, count);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /*
@@ -97,7 +97,7 @@ static inline int fpga_mgr_write_sg(struct fpga_manager *mgr,
 {
 	if (mgr->mops->write_sg)
 		return  mgr->mops->write_sg(mgr, sgt);
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 /**
@@ -173,7 +173,7 @@ static int fpga_mgr_parse_header_mapped(struct fpga_manager *mgr,
 /*
  * Call the low level driver's parse_header function with first fragment of
  * scattered FPGA image on the input. If header fits first fragment,
- * parse_header will set info->header_size and info->data_size. If it is not,
+ * parse_header will set info->header_size and info->data_size. If it is analt,
  * parse_header will set desired size to info->header_size and -EAGAIN will be
  * returned.
  */
@@ -227,7 +227,7 @@ static void *fpga_mgr_parse_header_sg(struct fpga_manager *mgr,
 
 		new_buf = krealloc(buf, new_header_size, GFP_KERNEL);
 		if (!new_buf) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			break;
 		}
 
@@ -263,7 +263,7 @@ static void *fpga_mgr_parse_header_sg(struct fpga_manager *mgr,
  * device-specific things to get the FPGA into the state where it is ready to
  * receive an FPGA image. The low level driver gets to see at least first
  * info->header_size bytes in the buffer. If info->header_size is 0,
- * write_init will not get any bytes of image buffer.
+ * write_init will analt get any bytes of image buffer.
  */
 static int fpga_mgr_write_init_buf(struct fpga_manager *mgr,
 				   struct fpga_image_info *info,
@@ -351,9 +351,9 @@ static int fpga_mgr_prepare_sg(struct fpga_manager *mgr,
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
  * mgr pointer from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is
- * not an error code.
+ * analt an error code.
  *
- * This is the preferred entry point for FPGA programming, it does not require
+ * This is the preferred entry point for FPGA programming, it does analt require
  * any contiguous kernel memory.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -457,7 +457,7 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
  * Step the low level fpga manager through the device-specific steps of getting
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
- * mgr pointer from of_fpga_mgr_get() and checked that it is not an error code.
+ * mgr pointer from of_fpga_mgr_get() and checked that it is analt an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -474,7 +474,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
 
 	/*
 	 * This is just a fast path if the caller has already created a
-	 * contiguous kernel buffer and the driver doesn't require SG, non-SG
+	 * contiguous kernel buffer and the driver doesn't require SG, analn-SG
 	 * drivers will still work on the slow path.
 	 */
 	if (mgr->mops->write)
@@ -488,7 +488,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
 		   (unsigned long)buf / PAGE_SIZE;
 	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	p = buf - offset_in_page(buf);
 	for (index = 0; index < nr_pages; index++) {
@@ -528,7 +528,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
  * Request an FPGA image using the firmware class, then write out to the FPGA.
  * Update the state before each step to provide info on what step failed if
  * there is a failure.  This code assumes the caller got the mgr pointer
- * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is not an error
+ * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is analt an error
  * code.
  *
  * Return: 0 on success, negative error code otherwise.
@@ -584,7 +584,7 @@ int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
 EXPORT_SYMBOL_GPL(fpga_mgr_load);
 
 static const char * const state_str[] = {
-	[FPGA_MGR_STATE_UNKNOWN] =		"unknown",
+	[FPGA_MGR_STATE_UNKANALWN] =		"unkanalwn",
 	[FPGA_MGR_STATE_POWER_OFF] =		"power off",
 	[FPGA_MGR_STATE_POWER_UP] =		"power up",
 	[FPGA_MGR_STATE_RESET] =		"reset",
@@ -609,7 +609,7 @@ static const char * const state_str[] = {
 	[FPGA_MGR_STATE_WRITE_COMPLETE] =	"write complete",
 	[FPGA_MGR_STATE_WRITE_COMPLETE_ERR] =	"write complete error",
 
-	/* FPGA reports to be in normal operating mode */
+	/* FPGA reports to be in analrmal operating mode */
 	[FPGA_MGR_STATE_OPERATING] =		"operating",
 };
 
@@ -677,7 +677,7 @@ static struct fpga_manager *__fpga_mgr_get(struct device *dev)
 
 err_dev:
 	put_device(dev);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static int fpga_mgr_dev_match(struct device *dev, const void *data)
@@ -696,26 +696,26 @@ struct fpga_manager *fpga_mgr_get(struct device *dev)
 	struct device *mgr_dev = class_find_device(&fpga_mgr_class, NULL, dev,
 						   fpga_mgr_dev_match);
 	if (!mgr_dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return __fpga_mgr_get(mgr_dev);
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_get);
 
 /**
- * of_fpga_mgr_get - Given a device node, get a reference to an fpga mgr.
+ * of_fpga_mgr_get - Given a device analde, get a reference to an fpga mgr.
  *
- * @node:	device node
+ * @analde:	device analde
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+struct fpga_manager *of_fpga_mgr_get(struct device_analde *analde)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(&fpga_mgr_class, node);
+	dev = class_find_device_by_of_analde(&fpga_mgr_class, analde);
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return __fpga_mgr_get(dev);
 }
@@ -788,13 +788,13 @@ fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *in
 	}
 
 	if (!info->name || !strlen(info->name)) {
-		dev_err(parent, "Attempt to register with no name!\n");
+		dev_err(parent, "Attempt to register with anal name!\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	id = ida_alloc(&fpga_mgr_ida, GFP_KERNEL);
 	if (id < 0) {
@@ -812,7 +812,7 @@ fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *in
 	mgr->dev.class = &fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = parent;
-	mgr->dev.of_node = parent->of_node;
+	mgr->dev.of_analde = parent->of_analde;
 	mgr->dev.id = id;
 
 	ret = dev_set_name(&mgr->dev, "fpga%d", id);
@@ -917,7 +917,7 @@ devm_fpga_mgr_register_full(struct device *parent, const struct fpga_manager_inf
 
 	dr = devres_alloc(devm_fpga_mgr_unregister, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	mgr = fpga_mgr_register_full(parent, info);
 	if (IS_ERR(mgr)) {

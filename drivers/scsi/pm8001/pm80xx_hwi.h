@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *	notice, this list of conditions, and the following disclaimer,
+ *	analtice, this list of conditions, and the following disclaimer,
  *	without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *	substantially similar to the "NO WARRANTY" disclaimer below
+ *	substantially similar to the "ANAL WARRANTY" disclaimer below
  *	("Disclaimer") and any redistribution must be conditioned upon
  *	including a substantially similar Disclaimer requirement for further
  *	binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders analr the names
  *	of any contributors may be used to endorse or promote products derived
  *	from this software without specific prior written permission.
  *
@@ -23,13 +23,13 @@
  * GNU General Public License ("GPL") version 2 as published by the Free
  * Software Foundation.
  *
- * NO WARRANTY
+ * ANAL WARRANTY
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT ANALT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN ANAL EVENT SHALL THE COPYRIGHT
  * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * DAMAGES (INCLUDING, BUT ANALT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
@@ -112,7 +112,7 @@
 #define OPC_OUB_SATA_EVENT				14	/* 0x00E */
 #define OPC_OUB_SSP_EVENT				15	/* 0x00F */
 #define OPC_OUB_RSVD2					16	/* 0x010 */
-/* 0x11 - SMP_RECEIVED Notification removed in SPCv*/
+/* 0x11 - SMP_RECEIVED Analtification removed in SPCv*/
 #define OPC_OUB_SSP_RECV_EVENT				18	/* 0x012 */
 #define OPC_OUB_RSVD3					19	/* 0x013 */
 #define OPC_OUB_FW_FLASH_UPDATE				20	/* 0x014 */
@@ -329,7 +329,7 @@ struct sas_identify_frame_local {
 	u8 _un21_27[7];
 } __packed;
 #else
-#error "Bitfield order not defined!"
+#error "Bitfield order analt defined!"
 #endif
 
 struct mpi_msg_hdr {
@@ -370,7 +370,7 @@ struct phy_stop_req {
 struct set_dev_bits_fis {
 	u8	fis_type;	/* 0xA1*/
 	u8	n_i_pmport;
-	/* b7 : n Bit. Notification bit. If set device needs attention. */
+	/* b7 : n Bit. Analtification bit. If set device needs attention. */
 	/* b6 : i Bit. Interrupt Bit */
 	/* b5-b4: reserved2 */
 	/* b3-b0: PM Port */
@@ -418,7 +418,7 @@ struct sata_completion_resp {
 } __attribute__((packed, aligned(4)));
 
 /*
- * brief the data structure of SAS HW Event Notification
+ * brief the data structure of SAS HW Event Analtification
  * use to alert the host about the hardware event(64 bytes)
  */
 /* updated outbound struct for spcv */
@@ -432,7 +432,7 @@ struct hw_event_resp {
 } __attribute__((packed, aligned(4)));
 
 /*
- * brief the data structure for thermal event notification
+ * brief the data structure for thermal event analtification
  */
 
 struct thermal_hw_event {
@@ -469,7 +469,7 @@ struct dereg_dev_req {
 
 /*
  * brief the data structure of DEVICE_REGISTRATION Response
- * use to notify the completion of the device registration (64 bytes)
+ * use to analtify the completion of the device registration (64 bytes)
  */
 struct dev_reg_resp {
 	__le32	tag;
@@ -517,7 +517,7 @@ struct port_ctl_req {
 
 /*
  * brief the data structure of HW Event Ack Command
- * use to acknowledge receive HW event (64 bytes)
+ * use to ackanalwledge receive HW event (64 bytes)
  */
 struct hw_event_ack_req {
 	__le32	tag;
@@ -611,8 +611,8 @@ struct ssp_event_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of General Event Notification Response
- * use to describe MPI General Event Notification Response (64 bytes)
+ * brief the data structure of General Event Analtification Response
+ * use to describe MPI General Event Analtification Response (64 bytes)
  */
 struct general_event_resp {
 	__le32	status;
@@ -684,8 +684,8 @@ struct task_abort_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Command
- * use to describe MPI SAS Diagnostic Start/End Command (64 bytes)
+ * brief the data structure of SAS Diaganalstic Start/End Command
+ * use to describe MPI SAS Diaganalstic Start/End Command (64 bytes)
  */
 struct sas_diag_start_end_req {
 	__le32	tag;
@@ -694,8 +694,8 @@ struct sas_diag_start_end_req {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Execute Command
- * use to describe MPI SAS Diagnostic Execute Command (64 bytes)
+ * brief the data structure of SAS Diaganalstic Execute Command
+ * use to describe MPI SAS Diaganalstic Execute Command (64 bytes)
  */
 struct sas_diag_execute_req {
 	__le32	tag;
@@ -724,7 +724,7 @@ struct set_dev_state_req {
 /*
  * brief the data structure of SATA Start Command
  * use to describe MPI SATA IO Start Command (64 bytes)
- * Note: This structure is common for normal / encryption I/O
+ * Analte: This structure is common for analrmal / encryption I/O
  */
 
 struct sata_start_req {
@@ -734,15 +734,15 @@ struct sata_start_req {
 	__le32	retfis_ncqtag_atap_dir_m_dad;
 	struct host_to_dev_fis	sata_fis;
 	u32	reserved1;
-	u32	reserved2;	/* dword 11. rsvd for normal I/O. */
+	u32	reserved2;	/* dword 11. rsvd for analrmal I/O. */
 				/* EPLE Descl for enc I/O */
 	u32	addr_low;	/* dword 12. rsvd for enc I/O */
 	u32	addr_high;	/* dword 13. reserved for enc I/O */
-	__le32	len;		/* dword 14: length for normal I/O. */
+	__le32	len;		/* dword 14: length for analrmal I/O. */
 				/* EPLE Desch for enc I/O */
 	__le32	esgl;		/* dword 15. rsvd for enc I/O */
 	__le32	atapi_scsi_cdb[4];	/* dword 16-19. rsvd for enc I/O */
-	/* The below fields are reserved for normal I/O */
+	/* The below fields are reserved for analrmal I/O */
 	__le32	key_index_mode;	/* dword 20 */
 	__le32	sector_cnt_enss;/* dword 21 */
 	__le32	keytagl;	/* dword 22 */
@@ -788,7 +788,7 @@ struct ssp_info_unit {
 /**
  * brief the data structure of SSP INI IO Start Command
  * use to describe MPI SSP INI IO Start Command (64 bytes)
- * Note: This structure is common for normal / encryption I/O
+ * Analte: This structure is common for analrmal / encryption I/O
  */
 struct ssp_ini_io_start_req {
 	__le32	tag;
@@ -796,15 +796,15 @@ struct ssp_ini_io_start_req {
 	__le32	data_len;
 	__le32	dad_dir_m_tlr;
 	struct ssp_info_unit	ssp_iu;
-	__le32	addr_low;	/* dword 12: sgl low for normal I/O. */
+	__le32	addr_low;	/* dword 12: sgl low for analrmal I/O. */
 				/* epl_descl for encryption I/O */
-	__le32	addr_high;	/* dword 13: sgl hi for normal I/O */
+	__le32	addr_high;	/* dword 13: sgl hi for analrmal I/O */
 				/* dpl_descl for encryption I/O */
-	__le32	len;		/* dword 14: len for normal I/O. */
+	__le32	len;		/* dword 14: len for analrmal I/O. */
 				/* edpl_desch for encryption I/O */
-	__le32	esgl;		/* dword 15: ESGL bit for normal I/O. */
+	__le32	esgl;		/* dword 15: ESGL bit for analrmal I/O. */
 				/* user defined tag mask for enc I/O */
-	/* The below fields are reserved for normal I/O */
+	/* The below fields are reserved for analrmal I/O */
 	u8	udt[12];	/* dword 16-18 */
 	__le32	sectcnt_ios;	/* dword 19 */
 	__le32	key_cmode;	/* dword 20 */
@@ -1020,8 +1020,8 @@ struct get_nvm_data_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Response
- * use to describe MPI SAS Diagnostic Start/End Response (64 bytes)
+ * brief the data structure of SAS Diaganalstic Start/End Response
+ * use to describe MPI SAS Diaganalstic Start/End Response (64 bytes)
  *
  */
 struct sas_diag_start_end_resp {
@@ -1031,8 +1031,8 @@ struct sas_diag_start_end_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Execute Response
- * use to describe MPI SAS Diagnostic Execute Response (64 bytes)
+ * brief the data structure of SAS Diaganalstic Execute Response
+ * use to describe MPI SAS Diaganalstic Execute Response (64 bytes)
  *
  */
 struct sas_diag_execute_resp {
@@ -1179,7 +1179,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define EVENT_BROADCAST_ASYNCH_EVENT		0x21
 
 /* port state */
-#define PORT_NOT_ESTABLISHED			0x00
+#define PORT_ANALT_ESTABLISHED			0x00
 #define PORT_VALID				0x01
 #define PORT_LOSTCOMM				0x02
 #define PORT_IN_RESET				0x04
@@ -1196,8 +1196,8 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_UNDERFLOW				0x03
 #define IO_FAILED				0x04
 #define IO_ABORT_RESET				0x05
-#define IO_NOT_VALID				0x06
-#define IO_NO_DEVICE				0x07
+#define IO_ANALT_VALID				0x06
+#define IO_ANAL_DEVICE				0x07
 #define IO_ILLEGAL_PARAMETER			0x08
 #define IO_LINK_FAILURE				0x09
 #define IO_PROG_ERROR				0x0A
@@ -1206,17 +1206,17 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_EDC_OUT_ERROR			0x0C
 #define IO_ERROR_HW_TIMEOUT			0x0D
 #define IO_XFER_ERROR_BREAK			0x0E
-#define IO_XFER_ERROR_PHY_NOT_READY		0x0F
-#define IO_OPEN_CNX_ERROR_PROTOCOL_NOT_SUPPORTED	0x10
+#define IO_XFER_ERROR_PHY_ANALT_READY		0x0F
+#define IO_OPEN_CNX_ERROR_PROTOCOL_ANALT_SUPPORTED	0x10
 #define IO_OPEN_CNX_ERROR_ZONE_VIOLATION		0x11
 #define IO_OPEN_CNX_ERROR_BREAK				0x12
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS			0x13
 #define IO_OPEN_CNX_ERROR_BAD_DESTINATION		0x14
-#define IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED	0x15
+#define IO_OPEN_CNX_ERROR_CONNECTION_RATE_ANALT_SUPPORTED	0x15
 #define IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY		0x16
 #define IO_OPEN_CNX_ERROR_WRONG_DESTINATION		0x17
-/* This error code 0x18 is not used on SPCv */
-#define IO_OPEN_CNX_ERROR_UNKNOWN_ERROR			0x18
+/* This error code 0x18 is analt used on SPCv */
+#define IO_OPEN_CNX_ERROR_UNKANALWN_ERROR			0x18
 #define IO_XFER_ERROR_NAK_RECEIVED			0x19
 #define IO_XFER_ERROR_ACK_NAK_TIMEOUT			0x1A
 #define IO_XFER_ERROR_PEER_ABORTED			0x1B
@@ -1226,19 +1226,19 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFER_ERROR_SATA_LINK_TIMEOUT			0x1F
 #define IO_XFER_ERROR_SATA				0x20
 
-/* This error code 0x22 is not used on SPCv */
+/* This error code 0x22 is analt used on SPCv */
 #define IO_XFER_ERROR_ABORTED_DUE_TO_SRST		0x22
 #define IO_XFER_ERROR_REJECTED_NCQ_MODE			0x21
 #define IO_XFER_ERROR_ABORTED_NCQ_MODE			0x23
 #define IO_XFER_OPEN_RETRY_TIMEOUT			0x24
-/* This error code 0x25 is not used on SPCv */
+/* This error code 0x25 is analt used on SPCv */
 #define IO_XFER_SMP_RESP_CONNECTION_ERROR		0x25
 #define IO_XFER_ERROR_UNEXPECTED_PHASE			0x26
 #define IO_XFER_ERROR_XFER_RDY_OVERRUN			0x27
-#define IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED		0x28
+#define IO_XFER_ERROR_XFER_RDY_ANALT_EXPECTED		0x28
 #define IO_XFER_ERROR_CMD_ISSUE_ACK_NAK_TIMEOUT		0x30
 
-/* The following error code 0x31 and 0x32 are not using (obsolete) */
+/* The following error code 0x31 and 0x32 are analt using (obsolete) */
 #define IO_XFER_ERROR_CMD_ISSUE_BREAK_BEFORE_ACK_NAK	0x31
 #define IO_XFER_ERROR_CMD_ISSUE_PHY_DOWN_BEFORE_ACK_NAK	0x32
 
@@ -1247,9 +1247,9 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFER_CMD_FRAME_ISSUED			0x36
 #define IO_ERROR_INTERNAL_SMP_RESOURCE			0x37
 #define IO_PORT_IN_RESET				0x38
-#define IO_DS_NON_OPERATIONAL				0x39
+#define IO_DS_ANALN_OPERATIONAL				0x39
 #define IO_DS_IN_RECOVERY				0x3A
-#define IO_TM_TAG_NOT_FOUND				0x3B
+#define IO_TM_TAG_ANALT_FOUND				0x3B
 #define IO_XFER_PIO_SETUP_ERROR				0x3C
 #define IO_SSP_EXT_IU_ZERO_LEN_ERROR			0x3D
 #define IO_DS_IN_ERROR					0x3E
@@ -1263,12 +1263,12 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_OPEN_CNX_ERROR_HW_RESOURCE_BUSY_ALT		0x43
 #define IO_XFER_OPEN_RETRY_BACKOFF_THRESHOLD_REACHED	0x44
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_TMO	0x45
-#define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_NO_DEST		0x46
+#define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_ANAL_DEST		0x46
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE	0x47
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED	0x48
 #define IO_DS_INVALID					0x49
 #define IO_FATAL_ERROR					0x51
-/* WARNING: the value is not contiguous from here */
+/* WARNING: the value is analt contiguous from here */
 #define IO_XFER_ERR_LAST_PIO_DATAIN_CRC_ERR	0x52
 #define IO_XFER_DMA_ACTIVATE_TIMEOUT		0x53
 #define IO_XFER_ERROR_INTERNAL_CRC_ERROR	0x54
@@ -1283,7 +1283,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFR_ERROR_DEK_KEY_CACHE_MISS		0x2040
 /*
  * An encryption IO request failed due to DEK Key Tag mismatch.
- * The key tag supplied in the encryption IOMB does not match with
+ * The key tag supplied in the encryption IOMB does analt match with
  * the Key Tag in the referenced DEK Entry.
  */
 #define IO_XFR_ERROR_DEK_KEY_TAG_MISMATCH	0x2041
@@ -1313,10 +1313,10 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFR_ERROR_DIF_CRC_MISMATCH			0x3003
 
 /* define operator management response status and error qualifier code */
-#define OPR_MGMT_OP_NOT_SUPPORTED			0x2060
+#define OPR_MGMT_OP_ANALT_SUPPORTED			0x2060
 #define OPR_MGMT_MPI_ENC_ERR_OPR_PARAM_ILLEGAL		0x2061
-#define OPR_MGMT_MPI_ENC_ERR_OPR_ID_NOT_FOUND		0x2062
-#define OPR_MGMT_MPI_ENC_ERR_OPR_ROLE_NOT_MATCH		0x2063
+#define OPR_MGMT_MPI_ENC_ERR_OPR_ID_ANALT_FOUND		0x2062
+#define OPR_MGMT_MPI_ENC_ERR_OPR_ROLE_ANALT_MATCH		0x2063
 #define OPR_MGMT_MPI_ENC_ERR_OPR_MAX_NUM_EXCEEDED	0x2064
 #define OPR_MGMT_MPI_ENC_ERR_KEK_UNWRAP_FAIL		0x2022
 #define OPR_MGMT_MPI_ENC_ERR_NVRAM_OPERATION_FAILURE	0x2023
@@ -1326,7 +1326,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
  * If you add error code, modify this code also
  * It is used as an index
  */
-#define IO_ERROR_UNKNOWN_GENERIC			0x2023
+#define IO_ERROR_UNKANALWN_GENERIC			0x2023
 
 /* MSGU CONFIGURATION TABLE*/
 
@@ -1434,10 +1434,10 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define SCRATCH_PAD_ERROR_MASK		0xFFFFFC00 /* Error mask bits */
 #define SCRATCH_PAD_STATE_MASK		0x00000003 /* State Mask bits */
 
-/*state definition for Scratchpad Rsvd 0, Offset 0x6C, Non-fatal*/
-#define NON_FATAL_SPBC_LBUS_ECC_ERR	0x70000001
-#define NON_FATAL_BDMA_ERR		0xE0000001
-#define NON_FATAL_THERM_OVERTEMP_ERR	0x80000001
+/*state definition for Scratchpad Rsvd 0, Offset 0x6C, Analn-fatal*/
+#define ANALN_FATAL_SPBC_LBUS_ECC_ERR	0x70000001
+#define ANALN_FATAL_BDMA_ERR		0xE0000001
+#define ANALN_FATAL_THERM_OVERTEMP_ERR	0x80000001
 
 /* main configuration offset - byte offset */
 #define MAIN_SIGNATURE_OFFSET		0x00 /* DWORD 0x00 */
@@ -1569,11 +1569,11 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 
 /* SPCV soft reset */
 #define SPC_REG_SOFT_RESET 0x00001000
-#define SPCv_NORMAL_RESET_VALUE		0x1
+#define SPCv_ANALRMAL_RESET_VALUE		0x1
 
 #define SPCv_SOFT_RESET_READ_MASK		0xC0
-#define SPCv_SOFT_RESET_NO_RESET		0x0
-#define SPCv_SOFT_RESET_NORMAL_RESET_OCCURED	0x40
+#define SPCv_SOFT_RESET_ANAL_RESET		0x0
+#define SPCv_SOFT_RESET_ANALRMAL_RESET_OCCURED	0x40
 #define SPCv_SOFT_RESET_HDA_MODE_OCCURED	0x80
 #define SPCv_SOFT_RESET_CHIP_RESET_OCCURED	0xC0
 
@@ -1651,15 +1651,15 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define DEVREG_FAILURE_INVALID_PHY_ID			0x03
 #define DEVREG_FAILURE_PHY_ID_ALREADY_REGISTERED	0x04
 #define DEVREG_FAILURE_PORT_ID_OUT_OF_RANGE		0x05
-#define DEVREG_FAILURE_PORT_NOT_VALID_STATE		0x06
-#define DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID		0x07
+#define DEVREG_FAILURE_PORT_ANALT_VALID_STATE		0x06
+#define DEVREG_FAILURE_DEVICE_TYPE_ANALT_VALID		0x07
 
 
 #define MEMBASE_II_SHIFT_REGISTER       0x1010
 #endif
 
 /**
- * As we know sleep (1~20) ms may result in sleep longer than ~20 ms, hence we
+ * As we kanalw sleep (1~20) ms may result in sleep longer than ~20 ms, hence we
  * choose 20 ms interval.
  */
 #define FW_READY_INTERVAL	20

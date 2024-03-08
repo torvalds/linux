@@ -17,8 +17,8 @@ struct pds_vdpa_vq_info {
 	int irq;
 	char irq_name[32];
 
-	void __iomem *notify;
-	dma_addr_t notify_pa;
+	void __iomem *analtify;
+	dma_addr_t analtify_pa;
 
 	u64 doorbell;
 	u16 avail_idx;
@@ -41,7 +41,7 @@ struct pds_vdpa_device {
 	u8 num_vqs;			/* num vqs in use */
 	u8 mac[ETH_ALEN];		/* mac selected when the device was added */
 	struct vdpa_callback config_cb;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
 #define PDS_VDPA_PACKED_INVERT_IDX	0x8000

@@ -76,10 +76,10 @@ static const struct vpu_format enc_fmt_list[FMT_TYPES][MAX_FMTS] = {
 static int switch_state(struct vpu_instance *inst, enum vpu_instance_state state)
 {
 	switch (state) {
-	case VPU_INST_STATE_NONE:
+	case VPU_INST_STATE_ANALNE:
 		goto invalid_state_switch;
 	case VPU_INST_STATE_OPEN:
-		if (inst->state != VPU_INST_STATE_NONE)
+		if (inst->state != VPU_INST_STATE_ANALNE)
 			goto invalid_state_switch;
 		break;
 	case VPU_INST_STATE_INIT_SEQ:
@@ -162,7 +162,7 @@ static int start_encode(struct vpu_instance *inst, u32 *fail_res)
 
 	dst_buf = v4l2_m2m_next_dst_buf(m2m_ctx);
 	if (!dst_buf) {
-		dev_dbg(inst->dev->dev, "%s: No destination buffer found\n", __func__);
+		dev_dbg(inst->dev->dev, "%s: Anal destination buffer found\n", __func__);
 		return -EAGAIN;
 	}
 
@@ -173,7 +173,7 @@ static int start_encode(struct vpu_instance *inst, u32 *fail_res)
 
 	src_buf = v4l2_m2m_next_src_buf(m2m_ctx);
 	if (!src_buf) {
-		dev_dbg(inst->dev->dev, "%s: No source buffer found\n", __func__);
+		dev_dbg(inst->dev->dev, "%s: Anal source buffer found\n", __func__);
 		if (m2m_ctx->is_draining)
 			pic_param.src_end_flag = 1;
 		else
@@ -234,7 +234,7 @@ static int start_encode(struct vpu_instance *inst, u32 *fail_res)
 		dev_dbg(inst->dev->dev, "%s: wave5_vpu_enc_start_one_frame success\n",
 			__func__);
 		/*
-		 * Remove the source buffer from the ready-queue now and finish
+		 * Remove the source buffer from the ready-queue analw and finish
 		 * it in the videobuf2 framework once the index is returned by the
 		 * firmware in finish_encode
 		 */
@@ -267,7 +267,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 		enc_output_info.enc_src_idx, enc_output_info.enc_pic_byte, enc_output_info.pts);
 
 	/*
-	 * The source buffer will not be found in the ready-queue as it has been
+	 * The source buffer will analt be found in the ready-queue as it has been
 	 * dropped after sending of the encode firmware command, locate it in
 	 * the videobuf2 queue directly
 	 */
@@ -276,7 +276,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 						       enc_output_info.enc_src_idx);
 		if (vb->state != VB2_BUF_STATE_ACTIVE)
 			dev_warn(inst->dev->dev,
-				 "%s: encoded buffer (%d) was not in ready queue %i.",
+				 "%s: encoded buffer (%d) was analt in ready queue %i.",
 				 __func__, enc_output_info.enc_src_idx, vb->state);
 		else
 			src_buf = to_vb2_v4l2_buffer(vb);
@@ -285,7 +285,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 			inst->timestamp = src_buf->vb2_buf.timestamp;
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		} else {
-			dev_warn(inst->dev->dev, "%s: no source buffer with index: %d found\n",
+			dev_warn(inst->dev->dev, "%s: anal source buffer with index: %d found\n",
 				 __func__, enc_output_info.enc_src_idx);
 		}
 	}
@@ -298,7 +298,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 
 		if (!WARN_ON(!dst_buf)) {
 			vb2_set_plane_payload(&dst_buf->vb2_buf, 0, 0);
-			dst_buf->field = V4L2_FIELD_NONE;
+			dst_buf->field = V4L2_FIELD_ANALNE;
 			v4l2_m2m_last_buffer_done(m2m_ctx, dst_buf);
 		}
 
@@ -307,7 +307,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 		v4l2_m2m_job_finish(inst->v4l2_m2m_dev, m2m_ctx);
 	} else {
 		if (!dst_buf) {
-			dev_warn(inst->dev->dev, "No bitstream buffer.");
+			dev_warn(inst->dev->dev, "Anal bitstream buffer.");
 			v4l2_m2m_job_finish(inst->v4l2_m2m_dev, m2m_ctx);
 			return;
 		}
@@ -315,7 +315,7 @@ static void wave5_vpu_enc_finish_encode(struct vpu_instance *inst)
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, enc_output_info.bitstream_size);
 
 		dst_buf->vb2_buf.timestamp = inst->timestamp;
-		dst_buf->field = V4L2_FIELD_NONE;
+		dst_buf->field = V4L2_FIELD_ANALNE;
 		if (enc_output_info.pic_type == PIC_TYPE_I) {
 			if (enc_output_info.enc_vcl_nut == 19 ||
 			    enc_output_info.enc_vcl_nut == 20)
@@ -411,7 +411,7 @@ static int wave5_vpu_enc_try_fmt_cap(struct file *file, void *fh, struct v4l2_fo
 	}
 
 	f->fmt.pix_mp.flags = 0;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 	f->fmt.pix_mp.colorspace = inst->colorspace;
 	f->fmt.pix_mp.ycbcr_enc = inst->ycbcr_enc;
 	f->fmt.pix_mp.quantization = inst->quantization;
@@ -434,7 +434,7 @@ static int wave5_vpu_enc_s_fmt_cap(struct file *file, void *fh, struct v4l2_form
 		return ret;
 
 	inst->std = wave5_to_vpu_std(f->fmt.pix_mp.pixelformat, inst->type);
-	if (inst->std == STD_UNKNOWN) {
+	if (inst->std == STD_UNKANALWN) {
 		dev_warn(inst->dev->dev, "unsupported pixelformat: %.4s\n",
 			 (char *)&f->fmt.pix_mp.pixelformat);
 		return -EINVAL;
@@ -520,7 +520,7 @@ static int wave5_vpu_enc_try_fmt_out(struct file *file, void *fh, struct v4l2_fo
 	}
 
 	f->fmt.pix_mp.flags = 0;
-	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
+	f->fmt.pix_mp.field = V4L2_FIELD_ANALNE;
 
 	return 0;
 }
@@ -661,11 +661,11 @@ static int wave5_vpu_enc_g_parm(struct file *file, void *fh, struct v4l2_streamp
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	a->parm.output.timeperframe.numerator = 1;
-	a->parm.output.timeperframe.denominator = inst->frame_rate;
+	a->parm.output.timeperframe.deanalminator = inst->frame_rate;
 
-	dev_dbg(inst->dev->dev, "%s: numerator: %u | denominator: %u\n",
+	dev_dbg(inst->dev->dev, "%s: numerator: %u | deanalminator: %u\n",
 		__func__, a->parm.output.timeperframe.numerator,
-		a->parm.output.timeperframe.denominator);
+		a->parm.output.timeperframe.deanalminator);
 
 	return 0;
 }
@@ -680,17 +680,17 @@ static int wave5_vpu_enc_s_parm(struct file *file, void *fh, struct v4l2_streamp
 		return -EINVAL;
 
 	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
-	if (a->parm.output.timeperframe.denominator && a->parm.output.timeperframe.numerator) {
-		inst->frame_rate = a->parm.output.timeperframe.denominator /
+	if (a->parm.output.timeperframe.deanalminator && a->parm.output.timeperframe.numerator) {
+		inst->frame_rate = a->parm.output.timeperframe.deanalminator /
 				   a->parm.output.timeperframe.numerator;
 	} else {
 		a->parm.output.timeperframe.numerator = 1;
-		a->parm.output.timeperframe.denominator = inst->frame_rate;
+		a->parm.output.timeperframe.deanalminator = inst->frame_rate;
 	}
 
-	dev_dbg(inst->dev->dev, "%s: numerator: %u | denominator: %u\n",
+	dev_dbg(inst->dev->dev, "%s: numerator: %u | deanalminator: %u\n",
 		__func__, a->parm.output.timeperframe.numerator,
-		a->parm.output.timeperframe.denominator);
+		a->parm.output.timeperframe.deanalminator);
 
 	return 0;
 }
@@ -885,7 +885,7 @@ static int wave5_vpu_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_TYPE:
 		switch (ctrl->val) {
-		case V4L2_MPEG_VIDEO_HEVC_REFRESH_NONE:
+		case V4L2_MPEG_VIDEO_HEVC_REFRESH_ANALNE:
 			inst->enc_param.decoding_refresh_type = 0;
 			break;
 		case V4L2_MPEG_VIDEO_HEVC_REFRESH_CRA:
@@ -1204,7 +1204,7 @@ static void wave5_set_enc_openparam(struct enc_open_param *open_param,
 	open_param->wave_param.avc_slice_mode = input.avc_slice_mode;
 	open_param->wave_param.avc_slice_arg = input.avc_slice_arg;
 	open_param->wave_param.intra_mb_refresh_mode = input.intra_mb_refresh_mode;
-	if (input.intra_mb_refresh_mode != REFRESH_MB_MODE_NONE) {
+	if (input.intra_mb_refresh_mode != REFRESH_MB_MODE_ANALNE) {
 		if (num_mb_row >= input.intra_mb_refresh_arg)
 			open_param->wave_param.intra_mb_refresh_arg =
 				num_mb_row / input.intra_mb_refresh_arg;
@@ -1308,7 +1308,7 @@ static int wave5_vpu_enc_start_streaming(struct vb2_queue *q, unsigned int count
 
 	v4l2_m2m_update_start_streaming_state(m2m_ctx, q);
 
-	if (inst->state == VPU_INST_STATE_NONE && q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+	if (inst->state == VPU_INST_STATE_ANALNE && q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		struct enc_open_param open_param;
 
 		memset(&open_param, 0, sizeof(struct enc_open_param));
@@ -1339,7 +1339,7 @@ static int wave5_vpu_enc_start_streaming(struct vb2_queue *q, unsigned int count
 	if (inst->state == VPU_INST_STATE_OPEN && m2m_ctx->cap_q_ctx.q.streaming) {
 		ret = initialize_sequence(inst);
 		if (ret) {
-			dev_warn(inst->dev->dev, "Sequence not found: %d\n", ret);
+			dev_warn(inst->dev->dev, "Sequence analt found: %d\n", ret);
 			goto return_buffers;
 		}
 		ret = switch_state(inst, VPU_INST_STATE_INIT_SEQ);
@@ -1399,7 +1399,7 @@ static void wave5_vpu_enc_stop_streaming(struct vb2_queue *q)
 	bool check_cmd = true;
 
 	/*
-	 * Note that we don't need m2m_ctx->next_buf_last for this driver, so we
+	 * Analte that we don't need m2m_ctx->next_buf_last for this driver, so we
 	 * don't call v4l2_m2m_update_stop_streaming_state().
 	 */
 
@@ -1446,13 +1446,13 @@ static void wave5_set_default_format(struct v4l2_pix_format_mplane *src_fmt,
 	const struct v4l2_format_info *src_fmt_info = v4l2_format_info(src_pix_fmt);
 
 	src_fmt->pixelformat = src_pix_fmt;
-	src_fmt->field = V4L2_FIELD_NONE;
+	src_fmt->field = V4L2_FIELD_ANALNE;
 	src_fmt->flags = 0;
 	src_fmt->num_planes = src_fmt_info->mem_planes;
 	wave5_update_pix_fmt(src_fmt, 416, 240);
 
 	dst_fmt->pixelformat = enc_fmt_list[VPU_FMT_TYPE_CODEC][0].v4l2_pix_fmt;
-	dst_fmt->field = V4L2_FIELD_NONE;
+	dst_fmt->field = V4L2_FIELD_ANALNE;
 	dst_fmt->flags = 0;
 	dst_fmt->num_planes = 1;
 	wave5_update_pix_fmt(dst_fmt, 416, 240);
@@ -1503,7 +1503,7 @@ static int wave5_vpu_enc_job_ready(void *priv)
 	struct v4l2_m2m_ctx *m2m_ctx = inst->v4l2_fh.m2m_ctx;
 
 	switch (inst->state) {
-	case VPU_INST_STATE_NONE:
+	case VPU_INST_STATE_ANALNE:
 		dev_dbg(inst->dev->dev, "Encoder must be open to start queueing M2M jobs!\n");
 		return false;
 	case VPU_INST_STATE_PIC_RUN:
@@ -1515,8 +1515,8 @@ static int wave5_vpu_enc_job_ready(void *priv)
 		fallthrough;
 	default:
 		dev_dbg(inst->dev->dev,
-			"Encoder not ready for a job, state: %s, %s draining, %d src bufs ready\n",
-			state_to_str(inst->state), m2m_ctx->is_draining ? "is" : "is not",
+			"Encoder analt ready for a job, state: %s, %s draining, %d src bufs ready\n",
+			state_to_str(inst->state), m2m_ctx->is_draining ? "is" : "is analt",
 			v4l2_m2m_num_src_bufs_ready(m2m_ctx));
 		break;
 	}
@@ -1538,7 +1538,7 @@ static int wave5_vpu_open_enc(struct file *filp)
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 	v4l2_ctrl_hdl = &inst->v4l2_ctrl_hdl;
 
 	inst->dev = dev;
@@ -1547,7 +1547,7 @@ static int wave5_vpu_open_enc(struct file *filp)
 
 	inst->codec_info = kzalloc(sizeof(*inst->codec_info), GFP_KERNEL);
 	if (!inst->codec_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&inst->v4l2_fh, vdev);
 	filp->private_data = &inst->v4l2_fh;
@@ -1704,7 +1704,7 @@ static int wave5_vpu_open_enc(struct file *filp)
 			  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT, 1, 32, 1, 1);
 
 	if (v4l2_ctrl_hdl->error) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto cleanup_inst;
 	}
 
@@ -1757,7 +1757,7 @@ int wave5_vpu_enc_register_device(struct vpu_device *dev)
 
 	vdev_enc = devm_kzalloc(dev->v4l2_dev.dev, sizeof(*vdev_enc), GFP_KERNEL);
 	if (!vdev_enc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dev->v4l2_m2m_enc_dev = v4l2_m2m_init(&wave5_vpu_enc_m2m_ops);
 	if (IS_ERR(dev->v4l2_m2m_enc_dev)) {

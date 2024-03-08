@@ -48,12 +48,12 @@ int xe_guc_ct_send_g2h_handler(struct xe_guc_ct *ct, const u32 *action,
 			       u32 len);
 
 /* Can't fail because a GT reset is in progress */
-int xe_guc_ct_send_recv_no_fail(struct xe_guc_ct *ct, const u32 *action,
+int xe_guc_ct_send_recv_anal_fail(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 *response_buffer);
 static inline int
-xe_guc_ct_send_block_no_fail(struct xe_guc_ct *ct, const u32 *action, u32 len)
+xe_guc_ct_send_block_anal_fail(struct xe_guc_ct *ct, const u32 *action, u32 len)
 {
-	return xe_guc_ct_send_recv_no_fail(ct, action, len, NULL);
+	return xe_guc_ct_send_recv_anal_fail(ct, action, len, NULL);
 }
 
 #endif

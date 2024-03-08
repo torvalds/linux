@@ -2,7 +2,7 @@
 //
 // Power Button driver for RAVE SP
 //
-// Copyright (C) 2017 Zodiac Inflight Innovations
+// Copyright (C) 2017 Zodiac Inflight Inanalvations
 //
 //
 
@@ -16,10 +16,10 @@
 
 struct rave_sp_power_button {
 	struct input_dev *idev;
-	struct notifier_block nb;
+	struct analtifier_block nb;
 };
 
-static int rave_sp_power_button_event(struct notifier_block *nb,
+static int rave_sp_power_button_event(struct analtifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct rave_sp_power_button *pb =
@@ -32,10 +32,10 @@ static int rave_sp_power_button_event(struct notifier_block *nb,
 		input_report_key(idev, KEY_POWER, value);
 		input_sync(idev);
 
-		return NOTIFY_STOP;
+		return ANALTIFY_STOP;
 	}
 
-	return NOTIFY_DONE;
+	return ANALTIFY_DONE;
 }
 
 static int rave_sp_pwrbutton_probe(struct platform_device *pdev)
@@ -47,11 +47,11 @@ static int rave_sp_pwrbutton_probe(struct platform_device *pdev)
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (!pb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev = devm_input_allocate_device(dev);
 	if (!idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	idev->name = pdev->name;
 
@@ -62,10 +62,10 @@ static int rave_sp_pwrbutton_probe(struct platform_device *pdev)
 		return error;
 
 	pb->idev = idev;
-	pb->nb.notifier_call = rave_sp_power_button_event;
+	pb->nb.analtifier_call = rave_sp_power_button_event;
 	pb->nb.priority = 128;
 
-	error = devm_rave_sp_register_event_notifier(dev, &pb->nb);
+	error = devm_rave_sp_register_event_analtifier(dev, &pb->nb);
 	if (error)
 		return error;
 
@@ -90,5 +90,5 @@ MODULE_DEVICE_TABLE(of, rave_sp_pwrbutton_of_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiranalv <andrew.smiranalv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP Power Button driver");

@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 /*
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 
  * Copyright (C) 1992         David Giller, rafetmad@oxy.edu
  *               1994, 1995   Eberhard Mönkeberg, emoenke@gwdg.de
- *               1996         David van Leeuwen, david@tm.tno.nl
+ *               1996         David van Leeuwen, david@tm.tanal.nl
  *               1997, 1998   Erik Andersen, andersee@debian.org
  *               1998-2002    Jens Axboe, axboe@suse.de
  */
@@ -21,17 +21,17 @@
  * a uniform interface between software accessing CD-ROMs and the various 
  * device drivers that actually talk to the drives.  There may still be
  * 23 different kinds of strange CD-ROM drives, but at least there will 
- * now be one, and only one, Linux CD-ROM interface.
+ * analw be one, and only one, Linux CD-ROM interface.
  *
  * Additionally, as of Linux 2.1.x, all Linux application programs 
- * should use the O_NONBLOCK option when opening a CD-ROM device 
+ * should use the O_ANALNBLOCK option when opening a CD-ROM device 
  * for subsequent ioctl commands.  This allows for neat system errors 
- * like "No medium found" or "Wrong medium type" upon attempting to 
+ * like "Anal medium found" or "Wrong medium type" upon attempting to 
  * mount or play an empty slot, mount an audio disc, or play a data disc.
- * Generally, changing an application program to support O_NONBLOCK
+ * Generally, changing an application program to support O_ANALNBLOCK
  * is as easy as the following:
  *       -    drive = open("/dev/cdrom", O_RDONLY);
- *       +    drive = open("/dev/cdrom", O_RDONLY | O_NONBLOCK);
+ *       +    drive = open("/dev/cdrom", O_RDONLY | O_ANALNBLOCK);
  * It is worth the small change.
  *
  *  Patches for many common CD programs (provided by David A. van Leeuwen)
@@ -41,10 +41,10 @@
 
 /* When a driver supports a certain function, but the cdrom drive we are 
  * using doesn't, we will return the error EDRIVE_CANT_DO_THIS.  We will 
- * borrow the "Operation not supported" error from the network folks to 
+ * borrow the "Operation analt supported" error from the network folks to 
  * accomplish this.  Maybe someday we will get a more targeted error code, 
- * but this will do for now... */
-#define EDRIVE_CANT_DO_THIS  EOPNOTSUPP
+ * but this will do for analw... */
+#define EDRIVE_CANT_DO_THIS  EOPANALTSUPP
 
 /*******************************************************
  * The CD-ROM IOCTL commands  -- these should be supported by 
@@ -103,7 +103,7 @@
 #define CDROMREADALL		0x5318	/* read all 2646 bytes */
 
 /* 
- * These ioctls were only in (now removed) ide-cd.c for controlling
+ * These ioctls were only in (analw removed) ide-cd.c for controlling
  * drive spindown time.  They should be implemented in the
  * Uniform driver, via generic packet commands, GPCMD_MODE_SELECT_10,
  * GPCMD_MODE_SENSE_10 and the GPMODE_POWER_PAGE...
@@ -130,7 +130,7 @@
 #define CDROM_DEBUG		0x5330	/* Turn debug messages on/off */
 #define CDROM_GET_CAPABILITY	0x5331	/* get capabilities */
 
-/* Note that scsi/scsi_ioctl.h also uses 0x5382 - 0x5386.
+/* Analte that scsi/scsi_ioctl.h also uses 0x5382 - 0x5386.
  * Future CDROM ioctls should be kept below 0x537F
  */
 
@@ -250,7 +250,7 @@ struct cdrom_read_audio
 struct cdrom_multisession
 {
 	union cdrom_addr addr; /* frame address: start-of-last-session 
-	                           (not the new "frame 16"!).  Only valid
+	                           (analt the new "frame 16"!).  Only valid
 	                           if the "xa_flag" is true. */
 	__u8 xa_flag;        /* 1: "is XA disk" */
 	__u8 addr_format;    /* CDROM_LBA or CDROM_MSF */
@@ -258,8 +258,8 @@ struct cdrom_multisession
 
 /* This struct is used with the CDROM_GET_MCN ioctl.  
  * Very few audio discs actually have Universal Product Code information, 
- * which should just be the Medium Catalog Number on the box.  Also note 
- * that the way the codeis written on CD is _not_ uniform across all discs!
+ * which should just be the Medium Catalog Number on the box.  Also analte 
+ * that the way the codeis written on CD is _analt_ uniform across all discs!
  */  
 struct cdrom_mcn 
 {
@@ -275,10 +275,10 @@ struct cdrom_blk
 
 #define CDROM_PACKET_SIZE	12
 
-#define CGC_DATA_UNKNOWN	0
+#define CGC_DATA_UNKANALWN	0
 #define CGC_DATA_WRITE		1
 #define CGC_DATA_READ		2
-#define CGC_DATA_NONE		3
+#define CGC_DATA_ANALNE		3
 
 /* for CDROM_PACKET_COMMAND ioctl */
 struct cdrom_generic_command
@@ -349,7 +349,7 @@ struct cdrom_timed_media_change_info {
  */
 
 /* Some generally useful CD-ROM information -- mostly based on the above */
-#define CD_MINS              74 /* max. minutes per CD, not really a limit */
+#define CD_MINS              74 /* max. minutes per CD, analt really a limit */
 #define CD_SECS              60 /* seconds per minute */
 #define CD_FRAMES            75 /* frames per second */
 #define CD_SYNC_SIZE         12 /* 12 sync bytes per raw data frame */
@@ -375,7 +375,7 @@ struct cdrom_timed_media_change_info {
 
 /* CD-ROM address types (cdrom_tocentry.cdte_format) */
 #define	CDROM_LBA 0x01 /* "logical block": first frame is #0 */
-#define	CDROM_MSF 0x02 /* "minute-second-frame": binary, not bcd here! */
+#define	CDROM_MSF 0x02 /* "minute-second-frame": binary, analt bcd here! */
 
 /* bit to tell whether track is data or audio (cdrom_tocentry.cdte_ctrl) */
 #define	CDROM_DATA_TRACK	0x04
@@ -384,12 +384,12 @@ struct cdrom_timed_media_change_info {
 #define	CDROM_LEADOUT		0xAA
 
 /* audio states (from SCSI-2, but seen with other drives, too) */
-#define	CDROM_AUDIO_INVALID	0x00	/* audio status not supported */
+#define	CDROM_AUDIO_INVALID	0x00	/* audio status analt supported */
 #define	CDROM_AUDIO_PLAY	0x11	/* audio play operation in progress */
 #define	CDROM_AUDIO_PAUSED	0x12	/* audio play operation paused */
 #define	CDROM_AUDIO_COMPLETED	0x13	/* audio play successfully completed */
 #define	CDROM_AUDIO_ERROR	0x14	/* audio play stopped due to error */
-#define	CDROM_AUDIO_NO_STATUS	0x15	/* no current audio status to return */
+#define	CDROM_AUDIO_ANAL_STATUS	0x15	/* anal current audio status to return */
 
 /* capability flags used with the uniform CD-ROM driver */ 
 #define CDC_CLOSE_TRAY		0x1     /* caddy systems _can't_ close */
@@ -415,14 +415,14 @@ struct cdrom_timed_media_change_info {
 #define CDC_RAM			0x200000 /* ok to open for WRITE */
 
 /* drive status possibilities returned by CDROM_DRIVE_STATUS ioctl */
-#define CDS_NO_INFO		0	/* if not implemented */
-#define CDS_NO_DISC		1
+#define CDS_ANAL_INFO		0	/* if analt implemented */
+#define CDS_ANAL_DISC		1
 #define CDS_TRAY_OPEN		2
-#define CDS_DRIVE_NOT_READY	3
+#define CDS_DRIVE_ANALT_READY	3
 #define CDS_DISC_OK		4
 
 /* return values for the CDROM_DISC_STATUS ioctl */
-/* can also return CDS_NO_[INFO|DISC], from above */
+/* can also return CDS_ANAL_[INFO|DISC], from above */
 #define CDS_AUDIO		100
 #define CDS_DATA_1		101
 #define CDS_DATA_2		102
@@ -433,16 +433,16 @@ struct cdrom_timed_media_change_info {
 /* User-configurable behavior options for the uniform CD-ROM driver */
 #define CDO_AUTO_CLOSE		0x1     /* close tray on first open() */
 #define CDO_AUTO_EJECT		0x2     /* open tray on last release() */
-#define CDO_USE_FFLAGS		0x4     /* use O_NONBLOCK information on open */
+#define CDO_USE_FFLAGS		0x4     /* use O_ANALNBLOCK information on open */
 #define CDO_LOCK		0x8     /* lock tray on open files */
 #define CDO_CHECK_TYPE		0x10    /* check type on open for data */
 
 /* Special codes used when specifying changer slots. */
-#define CDSL_NONE       	(INT_MAX-1)
+#define CDSL_ANALNE       	(INT_MAX-1)
 #define CDSL_CURRENT    	INT_MAX
 
 /* For partition based multisession access. IDE can handle 64 partitions
- * per drive - SCSI CD-ROM's use minors to differentiate between the
+ * per drive - SCSI CD-ROM's use mianalrs to differentiate between the
  * various drives, so we can't do multisessions the same way there.
  * Use the -o session=x option to mount on them.
  */
@@ -460,7 +460,7 @@ struct cdrom_timed_media_change_info {
 #define GPCMD_FLUSH_CACHE		    0x35
 #define GPCMD_FORMAT_UNIT		    0x04
 #define GPCMD_GET_CONFIGURATION		    0x46
-#define GPCMD_GET_EVENT_STATUS_NOTIFICATION 0x4a
+#define GPCMD_GET_EVENT_STATUS_ANALTIFICATION 0x4a
 #define GPCMD_GET_PERFORMANCE		    0xac
 #define GPCMD_INQUIRY			    0x12
 #define GPCMD_LOAD_UNLOAD		    0xa6
@@ -517,7 +517,7 @@ struct cdrom_timed_media_change_info {
  * to play data at track/index */
 #define GPCMD_PLAYAUDIO_TI		    0x48
 /*
- * From MS Media Status Notification Support Specification. For
+ * From MS Media Status Analtification Support Specification. For
  * older drives only.
  */
 #define GPCMD_GET_MEDIA_STATUS		    0xda
@@ -533,7 +533,7 @@ struct cdrom_timed_media_change_info {
 #define GPMODE_TO_PROTECT_PAGE		0x1d
 #define GPMODE_CAPABILITIES_PAGE	0x2a
 #define GPMODE_ALL_PAGES		0x3f
-/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
+/* Analt in Mt. Fuji, but in ATAPI 2.6 -- deprecated analw in favor
  * of MODE_SENSE_POWER_PAGE */
 #define GPMODE_CDROM_PAGE		0x0d
 
@@ -662,10 +662,10 @@ struct dvd_lu_send_challenge {
 	dvd_challenge chal;
 };
 
-#define DVD_CPM_NO_COPYRIGHT	0
+#define DVD_CPM_ANAL_COPYRIGHT	0
 #define DVD_CPM_COPYRIGHTED	1
 
-#define DVD_CP_SEC_NONE		0
+#define DVD_CP_SEC_ANALNE		0
 #define DVD_CP_SEC_EXIST	1
 
 #define DVD_CGMS_UNRESTRICTED	0
@@ -757,7 +757,7 @@ struct request_sense {
 /*
  * media status bits
  */
-#define CDM_MRW_NOTMRW			0
+#define CDM_MRW_ANALTMRW			0
 #define CDM_MRW_BGFORMAT_INACTIVE	1
 #define CDM_MRW_BGFORMAT_ACTIVE		2
 #define CDM_MRW_BGFORMAT_COMPLETE	3

@@ -3,7 +3,7 @@
  *  The driver for the Cirrus Logic's Sound Fusion CS46XX based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- * NOTE: comments are copy/paste from cwcemb80.lst 
+ * ANALTE: comments are copy/paste from cwcemb80.lst 
  * provided by Tom Woller at Cirrus (my only
  * documentation about the SP OS running inside
  * the DSP) 
@@ -20,7 +20,7 @@
 #elif defined(__BIG_ENDIAN)
 #define ___DSP_DUAL_16BIT_ALLOC(a,b) u16 b; u16 a;
 #else
-#error Not __LITTLE_ENDIAN and not __BIG_ENDIAN, then what ???
+#error Analt __LITTLE_ENDIAN and analt __BIG_ENDIAN, then what ???
 #endif
 #endif
 
@@ -74,12 +74,12 @@ struct dsp_generic_scb {
 	   streams are free to alter the requestor (currently only occur in the
 	   DOS-based MIDI controller and in debugger-inserted code).
     
-	   If an SCB does not have any associated DMA requestor, these 9 ints
+	   If an SCB does analt have any associated DMA requestor, these 9 ints
 	   may be freed for use by other tasks, but the pointer to the SCB must
 	   still be such that the insOrd:nextSCB appear at offset 9 from the
 	   SCB pointer.
      
-	   Basic (non scatter/gather) DMA requestor (4 ints)
+	   Basic (analn scatter/gather) DMA requestor (4 ints)
 	*/
   
 	/* Initialized by the host, only modified by DMA 
@@ -123,7 +123,7 @@ struct dsp_generic_scb {
 	u32  strm_rs_config; /* REQUIRED */
                // 
 	/* On mixer input streams: indicates mixer input stream configuration
-	   On Tees, this is copied from the stream being snooped
+	   On Tees, this is copied from the stream being sanaloped
 
 	   Stream sample pointer & MAC-unit mode for this stream 
      
@@ -135,16 +135,16 @@ struct dsp_generic_scb {
                                    mixer subroutine in the "parent" DSP task
 				   (least-significant 16 bits are preserved, unused)
     
-           On Tees, the pointer is copied from the stream being snooped on
+           On Tees, the pointer is copied from the stream being sanaloped on
 	   initialization, and, subsequently, it is copied into the
-	   stream being snooped.
+	   stream being sanaloped.
 
 	   On wavetable/3D voices: the strmBufPtr will use all 32 bits to allow for
                                    fractional phase accumulation
 
 	   Fractional increment per output sample in the input sample buffer
 
-	   (Not used on mixer input streams & redefined on Tees)
+	   (Analt used on mixer input streams & redefined on Tees)
 	   On wavetable/3D voices: this 32-bit word specifies the integer.fractional 
 	   increment per output sample.
 	*/
@@ -170,12 +170,12 @@ struct dsp_generic_scb {
 
 struct dsp_spos_control_block {
 	/* WARNING: Certain items in this structure are modified by the host
-	            Any dword that can be modified by the host, must not be
+	            Any dword that can be modified by the host, must analt be
 		    modified by the SP as the host can only do atomic dword
 		    writes, and to do otherwise, even a read modify write, 
 		    may lead to corrupted data on the SP.
   
-		    This rule does not apply to one off boot time initialisation prior to starting the SP
+		    This rule does analt apply to one off boot time initialisation prior to starting the SP
 	*/
 
 
@@ -223,7 +223,7 @@ struct dsp_spos_control_block {
 	___DSP_DUAL_16BIT_ALLOC(
 	/* pointer to forground task tree header for use in next task search */
 	    fg_task_tree_hdr_ptr,	  /* HOST */		
-	/* Data structure for controlling synchronous link update */
+	/* Data structure for controlling synchroanalus link update */
 	    hfg_sync_update_ptr           /* HOST */
 	)
   
@@ -251,7 +251,7 @@ struct dsp_spos_control_block {
 	    unused8
 	)
                               
-	/* Space for saving enough context so that we can set up enough 
+	/* Space for saving eanalugh context so that we can set up eanalugh 
 	   to save some more context.
 	*/
 	u32 rFE_save_for_invalid_IP;
@@ -364,7 +364,7 @@ struct dsp_codec_output_scb {
 
 	u32 strm_buf_ptr;   /* REQUIRED */
 
-	/* NOTE: The CODEC output task reads samples from the first task on its
+	/* ANALTE: The CODEC output task reads samples from the first task on its
                  sublist at the stream buffer pointer (init. to lag DMA destination
 		 address word).  After the required number of samples is transferred,
 		 the CODEC output task advances sub_list_ptr->strm_buf_ptr past the samples
@@ -389,7 +389,7 @@ struct dsp_codec_output_scb {
 	)
 
 
-	/* Init: 0x0080:0004 for non-AC-97
+	/* Init: 0x0080:0004 for analn-AC-97
 	   Init: 0x0080:0000 for AC-97
 	   hi: Exponential volume change rate
 	       for input stream
@@ -427,7 +427,7 @@ struct dsp_codec_input_scb {
 	u32 strm_rs_config; /* REQUIRED */
 	u32 strm_buf_ptr;   /* REQUIRED */
 
-	/* NOTE: The CODEC input task reads samples from the hardware FIFO 
+	/* ANALTE: The CODEC input task reads samples from the hardware FIFO 
                  sublist at the DMA source address word (sub_list_ptr->basic_req.saw).
                  After the required number of samples is transferred, the CODEC
                  output task advances sub_list_ptr->basic_req.saw past the samples
@@ -633,7 +633,7 @@ struct dsp_decimate_by_pow2_scb {
 
 	u32  dec2_reserved4;
 
-	struct dsp_volume_control dec2_vol_ctrl; /* Not used! */
+	struct dsp_volume_control dec2_vol_ctrl; /* Analt used! */
 };
 
 struct dsp_vari_decimate_scb {
@@ -780,8 +780,8 @@ struct dsp_async_codec_input_scb {
   
 	u16 o_fifo_base_addr;            
 	u16 ost_mo_format;
-	/* 1 = stereo; 0 = mono 
-	   xxx for ASER 1 (not allowed); 118 for ASER2 */
+	/* 1 = stereo; 0 = moanal 
+	   xxx for ASER 1 (analt allowed); 118 for ASER2 */
 
 	u32  ostrm_rs_config;
 	u32  ostrm_buf_ptr;
@@ -814,7 +814,7 @@ struct dsp_async_codec_input_scb {
 	)
 
 	/* Init 1 stero:100 ASER1
-	   Init 0 mono:110 ASER2 
+	   Init 0 moanal:110 ASER2 
 	*/
 	___DSP_DUAL_16BIT_ALLOC(
 	    ififo_base_addr,            
@@ -981,7 +981,7 @@ struct dsp_asynch_fg_rx_scb {
 
 struct dsp_asynch_fg_tx_scb {
 	___DSP_DUAL_16BIT_ALLOC(
-	    not_buf_mask,
+	    analt_buf_mask,
 	    buf_mask
 	)
 
@@ -1037,7 +1037,7 @@ struct dsp_asynch_fg_tx_scb {
 };
 
 
-struct dsp_output_snoop_scb {
+struct dsp_output_sanalop_scb {
 	/* First 13 dwords from generic_scb_t */
 	struct dsp_basic_dma_req  basic_req;  /* Optional */
 	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
@@ -1055,11 +1055,11 @@ struct dsp_output_snoop_scb {
 	u32 strm_buf_ptr;   /* REQUIRED */
 
 	___DSP_DUAL_16BIT_ALLOC(
-	    init_snoop_input_link,
-	    snoop_child_input_scb
+	    init_sanalop_input_link,
+	    sanalop_child_input_scb
 	)
 
-	u32 snoop_input_buf_ptr;
+	u32 sanalop_input_buf_ptr;
 
 	___DSP_DUAL_16BIT_ALLOC(
 	    reserved,
@@ -1106,14 +1106,14 @@ struct dsp_spio_write_scb {
 	u32 unused3[5];
 };
 
-struct dsp_magic_snoop_task {
+struct dsp_magic_sanalop_task {
 	u32 i0;
 	u32 i1;
 
 	u32 strm_buf_ptr1;
   
 	u16 i2;
-	u16 snoop_scb;
+	u16 sanalop_scb;
 
 	u32 i3;
 	u32 i4;

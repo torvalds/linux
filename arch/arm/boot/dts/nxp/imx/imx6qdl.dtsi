@@ -12,7 +12,7 @@
 	#size-cells = <1>;
 	/*
 	 * The decompressor and also some bootloaders rely on a
-	 * pre-existing /chosen node to be available to insert the
+	 * pre-existing /chosen analde to be available to insert the
 	 * command line and merge other ATAGS info.
 	 */
 	chosen {};
@@ -133,13 +133,13 @@
 		interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	usbphynop1: usbphynop1 {
-		compatible = "usb-nop-xceiv";
+	usbphyanalp1: usbphyanalp1 {
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 
-	usbphynop2: usbphynop2 {
-		compatible = "usb-nop-xceiv";
+	usbphyanalp2: usbphyanalp2 {
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 
@@ -272,7 +272,7 @@
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			ranges = <0x81000000 0 0          0x01f80000 0 0x00010000>, /* downstream I/O */
-				 <0x82000000 0 0x01000000 0x01000000 0 0x00f00000>; /* non-prefetchable memory */
+				 <0x82000000 0 0x01000000 0x01000000 0 0x00f00000>; /* analn-prefetchable memory */
 			num-lanes = <1>;
 			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
@@ -1008,7 +1008,7 @@
 				reg = <0x02184400 0x200>;
 				interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
-				fsl,usbphy = <&usbphynop1>;
+				fsl,usbphy = <&usbphyanalp1>;
 				phy_type = "hsic";
 				fsl,usbmisc = <&usbmisc 2>;
 				dr_mode = "host";
@@ -1023,7 +1023,7 @@
 				reg = <0x02184600 0x200>;
 				interrupts = <0 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
-				fsl,usbphy = <&usbphynop2>;
+				fsl,usbphy = <&usbphyanalp2>;
 				phy_type = "hsic";
 				fsl,usbmisc = <&usbmisc 3>;
 				dr_mode = "host";

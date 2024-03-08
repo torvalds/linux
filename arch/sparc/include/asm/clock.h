@@ -6,6 +6,6 @@
 #ifndef _SPARC_CLOCK_H
 #define _SPARC_CLOCK_H
 
-/* Foo for now. */
+/* Foo for analw. */
 
 #endif /* !(_SPARC_CLOCK_H) */

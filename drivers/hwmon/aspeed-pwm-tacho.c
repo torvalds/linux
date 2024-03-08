@@ -5,7 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -815,7 +815,7 @@ static const struct thermal_cooling_device_ops aspeed_pwm_cool_ops = {
 };
 
 static int aspeed_create_pwm_cooling(struct device *dev,
-				     struct device_node *child,
+				     struct device_analde *child,
 				     struct aspeed_pwm_tacho_data *priv,
 				     u32 pwm_port, u8 num_levels)
 {
@@ -825,18 +825,18 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
 
 	if (!cdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->cooling_levels = devm_kzalloc(dev, num_levels, GFP_KERNEL);
 	if (!cdev->cooling_levels)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	cdev->max_state = num_levels - 1;
 	ret = of_property_read_u8_array(child, "cooling-levels",
 					cdev->cooling_levels,
 					num_levels);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
+		dev_err(dev, "Property 'cooling-levels' cananalt be read.\n");
 		return ret;
 	}
 	snprintf(cdev->name, MAX_CDEV_NAME_LEN, "%pOFn%d", child, pwm_port);
@@ -855,7 +855,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 }
 
 static int aspeed_create_fan(struct device *dev,
-			     struct device_node *child,
+			     struct device_analde *child,
 			     struct aspeed_pwm_tacho_data *priv)
 {
 	u8 *fan_tach_ch;
@@ -884,7 +884,7 @@ static int aspeed_create_fan(struct device *dev,
 	fan_tach_ch = devm_kcalloc(dev, count, sizeof(*fan_tach_ch),
 				   GFP_KERNEL);
 	if (!fan_tach_ch)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = of_property_read_u8_array(child, "aspeed,fan-tach-ch",
 					fan_tach_ch, count);
 	if (ret)
@@ -907,20 +907,20 @@ static void aspeed_pwm_tacho_remove(void *data)
 static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np, *child;
+	struct device_analde *np, *child;
 	struct aspeed_pwm_tacho_data *priv;
 	void __iomem *regs;
 	struct device *hwmon;
 	struct clk *clk;
 	int ret;
 
-	np = dev->of_node;
+	np = dev->of_analde;
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 	mutex_init(&priv->tach_lock);
 	priv->regmap = devm_regmap_init(dev, NULL, (__force void *)regs,
 			&aspeed_pwm_tacho_regmap_config);
@@ -944,17 +944,17 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
-		return -ENODEV;
+		return -EANALDEV;
 	priv->clk_freq = clk_get_rate(clk);
 	aspeed_set_clock_enable(priv->regmap, true);
 	aspeed_set_clock_source(priv->regmap, 0);
 
 	aspeed_create_type(priv);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_analde(np, child) {
 		ret = aspeed_create_fan(dev, child, priv);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 	}

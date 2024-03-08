@@ -12,7 +12,7 @@
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
 
-struct device_node;
+struct device_analde;
 
 struct sprd_clk_common {
 	struct regmap	*regmap;

@@ -3,7 +3,7 @@
 #define __ASM_GENERIC_MMU_CONTEXT_H
 
 /*
- * Generic hooks to implement no-op functionality.
+ * Generic hooks to implement anal-op functionality.
  */
 
 struct task_struct;
@@ -28,7 +28,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
  * init_new_context - Initialize context of a new mm_struct.
  * @tsk: task struct for the mm
  * @mm:  the new mm struct
- * @return: 0 on success, -errno on failure
+ * @return: 0 on success, -erranal on failure
  */
 #ifndef init_new_context
 static inline int init_new_context(struct task_struct *tsk,

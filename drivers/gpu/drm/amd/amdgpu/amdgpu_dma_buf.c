@@ -8,18 +8,18 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * based on nouveau_prime.c
+ * based on analuveau_prime.c
  *
  * Authors: Alex Deucher
  */
@@ -133,7 +133,7 @@ static void amdgpu_dma_buf_unpin(struct dma_buf_attachment *attach)
  * @dir: DMA direction
  *
  * Makes sure that the shared DMA buffer can be accessed by the target device.
- * For now, simply pins it to the GTT domain, where it should be accessible by
+ * For analw, simply pins it to the GTT domain, where it should be accessible by
  * all DMA devices.
  *
  * Returns:
@@ -208,8 +208,8 @@ error_free:
  * @sgt: sg_table to unmap
  * @dir: DMA direction
  *
- * This is called when a shared DMA buffer no longer needs to be accessible by
- * another device. For now, simply unpins the buffer from GTT.
+ * This is called when a shared DMA buffer anal longer needs to be accessible by
+ * aanalther device. For analw, simply unpins the buffer from GTT.
  */
 static void amdgpu_dma_buf_unmap(struct dma_buf_attachment *attach,
 				 struct sg_table *sgt,
@@ -358,7 +358,7 @@ error:
 }
 
 /**
- * amdgpu_dma_buf_move_notify - &attach.move_notify implementation
+ * amdgpu_dma_buf_move_analtify - &attach.move_analtify implementation
  *
  * @attach: the DMA-buf attachment
  *
@@ -366,7 +366,7 @@ error:
  * mapping before the next use.
  */
 static void
-amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
+amdgpu_dma_buf_move_analtify(struct dma_buf_attachment *attach)
 {
 	struct drm_gem_object *obj = attach->importer_priv;
 	struct ww_acquire_ctx *ticket = dma_resv_locking_ctx(obj->resv);
@@ -425,7 +425,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 
 static const struct dma_buf_attach_ops amdgpu_dma_buf_attach_ops = {
 	.allow_peer2peer = true,
-	.move_notify = amdgpu_dma_buf_move_notify
+	.move_analtify = amdgpu_dma_buf_move_analtify
 };
 
 /**
@@ -491,7 +491,7 @@ bool amdgpu_dmabuf_is_xgmi_accessible(struct amdgpu_device *adev,
 		struct dma_buf *dma_buf = obj->import_attach->dmabuf;
 
 		if (dma_buf->ops != &amdgpu_dmabuf_ops)
-			/* No XGMI with non AMD GPUs */
+			/* Anal XGMI with analn AMD GPUs */
 			return false;
 
 		gobj = dma_buf->priv;

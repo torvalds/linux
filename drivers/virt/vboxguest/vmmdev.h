@@ -39,7 +39,7 @@ struct vmmdev_memory {
 		} V1_03;
 	} V;
 
-	/* struct vbva_memory, not used */
+	/* struct vbva_memory, analt used */
 };
 VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
@@ -73,12 +73,12 @@ VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
 /*
  * Additions are allowed to work only if additions_major == vmmdev_current &&
- * additions_minor <= vmmdev_current. Additions version is reported to host
+ * additions_mianalr <= vmmdev_current. Additions version is reported to host
  * (VMMDev) by VMMDEVREQ_REPORT_GUEST_INFO.
  */
 #define VMMDEV_VERSION                      0x00010004
 #define VMMDEV_VERSION_MAJOR                (VMMDEV_VERSION >> 16)
-#define VMMDEV_VERSION_MINOR                (VMMDEV_VERSION & 0xffff)
+#define VMMDEV_VERSION_MIANALR                (VMMDEV_VERSION & 0xffff)
 
 /* Maximum request packet size. */
 #define VMMDEV_MAX_VMMDEVREQ_SIZE           1048576
@@ -96,7 +96,7 @@ struct vmmdev_request_header {
 	enum vmmdev_request_type request_type;
 	/** OUT: Return code. */
 	s32 rc;
-	/** Reserved field no.1. MBZ. */
+	/** Reserved field anal.1. MBZ. */
 	u32 reserved1;
 	/** IN: Requestor information (VMMDEV_REQUESTOR_*) */
 	u32 requestor;
@@ -124,11 +124,11 @@ VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
 #define VMMDEV_MOUSE_GUEST_CAN_ABSOLUTE                     BIT(0)
 /*
  * The host can (== wants to) send absolute coordinates.
- * (Input not captured.)
+ * (Input analt captured.)
  */
 #define VMMDEV_MOUSE_HOST_WANTS_ABSOLUTE                    BIT(1)
 /*
- * The guest can *NOT* switch to software cursor and therefore depends on the
+ * The guest can *ANALT* switch to software cursor and therefore depends on the
  * host cursor.
  *
  * When guest additions are installed and the host has promised to display the
@@ -136,13 +136,13 @@ VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
  * guest to switch to a software cursor then.
  */
 #define VMMDEV_MOUSE_GUEST_NEEDS_HOST_CURSOR                BIT(2)
-/* The host does NOT provide support for drawing the cursor itself. */
-#define VMMDEV_MOUSE_HOST_CANNOT_HWPOINTER                  BIT(3)
+/* The host does ANALT provide support for drawing the cursor itself. */
+#define VMMDEV_MOUSE_HOST_CANANALT_HWPOINTER                  BIT(3)
 /* The guest can read VMMDev events to find out about pointer movement */
 #define VMMDEV_MOUSE_NEW_PROTOCOL                           BIT(4)
 /*
  * If the guest changes the status of the VMMDEV_MOUSE_GUEST_NEEDS_HOST_CURSOR
- * bit, the host will honour this.
+ * bit, the host will hoanalur this.
  */
 #define VMMDEV_MOUSE_HOST_RECHECKS_NEEDS_HOST_CURSOR        BIT(5)
 /*
@@ -166,8 +166,8 @@ struct vmmdev_host_version {
 	struct vmmdev_request_header header;
 	/** Major version. */
 	u16 major;
-	/** Minor version. */
-	u16 minor;
+	/** Mianalr version. */
+	u16 mianalr;
 	/** Build number. */
 	u32 build;
 	/** SVN revision. */
@@ -190,7 +190,7 @@ struct vmmdev_mask {
 	/** Mask of bits to be set. */
 	u32 or_mask;
 	/** Mask of bits to be cleared. */
-	u32 not_mask;
+	u32 analt_mask;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
 
@@ -203,7 +203,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
  * Used for fast activation and deactivation of certain graphical operations
  * (e.g. resizing & seamless). The legacy VMMDEVREQ_REPORT_GUEST_CAPABILITIES
  * request sets this automatically, but VMMDEVREQ_SET_GUEST_CAPABILITIES does
- * not.
+ * analt.
  */
 #define VMMDEV_GUEST_SUPPORTS_GRAPHICS                      BIT(2)
 /* The mask of valid capabilities, for sanity checking. */
@@ -215,7 +215,7 @@ struct vmmdev_hypervisorinfo {
 	struct vmmdev_request_header header;
 	/**
 	 * Guest virtual address of proposed hypervisor start.
-	 * Not used by VMMDEVREQ_GET_HYPERVISOR_INFO.
+	 * Analt used by VMMDEVREQ_GET_HYPERVISOR_INFO.
 	 */
 	u32 hypervisor_start;
 	/** Hypervisor size in bytes. */
@@ -241,7 +241,7 @@ struct vmmdev_guest_info {
 	struct vmmdev_request_header header;
 	/**
 	 * The VMMDev interface version expected by additions.
-	 * *Deprecated*, do not use anymore! Will be removed.
+	 * *Deprecated*, do analt use anymore! Will be removed.
 	 */
 	u32 interface_version;
 	/** Guest OS type. */
@@ -257,8 +257,8 @@ struct vmmdev_guest_info2 {
 	struct vmmdev_request_header header;
 	/** Major version. */
 	u16 additions_major;
-	/** Minor version. */
-	u16 additions_minor;
+	/** Mianalr version. */
+	u16 additions_mianalr;
 	/** Build number. */
 	u32 additions_build;
 	/** SVN revision. */
@@ -275,14 +275,14 @@ struct vmmdev_guest_info2 {
 	 * This means the first three members are duplicated in this field (if
 	 * the guest build config is sane). So, the user must check this and
 	 * chop it off before usage. There is, because of the Main code's blind
-	 * trust in the field's content, no way back.
+	 * trust in the field's content, anal way back.
 	 */
 	char name[128];
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_info2, 24 + 144);
 
 enum vmmdev_guest_facility_type {
-	VBOXGUEST_FACILITY_TYPE_UNKNOWN          = 0,
+	VBOXGUEST_FACILITY_TYPE_UNKANALWN          = 0,
 	VBOXGUEST_FACILITY_TYPE_VBOXGUEST_DRIVER = 20,
 	/* VBoxGINA / VBoxCredProv / pam_vbox. */
 	VBOXGUEST_FACILITY_TYPE_AUTO_LOGON       = 90,
@@ -305,7 +305,7 @@ enum vmmdev_guest_facility_status {
 	VBOXGUEST_FACILITY_STATUS_TERMINATING = 100,
 	VBOXGUEST_FACILITY_STATUS_TERMINATED  = 101,
 	VBOXGUEST_FACILITY_STATUS_FAILED      = 800,
-	VBOXGUEST_FACILITY_STATUS_UNKNOWN     = 999,
+	VBOXGUEST_FACILITY_STATUS_UNKANALWN     = 999,
 	/* Ensure the enum is a 32 bit data-type */
 	VBOXGUEST_FACILITY_STATUS_SIZEHACK    = 0x7fffffff
 };
@@ -318,7 +318,7 @@ struct vmmdev_guest_status {
 	enum vmmdev_guest_facility_type facility;
 	/** Current guest status. */
 	enum vmmdev_guest_facility_status status;
-	/** Flags, not used at the moment. */
+	/** Flags, analt used at the moment. */
 	u32 flags;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_status, 24 + 12);
@@ -337,7 +337,7 @@ struct vmmdev_memballoon_info {
 	/**
 	 * Setting this to VMMDEV_EVENT_BALLOON_CHANGE_REQUEST indicates that
 	 * the request is a response to that event.
-	 * (Don't confuse this with VMMDEVREQ_ACKNOWLEDGE_EVENTS.)
+	 * (Don't confuse this with VMMDEVREQ_ACKANALWLEDGE_EVENTS.)
 	 */
 	u32 event_ack;
 };
@@ -368,7 +368,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_write_core_dump, 24 + 4);
 struct vmmdev_heartbeat {
 	/** Header. */
 	struct vmmdev_request_header header;
-	/** OUT: Guest heartbeat interval in nanosec. */
+	/** OUT: Guest heartbeat interval in naanalsec. */
 	u64 interval_ns;
 	/** Heartbeat check flag. */
 	u8 enabled;
@@ -439,7 +439,7 @@ VMMDEV_ASSERT_SIZE(vmmdev_hgcm_call, 32 + 12);
  * After the request header.rc will be:
  *
  * VINF_SUCCESS when cancelled.
- * VERR_NOT_FOUND if the specified request cannot be found.
+ * VERR_ANALT_FOUND if the specified request cananalt be found.
  * VERR_INVALID_PARAMETER if the address is invalid valid.
  */
 struct vmmdev_hgcm_cancel2 {

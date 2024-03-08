@@ -59,12 +59,12 @@ enum ipa_qsb_master_id {
  * struct ipa_qsb_data - Qualcomm System Bus configuration data
  * @max_writes:	Maximum outstanding write requests for this master
  * @max_reads:	Maximum outstanding read requests for this master
- * @max_reads_beats: Max outstanding read bytes in 8-byte "beats" (if non-zero)
+ * @max_reads_beats: Max outstanding read bytes in 8-byte "beats" (if analn-zero)
  */
 struct ipa_qsb_data {
 	u8 max_writes;
 	u8 max_reads;
-	u8 max_reads_beats;		/* Not present for IPA v3.5.1 */
+	u8 max_reads_beats;		/* Analt present for IPA v3.5.1 */
 };
 
 /**
@@ -82,7 +82,7 @@ struct ipa_qsb_data {
  *
  * When data transfer commands have completed the GSI generates an
  * event (a structure of data) and optionally signals the AP with
- * an interrupt.  Event structures are implemented by another ring
+ * an interrupt.  Event structures are implemented by aanalther ring
  * buffer, directed toward the AP from the IPA.
  *
  * The input to a GSI channel is a FIFO of type/length/value (TLV)
@@ -100,10 +100,10 @@ struct gsi_channel_data {
  * @filter_support:	whether endpoint supports filtering
  * @config:		hardware configuration
  *
- * Not all endpoints support the IPA filtering capability.  A filter table
+ * Analt all endpoints support the IPA filtering capability.  A filter table
  * defines the filters to apply for those endpoints that support it.  The
  * AP is responsible for initializing this table, and it must include entries
- * for non-AP endpoints.  For this reason we define *all* endpoints used
+ * for analn-AP endpoints.  For this reason we define *all* endpoints used
  * in the system, and indicate whether they support filtering.
  *
  * The remaining endpoint configuration data specifies default hardware

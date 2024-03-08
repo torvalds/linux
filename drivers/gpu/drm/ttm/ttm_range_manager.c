@@ -12,13 +12,13 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALN-INFRINGEMENT. IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
@@ -61,7 +61,7 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 			       struct ttm_resource **res)
 {
 	struct ttm_range_manager *rman = to_range_manager(man);
-	struct ttm_range_mgr_node *node;
+	struct ttm_range_mgr_analde *analde;
 	struct drm_mm *mm = &rman->mm;
 	enum drm_mm_insert_mode mode;
 	unsigned long lpfn;
@@ -71,46 +71,46 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
+	analde = kzalloc(struct_size(analde, mm_analdes, 1), GFP_KERNEL);
+	if (!analde)
+		return -EANALMEM;
 
 	mode = DRM_MM_INSERT_BEST;
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		mode = DRM_MM_INSERT_HIGH;
 
-	ttm_resource_init(bo, place, &node->base);
+	ttm_resource_init(bo, place, &analde->base);
 
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, &node->mm_nodes[0],
-					  PFN_UP(node->base.size),
+	ret = drm_mm_insert_analde_in_range(mm, &analde->mm_analdes[0],
+					  PFN_UP(analde->base.size),
 					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
 	if (unlikely(ret)) {
-		ttm_resource_fini(man, &node->base);
-		kfree(node);
+		ttm_resource_fini(man, &analde->base);
+		kfree(analde);
 		return ret;
 	}
 
-	node->base.start = node->mm_nodes[0].start;
-	*res = &node->base;
+	analde->base.start = analde->mm_analdes[0].start;
+	*res = &analde->base;
 	return 0;
 }
 
 static void ttm_range_man_free(struct ttm_resource_manager *man,
 			       struct ttm_resource *res)
 {
-	struct ttm_range_mgr_node *node = to_ttm_range_mgr_node(res);
+	struct ttm_range_mgr_analde *analde = to_ttm_range_mgr_analde(res);
 	struct ttm_range_manager *rman = to_range_manager(man);
 
 	spin_lock(&rman->lock);
-	drm_mm_remove_node(&node->mm_nodes[0]);
+	drm_mm_remove_analde(&analde->mm_analdes[0]);
 	spin_unlock(&rman->lock);
 
 	ttm_resource_fini(man, res);
-	kfree(node);
+	kfree(analde);
 }
 
 static bool ttm_range_man_intersects(struct ttm_resource_manager *man,
@@ -118,12 +118,12 @@ static bool ttm_range_man_intersects(struct ttm_resource_manager *man,
 				     const struct ttm_place *place,
 				     size_t size)
 {
-	struct drm_mm_node *node = &to_ttm_range_mgr_node(res)->mm_nodes[0];
+	struct drm_mm_analde *analde = &to_ttm_range_mgr_analde(res)->mm_analdes[0];
 	u32 num_pages = PFN_UP(size);
 
 	/* Don't evict BOs outside of the requested placement range */
-	if (place->fpfn >= (node->start + num_pages) ||
-	    (place->lpfn && place->lpfn <= node->start))
+	if (place->fpfn >= (analde->start + num_pages) ||
+	    (place->lpfn && place->lpfn <= analde->start))
 		return false;
 
 	return true;
@@ -134,11 +134,11 @@ static bool ttm_range_man_compatible(struct ttm_resource_manager *man,
 				     const struct ttm_place *place,
 				     size_t size)
 {
-	struct drm_mm_node *node = &to_ttm_range_mgr_node(res)->mm_nodes[0];
+	struct drm_mm_analde *analde = &to_ttm_range_mgr_analde(res)->mm_analdes[0];
 	u32 num_pages = PFN_UP(size);
 
-	if (node->start < place->fpfn ||
-	    (place->lpfn && (node->start + num_pages) > place->lpfn))
+	if (analde->start < place->fpfn ||
+	    (place->lpfn && (analde->start + num_pages) > place->lpfn))
 		return false;
 
 	return true;
@@ -163,7 +163,7 @@ static const struct ttm_resource_manager_func ttm_range_manager_func = {
 };
 
 /**
- * ttm_range_man_init_nocheck - Initialise a generic range manager for the
+ * ttm_range_man_init_analcheck - Initialise a generic range manager for the
  * selected memory type.
  *
  * @bdev: ttm device
@@ -175,7 +175,7 @@ static const struct ttm_resource_manager_func ttm_range_manager_func = {
  *
  * Return: %0 on success or a negative error code on failure
  */
-int ttm_range_man_init_nocheck(struct ttm_device *bdev,
+int ttm_range_man_init_analcheck(struct ttm_device *bdev,
 		       unsigned type, bool use_tt,
 		       unsigned long p_size)
 {
@@ -184,7 +184,7 @@ int ttm_range_man_init_nocheck(struct ttm_device *bdev,
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	man = &rman->manager;
 	man->use_tt = use_tt;
@@ -200,10 +200,10 @@ int ttm_range_man_init_nocheck(struct ttm_device *bdev,
 	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_range_man_init_nocheck);
+EXPORT_SYMBOL(ttm_range_man_init_analcheck);
 
 /**
- * ttm_range_man_fini_nocheck - Remove the generic range manager from a slot
+ * ttm_range_man_fini_analcheck - Remove the generic range manager from a slot
  * and tear it down.
  *
  * @bdev: ttm device
@@ -211,7 +211,7 @@ EXPORT_SYMBOL(ttm_range_man_init_nocheck);
  *
  * Return: %0 on success or a negative error code on failure
  */
-int ttm_range_man_fini_nocheck(struct ttm_device *bdev,
+int ttm_range_man_fini_analcheck(struct ttm_device *bdev,
 		       unsigned type)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(bdev, type);
@@ -237,4 +237,4 @@ int ttm_range_man_fini_nocheck(struct ttm_device *bdev,
 	kfree(rman);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_range_man_fini_nocheck);
+EXPORT_SYMBOL(ttm_range_man_fini_analcheck);

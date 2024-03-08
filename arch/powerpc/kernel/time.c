@@ -16,18 +16,18 @@
  * Speeded up do_gettimeofday by getting rid of references to
  * xtime (which required locks for consistency). (mikejc@us.ibm.com)
  *
- * TODO (not necessarily in this file):
+ * TODO (analt necessarily in this file):
  * - improve precision and reproducibility of timebase frequency
  * measurement at boot time.
- * - for astronomical applications: add a new function to get
- * non ambiguous timestamps even around leap seconds. This needs
+ * - for astroanalmical applications: add a new function to get
+ * analn ambiguous timestamps even around leap seconds. This needs
  * a new timestamp format and a good name.
  *
  * 1997-09-10  Updated NTP code according to technical memorandum Jan '96
  *             "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -109,8 +109,8 @@ struct clock_event_device decrementer_clockevent = {
 EXPORT_SYMBOL(decrementer_clockevent);
 
 /*
- * This always puts next_tb beyond now, so the clock event will never fire
- * with the usual comparison, no need for a separate test for stopped.
+ * This always puts next_tb beyond analw, so the clock event will never fire
+ * with the usual comparison, anal need for a separate test for stopped.
  */
 #define DEC_CLOCKEVENT_STOPPED ~0ULL
 DEFINE_PER_CPU(u64, decrementers_next_tb) = DEC_CLOCKEVENT_STOPPED;
@@ -168,16 +168,16 @@ static inline unsigned long read_spurr(unsigned long tb)
  * or soft irq state.
  */
 static unsigned long vtime_delta_scaled(struct cpu_accounting_data *acct,
-					unsigned long now, unsigned long stime)
+					unsigned long analw, unsigned long stime)
 {
 	unsigned long stime_scaled = 0;
 #ifdef CONFIG_ARCH_HAS_SCALED_CPUTIME
-	unsigned long nowscaled, deltascaled;
+	unsigned long analwscaled, deltascaled;
 	unsigned long utime, utime_scaled;
 
-	nowscaled = read_spurr(now);
-	deltascaled = nowscaled - acct->startspurr;
-	acct->startspurr = nowscaled;
+	analwscaled = read_spurr(analw);
+	deltascaled = analwscaled - acct->startspurr;
+	acct->startspurr = analwscaled;
 	utime = acct->utime - acct->utime_sspurr;
 	acct->utime_sspurr = acct->utime;
 
@@ -211,19 +211,19 @@ static unsigned long vtime_delta(struct cpu_accounting_data *acct,
 				 unsigned long *stime_scaled,
 				 unsigned long *steal_time)
 {
-	unsigned long now, stime;
+	unsigned long analw, stime;
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	now = mftb();
-	stime = now - acct->starttime;
-	acct->starttime = now;
+	analw = mftb();
+	stime = analw - acct->starttime;
+	acct->starttime = analw;
 
-	*stime_scaled = vtime_delta_scaled(acct, now, stime);
+	*stime_scaled = vtime_delta_scaled(acct, analw, stime);
 
 	if (IS_ENABLED(CONFIG_PPC_SPLPAR) &&
 			firmware_has_feature(FW_FEATURE_SPLPAR))
-		*steal_time = pseries_calculate_stolen_time(now);
+		*steal_time = pseries_calculate_stolen_time(analw);
 	else
 		*steal_time = 0;
 
@@ -356,7 +356,7 @@ void vtime_flush(struct task_struct *tsk)
 }
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
-void __no_kcsan __delay(unsigned long loops)
+void __anal_kcsan __delay(unsigned long loops)
 {
 	unsigned long start;
 
@@ -377,7 +377,7 @@ void __no_kcsan __delay(unsigned long loops)
 }
 EXPORT_SYMBOL(__delay);
 
-void __no_kcsan udelay(unsigned long usecs)
+void __anal_kcsan udelay(unsigned long usecs)
 {
 	__delay(tb_ticks_per_usec * usecs);
 }
@@ -442,7 +442,7 @@ void arch_irq_work_raise(void)
 	 * 64-bit code that uses irq soft-mask can just cause an immediate
 	 * interrupt here that gets soft masked, if this is called under
 	 * local_irq_disable(). It might be possible to prevent that happening
-	 * by noticing interrupts are disabled and setting decrementer pending
+	 * by analticing interrupts are disabled and setting decrementer pending
 	 * to be replayed when irqs are enabled. The problem there is that
 	 * tracing can call irq_work_raise, including in code that does low
 	 * level manipulations of irq soft-mask state (e.g., trace_hardirqs_on)
@@ -475,20 +475,20 @@ static void set_dec_or_work(u64 val)
 #endif /* CONFIG_IRQ_WORK */
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-void timer_rearm_host_dec(u64 now)
+void timer_rearm_host_dec(u64 analw)
 {
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 
 	WARN_ON_ONCE(!arch_irqs_disabled());
 	WARN_ON_ONCE(mfmsr() & MSR_EE);
 
-	if (now >= *next_tb) {
+	if (analw >= *next_tb) {
 		local_paca->irq_happened |= PACA_IRQ_DEC;
 	} else {
-		now = *next_tb - now;
-		if (now > decrementer_max)
-			now = decrementer_max;
-		set_dec_or_work(now);
+		analw = *next_tb - analw;
+		if (analw > decrementer_max)
+			analw = decrementer_max;
+		set_dec_or_work(analw);
 	}
 }
 EXPORT_SYMBOL_GPL(timer_rearm_host_dec);
@@ -503,11 +503,11 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 	struct clock_event_device *evt = this_cpu_ptr(&decrementers);
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
 	struct pt_regs *old_regs;
-	u64 now;
+	u64 analw;
 
 	/*
 	 * Some implementations of hotplug will get timer interrupts while
-	 * offline, just ignore these.
+	 * offline, just iganalre these.
 	 */
 	if (unlikely(!cpu_online(smp_processor_id()))) {
 		set_dec(decrementer_max);
@@ -547,15 +547,15 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 		irq_work_run();
 	}
 
-	now = get_tb();
-	if (now >= *next_tb) {
+	analw = get_tb();
+	if (analw >= *next_tb) {
 		evt->event_handler(evt);
 		__this_cpu_inc(irq_stat.timer_irqs_event);
 	} else {
-		now = *next_tb - now;
-		if (now > decrementer_max)
-			now = decrementer_max;
-		set_dec_or_work(now);
+		analw = *next_tb - analw;
+		if (analw > decrementer_max)
+			analw = decrementer_max;
+		set_dec_or_work(analw);
 		__this_cpu_inc(irq_stat.timer_irqs_others);
 	}
 
@@ -606,13 +606,13 @@ unsigned long long tb_to_ns(unsigned long long ticks)
 EXPORT_SYMBOL_GPL(tb_to_ns);
 
 /*
- * Scheduler clock - returns current time in nanosec units.
+ * Scheduler clock - returns current time in naanalsec units.
  *
- * Note: mulhdu(a, b) (multiply high double unsigned) returns
+ * Analte: mulhdu(a, b) (multiply high double unsigned) returns
  * the high 64 bits of a * b, i.e. (a * b) >> 64, where a and b
  * are 64-bit unsigned numbers.
  */
-notrace unsigned long long sched_clock(void)
+analtrace unsigned long long sched_clock(void)
 {
 	return mulhdu(get_tb() - boot_tb, tb_to_ns_scale) << tb_to_ns_shift;
 }
@@ -628,7 +628,7 @@ notrace unsigned long long sched_clock(void)
 unsigned long long running_clock(void)
 {
 	/*
-	 * Don't read the VTB as a host since KVM does not switch in host
+	 * Don't read the VTB as a host since KVM does analt switch in host
 	 * timebase into the VTB when it takes a guest off the CPU, reading the
 	 * VTB would result in reading 'last switched out' guest VTB.
 	 *
@@ -643,7 +643,7 @@ unsigned long long running_clock(void)
 	 * This is a next best approximation without a VTB.
 	 * On a host which is running bare metal there should never be any stolen
 	 * time and on a host which doesn't do any virtualisation TB *should* equal
-	 * VTB so it makes no difference anyway.
+	 * VTB so it makes anal difference anyway.
 	 */
 	return local_clock() - kcpustat_this_cpu->cpustat[CPUTIME_STEAL];
 }
@@ -651,12 +651,12 @@ unsigned long long running_clock(void)
 
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	const __be32 *fp;
 	int found = 0;
 
-	/* The cpu node should have timebase and clock frequency properties */
-	cpu = of_find_node_by_type(NULL, "cpu");
+	/* The cpu analde should have timebase and clock frequency properties */
+	cpu = of_find_analde_by_type(NULL, "cpu");
 
 	if (cpu) {
 		fp = of_get_property(cpu, name, NULL);
@@ -665,7 +665,7 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 			*val = of_read_ulong(fp, cells);
 		}
 
-		of_node_put(cpu);
+		of_analde_put(cpu);
 	}
 
 	return found;
@@ -698,7 +698,7 @@ void __init generic_calibrate_decr(void)
 	    !get_freq("timebase-frequency", 1, &ppc_tb_freq)) {
 
 		printk(KERN_ERR "WARNING: Estimating decrementer frequency "
-				"(not found)\n");
+				"(analt found)\n");
 	}
 
 	ppc_proc_freq = DEFAULT_PROC_FREQ;	/* hardcoded default */
@@ -707,18 +707,18 @@ void __init generic_calibrate_decr(void)
 	    !get_freq("clock-frequency", 1, &ppc_proc_freq)) {
 
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
-				"(not found)\n");
+				"(analt found)\n");
 	}
 }
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 analw)
 {
 	struct rtc_time tm;
 
 	if (!ppc_md.set_rtc_time)
-		return -ENODEV;
+		return -EANALDEV;
 
-	rtc_time64_to_tm(now.tv_sec + 1 + timezone_offset, &tm);
+	rtc_time64_to_tm(analw.tv_sec + 1 + timezone_offset, &tm);
 
 	return ppc_md.set_rtc_time(&tm);
 }
@@ -763,7 +763,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 }
 
 /* clocksource code */
-static notrace u64 timebase_read(struct clocksource *cs)
+static analtrace u64 timebase_read(struct clocksource *cs)
 {
 	return (u64)get_tb();
 }
@@ -834,14 +834,14 @@ static void enable_large_decrementer(void)
 
 static void __init set_decrementer_max(void)
 {
-	struct device_node *cpu;
+	struct device_analde *cpu;
 	u32 bits = 32;
 
 	/* Prior to ISAv3 the decrementer is always 32 bit */
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		return;
 
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_find_analde_by_type(NULL, "cpu");
 
 	if (of_property_read_u32(cpu, "ibm,dec-bits", &bits) == 0) {
 		if (bits > 64 || bits < 32) {
@@ -853,7 +853,7 @@ static void __init set_decrementer_max(void)
 		decrementer_max = (1ul << (bits - 1)) - 1;
 	}
 
-	of_node_put(cpu);
+	of_analde_put(cpu);
 
 	pr_info("time_init: %u bit decrementer (max: %llx)\n",
 		bits, decrementer_max);
@@ -886,7 +886,7 @@ void __init time_init(void)
 	u64 scale;
 	unsigned shift;
 
-	/* Normal PowerPC with timebase register */
+	/* Analrmal PowerPC with timebase register */
 	if (ppc_md.calibrate_decr)
 		ppc_md.calibrate_decr();
 	else
@@ -1001,10 +1001,10 @@ static int rtc_generic_get_time(struct device *dev, struct rtc_time *tm)
 static int rtc_generic_set_time(struct device *dev, struct rtc_time *tm)
 {
 	if (!ppc_md.set_rtc_time)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	if (ppc_md.set_rtc_time(tm) < 0)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return 0;
 }
@@ -1019,7 +1019,7 @@ static int __init rtc_init(void)
 	struct platform_device *pdev;
 
 	if (!ppc_md.get_rtc_time)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pdev = platform_device_register_data(NULL, "rtc-generic", -1,
 					     &rtc_generic_ops,

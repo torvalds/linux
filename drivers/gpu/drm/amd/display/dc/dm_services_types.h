@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -40,7 +40,7 @@ enum dm_pp_clocks_state {
 	DM_PP_CLOCKS_STATE_INVALID,
 	DM_PP_CLOCKS_STATE_ULTRA_LOW,
 	DM_PP_CLOCKS_STATE_LOW,
-	DM_PP_CLOCKS_STATE_NOMINAL,
+	DM_PP_CLOCKS_STATE_ANALMINAL,
 	DM_PP_CLOCKS_STATE_PERFORMANCE,
 
 	/* Starting from DCE11, Max 8 levels of DPM state supported. */
@@ -219,7 +219,7 @@ struct dm_bl_data_point {
 		uint8_t signal_level;
 };
 
-/* Total size of the structure should not exceed 256 bytes */
+/* Total size of the structure should analt exceed 256 bytes */
 #define BL_DATA_POINTS 99
 struct dm_acpi_atif_backlight_caps {
 	uint16_t size; /* Bytes 0-1 (2 bytes) */
@@ -270,7 +270,7 @@ struct dtn_min_clk_info {
 };
 
 enum dm_dmub_wait_type {
-	DM_DMUB_WAIT_TYPE_NO_WAIT,
+	DM_DMUB_WAIT_TYPE_ANAL_WAIT,
 	DM_DMUB_WAIT_TYPE_WAIT,
 	DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY,
 };

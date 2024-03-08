@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/qcom,ipq9574-tlmm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. IPQ9574 TLMM block
+title: Qualcomm Techanallogies, Inc. IPQ9574 TLMM block
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
@@ -43,8 +43,8 @@ $defs:
   qcom-ipq9574-tlmm-state:
     type: object
     description:
-      Pinctrl node's client devices use subnodes for desired pin configuration.
-      Client device subnodes use below standard properties.
+      Pinctrl analde's client devices use subanaldes for desired pin configuration.
+      Client device subanaldes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
     unevaluatedProperties: false
 
@@ -52,7 +52,7 @@ $defs:
       pins:
         description:
           List of gpio pins affected by the properties specified in this
-          subnode.
+          subanalde.
         items:
           pattern: "^gpio([0-9]|[1-5][0-9]|6[0-4])$"
         minItems: 1

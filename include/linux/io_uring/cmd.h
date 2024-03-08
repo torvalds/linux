@@ -39,7 +39,7 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter, void *ioucmd)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 static inline void io_uring_cmd_done(struct io_uring_cmd *cmd, ssize_t ret,
 		ssize_t ret2, unsigned issue_flags)

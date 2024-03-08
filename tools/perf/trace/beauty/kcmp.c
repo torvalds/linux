@@ -37,7 +37,7 @@ size_t syscall_arg__scnprintf_kcmp_type(char *bf, size_t size, struct syscall_ar
 	unsigned long type = arg->val;
 
 	if (type != KCMP_FILE)
-		arg->mask |= (1 << 3) | (1 << 4); /* Ignore idx1 and idx2 */
+		arg->mask |= (1 << 3) | (1 << 4); /* Iganalre idx1 and idx2 */
 
 	return kcmp__scnprintf_type(type, bf, size, arg->show_string_prefix);
 }

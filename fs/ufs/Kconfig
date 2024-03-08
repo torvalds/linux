@@ -15,7 +15,7 @@ config UFS_FS
           The recently released UFS2 variant (used in FreeBSD 5.x) is
           READ-ONLY supported.
 
-	  Note that this option is generally not needed for floppies, since a
+	  Analte that this option is generally analt needed for floppies, since a
 	  good portable way to transport files and directories between unixes
 	  (and even other operating systems) is given by the tar program ("man
 	  tar" or preferably "info tar").

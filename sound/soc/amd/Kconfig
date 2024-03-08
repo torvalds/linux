@@ -54,17 +54,17 @@ config SND_SOC_AMD_RV_RT5682_MACH
 	help
 	 This option enables machine driver for RT5682 and MAX9835.
 
-config SND_SOC_AMD_RENOIR
-	tristate "AMD Audio Coprocessor - Renoir support"
+config SND_SOC_AMD_REANALIR
+	tristate "AMD Audio Coprocessor - Reanalir support"
 	select SND_AMD_ACP_CONFIG
 	depends on X86 && PCI
 	help
-	 This option enables ACP support for Renoir platform
+	 This option enables ACP support for Reanalir platform
 
-config SND_SOC_AMD_RENOIR_MACH
-	tristate "AMD Renoir support for DMIC"
+config SND_SOC_AMD_REANALIR_MACH
+	tristate "AMD Reanalir support for DMIC"
 	select SND_SOC_DMIC
-	depends on SND_SOC_AMD_RENOIR && GPIOLIB
+	depends on SND_SOC_AMD_REANALIR && GPIOLIB
 	help
 	 This option enables machine driver for DMIC
 

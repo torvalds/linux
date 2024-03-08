@@ -3,7 +3,7 @@
 i.MX 7ULP has three IOMUXC instances: IOMUXC0 for M4 ports, IOMUXC1 for A7
 ports and IOMUXC DDR for DDR interface.
 
-Note:
+Analte:
 This binding doc is only for the IOMUXC1 support in A7 Domain and it only
 supports generic pin config.
 
@@ -38,12 +38,12 @@ PAD_CTL_PE		(1 << 0)
 Examples:
 #include "imx7ulp-pinfunc.h"
 
-/* Pin Controller Node */
+/* Pin Controller Analde */
 iomuxc1: pinctrl@40ac0000 {
 	compatible = "fsl,imx7ulp-iomuxc1";
 	reg = <0x40ac0000 0x1000>;
 
-	/* Pin Configuration Node */
+	/* Pin Configuration Analde */
 	pinctrl_lpuart4: lpuart4grp {
 		fsl,pins = <
 			IMX7ULP_PAD_PTC3__LPUART4_RX	0x1

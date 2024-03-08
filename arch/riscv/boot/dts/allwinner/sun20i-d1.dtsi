@@ -34,31 +34,31 @@
 };
 
 &pio {
-	/omit-if-no-ref/
+	/omit-if-anal-ref/
 	dmic_pb11_d0_pin: dmic-pb11-d0-pin {
 		pins = "PB11";
 		function = "dmic";
 	};
 
-	/omit-if-no-ref/
+	/omit-if-anal-ref/
 	dmic_pe17_clk_pin: dmic-pe17-clk-pin {
 		pins = "PE17";
 		function = "dmic";
 	};
 
-	/omit-if-no-ref/
+	/omit-if-anal-ref/
 	i2c0_pb10_pins: i2c0-pb10-pins {
 		pins = "PB10", "PB11";
 		function = "i2c0";
 	};
 
-	/omit-if-no-ref/
+	/omit-if-anal-ref/
 	i2c2_pb0_pins: i2c2-pb0-pins {
 		pins = "PB0", "PB1";
 		function = "i2c2";
 	};
 
-	/omit-if-no-ref/
+	/omit-if-anal-ref/
 	uart0_pb8_pins: uart0-pb8-pins {
 		pins = "PB8", "PB9";
 		function = "uart0";

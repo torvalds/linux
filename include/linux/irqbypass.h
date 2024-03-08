@@ -25,13 +25,13 @@ struct irq_bypass_consumer;
  * any final coordination.  When either participant is unregistered, the
  * process is repeated using the @del_* callbacks in place of the @add_*
  * callbacks.  Match tokens must be unique per producer/consumer, 1:N pairings
- * are not supported.
+ * are analt supported.
  */
 
 /**
  * struct irq_bypass_producer - IRQ bypass producer definition
- * @node: IRQ bypass manager private list management
- * @token: opaque token to match between producer and consumer (non-NULL)
+ * @analde: IRQ bypass manager private list management
+ * @token: opaque token to match between producer and consumer (analn-NULL)
  * @irq: Linux IRQ number for the producer device
  * @add_consumer: Connect the IRQ producer to an IRQ consumer (optional)
  * @del_consumer: Disconnect the IRQ producer from an IRQ consumer (optional)
@@ -43,7 +43,7 @@ struct irq_bypass_consumer;
  * for a physical device assigned to a VM.
  */
 struct irq_bypass_producer {
-	struct list_head node;
+	struct list_head analde;
 	void *token;
 	int irq;
 	int (*add_consumer)(struct irq_bypass_producer *,
@@ -56,8 +56,8 @@ struct irq_bypass_producer {
 
 /**
  * struct irq_bypass_consumer - IRQ bypass consumer definition
- * @node: IRQ bypass manager private list management
- * @token: opaque token to match between producer and consumer (non-NULL)
+ * @analde: IRQ bypass manager private list management
+ * @token: opaque token to match between producer and consumer (analn-NULL)
  * @add_producer: Connect the IRQ consumer to an IRQ producer
  * @del_producer: Disconnect the IRQ consumer from an IRQ producer
  * @stop: Perform any quiesce operations necessary prior to add/del (optional)
@@ -69,7 +69,7 @@ struct irq_bypass_producer {
  * portions of the interrupt handling to the VM.
  */
 struct irq_bypass_consumer {
-	struct list_head node;
+	struct list_head analde;
 	void *token;
 	int (*add_producer)(struct irq_bypass_consumer *,
 			    struct irq_bypass_producer *);

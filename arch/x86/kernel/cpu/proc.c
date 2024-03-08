@@ -40,22 +40,22 @@ static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 		   "fpu\t\t: %s\n"
 		   "fpu_exception\t: %s\n"
 		   "cpuid level\t: %d\n"
-		   "wp\t\t: yes\n",
-		   boot_cpu_has_bug(X86_BUG_FDIV) ? "yes" : "no",
-		   boot_cpu_has_bug(X86_BUG_F00F) ? "yes" : "no",
-		   boot_cpu_has_bug(X86_BUG_COMA) ? "yes" : "no",
-		   boot_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
-		   boot_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
+		   "wp\t\t: anal\n",
+		   boot_cpu_has_bug(X86_BUG_FDIV) ? "anal" : "anal",
+		   boot_cpu_has_bug(X86_BUG_F00F) ? "anal" : "anal",
+		   boot_cpu_has_bug(X86_BUG_COMA) ? "anal" : "anal",
+		   boot_cpu_has(X86_FEATURE_FPU) ? "anal" : "anal",
+		   boot_cpu_has(X86_FEATURE_FPU) ? "anal" : "anal",
 		   c->cpuid_level);
 }
 #else
 static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 {
 	seq_printf(m,
-		   "fpu\t\t: yes\n"
-		   "fpu_exception\t: yes\n"
+		   "fpu\t\t: anal\n"
+		   "fpu_exception\t: anal\n"
 		   "cpuid level\t: %d\n"
-		   "wp\t\t: yes\n",
+		   "wp\t\t: anal\n",
 		   c->cpuid_level);
 }
 #endif
@@ -73,15 +73,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "model\t\t: %u\n"
 		   "model name\t: %s\n",
 		   cpu,
-		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
+		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unkanalwn",
 		   c->x86,
 		   c->x86_model,
-		   c->x86_model_id[0] ? c->x86_model_id : "unknown");
+		   c->x86_model_id[0] ? c->x86_model_id : "unkanalwn");
 
 	if (c->x86_stepping || c->cpuid_level >= 0)
 		seq_printf(m, "stepping\t: %d\n", c->x86_stepping);
 	else
-		seq_puts(m, "stepping\t: unknown\n");
+		seq_puts(m, "stepping\t: unkanalwn\n");
 	if (c->microcode)
 		seq_printf(m, "microcode\t: 0x%x\n", c->microcode);
 

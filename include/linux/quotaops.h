@@ -12,7 +12,7 @@
 
 #define DQUOT_SPACE_WARN	0x1
 #define DQUOT_SPACE_RESERVE	0x2
-#define DQUOT_SPACE_NOFAIL	0x4
+#define DQUOT_SPACE_ANALFAIL	0x4
 
 static inline struct quota_info *sb_dqopt(struct super_block *sb)
 {
@@ -21,11 +21,11 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 
 /* i_mutex must being held */
 static inline bool is_quota_modification(struct mnt_idmap *idmap,
-					 struct inode *inode, struct iattr *ia)
+					 struct ianalde *ianalde, struct iattr *ia)
 {
 	return ((ia->ia_valid & ATTR_SIZE) ||
-		i_uid_needs_update(idmap, ia, inode) ||
-		i_gid_needs_update(idmap, ia, inode));
+		i_uid_needs_update(idmap, ia, ianalde) ||
+		i_gid_needs_update(idmap, ia, ianalde));
 }
 
 #if defined(CONFIG_QUOTA)
@@ -40,9 +40,9 @@ void __quota_error(struct super_block *sb, const char *func,
 /*
  * declaration of quota_function calls in kernel.
  */
-int dquot_initialize(struct inode *inode);
-bool dquot_initialize_needed(struct inode *inode);
-void dquot_drop(struct inode *inode);
+int dquot_initialize(struct ianalde *ianalde);
+bool dquot_initialize_needed(struct ianalde *ianalde);
+void dquot_drop(struct ianalde *ianalde);
 struct dquot *dqget(struct super_block *sb, struct kqid qid);
 static inline struct dquot *dqgrab(struct dquot *dquot)
 {
@@ -69,14 +69,14 @@ int dquot_scan_active(struct super_block *sb,
 struct dquot *dquot_alloc(struct super_block *sb, int type);
 void dquot_destroy(struct dquot *dquot);
 
-int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags);
-void __dquot_free_space(struct inode *inode, qsize_t number, int flags);
+int __dquot_alloc_space(struct ianalde *ianalde, qsize_t number, int flags);
+void __dquot_free_space(struct ianalde *ianalde, qsize_t number, int flags);
 
-int dquot_alloc_inode(struct inode *inode);
+int dquot_alloc_ianalde(struct ianalde *ianalde);
 
-void dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
-void dquot_free_inode(struct inode *inode);
-void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number);
+void dquot_claim_space_analdirty(struct ianalde *ianalde, qsize_t number);
+void dquot_free_ianalde(struct ianalde *ianalde);
+void dquot_reclaim_space_analdirty(struct ianalde *ianalde, qsize_t number);
 
 int dquot_disable(struct super_block *sb, int type, unsigned int flags);
 /* Suspend quotas on remount RO */
@@ -93,11 +93,11 @@ int dquot_commit_info(struct super_block *sb, int type);
 int dquot_get_next_id(struct super_block *sb, struct kqid *qid);
 int dquot_mark_dquot_dirty(struct dquot *dquot);
 
-int dquot_file_open(struct inode *inode, struct file *file);
+int dquot_file_open(struct ianalde *ianalde, struct file *file);
 
 int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	unsigned int flags);
-int dquot_load_quota_inode(struct inode *inode, int type, int format_id,
+int dquot_load_quota_ianalde(struct ianalde *ianalde, int type, int format_id,
 	unsigned int flags);
 int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	const struct path *path);
@@ -115,8 +115,8 @@ int dquot_get_next_dqblk(struct super_block *sb, struct kqid *id,
 int dquot_set_dqblk(struct super_block *sb, struct kqid id,
 		struct qc_dqblk *di);
 
-int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
-int dquot_transfer(struct mnt_idmap *idmap, struct inode *inode,
+int __dquot_transfer(struct ianalde *ianalde, struct dquot **transfer_to);
+int dquot_transfer(struct mnt_idmap *idmap, struct ianalde *ianalde,
 		   struct iattr *iattr);
 
 static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
@@ -151,7 +151,7 @@ static inline unsigned sb_any_quota_suspended(struct super_block *sb)
 	return dquot_state_types(sb_dqopt(sb)->flags, DQUOT_SUSPENDED);
 }
 
-/* Does kernel know about any quota information for given sb + type? */
+/* Does kernel kanalw about any quota information for given sb + type? */
 static inline bool sb_has_quota_loaded(struct super_block *sb, int type)
 {
 	/* Currently if anything is on, then quota usage is on as well */
@@ -197,7 +197,7 @@ static inline int sb_any_quota_suspended(struct super_block *sb)
 	return 0;
 }
 
-/* Does kernel know about any quota information for given sb + type? */
+/* Does kernel kanalw about any quota information for given sb + type? */
 static inline int sb_has_quota_loaded(struct super_block *sb, int type)
 {
 	return 0;
@@ -213,59 +213,59 @@ static inline int sb_has_quota_active(struct super_block *sb, int type)
 	return 0;
 }
 
-static inline int dquot_initialize(struct inode *inode)
+static inline int dquot_initialize(struct ianalde *ianalde)
 {
 	return 0;
 }
 
-static inline bool dquot_initialize_needed(struct inode *inode)
+static inline bool dquot_initialize_needed(struct ianalde *ianalde)
 {
 	return false;
 }
 
-static inline void dquot_drop(struct inode *inode)
+static inline void dquot_drop(struct ianalde *ianalde)
 {
 }
 
-static inline int dquot_alloc_inode(struct inode *inode)
+static inline int dquot_alloc_ianalde(struct ianalde *ianalde)
 {
 	return 0;
 }
 
-static inline void dquot_free_inode(struct inode *inode)
+static inline void dquot_free_ianalde(struct ianalde *ianalde)
 {
 }
 
 static inline int dquot_transfer(struct mnt_idmap *idmap,
-				 struct inode *inode, struct iattr *iattr)
+				 struct ianalde *ianalde, struct iattr *iattr)
 {
 	return 0;
 }
 
-static inline int __dquot_alloc_space(struct inode *inode, qsize_t number,
+static inline int __dquot_alloc_space(struct ianalde *ianalde, qsize_t number,
 		int flags)
 {
 	if (!(flags & DQUOT_SPACE_RESERVE))
-		inode_add_bytes(inode, number);
+		ianalde_add_bytes(ianalde, number);
 	return 0;
 }
 
-static inline void __dquot_free_space(struct inode *inode, qsize_t number,
+static inline void __dquot_free_space(struct ianalde *ianalde, qsize_t number,
 		int flags)
 {
 	if (!(flags & DQUOT_SPACE_RESERVE))
-		inode_sub_bytes(inode, number);
+		ianalde_sub_bytes(ianalde, number);
 }
 
-static inline void dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
+static inline void dquot_claim_space_analdirty(struct ianalde *ianalde, qsize_t number)
 {
-	inode_add_bytes(inode, number);
+	ianalde_add_bytes(ianalde, number);
 }
 
-static inline int dquot_reclaim_space_nodirty(struct inode *inode,
+static inline int dquot_reclaim_space_analdirty(struct ianalde *ianalde,
 					      qsize_t number)
 {
-	inode_sub_bytes(inode, number);
+	ianalde_sub_bytes(ianalde, number);
 	return 0;
 }
 
@@ -294,106 +294,106 @@ static inline int dquot_writeback_dquots(struct super_block *sb, int type)
 
 #endif /* CONFIG_QUOTA */
 
-static inline int dquot_alloc_space_nodirty(struct inode *inode, qsize_t nr)
+static inline int dquot_alloc_space_analdirty(struct ianalde *ianalde, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN);
+	return __dquot_alloc_space(ianalde, nr, DQUOT_SPACE_WARN);
 }
 
-static inline void dquot_alloc_space_nofail(struct inode *inode, qsize_t nr)
+static inline void dquot_alloc_space_analfail(struct ianalde *ianalde, qsize_t nr)
 {
-	__dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN|DQUOT_SPACE_NOFAIL);
-	mark_inode_dirty_sync(inode);
+	__dquot_alloc_space(ianalde, nr, DQUOT_SPACE_WARN|DQUOT_SPACE_ANALFAIL);
+	mark_ianalde_dirty_sync(ianalde);
 }
 
-static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
+static inline int dquot_alloc_space(struct ianalde *ianalde, qsize_t nr)
 {
 	int ret;
 
-	ret = dquot_alloc_space_nodirty(inode, nr);
+	ret = dquot_alloc_space_analdirty(ianalde, nr);
 	if (!ret) {
 		/*
-		 * Mark inode fully dirty. Since we are allocating blocks, inode
+		 * Mark ianalde fully dirty. Since we are allocating blocks, ianalde
 		 * would become fully dirty soon anyway and it reportedly
 		 * reduces lock contention.
 		 */
-		mark_inode_dirty(inode);
+		mark_ianalde_dirty(ianalde);
 	}
 	return ret;
 }
 
-static inline int dquot_alloc_block_nodirty(struct inode *inode, qsize_t nr)
+static inline int dquot_alloc_block_analdirty(struct ianalde *ianalde, qsize_t nr)
 {
-	return dquot_alloc_space_nodirty(inode, nr << inode->i_blkbits);
+	return dquot_alloc_space_analdirty(ianalde, nr << ianalde->i_blkbits);
 }
 
-static inline void dquot_alloc_block_nofail(struct inode *inode, qsize_t nr)
+static inline void dquot_alloc_block_analfail(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_alloc_space_nofail(inode, nr << inode->i_blkbits);
+	dquot_alloc_space_analfail(ianalde, nr << ianalde->i_blkbits);
 }
 
-static inline int dquot_alloc_block(struct inode *inode, qsize_t nr)
+static inline int dquot_alloc_block(struct ianalde *ianalde, qsize_t nr)
 {
-	return dquot_alloc_space(inode, nr << inode->i_blkbits);
+	return dquot_alloc_space(ianalde, nr << ianalde->i_blkbits);
 }
 
-static inline int dquot_prealloc_block_nodirty(struct inode *inode, qsize_t nr)
+static inline int dquot_prealloc_block_analdirty(struct ianalde *ianalde, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr << inode->i_blkbits, 0);
+	return __dquot_alloc_space(ianalde, nr << ianalde->i_blkbits, 0);
 }
 
-static inline int dquot_prealloc_block(struct inode *inode, qsize_t nr)
+static inline int dquot_prealloc_block(struct ianalde *ianalde, qsize_t nr)
 {
 	int ret;
 
-	ret = dquot_prealloc_block_nodirty(inode, nr);
+	ret = dquot_prealloc_block_analdirty(ianalde, nr);
 	if (!ret)
-		mark_inode_dirty_sync(inode);
+		mark_ianalde_dirty_sync(ianalde);
 	return ret;
 }
 
-static inline int dquot_reserve_block(struct inode *inode, qsize_t nr)
+static inline int dquot_reserve_block(struct ianalde *ianalde, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr << inode->i_blkbits,
+	return __dquot_alloc_space(ianalde, nr << ianalde->i_blkbits,
 				DQUOT_SPACE_WARN|DQUOT_SPACE_RESERVE);
 }
 
-static inline void dquot_claim_block(struct inode *inode, qsize_t nr)
+static inline void dquot_claim_block(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_claim_space_nodirty(inode, nr << inode->i_blkbits);
-	mark_inode_dirty_sync(inode);
+	dquot_claim_space_analdirty(ianalde, nr << ianalde->i_blkbits);
+	mark_ianalde_dirty_sync(ianalde);
 }
 
-static inline void dquot_reclaim_block(struct inode *inode, qsize_t nr)
+static inline void dquot_reclaim_block(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_reclaim_space_nodirty(inode, nr << inode->i_blkbits);
-	mark_inode_dirty_sync(inode);
+	dquot_reclaim_space_analdirty(ianalde, nr << ianalde->i_blkbits);
+	mark_ianalde_dirty_sync(ianalde);
 }
 
-static inline void dquot_free_space_nodirty(struct inode *inode, qsize_t nr)
+static inline void dquot_free_space_analdirty(struct ianalde *ianalde, qsize_t nr)
 {
-	__dquot_free_space(inode, nr, 0);
+	__dquot_free_space(ianalde, nr, 0);
 }
 
-static inline void dquot_free_space(struct inode *inode, qsize_t nr)
+static inline void dquot_free_space(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_free_space_nodirty(inode, nr);
-	mark_inode_dirty_sync(inode);
+	dquot_free_space_analdirty(ianalde, nr);
+	mark_ianalde_dirty_sync(ianalde);
 }
 
-static inline void dquot_free_block_nodirty(struct inode *inode, qsize_t nr)
+static inline void dquot_free_block_analdirty(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_free_space_nodirty(inode, nr << inode->i_blkbits);
+	dquot_free_space_analdirty(ianalde, nr << ianalde->i_blkbits);
 }
 
-static inline void dquot_free_block(struct inode *inode, qsize_t nr)
+static inline void dquot_free_block(struct ianalde *ianalde, qsize_t nr)
 {
-	dquot_free_space(inode, nr << inode->i_blkbits);
+	dquot_free_space(ianalde, nr << ianalde->i_blkbits);
 }
 
-static inline void dquot_release_reservation_block(struct inode *inode,
+static inline void dquot_release_reservation_block(struct ianalde *ianalde,
 		qsize_t nr)
 {
-	__dquot_free_space(inode, nr << inode->i_blkbits, DQUOT_SPACE_RESERVE);
+	__dquot_free_space(ianalde, nr << ianalde->i_blkbits, DQUOT_SPACE_RESERVE);
 }
 
 unsigned int qtype_enforce_flag(int type);

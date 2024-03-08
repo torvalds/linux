@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------*/
 /*
-   Qlogic linux driver - work in progress. No Warranty express or implied.
+   Qlogic linux driver - work in progress. Anal Warranty express or implied.
    Use at your own risk.  Support Tort Reform so you won't have to read all
    these silly disclaimers.
 
@@ -26,13 +26,13 @@
    Cleaned up 26/10/2002 by Alan Cox <alan@lxorguk.ukuu.org.uk> as part of the 2.5
    SCSI driver cleanup and audit. This driver still needs work on the
    following
-	-	Non terminating hardware waits
+	-	Analn terminating hardware waits
 	-	Some layering violations with its pcmcia stub
 
    Redistributable under terms of the GNU General Public License
 
    For the avoidance of doubt the "preferred form" of this code is one which
-   is in an open non patent encumbered format. Where cryptographic key signing
+   is in an open analn patent encumbered format. Where cryptographic key signing
    forms part of the process of creating an executable the information
    including keys needed to generate an equivalently functional executable
    are deemed to be part of the source code.
@@ -130,7 +130,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request,
 		j = 0;
 		while (reqlen && !((j & 0x10) && (j & 0xc0)))
 		{
-			/* while bytes to receive and not empty */
+			/* while bytes to receive and analt empty */
 			j &= 0xc0;
 			while (reqlen && !((j = inb(qbase + 8)) & 0x10))
 			{
@@ -165,7 +165,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request,
 		rtrc(7)
 		    j = 0;
 		while (reqlen && !((j & 2) && (j & 0xc0))) {
-			/* while bytes to send and not full */
+			/* while bytes to send and analt full */
 			while (reqlen && !((j = inb(qbase + 8)) & 2))
 			{
 				outb(*request++, qbase + 4);
@@ -180,7 +180,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request,
 }
 
 /*
- *	Wait for interrupt flag (polled - not real hardware interrupt)
+ *	Wait for interrupt flag (polled - analt real hardware interrupt)
  */
 
 static int ql_wai(struct qlogicfas408_priv *priv)
@@ -241,7 +241,7 @@ static void ql_icmd(struct scsi_cmnd *cmd)
 
 	/* configurables */
 	outb(qlcfgc, qbase + 0xc);
-	/* config: no reset interrupt, (initiator) bus id */
+	/* config: anal reset interrupt, (initiator) bus id */
 	outb(0x40 | qlcfg8 | priv->qinitid, qbase + 8);
 	outb(qlcfg7, qbase + 7);
 	outb(qlcfg6, qbase + 6);
@@ -278,7 +278,7 @@ static void ql_pcmd(struct scsi_cmnd *cmd)
 	j = inb(qbase + 6);
 	i = inb(qbase + 5);
 	if (i == 0x20) {
-		set_host_byte(cmd, DID_NO_CONNECT);
+		set_host_byte(cmd, DID_ANAL_CONNECT);
 		return;
 	}
 	i |= inb(qbase + 5);	/* the 0x10 bit can be set after the 0x08 */
@@ -305,9 +305,9 @@ static void ql_pcmd(struct scsi_cmnd *cmd)
 
 	if (inb(qbase + 7) & 0x1f)	/* if some bytes in fifo */
 		outb(1, qbase + 3);	/* clear fifo */
-	/* note that request_bufflen is the total xfer size when sg is used */
+	/* analte that request_bufflen is the total xfer size when sg is used */
 	reqlen = scsi_bufflen(cmd);
-	/* note that it won't work if transfers > 16M are requested */
+	/* analte that it won't work if transfers > 16M are requested */
 	if (reqlen && !((phase = inb(qbase + 4)) & 6)) {	/* data phase */
 		struct scatterlist *sg;
 		rtrc(2)
@@ -433,7 +433,7 @@ static void ql_ihandl(void *dev_id)
 	if (!(inb(qbase + 4) & 0x80))	/* false alarm? */
 		return;
 
-	if (priv->qlcmd == NULL) {	/* no command to process? */
+	if (priv->qlcmd == NULL) {	/* anal command to process? */
 		int i;
 		i = 16;
 		while (i-- && inb(qbase + 5));	/* maybe also ql_zap() */

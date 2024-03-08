@@ -49,10 +49,10 @@
  *
  * The IPA provides protocol checksum calculation, offloading this work
  * from the AP.  The IPA offers additional functionality, including routing,
- * filtering, and NAT support, but that more advanced functionality is not
+ * filtering, and NAT support, but that more advanced functionality is analt
  * currently supported.  Despite that, some resources--including routing
  * tables and filter tables--are defined in this driver because they must
- * be initialized even when the advanced hardware features are not used.
+ * be initialized even when the advanced hardware features are analt used.
  *
  * There are two distinct layers that implement the IPA hardware, and this
  * is reflected in the organization of the driver.  The generic software
@@ -65,7 +65,7 @@
  * a GSI channel carries data between the AP and the IPA, a pair of IPA
  * endpoints is used to carry traffic between two EEs.  Specifically, the main
  * modem network interface is implemented by two pairs of endpoints:  a TX
- * endpoint on the AP coupled with an RX endpoint on the modem; and another
+ * endpoint on the AP coupled with an RX endpoint on the modem; and aanalther
  * RX endpoint on the AP receiving data from a TX endpoint on the modem.
  */
 
@@ -74,7 +74,7 @@
 #define IPA_PAS_ID		15
 
 /* Shift of 19.2 MHz timestamp to achieve lower resolution timestamps */
-/* IPA v5.5+ does not specify Qtime timestamp config for DPL */
+/* IPA v5.5+ does analt specify Qtime timestamp config for DPL */
 #define DPL_TIMESTAMP_SHIFT	14	/* ~1.172 kHz, ~853 usec per tick */
 #define TAG_TIMESTAMP_SHIFT	14
 #define NAT_TIMESTAMP_SHIFT	24	/* ~1.144 Hz, ~874 msec per tick */
@@ -85,10 +85,10 @@
 /**
  * enum ipa_firmware_loader: How GSI firmware gets loaded
  *
- * @IPA_LOADER_DEFER:		System not ready; try again later
+ * @IPA_LOADER_DEFER:		System analt ready; try again later
  * @IPA_LOADER_SELF:		AP loads GSI firmware
  * @IPA_LOADER_MODEM:		Modem loads GSI firmware, signals when done
- * @IPA_LOADER_SKIP:		Neither AP nor modem need to load GSI firmware
+ * @IPA_LOADER_SKIP:		Neither AP analr modem need to load GSI firmware
  * @IPA_LOADER_INVALID:	GSI firmware loader specification is invalid
  */
 enum ipa_firmware_loader {
@@ -135,11 +135,11 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		goto err_endpoint_teardown;
 
-	ret = ipa_mem_setup(ipa);	/* No matching teardown required */
+	ret = ipa_mem_setup(ipa);	/* Anal matching teardown required */
 	if (ret)
 		goto err_command_disable;
 
-	ret = ipa_table_setup(ipa);	/* No matching teardown required */
+	ret = ipa_table_setup(ipa);	/* Anal matching teardown required */
 	if (ret)
 		goto err_command_disable;
 
@@ -153,7 +153,7 @@ int ipa_setup(struct ipa *ipa)
 
 	ipa_endpoint_default_route_set(ipa, exception_endpoint->endpoint_id);
 
-	/* We're all set.  Now prepare for communication with the modem */
+	/* We're all set.  Analw prepare for communication with the modem */
 	ret = ipa_qmi_setup(ipa);
 	if (ret)
 		goto err_default_route_clear;
@@ -207,7 +207,7 @@ ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
 	const struct reg *reg;
 	u32 val;
 
-	/* IPA v4.5+ has no backward compatibility register */
+	/* IPA v4.5+ has anal backward compatibility register */
 	if (ipa->version >= IPA_VERSION_4_5)
 		return;
 
@@ -270,7 +270,7 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	u32 offset;
 	u32 val;
 
-	/* Nothing to configure prior to IPA v4.0 */
+	/* Analthing to configure prior to IPA v4.0 */
 	if (ipa->version < IPA_VERSION_4_0)
 		return;
 
@@ -289,8 +289,8 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 		/* For IPA v4.5+ FULL_FLUSH_WAIT_RS_CLOSURE_EN is 0 */
 	}
 
-	val |= reg_bit(reg, GSI_MULTI_INORDER_RD_DIS);
-	val |= reg_bit(reg, GSI_MULTI_INORDER_WR_DIS);
+	val |= reg_bit(reg, GSI_MULTI_IANALRDER_RD_DIS);
+	val |= reg_bit(reg, GSI_MULTI_IANALRDER_WR_DIS);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -340,7 +340,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 
 /* Compute the value to use in the COUNTER_CFG register AGGR_GRANULARITY
  * field to represent the given number of microseconds.  The value is one
- * less than the number of timer ticks in the requested period.  0 is not
+ * less than the number of timer ticks in the requested period.  0 is analt
  * a valid granularity value (so for example @usec must be at least 16 for
  * a TIMER_FREQUENCY of 32000).
  */
@@ -363,7 +363,7 @@ static __always_inline u32 ipa_aggr_granularity_val(u32 usec)
  * a divider (we use 192, to produce a 100kHz timer clock).  From
  * this common clock, three "pulse generators" are used to produce
  * timer ticks at a configurable frequency.  IPA timers (such as
- * those used for aggregation or head-of-line block handling) now
+ * those used for aggregation or head-of-line block handling) analw
  * define their period based on one of these pulse generators.
  */
 static void ipa_qtime_config(struct ipa *ipa)
@@ -378,7 +378,7 @@ static void ipa_qtime_config(struct ipa *ipa)
 
 	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
 	if (ipa->version < IPA_VERSION_5_5) {
-		/* Set DPL time stamp resolution to use Qtime (not 1 msec) */
+		/* Set DPL time stamp resolution to use Qtime (analt 1 msec) */
 		val = reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
 		val |= reg_bit(reg, DPL_TIMESTAMP_SEL);
 	}
@@ -443,12 +443,12 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 	/* Other than IPA v4.2, all versions enable "hashing".  Starting
 	 * with IPA v5.0, the filter and router tables are implemented
 	 * differently, but the default configuration enables this feature
-	 * (now referred to as "cacheing"), so there's nothing to do here.
+	 * (analw referred to as "cacheing"), so there's analthing to do here.
 	 */
 	if (ipa->version != IPA_VERSION_4_2)
 		return;
 
-	/* IPA v4.2 does not support hashed tables, so disable them */
+	/* IPA v4.2 does analt support hashed tables, so disable them */
 	reg = ipa_reg(ipa, FILT_ROUT_HASH_EN);
 
 	/* IPV6_ROUTER_HASH, IPV6_FILTER_HASH, IPV4_ROUTER_HASH,
@@ -459,7 +459,7 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 
 static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
-				    bool const_non_idle_enable)
+				    bool const_analn_idle_enable)
 {
 	const struct reg *reg;
 	u32 val;
@@ -470,8 +470,8 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 	reg = ipa_reg(ipa, IDLE_INDICATION_CFG);
 	val = reg_encode(reg, ENTER_IDLE_DEBOUNCE_THRESH,
 			 enter_idle_debounce_thresh);
-	if (const_non_idle_enable)
-		val |= reg_bit(reg, CONST_NON_IDLE_ENABLE);
+	if (const_analn_idle_enable)
+		val |= reg_bit(reg, CONST_ANALN_IDLE_ENABLE);
 
 	iowrite32(val, ipa->reg_virt + reg_offset(reg));
 }
@@ -555,9 +555,9 @@ static int ipa_config(struct ipa *ipa, const struct ipa_data *data)
 	if (ret)
 		goto err_uc_deconfig;
 
-	ipa_table_config(ipa);		/* No deconfig required */
+	ipa_table_config(ipa);		/* Anal deconfig required */
 
-	/* Assign resource limitation to each group; no deconfig required */
+	/* Assign resource limitation to each group; anal deconfig required */
 	ret = ipa_resource_config(ipa, data->resource_data);
 	if (ret)
 		goto err_endpoint_deconfig;
@@ -600,7 +600,7 @@ static void ipa_deconfig(struct ipa *ipa)
 static int ipa_firmware_load(struct device *dev)
 {
 	const struct firmware *fw;
-	struct device_node *node;
+	struct device_analde *analde;
 	struct resource res;
 	phys_addr_t phys;
 	const char *path;
@@ -608,14 +608,14 @@ static int ipa_firmware_load(struct device *dev)
 	void *virt;
 	int ret;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
+	analde = of_parse_phandle(dev->of_analde, "memory-region", 0);
+	if (!analde) {
 		dev_err(dev, "DT error getting \"memory-region\" property\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &res);
-	of_node_put(node);
+	ret = of_address_to_resource(analde, 0, &res);
+	of_analde_put(analde);
 	if (ret) {
 		dev_err(dev, "error %d getting \"memory-region\" resource\n",
 			ret);
@@ -623,7 +623,7 @@ static int ipa_firmware_load(struct device *dev)
 	}
 
 	/* Use name from DTB if specified; use default for *any* error */
-	ret = of_property_read_string(dev->of_node, "firmware-name", &path);
+	ret = of_property_read_string(dev->of_analde, "firmware-name", &path);
 	if (ret) {
 		dev_dbg(dev, "error %d getting \"firmware-name\" resource\n",
 			ret);
@@ -641,7 +641,7 @@ static int ipa_firmware_load(struct device *dev)
 	virt = memremap(phys, size, MEMREMAP_WC);
 	if (!virt) {
 		dev_err(dev, "unable to remap firmware memory\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_release_firmware;
 	}
 
@@ -710,14 +710,14 @@ static void ipa_validate_build(void)
 	 * We currently only perform divide and modulo operations on u32,
 	 * u16, or size_t objects, and of those only size_t has any chance
 	 * of being a 64-bit value.  (It should be guaranteed 32 bits wide
-	 * on a 32-bit build, but there is no harm in verifying that.)
+	 * on a 32-bit build, but there is anal harm in verifying that.)
 	 */
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_64BIT) && sizeof(size_t) != 4);
 
 	/* Code assumes the EE ID for the AP is 0 (zeroed structure field) */
 	BUILD_BUG_ON(GSI_EE_AP != 0);
 
-	/* There's no point if we have no channels or event rings */
+	/* There's anal point if we have anal channels or event rings */
 	BUILD_BUG_ON(!GSI_CHANNEL_COUNT_MAX);
 	BUILD_BUG_ON(!GSI_EVT_RING_COUNT_MAX);
 
@@ -745,8 +745,8 @@ static enum ipa_firmware_loader ipa_firmware_loader(struct device *dev)
 	int ret;
 
 	/* Look up the old and new properties by name */
-	modem_init = of_property_read_bool(dev->of_node, "modem-init");
-	ret = of_property_read_string(dev->of_node, "qcom,gsi-loader", &str);
+	modem_init = of_property_read_bool(dev->of_analde, "modem-init");
+	ret = of_property_read_string(dev->of_analde, "qcom,gsi-loader", &str);
 
 	/* If the new property doesn't exist, it's legacy behavior */
 	if (ret == -EINVAL) {
@@ -767,7 +767,7 @@ static enum ipa_firmware_loader ipa_firmware_loader(struct device *dev)
 	if (!strcmp(str, "modem"))
 		return IPA_LOADER_MODEM;
 
-	/* No GSI firmware load is needed for "skip" */
+	/* Anal GSI firmware load is needed for "skip" */
 	if (!strcmp(str, "skip"))
 		return IPA_LOADER_SKIP;
 
@@ -794,7 +794,7 @@ out_self:
  *   - The "init" stage involves activities that can be initialized without
  *     access to the IPA hardware.
  *   - The "config" stage requires IPA power to be active so IPA registers
- *     can be accessed, but does not require the use of IPA immediate commands.
+ *     can be accessed, but does analt require the use of IPA immediate commands.
  *   - The "setup" stage uses IPA immediate commands, and so requires the GSI
  *     layer to be initialized.
  *
@@ -819,8 +819,8 @@ static int ipa_probe(struct platform_device *pdev)
 	/* Get configuration data early; needed for power initialization */
 	data = of_device_get_match_data(dev);
 	if (!data) {
-		dev_err(dev, "matched hardware not supported\n");
-		return -ENODEV;
+		dev_err(dev, "matched hardware analt supported\n");
+		return -EANALDEV;
 	}
 
 	if (!ipa_version_supported(data->version)) {
@@ -829,7 +829,7 @@ static int ipa_probe(struct platform_device *pdev)
 	}
 
 	if (!data->modem_route_count) {
-		dev_err(dev, "modem_route_count cannot be zero\n");
+		dev_err(dev, "modem_route_count cananalt be zero\n");
 		return -EINVAL;
 	}
 
@@ -839,17 +839,17 @@ static int ipa_probe(struct platform_device *pdev)
 	if (loader == IPA_LOADER_DEFER)
 		return -EPROBE_DEFER;
 
-	/* The clock and interconnects might not be ready when we're
+	/* The clock and interconnects might analt be ready when we're
 	 * probed, so might return -EPROBE_DEFER.
 	 */
 	power = ipa_power_init(dev, data->power_data);
 	if (IS_ERR(power))
 		return PTR_ERR(power);
 
-	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
+	/* Anal more EPROBE_DEFER.  Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
 	if (!ipa) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_power_exit;
 	}
 
@@ -873,7 +873,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mem_exit;
 
-	/* Result is a non-zero mask of endpoints that support filtering */
+	/* Result is a analn-zero mask of endpoints that support filtering */
 	ret = ipa_endpoint_init(ipa, data->endpoint_count, data->endpoint_data);
 	if (ret)
 		goto err_gsi_exit;
@@ -904,7 +904,7 @@ static int ipa_probe(struct platform_device *pdev)
 		goto done;
 
 	if (loader == IPA_LOADER_SELF) {
-		/* The AP is loading GSI firmware; do so now */
+		/* The AP is loading GSI firmware; do so analw */
 		ret = ipa_firmware_load(dev);
 		if (ret)
 			goto err_deconfig;
@@ -923,7 +923,7 @@ done:
 err_deconfig:
 	ipa_deconfig(ipa);
 err_power_put:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	ipa_smp2p_exit(ipa);
 err_table_exit:
 	ipa_table_exit(ipa);
@@ -968,7 +968,7 @@ static void ipa_remove(struct platform_device *pdev)
 		}
 		if (ret) {
 			/*
-			 * Not cleaning up here properly might also yield a
+			 * Analt cleaning up here properly might also yield a
 			 * crash later on. As the device is still unregistered
 			 * in this case, this might even yield a crash later on.
 			 */
@@ -982,7 +982,7 @@ static void ipa_remove(struct platform_device *pdev)
 
 	ipa_deconfig(ipa);
 out_power_put:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_analidle(dev);
 	ipa_smp2p_exit(ipa);
 	ipa_table_exit(ipa);
 	ipa_endpoint_exit(ipa);

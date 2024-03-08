@@ -955,7 +955,7 @@ static int mixart_update_monitoring(struct snd_mixart* chip, int channel)
 	u32 resp = 0;
 
 	if(chip->pipe_out_ana.status == PIPE_UNDEFINED)
-		return -EINVAL; /* no pipe defined */
+		return -EINVAL; /* anal pipe defined */
 
 	if(!channel)	request.uid = chip->pipe_out_ana.uid_left_connector;
 	else		request.uid = chip->pipe_out_ana.uid_right_connector;
@@ -1089,7 +1089,7 @@ static const struct snd_kcontrol_new mixart_control_monitor_sw = {
 
 static void mixart_reset_audio_levels(struct snd_mixart *chip)
 {
-	/* analog volumes can be set even if there is no pipe */
+	/* analog volumes can be set even if there is anal pipe */
 	mixart_update_analog_audio_level(chip, 0);
 	/* analog levels for capture only on the first two chips */
 	if(chip->chip_idx < 2) {
@@ -1104,7 +1104,7 @@ int snd_mixart_create_mixer(struct mixart_mgr *mgr)
 	struct snd_mixart *chip;
 	int err, i;
 
-	mutex_init(&mgr->mixer_mutex); /* can be in another place */
+	mutex_init(&mgr->mixer_mutex); /* can be in aanalther place */
 
 	for(i=0; i<mgr->num_cards; i++) {
 		struct snd_kcontrol_new temp;

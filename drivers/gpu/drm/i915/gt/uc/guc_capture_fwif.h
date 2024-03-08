@@ -27,10 +27,10 @@ struct __guc_capture_bufstate {
 };
 
 /*
- * struct __guc_capture_parsed_output - extracted error capture node
+ * struct __guc_capture_parsed_output - extracted error capture analde
  *
  * A single unit of extracted error-capture output data grouped together
- * at an engine-instance level. We keep these nodes in a linked list.
+ * at an engine-instance level. We keep these analdes in a linked list.
  * See cachelist and outlist below.
  */
 struct __guc_capture_parsed_output {
@@ -38,7 +38,7 @@ struct __guc_capture_parsed_output {
 	 * A single set of 3 capture lists: a global-list
 	 * an engine-class-list and an engine-instance list.
 	 * outlist in __guc_capture_parsed_output will keep
-	 * a linked list of these nodes that will eventually
+	 * a linked list of these analdes that will eventually
 	 * be detached from outlist and attached into to
 	 * i915_gpu_codedump in response to a context reset
 	 */
@@ -176,7 +176,7 @@ struct intel_guc_state_capture {
 	/**
 	 * @extlists: allocated table of steered register lists used for error-capture state.
 	 *
-	 * NOTE: steered registers have multiple instances depending on the HW configuration
+	 * ANALTE: steered registers have multiple instances depending on the HW configuration
 	 * (slices or dual-sub-slices) and thus depends on HW fuses discovered at startup
 	 */
 	struct __guc_mmio_reg_descr_group *extlists;
@@ -194,31 +194,31 @@ struct intel_guc_state_capture {
 	void *ads_null_cache;
 
 	/**
-	 * @cachelist: Pool of pre-allocated nodes for error capture output
+	 * @cachelist: Pool of pre-allocated analdes for error capture output
 	 *
-	 * We need this pool of pre-allocated nodes because we cannot
-	 * dynamically allocate new nodes when receiving the G2H notification
+	 * We need this pool of pre-allocated analdes because we cananalt
+	 * dynamically allocate new analdes when receiving the G2H analtification
 	 * because the event handlers for all G2H event-processing is called
 	 * by the ct processing worker queue and when that queue is being
-	 * processed, there is no absoluate guarantee that we are not in the
+	 * processed, there is anal absoluate guarantee that we are analt in the
 	 * midst of a GT reset operation (which doesn't allow allocations).
 	 */
 	struct list_head cachelist;
-#define PREALLOC_NODES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
-#define PREALLOC_NODES_DEFAULT_NUMREGS 64
+#define PREALLOC_ANALDES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
+#define PREALLOC_ANALDES_DEFAULT_NUMREGS 64
 
 	/**
-	 * @max_mmio_per_node: Max MMIO per node.
+	 * @max_mmio_per_analde: Max MMIO per analde.
 	 */
-	int max_mmio_per_node;
+	int max_mmio_per_analde;
 
 	/**
-	 * @outlist: Pool of pre-allocated nodes for error capture output
+	 * @outlist: Pool of pre-allocated analdes for error capture output
 	 *
 	 * A linked list of parsed GuC error-capture output data before
-	 * reporting with formatting via i915_gpu_coredump. Each node in this linked list shall
+	 * reporting with formatting via i915_gpu_coredump. Each analde in this linked list shall
 	 * contain a single engine-capture including global, engine-class and
-	 * engine-instance register dumps as per guc_capture_parsed_output_node
+	 * engine-instance register dumps as per guc_capture_parsed_output_analde
 	 */
 	struct list_head outlist;
 };

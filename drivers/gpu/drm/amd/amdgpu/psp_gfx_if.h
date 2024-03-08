@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -55,7 +55,7 @@ enum psp_gfx_crtl_cmd_id
 
 
 /*-----------------------------------------------------------------------------
-    NOTE:   All physical addresses used in this interface are actually
+    ANALTE:   All physical addresses used in this interface are actually
             GPU Virtual Addresses.
 */
 
@@ -129,7 +129,7 @@ struct psp_gfx_cmd_load_ta
     uint32_t        cmd_buf_phy_addr_hi;    /* bits [63:32] of the GPU Virtual address of CMD buffer */
     uint32_t        cmd_buf_len;            /* length of the CMD buffer in bytes; must be multiple of 4 KB */
 
-    /* Note: CmdBufLen can be set to 0. In this case no persistent CMD buffer is provided
+    /* Analte: CmdBufLen can be set to 0. In this case anal persistent CMD buffer is provided
     *       for the TA. Each InvokeCommand can have dinamically mapped CMD buffer instead
     *       of using global persistent buffer.
     */
@@ -150,7 +150,7 @@ struct psp_gfx_buf_desc
 {
     uint32_t        buf_phy_addr_lo;       /* bits [31:0] of GPU Virtual address of the buffer (must be 4 KB aligned) */
     uint32_t        buf_phy_addr_hi;       /* bits [63:32] of GPU Virtual address of the buffer */
-    uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB and no bigger than 64 MB) */
+    uint32_t        buf_size;              /* buffer size in bytes (must be multiple of 4 KB and anal bigger than 64 MB) */
 
 };
 
@@ -200,7 +200,7 @@ struct psp_gfx_cmd_setup_tmr
 
 /* FW types for GFX_CMD_ID_LOAD_IP_FW command. Limit 31. */
 enum psp_gfx_fw_type {
-	GFX_FW_TYPE_NONE        = 0,    /* */
+	GFX_FW_TYPE_ANALNE        = 0,    /* */
 	GFX_FW_TYPE_CP_ME       = 1,    /* CP-ME                    VG + RV */
 	GFX_FW_TYPE_CP_PFP      = 2,    /* CP-PFP                   VG + RV */
 	GFX_FW_TYPE_CP_CE       = 3,    /* CP-CE                    VG + RV */
@@ -429,7 +429,7 @@ struct psp_gfx_cmd_resp
 
     uint8_t         reserved_1[864 - sizeof(union psp_gfx_commands) - 28];
 
-    /* Note: Resp is part of this buffer for GPCOM ring. For RBI ring the response
+    /* Analte: Resp is part of this buffer for GPCOM ring. For RBI ring the response
     *        is separate buffer pointed by resp_buf_addr_hi and resp_buf_addr_lo.
     */
     struct psp_gfx_resp     resp;       /* +864 response */
@@ -460,11 +460,11 @@ struct psp_gfx_rb_frame
                 /* total 64 bytes */
 };
 
-#define PSP_ERR_UNKNOWN_COMMAND 0x00000100
+#define PSP_ERR_UNKANALWN_COMMAND 0x00000100
 
 enum tee_error_code {
     TEE_SUCCESS                         = 0x00000000,
-    TEE_ERROR_NOT_SUPPORTED             = 0xFFFF000A,
+    TEE_ERROR_ANALT_SUPPORTED             = 0xFFFF000A,
 };
 
 #endif /* _PSP_TEE_GFX_IF_H_ */

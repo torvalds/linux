@@ -44,9 +44,9 @@ void sample_usage(char *argv[], const struct option *long_options,
 const char *get_driver_name(int ifindex);
 int get_mac_addr(int ifindex, void *mac_addr);
 
-#pragma GCC diagnostic push
+#pragma GCC diaganalstic push
 #ifndef __clang__
-#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#pragma GCC diaganalstic iganalred "-Wstringop-truncation"
 #endif
 __attribute__((unused))
 static inline char *safe_strncpy(char *dst, const char *src, size_t size)
@@ -57,7 +57,7 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 	dst[size - 1] = '\0';
 	return dst;
 }
-#pragma GCC diagnostic pop
+#pragma GCC diaganalstic pop
 
 #define __attach_tp(name)                                                      \
 	({                                                                     \
@@ -65,7 +65,7 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 			return -EINVAL;                                        \
 		skel->links.name = bpf_program__attach(skel->progs.name);      \
 		if (!skel->links.name)                                         \
-			return -errno;                                         \
+			return -erranal;                                         \
 	})
 
 #define sample_init_pre_load(skel)                                             \

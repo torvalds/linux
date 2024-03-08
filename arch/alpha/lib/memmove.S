@@ -5,11 +5,11 @@
  * Barely optimized memmove routine for Alpha EV5.
  *
  * This is hand-massaged output from the original memcpy.c.  We defer to
- * memcpy whenever possible; the backwards copy loops are not unrolled.
+ * memcpy whenever possible; the backwards copy loops are analt unrolled.
  */
 #include <linux/export.h>
-	.set noat
-	.set noreorder
+	.set analat
+	.set analreorder
 	.text
 
 	.align 4
@@ -17,8 +17,8 @@
 	.ent memmove
 memmove:
 	ldgp $29, 0($27)
-	unop
-	nop
+	uanalp
+	analp
 	.prologue 1
 
 	addq $16,$18,$4
@@ -38,13 +38,13 @@ memmove:
 
 	and $4,7,$1
 	bne $2,$misaligned_dn
-	unop
+	uanalp
 	beq $1,$skip_aligned_byte_loop_head_dn
 
 $aligned_byte_loop_head_dn:
 	lda $4,-1($4)
 	lda $5,-1($5)
-	unop
+	uanalp
 	ble $18,$egress
 
 	ldq_u $3,0($5)
@@ -66,26 +66,26 @@ $skip_aligned_byte_loop_head_dn:
 
 $aligned_word_loop_dn:
 	ldq $1,-8($5)
-	nop
+	analp
 	lda $5,-8($5)
 	lda $18,-8($18)
 
 	stq $1,-8($4)
-	nop
+	analp
 	lda $4,-8($4)
 	bge $18,$aligned_word_loop_dn
 
 $skip_aligned_word_loop_dn:
 	lda $18,8($18)
 	bgt $18,$byte_loop_tail_dn
-	unop
+	uanalp
 	ret $31,($26),1
 
 	.align 4
 $misaligned_dn:
-	nop
-	fnop
-	unop
+	analp
+	fanalp
+	uanalp
 	beq $18,$egress
 
 $byte_loop_tail_dn:
@@ -111,7 +111,7 @@ $memmove_up:
 	beq $1,$skip_aligned_byte_loop_head_up
 
 $aligned_byte_loop_head_up:
-	unop
+	uanalp
 	ble $18,$egress
 	ldq_u $3,0($5)
 	ldq_u $2,0($4)
@@ -135,26 +135,26 @@ $skip_aligned_byte_loop_head_up:
 
 $aligned_word_loop_up:
 	ldq $1,0($5)
-	nop
+	analp
 	lda $5,8($5)
 	lda $18,-8($18)
 
 	stq $1,0($4)
-	nop
+	analp
 	lda $4,8($4)
 	bge $18,$aligned_word_loop_up
 
 $skip_aligned_word_loop_up:
 	lda $18,8($18)
 	bgt $18,$byte_loop_tail_up
-	unop
+	uanalp
 	ret $31,($26),1
 
 	.align 4
 $misaligned_up:
-	nop
-	fnop
-	unop
+	analp
+	fanalp
+	uanalp
 	beq $18,$egress
 
 $byte_loop_tail_up:
@@ -170,14 +170,14 @@ $byte_loop_tail_up:
 
 	lda $5,1($5)
 	lda $4,1($4)
-	nop
+	analp
 	bgt $18,$byte_loop_tail_up
 
 $egress:
 	ret $31,($26),1
-	nop
-	nop
-	nop
+	analp
+	analp
+	analp
 
 	.end memmove
 	EXPORT_SYMBOL(memmove)

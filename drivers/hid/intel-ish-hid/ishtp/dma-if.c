@@ -93,7 +93,7 @@ void	ishtp_cl_free_dma_buf(struct ishtp_device *dev)
  * Find and return free address of "size" bytes in dma tx buffer.
  * the function will mark this address as "in-used" memory.
  *
- * Return: NULL when no free buffer else a buffer to copy
+ * Return: NULL when anal free buffer else a buffer to copy
  */
 void *ishtp_cl_get_dma_send_buf(struct ishtp_device *dev,
 				uint32_t size)
@@ -128,7 +128,7 @@ void *ishtp_cl_get_dma_send_buf(struct ishtp_device *dev,
 		}
 	}
 	spin_unlock_irqrestore(&dev->ishtp_dma_tx_lock, flags);
-	dev_err(dev->devc, "No free DMA buffer to send msg\n");
+	dev_err(dev->devc, "Anal free DMA buffer to send msg\n");
 	return NULL;
 }
 
@@ -165,7 +165,7 @@ void ishtp_cl_release_dma_acked_mem(struct ishtp_device *dev,
 	for (j = 0; j < acked_slots; j++) {
 		if ((i + j) >= dev->ishtp_dma_num_slots ||
 					!dev->ishtp_dma_tx_map[i+j]) {
-			/* no such slot, or memory is already free */
+			/* anal such slot, or memory is already free */
 			spin_unlock_irqrestore(&dev->ishtp_dma_tx_lock, flags);
 			dev_err(dev->devc, "Bad DMA Tx ack address\n");
 			return;

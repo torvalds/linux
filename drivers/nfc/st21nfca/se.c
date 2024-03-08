@@ -126,7 +126,7 @@ static int st21nfca_hci_control_se(struct nfc_hci_dev *hdev, u32 se_idx,
 		msecs_to_jiffies(ST21NFCA_SE_TO_HOT_PLUG));
 	info->se_info.se_active = true;
 
-	/* Ignore return value and check in any case the host_list */
+	/* Iganalre return value and check in any case the host_list */
 	wait_for_completion_interruptible(&info->se_info.req_completion);
 
 	r = nfc_hci_get_param(hdev, NFC_HCI_ADMIN_GATE,
@@ -190,7 +190,7 @@ int st21nfca_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	} else if (r < 0) {
 		/*
 		 * The activation tentative failed, the secure element
-		 * is not connected. Remove from the list.
+		 * is analt connected. Remove from the list.
 		 */
 		nfc_remove_se(hdev->ndev, se_idx);
 		return r;
@@ -238,11 +238,11 @@ int st21nfca_hci_se_io(struct nfc_hci_dev *hdev, u32 se_idx,
 	default:
 		/* Need to free cb_context here as at the moment we can't
 		 * clearly indicate to the caller if the callback function
-		 * would be called (and free it) or not. In both cases a
+		 * would be called (and free it) or analt. In both cases a
 		 * negative value may be returned to the caller.
 		 */
 		kfree(cb_context);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 }
 EXPORT_SYMBOL(st21nfca_hci_se_io);
@@ -250,11 +250,11 @@ EXPORT_SYMBOL(st21nfca_hci_se_io);
 static void st21nfca_se_wt_work(struct work_struct *work)
 {
 	/*
-	 * No answer from the secure element
+	 * Anal answer from the secure element
 	 * within the defined timeout.
 	 * Let's send a reset request as recovery procedure.
 	 * According to the situation, we first try to send a software reset
-	 * to the secure element. If the next command is still not
+	 * to the secure element. If the next command is still analt
 	 * answering in time, we send to the CLF a secure element hardware
 	 * reset request.
 	 */
@@ -298,7 +298,7 @@ static void st21nfca_se_activation_timeout(struct timer_list *t)
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does analt handle the event, please do standard processing
  */
 int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 				u8 event, struct sk_buff *skb)
@@ -325,7 +325,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 		 * The key differences are aid storage length is variably sized
 		 * in the packet, but fixed in nfc_evt_transaction, and that the aid_len
 		 * is u8 in the packet, but u32 in the structure, and the tags in
-		 * the packet are not included in nfc_evt_transaction.
+		 * the packet are analt included in nfc_evt_transaction.
 		 *
 		 * size in bytes: 1          1       5-16 1             1           0-255
 		 * offset:        0          1       2    aid_len + 2   aid_len + 3 aid_len + 4
@@ -342,7 +342,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 
 		params_len = skb->data[aid_len + 3];
 
-		/* Verify PARAMETERS tag is (82), and final check that there is enough
+		/* Verify PARAMETERS tag is (82), and final check that there is eanalugh
 		 * space in the packet to read everything.
 		 */
 		if ((skb->data[aid_len + 2] != NFC_EVT_TRANSACTION_PARAMS_TAG) ||
@@ -351,7 +351,7 @@ int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 
 		transaction = devm_kzalloc(dev, sizeof(*transaction) + params_len, GFP_KERNEL);
 		if (!transaction)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		transaction->aid_len = aid_len;
 		transaction->params_len = params_len;

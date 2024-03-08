@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * omap3-n9.dts - Device Tree file for Nokia N9
+ * omap3-n9.dts - Device Tree file for Analkia N9
  *
  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
  */
@@ -11,15 +11,15 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Nokia N9";
-	compatible = "nokia,omap3-n9", "ti,omap3630", "ti,omap3";
+	model = "Analkia N9";
+	compatible = "analkia,omap3-n9", "ti,omap3630", "ti,omap3";
 };
 
 &i2c2 {
 	smia_1: camera@10 {
-		compatible = "nokia,smia";
+		compatible = "analkia,smia";
 		reg = <0x10>;
-		/* No reset gpio */
+		/* Anal reset gpio */
 		vana-supply = <&vaux3>;
 		clocks = <&isp 0>;
 		clock-frequency = <9600000>;
@@ -60,7 +60,7 @@
 };
 
 &modem {
-	compatible = "nokia,n9-modem";
+	compatible = "analkia,n9-modem";
 };
 
 &lis302 {

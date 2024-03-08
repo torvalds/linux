@@ -21,7 +21,7 @@
 #define u32 __u32
 #define u64 __u64
 
-#define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
+#define PTR_ERR_EANALTSUP ((void *)-EANALTSUP)
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0
@@ -47,7 +47,7 @@ static inline void sigsafe_printf(const char *format, ...)
 	} else {
 		int ret;
 		/*
-		 * No printf() functions are signal-safe.
+		 * Anal printf() functions are signal-safe.
 		 * They deadlock easily. Write the format
 		 * string to get some output, even if
 		 * incomplete.
@@ -73,13 +73,13 @@ extern void abort_hooks(void);
 		dprintf0("assert() at %s::%d test_nr: %d iteration: %d\n", \
 				__FILE__, __LINE__,	\
 				test_nr, iteration_nr);	\
-		dprintf0("errno at assert: %d", errno);	\
+		dprintf0("erranal at assert: %d", erranal);	\
 		abort_hooks();			\
 		exit(__LINE__);			\
 	}					\
 } while (0)
 
-__attribute__((noinline)) int read_ptr(int *ptr);
+__attribute__((analinline)) int read_ptr(int *ptr);
 void expected_pkey_fault(int pkey);
 int sys_pkey_alloc(unsigned long flags, unsigned long init_val);
 int sys_pkey_free(unsigned long pkey);
@@ -92,7 +92,7 @@ void record_pkey_malloc(void *ptr, long size, int prot);
 #elif defined(__powerpc64__) /* arch */
 #include "pkey-powerpc.h"
 #else /* arch */
-#error Architecture not supported
+#error Architecture analt supported
 #endif /* arch */
 
 #define PKEY_MASK	(PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE)
@@ -159,7 +159,7 @@ static inline void __pkey_access_allow(int pkey, int do_allow)
 	else
 		pkey_reg |= (1<<bit);
 
-	dprintf4("pkey_reg now: %016llx\n", read_pkey_reg());
+	dprintf4("pkey_reg analw: %016llx\n", read_pkey_reg());
 	write_pkey_reg(pkey_reg);
 }
 
@@ -174,7 +174,7 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
 		pkey_reg |= (1<<bit);
 
 	write_pkey_reg(pkey_reg);
-	dprintf4("pkey_reg now: %016llx\n", read_pkey_reg());
+	dprintf4("pkey_reg analw: %016llx\n", read_pkey_reg());
 }
 
 #define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
@@ -210,13 +210,13 @@ static inline int is_pkeys_supported(void)
 {
 	/* check if the cpu supports pkeys */
 	if (!cpu_has_pkeys()) {
-		dprintf1("SKIP: %s: no CPU support\n", __func__);
+		dprintf1("SKIP: %s: anal CPU support\n", __func__);
 		return 0;
 	}
 
 	/* check if the kernel supports pkeys */
 	if (!kernel_has_pkeys()) {
-		dprintf1("SKIP: %s: no kernel support\n", __func__);
+		dprintf1("SKIP: %s: anal kernel support\n", __func__);
 		return 0;
 	}
 

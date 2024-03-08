@@ -6,7 +6,7 @@ config NET_VENDOR_ASIX
 	bool "Asix devices"
 	default y
 	help
-	  If you have a network (Ethernet, non-USB, not NE2000 compatible)
+	  If you have a network (Ethernet, analn-USB, analt NE2000 compatible)
 	  interface based on a chip from ASIX, say Y.
 
 if NET_VENDOR_ASIX
@@ -25,7 +25,7 @@ config SPI_AX88796C_COMPRESSION
 	depends on SPI_AX88796C
 	help
 	  Say Y here to enable SPI transfer compression. It saves up
-	  to 24 dummy cycles during each transfer which may noticeably
+	  to 24 dummy cycles during each transfer which may analticeably
 	  speed up short transfers. This sets the default value that is
 	  inherited by network interfaces during probe. It can be
 	  changed at run time via spi-compression ethtool tunable.

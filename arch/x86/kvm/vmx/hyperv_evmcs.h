@@ -86,7 +86,7 @@
 	 SECONDARY_EXEC_PT_USE_GPA |					\
 	 SECONDARY_EXEC_PT_CONCEAL_VMX |				\
 	 SECONDARY_EXEC_BUS_LOCK_DETECTION |				\
-	 SECONDARY_EXEC_NOTIFY_VM_EXITING |				\
+	 SECONDARY_EXEC_ANALTIFY_VM_EXITING |				\
 	 SECONDARY_EXEC_ENCLS_EXITING)
 
 #define EVMCS1_SUPPORTED_3RDEXEC (0ULL)
@@ -133,17 +133,17 @@ static __always_inline int evmcs_field_offset(unsigned long field,
 	unsigned int index = ROL16(field, 6);
 
 	if (unlikely(index >= nr_evmcs_1_fields))
-		return -ENOENT;
+		return -EANALENT;
 
 	evmcs_field = &vmcs_field_to_evmcs_1[index];
 
 	/*
 	 * Use offset=0 to detect holes in eVMCS. This offset belongs to
-	 * 'revision_id' but this field has no encoding and is supposed to
+	 * 'revision_id' but this field has anal encoding and is supposed to
 	 * be accessed directly.
 	 */
 	if (unlikely(!evmcs_field->offset))
-		return -ENOENT;
+		return -EANALENT;
 
 	if (clean_field)
 		*clean_field = evmcs_field->clean_field;

@@ -108,7 +108,7 @@
  * @dev: The parent device passed to use from the probe.
  * @regs: The pointer to the device register block.
  * @sclk_per_fs: number of sclk per frame sync
- * @idleclk: Whether to keep PCMSCLK enabled even when idle (no active xfer)
+ * @idleclk: Whether to keep PCMSCLK enabled even when idle (anal active xfer)
  * @pclk: the PCLK_PCM (pcm) clock pointer
  * @cclk: the SCLK_AUDIO (audio-bus) clock pointer
  * @dma_playback: DMA information for playback channel.
@@ -121,7 +121,7 @@ struct s3c_pcm_info {
 
 	unsigned int sclk_per_fs;
 
-	/* Whether to keep PCMSCLK enabled even when idle(no active xfer) */
+	/* Whether to keep PCMSCLK enabled even when idle(anal active xfer) */
 	unsigned int idleclk;
 
 	struct clk	*pclk;
@@ -332,7 +332,7 @@ static int s3c_pcm_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_NF:
-		/* Nothing to do, IB_NF by default */
+		/* Analthing to do, IB_NF by default */
 		break;
 	default:
 		dev_err(pcm->dev, "Unsupported clock inversion!\n");
@@ -342,7 +342,7 @@ static int s3c_pcm_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_BP_FP:
-		/* Nothing to do, Master by default */
+		/* Analthing to do, Master by default */
 		break;
 	default:
 		dev_err(pcm->dev, "Unsupported master/slave format!\n");

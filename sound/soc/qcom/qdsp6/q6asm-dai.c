@@ -19,7 +19,7 @@
 #include <sound/pcm_params.h>
 #include "q6asm.h"
 #include "q6routing.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erranal.h"
 
 #define DRV_NAME	"q6asm-fe-dai"
 
@@ -33,13 +33,13 @@
 #define CAPTURE_MIN_PERIOD_SIZE     320
 #define SID_MASK_DEFAULT	0xF
 
-/* Default values used if user space does not set */
+/* Default values used if user space does analt set */
 #define COMPR_PLAYBACK_MIN_FRAGMENT_SIZE (8 * 1024)
 #define COMPR_PLAYBACK_MAX_FRAGMENT_SIZE (128 * 1024)
 #define COMPR_PLAYBACK_MIN_NUM_FRAGMENTS (4)
 #define COMPR_PLAYBACK_MAX_NUM_FRAGMENTS (16 * 4)
 
-#define ALAC_CH_LAYOUT_MONO   ((101 << 16) | 1)
+#define ALAC_CH_LAYOUT_MOANAL   ((101 << 16) | 1)
 #define ALAC_CH_LAYOUT_STEREO ((101 << 16) | 2)
 
 enum stream_state {
@@ -72,7 +72,7 @@ struct q6asm_dai_rtd {
 	enum stream_state state;
 	uint32_t initial_samples_drop;
 	uint32_t trailing_samples_drop;
-	bool notify_on_drain;
+	bool analtify_on_drain;
 };
 
 struct q6asm_dai_data {
@@ -129,7 +129,7 @@ static struct snd_pcm_hardware q6asm_dai_hardware_playback = {
 		.playback = {						\
 			.stream_name = "MultiMedia"#num" Playback",	\
 			.rates = (SNDRV_PCM_RATE_8000_192000|		\
-					SNDRV_PCM_RATE_KNOT),		\
+					SNDRV_PCM_RATE_KANALT),		\
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |		\
 					SNDRV_PCM_FMTBIT_S24_LE),	\
 			.channels_min = 1,				\
@@ -140,7 +140,7 @@ static struct snd_pcm_hardware q6asm_dai_hardware_playback = {
 		.capture = {						\
 			.stream_name = "MultiMedia"#num" Capture",	\
 			.rates = (SNDRV_PCM_RATE_8000_48000|		\
-					SNDRV_PCM_RATE_KNOT),		\
+					SNDRV_PCM_RATE_KANALT),		\
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |		\
 				    SNDRV_PCM_FMTBIT_S24_LE),		\
 			.channels_min = 1,				\
@@ -255,7 +255,7 @@ static int q6asm_dai_prepare(struct snd_soc_component *component,
 	if (ret < 0) {
 		dev_err(dev, "Audio Start: Buffer Allocation failed rc = %d\n",
 							ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -326,17 +326,17 @@ static int q6asm_dai_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_run_analwait(prtd->audio_client, prtd->stream_id,
 				       0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_cmd_analwait(prtd->audio_client, prtd->stream_id,
 				       CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_cmd_analwait(prtd->audio_client, prtd->stream_id,
 				       CMD_PAUSE);
 		break;
 	default:
@@ -363,20 +363,20 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 
 	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
-		dev_err(dev, "Drv data not found ..\n");
+		dev_err(dev, "Drv data analt found ..\n");
 		return -EINVAL;
 	}
 
 	prtd = kzalloc(sizeof(struct q6asm_dai_rtd), GFP_KERNEL);
 	if (prtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prtd->substream = substream;
 	prtd->audio_client = q6asm_audio_client_alloc(dev,
 				(q6asm_cb)event_handler, prtd, stream_id,
 				LEGACY_PCM_MODE);
 	if (IS_ERR(prtd->audio_client)) {
-		dev_info(dev, "%s: Could not allocate memory\n", __func__);
+		dev_info(dev, "%s: Could analt allocate memory\n", __func__);
 		ret = PTR_ERR(prtd->audio_client);
 		kfree(prtd);
 		return ret;
@@ -527,13 +527,13 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 
 	case ASM_CLIENT_EVENT_CMD_EOS_DONE:
 		spin_lock_irqsave(&prtd->lock, flags);
-		if (prtd->notify_on_drain) {
+		if (prtd->analtify_on_drain) {
 			if (substream->partial_drain) {
 				/*
 				 * Close old stream and make it stale, switch
-				 * the active stream now!
+				 * the active stream analw!
 				 */
-				q6asm_cmd_nowait(prtd->audio_client,
+				q6asm_cmd_analwait(prtd->audio_client,
 						 prtd->stream_id,
 						 CMD_CLOSE);
 				/*
@@ -543,8 +543,8 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 				prtd->stream_id = (prtd->stream_id == 1 ? 2 : 1);
 			}
 
-			snd_compr_drain_notify(prtd->cstream);
-			prtd->notify_on_drain = false;
+			snd_compr_drain_analtify(prtd->cstream);
+			prtd->analtify_on_drain = false;
 
 		} else {
 			prtd->state = Q6ASM_STREAM_STOPPED;
@@ -568,7 +568,7 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 		if (avail > prtd->pcm_count) {
 			bytes_to_write = prtd->pcm_count;
 		} else {
-			if (substream->partial_drain || prtd->notify_on_drain)
+			if (substream->partial_drain || prtd->analtify_on_drain)
 				is_last_buffer = true;
 			bytes_to_write = avail;
 		}
@@ -587,8 +587,8 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 			prtd->bytes_sent += bytes_to_write;
 		}
 
-		if (prtd->notify_on_drain && is_last_buffer)
-			q6asm_cmd_nowait(prtd->audio_client,
+		if (prtd->analtify_on_drain && is_last_buffer)
+			q6asm_cmd_analwait(prtd->audio_client,
 					 prtd->stream_id, CMD_EOS);
 
 		spin_unlock_irqrestore(&prtd->lock, flags);
@@ -613,13 +613,13 @@ static int q6asm_dai_compr_open(struct snd_soc_component *component,
 	stream_id = cpu_dai->driver->id;
 	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
-		dev_err(dev, "Drv data not found ..\n");
+		dev_err(dev, "Drv data analt found ..\n");
 		return -EINVAL;
 	}
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (!prtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* DSP expects stream id from 1 */
 	prtd->stream_id = 1;
@@ -629,7 +629,7 @@ static int q6asm_dai_compr_open(struct snd_soc_component *component,
 					(q6asm_cb)compress_event_handler,
 					prtd, stream_id, LEGACY_PCM_MODE);
 	if (IS_ERR(prtd->audio_client)) {
-		dev_err(dev, "Could not allocate memory\n");
+		dev_err(dev, "Could analt allocate memory\n");
 		ret = PTR_ERR(prtd->audio_client);
 		goto free_prtd;
 	}
@@ -639,7 +639,7 @@ static int q6asm_dai_compr_open(struct snd_soc_component *component,
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dev, size,
 				  &prtd->dma_buffer);
 	if (ret) {
-		dev_err(dev, "Cannot allocate buffer(s)\n");
+		dev_err(dev, "Cananalt allocate buffer(s)\n");
 		goto free_client;
 	}
 
@@ -755,7 +755,7 @@ static int __q6asm_dai_compr_set_codec_params(struct snd_soc_component *componen
 		wma_cfg.adv_enc_options2 = wma->adv_encoder_option2;
 
 		if (wma_cfg.num_channels == 1)
-			wma_cfg.channel_mask = 4; /* Mono Center */
+			wma_cfg.channel_mask = 4; /* Moanal Center */
 		else if (wma_cfg.num_channels == 2)
 			wma_cfg.channel_mask = 3; /* Stereo FL/FR */
 		else
@@ -785,7 +785,7 @@ static int __q6asm_dai_compr_set_codec_params(struct snd_soc_component *componen
 			break;
 
 		default:
-			dev_err(dev, "Unknown WMA profile:%x\n",
+			dev_err(dev, "Unkanalwn WMA profile:%x\n",
 				codec->profile);
 			return -EIO;
 		}
@@ -823,7 +823,7 @@ static int __q6asm_dai_compr_set_codec_params(struct snd_soc_component *componen
 
 		switch (codec->ch_in) {
 		case 1:
-			alac_cfg.channel_layout_tag = ALAC_CH_LAYOUT_MONO;
+			alac_cfg.channel_layout_tag = ALAC_CH_LAYOUT_MOANAL;
 			break;
 		case 2:
 			alac_cfg.channel_layout_tag = ALAC_CH_LAYOUT_STEREO;
@@ -931,7 +931,7 @@ static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
 
 	if (ret < 0) {
 		dev_err(dev, "Buffer Mapping failed ret:%d\n", ret);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	prtd->state = Q6ASM_STREAM_RUNNING;
@@ -999,17 +999,17 @@ static int q6asm_dai_compr_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = q6asm_run_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_run_analwait(prtd->audio_client, prtd->stream_id,
 				       0, 0, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		prtd->state = Q6ASM_STREAM_STOPPED;
-		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_cmd_analwait(prtd->audio_client, prtd->stream_id,
 				       CMD_EOS);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = q6asm_cmd_nowait(prtd->audio_client, prtd->stream_id,
+		ret = q6asm_cmd_analwait(prtd->audio_client, prtd->stream_id,
 				       CMD_PAUSE);
 		break;
 	case SND_COMPR_TRIGGER_NEXT_TRACK:
@@ -1018,7 +1018,7 @@ static int q6asm_dai_compr_trigger(struct snd_soc_component *component,
 		break;
 	case SND_COMPR_TRIGGER_DRAIN:
 	case SND_COMPR_TRIGGER_PARTIAL_DRAIN:
-		prtd->notify_on_drain = true;
+		prtd->analtify_on_drain = true;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1187,22 +1187,22 @@ static int q6asm_dai_pcm_new(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dapm_widget q6asm_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("MM_DL1", "MultiMedia1 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL2", "MultiMedia2 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL3", "MultiMedia3 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL4", "MultiMedia4 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL5", "MultiMedia5 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL6", "MultiMedia6 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL7", "MultiMedia7 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("MM_DL8", "MultiMedia8 Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL1", "MultiMedia1 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL2", "MultiMedia2 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL3", "MultiMedia3 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL4", "MultiMedia4 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL5", "MultiMedia5 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL6", "MultiMedia6 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL7", "MultiMedia7 Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("MM_UL8", "MultiMedia8 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL1", "MultiMedia1 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL2", "MultiMedia2 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL3", "MultiMedia3 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL4", "MultiMedia4 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL5", "MultiMedia5 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL6", "MultiMedia6 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL7", "MultiMedia7 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("MM_DL8", "MultiMedia8 Playback", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL1", "MultiMedia1 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL2", "MultiMedia2 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL3", "MultiMedia3 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL4", "MultiMedia4 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL5", "MultiMedia5 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL6", "MultiMedia6 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL7", "MultiMedia7 Capture", 0, SND_SOC_ANALPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("MM_UL8", "MultiMedia8 Capture", 0, SND_SOC_ANALPM, 0, 0),
 };
 
 static const struct snd_soc_component_driver q6asm_fe_dai_component = {
@@ -1240,34 +1240,34 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 {
 	struct snd_soc_dai_driver *dai_drv;
 	struct snd_soc_pcm_stream empty_stream;
-	struct device_node *node;
+	struct device_analde *analde;
 	int ret, id, dir, idx = 0;
 
 
-	pdata->num_dais = of_get_child_count(dev->of_node);
+	pdata->num_dais = of_get_child_count(dev->of_analde);
 	if (!pdata->num_dais) {
-		dev_err(dev, "No dais found in DT\n");
+		dev_err(dev, "Anal dais found in DT\n");
 		return -EINVAL;
 	}
 
 	pdata->dais = devm_kcalloc(dev, pdata->num_dais, sizeof(*dai_drv),
 				   GFP_KERNEL);
 	if (!pdata->dais)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&empty_stream, 0, sizeof(empty_stream));
 
-	for_each_child_of_node(dev->of_node, node) {
-		ret = of_property_read_u32(node, "reg", &id);
+	for_each_child_of_analde(dev->of_analde, analde) {
+		ret = of_property_read_u32(analde, "reg", &id);
 		if (ret || id >= MAX_SESSIONS || id < 0) {
-			dev_err(dev, "valid dai id not found:%d\n", ret);
+			dev_err(dev, "valid dai id analt found:%d\n", ret);
 			continue;
 		}
 
 		dai_drv = &pdata->dais[idx++];
 		*dai_drv = q6asm_fe_dais_template[id];
 
-		ret = of_property_read_u32(node, "direction", &dir);
+		ret = of_property_read_u32(analde, "direction", &dir);
 		if (ret)
 			continue;
 
@@ -1276,7 +1276,7 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 		else if (dir == Q6ASM_DAI_TX)
 			dai_drv->playback = empty_stream;
 
-		if (of_property_read_bool(node, "is-compress-dai"))
+		if (of_property_read_bool(analde, "is-compress-dai"))
 			dai_drv->ops = &q6asm_dai_ops;
 	}
 
@@ -1286,16 +1286,16 @@ static int of_q6asm_parse_dai_data(struct device *dev,
 static int q6asm_dai_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 	struct of_phandle_args args;
 	struct q6asm_dai_data *pdata;
 	int rc;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	rc = of_parse_phandle_with_fixed_args(node, "iommus", 1, 0, &args);
+	rc = of_parse_phandle_with_fixed_args(analde, "iommus", 1, 0, &args);
 	if (rc < 0)
 		pdata->sid = -1;
 	else

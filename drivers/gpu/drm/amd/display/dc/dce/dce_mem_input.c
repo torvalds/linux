@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -221,7 +221,7 @@ static void dce60_program_nbp_watermark(
 	REG_UPDATE_3(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 		NB_PSTATE_CHANGE_ENABLE, 1,
 		NB_PSTATE_CHANGE_URGENT_DURING_REQUEST, 1,
-		NB_PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST, 1);
+		NB_PSTATE_CHANGE_ANALT_SELF_REFRESH_DURING_REQUEST, 1);
 
 	REG_UPDATE(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 		NB_PSTATE_CHANGE_WATERMARK, nbp_wm);
@@ -240,7 +240,7 @@ static void program_nbp_watermark(
 		REG_UPDATE_3(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 				NB_PSTATE_CHANGE_ENABLE, 1,
 				NB_PSTATE_CHANGE_URGENT_DURING_REQUEST, 1,
-				NB_PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST, 1);
+				NB_PSTATE_CHANGE_ANALT_SELF_REFRESH_DURING_REQUEST, 1);
 
 		REG_UPDATE(DPG_PIPE_NB_PSTATE_CHANGE_CONTROL,
 				NB_PSTATE_CHANGE_WATERMARK, nbp_wm);
@@ -253,7 +253,7 @@ static void program_nbp_watermark(
 		REG_UPDATE_3(DPG_PIPE_LOW_POWER_CONTROL,
 				PSTATE_CHANGE_ENABLE, 1,
 				PSTATE_CHANGE_URGENT_DURING_REQUEST, 1,
-				PSTATE_CHANGE_NOT_SELF_REFRESH_DURING_REQUEST, 1);
+				PSTATE_CHANGE_ANALT_SELF_REFRESH_DURING_REQUEST, 1);
 
 		REG_UPDATE(DPG_PIPE_LOW_POWER_CONTROL,
 				PSTATE_CHANGE_WATERMARK, nbp_wm);
@@ -327,7 +327,7 @@ static void dce_mi_program_display_marks(
 
 	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 		STUTTER_ENABLE, stutter_en,
-		STUTTER_IGNORE_FBC, 1);
+		STUTTER_IGANALRE_FBC, 1);
 	program_nbp_watermark(dce_mi, 2, nbp.a_mark); /* set a */
 	program_nbp_watermark(dce_mi, 1, nbp.d_mark); /* set d */
 
@@ -354,7 +354,7 @@ static void dce60_mi_program_display_marks(
 
 	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 		STUTTER_ENABLE, stutter_en,
-		STUTTER_IGNORE_FBC, 1);
+		STUTTER_IGANALRE_FBC, 1);
 	dce60_program_nbp_watermark(dce_mi, 2, nbp.a_mark); /* set a */
 	dce60_program_nbp_watermark(dce_mi, 1, nbp.d_mark); /* set d */
 
@@ -384,7 +384,7 @@ static void dce112_mi_program_display_marks(struct mem_input *mi,
 
 	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 		STUTTER_ENABLE, stutter_en,
-		STUTTER_IGNORE_FBC, 1);
+		STUTTER_IGANALRE_FBC, 1);
 	program_nbp_watermark(dce_mi, 0, nbp.a_mark); /* set a */
 	program_nbp_watermark(dce_mi, 1, nbp.b_mark); /* set b */
 	program_nbp_watermark(dce_mi, 2, nbp.c_mark); /* set c */
@@ -417,7 +417,7 @@ static void dce120_mi_program_display_marks(struct mem_input *mi,
 
 	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 		STUTTER_ENABLE, stutter_en,
-		STUTTER_IGNORE_FBC, 1);
+		STUTTER_IGANALRE_FBC, 1);
 	program_nbp_watermark(dce_mi, 0, nbp.a_mark); /* set a */
 	program_nbp_watermark(dce_mi, 1, nbp.b_mark); /* set b */
 	program_nbp_watermark(dce_mi, 2, nbp.c_mark); /* set c */
@@ -470,7 +470,7 @@ static void program_tiling(
 				GRPH_BANK_HEIGHT, info->gfx8.bank_height,
 				GRPH_MACRO_TILE_ASPECT, info->gfx8.tile_aspect,
 				GRPH_TILE_SPLIT, info->gfx8.tile_split,
-				/* DCE6 has no GRPH_MICRO_TILE_MODE mask */
+				/* DCE6 has anal GRPH_MICRO_TILE_MODE mask */
 				GRPH_PIPE_CONFIG, info->gfx8.pipe_config,
 				GRPH_ARRAY_MODE, info->gfx8.array_mode,
 				GRPH_COLOR_EXPANSION_MODE, 1);
@@ -526,13 +526,13 @@ static void program_size_and_rotation(
 #if defined(CONFIG_DRM_AMD_DC_SI)
 static void dce60_program_size(
 	struct dce_mem_input *dce_mi,
-	enum dc_rotation_angle rotation, /* not used in DCE6 */
+	enum dc_rotation_angle rotation, /* analt used in DCE6 */
 	const struct plane_size *plane_size)
 {
 	struct rect hw_rect = plane_size->surface_size;
-	/* DCE6 has no HW rotation, skip rotation_angles declaration */
+	/* DCE6 has anal HW rotation, skip rotation_angles declaration */
 
-	/* DCE6 has no HW rotation, skip ROTATION_ANGLE_* processing */
+	/* DCE6 has anal HW rotation, skip ROTATION_ANGLE_* processing */
 
 	REG_SET(GRPH_X_START, 0,
 			GRPH_X_START, hw_rect.x);
@@ -549,7 +549,7 @@ static void dce60_program_size(
 	REG_SET(GRPH_PITCH, 0,
 			GRPH_PITCH, plane_size->surface_pitch);
 
-	/* DCE6 has no HW_ROTATION register, skip setting rotation_angles */
+	/* DCE6 has anal HW_ROTATION register, skip setting rotation_angles */
 }
 #endif
 
@@ -557,7 +557,7 @@ static void program_grph_pixel_format(
 	struct dce_mem_input *dce_mi,
 	enum surface_pixel_format format)
 {
-	uint32_t red_xbar = 0, blue_xbar = 0; /* no swap */
+	uint32_t red_xbar = 0, blue_xbar = 0; /* anal swap */
 	uint32_t grph_depth = 0, grph_format = 0;
 	uint32_t sign = 0, floating = 0;
 
@@ -653,7 +653,7 @@ static void dce60_mi_program_surface_config(
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
-	enum dc_rotation_angle rotation, /* not used in DCE6 */
+	enum dc_rotation_angle rotation, /* analt used in DCE6 */
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
@@ -686,7 +686,7 @@ static uint32_t get_dmif_switch_time_us(
 	if (!h_total || v_total || !pix_clk_khz)
 		return single_frame_time_multiplier * min_single_frame_time_us;
 
-	/*TODO: should we use pixel format normalized pixel clock here?*/
+	/*TODO: should we use pixel format analrmalized pixel clock here?*/
 	pixels_per_second = pix_clk_khz * 1000;
 	pixels_per_frame = h_total * v_total;
 
@@ -862,7 +862,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 		program_sec_addr(dce_mi, address->grph_stereo.right_addr);
 		break;
 	default:
-		/* not supported */
+		/* analt supported */
 		BREAK_TO_DEBUGGER();
 		break;
 	}

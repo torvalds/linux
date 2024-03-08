@@ -350,7 +350,7 @@ static int dwc3_lsp_show(struct seq_file *s, void *unused)
 		dwc3_gadget_lsp(s);
 		break;
 	default:
-		seq_puts(s, "Mode is unknown, no LSP register printed\n");
+		seq_puts(s, "Mode is unkanalwn, anal LSP register printed\n");
 		break;
 	}
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -360,9 +360,9 @@ static int dwc3_lsp_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_lsp_open(struct inode *inode, struct file *file)
+static int dwc3_lsp_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dwc3_lsp_show, inode->i_private);
+	return single_open(file, dwc3_lsp_show, ianalde->i_private);
 }
 
 static ssize_t dwc3_lsp_write(struct file *file, const char __user *ubuf,
@@ -423,7 +423,7 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 		seq_puts(s, "otg\n");
 		break;
 	default:
-		seq_printf(s, "UNKNOWN %08x\n", DWC3_GCTL_PRTCAP(reg));
+		seq_printf(s, "UNKANALWN %08x\n", DWC3_GCTL_PRTCAP(reg));
 	}
 
 	pm_runtime_put_sync(dwc->dev);
@@ -431,9 +431,9 @@ static int dwc3_mode_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_mode_open(struct inode *inode, struct file *file)
+static int dwc3_mode_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dwc3_mode_show, inode->i_private);
+	return single_open(file, dwc3_mode_show, ianalde->i_private);
 }
 
 static ssize_t dwc3_mode_write(struct file *file,
@@ -491,7 +491,7 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 
 	switch (reg) {
 	case 0:
-		seq_puts(s, "no test\n");
+		seq_puts(s, "anal test\n");
 		break;
 	case USB_TEST_J:
 		seq_puts(s, "test_j\n");
@@ -509,7 +509,7 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 		seq_puts(s, "test_force_enable\n");
 		break;
 	default:
-		seq_printf(s, "UNKNOWN %d\n", reg);
+		seq_printf(s, "UNKANALWN %d\n", reg);
 	}
 
 	pm_runtime_put_sync(dwc->dev);
@@ -517,9 +517,9 @@ static int dwc3_testmode_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_testmode_open(struct inode *inode, struct file *file)
+static int dwc3_testmode_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dwc3_testmode_show, inode->i_private);
+	return single_open(file, dwc3_testmode_show, ianalde->i_private);
 }
 
 static ssize_t dwc3_testmode_write(struct file *file,
@@ -585,7 +585,7 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	spin_lock_irqsave(&dwc->lock, flags);
 	reg = dwc3_readl(dwc->regs, DWC3_GSTS);
 	if (DWC3_GSTS_CURMOD(reg) != DWC3_GSTS_CURMOD_DEVICE) {
-		seq_puts(s, "Not available\n");
+		seq_puts(s, "Analt available\n");
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		pm_runtime_put_sync(dwc->dev);
 		return 0;
@@ -605,9 +605,9 @@ static int dwc3_link_state_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int dwc3_link_state_open(struct inode *inode, struct file *file)
+static int dwc3_link_state_open(struct ianalde *ianalde, struct file *file)
 {
-	return single_open(file, dwc3_link_state_show, inode->i_private);
+	return single_open(file, dwc3_link_state_show, ianalde->i_private);
 }
 
 static ssize_t dwc3_link_state_write(struct file *file,
@@ -868,7 +868,7 @@ static int dwc3_transfer_type_show(struct seq_file *s, void *unused)
 		seq_puts(s, "control\n");
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		seq_puts(s, "isochronous\n");
+		seq_puts(s, "isochroanalus\n");
 		break;
 	case USB_ENDPOINT_XFER_BULK:
 		seq_puts(s, "bulk\n");

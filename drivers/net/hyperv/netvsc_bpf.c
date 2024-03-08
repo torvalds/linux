@@ -139,14 +139,14 @@ int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			   dev->mtu, buf_max);
 		NL_SET_ERR_MSG_MOD(extack, "XDP: mtu too large");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (prog && (dev->features & NETIF_F_LRO)) {
-		netdev_err(dev, "XDP: not support LRO\n");
-		NL_SET_ERR_MSG_MOD(extack, "XDP: not support LRO");
+		netdev_err(dev, "XDP: analt support LRO\n");
+		NL_SET_ERR_MSG_MOD(extack, "XDP: analt support LRO");
 
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (prog)
@@ -200,7 +200,7 @@ int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	int ret;
 
 	if (!nvdev || nvdev->destroy) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	switch (bpf->command) {
@@ -233,7 +233,7 @@ static int netvsc_ndoxdp_xmit_fm(struct net_device *ndev,
 
 	skb = xdp_build_skb_from_frame(frame, ndev);
 	if (unlikely(!skb))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	netvsc_get_hash(skb, netdev_priv(ndev));
 
@@ -261,8 +261,8 @@ int netvsc_ndoxdp_xmit(struct net_device *ndev, int n,
 		return 0;
 
 	/* If VF is present and up then redirect packets to it.
-	 * Skip the VF if it is marked down or has no carrier.
-	 * If netpoll is in uses, then VF can not be used either.
+	 * Skip the VF if it is marked down or has anal carrier.
+	 * If netpoll is in uses, then VF can analt be used either.
 	 */
 	vf_netdev = rcu_dereference_bh(ndev_ctx->vf_netdev);
 	if (vf_netdev && netif_running(vf_netdev) &&

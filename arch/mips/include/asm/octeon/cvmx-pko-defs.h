@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -437,11 +437,11 @@ union cvmx_pko_mem_debug4 {
 		uint64_t qid_off:4;
 		uint64_t qid_base:8;
 		uint64_t wait:1;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t major:3;
 #else
 		uint64_t major:3;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t wait:1;
 		uint64_t qid_base:8;
 		uint64_t qid_off:4;
@@ -473,11 +473,11 @@ union cvmx_pko_mem_debug4 {
 		uint64_t chk_once:1;
 		uint64_t chk_mode:1;
 		uint64_t wait:1;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t major:3;
 #else
 		uint64_t major:3;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t wait:1;
 		uint64_t chk_mode:1;
 		uint64_t chk_once:1;
@@ -521,11 +521,11 @@ union cvmx_pko_mem_debug5 {
 		uint64_t qid_off:3;
 		uint64_t qid_base:7;
 		uint64_t wait:1;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t major:4;
 #else
 		uint64_t major:4;
-		uint64_t minor:2;
+		uint64_t mianalr:2;
 		uint64_t wait:1;
 		uint64_t qid_base:7;
 		uint64_t qid_off:3;

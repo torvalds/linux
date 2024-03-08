@@ -5,12 +5,12 @@
  *
  * KVM/MIPS: MIPS specific KVM APIs
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techanallogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/err.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
@@ -152,7 +152,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* Allocate page table to map GPA -> RPA */
 	kvm->arch.gpa_mm.pgd = kvm_pgd_alloc();
 	if (!kvm->arch.gpa_mm.pgd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 #ifdef CONFIG_CPU_LOONGSON64
 	kvm_init_loongson_ipi(kvm);
@@ -177,7 +177,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -192,7 +192,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 {
 	/*
 	 * The slot has been made invalid (ready for moving or deletion), so we
-	 * need to ensure that it can no longer be accessed by any guest VCPUs.
+	 * need to ensure that it can anal longer be accessed by any guest VCPUs.
 	 */
 
 	spin_lock(&kvm->mmu_lock);
@@ -222,8 +222,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * If dirty page logging is enabled, write protect all pages in the slot
 	 * ready for dirty logging.
 	 *
-	 * There is no need to do this in any of the following cases:
-	 * CREATE:	No dirty mappings will already exist.
+	 * There is anal need to do this in any of the following cases:
+	 * CREATE:	Anal dirty mappings will already exist.
 	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
 	 *		kvm_arch_flush_shadow_memslot()
 	 */
@@ -247,7 +247,7 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 	pr_debug("LEAF(%s)\n", symbol);
 
 	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_debug("\t.set analreorder\n");
 
 	for (p = start; p < (u32 *)end; ++p)
 		pr_debug("\t.word\t0x%08x\t\t# %p\n", *p, p);
@@ -290,7 +290,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	if (err)
 		return err;
 
-	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MONOTONIC,
+	hrtimer_init(&vcpu->arch.comparecount_timer, CLOCK_MOANALTONIC,
 		     HRTIMER_MODE_REL);
 	vcpu->arch.comparecount_timer.function = kvm_mips_comparecount_wakeup;
 
@@ -306,7 +306,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	gebase = kzalloc(ALIGN(size, PAGE_SIZE), GFP_KERNEL);
 
 	if (!gebase) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_uninit_vcpu;
 	}
 	kvm_debug("Allocated %d bytes for KVM Exception Handlers @ %p\n",
@@ -315,12 +315,12 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/*
 	 * Check new ebase actually fits in CP0_EBase. The lack of a write gate
 	 * limits us to the low 512MB of physical address space. If the memory
-	 * we allocate is out of range, just give up now.
+	 * we allocate is out of range, just give up analw.
 	 */
 	if (!cpu_has_ebase_wg && virt_to_phys(gebase) >= 0x20000000) {
 		kvm_err("CP0_EBase.WG required for guest exception base %pK\n",
 			gebase);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out_free_gebase;
 	}
 
@@ -401,17 +401,17 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 /*
  * Actually run the vCPU, entering an RCU extended quiescent state (EQS) while
  * the vCPU is running.
  *
- * This must be noinstr as instrumentation may make use of RCU, and this is not
+ * This must be analinstr as instrumentation may make use of RCU, and this is analt
  * safe during the EQS.
  */
-static int noinstr kvm_mips_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+static int analinstr kvm_mips_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 {
 	int ret;
 
@@ -446,10 +446,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	trace_kvm_enter(vcpu);
 
 	/*
-	 * Make sure the read of VCPU requests in vcpu_run() callback is not
+	 * Make sure the read of VCPU requests in vcpu_run() callback is analt
 	 * reordered ahead of the write to vcpu->mode, or we could miss a TLB
 	 * flush request while the requester sees the VCPU as outside of guest
-	 * mode and not needing an IPI.
+	 * mode and analt needing an IPI.
 	 */
 	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
@@ -518,13 +518,13 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 static u64 kvm_mips_get_one_regs[] = {
@@ -618,7 +618,7 @@ static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				return -EFAULT;
 			++indices;
 
-			/* skip odd doubles if no F64 */
+			/* skip odd doubles if anal F64 */
 			if (i & 1 && !(boot_cpu_data.fpu_id & MIPS_FPIR_F64))
 				continue;
 
@@ -790,7 +790,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	switch (reg->id) {
 	/* General purpose registers */
 	case KVM_REG_MIPS_R0:
-		/* Silently ignore requests to set $0 */
+		/* Silently iganalre requests to set $0 */
 		break;
 	case KVM_REG_MIPS_R1 ... KVM_REG_MIPS_R31:
 		vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0] = v;
@@ -915,7 +915,7 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp, unsigned int ioctl,
 		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 	}
 
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
@@ -969,7 +969,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 		break;
 	}
 	default:
-		r = -ENOIOCTLCMD;
+		r = -EANALIOCTLCMD;
 	}
 
 	vcpu_put(vcpu);
@@ -993,7 +993,7 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 
 	switch (ioctl) {
 	default:
-		r = -ENOIOCTLCMD;
+		r = -EANALIOCTLCMD;
 	}
 
 	return r;
@@ -1002,13 +1002,13 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
@@ -1017,12 +1017,12 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	return -ENOIOCTLCMD;
+	return -EANALIOCTLCMD;
 }
 
 vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
@@ -1065,7 +1065,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 *
 		 * When vector partitioning hardware becomes available, support
 		 * could be added by requiring a flag when enabling
-		 * KVM_CAP_MIPS_MSA capability to indicate that userland knows
+		 * KVM_CAP_MIPS_MSA capability to indicate that userland kanalws
 		 * to save/restore the appropriate extra state.
 		 */
 		r = cpu_has_msa && !(boot_cpu_data.msa_id & MSA_IR_WRPF);
@@ -1122,7 +1122,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	for (i = 1; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
 		vcpu->arch.gprs[i] = regs->gpr[i];
-	vcpu->arch.gprs[0] = 0; /* zero is special, and cannot be set. */
+	vcpu->arch.gprs[0] = 0; /* zero is special, and cananalt be set. */
 	vcpu->arch.hi = regs->hi;
 	vcpu->arch.lo = regs->lo;
 	vcpu->arch.pc = regs->pc;
@@ -1182,7 +1182,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 
 	/* Set a default exit reason */
-	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->exit_reason = KVM_EXIT_UNKANALWN;
 	run->ready_for_interrupt_injection = 1;
 
 	/*
@@ -1296,7 +1296,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 			opc += 1;
 		inst = 0;
 		kvm_get_badinstr(opc, vcpu, &inst);
-		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#x\n",
+		kvm_err("Exception Code: %d, analt yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#x\n",
 			exccode, opc, inst, badvaddr,
 			kvm_read_c0_guest_status(&vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
@@ -1315,7 +1315,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 		kvm_mips_deliver_interrupts(vcpu, cause);
 
 	if (!(ret & RESUME_HOST)) {
-		/* Only check for signals if not already exiting to userspace */
+		/* Only check for signals if analt already exiting to userspace */
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			ret = (-EINTR << 2) | RESUME_HOST;
@@ -1329,9 +1329,9 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 
 		/*
 		 * Make sure the read of VCPU requests in vcpu_reenter()
-		 * callback is not reordered ahead of the write to vcpu->mode,
+		 * callback is analt reordered ahead of the write to vcpu->mode,
 		 * or we could miss a TLB flush request while the requester sees
-		 * the VCPU as outside of guest mode and not needing an IPI.
+		 * the VCPU as outside of guest mode and analt needing an IPI.
 		 */
 		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
@@ -1344,7 +1344,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 		 * This should be before returning to the guest exception
 		 * vector, as it may well cause an [MSA] FP exception if there
 		 * are pending exception bits unmasked. (see
-		 * kvm_mips_csr_die_notifier() for how that is handled).
+		 * kvm_mips_csr_die_analtifier() for how that is handled).
 		 */
 		if (kvm_mips_guest_has_fpu(&vcpu->arch) &&
 		    read_c0_status() & ST0_CU1)
@@ -1357,7 +1357,7 @@ static int __kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-int noinstr kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
+int analinstr kvm_mips_handle_exit(struct kvm_vcpu *vcpu)
 {
 	int ret;
 
@@ -1399,7 +1399,7 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	}
 	enable_fpu_hazard();
 
-	/* If guest FPU state not active, restore it now */
+	/* If guest FPU state analt active, restore it analw */
 	if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)) {
 		__kvm_restore_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
@@ -1530,7 +1530,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
  * used to restore guest FCSR/MSACSR state and may trigger a "harmless" FP/MSAFP
  * exception if cause bits are set in the value being written.
  */
-static int kvm_mips_csr_die_notify(struct notifier_block *self,
+static int kvm_mips_csr_die_analtify(struct analtifier_block *self,
 				   unsigned long cmd, void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
@@ -1539,11 +1539,11 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 
 	/* Only interested in FPE and MSAFPE */
 	if (cmd != DIE_FP && cmd != DIE_MSAFP)
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Return immediately if guest context isn't active */
 	if (!(current->flags & PF_VCPU))
-		return NOTIFY_DONE;
+		return ANALTIFY_DONE;
 
 	/* Should never get here from user mode */
 	BUG_ON(user_mode(regs));
@@ -1553,25 +1553,25 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 	case DIE_FP:
 		/* match 2nd instruction in __kvm_restore_fcsr */
 		if (pc != (unsigned long)&__kvm_restore_fcsr + 4)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		break;
 	case DIE_MSAFP:
 		/* match 2nd/3rd instruction in __kvm_restore_msacsr */
 		if (!cpu_has_msa ||
 		    pc < (unsigned long)&__kvm_restore_msacsr + 4 ||
 		    pc > (unsigned long)&__kvm_restore_msacsr + 8)
-			return NOTIFY_DONE;
+			return ANALTIFY_DONE;
 		break;
 	}
 
 	/* Move PC forward a little and continue executing */
 	instruction_pointer(regs) += 4;
 
-	return NOTIFY_STOP;
+	return ANALTIFY_STOP;
 }
 
-static struct notifier_block kvm_mips_csr_die_notifier = {
-	.notifier_call = kvm_mips_csr_die_notify,
+static struct analtifier_block kvm_mips_csr_die_analtifier = {
+	.analtifier_call = kvm_mips_csr_die_analtify,
 };
 
 static u32 kvm_default_priority_to_irq[MIPS_EXC_MAX] = {
@@ -1607,8 +1607,8 @@ static int __init kvm_mips_init(void)
 	int ret;
 
 	if (cpu_has_mmid) {
-		pr_warn("KVM does not yet support MMIDs. KVM Disabled\n");
-		return -EOPNOTSUPP;
+		pr_warn("KVM does analt yet support MMIDs. KVM Disabled\n");
+		return -EOPANALTSUPP;
 	}
 
 	ret = kvm_mips_entry_setup();
@@ -1623,11 +1623,11 @@ static int __init kvm_mips_init(void)
 	if (boot_cpu_type() == CPU_LOONGSON64)
 		kvm_priority_to_irq = kvm_loongson3_priority_to_irq;
 
-	register_die_notifier(&kvm_mips_csr_die_notifier);
+	register_die_analtifier(&kvm_mips_csr_die_analtifier);
 
 	ret = kvm_init(sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 	if (ret) {
-		unregister_die_notifier(&kvm_mips_csr_die_notifier);
+		unregister_die_analtifier(&kvm_mips_csr_die_analtifier);
 		return ret;
 	}
 	return 0;
@@ -1637,7 +1637,7 @@ static void __exit kvm_mips_exit(void)
 {
 	kvm_exit();
 
-	unregister_die_notifier(&kvm_mips_csr_die_notifier);
+	unregister_die_analtifier(&kvm_mips_csr_die_analtifier);
 }
 
 module_init(kvm_mips_init);

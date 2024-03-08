@@ -89,7 +89,7 @@ struct mt7915_tm_rf_test {
 } __packed;
 
 enum {
-	RF_OPER_NORMAL,
+	RF_OPER_ANALRMAL,
 	RF_OPER_RF_TEST,
 	RF_OPER_ICAP,
 	RF_OPER_ICAP_OVERLAP,
@@ -97,7 +97,7 @@ enum {
 };
 
 enum {
-	TAM_ARB_OP_MODE_NORMAL = 1,
+	TAM_ARB_OP_MODE_ANALRMAL = 1,
 	TAM_ARB_OP_MODE_TEST,
 	TAM_ARB_OP_MODE_FORCE_SU = 5,
 };

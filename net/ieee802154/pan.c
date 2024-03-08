@@ -56,7 +56,7 @@ cfg802154_device_is_child(struct wpan_dev *wpan_dev,
 
 	lockdep_assert_held(&wpan_dev->association_lock);
 
-	list_for_each_entry(child, &wpan_dev->children, node)
+	list_for_each_entry(child, &wpan_dev->children, analde)
 		if (cfg802154_pan_device_is_matching(child, target))
 			return child;
 
@@ -83,7 +83,7 @@ __le16 cfg802154_get_free_short_addr(struct wpan_dev *wpan_dev)
 		if (wpan_dev->parent && wpan_dev->parent->short_addr == addr)
 			continue;
 
-		list_for_each_entry(child, &wpan_dev->children, node)
+		list_for_each_entry(child, &wpan_dev->children, analde)
 			if (child->short_addr == addr)
 				continue;
 

@@ -15,7 +15,7 @@ description: |
   and recover from a single-bit memory fault.On a write, if all bytes are
   being written, the ECC is generated and written into the ECC RAM along with
   the write-data that is written into the data RAM. If one or more bytes are
-  not written, then the read operation results in an correctable error or
+  analt written, then the read operation results in an correctable error or
   uncorrectable error.
 
 properties:

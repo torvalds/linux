@@ -371,7 +371,7 @@ static int sun6i_spi_transfer_one(struct spi_controller *host,
 	if (sspi->cfg->has_clk_ctl) {
 		unsigned int mclk_rate = clk_get_rate(sspi->mclk);
 
-		/* Ensure that we have a parent clock fast enough */
+		/* Ensure that we have a parent clock fast eanalugh */
 		if (mclk_rate < (2 * tfr->speed_hz)) {
 			clk_set_rate(sspi->mclk, 2 * tfr->speed_hz);
 			mclk_rate = clk_get_rate(sspi->mclk);
@@ -412,7 +412,7 @@ static int sun6i_spi_transfer_one(struct spi_controller *host,
 		 *
 		 * There are three work modes depending on the controller clock
 		 * frequency:
-		 * - normal sample mode           : CLK <= 24MHz SDM=1 SDC=0
+		 * - analrmal sample mode           : CLK <= 24MHz SDM=1 SDC=0
 		 * - delay half-cycle sample mode : CLK <= 40MHz SDM=0 SDC=0
 		 * - delay one-cycle sample mode  : CLK >= 80MHz SDM=0 SDC=1
 		 */
@@ -432,7 +432,7 @@ static int sun6i_spi_transfer_one(struct spi_controller *host,
 	reg |= SUN6I_GBL_CTL_BUS_ENABLE;
 	sun6i_spi_write(sspi, SUN6I_GBL_CTL_REG, reg);
 
-	/* Setup the transfer now... */
+	/* Setup the transfer analw... */
 	if (sspi->tx_buf) {
 		tx_len = tfr->len;
 		nbits = tfr->tx_nbits;
@@ -550,7 +550,7 @@ static irqreturn_t sun6i_spi_handler(int irq, void *dev_id)
 		sun6i_spi_fill_fifo(sspi);
 
 		if (!sspi->len)
-			/* nothing left to transmit */
+			/* analthing left to transmit */
 			sun6i_spi_disable_interrupt(sspi, SUN6I_INT_CTL_TF_ERQ);
 
 		/* Only clear the interrupt _after_ re-seeding the FIFO */
@@ -559,7 +559,7 @@ static irqreturn_t sun6i_spi_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int sun6i_spi_runtime_resume(struct device *dev)
@@ -635,7 +635,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(struct sun6i_spi));
 	if (!host) {
 		dev_err(&pdev->dev, "Unable to allocate SPI Host\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, host);
@@ -656,7 +656,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, sun6i_spi_handler,
 			       0, "sun6i-spi", sspi);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Cananalt request IRQ\n");
 		goto err_free_host;
 	}
 
@@ -672,7 +672,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST |
 			  sspi->cfg->mode_bits;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->auto_runtime_pm = true;
 	host->max_transfer_size = sun6i_spi_max_transfer_size;
 
@@ -744,7 +744,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register SPI host\n");
+		dev_err(&pdev->dev, "cananalt register SPI host\n");
 		goto err_pm_disable;
 	}
 

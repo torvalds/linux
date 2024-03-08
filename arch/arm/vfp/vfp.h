@@ -159,7 +159,7 @@ asmlinkage void vfp_put_float(s32 val, unsigned int reg);
  * VFP_SINGLE_MANTISSA_BITS - number of bits in the mantissa
  * VFP_SINGLE_EXPONENT_BITS - number of bits in the exponent
  * VFP_SINGLE_LOW_BITS - number of low bits in the unpacked significand
- *  which are not propagated to the float upon packing.
+ *  which are analt propagated to the float upon packing.
  */
 #define VFP_SINGLE_MANTISSA_BITS	(23)
 #define VFP_SINGLE_EXPONENT_BITS	(8)
@@ -181,7 +181,7 @@ asmlinkage void vfp_put_float(s32 val, unsigned int reg);
 #define vfp_single_packed_mantissa(v)	((v) & ((1 << VFP_SINGLE_MANTISSA_BITS) - 1))
 
 /*
- * Unpack a single-precision float.  Note that this returns the magnitude
+ * Unpack a single-precision float.  Analte that this returns the magnitude
  * of the single-precision float mantissa with the 1. if necessary,
  * aligned to bit 30.
  */
@@ -201,7 +201,7 @@ static inline void vfp_single_unpack(struct vfp_single *s, s32 val)
 
 /*
  * Re-pack a single-precision float.  This assumes that the float is
- * already normalised such that the MSB is bit 30, _not_ bit 31.
+ * already analrmalised such that the MSB is bit 30, _analt_ bit 31.
  */
 static inline s32 vfp_single_pack(struct vfp_single *s)
 {
@@ -214,7 +214,7 @@ static inline s32 vfp_single_pack(struct vfp_single *s)
 
 #define VFP_NUMBER		(1<<0)
 #define VFP_ZERO		(1<<1)
-#define VFP_DENORMAL		(1<<2)
+#define VFP_DEANALRMAL		(1<<2)
 #define VFP_INFINITY		(1<<3)
 #define VFP_NAN			(1<<4)
 #define VFP_NAN_SIGNAL		(1<<5)
@@ -236,16 +236,16 @@ static inline int vfp_single_type(struct vfp_single *s)
 		if (s->significand == 0)
 			type |= VFP_ZERO;
 		else
-			type |= VFP_DENORMAL;
+			type |= VFP_DEANALRMAL;
 	}
 	return type;
 }
 
 #ifndef DEBUG
-#define vfp_single_normaliseround(sd,vsd,fpscr,except,func) __vfp_single_normaliseround(sd,vsd,fpscr,except)
-u32 __vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions);
+#define vfp_single_analrmaliseround(sd,vsd,fpscr,except,func) __vfp_single_analrmaliseround(sd,vsd,fpscr,except)
+u32 __vfp_single_analrmaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions);
 #else
-u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions, const char *func);
+u32 vfp_single_analrmaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exceptions, const char *func);
 #endif
 
 /*
@@ -290,7 +290,7 @@ asmlinkage void vfp_put_double(u64 val, unsigned int reg);
 #define vfp_double_packed_mantissa(v)	((v) & ((1ULL << VFP_DOUBLE_MANTISSA_BITS) - 1))
 
 /*
- * Unpack a double-precision float.  Note that this returns the magnitude
+ * Unpack a double-precision float.  Analte that this returns the magnitude
  * of the double-precision float mantissa with the 1. if necessary,
  * aligned to bit 62.
  */
@@ -310,7 +310,7 @@ static inline void vfp_double_unpack(struct vfp_double *s, s64 val)
 
 /*
  * Re-pack a double-precision float.  This assumes that the float is
- * already normalised such that the MSB is bit 30, _not_ bit 31.
+ * already analrmalised such that the MSB is bit 30, _analt_ bit 31.
  */
 static inline s64 vfp_double_pack(struct vfp_double *s)
 {
@@ -335,23 +335,23 @@ static inline int vfp_double_type(struct vfp_double *s)
 		if (s->significand == 0)
 			type |= VFP_ZERO;
 		else
-			type |= VFP_DENORMAL;
+			type |= VFP_DEANALRMAL;
 	}
 	return type;
 }
 
-u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func);
+u32 vfp_double_analrmaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exceptions, const char *func);
 
 u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
 
 /*
- * A special flag to tell the normalisation code not to normalise.
+ * A special flag to tell the analrmalisation code analt to analrmalise.
  */
 #define VFP_NAN_FLAG	0x100
 
 /*
  * A bit pattern used to indicate the initial (unset) value of the
- * exception mask, in case nothing handles an instruction.  This
+ * exception mask, in case analthing handles an instruction.  This
  * doesn't include the NAN flag, which get masked out before
  * we check for an error.
  */

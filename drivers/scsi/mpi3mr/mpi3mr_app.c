@@ -96,7 +96,7 @@ static int mpi3mr_bsg_pel_abort(struct mpi3mr_ioc *mrioc)
 	}
 
 out_unlock:
-	mrioc->pel_abort_cmd.state = MPI3MR_CMD_NOTUSED;
+	mrioc->pel_abort_cmd.state = MPI3MR_CMD_ANALTUSED;
 	mutex_unlock(&mrioc->pel_abort_cmd.mutex);
 	return retval;
 }
@@ -105,7 +105,7 @@ out_unlock:
  * @ioc_number: Adapter number
  *
  * This function returns the adapter instance pointer of given
- * adapter number. If adapter number does not match with the
+ * adapter number. If adapter number does analt match with the
  * driver's adapter list, driver returns NULL.
  *
  * Return: adapter instance reference
@@ -130,7 +130,7 @@ static struct mpi3mr_ioc *mpi3mr_bsg_verify_adapter(int ioc_number)
  * @mrioc: Adapter instance reference
  * @job: BSG job reference
  *
- * This function enables log data caching in the driver if not
+ * This function enables log data caching in the driver if analt
  * already enabled and return the maximum number of log data
  * entries that can be cached in the driver.
  *
@@ -143,14 +143,14 @@ static long mpi3mr_enable_logdata(struct mpi3mr_ioc *mrioc,
 
 	if (!mrioc->logdata_buf) {
 		mrioc->logdata_entry_sz =
-		    (mrioc->reply_sz - (sizeof(struct mpi3_event_notification_reply) - 4))
+		    (mrioc->reply_sz - (sizeof(struct mpi3_event_analtification_reply) - 4))
 		    + MPI3MR_BSG_LOGDATA_ENTRY_HEADER_SZ;
 		mrioc->logdata_buf_idx = 0;
 		mrioc->logdata_buf = kcalloc(MPI3MR_BSG_LOGDATA_MAX_ENTRIES,
 		    mrioc->logdata_entry_sz, GFP_KERNEL);
 
 		if (!mrioc->logdata_buf)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	memset(&logdata_enable, 0, sizeof(logdata_enable));
@@ -339,7 +339,7 @@ static long mpi3mr_get_all_tgt_info(struct mpi3mr_ioc *mrioc,
 	size = sizeof(u64) + kern_entrylen;
 	alltgt_info = kzalloc(size, GFP_KERNEL);
 	if (!alltgt_info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devmap_info = alltgt_info->dmi;
 	memset((u8 *)devmap_info, 0xFF, kern_entrylen);
@@ -436,7 +436,7 @@ static long mpi3mr_bsg_adp_reset(struct mpi3mr_ioc *mrioc,
 		save_snapdump = 1;
 		break;
 	default:
-		dprint_bsg_err(mrioc, "%s: unknown reset_type(%d)\n",
+		dprint_bsg_err(mrioc, "%s: unkanalwn reset_type(%d)\n",
 		    __func__, adpreset.reset_type);
 		goto out;
 	}
@@ -524,7 +524,7 @@ static long mpi3mr_bsg_process_drv_cmds(struct bsg_job *job)
 
 	mrioc = mpi3mr_bsg_verify_adapter(drvrcmd->mrioc_id);
 	if (!mrioc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (drvrcmd->opcode == MPI3MR_DRVBSG_OPCODE_ADPINFO) {
 		rval = mpi3mr_bsg_populate_adpinfo(mrioc, job);
@@ -553,7 +553,7 @@ static long mpi3mr_bsg_process_drv_cmds(struct bsg_job *job)
 	case MPI3MR_DRVBSG_OPCODE_PELENABLE:
 		rval = mpi3mr_bsg_pel_enable(mrioc, job);
 		break;
-	case MPI3MR_DRVBSG_OPCODE_UNKNOWN:
+	case MPI3MR_DRVBSG_OPCODE_UNKANALWN:
 	default:
 		pr_err("%s: unsupported driver command opcode %d\n",
 		    MPI3MR_DRIVER_NAME, drvrcmd->opcode);
@@ -581,7 +581,7 @@ static inline u16 mpi3mr_total_num_ioctl_sges(struct mpi3mr_buf_map *drv_bufs,
 	u16 i, sge_count = 0;
 
 	for (i = 0; i < bufcnt; i++, drv_bufs++) {
-		if (drv_bufs->data_dir == DMA_NONE ||
+		if (drv_bufs->data_dir == DMA_ANALNE ||
 		    drv_bufs->kern_buf)
 			continue;
 		sge_count += drv_bufs->num_dma_desc;
@@ -675,7 +675,7 @@ static int mpi3mr_bsg_build_sgl(struct mpi3mr_ioc *mrioc, u8 *mpi_req,
 		if ((sges_needed > 2) || (sges_needed > available_sges))
 			return -1;
 		for (; count < bufcnt; count++, drv_buf_iter++) {
-			if (drv_buf_iter->data_dir == DMA_NONE ||
+			if (drv_buf_iter->data_dir == DMA_ANALNE ||
 			    !drv_buf_iter->num_dma_desc)
 				continue;
 			mpi3mr_add_sg_single(sgl, sgl_flags_last,
@@ -689,7 +689,7 @@ static int mpi3mr_bsg_build_sgl(struct mpi3mr_ioc *mrioc, u8 *mpi_req,
 
 build_sges:
 	for (; count < bufcnt; count++, drv_buf_iter++) {
-		if (drv_buf_iter->data_dir == DMA_NONE)
+		if (drv_buf_iter->data_dir == DMA_ANALNE)
 			continue;
 		if (!drv_buf_iter->num_dma_desc) {
 			if (chain_used && !available_sges)
@@ -799,11 +799,11 @@ static int mpi3mr_build_nvme_sgl(struct mpi3mr_ioc *mrioc,
 	    ((u8 *)(nvme_encap_request->command) + MPI3MR_NVME_CMD_SGL_OFFSET);
 
 	/*
-	 * Not all commands require a data transfer. If no data, just return
+	 * Analt all commands require a data transfer. If anal data, just return
 	 * without constructing any sgl.
 	 */
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
-		if (drv_buf_iter->data_dir == DMA_NONE)
+		if (drv_buf_iter->data_dir == DMA_ANALNE)
 			continue;
 		length = drv_buf_iter->kern_buf_len;
 		break;
@@ -924,17 +924,17 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 
 	if (MPI3MR_IOCTL_SGE_SIZE % dev_pgsz) {
 		dprint_bsg_err(mrioc,
-			       "%s: ioctl data sge size(%d) is not a multiple of NVMe device page size(%d) for handle 0x%04x\n",
+			       "%s: ioctl data sge size(%d) is analt a multiple of NVMe device page size(%d) for handle 0x%04x\n",
 			       __func__, MPI3MR_IOCTL_SGE_SIZE, dev_pgsz, dev_handle);
 		return -1;
 	}
 
 	/*
-	 * Not all commands require a data transfer. If no data, just return
+	 * Analt all commands require a data transfer. If anal data, just return
 	 * without constructing any PRP.
 	 */
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
-		if (drv_buf_iter->data_dir == DMA_NONE)
+		if (drv_buf_iter->data_dir == DMA_ANALNE)
 			continue;
 		length = drv_buf_iter->kern_buf_len;
 		break;
@@ -947,7 +947,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 		dma_addr = drv_buf_iter->dma_desc[count].dma_addr;
 		if (dma_addr & page_mask) {
 			dprint_bsg_err(mrioc,
-				       "%s:dma_addr %pad is not aligned with page size 0x%x\n",
+				       "%s:dma_addr %pad is analt aligned with page size 0x%x\n",
 				       __func__,  &dma_addr, dev_pgsz);
 			return -1;
 		}
@@ -987,7 +987,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 	 */
 	page_mask_result = (uintptr_t)((u8 *)prp_page + prp_size) & page_mask;
 	if (!page_mask_result) {
-		dprint_bsg_err(mrioc, "%s: PRP page is not page aligned\n",
+		dprint_bsg_err(mrioc, "%s: PRP page is analt page aligned\n",
 		    __func__);
 		goto err_out;
 	}
@@ -999,12 +999,12 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 	prp_entry_dma = prp_page_dma;
 
 
-	/* Loop while the length is not zero. */
+	/* Loop while the length is analt zero. */
 	while (length) {
 		page_mask_result = (prp_entry_dma + prp_size) & page_mask;
 		if (!page_mask_result && (length >  dev_pgsz)) {
 			dprint_bsg_err(mrioc,
-			    "%s: single PRP page is not sufficient\n",
+			    "%s: single PRP page is analt sufficient\n",
 			    __func__);
 			goto err_out;
 		}
@@ -1029,7 +1029,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			*prp1_entry |= sgemod_val;
 
 			/*
-			 * Now point to the second PRP entry within the
+			 * Analw point to the second PRP entry within the
 			 * command (PRP2).
 			 */
 			prp_entry = prp2_entry;
@@ -1065,7 +1065,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			} else {
 				/*
 				 * After this, the PRP Entries are complete.
-				 * This command uses 2 PRP's and no PRP list.
+				 * This command uses 2 PRP's and anal PRP list.
 				 */
 				*prp2_entry = cpu_to_le64(dma_addr);
 				if (*prp2_entry & sgemod_mask) {
@@ -1239,12 +1239,12 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 
 	mrioc = mpi3mr_bsg_verify_adapter(karg->mrioc_id);
 	if (!mrioc)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!mrioc->ioctl_sges_allocated) {
-		dprint_bsg_err(mrioc, "%s: DMA memory was not allocated\n",
+		dprint_bsg_err(mrioc, "%s: DMA memory was analt allocated\n",
 			       __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (karg->timeout < MPI3MR_APP_DEFAULT_TIMEOUT)
@@ -1252,27 +1252,27 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 
 	mpi_req = kzalloc(MPI3MR_ADMIN_REQ_FRAME_SZ, GFP_KERNEL);
 	if (!mpi_req)
-		return -ENOMEM;
+		return -EANALMEM;
 	mpi_header = (struct mpi3_request_header *)mpi_req;
 
 	bufcnt = karg->buf_entry_list.num_of_entries;
 	drv_bufs = kzalloc((sizeof(*drv_bufs) * bufcnt), GFP_KERNEL);
 	if (!drv_bufs) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto out;
 	}
 
 	dout_buf = kzalloc(job->request_payload.payload_len,
 				      GFP_KERNEL);
 	if (!dout_buf) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto out;
 	}
 
 	din_buf = kzalloc(job->reply_payload.payload_len,
 				     GFP_KERNEL);
 	if (!din_buf) {
-		rval = -ENOMEM;
+		rval = -EANALMEM;
 		goto out;
 	}
 
@@ -1325,7 +1325,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		case MPI3MR_BSG_BUFTYPE_MPI_REPLY:
 			sgl_iter = sgl_din_iter;
 			sgl_din_iter += buf_entries->buf_len;
-			drv_buf_iter->data_dir = DMA_NONE;
+			drv_buf_iter->data_dir = DMA_ANALNE;
 			mpirep_offset = count;
 			if (!buf_entries->buf_len)
 				invalid_be = 1;
@@ -1333,7 +1333,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		case MPI3MR_BSG_BUFTYPE_ERR_RESPONSE:
 			sgl_iter = sgl_din_iter;
 			sgl_din_iter += buf_entries->buf_len;
-			drv_buf_iter->data_dir = DMA_NONE;
+			drv_buf_iter->data_dir = DMA_ANALNE;
 			erb_offset = count;
 			if (!buf_entries->buf_len)
 				invalid_be = 1;
@@ -1341,7 +1341,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		case MPI3MR_BSG_BUFTYPE_MPI_REQUEST:
 			sgl_iter = sgl_dout_iter;
 			sgl_dout_iter += buf_entries->buf_len;
-			drv_buf_iter->data_dir = DMA_NONE;
+			drv_buf_iter->data_dir = DMA_ANALNE;
 			mpi_msg_size = buf_entries->buf_len;
 			if ((!mpi_msg_size || (mpi_msg_size % 4)) ||
 					(mpi_msg_size > MPI3MR_ADMIN_REQ_FRAME_SZ)) {
@@ -1416,7 +1416,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 
 	drv_buf_iter = drv_bufs;
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
-		if (drv_buf_iter->data_dir == DMA_NONE)
+		if (drv_buf_iter->data_dir == DMA_ANALNE)
 			continue;
 
 		drv_buf_iter->kern_buf_len = drv_buf_iter->bsg_buf_len;
@@ -1455,7 +1455,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 			if (!drv_buf_iter->kern_buf_len)
 				continue;
 			if (mpi3mr_map_data_buffer_dma(mrioc, drv_buf_iter, desc_count)) {
-				rval = -ENOMEM;
+				rval = -EANALMEM;
 				dprint_bsg_err(mrioc, "%s:%d: mapping data buffers failed\n",
 					       __func__, __LINE__);
 			goto out;
@@ -1467,7 +1467,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 	if (erb_offset != 0xFF) {
 		sense_buff_k = kzalloc(erbsz, GFP_KERNEL);
 		if (!sense_buff_k) {
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto out;
 		}
 	}
@@ -1509,7 +1509,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 			if (mpi3mr_build_nvme_prp(mrioc,
 			    (struct mpi3_nvme_encapsulated_request *)mpi_req,
 			    drv_bufs, bufcnt)) {
-				rval = -ENOMEM;
+				rval = -EANALMEM;
 				mutex_unlock(&mrioc->bsg_cmds.mutex);
 				goto out;
 			}
@@ -1649,7 +1649,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 		bsg_reply_buf = kzalloc(drv_buf_iter->kern_buf_len, GFP_KERNEL);
 
 		if (!bsg_reply_buf) {
-			rval = -ENOMEM;
+			rval = -EANALMEM;
 			goto out_unlock;
 		}
 		if (mrioc->bsg_cmds.state & MPI3MR_CMD_REPLY_VALID) {
@@ -1679,7 +1679,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 
 	drv_buf_iter = drv_bufs;
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
-		if (drv_buf_iter->data_dir == DMA_NONE)
+		if (drv_buf_iter->data_dir == DMA_ANALNE)
 			continue;
 		if ((count == 1) && is_rmrb) {
 			memcpy(drv_buf_iter->bsg_buf,
@@ -1708,7 +1708,7 @@ out_unlock:
 	}
 	mrioc->bsg_cmds.is_sense = 0;
 	mrioc->bsg_cmds.sensebuf = NULL;
-	mrioc->bsg_cmds.state = MPI3MR_CMD_NOTUSED;
+	mrioc->bsg_cmds.state = MPI3MR_CMD_ANALTUSED;
 	mutex_unlock(&mrioc->bsg_cmds.mutex);
 out:
 	kfree(sense_buff_k);
@@ -1736,7 +1736,7 @@ out:
  * and Sends async signal SIGIO to indicate there is an async
  * event from the firmware to the event monitoring applications.
  *
- * Return:Nothing
+ * Return:Analthing
  */
 void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
 	u16 event_data_size)
@@ -1797,7 +1797,7 @@ static int mpi3mr_bsg_request(struct bsg_job *job)
  * This will be called during driver unload and all
  * bsg resources allocated during load will be freed.
  *
- * Return:Nothing
+ * Return:Analthing
  */
 void mpi3mr_bsg_exit(struct mpi3mr_ioc *mrioc)
 {
@@ -1813,14 +1813,14 @@ void mpi3mr_bsg_exit(struct mpi3mr_ioc *mrioc)
 }
 
 /**
- * mpi3mr_bsg_node_release -release bsg device node
- * @dev: bsg device node
+ * mpi3mr_bsg_analde_release -release bsg device analde
+ * @dev: bsg device analde
  *
  * decrements bsg dev parent reference count
  *
- * Return:Nothing
+ * Return:Analthing
  */
-static void mpi3mr_bsg_node_release(struct device *dev)
+static void mpi3mr_bsg_analde_release(struct device *dev)
 {
 	put_device(dev->parent);
 }
@@ -1832,7 +1832,7 @@ static void mpi3mr_bsg_node_release(struct device *dev)
  * This will be called during driver load and it will
  * register driver with bsg layer
  *
- * Return:Nothing
+ * Return:Analthing
  */
 void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 {
@@ -1842,7 +1842,7 @@ void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 	device_initialize(bsg_dev);
 
 	bsg_dev->parent = get_device(parent);
-	bsg_dev->release = mpi3mr_bsg_node_release;
+	bsg_dev->release = mpi3mr_bsg_analde_release;
 
 	dev_set_name(bsg_dev, "mpi3mrctl%u", mrioc->id);
 
@@ -1886,8 +1886,8 @@ version_fw_show(struct device *dev, struct device_attribute *attr,
 	struct mpi3mr_compimg_ver *fwver = &mrioc->facts.fw_ver;
 
 	return sysfs_emit(buf, "%d.%d.%d.%d.%05d-%05d\n",
-	    fwver->gen_major, fwver->gen_minor, fwver->ph_major,
-	    fwver->ph_minor, fwver->cust_id, fwver->build_num);
+	    fwver->gen_major, fwver->gen_mianalr, fwver->ph_major,
+	    fwver->ph_mianalr, fwver->cust_id, fwver->build_num);
 }
 static DEVICE_ATTR_RO(version_fw);
 

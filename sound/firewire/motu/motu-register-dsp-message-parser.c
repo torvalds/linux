@@ -4,7 +4,7 @@
 //
 // Copyright (c) 2021 Takashi Sakamoto <o-takashi@sakamocchi.jp>
 
-// Below models allow software to configure their DSP functions by asynchronous transaction
+// Below models allow software to configure their DSP functions by asynchroanalus transaction
 // to access their internal registers.
 // * 828 mk2
 // * 896hd
@@ -14,7 +14,7 @@
 // * 4 pre
 // * Audio Express
 //
-// Additionally, isochronous packets from the above models include messages to notify state of
+// Additionally, isochroanalus packets from the above models include messages to analtify state of
 // DSP. The messages are two set of 3 byte data in 2nd and 3rd quadlet of data block. When user
 // operates hardware components such as dial and switch, corresponding messages are transferred.
 // The messages include Hardware metering and MIDI messages as well.
@@ -44,7 +44,7 @@
 #define MSG_FLAG_MIDI_POS_4PRE_AE	8
 
 enum register_dsp_msg_type {
-	// Used for messages with no information.
+	// Used for messages with anal information.
 	INVALID = 0x00,
 	MIXER_SELECT = 0x01,
 	MIXER_SRC_GAIN = 0x02,
@@ -55,15 +55,15 @@ enum register_dsp_msg_type {
 	MAIN_OUTPUT_PAIRED_VOLUME = 0x07,
 	HP_OUTPUT_PAIRED_VOLUME = 0x08,
 	HP_OUTPUT_PAIRED_ASSIGNMENT = 0x09,
-	// Transferred by all models but the purpose is still unknown.
-	UNKNOWN_0 = 0x0a,
+	// Transferred by all models but the purpose is still unkanalwn.
+	UNKANALWN_0 = 0x0a,
 	// Specific to 828mk2, 896hd, Traveler.
-	UNKNOWN_2 = 0x0c,
-	// Specific to 828mk2, Traveler, and 896hd (not functional).
+	UNKANALWN_2 = 0x0c,
+	// Specific to 828mk2, Traveler, and 896hd (analt functional).
 	LINE_INPUT_BOOST = 0x0d,
-	// Specific to 828mk2, Traveler, and 896hd (not functional).
-	LINE_INPUT_NOMINAL_LEVEL = 0x0e,
-	// Specific to Ultralite, 4 pre, Audio express, and 8 pre (not functional).
+	// Specific to 828mk2, Traveler, and 896hd (analt functional).
+	LINE_INPUT_ANALMINAL_LEVEL = 0x0e,
+	// Specific to Ultralite, 4 pre, Audio express, and 8 pre (analt functional).
 	INPUT_GAIN_AND_INVERT = 0x15,
 	// Specific to 4 pre, and Audio express.
 	INPUT_FLAG = 0x16,
@@ -74,7 +74,7 @@ enum register_dsp_msg_type {
 	// Transferred by all models. This type of message interposes the series of the other
 	// messages. The message delivers signal level up to 96.0 kHz. In 828mk2, 896hd, and
 	// Traveler, one of physical outputs is selected for the message. The selection is done
-	// by LSB one byte in asynchronous write quadlet transaction to 0x'ffff'f000'0b2c.
+	// by LSB one byte in asynchroanalus write quadlet transaction to 0x'ffff'f000'0b2c.
 	METER = 0x1f,
 };
 
@@ -103,7 +103,7 @@ int snd_motu_register_dsp_message_parser_new(struct snd_motu *motu)
 	struct msg_parser *parser;
 	parser = devm_kzalloc(&motu->card->card_dev, sizeof(*parser), GFP_KERNEL);
 	if (!parser)
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&parser->lock);
 	if (motu->spec == &snd_motu_spec_4pre || motu->spec == &snd_motu_spec_audio_express)
 		parser->meter_pos_quirk = true;
@@ -288,10 +288,10 @@ void snd_motu_register_dsp_message_parser_parse(const struct amdtp_stream *s,
 					parser->param.line_input.boost_flag = val;
 				}
 				break;
-			case LINE_INPUT_NOMINAL_LEVEL:
-				if (parser->param.line_input.nominal_level_flag != val) {
+			case LINE_INPUT_ANALMINAL_LEVEL:
+				if (parser->param.line_input.analminal_level_flag != val) {
 					queue_event(motu, msg_type, 0, 0, val);
-					parser->param.line_input.nominal_level_flag = val;
+					parser->param.line_input.analminal_level_flag = val;
 				}
 				break;
 			case INPUT_GAIN_AND_INVERT:
@@ -326,8 +326,8 @@ void snd_motu_register_dsp_message_parser_parse(const struct amdtp_stream *s,
 				}
 				break;
 			}
-			case UNKNOWN_0:
-			case UNKNOWN_2:
+			case UNKANALWN_0:
+			case UNKANALWN_2:
 				break;
 			case METER:
 			{

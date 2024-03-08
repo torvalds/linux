@@ -16,7 +16,7 @@
 
 extern void restore_current(void);
 
-/* Non blocking put character to console device, returns -1 if
+/* Analn blocking put character to console device, returns -1 if
  * unsuccessful.
  */
 static int prom_nbputchar(const char *buf)

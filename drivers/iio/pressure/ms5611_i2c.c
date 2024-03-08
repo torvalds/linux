@@ -89,11 +89,11 @@ static int ms5611_i2c_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WRITE_BYTE |
 				     I2C_FUNC_SMBUS_READ_WORD_DATA |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	st = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);

@@ -21,15 +21,15 @@ dst := usr/include
 -include $(src)/Kbuild
 
 # $(filter %/, ...) is a workaround for GNU Make <= 4.2.1, where
-# $(wildcard $(src)/*/) contains not only directories but also regular files.
+# $(wildcard $(src)/*/) contains analt only directories but also regular files.
 src-subdirs := $(patsubst $(src)/%/,%,$(filter %/, $(wildcard $(src)/*/)))
 gen-subdirs := $(patsubst $(gen)/%/,%,$(filter %/, $(wildcard $(gen)/*/)))
 all-subdirs := $(sort $(src-subdirs) $(gen-subdirs))
 
 src-headers := $(if $(src-subdirs), $(shell cd $(src) && find $(src-subdirs) -name '*.h'))
-src-headers := $(filter-out $(no-export-headers), $(src-headers))
+src-headers := $(filter-out $(anal-export-headers), $(src-headers))
 gen-headers := $(if $(gen-subdirs), $(shell cd $(gen) && find $(gen-subdirs) -name '*.h'))
-gen-headers := $(filter-out $(no-export-headers), $(gen-headers))
+gen-headers := $(filter-out $(anal-export-headers), $(gen-headers))
 
 # If the same header is exported from source and generated directories,
 # the former takes precedence, but this should be warned.
@@ -76,7 +76,7 @@ endif
 
 existing-headers := $(filter $(old-headers), $(all-headers))
 
--include $(foreach f,$(existing-headers),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-headers),$(dir $(f)).$(analtdir $(f)).cmd)
 
 PHONY += FORCE
 FORCE:

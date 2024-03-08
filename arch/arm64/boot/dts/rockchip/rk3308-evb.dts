@@ -207,13 +207,13 @@
 
 	usb {
 		usb_drv: usb-drv {
-			rockchip,pins = <0 RK_PC5 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PC5 0 &pcfg_pull_analne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
-			rockchip,pins = <0 RK_PA2 0 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 0 &pcfg_pull_analne>;
 		};
 	};
 };

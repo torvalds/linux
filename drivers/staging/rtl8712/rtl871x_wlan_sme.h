@@ -17,7 +17,7 @@
 #define MSR_APMODE		0x0C
 #define MSR_STAMODE	0x08
 #define MSR_ADHOCMODE	0x04
-#define MSR_NOLINKMODE	0x00
+#define MSR_ANALLINKMODE	0x00
 #define		_1M_RATE_	0
 #define		_2M_RATE_	1
 #define		_5M_RATE_	2

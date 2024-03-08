@@ -55,7 +55,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 		break;
 
 	default:
-		pr_err("Tegra Unknown SKU %d\n", sku);
+		pr_err("Tegra Unkanalwn SKU %d\n", sku);
 		sku_info->cpu_speedo_id = 0;
 		sku_info->soc_speedo_id = 0;
 		*threshold = THRESHOLD_INDEX_0;

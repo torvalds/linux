@@ -123,11 +123,11 @@ static struct regmap_config wcd934x_regmap_config = {
 static int wcd934x_bring_up(struct wcd934x_ddata *ddata)
 {
 	struct regmap *regmap = ddata->regmap;
-	u16 id_minor, id_major;
+	u16 id_mianalr, id_major;
 	int ret;
 
 	ret = regmap_bulk_read(regmap, WCD934X_CHIP_TIER_CTRL_CHIP_ID_BYTE0,
-			       (u8 *)&id_minor, sizeof(u16));
+			       (u8 *)&id_mianalr, sizeof(u16));
 	if (ret)
 		return ret;
 
@@ -136,8 +136,8 @@ static int wcd934x_bring_up(struct wcd934x_ddata *ddata)
 	if (ret)
 		return ret;
 
-	dev_info(ddata->dev, "WCD934x chip id major 0x%x, minor 0x%x\n",
-		 id_major, id_minor);
+	dev_info(ddata->dev, "WCD934x chip id major 0x%x, mianalr 0x%x\n",
+		 id_major, id_mianalr);
 
 	regmap_write(regmap, WCD934X_CODEC_RPM_RST_CTL, 0x01);
 	regmap_write(regmap, WCD934X_SIDO_NEW_VOUT_A_STARTUP, 0x19);
@@ -212,14 +212,14 @@ static int wcd934x_slim_status(struct slim_device *sdev,
 static int wcd934x_slim_probe(struct slim_device *sdev)
 {
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_analde *np = dev->of_analde;
 	struct wcd934x_ddata *ddata;
 	struct gpio_desc *reset_gpio;
 	int ret;
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
-		return	-ENOMEM;
+		return	-EANALMEM;
 
 	ddata->irq = of_irq_get(np, 0);
 	if (ddata->irq < 0)

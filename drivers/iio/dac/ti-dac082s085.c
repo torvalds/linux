@@ -58,7 +58,7 @@ struct ti_dac_chip {
 	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
-#define WRITE_NOT_UPDATE(chan)	(0x00 | (chan) << 6)
+#define WRITE_ANALT_UPDATE(chan)	(0x00 | (chan) << 6)
 #define WRITE_AND_UPDATE(chan)	(0x10 | (chan) << 6)
 #define WRITE_ALL_UPDATE	 0x20
 #define POWERDOWN(mode) 	(0x30 | ((mode) + 1) << 6)
@@ -267,7 +267,7 @@ static int ti_dac_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ti_dac));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi->modalias;

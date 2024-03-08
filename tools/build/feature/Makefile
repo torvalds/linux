@@ -28,7 +28,7 @@ FILES=                                          \
          test-libcap.bin			\
          test-libelf.bin                        \
          test-libelf-getphdrnum.bin             \
-         test-libelf-gelf_getnote.bin           \
+         test-libelf-gelf_getanalte.bin           \
          test-libelf-getshdrstrndx.bin          \
          test-libdebuginfod.bin                 \
          test-libnuma.bin                       \
@@ -161,7 +161,7 @@ $(OUTPUT)test-dwarf_getcfi.bin:
 $(OUTPUT)test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
-$(OUTPUT)test-libelf-gelf_getnote.bin:
+$(OUTPUT)test-libelf-gelf_getanalte.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-libelf-getshdrstrndx.bin:
@@ -218,7 +218,7 @@ $(OUTPUT)test-libcrypto.bin:
 	$(BUILD) -lcrypto
 
 $(OUTPUT)test-gtk2.bin:
-	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) -Wno-deprecated-declarations
+	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) -Wanal-deprecated-declarations
 
 $(OUTPUT)test-gtk2-infobar.bin:
 	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null)
@@ -232,11 +232,11 @@ PERL_EMBED_LIBADD = $(call grep-libs,$(PERL_EMBED_LDOPTS))
 PERL_EMBED_CCOPTS = $(shell perl -MExtUtils::Embed -e ccopts 2>/dev/null)
 FLAGS_PERL_EMBED=$(PERL_EMBED_CCOPTS) $(PERL_EMBED_LDOPTS)
 
-ifeq ($(CC_NO_CLANG), 0)
+ifeq ($(CC_ANAL_CLANG), 0)
   PERL_EMBED_LDOPTS := $(filter-out -specs=%,$(PERL_EMBED_LDOPTS))
   PERL_EMBED_CCOPTS := $(filter-out -flto=auto -ffat-lto-objects, $(PERL_EMBED_CCOPTS))
   PERL_EMBED_CCOPTS := $(filter-out -specs=%,$(PERL_EMBED_CCOPTS))
-  FLAGS_PERL_EMBED += -Wno-compound-token-split-by-macro
+  FLAGS_PERL_EMBED += -Wanal-compound-token-split-by-macro
 endif
 
 $(OUTPUT)test-libperl.bin:

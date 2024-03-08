@@ -16,7 +16,7 @@
  * max temperature is 448°K (175°C). We can consider those values as
  * the boundaries for the [trips] temperature returned by the
  * firmware. Any values out of these boundaries may be considered
- * bogus and we can assume the firmware has no data to provide.
+ * bogus and we can assume the firmware has anal data to provide.
  */
 #define TEMP_MIN_DECIK	2180ULL
 #define TEMP_MAX_DECIK	4480ULL
@@ -30,7 +30,7 @@ static int acpi_trip_temp(struct acpi_device *adev, char *obj_name,
 	status = acpi_evaluate_integer(adev->handle, obj_name, NULL, &temp);
 	if (ACPI_FAILURE(status)) {
 		acpi_handle_debug(adev->handle, "%s evaluation failed\n", obj_name);
-		return -ENODATA;
+		return -EANALDATA;
 	}
 
 	if (temp >= TEMP_MIN_DECIK && temp <= TEMP_MAX_DECIK) {
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_active_trip_temp);
  * Evaluate the _PSV object for the thermal zone represented by @adev to obtain
  * the temperature of the passive cooling trip point.
  *
- * Return 0 on success or -ENODATA on failure.
+ * Return 0 on success or -EANALDATA on failure.
  */
 int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_passive_trip_temp);
  * the temperature of the trip point at which the system is expected to be put
  * into the S4 sleep state.
  *
- * Return 0 on success or -ENODATA on failure.
+ * Return 0 on success or -EANALDATA on failure.
  */
 int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
@@ -154,7 +154,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_hot_trip_temp);
  * Evaluate the _CRT object for the thermal zone represented by @adev to obtain
  * the temperature of the critical cooling trip point.
  *
- * Return 0 on success or -ENODATA on failure.
+ * Return 0 on success or -EANALDATA on failure.
  */
 int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
 {

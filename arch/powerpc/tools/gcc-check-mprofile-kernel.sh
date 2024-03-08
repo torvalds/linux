@@ -7,7 +7,7 @@ set -o pipefail
 # To debug, uncomment the following line
 # set -x
 
-# -mprofile-kernel is only supported on 64-bit with ELFv2, so this should not
+# -mprofile-kernel is only supported on 64-bit with ELFv2, so this should analt
 # be invoked for other targets. Therefore we can pass in -m64 and -mabi
 # explicitly, to take care of toolchains defaulting to other targets.
 
@@ -17,9 +17,9 @@ echo "int func() { return 0; }" | \
     $* -m64 -mabi=elfv2 -S -x c -O2 -p -mprofile-kernel - -o - \
     2> /dev/null | grep -q "_mcount"
 
-# Test whether the notrace attribute correctly suppresses calls to _mcount().
+# Test whether the analtrace attribute correctly suppresses calls to _mcount().
 
-echo -e "#include <linux/compiler.h>\nnotrace int func() { return 0; }" | \
+echo -e "#include <linux/compiler.h>\nanaltrace int func() { return 0; }" | \
     $* -m64 -mabi=elfv2 -S -x c -O2 -p -mprofile-kernel - -o - \
     2> /dev/null | grep -q "_mcount" && \
     exit 1

@@ -10,12 +10,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -48,10 +48,10 @@ struct display_stream_compressor {
 struct dc_dsc_policy {
 	bool use_min_slices_h;
 	int max_slices_h; // Maximum available if 0
-	int min_slice_height; // Must not be less than 8
+	int min_slice_height; // Must analt be less than 8
 	uint32_t max_target_bpp;
 	uint32_t min_target_bpp;
-	bool enable_dsc_when_not_needed;
+	bool enable_dsc_when_analt_needed;
 };
 
 struct dc_dsc_config_options {
@@ -95,7 +95,7 @@ uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
 
 /* TODO - Hardware/specs limitation should be owned by dc dsc and returned to DM,
  * and DM can choose to OVERRIDE the limitation on CASE BY CASE basis.
- * Hardware/specs limitation should not be writable by DM.
+ * Hardware/specs limitation should analt be writable by DM.
  * It should be decoupled from DM specific policy and named differently.
  */
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
@@ -104,7 +104,7 @@ void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 
 void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit);
 
-void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable);
+void dc_dsc_policy_set_enable_dsc_when_analt_needed(bool enable);
 
 void dc_dsc_policy_set_disable_dsc_stream_overhead(bool disable);
 

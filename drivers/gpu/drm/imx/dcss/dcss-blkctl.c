@@ -44,13 +44,13 @@ int dcss_blkctl_init(struct dcss_dev *dcss, unsigned long blkctl_base)
 
 	blkctl = kzalloc(sizeof(*blkctl), GFP_KERNEL);
 	if (!blkctl)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	blkctl->base_reg = ioremap(blkctl_base, SZ_4K);
 	if (!blkctl->base_reg) {
 		dev_err(dcss->dev, "unable to remap BLK CTRL base\n");
 		kfree(blkctl);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	dcss->blkctl = blkctl;

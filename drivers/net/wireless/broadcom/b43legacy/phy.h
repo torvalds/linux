@@ -4,7 +4,7 @@
   Broadcom B43legacy wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-		     Stefano Brivio <stefano.brivio@polimi.it>
+		     Stefaanal Brivio <stefaanal.brivio@polimi.it>
 		     Michael Buesch <m@bues.ch>
 		     Danny van Dyk <kugelfang@gentoo.org>
 		     Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -32,8 +32,8 @@ enum {
 };
 
 enum {
-	B43legacy_INTERFMODE_NONE,
-	B43legacy_INTERFMODE_NONWLAN,
+	B43legacy_INTERFMODE_ANALNE,
+	B43legacy_INTERFMODE_ANALNWLAN,
 	B43legacy_INTERFMODE_MANUALWLAN,
 	B43legacy_INTERFMODE_AUTOWLAN,
 };
@@ -76,7 +76,7 @@ enum {
 #define B43legacy_OFDMTAB_LNAHPFGAIN1	B43legacy_OFDMTAB(0x03, 0)
 #define B43legacy_OFDMTAB_WRSSI		B43legacy_OFDMTAB(0x04, 0)
 #define B43legacy_OFDMTAB_LNAHPFGAIN2	B43legacy_OFDMTAB(0x04, 0)
-#define B43legacy_OFDMTAB_NOISESCALE	B43legacy_OFDMTAB(0x05, 0)
+#define B43legacy_OFDMTAB_ANALISESCALE	B43legacy_OFDMTAB(0x05, 0)
 #define B43legacy_OFDMTAB_AGC2		B43legacy_OFDMTAB(0x06, 0)
 #define B43legacy_OFDMTAB_ROTOR		B43legacy_OFDMTAB(0x08, 0)
 #define B43legacy_OFDMTAB_ADVRETARD	B43legacy_OFDMTAB(0x09, 0)

@@ -12,7 +12,7 @@
 #include <linux/atmlec.h>
 
 struct lec_arp_table {
-	struct hlist_node next;		/* Linked entry list */
+	struct hlist_analde next;		/* Linked entry list */
 	unsigned char atm_addr[ATM_ESA_LEN];	/* Atm address */
 	unsigned char mac_addr[ETH_ALEN];	/* Mac address */
 	int is_rdesc;			/* Mac address is a route descriptor */
@@ -30,11 +30,11 @@ struct lec_arp_table {
 					 * 1. FLUSH started
 					 *    (status=ESI_FLUSH_PENDING)
 					 * 2. Counting to
-					 *    max_unknown_frame_time
+					 *    max_unkanalwn_frame_time
 					 *    (status=ESI_ARP_PENDING||
 					 *     status=ESI_VC_PENDING)
 					 */
-	unsigned char no_tries;		/* No of times arp retry has been tried */
+	unsigned char anal_tries;		/* Anal of times arp retry has been tried */
 	unsigned char status;		/* Status of this entry */
 	unsigned short flags;		/* Flags for this entry */
 	unsigned short packets_flooded;	/* Data packets flooded */
@@ -62,29 +62,29 @@ struct tlv {
 };
 
 /* Status fields */
-#define ESI_UNKNOWN 0		/*
+#define ESI_UNKANALWN 0		/*
 				 * Next packet sent to this mac address
 				 * causes ARP-request to be sent
 				 */
 #define ESI_ARP_PENDING 1	/*
-				 * There is no ATM address associated with this
+				 * There is anal ATM address associated with this
 				 * 48-bit address.  The LE-ARP protocol is in
 				 * progress.
 				 */
 #define ESI_VC_PENDING 2	/*
 				 * There is a valid ATM address associated with
-				 * this 48-bit address but there is no VC set
+				 * this 48-bit address but there is anal VC set
 				 * up to that ATM address.  The signaling
 				 * protocol is in process.
 				 */
 #define ESI_FLUSH_PENDING 4	/*
-				 * The LEC has been notified of the FLUSH_START
+				 * The LEC has been analtified of the FLUSH_START
 				 * status and it is assumed that the flush
 				 * protocol is in process.
 				 */
 #define ESI_FORWARD_DIRECT 5	/*
 				 * Either the Path Switching Delay (C22) has
-				 * elapsed or the LEC has notified the Mapping
+				 * elapsed or the LEC has analtified the Mapping
 				 * that the flush protocol has completed.  In
 				 * either case, it is safe to forward packets
 				 * to this address via the data direct VC.

@@ -43,7 +43,7 @@
  * to find the return address on the stack after the local variables have
  * been set up.
  *
- * Note, this may change in the future, and we will need to deal with that
+ * Analte, this may change in the future, and we will need to deal with that
  * if it were to happen.
  */
 #define ARCH_FTRACE_SHIFT_STACK_TRACER 1
@@ -55,7 +55,7 @@ extern void _mcount(unsigned long);
 extern void *return_address(unsigned int);
 
 struct dyn_arch_ftrace {
-	/* No extra data needed for arm64 */
+	/* Anal extra data needed for arm64 */
 };
 
 extern unsigned long ftrace_graph_call;
@@ -71,7 +71,7 @@ struct ftrace_ops;
 #define arch_ftrace_get_regs(regs) NULL
 
 /*
- * Note: sizeof(struct ftrace_regs) must be a multiple of 16 to ensure correct
+ * Analte: sizeof(struct ftrace_regs) must be a multiple of 16 to ensure correct
  * stack alignment
  */
 struct ftrace_regs {
@@ -139,8 +139,8 @@ ftrace_override_function_with_return(struct ftrace_regs *fregs)
 
 int ftrace_regs_query_register_offset(const char *name);
 
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
-#define ftrace_init_nop ftrace_init_nop
+int ftrace_init_analp(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_analp ftrace_init_analp
 
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs);
@@ -163,16 +163,16 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs,
 #define ftrace_return_address(n) return_address(n)
 
 /*
- * Because AArch32 mode does not share the same syscall table with AArch64,
+ * Because AArch32 mode does analt share the same syscall table with AArch64,
  * tracing compat syscalls may result in reporting bogus syscalls or even
- * hang-up, so just do not trace them.
+ * hang-up, so just do analt trace them.
  * See kernel/trace/trace_syscalls.c
  *
  * x86 code says:
  * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.
  */
-#define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS
+#define ARCH_TRACE_IGANALRE_COMPAT_SYSCALLS
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
@@ -185,7 +185,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 {
 	/*
 	 * Since all syscall functions have __arm64_ prefix, we must skip it.
-	 * However, as we described above, we decided to ignore compat
+	 * However, as we described above, we decided to iganalre compat
 	 * syscalls, so we don't care about __arm64_compat_ prefix here.
 	 */
 	return !strcmp(sym + 8, name);

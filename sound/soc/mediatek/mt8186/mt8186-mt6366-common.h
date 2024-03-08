@@ -12,6 +12,6 @@
 int mt8186_mt6366_init(struct snd_soc_pcm_runtime *rtd);
 int mt8186_mt6366_card_set_be_link(struct snd_soc_card *card,
 				   struct snd_soc_dai_link *link,
-				   struct device_node *node,
+				   struct device_analde *analde,
 				   char *link_name);
 #endif

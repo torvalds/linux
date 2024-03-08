@@ -120,7 +120,7 @@ enum max77826_regulators {
 		.id = MAX77826_LDO ## _id,				\
 		.name = "LDO"#_id,					\
 		.of_match = of_match_ptr("LDO"#_id),			\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.ops = &max77826_most_ops,				\
 		.min_uV = MAX77826_ ## _type ## _LDO_VOLT_MIN,		\
 		.uV_step = MAX77826_ ## _type ## _LDO_VOLT_STEP,	\
@@ -137,7 +137,7 @@ enum max77826_regulators {
 		.id = MAX77826_ ## _id,					\
 		.name = #_id,						\
 		.of_match = of_match_ptr(#_id),				\
-		.regulators_node = "regulators",			\
+		.regulators_analde = "regulators",			\
 		.ops = &_ops,						\
 		.min_uV =  MAX77826_ ## _id ## _VOLT_MIN,		\
 		.uV_step = MAX77826_ ## _id ## _VOLT_STEP,		\
@@ -244,7 +244,7 @@ static int max77826_i2c_probe(struct i2c_client *client)
 	info = devm_kzalloc(dev, sizeof(struct max77826_regulator_info),
 				GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	info->rdesc = max77826_regulators_desc;
 	regmap = devm_regmap_init_i2c(client, &max77826_regmap_config);
@@ -288,7 +288,7 @@ MODULE_DEVICE_TABLE(i2c, max77826_id);
 static struct i2c_driver max77826_regulator_driver = {
 	.driver = {
 		.name = "max77826",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = of_match_ptr(max77826_of_match),
 	},
 	.probe = max77826_i2c_probe,

@@ -30,7 +30,7 @@ static int fsl_dcu_drm_plane_index(struct drm_plane *plane)
 	if (index < total_layer)
 		return total_layer - index - 1;
 
-	dev_err(fsl_dev->dev, "No more layer left\n");
+	dev_err(fsl_dev->dev, "Anal more layer left\n");
 	return -EINVAL;
 }
 
@@ -85,7 +85,7 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 									   plane);
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_dma_object *gem;
-	unsigned int alpha = DCU_LAYER_AB_NONE, bpp;
+	unsigned int alpha = DCU_LAYER_AB_ANALNE, bpp;
 	int index;
 
 	if (!fb)

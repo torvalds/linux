@@ -51,7 +51,7 @@ static int global_invalidates(struct kvm *kvm)
 		global = 1;
 
 	if (!global) {
-		/* any other core might now have stale TLB entries... */
+		/* any other core might analw have stale TLB entries... */
 		smp_wmb();
 		cpumask_setall(&kvm->arch.need_tlb_flush);
 		cpu = local_paca->kvm_hstate.kvm_vcore->pcpu;
@@ -203,7 +203,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		return H_FUNCTION;
 	/*
 	 * The HPTE gets used by compute_tlbie_rb() to set TLBIE bits, so
-	 * these functions should work together -- must ensure a guest can not
+	 * these functions should work together -- must ensure a guest can analt
 	 * cause problems with the TLBIE that KVM executes.
 	 */
 	if ((pteh >> HPTE_V_SSIZE_SHIFT) & 0x2) {
@@ -264,7 +264,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			return H_PARAMETER;
 		}
 		pte = kvmppc_read_update_linux_pte(ptep, writing);
-		if (pte_present(pte) && !pte_protnone(pte)) {
+		if (pte_present(pte) && !pte_protanalne(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
 				ptel = hpte_make_readonly(ptel);
@@ -314,7 +314,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		}
 		if (i == 8) {
 			/*
-			 * Since try_lock_hpte doesn't retry (not even stdcx.
+			 * Since try_lock_hpte doesn't retry (analt even stdcx.
 			 * failures), it could be that there is a free slot
 			 * but we transiently failed to lock it.  Try again,
 			 * actually locking each slot and checking it.
@@ -357,7 +357,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		rev = real_vmalloc_addr(rev);
 	if (rev) {
 		rev->guest_rpte = g_ptel;
-		note_hpte_modification(kvm, rev);
+		analte_hpte_modification(kvm, rev);
 	}
 
 	/* Link HPTE into reverse-map chain */
@@ -367,7 +367,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		lock_rmap(rmap);
 		/* Check for pending invalidations under the rmap chain lock */
 		if (mmu_invalidate_retry(kvm, mmu_seq)) {
-			/* inval in progress, write a non-present HPTE */
+			/* inval in progress, write a analn-present HPTE */
 			pteh |= HPTE_V_ABSENT;
 			pteh &= ~HPTE_V_VALID;
 			ptel &= ~(HPTE_R_KEY_HI | HPTE_R_KEY_LO);
@@ -458,7 +458,7 @@ static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
 
 	/*
 	 * We use the POWER9 5-operand versions of tlbie and tlbiel here.
-	 * Since we are using RIC=0 PRS=0 R=0, and P7/P8 tlbiel ignores
+	 * Since we are using RIC=0 PRS=0 R=0, and P7/P8 tlbiel iganalres
 	 * the RS field, this is backwards-compatible with P7 and P8.
 	 */
 	if (global) {
@@ -508,7 +508,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	    ((flags & H_AVPN) && (pte & ~0x7fUL) != avpn) ||
 	    ((flags & H_ANDCOND) && (pte & avpn) != 0)) {
 		__unlock_hpte(hpte, orig_pte);
-		return H_NOT_FOUND;
+		return H_ANALT_FOUND;
 	}
 
 	rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
@@ -530,7 +530,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 				    be64_to_cpu(hpte[1]));
 	}
 	r = rev->guest_rpte & ~HPTE_GR_RESERVED;
-	note_hpte_modification(kvm, rev);
+	analte_hpte_modification(kvm, rev);
 	unlock_hpte(hpte, 0);
 
 	if (is_mmio_hpte(v, pte_r))
@@ -577,7 +577,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			pte_index &= ((1ul << 56) - 1);
 			req = flags >> 6;
 			flags &= 3;
-			if (req == 3) {		/* no more requests */
+			if (req == 3) {		/* anal more requests */
 				i = 4;
 				break;
 			}
@@ -626,7 +626,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 
 			args[j] = ((0x80 | flags) << 56) + pte_index;
 			rev = real_vmalloc_addr(&kvm->arch.hpt.rev[pte_index]);
-			note_hpte_modification(kvm, rev);
+			analte_hpte_modification(kvm, rev);
 
 			if (!(hp0 & HPTE_V_VALID)) {
 				/* insert R and C bits from PTE */
@@ -650,7 +650,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 		if (!n)
 			break;
 
-		/* Now that we've collected a batch, do the tlbies */
+		/* Analw that we've collected a batch, do the tlbies */
 		do_tlbies(kvm, tlbrb, n, global, true);
 
 		/* Read PTE low words after tlbie to get final R/C values */
@@ -694,7 +694,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if ((v & (HPTE_V_ABSENT | HPTE_V_VALID)) == 0 ||
 	    ((flags & H_AVPN) && (v & ~0x7fUL) != avpn)) {
 		__unlock_hpte(hpte, pte_v);
-		return H_NOT_FOUND;
+		return H_ANALT_FOUND;
 	}
 
 	pte_r = be64_to_cpu(hpte[1]);
@@ -709,7 +709,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (rev) {
 		r = (rev->guest_rpte & ~mask) | bits;
 		rev->guest_rpte = r;
-		note_hpte_modification(kvm, rev);
+		analte_hpte_modification(kvm, rev);
 	}
 
 	/* Update HPTE */
@@ -791,7 +791,7 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long v, r, gr;
 	struct revmap_entry *rev;
 	unsigned long *rmap;
-	long ret = H_NOT_FOUND;
+	long ret = H_ANALT_FOUND;
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
@@ -810,7 +810,7 @@ long kvmppc_h_clear_ref(struct kvm_vcpu *vcpu, unsigned long flags,
 	gr = rev->guest_rpte;
 	if (rev->guest_rpte & HPTE_R_R) {
 		rev->guest_rpte &= ~HPTE_R_R;
-		note_hpte_modification(kvm, rev);
+		analte_hpte_modification(kvm, rev);
 	}
 	if (v & HPTE_V_VALID) {
 		gr |= r & (HPTE_R_R | HPTE_R_C);
@@ -839,7 +839,7 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 	__be64 *hpte;
 	unsigned long v, r, gr;
 	struct revmap_entry *rev;
-	long ret = H_NOT_FOUND;
+	long ret = H_ANALT_FOUND;
 
 	if (kvm_is_radix(kvm))
 		return H_FUNCTION;
@@ -858,7 +858,7 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 	gr = rev->guest_rpte;
 	if (gr & HPTE_R_C) {
 		rev->guest_rpte &= ~HPTE_R_C;
-		note_hpte_modification(kvm, rev);
+		analte_hpte_modification(kvm, rev);
 	}
 	if (v & HPTE_V_VALID) {
 		/* need to make it temporarily absent so C is stable */
@@ -1008,7 +1008,7 @@ long kvmppc_rm_h_page_init(struct kvm_vcpu *vcpu, unsigned long flags,
 	else if (flags & H_ZERO_PAGE)
 		ret = kvmppc_do_h_page_init_zero(vcpu, dest);
 
-	/* We can ignore the other flags */
+	/* We can iganalre the other flags */
 
 	return ret;
 }
@@ -1177,11 +1177,11 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 EXPORT_SYMBOL(kvmppc_hv_find_lock_hpte);
 
 /*
- * Called in real mode to check whether an HPTE not found fault
+ * Called in real mode to check whether an HPTE analt found fault
  * is due to accessing a paged-out page or an emulated MMIO page,
  * or if a protection fault is due to accessing a page that the
  * guest wanted read/write access to but which we made read-only.
- * Returns a possibly modified status (DSISR) value if not
+ * Returns a possibly modified status (DSISR) value if analt
  * (i.e. pass the interrupt to the guest),
  * -1 to pass the fault up to host kernel mode code, -2 to do that
  * and also load the instruction word (for MMIO emulation),
@@ -1202,7 +1202,7 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 
 	/* For protection fault, expect to find a valid HPTE */
 	valid = HPTE_V_VALID;
-	if (status & DSISR_NOHPTE) {
+	if (status & DSISR_ANALHPTE) {
 		valid |= HPTE_V_ABSENT;
 		mmio_update = atomic64_read(&kvm->arch.mmio_update);
 		cache_entry = mmio_cache_search(vcpu, addr, slb_v, mmio_update);
@@ -1215,8 +1215,8 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	} else {
 		index = kvmppc_hv_find_lock_hpte(kvm, addr, slb_v, valid);
 		if (index < 0) {
-			if (status & DSISR_NOHPTE)
-				return status;	/* there really was no HPTE */
+			if (status & DSISR_ANALHPTE)
+				return status;	/* there really was anal HPTE */
 			return 0;	/* for prot fault, HPTE disappeared */
 		}
 		hpte = (__be64 *)(kvm->arch.hpt.virt + (index << 4));
@@ -1232,14 +1232,14 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 		unlock_hpte(hpte, orig_v);
 	}
 
-	/* For not found, if the HPTE is valid by now, retry the instruction */
-	if ((status & DSISR_NOHPTE) && (v & HPTE_V_VALID))
+	/* For analt found, if the HPTE is valid by analw, retry the instruction */
+	if ((status & DSISR_ANALHPTE) && (v & HPTE_V_VALID))
 		return 0;
 
 	/* Check access permissions to the page */
 	pp = gr & (HPTE_R_PP0 | HPTE_R_PP);
 	key = (vcpu->arch.shregs.msr & MSR_PR) ? SLB_VSID_KP : SLB_VSID_KS;
-	status &= ~DSISR_NOHPTE;	/* DSISR_NOHPTE == SRR1_ISI_NOPT */
+	status &= ~DSISR_ANALHPTE;	/* DSISR_ANALHPTE == SRR1_ISI_ANALPT */
 	if (!data) {
 		if (gr & (HPTE_R_N | HPTE_R_G))
 			return status | SRR1_ISI_N_G_OR_CIP;

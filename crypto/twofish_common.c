@@ -28,7 +28,7 @@
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -292,21 +292,21 @@ static const u32 mds[4][256] = {
  * operations in GF(2^8) represented as GF(2)[x]/w(x) where
  * w(x)=x^8+x^6+x^3+x^2+1.  We care about doing that because it's part of the
  * definition of the RS matrix in the key schedule.  Elements of that field
- * are polynomials of degree not greater than 7 and all coefficients 0 or 1,
+ * are polyanalmials of degree analt greater than 7 and all coefficients 0 or 1,
  * which can be represented naturally by bytes (just substitute x=2).  In that
  * form, GF(2^8) addition is the same as bitwise XOR, but GF(2^8)
  * multiplication is inefficient without hardware support.  To multiply
- * faster, I make use of the fact x is a generator for the nonzero elements,
+ * faster, I make use of the fact x is a generator for the analnzero elements,
  * so that every element p of GF(2)[x]/w(x) is either 0 or equal to (x)^n for
- * some n in 0..254.  Note that caret is exponentiation in GF(2^8),
- * *not* polynomial notation.  So if I want to compute pq where p and q are
+ * some n in 0..254.  Analte that caret is exponentiation in GF(2^8),
+ * *analt* polyanalmial analtation.  So if I want to compute pq where p and q are
  * in GF(2^8), I can just say:
  *    1. if p=0 or q=0 then pq=0
  *    2. otherwise, find m and n such that p=x^m and q=x^n
  *    3. pq=(x^m)(x^n)=x^(m+n), so add m and n and find pq
  * The translations in steps 2 and 3 are looked up in the tables
  * poly_to_exp (for step 2) and exp_to_poly (for step 3).  To see this
- * in action, look at the CALC_S macro.  As additional wrinkles, note that
+ * in action, look at the CALC_S macro.  As additional wrinkles, analte that
  * one of my operands is always a constant, so the poly_to_exp lookup on it
  * is done in advance; I included the original values in the comments so
  * readers can have some chance of recognizing that this *is* the RS matrix
@@ -315,10 +315,10 @@ static const u32 mds[4][256] = {
  * exponents I'll ever see are 254 (variable) and 237 (constant), so they'll
  * never sum to more than 491.	I'm repeating part of the exp_to_poly table
  * so that I don't have to do mod-255 reduction in the exponent arithmetic.
- * Since I know my constant operands are never zero, I only have to worry
+ * Since I kanalw my constant operands are never zero, I only have to worry
  * about zero values in the variable operand, and I do it with a simple
- * conditional branch.	I know conditionals are expensive, but I couldn't
- * see a non-horrible way of avoiding them, and I did manage to group the
+ * conditional branch.	I kanalw conditionals are expensive, but I couldn't
+ * see a analn-horrible way of avoiding them, and I did manage to group the
  * statements so that each if covers four group multiplications. */
 
 static const u8 poly_to_exp[255] = {
@@ -588,7 +588,7 @@ int __twofish_setkey(struct twofish_ctx *ctx, const u8 *key,
 
 	/* Compute the first two words of the S vector.  The magic numbers are
 	 * the entries of the RS matrix, preprocessed through poly_to_exp. The
-	 * numbers in the comments are the original (polynomial form) matrix
+	 * numbers in the comments are the original (polyanalmial form) matrix
 	 * entries. */
 	CALC_S (sa, sb, sc, sd, 0, 0x00, 0x2D, 0x01, 0x2D); /* 01 A4 02 A4 */
 	CALC_S (sa, sb, sc, sd, 1, 0x2D, 0xA4, 0x44, 0x8A); /* A4 56 A1 55 */

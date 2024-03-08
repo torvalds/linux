@@ -22,17 +22,17 @@
 
 void socfpga_init_l2_ecc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *mapped_l2_edac_addr;
 
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-l2-ecc");
+	np = of_find_compatible_analde(NULL, NULL, "altr,socfpga-l2-ecc");
 	if (!np) {
 		pr_err("Unable to find socfpga-l2-ecc in dtb\n");
 		return;
 	}
 
 	mapped_l2_edac_addr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!mapped_l2_edac_addr) {
 		pr_err("Unable to find L2 ECC mapping in dtb\n");
 		return;
@@ -45,25 +45,25 @@ void socfpga_init_l2_ecc(void)
 
 void socfpga_init_arria10_l2_ecc(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 	void __iomem *mapped_l2_edac_addr;
 
-	/* Find the L2 EDAC device tree node */
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-a10-l2-ecc");
+	/* Find the L2 EDAC device tree analde */
+	np = of_find_compatible_analde(NULL, NULL, "altr,socfpga-a10-l2-ecc");
 	if (!np) {
 		pr_err("Unable to find socfpga-a10-l2-ecc in dtb\n");
 		return;
 	}
 
 	mapped_l2_edac_addr = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!mapped_l2_edac_addr) {
 		pr_err("Unable to find L2 ECC mapping in dtb\n");
 		return;
 	}
 
 	if (!sys_manager_base_addr) {
-		pr_err("System Manager not mapped for L2 ECC\n");
+		pr_err("System Manager analt mapped for L2 ECC\n");
 		goto exit;
 	}
 	/* Clear any pending IRQs */

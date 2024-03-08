@@ -10,14 +10,14 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright analtice and this permission analtice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+ * IN ANAL EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -26,20 +26,20 @@
 
 #include <drm/drm_gem_ttm_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_fence.h"
-#include "nouveau_abi16.h"
+#include "analuveau_drv.h"
+#include "analuveau_dma.h"
+#include "analuveau_fence.h"
+#include "analuveau_abi16.h"
 
-#include "nouveau_ttm.h"
-#include "nouveau_gem.h"
-#include "nouveau_mem.h"
-#include "nouveau_vmm.h"
+#include "analuveau_ttm.h"
+#include "analuveau_gem.h"
+#include "analuveau_mem.h"
+#include "analuveau_vmm.h"
 
 #include <nvif/class.h>
 #include <nvif/push206e.h>
 
-static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
+static vm_fault_t analuveau_ttm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ttm_buffer_object *bo = vma->vm_private_data;
@@ -50,15 +50,15 @@ static vm_fault_t nouveau_ttm_fault(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
-	ret = nouveau_ttm_fault_reserve_notify(bo);
+	ret = analuveau_ttm_fault_reserve_analtify(bo);
 	if (ret)
 		goto error_unlock;
 
-	nouveau_bo_del_io_reserve_lru(bo);
+	analuveau_bo_del_io_reserve_lru(bo);
 	prot = vm_get_page_prot(vma->vm_flags);
 	ret = ttm_bo_vm_fault_reserved(vmf, prot, TTM_BO_VM_NUM_PREFAULT);
-	nouveau_bo_add_io_reserve_lru(bo);
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+	analuveau_bo_add_io_reserve_lru(bo);
+	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_ANALWAIT))
 		return ret;
 
 error_unlock:
@@ -66,18 +66,18 @@ error_unlock:
 	return ret;
 }
 
-static const struct vm_operations_struct nouveau_ttm_vm_ops = {
-	.fault = nouveau_ttm_fault,
+static const struct vm_operations_struct analuveau_ttm_vm_ops = {
+	.fault = analuveau_ttm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close,
 	.access = ttm_bo_vm_access
 };
 
 void
-nouveau_gem_object_del(struct drm_gem_object *gem)
+analuveau_gem_object_del(struct drm_gem_object *gem)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
-	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
+	struct analuveau_drm *drm = analuveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
 	int ret;
 
@@ -97,21 +97,21 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 }
 
 int
-nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
+analuveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
-	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
+	struct analuveau_drm *drm = analuveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
-	struct nouveau_vmm *vmm = nouveau_cli_vmm(cli);
-	struct nouveau_vma *vma;
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(cli);
+	struct analuveau_vmm *vmm = analuveau_cli_vmm(cli);
+	struct analuveau_vma *vma;
 	int ret;
 
 	if (vmm->vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return 0;
 
-	if (nvbo->no_share && uvmm &&
+	if (nvbo->anal_share && uvmm &&
 	    drm_gpuvm_resv(&uvmm->base) != nvbo->bo.base.resv)
 		return -EPERM;
 
@@ -126,8 +126,8 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	}
 
 	/* only create a VMA on binding */
-	if (!nouveau_cli_uvmm(cli))
-		ret = nouveau_vma_new(nvbo, vmm, &vma);
+	if (!analuveau_cli_uvmm(cli))
+		ret = analuveau_vma_new(nvbo, vmm, &vma);
 	else
 		ret = 0;
 	pm_runtime_mark_last_busy(dev);
@@ -137,78 +137,78 @@ out:
 	return ret;
 }
 
-struct nouveau_gem_object_unmap {
-	struct nouveau_cli_work work;
-	struct nouveau_vma *vma;
+struct analuveau_gem_object_unmap {
+	struct analuveau_cli_work work;
+	struct analuveau_vma *vma;
 };
 
 static void
-nouveau_gem_object_delete(struct nouveau_vma *vma)
+analuveau_gem_object_delete(struct analuveau_vma *vma)
 {
-	nouveau_fence_unref(&vma->fence);
-	nouveau_vma_del(&vma);
+	analuveau_fence_unref(&vma->fence);
+	analuveau_vma_del(&vma);
 }
 
 static void
-nouveau_gem_object_delete_work(struct nouveau_cli_work *w)
+analuveau_gem_object_delete_work(struct analuveau_cli_work *w)
 {
-	struct nouveau_gem_object_unmap *work =
+	struct analuveau_gem_object_unmap *work =
 		container_of(w, typeof(*work), work);
-	nouveau_gem_object_delete(work->vma);
+	analuveau_gem_object_delete(work->vma);
 	kfree(work);
 }
 
 static void
-nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
+analuveau_gem_object_unmap(struct analuveau_bo *nvbo, struct analuveau_vma *vma)
 {
 	struct dma_fence *fence = vma->fence ? &vma->fence->base : NULL;
-	struct nouveau_gem_object_unmap *work;
+	struct analuveau_gem_object_unmap *work;
 
 	list_del_init(&vma->head);
 
 	if (!fence) {
-		nouveau_gem_object_delete(vma);
+		analuveau_gem_object_delete(vma);
 		return;
 	}
 
 	if (!(work = kmalloc(sizeof(*work), GFP_KERNEL))) {
 		WARN_ON(dma_fence_wait_timeout(fence, false, 2 * HZ) <= 0);
-		nouveau_gem_object_delete(vma);
+		analuveau_gem_object_delete(vma);
 		return;
 	}
 
-	work->work.func = nouveau_gem_object_delete_work;
+	work->work.func = analuveau_gem_object_delete_work;
 	work->vma = vma;
-	nouveau_cli_work_queue(vma->vmm->cli, fence, &work->work);
+	analuveau_cli_work_queue(vma->vmm->cli, fence, &work->work);
 }
 
 void
-nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
+analuveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
-	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
+	struct analuveau_drm *drm = analuveau_bdev(nvbo->bo.bdev);
 	struct device *dev = drm->dev->dev;
-	struct nouveau_vmm *vmm = nouveau_cli_vmm(cli);
-	struct nouveau_vma *vma;
+	struct analuveau_vmm *vmm = analuveau_cli_vmm(cli);
+	struct analuveau_vma *vma;
 	int ret;
 
 	if (vmm->vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return;
 
-	if (nouveau_cli_uvmm(cli))
+	if (analuveau_cli_uvmm(cli))
 		return;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, NULL);
 	if (ret)
 		return;
 
-	vma = nouveau_vma_find(nvbo, vmm);
+	vma = analuveau_vma_find(nvbo, vmm);
 	if (vma) {
 		if (--vma->refs == 0) {
 			ret = pm_runtime_get_sync(dev);
 			if (!WARN_ON(ret < 0 && ret != -EACCES)) {
-				nouveau_gem_object_unmap(nvbo, vma);
+				analuveau_gem_object_unmap(nvbo, vma);
 				pm_runtime_mark_last_busy(dev);
 			}
 			pm_runtime_put_autosuspend(dev);
@@ -217,51 +217,51 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	ttm_bo_unreserve(&nvbo->bo);
 }
 
-const struct drm_gem_object_funcs nouveau_gem_object_funcs = {
-	.free = nouveau_gem_object_del,
-	.open = nouveau_gem_object_open,
-	.close = nouveau_gem_object_close,
-	.export = nouveau_gem_prime_export,
-	.pin = nouveau_gem_prime_pin,
-	.unpin = nouveau_gem_prime_unpin,
-	.get_sg_table = nouveau_gem_prime_get_sg_table,
+const struct drm_gem_object_funcs analuveau_gem_object_funcs = {
+	.free = analuveau_gem_object_del,
+	.open = analuveau_gem_object_open,
+	.close = analuveau_gem_object_close,
+	.export = analuveau_gem_prime_export,
+	.pin = analuveau_gem_prime_pin,
+	.unpin = analuveau_gem_prime_unpin,
+	.get_sg_table = analuveau_gem_prime_get_sg_table,
 	.vmap = drm_gem_ttm_vmap,
 	.vunmap = drm_gem_ttm_vunmap,
 	.mmap = drm_gem_ttm_mmap,
-	.vm_ops = &nouveau_ttm_vm_ops,
+	.vm_ops = &analuveau_ttm_vm_ops,
 };
 
 int
-nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
+analuveau_gem_new(struct analuveau_cli *cli, u64 size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
-		struct nouveau_bo **pnvbo)
+		struct analuveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = cli->drm;
-	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
+	struct analuveau_drm *drm = cli->drm;
+	struct analuveau_uvmm *uvmm = analuveau_cli_uvmm(cli);
 	struct dma_resv *resv = NULL;
-	struct nouveau_bo *nvbo;
+	struct analuveau_bo *nvbo;
 	int ret;
 
-	if (domain & NOUVEAU_GEM_DOMAIN_NO_SHARE) {
+	if (domain & ANALUVEAU_GEM_DOMAIN_ANAL_SHARE) {
 		if (unlikely(!uvmm))
 			return -EINVAL;
 
 		resv = drm_gpuvm_resv(&uvmm->base);
 	}
 
-	if (!(domain & (NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART)))
-		domain |= NOUVEAU_GEM_DOMAIN_CPU;
+	if (!(domain & (ANALUVEAU_GEM_DOMAIN_VRAM | ANALUVEAU_GEM_DOMAIN_GART)))
+		domain |= ANALUVEAU_GEM_DOMAIN_CPU;
 
-	nvbo = nouveau_bo_alloc(cli, &size, &align, domain, tile_mode,
+	nvbo = analuveau_bo_alloc(cli, &size, &align, domain, tile_mode,
 				tile_flags, false);
 	if (IS_ERR(nvbo))
 		return PTR_ERR(nvbo);
 
-	nvbo->bo.base.funcs = &nouveau_gem_object_funcs;
-	nvbo->no_share = domain & NOUVEAU_GEM_DOMAIN_NO_SHARE;
+	nvbo->bo.base.funcs = &analuveau_gem_object_funcs;
+	nvbo->anal_share = domain & ANALUVEAU_GEM_DOMAIN_ANAL_SHARE;
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
-	 * to the caller, instead of a normal nouveau_bo ttm reference. */
+	 * to the caller, instead of a analrmal analuveau_bo ttm reference. */
 	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, size);
 	if (ret) {
 		drm_gem_object_release(&nvbo->bo.base);
@@ -272,7 +272,7 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 	if (resv)
 		dma_resv_lock(resv, NULL);
 
-	ret = nouveau_bo_init(nvbo, size, align, domain, NULL, resv);
+	ret = analuveau_bo_init(nvbo, size, align, domain, NULL, resv);
 
 	if (resv)
 		dma_resv_unlock(resv);
@@ -281,15 +281,15 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 		return ret;
 
 	/* we restrict allowed domains on nv50+ to only the types
-	 * that were requested at creation time.  not possibly on
+	 * that were requested at creation time.  analt possibly on
 	 * earlier chips without busting the ABI.
 	 */
-	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_VRAM |
-			      NOUVEAU_GEM_DOMAIN_GART;
+	nvbo->valid_domains = ANALUVEAU_GEM_DOMAIN_VRAM |
+			      ANALUVEAU_GEM_DOMAIN_GART;
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
 		nvbo->valid_domains &= domain;
 
-	if (nvbo->no_share) {
+	if (nvbo->anal_share) {
 		nvbo->r_obj = drm_gpuvm_resv_obj(&uvmm->base);
 		drm_gem_object_get(nvbo->r_obj);
 	}
@@ -299,24 +299,24 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 }
 
 static int
-nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
-		 struct drm_nouveau_gem_info *rep)
+analuveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
+		 struct drm_analuveau_gem_info *rep)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
-	struct nouveau_vmm *vmm = nouveau_cli_vmm(cli);
-	struct nouveau_vma *vma;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
+	struct analuveau_vmm *vmm = analuveau_cli_vmm(cli);
+	struct analuveau_vma *vma;
 
 	if (is_power_of_2(nvbo->valid_domains))
 		rep->domain = nvbo->valid_domains;
 	else if (nvbo->bo.resource->mem_type == TTM_PL_TT)
-		rep->domain = NOUVEAU_GEM_DOMAIN_GART;
+		rep->domain = ANALUVEAU_GEM_DOMAIN_GART;
 	else
-		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
+		rep->domain = ANALUVEAU_GEM_DOMAIN_VRAM;
 	rep->offset = nvbo->offset;
 	if (vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50 &&
-	    !nouveau_cli_uvmm(cli)) {
-		vma = nouveau_vma_find(nvbo, vmm);
+	    !analuveau_cli_uvmm(cli)) {
+		vma = analuveau_vma_find(nvbo, vmm);
 		if (!vma)
 			return -EINVAL;
 
@@ -325,9 +325,9 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->offset = 0;
 
 	rep->size = nvbo->bo.base.size;
-	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.base.vma_node);
+	rep->map_handle = drm_vma_analde_offset_addr(&nvbo->bo.base.vma_analde);
 	rep->tile_mode = nvbo->mode;
-	rep->tile_flags = nvbo->contig ? 0 : NOUVEAU_GEM_TILE_NONCONTIG;
+	rep->tile_flags = nvbo->contig ? 0 : ANALUVEAU_GEM_TILE_ANALNCONTIG;
 	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 		rep->tile_flags |= nvbo->kind << 8;
 	else
@@ -339,20 +339,20 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 }
 
 int
-nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
+analuveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct drm_nouveau_gem_new *req = data;
-	struct nouveau_bo *nvbo = NULL;
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct drm_analuveau_gem_new *req = data;
+	struct analuveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	/* If uvmm wasn't initialized until now disable it completely to prevent
+	/* If uvmm wasn't initialized until analw disable it completely to prevent
 	 * userspace from mixing up UAPIs.
 	 */
-	nouveau_cli_disable_uvmm_noinit(cli);
+	analuveau_cli_disable_uvmm_analinit(cli);
 
-	ret = nouveau_gem_new(cli, req->info.size, req->align,
+	ret = analuveau_gem_new(cli, req->info.size, req->align,
 			      req->info.domain, req->info.tile_mode,
 			      req->info.tile_flags, &nvbo);
 	if (ret)
@@ -361,21 +361,21 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	ret = drm_gem_handle_create(file_priv, &nvbo->bo.base,
 				    &req->info.handle);
 	if (ret == 0) {
-		ret = nouveau_gem_info(file_priv, &nvbo->bo.base, &req->info);
+		ret = analuveau_gem_info(file_priv, &nvbo->bo.base, &req->info);
 		if (ret)
 			drm_gem_handle_delete(file_priv, req->info.handle);
 	}
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it analw */
 	drm_gem_object_put(&nvbo->bo.base);
 	return ret;
 }
 
 static int
-nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
+analuveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 		       uint32_t write_domains, uint32_t valid_domains)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct analuveau_bo *nvbo = analuveau_gem_object(gem);
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
@@ -384,23 +384,23 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 	if (!domains)
 		return -EINVAL;
 
-	valid_domains &= ~(NOUVEAU_GEM_DOMAIN_VRAM | NOUVEAU_GEM_DOMAIN_GART);
+	valid_domains &= ~(ANALUVEAU_GEM_DOMAIN_VRAM | ANALUVEAU_GEM_DOMAIN_GART);
 
-	if ((domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
+	if ((domains & ANALUVEAU_GEM_DOMAIN_VRAM) &&
 	    bo->resource->mem_type == TTM_PL_VRAM)
-		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
+		pref_domains |= ANALUVEAU_GEM_DOMAIN_VRAM;
 
-	else if ((domains & NOUVEAU_GEM_DOMAIN_GART) &&
+	else if ((domains & ANALUVEAU_GEM_DOMAIN_GART) &&
 		 bo->resource->mem_type == TTM_PL_TT)
-		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
+		pref_domains |= ANALUVEAU_GEM_DOMAIN_GART;
 
-	else if (domains & NOUVEAU_GEM_DOMAIN_VRAM)
-		pref_domains |= NOUVEAU_GEM_DOMAIN_VRAM;
+	else if (domains & ANALUVEAU_GEM_DOMAIN_VRAM)
+		pref_domains |= ANALUVEAU_GEM_DOMAIN_VRAM;
 
 	else
-		pref_domains |= NOUVEAU_GEM_DOMAIN_GART;
+		pref_domains |= ANALUVEAU_GEM_DOMAIN_GART;
 
-	nouveau_bo_placement_set(nvbo, pref_domains, valid_domains);
+	analuveau_bo_placement_set(nvbo, pref_domains, valid_domains);
 
 	return 0;
 }
@@ -411,24 +411,24 @@ struct validate_op {
 };
 
 static void
-validate_fini_no_ticket(struct validate_op *op, struct nouveau_channel *chan,
-			struct nouveau_fence *fence,
-			struct drm_nouveau_gem_pushbuf_bo *pbbo)
+validate_fini_anal_ticket(struct validate_op *op, struct analuveau_channel *chan,
+			struct analuveau_fence *fence,
+			struct drm_analuveau_gem_pushbuf_bo *pbbo)
 {
-	struct nouveau_bo *nvbo;
-	struct drm_nouveau_gem_pushbuf_bo *b;
+	struct analuveau_bo *nvbo;
+	struct drm_analuveau_gem_pushbuf_bo *b;
 
 	while (!list_empty(&op->list)) {
-		nvbo = list_entry(op->list.next, struct nouveau_bo, entry);
+		nvbo = list_entry(op->list.next, struct analuveau_bo, entry);
 		b = &pbbo[nvbo->pbbo_index];
 
 		if (likely(fence)) {
-			nouveau_bo_fence(nvbo, fence, !!b->write_domains);
+			analuveau_bo_fence(nvbo, fence, !!b->write_domains);
 
 			if (chan->vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
-				struct nouveau_vma *vma =
+				struct analuveau_vma *vma =
 					(void *)(unsigned long)b->user_priv;
-				nouveau_fence_unref(&vma->fence);
+				analuveau_fence_unref(&vma->fence);
 				dma_fence_get(&fence->base);
 				vma->fence = fence;
 			}
@@ -447,23 +447,23 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_channel *chan,
 }
 
 static void
-validate_fini(struct validate_op *op, struct nouveau_channel *chan,
-	      struct nouveau_fence *fence,
-	      struct drm_nouveau_gem_pushbuf_bo *pbbo)
+validate_fini(struct validate_op *op, struct analuveau_channel *chan,
+	      struct analuveau_fence *fence,
+	      struct drm_analuveau_gem_pushbuf_bo *pbbo)
 {
-	validate_fini_no_ticket(op, chan, fence, pbbo);
+	validate_fini_anal_ticket(op, chan, fence, pbbo);
 	ww_acquire_fini(&op->ticket);
 }
 
 static int
-validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
-	      struct drm_nouveau_gem_pushbuf_bo *pbbo,
+validate_init(struct analuveau_channel *chan, struct drm_file *file_priv,
+	      struct drm_analuveau_gem_pushbuf_bo *pbbo,
 	      int nr_buffers, struct validate_op *op)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
 	int trycnt = 0;
 	int ret = -EINVAL, i;
-	struct nouveau_bo *res_bo = NULL;
+	struct analuveau_bo *res_bo = NULL;
 	LIST_HEAD(gart_list);
 	LIST_HEAD(vram_list);
 	LIST_HEAD(both_list);
@@ -476,17 +476,17 @@ retry:
 	}
 
 	for (i = 0; i < nr_buffers; i++) {
-		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[i];
+		struct drm_analuveau_gem_pushbuf_bo *b = &pbbo[i];
 		struct drm_gem_object *gem;
-		struct nouveau_bo *nvbo;
+		struct analuveau_bo *nvbo;
 
 		gem = drm_gem_object_lookup(file_priv, b->handle);
 		if (!gem) {
-			NV_PRINTK(err, cli, "Unknown handle 0x%08x\n", b->handle);
-			ret = -ENOENT;
+			NV_PRINTK(err, cli, "Unkanalwn handle 0x%08x\n", b->handle);
+			ret = -EANALENT;
 			break;
 		}
-		nvbo = nouveau_gem_object(gem);
+		nvbo = analuveau_gem_object(gem);
 		if (nvbo == res_bo) {
 			res_bo = NULL;
 			drm_gem_object_put(gem);
@@ -506,7 +506,7 @@ retry:
 			list_splice_tail_init(&vram_list, &op->list);
 			list_splice_tail_init(&gart_list, &op->list);
 			list_splice_tail_init(&both_list, &op->list);
-			validate_fini_no_ticket(op, chan, NULL, NULL);
+			validate_fini_anal_ticket(op, chan, NULL, NULL);
 			if (unlikely(ret == -EDEADLK)) {
 				ret = ttm_bo_reserve_slowpath(&nvbo->bo, true,
 							      &op->ticket);
@@ -521,10 +521,10 @@ retry:
 		}
 
 		if (chan->vmm->vmm.object.oclass >= NVIF_CLASS_VMM_NV50) {
-			struct nouveau_vmm *vmm = chan->vmm;
-			struct nouveau_vma *vma = nouveau_vma_find(nvbo, vmm);
+			struct analuveau_vmm *vmm = chan->vmm;
+			struct analuveau_vma *vma = analuveau_vma_find(nvbo, vmm);
 			if (!vma) {
-				NV_PRINTK(err, cli, "vma not found!\n");
+				NV_PRINTK(err, cli, "vma analt found!\n");
 				ret = -EINVAL;
 				break;
 			}
@@ -536,14 +536,14 @@ retry:
 
 		nvbo->reserved_by = file_priv;
 		nvbo->pbbo_index = i;
-		if ((b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-		    (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART))
+		if ((b->valid_domains & ANALUVEAU_GEM_DOMAIN_VRAM) &&
+		    (b->valid_domains & ANALUVEAU_GEM_DOMAIN_GART))
 			list_add_tail(&nvbo->entry, &both_list);
 		else
-		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_VRAM)
+		if (b->valid_domains & ANALUVEAU_GEM_DOMAIN_VRAM)
 			list_add_tail(&nvbo->entry, &vram_list);
 		else
-		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART)
+		if (b->valid_domains & ANALUVEAU_GEM_DOMAIN_GART)
 			list_add_tail(&nvbo->entry, &gart_list);
 		else {
 			NV_PRINTK(err, cli, "invalid valid domains: 0x%08x\n",
@@ -567,17 +567,17 @@ retry:
 }
 
 static int
-validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
-	      struct list_head *list, struct drm_nouveau_gem_pushbuf_bo *pbbo)
+validate_list(struct analuveau_channel *chan, struct analuveau_cli *cli,
+	      struct list_head *list, struct drm_analuveau_gem_pushbuf_bo *pbbo)
 {
-	struct nouveau_drm *drm = chan->drm;
-	struct nouveau_bo *nvbo;
+	struct analuveau_drm *drm = chan->drm;
+	struct analuveau_bo *nvbo;
 	int ret, relocs = 0;
 
 	list_for_each_entry(nvbo, list, entry) {
-		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
+		struct drm_analuveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
 
-		ret = nouveau_gem_set_domain(&nvbo->bo.base, b->read_domains,
+		ret = analuveau_gem_set_domain(&nvbo->bo.base, b->read_domains,
 					     b->write_domains,
 					     b->valid_domains);
 		if (unlikely(ret)) {
@@ -585,14 +585,14 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = nouveau_bo_validate(nvbo, true, false);
+		ret = analuveau_bo_validate(nvbo, true, false);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_PRINTK(err, cli, "fail ttm_validate\n");
 			return ret;
 		}
 
-		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains, true);
+		ret = analuveau_fence_sync(nvbo, chan, !!b->write_domains, true);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_PRINTK(err, cli, "fail post-validate sync\n");
@@ -602,15 +602,15 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 			if (nvbo->offset == b->presumed.offset &&
 			    ((nvbo->bo.resource->mem_type == TTM_PL_VRAM &&
-			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
+			      b->presumed.domain & ANALUVEAU_GEM_DOMAIN_VRAM) ||
 			     (nvbo->bo.resource->mem_type == TTM_PL_TT &&
-			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_GART)))
+			      b->presumed.domain & ANALUVEAU_GEM_DOMAIN_GART)))
 				continue;
 
 			if (nvbo->bo.resource->mem_type == TTM_PL_TT)
-				b->presumed.domain = NOUVEAU_GEM_DOMAIN_GART;
+				b->presumed.domain = ANALUVEAU_GEM_DOMAIN_GART;
 			else
-				b->presumed.domain = NOUVEAU_GEM_DOMAIN_VRAM;
+				b->presumed.domain = ANALUVEAU_GEM_DOMAIN_VRAM;
 			b->presumed.offset = nvbo->offset;
 			b->presumed.valid = 0;
 			relocs++;
@@ -621,13 +621,13 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 }
 
 static int
-nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
+analuveau_gem_pushbuf_validate(struct analuveau_channel *chan,
 			     struct drm_file *file_priv,
-			     struct drm_nouveau_gem_pushbuf_bo *pbbo,
+			     struct drm_analuveau_gem_pushbuf_bo *pbbo,
 			     int nr_buffers,
 			     struct validate_op *op, bool *apply_relocs)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
 	int ret;
 
 	INIT_LIST_HEAD(&op->list);
@@ -656,18 +656,18 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 }
 
 static int
-nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
-				struct drm_nouveau_gem_pushbuf *req,
-				struct drm_nouveau_gem_pushbuf_reloc *reloc,
-				struct drm_nouveau_gem_pushbuf_bo *bo)
+analuveau_gem_pushbuf_reloc_apply(struct analuveau_cli *cli,
+				struct drm_analuveau_gem_pushbuf *req,
+				struct drm_analuveau_gem_pushbuf_reloc *reloc,
+				struct drm_analuveau_gem_pushbuf_bo *bo)
 {
 	int ret = 0;
 	unsigned i;
 
 	for (i = 0; i < req->nr_relocs; i++) {
-		struct drm_nouveau_gem_pushbuf_reloc *r = &reloc[i];
-		struct drm_nouveau_gem_pushbuf_bo *b;
-		struct nouveau_bo *nvbo;
+		struct drm_analuveau_gem_pushbuf_reloc *r = &reloc[i];
+		struct drm_analuveau_gem_pushbuf_bo *b;
+		struct analuveau_bo *nvbo;
 		uint32_t data;
 		long lret;
 
@@ -705,16 +705,16 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 			nvbo->validate_mapped = true;
 		}
 
-		if (r->flags & NOUVEAU_GEM_RELOC_LOW)
+		if (r->flags & ANALUVEAU_GEM_RELOC_LOW)
 			data = b->presumed.offset + r->data;
 		else
-		if (r->flags & NOUVEAU_GEM_RELOC_HIGH)
+		if (r->flags & ANALUVEAU_GEM_RELOC_HIGH)
 			data = (b->presumed.offset + r->data) >> 32;
 		else
 			data = r->data;
 
-		if (r->flags & NOUVEAU_GEM_RELOC_OR) {
-			if (b->presumed.domain == NOUVEAU_GEM_DOMAIN_GART)
+		if (r->flags & ANALUVEAU_GEM_RELOC_OR) {
+			if (b->presumed.domain == ANALUVEAU_GEM_DOMAIN_GART)
 				data |= r->tor;
 			else
 				data |= r->vor;
@@ -736,35 +736,35 @@ nouveau_gem_pushbuf_reloc_apply(struct nouveau_cli *cli,
 			break;
 		}
 
-		nouveau_bo_wr32(nvbo, r->reloc_bo_offset >> 2, data);
+		analuveau_bo_wr32(nvbo, r->reloc_bo_offset >> 2, data);
 	}
 
 	return ret;
 }
 
 int
-nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
+analuveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv);
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_abi16_chan *temp;
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct drm_nouveau_gem_pushbuf *req = data;
-	struct drm_nouveau_gem_pushbuf_push *push;
-	struct drm_nouveau_gem_pushbuf_reloc *reloc = NULL;
-	struct drm_nouveau_gem_pushbuf_bo *bo;
-	struct nouveau_channel *chan = NULL;
+	struct analuveau_abi16 *abi16 = analuveau_abi16_get(file_priv);
+	struct analuveau_cli *cli = analuveau_cli(file_priv);
+	struct analuveau_abi16_chan *temp;
+	struct analuveau_drm *drm = analuveau_drm(dev);
+	struct drm_analuveau_gem_pushbuf *req = data;
+	struct drm_analuveau_gem_pushbuf_push *push;
+	struct drm_analuveau_gem_pushbuf_reloc *reloc = NULL;
+	struct drm_analuveau_gem_pushbuf_bo *bo;
+	struct analuveau_channel *chan = NULL;
 	struct validate_op op;
-	struct nouveau_fence *fence = NULL;
+	struct analuveau_fence *fence = NULL;
 	int i, j, ret = 0;
 	bool do_reloc = false, sync = false;
 
 	if (unlikely(!abi16))
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (unlikely(nouveau_cli_uvmm(cli)))
-		return -ENOSYS;
+	if (unlikely(analuveau_cli_uvmm(cli)))
+		return -EANALSYS;
 
 	list_for_each_entry(temp, &abi16->channels, head) {
 		if (temp->chan->chid == req->channel) {
@@ -774,49 +774,49 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 	if (!chan)
-		return nouveau_abi16_put(abi16, -ENOENT);
+		return analuveau_abi16_put(abi16, -EANALENT);
 	if (unlikely(atomic_read(&chan->killed)))
-		return nouveau_abi16_put(abi16, -ENODEV);
+		return analuveau_abi16_put(abi16, -EANALDEV);
 
-	sync = req->vram_available & NOUVEAU_GEM_PUSHBUF_SYNC;
+	sync = req->vram_available & ANALUVEAU_GEM_PUSHBUF_SYNC;
 
 	req->vram_available = drm->gem.vram_available;
 	req->gart_available = drm->gem.gart_available;
 	if (unlikely(req->nr_push == 0))
 		goto out_next;
 
-	if (unlikely(req->nr_push > NOUVEAU_GEM_MAX_PUSH)) {
+	if (unlikely(req->nr_push > ANALUVEAU_GEM_MAX_PUSH)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
-			 req->nr_push, NOUVEAU_GEM_MAX_PUSH);
-		return nouveau_abi16_put(abi16, -EINVAL);
+			 req->nr_push, ANALUVEAU_GEM_MAX_PUSH);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	}
 
-	if (unlikely(req->nr_buffers > NOUVEAU_GEM_MAX_BUFFERS)) {
+	if (unlikely(req->nr_buffers > ANALUVEAU_GEM_MAX_BUFFERS)) {
 		NV_PRINTK(err, cli, "pushbuf bo count exceeds limit: %d max %d\n",
-			 req->nr_buffers, NOUVEAU_GEM_MAX_BUFFERS);
-		return nouveau_abi16_put(abi16, -EINVAL);
+			 req->nr_buffers, ANALUVEAU_GEM_MAX_BUFFERS);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	}
 
-	if (unlikely(req->nr_relocs > NOUVEAU_GEM_MAX_RELOCS)) {
+	if (unlikely(req->nr_relocs > ANALUVEAU_GEM_MAX_RELOCS)) {
 		NV_PRINTK(err, cli, "pushbuf reloc count exceeds limit: %d max %d\n",
-			 req->nr_relocs, NOUVEAU_GEM_MAX_RELOCS);
-		return nouveau_abi16_put(abi16, -EINVAL);
+			 req->nr_relocs, ANALUVEAU_GEM_MAX_RELOCS);
+		return analuveau_abi16_put(abi16, -EINVAL);
 	}
 
 	push = u_memcpya(req->push, req->nr_push, sizeof(*push));
 	if (IS_ERR(push))
-		return nouveau_abi16_put(abi16, PTR_ERR(push));
+		return analuveau_abi16_put(abi16, PTR_ERR(push));
 
 	bo = u_memcpya(req->buffers, req->nr_buffers, sizeof(*bo));
 	if (IS_ERR(bo)) {
 		u_free(push);
-		return nouveau_abi16_put(abi16, PTR_ERR(bo));
+		return analuveau_abi16_put(abi16, PTR_ERR(bo));
 	}
 
 	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
-			NV_PRINTK(err, cli, "push %d buffer not in list\n", i);
+			NV_PRINTK(err, cli, "push %d buffer analt in list\n", i);
 			ret = -EINVAL;
 			goto out_prevalid;
 		}
@@ -824,7 +824,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	/* Validate buffer list */
 revalidate:
-	ret = nouveau_gem_pushbuf_validate(chan, file_priv, bo,
+	ret = analuveau_gem_pushbuf_validate(chan, file_priv, bo,
 					   req->nr_buffers, &op, &do_reloc);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
@@ -845,7 +845,7 @@ revalidate:
 			goto revalidate;
 		}
 
-		ret = nouveau_gem_pushbuf_reloc_apply(cli, req, reloc, bo);
+		ret = analuveau_gem_pushbuf_reloc_apply(cli, req, reloc, bo);
 		if (ret) {
 			NV_PRINTK(err, cli, "reloc apply: %d\n", ret);
 			goto out;
@@ -853,20 +853,20 @@ revalidate:
 	}
 
 	if (chan->dma.ib_max) {
-		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
+		ret = analuveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
 			NV_PRINTK(err, cli, "nv50cal_space: %d\n", ret);
 			goto out;
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
-			struct nouveau_vma *vma = (void *)(unsigned long)
+			struct analuveau_vma *vma = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 			u64 addr = vma->addr + push[i].offset;
-			u32 length = push[i].length & ~NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
-			bool no_prefetch = push[i].length & NOUVEAU_GEM_PUSHBUF_NO_PREFETCH;
+			u32 length = push[i].length & ~ANALUVEAU_GEM_PUSHBUF_ANAL_PREFETCH;
+			bool anal_prefetch = push[i].length & ANALUVEAU_GEM_PUSHBUF_ANAL_PREFETCH;
 
-			nv50_dma_push(chan, addr, length, no_prefetch);
+			nv50_dma_push(chan, addr, length, anal_prefetch);
 		}
 	} else
 	if (drm->client.device.info.chipset >= 0x25) {
@@ -877,21 +877,21 @@ revalidate:
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
-			struct nouveau_bo *nvbo = (void *)(unsigned long)
+			struct analuveau_bo *nvbo = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 
 			PUSH_CALL(chan->chan.push, nvbo->offset + push[i].offset);
 			PUSH_DATA(chan->chan.push, 0);
 		}
 	} else {
-		ret = PUSH_WAIT(chan->chan.push, req->nr_push * (2 + NOUVEAU_DMA_SKIPS));
+		ret = PUSH_WAIT(chan->chan.push, req->nr_push * (2 + ANALUVEAU_DMA_SKIPS));
 		if (ret) {
 			NV_PRINTK(err, cli, "jmp_space: %d\n", ret);
 			goto out;
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
-			struct nouveau_bo *nvbo = (void *)(unsigned long)
+			struct analuveau_bo *nvbo = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
 			uint32_t cmd;
 
@@ -909,18 +909,18 @@ revalidate:
 					nvbo->validate_mapped = true;
 				}
 
-				nouveau_bo_wr32(nvbo, (push[i].offset +
+				analuveau_bo_wr32(nvbo, (push[i].offset +
 						push[i].length - 8) / 4, cmd);
 			}
 
 			PUSH_JUMP(chan->chan.push, nvbo->offset + push[i].offset);
 			PUSH_DATA(chan->chan.push, 0);
-			for (j = 0; j < NOUVEAU_DMA_SKIPS; j++)
+			for (j = 0; j < ANALUVEAU_DMA_SKIPS; j++)
 				PUSH_DATA(chan->chan.push, 0);
 		}
 	}
 
-	ret = nouveau_fence_new(&fence, chan);
+	ret = analuveau_fence_new(&fence, chan);
 	if (ret) {
 		NV_PRINTK(err, cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
@@ -928,7 +928,7 @@ revalidate:
 	}
 
 	if (sync) {
-		if (!(ret = nouveau_fence_wait(fence, false, false))) {
+		if (!(ret = analuveau_fence_wait(fence, false, false))) {
 			if ((ret = dma_fence_get_status(&fence->base)) == 1)
 				ret = 0;
 		}
@@ -936,10 +936,10 @@ revalidate:
 
 out:
 	validate_fini(&op, chan, fence, bo);
-	nouveau_fence_unref(&fence);
+	analuveau_fence_unref(&fence);
 
 	if (do_reloc) {
-		struct drm_nouveau_gem_pushbuf_bo __user *upbbo =
+		struct drm_analuveau_gem_pushbuf_bo __user *upbbo =
 			u64_to_user_ptr(req->buffers);
 
 		for (i = 0; i < req->nr_buffers; i++) {
@@ -973,29 +973,29 @@ out_next:
 		req->suffix1 = 0x00000000;
 	}
 
-	return nouveau_abi16_put(abi16, ret);
+	return analuveau_abi16_put(abi16, ret);
 }
 
 int
-nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
+analuveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
-	struct drm_nouveau_gem_cpu_prep *req = data;
+	struct drm_analuveau_gem_cpu_prep *req = data;
 	struct drm_gem_object *gem;
-	struct nouveau_bo *nvbo;
-	bool no_wait = !!(req->flags & NOUVEAU_GEM_CPU_PREP_NOWAIT);
-	bool write = !!(req->flags & NOUVEAU_GEM_CPU_PREP_WRITE);
+	struct analuveau_bo *nvbo;
+	bool anal_wait = !!(req->flags & ANALUVEAU_GEM_CPU_PREP_ANALWAIT);
+	bool write = !!(req->flags & ANALUVEAU_GEM_CPU_PREP_WRITE);
 	long lret;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
-		return -ENOENT;
-	nvbo = nouveau_gem_object(gem);
+		return -EANALENT;
+	nvbo = analuveau_gem_object(gem);
 
 	lret = dma_resv_wait_timeout(nvbo->bo.base.resv,
 				     dma_resv_usage_rw(write), true,
-				     no_wait ? 0 : 30 * HZ);
+				     anal_wait ? 0 : 30 * HZ);
 	if (!lret)
 		ret = -EBUSY;
 	else if (lret > 0)
@@ -1003,43 +1003,43 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	else
 		ret = lret;
 
-	nouveau_bo_sync_for_cpu(nvbo);
+	analuveau_bo_sync_for_cpu(nvbo);
 	drm_gem_object_put(gem);
 
 	return ret;
 }
 
 int
-nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
+analuveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
-	struct drm_nouveau_gem_cpu_fini *req = data;
+	struct drm_analuveau_gem_cpu_fini *req = data;
 	struct drm_gem_object *gem;
-	struct nouveau_bo *nvbo;
+	struct analuveau_bo *nvbo;
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
-		return -ENOENT;
-	nvbo = nouveau_gem_object(gem);
+		return -EANALENT;
+	nvbo = analuveau_gem_object(gem);
 
-	nouveau_bo_sync_for_device(nvbo);
+	analuveau_bo_sync_for_device(nvbo);
 	drm_gem_object_put(gem);
 	return 0;
 }
 
 int
-nouveau_gem_ioctl_info(struct drm_device *dev, void *data,
+analuveau_gem_ioctl_info(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct drm_nouveau_gem_info *req = data;
+	struct drm_analuveau_gem_info *req = data;
 	struct drm_gem_object *gem;
 	int ret;
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
 	if (!gem)
-		return -ENOENT;
+		return -EANALENT;
 
-	ret = nouveau_gem_info(file_priv, gem, req);
+	ret = analuveau_gem_info(file_priv, gem, req);
 	drm_gem_object_put(gem);
 	return ret;
 }

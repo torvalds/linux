@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved
  */
 
 #ifndef _DPU_HW_WB_H
@@ -79,7 +79,7 @@ struct dpu_hw_wb {
  * @dev:  Corresponding device for devres management
  * @cfg:  wb_path catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
- * @mdss_rev: dpu core's major and minor versions
+ * @mdss_rev: dpu core's major and mianalr versions
  * Return: Error code or allocated dpu_hw_wb context
  */
 struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,

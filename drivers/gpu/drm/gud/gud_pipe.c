@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * Copyright 2020 Noralf Trønnes
+ * Copyright 2020 Analralf Trønnes
  */
 
 #include <linux/lz4.h>
@@ -32,7 +32,7 @@
  */
 static bool gud_async_flush;
 module_param_named(async_flush, gud_async_flush, bool, 0644);
-MODULE_PARM_DESC(async_flush, "Enable asynchronous flushing [default=0]");
+MODULE_PARM_DESC(async_flush, "Enable asynchroanalus flushing [default=0]");
 
 /*
  * FIXME: The driver is probably broken on Big Endian machines.
@@ -182,7 +182,7 @@ retry:
 		if (format->format == GUD_DRM_FORMAT_R1) {
 			len = gud_xrgb8888_to_r124(buf, format, vaddr, fb, rect, fmtcnv_state);
 			if (!len)
-				return -ENOMEM;
+				return -EANALMEM;
 		} else if (format->format == DRM_FORMAT_R8) {
 			drm_fb_xrgb8888_to_gray8(&dst, NULL, src, fb, rect, fmtcnv_state);
 		} else if (format->format == DRM_FORMAT_RGB332) {
@@ -346,7 +346,7 @@ static void gud_flush_damage(struct gud_device *gdrm, struct drm_framebuffer *fb
 
 		ret = gud_flush_rect(gdrm, fb, src, cached_reads, format, &rect, &fmtcnv_state);
 		if (ret) {
-			if (ret != -ENODEV && ret != -ECONNRESET &&
+			if (ret != -EANALDEV && ret != -ECONNRESET &&
 			    ret != -ESHUTDOWN && ret != -EPROTO)
 				dev_err_ratelimited(fb->dev->dev,
 						    "Failed to flush framebuffer: error=%d\n", ret);
@@ -399,7 +399,7 @@ static int gud_fb_queue_damage(struct gud_device *gdrm, struct drm_framebuffer *
 		gdrm->shadow_buf = vcalloc(fb->pitches[0], fb->height);
 		if (!gdrm->shadow_buf) {
 			mutex_unlock(&gdrm->damage_lock);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 
@@ -438,7 +438,7 @@ static void gud_fb_handle_damage(struct gud_device *gdrm, struct drm_framebuffer
 
 	if (gud_async_flush) {
 		ret = gud_fb_queue_damage(gdrm, fb, src, damage);
-		if (ret != -ENOMEM)
+		if (ret != -EANALMEM)
 			return;
 	}
 
@@ -489,7 +489,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 	}
 
 	/*
-	 * DRM_IOCTL_MODE_OBJ_SETPROPERTY on the rotation property will not have
+	 * DRM_IOCTL_MODE_OBJ_SETPROPERTY on the rotation property will analt have
 	 * the connector included in the state.
 	 */
 	if (!connector_state) {
@@ -506,13 +506,13 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 	}
 
 	if (WARN_ON_ONCE(!connector_state))
-		return -ENOENT;
+		return -EANALENT;
 
 	len = struct_size(req, properties,
 			  size_add(GUD_PROPERTIES_MAX_NUM, GUD_CONNECTOR_PROPERTIES_MAX_NUM));
 	req = kzalloc(len, GFP_KERNEL);
 	if (!req)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gud_from_display_mode(&req->mode, mode);
 
@@ -554,7 +554,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 		ret = gud_usb_set(gdrm, GUD_REQ_SET_STATE_CHECK, 0, req, len);
 		drm_dev_exit(idx);
 	}  else {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 out:
 	kfree(req);

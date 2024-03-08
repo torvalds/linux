@@ -31,8 +31,8 @@
 #define ACPI_BATTERY_DIR_NAME		"BAT%i"
 #define ACPI_AC_DIR_NAME		"AC0"
 
-#define ACPI_SBS_NOTIFY_STATUS		0x80
-#define ACPI_SBS_NOTIFY_INFO		0x81
+#define ACPI_SBS_ANALTIFY_STATUS		0x80
+#define ACPI_SBS_ANALTIFY_INFO		0x81
 
 MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("Smart Battery System ACPI interface driver");
@@ -66,11 +66,11 @@ struct acpi_battery {
 	u16 design_voltage;
 	u16 serial_number;
 	u16 cycle_count;
-	u16 temp_now;
-	u16 voltage_now;
-	s16 rate_now;
+	u16 temp_analw;
+	u16 voltage_analw;
+	s16 rate_analw;
 	s16 rate_avg;
-	u16 capacity_now;
+	u16 capacity_analw;
 	u16 state_of_charge;
 	u16 state;
 	u16 mode;
@@ -143,17 +143,17 @@ static int sbs_get_ac_property(struct power_supply *psy,
 	return 0;
 }
 
-static int acpi_battery_technology(struct acpi_battery *battery)
+static int acpi_battery_techanallogy(struct acpi_battery *battery)
 {
 	if (!strcasecmp("NiCd", battery->device_chemistry))
-		return POWER_SUPPLY_TECHNOLOGY_NiCd;
+		return POWER_SUPPLY_TECHANALLOGY_NiCd;
 	if (!strcasecmp("NiMH", battery->device_chemistry))
-		return POWER_SUPPLY_TECHNOLOGY_NiMH;
+		return POWER_SUPPLY_TECHANALLOGY_NiMH;
 	if (!strcasecmp("LION", battery->device_chemistry))
-		return POWER_SUPPLY_TECHNOLOGY_LION;
+		return POWER_SUPPLY_TECHANALLOGY_LION;
 	if (!strcasecmp("LiP", battery->device_chemistry))
-		return POWER_SUPPLY_TECHNOLOGY_LIPO;
-	return POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		return POWER_SUPPLY_TECHANALLOGY_LIPO;
+	return POWER_SUPPLY_TECHANALLOGY_UNKANALWN;
 }
 
 static int acpi_sbs_battery_get_property(struct power_supply *psy,
@@ -163,14 +163,14 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	struct acpi_battery *battery = to_acpi_battery(psy);
 
 	if ((!battery->present) && psp != POWER_SUPPLY_PROP_PRESENT)
-		return -ENODEV;
+		return -EANALDEV;
 
 	acpi_battery_get_state(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (battery->rate_now < 0)
+		if (battery->rate_analw < 0)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (battery->rate_now > 0)
+		else if (battery->rate_analw > 0)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_FULL;
@@ -178,8 +178,8 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = battery->present;
 		break;
-	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = acpi_battery_technology(battery);
+	case POWER_SUPPLY_PROP_TECHANALLOGY:
+		val->intval = acpi_battery_techanallogy(battery);
 		break;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
 		val->intval = battery->cycle_count;
@@ -188,16 +188,16 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		val->intval = battery->design_voltage *
 			acpi_battery_vscale(battery) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = battery->voltage_now *
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
+		val->intval = battery->voltage_analw *
 				acpi_battery_vscale(battery) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-	case POWER_SUPPLY_PROP_POWER_NOW:
-		val->intval = abs(battery->rate_now) *
+	case POWER_SUPPLY_PROP_CURRENT_ANALW:
+	case POWER_SUPPLY_PROP_POWER_ANALW:
+		val->intval = abs(battery->rate_analw) *
 				acpi_battery_ipscale(battery) * 1000;
 		val->intval *= (acpi_battery_mode(battery)) ?
-				(battery->voltage_now *
+				(battery->voltage_analw *
 				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
@@ -205,7 +205,7 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
 		val->intval *= (acpi_battery_mode(battery)) ?
-				(battery->voltage_now *
+				(battery->voltage_analw *
 				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -221,13 +221,13 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 		val->intval = battery->full_charge_capacity *
 			acpi_battery_scale(battery) * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		val->intval = battery->capacity_now *
+	case POWER_SUPPLY_PROP_CHARGE_ANALW:
+	case POWER_SUPPLY_PROP_ENERGY_ANALW:
+		val->intval = battery->capacity_analw *
 				acpi_battery_scale(battery) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		val->intval = battery->temp_now - 2730;	// dK -> dC
+		val->intval = battery->temp_analw - 2730;	// dK -> dC
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = battery->device_name;
@@ -248,16 +248,16 @@ static enum power_supply_property sbs_ac_props[] = {
 static enum power_supply_property sbs_charge_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_NOW,
+	POWER_SUPPLY_PROP_CHARGE_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -266,17 +266,17 @@ static enum power_supply_property sbs_charge_battery_props[] = {
 static enum power_supply_property sbs_energy_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_TECHANALLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
+	POWER_SUPPLY_PROP_CURRENT_ANALW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
-	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_POWER_ANALW,
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_FULL,
-	POWER_SUPPLY_PROP_ENERGY_NOW,
+	POWER_SUPPLY_PROP_ENERGY_ANALW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
@@ -315,11 +315,11 @@ static struct acpi_battery_reader info_readers[] = {
 };
 
 static struct acpi_battery_reader state_readers[] = {
-	{0x08, SMBUS_READ_WORD, offsetof(struct acpi_battery, temp_now)},
-	{0x09, SMBUS_READ_WORD, offsetof(struct acpi_battery, voltage_now)},
-	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_now)},
+	{0x08, SMBUS_READ_WORD, offsetof(struct acpi_battery, temp_analw)},
+	{0x09, SMBUS_READ_WORD, offsetof(struct acpi_battery, voltage_analw)},
+	{0x0a, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_analw)},
 	{0x0b, SMBUS_READ_WORD, offsetof(struct acpi_battery, rate_avg)},
-	{0x0f, SMBUS_READ_WORD, offsetof(struct acpi_battery, capacity_now)},
+	{0x0f, SMBUS_READ_WORD, offsetof(struct acpi_battery, capacity_analw)},
 	{0x0e, SMBUS_READ_WORD, offsetof(struct acpi_battery, state_of_charge)},
 	{0x16, SMBUS_READ_WORD, offsetof(struct acpi_battery, state)},
 };
@@ -424,15 +424,15 @@ static int acpi_ac_get_present(struct acpi_sbs *sbs)
 		return result;
 
 	/*
-	 * The spec requires that bit 4 always be 1. If it's not set, assume
+	 * The spec requires that bit 4 always be 1. If it's analt set, assume
 	 * that the implementation doesn't support an SBS charger.
 	 *
-	 * And on some MacBooks a status of 0xffff is always returned, no
-	 * matter whether the charger is plugged in or not, which is also
-	 * wrong, so ignore the SBS charger for those too.
+	 * And on some MacBooks a status of 0xffff is always returned, anal
+	 * matter whether the charger is plugged in or analt, which is also
+	 * wrong, so iganalre the SBS charger for those too.
 	 */
 	if (!((status >> 4) & 0x1) || status == 0xffff)
-		return -ENODEV;
+		return -EANALDEV;
 
 	sbs->charger_present = (status >> 15) & 0x1;
 	return 0;
@@ -635,7 +635,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 	sbs = kzalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
 	if (!sbs) {
-		result = -ENOMEM;
+		result = -EANALMEM;
 		goto end;
 	}
 
@@ -648,7 +648,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 	device->driver_data = sbs;
 
 	result = acpi_charger_add(sbs);
-	if (result && result != -ENODEV)
+	if (result && result != -EANALDEV)
 		goto end;
 
 	result = 0;

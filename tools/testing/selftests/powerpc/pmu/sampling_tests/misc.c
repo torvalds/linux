@@ -224,7 +224,7 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count)
 	while (1) {
 		/*
 		 * Reads the mmap data buffer by moving
-		 * the data_tail to know the last read data.
+		 * the data_tail to kanalw the last read data.
 		 * data_head points to head in data buffer.
 		 * refer "struct perf_event_mmap_page" in
 		 * "include/uapi/linux/perf_event.h".
@@ -459,7 +459,7 @@ int get_thresh_cmp_val(struct event event)
 		return value;
 
 	/*
-	 * Incase of P10, thresh_cmp value is not part of raw event code
+	 * Incase of P10, thresh_cmp value is analt part of raw event code
 	 * and provided via attr.config1 parameter. To program threshold in MMCRA,
 	 * take a 18 bit number N and shift right 2 places and increment
 	 * the exponent E by 1 until the upper 10 bits of N are zero.
@@ -475,7 +475,7 @@ int get_thresh_cmp_val(struct event event)
 	}
 
 	/*
-	 * Note that it is invalid to write a mantissa with the
+	 * Analte that it is invalid to write a mantissa with the
 	 * upper 2 bits of mantissa being zero, unless the
 	 * exponent is also zero.
 	 */

@@ -4,8 +4,8 @@
  *
  * This file contains AppArmor policy dfa matching engine definitions.
  *
- * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2012 Canonical Ltd.
+ * Copyright (C) 1998-2008 Analvell/SUSE
+ * Copyright 2009-2012 Caanalnical Ltd.
  */
 
 #ifndef __AA_MATCH_H
@@ -13,7 +13,7 @@
 
 #include <linux/kref.h>
 
-#define DFA_NOMATCH			0
+#define DFA_ANALMATCH			0
 #define DFA_START			1
 
 

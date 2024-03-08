@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Devin Heitmueller <dheitmueller@kernellabs.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -93,12 +93,12 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 				 const struct firmware *firmware) {
 
 	struct as10x_fw_pkt_t *fw_pkt;
-	int total_read_bytes = 0, errno = 0;
+	int total_read_bytes = 0, erranal = 0;
 	unsigned char addr_has_changed = 0;
 
 	fw_pkt = kmalloc(sizeof(*fw_pkt), GFP_KERNEL);
 	if (!fw_pkt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 
 	for (total_read_bytes = 0; total_read_bytes < firmware->size; ) {
@@ -122,10 +122,10 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 			fw_pkt->u.request[1] = 0x03;
 
 			/* send EOF command */
-			errno = bus_adap->ops->upload_fw_pkt(bus_adap,
+			erranal = bus_adap->ops->upload_fw_pkt(bus_adap,
 							     (uint8_t *)
 							     fw_pkt, 2, 0);
-			if (errno < 0)
+			if (erranal < 0)
 				goto error;
 		} else {
 			if (!addr_has_changed) {
@@ -137,24 +137,24 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 				data_len += sizeof(fw_pkt->raw.address);
 
 				/* send cmd to device */
-				errno = bus_adap->ops->upload_fw_pkt(bus_adap,
+				erranal = bus_adap->ops->upload_fw_pkt(bus_adap,
 								     (uint8_t *)
 								     fw_pkt,
 								     data_len,
 								     0);
-				if (errno < 0)
+				if (erranal < 0)
 					goto error;
 			}
 		}
 	}
 error:
 	kfree(fw_pkt);
-	return (errno == 0) ? total_read_bytes : errno;
+	return (erranal == 0) ? total_read_bytes : erranal;
 }
 
 int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 {
-	int errno = -EFAULT;
+	int erranal = -EFAULT;
 	const struct firmware *firmware = NULL;
 	unsigned char *cmd_buf = NULL;
 	const char *fw1, *fw2;
@@ -172,21 +172,21 @@ int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 	/* allocate buffer to store firmware upload command and data */
 	cmd_buf = kzalloc(MAX_FW_PKT_SIZE, GFP_KERNEL);
 	if (cmd_buf == NULL) {
-		errno = -ENOMEM;
+		erranal = -EANALMEM;
 		goto error;
 	}
 
 	/* request kernel to locate firmware file: part1 */
-	errno = request_firmware(&firmware, fw1, &dev->dev);
-	if (errno < 0) {
+	erranal = request_firmware(&firmware, fw1, &dev->dev);
+	if (erranal < 0) {
 		pr_err("%s: unable to locate firmware file: %s\n",
 		       DRIVER_NAME, fw1);
 		goto error;
 	}
 
 	/* initiate firmware upload */
-	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
-	if (errno < 0) {
+	erranal = as102_firmware_upload(bus_adap, cmd_buf, firmware);
+	if (erranal < 0) {
 		pr_err("%s: error during firmware upload part1\n",
 		       DRIVER_NAME);
 		goto error;
@@ -201,16 +201,16 @@ int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 	mdelay(100);
 
 	/* request kernel to locate firmware file: part2 */
-	errno = request_firmware(&firmware, fw2, &dev->dev);
-	if (errno < 0) {
+	erranal = request_firmware(&firmware, fw2, &dev->dev);
+	if (erranal < 0) {
 		pr_err("%s: unable to locate firmware file: %s\n",
 		       DRIVER_NAME, fw2);
 		goto error;
 	}
 
 	/* initiate firmware upload */
-	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
-	if (errno < 0) {
+	erranal = as102_firmware_upload(bus_adap, cmd_buf, firmware);
+	if (erranal < 0) {
 		pr_err("%s: error during firmware upload part2\n",
 		       DRIVER_NAME);
 		goto error;
@@ -222,5 +222,5 @@ error:
 	kfree(cmd_buf);
 	release_firmware(firmware);
 
-	return errno;
+	return erranal;
 }

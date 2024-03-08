@@ -35,10 +35,10 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define DRIVER_DESC		"Grain Media GM12U320 USB projector display"
 #define DRIVER_DATE		"2019"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
+#define DRIVER_MIANALR		0
 
 /*
- * The DLP has an actual width of 854 pixels, but that is not a multiple
+ * The DLP has an actual width of 854 pixels, but that is analt a multiple
  * of 8, breaking things left and right, so we export a width of 848.
  */
 #define GM12U320_USER_WIDTH		848
@@ -78,11 +78,11 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define MISC_REQ_GET_SET_ECO_A		0xff
 #define MISC_REQ_GET_SET_ECO_B		0x35
 /* Windows driver does once every second, with arg d = 1, other args 0 */
-#define MISC_REQ_UNKNOWN1_A		0xff
-#define MISC_REQ_UNKNOWN1_B		0x38
+#define MISC_REQ_UNKANALWN1_A		0xff
+#define MISC_REQ_UNKANALWN1_B		0x38
 /* Windows driver does this on init, with arg a, b = 0, c = 0xa0, d = 4 */
-#define MISC_REQ_UNKNOWN2_A		0xa5
-#define MISC_REQ_UNKNOWN2_B		0x00
+#define MISC_REQ_UNKANALWN2_A		0xa5
+#define MISC_REQ_UNKANALWN2_B		0x00
 
 struct gm12u320_device {
 	struct drm_device	         dev;
@@ -171,7 +171,7 @@ static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 
 	gm12u320->cmd_buf = drmm_kmalloc(&gm12u320->dev, CMD_SIZE, GFP_KERNEL);
 	if (!gm12u320->cmd_buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < GM12U320_BLOCK_COUNT; i++) {
 		if (i == GM12U320_BLOCK_COUNT - 1) {
@@ -185,7 +185,7 @@ static int gm12u320_usb_alloc(struct gm12u320_device *gm12u320)
 		gm12u320->data_buf[i] = drmm_kzalloc(&gm12u320->dev,
 						     block_size, GFP_KERNEL);
 		if (!gm12u320->data_buf[i])
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memcpy(gm12u320->data_buf[i], hdr, DATA_BLOCK_HEADER_SIZE);
 		memcpy(gm12u320->data_buf[i] +
@@ -227,7 +227,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 		GM12U320_ERR("Misc. value error %d\n", ret);
 		return -EIO;
 	}
-	/* cmd_buf[0] now contains the read value, which we don't use */
+	/* cmd_buf[0] analw contains the read value, which we don't use */
 
 	/* Read status */
 	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, MISC_RCV_EPT),
@@ -393,8 +393,8 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 
 	return;
 err:
-	/* Do not log errors caused by module unload or device unplug */
-	if (ret != -ENODEV && ret != -ECONNRESET && ret != -ESHUTDOWN)
+	/* Do analt log errors caused by module unload or device unplug */
+	if (ret != -EANALDEV && ret != -ECONNRESET && ret != -ESHUTDOWN)
 		GM12U320_ERR("Frame update error: %d\n", ret);
 }
 
@@ -459,9 +459,9 @@ static int gm12u320_set_ecomode(struct gm12u320_device *gm12u320)
 /* gm12u320 connector						      */
 
 /*
- * We use fake EDID info so that userspace know that it is dealing with
- * an Acer projector, rather then listing this as an "unknown" monitor.
- * Note this assumes this driver is only ever used with the Acer C120, if we
+ * We use fake EDID info so that userspace kanalw that it is dealing with
+ * an Acer projector, rather then listing this as an "unkanalwn" monitor.
+ * Analte this assumes this driver is only ever used with the Acer C120, if we
  * add support for other devices the vendor and model should be parameterized.
  */
 static struct edid gm12u320_edid = {
@@ -606,7 +606,7 @@ static struct drm_gem_object *gm12u320_gem_prime_import(struct drm_device *dev,
 	struct gm12u320_device *gm12u320 = to_gm12u320(dev);
 
 	if (!gm12u320->dmadev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	return drm_gem_prime_import_dev(dev, dma_buf, gm12u320->dmadev);
 }
@@ -620,7 +620,7 @@ static const struct drm_driver gm12u320_drm_driver = {
 	.desc		 = DRIVER_DESC,
 	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
-	.minor		 = DRIVER_MINOR,
+	.mianalr		 = DRIVER_MIANALR,
 
 	.fops		 = &gm12u320_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
@@ -645,7 +645,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	 * interfaces, we only care about / need the first one.
 	 */
 	if (interface->cur_altsetting->desc.bInterfaceNumber != 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gm12u320 = devm_drm_dev_alloc(&interface->dev, &gm12u320_drm_driver,
 				      struct gm12u320_device, dev);
@@ -655,7 +655,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 
 	gm12u320->dmadev = usb_intf_get_dma_device(to_usb_interface(dev->dev));
 	if (!gm12u320->dmadev)
-		drm_warn(dev, "buffer sharing not supported"); /* not an error */
+		drm_warn(dev, "buffer sharing analt supported"); /* analt an error */
 
 	INIT_DELAYED_WORK(&gm12u320->fb_update.work, gm12u320_fb_update_work);
 	mutex_init(&gm12u320->fb_update.lock);

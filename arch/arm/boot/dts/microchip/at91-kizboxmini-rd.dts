@@ -23,7 +23,7 @@
 	adc0 {
 		pinctrl_adc0_ad5: adc0_ad5-0 {
 			/* pull-up disable */
-			atmel,pins = <AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+			atmel,pins = <AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_ANALNE>;
 		};
 	};
 };

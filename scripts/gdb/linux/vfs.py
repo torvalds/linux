@@ -41,19 +41,19 @@ DentryName()
 
 dentry_type = utils.CachedType("struct dentry")
 
-class InodeDentry(gdb.Function):
-    """Return dentry pointer for inode.
+class IanaldeDentry(gdb.Function):
+    """Return dentry pointer for ianalde.
 
-$lx_i_dentry(PTR): Given PTR to an inode struct, return a pointer to
+$lx_i_dentry(PTR): Given PTR to an ianalde struct, return a pointer to
 the associated dentry struct, if there is one."""
 
     def __init__(self):
-        super(InodeDentry, self).__init__("lx_i_dentry")
+        super(IanaldeDentry, self).__init__("lx_i_dentry")
 
-    def invoke(self, inode_ptr):
-        d_u = inode_ptr["i_dentry"]["first"]
+    def invoke(self, ianalde_ptr):
+        d_u = ianalde_ptr["i_dentry"]["first"]
         if d_u == 0:
             return ""
         return utils.container_of(d_u, dentry_type.get_type().pointer(), "d_u")
 
-InodeDentry()
+IanaldeDentry()

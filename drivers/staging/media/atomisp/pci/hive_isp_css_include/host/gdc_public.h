@@ -26,13 +26,13 @@
 
  \implementation dependent
 	- The value of "HRT_GDC_N" is device specific
-	- The LUT should not be partially written
+	- The LUT should analt be partially written
 	- The LUT format is a quadri-phase interpolation
 	  table. The layout is device specific
 	- The range of the values data[n][m] is device
 	  specific
 
- \return none, GDC[ID].lut[0...3][0...HRT_GDC_N-1] = data
+ \return analne, GDC[ID].lut[0...3][0...HRT_GDC_N-1] = data
  */
 void gdc_lut_store(
     const gdc_ID_t		ID,

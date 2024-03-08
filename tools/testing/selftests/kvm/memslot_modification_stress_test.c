@@ -77,7 +77,7 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 
 	for (i = 0; i < nr_modifications; i++) {
 		usleep(delay);
-		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, gpa,
+		vm_userspace_mem_region_add(vm, VM_MEM_SRC_AANALNYMOUS, gpa,
 					    DUMMY_MEMSLOT_INDEX, pages, 0);
 
 		vm_mem_region_delete(vm, DUMMY_MEMSLOT_INDEX);
@@ -96,7 +96,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_vm *vm;
 
 	vm = memstress_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
-				 VM_MEM_SRC_ANONYMOUS,
+				 VM_MEM_SRC_AANALNYMOUS,
 				 p->partition_vcpu_memory_access);
 
 	pr_info("Finished creating vCPUs\n");
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 			guest_modes_cmdline(optarg);
 			break;
 		case 'd':
-			p.delay = atoi_non_negative("Delay", optarg);
+			p.delay = atoi_analn_negative("Delay", optarg);
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);

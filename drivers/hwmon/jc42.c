@@ -23,7 +23,7 @@
 #include <linux/regmap.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short analrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, I2C_CLIENT_END };
 
 /* JC42 registers. All registers are 16 bit. */
@@ -314,7 +314,7 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = FIELD_GET(JC42_ALARM_CRIT, regval);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -375,7 +375,7 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 				   data->config);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		break;
 	}
 
@@ -418,7 +418,7 @@ static umode_t jc42_is_visible(const void *_data, enum hwmon_sensor_types type,
 	return mode;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -426,7 +426,7 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	cap = i2c_smbus_read_word_swapped(client, JC42_REG_CAP);
 	config = i2c_smbus_read_word_swapped(client, JC42_REG_CONFIG);
@@ -434,10 +434,10 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 	devid = i2c_smbus_read_word_swapped(client, JC42_REG_DEVICEID);
 
 	if (cap < 0 || config < 0 || manid < 0 || devid < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if ((cap & 0xff00) || (config & 0xf800))
-		return -ENODEV;
+		return -EANALDEV;
 
 	for (i = 0; i < ARRAY_SIZE(jc42_chips); i++) {
 		struct jc42_chips *chip = &jc42_chips[i];
@@ -447,7 +447,7 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 			return 0;
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static const struct hwmon_channel_info * const jc42_info[] = {
@@ -510,7 +510,7 @@ static int jc42_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct jc42_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regmap = devm_regmap_init_i2c(client, &jc42_regmap_config);
 	if (IS_ERR(data->regmap))
@@ -527,8 +527,8 @@ static int jc42_probe(struct i2c_client *client)
 
 	if (device_property_read_bool(dev, "smbus-timeout-disable")) {
 		/*
-		 * Not all chips support this register, but from a
-		 * quick read of various datasheets no chip appears
+		 * Analt all chips support this register, but from a
+		 * quick read of various datasheets anal chip appears
 		 * incompatible with the below attempt to disable
 		 * the timeout. And the whole thing is opt-in...
 		 */
@@ -633,7 +633,7 @@ static struct i2c_driver jc42_driver = {
 	.remove		= jc42_remove,
 	.id_table	= jc42_id,
 	.detect		= jc42_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(jc42_driver);

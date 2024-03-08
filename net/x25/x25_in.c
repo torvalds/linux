@@ -21,7 +21,7 @@
 #define pr_fmt(fmt) "X25: " fmt
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
@@ -140,7 +140,7 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 	case X25_CALL_REQUEST:
 		/* call collision */
 		x25->causediag.cause      = 0x01;
-		x25->causediag.diagnostic = 0x48;
+		x25->causediag.diaganalstic = 0x48;
 
 		x25_write_internal(sk, X25_CLEAR_REQUEST);
 		x25_disconnect(sk, EISCONN, 0x01, 0x48);
@@ -323,7 +323,7 @@ static int x25_state3_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			break;
 
 		default:
-			pr_warn("unknown %02X in state 3\n", frametype);
+			pr_warn("unkanalwn %02X in state 3\n", frametype);
 			break;
 	}
 

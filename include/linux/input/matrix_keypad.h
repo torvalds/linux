@@ -50,7 +50,7 @@ struct matrix_keymap_data {
  * @active_low: gpio polarity
  * @wakeup: controls whether the device should be set up as wakeup
  *	source
- * @no_autorepeat: disable key autorepeat
+ * @anal_autorepeat: disable key autorepeat
  * @drive_inactive_cols: drive inactive columns during scan, rather than
  *	making them inputs.
  *
@@ -76,7 +76,7 @@ struct matrix_keypad_platform_data {
 
 	bool		active_low;
 	bool		wakeup;
-	bool		no_autorepeat;
+	bool		anal_autorepeat;
 	bool		drive_inactive_cols;
 };
 

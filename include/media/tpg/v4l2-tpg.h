@@ -9,7 +9,7 @@
 #define _V4L2_TPG_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -83,7 +83,7 @@ enum tpg_pattern {
 	TPG_PAT_GRAY_RAMP,
 
 	/* Must be the last pattern */
-	TPG_PAT_NOISE,
+	TPG_PAT_ANALISE,
 };
 
 extern const char * const tpg_pattern_strings[];
@@ -91,7 +91,7 @@ extern const char * const tpg_pattern_strings[];
 enum tpg_quality {
 	TPG_QUAL_COLOR,
 	TPG_QUAL_GRAY,
-	TPG_QUAL_NOISE
+	TPG_QUAL_ANALISE
 };
 
 enum tpg_video_aspect {
@@ -112,7 +112,7 @@ enum tpg_move_mode {
 	TPG_MOVE_NEG_FAST,
 	TPG_MOVE_NEG,
 	TPG_MOVE_NEG_SLOW,
-	TPG_MOVE_NONE,
+	TPG_MOVE_ANALNE,
 	TPG_MOVE_POS_SLOW,
 	TPG_MOVE_POS,
 	TPG_MOVE_POS_FAST,
@@ -660,9 +660,9 @@ static inline bool tpg_g_vflip(const struct tpg_data *tpg)
 
 static inline bool tpg_pattern_is_static(const struct tpg_data *tpg)
 {
-	return tpg->pattern != TPG_PAT_NOISE &&
-	       tpg->mv_hor_mode == TPG_MOVE_NONE &&
-	       tpg->mv_vert_mode == TPG_MOVE_NONE;
+	return tpg->pattern != TPG_PAT_ANALISE &&
+	       tpg->mv_hor_mode == TPG_MOVE_ANALNE &&
+	       tpg->mv_vert_mode == TPG_MOVE_ANALNE;
 }
 
 #endif

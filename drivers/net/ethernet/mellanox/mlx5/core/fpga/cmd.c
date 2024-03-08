@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -98,7 +98,7 @@ int mlx5_fpga_sbu_caps(struct mlx5_core_dev *dev, void *caps, int size)
 	int ret = 0;
 
 	if (cap_size > size) {
-		mlx5_core_warn(dev, "Not enough buffer %u for FPGA SBU caps %u",
+		mlx5_core_warn(dev, "Analt eanalugh buffer %u for FPGA SBU caps %u",
 			       size, cap_size);
 		return -EINVAL;
 	}
@@ -150,7 +150,7 @@ int mlx5_fpga_create_qp(struct mlx5_core_dev *dev, void *fpga_qpc,
 	memcpy(MLX5_ADDR_OF(fpga_create_qp_in, in, fpga_qpc), fpga_qpc,
 	       MLX5_FLD_SZ_BYTES(fpga_create_qp_in, fpga_qpc));
 
-	ret = mlx5_cmd_exec_inout(dev, fpga_create_qp, in, out);
+	ret = mlx5_cmd_exec_ianalut(dev, fpga_create_qp, in, out);
 	if (ret)
 		return ret;
 
@@ -185,7 +185,7 @@ int mlx5_fpga_query_qp(struct mlx5_core_dev *dev,
 	MLX5_SET(fpga_query_qp_in, in, opcode, MLX5_CMD_OP_FPGA_QUERY_QP);
 	MLX5_SET(fpga_query_qp_in, in, fpga_qpn, fpga_qpn);
 
-	ret = mlx5_cmd_exec_inout(dev, fpga_query_qp, in, out);
+	ret = mlx5_cmd_exec_ianalut(dev, fpga_query_qp, in, out);
 	if (ret)
 		return ret;
 
@@ -216,7 +216,7 @@ int mlx5_fpga_query_qp_counters(struct mlx5_core_dev *dev, u32 fpga_qpn,
 	MLX5_SET(fpga_query_qp_counters_in, in, clear, clear);
 	MLX5_SET(fpga_query_qp_counters_in, in, fpga_qpn, fpga_qpn);
 
-	ret = mlx5_cmd_exec_inout(dev, fpga_query_qp_counters, in, out);
+	ret = mlx5_cmd_exec_ianalut(dev, fpga_query_qp_counters, in, out);
 	if (ret)
 		return ret;
 

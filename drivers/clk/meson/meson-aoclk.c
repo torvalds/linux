@@ -38,21 +38,21 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	struct meson_aoclk_reset_controller *rstc;
 	struct meson_aoclk_data *data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_analde *np;
 	struct regmap *regmap;
 	int ret, clkid;
 
 	data = (struct meson_aoclk_data *) of_device_get_match_data(dev);
 	if (!data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	np = of_get_parent(dev->of_node);
-	regmap = syscon_node_to_regmap(np);
-	of_node_put(np);
+	np = of_get_parent(dev->of_analde);
+	regmap = syscon_analde_to_regmap(np);
+	of_analde_put(np);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get regmap\n");
 		return PTR_ERR(regmap);
@@ -63,7 +63,7 @@ int meson_aoclkc_probe(struct platform_device *pdev)
 	rstc->regmap = regmap;
 	rstc->reset.ops = &meson_aoclk_reset_ops;
 	rstc->reset.nr_resets = data->num_reset;
-	rstc->reset.of_node = dev->of_node;
+	rstc->reset.of_analde = dev->of_analde;
 	ret = devm_reset_controller_register(dev, &rstc->reset);
 	if (ret) {
 		dev_err(dev, "failed to register reset controller\n");

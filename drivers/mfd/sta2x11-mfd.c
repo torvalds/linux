@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -79,7 +79,7 @@ static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 		return -EINVAL;
 	mfd = kzalloc(sizeof(*mfd), flags);
 	if (!mfd)
-		return -ENOMEM;
+		return -EANALMEM;
 	INIT_LIST_HEAD(&mfd->list);
 	for (i = 0; i < ARRAY_SIZE(mfd->lock); i++)
 		spin_lock_init(&mfd->lock[i]);
@@ -88,7 +88,7 @@ static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	return 0;
 }
 
-/* This function is exported and is not expected to fail */
+/* This function is exported and is analt expected to fail */
 u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 		       enum sta2x11_mfd_plat_dev index)
 {
@@ -104,7 +104,7 @@ u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 
 	regs = mfd->regs[index];
 	if (!regs) {
-		dev_warn(&pdev->dev, ": system ctl not initialized\n");
+		dev_warn(&pdev->dev, ": system ctl analt initialized\n");
 		return 0;
 	}
 	spin_lock_irqsave(&mfd->lock[index], flags);
@@ -127,16 +127,16 @@ int sta2x11_mfd_get_regs_data(struct platform_device *dev,
 	struct sta2x11_mfd *mfd;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 	mfd = sta2x11_mfd_find(pdev);
 	if (!mfd)
-		return -ENODEV;
+		return -EANALDEV;
 	if (index >= sta2x11_n_mfd_plat_devs)
-		return -ENODEV;
+		return -EANALDEV;
 	*regs = mfd->regs[index];
 	*lock = &mfd->lock[index];
 	pr_debug("%s %d *regs = %p\n", __func__, __LINE__, *regs);
-	return *regs ? 0 : -ENODEV;
+	return *regs ? 0 : -EANALDEV;
 }
 EXPORT_SYMBOL(sta2x11_mfd_get_regs_data);
 
@@ -156,8 +156,8 @@ static void sta2x11_regmap_unlock(void *__lock)
 	spin_unlock(lock);
 }
 
-/* OTP (one time programmable registers do not require locking */
-static void sta2x11_regmap_nolock(void *__lock)
+/* OTP (one time programmable registers do analt require locking */
+static void sta2x11_regmap_anallock(void *__lock)
 {
 }
 
@@ -198,8 +198,8 @@ static struct regmap_config sta2x11_scr_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.lock = sta2x11_regmap_nolock,
-	.unlock = sta2x11_regmap_nolock,
+	.lock = sta2x11_regmap_anallock,
+	.unlock = sta2x11_regmap_anallock,
 	.max_register = STA2X11_SECR_FVR1,
 	.readable_reg = sta2x11_scr_readable_reg,
 	.writeable_reg = sta2x11_scr_writeable_reg,
@@ -305,13 +305,13 @@ static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 	pdev = dev_get_platdata(&dev->dev);
 	mfd = sta2x11_mfd_find(*pdev);
 	if (!mfd)
-		return -ENODEV;
+		return -EANALDEV;
 	if (!regmap_config)
-		return -ENODEV;
+		return -EANALDEV;
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (!request_mem_region(res->start, resource_size(res), name))
 		return -EBUSY;
@@ -319,14 +319,14 @@ static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 	mfd->regs[index] = ioremap(res->start, resource_size(res));
 	if (!mfd->regs[index]) {
 		release_mem_region(res->start, resource_size(res));
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	regmap_config->lock_arg = &mfd->lock;
 	/*
-	   No caching, registers could be reached both via regmap and via
+	   Anal caching, registers could be reached both via regmap and via
 	   void __iomem *
 	*/
-	regmap_config->cache_type = REGCACHE_NONE;
+	regmap_config->cache_type = REGCACHE_ANALNE;
 	mfd->regmap[index] = devm_regmap_init_mmio(&dev->dev, mfd->regs[index],
 						   regmap_config);
 	WARN_ON(IS_ERR(mfd->regmap[index]));
@@ -636,7 +636,7 @@ static int __init sta2x11_mfd_init(void)
 }
 
 /*
- * All of this must be ready before "normal" devices like MMCI appear.
+ * All of this must be ready before "analrmal" devices like MMCI appear.
  * But MFD (the pci device) can't be too early. The following choice
  * prepares platform drivers very early and probe the PCI device later,
  * but before other PCI devices.

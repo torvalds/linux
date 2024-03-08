@@ -1,7 +1,7 @@
 /*
- *  linux/drivers/video/fb_notify.c
+ *  linux/drivers/video/fb_analtify.c
  *
- *  Copyright (C) 2006 Antonino Daplas <adaplas@pol.net>
+ *  Copyright (C) 2006 Antonianal Daplas <adaplas@pol.net>
  *
  *	2001 - Documented with DocBook
  *	- Brad Douglas <brad@neruo.com>
@@ -11,44 +11,44 @@
  * for more details.
  */
 #include <linux/fb.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/export.h>
 
-static BLOCKING_NOTIFIER_HEAD(fb_notifier_list);
+static BLOCKING_ANALTIFIER_HEAD(fb_analtifier_list);
 
 /**
- *	fb_register_client - register a client notifier
- *	@nb: notifier block to callback on events
+ *	fb_register_client - register a client analtifier
+ *	@nb: analtifier block to callback on events
  *
  *	Return: 0 on success, negative error code on failure.
  */
-int fb_register_client(struct notifier_block *nb)
+int fb_register_client(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_register(&fb_notifier_list, nb);
+	return blocking_analtifier_chain_register(&fb_analtifier_list, nb);
 }
 EXPORT_SYMBOL(fb_register_client);
 
 /**
- *	fb_unregister_client - unregister a client notifier
- *	@nb: notifier block to callback on events
+ *	fb_unregister_client - unregister a client analtifier
+ *	@nb: analtifier block to callback on events
  *
  *	Return: 0 on success, negative error code on failure.
  */
-int fb_unregister_client(struct notifier_block *nb)
+int fb_unregister_client(struct analtifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&fb_notifier_list, nb);
+	return blocking_analtifier_chain_unregister(&fb_analtifier_list, nb);
 }
 EXPORT_SYMBOL(fb_unregister_client);
 
 /**
- * fb_notifier_call_chain - notify clients of fb_events
+ * fb_analtifier_call_chain - analtify clients of fb_events
  * @val: value passed to callback
  * @v: pointer passed to callback
  *
- * Return: The return value of the last notifier function
+ * Return: The return value of the last analtifier function
  */
-int fb_notifier_call_chain(unsigned long val, void *v)
+int fb_analtifier_call_chain(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&fb_notifier_list, val, v);
+	return blocking_analtifier_call_chain(&fb_analtifier_list, val, v);
 }
-EXPORT_SYMBOL_GPL(fb_notifier_call_chain);
+EXPORT_SYMBOL_GPL(fb_analtifier_call_chain);

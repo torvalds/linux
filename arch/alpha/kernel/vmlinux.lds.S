@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#define EMITS_PT_NOTE
+#define EMITS_PT_ANALTE
 #define RO_EXCEPTION_TABLE_ALIGN	16
 
 #include <asm-generic/vmlinux.lds.h>
@@ -12,7 +12,7 @@
 OUTPUT_FORMAT("elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
-PHDRS { text PT_LOAD; note PT_NOTE; }
+PHDRS { text PT_LOAD; analte PT_ANALTE; }
 jiffies = jiffies_64;
 SECTIONS
 {
@@ -65,8 +65,8 @@ SECTIONS
 	.mdebug 0 : {
 		*(.mdebug)
 	}
-	.note 0 : {
-		*(.note)
+	.analte 0 : {
+		*(.analte)
 	}
 
 	STABS_DEBUG

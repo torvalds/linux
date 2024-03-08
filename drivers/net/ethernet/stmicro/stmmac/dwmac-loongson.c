@@ -49,43 +49,43 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 {
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
-	struct device_node *np;
+	struct device_analde *np;
 	int ret, i, phy_mode;
 
-	np = dev_of_node(&pdev->dev);
+	np = dev_of_analde(&pdev->dev);
 
 	if (!np) {
-		pr_info("dwmac_loongson_pci: No OF node\n");
-		return -ENODEV;
+		pr_info("dwmac_loongson_pci: Anal OF analde\n");
+		return -EANALDEV;
 	}
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
 	if (!plat->mdio_bus_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	plat->mdio_node = of_get_child_by_name(np, "mdio");
-	if (plat->mdio_node) {
-		dev_info(&pdev->dev, "Found MDIO subnode\n");
+	plat->mdio_analde = of_get_child_by_name(np, "mdio");
+	if (plat->mdio_analde) {
+		dev_info(&pdev->dev, "Found MDIO subanalde\n");
 		plat->mdio_bus_data->needs_reset = true;
 	}
 
 	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg), GFP_KERNEL);
 	if (!plat->dma_cfg) {
-		ret = -ENOMEM;
-		goto err_put_node;
+		ret = -EANALMEM;
+		goto err_put_analde;
 	}
 
 	/* Enable pci device */
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: ERROR: failed to enable device\n", __func__);
-		goto err_put_node;
+		goto err_put_analde;
 	}
 
 	/* Get the base address of device */
@@ -104,7 +104,7 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 
 	phy_mode = device_get_phy_mode(&pdev->dev);
 	if (phy_mode < 0) {
-		dev_err(&pdev->dev, "phy_mode not found\n");
+		dev_err(&pdev->dev, "phy_mode analt found\n");
 		ret = phy_mode;
 		goto err_disable_device;
 	}
@@ -121,21 +121,21 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 
 	res.irq = of_irq_get_byname(np, "macirq");
 	if (res.irq < 0) {
-		dev_err(&pdev->dev, "IRQ macirq not found\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "IRQ macirq analt found\n");
+		ret = -EANALDEV;
 		goto err_disable_msi;
 	}
 
 	res.wol_irq = of_irq_get_byname(np, "eth_wake_irq");
 	if (res.wol_irq < 0) {
-		dev_info(&pdev->dev, "IRQ eth_wake_irq not found, using macirq\n");
+		dev_info(&pdev->dev, "IRQ eth_wake_irq analt found, using macirq\n");
 		res.wol_irq = res.irq;
 	}
 
 	res.lpi_irq = of_irq_get_byname(np, "eth_lpi");
 	if (res.lpi_irq < 0) {
-		dev_err(&pdev->dev, "IRQ eth_lpi not found\n");
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "IRQ eth_lpi analt found\n");
+		ret = -EANALDEV;
 		goto err_disable_msi;
 	}
 
@@ -149,8 +149,8 @@ err_disable_msi:
 	pci_disable_msi(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
-err_put_node:
-	of_node_put(plat->mdio_node);
+err_put_analde:
+	of_analde_put(plat->mdio_analde);
 	return ret;
 }
 
@@ -160,7 +160,7 @@ static void loongson_dwmac_remove(struct pci_dev *pdev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	int i;
 
-	of_node_put(priv->plat->mdio_node);
+	of_analde_put(priv->plat->mdio_analde);
 	stmmac_dvr_remove(&pdev->dev);
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {

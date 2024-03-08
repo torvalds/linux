@@ -20,8 +20,8 @@ static int prestera_mall_prio_check(struct prestera_flow_block *block,
 
 	err = prestera_flower_prio_get(block, f->common.chain_index,
 				       &flower_prio_min, &flower_prio_max);
-	if (err == -ENOENT)
-		/* No flower filters installed on this chain. */
+	if (err == -EANALENT)
+		/* Anal flower filters installed on this chain. */
 		return 0;
 
 	if (err) {
@@ -31,11 +31,11 @@ static int prestera_mall_prio_check(struct prestera_flow_block *block,
 
 	if (f->common.prio <= flower_prio_max && !block->ingress) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing flower rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 	if (f->common.prio >= flower_prio_min && block->ingress) {
 		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind of existing flower rules");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -45,7 +45,7 @@ int prestera_mall_prio_get(struct prestera_flow_block *block,
 			   u32 *prio_min, u32 *prio_max)
 {
 	if (!block->mall.bound)
-		return -ENOENT;
+		return -EANALENT;
 
 	*prio_min = block->mall.prio_min;
 	*prio_max = block->mall.prio_max;
@@ -71,7 +71,7 @@ int prestera_mall_replace(struct prestera_flow_block *block,
 	if (!flow_offload_has_one_action(&f->rule->action)) {
 		NL_SET_ERR_MSG(f->common.extack,
 			       "Only singular actions are supported");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	act = &f->rule->action.entries[0];
@@ -82,11 +82,11 @@ int prestera_mall_replace(struct prestera_flow_block *block,
 		return -EINVAL;
 	}
 	if (!tc_cls_can_offload_and_chain0(act->dev, &f->common))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (act->id != FLOW_ACTION_MIRRED)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	if (protocol != htons(ETH_P_ALL))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = prestera_mall_prio_check(block, f);
 	if (err)

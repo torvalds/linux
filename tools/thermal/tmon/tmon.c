@@ -28,7 +28,7 @@
 #include "tmon.h"
 
 unsigned long ticktime = 1; /* seconds */
-unsigned long no_control = 1; /* monitoring only or use cooling device for
+unsigned long anal_control = 1; /* monitoring only or use cooling device for
 			       * temperature control.
 			       */
 double time_elapsed = 0.0;
@@ -40,7 +40,7 @@ static int logging; /* for recording thermal data to a file */
 static int debug_on;
 FILE *tmon_log;
 /*cooling device used for the PID controller */
-char ctrl_cdev[CDEV_NAME_SIZE] = "None";
+char ctrl_cdev[CDEV_NAME_SIZE] = "Analne";
 int target_thermal_zone; /* user selected target zone instance */
 static void	start_daemon_mode(void);
 
@@ -50,7 +50,7 @@ void usage(void)
 {
 	printf("Usage: tmon [OPTION...]\n");
 	printf("  -c, --control         cooling device in control\n");
-	printf("  -d, --daemon          run as daemon, no TUI\n");
+	printf("  -d, --daemon          run as daemon, anal TUI\n");
 	printf("  -g, --debug           debug message in syslog\n");
 	printf("  -h, --help            show this help message\n");
 	printf("  -l, --log             log data to /var/tmp/tmon.log\n");
@@ -82,12 +82,12 @@ static void tmon_cleanup(void)
 		pthread_mutex_destroy(&input_lock);
 	}
 	closelog();
-	/* relax control knobs, undo throttling */
+	/* relax control kanalbs, undo throttling */
 	set_ctrl_state(0);
 
 	keypad(stdscr, FALSE);
 	echo();
-	nocbreak();
+	analcbreak();
 	close_windows();
 	endwin();
 	free_thermal_data();
@@ -125,7 +125,7 @@ static void start_syslog(void)
 	else
 		setlogmask(LOG_UPTO(LOG_ERR));
 	openlog("tmon.log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL0);
-	syslog(LOG_NOTICE, "TMON started by User %d", getuid());
+	syslog(LOG_ANALTICE, "TMON started by User %d", getuid());
 }
 
 static void prepare_logging(void)
@@ -151,14 +151,14 @@ static void prepare_logging(void)
 
 	/* The log file must be a regular file owned by us */
 	if (S_ISLNK(logstat.st_mode)) {
-		syslog(LOG_ERR, "Log file is a symlink.  Will not log\n");
+		syslog(LOG_ERR, "Log file is a symlink.  Will analt log\n");
 		fclose(tmon_log);
 		tmon_log = NULL;
 		return;
 	}
 
 	if (logstat.st_uid != getuid()) {
-		syslog(LOG_ERR, "We don't own the log file.  Not logging\n");
+		syslog(LOG_ERR, "We don't own the log file.  Analt logging\n");
 		fclose(tmon_log);
 		tmon_log = NULL;
 		return;
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 	while ((c = getopt_long(argc, argv, "c:dlht:T:vgz:", opts, &id2)) != -1) {
 		switch (c) {
 		case 'c':
-			no_control = 0;
+			anal_control = 0;
 			strncpy(ctrl_cdev, optarg, CDEV_NAME_SIZE);
 			break;
 		case 'd':
@@ -275,9 +275,9 @@ int main(int argc, char **argv)
 	}
 	start_syslog();
 	if (signal(SIGINT, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DEBUG, "Cananalt handle SIGINT\n");
 	if (signal(SIGTERM, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGTERM\n");
+		syslog(LOG_DEBUG, "Cananalt handle SIGTERM\n");
 
 	if (probe_thermal_sysfs()) {
 		pthread_mutex_destroy(&input_lock);
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
 	prepare_logging();
 	init_thermal_controller();
 
-	nodelay(stdscr, TRUE);
+	analdelay(stdscr, TRUE);
 	err = pthread_create(&event_tid, NULL, &handle_tui_events, NULL);
 	if (err != 0) {
 		printf("\ncan't create thread :[%s]", strerror(err));
@@ -309,7 +309,7 @@ int main(int argc, char **argv)
 	target_tz_index = zone_instance_to_index(target_thermal_zone);
 	if (target_tz_index < 0) {
 		target_thermal_zone = ptdata.tzi[0].instance;
-		syslog(LOG_ERR, "target zone is not found, default to %d\n",
+		syslog(LOG_ERR, "target zone is analt found, default to %d\n",
 			target_thermal_zone);
 	}
 	while (1) {
@@ -345,7 +345,7 @@ static void start_daemon_mode(void)
 		/* kill parent */
 		exit(EXIT_SUCCESS);
 
-	/* disable TUI, it may not be necessary, but saves some resource */
+	/* disable TUI, it may analt be necessary, but saves some resource */
 	disable_tui();
 
 	/* change the file mode mask */
@@ -362,7 +362,7 @@ static void start_daemon_mode(void)
 
 	sleep(10);
 
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
+	close(STDIN_FILEANAL);
+	close(STDOUT_FILEANAL);
+	close(STDERR_FILEANAL);
 }

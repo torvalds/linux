@@ -8,7 +8,7 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* DigitalNow DNTV Live! DVB-T Pro Remote */
+/* DigitalAnalw DNTV Live! DVB-T Pro Remote */
 
 static struct rc_map_table dntv_live_dvbt_pro[] = {
 	{ 0x16, KEY_POWER },
@@ -71,7 +71,7 @@ static struct rc_map_list dntv_live_dvbt_pro_map = {
 	.map = {
 		.scan     = dntv_live_dvbt_pro,
 		.size     = ARRAY_SIZE(dntv_live_dvbt_pro),
-		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.rc_proto = RC_PROTO_UNKANALWN,	/* Legacy IR type */
 		.name     = RC_MAP_DNTV_LIVE_DVBT_PRO,
 	}
 };
@@ -91,4 +91,4 @@ module_exit(exit_rc_map_dntv_live_dvbt_pro)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_DESCRIPTION("DigitalNow DNTV Live DVB-T Remote controller keytable");
+MODULE_DESCRIPTION("DigitalAnalw DNTV Live DVB-T Remote controller keytable");

@@ -8,7 +8,7 @@ Required properties:
 - #address-cells: <1>, as required by generic SPI binding.
 - #size-cells: <0>, also as required by generic SPI binding.
 
-Child nodes as per the generic SPI binding.
+Child analdes as per the generic SPI binding.
 
 Example:
 

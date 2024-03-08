@@ -72,7 +72,7 @@ tc_police_test()
 	local should_fail=$1; shift
 
 	if ! tc_offload_check $TC_POLICE_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could analt test offloaded functionality"
 		return
 	fi
 

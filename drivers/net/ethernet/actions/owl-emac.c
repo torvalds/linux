@@ -67,13 +67,13 @@ static void owl_emac_irq_enable(struct owl_emac_priv *priv)
 {
 	/* Enable all interrupts except TU.
 	 *
-	 * Note the NIE and AIE bits shall also be set in order to actually
+	 * Analte the NIE and AIE bits shall also be set in order to actually
 	 * enable the selected interrupts.
 	 */
 	owl_emac_reg_write(priv, OWL_EMAC_REG_MAC_CSR7,
 			   OWL_EMAC_BIT_MAC_CSR7_NIE |
 			   OWL_EMAC_BIT_MAC_CSR7_AIE |
-			   OWL_EMAC_BIT_MAC_CSR7_ALL_NOT_TUE);
+			   OWL_EMAC_BIT_MAC_CSR7_ALL_ANALT_TUE);
 }
 
 static void owl_emac_irq_disable(struct owl_emac_priv *priv)
@@ -86,7 +86,7 @@ static void owl_emac_irq_disable(struct owl_emac_priv *priv)
 	 * to read them via owl_emac_irq_clear().
 	 */
 	owl_emac_reg_write(priv, OWL_EMAC_REG_MAC_CSR7,
-			   OWL_EMAC_BIT_MAC_CSR7_ALL_NOT_TUE);
+			   OWL_EMAC_BIT_MAC_CSR7_ALL_ANALT_TUE);
 }
 
 static u32 owl_emac_irq_status(struct owl_emac_priv *priv)
@@ -189,12 +189,12 @@ static int owl_emac_ring_prepare_rx(struct owl_emac_priv *priv)
 	for (i = 0; i < ring->size; i++) {
 		skb = owl_emac_alloc_skb(netdev);
 		if (!skb)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		dma_addr = owl_emac_dma_map_rx(priv, skb);
 		if (dma_mapping_error(dev, dma_addr)) {
 			dev_kfree_skb(skb);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		desc = &ring->descs[i];
@@ -283,17 +283,17 @@ static int owl_emac_ring_alloc(struct device *dev, struct owl_emac_ring *ring,
 					  sizeof(struct owl_emac_ring_desc) * size,
 					  &ring->descs_dma, GFP_KERNEL);
 	if (!ring->descs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->skbs = devm_kcalloc(dev, size, sizeof(struct sk_buff *),
 				  GFP_KERNEL);
 	if (!ring->skbs)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->skbs_dma = devm_kcalloc(dev, size, sizeof(dma_addr_t),
 				      GFP_KERNEL);
 	if (!ring->skbs_dma)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ring->size = size;
 
@@ -500,13 +500,13 @@ static int owl_emac_setup_frame_xmit(struct owl_emac_priv *priv)
 
 	skb = owl_emac_alloc_skb(netdev);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	owl_emac_setup_frame_prepare(priv, skb);
 
 	dma_addr = owl_emac_dma_map_tx(priv, skb);
 	if (dma_mapping_error(owl_emac_get_dev(priv), dma_addr)) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_free_skb;
 	}
 
@@ -706,11 +706,11 @@ static void owl_emac_tx_complete(struct owl_emac_priv *priv)
 			break;
 	}
 
-	/* FIXME: This is a workaround for a MAC hardware bug not clearing
+	/* FIXME: This is a workaround for a MAC hardware bug analt clearing
 	 * (sometimes) the OWN bit for a transmitted frame descriptor.
 	 *
 	 * At this point, when TX queue is full, the tail descriptor has the
-	 * OWN bit set, which normally means the frame has not been processed
+	 * OWN bit set, which analrmally means the frame has analt been processed
 	 * or transmitted yet. But if there is at least one descriptor in the
 	 * queue having the OWN bit cleared, we can safely assume the tail
 	 * frame has been also processed by the MAC hardware.
@@ -826,7 +826,7 @@ static int owl_emac_rx_process(struct owl_emac_priv *priv, int budget)
 		owl_emac_dma_unmap_rx(priv, curr_skb, curr_dma);
 
 		skb_put(curr_skb, len - ETH_FCS_LEN);
-		curr_skb->ip_summed = CHECKSUM_NONE;
+		curr_skb->ip_summed = CHECKSUM_ANALNE;
 		curr_skb->protocol = eth_type_trans(curr_skb, netdev);
 		curr_skb->dev = netdev;
 
@@ -1021,8 +1021,8 @@ static int owl_emac_core_sw_reset(struct owl_emac_priv *priv)
 			   OWL_EMAC_BIT_MAC_CSR6_PR | OWL_EMAC_BIT_MAC_CSR6_PM);
 
 	priv->link = 0;
-	priv->speed = SPEED_UNKNOWN;
-	priv->duplex = DUPLEX_UNKNOWN;
+	priv->speed = SPEED_UNKANALWN;
+	priv->duplex = DUPLEX_UNKANALWN;
 	priv->pause = 0;
 	priv->mcaddr_list.count = 0;
 
@@ -1168,7 +1168,7 @@ static int owl_emac_ndo_set_mac_addr(struct net_device *netdev, void *addr)
 	struct sockaddr *skaddr = addr;
 
 	if (!is_valid_ether_addr(skaddr->sa_data))
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	if (netif_running(netdev))
 		return -EBUSY;
@@ -1322,22 +1322,22 @@ static int owl_emac_mdio_init(struct net_device *netdev)
 {
 	struct owl_emac_priv *priv = netdev_priv(netdev);
 	struct device *dev = owl_emac_get_dev(priv);
-	struct device_node *mdio_node;
+	struct device_analde *mdio_analde;
 	int ret;
 
-	mdio_node = of_get_child_by_name(dev->of_node, "mdio");
-	if (!mdio_node)
-		return -ENODEV;
+	mdio_analde = of_get_child_by_name(dev->of_analde, "mdio");
+	if (!mdio_analde)
+		return -EANALDEV;
 
-	if (!of_device_is_available(mdio_node)) {
-		ret = -ENODEV;
-		goto err_put_node;
+	if (!of_device_is_available(mdio_analde)) {
+		ret = -EANALDEV;
+		goto err_put_analde;
 	}
 
 	priv->mii = devm_mdiobus_alloc(dev);
 	if (!priv->mii) {
-		ret = -ENOMEM;
-		goto err_put_node;
+		ret = -EANALMEM;
+		goto err_put_analde;
 	}
 
 	snprintf(priv->mii->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
@@ -1348,10 +1348,10 @@ static int owl_emac_mdio_init(struct net_device *netdev)
 	priv->mii->phy_mask = ~0; /* Mask out all PHYs from auto probing. */
 	priv->mii->priv = priv;
 
-	ret = devm_of_mdiobus_register(dev, priv->mii, mdio_node);
+	ret = devm_of_mdiobus_register(dev, priv->mii, mdio_analde);
 
-err_put_node:
-	of_node_put(mdio_node);
+err_put_analde:
+	of_analde_put(mdio_analde);
 	return ret;
 }
 
@@ -1361,10 +1361,10 @@ static int owl_emac_phy_init(struct net_device *netdev)
 	struct device *dev = owl_emac_get_dev(priv);
 	struct phy_device *phy;
 
-	phy = of_phy_get_and_connect(netdev, dev->of_node,
+	phy = of_phy_get_and_connect(netdev, dev->of_analde,
 				     owl_emac_adjust_link);
 	if (!phy)
-		return -ENODEV;
+		return -EANALDEV;
 
 	phy_set_sym_pause(phy, true, true, true);
 
@@ -1457,7 +1457,7 @@ static int owl_emac_clk_set_rate(struct owl_emac_priv *priv)
 	default:
 		dev_err(dev, "unsupported phy interface mode %d\n",
 			priv->phy_mode);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	ret = clk_set_rate(priv->clks[OWL_EMAC_CLK_RMII].clk, rate);
@@ -1476,7 +1476,7 @@ static int owl_emac_probe(struct platform_device *pdev)
 
 	netdev = devm_alloc_etherdev(dev, sizeof(*priv));
 	if (!netdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, netdev);
 	SET_NETDEV_DEV(netdev, dev);
@@ -1485,7 +1485,7 @@ static int owl_emac_probe(struct platform_device *pdev)
 	priv->netdev = netdev;
 	priv->msg_enable = netif_msg_init(-1, OWL_EMAC_DEFAULT_MSG_ENABLE);
 
-	ret = of_get_phy_mode(dev->of_node, &priv->phy_mode);
+	ret = of_get_phy_mode(dev->of_analde, &priv->phy_mode);
 	if (ret) {
 		dev_err(dev, "failed to get phy mode: %d\n", ret);
 		return ret;

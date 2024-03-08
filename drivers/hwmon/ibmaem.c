@@ -130,7 +130,7 @@ struct aem_data {
 	bool			valid;
 	unsigned long		last_updated;	/* In jiffies */
 	u8			ver_major;
-	u8			ver_minor;
+	u8			ver_mianalr;
 	u8			module_handle;
 	int			id;
 	struct aem_ipmi_data	ipmi;
@@ -202,7 +202,7 @@ struct aem_find_instance_resp {
 	struct aem_iana_id	id;
 	u8			num_instances;
 	u8			major;
-	u8			minor;
+	u8			mianalr;
 	u8			module_handle;
 	u16			record_id;
 } __packed;
@@ -328,7 +328,7 @@ static void aem_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	if (msg->msg.data_len > 0)
 		data->rx_result = msg->msg.data[0];
 	else
-		data->rx_result = IPMI_UNKNOWN_ERR_COMPLETION_CODE;
+		data->rx_result = IPMI_UNKANALWN_ERR_COMPLETION_CODE;
 
 	if (msg->msg.data_len > 1) {
 		rx_len = msg->msg.data_len - 1;
@@ -391,7 +391,7 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 
 	if (ipmi->rx_result || ipmi->rx_msg_len != rs_size ||
 	    memcmp(&rs_resp->id, &system_x_id, sizeof(system_x_id))) {
-		res = -ENOENT;
+		res = -EANALENT;
 		goto out;
 	}
 
@@ -514,7 +514,7 @@ static int aem_find_aem1_count(struct aem_ipmi_data *data)
 
 	if (data->rx_result || data->rx_msg_len != sizeof(ff_resp) ||
 	    memcmp(&ff_resp.id, &system_x_id, sizeof(system_x_id)))
-		return -ENOENT;
+		return -EANALENT;
 
 	return ff_resp.num_instances;
 }
@@ -524,7 +524,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 {
 	struct aem_data *data;
 	int i;
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -533,7 +533,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 
 	/* Copy instance data */
 	data->ver_major = 1;
-	data->ver_minor = 0;
+	data->ver_mianalr = 0;
 	data->module_handle = module_handle;
 	for (i = 0; i < AEM1_NUM_ENERGY_REGS; i++)
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
@@ -573,7 +573,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	data->update = update_aem1_sensors;
 	data->rs_resp = kzalloc(sizeof(*(data->rs_resp)) + 8, GFP_KERNEL);
 	if (!data->rs_resp) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto alloc_resp_err;
 	}
 
@@ -586,7 +586,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	list_add_tail(&data->list, &driver_data.aem_devices);
 
 	dev_info(data->ipmi.bmc_device, "Found AEM v%d.%d at 0x%X\n",
-		 data->ver_major, data->ver_minor,
+		 data->ver_major, data->ver_mianalr,
 		 data->module_handle);
 	return 0;
 
@@ -655,7 +655,7 @@ static int aem_find_aem2(struct aem_ipmi_data *data,
 	if (data->rx_result || data->rx_msg_len != sizeof(*fi_resp) ||
 	    memcmp(&fi_resp->id, &system_x_id, sizeof(system_x_id)) ||
 	    fi_resp->num_instances <= instance_num)
-		return -ENOENT;
+		return -EANALENT;
 
 	return 0;
 }
@@ -666,7 +666,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 {
 	struct aem_data *data;
 	int i;
-	int res = -ENOMEM;
+	int res = -EANALMEM;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -675,7 +675,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 
 	/* Copy instance data */
 	data->ver_major = fi_resp->major;
-	data->ver_minor = fi_resp->minor;
+	data->ver_mianalr = fi_resp->mianalr;
 	data->module_handle = fi_resp->module_handle;
 	for (i = 0; i < AEM2_NUM_ENERGY_REGS; i++)
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
@@ -715,7 +715,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	data->update = update_aem2_sensors;
 	data->rs_resp = kzalloc(sizeof(*(data->rs_resp)) + 8, GFP_KERNEL);
 	if (!data->rs_resp) {
-		res = -ENOMEM;
+		res = -EANALMEM;
 		goto alloc_resp_err;
 	}
 
@@ -728,7 +728,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	list_add_tail(&data->list, &driver_data.aem_devices);
 
 	dev_info(data->ipmi.bmc_device, "Found AEM v%d.%d at 0x%X\n",
-		 data->ver_major, data->ver_minor,
+		 data->ver_major, data->ver_mianalr,
 		 data->module_handle);
 	return 0;
 
@@ -761,7 +761,7 @@ static void aem_init_aem2(struct aem_ipmi_data *probe)
 	while (!aem_find_aem2(probe, &fi_resp, i)) {
 		if (fi_resp.major != 2) {
 			dev_err(probe->bmc_device,
-				"Unknown AEM v%d; please report this to the maintainer.\n",
+				"Unkanalwn AEM v%d; please report this to the maintainer.\n",
 				fi_resp.major);
 			i++;
 			continue;
@@ -784,7 +784,7 @@ static void aem_register_bmc(int iface, struct device *dev)
 	if (aem_init_ipmi_data(&probe, iface, dev))
 		return;
 
-	/* Ignore probe errors; they won't cause problems */
+	/* Iganalre probe errors; they won't cause problems */
 	aem_init_aem1(&probe);
 	aem_init_aem2(&probe);
 
@@ -819,7 +819,7 @@ static ssize_t version_show(struct device *dev,
 {
 	struct aem_data *data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d.%d\n", data->ver_major, data->ver_minor);
+	return sprintf(buf, "%d.%d\n", data->ver_major, data->ver_mianalr);
 }
 static SENSOR_DEVICE_ATTR_RO(version, version, 0);
 

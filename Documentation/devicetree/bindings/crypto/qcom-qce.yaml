@@ -68,7 +68,7 @@ properties:
     minItems: 1
     maxItems: 8
     description:
-      phandle to apps_smmu node with sid mask.
+      phandle to apps_smmu analde with sid mask.
 
   interconnects:
     maxItems: 1

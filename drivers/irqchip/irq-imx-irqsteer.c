@@ -141,14 +141,14 @@ static void imx_irqsteer_irq_handler(struct irq_desc *desc)
 
 static int imx_irqsteer_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct irqsteer_data *data;
 	u32 irqs_num;
 	int i, ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->regs)) {
@@ -182,7 +182,7 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 					sizeof(u32) * data->reg_num,
 					GFP_KERNEL);
 		if (!data->saved_reg)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	ret = clk_prepare_enable(data->ipg_clk);
@@ -198,7 +198,7 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 					     &imx_irqsteer_domain_ops, data);
 	if (!data->domain) {
 		dev_err(&pdev->dev, "failed to create IRQ domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	irq_domain_set_pm_device(data->domain, &pdev->dev);
@@ -294,7 +294,7 @@ static int imx_irqsteer_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops imx_irqsteer_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+	SET_ANALIRQ_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				      pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(imx_irqsteer_suspend,
 			   imx_irqsteer_resume, NULL)

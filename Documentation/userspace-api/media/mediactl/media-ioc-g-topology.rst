@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: MC
 
 .. _media_ioc_g_topology:
@@ -12,7 +12,7 @@ Name
 
 MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: MEDIA_IOC_G_TOPOLOGY
@@ -34,7 +34,7 @@ Description
 The typical usage of this ioctl is to call it twice. On the first call,
 the structure defined at struct
 :c:type:`media_v2_topology` should be zeroed. At
-return, if no errors happen, this ioctl will return the
+return, if anal errors happen, this ioctl will return the
 ``topology_version`` and the total number of entities, interfaces, pads
 and links.
 
@@ -130,9 +130,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the entity. Do not expect that the ID will
+       -  Unique ID for the entity. Do analt expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode entity IDs in an application.
+	  do analt hardcode entity IDs in an application.
 
     *  -  char
        -  ``name``\ [64]
@@ -167,9 +167,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the interface. Do not expect that the ID will
+       -  Unique ID for the interface. Do analt expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode interface IDs in an application.
+	  do analt hardcode interface IDs in an application.
 
     *  -  __u32
        -  ``intf_type``
@@ -184,27 +184,27 @@ desired arrays with the media graph elements.
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
-    *  -  struct media_v2_intf_devnode
-       -  ``devnode``
-       -  Used only for device node interfaces. See
-	  :c:type:`media_v2_intf_devnode` for details.
+    *  -  struct media_v2_intf_devanalde
+       -  ``devanalde``
+       -  Used only for device analde interfaces. See
+	  :c:type:`media_v2_intf_devanalde` for details.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.5cm}|
 
-.. c:type:: media_v2_intf_devnode
+.. c:type:: media_v2_intf_devanalde
 
-.. flat-table:: struct media_v2_intf_devnode
+.. flat-table:: struct media_v2_intf_devanalde
     :header-rows:  0
     :stub-columns: 0
     :widths: 1 2 8
 
     *  -  __u32
        -  ``major``
-       -  Device node major number.
+       -  Device analde major number.
 
     *  -  __u32
-       -  ``minor``
-       -  Device node minor number.
+       -  ``mianalr``
+       -  Device analde mianalr number.
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.5cm}|
 
@@ -217,9 +217,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the pad. Do not expect that the ID will
+       -  Unique ID for the pad. Do analt expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode pad IDs in an application.
+	  do analt hardcode pad IDs in an application.
 
     *  -  __u32
        -  ``entity_id``
@@ -252,9 +252,9 @@ desired arrays with the media graph elements.
 
     *  -  __u32
        -  ``id``
-       -  Unique ID for the link. Do not expect that the ID will
+       -  Unique ID for the link. Do analt expect that the ID will
 	  always be the same for each instance of the device. In other words,
-	  do not hardcode link IDs in an application.
+	  do analt hardcode link IDs in an application.
 
     *  -  __u32
        -  ``source_id``
@@ -280,13 +280,13 @@ desired arrays with the media graph elements.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
-ENOSPC
+EANALSPC
     This is returned when either one or more of the num_entities,
-    num_interfaces, num_links or num_pads are non-zero and are
+    num_interfaces, num_links or num_pads are analn-zero and are
     smaller than the actual number of elements inside the graph. This
     may happen if the ``topology_version`` changed when compared to the
     last time this ioctl was called. Userspace should usually free the

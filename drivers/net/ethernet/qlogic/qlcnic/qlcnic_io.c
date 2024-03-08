@@ -168,7 +168,7 @@ static void qlcnic_delete_rx_list_mac(struct qlcnic_adapter *adapter,
 	op = vlan_id ? QLCNIC_MAC_VLAN_DEL : QLCNIC_MAC_DEL;
 	ret = qlcnic_sre_macaddr_change(adapter, addr, vlan_id, op);
 	if (!ret) {
-		hlist_del(&fil->fnode);
+		hlist_del(&fil->fanalde);
 		adapter->rx_fhash.fnum--;
 	}
 }
@@ -177,9 +177,9 @@ static struct qlcnic_filter *qlcnic_find_mac_filter(struct hlist_head *head,
 						    void *addr, u16 vlan_id)
 {
 	struct qlcnic_filter *tmp_fil = NULL;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 
-	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+	hlist_for_each_entry_safe(tmp_fil, n, head, fanalde) {
 		if (ether_addr_equal(tmp_fil->faddr, addr) &&
 		    tmp_fil->vlan_id == vlan_id)
 			return tmp_fil;
@@ -228,7 +228,7 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 		memcpy(fil->faddr, &src_addr, ETH_ALEN);
 		fil->vlan_id = vlan_id;
 		spin_lock(&adapter->rx_mac_learn_lock);
-		hlist_add_head(&(fil->fnode), head);
+		hlist_add_head(&(fil->fanalde), head);
 		adapter->rx_fhash.fnum++;
 		spin_unlock(&adapter->rx_mac_learn_lock);
 	} else {
@@ -243,7 +243,7 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 							(u8 *)&src_addr,
 							vlan_id, op);
 			if (!ret) {
-				hlist_del(&tmp_fil->fnode);
+				hlist_del(&tmp_fil->fanalde);
 				adapter->fhash.fnum--;
 			}
 
@@ -308,7 +308,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	u16 protocol = ntohs(skb->protocol);
 	struct qlcnic_filter *fil, *tmp_fil;
 	struct hlist_head *head;
-	struct hlist_node *n;
+	struct hlist_analde *n;
 	u64 src_addr = 0;
 	u16 vlan_id = 0;
 	u8 hindex, hval;
@@ -330,7 +330,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hindex = hval & (adapter->fhash.fbucket_size - 1);
 	head = &(adapter->fhash.fhead[hindex]);
 
-	hlist_for_each_entry_safe(tmp_fil, n, head, fnode) {
+	hlist_for_each_entry_safe(tmp_fil, n, head, fanalde) {
 		if (ether_addr_equal(tmp_fil->faddr, (u8 *)&src_addr) &&
 		    tmp_fil->vlan_id == vlan_id) {
 			if (time_is_before_jiffies(QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
@@ -355,7 +355,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	fil->vlan_id = vlan_id;
 	memcpy(fil->faddr, &src_addr, ETH_ALEN);
 	spin_lock(&adapter->mac_learn_lock);
-	hlist_add_head(&(fil->fnode), head);
+	hlist_add_head(&(fil->fanalde), head);
 	adapter->fhash.fnum++;
 	spin_unlock(&adapter->mac_learn_lock);
 }
@@ -620,7 +620,7 @@ unwind:
 	dma_unmap_single(&pdev->dev, nf->dma, skb_headlen(skb), DMA_TO_DEVICE);
 
 out_err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void qlcnic_unmap_buffers(struct pci_dev *pdev, struct sk_buff *skb,
@@ -676,7 +676,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
-	/* 14 frags supported for normal packet and
+	/* 14 frags supported for analrmal packet and
 	 * 32 frags supported for TSO packet
 	 */
 	if (!skb_is_gso(skb) && frag_count > QLCNIC_MAX_FRAGS_PER_TX) {
@@ -798,7 +798,7 @@ void qlcnic_advert_link_change(struct qlcnic_adapter *adapter, int linkup)
 	} else if (!adapter->ahw->linkup && linkup) {
 		adapter->ahw->linkup = 1;
 
-		/* Do not advertise Link up to the stack if device
+		/* Do analt advertise Link up to the stack if device
 		 * is in loopback mode
 		 */
 		if (qlcnic_83xx_check(adapter) && adapter->ahw->lb_mode) {
@@ -822,7 +822,7 @@ static int qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	skb = netdev_alloc_skb(adapter->netdev, rds_ring->skb_size);
 	if (!skb) {
 		adapter->stats.skb_alloc_failure++;
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	skb_reserve(skb, NET_IP_ALIGN);
@@ -832,7 +832,7 @@ static int qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	if (dma_mapping_error(&pdev->dev, dma)) {
 		adapter->stats.rx_dma_map_error++;
 		dev_kfree_skb_any(skb);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	buffer->skb = skb;
@@ -841,7 +841,7 @@ static int qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static void qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
+static void qlcnic_post_rx_buffers_analdb(struct qlcnic_adapter *adapter,
 					struct qlcnic_host_rds_ring *rds_ring,
 					u8 ring_id)
 {
@@ -1074,8 +1074,8 @@ static void qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 	if (link_status) {
 		adapter->ahw->link_speed = link_speed;
 	} else {
-		adapter->ahw->link_speed = SPEED_UNKNOWN;
-		adapter->ahw->link_duplex = DUPLEX_UNKNOWN;
+		adapter->ahw->link_speed = SPEED_UNKANALWN;
+		adapter->ahw->link_duplex = DUPLEX_UNKANALWN;
 	}
 }
 
@@ -1116,8 +1116,8 @@ static void qlcnic_handle_fw_message(int desc_cnt, int index,
 			adapter->ahw->diag_cnt = -EINPROGRESS;
 			break;
 		case 2:
-			dev_info(dev, "loopback cable is not connected\n");
-			adapter->ahw->diag_cnt = -ENODEV;
+			dev_info(dev, "loopback cable is analt connected\n");
+			adapter->ahw->diag_cnt = -EANALDEV;
 			break;
 		default:
 			dev_info(dev,
@@ -1157,7 +1157,7 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {
-		skb_checksum_none_assert(skb);
+		skb_checksum_analne_assert(skb);
 	}
 
 
@@ -1180,7 +1180,7 @@ static inline int qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter,
 		return 0;
 
 	if (*vlan_tag == adapter->rx_pvid) {
-		/* Outer vlan tag. Packet should follow non-vlan path */
+		/* Outer vlan tag. Packet should follow analn-vlan path */
 		*vlan_tag = 0xffff;
 		return 0;
 	}
@@ -1424,7 +1424,7 @@ skip:
 			spin_unlock(&rds_ring->lock);
 		}
 
-		qlcnic_post_rx_buffers_nodb(adapter, rds_ring, ring);
+		qlcnic_post_rx_buffers_analdb(adapter, rds_ring, ring);
 	}
 
 	if (count) {
@@ -1484,7 +1484,7 @@ static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 		scnprintf(prefix, sizeof(prefix), "%s: %s: ",
 			  dev_name(&adapter->pdev->dev), __func__);
 
-		print_hex_dump_debug(prefix, DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump_debug(prefix, DUMP_PREFIX_ANALNE, 16, 1,
 				     skb->data, skb->len, true);
 	}
 }
@@ -1580,7 +1580,7 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 	struct qlcnic_host_tx_ring *tx_ring;
 
 	if (qlcnic_alloc_sds_rings(recv_ctx, adapter->drv_sds_rings))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
@@ -1600,7 +1600,7 @@ int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 
 	if (qlcnic_alloc_tx_rings(adapter, netdev)) {
 		qlcnic_free_sds_rings(recv_ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test) {
@@ -1694,7 +1694,7 @@ void qlcnic_82xx_napi_disable(struct qlcnic_adapter *adapter)
 	}
 }
 
-#define QLC_83XX_NORMAL_LB_PKT	(1ULL << 36)
+#define QLC_83XX_ANALRMAL_LB_PKT	(1ULL << 36)
 #define QLC_83XX_LRO_LB_PKT	(1ULL << 46)
 
 static inline int qlcnic_83xx_is_lb_pkt(u64 sts_data, int lro_pkt)
@@ -1702,7 +1702,7 @@ static inline int qlcnic_83xx_is_lb_pkt(u64 sts_data, int lro_pkt)
 	if (lro_pkt)
 		return (sts_data & QLC_83XX_LRO_LB_PKT) ? 1 : 0;
 	else
-		return (sts_data & QLC_83XX_NORMAL_LB_PKT) ? 1 : 0;
+		return (sts_data & QLC_83XX_ANALRMAL_LB_PKT) ? 1 : 0;
 }
 
 #define QLCNIC_ENCAP_LENGTH_MASK	0x7f
@@ -1909,7 +1909,7 @@ static int qlcnic_83xx_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring,
 			break;
 		default:
 			dev_info(&adapter->pdev->dev,
-				 "Unknown opcode: 0x%x\n", opcode);
+				 "Unkanalwn opcode: 0x%x\n", opcode);
 			goto skip;
 		}
 
@@ -1937,7 +1937,7 @@ skip:
 					      &rds_ring->free_list);
 			spin_unlock(&rds_ring->lock);
 		}
-		qlcnic_post_rx_buffers_nodb(adapter, rds_ring, ring);
+		qlcnic_post_rx_buffers_analdb(adapter, rds_ring, ring);
 	}
 	if (count) {
 		sds_ring->consumer = consumer;
@@ -2106,7 +2106,7 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 
 	if (qlcnic_alloc_sds_rings(recv_ctx, adapter->drv_sds_rings))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (ring = 0; ring < adapter->drv_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
@@ -2126,7 +2126,7 @@ int qlcnic_83xx_napi_add(struct qlcnic_adapter *adapter,
 
 	if (qlcnic_alloc_tx_rings(adapter, netdev)) {
 		qlcnic_free_sds_rings(recv_ctx);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if ((adapter->flags & QLCNIC_MSIX_ENABLED) &&

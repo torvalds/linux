@@ -5,7 +5,7 @@
  * Sending one self a signal should always get delivered.
  */
 
-#include <errno.h>
+#include <erranal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -76,13 +76,13 @@ static int test_signal_tm()
 			 * This basically means the transaction aborted before we
 			 * even got to the suspend... this is crazy but it
 			 * happens.
-			 * Yes this also means we might never make forward
+			 * Anal this also means we might never make forward
 			 * progress... the alarm() will trip eventually...
 			 */
 			continue;
 
 		if (rc || ret) {
-			/* Ret is actually an errno */
+			/* Ret is actually an erranal */
 			printf("TEXASR 0x%016lx, TFIAR 0x%016lx\n",
 					__builtin_get_texasr(), __builtin_get_tfiar());
 			fprintf(stderr, "(%d) Fail reason: %d rc=0x%lx ret=0x%lx\n",

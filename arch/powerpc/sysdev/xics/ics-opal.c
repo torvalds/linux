@@ -21,20 +21,20 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erranal.h>
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
 static int ics_opal_mangle_server(int server)
 {
-	/* No link for now */
+	/* Anal link for analw */
 	return server << 2;
 }
 
 static int ics_opal_unmangle_server(int server)
 {
-	/* No link for now */
+	/* Anal link for analw */
 	return server >> 2;
 }
 
@@ -114,7 +114,7 @@ static int ics_opal_set_affinity(struct irq_data *d,
 
 	wanted_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (wanted_server < 0) {
-		pr_warn("%s: No online cpus in the mask %*pb for irq %d\n",
+		pr_warn("%s: Anal online cpus in the mask %*pb for irq %d\n",
 			__func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
@@ -144,7 +144,7 @@ static struct irq_chip ics_opal_irq_chip = {
 	.irq_retrigger = xics_retrigger,
 };
 
-static int ics_opal_host_match(struct ics *ics, struct device_node *node)
+static int ics_opal_host_match(struct ics *ics, struct device_analde *analde)
 {
 	return 1;
 }
@@ -158,7 +158,7 @@ static int ics_opal_check(struct ics *ics, unsigned int hw_irq)
 	if (WARN_ON(hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS))
 		return -EINVAL;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kanalws about this interrupt */
 	rc = opal_get_xive(hw_irq, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -ENXIO;
@@ -166,13 +166,13 @@ static int ics_opal_check(struct ics *ics, unsigned int hw_irq)
 	return 0;
 }
 
-static void ics_opal_mask_unknown(struct ics *ics, unsigned long vec)
+static void ics_opal_mask_unkanalwn(struct ics *ics, unsigned long vec)
 {
 	int64_t rc;
 	__be16 server;
 	int8_t priority;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kanalws about this interrupt */
 	rc = opal_get_xive(vec, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return;
@@ -186,7 +186,7 @@ static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 	__be16 server;
 	int8_t priority;
 
-	/* Check if HAL knows about this interrupt */
+	/* Check if HAL kanalws about this interrupt */
 	rc = opal_get_xive(vec, &server, &priority);
 	if (rc != OPAL_SUCCESS)
 		return -1;
@@ -196,7 +196,7 @@ static long ics_opal_get_server(struct ics *ics, unsigned long vec)
 /* Only one global & state struct ics */
 static struct ics ics_hal = {
 	.check		= ics_opal_check,
-	.mask_unknown	= ics_opal_mask_unknown,
+	.mask_unkanalwn	= ics_opal_mask_unkanalwn,
 	.get_server	= ics_opal_get_server,
 	.host_match	= ics_opal_host_match,
 	.chip		= &ics_opal_irq_chip,
@@ -205,7 +205,7 @@ static struct ics ics_hal = {
 int __init ics_opal_init(void)
 {
 	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* We need to patch our irq chip's EOI to point to the
 	 * right ICP

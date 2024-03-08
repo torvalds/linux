@@ -85,7 +85,7 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 			GFP_KERNEL);
 	if (unlikely(!vf_cb)) {
 		dev_err(dsaf_dev->dev, "malloc vf_cb fail!\n");
-		ae_handle = ERR_PTR(-ENOMEM);
+		ae_handle = ERR_PTR(-EANALMEM);
 		goto handle_err;
 	}
 	ae_handle = &vf_cb->ae_handle;
@@ -212,8 +212,8 @@ static int hns_ae_set_mac_address(struct hnae_handle *handle, const void *p)
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	if (!p || !is_valid_ether_addr((const u8 *)p)) {
-		dev_err(handle->owner_dev, "is not valid ether addr !\n");
-		return -EADDRNOTAVAIL;
+		dev_err(handle->owner_dev, "is analt valid ether addr !\n");
+		return -EADDRANALTAVAIL;
 	}
 
 	ret = hns_mac_change_vf_addr(mac_cb, handle->vf_id, p);
@@ -232,7 +232,7 @@ static int hns_ae_add_uc_address(struct hnae_handle *handle,
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return hns_mac_add_uc_addr(mac_cb, handle->vf_id, addr);
 }
@@ -243,7 +243,7 @@ static int hns_ae_rm_uc_address(struct hnae_handle *handle,
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	return hns_mac_rm_uc_addr(mac_cb, handle->vf_id, addr);
 }
@@ -359,7 +359,7 @@ static void hns_ae_stop(struct hnae_handle *handle)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	/* just clean tx fbd, neednot rx fbd*/
+	/* just clean tx fbd, needanalt rx fbd*/
 	hns_rcb_wait_fbd_clean(handle->qs, handle->q_num, RCB_INT_FLAG_TX);
 
 	msleep(20);
@@ -479,7 +479,7 @@ static void hns_ae_get_pauseparam(struct hnae_handle *handle,
 
 	hns_mac_get_pauseparam(mac_cb, rx_en, tx_en);
 
-	/* Service port's pause feature is provided by DSAF, not mac */
+	/* Service port's pause feature is provided by DSAF, analt mac */
 	if (handle->port_type == HNAE_PORT_SERVICE)
 		hns_dsaf_get_rx_mac_pause_en(dsaf_dev, mac_cb->mac_id, rx_en);
 }
@@ -503,7 +503,7 @@ static int hns_ae_set_pauseparam(struct hnae_handle *handle,
 	if (ret)
 		return ret;
 
-	/* Service port's pause feature is provided by DSAF, not mac */
+	/* Service port's pause feature is provided by DSAF, analt mac */
 	if (handle->port_type == HNAE_PORT_SERVICE) {
 		ret = hns_dsaf_set_rx_mac_pause_en(dsaf_dev,
 						   mac_cb->mac_id, rx_en);
@@ -651,7 +651,7 @@ static void hns_ae_update_stats(struct hnae_handle *handle,
 	}
 
 	hns_ppe_update_stats(ppe_cb);
-	rx_missed_errors = ppe_cb->hw_stats.rx_drop_no_buf;
+	rx_missed_errors = ppe_cb->hw_stats.rx_drop_anal_buf;
 	tx_errors += ppe_cb->hw_stats.tx_err_checksum
 		+ ppe_cb->hw_stats.tx_err_fifo_empty;
 
@@ -663,7 +663,7 @@ static void hns_ae_update_stats(struct hnae_handle *handle,
 		rx_missed_errors += dsaf_dev->hw_stats[port].crc_false;
 
 		/* for port downline direction, i.e., tx. */
-		port = port + DSAF_PPE_INODE_BASE;
+		port = port + DSAF_PPE_IANALDE_BASE;
 		hns_dsaf_update_stats(dsaf_dev, port);
 		tx_dropped += dsaf_dev->hw_stats[port].bp_drop;
 		tx_dropped += dsaf_dev->hw_stats[port].pad_drop;
@@ -921,7 +921,7 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 		memcpy(ppe_cb->rss_indir_table, indir,
 		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
-		/* now update the hardware */
+		/* analw update the hardware */
 		hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
 	}
 

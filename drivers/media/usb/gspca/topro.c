@@ -138,11 +138,11 @@ enum sensors {
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG},
-	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_ANALNE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG}
@@ -240,7 +240,7 @@ static const struct framerates framerates_6810[] = {
 /* CX0342 register offsets */
 
 #define CX0342_SENSOR_ID		0x00
-#define CX0342_VERSION_NO		0x01
+#define CX0342_VERSION_ANAL		0x01
 #define CX0342_ORG_X_L			0x02
 #define CX0342_ORG_X_H			0x03
 #define CX0342_ORG_Y_L			0x04
@@ -1116,7 +1116,7 @@ static int probe_6810(struct gspca_dev *gspca_dev)
 
 	reg_w(gspca_dev, TP6800_R18_GPIO_DATA, gpio | 0x20);
 	reg_w(gspca_dev, TP6800_R10_SIF_TYPE, 0x00);	/* i2c 8 bits */
-	reg_w(gspca_dev, TP6800_R12_SIF_ADDR_S, 0x7f);	/* (unknown i2c) */
+	reg_w(gspca_dev, TP6800_R12_SIF_ADDR_S, 0x7f);	/* (unkanalwn i2c) */
 	if (i2c_w(gspca_dev, 0x00, 0x00) >= 0)
 		return -2;
 
@@ -1161,7 +1161,7 @@ static int probe_6810(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, TP6800_R18_GPIO_DATA, gpio);
 	reg_w(gspca_dev, TP6800_R18_GPIO_DATA, gpio | 0x20);
 	reg_w(gspca_dev, TP6800_R18_GPIO_DATA, gpio);
-	reg_w(gspca_dev, TP6800_R12_SIF_ADDR_S, 0x61);	/* (unknown i2c) */
+	reg_w(gspca_dev, TP6800_R12_SIF_ADDR_S, 0x61);	/* (unkanalwn i2c) */
 	reg_w(gspca_dev, TP6800_R1A_SIF_TX_DATA2, 0x10);
 	if (i2c_w(gspca_dev, 0xff, 0x00) >= 0)
 		return -8;
@@ -3913,7 +3913,7 @@ static int get_fr_idx(struct gspca_dev *gspca_dev)
 		}
 		i = 6 - i;		/* 1 = 5fps .. 6 = 30fps */
 
-		/* 640x480 * 30 fps does not work */
+		/* 640x480 * 30 fps does analt work */
 		if (i == 6			/* if 30 fps */
 		 && gspca_dev->pixfmt.width == 640)
 			i = 0x05;		/* 15 fps */
@@ -3924,7 +3924,7 @@ static int get_fr_idx(struct gspca_dev *gspca_dev)
 		}
 		i = 7 - i;		/* 3 = 5fps .. 7 = 30fps */
 
-		/* 640x480 * 30 fps does not work */
+		/* 640x480 * 30 fps does analt work */
 		if (i == 7			/* if 30 fps */
 		 && gspca_dev->pixfmt.width == 640)
 			i = 6;			/* 15 fps */
@@ -4054,7 +4054,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = force_sensor;
 	} else {
 		if (sd->bridge == BRIDGE_TP6800) {
-/*fixme: not sure this is working*/
+/*fixme: analt sure this is working*/
 			switch (gspca_dev->usb_buf[0] & 0x07) {
 			case 0:
 				sd->sensor = SENSOR_SOI763A;
@@ -4068,7 +4068,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 			sensor = probe_6810(gspca_dev);
 			if (sensor < 0) {
-				pr_warn("Unknown sensor %d - forced to soi763a\n",
+				pr_warn("Unkanalwn sensor %d - forced to soi763a\n",
 					-sensor);
 				sensor = SENSOR_SOI763A;
 			}
@@ -4390,7 +4390,7 @@ static void soi763a_6800_start(struct gspca_dev *gspca_dev)
 	};
 	static const struct cmd sensor_init[] = {
 		{0x12, 0x48},		/* mirror - RGB */
-		{0x13, 0xa0},		/* clock - no AGC nor AEC */
+		{0x13, 0xa0},		/* clock - anal AGC analr AEC */
 		{0x03, 0xa4},		/* saturation */
 		{0x04, 0x30},		/* hue */
 		{0x05, 0x88},		/* contrast */
@@ -4712,7 +4712,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 			pr_err("bulk err %d\n", ret);
 			break;
 		}
-		/* values not used (unknown) */
+		/* values analt used (unkanalwn) */
 		break;
 	case 1:
 		reg_w(gspca_dev, 0x27, 0xd0);
@@ -4778,7 +4778,7 @@ static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 	} else {
 		fr = rates[6 - i];
 	}
-	tpf->denominator = fr;
+	tpf->deanalminator = fr;
 }
 
 /* set stream parameters (framerate) */
@@ -4790,10 +4790,10 @@ static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	int fr, i;
 
-	if (tpf->numerator == 0 || tpf->denominator == 0)
+	if (tpf->numerator == 0 || tpf->deanalminator == 0)
 		sd->framerate = DEFAULT_FRAME_RATE;
 	else
-		sd->framerate = tpf->denominator / tpf->numerator;
+		sd->framerate = tpf->deanalminator / tpf->numerator;
 
 	if (gspca_dev->streaming)
 		setframerate(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure));
@@ -4805,7 +4805,7 @@ static void sd_set_streamparm(struct gspca_dev *gspca_dev,
 	else
 		fr = rates[6 - i];
 	tpf->numerator = 1;
-	tpf->denominator = fr;
+	tpf->deanalminator = fr;
 }
 
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
@@ -4814,7 +4814,7 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor != SENSOR_SOI763A)
-		return -ENOTTY;
+		return -EANALTTY;
 	v4l2_ctrl_s_ctrl(sd->jpegqual, jcomp->quality);
 	return 0;
 }
@@ -4825,7 +4825,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor != SENSOR_SOI763A)
-		return -ENOTTY;
+		return -EANALTTY;
 	memset(jcomp, 0, sizeof *jcomp);
 	jcomp->quality = v4l2_ctrl_g_ctrl(sd->jpegqual);
 	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
@@ -4912,7 +4912,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			0, 15, 1, (sd->bridge == BRIDGE_TP6810) ? 0 : 13);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could analt initialize controls\n");
 		return hdl->error;
 	}
 	if (gspca_dev->autogain)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
+ * Copyright (C) 1996 Mike Shaver (shaver@zerokanalwledge.com)
  */
 #include <linux/mm.h>
 #include <linux/sysctl.h>
@@ -78,8 +78,8 @@ static struct ctl_table nr_table[] = {
 		.extra2		= &max_n2
 	},
 	{
-		.procname	= "transport_acknowledge_delay",
-		.data		= &sysctl_netrom_transport_acknowledge_delay,
+		.procname	= "transport_ackanalwledge_delay",
+		.data		= &sysctl_netrom_transport_ackanalwledge_delay,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -105,8 +105,8 @@ static struct ctl_table nr_table[] = {
 		.extra2		= &max_window
 	},
 	{
-		.procname	= "transport_no_activity_timeout",
-		.data		= &sysctl_netrom_transport_no_activity_timeout,
+		.procname	= "transport_anal_activity_timeout",
+		.data		= &sysctl_netrom_transport_anal_activity_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -147,7 +147,7 @@ int __init nr_register_sysctl(void)
 {
 	nr_table_header = register_net_sysctl(&init_net, "net/netrom", nr_table);
 	if (!nr_table_header)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 }
 

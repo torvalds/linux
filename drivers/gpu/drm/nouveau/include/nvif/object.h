@@ -86,7 +86,7 @@ struct nvif_mclass {
 	struct nvif_object *object = (o);                                      \
 	struct nvif_sclass *sclass;                                            \
 	typeof(m[0]) *mclass = (m);                                            \
-	int ret = -ENODEV;                                                     \
+	int ret = -EANALDEV;                                                     \
 	int cnt, i, j;                                                         \
                                                                                \
 	cnt = nvif_object_sclass_get(object, &sclass);                         \
@@ -115,7 +115,7 @@ struct nvif_mclass {
 			if (_mclass[_cid].oclass == _oclass)                   \
 				break;                                         \
 		}                                                              \
-		_cid = _mclass[_cid].oclass ? _cid : -ENOSYS;                  \
+		_cid = _mclass[_cid].oclass ? _cid : -EANALSYS;                  \
 	} else {                                                               \
 		_cid = nvif_mclass((o), _mclass);                              \
 	}                                                                      \

@@ -140,7 +140,7 @@ void mhi_ring_chan_db(struct mhi_controller *mhi_cntrl,
 
 	/*
 	 * Writes to the new ring element must be visible to the hardware
-	 * before letting h/w know there is new element to fetch.
+	 * before letting h/w kanalw there is new element to fetch.
 	 */
 	dma_wmb();
 	*ring->ctxt_wp = cpu_to_le64(db);
@@ -180,14 +180,14 @@ void mhi_soc_reset(struct mhi_controller *mhi_cntrl)
 }
 EXPORT_SYMBOL_GPL(mhi_soc_reset);
 
-int mhi_map_single_no_bb(struct mhi_controller *mhi_cntrl,
+int mhi_map_single_anal_bb(struct mhi_controller *mhi_cntrl,
 			 struct mhi_buf_info *buf_info)
 {
 	buf_info->p_addr = dma_map_single(mhi_cntrl->cntrl_dev,
 					  buf_info->v_addr, buf_info->len,
 					  buf_info->dir);
 	if (dma_mapping_error(mhi_cntrl->cntrl_dev, buf_info->p_addr))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	return 0;
 }
@@ -199,7 +199,7 @@ int mhi_map_single_use_bb(struct mhi_controller *mhi_cntrl,
 				       &buf_info->p_addr, GFP_ATOMIC);
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (buf_info->dir == DMA_TO_DEVICE)
 		memcpy(buf, buf_info->v_addr, buf_info->len);
@@ -209,7 +209,7 @@ int mhi_map_single_use_bb(struct mhi_controller *mhi_cntrl,
 	return 0;
 }
 
-void mhi_unmap_single_no_bb(struct mhi_controller *mhi_cntrl,
+void mhi_unmap_single_anal_bb(struct mhi_controller *mhi_cntrl,
 			    struct mhi_buf_info *buf_info)
 {
 	dma_unmap_single(mhi_cntrl->cntrl_dev, buf_info->p_addr, buf_info->len,
@@ -305,7 +305,7 @@ int mhi_destroy_device(struct device *dev, void *data)
 	 * For the suspend and resume case, this function will get called
 	 * without mhi_unregister_controller(). Hence, we need to drop the
 	 * references to mhi_dev created for ul and dl channels. We can
-	 * be sure that there will be no instances of mhi_dev left after
+	 * be sure that there will be anal instances of mhi_dev left after
 	 * this.
 	 */
 	if (ul_chan) {
@@ -325,7 +325,7 @@ int mhi_destroy_device(struct device *dev, void *data)
 	dev_dbg(&mhi_cntrl->mhi_dev->dev, "destroy device for chan:%s\n",
 		 mhi_dev->name);
 
-	/* Notify the client and remove the device from MHI bus */
+	/* Analtify the client and remove the device from MHI bus */
 	device_del(dev);
 	put_device(dev);
 
@@ -344,7 +344,7 @@ int mhi_get_free_desc_count(struct mhi_device *mhi_dev,
 }
 EXPORT_SYMBOL_GPL(mhi_get_free_desc_count);
 
-void mhi_notify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason)
+void mhi_analtify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason)
 {
 	struct mhi_driver *mhi_drv;
 
@@ -356,7 +356,7 @@ void mhi_notify(struct mhi_device *mhi_dev, enum mhi_callback cb_reason)
 	if (mhi_drv->status_cb)
 		mhi_drv->status_cb(mhi_dev, cb_reason);
 }
-EXPORT_SYMBOL_GPL(mhi_notify);
+EXPORT_SYMBOL_GPL(mhi_analtify);
 
 /* Bind MHI channels to MHI devices */
 void mhi_create_devices(struct mhi_controller *mhi_cntrl)
@@ -387,7 +387,7 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 			mhi_dev->dl_chan_id = mhi_chan->chan;
 			break;
 		default:
-			dev_err(dev, "Direction not supported\n");
+			dev_err(dev, "Direction analt supported\n");
 			put_device(&mhi_dev->dev);
 			return;
 		}
@@ -463,13 +463,13 @@ irqreturn_t mhi_irq_handler(int irq_number, void *dev)
 	if (ev_ring->rp == dev_rp)
 		return IRQ_HANDLED;
 
-	/* For client managed event ring, notify pending data */
+	/* For client managed event ring, analtify pending data */
 	if (mhi_event->cl_manage) {
 		struct mhi_chan *mhi_chan = mhi_event->mhi_chan;
 		struct mhi_device *mhi_dev = mhi_chan->mhi_dev;
 
 		if (mhi_dev)
-			mhi_notify(mhi_dev, MHI_CB_PENDING_DATA);
+			mhi_analtify(mhi_dev, MHI_CB_PENDING_DATA);
 	} else {
 		tasklet_schedule(&mhi_event->task);
 	}
@@ -510,7 +510,7 @@ irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *priv)
 
 	switch (ee) {
 	case MHI_EE_RDDM:
-		/* proceed if power down is not already in progress */
+		/* proceed if power down is analt already in progress */
 		if (mhi_cntrl->rddm_image && mhi_is_active(mhi_cntrl)) {
 			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_EE_RDDM);
 			mhi_cntrl->ee = ee;
@@ -587,7 +587,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 	 * If it's a DB Event then we need to grab the lock
 	 * with preemption disabled and as a write because we
 	 * have to update db register and there are chances that
-	 * another thread could be doing the same.
+	 * aanalther thread could be doing the same.
 	 */
 	if (ev_code >= MHI_EV_CC_OOB)
 		write_lock_irqsave(&mhi_chan->lock, flags);
@@ -631,7 +631,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 			else
 				xfer_len = buf_info->len;
 
-			/* Unmap if it's not pre-mapped by client */
+			/* Unmap if it's analt pre-mapped by client */
 			if (likely(!buf_info->pre_mapped))
 				mhi_cntrl->unmap_single(mhi_cntrl, buf_info);
 
@@ -646,7 +646,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 
 			read_unlock_bh(&mhi_chan->lock);
 
-			/* notify client */
+			/* analtify client */
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 
 			if (mhi_chan->dir == DMA_TO_DEVICE) {
@@ -657,7 +657,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 
 			/*
 			 * Recycle the buffer if buffer is pre-allocated,
-			 * if there is an error, not much we can do apart
+			 * if there is an error, analt much we can do apart
 			 * from dropping the packet
 			 */
 			if (mhi_chan->pre_alloc) {
@@ -692,7 +692,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 	}
 	case MHI_EV_CC_BAD_TRE:
 	default:
-		dev_err(dev, "Unknown event 0x%x\n", ev_code);
+		dev_err(dev, "Unkanalwn event 0x%x\n", ev_code);
 		break;
 	} /* switch(MHI_EV_READ_CODE(EV_TRB_CODE,event)) */
 
@@ -743,12 +743,12 @@ static int parse_rsc_event(struct mhi_controller *mhi_cntrl,
 
 	WARN_ON(!buf_info->used);
 
-	/* notify the client */
+	/* analtify the client */
 	mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 
 	/*
-	 * Note: We're arbitrarily incrementing RP even though, completion
-	 * packet we processed might not be the same one, reason we can do this
+	 * Analte: We're arbitrarily incrementing RP even though, completion
+	 * packet we processed might analt be the same one, reason we can do this
 	 * is because device guaranteed to cache descriptors in order it
 	 * receive, so even though completion event is different we can re-use
 	 * all descriptors in between.
@@ -758,7 +758,7 @@ static int parse_rsc_event(struct mhi_controller *mhi_cntrl,
 	 * host queue is A (RP).
 	 * The completion event we just serviced is descriptor C.
 	 * Then we can safely queue descriptors to replace A, B, and C
-	 * even though host did not receive any completions.
+	 * even though host did analt receive any completions.
 	 */
 	mhi_del_ring_element(mhi_cntrl, tre_ring);
 	buf_info->used = false;
@@ -1068,13 +1068,13 @@ void mhi_ctrl_ev_task(unsigned long data)
 	int ret;
 
 	/*
-	 * We can check PM state w/o a lock here because there is no way
-	 * PM state can change from reg access valid to no access while this
+	 * We can check PM state w/o a lock here because there is anal way
+	 * PM state can change from reg access valid to anal access while this
 	 * thread being executed.
 	 */
 	if (!MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
 		/*
-		 * We may have a pending event but not allowed to
+		 * We may have a pending event but analt allowed to
 		 * process it since we are probably in a suspended state,
 		 * so trigger a resume.
 		 */
@@ -1087,7 +1087,7 @@ void mhi_ctrl_ev_task(unsigned long data)
 	ret = mhi_event->process_event(mhi_cntrl, mhi_event, U32_MAX);
 
 	/*
-	 * We received an IRQ but no events to process, maybe device went to
+	 * We received an IRQ but anal events to process, maybe device went to
 	 * SYS_ERR state? Check the state to confirm.
 	 */
 	if (!ret) {
@@ -1292,7 +1292,7 @@ int mhi_send_cmd(struct mhi_controller *mhi_cntrl,
 	spin_lock_bh(&mhi_cmd->lock);
 	if (!get_nr_avail_ring_elements(mhi_cntrl, ring)) {
 		spin_unlock_bh(&mhi_cmd->lock);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	/* prepare the cmd tre */
@@ -1314,7 +1314,7 @@ int mhi_send_cmd(struct mhi_controller *mhi_cntrl,
 		cmd_tre->dword[1] = MHI_TRE_CMD_START_DWORD1(chan);
 		break;
 	default:
-		dev_err(dev, "Command not supported\n");
+		dev_err(dev, "Command analt supported\n");
 		break;
 	}
 
@@ -1334,7 +1334,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 				    enum mhi_ch_state_type to_state)
 {
 	struct device *dev = &mhi_chan->mhi_dev->dev;
-	enum mhi_cmd_type cmd = MHI_CMD_NOP;
+	enum mhi_cmd_type cmd = MHI_CMD_ANALP;
 	int ret;
 
 	dev_dbg(dev, "%d: Updating channel state to: %s\n", mhi_chan->chan,
@@ -1368,7 +1368,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 		cmd = MHI_CMD_START_CHAN;
 		break;
 	default:
-		dev_err(dev, "%d: Channel state update to %s not allowed\n",
+		dev_err(dev, "%d: Channel state update to %s analt allowed\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 		return -EINVAL;
 	}
@@ -1430,7 +1430,7 @@ static void mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 		goto exit_unprepare_channel;
 	}
 
-	/* no more processing events for this channel */
+	/* anal more processing events for this channel */
 	ret = mhi_update_channel_state(mhi_cntrl, mhi_chan,
 				       MHI_CH_STATE_TYPE_RESET);
 	if (ret)
@@ -1460,7 +1460,7 @@ int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 	if (!(BIT(mhi_cntrl->ee) & mhi_chan->ee_mask)) {
 		dev_err(dev, "Current EE: %s Required EE Mask: 0x%x\n",
 			TO_MHI_EXEC_STR(mhi_cntrl->ee), mhi_chan->ee_mask);
-		return -ENOTCONN;
+		return -EANALTCONN;
 	}
 
 	mutex_lock(&mhi_chan->mutex);
@@ -1492,7 +1492,7 @@ int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 
 			buf = kmalloc(len, GFP_KERNEL);
 			if (!buf) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto error_pre_alloc;
 			}
 
@@ -1588,7 +1588,7 @@ static void mhi_reset_data_chan(struct mhi_controller *mhi_cntrl,
 	/* Reset any pending buffers */
 	buf_ring = &mhi_chan->buf_ring;
 	tre_ring = &mhi_chan->tre_ring;
-	result.transaction_status = -ENOTCONN;
+	result.transaction_status = -EANALTCONN;
 	result.bytes_xferd = 0;
 	while (tre_ring->rp != tre_ring->wp) {
 		struct mhi_buf_info *buf_info = buf_ring->rp;
@@ -1620,7 +1620,7 @@ void mhi_reset_chan(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan)
 	struct mhi_event_ctxt *er_ctxt;
 	int chan = mhi_chan->chan;
 
-	/* Nothing to reset, client doesn't queue buffers */
+	/* Analthing to reset, client doesn't queue buffers */
 	if (mhi_chan->offload_ch)
 		return;
 

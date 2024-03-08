@@ -142,7 +142,7 @@ struct wbsd_host
 	int			flags;		/* Driver states */
 
 #define WBSD_FCARD_PRESENT	(1<<0)		/* Card is present */
-#define WBSD_FIGNORE_DETECT	(1<<1)		/* Ignore card detection */
+#define WBSD_FIGANALRE_DETECT	(1<<1)		/* Iganalre card detection */
 
 	struct mmc_request*	mrq;		/* Current request */
 
@@ -177,5 +177,5 @@ struct wbsd_host
 	struct tasklet_struct	timeout_tasklet;
 	struct tasklet_struct	finish_tasklet;
 
-	struct timer_list	ignore_timer;	/* Ignore detection timer */
+	struct timer_list	iganalre_timer;	/* Iganalre detection timer */
 };

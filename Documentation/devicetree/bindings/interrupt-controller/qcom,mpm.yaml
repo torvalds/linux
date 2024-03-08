@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawn.guo@linaro.org>
 
 description:
-  Qualcomm Technologies Inc. SoCs based on the RPM architecture have a
+  Qualcomm Techanallogies Inc. SoCs based on the RPM architecture have a
   MSM Power Manager (MPM) that is in always-on domain. In addition to managing
   resources during sleep, the hardware also has an interrupt controller that
   monitors the interrupts when the system is asleep, wakes up the APSS when
@@ -44,7 +44,7 @@ properties:
   mboxes:
     maxItems: 1
     description:
-      Specify the mailbox used to notify RPM for writing vMPM registers.
+      Specify the mailbox used to analtify RPM for writing vMPM registers.
 
   interrupt-controller: true
 

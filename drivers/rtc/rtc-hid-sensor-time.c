@@ -69,7 +69,7 @@ static u32 hid_time_value(size_t raw_len, char *raw_data)
 	case 4:
 		return *(u32 *)raw_data;
 	default:
-		return (u32)(~0U); /* 0xff... or -1 to denote an error */
+		return (u32)(~0U); /* 0xff... or -1 to deanalte an error */
 	}
 }
 
@@ -121,14 +121,14 @@ static int hid_time_capture_sample(struct hid_sensor_hub_device *hsdev,
 /* small helper, haven't found any other way */
 static const char *hid_time_attrib_name(u32 attrib_id)
 {
-	static const char unknown[] = "unknown";
+	static const char unkanalwn[] = "unkanalwn";
 	unsigned i;
 
 	for (i = 0; i < TIME_RTC_CHANNEL_MAX; ++i) {
 		if (hid_time_addresses[i] == attrib_id)
 			return hid_time_channel_names[i];
 	}
-	return unknown; /* should never happen */
+	return unkanalwn; /* should never happen */
 }
 
 static int hid_time_parse_report(struct platform_device *pdev,
@@ -153,26 +153,26 @@ static int hid_time_parse_report(struct platform_device *pdev,
 	for (i = 0; i < TIME_RTC_CHANNEL_MAX; ++i) {
 		if (time_state->info[i].report_id != report_id) {
 			dev_err(&pdev->dev,
-				"not all needed attributes inside the same report!\n");
+				"analt all needed attributes inside the same report!\n");
 			return -EINVAL;
 		}
 		if (time_state->info[i].size == 3 ||
 				time_state->info[i].size > 4) {
 			dev_err(&pdev->dev,
-				"attribute '%s' not 8, 16 or 32 bits wide!\n",
+				"attribute '%s' analt 8, 16 or 32 bits wide!\n",
 				hid_time_attrib_name(
 					time_state->info[i].attrib_id));
 			return -EINVAL;
 		}
 		if (time_state->info[i].units !=
-				HID_USAGE_SENSOR_UNITS_NOT_SPECIFIED &&
+				HID_USAGE_SENSOR_UNITS_ANALT_SPECIFIED &&
 				/* allow attribute seconds with unit seconds */
 				!(time_state->info[i].attrib_id ==
 				HID_USAGE_SENSOR_TIME_SECOND &&
 				time_state->info[i].units ==
 				HID_USAGE_SENSOR_UNITS_SECOND)) {
 			dev_err(&pdev->dev,
-				"attribute '%s' hasn't a unit of type 'none'!\n",
+				"attribute '%s' hasn't a unit of type 'analne'!\n",
 				hid_time_attrib_name(
 					time_state->info[i].attrib_id));
 			return -EINVAL;
@@ -204,7 +204,7 @@ static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	ret = wait_for_completion_killable_timeout(
 			&time_state->comp_last_time, HZ*6);
 	if (ret > 0) {
-		/* no error */
+		/* anal error */
 		spin_lock_irqsave(&time_state->lock_last_time, flags);
 		*tm = time_state->last_time;
 		spin_unlock_irqrestore(&time_state->lock_last_time, flags);
@@ -227,7 +227,7 @@ static int hid_time_probe(struct platform_device *pdev)
 		sizeof(struct hid_time_state), GFP_KERNEL);
 
 	if (time_state == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, time_state);
 

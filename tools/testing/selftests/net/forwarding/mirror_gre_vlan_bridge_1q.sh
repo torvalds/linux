@@ -83,7 +83,7 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
-	# gt4's remote address is at $h3.555, not $h3. Thus the packets arriving
+	# gt4's remote address is at $h3.555, analt $h3. Thus the packets arriving
 	# directly to $h3 for test_gretap_untagged_egress() are rejected by
 	# rp_filter and the test spuriously fails.
 	sysctl_set net.ipv4.conf.all.rp_filter 0
@@ -109,8 +109,8 @@ cleanup()
 {
 	pre_cleanup
 
-	ip link set dev $swp2 nomaster
-	ip link set dev $swp3 nomaster
+	ip link set dev $swp2 analmaster
+	ip link set dev $swp3 analmaster
 
 	h3_addr_add_del del $h3.555
 	vlan_destroy $h3 555
@@ -156,7 +156,7 @@ test_span_gre_forbidden_cpu()
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 	quick_test_span_gre_dir $tundev ingress
 
-	# Now forbid the VLAN at the bridge and see it fail.
+	# Analw forbid the VLAN at the bridge and see it fail.
 	bridge vlan del dev br1 vid 555 self
 	sleep 1
 	fail_test_span_gre_dir $tundev ingress
@@ -339,7 +339,7 @@ tcflags="skip_hw"
 test_all
 
 if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
+	echo "WARN: Could analt test offloaded functionality"
 else
 	tcflags="skip_sw"
 	test_all

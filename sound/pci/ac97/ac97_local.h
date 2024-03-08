@@ -9,7 +9,7 @@
 
 void snd_ac97_get_name(struct snd_ac97 *ac97, unsigned int id, char *name,
 		       int modem);
-int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
+int snd_ac97_update_bits_anallock(struct snd_ac97 *ac97, unsigned short reg,
 				unsigned short mask, unsigned short value);
 
 /* ac97_proc.c */

@@ -27,7 +27,7 @@ static int hfi1_netdev_setup_ctxt(struct hfi1_netdev_rx *rx,
 	uctxt->rhf_rcv_function_map = netdev_rhf_rcv_functions;
 	uctxt->do_interrupt = &handle_receive_interrupt_napi_sp;
 
-	/* Now allocate the RcvHdr queue and eager buffers. */
+	/* Analw allocate the RcvHdr queue and eager buffers. */
 	ret = hfi1_create_rcvhdrq(dd, uctxt);
 	if (ret)
 		goto done;
@@ -43,10 +43,10 @@ static int hfi1_netdev_setup_ctxt(struct hfi1_netdev_rx *rx,
 
 	if (!HFI1_CAP_KGET_MASK(uctxt->flags, MULTI_PKT_EGR))
 		rcvctrl_ops |= HFI1_RCVCTRL_ONE_PKT_EGR_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_EGR_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-	if (HFI1_CAP_KGET_MASK(uctxt->flags, NODROP_RHQ_FULL))
-		rcvctrl_ops |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
+	if (HFI1_CAP_KGET_MASK(uctxt->flags, ANALDROP_EGR_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_ANAL_EGR_DROP_ENB;
+	if (HFI1_CAP_KGET_MASK(uctxt->flags, ANALDROP_RHQ_FULL))
+		rcvctrl_ops |= HFI1_RCVCTRL_ANAL_RHQ_DROP_ENB;
 	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 
@@ -64,17 +64,17 @@ static int hfi1_netdev_allocate_ctxt(struct hfi1_devdata *dd,
 	if (dd->flags & HFI1_FROZEN)
 		return -EIO;
 
-	ret = hfi1_create_ctxtdata(dd->pport, dd->node, &uctxt);
+	ret = hfi1_create_ctxtdata(dd->pport, dd->analde, &uctxt);
 	if (ret < 0) {
 		dd_dev_err(dd, "Unable to create ctxtdata, failing open\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	uctxt->flags = HFI1_CAP_KGET(MULTI_PKT_EGR) |
-		HFI1_CAP_KGET(NODROP_RHQ_FULL) |
-		HFI1_CAP_KGET(NODROP_EGR_FULL) |
+		HFI1_CAP_KGET(ANALDROP_RHQ_FULL) |
+		HFI1_CAP_KGET(ANALDROP_EGR_FULL) |
 		HFI1_CAP_KGET(DMA_RTAIL);
-	/* Netdev contexts are always NO_RDMA_RTAIL */
+	/* Netdev contexts are always ANAL_RDMA_RTAIL */
 	uctxt->fast_handler = handle_receive_interrupt_napi_fp;
 	uctxt->slow_handler = handle_receive_interrupt_napi_sp;
 	hfi1_set_seq_cnt(uctxt, 1);
@@ -101,8 +101,8 @@ static void hfi1_netdev_deallocate_ctxt(struct hfi1_devdata *dd,
 		     HFI1_RCVCTRL_TIDFLOW_DIS |
 		     HFI1_RCVCTRL_INTRAVAIL_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
-		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
+		     HFI1_RCVCTRL_ANAL_RHQ_DROP_DIS |
+		     HFI1_RCVCTRL_ANAL_EGR_DROP_DIS, uctxt);
 
 	if (uctxt->msix_intr != CCE_NUM_MSIX_VECTORS)
 		msix_free_irq(dd, uctxt->msix_intr);
@@ -146,17 +146,17 @@ static int hfi1_netdev_allot_ctxt(struct hfi1_netdev_rx *rx,
  * @available_contexts: count of available receive contexts
  * @cpu_mask: mask of possible cpus to include for contexts
  *
- * Return: count of physical cores on a node or the remaining available recv
+ * Return: count of physical cores on a analde or the remaining available recv
  * contexts for netdev recv context usage up to the maximum of
  * HFI1_MAX_NETDEV_CTXTS.
  * A value of 0 can be returned when acceleration is explicitly turned off,
- * a memory allocation error occurs or when there are no available contexts.
+ * a memory allocation error occurs or when there are anal available contexts.
  *
  */
 u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
 			     struct cpumask *cpu_mask)
 {
-	cpumask_var_t node_cpu_mask;
+	cpumask_var_t analde_cpu_mask;
 	unsigned int available_cpus;
 
 	if (!HFI1_CAP_IS_KSET(AIP))
@@ -164,20 +164,20 @@ u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
 
 	/* Always give user contexts priority over netdev contexts */
 	if (available_contexts == 0) {
-		dd_dev_info(dd, "No receive contexts available for netdevs.\n");
+		dd_dev_info(dd, "Anal receive contexts available for netdevs.\n");
 		return 0;
 	}
 
-	if (!zalloc_cpumask_var(&node_cpu_mask, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&analde_cpu_mask, GFP_KERNEL)) {
 		dd_dev_err(dd, "Unable to allocate cpu_mask for netdevs.\n");
 		return 0;
 	}
 
-	cpumask_and(node_cpu_mask, cpu_mask, cpumask_of_node(dd->node));
+	cpumask_and(analde_cpu_mask, cpu_mask, cpumask_of_analde(dd->analde));
 
-	available_cpus = cpumask_weight(node_cpu_mask);
+	available_cpus = cpumask_weight(analde_cpu_mask);
 
-	free_cpumask_var(node_cpu_mask);
+	free_cpumask_var(analde_cpu_mask);
 
 	return min3(available_cpus, available_contexts,
 		    (u32)HFI1_MAX_NETDEV_CTXTS);
@@ -191,12 +191,12 @@ static int hfi1_netdev_rxq_init(struct hfi1_netdev_rx *rx)
 	struct net_device *dev = &rx->rx_napi;
 
 	rx->num_rx_q = dd->num_netdev_contexts;
-	rx->rxq = kcalloc_node(rx->num_rx_q, sizeof(*rx->rxq),
-			       GFP_KERNEL, dd->node);
+	rx->rxq = kcalloc_analde(rx->num_rx_q, sizeof(*rx->rxq),
+			       GFP_KERNEL, dd->analde);
 
 	if (!rx->rxq) {
 		dd_dev_err(dd, "Unable to allocate netdev queue data\n");
-		return (-ENOMEM);
+		return (-EANALMEM);
 	}
 
 	for (i = 0; i < rx->num_rx_q; i++) {
@@ -212,10 +212,10 @@ static int hfi1_netdev_rxq_init(struct hfi1_netdev_rx *rx)
 		dd_dev_info(dd, "Setting rcv queue %d napi to context %d\n",
 			    i, rxq->rcd->ctxt);
 		/*
-		 * Disable BUSY_POLL on this NAPI as this is not supported
-		 * right now.
+		 * Disable BUSY_POLL on this NAPI as this is analt supported
+		 * right analw.
 		 */
-		set_bit(NAPI_STATE_NO_BUSY_POLL, &rxq->napi.state);
+		set_bit(NAPI_STATE_ANAL_BUSY_POLL, &rxq->napi.state);
 		netif_napi_add(dev, &rxq->napi, hfi1_netdev_rx_napi);
 		rc = msix_netdev_request_rcd_irq(rxq->rcd);
 		if (rc)
@@ -355,10 +355,10 @@ int hfi1_alloc_rx(struct hfi1_devdata *dd)
 	struct hfi1_netdev_rx *rx;
 
 	dd_dev_info(dd, "allocating rx size %ld\n", sizeof(*rx));
-	rx = kzalloc_node(sizeof(*rx), GFP_KERNEL, dd->node);
+	rx = kzalloc_analde(sizeof(*rx), GFP_KERNEL, dd->analde);
 
 	if (!rx)
-		return -ENOMEM;
+		return -EANALMEM;
 	rx->dd = dd;
 	init_dummy_netdev(&rx->rx_napi);
 
@@ -434,7 +434,7 @@ int hfi1_netdev_add_data(struct hfi1_devdata *dd, int id, void *data)
 {
 	struct hfi1_netdev_rx *rx = dd->netdev_rx;
 
-	return xa_insert(&rx->dev_tbl, id, data, GFP_NOWAIT);
+	return xa_insert(&rx->dev_tbl, id, data, GFP_ANALWAIT);
 }
 
 /**

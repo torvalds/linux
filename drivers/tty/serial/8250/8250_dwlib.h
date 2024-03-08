@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
-/* Synopsys DesignWare 8250 library header file. */
+/* Syanalpsys DesignWare 8250 library header file. */
 
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -39,7 +39,7 @@ struct dw8250_data {
 	int			msr_mask_off;
 	struct clk		*clk;
 	struct clk		*pclk;
-	struct notifier_block	clk_notifier;
+	struct analtifier_block	clk_analtifier;
 	struct work_struct	clk_work;
 	struct reset_control	*rst;
 

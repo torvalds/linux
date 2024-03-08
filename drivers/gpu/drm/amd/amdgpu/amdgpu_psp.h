@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -63,7 +63,7 @@ enum ta_type_id {
 };
 
 struct psp_context;
-struct psp_xgmi_node_info;
+struct psp_xgmi_analde_info;
 struct psp_xgmi_topology_info;
 struct psp_bin_desc;
 
@@ -143,9 +143,9 @@ struct ta_funcs {
 	int (*fn_ta_terminate)(struct psp_context *psp);
 };
 
-#define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
-struct psp_xgmi_node_info {
-	uint64_t				node_id;
+#define AMDGPU_XGMI_MAX_CONNECTED_ANALDES		64
+struct psp_xgmi_analde_info {
+	uint64_t				analde_id;
 	uint8_t					num_hops;
 	uint8_t					is_sharing_enabled;
 	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
@@ -154,8 +154,8 @@ struct psp_xgmi_node_info {
 };
 
 struct psp_xgmi_topology_info {
-	uint32_t			num_nodes;
-	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
+	uint32_t			num_analdes;
+	struct psp_xgmi_analde_info	analdes[AMDGPU_XGMI_MAX_CONNECTED_ANALDES];
 };
 
 struct psp_bin_desc {
@@ -206,7 +206,7 @@ struct psp_ras_context {
 #define GDDR6_MEM_TRAINING_ENCROACHED_SIZE	0x2000000
 
 enum psp_memory_training_init_flag {
-	PSP_MEM_TRAIN_NOT_SUPPORT	= 0x0,
+	PSP_MEM_TRAIN_ANALT_SUPPORT	= 0x0,
 	PSP_MEM_TRAIN_SUPPORT		= 0x1,
 	PSP_MEM_TRAIN_INIT_FAILED	= 0x2,
 	PSP_MEM_TRAIN_RESERVE_SUCCESS	= 0x4,
@@ -362,7 +362,7 @@ struct psp_context {
 
 	/* fence value associated with cmd buffer */
 	atomic_t			fence_value;
-	/* flag to mark whether gfx fw autoload is supported or not */
+	/* flag to mark whether gfx fw autoload is supported or analt */
 	bool				autoload_supported;
 	/* flag to mark whether df cstate management centralized to PMFW */
 	bool				pmfw_centralized_cstate_management;
@@ -487,7 +487,7 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 int psp_xgmi_terminate(struct psp_context *psp);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id);
-int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id);
+int psp_xgmi_get_analde_id(struct psp_context *psp, uint64_t *analde_id);
 int psp_xgmi_get_topology_info(struct psp_context *psp,
 			       int number_devices,
 			       struct psp_xgmi_topology_info *topology,

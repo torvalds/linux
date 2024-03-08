@@ -105,7 +105,7 @@ static irqreturn_t lm8333_irq_thread(int irq, void *data)
 	u8 status = lm8333_read8(lm8333, LM8333_READ_INT);
 
 	if (!status)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (status & LM8333_ERROR_IRQ) {
 		u8 err = lm8333_read8(lm8333, LM8333_READ_ERROR);
@@ -138,17 +138,17 @@ static int lm8333_probe(struct i2c_client *client)
 
 	active_time = pdata->active_time ?: 500;
 	if (active_time / 3 <= pdata->debounce_time / 3) {
-		dev_err(&client->dev, "Active time not big enough!\n");
+		dev_err(&client->dev, "Active time analt big eanalugh!\n");
 		return -EINVAL;
 	}
 
 	lm8333 = devm_kzalloc(&client->dev, sizeof(*lm8333), GFP_KERNEL);
 	if (!lm8333)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	lm8333->client = client;
 	lm8333->input = input;

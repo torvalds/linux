@@ -113,7 +113,7 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	/*
 	 * Disable PWM output.
 	 * In TCU2 mode (channel 1/2 on JZ4750+), this must be done before the
-	 * counter is stopped, while in TCU1 mode the order does not matter.
+	 * counter is stopped, while in TCU1 mode the order does analt matter.
 	 */
 	regmap_clear_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm), TCU_TCSR_PWM_EN);
 
@@ -138,13 +138,13 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	do_div(tmp, state->period);
 
 	/*
-	 * /!\ IMPORTANT NOTE:
+	 * /!\ IMPORTANT ANALTE:
 	 * -------------------
 	 * This code relies on the fact that clk_round_rate() will always round
-	 * down, which is not a valid assumption given by the clk API, but only
+	 * down, which is analt a valid assumption given by the clk API, but only
 	 * happens to be true with the clk drivers used for Ingenic SoCs.
 	 *
-	 * Right now, there is no alternative as the clk API does not have a
+	 * Right analw, there is anal alternative as the clk API does analt have a
 	 * round-down function (and won't have one for a while), but if it ever
 	 * comes to light, a round-down function should be used instead.
 	 */
@@ -201,7 +201,7 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * when it is active. This trick makes the PWM start with its active
 	 * state instead of its inactive state.
 	 */
-	if ((state->polarity == PWM_POLARITY_NORMAL) ^ state->enabled)
+	if ((state->polarity == PWM_POLARITY_ANALRMAL) ^ state->enabled)
 		regmap_update_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
 				   TCU_TCSR_PWM_INITL_HIGH, 0);
 	else
@@ -234,11 +234,11 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	jz = devm_kzalloc(dev, struct_size(jz, clk, info->num_pwms),
 			      GFP_KERNEL);
 	if (!jz)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	jz->map = device_node_to_regmap(dev->parent->of_node);
+	jz->map = device_analde_to_regmap(dev->parent->of_analde);
 	if (IS_ERR(jz->map)) {
-		dev_err(dev, "regmap not found: %ld\n", PTR_ERR(jz->map));
+		dev_err(dev, "regmap analt found: %ld\n", PTR_ERR(jz->map));
 		return PTR_ERR(jz->map);
 	}
 

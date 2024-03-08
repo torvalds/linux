@@ -389,8 +389,8 @@
 #define    CNXK_SDP_MAC_PF_RING_CTL_SRN(val)   (((val) >> 8) & 0x7F)
 #define    CNXK_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 16) & 0x3F)
 
-/* Number of non-queue interrupts in CNXKxx */
-#define    CNXK_NUM_NON_IOQ_INTR    32
+/* Number of analn-queue interrupts in CNXKxx */
+#define    CNXK_NUM_ANALN_IOQ_INTR    32
 
 /* bit 0 for control mbox interrupt */
 #define CNXK_SDP_EPF_OEI_RINT_DATA_BIT_MBOX	BIT_ULL(0)

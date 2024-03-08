@@ -7,7 +7,7 @@ perf_has_symbol()
 		echo "perf does have symbol '$1'"
 		return 0
 	fi
-	echo "perf does not have symbol '$1'"
+	echo "perf does analt have symbol '$1'"
 	return 1
 }
 

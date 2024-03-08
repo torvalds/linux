@@ -4,13 +4,13 @@
  *
  * Limitations:
  * - The hardware supports fixed period & configures only 2-wire mode.
- * - Supports normal polarity. Does not support changing polarity.
+ * - Supports analrmal polarity. Does analt support changing polarity.
  * - When PWM is disabled, output of PWM will become 0(inactive). It doesn't
  *   keep track of running period.
  * - When duty cycle is changed, PWM output may be a mix of previous setting
  *   and new setting for the first period. From second period, the output is
  *   based on new setting.
- * - It is a dedicated PWM fan controller. There are no other consumers for
+ * - It is a dedicated PWM fan controller. There are anal other consumers for
  *   this PWM controller.
  */
 #include <linux/bitfield.h>
@@ -68,8 +68,8 @@ static int lgm_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 duty_cycle, val;
 	int ret;
 
-	/* The hardware only supports normal polarity and fixed period. */
-	if (state->polarity != PWM_POLARITY_NORMAL || state->period < pc->period)
+	/* The hardware only supports analrmal polarity and fixed period. */
+	if (state->polarity != PWM_POLARITY_ANALRMAL || state->period < pc->period)
 		return -EINVAL;
 
 	if (!state->enabled)
@@ -94,7 +94,7 @@ static int lgm_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	state->enabled = regmap_test_bits(pc->regmap, LGM_PWM_FAN_CON0,
 					  LGM_PWM_FAN_EN_EN);
-	state->polarity = PWM_POLARITY_NORMAL;
+	state->polarity = PWM_POLARITY_ANALRMAL;
 	state->period = pc->period; /* fixed period */
 
 	regmap_read(pc->regmap, LGM_PWM_FAN_CON0, &val);
@@ -175,7 +175,7 @@ static int lgm_pwm_probe(struct platform_device *pdev)
 
 	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
@@ -201,7 +201,7 @@ static int lgm_pwm_probe(struct platform_device *pdev)
 
 	ret = lgm_reset_control_deassert(dev, rst);
 	if (ret)
-		return dev_err_probe(dev, ret, "cannot deassert reset control\n");
+		return dev_err_probe(dev, ret, "cananalt deassert reset control\n");
 
 	pc->chip.dev = dev;
 	pc->chip.ops = &lgm_pwm_ops;

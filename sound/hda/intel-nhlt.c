@@ -12,7 +12,7 @@ struct nhlt_acpi_table *intel_nhlt_init(struct device *dev)
 	status = acpi_get_table(ACPI_SIG_NHLT, 0,
 				(struct acpi_table_header **)&nhlt);
 	if (ACPI_FAILURE(status)) {
-		dev_warn(dev, "NHLT table not found\n");
+		dev_warn(dev, "NHLT table analt found\n");
 		return NULL;
 	}
 
@@ -74,7 +74,7 @@ int intel_nhlt_get_dmic_geo(struct device *dev, struct nhlt_acpi_table *nhlt)
 			}
 			dev_dbg(dev, "max channels found %d\n", max_ch);
 		} else {
-			dev_dbg(dev, "No format information found\n");
+			dev_dbg(dev, "Anal format information found\n");
 		}
 
 		if (cfg->device_config.config_type != NHLT_CONFIG_TYPE_MIC_ARRAY) {
@@ -199,7 +199,7 @@ int intel_nhlt_ssp_mclk_mask(struct nhlt_acpi_table *nhlt, int ssp_num)
 				int mdivc_offset;
 				int size;
 
-				/* first check we have enough data to read the blob type */
+				/* first check we have eanalugh data to read the blob type */
 				if (cfg->config.size < 8)
 					return -EINVAL;
 
@@ -216,7 +216,7 @@ int intel_nhlt_ssp_mclk_mask(struct nhlt_acpi_table *nhlt, int ssp_num)
 					size = SSP_BLOB_V1_0_SIZE;
 				}
 
-				/* make sure we have enough data for the fixed part of the blob */
+				/* make sure we have eanalugh data for the fixed part of the blob */
 				if (cfg->config.size < size)
 					return -EINVAL;
 
@@ -238,7 +238,7 @@ EXPORT_SYMBOL(intel_nhlt_ssp_mclk_mask);
 
 static struct nhlt_specific_cfg *
 nhlt_get_specific_cfg(struct device *dev, struct nhlt_fmt *fmt, u8 num_ch,
-		      u32 rate, u8 vbps, u8 bps, bool ignore_vbps)
+		      u32 rate, u8 vbps, u8 bps, bool iganalre_vbps)
 {
 	struct nhlt_fmt_cfg *cfg = fmt->fmt_config;
 	struct wav_fmt *wfmt;
@@ -256,11 +256,11 @@ nhlt_get_specific_cfg(struct device *dev, struct nhlt_fmt *fmt, u8 num_ch,
 			wfmt->channels, _vbps, _bps, wfmt->samples_per_sec);
 
 		/*
-		 * When looking for exact match of configuration ignore the vbps
-		 * from NHLT table when ignore_vbps is true
+		 * When looking for exact match of configuration iganalre the vbps
+		 * from NHLT table when iganalre_vbps is true
 		 */
 		if (wfmt->channels == num_ch && wfmt->samples_per_sec == rate &&
-		    (ignore_vbps || vbps == _vbps) && bps == _bps)
+		    (iganalre_vbps || vbps == _vbps) && bps == _bps)
 			return &cfg->config;
 
 		cfg = (struct nhlt_fmt_cfg *)(cfg->config.caps + cfg->config.size);
@@ -293,7 +293,7 @@ intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 {
 	struct nhlt_specific_cfg *cfg;
 	struct nhlt_endpoint *epnt;
-	bool ignore_vbps = false;
+	bool iganalre_vbps = false;
 	struct nhlt_fmt *fmt;
 	int i;
 
@@ -312,14 +312,14 @@ intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 		 * specified as 32 while some uses 24.
 		 * The format these variations describe are identical, the
 		 * hardware is configured and behaves the same way.
-		 * Note: when the samples assumed to be vbps=32 then the 'noise'
-		 * introduced by the lower two bits (channel number) have no
+		 * Analte: when the samples assumed to be vbps=32 then the 'analise'
+		 * introduced by the lower two bits (channel number) have anal
 		 * real life implication on audio quality.
 		 */
 		dev_dbg(dev,
-			"  ch=%d fmt=%d rate=%d (vbps is ignored for DMIC 32bit format)\n",
+			"  ch=%d fmt=%d rate=%d (vbps is iganalred for DMIC 32bit format)\n",
 			num_ch, bps, rate);
-		ignore_vbps = true;
+		iganalre_vbps = true;
 	} else {
 		dev_dbg(dev, "  ch=%d fmt=%d/%d rate=%d\n", num_ch, vbps, bps, rate);
 	}
@@ -332,7 +332,7 @@ intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 			fmt = (struct nhlt_fmt *)(epnt->config.caps + epnt->config.size);
 
 			cfg = nhlt_get_specific_cfg(dev, fmt, num_ch, rate,
-						    vbps, bps, ignore_vbps);
+						    vbps, bps, iganalre_vbps);
 			if (cfg)
 				return cfg;
 		}

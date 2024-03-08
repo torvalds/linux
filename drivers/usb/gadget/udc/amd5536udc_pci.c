@@ -15,7 +15,7 @@
  * be used as host port) and UOC bits PAD_EN and APU are set (should be done
  * by BIOS init).
  *
- * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does not
+ * UDC DMA requires 32-bit aligned buffers so DMA with gadget ether does analt
  * work without updating NET_IP_ALIGN. Or PIO mode (module param "use_dma=0")
  * can be used with gadget ether.
  *
@@ -23,7 +23,7 @@
  * is done in amd5536udc.c
  *
  * The driver is split so as to use the core UDC driver which is based on
- * Synopsys device controller IP (different than HS OTG IP) in UDCs
+ * Syanalpsys device controller IP (different than HS OTG IP) in UDCs
  * integrated to SoC platforms.
  *
  */
@@ -59,7 +59,7 @@ static void udc_pci_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&udc->gadget);
-	/* gadget driver must not be registered */
+	/* gadget driver must analt be registered */
 	if (WARN_ON(dev->driver))
 		return;
 
@@ -97,11 +97,11 @@ static int udc_pci_probe(
 	/* init */
 	dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* pci setup */
 	if (pci_enable_device(pdev) < 0) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_pcidev;
 	}
 
@@ -117,14 +117,14 @@ static int udc_pci_probe(
 
 	dev->virt_addr = ioremap(resource, len);
 	if (!dev->virt_addr) {
-		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
+		dev_dbg(&pdev->dev, "start address cananalt be mapped\n");
 		retval = -EFAULT;
 		goto err_ioremap;
 	}
 
 	if (!pdev->irq) {
-		dev_err(&pdev->dev, "irq not set\n");
-		retval = -ENODEV;
+		dev_err(&pdev->dev, "irq analt set\n");
+		retval = -EANALDEV;
 		goto err_irq;
 	}
 
@@ -167,7 +167,7 @@ static int udc_pci_probe(
 
 	/* general probing */
 	if (udc_probe(dev)) {
-		retval = -ENODEV;
+		retval = -EANALDEV;
 		goto err_probe;
 	}
 

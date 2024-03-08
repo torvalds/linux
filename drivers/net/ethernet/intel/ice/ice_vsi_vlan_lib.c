@@ -18,7 +18,7 @@ static void print_invalid_tpid(struct ice_vsi *vsi, u16 tpid)
  * @vlan: ice_vlan structure to validate
  *
  * Return true if the VLAN TPID is valid or if the VLAN TPID is 0 and the VLAN
- * VID is 0, which allows for non-zero VLAN filters with the specified VLAN TPID
+ * VID is 0, which allows for analn-zero VLAN filters with the specified VLAN TPID
  * and untagged VLAN 0 filters to be added to the prune list respectively.
  */
 static bool validate_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
@@ -74,7 +74,7 @@ int ice_vsi_del_vlan(struct ice_vsi *vsi, struct ice_vlan *vlan)
 	err = ice_fltr_remove_vlan(vsi, vlan);
 	if (!err)
 		vsi->num_vlan--;
-	else if (err == -ENOENT || err == -EBUSY)
+	else if (err == -EANALENT || err == -EBUSY)
 		err = 0;
 	else
 		dev_err(dev, "Error removing VLAN %d on VSI %i error: %d\n",
@@ -95,7 +95,7 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Here we are configuring the VSI to let the driver add VLAN tags by
 	 * setting inner_vlan_flags to ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL. The actual VLAN tag
@@ -134,7 +134,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	u8 *ivf;
 	int err;
 
-	/* do not allow modifying VLAN stripping when a port VLAN is configured
+	/* do analt allow modifying VLAN stripping when a port VLAN is configured
 	 * on this VSI
 	 */
 	if (vsi->info.port_based_inner_vlan)
@@ -142,7 +142,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ivf = &ctxt->info.inner_vlan_flags;
 
@@ -157,7 +157,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	} else {
 		/* Disable stripping. Leave tag in packet */
 		*ivf = FIELD_PREP(ICE_AQ_VSI_INNER_VLAN_EMODE_M,
-				  ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING);
+				  ICE_AQ_VSI_INNER_VLAN_EMODE_ANALTHING);
 	}
 
 	/* Allow all packets untagged/tagged */
@@ -240,7 +240,7 @@ static int __ice_vsi_set_inner_port_vlan(struct ice_vsi *vsi, u16 pvid_info)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_save_vlan_info(&vsi->info, &vsi->vlan_info);
 	ctxt->info = vsi->info;
@@ -293,7 +293,7 @@ int ice_vsi_clear_inner_port_vlan(struct ice_vsi *vsi)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_restore_vlan_info(&vsi->info, &vsi->vlan_info);
 	vsi->info.port_based_inner_vlan = 0;
@@ -337,7 +337,7 @@ static int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 	pf = vsi->back;
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctxt->info = vsi->info;
 
@@ -383,7 +383,7 @@ static int ice_cfg_vlan_antispoof(struct ice_vsi *vsi, bool enable)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx->info.sec_flags = vsi->info.sec_flags;
 	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
@@ -468,7 +468,7 @@ int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid)
 	u8 tag_type;
 	int err;
 
-	/* do not allow modifying VLAN stripping when a port VLAN is configured
+	/* do analt allow modifying VLAN stripping when a port VLAN is configured
 	 * on this VSI
 	 */
 	if (vsi->info.port_based_outer_vlan)
@@ -479,7 +479,7 @@ int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctxt->info.valid_sections =
 		cpu_to_le16(ICE_AQ_VSI_PROP_OUTER_TAG_VALID);
@@ -488,7 +488,7 @@ int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid)
 		~(ICE_AQ_VSI_OUTER_VLAN_EMODE_M | ICE_AQ_VSI_OUTER_TAG_TYPE_M);
 	ctxt->info.outer_vlan_flags |=
 		/* we want EMODE_SHOW_BOTH, but that value is zero, so the line
-		 * above clears it well enough that we don't need to try to set
+		 * above clears it well eanalugh that we don't need to try to set
 		 * zero here, so just do the tag type
 		 */
 		 FIELD_PREP(ICE_AQ_VSI_OUTER_TAG_TYPE_M, tag_type);
@@ -515,7 +515,7 @@ int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid)
  * Only modify the outer VLAN stripping settings. The VLAN TPID and outer VLAN
  * insertion settings are unmodified.
  *
- * This tells the hardware to not strip any VLAN tagged packets, thus leaving
+ * This tells the hardware to analt strip any VLAN tagged packets, thus leaving
  * them in the packet. This enables software offloaded VLAN stripping and
  * disables hardware offloaded VLAN stripping.
  */
@@ -530,14 +530,14 @@ int ice_vsi_dis_outer_stripping(struct ice_vsi *vsi)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctxt->info.valid_sections =
 		cpu_to_le16(ICE_AQ_VSI_PROP_OUTER_TAG_VALID);
 	/* clear current outer VLAN strip settings */
 	ctxt->info.outer_vlan_flags = vsi->info.outer_vlan_flags &
 		~ICE_AQ_VSI_OUTER_VLAN_EMODE_M;
-	ctxt->info.outer_vlan_flags |= ICE_AQ_VSI_OUTER_VLAN_EMODE_NOTHING <<
+	ctxt->info.outer_vlan_flags |= ICE_AQ_VSI_OUTER_VLAN_EMODE_ANALTHING <<
 		ICE_AQ_VSI_OUTER_VLAN_EMODE_S;
 
 	err = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
@@ -585,7 +585,7 @@ int ice_vsi_ena_outer_insertion(struct ice_vsi *vsi, u16 tpid)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctxt->info.valid_sections =
 		cpu_to_le16(ICE_AQ_VSI_PROP_OUTER_TAG_VALID);
@@ -622,7 +622,7 @@ int ice_vsi_ena_outer_insertion(struct ice_vsi *vsi, u16 tpid)
  * Only modify the outer VLAN insertion settings. The VLAN TPID and outer VLAN
  * settings are unmodified.
  *
- * This tells the hardware to not allow any VLAN tagged packets in the transmit
+ * This tells the hardware to analt allow any VLAN tagged packets in the transmit
  * descriptor. This enables software offloaded VLAN insertion and disables
  * hardware offloaded VLAN insertion.
  */
@@ -637,7 +637,7 @@ int ice_vsi_dis_outer_insertion(struct ice_vsi *vsi)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctxt->info.valid_sections =
 		cpu_to_le16(ICE_AQ_VSI_PROP_OUTER_TAG_VALID);
@@ -674,7 +674,7 @@ int ice_vsi_dis_outer_insertion(struct ice_vsi *vsi)
  * matches the port VLAN ID and TPID.
  *
  * Tell hardware to strip outer VLAN tagged packets on receive and don't put
- * them in the receive descriptor. VSI(s) in port VLANs should not be aware of
+ * them in the receive descriptor. VSI(s) in port VLANs should analt be aware of
  * the port VLAN ID or TPID they are assigned to.
  *
  * Tell hardware to prevent outer VLAN tag insertion on transmit and only allow
@@ -695,7 +695,7 @@ __ice_vsi_set_outer_port_vlan(struct ice_vsi *vsi, u16 vlan_info, u16 tpid)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_save_vlan_info(&vsi->info, &vsi->vlan_info);
 	ctxt->info = vsi->info;
@@ -768,7 +768,7 @@ int ice_vsi_clear_outer_port_vlan(struct ice_vsi *vsi)
 
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ice_restore_vlan_info(&vsi->info, &vsi->vlan_info);
 	vsi->info.port_based_outer_vlan = 0;

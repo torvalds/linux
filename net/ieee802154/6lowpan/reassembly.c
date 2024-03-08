@@ -130,7 +130,7 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 		goto err;
 
 	fq->q.stamp = skb->tstamp;
-	fq->q.mono_delivery_time = skb->mono_delivery_time;
+	fq->q.moanal_delivery_time = skb->moanal_delivery_time;
 	if (frag_type == LOWPAN_DISPATCH_FRAG1)
 		fq->q.flags |= INET_FRAG_FIRST_IN;
 
@@ -158,7 +158,7 @@ err:
 /*	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is analt COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
@@ -181,7 +181,7 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
 
 	return 1;
 out_oom:
-	net_dbg_ratelimited("lowpan_frag_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("lowpan_frag_reasm: anal memory for reassembly\n");
 	return -1;
 }
 
@@ -192,8 +192,8 @@ static int lowpan_frag_rx_handlers_result(struct sk_buff *skb,
 	case RX_QUEUED:
 		return NET_RX_SUCCESS;
 	case RX_CONTINUE:
-		/* nobody cared about this packet */
-		net_warn_ratelimited("%s: received unknown dispatch\n",
+		/* analbody cared about this packet */
+		net_warn_ratelimited("%s: received unkanalwn dispatch\n",
 				     __func__);
 
 		fallthrough;
@@ -394,7 +394,7 @@ err_reg:
 	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void __net_exit lowpan_frags_ns_sysctl_unregister(struct net *net)
@@ -416,7 +416,7 @@ static int __init lowpan_frags_sysctl_register(void)
 	lowpan_ctl_header = register_net_sysctl(&init_net,
 						"net/ieee802154/6lowpan",
 						lowpan_frags_ctl_table);
-	return lowpan_ctl_header == NULL ? -ENOMEM : 0;
+	return lowpan_ctl_header == NULL ? -EANALMEM : 0;
 }
 
 static void lowpan_frags_sysctl_unregister(void)
@@ -510,7 +510,7 @@ static int lowpan_obj_cmpfn(struct rhashtable_compare_arg *arg, const void *ptr)
 }
 
 static const struct rhashtable_params lowpan_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, analde),
 	.hashfn			= lowpan_key_hashfn,
 	.obj_hashfn		= lowpan_obj_hashfn,
 	.obj_cmpfn		= lowpan_obj_cmpfn,

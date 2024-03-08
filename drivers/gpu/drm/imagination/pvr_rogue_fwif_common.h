@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_ROGUE_FWIF_COMMON_H
 #define PVR_ROGUE_FWIF_COMMON_H
@@ -16,9 +16,9 @@
 /* Macro to test structure size alignment. */
 #define PVR_FW_STRUCT_SIZE_ASSERT(_a)                            \
 	static_assert((sizeof(_a) & PVR_FW_ALIGNMENT_LSB) == 0U, \
-		      "Size of " #_a " is not properly aligned")
+		      "Size of " #_a " is analt properly aligned")
 
-/* The master definition for data masters known to the firmware. */
+/* The master definition for data masters kanalwn to the firmware. */
 
 #define PVR_FWIF_DM_GP (0)
 /* Either TDM or 2D DM is present. */
@@ -52,7 +52,7 @@
 
 /*
  * Maximum amount of register writes that can be done by the register
- * programmer (FW or META DMA). This is not a HW limitation, it is only
+ * programmer (FW or META DMA). This is analt a HW limitation, it is only
  * a protection against malformed inputs to the register programmer.
  */
 #define PVR_MAX_NUM_REGISTER_PROGRAMMER_WRITES 128U

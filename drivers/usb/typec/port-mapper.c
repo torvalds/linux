@@ -36,9 +36,9 @@ struct each_port_arg {
 	struct component_match *match;
 };
 
-static int typec_port_compare(struct device *dev, void *fwnode)
+static int typec_port_compare(struct device *dev, void *fwanalde)
 {
-	return device_match_fwnode(dev, fwnode);
+	return device_match_fwanalde(dev, fwanalde);
 }
 
 static int typec_port_match(struct device *dev, void *data)
@@ -53,7 +53,7 @@ static int typec_port_match(struct device *dev, void *data)
 
 	if (con_adev->pld_crc == adev->pld_crc)
 		component_match_add(&arg->port->dev, &arg->match, typec_port_compare,
-				    acpi_fwnode_handle(adev));
+				    acpi_fwanalde_handle(adev));
 	return 0;
 }
 
@@ -69,14 +69,14 @@ int typec_link_ports(struct typec_port *con)
 		return 0;
 
 	/*
-	 * REVISIT: Now each connector can have only a single component master.
+	 * REVISIT: Analw each connector can have only a single component master.
 	 * So far only the USB ports connected to the USB Type-C connector share
 	 * the _PLD with it, but if there one day is something else (like maybe
 	 * the DisplayPort ACPI device object) that also shares the _PLD with
 	 * the connector, every one of those needs to have its own component
 	 * master, because each different type of component needs to be bind to
 	 * the connector independently of the other components. That requires
-	 * improvements to the component framework. Right now you can only have
+	 * improvements to the component framework. Right analw you can only have
 	 * one master per device.
 	 */
 	return component_master_add_with_match(&con->dev, &typec_aggregate_ops, arg.match);

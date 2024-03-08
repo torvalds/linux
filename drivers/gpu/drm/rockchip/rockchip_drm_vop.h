@@ -9,18 +9,18 @@
 
 /*
  * major: IP major version, used for IP structure
- * minor: big feature change under same structure
+ * mianalr: big feature change under same structure
  */
-#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_VERSION(major, mianalr)	((major) << 8 | (mianalr))
 #define VOP_MAJOR(version)		((version) >> 8)
-#define VOP_MINOR(version)		((version) & 0xff)
+#define VOP_MIANALR(version)		((version) & 0xff)
 
 #define NUM_YUV2YUV_COEFFICIENTS 12
 
 /* AFBC supports a number of configurable modes. Relevant to us is block size
  * (16x16 or 32x8), storage modifiers (SPARSE, SPLIT), and the YUV-like
  * colourspace transform (YTR). 16x16 SPARSE mode is always used. SPLIT mode
- * could be enabled via the hreg_block_split register, but is not currently
+ * could be enabled via the hreg_block_split register, but is analt currently
  * handled. The colourspace transform is implicitly always assumed by the
  * decoder, so consumers must use this transform as well.
  *
@@ -290,12 +290,12 @@ enum global_blend_mode {
 
 enum alpha_cal_mode {
 	ALPHA_SATURATION,
-	ALPHA_NO_SATURATION,
+	ALPHA_ANAL_SATURATION,
 };
 
 enum color_mode {
 	ALPHA_SRC_PRE_MUL,
-	ALPHA_SRC_NO_PRE_MUL,
+	ALPHA_SRC_ANAL_PRE_MUL,
 };
 
 enum factor_mode {
@@ -307,7 +307,7 @@ enum factor_mode {
 };
 
 enum scale_mode {
-	SCALE_NONE = 0x0,
+	SCALE_ANALNE = 0x0,
 	SCALE_UP   = 0x1,
 	SCALE_DOWN = 0x2
 };
@@ -386,7 +386,7 @@ static inline enum scale_mode scl_get_scl_mode(int src, int dst)
 	else if (src > dst)
 		return SCALE_DOWN;
 
-	return SCALE_NONE;
+	return SCALE_ANALNE;
 }
 
 static inline int scl_get_vskiplines(uint32_t srch, uint32_t dsth)

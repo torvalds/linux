@@ -105,7 +105,7 @@
 #define  AFE_XTAL_BT_GATE		BIT(20)
 
 /*
- * 0x0028 is also known as REG_AFE_CTRL2 on 8723bu/8192eu
+ * 0x0028 is also kanalwn as REG_AFE_CTRL2 on 8723bu/8192eu
  */
 #define REG_AFE_PLL_CTRL		0x0028
 #define  AFE_PLL_ENABLE			BIT(0)
@@ -235,7 +235,7 @@
 						   HSISR is true) */
 #define	 IMR0_BCNDMAINT_E		BIT(14)	/* Beacon DMA Interrupt
 						   Extension for Win7 */
-#define	 IMR0_ATIMEND			BIT(12)	/* CTWidnow End or
+#define	 IMR0_ATIMEND			BIT(12)	/* CTWidanalw End or
 						   ATIM Window End */
 #define	 IMR0_HISR1_IND_INT		BIT(11)	/* HISR1 Indicator
 						   (HISR1 & HIMR1 is true) */
@@ -367,7 +367,7 @@
 /* Media Status Register */
 #define REG_MSR				0x0102
 #define  MSR_LINKTYPE_MASK		0x3
-#define  MSR_LINKTYPE_NONE		0x0
+#define  MSR_LINKTYPE_ANALNE		0x0
 #define  MSR_LINKTYPE_ADHOC		0x1
 #define  MSR_LINKTYPE_STATION		0x2
 #define  MSR_LINKTYPE_AP		0x3
@@ -401,7 +401,7 @@
 #define  TRXDMA_CTRL_MGQ_SHIFT_8192F	16
 #define  TRXDMA_CTRL_HIQ_SHIFT_8192F	19
 #define  TRXDMA_QUEUE_LOW		1
-#define  TRXDMA_QUEUE_NORMAL		2
+#define  TRXDMA_QUEUE_ANALRMAL		2
 #define  TRXDMA_QUEUE_HIGH		3
 
 #define REG_TRXFF_BNDY			0x0114
@@ -430,7 +430,7 @@
 #define REG_MBIST_FAIL			0x017c
 /* 8188EU */
 #define REG_32K_CTRL			0x0194
-#define REG_C2HEVT_MSG_NORMAL		0x01a0
+#define REG_C2HEVT_MSG_ANALRMAL		0x01a0
 /* 8192EU/8723BU/8812 */
 #define REG_C2HEVT_CMD_ID_8723B		0x01ae
 #define REG_C2HEVT_CLEAR		0x01af
@@ -819,7 +819,7 @@
 #define  SEC_CFG_TX_SEC_ENABLE		BIT(2)
 #define  SEC_CFG_RX_SEC_ENABLE		BIT(3)
 #define  SEC_CFG_SKBYA2			BIT(4)
-#define  SEC_CFG_NO_SKMC		BIT(5)
+#define  SEC_CFG_ANAL_SKMC		BIT(5)
 #define  SEC_CFG_TXBC_USE_DEFKEY	BIT(6)
 #define  SEC_CFG_RXBC_USE_DEFKEY	BIT(7)
 
@@ -935,7 +935,7 @@
 #define  FPGA0_RF_3WIRE_RW		BIT(3)
 #define  FPGA0_RF_3WIRE_MASK		0xf
 #define  FPGA0_RF_RFENV			BIT(4)
-#define  FPGA0_RF_TRSW			BIT(5)	/* Useless now */
+#define  FPGA0_RF_TRSW			BIT(5)	/* Useless analw */
 #define  FPGA0_RF_TRSWB			BIT(6)
 #define  FPGA0_RF_ANTSW			BIT(8)
 #define  FPGA0_RF_ANTSWB		BIT(9)
@@ -975,11 +975,11 @@
 #define REG_FPGA1_TX_INFO		0x090c
 #define  FPGA1_TX_ANT_MASK		0x0000000f
 #define  FPGA1_TX_ANT_L_MASK		0x000000f0
-#define  FPGA1_TX_ANT_NON_HT_MASK	0x00000f00
+#define  FPGA1_TX_ANT_ANALN_HT_MASK	0x00000f00
 #define  FPGA1_TX_ANT_HT1_MASK		0x0000f000
 #define  FPGA1_TX_ANT_HT2_MASK		0x000f0000
 #define  FPGA1_TX_ANT_HT_S1_MASK	0x00f00000
-#define  FPGA1_TX_ANT_NON_HT_S1_MASK	0x0f000000
+#define  FPGA1_TX_ANT_ANALN_HT_S1_MASK	0x0f000000
 #define  FPGA1_TX_OFDM_TXSC_MASK	0x30000000
 
 #define REG_ANT_MAPPING1		0x0914
@@ -1063,7 +1063,7 @@
 #define REG_OFDM0_ENERGY_CCA_THRES	0x0c4c
 
 #define REG_OFDM0_RX_D_SYNC_PATH	0x0c40
-#define  OFDM0_SYNC_PATH_NOTCH_FILTER	BIT(1)
+#define  OFDM0_SYNC_PATH_ANALTCH_FILTER	BIT(1)
 
 #define REG_OFDM0_XA_AGC_CORE1		0x0c50
 #define REG_OFDM0_XA_AGC_CORE2		0x0c54
@@ -1095,7 +1095,7 @@
 #define REG_RXIQB_EXT			0x0ca8
 
 /* 8723bu */
-#define REG_OFDM0_TX_PSDO_NOISE_WEIGHT	0x0ce4
+#define REG_OFDM0_TX_PSDO_ANALISE_WEIGHT	0x0ce4
 
 #define REG_OFDM1_LSTF			0x0d00
 #define  OFDM_LSTF_PRIME_CH_LOW		BIT(10)
@@ -1197,7 +1197,7 @@
 #define  USB_HIMR_GTINT4		BIT(28)
 #define  USB_HIMR_GTINT3		BIT(27)
 #define  USB_HIMR_TXBCNERR		BIT(26)
-#define  USB_HIMR_TXBCNOK		BIT(25)
+#define  USB_HIMR_TXBCANALK		BIT(25)
 #define  USB_HIMR_TSF_BIT32_TOGGLE	BIT(24)
 #define  USB_HIMR_BCNDMAINT3		BIT(23)
 #define  USB_HIMR_BCNDMAINT2		BIT(22)
@@ -1239,20 +1239,20 @@
 #define REG_USB_AGG_TIMEOUT		0xfe5c
 #define REG_USB_AGG_THRESH		0xfe5d
 
-#define REG_NORMAL_SIE_VID		0xfe60	/* 0xfe60 - 0xfe61 */
-#define REG_NORMAL_SIE_PID		0xfe62	/* 0xfe62 - 0xfe63 */
-#define REG_NORMAL_SIE_OPTIONAL		0xfe64
-#define REG_NORMAL_SIE_EP		0xfe65	/* 0xfe65 - 0xfe67 */
-#define REG_NORMAL_SIE_EP_TX		0xfe66
-#define  NORMAL_SIE_EP_TX_HIGH_MASK	0x000f
-#define  NORMAL_SIE_EP_TX_NORMAL_MASK	0x00f0
-#define  NORMAL_SIE_EP_TX_LOW_MASK	0x0f00
+#define REG_ANALRMAL_SIE_VID		0xfe60	/* 0xfe60 - 0xfe61 */
+#define REG_ANALRMAL_SIE_PID		0xfe62	/* 0xfe62 - 0xfe63 */
+#define REG_ANALRMAL_SIE_OPTIONAL		0xfe64
+#define REG_ANALRMAL_SIE_EP		0xfe65	/* 0xfe65 - 0xfe67 */
+#define REG_ANALRMAL_SIE_EP_TX		0xfe66
+#define  ANALRMAL_SIE_EP_TX_HIGH_MASK	0x000f
+#define  ANALRMAL_SIE_EP_TX_ANALRMAL_MASK	0x00f0
+#define  ANALRMAL_SIE_EP_TX_LOW_MASK	0x0f00
 
-#define REG_NORMAL_SIE_PHY		0xfe68	/* 0xfe68 - 0xfe6b */
-#define REG_NORMAL_SIE_OPTIONAL2	0xfe6c
-#define REG_NORMAL_SIE_GPS_EP		0xfe6d	/* RTL8723 only */
-#define REG_NORMAL_SIE_MAC_ADDR		0xfe70	/* 0xfe70 - 0xfe75 */
-#define REG_NORMAL_SIE_STRING		0xfe80	/* 0xfe80 - 0xfedf */
+#define REG_ANALRMAL_SIE_PHY		0xfe68	/* 0xfe68 - 0xfe6b */
+#define REG_ANALRMAL_SIE_OPTIONAL2	0xfe6c
+#define REG_ANALRMAL_SIE_GPS_EP		0xfe6d	/* RTL8723 only */
+#define REG_ANALRMAL_SIE_MAC_ADDR		0xfe70	/* 0xfe70 - 0xfe75 */
+#define REG_ANALRMAL_SIE_STRING		0xfe80	/* 0xfe80 - 0xfedf */
 
 /*
  * 8710B register addresses between 0x00 and 0xff must have 0x8000
@@ -1263,8 +1263,8 @@
 #define REG_AFE_CTRL_8710B		0x0050
 #define REG_WL_RF_PSS_8710B		0x005c
 #define REG_EFUSE_INDIRECT_CTRL_8710B	0x006c
-#define  NORMAL_REG_READ_OFFSET		0x83000000
-#define  NORMAL_REG_WRITE_OFFSET	0x84000000
+#define  ANALRMAL_REG_READ_OFFSET		0x83000000
+#define  ANALRMAL_REG_WRITE_OFFSET	0x84000000
 #define  EFUSE_READ_OFFSET		0x85000000
 #define  EFUSE_WRITE_OFFSET		0x86000000
 #define REG_HIMR0_8710B			0x0080
@@ -1354,13 +1354,13 @@
  */
 #define RF6052_REG_GAIN_P1		0x35
 #define RF6052_REG_T_METER_8723B	0x42
-#define RF6052_REG_UNKNOWN_43		0x43
-#define RF6052_REG_UNKNOWN_55		0x55
+#define RF6052_REG_UNKANALWN_43		0x43
+#define RF6052_REG_UNKANALWN_55		0x55
 #define RF6052_REG_PAD_TXG		0x56
 #define RF6052_REG_TXMOD		0x58
 #define RF6052_REG_RXG_MIX_SWBW		0x87
 #define RF6052_REG_S0S1			0xb0
 #define RF6052_REG_GAIN_CCA		0xdf
-#define RF6052_REG_UNKNOWN_ED		0xed
+#define RF6052_REG_UNKANALWN_ED		0xed
 #define RF6052_REG_WE_LUT		0xef
 #define RF6052_REG_GAIN_CTRL		0xf5

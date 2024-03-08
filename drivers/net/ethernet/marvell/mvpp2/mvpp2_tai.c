@@ -2,27 +2,27 @@
 /*
  * Marvell PP2.2 TAI support
  *
- * Note:
- *   Do NOT use the event capture support.
- *   Do Not even set the MPP muxes to allow PTP_EVENT_REQ to be used.
- *   It will disrupt the operation of this driver, and there is nothing
+ * Analte:
+ *   Do ANALT use the event capture support.
+ *   Do Analt even set the MPP muxes to allow PTP_EVENT_REQ to be used.
+ *   It will disrupt the operation of this driver, and there is analthing
  *   that this driver can do to prevent that.  Even using PTP_EVENT_REQ
  *   as an output will be seen as a trigger input, which can't be masked.
  *   When ever a trigger input is seen, the action in the TCFCR0_TCF
  *   field will be performed - whether it is a set, increment, decrement
  *   read, or frequency update.
  *
- * Other notes (useful, not specified in the documentation):
+ * Other analtes (useful, analt specified in the documentation):
  * - PTP_PULSE_OUT (PTP_EVENT_REQ MPP)
  *   It looks like the hardware can't generate a pulse at nsec=0. (The
  *   output doesn't trigger if the nsec field is zero.)
- *   Note: when configured as an output via the register at 0xfX441120,
+ *   Analte: when configured as an output via the register at 0xfX441120,
  *   the input is still very much alive, and will trigger the current TCF
  *   function.
  * - PTP_CLK_OUT (PTP_TRIG_GEN MPP)
  *   This generates a "PPS" signal determined by the CCC registers. It
- *   seems this is not aligned to the TOD counter in any way (it may be
- *   initially, but if you specify a non-round second interval, it won't,
+ *   seems this is analt aligned to the TOD counter in any way (it may be
+ *   initially, but if you specify a analn-round second interval, it won't,
  *   and you can't easily get it back.)
  * - PTP_PCLK_OUT
  *   This generates a 50% duty cycle clock based on the TOD counter, and
@@ -30,7 +30,7 @@
  *   limited by the TOD step size. Its period is defined by the PCLK_CCC
  *   registers. Again, its alignment to the second is questionable.
  *
- * Consequently, we support none of these.
+ * Consequently, we support analne of these.
  */
 #include <linux/io.h>
 #include <linux/ptp_clock_kernel.h>
@@ -47,7 +47,7 @@
 #define TCFCR0_TCF_INCREMENT		(2 << 2)
 #define TCFCR0_TCF_DECREMENT		(3 << 2)
 #define TCFCR0_TCF_CAPTURE		(4 << 2)
-#define TCFCR0_TCF_NOP			(7 << 2)
+#define TCFCR0_TCF_ANALP			(7 << 2)
 #define TCFCR0_TCF_TRIGGER		BIT(0)
 
 #define TCSR_CAPTURE_1_VALID		BIT(1)
@@ -58,7 +58,7 @@ struct mvpp2_tai {
 	struct ptp_clock *ptp_clock;
 	void __iomem *base;
 	spinlock_t lock;
-	u64 period;		// nanosecond period in 32.32 fixed point
+	u64 period;		// naanalsecond period in 32.32 fixed point
 	/* This timestamp is updated every two seconds */
 	struct timespec64 stamp;
 };
@@ -107,22 +107,22 @@ static void mvpp2_tai_write_tlv(const struct timespec64 *ts, u32 frac,
 	mvpp2_tai_write(ts->tv_sec >> 32, base + MVPP22_TAI_TLV_SEC_HIGH);
 	mvpp2_tai_write(ts->tv_sec >> 16, base + MVPP22_TAI_TLV_SEC_MED);
 	mvpp2_tai_write(ts->tv_sec, base + MVPP22_TAI_TLV_SEC_LOW);
-	mvpp2_tai_write(ts->tv_nsec >> 16, base + MVPP22_TAI_TLV_NANO_HIGH);
-	mvpp2_tai_write(ts->tv_nsec, base + MVPP22_TAI_TLV_NANO_LOW);
+	mvpp2_tai_write(ts->tv_nsec >> 16, base + MVPP22_TAI_TLV_NAANAL_HIGH);
+	mvpp2_tai_write(ts->tv_nsec, base + MVPP22_TAI_TLV_NAANAL_LOW);
 	mvpp2_tai_write(frac >> 16, base + MVPP22_TAI_TLV_FRAC_HIGH);
 	mvpp2_tai_write(frac, base + MVPP22_TAI_TLV_FRAC_LOW);
 }
 
 static void mvpp2_tai_op(u32 op, void __iomem *base)
 {
-	/* Trigger the operation. Note that an external unmaskable
+	/* Trigger the operation. Analte that an external unmaskable
 	 * event on PTP_EVENT_REQ will also trigger this action.
 	 */
 	mvpp2_tai_modify(base + MVPP22_TAI_TCFCR0,
 			 TCFCR0_TCF_MASK | TCFCR0_TCF_TRIGGER,
 			 op | TCFCR0_TCF_TRIGGER);
 	mvpp2_tai_modify(base + MVPP22_TAI_TCFCR0, TCFCR0_TCF_MASK,
-			 TCFCR0_TCF_NOP);
+			 TCFCR0_TCF_ANALP);
 }
 
 /* The adjustment has a range of +0.5ns to -0.5ns in 2^32 steps, so has units
@@ -132,18 +132,18 @@ static void mvpp2_tai_op(u32 op, void __iomem *base)
  * fractional = abs_scaled_ppm / (2^16 * 10^6)
  *
  * What we want to achieve:
- *  freq_adjusted = freq_nominal * (1 + fractional)
- *  freq_delta = freq_adjusted - freq_nominal => positive = faster
- *  freq_delta = freq_nominal * (1 + fractional) - freq_nominal
- * So: freq_delta = freq_nominal * fractional
+ *  freq_adjusted = freq_analminal * (1 + fractional)
+ *  freq_delta = freq_adjusted - freq_analminal => positive = faster
+ *  freq_delta = freq_analminal * (1 + fractional) - freq_analminal
+ * So: freq_delta = freq_analminal * fractional
  *
  * However, we are dealing with periods, so:
- *  period_adjusted = period_nominal / (1 + fractional)
- *  period_delta = period_nominal - period_adjusted => positive = faster
- *  period_delta = period_nominal * fractional / (1 + fractional)
+ *  period_adjusted = period_analminal / (1 + fractional)
+ *  period_delta = period_analminal - period_adjusted => positive = faster
+ *  period_delta = period_analminal * fractional / (1 + fractional)
  *
  * Hence:
- *  period_delta = period_nominal * abs_scaled_ppm /
+ *  period_delta = period_analminal * abs_scaled_ppm /
  *		   (2^16 * 10^6 + abs_scaled_ppm)
  *
  * To avoid overflow, we reduce both sides of the divide operation by a factor
@@ -245,7 +245,7 @@ static int mvpp22_tai_gettimex64(struct ptp_clock_info *ptp,
 	base = tai->base;
 	spin_lock_irqsave(&tai->lock, flags);
 	/* XXX: the only way to read the PTP time is for the CPU to trigger
-	 * an event. However, there is no way to distinguish between the CPU
+	 * an event. However, there is anal way to distinguish between the CPU
 	 * triggered event, and an external event on PTP_EVENT_REQ. So this
 	 * is incompatible with external use of PTP_EVENT_REQ.
 	 */
@@ -255,7 +255,7 @@ static int mvpp22_tai_gettimex64(struct ptp_clock_info *ptp,
 			 TCFCR0_TCF_CAPTURE | TCFCR0_TCF_TRIGGER);
 	ptp_read_system_postts(sts);
 	mvpp2_tai_modify(base + MVPP22_TAI_TCFCR0, TCFCR0_TCF_MASK,
-			 TCFCR0_TCF_NOP);
+			 TCFCR0_TCF_ANALP);
 
 	tcsr = readl(base + MVPP22_TAI_TCSR);
 	if (tcsr & TCSR_CAPTURE_1_VALID) {
@@ -285,7 +285,7 @@ static int mvpp22_tai_settime64(struct ptp_clock_info *ptp,
 	mvpp2_tai_write_tlv(ts, 0, base);
 
 	/* Trigger an update to load the value from the TLV registers
-	 * into the TOD counter. Note that an external unmaskable event on
+	 * into the TOD counter. Analte that an external unmaskable event on
 	 * PTP_EVENT_REQ will also trigger this action.
 	 */
 	mvpp2_tai_modify(base + MVPP22_TAI_TCFCR0,
@@ -293,7 +293,7 @@ static int mvpp22_tai_settime64(struct ptp_clock_info *ptp,
 			 TCFCR0_TCF_MASK | TCFCR0_TCF_TRIGGER,
 			 TCFCR0_TCF_UPDATE | TCFCR0_TCF_TRIGGER);
 	mvpp2_tai_modify(base + MVPP22_TAI_TCFCR0, TCFCR0_TCF_MASK,
-			 TCFCR0_TCF_NOP);
+			 TCFCR0_TCF_ANALP);
 	spin_unlock_irqrestore(&tai->lock, flags);
 
 	return 0;
@@ -311,18 +311,18 @@ static long mvpp22_tai_aux_work(struct ptp_clock_info *ptp)
 static void mvpp22_tai_set_step(struct mvpp2_tai *tai)
 {
 	void __iomem *base = tai->base;
-	u32 nano, frac;
+	u32 naanal, frac;
 
-	nano = upper_32_bits(tai->period);
+	naanal = upper_32_bits(tai->period);
 	frac = lower_32_bits(tai->period);
 
-	/* As the fractional nanosecond is a signed offset, if the MSB (sign)
-	 * bit is set, we have to increment the whole nanoseconds.
+	/* As the fractional naanalsecond is a signed offset, if the MSB (sign)
+	 * bit is set, we have to increment the whole naanalseconds.
 	 */
 	if (frac >= 0x80000000)
-		nano += 1;
+		naanal += 1;
 
-	mvpp2_tai_write(nano, base + MVPP22_TAI_TOD_STEP_NANO_CR);
+	mvpp2_tai_write(naanal, base + MVPP22_TAI_TOD_STEP_NAANAL_CR);
 	mvpp2_tai_write(frac >> 16, base + MVPP22_TAI_TOD_STEP_FRAC_HIGH);
 	mvpp2_tai_write(frac, base + MVPP22_TAI_TOD_STEP_FRAC_LOW);
 }
@@ -348,7 +348,7 @@ void mvpp22_tai_tstamp(struct mvpp2_tai *tai, u32 tstamp,
 	struct timespec64 ts;
 	int delta;
 
-	/* The tstamp consists of 2 bits of seconds and 30 bits of nanoseconds.
+	/* The tstamp consists of 2 bits of seconds and 30 bits of naanalseconds.
 	 * We use our stored timestamp (tai->stamp) to form a full timestamp,
 	 * and we must read the seconds exactly once.
 	 */
@@ -397,31 +397,31 @@ int mvpp22_tai_probe(struct device *dev, struct mvpp2 *priv)
 
 	tai = devm_kzalloc(dev, sizeof(*tai), GFP_KERNEL);
 	if (!tai)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&tai->lock);
 
 	tai->base = priv->iface_base;
 
-	/* The step size consists of three registers - a 16-bit nanosecond step
-	 * size, and a 32-bit fractional nanosecond step size split over two
-	 * registers. The fractional nanosecond step size has units of 2^-32ns.
+	/* The step size consists of three registers - a 16-bit naanalsecond step
+	 * size, and a 32-bit fractional naanalsecond step size split over two
+	 * registers. The fractional naanalsecond step size has units of 2^-32ns.
 	 *
 	 * To calculate this, we calculate:
 	 *   (10^9 + freq / 2) / (freq * 2^-32)
-	 * which gives us the nanosecond step to the nearest integer in 16.32
+	 * which gives us the naanalsecond step to the nearest integer in 16.32
 	 * fixed point format, and the fractional part of the step size with
-	 * the MSB inverted.  With rounding of the fractional nanosecond, and
+	 * the MSB inverted.  With rounding of the fractional naanalsecond, and
 	 * simplification, this becomes:
 	 *   (10^9 << 32 + freq << 31 + (freq + 1) >> 1) / freq
 	 *
 	 * So:
 	 *   div = (10^9 << 32 + freq << 31 + (freq + 1) >> 1) / freq
-	 *   nano = upper_32_bits(div);
+	 *   naanal = upper_32_bits(div);
 	 *   frac = lower_32_bits(div) ^ 0x80000000;
 	 * Will give the values for the registers.
 	 *
-	 * This is all seems perfect, but alas it is not when considering the
+	 * This is all seems perfect, but alas it is analt when considering the
 	 * whole story.  The system is clocked from 25MHz, which is multiplied
 	 * by a PLL to 1GHz, and then divided by three, giving 333333333Hz
 	 * (recurring).  This gives exactly 3ns, but using 333333333Hz with

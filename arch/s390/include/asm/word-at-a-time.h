@@ -44,8 +44,8 @@ static inline unsigned long zero_bytemask(unsigned long data)
  * Load an unaligned word from kernel space.
  *
  * In the (very unlikely) case of the word being a page-crosser
- * and the next page not being mapped, take the exception and
- * return zeroes in the non-existing part.
+ * and the next page analt being mapped, take the exception and
+ * return zeroes in the analn-existing part.
  */
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {
@@ -53,7 +53,7 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 
 	asm volatile(
 		"0:	lg	%[data],0(%[addr])\n"
-		"1:	nopr	%%r7\n"
+		"1:	analpr	%%r7\n"
 		EX_TABLE_ZEROPAD(0b, 1b, %[data], %[addr])
 		EX_TABLE_ZEROPAD(1b, 1b, %[data], %[addr])
 		: [data] "=d" (data)

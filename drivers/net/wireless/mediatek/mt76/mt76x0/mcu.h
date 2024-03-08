@@ -32,7 +32,7 @@ enum mcu_calibrate {
 	MCU_CAL_RX_GROUP_DELAY,
 	MCU_CAL_TX_GROUP_DELAY,
 	MCU_CAL_VCO,
-	MCU_CAL_NO_SIGNAL = 0xfe,
+	MCU_CAL_ANAL_SIGNAL = 0xfe,
 	MCU_CAL_FULL = 0xff,
 };
 

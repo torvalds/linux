@@ -74,7 +74,7 @@ static int au1000_setup_dma_link(struct audio_stream *stream,
 
 	if (stream->period_size == period_bytes &&
 	    stream->periods == periods)
-		return 0; /* not changed */
+		return 0; /* analt changed */
 
 	au1000_release_dma_link(stream);
 
@@ -83,7 +83,7 @@ static int au1000_setup_dma_link(struct audio_stream *stream,
 
 	stream->buffer = kmalloc(sizeof(struct pcm_period), GFP_KERNEL);
 	if (!stream->buffer)
-		return -ENOMEM;
+		return -EANALMEM;
 	pointer = stream->buffer;
 	for (i = 0; i < periods; i++) {
 		pointer->start = (u32)(dma_start + (i * period_bytes));
@@ -93,7 +93,7 @@ static int au1000_setup_dma_link(struct audio_stream *stream,
 						GFP_KERNEL);
 			if (!pointer->next) {
 				au1000_release_dma_link(stream);
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 			pointer = pointer->next;
 		}
@@ -197,7 +197,7 @@ static int alchemy_pcm_open(struct snd_soc_component *component,
 
 	dmaids = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	if (!dmaids)
-		return -ENODEV;	/* whoa, has ordering changed? */
+		return -EANALDEV;	/* whoa, has ordering changed? */
 
 	/* DMA setup */
 	name = (s == SNDRV_PCM_STREAM_PLAYBACK) ? "audio-tx" : "audio-rx";
@@ -306,7 +306,7 @@ static int alchemy_pcm_drvprobe(struct platform_device *pdev)
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ctx);
 

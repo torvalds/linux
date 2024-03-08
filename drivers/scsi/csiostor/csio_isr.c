@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -42,18 +42,18 @@
 #include "csio_hw.h"
 
 static irqreturn_t
-csio_nondata_isr(int irq, void *dev_id)
+csio_analndata_isr(int irq, void *dev_id)
 {
 	struct csio_hw *hw = (struct csio_hw *) dev_id;
 	int rv;
 	unsigned long flags;
 
 	if (unlikely(!hw))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (unlikely(pci_channel_offline(hw->pdev))) {
 		CSIO_INC_STATS(hw, n_pcich_offline);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	spin_lock_irqsave(&hw->lock, flags);
@@ -110,11 +110,11 @@ csio_fwevt_isr(int irq, void *dev_id)
 	struct csio_hw *hw = (struct csio_hw *) dev_id;
 
 	if (unlikely(!hw))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (unlikely(pci_channel_offline(hw->pdev))) {
 		CSIO_INC_STATS(hw, n_pcich_offline);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	csio_fwevt_handler(hw);
@@ -176,7 +176,7 @@ csio_process_scsi_cmpl(struct csio_hw *hw, void *wr, uint32_t len,
 			 * completing abort at the exact same time that the
 			 * driver has deteced the abort timeout, the following
 			 * check prevents calling of scsi_done twice for the
-			 * same command: once from the eh_abort_handler, another
+			 * same command: once from the eh_abort_handler, aanalther
 			 * from csio_scsi_isr_handler(). This also avoids the
 			 * need to check if csio_scsi_cmnd(req) is NULL in the
 			 * fast path.
@@ -222,7 +222,7 @@ csio_scsi_isr_handler(struct csio_q *iq)
 
 	if (unlikely(csio_wr_process_iq(hw, iq, csio_process_scsi_cmpl,
 					&cbfn_q) != 0))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* Call back the completion routines */
 	list_for_each(tmp, &cbfn_q) {
@@ -259,13 +259,13 @@ csio_scsi_isr(int irq, void *dev_id)
 	struct csio_hw *hw;
 
 	if (unlikely(!iq))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hw = (struct csio_hw *)iq->owner;
 
 	if (unlikely(pci_channel_offline(hw->pdev))) {
 		CSIO_INC_STATS(hw, n_pcich_offline);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	csio_scsi_isr_handler(iq);
@@ -304,15 +304,15 @@ csio_fcoe_isr(int irq, void *dev_id)
 	struct csio_hw *hw = (struct csio_hw *) dev_id;
 	struct csio_q *intx_q = NULL;
 	int rv;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned long flags;
 
 	if (unlikely(!hw))
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	if (unlikely(pci_channel_offline(hw->pdev))) {
 		CSIO_INC_STATS(hw, n_pcich_offline);
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	/* Disable the interrupt for this PCI function. */
@@ -331,7 +331,7 @@ csio_fcoe_isr(int irq, void *dev_id)
 
 	CSIO_DB_ASSERT(intx_q);
 
-	/* IQ handler is not possible for intx_q, hence pass in NULL */
+	/* IQ handler is analt possible for intx_q, hence pass in NULL */
 	if (likely(csio_wr_process_iq(hw, intx_q, NULL, NULL) == 0))
 		ret = IRQ_HANDLED;
 
@@ -357,9 +357,9 @@ csio_add_msix_desc(struct csio_hw *hw)
 	int len = sizeof(entryp->desc) - 1;
 	int cnt = hw->num_sqsets + k;
 
-	/* Non-data vector */
+	/* Analn-data vector */
 	memset(entryp->desc, 0, len + 1);
-	snprintf(entryp->desc, len, "csio-%02x:%02x:%x-nondata",
+	snprintf(entryp->desc, len, "csio-%02x:%02x:%x-analndata",
 		 CSIO_PCI_BUS(hw), CSIO_PCI_DEV(hw), CSIO_PCI_FUNC(hw));
 
 	entryp++;
@@ -400,7 +400,7 @@ csio_request_irqs(struct csio_hw *hw)
 	/* Add the MSIX vector descriptions */
 	csio_add_msix_desc(hw);
 
-	rv = request_irq(pci_irq_vector(pdev, k), csio_nondata_isr, 0,
+	rv = request_irq(pci_irq_vector(pdev, k), csio_analndata_isr, 0,
 			 entryp[k].desc, hw);
 	if (rv) {
 		csio_err(hw, "IRQ request failed for vec %d err:%d\n",
@@ -506,7 +506,7 @@ csio_enable_msix(struct csio_hw *hw)
 	};
 
 	if (hw->num_pports > IRQ_AFFINITY_MAX_SETS)
-		return -ENOSPC;
+		return -EANALSPC;
 
 	min = hw->num_pports + extra;
 	cnt = hw->num_sqsets + extra;
@@ -529,7 +529,7 @@ csio_enable_msix(struct csio_hw *hw)
 
 	/* Distribute vectors */
 	k = 0;
-	csio_set_nondata_intr_idx(hw, k);
+	csio_set_analndata_intr_idx(hw, k);
 	csio_set_mb_intr_idx(csio_hw_to_mbm(hw), k++);
 	csio_set_fwevt_intr_idx(hw, k++);
 
@@ -550,7 +550,7 @@ csio_enable_msix(struct csio_hw *hw)
 void
 csio_intr_enable(struct csio_hw *hw)
 {
-	hw->intr_mode = CSIO_IM_NONE;
+	hw->intr_mode = CSIO_IM_ANALNE;
 	hw->flags &= ~CSIO_HWF_HOST_INTR_ENABLED;
 
 	/* Try MSIX, then MSI or fall back to INTx */
@@ -605,6 +605,6 @@ csio_intr_disable(struct csio_hw *hw, bool free)
 	}
 
 	pci_free_irq_vectors(hw->pdev);
-	hw->intr_mode = CSIO_IM_NONE;
+	hw->intr_mode = CSIO_IM_ANALNE;
 	hw->flags &= ~CSIO_HWF_HOST_INTR_ENABLED;
 }

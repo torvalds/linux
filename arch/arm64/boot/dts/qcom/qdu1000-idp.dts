@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 #include "pm8150.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. QDU1000 IDP";
+	model = "Qualcomm Techanallogies, Inc. QDU1000 IDP";
 	compatible = "qcom,qdu1000-idp", "qcom,qdu1000";
 	chassis-type = "embedded";
 
@@ -451,22 +451,22 @@
 &reserved_memory {
 	ecc_meta_data_mem: ecc-meta-data@e0000000 {
 		reg = <0x0 0xe0000000 0x0 0x20000000>;
-		no-map;
+		anal-map;
 	};
 
 	harq_buffer_mem: harq-buffer@800000000 {
 		reg = <0x8 0x0 0x0 0x80000000>;
-		no-map;
+		anal-map;
 	};
 
 	tenx_sp_buffer_mem: tenx-sp-buffer@880000000 {
 		reg = <0x8 0x80000000 0x0 0x50000000>;
-		no-map;
+		anal-map;
 	};
 
 	fapi_buffer_mem: fapi-buffer@8d0000000 {
 		reg = <0x8 0xd0000000 0x0 0x20000000>;
-		no-map;
+		anal-map;
 	};
 };
 
@@ -481,9 +481,9 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 
-	non-removable;
-	no-sd;
-	no-sdio;
+	analn-removable;
+	anal-sd;
+	anal-sdio;
 
 	supports-cqe;
 

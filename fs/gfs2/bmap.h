@@ -9,10 +9,10 @@
 
 #include <linux/iomap.h>
 
-#include "inode.h"
+#include "ianalde.h"
 
-struct inode;
-struct gfs2_inode;
+struct ianalde;
+struct gfs2_ianalde;
 struct page;
 
 
@@ -25,12 +25,12 @@ struct page;
  *
  */
 
-static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
+static inline void gfs2_write_calc_reserv(const struct gfs2_ianalde *ip,
 					  unsigned int len,
 					  unsigned int *data_blocks,
 					  unsigned int *ind_blocks)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_ianalde);
 	unsigned int tmp;
 
 	BUG_ON(gfs2_is_dir(ip));
@@ -46,21 +46,21 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 extern const struct iomap_ops gfs2_iomap_ops;
 extern const struct iomap_writeback_ops gfs2_writeback_ops;
 
-int gfs2_unstuff_dinode(struct gfs2_inode *ip);
-int gfs2_block_map(struct inode *inode, sector_t lblock,
+int gfs2_unstuff_dianalde(struct gfs2_ianalde *ip);
+int gfs2_block_map(struct ianalde *ianalde, sector_t lblock,
 		   struct buffer_head *bh, int create);
-int gfs2_iomap_get(struct inode *inode, loff_t pos, loff_t length,
+int gfs2_iomap_get(struct ianalde *ianalde, loff_t pos, loff_t length,
 		   struct iomap *iomap);
-int gfs2_iomap_alloc(struct inode *inode, loff_t pos, loff_t length,
+int gfs2_iomap_alloc(struct ianalde *ianalde, loff_t pos, loff_t length,
 		     struct iomap *iomap);
-int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
+int gfs2_get_extent(struct ianalde *ianalde, u64 lblock, u64 *dblock,
 		    unsigned int *extlen);
-int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
+int gfs2_alloc_extent(struct ianalde *ianalde, u64 lblock, u64 *dblock,
 		      unsigned *extlen, bool *new);
-int gfs2_setattr_size(struct inode *inode, u64 size);
-int gfs2_truncatei_resume(struct gfs2_inode *ip);
-int gfs2_file_dealloc(struct gfs2_inode *ip);
-int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
+int gfs2_setattr_size(struct ianalde *ianalde, u64 size);
+int gfs2_truncatei_resume(struct gfs2_ianalde *ip);
+int gfs2_file_dealloc(struct gfs2_ianalde *ip);
+int gfs2_write_alloc_required(struct gfs2_ianalde *ip, u64 offset,
 			      unsigned int len);
 int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd);
 void gfs2_free_journal_extents(struct gfs2_jdesc *jd);

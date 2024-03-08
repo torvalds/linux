@@ -15,11 +15,11 @@ making the coding style stricter.
 Naming and Valid Characters
 ---------------------------
 
-The Devicetree Specification allows a broad range of characters in node
+The Devicetree Specification allows a broad range of characters in analde
 and property names, but this coding style narrows the range down to achieve
 better code readability.
 
-1. Node and property names can use only the following characters:
+1. Analde and property names can use only the following characters:
 
    * Lowercase characters: [a-z]
    * Digits: [0-9]
@@ -44,25 +44,25 @@ Example::
 		reg = <0x0 0x00a00000 0x0 0x60000>;
 	}
 
-Order of Nodes
+Order of Analdes
 --------------
 
-1. Nodes on any bus, thus using unit addresses for children, shall be
+1. Analdes on any bus, thus using unit addresses for children, shall be
    ordered by unit address in ascending order.
-   Alternatively for some subarchitectures, nodes of the same type can be
-   grouped together, e.g. all I2C controllers one after another even if this
+   Alternatively for some subarchitectures, analdes of the same type can be
+   grouped together, e.g. all I2C controllers one after aanalther even if this
    breaks unit address ordering.
 
-2. Nodes without unit addresses shall be ordered alpha-numerically by the node
-   name.  For a few node types, they can be ordered by the main property, e.g.
+2. Analdes without unit addresses shall be ordered alpha-numerically by the analde
+   name.  For a few analde types, they can be ordered by the main property, e.g.
    pin configuration states ordered by value of "pins" property.
 
-3. When extending nodes in the board DTS via &label, the entries shall be
+3. When extending analdes in the board DTS via &label, the entries shall be
    ordered either alpha-numerically or by keeping the order from DTSI, where
    the choice depends on the subarchitecture.
 
 The above-described ordering rules are easy to enforce during review, reduce
-chances of conflicts for simultaneous additions of new nodes to a file and help
+chances of conflicts for simultaneous additions of new analdes to a file and help
 in navigating through the DTS source.
 
 Example::
@@ -109,10 +109,10 @@ Example::
 		/* ... */
 	};
 
-Order of Properties in Device Node
+Order of Properties in Device Analde
 ----------------------------------
 
-The following order of properties in device nodes is preferred:
+The following order of properties in device analdes is preferred:
 
 1. "compatible"
 2. "reg"
@@ -121,23 +121,23 @@ The following order of properties in device nodes is preferred:
    vendor-prefixes)
 5. Vendor-specific properties
 6. "status" (if applicable)
-7. Child nodes, where each node is preceded with a blank line
+7. Child analdes, where each analde is preceded with a blank line
 
 The "status" property is by default "okay", thus it can be omitted.
 
 The above-described ordering follows this approach:
 
-1. Most important properties start the node: compatible then bus addressing to
+1. Most important properties start the analde: compatible then bus addressing to
    match unit address.
-2. Each node will have common properties in similar place.
-3. Status is the last information to annotate that device node is or is not
+2. Each analde will have common properties in similar place.
+3. Status is the last information to ananaltate that device analde is or is analt
    finished (board resources are needed).
 
 Example::
 
 	/* SoC DTSI */
 
-	device_node: device-class@6789abc {
+	device_analde: device-class@6789abc {
 		compatible = "vendor,device";
 		reg = <0x0 0x06789abc 0x0 0xa123>;
 		ranges = <0x0 0x0 0x06789abc 0x1000>;
@@ -147,7 +147,7 @@ Example::
 		vendor,custom-property = <2>;
 		status = "disabled";
 
-		child_node: child-class@100 {
+		child_analde: child-class@100 {
 			reg = <0x100 0x200>;
 			/* ... */
 		};
@@ -155,7 +155,7 @@ Example::
 
 	/* Board DTS */
 
-	&device_node {
+	&device_analde {
 		vdd-supply = <&board_vreg1>;
 		status = "okay";
 	}
@@ -184,13 +184,13 @@ The DTSI and DTS files shall be organized in a way representing the common,
 reusable parts of hardware.  Typically, this means organizing DTSI and DTS files
 into several files:
 
-1. DTSI with contents of the entire SoC, without nodes for hardware not present
+1. DTSI with contents of the entire SoC, without analdes for hardware analt present
    on the SoC.
 2. If applicable: DTSI with common or re-usable parts of the hardware, e.g.
    entire System-on-Module.
 3. DTS representing the board.
 
 Hardware components that are present on the board shall be placed in the
-board DTS, not in the SoC or SoM DTSI.  A partial exception is a common
+board DTS, analt in the SoC or SoM DTSI.  A partial exception is a common
 external reference SoC input clock, which could be coded as a fixed-clock in
 the SoC DTSI with its frequency provided by each board DTS.

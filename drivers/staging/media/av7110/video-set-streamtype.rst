@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.video
 
 .. _VIDEO_SET_STREAMTYPE:
@@ -14,7 +14,7 @@ VIDEO_SET_STREAMTYPE
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: VIDEO_SET_STREAMTYPE
@@ -50,12 +50,12 @@ Description
 -----------
 
 This ioctl tells the driver which kind of stream to expect being written
-to it. If this call is not used the default of video PES is used. Some
-drivers might not support this call and always expect PES.
+to it. If this call is analt used the default of video PES is used. Some
+drivers might analt support this call and always expect PES.
 
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

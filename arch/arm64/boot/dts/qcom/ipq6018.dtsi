@@ -186,32 +186,32 @@
 
 		rpm_msg_ram: memory@60000 {
 			reg = <0x0 0x00060000 0x0 0x6000>;
-			no-map;
+			anal-map;
 		};
 
 		bootloader@4a100000 {
 			reg = <0x0 0x4a100000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		sbl@4a500000 {
 			reg = <0x0 0x4a500000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		tz: memory@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x400000>;
-			no-map;
+			anal-map;
 		};
 
 		smem_region: memory@4aa00000 {
 			reg = <0x0 0x4aa00000 0x0 0x100000>;
-			no-map;
+			anal-map;
 		};
 
 		q6_region: memory@4ab00000 {
 			reg = <0x0 0x4ab00000 0x0 0x5500000>;
-			no-map;
+			anal-map;
 		};
 	};
 
@@ -614,16 +614,16 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_USB0_AXI_CLK>,
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
 				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
-			clock-names = "cfg_noc",
+			clock-names = "cfg_analc",
 				"core",
 				"sleep",
 				"mock_utmi";
 
-			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+			assigned-clocks = <&gcc GCC_SYS_ANALC_USB0_AXI_CLK>,
 					  <&gcc GCC_USB0_MASTER_CLK>,
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
@@ -835,7 +835,7 @@
 					<0 0 0 3 &intc 0 0 0 79 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
 					<0 0 0 4 &intc 0 0 0 83 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
-			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_ANALC_PCIE0_AXI_CLK>,
 				 <&gcc GCC_PCIE0_AXI_M_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>,

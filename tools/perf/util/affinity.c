@@ -14,7 +14,7 @@ static int get_cpu_set_size(void)
 	int sz = cpu__max_cpu().cpu + 8 - 1;
 	/*
 	 * sched_getaffinity doesn't like masks smaller than the kernel.
-	 * Hopefully that's big enough.
+	 * Hopefully that's big eanalugh.
 	 */
 	if (sz < 4096)
 		sz = 4096;
@@ -60,7 +60,7 @@ void affinity__set(struct affinity *a, int cpu)
 	a->changed = true;
 	__set_bit(cpu, a->sched_cpus);
 	/*
-	 * We ignore errors because affinity is just an optimization.
+	 * We iganalre errors because affinity is just an optimization.
 	 * This could happen for example with isolated CPUs or cpusets.
 	 * In this case the IPIs inside the kernel's perf API still work.
 	 */

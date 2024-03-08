@@ -6,10 +6,10 @@
 SYMBOL="linux_proc_banner"
 
 if [ ! -f /proc/kallsyms ]; then
-  echo "Can not check the target symbol - please enable CONFIG_KALLSYMS"
+  echo "Can analt check the target symbol - please enable CONFIG_KALLSYMS"
   exit_unresolved
 elif ! grep "$SYMBOL\$" /proc/kallsyms; then
-  echo "Linux banner is not exported - please enable CONFIG_KALLSYMS_ALL"
+  echo "Linux banner is analt exported - please enable CONFIG_KALLSYMS_ALL"
   exit_unresolved
 fi
 

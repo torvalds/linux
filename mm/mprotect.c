@@ -21,7 +21,7 @@
 #include <linux/syscalls.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_analtifier.h>
 #include <linux/migrate.h>
 #include <linux/perf_event.h>
 #include <linux/pkeys.h>
@@ -47,8 +47,8 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 	if (WARN_ON_ONCE(!(vma->vm_flags & VM_WRITE)))
 		return false;
 
-	/* Don't touch entries that are not even readable. */
-	if (pte_protnone(pte))
+	/* Don't touch entries that are analt even readable. */
+	if (pte_protanalne(pte))
 		return false;
 
 	/* Do we need write faults for softdirty tracking? */
@@ -62,19 +62,19 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 	if (!(vma->vm_flags & VM_SHARED)) {
 		/*
 		 * Writable MAP_PRIVATE mapping: We can only special-case on
-		 * exclusive anonymous pages, because we know that our
+		 * exclusive aanalnymous pages, because we kanalw that our
 		 * write-fault handler similarly would map them writable without
 		 * any additional checks while holding the PT lock.
 		 */
-		page = vm_normal_page(vma, addr, pte);
-		return page && PageAnon(page) && PageAnonExclusive(page);
+		page = vm_analrmal_page(vma, addr, pte);
+		return page && PageAanaln(page) && PageAanalnExclusive(page);
 	}
 
 	/*
 	 * Writable MAP_SHARED mapping: "clean" might indicate that the FS still
-	 * needs a real write-fault for writenotify
-	 * (see vma_wants_writenotify()). If "dirty", the assumption is that the
-	 * FS was already notified and we can simply mark the PTE writable
+	 * needs a real write-fault for writeanaltify
+	 * (see vma_wants_writeanaltify()). If "dirty", the assumption is that the
+	 * FS was already analtified and we can simply mark the PTE writable
 	 * just like the write-fault handler would do.
 	 */
 	return pte_dirty(pte);
@@ -87,7 +87,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 	pte_t *pte, oldpte;
 	spinlock_t *ptl;
 	long pages = 0;
-	int target_node = NUMA_NO_NODE;
+	int target_analde = NUMA_ANAL_ANALDE;
 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
 	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
@@ -97,10 +97,10 @@ static long change_pte_range(struct mmu_gather *tlb,
 	if (!pte)
 		return -EAGAIN;
 
-	/* Get target node for single threaded private VMAs */
+	/* Get target analde for single threaded private VMAs */
 	if (prot_numa && !(vma->vm_flags & VM_SHARED) &&
 	    atomic_read(&vma->vm_mm->mm_users) == 1)
-		target_node = numa_node_id();
+		target_analde = numa_analde_id();
 
 	flush_tlb_batched_pending(vma->vm_mm);
 	arch_enter_lazy_mmu_mode();
@@ -119,10 +119,10 @@ static long change_pte_range(struct mmu_gather *tlb,
 				bool toptier;
 
 				/* Avoid TLB flush if possible */
-				if (pte_protnone(oldpte))
+				if (pte_protanalne(oldpte))
 					continue;
 
-				folio = vm_normal_folio(vma, addr, oldpte);
+				folio = vm_analrmal_folio(vma, addr, oldpte);
 				if (!folio || folio_is_zone_device(folio) ||
 				    folio_test_ksm(folio))
 					continue;
@@ -134,7 +134,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 
 				/*
 				 * While migration can move some dirty pages,
-				 * it cannot move them all from MIGRATE_ASYNC
+				 * it cananalt move them all from MIGRATE_ASYNC
 				 * context.
 				 */
 				if (folio_is_file_lru(folio) &&
@@ -142,19 +142,19 @@ static long change_pte_range(struct mmu_gather *tlb,
 					continue;
 
 				/*
-				 * Don't mess with PTEs if page is already on the node
+				 * Don't mess with PTEs if page is already on the analde
 				 * a single-threaded process is running on.
 				 */
 				nid = folio_nid(folio);
-				if (target_node == nid)
+				if (target_analde == nid)
 					continue;
-				toptier = node_is_toptier(nid);
+				toptier = analde_is_toptier(nid);
 
 				/*
-				 * Skip scanning top tier node if normal numa
+				 * Skip scanning top tier analde if analrmal numa
 				 * balancing is disabled
 				 */
-				if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_NORMAL) &&
+				if (!(sysctl_numa_balancing_mode & NUMA_BALANCING_ANALRMAL) &&
 				    toptier)
 					continue;
 				if (sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING &&
@@ -174,14 +174,14 @@ static long change_pte_range(struct mmu_gather *tlb,
 			/*
 			 * In some writable, shared mappings, we might want
 			 * to catch actual write access -- see
-			 * vma_wants_writenotify().
+			 * vma_wants_writeanaltify().
 			 *
 			 * In all writable, private mappings, we have to
 			 * properly handle COW.
 			 *
 			 * In both cases, we can sometimes still change PTEs
 			 * writable and avoid the write-fault handler, for
-			 * example, if a PTE is already dirty and no other
+			 * example, if a PTE is already dirty and anal other
 			 * COW or special handling is required.
 			 */
 			if ((cp_flags & MM_CP_TRY_CHANGE_WRITABLE) &&
@@ -204,7 +204,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 				 * A protection check is difficult so
 				 * just be safe and disable write
 				 */
-				if (PageAnon(page))
+				if (PageAanaln(page))
 					entry = make_readable_exclusive_migration_entry(
 							     swp_offset(entry));
 				else
@@ -214,8 +214,8 @@ static long change_pte_range(struct mmu_gather *tlb,
 					newpte = pte_swp_mksoft_dirty(newpte);
 			} else if (is_writable_device_private_entry(entry)) {
 				/*
-				 * We do not preserve soft-dirtiness. See
-				 * copy_nonpresent_pte() for explanation.
+				 * We do analt preserve soft-dirtiness. See
+				 * copy_analnpresent_pte() for explanation.
 				 */
 				entry = make_readable_device_private_entry(
 							swp_offset(entry));
@@ -232,7 +232,7 @@ static long change_pte_range(struct mmu_gather *tlb,
 					newpte = pte_swp_mkuffd_wp(newpte);
 			} else if (is_pte_marker_entry(entry)) {
 				/*
-				 * Ignore error swap entries unconditionally,
+				 * Iganalre error swap entries unconditionally,
 				 * because any access should sigbus anyway.
 				 */
 				if (is_poisoned_swp_entry(entry))
@@ -261,11 +261,11 @@ static long change_pte_range(struct mmu_gather *tlb,
 				pages++;
 			}
 		} else {
-			/* It must be an none page, or what else?.. */
-			WARN_ON_ONCE(!pte_none(oldpte));
+			/* It must be an analne page, or what else?.. */
+			WARN_ON_ONCE(!pte_analne(oldpte));
 
 			/*
-			 * Nobody plays with any none ptes besides
+			 * Analbody plays with any analne ptes besides
 			 * userfaultfd when applying the protections.
 			 */
 			if (likely(!uffd_wp))
@@ -274,8 +274,8 @@ static long change_pte_range(struct mmu_gather *tlb,
 			if (userfaultfd_wp_use_markers(vma)) {
 				/*
 				 * For file-backed mem, we need to be able to
-				 * wr-protect a none pte, because even if the
-				 * pte is none, the page/swap cache could
+				 * wr-protect a analne pte, because even if the
+				 * pte is analne, the page/swap cache could
 				 * exist.  Doing that by install a marker.
 				 */
 				set_pte_at(vma->vm_mm, addr, pte,
@@ -299,10 +299,10 @@ pgtable_split_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 {
 	/*
 	 * pte markers only resides in pte level, if we need pte markers,
-	 * we need to split.  We cannot wr-protect shmem thp because file
+	 * we need to split.  We cananalt wr-protect shmem thp because file
 	 * thp is handled differently when split by erasing the pmd so far.
 	 */
-	return (cp_flags & MM_CP_UFFD_WP) && !vma_is_anonymous(vma);
+	return (cp_flags & MM_CP_UFFD_WP) && !vma_is_aanalnymous(vma);
 }
 
 /*
@@ -312,7 +312,7 @@ pgtable_split_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 static inline bool
 pgtable_populate_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 {
-	/* If not within ioctl(UFFDIO_WRITEPROTECT), then don't bother */
+	/* If analt within ioctl(UFFDIO_WRITEPROTECT), then don't bother */
 	if (!(cp_flags & MM_CP_UFFD_WP))
 		return false;
 
@@ -331,7 +331,7 @@ pgtable_populate_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 		long err = 0;						\
 		if (unlikely(pgtable_populate_needed(vma, cp_flags))) {	\
 			if (pte_alloc(vma->vm_mm, pmd))			\
-				err = -ENOMEM;				\
+				err = -EANALMEM;				\
 		}							\
 		err;							\
 	})
@@ -347,7 +347,7 @@ pgtable_populate_needed(struct vm_area_struct *vma, unsigned long cp_flags)
 		if (unlikely(pgtable_populate_needed(vma, cp_flags))) {	\
 			low##_t *p = low##_alloc(vma->vm_mm, high, addr); \
 			if (p == NULL)					\
-				err = -ENOMEM;				\
+				err = -EANALMEM;				\
 		}							\
 		err;							\
 	})
@@ -360,7 +360,7 @@ static inline long change_pmd_range(struct mmu_gather *tlb,
 	unsigned long next;
 	long pages = 0;
 	unsigned long nr_huge_updates = 0;
-	struct mmu_notifier_range range;
+	struct mmu_analtifier_range range;
 
 	range.start = 0;
 
@@ -377,15 +377,15 @@ again:
 			break;
 		}
 
-		if (pmd_none(*pmd))
+		if (pmd_analne(*pmd))
 			goto next;
 
-		/* invoke the mmu notifier if the pmd is populated */
+		/* invoke the mmu analtifier if the pmd is populated */
 		if (!range.start) {
-			mmu_notifier_range_init(&range,
-				MMU_NOTIFY_PROTECTION_VMA, 0,
+			mmu_analtifier_range_init(&range,
+				MMU_ANALTIFY_PROTECTION_VMA, 0,
 				vma->vm_mm, addr, end);
-			mmu_notifier_invalidate_range_start(&range);
+			mmu_analtifier_invalidate_range_start(&range);
 		}
 
 		_pmd = pmdp_get_lockless(pmd);
@@ -429,7 +429,7 @@ next:
 	} while (pmd++, addr = next, addr != end);
 
 	if (range.start)
-		mmu_notifier_invalidate_range_end(&range);
+		mmu_analtifier_invalidate_range_end(&range);
 
 	if (nr_huge_updates)
 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
@@ -450,7 +450,7 @@ static inline long change_pud_range(struct mmu_gather *tlb,
 		ret = change_prepare(vma, pud, pmd, addr, cp_flags);
 		if (ret)
 			return ret;
-		if (pud_none_or_clear_bad(pud))
+		if (pud_analne_or_clear_bad(pud))
 			continue;
 		pages += change_pmd_range(tlb, vma, pud, addr, next, newprot,
 					  cp_flags);
@@ -473,7 +473,7 @@ static inline long change_p4d_range(struct mmu_gather *tlb,
 		ret = change_prepare(vma, p4d, pud, addr, cp_flags);
 		if (ret)
 			return ret;
-		if (p4d_none_or_clear_bad(p4d))
+		if (p4d_analne_or_clear_bad(p4d))
 			continue;
 		pages += change_pud_range(tlb, vma, p4d, addr, next, newprot,
 					  cp_flags);
@@ -501,7 +501,7 @@ static long change_protection_range(struct mmu_gather *tlb,
 			pages = ret;
 			break;
 		}
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_analne_or_clear_bad(pgd))
 			continue;
 		pages += change_p4d_range(tlb, vma, pgd, addr, next, newprot,
 					  cp_flags);
@@ -528,7 +528,7 @@ long change_protection(struct mmu_gather *tlb,
 	 * vma_set_page_prot() will adjust vma->vm_page_prot accordingly.
 	 */
 	if (cp_flags & MM_CP_PROT_NUMA)
-		newprot = PAGE_NONE;
+		newprot = PAGE_ANALNE;
 #else
 	WARN_ON_ONCE(cp_flags & MM_CP_PROT_NUMA);
 #endif
@@ -543,7 +543,7 @@ long change_protection(struct mmu_gather *tlb,
 	return pages;
 }
 
-static int prot_none_pte_entry(pte_t *pte, unsigned long addr,
+static int prot_analne_pte_entry(pte_t *pte, unsigned long addr,
 			       unsigned long next, struct mm_walk *walk)
 {
 	return pfn_modify_allowed(pte_pfn(ptep_get(pte)),
@@ -551,7 +551,7 @@ static int prot_none_pte_entry(pte_t *pte, unsigned long addr,
 		0 : -EACCES;
 }
 
-static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
+static int prot_analne_hugetlb_entry(pte_t *pte, unsigned long hmask,
 				   unsigned long addr, unsigned long next,
 				   struct mm_walk *walk)
 {
@@ -560,16 +560,16 @@ static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		0 : -EACCES;
 }
 
-static int prot_none_test(unsigned long addr, unsigned long next,
+static int prot_analne_test(unsigned long addr, unsigned long next,
 			  struct mm_walk *walk)
 {
 	return 0;
 }
 
-static const struct mm_walk_ops prot_none_walk_ops = {
-	.pte_entry		= prot_none_pte_entry,
-	.hugetlb_entry		= prot_none_hugetlb_entry,
-	.test_walk		= prot_none_test,
+static const struct mm_walk_ops prot_analne_walk_ops = {
+	.pte_entry		= prot_analne_pte_entry,
+	.hugetlb_entry		= prot_analne_hugetlb_entry,
+	.test_walk		= prot_analne_test,
 	.walk_lock		= PGWALK_WRLOCK,
 };
 
@@ -591,7 +591,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	}
 
 	/*
-	 * Do PROT_NONE PFN permission checks here when we can still
+	 * Do PROT_ANALNE PFN permission checks here when we can still
 	 * bail out without undoing a lot of state. This is a rather
 	 * uncommon case, so doesn't need to be very optimized.
 	 */
@@ -601,34 +601,34 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 		pgprot_t new_pgprot = vm_get_page_prot(newflags);
 
 		error = walk_page_range(current->mm, start, end,
-				&prot_none_walk_ops, &new_pgprot);
+				&prot_analne_walk_ops, &new_pgprot);
 		if (error)
 			return error;
 	}
 
 	/*
 	 * If we make a private mapping writable we increase our commit;
-	 * but (without finer accounting) cannot reduce our commit if we
-	 * make it unwritable again except in the anonymous case where no
-	 * anon_vma has yet to be assigned.
+	 * but (without finer accounting) cananalt reduce our commit if we
+	 * make it unwritable again except in the aanalnymous case where anal
+	 * aanaln_vma has yet to be assigned.
 	 *
 	 * hugetlb mapping were accounted for even if read-only so there is
-	 * no need to account for them here.
+	 * anal need to account for them here.
 	 */
 	if (newflags & VM_WRITE) {
 		/* Check space limits when area turns into data. */
 		if (!may_expand_vm(mm, newflags, nrpages) &&
 				may_expand_vm(mm, oldflags, nrpages))
-			return -ENOMEM;
+			return -EANALMEM;
 		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|VM_HUGETLB|
-						VM_SHARED|VM_NORESERVE))) {
+						VM_SHARED|VM_ANALRESERVE))) {
 			charged = nrpages;
-			if (security_vm_enough_memory_mm(mm, charged))
-				return -ENOMEM;
+			if (security_vm_eanalugh_memory_mm(mm, charged))
+				return -EANALMEM;
 			newflags |= VM_ACCOUNT;
 		}
-	} else if ((oldflags & VM_ACCOUNT) && vma_is_anonymous(vma) &&
-		   !vma->anon_vma) {
+	} else if ((oldflags & VM_ACCOUNT) && vma_is_aanalnymous(vma) &&
+		   !vma->aanaln_vma) {
 		newflags &= ~VM_ACCOUNT;
 	}
 
@@ -702,7 +702,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	len = PAGE_ALIGN(len);
 	end = start + len;
 	if (end <= start)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (!arch_validate_prot(prot, start))
 		return -EINVAL;
 
@@ -712,7 +712,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 		return -EINTR;
 
 	/*
-	 * If userspace did not allocate the pkey, do not let
+	 * If userspace did analt allocate the pkey, do analt let
 	 * them use it here.
 	 */
 	error = -EINVAL;
@@ -721,7 +721,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 
 	vma_iter_init(&vmi, current->mm, start);
 	vma = vma_find(&vmi, end);
-	error = -ENOMEM;
+	error = -EANALMEM;
 	if (!vma)
 		goto out;
 
@@ -756,7 +756,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 		int new_vma_pkey;
 
 		if (vma->vm_start != tmp) {
-			error = -ENOMEM;
+			error = -EANALMEM;
 			break;
 		}
 
@@ -766,7 +766,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 
 		/*
 		 * Each mprotect() call explicitly passes r/w/x permissions.
-		 * If a permission is not passed to mprotect(), it must be
+		 * If a permission is analt passed to mprotect(), it must be
 		 * cleared from the VMA.
 		 */
 		mask_off_old_flags = VM_ACCESS_FLAGS | VM_FLAGS_CLEAR;
@@ -817,7 +817,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	tlb_finish_mmu(&tlb);
 
 	if (!error && tmp < end)
-		error = -ENOMEM;
+		error = -EANALMEM;
 
 out:
 	mmap_write_unlock(current->mm);
@@ -843,7 +843,7 @@ SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
 	int pkey;
 	int ret;
 
-	/* No flags supported yet. */
+	/* Anal flags supported yet. */
 	if (flags)
 		return -EINVAL;
 	/* check for unsupported init values */
@@ -853,7 +853,7 @@ SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
 	mmap_write_lock(current->mm);
 	pkey = mm_pkey_alloc(current->mm);
 
-	ret = -ENOSPC;
+	ret = -EANALSPC;
 	if (pkey == -1)
 		goto out;
 

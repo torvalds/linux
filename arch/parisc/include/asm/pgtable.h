@@ -5,9 +5,9 @@
 #include <asm/page.h>
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-analpud.h>
 #elif CONFIG_PGTABLE_LEVELS == 2
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-analpmd.h>
 #endif
 
 #include <asm/fixmap.h>
@@ -163,7 +163,7 @@ extern void __update_cache(pte_t pte);
 #define _PAGE_DMB_BIT      27   /* (0x010) Data Memory Break enable (B bit) */
 #define _PAGE_DIRTY_BIT    26   /* (0x020) Page Dirty (D bit) */
 #define _PAGE_REFTRAP_BIT  25   /* (0x040) Page Ref. Trap enable (T bit) */
-#define _PAGE_NO_CACHE_BIT 24   /* (0x080) Uncached Page (U bit) */
+#define _PAGE_ANAL_CACHE_BIT 24   /* (0x080) Uncached Page (U bit) */
 #define _PAGE_ACCESSED_BIT 23   /* (0x100) Software: Page Accessed */
 #define _PAGE_PRESENT_BIT  22   /* (0x200) Software: translation valid */
 #define _PAGE_HPAGE_BIT    21   /* (0x400) Software: Huge Page */
@@ -195,7 +195,7 @@ extern void __update_cache(pte_t pte);
 #define _PAGE_DMB      (1 << xlate_pabit(_PAGE_DMB_BIT))
 #define _PAGE_DIRTY    (1 << xlate_pabit(_PAGE_DIRTY_BIT))
 #define _PAGE_REFTRAP  (1 << xlate_pabit(_PAGE_REFTRAP_BIT))
-#define _PAGE_NO_CACHE (1 << xlate_pabit(_PAGE_NO_CACHE_BIT))
+#define _PAGE_ANAL_CACHE (1 << xlate_pabit(_PAGE_ANAL_CACHE_BIT))
 #define _PAGE_ACCESSED (1 << xlate_pabit(_PAGE_ACCESSED_BIT))
 #define _PAGE_PRESENT  (1 << xlate_pabit(_PAGE_PRESENT_BIT))
 #define _PAGE_HUGE     (1 << xlate_pabit(_PAGE_HPAGE_BIT))
@@ -228,10 +228,10 @@ extern void __update_cache(pte_t pte);
 
 #ifndef __ASSEMBLY__
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
+#define PAGE_ANALNE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE)
-/* Others seem to make this executable, I don't know if that's correct
-   or not.  The stack is mapped this way though so this is necessary
+/* Others seem to make this executable, I don't kanalw if that's correct
+   or analt.  The stack is mapped this way though so this is necessary
    in the short term - dhd@linuxcare.com, 2000-08-08 */
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ)
 #define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE)
@@ -242,14 +242,14 @@ extern void __update_cache(pte_t pte);
 #define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL_EXEC)
 #define PAGE_KERNEL_RWX	__pgprot(_PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_KERNEL_RO)
-#define PAGE_KERNEL_UNC	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
+#define PAGE_KERNEL_UNC	__pgprot(_PAGE_KERNEL | _PAGE_ANAL_CACHE)
 #define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_GATEWAY| _PAGE_READ)
 
 
 /*
  * We could have an execute only page using "gateway - promote to priv
  * level 3", but that is kind of silly. So, the way things are defined
- * now, we must always have read permission for pages with execute
+ * analw, we must always have read permission for pages with execute
  * permission. For the fun of it we'll go ahead and support write only
  * pages.
  */
@@ -273,7 +273,7 @@ extern unsigned long *empty_zero_page;
 
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
-#define pte_none(x)     (pte_val(x) == 0)
+#define pte_analne(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_user(x)	(pte_val(x) & _PAGE_USER)
 #define pte_clear(mm, addr, xp)  set_pte(xp, __pte(0))
@@ -285,7 +285,7 @@ extern unsigned long *empty_zero_page;
 #define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
 #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_analne(x)	(!pmd_val(x))
 #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
 #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
 static inline void pmd_clear(pmd_t *pmd) {
@@ -300,7 +300,7 @@ static inline void pmd_clear(pmd_t *pmd) {
 
 /* For 64 bit we have three level tables */
 
-#define pud_none(x)     (!pud_val(x))
+#define pud_analne(x)     (!pud_val(x))
 #define pud_bad(x)      (!(pud_flag(x) & PxD_FLAG_VALID))
 #define pud_present(x)  (pud_flag(x) & PxD_FLAG_PRESENT)
 static inline void pud_clear(pud_t *pud) {
@@ -310,7 +310,7 @@ static inline void pud_clear(pud_t *pud) {
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if analt..
  */
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
@@ -322,7 +322,7 @@ static inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; retu
 static inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_WRITE; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
-static inline pte_t pte_mkwrite_novma(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
+static inline pte_t pte_mkwrite_analvma(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return pte; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ pte_val(pte) |= _PAGE_SPECIAL; return pte; }
 
 /*
@@ -408,7 +408,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
- * are !pte_none() && !pte_present().
+ * are !pte_analne() && !pte_present().
  *
  * Format of swap PTEs (32bit):
  *
@@ -416,7 +416,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *   <---------------- offset -----------------> P E <ofs> < type ->
  *
- *   E is the exclusive marker that is not stored in swap entries.
+ *   E is the exclusive marker that is analt stored in swap entries.
  *   _PAGE_PRESENT (P) must be 0.
  *
  *   For the 64bit version, the offset is extended by 32bit.
@@ -503,7 +503,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #endif
 
 
-#define pgprot_noncached(prot) __pgprot(pgprot_val(prot) | _PAGE_NO_CACHE)
+#define pgprot_analncached(prot) __pgprot(pgprot_val(prot) | _PAGE_ANAL_CACHE)
 
 /* We provide our own get_unmapped_area to provide cache coherency */
 

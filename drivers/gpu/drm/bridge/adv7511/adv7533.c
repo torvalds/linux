@@ -139,10 +139,10 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 	int ret = 0;
 	const struct mipi_dsi_device_info info = { .type = "adv7533",
 						   .channel = 0,
-						   .node = NULL,
+						   .analde = NULL,
 						 };
 
-	host = of_find_mipi_dsi_host_by_node(adv->host_node);
+	host = of_find_mipi_dsi_host_by_analde(adv->host_analde);
 	if (!host)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "failed to find dsi host\n");
@@ -157,7 +157,7 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 	dsi->lanes = adv->num_dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
+			  MIPI_DSI_MODE_ANAL_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0)
@@ -166,7 +166,7 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 	return 0;
 }
 
-int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
+int adv7533_parse_dt(struct device_analde *np, struct adv7511 *adv)
 {
 	u32 num_lanes;
 
@@ -177,16 +177,16 @@ int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
 
 	adv->num_dsi_lanes = num_lanes;
 
-	adv->host_node = of_graph_get_remote_node(np, 0, 0);
-	if (!adv->host_node)
-		return -ENODEV;
+	adv->host_analde = of_graph_get_remote_analde(np, 0, 0);
+	if (!adv->host_analde)
+		return -EANALDEV;
 
-	of_node_put(adv->host_node);
+	of_analde_put(adv->host_analde);
 
 	adv->use_timing_gen = !of_property_read_bool(np,
 						"adi,disable-timing-generator");
 
-	/* TODO: Check if these need to be parsed by DT or not */
+	/* TODO: Check if these need to be parsed by DT or analt */
 	adv->rgb = true;
 	adv->embedded_sync = false;
 

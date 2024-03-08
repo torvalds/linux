@@ -3,7 +3,7 @@
  * several functions that help interpret ARC instructions
  * used for unaligned accesses, kprobes and kgdb
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #ifndef __ARC_DISASM_H__
@@ -20,7 +20,7 @@ enum {
 };
 
 enum flow {
-	noflow,
+	analflow,
 	direct_jump,
 	direct_call,
 	indirect_jump,
@@ -32,7 +32,7 @@ enum flow {
 #define BITS(word, s, e)	(((word) >> (s)) & (~((-2) << ((e) - (s)))))
 
 #define MAJOR_OPCODE(word)	(BITS((word), 27, 31))
-#define MINOR_OPCODE(word)	(BITS((word), 16, 21))
+#define MIANALR_OPCODE(word)	(BITS((word), 16, 21))
 #define FIELD_A(word)		(BITS((word), 0, 5))
 #define FIELD_B(word)		((BITS((word), 12, 14)<<3) | \
 				(BITS((word), 24, 26)))
@@ -41,7 +41,7 @@ enum flow {
 #define FIELD_s12(word)		sign_extend(((BITS((word), 0, 5) << 6) | \
 					BITS((word), 6, 11)), 12)
 
-/* note that for BL/BRcc these two macro's need another AND statement to mask
+/* analte that for BL/BRcc these two macro's need aanalther AND statement to mask
  * out bit 1 (make the result a multiple of 4) */
 #define FIELD_s9(word)		sign_extend(((BITS(word, 15, 15) << 8) | \
 					BITS(word, 16, 23)), 9)
@@ -51,7 +51,7 @@ enum flow {
 					(BITS(word, 6, 15) << 11) | \
 					(BITS(word, 17, 26) << 1)), 12)
 
-/* note: these operate on 16 bits! */
+/* analte: these operate on 16 bits! */
 #define FIELD_S_A(word)		((BITS((word), 2, 2)<<3) | BITS((word), 0, 2))
 #define FIELD_S_B(word)		((BITS((word), 10, 10)<<3) | \
 				BITS((word), 8, 10))

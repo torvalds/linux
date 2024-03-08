@@ -23,7 +23,7 @@ struct dwc3;
 #define DWC3_DEPCFG_INT_NUM(n)		(((n) & 0x1f) << 0)
 #define DWC3_DEPCFG_XFER_COMPLETE_EN	BIT(8)
 #define DWC3_DEPCFG_XFER_IN_PROGRESS_EN	BIT(9)
-#define DWC3_DEPCFG_XFER_NOT_READY_EN	BIT(10)
+#define DWC3_DEPCFG_XFER_ANALT_READY_EN	BIT(10)
 #define DWC3_DEPCFG_FIFO_ERROR_EN	BIT(11)
 #define DWC3_DEPCFG_STREAM_EVENT_EN	BIT(13)
 #define DWC3_DEPCFG_BINTERVAL_M1(n)	(((n) & 0xff) << 16)
@@ -140,7 +140,7 @@ static inline void dwc3_gadget_ep_get_transfer_index(struct dwc3_ep *dep)
  * @dwc: pointer to our context structure
  * @value: value to write to DCTL
  *
- * Use this function when doing read-modify-write to DCTL. It will not
+ * Use this function when doing read-modify-write to DCTL. It will analt
  * send link state change request.
  */
 static inline void dwc3_gadget_dctl_write_safe(struct dwc3 *dwc, u32 value)

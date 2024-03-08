@@ -46,7 +46,7 @@ struct ipu_soc;
 #define IPU_DISP_ALT2			IPU_CM_REG(0x00cc)
 #define IPU_DISP_ALT3			IPU_CM_REG(0x00d0)
 #define IPU_DISP_ALT4			IPU_CM_REG(0x00d4)
-#define IPU_SNOOP			IPU_CM_REG(0x00d8)
+#define IPU_SANALOP			IPU_CM_REG(0x00d8)
 #define IPU_MEM_RST			IPU_CM_REG(0x00dc)
 #define IPU_PM				IPU_CM_REG(0x00e0)
 #define IPU_GPR				IPU_CM_REG(0x00e4)
@@ -69,7 +69,7 @@ struct ipu_soc;
 
 /* SRM_PRI2 */
 #define DP_S_SRM_MODE_MASK		(0x3 << 3)
-#define DP_S_SRM_MODE_NOW		(0x3 << 3)
+#define DP_S_SRM_MODE_ANALW		(0x3 << 3)
 #define DP_S_SRM_MODE_NEXT_FRAME	(0x1 << 3)
 
 /* FS_PROC_FLOW1 */
@@ -216,7 +216,7 @@ void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync);
 int ipu_module_enable(struct ipu_soc *ipu, u32 mask);
 int ipu_module_disable(struct ipu_soc *ipu, u32 mask);
 
-bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno);
+bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chanal);
 
 int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 		 unsigned long base, u32 module, struct clk *clk_ipu);

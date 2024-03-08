@@ -65,7 +65,7 @@ static void usbip_dump_pipe(unsigned int p)
 	pr_debug("dev(%d) ep(%d) [%s] ", dev, ep, dir ? "IN" : "OUT");
 
 	switch (type) {
-	case PIPE_ISOCHRONOUS:
+	case PIPE_ISOCHROANALUS:
 		pr_debug("ISO\n");
 		break;
 	case PIPE_INTERRUPT:
@@ -291,8 +291,8 @@ void usbip_dump_header(struct usbip_header *pdu)
 			 pdu->u.ret_unlink.status);
 		break;
 	default:
-		/* NOT REACHED */
-		pr_err("unknown command\n");
+		/* ANALT REACHED */
+		pr_err("unkanalwn command\n");
 		break;
 	}
 }
@@ -303,7 +303,7 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 {
 	int result;
 	struct kvec iov = {.iov_base = buf, .iov_len = size};
-	struct msghdr msg = {.msg_flags = MSG_NOSIGNAL};
+	struct msghdr msg = {.msg_flags = MSG_ANALSIGNAL};
 	int total = 0;
 
 	if (!sock || !buf || !size)
@@ -314,7 +314,7 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	usbip_dbg_xmit("enter\n");
 
 	do {
-		sock->sk->sk_allocation = GFP_NOIO;
+		sock->sk->sk_allocation = GFP_ANALIO;
 		sock->sk->sk_use_task_frag = false;
 
 		result = sock_recvmsg(sock, &msg, MSG_WAITALL);
@@ -341,7 +341,7 @@ EXPORT_SYMBOL_GPL(usbip_recv);
 /* there may be more cases to tweak the flags. */
 static unsigned int tweak_transfer_flags(unsigned int flags)
 {
-	flags &= ~URB_NO_TRANSFER_DMA_MAP;
+	flags &= ~URB_ANAL_TRANSFER_DMA_MAP;
 	return flags;
 }
 
@@ -349,7 +349,7 @@ static unsigned int tweak_transfer_flags(unsigned int flags)
  * USBIP driver packs URB transfer flags in PDUs that are exchanged
  * between Server (usbip_host) and Client (vhci_hcd). URB_* flags
  * are internal to kernel and could change. Where as USBIP URB flags
- * exchanged in PDUs are USBIP user API must not change.
+ * exchanged in PDUs are USBIP user API must analt change.
  *
  * USBIP_URB* flags are exported as explicit API and client and server
  * do mapping from kernel flags to USBIP_URB*. Details as follows:
@@ -361,7 +361,7 @@ static unsigned int tweak_transfer_flags(unsigned int flags)
  * - Maps USBIP_URB_* to URB_* when it receives USBIP_CMD_SUBMIT packet.
  *
  * Flags aren't included in USBIP_CMD_UNLINK and USBIP_RET_SUBMIT packets
- * and no special handling is needed for them in the following cases:
+ * and anal special handling is needed for them in the following cases:
  * - Server rx path (USBIP_CMD_UNLINK)
  * - Client rx path & Server tx path (USBIP_RET_SUBMIT)
  *
@@ -385,11 +385,11 @@ struct urb_to_usbip_flags {
 #define NUM_USBIP_FLAGS	17
 
 static const struct urb_to_usbip_flags flag_map[NUM_USBIP_FLAGS] = {
-	{URB_SHORT_NOT_OK, USBIP_URB_SHORT_NOT_OK},
+	{URB_SHORT_ANALT_OK, USBIP_URB_SHORT_ANALT_OK},
 	{URB_ISO_ASAP, USBIP_URB_ISO_ASAP},
-	{URB_NO_TRANSFER_DMA_MAP, USBIP_URB_NO_TRANSFER_DMA_MAP},
+	{URB_ANAL_TRANSFER_DMA_MAP, USBIP_URB_ANAL_TRANSFER_DMA_MAP},
 	{URB_ZERO_PACKET, USBIP_URB_ZERO_PACKET},
-	{URB_NO_INTERRUPT, USBIP_URB_NO_INTERRUPT},
+	{URB_ANAL_INTERRUPT, USBIP_URB_ANAL_INTERRUPT},
 	{URB_FREE_BUFFER, USBIP_URB_FREE_BUFFER},
 	{URB_DIR_IN, USBIP_URB_DIR_IN},
 	{URB_DIR_OUT, USBIP_URB_DIR_OUT},
@@ -436,7 +436,7 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 	struct usbip_header_cmd_submit *spdu = &pdu->u.cmd_submit;
 
 	/*
-	 * Some members are not still implemented in usbip. I hope this issue
+	 * Some members are analt still implemented in usbip. I hope this issue
 	 * will be discussed when usbip is ported to other operating systems.
 	 */
 	if (pack) {
@@ -486,8 +486,8 @@ void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		usbip_pack_ret_submit(pdu, urb, pack);
 		break;
 	default:
-		/* NOT REACHED */
-		pr_err("unknown command\n");
+		/* ANALT REACHED */
+		pr_err("unkanalwn command\n");
 		break;
 	}
 }
@@ -592,8 +592,8 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		correct_endian_ret_unlink(&pdu->u.ret_unlink, send);
 		break;
 	default:
-		/* NOT REACHED */
-		pr_err("unknown command\n");
+		/* ANALT REACHED */
+		pr_err("unkanalwn command\n");
 		break;
 	}
 }
@@ -602,7 +602,7 @@ EXPORT_SYMBOL_GPL(usbip_header_correct_endian);
 static void usbip_iso_packet_correct_endian(
 		struct usbip_iso_packet_descriptor *iso, int send)
 {
-	/* does not need all members. but copy all simply. */
+	/* does analt need all members. but copy all simply. */
 	if (send) {
 		iso->offset	= cpu_to_be32(iso->offset);
 		iso->length	= cpu_to_be32(iso->length);
@@ -676,7 +676,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	buff = kzalloc(size, GFP_KERNEL);
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = usbip_recv(ud->tcp_socket, buff, size);
 	if (ret != size) {
@@ -703,7 +703,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	if (total_length != urb->actual_length) {
 		dev_err(&urb->dev->dev,
-			"total length of iso packets %d not equal to actual length of buffer %d\n",
+			"total length of iso packets %d analt equal to actual length of buffer %d\n",
 			total_length, urb->actual_length);
 
 		if (ud->side == USBIP_STUB || ud->side == USBIP_VUDC)
@@ -734,12 +734,12 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
 	if (!usb_pipeisoc(urb->pipe))
 		return;
 
-	/* if no packets or length of data is 0, then nothing to unpack */
+	/* if anal packets or length of data is 0, then analthing to unpack */
 	if (np == 0 || urb->actual_length == 0)
 		return;
 
 	/*
-	 * if actual_length is transfer_buffer_length then no padding is
+	 * if actual_length is transfer_buffer_length then anal padding is
 	 * present.
 	 */
 	if (urb->actual_length == urb->transfer_buffer_length)
@@ -782,12 +782,12 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 		size = urb->actual_length;
 	}
 
-	/* no need to recv xbuff */
+	/* anal need to recv xbuff */
 	if (!(size > 0))
 		return 0;
 
 	if (size > urb->transfer_buffer_length)
-		/* should not happen, probably malicious packet */
+		/* should analt happen, probably malicious packet */
 		goto error;
 
 	if (urb->num_sgs) {

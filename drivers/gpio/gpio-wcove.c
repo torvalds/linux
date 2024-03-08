@@ -104,7 +104,7 @@ static inline int to_reg(int gpio, enum ctrl_register type)
 	unsigned int reg = type == CTRL_IN ? GPIO_IN_CTRL_BASE : GPIO_OUT_CTRL_BASE;
 
 	if (gpio >= WCOVE_GPIO_NUM)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	return reg + gpio;
 }
@@ -233,7 +233,7 @@ static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
 		break;
 	}
 
-	return -ENOTSUPP;
+	return -EANALTSUPP;
 }
 
 static int wcove_irq_type(struct irq_data *data, unsigned int type)
@@ -246,7 +246,7 @@ static int wcove_irq_type(struct irq_data *data, unsigned int type)
 		return 0;
 
 	switch (type) {
-	case IRQ_TYPE_NONE:
+	case IRQ_TYPE_ANALNE:
 		wg->intcnt = CTLI_INTCNT_DIS;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
@@ -340,14 +340,14 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 
 	if (regmap_bulk_read(wg->regmap, IRQ_STATUS_BASE, p, 2)) {
 		dev_err(wg->dev, "Failed to read irq status register\n");
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 
 	pending = (p[0] & GPIO_IRQ0_MASK) | ((p[1] & GPIO_IRQ1_MASK) << 7);
 	if (!pending)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
-	/* Iterate until no interrupt is pending */
+	/* Iterate until anal interrupt is pending */
 	while (pending) {
 		/* One iteration is for all pending bits */
 		for_each_set_bit(gpio, &pending, WCOVE_GPIO_NUM) {
@@ -419,7 +419,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	 */
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic)
-		return -ENODEV;
+		return -EANALDEV;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -429,7 +429,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 
 	wg = devm_kzalloc(dev, sizeof(*wg), GFP_KERNEL);
 	if (!wg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	wg->regmap_irq_chip = pmic->irq_chip_data;
 
@@ -463,7 +463,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
 	girq->parents = NULL;
-	girq->default_type = IRQ_TYPE_NONE;
+	girq->default_type = IRQ_TYPE_ANALNE;
 	girq->handler = handle_simple_irq;
 	girq->threaded = true;
 
@@ -496,7 +496,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 /*
  * Whiskey Cove PMIC itself is a analog device(but with digital control
  * interface) providing power management support for other devices in
- * the accompanied SoC, so we have no .pm for Whiskey Cove GPIO driver.
+ * the accompanied SoC, so we have anal .pm for Whiskey Cove GPIO driver.
  */
 static struct platform_driver wcove_gpio_driver = {
 	.driver = {

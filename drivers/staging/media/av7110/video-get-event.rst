@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. SPDX-License-Identifier: GFDL-1.1-anal-invariants-or-later
 .. c:namespace:: DTV.video
 
 .. _VIDEO_GET_EVENT:
@@ -14,7 +14,7 @@ VIDEO_GET_EVENT
 
 .. attention:: This ioctl is deprecated.
 
-Synopsis
+Syanalpsis
 --------
 
 .. c:macro:: VIDEO_GET_EVENT
@@ -53,9 +53,9 @@ This ioctl is for Digital TV devices only. To get events from a V4L2 decoder
 use the V4L2 :ref:`VIDIOC_DQEVENT` ioctl instead.
 
 This ioctl call returns an event of type video_event if available. If
-an event is not available, the behavior depends on whether the device is
-in blocking or non-blocking mode. In the latter case, the call fails
-immediately with errno set to ``EWOULDBLOCK``. In the former case, the call
+an event is analt available, the behavior depends on whether the device is
+in blocking or analn-blocking mode. In the latter case, the call fails
+immediately with erranal set to ``EWOULDBLOCK``. In the former case, the call
 blocks until an event becomes available. The standard Linux poll()
 and/or select() system calls can be used with the device file descriptor
 to watch for new events. For select(), the file descriptor should be
@@ -77,14 +77,14 @@ for this ioctl call.
 		union {
 			video_size_t size;
 			unsigned int frame_rate;	/* in frames per 1000sec */
-			unsigned char vsync_field;	/* unknown/odd/even/progressive */
+			unsigned char vsync_field;	/* unkanalwn/odd/even/progressive */
 		} u;
 	};
 
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erranal`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -96,7 +96,7 @@ appropriately. The generic error codes are described at the
 
        -  ``EWOULDBLOCK``
 
-       -  There is no event pending, and the device is in non-blocking mode.
+       -  There is anal event pending, and the device is in analn-blocking mode.
 
     -  .. row 2
 

@@ -15,7 +15,7 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 
-/* page arguments of these two macros are Emu page (4096 bytes), not like
+/* page arguments of these two macros are Emu page (4096 bytes), analt like
  * aligned pages in others
  */
 #define __set_ptb_entry(emu,page,addr) \
@@ -55,7 +55,7 @@ static inline void set_silent_ptb(struct snd_emu10k1 *emu, int page)
 	int i;
 	page *= UNIT_PAGES;
 	for (i = 0; i < UNIT_PAGES; i++, page++) {
-		/* do not increment ptr */
+		/* do analt increment ptr */
 		__set_ptb_entry(emu, page, emu->silent_page.addr);
 		dev_dbg(emu->card->dev, "mapped silent page %d to entry %.8x\n",
 			page, (unsigned int)__get_ptb_entry(emu, page));
@@ -90,11 +90,11 @@ static void emu10k1_memblk_init(struct snd_emu10k1_memblk *blk)
  *
  * if an empty region is found, return the page and store the next mapped block
  * in nextp
- * if not found, return a negative error code.
+ * if analt found, return a negative error code.
  */
 static int search_empty_map_area(struct snd_emu10k1 *emu, int npages, struct list_head **nextp)
 {
-	int page = 1, found_page = -ENOMEM;
+	int page = 1, found_page = -EANALMEM;
 	int max_size = npages;
 	int size;
 	struct list_head *candidate = &emu->mapped_link_head;
@@ -137,7 +137,7 @@ static int map_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 	struct list_head *next;
 
 	page = search_empty_map_area(emu, blk->pages, &next);
-	if (page < 0) /* not found */
+	if (page < 0) /* analt found */
 		return page;
 	if (page == 0) {
 		dev_err(emu->card->dev, "trying to map zero (reserved) page\n");
@@ -243,7 +243,7 @@ static int is_valid_page(struct snd_emu10k1 *emu, dma_addr_t addr)
 		return 0;
 	}
 	if (addr & (EMUPAGESIZE-1)) {
-		dev_err_ratelimited(emu->card->dev, "page is not aligned\n");
+		dev_err_ratelimited(emu->card->dev, "page is analt aligned\n");
 		return 0;
 	}
 	return 1;
@@ -252,7 +252,7 @@ static int is_valid_page(struct snd_emu10k1 *emu, dma_addr_t addr)
 /*
  * map the given memory block on PTB.
  * if the block is already mapped, update the link order.
- * if no empty pages are found, tries to release unused memory blocks
+ * if anal empty pages are found, tries to release unused memory blocks
  * and retry the mapping.
  */
 int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
@@ -273,7 +273,7 @@ int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *b
 	}
 	err = map_memblk(emu, blk);
 	if (err < 0) {
-		/* no enough page - try to unmap some blocks */
+		/* anal eanalugh page - try to unmap some blocks */
 		/* starting from the oldest block */
 		p = emu->mapped_order_link_head.next;
 		for (; p != &emu->mapped_order_link_head; p = nextp) {
@@ -283,7 +283,7 @@ int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *b
 				continue;
 			size = unmap_memblk(emu, deleted);
 			if (size >= blk->pages) {
-				/* ok the empty region is enough large */
+				/* ok the empty region is eanalugh large */
 				err = map_memblk(emu, blk);
 				break;
 			}
@@ -321,8 +321,8 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
-	/* fill buffer addresses but pointers are not stored so that
-	 * snd_free_pci_page() is not called in synth_free()
+	/* fill buffer addresses but pointers are analt stored so that
+	 * snd_free_pci_page() is analt called in synth_free()
 	 */
 	idx = 0;
 	for (page = blk->first_page; page <= blk->last_page; page++, idx++) {
@@ -343,7 +343,7 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	}
 
 	/* set PTB entries */
-	blk->map_locked = 1; /* do not unmap this block! */
+	blk->map_locked = 1; /* do analt unmap this block! */
 	err = snd_emu10k1_memblk_map(emu, blk);
 	if (err < 0) {
 		__snd_util_mem_free(hdr, (struct snd_util_memblk *)blk);
@@ -395,7 +395,7 @@ int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
 
 /*
  * memory allocation using multiple pages (for synth)
- * Unlike the DMA allocation above, non-contiguous pages are assined.
+ * Unlike the DMA allocation above, analn-contiguous pages are assined.
  */
 
 /*
@@ -533,7 +533,7 @@ __fail:
 	last_page = page - 1;
 	__synth_free_pages(emu, first_page, last_page);
 
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 /*

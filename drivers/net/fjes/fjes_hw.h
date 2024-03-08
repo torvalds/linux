@@ -29,19 +29,19 @@ struct fjes_hw;
 #define FJES_CMD_REQ_ERR_INFO_PARAM  (0x0001)
 #define FJES_CMD_REQ_ERR_INFO_STATUS (0x0002)
 
-#define FJES_CMD_REQ_RES_CODE_NORMAL (0)
+#define FJES_CMD_REQ_RES_CODE_ANALRMAL (0)
 #define FJES_CMD_REQ_RES_CODE_BUSY   (1)
 
 #define FJES_ZONING_STATUS_DISABLE	(0x00)
 #define FJES_ZONING_STATUS_ENABLE	(0x01)
 #define FJES_ZONING_STATUS_INVALID	(0xFF)
 
-#define FJES_ZONING_ZONE_TYPE_NONE (0xFF)
+#define FJES_ZONING_ZONE_TYPE_ANALNE (0xFF)
 
-#define FJES_TX_DELAY_SEND_NONE		(0)
+#define FJES_TX_DELAY_SEND_ANALNE		(0)
 #define FJES_TX_DELAY_SEND_PENDING	(1)
 
-#define FJES_RX_STOP_REQ_NONE		(0x0)
+#define FJES_RX_STOP_REQ_ANALNE		(0x0)
 #define FJES_RX_STOP_REQ_DONE		(0x1)
 #define FJES_RX_STOP_REQ_REQUEST	(0x2)
 #define FJES_RX_POLL_WORK		(0x4)
@@ -182,8 +182,8 @@ struct fjes_device_command_param {
 
 /* error code for command control */
 enum fjes_dev_command_response_e {
-	FJES_CMD_STATUS_UNKNOWN,
-	FJES_CMD_STATUS_NORMAL,
+	FJES_CMD_STATUS_UNKANALWN,
+	FJES_CMD_STATUS_ANALRMAL,
 	FJES_CMD_STATUS_TIMEOUT,
 	FJES_CMD_STATUS_ERROR_PARAM,
 	FJES_CMD_STATUS_ERROR_STATUS,
@@ -236,7 +236,7 @@ struct fjes_drv_ep_stats {
 	u64 recv_intr_stop;
 	u64 recv_intr_zoneupdate;
 	u64 tx_buffer_full;
-	u64 tx_dropped_not_shared;
+	u64 tx_dropped_analt_shared;
 	u64 tx_dropped_ver_mismatch;
 	u64 tx_dropped_buf_size_mismatch;
 	u64 tx_dropped_vlanid_mismatch;

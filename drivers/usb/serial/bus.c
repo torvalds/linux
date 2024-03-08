@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -35,7 +35,7 @@ static int usb_serial_device_probe(struct device *dev)
 	struct usb_serial_driver *driver;
 	struct device *tty_dev;
 	int retval = 0;
-	int minor;
+	int mianalr;
 
 	/* make sure suspend/resume doesn't race against port_probe */
 	retval = usb_autopm_get_interface(port->serial->interface);
@@ -49,9 +49,9 @@ static int usb_serial_device_probe(struct device *dev)
 			goto err_autopm_put;
 	}
 
-	minor = port->minor;
+	mianalr = port->mianalr;
 	tty_dev = tty_port_register_device(&port->port, usb_serial_tty_driver,
-					   minor, dev);
+					   mianalr, dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto err_port_remove;
@@ -60,8 +60,8 @@ static int usb_serial_device_probe(struct device *dev)
 	usb_autopm_put_interface(port->serial->interface);
 
 	dev_info(&port->serial->dev->dev,
-		 "%s converter now attached to ttyUSB%d\n",
-		 driver->description, minor);
+		 "%s converter analw attached to ttyUSB%d\n",
+		 driver->description, mianalr);
 
 	return 0;
 
@@ -78,26 +78,26 @@ static void usb_serial_device_remove(struct device *dev)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct usb_serial_driver *driver;
-	int minor;
+	int mianalr;
 	int autopm_err;
 
 	/*
 	 * Make sure suspend/resume doesn't race against port_remove.
 	 *
-	 * Note that no further runtime PM callbacks will be made if
+	 * Analte that anal further runtime PM callbacks will be made if
 	 * autopm_get fails.
 	 */
 	autopm_err = usb_autopm_get_interface(port->serial->interface);
 
-	minor = port->minor;
-	tty_unregister_device(usb_serial_tty_driver, minor);
+	mianalr = port->mianalr;
+	tty_unregister_device(usb_serial_tty_driver, mianalr);
 
 	driver = port->serial->type;
 	if (driver->port_remove)
 		driver->port_remove(port);
 
-	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
-		 driver->description, minor);
+	dev_info(dev, "%s converter analw disconnected from ttyUSB%d\n",
+		 driver->description, mianalr);
 
 	if (!autopm_err)
 		usb_autopm_put_interface(port->serial->interface);
@@ -137,8 +137,8 @@ static void free_dynids(struct usb_serial_driver *drv)
 	struct usb_dynid *dynid, *n;
 
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
-		list_del(&dynid->node);
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, analde) {
+		list_del(&dynid->analde);
 		kfree(dynid);
 	}
 	spin_unlock(&drv->dynids.lock);

@@ -278,7 +278,7 @@ static inline int vgic_v3_max_apr_idx(struct kvm_vcpu *vcpu)
 
 	/*
 	 * num_pri_bits are initialized with HW supported values.
-	 * We can rely safely on num_pri_bits even if VM has not
+	 * We can rely safely on num_pri_bits even if VM has analt
 	 * restored ICC_CTLR_EL1 before restoring APnR registers.
 	 */
 	switch (cpu_if->num_pri_bits) {

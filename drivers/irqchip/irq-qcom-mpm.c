@@ -33,7 +33,7 @@
  *
  * When SoC is awake, the vMPM is owned by AP and the register setup by this
  * driver all happens on vMPM.  When AP is about to get power collapsed, the
- * driver sends a mailbox notification to RPM, which will take over the vMPM
+ * driver sends a mailbox analtification to RPM, which will take over the vMPM
  * ownership and dump vMPM into physical MPM registers.  On wakeup, AP is woken
  * up by a MPM pin/interrupt, and RPM will copy STATUS registers into vMPM.
  * Then AP start owning vMPM again.
@@ -242,7 +242,7 @@ static int qcom_mpm_alloc(struct irq_domain *domain, unsigned int virq,
 	if (type & IRQ_TYPE_LEVEL_MASK)
 		type = IRQ_TYPE_LEVEL_HIGH;
 
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwanalde = domain->parent->fwanalde;
 	parent_fwspec.param_count = 3;
 	parent_fwspec.param[0] = 0;
 	parent_fwspec.param[1] = map->hwirq;
@@ -263,7 +263,7 @@ static irqreturn_t qcom_mpm_handler(int irq, void *dev_id)
 {
 	struct qcom_mpm_priv *priv = dev_id;
 	unsigned long enable, pending;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	unsigned long flags;
 	int i, j;
 
@@ -298,7 +298,7 @@ static int mpm_pd_power_off(struct generic_pm_domain *genpd)
 	for (i = 0; i < priv->reg_stride; i++)
 		qcom_mpm_write(priv, MPM_REG_STATUS, i, 0);
 
-	/* Notify RPM to write vMPM into HW */
+	/* Analtify RPM to write vMPM into HW */
 	ret = mbox_send_message(priv->mbox_chan, NULL);
 	if (ret < 0)
 		return ret;
@@ -317,13 +317,13 @@ static bool gic_hwirq_is_mapped(struct mpm_gic_map *maps, int cnt, u32 hwirq)
 	return false;
 }
 
-static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
+static int qcom_mpm_init(struct device_analde *np, struct device_analde *parent)
 {
-	struct platform_device *pdev = of_find_device_by_node(np);
+	struct platform_device *pdev = of_find_device_by_analde(np);
 	struct device *dev = &pdev->dev;
 	struct irq_domain *parent_domain;
 	struct generic_pm_domain *genpd;
-	struct device_node *msgram_np;
+	struct device_analde *msgram_np;
 	struct qcom_mpm_priv *priv;
 	unsigned int pin_cnt;
 	struct resource res;
@@ -332,7 +332,7 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = of_property_read_u32(np, "qcom,mpm-pin-count", &pin_cnt);
 	if (ret) {
@@ -357,7 +357,7 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 	priv->maps = devm_kcalloc(dev, priv->map_cnt, sizeof(*priv->maps),
 				  GFP_KERNEL);
 	if (!priv->maps)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < priv->map_cnt; i++) {
 		u32 pin, hwirq;
@@ -382,15 +382,15 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 	if (msgram_np) {
 		ret = of_address_to_resource(msgram_np, 0, &res);
 		if (ret) {
-			of_node_put(msgram_np);
+			of_analde_put(msgram_np);
 			return ret;
 		}
 
 		/* Don't use devm_ioremap_resource, as we're accessing a shared region. */
 		priv->base = devm_ioremap(dev, res.start, resource_size(&res));
-		of_node_put(msgram_np);
+		of_analde_put(msgram_np);
 		if (!priv->base)
-			return -ENOMEM;
+			return -EANALMEM;
 	} else {
 		/* Otherwise, fall back to simple MMIO. */
 		priv->base = devm_platform_ioremap_resource(pdev, 0);
@@ -416,7 +416,7 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 
 	genpd->name = devm_kasprintf(dev, GFP_KERNEL, "%s", dev_name(dev));
 	if (!genpd->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = pm_genpd_init(genpd, NULL, false);
 	if (ret) {
@@ -447,16 +447,16 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 
 	priv->domain = irq_domain_create_hierarchy(parent_domain,
 				IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP, pin_cnt,
-				of_node_to_fwnode(np), &qcom_mpm_ops, priv);
+				of_analde_to_fwanalde(np), &qcom_mpm_ops, priv);
 	if (!priv->domain) {
 		dev_err(dev, "failed to create MPM domain\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_mbox;
 	}
 
 	irq_domain_update_bus_token(priv->domain, DOMAIN_BUS_WAKEUP);
 
-	ret = devm_request_irq(dev, irq, qcom_mpm_handler, IRQF_NO_SUSPEND,
+	ret = devm_request_irq(dev, irq, qcom_mpm_handler, IRQF_ANAL_SUSPEND,
 			       "qcom_mpm", priv);
 	if (ret) {
 		dev_err(dev, "failed to request irq: %d\n", ret);
@@ -477,5 +477,5 @@ remove_genpd:
 IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_mpm)
 IRQCHIP_MATCH("qcom,mpm", qcom_mpm_init)
 IRQCHIP_PLATFORM_DRIVER_END(qcom_mpm)
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. MSM Power Manager");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. MSM Power Manager");
 MODULE_LICENSE("GPL v2");

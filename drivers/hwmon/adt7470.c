@@ -24,7 +24,7 @@
 #include <linux/util_macros.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
+static const unsigned short analrmal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
 
 /* ADT7470 registers */
 #define ADT7470_REG_BASE_ADDR			0x20
@@ -219,7 +219,7 @@ static int adt7470_read_temperatures(struct adt7470_data *data)
 	if (err < 0)
 		return err;
 
-	/* set manual pwm to whatever it is set to now */
+	/* set manual pwm to whatever it is set to analw */
 	err = regmap_bulk_read(data->regmap, ADT7470_REG_PWM(0), &pwm[0],
 			       ADT7470_PWM_COUNT);
 	if (err < 0)
@@ -554,7 +554,7 @@ static int adt7470_temp_read(struct device *dev, u32 attr, int channel, long *va
 		*val = !!(data->alarm & channel);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -582,7 +582,7 @@ static int adt7470_temp_write(struct device *dev, u32 attr, int channel, long va
 		mutex_unlock(&data->lock);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -651,7 +651,7 @@ static int adt7470_fan_read(struct device *dev, u32 attr, int channel, long *val
 		*val = !!(data->alarm & (1 << (12 + channel)));
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -682,7 +682,7 @@ static int adt7470_fan_write(struct device *dev, u32 attr, int channel, long val
 		mutex_unlock(&data->lock);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -772,7 +772,7 @@ static int adt7470_pwm_read(struct device *dev, u32 attr, int channel, long *val
 		*val = pwm1_freq_get(dev);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return 0;
@@ -847,7 +847,7 @@ static int adt7470_pwm_write(struct device *dev, u32 attr, int channel, long val
 		err = pwm1_freq_set(dev, val);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	return err;
@@ -1105,7 +1105,7 @@ static int adt7470_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	case hwmon_pwm:
 		return adt7470_pwm_read(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1120,7 +1120,7 @@ static int adt7470_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 	case hwmon_pwm:
 		return adt7470_pwm_write(dev, attr, channel, val);
 	default:
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 }
 
@@ -1217,7 +1217,7 @@ static const struct hwmon_chip_info adt7470_chip_info = {
 	.info = adt7470_info,
 };
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int adt7470_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
@@ -1225,19 +1225,19 @@ static int adt7470_detect(struct i2c_client *client,
 	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	vendor = i2c_smbus_read_byte_data(client, ADT7470_REG_VENDOR);
 	if (vendor != ADT7470_VENDOR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	device = i2c_smbus_read_byte_data(client, ADT7470_REG_DEVICE);
 	if (device != ADT7470_DEVICE)
-		return -ENODEV;
+		return -EANALDEV;
 
 	revision = i2c_smbus_read_byte_data(client, ADT7470_REG_REVISION);
 	if (revision != ADT7470_REVISION)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "adt7470", I2C_NAME_SIZE);
 
@@ -1260,7 +1260,7 @@ static int adt7470_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct adt7470_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->num_temp_sensors = -1;
 	data->auto_update_interval = AUTO_UPDATE_INTERVAL;
@@ -1318,7 +1318,7 @@ static struct i2c_driver adt7470_driver = {
 	.remove		= adt7470_remove,
 	.id_table	= adt7470_id,
 	.detect		= adt7470_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(adt7470_driver);

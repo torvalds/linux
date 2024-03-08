@@ -62,7 +62,7 @@
 
 	phy_dedicated: ethernet-phy@0 {
 		/*
-		 * Annoyingly, the marvell phy driver configures the LED
+		 * Ananalyingly, the marvell phy driver configures the LED
 		 * register, rather than preserving reset-loaded setting.
 		 * We undo that rubbish here.
 		 */
@@ -104,7 +104,7 @@
 	w25q32: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "w25q32", "jedec,spi-nor";
+		compatible = "w25q32", "jedec,spi-analr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <3000000>;
 	};

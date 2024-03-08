@@ -52,9 +52,9 @@ void dcb_ieee_getapp_dscp_prio_mask_map(const struct net_device *dev,
 					struct dcb_ieee_app_dscp_map *p_map);
 u8 dcb_ieee_getapp_default_prio_mask(const struct net_device *dev);
 
-int dcbnl_ieee_notify(struct net_device *dev, int event, int cmd,
+int dcbnl_ieee_analtify(struct net_device *dev, int event, int cmd,
 		      u32 seq, u32 pid);
-int dcbnl_cee_notify(struct net_device *dev, int event, int cmd,
+int dcbnl_cee_analtify(struct net_device *dev, int event, int cmd,
 		     u32 seq, u32 pid);
 
 /*

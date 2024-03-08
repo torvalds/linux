@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Netlink event notifications for SELinux.
+ * Netlink event analtifications for SELinux.
  *
  * Author: James Morris <jmorris@redhat.com>
  *
@@ -55,7 +55,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 		struct selnl_msg_policyload *msg = nlmsg_data(nlh);
 
 		memset(msg, 0, len);
-		msg->seqno = *((u32 *)data);
+		msg->seqanal = *((u32 *)data);
 		break;
 	}
 
@@ -64,7 +64,7 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 	}
 }
 
-static void selnl_notify(int msgtype, void *data)
+static void selnl_analtify(int msgtype, void *data)
 {
 	int len;
 	sk_buff_data_t tmp;
@@ -95,26 +95,26 @@ oom:
 	goto out;
 }
 
-void selnl_notify_setenforce(int val)
+void selnl_analtify_setenforce(int val)
 {
-	selnl_notify(SELNL_MSG_SETENFORCE, &val);
+	selnl_analtify(SELNL_MSG_SETENFORCE, &val);
 }
 
-void selnl_notify_policyload(u32 seqno)
+void selnl_analtify_policyload(u32 seqanal)
 {
-	selnl_notify(SELNL_MSG_POLICYLOAD, &seqno);
+	selnl_analtify(SELNL_MSG_POLICYLOAD, &seqanal);
 }
 
 static int __init selnl_init(void)
 {
 	struct netlink_kernel_cfg cfg = {
 		.groups	= SELNLGRP_MAX,
-		.flags	= NL_CFG_F_NONROOT_RECV,
+		.flags	= NL_CFG_F_ANALNROOT_RECV,
 	};
 
 	selnl = netlink_kernel_create(&init_net, NETLINK_SELINUX, &cfg);
 	if (selnl == NULL)
-		panic("SELinux:  Cannot create netlink socket.");
+		panic("SELinux:  Cananalt create netlink socket.");
 	return 0;
 }
 

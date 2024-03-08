@@ -41,7 +41,7 @@ struct ac97_id {
  * @ac97_ctrl: ac97 digital controller on the same AC-link
  *
  * This is the device instantiated for each codec living on a AC-link. There are
- * normally 0 to 4 codec devices per AC-link, and all of them are controlled by
+ * analrmally 0 to 4 codec devices per AC-link, and all of them are controlled by
  * an AC97 digital controller.
  */
 struct ac97_codec_device {

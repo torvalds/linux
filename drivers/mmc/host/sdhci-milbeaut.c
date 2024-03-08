@@ -245,7 +245,7 @@ static int sdhci_milbeaut_probe(struct platform_device *pdev)
 	priv = sdhci_priv(host);
 	priv->dev = dev;
 
-	host->quirks = SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC |
+	host->quirks = SDHCI_QUIRK_ANAL_ENDATTR_IN_ANALPDESC |
 			   SDHCI_QUIRK_INVERTED_WRITE_PROTECT |
 			   SDHCI_QUIRK_CLOCK_BEFORE_RESET |
 			   SDHCI_QUIRK_DELAY_AFTER_POWER;
@@ -272,7 +272,7 @@ static int sdhci_milbeaut_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (dev_of_node(dev)) {
+	if (dev_of_analde(dev)) {
 		sdhci_get_of_property(pdev);
 
 		priv->clk_iface = devm_clk_get(&pdev->dev, "iface");
@@ -331,7 +331,7 @@ static void sdhci_milbeaut_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_milbeaut_driver = {
 	.driver = {
 		.name = "sdhci-milbeaut",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 		.of_match_table = mlb_dt_ids,
 	},
 	.probe	= sdhci_milbeaut_probe,

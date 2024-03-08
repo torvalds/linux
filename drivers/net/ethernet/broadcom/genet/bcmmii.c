@@ -43,7 +43,7 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	/* duplex */
 	if (phydev->duplex != DUPLEX_FULL) {
 		cmd_bits |= CMD_HD_EN |
-			CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
+			CMD_RX_PAUSE_IGANALRE | CMD_TX_PAUSE_IGANALRE;
 	} else {
 		/* pause capability defaults to Symmetric */
 		if (priv->autoneg_pause) {
@@ -53,16 +53,16 @@ static void bcmgenet_mac_config(struct net_device *dev)
 				phy_get_pause(phydev, &tx_pause, &rx_pause);
 
 			if (!tx_pause)
-				cmd_bits |= CMD_TX_PAUSE_IGNORE;
+				cmd_bits |= CMD_TX_PAUSE_IGANALRE;
 			if (!rx_pause)
-				cmd_bits |= CMD_RX_PAUSE_IGNORE;
+				cmd_bits |= CMD_RX_PAUSE_IGANALRE;
 		}
 
 		/* Manual override */
 		if (!priv->rx_pause)
-			cmd_bits |= CMD_RX_PAUSE_IGNORE;
+			cmd_bits |= CMD_RX_PAUSE_IGANALRE;
 		if (!priv->tx_pause)
-			cmd_bits |= CMD_TX_PAUSE_IGNORE;
+			cmd_bits |= CMD_TX_PAUSE_IGANALRE;
 	}
 
 	/* Program UMAC and RGMII block based on established
@@ -78,7 +78,7 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
 		       CMD_HD_EN |
-		       CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE);
+		       CMD_RX_PAUSE_IGANALRE | CMD_TX_PAUSE_IGANALRE);
 	reg |= cmd_bits;
 	if (reg & CMD_SW_RESET) {
 		reg &= ~CMD_SW_RESET;
@@ -203,7 +203,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 	case PHY_INTERFACE_MODE_MOCA:
 		/* Irrespective of the actually configured PHY speed (100 or
 		 * 1000) GENETv4 only has an internal GPHY so we will just end
-		 * up masking the Gigabit features from what we support, not
+		 * up masking the Gigabit features from what we support, analt
 		 * switching to the EPHY
 		 */
 		if (GENET_IS_V4(priv))
@@ -229,7 +229,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		phy_name = "external RvMII";
 		/* of_mdiobus_register took care of reading the 'max-speed'
 		 * PHY property for us, effectively limiting the PHY supported
-		 * capabilities, use that knowledge to also configure the
+		 * capabilities, use that kanalwledge to also configure the
 		 * Reverse MII interface correctly.
 		 */
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
@@ -240,12 +240,12 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		break;
 
 	case PHY_INTERFACE_MODE_RGMII:
-		/* RGMII_NO_ID: TXC transitions at the same time as TXD
+		/* RGMII_ANAL_ID: TXC transitions at the same time as TXD
 		 *		(requires PCB or receiver-side delay)
 		 *
 		 * ID is implicitly disabled for 100Mbps (RG)MII operation.
 		 */
-		phy_name = "external RGMII (no delay)";
+		phy_name = "external RGMII (anal delay)";
 		id_mode_dis = BIT(16);
 		port_ctrl = PORT_MODE_EXT_GPHY;
 		break;
@@ -261,7 +261,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		port_ctrl = PORT_MODE_EXT_GPHY;
 		break;
 	default:
-		dev_err(kdev, "unknown phy mode: %d\n", priv->phy_interface);
+		dev_err(kdev, "unkanalwn phy mode: %d\n", priv->phy_interface);
 		return -EINVAL;
 	}
 
@@ -272,7 +272,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 
 	/* This is an external PHY (xMII), so we need to enable the RGMII
 	 * block for the interface to work, unconditionally clear the
-	 * Out-of-band disable since we do not need it.
+	 * Out-of-band disable since we do analt need it.
 	 */
 	reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
 	reg &= ~OOB_DISABLE;
@@ -296,11 +296,11 @@ int bcmgenet_mii_probe(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
-	struct device_node *dn = kdev->of_node;
+	struct device_analde *dn = kdev->of_analde;
 	phy_interface_t phy_iface = priv->phy_interface;
 	struct phy_device *phydev;
 	u32 phy_flags = PHY_BRCM_AUTO_PWRDWN_ENABLE |
-			PHY_BRCM_DIS_TXCRXC_NOENRGY |
+			PHY_BRCM_DIS_TXCRXC_ANALENRGY |
 			PHY_BRCM_IDDQ_SUSPEND;
 	int ret;
 
@@ -308,7 +308,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	if (priv->internal_phy)
 		phy_flags = priv->gphy_rev;
 
-	/* This is an ugly quirk but we have not been correctly interpreting
+	/* This is an ugly quirk but we have analt been correctly interpreting
 	 * the phy_interface values and we have done that across different
 	 * drivers, so at least we are consistent in our mistakes.
 	 *
@@ -316,17 +316,17 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	 * strapped or programmed correctly by the boot loader so we should
 	 * stick to our incorrect interpretation since we have validated it.
 	 *
-	 * Now when a dedicated PHY driver is in use, we need to reverse the
+	 * Analw when a dedicated PHY driver is in use, we need to reverse the
 	 * meaning of the phy_interface_mode values to something that the PHY
 	 * driver will interpret and act on such that we have two mistakes
 	 * canceling themselves so to speak. We only do this for the two
 	 * modes that GENET driver officially supports on Broadcom STB chips:
 	 * PHY_INTERFACE_MODE_RGMII and PHY_INTERFACE_MODE_RGMII_TXID. Other
-	 * modes are not *officially* supported with the boot loader and the
+	 * modes are analt *officially* supported with the boot loader and the
 	 * scripted environment generating Device Tree blobs for those
 	 * platforms.
 	 *
-	 * Note that internal PHY, MoCA and fixed-link configurations are not
+	 * Analte that internal PHY, MoCA and fixed-link configurations are analt
 	 * affected because they use different phy_interface_t values or the
 	 * Generic PHY driver.
 	 */
@@ -345,8 +345,8 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup,
 					phy_flags, phy_iface);
 		if (!phydev) {
-			pr_err("could not attach to PHY\n");
-			return -ENODEV;
+			pr_err("could analt attach to PHY\n");
+			return -EANALDEV;
 		}
 	} else {
 		if (has_acpi_companion(kdev)) {
@@ -359,13 +359,13 @@ int bcmgenet_mii_probe(struct net_device *dev)
 			unimacbus = mdio_find_bus(mdio_bus_id);
 			if (!unimacbus) {
 				pr_err("Unable to find mii\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 			phydev = phy_find_first(unimacbus);
 			put_device(&unimacbus->dev);
 			if (!phydev) {
 				pr_err("Unable to find PHY\n");
-				return -ENODEV;
+				return -EANALDEV;
 			}
 		} else {
 			phydev = dev->phydev;
@@ -375,8 +375,8 @@ int bcmgenet_mii_probe(struct net_device *dev)
 		ret = phy_connect_direct(dev, phydev, bcmgenet_mii_setup,
 					 phy_iface);
 		if (ret) {
-			pr_err("could not attach to PHY\n");
-			return -ENODEV;
+			pr_err("could analt attach to PHY\n");
+			return -EANALDEV;
 		}
 	}
 
@@ -406,9 +406,9 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
+static struct device_analde *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_analde *dn = priv->pdev->dev.of_analde;
 	struct device *kdev = &priv->pdev->dev;
 	char *compat;
 
@@ -419,7 +419,7 @@ static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 	priv->mdio_dn = of_get_compatible_child(dn, compat);
 	kfree(compat);
 	if (!priv->mdio_dn) {
-		dev_err(kdev, "unable to find MDIO bus node\n");
+		dev_err(kdev, "unable to find MDIO bus analde\n");
 		return NULL;
 	}
 
@@ -458,7 +458,7 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 {
 	struct platform_device *pdev = priv->pdev;
 	struct bcmgenet_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_analde *dn = pdev->dev.of_analde;
 	struct unimac_mdio_pdata ppd;
 	struct platform_device *ppdev;
 	struct resource *pres, res;
@@ -490,13 +490,13 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 
 	ppdev = platform_device_alloc(UNIMAC_MDIO_DRV_NAME, id);
 	if (!ppdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Retain this platform_device pointer for later cleanup */
 	priv->mii_pdev = ppdev;
 	ppdev->dev.parent = &pdev->dev;
 	if (dn)
-		ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
+		ppdev->dev.of_analde = bcmgenet_mii_of_find_mdio(priv);
 	else if (pdata)
 		bcmgenet_mii_pdata_init(priv, &ppd);
 	else
@@ -533,7 +533,7 @@ static int bcmgenet_phy_interface_init(struct bcmgenet_priv *priv)
 	priv->phy_interface = phy_mode;
 
 	/* We need to specifically look up whether this PHY interface is
-	 * internal or not *before* we even try to probe the PHY driver
+	 * internal or analt *before* we even try to probe the PHY driver
 	 * over MDIO as we may have shut down the internal PHY for power
 	 * saving purposes.
 	 */
@@ -545,22 +545,22 @@ static int bcmgenet_phy_interface_init(struct bcmgenet_priv *priv)
 
 static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_analde *dn = priv->pdev->dev.of_analde;
 	struct phy_device *phydev;
 	int ret;
 
 	/* Fetch the PHY phandle */
 	priv->phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 
-	/* In the case of a fixed PHY, the DT node associated
-	 * to the PHY is the Ethernet MAC DT node.
+	/* In the case of a fixed PHY, the DT analde associated
+	 * to the PHY is the Ethernet MAC DT analde.
 	 */
 	if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
 		ret = of_phy_register_fixed_link(dn);
 		if (ret)
 			return ret;
 
-		priv->phy_dn = of_node_get(dn);
+		priv->phy_dn = of_analde_get(dn);
 	}
 
 	/* Get the link mode */
@@ -605,7 +605,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 		}
 	} else {
 		/*
-		 * MoCA port or no MDIO access.
+		 * MoCA port or anal MDIO access.
 		 * Use fixed PHY to represent the link layer.
 		 */
 		struct fixed_phy_status fphy_status = {
@@ -635,7 +635,7 @@ static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
 static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
-	struct device_node *dn = kdev->of_node;
+	struct device_analde *dn = kdev->of_analde;
 
 	if (dn)
 		return bcmgenet_mii_of_init(priv);
@@ -668,11 +668,11 @@ out:
 void bcmgenet_mii_exit(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_analde *dn = priv->pdev->dev.of_analde;
 
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
-	of_node_put(priv->phy_dn);
+	of_analde_put(priv->phy_dn);
 	clk_prepare_enable(priv->clk);
 	platform_device_unregister(priv->mii_pdev);
 	clk_disable_unprepare(priv->clk);

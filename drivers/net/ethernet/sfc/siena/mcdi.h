@@ -9,15 +9,15 @@
 
 /**
  * enum efx_mcdi_state - MCDI request handling state
- * @MCDI_STATE_QUIESCENT: No pending MCDI requests. If the caller holds the
+ * @MCDI_STATE_QUIESCENT: Anal pending MCDI requests. If the caller holds the
  *	mcdi @iface_lock then they are able to move to %MCDI_STATE_RUNNING
- * @MCDI_STATE_RUNNING_SYNC: There is a synchronous MCDI request pending.
+ * @MCDI_STATE_RUNNING_SYNC: There is a synchroanalus MCDI request pending.
  *	Only the thread that moved into this state is allowed to move out of it.
- * @MCDI_STATE_RUNNING_ASYNC: There is an asynchronous MCDI request pending.
+ * @MCDI_STATE_RUNNING_ASYNC: There is an asynchroanalus MCDI request pending.
  * @MCDI_STATE_PROXY_WAIT: An MCDI request has completed with a response that
  *	indicates we must wait for a proxy try again message.
  * @MCDI_STATE_COMPLETED: An MCDI request has completed, but the owning thread
- *	has not yet consumed the result. For all other threads, equivalent to
+ *	has analt yet consumed the result. For all other threads, equivalent to
  *	%MCDI_STATE_RUNNING.
  */
 enum efx_mcdi_state {
@@ -47,8 +47,8 @@ enum efx_mcdi_mode {
  * @mode: Poll for mcdi completion, or wait for an mcdi_event.
  * @wq: Wait queue for threads waiting for @state != %MCDI_STATE_RUNNING
  * @new_epoch: Indicates start of day or start of MC reboot recovery
- * @iface_lock: Serialises access to @seqno, @credits and response metadata
- * @seqno: The next sequence number to use for mcdi requests.
+ * @iface_lock: Serialises access to @seqanal, @credits and response metadata
+ * @seqanal: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
  *     trigger a fatal error
  * @resprc: Response error/success code (Linux numbering)
@@ -56,8 +56,8 @@ enum efx_mcdi_mode {
  * @resp_data_len: Response data (SDU or error) length
  * @async_lock: Serialises access to @async_list while event processing is
  *	enabled
- * @async_list: Queue of asynchronous requests
- * @async_timer: Timer for asynchronous request timeout
+ * @async_list: Queue of asynchroanalus requests
+ * @async_timer: Timer for asynchroanalus request timeout
  * @logging_buffer: buffer that may be used to build MCDI tracing messages
  * @logging_enabled: whether to trace MCDI
  * @proxy_rx_handle: Most recently received proxy authorisation handle
@@ -72,7 +72,7 @@ struct efx_mcdi_iface {
 	spinlock_t iface_lock;
 	bool new_epoch;
 	unsigned int credits;
-	unsigned int seqno;
+	unsigned int seqanal;
 	int resprc;
 	int resprc_raw;
 	size_t resp_hdr_len;
@@ -126,14 +126,14 @@ struct efx_mcdi_data {
 
 static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 {
-	EFX_WARN_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARAANALID(!efx->mcdi);
 	return &efx->mcdi->iface;
 }
 
 #ifdef CONFIG_SFC_SIENA_MCDI_MON
 static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
 {
-	EFX_WARN_ON_PARANOID(!efx->mcdi);
+	EFX_WARN_ON_PARAANALID(!efx->mcdi);
 	return &efx->mcdi->hwmon;
 }
 #endif

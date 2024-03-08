@@ -19,7 +19,7 @@
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. include:: ./memory-barriers.txt
     :literal:

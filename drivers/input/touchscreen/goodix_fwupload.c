@@ -5,7 +5,7 @@
  * Copyright (c) 2021 Hans de Goede <hdegoede@redhat.com>
  *
  * This is a rewrite of gt9xx_update.c from the Allwinner H3 BSP which is:
- * Copyright (c) 2010 - 2012 Goodix Technology.
+ * Copyright (c) 2010 - 2012 Goodix Techanallogy.
  * Author: andrew@goodix.com
  */
 
@@ -75,7 +75,7 @@ static int goodix_firmware_verify(struct device *dev, const struct firmware *fw)
 	dev_info(dev, "Firmware hardware info %02x%02x%02x%02x\n",
 		 fw_header->hw_info[0], fw_header->hw_info[1],
 		 fw_header->hw_info[2], fw_header->hw_info[3]);
-	/* pid is a 8 byte buffer containing a string, weird I know */
+	/* pid is a 8 byte buffer containing a string, weird I kanalw */
 	memcpy(buf, fw_header->pid, 8);
 	buf[8] = 0;
 	dev_info(dev, "Firmware PID: %s VID: %02x%02x\n", buf,
@@ -105,7 +105,7 @@ static int goodix_enter_upload_mode(struct i2c_client *client)
 	} while (--tries);
 
 	if (!tries) {
-		dev_err(&client->dev, "Error could not hold ss51 & dsp\n");
+		dev_err(&client->dev, "Error could analt hold ss51 & dsp\n");
 		return -EIO;
 	}
 
@@ -172,9 +172,9 @@ static int goodix_start_firmware(struct i2c_client *client)
 	if (error)
 		return error;
 
-	/* The value we've written to SW_WDT should have been cleared now */
+	/* The value we've written to SW_WDT should have been cleared analw */
 	if (val == 0xaa) {
-		dev_err(&client->dev, "Error SW_WDT reg not cleared on fw startup\n");
+		dev_err(&client->dev, "Error SW_WDT reg analt cleared on fw startup\n");
 		return -EIO;
 	}
 
@@ -205,7 +205,7 @@ static int goodix_firmware_upload(struct goodix_ts_data *ts)
 	if (error)
 		goto release;
 
-	error = goodix_reset_no_int_sync(ts);
+	error = goodix_reset_anal_int_sync(ts);
 	if (error)
 		goto release;
 
@@ -284,7 +284,7 @@ static int goodix_prepare_bak_ref(struct goodix_ts_data *ts)
 	ts->bak_ref = devm_kzalloc(&ts->client->dev,
 				   ts->bak_ref_len, GFP_KERNEL);
 	if (!ts->bak_ref)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/*
 	 * The bak_ref array contains the backup of an array of (self/auto)
@@ -294,7 +294,7 @@ static int goodix_prepare_bak_ref(struct goodix_ts_data *ts)
 	 * this, we always start will all the values which give a correction
 	 * factor in approx. the -20 - +20 range (in 2s complement) set to 0.
 	 *
-	 * Note the touchscreen works fine without restoring the reference
+	 * Analte the touchscreen works fine without restoring the reference
 	 * values after a reboot / power-cycle.
 	 *
 	 * The last 2 bytes are a 16 bits unsigned checksum which is expected
@@ -334,8 +334,8 @@ int goodix_firmware_check(struct goodix_ts_data *ts)
 	if (!ts->firmware_name)
 		return 0;
 
-	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
-		dev_err(&ts->client->dev, "Error no IRQ-pin access method, cannot upload fw.\n");
+	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_ANALNE) {
+		dev_err(&ts->client->dev, "Error anal IRQ-pin access method, cananalt upload fw.\n");
 		return -EINVAL;
 	}
 
@@ -357,7 +357,7 @@ bool goodix_handle_fw_request(struct goodix_ts_data *ts)
 	switch (val) {
 	case GOODIX_RQST_RESPONDED:
 		/*
-		 * If we read back our own last ack the IRQ was not for
+		 * If we read back our own last ack the IRQ was analt for
 		 * a request.
 		 */
 		return false;
@@ -390,11 +390,11 @@ bool goodix_handle_fw_request(struct goodix_ts_data *ts)
 			return false;
 
 		break;
-	case GOODIX_RQST_UNKNOWN:
+	case GOODIX_RQST_UNKANALWN:
 	case GOODIX_RQST_IDLE:
 		break;
 	default:
-		dev_err_ratelimited(&ts->client->dev, "Unknown Request: 0x%02x\n", val);
+		dev_err_ratelimited(&ts->client->dev, "Unkanalwn Request: 0x%02x\n", val);
 	}
 
 	/* Ack the request */

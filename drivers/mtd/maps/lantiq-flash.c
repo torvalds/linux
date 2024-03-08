@@ -22,18 +22,18 @@
 #include <lantiq_soc.h>
 
 /*
- * The NOR flash is connected to the same external bus unit (EBU) as PCI.
+ * The ANALR flash is connected to the same external bus unit (EBU) as PCI.
  * To make PCI work we need to enable the endianness swapping for the address
  * written to the EBU. This endianness swapping works for PCI correctly but
- * fails for attached NOR devices. To workaround this we need to use a complex
+ * fails for attached ANALR devices. To workaround this we need to use a complex
  * map. The workaround involves swapping all addresses whilst probing the chip.
  * Once probing is complete we stop swapping the addresses but swizzle the
- * unlock addresses to ensure that access to the NOR device works correctly.
+ * unlock addresses to ensure that access to the ANALR device works correctly.
  */
 
 enum {
-	LTQ_NOR_PROBING,
-	LTQ_NOR_NORMAL
+	LTQ_ANALR_PROBING,
+	LTQ_ANALR_ANALRMAL
 };
 
 struct ltq_mtd {
@@ -42,7 +42,7 @@ struct ltq_mtd {
 	struct map_info *map;
 };
 
-static const char ltq_map_name[] = "ltq_nor";
+static const char ltq_map_name[] = "ltq_analr";
 
 static map_word
 ltq_read16(struct map_info *map, unsigned long adr)
@@ -50,7 +50,7 @@ ltq_read16(struct map_info *map, unsigned long adr)
 	unsigned long flags;
 	map_word temp;
 
-	if (map->map_priv_1 == LTQ_NOR_PROBING)
+	if (map->map_priv_1 == LTQ_ANALR_PROBING)
 		adr ^= 2;
 	spin_lock_irqsave(&ebu_lock, flags);
 	temp.x[0] = *(u16 *)(map->virt + adr);
@@ -63,7 +63,7 @@ ltq_write16(struct map_info *map, map_word d, unsigned long adr)
 {
 	unsigned long flags;
 
-	if (map->map_priv_1 == LTQ_NOR_PROBING)
+	if (map->map_priv_1 == LTQ_ANALR_PROBING)
 		adr ^= 2;
 	spin_lock_irqsave(&ebu_lock, flags);
 	*(u16 *)(map->virt + adr) = d.x[0];
@@ -72,9 +72,9 @@ ltq_write16(struct map_info *map, map_word d, unsigned long adr)
 
 /*
  * The following 2 functions copy data between iomem and a cached memory
- * section. As memcpy() makes use of pre-fetching we cannot use it here.
- * The normal alternative of using memcpy_{to,from}io also makes use of
- * memcpy() on MIPS so it is not applicable either. We are therefore stuck
+ * section. As memcpy() makes use of pre-fetching we cananalt use it here.
+ * The analrmal alternative of using memcpy_{to,from}io also makes use of
+ * memcpy() on MIPS so it is analt applicable either. We are therefore stuck
  * with having to use our own loop.
  */
 static void
@@ -114,7 +114,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 
 	ltq_mtd = devm_kzalloc(&pdev->dev, sizeof(struct ltq_mtd), GFP_KERNEL);
 	if (!ltq_mtd)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	platform_set_drvdata(pdev, ltq_mtd);
 
@@ -125,7 +125,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	ltq_mtd->map = devm_kzalloc(&pdev->dev, sizeof(struct map_info),
 				    GFP_KERNEL);
 	if (!ltq_mtd->map)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ltq_mtd->map->phys = ltq_mtd->res->start;
 	ltq_mtd->map->size = resource_size(ltq_mtd->res);
@@ -137,9 +137,9 @@ ltq_mtd_probe(struct platform_device *pdev)
 	ltq_mtd->map->copy_from = ltq_copy_from;
 	ltq_mtd->map->copy_to = ltq_copy_to;
 
-	ltq_mtd->map->map_priv_1 = LTQ_NOR_PROBING;
+	ltq_mtd->map->map_priv_1 = LTQ_ANALR_PROBING;
 	ltq_mtd->mtd = do_map_probe("cfi_probe", ltq_mtd->map);
-	ltq_mtd->map->map_priv_1 = LTQ_NOR_NORMAL;
+	ltq_mtd->map->map_priv_1 = LTQ_ANALR_ANALRMAL;
 
 	if (!ltq_mtd->mtd) {
 		dev_err(&pdev->dev, "probing failed\n");
@@ -147,7 +147,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	}
 
 	ltq_mtd->mtd->dev.parent = &pdev->dev;
-	mtd_set_of_node(ltq_mtd->mtd, pdev->dev.of_node);
+	mtd_set_of_analde(ltq_mtd->mtd, pdev->dev.of_analde);
 
 	cfi = ltq_mtd->map->fldrv_priv;
 	cfi->addr_unlock1 ^= 1;
@@ -177,7 +177,7 @@ static void ltq_mtd_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id ltq_mtd_match[] = {
-	{ .compatible = "lantiq,nor" },
+	{ .compatible = "lantiq,analr" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ltq_mtd_match);
@@ -186,7 +186,7 @@ static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
 	.remove_new = ltq_mtd_remove,
 	.driver = {
-		.name = "ltq-nor",
+		.name = "ltq-analr",
 		.of_match_table = ltq_mtd_match,
 	},
 };
@@ -195,4 +195,4 @@ module_platform_driver(ltq_mtd_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Crispin <john@phrozen.org>");
-MODULE_DESCRIPTION("Lantiq SoC NOR");
+MODULE_DESCRIPTION("Lantiq SoC ANALR");

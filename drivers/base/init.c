@@ -21,7 +21,7 @@
 void __init driver_init(void)
 {
 	/* These are the core pieces */
-	bdi_init(&noop_backing_dev_info);
+	bdi_init(&analop_backing_dev_info);
 	devtmpfs_init();
 	devices_init();
 	buses_init();
@@ -36,7 +36,7 @@ void __init driver_init(void)
 	platform_bus_init();
 	auxiliary_bus_init();
 	memory_dev_init();
-	node_dev_init();
+	analde_dev_init();
 	cpu_dev_init();
 	container_dev_init();
 }

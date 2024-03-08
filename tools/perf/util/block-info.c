@@ -4,7 +4,7 @@
 #include <linux/zalloc.h>
 #include "block-info.h"
 #include "sort.h"
-#include "annotate.h"
+#include "ananaltate.h"
 #include "symbol.h"
 #include "dso.h"
 #include "map.h"
@@ -116,7 +116,7 @@ static void init_block_info(struct block_info *bi, struct symbol *sym,
 int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 			    u64 *block_cycles_aggr, u64 total_cycles)
 {
-	struct annotation *notes;
+	struct ananaltation *analtes;
 	struct cyc_hist *ch;
 	static struct addr_location al;
 	u64 cycles = 0;
@@ -128,10 +128,10 @@ int block_info__process_sym(struct hist_entry *he, struct block_hist *bh,
 	al.map = he->ms.map;
 	al.sym = he->ms.sym;
 
-	notes = symbol__annotation(he->ms.sym);
-	if (!notes || !notes->branch || !notes->branch->cycles_hist)
+	analtes = symbol__ananaltation(he->ms.sym);
+	if (!analtes || !analtes->branch || !analtes->branch->cycles_hist)
 		return 0;
-	ch = notes->branch->cycles_hist;
+	ch = analtes->branch->cycles_hist;
 	for (unsigned int i = 0; i < symbol__size(he->ms.sym); i++) {
 		if (ch[i].num_aggr) {
 			struct block_info *bi;
@@ -296,8 +296,8 @@ static int block_range_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	end_line = map__srcline(he->ms.map, bi->sym->start + bi->end,
 				he->ms.sym);
 
-	if (start_line != SRCLINE_UNKNOWN &&
-	    end_line != SRCLINE_UNKNOWN) {
+	if (start_line != SRCLINE_UNKANALWN &&
+	    end_line != SRCLINE_UNKANALWN) {
 		scnprintf(buf, sizeof(buf), "[%s -> %s]",
 			  start_line, end_line);
 	} else {
@@ -323,7 +323,7 @@ static int block_dso_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	}
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,
-			 "[unknown]");
+			 "[unkanalwn]");
 }
 
 static void init_block_header(struct block_fmt *block_fmt)
@@ -404,7 +404,7 @@ static int process_block_report(struct hists *hists,
 				u64 total_cycles, int *block_hpps,
 				int nr_hpps)
 {
-	struct rb_node *next = rb_first_cached(&hists->entries);
+	struct rb_analde *next = rb_first_cached(&hists->entries);
 	struct block_hist *bh = &block_report->hist;
 	struct hist_entry *he;
 
@@ -415,10 +415,10 @@ static int process_block_report(struct hists *hists,
 	init_block_hist(bh, block_report->fmts, block_hpps, nr_hpps);
 
 	while (next) {
-		he = rb_entry(next, struct hist_entry, rb_node);
+		he = rb_entry(next, struct hist_entry, rb_analde);
 		block_info__process_sym(he, bh, &block_report->cycles,
 					total_cycles);
-		next = rb_next(&he->rb_node);
+		next = rb_next(&he->rb_analde);
 	}
 
 	for (int i = 0; i < nr_hpps; i++) {

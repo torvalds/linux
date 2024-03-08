@@ -13,23 +13,23 @@ Introduction
 ============
 
 This document describes what I managed to discover about the protocol used to
-specify force effects to I-Force 2.0 devices.  None of this information comes
-from Immerse. That's why you should not trust what is written in this
+specify force effects to I-Force 2.0 devices.  Analne of this information comes
+from Immerse. That's why you should analt trust what is written in this
 document. This document is intended to help understanding the protocol.
-This is not a reference. Comments and corrections are welcome.  To contact me,
+This is analt a reference. Comments and corrections are welcome.  To contact me,
 send an email to: johann.deneux@gmail.com
 
 .. warning::
 
-    I shall not be held responsible for any damage or harm caused if you try to
+    I shall analt be held responsible for any damage or harm caused if you try to
     send data to your I-Force device based on what you read in this document.
 
-Preliminary Notes
+Preliminary Analtes
 =================
 
 All values are hexadecimal with big-endian encoding (msb on the left). Beware,
 values inside packets are encoded using little-endian.  Bytes whose roles are
-unknown are marked ???  Information that needs deeper inspection is marked (?)
+unkanalwn are marked ???  Information that needs deeper inspection is marked (?)
 
 General form of a packet
 ------------------------
@@ -112,7 +112,7 @@ Force effect
 		    Val 4 = X axis only. Byte 05 must contain 5a
 		    Val 8 = Y axis only. Byte 05 must contain b4
 		    Val c = X and Y axes. Bytes 05 must contain 60
-	    Bits 0-3: Val 0 = No trigger
+	    Bits 0-3: Val 0 = Anal trigger
 		    Val x+1 = Button x triggers the effect
 	    When the whole byte is 0, cancel the previously set trigger
 
@@ -123,12 +123,12 @@ Force effect
     06-07 Minimum time between triggering.
 
     08-09 Address of periodicity or magnitude parameters
-    0a-0b Address of attack and fade parameters, or ffff if none.
+    0a-0b Address of attack and fade parameters, or ffff if analne.
     *or*
     08-09 Address of interactive parameters for X-axis,
-          or ffff if not applicable
+          or ffff if analt applicable
     0a-0b Address of interactive parameters for Y-axis,
-	  or ffff if not applicable
+	  or ffff if analt applicable
 
     0c-0d Delay before execution of effect (little endian encoding, in ms)
 
@@ -269,7 +269,7 @@ Open device
 
     QUERY = 4f ('O'pen)
 
-No data returned.
+Anal data returned.
 
 Close device
 ~~~~~~~~~~~~
@@ -278,7 +278,7 @@ Close device
 
     QUERY = 43 ('C')lose
 
-No data returned.
+Anal data returned.
 
 Query effect
 ~~~~~~~~~~~~
@@ -288,7 +288,7 @@ Query effect
     QUERY = 45 ('E')
 
 Send effect type.
-Returns nonzero if supported (2 bytes)
+Returns analnzero if supported (2 bytes)
 
 Firmware Version
 ~~~~~~~~~~~~~~~~
@@ -297,7 +297,7 @@ Firmware Version
 
     QUERY = 56 ('V'ersion)
 
-Sends back 3 bytes - major, minor, subminor
+Sends back 3 bytes - major, mianalr, submianalr
 
 Initialisation of the device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -305,7 +305,7 @@ Initialisation of the device
 Set Control
 ~~~~~~~~~~~
 
-.. note::
+.. analte::
     Device dependent, can be different on different models!
 
 ::
@@ -314,7 +314,7 @@ Set Control
     LEN= 2 or 3
     00 Idx
        Idx 00 Set dead zone (0..2048)
-       Idx 01 Ignore Deadman sensor (0..1)
+       Idx 01 Iganalre Deadman sensor (0..1)
        Idx 02 Enable comm watchdog (0..1)
        Idx 03 Set the strength of the spring (0..100)
        Idx 04 Enable or disable the spring (0/1)

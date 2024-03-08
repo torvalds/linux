@@ -13,7 +13,7 @@
  *              compensation is added to clamping duration when excessive amount
  *              of wakeups are observed during idle time. the reason is that in
  *              case of external interrupts without need for ack, clamping down
- *              cpu in non-irq context does not reduce irq. for majority of the
+ *              cpu in analn-irq context does analt reduce irq. for majority of the
  *              cases, clamping down cpu does help reduce irq as well, we should
  *              be able to differentiate the two cases and give a quantitative
  *              solution for the irqs that we can control. perhaps based on
@@ -38,7 +38,7 @@
 #include <asm/cpu_device_id.h>
 
 #define MAX_TARGET_RATIO (100U)
-/* For each undisturbed clamping period (no extra wake ups during idle time),
+/* For each undisturbed clamping period (anal extra wake ups during idle time),
  * we increment the confidence counter for the given target ratio.
  * CONFIDENCE_OK defines the level where runtime calibration results are
  * valid.
@@ -62,7 +62,7 @@ struct powerclamp_data {
 	unsigned int cpu;
 	unsigned int count;
 	unsigned int guard;
-	unsigned int window_size_now;
+	unsigned int window_size_analw;
 	unsigned int target_ratio;
 	bool clamping;
 };
@@ -134,7 +134,7 @@ static int allocate_copy_idle_injection_mask(const struct cpumask *copy_mask)
 
 	/* This mask is allocated only one time and freed during module exit */
 	if (!alloc_cpumask_var(&idle_injection_cpu_mask, GFP_KERNEL))
-		return -ENOMEM;
+		return -EANALMEM;
 
 copy_mask:
 	cpumask_copy(idle_injection_cpu_mask, copy_mask);
@@ -198,7 +198,7 @@ skip_cpumask_set:
 static int cpumask_get(char *buf, const struct kernel_param *kp)
 {
 	if (!cpumask_available(idle_injection_cpu_mask))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return bitmap_print_to_pagebuf(false, buf, cpumask_bits(idle_injection_cpu_mask),
 				       nr_cpumask_bits);
@@ -269,7 +269,7 @@ struct powerclamp_calibration_data {
 				    * compensation is deemed usable.
 				    */
 	unsigned long steady_comp; /* steady state compensation used when
-				    * no extra wakeups occurred.
+				    * anal extra wakeups occurred.
 				    */
 	unsigned long dynamic_comp; /* compensate excessive wakeup from idle
 				     * mostly from external interrupts.
@@ -397,7 +397,7 @@ static unsigned int get_compensation(int ratio)
 			cal_data[ratio + 1].steady_comp) / 3;
 	}
 
-	/* do not exceed limit */
+	/* do analt exceed limit */
 	if (comp + ratio >= MAX_TARGET_RATIO)
 		comp = MAX_TARGET_RATIO - ratio - 1;
 
@@ -410,7 +410,7 @@ static void adjust_compensation(int target_ratio, unsigned int win)
 	struct powerclamp_calibration_data *d = &cal_data[target_ratio];
 
 	/*
-	 * adjust compensations if confidence level has not been reached.
+	 * adjust compensations if confidence level has analt been reached.
 	 */
 	if (d->confidence >= CONFIDENCE_OK)
 		return;
@@ -431,25 +431,25 @@ static bool powerclamp_adjust_controls(unsigned int target_ratio,
 				unsigned int guard, unsigned int win)
 {
 	static u64 msr_last, tsc_last;
-	u64 msr_now, tsc_now;
+	u64 msr_analw, tsc_analw;
 	u64 val64;
 
 	/* check result for the last window */
-	msr_now = pkg_state_counter();
-	tsc_now = rdtsc();
+	msr_analw = pkg_state_counter();
+	tsc_analw = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
 		current_ratio = 1;
-	else if (tsc_now-tsc_last) {
-		val64 = 100*(msr_now-msr_last);
-		do_div(val64, (tsc_now-tsc_last));
+	else if (tsc_analw-tsc_last) {
+		val64 = 100*(msr_analw-msr_last);
+		do_div(val64, (tsc_analw-tsc_last));
 		current_ratio = val64;
 	}
 
 	/* update record */
-	msr_last = msr_now;
-	tsc_last = tsc_now;
+	msr_last = msr_analw;
+	tsc_last = tsc_analw;
 
 	adjust_compensation(target_ratio, win);
 
@@ -467,12 +467,12 @@ static unsigned int get_run_time(void)
 	unsigned int runtime;
 
 	/*
-	 * make sure user selected ratio does not take effect until
+	 * make sure user selected ratio does analt take effect until
 	 * the next round. adjust target_ratio if user has changed
 	 * target such that we can converge quickly.
 	 */
 	powerclamp_data.guard = 1 + powerclamp_data.target_ratio / 20;
-	powerclamp_data.window_size_now = window_size;
+	powerclamp_data.window_size_analw = window_size;
 
 	/*
 	 * systems may have different ability to enter package level
@@ -500,27 +500,27 @@ static void poll_pkg_cstate(struct work_struct *dummy)
 	static u64 msr_last;
 	static u64 tsc_last;
 
-	u64 msr_now;
-	u64 tsc_now;
+	u64 msr_analw;
+	u64 tsc_analw;
 	u64 val64;
 
-	msr_now = pkg_state_counter();
-	tsc_now = rdtsc();
+	msr_analw = pkg_state_counter();
+	tsc_analw = rdtsc();
 
 	/* calculate pkg cstate vs tsc ratio */
 	if (!msr_last || !tsc_last)
 		pkg_cstate_ratio_cur = 1;
 	else {
-		if (tsc_now - tsc_last) {
-			val64 = 100 * (msr_now - msr_last);
-			do_div(val64, (tsc_now - tsc_last));
+		if (tsc_analw - tsc_last) {
+			val64 = 100 * (msr_analw - msr_last);
+			do_div(val64, (tsc_analw - tsc_last));
 			pkg_cstate_ratio_cur = val64;
 		}
 	}
 
 	/* update record */
-	msr_last = msr_now;
-	tsc_last = tsc_now;
+	msr_last = msr_analw;
+	tsc_last = tsc_analw;
 
 	mutex_lock(&powerclamp_lock);
 	if (powerclamp_data.clamping)
@@ -543,11 +543,11 @@ static bool idle_inject_update(void)
 	if (!mutex_trylock(&powerclamp_lock))
 		return true;
 
-	if (!(powerclamp_data.count % powerclamp_data.window_size_now)) {
+	if (!(powerclamp_data.count % powerclamp_data.window_size_analw)) {
 
 		should_skip = powerclamp_adjust_controls(powerclamp_data.target_ratio,
 							 powerclamp_data.guard,
-							 powerclamp_data.window_size_now);
+							 powerclamp_data.window_size_analw);
 		update = true;
 	}
 
@@ -637,7 +637,7 @@ static int start_power_clamp(void)
 
 /*
  * This function is called when user change the cooling device
- * state from non zero value zero.
+ * state from analn zero value zero.
  */
 static void end_power_clamp(void)
 {
@@ -720,14 +720,14 @@ static int __init powerclamp_probe(void)
 {
 
 	if (!x86_match_cpu(intel_powerclamp_ids)) {
-		pr_err("CPU does not support MWAIT\n");
-		return -ENODEV;
+		pr_err("CPU does analt support MWAIT\n");
+		return -EANALDEV;
 	}
 
 	/* The goal for idle time alignment is to achieve package cstate. */
 	if (!has_pkg_state_counter()) {
-		pr_info("No package C-state available\n");
-		return -ENODEV;
+		pr_info("Anal package C-state available\n");
+		return -EANALDEV;
 	}
 
 	return 0;
@@ -782,7 +782,7 @@ static int __init powerclamp_init(void)
 	cooling_dev = thermal_cooling_device_register("intel_powerclamp", NULL,
 						      &powerclamp_cooling_ops);
 	if (IS_ERR(cooling_dev))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!duration)
 		duration = jiffies_to_usecs(DEFAULT_DURATION_JIFFIES);

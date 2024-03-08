@@ -66,7 +66,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 	}
 	memcpy(dst, mpeg_hdr_data, sizeof(mpeg_hdr_data));
 	if (line == 36) {
-		/* All lines are used, so there is no space for the linemask
+		/* All lines are used, so there is anal space for the linemask
 		   (the max size of the VBI data is 36 * 43 + 4 bytes).
 		   So in this case we use the magic number 'ITV0'. */
 		memcpy(dst + sd, "ITV0", 4);
@@ -91,7 +91,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 
 /* Compress raw VBI format, removes leading SAV codes and surplus space
    after the frame.  Returns new compressed size. */
-/* FIXME - this function ignores the input size. */
+/* FIXME - this function iganalres the input size. */
 static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size, u32 hdr_size)
 {
 	u32 line_size = VBI_ACTIVE_SAMPLES;
@@ -144,8 +144,8 @@ static u32 compress_sliced_buf(struct cx18 *cx, u8 *buf, u32 size,
 
 	/*
 	 * The last line is short by hdr_size bytes, but for the remaining
-	 * checks against size, we pretend that it is not, by counting the
-	 * header bytes we knowingly skipped
+	 * checks against size, we pretend that it is analt, by counting the
+	 * header bytes we kanalwingly skipped
 	 */
 	size -= (i - hdr_size);
 	if (size < line_size)
@@ -180,7 +180,7 @@ static void _cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf)
 	 */
 	struct vbi_data_hdr {
 		__be32 magic;
-		__be32 unknown;
+		__be32 unkanalwn;
 		__be32 pts;
 	} *hdr = (struct vbi_data_hdr *) buf->buf;
 

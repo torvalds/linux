@@ -9,7 +9,7 @@
  */
 #include <linux/aperture.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -20,7 +20,7 @@
 #include "carminefb_regs.h"
 
 #if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
-#error  "The endianness of the target host has not been defined."
+#error  "The endianness of the target host has analt been defined."
 #endif
 
 /*
@@ -29,7 +29,7 @@
  * - as an integer that picks the video mode from carmine_modedb[] (module
  *   option fb_mode)
  *
- * If nothing is used than the initial video mode will be the
+ * If analthing is used than the initial video mode will be the
  * CARMINEFB_DEFAULT_VIDEO_MODE member of the carmine_modedb[].
  */
 #define CARMINEFB_DEFAULT_VIDEO_MODE	1
@@ -44,7 +44,7 @@ MODULE_PARM_DESC(fb_mode_str, "Initial video mode in characters.");
 
 /*
  * Carminefb displays:
- * 0b000 None
+ * 0b000 Analne
  * 0b001 Display 0
  * 0b010 Display 1
  */
@@ -84,7 +84,7 @@ static struct fb_fix_screeninfo carminefb_fix = {
 	.id = "Carmine",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_TRUECOLOR,
-	.accel = FB_ACCEL_NONE,
+	.accel = FB_ACCEL_ANALNE,
 };
 
 static const struct fb_videomode carmine_modedb[] = {
@@ -161,10 +161,10 @@ static u32 c_get_hw_reg(const struct carmine_hw *hw,
 	return readl(hw->v_regs + offset);
 }
 
-static int carmine_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int carmine_setcolreg(unsigned reganal, unsigned red, unsigned green,
 		unsigned blue, unsigned transp, struct fb_info *info)
 {
-	if (regno >= 16)
+	if (reganal >= 16)
 		return 1;
 
 	red >>= 8;
@@ -172,7 +172,7 @@ static int carmine_setcolreg(unsigned regno, unsigned red, unsigned green,
 	blue >>= 8;
 	transp >>= 8;
 
-	((__be32 *)info->pseudo_palette)[regno] = cpu_to_be32(transp << 24 |
+	((__be32 *)info->pseudo_palette)[reganal] = cpu_to_be32(transp << 24 |
 		red << 0 | green << 8 | blue << 16);
 	return 0;
 }
@@ -186,7 +186,7 @@ static int carmine_check_var(struct fb_var_screeninfo *var,
 	if (ret < 0)
 		return ret;
 
-	if (var->grayscale || var->rotate || var->nonstd)
+	if (var->grayscale || var->rotate || var->analnstd)
 		return -EINVAL;
 
 	var->xres_virtual = var->xres;
@@ -546,7 +546,7 @@ static int alloc_carmine_fb(void __iomem *regs, void __iomem *smem_base,
 
 	info = framebuffer_alloc(sizeof *par, device);
 	if (!info)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	par = info->par;
 	par->display_reg = regs;
@@ -619,7 +619,7 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	hw = kzalloc(sizeof *hw, GFP_KERNEL);
 	if (!hw)
 		goto err_enable_pci;
@@ -728,7 +728,7 @@ static void carminefb_remove(struct pci_dev *dev)
 	struct fb_fix_screeninfo fix;
 	int i;
 
-	/* in case we use only fb1 and not fb1 */
+	/* in case we use only fb1 and analt fb1 */
 	if (hw->fb[0])
 		fix = hw->fb[0]->fix;
 	else
@@ -770,7 +770,7 @@ static struct pci_driver carmine_pci_driver = {
 static int __init carminefb_init(void)
 {
 	if (fb_modesetting_disabled("carminefb"))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!(fb_displays &
 		(CARMINE_USE_DISPLAY0 | CARMINE_USE_DISPLAY1))) {

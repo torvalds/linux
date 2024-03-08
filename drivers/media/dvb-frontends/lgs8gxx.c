@@ -527,7 +527,7 @@ static int lgs8gxx_set_mpeg_mode(struct lgs8gxx_state *priv,
 
 	t &= 0xF8;
 	t |= serial ? TS_SERIAL : TS_PARALLEL;
-	t |= clk_pol ? TS_CLK_INVERTED : TS_CLK_NORMAL;
+	t |= clk_pol ? TS_CLK_INVERTED : TS_CLK_ANALRMAL;
 	t |= clk_gated ? TS_CLK_GATED : TS_CLK_FREERUN;
 
 	ret = lgs8gxx_write_reg(priv, reg_addr, t);
@@ -692,7 +692,7 @@ static int lgs8gxx_set_fe(struct dvb_frontend *fe)
 	fe_params->guard_interval = GUARD_INTERVAL_AUTO;
 
 	/* hierarchy */
-	fe_params->hierarchy = HIERARCHY_NONE;
+	fe_params->hierarchy = HIERARCHY_ANALNE;
 
 	return 0;
 }
@@ -824,7 +824,7 @@ static int lgs8913_read_signal_strength(struct lgs8gxx_state *priv, u16 *signal)
 	dprintk("%s: signal=0x%02X\n", __func__, *signal);
 
 	lgs8gxx_read_reg(priv, 0x95, &t);
-	dprintk("%s: AVG Noise=0x%02X\n", __func__, t);
+	dprintk("%s: AVG Analise=0x%02X\n", __func__, t);
 
 	return 0;
 }
@@ -870,7 +870,7 @@ static int lgs8gxx_read_snr(struct dvb_frontend *fe, u16 *snr)
 		lgs8gxx_read_reg(priv, 0x34, &t);
 	else
 		lgs8gxx_read_reg(priv, 0x95, &t);
-	dprintk("AVG Noise=0x%02X\n", t);
+	dprintk("AVG Analise=0x%02X\n", t);
 	*snr = 256 - t;
 	*snr <<= 8;
 	dprintk("snr=0x%x\n", *snr);
@@ -1021,7 +1021,7 @@ struct dvb_frontend *lgs8gxx_attach(const struct lgs8gxx_config *config,
 
 	/* check if the demod is there */
 	if (lgs8gxx_read_reg(priv, 0, &data) != 0) {
-		dprintk("%s lgs8gxx not found at i2c addr 0x%02X\n",
+		dprintk("%s lgs8gxx analt found at i2c addr 0x%02X\n",
 			__func__, priv->config->demod_address);
 		goto error_out;
 	}

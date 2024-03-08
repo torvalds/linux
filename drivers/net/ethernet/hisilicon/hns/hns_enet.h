@@ -52,7 +52,7 @@ struct hns_nic_ops {
 };
 
 struct hns_nic_priv {
-	const struct fwnode_handle      *fwnode;
+	const struct fwanalde_handle      *fwanalde;
 	u32 enet_ver;
 	u32 port_id;
 	int phy_mode;
@@ -78,7 +78,7 @@ struct hns_nic_priv {
 
 	struct work_struct service_task;
 
-	struct notifier_block notifier_block;
+	struct analtifier_block analtifier_block;
 };
 
 #define tx_ring_data(priv, idx) ((priv)->ring_data[idx])

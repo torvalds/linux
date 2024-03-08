@@ -6,7 +6,7 @@
  *
  * MD0: CPG - Clock Mode 0->3
  * MD1: CPG - Clock Mode 0->3
- * MD2: CPG - Reserved (L: Normal operation)
+ * MD2: CPG - Reserved (L: Analrmal operation)
  * MD3: BSC - Area0 Bus Width (16/32-bit) [CS0BCR.9,10]
  * MD5: BSC - Endian Mode (L: Big, H: Little) [CMNCR.3]
  * MD8: Test Mode

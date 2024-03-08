@@ -17,7 +17,7 @@ struct ipa;
  * @server_handle:	Used to handle QMI requests from the modem
  * @modem_sq:		QMAP socket address for the modem QMI server
  * @init_driver_work:	Work structure used for INIT_DRIVER message handling
- * @initial_boot:	True if first boot has not yet completed
+ * @initial_boot:	True if first boot has analt yet completed
  * @uc_ready:		True once DRIVER_INIT_COMPLETE request received
  * @modem_ready:	True when INIT_DRIVER response received
  * @indication_requested: True when INDICATION_REGISTER request received
@@ -45,9 +45,9 @@ struct ipa_qmi {
  *
  * This is called at the end of ipa_setup(), to prepare for the exchange
  * of QMI messages that perform a "handshake" between the AP and modem.
- * When the modem QMI server announces its presence, an AP request message
+ * When the modem QMI server ananalunces its presence, an AP request message
  * supplies operating parameters to be used to the modem, and the modem
- * acknowledges receipt of those parameters.  The modem will not touch the
+ * ackanalwledges receipt of those parameters.  The modem will analt touch the
  * IPA hardware until this handshake is complete.
  *
  * If the modem crashes (or shuts down) a new handshake begins when the

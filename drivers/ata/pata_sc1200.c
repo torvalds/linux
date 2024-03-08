@@ -84,13 +84,13 @@ static void sc1200_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 format;
-	unsigned int reg = 0x40 + 0x10 * ap->port_no;
+	unsigned int reg = 0x40 + 0x10 * ap->port_anal;
 	int mode = adev->pio_mode - XFER_PIO_0;
 
 	pci_read_config_dword(pdev, reg + 4, &format);
 	format >>= 31;
 	format += sc1200_clock();
-	pci_write_config_dword(pdev, reg + 8 * adev->devno,
+	pci_write_config_dword(pdev, reg + 8 * adev->devanal,
 				pio_timings[format][mode]);
 }
 
@@ -99,7 +99,7 @@ static void sc1200_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	@ap: ATA interface
  *	@adev: Device being configured
  *
- *	We cannot mix MWDMA and UDMA without reloading timings each switch
+ *	We cananalt mix MWDMA and UDMA without reloading timings each switch
  *	master to slave.
  */
 
@@ -119,7 +119,7 @@ static void sc1200_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	int clock = sc1200_clock();
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	unsigned int reg = 0x40 + 0x10 * ap->port_no;
+	unsigned int reg = 0x40 + 0x10 * ap->port_anal;
 	int mode = adev->dma_mode;
 	u32 format;
 
@@ -128,7 +128,7 @@ static void sc1200_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	else
 		format = mwdma_timing[clock][mode - XFER_MW_DMA_0];
 
-	if (adev->devno == 0) {
+	if (adev->devanal == 0) {
 		u32 timings;
 
 		pci_read_config_dword(pdev, reg + 4, &timings);
@@ -177,7 +177,7 @@ static unsigned int sc1200_qc_issue(struct ata_queued_cmd *qc)
 static int sc1200_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_host *host = qc->ap->host;
-	struct ata_port *alt = host->ports[1 ^ qc->ap->port_no];
+	struct ata_port *alt = host->ports[1 ^ qc->ap->port_anal];
 	int rc;
 
 	/* First apply the usual rules */
@@ -185,7 +185,7 @@ static int sc1200_qc_defer(struct ata_queued_cmd *qc)
 	if (rc != 0)
 		return rc;
 
-	/* Now apply serialization rules. Only allow a command if the
+	/* Analw apply serialization rules. Only allow a command if the
 	   other channel state machine is idle */
 	if (alt && alt->qc_active)
 		return	ATA_DEFER_PORT;

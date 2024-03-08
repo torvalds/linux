@@ -28,7 +28,7 @@
 /* needed for logical [in,out]-dev filtering */
 #include "../br_private.h"
 
-/* Each cpu has its own set of counters, so there is no need for write_lock in
+/* Each cpu has its own set of counters, so there is anal need for write_lock in
  * the softirq
  * For reading or updating the counters, the user context needs to
  * get a write_lock
@@ -143,7 +143,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 	if (e->bitmask & EBT_802_3) {
 		if (NF_INVF(e, EBT_IPROTO, eth_proto_is_802_3(ethproto)))
 			return 1;
-	} else if (!(e->bitmask & EBT_NOPROTO) &&
+	} else if (!(e->bitmask & EBT_ANALPROTO) &&
 		   NF_INVF(e, EBT_IPROTO, e->ethproto != ethproto))
 		return 1;
 
@@ -236,7 +236,7 @@ unsigned int ebt_do_table(void *priv, struct sk_buff *skb,
 
 		ADD_COUNTER(*(counter_base + i), skb->len, 1);
 
-		/* these should only watch: not modify, nor tell us
+		/* these should only watch: analt modify, analr tell us
 		 * what to do with the packet
 		 */
 		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &acpar);
@@ -290,7 +290,7 @@ letsreturn:
 		i = 0;
 		chaininfo = (struct ebt_entries *) (base + verdict);
 
-		if (WARN(chaininfo->distinguisher, "jump to non-chain\n")) {
+		if (WARN(chaininfo->distinguisher, "jump to analn-chain\n")) {
 			read_unlock_bh(&table->lock);
 			return NF_DROP;
 		}
@@ -318,7 +318,7 @@ letscontinue:
 
 /* If it succeeds, returns element and locks mutex */
 static inline void *
-find_inlist_lock_noload(struct net *net, const char *name, int *error,
+find_inlist_lock_analload(struct net *net, const char *name, int *error,
 			struct mutex *mutex)
 {
 	struct ebt_pernet *ebt_net = net_generic(net, ebt_pernet_id);
@@ -358,7 +358,7 @@ find_inlist_lock_noload(struct net *net, const char *name, int *error,
 	}
 
 out:
-	*error = -ENOENT;
+	*error = -EANALENT;
 	mutex_unlock(mutex);
 	return NULL;
 }
@@ -368,7 +368,7 @@ find_inlist_lock(struct net *net, const char *name, const char *prefix,
 		 int *error, struct mutex *mutex)
 {
 	return try_then_request_module(
-			find_inlist_lock_noload(net, name, error, mutex),
+			find_inlist_lock_analload(net, name, error, mutex),
 			"%s%s", prefix, name);
 }
 
@@ -445,7 +445,7 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct xt_tgchk_param *par,
 
 	if (watcher->family != NFPROTO_BRIDGE) {
 		module_put(watcher->me);
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	w->u.watcher = watcher;
@@ -495,7 +495,7 @@ static int ebt_verify_pointers(const struct ebt_replace *repl,
 		if (i != NF_BR_NUMHOOKS || !(e->bitmask & EBT_ENTRY_OR_ENTRIES)) {
 			if (e->bitmask != 0) {
 				/* we make userspace set this right,
-				 * so there is no misunderstanding
+				 * so there is anal misunderstanding
 				 */
 				return -EINVAL;
 			}
@@ -572,7 +572,7 @@ ebt_check_entry_size_and_hooks(const struct ebt_entry *e,
 	   e->target_offset >= e->next_offset)
 		return -EINVAL;
 
-	/* this is not checked anywhere else */
+	/* this is analt checked anywhere else */
 	if (e->next_offset - e->target_offset < sizeof(struct ebt_entry_target))
 		return -EINVAL;
 
@@ -701,7 +701,7 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 	if (e->invflags & ~EBT_INV_MASK)
 		return -EINVAL;
 
-	if ((e->bitmask & EBT_NOPROTO) && (e->bitmask & EBT_802_3))
+	if ((e->bitmask & EBT_ANALPROTO) && (e->bitmask & EBT_802_3))
 		return -EINVAL;
 
 	/* what hook do we belong to? */
@@ -755,7 +755,7 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 	/* Reject UNSPEC, xtables verdicts/return values are incompatible */
 	if (target->family != NFPROTO_BRIDGE) {
 		module_put(target->me);
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto cleanup_watchers;
 	}
 
@@ -829,7 +829,7 @@ static int check_chainloops(const struct ebt_entries *chain, struct ebt_cl_stack
 			return -1;
 
 		verdict = ((struct ebt_standard_target *)t)->verdict;
-		if (verdict >= 0) { /* jump to another chain */
+		if (verdict >= 0) { /* jump to aanalther chain */
 			struct ebt_entries *hlp2 =
 			   (struct ebt_entries *)(base + verdict);
 			for (i = 0; i < udc_cnt; i++)
@@ -894,7 +894,7 @@ static int translate_table(struct net *net, const char *name,
 
 	/* do some early checkings and initialize some things */
 	i = 0; /* holds the expected nr. of entries for the chain */
-	j = 0; /* holds the up to now counted entries for the chain */
+	j = 0; /* holds the up to analw counted entries for the chain */
 	k = 0; /* holds the total nr. of entries, should equal
 		* newinfo->nentries afterwards
 		*/
@@ -923,24 +923,24 @@ static int translate_table(struct net *net, const char *name,
 			vmalloc(array_size(nr_cpu_ids,
 					   sizeof(*(newinfo->chainstack))));
 		if (!newinfo->chainstack)
-			return -ENOMEM;
+			return -EANALMEM;
 		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
-			  vmalloc_node(array_size(udc_cnt,
+			  vmalloc_analde(array_size(udc_cnt,
 					  sizeof(*(newinfo->chainstack[0]))),
-				       cpu_to_node(i));
+				       cpu_to_analde(i));
 			if (!newinfo->chainstack[i]) {
 				while (i)
 					vfree(newinfo->chainstack[--i]);
 				vfree(newinfo->chainstack);
 				newinfo->chainstack = NULL;
-				return -ENOMEM;
+				return -EANALMEM;
 			}
 		}
 
 		cl_s = vmalloc(array_size(udc_cnt, sizeof(*cl_s)));
 		if (!cl_s)
-			return -ENOMEM;
+			return -EANALMEM;
 		i = 0; /* the i'th udc */
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_get_udc_positions, newinfo, &i, cl_s);
@@ -960,18 +960,18 @@ static int translate_table(struct net *net, const char *name,
 				return -EINVAL;
 			}
 
-	/* we now know the following (along with E=mc²):
+	/* we analw kanalw the following (along with E=mc²):
 	 *  - the nr of entries in each chain is right
 	 *  - the size of the allocated space is right
 	 *  - all valid hooks have a corresponding chain
-	 *  - there are no loops
+	 *  - there are anal loops
 	 *  - wrong data can still be on the level of a single entry
-	 *  - could be there are jumps to places that are not the
+	 *  - could be there are jumps to places that are analt the
 	 *    beginning of a chain. This can only occur in chains that
-	 *    are not accessible from any base chains, so we don't care.
+	 *    are analt accessible from any base chains, so we don't care.
 	 */
 
-	/* used to know what we need to clean up if something goes wrong */
+	/* used to kanalw what we need to clean up if something goes wrong */
 	i = 0;
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_check_entry, net, newinfo, name, &i, cl_s, udc_cnt);
@@ -1021,7 +1021,7 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 		unsigned long size = repl->num_counters * sizeof(*counterstmp);
 		counterstmp = vmalloc(size);
 		if (!counterstmp)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	newinfo->chainstack = NULL;
@@ -1036,7 +1036,7 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 
 	t = find_table_lock(net, repl->name, &ret, &ebt_mutex);
 	if (!t) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto free_iterate;
 	}
 
@@ -1050,11 +1050,11 @@ static int do_replace_finish(struct net *net, struct ebt_replace *repl,
 		goto free_unlock;
 	}
 
-	/* we have the mutex lock, so no danger in reading this pointer */
+	/* we have the mutex lock, so anal danger in reading this pointer */
 	table = t->private;
-	/* make sure the table can only be rmmod'ed if it contains no rules */
+	/* make sure the table can only be rmmod'ed if it contains anal rules */
 	if (!table->nentries && newinfo->nentries && !try_module_get(t->me)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto free_unlock;
 	} else if (table->nentries && !newinfo->nentries)
 		module_put(t->me);
@@ -1123,23 +1123,23 @@ static int do_replace(struct net *net, sockptr_t arg, unsigned int len)
 	/* overflow check */
 	if (tmp.nentries >= ((INT_MAX - sizeof(struct ebt_table_info)) /
 			NR_CPUS - SMP_CACHE_BYTES) / sizeof(struct ebt_counter))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	tmp.name[sizeof(tmp.name) - 1] = 0;
 
 	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
 	newinfo = __vmalloc(sizeof(*newinfo) + countersize, GFP_KERNEL_ACCOUNT);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (countersize)
 		memset(newinfo->counters, 0, countersize);
 
 	newinfo->entries = __vmalloc(tmp.entries_size, GFP_KERNEL_ACCOUNT);
 	if (!newinfo->entries) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_newinfo;
 	}
 	if (copy_from_user(
@@ -1196,13 +1196,13 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 	/* Don't add one table to multiple lists. */
 	table = kmemdup(input_table, sizeof(struct ebt_table), GFP_KERNEL);
 	if (!table) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	countersize = COUNTER_OFFSET(repl->nentries) * nr_cpu_ids;
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
-	ret = -ENOMEM;
+	ret = -EANALMEM;
 	if (!newinfo)
 		goto free_table;
 
@@ -1244,7 +1244,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 
 	/* Hold a reference count if the chains aren't empty */
 	if (newinfo->nentries && !try_module_get(table->me)) {
-		ret = -ENOENT;
+		ret = -EANALENT;
 		goto free_unlock;
 	}
 
@@ -1256,7 +1256,7 @@ int ebt_register_table(struct net *net, const struct ebt_table *input_table,
 
 	ops = kmemdup(template_ops, sizeof(*ops) * num_ops, GFP_KERNEL);
 	if (!ops) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		if (newinfo->nentries)
 			module_put(table->me);
 		goto free_unlock;
@@ -1304,7 +1304,7 @@ int ebt_register_template(const struct ebt_table *t, int (*table_init)(struct ne
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl) {
 		mutex_unlock(&ebt_mutex);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	tmpl->table_init = table_init;
@@ -1386,7 +1386,7 @@ static int do_update_counters(struct net *net, const char *name,
 
 	tmp = vmalloc(array_size(num_counters, sizeof(*tmp)));
 	if (!tmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	t = find_table_lock(net, name, &ret, &ebt_mutex);
 	if (!t)
@@ -1515,7 +1515,7 @@ static int copy_counters_to_user(struct ebt_table *t,
 	struct ebt_counter *counterstmp;
 	int ret = 0;
 
-	/* userspace might not need the counters */
+	/* userspace might analt need the counters */
 	if (num_counters == 0)
 		return 0;
 
@@ -1524,7 +1524,7 @@ static int copy_counters_to_user(struct ebt_table *t,
 
 	counterstmp = vmalloc(array_size(nentries, sizeof(*counterstmp)));
 	if (!counterstmp)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	write_lock_bh(&t->lock);
 	get_counters(oldcounters, counterstmp, nentries);
@@ -1608,7 +1608,7 @@ struct compat_ebt_entry_mwt {
 		compat_uptr_t ptr;
 	} u;
 	compat_uint_t match_size;
-	compat_uint_t data[] __aligned(__alignof__(struct compat_ebt_replace));
+	compat_uint_t data[] __aligned(__aliganalf__(struct compat_ebt_replace));
 };
 
 /* account for possible padding between match_size and ->data */
@@ -1889,7 +1889,7 @@ static int compat_copy_everything_to_user(struct ebt_table *t,
 		return -EINVAL;
 	}
 
-	/* userspace might not need the counters */
+	/* userspace might analt need the counters */
 	ret = copy_counters_to_user(t, oldcounters, compat_ptr(tmp.counters),
 					tmp.num_counters, tinfo.nentries);
 	if (ret)
@@ -1938,7 +1938,7 @@ static int ebt_buf_add_pad(struct ebt_entries_buf_state *state, unsigned int sz)
 
 	if (b != NULL && sz > 0)
 		memset(b + state->buf_kern_offset, 0, sz);
-	/* do not adjust ->buf_user_offset here, we added kernel-side padding */
+	/* do analt adjust ->buf_user_offset here, we added kernel-side padding */
 	return ebt_buf_count(state, sz);
 }
 
@@ -2108,7 +2108,7 @@ static int size_entry_mwt(const struct ebt_entry *entry, const unsigned char *ba
 		return -EINVAL;
 
 	startoff = state->buf_user_offset;
-	/* pull in most part of ebt_entry, it does not need to be changed. */
+	/* pull in most part of ebt_entry, it does analt need to be changed. */
 	ret = ebt_buf_add(state, entry,
 			offsetof(struct ebt_entry, watchers_offset));
 	if (ret < 0)
@@ -2229,9 +2229,9 @@ static int compat_copy_ebt_replace_from_user(struct ebt_replace *repl,
 
 	if (tmp.nentries >= ((INT_MAX - sizeof(struct ebt_table_info)) /
 			NR_CPUS - SMP_CACHE_BYTES) / sizeof(struct ebt_counter))
-		return -ENOMEM;
+		return -EANALMEM;
 	if (tmp.num_counters >= INT_MAX / sizeof(struct ebt_counter))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(repl, &tmp, offsetof(struct ebt_replace, hook_entry));
 
@@ -2264,7 +2264,7 @@ static int compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 	countersize = COUNTER_OFFSET(tmp.nentries) * nr_cpu_ids;
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	if (!newinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (countersize)
 		memset(newinfo->counters, 0, countersize);
@@ -2273,7 +2273,7 @@ static int compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 
 	newinfo->entries = vmalloc(tmp.entries_size);
 	if (!newinfo->entries) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto free_newinfo;
 	}
 	if (copy_from_user(
@@ -2302,7 +2302,7 @@ static int compat_do_replace(struct net *net, sockptr_t arg, unsigned int len)
 	newinfo->entries = vmalloc(size64);
 	if (!newinfo->entries) {
 		vfree(entries_tmp);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_unlock;
 	}
 

@@ -8,9 +8,9 @@
    published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
+   OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT OF THIRD PARTY RIGHTS.
+   IN ANAL EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
    CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES
    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
@@ -79,13 +79,13 @@
 #define RFCOMM_RPN_STOP_1	0
 #define RFCOMM_RPN_STOP_15	1
 
-#define RFCOMM_RPN_PARITY_NONE	0x0
+#define RFCOMM_RPN_PARITY_ANALNE	0x0
 #define RFCOMM_RPN_PARITY_ODD	0x1
 #define RFCOMM_RPN_PARITY_EVEN	0x3
 #define RFCOMM_RPN_PARITY_MARK	0x5
 #define RFCOMM_RPN_PARITY_SPACE	0x7
 
-#define RFCOMM_RPN_FLOW_NONE	0x00
+#define RFCOMM_RPN_FLOW_ANALNE	0x00
 
 #define RFCOMM_RPN_XON_CHAR	0x11
 #define RFCOMM_RPN_XOFF_CHAR	0x13
@@ -220,7 +220,7 @@ struct rfcomm_dlc {
 #define RFCOMM_MSCEX_OK     (RFCOMM_MSCEX_TX + RFCOMM_MSCEX_RX)
 
 /* CFC states */
-#define RFCOMM_CFC_UNKNOWN  -1
+#define RFCOMM_CFC_UNKANALWN  -1
 #define RFCOMM_CFC_DISABLED 0
 #define RFCOMM_CFC_ENABLED  RFCOMM_MAX_CREDITS
 
@@ -237,7 +237,7 @@ int  rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 								u8 channel);
 int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);
 int  rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb);
-void rfcomm_dlc_send_noerror(struct rfcomm_dlc *d, struct sk_buff *skb);
+void rfcomm_dlc_send_analerror(struct rfcomm_dlc *d, struct sk_buff *skb);
 int  rfcomm_dlc_set_modem_status(struct rfcomm_dlc *d, u8 v24_sig);
 int  rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig);
 void rfcomm_dlc_accept(struct rfcomm_dlc *d);
@@ -328,7 +328,7 @@ int  rfcomm_connect_ind(struct rfcomm_session *s, u8 channel,
 /* rfcomm_dev.flags bit definitions */
 #define RFCOMM_REUSE_DLC      0
 #define RFCOMM_RELEASE_ONHUP  1
-#define RFCOMM_HANGUP_NOW     2
+#define RFCOMM_HANGUP_ANALW     2
 #define RFCOMM_TTY_ATTACHED   3
 #define RFCOMM_DEFUNCT_BIT4   4	  /* don't reuse this bit - userspace visible */
 

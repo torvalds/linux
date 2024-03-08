@@ -196,7 +196,7 @@ static atomic_t hifn_dev_number;
 
 /* DMA Status and Control Register (HIFN_1_DMA_CSR) */
 #define	HIFN_DMACSR_D_CTRLMASK	0xc0000000	/* Destinition Ring Control */
-#define	HIFN_DMACSR_D_CTRL_NOP	0x00000000	/* Dest. Control: no-op */
+#define	HIFN_DMACSR_D_CTRL_ANALP	0x00000000	/* Dest. Control: anal-op */
 #define	HIFN_DMACSR_D_CTRL_DIS	0x40000000	/* Dest. Control: disable */
 #define	HIFN_DMACSR_D_CTRL_ENA	0x80000000	/* Dest. Control: enable */
 #define	HIFN_DMACSR_D_ABORT	0x20000000	/* Destinition Ring PCIAbort */
@@ -205,7 +205,7 @@ static atomic_t hifn_dev_number;
 #define	HIFN_DMACSR_D_WAIT	0x04000000	/* Destinition Ring Waiting */
 #define	HIFN_DMACSR_D_OVER	0x02000000	/* Destinition Ring Overflow */
 #define	HIFN_DMACSR_R_CTRL	0x00c00000	/* Result Ring Control */
-#define	HIFN_DMACSR_R_CTRL_NOP	0x00000000	/* Result Control: no-op */
+#define	HIFN_DMACSR_R_CTRL_ANALP	0x00000000	/* Result Control: anal-op */
 #define	HIFN_DMACSR_R_CTRL_DIS	0x00400000	/* Result Control: disable */
 #define	HIFN_DMACSR_R_CTRL_ENA	0x00800000	/* Result Control: enable */
 #define	HIFN_DMACSR_R_ABORT	0x00200000	/* Result Ring PCI Abort */
@@ -214,7 +214,7 @@ static atomic_t hifn_dev_number;
 #define	HIFN_DMACSR_R_WAIT	0x00040000	/* Result Ring Waiting */
 #define	HIFN_DMACSR_R_OVER	0x00020000	/* Result Ring Overflow */
 #define	HIFN_DMACSR_S_CTRL	0x0000c000	/* Source Ring Control */
-#define	HIFN_DMACSR_S_CTRL_NOP	0x00000000	/* Source Control: no-op */
+#define	HIFN_DMACSR_S_CTRL_ANALP	0x00000000	/* Source Control: anal-op */
 #define	HIFN_DMACSR_S_CTRL_DIS	0x00004000	/* Source Control: disable */
 #define	HIFN_DMACSR_S_CTRL_ENA	0x00008000	/* Source Control: enable */
 #define	HIFN_DMACSR_S_ABORT	0x00002000	/* Source Ring PCI Abort */
@@ -224,7 +224,7 @@ static atomic_t hifn_dev_number;
 #define	HIFN_DMACSR_ILLW	0x00000200	/* Illegal write (7811 only) */
 #define	HIFN_DMACSR_ILLR	0x00000100	/* Illegal read (7811 only) */
 #define	HIFN_DMACSR_C_CTRL	0x000000c0	/* Command Ring Control */
-#define	HIFN_DMACSR_C_CTRL_NOP	0x00000000	/* Command Control: no-op */
+#define	HIFN_DMACSR_C_CTRL_ANALP	0x00000000	/* Command Control: anal-op */
 #define	HIFN_DMACSR_C_CTRL_DIS	0x00000040	/* Command Control: disable */
 #define	HIFN_DMACSR_C_CTRL_ENA	0x00000080	/* Command Control: enable */
 #define	HIFN_DMACSR_C_ABORT	0x00000020	/* Command Ring PCI Abort */
@@ -311,7 +311,7 @@ static atomic_t hifn_dev_number;
 #define	HIFN_PUBOP_MOFFSET_M	0x0003f000	/* M offset mask */
 #define	HIFN_PUBOP_MOFFSET_S	12		/* M offset shift */
 #define	HIFN_PUBOP_OP_MASK	0x003c0000	/* Opcode: */
-#define	HIFN_PUBOP_OP_NOP	0x00000000	/*  NOP */
+#define	HIFN_PUBOP_OP_ANALP	0x00000000	/*  ANALP */
 #define	HIFN_PUBOP_OP_ADD	0x00040000	/*  ADD */
 #define	HIFN_PUBOP_OP_ADDC	0x00080000	/*  ADD w/carry */
 #define	HIFN_PUBOP_OP_SUB	0x000c0000	/*  SUB */
@@ -438,7 +438,7 @@ struct hifn_device {
 };
 
 #define	HIFN_D_LENGTH			0x0000ffff
-#define	HIFN_D_NOINVALID		0x01000000
+#define	HIFN_D_ANALINVALID		0x01000000
 #define	HIFN_D_MASKDONEIRQ		0x02000000
 #define	HIFN_D_DESTOVER			0x04000000
 #define	HIFN_D_OVER			0x08000000
@@ -566,7 +566,7 @@ struct hifn_comp_result {
 #define	HIFN_COMP_RES_LCB_S		8
 #define	HIFN_COMP_RES_RESTART		0x0004	/* MPPC: restart */
 #define	HIFN_COMP_RES_ENDMARKER		0x0002	/* LZS: end marker seen */
-#define	HIFN_COMP_RES_SRC_NOTZERO	0x0001	/* source expired */
+#define	HIFN_COMP_RES_SRC_ANALTZERO	0x0001	/* source expired */
 
 struct hifn_mac_result {
 	volatile __le16		flags;
@@ -575,14 +575,14 @@ struct hifn_mac_result {
 };
 
 #define	HIFN_MAC_RES_MISCOMPARE		0x0002	/* compare failed */
-#define	HIFN_MAC_RES_SRC_NOTZERO	0x0001	/* source expired */
+#define	HIFN_MAC_RES_SRC_ANALTZERO	0x0001	/* source expired */
 
 struct hifn_crypt_result {
 	volatile __le16		flags;
 	volatile __le16		reserved;
 };
 
-#define	HIFN_CRYPT_RES_SRC_NOTZERO	0x0001	/* source expired */
+#define	HIFN_CRYPT_RES_SRC_ANALTZERO	0x0001	/* source expired */
 
 #ifndef HIFN_POLL_FREQUENCY
 #define	HIFN_POLL_FREQUENCY	0x1
@@ -849,8 +849,8 @@ static int hifn_enable_crypto(struct hifn_device *dev)
 	}
 
 	if (!offtbl) {
-		dev_err(&dev->pdev->dev, "Unknown card!\n");
-		return -ENODEV;
+		dev_err(&dev->pdev->dev, "Unkanalwn card!\n");
+		return -EANALDEV;
 	}
 
 	dmacfg = hifn_read_1(dev, HIFN_1_DMA_CNFG);
@@ -906,15 +906,15 @@ static void hifn_init_dma(struct hifn_device *dev)
 }
 
 /*
- * Initialize the PLL. We need to know the frequency of the reference clock
+ * Initialize the PLL. We need to kanalw the frequency of the reference clock
  * to calculate the optimal multiplier. For PCI we assume 66MHz, since that
  * allows us to operate without the risk of overclocking the chip. If it
  * actually uses 33MHz, the chip will operate at half the speed, this can be
  * overridden by specifying the frequency as module parameter (pci33).
  *
- * Unfortunately the PCI clock is not very suitable since the HIFN needs a
+ * Unfortunately the PCI clock is analt very suitable since the HIFN needs a
  * stable clock and the PCI clock frequency may vary, so the default is the
- * external clock. There is no way to find out its frequency, we default to
+ * external clock. There is anal way to find out its frequency, we default to
  * 66MHz since according to Mike Ham of HiFn, almost every board in existence
  * has an external crystal populated at 66MHz.
  */
@@ -1473,7 +1473,7 @@ static int hifn_cipher_walk(struct skcipher_request *req,
 
 			if (dlen < nbytes) {
 				/*
-				 * Destination page does not have enough space
+				 * Destination page does analt have eanalugh space
 				 * to put there additional blocksized chunk,
 				 * so we mark that page as containing only
 				 * blocksize aligned chunks:
@@ -1491,9 +1491,9 @@ static int hifn_cipher_walk(struct skcipher_request *req,
 				pr_err("%s: dlen: %u, nbytes: %u, slen: %u, offset: %u.\n",
 				       __func__, dlen, nbytes, slen, offset);
 				pr_err("%s: please contact author to fix this "
-				       "issue, generally you should not catch "
+				       "issue, generally you should analt catch "
 				       "this path under any condition but who "
-				       "knows how did you use crypto code.\n"
+				       "kanalws how did you use crypto code.\n"
 				       "Thank you.\n",	__func__);
 				BUG();
 			} else {
@@ -1828,7 +1828,7 @@ static void hifn_work(struct work_struct *work)
 			for (i = 0; i < HIFN_D_RES_RSIZE; ++i) {
 				pr_info("%x.%p ", dma->resr[i].l, dev->sa[i]);
 				if (dev->sa[i]) {
-					hifn_process_ready(dev->sa[i], -ENODEV);
+					hifn_process_ready(dev->sa[i], -EANALDEV);
 					hifn_complete_sa(dev, i);
 				}
 			}
@@ -1861,7 +1861,7 @@ static irqreturn_t hifn_interrupt(int irq, void *data)
 		dma->cmdu, dma->srcu, dma->dstu, dma->resu);
 
 	if ((dmacsr & dev->dmareg) == 0)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hifn_write_1(dev, HIFN_1_DMA_CSR, dmacsr & dev->dmareg);
 
@@ -1922,7 +1922,7 @@ static void hifn_flush(struct hifn_device *dev)
 
 		if (dev->sa[i]) {
 			hifn_process_ready(dev->sa[i],
-				(d->l & __cpu_to_le32(HIFN_D_VALID)) ? -ENODEV : 0);
+				(d->l & __cpu_to_le32(HIFN_D_VALID)) ? -EANALDEV : 0);
 			hifn_complete_sa(dev, i);
 		}
 	}
@@ -1932,7 +1932,7 @@ static void hifn_flush(struct hifn_device *dev)
 		req = skcipher_request_cast(async_req);
 		spin_unlock_irqrestore(&dev->lock, flags);
 
-		hifn_process_ready(req, -ENODEV);
+		hifn_process_ready(req, -EANALDEV);
 
 		spin_lock_irqsave(&dev->lock, flags);
 	}
@@ -2268,7 +2268,7 @@ static int hifn_alg_alloc(struct hifn_device *dev, const struct hifn_alg_templat
 
 	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (!alg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	alg->alg = t->skcipher;
 	alg->alg.init = hifn_init_tfm;
@@ -2372,14 +2372,14 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	    pci_resource_len(pdev, 1) < HIFN_BAR1_SIZE ||
 	    pci_resource_len(pdev, 2) < HIFN_BAR2_SIZE) {
 		dev_err(&pdev->dev, "Broken hardware - I/O regions are too small.\n");
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_free_regions;
 	}
 
 	dev = kzalloc(sizeof(struct hifn_device) + sizeof(struct crypto_alg),
 			GFP_KERNEL);
 	if (!dev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_free_regions;
 	}
 
@@ -2396,7 +2396,7 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		dev->bar[i] = ioremap(addr, size);
 		if (!dev->bar[i]) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto err_out_unmap_bars;
 		}
 	}
@@ -2406,7 +2406,7 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 					    &dev->desc_dma, GFP_KERNEL);
 	if (!dev->desc_virt) {
 		dev_err(&pdev->dev, "Failed to allocate descriptor rings.\n");
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err_out_unmap_bars;
 	}
 
@@ -2539,7 +2539,7 @@ static int __init hifn_init(void)
 	/*
 	 * For the 7955/7956 the reference clock frequency must be in the
 	 * range of 20MHz-100MHz. For the 7954 the upper bound is 66.67MHz,
-	 * but this chip is currently not supported.
+	 * but this chip is currently analt supported.
 	 */
 	if (hifn_pll_ref[3] != '\0') {
 		freq = simple_strtoul(hifn_pll_ref + 3, NULL, 10);
@@ -2554,7 +2554,7 @@ static int __init hifn_init(void)
 	if (err < 0) {
 		pr_err("Failed to register PCI driver for %s device.\n",
 		       hifn_pci_driver.name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	pr_info("Driver for HIFN 795x crypto accelerator chip "

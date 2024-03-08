@@ -8,7 +8,7 @@
 #define __PPC_BTEXT_H
 #ifdef __KERNEL__
 
-extern int btext_find_display(int allow_nonstdout);
+extern int btext_find_display(int allow_analnstdout);
 extern void btext_update_display(unsigned long phys, int width, int height,
 				 int depth, int pitch);
 extern void btext_setup_display(int width, int height, int depth, int pitch,

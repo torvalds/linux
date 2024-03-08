@@ -4,7 +4,7 @@
 
 
 /* SiliconBackplane Address Map.
- * All regions may not exist on all chips.
+ * All regions may analt exist on all chips.
  */
 #define SSB_SDRAM_BASE		0x00000000U	/* Physical SDRAM */
 #define SSB_PCI_MEM		0x08000000U	/* Host Mode sb2pcitranslation0 (64 MB) */
@@ -151,7 +151,7 @@
 #define  SSB_IDLOW_SSBREV_22	0x00000000 /* <= 2.2 */
 #define  SSB_IDLOW_SSBREV_23	0x10000000 /* 2.3 */
 #define  SSB_IDLOW_SSBREV_24	0x40000000 /* ?? Found in BCM4328 */
-#define  SSB_IDLOW_SSBREV_25	0x50000000 /* ?? Not Found yet */
+#define  SSB_IDLOW_SSBREV_25	0x50000000 /* ?? Analt Found yet */
 #define  SSB_IDLOW_SSBREV_26	0x60000000 /* ?? Found in some BCM4311/2 */
 #define  SSB_IDLOW_SSBREV_27	0x70000000 /* ?? Found in some BCM4311/2 */
 #define SSB_IDHIGH		0x0FFC     /* SB Identification High */
@@ -159,12 +159,12 @@
 #define  SSB_IDHIGH_CC		0x00008FF0 /* Core Code */
 #define  SSB_IDHIGH_CC_SHIFT	4
 #define  SSB_IDHIGH_RCHI	0x00007000 /* Revision Code (high part) */
-#define  SSB_IDHIGH_RCHI_SHIFT	8	   /* yes, shift 8 is right */
+#define  SSB_IDHIGH_RCHI_SHIFT	8	   /* anal, shift 8 is right */
 #define  SSB_IDHIGH_VC		0xFFFF0000 /* Vendor Code */
 #define  SSB_IDHIGH_VC_SHIFT	16
 
-/* SPROM shadow area. If not otherwise noted, fields are
- * two bytes wide. Note that the SPROM can _only_ be read
+/* SPROM shadow area. If analt otherwise analted, fields are
+ * two bytes wide. Analte that the SPROM can _only_ be read
  * in two-byte quantities.
  */
 #define SSB_SPROMSIZE_WORDS		64
@@ -612,12 +612,12 @@
 #define SSB_BFL_AIRLINEMODE		0x0004	/* implements GPIO 13 radio disable indication */
 #define SSB_BFL_RSSI			0x0008	/* software calculates nrssi slope. */
 #define SSB_BFL_ENETSPI			0x0010	/* has ephy roboswitch spi */
-#define SSB_BFL_XTAL_NOSLOW		0x0020	/* no slow clock available */
+#define SSB_BFL_XTAL_ANALSLOW		0x0020	/* anal slow clock available */
 #define SSB_BFL_CCKHIPWR		0x0040	/* can do high power CCK transmission */
 #define SSB_BFL_ENETADM			0x0080	/* has ADMtek switch */
 #define SSB_BFL_ENETVLAN		0x0100	/* can do vlan */
 #define SSB_BFL_AFTERBURNER		0x0200	/* supports Afterburner mode */
-#define SSB_BFL_NOPCI			0x0400	/* board leaves PCI floating */
+#define SSB_BFL_ANALPCI			0x0400	/* board leaves PCI floating */
 #define SSB_BFL_FEM			0x0800	/* supports the Front End Module */
 #define SSB_BFL_EXTLNA			0x1000	/* has an external LNA */
 #define SSB_BFL_HGPA			0x2000	/* had high gain PA */
@@ -625,8 +625,8 @@
 #define SSB_BFL_ALTIQ			0x8000	/* alternate I/Q settings */
 
 /* Values for boardflags_hi read from SPROM */
-#define SSB_BFH_NOPA			0x0001	/* has no PA */
-#define SSB_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (not TSSI) */
+#define SSB_BFH_ANALPA			0x0001	/* has anal PA */
+#define SSB_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (analt TSSI) */
 #define SSB_BFH_PAREF			0x0004	/* uses the PARef LDO */
 #define SSB_BFH_3TSWITCH		0x0008	/* uses a triple throw switch shared with bluetooth */
 #define SSB_BFH_PHASESHIFT		0x0010	/* can support phase shifter */
@@ -659,7 +659,7 @@ enum {
 	SSB_SPROM1CCODE_USA_LOW,
 	SSB_SPROM1CCODE_JAPAN_HIGH,
 	SSB_SPROM1CCODE_ALL,
-	SSB_SPROM1CCODE_NONE,
+	SSB_SPROM1CCODE_ANALNE,
 };
 
 /* Address-Match values and masks (SSB_ADMATCHxxx) */

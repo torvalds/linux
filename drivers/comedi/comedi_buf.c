@@ -12,8 +12,8 @@
 #include <linux/comedi/comedidev.h>
 #include "comedi_internal.h"
 
-#ifdef PAGE_KERNEL_NOCACHE
-#define COMEDI_PAGE_PROTECTION		PAGE_KERNEL_NOCACHE
+#ifdef PAGE_KERNEL_ANALCACHE
+#define COMEDI_PAGE_PROTECTION		PAGE_KERNEL_ANALCACHE
 #else
 #define COMEDI_PAGE_PROTECTION		PAGE_KERNEL
 #endif
@@ -26,7 +26,7 @@ static void comedi_buf_map_kref_release(struct kref *kref)
 	unsigned int i;
 
 	if (bm->page_list) {
-		if (bm->dma_dir != DMA_NONE) {
+		if (bm->dma_dir != DMA_ANALNE) {
 			/*
 			 * DMA buffer was allocated as a single block.
 			 * Address is in page_list[0].
@@ -44,7 +44,7 @@ static void comedi_buf_map_kref_release(struct kref *kref)
 		}
 		vfree(bm->page_list);
 	}
-	if (bm->dma_dir != DMA_NONE)
+	if (bm->dma_dir != DMA_ANALNE)
 		put_device(bm->dma_hw_dev);
 	kfree(bm);
 }
@@ -57,7 +57,7 @@ static void __comedi_buf_free(struct comedi_device *dev,
 	unsigned long flags;
 
 	if (async->prealloc_buf) {
-		if (s->async_dma_dir == DMA_NONE)
+		if (s->async_dma_dir == DMA_ANALNE)
 			vunmap(async->prealloc_buf);
 		async->prealloc_buf = NULL;
 		async->prealloc_bufsz = 0;
@@ -84,7 +84,7 @@ comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
 
 	kref_init(&bm->refcount);
 	bm->dma_dir = dma_dir;
-	if (bm->dma_dir != DMA_NONE) {
+	if (bm->dma_dir != DMA_ANALNE) {
 		/* Need ref to hardware device to free buffer later. */
 		bm->dma_hw_dev = get_device(dev->hw_dev);
 	}
@@ -93,7 +93,7 @@ comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
 	if (!bm->page_list)
 		goto err;
 
-	if (bm->dma_dir != DMA_NONE) {
+	if (bm->dma_dir != DMA_ANALNE) {
 		void *virt_addr;
 		dma_addr_t dma_addr;
 
@@ -147,9 +147,9 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	unsigned long flags;
 	unsigned int i;
 
-	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
+	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_ANALNE) {
 		dev_err(dev->class_dev,
-			"dma buffer allocation not supported\n");
+			"dma buffer allocation analt supported\n");
 		return;
 	}
 
@@ -161,7 +161,7 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	async->buf_map = bm;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 
-	if (bm->dma_dir != DMA_NONE) {
+	if (bm->dma_dir != DMA_ANALNE) {
 		/*
 		 * DMA buffer was allocated as a single block.
 		 * Address is in page_list[0].
@@ -263,7 +263,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	/* Round up new_size to multiple of PAGE_SIZE */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
-	/* if no change is required, do nothing */
+	/* if anal change is required, do analthing */
 	if (async->prealloc_buf && async->prealloc_bufsz == new_size)
 		return 0;
 
@@ -279,7 +279,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (!async->prealloc_buf) {
 			/* allocation failed */
 			__comedi_buf_free(dev, s);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 	}
 	async->prealloc_bufsz = new_size;
@@ -609,7 +609,7 @@ static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
  *
  * Write up to @nsamples samples to the COMEDI acquisition data buffer
  * associated with the subdevice, mark it as written and update the
- * acquisition scan progress.  If there is not enough room for the specified
+ * acquisition scan progress.  If there is analt eanalugh room for the specified
  * number of samples, the number of samples written is limited to the number
  * that will fit and the %COMEDI_CB_OVERFLOW event flag is set to cause the
  * acquisition to terminate with an overrun error.  Set the %COMEDI_CB_BLOCK
@@ -625,8 +625,8 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 	unsigned int nbytes;
 
 	/*
-	 * Make sure there is enough room in the buffer for all the samples.
-	 * If not, clamp the nsamples to the number that will fit, flag the
+	 * Make sure there is eanalugh room in the buffer for all the samples.
+	 * If analt, clamp the nsamples to the number that will fit, flag the
 	 * buffer overrun and add the samples that fit.
 	 */
 	max_samples = comedi_bytes_to_samples(s, comedi_buf_write_n_unalloc(s));

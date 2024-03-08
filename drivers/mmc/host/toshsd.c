@@ -71,7 +71,7 @@ static void toshsd_init(struct toshsd_host *host)
 }
 
 /* Set MMC clock / power.
- * Note: This controller uses a simple divider scheme therefore it cannot run
+ * Analte: This controller uses a simple divider scheme therefore it cananalt run
  * SD/MMC cards at full speed (24/20MHz). HCLK (=33MHz PCI clock?) is too high
  * and the next slowest is 16MHz (div=2).
  */
@@ -168,7 +168,7 @@ static irqreturn_t toshsd_thread_irq(int irq, void *dev_id)
 			host->cmd->error = -EIO;
 			toshsd_finish_request(host);
 		}
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 	}
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -300,9 +300,9 @@ static irqreturn_t toshsd_irq(int irq, void *dev_id)
 	dev_dbg(&host->pdev->dev, "IRQ status:%x mask:%x\n",
 		int_status, int_mask);
 
-	/* nothing to do: it's not our IRQ */
+	/* analthing to do: it's analt our IRQ */
 	if (!int_reg) {
-		ret = IRQ_NONE;
+		ret = IRQ_ANALNE;
 		goto irq_end;
 	}
 
@@ -329,15 +329,15 @@ static irqreturn_t toshsd_irq(int irq, void *dev_id)
 		detail = ioread32(host->ioaddr + SD_ERRORSTATUS0);
 		dev_err(&host->pdev->dev, "detail error status { %s%s%s%s%s%s%s%s%s%s%s%s%s}\n",
 			detail & SD_ERR0_RESP_CMD_ERR ? "RESP_CMD " : "",
-			detail & SD_ERR0_RESP_NON_CMD12_END_BIT_ERR ? "RESP_END_BIT " : "",
+			detail & SD_ERR0_RESP_ANALN_CMD12_END_BIT_ERR ? "RESP_END_BIT " : "",
 			detail & SD_ERR0_RESP_CMD12_END_BIT_ERR ? "RESP_END_BIT " : "",
 			detail & SD_ERR0_READ_DATA_END_BIT_ERR ? "READ_DATA_END_BIT " : "",
 			detail & SD_ERR0_WRITE_CRC_STATUS_END_BIT_ERR ? "WRITE_CMD_END_BIT " : "",
-			detail & SD_ERR0_RESP_NON_CMD12_CRC_ERR ? "RESP_CRC " : "",
+			detail & SD_ERR0_RESP_ANALN_CMD12_CRC_ERR ? "RESP_CRC " : "",
 			detail & SD_ERR0_RESP_CMD12_CRC_ERR ? "RESP_CRC " : "",
 			detail & SD_ERR0_READ_DATA_CRC_ERR ? "READ_DATA_CRC " : "",
 			detail & SD_ERR0_WRITE_CMD_CRC_ERR ? "WRITE_CMD_CRC " : "",
-			detail & SD_ERR1_NO_CMD_RESP ? "NO_CMD_RESP " : "",
+			detail & SD_ERR1_ANAL_CMD_RESP ? "ANAL_CMD_RESP " : "",
 			detail & SD_ERR1_TIMEOUT_READ_DATA ? "READ_DATA_TIMEOUT " : "",
 			detail & SD_ERR1_TIMEOUT_CRS_STATUS ? "CRS_STATUS_TIMEOUT " : "",
 			detail & SD_ERR1_TIMEOUT_CRC_BUSY ? "CRC_BUSY_TIMEOUT " : "");
@@ -420,8 +420,8 @@ static void toshsd_start_cmd(struct toshsd_host *host, struct mmc_command *cmd)
 	}
 
 	switch (mmc_resp_type(cmd)) {
-	case MMC_RSP_NONE:
-		c |= SD_CMD_RESP_TYPE_NONE;
+	case MMC_RSP_ANALNE:
+		c |= SD_CMD_RESP_TYPE_ANALNE;
 		break;
 
 	case MMC_RSP_R1:
@@ -438,7 +438,7 @@ static void toshsd_start_cmd(struct toshsd_host *host, struct mmc_command *cmd)
 		break;
 
 	default:
-		dev_err(&host->pdev->dev, "Unknown response type %d\n",
+		dev_err(&host->pdev->dev, "Unkanalwn response type %d\n",
 			mmc_resp_type(cmd));
 		break;
 	}
@@ -463,7 +463,7 @@ static void toshsd_start_cmd(struct toshsd_host *host, struct mmc_command *cmd)
 		if (data->flags & MMC_DATA_READ)
 			c |= SD_CMD_TRANSFER_READ;
 
-		/* MMC_DATA_WRITE does not require a bit to be set */
+		/* MMC_DATA_WRITE does analt require a bit to be set */
 	}
 
 	/* Send the command */
@@ -498,9 +498,9 @@ static void toshsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct toshsd_host *host = mmc_priv(mmc);
 	unsigned long flags;
 
-	/* abort if card not present */
+	/* abort if card analt present */
 	if (!(ioread16(host->ioaddr + SD_CARDSTATUS) & SD_CARD_PRESENT_0)) {
-		mrq->cmd->error = -ENOMEDIUM;
+		mrq->cmd->error = -EANALMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
@@ -614,7 +614,7 @@ static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mmc = mmc_alloc_host(sizeof(struct toshsd_host), &pdev->dev);
 	if (!mmc) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -630,7 +630,7 @@ static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->ioaddr = pci_iomap(pdev, 0, 0);
 	if (!host->ioaddr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto release;
 	}
 
@@ -658,7 +658,7 @@ static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	base = pci_resource_start(pdev, 0);
 	dev_dbg(&pdev->dev, "MMIO %pa, IRQ %d\n", &base, pdev->irq);
 
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_iganalre_children(&pdev->dev, 1);
 
 	return 0;
 

@@ -79,7 +79,7 @@ struct mediatek_dwmac_plat_data {
 	struct clk *rmii_internal_clk;
 	struct clk_bulk_data *clks;
 	struct regmap *peri_regmap;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *dev;
 	phy_interface_t phy_mode;
 	bool rmii_clk_from_mac;
@@ -130,7 +130,7 @@ static int mt2712_set_interface(struct mediatek_dwmac_plat_data *plat)
 		intf_val |= PHY_INTF_RGMII;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		return -EINVAL;
 	}
 
@@ -159,7 +159,7 @@ static void mt2712_delay_ps2stage(struct mediatek_dwmac_plat_data *plat)
 		mac_delay->rx_delay /= 170;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		break;
 	}
 }
@@ -184,7 +184,7 @@ static void mt2712_delay_stage2ps(struct mediatek_dwmac_plat_data *plat)
 		mac_delay->rx_delay *= 170;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		break;
 	}
 }
@@ -267,7 +267,7 @@ static int mt2712_set_delay(struct mediatek_dwmac_plat_data *plat)
 		delay_val |= FIELD_PREP(ETH_DLY_RXC_INV, mac_delay->rx_inv);
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		return -EINVAL;
 	}
 	regmap_write(plat->peri_regmap, PERI_ETH_DLY, delay_val);
@@ -310,7 +310,7 @@ static int mt8195_set_interface(struct mediatek_dwmac_plat_data *plat)
 		intf_val |= FIELD_PREP(MT8195_ETH_INTF_SEL, PHY_INTF_RGMII);
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		return -EINVAL;
 	}
 
@@ -423,7 +423,7 @@ static int mt8195_set_delay(struct mediatek_dwmac_plat_data *plat)
 
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface analt supported\n");
 		return -EINVAL;
 	}
 
@@ -466,7 +466,7 @@ static int mediatek_dwmac_config_dt(struct mediatek_dwmac_plat_data *plat)
 
 	err = of_get_phy_mode(plat->np, &plat->phy_mode);
 	if (err) {
-		dev_err(plat->dev, "not find phy-mode\n");
+		dev_err(plat->dev, "analt find phy-mode\n");
 		return err;
 	}
 
@@ -504,7 +504,7 @@ static int mediatek_dwmac_clk_init(struct mediatek_dwmac_plat_data *plat)
 
 	plat->clks = devm_kcalloc(plat->dev, variant->num_clks, sizeof(*plat->clks), GFP_KERNEL);
 	if (!plat->clks)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	for (i = 0; i < variant->num_clks; i++)
 		plat->clks[i].id = variant->clk_list[i];
@@ -603,7 +603,7 @@ static int mediatek_dwmac_common_data(struct platform_device *pdev,
 					     sizeof(*plat->safety_feat_cfg),
 					     GFP_KERNEL);
 	if (!plat->safety_feat_cfg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	plat->safety_feat_cfg->tsoee = 1;
 	plat->safety_feat_cfg->mrxpee = 0;
@@ -633,7 +633,7 @@ static int mediatek_dwmac_probe(struct platform_device *pdev)
 
 	priv_plat = devm_kzalloc(&pdev->dev, sizeof(*priv_plat), GFP_KERNEL);
 	if (!priv_plat)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	priv_plat->variant = of_device_get_match_data(&pdev->dev);
 	if (!priv_plat->variant) {
@@ -642,7 +642,7 @@ static int mediatek_dwmac_probe(struct platform_device *pdev)
 	}
 
 	priv_plat->dev = &pdev->dev;
-	priv_plat->np = pdev->dev.of_node;
+	priv_plat->np = pdev->dev.of_analde;
 
 	ret = mediatek_dwmac_config_dt(priv_plat);
 	if (ret)

@@ -181,10 +181,10 @@ static void ish_set_host_rdy(struct ishtp_device *dev)
 }
 
 /**
- * ish_clr_host_rdy() - Indicate host not ready
+ * ish_clr_host_rdy() - Indicate host analt ready
  * @dev: ISHTP device pointer
  *
- * Send host not ready indication to FW
+ * Send host analt ready indication to FW
  */
 static void ish_clr_host_rdy(struct ishtp_device *dev)
 {
@@ -391,7 +391,7 @@ static int write_ipc_to_queue(struct ishtp_device *dev,
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
 	if (list_empty(&dev->wr_free_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	ipc_link = list_first_entry(&dev->wr_free_list,
 				    struct wr_msg_ctl_info, link);
@@ -507,7 +507,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	list_splice_init(&dev->wr_processing_list, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
-	/* ISHTP notification in IPC_RESET */
+	/* ISHTP analtification in IPC_RESET */
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
@@ -519,11 +519,11 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 		return	-EPIPE;
 	/*
 	 * Set HOST2ISH.ILUP. Apparently we need this BEFORE sending
-	 * RESET_NOTIFY_ACK - FW will be checking for it
+	 * RESET_ANALTIFY_ACK - FW will be checking for it
 	 */
 	ish_set_host_rdy(dev);
-	/* Send RESET_NOTIFY_ACK (with reset_id) */
-	ipc_send_mng_msg(dev, MNG_RESET_NOTIFY_ACK, &reset_id,
+	/* Send RESET_ANALTIFY_ACK (with reset_id) */
+	ipc_send_mng_msg(dev, MNG_RESET_ANALTIFY_ACK, &reset_id,
 			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
@@ -537,7 +537,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 		dev_err(dev->devc,
 			"[ishtp-ish]: completed reset, ISH is dead (FWSTS = %08X)\n",
 			ish_status);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	return	0;
 }
@@ -546,7 +546,7 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 
 /**
  * fw_reset_work_fn() - FW reset worker function
- * @unused: not used
+ * @unused: analt used
  *
  * Call ish_fw_reset_handler to complete FW reset
  */
@@ -561,7 +561,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
-		/* ISHTP notification in IPC_RESET sequence completion */
+		/* ISHTP analtification in IPC_RESET sequence completion */
 		ishtp_reset_compl_handler(ishtp_dev);
 	} else
 		dev_err(ishtp_dev->devc, "[ishtp-ish]: FW reset failed (%d)\n",
@@ -593,7 +593,7 @@ static void _ish_sync_fw_clock(struct ishtp_device *dev)
  * @doorbell_val: doorbell value
  *
  * This function runs in ISR context.
- * NOTE: Any other mng command than reset_notify and reset_notify_ack
+ * ANALTE: Any other mng command than reset_analtify and reset_analtify_ack
  * won't wake BH handler
  */
 static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
@@ -619,14 +619,14 @@ static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
 		write_ipc_from_queue(dev);
 		break;
 
-	case MNG_RESET_NOTIFY:
+	case MNG_RESET_ANALTIFY:
 		if (!ishtp_dev) {
 			ishtp_dev = dev;
 		}
 		schedule_work(&fw_reset_work);
 		break;
 
-	case MNG_RESET_NOTIFY_ACK:
+	case MNG_RESET_ANALTIFY_ACK:
 		dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&dev->wait_hw_ready);
 		break;
@@ -651,7 +651,7 @@ irqreturn_t ish_irq_handler(int irq, void *dev_id)
 	interrupt_generated = check_generated_interrupt(dev);
 
 	if (!interrupt_generated)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	doorbell_val = ish_reg_read(dev, IPC_REG_ISH2HOST_DRBL);
 	if (!IPC_IS_BUSY(doorbell_val))
@@ -758,14 +758,14 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	uint16_t csr;
 
 	if (!pdev)
-		return	-ENODEV;
+		return	-EANALDEV;
 
 	rv = pci_reset_function(pdev);
 	if (!rv)
 		dev->dev_state = ISHTP_DEV_RESETTING;
 
 	if (!pdev->pm_cap) {
-		dev_err(&pdev->dev, "Can't reset - no PM caps\n");
+		dev_err(&pdev->dev, "Can't reset - anal PM caps\n");
 		return	-EINVAL;
 	}
 
@@ -788,7 +788,7 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D0;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	/* Now we can enable ISH DMA operation and wakeup ISHFW */
+	/* Analw we can enable ISH DMA operation and wakeup ISHFW */
 	ish_wakeup(dev);
 
 	return	0;
@@ -820,10 +820,10 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 	dev->recvd_hw_ready = 0;
 
 	/* send message */
-	rv = ipc_send_mng_msg(dev, MNG_RESET_NOTIFY, &ipc_mng_msg,
+	rv = ipc_send_mng_msg(dev, MNG_RESET_ANALTIFY, &ipc_mng_msg,
 		sizeof(struct ipc_rst_payload_type));
 	if (rv) {
-		dev_err(dev->devc, "Failed to send IPC MNG_RESET_NOTIFY\n");
+		dev_err(dev->devc, "Failed to send IPC MNG_RESET_ANALTIFY\n");
 		return	rv;
 	}
 
@@ -831,7 +831,7 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 					 dev->recvd_hw_ready, 2 * HZ);
 	if (!dev->recvd_hw_ready) {
 		dev_err(dev->devc, "Timed out waiting for HW ready\n");
-		rv = -ENODEV;
+		rv = -EANALDEV;
 	}
 
 	return rv;
@@ -863,7 +863,7 @@ int ish_hw_start(struct ishtp_device *dev)
 	if (!dev->recvd_hw_ready) {
 		dev_err(dev->devc,
 			"[ishtp-ish]: Timed out waiting for FW-initiated reset\n");
-		return	-ENODEV;
+		return	-EANALDEV;
 	}
 
 	return 0;
@@ -890,24 +890,24 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
 }
 
 /**
- * _dma_no_cache_snooping()
+ * _dma_anal_cache_sanaloping()
  *
- * Check on current platform, DMA supports cache snooping or not.
- * This callback is used to notify uplayer driver if manully cache
+ * Check on current platform, DMA supports cache sanaloping or analt.
+ * This callback is used to analtify uplayer driver if manully cache
  * flush is needed when do DMA operation.
  *
  * Please pay attention to this callback implementation, if declare
- * having cache snooping on a cache snooping not supported platform
+ * having cache sanaloping on a cache sanaloping analt supported platform
  * will cause uplayer driver receiving mismatched data; and if
- * declare no cache snooping on a cache snooping supported platform
+ * declare anal cache sanaloping on a cache sanaloping supported platform
  * will cause cache be flushed twice and performance hit.
  *
  * @dev: ishtp device pointer
  *
- * Return: false - has cache snooping capability
- *         true - no cache snooping, need manually cache flush
+ * Return: false - has cache sanaloping capability
+ *         true - anal cache sanaloping, need manually cache flush
  */
-static bool _dma_no_cache_snooping(struct ishtp_device *dev)
+static bool _dma_anal_cache_sanaloping(struct ishtp_device *dev)
 {
 	return (dev->pdev->device == EHL_Ax_DEVICE_ID ||
 		dev->pdev->device == TGL_LP_DEVICE_ID ||
@@ -925,7 +925,7 @@ static const struct ishtp_hw_ops ish_hw_ops = {
 	.get_fw_status = _ish_read_fw_sts_reg,
 	.sync_fw_clock = _ish_sync_fw_clock,
 	.ishtp_read_hdr = _ishtp_read_hdr,
-	.dma_no_cache_snooping = _dma_no_cache_snooping
+	.dma_anal_cache_sanaloping = _dma_anal_cache_sanaloping
 };
 
 /**
@@ -965,7 +965,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 				      GFP_KERNEL);
 		if (!tx_buf) {
 			/*
-			 * IPC buffers may be limited or not available
+			 * IPC buffers may be limited or analt available
 			 * at all - although this shouldn't happen
 			 */
 			dev_err(dev->devc,

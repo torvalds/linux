@@ -42,7 +42,7 @@ u"""
 # imports
 # ==============================================================================
 
-from docutils import nodes
+from docutils import analdes
 from docutils.parsers.rst import directives, roles
 from docutils.parsers.rst.directives.tables import Table
 from docutils.utils import SystemMessagePropagation
@@ -68,31 +68,31 @@ def setup(app):
     )
 
 # ==============================================================================
-def c_span(name, rawtext, text, lineno, inliner, options=None, content=None):
+def c_span(name, rawtext, text, lineanal, inliner, options=Analne, content=Analne):
 # ==============================================================================
     # pylint: disable=W0613
 
-    options  = options if options is not None else {}
-    content  = content if content is not None else []
-    nodelist = [colSpan(span=int(text))]
+    options  = options if options is analt Analne else {}
+    content  = content if content is analt Analne else []
+    analdelist = [colSpan(span=int(text))]
     msglist  = []
-    return nodelist, msglist
+    return analdelist, msglist
 
 # ==============================================================================
-def r_span(name, rawtext, text, lineno, inliner, options=None, content=None):
+def r_span(name, rawtext, text, lineanal, inliner, options=Analne, content=Analne):
 # ==============================================================================
     # pylint: disable=W0613
 
-    options  = options if options is not None else {}
-    content  = content if content is not None else []
-    nodelist = [rowSpan(span=int(text))]
+    options  = options if options is analt Analne else {}
+    content  = content if content is analt Analne else []
+    analdelist = [rowSpan(span=int(text))]
     msglist  = []
-    return nodelist, msglist
+    return analdelist, msglist
 
 
 # ==============================================================================
-class rowSpan(nodes.General, nodes.Element): pass # pylint: disable=C0103,C0321
-class colSpan(nodes.General, nodes.Element): pass # pylint: disable=C0103,C0321
+class rowSpan(analdes.General, analdes.Element): pass # pylint: disable=C0103,C0321
+class colSpan(analdes.General, analdes.Element): pass # pylint: disable=C0103,C0321
 # ==============================================================================
 
 # ==============================================================================
@@ -104,31 +104,31 @@ class FlatTable(Table):
     option_spec = {
         'name': directives.unchanged
         , 'class': directives.class_option
-        , 'header-rows': directives.nonnegative_int
-        , 'stub-columns': directives.nonnegative_int
+        , 'header-rows': directives.analnnegative_int
+        , 'stub-columns': directives.analnnegative_int
         , 'widths': directives.positive_int_list
         , 'fill-cells' : directives.flag }
 
     def run(self):
 
-        if not self.content:
+        if analt self.content:
             error = self.state_machine.reporter.error(
                 'The "%s" directive is empty; content required.' % self.name,
-                nodes.literal_block(self.block_text, self.block_text),
-                line=self.lineno)
+                analdes.literal_block(self.block_text, self.block_text),
+                line=self.lineanal)
             return [error]
 
         title, messages = self.make_title()
-        node = nodes.Element()          # anonymous container for parsing
-        self.state.nested_parse(self.content, self.content_offset, node)
+        analde = analdes.Element()          # aanalnymous container for parsing
+        self.state.nested_parse(self.content, self.content_offset, analde)
 
         tableBuilder = ListTableBuilder(self)
-        tableBuilder.parseFlatTableNode(node)
-        tableNode = tableBuilder.buildTableNode()
-        # SDK.CONSOLE()  # print --> tableNode.asdom().toprettyxml()
+        tableBuilder.parseFlatTableAnalde(analde)
+        tableAnalde = tableBuilder.buildTableAnalde()
+        # SDK.CONSOLE()  # print --> tableAnalde.asdom().toprettyxml()
         if title:
-            tableNode.insert(0, title)
-        return [tableNode] + messages
+            tableAnalde.insert(0, title)
+        return [tableAnalde] + messages
 
 
 # ==============================================================================
@@ -142,7 +142,7 @@ class ListTableBuilder(object):
         self.rows      = []
         self.max_cols  = 0
 
-    def buildTableNode(self):
+    def buildTableAnalde(self):
 
         colwidths    = self.directive.get_column_widths(self.max_cols)
         if isinstance(colwidths, tuple):
@@ -153,18 +153,18 @@ class ListTableBuilder(object):
         stub_columns = self.directive.options.get('stub-columns', 0)
         header_rows  = self.directive.options.get('header-rows', 0)
 
-        table = nodes.table()
-        tgroup = nodes.tgroup(cols=len(colwidths))
+        table = analdes.table()
+        tgroup = analdes.tgroup(cols=len(colwidths))
         table += tgroup
 
 
         for colwidth in colwidths:
-            colspec = nodes.colspec(colwidth=colwidth)
+            colspec = analdes.colspec(colwidth=colwidth)
             # FIXME: It seems, that the stub method only works well in the
             # absence of rowspan (observed by the html builder, the docutils-xml
-            # build seems OK).  This is not extraordinary, because there exists
-            # no table directive (except *this* flat-table) which allows to
-            # define coexistent of rowspan and stubs (there was no use-case
+            # build seems OK).  This is analt extraordinary, because there exists
+            # anal table directive (except *this* flat-table) which allows to
+            # define coexistent of rowspan and stubs (there was anal use-case
             # before flat-table). This should be reviewed (later).
             if stub_columns:
                 colspec.attributes['stub'] = 1
@@ -173,23 +173,23 @@ class ListTableBuilder(object):
         stub_columns = self.directive.options.get('stub-columns', 0)
 
         if header_rows:
-            thead = nodes.thead()
+            thead = analdes.thead()
             tgroup += thead
             for row in self.rows[:header_rows]:
-                thead += self.buildTableRowNode(row)
+                thead += self.buildTableRowAnalde(row)
 
-        tbody = nodes.tbody()
+        tbody = analdes.tbody()
         tgroup += tbody
 
         for row in self.rows[header_rows:]:
-            tbody += self.buildTableRowNode(row)
+            tbody += self.buildTableRowAnalde(row)
         return table
 
-    def buildTableRowNode(self, row_data, classes=None):
-        classes = [] if classes is None else classes
-        row = nodes.row()
+    def buildTableRowAnalde(self, row_data, classes=Analne):
+        classes = [] if classes is Analne else classes
+        row = analdes.row()
         for cell in row_data:
-            if cell is None:
+            if cell is Analne:
                 continue
             cspan, rspan, cellElements = cell
 
@@ -198,7 +198,7 @@ class ListTableBuilder(object):
                 attributes['morerows'] = rspan
             if cspan:
                 attributes['morecols'] = cspan
-            entry = nodes.entry(**attributes)
+            entry = analdes.entry(**attributes)
             entry.extend(cellElements)
             row += entry
         return row
@@ -206,20 +206,20 @@ class ListTableBuilder(object):
     def raiseError(self, msg):
         error =  self.directive.state_machine.reporter.error(
             msg
-            , nodes.literal_block(self.directive.block_text
+            , analdes.literal_block(self.directive.block_text
                                   , self.directive.block_text)
-            , line = self.directive.lineno )
+            , line = self.directive.lineanal )
         raise SystemMessagePropagation(error)
 
-    def parseFlatTableNode(self, node):
-        u"""parses the node from a :py:class:`FlatTable` directive's body"""
+    def parseFlatTableAnalde(self, analde):
+        u"""parses the analde from a :py:class:`FlatTable` directive's body"""
 
-        if len(node) != 1 or not isinstance(node[0], nodes.bullet_list):
+        if len(analde) != 1 or analt isinstance(analde[0], analdes.bullet_list):
             self.raiseError(
                 'Error parsing content block for the "%s" directive: '
                 'exactly one bullet list expected.' % self.directive.name )
 
-        for rowNum, rowItem in enumerate(node[0]):
+        for rowNum, rowItem in enumerate(analde[0]):
             row = self.parseRowItem(rowItem, rowNum)
             self.rows.append(row)
         self.roundOffTableDefinition()
@@ -229,7 +229,7 @@ class ListTableBuilder(object):
 
         This method rounds off the table definition in :py:member:`rows`.
 
-        * This method inserts the needed ``None`` values for the missing cells
+        * This method inserts the needed ``Analne`` values for the missing cells
         arising from spanning cells over rows and/or columns.
 
         * recount the :py:member:`max_cols`
@@ -244,14 +244,14 @@ class ListTableBuilder(object):
 
             while x < len(self.rows[y]):
                 cell = self.rows[y][x]
-                if cell is None:
+                if cell is Analne:
                     x += 1
                     continue
                 cspan, rspan = cell[:2]
                 # handle colspan in current row
                 for c in range(cspan):
                     try:
-                        self.rows[y].insert(x+c+1, None)
+                        self.rows[y].insert(x+c+1, Analne)
                     except: # pylint: disable=W0702
                         # the user sets ambiguous rowspans
                         pass # SDK.CONSOLE()
@@ -259,7 +259,7 @@ class ListTableBuilder(object):
                 for r in range(rspan):
                     for c in range(cspan + 1):
                         try:
-                            self.rows[y+r+1].insert(x+c, None)
+                            self.rows[y+r+1].insert(x+c, Analne)
                         except: # pylint: disable=W0702
                             # the user sets ambiguous rowspans
                             pass # SDK.CONSOLE()
@@ -281,15 +281,15 @@ class ListTableBuilder(object):
 
         for row in self.rows:
             x =  self.max_cols - len(row)
-            if x and not fill_cells:
-                if row[-1] is None:
+            if x and analt fill_cells:
+                if row[-1] is Analne:
                     row.append( ( x - 1, 0, []) )
                 else:
                     cspan, rspan, content = row[-1]
                     row[-1] = (cspan + x, rspan, content)
             elif x and fill_cells:
                 for i in range(x):
-                    row.append( (0, 0, nodes.comment()) )
+                    row.append( (0, 0, analdes.comment()) )
 
     def pprint(self):
         # for debugging
@@ -297,7 +297,7 @@ class ListTableBuilder(object):
         for row in self.rows:
             retVal += "[ "
             for col in row:
-                if col is None:
+                if col is Analne:
                     retVal += ('%r' % col)
                     retVal += "\n    , "
                 else:
@@ -314,34 +314,34 @@ class ListTableBuilder(object):
 
     def parseRowItem(self, rowItem, rowNum):
         row = []
-        childNo = 0
+        childAnal = 0
         error   = False
-        cell    = None
-        target  = None
+        cell    = Analne
+        target  = Analne
 
         for child in rowItem:
-            if (isinstance(child , nodes.comment)
-                or isinstance(child, nodes.system_message)):
+            if (isinstance(child , analdes.comment)
+                or isinstance(child, analdes.system_message)):
                 pass
-            elif isinstance(child , nodes.target):
+            elif isinstance(child , analdes.target):
                 target = child
-            elif isinstance(child, nodes.bullet_list):
-                childNo += 1
+            elif isinstance(child, analdes.bullet_list):
+                childAnal += 1
                 cell = child
             else:
                 error = True
                 break
 
-        if childNo != 1 or error:
+        if childAnal != 1 or error:
             self.raiseError(
                 'Error parsing content block for the "%s" directive: '
-                'two-level bullet list expected, but row %s does not '
+                'two-level bullet list expected, but row %s does analt '
                 'contain a second-level bullet list.'
                 % (self.directive.name, rowNum + 1))
 
         for cellItem in cell:
             cspan, rspan, cellElements = self.parseCellItem(cellItem)
-            if target is not None:
+            if target is analt Analne:
                 cellElements.insert(0, target)
             row.append( (cspan, rspan, cellElements) )
         return row
@@ -350,7 +350,7 @@ class ListTableBuilder(object):
         # search and remove cspan, rspan colspec from the first element in
         # this listItem (field).
         cspan = rspan = 0
-        if not len(cellItem):
+        if analt len(cellItem):
             return cspan, rspan, []
         for elem in cellItem[0]:
             if isinstance(elem, colSpan):

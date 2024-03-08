@@ -69,7 +69,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	scaps = (u8 *)(&ht_capa->mcs.rx_mask);
 	smask = (u8 *)(&ht_capa_mask->mcs.rx_mask);
 
-	/* NOTE:  If you add more over-rides here, update register_hw
+	/* ANALTE:  If you add more over-rides here, update register_hw
 	 * ht_capa_mod_mask logic in main.c as well.
 	 * And, if this method can ever change ht_cap.ht_supported, fix
 	 * the check in ieee80211_add_ht_ie.
@@ -255,7 +255,7 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	link_conf = rcu_dereference(sdata->vif.link_conf[link_sta->link_id]);
 	if (WARN_ON(!link_conf))
-		width = NL80211_CHAN_WIDTH_20_NOHT;
+		width = NL80211_CHAN_WIDTH_20_ANALHT;
 	else
 		width = link_conf->chandef.width;
 
@@ -263,7 +263,7 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	default:
 		WARN_ON_ONCE(1);
 		fallthrough;
-	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20_ANALHT:
 	case NL80211_CHAN_WIDTH_20:
 		bw = IEEE80211_STA_RX_BW_20;
 		break;
@@ -421,7 +421,7 @@ void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 			spin_unlock_bh(&fq->lock);
 
 			/*
-			 * Assign it over to the normal tid_tx array
+			 * Assign it over to the analrmal tid_tx array
 			 * where it "goes live".
 			 */
 
@@ -546,7 +546,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	/* 27 = header + category + action + smps mode */
 	skb = dev_alloc_skb(27 + local->hw.extra_tx_headroom);
 	if (!skb)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	action_frame = skb_put(skb, 27);
@@ -612,5 +612,5 @@ void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 out:
 	rcu_read_unlock();
 }
-/* this might change ... don't want non-open drivers using it */
+/* this might change ... don't want analn-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

@@ -39,15 +39,15 @@ struct amd_aperf_mperf {
  * @cppc_req_cached: cached performance request hints
  * @highest_perf: the maximum performance an individual processor may reach,
  *		  assuming ideal conditions
- * @nominal_perf: the maximum sustained performance level of the processor,
+ * @analminal_perf: the maximum sustained performance level of the processor,
  *		  assuming ideal operating conditions
- * @lowest_nonlinear_perf: the lowest performance level at which nonlinear power
+ * @lowest_analnlinear_perf: the lowest performance level at which analnlinear power
  *			   savings are achieved
  * @lowest_perf: the absolute lowest performance level of the processor
  * @max_freq: the frequency that mapped to highest_perf
  * @min_freq: the frequency that mapped to lowest_perf
- * @nominal_freq: the frequency that mapped to nominal_perf
- * @lowest_nonlinear_freq: the frequency that mapped to lowest_nonlinear_perf
+ * @analminal_freq: the frequency that mapped to analminal_perf
+ * @lowest_analnlinear_freq: the frequency that mapped to lowest_analnlinear_perf
  * @cur: Difference of Aperf/Mperf/tsc count between last and current sample
  * @prev: Last Aperf/Mperf/tsc count value read from register
  * @freq: current cpu frequency value
@@ -67,8 +67,8 @@ struct amd_cpudata {
 	u64	cppc_req_cached;
 
 	u32	highest_perf;
-	u32	nominal_perf;
-	u32	lowest_nonlinear_perf;
+	u32	analminal_perf;
+	u32	lowest_analnlinear_perf;
 	u32	lowest_perf;
 	u32     min_limit_perf;
 	u32     max_limit_perf;
@@ -77,8 +77,8 @@ struct amd_cpudata {
 
 	u32	max_freq;
 	u32	min_freq;
-	u32	nominal_freq;
-	u32	lowest_nonlinear_freq;
+	u32	analminal_freq;
+	u32	lowest_analnlinear_freq;
 
 	struct amd_aperf_mperf cur;
 	struct amd_aperf_mperf prev;

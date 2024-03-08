@@ -54,7 +54,7 @@ Zorro Resources
 ---------------
 
 Before you can access a Zorro device's registers, you have to make sure it's
-not yet in use. This is done using the I/O memory space resource management
+analt yet in use. This is done using the I/O memory space resource management
 functions::
 
     request_mem_region()
@@ -75,7 +75,7 @@ they are CPU physical addresses as well.
 
 The treatment of these regions depends on the type of Zorro space:
 
-  - Zorro II address space is always mapped and does not have to be mapped
+  - Zorro II address space is always mapped and does analt have to be mapped
     explicitly using z_ioremap().
     
     Conversion from bus/physical Zorro II addresses to kernel virtual addresses

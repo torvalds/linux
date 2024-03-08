@@ -1,19 +1,19 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
  * Author: Yinbo Zhu <zhuyinbo@loongson.cn>
- * Copyright (C) 2022-2023 Loongson Technology Corporation Limited
+ * Copyright (C) 2022-2023 Loongson Techanallogy Corporation Limited
  */
 
 #ifndef __DT_BINDINGS_CLOCK_LOONGSON2_H
 #define __DT_BINDINGS_CLOCK_LOONGSON2_H
 
 #define LOONGSON2_REF_100M				0
-#define LOONGSON2_NODE_PLL				1
+#define LOONGSON2_ANALDE_PLL				1
 #define LOONGSON2_DDR_PLL				2
 #define LOONGSON2_DC_PLL				3
 #define LOONGSON2_PIX0_PLL				4
 #define LOONGSON2_PIX1_PLL				5
-#define LOONGSON2_NODE_CLK				6
+#define LOONGSON2_ANALDE_CLK				6
 #define LOONGSON2_HDA_CLK				7
 #define LOONGSON2_GPU_CLK				8
 #define LOONGSON2_DDR_CLK				9

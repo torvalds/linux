@@ -19,23 +19,23 @@ extern const struct xattr_handler hfsplus_xattr_security_handler;
 
 extern const struct xattr_handler * const hfsplus_xattr_handlers[];
 
-int __hfsplus_setxattr(struct inode *inode, const char *name,
+int __hfsplus_setxattr(struct ianalde *ianalde, const char *name,
 			const void *value, size_t size, int flags);
 
-int hfsplus_setxattr(struct inode *inode, const char *name,
+int hfsplus_setxattr(struct ianalde *ianalde, const char *name,
 				   const void *value, size_t size, int flags,
 				   const char *prefix, size_t prefixlen);
 
-ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
+ssize_t __hfsplus_getxattr(struct ianalde *ianalde, const char *name,
 			   void *value, size_t size);
 
-ssize_t hfsplus_getxattr(struct inode *inode, const char *name,
+ssize_t hfsplus_getxattr(struct ianalde *ianalde, const char *name,
 			 void *value, size_t size,
 			 const char *prefix, size_t prefixlen);
 
 ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
-int hfsplus_init_security(struct inode *inode, struct inode *dir,
+int hfsplus_init_security(struct ianalde *ianalde, struct ianalde *dir,
 				const struct qstr *qstr);
 
 #endif

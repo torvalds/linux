@@ -12,7 +12,7 @@
  *
  * The hash is always changed with the tasklist_lock write-acquired,
  * and the hash is only accessed with the tasklist_lock at least
- * read-acquired, so there's no additional SMP locking needed here.
+ * read-acquired, so there's anal additional SMP locking needed here.
  *
  * We have a list of bitmap pages, which bitmaps represent the PID space.
  * Allocating and freeing PIDs is completely lockless. The worst-case
@@ -21,7 +21,7 @@
  * bytes. The typical fastpath is a single successful setbit. Freeing is O(1).
  *
  * Pid namespaces:
- *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
+ *    (C) 2007 Pavel Emelyaanalv <xemul@openvz.org>, OpenVZ, SWsoft Inc.
  *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
  *     Many thanks to Oleg Nesterov for comments and help
  *
@@ -38,7 +38,7 @@
 #include <linux/syscalls.h>
 #include <linux/proc_ns.h>
 #include <linux/refcount.h>
-#include <linux/anon_inodes.h>
+#include <linux/aanaln_ianaldes.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/idr.h>
@@ -69,7 +69,7 @@ int pid_max_max = PID_MAX_LIMIT;
 /*
  * PID-map pages start out as NULL, they get allocated upon
  * first use and are never deallocated. This way a low pid_max
- * value does not cause lots of bitmaps to be allocated, but
+ * value does analt cause lots of bitmaps to be allocated, but
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
@@ -79,28 +79,28 @@ struct pid_namespace init_pid_ns = {
 	.level = 0,
 	.child_reaper = &init_task,
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_PID_INIT_INO,
+	.ns.inum = PROC_PID_INIT_IANAL,
 #ifdef CONFIG_PID_NS
 	.ns.ops = &pidns_operations,
 #endif
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
-	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
+	.memfd_analexec_scope = MEMFD_ANALEXEC_SCOPE_EXEC,
 #endif
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
 /*
- * Note: disable interrupts while the pidmap_lock is held as an
+ * Analte: disable interrupts while the pidmap_lock is held as an
  * interrupt might come in and do read_lock(&tasklist_lock).
  *
  * If we don't disable interrupts there is a nasty deadlock between
- * detach_pid()->free_pid() and another cpu that does
+ * detach_pid()->free_pid() and aanalther cpu that does
  * spin_lock(&pidmap_lock) followed by an interrupt routine that does
  * read_lock(&tasklist_lock);
  *
- * After we clean up the tasklist_lock and know there are no
+ * After we clean up the tasklist_lock and kanalw there are anal
  * irq handlers that take it we can leave the interrupts enabled.
- * For now it is easier to be safe than to prove it can't happen.
+ * For analw it is easier to be safe than to prove it can't happen.
  */
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
@@ -167,13 +167,13 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	int i, nr;
 	struct pid_namespace *tmp;
 	struct upid *upid;
-	int retval = -ENOMEM;
+	int retval = -EANALMEM;
 
 	/*
 	 * set_tid_size contains the size of the set_tid array. Starting at
 	 * the most nested currently active PID namespace it tells alloc_pid()
 	 * which PID to set for a process in that most nested PID namespace
-	 * up to set_tid_size PID namespaces. It does not have to set the PID
+	 * up to set_tid_size PID namespaces. It does analt have to set the PID
 	 * for a process in all nested PID namespaces but set_tid_size must
 	 * never be greater than the current ns->level + 1.
 	 */
@@ -198,7 +198,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 				goto out_free;
 			/*
 			 * Also fail if a PID != 1 is requested and
-			 * no PID 1 exists.
+			 * anal PID 1 exists.
 			 */
 			if (tid != 1 && !tmp->child_reaper)
 				goto out_free;
@@ -215,10 +215,10 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 			nr = idr_alloc(&tmp->idr, NULL, tid,
 				       tid + 1, GFP_ATOMIC);
 			/*
-			 * If ENOSPC is returned it means that the PID is
+			 * If EANALSPC is returned it means that the PID is
 			 * alreay in use. Return EEXIST in that case.
 			 */
-			if (nr == -ENOSPC)
+			if (nr == -EANALSPC)
 				nr = -EEXIST;
 		} else {
 			int pid_min = 1;
@@ -230,7 +230,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 				pid_min = RESERVED_PIDS;
 
 			/*
-			 * Store a null pointer so find_pid_ns does not find
+			 * Store a null pointer so find_pid_ns does analt find
 			 * a partially initialized PID (see below).
 			 */
 			nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
@@ -240,7 +240,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		idr_preload_end();
 
 		if (nr < 0) {
-			retval = (nr == -ENOSPC) ? -EAGAIN : nr;
+			retval = (nr == -EANALSPC) ? -EAGAIN : nr;
 			goto out_free;
 		}
 
@@ -250,14 +250,14 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	}
 
 	/*
-	 * ENOMEM is not the most obvious choice especially for the case
+	 * EANALMEM is analt the most obvious choice especially for the case
 	 * where the child subreaper has already exited and the pid
-	 * namespace denies the creation of any new processes. But ENOMEM
+	 * namespace denies the creation of any new processes. But EANALMEM
 	 * is what we have exposed to userspace for a long time and it is
 	 * documented behavior for pid namespaces. So we can't easily
 	 * change it even if there were an error code better suited.
 	 */
-	retval = -ENOMEM;
+	retval = -EANALMEM;
 
 	get_pid_ns(ns);
 	refcount_set(&pid->count, 1);
@@ -266,7 +266,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 		INIT_HLIST_HEAD(&pid->tasks[type]);
 
 	init_waitqueue_head(&pid->wait_pidfd);
-	INIT_HLIST_HEAD(&pid->inodes);
+	INIT_HLIST_HEAD(&pid->ianaldes);
 
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
@@ -400,7 +400,7 @@ struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 {
 	struct task_struct *result = NULL;
 	if (pid) {
-		struct hlist_node *first;
+		struct hlist_analde *first;
 		first = rcu_dereference_check(hlist_first_rcu(&pid->tasks[type]),
 					      lockdep_tasklist_lock_is_held());
 		if (first)
@@ -554,11 +554,11 @@ struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
  *
  * Currently, the process identified by @pidfd is always a thread-group leader.
  * This restriction currently exists for all aspects of pidfds including pidfd
- * creation (CLONE_PIDFD cannot be used with CLONE_THREAD) and pidfd polling
+ * creation (CLONE_PIDFD cananalt be used with CLONE_THREAD) and pidfd polling
  * (only supports thread group leaders).
  *
  * Return: On success, the task_struct associated with the pidfd.
- *	   On error, a negative errno number will be returned.
+ *	   On error, a negative erranal number will be returned.
  */
 struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags)
 {
@@ -587,13 +587,13 @@ struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags)
  *
  * This creates a new pid file descriptor with the O_CLOEXEC flag set.
  *
- * Note, that this function can only be called after the fd table has
+ * Analte, that this function can only be called after the fd table has
  * been unshared to avoid leaking the pidfd to the new process.
  *
- * This symbol should not be explicitly exported to loadable modules.
+ * This symbol should analt be explicitly exported to loadable modules.
  *
  * Return: On success, a cloexec pidfd is returned.
- *         On error, a negative errno number will be returned.
+ *         On error, a negative erranal number will be returned.
  */
 int pidfd_create(struct pid *pid, unsigned int flags)
 {
@@ -617,19 +617,19 @@ int pidfd_create(struct pid *pid, unsigned int flags)
  * This creates a new pid file descriptor with the O_CLOEXEC flag set for
  * the process identified by @pid. Currently, the process identified by
  * @pid must be a thread-group leader. This restriction currently exists
- * for all aspects of pidfds including pidfd creation (CLONE_PIDFD cannot
+ * for all aspects of pidfds including pidfd creation (CLONE_PIDFD cananalt
  * be used with CLONE_THREAD) and pidfd polling (only supports thread group
  * leaders).
  *
  * Return: On success, a cloexec pidfd is returned.
- *         On error, a negative errno number will be returned.
+ *         On error, a negative erranal number will be returned.
  */
 SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 {
 	int fd;
 	struct pid *p;
 
-	if (flags & ~PIDFD_NONBLOCK)
+	if (flags & ~PIDFD_ANALNBLOCK)
 		return -EINVAL;
 
 	if (pid <= 0)
@@ -647,7 +647,7 @@ SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 
 void __init pid_idr_init(void)
 {
-	/* Verify no one has done anything silly: */
+	/* Verify anal one has done anything silly: */
 	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
 
 	/* bump default and minimum pid_max based on number of cpus */
@@ -661,7 +661,7 @@ void __init pid_idr_init(void)
 
 	init_pid_ns.pid_cachep = kmem_cache_create("pid",
 			struct_size_t(struct pid, numbers, 1),
-			__alignof__(struct pid),
+			__aliganalf__(struct pid),
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT,
 			NULL);
 }
@@ -707,20 +707,20 @@ static int pidfd_getfd(struct pid *pid, int fd)
 }
 
 /**
- * sys_pidfd_getfd() - Get a file descriptor from another process
+ * sys_pidfd_getfd() - Get a file descriptor from aanalther process
  *
  * @pidfd:	the pidfd file descriptor of the process
  * @fd:		the file descriptor number to get
  * @flags:	flags on how to get the fd (reserved)
  *
- * This syscall gets a copy of a file descriptor from another process
+ * This syscall gets a copy of a file descriptor from aanalther process
  * based on the pidfd, and file descriptor number. It requires that
  * the calling process has the ability to ptrace the process represented
  * by the pidfd. The process which is having its file descriptor copied
  * is otherwise unaffected.
  *
  * Return: On success, a cloexec file descriptor is returned.
- *         On error, a negative errno number will be returned.
+ *         On error, a negative erranal number will be returned.
  */
 SYSCALL_DEFINE3(pidfd_getfd, int, pidfd, int, fd,
 		unsigned int, flags)

@@ -27,7 +27,7 @@ size_t syscall_arg__scnprintf_flock(char *bf, size_t size, struct syscall_arg *a
 	int printed = 0, op = arg->val;
 
 	if (op == 0)
-		return scnprintf(bf, size, "NONE");
+		return scnprintf(bf, size, "ANALNE");
 #define	P_CMD(cmd) \
 	if ((op & LOCK_##cmd) == LOCK_##cmd) { \
 		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #cmd); \

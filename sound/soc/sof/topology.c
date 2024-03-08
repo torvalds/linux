@@ -10,7 +10,7 @@
 
 #include <linux/bits.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/firmware.h>
 #include <linux/workqueue.h>
 #include <sound/tlv.h>
@@ -22,10 +22,10 @@
 #define COMP_ID_UNASSIGNED		0xffffffff
 /*
  * Constants used in the computation of linear volume gain
- * from dB gain 20th root of 10 in Q1.16 fixed-point notation
+ * from dB gain 20th root of 10 in Q1.16 fixed-point analtation
  */
 #define VOL_TWENTIETH_ROOT_OF_TEN	73533
-/* 40th root of 10 in Q1.16 fixed-point notation*/
+/* 40th root of 10 in Q1.16 fixed-point analtation*/
 #define VOL_FORTIETH_ROOT_OF_TEN	69419
 
 /* 0.5 dB step value in topology TLV */
@@ -60,7 +60,7 @@ int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum so
 	int i, j;
 
 	token_list = tplg_ops ? tplg_ops->token_list : NULL;
-	/* nothing to do if token_list is NULL */
+	/* analthing to do if token_list is NULL */
 	if (!token_list)
 		return 0;
 
@@ -69,7 +69,7 @@ int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum so
 		return -EINVAL;
 	}
 
-	/* No tokens to match */
+	/* Anal tokens to match */
 	if (!token_list[token_id].count)
 		return 0;
 
@@ -107,7 +107,7 @@ int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum so
 				{
 					if (!tokens[i].get_token) {
 						dev_err(scomp->dev,
-							"get_token not defined for token %d in %s\n",
+							"get_token analt defined for token %d in %s\n",
 							tokens[i].token, token_list[token_id].name);
 						return -EINVAL;
 					}
@@ -165,7 +165,7 @@ static inline int get_tlv_data(const int *p, int tlv[SOF_TLV_ITEMS])
  */
 static inline u32 vol_shift_64(u64 i, u32 x)
 {
-	/* do not truncate more than 32 bits */
+	/* do analt truncate more than 32 bits */
 	if (x > 32)
 		x = 32;
 
@@ -273,7 +273,7 @@ static int set_up_volume_table(struct snd_sof_control *scontrol,
 	if (tplg_ops && tplg_ops->control && tplg_ops->control->set_up_volume_table)
 		return tplg_ops->control->set_up_volume_table(scontrol, tlv, size);
 
-	dev_err(scomp->dev, "Mandatory op %s not set\n", __func__);
+	dev_err(scomp->dev, "Mandatory op %s analt set\n", __func__);
 	return -EINVAL;
 }
 
@@ -309,7 +309,7 @@ static enum sof_ipc_dai_type find_dai(const char *name)
 			return sof_dais[i].type;
 	}
 
-	return SOF_DAI_INTEL_NONE;
+	return SOF_DAI_INTEL_ANALNE;
 }
 
 /*
@@ -337,7 +337,7 @@ static enum sof_ipc_frame find_format(const char *name)
 			return sof_frames[i].frame;
 	}
 
-	/* use s32le if nothing is specified */
+	/* use s32le if analthing is specified */
 	return SOF_IPC_FRAME_S32_LE;
 }
 
@@ -380,7 +380,7 @@ int get_token_string(void *elem, void *object, u32 offset)
 
 	*dst = kstrdup(elem, GFP_KERNEL);
 	if (!*dst)
-		return -ENOMEM;
+		return -EANALMEM;
 	return 0;
 };
 
@@ -467,7 +467,7 @@ static int sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 			if (tokens[j].token != le32_to_cpu(elem->token))
 				continue;
 
-			/* matched - now load token */
+			/* matched - analw load token */
 			tokens[j].get_token(elem, object,
 					    offset + tokens[j].offset);
 
@@ -504,7 +504,7 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 	int i, j;
 
 	token_list = tplg_ops ? tplg_ops->token_list : NULL;
-	/* nothing to do if token_list is NULL */
+	/* analthing to do if token_list is NULL */
 	if (!token_list)
 		return 0;
 
@@ -517,13 +517,13 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 	num_tokens = token_list[token_id].count;
 
 	if (!tokens) {
-		dev_err(sdev->dev, "No token array defined for token ID: %d\n", token_id);
+		dev_err(sdev->dev, "Anal token array defined for token ID: %d\n", token_id);
 		return -EINVAL;
 	}
 
 	/* check if there's space in the tuples array for new tokens */
 	if (*num_copied_tuples >= tuples_size) {
-		dev_err(sdev->dev, "No space in tuples array for new tokens from %s",
+		dev_err(sdev->dev, "Anal space in tuples array for new tokens from %s",
 			token_list[token_id].name);
 		return -EINVAL;
 	}
@@ -537,7 +537,7 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 			return -EINVAL;
 		}
 
-		/* make sure there is enough data before parsing */
+		/* make sure there is eanalugh data before parsing */
 		array_size -= asize;
 		if (array_size < 0) {
 			dev_err(sdev->dev, "Invalid array size 0x%x\n", asize);
@@ -583,7 +583,7 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 				found++;
 				(*num_copied_tuples)++;
 
-				/* stop if there's no space for any more new tuples */
+				/* stop if there's anal space for any more new tuples */
 				if (*num_copied_tuples == tuples_size)
 					return 0;
 			}
@@ -634,7 +634,7 @@ static int sof_parse_string_tokens(struct snd_soc_component *scomp,
 			if (tokens[j].token != le32_to_cpu(elem->token))
 				continue;
 
-			/* matched - now load token */
+			/* matched - analw load token */
 			ret = tokens[j].get_token(elem->string, object, offset + tokens[j].offset);
 			if (ret < 0)
 				return ret;
@@ -723,13 +723,13 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 		asize = le32_to_cpu(array->size);
 
 		/* validate asize */
-		if (asize < 0) { /* FIXME: A zero-size array makes no sense */
+		if (asize < 0) { /* FIXME: A zero-size array makes anal sense */
 			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
 		}
 
-		/* make sure there is enough data before parsing */
+		/* make sure there is eanalugh data before parsing */
 		array_size -= asize;
 		if (array_size < 0) {
 			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
@@ -748,7 +748,7 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 			ret = sof_parse_string_tokens(scomp, object, offset, tokens, count,
 						      array);
 			if (ret < 0) {
-				dev_err(scomp->dev, "error: no memory to copy string token\n");
+				dev_err(scomp->dev, "error: anal memory to copy string token\n");
 				return ret;
 			}
 
@@ -762,7 +762,7 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 						       array);
 			break;
 		default:
-			dev_err(scomp->dev, "error: unknown token type %d\n",
+			dev_err(scomp->dev, "error: unkanalwn token type %d\n",
 				array->type);
 			return -EINVAL;
 		}
@@ -834,7 +834,7 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	 * If control has more than 2 channels we need to override the info. This is because even if
 	 * ASoC layer has defined topology's max channel count to SND_SOC_TPLG_MAX_CHAN = 8, the
 	 * pre-defined dapm control types (and related functions) creating the actual control
-	 * restrict the channels only to mono or stereo.
+	 * restrict the channels only to moanal or stereo.
 	 */
 	if (le32_to_cpu(mc->num_channels) > 2)
 		kc->info = snd_sof_volume_info;
@@ -936,7 +936,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	if (priv_size > 0) {
 		scontrol->priv = kmemdup(control->priv.data, priv_size, GFP_KERNEL);
 		if (!scontrol->priv)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		scontrol->priv_size = priv_size;
 	}
@@ -962,12 +962,12 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 
 	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
 	if (!scontrol)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	scontrol->name = kstrdup(hdr->name, GFP_KERNEL);
 	if (!scontrol->name) {
 		kfree(scontrol);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	scontrol->scomp = scomp;
@@ -1002,7 +1002,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 	case SND_SOC_TPLG_DAPM_CTL_PIN:
 	default:
-		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
+		dev_warn(scomp->dev, "control type analt supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		kfree(scontrol->name);
 		kfree(scontrol);
@@ -1064,7 +1064,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	int i;
 
 	if (!w->sname) {
-		dev_err(scomp->dev, "Widget %s does not have stream\n", w->name);
+		dev_err(scomp->dev, "Widget %s does analt have stream\n", w->name);
 		return -EINVAL;
 	}
 
@@ -1196,12 +1196,12 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 	int ret, i;
 
 	token_list = tplg_ops ? tplg_ops->token_list : NULL;
-	/* nothing to do if token_list is NULL */
+	/* analthing to do if token_list is NULL */
 	if (!token_list)
 		return 0;
 
 	if (count > 0 && !object_token_list) {
-		dev_err(scomp->dev, "No token list for widget %s\n", swidget->widget->name);
+		dev_err(scomp->dev, "Anal token list for widget %s\n", swidget->widget->name);
 		return -EINVAL;
 	}
 
@@ -1212,7 +1212,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 	/* allocate memory for tuples array */
 	swidget->tuples = kcalloc(num_tuples, sizeof(*swidget->tuples), GFP_KERNEL);
 	if (!swidget->tuples)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* parse token list for widget */
 	for (i = 0; i < count; i++) {
@@ -1271,7 +1271,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 			new_tuples = krealloc(swidget->tuples,
 					      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
 			if (!new_tuples) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto err;
 			}
 
@@ -1350,7 +1350,7 @@ static int sof_parse_pin_binding(struct snd_sof_widget *swidget,
 	if (pin_binding[0]) {
 		pb = kmemdup(pin_binding, num_pins * sizeof(char *), GFP_KERNEL);
 		if (!pb) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err;
 		}
 		if (pin_type == SOF_PIN_TYPE_INPUT)
@@ -1368,18 +1368,18 @@ err:
 	return ret;
 }
 
-static int get_w_no_wname_in_long_name(void *elem, void *object, u32 offset)
+static int get_w_anal_wname_in_long_name(void *elem, void *object, u32 offset)
 {
 	struct snd_soc_tplg_vendor_value_elem *velem = elem;
 	struct snd_soc_dapm_widget *w = object;
 
-	w->no_wname_in_kcontrol_name = !!le32_to_cpu(velem->value);
+	w->anal_wname_in_kcontrol_name = !!le32_to_cpu(velem->value);
 	return 0;
 }
 
 static const struct sof_topology_token dapm_widget_tokens[] = {
-	{SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME, SND_SOC_TPLG_TUPLE_TYPE_BOOL,
-	 get_w_no_wname_in_long_name, 0}
+	{SOF_TKN_COMP_ANAL_WNAME_IN_KCONTROL_NAME, SND_SOC_TPLG_TUPLE_TYPE_BOOL,
+	 get_w_anal_wname_in_long_name, 0}
 };
 
 /* external widget init - used for any driver specific init */
@@ -1399,7 +1399,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
 	if (!swidget)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	swidget->scomp = scomp;
 	swidget->widget = w;
@@ -1439,7 +1439,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	if (swidget->num_input_pins > 1) {
 		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_INPUT);
-		/* on parsing error, pin binding is not allocated, nothing to free. */
+		/* on parsing error, pin binding is analt allocated, analthing to free. */
 		if (ret < 0) {
 			dev_err(scomp->dev, "failed to parse input pin binding for %s\n",
 				w->name);
@@ -1449,7 +1449,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 	if (swidget->num_output_pins > 1) {
 		ret = sof_parse_pin_binding(swidget, priv, SOF_PIN_TYPE_OUTPUT);
-		/* on parsing error, pin binding is not allocated, nothing to free. */
+		/* on parsing error, pin binding is analt allocated, analthing to free. */
 		if (ret < 0) {
 			dev_err(scomp->dev, "failed to parse output pin binding for %s\n",
 				w->name);
@@ -1461,7 +1461,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		"tplg: widget %d (%s) is ready [type: %d, pipe: %d, pins: %d / %d, stream: %s]\n",
 		swidget->comp_id, w->name, swidget->id, index,
 		swidget->num_input_pins, swidget->num_output_pins,
-		strnlen(w->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0 ? w->sname : "none");
+		strnlen(w->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0 ? w->sname : "analne");
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
 	if (widget_ops) {
@@ -1475,7 +1475,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_out:
 		dai = kzalloc(sizeof(*dai), GFP_KERNEL);
 		if (!dai) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto widget_free;
 		}
 
@@ -1492,7 +1492,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_effect:
 		/* check we have some tokens - we need at least process type */
 		if (le32_to_cpu(tw->priv.size) == 0) {
-			dev_err(scomp->dev, "error: process tokens not found\n");
+			dev_err(scomp->dev, "error: process tokens analt found\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -1523,7 +1523,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
 	default:
-		dev_dbg(scomp->dev, "widget type %d name %s not handled\n", swidget->id, tw->name);
+		dev_dbg(scomp->dev, "widget type %d name %s analt handled\n", swidget->id, tw->name);
 		break;
 	}
 
@@ -1533,7 +1533,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			"error: failed to add widget id %d type %d name : %s stream %s\n",
 			tw->shift, swidget->id, tw->name,
 			strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
-				? tw->sname : "none");
+				? tw->sname : "analne");
 		goto widget_free;
 	}
 
@@ -1566,7 +1566,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 
 		spipe = kzalloc(sizeof(*spipe), GFP_KERNEL);
 		if (!spipe) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto free;
 		}
 
@@ -1713,13 +1713,13 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	int stream;
 	int ret;
 
-	/* nothing to do for BEs atm */
+	/* analthing to do for BEs atm */
 	if (!pcm)
 		return 0;
 
 	spcm = kzalloc(sizeof(*spcm), GFP_KERNEL);
 	if (!spcm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spcm->scomp = scomp;
 
@@ -1861,7 +1861,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	int ret, num_sets;
 
 	if (!link->platforms) {
-		dev_err(scomp->dev, "error: no platforms\n");
+		dev_err(scomp->dev, "error: anal platforms\n");
 		return -EINVAL;
 	}
 	link->platforms->name = dev_name(scomp->dev);
@@ -1872,21 +1872,21 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 			return ret;
 	}
 
-	/* Set nonatomic property for FE dai links as their trigger action involves IPC's */
-	if (!link->no_pcm) {
-		link->nonatomic = true;
+	/* Set analnatomic property for FE dai links as their trigger action involves IPC's */
+	if (!link->anal_pcm) {
+		link->analnatomic = true;
 		return 0;
 	}
 
 	/* check we have some tokens - we need at least DAI type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(scomp->dev, "error: expected tokens for DAI, none found\n");
+		dev_err(scomp->dev, "error: expected tokens for DAI, analne found\n");
 		return -EINVAL;
 	}
 
 	slink = kzalloc(sizeof(*slink), GFP_KERNEL);
 	if (!slink)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	slink->num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
 	slink->hw_configs = kmemdup(cfg->hw_config,
@@ -1894,7 +1894,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 				    GFP_KERNEL);
 	if (!slink->hw_configs) {
 		kfree(slink);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	slink->default_hw_cfg_id = le32_to_cpu(cfg->default_hw_config_id);
@@ -1977,7 +1977,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	if (!slink->tuples) {
 		kfree(slink->hw_configs);
 		kfree(slink);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	if (token_list[SOF_DAI_LINK_TOKENS].tokens) {
@@ -1992,7 +1992,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		}
 	}
 
-	/* nothing more to do if there are no DAI type-specific tokens defined */
+	/* analthing more to do if there are anal DAI type-specific tokens defined */
 	if (!token_id || !token_list[token_id].tokens)
 		goto out;
 
@@ -2068,17 +2068,17 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* allocate memory for sroute and connect */
 	sroute = kzalloc(sizeof(*sroute), GFP_KERNEL);
 	if (!sroute)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sroute->scomp = scomp;
 	dev_dbg(scomp->dev, "sink %s control %s source %s\n",
-		route->sink, route->control ? route->control : "none",
+		route->sink, route->control ? route->control : "analne",
 		route->source);
 
 	/* source component */
 	source_swidget = snd_sof_find_swidget(scomp, (char *)route->source);
 	if (!source_swidget) {
-		dev_err(scomp->dev, "error: source %s not found\n",
+		dev_err(scomp->dev, "error: source %s analt found\n",
 			route->source);
 		ret = -EINVAL;
 		goto err;
@@ -2086,7 +2086,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 	/*
 	 * Virtual widgets of type output/out_drv may be added in topology
-	 * for compatibility. These are not handled by the FW.
+	 * for compatibility. These are analt handled by the FW.
 	 * So, don't send routes whose source/sink widget is of such types
 	 * to the DSP.
 	 */
@@ -2097,7 +2097,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* sink component */
 	sink_swidget = snd_sof_find_swidget(scomp, (char *)route->sink);
 	if (!sink_swidget) {
-		dev_err(scomp->dev, "error: sink %s not found\n",
+		dev_err(scomp->dev, "error: sink %s analt found\n",
 			route->sink);
 		ret = -EINVAL;
 		goto err;
@@ -2142,7 +2142,7 @@ static int sof_set_widget_pipeline(struct snd_sof_dev *sdev, struct snd_sof_pipe
 	struct snd_sof_control *scontrol;
 
 	if (pipe_widget->dynamic_pipeline_widget) {
-		/* dynamic widgets cannot have volatile kcontrols */
+		/* dynamic widgets cananalt have volatile kcontrols */
 		list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
 			if (scontrol->comp_id == swidget->comp_id &&
 			    (scontrol->access & SNDRV_CTL_ELEM_ACCESS_VOLATILE)) {
@@ -2200,7 +2200,7 @@ static int sof_complete(struct snd_soc_component *scomp)
 			}
 		}
 
-		/* set the pipeline and update the IPC structure for the non scheduler widgets */
+		/* set the pipeline and update the IPC structure for the analn scheduler widgets */
 		list_for_each_entry(swidget, &sdev->widget_list, list)
 			if (swidget->widget->id != snd_soc_dapm_scheduler &&
 			    swidget->pipeline_id == pipe_widget->pipeline_id) {
@@ -2284,7 +2284,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 	.dapm_route_unload	= sof_route_unload,
 
 	/* external widget init - used for any driver specific init */
-	/* .widget_load is not currently used */
+	/* .widget_load is analt currently used */
 	.widget_ready	= sof_widget_ready,
 	.widget_unload	= sof_widget_unload,
 
@@ -2356,7 +2356,7 @@ static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
 
 		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
 		if (!swidget)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		memset(&dai, 0, sizeof(dai));
 
@@ -2403,9 +2403,9 @@ static int sof_dspless_link_load(struct snd_soc_component *scomp, int index,
 {
 	link->platforms->name = dev_name(scomp->dev);
 
-	/* Set nonatomic property for FE dai links for FE-BE compatibility */
-	if (!link->no_pcm)
-		link->nonatomic = true;
+	/* Set analnatomic property for FE dai links for FE-BE compatibility */
+	if (!link->anal_pcm)
+		link->analnatomic = true;
 
 	return 0;
 }

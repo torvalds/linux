@@ -10,7 +10,7 @@
 # architecture-specific flags and dependencies.
 
 # Core configuration.
-# (Use VAR=<xtensa_config> to use another default compiler.)
+# (Use VAR=<xtensa_config> to use aanalther default compiler.)
 
 variant-y := $(CONFIG_XTENSA_VARIANT_NAME)
 
@@ -33,21 +33,21 @@ platform-$(CONFIG_XTENSA_PLATFORM_XTFPGA)	:= xtfpga
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
 KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
-KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
-KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
-KBUILD_CFLAGS += $(call cc-option,-mno-fdpic,)
+KBUILD_CFLAGS += $(call cc-option,-mforce-anal-pic,)
+KBUILD_CFLAGS += $(call cc-option,-manal-serialize-volatile,)
+KBUILD_CFLAGS += $(call cc-option,-manal-fdpic,)
 ifneq ($(CONFIG_KERNEL_ABI_CALL0),)
 KBUILD_CFLAGS += -mabi=call0
 KBUILD_AFLAGS += -mabi=call0
 endif
 
 KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
-KBUILD_AFLAGS += $(call cc-option,-mno-fdpic,)
+KBUILD_AFLAGS += $(call cc-option,-manal-fdpic,)
 
 KBUILD_LDFLAGS += -m elf32xtensa
 
-ifneq ($(CONFIG_LD_NO_RELAX),)
-KBUILD_LDFLAGS += --no-relax
+ifneq ($(CONFIG_LD_ANAL_RELAX),)
+KBUILD_LDFLAGS += --anal-relax
 endif
 
 CHECKFLAGS += -D$(if $(CONFIG_CPU_BIG_ENDIAN),__XTENSA_EB__,__XTENSA_EL__)

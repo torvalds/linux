@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Bareudp: UDP  tunnel encasulation for different Payload types like
  * MPLS, NSH, IP, etc.
- * Copyright (c) 2019 Nokia, Inc.
- * Authors:  Martin Varghese, <martin.varghese@nokia.com>
+ * Copyright (c) 2019 Analkia, Inc.
+ * Authors:  Martin Varghese, <martin.varghese@analkia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -54,7 +54,7 @@ struct bareudp_dev {
 	u16	           sport_min;
 	bool               multi_proto_mode;
 	struct socket      __rcu *sock;
-	struct list_head   next;        /* bareudp node  on namespace list */
+	struct list_head   next;        /* bareudp analde  on namespace list */
 	struct gro_cells   gro_cells;
 };
 
@@ -156,12 +156,12 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(err)) {
 		if (log_ecn_error) {
 			if  (!ipv6_mod_enabled() || family == AF_INET)
-				net_info_ratelimited("non-ECT from %pI4 "
+				net_info_ratelimited("analn-ECT from %pI4 "
 						     "with TOS=%#x\n",
 						     &((struct iphdr *)oiph)->saddr,
 						     ((struct iphdr *)oiph)->tos);
 			else
-				net_info_ratelimited("non-ECT from %pI6\n",
+				net_info_ratelimited("analn-ECT from %pI6\n",
 						     &((struct ipv6hdr *)oiph)->saddr);
 		}
 		if (err > 1) {
@@ -196,7 +196,7 @@ static int bareudp_init(struct net_device *dev)
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	err = gro_cells_init(&bareudp->gro_cells, dev);
 	if (err) {
@@ -325,7 +325,7 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
 	skb_scrub_packet(skb, xnet);
 
-	err = -ENOSPC;
+	err = -EANALSPC;
 	if (!skb_pull(skb, skb_network_offset(skb)))
 		goto free_dst;
 
@@ -389,7 +389,7 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 
 	skb_scrub_packet(skb, xnet);
 
-	err = -ENOSPC;
+	err = -EANALSPC;
 	if (!skb_pull(skb, skb_network_offset(skb)))
 		goto free_dst;
 
@@ -563,10 +563,10 @@ static void bareudp_setup(struct net_device *dev)
 	dev->mtu = ETH_DATA_LEN;
 	dev->min_mtu = IPV4_MIN_MTU;
 	dev->max_mtu = IP_MAX_MTU - BAREUDP_BASE_HLEN;
-	dev->type = ARPHRD_NONE;
+	dev->type = ARPHRD_ANALNE;
 	netif_keep_dst(dev);
-	dev->priv_flags |= IFF_NO_QUEUE;
-	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+	dev->priv_flags |= IFF_ANAL_QUEUE;
+	dev->flags = IFF_POINTOPOINT | IFF_ANALARP | IFF_MULTICAST;
 }
 
 static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -574,7 +574,7 @@ static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],
 {
 	if (!data) {
 		NL_SET_ERR_MSG(extack,
-			       "Not enough attributes provided to perform the operation");
+			       "Analt eanalugh attributes provided to perform the operation");
 		return -EINVAL;
 	}
 	return 0;
@@ -586,11 +586,11 @@ static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
 	memset(conf, 0, sizeof(*conf));
 
 	if (!data[IFLA_BAREUDP_PORT]) {
-		NL_SET_ERR_MSG(extack, "port not specified");
+		NL_SET_ERR_MSG(extack, "port analt specified");
 		return -EINVAL;
 	}
 	if (!data[IFLA_BAREUDP_ETHERTYPE]) {
-		NL_SET_ERR_MSG(extack, "ethertype not specified");
+		NL_SET_ERR_MSG(extack, "ethertype analt specified");
 		return -EINVAL;
 	}
 
@@ -630,14 +630,14 @@ static int bareudp_configure(struct net *net, struct net_device *dev,
 	bareudp->dev = dev;
 	t = bareudp_find_dev(bn, conf);
 	if (t) {
-		NL_SET_ERR_MSG(extack, "Another bareudp device using the same port already exists");
+		NL_SET_ERR_MSG(extack, "Aanalther bareudp device using the same port already exists");
 		return -EBUSY;
 	}
 
 	if (conf->multi_proto_mode &&
 	    (conf->ethertype != htons(ETH_P_MPLS_UC) &&
 	     conf->ethertype != htons(ETH_P_IP))) {
-		NL_SET_ERR_MSG(extack, "Cannot set multiproto mode for this ethertype (only IPv4 and unicast MPLS are supported)");
+		NL_SET_ERR_MSG(extack, "Cananalt set multiproto mode for this ethertype (only IPv4 and unicast MPLS are supported)");
 		return -EINVAL;
 	}
 
@@ -810,5 +810,5 @@ module_exit(bareudp_cleanup_module);
 
 MODULE_ALIAS_RTNL_LINK("bareudp");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Martin Varghese <martin.varghese@nokia.com>");
+MODULE_AUTHOR("Martin Varghese <martin.varghese@analkia.com>");
 MODULE_DESCRIPTION("Interface driver for UDP encapsulated traffic");

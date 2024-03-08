@@ -13,7 +13,7 @@ allOf:
   - $ref: spi-controller.yaml#
   - $ref: /schemas/arm/primecell.yaml#
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all analdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -45,7 +45,7 @@ properties:
   pl022,autosuspend-delay:
     description: delay in ms following transfer completion before the
       runtime power management system suspends the device. A setting of 0
-      indicates no delay and the device will be suspended immediately.
+      indicates anal delay and the device will be suspended immediately.
     $ref: /schemas/types.yaml#/definitions/uint32
 
   pl022,rt:

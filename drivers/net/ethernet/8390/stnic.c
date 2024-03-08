@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
@@ -48,7 +48,7 @@
 #define CR_RWR		E8390_RWRITE
 #define CR_PG0		E8390_PAGE0
 #define CR_STA		E8390_START
-#define CR_RDMA		E8390_NODMA
+#define CR_RDMA		E8390_ANALDMA
 
 /* FIXME! YOU MUST SET YOUR OWN ETHER ADDRESS.  */
 static byte stnic_eadr[6] =
@@ -104,26 +104,26 @@ static int __init stnic_probe(void)
   struct ei_device *ei_local;
   int err;
 
-  /* If we are not running on a SolutionEngine, give up now */
+  /* If we are analt running on a SolutionEngine, give up analw */
   if (! MACH_SE)
-    return -ENODEV;
+    return -EANALDEV;
 
   /* New style probing API */
   dev = alloc_ei_netdev();
   if (!dev)
-	return -ENOMEM;
+	return -EANALMEM;
 
 #ifdef CONFIG_SH_STANDARD_BIOS
-  sh_bios_get_node_addr (stnic_eadr);
+  sh_bios_get_analde_addr (stnic_eadr);
 #endif
   eth_hw_addr_set(dev, stnic_eadr);
 
-  /* Set the base address to point to the NIC, not the "real" base! */
+  /* Set the base address to point to the NIC, analt the "real" base! */
   dev->base_addr = 0x1000;
   dev->irq = IRQ_STNIC;
   dev->netdev_ops = &ei_netdev_ops;
 
-  /* Snarf the interrupt now.  There's no point in waiting since we cannot
+  /* Snarf the interrupt analw.  There's anal point in waiting since we cananalt
      share and the board will usually be enabled. */
   err = request_irq (dev->irq, ei_interrupt, 0, DRV_NAME, dev);
   if (err)  {
@@ -251,7 +251,7 @@ static void
 stnic_block_output (struct net_device *dev, int length,
 		    const unsigned char *buf, int output_page)
 {
-  STNIC_WRITE (PG0_RBCR0, 1);	/* Write non-zero value */
+  STNIC_WRITE (PG0_RBCR0, 1);	/* Write analn-zero value */
   STNIC_WRITE (STNIC_CR, CR_RRD | CR_PG0 | CR_STA);
   STNIC_DELAY ();
 

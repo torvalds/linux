@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef __LINUX_UVCVIDEO_H_
 #define __LINUX_UVCVIDEO_H_
 
@@ -28,8 +28,8 @@
 #define UVC_CTRL_FLAG_RESTORE		(1 << 6)
 /* Control can be updated by the camera. */
 #define UVC_CTRL_FLAG_AUTO_UPDATE	(1 << 7)
-/* Control supports asynchronous reporting */
-#define UVC_CTRL_FLAG_ASYNCHRONOUS	(1 << 8)
+/* Control supports asynchroanalus reporting */
+#define UVC_CTRL_FLAG_ASYNCHROANALUS	(1 << 8)
 
 #define UVC_CTRL_FLAG_GET_RANGE \
 	(UVC_CTRL_FLAG_GET_CUR | UVC_CTRL_FLAG_GET_MIN | \
@@ -73,18 +73,18 @@ struct uvc_xu_control_query {
 #define UVCIOC_CTRL_QUERY	_IOWR('u', 0x21, struct uvc_xu_control_query)
 
 /*
- * Metadata node
+ * Metadata analde
  */
 
 /**
  * struct uvc_meta_buf - metadata buffer building block
- * @ns: system timestamp of the payload in nanoseconds
+ * @ns: system timestamp of the payload in naanalseconds
  * @sof: USB Frame Number
  * @length: length of the payload header
  * @flags: payload header flags
  * @buf: optional device-specific header data
  *
- * UVC metadata nodes fill buffers with possibly multiple instances of this
+ * UVC metadata analdes fill buffers with possibly multiple instances of this
  * struct. The first two fields are added by the driver, they can be used for
  * clock synchronisation. The rest is an exact copy of a UVC payload header.
  * Only complete objects with complete buffers are included. Therefore it's

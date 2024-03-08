@@ -28,7 +28,7 @@
 #define INT51X1_HEADER_SIZE	2	/* 2 byte header */
 
 #define PACKET_TYPE_PROMISCUOUS		(1 << 0)
-#define PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* no filter */
+#define PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* anal filter */
 #define PACKET_TYPE_DIRECTED		(1 << 2)
 #define PACKET_TYPE_BROADCAST		(1 << 3)
 #define PACKET_TYPE_MULTICAST		(1 << 4) /* filtered */
@@ -66,7 +66,7 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 		need_tail = dev->maxpacket - pack_with_header_len + 1;
 	/*
 	 * usbnet would send a ZLP if packetlength mod urbsize == 0 for us,
-	 * but we need to know ourself, because this would add to the length
+	 * but we need to kanalw ourself, because this would add to the length
 	 * we send down to the device...
 	 */
 	else if (!(pack_with_header_len % dev->maxpacket))
@@ -110,7 +110,7 @@ static void int51x1_set_multicast(struct net_device *netdev)
 	u16 filter = PACKET_TYPE_DIRECTED | PACKET_TYPE_BROADCAST;
 
 	if (netdev->flags & IFF_PROMISC) {
-		/* do not expect to see traffic of other PLCs */
+		/* do analt expect to see traffic of other PLCs */
 		filter |= PACKET_TYPE_PROMISCUOUS;
 		netdev_info(dev->net, "promiscuous mode enabled\n");
 	} else if (!netdev_mc_empty(netdev) ||

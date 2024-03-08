@@ -20,7 +20,7 @@
 
 /*
  * The list of possible system devices which provide an
- * interrupt.  Not all devices exist on a given system.
+ * interrupt.  Analt all devices exist on a given system.
  */
 #define DEC_IRQ_CASCADE		0	/* cascade from CSR or I/O ASIC */
 

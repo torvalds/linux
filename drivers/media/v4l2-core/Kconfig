@@ -24,11 +24,11 @@ config VIDEO_ADV_DEBUG
 	  V4L devices.
 	  In doubt, say N.
 
-config VIDEO_FIXED_MINOR_RANGES
-	bool "Enable old-style fixed minor ranges on drivers/video devices"
+config VIDEO_FIXED_MIANALR_RANGES
+	bool "Enable old-style fixed mianalr ranges on drivers/video devices"
 	help
-	  Say Y here to enable the old-style fixed-range minor assignments.
-	  Only useful if you rely on the old behavior and use mknod instead of udev.
+	  Say Y here to enable the old-style fixed-range mianalr assignments.
+	  Only useful if you rely on the old behavior and use mkanald instead of udev.
 
 	  When in doubt, say N.
 
@@ -67,7 +67,7 @@ config V4L2_FLASH_LED_CLASS
 
 	  When in doubt, say N.
 
-config V4L2_FWNODE
+config V4L2_FWANALDE
 	tristate
 	select V4L2_ASYNC
 

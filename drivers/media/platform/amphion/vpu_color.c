@@ -39,7 +39,7 @@ static const u8 colortransfers[] = {
 	0,                              /*Rec. ITU-R BT.470-6 System B, G*/
 	V4L2_XFER_FUNC_709,             /*SMPTE170M*/
 	V4L2_XFER_FUNC_SMPTE240M,       /*SMPTE240M*/
-	V4L2_XFER_FUNC_NONE,            /*Linear transfer characteristics*/
+	V4L2_XFER_FUNC_ANALNE,            /*Linear transfer characteristics*/
 	0,
 	0,
 	0,                              /*IEC 61966-2-4*/

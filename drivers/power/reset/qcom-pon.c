@@ -2,7 +2,7 @@
 // Copyright (c) 2017-18 Linaro Limited
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -17,7 +17,7 @@
 #define GEN1_REASON_SHIFT		2
 #define GEN2_REASON_SHIFT		1
 
-#define NO_REASON_SHIFT			0
+#define ANAL_REASON_SHIFT			0
 
 struct pm8916_pon {
 	struct device *dev;
@@ -52,24 +52,24 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 
 	pon = devm_kzalloc(&pdev->dev, sizeof(*pon), GFP_KERNEL);
 	if (!pon)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pon->dev = &pdev->dev;
 
 	pon->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pon->regmap) {
 		dev_err(&pdev->dev, "failed to locate regmap\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
-	error = of_property_read_u32(pdev->dev.of_node, "reg",
+	error = of_property_read_u32(pdev->dev.of_analde, "reg",
 				     &pon->baseaddr);
 	if (error)
 		return error;
 
 	reason_shift = (long)of_device_get_match_data(&pdev->dev);
 
-	if (reason_shift != NO_REASON_SHIFT) {
+	if (reason_shift != ANAL_REASON_SHIFT) {
 		pon->reboot_mode.dev = &pdev->dev;
 		pon->reason_shift = reason_shift;
 		pon->reboot_mode.write = pm8916_reboot_mode_write;
@@ -87,7 +87,7 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 
 static const struct of_device_id pm8916_pon_id_table[] = {
 	{ .compatible = "qcom,pm8916-pon", .data = (void *)GEN1_REASON_SHIFT },
-	{ .compatible = "qcom,pm8941-pon", .data = (void *)NO_REASON_SHIFT },
+	{ .compatible = "qcom,pm8941-pon", .data = (void *)ANAL_REASON_SHIFT },
 	{ .compatible = "qcom,pms405-pon", .data = (void *)GEN1_REASON_SHIFT },
 	{ .compatible = "qcom,pm8998-pon", .data = (void *)GEN2_REASON_SHIFT },
 	{ .compatible = "qcom,pmk8350-pon", .data = (void *)GEN2_REASON_SHIFT },

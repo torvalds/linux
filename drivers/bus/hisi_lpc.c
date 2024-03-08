@@ -55,7 +55,7 @@ struct hisi_lpc_dev {
 #define LPC_REG_WDATA			0x24 /* write FIFO */
 #define LPC_REG_RDATA			0x28 /* read FIFO */
 
-/* The minimal nanosecond interval for each query on LPC cycle status */
+/* The minimal naanalsecond interval for each query on LPC cycle status */
 #define LPC_NSEC_PERWAIT	100
 
 /*
@@ -96,7 +96,7 @@ static int wait_lpc_idle(void __iomem *mbase, unsigned int waitcnt)
  * @buf: where the read back data is stored
  * @opcnt: how many I/O operations required, i.e. data width
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, analn-zero on fail.
  */
 static int hisi_lpc_target_in(struct hisi_lpc_dev *lpcdev,
 			      struct lpc_cycle_para *para, unsigned long addr,
@@ -149,7 +149,7 @@ static int hisi_lpc_target_in(struct hisi_lpc_dev *lpcdev,
  * @buf: where the data to be written is stored
  * @opcnt: how many I/O operations required, i.e. data width
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, analn-zero on fail.
  */
 static int hisi_lpc_target_out(struct hisi_lpc_dev *lpcdev,
 			       struct lpc_cycle_para *para, unsigned long addr,
@@ -267,7 +267,7 @@ static void hisi_lpc_comm_out(void *hostdata, unsigned long pio,
  * @count: how many data units whose length is dwidth will be read
  *
  * When success, the data read back is stored in buffer pointed by buffer.
- * Returns 0 on success, -errno otherwise.
+ * Returns 0 on success, -erranal otherwise.
  */
 static u32 hisi_lpc_comm_ins(void *hostdata, unsigned long pio, void *buffer,
 			     size_t dwidth, unsigned int count)
@@ -347,7 +347,7 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 	unsigned long sys_port;
 	resource_size_t len = resource_size(res);
 
-	sys_port = logic_pio_trans_hwaddr(acpi_fwnode_handle(host), res->start, len);
+	sys_port = logic_pio_trans_hwaddr(acpi_fwanalde_handle(host), res->start, len);
 	if (sys_port == ~0UL)
 		return -EFAULT;
 
@@ -373,14 +373,14 @@ static void hisi_lpc_acpi_fixup_child_resource(struct device *hostdev,
 	else if (r->start == 0x2f8)
 		r->end = 0x2f8 + 0x08 - 1;
 	else
-		dev_warn(hostdev, "unrecognised resource %pR to fixup, ignoring\n",
+		dev_warn(hostdev, "unrecognised resource %pR to fixup, iganalring\n",
 			 r);
 }
 
 /*
  * hisi_lpc_acpi_set_io_res - set the resources for a child
- * @adev: ACPI companion of the device node to be updated the I/O resource
- * @hostdev: the device node associated with host controller
+ * @adev: ACPI companion of the device analde to be updated the I/O resource
+ * @hostdev: the device analde associated with host controller
  * @res: double pointer to be set to the address of translated resources
  * @num_res: pointer to variable to hold the number of translated resources
  *
@@ -402,7 +402,7 @@ static int hisi_lpc_acpi_set_io_res(struct acpi_device *adev,
 	int i;
 
 	if (!adev->status.present) {
-		dev_dbg(&adev->dev, "device is not present\n");
+		dev_dbg(&adev->dev, "device is analt present\n");
 		return -EIO;
 	}
 
@@ -425,13 +425,13 @@ static int hisi_lpc_acpi_set_io_res(struct acpi_device *adev,
 	resources = devm_kcalloc(hostdev, count, sizeof(*resources),
 				 GFP_KERNEL);
 	if (!resources) {
-		dev_warn(hostdev, "could not allocate memory for %d resources\n",
+		dev_warn(hostdev, "could analt allocate memory for %d resources\n",
 			 count);
 		acpi_dev_free_resource_list(&resource_list);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 	count = 0;
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, analde) {
 		resources[count] = *rentry->res;
 		hisi_lpc_acpi_fixup_child_resource(hostdev, &resources[count]);
 		count++;
@@ -464,7 +464,7 @@ static int hisi_lpc_acpi_remove_subdev(struct device *dev, void *unused)
 	return 0;
 }
 
-static int hisi_lpc_acpi_clear_enumerated(struct acpi_device *adev, void *not_used)
+static int hisi_lpc_acpi_clear_enumerated(struct acpi_device *adev, void *analt_used)
 {
 	acpi_device_clear_enumerated(adev);
 	return 0;
@@ -506,7 +506,7 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 			.pdevinfo = (struct platform_device_info []) {
 				{
 					.parent = hostdev,
-					.fwnode = acpi_fwnode_handle(child),
+					.fwanalde = acpi_fwanalde_handle(child),
 					.name = "hisi-lpc-ipmi",
 					.id = PLATFORM_DEVID_AUTO,
 					.res = res,
@@ -520,7 +520,7 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 			.pdevinfo = (struct platform_device_info []) {
 				{
 					.parent = hostdev,
-					.fwnode = acpi_fwnode_handle(child),
+					.fwanalde = acpi_fwanalde_handle(child),
 					.name = "serial8250",
 					.id = PLATFORM_DEVID_AUTO,
 					.res = res,
@@ -550,7 +550,7 @@ static int hisi_lpc_acpi_add_child(struct acpi_device *child, void *data)
 
 	if (!found) {
 		dev_warn(hostdev,
-			 "could not find cell for child device (%s), discarding\n",
+			 "could analt find cell for child device (%s), discarding\n",
 			 hid);
 		return 0;
 	}
@@ -588,7 +588,7 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 #else
 static int hisi_lpc_acpi_probe(struct device *dev)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static void hisi_lpc_acpi_remove(struct device *hostdev)
@@ -601,7 +601,7 @@ static void hisi_lpc_acpi_remove(struct device *hostdev)
  *		   will finish all the initialization.
  * @pdev: the platform device corresponding to hisi lpc host
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, analn-zero on fail.
  */
 static int hisi_lpc_probe(struct platform_device *pdev)
 {
@@ -613,7 +613,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 
 	lpcdev = devm_kzalloc(dev, sizeof(*lpcdev), GFP_KERNEL);
 	if (!lpcdev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&lpcdev->cycle_lock);
 
@@ -623,9 +623,9 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 
 	range = devm_kzalloc(dev, sizeof(*range), GFP_KERNEL);
 	if (!range)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	range->fwnode = dev_fwnode(dev);
+	range->fwanalde = dev_fwanalde(dev);
 	range->flags = LOGIC_PIO_INDIRECT;
 	range->size = PIO_INDIRECT_SIZE;
 	range->hostdata = lpcdev;
@@ -639,10 +639,10 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	}
 
 	/* register the LPC host PIO resources */
-	if (is_acpi_device_node(range->fwnode))
+	if (is_acpi_device_analde(range->fwanalde))
 		ret = hisi_lpc_acpi_probe(dev);
 	else
-		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		ret = of_platform_populate(dev->of_analde, NULL, NULL, dev);
 	if (ret) {
 		logic_pio_unregister_range(range);
 		return ret;
@@ -663,7 +663,7 @@ static void hisi_lpc_remove(struct platform_device *pdev)
 	struct hisi_lpc_dev *lpcdev = dev_get_drvdata(dev);
 	struct logic_pio_hwaddr *range = lpcdev->io_host;
 
-	if (is_acpi_device_node(range->fwnode))
+	if (is_acpi_device_analde(range->fwanalde))
 		hisi_lpc_acpi_remove(dev);
 	else
 		of_platform_depopulate(dev);

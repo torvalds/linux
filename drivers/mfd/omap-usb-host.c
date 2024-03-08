@@ -56,9 +56,9 @@
 
 /* OMAP4-specific defines */
 #define OMAP4_UHH_SYSCONFIG_IDLEMODE_CLEAR		(3 << 2)
-#define OMAP4_UHH_SYSCONFIG_NOIDLE			(1 << 2)
+#define OMAP4_UHH_SYSCONFIG_ANALIDLE			(1 << 2)
 #define OMAP4_UHH_SYSCONFIG_STDBYMODE_CLEAR		(3 << 4)
-#define OMAP4_UHH_SYSCONFIG_NOSTDBY			(1 << 4)
+#define OMAP4_UHH_SYSCONFIG_ANALSTDBY			(1 << 4)
 #define OMAP4_UHH_SYSCONFIG_SOFTRESET			(1 << 0)
 
 #define OMAP4_P1_MODE_CLEAR				(3 << 16)
@@ -70,7 +70,7 @@
 
 #define	OMAP_UHH_DEBUG_CSR				(0x44)
 
-/* Values of UHH_REVISION - Note: these are not given in the TRM */
+/* Values of UHH_REVISION - Analte: these are analt given in the TRM */
 #define OMAP_USBHS_REV1		0x00000010	/* OMAP3 */
 #define OMAP_USBHS_REV2		0x50700100	/* OMAP4 */
 
@@ -200,7 +200,7 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ehci");
 	if (!res) {
 		dev_err(dev, "EHCI get resource IORESOURCE_MEM failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_end;
 	}
 	resources[0] = *res;
@@ -208,7 +208,7 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "ehci-irq");
 	if (!res) {
 		dev_err(dev, " EHCI get resource IORESOURCE_IRQ failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_end;
 	}
 	resources[1] = *res;
@@ -218,14 +218,14 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 
 	if (!ehci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_end;
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ohci");
 	if (!res) {
 		dev_err(dev, "OHCI get resource IORESOURCE_MEM failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_ehci;
 	}
 	resources[0] = *res;
@@ -233,7 +233,7 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "ohci-irq");
 	if (!res) {
 		dev_err(dev, "OHCI get resource IORESOURCE_IRQ failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto err_ehci;
 	}
 	resources[1] = *res;
@@ -242,7 +242,7 @@ static int omap_usbhs_alloc_children(struct platform_device *pdev)
 		sizeof(*pdata), dev);
 	if (!ohci) {
 		dev_err(dev, "omap_usbhs_alloc_child failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_ehci;
 	}
 
@@ -398,7 +398,7 @@ static unsigned omap_usbhs_rev1_hostconfig(struct usbhs_hcd_omap *omap,
 	}
 
 	if (pdata->single_ulpi_bypass) {
-		/* bypass ULPI only if none of the ports use PHY mode */
+		/* bypass ULPI only if analne of the ports use PHY mode */
 		reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
 
 		for (i = 0; i < omap->nports; i++) {
@@ -473,16 +473,16 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 					struct usbhs_omap_platform_data *pdata)
 {
 	int ret, i;
-	struct device_node *node = dev->of_node;
+	struct device_analde *analde = dev->of_analde;
 
-	ret = of_property_read_u32(node, "num-ports", &pdata->nports);
+	ret = of_property_read_u32(analde, "num-ports", &pdata->nports);
 	if (ret)
 		pdata->nports = 0;
 
 	if (pdata->nports > OMAP3_HS_USB_PORTS) {
 		dev_warn(dev, "Too many num_ports <%d> in device tree. Max %d\n",
 				pdata->nports, OMAP3_HS_USB_PORTS);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* get port modes */
@@ -493,7 +493,7 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 		pdata->port_mode[i] = OMAP_USBHS_PORT_MODE_UNUSED;
 
 		snprintf(prop, sizeof(prop), "port%d-mode", i + 1);
-		ret = of_property_read_string(node, prop, &mode);
+		ret = of_property_read_string(analde, prop, &mode);
 		if (ret < 0)
 			continue;
 
@@ -502,7 +502,7 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 		if (ret < 0) {
 			dev_warn(dev, "Invalid port%d-mode \"%s\" in device tree\n",
 					i, mode);
-			return -ENODEV;
+			return -EANALDEV;
 		}
 
 		dev_dbg(dev, "port%d-mode: %s -> %d\n", i, mode, ret);
@@ -510,7 +510,7 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 	}
 
 	/* get flags */
-	pdata->single_ulpi_bypass = of_property_read_bool(node,
+	pdata->single_ulpi_bypass = of_property_read_bool(analde,
 						"single-ulpi-bypass");
 
 	return 0;
@@ -538,11 +538,11 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	int				i;
 	bool				need_logic_fck;
 
-	if (dev->of_node) {
-		/* For DT boot we populate platform data from OF node */
+	if (dev->of_analde) {
+		/* For DT boot we populate platform data from OF analde */
 		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		ret = usbhs_omap_get_dt_pdata(dev, pdata);
 		if (ret)
@@ -553,19 +553,19 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		dev_err(dev, "Missing platform data\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	if (pdata->nports > OMAP3_HS_USB_PORTS) {
 		dev_info(dev, "Too many num_ports <%d> in platform_data. Max %d\n",
 				pdata->nports, OMAP3_HS_USB_PORTS);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	omap = devm_kzalloc(dev, sizeof(*omap), GFP_KERNEL);
 	if (!omap) {
 		dev_err(dev, "Memory allocation failed\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	omap->uhh_base = devm_platform_ioremap_resource(pdev, 0);
@@ -606,7 +606,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		default:
 			omap->nports = OMAP3_HS_USB_PORTS;
 			dev_dbg(dev,
-			 "USB HOST Rev:0x%x not recognized, assuming %d ports\n",
+			 "USB HOST Rev:0x%x analt recognized, assuming %d ports\n",
 			 omap->usbhs_rev, omap->nports);
 			break;
 		}
@@ -620,22 +620,22 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 
 	if (!omap->utmi_clk || !omap->hsic480m_clk || !omap->hsic60m_clk) {
 		dev_err(dev, "Memory allocation failed\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err_mem;
 	}
 
 	/* Set all clocks as invalid to begin with */
-	omap->ehci_logic_fck = ERR_PTR(-ENODEV);
-	omap->init_60m_fclk = ERR_PTR(-ENODEV);
-	omap->utmi_p1_gfclk = ERR_PTR(-ENODEV);
-	omap->utmi_p2_gfclk = ERR_PTR(-ENODEV);
-	omap->xclk60mhsp1_ck = ERR_PTR(-ENODEV);
-	omap->xclk60mhsp2_ck = ERR_PTR(-ENODEV);
+	omap->ehci_logic_fck = ERR_PTR(-EANALDEV);
+	omap->init_60m_fclk = ERR_PTR(-EANALDEV);
+	omap->utmi_p1_gfclk = ERR_PTR(-EANALDEV);
+	omap->utmi_p2_gfclk = ERR_PTR(-EANALDEV);
+	omap->xclk60mhsp1_ck = ERR_PTR(-EANALDEV);
+	omap->xclk60mhsp2_ck = ERR_PTR(-EANALDEV);
 
 	for (i = 0; i < omap->nports; i++) {
-		omap->utmi_clk[i] = ERR_PTR(-ENODEV);
-		omap->hsic480m_clk[i] = ERR_PTR(-ENODEV);
-		omap->hsic60m_clk[i] = ERR_PTR(-ENODEV);
+		omap->utmi_clk[i] = ERR_PTR(-EANALDEV);
+		omap->hsic480m_clk[i] = ERR_PTR(-EANALDEV);
+		omap->hsic60m_clk[i] = ERR_PTR(-EANALDEV);
 	}
 
 	/* for OMAP3 i.e. USBHS REV1 */
@@ -705,7 +705,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		snprintf(clkname, sizeof(clkname),
 				"usb_host_hs_utmi_p%d_clk", i + 1);
 
-		/* If a clock is not found we won't bail out as not all
+		/* If a clock is analt found we won't bail out as analt all
 		 * platforms have all clocks and we can function without
 		 * them
 		 */
@@ -777,8 +777,8 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 initialize:
 	omap_usbhs_init(dev);
 
-	if (dev->of_node) {
-		ret = of_platform_populate(dev->of_node,
+	if (dev->of_analde) {
+		ret = of_platform_populate(dev->of_analde,
 				usbhs_child_match_table, NULL, dev);
 
 		if (ret) {

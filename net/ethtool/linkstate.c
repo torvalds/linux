@@ -32,11 +32,11 @@ static int linkstate_get_sqi(struct net_device *dev)
 	int ret;
 
 	if (!phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&phydev->lock);
 	if (!phydev->drv || !phydev->drv->get_sqi)
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	else
 		ret = phydev->drv->get_sqi(phydev);
 	mutex_unlock(&phydev->lock);
@@ -50,11 +50,11 @@ static int linkstate_get_sqi_max(struct net_device *dev)
 	int ret;
 
 	if (!phydev)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	mutex_lock(&phydev->lock);
 	if (!phydev->drv || !phydev->drv->get_sqi_max)
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 	else
 		ret = phydev->drv->get_sqi_max(phydev);
 	mutex_unlock(&phydev->lock);
@@ -68,7 +68,7 @@ static int linkstate_get_link_ext_state(struct net_device *dev,
 	int err;
 
 	if (!dev->ethtool_ops->get_link_ext_state)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	err = dev->ethtool_ops->get_link_ext_state(dev, &data->ethtool_link_ext_state_info);
 	if (err)
@@ -93,18 +93,18 @@ static int linkstate_prepare_data(const struct ethnl_req_info *req_base,
 	data->link = __ethtool_get_link(dev);
 
 	ret = linkstate_get_sqi(dev);
-	if (ret < 0 && ret != -EOPNOTSUPP)
+	if (ret < 0 && ret != -EOPANALTSUPP)
 		goto out;
 	data->sqi = ret;
 
 	ret = linkstate_get_sqi_max(dev);
-	if (ret < 0 && ret != -EOPNOTSUPP)
+	if (ret < 0 && ret != -EOPANALTSUPP)
 		goto out;
 	data->sqi_max = ret;
 
 	if (dev->flags & IFF_UP) {
 		ret = linkstate_get_link_ext_state(dev, data);
-		if (ret < 0 && ret != -EOPNOTSUPP && ret != -ENODATA)
+		if (ret < 0 && ret != -EOPANALTSUPP && ret != -EANALDATA)
 			goto out;
 	}
 
@@ -136,10 +136,10 @@ static int linkstate_reply_size(const struct ethnl_req_info *req_base,
 	len = nla_total_size(sizeof(u8)) /* LINKSTATE_LINK */
 		+ 0;
 
-	if (data->sqi != -EOPNOTSUPP)
+	if (data->sqi != -EOPANALTSUPP)
 		len += nla_total_size(sizeof(u32));
 
-	if (data->sqi_max != -EOPNOTSUPP)
+	if (data->sqi_max != -EOPANALTSUPP)
 		len += nla_total_size(sizeof(u32));
 
 	if (data->link_ext_state_provided)
@@ -148,7 +148,7 @@ static int linkstate_reply_size(const struct ethnl_req_info *req_base,
 	if (data->ethtool_link_ext_state_info.__link_ext_substate)
 		len += nla_total_size(sizeof(u8)); /* LINKSTATE_EXT_SUBSTATE */
 
-	if (data->link_stats.link_down_events != ETHTOOL_STAT_NOT_SET)
+	if (data->link_stats.link_down_events != ETHTOOL_STAT_ANALT_SET)
 		len += nla_total_size(sizeof(u32));
 
 	return len;
@@ -164,11 +164,11 @@ static int linkstate_fill_reply(struct sk_buff *skb,
 	    nla_put_u8(skb, ETHTOOL_A_LINKSTATE_LINK, !!data->link))
 		return -EMSGSIZE;
 
-	if (data->sqi != -EOPNOTSUPP &&
+	if (data->sqi != -EOPANALTSUPP &&
 	    nla_put_u32(skb, ETHTOOL_A_LINKSTATE_SQI, data->sqi))
 		return -EMSGSIZE;
 
-	if (data->sqi_max != -EOPNOTSUPP &&
+	if (data->sqi_max != -EOPANALTSUPP &&
 	    nla_put_u32(skb, ETHTOOL_A_LINKSTATE_SQI_MAX, data->sqi_max))
 		return -EMSGSIZE;
 
@@ -183,7 +183,7 @@ static int linkstate_fill_reply(struct sk_buff *skb,
 			return -EMSGSIZE;
 	}
 
-	if (data->link_stats.link_down_events != ETHTOOL_STAT_NOT_SET)
+	if (data->link_stats.link_down_events != ETHTOOL_STAT_ANALT_SET)
 		if (nla_put_u32(skb, ETHTOOL_A_LINKSTATE_EXT_DOWN_CNT,
 				data->link_stats.link_down_events))
 			return -EMSGSIZE;

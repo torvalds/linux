@@ -10,7 +10,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (analt later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if analt,  see <http://www.gnu.org/licenses>
  */
 #ifndef __LIBBPF_BPF_H
 #define __LIBBPF_BPF_H
@@ -49,7 +49,7 @@ struct bpf_map_create_opts {
 	__u32 map_flags;
 	__u64 map_extra;
 
-	__u32 numa_node;
+	__u32 numa_analde;
 	__u32 map_ifindex;
 };
 #define bpf_map_create_opts__last_field map_ifindex
@@ -66,7 +66,7 @@ struct bpf_prog_load_opts {
 
 	/* libbpf can retry BPF_PROG_LOAD command if bpf() syscall returns
 	 * -EAGAIN. This field determines how many attempts libbpf has to
-	 *  make. If not specified, libbpf will use default value of 5.
+	 *  make. If analt specified, libbpf will use default value of 5.
 	 */
 	int attempts;
 
@@ -168,11 +168,11 @@ struct bpf_map_batch_opts {
  * @param keys pointer to an array of *count* keys
  * @param count input and output parameter; on input **count** represents the
  * number of  elements in the map to delete in batch;
- * on output if a non-EFAULT error is returned, **count** represents the number of deleted
- * elements if the output **count** value is not equal to the input **count** value
- * If EFAULT is returned, **count** should not be trusted to be correct.
+ * on output if a analn-EFAULT error is returned, **count** represents the number of deleted
+ * elements if the output **count** value is analt equal to the input **count** value
+ * If EFAULT is returned, **count** should analt be trusted to be correct.
  * @param opts options for configuring the way the batch deletion works
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
@@ -187,7 +187,7 @@ LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
  * calls to **bpf_map_lookup_batch()**. NULL can be passed for *in_batch* to indicate
  * that the batched lookup starts from the beginning of the map.
  *
- * The *keys* and *values* are output parameters which must point to memory large enough to
+ * The *keys* and *values* are output parameters which must point to memory large eanalugh to
  * hold *count* items based on the key and value size of the map *map_fd*. The *keys*
  * buffer must be of *key_size* * *count*. The *values* buffer must be of
  * *value_size* * *count*.
@@ -196,16 +196,16 @@ LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
  * @param in_batch address of the first element in batch to read, can pass NULL to
  * indicate that the batched lookup starts from the beginning of the map.
  * @param out_batch output parameter that should be passed to next call as *in_batch*
- * @param keys pointer to an array large enough for *count* keys
- * @param values pointer to an array large enough for *count* values
+ * @param keys pointer to an array large eanalugh for *count* keys
+ * @param values pointer to an array large eanalugh for *count* values
  * @param count input and output parameter; on input it's the number of elements
  * in the map to read in batch; on output it's the number of elements that were
  * successfully read.
- * If a non-EFAULT error is returned, count will be set as the number of elements
+ * If a analn-EFAULT error is returned, count will be set as the number of elements
  * that were read before the error occurred.
- * If EFAULT is returned, **count** should not be trusted to be correct.
+ * If EFAULT is returned, **count** should analt be trusted to be correct.
  * @param opts options for configuring the way the batch lookup works
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch,
@@ -221,17 +221,17 @@ LIBBPF_API int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch,
  * get address of the first element in *out_batch*
  * @param out_batch output parameter that should be passed to next call as *in_batch*
  * @param keys pointer to an array of *count* keys
- * @param values pointer to an array large enough for *count* values
+ * @param values pointer to an array large eanalugh for *count* values
  * @param count input and output parameter; on input it's the number of elements
  * in the map to read and delete in batch; on output it represents the number of
  * elements that were successfully read and deleted
- * If a non-**EFAULT** error code is returned and if the output **count** value
- * is not equal to the input **count** value, up to **count** elements may
+ * If a analn-**EFAULT** error code is returned and if the output **count** value
+ * is analt equal to the input **count** value, up to **count** elements may
  * have been deleted.
  * if **EFAULT** is returned up to *count* elements may have been deleted without
  * being returned via the *keys* and *values* output parameters.
  * @param opts options for configuring the way the batch lookup and delete works
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_map_lookup_and_delete_batch(int fd, void *in_batch,
@@ -243,23 +243,23 @@ LIBBPF_API int bpf_map_lookup_and_delete_batch(int fd, void *in_batch,
  * @brief **bpf_map_update_batch()** updates multiple elements in a map
  * by specifying keys and their corresponding values.
  *
- * The *keys* and *values* parameters must point to memory large enough
+ * The *keys* and *values* parameters must point to memory large eanalugh
  * to hold *count* items based on the key and value size of the map.
  *
  * The *opts* parameter can be used to control how *bpf_map_update_batch()*
- * should handle keys that either do or do not already exist in the map.
+ * should handle keys that either do or do analt already exist in the map.
  * In particular the *flags* parameter of *bpf_map_batch_opts* can be
  * one of the following:
  *
- * Note that *count* is an input and output parameter, where on output it
- * represents how many elements were successfully updated. Also note that if
- * **EFAULT** then *count* should not be trusted to be correct.
+ * Analte that *count* is an input and output parameter, where on output it
+ * represents how many elements were successfully updated. Also analte that if
+ * **EFAULT** then *count* should analt be trusted to be correct.
  *
  * **BPF_ANY**
  *    Create new elements or update existing.
  *
- * **BPF_NOEXIST**
- *    Create new elements only if they do not exist.
+ * **BPF_ANALEXIST**
+ *    Create new elements only if they do analt exist.
  *
  * **BPF_EXIST**
  *    Update existing elements.
@@ -272,12 +272,12 @@ LIBBPF_API int bpf_map_lookup_and_delete_batch(int fd, void *in_batch,
  * @param keys pointer to an array of *count* keys
  * @param values pointer to an array of *count* values
  * @param count input and output parameter; on input it's the number of elements
- * in the map to update in batch; on output if a non-EFAULT error is returned,
+ * in the map to update in batch; on output if a analn-EFAULT error is returned,
  * **count** represents the number of updated elements if the output **count**
- * value is not equal to the input **count** value.
- * If EFAULT is returned, **count** should not be trusted to be correct.
+ * value is analt equal to the input **count** value.
+ * If EFAULT is returned, **count** should analt be trusted to be correct.
  * @param opts options for configuring the way the batch update works
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_map_update_batch(int fd, const void *keys, const void *values,
@@ -351,7 +351,7 @@ struct bpf_prog_detach_opts {
  * @param target attach location file descriptor or ifindex
  * @param type attach type for the BPF program
  * @param opts options for configuring the attachment
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int target,
@@ -367,7 +367,7 @@ LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int target,
  * @param target detach location file descriptor or ifindex
  * @param type detach type for the BPF program
  * @param opts options for configuring the detachment
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_prog_detach_opts(int prog_fd, int target,
@@ -499,7 +499,7 @@ LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
  * BPF program information
  * @param info_len pointer to the size of *info*; on success updated with the
  * number of bytes written to *info*
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, __u32 *info_len);
@@ -516,7 +516,7 @@ LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, 
  * BPF map information
  * @param info_len pointer to the size of *info*; on success updated with the
  * number of bytes written to *info*
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u32 *info_len);
@@ -533,7 +533,7 @@ LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u
  * BTF object information
  * @param info_len pointer to the size of *info*; on success updated with the
  * number of bytes written to *info*
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u32 *info_len);
@@ -550,7 +550,7 @@ LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u
  * BPF link information
  * @param info_len pointer to the size of *info*; on success updated with the
  * number of bytes written to *info*
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_link_get_info_by_fd(int link_fd, struct bpf_link_info *info, __u32 *info_len);
@@ -581,7 +581,7 @@ struct bpf_prog_query_opts {
  * @param target query location file descriptor or ifindex
  * @param type attach type for the BPF program
  * @param opts options for configuring the query
- * @return 0, on success; negative error code, otherwise (errno is also set to
+ * @return 0, on success; negative error code, otherwise (erranal is also set to
  * the error code)
  */
 LIBBPF_API int bpf_prog_query_opts(int target, enum bpf_attach_type type,

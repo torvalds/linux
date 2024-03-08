@@ -357,13 +357,13 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	if (!inst)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctx = skcipher_instance_ctx(inst);
 
 	err = crypto_grab_skcipher(&ctx->spawn, skcipher_crypto_instance(inst),
 				   cipher_name, 0, mask);
-	if (err == -ENOENT) {
+	if (err == -EANALENT) {
 		err = -ENAMETOOLONG;
 		if (snprintf(name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
@@ -425,7 +425,7 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = XTS_BLOCK_SIZE;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask |
-				       (__alignof__(u64) - 1);
+				       (__aliganalf__(u64) - 1);
 
 	inst->alg.ivsize = XTS_BLOCK_SIZE;
 	inst->alg.min_keysize = alg->min_keysize * 2;

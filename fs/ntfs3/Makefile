@@ -19,7 +19,7 @@ ntfs3-y :=	attrib.o \
 		frecord.o \
 		file.o \
 		fslog.o \
-		inode.o \
+		ianalde.o \
 		index.o \
 		lznt.o \
 		namei.o \

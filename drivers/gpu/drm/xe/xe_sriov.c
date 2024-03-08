@@ -15,8 +15,8 @@
 const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode)
 {
 	switch (mode) {
-	case XE_SRIOV_MODE_NONE:
-		return "none";
+	case XE_SRIOV_MODE_ANALNE:
+		return "analne";
 	case XE_SRIOV_MODE_PF:
 		return "SR-IOV PF";
 	case XE_SRIOV_MODE_VF:
@@ -40,7 +40,7 @@ const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode)
  */
 void xe_sriov_probe_early(struct xe_device *xe, bool has_sriov)
 {
-	enum xe_sriov_mode mode = XE_SRIOV_MODE_NONE;
+	enum xe_sriov_mode mode = XE_SRIOV_MODE_ANALNE;
 
 	/* TODO: replace with proper mode detection */
 	xe_assert(xe, !has_sriov);

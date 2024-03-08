@@ -5,7 +5,7 @@
  *
  *  This file is based on the following documentation:
  *
- *	Macintosh Technology in the Common Hardware Reference Platform
+ *	Macintosh Techanallogy in the Common Hardware Reference Platform
  *	Apple Computer, Inc.
  *
  *	© Copyright 1995 Apple Computer, Inc. All rights reserved.

@@ -22,7 +22,7 @@ Description:
 				EFI variable flags.  Potential values
 				include:
 
-				EFI_VARIABLE_NON_VOLATILE
+				EFI_VARIABLE_ANALN_VOLATILE
 				EFI_VARIABLE_BOOTSERVICE_ACCESS
 				EFI_VARIABLE_RUNTIME_ACCESS
 				EFI_VARIABLE_HARDWARE_ERROR_RECORD
@@ -40,7 +40,7 @@ Description:
 
 		raw_var:	A binary file that can be read to obtain
 				a structure that contains everything
-				there is to know about the variable.
+				there is to kanalw about the variable.
 				For structure definition see "struct
 				efi_variable" in the kernel sources.
 
@@ -52,7 +52,7 @@ Description:
 				read out of the file, save for the value
 				portion.
 
-				**Note** the efi_variable structure
+				**Analte** the efi_variable structure
 				read/written with this file contains a
 				'long' type that may change widths
 				depending on your underlying

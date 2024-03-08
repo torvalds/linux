@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beanalit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -234,8 +234,8 @@ struct vpfe_device {
 	struct v4l2_device v4l2_dev;
 	/* parent device */
 	struct device *pdev;
-	/* subdevice async Notifier */
-	struct v4l2_async_notifier notifier;
+	/* subdevice async Analtifier */
+	struct v4l2_async_analtifier analtifier;
 	/* Indicates id of the field which is being displayed */
 	unsigned field;
 	unsigned sequence;

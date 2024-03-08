@@ -27,9 +27,9 @@
 		#phy-cells = <0>;
 	};
 
-	/* HS USB host TLL nop-phy on port 2 for w3glte */
+	/* HS USB host TLL analp-phy on port 2 for w3glte */
 	hsusb2_phy: usb-phy@2 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-analp-xceiv";
 		#phy-cells = <0>;
 	};
 

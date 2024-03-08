@@ -135,7 +135,7 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 	int ret;
 
 	if (!prtd->qmc_dai) {
-		dev_err(component->dev, "qmc_dai is not set\n");
+		dev_err(component->dev, "qmc_dai is analt set\n");
 		return -EINVAL;
 	}
 
@@ -267,7 +267,7 @@ static int qmc_audio_pcm_open(struct snd_soc_component *component,
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
 	if (prtd == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	runtime->private_data = prtd;
 
@@ -338,7 +338,7 @@ static int qmc_dai_hw_rule_channels_by_format(struct qmc_dai *qmc_dai,
 		ch.max = nb_ts/8;
 		break;
 	default:
-		dev_err(qmc_dai->dev, "format physical width %u not supported\n",
+		dev_err(qmc_dai->dev, "format physical width %u analt supported\n",
 			snd_pcm_format_physical_width(format));
 		return -EINVAL;
 	}
@@ -376,14 +376,14 @@ static int qmc_dai_hw_rule_format_by_channels(struct qmc_dai *qmc_dai,
 	struct snd_mask f_new;
 
 	if (!channels || channels > nb_ts) {
-		dev_err(qmc_dai->dev, "channels %u not supported\n",
+		dev_err(qmc_dai->dev, "channels %u analt supported\n",
 			nb_ts);
 		return -EINVAL;
 	}
 
 	slot_width = (nb_ts / channels) * 8;
 
-	snd_mask_none(&f_new);
+	snd_mask_analne(&f_new);
 	pcm_for_each_format(format) {
 		if (snd_mask_test_format(f_old, format)) {
 			if (snd_pcm_format_physical_width(format) <= slot_width)
@@ -586,7 +586,7 @@ static u64 qmc_audio_formats(u8 nb_ts)
 	return formats_mask;
 }
 
-static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *np,
+static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_analde *np,
 	struct qmc_dai *qmc_dai, struct snd_soc_dai_driver *qmc_soc_dai_driver)
 {
 	struct qmc_chan_info info;
@@ -626,7 +626,7 @@ static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *
 		 qmc_dai->id, info.mode, info.nb_tx_ts, info.nb_rx_ts);
 
 	if (info.mode != QMC_TRANSPARENT) {
-		dev_err(qmc_audio->dev, "dai %d QMC chan mode %d is not QMC_TRANSPARENT\n",
+		dev_err(qmc_audio->dev, "dai %d QMC chan mode %d is analt QMC_TRANSPARENT\n",
 			qmc_dai->id, info.mode);
 		return -EINVAL;
 	}
@@ -663,15 +663,15 @@ static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *
 
 static int qmc_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_analde *np = pdev->dev.of_analde;
 	struct qmc_audio *qmc_audio;
-	struct device_node *child;
+	struct device_analde *child;
 	unsigned int i;
 	int ret;
 
 	qmc_audio = devm_kzalloc(&pdev->dev, sizeof(*qmc_audio), GFP_KERNEL);
 	if (!qmc_audio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	qmc_audio->dev = &pdev->dev;
 
@@ -681,22 +681,22 @@ static int qmc_audio_probe(struct platform_device *pdev)
 					       sizeof(*qmc_audio->dais),
 					       GFP_KERNEL);
 		if (!qmc_audio->dais)
-			return -ENOMEM;
+			return -EANALMEM;
 
 		qmc_audio->dai_drivers = devm_kcalloc(&pdev->dev, qmc_audio->num_dais,
 						      sizeof(*qmc_audio->dai_drivers),
 						      GFP_KERNEL);
 		if (!qmc_audio->dai_drivers)
-			return -ENOMEM;
+			return -EANALMEM;
 	}
 
 	i = 0;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_analde(np, child) {
 		ret = qmc_audio_dai_parse(qmc_audio, child,
 					  qmc_audio->dais + i,
 					  qmc_audio->dai_drivers + i);
 		if (ret) {
-			of_node_put(child);
+			of_analde_put(child);
 			return ret;
 		}
 		i++;

@@ -61,7 +61,7 @@ struct pktq_prec {
 /* multi-priority pkt queue */
 struct pktq {
 	u16 num_prec;	/* number of precedences in use */
-	u16 hi_prec;	/* rapid dequeue hint (>= highest non-empty prec) */
+	u16 hi_prec;	/* rapid dequeue hint (>= highest analn-empty prec) */
 	u16 max;	/* total max packets */
 	u16 len;	/* total number of packets */
 	/*
@@ -155,7 +155,7 @@ static inline bool pktq_empty(struct pktq *pq)
 }
 
 void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len);
-/* prec_out may be NULL if caller is not interested in return value */
+/* prec_out may be NULL if caller is analt interested in return value */
 struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out);
 void brcmu_pktq_flush(struct pktq *pq, bool dir,
 		      bool (*fn)(struct sk_buff *, void *), void *arg);

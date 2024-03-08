@@ -13,7 +13,7 @@
  * Alliance Specification for D-PHY, Section 5.9 "Global Operation Timing
  * Parameters".
  *
- * All parameters are specified in nanoseconds.
+ * All parameters are specified in naanalseconds.
  */
 struct mipi_dphy_timing {
 	unsigned int clkmiss;

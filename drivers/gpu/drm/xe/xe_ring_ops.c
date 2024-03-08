@@ -54,7 +54,7 @@ static int emit_aux_table_inv(struct xe_gt *gt, struct xe_reg reg,
 	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) | MI_LRI_MMIO_REMAP_EN;
 	dw[i++] = reg.addr + gt->mmio.adj_offset;
 	dw[i++] = AUX_INV;
-	dw[i++] = MI_NOOP;
+	dw[i++] = MI_ANALOP;
 
 	return i;
 }
@@ -192,7 +192,7 @@ static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int 
 	if (XE_WA(hwe->gt, 16020292621)) {
 		dw[i++] = GFX_OP_PIPE_CONTROL(6);
 		dw[i++] = PIPE_CONTROL_LRI_POST_SYNC;
-		dw[i++] = RING_NOPID(hwe->mmio_base).addr;
+		dw[i++] = RING_ANALPID(hwe->mmio_base).addr;
 		dw[i++] = 0;
 		dw[i++] = 0;
 		dw[i++] = 0;
@@ -221,9 +221,9 @@ static u32 get_ppgtt_flag(struct xe_sched_job *job)
 	return job->q->vm ? BIT(8) : 0;
 }
 
-/* for engines that don't require any special HW handling (no EUs, no aux inval, etc) */
+/* for engines that don't require any special HW handling (anal EUs, anal aux inval, etc) */
 static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc,
-				    u64 batch_addr, u32 seqno)
+				    u64 batch_addr, u32 seqanal)
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
@@ -232,12 +232,12 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 
 	if (vm && vm->batch_invalidate_tlb) {
 		dw[i++] = preparser_disable(true);
-		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, true, dw, i);
+		i = emit_flush_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+					seqanal, true, dw, i);
 		dw[i++] = preparser_disable(false);
 	} else {
-		i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, dw, i);
+		i = emit_store_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+					seqanal, dw, i);
 	}
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
@@ -247,7 +247,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqanal_ggtt_addr(lrc), seqanal, false, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -259,9 +259,9 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 static bool has_aux_ccs(struct xe_device *xe)
 {
 	/*
-	 * PVC is a special case that has no compression of either type
-	 * (FlatCCS or AuxCCS).  Also, AuxCCS is no longer used from Xe2
-	 * onward, so any future platforms with no FlatCCS will not have
+	 * PVC is a special case that has anal compression of either type
+	 * (FlatCCS or AuxCCS).  Also, AuxCCS is anal longer used from Xe2
+	 * onward, so any future platforms with anal FlatCCS will analt have
 	 * AuxCCS either.
 	 */
 	if (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC)
@@ -271,7 +271,7 @@ static bool has_aux_ccs(struct xe_device *xe)
 }
 
 static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
-				   u64 batch_addr, u32 seqno)
+				   u64 batch_addr, u32 seqanal)
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
@@ -291,14 +291,14 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	}
 
 	if (vm && vm->batch_invalidate_tlb)
-		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, true, dw, i);
+		i = emit_flush_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+					seqanal, true, dw, i);
 
 	dw[i++] = preparser_disable(false);
 
 	if (!vm || !vm->batch_invalidate_tlb)
-		i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, dw, i);
+		i = emit_store_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+					seqanal, dw, i);
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
@@ -307,7 +307,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqanal_ggtt_addr(lrc), seqanal, false, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -318,7 +318,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 					    struct xe_lrc *lrc,
-					    u64 batch_addr, u32 seqno)
+					    u64 batch_addr, u32 seqanal)
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 	u32 ppgtt_flag = get_ppgtt_flag(job);
@@ -343,8 +343,8 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	dw[i++] = preparser_disable(false);
 
-	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-				seqno, dw, i);
+	i = emit_store_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+				seqanal, dw, i);
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
@@ -355,7 +355,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 						job->user_fence.value,
 						dw, i);
 
-	i = emit_pipe_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, lacks_render, dw, i);
+	i = emit_pipe_imm_ggtt(xe_lrc_seqanal_ggtt_addr(lrc), seqanal, lacks_render, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -367,18 +367,18 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 }
 
 static void emit_migration_job_gen12(struct xe_sched_job *job,
-				     struct xe_lrc *lrc, u32 seqno)
+				     struct xe_lrc *lrc, u32 seqanal)
 {
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 
-	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-				seqno, dw, i);
+	i = emit_store_imm_ggtt(xe_lrc_start_seqanal_ggtt_addr(lrc),
+				seqanal, dw, i);
 
 	dw[i++] = MI_ARB_ON_OFF | MI_ARB_DISABLE; /* Enabled again below */
 
 	i = emit_bb_start(job->batch_addr[0], BIT(8), dw, i);
 
-	/* XXX: Do we need this? Leaving for now. */
+	/* XXX: Do we need this? Leaving for analw. */
 	dw[i++] = preparser_disable(true);
 	i = emit_flush_invalidate(0, dw, i);
 	dw[i++] = preparser_disable(false);
@@ -387,9 +387,9 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	dw[i++] = MI_FLUSH_DW | MI_INVALIDATE_TLB | job->migrate_flush_flags |
 		MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_IMM_DW;
-	dw[i++] = xe_lrc_seqno_ggtt_addr(lrc) | MI_FLUSH_DW_USE_GTT;
+	dw[i++] = xe_lrc_seqanal_ggtt_addr(lrc) | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
-	dw[i++] = seqno; /* value */
+	dw[i++] = seqanal; /* value */
 
 	i = emit_user_interrupt(dw, i);
 
@@ -402,11 +402,11 @@ static void emit_job_gen12_gsc(struct xe_sched_job *job)
 {
 	struct xe_gt *gt = job->q->gt;
 
-	xe_gt_assert(gt, job->q->width <= 1); /* no parallel submission for GSCCS */
+	xe_gt_assert(gt, job->q->width <= 1); /* anal parallel submission for GSCCS */
 
 	__emit_job_gen12_simple(job, job->q->lrc,
 				job->batch_addr[0],
-				xe_sched_job_seqno(job));
+				xe_sched_job_seqanal(job));
 }
 
 static void emit_job_gen12_copy(struct xe_sched_job *job)
@@ -415,25 +415,25 @@ static void emit_job_gen12_copy(struct xe_sched_job *job)
 
 	if (xe_sched_job_is_migration(job->q)) {
 		emit_migration_job_gen12(job, job->q->lrc,
-					 xe_sched_job_seqno(job));
+					 xe_sched_job_seqanal(job));
 		return;
 	}
 
 	for (i = 0; i < job->q->width; ++i)
 		__emit_job_gen12_simple(job, job->q->lrc + i,
 				        job->batch_addr[i],
-				        xe_sched_job_seqno(job));
+				        xe_sched_job_seqanal(job));
 }
 
 static void emit_job_gen12_video(struct xe_sched_job *job)
 {
 	int i;
 
-	/* FIXME: Not doing parallel handshake for now */
+	/* FIXME: Analt doing parallel handshake for analw */
 	for (i = 0; i < job->q->width; ++i)
 		__emit_job_gen12_video(job, job->q->lrc + i,
 				       job->batch_addr[i],
-				       xe_sched_job_seqno(job));
+				       xe_sched_job_seqanal(job));
 }
 
 static void emit_job_gen12_render_compute(struct xe_sched_job *job)
@@ -443,7 +443,7 @@ static void emit_job_gen12_render_compute(struct xe_sched_job *job)
 	for (i = 0; i < job->q->width; ++i)
 		__emit_job_gen12_render_compute(job, job->q->lrc + i,
 						job->batch_addr[i],
-						xe_sched_job_seqno(job));
+						xe_sched_job_seqanal(job));
 }
 
 static const struct xe_ring_ops ring_ops_gen12_gsc = {

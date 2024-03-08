@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellaanalx Techanallogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,18 +14,18 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright analtice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -63,7 +63,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	struct ib_device *ib_dev = device->ib_device;
 
 	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
-		iser_err("IB device does not support memory registrations\n");
+		iser_err("IB device does analt support memory registrations\n");
 		return -1;
 	}
 
@@ -107,7 +107,7 @@ iser_create_fastreg_desc(struct iser_device *device,
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	if (ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		mr_type = IB_MR_TYPE_SG_GAPS;
@@ -159,7 +159,7 @@ static void iser_destroy_fastreg_desc(struct iser_fr_desc *desc)
  * @cmds_max: max number of SCSI commands for this connection
  * @size: max number of pages per map request
  *
- * Return: 0 on success, or errno code on failure
+ * Return: 0 on success, or erranal code on failure
  */
 int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 			    unsigned cmds_max,
@@ -231,7 +231,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	struct iser_device	*device;
 	struct ib_device	*ib_dev;
 	struct ib_qp_init_attr	init_attr;
-	int			ret = -ENOMEM;
+	int			ret = -EANALMEM;
 	unsigned int max_send_wr, cq_size;
 
 	BUG_ON(ib_conn->device == NULL);
@@ -290,8 +290,8 @@ cq_err:
 }
 
 /*
- * based on the resolved device node GUID see if there already allocated
- * device for this device. If there's no such, create one.
+ * based on the resolved device analde GUID see if there already allocated
+ * device for this device. If there's anal such, create one.
  */
 static
 struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
@@ -301,8 +301,8 @@ struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 	mutex_lock(&ig.device_list_mutex);
 
 	list_for_each_entry(device, &ig.device_list, ig_list)
-		/* find if there's a match using the node GUID */
-		if (device->ib_device->node_guid == cma_id->device->node_guid)
+		/* find if there's a match using the analde GUID */
+		if (device->ib_device->analde_guid == cma_id->device->analde_guid)
 			goto inc_refcnt;
 
 	device = kzalloc(sizeof *device, GFP_KERNEL);
@@ -326,7 +326,7 @@ out:
 	return device;
 }
 
-/* if there's no demand for this device, release it */
+/* if there's anal demand for this device, release it */
 static void iser_device_try_release(struct iser_device *device)
 {
 	mutex_lock(&ig.device_list_mutex);
@@ -547,7 +547,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	if (iser_pi_enable) {
 		if (!(device->ib_device->attrs.kernel_cap_flags &
 		      IBK_INTEGRITY_HANDOVER)) {
-			iser_warn("T10-PI requested but not supported on %s, "
+			iser_warn("T10-PI requested but analt supported on %s, "
 				  "continue without T10-PI\n",
 				  dev_name(&ib_conn->device->ib_device->dev));
 			ib_conn->pi_support = false;
@@ -595,9 +595,9 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	conn_param.rnr_retry_count = 6;
 
 	memset(&req_hdr, 0, sizeof(req_hdr));
-	req_hdr.flags = ISER_ZBVA_NOT_SUP;
+	req_hdr.flags = ISER_ZBVA_ANALT_SUP;
 	if (!iser_always_reg)
-		req_hdr.flags |= ISER_SEND_W_INV_NOT_SUP;
+		req_hdr.flags |= ISER_SEND_W_INV_ANALT_SUP;
 	conn_param.private_data	= (void *)&req_hdr;
 	conn_param.private_data_len = sizeof(struct iser_cm_hdr);
 
@@ -634,7 +634,7 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id,
 	if (private_data) {
 		u8 flags = *(u8 *)private_data;
 
-		iser_conn->snd_w_inv = !(flags & ISER_SEND_W_INV_NOT_SUP);
+		iser_conn->snd_w_inv = !(flags & ISER_SEND_W_INV_ANALT_SUP);
 	}
 
 	iser_info("conn %p: negotiated %s invalidation\n",
@@ -654,8 +654,8 @@ static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 
 	lockdep_assert_held(&iser_conn->state_mutex);
 	/*
-	 * We are not guaranteed that we visited disconnected_handler
-	 * by now, call it here to be safe that we handle CM drep
+	 * We are analt guaranteed that we visited disconnected_handler
+	 * by analw, call it here to be safe that we handle CM drep
 	 * and flush errors.
 	 */
 	if (iser_conn_terminate(iser_conn)) {
@@ -708,9 +708,9 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id,
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		/*
-		 * we *must* destroy the device as we cannot rely
+		 * we *must* destroy the device as we cananalt rely
 		 * on iscsid to be around to initiate error handling.
-		 * also if we are not in state DOWN implicitly destroy
+		 * also if we are analt in state DOWN implicitly destroy
 		 * the cma_id.
 		 */
 		iser_cleanup_handler(cma_id, true);
@@ -748,7 +748,7 @@ void iser_conn_init(struct iser_conn *iser_conn)
  * sleeps until the connection is established or rejected
  */
 int iser_connect(struct iser_conn *iser_conn, struct sockaddr *src_addr,
-		 struct sockaddr *dst_addr, int non_blocking)
+		 struct sockaddr *dst_addr, int analn_blocking)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	int err = 0;
@@ -759,7 +759,7 @@ int iser_connect(struct iser_conn *iser_conn, struct sockaddr *src_addr,
 
 	iser_info("connecting to: %s\n", iser_conn->name);
 
-	/* the device is known only --after-- address resolution */
+	/* the device is kanalwn only --after-- address resolution */
 	ib_conn->device = NULL;
 
 	iser_conn->state = ISER_CONN_PENDING;
@@ -778,7 +778,7 @@ int iser_connect(struct iser_conn *iser_conn, struct sockaddr *src_addr,
 		goto addr_failure;
 	}
 
-	if (!non_blocking) {
+	if (!analn_blocking) {
 		wait_for_completion_interruptible(&iser_conn->up_completion);
 
 		if (iser_conn->state != ISER_CONN_UP) {
@@ -901,7 +901,7 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
 			iser_err("ib_check_mr_status failed, ret %d\n", ret);
-			/* Not a lot we can do, return ambiguous guard error */
+			/* Analt a lot we can do, return ambiguous guard error */
 			*sector = 0;
 			return 0x1;
 		}

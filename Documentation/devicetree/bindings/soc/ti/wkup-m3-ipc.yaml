@@ -13,22 +13,22 @@ maintainers:
 description: |+
   The TI AM33xx and AM43xx family of devices use a small Cortex M3 co-processor
   (commonly referred to as Wakeup M3 or CM3) to help with various low power tasks
-  that cannot be controlled from the MPU, like suspend/resume and certain deep
+  that cananalt be controlled from the MPU, like suspend/resume and certain deep
   C-states for CPU Idle. Once the wkup_m3_ipc driver uses the wkup_m3_rproc driver
   to boot the wkup_m3, it handles communication with the CM3 using IPC registers
   present in the SoC's control module and a mailbox. The wkup_m3_ipc exposes an
   API to allow the SoC PM code to execute specific PM tasks.
 
-  Wkup M3 Device Node
+  Wkup M3 Device Analde
   ====================
-  A wkup_m3_ipc device node is used to represent the IPC registers within an
+  A wkup_m3_ipc device analde is used to represent the IPC registers within an
   SoC.
 
   Support for VTT Toggle with GPIO pin
   ====================================
   On some boards like the AM335x EVM-SK and the AM437x GP EVM, a GPIO pin is
   connected to the enable pin on the DDR VTT regulator. This allows the
-  regulator to be disabled upon suspend and enabled upon resume. Please note
+  regulator to be disabled upon suspend and enabled upon resume. Please analte
   that the GPIO pin must be part of the GPIO0 module as only this GPIO module
   is in the wakeup power domain.
 
@@ -64,13 +64,13 @@ properties:
   ti,rproc:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      phandle to the wkup_m3 rproc node so the IPC driver can boot it
+      phandle to the wkup_m3 rproc analde so the IPC driver can boot it
 
   mboxes:
     description:
       phandles used by IPC framework to get correct mbox
       channel for communication. Must point to appropriate
-      mbox_wkupm3 child node.
+      mbox_wkupm3 child analde.
     maxItems: 1
 
   firmware-name:
@@ -93,7 +93,7 @@ allOf:
   - if:
       properties:
         compatible:
-          not:
+          analt:
             contains:
               const: ti,am4372-wkup-m3-ipc
     then:
@@ -135,10 +135,10 @@ examples:
     /*
      * Example for AM473x SoC:
      * On the AM437x-GP-EVM board, gpio5_7 is wired to enable pin of the DDR VTT
-     * regulator. The 'ddr_vtt_toggle_default' pinmux node configures gpio5_7
-     * for pull-up during normal system operation. However, the DS0 (deep sleep)
+     * regulator. The 'ddr_vtt_toggle_default' pinmux analde configures gpio5_7
+     * for pull-up during analrmal system operation. However, the DS0 (deep sleep)
      * state of the pin is configured for pull-down and thus the VTT regulator
-     * will be disabled to save power when IO isolation is active. Note that
+     * will be disabled to save power when IO isolation is active. Analte that
      * this method is an alternative to using the 'ti,vtt-gpio-pin' property.
      */
     #include <dt-bindings/pinctrl/am43xx.h>

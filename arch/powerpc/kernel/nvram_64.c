@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
@@ -152,10 +152,10 @@ static int read_type;
  *
  * We need to buffer the error logs into nvram to ensure that we have
  * the failure information to decode.  If we have a severe error there
- * is no way to guarantee that the OS or the machine is in a state to
+ * is anal way to guarantee that the OS or the machine is in a state to
  * get back to user land and write the error to disk.  For example if
  * the SCSI device driver causes a Machine Check by writing to a bad
- * IO address, there is no way of guaranteeing that the device driver
+ * IO address, there is anal way of guaranteeing that the device driver
  * is in any state that is would also be able to write the error data
  * captured to disk, thus we buffer it in NVRAM for analysis on the
  * next boot.
@@ -173,7 +173,7 @@ static int read_type;
  * |0            3|4          7|8                  error_log_size-1|
  * +--------------+------------+-----------------------------------+
  *
- * event_logged: 0 if event has not been logged to syslog, 1 if it has
+ * event_logged: 0 if event has analt been logged to syslog, 1 if it has
  * sequence #: The unique sequence # for each event. (until it wraps)
  * error log: The error log from event_scan
  */
@@ -260,13 +260,13 @@ int nvram_read_partition(struct nvram_os_partition *part, char *buff,
  *
  * The general strategy is the following:
  * 1.) If a partition with the indicated name already exists...
- *	- If it's large enough, use it.
+ *	- If it's large eanalugh, use it.
  *	- Otherwise, recycle it and keep going.
- * 2.) Search for a free partition that is large enough.
- * 3.) If there's not a free partition large enough, recycle any obsolete
+ * 2.) Search for a free partition that is large eanalugh.
+ * 3.) If there's analt a free partition large eanalugh, recycle any obsolete
  * OS partitions and try again.
  * 4.) Will first try getting a chunk that will satisfy the requested size.
- * 5.) If a chunk of the requested size cannot be allocated, then try finding
+ * 5.) If a chunk of the requested size cananalt be allocated, then try finding
  * a chunk that will satisfy the minum needed.
  *
  * Returns 0 on success, else -1.
@@ -291,8 +291,8 @@ int __init nvram_init_os_partition(struct nvram_os_partition *part)
 	if (!p) {
 		p = nvram_create_partition(part->name, NVRAM_SIG_OS,
 					part->req_size, part->min_size);
-		if (p == -ENOSPC) {
-			pr_info("nvram: No room to create %s partition, "
+		if (p == -EANALSPC) {
+			pr_info("nvram: Anal room to create %s partition, "
 				"deleting any obsolete OS partitions...\n",
 				part->name);
 			nvram_remove_partition(NULL, NVRAM_SIG_OS,
@@ -421,7 +421,7 @@ static int nvram_pstore_write(struct pstore_record *record)
 static ssize_t nvram_pstore_read(struct pstore_record *record)
 {
 	struct oops_log_info *oops_hdr;
-	unsigned int err_type, id_no, size = 0;
+	unsigned int err_type, id_anal, size = 0;
 	struct nvram_os_partition *part = NULL;
 	char *buff = NULL;
 	int sig = 0;
@@ -486,9 +486,9 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 	buff = kmalloc(part->size, GFP_KERNEL);
 
 	if (!buff)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	if (nvram_read_partition(part, buff, part->size, &err_type, &id_no)) {
+	if (nvram_read_partition(part, buff, part->size, &err_type, &id_anal)) {
 		kfree(buff);
 		return 0;
 	}
@@ -496,7 +496,7 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 	record->count = 0;
 
 	if (part->os_partition)
-		record->id = id_no;
+		record->id = id_anal;
 
 	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
 		size_t length, hdr_size;
@@ -517,9 +517,9 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 		record->buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
 		kfree(buff);
 		if (record->buf == NULL)
-			return -ENOMEM;
+			return -EANALMEM;
 
-		record->ecc_notice_size = 0;
+		record->ecc_analtice_size = 0;
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
 			record->compressed = true;
 		else
@@ -579,7 +579,7 @@ void __init nvram_init_oops_partition(int rtas_partition_exists)
 			pr_err("nvram: Failed to initialize oops partition!");
 			return;
 		}
-		pr_notice("nvram: Using %s partition to log both"
+		pr_analtice("nvram: Using %s partition to log both"
 			" RTAS errors and oops/panic reports\n",
 			rtas_log_partition.name);
 		memcpy(&oops_log_partition, &rtas_log_partition,
@@ -591,7 +591,7 @@ void __init nvram_init_oops_partition(int rtas_partition_exists)
 	}
 	oops_buf = kmalloc(oops_log_partition.size, GFP_KERNEL);
 	if (!oops_buf) {
-		pr_err("nvram: No memory for %s partition\n",
+		pr_err("nvram: Anal memory for %s partition\n",
 						oops_log_partition.name);
 		return;
 	}
@@ -614,14 +614,14 @@ void __init nvram_init_oops_partition(int rtas_partition_exists)
 		stream.workspace =  kmalloc(zlib_deflate_workspacesize(
 					WINDOW_BITS, MEM_LEVEL), GFP_KERNEL);
 		if (!stream.workspace) {
-			pr_err("nvram: No memory for compression workspace; "
+			pr_err("nvram: Anal memory for compression workspace; "
 				"skipping compression of %s partition data\n",
 				oops_log_partition.name);
 			kfree(big_oops_buf);
 			big_oops_buf = NULL;
 		}
 	} else {
-		pr_err("No memory for uncompressed %s data; "
+		pr_err("Anal memory for uncompressed %s data; "
 			"skipping compression\n", oops_log_partition.name);
 		stream.workspace = NULL;
 	}
@@ -670,7 +670,7 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 			return;
 		break;
 	default:
-		pr_err("%s: ignoring unrecognized KMSG_DUMP_* reason %d\n",
+		pr_err("%s: iganalring unrecognized KMSG_DUMP_* reason %d\n",
 		       __func__, (int) reason);
 		return;
 	}
@@ -745,7 +745,7 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
 
 	/* The sum may have spilled into the 3rd byte.  Fold it back. */
 	c_sum = ((c_sum & 0xffff) + (c_sum >> 16)) & 0xffff;
-	/* The sum cannot exceed 2 bytes.  Fold it into a checksum */
+	/* The sum cananalt exceed 2 bytes.  Fold it into a checksum */
 	c_sum2 = (c_sum >> 8) + (c_sum << 8);
 	c_sum = ((c_sum + c_sum2) >> 8) & 0xff;
 	return c_sum;
@@ -857,7 +857,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	req_size = ALIGN(req_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
 	min_size = ALIGN(min_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
 
-	/* If no minimum size specified, make it the same as the
+	/* If anal minimum size specified, make it the same as the
 	 * requested size
 	 */
 	if (min_size == 0)
@@ -865,7 +865,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	if (min_size > req_size)
 		return -EINVAL;
 
-	/* Now add one block to each for the header */
+	/* Analw add one block to each for the header */
 	req_size += 1;
 	min_size += 1;
 
@@ -887,13 +887,13 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 		}
 	}
 	if (!size)
-		return -ENOSPC;
+		return -EANALSPC;
 	
 	/* Create our OS partition */
 	new_part = kzalloc(sizeof(*new_part), GFP_KERNEL);
 	if (!new_part) {
 		pr_err("%s: kmalloc failed\n", __func__);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	new_part->index = free_part->index;
@@ -963,7 +963,7 @@ int nvram_get_partition_size(loff_t data_index)
  * nvram_find_partition - Find an nvram partition by signature and name
  * @name: Name of the partition or NULL for any name
  * @sig: Signature to test against
- * @out_size: if non-NULL, returns the size of the data part of the partition
+ * @out_size: if analn-NULL, returns the size of the data part of the partition
  */
 loff_t nvram_find_partition(const char *name, int sig, int *out_size)
 {
@@ -992,13 +992,13 @@ int __init nvram_scan_partitions(void)
 	int err;
 
 	if (ppc_md.nvram_size == NULL || ppc_md.nvram_size() <= 0)
-		return -ENODEV;
+		return -EANALDEV;
 	total_size = ppc_md.nvram_size();
 	
 	header = kmalloc(NVRAM_HEADER_LEN, GFP_KERNEL);
 	if (!header) {
 		printk(KERN_ERR "nvram_scan_partitions: Failed kmalloc\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	while (cur_index < total_size) {
@@ -1031,7 +1031,7 @@ int __init nvram_scan_partitions(void)
 			goto out;
 		}
 		tmp_part = kmalloc(sizeof(*tmp_part), GFP_KERNEL);
-		err = -ENOMEM;
+		err = -EANALMEM;
 		if (!tmp_part) {
 			printk(KERN_ERR "nvram_scan_partitions: kmalloc failed\n");
 			goto out;

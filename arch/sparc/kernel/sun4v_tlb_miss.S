@@ -24,7 +24,7 @@
 #define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, ZERO_CTX_LABEL) \
 	srlx	VADDR, 22, DEST; \
 	brz,pn	CTX, ZERO_CTX_LABEL; \
-	 nop;
+	 analp;
 
 	/* Create TSB pointer.  This is something like:
 	 *
@@ -145,7 +145,7 @@ sun4v_dtlb_prot:
 	bgu,pn	%xcc, winfix_trampoline
 	 mov	FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 	ba,pt	%xcc, sparc64_realfault_common
-	 nop
+	 analp
 
 	/* Called from trap table:
 	 * %g4:	vaddr
@@ -182,7 +182,7 @@ sun4v_tsb_miss_common:
 	ldxa	[%g5] ASI_SCRATCHPAD, %g5
 	cmp	%g5, -1
 	be,pt	%xcc, 80f
-	 nop
+	 analp
 	COMPUTE_TSB_PTR(%g5, %g4, REAL_HPAGE_SHIFT, %g2, %g7)
 
 	/* That clobbered %g2, reload it.  */
@@ -220,7 +220,7 @@ sun4v_itlb_error:
 	call	sun4v_itlb_error_report
 	 add	%sp, PTREGS_OFF, %o0
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 
 sun4v_dtlb_error:
 	rdpr	%tl, %g1
@@ -247,14 +247,14 @@ sun4v_dtlb_error:
 	call	sun4v_dtlb_error_report
 	 add	%sp, PTREGS_OFF, %o0
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 
 sun4v_bad_ra:
 	or	%g0, %g4, %g5
 	ba,pt	%xcc, sparc64_realfault_common
 	 or	%g1, %g0, %g4
 
-	/* NOTREACHED */
+	/* ANALTREACHED */
 
 	/* Instruction Access Exception, tl0. */
 sun4v_iacc:
@@ -326,7 +326,7 @@ sun4v_mna:
 	rdpr	%tl, %g2
 	cmp	%g2, 1
 	ble,pt	%icc, 1f
-	 nop
+	 analp
 
 	SET_GL(1)
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2
@@ -337,7 +337,7 @@ sun4v_mna:
 	or	%g4, %g3, %g4
 	ba,pt	%xcc, winfix_mna
 	 rdpr	%tpc, %g3
-	/* not reached */
+	/* analt reached */
 
 1:	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	mov	HV_FAULT_TYPE_UNALIGNED, %g3
@@ -353,7 +353,7 @@ sun4v_mna:
 	call	sun4v_do_mna
 	 add	%sp, PTREGS_OFF, %o0
 	ba,a,pt	%xcc, rtrap
-	 nop
+	 analp
 
 	/* Privileged Action.  */
 sun4v_privact:
@@ -396,7 +396,7 @@ sun4v_stdfmna:
 	ba,a,pt	%xcc, rtrap
 
 #define BRANCH_ALWAYS	0x10680000
-#define NOP		0x01000000
+#define ANALP		0x01000000
 #define SUN4V_DO_PATCH(OLD, NEW)	\
 	sethi	%hi(NEW), %g1; \
 	or	%g1, %lo(NEW), %g1; \
@@ -409,8 +409,8 @@ sun4v_stdfmna:
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
-	sethi	%hi(NOP), %g3; \
-	or	%g3, %lo(NOP), %g3; \
+	sethi	%hi(ANALP), %g3; \
+	or	%g3, %lo(ANALP), %g3; \
 	stw	%g3, [%g2 + 0x4]; \
 	flush	%g2;
 
@@ -433,5 +433,5 @@ sun4v_patch_tlb_handlers:
 	SUN4V_DO_PATCH(tl0_stdfmna, sun4v_stdfmna)
 	SUN4V_DO_PATCH(tl0_privact, sun4v_privact)
 	retl
-	 nop
+	 analp
 	.size	sun4v_patch_tlb_handlers,.-sun4v_patch_tlb_handlers

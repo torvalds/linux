@@ -170,7 +170,7 @@ static struct clk *clk_register_psc(struct device *dev,
 
 	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
 	if (!psc)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	init.name = name;
 	init.ops = &clk_psc_ops;
@@ -191,12 +191,12 @@ static struct clk *clk_register_psc(struct device *dev,
 
 /**
  * of_psc_clk_init - initialize psc clock through DT
- * @node: device tree node for this clock
+ * @analde: device tree analde for this clock
  * @lock: spinlock used by this clock
  */
-static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
+static void __init of_psc_clk_init(struct device_analde *analde, spinlock_t *lock)
 {
-	const char *clk_name = node->name;
+	const char *clk_name = analde->name;
 	const char *parent_name;
 	struct clk_psc_data *data;
 	struct clk *clk;
@@ -208,40 +208,40 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 		return;
 	}
 
-	i = of_property_match_string(node, "reg-names", "control");
-	data->control_base = of_iomap(node, i);
+	i = of_property_match_string(analde, "reg-names", "control");
+	data->control_base = of_iomap(analde, i);
 	if (!data->control_base) {
 		pr_err("%s: control ioremap failed\n", __func__);
 		goto out;
 	}
 
-	i = of_property_match_string(node, "reg-names", "domain");
-	data->domain_base = of_iomap(node, i);
+	i = of_property_match_string(analde, "reg-names", "domain");
+	data->domain_base = of_iomap(analde, i);
 	if (!data->domain_base) {
 		pr_err("%s: domain ioremap failed\n", __func__);
 		goto unmap_ctrl;
 	}
 
-	of_property_read_u32(node, "domain-id", &data->domain_id);
+	of_property_read_u32(analde, "domain-id", &data->domain_id);
 
 	/* Domain transition registers at fixed address space of domain_id 0 */
 	if (!domain_transition_base && !data->domain_id)
 		domain_transition_base = data->domain_base;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	parent_name = of_clk_get_parent_name(node, 0);
+	of_property_read_string(analde, "clock-output-names", &clk_name);
+	parent_name = of_clk_get_parent_name(analde, 0);
 	if (!parent_name) {
-		pr_err("%s: Parent clock not found\n", __func__);
+		pr_err("%s: Parent clock analt found\n", __func__);
 		goto unmap_domain;
 	}
 
 	clk = clk_register_psc(NULL, clk_name, parent_name, data, lock);
 	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 		return;
 	}
 
-	pr_err("%s: error registering clk %pOFn\n", __func__, node);
+	pr_err("%s: error registering clk %pOFn\n", __func__, analde);
 
 unmap_domain:
 	iounmap(data->domain_base);
@@ -254,11 +254,11 @@ out:
 
 /**
  * of_keystone_psc_clk_init - initialize psc clock through DT
- * @node: device tree node for this clock
+ * @analde: device tree analde for this clock
  */
-static void __init of_keystone_psc_clk_init(struct device_node *node)
+static void __init of_keystone_psc_clk_init(struct device_analde *analde)
 {
-	of_psc_clk_init(node, &psc_lock);
+	of_psc_clk_init(analde, &psc_lock);
 }
 CLK_OF_DECLARE(keystone_gate_clk, "ti,keystone,psc-clock",
 					of_keystone_psc_clk_init);

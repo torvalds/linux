@@ -89,7 +89,7 @@ struct sgint_regs {
 #define SGINT_TCWORD_MMASK	0x0e	/* Mode bitmask. */
 #define SGINT_TCWORD_MITC	0x00	/* IRQ on terminal count (doesn't work) */
 #define SGINT_TCWORD_MOS	0x02	/* One-shot IRQ mode. */
-#define SGINT_TCWORD_MRGEN	0x04	/* Normal rate generation */
+#define SGINT_TCWORD_MRGEN	0x04	/* Analrmal rate generation */
 #define SGINT_TCWORD_MSWGEN	0x06	/* Square wave generator mode */
 #define SGINT_TCWORD_MSWST	0x08	/* Software strobe */
 #define SGINT_TCWORD_MHWST	0x0a	/* Hardware strobe */
@@ -155,10 +155,10 @@ struct sgioc_regs {
 	u32 _unused4;
 	u8 _reset[3];
 	volatile u8 reset;
-#define SGIOC_RESET_PPORT	0x01	/* 0=parport reset, 1=nornal */
-#define SGIOC_RESET_KBDMOUSE	0x02	/* 0=kbdmouse reset, 1=normal */
-#define SGIOC_RESET_EISA	0x04	/* 0=eisa reset, 1=normal */
-#define SGIOC_RESET_ISDN	0x08	/* 0=isdn reset, 1=normal */
+#define SGIOC_RESET_PPORT	0x01	/* 0=parport reset, 1=analrnal */
+#define SGIOC_RESET_KBDMOUSE	0x02	/* 0=kbdmouse reset, 1=analrmal */
+#define SGIOC_RESET_EISA	0x04	/* 0=eisa reset, 1=analrmal */
+#define SGIOC_RESET_ISDN	0x08	/* 0=isdn reset, 1=analrmal */
 #define SGIOC_RESET_LC0OFF	0x10	/* guiness: turn led off (red, else green) */
 #define SGIOC_RESET_LC1OFF	0x20	/* guiness: turn led off (green, else amber) */
 	u32 _unused5;

@@ -62,7 +62,7 @@ smp_86xx_kick_cpu(int nr)
 	unsigned int *vector = (unsigned int *)(KERNELBASE + 0x100);
 
 	if (nr < 0 || nr >= NR_CPUS)
-		return -ENOENT;
+		return -EANALENT;
 
 	pr_debug("smp_86xx_kick_cpu: kick CPU #%d\n", nr);
 
@@ -79,7 +79,7 @@ smp_86xx_kick_cpu(int nr)
 	smp_86xx_release_core(nr);
 
 	/* Wait a bit for the CPU to take the exception. */
-	while ((__secondary_hold_acknowledge != nr) && (n++, n < 1000))
+	while ((__secondary_hold_ackanalwledge != nr) && (n++, n < 1000))
 		mdelay(1);
 
 	/* Restore the exception vector */

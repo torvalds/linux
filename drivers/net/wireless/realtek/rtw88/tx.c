@@ -252,13 +252,13 @@ void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb, int src)
 }
 
 static u8 rtw_get_mgmt_rate(struct rtw_dev *rtwdev, struct sk_buff *skb,
-			    u8 lowest_rate, bool ignore_rate)
+			    u8 lowest_rate, bool iganalre_rate)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	bool force_lowest = test_bit(RTW_FLAG_FORCE_LOWEST_RATE, rtwdev->flags);
 
-	if (!vif || !vif->bss_conf.basic_rates || ignore_rate || force_lowest)
+	if (!vif || !vif->bss_conf.basic_rates || iganalre_rate || force_lowest)
 		return lowest_rate;
 
 	return __ffs(vif->bss_conf.basic_rates) + lowest_rate;
@@ -267,16 +267,16 @@ static u8 rtw_get_mgmt_rate(struct rtw_dev *rtwdev, struct sk_buff *skb,
 static void rtw_tx_pkt_info_update_rate(struct rtw_dev *rtwdev,
 					struct rtw_tx_pkt_info *pkt_info,
 					struct sk_buff *skb,
-					bool ignore_rate)
+					bool iganalre_rate)
 {
 	if (rtwdev->hal.current_band_type == RTW_BAND_2G) {
 		pkt_info->rate_id = RTW_RATEID_B_20M;
 		pkt_info->rate = rtw_get_mgmt_rate(rtwdev, skb, DESC_RATE1M,
-						   ignore_rate);
+						   iganalre_rate);
 	} else {
 		pkt_info->rate_id = RTW_RATEID_G;
 		pkt_info->rate = rtw_get_mgmt_rate(rtwdev, skb, DESC_RATE6M,
-						   ignore_rate);
+						   iganalre_rate);
 	}
 
 	pkt_info->use_rate = true;

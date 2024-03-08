@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,8 +28,8 @@
 // base address: 0x1300000
 #define regGLOBAL_CAPABILITIES                                                                          0x4b7000
 #define regGLOBAL_CAPABILITIES_BASE_IDX                                                                 3
-#define regMINOR_VERSION                                                                                0x4b7000
-#define regMINOR_VERSION_BASE_IDX                                                                       3
+#define regMIANALR_VERSION                                                                                0x4b7000
+#define regMIANALR_VERSION_BASE_IDX                                                                       3
 #define regMAJOR_VERSION                                                                                0x4b7000
 #define regMAJOR_VERSION_BASE_IDX                                                                       3
 #define regOUTPUT_PAYLOAD_CAPABILITY                                                                    0x4b7001
@@ -1385,8 +1385,8 @@
 #define regPHYCSYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regPHYDSYMCLK_CLOCK_CNTL                                                                        0x0055
 #define regPHYDSYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
-#define regPHYESYMCLK_CLOCK_CNTL                                                                        0x0056
-#define regPHYESYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
+#define regPHANALYMCLK_CLOCK_CNTL                                                                        0x0056
+#define regPHANALYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define regHDMISTREAMCLK_CNTL                                                                           0x0059
 #define regHDMISTREAMCLK_CNTL_BASE_IDX                                                                  2
 #define regDCCG_GATE_DISABLE_CNTL3                                                                      0x005a
@@ -1410,7 +1410,7 @@
 // base address: 0x0
 #define ixAZALIA_F2_CODEC_ROOT_PARAMETER_VENDOR_AND_DEVICE_ID                                          0x0f00
 #define ixAZALIA_F2_CODEC_ROOT_PARAMETER_REVISION_ID                                                   0x0f02
-#define ixAZALIA_F2_CODEC_ROOT_PARAMETER_SUBORDINATE_NODE_COUNT                                        0x0f04
+#define ixAZALIA_F2_CODEC_ROOT_PARAMETER_SUBORDINATE_ANALDE_COUNT                                        0x0f04
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_POWER_STATE                                                 0x1705
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_RESPONSE_SUBSYSTEM_ID                                       0x1720
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_RESPONSE_SUBSYSTEM_ID_2                                     0x1721
@@ -1418,7 +1418,7 @@
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_RESPONSE_SUBSYSTEM_ID_4                                     0x1723
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_CONVERTER_SYNCHRONIZATION                                   0x1770
 #define ixAZALIA_F2_CODEC_FUNCTION_CONTROL_RESET                                                       0x17ff
-#define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUBORDINATE_NODE_COUNT                                    0x1f04
+#define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUBORDINATE_ANALDE_COUNT                                    0x1f04
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_GROUP_TYPE                                                0x1f05
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_SUPPORTED_SIZE_RATES                                      0x1f0a
 #define ixAZALIA_F2_CODEC_FUNCTION_PARAMETER_STREAM_FORMATS                                            0x1f0b
@@ -1631,8 +1631,8 @@
 #define regDCPG_INTERRUPT_CONTROL_3_BASE_IDX                                                            2
 #define regDC_IP_REQUEST_CNTL                                                                           0x00a0
 #define regDC_IP_REQUEST_CNTL_BASE_IDX                                                                  2
-#define regLONO_MEM_PWR_REQ_CNTL                                                                        0x00a4
-#define regLONO_MEM_PWR_REQ_CNTL_BASE_IDX                                                               2
+#define regLOANAL_MEM_PWR_REQ_CNTL                                                                        0x00a4
+#define regLOANAL_MEM_PWR_REQ_CNTL_BASE_IDX                                                               2
 
 
 // addressBlock: dce_dc_dmu_dmu_dcperfmon_dc_perfmon_dispdec
@@ -1744,8 +1744,8 @@
 #define regDC_GPU_TIMER_START_POSITION_VREADY_BASE_IDX                                                  2
 #define regDC_GPU_TIMER_START_POSITION_FLIP                                                             0x0142
 #define regDC_GPU_TIMER_START_POSITION_FLIP_BASE_IDX                                                    2
-#define regDC_GPU_TIMER_START_POSITION_V_UPDATE_NO_LOCK                                                 0x0143
-#define regDC_GPU_TIMER_START_POSITION_V_UPDATE_NO_LOCK_BASE_IDX                                        2
+#define regDC_GPU_TIMER_START_POSITION_V_UPDATE_ANAL_LOCK                                                 0x0143
+#define regDC_GPU_TIMER_START_POSITION_V_UPDATE_ANAL_LOCK_BASE_IDX                                        2
 #define regDC_GPU_TIMER_START_POSITION_FLIP_AWAY                                                        0x0144
 #define regDC_GPU_TIMER_START_POSITION_FLIP_AWAY_BASE_IDX                                               2
 #define regDISP_INTERRUPT_STATUS_CONTINUE23                                                             0x0145
@@ -2696,8 +2696,8 @@
 #define regDCN_VM_LOCAL_HBM_ADDRESS_LOCK_CNTL_BASE_IDX                                                  2
 #define regDCHUBBUB_SDPIF_PIPE_SEC_LVL                                                                  0x047e
 #define regDCHUBBUB_SDPIF_PIPE_SEC_LVL_BASE_IDX                                                         2
-#define regDCHUBBUB_SDPIF_PIPE_NOALLOC                                                                  0x047f
-#define regDCHUBBUB_SDPIF_PIPE_NOALLOC_BASE_IDX                                                         2
+#define regDCHUBBUB_SDPIF_PIPE_ANALALLOC                                                                  0x047f
+#define regDCHUBBUB_SDPIF_PIPE_ANALALLOC_BASE_IDX                                                         2
 #define regDCHUBBUB_SDPIF_PIPE_DMDATA_SEC_LVL                                                           0x0480
 #define regDCHUBBUB_SDPIF_PIPE_DMDATA_SEC_LVL_BASE_IDX                                                  2
 #define regDCHUBBUB_SDPIF_PIPE_DCCMETA_SEC_LVL                                                          0x0481
@@ -2792,8 +2792,8 @@
 #define regDCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_A_BASE_IDX                                         2
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_A                                                  0x0506
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_A_BASE_IDX                                         2
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_A                                                               0x0507
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_A_BASE_IDX                                                      2
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_A                                                               0x0507
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_A_BASE_IDX                                                      2
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_A                                                              0x0508
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_A_BASE_IDX                                                     2
 #define regDCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B                                                        0x0509
@@ -2814,8 +2814,8 @@
 #define regDCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_B_BASE_IDX                                         2
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_B                                                  0x0511
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_B_BASE_IDX                                         2
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_B                                                               0x0512
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_B_BASE_IDX                                                      2
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_B                                                               0x0512
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_B_BASE_IDX                                                      2
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_B                                                              0x0513
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_B_BASE_IDX                                                     2
 #define regDCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C                                                        0x0514
@@ -2836,8 +2836,8 @@
 #define regDCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_C_BASE_IDX                                         2
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C                                                  0x051c
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_C_BASE_IDX                                         2
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_C                                                               0x051d
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_C_BASE_IDX                                                      2
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_C                                                               0x051d
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_C_BASE_IDX                                                      2
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_C                                                              0x051e
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_C_BASE_IDX                                                     2
 #define regDCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D                                                        0x051f
@@ -2858,8 +2858,8 @@
 #define regDCHUBBUB_ARB_UCLK_PSTATE_CHANGE_WATERMARK_D_BASE_IDX                                         2
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D                                                  0x0527
 #define regDCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D_BASE_IDX                                         2
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_D                                                               0x0528
-#define regDCHUBBUB_ARB_FRAC_URG_BW_NOM_D_BASE_IDX                                                      2
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_D                                                               0x0528
+#define regDCHUBBUB_ARB_FRAC_URG_BW_ANALM_D_BASE_IDX                                                      2
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_D                                                              0x0529
 #define regDCHUBBUB_ARB_FRAC_URG_BW_FLIP_D_BASE_IDX                                                     2
 #define regDCHUBBUB_ARB_HOSTVM_CNTL                                                                     0x052a
@@ -3358,22 +3358,22 @@
 #define regHUBPREQ0_FLIP_PARAMETERS_1_BASE_IDX                                                          2
 #define regHUBPREQ0_FLIP_PARAMETERS_2                                                                   0x0650
 #define regHUBPREQ0_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define regHUBPREQ0_NOM_PARAMETERS_0                                                                    0x0651
-#define regHUBPREQ0_NOM_PARAMETERS_0_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_1                                                                    0x0652
-#define regHUBPREQ0_NOM_PARAMETERS_1_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_2                                                                    0x0653
-#define regHUBPREQ0_NOM_PARAMETERS_2_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_3                                                                    0x0654
-#define regHUBPREQ0_NOM_PARAMETERS_3_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_4                                                                    0x0655
-#define regHUBPREQ0_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_5                                                                    0x0656
-#define regHUBPREQ0_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_6                                                                    0x0657
-#define regHUBPREQ0_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define regHUBPREQ0_NOM_PARAMETERS_7                                                                    0x0658
-#define regHUBPREQ0_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_0                                                                    0x0651
+#define regHUBPREQ0_ANALM_PARAMETERS_0_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_1                                                                    0x0652
+#define regHUBPREQ0_ANALM_PARAMETERS_1_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_2                                                                    0x0653
+#define regHUBPREQ0_ANALM_PARAMETERS_2_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_3                                                                    0x0654
+#define regHUBPREQ0_ANALM_PARAMETERS_3_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_4                                                                    0x0655
+#define regHUBPREQ0_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_5                                                                    0x0656
+#define regHUBPREQ0_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_6                                                                    0x0657
+#define regHUBPREQ0_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define regHUBPREQ0_ANALM_PARAMETERS_7                                                                    0x0658
+#define regHUBPREQ0_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define regHUBPREQ0_PER_LINE_DELIVERY_PRE                                                               0x0659
 #define regHUBPREQ0_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define regHUBPREQ0_PER_LINE_DELIVERY                                                                   0x065a
@@ -3666,22 +3666,22 @@
 #define regHUBPREQ1_FLIP_PARAMETERS_1_BASE_IDX                                                          2
 #define regHUBPREQ1_FLIP_PARAMETERS_2                                                                   0x072c
 #define regHUBPREQ1_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define regHUBPREQ1_NOM_PARAMETERS_0                                                                    0x072d
-#define regHUBPREQ1_NOM_PARAMETERS_0_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_1                                                                    0x072e
-#define regHUBPREQ1_NOM_PARAMETERS_1_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_2                                                                    0x072f
-#define regHUBPREQ1_NOM_PARAMETERS_2_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_3                                                                    0x0730
-#define regHUBPREQ1_NOM_PARAMETERS_3_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_4                                                                    0x0731
-#define regHUBPREQ1_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_5                                                                    0x0732
-#define regHUBPREQ1_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_6                                                                    0x0733
-#define regHUBPREQ1_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define regHUBPREQ1_NOM_PARAMETERS_7                                                                    0x0734
-#define regHUBPREQ1_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_0                                                                    0x072d
+#define regHUBPREQ1_ANALM_PARAMETERS_0_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_1                                                                    0x072e
+#define regHUBPREQ1_ANALM_PARAMETERS_1_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_2                                                                    0x072f
+#define regHUBPREQ1_ANALM_PARAMETERS_2_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_3                                                                    0x0730
+#define regHUBPREQ1_ANALM_PARAMETERS_3_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_4                                                                    0x0731
+#define regHUBPREQ1_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_5                                                                    0x0732
+#define regHUBPREQ1_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_6                                                                    0x0733
+#define regHUBPREQ1_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define regHUBPREQ1_ANALM_PARAMETERS_7                                                                    0x0734
+#define regHUBPREQ1_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define regHUBPREQ1_PER_LINE_DELIVERY_PRE                                                               0x0735
 #define regHUBPREQ1_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define regHUBPREQ1_PER_LINE_DELIVERY                                                                   0x0736
@@ -3974,22 +3974,22 @@
 #define regHUBPREQ2_FLIP_PARAMETERS_1_BASE_IDX                                                          2
 #define regHUBPREQ2_FLIP_PARAMETERS_2                                                                   0x0808
 #define regHUBPREQ2_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define regHUBPREQ2_NOM_PARAMETERS_0                                                                    0x0809
-#define regHUBPREQ2_NOM_PARAMETERS_0_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_1                                                                    0x080a
-#define regHUBPREQ2_NOM_PARAMETERS_1_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_2                                                                    0x080b
-#define regHUBPREQ2_NOM_PARAMETERS_2_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_3                                                                    0x080c
-#define regHUBPREQ2_NOM_PARAMETERS_3_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_4                                                                    0x080d
-#define regHUBPREQ2_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_5                                                                    0x080e
-#define regHUBPREQ2_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_6                                                                    0x080f
-#define regHUBPREQ2_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define regHUBPREQ2_NOM_PARAMETERS_7                                                                    0x0810
-#define regHUBPREQ2_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_0                                                                    0x0809
+#define regHUBPREQ2_ANALM_PARAMETERS_0_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_1                                                                    0x080a
+#define regHUBPREQ2_ANALM_PARAMETERS_1_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_2                                                                    0x080b
+#define regHUBPREQ2_ANALM_PARAMETERS_2_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_3                                                                    0x080c
+#define regHUBPREQ2_ANALM_PARAMETERS_3_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_4                                                                    0x080d
+#define regHUBPREQ2_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_5                                                                    0x080e
+#define regHUBPREQ2_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_6                                                                    0x080f
+#define regHUBPREQ2_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define regHUBPREQ2_ANALM_PARAMETERS_7                                                                    0x0810
+#define regHUBPREQ2_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define regHUBPREQ2_PER_LINE_DELIVERY_PRE                                                               0x0811
 #define regHUBPREQ2_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define regHUBPREQ2_PER_LINE_DELIVERY                                                                   0x0812
@@ -4282,22 +4282,22 @@
 #define regHUBPREQ3_FLIP_PARAMETERS_1_BASE_IDX                                                          2
 #define regHUBPREQ3_FLIP_PARAMETERS_2                                                                   0x08e4
 #define regHUBPREQ3_FLIP_PARAMETERS_2_BASE_IDX                                                          2
-#define regHUBPREQ3_NOM_PARAMETERS_0                                                                    0x08e5
-#define regHUBPREQ3_NOM_PARAMETERS_0_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_1                                                                    0x08e6
-#define regHUBPREQ3_NOM_PARAMETERS_1_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_2                                                                    0x08e7
-#define regHUBPREQ3_NOM_PARAMETERS_2_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_3                                                                    0x08e8
-#define regHUBPREQ3_NOM_PARAMETERS_3_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_4                                                                    0x08e9
-#define regHUBPREQ3_NOM_PARAMETERS_4_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_5                                                                    0x08ea
-#define regHUBPREQ3_NOM_PARAMETERS_5_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_6                                                                    0x08eb
-#define regHUBPREQ3_NOM_PARAMETERS_6_BASE_IDX                                                           2
-#define regHUBPREQ3_NOM_PARAMETERS_7                                                                    0x08ec
-#define regHUBPREQ3_NOM_PARAMETERS_7_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_0                                                                    0x08e5
+#define regHUBPREQ3_ANALM_PARAMETERS_0_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_1                                                                    0x08e6
+#define regHUBPREQ3_ANALM_PARAMETERS_1_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_2                                                                    0x08e7
+#define regHUBPREQ3_ANALM_PARAMETERS_2_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_3                                                                    0x08e8
+#define regHUBPREQ3_ANALM_PARAMETERS_3_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_4                                                                    0x08e9
+#define regHUBPREQ3_ANALM_PARAMETERS_4_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_5                                                                    0x08ea
+#define regHUBPREQ3_ANALM_PARAMETERS_5_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_6                                                                    0x08eb
+#define regHUBPREQ3_ANALM_PARAMETERS_6_BASE_IDX                                                           2
+#define regHUBPREQ3_ANALM_PARAMETERS_7                                                                    0x08ec
+#define regHUBPREQ3_ANALM_PARAMETERS_7_BASE_IDX                                                           2
 #define regHUBPREQ3_PER_LINE_DELIVERY_PRE                                                               0x08ed
 #define regHUBPREQ3_PER_LINE_DELIVERY_PRE_BASE_IDX                                                      2
 #define regHUBPREQ3_PER_LINE_DELIVERY                                                                   0x08ee
@@ -6539,8 +6539,8 @@
 #define regOTG0_OTG_V_COUNT_STOP_CONTROL2_BASE_IDX                                                      2
 #define regOTG0_OTG_V_TOTAL_INT_STATUS                                                                  0x1b36
 #define regOTG0_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define regOTG0_OTG_VSYNC_NOM_INT_STATUS                                                                0x1b37
-#define regOTG0_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define regOTG0_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1b37
+#define regOTG0_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define regOTG0_OTG_V_BLANK_START_END                                                                   0x1b38
 #define regOTG0_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define regOTG0_OTG_V_SYNC_A                                                                            0x1b39
@@ -6555,8 +6555,8 @@
 #define regOTG0_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define regOTG0_OTG_TRIGB_MANUAL_TRIG                                                                   0x1b3e
 #define regOTG0_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define regOTG0_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1b3f
-#define regOTG0_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define regOTG0_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1b3f
+#define regOTG0_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define regOTG0_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1b41
 #define regOTG0_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define regOTG0_OTG_CONTROL                                                                             0x1b43
@@ -6577,8 +6577,8 @@
 #define regOTG0_OTG_STATUS_POSITION_BASE_IDX                                                            2
 #define regOTG0_OTG_LONG_VBLANK_STATUS                                                                  0x1b4b
 #define regOTG0_OTG_LONG_VBLANK_STATUS_BASE_IDX                                                         2
-#define regOTG0_OTG_NOM_VERT_POSITION                                                                   0x1b4c
-#define regOTG0_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define regOTG0_OTG_ANALM_VERT_POSITION                                                                   0x1b4c
+#define regOTG0_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define regOTG0_OTG_STATUS_FRAME_COUNT                                                                  0x1b4d
 #define regOTG0_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define regOTG0_OTG_STATUS_VF_COUNT                                                                     0x1b4e
@@ -6773,8 +6773,8 @@
 #define regOTG1_OTG_V_COUNT_STOP_CONTROL2_BASE_IDX                                                      2
 #define regOTG1_OTG_V_TOTAL_INT_STATUS                                                                  0x1bb6
 #define regOTG1_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define regOTG1_OTG_VSYNC_NOM_INT_STATUS                                                                0x1bb7
-#define regOTG1_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define regOTG1_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1bb7
+#define regOTG1_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define regOTG1_OTG_V_BLANK_START_END                                                                   0x1bb8
 #define regOTG1_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define regOTG1_OTG_V_SYNC_A                                                                            0x1bb9
@@ -6789,8 +6789,8 @@
 #define regOTG1_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define regOTG1_OTG_TRIGB_MANUAL_TRIG                                                                   0x1bbe
 #define regOTG1_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define regOTG1_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1bbf
-#define regOTG1_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define regOTG1_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1bbf
+#define regOTG1_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define regOTG1_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1bc1
 #define regOTG1_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define regOTG1_OTG_CONTROL                                                                             0x1bc3
@@ -6811,8 +6811,8 @@
 #define regOTG1_OTG_STATUS_POSITION_BASE_IDX                                                            2
 #define regOTG1_OTG_LONG_VBLANK_STATUS                                                                  0x1bcb
 #define regOTG1_OTG_LONG_VBLANK_STATUS_BASE_IDX                                                         2
-#define regOTG1_OTG_NOM_VERT_POSITION                                                                   0x1bcc
-#define regOTG1_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define regOTG1_OTG_ANALM_VERT_POSITION                                                                   0x1bcc
+#define regOTG1_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define regOTG1_OTG_STATUS_FRAME_COUNT                                                                  0x1bcd
 #define regOTG1_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define regOTG1_OTG_STATUS_VF_COUNT                                                                     0x1bce
@@ -7007,8 +7007,8 @@
 #define regOTG2_OTG_V_COUNT_STOP_CONTROL2_BASE_IDX                                                      2
 #define regOTG2_OTG_V_TOTAL_INT_STATUS                                                                  0x1c36
 #define regOTG2_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define regOTG2_OTG_VSYNC_NOM_INT_STATUS                                                                0x1c37
-#define regOTG2_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define regOTG2_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1c37
+#define regOTG2_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define regOTG2_OTG_V_BLANK_START_END                                                                   0x1c38
 #define regOTG2_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define regOTG2_OTG_V_SYNC_A                                                                            0x1c39
@@ -7023,8 +7023,8 @@
 #define regOTG2_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define regOTG2_OTG_TRIGB_MANUAL_TRIG                                                                   0x1c3e
 #define regOTG2_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define regOTG2_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1c3f
-#define regOTG2_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define regOTG2_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1c3f
+#define regOTG2_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define regOTG2_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1c41
 #define regOTG2_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define regOTG2_OTG_CONTROL                                                                             0x1c43
@@ -7045,8 +7045,8 @@
 #define regOTG2_OTG_STATUS_POSITION_BASE_IDX                                                            2
 #define regOTG2_OTG_LONG_VBLANK_STATUS                                                                  0x1c4b
 #define regOTG2_OTG_LONG_VBLANK_STATUS_BASE_IDX                                                         2
-#define regOTG2_OTG_NOM_VERT_POSITION                                                                   0x1c4c
-#define regOTG2_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define regOTG2_OTG_ANALM_VERT_POSITION                                                                   0x1c4c
+#define regOTG2_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define regOTG2_OTG_STATUS_FRAME_COUNT                                                                  0x1c4d
 #define regOTG2_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define regOTG2_OTG_STATUS_VF_COUNT                                                                     0x1c4e
@@ -7241,8 +7241,8 @@
 #define regOTG3_OTG_V_COUNT_STOP_CONTROL2_BASE_IDX                                                      2
 #define regOTG3_OTG_V_TOTAL_INT_STATUS                                                                  0x1cb6
 #define regOTG3_OTG_V_TOTAL_INT_STATUS_BASE_IDX                                                         2
-#define regOTG3_OTG_VSYNC_NOM_INT_STATUS                                                                0x1cb7
-#define regOTG3_OTG_VSYNC_NOM_INT_STATUS_BASE_IDX                                                       2
+#define regOTG3_OTG_VSYNC_ANALM_INT_STATUS                                                                0x1cb7
+#define regOTG3_OTG_VSYNC_ANALM_INT_STATUS_BASE_IDX                                                       2
 #define regOTG3_OTG_V_BLANK_START_END                                                                   0x1cb8
 #define regOTG3_OTG_V_BLANK_START_END_BASE_IDX                                                          2
 #define regOTG3_OTG_V_SYNC_A                                                                            0x1cb9
@@ -7257,8 +7257,8 @@
 #define regOTG3_OTG_TRIGB_CNTL_BASE_IDX                                                                 2
 #define regOTG3_OTG_TRIGB_MANUAL_TRIG                                                                   0x1cbe
 #define regOTG3_OTG_TRIGB_MANUAL_TRIG_BASE_IDX                                                          2
-#define regOTG3_OTG_FORCE_COUNT_NOW_CNTL                                                                0x1cbf
-#define regOTG3_OTG_FORCE_COUNT_NOW_CNTL_BASE_IDX                                                       2
+#define regOTG3_OTG_FORCE_COUNT_ANALW_CNTL                                                                0x1cbf
+#define regOTG3_OTG_FORCE_COUNT_ANALW_CNTL_BASE_IDX                                                       2
 #define regOTG3_OTG_STEREO_FORCE_NEXT_EYE                                                               0x1cc1
 #define regOTG3_OTG_STEREO_FORCE_NEXT_EYE_BASE_IDX                                                      2
 #define regOTG3_OTG_CONTROL                                                                             0x1cc3
@@ -7279,8 +7279,8 @@
 #define regOTG3_OTG_STATUS_POSITION_BASE_IDX                                                            2
 #define regOTG3_OTG_LONG_VBLANK_STATUS                                                                  0x1ccb
 #define regOTG3_OTG_LONG_VBLANK_STATUS_BASE_IDX                                                         2
-#define regOTG3_OTG_NOM_VERT_POSITION                                                                   0x1ccc
-#define regOTG3_OTG_NOM_VERT_POSITION_BASE_IDX                                                          2
+#define regOTG3_OTG_ANALM_VERT_POSITION                                                                   0x1ccc
+#define regOTG3_OTG_ANALM_VERT_POSITION_BASE_IDX                                                          2
 #define regOTG3_OTG_STATUS_FRAME_COUNT                                                                  0x1ccd
 #define regOTG3_OTG_STATUS_FRAME_COUNT_BASE_IDX                                                         2
 #define regOTG3_OTG_STATUS_VF_COUNT                                                                     0x1cce
@@ -13047,36 +13047,36 @@
 // base address: 0x0
 #define regMPC_OUT0_MUX                                                                                 0x03d8
 #define regMPC_OUT0_MUX_BASE_IDX                                                                        3
-#define regMPC_OUT0_DENORM_CONTROL                                                                      0x03d9
-#define regMPC_OUT0_DENORM_CONTROL_BASE_IDX                                                             3
-#define regMPC_OUT0_DENORM_CLAMP_G_Y                                                                    0x03da
-#define regMPC_OUT0_DENORM_CLAMP_G_Y_BASE_IDX                                                           3
-#define regMPC_OUT0_DENORM_CLAMP_B_CB                                                                   0x03db
-#define regMPC_OUT0_DENORM_CLAMP_B_CB_BASE_IDX                                                          3
+#define regMPC_OUT0_DEANALRM_CONTROL                                                                      0x03d9
+#define regMPC_OUT0_DEANALRM_CONTROL_BASE_IDX                                                             3
+#define regMPC_OUT0_DEANALRM_CLAMP_G_Y                                                                    0x03da
+#define regMPC_OUT0_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           3
+#define regMPC_OUT0_DEANALRM_CLAMP_B_CB                                                                   0x03db
+#define regMPC_OUT0_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          3
 #define regMPC_OUT1_MUX                                                                                 0x03dc
 #define regMPC_OUT1_MUX_BASE_IDX                                                                        3
-#define regMPC_OUT1_DENORM_CONTROL                                                                      0x03dd
-#define regMPC_OUT1_DENORM_CONTROL_BASE_IDX                                                             3
-#define regMPC_OUT1_DENORM_CLAMP_G_Y                                                                    0x03de
-#define regMPC_OUT1_DENORM_CLAMP_G_Y_BASE_IDX                                                           3
-#define regMPC_OUT1_DENORM_CLAMP_B_CB                                                                   0x03df
-#define regMPC_OUT1_DENORM_CLAMP_B_CB_BASE_IDX                                                          3
+#define regMPC_OUT1_DEANALRM_CONTROL                                                                      0x03dd
+#define regMPC_OUT1_DEANALRM_CONTROL_BASE_IDX                                                             3
+#define regMPC_OUT1_DEANALRM_CLAMP_G_Y                                                                    0x03de
+#define regMPC_OUT1_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           3
+#define regMPC_OUT1_DEANALRM_CLAMP_B_CB                                                                   0x03df
+#define regMPC_OUT1_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          3
 #define regMPC_OUT2_MUX                                                                                 0x03e0
 #define regMPC_OUT2_MUX_BASE_IDX                                                                        3
-#define regMPC_OUT2_DENORM_CONTROL                                                                      0x03e1
-#define regMPC_OUT2_DENORM_CONTROL_BASE_IDX                                                             3
-#define regMPC_OUT2_DENORM_CLAMP_G_Y                                                                    0x03e2
-#define regMPC_OUT2_DENORM_CLAMP_G_Y_BASE_IDX                                                           3
-#define regMPC_OUT2_DENORM_CLAMP_B_CB                                                                   0x03e3
-#define regMPC_OUT2_DENORM_CLAMP_B_CB_BASE_IDX                                                          3
+#define regMPC_OUT2_DEANALRM_CONTROL                                                                      0x03e1
+#define regMPC_OUT2_DEANALRM_CONTROL_BASE_IDX                                                             3
+#define regMPC_OUT2_DEANALRM_CLAMP_G_Y                                                                    0x03e2
+#define regMPC_OUT2_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           3
+#define regMPC_OUT2_DEANALRM_CLAMP_B_CB                                                                   0x03e3
+#define regMPC_OUT2_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          3
 #define regMPC_OUT3_MUX                                                                                 0x03e4
 #define regMPC_OUT3_MUX_BASE_IDX                                                                        3
-#define regMPC_OUT3_DENORM_CONTROL                                                                      0x03e5
-#define regMPC_OUT3_DENORM_CONTROL_BASE_IDX                                                             3
-#define regMPC_OUT3_DENORM_CLAMP_G_Y                                                                    0x03e6
-#define regMPC_OUT3_DENORM_CLAMP_G_Y_BASE_IDX                                                           3
-#define regMPC_OUT3_DENORM_CLAMP_B_CB                                                                   0x03e7
-#define regMPC_OUT3_DENORM_CLAMP_B_CB_BASE_IDX                                                          3
+#define regMPC_OUT3_DEANALRM_CONTROL                                                                      0x03e5
+#define regMPC_OUT3_DEANALRM_CONTROL_BASE_IDX                                                             3
+#define regMPC_OUT3_DEANALRM_CLAMP_G_Y                                                                    0x03e6
+#define regMPC_OUT3_DEANALRM_CLAMP_G_Y_BASE_IDX                                                           3
+#define regMPC_OUT3_DEANALRM_CLAMP_B_CB                                                                   0x03e7
+#define regMPC_OUT3_DEANALRM_CLAMP_B_CB_BASE_IDX                                                          3
 #define regMPC_OUT_CSC_COEF_FORMAT                                                                      0x03f0
 #define regMPC_OUT_CSC_COEF_FORMAT_BASE_IDX                                                             3
 #define regMPC_OUT0_CSC_MODE                                                                            0x03f1
@@ -14058,8 +14058,8 @@
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_DATA_30BIT_BASE_IDX                                                 3
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_READ_WRITE_CONTROL                                                  0x048e
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                         3
-#define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_NORM_FACTOR                                                     0x048f
-#define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                            3
+#define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR                                                     0x048f
+#define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                            3
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_OFFSET_R                                                        0x0490
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_OFFSET_R_BASE_IDX                                               3
 #define regMPCC_MCM0_MPCC_MCM_3DLUT_OUT_OFFSET_G                                                        0x0491
@@ -14340,8 +14340,8 @@
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_DATA_30BIT_BASE_IDX                                                 3
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_READ_WRITE_CONTROL                                                  0x051e
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                         3
-#define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_NORM_FACTOR                                                     0x051f
-#define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                            3
+#define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR                                                     0x051f
+#define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                            3
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_OFFSET_R                                                        0x0520
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_OFFSET_R_BASE_IDX                                               3
 #define regMPCC_MCM1_MPCC_MCM_3DLUT_OUT_OFFSET_G                                                        0x0521
@@ -14622,8 +14622,8 @@
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_DATA_30BIT_BASE_IDX                                                 3
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_READ_WRITE_CONTROL                                                  0x05ae
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                         3
-#define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_NORM_FACTOR                                                     0x05af
-#define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                            3
+#define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR                                                     0x05af
+#define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                            3
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_OFFSET_R                                                        0x05b0
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_OFFSET_R_BASE_IDX                                               3
 #define regMPCC_MCM2_MPCC_MCM_3DLUT_OUT_OFFSET_G                                                        0x05b1
@@ -14904,8 +14904,8 @@
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_DATA_30BIT_BASE_IDX                                                 3
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_READ_WRITE_CONTROL                                                  0x063e
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_READ_WRITE_CONTROL_BASE_IDX                                         3
-#define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_NORM_FACTOR                                                     0x063f
-#define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_NORM_FACTOR_BASE_IDX                                            3
+#define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR                                                     0x063f
+#define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_ANALRM_FACTOR_BASE_IDX                                            3
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_OFFSET_R                                                        0x0640
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_OFFSET_R_BASE_IDX                                               3
 #define regMPCC_MCM3_MPCC_MCM_3DLUT_OUT_OFFSET_G                                                        0x0641
@@ -15076,8 +15076,8 @@
 #define regDLPC_PWRUP_BASE_IDX                                                                          2
 #define regDLPC_OTG_RESYNC                                                                              0x2fec
 #define regDLPC_OTG_RESYNC_BASE_IDX                                                                     2
-#define regDLPC_DCN_ZSC_LONO_PWRUP                                                                      0x2fed
-#define regDLPC_DCN_ZSC_LONO_PWRUP_BASE_IDX                                                             2
+#define regDLPC_DCN_ZSC_LOANAL_PWRUP                                                                      0x2fed
+#define regDLPC_DCN_ZSC_LOANAL_PWRUP_BASE_IDX                                                             2
 #define regDLPC_SPARE                                                                                   0x2fee
 #define regDLPC_SPARE_BASE_IDX                                                                          2
 #define regDLPC_COUNTER_INIT_VALUE                                                                      0x2fef

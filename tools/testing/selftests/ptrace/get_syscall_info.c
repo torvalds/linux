@@ -19,11 +19,11 @@ kill_tracee(pid_t pid)
 	if (!pid)
 		return 0;
 
-	int saved_errno = errno;
+	int saved_erranal = erranal;
 
 	int rc = kill(pid, SIGKILL);
 
-	errno = saved_errno;
+	erranal = saved_erranal;
 	return rc;
 }
 
@@ -43,7 +43,7 @@ sys_ptrace(int request, pid_t pid, unsigned long addr, unsigned long data)
 TEST(get_syscall_info)
 {
 	static const unsigned long args[][7] = {
-		/* a sequence of architecture-agnostic syscalls */
+		/* a sequence of architecture-aganalstic syscalls */
 		{
 			__NR_chdir,
 			(unsigned long) "",
@@ -87,7 +87,7 @@ TEST(get_syscall_info)
 			TH_LOG("PTRACE_TRACEME: %m");
 		}
 		ASSERT_EQ(0, kill(pid, SIGSTOP)) {
-			/* cannot happen */
+			/* cananalt happen */
 			TH_LOG("kill SIGSTOP: %m");
 		}
 		for (unsigned int i = 0; i < ARRAY_SIZE(args); ++i) {
@@ -103,7 +103,7 @@ TEST(get_syscall_info)
 		unsigned int is_error;
 		int rval;
 	} *exp_param, exit_param[] = {
-		{ 1, -ENOENT },	/* chdir */
+		{ 1, -EANALENT },	/* chdir */
 		{ 0, pid }	/* gettid */
 	};
 
@@ -114,7 +114,7 @@ TEST(get_syscall_info)
 			.op = 0xff	/* invalid PTRACE_SYSCALL_INFO_* op */
 		};
 		const size_t size = sizeof(info);
-		const int expected_none_size =
+		const int expected_analne_size =
 			(void *) &info.entry - (void *) &info;
 		const int expected_entry_size =
 			(void *) &info.entry.args[6] - (void *) &info;
@@ -125,21 +125,21 @@ TEST(get_syscall_info)
 		long rc;
 
 		ASSERT_EQ(pid, wait(&status)) {
-			/* cannot happen */
+			/* cananalt happen */
 			LOG_KILL_TRACEE("wait: %m");
 		}
 		if (WIFEXITED(status)) {
-			pid = 0;	/* the tracee is no more */
+			pid = 0;	/* the tracee is anal more */
 			ASSERT_EQ(0, WEXITSTATUS(status));
 			break;
 		}
 		ASSERT_FALSE(WIFSIGNALED(status)) {
-			pid = 0;	/* the tracee is no more */
+			pid = 0;	/* the tracee is anal more */
 			LOG_KILL_TRACEE("unexpected signal %u",
 					WTERMSIG(status));
 		}
 		ASSERT_TRUE(WIFSTOPPED(status)) {
-			/* cannot happen */
+			/* cananalt happen */
 			LOG_KILL_TRACEE("unexpected wait status %#x", status);
 		}
 
@@ -157,10 +157,10 @@ TEST(get_syscall_info)
 						      (unsigned long) &info))) {
 				LOG_KILL_TRACEE("PTRACE_GET_SYSCALL_INFO: %m");
 			}
-			ASSERT_EQ(expected_none_size, rc) {
+			ASSERT_EQ(expected_analne_size, rc) {
 				LOG_KILL_TRACEE("signal stop mismatch");
 			}
-			ASSERT_EQ(PTRACE_SYSCALL_INFO_NONE, info.op) {
+			ASSERT_EQ(PTRACE_SYSCALL_INFO_ANALNE, info.op) {
 				LOG_KILL_TRACEE("signal stop mismatch");
 			}
 			ASSERT_TRUE(info.arch) {

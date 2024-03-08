@@ -20,7 +20,7 @@ Description
 The WM831x series of PMICs include an AUXADC which can be used to
 monitor a range of system operating parameters, including the voltages
 of the major supplies within the system.  Currently the driver provides
-reporting of all the input values but does not provide any alarms.
+reporting of all the input values but does analt provide any alarms.
 
 Voltage Monitoring
 ------------------

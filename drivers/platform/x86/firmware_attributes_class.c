@@ -41,12 +41,12 @@ int fw_attributes_class_put(void)
 		return -EINVAL;
 	}
 	fw_attr_inuse--;
-	if (!fw_attr_inuse) /* No more consumers */
+	if (!fw_attr_inuse) /* Anal more consumers */
 		class_unregister(&firmware_attributes_class);
 	mutex_unlock(&fw_attr_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fw_attributes_class_put);
 
-MODULE_AUTHOR("Mark Pearson <markpearson@lenovo.com>");
+MODULE_AUTHOR("Mark Pearson <markpearson@leanalvo.com>");
 MODULE_LICENSE("GPL");

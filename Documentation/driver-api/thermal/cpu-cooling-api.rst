@@ -39,7 +39,7 @@ the user. The registration APIs returns the cooling device pointer.
 	*of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 
     This interface function registers the cpufreq cooling device with
-    the name "thermal-cpufreq-%x" linking it with a device tree node, in
+    the name "thermal-cpufreq-%x" linking it with a device tree analde, in
     order to bind it via the thermal DT code. This api can support multiple
     instances of cpufreq cooling devices.
 
@@ -103,5 +103,5 @@ Where `capacitance` is a constant that represents an indicative
 running time dynamic power coefficient in fundamental units of
 mW/MHz/uVolt^2.  Typical values for mobile CPUs might lie in range
 from 100 to 500.  For reference, the approximate values for the SoC in
-ARM's Juno Development Platform are 530 for the Cortex-A57 cluster and
+ARM's Juanal Development Platform are 530 for the Cortex-A57 cluster and
 140 for the Cortex-A53 cluster.

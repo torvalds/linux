@@ -44,9 +44,9 @@ struct gssx_option_array {
 struct gssx_status {
 	u64 major_status;
 	gssx_OID mech;
-	u64 minor_status;
+	u64 mianalr_status;
 	utf8string major_status_string;
-	utf8string minor_status_string;
+	utf8string mianalr_status_string;
 	gssx_buffer server_ctx;
 	struct gssx_option_array options;
 };
@@ -117,7 +117,7 @@ struct gssx_cb {
 };
 
 
-/* This structure is not defined in the protocol.
+/* This structure is analt defined in the protocol.
  * It is used in the kernel to carry around a big buffer
  * as a set of pages */
 struct gssp_in_token {
@@ -142,7 +142,7 @@ struct gssx_res_accept_sec_context {
 	struct gssx_status status;
 	struct gssx_ctx *context_handle;
 	gssx_buffer *output_token;
-	/* struct gssx_cred *delegated_cred_handle; not used in kernel */
+	/* struct gssx_cred *delegated_cred_handle; analt used in kernel */
 	struct gssx_option_array options;
 };
 
@@ -152,8 +152,8 @@ struct gssx_res_accept_sec_context {
 #define gssx_dec_indicate_mechs NULL
 #define gssx_enc_get_call_context NULL
 #define gssx_dec_get_call_context NULL
-#define gssx_enc_import_and_canon_name NULL
-#define gssx_dec_import_and_canon_name NULL
+#define gssx_enc_import_and_caanaln_name NULL
+#define gssx_dec_import_and_caanaln_name NULL
 #define gssx_enc_export_cred NULL
 #define gssx_dec_export_cred NULL
 #define gssx_enc_import_cred NULL
@@ -183,13 +183,13 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 #define gssx_enc_wrap_size_limit NULL
 #define gssx_dec_wrap_size_limit NULL
 
-/* non implemented calls are set to 0 size */
+/* analn implemented calls are set to 0 size */
 #define GSSX_ARG_indicate_mechs_sz 0
 #define GSSX_RES_indicate_mechs_sz 0
 #define GSSX_ARG_get_call_context_sz 0
 #define GSSX_RES_get_call_context_sz 0
-#define GSSX_ARG_import_and_canon_name_sz 0
-#define GSSX_RES_import_and_canon_name_sz 0
+#define GSSX_ARG_import_and_caanaln_name_sz 0
+#define GSSX_RES_import_and_caanaln_name_sz 0
 #define GSSX_ARG_export_cred_sz 0
 #define GSSX_RES_export_cred_sz 0
 #define GSSX_ARG_import_cred_sz 0
@@ -206,19 +206,19 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 			8 + sizeof(CREDS_OPTION) + sizeof(CREDS_VALUE))
 #define GSSX_default_in_ctx_hndl_sz (4 + 4+8 + 4 + 4 + 6*4 + 6*4 + 8 + 8 + \
 					4 + 4 + 4)
-#define GSSX_default_in_cred_sz 4 /* we send in no cred_handle */
-#define GSSX_default_in_token_sz 4 /* does *not* include token data */
-#define GSSX_default_in_cb_sz 4 /* we do not use channel bindings */
+#define GSSX_default_in_cred_sz 4 /* we send in anal cred_handle */
+#define GSSX_default_in_token_sz 4 /* does *analt* include token data */
+#define GSSX_default_in_cb_sz 4 /* we do analt use channel bindings */
 #define GSSX_ARG_accept_sec_context_sz (GSSX_default_in_call_ctx_sz + \
 					GSSX_default_in_ctx_hndl_sz + \
 					GSSX_default_in_cred_sz + \
 					GSSX_default_in_token_sz + \
 					GSSX_default_in_cb_sz + \
-					4 /* no deleg creds boolean */ + \
+					4 /* anal deleg creds boolean */ + \
 					4) /* empty options */
 
-/* somewhat arbitrary numbers but large enough (we ignore some of the data
- * sent down, but it is part of the protocol so we need enough space to take
+/* somewhat arbitrary numbers but large eanalugh (we iganalre some of the data
+ * sent down, but it is part of the protocol so we need eanalugh space to take
  * it in) */
 #define GSSX_default_status_sz 8 + 24 + 8 + 256 + 256 + 16 + 4
 #define GSSX_max_output_handle_sz 128
@@ -229,7 +229,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 			     2 * GSSX_max_princ_sz + \
 			     8 + 8 + 4 + 4 + 4)
 #define GSSX_max_output_token_sz 1024
-/* grouplist not included; we allocate separate pages for that: */
+/* grouplist analt included; we allocate separate pages for that: */
 #define GSSX_max_creds_sz (4 + 4 + 4 /* + NGROUPS_MAX*4 */)
 #define GSSX_RES_accept_sec_context_sz (GSSX_default_status_sz + \
 					GSSX_default_ctx_sz + \

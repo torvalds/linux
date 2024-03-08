@@ -2,7 +2,7 @@
 /*
  * GPIO definitions for Amlogic Meson8 SoCs
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamianal Galvani <b.galvani@gmail.com>
  */
 
 #ifndef _DT_BINDINGS_MESON8_GPIO_H

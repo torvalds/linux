@@ -30,27 +30,27 @@ int efcport_init(struct efc *efc)
 	spin_lock_init(&efc->pend_frames_lock);
 	INIT_LIST_HEAD(&efc->pend_frames);
 
-	/* Create Node pool */
-	efc->node_pool = mempool_create_kmalloc_pool(EFC_MAX_REMOTE_NODES,
-						     sizeof(struct efc_node));
-	if (!efc->node_pool) {
-		efc_log_err(efc, "Can't allocate node pool\n");
-		return -ENOMEM;
+	/* Create Analde pool */
+	efc->analde_pool = mempool_create_kmalloc_pool(EFC_MAX_REMOTE_ANALDES,
+						     sizeof(struct efc_analde));
+	if (!efc->analde_pool) {
+		efc_log_err(efc, "Can't allocate analde pool\n");
+		return -EANALMEM;
 	}
 
-	efc->node_dma_pool = dma_pool_create("node_dma_pool", &efc->pci->dev,
-					     NODE_SPARAMS_SIZE, 0, 0);
-	if (!efc->node_dma_pool) {
-		efc_log_err(efc, "Can't allocate node dma pool\n");
-		mempool_destroy(efc->node_pool);
-		return -ENOMEM;
+	efc->analde_dma_pool = dma_pool_create("analde_dma_pool", &efc->pci->dev,
+					     ANALDE_SPARAMS_SIZE, 0, 0);
+	if (!efc->analde_dma_pool) {
+		efc_log_err(efc, "Can't allocate analde dma pool\n");
+		mempool_destroy(efc->analde_pool);
+		return -EANALMEM;
 	}
 
 	efc->els_io_pool = mempool_create_kmalloc_pool(EFC_ELS_IO_POOL_SZ,
 						sizeof(struct efc_els_io_req));
 	if (!efc->els_io_pool) {
 		efc_log_err(efc, "Can't allocate els io pool\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	return rc;
@@ -76,6 +76,6 @@ void efcport_destroy(struct efc *efc)
 {
 	efc_purge_pending(efc);
 	mempool_destroy(efc->els_io_pool);
-	mempool_destroy(efc->node_pool);
-	dma_pool_destroy(efc->node_dma_pool);
+	mempool_destroy(efc->analde_pool);
+	dma_pool_destroy(efc->analde_dma_pool);
 }

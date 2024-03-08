@@ -42,7 +42,7 @@ pgprot_t __phys_mem_access_prot(unsigned long pfn, unsigned long size,
 		return ppc_md.phys_mem_access_prot(pfn, size, vma_prot);
 
 	if (!page_is_ram(pfn))
-		vma_prot = pgprot_noncached(vma_prot);
+		vma_prot = pgprot_analncached(vma_prot);
 
 	return vma_prot;
 }
@@ -62,12 +62,12 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 int __weak create_section_mapping(unsigned long start, unsigned long end,
 				  int nid, pgprot_t prot)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int __weak remove_section_mapping(unsigned long start, unsigned long end)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 int __ref arch_create_linear_mapping(int nid, u64 start, u64 size,
@@ -174,10 +174,10 @@ void __init mem_topology_setup(void)
 	max_low_pfn = lowmem_end_addr >> PAGE_SHIFT;
 #endif
 
-	/* Place all memblock_regions in the same node and merge contiguous
+	/* Place all memblock_regions in the same analde and merge contiguous
 	 * memblock_regions
 	 */
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	memblock_set_analde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 }
 
 void __init initmem_init(void)
@@ -185,15 +185,15 @@ void __init initmem_init(void)
 	sparse_init();
 }
 
-/* mark pages that don't exist as nosave */
-static int __init mark_nonram_nosave(void)
+/* mark pages that don't exist as analsave */
+static int __init mark_analnram_analsave(void)
 {
 	unsigned long spfn, epfn, prev = 0;
 	int i;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &spfn, &epfn, NULL) {
+	for_each_mem_pfn_range(i, MAX_NUMANALDES, &spfn, &epfn, NULL) {
 		if (prev && prev < spfn)
-			register_nosave_region(prev, spfn);
+			register_analsave_region(prev, spfn);
 
 		prev = epfn;
 	}
@@ -201,7 +201,7 @@ static int __init mark_nonram_nosave(void)
 	return 0;
 }
 #else /* CONFIG_NUMA */
-static int __init mark_nonram_nosave(void)
+static int __init mark_analnram_analsave(void)
 {
 	return 0;
 }
@@ -210,13 +210,13 @@ static int __init mark_nonram_nosave(void)
 /*
  * Zones usage:
  *
- * We setup ZONE_DMA to be 31-bits on all platforms and ZONE_NORMAL to be
+ * We setup ZONE_DMA to be 31-bits on all platforms and ZONE_ANALRMAL to be
  * everything else. GFP_DMA32 page allocations automatically fall back to
  * ZONE_DMA.
  *
  * By using 31-bit unconditionally, we can exploit zone_dma_bits to inform the
- * generic DMA mapping code.  32-bit only devices (if not handled by an IOMMU
- * anyway) will take a first dip into ZONE_NORMAL and get otherwise served by
+ * generic DMA mapping code.  32-bit only devices (if analt handled by an IOMMU
+ * anyway) will take a first dip into ZONE_ANALRMAL and get otherwise served by
  * ZONE_DMA.
  */
 static unsigned long max_zone_pfns[MAX_NR_ZONES];
@@ -258,14 +258,14 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA]	= min(max_low_pfn,
 				      1UL << (zone_dma_bits - PAGE_SHIFT));
 #endif
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	max_zone_pfns[ZONE_ANALRMAL] = max_low_pfn;
 #ifdef CONFIG_HIGHMEM
 	max_zone_pfns[ZONE_HIGHMEM] = max_pfn;
 #endif
 
 	free_area_init(max_zone_pfns);
 
-	mark_nonram_nosave();
+	mark_analnram_analsave();
 }
 
 void __init mem_init(void)
@@ -281,7 +281,7 @@ void __init mem_init(void)
 	 * Some platforms (e.g. 85xx) limit DMA-able memory way below
 	 * 4G. We force memblock to bottom-up mode to ensure that the
 	 * memory allocated in swiotlb_init() is DMA-able.
-	 * As it's the last memblock allocation, no need to reset it
+	 * As it's the last memblock allocation, anal need to reset it
 	 * back to to-down.
 	 */
 	memblock_set_bottom_up(true);
@@ -311,7 +311,7 @@ void __init mem_init(void)
 #if defined(CONFIG_PPC_E500) && !defined(CONFIG_SMP)
 	/*
 	 * If smp is enabled, next_tlbcam_idx is initialized in the cpu up
-	 * functions.... do it here for the non-smp case.
+	 * functions.... do it here for the analn-smp case.
 	 */
 	per_cpu(next_tlbcam_idx, smp_processor_id()) =
 		(mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
@@ -349,7 +349,7 @@ void free_initmem(void)
 }
 
 /*
- * System memory should not be in /proc/iomem but various tools expect it
+ * System memory should analt be in /proc/iomem but various tools expect it
  * (eg kdump).
  */
 static int __init add_system_ram_resources(void)
@@ -386,7 +386,7 @@ subsys_initcall(add_system_ram_resources);
  * devmem_is_allowed(): check to see if /dev/mem access to a certain address
  * is valid. The argument is a physical page number.
  *
- * Access has to be given to non-kernel-ram areas as well, these contain the
+ * Access has to be given to analn-kernel-ram areas as well, these contain the
  * PCI mmio resources as well as potential bios/acpi data regions.
  */
 int devmem_is_allowed(unsigned long pfn)

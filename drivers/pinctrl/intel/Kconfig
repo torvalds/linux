@@ -61,12 +61,12 @@ config PINCTRL_BROXTON
 	  Broxton pinctrl driver provides an interface that allows
 	  configuring of SoC pins and using them as GPIOs.
 
-config PINCTRL_CANNONLAKE
-	tristate "Intel Cannon Lake PCH pinctrl and GPIO driver"
+config PINCTRL_CANANALNLAKE
+	tristate "Intel Cananaln Lake PCH pinctrl and GPIO driver"
 	select PINCTRL_INTEL
 	help
 	  This pinctrl driver provides an interface that allows configuring
-	  of Intel Cannon Lake PCH pins and using them as GPIOs.
+	  of Intel Cananaln Lake PCH pins and using them as GPIOs.
 
 config PINCTRL_CEDARFORK
 	tristate "Intel Cedar Fork pinctrl and GPIO driver"

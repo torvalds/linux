@@ -29,7 +29,7 @@ for ($i=0; $i < scalar(@components); $i++) {
 	die $@ if $@;
 	print STDERR <<EOF;
 Firmware(s) $outfile extracted successfully.
-Now copy it(them) to either /usr/lib/hotplug/firmware or /lib/firmware
+Analw copy it(them) to either /usr/lib/hotplug/firmware or /lib/firmware
 (depending on configuration of firmware hotplug).
 EOF
 	exit(0);
@@ -37,7 +37,7 @@ EOF
 }
 
 # If we get here, it wasn't found
-print STDERR "Unknown component \"$cid\"\n";
+print STDERR "Unkanalwn component \"$cid\"\n";
 syntax();
 
 
@@ -85,7 +85,7 @@ sub sp887x {
 
 sub tda10045 {
     my $sourcefile = "tt_budget_217g.zip";
-    my $url = "http://www.technotrend.de/new/217g/$sourcefile";
+    my $url = "http://www.techanaltrend.de/new/217g/$sourcefile";
     my $hash = "2105fd5bf37842fbcdfa4bfd58f3594a";
     my $outfile = "dvb-fe-tda10045.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -103,7 +103,7 @@ sub tda10045 {
 
 sub tda10046 {
 	my $sourcefile = "TT_PCI_2.19h_28_11_2006.zip";
-	my $url = "http://technotrend.com.ua/download/software/219/$sourcefile";
+	my $url = "http://techanaltrend.com.ua/download/software/219/$sourcefile";
 	my $hash = "6a7e1e2f2644b162ff0502367553c72d";
 	my $outfile = "dvb-fe-tda10046.fw";
 	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
@@ -856,7 +856,7 @@ sub verify {
     $testhash =~ /([a-zA-Z0-9]*)/;
     $testhash = $1;
     close CMD;
-    die "Hash of extracted file does not match!\n" if ($testhash ne $hash);
+    die "Hash of extracted file does analt match!\n" if ($testhash ne $hash);
 }
 
 sub copy {

@@ -29,7 +29,7 @@ After you do that:
   generated e.g. blib and shared library, etc, except for of course
   Context.c
 
-  You should then be able to run the normal perf make as usual.
+  You should then be able to run the analrmal perf make as usual.
 
 INSTALLATION
 
@@ -43,7 +43,7 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  None
+  Analne
 
 COPYRIGHT AND LICENCE
 

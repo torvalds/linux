@@ -255,7 +255,7 @@ static int iaa_crypto_stats_reset(void *data, u64 value)
 	return 0;
 }
 
-static int wq_stats_open(struct inode *inode, struct file *file)
+static int wq_stats_open(struct ianalde *ianalde, struct file *file)
 {
 	return single_open(file, wq_stats_show, file);
 }
@@ -272,11 +272,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(wq_stats_reset_fops, NULL, iaa_crypto_stats_reset, "%ll
 int __init iaa_crypto_debugfs_init(void)
 {
 	if (!debugfs_initialized())
-		return -ENODEV;
+		return -EANALDEV;
 
 	iaa_crypto_debugfs_root = debugfs_create_dir("iaa_crypto", NULL);
 	if (!iaa_crypto_debugfs_root)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debugfs_create_u64("max_comp_delay_ns", 0644,
 			   iaa_crypto_debugfs_root, &max_comp_delay_ns);

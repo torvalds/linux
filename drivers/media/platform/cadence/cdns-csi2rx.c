@@ -19,7 +19,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 
 #define CSI2RX_DEVICE_CFG_REG			0x000
@@ -97,7 +97,7 @@ struct csi2rx_priv {
 	bool				has_internal_dphy;
 
 	struct v4l2_subdev		subdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_analtifier	analtifier;
 	struct media_pad		pads[CSI2RX_PAD_MAX];
 
 	/* Remote source */
@@ -257,7 +257,7 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 	 * This should be enhanced, but v4l2 lacks the support for
 	 * changing that mapping dynamically.
 	 *
-	 * We also cannot enable and disable independent streams here,
+	 * We also cananalt enable and disable independent streams here,
 	 * hence the reference counting.
 	 */
 	for (i = 0; i < csi2rx->max_streams; i++) {
@@ -364,7 +364,7 @@ static int csi2rx_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (enable) {
 		/*
-		 * If we're not the first users, there's no need to
+		 * If we're analt the first users, there's anal need to
 		 * enable the whole controller.
 		 */
 		if (!csi2rx->count) {
@@ -396,14 +396,14 @@ static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int i;
 
-	/* No transcoding, source and sink formats must match. */
+	/* Anal transcoding, source and sink formats must match. */
 	if (format->pad != CSI2RX_PAD_SINK)
 		return v4l2_subdev_get_fmt(subdev, state, format);
 
 	if (!csi2rx_get_fmt_by_code(format->format.code))
 		format->format.code = formats[0].code;
 
-	format->format.field = V4L2_FIELD_NONE;
+	format->format.field = V4L2_FIELD_ANALNE;
 
 	/* Set sink format */
 	fmt = v4l2_subdev_state_get_format(state, format->pad);
@@ -427,7 +427,7 @@ static int csi2rx_init_state(struct v4l2_subdev *subdev,
 			.width = 640,
 			.height = 480,
 			.code = MEDIA_BUS_FMT_UYVY8_1X16,
-			.field = V4L2_FIELD_NONE,
+			.field = V4L2_FIELD_ANALNE,
 			.colorspace = V4L2_COLORSPACE_SRGB,
 			.ycbcr_enc = V4L2_YCBCR_ENC_601,
 			.quantization = V4L2_QUANTIZATION_LIM_RANGE,
@@ -460,15 +460,15 @@ static const struct media_entity_operations csi2rx_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
+static int csi2rx_async_bound(struct v4l2_async_analtifier *analtifier,
 			      struct v4l2_subdev *s_subdev,
 			      struct v4l2_async_connection *asd)
 {
-	struct v4l2_subdev *subdev = notifier->sd;
+	struct v4l2_subdev *subdev = analtifier->sd;
 	struct csi2rx_priv *csi2rx = v4l2_subdev_to_csi2rx(subdev);
 
-	csi2rx->source_pad = media_entity_get_fwnode_pad(&s_subdev->entity,
-							 s_subdev->fwnode,
+	csi2rx->source_pad = media_entity_get_fwanalde_pad(&s_subdev->entity,
+							 s_subdev->fwanalde,
 							 MEDIA_PAD_FL_SOURCE);
 	if (csi2rx->source_pad < 0) {
 		dev_err(csi2rx->dev, "Couldn't find output pad for subdev %s\n",
@@ -488,7 +488,7 @@ static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static const struct v4l2_async_notifier_operations csi2rx_notifier_ops = {
+static const struct v4l2_async_analtifier_operations csi2rx_analtifier_ops = {
 	.bound		= csi2rx_async_bound,
 };
 
@@ -561,7 +561,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 	 * will need to be removed.
 	 */
 	if (!csi2rx->dphy && csi2rx->has_internal_dphy) {
-		dev_err(&pdev->dev, "Internal D-PHY not supported yet\n");
+		dev_err(&pdev->dev, "Internal D-PHY analt supported yet\n");
 		return -EINVAL;
 	}
 
@@ -588,28 +588,28 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	struct v4l2_fwanalde_endpoint v4l2_ep = { .bus_type = 0 };
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *fwh;
-	struct device_node *ep;
+	struct fwanalde_handle *fwh;
+	struct device_analde *ep;
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(csi2rx->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(csi2rx->dev->of_analde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
-	fwh = of_fwnode_handle(ep);
-	ret = v4l2_fwnode_endpoint_parse(fwh, &v4l2_ep);
+	fwh = of_fwanalde_handle(ep);
+	ret = v4l2_fwanalde_endpoint_parse(fwh, &v4l2_ep);
 	if (ret) {
-		dev_err(csi2rx->dev, "Could not parse v4l2 endpoint\n");
-		of_node_put(ep);
+		dev_err(csi2rx->dev, "Could analt parse v4l2 endpoint\n");
+		of_analde_put(ep);
 		return ret;
 	}
 
 	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(csi2rx->dev, "Unsupported media bus type: 0x%x\n",
 			v4l2_ep.bus_type);
-		of_node_put(ep);
+		of_analde_put(ep);
 		return -EINVAL;
 	}
 
@@ -619,25 +619,25 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	if (csi2rx->num_lanes > csi2rx->max_lanes) {
 		dev_err(csi2rx->dev, "Unsupported number of data-lanes: %d\n",
 			csi2rx->num_lanes);
-		of_node_put(ep);
+		of_analde_put(ep);
 		return -EINVAL;
 	}
 
-	v4l2_async_subdev_nf_init(&csi2rx->notifier, &csi2rx->subdev);
+	v4l2_async_subdev_nf_init(&csi2rx->analtifier, &csi2rx->subdev);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&csi2rx->notifier, fwh,
+	asd = v4l2_async_nf_add_fwanalde_remote(&csi2rx->analtifier, fwh,
 					      struct v4l2_async_connection);
-	of_node_put(ep);
+	of_analde_put(ep);
 	if (IS_ERR(asd)) {
-		v4l2_async_nf_cleanup(&csi2rx->notifier);
+		v4l2_async_nf_cleanup(&csi2rx->analtifier);
 		return PTR_ERR(asd);
 	}
 
-	csi2rx->notifier.ops = &csi2rx_notifier_ops;
+	csi2rx->analtifier.ops = &csi2rx_analtifier_ops;
 
-	ret = v4l2_async_nf_register(&csi2rx->notifier);
+	ret = v4l2_async_nf_register(&csi2rx->analtifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&csi2rx->notifier);
+		v4l2_async_nf_cleanup(&csi2rx->analtifier);
 
 	return ret;
 }
@@ -650,7 +650,7 @@ static int csi2rx_probe(struct platform_device *pdev)
 
 	csi2rx = kzalloc(sizeof(*csi2rx), GFP_KERNEL);
 	if (!csi2rx)
-		return -ENOMEM;
+		return -EANALMEM;
 	platform_set_drvdata(pdev, csi2rx);
 	csi2rx->dev = &pdev->dev;
 	mutex_init(&csi2rx->lock);
@@ -676,7 +676,7 @@ static int csi2rx_probe(struct platform_device *pdev)
 	csi2rx->pads[CSI2RX_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	for (i = CSI2RX_PAD_SOURCE_STREAM0; i < CSI2RX_PAD_MAX; i++)
 		csi2rx->pads[i].flags = MEDIA_PAD_FL_SOURCE;
-	csi2rx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2rx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVANALDE;
 	csi2rx->subdev.entity.ops = &csi2rx_media_ops;
 
 	ret = media_entity_pads_init(&csi2rx->subdev.entity, CSI2RX_PAD_MAX,
@@ -696,15 +696,15 @@ static int csi2rx_probe(struct platform_device *pdev)
 		 "Probed CSI2RX with %u/%u lanes, %u streams, %s D-PHY\n",
 		 csi2rx->num_lanes, csi2rx->max_lanes, csi2rx->max_streams,
 		 csi2rx->dphy ? "external" :
-		 csi2rx->has_internal_dphy ? "internal" : "no");
+		 csi2rx->has_internal_dphy ? "internal" : "anal");
 
 	return 0;
 
 err_free_state:
 	v4l2_subdev_cleanup(&csi2rx->subdev);
 err_cleanup:
-	v4l2_async_nf_unregister(&csi2rx->notifier);
-	v4l2_async_nf_cleanup(&csi2rx->notifier);
+	v4l2_async_nf_unregister(&csi2rx->analtifier);
+	v4l2_async_nf_cleanup(&csi2rx->analtifier);
 	media_entity_cleanup(&csi2rx->subdev.entity);
 err_free_priv:
 	kfree(csi2rx);
@@ -715,8 +715,8 @@ static void csi2rx_remove(struct platform_device *pdev)
 {
 	struct csi2rx_priv *csi2rx = platform_get_drvdata(pdev);
 
-	v4l2_async_nf_unregister(&csi2rx->notifier);
-	v4l2_async_nf_cleanup(&csi2rx->notifier);
+	v4l2_async_nf_unregister(&csi2rx->analtifier);
+	v4l2_async_nf_cleanup(&csi2rx->analtifier);
 	v4l2_async_unregister_subdev(&csi2rx->subdev);
 	v4l2_subdev_cleanup(&csi2rx->subdev);
 	media_entity_cleanup(&csi2rx->subdev.entity);

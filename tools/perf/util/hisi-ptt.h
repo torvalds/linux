@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HiSilicon PCIe Trace and Tuning (PTT) support
- * Copyright (c) 2022 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2022 HiSilicon Techanallogies Co., Ltd.
  */
 
 #ifndef INCLUDE__PERF_HISI_PTT_H__

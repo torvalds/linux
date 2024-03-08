@@ -35,7 +35,7 @@ properties:
       - const: pad_clk
 
   ecc-engine:
-    description: device-tree node of the required ECC engine.
+    description: device-tree analde of the required ECC engine.
     $ref: /schemas/types.yaml#/definitions/phandle
 
 patternProperties:

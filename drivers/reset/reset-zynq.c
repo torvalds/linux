@@ -93,9 +93,9 @@ static int zynq_reset_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_analde,
 						     "syscon");
 	if (IS_ERR(priv->slcr)) {
 		dev_err(&pdev->dev, "unable to get zynq-slcr regmap");
@@ -105,7 +105,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "missing IO resource\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv->offset = res->start;
@@ -113,7 +113,7 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv->rcdev.owner = THIS_MODULE;
 	priv->rcdev.nr_resets = resource_size(res) / 4 * BITS_PER_LONG;
 	priv->rcdev.ops = &zynq_reset_ops;
-	priv->rcdev.of_node = pdev->dev.of_node;
+	priv->rcdev.of_analde = pdev->dev.of_analde;
 
 	return devm_reset_controller_register(&pdev->dev, &priv->rcdev);
 }

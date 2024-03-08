@@ -57,7 +57,7 @@
 		serial0: serial@0d050020 {
 			device_type = "serial";
 			compatible = "ns16550a";
-			no-loopback-test;
+			anal-loopback-test;
 			reg = <0x0d050020 0x20>;
 			reg-shift = <2>;
 			reg-io-width = <4>;

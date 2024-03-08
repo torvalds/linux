@@ -74,7 +74,7 @@ static void __init sdk7780_setup(char **cmdline_p)
 	u16 ver = __raw_readw(FPGA_FPVERR);
 	u16 dateStamp = __raw_readw(FPGA_FPDATER);
 
-	printk(KERN_INFO "Renesas Technology Europe SDK7780 support.\n");
+	printk(KERN_INFO "Renesas Techanallogy Europe SDK7780 support.\n");
 	printk(KERN_INFO "Board version: %d (revision %d), "
 			 "FPGA version: %d (revision %d), datestamp : %d\n",
 			 (ver >> 12) & 0xf, (ver >> 8) & 0xf,

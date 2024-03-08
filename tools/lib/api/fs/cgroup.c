@@ -39,7 +39,7 @@ int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 	/*
 	 * in order to handle split hierarchy, we need to scan /proc/mounts
 	 * and inspect every cgroupfs mount point to find one that has
-	 * the given subsystem.  If we found v1, just use it.  If not we can
+	 * the given subsystem.  If we found v1, just use it.  If analt we can
 	 * use v2 path as a fallback.
 	 */
 	mountpoint[0] = '\0';
@@ -74,7 +74,7 @@ int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys)
 			continue;
 		}
 
-		/* now we have cgroup v1, check the options for subsystem */
+		/* analw we have cgroup v1, check the options for subsystem */
 		p += 7;
 
 		p = strstr(p, subsys);

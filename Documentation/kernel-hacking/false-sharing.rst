@@ -15,7 +15,7 @@ refcount and a string::
 		refcount_t refcount;
 		...
 		char name[16];
-	} ____cacheline_internodealigned_in_smp;
+	} ____cacheline_interanaldealigned_in_smp;
 
 Member 'refcount'(A) and 'name'(B) _share_ one cache line like below::
 
@@ -65,7 +65,7 @@ Back in time when one platform had only one or a few CPUs, hot data
 members could be purposely put in the same cache line to make them
 cache hot and save cacheline/TLB, like a lock and the data protected
 by it.  But for recent large system with hundreds of CPUs, this may
-not work when the lock is heavily contended, as the lock owner CPU
+analt work when the lock is heavily contended, as the lock owner CPU
 could write to the data, while other CPUs are busy spinning the lock.
 
 Looking at past cases, there are several frequently occurring patterns
@@ -77,7 +77,7 @@ for false sharing:
   subsystems have many global parameters of small size (4 bytes),
   which can easily be grouped together and put into one cache line.
 * data members of a big data structure randomly sitting together
-  without being noticed (cache line is usually 64 bytes or more),
+  without being analticed (cache line is usually 64 bytes or more),
   like 'mem_cgroup' struct.
 
 Following 'mitigation' section provides real-world examples.
@@ -101,7 +101,7 @@ decoded functions (line number of file) accessing that cache line,
 and in-line offset of the data. Simple commands are::
 
   $ perf c2c record -ag sleep 3
-  $ perf c2c report --call-graph none -k vmlinux
+  $ perf c2c report --call-graph analne -k vmlinux
 
 When running above during testing will-it-scale's tlb_flush1 case,
 perf reports something like::
@@ -131,7 +131,7 @@ data, users can search the data address in System.map.
 
 Possible Mitigations
 ====================
-False sharing does not always need to be mitigated.  False sharing
+False sharing does analt always need to be mitigated.  False sharing
 mitigations should balance performance gains with complexity and
 space consumption.  Sometimes, lower performance is OK, and it's
 unnecessary to hyper-optimize every rarely used data structure or
@@ -177,7 +177,7 @@ networking and memory management) and merged.  Some common mitigations
   - Commit 520f897a3554 ("ext4: use percpu_counters for extent_status cache hits/misses")
   - Commit 56f3547bfa4d ("mm: adjust vm_committed_as_batch according to vm overcommit policy")
 
-Surely, all mitigations should be carefully verified to not cause side
+Surely, all mitigations should be carefully verified to analt cause side
 effects.  To avoid introducing false sharing when coding, it's better
 to:
 
@@ -189,8 +189,8 @@ to:
 
 and better add a comment stating the false sharing consideration.
 
-One note is, sometimes even after a severe false sharing is detected
-and solved, the performance may still have no obvious improvement as
+One analte is, sometimes even after a severe false sharing is detected
+and solved, the performance may still have anal obvious improvement as
 the hotspot switches to a new place.
 
 

@@ -2,7 +2,7 @@
 /*
  * Microchip Image Sensor Controller (ISC) common driver base
  *
- * Copyright (C) 2016-2019 Microchip Technology, Inc.
+ * Copyright (C) 2016-2019 Microchip Techanallogy, Inc.
  *
  * Author: Songjun Wu
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
@@ -25,7 +25,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwanalde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -141,7 +141,7 @@ static void isc_crop_pfe(struct isc_device *isc)
 	w = isc->fmt.fmt.pix.width;
 
 	/*
-	 * In case the sensor is not RAW, it will output a pixel (12-16 bits)
+	 * In case the sensor is analt RAW, it will output a pixel (12-16 bits)
 	 * with two samples on the ISC Data bus (which is 8-12)
 	 * ISC will count each sample, so, we need to multiply these values
 	 * by two, to get the real number of samples for the required pixels.
@@ -216,7 +216,7 @@ static void isc_set_pipeline(struct isc_device *isc, u32 pipeline)
 	unsigned int i;
 
 	/* WB-->CFA-->CC-->GAM-->CSC-->CBC-->SUB422-->SUB420 */
-	for (i = 0; i < ISC_PIPE_LINE_NODE_NUM; i++) {
+	for (i = 0; i < ISC_PIPE_LINE_ANALDE_NUM; i++) {
 		val = pipeline & BIT(i) ? 1 : 0;
 		regmap_field_write(isc->pipeline[i], val);
 	}
@@ -344,7 +344,7 @@ static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD) {
+	if (ret && ret != -EANALIOCTLCMD) {
 		v4l2_err(&isc->v4l2_dev, "stream on failed in subdev %d\n",
 			 ret);
 		goto err_start_stream;
@@ -426,7 +426,7 @@ static void isc_stop_streaming(struct vb2_queue *vq)
 
 	/* Disable stream on the sub device */
 	ret = v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 0);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret && ret != -EANALIOCTLCMD)
 		v4l2_err(&isc->v4l2_dev, "stream off failed in subdev\n");
 
 	/* Release all active buffers */
@@ -585,18 +585,18 @@ static int isc_try_validate_formats(struct isc_device *isc)
 		grey = true;
 		break;
 	default:
-	/* any other different formats are not supported */
+	/* any other different formats are analt supported */
 		ret = -EINVAL;
 	}
 	v4l2_dbg(1, debug, &isc->v4l2_dev,
 		 "Format validation, requested rgb=%u, yuv=%u, grey=%u, bayer=%u\n",
 		 rgb, yuv, grey, bayer);
 
-	/* we cannot output RAW if we do not receive RAW */
+	/* we cananalt output RAW if we do analt receive RAW */
 	if ((bayer) && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code))
 		return -EINVAL;
 
-	/* we cannot output GREY if we do not receive RAW/GREY */
+	/* we cananalt output GREY if we do analt receive RAW/GREY */
 	if (grey && !ISC_IS_FORMAT_RAW(isc->try_config.sd_format->mbus_code) &&
 	    !ISC_IS_FORMAT_GREY(isc->try_config.sd_format->mbus_code))
 		return -EINVAL;
@@ -828,7 +828,7 @@ static void isc_try_fse(struct isc_device *isc,
 	int ret;
 
 	/*
-	 * If we do not know yet which format the subdev is using, we cannot
+	 * If we do analt kanalw yet which format the subdev is using, we cananalt
 	 * do anything.
 	 */
 	if (!isc->try_config.sd_format)
@@ -839,7 +839,7 @@ static void isc_try_fse(struct isc_device *isc,
 	ret = v4l2_subdev_call(isc->current_subdev->sd, pad, enum_frame_size,
 			       sd_state, &fse);
 	/*
-	 * Attempt to obtain format size from subdev. If not available,
+	 * Attempt to obtain format size from subdev. If analt available,
 	 * just use the maximum ISC can receive.
 	 */
 	if (ret) {
@@ -889,7 +889,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	if (direct_fmt && sd_fmt && sensor_preferred)
 		sd_fmt = direct_fmt;
 
-	/* Step 4: we do not have RAW but we have a direct format. Use it. */
+	/* Step 4: we do analt have RAW but we have a direct format. Use it. */
 	if (direct_fmt && !sd_fmt)
 		sd_fmt = direct_fmt;
 
@@ -899,14 +899,14 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	if (sd_fmt == direct_fmt)
 		rlp_dma_direct_dump = true;
 
-	/* Step 6: We have no format. This can happen if the userspace
+	/* Step 6: We have anal format. This can happen if the userspace
 	 * requests some weird/invalid format.
 	 * In this case, default to whatever we have
 	 */
 	if (!sd_fmt && !direct_fmt) {
 		sd_fmt = isc->user_formats[isc->num_user_formats - 1];
 		v4l2_dbg(1, debug, &isc->v4l2_dev,
-			 "Sensor not supporting %.4s, using %.4s\n",
+			 "Sensor analt supporting %.4s, using %.4s\n",
 			 (char *)&pixfmt->pixelformat, (char *)&sd_fmt->fourcc);
 	}
 
@@ -936,7 +936,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	mbus_code = sd_fmt->mbus_code;
 
 	/*
-	 * Validate formats. If the required format is not OK, default to raw.
+	 * Validate formats. If the required format is analt OK, default to raw.
 	 */
 
 	isc->try_config.fourcc = pixfmt->pixelformat;
@@ -974,7 +974,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	if (pixfmt->height > isc->max_height)
 		pixfmt->height = isc->max_height;
 
-	pixfmt->field = V4L2_FIELD_NONE;
+	pixfmt->field = V4L2_FIELD_ANALNE;
 	pixfmt->bytesperline = (pixfmt->width * isc->try_config.bpp_v4l2) >> 3;
 	pixfmt->sizeimage = ((pixfmt->width * isc->try_config.bpp) >> 3) *
 			     pixfmt->height;
@@ -985,7 +985,7 @@ static int isc_try_fmt(struct isc_device *isc, struct v4l2_format *f,
 	return 0;
 
 isc_try_fmt_err:
-	v4l2_err(&isc->v4l2_dev, "Could not find any possible format for a working pipeline\n");
+	v4l2_err(&isc->v4l2_dev, "Could analt find any possible format for a working pipeline\n");
 isc_try_fmt_subdev_err:
 	memset(&isc->try_config, 0, sizeof(isc->try_config));
 
@@ -1173,7 +1173,7 @@ static int isc_open(struct file *file)
 		goto unlock;
 
 	ret = v4l2_subdev_call(sd, core, s_power, 1);
-	if (ret < 0 && ret != -ENOIOCTLCMD) {
+	if (ret < 0 && ret != -EANALIOCTLCMD) {
 		v4l2_fh_release(file);
 		goto unlock;
 	}
@@ -1225,7 +1225,7 @@ irqreturn_t atmel_isc_interrupt(int irq, void *dev_id)
 	struct isc_device *isc = (struct isc_device *)dev_id;
 	struct regmap *regmap = isc->regmap;
 	u32 isc_intsr, isc_intmask, pending;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	regmap_read(regmap, ISC_INTSR, &isc_intsr);
 	regmap_read(regmap, ISC_INTMASK, &isc_intmask);
@@ -1284,7 +1284,7 @@ static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 
 	*hist_count = 0;
 	/*
-	 * we deliberately ignore the end of the histogram,
+	 * we deliberately iganalre the end of the histogram,
 	 * the most white pixels
 	 */
 	for (i = 1; i < HIST_ENTRIES; i++) {
@@ -1313,7 +1313,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 	u32 s_gain[4], gw_gain[4];
 
 	/*
-	 * According to Grey World, we need to set gains for R/B to normalize
+	 * According to Grey World, we need to set gains for R/B to analrmalize
 	 * them towards the green channel.
 	 * Thus we want to keep Green as fixed and adjust only Red/Blue
 	 * Compute the average of the both green channels first
@@ -1325,7 +1325,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 	v4l2_dbg(1, debug, &isc->v4l2_dev,
 		 "isc wb: green components average %llu\n", avg);
 
-	/* Green histogram is null, nothing to do */
+	/* Green histogram is null, analthing to do */
 	if (!avg)
 		return;
 
@@ -1338,12 +1338,12 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 		offset[c] = ctrls->hist_minmax[c][HIST_MIN_INDEX];
 		/*
 		 * The offset is always at least 1. If the offset is 1, we do
-		 * not need to adjust it, so our result must be zero.
+		 * analt need to adjust it, so our result must be zero.
 		 * the offset is computed in a histogram on 9 bits (0..512)
 		 * but the offset in register is based on
 		 * 12 bits pipeline (0..4096).
 		 * we need to shift with the 3 bits that the histogram is
-		 * ignoring
+		 * iganalring
 		 */
 		ctrls->offset[c] = (offset[c] - 1) << 3;
 
@@ -1367,7 +1367,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 			ctrls->hist_minmax[c][HIST_MIN_INDEX] + 1);
 
 		/*
-		 * Now we have to compute the gain w.r.t. the average.
+		 * Analw we have to compute the gain w.r.t. the average.
 		 * Add/lose gain to the component towards the average.
 		 * If it happens that the component is zero, use the
 		 * fixed point value : 1.0 gain.
@@ -1384,7 +1384,7 @@ static void isc_wb_update(struct isc_ctrls *ctrls)
 		ctrls->gain[c] = s_gain[c] * gw_gain[c];
 		ctrls->gain[c] >>= 9;
 
-		/* make sure we are not out of range */
+		/* make sure we are analt out of range */
 		ctrls->gain[c] = clamp_val(ctrls->gain[c], 0, GENMASK(12, 0));
 
 		v4l2_dbg(1, debug, &isc->v4l2_dev,
@@ -1434,7 +1434,7 @@ static void isc_awb_work(struct work_struct *w)
 	 * only update if we have all the required histograms and controls
 	 * if awb has been disabled, we need to reset registers as well.
 	 */
-	if (hist_id == ISC_HIS_CFG_MODE_GR || ctrls->awb == ISC_WB_NONE) {
+	if (hist_id == ISC_HIS_CFG_MODE_GR || ctrls->awb == ISC_WB_ANALNE) {
 		/*
 		 * It may happen that DMA Done IRQ will trigger while we are
 		 * updating white balance registers here.
@@ -1454,20 +1454,20 @@ static void isc_awb_work(struct work_struct *w)
 				  "Completed one time white-balance adjustment.\n");
 			/* update the v4l2 controls values */
 			isc_update_v4l2_ctrls(isc);
-			ctrls->awb = ISC_WB_NONE;
+			ctrls->awb = ISC_WB_ANALNE;
 		}
 	}
 	regmap_write(regmap, ISC_HIS_CFG + isc->offsets.his,
 		     hist_id | baysel | ISC_HIS_CFG_RAR);
 
 	/*
-	 * We have to make sure the streaming has not stopped meanwhile.
+	 * We have to make sure the streaming has analt stopped meanwhile.
 	 * ISC requires a frame to clock the internal profile update.
 	 * To avoid issues, lock the sequence with a mutex
 	 */
 	mutex_lock(&isc->awb_mutex);
 
-	/* streaming is not active anymore */
+	/* streaming is analt active anymore */
 	if (isc->stop) {
 		mutex_unlock(&isc->awb_mutex);
 		return;
@@ -1477,7 +1477,7 @@ static void isc_awb_work(struct work_struct *w)
 
 	mutex_unlock(&isc->awb_mutex);
 
-	/* if awb has been disabled, we don't need to start another histogram */
+	/* if awb has been disabled, we don't need to start aanalther histogram */
 	if (ctrls->awb)
 		regmap_write(regmap, ISC_CTRLEN, ISC_CTRL_HISREQ);
 
@@ -1528,7 +1528,7 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val == 1)
 			ctrls->awb = ISC_WB_AUTO;
 		else
-			ctrls->awb = ISC_WB_NONE;
+			ctrls->awb = ISC_WB_ANALNE;
 
 		/* configure the controls with new values from v4l2 */
 		if (ctrl->cluster[ISC_CTRL_R_GAIN]->is_new)
@@ -1561,7 +1561,7 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 		} else {
 			/*
 			 * The auto cluster will activate automatically this
-			 * control. This has to be deactivated when not
+			 * control. This has to be deactivated when analt
 			 * streaming.
 			 */
 			v4l2_ctrl_activate(isc->do_wb_ctrl, false);
@@ -1578,7 +1578,7 @@ static int isc_s_awb_ctrl(struct v4l2_ctrl *ctrl)
 		 * for one time whitebalance adjustment, check the button,
 		 * if it's pressed, perform the one time operation.
 		 */
-		if (ctrls->awb == ISC_WB_NONE &&
+		if (ctrls->awb == ISC_WB_ANALNE &&
 		    ctrl->cluster[ISC_CTRL_DO_WB]->is_new &&
 		    !(ctrl->cluster[ISC_CTRL_DO_WB]->flags &
 		    V4L2_CTRL_FLAG_INACTIVE)) {
@@ -1690,7 +1690,7 @@ static int isc_ctrl_init(struct isc_device *isc)
 					  V4L2_CID_AUTO_WHITE_BALANCE,
 					  0, 1, 1, 1);
 
-	/* do_white_balance is a button, so min,max,step,default are ignored */
+	/* do_white_balance is a button, so min,max,step,default are iganalred */
 	isc->do_wb_ctrl = v4l2_ctrl_new_std(hdl, &isc_awb_ops,
 					    V4L2_CID_DO_WHITE_BALANCE,
 					    0, 0, 0, 0);
@@ -1723,14 +1723,14 @@ static int isc_ctrl_init(struct isc_device *isc)
 	return 0;
 }
 
-static int isc_async_bound(struct v4l2_async_notifier *notifier,
+static int isc_async_bound(struct v4l2_async_analtifier *analtifier,
 			    struct v4l2_subdev *subdev,
 			    struct v4l2_async_connection *asd)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(analtifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	struct isc_subdev_entity *subdev_entity =
-		container_of(notifier, struct isc_subdev_entity, notifier);
+		container_of(analtifier, struct isc_subdev_entity, analtifier);
 
 	if (video_is_registered(&isc->video_dev)) {
 		v4l2_err(&isc->v4l2_dev, "only supports one sub-device.\n");
@@ -1742,11 +1742,11 @@ static int isc_async_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static void isc_async_unbind(struct v4l2_async_notifier *notifier,
+static void isc_async_unbind(struct v4l2_async_analtifier *analtifier,
 			      struct v4l2_subdev *subdev,
 			      struct v4l2_async_connection *asd)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(analtifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	mutex_destroy(&isc->awb_mutex);
 	cancel_work_sync(&isc->awb_work);
@@ -1789,7 +1789,7 @@ static int isc_formats_init(struct isc_device *isc)
 
 		fmt = find_format_by_code(isc, mbus_code.code, &i);
 		if (!fmt) {
-			v4l2_warn(&isc->v4l2_dev, "Mbus code %x not supported\n",
+			v4l2_warn(&isc->v4l2_dev, "Mbus code %x analt supported\n",
 				  mbus_code.code);
 			continue;
 		}
@@ -1806,7 +1806,7 @@ static int isc_formats_init(struct isc_device *isc)
 					 num_fmts, sizeof(*isc->user_formats),
 					 GFP_KERNEL);
 	if (!isc->user_formats)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fmt = &isc->formats_list[0];
 	for (i = 0, j = 0; i < list_size; i++) {
@@ -1825,7 +1825,7 @@ static int isc_set_default_fmt(struct isc_device *isc)
 		.fmt.pix = {
 			.width		= VGA_WIDTH,
 			.height		= VGA_HEIGHT,
-			.field		= V4L2_FIELD_NONE,
+			.field		= V4L2_FIELD_ANALNE,
 			.pixelformat	= isc->user_formats[0]->fourcc,
 		},
 	};
@@ -1839,9 +1839,9 @@ static int isc_set_default_fmt(struct isc_device *isc)
 	return 0;
 }
 
-static int isc_async_complete(struct v4l2_async_notifier *notifier)
+static int isc_async_complete(struct v4l2_async_analtifier *analtifier)
 {
-	struct isc_device *isc = container_of(notifier->v4l2_dev,
+	struct isc_device *isc = container_of(analtifier->v4l2_dev,
 					      struct isc_device, v4l2_dev);
 	struct video_device *vdev = &isc->video_dev;
 	struct vb2_queue *q = &isc->vb2_vidq;
@@ -1849,14 +1849,14 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
-	ret = v4l2_device_register_subdev_nodes(&isc->v4l2_dev);
+	ret = v4l2_device_register_subdev_analdes(&isc->v4l2_dev);
 	if (ret < 0) {
-		v4l2_err(&isc->v4l2_dev, "Failed to register subdev nodes\n");
+		v4l2_err(&isc->v4l2_dev, "Failed to register subdev analdes\n");
 		return ret;
 	}
 
-	isc->current_subdev = container_of(notifier,
-					   struct isc_subdev_entity, notifier);
+	isc->current_subdev = container_of(analtifier,
+					   struct isc_subdev_entity, analtifier);
 	mutex_init(&isc->lock);
 	mutex_init(&isc->awb_mutex);
 
@@ -1869,7 +1869,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	q->buf_struct_size	= sizeof(struct isc_buffer);
 	q->ops			= &isc_vb2_ops;
 	q->mem_ops		= &vb2_dma_contig_memops;
-	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->lock			= &isc->lock;
 	q->min_queued_buffers	= 1;
 	q->dev			= isc->dev;
@@ -1895,7 +1895,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 
 	ret = isc_set_default_fmt(isc);
 	if (ret) {
-		v4l2_err(&isc->v4l2_dev, "Could not set default format\n");
+		v4l2_err(&isc->v4l2_dev, "Could analt set default format\n");
 		goto isc_async_complete_err;
 	}
 
@@ -1933,7 +1933,7 @@ isc_async_complete_err:
 	return ret;
 }
 
-const struct v4l2_async_notifier_operations atmel_isc_async_ops = {
+const struct v4l2_async_analtifier_operations atmel_isc_async_ops = {
 	.bound = isc_async_bound,
 	.unbind = isc_async_unbind,
 	.complete = isc_async_complete,
@@ -1945,8 +1945,8 @@ void atmel_isc_subdev_cleanup(struct isc_device *isc)
 	struct isc_subdev_entity *subdev_entity;
 
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		v4l2_async_nf_unregister(&subdev_entity->notifier);
-		v4l2_async_nf_cleanup(&subdev_entity->notifier);
+		v4l2_async_nf_unregister(&subdev_entity->analtifier);
+		v4l2_async_nf_cleanup(&subdev_entity->analtifier);
 	}
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
@@ -1964,7 +1964,7 @@ int atmel_isc_pipeline_init(struct isc_device *isc)
 	 * DPCEN-->GDCEN-->BLCEN-->WB-->CFA-->CC-->
 	 * GAM-->VHXS-->CSC-->CBC-->SUB422-->SUB420
 	 */
-	const struct reg_field regfields[ISC_PIPE_LINE_NODE_NUM] = {
+	const struct reg_field regfields[ISC_PIPE_LINE_ANALDE_NUM] = {
 		REG_FIELD(ISC_DPC_CTRL, 0, 0),
 		REG_FIELD(ISC_DPC_CTRL, 1, 1),
 		REG_FIELD(ISC_DPC_CTRL, 2, 2),
@@ -1982,7 +1982,7 @@ int atmel_isc_pipeline_init(struct isc_device *isc)
 		REG_FIELD(ISC_SUB420_CTRL + isc->offsets.sub420, 0, 0),
 	};
 
-	for (i = 0; i < ISC_PIPE_LINE_NODE_NUM; i++) {
+	for (i = 0; i < ISC_PIPE_LINE_ANALDE_NUM; i++) {
 		regs = devm_regmap_field_alloc(dev, regmap, regfields[i]);
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);

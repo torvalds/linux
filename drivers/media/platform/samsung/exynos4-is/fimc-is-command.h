@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung Exynos4x12 FIMC-IS (Imaging Subsystem) driver
+ * Samsung Exyanals4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * FIMC-IS command set definitions
  *
@@ -52,10 +52,10 @@
 /* parameter1: frame start number */
 /* parameter2: frame count */
 #define IHC_AA_DONE		0x1004
-#define IHC_NOT_READY		0x1005
+#define IHC_ANALT_READY		0x1005
 
 #define IH_REPLY_DONE		0x2000
-#define IH_REPLY_NOT_DONE	0x2001
+#define IH_REPLY_ANALT_DONE	0x2001
 
 enum fimc_is_scenario {
 	IS_SC_PREVIEW_STILL,

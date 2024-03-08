@@ -88,7 +88,7 @@ found:
 }
 
 /* When processing receive frames, there are two cases to
- * consider. Data frames consist of a non-zero session-id and an
+ * consider. Data frames consist of a analn-zero session-id and an
  * optional cookie. Control frames consist of a regular L2TP header
  * preceded by 32-bits of zeros.
  *
@@ -210,7 +210,7 @@ static int l2tp_ip6_hash(struct sock *sk)
 {
 	if (sk_unhashed(sk)) {
 		write_lock_bh(&l2tp_ip6_lock);
-		sk_add_node(sk, &l2tp_ip6_table);
+		sk_add_analde(sk, &l2tp_ip6_table);
 		write_unlock_bh(&l2tp_ip6_lock);
 	}
 	return 0;
@@ -221,7 +221,7 @@ static void l2tp_ip6_unhash(struct sock *sk)
 	if (sk_unhashed(sk))
 		return;
 	write_lock_bh(&l2tp_ip6_lock);
-	sk_del_node_init(sk);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 }
 
@@ -237,8 +237,8 @@ static int l2tp_ip6_open(struct sock *sk)
 static void l2tp_ip6_close(struct sock *sk, long timeout)
 {
 	write_lock_bh(&l2tp_ip6_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_del_node_init(sk);
+	hlist_del_init(&sk->sk_bind_analde);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 	sk_common_release(sk);
@@ -276,11 +276,11 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	/* l2tp_ip6 sockets are IPv6 only */
 	if (addr_type == IPV6_ADDR_MAPPED)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
-	/* L2TP is point-point, not multicast */
+	/* L2TP is point-point, analt multicast */
 	if (addr_type & IPV6_ADDR_MULTICAST)
-		return -EADDRNOTAVAIL;
+		return -EADDRANALTAVAIL;
 
 	lock_sock(sk);
 
@@ -308,7 +308,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			if (!bound_dev_if)
 				goto out_unlock_rcu;
 
-			err = -ENODEV;
+			err = -EANALDEV;
 			dev = dev_get_by_index_rcu(sock_net(sk), bound_dev_if);
 			if (!dev)
 				goto out_unlock_rcu;
@@ -318,7 +318,7 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 * unspecified and mapped address have a v4 equivalent.
 		 */
 		v4addr = LOOPBACK4_IPV6;
-		err = -EADDRNOTAVAIL;
+		err = -EADDRANALTAVAIL;
 		if (!ipv6_chk_addr(sock_net(sk), &addr->l2tp_addr, dev, 0))
 			goto out_unlock_rcu;
 	}
@@ -340,8 +340,8 @@ static int l2tp_ip6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	l2tp_ip6_sk(sk)->conn_id = addr->l2tp_conn_id;
 
-	sk_add_bind_node(sk, &l2tp_ip6_bind_table);
-	sk_del_node_init(sk);
+	sk_add_bind_analde(sk, &l2tp_ip6_bind_table);
+	sk_del_analde_init(sk);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
@@ -383,7 +383,7 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	lock_sock(sk);
 
-	 /* Must bind first - autobinding does not work */
+	 /* Must bind first - autobinding does analt work */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
 		rc = -EINVAL;
 		goto out_sk;
@@ -396,8 +396,8 @@ static int l2tp_ip6_connect(struct sock *sk, struct sockaddr *uaddr,
 	l2tp_ip6_sk(sk)->peer_conn_id = lsa->l2tp_conn_id;
 
 	write_lock_bh(&l2tp_ip6_lock);
-	hlist_del_init(&sk->sk_bind_node);
-	sk_add_bind_node(sk, &l2tp_ip6_bind_table);
+	hlist_del_init(&sk->sk_bind_analde);
+	sk_add_bind_analde(sk, &l2tp_ip6_bind_table);
 	write_unlock_bh(&l2tp_ip6_lock);
 
 out_sk:
@@ -428,7 +428,7 @@ static int l2tp_ip6_getname(struct socket *sock, struct sockaddr *uaddr,
 	lsa->l2tp_unused = 0;
 	if (peer) {
 		if (!lsk->peer_conn_id)
-			return -ENOTCONN;
+			return -EANALTCONN;
 		lsa->l2tp_conn_id = lsk->peer_conn_id;
 		lsa->l2tp_addr = sk->sk_v6_daddr;
 		if (inet6_test_bit(SNDFLOW, sk))
@@ -510,7 +510,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	/* Mirror BSD error message compatibility */
 	if (msg->msg_flags & MSG_OOB)
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	/* Get and verify the address */
 	memset(&fl6, 0, sizeof(fl6));
@@ -525,7 +525,7 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			return -EINVAL;
 
 		if (lsa->l2tp_family && lsa->l2tp_family != AF_INET6)
-			return -EAFNOSUPPORT;
+			return -EAFANALSUPPORT;
 
 		daddr = &lsa->l2tp_addr;
 		if (inet6_test_bit(SNDFLOW, sk)) {
@@ -660,7 +660,7 @@ static int l2tp_ip6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_l2tpip6 *, lsa, msg->msg_name);
 	size_t copied = 0;
-	int err = -EOPNOTSUPP;
+	int err = -EOPANALTSUPP;
 	struct sk_buff *skb;
 
 	if (flags & MSG_OOB)
@@ -736,19 +736,19 @@ static const struct proto_ops l2tp_ip6_ops = {
 	.release	   = inet6_release,
 	.bind		   = inet6_bind,
 	.connect	   = inet_dgram_connect,
-	.socketpair	   = sock_no_socketpair,
-	.accept		   = sock_no_accept,
+	.socketpair	   = sock_anal_socketpair,
+	.accept		   = sock_anal_accept,
 	.getname	   = l2tp_ip6_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = inet6_ioctl,
 	.gettstamp	   = sock_gettstamp,
-	.listen		   = sock_no_listen,
+	.listen		   = sock_anal_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
 	.recvmsg	   = sock_common_recvmsg,
-	.mmap		   = sock_no_mmap,
+	.mmap		   = sock_anal_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
 #endif

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellaanalx Techanallogies. */
 
 #ifndef __MLX5_LAG_MP_H__
 #define __MLX5_LAG_MP_H__
@@ -8,13 +8,13 @@
 #include "mlx5_core.h"
 
 enum mlx5_lag_port_affinity {
-	MLX5_LAG_NORMAL_AFFINITY,
+	MLX5_LAG_ANALRMAL_AFFINITY,
 	MLX5_LAG_P1_AFFINITY,
 	MLX5_LAG_P2_AFFINITY,
 };
 
 struct lag_mp {
-	struct notifier_block     fib_nb;
+	struct analtifier_block     fib_nb;
 	struct {
 		const void        *mfi; /* used in tracking fib events */
 		u32               priority;

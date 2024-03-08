@@ -37,7 +37,7 @@ static uint64_t pud_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
 	TEST_ASSERT(vm->pgtable_levels == 4,
-		"Mode %d does not have 4 page table levels", vm->mode);
+		"Mode %d does analt have 4 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
 }
@@ -48,7 +48,7 @@ static uint64_t pmd_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
 	TEST_ASSERT(vm->pgtable_levels >= 3,
-		"Mode %d does not have >= 3 page table levels", vm->mode);
+		"Mode %d does analt have >= 3 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
 }
@@ -130,13 +130,13 @@ static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	uint64_t *ptep;
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address analt on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x", vaddr, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
 		(vaddr >> vm->page_shift)),
 		"Invalid virtual address, vaddr: 0x%lx", vaddr);
 	TEST_ASSERT((paddr % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address analt on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x", paddr, vm->page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
 		"Physical address beyond beyond maximum supported,\n"
@@ -170,7 +170,7 @@ static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	uint64_t attr_idx = MT_NORMAL;
+	uint64_t attr_idx = MT_ANALRMAL;
 
 	_virt_pg_map(vm, vaddr, paddr, attr_idx);
 }
@@ -209,7 +209,7 @@ uint64_t *virt_get_pte_hva(struct kvm_vm *vm, vm_vaddr_t gva)
 	return ptep;
 
 unmapped_gva:
-	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
+	TEST_FAIL("Anal mapping for vm virtual address, gva: 0x%lx", gva);
 	exit(EXIT_FAILURE);
 }
 
@@ -285,7 +285,7 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	/* Configure base granule size */
 	switch (vm->mode) {
 	case VM_MODE_PXXV48_4K:
-		TEST_FAIL("AArch64 does not support 4K sized pages "
+		TEST_FAIL("AArch64 does analt support 4K sized pages "
 			  "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
 	case VM_MODE_P48V48_64K:
@@ -307,7 +307,7 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
 		break;
 	default:
-		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unkanalwn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	ttbr0_el1 = vm->pgd & GENMASK(47, vm->page_shift);
@@ -337,7 +337,7 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 		tcr_el1 |= 1ul << 32; /* IPS = 36 bits */
 		break;
 	default:
-		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_FAIL("Unkanalwn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sctlr_el1 |= (1 << 0) | (1 << 2) | (1 << 12) /* M | C | I */;
@@ -514,9 +514,9 @@ uint32_t guest_get_vcpuid(void)
 }
 
 static uint32_t max_ipa_for_page_size(uint32_t vm_ipa, uint32_t gran,
-				uint32_t not_sup_val, uint32_t ipa52_min_val)
+				uint32_t analt_sup_val, uint32_t ipa52_min_val)
 {
-	if (gran == not_sup_val)
+	if (gran == analt_sup_val)
 		return 0;
 	else if (gran >= ipa52_min_val && vm_ipa >= 52)
 		return 52;

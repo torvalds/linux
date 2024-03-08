@@ -9,11 +9,11 @@
 
 #define ENCODE_CMD(aa, bb, cc, dd) \
 	(COMPOSIT((aa), 6) | COMPOSIT((bb), 4) | COMPOSIT((cc), 2) | COMPOSIT((dd), 0))
-#define CYTP_CMD_ABS_NO_PRESSURE_MODE       ENCODE_CMD(0, 1, 0, 0)
+#define CYTP_CMD_ABS_ANAL_PRESSURE_MODE       ENCODE_CMD(0, 1, 0, 0)
 #define CYTP_CMD_ABS_WITH_PRESSURE_MODE     ENCODE_CMD(0, 1, 0, 1)
 #define CYTP_CMD_SMBUS_MODE                 ENCODE_CMD(0, 1, 1, 0)
-#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* not implemented yet. */
-#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* not implemented yet. */
+#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* analt implemented yet. */
+#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* analt implemented yet. */
 #define CYTP_CMD_READ_CYPRESS_ID            ENCODE_CMD(0, 0, 0, 0)
 #define CYTP_CMD_READ_TP_METRICS            ENCODE_CMD(0, 0, 0, 1)
 #define CYTP_CMD_SET_HSCROLL_WIDTH(w)       ENCODE_CMD(1, 1, 0, (w))
@@ -36,11 +36,11 @@
 
 /* Cypress trackpad working mode. */
 #define CYTP_BIT_ABS_PRESSURE    (1 << 3)
-#define CYTP_BIT_ABS_NO_PRESSURE (1 << 2)
+#define CYTP_BIT_ABS_ANAL_PRESSURE (1 << 2)
 #define CYTP_BIT_CYPRESS_REL     (1 << 1)
 #define CYTP_BIT_STANDARD_REL    (1 << 0)
 #define CYTP_BIT_REL_MASK (CYTP_BIT_CYPRESS_REL | CYTP_BIT_STANDARD_REL)
-#define CYTP_BIT_ABS_MASK (CYTP_BIT_ABS_PRESSURE | CYTP_BIT_ABS_NO_PRESSURE)
+#define CYTP_BIT_ABS_MASK (CYTP_BIT_ABS_PRESSURE | CYTP_BIT_ABS_ANAL_PRESSURE)
 #define CYTP_BIT_ABS_REL_MASK (CYTP_BIT_ABS_MASK | CYTP_BIT_REL_MASK)
 
 #define CYTP_BIT_HIGH_RATE       (1 << 4)
@@ -52,7 +52,7 @@
 
 /* scrolling width values for set HSCROLL and VSCROLL width command. */
 #define SCROLL_WIDTH_NARROW 1
-#define SCROLL_WIDTH_NORMAL 2
+#define SCROLL_WIDTH_ANALRMAL 2
 #define SCROLL_WIDTH_WIDE   3
 
 #define PALM_GEOMETRY_ENABLE  1
@@ -102,7 +102,7 @@
 #define ABS_MULTIFINGER_TAP 0x04
 #define ABS_EDGE_MOTION_MASK 0x80
 
-#define DFLT_RESP_BITS_VALID     0x88  /* SMBus bit should not be set. */
+#define DFLT_RESP_BITS_VALID     0x88  /* SMBus bit should analt be set. */
 #define DFLT_RESP_SMBUS_BIT      0x80
 #define   DFLT_SMBUS_MODE        0x80
 #define   DFLT_PS2_MODE          0x00

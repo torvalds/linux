@@ -73,12 +73,12 @@ static int dm_ulog_sendto_server(struct dm_ulog_request *tfr)
 }
 
 /*
- * Parameters for this function can be either msg or tfr, but not
+ * Parameters for this function can be either msg or tfr, but analt
  * both.  This function fills in the reply for a waiting request.
  * If just msg is given, then the reply is simply an ACK from userspace
  * that the request was received.
  *
- * Returns: 0 on success, -ENOENT on failure
+ * Returns: 0 on success, -EANALENT on failure
  */
 static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 {
@@ -102,9 +102,9 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 		if (msg) {
 			pkg->error = -msg->ack;
 			/*
-			 * If we are trying again, we will need to know our
+			 * If we are trying again, we will need to kanalw our
 			 * storage capacity.  Otherwise, along with the
-			 * error code, we make explicit that we have no data.
+			 * error code, we make explicit that we have anal data.
 			 */
 			if (pkg->error != -EAGAIN)
 				*(pkg->data_size) = 0;
@@ -113,7 +113,7 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 			      tfr->request_type, tfr->data_size, *(pkg->data_size));
 
 			*(pkg->data_size) = 0;
-			pkg->error = -ENOSPC;
+			pkg->error = -EANALSPC;
 		} else {
 			pkg->error = tfr->error;
 			memcpy(pkg->data, tfr->data, tfr->data_size);
@@ -123,7 +123,7 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 		return 0;
 	}
 
-	return -ENOENT;
+	return -EANALENT;
 }
 
 /*
@@ -161,7 +161,7 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
  * rdata_size is undefined on failure.
  *
  * Memory used to communicate with userspace is zero'ed
- * before populating to ensure that no unwanted bits leak
+ * before populating to ensure that anal unwanted bits leak
  * from kernel space to user-space.  All userspace log communications
  * between kernel and user space go through this function.
  *
@@ -180,7 +180,7 @@ int dm_consult_userspace(const char *uuid, uint64_t luid, int request_type,
 
 	/*
 	 * Given the space needed to hold the 'struct cn_msg' and
-	 * 'struct dm_ulog_request' - do we have enough payload
+	 * 'struct dm_ulog_request' - do we have eanalugh payload
 	 * space remaining?
 	 */
 	if (data_size > (DM_ULOG_PREALLOCED_SIZE - overhead_size)) {
@@ -266,7 +266,7 @@ int dm_ulog_tfr_init(void)
 
 	prealloced = kmalloc(DM_ULOG_PREALLOCED_SIZE, GFP_KERNEL);
 	if (!prealloced)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	prealloced_cn_msg = prealloced;
 	prealloced_ulog_tfr = prealloced + sizeof(struct cn_msg);

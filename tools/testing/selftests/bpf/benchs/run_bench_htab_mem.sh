@@ -36,5 +36,5 @@ htab_mem_bench()
 header "preallocated"
 htab_mem_bench "--preallocated"
 
-header "normal bpf ma"
+header "analrmal bpf ma"
 htab_mem_bench

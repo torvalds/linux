@@ -22,7 +22,7 @@ Consumers that require specific hwlock(s) should specify them using the
 property "hwlocks", and an optional "hwlock-names" property.
 
 Required properties:
-- hwlocks:              List of phandle to a hwlock provider node and an
+- hwlocks:              List of phandle to a hwlock provider analde and an
                         associated hwlock args specifier as indicated by
                         #hwlock-cells. The list can have just a single hwlock
                         or multiple hwlocks, with each hwlock represented by
@@ -34,25 +34,25 @@ Optional properties:
                         use the hwlock-names to match and get a specific hwlock.
 
 
-1. Example of a node using a single specific hwlock:
+1. Example of a analde using a single specific hwlock:
 
-The following example has a node requesting a hwlock in the bank defined by
-the node hwlock1. hwlock1 is a hwlock provider with an argument specifier
+The following example has a analde requesting a hwlock in the bank defined by
+the analde hwlock1. hwlock1 is a hwlock provider with an argument specifier
 of length 1.
 
-	node {
+	analde {
 		...
 		hwlocks = <&hwlock1 2>;
 		...
 	};
 
-2. Example of a node using multiple specific hwlocks:
+2. Example of a analde using multiple specific hwlocks:
 
-The following example has a node requesting two hwlocks, a hwlock within
-the hwlock device node 'hwlock1' with #hwlock-cells value of 1, and another
-hwlock within the hwlock device node 'hwlock2' with #hwlock-cells value of 2.
+The following example has a analde requesting two hwlocks, a hwlock within
+the hwlock device analde 'hwlock1' with #hwlock-cells value of 1, and aanalther
+hwlock within the hwlock device analde 'hwlock2' with #hwlock-cells value of 2.
 
-	node {
+	analde {
 		...
 		hwlocks = <&hwlock1 2>, <&hwlock2 0 3>;
 		...

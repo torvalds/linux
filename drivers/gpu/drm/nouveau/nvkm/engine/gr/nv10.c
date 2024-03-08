@@ -9,13 +9,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragr) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -123,7 +123,7 @@ static int nv10_gr_ctx_regs[] = {
 	NV04_PGRAPH_BSWIZZLE2,
 	NV04_PGRAPH_BSWIZZLE5,
 	NV04_PGRAPH_BPIXEL,
-	NV10_PGRAPH_NOTIFY,
+	NV10_PGRAPH_ANALTIFY,
 	NV04_PGRAPH_PATT_COLOR0,
 	NV04_PGRAPH_PATT_COLOR1,
 	NV04_PGRAPH_PATT_COLORRAM, /* 64 values from 0x400900 to 0x4009fc */
@@ -193,7 +193,7 @@ static int nv10_gr_ctx_regs[] = {
 	NV04_PGRAPH_PATTERN,	/* 2 values from 0x400808 to 0x40080c */
 	0x0040080c,
 	NV04_PGRAPH_PATTERN_SHAPE,
-	NV03_PGRAPH_MONO_COLOR0,
+	NV03_PGRAPH_MOANAL_COLOR0,
 	NV04_PGRAPH_ROP3,
 	NV04_PGRAPH_CHROMA,
 	NV04_PGRAPH_BETA_AND,
@@ -791,7 +791,7 @@ nv10_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 		if (nv10_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nvkm_error(subdev, "unknown offset nv10_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unkanalwn offset nv10_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -804,7 +804,7 @@ nv17_gr_ctx_regs_find_offset(struct nv10_gr *gr, int reg)
 		if (nv17_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nvkm_error(subdev, "unknown offset nv17_ctx_regs %d\n", reg);
+	nvkm_error(subdev, "unkanalwn offset nv17_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -818,7 +818,7 @@ nv10_gr_load_dma_vtxbuf(struct nv10_gr_chan *chan, int chid, u32 inst)
 	int i, subchan = -1;
 
 	/* NV10TCL_DMA_VTXBUF (method 0x18c) modifies hidden state
-	 * that cannot be restored via MMIO. Do it through the FIFO
+	 * that cananalt be restored via MMIO. Do it through the FIFO
 	 * instead.
 	 */
 
@@ -1008,7 +1008,7 @@ nv10_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	unsigned long flags;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	nvkm_object_ctor(&nv10_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
 	chan->chid = fifoch->id;
@@ -1064,7 +1064,7 @@ nv10_gr_tile(struct nvkm_gr *base, int i, struct nvkm_fb_tile *tile)
 }
 
 const struct nvkm_bitfield nv10_gr_intr_name[] = {
-	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
+	{ NV_PGRAPH_INTR_ANALTIFY, "ANALTIFY" },
 	{ NV_PGRAPH_INTR_ERROR,  "ERROR"  },
 	{}
 };
@@ -1125,7 +1125,7 @@ nv10_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkanalwn",
 			   subc, class, mthd, data);
 	}
 
@@ -1178,7 +1178,7 @@ nv10_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	struct nv10_gr *gr;
 
 	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 	spin_lock_init(&gr->lock);
 	*pgr = &gr->base;
 

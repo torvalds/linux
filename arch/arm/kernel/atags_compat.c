@@ -7,9 +7,9 @@
  * We keep the old params compatibility cruft in one place (here)
  * so we don't end up with lots of mess around other places.
  *
- * NOTE:
+ * ANALTE:
  *  The old struct param_struct is deprecated, but it will be kept in
- *  the kernel for 5 years from now (2001). This will allow boot loaders
+ *  the kernel for 5 years from analw (2001). This will allow boot loaders
  *  to convert to the new struct tag way.
  */
 #include <linux/types.h>
@@ -27,7 +27,7 @@
 
 /*
  * Usage:
- *  - do not go blindly adding fields, add them at the end
+ *  - do analt go blindly adding fields, add them at the end
  *  - when adding fields, don't rely on the address until
  *    a patch from me has been released
  *  - unused fields should be zero (for future expansion)
@@ -200,7 +200,7 @@ static void __init build_tag_list(struct param_struct *params, void *taglist)
 	strcpy(tag->u.cmdline.cmdline, params->commandline);
 
 	tag = tag_next(tag);
-	tag->hdr.tag = ATAG_NONE;
+	tag->hdr.tag = ATAG_ANALNE;
 	tag->hdr.size = 0;
 
 	memmove(params, taglist, ((int)tag) - ((int)taglist) +

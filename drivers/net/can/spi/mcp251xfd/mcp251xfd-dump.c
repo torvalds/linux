@@ -263,8 +263,8 @@ void mcp251xfd_dump(const struct mcp251xfd_priv *priv)
 	file_size += sizeof(*iter.hdr) * obj_num;
 
 	/* allocate the file in vmalloc memory, it's likely to be big */
-	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_NOWARN |
-			       __GFP_ZERO | __GFP_NORETRY);
+	iter.start = __vmalloc(file_size, GFP_KERNEL | __GFP_ANALWARN |
+			       __GFP_ZERO | __GFP_ANALRETRY);
 	if (!iter.start) {
 		netdev_warn(priv->ndev, "Failed to allocate devcoredump file.\n");
 		return;

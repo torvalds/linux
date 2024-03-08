@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-analte */
 /*  Generic MTRR (Memory Type Range Register) ioctls.
 
     Copyright (C) 1997-1999  Richard Gooch
@@ -14,7 +14,7 @@
     Library General Public License for more details.
 
     You should have received a copy of the GNU Library General Public
-    License along with this library; if not, write to the Free
+    License along with this library; if analt, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
     Richard Gooch may be reached by email at  rgooch@atnf.csiro.au
@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 
 #define	MTRR_IOCTL_BASE	'M'
 
@@ -107,8 +107,8 @@ typedef __u8 mtrr_type;
 #define MTRR_NUM_TYPES       7
 
 /*
- * Invalid MTRR memory type.  No longer used outside of MTRR code.
- * Note, this value is allocated from the reserved values (0x7-0xff) of
+ * Invalid MTRR memory type.  Anal longer used outside of MTRR code.
+ * Analte, this value is allocated from the reserved values (0x7-0xff) of
  * the MTRR memory types.
  */
 #define MTRR_TYPE_INVALID    0xff

@@ -59,14 +59,14 @@ static int __init init_hrt_clocksource(void)
 	u32 freq;
 	/* Make sure scx200 has initialized the configuration block */
 	if (!scx200_cb_present())
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Reserve the timer's ISA io-region for ourselves */
 	if (!request_region(scx200_cb_base + SCx200_TIMER_OFFSET,
 			    SCx200_TIMER_SIZE,
 			    "NatSemi SCx200 High-Resolution Timer")) {
 		pr_warn("unable to lock timer region\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	/* write timer config */

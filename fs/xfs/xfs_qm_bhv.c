@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_ianalde.h"
 #include "xfs_trans.h"
 #include "xfs_qm.h"
 
@@ -33,14 +33,14 @@ xfs_fill_statvfs_from_dquot(
 			 (statp->f_blocks - dqp->q_blk.reserved) : 0;
 	}
 
-	limit = dqp->q_ino.softlimit ?
-		dqp->q_ino.softlimit :
-		dqp->q_ino.hardlimit;
+	limit = dqp->q_ianal.softlimit ?
+		dqp->q_ianal.softlimit :
+		dqp->q_ianal.hardlimit;
 	if (limit && statp->f_files > limit) {
 		statp->f_files = limit;
 		statp->f_ffree =
-			(statp->f_files > dqp->q_ino.reserved) ?
-			 (statp->f_files - dqp->q_ino.reserved) : 0;
+			(statp->f_files > dqp->q_ianal.reserved) ?
+			 (statp->f_files - dqp->q_ianal.reserved) : 0;
 	}
 }
 
@@ -49,12 +49,12 @@ xfs_fill_statvfs_from_dquot(
  * Directory tree accounting is implemented using project quotas, where
  * the project identifier is inherited from parent directories.
  * A statvfs (df, etc.) of a directory that is using project quota should
- * return a statvfs of the project, not the entire filesystem.
+ * return a statvfs of the project, analt the entire filesystem.
  * This makes such trees appear as if they are filesystems in themselves.
  */
 void
 xfs_qm_statvfs(
-	struct xfs_inode	*ip,
+	struct xfs_ianalde	*ip,
 	struct kstatfs		*statp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -124,7 +124,7 @@ xfs_qm_newmount(
 			 * Clear the quota flags, but remember them. This
 			 * is so that the quota code doesn't get invoked
 			 * before we're ready. This can happen when an
-			 * inode goes inactive and wants to free blocks,
+			 * ianalde goes inactive and wants to free blocks,
 			 * or via xfs_log_mount_finish.
 			 */
 			*needquotamount = true;

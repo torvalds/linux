@@ -33,7 +33,7 @@ properties:
     description:
       Should be a list of phandles to other switch's DSA port. This
       port is used as the outgoing port towards the phandle ports. The
-      full routing information must be given, not just the one hop
+      full routing information must be given, analt just the one hop
       routes to neighbouring switches
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
@@ -41,7 +41,7 @@ properties:
 
   ethernet:
     description:
-      Should be a phandle to a valid Ethernet device node.  This host
+      Should be a phandle to a valid Ethernet device analde.  This host
       device is what the switch port is connected to
     $ref: /schemas/types.yaml#/definitions/phandle
 

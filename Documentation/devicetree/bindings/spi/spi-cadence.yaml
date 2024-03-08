@@ -44,7 +44,7 @@ properties:
 
   is-decoded-cs:
     description: |
-      Flag to indicate whether decoder is used or not.
+      Flag to indicate whether decoder is used or analt.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 0, 1 ]
     default: 0

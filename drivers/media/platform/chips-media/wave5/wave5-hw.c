@@ -75,7 +75,7 @@ static inline const char *cmd_to_str(int cmd, bool is_dec)
 	case W5_MAX_VPU_COMD:
 		return "W5_MAX_VPU_COMD";
 	default:
-		return "UNKNOWN";
+		return "UNKANALWN";
 	}
 }
 
@@ -90,8 +90,8 @@ static void _wave5_print_reg_err(struct vpu_device *vpu_dev, u32 reg_fail_reason
 		reg_val = vpu_read_reg(vpu_dev, W5_RET_QUEUE_FAIL_REASON);
 		dev_dbg(dev, "%s: queueing failure: 0x%x\n", func, reg_val);
 		break;
-	case WAVE5_SYSERR_RESULT_NOT_READY:
-		dev_err(dev, "%s: result not ready: 0x%x\n", func, reg_fail_reason);
+	case WAVE5_SYSERR_RESULT_ANALT_READY:
+		dev_err(dev, "%s: result analt ready: 0x%x\n", func, reg_fail_reason);
 		break;
 	case WAVE5_SYSERR_ACCESS_VIOLATION_HW:
 		dev_err(dev, "%s: access violation: 0x%x\n", func, reg_fail_reason);
@@ -201,7 +201,7 @@ unsigned int wave5_vpu_get_product_id(struct vpu_device *vpu_dev)
 		break;
 	}
 
-	return PRODUCT_ID_NONE;
+	return PRODUCT_ID_ANALNE;
 }
 
 static void wave5_bit_issue_command(struct vpu_device *vpu_dev, struct vpu_instance *inst, u32 cmd)
@@ -498,7 +498,7 @@ int wave5_vpu_build_up_dec_param(struct vpu_instance *inst,
 	vpu_write_reg(inst->dev, W5_CMD_DEC_BS_START_ADDR, p_dec_info->stream_buf_start_addr);
 	vpu_write_reg(inst->dev, W5_CMD_DEC_BS_SIZE, p_dec_info->stream_buf_size);
 
-	/* NOTE: SDMA reads MSB first */
+	/* ANALTE: SDMA reads MSB first */
 	vpu_write_reg(inst->dev, W5_CMD_BS_PARAM, BITSTREAM_ENDIANNESS_BIG_ENDIAN);
 	/* This register must be reset explicitly */
 	vpu_write_reg(inst->dev, W5_CMD_EXT_ADDR, 0);
@@ -553,7 +553,7 @@ static u32 get_bitstream_options(struct dec_info *info)
 int wave5_vpu_dec_init_seq(struct vpu_instance *inst)
 {
 	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
-	u32 cmd_option = INIT_SEQ_NORMAL;
+	u32 cmd_option = INIT_SEQ_ANALRMAL;
 	u32 reg_val, fail_res;
 	int ret;
 
@@ -658,7 +658,7 @@ int wave5_vpu_dec_get_seq_info(struct vpu_instance *inst, struct dec_initial_inf
 	dev_dbg(inst->dev->dev, "%s: init seq complete (queue %u : %u)\n", __func__,
 		p_dec_info->instance_queue_count, p_dec_info->report_queue_count);
 
-	/* this is not a fatal error, set ret to -EIO but don't return immediately */
+	/* this is analt a fatal error, set ret to -EIO but don't return immediately */
 	if (vpu_read_reg(inst->dev, W5_RET_DEC_DECODING_SUCCESS) != 1) {
 		info->seq_init_err_reason = vpu_read_reg(inst->dev, W5_RET_DEC_ERR_INFO);
 		ret = -EIO;
@@ -676,13 +676,13 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
 	struct dec_initial_info *init_info = &p_dec_info->initial_info;
 	size_t remain, idx, j, i, cnt_8_chunk, size;
-	u32 start_no, end_no;
+	u32 start_anal, end_anal;
 	u32 reg_val, cbcr_interleave, nv21, pic_size;
 	u32 addr_y, addr_cb, addr_cr;
 	u32 mv_col_size, frame_width, frame_height, fbc_y_tbl_size, fbc_c_tbl_size;
 	struct vpu_buf vb_buf;
 	bool justified = WTL_RIGHT_JUSTIFIED;
-	u32 format_no = WTL_PIXEL_8BIT;
+	u32 format_anal = WTL_PIXEL_8BIT;
 	u32 color_format = 0;
 	u32 pixel_order = 1;
 	u32 bwb_flag = (map_type == LINEAR_FRAME_MAP) ? 1 : 0;
@@ -761,7 +761,7 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	reg_val = (bwb_flag << 28) |
 		  (pixel_order << 23) |
 		  (justified << 22) |
-		  (format_no << 20) |
+		  (format_anal << 20) |
 		  (color_format << 19) |
 		  (nv21 << 17) |
 		  (cbcr_interleave << 16) |
@@ -774,15 +774,15 @@ int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst, struct frame_b
 	for (j = 0; j < cnt_8_chunk; j++) {
 		reg_val = (j == cnt_8_chunk - 1) << 4 | ((j == 0) << 3);
 		vpu_write_reg(inst->dev, W5_SFB_OPTION, reg_val);
-		start_no = j * 8;
-		end_no = start_no + ((remain >= 8) ? 8 : remain) - 1;
+		start_anal = j * 8;
+		end_anal = start_anal + ((remain >= 8) ? 8 : remain) - 1;
 
-		vpu_write_reg(inst->dev, W5_SET_FB_NUM, (start_no << 8) | end_no);
+		vpu_write_reg(inst->dev, W5_SET_FB_NUM, (start_anal << 8) | end_anal);
 
 		for (i = 0; i < 8 && i < remain; i++) {
-			addr_y = fb_arr[i + start_no].buf_y;
-			addr_cb = fb_arr[i + start_no].buf_cb;
-			addr_cr = fb_arr[i + start_no].buf_cr;
+			addr_y = fb_arr[i + start_anal].buf_y;
+			addr_cb = fb_arr[i + start_anal].buf_cb;
+			addr_cr = fb_arr[i + start_anal].buf_cr;
 			vpu_write_reg(inst->dev, W5_ADDR_LUMA_BASE0 + (i << 4), addr_y);
 			vpu_write_reg(inst->dev, W5_ADDR_CB_BASE0 + (i << 4), addr_cb);
 			if (map_type >= COMPRESSED_FRAME_MAP) {
@@ -850,7 +850,7 @@ int wave5_vpu_decode(struct vpu_instance *inst, u32 *fail_res)
 	/* set attributes of user buffer */
 	vpu_write_reg(inst->dev, W5_CMD_DEC_USER_MASK, p_dec_info->user_data_enable);
 
-	vpu_write_reg(inst->dev, W5_COMMAND_OPTION, DEC_PIC_NORMAL);
+	vpu_write_reg(inst->dev, W5_COMMAND_OPTION, DEC_PIC_ANALRMAL);
 	vpu_write_reg(inst->dev, W5_CMD_DEC_TEMPORAL_ID_PLUS1,
 		      (p_dec_info->target_spatial_id << 9) |
 		      (p_dec_info->temp_id_select_mode << 8) | p_dec_info->target_temp_id);
@@ -942,7 +942,7 @@ int wave5_vpu_dec_get_result(struct vpu_instance *inst, struct dec_output_info *
 			result->decoded_poc = vpu_read_reg(inst->dev, W5_RET_DEC_PIC_POC);
 	}
 
-	result->sequence_changed = vpu_read_reg(inst->dev, W5_RET_DEC_NOTIFICATION);
+	result->sequence_changed = vpu_read_reg(inst->dev, W5_RET_DEC_ANALTIFICATION);
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_PIC_SIZE);
 	result->dec_pic_width = reg_val >> 16;
 	result->dec_pic_height = reg_val & 0xffff;
@@ -973,7 +973,7 @@ int wave5_vpu_dec_get_result(struct vpu_instance *inst, struct dec_output_info *
 				p_dec_info->cycle_per_tick;
 	}
 
-	/* no remaining command. reset frame cycle. */
+	/* anal remaining command. reset frame cycle. */
 	if (p_dec_info->instance_queue_count == 0 && p_dec_info->report_queue_count == 0)
 		p_dec_info->first_cycle_check = false;
 
@@ -1233,7 +1233,7 @@ int wave5_vpu_reset(struct device *dev, enum sw_reset_mode reset_mode)
 			}
 		}
 	} else {
-		dev_dbg(dev, "%s: backbone NOT supported\n", __func__);
+		dev_dbg(dev, "%s: backbone ANALT supported\n", __func__);
 		/* step1 : disable request */
 		wave5_fio_writel(vpu_dev, W5_GDI_BUS_CTRL, 0x100);
 
@@ -1532,7 +1532,7 @@ int wave5_vpu_enc_init_seq(struct vpu_instance *inst)
 	if (p_enc_info->rotation_enable) {
 		switch (p_enc_info->rotation_angle) {
 		case 0:
-			rot_mir_mode |= NONE_ROTATE;
+			rot_mir_mode |= ANALNE_ROTATE;
 			break;
 		case 90:
 			rot_mir_mode |= ROT_CLOCKWISE_90;
@@ -1548,8 +1548,8 @@ int wave5_vpu_enc_init_seq(struct vpu_instance *inst)
 
 	if (p_enc_info->mirror_enable) {
 		switch (p_enc_info->mirror_direction) {
-		case MIRDIR_NONE:
-			rot_mir_mode |= NONE_ROTATE;
+		case MIRDIR_ANALNE:
+			rot_mir_mode |= ANALNE_ROTATE;
 			break;
 		case MIRDIR_VER:
 			rot_mir_mode |= MIR_VER_FLIP;
@@ -1749,7 +1749,7 @@ int wave5_vpu_enc_register_framebuffer(struct device *dev, struct vpu_instance *
 	struct vpu_device *vpu_dev = dev_get_drvdata(dev);
 	int ret = 0;
 	u32 stride;
-	u32 start_no, end_no;
+	u32 start_anal, end_anal;
 	size_t remain, idx, j, i, cnt_8_chunk;
 	u32 reg_val = 0, pic_size = 0, mv_col_size, fbc_y_tbl_size, fbc_c_tbl_size;
 	u32 sub_sampled_size = 0;
@@ -1896,16 +1896,16 @@ int wave5_vpu_enc_register_framebuffer(struct device *dev, struct vpu_instance *
 	for (j = 0; j < cnt_8_chunk; j++) {
 		reg_val = (j == cnt_8_chunk - 1) << 4 | ((j == 0) << 3);
 		vpu_write_reg(inst->dev, W5_SFB_OPTION, reg_val);
-		start_no = j * 8;
-		end_no = start_no + ((remain >= 8) ? 8 : remain) - 1;
+		start_anal = j * 8;
+		end_anal = start_anal + ((remain >= 8) ? 8 : remain) - 1;
 
-		vpu_write_reg(inst->dev, W5_SET_FB_NUM, (start_no << 8) | end_no);
+		vpu_write_reg(inst->dev, W5_SET_FB_NUM, (start_anal << 8) | end_anal);
 
 		for (i = 0; i < 8 && i < remain; i++) {
 			vpu_write_reg(inst->dev, W5_ADDR_LUMA_BASE0 + (i << 4), fb_arr[i +
-					start_no].buf_y);
+					start_anal].buf_y);
 			vpu_write_reg(inst->dev, W5_ADDR_CB_BASE0 + (i << 4),
-				      fb_arr[i + start_no].buf_cb);
+				      fb_arr[i + start_anal].buf_cb);
 			/* luma FBC offset table */
 			vpu_write_reg(inst->dev, W5_ADDR_FBC_Y_OFFSET0 + (i << 4),
 				      vb_fbc_y_tbl.daddr + idx * fbc_y_tbl_size);
@@ -1952,7 +1952,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	struct frame_buffer *p_src_frame = option->source_frame;
 	struct enc_open_param *p_open_param = &p_enc_info->open_param;
 	bool justified = WTL_RIGHT_JUSTIFIED;
-	u32 format_no = WTL_PIXEL_8BIT;
+	u32 format_anal = WTL_PIXEL_8BIT;
 	int ret;
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_BS_START_ADDR, option->pic_stream_buffer_addr);
@@ -1994,7 +1994,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_PIC_PARAM, 0);
 
 	if (option->src_end_flag)
-		/* no more source images. */
+		/* anal more source images. */
 		vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_PIC_IDX, 0xFFFFFFFF);
 	else
 		vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_PIC_IDX, option->src_idx);
@@ -2011,7 +2011,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	case FORMAT_UYVY:
 	case FORMAT_VYUY:
 		justified = WTL_LEFT_JUSTIFIED;
-		format_no = WTL_PIXEL_8BIT;
+		format_anal = WTL_PIXEL_8BIT;
 		src_stride_c = inst->cbcr_interleave ? p_src_frame->stride :
 			(p_src_frame->stride / 2);
 		src_stride_c = (p_open_param->src_format == FORMAT_422) ? src_stride_c * 2 :
@@ -2024,7 +2024,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	case FORMAT_UYVY_P10_16BIT_MSB:
 	case FORMAT_VYUY_P10_16BIT_MSB:
 		justified = WTL_RIGHT_JUSTIFIED;
-		format_no = WTL_PIXEL_16BIT;
+		format_anal = WTL_PIXEL_16BIT;
 		src_stride_c = inst->cbcr_interleave ? p_src_frame->stride :
 			(p_src_frame->stride / 2);
 		src_stride_c = (p_open_param->src_format ==
@@ -2037,7 +2037,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	case FORMAT_UYVY_P10_16BIT_LSB:
 	case FORMAT_VYUY_P10_16BIT_LSB:
 		justified = WTL_LEFT_JUSTIFIED;
-		format_no = WTL_PIXEL_16BIT;
+		format_anal = WTL_PIXEL_16BIT;
 		src_stride_c = inst->cbcr_interleave ? p_src_frame->stride :
 			(p_src_frame->stride / 2);
 		src_stride_c = (p_open_param->src_format ==
@@ -2050,7 +2050,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	case FORMAT_UYVY_P10_32BIT_MSB:
 	case FORMAT_VYUY_P10_32BIT_MSB:
 		justified = WTL_RIGHT_JUSTIFIED;
-		format_no = WTL_PIXEL_32BIT;
+		format_anal = WTL_PIXEL_32BIT;
 		src_stride_c = inst->cbcr_interleave ? p_src_frame->stride :
 			ALIGN(p_src_frame->stride / 2, 16) * BIT(inst->cbcr_interleave);
 		src_stride_c = (p_open_param->src_format ==
@@ -2063,7 +2063,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	case FORMAT_UYVY_P10_32BIT_LSB:
 	case FORMAT_VYUY_P10_32BIT_LSB:
 		justified = WTL_LEFT_JUSTIFIED;
-		format_no = WTL_PIXEL_32BIT;
+		format_anal = WTL_PIXEL_32BIT;
 		src_stride_c = inst->cbcr_interleave ? p_src_frame->stride :
 			ALIGN(p_src_frame->stride / 2, 16) * BIT(inst->cbcr_interleave);
 		src_stride_c = (p_open_param->src_format ==
@@ -2094,7 +2094,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_STRIDE,
 		      (p_src_frame->stride << 16) | src_stride_c);
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_FORMAT, src_frame_format |
-		      (format_no << 3) | (justified << 5) | (PIC_SRC_ENDIANNESS_BIG_ENDIAN << 6));
+		      (format_anal << 3) | (justified << 5) | (PIC_SRC_ENDIANNESS_BIG_ENDIAN << 6));
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_CUSTOM_MAP_OPTION_ADDR, 0);
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_CUSTOM_MAP_OPTION_PARAM, 0);
@@ -2166,7 +2166,7 @@ int wave5_vpu_enc_get_result(struct vpu_instance *inst, struct enc_output_info *
 	result->rd_ptr = p_enc_info->stream_rd_ptr;
 	result->wr_ptr = p_enc_info->stream_wr_ptr;
 
-	/*result for header only(no vcl) encoding */
+	/*result for header only(anal vcl) encoding */
 	if (result->recon_frame_index == RECON_IDX_FLAG_HEADER_ONLY)
 		result->bitstream_size = result->enc_pic_byte;
 	else if (result->recon_frame_index < 0)
@@ -2230,7 +2230,7 @@ static bool wave5_vpu_enc_check_common_param_valid(struct vpu_instance *inst,
 
 	/* multi-slice & wpp */
 	if (param->wpp_enable && param->depend_slice_mode) {
-		dev_err(dev, "wpp_enable && depend_slice_mode cannot be used simultaneously\n");
+		dev_err(dev, "wpp_enable && depend_slice_mode cananalt be used simultaneously\n");
 		return false;
 	}
 
@@ -2279,7 +2279,7 @@ static bool wave5_vpu_enc_check_common_param_valid(struct vpu_instance *inst,
 	}
 
 	if (param->lossless_enable && open_param->rc_enable) {
-		dev_err(dev, "option rate_control cannot be used with lossless_coding\n");
+		dev_err(dev, "option rate_control cananalt be used with lossless_coding\n");
 		return false;
 	}
 
@@ -2311,7 +2311,7 @@ static bool wave5_vpu_enc_check_common_param_valid(struct vpu_instance *inst,
 		if (param->intra_refresh_arg > ctu_sz)
 			goto invalid_refresh_argument;
 		if (param->lossless_enable) {
-			dev_err(dev, "mode: %u cannot be used lossless_enable",
+			dev_err(dev, "mode: %u cananalt be used lossless_enable",
 				param->intra_refresh_mode);
 			return false;
 		}
@@ -2367,29 +2367,29 @@ int wave5_vpu_enc_check_open_param(struct vpu_instance *inst, struct enc_open_pa
 	if (inst->id >= MAX_NUM_INSTANCE) {
 		dev_err(inst->dev->dev, "Too many simultaneous instances: %d (max: %u)\n",
 			inst->id, MAX_NUM_INSTANCE);
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (inst->std != W_HEVC_ENC &&
 	    !(inst->std == W_AVC_ENC && product_id == PRODUCT_ID_521)) {
 		dev_err(inst->dev->dev, "Unsupported encoder-codec & product combination\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	if (param->internal_bit_depth == 10) {
 		if (inst->std == W_HEVC_ENC && !p_attr->support_hevc10bit_enc) {
 			dev_err(inst->dev->dev,
 				"Flag support_hevc10bit_enc must be set to encode 10bit HEVC\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		} else if (inst->std == W_AVC_ENC && !p_attr->support_avc10bit_enc) {
 			dev_err(inst->dev->dev,
 				"Flag support_avc10bit_enc must be set to encode 10bit AVC\n");
-			return -EOPNOTSUPP;
+			return -EOPANALTSUPP;
 		}
 	}
 
 	if (!open_param->frame_rate_info) {
-		dev_err(inst->dev->dev, "No frame rate information.\n");
+		dev_err(inst->dev->dev, "Anal frame rate information.\n");
 		return -EINVAL;
 	}
 

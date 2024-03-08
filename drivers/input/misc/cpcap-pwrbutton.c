@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
@@ -55,15 +55,15 @@ static int cpcap_power_button_probe(struct platform_device *pdev)
 
 	button = devm_kmalloc(&pdev->dev, sizeof(*button), GFP_KERNEL);
 	if (!button)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	button->idev = devm_input_allocate_device(&pdev->dev);
 	if (!button->idev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	button->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!button->regmap)
-		return -ENODEV;
+		return -EANALDEV;
 
 	button->dev = &pdev->dev;
 

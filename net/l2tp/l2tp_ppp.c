@@ -65,7 +65,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/jiffies.h>
 
 #include <linux/netdevice.h>
@@ -108,7 +108,7 @@
  * are enabled.
  */
 #define PPPOL2TP_L2TP_HDR_SIZE_SEQ		10
-#define PPPOL2TP_L2TP_HDR_SIZE_NOSEQ		6
+#define PPPOL2TP_L2TP_HDR_SIZE_ANALSEQ		6
 
 /* Private data of each session. This data lives at the end of struct
  * l2tp_session, referenced via session->priv[].
@@ -119,7 +119,7 @@ struct pppol2tp_session {
 	struct mutex		sk_lock;	/* Protects .sk */
 	struct sock __rcu	*sk;		/* Pointer to the session PPPoX socket */
 	struct sock		*__sk;		/* Copy of .sk, for cleanup */
-	struct rcu_head		rcu;		/* For asynchronous release */
+	struct rcu_head		rcu;		/* For asynchroanalus release */
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
@@ -220,7 +220,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 	rcu_read_lock();
 	sk = rcu_dereference(ps->sk);
 	if (!sk)
-		goto no_sock;
+		goto anal_sock;
 
 	/* If the first two bytes are 0xFF03, consider that it is the PPP's
 	 * Address and Control fields and skip them. The L2TP module has always
@@ -248,9 +248,9 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 
 	return;
 
-no_sock:
+anal_sock:
 	rcu_read_unlock();
-	pr_warn_ratelimited("%s: no socket in recv\n", session->name);
+	pr_warn_ratelimited("%s: anal socket in recv\n", session->name);
 	kfree_skb(skb);
 }
 
@@ -272,7 +272,7 @@ static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
 	struct l2tp_tunnel *tunnel;
 	int uhlen;
 
-	error = -ENOTCONN;
+	error = -EANALTCONN;
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
 		goto error;
 
@@ -287,7 +287,7 @@ static int pppol2tp_sendmsg(struct socket *sock, struct msghdr *m,
 	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(struct udphdr) : 0;
 
 	/* Allocate a socket buffer */
-	error = -ENOMEM;
+	error = -EANALMEM;
 	skb = sock_wmalloc(sk, NET_SKB_PAD + sizeof(struct iphdr) +
 			   uhlen + session->hdr_len +
 			   2 + total_len, /* 2 bytes for PPP_ALLSTATIONS & PPP_UI */
@@ -335,11 +335,11 @@ error:
  * being called with a msghdr from userspace, it is called with a skb
  * from the kernel.
  *
- * The supplied skb from ppp doesn't have enough headroom for the
+ * The supplied skb from ppp doesn't have eanalugh headroom for the
  * insertion of L2TP, UDP and IP headers so we need to allocate more
  * headroom in the skb. This will create a cloned skb. But we must be
  * careful in the error case because the caller will expect to free
- * the skb it supplied, not our cloned skb. So we take care to always
+ * the skb it supplied, analt our cloned skb. So we take care to always
  * leave the original skb unfreed if we return an error.
  */
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
@@ -498,7 +498,7 @@ static int pppol2tp_backlog_recv(struct sock *sk, struct sk_buff *skb)
  */
 static int pppol2tp_create(struct net *net, struct socket *sock, int kern)
 {
-	int error = -ENOMEM;
+	int error = -EANALMEM;
 	struct sock *sk;
 
 	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, kern);
@@ -513,7 +513,7 @@ static int pppol2tp_create(struct net *net, struct socket *sock, int kern)
 	sk->sk_backlog_rcv = pppol2tp_backlog_recv;
 	sk->sk_protocol	   = PX_PROTO_OL2TP;
 	sk->sk_family	   = PF_PPPOX;
-	sk->sk_state	   = PPPOX_NONE;
+	sk->sk_state	   = PPPOX_ANALNE;
 	sk->sk_type	   = SOCK_STREAM;
 	sk->sk_destruct	   = pppol2tp_session_destruct;
 
@@ -636,7 +636,7 @@ static int pppol2tp_sockaddr_get_info(const void *sa, int sa_len,
 
 /* Rough estimation of the maximum payload size a tunnel can transmit without
  * fragmenting at the lower IP layer. Assumes L2TPv2 with sequence
- * numbers and no IP option. Not quite accurate, but the result is mostly
+ * numbers and anal IP option. Analt quite accurate, but the result is mostly
  * unused anyway.
  */
 static int pppol2tp_tunnel_mtu(const struct l2tp_tunnel *tunnel)
@@ -697,12 +697,12 @@ static struct l2tp_tunnel *pppol2tp_tunnel_get(struct net *net,
 	} else {
 		/* Error if we can't find the tunnel */
 		if (!tunnel)
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 
-		/* Error if socket is not prepped */
+		/* Error if socket is analt prepped */
 		if (!tunnel->sock) {
 			l2tp_tunnel_dec_refcount(tunnel);
-			return ERR_PTR(-ENOENT);
+			return ERR_PTR(-EANALENT);
 		}
 	}
 
@@ -808,14 +808,14 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	 */
 	if (session->session_id == 0 && session->peer_session_id == 0) {
 		error = 0;
-		goto out_no_ppp;
+		goto out_anal_ppp;
 	}
 
 	/* The only header we need to worry about is the L2TP
 	 * header. This size is different depending on whether
 	 * sequence numbers are enabled for the data channel.
 	 */
-	po->chan.hdrlen = PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
+	po->chan.hdrlen = PPPOL2TP_L2TP_HDR_SIZE_ANALSEQ;
 
 	po->chan.private = sk;
 	po->chan.ops	 = &pppol2tp_chan_ops;
@@ -827,7 +827,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		goto end;
 	}
 
-out_no_ppp:
+out_anal_ppp:
 	/* This is how we get the session context from the socket. */
 	sk->sk_user_data = session;
 	rcu_assign_pointer(ps->sk, sk);
@@ -866,9 +866,9 @@ static int pppol2tp_session_create(struct net *net, struct l2tp_tunnel *tunnel,
 	int error;
 	struct l2tp_session *session;
 
-	/* Error if tunnel socket is not prepped */
+	/* Error if tunnel socket is analt prepped */
 	if (!tunnel->sock) {
-		error = -ENOENT;
+		error = -EANALENT;
 		goto err;
 	}
 
@@ -910,7 +910,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct inet_sock *inet;
 	struct pppol2tp_session *pls;
 
-	error = -ENOTCONN;
+	error = -EANALTCONN;
 	if (!sk)
 		goto end;
 	if (!(sk->sk_state & PPPOX_CONNECTED))
@@ -1071,14 +1071,14 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 	case PPPIOCGFLAGS:
 		session = sock->sk->sk_user_data;
 		if (!session)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
 			return -EBADF;
 
-		/* Not defined for tunnels */
+		/* Analt defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
-			return -ENOSYS;
+			return -EANALSYS;
 
 		if (put_user(0, (int __user *)arg))
 			return -EFAULT;
@@ -1088,14 +1088,14 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 	case PPPIOCSFLAGS:
 		session = sock->sk->sk_user_data;
 		if (!session)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
 			return -EBADF;
 
-		/* Not defined for tunnels */
+		/* Analt defined for tunnels */
 		if (!session->session_id && !session->peer_session_id)
-			return -ENOSYS;
+			return -EANALSYS;
 
 		if (!access_ok((int __user *)arg, sizeof(int)))
 			return -EFAULT;
@@ -1104,7 +1104,7 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 	case PPPIOCGL2TPSTATS:
 		session = sock->sk->sk_user_data;
 		if (!session)
-			return -ENOTCONN;
+			return -EANALTCONN;
 
 		if (WARN_ON(session->magic != L2TP_SESSION_MAGIC))
 			return -EBADF;
@@ -1137,7 +1137,7 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 
 	default:
-		return -ENOIOCTLCMD;
+		return -EANALIOCTLCMD;
 	}
 
 	return 0;
@@ -1167,7 +1167,7 @@ static int pppol2tp_tunnel_setsockopt(struct sock *sk,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -1201,7 +1201,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 			struct pppox_sock *po = pppox_sk(sk);
 
 			po->chan.hdrlen = val ? PPPOL2TP_L2TP_HDR_SIZE_SEQ :
-				PPPOL2TP_L2TP_HDR_SIZE_NOSEQ;
+				PPPOL2TP_L2TP_HDR_SIZE_ANALSEQ;
 		}
 		l2tp_session_set_header_len(session, session->tunnel->version);
 		break;
@@ -1223,7 +1223,7 @@ static int pppol2tp_session_setsockopt(struct sock *sk,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -1253,7 +1253,7 @@ static int pppol2tp_setsockopt(struct socket *sock, int level, int optname,
 	if (copy_from_sockptr(&val, optval, sizeof(int)))
 		return -EFAULT;
 
-	err = -ENOTCONN;
+	err = -EANALTCONN;
 	if (!sk->sk_user_data)
 		goto end;
 
@@ -1292,7 +1292,7 @@ static int pppol2tp_tunnel_getsockopt(struct sock *sk,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 		break;
 	}
 
@@ -1330,7 +1330,7 @@ static int pppol2tp_session_getsockopt(struct sock *sk,
 		break;
 
 	default:
-		err = -ENOPROTOOPT;
+		err = -EANALPROTOOPT;
 	}
 
 	return err;
@@ -1361,7 +1361,7 @@ static int pppol2tp_getsockopt(struct socket *sock, int level, int optname,
 	if (len < 0)
 		return -EINVAL;
 
-	err = -ENOTCONN;
+	err = -EANALTCONN;
 	if (!sk->sk_user_data)
 		goto end;
 
@@ -1623,7 +1623,7 @@ static __net_init int pppol2tp_init_net(struct net *net)
 	pde = proc_create_net("pppol2tp", 0444, net->proc_net,
 			      &pppol2tp_seq_ops, sizeof(struct pppol2tp_seq_data));
 	if (!pde) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1650,19 +1650,19 @@ static const struct proto_ops pppol2tp_ops = {
 	.family		= AF_PPPOX,
 	.owner		= THIS_MODULE,
 	.release	= pppol2tp_release,
-	.bind		= sock_no_bind,
+	.bind		= sock_anal_bind,
 	.connect	= pppol2tp_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.socketpair	= sock_anal_socketpair,
+	.accept		= sock_anal_accept,
 	.getname	= pppol2tp_getname,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_anal_listen,
+	.shutdown	= sock_anal_shutdown,
 	.setsockopt	= pppol2tp_setsockopt,
 	.getsockopt	= pppol2tp_getsockopt,
 	.sendmsg	= pppol2tp_sendmsg,
 	.recvmsg	= pppol2tp_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_anal_mmap,
 	.ioctl		= pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = pppox_compat_ioctl,

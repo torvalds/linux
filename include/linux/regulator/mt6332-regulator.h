@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2022 Collabora Ltd.
- * Author: AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Author: AngeloGioacchianal Del Reganal <angelogioacchianal.delreganal@collabora.com>
  */
 
 #ifndef __LINUX_REGULATOR_MT6332_H

@@ -112,7 +112,7 @@ u8 rtw_do_join(struct adapter *padapter)
 				/*  can't associate ; reset under-linking */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
-				/* when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue */
+				/* when set_ssid/set_bssid for rtw_do_join(), but there are anal desired bss in scanning queue */
 				/* we try to issue sitesurvey firstly */
 				if (pmlmepriv->LinkDetectInfo.bBusyTraffic == false
 					|| rtw_to_roam(padapter) > 0
@@ -311,7 +311,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 
 		if ((*pold_state == Ndis802_11Infrastructure) || (*pold_state == Ndis802_11IBSS)) {
 			if (check_fwstate(pmlmepriv, _FW_LINKED) == true)
-				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have checked whether issue dis-assoc_cmd or not */
+				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have checked whether issue dis-assoc_cmd or analt */
 		}
 
 		*pold_state = networktype;
@@ -334,7 +334,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 
 			break;
 
-		case Ndis802_11AutoUnknown:
+		case Ndis802_11AutoUnkanalwn:
 		case Ndis802_11InfrastructureMax:
 			break;
 		}
@@ -356,7 +356,7 @@ u8 rtw_set_802_11_disassociate(struct adapter *padapter)
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true) {
 		rtw_disassoc_cmd(padapter, 0, true);
 		rtw_indicate_disconnect(padapter);
-		/* modify for CONFIG_IEEE80211W, none 11w can use it */
+		/* modify for CONFIG_IEEE80211W, analne 11w can use it */
 		rtw_free_assoc_resources_cmd(padapter);
 		rtw_pwr_wakeup(padapter);
 	}
@@ -382,7 +382,7 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 
 	if ((check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == true) ||
 		(pmlmepriv->LinkDetectInfo.bBusyTraffic == true)) {
-		/*  Scan or linking is in progress, do nothing. */
+		/*  Scan or linking is in progress, do analthing. */
 		res = true;
 
 	} else {
@@ -443,7 +443,7 @@ u8 rtw_set_802_11_add_wep(struct adapter *padapter, struct ndis_802_11_wep *wep)
 		psecuritypriv->dot11PrivacyAlgrthm = _WEP104_;
 		break;
 	default:
-		psecuritypriv->dot11PrivacyAlgrthm = _NO_PRIVACY_;
+		psecuritypriv->dot11PrivacyAlgrthm = _ANAL_PRIVACY_;
 		break;
 	}
 

@@ -51,7 +51,7 @@ ia_css_tnr_dump(
     unsigned int level)
 {
 	if (!tnr) return;
-	ia_css_debug_dtrace(level, "Temporal Noise Reduction:\n");
+	ia_css_debug_dtrace(level, "Temporal Analise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "tnr_coef", tnr->coef);
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",

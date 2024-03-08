@@ -91,7 +91,7 @@ static bool pll_28nm_poll_for_ready(struct dsi_pll_28nm *pll_28nm,
 
 		udelay(timeout_us);
 	}
-	DBG("DSI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("DSI PLL is %slocked", pll_locked ? "" : "*analt* ");
 
 	return pll_locked;
 }
@@ -604,7 +604,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 		},
 		.num_parents = 1,
 		.name = clk_name,
-		.flags = CLK_IGNORE_UNUSED,
+		.flags = CLK_IGANALRE_UNUSED,
 	};
 	struct device *dev = &pll_28nm->phy->pdev->dev;
 	struct clk_hw *hw, *analog_postdiv, *indirect_path_div2, *byte_mux;
@@ -676,11 +676,11 @@ static int dsi_pll_28nm_init(struct msm_dsi_phy *phy)
 	int ret;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pll_28nm = devm_kzalloc(&pdev->dev, sizeof(*pll_28nm), GFP_KERNEL);
 	if (!pll_28nm)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	pll_28nm->phy = phy;
 

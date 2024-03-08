@@ -12,21 +12,21 @@
  * Set the magnitude of a constant force effect
  * Return error code
  *
- * Note: caller must ensure exclusive access to device
+ * Analte: caller must ensure exclusive access to device
  */
 
 static int make_magnitude_modifier(struct iforce* iforce,
-	struct resource* mod_chunk, int no_alloc, __s16 level)
+	struct resource* mod_chunk, int anal_alloc, __s16 level)
 {
 	unsigned char data[3];
 
-	if (!no_alloc) {
+	if (!anal_alloc) {
 		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 2,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -46,20 +46,20 @@ static int make_magnitude_modifier(struct iforce* iforce,
  */
 
 static int make_period_modifier(struct iforce* iforce,
-	struct resource* mod_chunk, int no_alloc,
+	struct resource* mod_chunk, int anal_alloc,
 	__s16 magnitude, __s16 offset, u16 period, u16 phase)
 {
 	unsigned char data[7];
 
 	period = TIME_SCALE(period);
 
-	if (!no_alloc) {
+	if (!anal_alloc) {
 		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 0x0c,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -84,7 +84,7 @@ static int make_period_modifier(struct iforce* iforce,
  */
 
 static int make_envelope_modifier(struct iforce* iforce,
-	struct resource* mod_chunk, int no_alloc,
+	struct resource* mod_chunk, int anal_alloc,
 	u16 attack_duration, __s16 initial_level,
 	u16 fade_duration, __s16 final_level)
 {
@@ -93,13 +93,13 @@ static int make_envelope_modifier(struct iforce* iforce,
 	attack_duration = TIME_SCALE(attack_duration);
 	fade_duration = TIME_SCALE(fade_duration);
 
-	if (!no_alloc) {
+	if (!anal_alloc) {
 		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 0x0e,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -125,18 +125,18 @@ static int make_envelope_modifier(struct iforce* iforce,
  */
 
 static int make_condition_modifier(struct iforce* iforce,
-	struct resource* mod_chunk, int no_alloc,
+	struct resource* mod_chunk, int anal_alloc,
 	__u16 rsat, __u16 lsat, __s16 rk, __s16 lk, u16 db, __s16 center)
 {
 	unsigned char data[10];
 
-	if (!no_alloc) {
+	if (!anal_alloc) {
 		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 8,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
 			mutex_unlock(&iforce->mem_mutex);
-			return -ENOSPC;
+			return -EANALSPC;
 		}
 		mutex_unlock(&iforce->mem_mutex);
 	}
@@ -324,7 +324,7 @@ static int make_core(struct iforce* iforce, u16 id, u16 mod_id1, u16 mod_id2,
 
 	/* If needed, restart effect */
 	if (test_bit(FF_CORE_SHOULD_PLAY, iforce->core_effects[id].flags)) {
-		/* BUG: perhaps we should replay n times, instead of 1. But we do not know n */
+		/* BUG: perhaps we should replay n times, instead of 1. But we do analt kanalw n */
 		iforce_control_playback(iforce, id, 1);
 	}
 
@@ -404,7 +404,7 @@ int iforce_upload_periodic(struct iforce *iforce, struct ff_effect *effect, stru
  * Return value:
  *  <0 Error code
  *  0 Ok, effect created or updated
- *  1 effect did not change since last upload, and no packet was therefore sent
+ *  1 effect did analt change since last upload, and anal packet was therefore sent
  */
 int iforce_upload_constant(struct iforce *iforce, struct ff_effect *effect, struct ff_effect *old)
 {

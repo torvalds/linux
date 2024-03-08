@@ -19,7 +19,7 @@ extern unsigned long long elfcorehdr_size;
 extern int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size);
 extern void elfcorehdr_free(unsigned long long addr);
 extern ssize_t elfcorehdr_read(char *buf, size_t count, u64 *ppos);
-extern ssize_t elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos);
+extern ssize_t elfcorehdr_read_analtes(char *buf, size_t count, u64 *ppos);
 extern int remap_oldmem_pfn_range(struct vm_area_struct *vma,
 				  unsigned long from, unsigned long pfn,
 				  unsigned long size, pgprot_t prot);
@@ -53,10 +53,10 @@ void vmcore_cleanup(void);
 #ifndef is_kdump_kernel
 /*
  * is_kdump_kernel() checks whether this kernel is booting after a panic of
- * previous kernel or not. This is determined by checking if previous kernel
+ * previous kernel or analt. This is determined by checking if previous kernel
  * has passed the elf core header address on command line.
  *
- * This is not just a test if CONFIG_CRASH_DUMP is enabled or not. It will
+ * This is analt just a test if CONFIG_CRASH_DUMP is enabled or analt. It will
  * return true if CONFIG_CRASH_DUMP=y and if kernel is booting after a panic
  * of previous kernel.
  */
@@ -70,7 +70,7 @@ static inline bool is_kdump_kernel(void)
 /* is_vmcore_usable() checks if the kernel is booting after a panic and
  * the vmcore region is usable.
  *
- * This makes use of the fact that due to alignment -2ULL is not
+ * This makes use of the fact that due to alignment -2ULL is analt
  * a valid pointer, much in the vain of IS_ERR(), except
  * dealing directly with an unsigned long long rather than a pointer.
  */
@@ -94,17 +94,17 @@ static inline void vmcore_unusable(void)
  * struct vmcore_cb - driver callbacks for /proc/vmcore handling
  * @pfn_is_ram: check whether a PFN really is RAM and should be accessed when
  *              reading the vmcore. Will return "true" if it is RAM or if the
- *              callback cannot tell. If any callback returns "false", it's not
- *              RAM and the page must not be accessed; zeroes should be
+ *              callback cananalt tell. If any callback returns "false", it's analt
+ *              RAM and the page must analt be accessed; zeroes should be
  *              indicated in the vmcore instead. For example, a ballooned page
- *              contains no data and reading from such a page will cause high
+ *              contains anal data and reading from such a page will cause high
  *              load in the hypervisor.
  * @next: List head to manage registered callbacks internally; initialized by
  *        register_vmcore_cb().
  *
  * vmcore callbacks allow drivers managing physical memory ranges to
  * coordinate with vmcore handling code, for example, to prevent accessing
- * physical memory ranges that should not be accessed when reading the vmcore,
+ * physical memory ranges that should analt be accessed when reading the vmcore,
  * although included in the vmcore header as memory ranges to dump.
  */
 struct vmcore_cb {
@@ -131,7 +131,7 @@ int vmcore_add_device_dump(struct vmcoredd_data *data);
 #else
 static inline int vmcore_add_device_dump(struct vmcoredd_data *data)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_PROC_VMCORE_DEVICE_DUMP */
 
@@ -142,7 +142,7 @@ ssize_t read_from_oldmem(struct iov_iter *iter, size_t count,
 static inline ssize_t read_from_oldmem(struct iov_iter *iter, size_t count,
 				       u64 *ppos, bool encrypted)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 #endif /* CONFIG_PROC_VMCORE */
 

@@ -2,7 +2,7 @@ TI LMU (Lighting Management Unit) device tree bindings
 
 TI LMU driver supports lighting devices below.
 
-   Name                  Child nodes
+   Name                  Child analdes
   ------      ---------------------------------
   LM3631       Backlight and regulator
   LM3632       Backlight and regulator
@@ -34,20 +34,20 @@ Optional properties:
 		  Range from 2048 us - 117.44 s
   - ti,brightness-resolution - This determines whether to use 8 bit brightness
 			       mode or 11 bit brightness mode.  If this value is
-			       not set the device is defaulted to the preferred
+			       analt set the device is defaulted to the preferred
 			       8bit brightness mode per 7.3.4.1 of the data
 			       sheet.  This setting can either be in the parent
-			       node or as part of the LED child nodes.  This
+			       analde or as part of the LED child analdes.  This
 			       is determined by the part itself if the strings
 			       have a common brightness register or individual
 			       brightness registers.
 			       The values are 255 (8bit) or 2047 (11bit).
 
-Required node:
-  - backlight: All LMU devices have backlight child nodes.
+Required analde:
+  - backlight: All LMU devices have backlight child analdes.
                For the properties, please refer to [1].
 
-Optional nodes:
+Optional analdes:
   - fault-monitor: Hardware fault monitoring driver for LM3633 and LM3697.
     Required properties:
       - compatible: Should be one of:

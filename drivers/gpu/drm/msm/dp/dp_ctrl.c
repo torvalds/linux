@@ -35,7 +35,7 @@
 #define MR_LINK_TRAINING4  0x40
 
 enum {
-	DP_TRAINING_NONE,
+	DP_TRAINING_ANALNE,
 	DP_TRAINING_1,
 	DP_TRAINING_2,
 };
@@ -45,7 +45,7 @@ struct dp_tu_calc_input {
 	u64 pclk_khz;    /* in KHz */
 	u64 hactive;     /* active h-width */
 	u64 hporch;      /* bp + fp + pulse */
-	int nlanes;      /* no.of.lanes */
+	int nlanes;      /* anal.of.lanes */
 	int bpp;         /* bits */
 	int pixel_enc;   /* 444, 420, 422 */
 	int dsc_en;     /* dsc on/off */
@@ -174,7 +174,7 @@ static void dp_ctrl_configure_source_params(struct dp_ctrl_private *ctrl)
 
 /*
  * The structure and few functions present below are IP/Hardware
- * specific implementation. Most of the implementation will not
+ * specific implementation. Most of the implementation will analt
  * have coding comments
  */
 struct tu_algo_data {
@@ -370,7 +370,7 @@ static void dp_panel_update_tu_timings(struct dp_tu_calc_input *in,
 	tot_num_dummy_bytes = (nlanes - eoc_bytes) * dsc_num_slices;
 
 	if (dsc_num_bytes == 0)
-		pr_info("incorrect no of bytes per slice=%d\n", dsc_num_bytes);
+		pr_info("incorrect anal of bytes per slice=%d\n", dsc_num_bytes);
 
 	dwidth_dsc_bytes = (tot_num_hor_bytes +
 				tot_num_eoc_symbols +
@@ -1367,7 +1367,7 @@ void dp_ctrl_reset_irq_ctrl(struct dp_ctrl *dp_ctrl, bool enable)
 	dp_catalog_ctrl_reset(ctrl->catalog);
 
 	/*
-	 * all dp controller programmable registers will not
+	 * all dp controller programmable registers will analt
 	 * be reset to default value after DP_SW_RESET
 	 * therefore interrupt mask bits have to be updated
 	 * to enable/disable interrupts
@@ -1548,7 +1548,7 @@ static int dp_ctrl_deinitialize_mainlink(struct dp_ctrl_private *ctrl)
 static int dp_ctrl_link_maintenance(struct dp_ctrl_private *ctrl)
 {
 	int ret = 0;
-	int training_step = DP_TRAINING_NONE;
+	int training_step = DP_TRAINING_ANALNE;
 
 	dp_ctrl_push_idle(&ctrl->dp_ctrl);
 
@@ -1627,7 +1627,7 @@ static int dp_ctrl_process_phy_test_request(struct dp_ctrl_private *ctrl)
 
 	if (!ctrl->link->phy_params.phy_test_pattern_sel) {
 		drm_dbg_dp(ctrl->drm_dev,
-			"no test pattern selected by sink\n");
+			"anal test pattern selected by sink\n");
 		return 0;
 	}
 
@@ -1769,7 +1769,7 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 		return rc;
 
 	while (--link_train_max_retries) {
-		training_step = DP_TRAINING_NONE;
+		training_step = DP_TRAINING_ANALNE;
 		rc = dp_ctrl_setup_main_link(ctrl, &training_step);
 		if (rc == 0) {
 			/* training completed successfully */
@@ -1833,7 +1833,7 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 
 	if (rc == 0) {  /* link train successfully */
 		/*
-		 * do not stop train pattern here
+		 * do analt stop train pattern here
 		 * stop link training at on_stream
 		 * to pass compliance test
 		 */
@@ -1853,7 +1853,7 @@ int dp_ctrl_on_link(struct dp_ctrl *dp_ctrl)
 
 static int dp_ctrl_link_retrain(struct dp_ctrl_private *ctrl)
 {
-	int training_step = DP_TRAINING_NONE;
+	int training_step = DP_TRAINING_ANALNE;
 
 	return dp_ctrl_setup_main_link(ctrl, &training_step);
 }
@@ -1924,7 +1924,7 @@ int dp_ctrl_on_stream(struct dp_ctrl *dp_ctrl, bool force_link_train)
 
 	mainlink_ready = dp_catalog_ctrl_mainlink_ready(ctrl->catalog);
 	drm_dbg_dp(ctrl->drm_dev,
-		"mainlink %s\n", mainlink_ready ? "READY" : "NOT READY");
+		"mainlink %s\n", mainlink_ready ? "READY" : "ANALT READY");
 
 end:
 	return ret;
@@ -2040,10 +2040,10 @@ irqreturn_t dp_ctrl_isr(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
 	u32 isr;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 
 	if (!dp_ctrl)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	ctrl = container_of(dp_ctrl, struct dp_ctrl_private, dp_ctrl);
 
@@ -2098,7 +2098,7 @@ struct dp_ctrl *dp_ctrl_get(struct device *dev, struct dp_link *link,
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
 		DRM_ERROR("Mem allocation failure\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 	}
 
 	ret = devm_pm_opp_set_clkname(dev, "ctrl_link");

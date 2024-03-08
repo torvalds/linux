@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TLB Management (flush/create/diagnostics) for MMUv3 and MMUv4
+ * TLB Management (flush/create/diaganalstics) for MMUv3 and MMUv4
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  *
  */
 
@@ -63,7 +63,7 @@ static void tlb_entry_erase(unsigned int vaddr_n_asid)
 	/* Locate the TLB entry for this vaddr + ASID */
 	idx = tlb_entry_lkup(vaddr_n_asid);
 
-	/* No error means entry found, zero it out */
+	/* Anal error means entry found, zero it out */
 	if (likely(!(idx & TLB_LKUP_ERR))) {
 		__tlb_entry_erase();
 	} else {
@@ -84,7 +84,7 @@ static void tlb_entry_insert(unsigned int pd0, phys_addr_t pd1)
 	idx = tlb_entry_lkup(pd0);
 
 	/*
-	 * If Not already present get a free slot from MMU.
+	 * If Analt already present get a free slot from MMU.
 	 * Otherwise, Probe would have located the entry and set INDEX Reg
 	 * with existing location. This will cause Write CMD to over-write
 	 * existing entry with new PD0 and PD1
@@ -131,7 +131,7 @@ static void tlb_entry_insert(unsigned int pd0, phys_addr_t pd1)
  * Un-conditionally (without lookup) erase the entire MMU contents
  */
 
-noinline void local_flush_tlb_all(void)
+analinline void local_flush_tlb_all(void)
 {
 	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned long flags;
@@ -174,13 +174,13 @@ noinline void local_flush_tlb_all(void)
 /*
  * Flush the entire MM for userland. The fastest way is to move to Next ASID
  */
-noinline void local_flush_tlb_mm(struct mm_struct *mm)
+analinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	/*
 	 * Small optimisation courtesy IA64
 	 * flush_mm called during fork,exit,munmap etc, multiple times as well.
 	 * Only for fork( ) do we need to move parent to a new MMU ctxt,
-	 * all other cases are NOPs, hence this check.
+	 * all other cases are ANALPs, hence this check.
 	 */
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
@@ -190,7 +190,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 	 *   (Android Binder ended up calling this for vma->mm != tsk->mm,
 	 *    causing h/w - s/w ASID to get out of sync)
 	 * - Also get_new_mmu_context() new implementation allocates a new
-	 *   ASID only if it is not allocated already - so unallocate first
+	 *   ASID only if it is analt allocated already - so unallocate first
 	 */
 	destroy_context(mm);
 	if (current->mm == mm)
@@ -232,7 +232,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	local_irq_save(flags);
 
-	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
+	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_ANAL_ASID) {
 		while (start < end) {
 			tlb_entry_erase(start | hw_pid(vma->vm_mm, cpu));
 			start += PAGE_SIZE;
@@ -252,7 +252,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long flags;
 
-	/* exactly same as above, except for TLB entry not taking ASID */
+	/* exactly same as above, except for TLB entry analt taking ASID */
 
 	if (unlikely((end - start) >= PAGE_SIZE * 32)) {
 		local_flush_tlb_all();
@@ -272,7 +272,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 /*
  * Delete TLB entry in MMU for a given page (??? address)
- * NOTE One TLB entry contains translation for single PAGE
+ * ANALTE One TLB entry contains translation for single PAGE
  */
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
@@ -280,12 +280,12 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	const unsigned int cpu = smp_processor_id();
 	unsigned long flags;
 
-	/* Note that it is critical that interrupts are DISABLED between
+	/* Analte that it is critical that interrupts are DISABLED between
 	 * checking the ASID and using it flush the TLB entry
 	 */
 	local_irq_save(flags);
 
-	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID) {
+	if (asid_mm(vma->vm_mm, cpu) != MM_CTXT_ANAL_ASID) {
 		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm, cpu));
 	}
 
@@ -414,13 +414,13 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
 	 *     current->mm still points to pre-execve mm (hence the condition).
 	 *     However the stack vaddr is soon relocated (randomization) and
 	 *     move_page_tables() tries to undo that TLB entry.
-	 *     Thus not creating TLB entry is not any worse.
+	 *     Thus analt creating TLB entry is analt any worse.
 	 *
 	 *  2. ptrace(POKETEXT) causes a CoW - debugger(current) inserting a
-	 *     breakpoint in debugged task. Not creating a TLB now is not
+	 *     breakpoint in debugged task. Analt creating a TLB analw is analt
 	 *     performance critical.
 	 *
-	 * Both the cases above are not good enough for code churn.
+	 * Both the cases above are analt good eanalugh for code churn.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;
@@ -453,7 +453,7 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
 	else
 		rwx |= (rwx << 3);	/* r w x => Kr Kw Kx Ur Uw Ux */
 
-	pd1 = rwx | (pte_val(*ptep) & PTE_BITS_NON_RWX_IN_PD1);
+	pd1 = rwx | (pte_val(*ptep) & PTE_BITS_ANALN_RWX_IN_PD1);
 
 	tlb_entry_insert(pd0, pd1);
 
@@ -466,8 +466,8 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
  *  -Finalize the delayed D-cache flush of kernel mapping of page due to
  *  	flush_dcache_page(), copy_user_page()
  *
- * Note that flush (when done) involves both WBACK - so physical page is
- * in sync as well as INV - so any non-congruent aliases don't remain
+ * Analte that flush (when done) involves both WBACK - so physical page is
+ * in sync as well as INV - so any analn-congruent aliases don't remain
  */
 void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 		unsigned long vaddr_unaligned, pte_t *ptep, unsigned int nr)
@@ -482,7 +482,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 		return;
 
 	/*
-	 * For executable pages, since icache doesn't snoop dcache, any
+	 * For executable pages, since icache doesn't sanalop dcache, any
 	 * dirty K-mapping of a code page needs to be wback+inv so that
 	 * icache fetch by userspace sees code correctly.
 	 */
@@ -510,7 +510,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
  * MMUv4 in HS38x cores supports Super Pages which are basis for Linux THP
  * support.
  *
- * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
+ * Analrmal and Super pages can co-exist (ofcourse analt overlap) in TLB with a
  * new bit "SZ" in TLB page descriptor to distinguish between them.
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
@@ -522,7 +522,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
  * So for above default, THP size supported is 8K * (2^8) = 2M
  *
  * Default Page Walker is 2 levels, PGD:PTE:PFN, which in THP regime
- * reduces to 1 level (as PTE is folded into PGD and canonically referred
+ * reduces to 1 level (as PTE is folded into PGD and caanalnically referred
  * to as PMD).
  * Thus THP PMD accessors are implemented in terms of PTE (just like sparc)
  */
@@ -544,10 +544,10 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 	cpu = smp_processor_id();
 
-	if (likely(asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID)) {
+	if (likely(asid_mm(vma->vm_mm, cpu) != MM_CTXT_ANAL_ASID)) {
 		unsigned int asid = hw_pid(vma->vm_mm, cpu);
 
-		/* No need to loop here: this will always be for 1 Huge Page */
+		/* Anal need to loop here: this will always be for 1 Huge Page */
 		tlb_entry_erase(start | _PAGE_HW_SZ | asid);
 	}
 
@@ -558,7 +558,7 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 
 /* Read the Cache Build Configuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
- * No Validation is done here, simply read/convert the BCRs
+ * Anal Validation is done here, simply read/convert the BCRs
  */
 int arc_mmu_mumbojumbo(int c, char *buf, int len)
 {
@@ -608,7 +608,7 @@ int arc_mmu_mumbojumbo(int c, char *buf, int len)
 	return n;
 }
 
-int pae40_exist_but_not_enab(void)
+int pae40_exist_but_analt_enab(void)
 {
 	return mmuinfo.pae && !is_pae40_enabled();
 }
@@ -660,7 +660,7 @@ void arc_mmu_init(void)
 	/* cache the pgd pointer in MMU SCRATCH reg (ARCv2 only) */
 	mmu_setup_pgd(NULL, swapper_pg_dir);
 
-	if (pae40_exist_but_not_enab())
+	if (pae40_exist_but_analt_enab())
 		write_aux_reg(ARC_REG_TLBPD1HI, 0);
 }
 
@@ -675,19 +675,19 @@ void arc_mmu_init(void)
  *		~		    ~	~	  ~
  * [set127]	| 508| 509| 510| 511|	| 254| 255|
  *		---------------------	-----------
- * For normal operations we don't(must not) care how above works since
+ * For analrmal operations we don't(must analt) care how above works since
  * MMU cmd getIndex(vaddr) abstracts that out.
- * However for walking WAYS of a SET, we need to know this
+ * However for walking WAYS of a SET, we need to kanalw this
  */
 #define SET_WAY_TO_IDX(mmu, set, way)  ((set) * mmu->ways + (way))
 
 /* Handling of Duplicate PD (TLB entry) in MMU.
  * -Could be due to buggy customer tapeouts or obscure kernel bugs
- * -MMU complaints not at the time of duplicate PD installation, but at the
+ * -MMU complaints analt at the time of duplicate PD installation, but at the
  *      time of lookup matching multiple ways.
  * -Ideally these should never happen - but if they do - workaround by deleting
  *      the duplicate one.
- * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
+ * -Kanalb to be verbose abt it.(TODO: hook them up to debugfs)
  */
 volatile int dup_pd_silent; /* Be silent abt it or complain (default) */
 
@@ -740,7 +740,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 						pd0[way], set, way, n);
 
 				/*
-				 * clear entry @way and not @n.
+				 * clear entry @way and analt @n.
 				 * This is critical to our optimised loop
 				 */
 				pd0[way] = 0;

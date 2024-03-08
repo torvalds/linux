@@ -2,9 +2,9 @@
 /*
  * ispvideo.c
  *
- * TI OMAP3 ISP - Generic video node
+ * TI OMAP3 ISP - Generic video analde
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -33,7 +33,7 @@
  */
 
 /*
- * NOTE: When adding new media bus codes, always remember to add
+ * ANALTE: When adding new media bus codes, always remember to add
  * corresponding in-memory formats to the table below!!!
  */
 static struct isp_format_info formats[] = {
@@ -188,7 +188,7 @@ static void isp_video_pix_to_mbus(const struct v4l2_pix_format *pix,
 	mbus->width = pix->width;
 	mbus->height = pix->height;
 
-	/* Skip the last format in the loop so that it will be selected if no
+	/* Skip the last format in the loop so that it will be selected if anal
 	 * match is found.
 	 */
 	for (i = 0; i < ARRAY_SIZE(formats) - 1; ++i) {
@@ -344,11 +344,11 @@ static int isp_video_buffer_prepare(struct vb2_buffer *buf)
 	struct isp_video *video = vfh->video;
 	dma_addr_t addr;
 
-	/* Refuse to prepare the buffer is the video node has registered an
+	/* Refuse to prepare the buffer is the video analde has registered an
 	 * error. We don't need to take any lock here as the operation is
 	 * inherently racy. The authoritative check will be performed in the
 	 * queue handler, which can't return an error, this check is just a best
-	 * effort to notify userspace as early as possible.
+	 * effort to analtify userspace as early as possible.
 	 */
 	if (unlikely(video->error))
 		return -EIO;
@@ -428,7 +428,7 @@ static void isp_video_buffer_queue(struct vb2_buffer *buf)
  * @video: ISP video object
  * @state: new state for the returned buffers
  *
- * Return all buffers queued on the video node to videobuf2 in the given state.
+ * Return all buffers queued on the video analde to videobuf2 in the given state.
  * The buffer state should be VB2_BUF_STATE_QUEUED if called due to an error
  * when starting the stream, or VB2_BUF_STATE_ERROR otherwise.
  *
@@ -456,7 +456,7 @@ static int isp_video_start_streaming(struct vb2_queue *queue,
 	unsigned long flags;
 	int ret;
 
-	/* In sensor-to-memory mode, the stream can be started synchronously
+	/* In sensor-to-memory mode, the stream can be started synchroanalusly
 	 * to the stream on command. In memory-to-memory mode, it will be
 	 * started when buffers are queued on both the input and output.
 	 */
@@ -494,9 +494,9 @@ static const struct vb2_ops isp_video_queue_ops = {
  * Remove the current video buffer from the DMA queue and fill its timestamp and
  * field count before handing it back to videobuf2.
  *
- * For capture video nodes the buffer state is set to VB2_BUF_STATE_DONE if no
+ * For capture video analdes the buffer state is set to VB2_BUF_STATE_DONE if anal
  * error has been flagged in the pipeline, or to VB2_BUF_STATE_ERROR otherwise.
- * For video output nodes the buffer state is always set to VB2_BUF_STATE_DONE.
+ * For video output analdes the buffer state is always set to VB2_BUF_STATE_DONE.
  *
  * The DMA queue is expected to contain at least one buffer.
  *
@@ -523,10 +523,10 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 
 	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
-	/* Do frame number propagation only if this is the output video node.
+	/* Do frame number propagation only if this is the output video analde.
 	 * Frame number either comes from the CSI receivers or it gets
-	 * incremented here if H3A is not active.
-	 * Note: There is no guarantee that the output buffer will finish
+	 * incremented here if H3A is analt active.
+	 * Analte: There is anal guarantee that the output buffer will finish
 	 * first, so the input number might lag behind by 1 in some cases.
 	 */
 	if (video == pipe->output && !pipe->do_propagation)
@@ -535,7 +535,7 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	else
 		buf->vb.sequence = atomic_read(&pipe->frame_number);
 
-	if (pipe->field != V4L2_FIELD_NONE)
+	if (pipe->field != V4L2_FIELD_ANALNE)
 		buf->vb.sequence /= 2;
 
 	buf->vb.field = pipe->field;
@@ -587,11 +587,11 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 }
 
 /*
- * omap3isp_video_cancel_stream - Cancel stream on a video node
+ * omap3isp_video_cancel_stream - Cancel stream on a video analde
  * @video: ISP video object
  *
- * Cancelling a stream returns all buffers queued on the video node to videobuf2
- * in the erroneous state and makes sure no new buffer can be queued.
+ * Cancelling a stream returns all buffers queued on the video analde to videobuf2
+ * in the erroneous state and makes sure anal new buffer can be queued.
  */
 void omap3isp_video_cancel_stream(struct isp_video *video)
 {
@@ -682,16 +682,16 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 
 	/* Replace unsupported field orders with sane defaults. */
 	switch (format->fmt.pix.field) {
-	case V4L2_FIELD_NONE:
+	case V4L2_FIELD_ANALNE:
 		/* Progressive is supported everywhere. */
 		break;
 	case V4L2_FIELD_ALTERNATE:
-		/* ALTERNATE is not supported on output nodes. */
+		/* ALTERNATE is analt supported on output analdes. */
 		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-			format->fmt.pix.field = V4L2_FIELD_NONE;
+			format->fmt.pix.field = V4L2_FIELD_ANALNE;
 		break;
 	case V4L2_FIELD_INTERLACED:
-		/* The ISP has no concept of video standard, select the
+		/* The ISP has anal concept of video standard, select the
 		 * top-bottom order when the unqualified interlaced order is
 		 * requested.
 		 */
@@ -701,7 +701,7 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	case V4L2_FIELD_INTERLACED_BT:
 		/* Interlaced orders are only supported at the CCDC output. */
 		if (video != &video->isp->isp_ccdc.video_out)
-			format->fmt.pix.field = V4L2_FIELD_NONE;
+			format->fmt.pix.field = V4L2_FIELD_ANALNE;
 		break;
 	case V4L2_FIELD_TOP:
 	case V4L2_FIELD_BOTTOM:
@@ -711,7 +711,7 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 		/* All other field orders are currently unsupported, default to
 		 * progressive.
 		 */
-		format->fmt.pix.field = V4L2_FIELD_NONE;
+		format->fmt.pix.field = V4L2_FIELD_ANALNE;
 		break;
 	}
 
@@ -751,7 +751,7 @@ isp_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 	fmt.pad = pad;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
 	if (ret)
-		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
+		return ret == -EANALIOCTLCMD ? -EANALTTY : ret;
 
 	isp_video_mbus_to_pix(video, &fmt.format, &format->fmt.pix);
 	return 0;
@@ -792,20 +792,20 @@ isp_video_get_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 	if (subdev == NULL)
 		return -EINVAL;
 
-	/* Try the get selection operation first and fallback to get format if not
+	/* Try the get selection operation first and fallback to get format if analt
 	 * implemented.
 	 */
 	sdsel.pad = pad;
 	ret = v4l2_subdev_call(subdev, pad, get_selection, NULL, &sdsel);
 	if (!ret)
 		sel->r = sdsel.r;
-	if (ret != -ENOIOCTLCMD)
+	if (ret != -EANALIOCTLCMD)
 		return ret;
 
 	format.pad = pad;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &format);
 	if (ret < 0)
-		return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
+		return ret == -EANALIOCTLCMD ? -EANALTTY : ret;
 
 	sel->r.left = 0;
 	sel->r.top = 0;
@@ -852,7 +852,7 @@ isp_video_set_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 	if (!ret)
 		sel->r = sdsel.r;
 
-	return ret == -ENOIOCTLCMD ? -ENOTTY : ret;
+	return ret == -EANALIOCTLCMD ? -EANALTTY : ret;
 }
 
 static int
@@ -883,8 +883,8 @@ isp_video_set_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 	    video->type != a->type)
 		return -EINVAL;
 
-	if (a->parm.output.timeperframe.denominator == 0)
-		a->parm.output.timeperframe.denominator = 1;
+	if (a->parm.output.timeperframe.deanalminator == 0)
+		a->parm.output.timeperframe.deanalminator = 1;
 
 	vfh->timeperframe = a->parm.output.timeperframe;
 
@@ -941,7 +941,7 @@ isp_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	int ret;
 
 	mutex_lock(&video->queue_lock);
-	ret = vb2_dqbuf(&vfh->queue, b, file->f_flags & O_NONBLOCK);
+	ret = vb2_dqbuf(&vfh->queue, b, file->f_flags & O_ANALNBLOCK);
 	mutex_unlock(&video->queue_lock);
 
 	return ret;
@@ -968,7 +968,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	unsigned int i;
 	int ret;
 
-	/* Memory-to-memory pipelines have no external subdev. */
+	/* Memory-to-memory pipelines have anal external subdev. */
 	if (pipe->input != NULL)
 		return 0;
 
@@ -988,7 +988,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	}
 
 	if (!source) {
-		dev_warn(isp->dev, "can't find source, failing now\n");
+		dev_warn(isp->dev, "can't find source, failing analw\n");
 		return -EINVAL;
 	}
 
@@ -1018,7 +1018,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	ret = v4l2_g_ext_ctrls(pipe->external->ctrl_handler, &video->video,
 			       NULL, &ctrls);
 	if (ret < 0) {
-		dev_warn(isp->dev, "no pixel rate control in subdev %s\n",
+		dev_warn(isp->dev, "anal pixel rate control in subdev %s\n",
 			 pipe->external->name);
 		return ret;
 	}
@@ -1034,7 +1034,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 		 */
 		omap3isp_ccdc_max_rate(&isp->isp_ccdc, &rate);
 		if (pipe->external_rate > rate)
-			return -ENOSPC;
+			return -EANALSPC;
 	}
 
 	return 0;
@@ -1044,15 +1044,15 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
  * Stream management
  *
  * Every ISP pipeline has a single input and a single output. The input can be
- * either a sensor or a video node. The output is always a video node.
+ * either a sensor or a video analde. The output is always a video analde.
  *
- * As every pipeline has an output video node, the ISP video objects at the
+ * As every pipeline has an output video analde, the ISP video objects at the
  * pipeline output stores the pipeline state. It tracks the streaming state of
  * both the input and output, as well as the availability of buffers.
  *
  * In sensor-to-memory mode, frames are always available at the pipeline input.
  * Starting the sensor usually requires I2C transfers and must be done in
- * interruptible context. The pipeline is started and stopped synchronously
+ * interruptible context. The pipeline is started and stopped synchroanalusly
  * to the stream on/off commands. All modules in the pipeline will get their
  * subdev set stream handler called. The module at the end of the pipeline must
  * delay starting the hardware until buffers are available at its output.
@@ -1069,7 +1069,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
  * Stream start must be delayed until buffers are available at both the input
  * and output. The pipeline must be started in the vb2 queue callback with
  * the buffers queue spinlock held. The modules subdev set stream operation must
- * not sleep.
+ * analt sleep.
  */
 static int
 isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
@@ -1086,7 +1086,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_lock(&video->stream_lock);
 
-	/* Start streaming on the pipeline. No link touching an entity in the
+	/* Start streaming on the pipeline. Anal link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
 	pipe = to_isp_pipeline(&video->video.entity) ? : &video->pipe;
@@ -1192,7 +1192,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	mutex_lock(&video->stream_lock);
 
-	/* Make sure we're not streaming yet. */
+	/* Make sure we're analt streaming yet. */
 	mutex_lock(&video->queue_lock);
 	streaming = vb2_is_streaming(&vfh->queue);
 	mutex_unlock(&video->queue_lock);
@@ -1294,7 +1294,7 @@ static int isp_video_open(struct file *file)
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (handle == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	v4l2_fh_init(&handle->vfh, &video->video);
 	v4l2_fh_add(&handle->vfh);
@@ -1318,7 +1318,7 @@ static int isp_video_open(struct file *file)
 	queue->ops = &isp_video_queue_ops;
 	queue->mem_ops = &vb2_dma_contig_memops;
 	queue->buf_struct_size = sizeof(struct isp_buffer);
-	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	queue->dev = video->isp->dev;
 
 	ret = vb2_queue_init(&handle->queue);
@@ -1329,7 +1329,7 @@ static int isp_video_open(struct file *file)
 
 	memset(&handle->format, 0, sizeof(handle->format));
 	handle->format.type = video->type;
-	handle->timeperframe.denominator = 1;
+	handle->timeperframe.deanalminator = 1;
 
 	handle->video = video;
 	file->private_data = &handle->vfh;
@@ -1481,7 +1481,7 @@ int omap3isp_video_register(struct isp_video *video, struct v4l2_device *vdev)
 	ret = video_register_device(&video->video, VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		dev_err(video->isp->dev,
-			"%s: could not register video device (%d)\n",
+			"%s: could analt register video device (%d)\n",
 			__func__, ret);
 
 	return ret;

@@ -8,7 +8,7 @@ Description:
 
 		==  ===================================
 		 1  major number
-		 2  minor number
+		 2  mianalr number
 		 3  device name
 		 4  reads completed successfully
 		 5  reads merged

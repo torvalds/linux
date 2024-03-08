@@ -13,7 +13,7 @@ static const char * const wcn36xx_firmware_caps_names[] = {
 	DEFINE(DOT11AC_OPMODE),
 	DEFINE(SAP32STA),
 	DEFINE(TDLS),
-	DEFINE(P2P_GO_NOA_DECOUPLE_INIT_SCAN),
+	DEFINE(P2P_GO_ANALA_DECOUPLE_INIT_SCAN),
 	DEFINE(WLANACTIVE_OFFLOAD),
 	DEFINE(BEACON_OFFLOAD),
 	DEFINE(SCAN_OFFLOAD),
@@ -74,7 +74,7 @@ static const char * const wcn36xx_firmware_caps_names[] = {
 const char *wcn36xx_firmware_get_cap_name(enum wcn36xx_firmware_feat_caps x)
 {
 	if (x >= ARRAY_SIZE(wcn36xx_firmware_caps_names))
-		return "UNKNOWN";
+		return "UNKANALWN";
 	return wcn36xx_firmware_caps_names[x];
 }
 

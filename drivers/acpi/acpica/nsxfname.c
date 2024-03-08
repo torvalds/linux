@@ -37,7 +37,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *
  * DESCRIPTION: This routine will search for a caller specified name in the
  *              name space. The caller can restrict the search region by
- *              specifying a non NULL parent. The parent value is itself a
+ *              specifying a analn NULL parent. The parent value is itself a
  *              namespace handle.
  *
  ******************************************************************************/
@@ -47,8 +47,8 @@ acpi_get_handle(acpi_handle parent,
 		const char *pathname, acpi_handle *ret_handle)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node = NULL;
-	struct acpi_namespace_node *prefix_node = NULL;
+	struct acpi_namespace_analde *analde = NULL;
+	struct acpi_namespace_analde *prefix_analde = NULL;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -58,11 +58,11 @@ acpi_get_handle(acpi_handle parent,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Convert a parent handle to a prefix node */
+	/* Convert a parent handle to a prefix analde */
 
 	if (parent) {
-		prefix_node = acpi_ns_validate_handle(parent);
-		if (!prefix_node) {
+		prefix_analde = acpi_ns_validate_handle(parent);
+		if (!prefix_analde) {
 			return (AE_BAD_PARAMETER);
 		}
 	}
@@ -82,22 +82,22 @@ acpi_get_handle(acpi_handle parent,
 
 		if (!strcmp(pathname, ACPI_NS_ROOT_PATH)) {
 			*ret_handle =
-			    ACPI_CAST_PTR(acpi_handle, acpi_gbl_root_node);
+			    ACPI_CAST_PTR(acpi_handle, acpi_gbl_root_analde);
 			return (AE_OK);
 		}
-	} else if (!prefix_node) {
+	} else if (!prefix_analde) {
 
 		/* Relative path with null prefix is disallowed */
 
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Find the Node and convert to a handle */
+	/* Find the Analde and convert to a handle */
 
 	status =
-	    acpi_ns_get_node(prefix_node, pathname, ACPI_NS_NO_UPSEARCH, &node);
+	    acpi_ns_get_analde(prefix_analde, pathname, ACPI_NS_ANAL_UPSEARCH, &analde);
 	if (ACPI_SUCCESS(status)) {
-		*ret_handle = ACPI_CAST_PTR(acpi_handle, node);
+		*ret_handle = ACPI_CAST_PTR(acpi_handle, analde);
 	}
 
 	return (status);
@@ -138,7 +138,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 
 	/*
 	 * Wants the single segment ACPI name.
-	 * Validate handle and convert to a namespace Node
+	 * Validate handle and convert to a namespace Analde
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -146,7 +146,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer *buffer)
 	}
 
 	if (name_type == ACPI_FULL_PATHNAME ||
-	    name_type == ACPI_FULL_PATHNAME_NO_TRAILING) {
+	    name_type == ACPI_FULL_PATHNAME_ANAL_TRAILING) {
 
 		/* Get the full pathname (From the namespace root) */
 
@@ -204,18 +204,18 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  * RETURN:      Status
  *
  * DESCRIPTION: Returns information about an object as gleaned from the
- *              namespace node and possibly by running several standard
+ *              namespace analde and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
  * For Device and Processor objects, run the Device _HID, _UID, _CID,
  * _CLS, _ADR, _sx_w, and _sx_d methods.
  *
- * Note: Allocates the return buffer, must be freed by the caller.
+ * Analte: Allocates the return buffer, must be freed by the caller.
  *
- * Note: This interface is intended to be used during the initial device
- * discovery namespace traversal. Therefore, no complex methods can be
+ * Analte: This interface is intended to be used during the initial device
+ * discovery namespace traversal. Therefore, anal complex methods can be
  * executed, especially those that access operation regions. Therefore, do
- * not add any additional methods that could cause problems in this area.
+ * analt add any additional methods that could cause problems in this area.
  * Because of this reason support for the following methods has been removed:
  * 1) _SUB method was removed (11/2015)
  * 2) _STA method was removed (02/2018)
@@ -226,7 +226,7 @@ acpi_status
 acpi_get_object_info(acpi_handle handle,
 		     struct acpi_device_info **return_buffer)
 {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	struct acpi_device_info *info;
 	struct acpi_pnp_device_id_list *cid_list = NULL;
 	struct acpi_pnp_device_id *hid = NULL;
@@ -252,20 +252,20 @@ acpi_get_object_info(acpi_handle handle,
 		return (status);
 	}
 
-	node = acpi_ns_validate_handle(handle);
-	if (!node) {
+	analde = acpi_ns_validate_handle(handle);
+	if (!analde) {
 		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Get the namespace node data while the namespace is locked */
+	/* Get the namespace analde data while the namespace is locked */
 
 	info_size = sizeof(struct acpi_device_info);
-	type = node->type;
-	name = node->name.integer;
+	type = analde->type;
+	name = analde->name.integer;
 
-	if (node->type == ACPI_TYPE_METHOD) {
-		param_count = node->object->method.param_count;
+	if (analde->type == ACPI_TYPE_METHOD) {
+		param_count = analde->object->method.param_count;
 	}
 
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
@@ -278,14 +278,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the Device _HID, _UID, _CLS, and _CID methods.
 		 *
-		 * Note: none of these methods are required, so they may or may
-		 * not be present for this device. The Info->Valid bitfield is used
+		 * Analte: analne of these methods are required, so they may or may
+		 * analt be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
 		 */
 
 		/* Execute the Device._HID method */
 
-		status = acpi_ut_execute_HID(node, &hid);
+		status = acpi_ut_execute_HID(analde, &hid);
 		if (ACPI_SUCCESS(status)) {
 			info_size += hid->length;
 			valid |= ACPI_VALID_HID;
@@ -293,7 +293,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._UID method */
 
-		status = acpi_ut_execute_UID(node, &uid);
+		status = acpi_ut_execute_UID(analde, &uid);
 		if (ACPI_SUCCESS(status)) {
 			info_size += uid->length;
 			valid |= ACPI_VALID_UID;
@@ -301,7 +301,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._CID method */
 
-		status = acpi_ut_execute_CID(node, &cid_list);
+		status = acpi_ut_execute_CID(analde, &cid_list);
 		if (ACPI_SUCCESS(status)) {
 
 			/* Add size of CID strings and CID pointer array */
@@ -314,7 +314,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._CLS method */
 
-		status = acpi_ut_execute_CLS(node, &cls);
+		status = acpi_ut_execute_CLS(analde, &cls);
 		if (ACPI_SUCCESS(status)) {
 			info_size += cls->length;
 			valid |= ACPI_VALID_CLS;
@@ -322,12 +322,12 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	/*
-	 * Now that we have the variable-length data, we can allocate the
+	 * Analw that we have the variable-length data, we can allocate the
 	 * return buffer
 	 */
 	info = ACPI_ALLOCATE_ZEROED(info_size);
 	if (!info) {
-		status = AE_NO_MEMORY;
+		status = AE_ANAL_MEMORY;
 		goto cleanup;
 	}
 
@@ -338,14 +338,14 @@ acpi_get_object_info(acpi_handle handle,
 		 * Get extra info for ACPI Device/Processor objects only:
 		 * Run the _ADR and, sx_w, and _sx_d methods.
 		 *
-		 * Notes: none of these methods are required, so they may or may
-		 * not be present for this device. The Info->Valid bitfield is used
+		 * Analtes: analne of these methods are required, so they may or may
+		 * analt be present for this device. The Info->Valid bitfield is used
 		 * to indicate which methods were found and run successfully.
 		 */
 
 		/* Execute the Device._ADR method */
 
-		status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, node,
+		status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR, analde,
 							 &info->address);
 		if (ACPI_SUCCESS(status)) {
 			valid |= ACPI_VALID_ADR;
@@ -353,7 +353,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._sx_w methods */
 
-		status = acpi_ut_execute_power_methods(node,
+		status = acpi_ut_execute_power_methods(analde,
 						       acpi_gbl_lowest_dstate_names,
 						       ACPI_NUM_sx_w_METHODS,
 						       info->lowest_dstates);
@@ -363,7 +363,7 @@ acpi_get_object_info(acpi_handle handle,
 
 		/* Execute the Device._sx_d methods */
 
-		status = acpi_ut_execute_power_methods(node,
+		status = acpi_ut_execute_power_methods(analde,
 						       acpi_gbl_highest_dstate_names,
 						       ACPI_NUM_sx_d_METHODS,
 						       info->highest_dstates);
@@ -479,7 +479,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	u8 *aml_buffer;
 	u8 *aml_start;
 	char *path;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_analde *analde;
 	union acpi_operand_object *method_obj;
 	struct acpi_parse_state parser_state;
 	u32 aml_length;
@@ -520,32 +520,32 @@ acpi_status acpi_install_method(u8 *buffer)
 
 	/*
 	 * Allocate resources up-front. We don't want to have to delete a new
-	 * node from the namespace if we cannot allocate memory.
+	 * analde from the namespace if we cananalt allocate memory.
 	 */
 	aml_buffer = ACPI_ALLOCATE(aml_length);
 	if (!aml_buffer) {
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
 	method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
 	if (!method_obj) {
 		ACPI_FREE(aml_buffer);
-		return (AE_NO_MEMORY);
+		return (AE_ANAL_MEMORY);
 	}
 
-	/* Lock namespace for acpi_ns_lookup, we may be creating a new node */
+	/* Lock namespace for acpi_ns_lookup, we may be creating a new analde */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		goto error_exit;
 	}
 
-	/* The lookup either returns an existing node or creates a new one */
+	/* The lookup either returns an existing analde or creates a new one */
 
 	status =
 	    acpi_ns_lookup(NULL, path, ACPI_TYPE_METHOD, ACPI_IMODE_LOAD_PASS1,
 			   ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND,
-			   NULL, &node);
+			   NULL, &analde);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
@@ -554,9 +554,9 @@ acpi_status acpi_install_method(u8 *buffer)
 			goto error_exit;
 		}
 
-		/* Node existed previously, make sure it is a method node */
+		/* Analde existed previously, make sure it is a method analde */
 
-		if (node->type != ACPI_TYPE_METHOD) {
+		if (analde->type != ACPI_TYPE_METHOD) {
 			status = AE_TYPE;
 			goto error_exit;
 		}
@@ -582,16 +582,16 @@ acpi_status acpi_install_method(u8 *buffer)
 	}
 
 	/*
-	 * Now that it is complete, we can attach the new method object to
-	 * the method Node (detaches/deletes any existing object)
+	 * Analw that it is complete, we can attach the new method object to
+	 * the method Analde (detaches/deletes any existing object)
 	 */
-	status = acpi_ns_attach_object(node, method_obj, ACPI_TYPE_METHOD);
+	status = acpi_ns_attach_object(analde, method_obj, ACPI_TYPE_METHOD);
 
 	/*
 	 * Flag indicates AML buffer is dynamic, must be deleted later.
 	 * Must be set only after attach above.
 	 */
-	node->flags |= ANOBJ_ALLOCATED_BUFFER;
+	analde->flags |= AANALBJ_ALLOCATED_BUFFER;
 
 	/* Remove local reference to the method object */
 

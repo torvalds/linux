@@ -1614,7 +1614,7 @@ static int gcc_sdx55_probe(struct platform_device *pdev)
 	/*
 	 * Keep the clocks always-ON as they are critical to the functioning
 	 * of the system:
-	 * GCC_SYS_NOC_CPUSS_AHB_CLK, GCC_CPUSS_AHB_CLK, GCC_CPUSS_GNOC_CLK
+	 * GCC_SYS_ANALC_CPUSS_AHB_CLK, GCC_CPUSS_AHB_CLK, GCC_CPUSS_GANALC_CLK
 	 */
 	regmap_update_bits(regmap, 0x6d008, BIT(0), BIT(0));
 	regmap_update_bits(regmap, 0x6d008, BIT(21), BIT(21));

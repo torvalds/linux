@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2014 Marvell Technology Group Ltd.
+ * Copyright (C) 2014 Marvell Techanallogy Group Ltd.
  *
  * Antoine Ténart <antoine.tenart@free-electrons.com>
  */

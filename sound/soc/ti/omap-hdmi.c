@@ -72,14 +72,14 @@ static int hdmi_dai_startup(struct snd_pcm_substream *substream,
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 128);
 	if (ret < 0) {
-		dev_err(dai->dev, "Could not apply period constraint: %d\n",
+		dev_err(dai->dev, "Could analt apply period constraint: %d\n",
 			ret);
 		return ret;
 	}
 	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
 					 SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 128);
 	if (ret < 0) {
-		dev_err(dai->dev, "Could not apply buffer constraint: %d\n",
+		dev_err(dai->dev, "Could analt apply buffer constraint: %d\n",
 			ret);
 		return ret;
 	}
@@ -119,7 +119,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		ad->dma_data.maxburst = 32;
 		break;
 	default:
-		dev_err(dai->dev, "format not supported!\n");
+		dev_err(dai->dev, "format analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -135,11 +135,11 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	iec->status[0] &= ~IEC958_AES0_PROFESSIONAL;
 
 	/* specify that the audio is LPCM*/
-	iec->status[0] &= ~IEC958_AES0_NONAUDIO;
+	iec->status[0] &= ~IEC958_AES0_ANALNAUDIO;
 
-	iec->status[0] |= IEC958_AES0_CON_NOT_COPYRIGHT;
+	iec->status[0] |= IEC958_AES0_CON_ANALT_COPYRIGHT;
 
-	iec->status[0] |= IEC958_AES0_CON_EMPHASIS_NONE;
+	iec->status[0] |= IEC958_AES0_CON_EMPHASIS_ANALNE;
 
 	iec->status[1] = IEC958_AES1_CON_GENERAL;
 
@@ -170,7 +170,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		iec->status[3] |= IEC958_AES3_CON_FS_192000;
 		break;
 	default:
-		dev_err(dai->dev, "rate not supported!\n");
+		dev_err(dai->dev, "rate analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -192,7 +192,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 		iec->status[4] |= IEC958_AES4_CON_MAX_WORDLEN_24;
 		break;
 	default:
-		dev_err(dai->dev, "format not supported!\n");
+		dev_err(dai->dev, "format analt supported!\n");
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	cea->db2_sf_ss = CEA861_AUDIO_INFOFRAME_DB2SF_FROM_STREAM;
 	cea->db2_sf_ss |= CEA861_AUDIO_INFOFRAME_DB2SS_FROM_STREAM;
 
-	cea->db3 = 0; /* not used, all zeros */
+	cea->db3 = 0; /* analt used, all zeros */
 
 	if (params_channels(params) == 2)
 		cea->db4_ca = 0x0;
@@ -317,13 +317,13 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!ha) {
-		dev_err(dev, "No platform data\n");
+		dev_err(dev, "Anal platform data\n");
 		return -EINVAL;
 	}
 
 	ad = devm_kzalloc(dev, sizeof(*ad), GFP_KERNEL);
 	if (!ad)
-		return -ENOMEM;
+		return -EANALMEM;
 	ad->dssdev = ha->dev;
 	ad->ops = ha->ops;
 	ad->dma_data.addr = ha->audio_dma_addr;
@@ -352,22 +352,22 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 
 	card = devm_kzalloc(dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->name = devm_kasprintf(dev, GFP_KERNEL,
 				    "HDMI %s", dev_name(ad->dssdev));
 	if (!card->name)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	card->owner = THIS_MODULE;
 	card->dai_link =
 		devm_kzalloc(dev, sizeof(*(card->dai_link)), GFP_KERNEL);
 	if (!card->dai_link)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	compnent = devm_kzalloc(dev, sizeof(*compnent), GFP_KERNEL);
 	if (!compnent)
-		return -ENOMEM;
+		return -EANALMEM;
 	card->dai_link->cpus		= compnent;
 	card->dai_link->num_cpus	= 1;
 	card->dai_link->codecs		= &snd_soc_dummy_dlc;

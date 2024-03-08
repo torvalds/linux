@@ -144,7 +144,7 @@
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_3, BPF_REG_10),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_3, 123, 0),
-	/* not a register spill, so we stop precision propagation for R4 here */
+	/* analt a register spill, so we stop precision propagation for R4 here */
 	BPF_ST_MEM(BPF_DW, BPF_REG_3, -8, 0),
 	BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
 	BPF_MOV64_IMM(BPF_REG_0, -1),
@@ -170,7 +170,7 @@
 	"precise: STX insn causing spi > allocated_stack",
 	.insns = {
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
-	/* make later reg spill more interesting by having somewhat known scalar */
+	/* make later reg spill more interesting by having somewhat kanalwn scalar */
 	BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xff),
 	BPF_MOV64_REG(BPF_REG_3, BPF_REG_10),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_3, 123, 0),
@@ -260,5 +260,5 @@
 	.fixup_map_array_48b = { 13 },
 	.prog_type = BPF_PROG_TYPE_XDP,
 	.result = REJECT,
-	.errstr = "register with unbounded min value is not allowed",
+	.errstr = "register with unbounded min value is analt allowed",
 },

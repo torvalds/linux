@@ -1,7 +1,7 @@
 /*
- * inode.h
+ * ianalde.h
  *
  */
 
-int befs_check_inode(struct super_block *sb, befs_inode *raw_inode,
-		     befs_blocknr_t inode);
+int befs_check_ianalde(struct super_block *sb, befs_ianalde *raw_ianalde,
+		     befs_blocknr_t ianalde);

@@ -48,7 +48,7 @@ static void wm831x_config_backup(struct wm831x *wm831x)
 
 	if (!wm831x_pdata || !wm831x_pdata->backup) {
 		dev_warn(wm831x->dev,
-			 "No backup battery charger configuration\n");
+			 "Anal backup battery charger configuration\n");
 		return;
 	}
 
@@ -58,7 +58,7 @@ static void wm831x_config_backup(struct wm831x *wm831x)
 
 	if (pdata->charger_enable)
 		reg |= WM831X_BKUP_CHG_ENA | WM831X_BKUP_BATT_DET_ENA;
-	if (pdata->no_constant_voltage)
+	if (pdata->anal_constant_voltage)
 		reg |= WM831X_BKUP_CHG_MODE;
 
 	switch (pdata->vlim) {
@@ -126,10 +126,10 @@ static int wm831x_backup_get_prop(struct power_supply *psy,
 		if (ret & WM831X_BKUP_CHG_STS)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+			val->intval = POWER_SUPPLY_STATUS_ANALT_CHARGING;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+	case POWER_SUPPLY_PROP_VOLTAGE_ANALW:
 		ret = wm831x_backup_read_voltage(wm831x, WM831X_AUX_BKUP_BATT,
 						val);
 		break;
@@ -151,7 +151,7 @@ static int wm831x_backup_get_prop(struct power_supply *psy,
 
 static enum power_supply_property wm831x_backup_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_ANALW,
 	POWER_SUPPLY_PROP_PRESENT,
 };
 
@@ -168,12 +168,12 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	devdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_backup),
 				GFP_KERNEL);
 	if (devdata == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	devdata->wm831x = wm831x;
 	platform_set_drvdata(pdev, devdata);
 
-	/* We ignore configuration failures since we can still read
+	/* We iganalre configuration failures since we can still read
 	 * back the status without enabling the charger (which may
 	 * already be enabled anyway).
 	 */

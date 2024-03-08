@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erranal.h>
 #include <string.h>
 
 #include "../kselftest.h"
@@ -47,7 +47,7 @@ static void set_breakpoint_addr(void *addr, int n)
 		     offsetof(struct user, u_debugreg[n]), addr);
 	if (ret)
 		ksft_exit_fail_msg("Can't set breakpoint addr: %s\n",
-			strerror(errno));
+			strerror(erranal));
 }
 
 static void toggle_breakpoint(int n, int type, int len,
@@ -108,7 +108,7 @@ static void toggle_breakpoint(int n, int type, int len,
 	ret = ptrace(PTRACE_POKEUSER, child_pid,
 		     offsetof(struct user, u_debugreg[7]), dr7);
 	if (ret) {
-		ksft_print_msg("Can't set dr7: %s\n", strerror(errno));
+		ksft_print_msg("Can't set dr7: %s\n", strerror(erranal));
 		exit(-1);
 	}
 }
@@ -135,7 +135,7 @@ static void check_trapped(void)
 {
 	/*
 	 * If we haven't trapped, wake up the parent
-	 * so that it notices the failure.
+	 * so that it analtices the failure.
 	 */
 	if (!trapped)
 		kill(getpid(), SIGUSR1);
@@ -208,7 +208,7 @@ static void trigger_tests(void)
 
 	ret = ptrace(PTRACE_TRACEME, 0, NULL, 0);
 	if (ret) {
-		ksft_print_msg("Can't be traced? %s\n", strerror(errno));
+		ksft_print_msg("Can't be traced? %s\n", strerror(erranal));
 		return;
 	}
 
@@ -278,7 +278,7 @@ static void check_success(const char *msg)
 		if (child_nr_tests == nr_tests)
 			ret = 1;
 		if (ptrace(PTRACE_POKEDATA, child_pid, &trapped, 1))
-			ksft_exit_fail_msg("Can't poke: %s\n", strerror(errno));
+			ksft_exit_fail_msg("Can't poke: %s\n", strerror(erranal));
 	}
 
 	nr_tests++;

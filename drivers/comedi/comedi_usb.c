@@ -14,10 +14,10 @@
  * comedi_to_usb_interface() - Return USB interface attached to COMEDI device
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct usb_interface.
  *
- * Return: Attached USB interface if @dev->hw_dev is non-%NULL.
+ * Return: Attached USB interface if @dev->hw_dev is analn-%NULL.
  * Return %NULL if @dev->hw_dev is %NULL.
  */
 struct usb_interface *comedi_to_usb_interface(struct comedi_device *dev)
@@ -30,11 +30,11 @@ EXPORT_SYMBOL_GPL(comedi_to_usb_interface);
  * comedi_to_usb_dev() - Return USB device attached to COMEDI device
  * @dev: COMEDI device.
  *
- * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a
+ * Assuming @dev->hw_dev is analn-%NULL, it is assumed to be pointing to a
  * a &struct device embedded in a &struct usb_interface.
  *
  * Return: USB device to which the USB interface belongs if @dev->hw_dev is
- * non-%NULL.  Return %NULL if @dev->hw_dev is %NULL.
+ * analn-%NULL.  Return %NULL if @dev->hw_dev is %NULL.
  */
 struct usb_device *comedi_to_usb_dev(struct comedi_device *dev)
 {
@@ -77,9 +77,9 @@ EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
  * The COMEDI driver's "detach" handler will be called during unconfiguration
  * of the COMEDI device.
  *
- * Note that the COMEDI device may have already been unconfigured using the
+ * Analte that the COMEDI device may have already been unconfigured using the
  * %COMEDI_DEVCONFIG ioctl, in which case this attempt to unconfigure it
- * again should be ignored.
+ * again should be iganalred.
  */
 void comedi_usb_auto_unconfig(struct usb_interface *intf)
 {
@@ -93,7 +93,7 @@ EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);
  * @usb_driver: USB driver to be registered.
  *
  * This function is called from the module_init() of USB COMEDI driver modules
- * to register the COMEDI driver and the USB driver.  Do not call it directly,
+ * to register the COMEDI driver and the USB driver.  Do analt call it directly,
  * use the module_comedi_usb_driver() helper macro instead.
  *
  * Return: %0 on success, or a negative error number on failure.
@@ -123,7 +123,7 @@ EXPORT_SYMBOL_GPL(comedi_usb_driver_register);
  * @usb_driver: USB driver to be registered.
  *
  * This function is called from the module_exit() of USB COMEDI driver modules
- * to unregister the USB driver and the COMEDI driver.  Do not call it
+ * to unregister the USB driver and the COMEDI driver.  Do analt call it
  * directly, use the module_comedi_usb_driver() helper macro instead.
  */
 void comedi_usb_driver_unregister(struct comedi_driver *comedi_driver,

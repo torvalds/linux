@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Page Fault Handling for ARC (TLB Miss / ProtV)
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/signal.h>
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
@@ -23,7 +23,7 @@
  * It simply copies the PMD entry (pointer to 2nd level page table or hugepage)
  * from swapper pgdir to task pgdir. The 2nd level table/page is thus shared
  */
-noinline static int handle_kernel_vaddr_fault(unsigned long address)
+analinline static int handle_kernel_vaddr_fault(unsigned long address)
 {
 	/*
 	 * Synchronize this task's top level page-table
@@ -37,28 +37,28 @@ noinline static int handle_kernel_vaddr_fault(unsigned long address)
 	pgd = pgd_offset(current->active_mm, address);
 	pgd_k = pgd_offset_k(address);
 
-	if (pgd_none (*pgd_k))
+	if (pgd_analne (*pgd_k))
 		goto bad_area;
 	if (!pgd_present(*pgd))
 		set_pgd(pgd, *pgd_k);
 
 	p4d = p4d_offset(pgd, address);
 	p4d_k = p4d_offset(pgd_k, address);
-	if (p4d_none(*p4d_k))
+	if (p4d_analne(*p4d_k))
 		goto bad_area;
 	if (!p4d_present(*p4d))
 		set_p4d(p4d, *p4d_k);
 
 	pud = pud_offset(p4d, address);
 	pud_k = pud_offset(p4d_k, address);
-	if (pud_none(*pud_k))
+	if (pud_analne(*pud_k))
 		goto bad_area;
 	if (!pud_present(*pud))
 		set_pud(pud, *pud_k);
 
 	pmd = pmd_offset(pud, address);
 	pmd_k = pmd_offset(pud_k, address);
-	if (pmd_none(*pmd_k))
+	if (pmd_analne(*pmd_k))
 		goto bad_area;
 	if (!pmd_present(*pmd))
 		set_pmd(pmd, *pmd_k);
@@ -81,24 +81,24 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	unsigned int flags;			/* handle_mm_fault() input */
 
 	/*
-	 * NOTE! We MUST NOT take any locks for this case. We may
+	 * ANALTE! We MUST ANALT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * analthing more.
 	 */
 	if (address >= VMALLOC_START && !user_mode(regs)) {
 		if (unlikely(handle_kernel_vaddr_fault(address)))
-			goto no_context;
+			goto anal_context;
 		else
 			return;
 	}
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have anal user
+	 * context, we must analt take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto anal_context;
 
 	if (regs->ecr.cause & ECR_C_PROTV_STORE)	/* ST/EX */
 		write = 1;
@@ -116,10 +116,10 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 retry:
 	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area_nosemaphore;
+		goto bad_area_analsemaphore;
 
 	/*
-	 * vm_area is good, now check permissions for this memory access
+	 * vm_area is good, analw check permissions for this memory access
 	 */
 	mask = VM_READ;
 	if (write)
@@ -137,7 +137,7 @@ retry:
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
-			goto no_context;
+			goto anal_context;
 		return;
 	}
 
@@ -156,17 +156,17 @@ retry:
 bad_area:
 	mmap_read_unlock(mm);
 
-bad_area_nosemaphore:
+bad_area_analsemaphore:
 	/*
-	 * Major/minor page fault accounting
+	 * Major/mianalr page fault accounting
 	 * (in case of retry we only land here once)
 	 */
 	if (likely(!(fault & VM_FAULT_ERROR)))
-		/* Normal return path: fault Handled Gracefully */
+		/* Analrmal return path: fault Handled Gracefully */
 		return;
 
 	if (!user_mode(regs))
-		goto no_context;
+		goto anal_context;
 
 	if (fault & VM_FAULT_OOM) {
 		pagefault_out_of_memory();
@@ -185,7 +185,7 @@ bad_area_nosemaphore:
 	force_sig_fault(sig, si_code, (void __user *)address);
 	return;
 
-no_context:
+anal_context:
 	if (fixup_exception(regs))
 		return;
 

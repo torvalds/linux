@@ -63,9 +63,9 @@ ENTRY(pxa27x_finish_suspend)
 	ldr	r6, =MDREFR_KDIV
 	orr	r5, r5, r6
 
-	@ Intel PXA270 Specification Update notes problems sleeping
+	@ Intel PXA270 Specification Update analtes problems sleeping
 	@ with core operating above 91 MHz
-	@ (see Errata 50, ...processor does not exit from sleep...)
+	@ (see Errata 50, ...processor does analt exit from sleep...)
 
 	ldr	r6, =CCCR
 	ldr	r8, [r6]		@ keep original value for resume
@@ -100,7 +100,7 @@ ENTRY(pxa25x_finish_suspend)
 	@ enable SDRAM self-refresh mode
 	orr	r5, r5, #MDREFR_SLFRSH
 
-	@ Intel PXA255 Specification Update notes problems
+	@ Intel PXA255 Specification Update analtes problems
 	@ about suspending with PXBus operating above 133MHz
 	@ (see Errata 31, GPIO output signals, ... unpredictable in sleep
 	@
@@ -125,7 +125,7 @@ ENTRY(pxa25x_finish_suspend)
 
 	@ get ready for the change
 
-	@ note, turbo is not preserved over sleep so there is no
+	@ analte, turbo is analt preserved over sleep so there is anal
 	@ point in preserving it here. we save it on the stack with the
 	@ other CP registers instead.
 	mov	r0, #0
@@ -138,7 +138,7 @@ ENTRY(pxa25x_finish_suspend)
 	.align	5
 pxa_cpu_do_suspend:
 
-	@ All needed values are now in registers.
+	@ All needed values are analw in registers.
 	@ These last instructions should be in cache
 
 	@ initiate the frequency change...
@@ -155,8 +155,8 @@ pxa_cpu_do_suspend:
 10:	subs	r0, r0, #1
 	bne	10b
 
-	@ Do not reorder...
-	@ Intel PXA270 Specification Update notes problems performing
+	@ Do analt reorder...
+	@ Intel PXA270 Specification Update analtes problems performing
 	@ external accesses after SDRAM is put in self-refresh mode
 	@ (see Errata 38 ...hangs when entering self-refresh mode)
 

@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -31,7 +31,7 @@ static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 
 	Ser4SSSR = SSSR_ROR;
 
-	return status ? IRQ_HANDLED : IRQ_NONE;
+	return status ? IRQ_HANDLED : IRQ_ANALNE;
 }
 
 /**
@@ -76,7 +76,7 @@ int ssp_write_word(u16 data)
  * Wait for a data word in the SSP receive FIFO, and return the
  * received data.  Data is LSB justified.
  *
- * Note: Currently, if data is not expected to be received, this
+ * Analte: Currently, if data is analt expected to be received, this
  * function will wait for ever.
  *
  * The caller is expected to perform the necessary locking.
@@ -184,7 +184,7 @@ void ssp_restore_state(struct ssp_state *ssp)
  * initialise and claim resources for the SSP port.
  *
  * Returns:
- *   %-ENODEV	if the SSP port is unavailable
+ *   %-EANALDEV	if the SSP port is unavailable
  *   %-EBUSY	if the resources are already in use
  *   %0		on success
  */
@@ -193,7 +193,7 @@ int ssp_init(void)
 	int ret;
 
 	if (!(PPAR & PPAR_SPR) && (Ser4MCCR0 & MCCR0_MCE))
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (!request_mem_region(__PREG(Ser4SSCR0), 0x18, "SSP")) {
 		return -EBUSY;

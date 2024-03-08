@@ -23,7 +23,7 @@
 
 /* Various queue ctrls */
 enum i40e_queue_ctrl {
-	I40E_QUEUE_CTRL_UNKNOWN = 0,
+	I40E_QUEUE_CTRL_UNKANALWN = 0,
 	I40E_QUEUE_CTRL_ENABLE,
 	I40E_QUEUE_CTRL_ENABLECHECK,
 	I40E_QUEUE_CTRL_DISABLE,
@@ -84,7 +84,7 @@ struct i40e_vf {
 	bool trusted;
 
 	/* VSI indices - actual VSI pointers are maintained in the PF structure
-	 * When assigned, these will be non-zero, because VSI 0 is always
+	 * When assigned, these will be analn-zero, because VSI 0 is always
 	 * the main LAN VSI for the PF.
 	 */
 	u16 lan_vsi_idx;	/* index into PF struct */
@@ -122,7 +122,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 int i40e_vc_process_vflr_event(struct i40e_pf *pf);
 bool i40e_reset_vf(struct i40e_vf *vf, bool flr);
 bool i40e_reset_all_vfs(struct i40e_pf *pf, bool flr);
-void i40e_vc_notify_vf_reset(struct i40e_vf *vf);
+void i40e_vc_analtify_vf_reset(struct i40e_vf *vf);
 
 /* VF configuration related iplink handlers */
 int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
@@ -136,8 +136,8 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 int i40e_ndo_set_vf_link_state(struct net_device *netdev, int vf_id, int link);
 int i40e_ndo_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool enable);
 
-void i40e_vc_notify_link_state(struct i40e_pf *pf);
-void i40e_vc_notify_reset(struct i40e_pf *pf);
+void i40e_vc_analtify_link_state(struct i40e_pf *pf);
+void i40e_vc_analtify_reset(struct i40e_pf *pf);
 #ifdef CONFIG_PCI_IOV
 void i40e_restore_all_vfs_msi_state(struct pci_dev *pdev);
 #endif /* CONFIG_PCI_IOV */

@@ -77,7 +77,7 @@ static int atl_clk_enable(struct clk_hw *hw)
 		goto out;
 
 	if (unlikely(!cdesc->valid))
-		dev_warn(cdesc->cinfo->dev, "atl%d has not been configured\n",
+		dev_warn(cdesc->cinfo->dev, "atl%d has analt been configured\n",
 			 cdesc->id);
 	pm_runtime_get_sync(cdesc->cinfo->dev);
 
@@ -160,7 +160,7 @@ static const struct clk_ops atl_clk_ops = {
 	.set_rate	= atl_clk_set_rate,
 };
 
-static void __init of_dra7_atl_clock_setup(struct device_node *node)
+static void __init of_dra7_atl_clock_setup(struct device_analde *analde)
 {
 	struct dra7_atl_desc *clk_hw = NULL;
 	struct clk_parent_data pdata = { .index = 0 };
@@ -170,29 +170,29 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	if (!clk_hw) {
-		pr_err("%s: could not allocate dra7_atl_desc\n", __func__);
+		pr_err("%s: could analt allocate dra7_atl_desc\n", __func__);
 		return;
 	}
 
 	clk_hw->hw.init = &init;
 	clk_hw->divider = 1;
-	name = ti_dt_clk_name(node);
+	name = ti_dt_clk_name(analde);
 	init.name = name;
 	init.ops = &atl_clk_ops;
-	init.flags = CLK_IGNORE_UNUSED;
-	init.num_parents = of_clk_get_parent_count(node);
+	init.flags = CLK_IGANALRE_UNUSED;
+	init.num_parents = of_clk_get_parent_count(analde);
 
 	if (init.num_parents != 1) {
 		pr_err("%s: atl clock %pOFn must have 1 parent\n", __func__,
-		       node);
+		       analde);
 		goto cleanup;
 	}
 
 	init.parent_data = &pdata;
-	clk = of_ti_clk_register(node, &clk_hw->hw, name);
+	clk = of_ti_clk_register(analde, &clk_hw->hw, name);
 
 	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(analde, of_clk_src_simple_get, clk);
 		return;
 	}
 cleanup:
@@ -202,19 +202,19 @@ CLK_OF_DECLARE(dra7_atl_clock, "ti,dra7-atl-clock", of_dra7_atl_clock_setup);
 
 static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_analde *analde = pdev->dev.of_analde;
 	struct dra7_atl_clock_info *cinfo;
 	int i;
 	int ret = 0;
 
-	if (!node)
-		return -ENODEV;
+	if (!analde)
+		return -EANALDEV;
 
 	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	cinfo->iobase = of_iomap(node, 0);
+	cinfo->iobase = of_iomap(analde, 0);
 	cinfo->dev = &pdev->dev;
 	pm_runtime_enable(cinfo->dev);
 
@@ -222,14 +222,14 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 	atl_write(cinfo, DRA7_ATL_PCLKMUX_REG(0), DRA7_ATL_PCLKMUX);
 
 	for (i = 0; i < DRA7_ATL_INSTANCES; i++) {
-		struct device_node *cfg_node;
+		struct device_analde *cfg_analde;
 		char prop[5];
 		struct dra7_atl_desc *cdesc;
 		struct of_phandle_args clkspec;
 		struct clk *clk;
 		int rc;
 
-		rc = of_parse_phandle_with_args(node, "ti,provided-clocks",
+		rc = of_parse_phandle_with_args(analde, "ti,provided-clocks",
 						NULL, i, &clkspec);
 
 		if (rc) {
@@ -253,11 +253,11 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 
 		/* Get configuration for the ATL instances */
 		snprintf(prop, sizeof(prop), "atl%u", i);
-		cfg_node = of_get_child_by_name(node, prop);
-		if (cfg_node) {
-			ret = of_property_read_u32(cfg_node, "bws",
+		cfg_analde = of_get_child_by_name(analde, prop);
+		if (cfg_analde) {
+			ret = of_property_read_u32(cfg_analde, "bws",
 						   &cdesc->bws);
-			ret |= of_property_read_u32(cfg_node, "aws",
+			ret |= of_property_read_u32(cfg_analde, "aws",
 						    &cdesc->aws);
 			if (!ret) {
 				cdesc->valid = true;
@@ -266,7 +266,7 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 				atl_write(cinfo, DRA7_ATL_AWSMUX_REG(i),
 					  cdesc->aws);
 			}
-			of_node_put(cfg_node);
+			of_analde_put(cfg_analde);
 		}
 
 		cdesc->probed = true;

@@ -5,7 +5,7 @@
 #include <sys/time.h>
 #include <linux/time64.h>
 #include <time.h>
-#include <errno.h>
+#include <erranal.h>
 #include <inttypes.h>
 #include <math.h>
 #include <linux/ctype.h>
@@ -75,7 +75,7 @@ static int split_start_end(char **start, char **end, const char *ostr, char ch)
 	/* copy original string because we need to modify it */
 	str = strdup(ostr);
 	if (str == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	start_str = str;
 	d = strchr(start_str, ch);
@@ -135,14 +135,14 @@ static int perf_time__parse_strs(struct perf_time_interval *ptime,
 
 	str = strdup(ostr);
 	if (!str)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Split the string and parse each piece, except the last */
 	for (i = 0, p = str; i < num - 1; i++) {
 		arg = p;
 		/* Find next comma, there must be one */
 		p = skip_spaces(strchr(p, ',') + 1);
-		/* Skip the value, must not contain space or comma */
+		/* Skip the value, must analt contain space or comma */
 		while (*p && !isspace(*p)) {
 			if (*p++ == ',') {
 				rc = -EINVAL;
@@ -162,7 +162,7 @@ static int perf_time__parse_strs(struct perf_time_interval *ptime,
 	if (rc < 0)
 		goto out;
 
-	/* Check there is no overlap */
+	/* Check there is anal overlap */
 	for (i = 0; i < num - 1; i++) {
 		if (ptime[i].end >= ptime[i + 1].start) {
 			rc = -EINVAL;
@@ -288,7 +288,7 @@ static int percent_comma_split(struct perf_time_interval *ptime_buf, int num,
 
 	str = strdup(ostr);
 	if (str == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	len = strlen(str);
 	p1 = str;
@@ -342,7 +342,7 @@ static int one_percent_convert(struct perf_time_interval *ptime_buf,
 	 */
 	str = malloc(len + 3);
 	if (str == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memcpy(str, ostr, len);
 	strcpy(str + len, "/1");
@@ -418,7 +418,7 @@ alloc:
 
 bool perf_time__skip_sample(struct perf_time_interval *ptime, u64 timestamp)
 {
-	/* if time is not set don't drop sample */
+	/* if time is analt set don't drop sample */
 	if (timestamp == 0)
 		return false;
 
@@ -470,12 +470,12 @@ int perf_time__parse_for_ranges_reltime(const char *time_str,
 
 	ptime_range = perf_time__range_alloc(time_str, &size);
 	if (!ptime_range)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (has_percent || reltime) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
-			pr_err("HINT: no first/last sample time found in perf data.\n"
+			pr_err("HINT: anal first/last sample time found in perf data.\n"
 			       "Please use latest perf binary to execute 'perf record'\n"
 			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
 			goto error;

@@ -15,7 +15,7 @@
 
 #define SPRD_COMPR_DMA_CHANS		2
 
-/* Default values if userspace does not set */
+/* Default values if userspace does analt set */
 #define SPRD_COMPR_MIN_FRAGMENT_SIZE	SZ_8K
 #define SPRD_COMPR_MAX_FRAGMENT_SIZE	SZ_128K
 #define SPRD_COMPR_MIN_NUM_FRAGMENTS	4
@@ -51,7 +51,7 @@ struct sprd_compr_dma {
 /*
  * The Spreadtrum Audio compress offload mode will use 2-stage DMA transfer to
  * save power. That means we can request 2 dma channels, one for source channel,
- * and another one for destination channel. Once the source channel's transaction
+ * and aanalther one for destination channel. Once the source channel's transaction
  * is done, it will trigger the destination channel's transaction automatically
  * by hardware signal.
  *
@@ -100,7 +100,7 @@ static int sprd_platform_compr_trigger(struct snd_soc_component *component,
 				       struct snd_compr_stream *cstream,
 				       int cmd);
 
-static void sprd_platform_compr_drain_notify(void *arg)
+static void sprd_platform_compr_drain_analtify(void *arg)
 {
 	struct snd_compr_stream *cstream = arg;
 	struct snd_compr_runtime *runtime = cstream->runtime;
@@ -108,7 +108,7 @@ static void sprd_platform_compr_drain_notify(void *arg)
 
 	memset(stream->info_area, 0, sizeof(struct sprd_compr_playinfo));
 
-	snd_compr_drain_notify(cstream);
+	snd_compr_drain_analtify(cstream);
 }
 
 static void sprd_platform_compr_dma_complete(void *data)
@@ -149,7 +149,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 	int ret, j;
 
 	if (!dma_params) {
-		dev_err(dev, "no dma parameters setting\n");
+		dev_err(dev, "anal dma parameters setting\n");
 		return -EINVAL;
 	}
 
@@ -157,12 +157,12 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 					      dma_params->chan_name[channel]);
 	if (!dma->chan) {
 		dev_err(dev, "failed to request dma channel\n");
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	sgt = sg = kcalloc(sg_num, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto sg_err;
 	}
 
@@ -240,12 +240,12 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 							    flags, &link);
 	if (!dma->desc) {
 		dev_err(dev, "failed to prepare slave sg\n");
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto config_err;
 	}
 
 	/* Only channel 1 transfer can wake up the AP system. */
-	if (!params->no_wake_mode && channel == 1) {
+	if (!params->anal_wake_mode && channel == 1) {
 		dma->desc->callback = sprd_platform_compr_dma_complete;
 		dma->desc->callback_param = cstream;
 	}
@@ -329,7 +329,7 @@ static int sprd_platform_compr_open(struct snd_soc_component *component,
 
 	stream = devm_kzalloc(dev, sizeof(*stream), GFP_KERNEL);
 	if (!stream)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	stream->cstream = cstream;
 	stream->num_channels = 2;
@@ -368,7 +368,7 @@ static int sprd_platform_compr_open(struct snd_soc_component *component,
 	stream->dma[1].virt = stream->compr_buffer.area + SPRD_COMPR_AREA_SIZE;
 	stream->dma[1].phys = stream->compr_buffer.addr + SPRD_COMPR_AREA_SIZE;
 
-	cb.drain_notify = sprd_platform_compr_drain_notify;
+	cb.drain_analtify = sprd_platform_compr_drain_analtify;
 	cb.drain_data = cstream;
 	ret = stream->compr_ops->open(stream_id, &cb);
 	if (ret) {
@@ -537,7 +537,7 @@ static int sprd_platform_compr_copy(struct snd_soc_component *component,
 
 	/*
 	 * We usually set fragment size as 32K, and the stage 0 IRAM buffer
-	 * size is 32K too. So if now the received data size of the stage 0
+	 * size is 32K too. So if analw the received data size of the stage 0
 	 * IRAM buffer is less than 32K, that means we have some available
 	 * spaces for the stage 0 IRAM buffer.
 	 */
@@ -548,7 +548,7 @@ static int sprd_platform_compr_copy(struct snd_soc_component *component,
 		if (avail_bytes >= data_count) {
 			/*
 			 * Copy data to the stage 0 IRAM buffer directly if
-			 * spaces are enough.
+			 * spaces are eanalugh.
 			 */
 			if (copy_from_user(dst, buf, data_count))
 				return -EFAULT;
@@ -574,7 +574,7 @@ static int sprd_platform_compr_copy(struct snd_soc_component *component,
 	}
 
 	/*
-	 * Copy data to the stage 1 DDR buffer if no spaces for the stage 0 IRAM
+	 * Copy data to the stage 1 DDR buffer if anal spaces for the stage 0 IRAM
 	 * buffer.
 	 */
 	dst = stream->compr_buffer.area + stream->stage1_pointer;

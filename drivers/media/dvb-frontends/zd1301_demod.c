@@ -216,7 +216,7 @@ static int zd1301_demod_get_tune_settings(struct dvb_frontend *fe,
 
 	dev_dbg(&pdev->dev, "\n");
 
-	/* ~180ms seems to be enough */
+	/* ~180ms seems to be eanalugh */
 	settings->min_delay_ms = 400;
 
 	return 0;
@@ -326,7 +326,7 @@ static int zd1301_demod_i2c_master_xfer(struct i2c_adapter *adapter,
 		dev_dbg(&pdev->dev, "write&read msg[0].len=%u msg[1].len=%u\n",
 			msg[0].len, msg[1].len);
 		if (msg[0].len > 1 || msg[1].len > 8) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err;
 		}
 
@@ -373,7 +373,7 @@ static int zd1301_demod_i2c_master_xfer(struct i2c_adapter *adapter,
 	} else if (ZD1301_IS_I2C_XFER_WRITE(msg, num)) {
 		dev_dbg(&pdev->dev, "write msg[0].len=%u\n", msg[0].len);
 		if (msg[0].len > 1 + 8) {
-			ret = -EOPNOTSUPP;
+			ret = -EOPANALTSUPP;
 			goto err;
 		}
 
@@ -419,8 +419,8 @@ static int zd1301_demod_i2c_master_xfer(struct i2c_adapter *adapter,
 				goto err;
 		}
 	} else {
-		dev_dbg(&pdev->dev, "unknown msg[0].len=%u\n", msg[0].len);
-		ret = -EOPNOTSUPP;
+		dev_dbg(&pdev->dev, "unkanalwn msg[0].len=%u\n", msg[0].len);
+		ret = -EOPANALTSUPP;
 		goto err;
 	}
 
@@ -461,18 +461,18 @@ static int zd1301_demod_probe(struct platform_device *pdev)
 
 	if (!pdata) {
 		ret = -EINVAL;
-		dev_err(&pdev->dev, "cannot proceed without platform data\n");
+		dev_err(&pdev->dev, "cananalt proceed without platform data\n");
 		goto err;
 	}
 	if (!pdev->dev.parent->driver) {
 		ret = -EINVAL;
-		dev_dbg(&pdev->dev, "no parent device\n");
+		dev_dbg(&pdev->dev, "anal parent device\n");
 		goto err;
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

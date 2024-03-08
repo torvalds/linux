@@ -2,7 +2,7 @@
 /*
  * sc7280 EC/H1 over SPI (common between IDP2 and CRD)
  *
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021 Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 ap_ec_spi: &spi10 {

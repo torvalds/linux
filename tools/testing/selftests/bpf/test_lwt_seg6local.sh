@@ -14,7 +14,7 @@
 # - fd00::2 : remove the TLV, change the flags, add a tag
 # - fd00::3 : apply an End.T action to fd00::4, through routing table 117
 #
-# fd00::4 is a simple Segment Routing node decapsulating the inner IPv6 packet.
+# fd00::4 is a simple Segment Routing analde decapsulating the inner IPv6 packet.
 # Each End.BPF action will validate the operations applied on the SRH by the
 # previous BPF program in the chain, otherwise the packet is dropped.
 #
@@ -146,7 +146,7 @@ ip netns exec ${NS6} sysctl net.ipv6.conf.veth10.seg6_enabled=1 > /dev/null
 
 ip netns exec ${NS6} nc -l -6 -u -d 7330 > $TMP_FILE &
 ip netns exec ${NS1} bash -c "echo 'foobar' | nc -w0 -6 -u -p 2121 -s fb00::1 fb00::6 7330"
-sleep 5 # wait enough time to ensure the UDP datagram arrived to the last segment
+sleep 5 # wait eanalugh time to ensure the UDP datagram arrived to the last segment
 kill -TERM $!
 
 if [[ $(< $TMP_FILE) != "foobar" ]]; then

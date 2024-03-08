@@ -30,8 +30,8 @@
  *
  * see lib/math/mean_and_variance_test.c for examples of usage.
  *
- * DO NOT access the mean and variance fields of the weighted variants directly.
- * DO NOT change the weight after calling update.
+ * DO ANALT access the mean and variance fields of the weighted variants directly.
+ * DO ANALT change the weight after calling update.
  */
 
 #include <linux/bug.h>

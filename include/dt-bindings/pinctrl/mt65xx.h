@@ -7,8 +7,8 @@
 #ifndef _DT_BINDINGS_PINCTRL_MT65XX_H
 #define _DT_BINDINGS_PINCTRL_MT65XX_H
 
-#define MTK_PIN_NO(x) ((x) << 8)
-#define MTK_GET_PIN_NO(x) ((x) >> 8)
+#define MTK_PIN_ANAL(x) ((x) << 8)
+#define MTK_GET_PIN_ANAL(x) ((x) >> 8)
 #define MTK_GET_PIN_FUNC(x) ((x) & 0xf)
 
 #define MTK_PUPD_SET_R1R0_00 100

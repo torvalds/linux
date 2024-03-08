@@ -11,14 +11,14 @@ static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
 {
 #ifdef CONFIG_MMU
 #ifdef CONFIG_SUN3
-	pgprot_val(prot) |= SUN3_PAGE_NOCACHE;
+	pgprot_val(prot) |= SUN3_PAGE_ANALCACHE;
 #else
 	if (CPU_IS_020_OR_030)
-		pgprot_val(prot) |= _PAGE_NOCACHE030;
+		pgprot_val(prot) |= _PAGE_ANALCACHE030;
 	if (CPU_IS_040_OR_060) {
 		pgprot_val(prot) &= _CACHEMASK040;
-		/* Use no-cache mode, serialized */
-		pgprot_val(prot) |= _PAGE_NOCACHE_S;
+		/* Use anal-cache mode, serialized */
+		pgprot_val(prot) |= _PAGE_ANALCACHE_S;
 	}
 #endif /* CONFIG_SUN3 */
 #endif /* CONFIG_MMU */

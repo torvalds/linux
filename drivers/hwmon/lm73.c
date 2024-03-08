@@ -3,7 +3,7 @@
  * LM73 Sensor driver
  * Based on LM75
  *
- * Copyright (C) 2007, CenoSYS (www.cenosys.com).
+ * Copyright (C) 2007, CeanalSYS (www.ceanalsys.com).
  * Copyright (C) 2009, Bollore telecom (www.bolloretelecom.eu).
  *
  * Guillaume Ligneul <guillaume.ligneul@gmail.com>
@@ -21,7 +21,7 @@
 
 
 /* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
+static const unsigned short analrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
 					0x4d, 0x4e, I2C_CLIENT_END };
 
 /* LM73 registers */
@@ -199,7 +199,7 @@ lm73_probe(struct i2c_client *client)
 
 	data = devm_kzalloc(dev, sizeof(struct lm73_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data->client = client;
 	mutex_init(&data->lock);
@@ -225,7 +225,7 @@ static const struct i2c_device_id lm73_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm73_ids);
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
+/* Return 0 if detection is successful, -EANALDEV otherwise */
 static int lm73_detect(struct i2c_client *new_client,
 			struct i2c_board_info *info)
 {
@@ -234,7 +234,7 @@ static int lm73_detect(struct i2c_client *new_client,
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 					I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/*
 	 * Do as much detection as possible with byte reads first, as word
@@ -242,20 +242,20 @@ static int lm73_detect(struct i2c_client *new_client,
 	 */
 	ctrl = i2c_smbus_read_byte_data(new_client, LM73_REG_CTRL);
 	if (ctrl < 0 || (ctrl & 0x10))
-		return -ENODEV;
+		return -EANALDEV;
 
 	conf = i2c_smbus_read_byte_data(new_client, LM73_REG_CONF);
 	if (conf < 0 || (conf & 0x0c))
-		return -ENODEV;
+		return -EANALDEV;
 
 	id = i2c_smbus_read_byte_data(new_client, LM73_REG_ID);
 	if (id < 0 || id != (LM73_ID & 0xff))
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Check device ID */
 	id = i2c_smbus_read_word_data(new_client, LM73_REG_ID);
 	if (id < 0 || id != LM73_ID)
-		return -ENODEV;
+		return -EANALDEV;
 
 	strscpy(info->type, "lm73", I2C_NAME_SIZE);
 
@@ -280,7 +280,7 @@ static struct i2c_driver lm73_driver = {
 	.probe		= lm73_probe,
 	.id_table	= lm73_ids,
 	.detect		= lm73_detect,
-	.address_list	= normal_i2c,
+	.address_list	= analrmal_i2c,
 };
 
 module_i2c_driver(lm73_driver);

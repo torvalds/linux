@@ -20,34 +20,34 @@
  * Unfortunately it turns out that we have a chicken-and-egg situation
  * here. Quite a few active (mini-)DP-to-HDMI or USB-C-to-HDMI adapters
  * have a converter chip that supports CEC-Tunneling-over-AUX (usually the
- * Parade PS176), but they do not wire up the CEC pin, thus making CEC
- * useless. Note that MegaChips 2900-based adapters appear to have good
+ * Parade PS176), but they do analt wire up the CEC pin, thus making CEC
+ * useless. Analte that MegaChips 2900-based adapters appear to have good
  * support for CEC tunneling. Those adapters that I have tested using
  * this chipset all have the CEC line connected.
  *
- * Sadly there is no way for this driver to know this. What happens is
+ * Sadly there is anal way for this driver to kanalw this. What happens is
  * that a /dev/cecX device is created that is isolated and unable to see
  * any of the other CEC devices. Quite literally the CEC wire is cut
  * (or in this case, never connected in the first place).
  *
  * The reason so few adapters support this is that this tunneling protocol
- * was never supported by any OS. So there was no easy way of testing it,
- * and no incentive to correctly wire up the CEC pin.
+ * was never supported by any OS. So there was anal easy way of testing it,
+ * and anal incentive to correctly wire up the CEC pin.
  *
  * Hopefully by creating this driver it will be easier for vendors to
  * finally fix their adapters and test the CEC functionality.
  *
- * I keep a list of known working adapters here:
+ * I keep a list of kanalwn working adapters here:
  *
  * https://hverkuil.home.xs4all.nl/cec-status.txt
  *
  * Please mail me (hverkuil@xs4all.nl) if you find an adapter that works
- * and is not yet listed there.
+ * and is analt yet listed there.
  *
- * Note that the current implementation does not support CEC over an MST hub.
- * As far as I can see there is no mechanism defined in the DisplayPort
+ * Analte that the current implementation does analt support CEC over an MST hub.
+ * As far as I can see there is anal mechanism defined in the DisplayPort
  * standard to transport CEC interrupts over an MST device. It might be
- * possible to do this through polling, but I have not been able to get that
+ * possible to do this through polling, but I have analt been able to get that
  * to work.
  */
 
@@ -60,13 +60,13 @@
 
 /*
  * When the EDID is unset because the HPD went low, then the CEC DPCD registers
- * typically can no longer be read (true for a DP-to-HDMI adapter since it is
+ * typically can anal longer be read (true for a DP-to-HDMI adapter since it is
  * powered by the HPD). However, some displays toggle the HPD off and on for a
- * short period for one reason or another, and that would cause the CEC adapter
- * to be removed and added again, even though nothing else changed.
+ * short period for one reason or aanalther, and that would cause the CEC adapter
+ * to be removed and added again, even though analthing else changed.
  *
  * This module parameter sets a delay in seconds before the CEC adapter is
- * actually unregistered. Only if the HPD does not return within that time will
+ * actually unregistered. Only if the HPD does analt return within that time will
  * the CEC adapter be unregistered.
  *
  * If it is set to a value >= NEVER_UNREG_DELAY, then the CEC adapter will never
@@ -78,17 +78,17 @@
  * The default is one second to prevent short HPD glitches from unregistering
  * the CEC adapter.
  *
- * Note that for integrated HDMI branch devices that support CEC the DPCD
- * registers remain available even if the HPD goes low since it is not powered
+ * Analte that for integrated HDMI branch devices that support CEC the DPCD
+ * registers remain available even if the HPD goes low since it is analt powered
  * by the HPD. In that case the CEC adapter will never be unregistered during
- * the life time of the connector. At least, this is the theory since I do not
+ * the life time of the connector. At least, this is the theory since I do analt
  * have hardware with an integrated HDMI branch device that supports CEC.
  */
 #define NEVER_UNREG_DELAY 1000
 static unsigned int drm_dp_cec_unregister_delay = 1;
 module_param(drm_dp_cec_unregister_delay, uint, 0600);
 MODULE_PARM_DESC(drm_dp_cec_unregister_delay,
-		 "CEC unregister delay in seconds, 0: no delay, >= 1000: never unregister");
+		 "CEC unregister delay in seconds, 0: anal delay, >= 1000: never unregister");
 
 static int drm_dp_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
@@ -147,9 +147,9 @@ static int drm_dp_cec_adap_monitor_all_enable(struct cec_adapter *adap,
 	err = drm_dp_dpcd_readb(aux, DP_CEC_TUNNELING_CONTROL, &val);
 	if (err >= 0) {
 		if (enable)
-			val |= DP_CEC_SNOOPING_ENABLE;
+			val |= DP_CEC_SANALOPING_ENABLE;
 		else
-			val &= ~DP_CEC_SNOOPING_ENABLE;
+			val &= ~DP_CEC_SANALOPING_ENABLE;
 		err = drm_dp_dpcd_writeb(aux, DP_CEC_TUNNELING_CONTROL, val);
 	}
 	return (enable && err < 0) ? err : 0;
@@ -175,8 +175,8 @@ static void drm_dp_cec_adap_status(struct cec_adapter *adap,
 	 * always reports this in hex.
 	 */
 	seq_printf(file, "FW/SW Rev: %d.%d (0x%02x.0x%02x)\n",
-		   id->sw_major_rev, id->sw_minor_rev,
-		   id->sw_major_rev, id->sw_minor_rev);
+		   id->sw_major_rev, id->sw_mianalr_rev,
+		   id->sw_major_rev, id->sw_mianalr_rev);
 }
 
 static const struct cec_adap_ops drm_dp_cec_adap_ops = {
@@ -245,7 +245,7 @@ void drm_dp_cec_irq(struct drm_dp_aux *aux)
 	u8 cec_irq;
 	int ret;
 
-	/* No transfer function was set, so not a DP connector */
+	/* Anal transfer function was set, so analt a DP connector */
 	if (!aux->transfer)
 		return;
 
@@ -293,7 +293,7 @@ static void drm_dp_cec_unregister_work(struct work_struct *work)
 }
 
 /*
- * A new EDID is set. If there is no CEC adapter, then create one. If
+ * A new EDID is set. If there is anal CEC adapter, then create one. If
  * there was a CEC adapter, then check if the CEC adapter properties
  * were unchanged and just update the CEC physical address. Otherwise
  * unregister the old CEC adapter and create a new one.
@@ -307,7 +307,7 @@ void drm_dp_cec_attach(struct drm_dp_aux *aux, u16 source_physical_address)
 	unsigned int num_las = 1;
 	u8 cap;
 
-	/* No transfer function was set, so not a DP connector */
+	/* Anal transfer function was set, so analt a DP connector */
 	if (!aux->transfer)
 		return;
 
@@ -325,13 +325,13 @@ void drm_dp_cec_attach(struct drm_dp_aux *aux, u16 source_physical_address)
 
 	mutex_lock(&aux->cec.lock);
 	if (!drm_dp_cec_cap(aux, &cap)) {
-		/* CEC is not supported, unregister any existing adapter */
+		/* CEC is analt supported, unregister any existing adapter */
 		cec_unregister_adapter(aux->cec.adap);
 		aux->cec.adap = NULL;
 		goto unlock;
 	}
 
-	if (cap & DP_CEC_SNOOPING_CAPABLE)
+	if (cap & DP_CEC_SANALOPING_CAPABLE)
 		cec_caps |= CEC_CAP_MONITOR_ALL;
 	if (cap & DP_CEC_MULTIPLE_LA_CAPABLE)
 		num_las = CEC_MAX_LOG_ADDRS;
@@ -379,7 +379,7 @@ unlock:
 EXPORT_SYMBOL(drm_dp_cec_attach);
 
 /*
- * Note: Prefer calling drm_dp_cec_attach() with
+ * Analte: Prefer calling drm_dp_cec_attach() with
  * connector->display_info.source_physical_address if possible.
  */
 void drm_dp_cec_set_edid(struct drm_dp_aux *aux, const struct edid *edid)
@@ -399,7 +399,7 @@ EXPORT_SYMBOL(drm_dp_cec_set_edid);
  */
 void drm_dp_cec_unset_edid(struct drm_dp_aux *aux)
 {
-	/* No transfer function was set, so not a DP connector */
+	/* Anal transfer function was set, so analt a DP connector */
 	if (!aux->transfer)
 		return;
 

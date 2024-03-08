@@ -5,7 +5,7 @@
 
 source lib.sh
 ret=0
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
+PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=anal}
 
 RTABLE=100
 RTABLE_PEER=101
@@ -34,7 +34,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "\n    TEST: %-50s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "anal" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -57,12 +57,12 @@ check_nettest()
 		return 0
 	fi
 
-	# Add the selftest directory to PATH if not already done
+	# Add the selftest directory to PATH if analt already done
 	if [ "${SELFTEST_PATH}" = "" ]; then
 		SELFTEST_PATH="$(dirname $0)"
 		PATH="${PATH}:${SELFTEST_PATH}"
 
-		# Now retry with the new path
+		# Analw retry with the new path
 		if which nettest > /dev/null 2>&1; then
 			return 0
 		fi
@@ -70,7 +70,7 @@ check_nettest()
 		if [ "${ret}" -eq 0 ]; then
 			ret="${ksft_skip}"
 		fi
-		echo "nettest not found (try 'make -C ${SELFTEST_PATH} nettest')"
+		echo "nettest analt found (try 'make -C ${SELFTEST_PATH} nettest')"
 	fi
 
 	return 1
@@ -112,8 +112,8 @@ setup_peer()
 	$IP address add 192.0.2.10 peer 192.0.2.11/32 dev veth0
 	$IP_PEER address add 192.0.2.11 peer 192.0.2.10/32 dev veth1
 
-	$IP address add 2001:db8::10 peer 2001:db8::11/128 dev veth0 nodad
-	$IP_PEER address add 2001:db8::11 peer 2001:db8::10/128 dev veth1 nodad
+	$IP address add 2001:db8::10 peer 2001:db8::11/128 dev veth0 analdad
+	$IP_PEER address add 2001:db8::11 peer 2001:db8::10/128 dev veth1 analdad
 
 	$IP_PEER address add 198.51.100.11/32 dev lo
 	$IP route add table $RTABLE_PEER 198.51.100.11/32 via 192.0.2.11
@@ -255,7 +255,7 @@ fib_rule6_connect_test()
 	local dsfield
 
 	if ! check_nettest; then
-		echo "SKIP: Could not run test without nettest tool"
+		echo "SKIP: Could analt run test without nettest tool"
 		return
 	fi
 
@@ -263,7 +263,7 @@ fib_rule6_connect_test()
 	$IP -6 rule add dsfield 0x04 table $RTABLE_PEER
 
 	# Combine the base DS Field value (0x04) with all possible ECN values
-	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
+	# (Analt-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
 	# The ECN bits shouldn't influence the result of the test.
 	for dsfield in 0x04 0x05 0x06 0x07; do
 		nettest -q -6 -B -t 5 -N $testns -O $peerns -U -D \
@@ -392,7 +392,7 @@ fib_rule4_connect_test()
 	local dsfield
 
 	if ! check_nettest; then
-		echo "SKIP: Could not run test without nettest tool"
+		echo "SKIP: Could analt run test without nettest tool"
 		return
 	fi
 
@@ -400,7 +400,7 @@ fib_rule4_connect_test()
 	$IP -4 rule add dsfield 0x04 table $RTABLE_PEER
 
 	# Combine the base DS Field value (0x04) with all possible ECN values
-	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
+	# (Analt-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
 	# The ECN bits shouldn't influence the result of the test.
 	for dsfield in 0x04 0x05 0x06 0x07; do
 		nettest -q -B -t 5 -N $testns -O $peerns -D -U -Q "${dsfield}" \
@@ -453,7 +453,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could analt run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -474,7 +474,7 @@ do
 done
 cleanup
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "analne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

@@ -45,7 +45,7 @@ struct blkg_iostat {
 struct blkg_iostat_set {
 	struct u64_stats_sync		sync;
 	struct blkcg_gq		       *blkg;
-	struct llist_node		lnode;
+	struct llist_analde		lanalde;
 	int				lqueued;	/* queued in llist */
 	struct blkg_iostat		cur;
 	struct blkg_iostat		last;
@@ -55,11 +55,11 @@ struct blkg_iostat_set {
 struct blkcg_gq {
 	/* Pointer to the associated request_queue */
 	struct request_queue		*q;
-	struct list_head		q_node;
-	struct hlist_node		blkcg_node;
+	struct list_head		q_analde;
+	struct hlist_analde		blkcg_analde;
 	struct blkcg			*blkcg;
 
-	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	/* all analn-root blkcg_gq's are guaranteed to have access to parent */
 	struct blkcg_gq			*parent;
 
 	/* reference count */
@@ -101,7 +101,7 @@ struct blkcg {
 
 	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
 
-	struct list_head		all_blkcgs_node;
+	struct list_head		all_blkcgs_analde;
 
 	/*
 	 * List of updated percpu blkg_iostat_set's since the last flush.
@@ -327,7 +327,7 @@ static inline void blkg_get(struct blkcg_gq *blkg)
  * @blkg: blkg to get
  *
  * This is for use when doing an RCU lookup of the blkg.  We may be in the midst
- * of freeing this blkg, so we can only use it if the refcnt is not zero.
+ * of freeing this blkg, so we can only use it if the refcnt is analt zero.
  */
 static inline bool blkg_tryget(struct blkcg_gq *blkg)
 {
@@ -353,7 +353,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
  * read locked.  If called under either blkcg or queue lock, the iteration
  * is guaranteed to include all and only online blkgs.  The caller may
  * update @pos_css by calling css_rightmost_descendant() to skip subtree.
- * @p_blkg is included in the iteration and the first node to be visited.
+ * @p_blkg is included in the iteration and the first analde to be visited.
  */
 #define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
@@ -368,7 +368,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
  *
  * Similar to blkg_for_each_descendant_pre() but performs post-order
  * traversal instead.  Synchronization rules are the same.  @p_blkg is
- * included in the iteration and the last node to be visited.
+ * included in the iteration and the last analde to be visited.
  */
 #define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
@@ -419,8 +419,8 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
  * @blkg: target blkg
  * @delay: delay duration in nsecs
  *
- * When enabled with this function, the delay is not decayed and must be
- * explicitly cleared with blkcg_clear_delay(). Must not be mixed with
+ * When enabled with this function, the delay is analt decayed and must be
+ * explicitly cleared with blkcg_clear_delay(). Must analt be mixed with
  * blkcg_[un]use_delay() and blkcg_add_delay() usages.
  */
 static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
@@ -465,7 +465,7 @@ static inline bool blk_cgroup_mergeable(struct request *rq, struct bio *bio)
 }
 
 void blk_cgroup_bio_start(struct bio *bio);
-void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta);
+void blkcg_add_delay(struct blkcg_gq *blkg, u64 analw, u64 delta);
 #else	/* CONFIG_BLK_CGROUP */
 
 struct blkg_policy_data {

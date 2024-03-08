@@ -238,7 +238,7 @@ struct kvmppc_gs_buff {
 
 /**
  * struct kvmppc_gs_bitmap - a bitmap for element ids
- * @bitmap: a bitmap large enough for all Guest State IDs
+ * @bitmap: a bitmap large eanalugh for all Guest State IDs
  */
 struct kvmppc_gs_bitmap {
 	/* private: */
@@ -609,7 +609,7 @@ static inline int kvmppc_gse_put_u64(struct kvmppc_gs_buff *gsb, u16 iden,
  *
  * Adds a register type guest state element. Uses the guest state ID for
  * determining the length of the guest element. If the guest state ID has
- * bits that can not be set they will be cleared.
+ * bits that can analt be set they will be cleared.
  */
 static inline int __kvmppc_gse_put_reg(struct kvmppc_gs_buff *gsb, u16 iden,
 				       u64 val)

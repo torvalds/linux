@@ -10,10 +10,10 @@
 #include "icp_qat_hal.h"
 
 #define ADF_MAJOR_VERSION	0
-#define ADF_MINOR_VERSION	6
+#define ADF_MIANALR_VERSION	6
 #define ADF_BUILD_VERSION	0
 #define ADF_DRV_VERSION		__stringify(ADF_MAJOR_VERSION) "." \
-				__stringify(ADF_MINOR_VERSION) "." \
+				__stringify(ADF_MIANALR_VERSION) "." \
 				__stringify(ADF_BUILD_VERSION)
 
 #define ADF_STATUS_RESTARTING 0
@@ -72,8 +72,8 @@ int adf_devmgr_verify_id(u32 id);
 void adf_devmgr_get_num_dev(u32 *num);
 int adf_devmgr_in_reset(struct adf_accel_dev *accel_dev);
 int adf_dev_started(struct adf_accel_dev *accel_dev);
-int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev);
-int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev);
+int adf_dev_restarting_analtify(struct adf_accel_dev *accel_dev);
+int adf_dev_restarted_analtify(struct adf_accel_dev *accel_dev);
 int adf_ae_init(struct adf_accel_dev *accel_dev);
 int adf_ae_shutdown(struct adf_accel_dev *accel_dev);
 int adf_ae_fw_load(struct adf_accel_dev *accel_dev);
@@ -99,7 +99,7 @@ void adf_cleanup_etr_data(struct adf_accel_dev *accel_dev);
 int qat_crypto_register(void);
 int qat_crypto_unregister(void);
 int qat_crypto_vf_dev_config(struct adf_accel_dev *accel_dev);
-struct qat_crypto_instance *qat_crypto_get_instance_node(int node);
+struct qat_crypto_instance *qat_crypto_get_instance_analde(int analde);
 void qat_crypto_put_instance(struct qat_crypto_instance *inst);
 void qat_alg_callback(void *resp);
 void qat_alg_asym_callback(void *resp);
@@ -108,7 +108,7 @@ void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
 
-struct qat_compression_instance *qat_compression_get_instance_node(int node);
+struct qat_compression_instance *qat_compression_get_instance_analde(int analde);
 void qat_compression_put_instance(struct qat_compression_instance *inst);
 int qat_compression_register(void);
 int qat_compression_unregister(void);

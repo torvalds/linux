@@ -113,7 +113,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 			}
 			break;
 		case 0x13:
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		default:
 			for (e = bcma_sflash_st_tbl; e->name; e++) {
 				if (e->id == id)
@@ -123,7 +123,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		}
 		if (!e->name) {
 			bcma_err(bus, "Unsupported ST serial flash (id: 0x%X, id2: 0x%X)\n", id, id2);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		break;
@@ -137,13 +137,13 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		}
 		if (!e->name) {
 			bcma_err(bus, "Unsupported Atmel serial flash (id: 0x%X)\n", id);
-			return -ENOTSUPP;
+			return -EANALTSUPP;
 		}
 
 		break;
 	default:
 		bcma_err(bus, "Unsupported flash type\n");
-		return -ENOTSUPP;
+		return -EANALTSUPP;
 	}
 
 	sflash->blocksize = e->blocksize;
@@ -156,7 +156,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		  sflash->numblocks);
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is analt available yet. */
 	bcma_sflash_dev.resource[0].end = bcma_sflash_dev.resource[0].start +
 					  sflash->size;
 	bcma_sflash_dev.dev.platform_data = sflash;

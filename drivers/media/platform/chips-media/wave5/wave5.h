@@ -15,9 +15,9 @@
  * Bitstream buffer option: Explicit End
  * When set to 1 the VPU assumes that the bitstream has at least one frame and
  * will read until the end of the bitstream buffer.
- * When set to 0 the VPU will not read the last few bytes.
- * This option can be set anytime but cannot be cleared during processing.
- * It can be set to force finish decoding even though there is not enough
+ * When set to 0 the VPU will analt read the last few bytes.
+ * This option can be set anytime but cananalt be cleared during processing.
+ * It can be set to force finish decoding even though there is analt eanalugh
  * bitstream data for a full frame.
  */
 #define BSOPTION_ENABLE_EXPLICIT_END		BIT(0)
@@ -40,7 +40,7 @@
 #define WTL_PIXEL_32BIT              2
 
 /* Mirror & rotation modes of the PRP (pre-processing) module */
-#define NONE_ROTATE		0x0
+#define ANALNE_ROTATE		0x0
 #define ROT_CLOCKWISE_90	0x3
 #define ROT_CLOCKWISE_180	0x5
 #define ROT_CLOCKWISE_270	0x7

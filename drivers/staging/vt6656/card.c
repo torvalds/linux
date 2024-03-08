@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techanallogies, Inc.
  * All rights reserved.
  *
  * Purpose: Provide functions to setup NIC operation mode
@@ -25,7 +25,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -54,7 +54,7 @@ int vnt_set_channel(struct vnt_private *priv, u32 connection_channel)
 	/* clear NAV */
 	vnt_mac_reg_bits_on(priv, MAC_REG_MACCR, MACCR_CLRNAV);
 
-	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	/* Set Channel[7] = 0 to tell H/W channel is changing analw. */
 	vnt_mac_reg_bits_off(priv, MAC_REG_CHANNEL,
 			     (BIT(7) | BIT(5) | BIT(4)));
 
@@ -198,7 +198,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  *      tsf1	- Rx BCN's TSF
  *      tsf2	- Local TSF
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: TSF Offset value
  *
@@ -336,7 +336,7 @@ int vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
  *  In:
  *      priv         - The adapter to be turned off
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *
@@ -380,7 +380,7 @@ end:
  *  In:
  *      priv         - The adapter to be turned on
  *  Out:
- *      none
+ *      analne
  *
  * Return Value: true if success; otherwise false
  *

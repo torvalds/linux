@@ -50,7 +50,7 @@ Optional properties:
 
 ======
 
-Optional Child node - 'da7218_hpldet' (DA7218 only):
+Optional Child analde - 'da7218_hpldet' (DA7218 only):
 
 Optional properties:
 - dlg,jack-rate-us : Time between jack detect measurements (us)

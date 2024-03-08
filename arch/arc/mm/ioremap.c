@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syanalpsys, Inc. (www.syanalpsys.com)
  */
 
 #include <linux/vmalloc.h>
@@ -32,7 +32,7 @@ void __iomem *ioremap(phys_addr_t paddr, unsigned long size)
 		return (void __iomem *)(u32)paddr;
 
 	return ioremap_prot(paddr, size,
-			    pgprot_val(pgprot_noncached(PAGE_KERNEL)));
+			    pgprot_val(pgprot_analncached(PAGE_KERNEL)));
 }
 EXPORT_SYMBOL(ioremap);
 
@@ -49,7 +49,7 @@ void __iomem *ioremap_prot(phys_addr_t paddr, size_t size,
 	pgprot_t prot = __pgprot(flags);
 
 	/* force uncached */
-	return generic_ioremap_prot(paddr, size, pgprot_noncached(prot));
+	return generic_ioremap_prot(paddr, size, pgprot_analncached(prot));
 }
 EXPORT_SYMBOL(ioremap_prot);
 

@@ -22,10 +22,10 @@
  *
  *   e.g. Devices x,y,z share regulator r. Device x and y draw 20mA each during
  *   IO and 1mA at idle. Device z draws 100mA when under load and 5mA when
- *   idling. Regulator r has > 90% efficiency in NORMAL mode at loads > 100mA
+ *   idling. Regulator r has > 90% efficiency in ANALRMAL mode at loads > 100mA
  *   but this drops rapidly to 60% when below 100mA. Regulator r has > 90%
  *   efficiency in IDLE mode at loads < 10mA. Thus regulator r will operate
- *   in normal mode for loads > 10mA and in IDLE mode for load <= 10mA.
+ *   in analrmal mode for loads > 10mA and in IDLE mode for load <= 10mA.
  */
 
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
@@ -36,7 +36,7 @@
 #include <regulator/regulator.h>
 
 struct device;
-struct notifier_block;
+struct analtifier_block;
 struct regmap;
 struct regulator_dev;
 
@@ -47,8 +47,8 @@ struct regulator_dev;
  * output load. This allows further system power savings by selecting the
  * best (and most efficient) regulator mode for a desired load.
  *
- * Most drivers will only care about NORMAL. The modes below are generic and
- * will probably not match the naming convention of your regulator data sheet
+ * Most drivers will only care about ANALRMAL. The modes below are generic and
+ * will probably analt match the naming convention of your regulator data sheet
  * but should match the use cases in the datasheet.
  *
  * In order of power efficiency (least efficient at top).
@@ -58,30 +58,30 @@ struct regulator_dev;
  *             e.g. useful in CPU voltage & frequency scaling where
  *             load can quickly increase with CPU frequency increases.
  *
- *  NORMAL     Normal regulator power supply mode. Most drivers will
+ *  ANALRMAL     Analrmal regulator power supply mode. Most drivers will
  *             use this mode.
  *
  *  IDLE       Regulator runs in a more efficient mode for light
  *             loads. Can be used for devices that have a low power
  *             requirement during periods of inactivity. This mode
- *             may be more noisy than NORMAL and may not be able
+ *             may be more analisy than ANALRMAL and may analt be able
  *             to handle fast load switching.
  *
  *  STANDBY    Regulator runs in the most efficient mode for very
  *             light loads. Can be used by devices when they are
  *             in a sleep/standby state. This mode is likely to be
- *             the most noisy and may not be able to handle fast load
+ *             the most analisy and may analt be able to handle fast load
  *             switching.
  *
- * NOTE: Most regulators will only support a subset of these modes. Some
- * will only just support NORMAL.
+ * ANALTE: Most regulators will only support a subset of these modes. Some
+ * will only just support ANALRMAL.
  *
  * These modes can be OR'ed together to make up a mask of valid register modes.
  */
 
 #define REGULATOR_MODE_INVALID			0x0
 #define REGULATOR_MODE_FAST			0x1
-#define REGULATOR_MODE_NORMAL			0x2
+#define REGULATOR_MODE_ANALRMAL			0x2
 #define REGULATOR_MODE_IDLE			0x4
 #define REGULATOR_MODE_STANDBY			0x8
 
@@ -94,7 +94,7 @@ struct regulator_dev;
  * FAIL           Regulator output has failed.
  * OVER_TEMP      Regulator over temp.
  *
- * NOTE: These errors can be OR'ed together.
+ * ANALTE: These errors can be OR'ed together.
  */
 
 #define REGULATOR_ERROR_UNDER_VOLTAGE		BIT(1)
@@ -199,7 +199,7 @@ int regulator_disable_deferred(struct regulator *regulator, int ms);
 
 int __must_check regulator_bulk_get(struct device *dev, int num_consumers,
 				    struct regulator_bulk_data *consumers);
-int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+int __must_check of_regulator_bulk_get_all(struct device *dev, struct device_analde *np,
 					   struct regulator_bulk_data **consumers);
 int __must_check devm_regulator_bulk_get(struct device *dev, int num_consumers,
 					 struct regulator_bulk_data *consumers);
@@ -250,15 +250,15 @@ int regulator_get_hardware_vsel_register(struct regulator *regulator,
 int regulator_list_hardware_vsel(struct regulator *regulator,
 				 unsigned selector);
 
-/* regulator notifier block */
-int regulator_register_notifier(struct regulator *regulator,
-			      struct notifier_block *nb);
-int devm_regulator_register_notifier(struct regulator *regulator,
-				     struct notifier_block *nb);
-int regulator_unregister_notifier(struct regulator *regulator,
-				struct notifier_block *nb);
-void devm_regulator_unregister_notifier(struct regulator *regulator,
-					struct notifier_block *nb);
+/* regulator analtifier block */
+int regulator_register_analtifier(struct regulator *regulator,
+			      struct analtifier_block *nb);
+int devm_regulator_register_analtifier(struct regulator *regulator,
+				     struct analtifier_block *nb);
+int regulator_unregister_analtifier(struct regulator *regulator,
+				struct analtifier_block *nb);
+void devm_regulator_unregister_analtifier(struct regulator *regulator,
+					struct analtifier_block *nb);
 
 /* regulator suspend */
 int regulator_suspend_enable(struct regulator_dev *rdev,
@@ -283,13 +283,13 @@ bool regulator_is_equal(struct regulator *reg1, struct regulator *reg2);
 #else
 
 /*
- * Make sure client drivers will still build on systems with no software
+ * Make sure client drivers will still build on systems with anal software
  * controllable voltage or current regulators.
  */
 static inline struct regulator *__must_check regulator_get(struct device *dev,
 	const char *id)
 {
-	/* Nothing except the stubbed out regulator API should be
+	/* Analthing except the stubbed out regulator API should be
 	 * looking at the value except to check if it is an error
 	 * value. Drivers are free to handle NULL specifically by
 	 * skipping all regulator API calls, but they don't have to.
@@ -309,37 +309,37 @@ devm_regulator_get(struct device *dev, const char *id)
 static inline struct regulator *__must_check
 regulator_get_exclusive(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline struct regulator *__must_check
 devm_regulator_get_exclusive(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline int devm_regulator_get_enable(struct device *dev, const char *id)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline int devm_regulator_get_enable_optional(struct device *dev,
 						     const char *id)
 {
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 static inline struct regulator *__must_check
 regulator_get_optional(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 
 static inline struct regulator *__must_check
 devm_regulator_get_optional(struct device *dev, const char *id)
 {
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EANALDEV);
 }
 
 static inline void regulator_put(struct regulator *regulator)
@@ -438,7 +438,7 @@ static inline int devm_regulator_bulk_get(struct device *dev, int num_consumers,
 	return 0;
 }
 
-static inline int of_regulator_bulk_get_all(struct device *dev, struct device_node *np,
+static inline int of_regulator_bulk_get_all(struct device *dev, struct device_analde *np,
 					    struct regulator_bulk_data **consumers)
 {
 	return 0;
@@ -526,7 +526,7 @@ static inline int regulator_set_mode(struct regulator *regulator,
 
 static inline unsigned int regulator_get_mode(struct regulator *regulator)
 {
-	return REGULATOR_MODE_NORMAL;
+	return REGULATOR_MODE_ANALRMAL;
 }
 
 static inline int regulator_get_error_flags(struct regulator *regulator,
@@ -548,42 +548,42 @@ static inline int regulator_allow_bypass(struct regulator *regulator,
 
 static inline struct regmap *regulator_get_regmap(struct regulator *regulator)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 
 static inline int regulator_get_hardware_vsel_register(struct regulator *regulator,
 						       unsigned *vsel_reg,
 						       unsigned *vsel_mask)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
 static inline int regulator_list_hardware_vsel(struct regulator *regulator,
 					       unsigned selector)
 {
-	return -EOPNOTSUPP;
+	return -EOPANALTSUPP;
 }
 
-static inline int regulator_register_notifier(struct regulator *regulator,
-			      struct notifier_block *nb)
+static inline int regulator_register_analtifier(struct regulator *regulator,
+			      struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_regulator_register_notifier(struct regulator *regulator,
-						   struct notifier_block *nb)
+static inline int devm_regulator_register_analtifier(struct regulator *regulator,
+						   struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int regulator_unregister_notifier(struct regulator *regulator,
-				struct notifier_block *nb)
+static inline int regulator_unregister_analtifier(struct regulator *regulator,
+				struct analtifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_regulator_unregister_notifier(struct regulator *regulator,
-						     struct notifier_block *nb)
+static inline int devm_regulator_unregister_analtifier(struct regulator *regulator,
+						     struct analtifier_block *nb)
 {
 	return 0;
 }

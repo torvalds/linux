@@ -16,14 +16,14 @@
  * set up a plausible C stack frame, and dispatch to the C handler.
  * On return, do vmrte virtual instruction with SP where we started.
  *
- * VM Spec 0.5 uses a trap to fetch HVM record now.
+ * VM Spec 0.5 uses a trap to fetch HVM record analw.
  */
 
 /*
  * Save full register state, while setting up thread_info struct
  * pointer derived from kernel stack pointer in THREADINFO_REG
  * register, putting prior thread_info.regs pointer in a callee-save
- * register (R24, which had better not ever be assigned to THREADINFO_REG),
+ * register (R24, which had better analt ever be assigned to THREADINFO_REG),
  * and updating thread_info.regs to point to current stack frame,
  * so as to support nested events in kernel mode.
  *
@@ -189,7 +189,7 @@
 #endif
 
 	/*
-	 * Clears off enough space for the rest of pt_regs; evrec is a part
+	 * Clears off eanalugh space for the rest of pt_regs; evrec is a part
 	 * of pt_regs in HVM mode.  Save R0/R1, set handler's address in R1.
 	 * R0 is the address of pt_regs and is the parameter to save_pt_regs.
 	 */
@@ -265,9 +265,9 @@ event_dispatch:
 	 * should be in the designated register (usually R19)
 	 *
 	 * If we were in kernel mode, we don't need to check scheduler
-	 * or signals if CONFIG_PREEMPTION is not set.  If set, then it has
+	 * or signals if CONFIG_PREEMPTION is analt set.  If set, then it has
 	 * to jump to a need_resched kind of block.
-	 * BTW, CONFIG_PREEMPTION is not supported yet.
+	 * BTW, CONFIG_PREEMPTION is analt supported yet.
 	 */
 
 #ifdef CONFIG_PREEMPTION
@@ -288,7 +288,7 @@ event_dispatch:
 	}
 
 	/*
-	 * Check also the return from fork/system call, normally coming back from
+	 * Check also the return from fork/system call, analrmally coming back from
 	 * user mode
 	 *
 	 * R26 needs to have do_work_pending, and R0 should have VM_INT_DISABLE
@@ -335,7 +335,7 @@ restore_all:
 		R29 = add(R29, #_PT_REGS_SIZE);
 	}
 	trap1(#HVM_TRAP1_VMRTE)
-	/* Notreached */
+	/* Analtreached */
 
 
 	.globl _K_enter_genex

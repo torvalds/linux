@@ -2,7 +2,7 @@
  *  linux/fs/hfs/sysdep.c
  *
  * Copyright (C) 1996  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techanallogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * This file contains the code to do various system dependent things.
@@ -15,27 +15,27 @@
 
 static int hfs_revalidate_dentry(struct dentry *dentry, unsigned int flags)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 	int diff;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(dentry);
-	if(!inode)
+	ianalde = d_ianalde(dentry);
+	if(!ianalde)
 		return 1;
 
-	/* fix up inode on a timezone change */
-	diff = sys_tz.tz_minuteswest * 60 - HFS_I(inode)->tz_secondswest;
+	/* fix up ianalde on a timezone change */
+	diff = sys_tz.tz_minuteswest * 60 - HFS_I(ianalde)->tz_secondswest;
 	if (diff) {
-		struct timespec64 ts = inode_get_ctime(inode);
+		struct timespec64 ts = ianalde_get_ctime(ianalde);
 
-		inode_set_ctime(inode, ts.tv_sec + diff, ts.tv_nsec);
-		ts = inode_get_atime(inode);
-		inode_set_atime(inode, ts.tv_sec + diff, ts.tv_nsec);
-		ts = inode_get_mtime(inode);
-		inode_set_mtime(inode, ts.tv_sec + diff, ts.tv_nsec);
-		HFS_I(inode)->tz_secondswest += diff;
+		ianalde_set_ctime(ianalde, ts.tv_sec + diff, ts.tv_nsec);
+		ts = ianalde_get_atime(ianalde);
+		ianalde_set_atime(ianalde, ts.tv_sec + diff, ts.tv_nsec);
+		ts = ianalde_get_mtime(ianalde);
+		ianalde_set_mtime(ianalde, ts.tv_sec + diff, ts.tv_nsec);
+		HFS_I(ianalde)->tz_secondswest += diff;
 	}
 	return 1;
 }

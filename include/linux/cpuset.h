@@ -13,7 +13,7 @@
 #include <linux/sched/topology.h>
 #include <linux/sched/task.h>
 #include <linux/cpumask.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
 #include <linux/jump_label.h>
@@ -25,7 +25,7 @@
  * key. In code paths where we need to loop with read_mems_allowed_begin() and
  * read_mems_allowed_retry() to get a consistent view of mems_allowed, we need
  * to ensure that begin() always gets rewritten before retry() in the
- * disabled -> enabled transition. If not, then if local irqs are disabled
+ * disabled -> enabled transition. If analt, then if local irqs are disabled
  * around the loop, we can deadlock since retry() would always be
  * comparing the latest value of the mems_allowed seqcount against 0 as
  * begin() still would see cpusets_enabled() as false. The enabled -> disabled
@@ -55,8 +55,8 @@ static inline void cpuset_dec(void)
 
 /*
  * This will get enabled whenever a cpuset configuration is considered
- * unsupportable in general. E.g. movable only node which cannot satisfy
- * any non movable allocations (see update_nodemask). Page allocator
+ * unsupportable in general. E.g. movable only analde which cananalt satisfy
+ * any analn movable allocations (see update_analdemask). Page allocator
  * needs to make additional checks for those configurations and this
  * check is meant to guard those checks without any overhead for sane
  * configurations.
@@ -78,16 +78,16 @@ extern void cpuset_unlock(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern bool cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern bool cpuset_cpu_is_isolated(int cpu);
-extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
+extern analdemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
-int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
+int cpuset_analdemask_valid_mems_allowed(analdemask_t *analdemask);
 
-extern bool cpuset_node_allowed(int node, gfp_t gfp_mask);
+extern bool cpuset_analde_allowed(int analde, gfp_t gfp_mask);
 
 static inline bool __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
-	return cpuset_node_allowed(zone_to_nid(z), gfp_mask);
+	return cpuset_analde_allowed(zone_to_nid(z), gfp_mask);
 }
 
 static inline bool cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
@@ -113,8 +113,8 @@ extern void cpuset_task_status_allowed(struct seq_file *m,
 extern int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
 			    struct pid *pid, struct task_struct *tsk);
 
-extern int cpuset_mem_spread_node(void);
-extern int cpuset_slab_spread_node(void);
+extern int cpuset_mem_spread_analde(void);
+extern int cpuset_slab_spread_analde(void);
 
 static inline int cpuset_do_page_mem_spread(void)
 {
@@ -161,14 +161,14 @@ static inline bool read_mems_allowed_retry(unsigned int seq)
 	return read_seqcount_retry(&current->mems_allowed_seq, seq);
 }
 
-static inline void set_mems_allowed(nodemask_t nodemask)
+static inline void set_mems_allowed(analdemask_t analdemask)
 {
 	unsigned long flags;
 
 	task_lock(current);
 	local_irq_save(flags);
 	write_seqcount_begin(&current->mems_allowed_seq);
-	current->mems_allowed = nodemask;
+	current->mems_allowed = analdemask;
 	write_seqcount_end(&current->mems_allowed_seq);
 	local_irq_restore(flags);
 	task_unlock(current);
@@ -213,15 +213,15 @@ static inline bool cpuset_cpu_is_isolated(int cpu)
 	return false;
 }
 
-static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
+static inline analdemask_t cpuset_mems_allowed(struct task_struct *p)
 {
-	return node_possible_map;
+	return analde_possible_map;
 }
 
-#define cpuset_current_mems_allowed (node_states[N_MEMORY])
+#define cpuset_current_mems_allowed (analde_states[N_MEMORY])
 static inline void cpuset_init_current_mems_allowed(void) {}
 
-static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+static inline int cpuset_analdemask_valid_mems_allowed(analdemask_t *analdemask)
 {
 	return 1;
 }
@@ -249,12 +249,12 @@ static inline void cpuset_task_status_allowed(struct seq_file *m,
 {
 }
 
-static inline int cpuset_mem_spread_node(void)
+static inline int cpuset_mem_spread_analde(void)
 {
 	return 0;
 }
 
-static inline int cpuset_slab_spread_node(void)
+static inline int cpuset_slab_spread_analde(void)
 {
 	return 0;
 }
@@ -283,7 +283,7 @@ static inline void cpuset_print_current_mems_allowed(void)
 {
 }
 
-static inline void set_mems_allowed(nodemask_t nodemask)
+static inline void set_mems_allowed(analdemask_t analdemask)
 {
 }
 

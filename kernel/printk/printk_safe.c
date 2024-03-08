@@ -41,7 +41,7 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	if (this_cpu_read(printk_context) || in_nmi())
 		return vprintk_deferred(fmt, args);
 
-	/* No obstacles. */
+	/* Anal obstacles. */
 	return vprintk_default(fmt, args);
 }
 EXPORT_SYMBOL(vprintk);

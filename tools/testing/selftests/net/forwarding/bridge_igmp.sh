@@ -6,7 +6,7 @@ ALL_TESTS="v2reportleave_test v3include_test v3inc_allow_test v3inc_is_include_t
 	   v3exc_is_exclude_test v3exc_to_exclude_test v3inc_block_test v3exc_block_test \
 	   v3exc_timeout_test v3star_ex_auto_add_test"
 NUM_NETIFS=4
-CHECK_TC="yes"
+CHECK_TC="anal"
 TEST_GROUP="239.10.10.10"
 TEST_GROUP_MAC="01:00:5e:0a:0a:0a"
 
@@ -56,7 +56,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add dev br0 type bridge mcast_snooping 1 mcast_querier 1
+	ip link add dev br0 type bridge mcast_sanaloping 1 mcast_querier 1
 
 	ip link set dev $swp1 master br0
 	ip link set dev $swp2 master br0
@@ -106,7 +106,7 @@ v2reportleave_test()
 {
 	RET=0
 	ip address add dev $h2 $TEST_GROUP/32 autojoin
-	check_err $? "Could not join $TEST_GROUP"
+	check_err $? "Could analt join $TEST_GROUP"
 
 	sleep 5
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
@@ -122,7 +122,7 @@ v2reportleave_test()
 	check_err $? "mdb entry for $TEST_GROUP is missing"
 
 	ip address del dev $h2 $TEST_GROUP/32
-	check_err $? "Could not leave $TEST_GROUP"
+	check_err $? "Could analt leave $TEST_GROUP"
 
 	sleep 5
 	bridge mdb show dev br0 | grep $TEST_GROUP 1>/dev/null
@@ -142,7 +142,7 @@ v3include_prepare()
 	local X=("192.0.2.1" "192.0.2.2" "192.0.2.3")
 
 	ip link set dev br0 type bridge mcast_igmp_version 3
-	check_err $? "Could not change bridge IGMP version to 3"
+	check_err $? "Could analt change bridge IGMP version to 3"
 
 	$MZ $host1_if -b $mac -c 1 -B $group -t ip "proto=2,p=$MZPKT_IS_INC" -q
 	sleep 1
@@ -281,7 +281,7 @@ v3inc_to_exclude_test()
 	v3include_prepare $h1 $ALL_MAC $ALL_GROUP
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_TO_EXC" -q
 	sleep 1
@@ -397,7 +397,7 @@ v3exc_to_exclude_test()
 	v3exclude_prepare $h1 $ALL_MAC $ALL_GROUP
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_TO_EXC" -q
 	sleep 1
@@ -454,7 +454,7 @@ v3exc_block_test()
 	v3exclude_prepare $h1 $ALL_MAC $ALL_GROUP
 
 	ip link set dev br0 type bridge mcast_last_member_interval 500
-	check_err $? "Could not change mcast_last_member_interval to 5s"
+	check_err $? "Could analt change mcast_last_member_interval to 5s"
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_BLOCK" -q
 	sleep 1

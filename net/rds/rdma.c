@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -65,13 +65,13 @@ static unsigned int rds_pages_in_vec(struct rds_iovec *vec)
 static struct rds_mr *rds_mr_tree_walk(struct rb_root *root, u64 key,
 				       struct rds_mr *insert)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **p = &root->rb_analde;
+	struct rb_analde *parent = NULL;
 	struct rds_mr *mr;
 
 	while (*p) {
 		parent = *p;
-		mr = rb_entry(parent, struct rds_mr, r_rb_node);
+		mr = rb_entry(parent, struct rds_mr, r_rb_analde);
 
 		if (key < mr->r_key)
 			p = &(*p)->rb_left;
@@ -82,8 +82,8 @@ static struct rds_mr *rds_mr_tree_walk(struct rb_root *root, u64 key,
 	}
 
 	if (insert) {
-		rb_link_node(&insert->r_rb_node, parent, p);
-		rb_insert_color(&insert->r_rb_node, root);
+		rb_link_analde(&insert->r_rb_analde, parent, p);
+		rb_insert_color(&insert->r_rb_analde, root);
 		kref_get(&insert->r_kref);
 	}
 	return NULL;
@@ -102,8 +102,8 @@ static void rds_destroy_mr(struct rds_mr *mr)
 		 mr->r_key, kref_read(&mr->r_kref));
 
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
-	if (!RB_EMPTY_NODE(&mr->r_rb_node))
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
+	if (!RB_EMPTY_ANALDE(&mr->r_rb_analde))
+		rb_erase(&mr->r_rb_analde, &rs->rs_rdma_keys);
 	trans_private = mr->r_trans_private;
 	mr->r_trans_private = NULL;
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
@@ -127,17 +127,17 @@ void __rds_put_mr_final(struct kref *kref)
 void rds_rdma_drop_keys(struct rds_sock *rs)
 {
 	struct rds_mr *mr;
-	struct rb_node *node;
+	struct rb_analde *analde;
 	unsigned long flags;
 
 	/* Release any MRs associated with this socket */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
-	while ((node = rb_first(&rs->rs_rdma_keys))) {
-		mr = rb_entry(node, struct rds_mr, r_rb_node);
+	while ((analde = rb_first(&rs->rs_rdma_keys))) {
+		mr = rb_entry(analde, struct rds_mr, r_rb_analde);
 		if (mr->r_trans == rs->rs_transport)
 			mr->r_invalidate = 0;
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_analde, &rs->rs_rdma_keys);
+		RB_CLEAR_ANALDE(&mr->r_rb_analde);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		kref_put(&mr->r_kref, __rds_put_mr_final);
 		spin_lock_irqsave(&rs->rs_rdma_lock, flags);
@@ -186,12 +186,12 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	int ret;
 
 	if (ipv6_addr_any(&rs->rs_bound_addr) || !rs->rs_transport) {
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -EANALTCONN; /* XXX analt a great erranal */
 		goto out;
 	}
 
 	if (!rs->rs_transport->get_mr) {
-		ret = -EOPNOTSUPP;
+		ret = -EOPANALTSUPP;
 		goto out;
 	}
 
@@ -230,18 +230,18 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	/* XXX clamp nr_pages to limit the size of this alloc? */
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	mr = kzalloc(sizeof(struct rds_mr), GFP_KERNEL);
 	if (!mr) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 
 	kref_init(&mr->r_kref);
-	RB_CLEAR_NODE(&mr->r_rb_node);
+	RB_CLEAR_ANALDE(&mr->r_rb_analde);
 	mr->r_trans = rs->rs_transport;
 	mr->r_sock = rs;
 
@@ -258,12 +258,12 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * the whole region after transferring the partial page references
 	 * to the sg array so that we can have one page ref cleanup path.
 	 *
-	 * For now we have no flag that tells us whether the mapping is
+	 * For analw we have anal flag that tells us whether the mapping is
 	 * r/o or r/w. We need to assume r/w, or we'll do a lot of RDMA to
 	 * the zero page.
 	 */
 	ret = rds_pin_pages(args->vec.addr, nr_pages, pages, 1);
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPANALTSUPP) {
 		need_odp = 1;
 	} else if (ret <= 0) {
 		goto out;
@@ -271,7 +271,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		nents = ret;
 		sg = kmalloc_array(nents, sizeof(*sg), GFP_KERNEL);
 		if (!sg) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto out;
 		}
 		WARN_ON(!nents);
@@ -284,13 +284,13 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		rdsdebug("RDS: trans_private nents is %u\n", nents);
 	}
 	/* Obtain a transport specific MR. If this succeeds, the
-	 * s/g list is now owned by the MR.
-	 * Note that dma_map() implies that pending writes are
-	 * flushed to RAM, so no dma_sync is needed here. */
+	 * s/g list is analw owned by the MR.
+	 * Analte that dma_map() implies that pending writes are
+	 * flushed to RAM, so anal dma_sync is needed here. */
 	trans_private = rs->rs_transport->get_mr(
 		sg, nents, rs, &mr->r_key, cp ? cp->cp_conn : NULL,
 		args->vec.addr, args->vec.bytes,
-		need_odp ? ODP_ZEROBASED : ODP_NOT_NEEDED);
+		need_odp ? ODP_ZEROBASED : ODP_ANALT_NEEDED);
 
 	if (IS_ERR(trans_private)) {
 		/* In ODP case, we don't GUP pages, so don't need
@@ -302,7 +302,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		}
 		ret = PTR_ERR(trans_private);
 		/* Trigger connection so that its ready for the next retry */
-		if (ret == -ENODEV)
+		if (ret == -EANALDEV)
 			rds_conn_connect_if_down(cp->cp_conn);
 		goto out;
 	}
@@ -417,14 +417,14 @@ int rds_free_mr(struct rds_sock *rs, sockptr_t optval, int optlen)
 	}
 
 	/* Look up the MR given its R_key and remove it from the rbtree
-	 * so nobody else finds it.
+	 * so analbody else finds it.
 	 * This should also prevent races with rds_rdma_unuse.
 	 */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, rds_rdma_cookie_key(args.cookie), NULL);
 	if (mr) {
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_analde, &rs->rs_rdma_keys);
+		RB_CLEAR_ANALDE(&mr->r_rb_analde);
 		if (args.flags & RDS_RDMA_INVALIDATE)
 			mr->r_invalidate = 1;
 	}
@@ -451,7 +451,7 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr) {
-		pr_debug("rds: trying to unuse MR with unknown r_key %u!\n",
+		pr_debug("rds: trying to unuse MR with unkanalwn r_key %u!\n",
 			 r_key);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		return;
@@ -462,18 +462,18 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	 */
 	kref_get(&mr->r_kref);
 
-	/* If it is going to be freed, remove it from the tree now so
-	 * that no other thread can find it and free it.
+	/* If it is going to be freed, remove it from the tree analw so
+	 * that anal other thread can find it and free it.
 	 */
 	if (mr->r_use_once || force) {
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_analde, &rs->rs_rdma_keys);
+		RB_CLEAR_ANALDE(&mr->r_rb_analde);
 		zot_me = 1;
 	}
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 
 	/* May have to issue a dma_sync on this memory region.
-	 * Note we could avoid this if the operation was a RDMA READ,
+	 * Analte we could avoid this if the operation was a RDMA READ,
 	 * but at this point we can't tell. */
 	if (mr->r_trans->sync_mr)
 		mr->r_trans->sync_mr(mr->r_trans_private, DMA_FROM_DEVICE);
@@ -505,8 +505,8 @@ void rds_rdma_free_op(struct rm_rdma_op *ro)
 		}
 	}
 
-	kfree(ro->op_notifier);
-	ro->op_notifier = NULL;
+	kfree(ro->op_analtifier);
+	ro->op_analtifier = NULL;
 	ro->op_active = 0;
 	ro->op_odp_mr = NULL;
 }
@@ -520,8 +520,8 @@ void rds_atomic_free_op(struct rm_atomic_op *ao)
 	 * to local memory */
 	unpin_user_pages_dirty_lock(&page, 1, true);
 
-	kfree(ao->op_notifier);
-	ao->op_notifier = NULL;
+	kfree(ao->op_analtifier);
+	ao->op_analtifier = NULL;
 	ao->op_active = 0;
 }
 
@@ -545,7 +545,7 @@ static int rds_rdma_pages(struct rds_iovec iov[], int nr_iovecs)
 
 		/*
 		 * nr_pages for one entry is limited to (UINT_MAX>>PAGE_SHIFT)+1,
-		 * so tot_pages cannot overflow without first going negative.
+		 * so tot_pages cananalt overflow without first going negative.
 		 */
 		if (tot_pages < 0)
 			return -EINVAL;
@@ -575,7 +575,7 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 			   sizeof(struct rds_iovec),
 			   GFP_KERNEL);
 	if (!iov->iov)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	vec = &iov->iov[0];
 
@@ -595,7 +595,7 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 
 		/*
 		 * nr_pages for one entry is limited to (UINT_MAX>>PAGE_SHIFT)+1,
-		 * so tot_pages cannot overflow without first going negative.
+		 * so tot_pages cananalt overflow without first going negative.
 		 */
 		if (tot_pages < 0)
 			return -EINVAL;
@@ -629,7 +629,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	args = CMSG_DATA(cmsg);
 
 	if (ipv6_addr_any(&rs->rs_bound_addr)) {
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -EANALTCONN; /* XXX analt a great erranal */
 		goto out_ret;
 	}
 
@@ -642,7 +642,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		ret = -EINVAL;
 		goto out_ret;
 	}
-	/* odp-mr is not supported for multiple requests within one message */
+	/* odp-mr is analt supported for multiple requests within one message */
 	if (args->nr_local != 1)
 		odp_supported = false;
 
@@ -656,13 +656,13 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out_ret;
 	}
 
 	op->op_write = !!(args->flags & RDS_RDMA_READWRITE);
 	op->op_fence = !!(args->flags & RDS_RDMA_FENCE);
-	op->op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	op->op_analtify = !!(args->flags & RDS_RDMA_ANALTIFY_ME);
 	op->op_silent = !!(args->flags & RDS_RDMA_SILENT);
 	op->op_active = 1;
 	op->op_recverr = rs->rs_recverr;
@@ -675,19 +675,19 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		goto out_pages;
 	}
 
-	if (op->op_notify || op->op_recverr) {
-		/* We allocate an uninitialized notifier here, because
+	if (op->op_analtify || op->op_recverr) {
+		/* We allocate an uninitialized analtifier here, because
 		 * we don't want to do that in the completion handler. We
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		op->op_notifier = kmalloc(sizeof(struct rds_notifier), GFP_KERNEL);
-		if (!op->op_notifier) {
-			ret = -ENOMEM;
+		op->op_analtifier = kmalloc(sizeof(struct rds_analtifier), GFP_KERNEL);
+		if (!op->op_analtifier) {
+			ret = -EANALMEM;
 			goto out_pages;
 		}
-		op->op_notifier->n_user_token = args->user_token;
-		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
+		op->op_analtifier->n_user_token = args->user_token;
+		op->op_analtifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
 	/* The cookie contains the R_Key of the remote memory region, and
@@ -709,7 +709,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	for (i = 0; i < args->nr_local; i++) {
 		struct rds_iovec *iov = &iovs[i];
-		/* don't need to check, rds_rdma_pages() verified nr will be +nonzero */
+		/* don't need to check, rds_rdma_pages() verified nr will be +analnzero */
 		unsigned int nr = rds_pages_in_vec(iov);
 
 		rs->rs_user_addr = iov->addr;
@@ -720,23 +720,23 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		 */
 		ret = rds_pin_pages(iov->addr, nr, pages, !op->op_write);
 		if ((!odp_supported && ret <= 0) ||
-		    (odp_supported && ret <= 0 && ret != -EOPNOTSUPP))
+		    (odp_supported && ret <= 0 && ret != -EOPANALTSUPP))
 			goto out_pages;
 
-		if (ret == -EOPNOTSUPP) {
+		if (ret == -EOPANALTSUPP) {
 			struct rds_mr *local_odp_mr;
 
 			if (!rs->rs_transport->get_mr) {
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto out_pages;
 			}
 			local_odp_mr =
 				kzalloc(sizeof(*local_odp_mr), GFP_KERNEL);
 			if (!local_odp_mr) {
-				ret = -ENOMEM;
+				ret = -EANALMEM;
 				goto out_pages;
 			}
-			RB_CLEAR_NODE(&local_odp_mr->r_rb_node);
+			RB_CLEAR_ANALDE(&local_odp_mr->r_rb_analde);
 			kref_init(&local_odp_mr->r_kref);
 			local_odp_mr->r_trans = rs->rs_transport;
 			local_odp_mr->r_sock = rs;
@@ -749,7 +749,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 				rdsdebug("get_mr ret %d %p\"", ret,
 					 local_odp_mr->r_trans_private);
 				kfree(local_odp_mr);
-				ret = -EOPNOTSUPP;
+				ret = -EOPANALTSUPP;
 				goto out_pages;
 			}
 			rdsdebug("Need odp; local_odp_mr %p trans_private %p\n",
@@ -784,7 +784,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	}
 
 	if (nr_bytes > args->remote_vec.bytes) {
-		rdsdebug("RDS nr_bytes %u remote_bytes %u do not match\n",
+		rdsdebug("RDS nr_bytes %u remote_bytes %u do analt match\n",
 				nr_bytes,
 				(unsigned int) args->remote_vec.bytes);
 		ret = -EINVAL;
@@ -824,7 +824,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 
 	/* We are reusing a previously mapped MR here. Most likely, the
 	 * application has written to the buffer, so we need to explicitly
-	 * flush those writes to RAM. Otherwise the HCA may not see them
+	 * flush those writes to RAM. Otherwise the HCA may analt see them
 	 * when doing a DMA from that buffer.
 	 */
 	r_key = rds_rdma_cookie_key(rm->m_rdma_cookie);
@@ -878,17 +878,17 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 
 	args = CMSG_DATA(cmsg);
 
-	/* Nonmasked & masked cmsg ops converted to masked hw ops */
+	/* Analnmasked & masked cmsg ops converted to masked hw ops */
 	switch (cmsg->cmsg_type) {
 	case RDS_CMSG_ATOMIC_FADD:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
 		rm->atomic.op_m_fadd.add = args->fadd.add;
-		rm->atomic.op_m_fadd.nocarry_mask = 0;
+		rm->atomic.op_m_fadd.analcarry_mask = 0;
 		break;
 	case RDS_CMSG_MASKED_ATOMIC_FADD:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
 		rm->atomic.op_m_fadd.add = args->m_fadd.add;
-		rm->atomic.op_m_fadd.nocarry_mask = args->m_fadd.nocarry_mask;
+		rm->atomic.op_m_fadd.analcarry_mask = args->m_fadd.analcarry_mask;
 		break;
 	case RDS_CMSG_ATOMIC_CSWP:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
@@ -908,7 +908,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		BUG(); /* should never happen */
 	}
 
-	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	rm->atomic.op_analtify = !!(args->flags & RDS_RDMA_ANALTIFY_ME);
 	rm->atomic.op_silent = !!(args->flags & RDS_RDMA_SILENT);
 	rm->atomic.op_active = 1;
 	rm->atomic.op_recverr = rs->rs_recverr;
@@ -931,20 +931,20 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 
 	sg_set_page(rm->atomic.op_sg, page, 8, offset_in_page(args->local_addr));
 
-	if (rm->atomic.op_notify || rm->atomic.op_recverr) {
-		/* We allocate an uninitialized notifier here, because
+	if (rm->atomic.op_analtify || rm->atomic.op_recverr) {
+		/* We allocate an uninitialized analtifier here, because
 		 * we don't want to do that in the completion handler. We
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		rm->atomic.op_notifier = kmalloc(sizeof(*rm->atomic.op_notifier), GFP_KERNEL);
-		if (!rm->atomic.op_notifier) {
-			ret = -ENOMEM;
+		rm->atomic.op_analtifier = kmalloc(sizeof(*rm->atomic.op_analtifier), GFP_KERNEL);
+		if (!rm->atomic.op_analtifier) {
+			ret = -EANALMEM;
 			goto err;
 		}
 
-		rm->atomic.op_notifier->n_user_token = args->user_token;
-		rm->atomic.op_notifier->n_status = RDS_RDMA_SUCCESS;
+		rm->atomic.op_analtifier->n_user_token = args->user_token;
+		rm->atomic.op_analtifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
 	rm->atomic.op_rkey = rds_rdma_cookie_key(args->cookie);
@@ -955,7 +955,7 @@ err:
 	if (page)
 		unpin_user_page(page);
 	rm->atomic.op_active = 0;
-	kfree(rm->atomic.op_notifier);
+	kfree(rm->atomic.op_analtifier);
 
 	return ret;
 }

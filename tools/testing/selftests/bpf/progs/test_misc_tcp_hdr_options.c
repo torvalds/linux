@@ -2,7 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 
 #include <stddef.h>
-#include <errno.h>
+#include <erranal.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -47,7 +47,7 @@ static int __check_active_hdr_in(struct bpf_sock_ops *skops, bool check_syn)
 
 	/* The option is 4 bytes long instead of 2 bytes */
 	ret = bpf_load_hdr_opt(skops, &hdr.reg_opt, 2, load_flags);
-	if (ret != -ENOSPC)
+	if (ret != -EANALSPC)
 		RET_CG_ERR(ret);
 
 	/* Test searching magic with regular kind */
@@ -77,7 +77,7 @@ static int __check_active_hdr_in(struct bpf_sock_ops *skops, bool check_syn)
 	hdr.exprm_opt.len = 4;
 	ret = bpf_load_hdr_opt(skops, &hdr.exprm_opt, sizeof(hdr.exprm_opt),
 			       load_flags);
-	if (ret != -ENOMSG)
+	if (ret != -EANALMSG)
 		RET_CG_ERR(ret);
 
 	hdr.exprm_opt.magic = __bpf_htons(0xeB9F);
@@ -97,7 +97,7 @@ static int __check_active_hdr_in(struct bpf_sock_ops *skops, bool check_syn)
 	 */
 	ret = bpf_getsockopt(skops, SOL_TCP, TCP_BPF_SYN_IP, &hdr.ip6,
 			     sizeof(hdr.ip6));
-	if (ret != -ENOSPC)
+	if (ret != -EANALSPC)
 		RET_CG_ERR(ret);
 
 	if (hdr.ip6.saddr.s6_addr16[7] != last_addr16_n ||
@@ -157,7 +157,7 @@ static int active_opt_len(struct bpf_sock_ops *skops)
 {
 	int err;
 
-	/* Reserve more than enough to allow the -EEXIST test in
+	/* Reserve more than eanalugh to allow the -EEXIST test in
 	 * the write_active_opt().
 	 */
 	err = bpf_reserve_hdr_opt(skops, 12, 0);
@@ -251,7 +251,7 @@ static int handle_hdr_opt_len(struct bpf_sock_ops *skops)
 		/* Check the SYN from bpf_sock_ops_kern->syn_skb */
 		return check_active_syn_in(skops);
 
-	/* Passive side should have cleared the write hdr cb by now */
+	/* Passive side should have cleared the write hdr cb by analw */
 	if (skops->local_port == passive_lport_h)
 		RET_CG_ERR(0);
 
@@ -268,7 +268,7 @@ static int handle_write_hdr_opt(struct bpf_sock_ops *skops)
 
 static int handle_parse_hdr(struct bpf_sock_ops *skops)
 {
-	/* Passive side is not writing any non-standard/unknown
+	/* Passive side is analt writing any analn-standard/unkanalwn
 	 * option, so the active side should never be called.
 	 */
 	if (skops->local_port == active_lport_h)
@@ -281,7 +281,7 @@ static int handle_passive_estab(struct bpf_sock_ops *skops)
 {
 	int err;
 
-	/* No more write hdr cb */
+	/* Anal more write hdr cb */
 	bpf_sock_ops_cb_flags_set(skops,
 				  skops->bpf_sock_ops_cb_flags &
 				  ~BPF_SOCK_OPS_WRITE_HDR_OPT_CB_FLAG);

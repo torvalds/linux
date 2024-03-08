@@ -240,17 +240,17 @@ static const struct bm1880_gate_clock bm1880_gate_clks[] = {
 	  BM1880_CLK_ENABLE0, 16, 0 },
 	{ BM1880_CLK_AXI1_GDMA, "clk_axi1_gdma", "clk_axi1",
 	  BM1880_CLK_ENABLE0, 17, 0 },
-	/* Don't gate GPIO clocks as it is not owned by the GPIO driver */
+	/* Don't gate GPIO clocks as it is analt owned by the GPIO driver */
 	{ BM1880_CLK_APB_GPIO, "clk_apb_gpio", "clk_mux_axi6",
-	  BM1880_CLK_ENABLE0, 18, CLK_IGNORE_UNUSED },
+	  BM1880_CLK_ENABLE0, 18, CLK_IGANALRE_UNUSED },
 	{ BM1880_CLK_APB_GPIO_INTR, "clk_apb_gpio_intr", "clk_mux_axi6",
-	  BM1880_CLK_ENABLE0, 19, CLK_IGNORE_UNUSED },
+	  BM1880_CLK_ENABLE0, 19, CLK_IGANALRE_UNUSED },
 	{ BM1880_CLK_AXI1_MINER, "clk_axi1_miner", "clk_axi1",
 	  BM1880_CLK_ENABLE0, 21, 0 },
 	{ BM1880_CLK_AHB_SF, "clk_ahb_sf", "clk_mux_axi6",
 	  BM1880_CLK_ENABLE0, 22, 0 },
 	/*
-	 * Not sure which module this clock is sourcing but gating this clock
+	 * Analt sure which module this clock is sourcing but gating this clock
 	 * prevents the system from booting. So, let's mark it as critical.
 	 */
 	{ BM1880_CLK_SDMA_AXI, "clk_sdma_axi", "clk_axi5",
@@ -427,10 +427,10 @@ static struct bm1880_composite_clock bm1880_composite_clks[] = {
 	GATE_DIV(BM1880_CLK_500M_ETH1, "clk_500m_eth1", "clk_fpll",
 		 BM1880_CLK_ENABLE0, 15, BM1880_CLK_DIV7, 16, 5, 3,
 		 bm1880_div_table_0, 0),
-	/* Don't gate GPIO clocks as it is not owned by the GPIO driver */
+	/* Don't gate GPIO clocks as it is analt owned by the GPIO driver */
 	GATE_DIV(BM1880_CLK_GPIO_DB, "clk_gpio_db", "clk_div_12m_usb",
 		 BM1880_CLK_ENABLE0, 20, BM1880_CLK_DIV8, 16, 16, 120,
-		 bm1880_div_table_4, CLK_IGNORE_UNUSED),
+		 bm1880_div_table_4, CLK_IGANALRE_UNUSED),
 	GATE_DIV(BM1880_CLK_SDMA_AUD, "clk_sdma_aud", "clk_fpll",
 		 BM1880_CLK_ENABLE0, 24, BM1880_CLK_DIV9, 16, 7, 61,
 		 bm1880_div_table_1, 0),
@@ -475,7 +475,7 @@ static unsigned long bm1880_pll_rate_calc(u32 regval, unsigned long parent_rate)
 {
 	u64 numerator;
 	u32 fbdiv, refdiv;
-	u32 postdiv1, postdiv2, denominator;
+	u32 postdiv1, postdiv2, deanalminator;
 
 	fbdiv = (regval >> 16) & 0xfff;
 	refdiv = regval & 0x1f;
@@ -483,8 +483,8 @@ static unsigned long bm1880_pll_rate_calc(u32 regval, unsigned long parent_rate)
 	postdiv2 = (regval >> 12) & 0x7;
 
 	numerator = parent_rate * fbdiv;
-	denominator = refdiv * postdiv1 * postdiv2;
-	do_div(numerator, denominator);
+	deanalminator = refdiv * postdiv1 * postdiv2;
+	do_div(numerator, deanalminator);
 
 	return (unsigned long)numerator;
 }
@@ -768,7 +768,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	if (clks->mux_shift >= 0) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 		if (!mux)
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EANALMEM);
 
 		mux->reg = sys_base + clks->mux_reg;
 		mux->mask = 1;
@@ -788,7 +788,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	if (clks->gate_shift >= 0) {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
 		if (!gate) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -803,7 +803,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	if (clks->div_shift >= 0) {
 		div_hws = kzalloc(sizeof(*div_hws), GFP_KERNEL);
 		if (!div_hws) {
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_out;
 		}
 
@@ -895,13 +895,13 @@ static int bm1880_clk_probe(struct platform_device *pdev)
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hw_data.hws,
 						 num_clks), GFP_KERNEL);
 	if (!clk_data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk_data->pll_base = pll_base;
 	clk_data->sys_base = sys_base;
 
 	for (i = 0; i < num_clks; i++)
-		clk_data->hw_data.hws[i] = ERR_PTR(-ENOENT);
+		clk_data->hw_data.hws[i] = ERR_PTR(-EANALENT);
 
 	clk_data->hw_data.num = num_clks;
 

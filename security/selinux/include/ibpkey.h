@@ -3,12 +3,12 @@
  * pkey table
  *
  * SELinux must keep a mapping of pkeys to labels/SIDs.  This
- * mapping is maintained as part of the normal policy but a fast cache is
+ * mapping is maintained as part of the analrmal policy but a fast cache is
  * needed to reduce the lookup overhead.
  */
 
 /*
- * (c) Mellanox Technologies, 2016
+ * (c) Mellaanalx Techanallogies, 2016
  */
 
 #ifndef _SELINUX_IB_PKEY_H

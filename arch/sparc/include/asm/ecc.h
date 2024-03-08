@@ -13,9 +13,9 @@
 #define ECC_ENABLE     0x00000000       /* ECC enable register */
 #define ECC_FSTATUS    0x00000008       /* ECC fault status register */
 #define ECC_FADDR      0x00000010       /* ECC fault address register */
-#define ECC_DIGNOSTIC  0x00000018       /* ECC diagnostics register */
+#define ECC_DIGANALSTIC  0x00000018       /* ECC diaganalstics register */
 #define ECC_MBAENAB    0x00000020       /* MBus arbiter enable register */
-#define ECC_DMESG      0x00001000       /* Diagnostic message passing area */
+#define ECC_DMESG      0x00001000       /* Diaganalstic message passing area */
 
 /* ECC MBus Arbiter Enable register:
  *
@@ -56,19 +56,19 @@
  *  31-28  27 26-22  21-14   13  12 11 10-8 7-4   3-0
  *
  * MID: ModuleID of the faulting processor. ie. who did it?
- * S: Supervisor/Privileged access? 0=no 1=yes
+ * S: Supervisor/Privileged access? 0=anal 1=anal
  * VA: Bits 19-12 of the virtual faulting address, these are the
  *     superset bits in the virtual cache and can be used for
  *     a flush operation if necessary.
- * BM: Boot mode? 0=no 1=yes  This is just like the SRMMU boot
+ * BM: Boot mode? 0=anal 1=anal  This is just like the SRMMU boot
  *     mode bit.
- * AT: Did this fault happen during an atomic instruction? 0=no
- *     1=yes.  This means either an 'ldstub' or 'swap' instruction
- *     was in progress (but not finished) when this fault happened.
+ * AT: Did this fault happen during an atomic instruction? 0=anal
+ *     1=anal.  This means either an 'ldstub' or 'swap' instruction
+ *     was in progress (but analt finished) when this fault happened.
  *     This indicated whether the bus was locked when the fault
  *     occurred.
  * C: Did the pte for this access indicate that it was cacheable?
- *    0=no 1=yes
+ *    0=anal 1=anal
  * SZ: The size of the transaction.
  * TYP: The transaction type.
  * PADDR: Bits 35-32 of the physical address for the fault.
@@ -101,14 +101,14 @@
  * ----------------------------------------------
  *  31-18  17  16    15-8    7-4   3    2    1 0
  *
- * C2E: A C2 graphics error occurred. 0=no 1=yes (SS10 only)
- * MULT: Multiple errors occurred ;-O 0=no 1=prom_panic(yes)
+ * C2E: A C2 graphics error occurred. 0=anal 1=anal (SS10 only)
+ * MULT: Multiple errors occurred ;-O 0=anal 1=prom_panic(anal)
  * SYNDROME: Controller is mentally unstable.
  * DWORD:
- * UNC: Uncorrectable error.  0=no 1=yes
- * TIMEO: Timeout occurred. 0=no 1=yes
- * BS: C2 graphics bad slot access. 0=no 1=yes (SS10 only)
- * C: Correctable error? 0=no 1=yes
+ * UNC: Uncorrectable error.  0=anal 1=anal
+ * TIMEO: Timeout occurred. 0=anal 1=anal
+ * BS: C2 graphics bad slot access. 0=anal 1=anal (SS10 only)
+ * C: Correctable error? 0=anal 1=anal
  */
 
 #define ECC_FSR_C2ERR    0x00020000

@@ -137,7 +137,7 @@ mirror_gre_test()
 	local should_fail=$1; shift
 
 	if ! tc_offload_check $TC_FLOWER_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could analt test offloaded functionality"
 		return
 	fi
 
@@ -165,7 +165,7 @@ mirror_gre_setup_prepare()
 	simple_if_init $h3
 
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 addrgenmode none
+	ip link set dev br1 addrgenmode analne
 	ip link set dev br1 up
 
 	ip link set dev $swp1 master br1

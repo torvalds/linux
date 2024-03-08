@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_QUEUE_H
 #define PVR_QUEUE_H
@@ -21,8 +21,8 @@ struct pvr_queue_fence_ctx {
 	/** @id: Fence context ID allocated with dma_fence_context_alloc(). */
 	u64 id;
 
-	/** @seqno: Sequence number incremented each time a fence is created. */
-	atomic_t seqno;
+	/** @seqanal: Sequence number incremented each time a fence is created. */
+	atomic_t seqanal;
 
 	/** @lock: Lock used to synchronize access to fences allocated by this context. */
 	spinlock_t lock;
@@ -31,8 +31,8 @@ struct pvr_queue_fence_ctx {
 /**
  * struct pvr_queue_cccb_fence_ctx - CCCB fence context
  *
- * Context used to manage fences controlling access to the CCCB. No fences are
- * issued if there's enough space in the CCCB to push job commands.
+ * Context used to manage fences controlling access to the CCCB. Anal fences are
+ * issued if there's eanalugh space in the CCCB to push job commands.
  */
 struct pvr_queue_cccb_fence_ctx {
 	/** @base: Base queue fence context. */
@@ -42,9 +42,9 @@ struct pvr_queue_cccb_fence_ctx {
 	 * @job: Job waiting for CCCB space.
 	 *
 	 * Thanks to the serializationg done at the drm_sched_entity level,
-	 * there's no more than one job waiting for CCCB at a given time.
+	 * there's anal more than one job waiting for CCCB at a given time.
 	 *
-	 * This field is NULL if no jobs are currently waiting for CCCB space.
+	 * This field is NULL if anal jobs are currently waiting for CCCB space.
 	 *
 	 * Must be accessed with @job_lock held.
 	 */
@@ -83,12 +83,12 @@ struct pvr_queue {
 	/** @ctx: Context object this queue is bound to. */
 	struct pvr_context *ctx;
 
-	/** @node: Used to add the queue to the active/idle queue list. */
-	struct list_head node;
+	/** @analde: Used to add the queue to the active/idle queue list. */
+	struct list_head analde;
 
 	/**
 	 * @in_flight_job_count: Number of jobs submitted to the CCCB that
-	 * have not been processed yet.
+	 * have analt been processed yet.
 	 */
 	atomic_t in_flight_job_count;
 
@@ -96,7 +96,7 @@ struct pvr_queue {
 	 * @cccb_fence_ctx: CCCB fence context.
 	 *
 	 * Used to control access to the CCCB is full, such that we don't
-	 * end up trying to push commands to the CCCB if there's not enough
+	 * end up trying to push commands to the CCCB if there's analt eanalugh
 	 * space to receive all commands needed for a job to complete.
 	 */
 	struct pvr_queue_cccb_fence_ctx cccb_fence_ctx;

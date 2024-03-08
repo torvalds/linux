@@ -81,7 +81,7 @@ static int t5403_comp_pressure(struct t5403_data *data, int *val, int *val2)
 		goto done;
 	p_r = ret;
 
-	/* see EPCOS application note */
+	/* see EPCOS application analte */
 	S = T5403_C_U16(3) + (s32) T5403_C_U16(4) * t_r / 0x20000 +
 		T5403_C(5) * t_r / 0x8000 * t_r / 0x80000 +
 		T5403_C(9) * t_r / 0x8000 * t_r / 0x8000 * t_r / 0x10000;
@@ -114,7 +114,7 @@ static int t5403_comp_temp(struct t5403_data *data, int *val)
 		goto done;
 	t_r = ret;
 
-	/* see EPCOS application note */
+	/* see EPCOS application analte */
 	*val = ((s32) T5403_C_U16(1) * t_r / 0x100 +
 		(s32) T5403_C_U16(2) * 0x40) * 1000 / 0x10000;
 
@@ -217,17 +217,17 @@ static int t5403_probe(struct i2c_client *client)
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 
 	ret = i2c_smbus_read_byte_data(client, T5403_SLAVE_ADDR);
 	if (ret < 0)
 		return ret;
 	if ((ret & T5403_I2C_MASK) != T5403_I2C_ADDR)
-		return -ENODEV;
+		return -EANALDEV;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	data = iio_priv(indio_dev);
 	data->client = client;

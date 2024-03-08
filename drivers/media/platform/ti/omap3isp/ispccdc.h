@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - CCDC module
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2010 Analkia Corporation
  * Copyright (C) 2009 Texas Instruments, Inc.
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -20,7 +20,7 @@
 #include "ispvideo.h"
 
 enum ccdc_input_entity {
-	CCDC_INPUT_NONE,
+	CCDC_INPUT_ANALNE,
 	CCDC_INPUT_PARALLEL,
 	CCDC_INPUT_CSI2A,
 	CCDC_INPUT_CCP2B,
@@ -72,7 +72,7 @@ struct ispccdc_lsc {
 	struct list_head free_queue;	/* configurations for freeing */
 };
 
-#define CCDC_STOP_NOT_REQUESTED		0x00
+#define CCDC_STOP_ANALT_REQUESTED		0x00
 #define CCDC_STOP_REQUEST		0x01
 #define CCDC_STOP_EXECUTED		(0x02 | CCDC_STOP_REQUEST)
 #define CCDC_STOP_CCDC_FINISHED		0x04
@@ -103,7 +103,7 @@ struct ispccdc_lsc {
  * @crop: Active crop rectangle on the OF source pad
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video analde
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)
  * @obclamp: Optical-black clamp enabled (1) or disabled (0)

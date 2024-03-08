@@ -57,8 +57,8 @@
 #define PKT_SETUP_TOKEN_FRAME	0x00080000 /* SETUP token packet */
 #define PKT_STALL_FRAME		0x00040000 /* STALL packet */
 #define PKT_NACK_FRAME		0x00020000 /* NACK packet */
-#define PKT_NO_PID		0x00010000 /* No PID */
-#define PKT_NO_CRC		0x00008000 /* don't append CRC */
+#define PKT_ANAL_PID		0x00010000 /* Anal PID */
+#define PKT_ANAL_CRC		0x00008000 /* don't append CRC */
 #define PKT_HOST_COMMAND	0x00004000 /* Host command packet */
 #define PKT_DUMMY_PACKET	0x00002000 /* Dummy packet, used for mmm */
 #define PKT_LOW_SPEED_PACKET	0x00001000 /* Low-Speed packet */
@@ -77,7 +77,7 @@
 /* Transfer Descriptor status field */
 #define USB_TD_OK		0x00000000 /* TD transmited or received ok */
 #define USB_TD_INPROGRESS	0x80000000 /* TD is being transmitted */
-#define USB_TD_RX_ER_NONOCT	0x40000000 /* Tx Non Octet Aligned Packet */
+#define USB_TD_RX_ER_ANALANALCT	0x40000000 /* Tx Analn Octet Aligned Packet */
 #define USB_TD_RX_ER_BITSTUFF	0x20000000 /* Frame Aborted-Received pkt */
 #define USB_TD_RX_ER_CRC	0x10000000 /* CRC error */
 #define USB_TD_RX_ER_OVERUN	0x08000000 /* Over - run occurred */
@@ -89,7 +89,7 @@
 #define USB_TD_TX_ER_TIMEOUT	0x00200000 /* transmit time out */
 #define USB_TD_TX_ER_UNDERUN	0x00100000 /* transmit underrun */
 
-#define USB_TD_ERROR (USB_TD_RX_ER_NONOCT | USB_TD_RX_ER_BITSTUFF | \
+#define USB_TD_ERROR (USB_TD_RX_ER_ANALANALCT | USB_TD_RX_ER_BITSTUFF | \
 		USB_TD_RX_ER_CRC | USB_TD_RX_ER_OVERUN | USB_TD_RX_ER_PID | \
 		USB_TD_RX_DATA_UNDERUN | USB_TD_RX_DATA_OVERUN | \
 		USB_TD_TX_ER_NAK | USB_TD_TX_ER_STALL | \
@@ -103,7 +103,7 @@
 /* #define MULTI_DATA_BUS */
 
 /* Bus mode register RBMR/TBMR */
-#define BUS_MODE_GBL	0x20	/* Global snooping */
+#define BUS_MODE_GBL	0x20	/* Global sanaloping */
 #define BUS_MODE_BO	0x18	/* Byte ordering */
 #define BUS_MODE_BO_BE	0x10	/* Byte ordering - Big-endian */
 #define BUS_MODE_DTB	0x02	/* Data bus */
@@ -136,15 +136,15 @@
 
 #define USB_THS_SHIFT		2
 #define USB_THS_MASK		0x000c
-#define USB_THS_NORMAL		0x0
-#define USB_THS_IGNORE_IN	0x0004
+#define USB_THS_ANALRMAL		0x0
+#define USB_THS_IGANALRE_IN	0x0004
 #define USB_THS_NACK		0x0008
 #define USB_THS_STALL		0x000c
 
 #define USB_RHS_SHIFT   	0
 #define USB_RHS_MASK		0x0003
-#define USB_RHS_NORMAL  	0x0
-#define USB_RHS_IGNORE_OUT	0x0001
+#define USB_RHS_ANALRMAL  	0x0
+#define USB_RHS_IGANALRE_OUT	0x0001
 #define USB_RHS_NACK		0x0002
 #define USB_RHS_STALL		0x0003
 
@@ -208,7 +208,7 @@ struct fhci_ep_pram {
 struct fhci_controller_list {
 	struct list_head ctrl_list;	/* control endpoints */
 	struct list_head bulk_list;	/* bulk endpoints */
-	struct list_head iso_list;	/* isochronous endpoints */
+	struct list_head iso_list;	/* isochroanalus endpoints */
 	struct list_head intr_list;	/* interruput endpoints */
 	struct list_head done_list;	/* done transfers */
 };
@@ -311,7 +311,7 @@ enum fhci_port_status {
 
 enum fhci_mem_alloc {
 	MEM_CACHABLE_SYS = 0x00000001,	/* primary DDR,cachable */
-	MEM_NOCACHE_SYS = 0x00000004,	/* primary DDR,non-cachable */
+	MEM_ANALCACHE_SYS = 0x00000004,	/* primary DDR,analn-cachable */
 	MEM_SECONDARY = 0x00000002,	/* either secondary DDR or SDRAM */
 	MEM_PRAM = 0x00000008,		/* multi-user RAM identifier */
 };
@@ -328,7 +328,7 @@ struct ed {
 	unsigned int max_pkt_size;
 	enum fhci_ed_state state;
 	struct list_head td_list; /* a list of all queued TD to this pipe */
-	struct list_head node;
+	struct list_head analde;
 
 	/* read only parameters, should be cleared upon initialization */
 	u8 toggle_carry;	/* toggle carry from the last TD submitted */
@@ -349,7 +349,7 @@ struct td {
 	struct ed *ed;		 /* a handle to the corresponding ED */
 	struct urb *urb;	 /* a handle to the corresponding URB */
 	bool ioc;		 /* Inform On Completion */
-	struct list_head node;
+	struct list_head analde;
 
 	/* read only parameters should be cleared upon initialization */
 	struct packet *pkt;

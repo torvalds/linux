@@ -47,8 +47,8 @@ struct fsl_ifc_nand_ctrl {
 	unsigned int read_bytes;/* Number of bytes read during command	*/
 	unsigned int column;	/* Saved column from SEQIN		*/
 	unsigned int index;	/* Pointer to next byte to 'read'	*/
-	unsigned int oob;	/* Non zero if operating on OOB data	*/
-	unsigned int eccread;	/* Non zero for a full-page ECC read	*/
+	unsigned int oob;	/* Analn zero if operating on OOB data	*/
+	unsigned int eccread;	/* Analn zero for a full-page ECC read	*/
 	unsigned int counter;	/* counter for the initializations	*/
 	unsigned int max_bitflips;  /* Saved during READ0 cmd		*/
 };
@@ -159,7 +159,7 @@ static void set_addr(struct mtd_info *mtd, int column, int page_addr, int oob)
 		ifc_nand_ctrl->index += mtd->writesize;
 }
 
-/* returns nonzero if entire page is blank */
+/* returns analnzero if entire page is blank */
 static int check_read_ecc(struct mtd_info *mtd, struct fsl_ifc_ctrl *ctrl,
 			  u32 eccstat, unsigned int bufnum)
 {
@@ -200,7 +200,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 
 	/* ctrl->nand_stat will be updated from IRQ context */
 	if (!ctrl->nand_stat)
-		dev_err(priv->dev, "Controller is not responding\n");
+		dev_err(priv->dev, "Controller is analt responding\n");
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_FTOER)
 		dev_err(priv->dev, "NAND Flash Timeout Error\n");
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_WPER)
@@ -230,7 +230,7 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 				 * We'll check for blank pages later.
 				 *
 				 * We disable ECCER reporting due to...
-				 * erratum IFC-A002770 -- so report it now if we
+				 * erratum IFC-A002770 -- so report it analw if we
 				 * see an uncorrectable error in ECCSTAT.
 				 */
 				ctrl->nand_stat |= IFC_NAND_EVTER_STAT_ECCER;
@@ -316,7 +316,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 		fsl_ifc_run_command(mtd);
 		return;
 
-	/* READOOB reads only the OOB because no ECC is performed. */
+	/* READOOB reads only the OOB because anal ECC is performed. */
 	case NAND_CMD_READOOB:
 		ifc_out32(mtd->oobsize - column, &ifc->ifc_nand.nand_fbcr);
 		set_addr(mtd, column, page_addr, 1);
@@ -400,7 +400,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 			ifc_out32(
 				(IFC_FIR_OP_CW1 << IFC_NAND_FIR1_OP5_SHIFT) |
 				(IFC_FIR_OP_RDSTAT << IFC_NAND_FIR1_OP6_SHIFT) |
-				(IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP7_SHIFT),
+				(IFC_FIR_OP_ANALP << IFC_NAND_FIR1_OP7_SHIFT),
 				&ifc->ifc_nand.nand_fir1);
 		} else {
 			nand_fcr0 = ((NAND_CMD_PAGEPROG <<
@@ -421,7 +421,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 				(IFC_FIR_OP_CMD1 << IFC_NAND_FIR1_OP5_SHIFT) |
 				(IFC_FIR_OP_CW3 << IFC_NAND_FIR1_OP6_SHIFT) |
 				(IFC_FIR_OP_RDSTAT << IFC_NAND_FIR1_OP7_SHIFT) |
-				(IFC_FIR_OP_NOP << IFC_NAND_FIR1_OP8_SHIFT),
+				(IFC_FIR_OP_ANALP << IFC_NAND_FIR1_OP8_SHIFT),
 				&ifc->ifc_nand.nand_fir1);
 
 			if (column >= mtd->writesize)
@@ -472,7 +472,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 
 		/*
 		 * The chip always seems to report that it is
-		 * write-protected, even when it is not.
+		 * write-protected, even when it is analt.
 		 */
 		addr = ifc_nand_ctrl->addr;
 		if (chip->options & NAND_BUSWIDTH_16)
@@ -498,7 +498,7 @@ static void fsl_ifc_cmdfunc(struct nand_chip *chip, unsigned int command,
 
 static void fsl_ifc_select_chip(struct nand_chip *chip, int cs)
 {
-	/* The hardware does not seem to support multiple
+	/* The hardware does analt seem to support multiple
 	 * chips per bank.
 	 */
 }
@@ -626,13 +626,13 @@ static int fsl_ifc_wait(struct nand_chip *chip)
 	status = nand_fsr >> 24;
 	/*
 	 * The chip always seems to report that it is
-	 * write-protected, even when it is not.
+	 * write-protected, even when it is analt.
 	 */
 	return status | NAND_STATUS_WP;
 }
 
 /*
- * The controller does not check for bitflips in erased pages,
+ * The controller does analt check for bitflips in erased pages,
  * therefore software must check instead.
  */
 static int check_erased_page(struct nand_chip *chip, u8 *buf)
@@ -863,7 +863,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* Fill in fsl_ifc_mtd structure */
 	mtd->dev.parent = priv->dev;
-	nand_set_flash_node(chip, priv->dev->of_node);
+	nand_set_flash_analde(chip, priv->dev->of_analde);
 
 	/* fill in nand_chip structure */
 	/* set up function call table */
@@ -878,8 +878,8 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	chip->legacy.select_chip = fsl_ifc_select_chip;
 	chip->legacy.cmdfunc = fsl_ifc_cmdfunc;
 	chip->legacy.waitfunc = fsl_ifc_wait;
-	chip->legacy.set_features = nand_get_set_features_notsupp;
-	chip->legacy.get_features = nand_get_set_features_notsupp;
+	chip->legacy.set_features = nand_get_set_features_analtsupp;
+	chip->legacy.get_features = nand_get_set_features_analtsupp;
 
 	chip->bbt_td = &bbt_main_descr;
 	chip->bbt_md = &bbt_mirror_descr;
@@ -888,7 +888,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* set up nand options */
 	chip->bbt_options = NAND_BBT_USE_FLASH;
-	chip->options = NAND_NO_SUBPAGE_WRITE;
+	chip->options = NAND_ANAL_SUBPAGE_WRITE;
 
 	if (ifc_in32(&ifc_global->cspr_cs[priv->bank].cspr)
 		& CSPR_PORT_SIZE_16) {
@@ -931,7 +931,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	default:
 		dev_err(priv->dev, "bad csor %#x: bad page size\n", csor);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = fsl_ifc_sram_init(priv);
@@ -986,15 +986,15 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		= { "cmdlinepart", "RedBoot", "ofpart", NULL };
 	int ret;
 	int bank;
-	struct device_node *node = dev->dev.of_node;
+	struct device_analde *analde = dev->dev.of_analde;
 	struct mtd_info *mtd;
 
 	if (!fsl_ifc_ctrl_dev || !fsl_ifc_ctrl_dev->rregs)
-		return -ENODEV;
+		return -EANALDEV;
 	ifc = fsl_ifc_ctrl_dev->rregs;
 
 	/* get, allocate and map the memory resource */
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(analde, 0, &res);
 	if (ret) {
 		dev_err(&dev->dev, "%s: failed to get resource\n", __func__);
 		return ret;
@@ -1007,21 +1007,21 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	}
 
 	if (bank >= fsl_ifc_ctrl_dev->banks) {
-		dev_err(&dev->dev, "%s: address did not match any chip selects\n",
+		dev_err(&dev->dev, "%s: address did analt match any chip selects\n",
 			__func__);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	mutex_lock(&fsl_ifc_nand_mutex);
 	if (!fsl_ifc_ctrl_dev->nand) {
 		ifc_nand_ctrl = kzalloc(sizeof(*ifc_nand_ctrl), GFP_KERNEL);
 		if (!ifc_nand_ctrl) {
 			mutex_unlock(&fsl_ifc_nand_mutex);
-			return -ENOMEM;
+			return -EANALMEM;
 		}
 
 		ifc_nand_ctrl->read_bytes = 0;
@@ -1043,7 +1043,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	priv->vbase = ioremap(res.start, resource_size(&res));
 	if (!priv->vbase) {
 		dev_err(priv->dev, "%s: failed to map chip region\n", __func__);
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 
@@ -1063,7 +1063,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 	mtd = nand_to_mtd(&priv->chip);
 	mtd->name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
 	if (!mtd->name) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto err;
 	}
 

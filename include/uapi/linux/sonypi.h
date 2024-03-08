@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-analte */
 /*
  * Sony Programmable I/O Control Device driver for VAIO
  *
@@ -29,7 +29,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if analt, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
@@ -41,7 +41,7 @@
 
 /* events the user application reading /dev/sonypi can use */
 
-#define SONYPI_EVENT_IGNORE			 0
+#define SONYPI_EVENT_IGANALRE			 0
 #define SONYPI_EVENT_JOGDIAL_DOWN		 1
 #define SONYPI_EVENT_JOGDIAL_UP			 2
 #define SONYPI_EVENT_JOGDIAL_DOWN_PRESSED	 3

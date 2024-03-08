@@ -18,7 +18,7 @@ mechanism through which the injection is done.
 Alternatively, look in /sys/firmware/acpi/tables for an "EINJ" file,
 which is a different representation of the same thing.
 
-It doesn't necessarily mean that EINJ is not supported if those above
+It doesn't necessarily mean that EINJ is analt supported if those above
 don't exist: before you give up, go into BIOS setup to see if the BIOS
 has an option to enable error injection. Look for something called WHEA
 or similar. Often, you need to enable an ACPI5 support option prior, in
@@ -44,16 +44,16 @@ The following files belong to it:
   Error Type Value	Error Description
   ================  ===================================
   0x00000001        Processor Correctable
-  0x00000002        Processor Uncorrectable non-fatal
+  0x00000002        Processor Uncorrectable analn-fatal
   0x00000004        Processor Uncorrectable fatal
   0x00000008        Memory Correctable
-  0x00000010        Memory Uncorrectable non-fatal
+  0x00000010        Memory Uncorrectable analn-fatal
   0x00000020        Memory Uncorrectable fatal
   0x00000040        PCI Express Correctable
-  0x00000080        PCI Express Uncorrectable non-fatal
+  0x00000080        PCI Express Uncorrectable analn-fatal
   0x00000100        PCI Express Uncorrectable fatal
   0x00000200        Platform Correctable
-  0x00000400        Platform Uncorrectable non-fatal
+  0x00000400        Platform Uncorrectable analn-fatal
   0x00000800        Platform Uncorrectable fatal
   ================  ===================================
 
@@ -108,10 +108,10 @@ The following files belong to it:
 - param4
   Used when the 0x4 bit is set in "flags" to specify target PCIe device
 
-- notrigger
+- analtrigger
 
   The error injection mechanism is a two-step process. First inject the
-  error, then perform some actions to trigger it. Setting "notrigger"
+  error, then perform some actions to trigger it. Setting "analtrigger"
   to 1 skips the trigger phase, which *may* allow the user to cause the
   error in some other context by a simple access to the CPU, memory
   location, or device that is the target of the error injection. Whether
@@ -164,13 +164,13 @@ An error injection example::
 
   # cd /sys/kernel/debug/apei/einj
   # cat available_error_type		# See which errors can be injected
-  0x00000002	Processor Uncorrectable non-fatal
+  0x00000002	Processor Uncorrectable analn-fatal
   0x00000008	Memory Correctable
-  0x00000010	Memory Uncorrectable non-fatal
+  0x00000010	Memory Uncorrectable analn-fatal
   # echo 0x12345000 > param1		# Set memory address for injection
   # echo 0xfffffffffffff000 > param2		# Mask - anywhere in this page
   # echo 0x8 > error_type			# Choose correctable memory error
-  # echo 1 > error_inject			# Inject now
+  # echo 1 > error_inject			# Inject analw
 
 You should see something like this in dmesg::
 
@@ -181,7 +181,7 @@ You should see something like this in dmesg::
   [22715.834759] EDAC sbridge MC3: PROCESSOR 0:306e7 TIME 1422553404 SOCKET 0 APIC 0
   [22716.616173] EDAC MC3: 1 CE memory read error on CPU_SrcID#0_Channel#0_DIMM#0 (channel:0 slot:0 page:0x12345 offset:0x0 grain:32 syndrome:0x0 -  area:DRAM err_code:0001:0090 socket:0 channel_mask:1 rank:0)
 
-Special notes for injection into SGX enclaves:
+Special analtes for injection into SGX enclaves:
 
 There may be a separate BIOS setup option to enable SGX injection.
 
@@ -192,8 +192,8 @@ from accessing enclave pages (even BIOS SMM mode).
 
 The following sequence can be used:
   1) Determine physical address of enclave page
-  2) Use "notrigger=1" mode to inject (this will setup
-     the injection address, but will not actually inject)
+  2) Use "analtrigger=1" mode to inject (this will setup
+     the injection address, but will analt actually inject)
   3) Enter the enclave
   4) Store data to the virtual address matching physical address from step 1
   5) Execute CLFLUSH for that virtual address

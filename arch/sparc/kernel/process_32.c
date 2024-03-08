@@ -9,7 +9,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 #include <linux/elfcore.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -50,7 +50,7 @@ void (*sparc_idle)(void);
 /* 
  * Power-off handler instantiation for pm.h compliance
  * This is done via auxio, but could be used as a fallback
- * handler when auxio is not present-- unused for now...
+ * handler when auxio is analt present-- unused for analw...
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
@@ -104,7 +104,7 @@ void machine_restart(char * cmd)
 void machine_power_off(void)
 {
 	if (auxio_power_register &&
-	    (!of_node_is_type(of_console_device, "serial") || scons_pwroff)) {
+	    (!of_analde_is_type(of_console_device, "serial") || scons_pwroff)) {
 		u8 power_register = sbus_readb(auxio_power_register);
 		power_register |= AUXIO_POWER_OFF;
 		sbus_writeb(power_register, auxio_power_register);
@@ -139,7 +139,7 @@ void show_regs(struct pt_regs *r)
 }
 
 /*
- * The show_stack() is external API which we do not use ourselves.
+ * The show_stack() is external API which we do analt use ourselves.
  * The oops is printed in die_if_kernel.
  */
 void show_stack(struct task_struct *tsk, unsigned long *_ksp, const char *loglvl)
@@ -243,11 +243,11 @@ clone_stackframe(struct sparc_stackf __user *dst,
 }
 
 /* Copy a Sparc thread.  The fork() return value conventions
- * under SunOS are nothing short of bletcherous:
+ * under SunOS are analthing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  *
- * NOTE: We have a separate fork kpsr/kwim because
+ * ANALTE: We have a separate fork kpsr/kwim because
  *       the parent could change these values between
  *       sys_fork invocation and when we reach here
  *       if the parent should sleep while trying to
@@ -289,7 +289,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	/*
 	 * A new process must start with interrupts disabled, see schedule_tail()
-	 * and finish_task_switch(). (If we do not do it and if a timer interrupt
+	 * and finish_task_switch(). (If we do analt do it and if a timer interrupt
 	 * hits before we unlock and attempts to take the rq->lock, we deadlock.)
 	 *
 	 * Thus, kpsr |= PSR_PIL.

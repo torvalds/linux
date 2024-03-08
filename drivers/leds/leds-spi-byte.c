@@ -6,7 +6,7 @@
  * - one LED is controlled by a single byte on MOSI
  * - the value of the byte gives the brightness between two values (lowest to
  *   highest)
- * - no return value is necessary (no MISO signal)
+ * - anal return value is necessary (anal MISO signal)
  *
  * The value for minimum and maximum brightness depends on the device
  * (compatible string).
@@ -25,7 +25,7 @@
  *     slight jump in the pattern at 0x10.
  *   * Mode: 11 -> blinking (off -> 25% -> off -> 25% -> ...) with a period of
  *     (105ms * parameter)
- *   NOTE: This driver currently only supports mode 00.
+ *   ANALTE: This driver currently only supports mode 00.
  */
 
 #include <linux/leds.h>
@@ -80,22 +80,22 @@ static int spi_byte_brightness_set_blocking(struct led_classdev *dev,
 
 static int spi_byte_probe(struct spi_device *spi)
 {
-	struct device_node *child;
+	struct device_analde *child;
 	struct device *dev = &spi->dev;
 	struct spi_byte_led *led;
 	const char *name = "leds-spi-byte::";
 	const char *state;
 	int ret;
 
-	if (of_get_available_child_count(dev_of_node(dev)) != 1) {
-		dev_err(dev, "Device must have exactly one LED sub-node.");
+	if (of_get_available_child_count(dev_of_analde(dev)) != 1) {
+		dev_err(dev, "Device must have exactly one LED sub-analde.");
 		return -EINVAL;
 	}
-	child = of_get_next_available_child(dev_of_node(dev), NULL);
+	child = of_get_next_available_child(dev_of_analde(dev), NULL);
 
 	led = devm_kzalloc(dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	of_property_read_string(child, "label", &name);
 	strscpy(led->name, name, sizeof(led->name));

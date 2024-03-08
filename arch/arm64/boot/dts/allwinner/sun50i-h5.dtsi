@@ -67,7 +67,7 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		arm,no-tick-in-suspend;
+		arm,anal-tick-in-suspend;
 		interrupts = <GIC_PPI 13
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 14
@@ -139,9 +139,9 @@
 			reg = <0x01e80000 0x30000>;
 			/*
 			 * While the datasheet lists an interrupt for the
-			 * PMU, the actual silicon does not have the PMU
+			 * PMU, the actual silicon does analt have the PMU
 			 * block. Reads all return zero, and writes are
-			 * ignored.
+			 * iganalred.
 			 */
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
@@ -209,10 +209,10 @@
 			cooling-maps {
 				cpu-hot-limit {
 					trip = <&cpu_hot_trip>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu1 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu2 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>,
+							 <&cpu3 THERMAL_ANAL_LIMIT THERMAL_ANAL_LIMIT>;
 				};
 			};
 		};

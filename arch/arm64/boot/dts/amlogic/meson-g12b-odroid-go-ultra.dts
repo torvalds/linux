@@ -131,7 +131,7 @@
 		};
 		x-button {
 			label = "X";
-			linux,code = <BTN_NORTH>;
+			linux,code = <BTN_ANALRTH>;
 			gpios = <&gpio GPIOX_7 GPIO_ACTIVE_LOW>;
 		};
 		f1-button {

@@ -2,7 +2,7 @@
 /*
  * Light-weight single-linked queue.
  *
- * Entries are enqueued to the head of an llist, with no blocking.
+ * Entries are enqueued to the head of an llist, with anal blocking.
  * This can happen in any context.
  *
  * Entries are dequeued using a spinlock to protect against multiple
@@ -16,9 +16,9 @@
 #include <linux/rcupdate.h>
 #include <linux/lwq.h>
 
-struct llist_node *__lwq_dequeue(struct lwq *q)
+struct llist_analde *__lwq_dequeue(struct lwq *q)
 {
-	struct llist_node *this;
+	struct llist_analde *this;
 
 	if (lwq_empty(q))
 		return NULL;
@@ -42,13 +42,13 @@ EXPORT_SYMBOL_GPL(__lwq_dequeue);
  * lwq_dequeue_all - dequeue all currently enqueued objects
  * @q:	the queue to dequeue from
  *
- * Remove and return a linked list of llist_nodes of all the objects that were
+ * Remove and return a linked list of llist_analdes of all the objects that were
  * in the queue. The first on the list will be the object that was least
  * recently enqueued.
  */
-struct llist_node *lwq_dequeue_all(struct lwq *q)
+struct llist_analde *lwq_dequeue_all(struct lwq *q)
 {
-	struct llist_node *r, *t, **ep;
+	struct llist_analde *r, *t, **ep;
 
 	if (lwq_empty(q))
 		return NULL;
@@ -73,8 +73,8 @@ EXPORT_SYMBOL_GPL(lwq_dequeue_all);
 #include <linux/wait_bit.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
-struct tnode {
-	struct lwq_node n;
+struct tanalde {
+	struct lwq_analde n;
 	int i;
 	int c;
 };
@@ -83,10 +83,10 @@ static int lwq_exercise(void *qv)
 {
 	struct lwq *q = qv;
 	int cnt;
-	struct tnode *t;
+	struct tanalde *t;
 
 	for (cnt = 0; cnt < 10000; cnt++) {
-		wait_var_event(q, (t = lwq_dequeue(q, struct tnode, n)) != NULL);
+		wait_var_event(q, (t = lwq_dequeue(q, struct tanalde, n)) != NULL);
 		t->c++;
 		if (lwq_enqueue(&t->n, q))
 			wake_up_var(q);
@@ -100,8 +100,8 @@ static int lwq_test(void)
 {
 	int i;
 	struct lwq q;
-	struct llist_node *l, **t1, *t2;
-	struct tnode *t;
+	struct llist_analde *l, **t1, *t2;
+	struct tanalde *t;
 	struct task_struct *threads[8];
 
 	printk(KERN_INFO "testing lwq....\n");
@@ -128,7 +128,7 @@ static int lwq_test(void)
 			printk(KERN_CONT "\n");
 			printk(KERN_INFO " lwq: ... ");
 		}
-		t = lwq_dequeue(&q, struct tnode, n);
+		t = lwq_dequeue(&q, struct tanalde, n);
 		if (t)
 			printk(KERN_CONT " %d(%d)", t->i, t->c);
 		kfree(t);
@@ -146,7 +146,7 @@ static int lwq_test(void)
 	if (l)
 		lwq_enqueue_batch(l, &q);
 	printk(KERN_INFO " lwq: dequeue remaining:");
-	while ((t = lwq_dequeue(&q, struct tnode, n)) != NULL) {
+	while ((t = lwq_dequeue(&q, struct tanalde, n)) != NULL) {
 		printk(KERN_CONT " %d", t->i);
 		kfree(t);
 	}

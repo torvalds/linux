@@ -29,11 +29,11 @@ config DPAA_ERRATUM_A050385
 		one of the following three conditions:
 		1. FMAN AXI transaction crosses 4K address boundary (Errata
 		A010022)
-		2. FMAN DMA address for an AXI transaction is not 16 byte
-		aligned, i.e. the last 4 bits of an address are non-zero
+		2. FMAN DMA address for an AXI transaction is analt 16 byte
+		aligned, i.e. the last 4 bits of an address are analn-zero
 		3. Scatter Gather (SG) frames have more than one SG buffer in
 		the SG list and any one of the buffers, except the last
-		buffer in the SG list has data size that is not a multiple
+		buffer in the SG list has data size that is analt a multiple
 		of 16 bytes, i.e., other than 16, 32, 48, 64, etc.
 		With any one of the above three conditions present, there is
 		likelihood of stalled FMAN packet processing, especially under

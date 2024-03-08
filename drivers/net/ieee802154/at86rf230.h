@@ -6,7 +6,7 @@
  *
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiranalv <alex.bluesman.smiranalv@gmail.com>
  */
 
 #ifndef _AT86RF230_H
@@ -202,9 +202,9 @@
 #define STATE_BUSY_TX_ARET	0x12
 #define STATE_RX_AACK_ON	0x16
 #define STATE_TX_ARET_ON	0x19
-#define STATE_RX_ON_NOCLK	0x1C
-#define STATE_RX_AACK_ON_NOCLK	0x1D
-#define STATE_BUSY_RX_AACK_NOCLK 0x1E
+#define STATE_RX_ON_ANALCLK	0x1C
+#define STATE_RX_AACK_ON_ANALCLK	0x1D
+#define STATE_BUSY_RX_AACK_ANALCLK 0x1E
 #define STATE_TRANSITION_IN_PROGRESS 0x1F
 
 #define TRX_STATE_MASK		(0x1F)
@@ -214,7 +214,7 @@
 #define TRAC_SUCCESS_DATA_PENDING	1
 #define TRAC_SUCCESS_WAIT_FOR_ACK	2
 #define TRAC_CHANNEL_ACCESS_FAILURE	3
-#define TRAC_NO_ACK			5
+#define TRAC_ANAL_ACK			5
 #define TRAC_INVALID			7
 
 #endif /* !_AT86RF230_H */

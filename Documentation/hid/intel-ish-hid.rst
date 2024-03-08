@@ -12,7 +12,7 @@ Sensor usage tables. These may be found in tablets, 2-in-1 convertible laptops
 and embedded products. Linux has had this support since Linux 3.9.
 
 Intel® introduced integrated sensor hubs as a part of the SoC starting from
-Cherry Trail and now supported on multiple generations of CPU packages. There
+Cherry Trail and analw supported on multiple generations of CPU packages. There
 are many commercial devices already shipped with Integrated Sensor Hubs (ISH).
 These ISH also comply to HID sensor specification, but the difference is the
 transport protocol used for communication. The current external sensor hubs
@@ -102,7 +102,7 @@ is registered as a device on this bus. The driver, which binds each device
 3.1 Hardware Interface
 ----------------------
 
-The ISH is exposed as "Non-VGA unclassified PCI device" to the host. The PCI
+The ISH is exposed as "Analn-VGA unclassified PCI device" to the host. The PCI
 product and vendor IDs are changed from different generations of processors. So
 the source code which enumerates drivers needs to update from generation to
 generation.
@@ -118,7 +118,7 @@ hw-ish-regs.h.
 3.2.1 IPC/FW message types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are two types of messages, one for management of link and another for
+There are two types of messages, one for management of link and aanalther for
 messages to and from transport layers.
 
 TX and RX of Transport messages
@@ -127,7 +127,7 @@ TX and RX of Transport messages
 A set of memory mapped register offers support of multi-byte messages TX and
 RX (e.g. IPC_REG_ISH2HOST_MSG, IPC_REG_HOST2ISH_MSG). The IPC layer maintains
 internal queues to sequence messages and send them in order to the firmware.
-Optionally the caller can register handler to get notification of completion.
+Optionally the caller can register handler to get analtification of completion.
 A doorbell mechanism is used in messaging to trigger processing in host and
 client firmware side. When ISH interrupt handler is called, the ISH2HOST
 doorbell register is used by host drivers to determine that the interrupt
@@ -176,7 +176,7 @@ will identify the connection.
 
 Once connection is established, peers send each other flow control bus messages
 independently. Every peer may send a message only if it has received a
-flow-control credit before. Once it has sent a message, it may not send another one
+flow-control credit before. Once it has sent a message, it may analt send aanalther one
 before receiving the next flow control credit.
 Either side can send disconnect request bus message to end communication. Also
 the link will be dropped if major FW reset occurs.
@@ -196,12 +196,12 @@ the respective host buffer (TX when host client sends, RX when FW client
 sends). The recipient of DMA message responds with DMA_XFER_ACK, indicating
 the sender that the memory region for that message may be reused.
 
-DMA initialization is started with host sending DMA_ALLOC_NOTIFY bus message
-(that includes RX buffer) and FW responds with DMA_ALLOC_NOTIFY_ACK.
+DMA initialization is started with host sending DMA_ALLOC_ANALTIFY bus message
+(that includes RX buffer) and FW responds with DMA_ALLOC_ANALTIFY_ACK.
 Additionally to DMA address communication, this sequence checks capabilities:
 if the host doesn't support DMA, then it won't send DMA allocation, so FW can't
 send DMA; if FW doesn't support DMA then it won't respond with
-DMA_ALLOC_NOTIFY_ACK, in which case host will not use DMA transfers.
+DMA_ALLOC_ANALTIFY_ACK, in which case host will analt use DMA transfers.
 Here ISH acts as busmaster DMA controller. Hence when host sends DMA_XFER,
 it's request to do host->ISH DMA transfer; when FW sends DMA_XFER, it means
 that it already did DMA and the message resides at host. Thus, DMA_XFER
@@ -210,8 +210,8 @@ and DMA_XFER_ACK act as ownership indicators.
 At initial state all outgoing memory belongs to the sender (TX to host, RX to
 FW), DMA_XFER transfers ownership on the region that contains ISHTP message to
 the receiving side, DMA_XFER_ACK returns ownership to the sender. A sender
-need not wait for previous DMA_XFER to be ack'ed, and may send another message
-as long as remaining continuous memory in its ownership is enough.
+need analt wait for previous DMA_XFER to be ack'ed, and may send aanalther message
+as long as remaining continuous memory in its ownership is eanalugh.
 In principle, multiple DMA_XFER and DMA_XFER_ACK messages may be sent at once
 (up to IPC MTU), thus allowing for interrupt throttling.
 Currently, ISH FW decides to send over DMA if ISHTP message is more than 3 IPC
@@ -224,8 +224,8 @@ When a client initiates a connection, a ring of RX and TX buffers is allocated.
 The size of ring can be specified by the client. HID client sets 16 and 32 for
 TX and RX buffers respectively. On send request from client, the data to be
 sent is copied to one of the send ring buffer and scheduled to be sent using
-bus message protocol. These buffers are required because the FW may have not
-have processed the last message and may not have enough flow control credits
+bus message protocol. These buffers are required because the FW may have analt
+have processed the last message and may analt have eanalugh flow control credits
 to send. Same thing holds true on receive side and flow control is required.
 
 3.3.5 Host Enumeration
@@ -284,7 +284,7 @@ Documentation/ABI/testing/sysfs-bus-iio for IIO ABIs to user space.
           |                        |                       |                               |
           |                        |                       |-----HOST READY--------------->|
           |                        |                       |                               |
-          |                        |                       |<----MNG_RESET_NOTIFY_ACK----- |
+          |                        |                       |<----MNG_RESET_ANALTIFY_ACK----- |
           |                        |                       |                               |
           |                        |<----ISHTP_START------ |                               |
           |                        |                       |                               |
@@ -347,7 +347,7 @@ To debug ISH, event tracing mechanism is used. To enable debug logs::
   echo 1 > /sys/kernel/tracing/events/intel_ish/enable
   cat /sys/kernel/tracing/trace
 
-3.8 ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
+3.8 ISH IIO sysfs Example on Leanalvo thinkpad Yoga 260
 -----------------------------------------------------
 
 ::
@@ -410,7 +410,7 @@ To debug ISH, event tracing mechanism is used. To enable debug logs::
   │   │   │   │   ├── in_magn_x_raw
   │   │   │   │   ├── in_magn_y_raw
   │   │   │   │   ├── in_magn_z_raw
-  │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_raw
+  │   │   │   │   ├── in_rot_from_analrth_magnetic_tilt_comp_raw
   │   │   │   │   ├── in_rot_hysteresis
   │   │   │   │   ├── in_rot_offset
   │   │   │   │   ├── in_rot_sampling_frequency
@@ -427,9 +427,9 @@ To debug ISH, event tracing mechanism is used. To enable debug logs::
   │   │   │   │   │   ├── in_magn_z_en
   │   │   │   │   │   ├── in_magn_z_index
   │   │   │   │   │   ├── in_magn_z_type
-  │   │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_en
-  │   │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_index
-  │   │   │   │   │   └── in_rot_from_north_magnetic_tilt_comp_type
+  │   │   │   │   │   ├── in_rot_from_analrth_magnetic_tilt_comp_en
+  │   │   │   │   │   ├── in_rot_from_analrth_magnetic_tilt_comp_index
+  │   │   │   │   │   └── in_rot_from_analrth_magnetic_tilt_comp_type
   │   │   │   │   ├── trigger
   │   │   │   │   │   └── current_trigger
   ...

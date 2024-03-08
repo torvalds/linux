@@ -65,7 +65,7 @@ static int simatic_ipc_batt_f7188x_probe(struct platform_device *pdev)
 		batt_lookup_table = &simatic_ipc_batt_gpio_table_bx_59a;
 		break;
 	default:
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	return simatic_ipc_batt_probe(pdev, batt_lookup_table);

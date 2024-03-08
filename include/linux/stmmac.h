@@ -19,7 +19,7 @@
 #define MTL_MAX_TX_QUEUES	8
 #define STMMAC_CH_MAX		8
 
-#define STMMAC_RX_COE_NONE	0
+#define STMMAC_RX_COE_ANALNE	0
 #define STMMAC_RX_COE_TYPE1	1
 #define STMMAC_RX_COE_TYPE2	2
 
@@ -230,7 +230,7 @@ struct plat_stmmacenet_data {
 	 * mac_interface                   phy_interface
 	 *
 	 * mac_interface is the MAC-side interface, which may be the same
-	 * as phy_interface if there is no intervening PCS. If there is a
+	 * as phy_interface if there is anal intervening PCS. If there is a
 	 * PCS, then mac_interface describes the interface mode between the
 	 * MAC and PCS, and phy_interface describes the interface mode
 	 * between the PCS and PHY.
@@ -241,9 +241,9 @@ struct plat_stmmacenet_data {
 	 */
 	phy_interface_t phy_interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
-	struct device_node *phy_node;
-	struct fwnode_handle *port_node;
-	struct device_node *mdio_node;
+	struct device_analde *phy_analde;
+	struct fwanalde_handle *port_analde;
+	struct device_analde *mdio_analde;
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_est *est;
 	struct stmmac_fpe_cfg *fpe_cfg;

@@ -14,26 +14,26 @@
 struct intel_gt;
 struct i915_request;
 
-struct intel_gt_buffer_pool_node *
+struct intel_gt_buffer_pool_analde *
 intel_gt_get_buffer_pool(struct intel_gt *gt, size_t size,
 			 enum i915_map_type type);
 
-void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_node *node);
+void intel_gt_buffer_pool_mark_used(struct intel_gt_buffer_pool_analde *analde);
 
 static inline int
-intel_gt_buffer_pool_mark_active(struct intel_gt_buffer_pool_node *node,
+intel_gt_buffer_pool_mark_active(struct intel_gt_buffer_pool_analde *analde,
 				 struct i915_request *rq)
 {
 	/* did we call mark_used? */
-	GEM_WARN_ON(!node->pinned);
+	GEM_WARN_ON(!analde->pinned);
 
-	return i915_active_add_request(&node->active, rq);
+	return i915_active_add_request(&analde->active, rq);
 }
 
 static inline void
-intel_gt_buffer_pool_put(struct intel_gt_buffer_pool_node *node)
+intel_gt_buffer_pool_put(struct intel_gt_buffer_pool_analde *analde)
 {
-	i915_active_release(&node->active);
+	i915_active_release(&analde->active);
 }
 
 void intel_gt_init_buffer_pool(struct intel_gt *gt);

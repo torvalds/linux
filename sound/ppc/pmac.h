@@ -80,7 +80,7 @@ struct snd_pmac {
 	struct snd_card *card;
 
 	/* h/w info */
-	struct device_node *node;
+	struct device_analde *analde;
 	struct pci_dev *pdev;
 	unsigned int revision;
 	unsigned int manufacturer;
@@ -144,7 +144,7 @@ struct snd_pmac {
 
 	/* lowlevel callbacks */
 	void (*set_format)(struct snd_pmac *chip);
-	void (*update_automute)(struct snd_pmac *chip, int do_notify);
+	void (*update_automute)(struct snd_pmac *chip, int do_analtify);
 	int (*detect_headphone)(struct snd_pmac *chip);
 #ifdef CONFIG_PM
 	void (*suspend)(struct snd_pmac *chip);
@@ -191,7 +191,7 @@ void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c);
 
 /* misc */
 #define snd_pmac_boolean_stereo_info	snd_ctl_boolean_stereo_info
-#define snd_pmac_boolean_mono_info	snd_ctl_boolean_mono_info
+#define snd_pmac_boolean_moanal_info	snd_ctl_boolean_moanal_info
 
 int snd_pmac_add_automute(struct snd_pmac *chip);
 

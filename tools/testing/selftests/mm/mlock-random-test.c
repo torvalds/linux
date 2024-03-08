@@ -71,7 +71,7 @@ int get_proc_locked_vm_size(void)
 		}
 	}
 
-	perror("cannot parse VmLck in /proc/self/status\n");
+	perror("cananalt parse VmLck in /proc/self/status\n");
 	fclose(f);
 	return -1;
 }
@@ -184,7 +184,7 @@ int test_mlock_within_limit(char *p, int alloc_size)
 	locked_vm_size = get_proc_locked_vm_size();
 	page_size = get_proc_page_size((unsigned long)p);
 	if (page_size == 0) {
-		printf("cannot get proc MMUPageSize\n");
+		printf("cananalt get proc MMUPageSize\n");
 		return -1;
 	}
 
@@ -208,7 +208,7 @@ int test_mlock_within_limit(char *p, int alloc_size)
  * The memory region size alloc_size is above the rlimit.
  * And the len to be locked is higher than rlimit.
  * So we always expect a failure of mlock/mlock2.
- * No locked page number should be increased as a side effect.
+ * Anal locked page number should be increased as a side effect.
  *
  *    return value: 0 - success
  *    else: failure

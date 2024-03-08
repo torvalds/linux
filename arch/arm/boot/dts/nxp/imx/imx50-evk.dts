@@ -26,7 +26,7 @@
 	flash: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "m25p32", "jedec,spi-nor";
+		compatible = "m25p32", "jedec,spi-analr";
 		spi-max-frequency = <25000000>;
 		reg = <1>;
 

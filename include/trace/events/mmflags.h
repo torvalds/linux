@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/node.h>
+#include <linux/analde.h>
 #include <linux/mmzone.h>
 #include <linux/compaction.h>
 /*
@@ -23,26 +23,26 @@
 	gfpflag_string(GFP_USER),		\
 	gfpflag_string(GFP_KERNEL_ACCOUNT),	\
 	gfpflag_string(GFP_KERNEL),		\
-	gfpflag_string(GFP_NOFS),		\
+	gfpflag_string(GFP_ANALFS),		\
 	gfpflag_string(GFP_ATOMIC),		\
-	gfpflag_string(GFP_NOIO),		\
-	gfpflag_string(GFP_NOWAIT),		\
+	gfpflag_string(GFP_ANALIO),		\
+	gfpflag_string(GFP_ANALWAIT),		\
 	gfpflag_string(GFP_DMA),		\
 	gfpflag_string(__GFP_HIGHMEM),		\
 	gfpflag_string(GFP_DMA32),		\
 	gfpflag_string(__GFP_HIGH),		\
 	gfpflag_string(__GFP_IO),		\
 	gfpflag_string(__GFP_FS),		\
-	gfpflag_string(__GFP_NOWARN),		\
+	gfpflag_string(__GFP_ANALWARN),		\
 	gfpflag_string(__GFP_RETRY_MAYFAIL),	\
-	gfpflag_string(__GFP_NOFAIL),		\
-	gfpflag_string(__GFP_NORETRY),		\
+	gfpflag_string(__GFP_ANALFAIL),		\
+	gfpflag_string(__GFP_ANALRETRY),		\
 	gfpflag_string(__GFP_COMP),		\
 	gfpflag_string(__GFP_ZERO),		\
-	gfpflag_string(__GFP_NOMEMALLOC),	\
+	gfpflag_string(__GFP_ANALMEMALLOC),	\
 	gfpflag_string(__GFP_MEMALLOC),		\
 	gfpflag_string(__GFP_HARDWALL),		\
-	gfpflag_string(__GFP_THISNODE),		\
+	gfpflag_string(__GFP_THISANALDE),		\
 	gfpflag_string(__GFP_RECLAIMABLE),	\
 	gfpflag_string(__GFP_MOVABLE),		\
 	gfpflag_string(__GFP_ACCOUNT),		\
@@ -63,7 +63,7 @@
 #define show_gfp_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_gfpflag_names __def_gfpflag_names_kasan			\
-	) : "none"
+	) : "analne"
 
 #ifdef CONFIG_MMU
 #define IF_HAVE_PG_MLOCK(_name) ,{1UL << PG_##_name, __stringify(_name)}
@@ -130,7 +130,7 @@ IF_HAVE_PG_ARCH_X(arch_3)
 #define show_page_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_pageflag_names						\
-	) : "none"
+	) : "analne"
 
 #define DEF_PAGETYPE_NAME(_name) { PG_##_name, __stringify(_name) }
 
@@ -158,10 +158,10 @@ IF_HAVE_PG_ARCH_X(arch_3)
 #define IF_HAVE_VM_SOFTDIRTY(flag,name)
 #endif
 
-#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_MINOR
-# define IF_HAVE_UFFD_MINOR(flag, name) {flag, name},
+#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_MIANALR
+# define IF_HAVE_UFFD_MIANALR(flag, name) {flag, name},
 #else
-# define IF_HAVE_UFFD_MINOR(flag, name)
+# define IF_HAVE_UFFD_MIANALR(flag, name)
 #endif
 
 #define __def_vmaflag_names						\
@@ -175,7 +175,7 @@ IF_HAVE_PG_ARCH_X(arch_3)
 	{VM_MAYSHARE,			"mayshare"	},		\
 	{VM_GROWSDOWN,			"growsdown"	},		\
 	{VM_UFFD_MISSING,		"uffd_missing"	},		\
-IF_HAVE_UFFD_MINOR(VM_UFFD_MINOR,	"uffd_minor"	)		\
+IF_HAVE_UFFD_MIANALR(VM_UFFD_MIANALR,	"uffd_mianalr"	)		\
 	{VM_PFNMAP,			"pfnmap"	},		\
 	{VM_UFFD_WP,			"uffd_wp"	},		\
 	{VM_LOCKED,			"locked"	},		\
@@ -186,7 +186,7 @@ IF_HAVE_UFFD_MINOR(VM_UFFD_MINOR,	"uffd_minor"	)		\
 	{VM_DONTEXPAND,			"dontexpand"	},		\
 	{VM_LOCKONFAULT,		"lockonfault"	},		\
 	{VM_ACCOUNT,			"account"	},		\
-	{VM_NORESERVE,			"noreserve"	},		\
+	{VM_ANALRESERVE,			"analreserve"	},		\
 	{VM_HUGETLB,			"hugetlb"	},		\
 	{VM_SYNC,			"sync"		},		\
 	__VM_ARCH_SPECIFIC_1				,		\
@@ -195,13 +195,13 @@ IF_HAVE_UFFD_MINOR(VM_UFFD_MINOR,	"uffd_minor"	)		\
 IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	{VM_MIXEDMAP,			"mixedmap"	},		\
 	{VM_HUGEPAGE,			"hugepage"	},		\
-	{VM_NOHUGEPAGE,			"nohugepage"	},		\
+	{VM_ANALHUGEPAGE,			"analhugepage"	},		\
 	{VM_MERGEABLE,			"mergeable"	}		\
 
 #define show_vma_flags(flags)						\
 	(flags) ? __print_flags(flags, "|",				\
 	__def_vmaflag_names						\
-	) : "none"
+	) : "analne"
 
 #ifdef CONFIG_COMPACTION
 #define COMPACTION_STATUS					\
@@ -211,8 +211,8 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 	EM( COMPACT_SUCCESS,		"success")		\
 	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
 	EM( COMPACT_COMPLETE,		"complete")		\
-	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
-	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
+	EM( COMPACT_ANAL_SUITABLE_PAGE,	"anal_suitable_page")	\
+	EM( COMPACT_ANALT_SUITABLE_ZONE,	"analt_suitable_zone")	\
 	EMe(COMPACT_CONTENDED,		"contended")
 
 /* High-level compaction status feedback */
@@ -263,13 +263,13 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 #define ZONE_TYPE						\
 	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
 	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
-				EM (ZONE_NORMAL, "Normal")	\
+				EM (ZONE_ANALRMAL, "Analrmal")	\
 	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
 				EMe(ZONE_MOVABLE,"Movable")
 
 #define LRU_NAMES		\
-		EM (LRU_INACTIVE_ANON, "inactive_anon") \
-		EM (LRU_ACTIVE_ANON, "active_anon") \
+		EM (LRU_INACTIVE_AANALN, "inactive_aanaln") \
+		EM (LRU_ACTIVE_AANALN, "active_aanaln") \
 		EM (LRU_INACTIVE_FILE, "inactive_file") \
 		EM (LRU_ACTIVE_FILE, "active_file") \
 		EMe(LRU_UNEVICTABLE, "unevictable")
@@ -285,12 +285,12 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 
 COMPACTION_STATUS
 COMPACTION_PRIORITY
-/* COMPACTION_FEEDBACK are defines not enums. Not needed here. */
+/* COMPACTION_FEEDBACK are defines analt enums. Analt needed here. */
 ZONE_TYPE
 LRU_NAMES
 
 /*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * Analw redefine the EM() and EMe() macros to map the enums to the strings
  * that will be printed in the output.
  */
 #undef EM

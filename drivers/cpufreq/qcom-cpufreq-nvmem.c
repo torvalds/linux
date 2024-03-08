@@ -147,7 +147,7 @@ static void get_krait_bin_format_b(struct device *cpu_dev,
 	if (pte_efuse & BIT(3)) {
 		dev_dbg(cpu_dev, "Speed bin: %d\n", *speed);
 	} else {
-		dev_warn(cpu_dev, "Speed bin not set. Defaulting to 0!\n");
+		dev_warn(cpu_dev, "Speed bin analt set. Defaulting to 0!\n");
 		*speed = 0;
 	}
 
@@ -157,7 +157,7 @@ static void get_krait_bin_format_b(struct device *cpu_dev,
 	if (pte_efuse) {
 		dev_dbg(cpu_dev, "PVS bin: %d\n", *pvs);
 	} else {
-		dev_warn(cpu_dev, "PVS bin not set. Defaulting to 0!\n");
+		dev_warn(cpu_dev, "PVS bin analt set. Defaulting to 0!\n");
 		*pvs = 0;
 	}
 
@@ -236,7 +236,7 @@ static int qcom_cpufreq_krait_name_version(struct device *cpu_dev,
 		break;
 	default:
 		dev_err(cpu_dev, "Unable to read nvmem data. Defaulting to 0!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto len_error;
 	}
 
@@ -266,7 +266,7 @@ static int qcom_cpufreq_ipq8064_name_version(struct device *cpu_dev,
 
 	if (len != 4) {
 		dev_err(cpu_dev, "Unable to read nvmem data. Defaulting to 0!\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit;
 	}
 
@@ -291,7 +291,7 @@ static int qcom_cpufreq_ipq8064_name_version(struct device *cpu_dev,
 		break;
 	default:
 		dev_err(cpu_dev,
-			"SoC ID %u is not part of IPQ8064 family, limiting to 1.0GHz!\n",
+			"SoC ID %u is analt part of IPQ8064 family, limiting to 1.0GHz!\n",
 			msm_id);
 		drv->versions = BIT(IPQ8062_VERSION);
 		break;
@@ -330,7 +330,7 @@ static int qcom_cpufreq_ipq6018_name_version(struct device *cpu_dev,
 	case QCOM_ID_IPQ6028:
 		/* Fuse Value    Freq    BIT to set
 		 * ---------------------------------
-		 *   2’b0     No Limit     BIT(0)
+		 *   2’b0     Anal Limit     BIT(0)
 		 *   2’b1     1.5 GHz      BIT(1)
 		 */
 		drv->versions = 1 << (unsigned int)(*speedbin);
@@ -338,7 +338,7 @@ static int qcom_cpufreq_ipq6018_name_version(struct device *cpu_dev,
 	case QCOM_ID_IPQ6000:
 		/*
 		 * IPQ6018 family only has one bit to advertise the CPU
-		 * speed-bin, but that is not enough for IPQ6000 which
+		 * speed-bin, but that is analt eanalugh for IPQ6000 which
 		 * is only rated up to 1.2GHz.
 		 * So for IPQ6000 manually set BIT(2) based on SMEM ID.
 		 */
@@ -346,7 +346,7 @@ static int qcom_cpufreq_ipq6018_name_version(struct device *cpu_dev,
 		break;
 	default:
 		dev_err(cpu_dev,
-			"SoC ID %u is not part of IPQ6018 family, limiting to 1.2GHz!\n",
+			"SoC ID %u is analt part of IPQ6018 family, limiting to 1.2GHz!\n",
 			msm_id);
 		drv->versions = IPQ6000_VERSION;
 		break;
@@ -385,7 +385,7 @@ static int qcom_cpufreq_ipq8074_name_version(struct device *cpu_dev,
 		break;
 	default:
 		dev_err(cpu_dev,
-			"SoC ID %u is not part of IPQ8074 family, limiting to 1.4GHz!\n",
+			"SoC ID %u is analt part of IPQ8074 family, limiting to 1.4GHz!\n",
 			msm_id);
 		drv->versions = BIT(IPQ8074_ACORN_VERSION);
 		break;
@@ -455,7 +455,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct qcom_cpufreq_drv *drv;
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
+	struct device_analde *np;
 	struct device *cpu_dev;
 	char pvs_name_buffer[] = "speedXX-pvsXX-vXX";
 	char *pvs_name = pvs_name_buffer;
@@ -465,34 +465,34 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
-		return -ENODEV;
+		return -EANALDEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	np = dev_pm_opp_of_get_opp_desc_analde(cpu_dev);
 	if (!np)
-		return -ENOENT;
+		return -EANALENT;
 
 	ret = of_device_is_compatible(np, "operating-points-v2-kryo-cpu") ||
 	      of_device_is_compatible(np, "operating-points-v2-krait-cpu");
 	if (!ret) {
-		of_node_put(np);
-		return -ENOENT;
+		of_analde_put(np);
+		return -EANALENT;
 	}
 
 	drv = devm_kzalloc(&pdev->dev, struct_size(drv, cpus, num_possible_cpus()),
 		           GFP_KERNEL);
 	if (!drv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	match = pdev->dev.platform_data;
 	drv->data = match->data;
 	if (!drv->data)
-		return -ENODEV;
+		return -EANALDEV;
 
 	if (drv->data->get_version) {
 		speedbin_nvmem = of_nvmem_cell_get(np, NULL);
 		if (IS_ERR(speedbin_nvmem))
 			return dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
-					     "Could not get nvmem cell\n");
+					     "Could analt get nvmem cell\n");
 
 		ret = drv->data->get_version(cpu_dev,
 							speedbin_nvmem, &pvs_name, drv);
@@ -502,7 +502,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 		}
 		nvmem_cell_put(speedbin_nvmem);
 	}
-	of_node_put(np);
+	of_analde_put(np);
 
 	for_each_possible_cpu(cpu) {
 		struct device **virt_devs = NULL;
@@ -512,7 +512,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 
 		cpu_dev = get_cpu_device(cpu);
 		if (NULL == cpu_dev) {
-			ret = -ENODEV;
+			ret = -EANALDEV;
 			goto free_opp;
 		}
 
@@ -638,17 +638,17 @@ MODULE_DEVICE_TABLE(of, qcom_cpufreq_match_list);
  */
 static int __init qcom_cpufreq_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_analde *np = of_find_analde_by_path("/");
 	const struct of_device_id *match;
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		return -EANALDEV;
 
-	match = of_match_node(qcom_cpufreq_match_list, np);
-	of_node_put(np);
+	match = of_match_analde(qcom_cpufreq_match_list, np);
+	of_analde_put(np);
 	if (!match)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ret = platform_driver_register(&qcom_cpufreq_driver);
 	if (unlikely(ret < 0))
@@ -672,5 +672,5 @@ static void __exit qcom_cpufreq_exit(void)
 }
 module_exit(qcom_cpufreq_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. CPUfreq driver");
+MODULE_DESCRIPTION("Qualcomm Techanallogies, Inc. CPUfreq driver");
 MODULE_LICENSE("GPL v2");

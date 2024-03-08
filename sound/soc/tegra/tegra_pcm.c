@@ -82,12 +82,12 @@ int tegra_pcm_open(struct snd_soc_component *component,
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	int ret;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	dmap = snd_soc_dai_get_dma_data(cpu_dai, substream);
 
-	/* Set HW params now that initialization is complete */
+	/* Set HW params analw that initialization is complete */
 	snd_soc_set_runtime_hwparams(substream, &tegra_pcm_hardware);
 
 	/* Ensure period size is multiple of 8 */
@@ -103,7 +103,7 @@ int tegra_pcm_open(struct snd_soc_component *component,
 		dev_err(cpu_dai->dev,
 			"dmaengine request slave channel failed! (%s)\n",
 			dmap->chan_name);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 
 	ret = snd_dmaengine_pcm_open(substream, chan);
@@ -129,7 +129,7 @@ int tegra_pcm_close(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	snd_dmaengine_pcm_close_release_chan(substream);
@@ -148,7 +148,7 @@ int tegra_pcm_hw_params(struct snd_soc_component *component,
 	struct dma_chan *chan;
 	int ret;
 
-	if (rtd->dai_link->no_pcm)
+	if (rtd->dai_link->anal_pcm)
 		return 0;
 
 	dmap = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
@@ -211,9 +211,9 @@ int tegra_pcm_construct(struct snd_soc_component *component,
 
 	/*
 	 * Fallback for backwards-compatibility with older device trees that
-	 * have the iommus property in the virtual, top-level "sound" node.
+	 * have the iommus property in the virtual, top-level "sound" analde.
 	 */
-	if (!of_get_property(dev->of_node, "iommus", NULL))
+	if (!of_get_property(dev->of_analde, "iommus", NULL))
 		dev = rtd->card->snd_card->dev;
 
 	return tegra_pcm_dma_allocate(dev, rtd, tegra_pcm_hardware.buffer_bytes_max);

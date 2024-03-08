@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * snps_udc_plat.c - Synopsys UDC Platform Driver
+ * snps_udc_plat.c - Syanalpsys UDC Platform Driver
  *
  * Copyright (C) 2016 Broadcom
  */
@@ -18,7 +18,7 @@
 #include "amd5536udc.h"
 
 /* description */
-#define UDC_MOD_DESCRIPTION     "Synopsys UDC platform driver"
+#define UDC_MOD_DESCRIPTION     "Syanalpsys UDC platform driver"
 
 static void start_udc(struct udc *udc)
 {
@@ -84,7 +84,7 @@ static void udc_drd_work(struct work_struct *work)
 	}
 }
 
-static int usbd_connect_notify(struct notifier_block *self,
+static int usbd_connect_analtify(struct analtifier_block *self,
 			       unsigned long event, void *ptr)
 {
 	struct udc *udc = container_of(self, struct udc, nb);
@@ -95,7 +95,7 @@ static int usbd_connect_notify(struct notifier_block *self,
 
 	schedule_delayed_work(&udc->drd_work, 0);
 
-	return NOTIFY_OK;
+	return ANALTIFY_OK;
 }
 
 static int udc_plat_probe(struct platform_device *pdev)
@@ -107,7 +107,7 @@ static int udc_plat_probe(struct platform_device *pdev)
 
 	udc = devm_kzalloc(dev, sizeof(*udc), GFP_KERNEL);
 	if (!udc)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&udc->lock);
 	udc->dev = dev;
@@ -131,13 +131,13 @@ static int udc_plat_probe(struct platform_device *pdev)
 
 	udc->phys_addr = (unsigned long)res->start;
 
-	udc->irq = irq_of_parse_and_map(dev->of_node, 0);
+	udc->irq = irq_of_parse_and_map(dev->of_analde, 0);
 	if (udc->irq <= 0) {
 		dev_err(dev, "Can't parse and map interrupt\n");
 		return -EINVAL;
 	}
 
-	udc->udc_phy = devm_of_phy_get_by_index(dev, dev->of_node, 0);
+	udc->udc_phy = devm_of_phy_get_by_index(dev, dev->of_analde, 0);
 	if (IS_ERR(udc->udc_phy)) {
 		dev_err(dev, "Failed to obtain phy from device tree\n");
 		return PTR_ERR(udc->udc_phy);
@@ -157,7 +157,7 @@ static int udc_plat_probe(struct platform_device *pdev)
 	}
 
 	/* Register for extcon if supported */
-	if (of_property_present(dev->of_node, "extcon")) {
+	if (of_property_present(dev->of_analde, "extcon")) {
 		udc->edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(udc->edev)) {
 			if (PTR_ERR(udc->edev) == -EPROBE_DEFER)
@@ -167,8 +167,8 @@ static int udc_plat_probe(struct platform_device *pdev)
 			goto exit_phy;
 		}
 
-		udc->nb.notifier_call = usbd_connect_notify;
-		ret = extcon_register_notifier(udc->edev, EXTCON_USB,
+		udc->nb.analtifier_call = usbd_connect_analtify;
+		ret = extcon_register_analtifier(udc->edev, EXTCON_USB,
 					       &udc->nb);
 		if (ret < 0) {
 			dev_err(dev, "Can't register extcon device\n");
@@ -203,10 +203,10 @@ static int udc_plat_probe(struct platform_device *pdev)
 	udc->chiprev = UDC_BCM_REV;
 
 	if (udc_probe(udc)) {
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto exit_dma;
 	}
-	dev_info(dev, "Synopsys UDC platform driver probe successful\n");
+	dev_info(dev, "Syanalpsys UDC platform driver probe successful\n");
 
 	return 0;
 
@@ -215,7 +215,7 @@ exit_dma:
 		free_dma_pools(udc);
 exit_extcon:
 	if (udc->edev)
-		extcon_unregister_notifier(udc->edev, EXTCON_USB, &udc->nb);
+		extcon_unregister_analtifier(udc->edev, EXTCON_USB, &udc->nb);
 exit_phy:
 	if (udc->udc_phy) {
 		phy_power_off(udc->udc_phy);
@@ -231,7 +231,7 @@ static void udc_plat_remove(struct platform_device *pdev)
 	dev = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&dev->gadget);
-	/* gadget driver must not be registered */
+	/* gadget driver must analt be registered */
 	if (WARN_ON(dev->driver))
 		return;
 
@@ -244,9 +244,9 @@ static void udc_plat_remove(struct platform_device *pdev)
 
 	phy_power_off(dev->udc_phy);
 	phy_exit(dev->udc_phy);
-	extcon_unregister_notifier(dev->edev, EXTCON_USB, &dev->nb);
+	extcon_unregister_analtifier(dev->edev, EXTCON_USB, &dev->nb);
 
-	dev_info(&pdev->dev, "Synopsys UDC platform driver removed\n");
+	dev_info(&pdev->dev, "Syanalpsys UDC platform driver removed\n");
 }
 
 #ifdef CONFIG_PM_SLEEP

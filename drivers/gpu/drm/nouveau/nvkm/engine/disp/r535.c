@@ -8,12 +8,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -37,7 +37,7 @@
 #include <nvhw/drf.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_notification.h>
+#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080_analtification.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dfp.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073dp.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073specific.h>
@@ -93,11 +93,11 @@ r535_chan_push(struct nvkm_disp_chan *chan)
 		switch (nvkm_memory_target(chan->memory)) {
 		case NVKM_MEM_TARGET_NCOH:
 			ctrl->addressSpace = ADDR_SYSMEM;
-			ctrl->cacheSnoop = 0;
+			ctrl->cacheSanalop = 0;
 			break;
 		case NVKM_MEM_TARGET_HOST:
 			ctrl->addressSpace = ADDR_SYSMEM;
-			ctrl->cacheSnoop = 1;
+			ctrl->cacheSanalop = 1;
 			break;
 		case NVKM_MEM_TARGET_VRAM:
 			ctrl->addressSpace = ADDR_FBMEM;
@@ -520,12 +520,12 @@ r535_sor_hdmi_ctrl_audio(struct nvkm_outp *outp, bool enable)
 
 	ctrl->displayId = BIT(outp->index);
 	ctrl->transmitControl =
-		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, ENABLE, YES) |
+		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, ENABLE, ANAL) |
 		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, OTHER_FRAME, DISABLE) |
 		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, SINGLE_FRAME, DISABLE) |
 		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, ON_HBLANK, DISABLE) |
 		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, VIDEO_FMT, SW_CONTROLLED) |
-		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, RESERVED_LEGACY_MODE, NO);
+		NVDEF(NV0073_CTRL_SPECIFIC, SET_OD_PACKET_TRANSMIT_CONTROL, RESERVED_LEGACY_MODE, ANAL);
 	ctrl->packetSize = 10;
 	ctrl->aPacket[0] = 0x03;
 	ctrl->aPacket[1] = 0x00;
@@ -962,7 +962,7 @@ r535_dp_train_target(struct nvkm_outp *outp, u8 target, bool mst, u8 link_nr, u8
 
 	cmd = NVDEF(NV0073_CTRL, DP_CMD, SET_LANE_COUNT, TRUE) |
 	      NVDEF(NV0073_CTRL, DP_CMD, SET_LINK_BW, TRUE) |
-	      NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, YES);
+	      NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, ANAL);
 	data = NVVAL(NV0073_CTRL, DP_DATA, SET_LANE_COUNT, link_nr) |
 	       NVVAL(NV0073_CTRL, DP_DATA, SET_LINK_BW, link_bw) |
 	       NVVAL(NV0073_CTRL, DP_DATA, TARGET, target);
@@ -976,7 +976,7 @@ r535_dp_train_target(struct nvkm_outp *outp, u8 target, bool mst, u8 link_nr, u8
 	if (target == 0 &&
 	     (outp->dp.dpcd[DPCD_RC02] & 0x20) &&
 	    !(outp->dp.dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED))
-		cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, YES);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, ANAL);
 
 	/* We should retry up to 3 times, but only if GSP asks politely */
 	for (retries = 0; retries < 3; ++retries) {
@@ -1206,7 +1206,7 @@ r535_outp_new(struct nvkm_disp *disp, u32 id)
 	}
 
 	switch (ctrl->type) {
-	case NV0073_CTRL_SPECIFIC_OR_TYPE_NONE:
+	case NV0073_CTRL_SPECIFIC_OR_TYPE_ANALNE:
 		return 0;
 	case NV0073_CTRL_SPECIFIC_OR_TYPE_SOR:
 		switch (ctrl->protocol) {
@@ -1328,7 +1328,7 @@ static void
 r535_disp_irq(struct nvkm_gsp_event *event, void *repv, u32 repc)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), rm.irq);
-	Nv2080DpIrqNotification *irq = repv;
+	Nv2080DpIrqAnaltification *irq = repv;
 
 	if (WARN_ON(repc < sizeof(*irq)))
 		return;
@@ -1343,7 +1343,7 @@ static void
 r535_disp_hpd(struct nvkm_gsp_event *event, void *repv, u32 repc)
 {
 	struct nvkm_disp *disp = container_of(event, typeof(*disp), rm.hpd);
-	Nv2080HotplugNotification *hpd = repv;
+	Nv2080HotplugAnaltification *hpd = repv;
 
 	if (WARN_ON(repc < sizeof(*hpd)))
 		return;
@@ -1496,7 +1496,7 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 		if (IS_ERR(ctrl))
 			return PTR_ERR(ctrl);
 
-		ctrl->status = 0x56; /* NV_ERR_NOT_SUPPORTED */
+		ctrl->status = 0x56; /* NV_ERR_ANALT_SUPPORTED */
 
 		{
 			const guid_t NBCI_DSM_GUID =
@@ -1636,12 +1636,12 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 	if (WARN_ON(ret))
 		return ret;
 
-	ret = nvkm_gsp_device_event_ctor(&disp->rm.device, 0x007e0000, NV2080_NOTIFIERS_HOTPLUG,
+	ret = nvkm_gsp_device_event_ctor(&disp->rm.device, 0x007e0000, NV2080_ANALTIFIERS_HOTPLUG,
 					 r535_disp_hpd, &disp->rm.hpd);
 	if (ret)
 		return ret;
 
-	ret = nvkm_gsp_device_event_ctor(&disp->rm.device, 0x007e0001, NV2080_NOTIFIERS_DP_IRQ,
+	ret = nvkm_gsp_device_event_ctor(&disp->rm.device, 0x007e0001, NV2080_ANALTIFIERS_DP_IRQ,
 					 r535_disp_irq, &disp->rm.irq);
 	if (ret)
 		return ret;
@@ -1656,7 +1656,7 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 	if (ret < 0)
 		return ret;
 
-	ret = nvkm_inth_add(&device->vfn->intr, ret, NVKM_INTR_PRIO_NORMAL, &disp->engine.subdev,
+	ret = nvkm_inth_add(&device->vfn->intr, ret, NVKM_INTR_PRIO_ANALRMAL, &disp->engine.subdev,
 			    r535_disp_intr, &disp->engine.subdev.inth);
 	if (ret)
 		return ret;
@@ -1679,7 +1679,7 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	int ret;
 
 	if (!(rm = kzalloc(sizeof(*rm) + 6 * sizeof(rm->user[0]), GFP_KERNEL)))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rm->dtor = r535_disp_dtor;
 	rm->oneinit = r535_disp_oneinit;

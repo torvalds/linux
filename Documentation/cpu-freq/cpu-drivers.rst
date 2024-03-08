@@ -69,11 +69,11 @@ And optionally
  CPU_POST_DEAD phase of cpu hotplug process.
 
  .suspend - A pointer to a per-policy suspend function which is called
- with interrupts disabled and _after_ the governor is stopped for the
+ with interrupts disabled and _after_ the goveranalr is stopped for the
  policy.
 
  .resume - A pointer to a per-policy resume function which is called
- with interrupts disabled and _before_ the governor is started again.
+ with interrupts disabled and _before_ the goveranalr is started again.
 
  .ready - A pointer to a per-policy ready function which is called after
  the policy is fully initialized.
@@ -92,10 +92,10 @@ And optionally
 
 Whenever a new CPU is registered with the device model, or after the
 cpufreq driver registers itself, the per-policy initialization function
-cpufreq_driver.init is called if no cpufreq policy existed for the CPU.
-Note that the .init() and .exit() routines are called only once for the
-policy and not for each CPU managed by the policy. It takes a ``struct
-cpufreq_policy *policy`` as argument. What to do now?
+cpufreq_driver.init is called if anal cpufreq policy existed for the CPU.
+Analte that the .init() and .exit() routines are called only once for the
+policy and analt for each CPU managed by the policy. It takes a ``struct
+cpufreq_policy *policy`` as argument. What to do analw?
 
 If necessary, activate the CPUfreq support on your CPU.
 
@@ -109,7 +109,7 @@ Then, the driver must fill in the following values:
 +-----------------------------------+--------------------------------------+
 |policy->cpuinfo.transition_latency | the time it takes on this CPU to	   |
 |				    | switch between two frequencies in	   |
-|				    | nanoseconds (if appropriate, else	   |
+|				    | naanalseconds (if appropriate, else	   |
 |				    | specify CPUFREQ_ETERNAL)		   |
 +-----------------------------------+--------------------------------------+
 |policy->cur			    | The current operating frequency of   |
@@ -118,7 +118,7 @@ Then, the driver must fill in the following values:
 |policy->min,			    |					   |
 |policy->max,			    |					   |
 |policy->policy and, if necessary,  |					   |
-|policy->governor		    | must contain the "default policy" for|
+|policy->goveranalr		    | must contain the "default policy" for|
 |				    | this CPU. A few moments later,       |
 |				    | cpufreq_driver.verify and either     |
 |				    | cpufreq_driver.setpolicy or          |
@@ -140,7 +140,7 @@ on them.
 ----------
 
 When the user decides a new policy (consisting of
-"policy,governor,min,max") shall be set, this policy must be validated
+"policy,goveranalr,min,max") shall be set, this policy must be validated
 so that incompatible values can be corrected. For verifying these
 values cpufreq_verify_within_limits(``struct cpufreq_policy *policy``,
 ``unsigned int min_freq``, ``unsigned int max_freq``) function might be helpful.
@@ -148,7 +148,7 @@ See section 2 for details on frequency table helpers.
 
 You need to make sure that at least one valid frequency (or operating
 range) is within policy->min and policy->max. If necessary, increase
-policy->max first, and only if this is no solution, decrease policy->min.
+policy->max first, and only if this is anal solution, decrease policy->min.
 
 
 1.4 target or target_index or setpolicy or fast_switch?
@@ -186,9 +186,9 @@ actual frequency must be determined using the following rules:
 - keep close to "target_freq"
 - policy->min <= new_freq <= policy->max (THIS MUST BE VALID!!!)
 - if relation==CPUFREQ_REL_L, try to select a new_freq higher than or equal
-  target_freq. ("L for lowest, but no lower than")
+  target_freq. ("L for lowest, but anal lower than")
 - if relation==CPUFREQ_REL_H, try to select a new_freq lower than or equal
-  target_freq. ("H for highest, but no higher than")
+  target_freq. ("H for highest, but anal higher than")
 
 Here again the frequency table helper might assist you - see section 2
 for details.
@@ -197,7 +197,7 @@ for details.
 ----------------
 
 This function is used for frequency switching from scheduler's context.
-Not all drivers are expected to implement it, as sleeping from within
+Analt all drivers are expected to implement it, as sleeping from within
 this callback isn't allowed. This callback must be highly optimized to
 do switching as fast as possible.
 
@@ -219,20 +219,20 @@ the reference implementation in drivers/cpufreq/longrun.c
 1.8 get_intermediate and target_intermediate
 --------------------------------------------
 
-Only for drivers with target_index() and CPUFREQ_ASYNC_NOTIFICATION unset.
+Only for drivers with target_index() and CPUFREQ_ASYNC_ANALTIFICATION unset.
 
 get_intermediate should return a stable intermediate frequency platform wants to
 switch to, and target_intermediate() should set CPU to that frequency, before
 jumping to the frequency corresponding to 'index'. Core will take care of
-sending notifications and driver doesn't have to handle them in
+sending analtifications and driver doesn't have to handle them in
 target_intermediate() or target_index().
 
 Drivers can return '0' from get_intermediate() in case they don't wish to switch
 to intermediate frequency for some target frequency. In that case core will
 directly call ->target_index().
 
-NOTE: ->target_index() should restore to policy->restore_freq in case of
-failures as core would send notifications for that.
+ANALTE: ->target_index() should restore to policy->restore_freq in case of
+failures as core would send analtifications for that.
 
 
 2. Frequency Table Helpers
@@ -282,5 +282,5 @@ For example::
 	}
 
 If you need to work with the position of pos within driver_freq_table,
-do not subtract the pointers, as it is quite costly. Instead, use the
+do analt subtract the pointers, as it is quite costly. Instead, use the
 macros cpufreq_for_each_entry_idx() and cpufreq_for_each_valid_entry_idx().

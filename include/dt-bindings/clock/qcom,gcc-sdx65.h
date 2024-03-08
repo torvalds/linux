@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Inanalvation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GCC_SDX65_H
@@ -40,7 +40,7 @@
 #define GCC_CPUSS_AHB_CLK					30
 #define GCC_CPUSS_AHB_CLK_SRC					31
 #define GCC_CPUSS_AHB_POSTDIV_CLK_SRC				32
-#define GCC_CPUSS_GNOC_CLK					33
+#define GCC_CPUSS_GANALC_CLK					33
 #define GCC_GP1_CLK						34
 #define GCC_GP1_CLK_SRC						35
 #define GCC_GP2_CLK						36
@@ -71,7 +71,7 @@
 #define GCC_SPMI_FETCHER_AHB_CLK				61
 #define GCC_SPMI_FETCHER_CLK					62
 #define GCC_SPMI_FETCHER_CLK_SRC				63
-#define GCC_SYS_NOC_CPUSS_AHB_CLK				64
+#define GCC_SYS_ANALC_CPUSS_AHB_CLK				64
 #define GCC_USB30_MASTER_CLK					65
 #define GCC_USB30_MASTER_CLK_SRC				66
 #define GCC_USB30_MOCK_UTMI_CLK					67
@@ -100,11 +100,11 @@
 #define GCC_BLSP1_UART4_BCR					7
 #define GCC_PCIE_BCR						8
 #define GCC_PCIE_LINK_DOWN_BCR					9
-#define GCC_PCIE_NOCSR_COM_PHY_BCR				10
+#define GCC_PCIE_ANALCSR_COM_PHY_BCR				10
 #define GCC_PCIE_PHY_BCR					11
 #define GCC_PCIE_PHY_CFG_AHB_BCR				12
 #define GCC_PCIE_PHY_COM_BCR					13
-#define GCC_PCIE_PHY_NOCSR_COM_PHY_BCR				14
+#define GCC_PCIE_PHY_ANALCSR_COM_PHY_BCR				14
 #define GCC_PDM_BCR						15
 #define GCC_QUSB2PHY_BCR					16
 #define GCC_SDCC1_BCR						17

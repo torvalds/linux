@@ -8,7 +8,7 @@
 
   To use rbtrees you'll have to implement your own insert and search cores.
   This will avoid us to use callbacks and to drop drammatically performances.
-  I know it's not the cleaner way,  but in C (not in C++) to get
+  I kanalw it's analt the cleaner way,  but in C (analt in C++) to get
   performances and genericity...
 
   See Documentation/core-api/rbtree.rst for documentation and samples.
@@ -20,56 +20,56 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 
-struct rb_node {
+struct rb_analde {
 	unsigned long  __rb_parent_color;
-	struct rb_node *rb_right;
-	struct rb_node *rb_left;
+	struct rb_analde *rb_right;
+	struct rb_analde *rb_left;
 } __attribute__((aligned(sizeof(long))));
     /* The alignment might seem pointless, but allegedly CRIS needs it */
 
 struct rb_root {
-	struct rb_node *rb_node;
+	struct rb_analde *rb_analde;
 };
 
-#define rb_parent(r)   ((struct rb_node *)((r)->__rb_parent_color & ~3))
+#define rb_parent(r)   ((struct rb_analde *)((r)->__rb_parent_color & ~3))
 
 #define RB_ROOT	(struct rb_root) { NULL, }
 #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
 
-#define RB_EMPTY_ROOT(root)  (READ_ONCE((root)->rb_node) == NULL)
+#define RB_EMPTY_ROOT(root)  (READ_ONCE((root)->rb_analde) == NULL)
 
-/* 'empty' nodes are nodes that are known not to be inserted in an rbtree */
-#define RB_EMPTY_NODE(node)  \
-	((node)->__rb_parent_color == (unsigned long)(node))
-#define RB_CLEAR_NODE(node)  \
-	((node)->__rb_parent_color = (unsigned long)(node))
-
-
-extern void rb_insert_color(struct rb_node *, struct rb_root *);
-extern void rb_erase(struct rb_node *, struct rb_root *);
+/* 'empty' analdes are analdes that are kanalwn analt to be inserted in an rbtree */
+#define RB_EMPTY_ANALDE(analde)  \
+	((analde)->__rb_parent_color == (unsigned long)(analde))
+#define RB_CLEAR_ANALDE(analde)  \
+	((analde)->__rb_parent_color = (unsigned long)(analde))
 
 
-/* Find logical next and previous nodes in a tree */
-extern struct rb_node *rb_next(const struct rb_node *);
-extern struct rb_node *rb_prev(const struct rb_node *);
-extern struct rb_node *rb_first(const struct rb_root *);
-extern struct rb_node *rb_last(const struct rb_root *);
+extern void rb_insert_color(struct rb_analde *, struct rb_root *);
+extern void rb_erase(struct rb_analde *, struct rb_root *);
+
+
+/* Find logical next and previous analdes in a tree */
+extern struct rb_analde *rb_next(const struct rb_analde *);
+extern struct rb_analde *rb_prev(const struct rb_analde *);
+extern struct rb_analde *rb_first(const struct rb_root *);
+extern struct rb_analde *rb_last(const struct rb_root *);
 
 /* Postorder iteration - always visit the parent after its children */
-extern struct rb_node *rb_first_postorder(const struct rb_root *);
-extern struct rb_node *rb_next_postorder(const struct rb_node *);
+extern struct rb_analde *rb_first_postorder(const struct rb_root *);
+extern struct rb_analde *rb_next_postorder(const struct rb_analde *);
 
-/* Fast replacement of a single node without remove/rebalance/add/rebalance */
-extern void rb_replace_node(struct rb_node *victim, struct rb_node *new,
+/* Fast replacement of a single analde without remove/rebalance/add/rebalance */
+extern void rb_replace_analde(struct rb_analde *victim, struct rb_analde *new,
 			    struct rb_root *root);
 
-static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
-				struct rb_node **rb_link)
+static inline void rb_link_analde(struct rb_analde *analde, struct rb_analde *parent,
+				struct rb_analde **rb_link)
 {
-	node->__rb_parent_color = (unsigned long)parent;
-	node->rb_left = node->rb_right = NULL;
+	analde->__rb_parent_color = (unsigned long)parent;
+	analde->rb_left = analde->rb_right = NULL;
 
-	*rb_link = node;
+	*rb_link = analde;
 }
 
 #define rb_entry_safe(ptr, type, member) \
@@ -82,17 +82,17 @@ static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
  * given type allowing the backing memory of @pos to be invalidated
  *
  * @pos:	the 'type *' to use as a loop cursor.
- * @n:		another 'type *' to use as temporary storage
+ * @n:		aanalther 'type *' to use as temporary storage
  * @root:	'rb_root *' of the rbtree.
- * @field:	the name of the rb_node field within 'type'.
+ * @field:	the name of the rb_analde field within 'type'.
  *
  * rbtree_postorder_for_each_entry_safe() provides a similar guarantee as
  * list_for_each_entry_safe() and allows the iteration to continue independent
  * of changes to @pos by the body of the loop.
  *
- * Note, however, that it cannot handle other modifications that re-order the
+ * Analte, however, that it cananalt handle other modifications that re-order the
  * rbtree it is iterating over. This includes calling rb_erase() on @pos, as
- * rb_erase() may rebalance the tree, causing us to miss some nodes.
+ * rb_erase() may rebalance the tree, causing us to miss some analdes.
  */
 #define rbtree_postorder_for_each_entry_safe(pos, n, root, field) \
 	for (pos = rb_entry_safe(rb_first_postorder(root), typeof(*pos), field); \
@@ -100,25 +100,25 @@ static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
 			typeof(*pos), field); 1; }); \
 	     pos = n)
 
-static inline void rb_erase_init(struct rb_node *n, struct rb_root *root)
+static inline void rb_erase_init(struct rb_analde *n, struct rb_root *root)
 {
 	rb_erase(n, root);
-	RB_CLEAR_NODE(n);
+	RB_CLEAR_ANALDE(n);
 }
 
 /*
  * Leftmost-cached rbtrees.
  *
- * We do not cache the rightmost node based on footprint
+ * We do analt cache the rightmost analde based on footprint
  * size vs number of potential users that could benefit
- * from O(1) rb_last(). Just not worth it, users that want
+ * from O(1) rb_last(). Just analt worth it, users that want
  * this feature can always implement the logic explicitly.
  * Furthermore, users that want to cache both pointers may
  * find it a bit asymmetric, but that's ok.
  */
 struct rb_root_cached {
 	struct rb_root rb_root;
-	struct rb_node *rb_leftmost;
+	struct rb_analde *rb_leftmost;
 };
 
 #define RB_ROOT_CACHED (struct rb_root_cached) { {NULL, }, NULL }
@@ -126,30 +126,30 @@ struct rb_root_cached {
 /* Same as rb_first(), but O(1) */
 #define rb_first_cached(root) (root)->rb_leftmost
 
-static inline void rb_insert_color_cached(struct rb_node *node,
+static inline void rb_insert_color_cached(struct rb_analde *analde,
 					  struct rb_root_cached *root,
 					  bool leftmost)
 {
 	if (leftmost)
-		root->rb_leftmost = node;
-	rb_insert_color(node, &root->rb_root);
+		root->rb_leftmost = analde;
+	rb_insert_color(analde, &root->rb_root);
 }
 
-static inline void rb_erase_cached(struct rb_node *node,
+static inline void rb_erase_cached(struct rb_analde *analde,
 				   struct rb_root_cached *root)
 {
-	if (root->rb_leftmost == node)
-		root->rb_leftmost = rb_next(node);
-	rb_erase(node, &root->rb_root);
+	if (root->rb_leftmost == analde)
+		root->rb_leftmost = rb_next(analde);
+	rb_erase(analde, &root->rb_root);
 }
 
-static inline void rb_replace_node_cached(struct rb_node *victim,
-					  struct rb_node *new,
+static inline void rb_replace_analde_cached(struct rb_analde *victim,
+					  struct rb_analde *new,
 					  struct rb_root_cached *root)
 {
 	if (root->rb_leftmost == victim)
 		root->rb_leftmost = new;
-	rb_replace_node(victim, new, &root->rb_root);
+	rb_replace_analde(victim, new, &root->rb_root);
 }
 
 /*
@@ -160,31 +160,31 @@ static inline void rb_replace_node_cached(struct rb_node *victim,
  *	comp(a->key,b) > 0  := less(b,a)
  *	comp(a->key,b) == 0 := !less(a,b) && !less(b,a)
  *
- * If these operators define a partial order on the elements we make no
+ * If these operators define a partial order on the elements we make anal
  * guarantee on which of the elements matching the key is found. See
  * rb_find().
  *
  * The reason for this is to allow the find() interface without requiring an
- * on-stack dummy object, which might not be feasible due to object size.
+ * on-stack dummy object, which might analt be feasible due to object size.
  */
 
 /**
- * rb_add_cached() - insert @node into the leftmost cached tree @tree
- * @node: node to insert
- * @tree: leftmost cached tree to insert @node into
- * @less: operator defining the (partial) node order
+ * rb_add_cached() - insert @analde into the leftmost cached tree @tree
+ * @analde: analde to insert
+ * @tree: leftmost cached tree to insert @analde into
+ * @less: operator defining the (partial) analde order
  */
 static __always_inline void
-rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
-	      bool (*less)(struct rb_node *, const struct rb_node *))
+rb_add_cached(struct rb_analde *analde, struct rb_root_cached *tree,
+	      bool (*less)(struct rb_analde *, const struct rb_analde *))
 {
-	struct rb_node **link = &tree->rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &tree->rb_root.rb_analde;
+	struct rb_analde *parent = NULL;
 	bool leftmost = true;
 
 	while (*link) {
 		parent = *link;
-		if (less(node, parent)) {
+		if (less(analde, parent)) {
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
@@ -192,55 +192,55 @@ rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
 		}
 	}
 
-	rb_link_node(node, parent, link);
-	rb_insert_color_cached(node, tree, leftmost);
+	rb_link_analde(analde, parent, link);
+	rb_insert_color_cached(analde, tree, leftmost);
 }
 
 /**
- * rb_add() - insert @node into @tree
- * @node: node to insert
- * @tree: tree to insert @node into
- * @less: operator defining the (partial) node order
+ * rb_add() - insert @analde into @tree
+ * @analde: analde to insert
+ * @tree: tree to insert @analde into
+ * @less: operator defining the (partial) analde order
  */
 static __always_inline void
-rb_add(struct rb_node *node, struct rb_root *tree,
-       bool (*less)(struct rb_node *, const struct rb_node *))
+rb_add(struct rb_analde *analde, struct rb_root *tree,
+       bool (*less)(struct rb_analde *, const struct rb_analde *))
 {
-	struct rb_node **link = &tree->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &tree->rb_analde;
+	struct rb_analde *parent = NULL;
 
 	while (*link) {
 		parent = *link;
-		if (less(node, parent))
+		if (less(analde, parent))
 			link = &parent->rb_left;
 		else
 			link = &parent->rb_right;
 	}
 
-	rb_link_node(node, parent, link);
-	rb_insert_color(node, tree);
+	rb_link_analde(analde, parent, link);
+	rb_insert_color(analde, tree);
 }
 
 /**
- * rb_find_add() - find equivalent @node in @tree, or add @node
- * @node: node to look-for / insert
+ * rb_find_add() - find equivalent @analde in @tree, or add @analde
+ * @analde: analde to look-for / insert
  * @tree: tree to search / modify
- * @cmp: operator defining the node order
+ * @cmp: operator defining the analde order
  *
- * Returns the rb_node matching @node, or NULL when no match is found and @node
+ * Returns the rb_analde matching @analde, or NULL when anal match is found and @analde
  * is inserted.
  */
-static __always_inline struct rb_node *
-rb_find_add(struct rb_node *node, struct rb_root *tree,
-	    int (*cmp)(struct rb_node *, const struct rb_node *))
+static __always_inline struct rb_analde *
+rb_find_add(struct rb_analde *analde, struct rb_root *tree,
+	    int (*cmp)(struct rb_analde *, const struct rb_analde *))
 {
-	struct rb_node **link = &tree->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_analde **link = &tree->rb_analde;
+	struct rb_analde *parent = NULL;
 	int c;
 
 	while (*link) {
 		parent = *link;
-		c = cmp(node, parent);
+		c = cmp(analde, parent);
 
 		if (c < 0)
 			link = &parent->rb_left;
@@ -250,8 +250,8 @@ rb_find_add(struct rb_node *node, struct rb_root *tree,
 			return parent;
 	}
 
-	rb_link_node(node, parent, link);
-	rb_insert_color(node, tree);
+	rb_link_analde(analde, parent, link);
+	rb_insert_color(analde, tree);
 	return NULL;
 }
 
@@ -259,25 +259,25 @@ rb_find_add(struct rb_node *node, struct rb_root *tree,
  * rb_find() - find @key in tree @tree
  * @key: key to match
  * @tree: tree to search
- * @cmp: operator defining the node order
+ * @cmp: operator defining the analde order
  *
- * Returns the rb_node matching @key or NULL.
+ * Returns the rb_analde matching @key or NULL.
  */
-static __always_inline struct rb_node *
+static __always_inline struct rb_analde *
 rb_find(const void *key, const struct rb_root *tree,
-	int (*cmp)(const void *key, const struct rb_node *))
+	int (*cmp)(const void *key, const struct rb_analde *))
 {
-	struct rb_node *node = tree->rb_node;
+	struct rb_analde *analde = tree->rb_analde;
 
-	while (node) {
-		int c = cmp(key, node);
+	while (analde) {
+		int c = cmp(key, analde);
 
 		if (c < 0)
-			node = node->rb_left;
+			analde = analde->rb_left;
 		else if (c > 0)
-			node = node->rb_right;
+			analde = analde->rb_right;
 		else
-			return node;
+			return analde;
 	}
 
 	return NULL;
@@ -287,26 +287,26 @@ rb_find(const void *key, const struct rb_root *tree,
  * rb_find_first() - find the first @key in @tree
  * @key: key to match
  * @tree: tree to search
- * @cmp: operator defining node order
+ * @cmp: operator defining analde order
  *
- * Returns the leftmost node matching @key, or NULL.
+ * Returns the leftmost analde matching @key, or NULL.
  */
-static __always_inline struct rb_node *
+static __always_inline struct rb_analde *
 rb_find_first(const void *key, const struct rb_root *tree,
-	      int (*cmp)(const void *key, const struct rb_node *))
+	      int (*cmp)(const void *key, const struct rb_analde *))
 {
-	struct rb_node *node = tree->rb_node;
-	struct rb_node *match = NULL;
+	struct rb_analde *analde = tree->rb_analde;
+	struct rb_analde *match = NULL;
 
-	while (node) {
-		int c = cmp(key, node);
+	while (analde) {
+		int c = cmp(key, analde);
 
 		if (c <= 0) {
 			if (!c)
-				match = node;
-			node = node->rb_left;
+				match = analde;
+			analde = analde->rb_left;
 		} else if (c > 0) {
-			node = node->rb_right;
+			analde = analde->rb_right;
 		}
 	}
 
@@ -317,29 +317,29 @@ rb_find_first(const void *key, const struct rb_root *tree,
  * rb_next_match() - find the next @key in @tree
  * @key: key to match
  * @tree: tree to search
- * @cmp: operator defining node order
+ * @cmp: operator defining analde order
  *
- * Returns the next node matching @key, or NULL.
+ * Returns the next analde matching @key, or NULL.
  */
-static __always_inline struct rb_node *
-rb_next_match(const void *key, struct rb_node *node,
-	      int (*cmp)(const void *key, const struct rb_node *))
+static __always_inline struct rb_analde *
+rb_next_match(const void *key, struct rb_analde *analde,
+	      int (*cmp)(const void *key, const struct rb_analde *))
 {
-	node = rb_next(node);
-	if (node && cmp(key, node))
-		node = NULL;
-	return node;
+	analde = rb_next(analde);
+	if (analde && cmp(key, analde))
+		analde = NULL;
+	return analde;
 }
 
 /**
  * rb_for_each() - iterates a subtree matching @key
- * @node: iterator
+ * @analde: iterator
  * @key: key to match
  * @tree: tree to search
- * @cmp: operator defining node order
+ * @cmp: operator defining analde order
  */
-#define rb_for_each(node, key, tree, cmp) \
-	for ((node) = rb_find_first((key), (tree), (cmp)); \
-	     (node); (node) = rb_next_match((key), (node), (cmp)))
+#define rb_for_each(analde, key, tree, cmp) \
+	for ((analde) = rb_find_first((key), (tree), (cmp)); \
+	     (analde); (analde) = rb_next_match((key), (analde), (cmp)))
 
 #endif	/* __TOOLS_LINUX_PERF_RBTREE_H */

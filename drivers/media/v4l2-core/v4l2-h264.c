@@ -63,7 +63,7 @@ v4l2_h264_init_reflist_builder(struct v4l2_h264_reflist_builder *b,
 		 * Handle frame_num wraparound as described in section
 		 * '8.2.4.1 Decoding process for picture numbers' of the spec.
 		 * For long term references, frame_num is set to
-		 * long_term_frame_idx which requires no wrapping.
+		 * long_term_frame_idx which requires anal wrapping.
 		 */
 		if (!b->refs[i].longterm && dpb[i].frame_num > cur_frame_num)
 			b->refs[i].frame_num = (int)dpb[i].frame_num -
@@ -77,8 +77,8 @@ v4l2_h264_init_reflist_builder(struct v4l2_h264_reflist_builder *b,
 		if (b->cur_pic_fields == V4L2_H264_FRAME_REF) {
 			u8 fields = V4L2_H264_FRAME_REF;
 
-			b->unordered_reflist[b->num_valid].index = i;
-			b->unordered_reflist[b->num_valid].fields = fields;
+			b->uanalrdered_reflist[b->num_valid].index = i;
+			b->uanalrdered_reflist[b->num_valid].fields = fields;
 			b->num_valid++;
 			continue;
 		}
@@ -86,22 +86,22 @@ v4l2_h264_init_reflist_builder(struct v4l2_h264_reflist_builder *b,
 		if (dpb[i].fields & V4L2_H264_TOP_FIELD_REF) {
 			u8 fields = V4L2_H264_TOP_FIELD_REF;
 
-			b->unordered_reflist[b->num_valid].index = i;
-			b->unordered_reflist[b->num_valid].fields = fields;
+			b->uanalrdered_reflist[b->num_valid].index = i;
+			b->uanalrdered_reflist[b->num_valid].fields = fields;
 			b->num_valid++;
 		}
 
 		if (dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF) {
 			u8 fields = V4L2_H264_BOTTOM_FIELD_REF;
 
-			b->unordered_reflist[b->num_valid].index = i;
-			b->unordered_reflist[b->num_valid].fields = fields;
+			b->uanalrdered_reflist[b->num_valid].index = i;
+			b->uanalrdered_reflist[b->num_valid].fields = fields;
 			b->num_valid++;
 		}
 	}
 
-	for (i = b->num_valid; i < ARRAY_SIZE(b->unordered_reflist); i++)
-		b->unordered_reflist[i].index = i;
+	for (i = b->num_valid; i < ARRAY_SIZE(b->uanalrdered_reflist); i++)
+		b->uanalrdered_reflist[i].index = i;
 }
 EXPORT_SYMBOL_GPL(v4l2_h264_init_reflist_builder);
 
@@ -118,7 +118,7 @@ static s32 v4l2_h264_get_poc(const struct v4l2_h264_reflist_builder *b,
 		return b->refs[ref->index].bottom_field_order_cnt;
 	}
 
-	/* not reached */
+	/* analt reached */
 	return 0;
 }
 
@@ -393,8 +393,8 @@ void
 v4l2_h264_build_p_ref_list(const struct v4l2_h264_reflist_builder *builder,
 			   struct v4l2_h264_reference *reflist)
 {
-	memcpy(reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist[0]) * builder->num_valid);
+	memcpy(reflist, builder->uanalrdered_reflist,
+	       sizeof(builder->uanalrdered_reflist[0]) * builder->num_valid);
 	sort_r(reflist, builder->num_valid, sizeof(*reflist),
 	       v4l2_h264_p_ref_list_cmp, NULL, builder);
 
@@ -424,13 +424,13 @@ v4l2_h264_build_b_ref_lists(const struct v4l2_h264_reflist_builder *builder,
 			    struct v4l2_h264_reference *b0_reflist,
 			    struct v4l2_h264_reference *b1_reflist)
 {
-	memcpy(b0_reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist[0]) * builder->num_valid);
+	memcpy(b0_reflist, builder->uanalrdered_reflist,
+	       sizeof(builder->uanalrdered_reflist[0]) * builder->num_valid);
 	sort_r(b0_reflist, builder->num_valid, sizeof(*b0_reflist),
 	       v4l2_h264_b0_ref_list_cmp, NULL, builder);
 
-	memcpy(b1_reflist, builder->unordered_reflist,
-	       sizeof(builder->unordered_reflist[0]) * builder->num_valid);
+	memcpy(b1_reflist, builder->uanalrdered_reflist,
+	       sizeof(builder->uanalrdered_reflist[0]) * builder->num_valid);
 	sort_r(b1_reflist, builder->num_valid, sizeof(*b1_reflist),
 	       v4l2_h264_b1_ref_list_cmp, NULL, builder);
 

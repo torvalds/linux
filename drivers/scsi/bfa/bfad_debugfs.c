@@ -18,8 +18,8 @@
  * BFA debufs interface
  *
  * To access the interface, debugfs file system should be mounted
- * if not already mounted using:
- * mount -t debugfs none /sys/kernel/debug
+ * if analt already mounted using:
+ * mount -t debugfs analne /sys/kernel/debug
  *
  * BFA Hierarchy:
  *	- bfa/pci_dev:<pci_name>
@@ -40,15 +40,15 @@ struct bfad_debug_info {
 };
 
 static int
-bfad_debugfs_open_drvtrc(struct inode *inode, struct file *file)
+bfad_debugfs_open_drvtrc(struct ianalde *ianalde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = ianalde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *debug;
 
 	debug = kzalloc(sizeof(struct bfad_debug_info), GFP_KERNEL);
 	if (!debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	debug->debug_buffer = (void *) bfad->trcmod;
 	debug->buffer_len = sizeof(struct bfa_trc_mod_s);
@@ -59,9 +59,9 @@ bfad_debugfs_open_drvtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
+bfad_debugfs_open_fwtrc(struct ianalde *ianalde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = ianalde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *fw_debug;
 	unsigned long flags;
@@ -69,7 +69,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 
 	fw_debug = kzalloc(sizeof(struct bfad_debug_info), GFP_KERNEL);
 	if (!fw_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_debug->buffer_len = sizeof(struct bfa_trc_mod_s);
 
@@ -77,8 +77,8 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwtrc buffer\n",
-				bfad->inst_no);
-		return -ENOMEM;
+				bfad->inst_anal);
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -91,8 +91,8 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to collect fwtrc\n",
-				bfad->inst_no);
-		return -ENOMEM;
+				bfad->inst_anal);
+		return -EANALMEM;
 	}
 
 	file->private_data = fw_debug;
@@ -101,9 +101,9 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
+bfad_debugfs_open_fwsave(struct ianalde *ianalde, struct file *file)
 {
-	struct bfad_port_s *port = inode->i_private;
+	struct bfad_port_s *port = ianalde->i_private;
 	struct bfad_s *bfad = port->bfad;
 	struct bfad_debug_info *fw_debug;
 	unsigned long flags;
@@ -111,7 +111,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 
 	fw_debug = kzalloc(sizeof(struct bfad_debug_info), GFP_KERNEL);
 	if (!fw_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	fw_debug->buffer_len = sizeof(struct bfa_trc_mod_s);
 
@@ -119,8 +119,8 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to allocate fwsave buffer\n",
-				bfad->inst_no);
-		return -ENOMEM;
+				bfad->inst_anal);
+		return -EANALMEM;
 	}
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
@@ -133,8 +133,8 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 		fw_debug->debug_buffer = NULL;
 		kfree(fw_debug);
 		printk(KERN_INFO "bfad[%d]: Failed to collect fwsave\n",
-				bfad->inst_no);
-		return -ENOMEM;
+				bfad->inst_anal);
+		return -EANALMEM;
 	}
 
 	file->private_data = fw_debug;
@@ -143,15 +143,15 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_open_reg(struct inode *inode, struct file *file)
+bfad_debugfs_open_reg(struct ianalde *ianalde, struct file *file)
 {
 	struct bfad_debug_info *reg_debug;
 
 	reg_debug = kzalloc(sizeof(struct bfad_debug_info), GFP_KERNEL);
 	if (!reg_debug)
-		return -ENOMEM;
+		return -EANALMEM;
 
-	reg_debug->i_private = inode->i_private;
+	reg_debug->i_private = ianalde->i_private;
 
 	file->private_data = reg_debug;
 
@@ -258,7 +258,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	if (rc < 2 || len > (UINT_MAX >> 2)) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
-			bfad->inst_no, __func__);
+			bfad->inst_anal, __func__);
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -271,8 +271,8 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	bfad->regdata = kzalloc(len << 2, GFP_KERNEL);
 	if (!bfad->regdata) {
 		printk(KERN_INFO "bfad[%d]: Failed to allocate regrd buffer\n",
-				bfad->inst_no);
-		return -ENOMEM;
+				bfad->inst_anal);
+		return -EANALMEM;
 	}
 
 	bfad->reglen = len << 2;
@@ -283,7 +283,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	rc = bfad_reg_offset_check(bfa, addr, len);
 	if (rc) {
 		printk(KERN_INFO "bfad[%d]: Failed reg offset check\n",
-				bfad->inst_no);
+				bfad->inst_anal);
 		kfree(bfad->regdata);
 		bfad->regdata = NULL;
 		bfad->reglen = 0;
@@ -325,7 +325,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	if (rc < 2) {
 		printk(KERN_INFO
 			"bfad[%d]: %s failed to read user buf\n",
-			bfad->inst_no, __func__);
+			bfad->inst_anal, __func__);
 		kfree(kern_buf);
 		return -EINVAL;
 	}
@@ -338,7 +338,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 	if (rc) {
 		printk(KERN_INFO
 			"bfad[%d]: Failed reg offset check\n",
-			bfad->inst_no);
+			bfad->inst_anal);
 		return -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 }
 
 static int
-bfad_debugfs_release(struct inode *inode, struct file *file)
+bfad_debugfs_release(struct ianalde *ianalde, struct file *file)
 {
 	struct bfad_debug_info *debug = file->private_data;
 
@@ -364,7 +364,7 @@ bfad_debugfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-bfad_debugfs_release_fwtrc(struct inode *inode, struct file *file)
+bfad_debugfs_release_fwtrc(struct ianalde *ianalde, struct file *file)
 {
 	struct bfad_debug_info *fw_debug = file->private_data;
 

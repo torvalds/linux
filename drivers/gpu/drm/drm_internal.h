@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -28,7 +28,7 @@
 #include <drm/drm_vblank.h>
 
 #define DRM_IF_MAJOR 1
-#define DRM_IF_MINOR 4
+#define DRM_IF_MIANALR 4
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
@@ -41,7 +41,7 @@ struct drm_crtc;
 struct drm_framebuffer;
 struct drm_gem_object;
 struct drm_master;
-struct drm_minor;
+struct drm_mianalr;
 struct drm_prime_file_private;
 struct drm_printer;
 struct drm_vblank_crtc;
@@ -49,7 +49,7 @@ struct drm_vblank_crtc;
 /* drm_file.c */
 extern struct mutex drm_global_mutex;
 bool drm_dev_needs_global_mutex(struct drm_device *dev);
-struct drm_file *drm_file_alloc(struct drm_minor *minor);
+struct drm_file *drm_file_alloc(struct drm_mianalr *mianalr);
 void drm_file_free(struct drm_file *file);
 void drm_lastclose(struct drm_device *dev);
 
@@ -80,8 +80,8 @@ void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				 uint32_t handle);
 
 /* drm_drv.c */
-struct drm_minor *drm_minor_acquire(unsigned int minor_id);
-void drm_minor_release(struct drm_minor *minor);
+struct drm_mianalr *drm_mianalr_acquire(unsigned int mianalr_id);
+void drm_mianalr_release(struct drm_mianalr *mianalr);
 
 /* drm_managed.c */
 void drm_managed_release(struct drm_device *dev);
@@ -146,7 +146,7 @@ extern struct class *drm_class;
 
 int drm_sysfs_init(void);
 void drm_sysfs_destroy(void);
-struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
+struct device *drm_sysfs_mianalr_alloc(struct drm_mianalr *mianalr);
 int drm_sysfs_connector_add(struct drm_connector *connector);
 int drm_sysfs_connector_add_late(struct drm_connector *connector);
 void drm_sysfs_connector_remove_early(struct drm_connector *connector);
@@ -179,9 +179,9 @@ void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
 #if defined(CONFIG_DEBUG_FS)
 void drm_debugfs_dev_fini(struct drm_device *dev);
 void drm_debugfs_dev_register(struct drm_device *dev);
-int drm_debugfs_register(struct drm_minor *minor, int minor_id,
+int drm_debugfs_register(struct drm_mianalr *mianalr, int mianalr_id,
 			 struct dentry *root);
-void drm_debugfs_unregister(struct drm_minor *minor);
+void drm_debugfs_unregister(struct drm_mianalr *mianalr);
 void drm_debugfs_connector_add(struct drm_connector *connector);
 void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
@@ -198,13 +198,13 @@ static inline void drm_debugfs_dev_register(struct drm_device *dev)
 {
 }
 
-static inline int drm_debugfs_register(struct drm_minor *minor, int minor_id,
+static inline int drm_debugfs_register(struct drm_mianalr *mianalr, int mianalr_id,
 				       struct dentry *root)
 {
 	return 0;
 }
 
-static inline void drm_debugfs_unregister(struct drm_minor *minor)
+static inline void drm_debugfs_unregister(struct drm_mianalr *mianalr)
 {
 }
 

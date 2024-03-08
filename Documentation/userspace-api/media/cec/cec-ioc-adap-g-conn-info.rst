@@ -15,7 +15,7 @@ Name
 
 CEC_ADAP_G_CONNECTOR_INFO - Query HDMI connector information
 
-Synopsis
+Syanalpsis
 ========
 
 .. c:macro:: CEC_ADAP_G_CONNECTOR_INFO
@@ -52,7 +52,7 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
       - ``type``
       - The type of connector this adapter is associated with.
     * - union {
-      - ``(anonymous)``
+      - ``(aanalnymous)``
     * - ``struct cec_drm_connector_info``
       - drm
       - :ref:`cec-drm-connector-info`
@@ -68,11 +68,11 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
     :stub-columns: 0
     :widths:       3 1 8
 
-    * .. _`CEC-CONNECTOR-TYPE-NO-CONNECTOR`:
+    * .. _`CEC-CONNECTOR-TYPE-ANAL-CONNECTOR`:
 
-      - ``CEC_CONNECTOR_TYPE_NO_CONNECTOR``
+      - ``CEC_CONNECTOR_TYPE_ANAL_CONNECTOR``
       - 0
-      - No connector is associated with the adapter/the information is not
+      - Anal connector is associated with the adapter/the information is analt
         provided by the driver.
     * .. _`CEC-CONNECTOR-TYPE-DRM`:
 
@@ -93,10 +93,10 @@ is only available if the ``CEC_CAP_CONNECTOR_INFO`` capability is set.
     :stub-columns: 0
     :widths:       3 1 8
 
-    * .. _`CEC-DRM-CONNECTOR-TYPE-CARD-NO`:
+    * .. _`CEC-DRM-CONNECTOR-TYPE-CARD-ANAL`:
 
       - __u32
-      - ``card_no``
+      - ``card_anal``
       - DRM card number: the number from a card's path, e.g. 0 in case of
         /dev/card0.
     * .. _`CEC-DRM-CONNECTOR-TYPE-CONNECTOR_ID`:

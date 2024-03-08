@@ -19,7 +19,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata);
  * @cc_req: The request to enqueue
  * @desc: The crypto sequence
  * @len: The crypto sequence length
- * @req: Asynchronous crypto request
+ * @req: Asynchroanalus crypto request
  *
  * Return:
  * Returns -EINPROGRESS or error

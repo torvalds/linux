@@ -6,9 +6,9 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/analdemask.h>
 #include <linux/cpumask.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/of.h>
 
 #include <asm/current.h>
@@ -35,8 +35,8 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 #ifdef CONFIG_PPC64
 
 /*
- * Snooze delay has not been hooked up since 3fa8cad82b94 ("powerpc/pseries/cpuidle:
- * smt-snooze-delay cleanup.") and has been broken even longer. As was foretold in
+ * Sanaloze delay has analt been hooked up since 3fa8cad82b94 ("powerpc/pseries/cpuidle:
+ * smt-sanaloze-delay cleanup.") and has been broken even longer. As was foretold in
  * 2014:
  *
  *  "ppc64_util currently utilises it. Once we fix ppc64_util, propose to clean
@@ -46,37 +46,37 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
  * code should be removed.
  */
 
-static ssize_t store_smt_snooze_delay(struct device *dev,
+static ssize_t store_smt_sanaloze_delay(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf,
 				      size_t count)
 {
-	pr_warn_once("%s (%d) stored to unsupported smt_snooze_delay, which has no effect.\n",
+	pr_warn_once("%s (%d) stored to unsupported smt_sanaloze_delay, which has anal effect.\n",
 		     current->comm, current->pid);
 	return count;
 }
 
-static ssize_t show_smt_snooze_delay(struct device *dev,
+static ssize_t show_smt_sanaloze_delay(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	pr_warn_once("%s (%d) read from unsupported smt_snooze_delay\n",
+	pr_warn_once("%s (%d) read from unsupported smt_sanaloze_delay\n",
 		     current->comm, current->pid);
 	return sprintf(buf, "100\n");
 }
 
-static DEVICE_ATTR(smt_snooze_delay, 0644, show_smt_snooze_delay,
-		   store_smt_snooze_delay);
+static DEVICE_ATTR(smt_sanaloze_delay, 0644, show_smt_sanaloze_delay,
+		   store_smt_sanaloze_delay);
 
-static int __init setup_smt_snooze_delay(char *str)
+static int __init setup_smt_sanaloze_delay(char *str)
 {
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return 1;
 
-	pr_warn("smt-snooze-delay command line option has no effect\n");
+	pr_warn("smt-sanaloze-delay command line option has anal effect\n");
 	return 1;
 }
-__setup("smt-snooze-delay=", setup_smt_snooze_delay);
+__setup("smt-sanaloze-delay=", setup_smt_sanaloze_delay);
 
 #endif /* CONFIG_PPC64 */
 
@@ -513,7 +513,7 @@ static DEVICE_ATTR(pw20_state, 0600, show_pw20_state, store_pw20_state);
 static DEVICE_ATTR(altivec_idle, 0600, show_altivec_idle, store_altivec_idle);
 
 /*
- * Set wait time interface:(Nanosecond)
+ * Set wait time interface:(Naanalsecond)
  * Example: Base on TBfreq is 41MHZ.
  * 1~48(ns): TB[63]
  * 49~97(ns): TB[62]
@@ -579,7 +579,7 @@ EXPORT_SYMBOL(ppc_enable_pmcs);
 #define HAS_PPC_PA6T
 #endif
 /*
- * SPRs which are not related to PMU.
+ * SPRs which are analt related to PMU.
  */
 #ifdef CONFIG_PPC64
 SYSFS_SPRSETUP(purr, SPRN_PURR);
@@ -840,12 +840,12 @@ static int register_cpu_online(unsigned int cpu)
 	int i, nattrs;
 
 	/* For cpus present at boot a reference was already grabbed in register_cpu() */
-	if (!s->of_node)
-		s->of_node = of_get_cpu_node(cpu, NULL);
+	if (!s->of_analde)
+		s->of_analde = of_get_cpu_analde(cpu, NULL);
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SMT))
-		device_create_file(s, &dev_attr_smt_snooze_delay);
+		device_create_file(s, &dev_attr_smt_sanaloze_delay);
 #endif
 
 	/* PMC stuff */
@@ -943,7 +943,7 @@ static int unregister_cpu_online(unsigned int cpu)
 
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SMT))
-		device_remove_file(s, &dev_attr_smt_snooze_delay);
+		device_remove_file(s, &dev_attr_smt_sanaloze_delay);
 #endif
 
 	/* PMC stuff */
@@ -1023,8 +1023,8 @@ static int unregister_cpu_online(unsigned int cpu)
 	}
 #endif
 	cacheinfo_cpu_offline(cpu);
-	of_node_put(s->of_node);
-	s->of_node = NULL;
+	of_analde_put(s->of_analde);
+	s->of_analde = NULL;
 	return 0;
 }
 #else /* !CONFIG_HOTPLUG_CPU */
@@ -1120,20 +1120,20 @@ EXPORT_SYMBOL_GPL(cpu_remove_dev_attr_group);
 /* NUMA stuff */
 
 #ifdef CONFIG_NUMA
-int sysfs_add_device_to_node(struct device *dev, int nid)
+int sysfs_add_device_to_analde(struct device *dev, int nid)
 {
-	struct node *node = node_devices[nid];
-	return sysfs_create_link(&node->dev.kobj, &dev->kobj,
+	struct analde *analde = analde_devices[nid];
+	return sysfs_create_link(&analde->dev.kobj, &dev->kobj,
 			kobject_name(&dev->kobj));
 }
-EXPORT_SYMBOL_GPL(sysfs_add_device_to_node);
+EXPORT_SYMBOL_GPL(sysfs_add_device_to_analde);
 
-void sysfs_remove_device_from_node(struct device *dev, int nid)
+void sysfs_remove_device_from_analde(struct device *dev, int nid)
 {
-	struct node *node = node_devices[nid];
-	sysfs_remove_link(&node->dev.kobj, kobject_name(&dev->kobj));
+	struct analde *analde = analde_devices[nid];
+	sysfs_remove_link(&analde->dev.kobj, kobject_name(&dev->kobj));
 }
-EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
+EXPORT_SYMBOL_GPL(sysfs_remove_device_from_analde);
 #endif
 
 /* Only valid if CPU is present. */
@@ -1155,7 +1155,7 @@ static int __init topology_init(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 		/*
-		 * For now, we just see if the system supports making
+		 * For analw, we just see if the system supports making
 		 * the RTAS calls for CPU hotplug.  But, there may be a
 		 * more comprehensive way to do this for an individual
 		 * CPU.  For instance, the boot cpu might never be valid

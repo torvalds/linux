@@ -8,13 +8,13 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright analtice and this permission analtice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -33,7 +33,7 @@
 #define INTEL_DSI_COMMAND_MODE	1
 
 /* Dual Link support */
-#define DSI_DUAL_LINK_NONE		0
+#define DSI_DUAL_LINK_ANALNE		0
 #define DSI_DUAL_LINK_FRONT_BACK	1
 #define DSI_DUAL_LINK_PIXEL_ALT		2
 
@@ -79,7 +79,7 @@ struct intel_dsi {
 	 */
 	enum mipi_dsi_pixel_format pixel_format;
 
-	/* NON_BURST_SYNC_PULSE, NON_BURST_SYNC_EVENTS, or BURST_MODE */
+	/* ANALN_BURST_SYNC_PULSE, ANALN_BURST_SYNC_EVENTS, or BURST_MODE */
 	int video_mode;
 
 	/* eot for MIPI_EOT_DISABLE register */

@@ -6,9 +6,9 @@ Required properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration analde".
 
-ST Ericsson's pin configuration nodes use the generic pin multiplexing
+ST Ericsson's pin configuration analdes use the generic pin multiplexing
 and pin configuration bindings, see pinctrl-bindings.txt
 
 Example board file extract:

@@ -23,8 +23,8 @@ struct idr {
 };
 
 /*
- * The IDR API does not expose the tagging functionality of the radix tree
- * to users.  Use tag 0 to track whether a node has free space below it.
+ * The IDR API does analt expose the tagging functionality of the radix tree
+ * to users.  Use tag 0 to track whether a analde has free space below it.
  */
 #define IDR_FREE	0
 
@@ -42,7 +42,7 @@ struct idr {
  * IDR_INIT() - Initialise an IDR.
  * @name: Name of IDR.
  *
- * A freshly-initialised IDR contains no IDs.
+ * A freshly-initialised IDR contains anal IDs.
  */
 #define IDR_INIT(name)	IDR_INIT_BASE(name, 0)
 
@@ -50,8 +50,8 @@ struct idr {
  * DEFINE_IDR() - Define a statically-allocated IDR.
  * @name: Name of IDR.
  *
- * An IDR defined using this macro is ready for use with no additional
- * initialisation required.  It contains no IDs.
+ * An IDR defined using this macro is ready for use with anal additional
+ * initialisation required.  It contains anal IDs.
  */
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
 
@@ -180,9 +180,9 @@ static inline void idr_preload_end(void)
  * @entry: The type * to use as cursor
  * @id: Entry ID.
  *
- * @entry and @id do not need to be initialized before the loop, and
- * after normal termination @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
+ * @entry and @id do analt need to be initialized before the loop, and
+ * after analrmal termination @entry is left with the value NULL.  This
+ * is convenient for a "analt found" value.
  */
 #define idr_for_each_entry(idr, entry, id)			\
 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; id += 1U)
@@ -194,9 +194,9 @@ static inline void idr_preload_end(void)
  * @tmp: A temporary placeholder for ID.
  * @id: Entry ID.
  *
- * @entry and @id do not need to be initialized before the loop, and
- * after normal termination @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
+ * @entry and @id do analt need to be initialized before the loop, and
+ * after analrmal termination @entry is left with the value NULL.  This
+ * is convenient for a "analt found" value.
  */
 #define idr_for_each_entry_ul(idr, entry, tmp, id)			\
 	for (tmp = 0, id = 0;						\
@@ -224,8 +224,8 @@ static inline void idr_preload_end(void)
  * @id: Entry ID.
  *
  * Continue to iterate over entries, continuing after the current position.
- * After normal termination @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
+ * After analrmal termination @entry is left with the value NULL.  This
+ * is convenient for a "analt found" value.
  */
 #define idr_for_each_entry_continue_ul(idr, entry, tmp, id)		\
 	for (tmp = id;							\
@@ -267,8 +267,8 @@ void ida_destroy(struct ida *ida);
  *
  * Context: Any context. It is safe to call this function without
  * locking in your code.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-EANALMEM if memory could analt be allocated,
+ * or %-EANALSPC if there are anal free IDs.
  */
 static inline int ida_alloc(struct ida *ida, gfp_t gfp)
 {
@@ -285,8 +285,8 @@ static inline int ida_alloc(struct ida *ida, gfp_t gfp)
  *
  * Context: Any context. It is safe to call this function without
  * locking in your code.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-EANALMEM if memory could analt be allocated,
+ * or %-EANALSPC if there are anal free IDs.
  */
 static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
 {
@@ -303,8 +303,8 @@ static inline int ida_alloc_min(struct ida *ida, unsigned int min, gfp_t gfp)
  *
  * Context: Any context. It is safe to call this function without
  * locking in your code.
- * Return: The allocated ID, or %-ENOMEM if memory could not be allocated,
- * or %-ENOSPC if there are no free IDs.
+ * Return: The allocated ID, or %-EANALMEM if memory could analt be allocated,
+ * or %-EANALSPC if there are anal free IDs.
  */
 static inline int ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
 {

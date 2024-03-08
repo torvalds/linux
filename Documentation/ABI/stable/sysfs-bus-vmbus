@@ -49,12 +49,12 @@ Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The 16 bit vendor ID of the device
 Users:		tools/hv/lsvmbus and user level RDMA libraries
 
-What:		/sys/bus/vmbus/devices/<UUID>/numa_node
+What:		/sys/bus/vmbus/devices/<UUID>/numa_analde
 Date:		Jul 2018
 KernelVersion:	4.19
 Contact:	Stephen Hemminger <sthemmin@microsoft.com>
-Description:	This NUMA node to which the VMBUS device is
-		attached, or -1 if the node is unknown.
+Description:	This NUMA analde to which the VMBUS device is
+		attached, or -1 if the analde is unkanalwn.
 
 What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>
 Date:		September. 2017
@@ -158,7 +158,7 @@ Date:           February 2019
 KernelVersion:  5.0
 Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Number of guest to host interrupts caused by the inbound ring
-		buffer transitioning from full to not full while a packet is
+		buffer transitioning from full to analt full while a packet is
 		waiting for buffer space to become available
 Users:          Debugging tools
 
@@ -167,7 +167,7 @@ Date:           February 2019
 KernelVersion:  5.0
 Contact:        Michael Kelley <mikelley@microsoft.com>
 Description:    Number of guest to host interrupts caused by the outbound ring
-		buffer transitioning from empty to not empty
+		buffer transitioning from empty to analt empty
 Users:          Debugging tools
 
 What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_first

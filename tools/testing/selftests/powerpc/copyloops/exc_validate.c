@@ -37,7 +37,7 @@ static void segv_handler(int signr, siginfo_t *info, void *ptr)
 		}
 	}
 
-	printf("No exception table match for NIA %lx ADDR %lx\n", *ip, addr);
+	printf("Anal exception table match for NIA %lx ADDR %lx\n", *ip, addr);
 	abort();
 }
 
@@ -84,7 +84,7 @@ int test_copy_exception(void)
 
 	page_size = getpagesize();
 	p = mmap(NULL, page_size * 2, PROT_READ|PROT_WRITE,
-		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+		MAP_PRIVATE|MAP_AANALNYMOUS, -1, 0);
 
 	if (p == MAP_FAILED) {
 		perror("mmap");
@@ -95,7 +95,7 @@ int test_copy_exception(void)
 
 	setup_segv_handler();
 
-	if (mprotect(p + page_size, page_size, PROT_NONE)) {
+	if (mprotect(p + page_size, page_size, PROT_ANALNE)) {
 		perror("mprotect");
 		exit(1);
 	}

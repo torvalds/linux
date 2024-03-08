@@ -54,14 +54,14 @@
 		compatible = "gpio-leds";
 		led-green-harddisk {
 			label = "sq201:green:harddisk";
-			/* Conflict with LCD (no problem) */
+			/* Conflict with LCD (anal problem) */
 			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 			linux,default-trigger = "disk-activity";
 		};
 		led-green-wireless {
 			label = "sq201:green:wireless";
-			/* Conflict with NAND flash CE0 (no problem) */
+			/* Conflict with NAND flash CE0 (anal problem) */
 			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
@@ -207,7 +207,7 @@
 					};
 					conf5 {
 						pins = "P8 GMAC0 TXEN";
-						skew-delay = <7>; /* 5 at another place? */
+						skew-delay = <7>; /* 5 at aanalther place? */
 					};
 					conf6 {
 						pins = "T8 GMAC0 RXC";

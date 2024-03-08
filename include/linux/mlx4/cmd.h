@@ -12,18 +12,18 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright analtice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * ANALNINFRINGEMENT. IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
  * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
@@ -61,7 +61,7 @@ enum {
 	MLX4_CMD_SENSE_PORT	 = 0x4d,
 	MLX4_CMD_HW_HEALTH_CHECK = 0x50,
 	MLX4_CMD_SET_PORT	 = 0xc,
-	MLX4_CMD_SET_NODE	 = 0x5a,
+	MLX4_CMD_SET_ANALDE	 = 0x5a,
 	MLX4_CMD_QUERY_FUNC	 = 0x56,
 	MLX4_CMD_ACCESS_DDR	 = 0x2e,
 	MLX4_CMD_MAP_ICM	 = 0xffa,
@@ -73,7 +73,7 @@ enum {
 	MLX4_CMD_ALLOCATE_VPP	 = 0x80,
 	MLX4_CMD_SET_VPORT_QOS	 = 0x81,
 
-	/*master notify fw on finish for slave's flr*/
+	/*master analtify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
 	MLX4_CMD_VIRT_PORT_MAP   = 0x5c,
 	MLX4_CMD_GET_OP_REQ      = 0x59,
@@ -132,7 +132,7 @@ enum {
 
 	/* miscellaneous commands */
 	MLX4_CMD_DIAG_RPRT	 = 0x30,
-	MLX4_CMD_NOP		 = 0x31,
+	MLX4_CMD_ANALP		 = 0x31,
 	MLX4_CMD_CONFIG_DEV	 = 0x3a,
 	MLX4_CMD_ACCESS_MEM	 = 0x2e,
 	MLX4_CMD_SET_VEP	 = 0x52,
@@ -222,23 +222,23 @@ enum {
 };
 
 /*
- * MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP -
- * Receive checksum value is reported in CQE also for non TCP/UDP packets.
+ * MLX4_RX_CSUM_MODE_VAL_ANALN_TCP_UDP -
+ * Receive checksum value is reported in CQE also for analn TCP/UDP packets.
  *
  * MLX4_RX_CSUM_MODE_L4 -
- * L4_CSUM bit in CQE, which indicates whether or not L4 checksum
+ * L4_CSUM bit in CQE, which indicates whether or analt L4 checksum
  * was validated correctly, is supported.
  *
- * MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP -
- * IP_OK CQE's field is supported also for non TCP/UDP IP packets.
+ * MLX4_RX_CSUM_MODE_IP_OK_IP_ANALN_TCP_UDP -
+ * IP_OK CQE's field is supported also for analn TCP/UDP IP packets.
  *
  * MLX4_RX_CSUM_MODE_MULTI_VLAN -
  * Receive Checksum offload is supported for packets with more than 2 vlan headers.
  */
 enum mlx4_rx_csum_mode {
-	MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP		= 1UL << 0,
+	MLX4_RX_CSUM_MODE_VAL_ANALN_TCP_UDP		= 1UL << 0,
 	MLX4_RX_CSUM_MODE_L4				= 1UL << 1,
-	MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP		= 1UL << 2,
+	MLX4_RX_CSUM_MODE_IP_OK_IP_ANALN_TCP_UDP		= 1UL << 2,
 	MLX4_RX_CSUM_MODE_MULTI_VLAN			= 1UL << 3
 };
 
@@ -269,7 +269,7 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
 	       u16 op, unsigned long timeout, int native);
 
-/* Invoke a command with no output parameter */
+/* Invoke a command with anal output parameter */
 static inline int mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u32 in_modifier,
 			   u8 op_modifier, u16 op, unsigned long timeout,
 			   int native)
@@ -323,7 +323,7 @@ void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev);
 /*
  * mlx4_get_slave_default_vlan -
  * return true if VST ( default vlan)
- * if VST, will return vlan & qos (if not NULL)
+ * if VST, will return vlan & qos (if analt NULL)
  */
 bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
 				 u16 *vlan, u8 *qos);

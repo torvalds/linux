@@ -34,7 +34,7 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 
 	/* check that link was pinned */
 	err = stat(link_pin_path, &statbuf);
-	if (CHECK(err, "stat_link", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "stat_link", "err %d erranal %d\n", err, erranal))
 		goto cleanup;
 
 	bss->in = 2;
@@ -62,7 +62,7 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 	if (CHECK(err, "link_unpin", "err: %d\n", err))
 		goto cleanup;
 
-	/* still active, as we have FD open now */
+	/* still active, as we have FD open analw */
 	bss->in = 4;
 	usleep(1);
 	CHECK(bss->out != 4, "res_check4", "exp %d, got %d\n", 4, bss->out);
@@ -71,8 +71,8 @@ void test_link_pinning_subtest(struct bpf_program *prog,
 	link = NULL;
 
 	/* Validate it's finally detached.
-	 * Actual detachment might get delayed a bit, so there is no reliable
-	 * way to validate it immediately here, let's count up for long enough
+	 * Actual detachment might get delayed a bit, so there is anal reliable
+	 * way to validate it immediately here, let's count up for long eanalugh
 	 * and see if eventually output stops being updated
 	 */
 	for (i = 5; i < 10000; i++) {

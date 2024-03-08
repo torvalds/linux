@@ -23,7 +23,7 @@ void samsung_sync_wakemask(void __iomem *reg,
 	val = __raw_readl(reg);
 
 	for (; nr_mask > 0; nr_mask--, mask++) {
-		if (mask->irq == NO_WAKEUP_IRQ) {
+		if (mask->irq == ANAL_WAKEUP_IRQ) {
 			val |= mask->bit;
 			continue;
 		}

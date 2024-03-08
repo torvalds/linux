@@ -1,5 +1,5 @@
 /* Copyright (C) 2006 by Paolo Giarrusso - modified from glibc' execvp.c.
-   Original copyright notice follows:
+   Original copyright analtice follows:
 
    Copyright (C) 1991,92,1995-99,2002,2004 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -15,7 +15,7 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, write to the Free
+   License along with the GNU C Library; if analt, write to the Free
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 #include <unistd.h>
@@ -23,7 +23,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <limits.h>
 
 #ifndef TEST
@@ -35,11 +35,11 @@
 #include <os.h>
 
 /* Execute FILE, searching in the `PATH' environment variable if it contains
-   no slashes, with arguments ARGV and environment from `environ'.  */
-int execvp_noalloc(char *buf, const char *file, char *const argv[])
+   anal slashes, with arguments ARGV and environment from `environ'.  */
+int execvp_analalloc(char *buf, const char *file, char *const argv[])
 {
 	if (*file == '\0') {
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (strchr (file, '/') != NULL) {
@@ -79,36 +79,36 @@ int execvp_noalloc(char *buf, const char *file, char *const argv[])
 			else
 				startp = memcpy(name - (p - path), path, p - path);
 
-			/* Try to execute this name.  If it works, execv will not return.  */
+			/* Try to execute this name.  If it works, execv will analt return.  */
 			execv(startp, argv);
 
 			/*
-			if (errno == ENOEXEC) {
+			if (erranal == EANALEXEC) {
 			}
 			*/
 
-			switch (errno) {
+			switch (erranal) {
 				case EACCES:
 					/* Record the we got a `Permission denied' error.  If we end
-					   up finding no executable we can use, we want to diagnose
+					   up finding anal executable we can use, we want to diaganalse
 					   that we did find one but were denied access.  */
 					got_eacces = 1;
 					break;
-				case ENOENT:
+				case EANALENT:
 				case ESTALE:
-				case ENOTDIR:
-					/* Those errors indicate the file is missing or not executable
+				case EANALTDIR:
+					/* Those errors indicate the file is missing or analt executable
 					   by us, in which case we want to just try the next path
 					   directory.  */
-				case ENODEV:
+				case EANALDEV:
 				case ETIMEDOUT:
 					/* Some strange filesystems like AFS return even
-					   stranger error numbers.  They cannot reasonably mean
-					   anything else so ignore those, too.  */
-				case ENOEXEC:
+					   stranger error numbers.  They cananalt reasonably mean
+					   anything else so iganalre those, too.  */
+				case EANALEXEC:
 					/* We won't go searching for the shell
-					 * if it is not executable - the Linux
-					 * kernel already handles this enough,
+					 * if it is analt executable - the Linux
+					 * kernel already handles this eanalugh,
 					 * for us. */
 					break;
 
@@ -116,19 +116,19 @@ int execvp_noalloc(char *buf, const char *file, char *const argv[])
 					/* Some other error means we found an executable file, but
 					   something went wrong executing it; return the error to our
 					   caller.  */
-					return -errno;
+					return -erranal;
 			}
 		} while (*p++ != '\0');
 
-		/* We tried every element and none of them worked.  */
+		/* We tried every element and analne of them worked.  */
 		if (got_eacces)
 			/* At least one failure was due to permissions, so report that
 			   error.  */
 			return -EACCES;
 	}
 
-	/* Return the error from the last attempt (probably ENOENT).  */
-	return -errno;
+	/* Return the error from the last attempt (probably EANALENT).  */
+	return -erranal;
 }
 #ifdef TEST
 int main(int argc, char**argv)
@@ -137,13 +137,13 @@ int main(int argc, char**argv)
 	int ret;
 	argc--;
 	if (!argc) {
-		os_warn("Not enough arguments\n");
+		os_warn("Analt eanalugh arguments\n");
 		return 1;
 	}
 	argv++;
-	if (ret = execvp_noalloc(buf, argv[0], argv)) {
-		errno = -ret;
-		perror("execvp_noalloc");
+	if (ret = execvp_analalloc(buf, argv[0], argv)) {
+		erranal = -ret;
+		perror("execvp_analalloc");
 	}
 	return 0;
 }

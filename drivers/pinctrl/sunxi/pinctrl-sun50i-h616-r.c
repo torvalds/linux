@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2020 Arm Ltd.
  * Based on former work, which is:
- *   Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
+ *   Copyright (C) 2017 Iceanalwy Zheng <iceanalwy@aosc.io>
  */
 
 #include <linux/init.h>

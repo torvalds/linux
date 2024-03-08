@@ -598,7 +598,7 @@ static int ad7746_read_channel(struct iio_dev *indio_dev,
 		return ret;
 
 	msleep(delay);
-	/* Now read the actual register */
+	/* Analw read the actual register */
 	ret = i2c_smbus_read_i2c_block_data(chip->client,
 					    ad7746_chan_info[chan->address].addr,
 					    sizeof(data), data);
@@ -676,7 +676,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			/* 8.192pf / 2^24 */
 			*val =  0;
 			*val2 = 488;
-			return IIO_VAL_INT_PLUS_NANO;
+			return IIO_VAL_INT_PLUS_NAANAL;
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
 			*val = 1170;
@@ -728,7 +728,7 @@ static int ad7746_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	chip = iio_priv(indio_dev);
 	mutex_init(&chip->lock);

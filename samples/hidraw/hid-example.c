@@ -36,7 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erranal.h>
 
 const char *bus_str(int bus);
 
@@ -52,9 +52,9 @@ int main(int argc, char **argv)
 	if (argc > 1)
 		device = argv[1];
 
-	/* Open the Device with non-blocking reads. In real life,
+	/* Open the Device with analn-blocking reads. In real life,
 	   don't use a hard coded path; use libudev instead. */
-	fd = open(device, O_RDWR|O_NONBLOCK);
+	fd = open(device, O_RDWR|O_ANALNBLOCK);
 
 	if (fd < 0) {
 		perror("Unable to open device");
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
 	buf[1] = 0x77;
 	res = write(fd, buf, 2);
 	if (res < 0) {
-		printf("Error: %d\n", errno);
+		printf("Error: %d\n", erranal);
 		perror("write");
 	} else {
 		printf("write() wrote %d bytes\n", res);

@@ -37,7 +37,7 @@ struct ad1836_priv {
 /*
  * AD1836 volume/mute/de-emphasis etc. controls
  */
-static const char *ad1836_deemp[] = {"None", "44.1kHz", "32kHz", "48kHz"};
+static const char *ad1836_deemp[] = {"Analne", "44.1kHz", "32kHz", "48kHz"};
 
 static SOC_ENUM_SINGLE_DECL(ad1836_deemp_enum,
 			    AD1836_DAC_CTRL1, 8, ad1836_deemp);
@@ -107,7 +107,7 @@ static const struct snd_kcontrol_new ad183x_controls[] = {
 static const struct snd_soc_dapm_widget ad183x_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "Playback", AD1836_DAC_CTRL1,
 				AD1836_DAC_POWERDOWN, 1),
-	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_ANALPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("ADC_PWR", AD1836_ADC_CTRL1,
 				AD1836_ADC_POWERDOWN, 1, NULL, 0),
 };
@@ -369,7 +369,7 @@ static int ad1836_spi_probe(struct spi_device *spi)
 	ad1836 = devm_kzalloc(&spi->dev, sizeof(struct ad1836_priv),
 			      GFP_KERNEL);
 	if (ad1836 == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ad1836->regmap = devm_regmap_init_spi(spi, &ad1836_regmap_config);
 	if (IS_ERR(ad1836->regmap))

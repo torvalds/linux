@@ -5,7 +5,7 @@
  * Mock-up PTP Hardware Clock driver for virtual network devices
  *
  * Create a PTP clock which offers PTP time manipulation operations
- * using a timecounter/cyclecounter on top of CLOCK_MONOTONIC_RAW.
+ * using a timecounter/cyclecounter on top of CLOCK_MOANALTONIC_RAW.
  */
 
 #include <linux/ptp_clock_kernel.h>
@@ -23,7 +23,7 @@
 #define MOCK_PHC_CC_SHIFT		31
 #define MOCK_PHC_CC_MULT		(1 << MOCK_PHC_CC_SHIFT)
 #define MOCK_PHC_FADJ_SHIFT		9
-#define MOCK_PHC_FADJ_DENOMINATOR	15625ULL
+#define MOCK_PHC_FADJ_DEANALMINATOR	15625ULL
 
 /* The largest cycle_delta that timecounter_read_delta() can handle without a
  * 64-bit overflow during the multiplication with cc->mult, given the max "adj"
@@ -52,7 +52,7 @@ static int mock_phc_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 	s64 adj;
 
 	adj = (s64)scaled_ppm << MOCK_PHC_FADJ_SHIFT;
-	adj = div_s64(adj, MOCK_PHC_FADJ_DENOMINATOR);
+	adj = div_s64(adj, MOCK_PHC_FADJ_DEANALMINATOR);
 
 	spin_lock(&phc->lock);
 	timecounter_read(&phc->tc);
@@ -122,7 +122,7 @@ struct mock_phc *mock_phc_create(struct device *dev)
 
 	phc = kzalloc(sizeof(*phc), GFP_KERNEL);
 	if (!phc) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 

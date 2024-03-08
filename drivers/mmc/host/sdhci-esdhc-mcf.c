@@ -18,7 +18,7 @@
 #define ESDHC_DEFAULT_HOST_CONTROL	0x28
 
 /*
- * Freescale eSDHC has DMA ERR flag at bit 28, not as std spec says, bit 25.
+ * Freescale eSDHC has DMA ERR flag at bit 28, analt as std spec says, bit 25.
  */
 #define ESDHC_INT_VENDOR_SPEC_DMA_ERR	BIT(28)
 
@@ -59,7 +59,7 @@ static inline void esdhc_clrset_be(struct sdhci_host *host,
 }
 
 /*
- * Note: mcf is big-endian, single bytes need to be accessed at big endian
+ * Analte: mcf is big-endian, single bytes need to be accessed at big endian
  * offsets.
  */
 static void esdhc_mcf_writeb_be(struct sdhci_host *host, u8 val, int reg)
@@ -310,7 +310,7 @@ static void esdhc_mcf_request_done(struct sdhci_host *host,
 		goto exit_done;
 
 	/*
-	 * On mcf5441x there is no hw sdma option/flag to select the dma
+	 * On mcf5441x there is anal hw sdma option/flag to select the dma
 	 * transfer endiannes. A swap after the transfer is needed.
 	 */
 	for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i) {
@@ -356,11 +356,11 @@ static const struct sdhci_pltfm_data sdhci_esdhc_mcf_pdata = {
 	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_FORCE_DMA,
 		 /*
 		  * Mandatory quirk,
-		  * controller does not support cmd23,
+		  * controller does analt support cmd23,
 		  * without, on > 8G cards cmd23 is used, and
 		  * driver times out.
 		  */
-		  SDHCI_QUIRK2_HOST_NO_CMD23,
+		  SDHCI_QUIRK2_HOST_ANAL_CMD23,
 };
 
 static int esdhc_mcf_plat_init(struct sdhci_host *host,
@@ -370,7 +370,7 @@ static int esdhc_mcf_plat_init(struct sdhci_host *host,
 	struct device *dev = mmc_dev(host->mmc);
 
 	if (!dev->platform_data) {
-		dev_err(dev, "no platform data!\n");
+		dev_err(dev, "anal platform data!\n");
 		return -EINVAL;
 	}
 
@@ -384,9 +384,9 @@ static int esdhc_mcf_plat_init(struct sdhci_host *host,
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 		break;
 	case ESDHC_CD_PERMANENT:
-		host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+		host->mmc->caps |= MMC_CAP_ANALNREMOVABLE;
 		break;
-	case ESDHC_CD_NONE:
+	case ESDHC_CD_ANALNE:
 		break;
 	}
 
@@ -464,8 +464,8 @@ static int sdhci_esdhc_mcf_probe(struct platform_device *pdev)
 		goto unprep_ahb;
 
 	if (!host->bounce_buffer) {
-		dev_err(&pdev->dev, "bounce buffer not allocated");
-		err = -ENOMEM;
+		dev_err(&pdev->dev, "bounce buffer analt allocated");
+		err = -EANALMEM;
 		goto cleanup;
 	}
 
@@ -507,7 +507,7 @@ static void sdhci_esdhc_mcf_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_esdhc_mcf_driver = {
 	.driver	= {
 		.name = "sdhci-esdhc-mcf",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.probe_type = PROBE_PREFER_ASYNCHROANALUS,
 	},
 	.probe = sdhci_esdhc_mcf_probe,
 	.remove_new = sdhci_esdhc_mcf_remove,

@@ -29,19 +29,19 @@ static void ls2k_poweroff(void)
 
 static int ls2k_reset_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "loongson,ls2k-pm");
+	np = of_find_compatible_analde(NULL, NULL, "loongson,ls2k-pm");
 	if (!np) {
-		pr_info("Failed to get PM node\n");
-		return -ENODEV;
+		pr_info("Failed to get PM analde\n");
+		return -EANALDEV;
 	}
 
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_analde_put(np);
 	if (!base) {
 		pr_info("Failed to map PM register base address\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	_machine_restart = ls2k_restart;

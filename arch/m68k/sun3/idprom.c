@@ -26,7 +26,7 @@ static struct idprom idprom_buffer;
 
 /* Here is the master table of Sun machines which use some implementation
  * of the Sparc CPU and have a meaningful IDPROM machtype value that we
- * know about.  See asm-sparc/machines.h for empirical constants.
+ * kanalw about.  See asm-sparc/machines.h for empirical constants.
  */
 static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
 /* First, Sun3's */
@@ -36,7 +36,7 @@ static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
     { .name = "Sun 3/110 Series",	.id_machtype = (SM_SUN3 | SM_3_110) },
     { .name = "Sun 3/60",		.id_machtype = (SM_SUN3 | SM_3_60) },
     { .name = "Sun 3/E",		.id_machtype = (SM_SUN3 | SM_3_E) },
-/* Now, Sun3x's */
+/* Analw, Sun3x's */
     { .name = "Sun 3/460 Series",	.id_machtype = (SM_SUN3X | SM_3_460) },
     { .name = "Sun 3/80",		.id_machtype = (SM_SUN3X | SM_3_80) },
 /* Then, Sun4's */
@@ -44,7 +44,7 @@ static struct Sun_Machine_Models Sun_Machines[NUM_SUN_MACHINES] = {
 // { .name = "Sun 4/200 Series",	.id_machtype = (SM_SUN4 | SM_4_260) },
 // { .name = "Sun 4/300 Series",	.id_machtype = (SM_SUN4 | SM_4_330) },
 // { .name = "Sun 4/400 Series",	.id_machtype = (SM_SUN4 | SM_4_470) },
-/* And now, Sun4c's */
+/* And analw, Sun4c's */
 // { .name = "Sun4c SparcStation 1",	.id_machtype = (SM_SUN4C | SM_4C_SS1) },
 // { .name = "Sun4c SparcStation IPC",	.id_machtype = (SM_SUN4C | SM_4C_IPC) },
 // { .name = "Sun4c SparcStation 1+",	.id_machtype = (SM_SUN4C | SM_4C_SS1PLUS) },
@@ -72,7 +72,7 @@ static void __init display_system_type(unsigned char machtype)
 #if 0
 				char sysname[128];
 
-				prom_getproperty(prom_root_node, "banner-name",
+				prom_getproperty(prom_root_analde, "banner-name",
 						 sysname, sizeof(sysname));
 				pr_info("TYPE: %s\n", sysname);
 #endif
@@ -118,7 +118,7 @@ void __init idprom_init(void)
 	idprom = &idprom_buffer;
 
 	if (idprom->id_format != 0x01)  {
-		prom_printf("IDPROM: Unknown format type!\n");
+		prom_printf("IDPROM: Unkanalwn format type!\n");
 		prom_halt();
 	}
 

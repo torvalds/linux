@@ -98,7 +98,7 @@ static int timbradio_probe(struct platform_device *pdev)
 
 	tr = devm_kzalloc(&pdev->dev, sizeof(*tr), GFP_KERNEL);
 	if (!tr) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto err;
 	}
 
@@ -110,7 +110,7 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.fops = &timbradio_fops;
 	tr->video_dev.ioctl_ops = &timbradio_ioctl_ops;
 	tr->video_dev.release = video_device_release_empty;
-	tr->video_dev.minor = -1;
+	tr->video_dev.mianalr = -1;
 	tr->video_dev.lock = &tr->lock;
 	tr->video_dev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 
@@ -126,7 +126,7 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->sd_dsp = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
 		i2c_get_adapter(pdata->i2c_adapter), pdata->dsp, NULL);
 	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL) {
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_video_req;
 	}
 

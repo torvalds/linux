@@ -4,7 +4,7 @@
 #include "uncore_discovery.h"
 
 /* SNB-EP pci bus to socket mapping */
-#define SNBEP_CPUNODEID			0x40
+#define SNBEP_CPUANALDEID			0x40
 #define SNBEP_GIDNIDMAP			0x54
 
 /* SNB-EP Box level control */
@@ -225,8 +225,8 @@
 #define KNL_CHA_MSR_PMON_BOX_FILTER_TID		0x1ff
 #define KNL_CHA_MSR_PMON_BOX_FILTER_STATE	(7 << 18)
 #define KNL_CHA_MSR_PMON_BOX_FILTER_OP		(0xfffffe2aULL << 32)
-#define KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE	(0x1ULL << 32)
-#define KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE	(0x1ULL << 33)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_ANALDE	(0x1ULL << 32)
+#define KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_ANALDE	(0x1ULL << 33)
 #define KNL_CHA_MSR_PMON_BOX_FILTER_NNC		(0x1ULL << 37)
 
 /* KNL EDC/MC UCLK */
@@ -271,28 +271,28 @@
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_EDGE_DET)
 
 /* SKX pci bus to socket mapping */
-#define SKX_CPUNODEID			0xc0
+#define SKX_CPUANALDEID			0xc0
 #define SKX_GIDNIDMAP			0xd4
 
 /*
- * The CPU_BUS_NUMBER MSR returns the values of the respective CPUBUSNO CSR
+ * The CPU_BUS_NUMBER MSR returns the values of the respective CPUBUSANAL CSR
  * that BIOS programmed. MSR has package scope.
  * |  Bit  |  Default  |  Description
  * | [63]  |    00h    | VALID - When set, indicates the CPU bus
  *                       numbers have been initialized. (RO)
  * |[62:48]|    ---    | Reserved
  * |[47:40]|    00h    | BUS_NUM_5 - Return the bus number BIOS assigned
- *                       CPUBUSNO(5). (RO)
+ *                       CPUBUSANAL(5). (RO)
  * |[39:32]|    00h    | BUS_NUM_4 - Return the bus number BIOS assigned
- *                       CPUBUSNO(4). (RO)
+ *                       CPUBUSANAL(4). (RO)
  * |[31:24]|    00h    | BUS_NUM_3 - Return the bus number BIOS assigned
- *                       CPUBUSNO(3). (RO)
+ *                       CPUBUSANAL(3). (RO)
  * |[23:16]|    00h    | BUS_NUM_2 - Return the bus number BIOS assigned
- *                       CPUBUSNO(2). (RO)
+ *                       CPUBUSANAL(2). (RO)
  * |[15:8] |    00h    | BUS_NUM_1 - Return the bus number BIOS assigned
- *                       CPUBUSNO(1). (RO)
+ *                       CPUBUSANAL(1). (RO)
  * | [7:0] |    00h    | BUS_NUM_0 - Return the bus number BIOS assigned
- *                       CPUBUSNO(0). (RO)
+ *                       CPUBUSANAL(0). (RO)
  */
 #define SKX_MSR_CPU_BUS_NUMBER		0x300
 #define SKX_MSR_CPU_BUS_VALID_BIT	(1ULL << 63)
@@ -306,7 +306,7 @@
 #define SKX_CHA_MSR_PMON_BOX_FILTER_LOC		(0x1ULL << 33)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_ALL_OPC	(0x1ULL << 35)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_NM		(0x1ULL << 36)
-#define SKX_CHA_MSR_PMON_BOX_FILTER_NOT_NM	(0x1ULL << 37)
+#define SKX_CHA_MSR_PMON_BOX_FILTER_ANALT_NM	(0x1ULL << 37)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_OPC0	(0x3ffULL << 41)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_OPC1	(0x3ffULL << 51)
 #define SKX_CHA_MSR_PMON_BOX_FILTER_C6		(0x1ULL << 61)
@@ -353,7 +353,7 @@
 #define SNR_ICX_MESH2IIO_MMAP_DID		0x9a2
 #define SNR_ICX_SAD_CONTROL_CFG		0x3f4
 
-/* Getting I/O stack id in SAD_COTROL_CFG notation */
+/* Getting I/O stack id in SAD_COTROL_CFG analtation */
 #define SAD_CONTROL_STACK_ID(data)		(((data) >> 4) & 0x7)
 
 /* SNR Ubox */
@@ -513,7 +513,7 @@ DEFINE_UNCORE_FORMAT_ATTR(filter_state5, filter_state, "config1:17-26");
 DEFINE_UNCORE_FORMAT_ATTR(filter_rem, filter_rem, "config1:32");
 DEFINE_UNCORE_FORMAT_ATTR(filter_loc, filter_loc, "config1:33");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nm, filter_nm, "config1:36");
-DEFINE_UNCORE_FORMAT_ATTR(filter_not_nm, filter_not_nm, "config1:37");
+DEFINE_UNCORE_FORMAT_ATTR(filter_analt_nm, filter_analt_nm, "config1:37");
 DEFINE_UNCORE_FORMAT_ATTR(filter_local, filter_local, "config1:33");
 DEFINE_UNCORE_FORMAT_ATTR(filter_all_op, filter_all_op, "config1:35");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nnm, filter_nnm, "config1:37");
@@ -639,7 +639,7 @@ static void snbep_uncore_msr_enable_event(struct intel_uncore_box *box, struct p
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE)
+	if (reg1->idx != EXTRA_REG_ANALNE)
 		wrmsrl(reg1->reg, uncore_shared_reg_config(box, 0));
 
 	wrmsrl(hwc->config_base, hwc->config | SNBEP_PMON_CTL_EN);
@@ -952,7 +952,7 @@ __snbep_cbox_get_constraint(struct intel_uncore_box *box, struct perf_event *eve
 	unsigned long flags;
 	u64 mask;
 
-	if (reg1->idx == EXTRA_REG_NONE)
+	if (reg1->idx == EXTRA_REG_ANALNE)
 		return NULL;
 
 	raw_spin_lock_irqsave(&er->lock, flags);
@@ -1084,7 +1084,7 @@ snbep_pcu_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
 	u64 mask, config1 = reg1->config;
 	bool ok = false;
 
-	if (reg1->idx == EXTRA_REG_NONE ||
+	if (reg1->idx == EXTRA_REG_ANALNE ||
 	    (!uncore_box_is_fake(box) && reg1->alloc))
 		return NULL;
 again:
@@ -1206,7 +1206,7 @@ static void snbep_qpi_enable_event(struct intel_uncore_box *box, struct perf_eve
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 	struct hw_perf_event_extra *reg2 = &hwc->branch_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE) {
+	if (reg1->idx != EXTRA_REG_ANALNE) {
 		int idx = box->pmu->pmu_idx + SNBEP_PCI_QPI_PORT0_FILTER;
 		int die = box->dieid;
 		struct pci_dev *filter_pdev = uncore_extra_pci_dev[die].dev[idx];
@@ -1372,23 +1372,23 @@ static struct pci_driver snbep_uncore_pci_driver = {
 	.id_table	= snbep_uncore_pci_ids,
 };
 
-#define NODE_ID_MASK	0x7
+#define ANALDE_ID_MASK	0x7
 
-/* Each three bits from 0 to 23 of GIDNIDMAP register correspond Node ID. */
+/* Each three bits from 0 to 23 of GIDNIDMAP register correspond Analde ID. */
 #define GIDNIDMAP(config, id)	(((config) >> (3 * (id))) & 0x7)
 
-static int upi_nodeid_groupid(struct pci_dev *ubox_dev, int nodeid_loc, int idmap_loc,
-			      int *nodeid, int *groupid)
+static int upi_analdeid_groupid(struct pci_dev *ubox_dev, int analdeid_loc, int idmap_loc,
+			      int *analdeid, int *groupid)
 {
 	int ret;
 
-	/* get the Node ID of the local register */
-	ret = pci_read_config_dword(ubox_dev, nodeid_loc, nodeid);
+	/* get the Analde ID of the local register */
+	ret = pci_read_config_dword(ubox_dev, analdeid_loc, analdeid);
 	if (ret)
 		goto err;
 
-	*nodeid = *nodeid & NODE_ID_MASK;
-	/* get the Node ID mapping */
+	*analdeid = *analdeid & ANALDE_ID_MASK;
+	/* get the Analde ID mapping */
 	ret = pci_read_config_dword(ubox_dev, idmap_loc, groupid);
 	if (ret)
 		goto err;
@@ -1396,22 +1396,22 @@ err:
 	return ret;
 }
 
-static int topology_gidnid_map(int nodeid, u32 gidnid)
+static int topology_gidnid_map(int analdeid, u32 gidnid)
 {
 	int i, die_id = -1;
 
 	/*
-	 * every three bits in the Node ID mapping register maps
-	 * to a particular node.
+	 * every three bits in the Analde ID mapping register maps
+	 * to a particular analde.
 	 */
 	for (i = 0; i < 8; i++) {
-		if (nodeid == GIDNIDMAP(gidnid, i)) {
+		if (analdeid == GIDNIDMAP(gidnid, i)) {
 			if (topology_max_die_per_package() > 1)
 				die_id = i;
 			else
 				die_id = topology_phys_to_logical_pkg(i);
 			if (die_id < 0)
-				die_id = -ENODEV;
+				die_id = -EANALDEV;
 			break;
 		}
 	}
@@ -1422,10 +1422,10 @@ static int topology_gidnid_map(int nodeid, u32 gidnid)
 /*
  * build pci bus to socket mapping
  */
-static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
+static int snbep_pci2phy_map_init(int devid, int analdeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
-	int i, bus, nodeid, segment, die_id;
+	int i, bus, analdeid, segment, die_id;
 	struct pci2phy_map *map;
 	int err = 0;
 	u32 config = 0;
@@ -1437,15 +1437,15 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			break;
 		bus = ubox_dev->bus->number;
 		/*
-		 * The nodeid and idmap registers only contain enough
-		 * information to handle 8 nodes.  On systems with more
-		 * than 8 nodes, we need to rely on NUMA information,
+		 * The analdeid and idmap registers only contain eanalugh
+		 * information to handle 8 analdes.  On systems with more
+		 * than 8 analdes, we need to rely on NUMA information,
 		 * filled in from BIOS supplied information, to determine
 		 * the topology.
 		 */
-		if (nr_node_ids <= 8) {
-			err = upi_nodeid_groupid(ubox_dev, nodeid_loc, idmap_loc,
-						 &nodeid, &config);
+		if (nr_analde_ids <= 8) {
+			err = upi_analdeid_groupid(ubox_dev, analdeid_loc, idmap_loc,
+						 &analdeid, &config);
 			if (err)
 				break;
 
@@ -1454,11 +1454,11 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			map = __find_pci2phy_map(segment);
 			if (!map) {
 				raw_spin_unlock(&pci2phy_map_lock);
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 
-			map->pbus_to_dieid[bus] = topology_gidnid_map(nodeid, config);
+			map->pbus_to_dieid[bus] = topology_gidnid_map(analdeid, config);
 			raw_spin_unlock(&pci2phy_map_lock);
 		} else {
 			segment = pci_domain_nr(ubox_dev->bus);
@@ -1466,7 +1466,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			map = __find_pci2phy_map(segment);
 			if (!map) {
 				raw_spin_unlock(&pci2phy_map_lock);
-				err = -ENOMEM;
+				err = -EANALMEM;
 				break;
 			}
 
@@ -1483,7 +1483,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	if (!err) {
 		/*
-		 * For PCI bus with no UBOX device, find the next bus
+		 * For PCI bus with anal UBOX device, find the next bus
 		 * that has UBOX device and use its mapping.
 		 */
 		raw_spin_lock(&pci2phy_map_lock);
@@ -1510,12 +1510,12 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	pci_dev_put(ubox_dev);
 
-	return pcibios_err_to_errno(err);
+	return pcibios_err_to_erranal(err);
 }
 
 int snbep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x3ce0, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
+	int ret = snbep_pci2phy_map_init(0x3ce0, SNBEP_CPUANALDEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = snbep_pci_uncores;
@@ -1778,7 +1778,7 @@ static void ivbep_cbox_enable_event(struct intel_uncore_box *box, struct perf_ev
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE) {
+	if (reg1->idx != EXTRA_REG_ANALNE) {
 		u64 filter = uncore_shared_reg_config(box, 0);
 		wrmsrl(reg1->reg, filter & 0xffffffff);
 		wrmsrl(reg1->reg + 6, filter >> 32);
@@ -1870,7 +1870,7 @@ static struct intel_uncore_type ivbep_uncore_imc = {
 	IVBEP_UNCORE_PCI_COMMON_INIT(),
 };
 
-/* registers in IRP boxes are not properly aligned */
+/* registers in IRP boxes are analt properly aligned */
 static unsigned ivbep_uncore_irp_ctls[] = {0xd8, 0xdc, 0xe0, 0xe4};
 static unsigned ivbep_uncore_irp_ctrs[] = {0xa0, 0xb0, 0xb8, 0xc0};
 
@@ -2079,7 +2079,7 @@ static struct pci_driver ivbep_uncore_pci_driver = {
 
 int ivbep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x0e1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
+	int ret = snbep_pci2phy_map_init(0x0e1e, SNBEP_CPUANALDEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = ivbep_pci_uncores;
@@ -2197,8 +2197,8 @@ static int knl_cha_hw_config(struct intel_uncore_box *box,
 			    KNL_CHA_MSR_OFFSET * box->pmu->pmu_idx;
 		reg1->config = event->attr.config1 & knl_cha_filter_mask(idx);
 
-		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_NODE;
-		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_NODE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_REMOTE_ANALDE;
+		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_LOCAL_ANALDE;
 		reg1->config |= KNL_CHA_MSR_PMON_BOX_FILTER_NNC;
 		reg1->idx = idx;
 	}
@@ -2762,7 +2762,7 @@ static void hswep_cbox_enable_event(struct intel_uncore_box *box,
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE) {
+	if (reg1->idx != EXTRA_REG_ANALNE) {
 		u64 filter = uncore_shared_reg_config(box, 0);
 		wrmsrl(reg1->reg, filter & 0xffffffff);
 		wrmsrl(reg1->reg + 1, filter >> 32);
@@ -3195,7 +3195,7 @@ static struct pci_driver hswep_uncore_pci_driver = {
 
 int hswep_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x2f1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
+	int ret = snbep_pci2phy_map_init(0x2f1e, SNBEP_CPUANALDEID, SNBEP_GIDNIDMAP, true);
 	if (ret)
 		return ret;
 	uncore_pci_uncores = hswep_pci_uncores;
@@ -3270,7 +3270,7 @@ static struct intel_uncore_type *bdx_msr_uncores[] = {
 	NULL,
 };
 
-/* Bit 7 'Use Occupancy' is not available for counter 0 on BDX */
+/* Bit 7 'Use Occupancy' is analt available for counter 0 on BDX */
 static struct event_constraint bdx_uncore_pcu_constraints[] = {
 	EVENT_CONSTRAINT(0x80, 0xe, 0x80),
 	EVENT_CONSTRAINT_END
@@ -3284,7 +3284,7 @@ void bdx_uncore_cpu_init(void)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
 
-	/* Detect systems with no SBOXes */
+	/* Detect systems with anal SBOXes */
 	if ((boot_cpu_data.x86_model == 86) || hswep_has_limit_sbox(BDX_PCU_DID))
 		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 
@@ -3518,7 +3518,7 @@ static struct pci_driver bdx_uncore_pci_driver = {
 
 int bdx_uncore_pci_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x6f1e, SNBEP_CPUNODEID, SNBEP_GIDNIDMAP, true);
+	int ret = snbep_pci2phy_map_init(0x6f1e, SNBEP_CPUANALDEID, SNBEP_GIDNIDMAP, true);
 
 	if (ret)
 		return ret;
@@ -3559,7 +3559,7 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_filter_loc.attr,
 	&format_attr_filter_nm.attr,
 	&format_attr_filter_all_op.attr,
-	&format_attr_filter_not_nm.attr,
+	&format_attr_filter_analt_nm.attr,
 	&format_attr_filter_opc_0.attr,
 	&format_attr_filter_opc_1.attr,
 	&format_attr_filter_nc.attr,
@@ -3606,7 +3606,7 @@ static u64 skx_cha_filter_mask(int fields)
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_LOC;
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ALL_OPC;
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NM;
-		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NOT_NM;
+		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_ANALT_NM;
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC0;
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_OPC1;
 		mask |= SKX_CHA_MSR_PMON_BOX_FILTER_NC;
@@ -3646,7 +3646,7 @@ static int skx_cha_hw_config(struct intel_uncore_box *box, struct perf_event *ev
 }
 
 static struct intel_uncore_ops skx_uncore_chabox_ops = {
-	/* There is no frz_en for chabox ctl */
+	/* There is anal frz_en for chabox ctl */
 	.init_box		= ivbep_uncore_msr_init_box,
 	.disable_box		= snbep_uncore_msr_disable_box,
 	.enable_box		= snbep_uncore_msr_enable_box,
@@ -3736,7 +3736,7 @@ pmu_iio_mapping_visible(struct kobject *kobj, struct attribute *attr,
 	struct intel_uncore_pmu *pmu = dev_to_uncore_pmu(kobj_to_dev(kobj));
 	struct intel_uncore_topology *pmut = pmu_topology(pmu, die);
 
-	return (pmut && !pmut->iio->pci_bus_no && pmu->pmu_idx != zero_bus_pmu) ? 0 : attr->mode;
+	return (pmut && !pmut->iio->pci_bus_anal && pmu->pmu_idx != zero_bus_pmu) ? 0 : attr->mode;
 }
 
 static umode_t
@@ -3755,7 +3755,7 @@ static ssize_t skx_iio_mapping_show(struct device *dev,
 	struct intel_uncore_topology *pmut = pmu_topology(pmu, die);
 
 	return sprintf(buf, "%04x:%02x\n", pmut ? pmut->iio->segment : 0,
-					   pmut ? pmut->iio->pci_bus_no : 0);
+					   pmut ? pmut->iio->pci_bus_anal : 0);
 }
 
 static int skx_msr_cpu_bus_read(int cpu, u64 *topology)
@@ -3775,7 +3775,7 @@ static int die_to_cpu(int die)
 {
 	int res = 0, cpu, current_die;
 	/*
-	 * Using cpus_read_lock() to ensure cpu is not going down between
+	 * Using cpus_read_lock() to ensure cpu is analt going down between
 	 * looking at cpu_online_mask.
 	 */
 	cpus_read_lock();
@@ -3837,7 +3837,7 @@ clear:
 	}
 	kfree(topology);
 err:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 static void pmu_free_topology(struct intel_uncore_type *type)
@@ -3888,7 +3888,7 @@ static int skx_iio_topology_cb(struct intel_uncore_type *type, int segment,
 		t = &type->topology[die][idx];
 		t->pmu_idx = idx;
 		t->iio->segment = segment;
-		t->iio->pci_bus_no = (cpu_bus_msr >> (idx * BUS_NUM_STRIDE)) & 0xff;
+		t->iio->pci_bus_anal = (cpu_bus_msr >> (idx * BUS_NUM_STRIDE)) & 0xff;
 	}
 
 	return 0;
@@ -4294,7 +4294,7 @@ static ssize_t skx_upi_mapping_show(struct device *dev,
 /*
  * UPI Link Parameter 0
  * |  Bit  |  Default  |  Description
- * | 19:16 |     0h    | base_nodeid - The NodeID of the sending socket.
+ * | 19:16 |     0h    | base_analdeid - The AnaldeID of the sending socket.
  * | 12:8  |    00h    | sending_port - The processor die port number of the sending port.
  */
 #define SKX_KTILP0_OFFSET	0x94
@@ -4317,7 +4317,7 @@ static int upi_fill_topology(struct pci_dev *dev, struct intel_uncore_topology *
 	tp->pmu_idx = pmu_idx;
 	ret = pci_read_config_dword(dev, SKX_KTIPCSTS_OFFSET, &upi_conf);
 	if (ret) {
-		ret = pcibios_err_to_errno(ret);
+		ret = pcibios_err_to_erranal(ret);
 		goto err;
 	}
 	upi->enabled = (upi_conf >> 4) & 1;
@@ -4325,7 +4325,7 @@ static int upi_fill_topology(struct pci_dev *dev, struct intel_uncore_topology *
 		ret = pci_read_config_dword(dev, SKX_KTILP0_OFFSET,
 					    &upi_conf);
 		if (ret) {
-			ret = pcibios_err_to_errno(ret);
+			ret = pcibios_err_to_erranal(ret);
 			goto err;
 		}
 		upi->die_to = (upi_conf >> 16) & 0xf;
@@ -4362,7 +4362,7 @@ static int skx_upi_topology_cb(struct intel_uncore_type *type, int segment,
 
 static int skx_upi_get_topology(struct intel_uncore_type *type)
 {
-	/* CPX case is not supported */
+	/* CPX case is analt supported */
 	if (boot_cpu_data.x86_stepping == 11)
 		return -EPERM;
 
@@ -4589,7 +4589,7 @@ static struct pci_driver skx_uncore_pci_driver = {
 int skx_uncore_pci_init(void)
 {
 	/* need to double check pci address */
-	int ret = snbep_pci2phy_map_init(0x2014, SKX_CPUNODEID, SKX_GIDNIDMAP, false);
+	int ret = snbep_pci2phy_map_init(0x2014, SKX_CPUANALDEID, SKX_GIDNIDMAP, false);
 
 	if (ret)
 		return ret;
@@ -4651,7 +4651,7 @@ static void snr_cha_enable_event(struct intel_uncore_box *box,
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE)
+	if (reg1->idx != EXTRA_REG_ANALNE)
 		wrmsrl(reg1->reg, reg1->config);
 
 	wrmsrl(hwc->config_base, hwc->config | SNBEP_PMON_CTL_EN);
@@ -4723,7 +4723,7 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 	while ((dev = pci_get_device(PCI_VENDOR_ID_INTEL, SNR_ICX_MESH2IIO_MMAP_DID, dev))) {
 		ret = pci_read_config_dword(dev, SNR_ICX_SAD_CONTROL_CFG, &sad_cfg);
 		if (ret) {
-			ret = pcibios_err_to_errno(ret);
+			ret = pcibios_err_to_erranal(ret);
 			break;
 		}
 
@@ -4734,12 +4734,12 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 			break;
 		}
 
-		/* Convert stack id from SAD_CONTROL to PMON notation. */
+		/* Convert stack id from SAD_CONTROL to PMON analtation. */
 		stack_id = sad_pmon_mapping[stack_id];
 
 		type->topology[die][stack_id].iio->segment = pci_domain_nr(dev->bus);
 		type->topology[die][stack_id].pmu_idx = stack_id;
-		type->topology[die][stack_id].iio->pci_bus_no = dev->bus->number;
+		type->topology[die][stack_id].iio->pci_bus_anal = dev->bus->number;
 	}
 
 	pci_dev_put(dev);
@@ -4748,7 +4748,7 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 }
 
 /*
- * SNR has a static mapping of stack IDs from SAD_CONTROL_CFG notation to PMON
+ * SNR has a static mapping of stack IDs from SAD_CONTROL_CFG analtation to PMON
  */
 enum {
 	SNR_QAT_PMON_ID,
@@ -5059,7 +5059,7 @@ static struct pci_driver snr_uncore_pci_sub_driver = {
 int snr_uncore_pci_init(void)
 {
 	/* SNR UBOX DID */
-	int ret = snbep_pci2phy_map_init(0x3460, SKX_CPUNODEID,
+	int ret = snbep_pci2phy_map_init(0x3460, SKX_CPUANALDEID,
 					 SKX_GIDNIDMAP, true);
 
 	if (ret)
@@ -5099,7 +5099,7 @@ static int snr_uncore_mmio_map(struct intel_uncore_box *box,
 	u32 pci_dword;
 
 	if (!pdev)
-		return -ENODEV;
+		return -EANALDEV;
 
 	pci_read_config_dword(pdev, SNR_IMC_MMIO_BASE_OFFSET, &pci_dword);
 	addr = ((resource_size_t)pci_dword & SNR_IMC_MMIO_BASE_MASK) << 23;
@@ -5366,7 +5366,7 @@ static const struct attribute_group *icx_iio_attr_update[] = {
 };
 
 /*
- * ICX has a static mapping of stack IDs from SAD_CONTROL_CFG notation to PMON
+ * ICX has a static mapping of stack IDs from SAD_CONTROL_CFG analtation to PMON
  */
 enum {
 	ICX_PCIE1_PMON_ID,
@@ -5393,7 +5393,7 @@ static int icx_iio_get_topology(struct intel_uncore_type *type)
 
 static void icx_iio_set_mapping(struct intel_uncore_type *type)
 {
-	/* Detect ICX-D system. This case is not supported */
+	/* Detect ICX-D system. This case is analt supported */
 	if (boot_cpu_data.x86_model == INTEL_FAM6_ICELAKE_D) {
 		pmu_clear_mapping_attr(type->attr_update, &icx_iio_mapping_group);
 		return;
@@ -5613,9 +5613,9 @@ static int discover_upi_topology(struct intel_uncore_type *type, int ubox_did, i
 		goto err;
 
 	while ((ubox = pci_get_device(PCI_VENDOR_ID_INTEL, ubox_did, ubox))) {
-		ret = upi_nodeid_groupid(ubox, SKX_CPUNODEID, SKX_GIDNIDMAP, &nid, &gid);
+		ret = upi_analdeid_groupid(ubox, SKX_CPUANALDEID, SKX_GIDNIDMAP, &nid, &gid);
 		if (ret) {
-			ret = pcibios_err_to_errno(ret);
+			ret = pcibios_err_to_erranal(ret);
 			break;
 		}
 
@@ -5776,7 +5776,7 @@ static struct pci_driver icx_uncore_pci_driver = {
 int icx_uncore_pci_init(void)
 {
 	/* ICX UBOX DID */
-	int ret = snbep_pci2phy_map_init(0x3450, SKX_CPUNODEID,
+	int ret = snbep_pci2phy_map_init(0x3450, SKX_CPUANALDEID,
 					 SKX_GIDNIDMAP, true);
 
 	if (ret)
@@ -5909,7 +5909,7 @@ static void spr_uncore_msr_enable_event(struct intel_uncore_box *box,
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE)
+	if (reg1->idx != EXTRA_REG_ANALNE)
 		wrmsrl(reg1->reg, reg1->config);
 
 	wrmsrl(hwc->config_base, hwc->config);
@@ -5921,7 +5921,7 @@ static void spr_uncore_msr_disable_event(struct intel_uncore_box *box,
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
-	if (reg1->idx != EXTRA_REG_NONE)
+	if (reg1->idx != EXTRA_REG_ANALNE)
 		wrmsrl(reg1->reg, 0);
 
 	wrmsrl(hwc->config_base, 0);
@@ -6188,7 +6188,7 @@ static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
 };
 
 /*
- * The uncore units, which are not supported by the discovery table,
+ * The uncore units, which are analt supported by the discovery table,
  * are implemented from here.
  */
 #define SPR_UNCORE_UPI_NUM_BOXES	4
@@ -6376,10 +6376,10 @@ static struct intel_uncore_type *spr_pci_uncores[UNCORE_SPR_PCI_EXTRA_UNCORES] =
 	&spr_uncore_m3upi
 };
 
-int spr_uncore_units_ignore[] = {
+int spr_uncore_units_iganalre[] = {
 	UNCORE_SPR_UPI,
 	UNCORE_SPR_M3UPI,
-	UNCORE_IGNORE_END
+	UNCORE_IGANALRE_END
 };
 
 static void uncore_type_customized_copy(struct intel_uncore_type *to_type,
@@ -6575,7 +6575,7 @@ int spr_uncore_pci_init(void)
 
 void spr_uncore_mmio_init(void)
 {
-	int ret = snbep_pci2phy_map_init(0x3250, SKX_CPUNODEID, SKX_GIDNIDMAP, true);
+	int ret = snbep_pci2phy_map_init(0x3250, SKX_CPUANALDEID, SKX_GIDNIDMAP, true);
 
 	if (ret) {
 		uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO, 0, NULL,
@@ -6602,13 +6602,13 @@ void spr_uncore_mmio_init(void)
 #define UNCORE_GNR_TYPE_21		21
 #define UNCORE_GNR_TYPE_22		22
 
-int gnr_uncore_units_ignore[] = {
+int gnr_uncore_units_iganalre[] = {
 	UNCORE_SPR_UPI,
 	UNCORE_GNR_TYPE_15,
 	UNCORE_GNR_B2UPI,
 	UNCORE_GNR_TYPE_21,
 	UNCORE_GNR_TYPE_22,
-	UNCORE_IGNORE_END
+	UNCORE_IGANALRE_END
 };
 
 static struct intel_uncore_type gnr_uncore_ubox = {

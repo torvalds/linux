@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/init.h>
 #include <linux/of_platform.h>
 #include <asm/pmac_pfunc.h>
@@ -122,33 +122,33 @@ int ams_sensor_attach(void)
 	const u32 *prop;
 
 	/* Get orientation */
-	prop = of_get_property(ams_info.of_node, "orientation", NULL);
+	prop = of_get_property(ams_info.of_analde, "orientation", NULL);
 	if (!prop)
-		return -ENODEV;
+		return -EANALDEV;
 	ams_info.orient1 = *prop;
 	ams_info.orient2 = *(prop + 1);
 
 	/* Register freefall interrupt handler */
-	result = pmf_register_irq_client(ams_info.of_node,
+	result = pmf_register_irq_client(ams_info.of_analde,
 			"accel-int-1",
 			&ams_freefall_client);
 	if (result < 0)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Reset saved irqs */
 	ams_info.worker_irqs = 0;
 
 	/* Register shock interrupt handler */
-	result = pmf_register_irq_client(ams_info.of_node,
+	result = pmf_register_irq_client(ams_info.of_analde,
 			"accel-int-2",
 			&ams_shock_client);
 	if (result < 0)
 		goto release_freefall;
 
 	/* Create device */
-	ams_info.of_dev = of_platform_device_create(ams_info.of_node, "ams", NULL);
+	ams_info.of_dev = of_platform_device_create(ams_info.of_analde, "ams", NULL);
 	if (!ams_info.of_dev) {
-		result = -ENODEV;
+		result = -EANALDEV;
 		goto release_shock;
 	}
 
@@ -178,26 +178,26 @@ release_freefall:
 
 static int __init ams_init(void)
 {
-	struct device_node *np;
+	struct device_analde *np;
 
 	spin_lock_init(&ams_info.irq_lock);
 	mutex_init(&ams_info.lock);
 	INIT_WORK(&ams_info.worker, ams_worker);
 
 #ifdef CONFIG_SENSORS_AMS_I2C
-	np = of_find_node_by_name(NULL, "accelerometer");
+	np = of_find_analde_by_name(NULL, "accelerometer");
 	if (np && of_device_is_compatible(np, "AAPL,accelerometer_1"))
 		/* Found I2C motion sensor */
 		return ams_i2c_init(np);
 #endif
 
 #ifdef CONFIG_SENSORS_AMS_PMU
-	np = of_find_node_by_name(NULL, "sms");
+	np = of_find_analde_by_name(NULL, "sms");
 	if (np && of_device_is_compatible(np, "sms"))
 		/* Found PMU motion sensor */
 		return ams_pmu_init(np);
 #endif
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 void ams_sensor_detach(void)

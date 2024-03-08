@@ -22,14 +22,14 @@ description: |
     - Automatic masking on event delivery (auto-ack)
     - Software triggering (ORed with hw line)
   - 2 per-CPU IPIs (meant as "self" and "other", but they are interchangeable
-    if not symmetric)
+    if analt symmetric)
   - Automatic prioritization (single event/ack register per CPU, lower IRQs =
     higher priority)
   - Automatic masking on ack
   - Default "this CPU" register view and explicit per-CPU views
 
   This device also represents the FIQ interrupt sources on platforms using AIC,
-  which do not go through a discrete interrupt controller.
+  which do analt go through a discrete interrupt controller.
 
 allOf:
   - $ref: /schemas/interrupt-controller.yaml#
@@ -59,7 +59,7 @@ properties:
           - 4: 'efficient' CPU PMU
           - 5: 'performance' CPU PMU
 
-      The 3rd cell contains the interrupt flags. This is normally
+      The 3rd cell contains the interrupt flags. This is analrmally
       IRQ_TYPE_LEVEL_HIGH (4).
 
   reg:
@@ -74,8 +74,8 @@ properties:
     type: object
     additionalProperties: false
     description:
-      FIQ affinity can be expressed as a single "affinities" node,
-      containing a set of sub-nodes, one per FIQ with a non-default
+      FIQ affinity can be expressed as a single "affinities" analde,
+      containing a set of sub-analdes, one per FIQ with a analn-default
       affinity.
     patternProperties:
       "^.+-affinity$":
@@ -85,13 +85,13 @@ properties:
           apple,fiq-index:
             description:
               The interrupt number specified as a FIQ, and for which
-              the affinity is not the default.
+              the affinity is analt the default.
             $ref: /schemas/types.yaml#/definitions/uint32
             maximum: 5
 
           cpus:
             description:
-              Should be a list of phandles to CPU nodes (as described in
+              Should be a list of phandles to CPU analdes (as described in
               Documentation/devicetree/bindings/arm/cpus.yaml).
 
         required:

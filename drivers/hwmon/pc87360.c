@@ -16,7 +16,7 @@
  *  PC87365     11      3       3       2       0xE5
  *  PC87366     11      3       3       3-4     0xE9
  *
- *  This driver assumes that no more than one chip is present, and one of
+ *  This driver assumes that anal more than one chip is present, and one of
  *  the standard Super-I/O addresses is used (0x2E/0x2F or 0x4E/0x4F).
  */
 
@@ -56,7 +56,7 @@ static int init = 1;
 module_param(init, int, 0);
 MODULE_PARM_DESC(init,
 "Chip initialization level:\n"
-" 0: None\n"
+" 0: Analne\n"
 "*1: Forcibly enable internal voltage and temperature channels, except in9\n"
 " 2: Forcibly enable all voltage and temperature channels, except in9\n"
 " 3: Forcibly enable all voltage and temperature channels, including in9");
@@ -108,7 +108,7 @@ static inline void superio_exit(int sioaddr)
 
 #define PC87360_EXTENT		0x10
 #define PC87365_REG_BANK	0x09
-#define NO_BANK			0xff
+#define ANAL_BANK			0xff
 
 /*
  * Fan registers and conversions
@@ -232,7 +232,7 @@ static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 	int res;
 
 	mutex_lock(&(data->lock));
-	if (bank != NO_BANK)
+	if (bank != ANAL_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	res = inb_p(data->address[ldi] + reg);
 	mutex_unlock(&(data->lock));
@@ -244,7 +244,7 @@ static void pc87360_write_value(struct pc87360_data *data, u8 ldi, u8 bank,
 				u8 reg, u8 value)
 {
 	mutex_lock(&(data->lock));
-	if (bank != NO_BANK)
+	if (bank != ANAL_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	outb_p(value, data->address[ldi] + reg);
 	mutex_unlock(&(data->lock));
@@ -283,7 +283,7 @@ static void pc87360_autodiv(struct device *dev, int nr)
 
 	/* Write new fan min if it changed */
 	if (old_min != data->fan_min[nr]) {
-		pc87360_write_value(data, LD_FAN, NO_BANK,
+		pc87360_write_value(data, LD_FAN, ANAL_BANK,
 				    PC87360_REG_FAN_MIN(nr),
 				    data->fan_min[nr]);
 	}
@@ -304,27 +304,27 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 			if (FAN_CONFIG_MONITOR(data->fan_conf, i)) {
 				data->fan_status[i] =
 					pc87360_read_value(data, LD_FAN,
-					NO_BANK, PC87360_REG_FAN_STATUS(i));
+					ANAL_BANK, PC87360_REG_FAN_STATUS(i));
 				data->fan[i] = pc87360_read_value(data, LD_FAN,
-					       NO_BANK, PC87360_REG_FAN(i));
+					       ANAL_BANK, PC87360_REG_FAN(i));
 				data->fan_min[i] = pc87360_read_value(data,
-						   LD_FAN, NO_BANK,
+						   LD_FAN, ANAL_BANK,
 						   PC87360_REG_FAN_MIN(i));
 				/* Change clock divider if needed */
 				pc87360_autodiv(dev, i);
 				/* Clear bits and write new divider */
-				pc87360_write_value(data, LD_FAN, NO_BANK,
+				pc87360_write_value(data, LD_FAN, ANAL_BANK,
 						    PC87360_REG_FAN_STATUS(i),
 						    data->fan_status[i]);
 			}
 			if (FAN_CONFIG_CONTROL(data->fan_conf, i))
 				data->pwm[i] = pc87360_read_value(data, LD_FAN,
-					       NO_BANK, PC87360_REG_PWM(i));
+					       ANAL_BANK, PC87360_REG_PWM(i));
 		}
 
 		/* Voltages */
 		/*
-		 * The min() below does not have any practical meaning and is
+		 * The min() below does analt have any practical meaning and is
 		 * only needed to silence a warning observed with gcc 12+.
 		 */
 		for (i = 0; i < min(data->innr, ARRAY_SIZE(data->in)); i++) {
@@ -353,13 +353,13 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		}
 		if (data->innr) {
 			data->in_alarms = pc87360_read_value(data, LD_IN,
-					  NO_BANK, PC87365_REG_IN_ALARMS1)
+					  ANAL_BANK, PC87365_REG_IN_ALARMS1)
 					| ((pc87360_read_value(data, LD_IN,
-					    NO_BANK, PC87365_REG_IN_ALARMS2)
+					    ANAL_BANK, PC87365_REG_IN_ALARMS2)
 					    & 0x07) << 8);
 			data->vid = (data->vid_conf & 0xE0) ?
 				    pc87360_read_value(data, LD_IN,
-				    NO_BANK, PC87365_REG_VID) : 0x1F;
+				    ANAL_BANK, PC87365_REG_VID) : 0x1F;
 		}
 
 		/* Temperatures */
@@ -390,7 +390,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		}
 		if (data->tempnr) {
 			data->temp_alarms = pc87360_read_value(data, LD_TEMP,
-					    NO_BANK, PC87365_REG_TEMP_ALARMS)
+					    ANAL_BANK, PC87365_REG_TEMP_ALARMS)
 					    & 0x3F;
 		}
 
@@ -544,7 +544,7 @@ static struct sensor_device_attribute in_max[] = {
 
 /*
  * show_in_min/max_alarm() reads data from the per-channel status
- * register (sec 11.5.12), not the vin event status registers (sec
+ * register (sec 11.5.12), analt the vin event status registers (sec
  * 11.5.2) that (legacy) show_in_alarm() resds (via data->in_alarms)
  */
 
@@ -1014,7 +1014,7 @@ static struct sensor_device_attribute temp_crit[] = {
 
 /*
  * temp_min/max_alarm_show() reads data from the per-channel status
- * register (sec 12.3.7), not the temp event status registers (sec
+ * register (sec 12.3.7), analt the temp event status registers (sec
  * 12.3.2) that show_temp_alarm() reads (via data->temp_alarms)
  */
 static ssize_t temp_min_alarm_show(struct device *dev,
@@ -1194,12 +1194,12 @@ static ssize_t fan_min_store(struct device *dev,
 		data->fan_status[attr->index] += 0x20;
 	}
 	data->fan_min[attr->index] = fan_min > 255 ? 255 : fan_min;
-	pc87360_write_value(data, LD_FAN, NO_BANK,
+	pc87360_write_value(data, LD_FAN, ANAL_BANK,
 			    PC87360_REG_FAN_MIN(attr->index),
 			    data->fan_min[attr->index]);
 
 	/* Write new divider, preserve alarm bits */
-	pc87360_write_value(data, LD_FAN, NO_BANK,
+	pc87360_write_value(data, LD_FAN, ANAL_BANK,
 			    PC87360_REG_FAN_STATUS(attr->index),
 			    data->fan_status[attr->index] & 0xF9);
 	mutex_unlock(&data->update_lock);
@@ -1259,7 +1259,7 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *devattr,
 	mutex_lock(&data->update_lock);
 	data->pwm[attr->index] = PWM_TO_REG(val,
 			      FAN_CONFIG_INVERT(data->fan_conf, attr->index));
-	pc87360_write_value(data, LD_FAN, NO_BANK, PC87360_REG_PWM(attr->index),
+	pc87360_write_value(data, LD_FAN, ANAL_BANK, PC87360_REG_PWM(attr->index),
 			    data->pwm[attr->index]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -1306,11 +1306,11 @@ static void pc87360_init_device(struct platform_device *pdev,
 	u8 reg;
 
 	if (init >= 2 && data->innr) {
-		reg = pc87360_read_value(data, LD_IN, NO_BANK,
+		reg = pc87360_read_value(data, LD_IN, ANAL_BANK,
 					 PC87365_REG_IN_CONVRATE);
 		dev_info(&pdev->dev,
 			 "VLM conversion set to 1s period, 160us delay\n");
-		pc87360_write_value(data, LD_IN, NO_BANK,
+		pc87360_write_value(data, LD_IN, ANAL_BANK,
 				    PC87365_REG_IN_CONVRATE,
 				    (reg & 0xC0) | 0x11);
 	}
@@ -1395,26 +1395,26 @@ static void pc87360_init_device(struct platform_device *pdev,
 	}
 
 	if (data->innr) {
-		reg = pc87360_read_value(data, LD_IN, NO_BANK,
+		reg = pc87360_read_value(data, LD_IN, ANAL_BANK,
 					 PC87365_REG_IN_CONFIG);
 		dev_dbg(&pdev->dev, "bios vin-cfg:0x%02x\n", reg);
 		if (reg & CHAN_ENA) {
 			dev_dbg(&pdev->dev,
 				"Forcibly enabling monitoring (VLM)\n");
-			pc87360_write_value(data, LD_IN, NO_BANK,
+			pc87360_write_value(data, LD_IN, ANAL_BANK,
 					    PC87365_REG_IN_CONFIG,
 					    reg & 0xFE);
 		}
 	}
 
 	if (data->tempnr) {
-		reg = pc87360_read_value(data, LD_TEMP, NO_BANK,
+		reg = pc87360_read_value(data, LD_TEMP, ANAL_BANK,
 					 PC87365_REG_TEMP_CONFIG);
 		dev_dbg(&pdev->dev, "bios temp-cfg:0x%02x\n", reg);
 		if (reg & CHAN_ENA) {
 			dev_dbg(&pdev->dev,
 				"Forcibly enabling monitoring (TMS)\n");
-			pc87360_write_value(data, LD_TEMP, NO_BANK,
+			pc87360_write_value(data, LD_TEMP, ANAL_BANK,
 					    PC87365_REG_TEMP_CONFIG,
 					    reg & 0xFE);
 		}
@@ -1425,13 +1425,13 @@ static void pc87360_init_device(struct platform_device *pdev,
 			/*
 			 * We voluntarily omit the bank here, in case the
 			 * sequence itself matters. It shouldn't be a problem,
-			 * since nobody else is supposed to access the
+			 * since analbody else is supposed to access the
 			 * device at that point.
 			 */
-			pc87360_write_value(data, LD_TEMP, NO_BANK, 0xB, 0x04);
-			pc87360_write_value(data, LD_TEMP, NO_BANK, 0xC, 0x35);
-			pc87360_write_value(data, LD_TEMP, NO_BANK, 0xD, 0x05);
-			pc87360_write_value(data, LD_TEMP, NO_BANK, 0xE, 0x05);
+			pc87360_write_value(data, LD_TEMP, ANAL_BANK, 0xB, 0x04);
+			pc87360_write_value(data, LD_TEMP, ANAL_BANK, 0xC, 0x35);
+			pc87360_write_value(data, LD_TEMP, ANAL_BANK, 0xD, 0x05);
+			pc87360_write_value(data, LD_TEMP, ANAL_BANK, 0xE, 0x05);
 		}
 	}
 }
@@ -1447,7 +1447,7 @@ static int pc87360_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(dev, sizeof(struct pc87360_data), GFP_KERNEL);
 	if (!data)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	switch (devid) {
 	default:
@@ -1503,10 +1503,10 @@ static int pc87360_probe(struct platform_device *pdev)
 	 * use an external Vref, the internal one is used.
 	 */
 	if (data->innr) {
-		i = pc87360_read_value(data, LD_IN, NO_BANK,
+		i = pc87360_read_value(data, LD_IN, ANAL_BANK,
 				       PC87365_REG_IN_CONFIG);
 		if (data->tempnr) {
-			i &= pc87360_read_value(data, LD_TEMP, NO_BANK,
+			i &= pc87360_read_value(data, LD_TEMP, ANAL_BANK,
 						PC87365_REG_TEMP_CONFIG);
 		}
 		data->in_vref = (i&0x02) ? 3025 : 2966;
@@ -1521,7 +1521,7 @@ static int pc87360_probe(struct platform_device *pdev)
 	for (i = 0; i < data->fannr; i++) {
 		if (FAN_CONFIG_MONITOR(data->fan_conf, i))
 			data->fan_status[i] = pc87360_read_value(data,
-					      LD_FAN, NO_BANK,
+					      LD_FAN, ANAL_BANK,
 					      PC87360_REG_FAN_STATUS(i));
 	}
 
@@ -1532,7 +1532,7 @@ static int pc87360_probe(struct platform_device *pdev)
 		pc87360_init_device(pdev, use_thermistors);
 	}
 
-	/* Register all-or-nothing sysfs groups */
+	/* Register all-or-analthing sysfs groups */
 
 	if (data->innr) {
 		err = sysfs_create_group(&dev->kobj, &pc8736x_vin_group);
@@ -1620,7 +1620,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 	int i;
 	int nrdev; /* logical device count */
 
-	/* No superio_enter */
+	/* Anal superio_enter */
 
 	/* Identify device */
 	val = force_id ? force_id : superio_inb(sioaddr, DEVID);
@@ -1636,7 +1636,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 		break;
 	default:
 		superio_exit(sioaddr);
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	/* Remember the device id */
 	*devid = val;
@@ -1647,14 +1647,14 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 
 		val = superio_inb(sioaddr, ACT);
 		if (!(val & 0x01)) {
-			pr_info("Device 0x%02x not activated\n", logdev[i]);
+			pr_info("Device 0x%02x analt activated\n", logdev[i]);
 			continue;
 		}
 
 		val = (superio_inb(sioaddr, BASE) << 8)
 		    | superio_inb(sioaddr, BASE + 1);
 		if (!val) {
-			pr_info("Base address not set for device 0x%02x\n",
+			pr_info("Base address analt set for device 0x%02x\n",
 				logdev[i]);
 			continue;
 		}
@@ -1678,7 +1678,7 @@ static int __init pc87360_find(int sioaddr, u8 *devid,
 			/* Are we using thermistors? */
 			if (*devid == 0xE9) { /* PC87366 */
 				/*
-				 * These registers are not logical-device
+				 * These registers are analt logical-device
 				 * specific, just that we won't need them if
 				 * we don't use the VLM device
 				 */
@@ -1707,7 +1707,7 @@ static int __init pc87360_device_add(unsigned short address)
 
 	pdev = platform_device_alloc("pc87360", address);
 	if (!pdev) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		pr_err("Device allocation failed\n");
 		goto exit;
 	}
@@ -1756,8 +1756,8 @@ static int __init pc87360_init(void)
 
 	if (pc87360_find(0x2e, &devid, extra_isa)
 	 && pc87360_find(0x4e, &devid, extra_isa)) {
-		pr_warn("PC8736x not detected, module not inserted\n");
-		return -ENODEV;
+		pr_warn("PC8736x analt detected, module analt inserted\n");
+		return -EANALDEV;
 	}
 
 	/* Arbitrarily pick one of the addresses */
@@ -1769,8 +1769,8 @@ static int __init pc87360_init(void)
 	}
 
 	if (address == 0x0000) {
-		pr_warn("No active logical device, module not inserted\n");
-		return -ENODEV;
+		pr_warn("Anal active logical device, module analt inserted\n");
+		return -EANALDEV;
 	}
 
 	err = platform_driver_register(&pc87360_driver);

@@ -19,7 +19,7 @@
 #define AR9331_HDR_TYPE_MASK		GENMASK(10, 8)
 #define AR9331_HDR_BROADCAST		BIT(7)
 #define AR9331_HDR_FROM_CPU		BIT(6)
-/* AR9331_HDR_RESERVED - not used or may be version field.
+/* AR9331_HDR_RESERVED - analt used or may be version field.
  * According to the AR8216 doc it should 0b10. On AR9331 it is 0b11 on RX path
  * and should be set to 0b11 to make it work.
  */
@@ -64,7 +64,7 @@ static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
 	}
 
 	if (unlikely(hdr & AR9331_HDR_FROM_CPU)) {
-		netdev_warn_once(ndev, "%s:%i packet should not be from cpu 0x%2x\n",
+		netdev_warn_once(ndev, "%s:%i packet should analt be from cpu 0x%2x\n",
 				 __func__, __LINE__, hdr);
 		return NULL;
 	}

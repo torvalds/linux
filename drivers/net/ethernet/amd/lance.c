@@ -16,7 +16,7 @@
 	Annapolis MD 21403
 
 	Andrey V. Savochkin:
-	- alignment problem with 1.3.* kernel and some minor changes.
+	- alignment problem with 1.3.* kernel and some mianalr changes.
 	Thomas Bogendoerfer (tsbogend@bigbug.franken.de):
 	- added support for Linux/Alpha, but removed most of it, because
         it worked only for the PCI chip.
@@ -39,7 +39,7 @@
     Arnaldo Carvalho de Melo <acme@conectiva.com.br> - 11/01/2001
 
 	Reworked detection, added support for Racal InterLan EtherBlaster cards
-	Vesselin Kostadinov <vesok at yahoo dot com > - 22/4/2004
+	Vesselin Kostadianalv <vesok at yahoo dot com > - 22/4/2004
 */
 
 static const char version[] = "lance.c:v1.16 2006/11/09 dplatt@3do.com, becker@cesdis.gsfc.nasa.gov\n";
@@ -48,7 +48,7 @@ static const char version[] = "lance.c:v1.16 2006/11/09 dplatt@3do.com, becker@c
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -73,7 +73,7 @@ static struct card {
 	char id_offset14;
 	char id_offset15;
 } cards[] = {
-	{	//"normal"
+	{	//"analrmal"
 		.id_offset14 = 0x57,
 		.id_offset15 = 0x57,
 	},
@@ -124,7 +124,7 @@ initialization succeeds.
 
 The HP-J2405A board is an exception: with this board it is easy to read the
 EEPROM-set values for the base, IRQ, and DMA.  (Of course you must already
-_know_ the base address -- that field is for writing the EEPROM.)
+_kanalw_ the base address -- that field is for writing the EEPROM.)
 
 III. Driver operation
 
@@ -214,7 +214,7 @@ tx_full and tbusy flags.
 struct lance_rx_head {
 	s32 base;
 	s16 buf_length;			/* This length is 2s complement (negative)! */
-	s16 msg_length;			/* This length is "normal". */
+	s16 msg_length;			/* This length is "analrmal". */
 };
 
 struct lance_tx_head {
@@ -286,16 +286,16 @@ static struct lance_chip_type {
         {0x2621, "PCnet/PCI-II 79C970A",        /* 79C970A PCInetPCI II. */
                 LANCE_ENABLE_AUTOSELECT + LANCE_MUST_REINIT_RING +
                         LANCE_HAS_MISSED_FRAME},
-	{0x0, 	 "PCnet (unknown)",
+	{0x0, 	 "PCnet (unkanalwn)",
 		LANCE_ENABLE_AUTOSELECT + LANCE_MUST_REINIT_RING +
 			LANCE_HAS_MISSED_FRAME},
 };
 
-enum {OLD_LANCE = 0, PCNET_ISA=1, PCNET_ISAP=2, PCNET_PCI=3, PCNET_VLB=4, PCNET_PCI_II=5, LANCE_UNKNOWN=6};
+enum {OLD_LANCE = 0, PCNET_ISA=1, PCNET_ISAP=2, PCNET_PCI=3, PCNET_VLB=4, PCNET_PCI_II=5, LANCE_UNKANALWN=6};
 
 
-/* Non-zero if lance_probe1() needs to allocate low-memory bounce buffers.
-   Assume yes until we know the memory size. */
+/* Analn-zero if lance_probe1() needs to allocate low-memory bounce buffers.
+   Assume anal until we kanalw the memory size. */
 static unsigned char lance_need_isa_bounce_buffers = 1;
 
 static int lance_open(struct net_device *dev);
@@ -324,8 +324,8 @@ module_param_hw_array(dma, int, dma, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
 module_param(lance_debug, int, 0);
 MODULE_PARM_DESC(io, "LANCE/PCnet I/O base address(es),required");
-MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
-MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");
+MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (iganalred for some devices)");
+MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (iganalred for some devices)");
 MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
 
 static int __init lance_init_module(void)
@@ -337,7 +337,7 @@ static int __init lance_init_module(void)
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) /* only complain once */
 				break;
-			printk(KERN_NOTICE "lance.c: Module autoprobing not allowed. Append \"io=0xNNN\" value(s).\n");
+			printk(KERN_ANALTICE "lance.c: Module autoprobing analt allowed. Append \"io=0xNNN\" value(s).\n");
 			return -EPERM;
 		}
 		dev = alloc_etherdev(0);
@@ -388,8 +388,8 @@ module_exit(lance_cleanup_module);
 MODULE_LICENSE("GPL");
 
 
-/* Starting in v2.1.*, the LANCE/PCnet probe is now similar to the other
-   board probes now that kmalloc() can allocate ISA DMA-able regions.
+/* Starting in v2.1.*, the LANCE/PCnet probe is analw similar to the other
+   board probes analw that kmalloc() can allocate ISA DMA-able regions.
    This also allows the LANCE driver to be used as a module.
    */
 static int __init do_lance_probe(struct net_device *dev)
@@ -412,7 +412,7 @@ static int __init do_lance_probe(struct net_device *dev)
 			for (card = 0; card < NUM_CARDS; ++card)
 				if (cards[card].id_offset14 == offset14)
 					break;
-			if (card < NUM_CARDS) {/*yes, the first byte matches*/
+			if (card < NUM_CARDS) {/*anal, the first byte matches*/
 				char offset15 = inb(ioaddr + 15);
 				for (card = 0; card < NUM_CARDS; ++card)
 					if ((cards[card].id_offset14 == offset14) &&
@@ -432,7 +432,7 @@ static int __init do_lance_probe(struct net_device *dev)
 			release_region(ioaddr, LANCE_TOTAL_SIZE);
 		}
 	}
-	return -ENODEV;
+	return -EANALDEV;
 }
 
 #ifndef MODULE
@@ -442,7 +442,7 @@ struct net_device * __init lance_probe(int unit)
 	int err;
 
 	if (!dev)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EANALDEV);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
@@ -479,18 +479,18 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	int hp_builtin = 0;		/* HP on-board ethernet. */
 	static int did_version;		/* Already printed version info. */
 	unsigned long flags;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 	void __iomem *bios;
 	u8 addr[ETH_ALEN];
 
 	/* First we look for special cases.
 	   Check for HP's on-board ethernet by looking for 'HP' in the BIOS.
 	   There are two HP versions, check the BIOS for the configuration port.
-	   This method provided by L. Julliard, Laurent_Julliard@grenoble.hp.com.
+	   This method provided by L. Julliard, Laurent_Julliard@greanalble.hp.com.
 	   */
 	bios = ioremap(0xf00f0, 0x14);
 	if (!bios)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (readw(bios + 0x12) == 0x5048)  {
 		static const short ioaddr_table[] = { 0x300, 0x320, 0x340, 0x360};
 		int hp_port = (readl(bios + 1) & 1)  ? 0x499 : 0x99;
@@ -514,7 +514,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 
 	outw(0x0000, ioaddr+LANCE_ADDR); /* Switch to window 0 */
 	if (inw(ioaddr+LANCE_DATA) != 0x0004)
-		return -ENODEV;
+		return -EANALDEV;
 
 	/* Get the version of the chip. */
 	outw(88, ioaddr+LANCE_ADDR);
@@ -527,7 +527,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		if (lance_debug > 2)
 			printk("  LANCE chip version is %#x.\n", chip_version);
 		if ((chip_version & 0xfff) != 0x003)
-			return -ENODEV;
+			return -EANALDEV;
 		chip_version = (chip_version >> 12) & 0xffff;
 		for (lance_version = 1; chip_table[lance_version].id_number; lance_version++) {
 			if (chip_table[lance_version].id_number == chip_version)
@@ -552,7 +552,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 
 	lp = kzalloc(sizeof(*lp), GFP_DMA | GFP_KERNEL);
 	if (!lp)
-		return -ENOMEM;
+		return -EANALMEM;
 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
 	dev->ml_priv = lp;
 	lp->name = chipname;
@@ -589,7 +589,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	inw(ioaddr+LANCE_ADDR);
 
 	if (irq) {					/* Set iff PCI card. */
-		dev->dma = 4;			/* Native bus-master, no DMA channel needed. */
+		dev->dma = 4;			/* Native bus-master, anal DMA channel needed. */
 		dev->irq = irq;
 	} else if (hp_builtin) {
 		static const char dma_tbl[4] = {3, 5, 6, 0};
@@ -623,7 +623,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 		dma_channels = ((inb(DMA1_STAT_REG) >> 4) & 0x0f) |
 			(inb(DMA2_STAT_REG) & 0xf0);
 	}
-	err = -ENODEV;
+	err = -EANALDEV;
 	if (dev->irq >= 2)
 		printk(" assigned IRQ %d", dev->irq);
 	else if (lance_version != 0)  {	/* 7990 boards need DMA detection first. */
@@ -653,7 +653,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	}
 
 	if (dev->dma == 4) {
-		printk(", no DMA needed.\n");
+		printk(", anal DMA needed.\n");
 	} else if (dev->dma) {
 		if (request_dma(dev->dma, chipname)) {
 			printk("DMA %d allocation failed.\n", dev->dma);
@@ -702,7 +702,7 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	}
 
 	if (lance_version == 0 && dev->irq == 0) {
-		/* We may auto-IRQ now that we have a DMA channel. */
+		/* We may auto-IRQ analw that we have a DMA channel. */
 		/* Trigger an initialization just for the interrupt. */
 		unsigned long irq_mask;
 
@@ -763,12 +763,12 @@ lance_open(struct net_device *dev)
 	}
 
 	/* We used to allocate DMA here, but that was silly.
-	   DMA lines can't be shared!  We now permanently allocate them. */
+	   DMA lines can't be shared!  We analw permanently allocate them. */
 
 	/* Reset the LANCE */
 	inw(ioaddr+LANCE_RESET);
 
-	/* The DMA controller is used as a no-operation slave, "cascade mode". */
+	/* The DMA controller is used as a anal-operation slave, "cascade mode". */
 	if (dev->dma != 4) {
 		unsigned long flags=claim_dma_lock();
 		enable_dma(dev->dma);
@@ -826,7 +826,7 @@ lance_open(struct net_device *dev)
 	return 0;					/* Always succeed */
 }
 
-/* The LANCE has been halted for one reason or another (busmaster memory
+/* The LANCE has been halted for one reason or aanalther (busmaster memory
    arbitration error, Tx FIFO underflow, driver stopped it to reconfigure,
    etc.).  Modern LANCE variants always reload their ring-buffer
    configuration when restarted, so we must reinitialize our ring
@@ -835,7 +835,7 @@ lance_open(struct net_device *dev)
    sent (in effect, drop the packets on the floor) - the higher-level
    protocols will time out and retransmit.  It'd be better to shuffle
    these skbs to a temp list and then actually re-Tx them after
-   restarting the chip, but I'm too lazy to do so right now.  dplatt@3do.com
+   restarting the chip, but I'm too lazy to do so right analw.  dplatt@3do.com
 */
 
 static void
@@ -848,7 +848,7 @@ lance_purge_ring(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb = lp->rx_skbuff[i];
 		lp->rx_skbuff[i] = NULL;
-		lp->rx_ring[i].base = 0;		/* Not owned by LANCE chip. */
+		lp->rx_ring[i].base = 0;		/* Analt owned by LANCE chip. */
 		if (skb)
 			dev_kfree_skb_any(skb);
 	}
@@ -1037,7 +1037,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	outw(0x00, dev->base_addr + LANCE_ADDR);
 	while ((csr0 = inw(dev->base_addr + LANCE_DATA)) & 0x8600 &&
 	       --boguscnt >= 0) {
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackanalwledge all of the current interrupt sources ASAP. */
 		outw(csr0 & ~0x004f, dev->base_addr + LANCE_DATA);
 
 		must_restart = 0;
@@ -1086,7 +1086,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 					dev->stats.tx_packets++;
 				}
 
-				/* We must free the original skb if it's not a data-only copy
+				/* We must free the original skb if it's analt a data-only copy
 				   in the bounce buffer. */
 				if (lp->tx_skbuff[entry]) {
 					dev_consume_skb_irq(lp->tx_skbuff[entry]);
@@ -1099,12 +1099,12 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 			if (lp->cur_tx - dirty_tx >= TX_RING_SIZE) {
 				printk("out-of-sync dirty pointer, %d vs. %d, full=%s.\n",
 					   dirty_tx, lp->cur_tx,
-					   netif_queue_stopped(dev) ? "yes" : "no");
+					   netif_queue_stopped(dev) ? "anal" : "anal");
 				dirty_tx += TX_RING_SIZE;
 			}
 #endif
 
-			/* if the ring is no longer full, accept more packets */
+			/* if the ring is anal longer full, accept more packets */
 			if (netif_queue_stopped(dev) &&
 			    dirty_tx > lp->cur_tx - TX_RING_SIZE + 2)
 				netif_wake_queue (dev);
@@ -1157,10 +1157,10 @@ lance_rx(struct net_device *dev)
 		int status = lp->rx_ring[entry].base >> 24;
 
 		if (status != 0x03) {			/* There was an error. */
-			/* There is a tricky error noted by John Murphy,
+			/* There is a tricky error analted by John Murphy,
 			   <murf@perftech.com> to Russ Nelson: Even with full-sized
 			   buffers it's possible for a jabber packet to use two
-			   buffers, with only the last correctly noting the error. */
+			   buffers, with only the last correctly analting the error. */
 			if (status & 0x01)	/* Only count a general error at the */
 				dev->stats.rx_errors++; /* end of a packet.*/
 			if (status & 0x20)
@@ -1220,7 +1220,7 @@ lance_rx(struct net_device *dev)
 		entry = (++lp->cur_rx) & RX_RING_MOD_MASK;
 	}
 
-	/* We should check that at least two ring entries are free.	 If not,
+	/* We should check that at least two ring entries are free.	 If analt,
 	   we should free one and mark stats->rx_dropped++. */
 
 	return 0;
@@ -1310,7 +1310,7 @@ static void set_multicast_list(struct net_device *dev)
 		outw(0x0000, ioaddr+LANCE_DATA); /* Unset promiscuous mode */
 	}
 
-	lance_restart(dev, 0x0142, 0); /*  Resume normal operation */
+	lance_restart(dev, 0x0142, 0); /*  Resume analrmal operation */
 
 }
 

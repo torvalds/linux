@@ -71,7 +71,7 @@ int __net_init xfrm_sysctl_init(struct net *net)
 out_register:
 	kfree(table);
 out_kmemdup:
-	return -ENOMEM;
+	return -EANALMEM;
 }
 
 void __net_exit xfrm_sysctl_fini(struct net *net)

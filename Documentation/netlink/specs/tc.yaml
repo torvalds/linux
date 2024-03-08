@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-analte) OR BSD-3-Clause)
 
 name: tc
 protocol: netlink-raw
@@ -39,7 +39,7 @@ definitions:
       - skip-hw
       - skip-sw
       - in-hw
-      - not-in-nw
+      - analt-in-nw
       - verbose
   -
     name: tc-stats
@@ -1197,7 +1197,7 @@ attribute-sets:
         name: evict-timeout
         type: u32
       -
-        name: non-hh-weight
+        name: analn-hh-weight
         type: u32
   -
     name: tc-htb-attrs
@@ -1700,7 +1700,7 @@ sub-messages:
         value: choke
         attribute-set: tc-choke-attrs
       -
-        value: clsact # no content
+        value: clsact # anal content
       -
         value: codel
         attribute-set: tc-codel-attrs
@@ -1738,9 +1738,9 @@ sub-messages:
         value: htb
         attribute-set: tc-htb-attrs
       -
-        value: ingress # no content
+        value: ingress # anal content
       -
-        value: mq # no content
+        value: mq # anal content
       -
         value: mqprio
         fixed-header: tc-mqprio-qopt
@@ -1844,7 +1844,7 @@ sub-messages:
       -
         value: netem
       -
-        value: noqueue
+        value: analqueue
       -
         value: pfifo
       -

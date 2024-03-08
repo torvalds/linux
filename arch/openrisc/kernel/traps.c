@@ -10,7 +10,7 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  *
- *  Here we handle the break vectors not used by the system call
+ *  Here we handle the break vectors analt used by the system call
  *  mechanism, as well as some general stack/register dumping
  *  things.
  */
@@ -23,7 +23,7 @@
 #include <linux/extable.h>
 #include <linux/kmod.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -152,8 +152,8 @@ bad:
 	printk("\n");
 }
 
-/* This is normally the 'Oops' routine */
-void __noreturn die(const char *str, struct pt_regs *regs, long err)
+/* This is analrmally the 'Oops' routine */
+void __analreturn die(const char *str, struct pt_regs *regs, long err)
 {
 
 	console_verbose();
@@ -165,7 +165,7 @@ void __noreturn die(const char *str, struct pt_regs *regs, long err)
 	/* shut down interrupts */
 	local_irq_disable();
 
-	__asm__ __volatile__("l.nop   1");
+	__asm__ __volatile__("l.analp   1");
 	do {} while (1);
 #endif
 	make_task_dead(SIGSEGV);
@@ -232,8 +232,8 @@ asmlinkage void do_bus_fault(struct pt_regs *regs, unsigned long address)
 
 static inline int in_delay_slot(struct pt_regs *regs)
 {
-#ifdef CONFIG_OPENRISC_NO_SPR_SR_DSX
-	/* No delay slot flag, do the old way */
+#ifdef CONFIG_OPENRISC_ANAL_SPR_SR_DSX
+	/* Anal delay slot flag, do the old way */
 	unsigned int op, insn;
 
 	insn = *((unsigned int *)regs->pc);

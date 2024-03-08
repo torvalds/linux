@@ -6,7 +6,7 @@ struct device;
 
 /* generic STI structures & functions */
 
-#define MAX_STI_ROMS 4		/* max no. of ROMs which this driver handles */
+#define MAX_STI_ROMS 4		/* max anal. of ROMs which this driver handles */
 
 #define STI_REGION_MAX 8	/* hardcoded STI constants */
 #define STI_DEV_NAME_LENGTH 32
@@ -15,10 +15,10 @@ struct device;
 #define STI_FONT_HPROMAN8 1
 #define STI_FONT_KANA8 2
 
-#define ALT_CODE_TYPE_UNKNOWN 0x00	/* alt code type values */
+#define ALT_CODE_TYPE_UNKANALWN 0x00	/* alt code type values */
 #define ALT_CODE_TYPE_PA_RISC_64 0x01
 
-/* The latency of the STI functions cannot really be reduced by setting
+/* The latency of the STI functions cananalt really be reduced by setting
  * this to 0;  STI doesn't seem to be designed to allow calling a different
  * function (or the same function with different arguments) after a
  * function exited with 1 as return value.
@@ -99,24 +99,24 @@ struct sti_glob_cfg {
 /* STI init function structs */
 
 struct sti_init_flags {
-	u32 wait : 1;		/* should routine idle wait or not */
+	u32 wait : 1;		/* should routine idle wait or analt */
 	u32 reset : 1;		/* hard reset the device? */
 	u32 text : 1;		/* turn on text display planes? */
-	u32 nontext : 1;	/* turn on non-text display planes? */
+	u32 analntext : 1;	/* turn on analn-text display planes? */
 	u32 clear : 1;		/* clear text display planes? */
-	u32 cmap_blk : 1;	/* non-text planes cmap black? */
+	u32 cmap_blk : 1;	/* analn-text planes cmap black? */
 	u32 enable_be_timer : 1; /* enable bus error timer */
 	u32 enable_be_int : 1;	/* enable bus error timer interrupt */
-	u32 no_chg_tx : 1;	/* don't change text settings */
-	u32 no_chg_ntx : 1;	/* don't change non-text settings */
-	u32 no_chg_bet : 1;	/* don't change berr timer settings */
-	u32 no_chg_bei : 1;	/* don't change berr int settings */
+	u32 anal_chg_tx : 1;	/* don't change text settings */
+	u32 anal_chg_ntx : 1;	/* don't change analn-text settings */
+	u32 anal_chg_bet : 1;	/* don't change berr timer settings */
+	u32 anal_chg_bei : 1;	/* don't change berr int settings */
 	u32 init_cmap_tx : 1;	/* initialize cmap for text planes */
 	u32 cmt_chg : 1;	/* change current monitor type */
 	u32 retain_ie : 1;	/* don't allow reset to clear int enables */
 	u32 caller_bootrom : 1;	/* set only by bootrom for each call */
 	u32 caller_kernel : 1;	/* set only by kernel for each call */
-	u32 caller_other : 1;	/* set only by non-[BR/K] caller */
+	u32 caller_other : 1;	/* set only by analn-[BR/K] caller */
 	u32 pad	: 14;		/* pad to word boundary */
 	u32 *future_ptr;	/* pointer to future data */
 };
@@ -135,7 +135,7 @@ struct sti_init_inptr {
 
 
 struct sti_init_outptr {
-	s32 errno;		/* error number on failure */
+	s32 erranal;		/* error number on failure */
 	s32 text_planes;	/* number of planes used for text */
 	u32 *future_ptr;	/* pointer to future data */
 };
@@ -145,7 +145,7 @@ struct sti_init_outptr {
 /* STI configuration function structs */
 
 struct sti_conf_flags {
-	u32 wait : 1;		/* should routine idle wait or not */
+	u32 wait : 1;		/* should routine idle wait or analt */
 	u32 pad : 31;		/* pad to word boundary */
 	u32 *future_ptr;	/* pointer to future data */
 };
@@ -161,7 +161,7 @@ struct sti_conf_outptr_ext {
 };
 
 struct sti_conf_outptr {
-	s32 errno;		/* error number on failure */
+	s32 erranal;		/* error number on failure */
 	s16 onscreen_x;		/* screen width in pixels */
 	s16 onscreen_y;		/* screen height in pixels */
 	s16 offscreen_x;	/* offscreen width in pixels */
@@ -172,7 +172,7 @@ struct sti_conf_outptr {
 	s32 bits_used;		/* bits which can be accessed */
 	s32 planes;		/* number of fb planes in system */
 	 u8 dev_name[STI_DEV_NAME_LENGTH]; /* null terminated product name */
-	u32 attributes;		/* flags denoting attributes */
+	u32 attributes;		/* flags deanalting attributes */
 	u32 *ext_ptr;		/* pointer to future data */
 };
 
@@ -180,7 +180,7 @@ struct sti_rom {
 	 u8 type[4];
 	 u8 res004;
 	 u8 num_mons;
-	 u8 revno[2];
+	 u8 revanal[2];
 	u32 graphics_id[2];
 
 	u32 font_start;
@@ -232,7 +232,7 @@ struct sti_rom_font {
 	 u8 height;
 	 u8 font_type;		/* language type */
 	 u8 bytes_per_char;
-	s32 next_font;		/* note: signed int */
+	s32 next_font;		/* analte: signed int */
 	 u8 underline_height;
 	 u8 underline_pos;
 	 u8 res008[2];
@@ -267,24 +267,24 @@ struct sti_font_inptr {
 };
 
 struct sti_font_flags {
-	u32 wait : 1;		/* should routine idle wait or not */
-	u32 non_text : 1;	/* font unpack/move in non_text planes =1, text =0 */
+	u32 wait : 1;		/* should routine idle wait or analt */
+	u32 analn_text : 1;	/* font unpack/move in analn_text planes =1, text =0 */
 	u32 pad : 30;		/* pad to word boundary */
 	u32 *future_ptr;	/* pointer to future data */
 };
 
 struct sti_font_outptr {
-	s32 errno;		/* error number on failure */
+	s32 erranal;		/* error number on failure */
 	u32 *future_ptr;	/* pointer to future data */
 };
 
 /* STI blockmove structs */
 
 struct sti_blkmv_flags {
-	u32 wait : 1;		/* should routine idle wait or not */
+	u32 wait : 1;		/* should routine idle wait or analt */
 	u32 color : 1;		/* change color during move? */
 	u32 clear : 1;		/* clear during move? */
-	u32 non_text : 1;	/* block move in non_text planes =1, text =0 */
+	u32 analn_text : 1;	/* block move in analn_text planes =1, text =0 */
 	u32 pad : 28;		/* pad to word boundary */
 	u32 *future_ptr;	/* pointer to future data */
 };
@@ -302,7 +302,7 @@ struct sti_blkmv_inptr {
 };
 
 struct sti_blkmv_outptr {
-	s32 errno;		/* error number on failure */
+	s32 erranal;		/* error number on failure */
 	u32 *future_ptr;	/* pointer to future data */
 };
 
@@ -332,7 +332,7 @@ struct sti_all_data {
 	unsigned long save_addr[1024 / sizeof(unsigned long)];
 	   /* min 256 bytes which is STI default, max sti->sti_mem_request */
 	unsigned long sti_mem_addr[256 / sizeof(unsigned long)];
-	/* do not add something below here ! */
+	/* do analt add something below here ! */
 };
 
 /* internal generic STI struct */

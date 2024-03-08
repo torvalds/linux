@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_GRACKLE_H
 #ifdef __KERNEL__
 /*
- * Functions for setting up and using a MPC106 northbridge
+ * Functions for setting up and using a MPC106 analrthbridge
  */
 
 #include <asm/pci-bridge.h>

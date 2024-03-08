@@ -41,7 +41,7 @@
 #define TAS2781_YRAM3_START_REG			8
 #define TAS2781_YRAM3_END_REG			27
 
-/*should not include B0_P53_R44-R47 */
+/*should analt include B0_P53_R44-R47 */
 #define TAS2781_YRAM_BOOK2			0
 #define TAS2781_YRAM4_START_PAGE		50
 #define TAS2781_YRAM4_END_PAGE			60
@@ -130,7 +130,7 @@ static const struct blktyp_devidx_map ppc3_mapping_table[] = {
 	{ PRE_DEVICE_D_1X, 0xC4 },
 };
 
-static const struct blktyp_devidx_map non_ppc3_mapping_table[] = {
+static const struct blktyp_devidx_map analn_ppc3_mapping_table[] = {
 	{ MAIN_ALL_DEVICES, 0x80 },
 	{ MAIN_DEVICE_A, 0x81 },
 	{ COEFF_DEVICE_A, 0xC1 },
@@ -165,7 +165,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 */
 	cfg_info = kzalloc(sizeof(struct tasdevice_config_info), GFP_KERNEL);
 	if (!cfg_info) {
-		*status = -ENOMEM;
+		*status = -EANALMEM;
 		goto out;
 	}
 
@@ -192,13 +192,13 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	config_offset += 4;
 
 	/* Several kinds of dsp/algorithm firmwares can run on tas2781,
-	 * the number and size of blk are not fixed and different among
+	 * the number and size of blk are analt fixed and different among
 	 * these firmwares.
 	 */
 	bk_da = cfg_info->blk_data = kcalloc(cfg_info->nblocks,
 		sizeof(struct tasdev_blk_data *), GFP_KERNEL);
 	if (!bk_da) {
-		*status = -ENOMEM;
+		*status = -EANALMEM;
 		goto out;
 	}
 	cfg_info->real_nblocks = 0;
@@ -212,7 +212,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 		}
 		bk_da[i] = kzalloc(sizeof(struct tasdev_blk_data), GFP_KERNEL);
 		if (!bk_da[i]) {
-			*status = -ENOMEM;
+			*status = -EANALMEM;
 			break;
 		}
 
@@ -254,7 +254,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 		bk_da[i]->regdata = kmemdup(&config_data[config_offset],
 			bk_da[i]->block_size, GFP_KERNEL);
 		if (!bk_da[i]->regdata) {
-			*status = -ENOMEM;
+			*status = -EANALMEM;
 			goto out;
 		}
 
@@ -293,7 +293,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 	offset += 4;
 	if (fw_hdr->img_sz != fmw->size) {
 		dev_err(tas_priv->dev,
-			"File size not match, %d %u", (int)fmw->size,
+			"File size analt match, %d %u", (int)fmw->size,
 			fw_hdr->img_sz);
 		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
 		ret = -EINVAL;
@@ -357,7 +357,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 
 	cfg_info = kcalloc(fw_hdr->nconfig, sizeof(*cfg_info), GFP_KERNEL);
 	if (!cfg_info) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
 		goto out;
 	}
@@ -384,11 +384,11 @@ static unsigned char map_dev_idx(struct tasdevice_fw *tas_fmw,
 {
 
 	struct blktyp_devidx_map *p =
-		(struct blktyp_devidx_map *)non_ppc3_mapping_table;
+		(struct blktyp_devidx_map *)analn_ppc3_mapping_table;
 	struct tasdevice_dspfw_hdr *fw_hdr = &(tas_fmw->fw_hdr);
 	struct tasdevice_fw_fixed_hdr *fw_fixed_hdr = &(fw_hdr->fixed_hdr);
 
-	int i, n = ARRAY_SIZE(non_ppc3_mapping_table);
+	int i, n = ARRAY_SIZE(analn_ppc3_mapping_table);
 	unsigned char dev_idx = 0;
 
 	if (fw_fixed_hdr->ppcver >= PPC3_VERSION_TAS2781) {
@@ -460,7 +460,7 @@ static int fw_parse_block_data_kernel(struct tasdevice_fw *tas_fmw,
 	/* instead of kzalloc+memcpy */
 	block->data = kmemdup(&data[offset], block->blk_size, GFP_KERNEL);
 	if (!block->data) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	offset += block->blk_size;
@@ -488,7 +488,7 @@ static int fw_parse_data_kernel(struct tasdevice_fw *tas_fmw,
 	img_data->dev_blks = kcalloc(img_data->nr_blk,
 		sizeof(struct tasdev_blk), GFP_KERNEL);
 	if (!img_data->dev_blks) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 
@@ -580,7 +580,7 @@ static int fw_parse_variable_header_kernel(
 	}
 	fw_hdr->device_family = be16_to_cpup((__be16 *)&buf[offset]);
 	if (fw_hdr->device_family != 0) {
-		dev_err(tas_priv->dev, "%s:not TAS device\n", __func__);
+		dev_err(tas_priv->dev, "%s:analt TAS device\n", __func__);
 		offset = -EINVAL;
 		goto out;
 	}
@@ -616,7 +616,7 @@ static int fw_parse_variable_header_kernel(
 	tas_fmw->programs = kcalloc(tas_fmw->nr_programs,
 		sizeof(struct tasdevice_prog), GFP_KERNEL);
 	if (!tas_fmw->programs) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 
@@ -655,7 +655,7 @@ static int fw_parse_variable_header_kernel(
 	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
 		sizeof(struct tasdevice_config), GFP_KERNEL);
 	if (!tas_fmw->configs) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 
@@ -737,7 +737,7 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 			}
 			if (len % 4) {
 				dev_err(tas_priv->dev,
-					"%s:Bst-len(%u)not div by 4\n",
+					"%s:Bst-len(%u)analt div by 4\n",
 					__func__, len);
 				break;
 			}
@@ -808,7 +808,7 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 	return subblk_offset;
 }
 
-void tasdevice_select_cfg_blk(void *pContext, int conf_no,
+void tasdevice_select_cfg_blk(void *pContext, int conf_anal,
 	unsigned char block_type)
 {
 	struct tasdevice_priv *tas_priv = (struct tasdevice_priv *) pContext;
@@ -817,14 +817,14 @@ void tasdevice_select_cfg_blk(void *pContext, int conf_no,
 	struct tasdev_blk_data **blk_data;
 	int j, k, chn, chnend;
 
-	if (conf_no >= rca->ncfgs || conf_no < 0 || !cfg_info) {
-		dev_err(tas_priv->dev, "conf_no should be not more than %u\n",
+	if (conf_anal >= rca->ncfgs || conf_anal < 0 || !cfg_info) {
+		dev_err(tas_priv->dev, "conf_anal should be analt more than %u\n",
 			rca->ncfgs);
 		return;
 	}
-	blk_data = cfg_info[conf_no]->blk_data;
+	blk_data = cfg_info[conf_anal]->blk_data;
 
-	for (j = 0; j < (int)cfg_info[conf_no]->real_nblocks; j++) {
+	for (j = 0; j < (int)cfg_info[conf_anal]->real_nblocks; j++) {
 		unsigned int length = 0, rc = 0;
 
 		if (block_type > 5 || block_type < 2) {
@@ -860,7 +860,7 @@ void tasdevice_select_cfg_blk(void *pContext, int conf_no,
 			}
 		}
 		if (length != blk_data[j]->block_size)
-			dev_err(tas_priv->dev, "%s: %u %u size is not same\n",
+			dev_err(tas_priv->dev, "%s: %u %u size is analt same\n",
 				__func__, length, blk_data[j]->block_size);
 	}
 }
@@ -912,7 +912,7 @@ static int fw_parse_variable_hdr(struct tasdevice_priv
 
 	fw_hdr->device_family = be32_to_cpup((__be32 *)&buf[offset]);
 	if (fw_hdr->device_family != 0) {
-		dev_err(tas_priv->dev, "%s: not TAS device\n", __func__);
+		dev_err(tas_priv->dev, "%s: analt TAS device\n", __func__);
 		offset = -EINVAL;
 		goto out;
 	}
@@ -1002,7 +1002,7 @@ static int fw_parse_block_data(struct tasdevice_fw *tas_fmw,
 	/* instead of kzalloc+memcpy */
 	block->data = kmemdup(&data[offset], n, GFP_KERNEL);
 	if (!block->data) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	offset += n;
@@ -1045,7 +1045,7 @@ static int fw_parse_data(struct tasdevice_fw *tas_fmw,
 	img_data->dev_blks = kcalloc(img_data->nr_blk,
 		sizeof(struct tasdev_blk), GFP_KERNEL);
 	if (!img_data->dev_blks) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	for (i = 0; i < img_data->nr_blk; i++) {
@@ -1080,8 +1080,8 @@ static int fw_parse_program_data(struct tasdevice_priv *tas_priv,
 	offset += 2;
 
 	if (tas_fmw->nr_programs == 0) {
-		/*Not error in calibration Data file, return directly*/
-		dev_info(tas_priv->dev, "%s: No Programs data, maybe calbin\n",
+		/*Analt error in calibration Data file, return directly*/
+		dev_info(tas_priv->dev, "%s: Anal Programs data, maybe calbin\n",
 			__func__);
 		goto out;
 	}
@@ -1090,7 +1090,7 @@ static int fw_parse_program_data(struct tasdevice_priv *tas_priv,
 		kcalloc(tas_fmw->nr_programs, sizeof(struct tasdevice_prog),
 			GFP_KERNEL);
 	if (!tas_fmw->programs) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	for (i = 0; i < tas_fmw->nr_programs; i++) {
@@ -1148,13 +1148,13 @@ static int fw_parse_configuration_data(
 
 	if (tas_fmw->nr_configurations == 0) {
 		dev_err(tas_priv->dev, "%s: Conf is zero\n", __func__);
-		/*Not error for calibration Data file, return directly*/
+		/*Analt error for calibration Data file, return directly*/
 		goto out;
 	}
 	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
 			sizeof(struct tasdevice_config), GFP_KERNEL);
 	if (!tas_fmw->configs) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	for (i = 0; i < tas_fmw->nr_configurations; i++) {
@@ -1235,7 +1235,7 @@ static bool check_inpage_yram_bk1(struct tas_crc *cd,
 
 /* Return Code:
  * true -- the registers are in the inpage yram
- * false -- the registers are NOT in the inpage yram
+ * false -- the registers are ANALT in the inpage yram
  */
 static bool check_inpage_yram(struct tas_crc *cd, unsigned char book,
 	unsigned char page, unsigned char reg, unsigned char len)
@@ -1281,7 +1281,7 @@ static bool check_inblock_yram_bk(struct tas_crc *cd,
 
 /* Return Code:
  * true -- the registers are in the inblock yram
- * false -- the registers are NOT in the inblock yram
+ * false -- the registers are ANALT in the inblock yram
  */
 static bool check_inblock_yram(struct tas_crc *cd, unsigned char book,
 	unsigned char page, unsigned char reg, unsigned char len)
@@ -1766,7 +1766,7 @@ static int fw_parse_header(struct tasdevice_priv *tas_priv,
 		goto out;
 	}
 	if (memcmp(&buf[offset], magic_number, 4)) {
-		dev_err(tas_priv->dev, "%s: Magic num NOT match\n", __func__);
+		dev_err(tas_priv->dev, "%s: Magic num ANALT match\n", __func__);
 		offset = -EINVAL;
 		goto out;
 	}
@@ -1778,7 +1778,7 @@ static int fw_parse_header(struct tasdevice_priv *tas_priv,
 	fw_fixed_hdr->fwsize = be32_to_cpup((__be32 *)&buf[offset]);
 	offset += 4;
 	if (fw_fixed_hdr->fwsize != fmw->size) {
-		dev_err(tas_priv->dev, "File size not match, %lu %u",
+		dev_err(tas_priv->dev, "File size analt match, %lu %u",
 			(unsigned long)fmw->size, fw_fixed_hdr->fwsize);
 		offset = -EINVAL;
 		goto out;
@@ -1841,7 +1841,7 @@ static int fw_parse_calibration_data(struct tasdevice_priv *tas_priv,
 	tas_fmw->calibrations = kcalloc(tas_fmw->nr_calibrations,
 		sizeof(struct tasdevice_calibration), GFP_KERNEL);
 	if (!tas_fmw->calibrations) {
-		offset = -ENOMEM;
+		offset = -EANALMEM;
 		goto out;
 	}
 	for (i = 0; i < tas_fmw->nr_calibrations; i++) {
@@ -1903,7 +1903,7 @@ int tas2781_load_calibration(void *context, char *file_name,
 	tas_fmw = tasdev->cali_data_fmw = kzalloc(sizeof(struct tasdevice_fw),
 		GFP_KERNEL);
 	if (!tasdev->cali_data_fmw) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	tas_fmw->dev = tas_priv->dev;
@@ -1965,7 +1965,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 
 	tas_priv->fmw = kzalloc(sizeof(struct tasdevice_fw), GFP_KERNEL);
 	if (!tas_priv->fmw) {
-		ret = -ENOMEM;
+		ret = -EANALMEM;
 		goto out;
 	}
 	tas_fmw = tas_priv->fmw;
@@ -2151,8 +2151,8 @@ static int tasdevice_load_data(struct tasdevice_priv *tas_priv,
 	return ret;
 }
 
-int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
-	int cfg_no, int rca_conf_no)
+int tasdevice_select_tuningprm_cfg(void *context, int prm_anal,
+	int cfg_anal, int rca_conf_anal)
 {
 	struct tasdevice_priv *tas_priv = (struct tasdevice_priv *) context;
 	struct tasdevice_rca *rca = &(tas_priv->rcabin);
@@ -2168,32 +2168,32 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 		goto out;
 	}
 
-	if (cfg_no >= tas_fmw->nr_configurations) {
+	if (cfg_anal >= tas_fmw->nr_configurations) {
 		dev_err(tas_priv->dev,
-			"%s: cfg(%d) is not in range of conf %u\n",
-			__func__, cfg_no, tas_fmw->nr_configurations);
+			"%s: cfg(%d) is analt in range of conf %u\n",
+			__func__, cfg_anal, tas_fmw->nr_configurations);
 		goto out;
 	}
 
-	if (prm_no >= tas_fmw->nr_programs) {
+	if (prm_anal >= tas_fmw->nr_programs) {
 		dev_err(tas_priv->dev,
-			"%s: prm(%d) is not in range of Programs %u\n",
-			__func__, prm_no, tas_fmw->nr_programs);
+			"%s: prm(%d) is analt in range of Programs %u\n",
+			__func__, prm_anal, tas_fmw->nr_programs);
 		goto out;
 	}
 
-	if (rca_conf_no >= rca->ncfgs || rca_conf_no < 0 ||
+	if (rca_conf_anal >= rca->ncfgs || rca_conf_anal < 0 ||
 		!cfg_info) {
 		dev_err(tas_priv->dev,
-			"conf_no:%d should be in range from 0 to %u\n",
-			rca_conf_no, rca->ncfgs-1);
+			"conf_anal:%d should be in range from 0 to %u\n",
+			rca_conf_anal, rca->ncfgs-1);
 		goto out;
 	}
 
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
-		if (cfg_info[rca_conf_no]->active_dev & (1 << i)) {
-			if (prm_no >= 0
-				&& (tas_priv->tasdevice[i].cur_prog != prm_no
+		if (cfg_info[rca_conf_anal]->active_dev & (1 << i)) {
+			if (prm_anal >= 0
+				&& (tas_priv->tasdevice[i].cur_prog != prm_anal
 				|| tas_priv->force_fwload_status)) {
 				tas_priv->tasdevice[i].cur_conf = -1;
 				tas_priv->tasdevice[i].is_loading = true;
@@ -2205,7 +2205,7 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 	}
 
 	if (prog_status) {
-		program = &(tas_fmw->programs[prm_no]);
+		program = &(tas_fmw->programs[prm_anal]);
 		tasdevice_load_data(tas_priv, &(program->dev_data));
 		for (i = 0; i < tas_priv->ndev; i++) {
 			if (tas_priv->tasdevice[i].is_loaderr == true)
@@ -2223,15 +2223,15 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 						load_calib_data(tas_priv,
 							&(cal->dev_data));
 				}
-				tas_priv->tasdevice[i].cur_prog = prm_no;
+				tas_priv->tasdevice[i].cur_prog = prm_anal;
 			}
 		}
 	}
 
 	for (i = 0, status = 0; i < tas_priv->ndev; i++) {
-		if (cfg_no >= 0
-			&& tas_priv->tasdevice[i].cur_conf != cfg_no
-			&& (cfg_info[rca_conf_no]->active_dev & (1 << i))
+		if (cfg_anal >= 0
+			&& tas_priv->tasdevice[i].cur_conf != cfg_anal
+			&& (cfg_info[rca_conf_anal]->active_dev & (1 << i))
 			&& (tas_priv->tasdevice[i].is_loaderr == false)) {
 			status++;
 			tas_priv->tasdevice[i].is_loading = true;
@@ -2240,7 +2240,7 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 	}
 
 	if (status) {
-		conf = &(tas_fmw->configs[cfg_no]);
+		conf = &(tas_fmw->configs[cfg_anal]);
 		status = 0;
 		tasdevice_load_data(tas_priv, &(conf->dev_data));
 		for (i = 0; i < tas_priv->ndev; i++) {
@@ -2249,13 +2249,13 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 				continue;
 			} else if (tas_priv->tasdevice[i].is_loaderr == false
 				&& tas_priv->tasdevice[i].is_loading == true)
-				tas_priv->tasdevice[i].cur_conf = cfg_no;
+				tas_priv->tasdevice[i].cur_conf = cfg_anal;
 		}
 	} else
 		dev_dbg(tas_priv->dev, "%s: Unneeded loading dsp conf %d\n",
-			__func__, cfg_no);
+			__func__, cfg_anal);
 
-	status |= cfg_info[rca_conf_no]->active_dev;
+	status |= cfg_info[rca_conf_anal]->active_dev;
 
 out:
 	return prog_status;
@@ -2263,7 +2263,7 @@ out:
 EXPORT_SYMBOL_NS_GPL(tasdevice_select_tuningprm_cfg,
 	SND_SOC_TAS2781_FMWLIB);
 
-int tasdevice_prmg_load(void *context, int prm_no)
+int tasdevice_prmg_load(void *context, int prm_anal)
 {
 	struct tasdevice_priv *tas_priv = (struct tasdevice_priv *) context;
 	struct tasdevice_fw *tas_fmw = tas_priv->fmw;
@@ -2276,15 +2276,15 @@ int tasdevice_prmg_load(void *context, int prm_no)
 		goto out;
 	}
 
-	if (prm_no >= tas_fmw->nr_programs) {
+	if (prm_anal >= tas_fmw->nr_programs) {
 		dev_err(tas_priv->dev,
-			"%s: prm(%d) is not in range of Programs %u\n",
-			__func__, prm_no, tas_fmw->nr_programs);
+			"%s: prm(%d) is analt in range of Programs %u\n",
+			__func__, prm_anal, tas_fmw->nr_programs);
 		goto out;
 	}
 
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
-		if (prm_no >= 0 && tas_priv->tasdevice[i].cur_prog != prm_no) {
+		if (prm_anal >= 0 && tas_priv->tasdevice[i].cur_prog != prm_anal) {
 			tas_priv->tasdevice[i].cur_conf = -1;
 			tas_priv->tasdevice[i].is_loading = true;
 			prog_status++;
@@ -2292,14 +2292,14 @@ int tasdevice_prmg_load(void *context, int prm_no)
 	}
 
 	if (prog_status) {
-		program = &(tas_fmw->programs[prm_no]);
+		program = &(tas_fmw->programs[prm_anal]);
 		tasdevice_load_data(tas_priv, &(program->dev_data));
 		for (i = 0; i < tas_priv->ndev; i++) {
 			if (tas_priv->tasdevice[i].is_loaderr == true)
 				continue;
 			else if (tas_priv->tasdevice[i].is_loaderr == false
 				&& tas_priv->tasdevice[i].is_loading == true)
-				tas_priv->tasdevice[i].cur_prog = prm_no;
+				tas_priv->tasdevice[i].cur_prog = prm_anal;
 		}
 	}
 
@@ -2308,7 +2308,7 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(tasdevice_prmg_load, SND_SOC_TAS2781_FMWLIB);
 
-int tasdevice_prmg_calibdata_load(void *context, int prm_no)
+int tasdevice_prmg_calibdata_load(void *context, int prm_anal)
 {
 	struct tasdevice_priv *tas_priv = (struct tasdevice_priv *) context;
 	struct tasdevice_fw *tas_fmw = tas_priv->fmw;
@@ -2321,15 +2321,15 @@ int tasdevice_prmg_calibdata_load(void *context, int prm_no)
 		goto out;
 	}
 
-	if (prm_no >= tas_fmw->nr_programs) {
+	if (prm_anal >= tas_fmw->nr_programs) {
 		dev_err(tas_priv->dev,
-			"%s: prm(%d) is not in range of Programs %u\n",
-			__func__, prm_no, tas_fmw->nr_programs);
+			"%s: prm(%d) is analt in range of Programs %u\n",
+			__func__, prm_anal, tas_fmw->nr_programs);
 		goto out;
 	}
 
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
-		if (prm_no >= 0 && tas_priv->tasdevice[i].cur_prog != prm_no) {
+		if (prm_anal >= 0 && tas_priv->tasdevice[i].cur_prog != prm_anal) {
 			tas_priv->tasdevice[i].cur_conf = -1;
 			tas_priv->tasdevice[i].is_loading = true;
 			prog_status++;
@@ -2338,7 +2338,7 @@ int tasdevice_prmg_calibdata_load(void *context, int prm_no)
 	}
 
 	if (prog_status) {
-		program = &(tas_fmw->programs[prm_no]);
+		program = &(tas_fmw->programs[prm_anal]);
 		tasdevice_load_data(tas_priv, &(program->dev_data));
 		for (i = 0; i < tas_priv->ndev; i++) {
 			if (tas_priv->tasdevice[i].is_loaderr == true)
@@ -2356,7 +2356,7 @@ int tasdevice_prmg_calibdata_load(void *context, int prm_no)
 						load_calib_data(tas_priv,
 							&(cal->dev_data));
 				}
-				tas_priv->tasdevice[i].cur_prog = prm_no;
+				tas_priv->tasdevice[i].cur_prog = prm_anal;
 			}
 		}
 	}
@@ -2374,7 +2374,7 @@ void tasdevice_tuning_switch(void *context, int state)
 	int profile_cfg_id = tas_priv->rcabin.profile_cfg_id;
 
 	if (tas_priv->fw_state == TASDEVICE_DSP_FW_FAIL) {
-		dev_err(tas_priv->dev, "DSP bin file not loaded\n");
+		dev_err(tas_priv->dev, "DSP bin file analt loaded\n");
 		return;
 	}
 

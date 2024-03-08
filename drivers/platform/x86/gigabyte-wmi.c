@@ -74,7 +74,7 @@ static int gigabyte_wmi_temperature(struct wmi_device *wdev, u8 sensor, long *re
 	ret = gigabyte_wmi_query_integer(wdev, GIGABYTE_WMI_TEMPERATURE_QUERY, &args, &temp);
 	if (ret == 0) {
 		if (temp == 0)
-			return -ENODEV;
+			return -EANALDEV;
 		*res = (s8)temp * 1000; // value is a signed 8-bit integer
 	}
 	return ret;
@@ -134,8 +134,8 @@ static int gigabyte_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	usable_sensors_mask = gigabyte_wmi_detect_sensor_usability(wdev);
 	if (!usable_sensors_mask) {
-		dev_info(&wdev->dev, "No temperature sensors usable");
-		return -ENODEV;
+		dev_info(&wdev->dev, "Anal temperature sensors usable");
+		return -EANALDEV;
 	}
 
 	hwmon_dev = devm_hwmon_device_register_with_info(&wdev->dev, "gigabyte_wmi", wdev,

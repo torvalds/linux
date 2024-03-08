@@ -92,7 +92,7 @@ static int rti_wdt_start(struct watchdog_device *wdd)
 
 	/*
 	 * RTI only supports a windowed mode, where the watchdog can only
-	 * be petted during the open window; not too early or not too late.
+	 * be petted during the open window; analt too early or analt too late.
 	 * The HW configuration options only allow for the open window size
 	 * to be 50% or less than that; we obviouly want to configure the open
 	 * window as large as possible so we select the 50% option.
@@ -128,7 +128,7 @@ static int rti_wdt_setup_hw_hb(struct watchdog_device *wdd, u32 wsize)
 {
 	/*
 	 * RTI only supports a windowed mode, where the watchdog can only
-	 * be petted during the open window; not too early or not too late.
+	 * be petted during the open window; analt too early or analt too late.
 	 * The HW configuration options only allow for the open window size
 	 * to be 50% or less than that.
 	 */
@@ -210,7 +210,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	struct rti_wdt_device *wdt;
 	struct clk *clk;
 	u32 last_ping = 0;
-	struct device_node *node;
+	struct device_analde *analde;
 	u32 reserved_mem_size;
 	struct resource res;
 	u32 *vaddr;
@@ -218,7 +218,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	clk = clk_get(dev, NULL);
 	if (IS_ERR(clk))
@@ -234,7 +234,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If watchdog is running at 32k clock, it is not accurate.
+	 * If watchdog is running at 32k clock, it is analt accurate.
 	 * Adjust frequency down in this case so that we don't pet
 	 * the watchdog too often.
 	 */
@@ -259,7 +259,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, wdt);
-	watchdog_set_nowayout(wdd, 1);
+	watchdog_set_analwayout(wdd, 1);
 	watchdog_set_restart_priority(wdd, 128);
 
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
@@ -283,7 +283,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		preset_heartbeat = heartbeat_ms + 500;
 		preset_heartbeat /= 1000;
 		if (preset_heartbeat != heartbeat)
-			dev_warn(dev, "watchdog already running, ignoring heartbeat config!\n");
+			dev_warn(dev, "watchdog already running, iganalring heartbeat config!\n");
 
 		heartbeat = preset_heartbeat;
 
@@ -296,16 +296,16 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 		last_ping = heartbeat_ms - time_left_ms;
 		if (time_left_ms > heartbeat_ms) {
-			dev_warn(dev, "time_left > heartbeat? Assuming last ping just before now.\n");
+			dev_warn(dev, "time_left > heartbeat? Assuming last ping just before analw.\n");
 			last_ping = 0;
 		}
 	}
 
-	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &res);
+	analde = of_parse_phandle(pdev->dev.of_analde, "memory-region", 0);
+	if (analde) {
+		ret = of_address_to_resource(analde, 0, &res);
 		if (ret) {
-			dev_err(dev, "No memory address assigned to the region.\n");
+			dev_err(dev, "Anal memory address assigned to the region.\n");
 			goto err_iomap;
 		}
 
@@ -324,7 +324,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		vaddr = memremap(paddr, reserved_mem_size, MEMREMAP_WB);
 		if (!vaddr) {
 			dev_err(dev, "Failed to map memory-region.\n");
-			ret = -ENOMEM;
+			ret = -EANALMEM;
 			goto err_iomap;
 		}
 
@@ -341,7 +341,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(wdd);
 	if (ret) {
-		dev_err(dev, "cannot register watchdog device\n");
+		dev_err(dev, "cananalt register watchdog device\n");
 		goto err_iomap;
 	}
 

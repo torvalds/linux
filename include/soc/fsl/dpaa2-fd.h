@@ -85,7 +85,7 @@ struct dpaa2_fd {
 #define FD_CTRL_FSE		0x00000020
 #define FD_CTRL_FAERR		0x00000040
 
-/* Annotation bits in FD CTRL */
+/* Ananaltation bits in FD CTRL */
 #define FD_CTRL_PTA		0x00800000
 #define FD_CTRL_PTV1		0x00400000
 

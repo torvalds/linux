@@ -18,7 +18,7 @@
 #include "pmr735d_b.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. SM8550 MTP";
+	model = "Qualcomm Techanallogies, Inc. SM8550 MTP";
 	compatible = "qcom,sm8550-mtp", "qcom,sm8550";
 	chassis-type = "handset";
 
@@ -692,7 +692,7 @@
 	status = "okay";
 
 	panel@0 {
-		compatible = "visionox,vtdr6130";
+		compatible = "visioanalx,vtdr6130";
 		reg = <0>;
 
 		pinctrl-names = "default", "sleep";
@@ -774,7 +774,7 @@
 &pm8550_gpios {
 	sdc2_card_det_n: sdc2-card-det-state {
 		pins = "gpio12";
-		function = "normal";
+		function = "analrmal";
 		input-enable;
 		output-disable;
 		bias-pull-up;
@@ -817,8 +817,8 @@
 	vmmc-supply = <&vreg_l9b_2p9>;
 	vqmmc-supply = <&vreg_l8b_1p8>;
 	bus-width = <4>;
-	no-sdio;
-	no-mmc;
+	anal-sdio;
+	anal-mmc;
 	status = "okay";
 };
 

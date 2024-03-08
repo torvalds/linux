@@ -21,7 +21,7 @@
 #define ADDRCONF_TIMER_FUZZ		(HZ / 4)
 #define ADDRCONF_TIMER_FUZZ_MAX		(HZ)
 
-#define ADDRCONF_NOTIFY_PRIORITY	0
+#define ADDRCONF_ANALTIFY_PRIORITY	0
 
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -165,7 +165,7 @@ static inline int addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 	 * The driver for these cards can deliver a unique 16-bit
 	 * identifier for each instance sharing the same card.  It is
 	 * placed instead of 0xFFFE in the interface identifier.  The
-	 * "u" bit of the interface identifier is not inverted in this
+	 * "u" bit of the interface identifier is analt inverted in this
 	 * case.  Hence the resulting interface identifier has local
 	 * scope according to RFC2373.
 	 */
@@ -190,7 +190,7 @@ static inline unsigned long addrconf_timeout_fixup(u32 timeout,
 
 	/*
 	 * Avoid arithmetic overflow.
-	 * Assuming unit is constant and non-zero, this "if" statement
+	 * Assuming unit is constant and analn-zero, this "if" statement
 	 * will go away on 64bit archs.
 	 */
 	if (0xfffffffe > LONG_MAX / unit && timeout > LONG_MAX / unit)
@@ -299,16 +299,16 @@ bool ipv6_chk_acast_addr_src(struct net *net, struct net_device *dev,
 int ipv6_anycast_init(void);
 void ipv6_anycast_cleanup(void);
 
-/* Device notifier */
-int register_inet6addr_notifier(struct notifier_block *nb);
-int unregister_inet6addr_notifier(struct notifier_block *nb);
-int inet6addr_notifier_call_chain(unsigned long val, void *v);
+/* Device analtifier */
+int register_inet6addr_analtifier(struct analtifier_block *nb);
+int unregister_inet6addr_analtifier(struct analtifier_block *nb);
+int inet6addr_analtifier_call_chain(unsigned long val, void *v);
 
-int register_inet6addr_validator_notifier(struct notifier_block *nb);
-int unregister_inet6addr_validator_notifier(struct notifier_block *nb);
-int inet6addr_validator_notifier_call_chain(unsigned long val, void *v);
+int register_inet6addr_validator_analtifier(struct analtifier_block *nb);
+int unregister_inet6addr_validator_analtifier(struct analtifier_block *nb);
+int inet6addr_validator_analtifier_call_chain(unsigned long val, void *v);
 
-void inet6_netconf_notify_devconf(struct net *net, int event, int type,
+void inet6_netconf_analtify_devconf(struct net *net, int event, int type,
 				  int ifindex, struct ipv6_devconf *devconf);
 
 /**
@@ -316,7 +316,7 @@ void inet6_netconf_notify_devconf(struct net *net, int event, int type,
  * @dev: network device
  *
  * Caller must hold rcu_read_lock or RTNL, because this function
- * does not take a reference on the inet6_dev.
+ * does analt take a reference on the inet6_dev.
  */
 static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 {
@@ -329,7 +329,7 @@ static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
  * @skb: skb for original incoming interface if neeeded
  *
  * Caller must hold rcu_read_lock or RTNL, because this function
- * does not take a reference on the inet6_dev.
+ * does analt take a reference on the inet6_dev.
  */
 static inline struct inet6_dev *__in6_dev_stats_get(const struct net_device *dev,
 						    const struct sk_buff *skb)
@@ -409,14 +409,14 @@ static inline void in6_dev_hold(struct inet6_dev *idev)
 }
 
 /* called with rcu_read_lock held */
-static inline bool ip6_ignore_linkdown(const struct net_device *dev)
+static inline bool ip6_iganalre_linkdown(const struct net_device *dev)
 {
 	const struct inet6_dev *idev = __in6_dev_get(dev);
 
 	if (unlikely(!idev))
 		return true;
 
-	return !!idev->cnf.ignore_routes_with_linkdown;
+	return !!idev->cnf.iganalre_routes_with_linkdown;
 }
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
@@ -439,7 +439,7 @@ static inline void in6_ifa_hold(struct inet6_ifaddr *ifp)
 
 
 /*
- *	compute link-local solicited-node multicast address
+ *	compute link-local solicited-analde multicast address
  */
 
 static inline void addrconf_addr_solict_mult(const struct in6_addr *addr,
@@ -451,7 +451,7 @@ static inline void addrconf_addr_solict_mult(const struct in6_addr *addr,
 		      htonl(0xFF000000) | addr->s6_addr32[3]);
 }
 
-static inline bool ipv6_addr_is_ll_all_nodes(const struct in6_addr *addr)
+static inline bool ipv6_addr_is_ll_all_analdes(const struct in6_addr *addr)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
 	__be64 *p = (__force __be64 *)addr;
@@ -495,7 +495,7 @@ static inline bool ipv6_addr_is_solict_mult(const struct in6_addr *addr)
 #endif
 }
 
-static inline bool ipv6_addr_is_all_snoopers(const struct in6_addr *addr)
+static inline bool ipv6_addr_is_all_sanalopers(const struct in6_addr *addr)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
 	__be64 *p = (__force __be64 *)addr;

@@ -39,7 +39,7 @@ static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 	/*
 	 * The guest selects one of the two reference counters
 	 * (virtual or physical) with the first argument of the SMCCC
-	 * call. In case the identifier is not supported, error out.
+	 * call. In case the identifier is analt supported, error out.
 	 */
 	feature = smccc_get_arg1(vcpu);
 	switch (feature) {
@@ -57,7 +57,7 @@ static void kvm_ptp_get_time(struct kvm_vcpu *vcpu, u64 *val)
 	 * This relies on the top bit of val[0] never being set for
 	 * valid values of system time, because that is *really* far
 	 * in the future (about 292 years from 1970, and at that stage
-	 * nobody will give a damn about it).
+	 * analbody will give a damn about it).
 	 */
 	val[0] = upper_32_bits(systime_snapshot.real);
 	val[1] = lower_32_bits(systime_snapshot.real);
@@ -69,7 +69,7 @@ static bool kvm_smccc_default_allowed(u32 func_id)
 {
 	switch (func_id) {
 	/*
-	 * List of function-ids that are not gated with the bitmapped
+	 * List of function-ids that are analt gated with the bitmapped
 	 * feature firmware registers, and are to be allowed for
 	 * servicing the call by default.
 	 */
@@ -217,7 +217,7 @@ static u8 kvm_smccc_filter_get_action(struct kvm *kvm, u32 func_id)
 	/*
 	 * But where's the error handling, you say?
 	 *
-	 * mt_find() returns NULL if no entry was found, which just so happens
+	 * mt_find() returns NULL if anal entry was found, which just so happens
 	 * to match KVM_SMCCC_FILTER_HANDLE.
 	 */
 	val = mt_find(&kvm->arch.smccc_filter, &idx, idx);
@@ -264,7 +264,7 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 {
 	struct kvm_smccc_features *smccc_feat = &vcpu->kvm->arch.smccc_feat;
 	u32 func_id = smccc_get_function(vcpu);
-	u64 val[4] = {SMCCC_RET_NOT_SUPPORTED};
+	u64 val[4] = {SMCCC_RET_ANALT_SUPPORTED};
 	u32 feature;
 	u8 action;
 	gpa_t gpa;
@@ -308,7 +308,7 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 				break;
 			case SPECTRE_MITIGATED:
 				/*
-				 * SSBS everywhere: Indicate no firmware
+				 * SSBS everywhere: Indicate anal firmware
 				 * support, as the SSBS support will be
 				 * indicated to the guest and the default is
 				 * safe.
@@ -321,7 +321,7 @@ int kvm_smccc_call_handler(struct kvm_vcpu *vcpu)
 					break;
 				fallthrough;
 			case SPECTRE_UNAFFECTED:
-				val[0] = SMCCC_RET_NOT_REQUIRED;
+				val[0] = SMCCC_RET_ANALT_REQUIRED;
 				break;
 			}
 			break;
@@ -434,13 +434,13 @@ static int get_kernel_wa_level(u64 regid)
 	case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1:
 		switch (arm64_get_spectre_v2_state()) {
 		case SPECTRE_VULNERABLE:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_AVAIL;
 		case SPECTRE_MITIGATED:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_AVAIL;
 		case SPECTRE_UNAFFECTED:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_REQUIRED;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_REQUIRED;
 		}
-		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_NOT_AVAIL;
+		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_1_ANALT_AVAIL;
 	case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2:
 		switch (arm64_get_spectre_v4_state()) {
 		case SPECTRE_MITIGATED:
@@ -450,24 +450,24 @@ static int get_kernel_wa_level(u64 regid)
 			 * all times.
 			 */
 			if (cpus_have_final_cap(ARM64_SSBS))
-				return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL;
+				return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL;
 			fallthrough;
 		case SPECTRE_UNAFFECTED:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_REQUIRED;
 		case SPECTRE_VULNERABLE:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL;
 		}
 		break;
 	case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3:
 		switch (arm64_get_spectre_bhb_state()) {
 		case SPECTRE_VULNERABLE:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_NOT_AVAIL;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_ANALT_AVAIL;
 		case SPECTRE_MITIGATED:
 			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_AVAIL;
 		case SPECTRE_UNAFFECTED:
-			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_NOT_REQUIRED;
+			return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_ANALT_REQUIRED;
 		}
-		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_NOT_AVAIL;
+		return KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_3_ANALT_AVAIL;
 	}
 
 	return -EINVAL;
@@ -498,7 +498,7 @@ int kvm_arm_get_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		val = READ_ONCE(smccc_feat->vendor_hyp_bmap);
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	if (copy_to_user(uaddr, &val, KVM_REG_SIZE(reg->id)))
@@ -528,7 +528,7 @@ static int kvm_arm_set_fw_reg_bmap(struct kvm_vcpu *vcpu, u64 reg_id, u64 val)
 		fw_reg_features = KVM_ARM_SMCCC_VENDOR_HYP_FEATURES;
 		break;
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	/* Check for unsupported bit */
@@ -555,7 +555,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	int wa_level;
 
 	if (KVM_REG_SIZE(reg->id) != sizeof(val))
-		return -ENOENT;
+		return -EANALENT;
 	if (copy_from_user(&val, uaddr, KVM_REG_SIZE(reg->id)))
 		return -EFAULT;
 
@@ -598,7 +598,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 			    KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ENABLED))
 			return -EINVAL;
 
-		/* The enabled bit must not be set unless the level is AVAIL. */
+		/* The enabled bit must analt be set unless the level is AVAIL. */
 		if ((val & KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ENABLED) &&
 		    (val & KVM_REG_FEATURE_LEVEL_MASK) != KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL)
 			return -EINVAL;
@@ -608,20 +608,20 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		 * really want to deal with.
 		 */
 		switch (val & KVM_REG_FEATURE_LEVEL_MASK) {
-		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL:
-		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKNOWN:
-			wa_level = KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_AVAIL;
+		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL:
+		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_UNKANALWN:
+			wa_level = KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_AVAIL;
 			break;
 		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_AVAIL:
-		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED:
-			wa_level = KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_NOT_REQUIRED;
+		case KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_REQUIRED:
+			wa_level = KVM_REG_ARM_SMCCC_ARCH_WORKAROUND_2_ANALT_REQUIRED;
 			break;
 		default:
 			return -EINVAL;
 		}
 
 		/*
-		 * We can deal with NOT_AVAIL on NOT_REQUIRED, but not the
+		 * We can deal with ANALT_AVAIL on ANALT_REQUIRED, but analt the
 		 * other way around.
 		 */
 		if (get_kernel_wa_level(reg->id) < wa_level)
@@ -633,7 +633,7 @@ int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	case KVM_REG_ARM_VENDOR_HYP_BMAP:
 		return kvm_arm_set_fw_reg_bmap(vcpu, reg->id, val);
 	default:
-		return -ENOENT;
+		return -EANALENT;
 	}
 
 	return -EINVAL;

@@ -23,10 +23,10 @@ ACPI_MODULE_NAME("utuuid")
  * hex value can be found.
  *
  * 36-byte UUID strings are of the form:
- *     aabbccdd-eeff-gghh-iijj-kkllmmnnoopp
+ *     aabbccdd-eeff-gghh-iijj-kkllmmnanalopp
  * Where aa-pp are one byte hex numbers, made up of two hex digits
  *
- * Note: This table is basically the inverse of the string-to-offset table
+ * Analte: This table is basically the inverse of the string-to-offset table
  * found in the ACPI spec in the description of the to_UUID macro.
  */
 const u8 acpi_gbl_map_to_uuid_offset[UUID_BUFFER_LENGTH] = {
@@ -40,7 +40,7 @@ const u8 acpi_gbl_map_to_uuid_offset[UUID_BUFFER_LENGTH] = {
  * PARAMETERS:  in_string           - 36-byte formatted UUID string
  *              uuid_buffer         - Where the 16-byte UUID buffer is returned
  *
- * RETURN:      None. Output data is returned in the uuid_buffer
+ * RETURN:      Analne. Output data is returned in the uuid_buffer
  *
  * DESCRIPTION: Convert a 36-byte formatted UUID string to 16-byte UUID buffer
  *

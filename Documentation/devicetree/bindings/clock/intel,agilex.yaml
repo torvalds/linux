@@ -35,7 +35,7 @@ required:
 additionalProperties: false
 
 examples:
-  # Clock controller node:
+  # Clock controller analde:
   - |
     clkmgr: clock-controller@ffd10000 {
       compatible = "intel,agilex-clkmgr";

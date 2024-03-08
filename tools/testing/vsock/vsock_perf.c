@@ -4,14 +4,14 @@
  *
  * Copyright (C) 2022 SberDevices.
  *
- * Author: Arseniy Krasnov <AVKrasnov@sberdevices.ru>
+ * Author: Arseniy Krasanalv <AVKrasanalv@sberdevices.ru>
  */
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdint.h>
@@ -278,7 +278,7 @@ static void run_sender(int peer_cid, unsigned long to_send_bytes)
 		enable_so_zerocopy(fd);
 
 		data = mmap(NULL, buf_size_bytes, PROT_READ | PROT_WRITE,
-			    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			    MAP_PRIVATE | MAP_AANALNYMOUS, -1, 0);
 		if (data == MAP_FAILED) {
 			perror("mmap");
 			exit(EXIT_FAILURE);
@@ -356,7 +356,7 @@ static const char optstring[] = "";
 static const struct option longopts[] = {
 	{
 		.name = "help",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'H',
 	},
 	{
@@ -391,7 +391,7 @@ static const struct option longopts[] = {
 	},
 	{
 		.name = "zerocopy",
-		.has_arg = no_argument,
+		.has_arg = anal_argument,
 		.val = 'Z',
 	},
 	{},

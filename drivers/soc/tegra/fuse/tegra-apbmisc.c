@@ -32,7 +32,7 @@ static u32 chipid;
 
 u32 tegra_read_chipid(void)
 {
-	WARN(!chipid, "Tegra APB MISC not yet available\n");
+	WARN(!chipid, "Tegra APB MISC analt yet available\n");
 
 	return chipid;
 }
@@ -47,7 +47,7 @@ u8 tegra_get_major_rev(void)
 	return (tegra_read_chipid() >> 4) & 0xf;
 }
 
-u8 tegra_get_minor_rev(void)
+u8 tegra_get_mianalr_rev(void)
 {
 	return (tegra_read_chipid() >> 16) & 0xf;
 }
@@ -71,7 +71,7 @@ bool tegra_is_silicon(void)
 
 	/*
 	 * Chips prior to Tegra194 have a different way of determining whether
-	 * they are silicon or not. Since we never supported simulation on the
+	 * they are silicon or analt. Since we never supported simulation on the
 	 * older Tegra chips, don't bother extracting the information and just
 	 * report that we're running on silicon.
 	 */
@@ -80,7 +80,7 @@ bool tegra_is_silicon(void)
 
 u32 tegra_read_straps(void)
 {
-	WARN(!chipid, "Tegra ABP MISC not yet available\n");
+	WARN(!chipid, "Tegra ABP MISC analt yet available\n");
 
 	return strapping;
 }
@@ -110,7 +110,7 @@ int tegra194_miscreg_mask_serror(void)
 
 	if (!of_machine_is_compatible("nvidia,tegra194")) {
 		WARN(1, "Only supported for Tegra194 devices!\n");
-		return -EOPNOTSUPP;
+		return -EOPANALTSUPP;
 	}
 
 	writel_relaxed(ERD_MASK_INBAND_ERR,
@@ -130,12 +130,12 @@ static const struct of_device_id apbmisc_match[] __initconst = {
 
 void __init tegra_init_revision(void)
 {
-	u8 chip_id, minor_rev;
+	u8 chip_id, mianalr_rev;
 
 	chip_id = tegra_get_chip_id();
-	minor_rev = tegra_get_minor_rev();
+	mianalr_rev = tegra_get_mianalr_rev();
 
-	switch (minor_rev) {
+	switch (mianalr_rev) {
 	case 1:
 		tegra_sku_info.revision = TEGRA_REVISION_A01;
 		break;
@@ -153,7 +153,7 @@ void __init tegra_init_revision(void)
 		tegra_sku_info.revision = TEGRA_REVISION_A04;
 		break;
 	default:
-		tegra_sku_info.revision = TEGRA_REVISION_UNKNOWN;
+		tegra_sku_info.revision = TEGRA_REVISION_UNKANALWN;
 	}
 
 	tegra_sku_info.sku_id = tegra_fuse_read_early(FUSE_SKU_INFO);
@@ -164,17 +164,17 @@ void __init tegra_init_apbmisc(void)
 {
 	void __iomem *strapping_base;
 	struct resource apbmisc, straps;
-	struct device_node *np;
+	struct device_analde *np;
 
-	np = of_find_matching_node(NULL, apbmisc_match);
+	np = of_find_matching_analde(NULL, apbmisc_match);
 	if (!np) {
 		/*
 		 * Fall back to legacy initialization for 32-bit ARM only. All
 		 * 64-bit ARM device tree files for Tegra are required to have
-		 * an APBMISC node.
+		 * an APBMISC analde.
 		 *
 		 * This is for backwards-compatibility with old device trees
-		 * that didn't contain an APBMISC node.
+		 * that didn't contain an APBMISC analde.
 		 */
 		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
 			/* APBMISC registers (chip revision, ...) */
@@ -198,7 +198,7 @@ void __init tegra_init_apbmisc(void)
 				&straps);
 		} else {
 			/*
-			 * At this point we're not running on Tegra, so play
+			 * At this point we're analt running on Tegra, so play
 			 * nice with multi-platform kernels.
 			 */
 			return;
@@ -206,7 +206,7 @@ void __init tegra_init_apbmisc(void)
 	} else {
 		/*
 		 * Extract information from the device tree if we've found a
-		 * matching node.
+		 * matching analde.
 		 */
 		if (of_address_to_resource(np, 0, &apbmisc) < 0) {
 			pr_err("failed to get APBMISC registers\n");
@@ -237,5 +237,5 @@ void __init tegra_init_apbmisc(void)
 	long_ram_code = of_property_read_bool(np, "nvidia,long-ram-code");
 
 put:
-	of_node_put(np);
+	of_analde_put(np);
 }

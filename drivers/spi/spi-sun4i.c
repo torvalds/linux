@@ -184,7 +184,7 @@ static void sun4i_spi_set_cs(struct spi_device *spi, bool enable)
 	 * devices.
 	 *
 	 * If we don't set it, the chip select level will go low by
-	 * default when the device is idle, which is not really
+	 * default when the device is idle, which is analt really
 	 * expected in the common case where the chip select is active
 	 * low.
 	 */
@@ -265,7 +265,7 @@ static int sun4i_spi_transfer_one(struct spi_controller *host,
 
 	sun4i_spi_write(sspi, SUN4I_CTL_REG, reg);
 
-	/* Ensure that we have a parent clock fast enough */
+	/* Ensure that we have a parent clock fast eanalugh */
 	mclk_rate = clk_get_rate(sspi->mclk);
 	if (mclk_rate < (2 * tfr->speed_hz)) {
 		clk_set_rate(sspi->mclk, 2 * tfr->speed_hz);
@@ -299,7 +299,7 @@ static int sun4i_spi_transfer_one(struct spi_controller *host,
 
 	sun4i_spi_write(sspi, SUN4I_CLK_CTL_REG, reg);
 
-	/* Setup the transfer now... */
+	/* Setup the transfer analw... */
 	if (sspi->tx_buf)
 		tx_len = tfr->len;
 
@@ -372,7 +372,7 @@ static irqreturn_t sun4i_spi_handler(int irq, void *dev_id)
 		sun4i_spi_fill_fifo(sspi, SUN4I_FIFO_DEPTH);
 
 		if (!sspi->len)
-			/* nothing left to transmit */
+			/* analthing left to transmit */
 			sun4i_spi_disable_interrupt(sspi, SUN4I_INT_CTL_TF_E34);
 
 		/* Only clear the interrupt _after_ re-seeding the FIFO */
@@ -381,7 +381,7 @@ static irqreturn_t sun4i_spi_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	return IRQ_NONE;
+	return IRQ_ANALNE;
 }
 
 static int sun4i_spi_runtime_resume(struct device *dev)
@@ -433,7 +433,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 	host = spi_alloc_host(&pdev->dev, sizeof(struct sun4i_spi));
 	if (!host) {
 		dev_err(&pdev->dev, "Unable to allocate SPI Host\n");
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
 	platform_set_drvdata(pdev, host);
@@ -454,7 +454,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, sun4i_spi_handler,
 			       0, "sun4i-spi", sspi);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Cananalt request IRQ\n");
 		goto err_free_host;
 	}
 
@@ -466,7 +466,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 	host->num_chipselect = 4;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = pdev->dev.of_node;
+	host->dev.of_analde = pdev->dev.of_analde;
 	host->auto_runtime_pm = true;
 	host->max_transfer_size = sun4i_spi_max_transfer_size;
 
@@ -502,7 +502,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register SPI host\n");
+		dev_err(&pdev->dev, "cananalt register SPI host\n");
 		goto err_pm_disable;
 	}
 

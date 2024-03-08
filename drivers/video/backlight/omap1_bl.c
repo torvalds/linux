@@ -43,7 +43,7 @@ static void omapbl_blank(struct omap_backlight *bl, int mode)
 		bl->pdata->set_power(bl->dev, mode);
 
 	switch (mode) {
-	case FB_BLANK_NORMAL:
+	case FB_BLANK_ANALRMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
@@ -129,7 +129,7 @@ static int omapbl_probe(struct platform_device *pdev)
 	bl = devm_kzalloc(&pdev->dev, sizeof(struct omap_backlight),
 			  GFP_KERNEL);
 	if (unlikely(!bl))
-		return -ENOMEM;
+		return -EANALMEM;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

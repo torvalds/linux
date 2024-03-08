@@ -18,7 +18,7 @@ Required Properties:
 - ti,syscon-dev: phandle/offset pair. The phandle to syscon used to
   access device state control registers and the offset of device's specific
   registers within device state control registers range.
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device analde as a gpio controller.
 - #gpio-cells: Should be 2.
 
 Please refer to gpio.txt in this directory for details of the common GPIO

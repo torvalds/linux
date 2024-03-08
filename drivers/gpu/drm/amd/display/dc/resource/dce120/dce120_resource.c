@@ -9,12 +9,12 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright analtice and this permission analtice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.  IN ANAL EVENT SHALL
  * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
@@ -991,7 +991,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
-	/* Now notify PPLib/SMU about which Watermarks sets they should select
+	/* Analw analtify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
 	 * Memory clock member variables for Watermarks calculations for each
 	 * Watermark Set
@@ -1037,8 +1037,8 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_mem_clk_in_khz = 5000000;
 
-	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
-	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
+	/* Analtify PP Lib/SMU which Watermarks to use for which clock ranges */
+	dm_pp_analtify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -1070,11 +1070,11 @@ static bool dce120_resource_construct(
 	/* TODO: Fill more data from GreenlandAsicCapability.cpp */
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = ANAL_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a analt applied by default*/
 	dc->caps.max_cursor_size = 128;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dual_link_dvi = true;

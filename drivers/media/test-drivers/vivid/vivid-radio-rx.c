@@ -5,7 +5,7 @@
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
@@ -66,7 +66,7 @@ retry:
 		dev->radio_rx_rds_last_block = blk - VIVID_RDS_GEN_BLOCKS + 1;
 
 	/*
-	 * No data is available if there hasn't been time to get new data,
+	 * Anal data is available if there hasn't been time to get new data,
 	 * or if the RDS receiver has been disabled, or if we use the data
 	 * from the RDS transmitter and that RDS transmitter has been disabled,
 	 * or if the signal quality is too weak.
@@ -75,7 +75,7 @@ retry:
 	    (dev->radio_rds_loop && !(dev->radio_tx_subchans & V4L2_TUNER_SUB_RDS)) ||
 	    abs(dev->radio_rx_sig_qual) > 200) {
 		mutex_unlock(&dev->mutex);
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_ANALNBLOCK)
 			return -EWOULDBLOCK;
 		if (msleep_interruptible(20) && signal_pending(current))
 			return -EINTR;
@@ -130,7 +130,7 @@ retry:
 
 __poll_t vivid_radio_rx_poll(struct file *file, struct poll_table_struct *wait)
 {
-	return EPOLLIN | EPOLLRDNORM | v4l2_ctrl_poll(file, wait);
+	return EPOLLIN | EPOLLRDANALRM | v4l2_ctrl_poll(file, wait);
 }
 
 int vivid_radio_rx_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)
@@ -163,7 +163,7 @@ int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2
 	if (!a->rangelow ^ !a->rangehigh)
 		return -EINVAL;
 
-	if (file->f_flags & O_NONBLOCK)
+	if (file->f_flags & O_ANALNBLOCK)
 		return -EWOULDBLOCK;
 
 	if (a->rangelow) {
@@ -196,19 +196,19 @@ int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2
 		freq = spacing * (freq / spacing) + spacing;
 		if (freq > high) {
 			if (!a->wrap_around)
-				return -ENODATA;
+				return -EANALDATA;
 			freq = spacing * (low / spacing) + spacing;
 			if (freq >= dev->radio_rx_freq)
-				return -ENODATA;
+				return -EANALDATA;
 		}
 	} else {
 		freq = spacing * ((freq + spacing - 1) / spacing) - spacing;
 		if (freq < low) {
 			if (!a->wrap_around)
-				return -ENODATA;
+				return -EANALDATA;
 			freq = spacing * ((high + spacing - 1) / spacing) - spacing;
 			if (freq <= dev->radio_rx_freq)
-				return -ENODATA;
+				return -EANALDATA;
 		}
 	}
 	return 0;
@@ -252,9 +252,9 @@ int vivid_radio_rx_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (abs(sig_qual) > delta)
 		vt->rxsubchans = 0;
 	else if (dev->radio_rx_freq < FM_FREQ_RANGE_LOW || vt->signal < 0x8000)
-		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+		vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	else if (dev->radio_rds_loop && !(dev->radio_tx_subchans & V4L2_TUNER_SUB_STEREO))
-		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
+		vt->rxsubchans = V4L2_TUNER_SUB_MOANAL;
 	else
 		vt->rxsubchans = V4L2_TUNER_SUB_STEREO;
 	if (dev->radio_rx_rds_enabled &&

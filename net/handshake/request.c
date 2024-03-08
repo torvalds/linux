@@ -31,7 +31,7 @@
  * We need both a handshake_req -> sock mapping, and a sock ->
  * handshake_req mapping. Both are one-to-one.
  *
- * To avoid adding another pointer field to struct sock, net/handshake
+ * To avoid adding aanalther pointer field to struct sock, net/handshake
  * maintains a hash table, indexed by the memory address of @sock, to
  * find the struct handshake_req outstanding for that socket. The
  * reverse direction uses a simple pointer field in the handshake_req
@@ -113,7 +113,7 @@ struct handshake_req *handshake_req_alloc(const struct handshake_proto *proto,
 
 	if (!proto)
 		return NULL;
-	if (proto->hp_handler_class <= HANDSHAKE_HANDLER_CLASS_NONE)
+	if (proto->hp_handler_class <= HANDSHAKE_HANDLER_CLASS_ANALNE)
 		return NULL;
 	if (proto->hp_handler_class >= HANDSHAKE_HANDLER_CLASS_MAX)
 		return NULL;
@@ -162,7 +162,7 @@ static void __remove_pending_locked(struct handshake_net *hn,
  * Returns %true if the request was found on @net's pending list,
  * otherwise %false.
  *
- * If @req was on a pending list, it has not yet been accepted.
+ * If @req was on a pending list, it has analt yet been accepted.
  */
 static bool remove_pending(struct handshake_net *hn, struct handshake_req *req)
 {
@@ -207,17 +207,17 @@ EXPORT_SYMBOL_IF_KUNIT(handshake_req_next);
  *   %0: Request queued
  *   %-EINVAL: Invalid argument
  *   %-EBUSY: A handshake is already under way for this socket
- *   %-ESRCH: No handshake agent is available
+ *   %-ESRCH: Anal handshake agent is available
  *   %-EAGAIN: Too many pending handshake requests
- *   %-ENOMEM: Failed to allocate memory
- *   %-EMSGSIZE: Failed to construct notification message
- *   %-EOPNOTSUPP: Handshake module not initialized
+ *   %-EANALMEM: Failed to allocate memory
+ *   %-EMSGSIZE: Failed to construct analtification message
+ *   %-EOPANALTSUPP: Handshake module analt initialized
  *
  * A zero return value from handshake_req_submit() means that
  * exactly one subsequent completion callback is guaranteed.
  *
  * A negative return value from handshake_req_submit() means that
- * no completion callback will be done and that @req has been
+ * anal completion callback will be done and that @req has been
  * destroyed.
  */
 int handshake_req_submit(struct socket *sock, struct handshake_req *req,
@@ -240,7 +240,7 @@ int handshake_req_submit(struct socket *sock, struct handshake_req *req,
 	req->hr_odestruct = req->hr_sk->sk_destruct;
 	req->hr_sk->sk_destruct = handshake_sk_destruct;
 
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	net = sock_net(req->hr_sk);
 	hn = handshake_pernet(net);
 	if (!hn)
@@ -251,7 +251,7 @@ int handshake_req_submit(struct socket *sock, struct handshake_req *req,
 		goto out_err;
 
 	spin_lock(&hn->hn_lock);
-	ret = -EOPNOTSUPP;
+	ret = -EOPANALTSUPP;
 	if (test_bit(HANDSHAKE_F_NET_DRAINING, &hn->hn_flags))
 		goto out_unlock;
 	ret = -EBUSY;
@@ -261,9 +261,9 @@ int handshake_req_submit(struct socket *sock, struct handshake_req *req,
 		goto out_unlock;
 	spin_unlock(&hn->hn_lock);
 
-	ret = handshake_genl_notify(net, req->hr_proto, flags);
+	ret = handshake_genl_analtify(net, req->hr_proto, flags);
 	if (ret) {
-		trace_handshake_notify_err(net, req, req->hr_sk, ret);
+		trace_handshake_analtify_err(net, req, req->hr_sk, ret);
 		if (remove_pending(hn, req))
 			goto out_err;
 	}
@@ -293,7 +293,7 @@ void handshake_complete(struct handshake_req *req, unsigned int status,
 		trace_handshake_complete(net, req, sk, status);
 		req->hr_proto->hp_done(req, status, info);
 
-		/* Handshake request is no longer pending */
+		/* Handshake request is anal longer pending */
 		sock_put(sk);
 	}
 }
@@ -308,7 +308,7 @@ EXPORT_SYMBOL_IF_KUNIT(handshake_complete);
  *
  * Return values:
  *   %true - Uncompleted handshake request was canceled
- *   %false - Handshake request already completed or not found
+ *   %false - Handshake request already completed or analt found
  */
 bool handshake_req_cancel(struct sock *sk)
 {
@@ -319,7 +319,7 @@ bool handshake_req_cancel(struct sock *sk)
 	net = sock_net(sk);
 	req = handshake_req_hash_lookup(sk);
 	if (!req) {
-		trace_handshake_cancel_none(net, req, sk);
+		trace_handshake_cancel_analne(net, req, sk);
 		return false;
 	}
 
@@ -337,7 +337,7 @@ bool handshake_req_cancel(struct sock *sk)
 out_true:
 	trace_handshake_cancel(net, req, sk);
 
-	/* Handshake request is no longer pending */
+	/* Handshake request is anal longer pending */
 	sock_put(sk);
 	return true;
 }

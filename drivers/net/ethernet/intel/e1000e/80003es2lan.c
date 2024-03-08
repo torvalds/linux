@@ -41,7 +41,7 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
-		phy->type = e1000_phy_none;
+		phy->type = e1000_phy_analne;
 		return 0;
 	} else {
 		phy->ops.power_up = e1000_power_up_phy_copper;
@@ -139,7 +139,7 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	mac->has_fwsm = true;
 	/* ARC supported; valid only if manageability features are enabled. */
 	mac->arc_subsystem_valid = !!(er32(FWSM) & E1000_FWSM_MODE_MASK);
-	/* Adaptive IFS not supported */
+	/* Adaptive IFS analt supported */
 	mac->adaptive_ifs = false;
 
 	/* set lan id for port to determine which phy lock to use */
@@ -503,7 +503,7 @@ static s32 e1000_get_cfg_done_80003es2lan(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout) {
-		e_dbg("MNG configuration cycle has not completed.\n");
+		e_dbg("MNG configuration cycle has analt completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -665,7 +665,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 kum_reg_data;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is anal TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
@@ -736,7 +736,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
-	/* An error is not fatal and we should not stop init due to this */
+	/* An error is analt fatal and we should analt stop init due to this */
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 
@@ -820,7 +820,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is anal link.
 	 */
 	e1000_clear_hw_cntrs_80003es2lan(hw);
 
@@ -831,7 +831,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
  *  e1000_initialize_hw_bits_80003es2lan - Init hw bits of ESB2
  *  @hw: pointer to the HW structure
  *
- *  Initializes required hardware-dependent bits needed for normal operation.
+ *  Initializes required hardware-dependent bits needed for analrmal operation.
  **/
 static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw)
 {
@@ -976,9 +976,9 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Do not init these registers when the HW is in IAMT mode, since the
+	/* Do analt init these registers when the HW is in IAMT mode, since the
 	 * firmware will have already initialized them.  We only initialize
-	 * them if the HW is not in IAMT mode.
+	 * them if the HW is analt in IAMT mode.
 	 */
 	if (!hw->mac.ops.check_mng_mode(hw)) {
 		/* Enable Electrical Idle on the PHY */
@@ -1036,7 +1036,7 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	 */
 	/* these next three accesses were always meant to use page 0x34 using
 	 * GG82563_REG(0x34, N) but never did, so we've just corrected the call
-	 * to not drop bits
+	 * to analt drop bits
 	 */
 	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, 4, 0xFFFF);
 	if (ret_val)
@@ -1279,11 +1279,11 @@ static s32 e1000_read_mac_addr_80003es2lan(struct e1000_hw *hw)
  * @hw: pointer to the HW structure
  *
  * In the case of a PHY power down to save power, or to turn off link during a
- * driver unload, or wake on lan is not enabled, remove the link.
+ * driver unload, or wake on lan is analt enabled, remove the link.
  **/
 static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw)
 {
-	/* If the management interface is not enabled, then power down */
+	/* If the management interface is analt enabled, then power down */
 	if (!(hw->mac.ops.check_mng_mode(hw) ||
 	      hw->phy.ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);

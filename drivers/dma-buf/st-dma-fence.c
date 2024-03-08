@@ -100,7 +100,7 @@ static int sanitycheck(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -117,7 +117,7 @@ static int test_signaling(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -132,12 +132,12 @@ static int test_signaling(void *arg)
 	}
 
 	if (!dma_fence_is_signaled(f)) {
-		pr_err("Fence not reporting signaled\n");
+		pr_err("Fence analt reporting signaled\n");
 		goto err_free;
 	}
 
 	if (!dma_fence_signal(f)) {
-		pr_err("Fence reported not being already signaled\n");
+		pr_err("Fence reported analt being already signaled\n");
 		goto err_free;
 	}
 
@@ -165,7 +165,7 @@ static int test_add_callback(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma_fence_add_callback(f, &cb.cb, simple_callback)) {
 		pr_err("Failed to add callback, fence already signaled!\n");
@@ -192,7 +192,7 @@ static int test_late_add_callback(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -223,7 +223,7 @@ static int test_rm_callback(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma_fence_add_callback(f, &cb.cb, simple_callback)) {
 		pr_err("Failed to add callback, fence already signaled!\n");
@@ -255,7 +255,7 @@ static int test_late_rm_callback(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (dma_fence_add_callback(f, &cb.cb, simple_callback)) {
 		pr_err("Failed to add callback, fence already signaled!\n");
@@ -286,7 +286,7 @@ static int test_status(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -297,7 +297,7 @@ static int test_status(void *arg)
 
 	dma_fence_signal(f);
 	if (!dma_fence_get_status(f)) {
-		pr_err("Fence not reporting signaled status\n");
+		pr_err("Fence analt reporting signaled status\n");
 		goto err_free;
 	}
 
@@ -314,7 +314,7 @@ static int test_error(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -327,7 +327,7 @@ static int test_error(void *arg)
 
 	dma_fence_signal(f);
 	if (dma_fence_get_status(f) != -EIO) {
-		pr_err("Fence not reporting error status, got %d\n",
+		pr_err("Fence analt reporting error status, got %d\n",
 		       dma_fence_get_status(f));
 		goto err_free;
 	}
@@ -345,7 +345,7 @@ static int test_wait(void *arg)
 
 	f = mock_fence();
 	if (!f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(f);
 
@@ -389,7 +389,7 @@ static int test_wait_timeout(void *arg)
 
 	wt.f = mock_fence();
 	if (!wt.f)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	dma_fence_enable_sw_signaling(wt.f);
 
@@ -402,8 +402,8 @@ static int test_wait_timeout(void *arg)
 
 	if (dma_fence_wait_timeout(wt.f, false, 2) == -ETIME) {
 		if (timer_pending(&wt.timer)) {
-			pr_notice("Timer did not fire within the jiffie!\n");
-			err = 0; /* not our fault! */
+			pr_analtice("Timer did analt fire within the jiffie!\n");
+			err = 0; /* analt our fault! */
 		} else {
 			pr_err("Wait reported incomplete after timeout\n");
 		}
@@ -440,7 +440,7 @@ err:
 	return err;
 }
 
-/* Now off to the races! */
+/* Analw off to the races! */
 
 struct race_thread {
 	struct dma_fence __rcu **fences;
@@ -468,7 +468,7 @@ static int thread_signal_callback(void *arg)
 
 		f1 = mock_fence();
 		if (!f1) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			break;
 		}
 
@@ -502,10 +502,10 @@ static int thread_signal_callback(void *arg)
 		}
 
 		if (!READ_ONCE(cb.seen)) {
-			pr_err("Callback not seen on thread %d, pass %lu (%lu misses), signaling %s add_callback; fence signaled? %s\n",
+			pr_err("Callback analt seen on thread %d, pass %lu (%lu misses), signaling %s add_callback; fence signaled? %s\n",
 			       t->id, pass, miss,
 			       t->before ? "before" : "after",
-			       dma_fence_is_signaled(f2) ? "yes" : "no");
+			       dma_fence_is_signaled(f2) ? "anal" : "anal");
 			err = -EINVAL;
 		}
 
@@ -581,7 +581,7 @@ int dma_fence(void)
 				 SLAB_TYPESAFE_BY_RCU |
 				 SLAB_HWCACHE_ALIGN);
 	if (!slab_fences)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ret = subtests(tests, NULL);
 

@@ -48,7 +48,7 @@ static int __init pci_stub_init(void)
 	if (rc)
 		return rc;
 
-	/* no ids passed actually */
+	/* anal ids passed actually */
 	if (ids[0] == '\0')
 		return 0;
 

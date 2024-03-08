@@ -1,7 +1,7 @@
 /* 
  * tie-asm.h -- compile-time HAL assembler definitions dependent on CORE & TIE
  *
- *  NOTE:  This header file is not meant to be included directly.
+ *  ANALTE:  This header file is analt meant to be included directly.
  */
 
 /* This header file contains assembly-language definitions (assembly
@@ -18,13 +18,13 @@
    permit persons to whom the Software is furnished to do so, subject to
    the following conditions:
 
-   The above copyright notice and this permission notice shall be included
+   The above copyright analtice and this permission analtice shall be included
    in all copies or substantial portions of the Software.
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   EXPRESS OR IMPLIED, INCLUDING BUT ANALT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ANALNINFRINGEMENT.
+   IN ANAL EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
@@ -35,10 +35,10 @@
 /*  Selection parameter values for save-area save/restore macros:  */
 /*  Option vs. TIE:  */
 #define XTHAL_SAS_TIE	0x0001	/* custom extension or coprocessor */
-#define XTHAL_SAS_OPT	0x0002	/* optional (and not a coprocessor) */
+#define XTHAL_SAS_OPT	0x0002	/* optional (and analt a coprocessor) */
 #define XTHAL_SAS_ANYOT	0x0003	/* both of the above */
 /*  Whether used automatically by compiler:  */
-#define XTHAL_SAS_NOCC	0x0004	/* not used by compiler w/o special opts/code */
+#define XTHAL_SAS_ANALCC	0x0004	/* analt used by compiler w/o special opts/code */
 #define XTHAL_SAS_CC	0x0008	/* used by compiler without special opts/code */
 #define XTHAL_SAS_ANYCC	0x000C	/* both of the above */
 /*  ABI handling across function calls:  */
@@ -54,8 +54,8 @@
 
 
     /*
-      *  Macro to store all non-coprocessor (extra) custom TIE and optional state
-      *  (not including zero-overhead loop registers).
+      *  Macro to store all analn-coprocessor (extra) custom TIE and optional state
+      *  (analt including zero-overhead loop registers).
       *  Required parameters:
       *      ptr         Save area pointer address register (clobbered)
       *                  (register must contain a 4 byte aligned address).
@@ -63,14 +63,14 @@
       *                  registers are clobbered, the remaining are unused).
       *  Optional parameters:
       *      continue    If macro invoked as part of a larger store sequence, set to 1
-      *                  if this is not the first in the sequence.  Defaults to 0.
+      *                  if this is analt the first in the sequence.  Defaults to 0.
       *      ofs         Offset from start of larger sequence (from value of first ptr
       *                  in sequence) at which to store.  Defaults to next available space
       *                  (or 0 if <continue> is 0).
       *      select      Select what category(ies) of registers to store, as a bitmask
       *                  (see XTHAL_SAS_xxx constants).  Defaults to all registers.
       *      alloc       Select what category(ies) of registers to allocate; if any
-      *                  category is selected here that is not in <select>, space for
+      *                  category is selected here that is analt in <select>, space for
       *                  the corresponding registers is skipped without doing any store.
       */
     .macro xchal_ncp_store  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
@@ -87,8 +87,8 @@
 	xchal_sa_align	\ptr, 0, 1016, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 8
 	.endif
-	// Optional caller-saved registers not used by default by the compiler:
-	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
+	// Optional caller-saved registers analt used by default by the compiler:
+	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_ANALCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 1004, 4, 4
 	rsr.SCOMPARE1	\at1		// conditional store option
 	s32i	\at1, \ptr, .Lxchal_ofs_+0
@@ -101,15 +101,15 @@
 	rsr.M3	\at1		// MAC16 option
 	s32i	\at1, \ptr, .Lxchal_ofs_+16
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 20
-	.elseif ((XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\alloc)) == 0
+	.elseif ((XTHAL_SAS_OPT | XTHAL_SAS_ANALCC | XTHAL_SAS_CALR) & ~(\alloc)) == 0
 	xchal_sa_align	\ptr, 0, 1004, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 20
 	.endif
     .endm	// xchal_ncp_store
 
     /*
-      *  Macro to load all non-coprocessor (extra) custom TIE and optional state
-      *  (not including zero-overhead loop registers).
+      *  Macro to load all analn-coprocessor (extra) custom TIE and optional state
+      *  (analt including zero-overhead loop registers).
       *  Required parameters:
       *      ptr         Save area pointer address register (clobbered)
       *                  (register must contain a 4 byte aligned address).
@@ -117,14 +117,14 @@
       *                  registers are clobbered, the remaining are unused).
       *  Optional parameters:
       *      continue    If macro invoked as part of a larger load sequence, set to 1
-      *                  if this is not the first in the sequence.  Defaults to 0.
+      *                  if this is analt the first in the sequence.  Defaults to 0.
       *      ofs         Offset from start of larger sequence (from value of first ptr
       *                  in sequence) at which to load.  Defaults to next available space
       *                  (or 0 if <continue> is 0).
       *      select      Select what category(ies) of registers to load, as a bitmask
       *                  (see XTHAL_SAS_xxx constants).  Defaults to all registers.
       *      alloc       Select what category(ies) of registers to allocate; if any
-      *                  category is selected here that is not in <select>, space for
+      *                  category is selected here that is analt in <select>, space for
       *                  the corresponding registers is skipped without doing any load.
       */
     .macro xchal_ncp_load  ptr at1 at2 at3 at4  continue=0 ofs=-1 select=XTHAL_SAS_ALL alloc=0
@@ -141,8 +141,8 @@
 	xchal_sa_align	\ptr, 0, 1016, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 8
 	.endif
-	// Optional caller-saved registers not used by default by the compiler:
-	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\select)
+	// Optional caller-saved registers analt used by default by the compiler:
+	.ifeq (XTHAL_SAS_OPT | XTHAL_SAS_ANALCC | XTHAL_SAS_CALR) & ~(\select)
 	xchal_sa_align	\ptr, 0, 1004, 4, 4
 	l32i	\at1, \ptr, .Lxchal_ofs_+0
 	wsr.SCOMPARE1	\at1		// conditional store option
@@ -155,7 +155,7 @@
 	l32i	\at1, \ptr, .Lxchal_ofs_+16
 	wsr.M3	\at1		// MAC16 option
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 20
-	.elseif ((XTHAL_SAS_OPT | XTHAL_SAS_NOCC | XTHAL_SAS_CALR) & ~(\alloc)) == 0
+	.elseif ((XTHAL_SAS_OPT | XTHAL_SAS_ANALCC | XTHAL_SAS_CALR) & ~(\alloc)) == 0
 	xchal_sa_align	\ptr, 0, 1004, 4, 4
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + 20
 	.endif

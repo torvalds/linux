@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 #define _ASM_POWERPC_BOOK3S_64_PGTABLE_H_
 
-#include <asm-generic/pgtable-nop4d.h>
+#include <asm-generic/pgtable-analp4d.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/mmdebug.h>
@@ -19,7 +19,7 @@
 #define _PAGE_READ		0x00004	/* read access allowed */
 #define _PAGE_PRIVILEGED	0x00008 /* kernel access only */
 #define _PAGE_SAO		0x00010 /* Strong access order */
-#define _PAGE_NON_IDEMPOTENT	0x00020 /* non idempotent memory */
+#define _PAGE_ANALN_IDEMPOTENT	0x00020 /* analn idempotent memory */
 #define _PAGE_TOLERANT		0x00030 /* tolerant memory, cache inhibited */
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
@@ -66,9 +66,9 @@
 #define _RPAGE_PA_MAX		56
 
 /*
- * Max physical address bit we will use for now.
+ * Max physical address bit we will use for analw.
  *
- * This is mostly a hardware limitation and for now Power9 has
+ * This is mostly a hardware limitation and for analw Power9 has
  * a 51 bit limit.
  *
  * This is different from the number of physical bit required to address
@@ -82,7 +82,7 @@
  * for hash linux page table specific bits.
  *
  * In order to be compatible with future hardware generations we keep
- * some offsets and limit this for now to 53
+ * some offsets and limit this for analw to 53
  */
 #define _PAGE_PA_MAX		53
 
@@ -91,11 +91,11 @@
 #define _PAGE_DEVMAP		_RPAGE_SW1 /* software: ZONE_DEVICE page */
 
 /*
- * Drivers request for cache inhibited pte mapping using _PAGE_NO_CACHE
+ * Drivers request for cache inhibited pte mapping using _PAGE_ANAL_CACHE
  * Instead of fixing all of them, add an alternate define which
  * maps CI pte mapping.
  */
-#define _PAGE_NO_CACHE		_PAGE_TOLERANT
+#define _PAGE_ANAL_CACHE		_PAGE_TOLERANT
 /*
  * We support _RPAGE_PA_MAX bit real address in pte. On the linux side
  * we are limited by _PAGE_PA_MAX. Clear everything above _PAGE_PA_MAX
@@ -104,7 +104,7 @@
 #define PTE_RPN_MASK	(((1UL << _PAGE_PA_MAX) - 1) & (PAGE_MASK))
 #define PTE_RPN_SHIFT	PAGE_SHIFT
 /*
- * set of bits not changed in pmd_modify. Even though we have hash specific bits
+ * set of bits analt changed in pmd_modify. Even though we have hash specific bits
  * in here, on radix we expect them to be zero.
  */
 #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
@@ -127,7 +127,7 @@
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for analn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -139,7 +139,7 @@
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_TOLERANT)
-#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NON_IDEMPOTENT)
+#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_ANALN_IDEMPOTENT)
 #define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
@@ -162,7 +162,7 @@ extern unsigned long __pud_cache_index;
 #define PUD_CACHE_INDEX __pud_cache_index
 /*
  * Because of use of pte fragments and THP, size of page table
- * are not always derived out of index size above.
+ * are analt always derived out of index size above.
  */
 extern unsigned long __pte_table_size;
 extern unsigned long __pmd_table_size;
@@ -372,11 +372,11 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
  * So as a performance optimization don't flush the TLB when
  * clearing the accessed bit, it will eventually be flushed by
  * a context switch or a VM operation anyway. [ In the rare
- * event of it not getting flushed for a long time the delay
- * shouldn't really matter because there's no real memory
+ * event of it analt getting flushed for a long time the delay
+ * shouldn't really matter because there's anal real memory
  * pressure for swapout to react to. ]
  *
- * Note: this optimisation also exists in pte_needs_flush() and
+ * Analte: this optimisation also exists in pte_needs_flush() and
  * huge_pmd_needs_flush().
  */
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
@@ -426,8 +426,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 {
 	if (full && radix_enabled()) {
 		/*
-		 * We know that this is a full mm pte clear and
-		 * hence can be sure there is no parallel set_pte.
+		 * We kanalw that this is a full mm pte clear and
+		 * hence can be sure there is anal parallel set_pte.
 		 */
 		return radix__ptep_get_and_clear_full(mm, addr, ptep, full);
 	}
@@ -480,7 +480,7 @@ static inline pte_t pte_clear_soft_dirty(pte_t pte)
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protanalne(pte_t pte)
 {
 	return (pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_PTE | _PAGE_RWX)) ==
 		cpu_to_be64(_PAGE_PRESENT | _PAGE_PTE);
@@ -527,7 +527,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 {
 	/*
 	 * _PAGE_READ is needed for any access and will be cleared for
-	 * PROT_NONE. Execute-only mapping via PROT_EXEC also returns false.
+	 * PROT_ANALNE. Execute-only mapping via PROT_EXEC also returns false.
 	 */
 	if (!pte_present(pte) || !pte_user(pte) || !pte_read(pte))
 		return false;
@@ -543,7 +543,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for analw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
@@ -579,7 +579,7 @@ static inline pte_t pte_mkexec(pte_t pte)
 	return __pte_raw(pte_raw(pte) | cpu_to_be64(_PAGE_EXEC));
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
+static inline pte_t pte_mkwrite_analvma(pte_t pte)
 {
 	/*
 	 * write implies read, hence set both
@@ -613,10 +613,10 @@ static inline pte_t pte_mkdevmap(pte_t pte)
 }
 
 /*
- * This is potentially called with a pmd as the argument, in which case it's not
+ * This is potentially called with a pmd as the argument, in which case it's analt
  * safe to check _PAGE_DEVMAP unless we also confirm that _PAGE_PTE is set.
- * That's because the bit we use for _PAGE_DEVMAP is not reserved for software
- * use in page directory entries (ie. non-ptes).
+ * That's because the bit we use for _PAGE_DEVMAP is analt reserved for software
+ * use in page directory entries (ie. analn-ptes).
  */
 static inline int pte_devmap(pte_t pte)
 {
@@ -654,7 +654,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * swp_entry_t must be independent of pte bits. We build a swp_entry_t from
  * swap type and offset we get from swap and convert that to pte to find a
  * matching pte in linux page table.
- * Clear bits not found in swap entries here.
+ * Clear bits analt found in swap entries here.
  */
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
 #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
@@ -667,7 +667,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define _PAGE_SWP_SOFT_DIRTY	0UL
 #endif /* CONFIG_MEM_SOFT_DIRTY */
 
-#define _PAGE_SWP_EXCLUSIVE	_PAGE_NON_IDEMPOTENT
+#define _PAGE_SWP_EXCLUSIVE	_PAGE_ANALN_IDEMPOTENT
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
 static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
@@ -739,11 +739,11 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 	return hash__pte_same(pte_a, pte_b);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_analne(pte_t pte)
 {
 	if (radix_enabled())
-		return radix__pte_none(pte);
-	return hash__pte_none(pte);
+		return radix__pte_analne(pte);
+	return hash__pte_analne(pte);
 }
 
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -762,17 +762,17 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	return hash__set_pte_at(mm, addr, ptep, pte, percpu);
 }
 
-#define _PAGE_CACHE_CTL	(_PAGE_SAO | _PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT)
+#define _PAGE_CACHE_CTL	(_PAGE_SAO | _PAGE_ANALN_IDEMPOTENT | _PAGE_TOLERANT)
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_analncached pgprot_analncached
+static inline pgprot_t pgprot_analncached(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_NON_IDEMPOTENT);
+			_PAGE_ANALN_IDEMPOTENT);
 }
 
-#define pgprot_noncached_wc pgprot_noncached_wc
-static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+#define pgprot_analncached_wc pgprot_analncached_wc
+static inline pgprot_t pgprot_analncached_wc(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
 			_PAGE_TOLERANT);
@@ -787,7 +787,7 @@ static inline pgprot_t pgprot_cached(pgprot_t prot)
 #define pgprot_writecombine pgprot_writecombine
 static inline pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	return pgprot_noncached_wc(prot);
+	return pgprot_analncached_wc(prot);
 }
 /*
  * check a pte mapping have cache inhibited property
@@ -797,7 +797,7 @@ static inline bool pte_ci(pte_t pte)
 	__be64 pte_v = pte_raw(pte);
 
 	if (((pte_v & cpu_to_be64(_PAGE_CACHE_CTL)) == cpu_to_be64(_PAGE_TOLERANT)) ||
-	    ((pte_v & cpu_to_be64(_PAGE_CACHE_CTL)) == cpu_to_be64(_PAGE_NON_IDEMPOTENT)))
+	    ((pte_v & cpu_to_be64(_PAGE_CACHE_CTL)) == cpu_to_be64(_PAGE_ANALN_IDEMPOTENT)))
 		return true;
 	return false;
 }
@@ -814,7 +814,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_analne(pmd_t pmd)
 {
 	return !pmd_raw(pmd);
 }
@@ -869,7 +869,7 @@ static inline void pud_clear(pud_t *pudp)
 	*pudp = __pud(0);
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_analne(pud_t pud)
 {
 	return !pud_raw(pud);
 }
@@ -904,7 +904,7 @@ static inline pte_t *pudp_ptep(pud_t *pud)
 #define pud_mkdirty(pud)	pte_pud(pte_mkdirty(pud_pte(pud)))
 #define pud_mkclean(pud)	pte_pud(pte_mkclean(pud_pte(pud)))
 #define pud_mkyoung(pud)	pte_pud(pte_mkyoung(pud_pte(pud)))
-#define pud_mkwrite(pud)	pte_pud(pte_mkwrite_novma(pud_pte(pud)))
+#define pud_mkwrite(pud)	pte_pud(pte_mkwrite_analvma(pud_pte(pud)))
 #define pud_write(pud)		pte_write(pud_pte(pud))
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
@@ -939,7 +939,7 @@ static inline void p4d_clear(p4d_t *p4dp)
 	*p4dp = __p4d(0);
 }
 
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_analne(p4d_t p4d)
 {
 	return !p4d_raw(p4d);
 }
@@ -1059,7 +1059,7 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-#define pmd_mkwrite_novma(pmd)	pte_pmd(pte_mkwrite_novma(pmd_pte(pmd)))
+#define pmd_mkwrite_analvma(pmd)	pte_pmd(pte_mkwrite_analvma(pmd_pte(pmd)))
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
 #define pmd_soft_dirty(pmd)    pte_soft_dirty(pmd_pte(pmd))
@@ -1074,9 +1074,9 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protanalne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protanalne(pmd_pte(pmd));
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -1086,13 +1086,13 @@ static inline int pmd_protnone(pmd_t pmd)
 static inline bool pmd_access_permitted(pmd_t pmd, bool write)
 {
 	/*
-	 * pmdp_invalidate sets this combination (which is not caught by
+	 * pmdp_invalidate sets this combination (which is analt caught by
 	 * !pte_present() check in pte_access_permitted), to prevent
 	 * lock-free lookups, as part of the serialize_against_pte_lookup()
 	 * synchronisation.
 	 *
 	 * This also catches the case where the PTE's hardware PRESENT bit is
-	 * cleared while TLB is flushed, which is suboptimal but should not
+	 * cleared while TLB is flushed, which is suboptimal but should analt
 	 * be frequent.
 	 */
 	if (pmd_is_serializing(pmd))
@@ -1220,7 +1220,7 @@ static inline void pudp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
  * invalid (pmdp_invalidate()) before we set it with pte page
  * address. A pmd_trans_huge() check against a pmd entry during that time
  * should return true.
- * We should not call this on a hugetlb entry. We should check for HugeTLB
+ * We should analt call this on a hugetlb entry. We should check for HugeTLB
  * entry using vma->vm_flags
  * The page table walk rule is explained in Documentation/mm/transhuge.rst
  */

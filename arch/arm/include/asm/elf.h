@@ -23,7 +23,7 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef struct user_fp elf_fpregset_t;
 
 #define EF_ARM_EABI_MASK	0xff000000
-#define EF_ARM_EABI_UNKNOWN	0x00000000
+#define EF_ARM_EABI_UNKANALWN	0x00000000
 #define EF_ARM_EABI_VER1	0x01000000
 #define EF_ARM_EABI_VER2	0x02000000
 #define EF_ARM_EABI_VER3	0x03000000
@@ -48,7 +48,7 @@ typedef struct user_fp elf_fpregset_t;
 #define EF_ARM_HASENTRY		0x00000002	/* All */
 #define EF_ARM_RELEXEC		0x00000001	/* All */
 
-#define R_ARM_NONE		0
+#define R_ARM_ANALNE		0
 #define R_ARM_PC24		1
 #define R_ARM_ABS32		2
 #define R_ARM_REL32		3
@@ -88,10 +88,10 @@ typedef struct user_fp elf_fpregset_t;
  * specific libraries for optimization.  This is more specific in
  * intent than poking at uname or /proc/cpuinfo.
  *
- * For now we just provide a fairly general string that describes the
+ * For analw we just provide a fairly general string that describes the
  * processor family.  This could be made more specific later if someone
  * implemented optimisations that require it.  26-bit CPUs give you
- * "v1l" for ARM2 (no SWP) and "v2l" for anything else (ARM1 isn't
+ * "v1l" for ARM2 (anal SWP) and "v2l" for anything else (ARM1 isn't
  * supported).  32-bit CPUs give you "v3[lb]" for anything based on an
  * ARM6 or ARM7 core and "armv4[lb]" for anything based on a StrongARM-1
  * core.
@@ -127,7 +127,7 @@ extern int arm_elf_read_implies_exec(int);
 
 /* When the program starts, a1 contains a pointer to a function to be 
    registered with atexit, as per the SVR4 ABI.  A value of 0 means we 
-   have no such handler.  */
+   have anal such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 
 #define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr, dynamic_addr) \

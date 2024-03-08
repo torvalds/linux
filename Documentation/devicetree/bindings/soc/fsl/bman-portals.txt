@@ -7,7 +7,7 @@ CONTENTS
 	- BMan Portal
 	- Example
 
-BMan Portal Node
+BMan Portal Analde
 
 Portals are memory mapped interfaces to BMan that allow low-latency, lock-less
 interaction by software running on processor cores, accelerators and network
@@ -35,7 +35,7 @@ PROPERTIES
 
 EXAMPLE
 
-The example below shows a (P4080) BMan portals container/bus node with two portals
+The example below shows a (P4080) BMan portals container/bus analde with two portals
 
 	bman-portals@ff4000000 {
 		#address-cells = <1>;

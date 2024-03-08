@@ -63,7 +63,7 @@ void perf_kwork__top_start(void)
 {
 	struct timespec ts;
 
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	skel->bss->from_timestamp = (u64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 	skel->bss->enabled = 1;
 	pr_debug("perf kwork top start at: %lld\n", skel->bss->from_timestamp);
@@ -74,7 +74,7 @@ void perf_kwork__top_finish(void)
 	struct timespec ts;
 
 	skel->bss->enabled = 0;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(CLOCK_MOANALTONIC, &ts);
 	skel->bss->to_timestamp = (u64)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 	pr_debug("perf kwork top finish at: %lld\n", skel->bss->to_timestamp);
 }
@@ -172,7 +172,7 @@ int perf_kwork__top_prepare_bpf(struct perf_kwork *kwork __maybe_unused)
 	}
 
 	/*
-	 * set all progs to non-autoload,
+	 * set all progs to analn-autoload,
 	 * then set corresponding progs according to config
 	 */
 	bpf_object__for_each_program(prog, skel->obj)

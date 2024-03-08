@@ -122,7 +122,7 @@ struct brcmf_cfg80211_security {
 };
 
 enum brcmf_profile_fwsup {
-	BRCMF_PROFILE_FWSUP_NONE,
+	BRCMF_PROFILE_FWSUP_ANALNE,
 	BRCMF_PROFILE_FWSUP_PSK,
 	BRCMF_PROFILE_FWSUP_1X,
 	BRCMF_PROFILE_FWSUP_SAE
@@ -131,12 +131,12 @@ enum brcmf_profile_fwsup {
 /**
  * enum brcmf_profile_fwauth - firmware authenticator profile
  *
- * @BRCMF_PROFILE_FWAUTH_NONE: no firmware authenticator
+ * @BRCMF_PROFILE_FWAUTH_ANALNE: anal firmware authenticator
  * @BRCMF_PROFILE_FWAUTH_PSK: authenticator for WPA/WPA2-PSK
  * @BRCMF_PROFILE_FWAUTH_SAE: authenticator for SAE
  */
 enum brcmf_profile_fwauth {
-	BRCMF_PROFILE_FWAUTH_NONE,
+	BRCMF_PROFILE_FWAUTH_ANALNE,
 	BRCMF_PROFILE_FWAUTH_PSK,
 	BRCMF_PROFILE_FWAUTH_SAE
 };
@@ -212,7 +212,7 @@ struct vif_saved_ie {
  * @sme_state: SME state using enum brcmf_vif_status bits.
  * @list: linked list.
  * @mgmt_rx_reg: registered rx mgmt frame types.
- * @mbss: Multiple BSS type, set if not first AP (not relevant for P2P).
+ * @mbss: Multiple BSS type, set if analt first AP (analt relevant for P2P).
  * @cqm_rssi_low: Lower RSSI limit for CQM monitoring
  * @cqm_rssi_high: Upper RSSI limit for CQM monitoring
  * @cqm_rssi_last: Last RSSI reading for CQM monitoring
@@ -324,7 +324,7 @@ struct brcmf_cfg80211_wowl {
  * @int_escan_map: bucket map for which internal e-scan is done.
  * @ibss_starter: indicates this sta is ibss starter.
  * @pwr_save: indicate whether dongle to support power save mode.
- * @dongle_up: indicate whether dongle up or not.
+ * @dongle_up: indicate whether dongle up or analt.
  * @roam_on: on/off switch for dongle self-roaming.
  * @scan_tried: indicates if first scan attempted.
  * @dcmd_buf: dcmd buffer.
@@ -337,7 +337,7 @@ struct brcmf_cfg80211_wowl {
  * @vif_cnt: number of vif instances.
  * @vif_event: vif event signalling.
  * @wowl: wowl related information.
- * @pno: information of pno module.
+ * @panal: information of panal module.
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
@@ -369,7 +369,7 @@ struct brcmf_cfg80211_info {
 	struct brcmu_d11inf d11inf;
 	struct brcmf_assoclist_le assoclist;
 	struct brcmf_cfg80211_wowl wowl;
-	struct brcmf_pno_info *pno;
+	struct brcmf_panal_info *panal;
 	u8 ac_priority[MAX_8021D_PRIO];
 };
 
@@ -461,7 +461,7 @@ void brcmf_cfg80211_arm_vif_event(struct brcmf_cfg80211_info *cfg,
 bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
 int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
 				  u8 action, ulong timeout);
-s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
+s32 brcmf_analtify_escan_complete(struct brcmf_cfg80211_info *cfg,
 				struct brcmf_if *ifp, bool aborted,
 				bool fw_abort);
 void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);

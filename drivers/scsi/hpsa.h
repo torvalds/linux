@@ -1,6 +1,6 @@
 /*
  *    Disk Array driver for HP Smart Array SAS controllers
- *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2020 Microchip Techanallogy Inc. and its subsidiaries
  *    Copyright 2016 Microsemi Corporation
  *    Copyright 2014-2015 PMC-Sierra, Inc.
  *    Copyright 2000,2009-2015 Hewlett-Packard Development Company, L.P.
@@ -12,7 +12,7 @@
  *    This program is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- *    NON INFRINGEMENT.  See the GNU General Public License for more details.
+ *    ANALN INFRINGEMENT.  See the GNU General Public License for more details.
  *
  *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
  *
@@ -36,7 +36,7 @@ struct access_method {
 };
 
 /* for SAS hosts and SAS expanders */
-struct hpsa_sas_node {
+struct hpsa_sas_analde {
 	struct device *parent_dev;
 	struct list_head port_list_head;
 };
@@ -47,7 +47,7 @@ struct hpsa_sas_port {
 	struct sas_port *port;
 	int next_phy_index;
 	struct list_head phy_list_head;
-	struct hpsa_sas_node *parent_node;
+	struct hpsa_sas_analde *parent_analde;
 	struct sas_rphy *rphy;
 };
 
@@ -100,17 +100,17 @@ struct hpsa_scsi_dev_t {
 
 	/*
 	 * Pointers from logical drive map indices to the phys drives that
-	 * make those logical drives.  Note, multiple logical drives may
+	 * make those logical drives.  Analte, multiple logical drives may
 	 * share physical drives.  You can have for instance 5 physical
 	 * drives with 3 logical drives each using those same 5 physical
 	 * disks. We need these pointers for counting i/o's out to physical
-	 * devices in order to honor physical device queue depth limits.
+	 * devices in order to hoanalr physical device queue depth limits.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 	int nphysical_disks;
 	int supports_aborts;
 	struct hpsa_sas_port *sas_port;
-	int external;   /* 1-from external array 0-not <0-unknown */
+	int external;   /* 1-from external array 0-analt <0-unkanalwn */
 };
 
 struct reply_queue_buffer {
@@ -253,7 +253,7 @@ struct ctlr_info {
 	struct delayed_work rescan_ctlr_work;
 	struct delayed_work event_monitor_work;
 	int remove_in_progress;
-	/* Address of h->q[x] is passed to intr handler to know which queue */
+	/* Address of h->q[x] is passed to intr handler to kanalw which queue */
 	u8 q[MAX_REPLY_QUEUES];
 	char intrname[MAX_REPLY_QUEUES][16];	/* "hpsa0-msix00" names */
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */
@@ -309,7 +309,7 @@ struct ctlr_info {
 	wait_queue_head_t event_sync_wait_queue;
 	struct mutex reset_mutex;
 	u8 reset_in_progress;
-	struct hpsa_sas_node *sas_host;
+	struct hpsa_sas_analde *sas_host;
 	spinlock_t reset_lock;
 };
 
@@ -323,7 +323,7 @@ struct offline_device_entry {
 #define HPSA_RESET_TYPE_CONTROLLER 0x00
 #define HPSA_RESET_TYPE_BUS 0x01
 #define HPSA_RESET_TYPE_LUN 0x04
-#define HPSA_PHYS_TARGET_RESET 0x99 /* not defined by cciss spec */
+#define HPSA_PHYS_TARGET_RESET 0x99 /* analt defined by cciss spec */
 #define HPSA_MSG_SEND_RETRY_LIMIT 10
 #define HPSA_MSG_SEND_RETRY_INTERVAL_MSECS (10000)
 
@@ -350,18 +350,18 @@ struct offline_device_entry {
  * HPSA_BOARD_READY_ITERATIONS are derived from those.
  */
 #define HPSA_BOARD_READY_WAIT_SECS (120)
-#define HPSA_BOARD_NOT_READY_WAIT_SECS (100)
+#define HPSA_BOARD_ANALT_READY_WAIT_SECS (100)
 #define HPSA_BOARD_READY_POLL_INTERVAL_MSECS (100)
 #define HPSA_BOARD_READY_POLL_INTERVAL \
 	((HPSA_BOARD_READY_POLL_INTERVAL_MSECS * HZ) / 1000)
 #define HPSA_BOARD_READY_ITERATIONS \
 	((HPSA_BOARD_READY_WAIT_SECS * 1000) / \
 		HPSA_BOARD_READY_POLL_INTERVAL_MSECS)
-#define HPSA_BOARD_NOT_READY_ITERATIONS \
-	((HPSA_BOARD_NOT_READY_WAIT_SECS * 1000) / \
+#define HPSA_BOARD_ANALT_READY_ITERATIONS \
+	((HPSA_BOARD_ANALT_READY_WAIT_SECS * 1000) / \
 		HPSA_BOARD_READY_POLL_INTERVAL_MSECS)
 #define HPSA_POST_RESET_PAUSE_MSECS (3000)
-#define HPSA_POST_RESET_NOOP_RETRIES (12)
+#define HPSA_POST_RESET_ANALOP_RETRIES (12)
 
 /*  Defining the diffent access_menthods */
 /*
@@ -424,7 +424,7 @@ static void SA5_submit_command(struct ctlr_info *h,
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
 }
 
-static void SA5_submit_command_no_read(struct ctlr_info *h,
+static void SA5_submit_command_anal_read(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
@@ -521,7 +521,7 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 
 /*
  *   returns value read from hardware.
- *     returns FIFO_EMPTY if there is nothing to read
+ *     returns FIFO_EMPTY if there is analthing to read
  */
 static unsigned long SA5_completed(struct ctlr_info *h,
 	__attribute__((unused)) u8 q)
@@ -656,8 +656,8 @@ static struct access_method SA5_performant_access = {
 	.command_completed =	SA5_performant_completed,
 };
 
-static struct access_method SA5_performant_access_no_read = {
-	.submit_command =	SA5_submit_command_no_read,
+static struct access_method SA5_performant_access_anal_read = {
+	.submit_command =	SA5_submit_command_anal_read,
 	.set_intr_mask =	SA5_performant_intr_mask,
 	.intr_pending =		SA5_performant_intr_pending,
 	.command_completed =	SA5_performant_completed,

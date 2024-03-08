@@ -36,7 +36,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/binfmts.h>
-#include <linux/dnotify.h>
+#include <linux/danaltify.h>
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
@@ -67,7 +67,7 @@ static int cp_compat_stat64(struct kstat *stat,
 	int err;
 
 	err  = put_user(huge_encode_dev(stat->dev), &statbuf->st_dev);
-	err |= put_user(stat->ino, &statbuf->st_ino);
+	err |= put_user(stat->ianal, &statbuf->st_ianal);
 	err |= put_user(stat->mode, &statbuf->st_mode);
 	err |= put_user(stat->nlink, &statbuf->st_nlink);
 	err |= put_user(from_kuid_munged(current_user_ns(), stat->uid), &statbuf->st_uid);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012  Smith Micro Software, Inc.
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.anal>
  *
  * This driver is based on and reuse most of cdc_ncm, which is
  * Copyright (C) ST-Ericsson 2010-2012
@@ -23,7 +23,7 @@
 #include <net/ipv6_stubs.h>
 #include <net/ndisc.h>
 
-/* alternative VLAN for IP session 0 if not untagged */
+/* alternative VLAN for IP session 0 if analt untagged */
 #define MBIM_IPS0_VID	4094
 
 /* driver specific data - must match cdc_ncm usage */
@@ -126,7 +126,7 @@ static int cdc_mbim_set_ctrlalt(struct usbnet *dev, struct usb_interface *intf, 
 
 	id = usb_match_id(intf, driver->id_table);
 	if (!id)
-		return -ENODEV;
+		return -EANALDEV;
 
 	info = (struct driver_info *)id->driver_info;
 	if (info != dev->driver_info) {
@@ -140,8 +140,8 @@ static int cdc_mbim_set_ctrlalt(struct usbnet *dev, struct usb_interface *intf, 
 static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct cdc_ncm_ctx *ctx;
-	struct usb_driver *subdriver = ERR_PTR(-ENODEV);
-	int ret = -ENODEV;
+	struct usb_driver *subdriver = ERR_PTR(-EANALDEV);
+	int ret = -EANALDEV;
 	u8 data_altsetting = 1;
 	struct cdc_mbim_state *info = (void *)&dev->data;
 
@@ -151,7 +151,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 		ret = cdc_mbim_set_ctrlalt(dev, intf, CDC_NCM_COMM_ALTSETTING_MBIM);
 		if (ret)
 			goto err;
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 	/* we will hit this for NCM/MBIM functions if prefer_mbim is false */
@@ -181,10 +181,10 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->status = NULL;
 	info->subdriver = subdriver;
 
-	/* MBIM cannot do ARP */
-	dev->net->flags |= IFF_NOARP;
+	/* MBIM cananalt do ARP */
+	dev->net->flags |= IFF_ANALARP;
 
-	/* no need to put the VLAN tci in the packet headers */
+	/* anal need to put the VLAN tci in the packet headers */
 	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	/* monitor VLAN additions and removals */
@@ -262,7 +262,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 		}
 
 		/* mapping VLANs to MBIM sessions:
-		 *   no tag     => IPS session <0> if !FLAG_IPS0_VLAN
+		 *   anal tag     => IPS session <0> if !FLAG_IPS0_VLAN
 		 *   1 - 255    => IPS session <vlanid>
 		 *   256 - 511  => DSS session <vlanid - 256>
 		 *   512 - 4093 => unsupported, drop
@@ -302,9 +302,9 @@ error:
 	return NULL;
 }
 
-/* Some devices are known to send Neighbor Solicitation messages and
- * require Neighbor Advertisement replies.  The IPv6 core will not
- * respond since IFF_NOARP is set, so we must handle them ourselves.
+/* Some devices are kanalwn to send Neighbor Solicitation messages and
+ * require Neighbor Advertisement replies.  The IPv6 core will analt
+ * respond since IFF_ANALARP is set, so we must handle them ourselves.
  */
 static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 {
@@ -315,7 +315,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	bool is_router;
 
 	/* we'll only respond to requests from unicast addresses to
-	 * our solicited node addresses.
+	 * our solicited analde addresses.
 	 */
 	if (!ipv6_addr_is_solict_mult(&iph->daddr) ||
 	    !(ipv6_addr_type(&iph->saddr) & IPV6_ADDR_UNICAST))
@@ -463,7 +463,7 @@ next_ndp:
 
 		/*
 		 * CDC NCM ch. 3.7
-		 * All entries after first NULL entry are to be ignored
+		 * All entries after first NULL entry are to be iganalred
 		 */
 		if ((offset == 0) || (len == 0)) {
 			if (!x)
@@ -474,7 +474,7 @@ next_ndp:
 		/* sanity checking */
 		if (((offset + len) > skb_in->len) || (len > ctx->rx_max)) {
 			netif_dbg(dev, rx_err, dev->net,
-				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%p\n",
+				  "invalid frame detected (iganalred) offset[%u]=%u, length=%u, skb=%p\n",
 				  x, offset, len, skb_in);
 			if (!x)
 				goto err_ndp;
@@ -504,7 +504,7 @@ error:
 
 static int cdc_mbim_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	int ret = -ENODEV;
+	int ret = -EANALDEV;
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct cdc_mbim_state *info = (void *)&dev->data;
 	struct cdc_ncm_ctx *ctx = info->ctx;
@@ -551,7 +551,7 @@ err:
 
 static const struct driver_info cdc_mbim_info = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.flags = FLAG_ANAL_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,
@@ -559,7 +559,7 @@ static const struct driver_info cdc_mbim_info = {
 	.tx_fixup = cdc_mbim_tx_fixup,
 };
 
-/* MBIM and NCM devices should not need a ZLP after NTBs with
+/* MBIM and NCM devices should analt need a ZLP after NTBs with
  * dwNtbOutMaxSize length. Nevertheless, a number of devices from
  * different vendor IDs will fail unless we send ZLPs, forcing us
  * to make this the default.
@@ -567,15 +567,15 @@ static const struct driver_info cdc_mbim_info = {
  * This default may cause a performance penalty for spec conforming
  * devices wanting to take advantage of optimizations possible without
  * ZLPs.  A whitelist is added in an attempt to avoid this for devices
- * known to conform to the MBIM specification.
+ * kanalwn to conform to the MBIM specification.
  *
- * All known devices supporting NCM compatibility mode are also
+ * All kanalwn devices supporting NCM compatibility mode are also
  * conforming to the NCM and MBIM specifications. For this reason, the
  * NCM subclass entry is also in the ZLP whitelist.
  */
 static const struct driver_info cdc_mbim_info_zlp = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
+	.flags = FLAG_ANAL_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,
@@ -588,13 +588,13 @@ static const struct driver_info cdc_mbim_info_zlp = {
  * packets.  Using the CDC_NCM_FLAG_NDP_TO_END flags to force this
  * behaviour.
  *
- * Note: The current implementation of this feature restricts each NTB
- * to a single NDP, implying that multiplexed sessions cannot share an
+ * Analte: The current implementation of this feature restricts each NTB
+ * to a single NDP, implying that multiplexed sessions cananalt share an
  * NTB. This might affect performance for multiplexed sessions.
  */
 static const struct driver_info cdc_mbim_info_ndp_to_end = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.flags = FLAG_ANAL_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,
@@ -603,13 +603,13 @@ static const struct driver_info cdc_mbim_info_ndp_to_end = {
 	.data = CDC_NCM_FLAG_NDP_TO_END,
 };
 
-/* Some modems (e.g. Telit LE922A6) do not work properly with altsetting
+/* Some modems (e.g. Telit LE922A6) do analt work properly with altsetting
  * toggle done in cdc_ncm_bind_common. CDC_MBIM_FLAG_AVOID_ALTSETTING_TOGGLE
  * flag is used to avoid this procedure.
  */
 static const struct driver_info cdc_mbim_info_avoid_altsetting_toggle = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
+	.flags = FLAG_ANAL_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,
@@ -626,52 +626,52 @@ static const struct usb_device_id mbim_devs[] = {
 	 * bind() will sort out this for us, selecting the correct
 	 * entry and reject the other
 	 */
-	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
 	},
 	/* ZLP conformance whitelist: All Ericsson MBIM devices */
-	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bdb, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bdb, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info,
 	},
 
 	/* Some Huawei devices, ME906s-158 (12d1:15c1) and E3372
-	 * (12d1:157d), are known to fail unless the NDP is placed
+	 * (12d1:157d), are kanalwn to fail unless the NDP is placed
 	 * after the IP packets.  Applying the quirk to all Huawei
 	 * devices is broader than necessary, but harmless.
 	 */
-	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_ndp_to_end,
 	},
 
 	/* The HP lt4132 (03f0:a31d) is a rebranded Huawei ME906s-158,
 	 * therefore it too requires the above "NDP to end" quirk.
 	 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0xa31d, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_ndp_to_end,
 	},
 
 	/* Telit LE922A6 in MBIM composition */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1041, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1041, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_avoid_altsetting_toggle,
 	},
 
 	/* Telit LN920 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1061, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1061, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_avoid_altsetting_toggle,
 	},
 
 	/* Telit FN990 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1071, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1071, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_avoid_altsetting_toggle,
 	},
 
 	/* Telit FE990 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1081, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1bc7, 0x1081, USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_avoid_altsetting_toggle,
 	},
 
 	/* default entry */
-	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_NONE),
+	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_MBIM, USB_CDC_PROTO_ANALNE),
 	  .driver_info = (unsigned long)&cdc_mbim_info_zlp,
 	},
 	{
@@ -693,6 +693,6 @@ static struct usb_driver cdc_mbim_driver = {
 module_usb_driver(cdc_mbim_driver);
 
 MODULE_AUTHOR("Greg Suarez <gsuarez@smithmicro.com>");
-MODULE_AUTHOR("Bjørn Mork <bjorn@mork.no>");
+MODULE_AUTHOR("Bjørn Mork <bjorn@mork.anal>");
 MODULE_DESCRIPTION("USB CDC MBIM host driver");
 MODULE_LICENSE("GPL");

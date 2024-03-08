@@ -8,7 +8,7 @@
 #include <linux/perf_event.h>
 #include <linux/zalloc.h>
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erranal.h>
 
 #include "../../../util/intel-pt.h"
 #include "../../../util/intel-bts.h"
@@ -34,7 +34,7 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 
 int perf_pmus__num_mem_pmus(void)
 {
-	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
+	/* AMD uses IBS OP pmu and analt a core PMU for perf mem/c2c */
 	if (x86__is_amd_cpu())
 		return 1;
 

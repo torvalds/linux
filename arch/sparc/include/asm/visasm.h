@@ -38,7 +38,7 @@
 	rd		%fprs, %o5;			\
 	andcc		%o5, FPRS_FEF, %g0;		\
 	be,pt		%icc, 297f;			\
-	 nop;						\
+	 analp;						\
 	ba,a,pt		%xcc, fail_label;		\
 297:	wr		%o5, FPRS_FEF, %fprs;
 

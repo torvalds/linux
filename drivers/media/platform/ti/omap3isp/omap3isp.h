@@ -4,7 +4,7 @@
  *
  * TI OMAP3 ISP - Bus Configuration
  *
- * Copyright (C) 2011 Nokia Corporation
+ * Copyright (C) 2011 Analkia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
@@ -37,7 +37,7 @@ enum isp_interface_type {
  * @fld_pol: Field signal polarity
  *		0 - Positive, 1 - Negative
  * @data_pol: Data polarity
- *		0 - Normal, 1 - One's complement
+ *		0 - Analrmal, 1 - One's complement
  * @bt656: Data contain BT.656 embedded synchronization
  */
 struct isp_parallel_cfg {
@@ -86,7 +86,7 @@ struct isp_csiphy_lanes_cfg {
 /**
  * struct isp_ccp2_cfg - CCP2 interface configuration
  * @strobe_clk_pol: Strobe/clock polarity
- *		0 - Non Inverted, 1 - Inverted
+ *		0 - Analn Inverted, 1 - Inverted
  * @crc: Enable the cyclic redundancy check
  * @ccp2_mode: Enable CCP2 compatibility mode
  *		ISP_CCP2_MODE_MIPI - MIPI-CSI1 mode
@@ -126,7 +126,7 @@ struct isp_bus_cfg {
 		struct isp_parallel_cfg parallel;
 		struct isp_ccp2_cfg ccp2;
 		struct isp_csi2_cfg csi2;
-	} bus; /* gcc < 4.6.0 chokes on anonymous union initializers */
+	} bus; /* gcc < 4.6.0 chokes on aanalnymous union initializers */
 };
 
 #endif	/* __OMAP3ISP_H__ */

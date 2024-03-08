@@ -74,7 +74,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_scp_init(void *priv, enum mtk_vcodec_fw_use 
 
 	scp = scp_get(plat_dev);
 	if (!scp) {
-		dev_err(&plat_dev->dev, "could not get vdec scp handle");
+		dev_err(&plat_dev->dev, "could analt get vdec scp handle");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 

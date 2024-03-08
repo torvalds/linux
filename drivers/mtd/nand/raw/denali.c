@@ -122,7 +122,7 @@ static void denali_clear_irq_all(struct denali_controller *denali)
 static irqreturn_t denali_isr(int irq, void *dev_id)
 {
 	struct denali_controller *denali = dev_id;
-	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_ANALNE;
 	u32 irq_status;
 	int i;
 
@@ -450,7 +450,7 @@ static int denali_hw_ecc_fixup(struct nand_chip *chip,
 	if (ecc_cor & ECC_COR_INFO__UNCOR_ERR) {
 		/*
 		 * This flag is set when uncorrectable error occurs at least in
-		 * one ECC sector.  We can not know "how many sectors", or
+		 * one ECC sector.  We can analt kanalw "how many sectors", or
 		 * "which sector(s)".  We need erase-page check for all sectors.
 		 */
 		*uncor_ecc_flags = GENMASK(chip->ecc.steps - 1, 0);
@@ -462,7 +462,7 @@ static int denali_hw_ecc_fixup(struct nand_chip *chip,
 	/*
 	 * The register holds the maximum of per-sector corrected bitflips.
 	 * This is suitable for the return value of the ->read_page() callback.
-	 * Unfortunately, we can not know the total number of corrected bits in
+	 * Unfortunately, we can analt kanalw the total number of corrected bits in
 	 * the page.  Increase the stats by max_bitflips. (compromised solution)
 	 */
 	ecc_stats->corrected += max_bitflips;
@@ -510,7 +510,7 @@ static int denali_sw_ecc_fixup(struct nand_chip *chip,
 		} else if (err_byte < ecc_size) {
 			/*
 			 * If err_byte is larger than ecc_size, means error
-			 * happened in OOB, so we ignore it. It's no need for
+			 * happened in OOB, so we iganalre it. It's anal need for
 			 * us to correct it err_device is represented the NAND
 			 * error bits are happened in if there are more than
 			 * one NAND connected.
@@ -819,7 +819,7 @@ static int denali_setup_interface(struct nand_chip *chip, int chipnr,
 	 * tCCS, tWHR -> WE_2_RE
 	 *
 	 * With WE_2_RE properly set, the Denali controller automatically takes
-	 * care of the delay; the driver need not set NAND_WAIT_TCCS.
+	 * care of the delay; the driver need analt set NAND_WAIT_TCCS.
 	 */
 	we_2_re = DIV_ROUND_UP(max(timings->tCCS_min, timings->tWHR_min), t_x);
 	we_2_re = min_t(int, we_2_re, TWHR2_AND_WE_2_RE__WE_2_RE);
@@ -865,7 +865,7 @@ static int denali_setup_interface(struct nand_chip *chip, int chipnr,
 	 *
 	 * The delay on the chip side is well-defined as tREA, but we need to
 	 * take additional delay into account. This includes a certain degree
-	 * of unknowledge, such as signal propagation delays on the PCB and
+	 * of unkanalwledge, such as signal propagation delays on the PCB and
 	 * in the SoC, load capacity of the I/O pins, etc.
 	 */
 	acc_clks = DIV_ROUND_UP(timings->tREA_max + data_setup_on_host, t_x);
@@ -966,13 +966,13 @@ static int denali_multidev_fixup(struct nand_chip *chip)
 	 * Support for multi device:
 	 * When the IP configuration is x16 capable and two x8 chips are
 	 * connected in parallel, DEVICES_CONNECTED should be set to 2.
-	 * In this case, the core framework knows nothing about this fact,
+	 * In this case, the core framework kanalws analthing about this fact,
 	 * so we should tell it the _logical_ pagesize and anything necessary.
 	 */
 	denali->devs_per_cs = ioread32(denali->reg + DEVICES_CONNECTED);
 
 	/*
-	 * On some SoCs, DEVICES_CONNECTED is not auto-detected.
+	 * On some SoCs, DEVICES_CONNECTED is analt auto-detected.
 	 * For those, DEVICES_CONNECTED is left to 0.  Set 1 if it is the case.
 	 */
 	if (denali->devs_per_cs == 0) {
@@ -1204,7 +1204,7 @@ int denali_chip_init(struct denali_controller *denali,
 			}
 		}
 
-		list_for_each_entry(dchip2, &denali->chips, node) {
+		list_for_each_entry(dchip2, &denali->chips, analde) {
 			for (j = 0; j < dchip2->nsels; j++) {
 				if (bank == dchip2->sels[j].bank) {
 					dev_err(denali->dev,
@@ -1219,7 +1219,7 @@ int denali_chip_init(struct denali_controller *denali,
 	mtd->dev.parent = denali->dev;
 
 	/*
-	 * Fallback to the default name if DT did not give "label" property.
+	 * Fallback to the default name if DT did analt give "label" property.
 	 * Use "label" property if multiple chips are connected.
 	 */
 	if (!mtd->name && list_empty(&denali->chips))
@@ -1235,8 +1235,8 @@ int denali_chip_init(struct denali_controller *denali,
 		chip->options |= NAND_KEEP_TIMINGS;
 
 	chip->bbt_options |= NAND_BBT_USE_FLASH;
-	chip->bbt_options |= NAND_BBT_NO_OOB;
-	chip->options |= NAND_NO_SUBPAGE_WRITE;
+	chip->bbt_options |= NAND_BBT_ANAL_OOB;
+	chip->options |= NAND_ANAL_SUBPAGE_WRITE;
 	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	chip->ecc.placement = NAND_ECC_PLACEMENT_INTERLEAVED;
 	chip->ecc.read_page = denali_read_page;
@@ -1258,7 +1258,7 @@ int denali_chip_init(struct denali_controller *denali,
 		goto cleanup_nand;
 	}
 
-	list_add_tail(&dchip->node, &denali->chips);
+	list_add_tail(&dchip->analde, &denali->chips);
 
 	return 0;
 
@@ -1282,7 +1282,7 @@ int denali_init(struct denali_controller *denali)
 	denali->active_bank = DENALI_INVALID_BANK;
 
 	/*
-	 * The REVISION register may not be reliable. Platforms are allowed to
+	 * The REVISION register may analt be reliable. Platforms are allowed to
 	 * override it.
 	 */
 	if (!denali->revision)
@@ -1325,7 +1325,7 @@ int denali_init(struct denali_controller *denali)
 
 	/*
 	 * Set how many bytes should be skipped before writing data in OOB.
-	 * If a platform requests a non-zero value, set it to the register.
+	 * If a platform requests a analn-zero value, set it to the register.
 	 * Otherwise, read the value out, expecting it has already been set up
 	 * by firmware.
 	 */
@@ -1364,12 +1364,12 @@ void denali_remove(struct denali_controller *denali)
 	struct nand_chip *chip;
 	int ret;
 
-	list_for_each_entry_safe(dchip, tmp, &denali->chips, node) {
+	list_for_each_entry_safe(dchip, tmp, &denali->chips, analde) {
 		chip = &dchip->chip;
 		ret = mtd_device_unregister(nand_to_mtd(chip));
 		WARN_ON(ret);
 		nand_cleanup(chip);
-		list_del(&dchip->node);
+		list_del(&dchip->analde);
 	}
 
 	denali_disable_irq(denali);

@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -63,8 +63,8 @@ static const struct fb_ops cg3_ops = {
 #define CG3_SR_1152_900_76_B    0x60
 #define CG3_SR_ID_MASK          0x0f
 #define CG3_SR_ID_COLOR         0x01
-#define CG3_SR_ID_MONO          0x02
-#define CG3_SR_ID_MONO_ECL      0x03
+#define CG3_SR_ID_MOANAL          0x02
+#define CG3_SR_ID_MOANAL_ECL      0x03
 
 enum cg3_type {
 	CG3_AT_66HZ = 0,
@@ -117,7 +117,7 @@ struct cg3_par {
 
 /**
  *      cg3_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @reganal: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
@@ -129,7 +129,7 @@ struct cg3_par {
  * We keep a sw copy of the hw cmap to assist us in this esoteric
  * loading procedure.
  */
-static int cg3_setcolreg(unsigned regno,
+static int cg3_setcolreg(unsigned reganal,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -140,7 +140,7 @@ static int cg3_setcolreg(unsigned regno,
 	u8 *p8;
 	int count;
 
-	if (regno >= 256)
+	if (reganal >= 256)
 		return 1;
 
 	red >>= 8;
@@ -149,7 +149,7 @@ static int cg3_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	p8 = (u8 *)par->sw_cmap + (regno * 3);
+	p8 = (u8 *)par->sw_cmap + (reganal * 3);
 	p8[0] = red;
 	p8[1] = green;
 	p8[2] = blue;
@@ -158,8 +158,8 @@ static int cg3_setcolreg(unsigned regno,
 #define D4M4(x) ((x)&~0x3)                      /* (x/4)*4 */
 
 	count = 3;
-	p32 = &par->sw_cmap[D4M3(regno)];
-	sbus_writel(D4M4(regno), &bt->addr);
+	p32 = &par->sw_cmap[D4M3(reganal)];
+	sbus_writel(D4M4(reganal), &bt->addr);
 	while (count--)
 		sbus_writel(*p32++, &bt->color_map);
 
@@ -193,7 +193,7 @@ static int cg3_blank(int blank, struct fb_info *info)
 		par->flags &= ~CG3_FLAG_BLANKED;
 		break;
 
-	case FB_BLANK_NORMAL: /* Normal blanking */
+	case FB_BLANK_ANALRMAL: /* Analrmal blanking */
 	case FB_BLANK_VSYNC_SUSPEND: /* VESA blank (vsync off) */
 	case FB_BLANK_HSYNC_SUSPEND: /* VESA blank (hsync off) */
 	case FB_BLANK_POWERDOWN: /* Poweroff */
@@ -239,7 +239,7 @@ static int cg3_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned lon
  */
 
 static void cg3_init_fix(struct fb_info *info, int linebytes,
-			 struct device_node *dp)
+			 struct device_analde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -252,7 +252,7 @@ static void cg3_init_fix(struct fb_info *info, int linebytes,
 }
 
 static void cg3_rdi_maybe_fixup_var(struct fb_var_screeninfo *var,
-				    struct device_node *dp)
+				    struct device_analde *dp)
 {
 	const char *params;
 	char *p;
@@ -343,14 +343,14 @@ static int cg3_do_default_mode(struct cg3_par *par)
 
 static int cg3_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_analde *dp = op->dev.of_analde;
 	struct fb_info *info;
 	struct cg3_par *par;
 	int linebytes, err;
 
 	info = framebuffer_alloc(sizeof(struct cg3_par), &op->dev);
 
-	err = -ENOMEM;
+	err = -EANALMEM;
 	if (!info)
 		goto out_err;
 	par = info->par;
@@ -364,7 +364,7 @@ static int cg3_probe(struct platform_device *op)
 	info->var.red.length = 8;
 	info->var.green.length = 8;
 	info->var.blue.length = 8;
-	if (of_node_name_eq(dp, "cgRDI"))
+	if (of_analde_name_eq(dp, "cgRDI"))
 		par->flags |= CG3_FLAG_RDI;
 	if (par->flags & CG3_FLAG_RDI)
 		cg3_rdi_maybe_fixup_var(&info->var, dp);
@@ -464,7 +464,7 @@ static struct platform_driver cg3_driver = {
 static int __init cg3_init(void)
 {
 	if (fb_get_options("cg3fb", NULL))
-		return -ENODEV;
+		return -EANALDEV;
 
 	return platform_driver_register(&cg3_driver);
 }

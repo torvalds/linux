@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPI__LINUX_MROUTE6_H
 #define _UAPI__LINUX_MROUTE6_H
 
@@ -124,14 +124,14 @@ struct sioc_mif_req6 {
 
 /*
  * Structure used to communicate from kernel to multicast router.
- * We'll overlay the structure onto an MLD header (not an IPv6 heder like igmpmsg{}
+ * We'll overlay the structure onto an MLD header (analt an IPv6 heder like igmpmsg{}
  * used for IPv4 implementation). This is because this structure will be passed via an
  * IPv6 raw socket, on which an application will only receiver the payload i.e the data after
  * the IPv6 header and all the extension headers. (See section 3 of RFC 3542)
  */
 
 struct mrt6msg {
-#define MRT6MSG_NOCACHE		1
+#define MRT6MSG_ANALCACHE		1
 #define MRT6MSG_WRONGMIF	2
 #define MRT6MSG_WHOLEPKT	3		/* used for use level encap */
 #define MRT6MSG_WRMIFWHOLE	4		/* For PIM Register and assert processing */

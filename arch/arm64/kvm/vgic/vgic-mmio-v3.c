@@ -118,7 +118,7 @@ static void vgic_mmio_write_v3_misc(struct kvm_vcpu *vcpu,
 
 		dist->enabled = val & GICD_CTLR_ENABLE_SS_G1;
 
-		/* Not a GICv4.1? No HW SGIs */
+		/* Analt a GICv4.1? Anal HW SGIs */
 		if (!kvm_vgic_global_state.has_gicv4_1 || !gic_cpuif_has_vsgi())
 			val &= ~GICD_CTLR_nASSGIreq;
 
@@ -177,7 +177,7 @@ static int vgic_mmio_uaccess_write_v3_misc(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		}
 	case GICD_CTLR:
-		/* Not a GICv4.1? No HW SGIs */
+		/* Analt a GICv4.1? Anal HW SGIs */
 		if (!kvm_vgic_global_state.has_gicv4_1)
 			val &= ~GICD_CTLR_nASSGIreq;
 
@@ -306,7 +306,7 @@ static bool vgic_mmio_vcpu_rdist_is_last(struct kvm_vcpu *vcpu)
 
 		/*
 		 * the rdist is the last one of the redist region,
-		 * check whether there is no other contiguous rdist region
+		 * check whether there is anal other contiguous rdist region
 		 */
 		list_for_each_entry(iter, rd_regions, list) {
 			if (iter->base == end && iter->free_index > 0)
@@ -377,7 +377,7 @@ u64 vgic_sanitise_shareability(u64 field)
 	}
 }
 
-/* Avoid any inner non-cacheable mapping. */
+/* Avoid any inner analn-cacheable mapping. */
 u64 vgic_sanitise_inner_cacheability(u64 field)
 {
 	switch (field) {
@@ -389,7 +389,7 @@ u64 vgic_sanitise_inner_cacheability(u64 field)
 	}
 }
 
-/* Non-cacheable or same-as-inner are OK. */
+/* Analn-cacheable or same-as-inner are OK. */
 u64 vgic_sanitise_outer_cacheability(u64 field)
 {
 	switch (field) {
@@ -536,7 +536,7 @@ static void vgic_mmio_write_invlpi(struct kvm_vcpu *vcpu,
 	 * register, drop the write on the floor, as it is only for
 	 * vPEs (which we don't support for obvious reasons).
 	 *
-	 * Also discard the access if LPIs are not enabled.
+	 * Also discard the access if LPIs are analt enabled.
 	 */
 	if ((addr & 4) || !vgic_lpis_enabled(vcpu))
 		return;
@@ -568,7 +568,7 @@ static void vgic_mmio_write_invall(struct kvm_vcpu *vcpu,
 /*
  * The GICv3 per-IRQ registers are split to control PPIs and SGIs in the
  * redistributors, while SPIs are covered by registers in the distributor
- * block. Trying to set private IRQs in this block gets ignored.
+ * block. Trying to set private IRQs in this block gets iganalred.
  * We take some special care here to fix the calculation of the register
  * offset.
  */
@@ -741,7 +741,7 @@ unsigned int vgic_v3_init_dist_iodev(struct vgic_io_device *dev)
  * Register a KVM iodev for this VCPU's redistributor using the address
  * provided.
  *
- * Return 0 on success, -ERRNO otherwise.
+ * Return 0 on success, -ERRANAL otherwise.
  */
 int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 {
@@ -763,7 +763,7 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	 * We may be creating VCPUs before having set the base address for the
 	 * redistributor region, in which case we will come back to this
 	 * function for all VCPUs when the base address is set.  Just return
-	 * without doing any work for now.
+	 * without doing any work for analw.
 	 */
 	rdreg = vgic_v3_rdist_free_slot(&vgic->rd_regions);
 	if (!rdreg)
@@ -840,7 +840,7 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
  * vgic_v3_alloc_redist_region - Allocate a new redistributor region
  *
  * Performs various checks before inserting the rdist region in the list.
- * Those tests depend on whether the size of the rdist region is known
+ * Those tests depend on whether the size of the rdist region is kanalwn
  * (ie. count != 0). The list is sorted by rdist region index.
  *
  * @kvm: kvm handle
@@ -886,7 +886,7 @@ static int vgic_v3_alloc_redist_region(struct kvm *kvm, uint32_t index,
 
 	/*
 	 * For legacy single-region redistributor regions (!count),
-	 * check that the redistributor region does not overlap with the
+	 * check that the redistributor region does analt overlap with the
 	 * distributor's address space.
 	 */
 	if (!count && !IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
@@ -899,7 +899,7 @@ static int vgic_v3_alloc_redist_region(struct kvm *kvm, uint32_t index,
 
 	rdreg = kzalloc(sizeof(*rdreg), GFP_KERNEL_ACCOUNT);
 	if (!rdreg)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	rdreg->base = VGIC_ADDR_UNDEF;
 
@@ -1050,10 +1050,10 @@ static void vgic_v3_queue_sgi(struct kvm_vcpu *vcpu, u32 sgi, bool allow_group1)
  * This ICC_SGI1R_EL1 register contains the upper three affinity levels of the
  * target processors as well as a bitmask of 16 Aff0 CPUs.
  *
- * If the interrupt routing mode bit is not set, we iterate over the Aff0
+ * If the interrupt routing mode bit is analt set, we iterate over the Aff0
  * bits and signal the VCPUs matching the provided Aff{3,2,1}.
  *
- * If this bit is set, we signal all, but not the calling VCPU.
+ * If this bit is set, we signal all, but analt the calling VCPU.
  */
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 {

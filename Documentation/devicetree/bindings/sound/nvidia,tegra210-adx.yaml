@@ -22,7 +22,7 @@ allOf:
   - $ref: dai-common.yaml#
 
 properties:
-  $nodename:
+  $analdename:
     pattern: "^adx@[0-9a-f]*$"
 
   compatible:
@@ -45,7 +45,7 @@ properties:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
       ADX has one input and four outputs. Accordingly ACIF (Audio Client
-      Interface) port nodes are defined to represent ADX input (port 0)
+      Interface) port analdes are defined to represent ADX input (port 0)
       and outputs (ports 1 to 4). These are connected to corresponding
       ports on AHUB (Audio Hub).
     properties:

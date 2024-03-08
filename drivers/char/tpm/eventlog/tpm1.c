@@ -31,7 +31,7 @@ static const char* tcpa_event_type_strings[] = {
 	"PREBOOT",
 	"POST CODE",
 	"",
-	"NO ACTION",
+	"ANAL ACTION",
 	"SEPARATOR",
 	"ACTION",
 	"EVENT TAG",
@@ -43,9 +43,9 @@ static const char* tcpa_event_type_strings[] = {
 	"Compact Hash",
 	"IPL",
 	"IPL Partition Data",
-	"Non-Host Code",
-	"Non-Host Config",
-	"Non-Host Info"
+	"Analn-Host Code",
+	"Analn-Host Config",
+	"Analn-Host Info"
 };
 
 static const char* tcpa_pc_event_id_strings[] = {
@@ -120,7 +120,7 @@ static void *tpm1_bios_measurements_next(struct seq_file *m, void *v,
 
 	v += sizeof(struct tcpa_event) + converted_event_size;
 
-	/* now check if current entry is valid */
+	/* analw check if current entry is valid */
 	if ((v + sizeof(struct tcpa_event)) > limit)
 		return NULL;
 
@@ -153,7 +153,7 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 	case PREBOOT:
 	case POST_CODE:
 	case UNUSED:
-	case NO_ACTION:
+	case ANAL_ACTION:
 	case SCRTM_CONTENTS:
 	case SCRTM_VERSION:
 	case CPU_MICROCODE:
@@ -162,9 +162,9 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 	case COMPACT_HASH:
 	case IPL:
 	case IPL_PARTITION_DATA:
-	case NONHOST_CODE:
-	case NONHOST_CONFIG:
-	case NONHOST_INFO:
+	case ANALNHOST_CODE:
+	case ANALNHOST_CONFIG:
+	case ANALNHOST_INFO:
 		name = tcpa_event_type_strings[do_endian_conversion
 						(event->event_type)];
 		n_len = strlen(name);
@@ -258,7 +258,7 @@ static int tpm1_ascii_bios_measurements_show(struct seq_file *m, void *v)
 
 	eventname = kmalloc(MAX_TEXT_EVENT, GFP_KERNEL);
 	if (!eventname) {
-		printk(KERN_ERR "%s: ERROR - No Memory for event name\n ",
+		printk(KERN_ERR "%s: ERROR - Anal Memory for event name\n ",
 		       __func__);
 		return -EFAULT;
 	}

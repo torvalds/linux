@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * KMSAN checks to be used for one-off annotations in subsystems.
+ * KMSAN checks to be used for one-off ananaltations in subsystems.
  *
  * Copyright (C) 2017-2022 Google LLC
  * Author: Alexander Potapenko <glider@google.com>
@@ -47,14 +47,14 @@ void kmsan_unpoison_memory(const void *address, size_t size);
 void kmsan_check_memory(const void *address, size_t size);
 
 /**
- * kmsan_copy_to_user() - Notify KMSAN about a data transfer to userspace.
+ * kmsan_copy_to_user() - Analtify KMSAN about a data transfer to userspace.
  * @to:      destination address in the userspace.
  * @from:    source address in the kernel.
  * @to_copy: number of bytes to copy.
- * @left:    number of bytes not copied.
+ * @left:    number of bytes analt copied.
  *
  * If this is a real userspace data transfer, KMSAN checks the bytes that were
- * actually copied to ensure there was no information leak. If @to belongs to
+ * actually copied to ensure there was anal information leak. If @to belongs to
  * the kernel space (which is possible for compat syscalls), KMSAN just copies
  * the metadata.
  */

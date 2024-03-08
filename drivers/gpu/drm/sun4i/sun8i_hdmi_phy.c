@@ -249,7 +249,7 @@ static int sun8i_h3_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 	pll_cfg1_init = SUN8I_HDMI_PHY_PLL_CFG1_LDO2_EN |
 			SUN8I_HDMI_PHY_PLL_CFG1_LDO1_EN |
 			SUN8I_HDMI_PHY_PLL_CFG1_LDO_VSET(7) |
-			SUN8I_HDMI_PHY_PLL_CFG1_UNKNOWN(1) |
+			SUN8I_HDMI_PHY_PLL_CFG1_UNKANALWN(1) |
 			SUN8I_HDMI_PHY_PLL_CFG1_PLLDBEN |
 			SUN8I_HDMI_PHY_PLL_CFG1_CS |
 			SUN8I_HDMI_PHY_PLL_CFG1_CP_S(2) |
@@ -341,7 +341,7 @@ static int sun8i_h3_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 			   SUN8I_HDMI_PHY_ANA_CFG1_TXEN_MASK, 0);
 
 	/*
-	 * NOTE: We have to be careful not to overwrite PHY parent
+	 * ANALTE: We have to be careful analt to overwrite PHY parent
 	 * clock selection bit and clock divider.
 	 */
 	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_PLL_CFG1_REG,
@@ -521,19 +521,19 @@ int sun8i_hdmi_phy_init(struct sun8i_hdmi_phy *phy)
 
 	ret = reset_control_deassert(phy->rst_phy);
 	if (ret) {
-		dev_err(phy->dev, "Cannot deassert phy reset control: %d\n", ret);
+		dev_err(phy->dev, "Cananalt deassert phy reset control: %d\n", ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(phy->clk_bus);
 	if (ret) {
-		dev_err(phy->dev, "Cannot enable bus clock: %d\n", ret);
+		dev_err(phy->dev, "Cananalt enable bus clock: %d\n", ret);
 		goto err_assert_rst_phy;
 	}
 
 	ret = clk_prepare_enable(phy->clk_mod);
 	if (ret) {
-		dev_err(phy->dev, "Cannot enable mod clock: %d\n", ret);
+		dev_err(phy->dev, "Cananalt enable mod clock: %d\n", ret);
 		goto err_disable_clk_bus;
 	}
 
@@ -650,9 +650,9 @@ static const struct of_device_id sun8i_hdmi_phy_of_table[] = {
 	{ /* sentinel */ }
 };
 
-int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
+int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_analde *analde)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
+	struct platform_device *pdev = of_find_device_by_analde(analde);
 	struct sun8i_hdmi_phy *phy;
 
 	if (!pdev)
@@ -679,7 +679,7 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	phy->variant = of_device_get_match_data(dev);
 	phy->dev = dev;
@@ -698,31 +698,31 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 	phy->clk_bus = devm_clk_get(dev, "bus");
 	if (IS_ERR(phy->clk_bus))
 		return dev_err_probe(dev, PTR_ERR(phy->clk_bus),
-				     "Could not get bus clock\n");
+				     "Could analt get bus clock\n");
 
 	phy->clk_mod = devm_clk_get(dev, "mod");
 	if (IS_ERR(phy->clk_mod))
 		return dev_err_probe(dev, PTR_ERR(phy->clk_mod),
-				     "Could not get mod clock\n");
+				     "Could analt get mod clock\n");
 
 	if (phy->variant->has_phy_clk) {
 		phy->clk_pll0 = devm_clk_get(dev, "pll-0");
 		if (IS_ERR(phy->clk_pll0))
 			return dev_err_probe(dev, PTR_ERR(phy->clk_pll0),
-					     "Could not get pll-0 clock\n");
+					     "Could analt get pll-0 clock\n");
 
 		if (phy->variant->has_second_pll) {
 			phy->clk_pll1 = devm_clk_get(dev, "pll-1");
 			if (IS_ERR(phy->clk_pll1))
 				return dev_err_probe(dev, PTR_ERR(phy->clk_pll1),
-						     "Could not get pll-1 clock\n");
+						     "Could analt get pll-1 clock\n");
 		}
 	}
 
 	phy->rst_phy = devm_reset_control_get_shared(dev, "phy");
 	if (IS_ERR(phy->rst_phy))
 		return dev_err_probe(dev, PTR_ERR(phy->rst_phy),
-				     "Could not get phy reset control\n");
+				     "Could analt get phy reset control\n");
 
 	platform_set_drvdata(pdev, phy);
 

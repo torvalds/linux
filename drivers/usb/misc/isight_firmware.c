@@ -10,7 +10,7 @@
  * detaches from the USB bus and reattaches with a new device ID. It can then
  * be claimed by the uvc driver.
  *
- * The firmware is non-free and must be extracted by the user. Tools to do this
+ * The firmware is analn-free and must be extracted by the user. Tools to do this
  * are available at http://bersace03.free.fr/ift/
  *
  * The isight firmware loading was reverse engineered by Johannes Berg
@@ -20,7 +20,7 @@
 
 #include <linux/usb.h>
 #include <linux/firmware.h>
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -42,11 +42,11 @@ static int isight_firmware_load(struct usb_interface *intf,
 	const u8 *ptr;
 
 	if (!buf)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	if (request_firmware(&firmware, "isight.fw", &dev->dev) != 0) {
 		printk(KERN_ERR "Unable to load isight firmware\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -58,7 +58,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 	     300) != 1) {
 		printk(KERN_ERR
 		       "Failed to initialise isight firmware loader\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 		goto out;
 	}
 
@@ -79,7 +79,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 			if (ptr+llen > firmware->data+firmware->size) {
 				printk(KERN_ERR
 				       "Malformed isight firmware");
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto out;
 			}
 			memcpy(buf, ptr, llen);
@@ -91,7 +91,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 			     buf, llen, 300) != llen) {
 				printk(KERN_ERR
 				       "Failed to load isight firmware\n");
-				ret = -ENODEV;
+				ret = -EANALDEV;
 				goto out;
 			}
 
@@ -103,7 +103,7 @@ static int isight_firmware_load(struct usb_interface *intf,
 	    (dev, usb_sndctrlpipe(dev, 0), 0xa0, 0x40, 0xe600, 0, buf, 1,
 	     300) != 1) {
 		printk(KERN_ERR "isight firmware loading completion failed\n");
-		ret = -ENODEV;
+		ret = -EANALDEV;
 	}
 
 out:

@@ -2,13 +2,13 @@
 #ifndef __ASMARM_ARCH_SCU_H
 #define __ASMARM_ARCH_SCU_H
 
-#define SCU_PM_NORMAL	0
+#define SCU_PM_ANALRMAL	0
 #define SCU_PM_DORMANT	2
 #define SCU_PM_POWEROFF	3
 
 #ifndef __ASSEMBLER__
 
-#include <linux/errno.h>
+#include <linux/erranal.h>
 #include <asm/cputype.h>
 
 static inline bool scu_a9_has_base(void)

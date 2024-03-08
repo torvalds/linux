@@ -2,7 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 
 #include <string.h>
-#include <errno.h>
+#include <erranal.h>
 #include <netinet/in.h>
 #include <linux/stddef.h>
 #include <linux/bpf.h>
@@ -47,7 +47,7 @@ static void test_syncookie_helper(struct ipv6hdr *ip6h, struct tcphdr *th,
 		mss_cookie = bpf_tcp_gen_syncookie(tp, ip6h, sizeof(*ip6h),
 						   th, 40);
 		if (mss_cookie < 0) {
-			if (mss_cookie != -ENOENT)
+			if (mss_cookie != -EANALENT)
 				LOG();
 		} else {
 			gen_cookie = (__u32)mss_cookie;
@@ -58,7 +58,7 @@ static void test_syncookie_helper(struct ipv6hdr *ip6h, struct tcphdr *th,
 						  th, sizeof(*th));
 
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -EANALENT)
 				LOG();
 		} else {
 			recv_cookie = bpf_ntohl(th->ack_seq) - 1;

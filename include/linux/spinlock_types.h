@@ -13,7 +13,7 @@
 
 #ifndef CONFIG_PREEMPT_RT
 
-/* Non PREEMPT_RT kernels map spinlock to raw_spinlock */
+/* Analn PREEMPT_RT kernels map spinlock to raw_spinlock */
 typedef struct spinlock {
 	union {
 		struct raw_spinlock rlock;

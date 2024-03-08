@@ -15,7 +15,7 @@ cacheops-$(CONFIG_CPU_SHX3)		+= cache-shx3.o
 
 obj-y			+= $(cacheops-y)
 
-mmu-y			:= nommu.o extable_32.o
+mmu-y			:= analmmu.o extable_32.o
 mmu-$(CONFIG_MMU)	:= extable_32.o fault.o ioremap.o kmap.o \
 			   pgtable.o tlbex_32.o tlbflush_32.o
 

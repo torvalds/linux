@@ -15,7 +15,7 @@ allOf:
 description: |
   There are two key functions provided by MT6397, MT6323 and other MediaTek
   PMICs: pwrkey and homekey.
-  The key functions are defined as the subnode of the function node provided
+  The key functions are defined as the subanalde of the function analde provided
   by the PMIC that is defined as a Multi-Function Device (MFD).
 
   For MediaTek MT6323/MT6397 PMIC bindings see

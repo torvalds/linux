@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// HiSilicon SPI NOR V3XX Flash Controller Driver for hi16xx chipsets
+// HiSilicon SPI ANALR V3XX Flash Controller Driver for hi16xx chipsets
 //
-// Copyright (c) 2019 HiSilicon Technologies Co., Ltd.
+// Copyright (c) 2019 HiSilicon Techanallogies Co., Ltd.
 // Author: John Garry <john.garry@huawei.com>
 
 #include <linux/bitops.h>
@@ -56,7 +56,7 @@
 
 /*
  * The IO modes lookup table. hisi_sfc_v3xx_io_modes[(z - 1) / 2][y / 2][x / 2]
- * stands for x-y-z mode, as described in SFDP terminology. -EIO indicates
+ * stands for x-y-z mode, as described in SFDP termianallogy. -EIO indicates
  * an invalid mode.
  */
 static const int hisi_sfc_v3xx_io_modes[2][3][3] = {
@@ -119,8 +119,8 @@ static int hisi_sfc_v3xx_handle_completion(struct hisi_sfc_v3xx_host *host)
 	}
 
 	/*
-	 * The other bits of the interrupt registers is not currently
-	 * used and probably not be triggered in this driver. When it
+	 * The other bits of the interrupt registers is analt currently
+	 * used and probably analt be triggered in this driver. When it
 	 * happens, we regard it as an unsupported error here.
 	 */
 	if (!(reg & HISI_SFC_V3XX_INT_MASK_CPLT)) {
@@ -294,7 +294,7 @@ static int hisi_sfc_v3xx_start_bus(struct hisi_sfc_v3xx_host *host,
 		return buswidth_mode;
 	config |= buswidth_mode;
 
-	if (op->data.dir != SPI_MEM_NO_DATA) {
+	if (op->data.dir != SPI_MEM_ANAL_DATA) {
 		config |= (len - 1) << HISI_SFC_V3XX_CMD_CFG_DATA_CNT_OFF;
 		config |= HISI_SFC_V3XX_CMD_CFG_DATA_EN_MSK;
 	}
@@ -381,7 +381,7 @@ static irqreturn_t hisi_sfc_v3xx_isr(int irq, void *data)
 
 	reg = readl(host->regbase + HISI_SFC_V3XX_INT_STAT);
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	hisi_sfc_v3xx_disable_int(host);
 
@@ -393,7 +393,7 @@ static irqreturn_t hisi_sfc_v3xx_isr(int irq, void *data)
 static int hisi_sfc_v3xx_buswidth_override_bits;
 
 /*
- * ACPI FW does not allow us to currently set the device buswidth, so quirk it
+ * ACPI FW does analt allow us to currently set the device buswidth, so quirk it
  * depending on the board.
  */
 static int __init hisi_sfc_v3xx_dmi_quirk(const struct dmi_system_id *d)
@@ -438,7 +438,7 @@ static int hisi_sfc_v3xx_probe(struct platform_device *pdev)
 
 	ctlr = spi_alloc_host(&pdev->dev, sizeof(*host));
 	if (!ctlr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD |
 			  SPI_TX_DUAL | SPI_TX_QUAD;
@@ -544,4 +544,4 @@ module_exit(hisi_sfc_v3xx_spi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
-MODULE_DESCRIPTION("HiSilicon SPI NOR V3XX Flash Controller Driver for hi16xx chipsets");
+MODULE_DESCRIPTION("HiSilicon SPI ANALR V3XX Flash Controller Driver for hi16xx chipsets");

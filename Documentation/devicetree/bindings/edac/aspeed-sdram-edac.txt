@@ -1,4 +1,4 @@
-Aspeed BMC SoC EDAC node
+Aspeed BMC SoC EDAC analde
 
 The Aspeed BMC SoC supports DDR3 and DDR4 memory with and without ECC (error
 correction check).
@@ -7,7 +7,7 @@ The memory controller supports SECDED (single bit error correction, double bit
 error detection) and single bit error auto scrubbing by reserving 8 bits for
 every 64 bit word (effectively reducing available memory to 8/9).
 
-Note, the bootloader must configure ECC mode in the memory controller.
+Analte, the bootloader must configure ECC mode in the memory controller.
 
 
 Required properties:

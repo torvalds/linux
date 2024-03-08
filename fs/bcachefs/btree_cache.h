@@ -6,34 +6,34 @@
 #include "btree_types.h"
 #include "bkey_methods.h"
 
-extern const char * const bch2_btree_node_flags[];
+extern const char * const bch2_btree_analde_flags[];
 
 struct btree_iter;
 
 void bch2_recalc_btree_reserve(struct bch_fs *);
 
-void bch2_btree_node_hash_remove(struct btree_cache *, struct btree *);
-int __bch2_btree_node_hash_insert(struct btree_cache *, struct btree *);
-int bch2_btree_node_hash_insert(struct btree_cache *, struct btree *,
+void bch2_btree_analde_hash_remove(struct btree_cache *, struct btree *);
+int __bch2_btree_analde_hash_insert(struct btree_cache *, struct btree *);
+int bch2_btree_analde_hash_insert(struct btree_cache *, struct btree *,
 				unsigned, enum btree_id);
 
 void bch2_btree_cache_cannibalize_unlock(struct btree_trans *);
 int bch2_btree_cache_cannibalize_lock(struct btree_trans *, struct closure *);
 
-struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *);
-struct btree *bch2_btree_node_mem_alloc(struct btree_trans *, bool);
+struct btree *__bch2_btree_analde_mem_alloc(struct bch_fs *);
+struct btree *bch2_btree_analde_mem_alloc(struct btree_trans *, bool);
 
-struct btree *bch2_btree_node_get(struct btree_trans *, struct btree_path *,
+struct btree *bch2_btree_analde_get(struct btree_trans *, struct btree_path *,
 				  const struct bkey_i *, unsigned,
 				  enum six_lock_type, unsigned long);
 
-struct btree *bch2_btree_node_get_noiter(struct btree_trans *, const struct bkey_i *,
+struct btree *bch2_btree_analde_get_analiter(struct btree_trans *, const struct bkey_i *,
 					 enum btree_id, unsigned, bool);
 
-int bch2_btree_node_prefetch(struct btree_trans *, struct btree_path *,
+int bch2_btree_analde_prefetch(struct btree_trans *, struct btree_path *,
 			     const struct bkey_i *, enum btree_id, unsigned);
 
-void bch2_btree_node_evict(struct btree_trans *, const struct bkey_i *);
+void bch2_btree_analde_evict(struct btree_trans *, const struct bkey_i *);
 
 void bch2_fs_btree_cache_exit(struct bch_fs *);
 int bch2_fs_btree_cache_init(struct bch_fs *);
@@ -55,15 +55,15 @@ static inline u64 btree_ptr_hash_val(const struct bkey_i *k)
 	}
 }
 
-static inline struct btree *btree_node_mem_ptr(const struct bkey_i *k)
+static inline struct btree *btree_analde_mem_ptr(const struct bkey_i *k)
 {
 	return k->k.type == KEY_TYPE_btree_ptr_v2
 		? (void *)(unsigned long)bkey_i_to_btree_ptr_v2_c(k)->v.mem_ptr
 		: NULL;
 }
 
-/* is btree node in hash table? */
-static inline bool btree_node_hashed(struct btree *b)
+/* is btree analde in hash table? */
+static inline bool btree_analde_hashed(struct btree *b)
 {
 	return b->hash_val != 0;
 }
@@ -81,17 +81,17 @@ static inline size_t btree_buf_bytes(const struct btree *b)
 
 static inline size_t btree_buf_max_u64s(const struct btree *b)
 {
-	return (btree_buf_bytes(b) - sizeof(struct btree_node)) / sizeof(u64);
+	return (btree_buf_bytes(b) - sizeof(struct btree_analde)) / sizeof(u64);
 }
 
 static inline size_t btree_max_u64s(const struct bch_fs *c)
 {
-	return (c->opts.btree_node_size - sizeof(struct btree_node)) / sizeof(u64);
+	return (c->opts.btree_analde_size - sizeof(struct btree_analde)) / sizeof(u64);
 }
 
 static inline size_t btree_sectors(const struct bch_fs *c)
 {
-	return c->opts.btree_node_size >> SECTOR_SHIFT;
+	return c->opts.btree_analde_size >> SECTOR_SHIFT;
 }
 
 static inline unsigned btree_blocks(const struct bch_fs *c)
@@ -114,7 +114,7 @@ static inline unsigned btree_id_nr_alive(struct bch_fs *c)
 static inline struct btree_root *bch2_btree_id_root(struct bch_fs *c, unsigned id)
 {
 	if (likely(id < BTREE_ID_NR)) {
-		return &c->btree_roots_known[id];
+		return &c->btree_roots_kanalwn[id];
 	} else {
 		unsigned idx = id - BTREE_ID_NR;
 
@@ -123,14 +123,14 @@ static inline struct btree_root *bch2_btree_id_root(struct bch_fs *c, unsigned i
 	}
 }
 
-static inline struct btree *btree_node_root(struct bch_fs *c, struct btree *b)
+static inline struct btree *btree_analde_root(struct bch_fs *c, struct btree *b)
 {
 	return bch2_btree_id_root(c, b->c.btree_id)->b;
 }
 
 const char *bch2_btree_id_str(enum btree_id);
 void bch2_btree_pos_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
-void bch2_btree_node_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
+void bch2_btree_analde_to_text(struct printbuf *, struct bch_fs *, const struct btree *);
 void bch2_btree_cache_to_text(struct printbuf *, const struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_CACHE_H */

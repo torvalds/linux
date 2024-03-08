@@ -162,7 +162,7 @@ struct octep_iface_rx_stats {
  * Octeon OQ.
  */
 struct octep_oq {
-	u32 q_no;
+	u32 q_anal;
 
 	struct octep_device *octep_dev;
 	struct net_device *netdev;

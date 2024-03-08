@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for Sony (SIRC) protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techanallogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -70,7 +70,7 @@ static int img_ir_sony_filter(const struct rc_scancode_filter *in,
 	/*
 	 * If only one bit is set, we were requested to do an exact
 	 * protocol. This should be the case for wakeup filters; for
-	 * normal filters, guess the protocol from the scancode.
+	 * analrmal filters, guess the protocol from the scancode.
 	 */
 	if (!is_power_of_2(protocols)) {
 		if (subdev & subdev_m)
@@ -92,7 +92,7 @@ static int img_ir_sony_filter(const struct rc_scancode_filter *in,
 		subdev_m = 0;
 	} else {
 		/*
-		 * The hardware mask cannot distinguish high device bits and low
+		 * The hardware mask cananalt distinguish high device bits and low
 		 * extended bits, so logically AND those bits of the masks
 		 * together.
 		 */
@@ -121,7 +121,7 @@ static int img_ir_sony_filter(const struct rc_scancode_filter *in,
 
 /*
  * Sony SIRC decoder
- * See also http://www.sbprojects.com/knowledge/ir/sirc.php
+ * See also http://www.sbprojects.com/kanalwledge/ir/sirc.php
  *          http://picprojects.org.uk/projects/sirc/sonysirc.pdf
  */
 struct img_ir_decoder img_ir_sony = {

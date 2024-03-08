@@ -224,7 +224,7 @@ MSC313_GPIO_CHIPDATA(msc313);
 /*
  * Unlike the msc313(e) the ssd20xd have a bunch of pins
  * that are actually called gpio probably because they
- * have no dedicated function.
+ * have anal dedicated function.
  */
 #define SSD20XD_PINNAME_GPIO0		"gpio0"
 #define SSD20XD_PINNAME_GPIO1		"gpio1"
@@ -411,7 +411,7 @@ MSC313_GPIO_CHIPDATA(msc313);
 			    SSD20XD_TTL_OFFSET_TTL26, \
 			    SSD20XD_TTL_OFFSET_TTL27
 
-/* On the ssd20xd the two normal uarts have dedicated pins */
+/* On the ssd20xd the two analrmal uarts have dedicated pins */
 #define SSD20XD_PINNAME_UART0_RX	"uart0_rx"
 #define SSD20XD_PINNAME_UART0_TX	"uart0_tx"
 
@@ -574,7 +574,7 @@ static int msc313_gpio_populate_parent_fwspec(struct gpio_chip *gc,
 {
 	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
-	fwspec->fwnode = gc->irq.parent_domain->fwnode;
+	fwspec->fwanalde = gc->irq.parent_domain->fwanalde;
 	fwspec->param_count = 3;
 	fwspec->param[0] = GIC_SPI;
 	fwspec->param[1] = parent_hwirq;
@@ -594,7 +594,7 @@ static int msc313e_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
 
 	/*
 	 * only the spi0 pins have interrupts on the parent
-	 * on all of the known chips and so far they are all
+	 * on all of the kanalwn chips and so far they are all
 	 * mapped to the same place
 	 */
 	if (offset >= OFF_SPI0_CZ && offset <= OFF_SPI0_DO) {
@@ -613,30 +613,30 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gpiochip;
 	struct gpio_irq_chip *gpioirqchip;
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_analde *parent_analde;
 	struct device *dev = &pdev->dev;
 
 	match_data = of_device_get_match_data(dev);
 	if (!match_data)
 		return -EINVAL;
 
-	parent_node = of_irq_find_parent(dev->of_node);
-	if (!parent_node)
-		return -ENODEV;
+	parent_analde = of_irq_find_parent(dev->of_analde);
+	if (!parent_analde)
+		return -EANALDEV;
 
-	parent_domain = irq_find_host(parent_node);
+	parent_domain = irq_find_host(parent_analde);
 	if (!parent_domain)
-		return -ENODEV;
+		return -EANALDEV;
 
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->gpio_data = match_data;
 
 	gpio->saved = devm_kcalloc(dev, gpio->gpio_data->num, sizeof(*gpio->saved), GFP_KERNEL);
 	if (!gpio->saved)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpio->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio->base))
@@ -646,7 +646,7 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 
 	gpiochip = devm_kzalloc(dev, sizeof(*gpiochip), GFP_KERNEL);
 	if (!gpiochip)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	gpiochip->label = DRIVER_NAME;
 	gpiochip->parent = dev;
@@ -662,12 +662,12 @@ static int msc313_gpio_probe(struct platform_device *pdev)
 
 	gpioirqchip = &gpiochip->irq;
 	gpio_irq_chip_set_chip(gpioirqchip, &msc313_gpio_irqchip);
-	gpioirqchip->fwnode = of_node_to_fwnode(dev->of_node);
+	gpioirqchip->fwanalde = of_analde_to_fwanalde(dev->of_analde);
 	gpioirqchip->parent_domain = parent_domain;
 	gpioirqchip->child_to_parent_hwirq = msc313e_gpio_child_to_parent_hwirq;
 	gpioirqchip->populate_parent_alloc_arg = msc313_gpio_populate_parent_fwspec;
 	gpioirqchip->handler = handle_bad_irq;
-	gpioirqchip->default_type = IRQ_TYPE_NONE;
+	gpioirqchip->default_type = IRQ_TYPE_ANALNE;
 
 	return devm_gpiochip_add_data(dev, gpiochip, gpio);
 }

@@ -180,7 +180,7 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error);
 static void mspro_block_bd_free_disk(struct gendisk *disk)
 {
 	struct mspro_block_data *msb = disk->private_data;
-	int disk_id = MINOR(disk_devt(disk)) >> MSPRO_BLOCK_PART_SHIFT;
+	int disk_id = MIANALR(disk_devt(disk)) >> MSPRO_BLOCK_PART_SHIFT;
 
 	mutex_lock(&mspro_block_disk_lock);
 	idr_remove(&mspro_block_disk_idr, disk_id);
@@ -602,7 +602,7 @@ static void h_mspro_block_setup_cmd(struct memstick_dev *card, u64 offset,
 	struct mspro_param_register param = {
 		.system = msb->system,
 		.data_count = cpu_to_be16((uint16_t)(length / msb->page_size)),
-		/* ISO C90 warning precludes direct initialization for now. */
+		/* ISO C90 warning precludes direct initialization for analw. */
 		.data_address = 0,
 		.tpc_param = 0
 	};
@@ -675,7 +675,7 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 		error);
 
 	if (msb->block_req) {
-		/* Nothing to do - not really an error */
+		/* Analthing to do - analt really an error */
 		if (error == -EAGAIN)
 			error = 0;
 
@@ -700,14 +700,14 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 			t_len = blk_rq_cur_bytes(msb->block_req);
 
 		chunk = blk_update_request(msb->block_req,
-				errno_to_blk_status(error), t_len);
+				erranal_to_blk_status(error), t_len);
 		if (chunk) {
 			error = mspro_block_issue_req(card);
 			if (!error)
 				goto out;
 		} else {
 			__blk_mq_end_request(msb->block_req,
-						errno_to_blk_status(error));
+						erranal_to_blk_status(error));
 			msb->block_req = NULL;
 		}
 	} else {
@@ -828,7 +828,7 @@ try_again:
 
 	if (rc) {
 		printk(KERN_WARNING
-		       "%s: could not switch to 4-bit mode, error %d\n",
+		       "%s: could analt switch to 4-bit mode, error %d\n",
 		       dev_name(&card->dev), rc);
 		return 0;
 	}
@@ -850,7 +850,7 @@ try_again:
 			       dev_name(&card->dev));
 		} else
 			printk(KERN_WARNING
-			       "%s: could not switch to 8-bit mode, error %d\n",
+			       "%s: could analt switch to 8-bit mode, error %d\n",
 			       dev_name(&card->dev), rc);
 	}
 
@@ -891,7 +891,7 @@ try_again:
 }
 
 /* Memory allocated for attributes by this function should be freed by
- * mspro_block_data_clear, no matter if the initialization process succeeded
+ * mspro_block_data_clear, anal matter if the initialization process succeeded
  * or failed.
  */
 static int mspro_block_read_attributes(struct memstick_dev *card)
@@ -901,16 +901,16 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 	struct mspro_sys_attr *s_attr = NULL;
 	unsigned char *buffer = NULL;
 	int cnt, rc, attr_count;
-	/* While normally physical device offsets, represented here by
+	/* While analrmally physical device offsets, represented here by
 	 * attr_offset and attr_len will be of large numeric types, we can be
-	 * sure, that attributes are close enough to the beginning of the
+	 * sure, that attributes are close eanalugh to the beginning of the
 	 * device, to save ourselves some trouble.
 	 */
 	unsigned int addr, attr_offset = 0, attr_len = msb->page_size;
 
 	attr = kmalloc(msb->page_size, GFP_KERNEL);
 	if (!attr)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	sg_init_one(&msb->req_sg[0], attr, msb->page_size);
 	msb->seg_count = 1;
@@ -931,7 +931,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 	if (be16_to_cpu(attr->signature) != MSPRO_BLOCK_SIGNATURE) {
 		printk(KERN_ERR "%s: unrecognized device signature %x\n",
 		       dev_name(&card->dev), be16_to_cpu(attr->signature));
-		rc = -ENODEV;
+		rc = -EANALDEV;
 		goto out_free_attr;
 	}
 
@@ -946,21 +946,21 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 					sizeof(*msb->attr_group.attrs),
 					GFP_KERNEL);
 	if (!msb->attr_group.attrs) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_attr;
 	}
 	msb->attr_group.name = "media_attributes";
 
 	buffer = kmemdup(attr, attr_len, GFP_KERNEL);
 	if (!buffer) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_free_attr;
 	}
 
 	for (cnt = 0; cnt < attr_count; ++cnt) {
 		s_attr = kzalloc(sizeof(struct mspro_sys_attr), GFP_KERNEL);
 		if (!s_attr) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_free_buffer;
 		}
 
@@ -988,7 +988,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 
 		s_attr->data = kmalloc(s_attr->size, GFP_KERNEL);
 		if (!s_attr->data) {
-			rc = -ENOMEM;
+			rc = -EANALMEM;
 			goto out_free_buffer;
 		}
 
@@ -1008,7 +1008,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 				    + 1 ) * msb->page_size - attr_offset;
 			buffer = kmalloc(attr_len, GFP_KERNEL);
 			if (!buffer) {
-				rc = -ENOMEM;
+				rc = -EANALMEM;
 				goto out_free_attr;
 			}
 		}
@@ -1119,7 +1119,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	}
 
 	if (!dev_info || !sys_info)
-		return -ENODEV;
+		return -EANALDEV;
 
 	msb->cylinders = be16_to_cpu(dev_info->cylinders);
 	msb->heads = be16_to_cpu(dev_info->heads);
@@ -1151,8 +1151,8 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 				   MSPRO_BLOCK_MAX_PAGES * msb->page_size);
 
 	msb->disk->major = major;
-	msb->disk->first_minor = disk_id << MSPRO_BLOCK_PART_SHIFT;
-	msb->disk->minors = 1 << MSPRO_BLOCK_PART_SHIFT;
+	msb->disk->first_mianalr = disk_id << MSPRO_BLOCK_PART_SHIFT;
+	msb->disk->mianalrs = 1 << MSPRO_BLOCK_PART_SHIFT;
 	msb->disk->fops = &ms_block_bdops;
 	msb->disk->private_data = msb;
 
@@ -1218,7 +1218,7 @@ static int mspro_block_probe(struct memstick_dev *card)
 
 	msb = kzalloc(sizeof(struct mspro_block_data), GFP_KERNEL);
 	if (!msb)
-		return -ENOMEM;
+		return -EANALMEM;
 	memstick_set_drvdata(card, msb);
 	msb->card = card;
 	spin_lock_init(&msb->q_lock);
@@ -1305,7 +1305,7 @@ static int mspro_block_resume(struct memstick_dev *card)
 	mutex_lock(&host->lock);
 	new_msb = kzalloc(sizeof(struct mspro_block_data), GFP_KERNEL);
 	if (!new_msb) {
-		rc = -ENOMEM;
+		rc = -EANALMEM;
 		goto out_unlock;
 	}
 
@@ -1371,7 +1371,7 @@ static struct memstick_driver mspro_block_driver = {
 
 static int __init mspro_block_init(void)
 {
-	int rc = -ENOMEM;
+	int rc = -EANALMEM;
 
 	rc = register_blkdev(major, DRIVER_NAME);
 	if (rc < 0) {

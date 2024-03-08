@@ -8,7 +8,7 @@
 /* Each recipe can match up to 5 different fields. Fields to match can be meta-
  * data, values extracted from packet headers, or results from other recipes.
  * One of the 5 fields is reserved for matching the switch ID. So, up to 4
- * recipes can provide intermediate results to another one through chaining,
+ * recipes can provide intermediate results to aanalther one through chaining,
  * e.g. recipes 0, 1, 2, and 3 can provide intermediate results to recipe 4.
  */
 #define ICE_NUM_WORDS_RECIPE 4
@@ -42,7 +42,7 @@ enum ice_protocol_type {
 	ICE_GENEVE,
 	ICE_NVGRE,
 	ICE_GTP,
-	ICE_GTP_NO_PAY,
+	ICE_GTP_ANAL_PAY,
 	ICE_PPPOE,
 	ICE_L2TPV3,
 	ICE_VLAN_EX,
@@ -54,8 +54,8 @@ enum ice_protocol_type {
 };
 
 enum ice_sw_tunnel_type {
-	ICE_NON_TUN = 0,
-	ICE_SW_TUN_AND_NON_TUN,
+	ICE_ANALN_TUN = 0,
+	ICE_SW_TUN_AND_ANALN_TUN,
 	ICE_SW_TUN_VXLAN,
 	ICE_SW_TUN_GENEVE,
 	ICE_SW_TUN_NVGRE,
@@ -223,7 +223,7 @@ struct ice_nvgre_hdr {
 
 /* Metadata information
  *
- * Not all MDIDs can be used by switch block. It depends on package version.
+ * Analt all MDIDs can be used by switch block. It depends on package version.
  *
  * MDID 16 (Rx offset)
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -332,20 +332,20 @@ struct ice_nvgre_hdr {
  * E = ack - ack flag in tcp header
  * F = urg - urg flag in tcp header
  * G = tunnel type (3b) - Flags used to decode tunnel type:
- *			  * b000 - not a VXLAN/Geneve/GRE tunnel
+ *			  * b000 - analt a VXLAN/Geneve/GRE tunnel
  *			  * b001 - VXLAN-GPE
- *			  * b010 - VXLAN (non-GPE)
+ *			  * b010 - VXLAN (analn-GPE)
  *			  * b011 - Geneve
- *			  * b100 - GRE (no key, no xsum)
- *			  * b101 - GREK (key, no xsum)
- *			  * b110 - GREC (no key, xsum)
+ *			  * b100 - GRE (anal key, anal xsum)
+ *			  * b101 - GREK (key, anal xsum)
+ *			  * b110 - GREC (anal key, xsum)
  *			  * b111 - GREKC (key, xsum)
  * H = UDP_GRE - Packet is UDP (VXLAN or VLAN_GPE or Geneve or MPLSoUDP or GRE)
  *		 tunnel
  * I = OAM - VXLAN/Geneve/tunneled NSH packet with the OAM bit set
  * J = tunneled NSH - Packet has NSHoGRE or NSHoUDP
  * K = switch (2b) - Direction on switch
- *		     * b00 - normal
+ *		     * b00 - analrmal
  *		     * b01 - TX force only LAN
  *		     * b10 - TX disable LAN
  *		     * b11 - direct to VSI
@@ -358,7 +358,7 @@ struct ice_nvgre_hdr {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * A = MAC error - Produced by MAC according to L2 error conditions
- * B = PPRS no offload - FIFO overflow in PPRS or any problematic condition in
+ * B = PPRS anal offload - FIFO overflow in PPRS or any problematic condition in
  *			 PPRS ANA
  * C = abort - Set when malicious packet is detected
  * D = partial analysis - ANA's analysing got cut in the middle

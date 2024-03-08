@@ -23,37 +23,37 @@
  *	subdevice 2 - first 24 channels of the 48 channel of DIO
  *			(with edge-triggered interrupt support)
  *	subdevice 3 - last 24 channels of the 48 channel DIO
- *			(no interrupt support for this bank of channels)
+ *			(anal interrupt support for this bank of channels)
  *
- * Some notes:
+ * Some analtes:
  *
- * Synchronous reads and writes are the only things implemented for analog
+ * Synchroanalus reads and writes are the only things implemented for analog
  * input and output. The hardware itself can do streaming acquisition, etc.
  *
- * Asynchronous I/O for the DIO subdevices *is* implemented, however! They
+ * Asynchroanalus I/O for the DIO subdevices *is* implemented, however! They
  * are basically edge-triggered interrupts for any configuration of the
  * channels in subdevice 2.
  *
- * Also note that this interrupt support is untested.
+ * Also analte that this interrupt support is untested.
  *
  * A few words about edge-detection IRQ support (commands on DIO):
  *
  * To use edge-detection IRQ support for the DIO subdevice, pass the IRQ
- * of the board to the comedi_config command. The board IRQ is not jumpered
+ * of the board to the comedi_config command. The board IRQ is analt jumpered
  * but rather configured through software, so any IRQ from 1-15 is OK.
  *
  * Due to the genericity of the comedi API, you need to create a special
  * comedi_command in order to use edge-triggered interrupts for DIO.
  *
- * Use comedi_commands with TRIG_NOW.  Your callback will be called each
+ * Use comedi_commands with TRIG_ANALW.  Your callback will be called each
  * time an edge is detected on the specified DIO line(s), and the data
  * values will be two sample_t's, which should be concatenated to form
  * one 32-bit unsigned int. This value is the mask of channels that had
- * edges detected from your channel list. Note that the bits positions
+ * edges detected from your channel list. Analte that the bits positions
  * in the mask correspond to positions in your chanlist when you
- * specified the command and *not* channel id's!
+ * specified the command and *analt* channel id's!
  *
- * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * To set the polarity of the edge-detection interrupts pass a analnzero value
  * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero
  * value for both CR_RANGE and CR_AREF if you want edge-down polarity.
  *
@@ -111,7 +111,7 @@
 #define PCMMIO_AO_CMD_RD_B1_CODE		(0xb << 4)
 #define PCMMIO_AO_CMD_RD_B2_SPAN		(0xc << 4)
 #define PCMMIO_AO_CMD_RD_B2_CODE		(0xd << 4)
-#define PCMMIO_AO_CMD_NOP			(0xf << 4)
+#define PCMMIO_AO_CMD_ANALP			(0xf << 4)
 #define PCMMIO_AO_CMD_CHAN_SEL(x)		(((x) & 0x03) << 1)
 #define PCMMIO_AO_CMD_CHAN_SEL_ALL		(0x0f << 0)
 #define PCMMIO_AO_STATUS_REG			0x0b
@@ -365,7 +365,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 	/* are there any interrupts pending */
 	int_pend = inb(dev->iobase + PCMMIO_INT_PENDING_REG) & 0x07;
 	if (!int_pend)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	/* get, and clear, the pending interrupts */
 	triggered = pcmmio_dio_read(dev, PCMMIO_PAGE_INT_ID, 0);
@@ -455,7 +455,7 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Set up start of acquisition. */
 	if (cmd->start_src == TRIG_INT)
 		s->async->inttrig = pcmmio_inttrig_start_intr;
-	else	/* TRIG_NOW */
+	else	/* TRIG_ANALW */
 		pcmmio_start_intr(dev, s);
 
 	spin_unlock_irqrestore(&devpriv->spinlock, flags);
@@ -471,11 +471,11 @@ static int pcmmio_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_ANALW | TRIG_INT);
 	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_ANALW);
 	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_ANALNE);
 
 	if (err)
 		return 1;
@@ -500,7 +500,7 @@ static int pcmmio_cmdtest(struct comedi_device *dev,
 
 	if (cmd->stop_src == TRIG_COUNT)
 		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
-	else	/* TRIG_NONE */
+	else	/* TRIG_ANALNE */
 		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -551,7 +551,7 @@ static int pcmmio_ai_insn_read(struct comedi_device *dev,
 	 *
 	 * Setup the cmd for the conversions then do a dummy conversion to
 	 * flush the junk data. Then do each conversion requested by the
-	 * comedi_insn. Note that the last conversion will leave junk data
+	 * comedi_insn. Analte that the last conversion will leave junk data
 	 * in ADC which will get flushed on the next comedi_insn.
 	 */
 
@@ -673,7 +673,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	spin_lock_init(&devpriv->pagelock);
 	spin_lock_init(&devpriv->spinlock);

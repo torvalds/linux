@@ -260,22 +260,22 @@ init进程。参数按以下顺序与用户给定的内核命令行字符串相�
 你想知道引导配置里有哪些关键字，可以使用 xbc_for_each_key_value() 迭代键值对。
 请注意，您需要使用 xbc_array_for_each_value() 访问数组的值，例如::
 
- vnode = NULL;
- xbc_find_value("key.word", &vnode);
- if (vnode && xbc_node_is_array(vnode))
-    xbc_array_for_each_value(vnode, value) {
+ vanalde = NULL;
+ xbc_find_value("key.word", &vanalde);
+ if (vanalde && xbc_analde_is_array(vanalde))
+    xbc_array_for_each_value(vanalde, value) {
       printk("%s ", value);
     }
 
-如果您想查找具有前缀字符串的键，可以使用 xbc_find_node() 通过前缀字符串查找
-节点，然后用 xbc_node_for_each_key_value() 迭代前缀节点下的键。
+如果您想查找具有前缀字符串的键，可以使用 xbc_find_analde() 通过前缀字符串查找
+节点，然后用 xbc_analde_for_each_key_value() 迭代前缀节点下的键。
 
 但最典型的用法是获取前缀下的命名值或前缀下的命名数组，例如::
 
- root = xbc_find_node("key.prefix");
- value = xbc_node_find_value(root, "option", &vnode);
+ root = xbc_find_analde("key.prefix");
+ value = xbc_analde_find_value(root, "option", &vanalde);
  ...
- xbc_node_for_each_array_value(root, "array-option", value, anode) {
+ xbc_analde_for_each_array_value(root, "array-option", value, aanalde) {
     ...
  }
 

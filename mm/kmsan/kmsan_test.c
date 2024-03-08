@@ -31,18 +31,18 @@ static DEFINE_PER_CPU(int, per_cpu_var);
 static struct {
 	spinlock_t lock;
 	bool available;
-	bool ignore; /* Stop console output collection. */
+	bool iganalre; /* Stop console output collection. */
 	char header[256];
 } observed = {
 	.lock = __SPIN_LOCK_UNLOCKED(observed.lock),
 };
 
 /* Probe for console output: obtains observed lines of interest. */
-static void probe_console(void *ignore, const char *buf, size_t len)
+static void probe_console(void *iganalre, const char *buf, size_t len)
 {
 	unsigned long flags;
 
-	if (observed.ignore)
+	if (observed.iganalre)
 		return;
 	spin_lock_irqsave(&observed.lock, flags);
 
@@ -50,13 +50,13 @@ static void probe_console(void *ignore, const char *buf, size_t len)
 		/*
 		 * KMSAN report and related to the test.
 		 *
-		 * The provided @buf is not NUL-terminated; copy no more than
+		 * The provided @buf is analt NUL-terminated; copy anal more than
 		 * @len bytes and let strscpy() add the missing NUL-terminator.
 		 */
 		strscpy(observed.header, buf,
 			min(len + 1, sizeof(observed.header)));
 		WRITE_ONCE(observed.available, true);
-		observed.ignore = true;
+		observed.iganalre = true;
 	}
 	spin_unlock_irqrestore(&observed.lock, flags);
 }
@@ -67,14 +67,14 @@ static bool report_available(void)
 	return READ_ONCE(observed.available);
 }
 
-/* Reset observed.available, so that the test can trigger another report. */
+/* Reset observed.available, so that the test can trigger aanalther report. */
 static void report_reset(void)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&observed.lock, flags);
 	WRITE_ONCE(observed.available, false);
-	observed.ignore = false;
+	observed.iganalre = false;
 	spin_unlock_irqrestore(&observed.lock, flags);
 }
 
@@ -82,7 +82,7 @@ static void report_reset(void)
 struct expect_report {
 	const char *error_type; /* Error type. */
 	/*
-	 * Kernel symbol from the error header, or NULL if no report is
+	 * Kernel symbol from the error header, or NULL if anal report is
 	 * expected.
 	 */
 	const char *symbol;
@@ -130,12 +130,12 @@ out:
 /* ===== Test cases ===== */
 
 /* Prevent replacing branch with select in LLVM. */
-static noinline void check_true(char *arg)
+static analinline void check_true(char *arg)
 {
 	pr_info("%s is true\n", arg);
 }
 
-static noinline void check_false(char *arg)
+static analinline void check_false(char *arg)
 {
 	pr_info("%s is false\n", arg);
 }
@@ -154,7 +154,7 @@ static noinline void check_false(char *arg)
 		.symbol = fn,               \
 	}
 
-#define EXPECTATION_NO_REPORT(e) EXPECTATION_ETYPE_FN(e, NULL, NULL)
+#define EXPECTATION_ANAL_REPORT(e) EXPECTATION_ETYPE_FN(e, NULL, NULL)
 #define EXPECTATION_UNINIT_VALUE_FN(e, fn) \
 	EXPECTATION_ETYPE_FN(e, "uninit-value", fn)
 #define EXPECTATION_UNINIT_VALUE(e) EXPECTATION_UNINIT_VALUE_FN(e, __func__)
@@ -178,10 +178,10 @@ static void test_uninit_kmalloc(struct kunit *test)
  */
 static void test_init_kmalloc(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	int *ptr;
 
-	kunit_info(test, "initialized kmalloc test (no reports)\n");
+	kunit_info(test, "initialized kmalloc test (anal reports)\n");
 	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
 	memset(ptr, 0, sizeof(*ptr));
 	USE(*ptr);
@@ -191,10 +191,10 @@ static void test_init_kmalloc(struct kunit *test)
 /* Test case: ensure that kzalloc() returns initialized memory. */
 static void test_init_kzalloc(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	int *ptr;
 
-	kunit_info(test, "initialized kzalloc test (no reports)\n");
+	kunit_info(test, "initialized kzalloc test (anal reports)\n");
 	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
 	USE(*ptr);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
@@ -214,27 +214,27 @@ static void test_uninit_stack_var(struct kunit *test)
 /* Test case: ensure that local variables with initializers are initialized. */
 static void test_init_stack_var(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	volatile int cond = 1;
 
-	kunit_info(test, "initialized stack variable (no reports)\n");
+	kunit_info(test, "initialized stack variable (anal reports)\n");
 	USE(cond);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
 
-static noinline void two_param_fn_2(int arg1, int arg2)
+static analinline void two_param_fn_2(int arg1, int arg2)
 {
 	USE(arg1);
 	USE(arg2);
 }
 
-static noinline void one_param_fn(int arg)
+static analinline void one_param_fn(int arg)
 {
 	two_param_fn_2(arg, arg);
 	USE(arg);
 }
 
-static noinline void two_param_fn(int arg1, int arg2)
+static analinline void two_param_fn(int arg1, int arg2)
 {
 	int init = 0;
 
@@ -283,7 +283,7 @@ static void test_uninit_multiple_params(struct kunit *test)
 }
 
 /* Helper function to make an array uninitialized. */
-static noinline void do_uninit_local_array(char *array, int start, int stop)
+static analinline void do_uninit_local_array(char *array, int start, int stop)
 {
 	volatile char uninit;
 
@@ -315,12 +315,12 @@ static void test_uninit_kmsan_check_memory(struct kunit *test)
  */
 static void test_init_kmsan_vmap_vunmap(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	const int npages = 2;
 	struct page **pages;
 	void *vbuf;
 
-	kunit_info(test, "pages initialized via vmap (no reports)\n");
+	kunit_info(test, "pages initialized via vmap (anal reports)\n");
 
 	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
 	for (int i = 0; i < npages; i++)
@@ -346,11 +346,11 @@ static void test_init_kmsan_vmap_vunmap(struct kunit *test)
  */
 static void test_init_vmalloc(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	int npages = 8;
 	char *buf;
 
-	kunit_info(test, "vmalloc buffer can be initialized (no reports)\n");
+	kunit_info(test, "vmalloc buffer can be initialized (anal reports)\n");
 	buf = vmalloc(PAGE_SIZE * npages);
 	buf[0] = 1;
 	memset(buf, 0xfe, PAGE_SIZE * npages);
@@ -419,7 +419,7 @@ static void test_printk(struct kunit *test)
 }
 
 /* Prevent the compiler from inlining a memcpy() call. */
-static noinline void *memcpy_noinline(volatile void *dst,
+static analinline void *memcpy_analinline(volatile void *dst,
 				      const volatile void *src, size_t size)
 {
 	return memcpy((void *)dst, (const void *)src, size);
@@ -428,15 +428,15 @@ static noinline void *memcpy_noinline(volatile void *dst,
 /* Test case: ensure that memcpy() correctly copies initialized values. */
 static void test_init_memcpy(struct kunit *test)
 {
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	volatile long long src;
 	volatile long long dst = 0;
 
 	src = 1;
 	kunit_info(
 		test,
-		"memcpy()ing aligned initialized src to aligned dst (no reports)\n");
-	memcpy_noinline((void *)&dst, (void *)&src, sizeof(src));
+		"memcpy()ing aligned initialized src to aligned dst (anal reports)\n");
+	memcpy_analinline((void *)&dst, (void *)&src, sizeof(src));
 	kmsan_check_memory((void *)&dst, sizeof(dst));
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
@@ -454,7 +454,7 @@ static void test_memcpy_aligned_to_aligned(struct kunit *test)
 	kunit_info(
 		test,
 		"memcpy()ing aligned uninit src to aligned dst (UMR report)\n");
-	memcpy_noinline((void *)&dst, (void *)&uninit_src, sizeof(uninit_src));
+	memcpy_analinline((void *)&dst, (void *)&uninit_src, sizeof(uninit_src));
 	kmsan_check_memory((void *)&dst, sizeof(dst));
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
@@ -477,7 +477,7 @@ static void test_memcpy_aligned_to_unaligned(struct kunit *test)
 		test,
 		"memcpy()ing aligned uninit src to unaligned dst (UMR report)\n");
 	kmsan_check_memory((void *)&uninit_src, sizeof(uninit_src));
-	memcpy_noinline((void *)&dst[1], (void *)&uninit_src,
+	memcpy_analinline((void *)&dst[1], (void *)&uninit_src,
 			sizeof(uninit_src));
 	kmsan_check_memory((void *)dst, 4);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
@@ -487,12 +487,12 @@ static void test_memcpy_aligned_to_unaligned(struct kunit *test)
 }
 
 /*
- * Test case: ensure that origin slots do not accidentally get overwritten with
+ * Test case: ensure that origin slots do analt accidentally get overwritten with
  * zeroes during memcpy().
  *
  * Previously, when copying memory from an aligned buffer to an unaligned one,
  * if there were zero origins corresponding to zero shadow values in the source
- * buffer, they could have ended up being copied to nonzero shadow values in the
+ * buffer, they could have ended up being copied to analnzero shadow values in the
  * destination buffer:
  *
  *  memcpy(0xffff888080a00000, 0xffff888080900002, 8)
@@ -505,8 +505,8 @@ static void test_memcpy_aligned_to_unaligned(struct kunit *test)
  *
  * (here . stands for an initialized byte, and x for an uninitialized one.
  *
- * Ensure that this does not happen anymore, and for both destination bytes
- * the origin is nonzero (i.e. KMSAN reports an error).
+ * Ensure that this does analt happen anymore, and for both destination bytes
+ * the origin is analnzero (i.e. KMSAN reports an error).
  */
 static void test_memcpy_initialized_gap(struct kunit *test)
 {
@@ -516,7 +516,7 @@ static void test_memcpy_initialized_gap(struct kunit *test)
 
 	kunit_info(
 		test,
-		"unaligned 4-byte initialized value gets a nonzero origin after memcpy() - (2 UMR reports)\n");
+		"unaligned 4-byte initialized value gets a analnzero origin after memcpy() - (2 UMR reports)\n");
 
 	uninit_src[0] = 42;
 	uninit_src[1] = 42;
@@ -526,7 +526,7 @@ static void test_memcpy_initialized_gap(struct kunit *test)
 	uninit_src[7] = 42;
 	uninit_src[10] = 42;
 	uninit_src[11] = 42;
-	memcpy_noinline((void *)&dst[0], (void *)&uninit_src[2], 8);
+	memcpy_analinline((void *)&dst[0], (void *)&uninit_src[2], 8);
 
 	kmsan_check_memory((void *)&dst[0], 4);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
@@ -542,7 +542,7 @@ static void test_memcpy_initialized_gap(struct kunit *test)
 #define DEFINE_TEST_MEMSETXX(size)                                          \
 	static void test_memset##size(struct kunit *test)                   \
 	{                                                                   \
-		EXPECTATION_NO_REPORT(expect);                              \
+		EXPECTATION_ANAL_REPORT(expect);                              \
 		volatile uint##size##_t uninit;                             \
                                                                             \
 		kunit_info(test,                                            \
@@ -556,7 +556,7 @@ DEFINE_TEST_MEMSETXX(16)
 DEFINE_TEST_MEMSETXX(32)
 DEFINE_TEST_MEMSETXX(64)
 
-static noinline void fibonacci(int *array, int size, int start)
+static analinline void fibonacci(int *array, int size, int start)
 {
 	if (start < 2 || (start == size))
 		return;
@@ -575,7 +575,7 @@ static void test_long_origin_chain(struct kunit *test)
 		test,
 		"origin chain exceeding KMSAN_MAX_ORIGIN_DEPTH (UMR report)\n");
 	/*
-	 * We do not set accum[1] to 0, so the uninitializedness will be carried
+	 * We do analt set accum[1] to 0, so the uninitializedness will be carried
 	 * over to accum[2..last].
 	 */
 	accum[0] = 1;
@@ -586,9 +586,9 @@ static void test_long_origin_chain(struct kunit *test)
 
 /*
  * Test case: ensure that saving/restoring/printing stacks to/from stackdepot
- * does not trigger errors.
+ * does analt trigger errors.
  *
- * KMSAN uses stackdepot to store origin stack traces, that's why we do not
+ * KMSAN uses stackdepot to store origin stack traces, that's why we do analt
  * instrument lib/stackdepot.c. Yet it must properly mark its outputs as
  * initialized because other kernel features (e.g. netdev tracker) may also
  * access stackdepot from instrumented code.
@@ -597,10 +597,10 @@ static void test_stackdepot_roundtrip(struct kunit *test)
 {
 	unsigned long src_entries[16], *dst_entries;
 	unsigned int src_nentries, dst_nentries;
-	EXPECTATION_NO_REPORT(expect);
+	EXPECTATION_ANAL_REPORT(expect);
 	depot_stack_handle_t handle;
 
-	kunit_info(test, "testing stackdepot roundtrip (no reports)\n");
+	kunit_info(test, "testing stackdepot roundtrip (anal reports)\n");
 
 	src_nentries =
 		stack_trace_save(src_entries, ARRAY_SIZE(src_entries), 1);
@@ -648,7 +648,7 @@ static int test_init(struct kunit *test)
 
 	spin_lock_irqsave(&observed.lock, flags);
 	observed.header[0] = '\0';
-	observed.ignore = false;
+	observed.iganalre = false;
 	observed.available = false;
 	spin_unlock_irqrestore(&observed.lock, flags);
 

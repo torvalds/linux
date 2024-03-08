@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (c) 2003 Gerd Knorr
+ * Copyright (c) 2003 Gerd Kanalrr
  * Copyright (c) 2003 Pavel Machek
  */
 
@@ -60,12 +60,12 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown && (gpio & ir->mask_keydown)) ||
 	    (ir->mask_keyup   && !(gpio & ir->mask_keyup))) {
-		rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
+		rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data, 0);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data,
 					     0);
 
 		rc_keyup(ir->dev);
@@ -91,7 +91,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data, 0);
+		rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data, 0);
 		if (keyup)
 			rc_keyup(ir->dev);
 	} else {
@@ -105,7 +105,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 		if (keyup)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+			rc_keydown_analtimeout(ir->dev, RC_PROTO_UNKANALWN, data,
 					     0);
 	}
 
@@ -205,7 +205,7 @@ static void bttv_rc5_timer_end(struct timer_list *t)
 	}
 
 	if (ir->last_bit < 20) {
-		/* ignore spurious codes (caused by light/other remotes) */
+		/* iganalre spurious codes (caused by light/other remotes) */
 		dprintk("short code: %x\n", ir->code);
 		return;
 	}
@@ -335,24 +335,24 @@ static int get_key_pv951(struct IR_i2c *ir, enum rc_proto *protocol,
 		return -EIO;
 	}
 
-	/* ignore 0xaa */
+	/* iganalre 0xaa */
 	if (b==0xaa)
 		return 0;
 	dprintk("key %02x\n", b);
 
 	/*
-	 * NOTE:
+	 * ANALTE:
 	 * lirc_i2c maps the pv951 code as:
 	 *	addr = 0x61D6
 	 *	cmd = bit_reverse (b)
 	 * So, it seems that this device uses NEC extended
-	 * I decided to not fix the table, due to two reasons:
+	 * I decided to analt fix the table, due to two reasons:
 	 *	1) Without the actual device, this is only a guess;
-	 *	2) As the addr is not reported via I2C, nor can be changed,
+	 *	2) As the addr is analt reported via I2C, analr can be changed,
 	 *	   the device is bound to the vendor-provided RC.
 	 */
 
-	*protocol = RC_PROTO_UNKNOWN;
+	*protocol = RC_PROTO_UNKANALWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
@@ -411,10 +411,10 @@ int bttv_input_init(struct bttv *btv)
 	struct bttv_ir *ir;
 	char *ir_codes = NULL;
 	struct rc_dev *rc;
-	int err = -ENOMEM;
+	int err = -EANALMEM;
 
 	if (!btv->has_remote)
-		return -ENODEV;
+		return -EANALDEV;
 
 	ir = kzalloc(sizeof(*ir),GFP_KERNEL);
 	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
@@ -508,20 +508,20 @@ int bttv_input_init(struct bttv *btv)
 
 	if (!ir_codes) {
 		dprintk("Ooops: IR config error [card=%d]\n", btv->c.type);
-		err = -ENODEV;
+		err = -EANALDEV;
 		goto err_out_free;
 	}
 
 	if (ir->rc5_gpio) {
 		u32 gpio;
 		/* enable remote irq */
-		bttv_gpio_inout(&btv->c, (1 << 4), 1 << 4);
+		bttv_gpio_ianalut(&btv->c, (1 << 4), 1 << 4);
 		gpio = bttv_gpio_read(&btv->c);
 		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));
 		bttv_gpio_write(&btv->c, gpio | (1 << 4));
 	} else {
 		/* init hardware-specific stuff */
-		bttv_gpio_inout(&btv->c, ir->mask_keycode | ir->mask_keydown, 0);
+		bttv_gpio_ianalut(&btv->c, ir->mask_keycode | ir->mask_keydown, 0);
 	}
 
 	/* init input device */

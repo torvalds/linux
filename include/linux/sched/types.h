@@ -6,9 +6,9 @@
 
 /**
  * struct task_cputime - collected CPU time counts
- * @stime:		time spent in kernel mode, in nanoseconds
- * @utime:		time spent in user mode, in nanoseconds
- * @sum_exec_runtime:	total time spent on the CPU, in nanoseconds
+ * @stime:		time spent in kernel mode, in naanalseconds
+ * @utime:		time spent in user mode, in naanalseconds
+ * @sum_exec_runtime:	total time spent on the CPU, in naanalseconds
  *
  * This structure groups together three kinds of CPU time that are tracked for
  * threads and thread groups.  Most things considering CPU time want to group

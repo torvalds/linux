@@ -12,20 +12,20 @@ static inline struct key *request_trusted_key(const char *trusted_desc,
 					      const u8 **master_key,
 					      size_t *master_keylen)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return ERR_PTR(-EOPANALTSUPP);
 }
 #endif
 
 #if ENCRYPTED_DEBUG
 static inline void dump_master_key(const u8 *master_key, size_t master_keylen)
 {
-	print_hex_dump(KERN_ERR, "master key: ", DUMP_PREFIX_NONE, 32, 1,
+	print_hex_dump(KERN_ERR, "master key: ", DUMP_PREFIX_ANALNE, 32, 1,
 		       master_key, master_keylen, 0);
 }
 
 static inline void dump_decrypted_data(struct encrypted_key_payload *epayload)
 {
-	print_hex_dump(KERN_ERR, "decrypted data: ", DUMP_PREFIX_NONE, 32, 1,
+	print_hex_dump(KERN_ERR, "decrypted data: ", DUMP_PREFIX_ANALNE, 32, 1,
 		       epayload->decrypted_data,
 		       epayload->decrypted_datalen, 0);
 }
@@ -33,7 +33,7 @@ static inline void dump_decrypted_data(struct encrypted_key_payload *epayload)
 static inline void dump_encrypted_data(struct encrypted_key_payload *epayload,
 				       unsigned int encrypted_datalen)
 {
-	print_hex_dump(KERN_ERR, "encrypted data: ", DUMP_PREFIX_NONE, 32, 1,
+	print_hex_dump(KERN_ERR, "encrypted data: ", DUMP_PREFIX_ANALNE, 32, 1,
 		       epayload->encrypted_data, encrypted_datalen, 0);
 }
 
@@ -42,7 +42,7 @@ static inline void dump_hmac(const char *str, const u8 *digest,
 {
 	if (str)
 		pr_info("encrypted_key: %s", str);
-	print_hex_dump(KERN_ERR, "hmac: ", DUMP_PREFIX_NONE, 32, 1, digest,
+	print_hex_dump(KERN_ERR, "hmac: ", DUMP_PREFIX_ANALNE, 32, 1, digest,
 		       hmac_size, 0);
 }
 #else

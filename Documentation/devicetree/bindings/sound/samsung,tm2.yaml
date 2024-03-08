@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/samsung,tm2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos5433 TM2(E) audio complex with WM5110 codec
+title: Samsung Exyanals5433 TM2(E) audio complex with WM5110 codec
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -26,7 +26,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - description: Phandle to the WM5110 audio codec.
-      - description: Phandle to the HDMI transmitter node.
+      - description: Phandle to the HDMI transmitter analde.
 
   samsung,audio-routing:
     description: |
@@ -37,7 +37,7 @@ properties:
       Mic, Sub Mic, Third Mic, Headset Mic.
       Deprecated, use audio-routing.
     deprecated: true
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: /schemas/types.yaml#/definitions/analn-unique-string-array
 
   i2s-controller:
     description: Phandles to the I2S controllers.

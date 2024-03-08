@@ -15,7 +15,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
-#include <linux/notifier.h>
+#include <linux/analtifier.h>
 #include <linux/kprobes.h>
 #include <linux/nmi.h>
 #include <linux/init.h>
@@ -49,7 +49,7 @@ static int nmi_cpu_backtrace_handler(unsigned int cmd, struct pt_regs *regs)
 
 	return NMI_DONE;
 }
-NOKPROBE_SYMBOL(nmi_cpu_backtrace_handler);
+ANALKPROBE_SYMBOL(nmi_cpu_backtrace_handler);
 
 static int __init register_nmi_cpu_backtrace_handler(void)
 {

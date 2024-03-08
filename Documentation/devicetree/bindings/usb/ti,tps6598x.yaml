@@ -7,12 +7,12 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments 6598x Type-C Port Switch and Power Delivery controller
 
 maintainers:
-  - Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+  - Bryan O'Doanalghue <bryan.odoanalghue@linaro.org>
 
 description: |
   Texas Instruments 6598x Type-C Port Switch and Power Delivery controller
 
-  A variant of this controller known as Apple CD321x or Apple ACE is also
+  A variant of this controller kanalwn as Apple CD321x or Apple ACE is also
   present on hardware with Apple SoCs such as the M1.
 
 properties:

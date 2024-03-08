@@ -62,7 +62,7 @@ properties:
        - core_mss:: Core MultiMedia SubSystem clock.
        - iface:: Display AXI clock.
        - mdp_core:: MDP Core clock.
-       - mnoc:: MNOC clock
+       - manalc:: MANALC clock
        - pixel:: Display pixel clock.
     minItems: 3
     maxItems: 9
@@ -79,7 +79,7 @@ properties:
     const: dsi
 
   syscon-sfpb:
-    description: A phandle to mmss_sfpb syscon node (only for DSIv2).
+    description: A phandle to mmss_sfpb syscon analde (only for DSIv2).
     $ref: /schemas/types.yaml#/definitions/phandle
 
   qcom,dual-dsi-mode:
@@ -126,7 +126,7 @@ properties:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
       Contains DSI controller input and output ports as children, each
-      containing one endpoint subnode.
+      containing one endpoint subanalde.
 
     properties:
       port@0:
@@ -167,15 +167,15 @@ properties:
 
   avdd-supply:
     description:
-      Phandle to vdd regulator device node
+      Phandle to vdd regulator device analde
 
   refgen-supply:
     description:
-      Phandle to REFGEN regulator device node
+      Phandle to REFGEN regulator device analde
 
   vcca-supply:
     description:
-      Phandle to vdd regulator device node
+      Phandle to vdd regulator device analde
 
   vdd-supply:
     description:
@@ -364,7 +364,7 @@ allOf:
             - const: mdp_core
             - const: byte
             - const: byte_intf
-            - const: mnoc
+            - const: manalc
             - const: iface
             - const: bus
             - const: core_mmss

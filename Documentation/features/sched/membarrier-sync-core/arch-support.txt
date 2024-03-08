@@ -14,13 +14,13 @@
 #
 # x86-32 uses IRET as return from interrupt, which takes care of the IPI.
 # However, it uses both IRET and SYSEXIT to go back to user-space. The IRET
-# instruction is core serializing, but not SYSEXIT.
+# instruction is core serializing, but analt SYSEXIT.
 #
 # x86-64 uses IRET as return from interrupt, which takes care of the IPI.
 # However, it can return to user-space through either SYSRETL (compat code),
 # SYSRETQ, or IRET.
 #
-# Given that neither SYSRET{L,Q}, nor SYSEXIT, are core serializing, we rely
+# Given that neither SYSRET{L,Q}, analr SYSEXIT, are core serializing, we rely
 # instead on write_cr3() performed by switch_mm() to provide core serialization
 # after changing the current mm, and deal with the special case of kthread ->
 # uthread (temporarily keeping current mm into active_mm) by issuing a

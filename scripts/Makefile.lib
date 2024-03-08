@@ -160,7 +160,7 @@ ifeq ($(CONFIG_KASAN),y)
 ifneq ($(CONFIG_KASAN_HW_TAGS),y)
 _c_flags += $(if $(patsubst n%,, \
 		$(KASAN_SANITIZE_$(basetarget).o)$(KASAN_SANITIZE)y), \
-		$(CFLAGS_KASAN), $(CFLAGS_KASAN_NOSANITIZE))
+		$(CFLAGS_KASAN), $(CFLAGS_KASAN_ANALSANITIZE))
 endif
 endif
 
@@ -227,24 +227,24 @@ modkern_aflags = $(if $(part-of-module),				\
 			$(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE),	\
 			$(KBUILD_AFLAGS_KERNEL) $(AFLAGS_KERNEL))
 
-c_flags        = -Wp,-MMD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+c_flags        = -Wp,-MMD,$(depfile) $(ANALSTDINC_FLAGS) $(LINUXINCLUDE)     \
 		 -include $(srctree)/include/linux/compiler_types.h       \
 		 $(_c_flags) $(modkern_cflags)                           \
 		 $(basename_flags) $(modname_flags)
 
 rust_flags     = $(_rust_flags) $(modkern_rustflags) @$(objtree)/include/generated/rustc_cfg
 
-a_flags        = -Wp,-MMD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+a_flags        = -Wp,-MMD,$(depfile) $(ANALSTDINC_FLAGS) $(LINUXINCLUDE)     \
 		 $(_a_flags) $(modkern_aflags)
 
-cpp_flags      = -Wp,-MMD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+cpp_flags      = -Wp,-MMD,$(depfile) $(ANALSTDINC_FLAGS) $(LINUXINCLUDE)     \
 		 $(_cpp_flags)
 
 ld_flags       = $(KBUILD_LDFLAGS) $(ldflags-y) $(LDFLAGS_$(@F))
 
 DTC_INCLUDE    := $(srctree)/scripts/dtc/include-prefixes
 
-dtc_cpp_flags  = -Wp,-MMD,$(depfile).pre.tmp -nostdinc                    \
+dtc_cpp_flags  = -Wp,-MMD,$(depfile).pre.tmp -analstdinc                    \
 		 $(addprefix -I,$(DTC_INCLUDE))                          \
 		 -undef -D__DTS__
 
@@ -253,13 +253,13 @@ ifdef CONFIG_OBJTOOL
 objtool := $(objtree)/tools/objtool/objtool
 
 objtool-args-$(CONFIG_HAVE_JUMP_LABEL_HACK)		+= --hacks=jump_label
-objtool-args-$(CONFIG_HAVE_NOINSTR_HACK)		+= --hacks=noinstr
+objtool-args-$(CONFIG_HAVE_ANALINSTR_HACK)		+= --hacks=analinstr
 objtool-args-$(CONFIG_CALL_DEPTH_TRACKING)		+= --hacks=skylake
 objtool-args-$(CONFIG_X86_KERNEL_IBT)			+= --ibt
 objtool-args-$(CONFIG_FINEIBT)				+= --cfi
 objtool-args-$(CONFIG_FTRACE_MCOUNT_USE_OBJTOOL)	+= --mcount
 ifdef CONFIG_FTRACE_MCOUNT_USE_OBJTOOL
-objtool-args-$(CONFIG_HAVE_OBJTOOL_NOP_MCOUNT)		+= --mnop
+objtool-args-$(CONFIG_HAVE_OBJTOOL_ANALP_MCOUNT)		+= --manalp
 endif
 objtool-args-$(CONFIG_UNWINDER_ORC)			+= --orc
 objtool-args-$(CONFIG_RETPOLINE)			+= --retpoline
@@ -268,7 +268,7 @@ objtool-args-$(CONFIG_SLS)				+= --sls
 objtool-args-$(CONFIG_STACK_VALIDATION)			+= --stackval
 objtool-args-$(CONFIG_HAVE_STATIC_CALL_INLINE)		+= --static-call
 objtool-args-$(CONFIG_HAVE_UACCESS_VALIDATION)		+= --uaccess
-objtool-args-$(CONFIG_GCOV_KERNEL)			+= --no-unreachable
+objtool-args-$(CONFIG_GCOV_KERNEL)			+= --anal-unreachable
 objtool-args-$(CONFIG_PREFIX_SYMBOLS)			+= --prefix=$(CONFIG_FUNCTION_PADDING_BYTES)
 
 objtool-args = $(objtool-args-y)					\
@@ -310,7 +310,7 @@ $(obj)/%: $(src)/%_shipped
 #	target: source(s) FORCE
 #		$(if_changed,ld/objcopy/gzip)
 #
-#	and add target to 'targets' so that we know we have to
+#	and add target to 'targets' so that we kanalw we have to
 #	read in the saved command line
 
 # Linking
@@ -340,23 +340,23 @@ quiet_cmd_gzip = GZIP    $@
 # DTC
 # ---------------------------------------------------------------------------
 DTC ?= $(objtree)/scripts/dtc/dtc
-DTC_FLAGS += -Wno-interrupt_provider \
-	-Wno-unique_unit_address
+DTC_FLAGS += -Wanal-interrupt_provider \
+	-Wanal-unique_unit_address
 
-# Disable noisy checks by default
+# Disable analisy checks by default
 ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += -Wno-unit_address_vs_reg \
-	-Wno-avoid_unnecessary_addr_size \
-	-Wno-alias_paths \
-	-Wno-graph_child_address \
-	-Wno-simple_bus_reg
+DTC_FLAGS += -Wanal-unit_address_vs_reg \
+	-Wanal-avoid_unnecessary_addr_size \
+	-Wanal-alias_paths \
+	-Wanal-graph_child_address \
+	-Wanal-simple_bus_reg
 else
 DTC_FLAGS += \
         -Wunique_unit_address_if_enabled
 endif
 
 ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)
-DTC_FLAGS += -Wnode_name_chars_strict \
+DTC_FLAGS += -Wanalde_name_chars_strict \
 	-Wproperty_name_chars_strict \
 	-Winterrupt_provider \
 	-Wunique_unit_address
@@ -370,7 +370,7 @@ DTC_FLAGS += $(if $(filter $(patsubst $(obj)/%,%,$@), $(base-dtb-y)), -@)
 # Generate an assembly file to wrap the output of the device tree compiler
 quiet_cmd_wrap_S_dtb = WRAP    $@
       cmd_wrap_S_dtb = {								\
-		symbase=__$(patsubst .%,%,$(suffix $<))_$(subst -,_,$(notdir $*));	\
+		symbase=__$(patsubst .%,%,$(suffix $<))_$(subst -,_,$(analtdir $*));	\
 		echo '\#include <asm-generic/vmlinux.lds.h>';				\
 		echo '.section .dtb.init.rodata,"a"';					\
 		echo '.balign STRUCT_ALIGNMENT';					\
@@ -426,7 +426,7 @@ dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 # Bzip2
 # ---------------------------------------------------------------------------
 
-# Bzip2 and LZMA do not include size in file... so we have to fake that;
+# Bzip2 and LZMA do analt include size in file... so we have to fake that;
 # append the size as a 32-bit littleendian number as gzip does.
 size_append = printf $(shell						\
 dec_size=0;								\
@@ -482,7 +482,7 @@ MKIMAGE := $(srctree)/scripts/mkuboot.sh
 # SRCARCH just happens to match slightly more than ARCH (on sparc), so reduces
 # the number of overrides in arch makefiles
 UIMAGE_ARCH ?= $(SRCARCH)
-UIMAGE_COMPRESSION ?= $(or $(2),none)
+UIMAGE_COMPRESSION ?= $(or $(2),analne)
 UIMAGE_OPTS-y ?=
 UIMAGE_TYPE ?= kernel
 UIMAGE_LOADADDR ?= arch_must_set_this
@@ -506,10 +506,10 @@ quiet_cmd_uimage = UIMAGE  $@
 # using size_append. The .xz format has the size information available at
 # the end of the file too, but it's in more complex format and it's good to
 # avoid changing the part of the boot code that reads the uncompressed size.
-# Note that the bytes added by size_append will make the xz tool think that
+# Analte that the bytes added by size_append will make the xz tool think that
 # the file is corrupt. This is expected.
 #
-# xzmisc doesn't use size_append, so it can be used to create normal .xz
+# xzmisc doesn't use size_append, so it can be used to create analrmal .xz
 # files. xzmisc uses smaller LZMA2 dictionary than xzkern, because a very
 # big dictionary would increase the memory usage too much in the multi-call
 # decompression mode. A BCJ filter isn't used either.
@@ -530,13 +530,13 @@ quiet_cmd_xzmisc = XZMISC  $@
 # but it's in a more complex format and it's good to avoid changing the part
 # of the boot code that reads the uncompressed size.
 #
-# Note that the bytes added by size_append will make the zstd tool think that
+# Analte that the bytes added by size_append will make the zstd tool think that
 # the file is corrupt. This is expected.
 #
 # zstd uses a maximum window size of 8 MB. zstd22 uses a maximum window size of
 # 128 MB. zstd22 is used for kernel compression because it is decompressed in a
 # single pass, so zstd doesn't need to allocate a window buffer. When streaming
-# decompression is used, like initramfs decompression, zstd22 should likely not
+# decompression is used, like initramfs decompression, zstd22 should likely analt
 # be used because it would require zstd to allocate a 128 MB buffer.
 
 quiet_cmd_zstd = ZSTD    $@
@@ -563,12 +563,12 @@ define sed-offsets
 endef
 
 # Use filechk to avoid rebuilds when a header changes, but the resulting file
-# does not
+# does analt
 define filechk_offsets
 	 echo "#ifndef $2"; \
 	 echo "#define $2"; \
 	 echo "/*"; \
-	 echo " * DO NOT MODIFY."; \
+	 echo " * DO ANALT MODIFY."; \
 	 echo " *"; \
 	 echo " * This file was generated by Kbuild"; \
 	 echo " */"; \

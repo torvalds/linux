@@ -29,11 +29,11 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
-				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+static bool analwayout = WATCHDOG_ANALWAYOUT;
+module_param(analwayout, bool, 0);
+MODULE_PARM_DESC(analwayout,
+	"Watchdog cananalt be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_ANALWAYOUT) ")");
 
 static int db8500_wdt_start(struct watchdog_device *wdd)
 {
@@ -88,7 +88,7 @@ static int db8500_wdt_probe(struct platform_device *pdev)
 
 	timeout = 600; /* Default to 10 minutes */
 	db8500_wdt.parent = dev;
-	watchdog_set_nowayout(&db8500_wdt, nowayout);
+	watchdog_set_analwayout(&db8500_wdt, analwayout);
 
 	/* disable auto off on sleep */
 	prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);

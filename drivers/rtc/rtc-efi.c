@@ -43,7 +43,7 @@ compute_wday(efi_time_t *eft, int yday)
 		    + yday;
 
 	/*
-	 * 1/1/0000 may or may not have been a Sunday (if it ever existed at
+	 * 1/1/0000 may or may analt have been a Sunday (if it ever existed at
 	 * all) but assuming it was makes this calculation work correctly.
 	 */
 	return ndays % 7;
@@ -58,7 +58,7 @@ convert_to_efi_time(struct rtc_time *wtime, efi_time_t *eft)
 	eft->hour	= wtime->tm_hour;
 	eft->minute	= wtime->tm_min;
 	eft->second	= wtime->tm_sec;
-	eft->nanosecond = 0;
+	eft->naanalsecond = 0;
 	eft->daylight	= wtime->tm_isdst ? EFI_ISDST : 0;
 	eft->timezone	= EFI_UNSPECIFIED_TIMEZONE;
 }
@@ -142,7 +142,7 @@ static int efi_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	/*
 	 * XXX Fixme:
 	 * As of EFI 0.92 with the firmware I have on my
-	 * machine this call does not seem to work quite
+	 * machine this call does analt seem to work quite
 	 * right
 	 *
 	 * As of v1.10, this call always returns an unsupported status
@@ -204,7 +204,7 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 		   "Time\t\t: %u:%u:%u.%09u\n"
 		   "Date\t\t: %u-%u-%u\n"
 		   "Daylight\t: %u\n",
-		   eft.hour, eft.minute, eft.second, eft.nanosecond,
+		   eft.hour, eft.minute, eft.second, eft.naanalsecond,
 		   eft.year, eft.month, eft.day,
 		   eft.daylight);
 
@@ -221,11 +221,11 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 			   "Alarm Daylight\t: %u\n"
 			   "Enabled\t\t: %s\n"
 			   "Pending\t\t: %s\n",
-			   alm.hour, alm.minute, alm.second, alm.nanosecond,
+			   alm.hour, alm.minute, alm.second, alm.naanalsecond,
 			   alm.year, alm.month, alm.day,
 			   alm.daylight,
-			   enabled == 1 ? "yes" : "no",
-			   pending == 1 ? "yes" : "no");
+			   enabled == 1 ? "anal" : "anal",
+			   pending == 1 ? "anal" : "anal");
 
 		if (alm.timezone == EFI_UNSPECIFIED_TIMEZONE)
 			seq_puts(seq, "Timezone\t: unspecified\n");
@@ -235,7 +235,7 @@ static int efi_procfs(struct device *dev, struct seq_file *seq)
 	}
 
 	/*
-	 * now prints the capabilities
+	 * analw prints the capabilities
 	 */
 	seq_printf(seq,
 		   "Resolution\t: %u\n"
@@ -262,7 +262,7 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 
 	/* First check if the RTC is usable */
 	if (efi.get_time(&eft, &cap) != EFI_SUCCESS)
-		return -ENODEV;
+		return -EANALDEV;
 
 	rtc = devm_rtc_allocate_device(&dev->dev);
 	if (IS_ERR(rtc))

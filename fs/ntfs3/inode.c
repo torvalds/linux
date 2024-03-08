@@ -20,13 +20,13 @@
 /*
  * ntfs_read_mft - Read record and parses MFT.
  */
-static struct inode *ntfs_read_mft(struct inode *inode,
+static struct ianalde *ntfs_read_mft(struct ianalde *ianalde,
 				   const struct cpu_str *name,
 				   const struct MFT_REF *ref)
 {
 	int err = 0;
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct super_block *sb = inode->i_sb;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	mode_t mode = 0;
 	struct ATTR_STD_INFO5 *std5 = NULL;
@@ -35,7 +35,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	bool is_match = false;
 	bool is_root = false;
 	bool is_dir;
-	unsigned long ino = inode->i_ino;
+	unsigned long ianal = ianalde->i_ianal;
 	u32 rp_fa = 0, asize, t32;
 	u16 roff, rsize, names = 0;
 	const struct ATTR_FILE_NAME *fname = NULL;
@@ -46,28 +46,28 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	struct runs_tree *run;
 	struct timespec64 ts;
 
-	inode->i_op = NULL;
+	ianalde->i_op = NULL;
 	/* Setup 'uid' and 'gid' */
-	inode->i_uid = sbi->options->fs_uid;
-	inode->i_gid = sbi->options->fs_gid;
+	ianalde->i_uid = sbi->options->fs_uid;
+	ianalde->i_gid = sbi->options->fs_gid;
 
-	err = mi_init(&ni->mi, sbi, ino);
+	err = mi_init(&ni->mi, sbi, ianal);
 	if (err)
 		goto out;
 
-	if (!sbi->mft.ni && ino == MFT_REC_MFT && !sb->s_root) {
+	if (!sbi->mft.ni && ianal == MFT_REC_MFT && !sb->s_root) {
 		t64 = sbi->mft.lbo >> sbi->cluster_bits;
 		t32 = bytes_to_cluster(sbi, MFT_REC_VOL * sbi->record_size);
 		sbi->mft.ni = ni;
 		init_rwsem(&ni->file.run_lock);
 
 		if (!run_add_entry(&ni->file.run, 0, t64, t32, true)) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 	}
 
-	err = mi_read(&ni->mi, ino == MFT_REC_MFT);
+	err = mi_read(&ni->mi, ianal == MFT_REC_MFT);
 
 	if (err)
 		goto out;
@@ -78,17 +78,17 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 		;
 	} else if (ref->seq != rec->seq) {
 		err = -EINVAL;
-		ntfs_err(sb, "MFT: r=%lx, expect seq=%x instead of %x!", ino,
+		ntfs_err(sb, "MFT: r=%lx, expect seq=%x instead of %x!", ianal,
 			 le16_to_cpu(ref->seq), le16_to_cpu(rec->seq));
 		goto out;
 	} else if (!is_rec_inuse(rec)) {
 		err = -ESTALE;
-		ntfs_err(sb, "Inode r=%x is not in use!", (u32)ino);
+		ntfs_err(sb, "Ianalde r=%x is analt in use!", (u32)ianal);
 		goto out;
 	}
 
 	if (le32_to_cpu(rec->total) != sbi->record_size) {
-		/* Bad inode? */
+		/* Bad ianalde? */
 		err = -EINVAL;
 		goto out;
 	}
@@ -101,13 +101,13 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	/* Record should contain $I30 root. */
 	is_dir = rec->flags & RECORD_FLAG_DIR;
 
-	/* MFT_REC_MFT is not a dir */
-	if (is_dir && ino == MFT_REC_MFT) {
+	/* MFT_REC_MFT is analt a dir */
+	if (is_dir && ianal == MFT_REC_MFT) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	inode->i_generation = le16_to_cpu(rec->seq);
+	ianalde->i_generation = le16_to_cpu(rec->seq);
 
 	/* Enumerate all struct Attributes MFT. */
 	le = NULL;
@@ -125,8 +125,8 @@ next_attr:
 		goto end_enum;
 
 	if (le && le->vcn) {
-		/* This is non primary attribute segment. Ignore if not MFT. */
-		if (ino != MFT_REC_MFT || attr->type != ATTR_DATA)
+		/* This is analn primary attribute segment. Iganalre if analt MFT. */
+		if (ianal != MFT_REC_MFT || attr->type != ATTR_DATA)
 			goto next_attr;
 
 		run = &ni->file.run;
@@ -134,20 +134,20 @@ next_attr:
 		goto attr_unpack_run;
 	}
 
-	roff = attr->non_res ? 0 : le16_to_cpu(attr->res.data_off);
-	rsize = attr->non_res ? 0 : le32_to_cpu(attr->res.data_size);
+	roff = attr->analn_res ? 0 : le16_to_cpu(attr->res.data_off);
+	rsize = attr->analn_res ? 0 : le32_to_cpu(attr->res.data_size);
 	asize = le32_to_cpu(attr->size);
 
 	/*
 	 * Really this check was done in 'ni_enum_attr_ex' -> ... 'mi_enum_attr'.
-	 * There not critical to check this case again
+	 * There analt critical to check this case again
 	 */
 	if (attr->name_len &&
 	    sizeof(short) * attr->name_len + le16_to_cpu(attr->name_off) >
 		    asize)
 		goto out;
 
-	if (attr->non_res) {
+	if (attr->analn_res) {
 		t64 = le64_to_cpu(attr->nres.alloc_size);
 		if (le64_to_cpu(attr->nres.data_size) > t64 ||
 		    le64_to_cpu(attr->nres.valid_size) > t64)
@@ -156,7 +156,7 @@ next_attr:
 
 	switch (attr->type) {
 	case ATTR_STD:
-		if (attr->non_res ||
+		if (attr->analn_res ||
 		    asize < sizeof(struct ATTR_STD_INFO) + roff ||
 		    rsize < sizeof(struct ATTR_STD_INFO))
 			goto out;
@@ -170,11 +170,11 @@ next_attr:
 		nt2kernel(std5->cr_time, &ni->i_crtime);
 #endif
 		nt2kernel(std5->a_time, &ts);
-		inode_set_atime_to_ts(inode, ts);
+		ianalde_set_atime_to_ts(ianalde, ts);
 		nt2kernel(std5->c_time, &ts);
-		inode_set_ctime_to_ts(inode, ts);
+		ianalde_set_ctime_to_ts(ianalde, ts);
 		nt2kernel(std5->m_time, &ts);
-		inode_set_mtime_to_ts(inode, ts);
+		ianalde_set_mtime_to_ts(ianalde, ts);
 
 		ni->std_fa = std5->fa;
 
@@ -184,7 +184,7 @@ next_attr:
 		goto next_attr;
 
 	case ATTR_LIST:
-		if (attr->name_len || le || ino == MFT_REC_LOG)
+		if (attr->name_len || le || ianal == MFT_REC_LOG)
 			goto out;
 
 		err = ntfs_load_attr_list(ni, attr);
@@ -196,7 +196,7 @@ next_attr:
 		goto next_attr;
 
 	case ATTR_NAME:
-		if (attr->non_res || asize < SIZEOF_ATTRIBUTE_FILENAME + roff ||
+		if (attr->analn_res || asize < SIZEOF_ATTRIBUTE_FILENAME + roff ||
 		    rsize < SIZEOF_ATTRIBUTE_FILENAME)
 			goto out;
 
@@ -214,21 +214,21 @@ next_attr:
 
 	case ATTR_DATA:
 		if (is_dir) {
-			/* Ignore data attribute in dir record. */
+			/* Iganalre data attribute in dir record. */
 			goto next_attr;
 		}
 
-		if (ino == MFT_REC_BADCLUST && !attr->non_res)
+		if (ianal == MFT_REC_BADCLUST && !attr->analn_res)
 			goto next_attr;
 
 		if (attr->name_len &&
-		    ((ino != MFT_REC_BADCLUST || !attr->non_res ||
+		    ((ianal != MFT_REC_BADCLUST || !attr->analn_res ||
 		      attr->name_len != ARRAY_SIZE(BAD_NAME) ||
 		      memcmp(attr_name(attr), BAD_NAME, sizeof(BAD_NAME))) &&
-		     (ino != MFT_REC_SECURE || !attr->non_res ||
+		     (ianal != MFT_REC_SECURE || !attr->analn_res ||
 		      attr->name_len != ARRAY_SIZE(SDS_NAME) ||
 		      memcmp(attr_name(attr), SDS_NAME, sizeof(SDS_NAME))))) {
-			/* File contains stream attribute. Ignore it. */
+			/* File contains stream attribute. Iganalre it. */
 			goto next_attr;
 		}
 
@@ -247,31 +247,31 @@ next_attr:
 		else
 			ni->std_fa &= ~FILE_ATTRIBUTE_ENCRYPTED;
 
-		if (!attr->non_res) {
-			ni->i_valid = inode->i_size = rsize;
-			inode_set_bytes(inode, rsize);
+		if (!attr->analn_res) {
+			ni->i_valid = ianalde->i_size = rsize;
+			ianalde_set_bytes(ianalde, rsize);
 		}
 
 		mode = S_IFREG | (0777 & sbi->options->fs_fmask_inv);
 
-		if (!attr->non_res) {
+		if (!attr->analn_res) {
 			ni->ni_flags |= NI_FLAG_RESIDENT;
 			goto next_attr;
 		}
 
-		inode_set_bytes(inode, attr_ondisk_size(attr));
+		ianalde_set_bytes(ianalde, attr_ondisk_size(attr));
 
 		ni->i_valid = le64_to_cpu(attr->nres.valid_size);
-		inode->i_size = le64_to_cpu(attr->nres.data_size);
+		ianalde->i_size = le64_to_cpu(attr->nres.data_size);
 		if (!attr->nres.alloc_size)
 			goto next_attr;
 
-		run = ino == MFT_REC_BITMAP ? &sbi->used.bitmap.run :
+		run = ianal == MFT_REC_BITMAP ? &sbi->used.bitmap.run :
 					      &ni->file.run;
 		break;
 
 	case ATTR_ROOT:
-		if (attr->non_res)
+		if (attr->analn_res)
 			goto out;
 
 		root = Add2Ptr(attr, roff);
@@ -304,16 +304,16 @@ next_attr:
 		    memcmp(attr_name(attr), I30_NAME, sizeof(I30_NAME)))
 			goto next_attr;
 
-		inode->i_size = le64_to_cpu(attr->nres.data_size);
+		ianalde->i_size = le64_to_cpu(attr->nres.data_size);
 		ni->i_valid = le64_to_cpu(attr->nres.valid_size);
-		inode_set_bytes(inode, le64_to_cpu(attr->nres.alloc_size));
+		ianalde_set_bytes(ianalde, le64_to_cpu(attr->nres.alloc_size));
 
 		run = &ni->dir.alloc_run;
 		break;
 
 	case ATTR_BITMAP:
-		if (ino == MFT_REC_MFT) {
-			if (!attr->non_res)
+		if (ianal == MFT_REC_MFT) {
+			if (!attr->analn_res)
 				goto out;
 #ifndef CONFIG_NTFS3_64BIT_CLUSTER
 			/* 0x20000000 = 2^32 / 8 */
@@ -325,7 +325,7 @@ next_attr:
 		} else if (is_dir && attr->name_len == ARRAY_SIZE(I30_NAME) &&
 			   !memcmp(attr_name(attr), I30_NAME,
 				   sizeof(I30_NAME)) &&
-			   attr->non_res) {
+			   attr->analn_res) {
 			run = &ni->dir.bitmap_run;
 			break;
 		}
@@ -339,13 +339,13 @@ next_attr:
 		switch (rp_fa) {
 		case REPARSE_LINK:
 			/*
-			 * Normal symlink.
+			 * Analrmal symlink.
 			 * Assume one unicode symbol == one utf8.
 			 */
-			inode->i_size = le16_to_cpu(rp.SymbolicLinkReparseBuffer
+			ianalde->i_size = le16_to_cpu(rp.SymbolicLinkReparseBuffer
 							    .PrintNameLength) /
 					sizeof(u16);
-			ni->i_valid = inode->i_size;
+			ni->i_valid = ianalde->i_size;
 			/* Clear directory bit. */
 			if (ni->ni_flags & NI_FLAG_DIR) {
 				indx_clear(&ni->dir);
@@ -356,7 +356,7 @@ next_attr:
 			}
 			mode = S_IFLNK | 0777;
 			is_dir = false;
-			if (attr->non_res) {
+			if (attr->analn_res) {
 				run = &ni->file.run;
 				goto attr_unpack_run; // Double break.
 			}
@@ -375,11 +375,11 @@ next_attr:
 		    resident_data_ex(attr, sizeof(struct EA_INFO))) {
 			ni->ni_flags |= NI_FLAG_EA;
 			/*
-			 * ntfs_get_wsl_perm updates inode->i_uid, inode->i_gid, inode->i_mode
+			 * ntfs_get_wsl_perm updates ianalde->i_uid, ianalde->i_gid, ianalde->i_mode
 			 */
-			inode->i_mode = mode;
-			ntfs_get_wsl_perm(inode);
-			mode = inode->i_mode;
+			ianalde->i_mode = mode;
+			ntfs_get_wsl_perm(ianalde);
+			mode = ianalde->i_mode;
 		}
 		goto next_attr;
 
@@ -397,7 +397,7 @@ attr_unpack_run:
 
 	t64 = le64_to_cpu(attr->nres.svcn);
 
-	err = run_unpack_ex(run, sbi, ino, t64, le64_to_cpu(attr->nres.evcn),
+	err = run_unpack_ex(run, sbi, ianal, t64, le64_to_cpu(attr->nres.evcn),
 			    t64, Add2Ptr(attr, roff), asize - roff);
 	if (err < 0)
 		goto out;
@@ -410,7 +410,7 @@ end_enum:
 		goto out;
 
 	if (!is_match && name) {
-		err = -ENOENT;
+		err = -EANALENT;
 		goto out;
 	}
 
@@ -423,46 +423,46 @@ end_enum:
 	}
 
 	if (names != le16_to_cpu(rec->hard_links)) {
-		/* Correct minor error on the fly. Do not mark inode as dirty. */
-		ntfs_inode_warn(inode, "Correct links count -> %u.", names);
+		/* Correct mianalr error on the fly. Do analt mark ianalde as dirty. */
+		ntfs_ianalde_warn(ianalde, "Correct links count -> %u.", names);
 		rec->hard_links = cpu_to_le16(names);
 		ni->mi.dirty = true;
 	}
 
-	set_nlink(inode, names);
+	set_nlink(ianalde, names);
 
 	if (S_ISDIR(mode)) {
 		ni->std_fa |= FILE_ATTRIBUTE_DIRECTORY;
 
 		/*
-		 * Dot and dot-dot should be included in count but was not
+		 * Dot and dot-dot should be included in count but was analt
 		 * included in enumeration.
 		 * Usually a hard links to directories are disabled.
 		 */
-		inode->i_op = &ntfs_dir_inode_operations;
-		inode->i_fop = &ntfs_dir_operations;
+		ianalde->i_op = &ntfs_dir_ianalde_operations;
+		ianalde->i_fop = &ntfs_dir_operations;
 		ni->i_valid = 0;
 	} else if (S_ISLNK(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
-		inode->i_op = &ntfs_link_inode_operations;
-		inode->i_fop = NULL;
-		inode_nohighmem(inode);
+		ianalde->i_op = &ntfs_link_ianalde_operations;
+		ianalde->i_fop = NULL;
+		ianalde_analhighmem(ianalde);
 	} else if (S_ISREG(mode)) {
 		ni->std_fa &= ~FILE_ATTRIBUTE_DIRECTORY;
-		inode->i_op = &ntfs_file_inode_operations;
-		inode->i_fop = &ntfs_file_operations;
-		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
+		ianalde->i_op = &ntfs_file_ianalde_operations;
+		ianalde->i_fop = &ntfs_file_operations;
+		ianalde->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
-		if (ino != MFT_REC_MFT)
+		if (ianal != MFT_REC_MFT)
 			init_rwsem(&ni->file.run_lock);
 	} else if (S_ISCHR(mode) || S_ISBLK(mode) || S_ISFIFO(mode) ||
 		   S_ISSOCK(mode)) {
-		inode->i_op = &ntfs_special_inode_operations;
-		init_special_inode(inode, mode, inode->i_rdev);
+		ianalde->i_op = &ntfs_special_ianalde_operations;
+		init_special_ianalde(ianalde, mode, ianalde->i_rdev);
 	} else if (fname && fname->home.low == cpu_to_le32(MFT_REC_EXTEND) &&
 		   fname->home.seq == cpu_to_le16(MFT_REC_EXTEND)) {
-		/* Records in $Extend are not a files or general directories. */
-		inode->i_op = &ntfs_file_inode_operations;
+		/* Records in $Extend are analt a files or general directories. */
+		ianalde->i_op = &ntfs_file_ianalde_operations;
 	} else {
 		err = -EINVAL;
 		goto out;
@@ -471,74 +471,74 @@ end_enum:
 	if ((sbi->options->sys_immutable &&
 	     (std5->fa & FILE_ATTRIBUTE_SYSTEM)) &&
 	    !S_ISFIFO(mode) && !S_ISSOCK(mode) && !S_ISLNK(mode)) {
-		inode->i_flags |= S_IMMUTABLE;
+		ianalde->i_flags |= S_IMMUTABLE;
 	} else {
-		inode->i_flags &= ~S_IMMUTABLE;
+		ianalde->i_flags &= ~S_IMMUTABLE;
 	}
 
-	inode->i_mode = mode;
+	ianalde->i_mode = mode;
 	if (!(ni->ni_flags & NI_FLAG_EA)) {
-		/* If no xattr then no security (stored in xattr). */
-		inode->i_flags |= S_NOSEC;
+		/* If anal xattr then anal security (stored in xattr). */
+		ianalde->i_flags |= S_ANALSEC;
 	}
 
-	if (ino == MFT_REC_MFT && !sb->s_root)
+	if (ianal == MFT_REC_MFT && !sb->s_root)
 		sbi->mft.ni = NULL;
 
-	unlock_new_inode(inode);
+	unlock_new_ianalde(ianalde);
 
-	return inode;
+	return ianalde;
 
 out:
-	if (ino == MFT_REC_MFT && !sb->s_root)
+	if (ianal == MFT_REC_MFT && !sb->s_root)
 		sbi->mft.ni = NULL;
 
-	iget_failed(inode);
+	iget_failed(ianalde);
 	return ERR_PTR(err);
 }
 
 /*
- * ntfs_test_inode
+ * ntfs_test_ianalde
  *
  * Return: 1 if match.
  */
-static int ntfs_test_inode(struct inode *inode, void *data)
+static int ntfs_test_ianalde(struct ianalde *ianalde, void *data)
 {
 	struct MFT_REF *ref = data;
 
-	return ino_get(ref) == inode->i_ino;
+	return ianal_get(ref) == ianalde->i_ianal;
 }
 
-static int ntfs_set_inode(struct inode *inode, void *data)
+static int ntfs_set_ianalde(struct ianalde *ianalde, void *data)
 {
 	const struct MFT_REF *ref = data;
 
-	inode->i_ino = ino_get(ref);
+	ianalde->i_ianal = ianal_get(ref);
 	return 0;
 }
 
-struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
+struct ianalde *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 			 const struct cpu_str *name)
 {
-	struct inode *inode;
+	struct ianalde *ianalde;
 
-	inode = iget5_locked(sb, ino_get(ref), ntfs_test_inode, ntfs_set_inode,
+	ianalde = iget5_locked(sb, ianal_get(ref), ntfs_test_ianalde, ntfs_set_ianalde,
 			     (void *)ref);
-	if (unlikely(!inode))
-		return ERR_PTR(-ENOMEM);
+	if (unlikely(!ianalde))
+		return ERR_PTR(-EANALMEM);
 
-	/* If this is a freshly allocated inode, need to read it now. */
-	if (inode->i_state & I_NEW)
-		inode = ntfs_read_mft(inode, name, ref);
-	else if (ref->seq != ntfs_i(inode)->mi.mrec->seq) {
-		/* Inode overlaps? */
-		_ntfs_bad_inode(inode);
+	/* If this is a freshly allocated ianalde, need to read it analw. */
+	if (ianalde->i_state & I_NEW)
+		ianalde = ntfs_read_mft(ianalde, name, ref);
+	else if (ref->seq != ntfs_i(ianalde)->mi.mrec->seq) {
+		/* Ianalde overlaps? */
+		_ntfs_bad_ianalde(ianalde);
 	}
 
-	if (IS_ERR(inode) && name)
+	if (IS_ERR(ianalde) && name)
 		ntfs_set_state(sb->s_fs_info, NTFS_DIRTY_ERROR);
 
-	return inode;
+	return ianalde;
 }
 
 enum get_block_ctx {
@@ -549,13 +549,13 @@ enum get_block_ctx {
 	GET_BLOCK_BMAP = 4,
 };
 
-static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
+static analinline int ntfs_get_block_vbo(struct ianalde *ianalde, u64 vbo,
 				       struct buffer_head *bh, int create,
 				       enum get_block_ctx ctx)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	struct folio *folio = bh->b_folio;
 	u8 cluster_bits = sbi->cluster_bits;
 	u32 block_size = sb->s_blocksize;
@@ -619,7 +619,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 		if (vbo >= valid)
 			set_buffer_new(bh);
 	} else if (create) {
-		/* Normal write. */
+		/* Analrmal write. */
 		if (bytes > bh->b_size)
 			bytes = bh->b_size;
 
@@ -628,15 +628,15 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 
 		if (vbo + bytes > valid) {
 			ni->i_valid = vbo + bytes;
-			mark_inode_dirty(inode);
+			mark_ianalde_dirty(ianalde);
 		}
 	} else if (vbo >= valid) {
 		/* Read out of valid data. */
 		clear_buffer_mapped(bh);
 	} else if (vbo + bytes <= valid) {
-		/* Normal read. */
+		/* Analrmal read. */
 	} else if (vbo + block_size <= valid) {
-		/* Normal short read. */
+		/* Analrmal short read. */
 		bytes = block_size;
 	} else {
 		/*
@@ -676,18 +676,18 @@ out:
 	return err;
 }
 
-int ntfs_get_block(struct inode *inode, sector_t vbn,
+int ntfs_get_block(struct ianalde *ianalde, sector_t vbn,
 		   struct buffer_head *bh_result, int create)
 {
-	return ntfs_get_block_vbo(inode, (u64)vbn << inode->i_blkbits,
+	return ntfs_get_block_vbo(ianalde, (u64)vbn << ianalde->i_blkbits,
 				  bh_result, create, GET_BLOCK_GENERAL);
 }
 
-static int ntfs_get_block_bmap(struct inode *inode, sector_t vsn,
+static int ntfs_get_block_bmap(struct ianalde *ianalde, sector_t vsn,
 			       struct buffer_head *bh_result, int create)
 {
-	return ntfs_get_block_vbo(inode,
-				  (u64)vsn << inode->i_sb->s_blocksize_bits,
+	return ntfs_get_block_vbo(ianalde,
+				  (u64)vsn << ianalde->i_sb->s_blocksize_bits,
 				  bh_result, create, GET_BLOCK_BMAP);
 }
 
@@ -701,14 +701,14 @@ static int ntfs_read_folio(struct file *file, struct folio *folio)
 	struct page *page = &folio->page;
 	int err;
 	struct address_space *mapping = page->mapping;
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 
 	if (is_resident(ni)) {
 		ni_lock(ni);
 		err = attr_data_read_resident(ni, page);
 		ni_unlock(ni);
-		if (err != E_NTFS_NONRESIDENT) {
+		if (err != E_NTFS_ANALNRESIDENT) {
 			unlock_page(page);
 			return err;
 		}
@@ -721,32 +721,32 @@ static int ntfs_read_folio(struct file *file, struct folio *folio)
 		return err;
 	}
 
-	/* Normal + sparse files. */
+	/* Analrmal + sparse files. */
 	return mpage_read_folio(folio, ntfs_get_block);
 }
 
 static void ntfs_readahead(struct readahead_control *rac)
 {
 	struct address_space *mapping = rac->mapping;
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	u64 valid;
 	loff_t pos;
 
 	if (is_resident(ni)) {
-		/* No readahead for resident. */
+		/* Anal readahead for resident. */
 		return;
 	}
 
 	if (is_compressed(ni)) {
-		/* No readahead for compressed. */
+		/* Anal readahead for compressed. */
 		return;
 	}
 
 	valid = ni->i_valid;
 	pos = readahead_pos(rac);
 
-	if (valid < i_size_read(inode) && pos <= valid &&
+	if (valid < i_size_read(ianalde) && pos <= valid &&
 	    valid < pos + readahead_length(rac)) {
 		/* Range cross 'valid'. Read it page by page. */
 		return;
@@ -755,17 +755,17 @@ static void ntfs_readahead(struct readahead_control *rac)
 	mpage_readahead(rac, ntfs_get_block);
 }
 
-static int ntfs_get_block_direct_IO_R(struct inode *inode, sector_t iblock,
+static int ntfs_get_block_direct_IO_R(struct ianalde *ianalde, sector_t iblock,
 				      struct buffer_head *bh_result, int create)
 {
-	return ntfs_get_block_vbo(inode, (u64)iblock << inode->i_blkbits,
+	return ntfs_get_block_vbo(ianalde, (u64)iblock << ianalde->i_blkbits,
 				  bh_result, create, GET_BLOCK_DIRECT_IO_R);
 }
 
-static int ntfs_get_block_direct_IO_W(struct inode *inode, sector_t iblock,
+static int ntfs_get_block_direct_IO_W(struct ianalde *ianalde, sector_t iblock,
 				      struct buffer_head *bh_result, int create)
 {
-	return ntfs_get_block_vbo(inode, (u64)iblock << inode->i_blkbits,
+	return ntfs_get_block_vbo(ianalde, (u64)iblock << ianalde->i_blkbits,
 				  bh_result, create, GET_BLOCK_DIRECT_IO_W);
 }
 
@@ -773,8 +773,8 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	loff_t vbo = iocb->ki_pos;
 	loff_t end;
 	int wr = iov_iter_rw(iter) & WRITE;
@@ -788,7 +788,7 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		goto out;
 	}
 
-	ret = blockdev_direct_IO(iocb, inode, iter,
+	ret = blockdev_direct_IO(iocb, ianalde, iter,
 				 wr ? ntfs_get_block_direct_IO_W :
 				      ntfs_get_block_direct_IO_R);
 
@@ -801,9 +801,9 @@ static ssize_t ntfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 	valid = ni->i_valid;
 	if (wr) {
-		if (end > valid && !S_ISBLK(inode->i_mode)) {
+		if (end > valid && !S_ISBLK(ianalde->i_mode)) {
 			ni->i_valid = end;
-			mark_inode_dirty(inode);
+			mark_ianalde_dirty(ianalde);
 		}
 	} else if (vbo < valid && valid < end) {
 		/* Fix page. */
@@ -815,11 +815,11 @@ out:
 	return ret;
 }
 
-int ntfs_set_size(struct inode *inode, u64 new_size)
+int ntfs_set_size(struct ianalde *ianalde, u64 new_size)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = ianalde->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	int err;
 
 	/* Check for maximum file size. */
@@ -842,7 +842,7 @@ int ntfs_set_size(struct inode *inode, u64 new_size)
 	up_write(&ni->file.run_lock);
 	ni_unlock(ni);
 
-	mark_inode_dirty(inode);
+	mark_ianalde_dirty(ianalde);
 
 out:
 	return err;
@@ -852,18 +852,18 @@ static int ntfs_resident_writepage(struct folio *folio,
 				   struct writeback_control *wbc, void *data)
 {
 	struct address_space *mapping = data;
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	int ret;
 
-	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
+	if (unlikely(ntfs3_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 	ni_lock(ni);
 	ret = attr_data_write_resident(ni, &folio->page);
 	ni_unlock(ni);
 
-	if (ret != E_NTFS_NONRESIDENT)
+	if (ret != E_NTFS_ANALNRESIDENT)
 		folio_unlock(folio);
 	mapping_set_error(mapping, ret);
 	return ret;
@@ -872,21 +872,21 @@ static int ntfs_resident_writepage(struct folio *folio,
 static int ntfs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
+	struct ianalde *ianalde = mapping->host;
 
-	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
+	if (unlikely(ntfs3_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
-	if (is_resident(ntfs_i(inode)))
+	if (is_resident(ntfs_i(ianalde)))
 		return write_cache_pages(mapping, wbc, ntfs_resident_writepage,
 					 mapping);
 	return mpage_writepages(mapping, wbc, ntfs_get_block);
 }
 
-static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
+static int ntfs_get_block_write_begin(struct ianalde *ianalde, sector_t vbn,
 				      struct buffer_head *bh_result, int create)
 {
-	return ntfs_get_block_vbo(inode, (u64)vbn << inode->i_blkbits,
+	return ntfs_get_block_vbo(ianalde, (u64)vbn << ianalde->i_blkbits,
 				  bh_result, create, GET_BLOCK_WRITE_BEGIN);
 }
 
@@ -894,10 +894,10 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		     loff_t pos, u32 len, struct page **pagep, void **fsdata)
 {
 	int err;
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 
-	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
+	if (unlikely(ntfs3_forced_shutdown(ianalde->i_sb)))
 		return -EIO;
 
 	*pagep = NULL;
@@ -906,7 +906,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 			grab_cache_page_write_begin(mapping, pos >> PAGE_SHIFT);
 
 		if (!page) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 
@@ -921,7 +921,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		put_page(page);
 
-		if (err != E_NTFS_NONRESIDENT)
+		if (err != E_NTFS_ANALNRESIDENT)
 			goto out;
 	}
 
@@ -938,8 +938,8 @@ out:
 int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		   u32 len, u32 copied, struct page *page, void *fsdata)
 {
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
+	struct ianalde *ianalde = mapping->host;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
 	u64 valid = ni->i_valid;
 	bool dirty = false;
 	int err;
@@ -973,8 +973,8 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 
 	if (err >= 0) {
 		if (!(ni->std_fa & FILE_ATTRIBUTE_ARCHIVE)) {
-			inode_set_mtime_to_ts(inode,
-					      inode_set_ctime_current(inode));
+			ianalde_set_mtime_to_ts(ianalde,
+					      ianalde_set_ctime_current(ianalde));
 			ni->std_fa |= FILE_ATTRIBUTE_ARCHIVE;
 			dirty = true;
 		}
@@ -984,24 +984,24 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 			dirty = true;
 		}
 
-		if (pos + err > inode->i_size) {
-			i_size_write(inode, pos + err);
+		if (pos + err > ianalde->i_size) {
+			i_size_write(ianalde, pos + err);
 			dirty = true;
 		}
 
 		if (dirty)
-			mark_inode_dirty(inode);
+			mark_ianalde_dirty(ianalde);
 	}
 
 	return err;
 }
 
-int reset_log_file(struct inode *inode)
+int reset_log_file(struct ianalde *ianalde)
 {
 	int err;
 	loff_t pos = 0;
-	u32 log_size = inode->i_size;
-	struct address_space *mapping = inode->i_mapping;
+	u32 log_size = ianalde->i_size;
+	struct address_space *mapping = ianalde->i_mapping;
 
 	for (;;) {
 		u32 len;
@@ -1030,69 +1030,69 @@ int reset_log_file(struct inode *inode)
 		balance_dirty_pages_ratelimited(mapping);
 	}
 out:
-	mark_inode_dirty_sync(inode);
+	mark_ianalde_dirty_sync(ianalde);
 
 	return err;
 }
 
-int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc)
+int ntfs3_write_ianalde(struct ianalde *ianalde, struct writeback_control *wbc)
 {
-	return _ni_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	return _ni_write_ianalde(ianalde, wbc->sync_mode == WB_SYNC_ALL);
 }
 
-int ntfs_sync_inode(struct inode *inode)
+int ntfs_sync_ianalde(struct ianalde *ianalde)
 {
-	return _ni_write_inode(inode, 1);
+	return _ni_write_ianalde(ianalde, 1);
 }
 
 /*
- * writeback_inode - Helper function for ntfs_flush_inodes().
+ * writeback_ianalde - Helper function for ntfs_flush_ianaldes().
  *
- * This writes both the inode and the file data blocks, waiting
+ * This writes both the ianalde and the file data blocks, waiting
  * for in flight data blocks before the start of the call.  It
- * does not wait for any io started during the call.
+ * does analt wait for any io started during the call.
  */
-static int writeback_inode(struct inode *inode)
+static int writeback_ianalde(struct ianalde *ianalde)
 {
-	int ret = sync_inode_metadata(inode, 0);
+	int ret = sync_ianalde_metadata(ianalde, 0);
 
 	if (!ret)
-		ret = filemap_fdatawrite(inode->i_mapping);
+		ret = filemap_fdatawrite(ianalde->i_mapping);
 	return ret;
 }
 
 /*
- * ntfs_flush_inodes
+ * ntfs_flush_ianaldes
  *
  * Write data and metadata corresponding to i1 and i2.  The io is
- * started but we do not wait for any of it to finish.
+ * started but we do analt wait for any of it to finish.
  *
  * filemap_flush() is used for the block device, so if there is a dirty
- * page for a block already in flight, we will not wait and start the
+ * page for a block already in flight, we will analt wait and start the
  * io over again.
  */
-int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
-		      struct inode *i2)
+int ntfs_flush_ianaldes(struct super_block *sb, struct ianalde *i1,
+		      struct ianalde *i2)
 {
 	int ret = 0;
 
 	if (i1)
-		ret = writeback_inode(i1);
+		ret = writeback_ianalde(i1);
 	if (!ret && i2)
-		ret = writeback_inode(i2);
+		ret = writeback_ianalde(i2);
 	if (!ret)
-		ret = sync_blockdev_nowait(sb->s_bdev);
+		ret = sync_blockdev_analwait(sb->s_bdev);
 	return ret;
 }
 
-int inode_write_data(struct inode *inode, const void *data, size_t bytes)
+int ianalde_write_data(struct ianalde *ianalde, const void *data, size_t bytes)
 {
 	pgoff_t idx;
 
-	/* Write non resident data. */
+	/* Write analn resident data. */
 	for (idx = 0; bytes; idx++) {
 		size_t op = bytes > PAGE_SIZE ? PAGE_SIZE : bytes;
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
+		struct page *page = ntfs_map_page(ianalde->i_mapping, idx);
 
 		if (IS_ERR(page))
 			return PTR_ERR(page);
@@ -1138,9 +1138,9 @@ ntfs_create_reparse_buffer(struct ntfs_sb_info *sbi, const char *symname,
 	__le16 *rp_name;
 	typeof(rp->SymbolicLinkReparseBuffer) *rs;
 
-	rp = kzalloc(ntfs_reparse_bytes(2 * size + 2), GFP_NOFS);
+	rp = kzalloc(ntfs_reparse_bytes(2 * size + 2), GFP_ANALFS);
 	if (!rp)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	rs = &rp->SymbolicLinkReparseBuffer;
 	rp_name = rs->PathBuffer;
@@ -1199,18 +1199,18 @@ out:
 }
 
 /*
- * ntfs_create_inode
+ * ntfs_create_ianalde
  *
  * Helper function for:
  * - ntfs_create
- * - ntfs_mknod
+ * - ntfs_mkanald
  * - ntfs_symlink
  * - ntfs_mkdir
  * - ntfs_atomic_open
  *
- * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
+ * ANALTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+struct ianalde *ntfs_create_ianalde(struct mnt_idmap *idmap, struct ianalde *dir,
 				struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
 				dev_t dev, const char *symname, u32 size,
@@ -1220,10 +1220,10 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	struct super_block *sb = dir->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	const struct qstr *name = &dentry->d_name;
-	CLST ino = 0;
-	struct ntfs_inode *dir_ni = ntfs_i(dir);
-	struct ntfs_inode *ni = NULL;
-	struct inode *inode = NULL;
+	CLST ianal = 0;
+	struct ntfs_ianalde *dir_ni = ntfs_i(dir);
+	struct ntfs_ianalde *ni = NULL;
+	struct ianalde *ianalde = NULL;
 	struct ATTRIB *attr;
 	struct ATTR_STD_INFO5 *std5;
 	struct ATTR_FILE_NAME *fname;
@@ -1257,7 +1257,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		 * Root directory is hidden + system.
 		 * Make an exception for children in root.
 		 */
-		if (dir->i_ino == MFT_REC_ROOT)
+		if (dir->i_ianal == MFT_REC_ROOT)
 			fa &= ~(FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
 	} else if (S_ISLNK(mode)) {
 		/* It is good idea that link should be the same type (file/dir) as target */
@@ -1277,7 +1277,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		 *	struct path path;
 		 *
 		 *	if (!kern_path(symname, LOOKUP_FOLLOW, &path)){
-		 *		struct inode *target = d_inode(path.dentry);
+		 *		struct ianalde *target = d_ianalde(path.dentry);
 		 *
 		 *		if (S_ISDIR(target->i_mode))
 		 *			fa |= FILE_ATTRIBUTE_DIRECTORY;
@@ -1313,7 +1313,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	/* Allocate PATH_MAX bytes. */
 	new_de = __getname();
 	if (!new_de) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out1;
 	}
 
@@ -1326,21 +1326,21 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
 
 	/* Step 1: allocate and fill new mft record. */
-	err = ntfs_look_free_mft(sbi, &ino, false, NULL, NULL);
+	err = ntfs_look_free_mft(sbi, &ianal, false, NULL, NULL);
 	if (err)
 		goto out2;
 
-	ni = ntfs_new_inode(sbi, ino, S_ISDIR(mode) ? RECORD_FLAG_DIR : 0);
+	ni = ntfs_new_ianalde(sbi, ianal, S_ISDIR(mode) ? RECORD_FLAG_DIR : 0);
 	if (IS_ERR(ni)) {
 		err = PTR_ERR(ni);
 		ni = NULL;
 		goto out3;
 	}
-	inode = &ni->vfs_inode;
-	inode_init_owner(idmap, inode, dir, mode);
-	mode = inode->i_mode;
+	ianalde = &ni->vfs_ianalde;
+	ianalde_init_owner(idmap, ianalde, dir, mode);
+	mode = ianalde->i_mode;
 
-	ni->i_crtime = current_time(inode);
+	ni->i_crtime = current_time(ianalde);
 
 	rec = ni->mi.mrec;
 	rec->hard_links = cpu_to_le16(1);
@@ -1480,31 +1480,31 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		attr->res.data_off = SIZEOF_RESIDENT_LE;
 	} else if (S_ISREG(mode)) {
 		/*
-		 * Regular file. Create empty non resident data attribute.
+		 * Regular file. Create empty analn resident data attribute.
 		 */
 		attr->type = ATTR_DATA;
-		attr->non_res = 1;
+		attr->analn_res = 1;
 		attr->nres.evcn = cpu_to_le64(-1ll);
 		if (fa & FILE_ATTRIBUTE_SPARSE_FILE) {
-			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
-			attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
+			attr->size = cpu_to_le32(SIZEOF_ANALNRESIDENT_EX + 8);
+			attr->name_off = SIZEOF_ANALNRESIDENT_EX_LE;
 			attr->flags = ATTR_FLAG_SPARSED;
-			asize = SIZEOF_NONRESIDENT_EX + 8;
+			asize = SIZEOF_ANALNRESIDENT_EX + 8;
 		} else if (fa & FILE_ATTRIBUTE_COMPRESSED) {
-			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT_EX + 8);
-			attr->name_off = SIZEOF_NONRESIDENT_EX_LE;
+			attr->size = cpu_to_le32(SIZEOF_ANALNRESIDENT_EX + 8);
+			attr->name_off = SIZEOF_ANALNRESIDENT_EX_LE;
 			attr->flags = ATTR_FLAG_COMPRESSED;
 			attr->nres.c_unit = COMPRESSION_UNIT;
-			asize = SIZEOF_NONRESIDENT_EX + 8;
+			asize = SIZEOF_ANALNRESIDENT_EX + 8;
 		} else {
-			attr->size = cpu_to_le32(SIZEOF_NONRESIDENT + 8);
-			attr->name_off = SIZEOF_NONRESIDENT_LE;
-			asize = SIZEOF_NONRESIDENT + 8;
+			attr->size = cpu_to_le32(SIZEOF_ANALNRESIDENT + 8);
+			attr->name_off = SIZEOF_ANALNRESIDENT_LE;
+			asize = SIZEOF_ANALNRESIDENT + 8;
 		}
 		attr->nres.run_off = attr->name_off;
 	} else {
 		/*
-		 * Node. Create empty resident data attribute.
+		 * Analde. Create empty resident data attribute.
 		 */
 		attr->type = ATTR_DATA;
 		attr->size = cpu_to_le32(SIZEOF_RESIDENT);
@@ -1539,7 +1539,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		attr->type = ATTR_REPARSE;
 		attr->id = cpu_to_le16(aid++);
 
-		/* Resident or non resident? */
+		/* Resident or analn resident? */
 		asize = ALIGN(SIZEOF_RESIDENT + nsize, 8);
 		t16 = PtrOffset(rec, attr);
 
@@ -1552,11 +1552,11 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 			CLST clst = bytes_to_cluster(sbi, nsize);
 
 			/* Bytes per runs. */
-			t16 = sbi->record_size - t16 - SIZEOF_NONRESIDENT;
+			t16 = sbi->record_size - t16 - SIZEOF_ANALNRESIDENT;
 
-			attr->non_res = 1;
+			attr->analn_res = 1;
 			attr->nres.evcn = cpu_to_le64(clst - 1);
-			attr->name_off = SIZEOF_NONRESIDENT_LE;
+			attr->name_off = SIZEOF_ANALNRESIDENT_LE;
 			attr->nres.run_off = attr->name_off;
 			attr->nres.data_size = cpu_to_le64(nsize);
 			attr->nres.valid_size = attr->nres.data_size;
@@ -1570,7 +1570,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 				goto out5;
 
 			err = run_pack(&ni->file.run, 0, clst,
-				       Add2Ptr(attr, SIZEOF_NONRESIDENT), t16,
+				       Add2Ptr(attr, SIZEOF_ANALNRESIDENT), t16,
 				       &vcn);
 			if (err < 0)
 				goto out5;
@@ -1580,8 +1580,8 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 				goto out5;
 			}
 
-			asize = SIZEOF_NONRESIDENT + ALIGN(err, 8);
-			/* Write non resident data. */
+			asize = SIZEOF_ANALNRESIDENT + ALIGN(err, 8);
+			/* Write analn resident data. */
 			err = ntfs_sb_write_run(sbi, &ni->file.run, 0, rp,
 						nsize, 0);
 			if (err)
@@ -1592,7 +1592,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 			memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), rp, nsize);
 		}
 		/* Size of symlink equals the length of input string. */
-		inode->i_size = size;
+		ianalde->i_size = size;
 
 		attr->size = cpu_to_le32(asize);
 
@@ -1610,37 +1610,37 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	rec->used = cpu_to_le32(PtrOffset(rec, attr) + 8);
 	rec->next_attr_id = cpu_to_le16(aid);
 
-	inode->i_generation = le16_to_cpu(rec->seq);
+	ianalde->i_generation = le16_to_cpu(rec->seq);
 
 	if (S_ISDIR(mode)) {
-		inode->i_op = &ntfs_dir_inode_operations;
-		inode->i_fop = &ntfs_dir_operations;
+		ianalde->i_op = &ntfs_dir_ianalde_operations;
+		ianalde->i_fop = &ntfs_dir_operations;
 	} else if (S_ISLNK(mode)) {
-		inode->i_op = &ntfs_link_inode_operations;
-		inode->i_fop = NULL;
-		inode->i_mapping->a_ops = &ntfs_aops;
-		inode->i_size = size;
-		inode_nohighmem(inode);
+		ianalde->i_op = &ntfs_link_ianalde_operations;
+		ianalde->i_fop = NULL;
+		ianalde->i_mapping->a_ops = &ntfs_aops;
+		ianalde->i_size = size;
+		ianalde_analhighmem(ianalde);
 	} else if (S_ISREG(mode)) {
-		inode->i_op = &ntfs_file_inode_operations;
-		inode->i_fop = &ntfs_file_operations;
-		inode->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
+		ianalde->i_op = &ntfs_file_ianalde_operations;
+		ianalde->i_fop = &ntfs_file_operations;
+		ianalde->i_mapping->a_ops = is_compressed(ni) ? &ntfs_aops_cmpr :
 							      &ntfs_aops;
 		init_rwsem(&ni->file.run_lock);
 	} else {
-		inode->i_op = &ntfs_special_inode_operations;
-		init_special_inode(inode, mode, dev);
+		ianalde->i_op = &ntfs_special_ianalde_operations;
+		init_special_ianalde(ianalde, mode, dev);
 	}
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	if (!S_ISLNK(mode) && (sb->s_flags & SB_POSIXACL)) {
-		err = ntfs_init_acl(idmap, inode, dir);
+		err = ntfs_init_acl(idmap, ianalde, dir);
 		if (err)
 			goto out5;
 	} else
 #endif
 	{
-		inode->i_flags |= S_NOSEC;
+		ianalde->i_flags |= S_ANALSEC;
 	}
 
 	/*
@@ -1648,7 +1648,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	 * The packed size of extended attribute is stored in direntry too.
 	 * 'fname' here points to inside new_de.
 	 */
-	ntfs_save_wsl_perm(inode, &fname->dup.ea_size);
+	ntfs_save_wsl_perm(ianalde, &fname->dup.ea_size);
 
 	/*
 	 * update ea_size in file_name attribute too.
@@ -1664,7 +1664,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 			fn->dup.ea_size = fname->dup.ea_size;
 	}
 
-	/* We do not need to update parent directory later */
+	/* We do analt need to update parent directory later */
 	ni->ni_flags &= ~NI_FLAG_UPDATE_PARENT;
 
 	/* Step 2: Add new name in index. */
@@ -1673,22 +1673,22 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		goto out6;
 
 	/*
-	 * Call 'd_instantiate' after inode->i_op is set
+	 * Call 'd_instantiate' after ianalde->i_op is set
 	 * but before finish_open.
 	 */
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, ianalde);
 
-	/* Set original time. inode times (i_ctime) may be changed in ntfs_init_acl. */
-	inode_set_atime_to_ts(inode, ni->i_crtime);
-	inode_set_ctime_to_ts(inode, ni->i_crtime);
-	inode_set_mtime_to_ts(inode, ni->i_crtime);
-	inode_set_mtime_to_ts(dir, ni->i_crtime);
-	inode_set_ctime_to_ts(dir, ni->i_crtime);
+	/* Set original time. ianalde times (i_ctime) may be changed in ntfs_init_acl. */
+	ianalde_set_atime_to_ts(ianalde, ni->i_crtime);
+	ianalde_set_ctime_to_ts(ianalde, ni->i_crtime);
+	ianalde_set_mtime_to_ts(ianalde, ni->i_crtime);
+	ianalde_set_mtime_to_ts(dir, ni->i_crtime);
+	ianalde_set_ctime_to_ts(dir, ni->i_crtime);
 
-	mark_inode_dirty(dir);
-	mark_inode_dirty(inode);
+	mark_ianalde_dirty(dir);
+	mark_ianalde_dirty(ianalde);
 
-	/* Normal exit. */
+	/* Analrmal exit. */
 	goto out2;
 
 out6:
@@ -1701,11 +1701,11 @@ out5:
 
 out4:
 	clear_rec_inuse(rec);
-	clear_nlink(inode);
+	clear_nlink(ianalde);
 	ni->mi.dirty = false;
-	discard_new_inode(inode);
+	discard_new_ianalde(ianalde);
 out3:
-	ntfs_mark_rec_free(sbi, ino, false);
+	ntfs_mark_rec_free(sbi, ianal, false);
 
 out2:
 	__putname(new_de);
@@ -1718,22 +1718,22 @@ out1:
 	if (err)
 		return ERR_PTR(err);
 
-	unlock_new_inode(inode);
+	unlock_new_ianalde(ianalde);
 
-	return inode;
+	return ianalde;
 }
 
-int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
+int ntfs_link_ianalde(struct ianalde *ianalde, struct dentry *dentry)
 {
 	int err;
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
+	struct ntfs_sb_info *sbi = ianalde->i_sb->s_fs_info;
 	struct NTFS_DE *de;
 
 	/* Allocate PATH_MAX bytes. */
 	de = __getname();
 	if (!de)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	/* Mark rw ntfs as dirty. It will be cleared at umount. */
 	ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
@@ -1743,40 +1743,40 @@ int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
 	if (err)
 		goto out;
 
-	err = ni_add_name(ntfs_i(d_inode(dentry->d_parent)), ni, de);
+	err = ni_add_name(ntfs_i(d_ianalde(dentry->d_parent)), ni, de);
 out:
 	__putname(de);
 	return err;
 }
 
 /*
- * ntfs_unlink_inode
+ * ntfs_unlink_ianalde
  *
- * inode_operations::unlink
- * inode_operations::rmdir
+ * ianalde_operations::unlink
+ * ianalde_operations::rmdir
  */
-int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry)
+int ntfs_unlink_ianalde(struct ianalde *dir, const struct dentry *dentry)
 {
 	int err;
 	struct ntfs_sb_info *sbi = dir->i_sb->s_fs_info;
-	struct inode *inode = d_inode(dentry);
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct ntfs_inode *dir_ni = ntfs_i(dir);
+	struct ianalde *ianalde = d_ianalde(dentry);
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
+	struct ntfs_ianalde *dir_ni = ntfs_i(dir);
 	struct NTFS_DE *de, *de2 = NULL;
 	int undo_remove;
 
-	if (ntfs_is_meta_file(sbi, ni->mi.rno))
+	if (ntfs_is_meta_file(sbi, ni->mi.ranal))
 		return -EINVAL;
 
 	/* Allocate PATH_MAX bytes. */
 	de = __getname();
 	if (!de)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	ni_lock(ni);
 
-	if (S_ISDIR(inode->i_mode) && !dir_is_empty(inode)) {
-		err = -ENOTEMPTY;
+	if (S_ISDIR(ianalde->i_mode) && !dir_is_empty(ianalde)) {
+		err = -EANALTEMPTY;
 		goto out;
 	}
 
@@ -1788,19 +1788,19 @@ int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry)
 	err = ni_remove_name(dir_ni, ni, de, &de2, &undo_remove);
 
 	if (!err) {
-		drop_nlink(inode);
-		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-		mark_inode_dirty(dir);
-		inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
-		if (inode->i_nlink)
-			mark_inode_dirty(inode);
+		drop_nlink(ianalde);
+		ianalde_set_mtime_to_ts(dir, ianalde_set_ctime_current(dir));
+		mark_ianalde_dirty(dir);
+		ianalde_set_ctime_to_ts(ianalde, ianalde_get_ctime(dir));
+		if (ianalde->i_nlink)
+			mark_ianalde_dirty(ianalde);
 	} else if (!ni_remove_name_undo(dir_ni, ni, de, de2, undo_remove)) {
-		_ntfs_bad_inode(inode);
+		_ntfs_bad_ianalde(ianalde);
 	} else {
 		if (ni_is_dirty(dir))
-			mark_inode_dirty(dir);
-		if (ni_is_dirty(inode))
-			mark_inode_dirty(inode);
+			mark_ianalde_dirty(dir);
+		if (ni_is_dirty(ianalde))
+			mark_ianalde_dirty(ianalde);
 	}
 
 out:
@@ -1809,14 +1809,14 @@ out:
 	return err;
 }
 
-void ntfs_evict_inode(struct inode *inode)
+void ntfs_evict_ianalde(struct ianalde *ianalde)
 {
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_ianalde_pages_final(&ianalde->i_data);
 
-	invalidate_inode_buffers(inode);
-	clear_inode(inode);
+	invalidate_ianalde_buffers(ianalde);
+	clear_ianalde(ianalde);
 
-	ni_clear(ntfs_i(inode));
+	ni_clear(ntfs_i(ianalde));
 }
 
 /*
@@ -1824,8 +1824,8 @@ void ntfs_evict_inode(struct inode *inode)
  *
  * Translate a Windows junction target to the Linux equivalent.
  * On junctions, targets are always absolute (they include the drive
- * letter). We have no way of knowing if the target is for the current
- * mounted device or not so we just assume it is.
+ * letter). We have anal way of kanalwing if the target is for the current
+ * mounted device or analt so we just assume it is.
  */
 static int ntfs_translate_junction(const struct super_block *sb,
 				   const struct dentry *link_de, char *target,
@@ -1837,9 +1837,9 @@ static int ntfs_translate_junction(const struct super_block *sb,
 	char *target_start;
 	int copy_len;
 
-	link_path_buffer = kmalloc(PATH_MAX, GFP_NOFS);
+	link_path_buffer = kmalloc(PATH_MAX, GFP_ANALFS);
 	if (!link_path_buffer) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 	/* Get link path, relative to mount point */
@@ -1850,9 +1850,9 @@ static int ntfs_translate_junction(const struct super_block *sb,
 		goto out;
 	}
 
-	translated = kmalloc(PATH_MAX, GFP_NOFS);
+	translated = kmalloc(PATH_MAX, GFP_ANALFS);
 	if (!translated) {
-		err = -ENOMEM;
+		err = -EANALMEM;
 		goto out;
 	}
 
@@ -1896,7 +1896,7 @@ static int ntfs_translate_junction(const struct super_block *sb,
 		goto out;
 	}
 
-	/* translated path has a trailing / and target_start does not */
+	/* translated path has a trailing / and target_start does analt */
 	strcpy(translated + tl_len, target_start);
 	tl_len += copy_len;
 	if (target_max <= tl_len) {
@@ -1914,13 +1914,13 @@ out:
 	return err;
 }
 
-static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
-				      struct inode *inode, char *buffer,
+static analinline int ntfs_readlink_hlp(const struct dentry *link_de,
+				      struct ianalde *ianalde, char *buffer,
 				      int buflen)
 {
 	int i, err = -EINVAL;
-	struct ntfs_inode *ni = ntfs_i(inode);
-	struct super_block *sb = inode->i_sb;
+	struct ntfs_ianalde *ni = ntfs_i(ianalde);
+	struct super_block *sb = ianalde->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	u64 size;
 	u16 ulen = 0;
@@ -1939,7 +1939,7 @@ static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
 	if (!attr)
 		goto out;
 
-	if (!attr->non_res) {
+	if (!attr->analn_res) {
 		rp = resident_data_ex(attr, sizeof(struct REPARSE_DATA_BUFFER));
 		if (!rp)
 			goto out;
@@ -1953,9 +1953,9 @@ static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
 		goto out;
 
 	if (!rp) {
-		rp = kmalloc(size, GFP_NOFS);
+		rp = kmalloc(size, GFP_ANALFS);
 		if (!rp) {
-			err = -ENOMEM;
+			err = -EANALMEM;
 			goto out;
 		}
 		to_free = rp;
@@ -2020,7 +2020,7 @@ static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
 
 	default:
 		if (IsReparseTagMicrosoft(rp->ReparseTag)) {
-			/* Unknown Microsoft Tag. */
+			/* Unkanalwn Microsoft Tag. */
 			goto out;
 		}
 		if (!IsReparseTagNameSurrogate(rp->ReparseTag) ||
@@ -2041,7 +2041,7 @@ static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
 	if (!ulen || uname + ulen > (__le16 *)Add2Ptr(rp, size))
 		goto out;
 
-	/* If name is already zero terminated then truncate it now. */
+	/* If name is already zero terminated then truncate it analw. */
 	if (!uname[ulen - 1])
 		ulen -= 1;
 
@@ -2068,7 +2068,7 @@ out:
 	return err;
 }
 
-static const char *ntfs_get_link(struct dentry *de, struct inode *inode,
+static const char *ntfs_get_link(struct dentry *de, struct ianalde *ianalde,
 				 struct delayed_call *done)
 {
 	int err;
@@ -2077,11 +2077,11 @@ static const char *ntfs_get_link(struct dentry *de, struct inode *inode,
 	if (!de)
 		return ERR_PTR(-ECHILD);
 
-	ret = kmalloc(PAGE_SIZE, GFP_NOFS);
+	ret = kmalloc(PAGE_SIZE, GFP_ANALFS);
 	if (!ret)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
-	err = ntfs_readlink_hlp(de, inode, ret, PAGE_SIZE);
+	err = ntfs_readlink_hlp(de, ianalde, ret, PAGE_SIZE);
 	if (err < 0) {
 		kfree(ret);
 		return ERR_PTR(err);
@@ -2093,7 +2093,7 @@ static const char *ntfs_get_link(struct dentry *de, struct inode *inode,
 }
 
 // clang-format off
-const struct inode_operations ntfs_link_inode_operations = {
+const struct ianalde_operations ntfs_link_ianalde_operations = {
 	.get_link	= ntfs_get_link,
 	.setattr	= ntfs3_setattr,
 	.listxattr	= ntfs_listxattr,

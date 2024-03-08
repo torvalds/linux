@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-analte */
 #ifndef _UAPIASM_SCHID_H
 #define _UAPIASM_SCHID_H
 
@@ -12,7 +12,7 @@ struct subchannel_id {
 	__u32 m : 1;
 	__u32 ssid : 2;
 	__u32 one : 1;
-	__u32 sch_no : 16;
+	__u32 sch_anal : 16;
 } __attribute__ ((packed, aligned(4)));
 
 #endif /* __ASSEMBLY__ */

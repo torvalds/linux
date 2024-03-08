@@ -361,16 +361,16 @@ static const char *gmac_phy_input_parents[] = { "gmii_pad_clk", "pll2_clk",
 static const char *gmac_phy_parents[] = { "phy_input_mclk", "phy_syn_gclk", };
 static const char *clcd_synth_parents[] = { "vco1div4_clk", "pll2_clk", };
 static const char *clcd_pixel_parents[] = { "pll5_clk", "clcd_syn_clk", };
-static const char *i2s_src_parents[] = { "vco1div2_clk", "none", "pll3_clk",
+static const char *i2s_src_parents[] = { "vco1div2_clk", "analne", "pll3_clk",
 	"i2s_src_pad_clk", };
 static const char *i2s_ref_parents[] = { "i2s_src_mclk", "i2s_prs1_clk", };
 static const char *gen_synth0_1_parents[] = { "vco1div4_clk", "vco3div2_clk",
 	"pll3_clk", };
 static const char *gen_synth2_3_parents[] = { "vco1div4_clk", "vco3div2_clk",
 	"pll2_clk", };
-static const char *rmii_phy_parents[] = { "ras_tx50_clk", "none",
+static const char *rmii_phy_parents[] = { "ras_tx50_clk", "analne",
 	"ras_pll2_clk", "ras_syn0_clk", };
-static const char *smii_rgmii_phy_parents[] = { "none", "ras_tx125_clk",
+static const char *smii_rgmii_phy_parents[] = { "analne", "ras_tx125_clk",
 	"ras_pll2_clk", "ras_syn0_clk", };
 static const char *uart_parents[] = { "ras_apb_clk", "gen_syn3_clk", };
 static const char *i2c_parents[] = { "ras_apb_clk", "gen_syn1_clk", };
@@ -408,7 +408,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	/* clock derived from 24 or 25 MHz osc clk */
 	/* vco-pll */
 	clk = clk_register_mux(NULL, "vco1_mclk", vco_parents,
-			ARRAY_SIZE(vco_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(vco_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PLL_CFG, SPEAR1310_PLL1_CLK_SHIFT,
 			SPEAR1310_PLL_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "vco1_mclk", NULL);
@@ -419,7 +419,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk1, "pll1_clk", NULL);
 
 	clk = clk_register_mux(NULL, "vco2_mclk", vco_parents,
-			ARRAY_SIZE(vco_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(vco_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PLL_CFG, SPEAR1310_PLL2_CLK_SHIFT,
 			SPEAR1310_PLL_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "vco2_mclk", NULL);
@@ -430,7 +430,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk1, "pll2_clk", NULL);
 
 	clk = clk_register_mux(NULL, "vco3_mclk", vco_parents,
-			ARRAY_SIZE(vco_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(vco_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PLL_CFG, SPEAR1310_PLL3_CLK_SHIFT,
 			SPEAR1310_PLL_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "vco3_mclk", NULL);
@@ -507,7 +507,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	/* gpt clocks */
 	clk = clk_register_mux(NULL, "gpt0_mclk", gpt_parents,
-			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_GPT0_CLK_SHIFT,
 			SPEAR1310_GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt0_mclk", NULL);
@@ -517,7 +517,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "gpt0");
 
 	clk = clk_register_mux(NULL, "gpt1_mclk", gpt_parents,
-			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_GPT1_CLK_SHIFT,
 			SPEAR1310_GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt1_mclk", NULL);
@@ -527,7 +527,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "gpt1");
 
 	clk = clk_register_mux(NULL, "gpt2_mclk", gpt_parents,
-			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_GPT2_CLK_SHIFT,
 			SPEAR1310_GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt2_mclk", NULL);
@@ -537,7 +537,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "gpt2");
 
 	clk = clk_register_mux(NULL, "gpt3_mclk", gpt_parents,
-			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(gpt_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_GPT3_CLK_SHIFT,
 			SPEAR1310_GPT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gpt3_mclk", NULL);
@@ -555,7 +555,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	clk = clk_register_mux(NULL, "uart0_mclk", uart0_parents,
 			ARRAY_SIZE(uart0_parents),
-			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_UART_CLK_SHIFT,
 			SPEAR1310_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart0_mclk", NULL);
@@ -596,7 +596,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	clk = clk_register_mux(NULL, "c3_mclk", c3_parents,
 			ARRAY_SIZE(c3_parents),
-			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_C3_CLK_SHIFT,
 			SPEAR1310_C3_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "c3_mclk", NULL);
@@ -609,7 +609,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	/* gmac */
 	clk = clk_register_mux(NULL, "phy_input_mclk", gmac_phy_input_parents,
 			ARRAY_SIZE(gmac_phy_input_parents),
-			CLK_SET_RATE_NO_REPARENT, SPEAR1310_GMAC_CLK_CFG,
+			CLK_SET_RATE_ANAL_REPARENT, SPEAR1310_GMAC_CLK_CFG,
 			SPEAR1310_GMAC_PHY_INPUT_CLK_SHIFT,
 			SPEAR1310_GMAC_PHY_INPUT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "phy_input_mclk", NULL);
@@ -621,7 +621,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk1, "phy_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "phy_mclk", gmac_phy_parents,
-			ARRAY_SIZE(gmac_phy_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(gmac_phy_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_GMAC_PHY_CLK_SHIFT,
 			SPEAR1310_GMAC_PHY_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "stmmacphy.0", NULL);
@@ -629,7 +629,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	/* clcd */
 	clk = clk_register_mux(NULL, "clcd_syn_mclk", clcd_synth_parents,
 			ARRAY_SIZE(clcd_synth_parents),
-			CLK_SET_RATE_NO_REPARENT, SPEAR1310_CLCD_CLK_SYNT,
+			CLK_SET_RATE_ANAL_REPARENT, SPEAR1310_CLCD_CLK_SYNT,
 			SPEAR1310_CLCD_SYNT_CLK_SHIFT,
 			SPEAR1310_CLCD_SYNT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "clcd_syn_mclk", NULL);
@@ -641,7 +641,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	clk = clk_register_mux(NULL, "clcd_pixel_mclk", clcd_pixel_parents,
 			ARRAY_SIZE(clcd_pixel_parents),
-			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_CLCD_CLK_SHIFT,
 			SPEAR1310_CLCD_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "clcd_pixel_mclk", NULL);
@@ -653,7 +653,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	/* i2s */
 	clk = clk_register_mux(NULL, "i2s_src_mclk", i2s_src_parents,
-			ARRAY_SIZE(i2s_src_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2s_src_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_I2S_CLK_CFG, SPEAR1310_I2S_SRC_CLK_SHIFT,
 			SPEAR1310_I2S_SRC_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2s_src_mclk", NULL);
@@ -665,7 +665,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 
 	clk = clk_register_mux(NULL, "i2s_ref_mclk", i2s_ref_parents,
 			ARRAY_SIZE(i2s_ref_parents),
-			CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+			CLK_SET_RATE_PARENT | CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_I2S_CLK_CFG, SPEAR1310_I2S_REF_SHIFT,
 			SPEAR1310_I2S_REF_SEL_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2s_ref_mclk", NULL);
@@ -804,14 +804,14 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	/* RAS clks */
 	clk = clk_register_mux(NULL, "gen_syn0_1_mclk", gen_synth0_1_parents,
 			ARRAY_SIZE(gen_synth0_1_parents),
-			CLK_SET_RATE_NO_REPARENT, SPEAR1310_PLL_CFG,
+			CLK_SET_RATE_ANAL_REPARENT, SPEAR1310_PLL_CFG,
 			SPEAR1310_RAS_SYNT0_1_CLK_SHIFT,
 			SPEAR1310_RAS_SYNT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gen_syn0_1_clk", NULL);
 
 	clk = clk_register_mux(NULL, "gen_syn2_3_mclk", gen_synth2_3_parents,
 			ARRAY_SIZE(gen_synth2_3_parents),
-			CLK_SET_RATE_NO_REPARENT, SPEAR1310_PLL_CFG,
+			CLK_SET_RATE_ANAL_REPARENT, SPEAR1310_PLL_CFG,
 			SPEAR1310_RAS_SYNT2_3_CLK_SHIFT,
 			SPEAR1310_RAS_SYNT_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "gen_syn2_3_clk", NULL);
@@ -928,7 +928,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk = clk_register_mux(NULL, "smii_rgmii_phy_mclk",
 			smii_rgmii_phy_parents,
 			ARRAY_SIZE(smii_rgmii_phy_parents),
-			CLK_SET_RATE_NO_REPARENT, SPEAR1310_RAS_CTRL_REG1,
+			CLK_SET_RATE_ANAL_REPARENT, SPEAR1310_RAS_CTRL_REG1,
 			SPEAR1310_SMII_RGMII_PHY_CLK_SHIFT,
 			SPEAR1310_PHY_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "stmmacphy.1", NULL);
@@ -936,13 +936,13 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, "stmmacphy.4", NULL);
 
 	clk = clk_register_mux(NULL, "rmii_phy_mclk", rmii_phy_parents,
-			ARRAY_SIZE(rmii_phy_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(rmii_phy_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG1, SPEAR1310_RMII_PHY_CLK_SHIFT,
 			SPEAR1310_PHY_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "stmmacphy.3", NULL);
 
 	clk = clk_register_mux(NULL, "uart1_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_UART1_CLK_SHIFT,
 			SPEAR1310_RAS_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart1_mclk", NULL);
@@ -953,7 +953,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5c800000.serial");
 
 	clk = clk_register_mux(NULL, "uart2_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_UART2_CLK_SHIFT,
 			SPEAR1310_RAS_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart2_mclk", NULL);
@@ -964,7 +964,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5c900000.serial");
 
 	clk = clk_register_mux(NULL, "uart3_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_UART3_CLK_SHIFT,
 			SPEAR1310_RAS_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart3_mclk", NULL);
@@ -975,7 +975,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5ca00000.serial");
 
 	clk = clk_register_mux(NULL, "uart4_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_UART4_CLK_SHIFT,
 			SPEAR1310_RAS_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart4_mclk", NULL);
@@ -986,7 +986,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5cb00000.serial");
 
 	clk = clk_register_mux(NULL, "uart5_mclk", uart_parents,
-			ARRAY_SIZE(uart_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(uart_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_UART5_CLK_SHIFT,
 			SPEAR1310_RAS_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart5_mclk", NULL);
@@ -997,7 +997,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5cc00000.serial");
 
 	clk = clk_register_mux(NULL, "i2c1_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C1_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c1_mclk", NULL);
@@ -1008,7 +1008,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5cd00000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c2_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C2_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c2_mclk", NULL);
@@ -1019,7 +1019,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5ce00000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c3_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C3_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c3_mclk", NULL);
@@ -1030,7 +1030,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5cf00000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c4_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C4_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c4_mclk", NULL);
@@ -1041,7 +1041,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5d000000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c5_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C5_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c5_mclk", NULL);
@@ -1052,7 +1052,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5d100000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c6_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C6_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c6_mclk", NULL);
@@ -1063,7 +1063,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5d200000.i2c");
 
 	clk = clk_register_mux(NULL, "i2c7_mclk", i2c_parents,
-			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(i2c_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_I2C7_CLK_SHIFT,
 			SPEAR1310_I2C_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2c7_mclk", NULL);
@@ -1074,7 +1074,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5d300000.i2c");
 
 	clk = clk_register_mux(NULL, "ssp1_mclk", ssp1_parents,
-			ARRAY_SIZE(ssp1_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(ssp1_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_SSP1_CLK_SHIFT,
 			SPEAR1310_SSP1_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "ssp1_mclk", NULL);
@@ -1085,7 +1085,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "5d400000.spi");
 
 	clk = clk_register_mux(NULL, "pci_mclk", pci_parents,
-			ARRAY_SIZE(pci_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(pci_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_PCI_CLK_SHIFT,
 			SPEAR1310_PCI_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "pci_mclk", NULL);
@@ -1096,7 +1096,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "pci");
 
 	clk = clk_register_mux(NULL, "tdm1_mclk", tdm_parents,
-			ARRAY_SIZE(tdm_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(tdm_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_TDM1_CLK_SHIFT,
 			SPEAR1310_TDM_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "tdm1_mclk", NULL);
@@ -1107,7 +1107,7 @@ void __init spear1310_clk_init(void __iomem *misc_base, void __iomem *ras_base)
 	clk_register_clkdev(clk, NULL, "tdm_hdlc.0");
 
 	clk = clk_register_mux(NULL, "tdm2_mclk", tdm_parents,
-			ARRAY_SIZE(tdm_parents), CLK_SET_RATE_NO_REPARENT,
+			ARRAY_SIZE(tdm_parents), CLK_SET_RATE_ANAL_REPARENT,
 			SPEAR1310_RAS_CTRL_REG0, SPEAR1310_TDM2_CLK_SHIFT,
 			SPEAR1310_TDM_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "tdm2_mclk", NULL);

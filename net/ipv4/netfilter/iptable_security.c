@@ -42,7 +42,7 @@ static int iptable_security_table_init(struct net *net)
 
 	repl = ipt_alloc_initial_table(&security_table);
 	if (repl == NULL)
-		return -ENOMEM;
+		return -EANALMEM;
 	ret = ipt_register_table(net, &security_table, repl, sectbl_ops);
 	kfree(repl);
 	return ret;

@@ -48,7 +48,7 @@
 // Valid states of the Korg 1212 I/O card.
 // ----------------------------------------------------------------------------
 enum CardState {
-   K1212_STATE_NONEXISTENT,		// there is no card here
+   K1212_STATE_ANALNEXISTENT,		// there is anal card here
    K1212_STATE_UNINITIALIZED,		// the card is awaiting DSP download
    K1212_STATE_DSP_IN_PROCESS,		// the card is currently downloading its DSP code
    K1212_STATE_DSP_COMPLETE,		// the card has finished the DSP download
@@ -99,15 +99,15 @@ enum snd_korg1212rc {
    K1212_CMDRET_DIOCFailure,           // the DeviceIoControl call failed
    K1212_CMDRET_PMFailure,             // the protected mode call failed
    K1212_CMDRET_FailUnspecified,       // unspecified failure
-   K1212_CMDRET_FailBadState,          // the specified command can not be given in
+   K1212_CMDRET_FailBadState,          // the specified command can analt be given in
                                        //    the card's current state. (or the wave device's
                                        //    state)
-   K1212_CMDRET_CardUninitialized,     // the card is uninitialized and cannot be used
+   K1212_CMDRET_CardUninitialized,     // the card is uninitialized and cananalt be used
    K1212_CMDRET_BadIndex,              // an out of range card index was specified
    K1212_CMDRET_BadHandle,             // an invalid card handle was specified
-   K1212_CMDRET_NoFillRoutine,         // a play request has been made before a fill routine set
+   K1212_CMDRET_AnalFillRoutine,         // a play request has been made before a fill routine set
    K1212_CMDRET_FillRoutineInUse,      // can't set a new fill routine while one is in use
-   K1212_CMDRET_NoAckFromCard,         // the card never acknowledged a command
+   K1212_CMDRET_AnalAckFromCard,         // the card never ackanalwledged a command
    K1212_CMDRET_BadParams,             // bad parameters were provided by the caller
 
    K1212_CMDRET_BadDevice,             // the specified wave device was out of range
@@ -149,7 +149,7 @@ enum MonitorModeSelector {
 
 #define MAX_COMMAND_RETRIES  5         // maximum number of times the driver will attempt
                                        //    to send a command before giving up.
-#define COMMAND_ACK_MASK     0x8000    // the MSB is set in the command acknowledgment from
+#define COMMAND_ACK_MASK     0x8000    // the MSB is set in the command ackanalwledgment from
                                         //    the card.
 #define DOORBELL_VAL_MASK    0x00FF    // the doorbell value is one byte
 
@@ -242,7 +242,7 @@ enum MonitorModeSelector {
 #define INTERCOMMAND_DELAY  40
 #define STOPCARD_DELAY      300        // max # RTC ticks for the card to stop once we write
                                        //    the command register.  (could be up to 180 us)
-#define COMMAND_ACK_DELAY   13         // number of RTC ticks to wait for an acknowledgement
+#define COMMAND_ACK_DELAY   13         // number of RTC ticks to wait for an ackanalwledgement
                                        //    from the card after sending a command.
 
 enum ClockSourceIndex {
@@ -415,7 +415,7 @@ static const struct pci_device_id snd_korg1212_ids[] = {
 MODULE_DEVICE_TABLE(pci, snd_korg1212_ids);
 
 static const char * const stateName[] = {
-	"Non-existent",
+	"Analn-existent",
 	"Uninitialized",
 	"DSP download in process",
 	"DSP download complete",
@@ -528,7 +528,7 @@ static int snd_korg1212_Send1212Command(struct snd_korg1212 *korg1212,
                 writel(doorbellVal, korg1212->outDoorbellPtr);  // interrupt the card
 
                 // --------------------------------------------------------------
-                // the reboot command will not give an acknowledgement.
+                // the reboot command will analt give an ackanalwledgement.
                 // --------------------------------------------------------------
                 if ( doorbellVal == K1212_DB_RebootCard ||
                 	doorbellVal == K1212_DB_BootFromDSPPage4 ||
@@ -538,7 +538,7 @@ static int snd_korg1212_Send1212Command(struct snd_korg1212 *korg1212,
                 }
 
                 // --------------------------------------------------------------
-                // See if the card acknowledged the command.  Wait a bit, then
+                // See if the card ackanalwledged the command.  Wait a bit, then
                 // read in the low word of mailbox3.  If the MSB is set and the
                 // low byte is equal to the doorbell value, then it ack'd.
                 // --------------------------------------------------------------
@@ -555,8 +555,8 @@ static int snd_korg1212_Send1212Command(struct snd_korg1212 *korg1212,
         korg1212->cmdRetryCount += retryCount;
 
 	if (retryCount >= MAX_COMMAND_RETRIES) {
-		K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: Card <- NoAckFromCard\n");
-        	rc = K1212_CMDRET_NoAckFromCard;
+		K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: Card <- AnalAckFromCard\n");
+        	rc = K1212_CMDRET_AnalAckFromCard;
 	}
 
 	return rc;
@@ -761,7 +761,7 @@ static void snd_korg1212_EnableCardInterrupts(struct snd_korg1212 * korg1212)
 	       korg1212->statusRegPtr);
 }
 
-#if 0 /* not used */
+#if 0 /* analt used */
 
 static int snd_korg1212_SetMonitorMode(struct snd_korg1212 *korg1212,
 				       enum MonitorModeSelector mode)
@@ -799,7 +799,7 @@ static int snd_korg1212_SetMonitorMode(struct snd_korg1212 *korg1212,
         return 1;
 }
 
-#endif /* not used */
+#endif /* analt used */
 
 static inline int snd_korg1212_use_is_exclusive(struct snd_korg1212 *korg1212)
 {
@@ -895,7 +895,7 @@ static int snd_korg1212_WriteADCSensitivity(struct snd_korg1212 *korg1212)
         SetBitInWord(&controlValue, SET_SENS_LOCALINIT_BITPOS);    // init the control value
 
         // ----------------------------------------------------------------------------
-        // make sure the card is not in monitor mode when we do this update.
+        // make sure the card is analt in monitor mode when we do this update.
         // ----------------------------------------------------------------------------
         if (korg1212->cardState == K1212_STATE_MONITOR || korg1212->idleMonitorOn) {
                 monModeSet = 1;
@@ -940,7 +940,7 @@ static int snd_korg1212_WriteADCSensitivity(struct snd_korg1212 *korg1212)
         sensVals.r.v.rightChanVal = korg1212->rightADCInSens;
 
         // ----------------------------------------------------------------------------
-        // now start shifting the bits in.  Start with the left channel then the right.
+        // analw start shifting the bits in.  Start with the left channel then the right.
         // ----------------------------------------------------------------------------
         for (channel = 0; channel < 2; channel++) {
 
@@ -1035,7 +1035,7 @@ static void snd_korg1212_OnDSPDownloadComplete(struct snd_korg1212 *korg1212)
 	msleep(DSP_BOOT_DELAY_IN_MS);
 
         // --------------------------------------------------------------------------------
-        // Let the card know where all the buffers are.
+        // Let the card kanalw where all the buffers are.
         // --------------------------------------------------------------------------------
         rc = snd_korg1212_Send1212Command(korg1212,
                         K1212_DB_ConfigureBufferMemory,
@@ -1103,7 +1103,7 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id)
         doorbellValue = readl(korg1212->inDoorbellPtr);
 
         if (!doorbellValue)
-		return IRQ_NONE;
+		return IRQ_ANALNE;
 
 	spin_lock(&korg1212->lock);
 
@@ -1504,7 +1504,7 @@ static int snd_korg1212_hw_params(struct snd_pcm_substream *substream,
 
 	if ((other_pid > 0) && (this_pid != other_pid)) {
 
-		/* The other stream is open, and not by the same
+		/* The other stream is open, and analt by the same
 		   task as this one. Make sure that the parameters
 		   that matter are the same.
 		 */
@@ -1640,7 +1640,7 @@ static int snd_korg1212_playback_copy(struct snd_pcm_substream *substream,
 }
 
 static int snd_korg1212_playback_silence(struct snd_pcm_substream *substream,
-                           int channel, /* not used (interleaved data) */
+                           int channel, /* analt used (interleaved data) */
                            unsigned long pos,
                            unsigned long count)
 {
@@ -2184,7 +2184,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 						    SNDRV_DMA_TYPE_DEV,
 						    sizeof(struct KorgSharedBuffer));
 	if (!korg1212->dma_shared)
-		return -ENOMEM;
+		return -EANALMEM;
 	korg1212->sharedBufferPtr = (struct KorgSharedBuffer *)korg1212->dma_shared->area;
 	korg1212->sharedBufferPhy = korg1212->dma_shared->addr;
 
@@ -2195,7 +2195,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 	korg1212->dma_play = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
 						  korg1212->DataBufsSize);
 	if (!korg1212->dma_play)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	korg1212->playDataBufsPtr = (struct KorgAudioBuffer *)korg1212->dma_play->area;
 	korg1212->PlayDataPhy = korg1212->dma_play->addr;
@@ -2206,7 +2206,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 	korg1212->dma_rec = snd_devm_alloc_pages(&pci->dev, SNDRV_DMA_TYPE_DEV,
 						 korg1212->DataBufsSize);
 	if (!korg1212->dma_rec)
-		return -ENOMEM;
+		return -EANALMEM;
 
 	korg1212->recordDataBufsPtr = (struct KorgAudioBuffer *)korg1212->dma_rec->area;
 	korg1212->RecDataPhy = korg1212->dma_rec->addr;
@@ -2232,7 +2232,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 
 	err = request_firmware(&dsp_code, "korg/k1212.dsp", &pci->dev);
 	if (err < 0) {
-		snd_printk(KERN_ERR "firmware not available\n");
+		snd_printk(KERN_ERR "firmware analt available\n");
 		return err;
 	}
 
@@ -2240,7 +2240,7 @@ static int snd_korg1212_create(struct snd_card *card, struct pci_dev *pci)
 						 dsp_code->size);
 	if (!korg1212->dma_dsp) {
 		release_firmware(dsp_code);
-		return -ENOMEM;
+		return -EANALMEM;
 	}
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: DSP Code area = 0x%p (0x%08x) %d bytes [%s]\n",
@@ -2315,11 +2315,11 @@ snd_korg1212_probe(struct pci_dev *pci,
 	int err;
 
 	if (dev >= SNDRV_CARDS) {
-		return -ENODEV;
+		return -EANALDEV;
 	}
 	if (!enable[dev]) {
 		dev++;
-		return -ENOENT;
+		return -EANALENT;
 	}
 	err = snd_devm_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
 				sizeof(*korg1212), &card);

@@ -13,11 +13,11 @@
  * This file is distributed in the hope that it will be useful, but
  * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
+ * ANALNINFRINGEMENT.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if analt, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -185,10 +185,10 @@ union cvmx_npei_bist_status {
 		uint64_t cpl_p0:1;
 		uint64_t cpl_p1:1;
 		uint64_t p2n1_po:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_co:1;
 		uint64_t p2n0_po:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_co:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_c1:1;
@@ -230,10 +230,10 @@ union cvmx_npei_bist_status {
 		uint64_t p2n0_c1:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_co:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_po:1;
 		uint64_t p2n1_co:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_po:1;
 		uint64_t cpl_p1:1;
 		uint64_t cpl_p0:1;
@@ -297,10 +297,10 @@ union cvmx_npei_bist_status {
 		uint64_t cpl_p0:1;
 		uint64_t cpl_p1:1;
 		uint64_t p2n1_po:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_co:1;
 		uint64_t p2n0_po:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_co:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_c1:1;
@@ -342,10 +342,10 @@ union cvmx_npei_bist_status {
 		uint64_t p2n0_c1:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_co:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_po:1;
 		uint64_t p2n1_co:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_po:1;
 		uint64_t cpl_p1:1;
 		uint64_t cpl_p0:1;
@@ -407,10 +407,10 @@ union cvmx_npei_bist_status {
 		uint64_t cpl_p0:1;
 		uint64_t cpl_p1:1;
 		uint64_t p2n1_po:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_co:1;
 		uint64_t p2n0_po:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_co:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_c1:1;
@@ -452,10 +452,10 @@ union cvmx_npei_bist_status {
 		uint64_t p2n0_c1:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_co:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_po:1;
 		uint64_t p2n1_co:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_po:1;
 		uint64_t cpl_p1:1;
 		uint64_t cpl_p0:1;
@@ -518,10 +518,10 @@ union cvmx_npei_bist_status {
 		uint64_t cpl_p0:1;
 		uint64_t cpl_p1:1;
 		uint64_t p2n1_po:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_co:1;
 		uint64_t p2n0_po:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_co:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_c1:1;
@@ -563,10 +563,10 @@ union cvmx_npei_bist_status {
 		uint64_t p2n0_c1:1;
 		uint64_t p2n0_c0:1;
 		uint64_t p2n0_co:1;
-		uint64_t p2n0_no:1;
+		uint64_t p2n0_anal:1;
 		uint64_t p2n0_po:1;
 		uint64_t p2n1_co:1;
-		uint64_t p2n1_no:1;
+		uint64_t p2n1_anal:1;
 		uint64_t p2n1_po:1;
 		uint64_t cpl_p1:1;
 		uint64_t cpl_p0:1;

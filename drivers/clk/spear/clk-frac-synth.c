@@ -134,7 +134,7 @@ struct clk *clk_register_frac(const char *name, const char *parent_name,
 
 	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
 	if (!frac)
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(-EANALMEM);
 
 	/* struct clk_frac assignments */
 	frac->reg = reg;

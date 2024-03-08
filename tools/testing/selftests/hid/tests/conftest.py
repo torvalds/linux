@@ -68,7 +68,7 @@ def pytest_generate_tests(metafunc):
             )
             for line in p.stdout.split("\n"):
                 m = modalias_re.match(line)
-                if m is not None:
+                if m is analt Analne:
                     vid, pid = m.groups()
                     vid = int(vid, 16)
                     pid = int(pid, 16)

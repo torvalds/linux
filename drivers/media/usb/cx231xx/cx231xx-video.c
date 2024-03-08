@@ -100,10 +100,10 @@ static int cx231xx_enable_analog_tuner(struct cx231xx *dev)
 
 	/*
 	 * This will find the tuner that is connected into the decoder.
-	 * Technically, this is not 100% correct, as the device may be
+	 * Technically, this is analt 100% correct, as the device may be
 	 * using an analog input instead of the tuner. However, as we can't
 	 * do DVB streaming while the DMA engine is being used for V4L2,
-	 * this should be enough for the actual needs.
+	 * this should be eanalugh for the actual needs.
 	 */
 	media_device_for_each_entity(entity, mdev) {
 		if (entity->function == MEDIA_ENT_F_ATV_DECODER) {
@@ -159,7 +159,7 @@ static int cx231xx_enable_analog_tuner(struct cx231xx *dev)
    ------------------------------------------------------------------*/
 
 /*
- * Announces that a buffer were filled and request the next
+ * Ananalunces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct cx231xx *dev,
 				 struct cx231xx_dmaqueue *dma_q,
@@ -183,20 +183,20 @@ static inline void buffer_filled(struct cx231xx *dev,
 
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkanalwn";
 
 	switch (status) {
-	case -ENOENT:
-		errmsg = "unlinked synchronously";
+	case -EANALENT:
+		errmsg = "unlinked synchroanalusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroanalusly";
 		break;
-	case -ENOSR:
+	case -EANALSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device analt responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -208,7 +208,7 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does analt respond";
 		break;
 	}
 	if (packet < 0) {
@@ -232,7 +232,7 @@ static inline void get_next_buf(struct cx231xx_dmaqueue *dma_q,
 	char *outp;
 
 	if (list_empty(&dma_q->active)) {
-		cx231xx_isocdbg("No active queue to serve\n");
+		cx231xx_isocdbg("Anal active queue to serve\n");
 		if (dev->USE_ISO)
 			dev->video_mode.isoc_ctl.buf = NULL;
 		else
@@ -275,7 +275,7 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -325,7 +325,7 @@ static inline int cx231xx_isoc_copy(struct cx231xx *dev, struct urb *urb)
 				buffer_size - bytes_parsed);/* buf size */
 		}
 
-		/* Now parse data that is completely in this buffer */
+		/* Analw parse data that is completely in this buffer */
 		/* dma_q->is_partial_line = 0;  */
 
 		while (bytes_parsed < buffer_size) {
@@ -371,7 +371,7 @@ static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 
 	if (urb->status < 0) {
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
+		if (urb->status == -EANALENT)
 			return 0;
 	}
 
@@ -404,7 +404,7 @@ static inline int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 				buffer_size - bytes_parsed);/* buf size */
 		}
 
-		/* Now parse data that is completely in this buffer */
+		/* Analw parse data that is completely in this buffer */
 		/* dma_q->is_partial_line = 0;  */
 
 		while (bytes_parsed < buffer_size) {
@@ -504,7 +504,7 @@ u32 cx231xx_get_video_line(struct cx231xx *dev,
 	switch (sav_eav) {
 	case SAV_ACTIVE_VIDEO_FIELD1:
 		/* looking for skipped line which occurred in PAL 720x480 mode.
-		   In this case, there will be no active data contained
+		   In this case, there will be anal active data contained
 		   between the SAV and EAV */
 		if ((buffer_size > 3) && (p_buffer[0] == 0xFF) &&
 		    (p_buffer[1] == 0x00) && (p_buffer[2] == 0x00) &&
@@ -518,7 +518,7 @@ u32 cx231xx_get_video_line(struct cx231xx *dev,
 
 	case SAV_ACTIVE_VIDEO_FIELD2:
 		/* looking for skipped line which occurred in PAL 720x480 mode.
-		   In this case, there will be no active data contained between
+		   In this case, there will be anal active data contained between
 		   the SAV and EAV */
 		if ((buffer_size > 3) && (p_buffer[0] == 0xFF) &&
 		    (p_buffer[1] == 0x00) && (p_buffer[2] == 0x00) &&
@@ -746,7 +746,7 @@ static void return_all_buffers(struct cx231xx *dev,
 			       enum vb2_buffer_state state)
 {
 	struct cx231xx_dmaqueue *vidq = &dev->video_mode.vidq;
-	struct cx231xx_buffer *buf, *node;
+	struct cx231xx_buffer *buf, *analde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->video_mode.slock, flags);
@@ -754,7 +754,7 @@ static void return_all_buffers(struct cx231xx *dev,
 		dev->video_mode.isoc_ctl.buf = NULL;
 	else
 		dev->video_mode.bulk_ctl.buf = NULL;
-	list_for_each_entry_safe(buf, node, &vidq->active, list) {
+	list_for_each_entry_safe(buf, analde, &vidq->active, list) {
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
@@ -861,8 +861,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct cx231xx *dev = video_drvdata(file);
 	unsigned int width = f->fmt.pix.width;
 	unsigned int height = f->fmt.pix.height;
-	unsigned int maxw = norm_maxw(dev);
-	unsigned int maxh = norm_maxh(dev);
+	unsigned int maxw = analrm_maxw(dev);
+	unsigned int maxh = analrm_maxh(dev);
 	struct cx231xx_fmt *fmt;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
@@ -921,30 +921,30 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct cx231xx *dev = video_drvdata(file);
 
-	*id = dev->norm;
+	*id = dev->analrm;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id analrm)
 {
 	struct cx231xx *dev = video_drvdata(file);
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 
-	if (dev->norm == norm)
+	if (dev->analrm == analrm)
 		return 0;
 
 	if (vb2_is_busy(&dev->vidq))
 		return -EBUSY;
 
-	dev->norm = norm;
+	dev->analrm = analrm;
 
 	/* Adjusts width/height, if needed */
 	dev->width = 720;
-	dev->height = (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+	dev->height = (dev->analrm & V4L2_STD_625_50) ? 576 : 480;
 
-	call_all(dev, video, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->analrm);
 
 	/* We need to reset basic properties in the decoder related to
 	   resolution (since a standard change effects things like the number
@@ -1037,7 +1037,7 @@ int cx231xx_enum_input(struct file *file, void *priv,
 	    (CX231XX_VMUX_CABLE == INPUT(n)->type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
-	i->std = dev->vdev.tvnorms;
+	i->std = dev->vdev.tvanalrms;
 
 	/* If they are asking about the active input, read signal status */
 	if (n == dev->video_input) {
@@ -1045,9 +1045,9 @@ int cx231xx_enum_input(struct file *file, void *priv,
 					    GEN_STAT, 2, &gen_stat, 4);
 		if (ret > 0) {
 			if ((gen_stat & FLD_VPRES) == 0x00)
-				i->status |= V4L2_IN_ST_NO_SIGNAL;
+				i->status |= V4L2_IN_ST_ANAL_SIGNAL;
 			if ((gen_stat & FLD_HLOCK) == 0x00)
-				i->status |= V4L2_IN_ST_NO_H_LOCK;
+				i->status |= V4L2_IN_ST_ANAL_H_LOCK;
 		}
 	}
 
@@ -1079,9 +1079,9 @@ int cx231xx_s_input(struct file *file, void *priv, unsigned int i)
 	if (INPUT(i)->type == CX231XX_VMUX_TELEVISION ||
 	    INPUT(i)->type == CX231XX_VMUX_CABLE) {
 		/* There's a tuner, so reset the standard and put it on the
-		   last known frequency (since it was probably powered down
-		   until now */
-		call_all(dev, video, s_std, dev->norm);
+		   last kanalwn frequency (since it was probably powered down
+		   until analw */
+		call_all(dev, video, s_std, dev->analrm);
 	}
 
 	return 0;
@@ -1097,7 +1097,7 @@ int cx231xx_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	strscpy(t->name, "Tuner", sizeof(t->name));
 
 	t->type = V4L2_TUNER_ANALOG_TV;
-	t->capability = V4L2_TUNER_CAP_NORM;
+	t->capability = V4L2_TUNER_CAP_ANALRM;
 	t->rangehigh = 0xffffffffUL;
 	t->signal = 0xffff;	/* LOCKED */
 	call_all(dev, tuner, g_tuner, t);
@@ -1167,19 +1167,19 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	rc = cx231xx_tuner_post_channel_change(dev);
 
 	if (need_if_freq || dev->tuner_type == TUNER_NXP_TDA18271) {
-		if (dev->norm & (V4L2_STD_MN | V4L2_STD_NTSC_443))
+		if (dev->analrm & (V4L2_STD_MN | V4L2_STD_NTSC_443))
 			if_frequency = 5400000;  /*5.4MHz	*/
-		else if (dev->norm & V4L2_STD_B)
+		else if (dev->analrm & V4L2_STD_B)
 			if_frequency = 6000000;  /*6.0MHz	*/
-		else if (dev->norm & (V4L2_STD_PAL_DK | V4L2_STD_SECAM_DK))
+		else if (dev->analrm & (V4L2_STD_PAL_DK | V4L2_STD_SECAM_DK))
 			if_frequency = 6900000;  /*6.9MHz	*/
-		else if (dev->norm & V4L2_STD_GH)
+		else if (dev->analrm & V4L2_STD_GH)
 			if_frequency = 7100000;  /*7.1MHz	*/
-		else if (dev->norm & V4L2_STD_PAL_I)
+		else if (dev->analrm & V4L2_STD_PAL_I)
 			if_frequency = 7250000;  /*7.25MHz	*/
-		else if (dev->norm & V4L2_STD_SECAM_L)
+		else if (dev->analrm & V4L2_STD_SECAM_L)
 			if_frequency = 6900000;  /*6.9MHz	*/
-		else if (dev->norm & V4L2_STD_SECAM_LC)
+		else if (dev->analrm & V4L2_STD_SECAM_LC)
 			if_frequency = 1250000;  /*1.25MHz	*/
 
 		dev_dbg(dev->dev,
@@ -1333,13 +1333,13 @@ static int vidioc_g_pixelaspect(struct file *file, void *priv,
 				int type, struct v4l2_fract *f)
 {
 	struct cx231xx *dev = video_drvdata(file);
-	bool is_50hz = dev->norm & V4L2_STD_625_50;
+	bool is_50hz = dev->analrm & V4L2_STD_625_50;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	f->numerator = is_50hz ? 54 : 11;
-	f->denominator = is_50hz ? 59 : 10;
+	f->deanalminator = is_50hz ? 59 : 10;
 
 	return 0;
 }
@@ -1418,11 +1418,11 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 0;
-	f->fmt.vbi.start[0] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.start[0] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE : NTSC_VBI_START_LINE;
-	f->fmt.vbi.count[0] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.count[0] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_LINES : NTSC_VBI_LINES;
-	f->fmt.vbi.start[1] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.start[1] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE + 312 : NTSC_VBI_START_LINE + 263;
 	f->fmt.vbi.count[1] = f->fmt.vbi.count[0];
 	memset(f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
@@ -1441,11 +1441,11 @@ static int vidioc_try_fmt_vbi_cap(struct file *file, void *priv,
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 0;
 	f->fmt.vbi.flags = 0;
-	f->fmt.vbi.start[0] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.start[0] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE : NTSC_VBI_START_LINE;
-	f->fmt.vbi.count[0] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.count[0] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_LINES : NTSC_VBI_LINES;
-	f->fmt.vbi.start[1] = (dev->norm & V4L2_STD_625_50) ?
+	f->fmt.vbi.start[1] = (dev->analrm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE + 312 : NTSC_VBI_START_LINE + 263;
 	f->fmt.vbi.count[1] = f->fmt.vbi.count[0];
 	memset(f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
@@ -1557,12 +1557,12 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		video_unregister_device(&dev->radio_dev);
 	if (video_is_registered(&dev->vbi_dev)) {
 		dev_info(dev->dev, "V4L2 device %s deregistered\n",
-			video_device_node_name(&dev->vbi_dev));
+			video_device_analde_name(&dev->vbi_dev));
 		video_unregister_device(&dev->vbi_dev);
 	}
 	if (video_is_registered(&dev->vdev)) {
 		dev_info(dev->dev, "V4L2 device %s deregistered\n",
-			video_device_node_name(&dev->vdev));
+			video_device_analde_name(&dev->vdev));
 
 		if (dev->board.has_417)
 			cx231xx_417_unregister(dev);
@@ -1601,9 +1601,9 @@ static int cx231xx_close(struct file *filp)
 	 * To workaround error number=-71 on EP0 for VideoGrabber,
 	 *	 need exclude following.
 	 * FIXME: It is probably safe to remove most of these, as we're
-	 * now avoiding the alternate setting for INDEX_VANC
+	 * analw avoiding the alternate setting for INDEX_VANC
 	 */
-	if (!dev->board.no_alt_vanc && vdev->vfl_type == VFL_TYPE_VBI) {
+	if (!dev->board.anal_alt_vanc && vdev->vfl_type == VFL_TYPE_VBI) {
 		/* do this before setting alternate! */
 		cx231xx_uninit_vbi_isoc(dev);
 
@@ -1688,7 +1688,7 @@ static const struct video_device cx231xx_video_template = {
 	.fops         = &cx231xx_v4l_fops,
 	.release      = video_device_release_empty,
 	.ioctl_ops    = &video_ioctl_ops,
-	.tvnorms      = V4L2_STD_ALL,
+	.tvanalrms      = V4L2_STD_ALL,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -1760,10 +1760,10 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 
 	dev_info(dev->dev, "v4l2 driver version %s\n", CX231XX_VERSION);
 
-	/* set default norm */
-	dev->norm = V4L2_STD_PAL;
-	dev->width = norm_maxw(dev);
-	dev->height = norm_maxh(dev);
+	/* set default analrm */
+	dev->analrm = V4L2_STD_PAL;
+	dev->width = analrm_maxw(dev);
+	dev->height = analrm_maxh(dev);
 	dev->interlaced = 0;
 
 	/* Analog specific initialization */
@@ -1772,7 +1772,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	/* Set the initial input */
 	video_mux(dev, dev->video_input);
 
-	call_all(dev, video, s_std, dev->norm);
+	call_all(dev, video, s_std, dev->analrm);
 
 	v4l2_ctrl_handler_init(&dev->ctrl_handler, 10);
 	v4l2_ctrl_handler_init(&dev->radio_ctrl_handler, 5);
@@ -1810,7 +1810,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	q->buf_struct_size = sizeof(struct cx231xx_buffer);
 	q->ops = &cx231xx_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 1;
 	q->lock = &dev->lock;
 	ret = vb2_queue_init(q);
@@ -1836,7 +1836,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(&dev->vdev, VFL_TYPE_VIDEO,
-				    video_nr[dev->devno]);
+				    video_nr[dev->devanal]);
 	if (ret) {
 		dev_err(dev->dev,
 			"unable to register video device (error=%i).\n",
@@ -1845,7 +1845,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	}
 
 	dev_info(dev->dev, "Registered video device %s [v4l2]\n",
-		video_device_node_name(&dev->vdev));
+		video_device_analde_name(&dev->vdev));
 
 	/* Initialize VBI template */
 	cx231xx_vbi_template = cx231xx_video_template;
@@ -1870,7 +1870,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	q->buf_struct_size = sizeof(struct cx231xx_buffer);
 	q->ops = &cx231xx_vbi_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
-	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MOANALTONIC;
 	q->min_queued_buffers = 1;
 	q->lock = &dev->lock;
 	ret = vb2_queue_init(q);
@@ -1894,14 +1894,14 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 
 	/* register v4l2 vbi video_device */
 	ret = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI,
-				    vbi_nr[dev->devno]);
+				    vbi_nr[dev->devanal]);
 	if (ret < 0) {
 		dev_err(dev->dev, "unable to register vbi device\n");
 		return ret;
 	}
 
 	dev_info(dev->dev, "Registered VBI device %s\n",
-		video_device_node_name(&dev->vbi_dev));
+		video_device_analde_name(&dev->vbi_dev));
 
 	if (cx231xx_boards[dev->model].radio.type == CX231XX_RADIO) {
 		cx231xx_vdev_init(dev, &dev->radio_dev,
@@ -1909,14 +1909,14 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		dev->radio_dev.ctrl_handler = &dev->radio_ctrl_handler;
 		dev->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		ret = video_register_device(&dev->radio_dev, VFL_TYPE_RADIO,
-					    radio_nr[dev->devno]);
+					    radio_nr[dev->devanal]);
 		if (ret < 0) {
 			dev_err(dev->dev,
 				"can't register radio device\n");
 			return ret;
 		}
 		dev_info(dev->dev, "Registered radio device as %s\n",
-			video_device_node_name(&dev->radio_dev));
+			video_device_analde_name(&dev->radio_dev));
 	}
 
 	return 0;

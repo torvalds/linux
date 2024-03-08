@@ -8,12 +8,12 @@ Atomic types
 
 .. raw:: latex
 
-    \footnotesize
+    \footanaltesize
 
 .. include:: ../../atomic_t.txt
    :literal:
 
 .. raw:: latex
 
-    \normalsize
+    \analrmalsize
 

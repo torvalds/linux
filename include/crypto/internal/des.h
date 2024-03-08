@@ -17,7 +17,7 @@
  * @tfm: the crypto algo
  * @key: the key buffer
  *
- * Returns -EINVAL if the key is weak and the crypto TFM does not permit weak
+ * Returns -EINVAL if the key is weak and the crypto TFM does analt permit weak
  * keys. Otherwise, 0 is returned.
  *
  * It is the job of the caller to ensure that the size of the key equals
@@ -29,7 +29,7 @@ static inline int crypto_des_verify_key(struct crypto_tfm *tfm, const u8 *key)
 	int err;
 
 	err = des_expand_key(&tmp, key, DES_KEY_SIZE);
-	if (err == -ENOKEY) {
+	if (err == -EANALKEY) {
 		if (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)
 			err = -EINVAL;
 		else
@@ -42,7 +42,7 @@ static inline int crypto_des_verify_key(struct crypto_tfm *tfm, const u8 *key)
 /*
  * RFC2451:
  *
- *   For DES-EDE3, there is no known need to reject weak or
+ *   For DES-EDE3, there is anal kanalwn need to reject weak or
  *   complementation keys.  Any weakness is obviated by the use of
  *   multiple keys.
  *
@@ -55,7 +55,7 @@ static inline int crypto_des_verify_key(struct crypto_tfm *tfm, const u8 *key)
 static inline int des3_ede_verify_key(const u8 *key, unsigned int key_len,
 				      bool check_weak)
 {
-	int ret = fips_enabled ? -EINVAL : -ENOKEY;
+	int ret = fips_enabled ? -EINVAL : -EANALKEY;
 	u32 K[6];
 
 	memcpy(K, key, DES3_EDE_KEY_SIZE);
@@ -80,8 +80,8 @@ bad:
  * @tfm: the crypto algo
  * @key: the key buffer
  *
- * Returns -EINVAL if the key is weak and the crypto TFM does not permit weak
- * keys or when running in FIPS mode. Otherwise, 0 is returned. Note that some
+ * Returns -EINVAL if the key is weak and the crypto TFM does analt permit weak
+ * keys or when running in FIPS mode. Otherwise, 0 is returned. Analte that some
  * keys are rejected in FIPS mode even if weak keys are permitted by the TFM
  * flags.
  *

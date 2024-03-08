@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* Copyright (c) 2023 Imagination Techanallogies Ltd. */
 
 #ifndef PVR_GEM_H
 #define PVR_GEM_H
@@ -40,22 +40,22 @@ struct pvr_file;
  * To avoid potentially confusing gaps in the UAPI options, these kernel-only
  * options are specified "in reverse", starting at bit 63.
  *
- * We use "reserved" to refer to bits defined here and not exposed in the UAPI.
- * Bits not defined anywhere are "undefined".
+ * We use "reserved" to refer to bits defined here and analt exposed in the UAPI.
+ * Bits analt defined anywhere are "undefined".
  *
  * CPU mapping options
  *    :PVR_BO_CPU_CACHED: By default, all GEM objects are mapped write-combined on the CPU. Set this
  *       flag to override this behaviour and map the object cached.
  *
  * Firmware options
- *    :PVR_BO_FW_NO_CLEAR_ON_RESET: By default, all FW objects are cleared and reinitialised on hard
+ *    :PVR_BO_FW_ANAL_CLEAR_ON_RESET: By default, all FW objects are cleared and reinitialised on hard
  *       reset. Set this flag to override this behaviour and preserve buffer contents on reset.
  */
 #define PVR_BO_CPU_CACHED BIT_ULL(63)
 
-#define PVR_BO_FW_NO_CLEAR_ON_RESET BIT_ULL(62)
+#define PVR_BO_FW_ANAL_CLEAR_ON_RESET BIT_ULL(62)
 
-#define PVR_BO_KERNEL_FLAGS_MASK (PVR_BO_CPU_CACHED | PVR_BO_FW_NO_CLEAR_ON_RESET)
+#define PVR_BO_KERNEL_FLAGS_MASK (PVR_BO_CPU_CACHED | PVR_BO_FW_ANAL_CLEAR_ON_RESET)
 
 /* Bits 61..3 are undefined. */
 /* Bits 2..0 are defined in the UAPI. */
@@ -82,7 +82,7 @@ struct pvr_gem_object {
 	/**
 	 * @base: The underlying &struct drm_gem_shmem_object.
 	 *
-	 * Do not access this member directly, instead call
+	 * Do analt access this member directly, instead call
 	 * shem_gem_from_pvr_gem().
 	 */
 	struct drm_gem_shmem_object base;
@@ -96,9 +96,9 @@ struct pvr_gem_object {
 	 *
 	 * Must be a combination of DRM_PVR_BO_* and/or PVR_BO_* flags.
 	 *
-	 * .. note::
+	 * .. analte::
 	 *
-	 *    This member is declared const to indicate that none of these
+	 *    This member is declared const to indicate that analne of these
 	 *    options may change or be changed throughout the object's
 	 *    lifetime.
 	 */
@@ -107,7 +107,7 @@ struct pvr_gem_object {
 };
 
 static_assert(offsetof(struct pvr_gem_object, base) == 0,
-	      "offsetof(struct pvr_gem_object, base) not zero");
+	      "offsetof(struct pvr_gem_object, base) analt zero");
 
 #define shmem_gem_from_pvr_gem(pvr_obj) (&(pvr_obj)->base)
 

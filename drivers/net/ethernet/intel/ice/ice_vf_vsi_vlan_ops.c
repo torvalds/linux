@@ -9,14 +9,14 @@
 #include "ice_sriov.h"
 
 static int
-noop_vlan_arg(struct ice_vsi __always_unused *vsi,
+analop_vlan_arg(struct ice_vsi __always_unused *vsi,
 	      struct ice_vlan __always_unused *vlan)
 {
 	return 0;
 }
 
 static int
-noop_vlan(struct ice_vsi __always_unused *vsi)
+analop_vlan(struct ice_vsi __always_unused *vsi)
 {
 	return 0;
 }
@@ -35,8 +35,8 @@ static void ice_port_vlan_on(struct ice_vsi *vsi)
 
 		/* setup inner VLAN ops */
 		vlan_ops = &vsi->inner_vlan_ops;
-		vlan_ops->add_vlan = noop_vlan_arg;
-		vlan_ops->del_vlan = noop_vlan_arg;
+		vlan_ops->add_vlan = analop_vlan_arg;
+		vlan_ops->del_vlan = analop_vlan_arg;
 		vlan_ops->ena_stripping = ice_vsi_ena_inner_stripping;
 		vlan_ops->dis_stripping = ice_vsi_dis_inner_stripping;
 		vlan_ops->ena_insertion = ice_vsi_ena_inner_insertion;
@@ -51,7 +51,7 @@ static void ice_port_vlan_on(struct ice_vsi *vsi)
 	/* all Rx traffic should be in the domain of the assigned port VLAN,
 	 * so prevent disabling Rx VLAN filtering
 	 */
-	vlan_ops->dis_rx_filtering = noop_vlan;
+	vlan_ops->dis_rx_filtering = analop_vlan;
 
 	vlan_ops->ena_rx_filtering = ice_vsi_ena_rx_vlan_filtering;
 }
@@ -84,7 +84,7 @@ static void ice_port_vlan_off(struct ice_vsi *vsi)
 	vlan_ops->dis_rx_filtering = ice_vsi_dis_rx_vlan_filtering;
 
 	if (!test_bit(ICE_FLAG_VF_VLAN_PRUNING, pf->flags))
-		vlan_ops->ena_rx_filtering = noop_vlan;
+		vlan_ops->ena_rx_filtering = analop_vlan;
 	else
 		vlan_ops->ena_rx_filtering =
 			ice_vsi_ena_rx_vlan_filtering;
@@ -156,13 +156,13 @@ void ice_vf_vsi_init_vlan_ops(struct ice_vsi *vsi)
  * @vsi: VF's VSI being configured
  *
  * This should only be called when Double VLAN Mode (DVM) is enabled, there
- * is not a port VLAN enabled on this VF, and the VF negotiates
+ * is analt a port VLAN enabled on this VF, and the VF negotiates
  * VIRTCHNL_VF_OFFLOAD_VLAN.
  *
  * This function sets up the VF VSI's inner and outer ice_vsi_vlan_ops and also
- * initializes software only VLAN mode (i.e. allow all VLANs). Also, use no-op
+ * initializes software only VLAN mode (i.e. allow all VLANs). Also, use anal-op
  * implementations for any functions that may be called during the lifetime of
- * the VF so these methods do nothing and succeed.
+ * the VF so these methods do analthing and succeed.
  */
 void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
 {
@@ -186,7 +186,7 @@ void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
 	 */
 	vlan_ops->dis_rx_filtering = ice_vsi_dis_rx_vlan_filtering;
 	/* Don't fail when attempting to enable Rx VLAN filtering */
-	vlan_ops->ena_rx_filtering = noop_vlan;
+	vlan_ops->ena_rx_filtering = analop_vlan;
 
 	/* Tx VLAN filtering always disabled to allow software offloaded VLANs
 	 * for VFs that only support VIRTCHNL_VF_OFFLOAD_VLAN and don't have a
@@ -194,7 +194,7 @@ void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
 	 */
 	vlan_ops->dis_tx_filtering = ice_vsi_dis_tx_vlan_filtering;
 	/* Don't fail when attempting to enable Tx VLAN filtering */
-	vlan_ops->ena_tx_filtering = noop_vlan;
+	vlan_ops->ena_tx_filtering = analop_vlan;
 
 	if (vlan_ops->dis_rx_filtering(vsi))
 		dev_dbg(dev, "Failed to disable Rx VLAN filtering for old VF without VIRTCHNL_VF_OFFLOAD_VLAN_V2 support\n");
@@ -229,10 +229,10 @@ void ice_vf_vsi_cfg_dvm_legacy_vlan_mode(struct ice_vsi *vsi)
  * @vsi: VF's VSI being configured
  *
  * This should only be called when Single VLAN Mode (SVM) is enabled, there is
- * not a port VLAN enabled on this VF, and the VF negotiates
+ * analt a port VLAN enabled on this VF, and the VF negotiates
  * VIRTCHNL_VF_OFFLOAD_VLAN.
  *
- * All of the normal SVM VLAN ops are identical for this case. However, by
+ * All of the analrmal SVM VLAN ops are identical for this case. However, by
  * default Rx VLAN filtering should be turned off by default in this case.
  */
 void ice_vf_vsi_cfg_svm_legacy_vlan_mode(struct ice_vsi *vsi)
